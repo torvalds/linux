@@ -1,0 +1,122 @@
+
+The following instructions apply if you have a Linux or FreeBSD platform and
+want libpcap to support the DAG range of passive network monitoring cards from
+Endace (http://www.endace.com, see below for further contact details).
+
+1) Install and build the DAG software distribution by following the
+instructions supplied with that package. Current Endace customers can download
+the DAG software distibution from https://www.endace.com
+
+2) Configure libcap. To allow the 'configure' script to locate the DAG
+software distribution use the '--with-dag' option:
+
+        ./configure --with-dag=DIR
+
+Where DIR is the root of the DAG software distribution, for example
+/var/src/dag. If the DAG software is correctly detected 'configure' will
+report:
+
+        checking whether we have DAG API... yes
+
+If 'configure' reports that there is no DAG API, the directory may have been
+incorrectly specified or the DAG software was not built before configuring
+libpcap.
+
+See also the libpcap INSTALL.txt file for further libpcap configuration
+options.
+
+Building libpcap at this stage will include support for both the native packet
+capture stream (linux or bpf) and for capturing from DAG cards. To build
+libpcap with only DAG support specify the capture type as 'dag' when
+configuring libpcap:
+
+        ./configure --with-dag=DIR --with-pcap=dag
+
+Applications built with libpcap configured in this way will only detect DAG
+cards and will not capture from the native OS packet stream.
+
+----------------------------------------------------------------------
+
+Libpcap when built for DAG cards against dag-2.5.1 or later releases:
+
+Timeouts are supported. pcap_dispatch() will return after to_ms milliseconds
+regardless of how many packets are received. If to_ms is zero pcap_dispatch()
+will block waiting for data indefinitely.
+
+pcap_dispatch() will block on and process a minimum of 64kB of data (before
+filtering) for efficiency. This can introduce high latencies on quiet
+interfaces unless a timeout value is set. The timeout expiring will override
+the 64kB minimum causing pcap_dispatch() to process any available data and
+return.
+
+pcap_setnonblock is supported. When nonblock is set, pcap_dispatch() will
+check once for available data, process any data available up to count, then
+return immediately.
+
+pcap_findalldevs() is supported, e.g. dag0, dag1...
+
+Some DAG cards can provide more than one 'stream' of received data.
+This can be data from different physical ports, or separated by filtering
+or load balancing mechanisms. Receive streams have even numbers, e.g.
+dag0:0, dag0:2 etc. Specifying transmit streams for capture is not supported.
+
+pcap_setfilter() is supported, BPF programs run in userspace.
+
+pcap_setdirection() is not supported. Only received traffic is captured.
+DAG cards normally do not have IP or link layer addresses assigned as
+they are used to passively monitor links.
+
+pcap_breakloop() is supported.
+
+pcap_datalink() and pcap_list_datalinks() are supported. The DAG card does
+not attempt to set the correct datalink type automatically where more than
+one type is possible.
+
+pcap_stats() is supported. ps_drop is the number of packets dropped due to
+RX stream buffer overflow, this count is before filters are applied (it will
+include packets that would have been dropped by the filter). The RX stream
+buffer size is user configurable outside libpcap, typically 16-512MB.
+
+pcap_get_selectable_fd() is not supported, as DAG cards do not support
+poll/select methods.
+
+pcap_inject() and pcap_sendpacket() are not supported.
+
+Some DAG cards now support capturing to multiple virtual interfaces, called
+streams. Capture streams have even numbers. These are available via libpcap
+as separate interfaces, e.g. dag0:0, dag0:2, dag0:4 etc. dag0:0 is the same
+as dag0. These are visible via pcap_findalldevs().
+
+libpcap now does NOT set the card's hardware snaplen (slen). This must now be
+set using the appropriate DAG coniguration program, e.g. dagthree, dagfour,
+dagsix, dagconfig. This is because the snaplen is currently shared between
+all of the streams. In future this may change if per-stream slen is
+implemented.
+
+DAG cards by default capture entire packets including the L2
+CRC/FCS. If the card is not configured to discard the CRC/FCS, this
+can confuse applications that use libpcap if they're not prepared for
+packets to have an FCS.
+
+Libpcap now reads the environment variable ERF_FCS_BITS to determine
+how many bits of CRC/FCS to strip from the end of the captured
+frame. This defaults to 32 for use with Ethernet. If the card is
+configured to strip the CRC/FCS, then set ERF_FCS_BITS=0. If used with
+a HDLC/PoS/PPP/Frame Relay link with 16 bit CRC/FCS, then set
+ERF_FCS_BITS=16.
+
+If you wish to create a pcap file that DOES contain the Ethernet FCS,
+specify the environment variable ERF_DONT_STRIP_FCS. This will cause
+the existing FCS to be captured into the pcap file. Note some
+applications may incorrectly report capture errors or oversize packets
+when reading these files.
+
+----------------------------------------------------------------------
+
+Please submit bug reports via <support@endace.com>.
+
+Please also visit our Web site at:
+
+        http://www.endace.com/
+
+For more information about Endace DAG cards contact <sales@endace.com>.

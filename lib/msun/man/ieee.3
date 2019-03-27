@@ -1,0 +1,446 @@
+.\" Copyright (c) 1985 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)ieee.3	6.4 (Berkeley) 5/6/91
+.\" $FreeBSD$
+.\"
+.Dd January 26, 2005
+.Dt IEEE 3
+.Os
+.Sh NAME
+.Nm ieee
+.Nd IEEE standard 754 for floating-point arithmetic
+.Sh DESCRIPTION
+The IEEE Standard 754 for Binary Floating-Point Arithmetic
+defines representations of floating-point numbers and abstract
+properties of arithmetic operations relating to precision,
+rounding, and exceptional cases, as described below.
+.Ss IEEE STANDARD 754 Floating-Point Arithmetic
+Radix: Binary.
+.Pp
+Overflow and underflow:
+.Bd -ragged -offset indent -compact
+Overflow goes by default to a signed \*(If.
+Underflow is
+.Em gradual .
+.Ed
+.Pp
+Zero is represented ambiguously as +0 or \-0.
+.Bd -ragged -offset indent -compact
+Its sign transforms correctly through multiplication or
+division, and is preserved by addition of zeros
+with like signs; but x\-x yields +0 for every
+finite x.
+The only operations that reveal zero's
+sign are division by zero and
+.Fn copysign x \(+-0 .
+In particular, comparison (x > y, x \(>= y, etc.)\&
+cannot be affected by the sign of zero; but if
+finite x = y then \*(If = 1/(x\-y) \(!= \-1/(y\-x) = \-\*(If.
+.Ed
+.Pp
+Infinity is signed.
+.Bd -ragged -offset indent -compact
+It persists when added to itself
+or to any finite number.
+Its sign transforms
+correctly through multiplication and division, and
+(finite)/\(+-\*(If\0=\0\(+-0
+(nonzero)/0 = \(+-\*(If.
+But
+\*(If\-\*(If, \*(If\(**0 and \*(If/\*(If
+are, like 0/0 and sqrt(\-3),
+invalid operations that produce \*(Na. ...
+.Ed
+.Pp
+Reserved operands (\*(Nas):
+.Bd -ragged -offset indent -compact
+An \*(Na is
+.Em ( N Ns ot Em a N Ns umber ) .
+Some \*(Nas, called Signaling \*(Nas, trap any floating-point operation
+performed upon them; they are used to mark missing
+or uninitialized values, or nonexistent elements
+of arrays.
+The rest are Quiet \*(Nas; they are
+the default results of Invalid Operations, and
+propagate through subsequent arithmetic operations.
+If x \(!= x then x is \*(Na; every other predicate
+(x > y, x = y, x < y, ...) is FALSE if \*(Na is involved.
+.Ed
+.Pp
+Rounding:
+.Bd -ragged -offset indent -compact
+Every algebraic operation (+, \-, \(**, /,
+\(sr)
+is rounded by default to within half an
+.Em ulp ,
+and when the rounding error is exactly half an
+.Em ulp
+then
+the rounded value's least significant bit is zero.
+(An
+.Em ulp
+is one
+.Em U Ns nit
+in the
+.Em L Ns ast
+.Em P Ns lace . )
+This kind of rounding is usually the best kind,
+sometimes provably so; for instance, for every
+x = 1.0, 2.0, 3.0, 4.0, ..., 2.0**52, we find
+(x/3.0)\(**3.0 == x and (x/10.0)\(**10.0 == x and ...
+despite that both the quotients and the products
+have been rounded.
+Only rounding like IEEE 754 can do that.
+But no single kind of rounding can be
+proved best for every circumstance, so IEEE 754
+provides rounding towards zero or towards
++\*(If or towards \-\*(If
+at the programmer's option.
+.Ed
+.Pp
+Exceptions:
+.Bd -ragged -offset indent -compact
+IEEE 754 recognizes five kinds of floating-point exceptions,
+listed below in declining order of probable importance.
+.Bl -column -offset indent "Invalid Operation" "Gradual Underflow"
+.Em "Exception	Default Result"
+Invalid Operation	\*(Na, or FALSE
+Overflow	\(+-\*(If
+Divide by Zero	\(+-\*(If
+Underflow	Gradual Underflow
+Inexact	Rounded value
+.El
+.Pp
+NOTE: An Exception is not an Error unless handled
+badly.
+What makes a class of exceptions exceptional
+is that no single default response can be satisfactory
+in every instance.
+On the other hand, if a default
+response will serve most instances satisfactorily,
+the unsatisfactory instances cannot justify aborting
+computation every time the exception occurs.
+.Ed
+.Ss Data Formats
+Single-precision:
+.Bd -ragged -offset indent -compact
+Type name:
+.Vt float
+.Pp
+Wordsize: 32 bits.
+.Pp
+Precision: 24 significant bits,
+roughly like 7 significant decimals.
+.Pp
+If x and x' are consecutive positive single-precision
+numbers (they differ by 1
+.Em ulp ) ,
+then
+.Bl -column "XXX" -compact
+5.9e\-08 < 0.5**24 < (x'\-x)/x \(<= 0.5**23 < 1.2e\-07.
+.El
+.Pp
+.Bl -column "XXX" -compact
+Range:	Overflow threshold  = 2.0**128 = 3.4e38
+	Underflow threshold = 0.5**126 = 1.2e\-38
+.El
+.Pp
+Underflowed results round to the nearest
+integer multiple of
+.Bl -column "XXX" -compact
+0.5**149 = 1.4e\-45.
+.El
+.Ed
+.Pp
+Double-precision:
+.Bd -ragged -offset indent -compact
+Type name:
+.Vt double
+.Po On some architectures,
+.Vt long double
+is the same as
+.Vt double
+.Pc
+.Pp
+Wordsize: 64 bits.
+.Pp
+Precision: 53 significant bits,
+roughly like 16 significant decimals.
+.Pp
+If x and x' are consecutive positive double-precision
+numbers (they differ by 1
+.Em ulp ) ,
+then
+.Bl -column "XXX" -compact
+1.1e\-16 < 0.5**53 < (x'\-x)/x \(<= 0.5**52 < 2.3e\-16.
+.El
+.Pp
+.Bl -column "XXX" -compact
+Range:	Overflow threshold  = 2.0**1024 = 1.8e308
+	Underflow threshold = 0.5**1022 = 2.2e\-308
+.El
+.Pp
+Underflowed results round to the nearest
+integer multiple of
+.Bl -column "XXX" -compact
+0.5**1074 = 4.9e\-324.
+.El
+.Ed
+.Pp
+Extended-precision:
+.Bd -ragged -offset indent -compact
+Type name:
+.Vt long double
+(when supported by the hardware)
+.Pp
+Wordsize: 96 bits.
+.Pp
+Precision: 64 significant bits,
+roughly like 19 significant decimals.
+.Pp
+If x and x' are consecutive positive extended-precision
+numbers (they differ by 1
+.Em ulp ) ,
+then
+.Bl -column "XXX" -compact
+1.0e\-19 < 0.5**63 < (x'\-x)/x \(<= 0.5**62 < 2.2e\-19.
+.El
+.Pp
+.Bl -column "XXX" -compact
+Range:	Overflow threshold  = 2.0**16384 = 1.2e4932
+	Underflow threshold = 0.5**16382 = 3.4e\-4932
+.El
+.Pp
+Underflowed results round to the nearest
+integer multiple of
+.Bl -column "XXX" -compact
+0.5**16445 = 5.7e\-4953.
+.El
+.Ed
+.Pp
+Quad-extended-precision:
+.Bd -ragged -offset indent -compact
+Type name:
+.Vt long double
+(when supported by the hardware)
+.Pp
+Wordsize: 128 bits.
+.Pp
+Precision: 113 significant bits,
+roughly like 34 significant decimals.
+.Pp
+If x and x' are consecutive positive quad-extended-precision
+numbers (they differ by 1
+.Em ulp ) ,
+then
+.Bl -column "XXX" -compact
+9.6e\-35 < 0.5**113 < (x'\-x)/x \(<= 0.5**112 < 2.0e\-34.
+.El
+.Pp
+.Bl -column "XXX" -compact
+Range:	Overflow threshold  = 2.0**16384 = 1.2e4932
+	Underflow threshold = 0.5**16382 = 3.4e\-4932
+.El
+.Pp
+Underflowed results round to the nearest
+integer multiple of
+.Bl -column "XXX" -compact
+0.5**16494 = 6.5e\-4966.
+.El
+.Ed
+.Ss Additional Information Regarding Exceptions
+For each kind of floating-point exception, IEEE 754
+provides a Flag that is raised each time its exception
+is signaled, and stays raised until the program resets
+it.
+Programs may also test, save and restore a flag.
+Thus, IEEE 754 provides three ways by which programs
+may cope with exceptions for which the default result
+might be unsatisfactory:
+.Bl -enum
+.It
+Test for a condition that might cause an exception
+later, and branch to avoid the exception.
+.It
+Test a flag to see whether an exception has occurred
+since the program last reset its flag.
+.It
+Test a result to see whether it is a value that only
+an exception could have produced.
+.Pp
+CAUTION: The only reliable ways to discover
+whether Underflow has occurred are to test whether
+products or quotients lie closer to zero than the
+underflow threshold, or to test the Underflow
+flag.
+(Sums and differences cannot underflow in
+IEEE 754; if x \(!= y then x\-y is correct to
+full precision and certainly nonzero regardless of
+how tiny it may be.)
+Products and quotients that
+underflow gradually can lose accuracy gradually
+without vanishing, so comparing them with zero
+(as one might on a VAX) will not reveal the loss.
+Fortunately, if a gradually underflowed value is
+destined to be added to something bigger than the
+underflow threshold, as is almost always the case,
+digits lost to gradual underflow will not be missed
+because they would have been rounded off anyway.
+So gradual underflows are usually
+.Em provably
+ignorable.
+The same cannot be said of underflows flushed to 0.
+.El
+.Pp
+At the option of an implementor conforming to IEEE 754,
+other ways to cope with exceptions may be provided:
+.Bl -enum
+.It
+ABORT.
+This mechanism classifies an exception in
+advance as an incident to be handled by means
+traditionally associated with error-handling
+statements like "ON ERROR GO TO ...".
+Different
+languages offer different forms of this statement,
+but most share the following characteristics:
+.Bl -dash
+.It
+No means is provided to substitute a value for
+the offending operation's result and resume
+computation from what may be the middle of an
+expression.
+An exceptional result is abandoned.
+.It
+In a subprogram that lacks an error-handling
+statement, an exception causes the subprogram to
+abort within whatever program called it, and so
+on back up the chain of calling subprograms until
+an error-handling statement is encountered or the
+whole task is aborted and memory is dumped.
+.El
+.It
+STOP.
+This mechanism, requiring an interactive
+debugging environment, is more for the programmer
+than the program.
+It classifies an exception in
+advance as a symptom of a programmer's error; the
+exception suspends execution as near as it can to
+the offending operation so that the programmer can
+look around to see how it happened.
+Quite often
+the first several exceptions turn out to be quite
+unexceptionable, so the programmer ought ideally
+to be able to resume execution after each one as if
+execution had not been stopped.
+.It
+\&... Other ways lie beyond the scope of this document.
+.El
+.Pp
+Ideally, each
+elementary function should act as if it were indivisible, or
+atomic, in the sense that ...
+.Bl -enum
+.It
+No exception should be signaled that is not deserved by
+the data supplied to that function.
+.It
+Any exception signaled should be identified with that
+function rather than with one of its subroutines.
+.It
+The internal behavior of an atomic function should not
+be disrupted when a calling program changes from
+one to another of the five or so ways of handling
+exceptions listed above, although the definition
+of the function may be correlated intentionally
+with exception handling.
+.El
+.Pp
+The functions in
+.Nm libm
+are only approximately atomic.
+They signal no inappropriate exception except possibly ...
+.Bl -tag -width indent -offset indent -compact
+.It Xo
+Over/Underflow
+.Xc
+when a result, if properly computed, might have lain barely within range, and
+.It Xo
+Inexact in
+.Fn cabs ,
+.Fn cbrt ,
+.Fn hypot ,
+.Fn log10
+and
+.Fn pow
+.Xc
+when it happens to be exact, thanks to fortuitous cancellation of errors.
+.El
+Otherwise, ...
+.Bl -tag -width indent -offset indent -compact
+.It Xo
+Invalid Operation is signaled only when
+.Xc
+any result but \*(Na would probably be misleading.
+.It Xo
+Overflow is signaled only when
+.Xc
+the exact result would be finite but beyond the overflow threshold.
+.It Xo
+Divide-by-Zero is signaled only when
+.Xc
+a function takes exactly infinite values at finite operands.
+.It Xo
+Underflow is signaled only when
+.Xc
+the exact result would be nonzero but tinier than the underflow threshold.
+.It Xo
+Inexact is signaled only when
+.Xc
+greater range or precision would be needed to represent the exact result.
+.El
+.Sh SEE ALSO
+.Xr fenv 3 ,
+.Xr ieee_test 3 ,
+.Xr math 3
+.Pp
+An explanation of IEEE 754 and its proposed extension p854
+was published in the IEEE magazine MICRO in August 1984 under
+the title "A Proposed Radix- and Word-length-independent
+Standard for Floating-point Arithmetic" by
+.An "W. J. Cody"
+et al.
+The manuals for Pascal, C and BASIC on the Apple Macintosh
+document the features of IEEE 754 pretty well.
+Articles in the IEEE magazine COMPUTER vol.\& 14 no.\& 3 (Mar.\&
+1981), and in the ACM SIGNUM Newsletter Special Issue of
+Oct.\& 1979, may be helpful although they pertain to
+superseded drafts of the standard.
+.Sh STANDARDS
+.St -ieee754

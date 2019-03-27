@@ -1,0 +1,57 @@
+#!/bin/sh
+# Copyright (c) 2013,2014,2015,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+if [ `id -u` -eq 0 ]; then
+  echo "$0: do not run me as root"
+  exit 1
+fi
+
+if [ $# -eq 0 ]; then
+  echo "usage: $0 [-h|-u] manual_source_file ..."
+  exit 1
+fi
+
+if [ "X$1" = "X-h" ]; then
+  shift
+  export PATH="/usr/local/heirloom-doctools/bin:$PATH"
+  EQN="neqn"
+  ROFF="nroff"
+  MOPT="-Ios=BSD -Tascii $MOPT"
+  COLPIPE="col -b"
+elif [ "X$1" = "X-u" ]; then
+  shift
+  ROFF="groff -ket -ww -Tutf8 -P -c"
+  MOPT="-Ios=OpenBSD -Wall -Tutf8 $MOPT"
+  COLPIPE="cat"
+else
+  ROFF="groff -et -ww -mtty-char -Tascii -P -c"
+  MOPT="-Ios=OpenBSD -Wall -Tascii $MOPT"
+  COLPIPE="cat"
+fi
+
+while [ -n "$1" ]; do
+  file=$1
+  shift
+  echo " ========== $file ========== "
+  $ROFF -mandoc $file | $COLPIPE 2> /tmp/roff.err > /tmp/roff.out
+  ${MANDOC:=mandoc} $MOPT $file | $COLPIPE \
+    2> /tmp/mandoc.err > /tmp/mandoc.out
+  for i in roff mandoc; do
+    [ -s /tmp/$i.err ] && echo "$i errors:" && cat /tmp/$i.err
+  done
+  diff -au /tmp/roff.out /tmp/mandoc.out 2>&1
+done
+
+exit 0

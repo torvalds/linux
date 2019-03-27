@@ -1,0 +1,233 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2013-2015 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/keymap.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+############################################################ CONFIGURATION
+
+#
+# Default file to store keymap selection in
+#
+: ${KEYMAPFILE:=$BSDINSTALL_TMPETC/rc.conf.keymap}
+
+############################################################ GLOBALS
+
+#
+# Strings that should be moved to an i18n file and loaded with f_include_lang()
+#
+hline_arrows_tab_enter="Press arrows, TAB or ENTER"
+msg_continue_with_keymap="Continue with %s keymap"
+msg_default="default"
+msg_error="Error"
+msg_freebsd_installer="FreeBSD Installer"
+msg_keymap_menu_text="The system console driver for FreeBSD defaults to standard \"US\"\nkeyboard map. Other keymaps can be chosen below."
+msg_keymap_selection="Keymap Selection"
+msg_ok="OK"
+msg_select="Select"
+msg_test_keymap="Test %s keymap"
+msg_test_the_currently_selected_keymap="Test the currently selected keymap"
+msg_test_the_keymap_by_typing="Test the keymap by typing letters, numbers, and symbols. Characters\nshould match labels on the keyboard keys. Press Enter to stop testing."
+
+############################################################ FUNCTIONS
+
+# dialog_keymap_test $keymap
+#
+# Activate $keymap and display an input box (without cancel button) for the
+# user to test keyboard input and return. Always returns success.
+#
+dialog_keymap_test()
+{
+	local keym="$1"
+	local title= # Calculated below
+	local btitle= # Calculated below
+	local prompt="$msg_test_the_keymap_by_typing"
+	local hline=
+
+	# Attempt to activate the keymap
+	if [ "$keym" ]; then
+		local err
+		err=$( f_keymap_kbdcontrol "$keym" 2>&1 > /dev/null )
+		if [ "$err" ]; then
+			f_dialog_title "$msg_error"
+			f_dialog_msgbox "$err"
+			f_dialog_title_restore
+			return $FAILURE
+		fi
+	fi
+
+	f_dialog_title "$( printf "$msg_test_keymap" "${keym:-$msg_default}" )"
+	title="$DIALOG_TITLE"
+	btitle="$DIALOG_BACKTITLE"
+	f_dialog_title_restore
+
+	local height width
+	f_dialog_inputbox_size height width \
+		"$title" "$btitle" "$prompt" "" "$hline"
+
+	$DIALOG \
+		--title "$title"      \
+		--backtitle "$btitle" \
+		--hline "$hline"      \
+		--ok-label "$msg_ok"  \
+		--no-cancel           \
+		--inputbox "$prompt"  \
+		$height $width        \
+		2>/dev/null >&$DIALOG_TERMINAL_PASSTHRU_FD
+
+	return $DIALOG_OK
+}
+
+############################################################ MAIN
+
+#
+# Initialize
+#
+f_dialog_title "$msg_keymap_selection"
+f_dialog_backtitle "$msg_freebsd_installer"
+
+#
+# Die immediately if we can't dump the current keyboard map
+#
+#error=$( kbdcontrol -d 2>&1 > /dev/null ) || f_die $FAILURE "%s" "$error"
+
+# Capture Ctrl-C for clean-up
+trap 'rm -f $KEYMAPFILE; exit $FAILURE' SIGINT
+
+# Get a value from rc.conf(5) as initial value (if not being scripted)
+f_getvar $VAR_KEYMAP keymap
+if [ ! "$keymap" ]; then
+	keymap=$( f_sysrc_get keymap )
+	case "$keymap" in [Nn][Oo]) keymap="";; esac
+fi
+
+#
+# Loop until the user has finalized their selection (by clicking the
+# [relabeled] Cancel button).
+#
+width=67 first_pass=1 back_from_testing=
+[ "$USE_XDIALOG" ] && width=70
+prompt="$msg_keymap_menu_text"
+hline="$hline_arrows_tab_enter"
+while :; do
+	#
+	# Re/Build list of keymaps
+	#
+	cont_msg=$( printf "$msg_continue_with_keymap" \
+	                   "${keymap:-$msg_default}" )
+	test_msg=$( printf "$msg_test_keymap" "${keymap:-$msg_default}" )
+	menu_list="
+		'>>> $cont_msg' '' '$msg_continue_with_current_keymap'
+		'->- $test_msg' '' '$msg_test_the_currently_selected_keymap'
+	" # END-QUOTE
+	if [ "$first_pass" ]; then
+		defaultitem=
+		first_pass=
+	else
+		defaultitem="->- $test_msg"
+	fi
+	for k in $KEYMAPS; do
+		keymap_$k get keym keym
+		keymap_$k get desc desc
+		radio=" "
+		if [ "$keym" = "$keymap" ]; then
+			radio="*"
+			if [ "$back_from_testing" ]; then
+				defaultitem="(*) $desc"
+				back_from_testing=
+			fi
+		fi
+		f_shell_escape "$desc" desc
+		menu_list="$menu_list
+			'($radio) $desc' '' '$keym: $desc'
+		" # END-QUOTE
+	done
+	back_from_testing=
+
+	#
+	# Display keymap configuration menu
+	#
+	eval f_dialog_menu_with_help_size height \"\" rows \
+		\"\$DIALOG_TITLE\"     \
+		\"\$DIALOG_BACKTITLE\" \
+		\"\$prompt\"           \
+		\"\$hline\"            \
+		$menu_list
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--keep-tite                        \
+		--item-help                        \
+		--ok-label \"\$msg_select\"        \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	) || {
+		f_quietly rm -f "$KEYMAPFILE"
+		exit $FAILURE # Exit with an error so bsdinstall restarts
+	}
+	f_dialog_data_sanitize menu_choice
+
+	case "$menu_choice" in
+	">>> "*) # Continue with keymap
+		break ;;
+	"->-"*) # Test keymap
+		dialog_keymap_test "$keymap"
+		back_from_testing=1
+		continue ;;
+	esac
+
+	# Turn the user's choice into a number
+	n=$( eval f_dialog_menutag2index_with_help \
+		\"\$menu_choice\" $menu_list )
+
+	# Turn that number ithe name of the keymap struct
+	k=$( set -- $KEYMAPS; eval echo \"\${$(( $n - 2))}\" )
+
+	# Get actual keymap setting while we update $keymap and $KEYMAPFILE
+	keymap_$k get keym keymap
+	echo "keymap=\"$keymap\"" > "$KEYMAPFILE"
+done
+
+f_quietly f_keymap_kbdcontrol "$keymap"
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

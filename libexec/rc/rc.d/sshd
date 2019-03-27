@@ -1,0 +1,83 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: sshd
+# REQUIRE: LOGIN FILESYSTEMS
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="sshd"
+desc="Secure Shell Daemon"
+rcvar="sshd_enable"
+command="/usr/sbin/${name}"
+keygen_cmd="sshd_keygen"
+start_precmd="sshd_precmd"
+reload_precmd="sshd_configtest"
+restart_precmd="sshd_configtest"
+configtest_cmd="sshd_configtest"
+pidfile="/var/run/${name}.pid"
+extra_commands="configtest keygen reload"
+
+: ${sshd_rsa_enable:="yes"}
+: ${sshd_dsa_enable:="no"}
+: ${sshd_ecdsa_enable:="yes"}
+: ${sshd_ed25519_enable:="yes"}
+
+sshd_keygen_alg()
+{
+	local alg=$1
+	local ALG="$(echo $alg | tr a-z A-Z)"
+	local keyfile
+
+	if ! checkyesno "sshd_${alg}_enable" ; then
+		return 0
+	fi
+
+	case $alg in
+	rsa|dsa|ecdsa|ed25519)
+		keyfile="/etc/ssh/ssh_host_${alg}_key"
+		;;
+	*)
+		return 1
+		;;
+	esac
+
+	if [ ! -x /usr/bin/ssh-keygen ] ; then
+		warn "/usr/bin/ssh-keygen does not exist."
+		return 1
+	fi
+
+	if [ -f "${keyfile}" ] ; then
+		info "$ALG host key exists."
+	else
+		echo "Generating $ALG host key."
+		/usr/bin/ssh-keygen -q -t $alg -f "$keyfile" -N ""
+		/usr/bin/ssh-keygen -l -f "$keyfile.pub"
+	fi
+}
+
+sshd_keygen()
+{
+	sshd_keygen_alg rsa
+	sshd_keygen_alg dsa
+	sshd_keygen_alg ecdsa
+	sshd_keygen_alg ed25519
+}
+
+sshd_configtest()
+{
+	echo "Performing sanity check on ${name} configuration."
+	eval ${command} ${sshd_flags} -t
+}
+
+sshd_precmd()
+{
+	run_rc_command keygen
+	run_rc_command configtest
+}
+
+load_rc_config $name
+run_rc_command "$1"

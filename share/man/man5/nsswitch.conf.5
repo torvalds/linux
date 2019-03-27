@@ -1,0 +1,394 @@
+.\"	$NetBSD: nsswitch.conf.5,v 1.14 1999/03/17 20:19:47 garbled Exp $
+.\"
+.\" Copyright (c) 1997, 1998, 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Luke Mewburn.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" 	This product includes software developed by Luke Mewburn.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+.\" OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+.\" TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+.\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 10, 2018
+.Dt NSSWITCH.CONF 5
+.Os
+.Sh NAME
+.Nm nsswitch.conf
+.Nd name-service switch configuration file
+.Sh DESCRIPTION
+The
+.Nm
+file specifies how the
+.Xr nsdispatch 3
+(name-service switch dispatcher) routines in the C library should operate.
+.Pp
+The configuration file controls how a process looks up various databases
+containing information regarding hosts, users (passwords), groups, etc.
+Each database comes from a source (such as local files, DNS,
+.Tn NIS ,
+and cache), and the order to look up the sources is specified in
+.Nm .
+.Pp
+Each entry in
+.Nm
+consists of a database name, and a space separated list of sources.
+Each source can have an optional trailing criterion that determines
+whether the next listed source is used, or the search terminates at
+the current source.
+Each criterion consists of one or more status codes, and actions to
+take if that status code occurs.
+.Ss Sources
+The following sources are implemented as part of the base system:
+.Pp
+.Bl -tag -width Source -compact
+.It Sy Source
+.Sy Description
+.It files
+Local files, such as
+.Pa /etc/hosts ,
+and
+.Pa /etc/passwd .
+.It db
+Local database.
+.It dns
+Internet Domain Name System.
+.Dq hosts
+and
+.Sq networks
+use
+.Sy IN
+class entries, all other databases use
+.Sy HS
+class (Hesiod) entries.
+.It nis
+NIS (formerly YP)
+.It compat
+support
+.Sq +/-
+in the
+.Dq passwd
+and
+.Dq group
+databases.
+If this is present, it must be the only source for that entry.
+.It cache
+makes use of the
+.Xr nscd 8
+daemon.
+.El
+.Pp
+Additional sources might be provided by third party software.
+.Ss Databases
+The following databases are used by the following C library functions:
+.Pp
+.Bl -tag -width networks -compact
+.It Sy Database
+.Sy "Used by"
+.It group
+.Xr getgrent 3 ,
+.Xr getgrent_r 3 ,
+.Xr getgrgid_r 3 ,
+.Xr getgrnam_r 3 ,
+.Xr setgrent 3 ,
+.Xr endgrent 3
+.It hosts
+.Xr getaddrinfo 3 ,
+.Xr gethostbyaddr 3 ,
+.Xr gethostbyaddr_r 3 ,
+.Xr gethostbyname 3 ,
+.Xr gethostbyname2 3 ,
+.Xr gethostbyname_r 3 ,
+.Xr getipnodebyaddr 3 ,
+.Xr getipnodebyname 3
+.It networks
+.Xr getnetbyaddr 3 ,
+.Xr getnetbyaddr_r 3 ,
+.Xr getnetbyname 3 ,
+.Xr getnetbyname_r 3
+.It passwd
+.Xr getpwent 3 ,
+.Xr getpwent_r 3 ,
+.Xr getpwnam_r 3 ,
+.Xr getpwuid_r 3 ,
+.Xr setpwent 3 ,
+.Xr endpwent 3
+.It shells
+.Xr getusershell 3
+.It services
+.Xr getservent 3
+.It rpc
+.Xr getrpcbyname 3 ,
+.Xr getrpcbynumber 3 ,
+.Xr getrpcent 3
+.It proto
+.Xr getprotobyname 3 ,
+.Xr getprotobynumber 3 ,
+.Xr getprotoent 3
+.It netgroup
+.Xr getnetgrent 3 ,
+.Xr getnetgrent_r 3 ,
+.Xr setnetgrent 3 ,
+.Xr endnetgrent 3 ,
+.Xr innetgr 3
+.El
+.Ss Status codes
+The following status codes are available:
+.Pp
+.Bl -tag -width tryagain -compact
+.It Sy Status
+.Sy Description
+.It success
+The requested entry was found.
+.It notfound
+The entry is not present at this source.
+.It tryagain
+The source is busy, and may respond to retries.
+.It unavail
+The source is not responding, or entry is corrupt.
+.El
+.Ss Actions
+For each of the status codes, one of two actions is possible:
+.Pp
+.Bl -tag -width continue -compact
+.It Sy Action
+.Sy Description
+.It continue
+Try the next source
+.It return
+Return with the current result
+.El
+.Ss Format of file
+A
+.Tn BNF
+description of the syntax of
+.Nm
+is:
+.Pp
+.Bl -tag -width <criterion> -compact
+.It <entry>
+::=
+<database> ":" [<source> [<criteria>]]*
+.It <criteria>
+::=
+"[" <criterion>+ "]"
+.It <criterion>
+::=
+<status> "=" <action>
+.It <status>
+::=
+"success" | "notfound" | "unavail" | "tryagain"
+.It <action>
+::=
+"return" | "continue"
+.El
+.Pp
+Each entry starts on a new line in the file.
+A
+.Sq #
+delimits a comment to end of line.
+Blank lines are ignored.
+A
+.Sq \e
+at the end of a line escapes the newline, and causes the next line to
+be a continuation of the current line.
+All entries are case-insensitive.
+.Pp
+The default criteria is to return on
+.Dq success ,
+and continue on anything else (i.e,
+.Li "[success=return notfound=continue unavail=continue tryagain=continue]" ) .
+.Ss Cache
+You can enable caching for the particular database by specifying
+.Dq cache
+as the first source in the
+.Nm
+file.
+You should also enable caching for this database in
+.Xr nscd.conf 5 .
+If for the particular query
+.Dq cache
+source returns success, no further sources are queried.
+On the other hand, if there are no previously cached data, the
+query result will be placed into the cache right after
+all other sources are processed.
+Note, that
+.Dq cache
+requires
+.Xr nscd 8
+daemon to be running.
+.Ss Compat mode: +/- syntax
+In historical multi-source implementations, the
+.Sq +
+and
+.Sq -
+characters are used to specify the importing of user password and
+group information from
+.Tn NIS .
+Although
+.Nm
+provides alternative methods of accessing distributed sources such as
+.Tn NIS ,
+specifying a sole source of
+.Dq compat
+will provide the historical behaviour.
+.Pp
+An alternative source for the information accessed via
+.Sq +/-
+can be used by specifying
+.Dq passwd_compat: source .
+.Dq source
+in this case can be
+.Sq dns ,
+.Sq nis ,
+or
+any other source except for
+.Sq files
+and
+.Sq compat .
+.Ss Notes
+Historically, many of the databases had enumeration functions, often of
+the form
+.Fn getXXXent .
+These made sense when the databases were in local files, but do not make
+sense or have lesser relevance when there are possibly multiple sources,
+each of an unknown size.
+The interfaces are still provided for compatibility, but the source
+may not be able to provide complete entries, or duplicate entries may
+be retrieved if multiple sources that contain similar information are
+specified.
+.Pp
+To ensure compatibility with previous and current implementations, the
+.Dq compat
+source must appear alone for a given database.
+.Ss Default source lists
+If, for any reason,
+.Nm
+does not exist, or it has missing or corrupt entries,
+.Xr nsdispatch 3
+will default to an entry of
+.Dq files
+for the requested database.
+Exceptions are:
+.Pp
+.Bl -tag -width services_compat -compact
+.It Sy Database
+.Sy "Default source list"
+.It group
+compat
+.It group_compat
+nis
+.It hosts
+files dns
+.It passwd
+compat
+.It passwd_compat
+nis
+.It services
+compat
+.It services_compat
+nis
+.El
+.Sh FILES
+.Bl -tag -width /etc/nsswitch.conf -compact
+.It Pa /etc/nsswitch.conf
+The file
+.Nm
+resides in
+.Pa /etc .
+.El
+.Sh EXAMPLES
+To lookup hosts in cache, then in
+.Pa /etc/hosts
+and then from the DNS, and lookup user information from
+.Tn NIS
+then files, use:
+.Pp
+.Bl -tag -width passwd: -compact
+.It hosts:
+cache files dns
+.It passwd:
+nis [notfound=return] files
+.It group:
+nis [notfound=return] files
+.El
+.Pp
+The criteria
+.Dq [notfound=return]
+sets a policy of "if the user is notfound in nis, do not try files."
+This treats nis as the authoritative source of information, except
+when the server is down.
+.Sh NOTES
+The
+.Nm
+file is parsed by each program only once.
+Subsequent changes will not be applied until the program
+is restarted.
+.Pp
+If system got compiled with
+.Va WITHOUT_NIS
+you have to remove
+.Sq nis
+entries.
+.Pp
+.Fx Ns 's
+.Lb libc
+provides stubs for compatibility with NSS modules
+written for the
+.Tn GNU
+C Library
+.Nm nsswitch
+interface.
+However, these stubs only support the use of the
+.Dq Li passwd
+and
+.Dq Li group
+databases.
+.Sh SEE ALSO
+.Xr nsdispatch 3 ,
+.Xr nscd.conf 5 ,
+.Xr resolv.conf 5 ,
+.Xr nscd 8 ,
+.Xr ypbind 8
+.Sh HISTORY
+The
+.Nm
+file format first appeared in
+.Fx 5.0 .
+It was imported from the
+.Nx
+Project, where it appeared first in
+.Nx 1.4 .
+.Sh AUTHORS
+.An Luke Mewburn Aq Mt lukem@netbsd.org
+wrote this freely distributable name-service switch implementation,
+using ideas from the
+.Tn ULTRIX
+.Xr svc.conf 5
+and
+.Tn Solaris
+.Xr nsswitch.conf 4
+manual pages.

@@ -1,0 +1,56 @@
+#-
+# Copyright (c) 2014 Luiz Otavio O Souza <loos@FreeBSD.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+(1 internet
+  (4 private
+    (1 enterprises
+      (12325 fokus
+        (1 begemot
+          (400 begemotLm75
+            (1 begemotLm75Objects
+              (1 lm75Sensors
+                (1 lm75Sensors INTEGER32 op_lm75Sensors GET)
+              )
+              (2 lm75SensorTable
+                (1 lm75SensorEntry : OCTETSTRING op_lm75SensorTable
+                  (1 lm75SensorIndex INTEGER32 GET)
+                  (2 lm75SensorSysctlIndex INTEGER32 GET)
+                  (3 lm75SensorDesc OCTETSTRING GET)
+                  (4 lm75SensorLocation OCTETSTRING GET)
+                  (5 lm75SensorPnpInfo OCTETSTRING GET)
+                  (6 lm75SensorParent OCTETSTRING GET)
+                  (7 lm75SensorTemperature INTEGER32 GET)
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)

@@ -1,0 +1,43 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_RESIZE_CQ 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_resize_cq \- resize a completion queue (CQ)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_resize_cq(struct ibv_cq " "*cq" ", int " "cqe" ");
+.fi
+.SH "DESCRIPTION"
+.B ibv_resize_cq()
+resizes the completion queue (CQ)
+.I cq
+to have at least
+.I cqe
+entries.
+.I cqe
+must be at least the number of unpolled entries in the CQ
+.I cq\fR.
+If
+.I cqe
+is a valid value less than the current CQ size,
+.B ibv_resize_cq()
+may not do anything, since this function is only guaranteed to resize
+the CQ to a size at least as big as the requested size.
+.SH "RETURN VALUE"
+.B ibv_resize_cq()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+.B ibv_resize_cq()
+may assign a CQ size greater than or equal to the requested size.
+The cqe member of
+.I cq
+will be updated to the actual size.
+.SH "SEE ALSO"
+.BR ibv_create_cq (3)
+.BR ibv_destroy_cq (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

@@ -1,0 +1,14 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.3 {
+	__cap_rights_clear;
+	cap_rights_contains;
+	__cap_rights_init;
+	__cap_rights_is_set;
+	cap_rights_is_valid;
+	cap_rights_merge;
+	cap_rights_remove;
+	__cap_rights_set;
+};

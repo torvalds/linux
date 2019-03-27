@@ -1,0 +1,41 @@
+/* Do not change this file without reading Documentation/versioning.md */
+IBUMAD_1.0 {
+	global:
+		umad_init;
+		umad_done;
+		umad_get_cas_names;
+		umad_get_ca_portguids;
+		umad_open_port;
+		umad_get_ca;
+		umad_release_ca;
+		umad_get_port;
+		umad_release_port;
+		umad_close_port;
+		umad_get_mad;
+		umad_get_issm_path;
+		umad_size;
+		umad_set_grh;
+		umad_set_pkey;
+		umad_get_pkey;
+		umad_set_addr;
+		umad_set_addr_net;
+		umad_send;
+		umad_recv;
+		umad_poll;
+		umad_get_fd;
+		umad_register;
+		umad_register2;
+		umad_register_oui;
+		umad_unregister;
+		umad_status;
+		umad_get_mad_addr;
+		umad_debug;
+		umad_addr_dump;
+		umad_dump;
+		umad_class_str;
+		umad_method_str;
+		umad_common_mad_status_str;
+		umad_sa_mad_status_str;
+		umad_attribute_str;
+	local: *;
+};

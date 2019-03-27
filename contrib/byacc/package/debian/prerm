@@ -1,0 +1,12 @@
+#! /bin/sh
+# prerm script for byacc
+
+set -e
+
+if [ $1 != "upgrade" ]; then
+	update-alternatives --remove yacc /usr/bin/byacc
+fi
+
+#DEBHELPER#
+
+exit 0

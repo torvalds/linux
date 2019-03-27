@@ -1,0 +1,135 @@
+.\" Copyright (c) 1998-2000, 2002, 2007 Proofpoint, Inc. and its suppliers.
+.\"	 All rights reserved.
+.\" Copyright (c) 1983, 1997 Eric P. Allman.  All rights reserved.
+.\" Copyright (c) 1985, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" By using this file, you agree to the terms and conditions set
+.\" forth in the LICENSE file which can be found at the top level of
+.\" the sendmail distribution.
+.\"
+.\"
+.\"     $Id: mailq.1,v 8.22 2013-11-22 20:51:55 ca Exp $
+.\"
+.TH MAILQ 1 "$Date: 2013-11-22 20:51:55 $"
+.SH NAME
+mailq
+\- print the mail queue
+.SH SYNOPSIS
+.B mailq
+.RB [ \-Ac ]
+.RB [ \-q... ]
+.RB [ \-v ]
+.SH DESCRIPTION
+.B Mailq
+prints a summary of the mail messages queued for future delivery.
+.PP
+The first line printed for each message 
+shows the internal identifier used on this host 
+for the message with a possible status character, 
+the size of the message in bytes,
+the date and time the message was accepted into the queue, 
+and the envelope sender of the message.  
+The second line shows the error message that caused this message 
+to be retained in the queue; 
+it will not be present if the message is being processed 
+for the first time.  
+The status characters are either
+.B *
+to indicate the job is being processed;
+.B X
+to indicate that the load is too high to process the job; and
+.B -
+to indicate that the job is too young to process.
+The following lines show message recipients, 
+one per line.
+.PP
+.B Mailq
+is identical to ``sendmail -bp''.
+.PP
+The relevant options are as follows:
+.TP
+.B \-Ac
+Show the mail submission queue specified in
+.I /etc/mail/submit.cf
+instead of the MTA queue specified in
+.IR /etc/mail/sendmail.cf .
+.TP
+.B \-qL
+Show the "lost" items in the mail queue instead of the normal queue items.
+.TP
+.B \-qQ
+Show the quarantined items in the mail queue instead of the normal queue
+items.
+.TP
+\fB\-q\fR[\fI!\fR]I substr
+Limit processed jobs to those containing
+.I substr
+as a substring of the queue id or not when
+.I !
+is specified.
+.TP
+\fB\-q\fR[\fI!\fR]Q substr
+Limit processed jobs to quarantined jobs containing
+.I substr
+as a substring of the quarantine reason or not when
+.I !
+is specified.
+.TP
+\fB\-q\fR[\fI!\fR]R substr
+Limit processed jobs to those containing
+.I substr
+as a substring of one of the recipients or not when
+.I !
+is specified.
+.TP
+\fB\-q\fR[\fI!\fR]S substr
+Limit processed jobs to those containing
+.I substr
+as a substring of the sender or not when
+.I !
+is specified.
+.TP
+.B \-v
+Print verbose information.  
+This adds the priority of the message and 
+a single character indicator (``+'' or blank) 
+indicating whether a warning message has been sent 
+on the first line of the message.
+Additionally, extra lines may be intermixed with the recipients
+indicating the ``controlling user'' information; 
+this shows who will own any programs that are executed 
+on behalf of this message 
+and the name of the alias this command expanded from, if any.
+Moreover, status messages for each recipient are printed
+if available.
+.PP
+Several sendmail.cf options influence the behavior of the
+.B mailq
+utility:
+The number of items printed per queue group is restricted by
+.B MaxQueueRunSize
+if that value is set.
+The status character
+.B *
+is not printed for some values of
+.B QueueSortOrder,
+e.g.,
+filename,
+random,
+modification, and
+none,
+unless a
+.B -q
+option is used to limit the processed jobs.
+.PP
+The
+.B mailq
+utility exits 0 on success, and >0 if an error occurs.
+.SH SEE ALSO
+sendmail(8)
+.SH HISTORY
+The
+.B mailq
+command appeared in 
+4.0BSD.

@@ -1,0 +1,309 @@
+.\"	$NetBSD: pkill.1,v 1.8 2003/02/14 15:59:18 grant Exp $
+.\"
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 2002 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Andrew Doran.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd December 3, 2018
+.Dt PKILL 1
+.Os
+.Sh NAME
+.Nm pgrep , pkill
+.Nd find or signal processes by name
+.Sh SYNOPSIS
+.Nm pgrep
+.Op Fl LSafilnoqvx
+.Op Fl F Ar pidfile
+.Op Fl G Ar gid
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl P Ar ppid
+.Op Fl U Ar uid
+.Op Fl c Ar class
+.Op Fl d Ar delim
+.Op Fl g Ar pgrp
+.Op Fl j Ar jail
+.Op Fl s Ar sid
+.Op Fl t Ar tty
+.Op Fl u Ar euid
+.Ar pattern ...
+.Nm pkill
+.Op Fl Ar signal
+.Op Fl ILafilnovx
+.Op Fl F Ar pidfile
+.Op Fl G Ar gid
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl P Ar ppid
+.Op Fl U Ar uid
+.Op Fl c Ar class
+.Op Fl g Ar pgrp
+.Op Fl j Ar jail
+.Op Fl s Ar sid
+.Op Fl t Ar tty
+.Op Fl u Ar euid
+.Ar pattern ...
+.Sh DESCRIPTION
+The
+.Nm pgrep
+command searches the process table on the running system and prints the
+process IDs of all processes that match the criteria given on the command
+line.
+.Pp
+The
+.Nm pkill
+command searches the process table on the running system and signals all
+processes that match the criteria given on the command line.
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl F Ar pidfile"
+.It Fl F Ar pidfile
+Restrict matches to a process whose PID is stored in the
+.Ar pidfile
+file.
+.It Fl G Ar gid
+Restrict matches to processes with a real group ID in the comma-separated
+list
+.Ar gid .
+.It Fl I
+Request confirmation before attempting to signal each process.
+.It Fl L
+The
+.Ar pidfile
+file given for the
+.Fl F
+option must be locked with the
+.Xr flock 2
+syscall or created with
+.Xr pidfile 3 .
+.It Fl M Ar core
+Extract values associated with the name list from the specified core
+instead of the currently running system.
+.It Fl N Ar system
+Extract the name list from the specified system instead of the default,
+which is the kernel image the system has booted from.
+.It Fl P Ar ppid
+Restrict matches to processes with a parent process ID in the
+comma-separated list
+.Ar ppid .
+.It Fl S
+Search also in system processes (kernel threads).
+.It Fl U Ar uid
+Restrict matches to processes with a real user ID in the comma-separated
+list
+.Ar uid .
+.It Fl d Ar delim
+Specify a delimiter to be printed between each process ID.
+The default is a newline.
+This option can only be used with the
+.Nm pgrep
+command.
+.It Fl a
+Include process ancestors in the match list.
+By default, the current
+.Nm pgrep
+or
+.Nm pkill
+process and all of its ancestors are excluded (unless
+.Fl v
+is used).
+.It Fl c Ar class
+Restrict matches to processes running with specified login class
+.Ar class .
+.It Fl f
+Match against full argument lists.
+The default is to match against process names.
+.It Fl g Ar pgrp
+Restrict matches to processes with a process group ID in the comma-separated
+list
+.Ar pgrp .
+The value zero is taken to mean the process group ID of the running
+.Nm pgrep
+or
+.Nm pkill
+command.
+.It Fl i
+Ignore case distinctions in both the process table and the supplied pattern.
+.It Fl j Ar jail
+Restrict matches to processes inside the specified jails.
+The argument
+.Ar jail
+may be
+.Dq Li any
+to match processes in any jail,
+.Dq Li none
+to match processes not in jail,
+or a comma-separated list of jail IDs or names.
+.It Fl l
+Long output.
+For
+.Nm pgrep ,
+print the process name in addition to the process ID for each matching
+process.
+If used in conjunction with
+.Fl f ,
+print the process ID and the full argument list for each matching process.
+For
+.Nm pkill ,
+display the kill command used for each process killed.
+.It Fl n
+Select only the newest (most recently started) of the matching processes.
+.It Fl o
+Select only the oldest (least recently started) of the matching processes.
+.It Fl q
+For
+.Nm pgrep ,
+Do not write anything to standard output.
+.It Fl s Ar sid
+Restrict matches to processes with a session ID in the comma-separated
+list
+.Ar sid .
+The value zero is taken to mean the session ID of the running
+.Nm pgrep
+or
+.Nm pkill
+command.
+.It Fl t Ar tty
+Restrict matches to processes associated with a terminal in the
+comma-separated list
+.Ar tty .
+Terminal names may be of the form
+.Pa tty Ns Ar xx
+or the shortened form
+.Ar xx .
+A single dash
+.Pq Ql -
+matches processes not associated with a terminal.
+.It Fl u Ar euid
+Restrict matches to processes with an effective user ID in the
+comma-separated list
+.Ar euid .
+.It Fl v
+Reverse the sense of the matching; display processes that do not match the
+given criteria.
+.It Fl x
+Require an exact match of the process name, or argument list if
+.Fl f
+is given.
+The default is to match any substring.
+.It Fl Ns Ar signal
+A non-negative decimal number or symbolic signal name specifying the signal
+to be sent instead of the default
+.Dv TERM .
+This option is valid only when given as the first argument to
+.Nm pkill .
+.El
+.Pp
+If any
+.Ar pattern
+operands are specified, they are used as extended regular expressions to match
+the command name or full argument list of each process.
+If the
+.Fl f
+option is not specified, then the
+.Ar pattern
+will attempt to match the command name.
+However, presently
+.Fx
+will only keep track of the first 19 characters of the command
+name for each process.
+Attempts to match any characters after the first 19 of a command name
+will quietly fail.
+.Pp
+Note that a running
+.Nm pgrep
+or
+.Nm pkill
+process will never consider itself nor system processes (kernel threads) as
+a potential match.
+.Sh IMPLEMENTATION NOTES
+The Sun Solaris implementation utilised procfs to obtain process information.
+This implementation utilises
+.Xr kvm 3
+instead.
+On a live system,
+.Xr kvm 3
+uses
+.Va kern.proc
+MIB to obtain the list of processes, kernel memory through
+.Pa /dev/kmem
+is not accessed.
+.Sh EXIT STATUS
+The
+.Nm pgrep
+and
+.Nm pkill
+utilities
+return one of the following values upon exit:
+.Bl -tag -width indent
+.It 0
+One or more processes were matched.
+.It 1
+No processes were matched.
+.It 2
+Invalid options were specified on the command line.
+.It 3
+An internal error occurred.
+.El
+.Sh COMPATIBILITY
+Historically the option
+.Dq Fl j Li 0
+means any jail, although in other utilities such as
+.Xr ps 1
+jail ID
+.Li 0
+has the opposite meaning, not in jail.
+Therefore
+.Dq Fl j Li 0
+is deprecated, and its use is discouraged in favor of
+.Dq Fl j Li any .
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr killall 1 ,
+.Xr ps 1 ,
+.Xr flock 2 ,
+.Xr kill 2 ,
+.Xr sigaction 2 ,
+.Xr kvm 3 ,
+.Xr pidfile 3 ,
+.Xr re_format 7
+.\" Xr signal 7
+.Sh HISTORY
+The
+.Nm pkill
+and
+.Nm pgrep
+utilities
+first appeared in
+.Nx 1.6 .
+They are modelled after utilities of the same name that appeared in Sun
+Solaris 7.
+They made their first appearance in
+.Fx 5.3 .
+.Sh AUTHORS
+.An Andrew Doran Aq Mt ad@NetBSD.org

@@ -1,0 +1,10 @@
+OpenPAM is an open source PAM library that focuses on simplicity,
+correctness, and cleanliness.
+
+OpenPAM aims to gather the best features of Solaris PAM, XSSO and
+Linux-PAM, plus some innovations of its own.  In areas where these
+implementations disagree, OpenPAM tries to remain compatible with
+Solaris, at the expense of XSSO conformance and Linux-PAM
+compatibility.
+
+Please direct bug reports and inquiries to <des@des.no>.

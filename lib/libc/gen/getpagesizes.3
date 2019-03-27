@@ -1,0 +1,99 @@
+.\" Copyright (c) 2009 Alan L. Cox <alc@cs.rice.edu>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 21, 2009
+.Dt GETPAGESIZES 3
+.Os
+.Sh NAME
+.Nm getpagesizes
+.Nd "get system page sizes"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft int
+.Fn getpagesizes "size_t pagesize[]" "int nelem"
+.Sh DESCRIPTION
+The
+.Fn getpagesizes
+function retrieves page size information from the system.
+When it is called with
+.Fa pagesize
+specified as
+.Dv NULL
+and
+.Fa nelem
+specified as 0, it returns the number of distinct page sizes that are
+supported by the system.
+Otherwise, it assigns up to
+.Fa nelem
+of the system-supported page sizes to consecutive elements of the
+array referenced by
+.Fa pagesize .
+These page sizes are expressed in bytes.
+In this case,
+.Fn getpagesizes
+returns the number of such page sizes that it assigned to the array.
+.Sh RETURN VALUES
+If successful, the
+.Fn getpagesizes
+function returns either the number of page sizes that are supported by
+the system or the number of supported page sizes that it assigned to
+the array referenced by
+.Fa pagesize .
+Otherwise, it returns the value\~\-1 and sets
+.Va errno
+to indicate the error.
+.Sh ERRORS
+The
+.Fn getpagesizes
+function will succeed unless:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa pagesize
+argument is
+.Dv NULL
+and the
+.Fa nelem
+argument is non-zero.
+.It Bq Er EINVAL
+The
+.Fa nelem
+argument is less than zero.
+.El
+.Sh SEE ALSO
+.Xr getpagesize 3
+.Sh HISTORY
+The
+.Fn getpagesizes
+function first appeared in Solaris 9.
+This manual page was written in conjunction with a new but compatible
+implementation that was first released in
+.Fx 7.3 .
+.Sh AUTHORS
+This manual page was written by
+.An Alan L. Cox Aq Mt alc@cs.rice.edu .

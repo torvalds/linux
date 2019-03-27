@@ -1,0 +1,139 @@
+-- $Id$
+HDB DEFINITIONS ::=
+BEGIN
+
+IMPORTS EncryptionKey, KerberosTime, Principal FROM krb5;
+
+HDB_DB_FORMAT INTEGER ::= 2	-- format of database, 
+				-- update when making changes
+
+-- these must have the same value as the pa-* counterparts
+hdb-pw-salt	INTEGER	::= 3
+hdb-afs3-salt	INTEGER	::= 10
+
+Salt ::= SEQUENCE {
+	type[0]		INTEGER (0..4294967295),
+	salt[1]		OCTET STRING,
+	opaque[2]	OCTET STRING OPTIONAL
+}
+
+Key ::= SEQUENCE {
+	mkvno[0]	INTEGER (0..4294967295) OPTIONAL, -- master key version number
+	key[1]		EncryptionKey,
+	salt[2]		Salt OPTIONAL
+}
+
+Event ::= SEQUENCE {
+	time[0]		KerberosTime,
+	principal[1]	Principal OPTIONAL
+}
+
+HDBFlags ::= BIT STRING {
+	initial(0),			-- require as-req
+	forwardable(1),			-- may issue forwardable
+	proxiable(2),			-- may issue proxiable
+	renewable(3),			-- may issue renewable
+	postdate(4),			-- may issue postdatable
+	server(5),			-- may be server
+	client(6),			-- may be client
+	invalid(7),			-- entry is invalid
+	require-preauth(8),		-- must use preauth
+	change-pw(9),			-- change password service
+	require-hwauth(10),		-- must use hwauth
+	ok-as-delegate(11),		-- as in TicketFlags
+	user-to-user(12),		-- may use user-to-user auth
+	immutable(13),			-- may not be deleted
+	trusted-for-delegation(14),	-- Trusted to print forwardabled tickets
+	allow-kerberos4(15),		-- Allow Kerberos 4 requests
+	allow-digest(16),		-- Allow digest requests
+	locked-out(17)			-- Account is locked out,
+					-- authentication will be denied
+}
+
+GENERATION ::= SEQUENCE {
+	time[0]		KerberosTime,			-- timestamp
+	usec[1]		INTEGER (0..4294967295),	-- microseconds
+	gen[2]		INTEGER (0..4294967295)		-- generation number
+}
+
+HDB-Ext-PKINIT-acl ::= SEQUENCE OF SEQUENCE {
+	subject[0]	UTF8String,
+	issuer[1]	UTF8String OPTIONAL,
+	anchor[2]	UTF8String OPTIONAL
+}
+
+HDB-Ext-PKINIT-hash ::= SEQUENCE OF SEQUENCE {
+	digest-type[0] OBJECT IDENTIFIER,
+	digest[1] OCTET STRING
+}
+
+HDB-Ext-PKINIT-cert ::= SEQUENCE OF SEQUENCE {
+	cert[0] OCTET STRING
+}
+
+HDB-Ext-Constrained-delegation-acl ::= SEQUENCE OF Principal
+
+-- hdb-ext-referrals ::= PA-SERVER-REFERRAL-DATA
+
+HDB-Ext-Lan-Manager-OWF ::= OCTET STRING
+
+HDB-Ext-Password ::= SEQUENCE {
+	mkvno[0]	INTEGER (0..4294967295) OPTIONAL, -- master key version number
+	password	OCTET STRING
+}
+
+HDB-Ext-Aliases ::= SEQUENCE {
+	case-insensitive[0]	BOOLEAN, -- case insensitive name allowed
+	aliases[1]		SEQUENCE OF Principal -- all names, inc primary
+}
+
+
+HDB-extension ::= SEQUENCE {
+        mandatory[0]    BOOLEAN,        -- kdc MUST understand this extension,
+                                        --   if not the whole entry must
+                                        --   be rejected
+        data[1]          CHOICE {
+	        pkinit-acl[0]			HDB-Ext-PKINIT-acl,
+	        pkinit-cert-hash[1]  		HDB-Ext-PKINIT-hash,
+		allowed-to-delegate-to[2]   HDB-Ext-Constrained-delegation-acl,
+--		referral-info[3]		HDB-Ext-Referrals,
+		lm-owf[4]			HDB-Ext-Lan-Manager-OWF,
+		password[5]			HDB-Ext-Password,
+		aliases[6]			HDB-Ext-Aliases,
+		last-pw-change[7]		KerberosTime,
+	        pkinit-cert[8]  		HDB-Ext-PKINIT-cert,
+		...
+	},
+	...
+}
+
+HDB-extensions ::= SEQUENCE OF HDB-extension
+
+hdb_keyset ::= SEQUENCE {
+	kvno[1]		INTEGER (0..4294967295),
+	keys[0]		SEQUENCE OF Key
+}
+
+hdb_entry ::= SEQUENCE {
+	principal[0]	Principal  OPTIONAL, -- this is optional only 
+					     -- for compatibility with libkrb5
+	kvno[1]		INTEGER (0..4294967295),
+	keys[2]		SEQUENCE OF Key,
+	created-by[3]	Event,
+	modified-by[4]	Event OPTIONAL,
+	valid-start[5]	KerberosTime OPTIONAL,
+	valid-end[6]	KerberosTime OPTIONAL,
+	pw-end[7]	KerberosTime OPTIONAL,
+	max-life[8]	INTEGER (0..4294967295) OPTIONAL,
+	max-renew[9]	INTEGER (0..4294967295) OPTIONAL,
+	flags[10]	HDBFlags,
+	etypes[11]	SEQUENCE OF INTEGER (0..4294967295) OPTIONAL,
+	generation[12]	GENERATION OPTIONAL,
+        extensions[13]  HDB-extensions OPTIONAL
+}
+
+hdb_entry_alias ::= [APPLICATION 0] SEQUENCE {
+	principal[0]	Principal  OPTIONAL
+}
+
+END

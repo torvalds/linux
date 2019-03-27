@@ -1,0 +1,217 @@
+.\" Copyright (c) 2003 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris Costello
+.\" at Safeport Network Services and Network Associates Labs, the
+.\" Security Research Division of Network Associates, Inc. under
+.\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 9, 2004
+.Dt MAC_PORTACL 4
+.Os
+.Sh NAME
+.Nm mac_portacl
+.Nd "network port access control policy"
+.Sh SYNOPSIS
+To compile the port access control policy into your kernel,
+place the following lines in your kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Cd "options MAC_PORTACL"
+.Ed
+.Pp
+Alternately, to load the port access control policy module at boot time,
+place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Ed
+.Pp
+and in
+.Xr loader.conf 5 :
+.Pp
+.Dl "mac_portacl_load=""YES"""
+.Sh DESCRIPTION
+The
+.Nm
+policy allows administrators to administratively limit binding to
+local
+.Tn UDP
+and
+.Tn TCP
+ports via the
+.Xr sysctl 8
+interface.
+.Pp
+In order to enable the
+.Nm
+policy, MAC policy must be enforced on sockets
+(see
+.Xr mac 4 ) ,
+and the port(s) protected by
+.Nm
+must not be included in the range specified by
+the
+.Va net.inet.ip.portrange.reservedlow
+and
+.Va net.inet.ip.portrange.reservedhigh
+.Xr sysctl 8
+MIBs.
+.Pp
+The
+.Nm
+policy only affects ports explicitly bound by a user process (either
+for a listen/outgoing
+.Tn TCP
+socket, or a send/receive
+.Tn UDP
+socket).
+This policy will not limit ports bound implicitly for outgoing
+connections where the process has not explicitly selected a port:
+these are automatically selected by the IP stack.
+.Pp
+When
+.Nm
+is enabled, it will control binding access to ports up to the port
+number set in the
+.Va security.mac.portacl.port_high
+.Xr sysctl 8
+variable.
+By default, all attempts to bind to
+.Nm
+controlled ports will fail if not explicitly allowed by the port
+access control list, though binding by the superuser will be allowed,
+if the
+.Xr sysctl 8
+variable
+.Va security.mac.portacl.suser_exempt
+is set to a non-zero value.
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+MIBs are available for fine-tuning the enforcement of this MAC policy.
+All
+.Xr sysctl 8
+variables, except
+.Va security.mac.portacl.rules ,
+can also be set as
+.Xr loader 8
+tunables in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va security.mac.portacl.enabled
+Enforce the
+.Nm
+policy.
+(Default: 1).
+.It Va security.mac.portacl.port_high
+The highest port number
+.Nm
+will enforce rules for.
+(Default: 1023).
+.It Va security.mac.portacl.rules
+The port access control list is specified in the following format:
+.Pp
+.Sm off
+.D1 Ar idtype : id : protocol : port Op , Ar idtype : id : protocol : port , ...
+.Sm on
+.Bl -tag -width ".Ar protocol"
+.It Ar idtype
+Describes the type of subject match to be performed.
+Either
+.Li uid
+for user ID matching, or
+.Li gid
+for group ID matching.
+.It Ar id
+The user or group ID (depending on
+.Ar idtype )
+allowed to bind to the specified port.
+.Bf -emphasis
+NOTE: User and group names are not valid; only the actual ID numbers
+may be used.
+.Ef
+.It Ar protocol
+Describes which protocol this entry applies to.
+Either
+.Li tcp
+or
+.Li udp
+are supported.
+.It Ar port
+Describes which port this entry applies to.
+.Bf -emphasis
+NOTE: MAC security policies may not override other security system policies
+by allowing accesses that they may deny, such as
+.Va net.inet.ip.portrange.reservedlow /
+.Va net.inet.ip.portrange.reservedhigh .
+.Ef
+If the specified port falls within the range specified, the
+.Nm
+entry will not function
+(i.e., even the specified user/group may not be able to bind to the specified
+port).
+.El
+.It Va security.mac.portacl.suser_exempt
+Allow superuser (i.e., root) to bind to all
+.Nm
+protected ports, even if the port access control list does not
+explicitly allow this.
+(Default: 1).
+.It Va security.mac.portacl.autoport_exempt
+Allow applications to use automatic binding to port 0.
+Applications use port 0 as a request for automatic port allocation when
+binding an IP address to a socket.
+This tunable will exempt port 0 allocation from rule checking.
+(Default: 1).
+.El
+.Sh SEE ALSO
+.Xr mac 3 ,
+.Xr ip 4 ,
+.Xr mac_biba 4 ,
+.Xr mac_bsdextended 4 ,
+.Xr mac_ifoff 4 ,
+.Xr mac_mls 4 ,
+.Xr mac_none 4 ,
+.Xr mac_partition 4 ,
+.Xr mac_seeotheruids 4 ,
+.Xr mac_test 4 ,
+.Xr mac 9
+.Sh HISTORY
+MAC first appeared in
+.Fx 5.0
+and
+.Nm
+first appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+This software was contributed to the
+.Fx
+Project by NAI Labs, the Security Research Division of Network Associates
+Inc.\& under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.

@@ -1,0 +1,189 @@
+.\" Copyright (c) 2011-2016 Solarflare Communications Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright notice,
+.\"    this list of conditions and the following disclaimer in the documentation
+.\"    and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+.\" THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" The views and conclusions contained in the software and documentation are
+.\" those of the authors and should not be interpreted as representing official
+.\" policies, either expressed or implied, of the FreeBSD Project.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 22, 2015
+.Dt SFXGE 4
+.Os
+.Sh NAME
+.Nm sfxge
+.Nd "Solarflare 10Gb Ethernet adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device sfxge"
+.Ed
+.Pp
+To load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+sfxge_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for 10Gb Ethernet adapters based on
+Solarflare SFC9000 and XtremeScale X2 family controllers.
+The driver supports jumbo
+frames, transmit/receive checksum offload, TCP Segmentation Offload
+(TSO), Large Receive Offload (LRO), VLAN checksum offload, VLAN TSO,
+and Receive Side Scaling (RSS) using MSI-X interrupts.
+.Pp
+The driver allocates 1 receive queue, transmit queue, event queue and
+IRQ per CPU up to a maximum of 64.
+IRQ affinities should be spread out using
+.Xr cpuset 1 .
+Interrupt moderation may be controlled through the sysctl
+.Va dev.sfxge.%d.int_mod
+(units are microseconds).
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+A large number of MAC, PHY and data path statistics are available
+under the sysctl
+.Va dev.sfxge.%d.stats .
+The adapter's VPD
+fields including its serial number are available under the sysctl
+.Va dev.sfxge.%d.vpd .
+.Sh HARDWARE
+The
+.Nm
+driver supports all 10Gb Ethernet adapters based on Solarflare SFC9000
+family controllers.
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+Actual values can be obtained using
+.Xr sysctl 8 .
+.Bl -tag -width indent
+.It Va hw.sfxge.rx_ring
+The maximum number of descriptors in a receive queue ring.
+Supported values are: 512, 1024, 2048 and 4096.
+.It Va hw.sfxge.tx_ring
+The maximum number of descriptors in a transmit queue ring.
+Supported values are: 512, 1024, 2048 and 4096.
+.It Va hw.sfxge.tx_dpl_get_max
+The maximum length of the deferred packet
+.Dq get-list
+for queued transmit packets (TCP and non-TCP), used only if the transmit
+queue lock can be acquired.
+If a packet is dropped, the
+.Va tx_get_overflow
+counter is incremented and the local sender receives ENOBUFS.
+The value must be greater than 0.
+.It Va hw.sfxge.tx_dpl_get_non_tcp_max
+The maximum number of non-TCP packets in the deferred packet
+.Dq get-list
+, used only if the transmit queue lock can be acquired.
+If a packet is dropped, the
+.Va tx_get_non_tcp_overflow
+counter is incremented and the local sender receives ENOBUFS.
+The value must be greater than 0.
+.It Va hw.sfxge.tx_dpl_put_max
+The maximum length of the deferred packet
+.Dq put-list
+for queued transmit
+packets, used if the transmit queue lock cannot be acquired.
+If a packet is dropped, the
+.Va tx_put_overflow
+counter is incremented and the local sender receives ENOBUFS.
+The value must be greater than or equal to 0.
+.It Va hw.sfxge.tso_fw_assisted
+Bitmask to enable/disable usage of FW-assisted TSO version if supported
+by NIC firmware.
+FATSOv1 (bit 0) and FATSOv2 (bit 1) are supported.
+All enabled by default.
+.It Va hw.sfxge.N.max_rss_channels
+The maximum number of allocated RSS channels for the Nth adapter.
+If set to 0 or unset, the number of channels is determined by the number
+of CPU cores.
+.It Va hw.sfxge.lro.table_size
+Size of the LRO hash table.
+Must be a power of 2.
+A larger table means we can accelerate a larger number of streams.
+.It Va hw.sfxge.lro.chain_max
+The maximum length of a hash chain.
+If chains get too long then the lookup time increases and may exceed
+the benefit of LRO.
+.It Va hw.sfxge.lro.idle_ticks
+The maximum time (in ticks) that a connection can be idle before it's LRO
+state is discarded.
+.It Va hw.sfxge.lro.slow_start_packets
+Number of packets with payload that must arrive in-order before a connection
+is eligible for LRO.
+The idea is we should avoid coalescing segments when the sender is in
+slow-start because reducing the ACK rate can damage performance.
+.It Va hw.sfxge.lro.loss_packets
+Number of packets with payload that must arrive in-order following loss
+before a connection is eligible for LRO.
+The idea is we should avoid coalescing segments when the sender is recovering
+from loss, because reducing the ACK rate can damage performance.
+.It Va hw.sfxge.mcdi_logging
+Enable logging of MCDI protocol messages  (only available if enabled at compile-time).
+.It Va hw.sfxge.N.mcdi_logging
+Enable or disable logging of MCDI protocol messages on a per-port basis.
+The default for each port will be the value of
+.Va hw.sfxge.mcdi_logging.
+The logging may also be enabled or disabled after the driver is loaded using the sysctl
+.Va dev.sfxge.%d.mcdi_logging.
+.It Va hw.sfxge.stats_update_period_ms
+Period in milliseconds to refresh interface statistics from hardware.
+The accepted range is 0 to 65535, the default is 1000 (1 second).
+Use zero value to disable periodic statistics update.
+Supported on SFN8xxx series adapters with firmware v6.2.1.1033 and later and
+SFN5xxx, SFN6xxx and XtremeScale X2xxx series adapters.
+SFN7xxx series adapters and sfN8xxx series with earlier firmware use a
+fixed 1000 milliseconds statistics update period.
+The period may also be changed after the driver is loaded using the sysctl
+.Va dev.sfxge.%d.stats_update_period_ms .
+.El
+.Sh SUPPORT
+For general information and support,
+go to the Solarflare support website at:
+.Pa https://support.solarflare.com .
+.Sh SEE ALSO
+.Xr cpuset 1 ,
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Philip Paeps
+and
+.An Solarflare Communications, Inc.

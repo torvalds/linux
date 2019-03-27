@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+# Not specified by POSIX.
+
+[ "`echo -n a b; echo c d; echo e f`" = "a bc d
+e f" ]

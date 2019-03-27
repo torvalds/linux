@@ -1,0 +1,71 @@
+=pod
+
+=begin comment
+
+This is a recommended way to describe OSSL_STORE loaders,
+"ossl_store-{name}", where {name} is replaced with the name of the
+scheme it implements, in man section 7.
+
+=end comment
+
+=head1 NAME
+
+ossl_store-file - The store 'file' scheme loader
+
+=head1 SYNOPSIS
+
+=for comment generic
+
+#include <openssl/store.h>
+
+=head1 DESCRIPTION
+
+Support for the 'file' scheme is built into C<libcrypto>.
+Since files come in all kinds of formats and content types, the 'file'
+scheme has its own layer of functionality called "file handlers",
+which are used to try to decode diverse types of file contents.
+
+In case a file is formatted as PEM, each called file handler receives
+the PEM name (everything following any 'C<-----BEGIN >') as well as
+possible PEM headers, together with the decoded PEM body.  Since PEM
+formatted files can contain more than one object, the file handlers
+are called upon for each such object.
+
+If the file isn't determined to be formatted as PEM, the content is
+loaded in raw form in its entirety and passed to the available file
+handlers as is, with no PEM name or headers.
+
+Each file handler is expected to handle PEM and non-PEM content as
+appropriate.  Some may refuse non-PEM content for the sake of
+determinism (for example, there are keys out in the wild that are
+represented as an ASN.1 OCTET STRING.  In raw form, it's not easily
+possible to distinguish those from any other data coming as an ASN.1
+OCTET STRING, so such keys would naturally be accepted as PEM files
+only).
+
+=head1 NOTES
+
+When needed, the 'file' scheme loader will require a pass phrase by
+using the C<UI_METHOD> that was passed via OSSL_STORE_open().
+This pass phrase is expected to be UTF-8 encoded, anything else will
+give an undefined result.
+The files made accessible through this loader are expected to be
+standard compliant with regards to pass phrase encoding.
+Files that aren't should be re-generated with a correctly encoded pass
+phrase.
+See L<passphrase-encoding(7)> for more information.
+
+=head1 SEE ALSO
+
+L<ossl_store(7)>, L<passphrase-encoding(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

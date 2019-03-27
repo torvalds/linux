@@ -1,0 +1,85 @@
+.\" Copyright (c) 2009 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd Augusti 25, 2009
+.Dt KSWITCH SECTION
+.Os OPERATING_SYSTEM
+.Sh NAME
+.Nm kswitch
+.Nd switch between default credential caches
+.Sh SYNOPSIS
+.Nm
+.Oo Fl t Ar type \*(Ba Xo
+.Fl Fl type= Ns Ar type
+.Xc
+.Oc
+.Oo Fl c Ar cache \*(Ba Xo
+.Fl Fl cache= Ns Ar cache
+.Xc
+.Oc
+.Oo Fl p Ar principal \*(Ba Xo
+.Fl Fl principal= Ns Ar principal
+.Xc
+.Oc
+.Op Fl i | Fl Fl interactive
+.Op Fl Fl version
+.Op Fl Fl help
+.Sh DESCRIPTION
+Supported options:
+.Bl -tag -width Ds
+.It Xo
+.Fl t Ar type ,
+.Fl Fl type= Ns Ar type
+.Xc
+type of credential cache
+.It Xo
+.Fl c Ar cache ,
+.Fl Fl cache= Ns Ar cache
+.Xc
+name of credential cache to switch to
+.It Xo
+.Fl p Ar principal ,
+.Fl Fl principal= Ns Ar principal
+.Xc
+name of principal to switch to
+.It Xo
+.Fl i ,
+.Fl Fl interactive
+.Xc
+interactive switching between credentials.
+.It Xo
+.Fl Fl version
+.Xc
+print version
+.It Xo
+.Fl Fl help
+.Xc
+.El

@@ -1,0 +1,126 @@
+.\" Copyright (c) 1999
+.\"	Andrzej Bialecki <abial@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Copyright (c) 1992, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software donated to Berkeley by
+.\" Jan-Simon Pendry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 2, 1999
+.Dt PAM_TACPLUS 8
+.Os
+.Sh NAME
+.Nm pam_tacplus
+.Nd TACACS+ authentication PAM module
+.Sh SYNOPSIS
+.Op Ar service-name
+.Ar module-type
+.Ar control-flag
+.Pa pam_tacplus
+.Op Ar options
+.Sh DESCRIPTION
+The
+.Nm
+module provides authentication services based
+upon the TACACS+ protocol
+for the PAM (Pluggable Authentication Module) framework.
+.Pp
+The
+.Nm
+module accepts these optional parameters:
+.Bl -tag -width ".Cm use_first_pass"
+.It Cm use_first_pass
+causes
+.Nm
+to use a previously entered password instead of prompting for a new one.
+If no password has been entered then authentication fails.
+.It Cm try_first_pass
+causes
+.Nm
+to use a previously entered password, if one is available.
+If no
+password has been entered,
+.Nm
+prompts for one as usual.
+.It Cm echo_pass
+causes echoing to be left on if
+.Nm
+prompts for a password.
+.It Cm conf Ns = Ns Ar pathname
+specifies a non-standard location for the TACACS+ client configuration file
+(normally located in
+.Pa /etc/tacplus.conf ) .
+.It Cm template_user Ns = Ns Ar username
+specifies a user whose
+.Xr passwd 5
+entry will be used as a template to create the session environment
+if the supplied username does not exist in local password database.
+The user
+will be authenticated with the supplied username and password, but his
+credentials to the system will be presented as the ones for
+.Ar username ,
+i.e., his login class, home directory, resource limits, etc.\& will be set to ones
+defined for
+.Ar username .
+.Pp
+If this option is omitted, and there is no username
+in the system databases equal to the supplied one (as determined by call to
+.Xr getpwnam 3 ) ,
+the authentication will fail.
+.El
+.Sh FILES
+.Bl -tag -width /etc/tacplus.conf -compact
+.It Pa /etc/tacplus.conf
+The standard TACACS+ client configuration file for
+.Nm
+.El
+.Sh SEE ALSO
+.Xr passwd 5 ,
+.Xr tacplus.conf 5 ,
+.Xr pam 8
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Fx 3.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+manual page was written by
+.An Andrzej Bialecki Aq Mt abial@FreeBSD.org
+and adapted to TACACS+ from RADIUS by
+.An Mark R V Murray Aq Mt markm@FreeBSD.org .
+.Pp
+The
+.Nm
+module was written by
+.An John D. Polstra Aq Mt jdp@FreeBSD.org .

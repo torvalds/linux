@@ -1,0 +1,18 @@
+# $FreeBSD$
+
+This is a program which I wrote as a clone of the UNIX 'units'
+command.  I threw it together in a couple days, but it seems to work,
+with some restrictions.  I have tested it under DOS with Borland C and
+Ultrix 4.2, and SunOS 4.1.  
+
+This program differs from the unix units program in the following
+ways:
+   it can gracefully handle exponents larger than 9 in output
+   it uses 'e' to denote exponentiation in numbers
+   prefixes are listed in the units file
+   it tries both -s and -es plurals
+   it allows use of * for multiply and ^ for exponentiation in the input
+   the output format is somewhat different
+
+Adrian Mariano (adrian@cam.cornell.edu or mariano@geom.umn.edu)
+

@@ -1,0 +1,262 @@
+
+#------------------------------------------------------------------------------
+# $File: wordprocessors,v 1.19 2015/10/16 15:11:07 christos Exp $
+# wordprocessors:  file(1) magic fo word processors.
+#
+####### PWP file format used on Smith Corona Personal Word Processors:
+2	string	\040\040\040\040\040\040\040\040\040\040\040ML4D\040'92	Smith Corona PWP
+>24	byte	2	\b, single spaced
+>24	byte	3	\b, 1.5 spaced
+>24	byte	4	\b, double spaced
+>25	byte	0x42	\b, letter
+>25	byte	0x54	\b, legal
+>26	byte	0x46	\b, A4
+
+# Corel/WordPerfect
+0	string	\xffWPC
+# WordPerfect
+>8	byte	1
+>>9	byte	1	WordPerfect macro
+>>9	byte	2	WordPerfect help file
+>>9	byte	3	WordPerfect keyboard file
+>>9	byte	10	WordPerfect document
+>>9	byte	11	WordPerfect dictionary
+>>9	byte	12	WordPerfect thesaurus
+>>9	byte	13	WordPerfect block
+>>9	byte	14	WordPerfect rectangular block
+>>9	byte	15	WordPerfect column block
+>>9	byte	16	WordPerfect printer data
+>>9	byte	19	WordPerfect printer data
+>>9	byte	20	WordPerfect driver resource data
+>>9	byte	22	WordPerfect graphic image
+>>9	byte	23	WordPerfect hyphenation code
+>>9	byte	24	WordPerfect hyphenation data
+>>9	byte	25	WordPerfect macro resource data
+>>9	byte	27	WordPerfect hyphenation lex
+>>9	byte	29	WordPerfect wordlist
+>>9	byte	30	WordPerfect equation resource data
+>>9	byte	33	WordPerfect spell rules
+>>9	byte	34	WordPerfect dictionary rules
+>>9	byte	39	WordPerfect spell rules (Microlytics)
+>>9	byte	43	WordPerfect settings file
+>>9	byte	44	WordPerfect 3.5 document
+>>9	byte	45	WordPerfect 4.2 document
+>>9	byte	69	WordPerfect dialog file
+>>9	byte	76	WordPerfect button bar
+>>9	default x
+>>>9	byte	x	Corel WordPerfect: Unknown filetype %d
+# Corel Shell
+>8	byte	2
+>>9	byte	1	Corel shell macro
+>>9	byte	10	Corel shell definition
+>>9	default x
+>>>9	byte	x	Corel Shell: Unknown filetype %d
+# Corel Notebook
+>8	byte	3
+>>9	byte	1	Corel Notebook macro
+>>9	byte	2	Corel Notebook help file
+>>9	byte	3	Corel Notebook keyboard file
+>>9	byte	10	Corel Notebook definition
+>>9	default	x
+>>>9	byte	x	Corel Notebook: Unknown filetype %d
+# Corel Calculator
+>8	byte	4
+>>9	byte	2	Corel Calculator help file
+>>9	default	x
+>>>9	byte	x	Corel Calculator: Unknown filetype %d
+# Corel File Manager
+>8	byte	5
+>>9	default	x
+>>>9	byte	x	Corel File Manager: Unknown filetype %d
+# Corel Calendar
+>8	byte	6
+>>9	byte 	2	Corel Calendar help file
+>>9	byte 	10	Corel Calendar data file
+>>9	default	x
+>>>9	byte	x	Corel Calendar: Unknown filetype %d
+# Corel Program Editor/Ed Editor
+>8	byte	7
+>>9	byte	1	Corel Editor macro
+>>9	byte	2	Corel Editor help file
+>>9	byte	3	Corel Editor keyboard file
+>>9	byte	25	Corel Editor macro resource file
+>>9	default	x
+>>>9	byte	x	Corel Program Editor/Ed Editor: Unknown filetype %d
+# Corel Macro Editor
+>8	byte	8
+>>9	byte 	1	Corel Macro editor macro
+>>9	byte 	2	Corel Macro editor help file
+>>9	byte	3	Corel Macro editor keyboard file
+>>9	default	x
+>>>9	byte	x	Corel Macro Editor: Unknown filetype %d
+# Corel Plan Perfect
+>8	byte	9
+>>9	default	x
+>>>9	byte	x	Corel Plan Perfect: Unknown filetype %d
+# Corel DataPerfect
+>8	byte	10
+# CHECK: Don't these belong into product 9?
+>>9	byte	1	Corel PlanPerfect macro
+>>9	byte	2	Corel PlanPerfect help file
+>>9	byte	3	Corel PlanPerfect keyboard file
+>>9	byte	10	Corel PlanPerfect worksheet
+>>9	byte	15	Corel PlanPerfect printer definition
+>>9	byte	18	Corel PlanPerfect graphic definition
+>>9	byte	19	Corel PlanPerfect data
+>>9	byte	20	Corel PlanPerfect temporary printer
+>>9	byte	25	Corel PlanPerfect macro resource data
+>>9	default	x
+>>>9	byte	x	Corel DataPerfect: Unknown filetype %d
+# Corel Mail
+>8	byte	11
+>>9	byte	2	Corel Mail help file
+>>9	byte	5	Corel Mail distribution list
+>>9	byte	10	Corel Mail out box
+>>9	byte	11	Corel Mail in box
+>>9	byte	20	Corel Mail users archived mailbox
+>>9	byte	21	Corel Mail archived message database
+>>9	byte	22	Corel Mail archived attachments
+>>9	default	x
+>>>9	byte	x	Corel Mail: Unknown filetype %d
+# Corel Printer
+>8	byte	12
+>>9	byte	11	Corel Printer temporary file
+>>9	default	x
+>>>9	byte	x	Corel Printer: Unknown filetype %d
+# Corel Scheduler
+>8	byte	13
+>>9	byte	2	Corel Scheduler help file
+>>9	byte	10	Corel Scheduler in file
+>>9	byte	11	Corel Scheduler out file
+>>9	default	x
+>>>9	byte	x	Corel Scheduler: Unknown filetype %d
+# Corel WordPerfect Office
+>8	byte	14
+>>9	byte	10	Corel GroupWise settings file
+>>9	byte	17	Corel GroupWise directory services
+>>9	byte	43	Corel GroupWise settings file
+>>9	default	x
+>>>9	byte	x	Corel WordPerfect Office: Unknown filetype %d
+# Corel DrawPerfect
+>8	byte	15
+>>9	default	x
+>>>9	byte	x	Corel DrawPerfect: Unknown filetype %d
+# Corel LetterPerfect
+>8	byte	16
+>>9	default	x
+>>>9	byte	x	Corel LetterPerfect: Unknown filetype %d
+# Corel Terminal
+>8	byte	17
+>>9	byte	10	Corel Terminal resource data
+>>9	byte	11	Corel Terminal resource data
+>>9	byte	43	Corel Terminal resource data
+>>9	default	x
+>>>9	byte	x	Corel Terminal: Unknown filetype %d
+# Corel loadable file
+>8	byte	18
+>>9	byte	10	Corel loadable file
+>>9	byte	11	Corel GUI loadable text
+>>9	byte	12	Corel graphics resource data
+>>9	byte	13	Corel printer settings file
+>>9	byte	14	Corel port definition file
+>>9	byte	15	Corel print queue parameters
+>>9	byte	16	Corel compressed file
+>>9	default	x
+>>>9	byte	x	Corel loadable file: Unknown filetype %d
+>>15	byte	0	\b, optimized for Intel
+>>15	byte	1	\b, optimized for Non-Intel
+# Network service
+>8	byte	20
+>>9	byte	10	Corel Network service msg file
+>>9	byte	11	Corel Network service msg file
+>>9	byte	12	Corel Async gateway login msg
+>>9	byte	14	Corel GroupWise message file
+>>9	default	x
+>>>9	byte	x	Corel Network service: Unknown filetype %d
+# GroupWise
+>8	byte	31
+>>9	byte	20	GroupWise admin domain database
+>>9	byte	21	GroupWise admin host database
+>>9	byte	23	GroupWise admin remote host database
+>>9	byte	24	GroupWise admin ADS deferment data file
+>>9	default	x
+>>>9	byte	x	GroupWise: Unknown filetype %d
+# IntelliTAG
+>8	byte	33
+>>9	byte	10	IntelliTAG (SGML) compiled DTD
+>>9	default	x
+>>>9	byte	x	IntelliTAG: Unknown filetype %d
+# everything else
+>8	default x
+>>8	byte	x	Unknown Corel/Wordperfect product %d,
+>>>9	byte	x	file type %d
+>10	byte	0	\b, v5.
+>10	byte	!0	\b, v%d.
+>11	byte	x	\b%d
+
+# Hangul (Korean) Word Processor File
+0	string	HWP\ Document\ File	Hangul (Korean) Word Processor File 3.0
+# From: Won-Kyu Park <wkpark@kldp.org>
+512	string		R\0o\0o\0t\0	Hangul (Korean) Word Processor File 2000
+!:mime	application/x-hwp
+
+# CosmicBook, from Benoit Rouits
+0       string  CSBK    Ted Neslson's CosmicBook hypertext file
+
+2       string  EYWR    AmigaWriter file
+
+# chi:  file(1) magic for ChiWriter files
+0       string          \\1cw\          ChiWriter file
+>5      string          >\0             version %s
+0       string          \\1cw           ChiWriter file
+
+# Quark Express from http://www.garykessler.net/library/file_sigs.html
+2	string	IIXPR3			Intel Quark Express Document (English)
+2	string	IIXPRa			Intel Quark Express Document (Korean)
+2	string	MMXPR3			Motorola Quark Express Document (English)
+!:mime	application/x-quark-xpress-3
+2	string	MMXPRa			Motorola Quark Express Document (Korean)
+
+# adobe indesign (document, whatever...) from querkan
+0	belong	0x0606edf5		Adobe InDesign
+>16	string	DOCUMENT		Document
+
+#------------------------------------------------------------------------------
+# ichitaro456: file(1) magic for Just System Word Processor Ichitaro
+#
+# Contributor kenzo-:
+# Reversed-engineered JS Ichitaro magic numbers
+#
+
+0	string		DOC
+>43	byte		0x14	Just System Word Processor Ichitaro v4
+!:mime	application/x-ichitaro4
+>144	string	JDASH		application/x-ichitaro4
+
+0	string		DOC
+>43	byte		0x15	Just System Word Processor Ichitaro v5
+!:mime	application/x-ichitaro5
+
+0	string		DOC
+>43	byte		0x16	Just System Word Processor Ichitaro v6
+!:mime	application/x-ichitaro6
+
+# Type: Freemind mindmap documents
+# From: Jamie Thompson <debian-bugs@jamie-thompson.co.uk>
+0	string/w	\<map\ version	Freemind document
+!:mime	application/x-freemind
+
+# Type: Freeplane mindmap documents
+# From: Felix Natter <fnatter@gmx.net>
+0       string/w        \<map\ version="freeplane  Freeplane document
+!:mime  application/x-freeplane
+
+# Type:        Scribus
+# From:        Werner Fink <werner@suse.de>
+0	string	\<SCRIBUSUTF8\ Version		Scribus Document
+0	string	\<SCRIBUSUTF8NEW\ Version	Scribus Document
+!:mime	application/x-scribus
+
+# help files .hlp compiled from html and used by gfxboot added by Joerg Jenderek
+# markups page=0x04,label=0x12, followed by strings like "opt" or "main" and title=0x14
+0	ulelong&0x8080FFFF	0x00001204	gfxboot compiled html help file

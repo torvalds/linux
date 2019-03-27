@@ -1,0 +1,64 @@
+/* This file contains the definitions for the tree structure
+   enumeration used in GCC.  
+
+Copyright (C) 2005 Free Software Foundation, Inc.
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
+
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
+
+/* The format of this file is 
+   DEFTREESTRUCT(enumeration value, printable name).
+   Each enumeration value should correspond with a single member of union 
+   tree_node.  
+   These enumerator values are used in order to distinguish members of union
+   tree_node for garbage collection purposes, as well as specifying what structures
+   contain what other structures in the tree_contains_struct array.  */
+	
+DEFTREESTRUCT(TS_COMMON, "common")
+DEFTREESTRUCT(TS_INT_CST, "integer cst")
+DEFTREESTRUCT(TS_REAL_CST, "real cst")
+DEFTREESTRUCT(TS_VECTOR, "vector")
+DEFTREESTRUCT(TS_STRING, "string")
+DEFTREESTRUCT(TS_COMPLEX, "complex")
+DEFTREESTRUCT(TS_IDENTIFIER, "indentifier")
+DEFTREESTRUCT(TS_DECL_MINIMAL, "decl minimal")
+DEFTREESTRUCT(TS_DECL_COMMON, "decl common")
+DEFTREESTRUCT(TS_DECL_WRTL, "decl with RTL")
+DEFTREESTRUCT(TS_DECL_NON_COMMON, "decl non-common")
+DEFTREESTRUCT(TS_DECL_WITH_VIS, "decl with visibility")
+DEFTREESTRUCT(TS_FIELD_DECL, "field decl")
+DEFTREESTRUCT(TS_VAR_DECL, "var decl")
+DEFTREESTRUCT(TS_PARM_DECL, "parm decl")
+DEFTREESTRUCT(TS_LABEL_DECL, "label decl")
+DEFTREESTRUCT(TS_RESULT_DECL, "result decl")
+DEFTREESTRUCT(TS_CONST_DECL, "const decl")
+DEFTREESTRUCT(TS_TYPE_DECL, "label decl")
+DEFTREESTRUCT(TS_FUNCTION_DECL, "function decl")
+DEFTREESTRUCT(TS_TYPE, "type")
+DEFTREESTRUCT(TS_LIST, "list")
+DEFTREESTRUCT(TS_VEC, "vec")
+DEFTREESTRUCT(TS_EXP, "exp")
+DEFTREESTRUCT(TS_SSA_NAME, "ssa name")
+DEFTREESTRUCT(TS_PHI_NODE, "phi node")
+DEFTREESTRUCT(TS_BLOCK, "block")
+DEFTREESTRUCT(TS_BINFO, "binfo")
+DEFTREESTRUCT(TS_STATEMENT_LIST, "statement list")
+DEFTREESTRUCT(TS_VALUE_HANDLE, "value handle")
+DEFTREESTRUCT(TS_CONSTRUCTOR, "constructor")
+DEFTREESTRUCT(TS_MEMORY_TAG, "memory tag")
+DEFTREESTRUCT(TS_STRUCT_FIELD_TAG, "struct field tag")
+DEFTREESTRUCT(TS_OMP_CLAUSE, "omp clause")

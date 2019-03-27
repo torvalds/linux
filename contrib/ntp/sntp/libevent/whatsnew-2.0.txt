@@ -1,0 +1,609 @@
+What's New In Libevent 2.0 so far:
+
+1. Meta-issues
+
+1.1. About this document
+
+  This document describes the key differences between Libevent 1.4 and
+  Libevent 2.0, from a user's point of view.  It was most recently
+  updated based on features in git master as of August 2010.
+
+  NOTE: I am very sure that I missed some thing on this list.  Caveat
+  haxxor.
+
+1.2. Better documentation
+
+  There is now a book-in-progress that explains how to use Libevent and its
+  growing pile of APIs.  As of this writing, it covers everything except the
+  http and rpc code.  Check out the latest draft at
+  http://www.wangafu.net/~nickm/libevent-book/ .
+
+2. New and Improved Event APIs
+
+  Many APIs are improved, refactored, or deprecated in Libevent 2.0.
+
+  COMPATIBILITY:
+
+  Nearly all existing code that worked with Libevent 1.4 should still
+  work correctly with Libevent 2.0.  However, if you are writing new code,
+  or if you want to port old code, we strongly recommend using the new APIs
+  and avoiding deprecated APIs as much as possible.
+
+  Binaries linked against Libevent 1.4 will need to be recompiled to link
+  against Libevent 2.0.  This is nothing new; we have never been good at
+  preserving binary compatibility between releases.  We'll try harder in the
+  future, though: see 2.1 below.
+
+2.1. New header layout for improved forward-compatibility
+
+  Libevent 2.0 has a new header layout to make it easier for programmers to
+  write good, well-supported libevent code.  The new headers are divided
+  into three types.
+
+  There are *regular headers*, like event2/event.h.  These headers contain
+  the functions that most programmers will want to use.
+
+  There are *backward compatibility headers*, like event2/event_compat.h.
+  These headers contain declarations for deprecated functions from older
+  versions of Libevent.  Documentation in these headers should suggest what's
+  wrong with the old functions, and what functions you want to start using
+  instead of the old ones.  Some of these functions might be removed in a
+  future release.  New programs should generally not include these headers.
+
+  Finally, there are *structure headers*, like event2/event_struct.h.
+  These headers contain definitions of some structures that Libevent has
+  historically exposed.  Exposing them caused problems in the past,
+  since programs that were compiled to work with one version of Libevent
+  would often stop working with another version that changed the size or
+  layout of some object.  We've moving them into separate headers so
+  that programmers can know that their code is not depending on any
+  unstable aspect of the Libvent ABI.  New programs should generally not
+  include these headers unless they really know what they are doing, are
+  willing to rebuild their software whenever they want to link it
+  against a new version of Libevent, and are willing to risk their code
+  breaking if and when data structures change.
+
+  Functionality that once was located in event.h is now more subdivided.
+  The core event logic is now in event2/event.h.  The "evbuffer" functions
+  for low-level buffer manipulation are in event2/buffer.h.  The
+  "bufferevent" functions for higher-level buffered IO are in
+  event2/bufferevent.h.
+
+  COMPATIBILITY:
+
+  All of the old headers (event.h, evdns.h, evhttp.h, evrpc.h, and
+  evutil.h) will continue to work by including the corresponding new
+  headers.  Old code should not be broken by this change.
+
+2.2. New thread-safe, binary-compatible, harder-to-mess-up APIs
+
+  Some aspects of the historical Libevent API have encouraged
+  non-threadsafe code, or forced code built against one version of Libevent
+  to no longer build with another.  The problems with now-deprecated APIs
+  fell into two categories:
+
+     1) Dependence on the "current" event_base.  In an application with
+        multiple event_bases, Libevent previously had a notion of the
+        "current" event_base.  New events were linked to this base, and
+        the caller needed to explicitly reattach them to another base.
+        This was horribly error-prone.
+
+        Functions like "event_set" that worked with the "current" event_base
+        are now deprecated but still available (see 2.1).  There are new
+        functions like "event_assign" that take an explicit event_base
+        argument when setting up a structure.  Using these functions will help
+        prevent errors in your applications, and to be more threadsafe.
+
+     2) Structure dependence.  Applications needed to allocate 'struct
+        event' themselves, since there was no function in Libevent to do it
+        for them.  But since the size and contents of struct event can
+        change between libevent versions, this created binary-compatibility
+        nightmares.  All structures of this kind are now isolated in
+        _struct.h header (see 2.1), and there are new allocate-and-
+        initialize functions you can use instead of the old initialize-only
+        functions.  For example, instead of malloc and event_set, you
+        can use event_new().
+
+        (For people who do really want to allocate a struct event on the
+        stack, or put one inside another structure, you can still use
+        event2/event_compat.h.)
+
+   So in the case where old code would look like this:
+
+      #include <event.h>
+      ...
+      struct event *ev = malloc(sizeof(struct event));
+      /* This call will cause a buffer overrun if you compile with one version
+         of Libevent and link dynamically against another. */
+      event_set(ev, fd, EV_READ, cb, NULL);
+      /* If you forget this call, your code will break in hard-to-diagnose
+         ways in the presence of multiple event bases. */
+      event_set_base(ev, base);
+
+   New code will look more like this:
+
+     #include <event2/event.h>
+     ...
+     struct event *ev;
+     ev = event_new(base, fd, EV_READ, cb, NULL);
+
+2.3. Overrideable allocation functions
+
+  If you want to override the allocation functions used by libevent
+  (for example, to use a specialized allocator, or debug memory
+  issues, or so on), you can replace them by calling
+  event_set_mem_functions.  It takes replacements for malloc(),
+  free(), and realloc().
+
+  If you're going to use this facility, you need to call it _before_
+  Libevent does any memory allocation; otherwise, Libevent may allocate some
+  memory with malloc(), and free it with the free() function you provide.
+
+  You can disable this feature when you are building Libevent by passing
+  the --disable-malloc-replacement argument to configure.
+
+2.4. Configurable event_base creation
+
+  Older versions of Libevent would always got the fastest backend
+  available, unless you reconfigured their behavior with the environment
+  variables EVENT_NOSELECT, EVENT_NOPOLL, and so forth.  This was annoying
+  to programmers who wanted to pick a backend explicitly without messing
+  with the environment.
+
+  Also, despite our best efforts, not every backend supports every
+  operation we might like.  Some features (like edge-triggered events, or
+  working with non-socket file descriptors) only work with some operating
+  systems' fast backends.  Previously, programmers who cared about this
+  needed to know which backends supported what.  This tended to get quite
+  ungainly.
+
+  There is now an API to choose backends, either by name or by feature.
+  Here is an example:
+
+      struct event_config_t *config;
+      struct event_base *base;
+
+      /* Create a new configuration object. */
+      config = event_config_new();
+      /* We don't want to use the "select" method. */
+      event_config_avoid_method(config, "select");
+      /* We want a method that can work with non-socket file descriptors */
+      event_config_require_features(config, EV_FEATURE_FDS);
+
+      base = event_base_new_with_config(config);
+      if (!base) {
+         /* There is no backend method that does what we want. */
+         exit(1);
+      }
+      event_config_free(config);
+
+  Supported features are documented in event2/event.h
+
+2.5. Socket is now an abstract type
+
+  All APIs that formerly accepted int as a socket type now accept
+  "evutil_socket_t".  On Unix, this is just an alias for "int" as
+  before.  On Windows, however, it's an alias for SOCKET, which can
+  be wider than int on 64-bit platforms.
+
+2.6. Timeouts and persistent events work together.
+
+  Previously, it wasn't useful to set a timeout on a persistent event:
+  the timeout would trigger once, and never again.  This is not what
+  applications tend to want.  Instead, applications tend to want every
+  triggering of the event to re-set the timeout.  So now, if you set
+  up an event like this:
+       struct event *ev;
+       struct timeval tv;
+       ev = event_new(base, fd, EV_READ|EV_PERSIST, cb, NULL);
+       tv.tv_sec = 1;
+       tv.tv_usec = 0;
+       event_add(ev, &tv);
+
+  The callback 'cb' will be invoked whenever fd is ready to read, OR whenever
+  a second has passed since the last invocation of cb.
+
+2.7. Multiple events allowed per fd
+
+  Older versions of Libevent allowed at most one EV_READ event and at most
+  one EV_WRITE event per socket, per event base.  This restriction is no
+  longer present.
+
+2.8. evthread_* functions for thread-safe structures.
+
+  Libevent structures can now be built with locking support.  This code
+  makes it safe to add, remove, and activate events on an event base from a
+  different thread.  (Previously, if you wanted to write multithreaded code
+  with Libevent, you could only an event_base or its events in one thread at
+  a time.)
+
+  If you want threading support and you're using pthreads, you can just
+  call evthread_use_pthreads().  (You'll need to link against the
+  libevent_pthreads library in addition to libevent_core.  These functions are
+  not in libevent_core.)
+
+  If you want threading support and you're using Windows, you can just
+  call evthread_use_windows_threads().
+
+  If you are using some locking system besides Windows and pthreads, You
+  can enable this on a per-event-base level by writing functions to
+  implement mutexes, conditions, and thread IDs, and passing them to
+  evthread_set_lock_callbacks and related functions in event2/thread.h.
+
+  Once locking functions are enabled, every new event_base is created with a
+  lock.  You can prevent a single event_base from being built with a lock
+  disabled by using the EVENT_BASE_FLAG_NOLOCK flag in its
+  event_config.  If an event_base is created with a lock, it is safe to call
+  event_del, event_add, and event_active on its events from any thread.  The
+  event callbacks themselves are still all executed from the thread running
+  the event loop.
+
+  To make an evbuffer or a bufferevent object threadsafe, call its
+  *_enable_locking() function.
+
+  The HTTP api is not currently threadsafe.
+
+  To build Libevent with threading support disabled, pass
+  --disable-thread-support to the configure script.
+
+2.9. Edge-triggered events on some backends.
+
+  With some backends, it's now possible to add the EV_ET flag to an event
+  in order to request that the event's semantics be edge-triggered.  Right
+  now, epoll and kqueue support this.
+
+  The corresponding event_config feature is EV_FEATURE_ET; see 2.4 for more
+  information.
+
+2.10. Better support for huge numbers of timeouts
+
+  The heap-based priority queue timer implementation for Libevent 1.4 is good
+  for randomly distributed timeouts, but suboptimal if you have huge numbers
+  of timeouts that all expire in the same amount of time after their
+  creation.  The new event_base_init_common_timeout() logic lets you signal
+  that a given timeout interval will be very common, and should use a linked
+  list implementation instead of a priority queue.
+
+2.11. Improved debugging support
+
+  It's been pretty easy to forget to delete all your events before you
+  re-initialize them, or otherwise put Libevent in an internally inconsistent
+  state.  You can tell libevent to catch these and other common errors with
+  the new event_enable_debug_mode() call.  Just invoke it before you do
+  any calls to other libevent functions, and it'll catch many common
+  event-level errors in your code.
+
+2.12. Functions to access all event fields
+
+  So that you don't have to access the struct event fields directly, Libevent
+  now provides accessor functions to retrieve everything from an event that
+  you set during event_new() or event_assign().
+
+3. Backend-specific and performance improvements.
+
+3.1. Change-minimization on O(1) backends
+
+  With previous versions of Libevent, if you called event_del() and
+  event_add() repeatedly on a single event between trips to the backend's
+  dispatch function, the backend might wind up making unnecessary calls or
+  passing unnecessary data to the kernel.  The new backend logic batches up
+  redundant adds and deletes, and performs no more operations than necessary
+  at the kernel level.
+
+  This logic is on for the kqueue backend, and available (but off by
+  default) for the epoll backend.  To turn it on for the epoll backend,
+  set the EVENT_BASE_FLAG_EPOLL_USE_CHANGELIST flag in the
+  event_base_cofig, or set the EVENT_EPOLL_USE_CHANGELIST environment
+  variable.  Doing this with epoll may result in weird bugs if you give
+  any fds closed by dup() or its variants.
+
+3.2. Improved notification on Linux
+
+  When we need to wake the event loop up from another thread, we use
+  an epollfd to do so, instead of a socketpair.  This is supposed to be
+  faster.
+
+3.3. Windows: better support for everything
+
+  Bufferevents on Windows can use a new mechanism (off-by-default; see below)
+  to send their data via Windows overlapped IO and get their notifications
+  via the IOCP API.  This should be much faster than using event-based
+  notification.
+
+  Other functions throughout the code have been fixed to work more
+  consistently with Windows.  Libevent now builds on Windows using either
+  mingw, or using MSVC (with nmake).  Libevent works fine with UNICODE
+  defined, or not.
+
+  Data structures are a little smarter: our lookups from socket to pending
+  event are now done with O(1) hash tables rather than O(lg n) red-black
+  trees.
+
+  Unfortunately, the main Windows backend is still select()-based: from
+  testing the IOCP backends on the mailing list, it seems that there isn't
+  actually a way to tell for certain whether a socket is writable with IOCP.
+  Libevent 2.1 may add a multithreaded WaitForMultipleEvents-based
+  backend for better performance with many inactive sockets and better
+  integration with Windows events.
+
+4. Improvements to evbuffers
+
+  Libevent has long had an "evbuffer" implementation to wrap access to an
+  input or output memory buffer.  In previous versions, the implementation
+  was very inefficient and lacked some desirable features.  We've made many
+  improvements in Libevent 2.0.
+
+4.1. Chunked-memory internal representation
+
+  Previously, each evbuffer was a huge chunk of memory.  When we ran out of
+  space in an evbuffer, we used realloc() to grow the chunk of memory.  When
+  data was misaligned, we used memmove to move the data back to the front
+  of the buffer.
+
+  Needless to say, this is a terrible interface for networked IO.
+
+  Now, evbuffers are implemented as a linked list of memory chunks, like
+  most Unix kernels use for network IO.  (See Linux's skbuf interfaces,
+  or *BSD's mbufs).  Data is added at the end of the linked list and
+  removed from the front, so that we don't ever need realloc huge chunks
+  or memmove the whole buffer contents.
+
+  To avoid excessive calls to read and write, we use the readv/writev
+  interfaces (or WSASend/WSARecv on Windows) to do IO on multiple chunks at
+  once with a single system call.
+
+  COMPATIBILITY NOTE:
+  The evbuffer struct is no longer exposed in a header.  The code here is
+  too volatile to expose an official evbuffer structure, and there was never
+  any means provided to create an evbuffer except via evbuffer_new which
+  heap-allocated the buffer.
+
+  If you need access to the whole buffer as a linear chunk of memory, the
+  EVBUFFER_DATA() function still works.  Watch out, though: it needs to copy
+  the buffer's contents in a linear chunk before you can use it.
+
+4.2. More flexible readline support
+
+  The old evbuffer_readline() function (which accepted any sequence of
+  CR and LF characters as a newline, and which couldn't handle lines
+  containing NUL characters), is now deprecated.  The preferred
+  function is evbuffer_readln(), which supports a variety of
+  line-ending styles, and which can return the number of characters in
+  the line returned.
+
+  You can also call evbuffer_search_eol() to find the end of a line
+  in an evbuffer without ever extracting the line.
+
+4.3. Support for file-based IO in evbuffers.
+
+  You can now add chunks of a file into a evbuffer, and Libevent will have
+  your OS use mapped-memory functionality, sendfile, or splice to transfer
+  the data without ever copying it to userspace.  On OSs where this is not
+  supported, Libevent just loads the data.
+
+  There are probably some bugs remaining in this code.  On some platforms
+  (like Windows), it just reads the relevant parts of the file into RAM.
+
+4.4. Support for zero-copy ("scatter/gather") writes in evbuffers.
+
+  You can add a piece of memory to an evbuffer without copying it.
+  Instead, Libevent adds a new element to the evbuffer's linked list of
+  chunks with a pointer to the memory you supplied.  You can do this
+  either with a reference-counted chunk (via evbuffer_add_reference), or
+  by asking Libevent for a pointer to its internal vectors (via
+  evbuffer_reserve_space or evbuffer_peek()).
+
+4.5. Multiple callbacks per evbuffer
+
+  Previously, you could only have one callback active on an evbuffer at a
+  time.  In practice, this meant that if one part of Libevent was using an
+  evbuffer callback to notice when an internal evbuffer was reading or
+  writing data, you couldn't have your own callback on that evbuffer.
+
+  Now, you can now use the evbuffer_add_cb() function to add a callback that
+  does not interfere with any other callbacks.
+
+  The evbuffer_setcb() function is now deprecated.
+
+4.6. New callback interface
+
+  Previously, evbuffer callbacks were invoked with the old size of the
+  buffer and the new size of the buffer.  This interface could not capture
+  operations that simultaneously filled _and_ drained a buffer, or handle
+  cases where we needed to postpone callbacks until multiple operations were
+  complete.
+
+  Callbacks that are set with evbuffer_setcb still use the old API.
+  Callbacks added with evbuffer_add_cb() use a new interface that takes a
+  pointer to a struct holding the total number of bytes drained read and the
+  total number of bytes written.  See event2/buffer.h for full details.
+
+4.7. Misc new evbuffer features
+
+   You can use evbuffer_remove() to move a given number of bytes from one
+   buffer to another.
+
+   The evbuffer_search() function lets you search for repeated instances of
+   a pattern inside an evbuffer.
+
+   You can use evbuffer_freeze() to temporarily suspend drains from or adds
+   to a given evbuffer.  This is useful for code that exposes an evbuffer as
+   part of its public API, but wants users to treat it as a pure source or
+   sink.
+
+   There's an evbuffer_copyout() that looks at the data at the start of an
+   evbuffer without doing a drain.
+
+   You can have an evbuffer defer all of its callbacks, so that rather than
+   being invoked immediately when the evbuffer's length changes, they are
+   invoked from within the event_loop.  This is useful when you have a
+   complex set of callbacks that can change the length of other evbuffers,
+   and you want to avoid having them recurse and overflow your stack.
+
+5. Bufferevents improvements
+
+   Libevent has long included a "bufferevents" structure and related
+   functions that were useful for generic buffered IO on a TCP connection.
+   This is what Libevent uses for its HTTP implementation.  In addition to
+   the improvements that they get for free from the underlying evbuffer
+   implementation above, there are many new features in Libevent 2.0's
+   evbuffers.
+
+5.1. New OO implementations
+
+   The "bufferevent" structure is now an abstract base type with multiple
+   implementations.  This should not break existing code, which always
+   allocated bufferevents with bufferevent_new().
+
+   Current implementations of the bufferevent interface are described below.
+
+5.2. bufferevent_socket_new() replaces bufferevent_new()
+
+   Since bufferevents that use a socket are not the only kind,
+   bufferevent_new() is now deprecated.  Use bufferevent_socket_new()
+   instead.
+
+5.3. Filtered bufferevent IO
+
+   You can use bufferevent_filter_new() to create a bufferevent that wraps
+   around another bufferevent and transforms data it is sending and
+   receiving.  See test/regress_zlib.c for a toy example that uses zlib to
+   compress data before sending it over a bufferevent.
+
+5.3. Linked pairs of bufferevents
+
+   You can use bufferevent_pair_new() to produce two linked
+   bufferevents.  This is like using socketpair, but doesn't require
+   system-calls.
+
+5.4. SSL support for bufferevents with OpenSSL
+
+   There is now a bufferevent type that supports SSL/TLS using the
+   OpenSSL library.  The code for this is build in a separate
+   library, libevent_openssl, so that your programs don't need to
+   link against OpenSSL unless they actually want SSL support.
+
+   There are two ways to construct one of these bufferevents, both
+   declared in <event2/bufferevent_ssl.h>.  If you want to wrap an
+   SSL layer around an existing bufferevent, you would call the
+   bufferevent_openssl_filter_new() function.  If you want to do SSL
+   on a socket directly, call bufferevent_openssl_socket_new().
+
+5.5. IOCP support for bufferevents on Windows
+
+   There is now a bufferevents backend that supports IOCP on Windows.
+   Supposedly, this will eventually make Windows IO much faster for
+   programs using bufferevents.  We'll have to see; the code is not
+   currently optimized at all.  To try it out, call the
+   event_base_start_iocp() method on an event_base before contructing
+   bufferevents.
+
+   This is tricky code; there are probably some bugs hiding here.
+
+5.6. Improved connect support for bufferevents.
+
+   You can now create a bufferevent that is not yet connected to any
+   host, and tell it to connect, either by address or by hostname.
+
+   The functions to do this are bufferevent_socket_connect and
+   bufferevent_socket_connect_hostname.
+
+5.7. Rate-limiting for bufferevents
+
+   If you need to limit the number of bytes read/written by a single
+   bufferevent, or by a group of them, you can do this with a new set of
+   bufferevent rate-limiting calls.
+
+6. Other improvements
+
+6.1. DNS improvements
+
+6.1.1. DNS: IPv6 nameservers
+
+   The evdns code now lets you have nameservers whose addresses are IPv6.
+
+6.1.2. DNS: Better security
+
+   Libevent 2.0 tries harder to resist DNS answer-sniping attacks than
+   earlier versions of evdns.  See comments in the code for full details.
+
+   Notably, evdns now supports the "0x20 hack" to make it harder to
+   impersonate a DNS server.  Additionally, Libevent now uses a strong
+   internal RNG to generate DNS transaction IDs, so you don't need to supply
+   your own.
+
+6.1.3. DNS: Getaddrinfo support
+
+   There's now an asynchronous getaddrinfo clone, evdns_getaddrinfo(),
+   to make the results of the evdns functions more usable.  It doesn't
+   support every feature of a typical platform getaddrinfo() yet, but it
+   is quite close.
+
+   There is also a blocking evutil_getaddrinfo() declared in
+   event2/util.h, to provide a getaddrinfo() implementation for
+   platforms that don't have one, and smooth over the differences in
+   various platforms implementations of RFC3493.
+
+   Bufferevents provide bufferevent_connect_hostname(), which combines
+   the name lookup and connect operations.
+
+6.1.4. DNS: No more evdns globals
+
+   Like an event base, evdns operations are now supposed to use an evdns_base
+   argument.  This makes them easier to wrap for other (more OO) languages,
+   and easier to control the lifetime of.  The old evdns functions will
+   still, of course, continue working.
+
+6.2. Listener support
+
+   You can now more easily automate setting up a bound socket to listen for
+   TCP connections.  Just use the evconnlistener_*() functions in the
+   event2/listener.h header.
+
+   The listener code supports IOCP on Windows if available.
+
+6.3. Secure RNG support
+
+   Network code very frequently needs a secure, hard-to-predict random number
+   generator.  Some operating systems provide a good C implementation of one;
+   others do not.  Libevent 2.0 now provides a consistent implementation
+   based on the arc4random code originally from OpenBSD.  Libevent (and you)
+   can use the evutil_secure_rng_*() functions to access a fairly secure
+   random stream of bytes.
+
+6.4. HTTP
+
+   The evhttp uriencoding and uridecoding APIs have updated versions
+   that behave more correctly, and can handle strings with internal NULs.
+
+   The evhttp query parsing and URI parsing logic can now detect errors
+   more usefully.  Moreover, we include an actual URI parsing function
+   (evhttp_uri_parse()) to correctly parse URIs, so as to discourage
+   people from rolling their own ad-hoc parsing functions.
+
+   There are now accessor functions for the useful fields of struct http
+   and friends; it shouldn't be necessary to access them directly any
+   more.
+
+   Libevent now lets you declare support for all specified HTTP methods,
+   including OPTIONS, PATCH, and so on.  The default list is unchanged.
+
+   Numerous evhttp bugs also got fixed.
+
+7. Infrastructure improvements
+
+7.1. Better unit test framework
+
+   We now use a unit test framework that Nick wrote called "tinytest".
+   The main benefit from Libevent's point of view is that tests which
+   might mess with global state can all run each in their own
+   subprocess.  This way, when there's a bug that makes one unit test
+   crash or mess up global state, it doesn't affect any others.
+
+7.2. Better unit tests
+
+   Despite all the code we've added, our unit tests are much better than
+   before.  Right now, iterating over the different backends on various
+   platforms, I'm getting between 78% and 81% test coverage, compared
+   with less than 45% test coverage in Libevent 1.4.
+

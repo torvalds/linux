@@ -1,0 +1,53 @@
+=pod
+
+=head1 NAME
+
+i2d_CMS_bio_stream - output CMS_ContentInfo structure in BER format
+
+=head1 SYNOPSIS
+
+ #include <openssl/cms.h>
+
+ int i2d_CMS_bio_stream(BIO *out, CMS_ContentInfo *cms, BIO *data, int flags);
+
+=head1 DESCRIPTION
+
+i2d_CMS_bio_stream() outputs a CMS_ContentInfo structure in BER format.
+
+It is otherwise identical to the function SMIME_write_CMS().
+
+=head1 NOTES
+
+This function is effectively a version of the i2d_CMS_bio() supporting
+streaming.
+
+=head1 BUGS
+
+The prefix "i2d" is arguably wrong because the function outputs BER format.
+
+=head1 RETURN VALUES
+
+i2d_CMS_bio_stream() returns 1 for success or 0 for failure.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<CMS_sign(3)>,
+L<CMS_verify(3)>, L<CMS_encrypt(3)>
+L<CMS_decrypt(3)>,
+L<SMIME_write_CMS(3)>,
+L<PEM_write_bio_CMS_stream(3)>
+
+=head1 HISTORY
+
+The i2d_CMS_bio_stream() function was added in OpenSSL 1.0.0.
+
+=head1 COPYRIGHT
+
+Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

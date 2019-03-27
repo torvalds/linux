@@ -1,0 +1,212 @@
+=pod
+
+=head1 NAME
+
+BN_generate_prime_ex, BN_is_prime_ex, BN_is_prime_fasttest_ex, BN_GENCB_call,
+BN_GENCB_new, BN_GENCB_free, BN_GENCB_set_old, BN_GENCB_set, BN_GENCB_get_arg,
+BN_generate_prime, BN_is_prime, BN_is_prime_fasttest - generate primes and test
+for primality
+
+=head1 SYNOPSIS
+
+ #include <openssl/bn.h>
+
+ int BN_generate_prime_ex(BIGNUM *ret, int bits, int safe, const BIGNUM *add,
+                          const BIGNUM *rem, BN_GENCB *cb);
+
+ int BN_is_prime_ex(const BIGNUM *p, int nchecks, BN_CTX *ctx, BN_GENCB *cb);
+
+ int BN_is_prime_fasttest_ex(const BIGNUM *p, int nchecks, BN_CTX *ctx,
+                             int do_trial_division, BN_GENCB *cb);
+
+ int BN_GENCB_call(BN_GENCB *cb, int a, int b);
+
+ BN_GENCB *BN_GENCB_new(void);
+
+ void BN_GENCB_free(BN_GENCB *cb);
+
+ void BN_GENCB_set_old(BN_GENCB *gencb,
+                       void (*callback)(int, int, void *), void *cb_arg);
+
+ void BN_GENCB_set(BN_GENCB *gencb,
+                   int (*callback)(int, int, BN_GENCB *), void *cb_arg);
+
+ void *BN_GENCB_get_arg(BN_GENCB *cb);
+
+Deprecated:
+
+ #if OPENSSL_API_COMPAT < 0x00908000L
+ BIGNUM *BN_generate_prime(BIGNUM *ret, int num, int safe, BIGNUM *add,
+                           BIGNUM *rem, void (*callback)(int, int, void *),
+                           void *cb_arg);
+
+ int BN_is_prime(const BIGNUM *a, int checks,
+                 void (*callback)(int, int, void *), BN_CTX *ctx, void *cb_arg);
+
+ int BN_is_prime_fasttest(const BIGNUM *a, int checks,
+                          void (*callback)(int, int, void *), BN_CTX *ctx,
+                          void *cb_arg, int do_trial_division);
+ #endif
+
+=head1 DESCRIPTION
+
+BN_generate_prime_ex() generates a pseudo-random prime number of
+at least bit length B<bits>.
+If B<ret> is not B<NULL>, it will be used to store the number.
+
+If B<cb> is not B<NULL>, it is used as follows:
+
+=over 2
+
+=item *
+
+B<BN_GENCB_call(cb, 0, i)> is called after generating the i-th
+potential prime number.
+
+=item *
+
+While the number is being tested for primality,
+B<BN_GENCB_call(cb, 1, j)> is called as described below.
+
+=item *
+
+When a prime has been found, B<BN_GENCB_call(cb, 2, i)> is called.
+
+=item *
+
+The callers of BN_generate_prime_ex() may call B<BN_GENCB_call(cb, i, j)> with
+other values as described in their respective man pages; see L</SEE ALSO>.
+
+=back
+
+The prime may have to fulfill additional requirements for use in
+Diffie-Hellman key exchange:
+
+If B<add> is not B<NULL>, the prime will fulfill the condition p % B<add>
+== B<rem> (p % B<add> == 1 if B<rem> == B<NULL>) in order to suit a given
+generator.
+
+If B<safe> is true, it will be a safe prime (i.e. a prime p so
+that (p-1)/2 is also prime).
+
+The PRNG must be seeded prior to calling BN_generate_prime_ex().
+The prime number generation has a negligible error probability.
+
+BN_is_prime_ex() and BN_is_prime_fasttest_ex() test if the number B<p> is
+prime.  The following tests are performed until one of them shows that
+B<p> is composite; if B<p> passes all these tests, it is considered
+prime.
+
+BN_is_prime_fasttest_ex(), when called with B<do_trial_division == 1>,
+first attempts trial division by a number of small primes;
+if no divisors are found by this test and B<cb> is not B<NULL>,
+B<BN_GENCB_call(cb, 1, -1)> is called.
+If B<do_trial_division == 0>, this test is skipped.
+
+Both BN_is_prime_ex() and BN_is_prime_fasttest_ex() perform a Miller-Rabin
+probabilistic primality test with B<nchecks> iterations. If
+B<nchecks == BN_prime_checks>, a number of iterations is used that
+yields a false positive rate of at most 2^-64 for random input.
+The error rate depends on the size of the prime and goes down for bigger primes.
+The rate is 2^-80 starting at 308 bits, 2^-112 at 852 bits, 2^-128 at 1080 bits,
+2^-192 at 3747 bits and 2^-256 at 6394 bits.
+
+When the source of the prime is not random or not trusted, the number
+of checks needs to be much higher to reach the same level of assurance:
+It should equal half of the targeted security level in bits (rounded up to the
+next integer if necessary).
+For instance, to reach the 128 bit security level, B<nchecks> should be set to
+64.
+
+If B<cb> is not B<NULL>, B<BN_GENCB_call(cb, 1, j)> is called
+after the j-th iteration (j = 0, 1, ...). B<ctx> is a
+pre-allocated B<BN_CTX> (to save the overhead of allocating and
+freeing the structure in a loop), or B<NULL>.
+
+BN_GENCB_call() calls the callback function held in the B<BN_GENCB> structure
+and passes the ints B<a> and B<b> as arguments. There are two types of
+B<BN_GENCB> structure that are supported: "new" style and "old" style. New
+programs should prefer the "new" style, whilst the "old" style is provided
+for backwards compatibility purposes.
+
+A B<BN_GENCB> structure should be created through a call to BN_GENCB_new(),
+and freed through a call to BN_GENCB_free().
+
+For "new" style callbacks a BN_GENCB structure should be initialised with a
+call to BN_GENCB_set(), where B<gencb> is a B<BN_GENCB *>, B<callback> is of
+type B<int (*callback)(int, int, BN_GENCB *)> and B<cb_arg> is a B<void *>.
+"Old" style callbacks are the same except they are initialised with a call
+to BN_GENCB_set_old() and B<callback> is of type
+B<void (*callback)(int, int, void *)>.
+
+A callback is invoked through a call to B<BN_GENCB_call>. This will check
+the type of the callback and will invoke B<callback(a, b, gencb)> for new
+style callbacks or B<callback(a, b, cb_arg)> for old style.
+
+It is possible to obtain the argument associated with a BN_GENCB structure
+(set via a call to BN_GENCB_set or BN_GENCB_set_old) using BN_GENCB_get_arg.
+
+BN_generate_prime() (deprecated) works in the same way as
+BN_generate_prime_ex() but expects an old-style callback function
+directly in the B<callback> parameter, and an argument to pass to it in
+the B<cb_arg>. BN_is_prime() and BN_is_prime_fasttest()
+can similarly be compared to BN_is_prime_ex() and
+BN_is_prime_fasttest_ex(), respectively.
+
+=head1 RETURN VALUES
+
+BN_generate_prime_ex() return 1 on success or 0 on error.
+
+BN_is_prime_ex(), BN_is_prime_fasttest_ex(), BN_is_prime() and
+BN_is_prime_fasttest() return 0 if the number is composite, 1 if it is
+prime with an error probability of less than 0.25^B<nchecks>, and
+-1 on error.
+
+BN_generate_prime() returns the prime number on success, B<NULL> otherwise.
+
+BN_GENCB_new returns a pointer to a BN_GENCB structure on success, or B<NULL>
+otherwise.
+
+BN_GENCB_get_arg returns the argument previously associated with a BN_GENCB
+structure.
+
+Callback functions should return 1 on success or 0 on error.
+
+The error codes can be obtained by L<ERR_get_error(3)>.
+
+=head1 REMOVED FUNCTIONALITY
+
+As of OpenSSL 1.1.0 it is no longer possible to create a BN_GENCB structure
+directly, as in:
+
+ BN_GENCB callback;
+
+Instead applications should create a BN_GENCB structure using BN_GENCB_new:
+
+ BN_GENCB *callback;
+ callback = BN_GENCB_new();
+ if (!callback)
+     /* error */
+ ...
+ BN_GENCB_free(callback);
+
+=head1 SEE ALSO
+
+L<DH_generate_parameters(3)>, L<DSA_generate_parameters(3)>,
+L<RSA_generate_key(3)>, L<ERR_get_error(3)>, L<RAND_bytes(3)>
+
+=head1 HISTORY
+
+The BN_GENCB_new(), BN_GENCB_free(),
+and BN_GENCB_get_arg() functions were added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

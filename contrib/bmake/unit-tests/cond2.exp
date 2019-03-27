@@ -1,0 +1,7 @@
+make: Bad conditional expression ` == "empty"' in  == "empty"?oops:ok
+make: "cond2.mk" line 13: Malformed conditional ({TEST_TYPO} == "Ok")
+TEST_NOT_SET is empty or not defined
+make: "cond2.mk" line 20: Malformed conditional (${TEST_NOT_SET} == "empty")
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

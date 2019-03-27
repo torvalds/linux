@@ -1,0 +1,74 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+	<head>
+		<meta name="GENERATOR" content="Adobe PageMill 3.0 per Windows">
+		<meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1">
+		<title>PTB Modem Time Service</title>
+		<link href="scripts/style.css" type="text/css" rel="stylesheet">
+	</head>
+
+	<body>
+		<h3>European Automated Computer Time Services</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->21-Oct-2010  23:44<!-- #EndDate -->
+  UTC</p>
+		<hr>
+		<p>Several European countries use the following message data format:</p>
+		<p><font size="-1" face="Courier New">Data format<br>
+				0000000000111111111122222222223333333333444444444455555555556666666666777777777 7<br>
+				0123456789012345678901234567890123456789012345678901234567890123456789012345678 9<br>
+				1995-01-23 20:58:51 MEZ 10402303260219950123195849740+40000500 *<br>
+				A B C D EF G H IJ K L M N O P Q R S T U V W XY Z&lt;CR&gt;&lt;LF&gt;<br>
+				A year<br>
+				B month<br>
+				C day<br>
+				D hour<br>
+				E : normally<br>
+				A for DST to ST switch first hour<br>
+				B for DST to ST switch second hour if not marked in H<br>
+				F minute<br>
+				G second<br>
+				H timezone<br>
+				I day of week<br>
+				J week of year<br>
+				K day of year<br>
+				L month for next ST/DST changes<br>
+				M day<br>
+				N hour<br>
+				O UTC year<br>
+				P UTC month<br>
+				Q UTC day<br>
+				R UTC hour<br>
+				S UTC minute<br>
+				T modified julian day (MJD)<br>
+				U DUT1<br>
+				V direction and month if leap second<br>
+				W signal delay (assumed/measured)<br>
+				X sequence number for additional text line in Y<br>
+				Y additional text<br>
+				Z on time marker (* - assumed delay / # measured delay)<br>
+				&lt;CR&gt;!&lt;LF&gt; ! is second change !<br>
+			</font></p>
+		<p>This format is an ITU-R Recommendation (ITU-R TF583.4) and is now available from the primary timing centres of the following countries: Austria, Belgium, Germany, Italy, The Netherlands, Poland, Portugal, Romania, Spain, Sweden, Switzerland, Turkey and United Kingdom. Some examples are:</p>
+		<ul>
+			<li>In Germany by Physikalisch-Technische Bundesanstalt (PTB)'s timecode service. Phone number: +49 5 31 51 20 38.
+				<p>For more detail, see <a href="http://www.ptb.de/english/org/4/43/433/disse.html">http://www.ptb.de/english/org/4/43/433/disse.htm</a></p>
+			<li>In the UK by National Physical Laboratory (NPL)'s TRUETIME service. Phone number: 0891 516 333
+				<p>For more detail, see <a href="http://www.npl.co.uk/npl/ctm/truetime.html">http://www.npl.co.uk/npl/ctm/truetime.html</a></p>
+			<li>In Italy by Istituto Elettrotecnico Nazionale &quot;Galileo Ferrais&quot; (IEN)'s CTD service. Phone number: 166 11 46 15
+				<p>For more detail, see <a href="http://www.ien.it/tf/time/Pagina42.html">http://www.ien.it/tf/time/Pagina42.html</a></p>
+			<li>In Switzerland by Swiss Federal Office of Metrology's timecode service. Phone number: 031 323 32 25
+				<p>For more detail, see <a href="http://www.metas.ch/en/labors/official-time/modem/index.html">http://www.ofmet.admin.ch/de/labors/4/Zeitvert.html </a></p>
+			<li>In Sweden by SP Swedish National Testing and Research Institute 's timecode service. Phone number: +46 33 415783.
+				<p>For more detail, see <a href="http://www.sp.se/metrology/timefreq/eng/tandf.htm">http://www.sp.se/metrology/timefreq/eng/tandf.htm</a></p>
+		</ul>
+		<dl></dl>
+		<h4>Additional Information</h4>
+		<p><a href="../refclock.html">Reference Clock Drivers</a></p>
+		<hr>
+		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+	</body>
+
+</html>

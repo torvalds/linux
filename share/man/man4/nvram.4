@@ -1,0 +1,93 @@
+.\"
+.\"Copyright (c) 2010 iXsystems, Inc.
+.\"All rights reserved.
+.\" written by: Xin LI <delphij@FreeBSD.org>
+.\"
+.\"Redistribution and use in source and binary forms, with or without
+.\"modification, are permitted provided that the following conditions
+.\"are met:
+.\"1. Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\"2. Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\"
+.\"THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\"ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\"IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\"ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\"FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\"OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\"HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\"LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\"OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\"SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 2010
+.Dt NVRAM 4
+.Os
+.Sh NAME
+.Nm nvram
+.Nd "non-volatile RAM"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device nvram"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+nvram_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to BIOS configuration NVRAM on i386 and amd64
+systems.
+.Pp
+PC motherboard uses a small non-volatile memory to store BIOS settings
+which is usually part of its clock chip and sometimes referred as
+.Dq CMOS SRAM .
+This driver exposes bytes 14 through 128 of the NVRAM, or a total of
+114 bytes, at offset zero of the device file
+.Pa /dev/nvram .
+.Pp
+This driver is useful for cloning machines that shares the same hardware
+configuration and need same BIOS setting tweaks.
+.Sh IMPLEMENTATION NOTES
+The BIOS NVRAM's bytes 16 through 31 are checksummed at byte 32.
+This driver
+.Em does not
+take care for these checksums.
+.Sh EXAMPLES
+Backup existing BIOS NVRAM to
+.Pa nvram.bin :
+.Pp
+.Dl dd if=/dev/nvram of=nvram.bin
+.Pp
+Restore BIOS NVRAM from
+.Pa nvram.bin :
+.Pp
+.Dl dd if=nvram.bin of=/dev/nvram
+.Sh SEE ALSO
+.Xr dd 1
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 6.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An Peter Wemm .
+This manual page was written by
+.An Xin LI .

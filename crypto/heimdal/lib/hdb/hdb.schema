@@ -1,0 +1,139 @@
+# Definitions for a Kerberos V KDC schema
+#
+# $Id$
+#
+# This version is compatible with OpenLDAP 1.8
+#
+# OID Base is iso(1) org(3) dod(6) internet(1) private(4) enterprise(1) padl(5322) kdcSchema(10)
+#
+# Syntaxes are under 1.3.6.1.4.1.5322.10.0
+# Attributes types are under 1.3.6.1.4.1.5322.10.1
+# Object classes are under 1.3.6.1.4.1.5322.10.2
+
+# Syntax definitions
+
+#krb5KDCFlagsSyntax SYNTAX ::= {
+#   WITH SYNTAX            INTEGER
+#--        initial(0),             -- require as-req
+#--        forwardable(1),         -- may issue forwardable
+#--        proxiable(2),           -- may issue proxiable
+#--        renewable(3),           -- may issue renewable
+#--        postdate(4),            -- may issue postdatable
+#--        server(5),              -- may be server
+#--        client(6),              -- may be client
+#--        invalid(7),             -- entry is invalid
+#--        require-preauth(8),     -- must use preauth
+#--        change-pw(9),           -- change password service
+#--        require-hwauth(10),     -- must use hwauth
+#--        ok-as-delegate(11),     -- as in TicketFlags
+#--        user-to-user(12),       -- may use user-to-user auth
+#--        immutable(13)           -- may not be deleted         
+#   ID                     { 1.3.6.1.4.1.5322.10.0.1 }
+#}
+
+#krb5PrincipalNameSyntax SYNTAX ::= {
+#   WITH SYNTAX            OCTET STRING
+#-- String representations of distinguished names as per RFC1510
+#   ID                     { 1.3.6.1.4.1.5322.10.0.2 }
+#}
+
+# Attribute type definitions
+ 
+attributetype ( 1.3.6.1.4.1.5322.10.1.1
+	NAME 'krb5PrincipalName'
+	DESC 'The unparsed Kerberos principal name'
+	EQUALITY caseExactIA5Match
+	SINGLE-VALUE
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+
+attributetype ( 1.3.6.1.4.1.5322.10.1.2
+	NAME 'krb5KeyVersionNumber'
+	EQUALITY integerMatch
+	SINGLE-VALUE
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )
+
+attributetype ( 1.3.6.1.4.1.5322.10.1.3
+	NAME 'krb5MaxLife'
+	EQUALITY integerMatch
+	SINGLE-VALUE
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )
+
+attributetype ( 1.3.6.1.4.1.5322.10.1.4
+	NAME 'krb5MaxRenew'
+	EQUALITY integerMatch
+	SINGLE-VALUE
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )
+
+attributetype ( 1.3.6.1.4.1.5322.10.1.5
+	NAME 'krb5KDCFlags'
+	EQUALITY integerMatch
+	SINGLE-VALUE
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )
+
+attributetype ( 1.3.6.1.4.1.5322.10.1.6
+	NAME 'krb5EncryptionType'
+	EQUALITY integerMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )
+
+attributetype ( 1.3.6.1.4.1.5322.10.1.7
+	NAME 'krb5ValidStart'
+	EQUALITY generalizedTimeMatch
+	ORDERING generalizedTimeOrderingMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.24
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.4.1.5322.10.1.8
+	NAME 'krb5ValidEnd'
+	EQUALITY generalizedTimeMatch
+	ORDERING generalizedTimeOrderingMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.24
+	SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.4.1.5322.10.1.9
+	NAME 'krb5PasswordEnd'
+	EQUALITY generalizedTimeMatch
+	ORDERING generalizedTimeOrderingMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.24
+	SINGLE-VALUE )
+
+# this is temporary; keys will eventually
+# be child entries or compound attributes.
+attributetype ( 1.3.6.1.4.1.5322.10.1.10
+	NAME 'krb5Key'
+	DESC 'Encoded ASN1 Key as an octet string'
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 )
+
+attributetype ( 1.3.6.1.4.1.5322.10.1.11
+	NAME 'krb5PrincipalRealm'
+	DESC 'Distinguished name of krb5Realm entry'
+	SUP distinguishedName )
+
+attributetype ( 1.3.6.1.4.1.5322.10.1.12
+	NAME 'krb5RealmName'
+	EQUALITY octetStringMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.40{128} )
+
+# Object class definitions
+
+objectclass ( 1.3.6.1.4.1.5322.10.2.1
+	NAME 'krb5Principal'
+	SUP top
+	AUXILIARY
+	MUST ( krb5PrincipalName )
+	MAY ( cn $ krb5PrincipalRealm ) )
+
+objectclass ( 1.3.6.1.4.1.5322.10.2.2
+	NAME 'krb5KDCEntry'
+	SUP krb5Principal
+	AUXILIARY
+	MUST ( krb5KeyVersionNumber )
+	MAY ( krb5ValidStart $ krb5ValidEnd $ krb5PasswordEnd $
+              krb5MaxLife $ krb5MaxRenew $ krb5KDCFlags $
+              krb5EncryptionType $ krb5Key ) )
+
+objectclass ( 1.3.6.1.4.1.5322.10.2.3
+	NAME 'krb5Realm'
+	SUP top
+	AUXILIARY
+	MUST ( krb5RealmName ) )
+

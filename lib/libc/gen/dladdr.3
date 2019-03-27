@@ -1,0 +1,133 @@
+.\"
+.\" Copyright (c) 1998 John D. Polstra
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 5, 1998
+.Dt DLADDR 3
+.Os
+.Sh NAME
+.Nm dladdr
+.Nd find the shared object containing a given address
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In dlfcn.h
+.Ft int
+.Fn dladdr "const void *addr" "Dl_info *info"
+.Sh DESCRIPTION
+The
+.Fn dladdr
+function
+queries the dynamic linker for information about the shared object
+containing the address
+.Fa addr .
+The information is returned in the structure specified by
+.Fa info .
+The structure contains at least the following members:
+.Bl -tag -width "XXXconst char *dli_fname"
+.It Li "const char *dli_fname"
+The pathname of the shared object containing the address.
+.It Li "void *dli_fbase"
+The base address at which the shared object is mapped into the
+address space of the calling process.
+.It Li "const char *dli_sname"
+The name of the nearest run-time symbol with a value less than or
+equal to
+.Fa addr .
+When possible, the symbol name is returned as it would appear in C
+source code.
+.Pp
+If no symbol with a suitable value is found, both this field and
+.Va dli_saddr
+are set to
+.Dv NULL .
+.It Li "void *dli_saddr"
+The value of the symbol returned in
+.Li dli_sname .
+.El
+.Pp
+The
+.Fn dladdr
+function
+is available only in dynamically linked programs.
+.Sh ERRORS
+If a mapped shared object containing
+.Fa addr
+cannot be found,
+.Fn dladdr
+returns 0.
+In that case, a message detailing the failure can be retrieved by
+calling
+.Fn dlerror .
+.Pp
+On success, a non-zero value is returned.
+.Sh SEE ALSO
+.Xr rtld 1 ,
+.Xr dlopen 3
+.Sh HISTORY
+The
+.Fn dladdr
+function first appeared in the Solaris operating system.
+.Sh BUGS
+This implementation is bug-compatible with the Solaris
+implementation.
+In particular, the following bugs are present:
+.Bl -bullet
+.It
+If
+.Fa addr
+lies in the main executable rather than in a shared library, the
+pathname returned in
+.Va dli_fname
+may not be correct.
+The pathname is taken directly from
+.Va argv[0]
+of the calling process.
+When executing a program specified by its
+full pathname, most shells set
+.Va argv[0]
+to the pathname.
+But this is not required of shells or guaranteed
+by the operating system.
+.It
+If
+.Fa addr
+is of the form
+.Va &func ,
+where
+.Va func
+is a global function, its value may be an unpleasant surprise.
+In
+dynamically linked programs, the address of a global function is
+considered to point to its program linkage table entry, rather than to
+the entry point of the function itself.
+This causes most global
+functions to appear to be defined within the main executable, rather
+than in the shared libraries where the actual code resides.
+.It
+Returning 0 as an indication of failure goes against long-standing
+Unix tradition.
+.El

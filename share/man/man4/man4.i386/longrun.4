@@ -1,0 +1,67 @@
+.\" Copyright (c) 2001 Tamotsu HATTORI <athlete@kta.att.ne.jp>
+.\" Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd June 30, 2001
+.Dt LONGRUN 4 i386
+.Os
+.Sh NAME
+.Nm longrun
+.Nd Transmeta(TM) Crusoe(TM) LongRun(TM) support
+.Sh SYNOPSIS
+LongRun support is a collection of power saving modes for the
+Transmeta Crusoe chips, similar in scope to Intel's SpeedStep.
+The following
+.Xr sysctl 8
+MIBs control the different CPU modes:
+.Bl -column ".Va hw.crusoe.percentage" ".Vt integer" "Changeable"
+.It Sy "Name	Type	Changeable	Description"
+.It Va hw.crusoe.longrun Ta Vt integer Ta yes Ta "LongRun mode:"
+.It Ta Ta Ta "0: minimum frequency mode"
+.It Ta Ta Ta "1: power-saving mode"
+.It Ta Ta Ta "2: performance mode"
+.It Ta Ta Ta "3: maximum frequency mode"
+.It Va hw.crusoe.frequency Ta Vt integer Ta no Ta "Current frequency (MHz)."
+.It Va hw.crusoe.voltage Ta Vt integer Ta no Ta "Current voltage (mV)."
+.It Va hw.crusoe.percentage Ta Vt integer Ta no Ta "Processing performance (%)."
+.El
+.Sh EXAMPLES
+Print the current status:
+.Pp
+.Dl "% sysctl hw.crusoe"
+.Pp
+To set LongRun mode to performance oriented variable frequency mode
+(less power savings):
+.Pp
+.Dl "# sysctl hw.crusoe.longrun=2"
+.Sh HISTORY
+The Transmeta(TM) Crusoe(TM) LongRun(TM) support first appeared in
+.Fx 4.4 .
+.Sh AUTHORS
+.An -nosplit
+LongRun support and this manual page were written by
+.An Tamotsu HATTORI Aq Mt athlete@kta.att.ne.jp
+and
+.An Mitsuru IWASAKI Aq Mt iwasaki@FreeBSD.org .

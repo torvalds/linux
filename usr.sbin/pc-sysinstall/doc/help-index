@@ -1,0 +1,100 @@
+pc-sysinstall Help Index
+-----------------------------------------------
+Help Commands
+
+    help
+	Display this index file
+
+    help <command> 
+   	Display the help data for the specified command
+
+System Query Commands
+    install-image <image> <device>
+        Installs an image file to a device file
+
+    disk-list 
+        Provides a listing of the disk drives detected on this system
+
+    disk-part <disk>
+        Queries the specified disk and returns information about its partitions
+    
+    disk-info <disk>
+        Returns information about the disks size, cyls, heads, and sectors 
+    
+    detect-laptop
+        Tests to see if this system is a laptop or desktop
+
+    detect-emulation
+        Tests to see if this system is actually running in an emulator such as VirtualBox
+    
+    detect-nics
+        Returns a listing of the detected network cards on this system
+
+    list-config
+        Returns a listing of the pc-sysinstall configuration
+
+    list-components
+        Returns a listing of the available components which can be installed
+
+    list-mirrors [country]
+        Returns a listing of the available FTP mirrors
+
+    list-packages [category] [package]
+        Returns a listing of the available packages
+
+    list-rsync-backups <user> <host> <port>
+        Returns a listing of available rsync-backups on the target server in the life-preserver/ dir
+    
+    list-tzones
+        Returns a listing of available timezones
+
+    query-langs 
+        Return a list of languages that the installer supports
+
+    get-packages 
+        Retrieves the list of packages from an FTP mirror
+
+    sys-mem
+        Return the size of installed system RAM in MegaBytes
+
+    set-mirror <mirror>
+        Set FTP mirror
+
+    test-netup
+        Test if an internet connection is available
+    
+    update-part-list
+        Return a list of PC-BSD & FreeBSD installs on this system for updates
+
+    xkeyboard-layouts
+        Return a list of keyboard layouts that xorg supports
+  
+    xkeyboard-models
+        Return a list of keyboard models that xorg supports
+
+    xkeyboard-variants
+        Return a list of keyboard variants that xorg supports
+
+Partition Management Commands
+
+   create-part <disk> <size>
+	Create a new MBR primary slice on the target <disk> using <size> MB
+	
+   delete-part <partition>
+	Deletes the disk partition specified. If this is the last partition,
+	the disk partition layout will also be scrubbed, leaving a clean disk
+	ready for MBR or GPT file system layouts. 
+
+
+Installation Commands
+
+    -c <cfg>
+        Begin a install / upgrade with the specified cfg file
+
+    start-autoinstall <conf>
+	Start an automated installation with the specified conf file
+        Normally only used by automated install scripts
+
+    setup-ssh-keys <user> <host> <port>
+	Setup SSH without a password for the target host and user and port	
+        Use to prompt the user to log into a server before doing a rsync + ssh restore

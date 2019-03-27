@@ -1,0 +1,61 @@
+
+#------------------------------------------------------------------------------
+# $File: dyadic,v 1.8 2017/03/17 21:35:28 christos Exp $
+# Dyadic: file(1) magic for Dyalog APL.
+#
+# updated by Joerg Jenderek at Oct 2013
+# http://en.wikipedia.org/wiki/Dyalog_APL
+# http://www.dyalog.com/
+# .DXV Dyalog APL External Variable
+# .DIN Dyalog APL Input Table
+# .DOT Dyalog APL Output Table
+# .DFT Dyalog APL Format File
+0	ubeshort&0xFF60	0xaa00
+# skip biblio.dbt
+>1	byte		!4
+# real Dyalog APL have non zero version numbers like 7.3 or 13.4
+>>2	ubeshort	>0x0000		Dyalog APL
+>>>1	byte		0x00		aplcore
+#>>>1	byte		0x00		incomplete workspace
+# *.DCF Dyalog APL Component File
+>>>1	byte		0x01		component file 32-bit non-journaled non-checksummed
+#>>>1	byte		0x01		component file
+>>>1	byte		0x02		external variable exclusive
+#>>>1	byte		0x02		external variable
+# *.DWS Dyalog APL Workspace
+>>>1	byte		0x03		workspace
+>>>>7	byte&0x28	0x00		32-bit
+>>>>7	byte&0x28	0x20		64-bit
+>>>>7	byte&0x0c	0x00		classic
+>>>>7	byte&0x0c	0x04		unicode
+>>>>7	byte&0x88	0x00		big-endian
+>>>>7	byte&0x88	0x80		little-endian
+>>>1	byte		0x06		external variable shared
+# *.DSE Dyalog APL Session , *.DLF Dyalog APL Session Log File
+>>>1	byte		0x07		session
+>>>1	byte		0x08		mapped file 32-bit
+>>>1	byte		0x09		component file 64-bit non-journaled non-checksummed
+>>>1	byte		0x0a		mapped file 64-bit
+>>>1	byte		0x0b		component file 32-bit level 1 journaled non-checksummed
+>>>1	byte		0x0c		component file 64-bit level 1 journaled non-checksummed
+>>>1	byte		0x0d		component file 32-bit level 1 journaled checksummed
+>>>1	byte		0x0e		component file 64-bit level 1 journaled checksummed
+>>>1	byte		0x0f		component file 32-bit level 2 journaled checksummed
+>>>1	byte		0x10		component file 64-bit level 2 journaled checksummed
+>>>1	byte		0x11		component file 32-bit level 3 journaled checksummed
+>>>1	byte		0x12		component file 64-bit level 3 journaled checksummed
+>>>1	byte		0x13		component file 32-bit non-journaled checksummed
+>>>1	byte		0x14		component file 64-bit non-journaled checksummed
+>>>1	byte		0x15		component file under construction
+>>>1	byte		0x16		DFS component file 64-bit level 1 journaled checksummed
+>>>1	byte		0x17		DFS component file 64-bit level 2 journaled checksummed
+>>>1	byte		0x18		DFS component file 64-bit level 3 journaled checksummed
+>>>1	byte		0x19		external workspace
+>>>1	byte		0x80		DDB
+>>>2	byte		x		version %d
+>>>3	byte		x		\b.%d
+#>>>2	byte		x		type %d
+#>>>3	byte		x		subtype %d
+
+# *.DXF Dyalog APL Transfer File
+0	short		0x6060		Dyalog APL transfer

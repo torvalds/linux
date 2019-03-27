@@ -1,0 +1,94 @@
+.\" Copyright (c) 2005 Doug Rabson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/lib/libgssapi/mech.5,v 1.1 2005/12/29 14:40:20 dfr Exp $
+.Dd November 14, 2005
+.Dt MECH 5
+.Os
+.Sh NAME
+.Nm mech ,
+.Nm qop
+.Nd "GSS-API Mechanism and QOP files"
+.Sh SYNOPSIS
+.Pa "/etc/gss/mech"
+.Pa "/etc/gss/qop"
+.Sh DESCRIPTION
+The
+.Pa "/etc/gss/mech"
+file contains a list of installed GSS-API security mechanisms.
+Each line of the file either contains a comment if the first character
+is '#' or it contains five fields with the following meanings:
+.Bl -tag
+.It Name
+The name of this GSS-API mechanism.
+.It Object identifier
+The OID for this mechanism.
+.It Library
+A shared library containing the implementation of this mechanism.
+.It Kernel module (optional)
+A kernel module containing the implementation of this mechanism (not
+yet supported in FreeBSD).
+.It Library options (optional)
+Optionsal parameters interpreted by the mechanism. Library options
+must be enclosed in brackets ([ ]) to differentiate them from the
+optional kernel module entry.
+.El
+.Pp
+The
+.Pa "/etc/gss/qop"
+file contains a list of Quality of Protection values for use with
+GSS-API.
+Each line of the file either contains a comment if the first character
+is '#' or it contains three fields with the following meanings:
+.Bl -tag
+.It QOP string
+The name of this Quality of Protection algorithm.
+.It QOP value
+The numeric value used to select this algorithm for use with GSS-API
+functions such as
+.Xr gss_get_mic 3 .
+.It Mechanism name
+The GSS-API mechanism name that corresponds to this algorithm.
+.El
+.Sh EXAMPLES
+This is a typical entry from
+.Pa "/etc/gss/mech" :
+.Bd -literal
+kerberosv5	1.2.840.113554.1.2.2	/usr/lib/libgssapi_krb5.so.8	-
+.Ed
+.Pp
+This is a typical entry from
+.Pa "/etc/gss/qop" :
+.Bd -literal
+GSS_KRB5_CONF_C_QOP_DES		0x0100	kerberosv5
+.Ed
+.Sh HISTORY
+The
+.Nm
+manual page example first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Doug Rabson Aq dfr@FreeBSD.org .

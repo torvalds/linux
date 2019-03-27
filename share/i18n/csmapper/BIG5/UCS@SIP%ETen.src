@@ -1,0 +1,27 @@
+# $FreeBSD$
+# $NetBSD: UCS@SIP%ETen.src,v 1.1 2007/03/05 16:57:12 tnozaki Exp $
+
+TYPE		ROWCOL
+NAME		"UCS:SIP/ETen"
+SRC_ZONE	0xC87A - 0xC8A4
+OOB_MODE	INVALID
+DST_INVALID	0xFFFF
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+# 
+# This mapping data is made from the mapping data provided by
+# http://wakaba-web.hp.infoseek.co.jp/table/big5-eten.txt
+# Original notice:
+#
+## Big5-ETen vs Unicode mapping table
+## 
+## Date: 24 Feb 2002 19:01:00 +0900
+## License: Public Domain.
+## 
+## Big5	Unicode	UnicodeAlternate	UnicodeName
+
+0xC87A = 0x00CC
+0xC87C = 0x008A
+0xC8A4 = 0x7607
+END_MAP

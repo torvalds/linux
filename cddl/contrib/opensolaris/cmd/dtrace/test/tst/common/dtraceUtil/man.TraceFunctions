@@ -1,0 +1,115 @@
+/*
+ * CDDL HEADER START
+ *
+ * The contents of this file are subject to the terms of the
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
+ *
+ * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+ * or http://www.opensolaris.org/os/licensing.
+ * See the License for the specific language governing permissions
+ * and limitations under the License.
+ *
+ * When distributing Covered Code, include this CDDL HEADER in each
+ * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+ * If applicable, add the following below this CDDL HEADER, with the
+ * fields enclosed by brackets "[]" replaced with your own identifying
+ * information: Portions Copyright [yyyy] [name of copyright owner]
+ *
+ * CDDL HEADER END
+ */
+
+/*
+ * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Use is subject to license terms.
+ */
+
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
+
+/*
+ * ASSERTION:
+ * Using -f option.
+ *
+ * SECTION: dtrace Utility/-f Option
+ *
+ * NOTES: Manually check:
+ *
+ * 1) automated in tst.InvalidTraceFunc1.d.ksh
+ * /usr/sbin/dtrace -f profile
+ * RESULT: invalid probe specifier
+ *
+ * 2) automated in tst.InvalidTraceFunc2.d.ksh
+ * /usr/sbin/dtrace -f genunix
+ * RESULT: invalid probe specifier
+ *
+ * 3)
+ * /usr/sbin/dtrace -f read
+ * RESULT: tracing of matching list of probes with function read.
+ *
+ * 4) automated in tst.InvalidTraceFunc3.d.ksh
+ * /usr/sbin/dtrace -f read:
+ * RESULT: invalid probe specifier
+ *
+ * 5)
+ * /usr/sbin/dtrace -f ::read
+ * RESULT: tracing of matching list of probes with function read.
+ *
+ * 6) automated in tst.InvalidTraceFunc4.d.ksh
+ * /usr/sbin/dtrace -f ::read:
+ * RESULT: invalid probe specifier
+ *
+ * 7)
+ * /usr/sbin/dtrace -f genunix:read
+ * RESULT: tracing of probes with module genunix and function read.
+ *
+ * 8)
+ * /usr/sbin/dtrace -f sysinfo:genunix:read
+ * RESULT: tracing of probes with provider sysinfo, module genunix
+ * and function read.
+ *
+ * 9)
+ * /usr/sbin/dtrace -f sysinfo::read
+ * RESULT: tracing of probes with provider sysinfo and function read.
+ *
+ * 10) automated in tst.InvalidTraceFunc5.d.ksh
+ * /usr/sbin/dtrace -f :genunix::
+ * RESULT: invalid probe specifier
+ *
+ * 11) automated in tst.InvalidTraceFunc6.d.ksh
+ * /usr/sbin/dtrace -f profile:::profile-97
+ * RESULT: invalid probe specifier.
+ *
+ * 12) 
+ * /usr/sbin/dtrace -f read -f write
+ * RESULT: tracing of both read and write probes.
+ *
+ * 13)
+ * /usr/sbin/dtrace -f read -f fight
+ * RESULT: Count of matching read probes and invalid probe specifier
+ * for fight
+ *
+ * 14) automated in tst.InvalidTraceFunc8.d.ksh
+ * /usr/sbin/dtrace -f fight -f write
+ * RESULT: invalid probe specifier.
+ *
+ * 15) automated in tst.InvalidTraceFunc7.d.ksh
+ * /usr/sbin/dtrace -f fbt:des:des3_crunch_block:return
+ * RESULT: invalid probe specifier.
+ *
+ * 16)
+ * /usr/sbin/dtrace -f read'{printf("FOUND");}'
+ * RESULT: tracing of probes with function read and with message FOUND
+ *
+ * 17)
+ * /usr/sbin/dtrace -f ::read'{printf("FOUND");}'
+ * RESULT: tracing of probes with function read and with message FOUND
+ *
+ * 18) automated in tst.InvalidTraceFunc9.d.ksh
+ * /usr/sbin/dtrace -f read '{printf("FOUND");}'
+ * RESULT: invalid probe specifier.
+ *
+ * 19)
+ * /usr/sbin/dtrace -f read'/probename == "entry"/{printf("FOUND");}'
+ * RESULT: tracing of probes with function read, name entry and with
+ * message FOUND
+ */

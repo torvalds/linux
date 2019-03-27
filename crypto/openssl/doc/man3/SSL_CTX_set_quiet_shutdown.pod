@@ -1,0 +1,72 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_set_quiet_shutdown, SSL_CTX_get_quiet_shutdown, SSL_set_quiet_shutdown, SSL_get_quiet_shutdown - manipulate shutdown behaviour
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ void SSL_CTX_set_quiet_shutdown(SSL_CTX *ctx, int mode);
+ int SSL_CTX_get_quiet_shutdown(const SSL_CTX *ctx);
+
+ void SSL_set_quiet_shutdown(SSL *ssl, int mode);
+ int SSL_get_quiet_shutdown(const SSL *ssl);
+
+=head1 DESCRIPTION
+
+SSL_CTX_set_quiet_shutdown() sets the "quiet shutdown" flag for B<ctx> to be
+B<mode>. SSL objects created from B<ctx> inherit the B<mode> valid at the time
+L<SSL_new(3)> is called. B<mode> may be 0 or 1.
+
+SSL_CTX_get_quiet_shutdown() returns the "quiet shutdown" setting of B<ctx>.
+
+SSL_set_quiet_shutdown() sets the "quiet shutdown" flag for B<ssl> to be
+B<mode>. The setting stays valid until B<ssl> is removed with
+L<SSL_free(3)> or SSL_set_quiet_shutdown() is called again.
+It is not changed when L<SSL_clear(3)> is called.
+B<mode> may be 0 or 1.
+
+SSL_get_quiet_shutdown() returns the "quiet shutdown" setting of B<ssl>.
+
+=head1 NOTES
+
+Normally when a SSL connection is finished, the parties must send out
+close_notify alert messages using L<SSL_shutdown(3)>
+for a clean shutdown.
+
+When setting the "quiet shutdown" flag to 1, L<SSL_shutdown(3)>
+will set the internal flags to SSL_SENT_SHUTDOWN|SSL_RECEIVED_SHUTDOWN.
+(L<SSL_shutdown(3)> then behaves like
+L<SSL_set_shutdown(3)> called with
+SSL_SENT_SHUTDOWN|SSL_RECEIVED_SHUTDOWN.)
+The session is thus considered to be shutdown, but no close_notify alert
+is sent to the peer. This behaviour violates the TLS standard.
+
+The default is normal shutdown behaviour as described by the TLS standard.
+
+=head1 RETURN VALUES
+
+SSL_CTX_set_quiet_shutdown() and SSL_set_quiet_shutdown() do not return
+diagnostic information.
+
+SSL_CTX_get_quiet_shutdown() and SSL_get_quiet_shutdown return the current
+setting.
+
+=head1 SEE ALSO
+
+L<ssl(7)>, L<SSL_shutdown(3)>,
+L<SSL_set_shutdown(3)>, L<SSL_new(3)>,
+L<SSL_clear(3)>, L<SSL_free(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

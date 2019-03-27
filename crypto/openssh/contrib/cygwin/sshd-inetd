@@ -1,0 +1,4 @@
+# This file can be used to enable sshd as a slave of the inetd service
+# To do so, the line below should be uncommented.
+@COMMENT@ ssh  stream  tcp     nowait  root    /usr/sbin/sshd sshd -i
+

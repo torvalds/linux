@@ -1,0 +1,310 @@
+.\" Copyright (c) 1988, 1989, 1991 Carnegie Mellon University
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 10, 2004
+.Dt BOOTPD 8
+.Os
+.Sh NAME
+.Nm bootpd , bootpgw
+.Nd Internet Boot Protocol server/gateway
+.Sh SYNOPSIS
+.Nm
+.Op Fl i | s
+.Op Fl c Ar chdir-path
+.Op Fl d Ar level
+.Op Fl h Ar hostname
+.Op Fl t Ar timeout
+.Oo
+.Ar bootptab
+.Op Ar dumpfile
+.Oc
+.Nm bootpgw
+.Op Fl i | s
+.Op Fl d Ar level
+.Op Fl h Ar hostname
+.Op Fl t Ar timeout
+.Ar server
+.Sh DESCRIPTION
+The
+.Nm
+utility
+implements an Internet Bootstrap Protocol (BOOTP) server as defined in
+RFC951, RFC1532, and RFC1533.
+The
+.Nm bootpgw
+utility implements a simple BOOTP gateway which can be used to forward
+requests and responses between clients on one subnet and a
+BOOTP server (i.e.\&
+.Nm )
+on another subnet.
+While either
+.Nm
+or
+.Nm bootpgw
+will forward BOOTREPLY packets, only
+.Nm bootpgw
+will forward BOOTREQUEST packets.
+.Pp
+One host on each network segment is normally configured to run either
+.Nm
+or
+.Nm bootpgw
+from
+.Xr inetd 8
+by including one of the following lines in the file
+.Pa /etc/inetd.conf :
+.Pp
+.Dl bootps dgram udp wait root /usr/libexec/bootpd bootpd /etc/bootptab
+.Dl bootps dgram udp wait root /usr/libexec/bootpgw bootpgw server
+.Pp
+This mode of operation is referred to as "inetd mode" and causes
+.Nm
+(or
+.Nm bootpgw )
+to be started only when a boot request arrives.
+If it does not
+receive another packet within fifteen minutes of the last one
+it received, it will exit to conserve system resources.
+The
+.Fl t
+option controls this timeout (see OPTIONS).
+.Pp
+It is also possible to run
+.Nm
+(or
+.Nm bootpgw )
+in "standalone mode" (without
+.Xr inetd 8 )
+by simply invoking it from a shell like any other regular command.
+Standalone mode is particularly useful when
+.Nm
+is used with a large configuration database, where the start up
+delay might otherwise prevent timely response to client requests.
+(Automatic start up in standalone mode can be done by invoking
+.Nm
+from within
+.Pa /etc/rc.local ,
+for example.)
+Standalone mode is less useful for
+.Nm bootpgw
+which
+has very little start up delay because
+it does not read a configuration file.
+.Pp
+Either program automatically detects whether it was invoked from inetd
+or from a shell and automatically selects the appropriate mode.
+The
+.Fl s
+or
+.Fl i
+option may be used to force standalone or inetd mode respectively
+(see OPTIONS).
+.Sh OPTIONS
+The following options are available:
+.Bl -tag -width indent
+.It Fl t Ar timeout
+Specify the
+.Ar timeout
+value (in minutes) that a
+.Nm
+or
+.Nm bootpgw
+process will wait for a BOOTP packet before exiting.
+If no packets are received for
+.Ar timeout
+minutes, then the program will exit.
+A timeout value of zero means "run forever".
+In standalone mode, this option is forced to zero.
+.It Fl d Ar debug-level
+Set the
+.Ar debug-level
+variable that controls the amount of debugging messages generated.
+For example,
+.Fl d Ns 4
+or
+.Fl d
+4 will set the debugging level to 4.
+For compatibility with older versions of
+.Nm ,
+omitting the numeric parameter (i.e., just
+.Fl d )
+will simply increment the debug level by one.
+.It Fl c Ar chdir-path
+Set the current directory used by
+.Nm
+while checking the existence and size of client boot files.
+This is
+useful when client boot files are specified as relative pathnames, and
+.Nm
+needs to use the same current directory as the TFTP server
+(typically
+.Pa /tftpboot ) .
+This option is not recognized by
+.Nm bootpgw .
+.It Fl h Ar hostname
+Specify the hostname corresponding to the IP address to listen on.
+By default,
+.Nm
+listens on the IP address corresponding to the machine's hostname, as
+returned by
+.Xr gethostname 3 .
+.It Fl i
+Force inetd mode.
+This option is obsolete, but remains for
+compatibility with older versions of
+.Nm .
+.It Fl s
+Force standalone mode.
+This option is obsolete, but remains for
+compatibility with older versions of
+.Nm .
+.It Ar bootptab
+Specify the name of the configuration file from which
+.Nm
+loads its database of known clients and client options
+.No ( Nm
+only).
+.It Ar dumpfile
+Specify the name of the file that
+.Nm
+will dump its internal database into when it receives a
+SIGUSR1 signal
+.No ( Nm
+only).
+This option is only recognized if
+.Nm
+was compiled with the -DDEBUG flag.
+.It Ar server
+Specify the name of a BOOTP server to which
+.Nm bootpgw
+will forward all BOOTREQUEST packets it receives
+.Pf ( Nm bootpgw
+only).
+.El
+.Sh OPERATION
+Both
+.Nm
+and
+.Nm bootpgw
+operate similarly in that both listen for any packets sent to the
+.Em bootps
+port, and both simply forward any BOOTREPLY packets.
+They differ in their handling of BOOTREQUEST packets.
+.Pp
+When
+.Nm bootpgw
+is started, it determines the address of a BOOTP server
+whose name is provided as a command line parameter.
+When
+.Nm bootpgw
+receives a BOOTREQUEST packet, it sets the "gateway address"
+and "hop count" fields in the packet and forwards the packet
+to the BOOTP server at the address determined earlier.
+Requests are forwarded only if they indicate that
+the client has been waiting for at least three seconds.
+.Pp
+When
+.Nm
+is started it reads a configuration file, (normally
+.Pa /etc/bootptab )
+that initializes the internal database of known clients and client
+options.
+This internal database is reloaded
+from the configuration file when
+.Nm
+receives a hangup signal (SIGHUP) or when it discovers that the
+configuration file has changed.
+.Pp
+When
+.Nm
+receives a BOOTREQUEST packet, it
+.\" checks the modification time of the
+.\" configuration file and reloads the database if necessary.  Then it
+looks for a database entry matching the client request.
+If the client is known,
+.Nm
+composes a BOOTREPLY packet using the database entry found above,
+and sends the reply to the client (possibly using a gateway).
+If the client is unknown, the request is discarded
+(with a notice if debug > 0).
+.Pp
+If
+.Nm
+is compiled with the -DDEBUG option, receipt of a SIGUSR1 signal causes
+it to dump its internal database to the file
+.Pa /tmp/bootpd.dump
+or the dumpfile specified as a command line parameter.
+.Pp
+During initialization, both programs
+determine the UDP port numbers to be used by calling
+.Xr getservbyname 3
+(which normally uses
+.Pa /etc/services ) .
+Two service names (and port numbers) are used:
+.Pp
+.Dl bootps BOOTP Server listening port
+.Dl bootpc BOOTP Client destination port
+.Pp
+If the port numbers cannot be determined using
+.Xr getservbyname 3
+then the values default to bootps=67 and bootpc=68.
+.Sh FILES
+.Bl -tag -width /tmp/bootpd.dump -compact
+.It Pa /etc/bootptab
+Database file read by
+.Nm .
+.It Pa /tmp/bootpd.dump
+Debugging dump file created by
+.Nm .
+.It Pa /etc/services
+Internet service numbers.
+.It Pa /tftpboot
+Current directory typically used by the TFTP server and
+.Nm .
+.El
+.Sh "SEE ALSO"
+.Xr bootptab 5 ,
+.Xr inetd 8 ,
+.Xr tftpd 8
+.Pp
+DARPA Internet Request For Comments:
+.Bl -tag -width RFC1533 -compact
+.It RFC951
+Bootstrap Protocol
+.It RFC1532
+Clarifications and Extensions for the Bootstrap Protocol
+.It RFC1533
+DHCP Options and BOOTP Vendor Extensions
+.El
+.Sh AUTHORS
+This distribution is currently maintained by
+.An Walter L. Wimer Aq Mt walt+@cmu.edu .
+.Pp
+The original BOOTP server was created by
+.An Bill Croft
+at Stanford University in January 1986.
+.Pp
+The current version of
+.Nm
+is primarily the work of
+.An David Kovar ,
+.An Drew D. Perkins ,
+and
+.An Walter L. Wimer ,
+at Carnegie Mellon University.
+.Pp
+Enhancements and bug-fixes have been contributed by:
+.Pp
+(in alphabetical order)
+.Pp
+.An -split
+.An Danny Backx Aq Mt db@sunbim.be
+.An John Brezak Aq Mt brezak@ch.hp.com
+.An Frank da Cruz Aq Mt fdc@cc.columbia.edu
+.An David R. Linn Aq Mt drl@vuse.vanderbilt.edu
+.An Jim McKim Aq Mt mckim@lerc.nasa.gov
+.An Gordon W. Ross Aq Mt gwr@mc.com
+.An Jason Zions Aq Mt jazz@hal.com .
+.Sh BUGS
+Individual host entries must not exceed 1024 characters.

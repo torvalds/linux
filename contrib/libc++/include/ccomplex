@@ -1,0 +1,29 @@
+// -*- C++ -*-
+//===--------------------------- ccomplex ---------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CCOMPLEX
+#define _LIBCPP_CCOMPLEX
+
+/*
+    ccomplex synopsis
+
+#include <complex>
+
+*/
+
+#include <complex>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+// hh 080623 Created
+
+#endif  // _LIBCPP_CCOMPLEX

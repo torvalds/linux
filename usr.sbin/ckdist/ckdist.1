@@ -1,0 +1,132 @@
+.\" Copyright (c) 1997 Robert Nordier
+.\" All rights reserved.
+.\"
+.\" $FreeBSD$
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd January 20, 1997
+.Dt CKDIST 1
+.Os
+.Sh NAME
+.Nm ckdist
+.Nd check software distributions
+.Sh SYNOPSIS
+.Nm
+.Bq Fl airsx
+.Bq Fl d Ar dir
+.Bq Fl n Ar name
+.Bq Fl t Ar type
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility reads
+.Dq checksum
+files (which are assumed to specify components
+of a software distribution) and verifies the integrity of the
+distribution by validating the checksum of each component file.
+Both MD5 (128-bit
+.Dq "message digest" )
+and
+.Pa .inf
+(32-bit CRC) checksum
+formats are supported.
+.Pp
+The
+.Ar file
+operands may refer to regular files or to directories.
+Regular files
+named
+.Pa md5 ,
+or which have an
+.Pa .md5
+or an
+.Pa .inf
+extension, are
+assumed to be of the implied type, otherwise format is determined from
+content.
+If a directory is specified, it is searched for
+appropriately-named files only.
+.Pp
+The options are as follows:
+.\"Bl -tag -width ".Fl n Ar name"
+.Bl -tag -width 8n -offset indent
+.It Fl a
+Report on all distribution components, not just those in respect of
+which errors are detected.
+.It Fl i
+Ignore missing distribution components.
+.It Fl r
+Search specified directories recursively.
+.It Fl s
+Suppress complaints about inaccessible checksum files and directories.
+.It Fl x
+Verify the existence of distribution components (and also check sizes,
+in the case of
+.Pa .inf
+files), but omit the more time-consuming step of
+actually computing and comparing checksums.
+.It Fl d Ar dir
+Look for distribution components in the directory
+.Ar dir .
+.It Fl n Ar name
+Access distribution components using the filename
+.Ar name .
+When accessing
+.Pa .inf
+file components, append the appropriate
+extension to the filename.
+.It Fl t Ar type
+Assume that all specified checksum files are of the format
+.Ar type ,
+and search directories only for files in this format (where
+.Ar type
+is either
+.Cm md5
+or
+.Cm inf ) .
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Bl -tag -width indent
+.It 0
+No errors were detected.
+.It 1
+Errors were found in a distribution.
+.It 2
+Usage errors, inaccessible input files, or
+other system errors were encountered.
+.El
+.Sh SEE ALSO
+.Xr cksum 1 ,
+.Xr md5 1
+.Sh NOTES
+Both
+.Bx
+and
+.Tn DOS
+versions of
+.Nm
+are available.

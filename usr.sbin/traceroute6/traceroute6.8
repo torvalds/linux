@@ -1,0 +1,197 @@
+.\"	$KAME: traceroute6.8,v 1.10 2004/06/06 12:35:15 suz Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 2, 2018
+.Dt TRACEROUTE6 8
+.Os
+.\"
+.Sh NAME
+.Nm traceroute6
+.Nd "print the route IPv6 packets will take to a network node"
+.\"
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl adIlnNrSTUv
+.Ek
+.Bk -words
+.Op Fl f Ar firsthop
+.Ek
+.Bk -words
+.Op Fl g Ar gateway
+.Ek
+.Bk -words
+.Op Fl m Ar hoplimit
+.Ek
+.Bk -words
+.Op Fl p Ar port
+.Ek
+.Bk -words
+.Op Fl q Ar probes
+.Ek
+.Bk -words
+.Op Fl s Ar src
+.Ek
+.Bk -words
+.Op Fl w Ar waittime
+.Ek
+.Bk -words
+.Op Fl A Ar as_server
+.Ek
+.Bk -words
+.Ar target
+.Op Ar datalen
+.Ek
+.\"
+.Sh DESCRIPTION
+The
+.Nm
+utility
+uses the IPv6 protocol hop limit field to elicit an ICMPv6 TIME_EXCEEDED
+response from each gateway along the path to some host.
+.Pp
+The only mandatory parameter is the destination host name or IPv6 address.
+The default probe datagram carries 20 bytes of payload,
+in addition to the IPv6 header.
+The size of the payload can be specified by giving a length
+(in bytes)
+after the destination host name.
+.Pp
+Other options are:
+.Bl -tag -width Ds
+.It Fl a
+Turn on AS# lookups for each hop encountered.
+.It Fl A Ar as_server
+Turn on AS# lookups and use the given server instead of the default.
+.It Fl d
+Debug mode.
+.It Fl f Ar firsthop
+Specify how many hops to skip in trace.
+.It Fl g Ar gateway
+Specify intermediate gateway. Please note that
+.Nm
+tries to use routing headers.
+.It Fl I
+Use ICMP6 ECHO instead of UDP datagrams.
+.It Fl l
+Print both host hostnames and numeric addresses.
+Normally
+.Nm
+prints only hostnames if
+.Fl n
+is not specified, and only numeric addresses if
+.Fl n
+is specified.
+.It Fl m Ar hoplimit
+Specify maximum hoplimit, up to 255.
+The default is the value of the
+.Va net.inet6.ip6.hlim
+.Xr sysctl 8
+(the same default used for TCP connections).
+.It Fl n
+Do not resolve numeric address to hostname.
+.It Fl N
+Use a packet with no upper layer header for the probes,
+instead of UDP datagrams.
+.It Fl p Ar port
+Set SCTP/TCP/UDP port number to
+.Ar port .
+.It Fl q Ar probes
+Set the number of probe per hop count to
+.Ar probes .
+.It Fl r
+Bypass the normal routing tables and send directly to a host
+on an attached network.
+If the host is not on a directly-connected network,
+an error is returned.
+This option corresponds to the
+.Dv SO_DONTROUTE
+socket option;
+it can be used to ping a local host through an interface
+that has no route through it
+(e.g., after the interface was dropped by a routing daemon).
+.It Fl s Ar src
+.Ar Src
+specifies the source IPv6 address to be used.
+.It Fl S
+Use SCTP packets for the probes.
+The size of probe packets must be a multiple of 4.
+If
+.Ar datalen
+is up to 28, probe packets consist of a SHUTDOWN-ACK chunk possibly bundled
+with a PAD chunk. For larger probe packets, an INIT chunk is used.
+.It Fl T
+Use TCP segments for the probes.
+.It Fl U
+Use UDP datagrams for the probes.
+This is the default.
+.It Fl v
+Be verbose.
+.It Fl w Ar waittime
+Specify the delay time between probes.
+.El
+.Pp
+This program prints the route to the given destination and the round-trip
+time to each gateway, in the same manner as traceroute.
+.Pp
+Here is a list of possible annotations after the round-trip time for each gateway:
+.Bl -hang -offset indent
+.It !N
+Destination Unreachable - No Route to Host.
+.It !P
+Destination Unreachable - Administratively Prohibited.
+.It !S
+Destination Unreachable - Not a Neighbour.
+.It !A
+Destination Unreachable - Address Unreachable.
+.It !\&
+This is printed if the hop limit is <= 1 on a port unreachable message.
+This means that the packet got to the destination,
+but that the reply had a hop limit that was just large enough to
+allow it to get back to the source of the traceroute6.
+This was more interesting in the IPv4 case,
+where some IP stack bugs could be identified by this behaviour.
+.El
+.\"
+.Sh EXIT STATUS
+The
+.Nm
+utility will exit with 0 on success, and non-zero on errors.
+.\"
+.Sh SEE ALSO
+.Xr ping 8 ,
+.Xr ping6 8 ,
+.Xr traceroute 8
+.\"
+.Sh HISTORY
+The
+.Nm
+utility first appeared in WIDE hydrangea IPv6 protocol stack kit.

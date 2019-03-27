@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+unalias -a
+alias --

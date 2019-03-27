@@ -1,0 +1,165 @@
+.\"
+.\" Copyright (c) Baptiste Daroussin <bapt@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 17, 2015
+.Dt MPSUTIL 8
+.Os
+.Sh NAME
+.Nm mpsutil ,
+.Nm mprutil
+.Nd Utility for managing LSI Fusion-MPT 2/3 controllers
+.Sh SYNOPSIS
+.Nm
+.Cm version
+.Nm
+.Op Fl u Ar unit
+.Cm show adapter
+.Nm
+.Op Fl u Ar unit
+.Cm show adapters
+.Nm
+.Op Fl u Ar unit
+.Cm show all
+.Nm
+.Op Fl u Ar unit
+.Cm show cfgpages page
+.Op Ar num
+.Op Ar addr
+.Nm
+.Op Fl u Ar unit
+.Cm show devices
+.Nm
+.Op Fl u Ar unit
+.Cm show enclosures
+.Nm
+.Op Fl u Ar unit
+.Cm show expanders
+.Nm
+.Op Fl u Ar unit
+.Cm show iocfacts
+.Nm
+.Op Fl u Ar unit
+.Cm flash save
+.Op Ar firmware Ns | Ns Ar bios
+.Op Ar file
+.Nm
+.Op Fl u Ar unit
+.Cm flash update
+.Op Ar firmware Ns | Ns Ar bios
+.Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to display or modify various parameters on LSI
+Fusion-MPS 2 controllers.
+.Pp
+The
+.Nm mprutil
+utility can be used to display or modify various parameters on LSI
+Fusion-MPS 3 controllers.
+.Pp
+The
+.Nm mprutil
+utility behave identically to
+.Nm .
+(same program)
+.Pp
+Each invocation of
+.Nm
+consists of zero or more global options followed by a command.
+Commands may support additional optional or required arguments after the
+command.
+.Pp
+Currently one global option is supported:
+.Bl -tag -width indent
+.It Fl u Ar unit
+.Ar unit
+specifies the unit of the controller to work with.
+If no unit is specified,
+then unit 0 is used.
+.El
+.Pp
+The
+.Nm
+utility supports several different groups of commands.
+The first group of commands provide information about the controller.
+The second group of commands are used to manager controller-wide operations.
+.Pp
+The informational commands include:
+.Bl -tag -width indent
+.It Cm version
+Displays the version of
+.Nm .
+.It Cm show adapter
+Displays information about the controller such as the model number or firmware
+version.
+.It Cm show adapters
+Displays a summary of all adapters.
+.It Cm show all
+Displays all devices, expanders and enclosures.
+.It Cm show devices
+Displays all devices.
+.It Cm show expanders
+Displays all expanders.
+.It Cm show enclosures
+Displays all enclosures.
+.It Cm show iocfacts
+Displays IOC Facts messages.
+.It Cm show cfgpage page Oo Ar num Oc Op Ar addr
+Show IOC Facts Message
+.El
+.Pp
+Controller management commands include:
+.Bl -tag -width indent
+.It Cm flash save Oo Ar firmware Ns | Ns Ar bios Oc Op Ar file
+Save the
+.Ar firmware
+or
+.Ar bios
+from the controller into a local
+.Ar file .
+If no
+.Ar file
+is specified then the file will be named
+.Pa firmware
+or
+.Pa bios .
+.It Cm flash update Oo Ar firmware Ns | Ns Ar bios Oc Ar file
+Replace the
+.Ar firmware
+or
+.Ar bios
+from the controller with the one specified via
+.Ar file .
+.El
+.Sh SEE ALSO
+.Xr mpr 4 ,
+.Xr mps 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 11.0 .

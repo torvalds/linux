@@ -1,0 +1,131 @@
+.\" Copyright (c) 2000 Christoph Herrmann, Thomas-Henning von Kamptz
+.\" Copyright (c) 1980, 1989, 1993 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Christoph Herrmann and Thomas-Henning von Kamptz, Munich and Frankfurt.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"      This product includes software developed by the University of
+.\"      California, Berkeley and its contributors, as well as Christoph
+.\"      Herrmann and Thomas-Henning von Kamptz.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $TSHeader: src/sbin/growfs/growfs.8,v 1.3 2000/12/12 19:31:00 tomsoft Exp $
+.\" $FreeBSD$
+.\"
+.Dd December 13, 2017
+.Dt GROWFS 8
+.Os
+.Sh NAME
+.Nm growfs
+.Nd expand an existing UFS file system
+.Sh SYNOPSIS
+.Nm
+.Op Fl Ny
+.Op Fl s Ar size
+.Ar special | filesystem
+.Sh DESCRIPTION
+The
+.Nm
+utility makes it possible to expand an UFS file system.
+Before running
+.Nm
+the partition or slice containing the file system must be extended using
+.Xr gpart 8 .
+If you are using volumes you must enlarge them by using
+.Xr gvinum 8 .
+The
+.Nm
+utility extends the size of the file system on the specified special file.
+The following options are available:
+.Bl -tag -width indent
+.It Fl N
+.Dq Test mode .
+Causes the new file system parameters to be printed out without actually
+enlarging the file system.
+.It Fl y
+Causes
+.Nm
+to assume yes
+as the answer to all operator questions.
+.It Fl s Ar size
+Determines the
+.Ar size
+of the file system after enlarging in sectors.
+.Ar Size
+is the number of 512 byte sectors unless suffixed with a
+.Cm b , k , m , g ,
+or
+.Cm t
+which
+denotes byte, kilobyte, megabyte, gigabyte and terabyte respectively.
+This value defaults to the size of the raw partition specified in
+.Ar special
+(in other words,
+.Nm
+will enlarge the file system to the size of the entire partition).
+.El
+.Sh EXAMPLES
+Expand root file system to fill up available space:
+.Dl growfs /
+.Pp
+Refresh the LUN size, resize the partition to use all available
+capacity, and expand the filesystem accordingly:
+.Dl camcontrol reprobe da0
+.Dl gpart recover da0
+.Dl gpart resize -i 1 da0
+.Dl growfs /dev/da0p1
+.Sh SEE ALSO
+.Xr camcontrol 8 ,
+.Xr fsck 8 ,
+.Xr gpart 8 ,
+.Xr newfs 8 ,
+.Xr tunefs 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 4.4 .
+The ability to resize mounted file systems was added in
+.Fx 10.0 .
+.Sh AUTHORS
+.An Christoph Herrmann Aq Mt chm@FreeBSD.org
+.An Thomas-Henning von Kamptz Aq Mt tomsoft@FreeBSD.org
+.An The GROWFS team Aq Mt growfs@Tomsoft.COM
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+.Sh CAVEATS
+When expanding a file system mounted read-write, any writes to that file system
+will be temporarily suspended until the expansion is finished.
+.Sh BUGS
+Normally
+.Nm
+writes cylinder group summary to disk and reads it again later for doing more
+updates.
+This read operation will provide unexpected data when using
+.Fl N .
+Therefore, this part cannot really be simulated and will be skipped in test
+mode.

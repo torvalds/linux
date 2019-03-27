@@ -1,0 +1,334 @@
+.\" Copyright (c) 1983, 1987, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
+.\" $FreeBSD$
+.\"
+.Dd January 29, 2019
+.Dt NEWFS 8
+.Os
+.Sh NAME
+.Nm newfs
+.Nd construct a new UFS1/UFS2 file system
+.Sh SYNOPSIS
+.Nm
+.Op Fl EJNUjlnt
+.Op Fl L Ar volname
+.Op Fl O Ar filesystem-type
+.Op Fl S Ar sector-size
+.Op Fl T Ar disktype
+.Op Fl a Ar maxcontig
+.Op Fl b Ar block-size
+.Op Fl c Ar blocks-per-cylinder-group
+.Op Fl d Ar max-extent-size
+.Op Fl e Ar maxbpg
+.Op Fl f Ar frag-size
+.Op Fl g Ar avgfilesize
+.Op Fl h Ar avgfpdir
+.Op Fl i Ar bytes
+.Op Fl k Ar held-for-metadata-blocks
+.Op Fl m Ar free-space
+.Op Fl o Ar optimization
+.Op Fl p Ar partition
+.Op Fl r Ar reserved
+.Op Fl s Ar size
+.Ar special
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to initialize and clear file systems before first use.
+The
+.Nm
+utility builds a file system on the specified special file.
+(We often refer to the
+.Dq special file
+as the
+.Dq disk ,
+although the special file need not be a physical disk.
+In fact, it need not even be special.)
+Typically the defaults are reasonable, however
+.Nm
+has numerous options to allow the defaults to be selectively overridden.
+.Pp
+The following options define the general layout policies:
+.Bl -tag -width indent
+.It Fl E
+Erase the content of the disk before making the filesystem.
+The reserved area in front of the superblock (for bootcode) will not be erased.
+Erasing is only relevant to flash-memory or thinly provisioned devices.
+Erasing may take a long time.
+If the device does not support BIO_DELETE, the command will fail.
+.It Fl J
+Enable journaling on the new file system via gjournal.
+See
+.Xr gjournal 8
+for details.
+.It Fl L Ar volname
+Add a volume label to the new file system.
+Legal characters are alphanumerics, dashes, and underscores.
+.It Fl N
+Cause the file system parameters to be printed out
+without really creating the file system.
+.It Fl O Ar filesystem-type
+Use 1 to specify that a UFS1 format file system be built;
+use 2 to specify that a UFS2 format file system be built.
+The default format is UFS2.
+.It Fl T Ar disktype
+For backward compatibility.
+.It Fl U
+Enable soft updates on the new file system.
+.It Fl a Ar maxcontig
+Specify the maximum number of contiguous blocks that will be
+laid out before forcing a rotational delay.
+The default value is 16.
+See
+.Xr tunefs 8
+for more details on how to set this option.
+.It Fl b Ar block-size
+The block size of the file system, in bytes.
+It must be a power of 2.
+The
+default size is 32768 bytes, and the smallest allowable size is 4096 bytes.
+The optimal block:fragment ratio is 8:1.
+Other ratios are possible, but are not recommended,
+and may produce poor results.
+.It Fl c Ar blocks-per-cylinder-group
+The number of blocks per cylinder group in a file system.
+The default is to compute the maximum allowed by the other parameters.
+This value is
+dependent on a number of other parameters, in particular the block size
+and the number of bytes per inode.
+.It Fl d Ar max-extent-size
+The file system may choose to store large files using extents.
+This parameter specifies the largest extent size that may be used.
+The default value is the file system blocksize.
+It is presently limited to a maximum value of 16 times the
+file system blocksize and a minimum value of the file system blocksize.
+.It Fl e Ar maxbpg
+Indicate the maximum number of blocks any single file can
+allocate out of a cylinder group before it is forced to begin
+allocating blocks from another cylinder group.
+The default is about one quarter of the total blocks in a cylinder group.
+See
+.Xr tunefs 8
+for more details on how to set this option.
+.It Fl f Ar frag-size
+The fragment size of the file system in bytes.
+It must be a power of two
+ranging in value between
+.Ar blocksize Ns /8
+and
+.Ar blocksize .
+The default is 4096 bytes.
+.It Fl g Ar avgfilesize
+The expected average file size for the file system.
+.It Fl h Ar avgfpdir
+The expected average number of files per directory on the file system.
+.It Fl i Ar bytes
+Specify the density of inodes in the file system.
+The default is to create an inode for every
+.Pq 2 * Ar frag-size
+bytes of data space.
+If fewer inodes are desired, a larger number should be used;
+to create more inodes a smaller number should be given.
+One inode is required for each distinct file, so this value effectively
+specifies the average file size on the file system.
+.It Fl j
+Enable soft updates journaling on the new file system.
+This flag is implemented by running the
+.Xr tunefs 8
+utility found in the user's
+.Dv $PATH .
+.It Fl k Ar held-for-metadata-blocks
+Set the amount of space to be held for metadata blocks in each cylinder group.
+When set, the file system preference routines will try to save
+the specified amount of space immediately following the inode blocks
+in each cylinder group for use by metadata blocks.
+Clustering the metadata blocks speeds up random file access
+and decreases the running time of
+.Xr fsck 8 .
+By default
+.Nm
+sets it to half of the space reserved to minfree.
+.It Fl l
+Enable multilabel MAC on the new file system.
+.It Fl m Ar free-space
+The percentage of space reserved from normal users; the minimum free
+space threshold.
+The default value used is
+defined by
+.Dv MINFREE
+from
+.In ufs/ffs/fs.h ,
+currently 8%.
+See
+.Xr tunefs 8
+for more details on how to set this option.
+.It Fl n
+Do not create a
+.Pa .snap
+directory on the new file system.
+The resulting file system will not support snapshot generation, so
+.Xr dump 8
+in live mode and background
+.Xr fsck 8
+will not function properly.
+The traditional
+.Xr fsck 8
+and offline
+.Xr dump 8
+will work on the file system.
+This option is intended primarily for memory or vnode-backed file systems that
+do not require
+.Xr dump 8
+or
+.Xr fsck 8
+support.
+.It Fl o Ar optimization
+.Cm ( space
+or
+.Cm time ) .
+The file system can either be instructed to try to minimize the time spent
+allocating blocks, or to try to minimize the space fragmentation on the disk.
+If the value of minfree (see above) is less than 8%,
+the default is to optimize for
+.Cm space ;
+if the value of minfree is greater than or equal to 8%,
+the default is to optimize for
+.Cm time .
+See
+.Xr tunefs 8
+for more details on how to set this option.
+.It Fl p Ar partition
+The partition name (a..h) you want to use in case the underlying image
+is a file, so you do not have access to individual partitions through the
+filesystem.
+Can also be used with a device, e.g.,
+.Nm
+.Fl p Ar f
+.Ar /dev/da1s3
+is equivalent to
+.Nm
+.Ar /dev/da1s3f .
+.It Fl r Ar reserved
+The size, in sectors, of reserved space
+at the end of the partition specified in
+.Ar special .
+This space will not be occupied by the file system;
+it can be used by other consumers such as
+.Xr geom 4 .
+Defaults to 0.
+.It Fl s Ar size
+The size of the file system in sectors.
+This value defaults to the size of the
+raw partition specified in
+.Ar special
+less the
+.Ar reserved
+space at its end (see
+.Fl r ) .
+A
+.Ar size
+of 0 can also be used to choose the default value.
+A valid
+.Ar size
+value cannot be larger than the default one,
+which means that the file system cannot extend into the reserved space.
+.It Fl t
+Turn on the TRIM enable flag.
+If enabled, and if the underlying device supports the BIO_DELETE
+command, the file system will send a delete request to the underlying
+device for each freed block.
+The trim enable flag is typically set for flash-memory devices to
+reduce write amplification which reduces wear on write-limited
+flash-memory and often improves long-term performance.
+Thinly provisioned storage also benefits by returning unused blocks to
+the global pool.
+.El
+.Pp
+The following options override the standard sizes for the disk geometry.
+Their default values are taken from the disk label.
+Changing these defaults is useful only when using
+.Nm
+to build a file system whose raw image will eventually be used on a
+different type of disk than the one on which it is initially created
+(for example on a write-once disk).
+Note that changing any of these values from their defaults will make
+it impossible for
+.Xr fsck 8
+to find the alternate superblocks if the standard superblock is lost.
+.Bl -tag -width indent
+.It Fl S Ar sector-size
+The size of a sector in bytes (almost never anything but 512).
+.El
+.Sh EXAMPLES
+.Dl newfs /dev/ada3s1a
+.Pp
+Creates a new ufs file system on
+.Pa ada3s1a .
+The
+.Nm
+utility will use a block size of 32768 bytes, a fragment size of 4096 bytes
+and the largest possible number of blocks per cylinders group.
+These values tend to produce better performance for most applications
+than the historical defaults
+(8192 byte block size and 1024 byte fragment size).
+This large fragment size may lead to much wasted space
+on file systems that contain many small files.
+.Sh SEE ALSO
+.Xr fdformat 1 ,
+.Xr geom 4 ,
+.Xr disktab 5 ,
+.Xr fs 5 ,
+.Xr camcontrol 8 ,
+.Xr dump 8 ,
+.Xr dumpfs 8 ,
+.Xr fsck 8 ,
+.Xr gpart 8 ,
+.Xr gjournal 8 ,
+.Xr growfs 8 ,
+.Xr gvinum 8 ,
+.Xr makefs 8 ,
+.Xr mount 8 ,
+.Xr tunefs 8
+.Rs
+.%A M. McKusick
+.%A W. Joy
+.%A S. Leffler
+.%A R. Fabry
+.%T A Fast File System for UNIX
+.%J ACM Transactions on Computer Systems 2
+.%V 3
+.%P pp 181-197
+.%D August 1984
+.%O (reprinted in the BSD System Manager's Manual)
+.Re
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.2 .

@@ -1,0 +1,31 @@
+# $FreeBSD$
+
+-----BEGIN PGP SIGNED MESSAGE-----
+
+Sorry for the long wait, but there still were a few things to
+be ironed out in at, which I've finally done :-)
+
+The FreeBSD team does have my permission to use at, version 2.9,
+under the BSD license.
+
+You'll find it on sunsite.unc.edu's Incoming, hopefully; the
+md5 checksum is
+
+3ba2ca3c0e87e1a04feae2c6c1376b0d  at-2.9.tgz
+
+Best regards
+	Thomas
+- -- 
+Thomas Koenig, Thomas.Koenig@ciw.uni-karlsruhe.de, ig25@dkauni2.bitnet.
+The joy of engineering is to find a straight line on a double
+logarithmic diagram.
+
+-----BEGIN PGP SIGNATURE-----
+Version: 2.6.2i
+
+iQCVAwUBMCjVrPBu+cbJcKCVAQFNiQP/dpWP57s/E8plVGUD3zfgOXDmKUvg8U7a
+VwRzJrIMuSgnSJs0wkpvcomc3NLicipfX7hhWLh/xatPM2YbF7O5HZoNdvWvexD2
+1Y67zJ+0HFb1mPnSBOrS5RFiQAe3KqmGec6E14Rih/qNoFQZBVRFXZ4xxuwP+0Rs
+e2U+TVTUz6A=
+=TvyW
+-----END PGP SIGNATURE-----

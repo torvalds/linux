@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# MAKEDIFFS.sh: Make context diffs for the csh sources
+#
+# $tcsh: MAKEDIFFS,v 3.1 2006/03/02 18:46:44 christos Exp $
+XINUDIR=/usr/share/src/mtXinu/bin/csh
+BSDDIR=/usr/share/src/mtXinu/BSD/bin/csh
+TAHOEDIR=/usr/share/src/mtXinu/TAHOE/bin/csh
+RENODIR=/usr/share/src/mtXinu/RENO/bin/csh
+TCSHDIR=`pwd`
+case "x$1" in
+xxinu)
+    CSHDIR=$XINUDIR;;
+xbsd)
+    CSHDIR=$BSDDIR;;
+xtahoe)
+    CSHDIR=$TAHOEDIR;;
+xreno)
+    CSHDIR=$RENODIR;;
+x*)
+    echo "Usage: `basename $0` [bsd|tahoe|xinu|reno]";exit 1;;
+esac
+DIFF1='sh.c sh.char.c sh.dir.c sh.dol.c sh.err.c sh.exec.c sh.exp.c sh.file.c'
+DIFF2='sh.func.c sh.glob.c sh.hist.c sh.init.c sh.lex.c sh.misc.c sh.parse.c sh.print.c'
+DIFF3='sh.proc.c sh.sem.c sh.set.c sh.time.c sh.char.h sh.dir.h sh.h sh.local.h sh.proc.h'
+
+for i in $DIFF1
+do
+    diff -c $CSHDIR/$i $TCSHDIR/$i
+done > DIFFS.1
+
+for i in $DIFF2
+do
+    diff -c $CSHDIR/$i $TCSHDIR/$i
+done > DIFFS.2
+
+for i in $DIFF3
+do
+    diff -c $CSHDIR/$i $TCSHDIR/$i
+done > DIFFS.3
+exit 0

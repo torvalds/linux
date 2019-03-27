@@ -1,0 +1,117 @@
+.\" Copyright (c) 2001 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and NAI Labs, the Security
+.\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
+.\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+.\" research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 21, 2001
+.Dt MAC_TEXT 3
+.Os
+.Sh NAME
+.Nm mac_from_text ,
+.Nm mac_to_text
+.Nd convert MAC label to/from text representation
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mac.h
+.Ft int
+.Fn mac_from_text "mac_t *mac" "const char *text"
+.Ft int
+.Fn mac_to_text "mac_t label" "char **text"
+.Sh DESCRIPTION
+The
+.Fn mac_from_text
+function converts the text representation of a label
+into the internal policy label format
+.Pq Vt mac_t
+and places it in
+.Fa *mac ,
+which must later be freed with
+.Xr free 3 .
+.Pp
+The
+.Fn mac_to_text
+function allocates storage for
+.Fa *text ,
+which will be set to the text representation of
+.Fa label .
+.Pp
+Refer to
+.Xr maclabel 7
+for the MAC label format.
+.Sh RETURN VALUES
+.Rv -std mac_from_text mac_to_text
+.Sh COMPATIBILITY
+POSIX.1e does not define
+a format for text representations
+of MAC labels.
+.Pp
+POSIX.1e requires that text strings allocated using
+.Fn mac_to_text
+be freed using
+.Xr mac_free 3 ;
+in the
+.Fx
+implementation, they must be freed using
+.Xr free 3 ,
+as
+.Xr mac_free 3
+is used only to free memory used for type
+.Vt mac_t .
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient memory was available
+to allocate internal storage.
+.El
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr mac 3 ,
+.Xr mac_get 3 ,
+.Xr mac_is_present 3 ,
+.Xr mac_prepare 3 ,
+.Xr mac_set 3 ,
+.Xr posix1e 3 ,
+.Xr mac 4 ,
+.Xr maclabel 7
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+Discussion of the draft
+continues on the cross-platform POSIX.1e implementation mailing list.
+To join this list, see the
+.Fx
+POSIX.1e implementation page
+for more information.
+.Sh HISTORY
+Support for Mandatory Access Control was introduced in
+.Fx 5.0
+as part of the
+.Tn TrustedBSD
+Project.

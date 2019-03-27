@@ -1,0 +1,29 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_DEREG_MR" 3 "2010-07-19" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_dereg_mr \- deregisters a registered memory region.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_verbs.h>"
+.P
+.B "struct ibv_mr *" rdma_dereg_mr
+.BI "(struct ibv_mr *" mr ");"
+.SH ARGUMENTS
+.IP "mr" 12
+A reference to a registered memory buffer.
+.SH "DESCRIPTION"
+Deregisters a memory buffer that had been registered for RDMA
+or message operations.  A user should call rdma_dereg_mr for all
+registered memory associated with an rdma_cm_id before destroying
+the rdma_cm_id.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+All memory registered with an rdma_cm_id is associated with the
+protection domain associated with the id.  Users must deregister
+all registered memory before the protection domain can be destroyed.
+.SH "SEE ALSO"
+rdma_cm(7), rdma_create_id(3), rdma_create_ep(3),
+rdma_destroy_id(3), rdma_destroy_ep(3),
+rdma_reg_msgs(3), rdma_reg_read(3), rdma_reg_write(3),
+ibv_reg_mr(3), ibv_dereg_mr(3)

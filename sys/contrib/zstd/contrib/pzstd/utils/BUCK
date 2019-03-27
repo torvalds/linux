@@ -1,0 +1,75 @@
+cxx_library(
+    name='buffer',
+    visibility=['PUBLIC'],
+    header_namespace='utils',
+    exported_headers=['Buffer.h'],
+    deps=[':range'],
+)
+
+cxx_library(
+    name='file_system',
+    visibility=['PUBLIC'],
+    header_namespace='utils',
+    exported_headers=['FileSystem.h'],
+    deps=[':range'],
+)
+
+cxx_library(
+    name='likely',
+    visibility=['PUBLIC'],
+    header_namespace='utils',
+    exported_headers=['Likely.h'],
+)
+
+cxx_library(
+    name='range',
+    visibility=['PUBLIC'],
+    header_namespace='utils',
+    exported_headers=['Range.h'],
+    deps=[':likely'],
+)
+
+cxx_library(
+    name='resource_pool',
+    visibility=['PUBLIC'],
+    header_namespace='utils',
+    exported_headers=['ResourcePool.h'],
+)
+
+cxx_library(
+    name='scope_guard',
+    visibility=['PUBLIC'],
+    header_namespace='utils',
+    exported_headers=['ScopeGuard.h'],
+)
+
+cxx_library(
+    name='thread_pool',
+    visibility=['PUBLIC'],
+    header_namespace='utils',
+    exported_headers=['ThreadPool.h'],
+    deps=[':work_queue'],
+)
+
+cxx_library(
+    name='work_queue',
+    visibility=['PUBLIC'],
+    header_namespace='utils',
+    exported_headers=['WorkQueue.h'],
+    deps=[':buffer'],
+)
+
+cxx_library(
+    name='utils',
+    visibility=['PUBLIC'],
+    deps=[
+        ':buffer',
+        ':file_system',
+        ':likely',
+        ':range',
+        ':resource_pool',
+        ':scope_guard',
+        ':thread_pool',
+        ':work_queue',
+    ],
+)

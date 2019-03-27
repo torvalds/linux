@@ -1,0 +1,126 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: netoptions
+# REQUIRE: FILESYSTEMS
+# BEFORE: netif
+# KEYWORD: nojail
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="netoptions"
+desc="Network options setup"
+start_cmd="netoptions_start"
+stop_cmd=:
+
+_netoptions_initdone=
+netoptions_init()
+{
+	if [ -z "${_netoptions_initdone}" ]; then
+		echo -n 'Additional TCP/IP options:'
+		_netoptions_initdone=yes
+	fi
+}
+
+netoptions_start()
+{
+	local _af
+
+	for _af in inet inet6; do
+		afexists ${_af} && eval netoptions_${_af}
+	done
+	[ -n "${_netoptions_initdone}" ] && echo '.'
+}
+
+netoptions_inet()
+{
+	case ${log_in_vain} in
+	[12])
+		netoptions_init
+		echo -n " log_in_vain=${log_in_vain}"
+		${SYSCTL} net.inet.tcp.log_in_vain=${log_in_vain} >/dev/null
+		${SYSCTL} net.inet.udp.log_in_vain=${log_in_vain} >/dev/null
+		;;
+	*)
+		${SYSCTL} net.inet.tcp.log_in_vain=0 >/dev/null
+		${SYSCTL} net.inet.udp.log_in_vain=0 >/dev/null
+		;;
+	esac
+
+	if checkyesno tcp_extensions; then
+		${SYSCTL} net.inet.tcp.rfc1323=1 >/dev/null
+	else
+		netoptions_init
+		echo -n " rfc1323 extensions=${tcp_extensions}"
+		${SYSCTL} net.inet.tcp.rfc1323=0 >/dev/null
+	fi
+
+	if checkyesno tcp_keepalive; then
+		${SYSCTL} net.inet.tcp.always_keepalive=1 >/dev/null
+	else
+		netoptions_init
+		echo -n " TCP keepalive=${tcp_keepalive}"
+		${SYSCTL} net.inet.tcp.always_keepalive=0 >/dev/null
+	fi
+
+	if checkyesno tcp_drop_synfin; then
+		netoptions_init
+		echo -n " drop SYN+FIN packets=${tcp_drop_synfin}"
+		${SYSCTL} net.inet.tcp.drop_synfin=1 >/dev/null
+	else
+		${SYSCTL} net.inet.tcp.drop_synfin=0 >/dev/null
+	fi
+
+	case ${ip_portrange_first} in
+	[0-9]*)
+		netoptions_init
+		echo -n " ip_portrange_first=$ip_portrange_first"
+		${SYSCTL} net.inet.ip.portrange.first=$ip_portrange_first >/dev/null
+		;;
+	esac
+
+	case ${ip_portrange_last} in
+	[0-9]*)
+		netoptions_init
+		echo -n " ip_portrange_last=$ip_portrange_last"
+		${SYSCTL} net.inet.ip.portrange.last=$ip_portrange_last >/dev/null
+		;;
+	esac
+}
+
+netoptions_inet6()
+{
+	if checkyesno ipv6_ipv4mapping; then
+		netoptions_init
+		echo -n " ipv4-mapped-ipv6=${ipv6_ipv4mapping}"
+		${SYSCTL} net.inet6.ip6.v6only=0 >/dev/null
+	else
+		${SYSCTL} net.inet6.ip6.v6only=1 >/dev/null
+	fi
+
+	if checkyesno ipv6_privacy; then
+		netoptions_init
+		echo -n " IPv6 Privacy Addresses"
+		${SYSCTL} net.inet6.ip6.use_tempaddr=1 >/dev/null
+		${SYSCTL} net.inet6.ip6.prefer_tempaddr=1 >/dev/null
+	fi
+
+	case $ipv6_cpe_wanif in
+	""|[Nn][Oo]|[Nn][Oo][Nn][Ee]|[Ff][Aa][Ll][Ss][Ee]|[Oo][Ff][Ff]|0)
+		${SYSCTL} net.inet6.ip6.no_radr=0 >/dev/null
+		${SYSCTL} net.inet6.ip6.rfc6204w3=0 >/dev/null
+	;;
+	*)	
+		netoptions_init
+		echo -n " IPv6 CPE WANIF=${ipv6_cpe_wanif}"
+		${SYSCTL} net.inet6.ip6.no_radr=1 >/dev/null
+		${SYSCTL} net.inet6.ip6.rfc6204w3=1 >/dev/null
+	;;
+	esac
+}
+
+load_rc_config $name
+run_rc_command $1

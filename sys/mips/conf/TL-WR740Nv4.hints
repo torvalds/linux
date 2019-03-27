@@ -1,0 +1,87 @@
+#
+# This file adds to the values in AR933X_BASE.hints
+#
+# $FreeBSD$
+
+# mdiobus on arge1
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x1a000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
+
+# Embedded Atheros Switch
+hint.arswitch.0.at="mdio0"
+
+# XXX this should really say it's an AR933x switch, as there
+# are some vlan specific differences here!
+hint.arswitch.0.is_7240=1
+hint.arswitch.0.numphys=4
+hint.arswitch.0.phy4cpu=1	# phy 4 is a "CPU" separate PHY
+hint.arswitch.0.is_rgmii=0
+hint.arswitch.0.is_gmii=1	# arge1 <-> switch PHY is GMII
+
+# arge0 - MII, autoneg, phy(4)
+hint.arge.0.phymask=0x10	# PHY4
+hint.arge.0.mdio=mdioproxy1	# .. off of the switch mdiobus
+hint.arge.0.eeprommac=0x1fff0000
+
+# arge1 - GMII, 1000/full
+hint.arge.1.phymask=0x0		# No directly mapped PHYs
+hint.arge.1.media=1000
+hint.arge.1.fduplex=1
+hint.arge.1.eeprommac=0x1fff0006
+
+# Where the ART is - last 64k in the flash
+# 0x9fff1000 ?
+hint.ath.0.eepromaddr=0x1fff0000
+hint.ath.0.eepromsize=16384
+
+# The TL-WR740N v4 is a default AP121 - it comes with 4MB flash.
+#
+# The boot parameters:
+# bootargs=console=ttyS0,115200 root=31:02 rootfstype=squashfs init=/sbin/init
+#    mtdparts=ar7240-nor0:256k(u-boot),64k(u-boot-env),2752k(rootfs),
+#    896k(uImage),64k(NVRAM),64k(ART)
+# bootcmd=bootm 0x9f020000
+#
+# .. so uboot is 128K, there's no ubootenv, and the runtime image starts
+# at 0x9f020000.
+
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x000020000
+hint.map.0.name="uboot"
+hint.map.0.readonly=1
+
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00020000
+hint.map.1.end=0x003e0000
+hint.map.1.name="kernel"
+hint.map.1.readonly=0
+
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x003e0000
+hint.map.2.end=0x003f0000
+hint.map.2.name="cfg"
+hint.map.2.readonly=0
+
+# This is radio calibration section.  It is (or should be!) unique
+# for each board, to take into account thermal and electrical differences
+# as well as the regulatory compliance data.
+#
+hint.map.3.at="flash/spi0"
+hint.map.3.start=0x003f0000
+hint.map.3.end=0x0x400000
+hint.map.3.name="art"
+hint.map.3.readonly=1
+
+# GPIO specific configuration block
+
+# Don't flip on anything that isn't already enabled.
+# This includes leaving the SPI CS1/CS2 pins as GPIO pins as they're
+# not used here.
+hint.gpio.0.function_set=0x00000000
+hint.gpio.0.function_clear=0x00000000
+
+# These are the GPIO LEDs and buttons which can be software controlled.
+# hint.gpio.0.pinmask=0x00fc1803

@@ -1,0 +1,18 @@
+# $FreeBSD$ 
+# $NetBSD: Big5.alias,v 1.2 2007/03/05 16:58:34 tnozaki Exp $
+
+E		big5e
+
+ETen		big-5
+ETen		big-five
+ETen		big5
+ETen		big5eten
+ETen		bigfive
+ETen		cn-big5
+ETen		csbig5
+
+HKSCS		big5-hkscs:2004
+HKSCS		big5hkscs
+
+Plus		big-5+
+Plus		big5+

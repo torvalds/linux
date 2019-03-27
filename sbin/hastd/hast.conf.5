@@ -1,0 +1,441 @@
+.\" Copyright (c) 2010 The FreeBSD Foundation
+.\" Copyright (c) 2010-2012 Pawel Jakub Dawidek <pawel@dawidek.net>
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Pawel Jakub Dawidek under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 25, 2012
+.Dt HAST.CONF 5
+.Os
+.Sh NAME
+.Nm hast.conf
+.Nd configuration file for the
+.Xr hastd 8
+daemon and the
+.Xr hastctl 8
+utility
+.Sh DESCRIPTION
+The
+.Nm
+file is used by both
+.Xr hastd 8
+daemon
+and
+.Xr hastctl 8
+control utility.
+Configuration file is designed in a way that exactly the same file can be
+(and should be) used on both HAST nodes.
+Every line starting with # is treated as comment and ignored.
+.Sh CONFIGURATION FILE SYNTAX
+General syntax of the
+.Nm
+file is following:
+.Bd -literal -offset indent
+# Global section
+control <addr>
+listen <addr>
+replication <mode>
+checksum <algorithm>
+compression <algorithm>
+timeout <seconds>
+exec <path>
+metaflush on | off
+pidfile <path>
+
+on <node> {
+	# Node section
+        control <addr>
+        listen <addr>
+        pidfile <path>
+}
+
+on <node> {
+	# Node section
+        control <addr>
+        listen <addr>
+        pidfile <path>
+}
+
+resource <name> {
+	# Resource section
+	replication <mode>
+	checksum <algorithm>
+	compression <algorithm>
+	name <name>
+	local <path>
+	timeout <seconds>
+	exec <path>
+	metaflush on | off
+
+	on <node> {
+		# Resource-node section
+		name <name>
+		# Required
+		local <path>
+		metaflush on | off
+		# Required
+		remote <addr>
+		source <addr>
+	}
+	on <node> {
+		# Resource-node section
+		name <name>
+		# Required
+		local <path>
+		metaflush on | off
+		# Required
+		remote <addr>
+		source <addr>
+	}
+}
+.Ed
+.Pp
+Most of the various available configuration parameters are optional.
+If parameter is not defined in the particular section, it will be
+inherited from the parent section.
+For example, if the
+.Ic listen
+parameter is not defined in the node section, it will be inherited from
+the global section.
+In case the global section does not define the
+.Ic listen
+parameter at all, the default value will be used.
+.Sh CONFIGURATION FILE DESCRIPTION
+The
+.Aq node
+argument can be replaced either by a full hostname as obtained by
+.Xr gethostname 3 ,
+only first part of the hostname, by node's UUID as found in the
+.Va kern.hostuuid
+.Xr sysctl 8
+variable
+or by node's hostid as found in the
+.Va kern.hostid
+.Xr sysctl 8
+variable.
+.Pp
+The following statements are available:
+.Bl -tag -width ".Ic xxxx"
+.It Ic control Aq addr
+.Pp
+Address for communication with
+.Xr hastctl 8 .
+Each of the following examples defines the same control address:
+.Bd -literal -offset indent
+uds:///var/run/hastctl
+unix:///var/run/hastctl
+/var/run/hastctl
+.Ed
+.Pp
+The default value is
+.Pa uds:///var/run/hastctl .
+.It Ic pidfile Aq path
+.Pp
+File in which to store the process ID of the main
+.Xr hastd 8
+process.
+.Pp
+The default value is
+.Pa /var/run/hastd.pid .
+.It Ic listen Aq addr
+.Pp
+Address to listen on in form of:
+.Bd -literal -offset indent
+protocol://protocol-specific-address
+.Ed
+.Pp
+Each of the following examples defines the same listen address:
+.Bd -literal -offset indent
+0.0.0.0
+0.0.0.0:8457
+tcp://0.0.0.0
+tcp://0.0.0.0:8457
+tcp4://0.0.0.0
+tcp4://0.0.0.0:8457
+.Ed
+.Pp
+Multiple listen addresses can be specified.
+By default
+.Nm hastd
+listens on
+.Pa tcp4://0.0.0.0:8457
+and
+.Pa tcp6://[::]:8457
+if kernel supports IPv4 and IPv6 respectively.
+.It Ic replication Aq mode
+.Pp
+Replication mode should be one of the following:
+.Bl -tag -width ".Ic xxxx"
+.It Ic memsync
+.Pp
+Report the write operation as completed when local write completes and
+when the remote node acknowledges the data receipt, but before it
+actually stores the data.
+The data on remote node will be stored directly after sending
+acknowledgement.
+This mode is intended to reduce latency, but still provides a very good
+reliability.
+The only situation where some small amount of data could be lost is when
+the data is stored on primary node and sent to the secondary.
+Secondary node then acknowledges data receipt and primary reports
+success to an application.
+However, it may happen that the secondary goes down before the received
+data is really stored locally.
+Before secondary node returns, primary node dies entirely.
+When the secondary node comes back to life it becomes the new primary.
+Unfortunately some small amount of data which was confirmed to be stored
+to the application was lost.
+The risk of such a situation is very small.
+The
+.Ic memsync
+replication mode is the default.
+.It Ic fullsync
+.Pp
+Mark the write operation as completed when local as well as remote
+write completes.
+This is the safest and the slowest replication mode.
+.It Ic async
+.Pp
+The write operation is reported as complete right after the local write
+completes.
+This is the fastest and the most dangerous replication mode.
+This mode should be used when replicating to a distant node where
+latency is too high for other modes.
+.El
+.It Ic checksum Aq algorithm
+.Pp
+Checksum algorithm should be one of the following:
+.Bl -tag -width ".Ic sha256"
+.It Ic none
+No checksum will be calculated for the data being send over the network.
+This is the default setting.
+.It Ic crc32
+CRC32 checksum will be calculated.
+.It Ic sha256
+SHA256 checksum will be calculated.
+.El
+.It Ic compression Aq algorithm
+.Pp
+Compression algorithm should be one of the following:
+.Bl -tag -width ".Ic none"
+.It Ic none
+Data send over the network will not be compressed.
+.It Ic hole
+Only blocks that contain all zeros will be compressed.
+This is very useful for initial synchronization where potentially many blocks
+are still all zeros.
+There should be no measurable performance overhead when this algorithm is being
+used.
+This is the default setting.
+.It Ic lzf
+The LZF algorithm by Marc Alexander Lehmann will be used to compress the data
+send over the network.
+LZF is very fast, general purpose compression algorithm.
+.El
+.It Ic timeout Aq seconds
+.Pp
+Connection timeout in seconds.
+The default value is
+.Va 20 .
+.It Ic exec Aq path
+.Pp
+Execute the given program on various HAST events.
+Below is the list of currently implemented events and arguments the given
+program is executed with:
+.Bl -tag -width ".Ic xxxx"
+.It Ic "<path> role <resource> <oldrole> <newrole>"
+.Pp
+Executed on both primary and secondary nodes when resource role is changed.
+.It Ic "<path> connect <resource>"
+.Pp
+Executed on both primary and secondary nodes when connection for the given
+resource between the nodes is established.
+.It Ic "<path> disconnect <resource>"
+.Pp
+Executed on both primary and secondary nodes when connection for the given
+resource between the nodes is lost.
+.It Ic "<path> syncstart <resource>"
+.Pp
+Executed on primary node when synchronization process of secondary node is
+started.
+.It Ic "<path> syncdone <resource>"
+.Pp
+Executed on primary node when synchronization process of secondary node is
+completed successfully.
+.It Ic "<path> syncintr <resource>"
+.Pp
+Executed on primary node when synchronization process of secondary node is
+interrupted, most likely due to secondary node outage or connection failure
+between the nodes.
+.It Ic "<path> split-brain <resource>"
+.Pp
+Executed on both primary and secondary nodes when split-brain condition is
+detected.
+.El
+.Pp
+The
+.Aq path
+argument should contain full path to executable program.
+If the given program exits with code different than
+.Va 0 ,
+.Nm hastd
+will log it as an error.
+.Pp
+The
+.Aq resource
+argument is resource name from the configuration file.
+.Pp
+The
+.Aq oldrole
+argument is previous resource role (before the change).
+It can be one of:
+.Ar init ,
+.Ar secondary ,
+.Ar primary .
+.Pp
+The
+.Aq newrole
+argument is current resource role (after the change).
+It can be one of:
+.Ar init ,
+.Ar secondary ,
+.Ar primary .
+.It Ic metaflush on | off
+.Pp
+When set to
+.Va on ,
+flush write cache of the local provider after every metadata (activemap) update.
+Flushing write cache ensures that provider will not reorder writes and that
+metadata will be properly updated before real data is stored.
+If the local provider does not support flushing write cache (it returns
+.Er EOPNOTSUPP
+on the
+.Cm BIO_FLUSH
+request),
+.Nm hastd
+will disable
+.Ic metaflush
+automatically.
+The default value is
+.Va on .
+.It Ic name Aq name
+.Pp
+GEOM provider name that will appear as
+.Pa /dev/hast/<name> .
+If name is not defined, resource name will be used as provider name.
+.It Ic local Aq path
+.Pp
+Path to the local component which will be used as backend provider for
+the resource.
+This can be either GEOM provider or regular file.
+.It Ic remote Aq addr
+.Pp
+Address of the remote
+.Nm hastd
+daemon.
+Format is the same as for the
+.Ic listen
+statement.
+When operating as a primary node this address will be used to connect to
+the secondary node.
+When operating as a secondary node only connections from this address
+will be accepted.
+.Pp
+A special value of
+.Va none
+can be used when the remote address is not yet known (eg. the other node is not
+set up yet).
+.It Ic source Aq addr
+.Pp
+Local address to bind to before connecting to the remote
+.Nm hastd
+daemon.
+Format is the same as for the
+.Ic listen
+statement.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/hastctl" -compact
+.It Pa /etc/hast.conf
+The default
+.Xr hastctl 8
+and
+.Xr hastd 8
+configuration file.
+.It Pa /var/run/hastctl
+Control socket used by the
+.Xr hastctl 8
+control utility to communicate with the
+.Xr hastd 8
+daemon.
+.El
+.Sh EXAMPLES
+The example configuration file can look as follows:
+.Bd -literal -offset indent
+listen tcp://0.0.0.0
+
+on hasta {
+	listen tcp://2001:db8::1/64
+}
+on hastb {
+	listen tcp://2001:db8::2/64
+}
+
+resource shared {
+	local /dev/da0
+
+	on hasta {
+		remote tcp://10.0.0.2
+	}
+	on hastb {
+		remote tcp://10.0.0.1
+	}
+}
+resource tank {
+	on hasta {
+		local /dev/mirror/tanka
+		source tcp://10.0.0.1
+		remote tcp://10.0.0.2
+	}
+	on hastb {
+		local /dev/mirror/tankb
+		source tcp://10.0.0.2
+		remote tcp://10.0.0.1
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr gethostname 3 ,
+.Xr geom 4 ,
+.Xr hastctl 8 ,
+.Xr hastd 8
+.Sh AUTHORS
+The
+.Nm
+was written by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org
+under sponsorship of the FreeBSD Foundation.

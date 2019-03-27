@@ -1,0 +1,86 @@
+Warsaw, 1998.08.18
+
+			VIEW - small PNG viewer
+			-----------------------
+
+This program is intended to serve as a simple console viewer for PNG
+graphics. It also features some scripting abilities, which allow you to
+build simple presentation.
+
+In fact, using even this initial version I was able to build a nice
+presentation of PicoBSD abilities which I used in real-life situation (you
+can see for yourself one of the presentation's screens, fbsd.png).
+
+The audience was impressed :-), especially when I asked them politely what
+are requirements and cost to make that kind of presentation using M$
+products...
+
+Simple Viewing
+--------------
+
+Usage is as follows:
+
+	view [-g nnn.nnn] [-r x] filename.png
+
+where
+	-g nnn.nnn	screen gamma (you can adjust how bright is the
+			picture)
+	-r x		resolution:
+			0 - 640x480x16
+			1 - 640x200x256
+			2 - 320x240x256
+
+Under right mouse button you can find a simple menu, which tells you also
+the hotkeys. You can shift, rotate and zoom the picture.
+
+Presentation
+------------
+
+Usage is as above, but the file you give as argument is a (unix) text file
+of the following format:
+
+	1	VIEW SCRIPT
+	2	5
+	3	welcome.png
+	4	/home/clipart/logo.png
+	5	/home/present/title.png
+	6	/home/present/outline.png
+	7	/home/present/end.png
+
+(of course without the line numbering or the leading space!). The line number
+1 is magic, and must be present in order to recognize the file properly.
+
+The second line tells how many pictures consist the presentation. The
+following lines tell the file names containing the images themselves.
+
+See the example in file picobsd.vu.
+
+Command line arguments (gamma and resolution) are as above. You can also use
+the pop-up menu to adjust image parameters, as well as go forward or
+backward in the presentation.
+
+Bugs, caveats, missing features
+-------------------------------
+
+* there are some bugs in libvgl which require strange workarounds, and even
+  then it doesn't work quite right. See the source for the 'XXX' comments...
+
+* I didn't have time to add gamma adjustment to the pop-up menu. It's
+  simple, though, and I leave it as an exercise for the reader :-))
+
+* it would be great if someone would add GIF and jpeg support.
+
+* the error checking is probably weak. A bad PNG file or script file will
+  probably cause a coredump.
+
+* pop-up menu facilities need more abstraction to be usable in other cases.
+
+Anyway, as it is even now it's quite usable.
+
+Have fun!
+
+Andrzej Bialecki
+
+<abial@freebsd.org>
+
+$FreeBSD$

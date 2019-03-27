@@ -1,0 +1,321 @@
+<HTML>
+<HEAD><TITLE>Milter API</TITLE></HEAD>
+<BODY>
+<!--
+$Id: api.html,v 1.39 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>Milter API</H1>
+
+<H2>Contents</H2>
+<UL>
+    <LI><A HREF="#LibraryControlFunctions">Library Control Functions</A>
+    <LI><A HREF="#DataAccessFunctions">Data Access Functions</A>
+    <LI><A HREF="#MessageModificationFunctions">Message Modification Functions</A>
+    <LI><A HREF="#Callbacks">Callbacks</A>
+    <LI><A HREF="#Miscellaneous">Miscellaneous</A>
+</UL>
+
+<H2><A NAME="LibraryControlFunctions">Library Control Functions</A></H2> 
+
+Before handing control to libmilter (by calling
+<A HREF="smfi_main.html">smfi_main</A>), a filter may call the following
+functions to set libmilter parameters.
+In particular, the filter must call
+<A HREF="smfi_register.html">smfi_register</A> to register its callbacks.
+Each function will return either MI_SUCCESS or MI_FAILURE to
+indicate the status of the operation.  
+
+<P>
+None of these functions communicate with the MTA.  All alter the
+library's state, some of which is communicated to the MTA inside
+<A HREF="smfi_main.html">smfi_main</A>.
+
+<P>
+<TABLE BORDER="1" CELLSPACING=0 CELLPADDING=2><TR BGCOLOR="#dddddd"><TH>Function</TH><TH>Description</TH></TR>
+
+<TR><TD><A HREF="smfi_opensocket.html">smfi_opensocket</A></TD><TD>Try to create the interface socket.</TD></TR>
+
+<TR><TD><A HREF="smfi_register.html">smfi_register</A></TD><TD>Register a filter.</TD></TR>
+
+<TR><TD><A HREF="smfi_setconn.html">smfi_setconn</A></TD><TD>Specify socket to use.</TD></TR>
+
+<TR><TD><A HREF="smfi_settimeout.html">smfi_settimeout</A></TD><TD>Set timeout.</TD></TR>
+
+<TR><TD><A HREF="smfi_setbacklog.html">smfi_setbacklog</A></TD><TD>Define the incoming <CODE>listen(2)</CODE> queue size.</TD></TR>
+
+<TR><TD><A HREF="smfi_setdbg.html">smfi_setdbg</A></TD><TD>Set the milter library debugging (tracing) level.</TD></TR>
+
+<TR><TD><A HREF="smfi_stop.html">smfi_stop</A></TD><TD>Cause an orderly shutdown.</TD></TR>
+
+<TR><TD><A HREF="smfi_main.html">smfi_main</A></TD><TD>Hand control to libmilter.</TD></TR>
+
+</TABLE>
+
+<H2><A NAME="DataAccessFunctions">Data Access Functions</A></H2>
+
+The following functions may be called from within the filter-defined callbacks
+to access information about the current connection or message.  
+<P>
+<TABLE BORDER="1" CELLSPACING=0 CELLPADDING=2><TR bgcolor="#dddddd"><TH>Function</TH><TH>Description</TH></TR>
+<TR><TD><A HREF="smfi_getsymval.html">smfi_getsymval</A></TD><TD>Return the value
+of a symbol.</TD></TR>
+
+<TR><TD><A HREF="smfi_getpriv.html">smfi_getpriv</A></TD><TD>Get the private data
+pointer.</TD></TR>
+
+<TR><TD><A HREF="smfi_setpriv.html">smfi_setpriv</A></TD><TD>Set the private data
+pointer.</TD></TR>
+
+<TR><TD><A HREF="smfi_setreply.html">smfi_setreply</A></TD><TD>Set the specific
+reply code to be used.</TD></TR>
+
+<TR><TD><A HREF="smfi_setmlreply.html">smfi_setmlreply</A></TD><TD>Set the
+specific multi-line reply to be used.</TD></TR>
+
+</TABLE>
+
+<H2><A NAME="MessageModificationFunctions">Message Modification Functions</A></H2>
+
+The following functions change a message's contents and attributes.
+<EM>They may only be called in <A HREF="xxfi_eom.html">xxfi_eom</A></EM>.
+All of these functions may invoke additional communication with the MTA.
+They will return either MI_SUCCESS or MI_FAILURE to indicate the status of
+the operation.  Message data (senders, recipients, headers, body chunks)
+passed to these functions via parameters is copied and does not need to be
+preserved (i.e., allocated memory can be freed).
+
+<P>
+A filter must have set the appropriate flag (listed below) in the
+description passed to <A HREF="smfi_register.html">smfi_register</A>
+to call any message modification function.  Failure to do so will
+cause the MTA to treat a call to the function as a failure of the
+filter, terminating its connection.
+
+<P>
+Note that the status returned indicates only whether or not the
+filter's message was successfully sent to the MTA, not whether or not
+the MTA performed the requested operation.  For example,
+<A HREF="smfi_addheader.html">smfi_addheader</A>, when called with an
+illegal header name, will return MI_SUCCESS even though the MTA may
+later refuse to add the illegal header.
+<P>
+<TABLE BORDER="1" CELLSPACING=0 CELLPADDING=2><TR BGCOLOR="#dddddd"><TH>Function</TH><TH>Description</TH><TH>SMFIF_* flag</TR>
+<TR><TD><A HREF="smfi_addheader.html">smfi_addheader</A></TD><TD>Add a header to
+the message.</TD><TD>SMFIF_ADDHDRS</TD></TR> 
+
+<TR><TD><A HREF="smfi_chgheader.html">smfi_chgheader</A></TD><TD>Change or delete a header.</TD><TD>SMFIF_CHGHDRS</TD></TR> 
+
+<TR><TD><A HREF="smfi_insheader.html">smfi_insheader</A></TD><TD>Insert a
+header into the message.</TD><TD>SMFIF_ADDHDRS</TD></TR> 
+
+<TR><TD><A HREF="smfi_chgfrom.html">smfi_chgfrom</A></TD><TD>Change the
+envelope sender address.</TD><TD>SMFIF_CHGFROM</TD></TR>
+
+<TR><TD><A HREF="smfi_addrcpt.html">smfi_addrcpt</A></TD><TD>Add a recipient to
+the envelope.</TD><TD>SMFIF_ADDRCPT</TD></TR>
+
+<TR><TD><A HREF="smfi_addrcpt_par.html">smfi_addrcpt_par</A></TD><TD>Add
+a recipient including ESMTP parameter to the envelope.
+</TD><TD>SMFIF_ADDRCPT_PAR</TD></TR>
+
+<TR><TD><A HREF="smfi_delrcpt.html">smfi_delrcpt</A></TD><TD>Delete a recipient
+from the envelope.</TD><TD>SMFIF_DELRCPT</TD></TR>
+
+<TR><TD><A HREF="smfi_replacebody.html">smfi_replacebody</A></TD><TD>Replace the
+body of the message.</TD><TD>SMFIF_CHGBODY</TD></TR>
+
+</TABLE>
+
+<H2>Other Message Handling Functions</H2>
+
+The following functions provide special case handling instructions for
+milter or the MTA, without altering the content or status of the message.
+<EM>They too may only be called in <A HREF="xxfi_eom.html">xxfi_eom</A></EM>.
+All of these functions may invoke additional communication with the MTA.
+They will return either MI_SUCCESS or MI_FAILURE to indicate the status of
+the operation.
+
+<P>
+Note that the status returned indicates only whether or not the
+filter's message was successfully sent to the MTA, not whether or not
+the MTA performed the requested operation.
+
+<P>
+<TABLE BORDER="1" CELLSPACING=0 CELLPADDING=2><TR BGCOLOR="#dddddd"><TH>Function</TH><TH>Description</TH></TR>
+<TR><TD><A HREF="smfi_progress.html">smfi_progress</A></TD><TD>Report operation in progress.</TD></TR>
+
+<TR><TD><A HREF="smfi_quarantine.html">smfi_quarantine</A></TD><TD>Quarantine a message.</TD></TR>
+
+</TABLE>
+
+<H2><A NAME="Callbacks">Callbacks</A></H2>
+
+The filter should implement one or more of the following callbacks,
+which are registered via <A HREF="smfi_register.html">smfi_register</A>:
+
+<P>
+<TABLE BORDER="1" CELLSPACING=0 CELLPADDING=2><TR BGCOLOR="#dddddd"><TH>Function</TH><TH>Description</TH></TR>
+
+<TR><TD><A HREF="xxfi_connect.html">xxfi_connect</A></TD><TD>connection info</TD></TR>
+
+<TR><TD><A HREF="xxfi_helo.html">xxfi_helo</A></TD><TD>SMTP HELO/EHLO command</TD></TR>
+
+<TR><TD><A HREF="xxfi_envfrom.html">xxfi_envfrom</A></TD><TD>envelope sender</TD></TR>
+
+<TR><TD><A HREF="xxfi_envrcpt.html">xxfi_envrcpt</A></TD><TD>envelope recipient</TD></TR>
+
+<TR><TD><A HREF="xxfi_data.html">xxfi_data</A></TD><TD>DATA command</TD></TR>
+
+<TR><TD><A HREF="xxfi_unknown.html">xxfi_unknown</A></TD><TD>Unknown SMTP command</TD></TR>
+
+<TR><TD><A HREF="xxfi_header.html">xxfi_header</A></TD><TD>header</TD></TR>
+
+<TR><TD><A HREF="xxfi_eoh.html">xxfi_eoh</A></TD><TD>end of header</TD></TR>
+
+<TR><TD><A HREF="xxfi_body.html">xxfi_body</A></TD><TD>body block</TD></TR>
+
+<TR><TD><A HREF="xxfi_eom.html">xxfi_eom</A></TD><TD>end of message</TD></TR>
+
+<TR><TD><A HREF="xxfi_abort.html">xxfi_abort</A></TD><TD>message aborted</TD></TR>
+
+<TR><TD><A HREF="xxfi_close.html">xxfi_close</A></TD><TD>connection cleanup</TD></TR>
+
+<TR><TD><A HREF="xxfi_negotiate.html">xxfi_negotiate</A></TD><TD>option negotiattion</TD></TR>
+
+</TABLE>
+
+<P>
+The above callbacks should all return one of the following return values,
+having the indicated meanings.  Any return other than one of the below
+values constitutes an error, and will cause sendmail to terminate its
+connection to the offending filter.
+
+<P><A NAME="conn-spec">Milter</A> distinguishes between recipient-,
+message-, and connection-oriented routines.  Recipient-oriented
+callbacks may affect the processing of a single message recipient;
+message-oriented callbacks, a single message; connection-oriented
+callbacks, an entire connection (during which multiple messages may be
+delivered to multiple sets of recipients).
+<A HREF="xxfi_envrcpt.html">xxfi_envrcpt</A> is recipient-oriented.
+<A HREF="xxfi_connect.html">xxfi_connect</A>,
+<A HREF="xxfi_helo.html">xxfi_helo</A> and
+<A HREF="xxfi_close.html">xxfi_close</A> are connection-oriented.  All
+other callbacks are message-oriented.
+
+<P>
+<TABLE BORDER="1" CELLSPACING=0 CELLPADDING=2>
+  <TR BGCOLOR="#dddddd"><TH>Return value</TH><TH>Description</TH></TR>
+  <TR VALIGN="TOP">
+     <TD>SMFIS_CONTINUE</TD> 
+     <TD>Continue processing the current connection, message, or recipient.
+     </TD>
+  </TR>
+  <TR VALIGN="TOP">
+     <TD>SMFIS_REJECT</TD>
+     <TD>For a connection-oriented routine, reject this connection; call <A HREF="xxfi_close.html">xxfi_close</A>.<BR>
+        For a message-oriented routine (except 
+        <A HREF="xxfi_abort.html">xxfi_abort</A>), reject this message.<BR>
+	For a recipient-oriented routine, reject the current recipient (but continue processing the current message).
+     </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_DISCARD</TD>
+     <TD>For a message- or recipient-oriented routine, accept this message, but silently discard it.<BR>
+     SMFIS_DISCARD should not be returned by a connection-oriented routine.
+     </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_ACCEPT</TD>
+     <TD>For a connection-oriented routine, accept this connection without further filter processing; call <A HREF="xxfi_close.html">xxfi_close</A>.<BR>
+         For a message- or recipient-oriented routine, accept this message without further filtering.<BR>
+     </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_TEMPFAIL</TD>
+     <TD>Return a temporary failure, i.e., the corresponding SMTP command will return an appropriate 4xx status code.
+	 For a message-oriented routine (except <A HREF="xxfi_envfrom.html">xxfi_envfrom</A>), fail for this message. <BR>
+	 For a connection-oriented routine, fail for this connection; call <A HREF="xxfi_close.html">xxfi_close</A>. <BR>
+	 For a recipient-oriented routine, only fail for the current recipient; continue message processing.
+     </TD>
+  </TR>
+
+  <TR valign="top">
+     <TD><A NAME="SMFIS_SKIP">SMFIS_SKIP</A></TD>
+     <TD>Skip further callbacks of the same type in this transaction.
+	Currently this return value is only allowed in
+	<A HREF="xxfi_body.html">xxfi_body()</A>.
+	It can be used if a milter has received sufficiently many
+	body chunks to make a decision, but still wants to invoke
+ 	message modification functions that are only allowed to be called from
+	<A HREF="xxfi_eom.html">xxfi_eom()</A>.
+	Note: the milter <EM>must</EM>
+	<A HREF="xxfi_negotiate.html">negotiate</A>
+	this behavior with the MTA, i.e., it must check whether
+	the protocol action
+	<A HREF="xxfi_negotiate.html#SMFIP_SKIP"><CODE>SMFIP_SKIP</CODE></A>
+	is available and if so, the milter must request it.
+     </TD>
+  </TR>
+
+  <TR valign="top">
+     <TD><A NAME="SMFIS_NOREPLY">SMFIS_NOREPLY</A></TD>
+     <TD>Do not send a reply back to the MTA.
+	The milter <EM>must</EM>
+	<A HREF="xxfi_negotiate.html">negotiate</A>
+	this behavior with the MTA, i.e., it must check whether
+	the appropriate protocol action
+	<A HREF="xxfi_negotiate.html#SMFIP_NR_"><CODE>SMFIP_NR_*</CODE></A>
+	is available and if so, the milter must request it.
+	If you set the
+	<A HREF="xxfi_negotiate.html#SMFIP_NR_"><CODE>SMFIP_NR_*</CODE></A>
+	protocol action for a callback, that callback <EM>must</EM>
+	always reply with
+	SMFIS_NOREPLY.
+	Using any other reply code is a violation of the API.
+	If in some cases your callback may return another value
+	(e.g., due to some resource shortages), then you
+	<EM>must not</EM> set
+	<A HREF="xxfi_negotiate.html#SMFIP_NR_"><CODE>SMFIP_NR_*</CODE></A>
+	and you must use
+	SMFIS_CONTINUE as the default return code.
+	(Alternatively you can try to delay reporting the problem to
+	a later callback for which
+	<A HREF="xxfi_negotiate.html#SMFIP_NR_"><CODE>SMFIP_NR_*</CODE></A>
+	is not set.)
+     </TD>
+  </TR>
+
+</TABLE>
+
+<H2><A NAME="Miscellaneous">Miscellaneous</A></H2>
+
+<P>
+<TABLE BORDER="1" CELLSPACING=0 CELLPADDING=2><TR BGCOLOR="#dddddd"><TH>Function</TH><TH>Description</TH></TR>
+
+<TR><TD><A HREF="smfi_version.html">smfi_version</A></TD><TD>libmilter (runtime) version info</TD></TR>
+
+<TR><TD><A HREF="smfi_setsymlist.html">smfi_setsymlist</A></TD><TD>
+Set the list of macros that the milter wants to receive from the MTA
+for a protocol stage.
+</TD></TR>
+
+</TABLE>
+
+<P>
+<TABLE BORDER="1" CELLSPACING=0 CELLPADDING=2><TR BGCOLOR="#dddddd"><TH>Constant</TH><TH>Description</TH></TR>
+
+<TR><TD><A HREF="smfi_version.html">SMFI_VERSION</A></TD><TD>libmilter (compile time) version info</TD></TR>
+
+</TABLE>
+
+
+<HR SIZE="1">
+<FONT SIZE="-1">
+Copyright (c) 2000, 2003, 2006, 2009 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

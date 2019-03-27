@@ -1,0 +1,110 @@
+.\" Copyright (c) 1997, 2000 - 2005 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 19, 1999
+.Dt KPASSWDD 8
+.Os HEIMDAL
+.Sh NAME
+.Nm kpasswdd
+.Nd Kerberos 5 password changing server
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl Fl addresses= Ns Ar address
+.Op Fl Fl check-library= Ns Ar library
+.Op Fl Fl check-function= Ns Ar function
+.Oo Fl k Ar kspec \*(Ba Xo
+.Fl Fl keytab= Ns Ar kspec
+.Xc
+.Oc
+.Oo Fl r Ar realm \*(Ba Xo
+.Fl Fl realm= Ns Ar realm
+.Xc
+.Oc
+.Oo Fl p Ar string \*(Ba Xo
+.Fl Fl port= Ns Ar string
+.Xc
+.Oc
+.Op Fl Fl version
+.Op Fl Fl help
+.Ek
+.Sh DESCRIPTION
+.Nm
+serves request for password changes. It listens on UDP port 464
+(service kpasswd) and processes requests when they arrive. It changes
+the database directly and should thus only run on the master KDC.
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Fl Fl addresses= Ns Ar address
+For each till the argument is given, add the address to what kpasswdd
+should listen too.
+.It Fl Fl check-library= Ns Ar library
+If your system has support for dynamic loading of shared libraries,
+you can use an external function to check password quality. This
+option specifies which library to load.
+.It Fl Fl check-function= Ns Ar function
+This is the function to call in the loaded library. The function
+should look like this:
+.Pp
+.Ft const char *
+.Fn passwd_check "krb5_context context" "krb5_principal principal" "krb5_data *password"
+.Pp
+.Fa context
+is an initialized context;
+.Fa principal
+is the one who tries to change passwords, and
+.Fa password
+is the new password. Note that the password (in
+.Fa password->data )
+is not zero terminated.
+.It Fl k Ar kspec , Fl Fl keytab= Ns Ar kspec
+Keytab to get authentication key from.
+.It Fl r Ar realm , Fl Fl realm= Ns Ar realm
+Default realm.
+.It Fl p Ar string , Fl Fl port= Ns Ar string
+Port to listen on (default service kpasswd - 464).
+.El
+.Sh DIAGNOSTICS
+If an error occurs, the error message is returned to the user and/or
+logged to syslog.
+.Sh BUGS
+The default password quality checks are too basic.
+.Sh SEE ALSO
+.Xr kpasswd 1 ,
+.Xr kdc 8
+.\".Sh ENVIRONMENT
+.\".Sh FILES
+.\".Sh EXAMPLES
+.\".Sh SEE ALSO
+.\".Sh STANDARDS
+.\".Sh HISTORY
+.\".Sh AUTHORS

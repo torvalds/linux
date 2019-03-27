@@ -1,0 +1,82 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: savecore
+# REQUIRE: dumpon ddb syslogd
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="savecore"
+rcvar="savecore_enable"
+desc="Save a core dump of the operating system"
+start_cmd="savecore_start"
+start_precmd="savecore_prestart"
+stop_cmd=":"
+
+savecore_prestart()
+{
+	# Quit if we have no dump device
+	case ${dumpdev} in
+	[Nn][Oo] | '')
+		debug 'No dump device. Quitting.'
+		return 1
+		;;
+	[Aa][Uu][Tt][Oo])
+		if [ ! -L /dev/dumpdev ]; then
+			return 1
+		fi
+		dumpdev=`/bin/realpath /dev/dumpdev`
+		;;
+	esac
+
+	# If there is no crash directory set it now
+	case ${dumpdir} in
+	'')
+		dumpdir='/var/crash'
+		;;
+	[Nn][Oo])
+		dumpdir='NO'
+		;;
+	esac
+
+	if [ ! -c "${dumpdev}" ]; then
+		warn "Dump device does not exist.  Savecore not run."
+		return 1
+	fi
+
+	if [ ! -d "${dumpdir}" ]; then
+		warn "Dump directory does not exist.  Savecore not run."
+		return 1
+	fi
+	return 0
+}
+
+savecore_start()
+{
+	local dev
+
+	case "${dumpdev}" in
+	[Aa][Uu][Tt][Oo])
+		dev=
+		;;
+	*)
+		dev="${dumpdev}"
+		;;
+	esac
+
+	if savecore -C "${dev}" >/dev/null; then
+		savecore ${savecore_flags} ${dumpdir} ${dumpdev}
+		if checkyesno crashinfo_enable; then
+			${crashinfo_program} -b -d ${dumpdir}
+		fi
+		sync
+	else
+		check_startmsgs && echo 'No core dumps found.'
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

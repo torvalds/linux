@@ -1,0 +1,51 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+	<head>
+		<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+		<title>Conrad parallel port radio clock</title>
+		<link href="scripts/style.css" type="text/css" rel="stylesheet">
+	</head>
+
+	<body>
+		<h3>Conrad parallel port radio clock</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->21-Oct-2010  23:44<!-- #EndDate -->
+  UTC</p>
+		<hr>
+		<h4>Synopsis</h4>
+		<p>Address: 127.127.35.<i>u</i><br>
+			Reference ID: <tt>PCF</tt><br>
+			Driver ID: <tt>PCF</tt><br>
+			Parallel Port: <tt>/dev/pcfclocks/<i>u</i></tt> or <tt>/dev/pcfclock<i>u</i></tt></p>
+		<h4>Description</h4>
+		<p>This driver supports the parallel port radio clock sold by <a href="http://www.conrad-electronic.com/">Conrad Electronic</a> under order numbers 967602 and 642002. This clock is put between a parallel port and your printer. It receives the legal German time, which is either CET or CEST, from the DCF77 transmitter and uses it to set its internal quartz clock. The DCF77 transmitter is located near to Frankfurt/Main and covers a radius of more than 1500 kilometers.</p>
+		<p>The pcfclock device driver is required in order to use this reference clock driver. Currently device drivers for <a href="http://home.pages.de/%7evoegele/pcf.html">Linux</a> and <a href="http://schumann.cx/pcfclock/">FreeBSD</a> are available.</p>
+		<p>This driver uses C library functions to convert the received timecode to UTC and thus requires that the local timezone be CET or CEST. If your server is not located in Central Europe you have to set the environment variable TZ to CET before starting <tt>ntpd</tt>.</p>
+		<h4>Monitor Data</h4>
+		<p>Each timecode is written to the <tt>clockstats</tt> file in the format <tt>YYYY MM DD HH MI SS</tt>.</p>
+		<h4>Fudge Factors</h4>
+		<dl>
+			<dt><tt>time1 <i>time</i></tt>
+			<dd>Specifies the time offset calibration factor, in seconds and fraction, with default 0.1725.
+			<dt><tt>time2 <i>time</i></tt>
+			<dd>Not used by this driver.
+			<dt><tt>stratum <i>number</i></tt>
+			<dd>Specifies the driver stratum, in decimal from 0 to 15, with default 0.
+			<dt><tt>refid <i>string</i></tt>
+			<dd>Specifies the driver reference identifier, an ASCII string from one to four characters, with default <tt>PCF</tt>.
+			<dt><tt>flag1 0 | 1</tt>
+			<dd>Not used by this driver.
+			<dt><tt>flag2 0 | 1</tt>
+			<dd>If set to 1, the radio clock's synchronisation status bit is ignored, ie the timecode is used without a check.
+			<dt><tt>flag3 0 | 1</tt>
+			<dd>Not used by this driver.
+			<dt><tt>flag4 0 | 1</tt>
+			<dd>Not used by this driver.
+		</dl>
+		<hr>
+		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+	</body>
+
+</html>

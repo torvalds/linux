@@ -1,0 +1,29 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+	<head>
+		<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+		<meta name="generator" content="HTML Tidy, see www.w3.org">
+		<title>SCO Unix hints</title>
+		<link href="../scripts/style.css" type="text/css" rel="stylesheet">
+	</head>
+
+	<body>
+		<h3>SCO Unix hints</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->21-Oct-2010  23:44<!-- #EndDate -->
+  UTC</p>
+		<h4>Older SCO Unix versions</h4>
+		<p>NTP 4.0.x does not run on SCO Unix prior to version 3.2.5.0.0. If you need NTP on an older SCO Unix system and don't mind to modify your kernel, use 3.5.91 which has patches for SCO Unix 3.2.4.x. Apply the kernel modifications as described in <a href="http://www.echelon.nl/en/ntp/sco3-recipe.html">XNTP on SCO 3.2.4.2</a>.</p>
+		<h4>Compiling NTP</h4>
+		<p>Delete the old SCO supplied NTP programs using the &quot;custom&quot; utility. Run the NTP configure program with CFLAGS=&quot;-b elf -K <i>processor-type</i>&quot; for best results.</p>
+		<h4>Running NTP</h4>
+		<p>Run &quot;tickadj -As&quot; after every reboot to set the variables &quot;clock_drift&quot; and &quot;track_rtc&quot; to the right values.</p>
+		<p>Run &quot;ntpd&quot; with a high negative nice-value, i.e. &quot;nice --19 ntpd&quot; for best results.</p>
+		<h4>More information</h4>
+		<p>More information on the way SCO Unix and NTP interact can be found in <a href="http://www.echelon.nl/en/ntp/ntp-on-sco.html">NTP on SCO Unix</a>, which includes links to precompiled versions of NTP.</p>
+		<p>Kees Hendrikse, January 1999</p>
+	</body>
+
+</html>

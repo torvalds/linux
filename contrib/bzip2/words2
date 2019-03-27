@@ -1,0 +1,5 @@
+
+Checking test results.  If any of the four "cmp"s which follow
+report any differences, something is wrong.  If you can't easily
+figure out what, please let me know (jseward@bzip.org).
+

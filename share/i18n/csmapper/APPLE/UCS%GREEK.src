@@ -1,0 +1,275 @@
+# $FreeBSD$
+# $NetBSD: UCS%GREEK.src,v 1.2 2006/04/08 15:47:40 tnozaki Exp $
+
+TYPE		ROWCOL
+NAME		UCS/GREEK
+SRC_ZONE	0x0000-0x2265
+OOB_MODE	INVALID
+DST_INVALID	0x100
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#
+# This mapping data is made from the mapping data provided by Unicode, Inc.
+# Original notice:
+#
+#=======================================================================
+#   File name:  GREEK.TXT
+#
+#   Contents:   Map (external version) from Mac OS Greek
+#               character set to Unicode 2.1 and later.
+#
+#   Copyright:  (c) 1995-2002, 2005 by Apple Computer, Inc., all rights
+#               reserved.
+#
+#   Contact:    charsets@apple.com
+#
+#   Changes:
+#
+#       c02  2005-Apr-05    Update header comments. Matches internal xml
+#                           <c1.1> and Text Encoding Converter 2.0.
+#      b3,c1 2002-Dec-19    Update to match changes in Mac OS Greek
+#                           encoding for Mac OS 9.2.2 and later.
+#                           Update URLs, notes. Matches internal
+#                           utom<b3>.
+#       b02  1999-Sep-22    Update contact e-mail address. Matches
+#                           internal utom<b1>, ufrm<b1>, and Text
+#                           Encoding Converter version 1.5.
+#       n06  1998-Feb-05    Update to match internal utom<n4>, ufrm<n17>,
+#                           and Text Encoding Converter versions 1.3:
+#                           Change mapping for 0xAF from U+0387 to its
+#                           canonical decomposition, U+00B7. Also
+#                           update header comments to new format.
+#       n04  1995-Apr-15    First version (after fixing some typos).
+#                           Matches internal ufrm<n7>.
+#
+# Standard header:
+# ----------------
+#
+#   Apple, the Apple logo, and Macintosh are trademarks of Apple
+#   Computer, Inc., registered in the United States and other countries.
+#   Unicode is a trademark of Unicode Inc. For the sake of brevity,
+#   throughout this document, "Macintosh" can be used to refer to
+#   Macintosh computers and "Unicode" can be used to refer to the
+#   Unicode standard.
+#
+#   Apple Computer, Inc. ("Apple") makes no warranty or representation,
+#   either express or implied, with respect to this document and the
+#   included data, its quality, accuracy, or fitness for a particular
+#   purpose. In no event will Apple be liable for direct, indirect,
+#   special, incidental, or consequential damages resulting from any
+#   defect or inaccuracy in this document or the included data.
+#
+#   These mapping tables and character lists are subject to change.
+#   The latest tables should be available from the following:
+#
+#   <http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/>
+#
+#   For general information about Mac OS encodings and these mapping
+#   tables, see the file "README.TXT".
+#
+# Format:
+# -------
+#
+#   Three tab-separated columns;
+#   '#' begins a comment which continues to the end of the line.
+#     Column #1 is the Mac OS Greek code (in hex as 0xNN)
+#     Column #2 is the corresponding Unicode (in hex as 0xNNNN)
+#     Column #3 is a comment containing the Unicode name
+#
+#   The entries are in Mac OS Greek code order.
+#
+#   One of these mappings requires the use of a corporate character.
+#   See the file "CORPCHAR.TXT" and notes below.
+#
+#   Control character mappings are not shown in this table, following
+#   the conventions of the standard UTC mapping tables. However, the
+#   Mac OS Greek character set uses the standard control characters at
+#   0x00-0x1F and 0x7F.
+#
+# Notes on Mac OS Greek:
+# ----------------------
+#
+#   This is a legacy Mac OS encoding; in the Mac OS X Carbon and Cocoa
+#   environments, it is only supported via transcoding to and from
+#   Unicode.
+#
+#   Although a Mac OS script code is defined for Greek (smGreek = 6),
+#   the Greek localized system does not currently use it (the font
+#   family IDs are in the Mac OS Roman range). To determine if the
+#   Greek encoding is being used when the script code is smRoman (0),
+#   you must check if the system region code is 20, verGreece.
+#
+#   The Mac OS Greek encoding is a superset of the repertoire of
+#   ISO 8859-7 (although characters are not at the same code points),
+#   except that LEFT & RIGHT SINGLE QUOTATION MARK replace the
+#   MODIFIER LETTER REVERSED COMMA & APOSTROPHE (spacing versions of
+#   Greek rough & smooth breathing marks) that are in ISO 8859-7.
+#   The added characters in Mac OS Greek include more punctuation and
+#   symbols and several accented Latin letters.
+#
+#   Before Mac OS 9.2.2, code point 0x9C was SOFT HYPHEN (U+00AD), and
+#   code point 0xFF was undefined. In Mac OS 9.2.2 and later versions,
+#   SOFT HYPHEN was moved to 0xFF, and code point 0x9C was changed to be
+#   EURO SIGN (U+20AC); the standard Apple fonts are updated for Mac OS
+#   9.2.2 to reflect this. There is a "no Euro sign" variant of the Mac
+#   OS Greek encoding that uses the older mapping; this can be used for
+#   older fonts.
+#
+#   This "no Euro sign" variant of Mac OS Greek was the character set
+#   used by Mac OS Greek systems before 9.2.2 except for system 6.0.7,
+#   which used a variant character set but was quickly replaced with
+#   Greek system 6.0.7.1 using the no Euro sign" character set
+#   documented here. Greek system 4.1 used a variant Greek set that had
+#   ISO 8859-7 in 0xA0-0xFF (with some holes filled in with DTP
+#   characters), and Mac OS Roman accented Roman letters in 0x80-0x9F.
+#
+# Unicode mapping issues and notes:
+# ---------------------------------
+#
+# Details of mapping changes in each version:
+# -------------------------------------------
+#
+#   Changes from version b02 to version b03/c01:
+#
+#   - The Mac OS Greek encoding changed for Mac OS 9.2.2 and later
+#     as follows:
+#     0x9C, changed from 0x00AD SOFT HYPHEN to 0x20AC EURO SIGN
+#     0xFF, changed from undefined to 0x00AD SOFT HYPHEN
+#
+#   Changes from version n04 to version n06:
+#
+#   - Change mapping of 0xAF from U+0387 to its canonical
+#     decomposition, U+00B7.
+#
+##################
+0x0000 - 0x007E = 0x00 -
+0x00A0 = 0xCA
+0x00A3 = 0x92
+0x00A5 = 0xB4
+0x00A6 = 0x9B
+0x00A7 = 0xAC
+0x00A8 = 0x8C
+0x00A9 = 0xA9
+0x00AB = 0xC7
+0x00AC = 0xC2
+0x00AD = 0xFF
+0x00AE = 0xA8
+0x00B0 = 0xAE
+0x00B1 = 0xB1
+0x00B2 = 0x82
+0x00B3 = 0x84
+0x00B7 = 0xAF
+0x00B9 = 0x81
+0x00BB = 0xC8
+0x00BD = 0x97
+0x00C4 = 0x80
+0x00C9 = 0x83
+0x00D6 = 0x85
+0x00DC = 0x86
+0x00DF = 0xA7
+0x00E0 = 0x88
+0x00E2 = 0x89
+0x00E4 = 0x8A
+0x00E7 = 0x8D
+0x00E8 = 0x8F
+0x00E9 = 0x8E
+0x00EA = 0x90
+0x00EB = 0x91
+0x00EE = 0x94
+0x00EF = 0x95
+0x00F4 = 0x99
+0x00F6 = 0x9A
+0x00F7 = 0xD6
+0x00F9 = 0x9D
+0x00FB = 0x9E
+0x00FC = 0x9F
+0x0153 = 0xCF
+0x0384 = 0x8B
+0x0385 = 0x87
+0x0386 = 0xCD
+0x0388 = 0xCE
+0x0389 = 0xD7
+0x038A = 0xD8
+0x038C = 0xD9
+0x038E = 0xDA
+0x038F = 0xDF
+0x0390 = 0xFD
+0x0391 = 0xB0
+0x0392 = 0xB5
+0x0393 = 0xA1
+0x0394 = 0xA2
+0x0395 = 0xB6
+0x0396 = 0xB7
+0x0397 = 0xB8
+0x0398 = 0xA3
+0x0399 = 0xB9
+0x039A = 0xBA
+0x039B = 0xA4
+0x039C = 0xBB
+0x039D = 0xC1
+0x039E = 0xA5
+0x039F = 0xC3
+0x03A0 = 0xA6
+0x03A1 = 0xC4
+0x03A3 = 0xAA
+0x03A4 = 0xC6
+0x03A5 = 0xCB
+0x03A6 = 0xBC
+0x03A7 = 0xCC
+0x03A8 = 0xBE
+0x03A9 = 0xBF
+0x03AA = 0xAB
+0x03AB = 0xBD
+0x03AC = 0xC0
+0x03AD = 0xDB
+0x03AE = 0xDC
+0x03AF = 0xDD
+0x03B0 = 0xFE
+0x03B1 = 0xE1
+0x03B2 = 0xE2
+0x03B3 = 0xE7
+0x03B4 = 0xE4
+0x03B5 = 0xE5
+0x03B6 = 0xFA
+0x03B7 = 0xE8
+0x03B8 = 0xF5
+0x03B9 = 0xE9
+0x03BA = 0xEB
+0x03BB = 0xEC
+0x03BC = 0xED
+0x03BD = 0xEE
+0x03BE = 0xEA
+0x03BF = 0xEF
+0x03C0 = 0xF0
+0x03C1 = 0xF2
+0x03C2 = 0xF7
+0x03C3 = 0xF3
+0x03C4 = 0xF4
+0x03C5 = 0xF9
+0x03C6 = 0xE6
+0x03C7 = 0xF8
+0x03C8 = 0xE3
+0x03C9 = 0xF6
+0x03CA = 0xFB
+0x03CB = 0xFC
+0x03CC = 0xDE
+0x03CD = 0xE0
+0x03CE = 0xF1
+0x2013 = 0xD0
+0x2015 = 0xD1
+0x2018 = 0xD4
+0x2019 = 0xD5
+0x201C = 0xD2
+0x201D = 0xD3
+0x2020 = 0xA0
+0x2022 = 0x96
+0x2026 = 0xC9
+0x2030 = 0x98
+0x20AC = 0x9C
+0x2122 = 0x93
+0x2248 = 0xC5
+0x2260 = 0xAD
+0x2264 = 0xB2
+0x2265 = 0xB3
+END_MAP

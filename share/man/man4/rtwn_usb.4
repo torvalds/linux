@@ -1,0 +1,124 @@
+.\"-
+.\" Copyright (c) 2011 Adrian Chadd, Xenion Pty Ltd
+.\" Copyright (c) 2016 Andriy Voskoboinyk <avos@FreeBSD.org>
+.\" All rights reserved.
+.\""
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
+.\"    redistribution must be conditioned upon including a substantially
+.\"    similar Disclaimer requirement for further binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF NONINFRINGEMENT, MERCHANTIBILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+.\" THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY,
+.\" OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" $FreeBSD$
+.\"/
+.Dd January 28, 2019
+.Dt RTWN_USB 4
+.Os
+.Sh NAME
+.Nm rtwn_usb
+.Nd "Realtek USB device glue"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device xhci"
+.Cd "device ehci"
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device rtwn"
+.Cd "device rtwn_usb"
+.Cd "device wlan"
+.Ed
+.Sh DESCRIPTION
+This module provides the USB bus glue needed for the devices supported
+by the
+.Xr rtwn 4
+driver.
+.Sh HARDWARE
+The
+.Nm
+driver supports Realtek RTL8188CUS/RTL8188RU/RTL8188EU/RTL8192CU/RTL8192EU/RTL8812AU/RTL8821AU
+based USB wireless network adapters, including:
+.Pp
+.Bl -column -compact "Belkin F7D1102 Surf Wireless Micro" "RTL8188CUS" "Bus"
+.It Em Card Ta Em Chip Ta Em Bus
+.It "Alfa AWUS036NHR v2" Ta RTL8188RU Ta USB 2.0
+.It "ASUS USB-AC56" Ta RTL8812AU Ta USB 3.0
+.It "ASUS USB-N10 NANO" Ta RTL8188CUS Ta USB 2.0
+.It "Asus USB-N13, rev. B1" Ta RTL8192CU Ta USB 2.0
+.It "Belkin F7D1102 Surf Wireless Micro" Ta RTL8188CUS Ta USB 2.0
+.It "Buffalo WI-U2-433DM" Ta RTL8821AU Ta USB 2.0
+.It "Buffalo WI-U3-866D" Ta RTL8812AU Ta USB 3.0
+.It "D-Link DWA-123 rev D1" Ta RTL8188EU Ta USB 2.0
+.It "D-Link DWA-125 rev D1" Ta RTL8188EU Ta USB 2.0
+.It "D-Link DWA-131" Ta RTL8192CU Ta USB 2.0
+.It "D-Link DWA-131 rev E1" Ta RTL8192EU Ta USB 2.0
+.It "D-Link DWA-171 rev A1" Ta RTL8821AU Ta USB 2.0
+.It "D-Link DWA-172 rev A1" Ta RTL8821AU Ta USB 2.0
+.It "D-Link DWA-180 rev A1" Ta RTL8812AU Ta USB 2.0
+.It "D-Link DWA-182 rev C1" Ta RTL8812AU Ta USB 3.0
+.It "Edimax EW-7811Un" Ta RTL8188CUS Ta USB 2.0
+.It "Edimax EW-7811UTC" Ta RTL8821AU Ta USB 2.0
+.It "Edimax EW-7822UAC" Ta RTL8812AU Ta USB 3.0
+.It "EDUP EP-AC1620" Ta RTL8821AU Ta USB 2.0
+.It "Elecom WDC-150SU2M" Ta RTL8188EU Ta USB 2.0
+.It "EnGenius EUB1200AC" Ta RTL8812AU Ta USB 3.0
+.It "Hawking HD65U" Ta RTL8821AU Ta USB 2.0
+.It "Hercules Wireless N USB Pico" Ta RTL8188CUS Ta USB 2.0
+.It "I-O Data WN-AC867U" Ta RTL8812AU Ta USB 3.0
+.It "Linksys WUSB6300" Ta RTL8812AU Ta USB 3.0
+.It "NEC AtermWL900U PA-WL900U" Ta RTL8812AU Ta USB 3.0
+.It "Netgear A6100" Ta RTL8821AU Ta USB 2.0
+.It "Netgear WNA1000M" Ta RTL8188CUS Ta USB 2.0
+.It "Planex GW-900D" Ta RTL8812AU Ta USB 3.0
+.It "Realtek RTL8192CU" Ta RTL8192CU Ta USB 2.0
+.It "Realtek RTL8188CUS" Ta RTL8188CUS Ta USB 2.0
+.It "Sitecom WLA-7100" Ta RTL8812AU Ta USB 3.0
+.It "TP-Link Archer T4U" Ta RTL8812AU Ta USB 3.0
+.It "TP-Link Archer T4U v2" Ta RTL8812AU Ta USB 3.0
+.It "TP-Link Archer T4UH v1" Ta RTL8812AU Ta USB 3.0
+.It "TP-Link Archer T4UH v2" Ta RTL8812AU Ta USB 3.0
+.It "TP-Link TL-WN722N v2" Ta RTL8188EU Ta USB 2.0
+.It "TP-LINK TL-WN723N v3" Ta RTL8188EU Ta USB 2.0
+.It "TP-LINK TL-WN725N v2" Ta RTL8188EU Ta USB 2.0
+.It "TP-LINK TL-WN821N v4" Ta RTL8192CU Ta USB 2.0
+.It "TP-LINK TL-WN821N v5" Ta RTL8192EU Ta USB 2.0
+.It "TP-LINK TL-WN822N v4" Ta RTL8192EU Ta USB 2.0
+.It "TP-LINK TL-WN823N v1" Ta RTL8192CU Ta USB 2.0
+.It "TP-LINK TL-WN823N v2" Ta RTL8192EU Ta USB 2.0
+.It "TRENDnet TEW-805UB" Ta RTL8812AU Ta USB 3.0
+.It "ZyXEL NWD6605" Ta RTL8812AU Ta USB 3.0
+.El
+.Sh SEE ALSO
+.Xr rtwn 4 ,
+.Xr rtwn_pci 4 ,
+.Xr rtwnfw 4 ,
+.Xr usb 4
+.Sh BUGS
+The
+.Nm
+driver does not support any of the 802.11ac capabilities offered by the
+adapters.
+Additional work is required in
+.Xr ieee80211 9
+before those features can be supported.

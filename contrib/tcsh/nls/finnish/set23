@@ -1,0 +1,34 @@
+$ $tcsh: set23,v 1.3 2011/02/04 18:19:34 christos Exp $
+$ tc.os.c
+$set 23 
+1 Virheellinen solmun nimi
+2 Solmun polku liian pitkä
+3 tuntematon
+4 solmu: %s\n
+5 %d: Solmua ei löydy\n
+6 setlocal: %s: %s\n
+7 Solmua ei löydy
+8 Olet ansassa maailmassa (universe), mitä et itse luonut.
+9 Getwarp epäonnistui
+10 Virheellinen warp
+11 Setwarp epäonnistui
+12 Virheellinen maailma (universe)
+13 Tuntematon virhe: %d
+14 sysname:  %s\n
+15 nodename: %s\n
+16 release:  %s\n
+17 version:  %s\n
+18 machine:  %s\n
+19 getwd: Avaus ei onnistu ".." (%s)
+20 getwd: En voi siirtyä hakemistoon ".." (%s)
+21 getwd: Virhe luettaessa hakemistoa ".." (%s)
+22 getwd: En voi siirtyä takaisin hakemistoon "." (%s)
+23 getwd: En voi testata (stat) hakemistoa "/" (%s)
+24 getwd: En voi testata (stat) hakemistoa "." (%s)
+25 getwd: En voi testata (stat) hakemistoa "%s" (%s)
+26 getwd: En voi avata hakemistoa "%s" (%s)
+27 getwd: Hakemisto "." ei löydy hakemistosta ".." (%s)
+28 Virheellinen järjestelmän tyyppi
+29 Järjestelmän tyyppiä ei asetettu
+30 Liian monta argumenttia
+31 Virheellinen argumentti

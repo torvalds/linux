@@ -1,0 +1,434 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)printcap.5	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd October 11, 2000
+.Dt PRINTCAP 5
+.Os
+.Sh NAME
+.Nm printcap
+.Nd printer capability data base
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+The
+.Nm Printcap
+function
+is a simplified version of the
+.Xr termcap 5
+data base
+used to describe line printers.
+The spooling system accesses the
+.Nm
+file every time it is used, allowing dynamic
+addition and deletion of printers.
+Each entry in the data base
+is used to describe one printer.
+This data base may not be
+substituted for, as is possible for
+.Xr termcap 5 ,
+because it may allow accounting to be bypassed.
+.Pp
+The default printer is normally
+.Em lp ,
+though the environment variable
+.Ev PRINTER
+may be used to override this.
+Each spooling utility supports an option,
+.Fl P Ar printer ,
+to allow explicit naming of a destination printer.
+.Pp
+Refer to the
+.%T "4.3 BSD Line Printer Spooler Manual"
+for a complete discussion on how to setup the database for a given printer.
+.Sh CAPABILITIES
+Refer to
+.Xr termcap 5
+for a description of the file layout.
+.Bl -column Namexxx Typexx "/var/spool/lpdxxxxx"
+.Sy "Name	Type	Default	Description"
+.It "af	str" Ta Dv NULL Ta No "name of accounting file"
+.It "br	num	none	if lp is a tty, set the baud rate"
+.Xr ( ioctl 2
+call)
+.It "cf	str" Ta Dv NULL Ta No "cifplot data filter"
+.It "ct	num	120	TCP connection timeout in seconds"
+.It "df	str" Ta Dv NULL Ta No "tex data filter"
+.Tn ( DVI
+format)
+.It "du	num	1	UID to run daemon as"
+.It "ff	str" Ta So Li \ef Sc Ta No "string to send for a form feed"
+.It "fo	bool	false	print a form feed when device is opened"
+.It "gf	str" Ta Dv NULL Ta No "graph data filter"
+.Xr ( plot 3
+format
+.It "hl	bool	false	print the burst header page last"
+.It "ic	bool	false	driver supports (non standard) ioctl to indent printout"
+.It "if	str" Ta Dv NULL Ta No "name of text filter which does accounting"
+.It "lf	str" Ta Pa /dev/console Ta No "error logging file name"
+.It "lo	str" Ta Pa lock Ta No "name of lock file"
+.It "lp	str" Ta Pa /dev/lp Ta No "device name to open for output, or" Em port Ns @ Ns Em machine No "to open a TCP socket"
+.It "mc	num	0	maximum number of copies which can be requested on"
+.Xr lpr 1 ,
+zero = unlimited
+.It "ms	str" Ta Dv NULL Ta No "if lp is a tty, a comma-separated,"
+.Xr stty 1 Ns -like
+list describing the tty modes
+.It "mx	num	0	maximum file size (in"
+.Dv BUFSIZ
+blocks), zero = unlimited
+.It "nd	str" Ta Dv NULL Ta No "next directory for list of queues (unimplemented)"
+.It "nf	str" Ta Dv NULL Ta No "ditroff data filter (device independent troff)"
+.It "of	str" Ta Dv NULL Ta No "name of output filtering program"
+.It "pc	num	200	price per foot or page in hundredths of cents"
+.It "pl	num	66	page length (in lines)"
+.It "pw	num	132	page width (in characters)"
+.It "px	num	0	page width in pixels (horizontal)"
+.It "py	num	0	page length in pixels (vertical)"
+.It "rc	bool	false	when sending to a remote host, resend copies (see below)"
+.It "rf	str" Ta Dv NULL Ta No "filter for printing"
+.Tn FORTRAN
+style text files
+.It "rg	str" Ta Dv NULL Ta No "restricted group. Only members of group allowed access"
+.It "rm	str" Ta Dv NULL Ta No "machine name for remote printer"
+.It "rp	str" Ta Pa lp Ta No "remote printer name argument"
+.It "rs	bool	false	restrict remote users to those with local accounts"
+.It "rw	bool	false	open the printer device for reading and writing"
+.It "sb	bool	false	short banner (one line only)"
+.It "sc	bool	false	suppress multiple copies"
+.It "sd	str" Ta Pa /var/spool/lpd Ta No "spool directory"
+.It "sf	bool	false	suppress form feeds"
+.It "sh	bool	false	suppress printing of burst page header"
+.It "sr	str" Ta Dv NULL Ta No "file name to hold statistics of each datafile as it is received"
+.It "ss	str" Ta Dv NULL Ta No "file name to hold statistics of each datafile as it is sent"
+.It "st	str" Ta Pa status Ta No "status file name"
+.It "tf	str" Ta Dv NULL Ta No "troff data filter (cat phototypesetter)"
+.It "tr	str" Ta Dv NULL Ta No "trailer string to print when queue empties"
+.It "vf	str" Ta Dv NULL Ta No "raster image filter"
+.El
+.Pp
+Each two-letter capability has a human-readable alternate name.
+.Bl -column "Short form" "Long form"
+.Sy "Short form	Long form"
+.It "af	acct.file"
+.It "br	tty.rate"
+.It "cf	filt.cifplot"
+.It "ct	remote.timeout"
+.It "df	filt.dvi"
+.It "du	daemon.user"
+.It "ff	job.formfeed"
+.It "fo	job.topofform"
+.It "gf	filt.plot"
+.It "hl	banner.last"
+.It "if	filt.input"
+.It "lf	spool.log"
+.It "lo	spool.lock"
+.It "lp	tty.device"
+.It "mc	max.copies"
+.It "ms	tty.mode"
+.It "mx	max.blocks"
+.It "nf	filt.ditroff"
+.It "of	filt.output"
+.It "pc	acct.price"
+.It "pl	page.length"
+.It "pw	page.width"
+.It "px	page.pwidth"
+.It "py	page.plength"
+.It "rc	remote.resend_copies"
+.It "rf	filt.fortran"
+.It "rg	daemon.restrictgrp"
+.It "rm	remote.host"
+.It "rp	remote.queue"
+.It "rs	daemon.restricted"
+.It "rw	tty.rw"
+.It "sb	banner.short"
+.It "sc	job.no_copies"
+.It "sd	spool.dir"
+.It "sf	job.no_formfeed"
+.It "sh	banner.disable"
+.It "sr	stat.recv"
+.It "ss	stat.send"
+.It "st	spool.status"
+.It "tf	filt.troff"
+.It "tr	job.trailer"
+.It "vf	filt.raster"
+.El
+.Pp
+If the local line printer driver supports indentation, the daemon
+must understand how to invoke it.
+.Sh FILTERS
+The
+.Xr lpd 8
+daemon creates a pipeline of
+.Em filters
+to process files for various printer types.
+The filters selected depend on the flags passed to
+.Xr lpr 1 .
+The pipeline set up is:
+.Bd -literal -offset indent
+p	pr | if	regular text + pr(1)
+none	if	regular text
+c	cf	cifplot
+d	df	DVI (tex)
+g	gf	plot(3)
+n	nf	ditroff
+f	rf	Fortran
+t	tf	troff
+v	vf	raster image
+.Ed
+.Pp
+The
+.Sy if
+filter is invoked with arguments:
+.Bd -ragged -offset indent
+.Cm if
+.Op Fl c
+.Fl w Ns Ar width
+.Fl l Ns Ar length
+.Fl i Ns Ar indent
+.Fl n Ar login
+.Fl h Ar host acct-file
+.Ed
+.Pp
+The
+.Fl c
+flag is passed only if the
+.Fl l
+flag (pass control characters literally)
+is specified to
+.Xr lpr 1 .
+The
+.Ar Width
+function
+and
+.Ar length
+specify the page width and length
+(from
+.Cm pw
+and
+.Cm pl
+respectively) in characters.
+The
+.Fl n
+and
+.Fl h
+parameters specify the login name and host name of the owner
+of the job respectively.
+The
+.Ar Acct-file
+function
+is passed from the
+.Cm af
+.Nm
+entry.
+.Pp
+If no
+.Cm if
+is specified,
+.Cm of
+is used instead,
+with the distinction that
+.Cm of
+is opened only once,
+while
+.Cm if
+is opened for every individual job.
+Thus,
+.Cm if
+is better suited to performing accounting.
+The
+.Cm of
+is only given the
+.Ar width
+and
+.Ar length
+flags.
+.Pp
+All other filters are called as:
+.Bd -ragged -offset indent
+.Nm filter
+.Fl x Ns Ar width
+.Fl y Ns Ar length
+.Fl n Ar login
+.Fl h Ar host acct-file
+.Ed
+.Pp
+where
+.Ar width
+and
+.Ar length
+are represented in pixels,
+specified by the
+.Cm px
+and
+.Cm py
+entries respectively.
+.Pp
+All filters take
+.Em stdin
+as the file,
+.Em stdout
+as the printer,
+may log either to
+.Em stderr
+or using
+.Xr syslog 3 ,
+and must not ignore
+.Dv SIGINT .
+.Sh REMOTE PRINTING
+When printing to a remote printer using
+.Cm rm ,
+it is possible to use either
+.Cm if
+or
+.Cm of .
+If both are specified,
+.Cm of
+is ignored.
+Both filters behave the same except that they are passed
+different arguments as above.
+Specifically, the output filter is
+terminated and restarted for each file transmitted.
+This is necessary
+in order to pass the resulting size to the remote
+.Xr lpd 8 .
+.Pp
+If the
+.Fl p
+flag was passed to
+.Xr lpr 1 ,
+.Xr pr 1
+is not executed locally, but is requested of the remote
+.Xr lpd 8 .
+Any input filtering via
+.Cm if
+will therefore happen before
+.Xr pr 1
+is executed rather than afterwards.
+.Pp
+There are some models of network printers which accept jobs from
+.Xr lpd 8 ,
+but they ignore the control file for a job and simply print
+each data file as it arrives at the printer.
+One side-effect of this behavior is that the printer will ignore any request
+for multiple copies as given with the
+.Fl #
+flag on the
+.Xr lpr 1
+command.
+The
+.Cm rc
+entry will cause
+.Xr lpd 8
+to resend each data file for each copy that the user
+originally requested.
+Note that the
+.Cm rc
+entry should only be specified on hosts which send jobs directly to
+the printer.
+.Pp
+If
+.Cm lp
+is specified as
+.Em port Ns @ Ns Em machine
+(and
+.Cm rm
+is not in use), print data will be sent directly to the given
+.Em port
+on the given
+.Em machine .
+.Sh TRANSFER STATISTICS
+When a print job is transferred to a remote machine (which might be
+another unix box, or may be a network printer), it may be useful
+to keep statistics on each transfer.
+The
+.Cm sr
+and
+.Cm ss
+options indicate filenames that lpd should use to store such
+statistics.
+A statistics line is written for each datafile of a
+job as the file is successfully transferred.
+The format of the
+line is the same for both the sending and receiving side of a
+transfer.
+.Pp
+Statistics on datafiles being received would be used on a print
+server, if you are interested in network performance between a
+variety of machines which are sending jobs to that print server.
+The print server could collect statistics on the speed of each
+print job as it arrived on the server.
+.Pp
+Statistics on datafiles being sent might be used as a minimal
+accounting record, when you want to know who sent which jobs to a
+remote printer, when they were sent, and how large (in bytes) the
+files were.
+This will not give include any idea of how many pages
+were printed, because there is no standard way to get that information
+back from a remote (network) printer in this case.
+.Sh LOGGING
+Error messages generated by the line printer programs themselves
+(that is, the
+.Xr lpd 8
+and related programs)
+are logged by
+.Xr syslog 3
+using the
+.Dv LPR
+facility.
+Messages printed on
+.Em stderr
+of one of the filters
+are sent to the corresponding
+.Cm lf
+file.
+The filters may, of course, use
+.Xr syslogd 8
+themselves.
+.Pp
+Error messages sent to the console have a carriage return and a line
+feed appended to them, rather than just a line feed.
+.Sh SEE ALSO
+.Xr lpq 1 ,
+.Xr lpr 1 ,
+.Xr lprm 1 ,
+.Xr hosts.lpd 5 ,
+.Xr termcap 5 ,
+.Xr chkprintcap 8 ,
+.Xr lpc 8 ,
+.Xr lpd 8 ,
+.Xr pac 8
+.Rs
+.%T "4.3 BSD Line Printer Spooler Manual"
+.Re
+.Sh HISTORY
+The
+.Nm
+file format appeared in
+.Bx 4.2 .

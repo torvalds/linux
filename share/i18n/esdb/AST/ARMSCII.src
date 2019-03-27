@@ -1,0 +1,7 @@
+# $FreeBSD$ 
+# $NetBSD: ARMSCII.src,v 1.1 2006/04/01 04:13:22 tnozaki Exp $
+
+NAME		"ARMSCII-x"
+ENCODING	"NONE"
+DEFCSID		"ARMSCII-x"	0
+INVALID		0x3F	# '?'

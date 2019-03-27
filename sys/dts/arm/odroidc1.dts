@@ -1,0 +1,396 @@
+/*-
+ * Copyright (c) 2015 John Wehle <john@feith.com>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/*
+ * The ordering of certain devices is significant (e.g. usb depends on
+ * usb-phy which depends on gpio, also the timer should appear early on
+ * to provide a reasonably accurate DELAY implementation).
+ *
+ * Both usb-phys devices must be configured to prevent the usb controller
+ * from hanging during initialization.
+ */
+
+/dts-v1/;
+
+/memreserve/ 0x7900000 0x00600000;			/* 6MB frame buffer */
+
+#include "meson8b.dtsi"
+
+/ {
+	model = "hardkernel,odroid-c1";
+	compatible = "hardkernel,odroid-c1", "amlogic,s805";
+
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		soc = &soc;
+		screen = &screen;
+		uart0 = &uart_AO;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x40000000>;		/* 1GB RAM */
+	};
+
+	soc: soc {
+		device_type = "soc";
+		bus-frequency = <0>;
+
+		scu: scu@c4300000 {
+			compatible = "arm,cortex-a5-scu";
+			reg = <0xc4300000 0x1000>;
+		};
+
+		cpuconfig: cpuconfig@d901ff80 {
+			compatible = "amlogic,aml8726-cpuconfig";
+			reg = <0xd901ff80 16>;
+		};
+
+		ccm@c1104140 {
+			compatible = "amlogic,aml8726-ccm";
+			reg = <0xc1104140 20>;	/* cbus 0x1050 */
+
+			functions = "ethernet", "i2c", "rng", "sdio", "sdxc",
+				    "uart-a", "uart-b", "uart-c",
+				    "usb-a", "usb-b";
+		};
+
+		pinctrl@c11080b0 {
+			compatible = "amlogic,aml8726-pinctrl";
+			reg = <0xc11080b0 40>,	/* mux */
+			      <0xc11080e8 24>,	/* pu/pd */
+			      <0xc1108120 24>,	/* pull enable */
+			      <0xc8100014 4>,	/* ao mux */
+			      <0xc810002c 4>,	/* ao pu/pd */
+			      <0xc810002c 4>;	/* ao pull enable */
+
+			/*
+			 * Currently only pin muxing that deviates
+			 * from the power on default of gpio is
+			 * specified here.
+			 */
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pins_uartao &pins_ethernet &pins_hdmi>;
+
+			pins_ethernet: ethernet {
+				amlogic,pins = "ref_clk",
+					       "tx_clk",  "tx_en",
+					       "tx_d0",   "tx_d1",
+					       "tx_d2",   "tx_d3",
+					       "rx_clk",  "rx_dv",
+					       "rx_d0",   "rx_d1",
+					       "rx_d2",   "rx_d3",
+					       "mdc",     "mdio";
+				amlogic,function = "ethernet";
+			};
+
+			pins_hdmi: hdmi {
+				amlogic,pins = "cec", "hpd",
+					       "scl", "sda";
+				amlogic,function = "hdmi";
+			};
+
+			pins_sdio_b: sdio_b {
+				amlogic,pins = "clk", "cmd",
+					       "d0",  "d1",
+					       "d2",  "d3";
+				amlogic,function = "sdio-b";
+				amlogic,pull = "up";
+			};
+
+			pins_sdxc_b: sdxc_b {
+				amlogic,pins = "clk", "cmd",
+					       "d0",  "d1",
+					       "d2",  "d3";
+				amlogic,function = "sdxc-b";
+				amlogic,pull = "up";
+			};
+
+			pins_sdio_c: sdio_c {
+				amlogic,pins = "clk", "cmd",
+					       "d0",  "d1",
+					       "d2",  "d3";
+				amlogic,function = "sdio-c";
+				amlogic,pull = "up";
+			};
+
+			pins_sdxc_c: sdxc_c {
+				amlogic,pins = "clk", "cmd",
+					       "d0",  "d1",
+					       "d2",  "d3",
+					       "d4",  "d5",
+					       "d6",  "d7";
+				amlogic,function = "sdxc-c";
+				amlogic,pull = "up";
+			};
+
+			pins_i2c_a: i2c_a {
+				amlogic,pins = "scl", "sda";
+				amlogic,function = "i2c-a";
+			};
+
+			pins_i2c_b: i2c_b {
+				amlogic,pins = "scl", "sda";
+				amlogic,function = "i2c-b";
+			};
+
+			pins_uarta: uarta {
+				amlogic,pins = "tx", "rx", "cts", "rts";
+				amlogic,function = "uart-a";
+			};
+
+			pins_uartb: uartb {
+
+				/*
+				 * gpiox18 appears to have special
+				 * meaning to the bootloader making
+				 * hardware handshaking unavailable.
+				 */
+
+				amlogic,pins = "tx", "rx";
+				amlogic,function = "uart-b";
+			};
+
+			pins_uartc: uartc {
+				amlogic,pins = "tx", "rx", "cts", "rts";
+				amlogic,function = "uart-c";
+			};
+
+			pins_uartao: uartao {
+				amlogic,pins = "tx", "rx";
+				amlogic,function = "uart-ao";
+			};
+		};
+
+		rtc@c8100740 {
+			compatible = "amlogic,aml8726-rtc";
+			reg = <0xc8100740 20>;	/* aobus 0x1d0 */
+			interrupts = <0 72 1>;
+		};
+
+		clkmsr: clkmsr@c1108758 {
+			compatible = "amlogic,aml8726-clkmsr";
+			reg = <0xc1108758 16>;	/* cbus 0x21d6 */
+
+			clocks = <&clk81>;
+		};
+
+		gpioao: gpio@c8100024 {
+			/* gpio unit 7 */
+			compatible = "amlogic,aml8726-gpio";
+			reg = <0xc8100024 4>,	/* oen aobus 0x9 */
+			      <0xc8100024 4>,	/* out */
+			      <0xc8100028 4>;	/* in */
+
+			gpio-controller;
+			#gpio-cells = <1>;
+			pin-count = <14>;
+		};
+
+		gpio3: gpio@c1108054 {
+			compatible = "amlogic,aml8726-gpio";
+			reg = <0xc1108054 4>,	/* oen cbus 0x2015 */
+			      <0xc1108058 4>,	/* out */
+			      <0xc110805c 4>;	/* in */
+
+			gpio-controller;
+			#gpio-cells = <1>;
+			pin-count = <32>;
+		};
+
+		gpio5: gpio@c110806c {
+			compatible = "amlogic,aml8726-gpio";
+			reg = <0xc110806c 4>,	/* oen cbus 0x201b */
+			      <0xc1108070 4>,	/* out */
+			      <0xc1108074 4>;	/* in */
+
+			gpio-controller;
+			#gpio-cells = <1>;
+			pin-count = <32>;
+		};
+
+		mmc@c1108c20 {
+			compatible = "amlogic,aml8726-mmc";
+			reg = <0xc1108c20 32>;	/* cbus 0x2308 */
+			interrupts = <0 28 1>;
+
+			clocks = <&clk81>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pins_sdio_b>;
+
+			/*
+			 * Ordering is significant.
+			 *
+			 * mmc-vselect low sets first voltage
+			 * mmc-vselect high sets second voltage
+			 *
+			 * If mmc-vselect is not present, then
+			 * only one voltage should be specified.
+			 */
+			mmc-voltages = "3.3", "1.8";
+			mmc-vselect = <&gpioao 3>;	/* gpioao_3 */
+
+			mmc-pwr-en = <&gpio5 31 0>;	/* card_8 */
+			ins-detect = <&gpio5 29 0>;	/* card_6 */
+		};
+
+		sdxc@c1108e00 {
+			compatible = "amlogic,aml8726-sdxc-m8";
+			clock-frequency = <1275000000>;
+			reg = <0xc1108e00 60>;	/* cbus 0x2380 */
+			interrupts = <0 78 1>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pins_sdxc_c>;
+
+			mmc-voltages = "1.8";
+
+			mmc-rst = <&gpio3 9 0>;	/* boot_9 emmc-rst */
+		};
+
+		rng@c1108100 {
+			compatible = "amlogic,aml8726-rng";
+			reg = <0xc1108100 8>;	/* cbus 0x2040 */
+		};
+
+		usb-phy@c1108800 {
+			/* usb-a phy */
+			compatible = "amlogic,aml8726-m8-usb-phy";
+			reg = <0xc1108800 32>;	/* cbus 0x2200 */
+
+			usb-pwr-en = <&gpioao 5 1>;	/* gpioao_5 vbus */
+		};
+
+		usb-phy@c1108820 {
+			/* usb-b phy */
+			compatible = "amlogic,aml8726-m8-usb-phy";
+			reg = <0xc1108820 32>;	/* cbus 0x2208 */
+
+			force-aca = "true";
+			usb-hub-rst = <&gpioao 4 0>;	/* gpioao_4 hub-rst */
+		};
+
+		usb@c9040000 {
+			/* usb-a */
+			compatible = "synopsys,designware-hs-otg2";
+			reg = <0xc9040000 0x40000>;	/* ahbbus 0x40000*/
+			interrupts = <0 30 4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dr_mode = "host";
+		};
+
+		usb@c90c0000 {
+			/* usb-b */
+			compatible = "synopsys,designware-hs-otg2";
+			reg = <0xc90c0000 0x40000>;	/* ahbbus 0xc0000 */
+			interrupts = <0 31 4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dr_mode = "host";
+		};
+
+		eth@c9410000 {
+			/* ethernet */
+			compatible = "amlogic,meson6-dwmac";
+			reg = <0xc9410000 0x2000>;	/* ahbbus 0x410000 */
+			interrupts = <0 8 1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			eth-phy-rst = <&gpio3 23 0>;	/* gpioh_4 phy-rst */
+		};
+
+		screen: fb@c8006020 {
+			device_type = "display";
+			compatible = "amlogic,aml8726-fb";
+			reg = <0xc8006048 12>,	/* CANVAS */
+			      <0xc1106800 1024>,	/* VIU */
+			      <0xc1107400 1024>;	/* VPP */
+			interrupts = <0 2 1>,
+				     <0 3 1>,
+				     <0 12 1>,
+				     <0 13 1>;
+
+			address = <0x7900000>;	/* match memreserve */
+			width = <720>;
+			height = <480>;
+			depth = <24>;
+			linebytes = <2160>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		sys_led {
+			gpios = <&gpioao 13>;	/* gpioao_13 sys_led */
+			label = "sys_led";
+		};
+	};
+
+	chosen {
+		stdin = "uart0";
+		stdout = "uart0";
+	};
+};
+
+&clk81 {
+	clock-frequency = <0>;
+};
+
+&uart_AO {
+	status = "okay";
+	current-speed = <115200>;
+};
+
+&uart_A {
+	status = "okay";
+};
+
+&uart_B {
+	status = "okay";
+};
+
+&uart_C {
+	status = "okay";
+};
+
+&i2c_A {
+	status = "okay";
+};
+
+&i2c_B {
+	status = "okay";
+};

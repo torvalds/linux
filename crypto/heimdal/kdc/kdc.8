@@ -1,0 +1,230 @@
+.\" Copyright (c) 2003 - 2004 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd August 24, 2006
+.Dt KDC 8
+.Os HEIMDAL
+.Sh NAME
+.Nm kdc
+.Nd Kerberos 5 server
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Oo Fl c Ar file \*(Ba Xo
+.Fl Fl config-file= Ns Ar file
+.Xc
+.Oc
+.Op Fl p | Fl Fl no-require-preauth
+.Op Fl Fl max-request= Ns Ar size
+.Op Fl H | Fl Fl enable-http
+.Op Fl Fl no-524
+.Op Fl Fl kerberos4
+.Op Fl Fl kerberos4-cross-realm
+.Oo Fl r Ar string \*(Ba Xo
+.Fl Fl v4-realm= Ns Ar string
+.Xc
+.Oc
+.Oo Fl P Ar portspec \*(Ba Xo
+.Fl Fl ports= Ns Ar portspec
+.Xc
+.Oc
+.Op Fl Fl detach
+.Op Fl Fl disable-des
+.Op Fl Fl addresses= Ns Ar list of addresses
+.Ek
+.Sh DESCRIPTION
+.Nm
+serves requests for tickets.
+When it starts, it first checks the flags passed, any options that are
+not specified with a command line flag are taken from a config file,
+or from a default compiled-in value.
+.Pp
+Options supported:
+.Bl -tag -width Ds
+.It Fl c Ar file , Fl Fl config-file= Ns Ar file
+Specifies the location of the config file, the default is
+.Pa /var/heimdal/kdc.conf .
+This is the only value that can't be specified in the config file.
+.It Fl p , Fl Fl no-require-preauth
+Turn off the requirement for pre-autentication in the initial AS-REQ
+for all principals.
+The use of pre-authentication makes it more difficult to do offline
+password attacks.
+You might want to turn it off if you have clients
+that don't support pre-authentication.
+Since the version 4 protocol doesn't support any pre-authentication,
+serving version 4 clients is just about the same as not requiring
+pre-athentication.
+The default is to require pre-authentication.
+Adding the require-preauth per principal is a more flexible way of
+handling this.
+.It Fl Fl max-request= Ns Ar size
+Gives an upper limit on the size of the requests that the kdc is
+willing to handle.
+.It Fl H , Fl Fl enable-http
+Makes the kdc listen on port 80 and handle requests encapsulated in HTTP.
+.It Fl Fl no-524
+don't respond to 524 requests
+.It Fl Fl kerberos4
+respond to Kerberos 4 requests
+.It Fl Fl kerberos4-cross-realm
+respond to Kerberos 4 requests from foreign realms.
+This is a known security hole and should not be enabled unless you
+understand the consequences and are willing to live with them.
+.It Fl r Ar string , Fl Fl v4-realm= Ns Ar string
+What realm this server should act as when dealing with version 4
+requests.
+The database can contain any number of realms, but since the version 4
+protocol doesn't contain a realm for the server, it must be explicitly
+specified.
+The default is whatever is returned by
+.Fn krb_get_lrealm .
+This option is only available if the KDC has been compiled with version
+4 support.
+.It Fl P Ar portspec , Fl Fl ports= Ns Ar portspec
+Specifies the set of ports the KDC should listen on.
+It is given as a
+white-space separated list of services or port numbers.
+.It Fl Fl addresses= Ns Ar list of addresses
+The list of addresses to listen for requests on.
+By default, the kdc will listen on all the locally configured
+addresses.
+If only a subset is desired, or the automatic detection fails, this
+option might be used.
+.It Fl Fl detach
+detach from pty and run as a daemon.
+.It Fl Fl disable-des
+disable add des encryption types, makes the kdc not use them.
+.El
+.Pp
+All activities are logged to one or more destinations, see
+.Xr krb5.conf 5 ,
+and
+.Xr krb5_openlog 3 .
+The entity used for logging is
+.Nm kdc .
+.Sh CONFIGURATION FILE
+The configuration file has the same syntax as
+.Xr krb5.conf 5 ,
+but will be read before
+.Pa /etc/krb5.conf ,
+so it may override settings found there.
+Options specific to the KDC only are found in the
+.Dq [kdc]
+section.
+All the command-line options can preferably be added in the
+configuration file.
+The only difference is the pre-authentication flag, which has to be
+specified as:
+.Pp
+.Dl require-preauth = no
+.Pp
+(in fact you can specify the option as
+.Fl Fl require-preauth=no ) .
+.Pp
+And there are some configuration options which do not have
+command-line equivalents:
+.Bl -tag -width "xxx" -offset indent
+.It Li enable-digest = Va boolean
+turn on support for digest processing in the KDC.
+The default is FALSE.
+.It Li check-ticket-addresses = Va boolean
+Check the addresses in the ticket when processing TGS requests.
+The default is TRUE.
+.It Li allow-null-ticket-addresses = Va boolean
+Permit tickets with no addresses.
+This option is only relevant when check-ticket-addresses is TRUE.
+.It Li allow-anonymous = Va boolean
+Permit anonymous tickets with no addresses.
+.It Li max-kdc-datagram-reply-length = Va number
+Maximum packet size the UDP rely that the KDC will transmit, instead
+the KDC sends back a reply telling the client to use TCP instead.
+.It Li transited-policy = Li always-check \*(Ba \
+Li allow-per-principal | Li always-honour-request
+This controls how KDC requests with the
+.Li disable-transited-check
+flag are handled. It can be one of:
+.Bl -tag -width "xxx" -offset indent
+.It Li always-check
+Always check transited encoding, this is the default.
+.It Li allow-per-principal
+Currently this is identical to
+.Li always-check .
+In a future release, it will be possible to mark a principal as able
+to handle unchecked requests.
+.It Li always-honour-request
+Always do what the client asked.
+In a future release, it will be possible to force a check per
+principal.
+.El
+.It encode_as_rep_as_tgs_rep = Va boolean
+Encode AS-Rep as TGS-Rep to be bug-compatible with old DCE code.
+The Heimdal clients allow both.
+.It kdc_warn_pwexpire = Va time
+How long before password/principal expiration the KDC should start
+sending out warning messages.
+.El
+.Pp
+The configuration file is only read when the
+.Nm
+is started.
+If changes made to the configuration file are to take effect, the
+.Nm
+needs to be restarted.
+.Pp
+An example of a config file:
+.Bd -literal -offset indent
+[kdc]
+	require-preauth = no
+	v4-realm = FOO.SE
+.Ed
+.Sh BUGS
+If the machine running the KDC has new addresses added to it, the KDC
+will have to be restarted to listen to them.
+The reason it doesn't just listen to wildcarded (like INADDR_ANY)
+addresses, is that the replies has to come from the same address they
+were sent to, and most OS:es doesn't pass this information to the
+application.
+If your normal mode of operation require that you add and remove
+addresses, the best option is probably to listen to a wildcarded TCP
+socket, and make sure your clients use TCP to connect.
+For instance, this will listen to IPv4 TCP port 88 only:
+.Bd -literal -offset indent
+kdc --addresses=0.0.0.0 --ports="88/tcp"
+.Ed
+.Pp
+There should be a way to specify protocol, port, and address triplets,
+not just addresses and protocol, port tuples.
+.Sh SEE ALSO
+.Xr kinit 1 ,
+.Xr krb5.conf 5

@@ -1,0 +1,141 @@
+.\"	$NetBSD: fetch.9,v 1.2 1996/01/09 21:59:24 perry Exp $
+.\"
+.\" Copyright (c) 1996 Jason R. Thorpe.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed by Kenneth Stailey.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed for the NetBSD Project
+.\"	by Jason R. Thorpe.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 17, 2018
+.Dt FETCH 9
+.Os
+.Sh NAME
+.Nm fetch ,
+.Nm fubyte ,
+.Nm fuword ,
+.Nm fuword16 ,
+.Nm fuword32 ,
+.Nm fuword64 ,
+.Nm fueword ,
+.Nm fueword32 ,
+.Nm fueword64
+.Nd fetch data from user-space
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/systm.h
+.Ft int
+.Fn fubyte "volatile const void *base"
+.Ft long
+.Fn fuword "volatile const void *base"
+.Ft int
+.Fn fuword16 "volatile const void *base"
+.Ft int32_t
+.Fn fuword32 "volatile const void *base"
+.Ft int64_t
+.Fn fuword64 "volatile const void *base"
+.Ft long
+.Fn fueword "volatile const void *base" "long *val"
+.Ft int32_t
+.Fn fueword32 "volatile const void *base" "int32_t *val"
+.Ft int64_t
+.Fn fueword64 "volatile const void *base" "int64_t *val"
+.In sys/resourcevar.h
+.Sh DESCRIPTION
+The
+.Nm
+functions are designed to copy small amounts of data from user-space
+of the current process.
+If read is successful, it is performed atomically.
+The data read must be naturally aligned.
+.Pp
+The
+.Nm
+routines provide the following functionality:
+.Bl -tag -width "fueword32()"
+.It Fn fubyte
+Fetches a byte of data from the user-space address
+.Pa base .
+The byte read is zero-extended into the results variable.
+.It Fn fuword
+Fetches a word of data (long) from the user-space address
+.Pa base .
+.It Fn fuword16
+Fetches 16 bits of data from the user-space address
+.Pa base .
+The half-word read is zero-extended into the results variable.
+.It Fn fuword32
+Fetches 32 bits of data from the user-space address
+.Pa base .
+.It Fn fuword64
+Fetches 64 bits of data from the user-space address
+.Pa base .
+.It Fn fueword
+Fetches a word of data (long) from the user-space address
+.Pa base
+and stores the result in the variable pointed by
+.Pa val .
+.It Fn fueword32
+Fetches 32 bits of data from the user-space address
+.Pa base
+and stores the result in the variable pointed by
+.Pa val .
+.It Fn fueword64
+Fetches 64 bits of data from the user-space address
+.Pa base
+and stores the result in the variable pointed by
+.Pa val .
+.El
+.Pp
+The callers of
+.Fn fuword ,
+.Fn fuword32
+and
+.Fn fuword64
+functions cannot distinguish between -1 read from
+userspace and function failure.
+.Sh RETURN VALUES
+The
+.Fn fubyte ,
+.Fn fuword ,
+.Fn fuword16 ,
+.Fn fuword32 ,
+and
+.Fn fuword64
+functions return the data fetched or -1 on failure.
+The
+.Fn fueword ,
+.Fn fueword32
+and
+.Fn fueword64
+functions return 0 on success and -1 on failure.
+.Sh SEE ALSO
+.Xr copy 9 ,
+.Xr store 9

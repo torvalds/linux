@@ -1,0 +1,173 @@
+# $FreeBSD$
+
+#
+# This is an example that shows how to send ASCII formatted control
+# messages to a node using ngctl(8).
+#
+# What we will do here create a divert(4) tap.  This simply dumps
+# out all packets diverted by some ipfw(8) divert rule to the console.
+#
+# Lines that begin with ``$'' (shell prompt) or ``+'' (ngctl prompt)
+# indicate user input
+#
+
+# First, start up ngctl in interactive mode:
+
+    $ ngctl
+    Available commands:
+      connect    Connects hook <peerhook> of the node at <relpath> to <hook>
+      debug      Get/set debugging verbosity level
+      help       Show command summary or get more help on a specific command
+      list       Show information about all nodes
+      mkpeer     Create and connect a new node to the node at "path"
+      msg        Send a netgraph control message to the node at "path"
+      name       Assign name <name> to the node at <path>
+      read       Read and execute commands from a file
+      rmhook     Disconnect hook "hook" of the node at "path"
+      show       Show information about the node at <path>
+      shutdown   Shutdown the node at <path>
+      status     Get human readable status information from the node at <path>
+      types      Show information about all installed node types
+      quit       Exit program
+    +
+
+# Now let's create a ng_ksocket(4) node, in the family PF_INET,
+# of type SOCK_RAW, and protocol IPPROTO_DIVERT:
+
+    + mkpeer ksocket foo inet/raw/divert
+
+# Note that ``foo'' is the hook name on the socket node, which can be
+# anything.  The ``inet/raw/divert'' is the hook name on the ksocket
+# node, which tells it what kind of socket to create.
+
+# Lets give our ksocket node a global name.  How about ``fred'':
+
+    + name foo fred
+
+# Note that we used ngctl's ``name'' command to do this.  However,
+# the following manually constructed netgraph message would have
+# accomplished the exact same thing:
+
+    + msg foo name { name="fred" }
+
+# Here we are using the ASCII <-> binary control message conversion
+# routines.  ngctl does this for us automatically when we use the
+# ``msg'' command.
+
+# Now lets bind the socket associated with the ksocket node to a port
+# supplied by the system.  We do this by sending the ksocket node a
+# ``bind'' control message.  Again, ngctl does the conversion of the
+# control message from ASCII to binary behind the scenes.
+
+    + msg fred: bind inet/192.168.1.1
+
+# The ksocket accepts arbitrary sockaddr structures, but also has
+# special support for the PF_LOCAL and PF_INET protocol families.
+# That is why we can specify the struct sockaddr argument to the
+# ``bind'' command as ``inet/192.168.1.1'' (since we didn't specify
+# a port number, it's assumed to be zero).  We could have also
+# relied on the generic sockaddr syntax and instead said this:
+
+    + msg fred: bind { family=2 len=16 data=[ 2=192 168 1 1 ] }
+
+# This is what you would have to do for protocol families other
+# that PF_INET and PF_LOCAL, at least until special handling for
+# new ones is added.
+
+# The reason for the ``2=192'' is to skip the two byte IP port number,
+# which causes it to be set to zero, the default value for integral
+# types when parsing.  Now since we didn't ask for a specific port
+# number, we need to do a ``getname'' to see what port number we got:
+
+    + msg fred: getname
+    Rec'd response "getname" (5) from "fred:":
+    Args:   inet/192.168.1.1:1029
+
+# As soon as we sent the message, we got back a response.  Here
+# ngctl is telling us that it received a control message with the
+# NGF_RESP (response) flag set, the response was to a prior ``getname''
+# control message, that the originator was the node addressable
+# as ``fred:''.  The message arguments field is then displayed to
+# us in its ASCII form.  In this case, what we get back is a struct
+# sockaddr, and there we see that our port number is 1029.
+
+# So now let's add the ipfw divert rule for whatever packets we
+# want to see.  How about anything from 192.168.1.129.
+
+    + ^Z
+    Suspended
+    $ ipfw add 100 divert 1029 ip from 192.168.1.129 to any
+    00100 divert 1029 ip from 192.168.1.129 to any
+    $ fg
+
+# Now watch what happens when we try to ping from that machine:
+
+    + 
+    Rec'd data packet on hook "foo":
+    0000:  45 00 00 3c 57 00 00 00 20 01 bf ee c0 a8 01 81  E..<W... .......
+    0010:  c0 a8 01 01 08 00 49 5c 03 00 01 00 61 62 63 64  ......I\....abcd
+    0020:  65 66 67 68 69 6a 6b 6c 6d 6e 6f 70 71 72 73 74  efghijklmnopqrst
+    0030:  75 76 77 61 62 63 64 65 66 67 68 69              uvwabcdefghi
+    + 
+    Rec'd data packet on hook "foo":
+    0000:  45 00 00 3c 58 00 00 00 20 01 be ee c0 a8 01 81  E..<X... .......
+    0010:  c0 a8 01 01 08 00 48 5c 03 00 02 00 61 62 63 64  ......H\....abcd
+    0020:  65 66 67 68 69 6a 6b 6c 6d 6e 6f 70 71 72 73 74  efghijklmnopqrst
+    0030:  75 76 77 61 62 63 64 65 66 67 68 69              uvwabcdefghi
+    + 
+    Rec'd data packet on hook "foo":
+    0000:  45 00 00 3c 59 00 00 00 20 01 bd ee c0 a8 01 81  E..<Y... .......
+    0010:  c0 a8 01 01 08 00 47 5c 03 00 03 00 61 62 63 64  ......G\....abcd
+    0020:  65 66 67 68 69 6a 6b 6c 6d 6e 6f 70 71 72 73 74  efghijklmnopqrst
+    0030:  75 76 77 61 62 63 64 65 66 67 68 69              uvwabcdefghi
+    +
+
+# So we're seeing the output from the ksocket socket appear on the ``foo''
+# hook of ngctl's socket node.  Since the packets are getting diverted,
+# the 192.168.1.129 machine doesn't see any response from us.
+
+# Of course, any type of socket can be used, even TCP:
+
+    + mkpeer ksocket bar inet/stream/tcp
+    + msg bar connect inet/192.168.1.33:13
+    ngctl: send msg: Operation now in progress
+    + 
+    Rec'd data packet on hook "foo":
+    0000:  4d 6f 6e 20 4e 6f 76 20 32 39 20 31 37 3a 34 38  Mon Nov 29 17:48
+    0010:  3a 33 37 20 31 39 39 39 0d 0a                    :37 1999..
+    +
+
+# Or, UNIX domain:
+
+    + mkpeer ksocket bar local/stream/0
+    + msg bar bind local/"/tmp/bar.socket"
+    + 
+
+# Here's an example of a more complicated ASCII control message argument.
+# If you look in /sys/netgraph/ng_message.h, you will see that a node
+# responds to a NGM_LISTHOOKS with a struct hooklist, which contains
+# an array of struct linkinfo:
+#
+#     /* Structure used for NGM_LISTHOOKS */
+#     struct linkinfo {
+#             char            ourhook[NG_HOOKSIZ];        /* hook name */
+#             char            peerhook[NG_HOOKSIZ];       /* peer hook */
+#             struct nodeinfo nodeinfo;
+#     };
+#
+#     struct hooklist {
+#             struct nodeinfo nodeinfo;               /* node information */
+#             struct linkinfo link[0];                /* info about each hook */
+#     };
+#
+# By sending a node the ``listhooks'' command using ngctl, we can see
+# this structure in ASCII form (lines wrapped for readability):
+
+    + msg bar bind local/"/tmp/bar.socket"
+    + msg bar listhooks
+    Rec'd response "listhooks" (7) from "bar":
+    Args:   { nodeinfo={ type="ksocket" id=9 hooks=1 }
+	    linkinfo=[ { ourhook="local/stream/0" peerhook="bar"
+	    nodeinfo={ name="ngctl1327" type="socket" id=8 hooks=1 } } ] }
+
+

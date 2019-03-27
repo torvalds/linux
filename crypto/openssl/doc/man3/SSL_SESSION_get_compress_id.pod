@@ -1,0 +1,39 @@
+=pod
+
+=head1 NAME
+
+SSL_SESSION_get_compress_id
+- get details about the compression associated with a session
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ unsigned int SSL_SESSION_get_compress_id(const SSL_SESSION *s);
+
+=head1 DESCRIPTION
+
+If compression has been negotiated for an ssl session then
+SSL_SESSION_get_compress_id() will return the id for the compression method or
+0 otherwise. The only built-in supported compression method is zlib which has an
+id of 1.
+
+=head1 RETURN VALUES
+
+SSL_SESSION_get_compress_id() returns the id of the compression method or 0 if
+none.
+
+=head1 SEE ALSO
+
+L<ssl(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

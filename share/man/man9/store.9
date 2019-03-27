@@ -1,0 +1,93 @@
+.\"	$NetBSD: store.9,v 1.2 1996/01/09 21:59:27 perry Exp $
+.\"
+.\" Copyright (c) 1996 Jason R. Thorpe.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed by Kenneth Stailey.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed for the NetBSD Project
+.\"	by Jason R. Thorpe.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 17, 2018
+.Dt STORE 9
+.Os
+.Sh NAME
+.Nm store ,
+.Nm subyte ,
+.Nm suword
+.Nd store data to user-space
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/time.h
+.In sys/systm.h
+.Ft int
+.Fn subyte "volatile void *base" "int byte"
+.Ft int
+.Fn suword "volatile void *base" "long word"
+.Ft int
+.Fn suword16 "volatile void *base" "int word"
+.Ft int
+.Fn suword32 "volatile void *base" "int32_t word"
+.Ft int
+.Fn suword64 "volatile void *base" "int64_t word"
+.In sys/resourcevar.h
+.Sh DESCRIPTION
+The
+.Nm
+functions are designed to copy small amounts of data to user-space.
+If write is successful, it is performed atomically.
+The data written must be naturally aligned.
+.Pp
+The
+.Nm
+routines provide the following functionality:
+.Bl -tag -width "suword64()"
+.It Fn subyte
+Stores a byte of data to the user-space address
+.Pa base .
+.It Fn suword
+Stores a word of data to the user-space address
+.Pa base .
+.It Fn suword16
+Stores 16 bits of data to the user-space address
+.Pa base .
+.It Fn suword32
+Stores 32 bits of data to the user-space address
+.Pa base .
+.It Fn suword64
+Stores 64 bits of data to the user-space address
+.Pa base .
+.El
+.Sh RETURN VALUES
+The
+.Nm
+functions return 0 on success or -1 on failure.
+.Sh SEE ALSO
+.Xr copy 9 ,
+.Xr fetch 9

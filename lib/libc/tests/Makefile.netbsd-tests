@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+TESTSRC:=	${SRCTOP}/contrib/netbsd-tests/${RELDIR:C/libc\/tests/libc/}
+
+TESTSDIR:=	${TESTSBASE}/${RELDIR:C/libc\/tests/libc/}
+
+WARNS?=		2
+
+.include <netbsd-tests.test.mk>

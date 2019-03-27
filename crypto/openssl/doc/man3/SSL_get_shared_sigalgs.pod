@@ -1,0 +1,88 @@
+=pod
+
+=head1 NAME
+
+SSL_get_shared_sigalgs, SSL_get_sigalgs - get supported signature algorithms
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_get_shared_sigalgs(SSL *s, int idx,
+                            int *psign, int *phash, int *psignhash,
+                            unsigned char *rsig, unsigned char *rhash);
+
+ int SSL_get_sigalgs(SSL *s, int idx,
+                     int *psign, int *phash, int *psignhash,
+                     unsigned char *rsig, unsigned char *rhash);
+
+=head1 DESCRIPTION
+
+SSL_get_shared_sigalgs() returns information about the shared signature
+algorithms supported by peer B<s>. The parameter B<idx> indicates the index
+of the shared signature algorithm to return starting from zero. The signature
+algorithm NID is written to B<*psign>, the hash NID to B<*phash> and the
+sign and hash NID to B<*psignhash>. The raw signature and hash values
+are written to B<*rsig> and B<*rhash>.
+
+SSL_get_sigalgs() is similar to SSL_get_shared_sigalgs() except it returns
+information about all signature algorithms supported by B<s> in the order
+they were sent by the peer.
+
+=head1 RETURN VALUES
+
+SSL_get_shared_sigalgs() and SSL_get_sigalgs() return the number of
+signature algorithms or B<0> if the B<idx> parameter is out of range.
+
+=head1 NOTES
+
+These functions are typically called for debugging purposes (to report
+the peer's preferences) or where an application wants finer control over
+certificate selection. Most applications will rely on internal handling
+and will not need to call them.
+
+If an application is only interested in the highest preference shared
+signature algorithm it can just set B<idx> to zero.
+
+Any or all of the parameters B<psign>, B<phash>, B<psignhash>, B<rsig> or
+B<rhash> can be set to B<NULL> if the value is not required. By setting
+them all to B<NULL> and setting B<idx> to zero the total number of
+signature algorithms can be determined: which can be zero.
+
+These functions must be called after the peer has sent a list of supported
+signature algorithms: after a client hello (for servers) or a certificate
+request (for clients). They can (for example) be called in the certificate
+callback.
+
+Only TLS 1.2, TLS 1.3 and DTLS 1.2 currently support signature algorithms.
+If these
+functions are called on an earlier version of TLS or DTLS zero is returned.
+
+The shared signature algorithms returned by SSL_get_shared_sigalgs() are
+ordered according to configuration and peer preferences.
+
+The raw values correspond to the on the wire form as defined by RFC5246 et al.
+The NIDs are OpenSSL equivalents. For example if the peer sent sha256(4) and
+rsa(1) then B<*rhash> would be 4, B<*rsign> 1, B<*phash> NID_sha256, B<*psig>
+NID_rsaEncryption and B<*psighash> NID_sha256WithRSAEncryption.
+
+If a signature algorithm is not recognised the corresponding NIDs
+will be set to B<NID_undef>. This may be because the value is not supported,
+is not an appropriate combination (for example MD5 and DSA) or the
+signature algorithm does not use a hash (for example Ed25519).
+
+=head1 SEE ALSO
+
+L<SSL_CTX_set_cert_cb(3)>,
+L<ssl(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

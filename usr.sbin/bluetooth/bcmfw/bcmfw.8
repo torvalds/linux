@@ -1,0 +1,105 @@
+.\" Copyright (c) 2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: bcmfw.8,v 1.7 2003/05/21 00:33:40 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd March 31, 2003
+.Dt BCMFW 8
+.Os
+.Sh NAME
+.Nm bcmfw
+.Nd firmware download utility for Broadcom BCM2033 chip based Bluetooth USB devices
+.Sh SYNOPSIS
+.Nm
+.Op Fl h
+.Fl f Ar firmware_file_name
+.Fl m Ar mini-driver_file_name
+.Fl n Ar device_name
+.Sh DESCRIPTION
+The
+.Nm
+utility downloads the specified mini-driver and firmware files to the specified
+device.
+.Pp
+This utility will
+.Em only
+work with Broadcom BCM2033 chip based Bluetooth USB devices.
+The identification is currently based on USB vendor ID/product ID pair.
+The vendor ID should be 0x0a5c
+.Pq Dv USB_VENDOR_BROADCOM
+and the product ID should be 0x2033.
+.Pp
+Due to copyright issues I will no longer provide mini-driver and firmware
+files for the device.
+These files can be obtained from the Linux BlueZ bluez-firmware package.
+.Pp
+Visit
+.Pa http://www.bluez.org/download.html
+for details.
+.Pp
+I am using the following files from the bluez-firmware-1.0 package:
+.Pp
+.Dl "MD5 (BCM2033-MD.hex) = 5580317158d07fc4ace90af04f8e1c73"
+.Dl "MD5 (BCM2033-FW.bin) = b4e142b3272cfe5a84b32fda6b4b032f"
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl f Ar firmware_file_name
+Specify firmware file name for download.
+.It Fl h
+Display usage message and exit.
+.It Fl m Ar mini-driver_file_name
+Specify mini-driver file name for download.
+.It Fl n Ar device_name
+Specify device name.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/ubtbcmfw Ns Ar N Ns Pa \&. Ns Ar EE" -compact
+.It Pa BCM2033-MD.hex
+Mini-driver image.
+.It Pa BCM2033-FW.bin
+Firmware image.
+.It Pa /dev/ubtbcmfw Ns Ar N Ns Pa \&. Ns Ar EE
+Endpoint
+.Ar EE
+of device
+.Ar N .
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+To download the firmware into the
+.Pa /dev/ubtbcmfw0
+device:
+.Pp
+.Dl "bcmfw -n ubtbcmfw0 -m BCM2033-MD.hex -f BCM2033-FW.bin"
+.Sh SEE ALSO
+.Xr ubtbcmfw 4 ,
+.Xr ugen 4
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh BUGS
+Most likely.
+Please report if found.

@@ -1,0 +1,173 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)flock.2	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd November 9, 2011
+.Dt FLOCK 2
+.Os
+.Sh NAME
+.Nm flock
+.Nd "apply or remove an advisory lock on an open file"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/file.h
+.Fd "#define   LOCK_SH        0x01      /* shared file lock */"
+.Fd "#define   LOCK_EX        0x02      /* exclusive file lock */"
+.Fd "#define   LOCK_NB        0x04      /* do not block when locking */"
+.Fd "#define   LOCK_UN        0x08      /* unlock file */"
+.Ft int
+.Fn flock "int fd" "int operation"
+.Sh DESCRIPTION
+The
+.Fn flock
+system call applies or removes an
+.Em advisory
+lock on the file associated with the file descriptor
+.Fa fd .
+A lock is applied by specifying an
+.Fa operation
+argument that is one of
+.Dv LOCK_SH
+or
+.Dv LOCK_EX
+with the optional addition of
+.Dv LOCK_NB .
+To unlock
+an existing lock
+.Dv operation
+should be
+.Dv LOCK_UN .
+.Pp
+Advisory locks allow cooperating processes to perform
+consistent operations on files, but do not guarantee
+consistency (i.e., processes may still access files
+without using advisory locks possibly resulting in
+inconsistencies).
+.Pp
+The locking mechanism allows two types of locks:
+.Em shared
+locks and
+.Em exclusive
+locks.
+At any time multiple shared locks may be applied to a file,
+but at no time are multiple exclusive, or both shared and exclusive,
+locks allowed simultaneously on a file.
+.Pp
+A shared lock may be
+.Em upgraded
+to an exclusive lock, and vice versa, simply by specifying
+the appropriate lock type; this results in the previous
+lock being released and the new lock applied (possibly
+after other processes have gained and released the lock).
+.Pp
+Requesting a lock on an object that is already locked
+normally causes the caller to be blocked until the lock may be
+acquired.
+If
+.Dv LOCK_NB
+is included in
+.Fa operation ,
+then this will not happen; instead the call will fail and
+the error
+.Er EWOULDBLOCK
+will be returned.
+.Sh NOTES
+Locks are on files, not file descriptors.
+That is, file descriptors
+duplicated through
+.Xr dup 2
+or
+.Xr fork 2
+do not result in multiple instances of a lock, but rather multiple
+references to a single lock.
+If a process holding a lock on a file
+forks and the child explicitly unlocks the file, the parent will
+lose its lock.
+.Pp
+The
+.Fn flock ,
+.Xr fcntl 2 ,
+and
+.Xr lockf 3
+locks are compatible.
+Processes using different locking interfaces can cooperate
+over the same file safely.
+However, only one of such interfaces should be used within
+the same process.
+If a file is locked by a process through
+.Fn flock ,
+any record within the file will be seen as locked
+from the viewpoint of another process using
+.Xr fcntl 2
+or
+.Xr lockf 3 ,
+and vice versa.
+.Pp
+Processes blocked awaiting a lock may be awakened by signals.
+.Sh RETURN VALUES
+.Rv -std flock
+.Sh ERRORS
+The
+.Fn flock
+system call fails if:
+.Bl -tag -width Er
+.It Bq Er EWOULDBLOCK
+The file is locked and the
+.Dv LOCK_NB
+option was specified.
+.It Bq Er EBADF
+The argument
+.Fa fd
+is an invalid descriptor.
+.It Bq Er EINVAL
+The argument
+.Fa fd
+refers to an object other than a file.
+.It Bq Er EOPNOTSUPP
+The argument
+.Fa fd
+refers to an object that does not support file locking.
+.It Bq Er ENOLCK
+A lock was requested, but no locks are available.
+.El
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr dup 2 ,
+.Xr execve 2 ,
+.Xr fcntl 2 ,
+.Xr fork 2 ,
+.Xr open 2 ,
+.Xr flopen 3 ,
+.Xr lockf 3
+.Sh HISTORY
+The
+.Fn flock
+system call appeared in
+.Bx 4.2 .

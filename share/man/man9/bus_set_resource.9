@@ -1,0 +1,96 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2003 M. Warner Losh
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 29, 2003
+.Dt BUS_SET_RESOURCE 9
+.Os
+.Sh NAME
+.Nm bus_set_resource
+.Nd "associate a definite resource with a given resource ID"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Pp
+.In machine/bus.h
+.In sys/rman.h
+.In machine/resource.h
+.Ft int
+.Fo bus_set_resource
+.Fa "device_t dev" "int type" "int rid" "rman_res_t start" "rman_res_t count"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn bus_set_resource
+function
+sets the start address of the resource
+.Fa type , rid
+pair to be
+.Fa count
+long.
+Typically, client drivers do not use this interface.
+Bus drivers, however, often use it to set up the resources a client
+driver uses.
+.Pp
+The arguments are as follows:
+.Bl -tag -width indent
+.It Fa dev
+The device to set the resource on.
+.It Fa type
+The type of resource you want to allocate.
+It is one of:
+.Pp
+.Bl -tag -width ".Dv SYS_RES_MEMORY" -compact
+.It Dv SYS_RES_IRQ
+for IRQs
+.It Dv SYS_RES_DRQ
+for ISA DMA lines
+.It Dv SYS_RES_IOPORT
+for I/O ports
+.It Dv SYS_RES_MEMORY
+for I/O memory
+.El
+.It Fa rid
+A bus-specific handle that identifies the resource being allocated.
+.It Fa start
+The start address of this resource.
+.It Fa count
+The length of the resource.
+For example, the size of the memory in bytes.
+.El
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an error is returned.
+.Sh SEE ALSO
+.Xr bus_alloc_resource 9 ,
+.Xr bus_get_resource 9 ,
+.Xr device 9 ,
+.Xr driver 9
+.Sh AUTHORS
+This manual page was written by
+.An Warner Losh Aq Mt imp@FreeBSD.org .

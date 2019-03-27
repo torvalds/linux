@@ -1,0 +1,618 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
+.\" FreeBSD: src/lib/libc/stdio/printf.3,v 1.47 2002/09/06 11:23:55 tjr Exp
+.\" $FreeBSD$
+.\"
+.Dd July 5, 2003
+.Dt WPRINTF 3
+.Os
+.Sh NAME
+.Nm wprintf , fwprintf , swprintf ,
+.Nm vwprintf , vfwprintf , vswprintf
+.Nd formatted wide character output conversion
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.In wchar.h
+.Ft int
+.Fn fwprintf "FILE * restrict stream" "const wchar_t * restrict format" ...
+.Ft int
+.Fn swprintf "wchar_t * restrict ws" "size_t n" "const wchar_t * restrict format" ...
+.Ft int
+.Fn wprintf "const wchar_t * restrict format" ...
+.In stdarg.h
+.Ft int
+.Fn vfwprintf "FILE * restrict stream" "const wchar_t * restrict" "va_list ap"
+.Ft int
+.Fn vswprintf "wchar_t * restrict ws" "size_t n" "const wchar_t *restrict format" "va_list ap"
+.Ft int
+.Fn vwprintf "const wchar_t * restrict format" "va_list ap"
+.Sh DESCRIPTION
+The
+.Fn wprintf
+family of functions produces output according to a
+.Fa format
+as described below.
+The
+.Fn wprintf
+and
+.Fn vwprintf
+functions
+write output to
+.Dv stdout ,
+the standard output stream;
+.Fn fwprintf
+and
+.Fn vfwprintf
+write output to the given output
+.Fa stream ;
+.Fn swprintf
+and
+.Fn vswprintf
+write to the wide character string
+.Fa ws .
+.Pp
+These functions write the output under the control of a
+.Fa format
+string that specifies how subsequent arguments
+(or arguments accessed via the variable-length argument facilities of
+.Xr stdarg 3 )
+are converted for output.
+.Pp
+These functions return the number of characters printed
+(not including the trailing
+.Ql \e0
+used to end output to strings).
+.Pp
+The
+.Fn swprintf
+and
+.Fn vswprintf
+functions will fail if
+.Fa n
+or more wide characters were requested to be written,
+.Pp
+The format string is composed of zero or more directives:
+ordinary
+characters (not
+.Cm % ) ,
+which are copied unchanged to the output stream;
+and conversion specifications, each of which results
+in fetching zero or more subsequent arguments.
+Each conversion specification is introduced by
+the
+.Cm %
+character.
+The arguments must correspond properly (after type promotion)
+with the conversion specifier.
+After the
+.Cm % ,
+the following appear in sequence:
+.Bl -bullet
+.It
+An optional field, consisting of a decimal digit string followed by a
+.Cm $ ,
+specifying the next argument to access.
+If this field is not provided, the argument following the last
+argument accessed will be used.
+Arguments are numbered starting at
+.Cm 1 .
+If unaccessed arguments in the format string are interspersed with ones that
+are accessed the results will be indeterminate.
+.It
+Zero or more of the following flags:
+.Bl -tag -width ".So \  Sc (space)"
+.It Sq Cm #
+The value should be converted to an
+.Dq alternate form .
+For
+.Cm c , d , i , n , p , s ,
+and
+.Cm u
+conversions, this option has no effect.
+For
+.Cm o
+conversions, the precision of the number is increased to force the first
+character of the output string to a zero (except if a zero value is printed
+with an explicit precision of zero).
+For
+.Cm x
+and
+.Cm X
+conversions, a non-zero result has the string
+.Ql 0x
+(or
+.Ql 0X
+for
+.Cm X
+conversions) prepended to it.
+For
+.Cm a , A , e , E , f , F , g ,
+and
+.Cm G
+conversions, the result will always contain a decimal point, even if no
+digits follow it (normally, a decimal point appears in the results of
+those conversions only if a digit follows).
+For
+.Cm g
+and
+.Cm G
+conversions, trailing zeros are not removed from the result as they
+would otherwise be.
+.It So Cm 0 Sc (zero)
+Zero padding.
+For all conversions except
+.Cm n ,
+the converted value is padded on the left with zeros rather than blanks.
+If a precision is given with a numeric conversion
+.Cm ( d , i , o , u , i , x ,
+and
+.Cm X ) ,
+the
+.Cm 0
+flag is ignored.
+.It Sq Cm \-
+A negative field width flag;
+the converted value is to be left adjusted on the field boundary.
+Except for
+.Cm n
+conversions, the converted value is padded on the right with blanks,
+rather than on the left with blanks or zeros.
+A
+.Cm \-
+overrides a
+.Cm 0
+if both are given.
+.It So "\ " Sc (space)
+A blank should be left before a positive number
+produced by a signed conversion
+.Cm ( a , A , d , e , E , f , F , g , G ,
+or
+.Cm i ) .
+.It Sq Cm +
+A sign must always be placed before a
+number produced by a signed conversion.
+A
+.Cm +
+overrides a space if both are used.
+.It Sq Cm '
+Decimal conversions
+.Cm ( d , u ,
+or
+.Cm i )
+or the integral portion of a floating point conversion
+.Cm ( f
+or
+.Cm F )
+should be grouped and separated by thousands using
+the non-monetary separator returned by
+.Xr localeconv 3 .
+.El
+.It
+An optional decimal digit string specifying a minimum field width.
+If the converted value has fewer characters than the field width, it will
+be padded with spaces on the left (or right, if the left-adjustment
+flag has been given) to fill out
+the field width.
+.It
+An optional precision, in the form of a period
+.Cm \&.
+followed by an
+optional digit string.
+If the digit string is omitted, the precision is taken as zero.
+This gives the minimum number of digits to appear for
+.Cm d , i , o , u , x ,
+and
+.Cm X
+conversions, the number of digits to appear after the decimal-point for
+.Cm a , A , e , E , f ,
+and
+.Cm F
+conversions, the maximum number of significant digits for
+.Cm g
+and
+.Cm G
+conversions, or the maximum number of characters to be printed from a
+string for
+.Cm s
+conversions.
+.It
+An optional length modifier, that specifies the size of the argument.
+The following length modifiers are valid for the
+.Cm d , i , n , o , u , x ,
+or
+.Cm X
+conversion:
+.Bl -column ".Cm q Em (deprecated)" ".Vt signed char" ".Vt unsigned long long" ".Vt long long *"
+.It Sy Modifier Ta Cm d , i Ta Cm o , u , x , X Ta Cm n
+.It Cm hh Ta Vt "signed char" Ta Vt "unsigned char" Ta Vt "signed char *"
+.It Cm h Ta Vt short Ta Vt "unsigned short" Ta Vt "short *"
+.It Cm l No (ell) Ta Vt long Ta Vt "unsigned long" Ta Vt "long *"
+.It Cm ll No (ell ell) Ta Vt "long long" Ta Vt "unsigned long long" Ta Vt "long long *"
+.It Cm j Ta Vt intmax_t Ta Vt uintmax_t Ta Vt "intmax_t *"
+.It Cm t Ta Vt ptrdiff_t Ta (see note) Ta Vt "ptrdiff_t *"
+.It Cm z Ta (see note) Ta Vt size_t Ta (see note)
+.It Cm q Em (deprecated) Ta Vt quad_t Ta Vt u_quad_t Ta Vt "quad_t *"
+.El
+.Pp
+Note:
+the
+.Cm t
+modifier, when applied to a
+.Cm o , u , x ,
+or
+.Cm X
+conversion, indicates that the argument is of an unsigned type
+equivalent in size to a
+.Vt ptrdiff_t .
+The
+.Cm z
+modifier, when applied to a
+.Cm d
+or
+.Cm i
+conversion, indicates that the argument is of a signed type equivalent in
+size to a
+.Vt size_t .
+Similarly, when applied to an
+.Cm n
+conversion, it indicates that the argument is a pointer to a signed type
+equivalent in size to a
+.Vt size_t .
+.Pp
+The following length modifier is valid for the
+.Cm a , A , e , E , f , F , g ,
+or
+.Cm G
+conversion:
+.Bl -column ".Sy Modifier" ".Cm a , A , e , E , f , F , g , G"
+.It Sy Modifier Ta Cm a , A , e , E , f , F , g , G
+.It Cm L Ta Vt "long double"
+.El
+.Pp
+The following length modifier is valid for the
+.Cm c
+or
+.Cm s
+conversion:
+.Bl -column ".Sy Modifier" ".Vt wint_t" ".Vt wchar_t *"
+.It Sy Modifier Ta Cm c Ta Cm s
+.It Cm l No (ell) Ta Vt wint_t Ta Vt "wchar_t *"
+.El
+.It
+A character that specifies the type of conversion to be applied.
+.El
+.Pp
+A field width or precision, or both, may be indicated by
+an asterisk
+.Ql *
+or an asterisk followed by one or more decimal digits and a
+.Ql $
+instead of a
+digit string.
+In this case, an
+.Vt int
+argument supplies the field width or precision.
+A negative field width is treated as a left adjustment flag followed by a
+positive field width; a negative precision is treated as though it were
+missing.
+If a single format directive mixes positional
+.Pq Li nn$
+and non-positional arguments, the results are undefined.
+.Pp
+The conversion specifiers and their meanings are:
+.Bl -tag -width ".Cm diouxX"
+.It Cm diouxX
+The
+.Vt int
+(or appropriate variant) argument is converted to signed decimal
+.Cm ( d
+and
+.Cm i ) ,
+unsigned octal
+.Pq Cm o ,
+unsigned decimal
+.Pq Cm u ,
+or unsigned hexadecimal
+.Cm ( x
+and
+.Cm X )
+notation.
+The letters
+.Dq Li abcdef
+are used for
+.Cm x
+conversions; the letters
+.Dq Li ABCDEF
+are used for
+.Cm X
+conversions.
+The precision, if any, gives the minimum number of digits that must
+appear; if the converted value requires fewer digits, it is padded on
+the left with zeros.
+.It Cm DOU
+The
+.Vt "long int"
+argument is converted to signed decimal, unsigned octal, or unsigned
+decimal, as if the format had been
+.Cm ld , lo ,
+or
+.Cm lu
+respectively.
+These conversion characters are deprecated, and will eventually disappear.
+.It Cm eE
+The
+.Vt double
+argument is rounded and converted in the style
+.Sm off
+.Oo \- Oc Ar d Li \&. Ar ddd Li e \(+- Ar dd
+.Sm on
+where there is one digit before the
+decimal-point character
+and the number of digits after it is equal to the precision;
+if the precision is missing,
+it is taken as 6; if the precision is
+zero, no decimal-point character appears.
+An
+.Cm E
+conversion uses the letter
+.Ql E
+(rather than
+.Ql e )
+to introduce the exponent.
+The exponent always contains at least two digits; if the value is zero,
+the exponent is 00.
+.Pp
+For
+.Cm a , A , e , E , f , F , g ,
+and
+.Cm G
+conversions, positive and negative infinity are represented as
+.Li inf
+and
+.Li -inf
+respectively when using the lowercase conversion character, and
+.Li INF
+and
+.Li -INF
+respectively when using the uppercase conversion character.
+Similarly, NaN is represented as
+.Li nan
+when using the lowercase conversion, and
+.Li NAN
+when using the uppercase conversion.
+.It Cm fF
+The
+.Vt double
+argument is rounded and converted to decimal notation in the style
+.Sm off
+.Oo \- Oc Ar ddd Li \&. Ar ddd ,
+.Sm on
+where the number of digits after the decimal-point character
+is equal to the precision specification.
+If the precision is missing, it is taken as 6; if the precision is
+explicitly zero, no decimal-point character appears.
+If a decimal point appears, at least one digit appears before it.
+.It Cm gG
+The
+.Vt double
+argument is converted in style
+.Cm f
+or
+.Cm e
+(or
+.Cm F
+or
+.Cm E
+for
+.Cm G
+conversions).
+The precision specifies the number of significant digits.
+If the precision is missing, 6 digits are given; if the precision is zero,
+it is treated as 1.
+Style
+.Cm e
+is used if the exponent from its conversion is less than \-4 or greater than
+or equal to the precision.
+Trailing zeros are removed from the fractional part of the result; a
+decimal point appears only if it is followed by at least one digit.
+.It Cm aA
+The
+.Vt double
+argument is converted to hexadecimal notation in the style
+.Sm off
+.Oo \- Oc Li 0x Ar h Li \&. Ar hhhp Oo \(+- Oc Ar d ,
+.Sm on
+where the number of digits after the hexadecimal-point character
+is equal to the precision specification.
+If the precision is missing, it is taken as enough to exactly
+represent the floating-point number; if the precision is
+explicitly zero, no hexadecimal-point character appears.
+This is an exact conversion of the mantissa+exponent internal
+floating point representation; the
+.Sm off
+.Oo \- Oc Li 0x Ar h Li \&. Ar hhh
+.Sm on
+portion represents exactly the mantissa; only denormalized
+mantissas have a zero value to the left of the hexadecimal
+point.
+The
+.Cm p
+is a literal character
+.Ql p ;
+the exponent is preceded by a positive or negative sign
+and is represented in decimal, using only enough characters
+to represent the exponent.
+The
+.Cm A
+conversion uses the prefix
+.Dq Li 0X
+(rather than
+.Dq Li 0x ) ,
+the letters
+.Dq Li ABCDEF
+(rather than
+.Dq Li abcdef )
+to represent the hex digits, and the letter
+.Ql P
+(rather than
+.Ql p )
+to separate the mantissa and exponent.
+.It Cm C
+Treated as
+.Cm c
+with the
+.Cm l
+(ell) modifier.
+.It Cm c
+The
+.Vt int
+argument is converted to an
+.Vt "unsigned char" ,
+then to a
+.Vt wchar_t
+as if by
+.Xr btowc 3 ,
+and the resulting character is written.
+.Pp
+If the
+.Cm l
+(ell) modifier is used, the
+.Vt wint_t
+argument is converted to a
+.Vt wchar_t
+and written.
+.It Cm S
+Treated as
+.Cm s
+with the
+.Cm l
+(ell) modifier.
+.It Cm s
+The
+.Vt "char *"
+argument is expected to be a pointer to an array of character type (pointer
+to a string) containing a multibyte sequence.
+Characters from the array are converted to wide characters and written up to
+(but not including)
+a terminating
+.Dv NUL
+character;
+if a precision is specified, no more than the number specified are
+written.
+If a precision is given, no null character
+need be present; if the precision is not specified, or is greater than
+the size of the array, the array must contain a terminating
+.Dv NUL
+character.
+.Pp
+If the
+.Cm l
+(ell) modifier is used, the
+.Vt "wchar_t *"
+argument is expected to be a pointer to an array of wide characters
+(pointer to a wide string).
+Each wide character in the string
+is written.
+Wide characters from the array are written up to (but not including)
+a terminating wide
+.Dv NUL
+character;
+if a precision is specified, no more than the number specified are
+written (including shift sequences).
+If a precision is given, no null character
+need be present; if the precision is not specified, or is greater than
+the number of characters in
+the string, the array must contain a terminating wide
+.Dv NUL
+character.
+.It Cm p
+The
+.Vt "void *"
+pointer argument is printed in hexadecimal (as if by
+.Ql %#x
+or
+.Ql %#lx ) .
+.It Cm n
+The number of characters written so far is stored into the
+integer indicated by the
+.Vt "int *"
+(or variant) pointer argument.
+No argument is converted.
+.It Cm %
+A
+.Ql %
+is written.
+No argument is converted.
+The complete conversion specification
+is
+.Ql %% .
+.El
+.Pp
+The decimal point
+character is defined in the program's locale (category
+.Dv LC_NUMERIC ) .
+.Pp
+In no case does a non-existent or small field width cause truncation of
+a numeric field; if the result of a conversion is wider than the field
+width, the
+field is expanded to contain the conversion result.
+.Sh SEE ALSO
+.Xr btowc 3 ,
+.Xr fputws 3 ,
+.Xr printf 3 ,
+.Xr putwc 3 ,
+.Xr setlocale 3 ,
+.Xr wcsrtombs 3 ,
+.Xr wscanf 3
+.Sh STANDARDS
+Subject to the caveats noted in the
+.Sx BUGS
+section
+of
+.Xr printf 3 ,
+the
+.Fn wprintf ,
+.Fn fwprintf ,
+.Fn swprintf ,
+.Fn vwprintf ,
+.Fn vfwprintf
+and
+.Fn vswprintf
+functions
+conform to
+.St -isoC-99 .
+.Sh SECURITY CONSIDERATIONS
+Refer to
+.Xr printf 3 .

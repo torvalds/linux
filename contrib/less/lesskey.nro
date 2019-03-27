@@ -1,0 +1,391 @@
+.TH LESSKEY 1 "Version 530: 05 Dec 2017"
+.SH NAME
+lesskey \- specify key bindings for less
+.SH SYNOPSIS
+.B "lesskey [-o output] [--] [input]"
+.br
+.B "lesskey [--output=output] [--] [input]"
+.br
+.B "lesskey -V"
+.br
+.B "lesskey --version"
+.SH DESCRIPTION
+.I Lesskey
+is used to specify a set of key bindings to be used by 
+.I less.
+The input file is a text file which describes the key bindings.
+If the input file is "-", standard input is read.
+If no input file is specified, a standard filename is used
+as the name of the input file, which depends on the system being used:
+On Unix systems, $HOME/.lesskey is used;
+on MS-DOS systems, $HOME/_lesskey is used;
+and on OS/2 systems $HOME/lesskey.ini is used,
+or $INIT/lesskey.ini if $HOME is undefined.
+The output file is a binary file which is used by 
+.I less.
+If no output file is specified, 
+and the environment variable LESSKEY is set,
+the value of LESSKEY is used as the name of the output file.
+Otherwise, a standard filename is used as the name of the output file,
+which depends on the system being used:
+On Unix and OS-9 systems, $HOME/.less is used;
+on MS-DOS systems, $HOME/_less is used;
+and on OS/2 systems, $HOME/less.ini is used,
+or $INIT/less.ini if $HOME is undefined.
+If the output file already exists,
+.I lesskey
+will overwrite it.
+.PP
+The -V or --version option causes
+.I lesskey
+to print its version number and immediately exit.  
+If -V or --version is present, other options and arguments are ignored.
+.PP
+The input file consists of one or more
+.I sections.
+Each section starts with a line that identifies the type of section.
+Possible sections are:
+.IP #command
+Defines new command keys.
+.IP #line-edit
+Defines new line-editing keys.
+.IP #env
+Defines environment variables.
+.PP
+Blank lines and lines which start with a pound sign (#) are ignored,
+except for the special section header lines.
+
+.SH "COMMAND SECTION"
+The command section begins with the line
+.sp
+#command
+.sp
+If the command section is the first section in the file,
+this line may be omitted.
+The command section consists of lines of the form:
+.sp
+	\fIstring\fP <whitespace> \fIaction\fP [extra-string] <newline>
+.sp
+Whitespace is any sequence of one or more spaces and/or tabs.
+The \fIstring\fP is the command key(s) which invoke the action.
+The \fIstring\fP may be a single command key, or a sequence of up to 15 keys.
+The \fIaction\fP is the name of the less action, from the list below.
+The characters in the \fIstring\fP may appear literally, or be
+prefixed by a caret to indicate a control key.
+A backslash followed by one to three octal digits may be used to
+specify a character by its octal value.
+A backslash followed by certain characters specifies input
+characters as follows:
+.IP \eb
+BACKSPACE
+.IP \ee
+ESCAPE
+.IP \en
+NEWLINE
+.IP \er
+RETURN
+.IP \et
+TAB
+.IP \eku
+UP ARROW
+.IP \ekd
+DOWN ARROW
+.IP \ekr
+RIGHT ARROW
+.IP \ekl
+LEFT ARROW
+.IP \ekU
+PAGE UP
+.IP \ekD
+PAGE DOWN
+.IP \ekh
+HOME
+.IP \eke
+END
+.IP \ekx
+DELETE
+.PP
+A backslash followed by any other character indicates that character is
+to be taken literally.
+Characters which must be preceded by backslash include
+caret, space, tab and the backslash itself.
+.PP
+An action may be followed by an "extra" string.
+When such a command is entered while running
+.I less,
+the action is performed, and then the extra
+string is parsed, just as if it were typed in to
+.I less.
+This feature can be used in certain cases to extend
+the functionality of a command.
+For example, see the "{" and ":t" commands in the example below.
+The extra string has a special meaning for the "quit" action:
+when
+.I less
+quits, first character of the extra string is used as its exit status.
+
+.SH EXAMPLE
+The following input file describes the set of
+default command keys used by less:
+.sp
+.nf
+	#command
+	\er		forw-line 
+	\en		forw-line 
+	e		forw-line 
+	j		forw-line 
+	\ekd		forw-line
+	^E		forw-line 
+	^N		forw-line 
+	k		back-line 
+	y		back-line 
+	^Y		back-line 
+	^K		back-line 
+	^P		back-line 
+	J		forw-line-force 
+	K		back-line-force 
+	Y		back-line-force 
+	d		forw-scroll 
+	^D		forw-scroll 
+	u		back-scroll 
+	^U		back-scroll 
+	\e40		forw-screen 
+	f		forw-screen 
+	^F		forw-screen 
+	^V		forw-screen 
+	\ekD		forw-screen
+	b		back-screen 
+	^B		back-screen 
+	\eev		back-screen 
+	\ekU		back-screen
+	z		forw-window 
+	w		back-window 
+	\ee\e40		forw-screen-force
+	F		forw-forever 
+	\eeF		forw-until-hilite
+	R		repaint-flush 
+	r		repaint 
+	^R		repaint 
+	^L		repaint 
+	\eeu		undo-hilite
+	g		goto-line 
+	\ekh		goto-line
+	<		goto-line 
+	\ee<		goto-line 
+	p		percent 
+	%		percent 
+	\ee[		left-scroll
+	\ee]		right-scroll
+	\ee(		left-scroll
+	\ee)		right-scroll
+	\ekl		left-scroll
+	\ekr		right-scroll
+	\ee{		no-scroll
+	\ee}		end-scroll
+	{		forw-bracket {}
+	}		back-bracket {}
+	(		forw-bracket ()
+	)		back-bracket ()
+	[		forw-bracket []
+	]		back-bracket []
+	\ee^F		forw-bracket 
+	\ee^B		back-bracket 
+	G		goto-end 
+	\ee>		goto-end 
+	>		goto-end 
+	\eke		goto-end
+	\eeG		goto-end-buffered
+	=		status 
+	^G		status 
+	:f		status 
+	/		forw-search 
+	?		back-search 
+	\ee/		forw-search *
+	\ee?		back-search *
+	n		repeat-search 
+	\een		repeat-search-all 
+	N		reverse-search 
+	\eeN		reverse-search-all 
+	&		filter
+	m		set-mark 
+	M		set-mark-bottom
+	\eem		clear-mark
+	'		goto-mark 
+	^X^X		goto-mark 
+	E		examine 
+	:e		examine 
+	^X^V		examine 
+	:n		next-file 
+	:p		prev-file 
+	t		next-tag
+	T		prev-tag
+	:x		index-file 
+	:d		remove-file
+	-		toggle-option 
+	:t		toggle-option t
+	s		toggle-option o
+	_		display-option 
+	|		pipe 
+	v		visual 
+	!		shell 
+	+		firstcmd 
+	H		help 
+	h		help 
+	V		version 
+	0		digit
+	1		digit
+	2		digit
+	3		digit
+	4		digit
+	5		digit
+	6		digit
+	7		digit
+	8		digit
+	9		digit
+	q		quit 
+	Q		quit 
+	:q		quit 
+	:Q		quit 
+	ZZ		quit 
+.fi
+.sp
+.SH PRECEDENCE
+Commands specified by
+.I lesskey
+take precedence over the default commands.
+A default command key may be disabled by including it in the
+input file with the action "invalid".
+Alternatively, a key may be defined 
+to do nothing by using the action "noaction".
+"noaction" is similar to "invalid", but 
+.I less
+will give an error beep for an "invalid" command, 
+but not for a "noaction" command.
+In addition, ALL default commands may be disabled by 
+adding this control line to the input file:
+.sp
+#stop
+.sp
+This will cause all default commands to be ignored.
+The #stop line should be the last line in that section of the file.
+.PP
+Be aware that #stop can be dangerous.  
+Since all default commands are disabled, 
+you must provide sufficient commands before the #stop line
+to enable all necessary actions.
+For example, failure to provide a "quit" command can lead to frustration.
+
+.SH "LINE EDITING SECTION"
+The line-editing section begins with the line:
+.sp
+#line-edit
+.sp
+This section specifies new key bindings for the line editing commands,
+in a manner similar to the way key bindings for 
+ordinary commands are specified in the #command section.
+The line-editing section consists of a list of keys and actions,
+one per line as in the example below.
+
+.SH EXAMPLE
+The following input file describes the set of
+default line-editing keys used by less:
+.sp
+.nf
+	#line-edit
+	\et	    	forw-complete
+	\e17		back-complete
+	\ee\et		back-complete
+	^L		expand
+	^V		literal
+	^A		literal
+   	\eel		right
+	\ekr		right
+	\eeh		left
+	\ekl		left
+	\eeb		word-left
+	\ee\ekl	word-left
+	\eew		word-right
+	\ee\ekr	word-right
+	\eei		insert
+	\eex		delete
+	\ekx		delete
+	\eeX		word-delete
+	\eekx		word-delete
+	\ee\eb		word-backspace
+	\ee0		home
+	\ekh		home
+	\ee$		end
+	\eke		end
+	\eek		up
+	\eku		up
+	\eej		down
+	^G		abort
+.fi
+.sp
+
+.SH "LESS ENVIRONMENT VARIABLES"
+The environment variable section begins with the line
+.sp
+#env
+.sp
+Following this line is a list of environment variable assignments.
+Each line consists of an environment variable name, an equals sign (=)
+and the value to be assigned to the environment variable.
+White space before and after the equals sign is ignored.
+Variables assigned in this way are visible only to
+.I less.
+If a variable is specified in the system environment and also in a
+lesskey file, the value in the lesskey file takes precedence.
+Although the lesskey file can be used to override variables set in the
+environment, the main purpose of assigning variables in the lesskey file
+is simply to have all 
+.I less
+configuration information stored in one file.
+
+.SH EXAMPLE
+The following input file sets the -i option whenever 
+.I less
+is run, and specifies the character set to be "latin1":
+.sp
+.nf
+	#env
+	LESS = -i
+	LESSCHARSET = latin1
+.fi
+.sp
+
+.SH "SEE ALSO"
+less(1)
+
+.SH WARNINGS
+On MS-DOS and OS/2 systems, certain keys send a sequence of characters
+which start with a NUL character (0).
+This NUL character should be represented as \e340 in a lesskey file.
+
+.SH COPYRIGHT
+Copyright (C) 1984-2017  Mark Nudelman
+.PP
+less is part of the GNU project and is free software.
+You can redistribute it and/or modify it
+under the terms of either
+(1) the GNU General Public License as published by
+the Free Software Foundation; or (2) the Less License.
+See the file README in the less distribution for more details
+regarding redistribution.
+You should have received a copy of the GNU General Public License
+along with the source for less; see the file COPYING.
+If not, write to the Free Software Foundation, 59 Temple Place,
+Suite 330, Boston, MA  02111-1307, USA.
+You should also have received a copy of the Less License;
+see the file LICENSE.
+.PP
+less is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.
+See the GNU General Public License for more details.
+
+.SH AUTHOR
+.PP
+Mark Nudelman
+.br
+Send bug reports or comments to <bug-less@gnu.org>.

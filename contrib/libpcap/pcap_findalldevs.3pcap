@@ -1,0 +1,214 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_FINDALLDEVS 3PCAP "7 April 2014"
+.SH NAME
+pcap_findalldevs, pcap_freealldevs \- get a list of capture devices, and
+free that list
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.nf
+.ft B
+char errbuf[PCAP_ERRBUF_SIZE];
+.ft
+.LP
+.ft B
+int pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf);
+void pcap_freealldevs(pcap_if_t *alldevs);
+.ft
+.fi
+.SH DESCRIPTION
+.B pcap_findalldevs()
+constructs a list of network devices that can be opened with
+.B pcap_create()
+and
+.B pcap_activate()
+or with
+.BR pcap_open_live() .
+(Note that there may be network devices that cannot be opened by the
+process calling
+.BR pcap_findalldevs() ,
+because, for example, that process does not have sufficient privileges
+to open them for capturing; if so, those devices will not appear on the
+list.)
+If
+.B pcap_findalldevs()
+succeeds, the pointer pointed to by
+.I alldevsp
+is set to point to the first element of the list, or to
+.B NULL
+if no devices were found (this is considered success).
+Each element of the list is of type
+.BR pcap_if_t ,
+and has the following members:
+.RS
+.TP
+.B next
+if not
+.BR NULL ,
+a pointer to the next element in the list;
+.B NULL
+for the last element of the list
+.TP
+.B name
+a pointer to a string giving a name for the device to pass to
+.B pcap_open_live()
+.TP
+.B description
+if not
+.BR NULL ,
+a pointer to a string giving a human-readable description of the device
+.TP
+.B addresses
+a pointer to the first element of a list of network addresses for the
+device,
+or
+.B NULL
+if the device has no addresses
+.TP
+.B flags
+device flags:
+.RS
+.TP
+.B PCAP_IF_LOOPBACK
+set if the device is a loopback interface
+.TP
+.B PCAP_IF_UP
+set if the device is up
+.TP
+.B PCAP_IF_RUNNING
+set if the device is running
+.TP
+.B PCAP_IF_WIRELESS
+set if the device is a wireless interface; this includes IrDA as well as
+radio-based networks such as IEEE 802.15.4 and IEEE 802.11, so it
+doesn't just mean Wi-Fi
+.TP
+.B PCAP_IF_CONNECTION_STATUS
+a bitmask for an indication of whether the adapter is connected or not;
+for wireless interfaces, "connected" means "associated with a network"
+.TP
+The possible values for the connection status bits are:
+.TP
+.B PCAP_IF_CONNECTION_STATUS_UNKNOWN
+it's unknown whether the adapter is connected or not
+.TP
+.B PCAP_IF_CONNECTION_STATUS_CONNECTED
+the adapter is connected
+.TP
+.B PCAP_IF_CONNECTION_STATUS_DISCONNECTED
+the adapter is disconnected
+.TP
+.B PCAP_IF_CONNECTION_STATUS_NOT_APPLICABLE
+the notion of "connected" and "disconnected" don't apply to this
+interface; for example, it doesn't apply to a loopback device
+.RE
+.RE
+.PP
+Each element of the list of addresses is of type
+.BR pcap_addr_t ,
+and has the following members:
+.RS
+.TP
+.B next
+if not
+.BR NULL ,
+a pointer to the next element in the list;
+.B NULL
+for the last element of the list
+.TP
+.B addr
+a pointer to a
+.B "struct sockaddr"
+containing an address
+.TP
+.B netmask
+if not
+.BR NULL ,
+a pointer to a
+.B "struct sockaddr"
+that contains the netmask corresponding to the address pointed to by
+.B addr
+.TP
+.B broadaddr
+if not
+.BR NULL ,
+a pointer to a
+.B "struct sockaddr"
+that contains the broadcast address corresponding to the address pointed
+to by
+.BR addr ;
+may be null if the device doesn't support broadcasts
+.TP
+.B dstaddr
+if not
+.BR NULL ,
+a pointer to a
+.B "struct sockaddr"
+that contains the destination address corresponding to the address pointed
+to by
+.BR addr ;
+may be null if the device isn't a point-to-point interface
+.RE
+.PP
+Note that the addresses in the list of addresses might be IPv4
+addresses, IPv6 addresses, or some other type of addresses, so you must
+check the
+.B sa_family
+member of the
+.B "struct sockaddr"
+before interpreting the contents of the address; do not assume that the
+addresses are all IPv4 addresses, or even all IPv4 or IPv6 addresses.
+IPv4 addresses have the value
+.BR AF_INET ,
+IPv6 addresses have the value
+.B AF_INET6
+(which older operating systems that don't support IPv6 might not
+define), and other addresses have other values.  Whether other addresses
+are returned, and what types they might have is platform-dependent.
+For IPv4 addresses, the
+.B "struct sockaddr"
+pointer can be interpreted as if it pointed to a
+.BR "struct sockaddr_in" ;
+for IPv6 addresses, it can be interpreted as if it pointed to a
+.BR "struct sockaddr_in6".
+.PP
+The list of devices must be freed with
+.BR pcap_freealldevs() ,
+which frees the list pointed to by
+.IR alldevs .
+.SH RETURN VALUE
+.B pcap_findalldevs()
+returns 0 on success and \-1 on failure; as indicated, finding no
+devices is considered success, rather than failure, so 0 will be
+returned in that case.
+If \-1 is returned,
+.I errbuf
+is filled in with an appropriate error message.
+.I errbuf
+is assumed to be able to hold at least
+.B PCAP_ERRBUF_SIZE
+chars.
+.SH SEE ALSO
+pcap(3PCAP), pcap_create(3PCAP), pcap_activate(3PCAP),
+pcap_open_live(3PCAP)

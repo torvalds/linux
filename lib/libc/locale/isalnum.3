@@ -1,0 +1,115 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)isalnum.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd July 17, 2005
+.Dt ISALNUM 3
+.Os
+.Sh NAME
+.Nm isalnum
+.Nd alphanumeric character test
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In ctype.h
+.Ft int
+.Fn isalnum "int c"
+.Ft int
+.Fn isalnum_l "int c" "locale_t loc"
+.Sh DESCRIPTION
+The
+.Fn isalnum
+function tests for any character for which
+.Xr isalpha 3
+or
+.Xr isdigit 3
+is true.
+The value of the argument must be representable as an
+.Vt "unsigned char"
+or the value of
+.Dv EOF .
+.Pp
+In the ASCII character set, this includes the following characters
+(with their numeric values shown in octal):
+.Bl -column \&000_``0''__ \&000_``0''__ \&000_``0''__ \&000_``0''__ \&000_``0''__
+.It "\&060\ ``0''" Ta "061\ ``1''" Ta "062\ ``2''" Ta "063\ ``3''" Ta "064\ ``4''"
+.It "\&065\ ``5''" Ta "066\ ``6''" Ta "067\ ``7''" Ta "070\ ``8''" Ta "071\ ``9''"
+.It "\&101\ ``A''" Ta "102\ ``B''" Ta "103\ ``C''" Ta "104\ ``D''" Ta "105\ ``E''"
+.It "\&106\ ``F''" Ta "107\ ``G''" Ta "110\ ``H''" Ta "111\ ``I''" Ta "112\ ``J''"
+.It "\&113\ ``K''" Ta "114\ ``L''" Ta "115\ ``M''" Ta "116\ ``N''" Ta "117\ ``O''"
+.It "\&120\ ``P''" Ta "121\ ``Q''" Ta "122\ ``R''" Ta "123\ ``S''" Ta "124\ ``T''"
+.It "\&125\ ``U''" Ta "126\ ``V''" Ta "127\ ``W''" Ta "130\ ``X''" Ta "131\ ``Y''"
+.It "\&132\ ``Z''" Ta "141\ ``a''" Ta "142\ ``b''" Ta "143\ ``c''" Ta "144\ ``d''"
+.It "\&145\ ``e''" Ta "146\ ``f''" Ta "147\ ``g''" Ta "150\ ``h''" Ta "151\ ``i''"
+.It "\&152\ ``j''" Ta "153\ ``k''" Ta "154\ ``l''" Ta "155\ ``m''" Ta "156\ ``n''"
+.It "\&157\ ``o''" Ta "160\ ``p''" Ta "161\ ``q''" Ta "162\ ``r''" Ta "163\ ``s''"
+.It "\&164\ ``t''" Ta "165\ ``u''" Ta "166\ ``v''" Ta "167\ ``w''" Ta "170\ ``x''"
+.It "\&171\ ``y''" Ta "172\ ``z''" Ta \& Ta \& Ta \&
+.El
+.Pp
+The
+.Fn isalnum_l
+function takes an explicit locale argument, whereas the
+.Fn isalnum
+function uses the current global or per-thread locale.
+.Sh RETURN VALUES
+The
+.Fn isalnum
+function returns zero if the character tests false and
+returns non-zero if the character tests true.
+.Sh COMPATIBILITY
+The
+.Bx 4.4
+extension of accepting arguments outside of the range of the
+.Vt "unsigned char"
+type in locales with large character sets is considered obsolete
+and may not be supported in future releases.
+The
+.Fn iswalnum
+function should be used instead.
+.Sh SEE ALSO
+.Xr ctype 3 ,
+.Xr isalpha 3 ,
+.Xr isdigit 3 ,
+.Xr iswalnum 3 ,
+.Xr xlocale 3 ,
+.Xr ascii 7
+.Sh STANDARDS
+The
+.Fn isalnum
+function conforms to
+.St -isoC .
+The
+.Fn isalnum_l
+function conforms to
+.St -p1003.1-2008 .

@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<DISKIMAGE>
+  <comment>
+    $FreeBSD$
+    An empty floppy disk
+  </comment>
+  <sectorsize>512</sectorsize>
+  <mediasize>1474560</mediasize>
+  <fwsectors>18</fwsectors>
+  <fwheads>2</fwheads>
+  <fwcylinders>80</fwcylinders>
+</DISKIMAGE>

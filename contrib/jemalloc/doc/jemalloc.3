@@ -1,0 +1,2497 @@
+'\" t
+.\"     Title: JEMALLOC
+.\"    Author: Jason Evans
+.\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
+.\"      Date: 05/08/2018
+.\"    Manual: User Manual
+.\"    Source: jemalloc 5.1.0-0-g61efbda7098de6fe64c362d309824864308c36d4
+.\"  Language: English
+.\"
+.TH "JEMALLOC" "3" "05/08/2018" "jemalloc 5.1.0-0-g61efbda7098d" "User Manual"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+jemalloc \- general purpose memory allocation functions
+.SH "LIBRARY"
+.PP
+This manual describes jemalloc 5\&.1\&.0\-0\-g61efbda7098de6fe64c362d309824864308c36d4\&. More information can be found at the
+\m[blue]\fBjemalloc website\fR\m[]\&\s-2\u[1]\d\s+2\&.
+.PP
+The following configuration options are enabled in libc\*(Aqs built\-in jemalloc:
+\fB\-\-enable\-fill\fR,
+\fB\-\-enable\-lazy\-lock\fR,
+\fB\-\-enable\-stats\fR,
+\fB\-\-enable\-utrace\fR,
+\fB\-\-enable\-xmalloc\fR, and
+\fB\-\-with\-malloc\-conf=abort_conf:false\fR\&. Additionally,
+\fB\-\-enable\-debug\fR
+is enabled in development versions of FreeBSD (controlled by the
+\fBMALLOC_PRODUCTION\fR
+make variable)\&.
+.SH "SYNOPSIS"
+.sp
+.ft B
+.nf
+#include <stdlib\&.h>
+#include <malloc_np\&.h>
+.fi
+.ft
+.SS "Standard API"
+.HP \w'void\ *malloc('u
+.BI "void *malloc(size_t\ " "size" ");"
+.HP \w'void\ *calloc('u
+.BI "void *calloc(size_t\ " "number" ", size_t\ " "size" ");"
+.HP \w'int\ posix_memalign('u
+.BI "int posix_memalign(void\ **" "ptr" ", size_t\ " "alignment" ", size_t\ " "size" ");"
+.HP \w'void\ *aligned_alloc('u
+.BI "void *aligned_alloc(size_t\ " "alignment" ", size_t\ " "size" ");"
+.HP \w'void\ *realloc('u
+.BI "void *realloc(void\ *" "ptr" ", size_t\ " "size" ");"
+.HP \w'void\ free('u
+.BI "void free(void\ *" "ptr" ");"
+.SS "Non\-standard API"
+.HP \w'void\ *mallocx('u
+.BI "void *mallocx(size_t\ " "size" ", int\ " "flags" ");"
+.HP \w'void\ *rallocx('u
+.BI "void *rallocx(void\ *" "ptr" ", size_t\ " "size" ", int\ " "flags" ");"
+.HP \w'size_t\ xallocx('u
+.BI "size_t xallocx(void\ *" "ptr" ", size_t\ " "size" ", size_t\ " "extra" ", int\ " "flags" ");"
+.HP \w'size_t\ sallocx('u
+.BI "size_t sallocx(void\ *" "ptr" ", int\ " "flags" ");"
+.HP \w'void\ dallocx('u
+.BI "void dallocx(void\ *" "ptr" ", int\ " "flags" ");"
+.HP \w'void\ sdallocx('u
+.BI "void sdallocx(void\ *" "ptr" ", size_t\ " "size" ", int\ " "flags" ");"
+.HP \w'size_t\ nallocx('u
+.BI "size_t nallocx(size_t\ " "size" ", int\ " "flags" ");"
+.HP \w'int\ mallctl('u
+.BI "int mallctl(const\ char\ *" "name" ", void\ *" "oldp" ", size_t\ *" "oldlenp" ", void\ *" "newp" ", size_t\ " "newlen" ");"
+.HP \w'int\ mallctlnametomib('u
+.BI "int mallctlnametomib(const\ char\ *" "name" ", size_t\ *" "mibp" ", size_t\ *" "miblenp" ");"
+.HP \w'int\ mallctlbymib('u
+.BI "int mallctlbymib(const\ size_t\ *" "mib" ", size_t\ " "miblen" ", void\ *" "oldp" ", size_t\ *" "oldlenp" ", void\ *" "newp" ", size_t\ " "newlen" ");"
+.HP \w'void\ malloc_stats_print('u
+.BI "void malloc_stats_print(void\ " "(*write_cb)" "\ (void\ *,\ const\ char\ *), void\ *" "cbopaque" ", const\ char\ *" "opts" ");"
+.HP \w'size_t\ malloc_usable_size('u
+.BI "size_t malloc_usable_size(const\ void\ *" "ptr" ");"
+.HP \w'void\ (*malloc_message)('u
+.BI "void (*malloc_message)(void\ *" "cbopaque" ", const\ char\ *" "s" ");"
+.PP
+const char *\fImalloc_conf\fR;
+.SH "DESCRIPTION"
+.SS "Standard API"
+.PP
+The
+malloc()
+function allocates
+\fIsize\fR
+bytes of uninitialized memory\&. The allocated space is suitably aligned (after possible pointer coercion) for storage of any type of object\&.
+.PP
+The
+calloc()
+function allocates space for
+\fInumber\fR
+objects, each
+\fIsize\fR
+bytes in length\&. The result is identical to calling
+malloc()
+with an argument of
+\fInumber\fR
+*
+\fIsize\fR, with the exception that the allocated memory is explicitly initialized to zero bytes\&.
+.PP
+The
+posix_memalign()
+function allocates
+\fIsize\fR
+bytes of memory such that the allocation\*(Aqs base address is a multiple of
+\fIalignment\fR, and returns the allocation in the value pointed to by
+\fIptr\fR\&. The requested
+\fIalignment\fR
+must be a power of 2 at least as large as
+sizeof(\fBvoid *\fR)\&.
+.PP
+The
+aligned_alloc()
+function allocates
+\fIsize\fR
+bytes of memory such that the allocation\*(Aqs base address is a multiple of
+\fIalignment\fR\&. The requested
+\fIalignment\fR
+must be a power of 2\&. Behavior is undefined if
+\fIsize\fR
+is not an integral multiple of
+\fIalignment\fR\&.
+.PP
+The
+realloc()
+function changes the size of the previously allocated memory referenced by
+\fIptr\fR
+to
+\fIsize\fR
+bytes\&. The contents of the memory are unchanged up to the lesser of the new and old sizes\&. If the new size is larger, the contents of the newly allocated portion of the memory are undefined\&. Upon success, the memory referenced by
+\fIptr\fR
+is freed and a pointer to the newly allocated memory is returned\&. Note that
+realloc()
+may move the memory allocation, resulting in a different return value than
+\fIptr\fR\&. If
+\fIptr\fR
+is
+\fBNULL\fR, the
+realloc()
+function behaves identically to
+malloc()
+for the specified size\&.
+.PP
+The
+free()
+function causes the allocated memory referenced by
+\fIptr\fR
+to be made available for future allocations\&. If
+\fIptr\fR
+is
+\fBNULL\fR, no action occurs\&.
+.SS "Non\-standard API"
+.PP
+The
+mallocx(),
+rallocx(),
+xallocx(),
+sallocx(),
+dallocx(),
+sdallocx(), and
+nallocx()
+functions all have a
+\fIflags\fR
+argument that can be used to specify options\&. The functions only check the options that are contextually relevant\&. Use bitwise or (|) operations to specify one or more of the following:
+.PP
+\fBMALLOCX_LG_ALIGN(\fR\fB\fIla\fR\fR\fB) \fR
+.RS 4
+Align the memory allocation to start at an address that is a multiple of
+(1 << \fIla\fR)\&. This macro does not validate that
+\fIla\fR
+is within the valid range\&.
+.RE
+.PP
+\fBMALLOCX_ALIGN(\fR\fB\fIa\fR\fR\fB) \fR
+.RS 4
+Align the memory allocation to start at an address that is a multiple of
+\fIa\fR, where
+\fIa\fR
+is a power of two\&. This macro does not validate that
+\fIa\fR
+is a power of 2\&.
+.RE
+.PP
+\fBMALLOCX_ZERO\fR
+.RS 4
+Initialize newly allocated memory to contain zero bytes\&. In the growing reallocation case, the real size prior to reallocation defines the boundary between untouched bytes and those that are initialized to contain zero bytes\&. If this macro is absent, newly allocated memory is uninitialized\&.
+.RE
+.PP
+\fBMALLOCX_TCACHE(\fR\fB\fItc\fR\fR\fB) \fR
+.RS 4
+Use the thread\-specific cache (tcache) specified by the identifier
+\fItc\fR, which must have been acquired via the
+tcache\&.create
+mallctl\&. This macro does not validate that
+\fItc\fR
+specifies a valid identifier\&.
+.RE
+.PP
+\fBMALLOCX_TCACHE_NONE\fR
+.RS 4
+Do not use a thread\-specific cache (tcache)\&. Unless
+\fBMALLOCX_TCACHE(\fR\fB\fItc\fR\fR\fB)\fR
+or
+\fBMALLOCX_TCACHE_NONE\fR
+is specified, an automatically managed tcache will be used under many circumstances\&. This macro cannot be used in the same
+\fIflags\fR
+argument as
+\fBMALLOCX_TCACHE(\fR\fB\fItc\fR\fR\fB)\fR\&.
+.RE
+.PP
+\fBMALLOCX_ARENA(\fR\fB\fIa\fR\fR\fB) \fR
+.RS 4
+Use the arena specified by the index
+\fIa\fR\&. This macro has no effect for regions that were allocated via an arena other than the one specified\&. This macro does not validate that
+\fIa\fR
+specifies an arena index in the valid range\&.
+.RE
+.PP
+The
+mallocx()
+function allocates at least
+\fIsize\fR
+bytes of memory, and returns a pointer to the base address of the allocation\&. Behavior is undefined if
+\fIsize\fR
+is
+\fB0\fR\&.
+.PP
+The
+rallocx()
+function resizes the allocation at
+\fIptr\fR
+to be at least
+\fIsize\fR
+bytes, and returns a pointer to the base address of the resulting allocation, which may or may not have moved from its original location\&. Behavior is undefined if
+\fIsize\fR
+is
+\fB0\fR\&.
+.PP
+The
+xallocx()
+function resizes the allocation at
+\fIptr\fR
+in place to be at least
+\fIsize\fR
+bytes, and returns the real size of the allocation\&. If
+\fIextra\fR
+is non\-zero, an attempt is made to resize the allocation to be at least
+(\fIsize\fR + \fIextra\fR)
+bytes, though inability to allocate the extra byte(s) will not by itself result in failure to resize\&. Behavior is undefined if
+\fIsize\fR
+is
+\fB0\fR, or if
+(\fIsize\fR + \fIextra\fR > \fBSIZE_T_MAX\fR)\&.
+.PP
+The
+sallocx()
+function returns the real size of the allocation at
+\fIptr\fR\&.
+.PP
+The
+dallocx()
+function causes the memory referenced by
+\fIptr\fR
+to be made available for future allocations\&.
+.PP
+The
+sdallocx()
+function is an extension of
+dallocx()
+with a
+\fIsize\fR
+parameter to allow the caller to pass in the allocation size as an optimization\&. The minimum valid input size is the original requested size of the allocation, and the maximum valid input size is the corresponding value returned by
+nallocx()
+or
+sallocx()\&.
+.PP
+The
+nallocx()
+function allocates no memory, but it performs the same size computation as the
+mallocx()
+function, and returns the real size of the allocation that would result from the equivalent
+mallocx()
+function call, or
+\fB0\fR
+if the inputs exceed the maximum supported size class and/or alignment\&. Behavior is undefined if
+\fIsize\fR
+is
+\fB0\fR\&.
+.PP
+The
+mallctl()
+function provides a general interface for introspecting the memory allocator, as well as setting modifiable parameters and triggering actions\&. The period\-separated
+\fIname\fR
+argument specifies a location in a tree\-structured namespace; see the
+MALLCTL NAMESPACE
+section for documentation on the tree contents\&. To read a value, pass a pointer via
+\fIoldp\fR
+to adequate space to contain the value, and a pointer to its length via
+\fIoldlenp\fR; otherwise pass
+\fBNULL\fR
+and
+\fBNULL\fR\&. Similarly, to write a value, pass a pointer to the value via
+\fInewp\fR, and its length via
+\fInewlen\fR; otherwise pass
+\fBNULL\fR
+and
+\fB0\fR\&.
+.PP
+The
+mallctlnametomib()
+function provides a way to avoid repeated name lookups for applications that repeatedly query the same portion of the namespace, by translating a name to a
+\(lqManagement Information Base\(rq
+(MIB) that can be passed repeatedly to
+mallctlbymib()\&. Upon successful return from
+mallctlnametomib(),
+\fImibp\fR
+contains an array of
+\fI*miblenp\fR
+integers, where
+\fI*miblenp\fR
+is the lesser of the number of components in
+\fIname\fR
+and the input value of
+\fI*miblenp\fR\&. Thus it is possible to pass a
+\fI*miblenp\fR
+that is smaller than the number of period\-separated name components, which results in a partial MIB that can be used as the basis for constructing a complete MIB\&. For name components that are integers (e\&.g\&. the 2 in
+arenas\&.bin\&.2\&.size), the corresponding MIB component will always be that integer\&. Therefore, it is legitimate to construct code like the following:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+unsigned nbins, i;
+size_t mib[4];
+size_t len, miblen;
+
+len = sizeof(nbins);
+mallctl("arenas\&.nbins", &nbins, &len, NULL, 0);
+
+miblen = 4;
+mallctlnametomib("arenas\&.bin\&.0\&.size", mib, &miblen);
+for (i = 0; i < nbins; i++) {
+	size_t bin_size;
+
+	mib[2] = i;
+	len = sizeof(bin_size);
+	mallctlbymib(mib, miblen, (void *)&bin_size, &len, NULL, 0);
+	/* Do something with bin_size\&.\&.\&. */
+}
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+.RS 4
+.RE
+.PP
+The
+malloc_stats_print()
+function writes summary statistics via the
+\fIwrite_cb\fR
+callback function pointer and
+\fIcbopaque\fR
+data passed to
+\fIwrite_cb\fR, or
+malloc_message()
+if
+\fIwrite_cb\fR
+is
+\fBNULL\fR\&. The statistics are presented in human\-readable form unless
+\(lqJ\(rq
+is specified as a character within the
+\fIopts\fR
+string, in which case the statistics are presented in
+\m[blue]\fBJSON format\fR\m[]\&\s-2\u[2]\d\s+2\&. This function can be called repeatedly\&. General information that never changes during execution can be omitted by specifying
+\(lqg\(rq
+as a character within the
+\fIopts\fR
+string\&. Note that
+malloc_message()
+uses the
+mallctl*()
+functions internally, so inconsistent statistics can be reported if multiple threads use these functions simultaneously\&. If
+\fB\-\-enable\-stats\fR
+is specified during configuration,
+\(lqm\(rq,
+\(lqd\(rq, and
+\(lqa\(rq
+can be specified to omit merged arena, destroyed merged arena, and per arena statistics, respectively;
+\(lqb\(rq
+and
+\(lql\(rq
+can be specified to omit per size class statistics for bins and large objects, respectively;
+\(lqx\(rq
+can be specified to omit all mutex statistics\&. Unrecognized characters are silently ignored\&. Note that thread caching may prevent some statistics from being completely up to date, since extra locking would be required to merge counters that track thread cache operations\&.
+.PP
+The
+malloc_usable_size()
+function returns the usable size of the allocation pointed to by
+\fIptr\fR\&. The return value may be larger than the size that was requested during allocation\&. The
+malloc_usable_size()
+function is not a mechanism for in\-place
+realloc(); rather it is provided solely as a tool for introspection purposes\&. Any discrepancy between the requested allocation size and the size reported by
+malloc_usable_size()
+should not be depended on, since such behavior is entirely implementation\-dependent\&.
+.SH "TUNING"
+.PP
+Once, when the first call is made to one of the memory allocation routines, the allocator initializes its internals based in part on various options that can be specified at compile\- or run\-time\&.
+.PP
+The string specified via
+\fB\-\-with\-malloc\-conf\fR, the string pointed to by the global variable
+\fImalloc_conf\fR, the
+\(lqname\(rq
+of the file referenced by the symbolic link named
+/etc/malloc\&.conf, and the value of the environment variable
+\fBMALLOC_CONF\fR, will be interpreted, in that order, from left to right as options\&. Note that
+\fImalloc_conf\fR
+may be read before
+main()
+is entered, so the declaration of
+\fImalloc_conf\fR
+should specify an initializer that contains the final value to be read by jemalloc\&.
+\fB\-\-with\-malloc\-conf\fR
+and
+\fImalloc_conf\fR
+are compile\-time mechanisms, whereas
+/etc/malloc\&.conf
+and
+\fBMALLOC_CONF\fR
+can be safely set any time prior to program invocation\&.
+.PP
+An options string is a comma\-separated list of option:value pairs\&. There is one key corresponding to each
+opt\&.*
+mallctl (see the
+MALLCTL NAMESPACE
+section for options documentation)\&. For example,
+abort:true,narenas:1
+sets the
+opt\&.abort
+and
+opt\&.narenas
+options\&. Some options have boolean values (true/false), others have integer values (base 8, 10, or 16, depending on prefix), and yet others have raw string values\&.
+.SH "IMPLEMENTATION NOTES"
+.PP
+Traditionally, allocators have used
+\fBsbrk\fR(2)
+to obtain memory, which is suboptimal for several reasons, including race conditions, increased fragmentation, and artificial limitations on maximum usable memory\&. If
+\fBsbrk\fR(2)
+is supported by the operating system, this allocator uses both
+\fBmmap\fR(2)
+and
+\fBsbrk\fR(2), in that order of preference; otherwise only
+\fBmmap\fR(2)
+is used\&.
+.PP
+This allocator uses multiple arenas in order to reduce lock contention for threaded programs on multi\-processor systems\&. This works well with regard to threading scalability, but incurs some costs\&. There is a small fixed per\-arena overhead, and additionally, arenas manage memory completely independently of each other, which means a small fixed increase in overall memory fragmentation\&. These overheads are not generally an issue, given the number of arenas normally used\&. Note that using substantially more arenas than the default is not likely to improve performance, mainly due to reduced cache performance\&. However, it may make sense to reduce the number of arenas if an application does not make much use of the allocation functions\&.
+.PP
+In addition to multiple arenas, this allocator supports thread\-specific caching, in order to make it possible to completely avoid synchronization for most allocation requests\&. Such caching allows very fast allocation in the common case, but it increases memory usage and fragmentation, since a bounded number of objects can remain allocated in each thread cache\&.
+.PP
+Memory is conceptually broken into extents\&. Extents are always aligned to multiples of the page size\&. This alignment makes it possible to find metadata for user objects quickly\&. User objects are broken into two categories according to size: small and large\&. Contiguous small objects comprise a slab, which resides within a single extent, whereas large objects each have their own extents backing them\&.
+.PP
+Small objects are managed in groups by slabs\&. Each slab maintains a bitmap to track which regions are in use\&. Allocation requests that are no more than half the quantum (8 or 16, depending on architecture) are rounded up to the nearest power of two that is at least
+sizeof(\fBdouble\fR)\&. All other object size classes are multiples of the quantum, spaced such that there are four size classes for each doubling in size, which limits internal fragmentation to approximately 20% for all but the smallest size classes\&. Small size classes are smaller than four times the page size, and large size classes extend from four times the page size up to the largest size class that does not exceed
+\fBPTRDIFF_MAX\fR\&.
+.PP
+Allocations are packed tightly together, which can be an issue for multi\-threaded applications\&. If you need to assure that allocations do not suffer from cacheline sharing, round your allocation requests up to the nearest multiple of the cacheline size, or specify cacheline alignment when allocating\&.
+.PP
+The
+realloc(),
+rallocx(), and
+xallocx()
+functions may resize allocations without moving them under limited circumstances\&. Unlike the
+*allocx()
+API, the standard API does not officially round up the usable size of an allocation to the nearest size class, so technically it is necessary to call
+realloc()
+to grow e\&.g\&. a 9\-byte allocation to 16 bytes, or shrink a 16\-byte allocation to 9 bytes\&. Growth and shrinkage trivially succeeds in place as long as the pre\-size and post\-size both round up to the same size class\&. No other API guarantees are made regarding in\-place resizing, but the current implementation also tries to resize large allocations in place, as long as the pre\-size and post\-size are both large\&. For shrinkage to succeed, the extent allocator must support splitting (see
+arena\&.<i>\&.extent_hooks)\&. Growth only succeeds if the trailing memory is currently available, and the extent allocator supports merging\&.
+.PP
+Assuming 4 KiB pages and a 16\-byte quantum on a 64\-bit system, the size classes in each category are as shown in
+Table 1\&.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B Table\ \&1.\ \&Size classes
+.TS
+allbox tab(:);
+lB rB lB.
+T{
+Category
+T}:T{
+Spacing
+T}:T{
+Size
+T}
+.T&
+l r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l
+l r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l
+^ r l.
+T{
+Small
+T}:T{
+lg
+T}:T{
+[8]
+T}
+:T{
+16
+T}:T{
+[16, 32, 48, 64, 80, 96, 112, 128]
+T}
+:T{
+32
+T}:T{
+[160, 192, 224, 256]
+T}
+:T{
+64
+T}:T{
+[320, 384, 448, 512]
+T}
+:T{
+128
+T}:T{
+[640, 768, 896, 1024]
+T}
+:T{
+256
+T}:T{
+[1280, 1536, 1792, 2048]
+T}
+:T{
+512
+T}:T{
+[2560, 3072, 3584, 4096]
+T}
+:T{
+1 KiB
+T}:T{
+[5 KiB, 6 KiB, 7 KiB, 8 KiB]
+T}
+:T{
+2 KiB
+T}:T{
+[10 KiB, 12 KiB, 14 KiB]
+T}
+T{
+Large
+T}:T{
+2 KiB
+T}:T{
+[16 KiB]
+T}
+:T{
+4 KiB
+T}:T{
+[20 KiB, 24 KiB, 28 KiB, 32 KiB]
+T}
+:T{
+8 KiB
+T}:T{
+[40 KiB, 48 KiB, 54 KiB, 64 KiB]
+T}
+:T{
+16 KiB
+T}:T{
+[80 KiB, 96 KiB, 112 KiB, 128 KiB]
+T}
+:T{
+32 KiB
+T}:T{
+[160 KiB, 192 KiB, 224 KiB, 256 KiB]
+T}
+:T{
+64 KiB
+T}:T{
+[320 KiB, 384 KiB, 448 KiB, 512 KiB]
+T}
+:T{
+128 KiB
+T}:T{
+[640 KiB, 768 KiB, 896 KiB, 1 MiB]
+T}
+:T{
+256 KiB
+T}:T{
+[1280 KiB, 1536 KiB, 1792 KiB, 2 MiB]
+T}
+:T{
+512 KiB
+T}:T{
+[2560 KiB, 3 MiB, 3584 KiB, 4 MiB]
+T}
+:T{
+1 MiB
+T}:T{
+[5 MiB, 6 MiB, 7 MiB, 8 MiB]
+T}
+:T{
+2 MiB
+T}:T{
+[10 MiB, 12 MiB, 14 MiB, 16 MiB]
+T}
+:T{
+4 MiB
+T}:T{
+[20 MiB, 24 MiB, 28 MiB, 32 MiB]
+T}
+:T{
+8 MiB
+T}:T{
+[40 MiB, 48 MiB, 56 MiB, 64 MiB]
+T}
+:T{
+\&.\&.\&.
+T}:T{
+\&.\&.\&.
+T}
+:T{
+512 PiB
+T}:T{
+[2560 PiB, 3 EiB, 3584 PiB, 4 EiB]
+T}
+:T{
+1 EiB
+T}:T{
+[5 EiB, 6 EiB, 7 EiB]
+T}
+.TE
+.sp 1
+.SH "MALLCTL NAMESPACE"
+.PP
+The following names are defined in the namespace accessible via the
+mallctl*()
+functions\&. Value types are specified in parentheses, their readable/writable statuses are encoded as
+rw,
+r\-,
+\-w, or
+\-\-, and required build configuration flags follow, if any\&. A name element encoded as
+<i>
+or
+<j>
+indicates an integer component, where the integer varies from 0 to some upper value that must be determined via introspection\&. In the case of
+stats\&.arenas\&.<i>\&.*
+and
+arena\&.<i>\&.{initialized,purge,decay,dss},
+<i>
+equal to
+\fBMALLCTL_ARENAS_ALL\fR
+can be used to operate on all arenas or access the summation of statistics from all arenas; similarly
+<i>
+equal to
+\fBMALLCTL_ARENAS_DESTROYED\fR
+can be used to access the summation of statistics from all destroyed arenas\&. These constants can be utilized either via
+mallctlnametomib()
+followed by
+mallctlbymib(), or via code such as the following:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#define STRINGIFY_HELPER(x) #x
+#define STRINGIFY(x) STRINGIFY_HELPER(x)
+
+mallctl("arena\&." STRINGIFY(MALLCTL_ARENAS_ALL) "\&.decay",
+    NULL, NULL, NULL, 0);
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Take special note of the
+epoch
+mallctl, which controls refreshing of cached dynamic statistics\&.
+.PP
+version (\fBconst char *\fR) r\-
+.RS 4
+Return the jemalloc version string\&.
+.RE
+.PP
+epoch (\fBuint64_t\fR) rw
+.RS 4
+If a value is passed in, refresh the data from which the
+mallctl*()
+functions report values, and increment the epoch\&. Return the current epoch\&. This is useful for detecting whether another thread caused a refresh\&.
+.RE
+.PP
+background_thread (\fBbool\fR) rw
+.RS 4
+Enable/disable internal background worker threads\&. When set to true, background threads are created on demand (the number of background threads will be no more than the number of CPUs or active arenas)\&. Threads run periodically, and handle
+purging
+asynchronously\&. When switching off, background threads are terminated synchronously\&. Note that after
+\fBfork\fR(2)
+function, the state in the child process will be disabled regardless the state in parent process\&. See
+stats\&.background_thread
+for related stats\&.
+opt\&.background_thread
+can be used to set the default option\&. This option is only available on selected pthread\-based platforms\&.
+.RE
+.PP
+max_background_threads (\fBsize_t\fR) rw
+.RS 4
+Maximum number of background worker threads that will be created\&. This value is capped at
+opt\&.max_background_threads
+at startup\&.
+.RE
+.PP
+config\&.cache_oblivious (\fBbool\fR) r\-
+.RS 4
+\fB\-\-enable\-cache\-oblivious\fR
+was specified during build configuration\&.
+.RE
+.PP
+config\&.debug (\fBbool\fR) r\-
+.RS 4
+\fB\-\-enable\-debug\fR
+was specified during build configuration\&.
+.RE
+.PP
+config\&.fill (\fBbool\fR) r\-
+.RS 4
+\fB\-\-enable\-fill\fR
+was specified during build configuration\&.
+.RE
+.PP
+config\&.lazy_lock (\fBbool\fR) r\-
+.RS 4
+\fB\-\-enable\-lazy\-lock\fR
+was specified during build configuration\&.
+.RE
+.PP
+config\&.malloc_conf (\fBconst char *\fR) r\-
+.RS 4
+Embedded configure\-time\-specified run\-time options string, empty unless
+\fB\-\-with\-malloc\-conf\fR
+was specified during build configuration\&.
+.RE
+.PP
+config\&.prof (\fBbool\fR) r\-
+.RS 4
+\fB\-\-enable\-prof\fR
+was specified during build configuration\&.
+.RE
+.PP
+config\&.prof_libgcc (\fBbool\fR) r\-
+.RS 4
+\fB\-\-disable\-prof\-libgcc\fR
+was not specified during build configuration\&.
+.RE
+.PP
+config\&.prof_libunwind (\fBbool\fR) r\-
+.RS 4
+\fB\-\-enable\-prof\-libunwind\fR
+was specified during build configuration\&.
+.RE
+.PP
+config\&.stats (\fBbool\fR) r\-
+.RS 4
+\fB\-\-enable\-stats\fR
+was specified during build configuration\&.
+.RE
+.PP
+config\&.utrace (\fBbool\fR) r\-
+.RS 4
+\fB\-\-enable\-utrace\fR
+was specified during build configuration\&.
+.RE
+.PP
+config\&.xmalloc (\fBbool\fR) r\-
+.RS 4
+\fB\-\-enable\-xmalloc\fR
+was specified during build configuration\&.
+.RE
+.PP
+opt\&.abort (\fBbool\fR) r\-
+.RS 4
+Abort\-on\-warning enabled/disabled\&. If true, most warnings are fatal\&. Note that runtime option warnings are not included (see
+opt\&.abort_conf
+for that)\&. The process will call
+\fBabort\fR(3)
+in these cases\&. This option is disabled by default unless
+\fB\-\-enable\-debug\fR
+is specified during configuration, in which case it is enabled by default\&.
+.RE
+.PP
+opt\&.abort_conf (\fBbool\fR) r\-
+.RS 4
+Abort\-on\-invalid\-configuration enabled/disabled\&. If true, invalid runtime options are fatal\&. The process will call
+\fBabort\fR(3)
+in these cases\&. This option is disabled by default unless
+\fB\-\-enable\-debug\fR
+is specified during configuration, in which case it is enabled by default\&.
+.RE
+.PP
+opt\&.metadata_thp (\fBconst char *\fR) r\-
+.RS 4
+Controls whether to allow jemalloc to use transparent huge page (THP) for internal metadata (see
+stats\&.metadata)\&.
+\(lqalways\(rq
+allows such usage\&.
+\(lqauto\(rq
+uses no THP initially, but may begin to do so when metadata usage reaches certain level\&. The default is
+\(lqdisabled\(rq\&.
+.RE
+.PP
+opt\&.retain (\fBbool\fR) r\-
+.RS 4
+If true, retain unused virtual memory for later reuse rather than discarding it by calling
+\fBmunmap\fR(2)
+or equivalent (see
+stats\&.retained
+for related details)\&. This option is disabled by default unless discarding virtual memory is known to trigger platform\-specific performance problems, e\&.g\&. for [64\-bit] Linux, which has a quirk in its virtual memory allocation algorithm that causes semi\-permanent VM map holes under normal jemalloc operation\&. Although
+\fBmunmap\fR(2)
+causes issues on 32\-bit Linux as well, retaining virtual memory for 32\-bit Linux is disabled by default due to the practical possibility of address space exhaustion\&.
+.RE
+.PP
+opt\&.dss (\fBconst char *\fR) r\-
+.RS 4
+dss (\fBsbrk\fR(2)) allocation precedence as related to
+\fBmmap\fR(2)
+allocation\&. The following settings are supported if
+\fBsbrk\fR(2)
+is supported by the operating system:
+\(lqdisabled\(rq,
+\(lqprimary\(rq, and
+\(lqsecondary\(rq; otherwise only
+\(lqdisabled\(rq
+is supported\&. The default is
+\(lqsecondary\(rq
+if
+\fBsbrk\fR(2)
+is supported by the operating system;
+\(lqdisabled\(rq
+otherwise\&.
+.RE
+.PP
+opt\&.narenas (\fBunsigned\fR) r\-
+.RS 4
+Maximum number of arenas to use for automatic multiplexing of threads and arenas\&. The default is four times the number of CPUs, or one if there is a single CPU\&.
+.RE
+.PP
+opt\&.percpu_arena (\fBconst char *\fR) r\-
+.RS 4
+Per CPU arena mode\&. Use the
+\(lqpercpu\(rq
+setting to enable this feature, which uses number of CPUs to determine number of arenas, and bind threads to arenas dynamically based on the CPU the thread runs on currently\&.
+\(lqphycpu\(rq
+setting uses one arena per physical CPU, which means the two hyper threads on the same CPU share one arena\&. Note that no runtime checking regarding the availability of hyper threading is done at the moment\&. When set to
+\(lqdisabled\(rq, narenas and thread to arena association will not be impacted by this option\&. The default is
+\(lqdisabled\(rq\&.
+.RE
+.PP
+opt\&.background_thread (\fBconst bool\fR) r\-
+.RS 4
+Internal background worker threads enabled/disabled\&. Because of potential circular dependencies, enabling background thread using this option may cause crash or deadlock during initialization\&. For a reliable way to use this feature, see
+background_thread
+for dynamic control options and details\&. This option is disabled by default\&.
+.RE
+.PP
+opt\&.max_background_threads (\fBconst size_t\fR) r\-
+.RS 4
+Maximum number of background threads that will be created if
+background_thread
+is set\&. Defaults to number of cpus\&.
+.RE
+.PP
+opt\&.dirty_decay_ms (\fBssize_t\fR) r\-
+.RS 4
+Approximate time in milliseconds from the creation of a set of unused dirty pages until an equivalent set of unused dirty pages is purged (i\&.e\&. converted to muzzy via e\&.g\&.
+madvise(\fI\&.\&.\&.\fR\fI\fBMADV_FREE\fR\fR)
+if supported by the operating system, or converted to clean otherwise) and/or reused\&. Dirty pages are defined as previously having been potentially written to by the application, and therefore consuming physical memory, yet having no current use\&. The pages are incrementally purged according to a sigmoidal decay curve that starts and ends with zero purge rate\&. A decay time of 0 causes all unused dirty pages to be purged immediately upon creation\&. A decay time of \-1 disables purging\&. The default decay time is 10 seconds\&. See
+arenas\&.dirty_decay_ms
+and
+arena\&.<i>\&.dirty_decay_ms
+for related dynamic control options\&. See
+opt\&.muzzy_decay_ms
+for a description of muzzy pages\&.
+.RE
+.PP
+opt\&.muzzy_decay_ms (\fBssize_t\fR) r\-
+.RS 4
+Approximate time in milliseconds from the creation of a set of unused muzzy pages until an equivalent set of unused muzzy pages is purged (i\&.e\&. converted to clean) and/or reused\&. Muzzy pages are defined as previously having been unused dirty pages that were subsequently purged in a manner that left them subject to the reclamation whims of the operating system (e\&.g\&.
+madvise(\fI\&.\&.\&.\fR\fI\fBMADV_FREE\fR\fR)), and therefore in an indeterminate state\&. The pages are incrementally purged according to a sigmoidal decay curve that starts and ends with zero purge rate\&. A decay time of 0 causes all unused muzzy pages to be purged immediately upon creation\&. A decay time of \-1 disables purging\&. The default decay time is 10 seconds\&. See
+arenas\&.muzzy_decay_ms
+and
+arena\&.<i>\&.muzzy_decay_ms
+for related dynamic control options\&.
+.RE
+.PP
+opt\&.lg_extent_max_active_fit (\fBsize_t\fR) r\-
+.RS 4
+When reusing dirty extents, this determines the (log base 2 of the) maximum ratio between the size of the active extent selected (to split off from) and the size of the requested allocation\&. This prevents the splitting of large active extents for smaller allocations, which can reduce fragmentation over the long run (especially for non\-active extents)\&. Lower value may reduce fragmentation, at the cost of extra active extents\&. The default value is 6, which gives a maximum ratio of 64 (2^6)\&.
+.RE
+.PP
+opt\&.stats_print (\fBbool\fR) r\-
+.RS 4
+Enable/disable statistics printing at exit\&. If enabled, the
+malloc_stats_print()
+function is called at program exit via an
+\fBatexit\fR(3)
+function\&.
+opt\&.stats_print_opts
+can be combined to specify output options\&. If
+\fB\-\-enable\-stats\fR
+is specified during configuration, this has the potential to cause deadlock for a multi\-threaded process that exits while one or more threads are executing in the memory allocation functions\&. Furthermore,
+atexit()
+may allocate memory during application initialization and then deadlock internally when jemalloc in turn calls
+atexit(), so this option is not universally usable (though the application can register its own
+atexit()
+function with equivalent functionality)\&. Therefore, this option should only be used with care; it is primarily intended as a performance tuning aid during application development\&. This option is disabled by default\&.
+.RE
+.PP
+opt\&.stats_print_opts (\fBconst char *\fR) r\-
+.RS 4
+Options (the
+\fIopts\fR
+string) to pass to the
+malloc_stats_print()
+at exit (enabled through
+opt\&.stats_print)\&. See available options in
+malloc_stats_print()\&. Has no effect unless
+opt\&.stats_print
+is enabled\&. The default is
+\(lq\(rq\&.
+.RE
+.PP
+opt\&.junk (\fBconst char *\fR) r\- [\fB\-\-enable\-fill\fR]
+.RS 4
+Junk filling\&. If set to
+\(lqalloc\(rq, each byte of uninitialized allocated memory will be initialized to
+0xa5\&. If set to
+\(lqfree\(rq, all deallocated memory will be initialized to
+0x5a\&. If set to
+\(lqtrue\(rq, both allocated and deallocated memory will be initialized, and if set to
+\(lqfalse\(rq, junk filling be disabled entirely\&. This is intended for debugging and will impact performance negatively\&. This option is
+\(lqfalse\(rq
+by default unless
+\fB\-\-enable\-debug\fR
+is specified during configuration, in which case it is
+\(lqtrue\(rq
+by default\&.
+.RE
+.PP
+opt\&.zero (\fBbool\fR) r\- [\fB\-\-enable\-fill\fR]
+.RS 4
+Zero filling enabled/disabled\&. If enabled, each byte of uninitialized allocated memory will be initialized to 0\&. Note that this initialization only happens once for each byte, so
+realloc()
+and
+rallocx()
+calls do not zero memory that was previously allocated\&. This is intended for debugging and will impact performance negatively\&. This option is disabled by default\&.
+.RE
+.PP
+opt\&.utrace (\fBbool\fR) r\- [\fB\-\-enable\-utrace\fR]
+.RS 4
+Allocation tracing based on
+\fButrace\fR(2)
+enabled/disabled\&. This option is disabled by default\&.
+.RE
+.PP
+opt\&.xmalloc (\fBbool\fR) r\- [\fB\-\-enable\-xmalloc\fR]
+.RS 4
+Abort\-on\-out\-of\-memory enabled/disabled\&. If enabled, rather than returning failure for any allocation function, display a diagnostic message on
+\fBSTDERR_FILENO\fR
+and cause the program to drop core (using
+\fBabort\fR(3))\&. If an application is designed to depend on this behavior, set the option at compile time by including the following in the source code:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+malloc_conf = "xmalloc:true";
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This option is disabled by default\&.
+.RE
+.PP
+opt\&.tcache (\fBbool\fR) r\-
+.RS 4
+Thread\-specific caching (tcache) enabled/disabled\&. When there are multiple threads, each thread uses a tcache for objects up to a certain size\&. Thread\-specific caching allows many allocations to be satisfied without performing any thread synchronization, at the cost of increased memory use\&. See the
+opt\&.lg_tcache_max
+option for related tuning information\&. This option is enabled by default\&.
+.RE
+.PP
+opt\&.lg_tcache_max (\fBsize_t\fR) r\-
+.RS 4
+Maximum size class (log base 2) to cache in the thread\-specific cache (tcache)\&. At a minimum, all small size classes are cached, and at a maximum all large size classes are cached\&. The default maximum is 32 KiB (2^15)\&.
+.RE
+.PP
+opt\&.thp (\fBconst char *\fR) r\-
+.RS 4
+Transparent hugepage (THP) mode\&. Settings "always", "never" and "default" are available if THP is supported by the operating system\&. The "always" setting enables transparent hugepage for all user memory mappings with
+\fI\fBMADV_HUGEPAGE\fR\fR; "never" ensures no transparent hugepage with
+\fI\fBMADV_NOHUGEPAGE\fR\fR; the default setting "default" makes no changes\&. Note that: this option does not affect THP for jemalloc internal metadata (see
+opt\&.metadata_thp); in addition, for arenas with customized
+extent_hooks, this option is bypassed as it is implemented as part of the default extent hooks\&.
+.RE
+.PP
+opt\&.prof (\fBbool\fR) r\- [\fB\-\-enable\-prof\fR]
+.RS 4
+Memory profiling enabled/disabled\&. If enabled, profile memory allocation activity\&. See the
+opt\&.prof_active
+option for on\-the\-fly activation/deactivation\&. See the
+opt\&.lg_prof_sample
+option for probabilistic sampling control\&. See the
+opt\&.prof_accum
+option for control of cumulative sample reporting\&. See the
+opt\&.lg_prof_interval
+option for information on interval\-triggered profile dumping, the
+opt\&.prof_gdump
+option for information on high\-water\-triggered profile dumping, and the
+opt\&.prof_final
+option for final profile dumping\&. Profile output is compatible with the
+\fBjeprof\fR
+command, which is based on the
+\fBpprof\fR
+that is developed as part of the
+\m[blue]\fBgperftools package\fR\m[]\&\s-2\u[3]\d\s+2\&. See
+HEAP PROFILE FORMAT
+for heap profile format documentation\&.
+.RE
+.PP
+opt\&.prof_prefix (\fBconst char *\fR) r\- [\fB\-\-enable\-prof\fR]
+.RS 4
+Filename prefix for profile dumps\&. If the prefix is set to the empty string, no automatic dumps will occur; this is primarily useful for disabling the automatic final heap dump (which also disables leak reporting, if enabled)\&. The default prefix is
+jeprof\&.
+.RE
+.PP
+opt\&.prof_active (\fBbool\fR) r\- [\fB\-\-enable\-prof\fR]
+.RS 4
+Profiling activated/deactivated\&. This is a secondary control mechanism that makes it possible to start the application with profiling enabled (see the
+opt\&.prof
+option) but inactive, then toggle profiling at any time during program execution with the
+prof\&.active
+mallctl\&. This option is enabled by default\&.
+.RE
+.PP
+opt\&.prof_thread_active_init (\fBbool\fR) r\- [\fB\-\-enable\-prof\fR]
+.RS 4
+Initial setting for
+thread\&.prof\&.active
+in newly created threads\&. The initial setting for newly created threads can also be changed during execution via the
+prof\&.thread_active_init
+mallctl\&. This option is enabled by default\&.
+.RE
+.PP
+opt\&.lg_prof_sample (\fBsize_t\fR) r\- [\fB\-\-enable\-prof\fR]
+.RS 4
+Average interval (log base 2) between allocation samples, as measured in bytes of allocation activity\&. Increasing the sampling interval decreases profile fidelity, but also decreases the computational overhead\&. The default sample interval is 512 KiB (2^19 B)\&.
+.RE
+.PP
+opt\&.prof_accum (\fBbool\fR) r\- [\fB\-\-enable\-prof\fR]
+.RS 4
+Reporting of cumulative object/byte counts in profile dumps enabled/disabled\&. If this option is enabled, every unique backtrace must be stored for the duration of execution\&. Depending on the application, this can impose a large memory overhead, and the cumulative counts are not always of interest\&. This option is disabled by default\&.
+.RE
+.PP
+opt\&.lg_prof_interval (\fBssize_t\fR) r\- [\fB\-\-enable\-prof\fR]
+.RS 4
+Average interval (log base 2) between memory profile dumps, as measured in bytes of allocation activity\&. The actual interval between dumps may be sporadic because decentralized allocation counters are used to avoid synchronization bottlenecks\&. Profiles are dumped to files named according to the pattern
+<prefix>\&.<pid>\&.<seq>\&.i<iseq>\&.heap, where
+<prefix>
+is controlled by the
+opt\&.prof_prefix
+option\&. By default, interval\-triggered profile dumping is disabled (encoded as \-1)\&.
+.RE
+.PP
+opt\&.prof_gdump (\fBbool\fR) r\- [\fB\-\-enable\-prof\fR]
+.RS 4
+Set the initial state of
+prof\&.gdump, which when enabled triggers a memory profile dump every time the total virtual memory exceeds the previous maximum\&. This option is disabled by default\&.
+.RE
+.PP
+opt\&.prof_final (\fBbool\fR) r\- [\fB\-\-enable\-prof\fR]
+.RS 4
+Use an
+\fBatexit\fR(3)
+function to dump final memory usage to a file named according to the pattern
+<prefix>\&.<pid>\&.<seq>\&.f\&.heap, where
+<prefix>
+is controlled by the
+opt\&.prof_prefix
+option\&. Note that
+atexit()
+may allocate memory during application initialization and then deadlock internally when jemalloc in turn calls
+atexit(), so this option is not universally usable (though the application can register its own
+atexit()
+function with equivalent functionality)\&. This option is disabled by default\&.
+.RE
+.PP
+opt\&.prof_leak (\fBbool\fR) r\- [\fB\-\-enable\-prof\fR]
+.RS 4
+Leak reporting enabled/disabled\&. If enabled, use an
+\fBatexit\fR(3)
+function to report memory leaks detected by allocation sampling\&. See the
+opt\&.prof
+option for information on analyzing heap profile output\&. This option is disabled by default\&.
+.RE
+.PP
+thread\&.arena (\fBunsigned\fR) rw
+.RS 4
+Get or set the arena associated with the calling thread\&. If the specified arena was not initialized beforehand (see the
+arena\&.i\&.initialized
+mallctl), it will be automatically initialized as a side effect of calling this interface\&.
+.RE
+.PP
+thread\&.allocated (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Get the total number of bytes ever allocated by the calling thread\&. This counter has the potential to wrap around; it is up to the application to appropriately interpret the counter in such cases\&.
+.RE
+.PP
+thread\&.allocatedp (\fBuint64_t *\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Get a pointer to the the value that is returned by the
+thread\&.allocated
+mallctl\&. This is useful for avoiding the overhead of repeated
+mallctl*()
+calls\&.
+.RE
+.PP
+thread\&.deallocated (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Get the total number of bytes ever deallocated by the calling thread\&. This counter has the potential to wrap around; it is up to the application to appropriately interpret the counter in such cases\&.
+.RE
+.PP
+thread\&.deallocatedp (\fBuint64_t *\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Get a pointer to the the value that is returned by the
+thread\&.deallocated
+mallctl\&. This is useful for avoiding the overhead of repeated
+mallctl*()
+calls\&.
+.RE
+.PP
+thread\&.tcache\&.enabled (\fBbool\fR) rw
+.RS 4
+Enable/disable calling thread\*(Aqs tcache\&. The tcache is implicitly flushed as a side effect of becoming disabled (see
+thread\&.tcache\&.flush)\&.
+.RE
+.PP
+thread\&.tcache\&.flush (\fBvoid\fR) \-\-
+.RS 4
+Flush calling thread\*(Aqs thread\-specific cache (tcache)\&. This interface releases all cached objects and internal data structures associated with the calling thread\*(Aqs tcache\&. Ordinarily, this interface need not be called, since automatic periodic incremental garbage collection occurs, and the thread cache is automatically discarded when a thread exits\&. However, garbage collection is triggered by allocation activity, so it is possible for a thread that stops allocating/deallocating to retain its cache indefinitely, in which case the developer may find manual flushing useful\&.
+.RE
+.PP
+thread\&.prof\&.name (\fBconst char *\fR) r\- or \-w [\fB\-\-enable\-prof\fR]
+.RS 4
+Get/set the descriptive name associated with the calling thread in memory profile dumps\&. An internal copy of the name string is created, so the input string need not be maintained after this interface completes execution\&. The output string of this interface should be copied for non\-ephemeral uses, because multiple implementation details can cause asynchronous string deallocation\&. Furthermore, each invocation of this interface can only read or write; simultaneous read/write is not supported due to string lifetime limitations\&. The name string must be nil\-terminated and comprised only of characters in the sets recognized by
+\fBisgraph\fR(3)
+and
+\fBisblank\fR(3)\&.
+.RE
+.PP
+thread\&.prof\&.active (\fBbool\fR) rw [\fB\-\-enable\-prof\fR]
+.RS 4
+Control whether sampling is currently active for the calling thread\&. This is an activation mechanism in addition to
+prof\&.active; both must be active for the calling thread to sample\&. This flag is enabled by default\&.
+.RE
+.PP
+tcache\&.create (\fBunsigned\fR) r\-
+.RS 4
+Create an explicit thread\-specific cache (tcache) and return an identifier that can be passed to the
+\fBMALLOCX_TCACHE(\fR\fB\fItc\fR\fR\fB)\fR
+macro to explicitly use the specified cache rather than the automatically managed one that is used by default\&. Each explicit cache can be used by only one thread at a time; the application must assure that this constraint holds\&.
+.RE
+.PP
+tcache\&.flush (\fBunsigned\fR) \-w
+.RS 4
+Flush the specified thread\-specific cache (tcache)\&. The same considerations apply to this interface as to
+thread\&.tcache\&.flush, except that the tcache will never be automatically discarded\&.
+.RE
+.PP
+tcache\&.destroy (\fBunsigned\fR) \-w
+.RS 4
+Flush the specified thread\-specific cache (tcache) and make the identifier available for use during a future tcache creation\&.
+.RE
+.PP
+arena\&.<i>\&.initialized (\fBbool\fR) r\-
+.RS 4
+Get whether the specified arena\*(Aqs statistics are initialized (i\&.e\&. the arena was initialized prior to the current epoch)\&. This interface can also be nominally used to query whether the merged statistics corresponding to
+\fBMALLCTL_ARENAS_ALL\fR
+are initialized (always true)\&.
+.RE
+.PP
+arena\&.<i>\&.decay (\fBvoid\fR) \-\-
+.RS 4
+Trigger decay\-based purging of unused dirty/muzzy pages for arena <i>, or for all arenas if <i> equals
+\fBMALLCTL_ARENAS_ALL\fR\&. The proportion of unused dirty/muzzy pages to be purged depends on the current time; see
+opt\&.dirty_decay_ms
+and
+opt\&.muzy_decay_ms
+for details\&.
+.RE
+.PP
+arena\&.<i>\&.purge (\fBvoid\fR) \-\-
+.RS 4
+Purge all unused dirty pages for arena <i>, or for all arenas if <i> equals
+\fBMALLCTL_ARENAS_ALL\fR\&.
+.RE
+.PP
+arena\&.<i>\&.reset (\fBvoid\fR) \-\-
+.RS 4
+Discard all of the arena\*(Aqs extant allocations\&. This interface can only be used with arenas explicitly created via
+arenas\&.create\&. None of the arena\*(Aqs discarded/cached allocations may accessed afterward\&. As part of this requirement, all thread caches which were used to allocate/deallocate in conjunction with the arena must be flushed beforehand\&.
+.RE
+.PP
+arena\&.<i>\&.destroy (\fBvoid\fR) \-\-
+.RS 4
+Destroy the arena\&. Discard all of the arena\*(Aqs extant allocations using the same mechanism as for
+arena\&.<i>\&.reset
+(with all the same constraints and side effects), merge the arena stats into those accessible at arena index
+\fBMALLCTL_ARENAS_DESTROYED\fR, and then completely discard all metadata associated with the arena\&. Future calls to
+arenas\&.create
+may recycle the arena index\&. Destruction will fail if any threads are currently associated with the arena as a result of calls to
+thread\&.arena\&.
+.RE
+.PP
+arena\&.<i>\&.dss (\fBconst char *\fR) rw
+.RS 4
+Set the precedence of dss allocation as related to mmap allocation for arena <i>, or for all arenas if <i> equals
+\fBMALLCTL_ARENAS_ALL\fR\&. See
+opt\&.dss
+for supported settings\&.
+.RE
+.PP
+arena\&.<i>\&.dirty_decay_ms (\fBssize_t\fR) rw
+.RS 4
+Current per\-arena approximate time in milliseconds from the creation of a set of unused dirty pages until an equivalent set of unused dirty pages is purged and/or reused\&. Each time this interface is set, all currently unused dirty pages are considered to have fully decayed, which causes immediate purging of all unused dirty pages unless the decay time is set to \-1 (i\&.e\&. purging disabled)\&. See
+opt\&.dirty_decay_ms
+for additional information\&.
+.RE
+.PP
+arena\&.<i>\&.muzzy_decay_ms (\fBssize_t\fR) rw
+.RS 4
+Current per\-arena approximate time in milliseconds from the creation of a set of unused muzzy pages until an equivalent set of unused muzzy pages is purged and/or reused\&. Each time this interface is set, all currently unused muzzy pages are considered to have fully decayed, which causes immediate purging of all unused muzzy pages unless the decay time is set to \-1 (i\&.e\&. purging disabled)\&. See
+opt\&.muzzy_decay_ms
+for additional information\&.
+.RE
+.PP
+arena\&.<i>\&.retain_grow_limit (\fBsize_t\fR) rw
+.RS 4
+Maximum size to grow retained region (only relevant when
+opt\&.retain
+is enabled)\&. This controls the maximum increment to expand virtual memory, or allocation through
+arena\&.<i>extent_hooks\&. In particular, if customized extent hooks reserve physical memory (e\&.g\&. 1G huge pages), this is useful to control the allocation hook\*(Aqs input size\&. The default is no limit\&.
+.RE
+.PP
+arena\&.<i>\&.extent_hooks (\fBextent_hooks_t *\fR) rw
+.RS 4
+Get or set the extent management hook functions for arena <i>\&. The functions must be capable of operating on all extant extents associated with arena <i>, usually by passing unknown extents to the replaced functions\&. In practice, it is feasible to control allocation for arenas explicitly created via
+arenas\&.create
+such that all extents originate from an application\-supplied extent allocator (by specifying the custom extent hook functions during arena creation), but the automatically created arenas will have already created extents prior to the application having an opportunity to take over extent allocation\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+typedef extent_hooks_s extent_hooks_t;
+struct extent_hooks_s {
+	extent_alloc_t		*alloc;
+	extent_dalloc_t		*dalloc;
+	extent_destroy_t	*destroy;
+	extent_commit_t		*commit;
+	extent_decommit_t	*decommit;
+	extent_purge_t		*purge_lazy;
+	extent_purge_t		*purge_forced;
+	extent_split_t		*split;
+	extent_merge_t		*merge;
+};
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The
+\fBextent_hooks_t\fR
+structure comprises function pointers which are described individually below\&. jemalloc uses these functions to manage extent lifetime, which starts off with allocation of mapped committed memory, in the simplest case followed by deallocation\&. However, there are performance and platform reasons to retain extents for later reuse\&. Cleanup attempts cascade from deallocation to decommit to forced purging to lazy purging, which gives the extent management functions opportunities to reject the most permanent cleanup operations in favor of less permanent (and often less costly) operations\&. All operations except allocation can be universally opted out of by setting the hook pointers to
+\fBNULL\fR, or selectively opted out of by returning failure\&. Note that once the extent hook is set, the structure is accessed directly by the associated arenas, so it must remain valid for the entire lifetime of the arenas\&.
+.HP \w'typedef\ void\ *(extent_alloc_t)('u
+.BI "typedef void *(extent_alloc_t)(extent_hooks_t\ *" "extent_hooks" ", void\ *" "new_addr" ", size_t\ " "size" ", size_t\ " "alignment" ", bool\ *" "zero" ", bool\ *" "commit" ", unsigned\ " "arena_ind" ");"
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+An extent allocation function conforms to the
+\fBextent_alloc_t\fR
+type and upon success returns a pointer to
+\fIsize\fR
+bytes of mapped memory on behalf of arena
+\fIarena_ind\fR
+such that the extent\*(Aqs base address is a multiple of
+\fIalignment\fR, as well as setting
+\fI*zero\fR
+to indicate whether the extent is zeroed and
+\fI*commit\fR
+to indicate whether the extent is committed\&. Upon error the function returns
+\fBNULL\fR
+and leaves
+\fI*zero\fR
+and
+\fI*commit\fR
+unmodified\&. The
+\fIsize\fR
+parameter is always a multiple of the page size\&. The
+\fIalignment\fR
+parameter is always a power of two at least as large as the page size\&. Zeroing is mandatory if
+\fI*zero\fR
+is true upon function entry\&. Committing is mandatory if
+\fI*commit\fR
+is true upon function entry\&. If
+\fInew_addr\fR
+is not
+\fBNULL\fR, the returned pointer must be
+\fInew_addr\fR
+on success or
+\fBNULL\fR
+on error\&. Committed memory may be committed in absolute terms as on a system that does not overcommit, or in implicit terms as on a system that overcommits and satisfies physical memory needs on demand via soft page faults\&. Note that replacing the default extent allocation function makes the arena\*(Aqs
+arena\&.<i>\&.dss
+setting irrelevant\&.
+.HP \w'typedef\ bool\ (extent_dalloc_t)('u
+.BI "typedef bool (extent_dalloc_t)(extent_hooks_t\ *" "extent_hooks" ", void\ *" "addr" ", size_t\ " "size" ", bool\ " "committed" ", unsigned\ " "arena_ind" ");"
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+An extent deallocation function conforms to the
+\fBextent_dalloc_t\fR
+type and deallocates an extent at given
+\fIaddr\fR
+and
+\fIsize\fR
+with
+\fIcommitted\fR/decommited memory as indicated, on behalf of arena
+\fIarena_ind\fR, returning false upon success\&. If the function returns true, this indicates opt\-out from deallocation; the virtual memory mapping associated with the extent remains mapped, in the same commit state, and available for future use, in which case it will be automatically retained for later reuse\&.
+.HP \w'typedef\ void\ (extent_destroy_t)('u
+.BI "typedef void (extent_destroy_t)(extent_hooks_t\ *" "extent_hooks" ", void\ *" "addr" ", size_t\ " "size" ", bool\ " "committed" ", unsigned\ " "arena_ind" ");"
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+An extent destruction function conforms to the
+\fBextent_destroy_t\fR
+type and unconditionally destroys an extent at given
+\fIaddr\fR
+and
+\fIsize\fR
+with
+\fIcommitted\fR/decommited memory as indicated, on behalf of arena
+\fIarena_ind\fR\&. This function may be called to destroy retained extents during arena destruction (see
+arena\&.<i>\&.destroy)\&.
+.HP \w'typedef\ bool\ (extent_commit_t)('u
+.BI "typedef bool (extent_commit_t)(extent_hooks_t\ *" "extent_hooks" ", void\ *" "addr" ", size_t\ " "size" ", size_t\ " "offset" ", size_t\ " "length" ", unsigned\ " "arena_ind" ");"
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+An extent commit function conforms to the
+\fBextent_commit_t\fR
+type and commits zeroed physical memory to back pages within an extent at given
+\fIaddr\fR
+and
+\fIsize\fR
+at
+\fIoffset\fR
+bytes, extending for
+\fIlength\fR
+on behalf of arena
+\fIarena_ind\fR, returning false upon success\&. Committed memory may be committed in absolute terms as on a system that does not overcommit, or in implicit terms as on a system that overcommits and satisfies physical memory needs on demand via soft page faults\&. If the function returns true, this indicates insufficient physical memory to satisfy the request\&.
+.HP \w'typedef\ bool\ (extent_decommit_t)('u
+.BI "typedef bool (extent_decommit_t)(extent_hooks_t\ *" "extent_hooks" ", void\ *" "addr" ", size_t\ " "size" ", size_t\ " "offset" ", size_t\ " "length" ", unsigned\ " "arena_ind" ");"
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+An extent decommit function conforms to the
+\fBextent_decommit_t\fR
+type and decommits any physical memory that is backing pages within an extent at given
+\fIaddr\fR
+and
+\fIsize\fR
+at
+\fIoffset\fR
+bytes, extending for
+\fIlength\fR
+on behalf of arena
+\fIarena_ind\fR, returning false upon success, in which case the pages will be committed via the extent commit function before being reused\&. If the function returns true, this indicates opt\-out from decommit; the memory remains committed and available for future use, in which case it will be automatically retained for later reuse\&.
+.HP \w'typedef\ bool\ (extent_purge_t)('u
+.BI "typedef bool (extent_purge_t)(extent_hooks_t\ *" "extent_hooks" ", void\ *" "addr" ", size_t\ " "size" ", size_t\ " "offset" ", size_t\ " "length" ", unsigned\ " "arena_ind" ");"
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+An extent purge function conforms to the
+\fBextent_purge_t\fR
+type and discards physical pages within the virtual memory mapping associated with an extent at given
+\fIaddr\fR
+and
+\fIsize\fR
+at
+\fIoffset\fR
+bytes, extending for
+\fIlength\fR
+on behalf of arena
+\fIarena_ind\fR\&. A lazy extent purge function (e\&.g\&. implemented via
+madvise(\fI\&.\&.\&.\fR\fI\fBMADV_FREE\fR\fR)) can delay purging indefinitely and leave the pages within the purged virtual memory range in an indeterminite state, whereas a forced extent purge function immediately purges, and the pages within the virtual memory range will be zero\-filled the next time they are accessed\&. If the function returns true, this indicates failure to purge\&.
+.HP \w'typedef\ bool\ (extent_split_t)('u
+.BI "typedef bool (extent_split_t)(extent_hooks_t\ *" "extent_hooks" ", void\ *" "addr" ", size_t\ " "size" ", size_t\ " "size_a" ", size_t\ " "size_b" ", bool\ " "committed" ", unsigned\ " "arena_ind" ");"
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+An extent split function conforms to the
+\fBextent_split_t\fR
+type and optionally splits an extent at given
+\fIaddr\fR
+and
+\fIsize\fR
+into two adjacent extents, the first of
+\fIsize_a\fR
+bytes, and the second of
+\fIsize_b\fR
+bytes, operating on
+\fIcommitted\fR/decommitted memory as indicated, on behalf of arena
+\fIarena_ind\fR, returning false upon success\&. If the function returns true, this indicates that the extent remains unsplit and therefore should continue to be operated on as a whole\&.
+.HP \w'typedef\ bool\ (extent_merge_t)('u
+.BI "typedef bool (extent_merge_t)(extent_hooks_t\ *" "extent_hooks" ", void\ *" "addr_a" ", size_t\ " "size_a" ", void\ *" "addr_b" ", size_t\ " "size_b" ", bool\ " "committed" ", unsigned\ " "arena_ind" ");"
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+An extent merge function conforms to the
+\fBextent_merge_t\fR
+type and optionally merges adjacent extents, at given
+\fIaddr_a\fR
+and
+\fIsize_a\fR
+with given
+\fIaddr_b\fR
+and
+\fIsize_b\fR
+into one contiguous extent, operating on
+\fIcommitted\fR/decommitted memory as indicated, on behalf of arena
+\fIarena_ind\fR, returning false upon success\&. If the function returns true, this indicates that the extents remain distinct mappings and therefore should continue to be operated on independently\&.
+.RE
+.PP
+arenas\&.narenas (\fBunsigned\fR) r\-
+.RS 4
+Current limit on number of arenas\&.
+.RE
+.PP
+arenas\&.dirty_decay_ms (\fBssize_t\fR) rw
+.RS 4
+Current default per\-arena approximate time in milliseconds from the creation of a set of unused dirty pages until an equivalent set of unused dirty pages is purged and/or reused, used to initialize
+arena\&.<i>\&.dirty_decay_ms
+during arena creation\&. See
+opt\&.dirty_decay_ms
+for additional information\&.
+.RE
+.PP
+arenas\&.muzzy_decay_ms (\fBssize_t\fR) rw
+.RS 4
+Current default per\-arena approximate time in milliseconds from the creation of a set of unused muzzy pages until an equivalent set of unused muzzy pages is purged and/or reused, used to initialize
+arena\&.<i>\&.muzzy_decay_ms
+during arena creation\&. See
+opt\&.muzzy_decay_ms
+for additional information\&.
+.RE
+.PP
+arenas\&.quantum (\fBsize_t\fR) r\-
+.RS 4
+Quantum size\&.
+.RE
+.PP
+arenas\&.page (\fBsize_t\fR) r\-
+.RS 4
+Page size\&.
+.RE
+.PP
+arenas\&.tcache_max (\fBsize_t\fR) r\-
+.RS 4
+Maximum thread\-cached size class\&.
+.RE
+.PP
+arenas\&.nbins (\fBunsigned\fR) r\-
+.RS 4
+Number of bin size classes\&.
+.RE
+.PP
+arenas\&.nhbins (\fBunsigned\fR) r\-
+.RS 4
+Total number of thread cache bin size classes\&.
+.RE
+.PP
+arenas\&.bin\&.<i>\&.size (\fBsize_t\fR) r\-
+.RS 4
+Maximum size supported by size class\&.
+.RE
+.PP
+arenas\&.bin\&.<i>\&.nregs (\fBuint32_t\fR) r\-
+.RS 4
+Number of regions per slab\&.
+.RE
+.PP
+arenas\&.bin\&.<i>\&.slab_size (\fBsize_t\fR) r\-
+.RS 4
+Number of bytes per slab\&.
+.RE
+.PP
+arenas\&.nlextents (\fBunsigned\fR) r\-
+.RS 4
+Total number of large size classes\&.
+.RE
+.PP
+arenas\&.lextent\&.<i>\&.size (\fBsize_t\fR) r\-
+.RS 4
+Maximum size supported by this large size class\&.
+.RE
+.PP
+arenas\&.create (\fBunsigned\fR, \fBextent_hooks_t *\fR) rw
+.RS 4
+Explicitly create a new arena outside the range of automatically managed arenas, with optionally specified extent hooks, and return the new arena index\&.
+.RE
+.PP
+arenas\&.lookup (\fBunsigned\fR, \fBvoid*\fR) rw
+.RS 4
+Index of the arena to which an allocation belongs to\&.
+.RE
+.PP
+prof\&.thread_active_init (\fBbool\fR) rw [\fB\-\-enable\-prof\fR]
+.RS 4
+Control the initial setting for
+thread\&.prof\&.active
+in newly created threads\&. See the
+opt\&.prof_thread_active_init
+option for additional information\&.
+.RE
+.PP
+prof\&.active (\fBbool\fR) rw [\fB\-\-enable\-prof\fR]
+.RS 4
+Control whether sampling is currently active\&. See the
+opt\&.prof_active
+option for additional information, as well as the interrelated
+thread\&.prof\&.active
+mallctl\&.
+.RE
+.PP
+prof\&.dump (\fBconst char *\fR) \-w [\fB\-\-enable\-prof\fR]
+.RS 4
+Dump a memory profile to the specified file, or if NULL is specified, to a file according to the pattern
+<prefix>\&.<pid>\&.<seq>\&.m<mseq>\&.heap, where
+<prefix>
+is controlled by the
+opt\&.prof_prefix
+option\&.
+.RE
+.PP
+prof\&.gdump (\fBbool\fR) rw [\fB\-\-enable\-prof\fR]
+.RS 4
+When enabled, trigger a memory profile dump every time the total virtual memory exceeds the previous maximum\&. Profiles are dumped to files named according to the pattern
+<prefix>\&.<pid>\&.<seq>\&.u<useq>\&.heap, where
+<prefix>
+is controlled by the
+opt\&.prof_prefix
+option\&.
+.RE
+.PP
+prof\&.reset (\fBsize_t\fR) \-w [\fB\-\-enable\-prof\fR]
+.RS 4
+Reset all memory profile statistics, and optionally update the sample rate (see
+opt\&.lg_prof_sample
+and
+prof\&.lg_sample)\&.
+.RE
+.PP
+prof\&.lg_sample (\fBsize_t\fR) r\- [\fB\-\-enable\-prof\fR]
+.RS 4
+Get the current sample rate (see
+opt\&.lg_prof_sample)\&.
+.RE
+.PP
+prof\&.interval (\fBuint64_t\fR) r\- [\fB\-\-enable\-prof\fR]
+.RS 4
+Average number of bytes allocated between interval\-based profile dumps\&. See the
+opt\&.lg_prof_interval
+option for additional information\&.
+.RE
+.PP
+stats\&.allocated (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Total number of bytes allocated by the application\&.
+.RE
+.PP
+stats\&.active (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Total number of bytes in active pages allocated by the application\&. This is a multiple of the page size, and greater than or equal to
+stats\&.allocated\&. This does not include
+stats\&.arenas\&.<i>\&.pdirty,
+stats\&.arenas\&.<i>\&.pmuzzy, nor pages entirely devoted to allocator metadata\&.
+.RE
+.PP
+stats\&.metadata (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Total number of bytes dedicated to metadata, which comprise base allocations used for bootstrap\-sensitive allocator metadata structures (see
+stats\&.arenas\&.<i>\&.base) and internal allocations (see
+stats\&.arenas\&.<i>\&.internal)\&. Transparent huge page (enabled with
+opt\&.metadata_thp) usage is not considered\&.
+.RE
+.PP
+stats\&.metadata_thp (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of transparent huge pages (THP) used for metadata\&. See
+stats\&.metadata
+and
+opt\&.metadata_thp) for details\&.
+.RE
+.PP
+stats\&.resident (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Maximum number of bytes in physically resident data pages mapped by the allocator, comprising all pages dedicated to allocator metadata, pages backing active allocations, and unused dirty pages\&. This is a maximum rather than precise because pages may not actually be physically resident if they correspond to demand\-zeroed virtual memory that has not yet been touched\&. This is a multiple of the page size, and is larger than
+stats\&.active\&.
+.RE
+.PP
+stats\&.mapped (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Total number of bytes in active extents mapped by the allocator\&. This is larger than
+stats\&.active\&. This does not include inactive extents, even those that contain unused dirty pages, which means that there is no strict ordering between this and
+stats\&.resident\&.
+.RE
+.PP
+stats\&.retained (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Total number of bytes in virtual memory mappings that were retained rather than being returned to the operating system via e\&.g\&.
+\fBmunmap\fR(2)
+or similar\&. Retained virtual memory is typically untouched, decommitted, or purged, so it has no strongly associated physical memory (see
+extent hooks
+for details)\&. Retained memory is excluded from mapped memory statistics, e\&.g\&.
+stats\&.mapped\&.
+.RE
+.PP
+stats\&.background_thread\&.num_threads (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of
+background threads
+running currently\&.
+.RE
+.PP
+stats\&.background_thread\&.num_runs (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Total number of runs from all
+background threads\&.
+.RE
+.PP
+stats\&.background_thread\&.run_interval (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Average run interval in nanoseconds of
+background threads\&.
+.RE
+.PP
+stats\&.mutexes\&.ctl\&.{counter}; (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIctl\fR
+mutex (global scope; mallctl related)\&.
+{counter}
+is one of the counters below:
+.PP
+.RS 4
+\fInum_ops\fR
+(\fBuint64_t\fR): Total number of lock acquisition operations on this mutex\&.
+.sp
+\fInum_spin_acq\fR
+(\fBuint64_t\fR): Number of times the mutex was spin\-acquired\&. When the mutex is currently locked and cannot be acquired immediately, a short period of spin\-retry within jemalloc will be performed\&. Acquired through spin generally means the contention was lightweight and not causing context switches\&.
+.sp
+\fInum_wait\fR
+(\fBuint64_t\fR): Number of times the mutex was wait\-acquired, which means the mutex contention was not solved by spin\-retry, and blocking operation was likely involved in order to acquire the mutex\&. This event generally implies higher cost / longer delay, and should be investigated if it happens often\&.
+.sp
+\fImax_wait_time\fR
+(\fBuint64_t\fR): Maximum length of time in nanoseconds spent on a single wait\-acquired lock operation\&. Note that to avoid profiling overhead on the common path, this does not consider spin\-acquired cases\&.
+.sp
+\fItotal_wait_time\fR
+(\fBuint64_t\fR): Cumulative time in nanoseconds spent on wait\-acquired lock operations\&. Similarly, spin\-acquired cases are not considered\&.
+.sp
+\fImax_num_thds\fR
+(\fBuint32_t\fR): Maximum number of threads waiting on this mutex simultaneously\&. Similarly, spin\-acquired cases are not considered\&.
+.sp
+\fInum_owner_switch\fR
+(\fBuint64_t\fR): Number of times the current mutex owner is different from the previous one\&. This event does not generally imply an issue; rather it is an indicator of how often the protected data are accessed by different threads\&.
+.RE
+.RE
+.PP
+stats\&.mutexes\&.background_thread\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIbackground_thread\fR
+mutex (global scope;
+background_thread
+related)\&.
+{counter}
+is one of the counters in
+mutex profiling counters\&.
+.RE
+.PP
+stats\&.mutexes\&.prof\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIprof\fR
+mutex (global scope; profiling related)\&.
+{counter}
+is one of the counters in
+mutex profiling counters\&.
+.RE
+.PP
+stats\&.mutexes\&.reset (\fBvoid\fR) \-\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Reset all mutex profile statistics, including global mutexes, arena mutexes and bin mutexes\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.dss (\fBconst char *\fR) r\-
+.RS 4
+dss (\fBsbrk\fR(2)) allocation precedence as related to
+\fBmmap\fR(2)
+allocation\&. See
+opt\&.dss
+for details\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.dirty_decay_ms (\fBssize_t\fR) r\-
+.RS 4
+Approximate time in milliseconds from the creation of a set of unused dirty pages until an equivalent set of unused dirty pages is purged and/or reused\&. See
+opt\&.dirty_decay_ms
+for details\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.muzzy_decay_ms (\fBssize_t\fR) r\-
+.RS 4
+Approximate time in milliseconds from the creation of a set of unused muzzy pages until an equivalent set of unused muzzy pages is purged and/or reused\&. See
+opt\&.muzzy_decay_ms
+for details\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.nthreads (\fBunsigned\fR) r\-
+.RS 4
+Number of threads currently assigned to arena\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.uptime (\fBuint64_t\fR) r\-
+.RS 4
+Time elapsed (in nanoseconds) since the arena was created\&. If <i> equals
+\fB0\fR
+or
+\fBMALLCTL_ARENAS_ALL\fR, this is the uptime since malloc initialization\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.pactive (\fBsize_t\fR) r\-
+.RS 4
+Number of pages in active extents\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.pdirty (\fBsize_t\fR) r\-
+.RS 4
+Number of pages within unused extents that are potentially dirty, and for which
+madvise()
+or similar has not been called\&. See
+opt\&.dirty_decay_ms
+for a description of dirty pages\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.pmuzzy (\fBsize_t\fR) r\-
+.RS 4
+Number of pages within unused extents that are muzzy\&. See
+opt\&.muzzy_decay_ms
+for a description of muzzy pages\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.mapped (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of mapped bytes\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.retained (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of retained bytes\&. See
+stats\&.retained
+for details\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.base (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of bytes dedicated to bootstrap\-sensitive allocator metadata structures\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.internal (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of bytes dedicated to internal allocations\&. Internal allocations differ from application\-originated allocations in that they are for internal use, and that they are omitted from heap profiles\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.metadata_thp (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of transparent huge pages (THP) used for metadata\&. See
+opt\&.metadata_thp
+for details\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.resident (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Maximum number of bytes in physically resident data pages mapped by the arena, comprising all pages dedicated to allocator metadata, pages backing active allocations, and unused dirty pages\&. This is a maximum rather than precise because pages may not actually be physically resident if they correspond to demand\-zeroed virtual memory that has not yet been touched\&. This is a multiple of the page size\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.dirty_npurge (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of dirty page purge sweeps performed\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.dirty_nmadvise (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of
+madvise()
+or similar calls made to purge dirty pages\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.dirty_purged (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of dirty pages purged\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.muzzy_npurge (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of muzzy page purge sweeps performed\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.muzzy_nmadvise (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of
+madvise()
+or similar calls made to purge muzzy pages\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.muzzy_purged (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of muzzy pages purged\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.small\&.allocated (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of bytes currently allocated by small objects\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.small\&.nmalloc (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of times a small allocation was requested from the arena\*(Aqs bins, whether to fill the relevant tcache if
+opt\&.tcache
+is enabled, or to directly satisfy an allocation request otherwise\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.small\&.ndalloc (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of times a small allocation was returned to the arena\*(Aqs bins, whether to flush the relevant tcache if
+opt\&.tcache
+is enabled, or to directly deallocate an allocation otherwise\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.small\&.nrequests (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of allocation requests satisfied by all bin size classes\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.large\&.allocated (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Number of bytes currently allocated by large objects\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.large\&.nmalloc (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of times a large extent was allocated from the arena, whether to fill the relevant tcache if
+opt\&.tcache
+is enabled and the size class is within the range being cached, or to directly satisfy an allocation request otherwise\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.large\&.ndalloc (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of times a large extent was returned to the arena, whether to flush the relevant tcache if
+opt\&.tcache
+is enabled and the size class is within the range being cached, or to directly deallocate an allocation otherwise\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.large\&.nrequests (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of allocation requests satisfied by all large size classes\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.bins\&.<j>\&.nmalloc (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of times a bin region of the corresponding size class was allocated from the arena, whether to fill the relevant tcache if
+opt\&.tcache
+is enabled, or to directly satisfy an allocation request otherwise\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.bins\&.<j>\&.ndalloc (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of times a bin region of the corresponding size class was returned to the arena, whether to flush the relevant tcache if
+opt\&.tcache
+is enabled, or to directly deallocate an allocation otherwise\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.bins\&.<j>\&.nrequests (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of allocation requests satisfied by bin regions of the corresponding size class\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.bins\&.<j>\&.curregs (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Current number of regions for this size class\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.bins\&.<j>\&.nfills (\fBuint64_t\fR) r\-
+.RS 4
+Cumulative number of tcache fills\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.bins\&.<j>\&.nflushes (\fBuint64_t\fR) r\-
+.RS 4
+Cumulative number of tcache flushes\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.bins\&.<j>\&.nslabs (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of slabs created\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.bins\&.<j>\&.nreslabs (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of times the current slab from which to allocate changed\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.bins\&.<j>\&.curslabs (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Current number of slabs\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.bins\&.<j>\&.mutex\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIarena\&.<i>\&.bins\&.<j>\fR
+mutex (arena bin scope; bin operation related)\&.
+{counter}
+is one of the counters in
+mutex profiling counters\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.lextents\&.<j>\&.nmalloc (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of times a large extent of the corresponding size class was allocated from the arena, whether to fill the relevant tcache if
+opt\&.tcache
+is enabled and the size class is within the range being cached, or to directly satisfy an allocation request otherwise\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.lextents\&.<j>\&.ndalloc (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of times a large extent of the corresponding size class was returned to the arena, whether to flush the relevant tcache if
+opt\&.tcache
+is enabled and the size class is within the range being cached, or to directly deallocate an allocation otherwise\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.lextents\&.<j>\&.nrequests (\fBuint64_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Cumulative number of allocation requests satisfied by large extents of the corresponding size class\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.lextents\&.<j>\&.curlextents (\fBsize_t\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Current number of large allocations for this size class\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.mutexes\&.large\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIarena\&.<i>\&.large\fR
+mutex (arena scope; large allocation related)\&.
+{counter}
+is one of the counters in
+mutex profiling counters\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.mutexes\&.extent_avail\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIarena\&.<i>\&.extent_avail \fR
+mutex (arena scope; extent avail related)\&.
+{counter}
+is one of the counters in
+mutex profiling counters\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.mutexes\&.extents_dirty\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIarena\&.<i>\&.extents_dirty \fR
+mutex (arena scope; dirty extents related)\&.
+{counter}
+is one of the counters in
+mutex profiling counters\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.mutexes\&.extents_muzzy\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIarena\&.<i>\&.extents_muzzy \fR
+mutex (arena scope; muzzy extents related)\&.
+{counter}
+is one of the counters in
+mutex profiling counters\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.mutexes\&.extents_retained\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIarena\&.<i>\&.extents_retained \fR
+mutex (arena scope; retained extents related)\&.
+{counter}
+is one of the counters in
+mutex profiling counters\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.mutexes\&.decay_dirty\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIarena\&.<i>\&.decay_dirty \fR
+mutex (arena scope; decay for dirty pages related)\&.
+{counter}
+is one of the counters in
+mutex profiling counters\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.mutexes\&.decay_muzzy\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIarena\&.<i>\&.decay_muzzy \fR
+mutex (arena scope; decay for muzzy pages related)\&.
+{counter}
+is one of the counters in
+mutex profiling counters\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.mutexes\&.base\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIarena\&.<i>\&.base\fR
+mutex (arena scope; base allocator related)\&.
+{counter}
+is one of the counters in
+mutex profiling counters\&.
+.RE
+.PP
+stats\&.arenas\&.<i>\&.mutexes\&.tcache_list\&.{counter} (\fBcounter specific type\fR) r\- [\fB\-\-enable\-stats\fR]
+.RS 4
+Statistics on
+\fIarena\&.<i>\&.tcache_list\fR
+mutex (arena scope; tcache to arena association related)\&. This mutex is expected to be accessed less often\&.
+{counter}
+is one of the counters in
+mutex profiling counters\&.
+.RE
+.SH "HEAP PROFILE FORMAT"
+.PP
+Although the heap profiling functionality was originally designed to be compatible with the
+\fBpprof\fR
+command that is developed as part of the
+\m[blue]\fBgperftools package\fR\m[]\&\s-2\u[3]\d\s+2, the addition of per thread heap profiling functionality required a different heap profile format\&. The
+\fBjeprof\fR
+command is derived from
+\fBpprof\fR, with enhancements to support the heap profile format described here\&.
+.PP
+In the following hypothetical heap profile,
+\fB[\&.\&.\&.]\fR
+indicates elision for the sake of compactness\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+heap_v2/524288
+  t*: 28106: 56637512 [0: 0]
+  [\&.\&.\&.]
+  t3: 352: 16777344 [0: 0]
+  [\&.\&.\&.]
+  t99: 17754: 29341640 [0: 0]
+  [\&.\&.\&.]
+@ 0x5f86da8 0x5f5a1dc [\&.\&.\&.] 0x29e4d4e 0xa200316 0xabb2988 [\&.\&.\&.]
+  t*: 13: 6688 [0: 0]
+  t3: 12: 6496 [0: ]
+  t99: 1: 192 [0: 0]
+[\&.\&.\&.]
+
+MAPPED_LIBRARIES:
+[\&.\&.\&.]
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The following matches the above heap profile, but most tokens are replaced with
+\fB<description>\fR
+to indicate descriptions of the corresponding fields\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+<heap_profile_format_version>/<mean_sample_interval>
+  <aggregate>: <curobjs>: <curbytes> [<cumobjs>: <cumbytes>]
+  [\&.\&.\&.]
+  <thread_3_aggregate>: <curobjs>: <curbytes>[<cumobjs>: <cumbytes>]
+  [\&.\&.\&.]
+  <thread_99_aggregate>: <curobjs>: <curbytes>[<cumobjs>: <cumbytes>]
+  [\&.\&.\&.]
+@ <top_frame> <frame> [\&.\&.\&.] <frame> <frame> <frame> [\&.\&.\&.]
+  <backtrace_aggregate>: <curobjs>: <curbytes> [<cumobjs>: <cumbytes>]
+  <backtrace_thread_3>: <curobjs>: <curbytes> [<cumobjs>: <cumbytes>]
+  <backtrace_thread_99>: <curobjs>: <curbytes> [<cumobjs>: <cumbytes>]
+[\&.\&.\&.]
+
+MAPPED_LIBRARIES:
+</proc/<pid>/maps>
+.fi
+.if n \{\
+.RE
+.\}
+.SH "DEBUGGING MALLOC PROBLEMS"
+.PP
+When debugging, it is a good idea to configure/build jemalloc with the
+\fB\-\-enable\-debug\fR
+and
+\fB\-\-enable\-fill\fR
+options, and recompile the program with suitable options and symbols for debugger support\&. When so configured, jemalloc incorporates a wide variety of run\-time assertions that catch application errors such as double\-free, write\-after\-free, etc\&.
+.PP
+Programs often accidentally depend on
+\(lquninitialized\(rq
+memory actually being filled with zero bytes\&. Junk filling (see the
+opt\&.junk
+option) tends to expose such bugs in the form of obviously incorrect results and/or coredumps\&. Conversely, zero filling (see the
+opt\&.zero
+option) eliminates the symptoms of such bugs\&. Between these two options, it is usually possible to quickly detect, diagnose, and eliminate such bugs\&.
+.PP
+This implementation does not provide much detail about the problems it detects, because the performance impact for storing such information would be prohibitive\&.
+.SH "DIAGNOSTIC MESSAGES"
+.PP
+If any of the memory allocation/deallocation functions detect an error or warning condition, a message will be printed to file descriptor
+\fBSTDERR_FILENO\fR\&. Errors will result in the process dumping core\&. If the
+opt\&.abort
+option is set, most warnings are treated as errors\&.
+.PP
+The
+\fImalloc_message\fR
+variable allows the programmer to override the function which emits the text strings forming the errors and warnings if for some reason the
+\fBSTDERR_FILENO\fR
+file descriptor is not suitable for this\&.
+malloc_message()
+takes the
+\fIcbopaque\fR
+pointer argument that is
+\fBNULL\fR
+unless overridden by the arguments in a call to
+malloc_stats_print(), followed by a string pointer\&. Please note that doing anything which tries to allocate memory in this function is likely to result in a crash or deadlock\&.
+.PP
+All messages are prefixed by
+\(lq<jemalloc>: \(rq\&.
+.SH "RETURN VALUES"
+.SS "Standard API"
+.PP
+The
+malloc()
+and
+calloc()
+functions return a pointer to the allocated memory if successful; otherwise a
+\fBNULL\fR
+pointer is returned and
+\fIerrno\fR
+is set to
+ENOMEM\&.
+.PP
+The
+posix_memalign()
+function returns the value 0 if successful; otherwise it returns an error value\&. The
+posix_memalign()
+function will fail if:
+.PP
+EINVAL
+.RS 4
+The
+\fIalignment\fR
+parameter is not a power of 2 at least as large as
+sizeof(\fBvoid *\fR)\&.
+.RE
+.PP
+ENOMEM
+.RS 4
+Memory allocation error\&.
+.RE
+.PP
+The
+aligned_alloc()
+function returns a pointer to the allocated memory if successful; otherwise a
+\fBNULL\fR
+pointer is returned and
+\fIerrno\fR
+is set\&. The
+aligned_alloc()
+function will fail if:
+.PP
+EINVAL
+.RS 4
+The
+\fIalignment\fR
+parameter is not a power of 2\&.
+.RE
+.PP
+ENOMEM
+.RS 4
+Memory allocation error\&.
+.RE
+.PP
+The
+realloc()
+function returns a pointer, possibly identical to
+\fIptr\fR, to the allocated memory if successful; otherwise a
+\fBNULL\fR
+pointer is returned, and
+\fIerrno\fR
+is set to
+ENOMEM
+if the error was the result of an allocation failure\&. The
+realloc()
+function always leaves the original buffer intact when an error occurs\&.
+.PP
+The
+free()
+function returns no value\&.
+.SS "Non\-standard API"
+.PP
+The
+mallocx()
+and
+rallocx()
+functions return a pointer to the allocated memory if successful; otherwise a
+\fBNULL\fR
+pointer is returned to indicate insufficient contiguous memory was available to service the allocation request\&.
+.PP
+The
+xallocx()
+function returns the real size of the resulting resized allocation pointed to by
+\fIptr\fR, which is a value less than
+\fIsize\fR
+if the allocation could not be adequately grown in place\&.
+.PP
+The
+sallocx()
+function returns the real size of the allocation pointed to by
+\fIptr\fR\&.
+.PP
+The
+nallocx()
+returns the real size that would result from a successful equivalent
+mallocx()
+function call, or zero if insufficient memory is available to perform the size computation\&.
+.PP
+The
+mallctl(),
+mallctlnametomib(), and
+mallctlbymib()
+functions return 0 on success; otherwise they return an error value\&. The functions will fail if:
+.PP
+EINVAL
+.RS 4
+\fInewp\fR
+is not
+\fBNULL\fR, and
+\fInewlen\fR
+is too large or too small\&. Alternatively,
+\fI*oldlenp\fR
+is too large or too small; in this case as much data as possible are read despite the error\&.
+.RE
+.PP
+ENOENT
+.RS 4
+\fIname\fR
+or
+\fImib\fR
+specifies an unknown/invalid value\&.
+.RE
+.PP
+EPERM
+.RS 4
+Attempt to read or write void value, or attempt to write read\-only value\&.
+.RE
+.PP
+EAGAIN
+.RS 4
+A memory allocation failure occurred\&.
+.RE
+.PP
+EFAULT
+.RS 4
+An interface with side effects failed in some way not directly related to
+mallctl*()
+read/write processing\&.
+.RE
+.PP
+The
+malloc_usable_size()
+function returns the usable size of the allocation pointed to by
+\fIptr\fR\&.
+.SH "ENVIRONMENT"
+.PP
+The following environment variable affects the execution of the allocation functions:
+.PP
+\fBMALLOC_CONF\fR
+.RS 4
+If the environment variable
+\fBMALLOC_CONF\fR
+is set, the characters it contains will be interpreted as options\&.
+.RE
+.SH "EXAMPLES"
+.PP
+To dump core whenever a problem occurs:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ln \-s \*(Aqabort:true\*(Aq /etc/malloc\&.conf
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+To specify in the source that only one arena should be automatically created:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+malloc_conf = "narenas:1";
+.fi
+.if n \{\
+.RE
+.\}
+.SH "SEE ALSO"
+.PP
+\fBmadvise\fR(2),
+\fBmmap\fR(2),
+\fBsbrk\fR(2),
+\fButrace\fR(2),
+\fBalloca\fR(3),
+\fBatexit\fR(3),
+\fBgetpagesize\fR(3)
+.SH "STANDARDS"
+.PP
+The
+malloc(),
+calloc(),
+realloc(), and
+free()
+functions conform to ISO/IEC 9899:1990 (\(lqISO C90\(rq)\&.
+.PP
+The
+posix_memalign()
+function conforms to IEEE Std 1003\&.1\-2001 (\(lqPOSIX\&.1\(rq)\&.
+.SH "HISTORY"
+.PP
+The
+malloc_usable_size()
+and
+posix_memalign()
+functions first appeared in FreeBSD 7\&.0\&.
+.PP
+The
+aligned_alloc(),
+malloc_stats_print(), and
+mallctl*()
+functions first appeared in FreeBSD 10\&.0\&.
+.PP
+The
+*allocx()
+functions first appeared in FreeBSD 11\&.0\&.
+.SH "AUTHOR"
+.PP
+\fBJason Evans\fR
+.RS 4
+.RE
+.SH "NOTES"
+.IP " 1." 4
+jemalloc website
+.RS 4
+\%http://jemalloc.net/
+.RE
+.IP " 2." 4
+JSON format
+.RS 4
+\%http://www.json.org/
+.RE
+.IP " 3." 4
+gperftools package
+.RS 4
+\%http://code.google.com/p/gperftools/
+.RE

@@ -1,0 +1,92 @@
+<HTML>
+<HEAD><TITLE>smfi_version()</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_version.html,v 1.7 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_version()</H1>
+
+<TABLE BORDER="0" CELLSPACING=4 CELLPADDING=4>
+<!---------- Synopsis ----------->
+<TR><TH VALIGN="TOP" ALIGN=LEFT WIDTH=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_version(
+	unsigned int *pmajor,
+	unsigned int *pminor,
+	unsigned int *ppl
+);
+</PRE>
+Get the (runtime) version of libmilter.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH VALIGN="TOP" ALIGN=LEFT>DESCRIPTION</TH><TD>
+<TABLE BORDER="1" CELLSPACING=1 CELLPADDING=4>
+<TR ALIGN="LEFT" VALIGN=TOP>
+<TH WIDTH="80">Called When</TH>
+<TD>smfi_version may be called at any time.</TD>
+</TR>
+<TR ALIGN="LEFT" VALIGN=TOP>
+<TH WIDTH="80">Effects</TH>
+<TD>None.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH VALIGN="TOP" ALIGN=LEFT>ARGUMENTS</TH><TD>
+    <TABLE BORDER="1" CELLSPACING=0>
+    <TR BGCOLOR="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR VALIGN="TOP"><TD>pmajor</TD>
+	<TD>Pointer to an unsigned int variable to store major version number.
+	</TD></TR>
+    <TR VALIGN="TOP"><TD>pminor</TD>
+	<TD>Pointer to an unsigned int variable to store minor version number.
+	</TD></TR>
+    <TR VALIGN="TOP"><TD>ppl</TD>
+	<TD>Pointer to an unsigned int variable to store patch level number.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH VALIGN="TOP" ALIGN=LEFT>RETURN VALUES</TH>
+<TD>smfi_version returns MI_SUCCESS.</TD>
+</TR>
+
+</TABLE>
+
+Note: the compile time version of libmilter is available in the macro
+<CODE>SMFI_VERSION</CODE>.
+To extract the major and minor version as well as the current patch level
+from this macro, the macros
+<CODE>SM_LM_VRS_MAJOR(v)</CODE>,
+<CODE>SM_LM_VRS_MINOR(v)</CODE>, and
+<CODE>SM_LM_VRS_PLVL(v)</CODE>
+can be used, respectively.
+A milter can check the
+<CODE>SMFI_VERSION</CODE>
+macro to determine which functions to use
+(at compile time via C preprocessor statements).
+Using this macro and the
+<CODE>smfi_version()</CODE>
+function,
+a milter can determine at runtime whether it has been (dynamically)
+linked against the expected libmilter version.
+Such a function should only compare the major and minor version,
+not the patch level,
+i.e., the libmilter library will be compatible despite
+different patch levels.
+
+
+<HR SIZE="1">
+<FONT SIZE="-1">
+Copyright (c) 2006-2008 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

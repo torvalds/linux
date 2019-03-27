@@ -1,0 +1,297 @@
+.\" Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 2012
+.Dt PIDFILE 3
+.Os
+.Sh NAME
+.Nm pidfile_open ,
+.Nm pidfile_write ,
+.Nm pidfile_close ,
+.Nm pidfile_remove
+.Nd "library for PID files handling"
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In libutil.h
+.Ft "struct pidfh *"
+.Fn pidfile_open "const char *path" "mode_t mode" "pid_t *pidptr"
+.Ft int
+.Fn pidfile_write "struct pidfh *pfh"
+.Ft int
+.Fn pidfile_close "struct pidfh *pfh"
+.Ft int
+.Fn pidfile_remove "struct pidfh *pfh"
+.Ft int
+.Fn pidfile_fileno "struct pidfh *pfh"
+.Sh DESCRIPTION
+The
+.Nm pidfile
+family of functions allows daemons to handle PID files.
+It uses
+.Xr flopen 3
+to lock a pidfile and detect already running daemons.
+.Pp
+The
+.Fn pidfile_open
+function opens (or creates) a file specified by the
+.Fa path
+argument and locks it.
+If
+.Fa pidptr
+argument is not
+.Dv NULL
+and file can not be locked, the function will use it to store a PID of an
+already running daemon or
+.Li -1
+in case daemon did not write its PID yet.
+The function does not write process' PID into the file here, so it can be
+used before
+.Fn fork Ns ing
+and exit with a proper error message when needed.
+If the
+.Fa path
+argument is
+.Dv NULL ,
+.Pa /var/run/ Ns Ao Va progname Ac Ns Pa .pid
+file will be used.
+The
+.Fn pidfile_open
+function sets the O_CLOEXEC close-on-exec flag when opening the pidfile.
+.Pp
+The
+.Fn pidfile_write
+function writes process' PID into a previously opened file.
+The file is truncated before write, so calling the
+.Fn pidfile_write
+function multiple times is supported.
+.Pp
+The
+.Fn pidfile_close
+function closes a pidfile.
+It should be used after daemon
+.Fn fork Ns s
+to start a child process.
+.Pp
+The
+.Fn pidfile_remove
+function closes and removes a pidfile.
+.Pp
+The
+.Fn pidfile_fileno
+function returns the file descriptor for the open pidfile.
+.Sh RETURN VALUES
+The
+.Fn pidfile_open
+function returns a valid pointer to a
+.Vt pidfh
+structure on success, or
+.Dv NULL
+if an error occurs.
+If an error occurs,
+.Va errno
+will be set.
+.Pp
+.Rv -std pidfile_write pidfile_close pidfile_remove
+.Pp
+The
+.Fn pidfile_fileno
+function returns the low-level file descriptor.
+It returns
+.Li -1
+and sets
+.Va errno
+if a NULL
+.Vt pidfh
+is specified, or if the pidfile is no longer open.
+.Sh EXAMPLES
+The following example shows in which order these functions should be used.
+Note that it is safe to pass
+.Dv NULL
+to
+.Fn pidfile_write ,
+.Fn pidfile_remove ,
+.Fn pidfile_close
+and
+.Fn pidfile_fileno
+functions.
+.Bd -literal
+struct pidfh *pfh;
+pid_t otherpid, childpid;
+
+pfh = pidfile_open("/var/run/daemon.pid", 0600, &otherpid);
+if (pfh == NULL) {
+	if (errno == EEXIST) {
+		errx(EXIT_FAILURE, "Daemon already running, pid: %jd.",
+		    (intmax_t)otherpid);
+	}
+	/* If we cannot create pidfile from other reasons, only warn. */
+	warn("Cannot open or create pidfile");
+	/*
+	 * Even though pfh is NULL we can continue, as the other pidfile_*
+	 * function can handle such situation by doing nothing except setting
+	 * errno to EDOOFUS.
+	 */
+}
+
+if (daemon(0, 0) == -1) {
+	warn("Cannot daemonize");
+	pidfile_remove(pfh);
+	exit(EXIT_FAILURE);
+}
+
+pidfile_write(pfh);
+
+for (;;) {
+	/* Do work. */
+	childpid = fork();
+	switch (childpid) {
+	case -1:
+		syslog(LOG_ERR, "Cannot fork(): %s.", strerror(errno));
+		break;
+	case 0:
+		pidfile_close(pfh);
+		/* Do child work. */
+		break;
+	default:
+		syslog(LOG_INFO, "Child %jd started.", (intmax_t)childpid);
+		break;
+	}
+}
+
+pidfile_remove(pfh);
+exit(EXIT_SUCCESS);
+.Ed
+.Sh ERRORS
+The
+.Fn pidfile_open
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EEXIST
+Some process already holds the lock on the given pidfile, meaning that a
+daemon is already running.
+If
+.Fa pidptr
+argument is not
+.Dv NULL
+the function will use it to store a PID of an already running daemon or
+.Li -1
+in case daemon did not write its PID yet.
+.It Bq Er ENAMETOOLONG
+Specified pidfile's name is too long.
+.It Bq Er EINVAL
+Some process already holds the lock on the given pidfile, but PID read
+from there is invalid.
+.El
+.Pp
+The
+.Fn pidfile_open
+function may also fail and set
+.Va errno
+for any errors specified for the
+.Xr fstat 2 ,
+.Xr open 2 ,
+and
+.Xr read 2
+calls.
+.Pp
+The
+.Fn pidfile_write
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EDOOFUS
+Improper function use.
+Probably called before
+.Fn pidfile_open .
+.El
+.Pp
+The
+.Fn pidfile_write
+function may also fail and set
+.Va errno
+for any errors specified for the
+.Xr fstat 2 ,
+.Xr ftruncate 2 ,
+and
+.Xr write 2
+calls.
+.Pp
+The
+.Fn pidfile_close
+function may fail and set
+.Va errno
+for any errors specified for the
+.Xr close 2
+and
+.Xr fstat 2
+calls.
+.Pp
+The
+.Fn pidfile_remove
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EDOOFUS
+Improper function use.
+Probably called not from the process which made
+.Fn pidfile_write .
+.El
+.Pp
+The
+.Fn pidfile_remove
+function may also fail and set
+.Va errno
+for any errors specified for the
+.Xr close 2 ,
+.Xr fstat 2 ,
+.Xr write 2 ,
+and
+.Xr unlink 2
+system calls and the
+.Xr flopen 3
+library function.
+.Pp
+The
+.Fn pidfile_fileno
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EDOOFUS
+Improper function use.
+Probably called not from the process which used
+.Fn pidfile_open .
+.El
+.Sh SEE ALSO
+.Xr open 2 ,
+.Xr daemon 3 ,
+.Xr flopen 3
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm pidfile
+functionality is based on ideas from
+.An John-Mark Gurney Aq Mt jmg@FreeBSD.org .
+.Pp
+The code and manual page was written by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

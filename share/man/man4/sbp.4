@@ -1,0 +1,97 @@
+.\" Copyright (c) 1998-2002 Katsushi Kobayashi and Hidetoshi Shimokawa
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the acknowledgement as bellow:
+.\"
+.\"      This product includes software developed by K. Kobayashi
+.\"
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 2012
+.Dt SBP 4
+.Os
+.Sh NAME
+.Nm sbp
+.Nd Serial Bus Protocol 2 (SBP-2) Mass Storage Devices driver
+.Sh SYNOPSIS
+.Cd "kldload firewire"
+.Cd "kldload cam"
+.Cd "kldload sbp"
+.Pp
+or
+.Pp
+.Cd "device sbp"
+.Cd "device firewire"
+.Cd "device scbus"
+.Cd "device da"
+.Cd "device cd"
+.Cd "device pass"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for SBP-2 devices that attach to the FireWire
+(IEEE 1394) port.
+It should work with SBP-2 devices which the CAM layer supports, for example,
+HDDs, CDROM drives and DVD drives.
+.Pp
+Some users familiar with
+.Xr umass 4
+might wonder why the device is not detached at the CAM layer when the device
+is unplugged.
+It is detached only if the device has not been plugged again
+during several bus resets.
+This is for preventing to detach an active file system
+even when the device cannot be probed correctly for some reason after a bus reset
+or when the device is temporary disconnected because the user changes the bus
+topology.
+If you want to force to detach the device, run
+.Dq Nm fwcontrol Fl r
+several times or set hw.firewire.hold_count=0 by
+.Xr sysctl 8 .
+.Pp
+Some (broken) HDDs do not work well with tagged queuing.
+If you have problems with such drives, try
+.Dq Nm camcontrol [device id] tags -N 1
+to disable tagged queuing.
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr firewire 4 ,
+.Xr camcontrol 8 ,
+.Xr fwcontrol 8 ,
+.Xr kldload 8 ,
+.Xr sysctl 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Katsushi Kobayashi
+and
+.An Hidetoshi Shimokawa .
+.Pp
+This manual page was written by
+.An Katsushi Kobayashi .

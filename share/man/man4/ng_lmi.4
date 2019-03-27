@@ -1,0 +1,138 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_lmi.8,v 1.4 1999/01/25 23:46:27 archie Exp $
+.\"
+.Dd November 13, 2012
+.Dt NG_LMI 4
+.Os
+.Sh NAME
+.Nm ng_lmi
+.Nd frame relay LMI protocol netgraph node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph/ng_lmi.h
+.Sh DESCRIPTION
+The
+.Nm lmi
+node type performs the frame relay LMI protocol.
+It supports
+the ITU Annex A, ANSI Annex D, and Group-of-four LMI types.
+It also supports auto-detection of the LMI type.
+.Pp
+To enable a specific LMI type, connect the corresponding hook
+.Dv ( annexA ,
+.Dv annexD ,
+or
+.Dv group4 ")"
+to DLCI 0 or 1023 of a
+.Xr ng_frame_relay 4
+node.
+Typically, Annex A and Annex D live on DLCI 0 while Group-of-four
+lives on DLCI 1023.
+.Pp
+To enable LMI type auto-detection, connect the
+.Dv auto0
+hook to DLCI 0 and the
+.Dv auto1023
+hook to DLCI 1023.
+The node will attempt to automatically determine
+which LMI type is running at the switch, and go into that mode.
+.Pp
+Only one fixed LMI type, or auto-detection, can be active at any given time.
+.Pp
+The
+.Dv NGM_LMI_GET_STATUS
+control message can be used at any time to query the current status
+of the LMI protocol and each DLCI channel.
+This node also supports the
+.Dv NGM_TEXT_STATUS
+control message.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va auto1023"
+.It Va annexA
+ITU Annex A LMI hook.
+.It Va annexD
+ANSI Annex D LMI hook.
+.It Va group4
+Group-of-four LMI hook.
+.It Va auto0
+Auto-detection hook for DLCI 0.
+.It Va auto1023
+Auto-detection hook for DLCI 1023.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_LMI_GET_STATUS
+This command returns status information in a
+.Dv "struct nglmistat" :
+.Bd -literal -offset 4n
+#define NGM_LMI_STAT_ARYSIZE   (1024/8)
+
+struct nglmistat {
+  u_char  proto[12];	/* Active proto (same as hook name) */
+  u_char  hook[12];	/* Active hook */
+  u_char  fixed;	/* If set to fixed LMI mode */
+  u_char  autod;	/* If currently auto-detecting */
+  u_char  seen[NGM_LMI_STAT_ARYSIZE];	/* DLCIs ever seen */
+  u_char  up[NGM_LMI_STAT_ARYSIZE];	/* DLCIs currently up */
+};
+.Ed
+.It Dv NGM_TEXT_STATUS
+This generic message returns is a human-readable version of the node status.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_frame_relay 4 ,
+.Xr ngctl 8
+.Rs
+.%T "ANSI T1.617-1991 Annex D"
+.Re
+.Rs
+.%T "ITU-T Q.933 Digital Subscriber Signaling System No. 1 - Signaling Specification for Frame Mode Basic Call Control, Annex A"
+.Re
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq Mt julian@FreeBSD.org

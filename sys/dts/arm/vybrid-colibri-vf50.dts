@@ -1,0 +1,82 @@
+/*-
+ * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+
+/include/ "vybrid.dtsi"
+
+/ {
+	model = "Toradex Colibri VF50";
+
+	memory {
+		device_type = "memory";
+		reg = < 0x80000000 0x08000000 >;	/* 128MB RAM */
+	};
+
+	SOC: vybrid {
+		serial0: serial@40027000 {
+			status = "okay";
+		};
+
+		fec1: ethernet@400D1000 {
+			status = "okay";
+			iomux_config = < 54 0x103192
+					 55 0x103193
+					 56 0x103191
+					 57 0x103191
+					 58 0x103191
+					 59 0x103191
+					 60 0x103192
+					 61 0x103192
+					 62 0x103192
+					  0 0x103191 >;
+		};
+
+		sai3: sai@40032000 {
+			status = "okay";
+		};
+
+		i2c0: i2c@40066000 {
+			status = "okay";
+		};
+
+		adc0: adc@4003B000 {
+			status = "okay";
+		};
+
+		edma1: edma@40098000 {
+			status = "okay";
+		};
+	};
+
+	chosen {
+		bootargs = "-v";
+		stdin = "serial0";
+		stdout = "serial0";
+	};
+};

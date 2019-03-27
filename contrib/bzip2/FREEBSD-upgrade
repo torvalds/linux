@@ -1,0 +1,27 @@
+$FreeBSD$
+
+Julian Seward's bzip2
+	originals can be found at: 	http://www.bzip.org/downloads.html
+
+Imported by:
+
+	cvs import -m "Virgin import (trimmed) of Bzip2 version 1.0.5." \
+		src/contrib/bzip2 BZIP2 v1_0_5
+
+Notes:
+	The following log shows details of trimming:
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	tar xvfz bzip2-1.0.4.tar.gz -X FREEBSD-Xlist
+	cd bzip2-1.0.4
+	uuencode sample1.bz2 sample1.bz2 > sample1.bz2.uu
+	uuencode sample2.bz2 sample2.bz2 > sample2.bz2.uu
+	uuencode sample3.bz2 sample3.bz2 > sample3.bz2.uu
+	gzip -9 sample1.ref sample2.ref sample3.ref
+	uuencode sample1.ref.gz sample1.ref.gz > sample1.ref.gz.uu
+	uuencode sample2.ref.gz sample2.ref.gz > sample2.ref.gz.uu
+	uuencode sample3.ref.gz sample3.ref.gz > sample3.ref.gz.uu
+	rm sample1.bz2 sample1.ref.gz sample2.bz2 sample2.ref.gz
+	rm sample3.bz2 sample3.ref.gz
+
+obrien@FreeBSD.org
+15 May 2005

@@ -1,0 +1,51 @@
+# $tcsh: termcap.vms,v 1.3 2006/03/02 18:46:45 christos Exp $
+# posix /etc/termcap 1992 
+#
+# Minimal termcap for VMS/POSIX
+#
+# 7bit vt300 series
+p3|vt300_series|vt300_series|dec vt320:\
+	:hs:\
+	:es:\
+	:ts=\E[1$}\E[;H\E[K:\
+	:fs=\E[0$}:\
+	:ds=\E[1$}\E[D;H\E[K\E[0$}:\
+	:ae=4\E(B:\
+	:al=\E[L:\
+	:as=2\E(<:\
+	:dc=\E[P;\E[:dl=\E[M:\
+	:ei=\E[4l:im=\E[4h:mi:nd=\E[C:se=\E[m:so=\E[7m:sr=\EM:\
+	:ue=\E[m:up=\E[A:us=\E[4m:\
+	:cr=^M:do=^J:nl=^J:bl=^G:co#80:li#24:cl=50\E[;H\E[2J:\
+	:le=^H:bs:am:cm=5\E[%i%d;%dH:nd=2\E[C:up=2\E[A:\
+	:ce=\E[K:cd=50\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:\
+	:is=\E[1;24r\E[24;1H:\
+	:ct=2\E[3g:st=2\EH:\
+	:rf=/usr/lib/tabset/vt100:\
+	:rs=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h:\
+	:ks=\E[?1h\E=:ke=\E[?1l\E>:\
+	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:ta=^I:pt:sr=5\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+#vt200_series
+p2|vt200_series|vt200_series|dec vt220:\
+	:ae=4\E(B:\
+	:al=\E[L:\
+	:as=2\E(<:\
+	:dc=\E[P:dl=\E[M:\
+	:ei=\E[4l:im=\E[4h:mi:nd=\E[C:se=\E[m:so=\E[7m:sr=\EM:\
+	:ue=\E[m:up=\E[A:us=\E[4m:\
+	:cr=^M:do=^J:nl=^J:bl=^G:co#80:li#24:cl=50\E[;H\E[2J:\
+	:le=^H:bs:am:cm=5\E[%i%d;%dH:nd=2\E[C:up=2\E[A:\
+	:ce=3\E[K:cd=50\E[J:so=2\E[7m:se=2\E[m:us=2\E[4m:ue=2\E[m:\
+	:md=2\E[1m:mr=2\E[7m:mb=2\E[5m:me=2\E[m:\
+	:is=\E[1;24r\E[24;1H:\
+	:ct=2\E[3g:st=2\EH:\
+	:rf=/usr/lib/tabset/vt100:\
+	:rs=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h:\
+	:ks=\E[?1h\E=:ke=\E[?1l\E>:\
+	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:ta=^I:pt:sr=5\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+# ------------------------

@@ -1,0 +1,84 @@
+#
+# Copyright (c) 2001-2003
+# Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+# 	All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# Author: Hartmut Brandt <harti@freebsd.org>
+#
+# $Begemot: libunimsg/netnatm/msg/ie.def,v 1.4 2003/09/29 10:47:18 hbb Exp $
+#
+# Define information elements --- no content definition
+#
+#########################################################################
+element cause		0x08 itu 34
+element cause		0x08 net 34
+element callstate	0x14 itu  5
+element facility	0x1c itu UNI_FACILITY_MAXAPDU+1+4	q2932
+element notify		0x27 itu UNI_NOTIFY_MAXLEN+4
+element eetd		0x42 itu 11
+element eetd		0x42 net 13
+element conned		0x4c itu 25 file=addr
+element connedsub	0x4d itu 25 access file=addr
+element epref		0x54 itu  7
+element epstate		0x55 itu  5
+element aal		0x58 itu 21 access
+element traffic		0x59 itu 30
+element traffic		0x59 net
+element connid		0x5a itu  9
+element qos		0x5c itu  6
+element qos		0x5c net  6
+element bhli		0x5d itu 13 access
+element bearer		0x5e itu  7
+element blli		0x5f itu 17 access
+element lshift		0x60 itu  5 0 file=shift
+element nlshift		0x61 itu  5 0 file=shift
+element scompl		0x62 itu  5 !pnni
+element repeat		0x63 itu  5
+element calling		0x6c itu 26 file=addr
+element callingsub	0x6d itu 25 access file=addr
+element called		0x70 itu 25 file=addr
+element calledsub	0x71 itu 25 access file=addr
+element tns		0x78 itu  9
+element tns		0x78 net
+element restart		0x79 itu  5
+element uu		0x7e itu UNI_UU_MAXLEN+4		access !pnni
+element git		0x7f net 33
+element mintraffic	0x81 itu 20 file=traffic
+element mintraffic	0x81 net
+element atraffic	0x82 itu 30 file=traffic
+element atraffic	0x82 net
+element abrsetup	0x84 net 36 file=abr
+element report		0x89 itu  5
+element called_soft	0xe0 net 11 file=soft			pnni
+element crankback	0xe1 net 72				pnni
+element dtl		0xe2 net UNI_DTL_LOGNP_SIZE*UNI_DTL_MAXNUM+6 pnni
+element calling_soft	0xe3 net 10 file=soft			pnni
+element abradd		0xe4 net 14 file=abr
+element lij_callid	0xe8 net  9 file=lij			!pnni
+element lij_param	0xe9 net  5 file=lij			!pnni
+element lij_seqno	0xea net  8 file=lij			!pnni
+element cscope		0xeb net  6
+element exqos		0xec net 25
+element mdcr		0xf0 net 13 file=traffic
+element unrec		0xfe itu 128

@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+T=$(mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXX)
+trap 'rm -rf $T' 0
+cd $T || exit 3
+mkfifo fifo1
+
+v=$(
+	exec 3>&1
+	: <fifo1 &
+	{
+		wait $!
+		trap 'trap "" PIPE; echo trapped >&3 2>/dev/null' PIPE
+		echo x 2>/dev/null
+	} >fifo1
+)
+test "$v" = trapped

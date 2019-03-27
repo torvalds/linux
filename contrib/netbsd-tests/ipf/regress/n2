@@ -1,0 +1,4 @@
+map zx0 10.1.1.1/32 -> 10.2.2.2/32 portmap tcp 10000:20000 sequential
+map zx0 10.1.1.0/24 -> 10.3.4.5/32 portmap udp 10000:20000 sequential
+map zx0 10.1.0.0/16 -> 10.3.4.0/24 portmap tcp/udp 10000:20000 sequential
+map zx0 10.1.1.0/24 -> 10.3.4.5/32 portmap tcp/udp 40000:40001 sequential

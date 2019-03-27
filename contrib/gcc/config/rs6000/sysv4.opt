@@ -1,0 +1,149 @@
+; SYSV4 options for PPC port.
+;
+; Copyright (C) 2005 Free Software Foundation, Inc.
+; Contributed by Aldy Hernandez <aldy@quesejoda.com>.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT
+; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+; License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+mcall-
+Target RejectNegative Joined
+Select ABI calling convention
+
+msdata=
+Target RejectNegative Joined
+Select method for sdata handling
+
+mtls-size=
+Target RejectNegative Joined
+Specify bit size of immediate TLS offsets
+
+mbit-align
+Target Report Mask(NO_BITFIELD_TYPE)
+Align to the base type of the bit-field
+
+mstrict-align
+Target Report Mask(STRICT_ALIGN)
+Align to the base type of the bit-field
+Don't assume that unaligned accesses are handled by the system
+
+mrelocatable
+Target Report Mask(RELOCATABLE)
+Produce code relocatable at runtime
+
+mrelocatable-lib
+Target
+Produce code relocatable at runtime
+
+mlittle-endian
+Target Report RejectNegative Mask(LITTLE_ENDIAN)
+Produce little endian code
+
+mlittle
+Target Report RejectNegative Mask(LITTLE_ENDIAN) MaskExists
+Produce little endian code
+
+mbig-endian
+Target Report RejectNegative InverseMask(LITTLE_ENDIAN)
+Produce big endian code
+
+mbig
+Target Report RejectNegative InverseMask(LITTLE_ENDIAN)
+Produce big endian code
+
+;; FIXME: This does nothing.  What should be done?
+mno-toc
+Target RejectNegative
+no description yet
+
+mtoc
+Target RejectNegative
+no description yet
+
+mprototype
+Target Mask(PROTOTYPE)
+Assume all variable arg functions are prototyped
+
+;; FIXME: Does nothing.
+mno-traceback
+Target RejectNegative
+no description yet
+
+meabi
+Target Report Mask(EABI)
+Use EABI
+
+mbit-word
+Target Report Mask(NO_BITFIELD_WORD)
+Allow bit-fields to cross word boundaries
+
+mregnames
+Target Mask(REGNAMES)
+Use alternate register names
+
+;; FIXME: Does nothing.
+msdata
+Target
+no description yet
+
+msim
+Target RejectNegative
+Link with libsim.a, libc.a and sim-crt0.o
+
+mads
+Target RejectNegative
+Link with libads.a, libc.a and crt0.o
+
+myellowknife
+Target RejectNegative
+Link with libyk.a, libc.a and crt0.o
+
+mmvme
+Target RejectNegative
+Link with libmvme.a, libc.a and crt0.o
+
+memb
+Target RejectNegative
+Set the PPC_EMB bit in the ELF flags header
+
+mwindiss
+Target RejectNegative
+Use the WindISS simulator
+
+mshlib
+Target RejectNegative
+no description yet
+
+m64
+Target Report RejectNegative Mask(64BIT)
+Generate 64-bit code
+
+m32
+Target Report RejectNegative InverseMask(64BIT)
+Generate 32-bit code
+
+mnewlib
+Target RejectNegative
+no description yet
+
+msecure-plt
+Target Report RejectNegative Var(secure_plt, 1)
+Generate code to use a non-exec PLT and GOT
+
+mbss-plt
+Target Report RejectNegative Var(secure_plt, 0)
+Generate code for old exec BSS PLT

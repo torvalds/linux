@@ -1,0 +1,17 @@
+foo 9 -2
+PING localhost (127.0.0.1): 56 data bytes
+
+--- localhost ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+10
+PING localhost (127.0.0.1): 56 data bytes
+
+--- localhost ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+11
+PING localhost (127.0.0.1): 56 data bytes
+
+--- localhost ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+12
+

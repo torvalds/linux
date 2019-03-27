@@ -1,0 +1,325 @@
+.\"-
+.\" Copyright (c) 2013 Stacey D. Son
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" Support for miscellaneous binary image activators
+.\"
+.Dd July 21, 2018
+.Dt BINMISCCTL 8
+.Os
+.Sh NAME
+.Nm binmiscctl
+.Nd manage binary image activators
+.Sh SYNOPSIS
+.Nm
+.Cm add
+.Ar name
+.Fl -interpreter
+.Ar path
+.Fl -magic
+.Ar magic
+.Fl -size
+.Ar size
+.Op Fl -mask Ar mask
+.Op Fl -offset Ar offset
+.Op Fl -set-enabled
+.Nm
+.Cm disable
+.Ar name
+.Nm
+.Cm enable
+.Ar name
+.Nm
+.Cm list
+.Nm
+.Cm lookup
+.Ar name
+.Nm
+.Cm remove
+.Ar name
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is the management utility for configuring miscellaneous binaries image
+activators in the kernel.
+It allows adding, deleting, disabling,
+enabling, and looking up interpreters.
+Also, all the interpreters can
+be listed.
+.Pp
+The first argument on the command line indicates the operation to be
+performed.
+Operation must be one of the following:
+.Bl -tag -width indent
+.It Xo
+.Cm add
+.Ar name
+.Fl -interpreter
+.Ar path
+.Fl -magic
+.Ar magic
+.Fl -size
+.Ar size
+.Op Fl -mask Ar mask
+.Op Fl -offset Ar offset
+.Op Fl -set-enabled
+.Xc
+Add a new activator entry in the kernel.
+You must specify a
+unique
+.Ar name ,
+a
+.Ar path
+to the interpreter,
+header
+.Ar magic
+bytes that uniquely identify a suitable binary for the activator,
+and the
+.Ar size
+of the
+.Ar magic
+in bytes.
+.Pp
+Optionally, you may specify a
+.Ar mask
+to do a bitwise AND with the header bytes.
+This effectively allows you to ignore fields in the binary header that
+do not uniquely indentify the binary file's type.
+.Pp
+An
+.Ar offset
+may be specified for the magic bytes using the
+.Fl -offset
+option.
+By default the
+.Ar offset
+is zero.
+.Pp
+To enable the activator entry the
+.Fl -set-enabled
+option is used.
+The activator default state is disabled.
+.Pp
+The interpreter
+.Ar path
+may also contain arguments for the interpreter including
+.Ar #a
+which gets replaced by the old
+.Dv argv0
+value in the interpreter string.
+.It Cm disable Ar name
+Disable the activator entry identified with
+.Ar name .
+.It Cm enable Ar name
+Enable the activator entry identified with
+.Ar name .
+.It Cm list
+Take a snapshot and print all the activator entries currently configured.
+.It Cm lookup Ar name
+Look up and print out the activator entry identified with
+.Ar name .
+.It Cm remove Ar name
+Remove the activator entry identified with
+.Ar name .
+.El
+.Sh EXAMPLES
+Add an image activator to run the LLVM interpreter
+.Po
+.Xr lli 1
+.Pc
+on bitcode
+compiled files and set its state to enabled.
+In this example
+.Ar #a
+is replaced with the old
+.Dv argv0
+value so that
+.Xr lli 1
+can fake its
+.Dv argv0 :
+.Bd -literal -offset indent
+# binmiscctl add llvmbc --interpreter ''/usr/bin/lli \e
+  --fake-argv0=#a'' --magic ''BC\\xc0\\xde'' --size 4 \e
+  --set-enabled
+.Ed
+.Pp
+Set the state of the
+.Ar llvmbc
+image activator to disabled:
+.Bd -literal -offset indent
+# binmiscctl disable llvmbc
+.Ed
+.Pp
+Set the state of the
+.Ar llvmbc
+image activator to enabled:
+.Bd -literal -offset indent
+# binmiscctl enable llvmbc
+.Ed
+.Pp
+Delete the
+.Ar llvmbc
+image activator:
+.Bd -literal -offset indent
+# binmiscctl remove llvmbc
+.Ed
+.Pp
+Look up and list the record for the
+.Ar llvmbc
+image activator:
+.Bd -literal -offset indent
+# binmiscctl lookup llvmbc
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for ARM AARCH64 binaries:
+.Bd -literal -offset indent
+# binmiscctl add arm64 \e
+  --interpreter "/usr/local/bin/qemu-aarch64-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex02\ex01\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\exb7\ex00" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exfe\exff\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for ARM little-endian binaries:
+.Bd -literal -offset indent
+# binmiscctl add armelf \e
+  --interpreter "/usr/local/bin/qemu-arm-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex01\ex01\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex28\ex00" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exfe\exff\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for ARM big-endian binaries:
+.Bd -literal -offset indent
+# binmiscctl add armebelf \e
+  --interpreter "/usr/local/bin/qemu-arm-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex01\ex02\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex28" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for MIPS32 binaries:
+.Bd -literal -offset indent
+# binmiscctl add mips32 \e
+  --interpreter "/usr/local/bin/qemu-mips-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex01\ex02\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex08" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for MIPS64 binaries:
+.Bd -literal -offset indent
+# binmiscctl add mips64 \e
+  --interpreter "/usr/local/bin/qemu-mips64-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex02\ex02\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex08" \e
+  --mask "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+          \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for PowerPC binaries:
+.Bd -literal -offset indent
+# binmiscctl add powerpc \e
+  --interpreter "/usr/local/bin/qemu-ppc-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex01\ex02\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex14" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for PowerPC64 binaries:
+.Bd -literal -offset indent
+# binmiscctl add powerpc64 \e
+  --interpreter "/usr/local/bin/qemu-ppc64-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex02\ex02\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex15" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
+Add QEMU bsd-user program as an image activator for SPARC64 binaries:
+.Bd -literal -offset indent
+# binmiscctl add sparc64 \e
+  --interpreter "/usr/local/bin/qemu-sparc64-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex02\ex02\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\ex2b" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exff\exfe\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Ss "Create and use an ARMv6 chroot on an AMD64 host"
+Use an existing source tree to build a chroot host with architecture
+overrides:
+.Bd -literal -offset ident
+D=/path/to/chroot
+cd /usr/src
+mkdir -p $D
+make world TARGET=arm TARGET_ARCH=armv6 DESTDIR=$D
+make distribution TARGET=arm TARGET_ARCH=armv6 DESTDIR=$D
+.Ed
+.Pp
+With
+.Pa emulators/qemu-user-static
+from the
+.Fx
+Ports Collection, the emulator must be copied into the jail path
+specified in the
+.Nm
+command.
+Using the example above:
+.Bd -literal -offset -ident
+mkdir $D/usr/local/bin
+cp /usr/local/bin/qemu-arm-static $D/usr/local/bin
+.Ed
+.Pp
+Now the user can chroot into the environment normally, as root:
+.Bd -literal -offset -ident
+chroot $D
+.Ed
+.Sh SEE ALSO
+.Xr lli 1 ,
+.Xr execve 2 ,
+.Xr jail 8
+.Sh HISTORY
+The
+.Nm
+command was added in
+.Fx 10.1 .
+It was developed to support the imgact_binmisc kernel module.
+.Sh AUTHORS
+.An Stacey D Son Aq Mt sson@FreeBSD.org

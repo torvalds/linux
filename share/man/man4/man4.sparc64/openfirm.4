@@ -1,0 +1,300 @@
+.\"-
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This software was developed by the Computer Systems Engineering group
+.\" at Lawrence Berkeley Laboratory under DARPA contract BG 91-66 and
+.\" contributed to Berkeley.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)openprom.4	8.1 (Berkeley) 6/5/93
+.\"	from: OpenBSD: openprom.4,v 1.9 2004/03/22 22:07:21 miod Exp
+.\"
+.\"-
+.\" Copyright (c) 2005 Marius Strobl <marius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 1, 2006
+.Dt OPENFIRM 4 sparc64
+.Os
+.Sh NAME
+.Nm openfirm
+.Nd "Open Firmware interface"
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/ioctl.h
+.In dev/ofw/openfirmio.h
+.Sh DESCRIPTION
+The
+.Pa /dev/openfirm
+device is an interface to the
+.Tn Open Firmware
+device tree.
+This interface is similar to the
+.Tn SunOS /
+.Tn Solaris
+compatible
+.Xr openprom 4
+interface and highly stylized.
+It uses
+.Xr ioctl 2
+calls for all operations.
+These calls refer to the nodes in the
+.Tn Open Firmware
+device tree.
+The nodes are represented by package handles,
+which are simply integer values describing data areas.
+Occasionally a package handle of 0 may be used or returned instead,
+as described below.
+.Pp
+The calls that only take and/or return the package handle of a node
+use a pointer to a
+.Vt phandle_t
+for this purpose.
+The others use a pointer to a
+.Vt "struct ofiocdesc"
+descriptor,
+which has the following definition:
+.Bd -literal
+struct ofiocdesc {
+	phandle_t	of_nodeid;
+	int		of_namelen;
+	const char	*of_name;
+	int		of_buflen;
+	char		*of_buf;
+};
+.Ed
+.Pp
+The
+.Va of_nodeid
+member is the package handle of the node that is passed in or returned.
+Strings are passed in via the
+.Va of_name
+member of
+.Va of_namelen
+length.
+The maximum accepted length of
+.Va of_name
+is
+.Dv OFIOCMAXNAME .
+The
+.Va of_buf
+member is used to return strings except for the
+.Dv OFIOCSET
+call where it is also used to pass in a string.
+In the latter case the maximum accepted length of
+.Va of_buf
+is
+.Dv OFIOCMAXVALUE .
+Generally,
+.Va of_buf
+works in a value-result fashion.
+At entry to the
+.Xr ioctl 2
+call,
+.Va of_buflen
+is expected to reflect the buffer size.
+On return,
+.Va of_buflen
+is updated to reflect the buffer contents.
+.Pp
+The following
+.Xr ioctl 2
+calls are supported:
+.Bl -tag -width ".Dv OFIOCGETOPTNODE"
+.It Dv OFIOCGETOPTNODE
+Uses a
+.Vt phandle_t .
+Takes nothing and returns the package handle of the
+.Pa /options
+node.
+.It Dv OFIOCGETNEXT
+Uses a
+.Vt phandle_t .
+Takes the package handle of a node and returns the package handle of the next
+node in the
+.Tn Open Firmware
+device tree.
+The node following the last node has a package handle of 0.
+The node following the node with the package handle of 0 is the first node.
+.It Dv OFIOCGETCHILD
+Uses a
+.Vt phandle_t .
+Takes the package handle of a node and returns the package handle of the first
+child of that node.
+This child may have siblings.
+These can be determined by using
+.Dv OFIOCGETNEXT .
+If the node does not have a child,
+a package handle of 0 is returned.
+.It Dv OFIOCGET
+Uses a
+.Vt "struct ofiocdesc" .
+Takes the package handle of a node and the name of a property.
+Returns the property value and its length.
+If no such property is associated with that node,
+the length of the value is set to \-1.
+If the named property exists but has no value,
+the length of the value is set to 0.
+.It Dv OFIOCGETPROPLEN
+Uses a
+.Vt "struct ofiocdesc" .
+Takes the package handle of a node and the name of a property.
+Returns the length of the property value.
+This call is the same as
+.Dv OFIOCGET
+except that only the length of the property value is returned.
+It can be used to determine whether a node has a particular property or whether
+a property has a value without the need to provide memory for storing the value.
+.It Dv OFIOCSET
+Uses a
+.Vt "struct ofiocdesc" .
+Takes the package handle of a node,
+the name of a property and a property value.
+Returns the property value and the length that actually have been written.
+The
+.Tn Open Firmware
+may choose to truncate the value if it is too long or write a valid value
+instead if the given value is invalid for the particular property.
+Therefore the returned value should be checked.
+The
+.Tn Open Firmware
+may also completely refuse to write the given value to the property.
+In this case
+.Er EINVAL
+is returned.
+.It Dv OFIOCNEXTPROP
+Uses a
+.Vt "struct ofiocdesc" .
+Takes the package handle of a node and the name of a property.
+Returns the name and the length of the next property of the node.
+If the property referenced by the given name is the last property of the node,
+.Er ENOENT
+is returned.
+.It Dv OFIOCFINDDEVICE
+Uses a
+.Vt "struct ofiocdesc" .
+Takes the name or alias name of a device node.
+Returns package handle of the node.
+If no matching node is found,
+.Er ENOENT
+is returned.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/openfirm"
+.It Pa /dev/openfirm
+Open Firmware interface node
+.El
+.Sh DIAGNOSTICS
+The following may result in rejection of an operation:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The requested operation requires permissions not specified at the call to
+.Fn open .
+.It Bq Er EINVAL
+The given package handle is not 0 and does not correspond to any valid node,
+or the given package handle is 0 where 0 is not allowed.
+.It Bq Er ENAMETOOLONG
+The given name or value exceeds the maximum allowed length of
+.Dv OFIOCMAXNAME
+and
+.Dv OFIOCMAXVALUE
+bytes respectively.
+.It Bq Er ENOMEM
+The kernel could not allocate memory to copy in data from user-space or to
+retrieve data from the
+.Tn Open Firmware .
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr openprom 4 ,
+.Xr eeprom 8 ,
+.Xr ofwdump 8
+.Rs
+.%Q "IEEE Standards Organization"
+.%B "IEEE Std 1275-1994:"
+.%B "IEEE Standard for Boot Firmware (Initialization Configuration) Firmware:"
+.%B Core Requirements and Practices"
+.%O ISBN 1-55937-426-8
+.Re
+.Sh HISTORY
+The
+.Nm
+interface first appeared in
+.Nx 1.6 .
+The first
+.Fx
+version to include it was
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Nm
+interface was ported to
+.Fx
+by
+.An Thomas Moestl Aq Mt tmm@FreeBSD.org .
+.Sh CAVEATS
+Due to limitations within
+.Tn Open Firmware
+itself,
+these functions run at elevated priority and may adversely affect system
+performance.
+.Pp
+For at least the
+.Pa /options
+node the property value passed in to the
+.Dv OFIOCSET
+call has to be null-terminated and the value length passed in has to include
+the terminating
+.Ql \e0 .
+However, as with the
+.Dv OFIOCGET
+call,
+the returned value length does not include the terminating
+.Ql \e0 .

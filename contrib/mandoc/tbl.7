@@ -1,0 +1,434 @@
+.\"	$Id: tbl.7,v 1.29 2017/10/17 23:19:12 schwarze Exp $
+.\"
+.\" Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+.\" Copyright (c) 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: October 17 2017 $
+.Dt TBL 7
+.Os
+.Sh NAME
+.Nm tbl
+.Nd tbl language reference for mandoc
+.Sh DESCRIPTION
+The
+.Nm tbl
+language formats tables.
+It is used within
+.Xr mdoc 7
+and
+.Xr man 7
+pages.
+This manual describes the subset of the
+.Nm
+language accepted by the
+.Xr mandoc 1
+utility.
+.Pp
+Each table is started with a
+.Xr roff 7
+.Ic \&TS
+macro, consist of at most one line of
+.Sx Options ,
+one or more
+.Sx Layout
+lines, one or more
+.Sx Data
+lines, and ends with a
+.Ic \&TE
+macro.
+All input must be 7-bit ASCII.
+.Ss Options
+If the first input line of a table ends with a semicolon, it contains
+case-insensitive options separated by spaces, tabs, or commas.
+Otherwise, it is interpreted as the first
+.Sx Layout
+line.
+.Pp
+The following options are available.
+Some of them require arguments enclosed in parentheses:
+.Bl -tag -width Ds
+.It Cm allbox
+Draw a single-line box around each table cell.
+.It Cm box
+Draw a single-line box around the table.
+For GNU compatibility, this may also be invoked with
+.Cm frame .
+.It Cm center
+Center the table instead of left-adjusting it.
+For GNU compatibility, this may also be invoked with
+.Cm centre .
+.It Cm decimalpoint
+Use the single-character argument as the decimal point with the
+.Cm n
+layout key.
+This is a GNU extension.
+.It Cm delim
+Use the two characters of the argument as
+.Xr eqn 7
+delimiters.
+Currently unsupported.
+.It Cm doublebox
+Draw a double-line box around the table.
+For GNU compatibility, this may also be invoked with
+.Cm doubleframe .
+.It Cm expand
+Increase the width of the table to the current line length.
+Currently ignored.
+.It Cm linesize
+Draw lines with the point size given by the unsigned integer argument.
+Currently ignored.
+.It Cm nokeep
+Allow page breaks within the table.
+This is a GNU extension and currently ignored.
+.It Cm nospaces
+Ignore leading and trailing spaces in data cells.
+This is a GNU extension and currently ignored.
+.It Cm nowarn
+Suppress warnings about tables exceeding the current line length.
+This is a GNU extension and currently ignored.
+.It Cm tab
+Use the single-character argument as a delimiter between data cells.
+By default, the horizontal tabulator character is used.
+.El
+.Ss Layout
+The table layout follows an
+.Sx Options
+line or a
+.Xr roff 7
+.Ic \&TS
+or
+.Ic \&T&
+macro.
+Each layout line specifies how one line of
+.Sx Data
+is formatted.
+The last layout line ends with a full stop.
+It also applies to all remaining data lines.
+Multiple layout lines can be joined by commas on a single physical
+input line.
+.Pp
+Each layout line consists of one or more layout cell specifications,
+optionally separated by whitespace.
+The following case-insensitive key characters start a new cell
+specification:
+.Bl -tag -width 2n
+.It Cm c
+Center the string in this cell.
+.It Cm r
+Right-justify the string in this cell.
+.It Cm l
+Left-justify the string in this cell.
+.It Cm n
+Justify a number around its last decimal point.
+If no decimal point is found in the number,
+it is assumed to trail the number.
+.It Cm s
+Horizontally span columns from the last
+.Pf non- Cm s
+layout cell.
+It is an error if a column span follows a
+.Cm _
+or
+.Cm =
+cell, or comes first on a layout line.
+The combined cell as a whole consumes only one cell
+of the corresponding data line.
+.It Cm a
+Left-justify a string and pad with one space.
+.It Cm ^
+Vertically span rows from the last
+.Pf non- Cm ^
+layout cell.
+It is an error to invoke a vertical span on the first layout line.
+Unlike a horizontal span, a vertical span consumes a data cell
+and discards the content.
+.It Cm _
+Draw a single horizontal line in this cell.
+This consumes a data cell and discards the content.
+It may also be invoked with
+.Cm \- .
+.It Cm =
+Draw a double horizontal line in this cell.
+This consumes a data cell and discards the content.
+.El
+.Pp
+Each cell key may be followed by zero or more of the following
+case-insensitive modifiers:
+.Bl -tag -width 2n
+.It Cm b
+Use a bold font for the contents of this cell.
+.It Cm d
+Move content down to the last row of this vertical span.
+Currently ignored.
+.It Cm e
+Make this column wider to match the maximum width
+of any other column also having the
+.Cm e
+modifier.
+.It Cm f
+The next character selects the font to use for this cell.
+See the
+.Xr roff 7
+manual for supported one-character font names.
+.It Cm i
+Use an italic font for the contents of this cell.
+.It Cm m
+Specify a cell start macro.
+This is a GNU extension and currently unsupported.
+.It Cm p
+Set the point size to the following unsigned argument,
+or change it by the following signed argument.
+Currently ignored.
+.It Cm v
+Set the vertical line spacing to the following unsigned argument,
+or change it by the following signed argument.
+Currently ignored.
+.It Cm t
+Do not vertically center content in this vertical span,
+leave it in the top row.
+Currently ignored.
+.It Cm u
+Move cell content up by half a table row.
+Currently ignored.
+.It Cm w
+Specify a minimum column width.
+.It Cm x
+After determining the width of all other columns, distribute the
+rest of the line length among all columns having the
+.Cm x
+modifier.
+.It Cm z
+Do not use this cell for determining the width of this column.
+.It Cm \&|
+Draw a single vertical line to the right of this cell.
+.It Cm ||
+Draw a double vertical line to the right of this cell.
+.El
+.Pp
+If a modifier consists of decimal digits,
+it specifies a minimum spacing in units of
+.Cm n
+between this column and the next column to the right.
+The default is 3.
+If there is a vertical line, it is drawn inside the spacing.
+.Ss Data
+The data section follows the last
+.Sx Layout
+line.
+Each data line consists of one or more data cells, delimited by
+.Cm tab
+characters.
+.Pp
+If a data cells contains only the single character
+.Ql _
+or
+.Ql = ,
+a single or double horizontal line is drawn across the cell,
+joining its neighbours.
+If a data cells contains only the two character sequence
+.Ql \e_
+or
+.Ql \e= ,
+a single or double horizontal line is drawn inside the cell,
+not joining its neighbours.
+If a data line contains nothing but the single character
+.Ql _
+or
+.Ql = ,
+a horizontal line across the whole table is inserted
+without consuming a layout row.
+.Pp
+In place of any data cell, a text block can be used.
+It starts with
+.Ic \&T{
+at the end of a physical input line.
+Input line breaks inside the text block
+neither end the text block nor its data cell.
+It only ends if
+.Ic \&T}
+occurs at the beginning of a physical input line and is followed
+by an end-of-cell indicator.
+If the
+.Ic \&T}
+is followed by the end of the physical input line, the text block,
+the data cell, and the data line ends at this point.
+If the
+.Ic \&T}
+is followed by the
+.Cm tab
+character, only the text block and the data cell end,
+but the data line continues with the data cell following the
+.Cm tab
+character.
+If
+.Ic \&T}
+is followed by any other character, it does not end the text block,
+which instead continues to the following physical input line.
+.Sh EXAMPLES
+String justification and font selection:
+.Bd -literal -offset indent
+\&.TS
+rb c  lb
+r  ci l.
+r	center	l
+ri	ce	le
+right	c	left
+\&.TE
+.Ed
+.Bd -filled -offset indent
+.TS
+rb c  lb
+r  ci l.
+r	center	l
+ri	ce	le
+right	c	left
+.TE
+.Ed
+.Pp
+Some ports in
+.Ox 6.1
+to show number alignment and line drawing:
+.Bd -literal -offset indent
+\&.TS
+box tab(:);
+r| l
+r  n.
+software:version
+_
+AFL:2.39b
+Mutt:1.8.0
+Ruby:1.8.7.374
+TeX Live:2015
+\&.TE
+.Ed
+.Bd -filled -offset indent
+.TS
+box tab(:);
+r| l
+r  n.
+software:version
+_
+AFL:2.39b
+Mutt:1.8.0
+Ruby:1.8.7.374
+TeX Live:2015 
+.TE
+.Ed
+.sp 2v
+Spans and skipping width calculations:
+.Bd -literal -offset indent
+\&.TS
+box tab(:);
+lz  s | rt
+lt| cb| ^
+^ | rz  s.
+left:r
+l:center:
+:right
+\&.TE
+.Ed
+.Bd -filled -offset indent
+.TS
+box tab(:);
+lz  s | rt
+lt| cb| ^
+^ | rz  s.
+left:r
+l:center:
+:right
+.TE
+.Ed
+.sp 2v
+Text blocks, specifying spacings and specifying and equalizing
+column widths, putting lines into individual cells, and overriding
+.Cm allbox :
+.Bd -literal -offset indent
+\&.TS
+allbox tab(:);
+le le||7 lw10.
+The fourth line:_:line 1
+of this column:=:line 2
+determines:\_:line 3
+the column width.:T{
+This text is too wide to fit into a column of width 17.
+T}:line 4
+T{
+No break here.
+T}::line 5
+\&.TE
+.Ed
+.Bd -filled -offset indent
+.TS
+allbox tab(:);
+le le||7 lw10.
+The fourth line:_:line 1
+of this column:=:line 2
+determines:\_:line 3
+the column width.:T{
+This text is too wide to fit into a column of width 17.
+T}:line 4
+T{
+No break here.
+T}::line 5
+.TE
+.Ed
+.sp 2v
+These examples were constructed to demonstrate many
+.Nm
+features in a compact way.
+In real manual pages, keep tables as simple as possible:
+Like that, they usually look better, are less fragile, and more portable.
+.Sh COMPATIBILITY
+The
+.Xr mandoc 1
+implementation of
+.Nm
+doesn't support
+.Xr mdoc 7
+and
+.Xr man 7
+macros and
+.Xr eqn 7
+equations inside tables.
+.Sh SEE ALSO
+.Xr mandoc 1 ,
+.Xr man 7 ,
+.Xr mandoc_char 7 ,
+.Xr mdoc 7 ,
+.Xr roff 7
+.Rs
+.%A M. E. Lesk
+.%T Tbl\(emA Program to Format Tables
+.%D June 11, 1976
+.Re
+.Sh HISTORY
+The tbl utility, a preprocessor for troff, was originally written by M.
+E. Lesk at Bell Labs in 1975.
+The GNU reimplementation of tbl, part of the groff package, was released
+in 1990 by James Clark.
+A standalone tbl implementation was written by Kristaps Dzonsons in
+2010.
+This formed the basis of the implementation that first appeared in
+.Ox 4.9
+as a part of the
+.Xr mandoc 1
+utility.
+.Sh AUTHORS
+This
+.Nm
+reference was written by
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
+and
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org .

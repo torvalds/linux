@@ -1,0 +1,122 @@
+/dts-v1/;
+
+#include "mt7620a.dtsi"
+
+/ {
+	compatible = "zbtlink,zbt-we826", "ralink,mt7620a-soc";
+	model = "ZBT-WE826";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		power {
+			label = "zbt-we826:green:power";
+			gpios = <&gpio1 14 0>;
+		};
+		usb {
+			label = "zbt-we826:green:usb";
+			gpios = <&gpio1 15 0>;
+		};
+		air {
+			label = "zbt-we826:green:wifi";
+			gpios = <&gpio3 0 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+		reset {
+			label = "reset";
+			gpios = <&gpio0 1 1>;
+			linux,code = <0x198>;
+		};
+	};
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpio3 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	en25q128@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "w25q128";
+		reg = <0>;
+		linux,modalias = "m25p80";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0xfb0000>;
+		};
+	};
+};
+
+&sdhci {
+	status = "okay";
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x4>;
+	ralink,port-map = "wllll";
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		default {
+			ralink,group = "i2c", "uartf", "wled", "spi refclk", "pa";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&pcie {
+	status = "okay";
+};

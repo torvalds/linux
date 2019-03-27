@@ -1,0 +1,167 @@
+#!/usr/sbin/dtrace -s
+/*
+ * Copyright (c) 2015 George V. Neville-Neil
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *
+ * The tcpdebug D script uses the tcp:kernel::debug tracepoints
+ * to replicate the action of turning on TCPDEBUG in a kernel configuration.
+ *
+ * A TCP debug statement shows a connection's
+ *
+ * direction:	input, output, user, drop
+ * state:	CLOSED,	LISTEN,	SYN_SENT, SYN_RCVD, ESTABLISHED,
+ * 		CLOSE_WAIT, FIN_WAIT_1, CLOSING, LAST_ACK, FIN_WAIT_2,TIME_WAIT
+ * sequence:	sequence space
+ *
+ * congestion:	rcv_nxt, rcv_wnd, rcv_up, snd_una, snd_nxt, snx_max,
+ *		snd_wl1, snd_wl2, snd_wnd
+ *
+ * NOTE: Only sockets with SO_DEBUG set will be shown.
+ * 
+ * Usage: tcpdebug
+ */
+
+#pragma D option quiet
+tcp:kernel::debug-input
+/args[0]->tcps_debug/
+{
+	seq = args[1]->tcp_seq;
+	ack = args[1]->tcp_ack;
+	len = args[2]->ip_plength - sizeof(struct tcphdr);
+	flags = args[1]->tcp_flags;
+	
+	printf("%p %s: input [%xu..%xu]", arg0,
+	       tcp_state_string[args[0]->tcps_state], seq, seq + len);
+
+	printf("@%x, urp=%x", ack, args[1]->tcp_urgent);
+
+	printf("%s", flags != 0 ? "<" : "");
+	printf("%s", flags & TH_SYN ? "SYN," :"");
+	printf("%s", flags & TH_ACK ? "ACK," :"");
+	printf("%s", flags & TH_FIN ? "FIN," :"");
+	printf("%s", flags & TH_RST ? "RST," :"");
+	printf("%s", flags & TH_PUSH ? "PUSH," :"");
+	printf("%s", flags & TH_URG ? "URG," :"");
+	printf("%s", flags & TH_ECE ? "ECE," :"");
+	printf("%s", flags & TH_CWR ? "CWR" :"");
+	printf("%s", flags != 0 ? ">" : "");
+
+	printf("\n");
+	printf("\trcv_(nxt,wnd,up) (%x,%x,%x) snd_(una,nxt,max) (%x,%x,%x)\n",
+	       args[0]->tcps_rnxt, args[0]->tcps_rwnd, args[0]->tcps_rup,
+	       args[0]->tcps_suna, args[0]->tcps_snxt, args[0]->tcps_smax);
+	printf("\tsnd_(wl1,wl2,wnd) (%x,%x,%x)\n",
+	       args[0]->tcps_swl1, args[0]->tcps_swl2, args[0]->tcps_swnd);
+
+}
+
+tcp:kernel::debug-output
+/args[0]->tcps_debug/
+{
+	seq = args[1]->tcp_seq;
+	ack = args[1]->tcp_ack;
+	len = args[2]->ip_plength - sizeof(struct tcphdr);
+	flags = args[1]->tcp_flags;
+
+	printf("%p %s: output [%x..%x]", arg0,
+	       tcp_state_string[args[0]->tcps_state], seq, seq + len);
+
+	printf("@%x, urp=%x", ack, args[1]->tcp_urgent);
+
+	printf("%s", flags != 0 ? "<" : "");
+	printf("%s", flags & TH_SYN ? "SYN," :"");
+	printf("%s", flags & TH_ACK ? "ACK," :"");
+	printf("%s", flags & TH_FIN ? "FIN," :"");
+	printf("%s", flags & TH_RST ? "RST," :"");
+	printf("%s", flags & TH_PUSH ? "PUSH," :"");
+	printf("%s", flags & TH_URG ? "URG," :"");
+	printf("%s", flags & TH_ECE ? "ECE," :"");
+	printf("%s", flags & TH_CWR ? "CWR" :"");
+	printf("%s", flags != 0 ? ">" : "");
+
+	printf("\n");
+	printf("\trcv_(nxt,wnd,up) (%u,%x,%x) snd_(una,nxt,max) (%x,%x,%x)\n",
+	       args[0]->tcps_rnxt, args[0]->tcps_rwnd, args[0]->tcps_rup,
+	       args[0]->tcps_suna, args[0]->tcps_snxt, args[0]->tcps_smax);
+	printf("\tsnd_(wl1,wl2,wnd) (%x,%x,%x)\n",
+	       args[0]->tcps_swl1, args[0]->tcps_swl2, args[0]->tcps_swnd);
+
+}
+
+tcp:kernel::debug-drop
+/args[0]->tcps_debug/
+{
+	printf("%p %s: output [x..x] @%x, urp=%x\n", arg0,
+	       tcp_state_string[args[0]->tcps_state],
+	       args[1]->tcp_ack,
+	       args[1]->tcp_urgent);
+
+	seq = args[1]->tcp_seq;
+	ack = args[1]->tcp_ack;
+	len = args[2]->ip_plength - sizeof(struct tcphdr);
+	flags = args[1]->tcp_flags;
+
+	printf("%p %s: drop [%x..%x]", arg0,
+	       tcp_state_string[args[0]->tcps_state], seq, seq + len);
+
+	printf("@%x, urp=%x", ack, args[1]->tcp_urgent);
+
+	printf("%s", flags != 0 ? "<" : "");
+	printf("%s", flags & TH_SYN ? "SYN," :"");
+	printf("%s", flags & TH_ACK ? "ACK," :"");
+	printf("%s", flags & TH_FIN ? "FIN," :"");
+	printf("%s", flags & TH_RST ? "RST," :"");
+	printf("%s", flags & TH_PUSH ? "PUSH," :"");
+	printf("%s", flags & TH_URG ? "URG," :"");
+	printf("%s", flags & TH_ECE ? "ECE," :"");
+	printf("%s", flags & TH_CWR ? "CWR" :"");
+	printf("%s", flags != 0 ? ">" : "");
+
+	printf("\n");
+	printf("\trcv_(nxt,wnd,up) (%x,%x,%x) snd_(una,nxt,max) (%x,%x,%x)\n",
+	       args[0]->tcps_rnxt, args[0]->tcps_rwnd, args[0]->tcps_rup,
+	       args[0]->tcps_suna, args[0]->tcps_snxt, args[0]->tcps_smax);
+	printf("\tsnd_(wl1,wl2,wnd) (%x,%x,%x)\n",
+	       args[0]->tcps_swl1, args[0]->tcps_swl2, args[0]->tcps_swnd);
+
+}
+
+tcp:kernel::debug-user
+/args[0]->tcps_debug/
+{
+	printf("%p %s: user ", arg0,
+	       tcp_state_string[args[0]->tcps_state]);
+
+	printf("%s", prureq_string[arg1]);
+	printf("\n");
+	printf("\trcv_(nxt,wnd,up) (%x,%x,%x) snd_(una,nxt,max) (%x,%x,%x)\n",
+	       args[0]->tcps_rnxt, args[0]->tcps_rwnd, args[0]->tcps_rup,
+	       args[0]->tcps_suna, args[0]->tcps_snxt, args[0]->tcps_smax);
+	printf("\tsnd_(wl1,wl2,wnd) (%x,%x,%x)\n",
+	       args[0]->tcps_swl1, args[0]->tcps_swl2, args[0]->tcps_swnd);
+
+}
+

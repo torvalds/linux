@@ -1,0 +1,338 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="080.console"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
+
+############################################################ CONFIGURATION
+
+#
+# List of keymap names
+#
+KEYMAP_NAMES="
+	belgian                  brazil_cp850             brazil_iso
+	brazil_iso_accent        bulgarian_bds            bulgarian_phonetic
+	central_european_iso     croatian_iso             czech_iso_accent
+	danish_cp865             danish_iso               estonian_cp850
+	estonian_iso             estonian_iso_15          finnish_cp850
+	finnish_iso              french_iso               french_iso_accent
+	french_iso_macbook       german_cp850             german_iso
+	greek_101                greek_104                greek_elot
+	hungarian_101            hungarian_102            icelandic
+	icelandic_accent         italian                  japanese_106
+	latin_american           latin_american_accent    norway_iso
+	polish_iso               portuguese               portuguese_accent
+	russia_koi8_r            slovak                   slovenian
+	spanish                  spanish_accent           swedish_cp850
+	swedish_iso              swiss_french_cp850       swiss_french_iso
+	swiss_french_iso_accent  swiss_german_cp850       swiss_german_iso
+	swiss_german_iso_accent  uk_cp850                 uk_iso
+	ukrainian_koi8_u         ukrainian_koi8_u_koi8_r  usa_capslock_ctrl
+	usa_dvorak               usa_dvorak_left          usa_dvorak_right
+	usa_emacs                usa_iso                  usa_unix
+" # END-QUOTE
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local prompt="$msg_keymap_menu_text"
+	local menu_list defaultitem= # Calculated below
+	local hline="$hline_choose_a_keyboard_map"
+
+	#
+	# Export variables for awk(1) ENVIRON visibility
+	#
+	local name
+	for name in $KEYMAP_NAMES; do
+		export msg_$name msg_${name}_desc
+	done
+
+	#
+	# Generate a sorted list of keymaps. If the first letter of the keymap
+	# name is unique (case-insensitive) then it is used as the tag to allow
+	# the user to jump to that entry.
+	#
+	menu_list=$(
+		for name in $KEYMAP_NAMES; do
+			eval echo \"\$msg_$name\" msg_$name
+		done | sort | awk 'BEGIN { prefix = "" }
+		{
+			cur_prefix = tolower(substr(ENVIRON[$NF], 1, 1))
+			printf "'\''"
+			if ( prefix != cur_prefix )
+				prefix = cur_prefix
+			else
+				printf " "
+			printf "%s'\'' '\''%s'\''\n",
+			       ENVIRON[$NF], ENVIRON[$NF"_desc"]
+		}'
+	)
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	case "$( f_sysrc_get keymap )" in
+	be.iso)                defaultitem="$msg_belgian"                 ;;
+	br275.cp850)           defaultitem="$msg_brazil_cp850"            ;;
+	br275.iso)             defaultitem="$msg_brazil_iso"              ;;
+	br275.iso.acc)         defaultitem="$msg_brazil_iso_accent"       ;;
+	bg.bds.ctrlcaps)       defaultitem="$msg_bulgarian_bds"           ;;
+	bg.phonetic.ctrlcaps)  defaultitem="$msg_bulgarian_phonetic"      ;;
+	ce.iso2)               defaultitem="$msg_central_european_iso"    ;;
+	hr.iso)                defaultitem="$msg_croatian_iso"            ;;
+	cs.latin2.qwertz)      defaultitem="$msg_czech_iso_accent"        ;;
+	danish.cp865)          defaultitem="$msg_danish_cp865"            ;;
+	danish.iso)            defaultitem="$msg_danish_iso"              ;;
+	estonian.cp850)        defaultitem="$msg_estonian_cp850"          ;;
+	estonian.iso)          defaultitem="$msg_estonian_iso"            ;;
+	estonian.iso15)        defaultitem="$msg_estonian_iso_15"         ;;
+	finnish.cp850)         defaultitem="$msg_finnish_cp850"           ;;
+	finnish.iso)           defaultitem="$msg_finnish_iso"             ;;
+	fr.iso)                defaultitem="$msg_french_iso"              ;;
+	fr.iso.acc)            defaultitem="$msg_french_iso_accent"       ;;
+	fr.macbook.acc)        defaultitem="$msg_french_iso_macbook"      ;;
+	german.cp850)          defaultitem="$msg_german_cp850"            ;;
+	german.iso)            defaultitem="$msg_german_iso"              ;;
+	gr.us101.acc)          defaultitem="$msg_greek_101"               ;;
+	el.iso07)              defaultitem="$msg_greek_104"               ;;
+	gr.elot.acc)           defaultitem="$msg_greek_elot"              ;;
+	hu.iso2.101keys)       defaultitem="$msg_hungarian_101"           ;;
+	hu.iso2.102keys)       defaultitem="$msg_hungarian_102"           ;;
+	icelandic.iso)         defaultitem="$msg_icelandic"               ;;
+	icelandic.iso.acc)     defaultitem="$msg_icelandic_accent"        ;;
+	it.iso)                defaultitem="$msg_italian"                 ;;
+	jp.106)                defaultitem="$msg_japanese_106"            ;;
+	latinamerican)         defaultitem="$msg_latin_american"          ;;
+	latinamerican.iso.acc) defaultitem="$msg_latin_american_accent"   ;;
+	norwegian.iso)         defaultitem="$msg_norway_iso"              ;;
+	pl_PL.ISO8859-2)       defaultitem="$msg_polish_iso"              ;;
+	pt.iso)                defaultitem="$msg_portuguese"              ;;
+	pt.iso.acc)            defaultitem="$msg_portuguese_accent"       ;;
+	ru.koi8-r)             defaultitem="$msg_russia_koi8_r"           ;;
+	sk.iso2)               defaultitem="$msg_slovak"                  ;;
+	si.iso)                defaultitem="$msg_slovenian"               ;;
+	spanish.iso)           defaultitem="$msg_spanish"                 ;;
+	spanish.iso.acc)       defaultitem="$msg_spanish_accent"          ;;
+	swedish.cp850)         defaultitem="$msg_swedish_cp850"           ;;
+	swedish.iso)           defaultitem="$msg_swedish_iso"             ;;
+	swissfrench.cp850)     defaultitem="$msg_swiss_french_cp850"      ;;
+	swissfrench.iso)       defaultitem="$msg_swiss_french_iso"        ;;
+	swissfrench.iso.acc)   defaultitem="$msg_swiss_french_iso_accent" ;;
+	swissgerman.cp850)     defaultitem="$msg_swiss_german_cp850"      ;;
+	swissgerman.iso)       defaultitem="$msg_swiss_german_iso"        ;;
+	swissgerman.iso.acc)   defaultitem="$msg_swiss_german_iso_accent" ;;
+	uk.cp850)              defaultitem="$msg_uk_cp850"                ;;
+	uk.iso)                defaultitem="$msg_uk_iso"                  ;;
+	ua.koi8-u)             defaultitem="$msg_ukrainian_koi8_u"        ;;
+	ua.koi8-u.shift.alt)   defaultitem="$msg_ukrainian_koi8_u_koi8_r" ;;
+	us.ctrl)               defaultitem="$msg_usa_capslock_ctrl"       ;;
+	us.pc-ctrl)            defaultitem="$msg_usa_capslock_ctrl"       ;;
+	us.dvorak)             defaultitem="$msg_usa_dvorak"              ;;
+	us.dvorakl)            defaultitem="$msg_usa_dvorak_left"         ;;
+	us.dvorakr)            defaultitem="$msg_usa_dvorak_right"        ;;
+	us.emacs)              defaultitem="$msg_usa_emacs"               ;;
+	us.iso)                defaultitem="$msg_usa_iso"                 ;;
+	us.unix)               defaultitem="$msg_usa_unix"                ;;
+	esac
+
+	# The defaultitem may have to be indented to match the menu_list
+	if [ "$defaultitem" ]; then
+		( eval set -- $menu_list
+		  while [ $# -gt 0 ]; do
+		  	[ "$defaultitem" = "$1" ] && break
+		  	[ " $defaultitem" = "$1" ] && exit 0
+		  	shift 2 # tag/item
+		  done
+		  exit 1 # No modification needed
+		) && defaultitem=" $defaultitem"
+	fi
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_menutag_store -s "$menu_choice"
+	return $retval
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts h$GETOPTS_STDARGS flag; do
+	case "$flag" in
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Initialize
+#
+f_dialog_title "$msg_system_console_keymap"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+
+#
+# Launch application main menu
+#
+while :; do
+	dialog_menu_main || f_die
+	f_dialog_menutag_fetch mtag
+
+	#
+	# Reverse the users choice into the variable name
+	#
+	keymap_name=
+	mtag="${mtag# }" # remove single leading-space if-present
+	for name in $KEYMAP_NAMES; do
+		debug= f_getvar msg_$name msg
+		[ "$msg" = "$mtag" ] && keymap_name="$name" break
+	done
+
+	[ "$keymap_name" ] || continue
+
+	keymap_to_set=
+	case "$keymap_name" in
+	belgian)                 keymap_to_set="be.iso"                ;;
+	brazil_cp850)            keymap_to_set="br275.cp850"           ;;
+	brazil_iso)              keymap_to_set="br275.iso"             ;;
+	brazil_iso_accent)       keymap_to_set="br275.iso.acc"         ;;
+	bulgarian_bds)           keymap_to_set="bg.bds.ctrlcaps"       ;;
+	bulgarian_phonetic)      keymap_to_set="bg.phonetic.ctrlcaps"  ;;
+	central_european_iso)    keymap_to_set="ce.iso2"               ;;
+	croatian_iso)            keymap_to_set="hr.iso"                ;;
+	czech_iso_accent)        keymap_to_set="cs.latin2.qwertz"      ;;
+	danish_cp865)            keymap_to_set="danish.cp865"          ;;
+	danish_iso)              keymap_to_set="danish.iso"            ;;
+	estonian_cp850)          keymap_to_set="estonian.cp850"        ;;
+	estonian_iso)            keymap_to_set="estonian.iso"          ;;
+	estonian_iso_15)         keymap_to_set="estonian.iso15"        ;;
+	finnish_cp850)           keymap_to_set="finnish.cp850"         ;;
+	finnish_iso)             keymap_to_set="finnish.iso"           ;;
+	french_iso)              keymap_to_set="fr.iso"                ;;
+	french_iso_accent)       keymap_to_set="fr.iso.acc"            ;;
+	french_iso_macbook)      keymap_to_set="fr.macbook.acc"        ;;
+	german_cp850)            keymap_to_set="german.cp850"          ;;
+	german_iso)              keymap_to_set="german.iso"            ;;
+	greek_101)               keymap_to_set="gr.us101.acc"          ;;
+	greek_104)               keymap_to_set="el.iso07"              ;;
+	greek_elot)              keymap_to_set="gr.elot.acc"           ;;
+	hungarian_101)           keymap_to_set="hu.iso2.101keys"       ;;
+	hungarian_102)           keymap_to_set="hu.iso2.102keys"       ;;
+	icelandic)               keymap_to_set="icelandic.iso"         ;;
+	icelandic_accent)        keymap_to_set="icelandic.iso.acc"     ;;
+	italian)                 keymap_to_set="it.iso"                ;;
+	japanese_106)            keymap_to_set="jp.106"                ;;
+	latin_american)          keymap_to_set="latinamerican"         ;;
+	latin_american_accent)   keymap_to_set="latinamerican.iso.acc" ;;
+	norway_iso)              keymap_to_set="norwegian.iso"         ;;
+	polish_iso)              keymap_to_set="pl_PL.ISO8859-2"       ;;
+	portuguese)              keymap_to_set="pt.iso"                ;;
+	portuguese_accent)       keymap_to_set="pt.iso.acc"            ;;
+	russia_koi8_r)           keymap_to_set="ru.koi8-r"             ;;
+	slovak)                  keymap_to_set="sk.iso2"               ;;
+	slovenian)               keymap_to_set="si.iso"                ;;
+	spanish)                 keymap_to_set="spanish.iso"           ;;
+	spanish_accent)          keymap_to_set="spanish.iso.acc"       ;;
+	swedish_cp850)           keymap_to_set="swedish.cp850"         ;;
+	swedish_iso)             keymap_to_set="swedish.iso"           ;;
+	swiss_french_cp850)      keymap_to_set="swissfrench.cp850"     ;;
+	swiss_french_iso)        keymap_to_set="swissfrench.iso"       ;;
+	swiss_french_iso_accent) keymap_to_set="swissfrench.iso.acc"   ;;
+	swiss_german_cp850)      keymap_to_set="swissgerman.cp850"     ;;
+	swiss_german_iso)        keymap_to_set="swissgerman.iso"       ;;
+	swiss_german_iso_accent) keymap_to_set="swissgerman.iso.acc"   ;;
+	uk_cp850)                keymap_to_set="uk.cp850"              ;;
+	uk_iso)                  keymap_to_set="uk.iso"                ;;
+	ukrainian_koi8_u)        keymap_to_set="ua.koi8-u"             ;;
+	ukrainian_koi8_u_koi8_r) keymap_to_set="ua.koi8-u.shift.alt"   ;;
+	usa_capslock_ctrl)
+		case "$( sysctl -n kern.vty )" in
+		vt)              keymap_to_set="us.ctrl"               ;;
+		*)               keymap_to_set="us.pc-ctrl"            ;;
+		esac
+		;;
+	usa_dvorak)              keymap_to_set="us.dvorak"             ;;
+	usa_dvorak_left)         keymap_to_set="us.dvorakl"            ;;
+	usa_dvorak_right)        keymap_to_set="us.dvorakr"            ;;
+	usa_emacs)               keymap_to_set="us.emacs"              ;;
+	usa_iso)                 keymap_to_set="us.iso"                ;;
+	usa_unix)                keymap_to_set="us.unix"               ;;
+	esac
+
+	if [ "$keymap_to_set" ]; then
+		f_eval_catch "$0" f_sysrc_set \
+			'f_sysrc_set keymap "%s"' "$keymap_to_set" || f_die
+		break
+	else
+		f_die 1 "$msg_unknown_keymap"
+	fi
+done
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

@@ -1,0 +1,88 @@
+.\" Copyright (c) 2001 Evan Sarmiento.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 11, 2001
+.Dt PFIND 9
+.Os
+.Sh NAME
+.Nm pfind , zpfind
+.Nd locate a process by number
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
+.Ft "struct proc *"
+.Fn pfind "pid_t pid"
+.Ft "struct proc *"
+.Fn zpfind "pid_t pid"
+.Sh DESCRIPTION
+.Fn pfind
+takes a
+.Fa pid
+as its argument and returns a pointer to the
+.Vt proc
+structure whose PID is specified in the argument only if the
+.Fa pid
+is on the
+.Va allproc
+list.
+.Pp
+.Fn zpfind
+takes a
+.Fa pid
+as its argument.
+If
+.Fn zpfind
+finds a process whose PID is equal to that of argument
+and is a zombie process, meaning that it must reside on the
+.Va zombproc
+list,
+.Fn zpfind
+returns a pointer to that
+.Vt proc
+structure.
+.Pp
+Both
+.Fn pfind
+and
+.Fn zpfind
+lock the
+.Vt proc
+structure that is returned using
+.Fn PROC_LOCK "p" .
+.Sh RETURN VALUES
+.Fn pfind
+and
+.Fn zpfind
+return a pointer to a
+.Vt proc
+structure on success and a
+.Dv NULL
+on failure.
+.Sh SEE ALSO
+.Xr pgfind 9
+.Sh AUTHORS
+This manual page was written by
+.An Evan Sarmiento Aq Mt kaworu@sektor7.ath.cx .

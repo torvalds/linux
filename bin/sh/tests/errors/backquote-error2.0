@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+${SH} -c 'echo `echo .BA"DCODE.`
+echo ".BAD"CODE.' 2>&1 | grep -q BADCODE && exit 1
+echo '`"`' | ${SH} -n 2>/dev/null && exit 1
+echo '`'"'"'`' | ${SH} -n 2>/dev/null && exit 1
+exit 0

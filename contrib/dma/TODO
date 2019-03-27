@@ -1,0 +1,4 @@
+- unquote/handle quoted local recipients
+- handle/use ESMTP extensions
+- .forward support
+- suggest way to run a queue flush on boot

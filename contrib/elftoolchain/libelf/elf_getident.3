@@ -1,0 +1,83 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_getident.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd July 3, 2006
+.Dt ELF_GETIDENT 3
+.Os
+.Sh NAME
+.Nm elf_getident
+.Nd return the initial bytes of a file
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft char *
+.Fn elf_getident "Elf *elf" "size_t *sz"
+.Sh DESCRIPTION
+Function
+.Fn elf_getident
+returns a pointer to the initial bytes of the file for descriptor
+.Ar elf .
+.Pp
+If argument
+.Ar sz
+is non-null, the size of the identification area returned is written
+to the location pointed to by
+.Ar sz .
+This location is set to zero on errors.
+.Sh RETURN VALUES
+Function
+.Fn elf_getident
+will return a non-NULL pointer to the initial bytes of the file if
+successful, or NULL if an error condition is detected.
+.Sh ERRORS
+Function
+.Fn elf_getident
+can fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+A NULL value was passed in for argument
+.Ar elf .
+.It Bq Er ELF_E_SEQUENCE
+ELF descriptor
+.Ar elf
+was opened for writing and function
+.Fn elf_getident
+was called before a call to
+.Xr elf_update 3 .
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf32_getehdr 3 ,
+.Xr elf64_getehdr 3 ,
+.Xr elf_getarhdr 3 ,
+.Xr elf_getbase 3 ,
+.Xr elf_getflags 3 ,
+.Xr elf_kind 3 ,
+.Xr elf_rawfile 3 ,
+.Xr elf_update 3 ,
+.Xr gelf 3 ,
+.Xr gelf_getclass 3 ,
+.Xr gelf_getehdr 3

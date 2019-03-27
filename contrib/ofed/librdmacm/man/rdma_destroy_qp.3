@@ -1,0 +1,19 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_DESTROY_QP" 3 "2007-05-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_destroy_qp \- Deallocate a QP.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "void" rdma_destroy_qp
+.BI "(struct rdma_cm_id *" id ");"
+.SH ARGUMENTS
+.IP "id" 12
+RDMA identifier.
+.SH "DESCRIPTION"
+Destroy a QP allocated on the rdma_cm_id.
+.SH "NOTES"
+Users must destroy any QP associated with an rdma_cm_id before
+destroying the ID.
+.SH "SEE ALSO"
+rdma_create_qp(3), rdma_destroy_id(3), ibv_destroy_qp(3)

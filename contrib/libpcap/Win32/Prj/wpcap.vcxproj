@@ -1,0 +1,233 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <SccProjectName />
+    <SccLocalPath />
+    <ProjectGuid>{8E92D840-6A36-452A-A13C-6E1BA5A2C5A9}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v120</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v120</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v120</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v120</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.Cpp.UpgradeFromVC60.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.Cpp.UpgradeFromVC60.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.Cpp.UpgradeFromVC60.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.Cpp.UpgradeFromVC60.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>.\Release\</OutDir>
+    <IntDir>.\Release\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>../../../;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>../../../;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>.\Debug\</OutDir>
+    <IntDir>.\Debug\</IntDir>
+    <LinkIncremental>true</LinkIncremental>
+    <IncludePath>../../../;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <IncludePath>../../../;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <StringPooling>true</StringPooling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <Optimization>MaxSpeed</Optimization>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <WarningLevel>Level3</WarningLevel>
+      <AdditionalIncludeDirectories>../../;../../lbl/;../../bpf/;../include/;../../../../common;../../../../dag/include;../../../../dag/drv/windows;../../../Win32-Extensions;./;Win32-Extensions;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>HAVE_VERSION_H;__STDC_VERSION__=199901L;HAVE_PACKET_IS_LOOPBACK_ADAPTER;NDEBUG;YY_NEVER_INTERACTIVE;_USRDLL;pcap_EXPORTS;HAVE_STRERROR;__STDC__;INET6;_WINDOWS;ENABLE_REMOTE;WIN32;_U_=;YY_NO_UNISTD_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ResourceCompile>
+      <Culture>0x0409</Culture>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>ws2_32.lib;..\..\..\..\packetWin7\Dll\Project\Release No NetMon and AirPcap\Packet.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PreBuildEvent>
+      <Command>call ..\..\GenVersion.bat ..\..\VERSION ..\..\pcap_version.h.in ..\..\pcap_version.h
+win_flex -Ppcap_ -7 --outfile=..\..\scanner.c --header-file=..\..\scanner.h ..\..\scanner.l
+win_bison -ppcap_ --yacc --output=..\..\grammar.c --defines ..\..\grammar.y</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <StringPooling>true</StringPooling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <Optimization>MaxSpeed</Optimization>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <WarningLevel>Level3</WarningLevel>
+      <AdditionalIncludeDirectories>../../;../../lbl/;../../bpf/;../include/;../../../../common;../../../../dag/include;../../../../dag/drv/windows;../../../Win32-Extensions;./;Win32-Extensions;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>HAVE_VERSION_H;__STDC_VERSION__=199901L;HAVE_PACKET_IS_LOOPBACK_ADAPTER;NDEBUG;YY_NEVER_INTERACTIVE;_USRDLL;pcap_EXPORTS;HAVE_STRERROR;__STDC__;INET6;_WINDOWS;ENABLE_REMOTE;WIN32;_U_=;YY_NO_UNISTD_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ResourceCompile>
+      <Culture>0x0409</Culture>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>ws2_32.lib;..\..\..\..\packetWin7\Dll\Project\x64\Release No NetMon and AirPcap\Packet.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PreBuildEvent>
+      <Command>call ..\..\GenVersion.bat ..\..\VERSION ..\..\pcap_version.h.in ..\..\pcap_version.h
+win_flex -Ppcap_ -7 --outfile=..\..\scanner.c --header-file=..\..\scanner.h ..\..\scanner.l
+win_bison -ppcap_ --yacc --output=..\..\grammar.c --defines ..\..\grammar.y</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <FunctionLevelLinking>false</FunctionLevelLinking>
+      <Optimization>Disabled</Optimization>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <WarningLevel>Level3</WarningLevel>
+      <MinimalRebuild>true</MinimalRebuild>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <AdditionalIncludeDirectories>../../;../../lbl/;../../bpf/;../include/;../../../../common;../../../../dag/include;../../../../dag/drv/windows;../../../Win32-Extensions;./;Win32-Extensions;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>HAVE_VERSION_H;__STDC_VERSION__=199901L;HAVE_PACKET_IS_LOOPBACK_ADAPTER;_DEBUG;YY_NEVER_INTERACTIVE;_USRDLL;pcap_EXPORTS;HAVE_STRERROR;__STDC__;INET6;_WINDOWS;ENABLE_REMOTE;WIN32;_U_=;YY_NO_UNISTD_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+    </ClCompile>
+    <ResourceCompile>
+      <Culture>0x0409</Culture>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>ws2_32.lib;..\..\..\..\packetWin7\Dll\Project\Release No NetMon and AirPcap\Packet.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PreBuildEvent>
+      <Command>call ..\..\GenVersion.bat ..\..\VERSION ..\..\pcap_version.h.in ..\..\pcap_version.h
+win_flex -Ppcap_ -7 --outfile=..\..\scanner.c --header-file=..\..\scanner.h ..\..\scanner.l
+win_bison -ppcap_ --yacc --output=..\..\grammar.c --defines ..\..\grammar.y</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <FunctionLevelLinking>false</FunctionLevelLinking>
+      <Optimization>Disabled</Optimization>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>../../;../../lbl/;../../bpf/;../include/;../../../../common;../../../../dag/include;../../../../dag/drv/windows;../../../Win32-Extensions;./;Win32-Extensions;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>HAVE_VERSION_H;__STDC_VERSION__=199901L;HAVE_PACKET_IS_LOOPBACK_ADAPTER;_DEBUG;YY_NEVER_INTERACTIVE;_USRDLL;pcap_EXPORTS;HAVE_STRERROR;__STDC__;INET6;_WINDOWS;ENABLE_REMOTE;WIN32;_U_=;YY_NO_UNISTD_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+    </ClCompile>
+    <ResourceCompile>
+      <Culture>0x0409</Culture>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>ws2_32.lib;..\..\..\..\packetWin7\Dll\Project\x64\Release No NetMon and AirPcap\Packet.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PreBuildEvent>
+      <Command>call ..\..\GenVersion.bat ..\..\VERSION ..\..\pcap_version.h.in ..\..\pcap_version.h
+win_flex -Ppcap_ -7 --outfile=..\..\scanner.c --header-file=..\..\scanner.h ..\..\scanner.l
+win_bison -ppcap_ --yacc --output=..\..\grammar.c --defines ..\..\grammar.y</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\bpf\net\bpf_filter.c" />
+    <ClCompile Include="..\..\bpf_dump.c" />
+    <ClCompile Include="..\..\bpf_image.c" />
+    <ClCompile Include="..\..\etherent.c" />
+    <ClCompile Include="..\..\gencode.c" />
+    <ClCompile Include="..\..\grammar.c" />
+    <ClCompile Include="..\..\inet.c" />
+    <ClCompile Include="..\..\missing\win_snprintf.c" />
+    <ClCompile Include="..\..\nametoaddr.c" />
+    <ClCompile Include="..\..\optimize.c" />
+    <ClCompile Include="..\..\pcap-common.c" />
+    <ClCompile Include="..\..\pcap-new.c" />
+    <ClCompile Include="..\..\pcap-rpcap.c" />
+    <ClCompile Include="..\..\pcap-win32.c" />
+    <ClCompile Include="..\..\pcap.c" />
+    <ClCompile Include="..\..\savefile.c" />
+    <ClCompile Include="..\..\scanner.c" />
+    <ClCompile Include="..\..\sf-pcapng.c" />
+    <ClCompile Include="..\..\sf-pcap.c" />
+    <ClCompile Include="..\..\sockutils.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\pcap-common.h" />
+    <ClInclude Include="..\..\pcap-int.h" />
+    <ClInclude Include="..\..\pcap-rpcap.h" />
+    <ClInclude Include="..\..\pcap-stdinc.h" />
+    <ClInclude Include="..\..\pcap.h" />
+    <ClInclude Include="..\..\remote-ext.h" />
+    <ClInclude Include="..\..\sockutils.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\..\..\Win32-Extensions\version.rc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

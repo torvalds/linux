@@ -1,0 +1,88 @@
+=pod
+
+=head1 NAME
+
+openssl-pkeyparam,
+pkeyparam - public key algorithm parameter processing tool
+
+=head1 SYNOPSIS
+
+B<openssl> B<pkeyparam>
+[B<-help>]
+[B<-in filename>]
+[B<-out filename>]
+[B<-text>]
+[B<-noout>]
+[B<-engine id>]
+[B<-check>]
+
+=head1 DESCRIPTION
+
+The B<pkeyparam> command processes public key algorithm parameters.
+They can be checked for correctness and their components printed out.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-in filename>
+
+This specifies the input filename to read parameters from or standard input if
+this option is not specified.
+
+=item B<-out filename>
+
+This specifies the output filename to write parameters to or standard output if
+this option is not specified.
+
+=item B<-text>
+
+Prints out the parameters in plain text in addition to the encoded version.
+
+=item B<-noout>
+
+Do not output the encoded version of the parameters.
+
+=item B<-engine id>
+
+Specifying an engine (by its unique B<id> string) will cause B<pkeyparam>
+to attempt to obtain a functional reference to the specified engine,
+thus initialising it if needed. The engine will then be set as the default
+for all available algorithms.
+
+=item B<-check>
+
+This option checks the correctness of parameters.
+
+=back
+
+=head1 EXAMPLE
+
+Print out text version of parameters:
+
+ openssl pkeyparam -in param.pem -text
+
+=head1 NOTES
+
+There are no B<-inform> or B<-outform> options for this command because only
+PEM format is supported because the key type is determined by the PEM headers.
+
+=head1 SEE ALSO
+
+L<genpkey(1)>, L<rsa(1)>, L<pkcs8(1)>,
+L<dsa(1)>, L<genrsa(1)>, L<gendsa(1)>
+
+=head1 COPYRIGHT
+
+Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

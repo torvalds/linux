@@ -1,0 +1,23 @@
+# The ldns git repository can found at:
+# git.nlnetlabs.nl/ldns/
+
+# small list of commands to build all on a linux system
+# libtoolize is needed for most other targets
+
+# on Solaris, and other systems that may not have
+# the default 'automake' and 'aclocal' script aliases,
+# the correct versions may need to be set. On those
+# systems, the 'autoreconf' line should be changed to:
+# AUTOMAKE=automake-1.10 ACLOCAL=aclocal-1.10 autoreconf
+
+# older versions of libtoolize do not support --install
+# so you might need to remove that (with newer versions
+# it is needed)
+git submodule update --init
+libtoolize -ci
+autoreconf -fi
+./configure --with-examples --with-drill # --with-pyldns --with-p5-dns-ldns
+make
+make doc  # needs doxygen for the html pages
+(cd pcat && autoreconf && ./configure && make)
+(cd examples/nsd-test && autoreconf && ./configure && make)

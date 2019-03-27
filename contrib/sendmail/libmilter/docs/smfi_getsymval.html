@@ -1,0 +1,105 @@
+<HTML>
+<HEAD><TITLE>smfi_getsymval</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_getsymval.html,v 1.16 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_getsymval</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+char* smfi_getsymval(
+	SMFICTX *ctx,
+	char *symname
+);
+</PRE>
+Get the value of a sendmail macro.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>smfi_getsymval may be called from within any of the xxfi_* callbacks.  Which macros are defined will depend on when it is called.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>None.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>ctx</TD>
+	<TD>The opaque context structure.
+	</TD></TR>
+    <TR valign="top"><TD>symname</TD>
+	<TD>The name of a sendmail macro.
+	Single letter macros can optionally be enclosed in braces ("{" and "}"),
+	longer macro names must be enclosed in braces, just as in a
+	<TT>sendmail.cf</TT> file.
+	<A href="#notes">See below</A> for default macros.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>smfi_getsymval returns the value of the given macro as a null-terminated string, or NULL if the macro is not defined.</TD>
+</TR>
+
+<!----------- Notes ---------->
+<TR align="left" valign=top>
+<TH><A name="notes">NOTES</A></TH> 
+<TD>
+By default, the following macros are valid in the given contexts:
+
+<TABLE border="1" cellspacing=0>
+<TR bgcolor="#dddddd"><TH>Sent With</TH><TH>Macros</TH></TR>
+<TR><TD>xxfi_connect</TD>    <TD>daemon_name, if_name, if_addr, j, _</TD></TR>
+<TR><TD>xxfi_helo</TD>       <TD>tls_version, cipher, cipher_bits, cert_subject, cert_issuer</TD></TR>
+<TR><TD>xxfi_envfrom</TD>    <TD>i, auth_type, auth_authen, auth_ssf, auth_author,
+                mail_mailer, mail_host, mail_addr</TD></TR>
+<TR><TD>xxfi_envrcpt</TD>    <TD>rcpt_mailer, rcpt_host, rcpt_addr</TD></TR>
+
+<TR><TD>xxfi_data</TD>   <TD>(none)</TD></TR>
+<TR><TD>xxfi_eoh</TD>    <TD>(none)</TD></TR>
+<TR><TD>xxfi_eom</TD>    <TD>msg_id</TD></TR>
+</TABLE>
+<P>
+All macros stay in effect from the point they are received
+until the end of the connection for the first two sets,
+the end of the message for the third (xxfi_envfrom) and last (xxfi_eom),
+and just for each recipient for xxfi_envrcpt.
+<P>
+The macro list can be changed using the confMILTER_MACROS_* options in
+sendmail.mc.
+The scopes of such macros will be determined by when they are set by sendmail.
+For descriptions of macros' values,
+please see the
+"Sendmail Installation and Operation Guide"
+provided with your sendmail distribution.
+
+</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000, 2002-2003, 2007 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

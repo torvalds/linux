@@ -1,0 +1,243 @@
+.\" Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 21, 2004
+.Dt GSTRIPE 8
+.Os
+.Sh NAME
+.Nm gstripe
+.Nd "control utility for striped devices"
+.Sh SYNOPSIS
+.Nm
+.Cm create
+.Op Fl v
+.Op Fl s Ar stripesize
+.Ar name
+.Ar prov prov ...
+.Nm
+.Cm destroy
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm label
+.Op Fl hv
+.Op Fl s Ar stripesize
+.Ar name
+.Ar prov prov ...
+.Nm
+.Cm stop
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm clear
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm dump
+.Ar prov ...
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
+.Sh DESCRIPTION
+The
+.Nm
+utility is used for setting up a stripe on two or more disks.
+The striped device can be configured using two different methods:
+.Dq manual
+or
+.Dq automatic .
+When using the
+.Dq manual
+method, no metadata are stored on the devices, so the striped
+device has to be configured by hand every time it is needed.
+The
+.Dq automatic
+method uses on-disk metadata to detect devices.
+Once devices are labeled, they will be automatically detected and
+configured.
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm destroy"
+.It Cm create
+Set up a striped device from the given devices with specified
+.Ar name .
+This is the
+.Dq manual
+method and the stripe will not exist after a reboot (see
+.Sx DESCRIPTION
+above).
+The kernel module
+.Pa geom_stripe.ko
+will be loaded if it is not loaded already.
+.It Cm label
+Set up a striped device from the given devices with the specified
+.Ar name .
+This is the
+.Dq automatic
+method, where metadata are stored in every device's last sector.
+The kernel module
+.Pa geom_stripe.ko
+will be loaded if it is not loaded already.
+.It Cm stop
+Turn off an existing striped device by its
+.Ar name .
+This command does not touch on-disk metadata!
+.It Cm destroy
+Same as
+.Cm stop .
+.It Cm clear
+Clear metadata on the given devices.
+.It Cm dump
+Dump metadata stored on the given devices.
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+Additional options:
+.Bl -tag -width ".Fl s Ar stripesize"
+.It Fl f
+Force the removal of the specified striped device.
+.It Fl h
+Hardcode providers' names in metadata.
+.It Fl s Ar stripesize
+Specifies size of stripe block in bytes.
+The
+.Ar stripesize
+must be a multiple of the largest sector size of all the providers.
+.It Fl v
+Be more verbose.
+.El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to control the behavior of the
+.Nm STRIPE
+GEOM class.
+The default value is shown next to each variable.
+.Bl -tag -width indent
+.It Va kern.geom.stripe.debug : No 0
+Debug level of the
+.Nm STRIPE
+GEOM class.
+This can be set to a number between 0 and 3 inclusive.
+If set to 0 minimal debug information is printed, and if set to 3 the
+maximum amount of debug information is printed.
+.It Va kern.geom.stripe.fast : No 0
+If set to a non-zero value enable
+.Dq "fast mode"
+instead of the normal
+.Dq "economic mode" .
+Compared to
+.Dq "economic mode" ,
+.Dq "fast mode"
+uses more memory, but it is much faster for smaller stripe sizes.
+If enough memory cannot be allocated,
+.Nm STRIPE
+will fall back to
+.Dq "economic mode" .
+.It Va kern.geom.stripe.maxmem : No 13107200
+Maximum amount of memory that can be consumed by
+.Dq "fast mode"
+(in bytes).
+This
+.Xr sysctl 8
+variable is read-only and can only be set as a tunable in
+.Xr loader.conf 5 .
+.It Va kern.geom.stripe.fast_failed
+A count of how many times
+.Dq "fast mode"
+has failed due to an insufficient amount of memory.
+If this value is large, you should consider increasing the
+.Va kern.geom.stripe.maxmem
+value.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
+.Sh EXAMPLES
+The following example shows how to set up a striped device from four disks with a
+128KB stripe size for automatic configuration,
+create a file system on it,
+and mount it:
+.Bd -literal -offset indent
+gstripe label -v -s 131072 data /dev/da0 /dev/da1 /dev/da2 /dev/da3
+newfs /dev/stripe/data
+mount /dev/stripe/data /mnt
+[...]
+umount /mnt
+gstripe stop data
+gstripe unload
+.Ed
+.Sh COMPATIBILITY
+The
+.Nm
+interleave is in number of bytes,
+unlike
+.Xr ccdconfig 8
+which use the number of sectors.
+A
+.Xr ccdconfig 8
+.Ar ileave
+of
+.Ql 128
+is 64 KB (128 512B sectors).
+The same stripe interleave would be specified as
+.Ql 65536
+for
+.Nm .
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr loader.conf 5 ,
+.Xr ccdconfig 8 ,
+.Xr geom 8 ,
+.Xr gvinum 8 ,
+.Xr mount 8 ,
+.Xr newfs 8 ,
+.Xr sysctl 8 ,
+.Xr umount 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org

@@ -1,0 +1,179 @@
+-- $Id$
+
+DIGEST DEFINITIONS ::=
+BEGIN
+
+IMPORTS EncryptedData, Principal FROM krb5;
+
+DigestTypes ::= BIT STRING {
+	ntlm-v1(0),
+	ntlm-v1-session(1),
+	ntlm-v2(2),
+	digest-md5(3),
+	chap-md5(4),
+	ms-chap-v2(5)
+}
+
+DigestInit ::= SEQUENCE {
+    type		UTF8String, -- http, sasl, chap, cram-md5 --
+    channel		[0] SEQUENCE {
+    	cb-type		UTF8String,
+    	cb-binding	UTF8String
+    } OPTIONAL,
+    hostname		[1] UTF8String OPTIONAL -- for chap/cram-md5
+}
+
+DigestInitReply ::= SEQUENCE {
+    nonce		UTF8String,	-- service nonce/challange
+    opaque		UTF8String,	-- server state
+    identifier		[0] UTF8String OPTIONAL
+}
+
+
+DigestRequest ::= SEQUENCE  {
+    type		UTF8String, -- http, sasl-md5, chap, cram-md5 --
+    digest		UTF8String, -- http:md5/md5-sess sasl:clear/int/conf --
+    username		UTF8String, -- username user used
+    responseData	UTF8String, -- client response
+    authid		[0] UTF8String OPTIONAL,
+    authentication-user	[1] Principal OPTIONAL, -- principal to get key from
+    realm		[2] UTF8String OPTIONAL,
+    method		[3] UTF8String OPTIONAL,
+    uri			[4] UTF8String OPTIONAL,
+    serverNonce		UTF8String, -- same as "DigestInitReply.nonce"
+    clientNonce		[5] UTF8String OPTIONAL,
+    nonceCount		[6] UTF8String OPTIONAL,
+    qop			[7] UTF8String OPTIONAL,
+    identifier		[8] UTF8String OPTIONAL,
+    hostname		[9] UTF8String OPTIONAL,
+    opaque		UTF8String -- same as "DigestInitReply.opaque"
+}
+-- opaque = hex(cksum(type|serverNonce|identifier|hostname,digest-key))
+-- serverNonce = hex(time[4bytes]random[12bytes])(-cbType:cbBinding)
+
+
+DigestError ::= SEQUENCE {
+    reason		UTF8String,
+    code		INTEGER (-2147483648..2147483647)
+}
+
+DigestResponse ::= SEQUENCE  {
+    success		BOOLEAN,
+    rsp			[0] UTF8String OPTIONAL,
+    tickets		[1] SEQUENCE OF OCTET STRING OPTIONAL,
+    channel		[2] SEQUENCE {
+    	cb-type		UTF8String,
+    	cb-binding	UTF8String
+    } OPTIONAL,
+    session-key		[3] OCTET STRING OPTIONAL
+}
+
+NTLMInit ::= SEQUENCE {
+    flags		[0] INTEGER (0..4294967295),
+    hostname		[1] UTF8String OPTIONAL,
+    domain		[1] UTF8String OPTIONAL
+}
+
+NTLMInitReply ::= SEQUENCE {
+    flags		[0] INTEGER (0..4294967295),
+    opaque		[1] OCTET STRING,
+    targetname		[2] UTF8String,
+    challange		[3] OCTET STRING,
+    targetinfo		[4] OCTET STRING OPTIONAL
+}
+
+NTLMRequest ::= SEQUENCE {
+    flags		[0] INTEGER (0..4294967295),
+    opaque		[1] OCTET STRING,
+    username		[2] UTF8String,
+    targetname		[3] UTF8String,
+    targetinfo		[4] OCTET STRING OPTIONAL,
+    lm			[5] OCTET STRING,
+    ntlm		[6] OCTET STRING,
+    sessionkey		[7] OCTET STRING OPTIONAL
+}
+
+NTLMResponse ::= SEQUENCE {
+    success		[0] BOOLEAN,
+    flags		[1] INTEGER (0..4294967295),
+    sessionkey		[2] OCTET STRING OPTIONAL,
+    tickets		[3] SEQUENCE OF OCTET STRING OPTIONAL
+}
+
+NTLMRequest2 ::= SEQUENCE {
+    loginUserName	[0] UTF8String,
+    loginDomainName	[1] UTF8String,
+    flags		[2] INTEGER (0..4294967295),
+    lmchallenge		[3] OCTET STRING SIZE (8),
+    ntChallengeResponce [4] OCTET STRING,
+    lmChallengeResponce [5] OCTET STRING
+}
+
+NTLMReply ::= SEQUENCE {
+    success		[0] BOOLEAN,
+    flags		[1] INTEGER (0..4294967295),
+    sessionkey		[2] OCTET STRING OPTIONAL
+}
+
+DigestReqInner ::= CHOICE {
+    init		[0] DigestInit,
+    digestRequest	[1] DigestRequest,
+    ntlmInit		[2] NTLMInit,
+    ntlmRequest		[3] NTLMRequest,
+    supportedMechs	[4] NULL
+}
+
+DigestREQ ::= [APPLICATION 128] SEQUENCE {
+    apReq		[0] OCTET STRING,
+    innerReq		[1] EncryptedData
+}
+
+DigestRepInner ::= CHOICE {
+    error		[0] DigestError,
+    initReply		[1] DigestInitReply,
+    response		[2] DigestResponse,
+    ntlmInitReply	[3] NTLMInitReply,
+    ntlmResponse	[4] NTLMResponse,
+    supportedMechs	[5] DigestTypes,
+    ...
+}
+
+DigestREP ::= [APPLICATION 129] SEQUENCE {
+    apRep		[0] OCTET STRING,
+    innerRep		[1] EncryptedData
+}
+
+
+-- HTTP
+
+-- md5
+-- A1 = unq(username-value) ":" unq(realm-value) ":" passwd
+-- md5-sess
+-- A1 = HEX(H(unq(username-value) ":" unq(realm-value) ":" passwd ) ":" unq(nonce-value) ":" unq(cnonce-value))
+
+-- qop == auth
+-- A2 = Method ":" digest-uri-value
+-- qop == auth-int
+-- A2 = Method ":" digest-uri-value ":" H(entity-body)
+
+-- request-digest  = HEX(KD(HEX(H(A1)),
+--    unq(nonce-value) ":" nc-value ":" unq(cnonce-value) ":" unq(qop-value) ":" HEX(H(A2))))
+-- no "qop"
+-- request-digest  = HEX(KD(HEX(H(A1)), unq(nonce-value) ":" HEX(H(A2))))
+
+
+-- SASL:
+-- SS = H( { unq(username-value), ":", unq(realm-value), ":", password } )
+-- A1 = { SS, ":", unq(nonce-value), ":", unq(cnonce-value) }
+-- A1 = { SS, ":", unq(nonce-value), ":", unq(cnonce-value), ":", unq(authzid-value) }
+
+-- A2 = "AUTHENTICATE:", ":", digest-uri-value
+-- qop == auth-int,auth-conf
+-- A2 = "AUTHENTICATE:", ":", digest-uri-value, ":00000000000000000000000000000000"
+
+-- response-value = HEX( KD ( HEX(H(A1)),
+--                 { unq(nonce-value), ":" nc-value, ":",
+--                   unq(cnonce-value), ":", qop-value, ":",
+--                   HEX(H(A2)) }))
+
+END

@@ -1,0 +1,57 @@
+
+History of Major Changes to TestFloat, up to Release 2a
+
+John R. Hauser
+1998 December 17
+
+
+The TestFloat releases parallel those of SoftFloat, on which TestFloat is
+based.  Each TestFloat release also incorporates all bug fixes from the
+corresponding release of SoftFloat.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Release 2a (1998 December)
+
+-- Added support for testing conversions between floating-point and 64-bit
+   integers.
+
+-- Improved the makefiles.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Release 2 (1997 June)
+
+-- Integrated the generation of test cases and the checking of system
+   results into a single program.  (Before they were separate programs,
+   normally joined by explicit command-line pipes.)
+
+-- Improved the sequence of test cases.
+
+-- Added support for testing extended double precision and quadruple
+   precision.
+
+-- Made program output more readable, and added new command arguments.
+
+-- Reduced dependence on the quality of the standard `random' function for
+   generating test cases.  (Previously naively expected `random' to be able
+   to generate good random bits for the entire machine word width.)
+
+-- Created `testsoftfloat', with its own simpler complete software floating-
+   point (``slowfloat'') for comparison purposes.
+
+-- Made some changes to the source file structure, including renaming
+   `environment.h' to `milieu.h' (to avoid confusion with environment
+   variables).
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Release 1a (1996 July)
+
+-- Added the `-tininessbefore' and `-tininessafter' options to control
+   whether tininess should be detected before or after rounding.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Release 1 (1996 July)
+
+-- Original release.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+

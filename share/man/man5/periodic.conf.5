@@ -1,0 +1,997 @@
+.\"-
+.\" Copyright (c) 2000 Brian Somers <brian@Awfulhak.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 7, 2018
+.Dt PERIODIC.CONF 5
+.Os
+.Sh NAME
+.Nm periodic.conf
+.Nd periodic job configuration information
+.Sh DESCRIPTION
+The file
+.Nm
+contains a description of how daily, weekly and monthly system maintenance
+jobs should run.
+It resides in the
+.Pa /etc/defaults
+directory and parts may be overridden by a file of the same name in
+.Pa /etc ,
+which itself may be overridden by the
+.Pa /etc/periodic.conf.local
+file.
+.Pp
+The
+.Nm
+file
+is actually sourced as a shell script from each of the periodic scripts
+and is intended to simply provide default configuration variables.
+.Pp
+The following variables are used by
+.Xr periodic 8
+itself:
+.Bl -tag -offset 4n -width 2n
+.It Va local_periodic
+.Pq Vt str
+List of directories to search for periodic scripts.
+This list is always prefixed with
+.Pa /etc/periodic ,
+and is only used when an argument to
+.Xr periodic 8
+is not an absolute directory name.
+.It Ao Ar dir Ac Ns Va _output
+.Pq Vt path No or Vt list
+What to do with the output of the scripts executed from
+the directory
+.Ar dir .
+If this variable is set to an absolute path name, output is logged to
+that file, otherwise it is taken as one or more space separated email
+addresses and mailed to those users.
+If this variable is not set or is empty, output is sent to standard output.
+.Pp
+For an unattended machine, suitable values for
+.Va daily_output ,
+.Va weekly_output ,
+and
+.Va monthly_output
+might be
+.Dq Li /var/log/daily.log ,
+.Dq Li /var/log/weekly.log ,
+and
+.Dq Li /var/log/monthly.log
+respectively, as
+.Xr newsyslog 8
+will rotate these files (if they exists) at the appropriate times.
+.It Ao Ar dir Ac Ns Va _show_success
+.It Ao Ar dir Ac Ns Va _show_info
+.It Ao Ar dir Ac Ns Va _show_badconfig
+.Pq Vt bool
+These variables control whether
+.Xr periodic 8
+will mask the output of the executed scripts based on their return code
+(where
+.Ar dir
+is the base directory name in which each script resides).
+If the return code of a script is
+.Sq 0
+and
+.Ao Ar dir Ac Ns Va _show_success
+is set to
+.Dq Li NO ,
+.Xr periodic 8
+will mask the script's output.
+If the return code of a script is
+.Sq 1
+and
+.Ao Ar dir Ac Ns Va _show_info
+is set to
+.Dq Li NO ,
+.Xr periodic 8
+will mask the script's output.
+If the return code of a script is
+.Sq 2
+and
+.Ao Ar dir Ac Ns Va _show_badconfig
+is set to
+.Dq Li NO ,
+.Xr periodic 8
+will mask the script's output.
+If these variables are set to neither
+.Dq Li YES
+nor
+.Dq Li NO ,
+they default to
+.Dq Li YES ,
+.Dq Li YES
+and
+.Dq Li NO
+respectively.
+.Pp
+Refer to the
+.Xr periodic 8
+manual page for how script return codes are interpreted.
+.It Va anticongestion_sleeptime
+.Pq Vt int
+The maximum number of seconds to randomly sleep in order to smooth bursty loads
+on a shared resource, such as a download mirror.
+.El
+.Pp
+The following variables are used by the standard scripts that reside in
+.Pa /etc/periodic/daily :
+.Bl -tag -offset 4n -width 2n
+.It Va daily_clean_disks_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to remove all files matching
+.Va daily_clean_disks_files
+daily.
+.It Va daily_clean_disks_files
+.Pq Vt str
+Set to a list of file names to match.
+Wild cards are permitted.
+.It Va daily_clean_disks_days
+.Pq Vt num
+When
+.Va daily_clean_disks_enable
+is set to
+.Dq Li YES ,
+this must also be set to the number of days old that a file's access
+and modification times must be before it is deleted.
+.It Va daily_clean_disks_verbose
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want the removed files to be reported in your daily output.
+.It Va daily_clean_tmps_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to clear temporary directories daily.
+.It Va daily_clean_tmps_dirs
+.Pq Vt str
+Set to the list of directories to clear if
+.Va daily_clean_tmps_enable
+is set to
+.Dq Li YES .
+.It Va daily_clean_tmps_days
+.Pq Vt num
+When
+.Va daily_clean_tmps_enable
+is set, this must also be set to the number of days old that a file's access
+and modification times must be before it is deleted.
+.It Va daily_clean_tmps_ignore
+.Pq Vt str
+Set to the list of files that should not be deleted when
+.Va daily_clean_tmps_enable
+is set to
+.Dq Li YES .
+Wild card characters are permitted.
+.It Va daily_clean_tmps_verbose
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want the removed files to be reported in your daily output.
+.It Va daily_clean_preserve_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you wish to remove old files from
+.Pa /var/preserve .
+.It Va daily_clean_preserve_days
+.Pq Vt num
+Set to the number of days that files must not have been modified before
+they are deleted.
+.It Va daily_clean_preserve_verbose
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want the removed files to be reported in your daily output.
+.It Va daily_clean_msgs_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you wish old system messages to be purged.
+.It Va daily_clean_msgs_days
+.Pq Vt num
+Set to the number of days that files must not have been modified before
+they are deleted.
+If this variable is left blank, the
+.Xr msgs 1
+default is used.
+.It Va daily_clean_rwho_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you wish old files in
+.Pa /var/who
+to be purged.
+.It Va daily_clean_rwho_days
+.Pq Vt num
+Set to the number of days that files must not have been modified before
+they are deleted.
+.It Va daily_clean_rwho_verbose
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want the removed files to be reported in your daily output.
+.It Va daily_clean_hoststat_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to run
+.Nm sendmail Fl bH
+to automatically purge stale entries from
+.Xr sendmail 8 Ns 's
+host status cache.
+Files will be deleted using the same criteria as
+.Xr sendmail 8
+would normally use when determining whether to believe the cached information,
+as configured in
+.Pa /etc/mail/sendmail.cf .
+.It Va daily_backup_passwd_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want the
+.Pa /etc/master.passwd
+and
+.Pa /etc/group
+files backed up and reported on.
+Reporting consists of checking both files for modifications and running
+.Xr chkgrp 8
+on the
+.Pa group
+file.
+.It Va daily_backup_aliases_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want the
+.Pa /etc/mail/aliases
+file backed up and modifications to be displayed in your daily output.
+.It Va daily_calendar_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Nm calendar Fl a
+daily.
+.It Va daily_accounting_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to rotate your daily accounting files.
+No rotations are necessary unless
+.Va accounting_enable
+is enabled in
+.Xr rc.conf 5 .
+.It Va daily_accounting_compress
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want your daily accounting files to be compressed using
+.Xr gzip 1 .
+.It Va daily_accounting_save
+.Pq Vt num
+When
+.Va daily_accounting_enable
+is set, this may also be set to the number of daily accounting files that are
+to be saved.
+The default is
+.Dq Li 3 .
+.It Va daily_accounting_flags
+.Pq Vt str
+Set to the arguments to pass to the
+.Xr sa 8
+utility (in addition to
+.Fl s )
+when
+.Va daily_accounting_enable
+is set to
+.Dq Li YES .
+The default is
+.Fl q .
+.It Va daily_news_expire_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Pa /etc/news.expire .
+.It Va daily_status_disks_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Xr df 1
+(with the arguments supplied in
+.Va daily_status_disks_df_flags )
+and
+.Nm dump Fl W .
+.It Va daily_status_disks_df_flags
+.Pq Vt str
+Set to the arguments for the
+.Xr df 1
+utility when
+.Va daily_status_disks_enable
+is set to
+.Dq Li YES .
+The default is
+.Fl l Fl h .
+.It Va daily_status_zfs_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Nm zpool Cm status
+on your
+.Xr zfs 8
+pools.
+.It Va daily_status_zfs_zpool_list_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Nm zpool Cm list
+on your
+.Xr zfs 8
+pools.
+Requires
+.Va daily_status_zfs_enable
+to be set to
+.Li YES .
+.It Va daily_status_gmirror_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Nm gmirror Cm status
+on your
+.Xr gmirror 8
+devices.
+.It Va daily_status_graid3_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Nm graid3 Cm status
+on your
+.Xr graid3 8
+devices.
+.It Va daily_status_gstripe_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Nm gstripe Cm status
+on your
+.Xr gstripe 8
+devices.
+.It Va daily_status_gconcat_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Nm gconcat Cm status
+on your
+.Xr gconcat 8
+devices.
+.It Va daily_status_mfi_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Nm mfiutil Cm status
+on your
+.Xr mfi 4
+devices.
+.It Va daily_status_network_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Nm netstat Fl i .
+.It Va daily_status_network_netstat_flags
+.Pq Vt str
+Set to additional arguments for the
+.Xr netstat 1
+utility when
+.Va daily_status_network_enable
+is set to
+.Dq Li YES .
+The default is
+.Fl d .
+.It Va daily_status_network_usedns
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Xr netstat 1
+without the
+.Fl n
+option (to do DNS lookups).
+.It Va daily_status_uptime_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Xr uptime 1
+(or
+.Xr ruptime 1
+if
+.Va rwhod_enable
+is set to
+.Dq Li YES
+in
+.Pa /etc/rc.conf ) .
+.It Va daily_status_mailq_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Xr mailq 1 .
+.It Va daily_status_mailq_shorten
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to shorten the
+.Xr mailq 1
+output when
+.Va daily_status_mailq_enable
+is set to
+.Dq Li YES .
+.It Va daily_status_include_submit_mailq
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you also want to run
+.Xr mailq 1
+on the submit mail queue when
+.Va daily_status_mailq_enable
+is set to
+.Dq Li YES .
+This may not work with MTAs other than
+.Xr sendmail 8 .
+.It Va daily_status_security_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run the security check.
+The security check is another set of
+.Xr periodic 8
+scripts.
+The system defaults are in
+.Pa /etc/periodic/security .
+Local scripts should be placed in
+.Pa /usr/local/etc/periodic/security .
+See the
+.Xr periodic 8
+manual page for more information.
+.It Va daily_status_security_inline
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want the security check output inline.
+The default is to either mail or log the output according to the value of
+.Va daily_status_security_output .
+.It Va daily_status_security_output
+.Pq Vt str
+Where to send the output of the security check if
+.Va daily_status_security_inline
+is set to
+.Dq Li NO .
+This variable behaves in the same way as the
+.Va *_output
+variables above, namely it can be set either to one or more email addresses
+or to an absolute file name.
+.It Va daily_status_mail_rejects_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to summarise mail rejections logged to
+.Pa /var/log/maillog
+for the previous day.
+.It Va daily_status_mail_rejects_logs
+.Pq Vt num
+Set to the number of maillog files that should be checked
+for yesterday's mail rejects.
+.It Va daily_status_ntpd
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to enable NTP status check.
+.It Va daily_status_world_kernel
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check the running userland and kernel are in sync.
+.It Va daily_queuerun_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to manually run the mail queue at least once a day.
+.It Va daily_submit_queuerun
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you also want to manually run the submit mail queue at least once a day
+when
+.Va daily_queuerun_enable
+is set to
+.Dq Li YES .
+.It Va daily_scrub_zfs_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run a zfs scrub periodically.
+.It Va daily_scrub_zfs_pools
+.Pq Vt str
+A space separated list of names of zfs pools to scrub.
+If the list is empty or not set, all zfs pools are scrubbed.
+.It Va daily_scrub_zfs_default_threshold
+.Pq Vt int
+Number of days between a scrub if no pool-specific threshold is set.
+If not set, the default value is 35, corresponding to 5 weeks.
+.It Va daily_scrub_zfs_ Ns Ao Ar poolname Ac Ns Va _threshold
+.Pq Vt int
+The same as
+.Va daily_scrub_zfs_default_threshold
+but specific to the pool
+.Ao Ar poolname Ac Ns .
+.It Va daily_local
+.Pq Vt str
+Set to a list of extra scripts that should be run after all other
+daily scripts.
+All scripts must be absolute path names.
+.El
+.Pp
+The following variables are used by the standard scripts that reside in
+.Pa /etc/periodic/weekly :
+.Bl -tag -offset 4n -width 2n
+.It Va weekly_locate_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Pa /usr/libexec/locate.updatedb .
+This script is run using
+.Nm nice Fl 5
+as user
+.Dq Li nobody ,
+and generates the table used by the
+.Xr locate 1
+command.
+.It Va weekly_whatis_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Pa /usr/libexec/makewhatis.local .
+This script regenerates the database used by the
+.Xr apropos 1
+command.
+.It Va weekly_noid_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to locate orphaned files on the system.
+An orphaned file is one with an invalid owner or group.
+.It Va weekly_noid_dirs
+.Pq Vt str
+A list of directories under which orphaned files are searched for.
+This would usually be set to
+.Pa / .
+.It Va weekly_status_security_enable
+.Pq Vt bool
+Weekly counterpart of
+.Va daily_status_security_enable .
+.It Va weekly_status_security_inline
+.Pq Vt bool
+Weekly counterpart of
+.Va daily_status_security_inline .
+.It Va weekly_status_security_output
+.Pq Vt str
+Weekly counterpart of
+.Va daily_status_security_output .
+.It Va weekly_status_pkg_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to use
+.Xr pkg-version 8
+to list installed packages which are out of date.
+.It Va pkg_version
+.Pq Vt str
+When
+.Va weekly_status_pkg_enable
+is set to
+.Dq Li YES ,
+this variable specifies the program that is used to determine the out of
+date packages.
+If unset, the
+.Xr pkg-version 8
+program is used.
+As an example, this variable might be set to
+.Dq Li portversion
+if the
+.Pa ports/sysutils/portupgrade
+port has been installed.
+.It Va pkg_version_index
+.Pq Vt str
+This variable specifies the
+.Pa INDEX
+file from
+.Pa /usr/ports
+that should be used by
+.Xr pkg-version 8 .
+Because the dependency tree may be substantially different between versions of
+.Fx ,
+there may be more than one
+.Pa INDEX
+file in
+.Pa /usr/ports .
+.Pp
+Note, if the
+.Va pkg_version
+variable is set to
+.Dq Li portversion ,
+it will also be necessary to arrange that the correct
+.Pa INDEX
+file is specified
+using environment variables and that
+.Va pkg_version_index
+is cleared in
+.Pa /etc/periodic.conf
+.Pq Dq Li pkg_version_index= .
+.It Va weekly_local
+.Pq Vt str
+Set to a list of extra scripts that should be run after all other
+weekly scripts.
+All scripts must be absolute path names.
+.El
+.Pp
+The following variables are used by the standard scripts that reside in
+.Pa /etc/periodic/monthly :
+.Bl -tag -offset 4n -width 2n
+.It Va monthly_accounting_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to do login accounting using the
+.Xr ac 8
+command.
+.It Va monthly_status_security_enable
+.Pq Vt bool
+Monthly counterpart of
+.Va daily_status_security_enable .
+.It Va monthly_status_security_inline
+.Pq Vt bool
+Monthly counterpart of
+.Va daily_status_security_inline .
+.It Va monthly_status_security_output
+.Pq Vt str
+Monthly counterpart of
+.Va daily_status_security_output .
+.It Va monthly_local
+.Pq Vt str
+Set to a list of extra scripts that should be run after all other
+monthly scripts.
+All scripts must be absolute path names.
+.El
+.Pp
+The following variables are used by the standard scripts that reside in
+.Pa /etc/periodic/security .
+Those scripts are usually run from daily
+.Pq Va daily_status_security_enable ,
+weekly
+.Pq Va weekly_status_security_enable ,
+and monthly
+.Pq Va monthly_status_security_enable
+periodic hooks.
+The
+.Va ..._period
+of each script can be configured as
+.Dq daily ,
+.Dq weekly ,
+.Dq monthly
+or
+.Dq NO .
+Note that when periodic security scripts are run from
+.Xr crontab 5 ,
+they will be always run unless their
+.Va ..._enable
+or
+.Va ..._period
+variable is set to
+.Dq NO .
+.Bl -tag -offset 4n -width 2n
+.It Va security_status_diff_flags
+.Pq Vt str
+Set to the arguments to pass to the
+.Xr diff 1
+utility when generating differences.
+The default is
+.Fl b u .
+.It Va security_status_chksetuid_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to compare the modes and modification times of setuid executables with
+the previous day's values.
+.It Va security_status_chksetuid_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_chkportsum_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to verify checksums of all installed packages against the known checksums in
+.Pa /var/db/pkg .
+.It Va security_status_chkportsum_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_neggrpperm_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check for files where the group of a file has less permissions than
+the world at large.
+When users are in more than 14 supplemental groups these negative
+permissions may not be enforced via NFS shares.
+.It Va security_status_neggrpperm_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_chkmounts_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check for changes mounted file systems to the previous day's values.
+.It Va security_status_chkmounts_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_noamd
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to ignore
+.Xr amd 8
+mounts when comparing against yesterday's file system mounts in the
+.Va security_status_chkmounts_enable
+check.
+.It Va security_status_chkuid0_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check
+.Pa /etc/master.passwd
+for accounts with UID 0.
+.It Va security_status_chkuid0_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_passwdless_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check
+.Pa /etc/master.passwd
+for accounts with empty passwords.
+.It Va security_status_passwdless_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_logincheck_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check
+.Pa /etc/login.conf
+ownership, see
+.Xr login.conf 5
+for more information.
+.It Va security_status_logincheck_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_ipfwdenied_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to show log entries for packets denied by
+.Xr ipfw 8
+since yesterday's check.
+.It Va security_status_ipfwdenied_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_ipfdenied_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to show log entries for packets denied by
+.Xr ipf 8
+since yesterday's check.
+.It Va security_status_ipfdenied_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_pfdenied_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to show log entries for packets denied by
+.Xr pf 4
+since yesterday's check.
+.It Va security_status_pfdenied_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_ipfwlimit_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to display
+.Xr ipfw 8
+rules that have reached their verbosity limit.
+.It Va security_status_ipfwlimit_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_kernelmsg_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to show new
+.Xr dmesg 8
+entries since yesterday's check.
+.It Va security_status_kernelmsg_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_loginfail_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to display failed logins from
+.Pa /var/log/messages
+in the previous day.
+.It Va security_status_loginfail_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_tcpwrap_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to display connections denied by tcpwrappers (see
+.Xr hosts_access 5 )
+from
+.Pa /var/log/messages
+during the previous day.
+.It Va security_status_tcpwrap_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/defaults/periodic.conf"
+.It Pa /etc/defaults/periodic.conf
+The default configuration file.
+This file contains all default variables and values.
+.It Pa /etc/periodic.conf
+The usual system specific variable override file.
+.It Pa /etc/periodic.conf.local
+An additional override file, useful when
+.Pa /etc/periodic.conf
+is shared or distributed.
+.El
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr calendar 1 ,
+.Xr df 1 ,
+.Xr diff 1 ,
+.Xr gzip 1 ,
+.Xr locate 1 ,
+.Xr man 1 ,
+.Xr msgs 1 ,
+.Xr netstat 1 ,
+.Xr nice 1 ,
+.Xr login.conf 5 ,
+.Xr rc.conf 5 ,
+.Xr ac 8 ,
+.Xr chkgrp 8 ,
+.Xr dump 8 ,
+.Xr newsyslog 8 ,
+.Xr periodic 8 ,
+.Xr pkg-version 8 ,
+.Xr sendmail 8
+.Sh HISTORY
+The
+.Nm
+file appeared in
+.Fx 4.1 .
+.Sh AUTHORS
+.An Brian Somers Aq Mt brian@Awfulhak.org

@@ -1,0 +1,104 @@
+.\"-
+.\" Copyright (c) 2004 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 6, 2004
+.Dt LOGINS 1
+.Os
+.Sh NAME
+.Nm logins
+.Nd display account information
+.Sh SYNOPSIS
+.Nm
+.Op Fl admopstux
+.Op Fl g Ar groups
+.Op Fl l Ar logins
+.Sh DESCRIPTION
+The
+.Nm
+utility displays information about user and system accounts.
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl g Ar groups"
+.It Fl a
+Display information about the password change and account expiration
+times for each account.
+.It Fl d
+Select accounts with duplicate UIDs.
+.It Fl g Ar groups
+Select accounts that are members of the specified groups.
+If multiple group names are specified, they must be separated with
+commas.
+.It Fl l Ar logins
+Select accounts matching the specified login names.
+If multiple names are specified, they must be separated with commas.
+.It Fl m
+Show information about secondary groups.
+.It Fl o
+Display the information for each account on a single line of
+colon-separated fields.
+.It Fl p
+Select accounts with no password.
+.It Fl s
+Select system accounts.
+These are currently defined as accounts with UIDs below 1000, plus the
+.Dq Li nobody
+account (UID 65534).
+.It Fl t
+Sort selected accounts by name rather than by UID.
+.It Fl u
+Select user accounts.
+These are currently defined as accounts with UIDs above 1000, except
+the
+.Dq Li nobody
+account (UID 65534).
+.It Fl x
+Display information about each account's home directory and shell.
+.El
+.Pp
+If multiple selection options are specified, all accounts matching any
+of the selection criteria will be displayed.
+.Pp
+If no selection options are specified, all accounts will be displayed.
+.Sh SEE ALSO
+.Xr getgrent 3 ,
+.Xr getpwent 3 ,
+.Xr group 5 ,
+.Xr passwd 5 ,
+.Xr pw 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 4.10 .
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org
+based on similar utilities in other operating systems.

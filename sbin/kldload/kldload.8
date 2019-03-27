@@ -1,0 +1,130 @@
+.\"
+.\" Copyright (c) 1997 Doug Rabson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 27, 2017
+.Dt KLDLOAD 8
+.Os
+.Sh NAME
+.Nm kldload
+.Nd load a file into the kernel
+.Sh SYNOPSIS
+.Nm
+.Op Fl nqv
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility loads
+.Ar file Ns Pa .ko
+into the kernel using the kernel linker.
+Note that if multiple modules are specified then an attempt will
+be made to load them all, even if some fail.
+The
+.Pa .ko
+extension name is not mandatory when loading a given module
+using
+.Nm .
+It does not hurt to specify it though.
+.Pp
+If a bare filename is requested it will only be loaded if it is found within
+the module path as defined by the sysctl
+.Va kern.module_path .
+To load a module from the current directory it must be specified as a full or
+relative path.
+The
+.Nm
+utility will warn if a module is requested as a bare filename and is present
+in the current directory.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl n
+Do not try to load module if already loaded.
+.It Fl v
+Be more verbose.
+.It Fl q
+Silence any extraneous warnings.
+.El
+.Sh NOTES
+The kernel security level settings may prevent a module from being
+loaded or unloaded by giving
+.Em "Operation not permitted" .
+.Sh FILES
+.Bl -tag -width /boot/kernel -compact
+.It Pa /boot/kernel
+directory containing loadable modules.
+Modules must have an extension of
+.Pa .ko .
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+To load by module name:
+.Bd -literal -offset indent
+\*[Gt] kldload foo
+.Ed
+.Pp
+To load by file name within the module path:
+.Bd -literal -offset indent
+\*[Gt] kldload foo.ko
+.Ed
+.Pp
+To load by relative path:
+.Bd -literal -offset indent
+\*[Gt] kldload ./foo.ko
+.Ed
+.Pp
+To load by full path:
+.Bd -literal -offset indent
+\*[Gt] kldload /boot/kernel/foo.ko
+.Ed
+.Sh AUTOMATICALLY LOADING MODULES
+Some modules (pf, ipfw, ipf, etc.) may be automatically loaded at boot
+time when the corresponding
+.Xr rc.conf 5
+statement is used.
+Modules may also be auto-loaded through their addition to
+.Xr loader.conf 5 .
+.Sh SEE ALSO
+.Xr kldload 2 ,
+.Xr loader.conf 5 ,
+.Xr rc.conf 5 ,
+.Xr security 7 ,
+.Xr kldconfig 8 ,
+.Xr kldstat 8 ,
+.Xr kldunload 8 ,
+.Xr kldxref 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 3.0 ,
+replacing the
+.Nm lkm
+interface.
+.Sh AUTHORS
+.An Doug Rabson Aq Mt dfr@FreeBSD.org

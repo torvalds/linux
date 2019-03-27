@@ -1,0 +1,22 @@
+# $FreeBSD$
+
+x=a\ b
+[ "$x" = "${x?}" ] || exit 1
+set -- ${x?}
+{ [ "$#" = 2 ] && [ "$1" = a ] && [ "$2" = b ]; } || exit 1
+unset x
+(echo ${x?abcdefg}) 2>&1 | grep -q abcdefg || exit 1
+${SH} -c 'unset foo; echo ${foo?}' 2>/dev/null && exit 1
+${SH} -c 'foo=; echo ${foo:?}' 2>/dev/null && exit 1
+${SH} -c 'foo=; echo ${foo?}' >/dev/null || exit 1
+${SH} -c 'foo=1; echo ${foo:?}' >/dev/null || exit 1
+${SH} -c 'echo ${!?}' 2>/dev/null && exit 1
+${SH} -c ':& echo ${!?}' >/dev/null || exit 1
+${SH} -c 'echo ${#?}' >/dev/null || exit 1
+${SH} -c 'echo ${*?}' 2>/dev/null && exit 1
+${SH} -c 'echo ${*?}' ${SH} x >/dev/null || exit 1
+${SH} -c 'echo ${1?}' 2>/dev/null && exit 1
+${SH} -c 'echo ${1?}' ${SH} x >/dev/null || exit 1
+${SH} -c 'echo ${2?}' ${SH} x 2>/dev/null && exit 1
+${SH} -c 'echo ${2?}' ${SH} x y >/dev/null || exit 1
+exit 0

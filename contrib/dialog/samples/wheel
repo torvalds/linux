@@ -1,0 +1,64 @@
+#!/bin/sh
+# $Id: wheel,v 1.8 2012/06/29 09:59:40 tom Exp $
+
+. ./setup-vars
+
+. ./setup-tempfile
+
+TITLE="This screen was taken from ComeOn Point Installer! v0.9 by ComeOn Linux!"
+
+$DIALOG --print-maxsize 2>$tempfile
+ROWS="`cut $tempfile -f1 -d, | cut -f2 -d:`"
+COLS="`cut $tempfile -f2 -d,`"
+rm $tempfile
+
+# account for widest labels
+COLS=`expr $COLS - 30`
+
+# Takes an integer, multiplies it for COLS, divides for 132
+scalex() {
+  expr $1 \* $COLS / 132
+}
+scaley() {
+  expr $1 \* $ROWS / 60
+}
+
+$DIALOG --backtitle "$TITLE" --no-shadow \
+--begin `scaley 27` `scalex 98` --infobox "pushd /var/log >/dev/null" 0 0 --and-widget \
+--begin `scaley 35` `scalex 95` --infobox "mkdir -p news -m 755" 0 0 --and-widget \
+--begin `scaley 45` `scalex 86` --infobox "chown news.news news" 0 0 --and-widget \
+--begin `scaley 48` `scalex 78` --infobox "cd /var/log/news" 0 0 --and-widget \
+--begin `scaley 51` `scalex 61` --infobox "mkdir -p OLD -m 755" 0 0 --and-widget \
+--begin `scaley 52` `scalex 47` --infobox "chown news.news OLD" 0 0 --and-widget \
+--begin `scaley 51` `scalex 40` --infobox "cd /var/spool" 0 0 --and-widget \
+--begin `scaley 48` `scalex 25` --infobox "mkdir -p news -m 775" 0 0 --and-widget \
+--begin `scaley 42` `scalex 13` --infobox "chown news.news news" 0 0 --and-widget \
+--begin `scaley 35` `scalex 4` --infobox "cd /var/spool/news" 0 0 --and-widget \
+--begin `scaley 27` `scalex 2` --infobox "CURMASK=`umask`" 0 0 --and-widget \
+--begin `scaley 19` `scalex 4` --infobox "umask 02" 0 0 --and-widget \
+--begin `scaley 11` `scalex 13` --infobox "mkdir -p out.going control junk in.coming" 0 0 --and-widget \
+--begin `scaley 5` `scalex 25` --infobox "chown news.news out.going control junk in.coming" 0 0 --and-widget \
+--begin `scaley 2` `scalex 37` --infobox "cd in.coming" 0 0 --and-widget \
+--begin `scaley 1` `scalex 46` --infobox "mkdir -p bad tmp" 0 0 --and-widget \
+--begin `scaley 2` `scalex 61` --infobox "chown news.news bad tmp" 0 0 --and-widget \
+--begin `scaley 5` `scalex 76` --infobox "umask $CURMASK" 0 0 --and-widget \
+--begin `scaley 11` `scalex 87` --infobox "ln -sf ~news /usr/local/lib/" 0 0 --and-widget \
+--begin `scaley 18` `scalex 95` --infobox "ln -sf ~news/inews /usr/bin/" 0 0 --and-widget \
+--begin `scaley 26` `scalex 97` --infobox "chmod 1777 /var/tmp" 0 0 --and-widget \
+--begin `scaley 34` `scalex 95` --infobox "cd ~news" 0 0 --and-widget \
+--begin `scaley 42` `scalex 87` --infobox "touch history history.dir history.pag errlog log" 0 0 --and-widget \
+--begin `scaley 47` `scalex 76` --infobox "chown news.news history* log errlog" 0 0 --and-widget \
+--infobox "Creating spooling and logging directories and files..." 0 0 --and-widget \
+--begin `scaley 51` `scalex 78` --infobox "chmod 664 history* log errlog" 0 0 --and-widget \
+--begin `scaley 52` `scalex 60` --infobox "echo \"control 0000000000 0000000001 y\" > active" 0 0 --and-widget \
+--begin `scaley 51` `scalex 42` --infobox "echo \"junk 0000000000 0000000001 y\" >> active" 0 0 --and-widget \
+--begin `scaley 48` `scalex 26` --infobox "chown news.news active" 0 0 --and-widget \
+--begin `scaley 42` `scalex 13` --infobox "echo \"control 814573260 usenet\" > active.times" 0 0 --and-widget \
+--begin `scaley 35` `scalex 4` --infobox "echo \"junk 814573260 usenet\" >> active.times" 0 0 --and-widget \
+--begin `scaley 27` `scalex 2` --infobox "chown news.news active.times" 0 0 --and-widget \
+--begin `scaley 19` `scalex 4` --infobox ":>newsgroups" 0 0 --and-widget \
+--begin `scaley 11` `scalex 12` --infobox "chown news.news newsgroups" 0 0 --and-widget \
+--sleep 2 --begin `scaley 6` `scalex 25` --infobox "popd >/dev/null" 0 0 --and-widget \
+--beep --msgbox "ComeOn Linux! :-)" 0 0 --and-widget \
+--begin 2 0 --title "/var/adm/debug. This is running while that down runs also" --tailboxbg /var/adm/debug 6 80 --and-widget \
+--begin 8 0 --title "/var/adm/messages. It tails the file in multitasking with /var/adm/debug" --tailbox /var/adm/messages -1 -1

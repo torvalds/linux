@@ -1,0 +1,279 @@
+.\"
+.\" Copyright (c) 2003 Alexey Zelkin <phantom@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 14, 2003
+.Dt DLINFO 3
+.Os
+.Sh NAME
+.Nm dlinfo
+.Nd information about dynamically loaded object
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In link.h
+.In dlfcn.h
+.Ft int
+.Fn dlinfo "void * restrict handle" "int request" "void * restrict p"
+.Sh DESCRIPTION
+The
+.Fn dlinfo
+function provides information about dynamically loaded object.
+The action taken by
+.Fn dlinfo
+and exact meaning and type of
+.Fa p
+argument depend on value of the
+.Fa request
+argument provided by caller.
+.Pp
+The
+.Fa handle
+argument is either the value returned from the
+.Xr dlopen 3
+function call or special handle
+.Dv RTLD_SELF .
+If
+.Fa handle
+is the value returned from
+.Xr dlopen 3 ,
+the information returned by the
+.Fn dlinfo
+function pertains to the specified object.
+If handle is the special handle
+.Dv RTLD_SELF ,
+the information returned pertains to the caller itself.
+.Pp
+Possible values for the
+.Fa request
+argument are:
+.Bl -tag -width indent
+.It Dv RTLD_DI_LINKMAP
+Retrieve the
+.Vt Link_map
+.Pq Vt "struct link_map"
+structure pointer for the specified
+.Fa handle .
+On successful return, the
+.Fa p
+argument is filled with the pointer to the
+.Vt Link_map
+structure
+.Pq Fa "Link_map **p"
+describing a shared object specified by the
+.Fa handle
+argument.
+The
+.Vt Link_map
+structures are maintained as a doubly linked list by
+.Xr ld.so 1 ,
+in the same order as
+.Xr dlopen 3
+and
+.Xr dlclose 3
+are called.
+See
+.Sx EXAMPLES ,
+example 1.
+.Pp
+The
+.Vt Link_map
+structure is defined in
+.In link.h
+and has the following members:
+.Bd -literal -offset indent
+caddr_t         l_addr;    /* Base Address of library */
+const char      *l_name;   /* Absolute Path to Library */
+const void      *l_ld;     /* Pointer to .dynamic in memory */
+struct link_map *l_next,   /* linked list of mapped libs */
+                *l_prev;
+.Ed
+.Bl -tag -width ".Va l_addr"
+.It Va l_addr
+The base address of the object loaded into memory.
+.It Va l_name
+The full name of the loaded shared object.
+.It Va l_ld
+The address of the dynamic linking information segment
+.Pq Dv PT_DYNAMIC
+loaded into memory.
+.It Va l_next
+The next
+.Vt Link_map
+structure on the link-map list.
+.It Va l_prev
+The previous
+.Vt Link_map
+structure on the link-map list.
+.El
+.It Dv RTLD_DI_SERINFO
+Retrieve the library search paths associated with the given
+.Fa handle
+argument.
+The
+.Fa p
+argument should point to
+.Vt Dl_serinfo
+structure buffer
+.Pq Fa "Dl_serinfo *p" .
+The
+.Vt Dl_serinfo
+structure must be initialized first with the
+.Dv RTLD_DI_SERINFOSIZE
+request.
+.Pp
+The returned
+.Vt Dl_serinfo
+structure contains
+.Va dls_cnt
+.Vt Dl_serpath
+entries.
+Each entry's
+.Va dlp_name
+field points to the search path.
+The corresponding
+.Va dlp_info
+field contains one of more flags indicating the origin of the path (see the
+.Dv LA_SER_*
+flags defined in the
+.In link.h
+header file).
+See
+.Sx EXAMPLES ,
+example 2, for a usage example.
+.It Dv RTLD_DI_SERINFOSIZE
+Initialize a
+.Vt Dl_serinfo
+structure for use in a
+.Dv RTLD_DI_SERINFO
+request.
+Both the
+.Va dls_cnt
+and
+.Va dls_size
+fields are returned to indicate the number of search paths applicable
+to the handle, and the total size of a
+.Vt Dl_serinfo
+buffer required to hold
+.Va dls_cnt
+.Vt Dl_serpath
+entries and the associated search path strings.
+See
+.Sx EXAMPLES ,
+example 2, for a usage example.
+.It Va RTLD_DI_ORIGIN
+Retrieve the origin of the dynamic object associated with the handle.
+On successful return,
+.Fa p
+argument is filled with the
+.Vt char
+pointer
+.Pq Fa "char *p" .
+.El
+.Sh RETURN VALUES
+The
+.Fn dlinfo
+function returns 0 on success, or \-1 if an error occurred.
+Whenever an error has been detected, a message detailing it can
+be retrieved via a call to
+.Xr dlerror 3 .
+.Sh EXAMPLES
+Example 1: Using
+.Fn dlinfo
+to retrieve
+.Vt Link_map
+structure.
+.Pp
+The following example shows how dynamic library can detect the list
+of shared libraries loaded after caller's one.
+For simplicity, error checking has been omitted.
+.Bd -literal -offset indent
+Link_map *map;
+
+dlinfo(RTLD_SELF, RTLD_DI_LINKMAP, &map);
+
+while (map != NULL) {
+	printf("%p: %s\\n", map->l_addr, map->l_name);
+	map = map->l_next;
+}
+.Ed
+.Pp
+Example 2: Using
+.Fn dlinfo
+to retrieve the library search paths.
+.Pp
+The following example shows how a dynamic object can inspect the library
+search paths that would be used to locate a simple filename with
+.Xr dlopen 3 .
+For simplicity, error checking has been omitted.
+.Bd -literal -offset indent
+Dl_serinfo	 _info, *info = &_info;
+Dl_serpath	*path;
+unsigned int	 cnt;
+
+/* determine search path count and required buffer size */
+dlinfo(RTLD_SELF, RTLD_DI_SERINFOSIZE, (void *)info);
+
+/* allocate new buffer and initialize */
+info = malloc(_info.dls_size);
+info->dls_size = _info.dls_size;
+info->dls_cnt = _info.dls_cnt;
+
+/* obtain sarch path information */
+dlinfo(RTLD_SELF, RTLD_DI_SERINFO, (void *)info);
+
+path = &info->dls_serpath[0];
+
+for (cnt = 1; cnt <= info->dls_cnt; cnt++, path++) {
+	(void) printf("%2d: %s\\n", cnt, path->dls_name);
+}
+.Ed
+.Sh SEE ALSO
+.Xr rtld 1 ,
+.Xr dladdr 3 ,
+.Xr dlopen 3 ,
+.Xr dlsym 3
+.Sh HISTORY
+The
+.Fn dlinfo
+function first appeared in the Solaris operating system.
+In
+.Fx ,
+it first appeared in
+.Fx 4.8 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Fx
+implementation of the
+.Fn dlinfo
+function was originally written by
+.An Alexey Zelkin Aq Mt phantom@FreeBSD.org
+and later extended and improved by
+.An Alexander Kabaev Aq Mt kan@FreeBSD.org .
+.Pp
+The manual page for this function was written by
+.An Alexey Zelkin Aq Mt phantom@FreeBSD.org .

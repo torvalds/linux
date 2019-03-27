@@ -1,0 +1,289 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strftime.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 25, 2012
+.Dt STRFTIME 3
+.Os
+.Sh NAME
+.Nm strftime
+.Nd format date and time
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In time.h
+.Ft size_t
+.Fo strftime
+.Fa "char * restrict buf"
+.Fa "size_t maxsize"
+.Fa "const char * restrict format"
+.Fa "const struct tm * restrict timeptr"
+.Fc
+.Ft size_t
+.Fn strftime_l "char *restrict buf" "size_t maxsize" "const char * restrict format" "const struct tm *restrict timeptr" "locale_t loc"
+.Sh DESCRIPTION
+The
+.Fn strftime
+function formats the information from
+.Fa timeptr
+into the buffer
+.Fa buf
+according to the string pointed to by
+.Fa format .
+The function
+.Fn strftime_l
+does the same as
+.Fn strftime
+but takes an explicit locale rather than using the current locale.
+.Pp
+The
+.Fa format
+string consists of zero or more conversion specifications and
+ordinary characters.
+All ordinary characters are copied directly into the buffer.
+A conversion specification consists of a percent sign
+.Dq Ql %
+and one other character.
+.Pp
+No more than
+.Fa maxsize
+characters will be placed into the array.
+If the total number of resulting characters, including the terminating
+NUL character, is not more than
+.Fa maxsize ,
+.Fn strftime
+returns the number of characters in the array, not counting the
+terminating NUL.
+Otherwise, zero is returned and the buffer contents are indeterminate.
+.Pp
+The conversion specifications are copied to the buffer after expansion
+as follows:-
+.Bl -tag -width "xxxx"
+.It Cm \&%A
+is replaced by national representation of the full weekday name.
+.It Cm %a
+is replaced by national representation of
+the abbreviated weekday name.
+.It Cm \&%B
+is replaced by national representation of the full month name.
+.It Cm %b
+is replaced by national representation of
+the abbreviated month name.
+.It Cm \&%C
+is replaced by (year / 100) as decimal number; single
+digits are preceded by a zero.
+.It Cm %c
+is replaced by national representation of time and date.
+.It Cm \&%D
+is equivalent to
+.Dq Li %m/%d/%y .
+.It Cm %d
+is replaced by the day of the month as a decimal number (01-31).
+.It Cm %E* %O*
+POSIX locale extensions.
+The sequences
+%Ec %EC %Ex %EX %Ey %EY
+%Od %Oe %OH %OI %Om %OM
+%OS %Ou %OU %OV %Ow %OW %Oy
+are supposed to provide alternate
+representations.
+.Pp
+Additionally %OB implemented
+to represent alternative months names
+(used standalone, without day mentioned).
+.It Cm %e
+is replaced by the day of the month as a decimal number (1-31); single
+digits are preceded by a blank.
+.It Cm \&%F
+is equivalent to
+.Dq Li %Y-%m-%d .
+.It Cm \&%G
+is replaced by a year as a decimal number with century.
+This year is the one that contains the greater part of
+the week (Monday as the first day of the week).
+.It Cm %g
+is replaced by the same year as in
+.Dq Li %G ,
+but as a decimal number without century (00-99).
+.It Cm \&%H
+is replaced by the hour (24-hour clock) as a decimal number (00-23).
+.It Cm %h
+the same as
+.Cm %b .
+.It Cm \&%I
+is replaced by the hour (12-hour clock) as a decimal number (01-12).
+.It Cm %j
+is replaced by the day of the year as a decimal number (001-366).
+.It Cm %k
+is replaced by the hour (24-hour clock) as a decimal number (0-23);
+single digits are preceded by a blank.
+.It Cm %l
+is replaced by the hour (12-hour clock) as a decimal number (1-12);
+single digits are preceded by a blank.
+.It Cm \&%M
+is replaced by the minute as a decimal number (00-59).
+.It Cm %m
+is replaced by the month as a decimal number (01-12).
+.It Cm %n
+is replaced by a newline.
+.It Cm %O*
+the same as
+.Cm %E* .
+.It Cm %p
+is replaced by national representation of either
+"ante meridiem" (a.m.)
+or
+"post meridiem" (p.m.)
+as appropriate.
+.It Cm \&%R
+is equivalent to
+.Dq Li %H:%M .
+.It Cm %r
+is equivalent to
+.Dq Li %I:%M:%S %p .
+.It Cm \&%S
+is replaced by the second as a decimal number (00-60).
+.It Cm %s
+is replaced by the number of seconds since the Epoch, UTC (see
+.Xr mktime 3 ) .
+.It Cm \&%T
+is equivalent to
+.Dq Li %H:%M:%S .
+.It Cm %t
+is replaced by a tab.
+.It Cm \&%U
+is replaced by the week number of the year (Sunday as the first day of
+the week) as a decimal number (00-53).
+.It Cm %u
+is replaced by the weekday (Monday as the first day of the week)
+as a decimal number (1-7).
+.It Cm \&%V
+is replaced by the week number of the year (Monday as the first day of
+the week) as a decimal number (01-53).
+If the week containing January
+1 has four or more days in the new year, then it is week 1; otherwise
+it is the last week of the previous year, and the next week is week 1.
+.It Cm %v
+is equivalent to
+.Dq Li %e-%b-%Y .
+.It Cm \&%W
+is replaced by the week number of the year (Monday as the first day of
+the week) as a decimal number (00-53).
+.It Cm %w
+is replaced by the weekday (Sunday as the first day of the week)
+as a decimal number (0-6).
+.It Cm \&%X
+is replaced by national representation of the time.
+.It Cm %x
+is replaced by national representation of the date.
+.It Cm \&%Y
+is replaced by the year with century as a decimal number.
+.It Cm %y
+is replaced by the year without century as a decimal number (00-99).
+.It Cm \&%Z
+is replaced by the time zone name.
+.It Cm %z
+is replaced by the time zone offset from UTC; a leading plus sign stands for
+east of UTC, a minus sign for west of UTC, hours and minutes follow
+with two digits each and no delimiter between them (common form for
+RFC 822 date headers).
+.It Cm %+
+is replaced by national representation of the date and time
+(the format is similar to that produced by
+.Xr date 1 ) .
+.It Cm %-*
+GNU libc extension.
+Do not do any padding when performing numerical outputs.
+.It Cm %_*
+GNU libc extension.
+Explicitly specify space for padding.
+.It Cm %0*
+GNU libc extension.
+Explicitly specify zero for padding.
+.It Cm %%
+is replaced by
+.Ql % .
+.El
+.Sh SEE ALSO
+.Xr date 1 ,
+.Xr printf 1 ,
+.Xr ctime 3 ,
+.Xr printf 3 ,
+.Xr strptime 3 ,
+.Xr wcsftime 3
+.Sh STANDARDS
+The
+.Fn strftime
+function
+conforms to
+.St -isoC
+with a lot of extensions including
+.Ql \&%C ,
+.Ql \&%D ,
+.Ql %E* ,
+.Ql %e ,
+.Ql %G ,
+.Ql %g ,
+.Ql %h ,
+.Ql %k ,
+.Ql %l ,
+.Ql %n ,
+.Ql %O* ,
+.Ql \&%R ,
+.Ql %r ,
+.Ql %s ,
+.Ql \&%T ,
+.Ql %t ,
+.Ql %u ,
+.Ql \&%V ,
+.Ql %z ,
+.Ql %+ .
+.Pp
+The peculiar week number and year in the replacements of
+.Ql %G ,
+.Ql %g
+and
+.Ql \&%V
+are defined in ISO 8601: 1988.
+The
+.Fn strftime_l
+function conforms to
+.St -p1003.1-2008 .
+.Sh BUGS
+There is no conversion specification for the phase of the moon.
+.Pp
+The
+.Fn strftime
+function does not correctly handle multibyte characters in the
+.Fa format
+argument.

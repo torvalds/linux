@@ -1,0 +1,75 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH IBV_XSRQ_PINGPONG 1 "May 24, 2016" "libibverbs" "USER COMMANDS"
+
+.SH NAME
+ibv_xsrq_pingpong \- simple InfiniBand shared receive queue test
+
+.SH SYNOPSIS
+.B ibv_xsrq_pingpong
+[\-p port] [\-d device] [\-i ib port] [\-s size] [\-m mtu] [\-c clients]
+[\-n num_tests] [\-l sl] [\-e] [\-g gid index] \fBHOSTNAME\fR
+
+.B ibv_xsrq_pingpong
+[\-p port] [\-d device] [\-i ib port] [\-s size] [\-m mtu] [\-c clients]
+[\-n num_tests] [\-l sl] [\-e] [\-g gid index]
+
+.SH DESCRIPTION
+.PP
+Run a simple ping-pong test over InfiniBand via the extended reliable
+connected (XRC) transport service, using a shared receive queue (SRQ).
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-p\fR, \fB\-\-port\fR=\fIPORT\fR
+use TCP port \fIPORT\fR for initial synchronization (default 18515)
+.TP
+\fB\-d\fR, \fB\-\-ib\-dev\fR=\fIDEVICE\fR
+use IB device \fIDEVICE\fR (default first device found)
+.TP
+\fB\-i\fR, \fB\-\-ib\-port\fR=\fIPORT\fR
+use IB port \fIPORT\fR (default port 1)
+.TP
+\fB\-s\fR, \fB\-\-size\fR=\fISIZE\fR
+ping-pong messages of size \fISIZE\fR (default 4096)
+.TP
+\fB\-m\fR, \fB\-\-mtu\fR=\fIMTU\fR
+use path mtu of size \fIMTU\fR (default 2048)
+.TP
+\fB\-c\fR, \fB\-\-clients\fR=\fICLIENTS\fR
+number of clients \fICLIENTS\fR (on server only, default 1)
+.TP
+\fB\-n\fR, \fB\-\-num\-tests\fR=\fINUM_TESTS\fR
+perform \fINUM_TESTS\fR tests per client (default 5)
+.TP
+\fB\-l\fR, \fB\-\-sl\fR=\fISL\fR
+use \fISL\fR as the service level value (default 0)
+.TP
+\fB\-e\fR, \fB\-\-events\fR
+sleep while waiting for work completion events (default is to poll for
+completions)
+.TP
+\fB\-g\fR, \fB\-\-gid-idx\fR=\fIGIDINDEX\fR
+local port \fIGIDINDEX\fR
+
+.SH SEE ALSO
+.BR ibv_rc_pingpong (1),
+.BR ibv_uc_pingpong (1),
+.BR ibv_ud_pingpong (1)
+.BR ibv_srq_pingpong (1)
+
+.SH AUTHORS
+.TP
+Roland Dreier
+.RI < roland@purestorage.com >
+.TP
+Jarod Wilson
+.RI < jarod@redhat.com >
+
+.SH BUGS
+The network synchronization between client and server instances is
+weak, and does not prevent incompatible options from being used on the
+two instances.  The method used for retrieving work completions is not
+strictly correct, and race conditions may cause failures on some
+systems.

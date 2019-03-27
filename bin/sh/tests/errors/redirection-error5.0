@@ -1,0 +1,5 @@
+# $FreeBSD$
+# A redirection error on a subshell should not abort the shell.
+exec 2>/dev/null
+( echo bad ) </var/empty/x
+exit 0

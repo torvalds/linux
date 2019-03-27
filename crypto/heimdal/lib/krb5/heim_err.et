@@ -1,0 +1,47 @@
+#
+# Error messages for the krb5 library
+#
+# This might look like a com_err file, but is not
+#
+id "$Id$"
+
+error_table heim
+
+prefix HEIM_ERR
+
+error_code LOG_PARSE,		"Error parsing log destination"
+error_code V4_PRINC_NO_CONV,	"Failed to convert v4 principal"
+error_code SALTTYPE_NOSUPP,	"Salt type is not supported by enctype"
+error_code NOHOST,		"Host not found"
+error_code OPNOTSUPP,		"Operation not supported"
+error_code EOF,			"End of file"
+error_code BAD_MKEY,		"Failed to get the master key"
+error_code SERVICE_NOMATCH,	"Unacceptable service used"
+error_code NOT_SEEKABLE,	"File descriptor not seekable"
+error_code TOO_BIG,		"Offset too large"
+error_code BAD_HDBENT_ENCODING,	"Invalid HDB entry encoding"
+
+index 64
+prefix HEIM_PKINIT
+error_code NO_CERTIFICATE,	"Certificate missing"
+error_code NO_PRIVATE_KEY,	"Private key missing"
+error_code NO_VALID_CA,		"No valid certificate authority"
+error_code CERTIFICATE_INVALID,	"Certificate invalid"
+error_code PRIVATE_KEY_INVALID,	"Private key invalid"
+
+index 128
+prefix HEIM_EAI
+#error_code NOERROR,		"no error"
+error_code UNKNOWN,		"unknown error from getaddrinfo"
+error_code ADDRFAMILY,		"address family for nodename not supported"
+error_code AGAIN,		"temporary failure in name resolution"
+error_code BADFLAGS,		"invalid value for ai_flags"
+error_code FAIL,		"non-recoverable failure in name resolution"
+error_code FAMILY,		"ai_family not supported"
+error_code MEMORY,		"memory allocation failure"
+error_code NODATA,		"no address associated with nodename"
+error_code NONAME,		"nodename nor servname provided, or not known"
+error_code SERVICE,		"servname not supported for ai_socktype"
+error_code SOCKTYPE,		"ai_socktype not supported"
+error_code SYSTEM,		"system error returned in errno"
+end

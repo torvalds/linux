@@ -1,0 +1,124 @@
+.\"
+.\" enigma (aka. crypt) man page written by Joerg Wunsch.
+.\"
+.\" Since enigma itself is distributed in the Public Domain, this file
+.\" is also.
+.\"
+.\" $FreeBSD$
+.\" "
+.Dd May 8, 2018
+.Dt ENIGMA 1
+.Os
+.Sh NAME
+.Nm enigma ,
+.Nm crypt
+.Nd very simple file encryption
+.Sh SYNOPSIS
+.Nm
+.Op Fl s
+.Op Fl k
+.Op Ar password
+.Nm crypt
+.Op Fl s
+.Op Fl k
+.Op Ar password
+.Sh DESCRIPTION
+The
+.Nm
+utility, also known as
+.Nm crypt
+is a
+.Em very
+simple encryption program, working on a
+.Dq secret-key
+basis.
+It operates as a filter, i.e.,
+it encrypts or decrypts a
+stream of data from standard input, and writes the result to standard
+output.
+Since its operation is fully symmetrical, feeding the encrypted data
+stream again through the engine (using the same secret key) will
+decrypt it.
+.Pp
+There are several ways to provide the secret key to the program.
+By
+default, the program prompts the user on the controlling terminal for
+the key, using
+.Xr getpass 3 .
+This is the only safe way of providing it.
+.Pp
+Alternatively, the key can be provided as the sole command-line
+argument
+.Ar password
+when starting the program.
+Obviously, this way the key can easily be
+spotted by other users running
+.Xr ps 1 .
+As yet another alternative,
+.Nm
+can be given the option
+.Fl k ,
+and it will take the key from the environment variable
+.Ev CrYpTkEy .
+While this at a first glance seems to be more secure than the previous
+option, it actually is not since environment variables can also be
+examined with
+.Xr ps 1 .
+Thus this option is mainly provided for compatibility with other
+implementations of
+.Nm .
+.Pp
+When specifying the option
+.Fl s ,
+.Nm
+modifies the encryption engine in a way that is supposed to make it a
+little more secure, but incompatible with other implementations.
+.Pp
+.Ss Warning
+The cryptographic value of
+.Nm
+is rather small.
+This program is only provided here for compatibility
+with other operating systems that also provide an implementation
+(usually called
+.Xr crypt 1
+there).
+For real encryption, refer to
+.Xr openssl 1 ,
+or
+.Xr gpg 1 Pq Pa security/gnupg1 .
+.Sh ENVIRONMENT
+.Bl -tag -offset indent -width ".Ev CrYpTkEy"
+.It Ev CrYpTkEy
+used to obtain the secret key when option
+.Fl k
+has been given
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+man enigma | enigma > encrypted
+Enter key: (XXX \(em key not echoed)
+.Ed
+.Pp
+This will create an encrypted form of this man page, and store it in
+the file
+.Pa encrypted .
+.Bd -literal -offset indent
+enigma XXX < encrypted
+.Ed
+.Pp
+This displays the previously created file on the terminal.
+.Sh SEE ALSO
+.Xr gpg 1 ,
+.Xr openssl 1 ,
+.Xr ps 1 ,
+.Xr getpass 3
+.Sh HISTORY
+Implementations of
+.Nm crypt
+are very common among
+.Ux
+operating systems.
+This implementation has been taken from the
+.Em Cryptbreakers Workbench
+which is in the public domain.

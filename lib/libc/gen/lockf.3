@@ -1,0 +1,266 @@
+.\" $NetBSD: lockf.3,v 1.10 2008/04/30 13:10:50 martin Exp $
+.\"
+.\" Copyright (c) 1997 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Klaus Klein and S.P. Zeidler.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 11, 2013
+.Dt LOCKF 3
+.Os
+.Sh NAME
+.Nm lockf
+.Nd record locking on files
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn lockf "int fd" "int function" "off_t size"
+.Sh DESCRIPTION
+The
+.Fn lockf
+function allows sections of a file to be locked with advisory-mode locks.
+Calls to
+.Fn lockf
+from other processes which attempt to lock the locked file section will
+either return an error value or block until the section becomes unlocked.
+All the locks for a process are removed when the process terminates.
+.Pp
+The argument
+.Fa fd
+is an open file descriptor.
+The file descriptor must have been opened either for write-only
+.Dv ( O_WRONLY )
+or read/write
+.Dv ( O_RDWR )
+operation.
+.Pp
+The
+.Fa function
+argument is a control value which specifies the action to be taken.
+The permissible values for
+.Fa function
+are as follows:
+.Bl -tag -width F_ULOCKXX -compact -offset indent
+.It Sy Function
+.Sy Description
+.It Dv F_ULOCK
+unlock locked sections
+.It Dv F_LOCK
+lock a section for exclusive use
+.It Dv F_TLOCK
+test and lock a section for exclusive use
+.It Dv F_TEST
+test a section for locks by other processes
+.El
+.Pp
+.Dv F_ULOCK
+removes locks from a section of the file;
+.Dv F_LOCK
+and
+.Dv F_TLOCK
+both lock a section of a file if the section is available;
+.Dv F_TEST
+detects if a lock by another process is present on the specified section.
+.Pp
+The
+.Fa size
+argument is the number of contiguous bytes to be locked or
+unlocked.
+The section to be locked or unlocked starts at the current
+offset in the file and extends forward for a positive size or backward
+for a negative size (the preceding bytes up to but not including the
+current offset).
+However, it is not permitted to lock a section that
+starts or extends before the beginning of the file.
+If
+.Fa size
+is 0, the section from the current offset through the largest possible
+file offset is locked (that is, from the current offset through the
+present or any future end-of-file).
+.Pp
+The sections locked with
+.Dv F_LOCK
+or
+.Dv F_TLOCK
+may, in whole or in part, contain or be contained by a previously
+locked section for the same process.
+When this occurs, or if adjacent
+locked sections would occur, the sections are combined into a single
+locked section.
+If the request would cause the number of locks to
+exceed a system-imposed limit, the request will fail.
+.Pp
+.Dv F_LOCK
+and
+.Dv F_TLOCK
+requests differ only by the action taken if the section is not
+available.
+.Dv F_LOCK
+blocks the calling process until the section is available.
+.Dv F_TLOCK
+makes the function fail if the section is already locked by another
+process.
+.Pp
+File locks are released on first close by the locking process of any
+file descriptor for the file.
+.Pp
+.Dv F_ULOCK
+requests release (wholly or in part) one or more locked sections
+controlled by the process.
+Locked sections will be unlocked starting
+at the current file offset through
+.Fa size
+bytes or to the end of file if size is 0.
+When all of a locked section
+is not released (that is, when the beginning or end of the area to be
+unlocked falls within a locked section), the remaining portions of
+that section are still locked by the process.
+Releasing the center
+portion of a locked section will cause the remaining locked beginning
+and end portions to become two separate locked sections.
+If the
+request would cause the number of locks in the system to exceed a
+system-imposed limit, the request will fail.
+.Pp
+An
+.Dv F_ULOCK
+request in which size is non-zero and the offset of the last byte of
+the requested section is the maximum value for an object of type
+off_t, when the process has an existing lock in which size is 0 and
+which includes the last byte of the requested section, will be treated
+as a request to unlock from the start of the requested section with a
+size equal to 0.
+Otherwise an
+.Dv F_ULOCK
+request will attempt to unlock only the requested section.
+.Pp
+A potential for deadlock occurs if a process controlling a locked
+region is put to sleep by attempting to lock the locked region of
+another process.
+This implementation detects that sleeping until a
+locked region is unlocked would cause a deadlock and fails with an
+.Er EDEADLK
+error.
+.Pp
+The
+.Fn lockf ,
+.Xr fcntl 2 ,
+and
+.Xr flock 2
+locks are compatible.
+Processes using different locking interfaces can cooperate
+over the same file safely.
+However, only one of such interfaces should be used within
+the same process.
+If a file is locked by a process through
+.Xr flock 2 ,
+any record within the file will be seen as locked
+from the viewpoint of another process using
+.Xr fcntl 2
+or
+.Fn lockf ,
+and vice versa.
+.Pp
+Blocking on a section is interrupted by any signal.
+.Sh RETURN VALUES
+.Rv -std lockf
+In the case of a failure, existing locks are not changed.
+.Sh ERRORS
+The
+.Fn lockf
+function
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The argument
+.Fa function
+is
+.Dv F_TLOCK
+or
+.Dv F_TEST
+and the section is already locked by another process.
+.It Bq Er EBADF
+The argument
+.Fa fd
+is not a valid open file descriptor.
+.Pp
+The argument
+.Fa function
+is
+.Dv F_LOCK
+or
+.Dv F_TLOCK ,
+and
+.Fa fd
+is not a valid file descriptor open for writing.
+.It Bq Er EDEADLK
+The argument
+.Fa function
+is
+.Dv F_LOCK
+and a deadlock is detected.
+.It Bq Er EINTR
+The argument
+.Fa function
+is F_LOCK
+and
+.Fn lockf
+was interrupted by the delivery of a signal.
+.It Bq Er EINVAL
+The argument
+.Fa function
+is not one of
+.Dv F_ULOCK ,
+.Dv F_LOCK ,
+.Dv F_TLOCK
+or
+.Dv F_TEST .
+.Pp
+The argument
+.Fa fd
+refers to a file that does not support locking.
+.It Bq Er ENOLCK
+The argument
+.Fa function
+is
+.Dv F_ULOCK ,
+.Dv F_LOCK
+or
+.Dv F_TLOCK ,
+and satisfying the lock or unlock request would result in the number
+of locked regions in the system exceeding a system-imposed limit.
+.El
+.Sh SEE ALSO
+.Xr fcntl 2 ,
+.Xr flock 2
+.Sh STANDARDS
+The
+.Fn lockf
+function conforms to
+.St -xpg4.2 .

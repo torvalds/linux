@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to not build
+.Xr apm 8 ,
+.Xr apmd 8
+and related programs.

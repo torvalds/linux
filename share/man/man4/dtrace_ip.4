@@ -1,0 +1,285 @@
+.\" Copyright (c) 2015 Mark Johnston <markj@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 14, 2015
+.Dt DTRACE_IP 4
+.Os
+.Sh NAME
+.Nm dtrace_ip
+.Nd a DTrace provider for tracing events related to the IPv4 and IPv6 protocols
+.Sh SYNOPSIS
+.Fn ip:::receive "pktinfo_t *" "csinfo_t *" "ipinfo_t *" "ifinfo_t *" \
+    "ipv4info_t *" "ipv6info_t *"
+.Fn ip:::send "pktinfo_t *" "csinfo_t *" "ipinfo_t *" "ifinfo_t *" \
+    "ipv4info_t *" "ipv6info_t *"
+.Sh DESCRIPTION
+The DTrace
+.Nm ip
+provider allows users to trace events in the
+.Xr ip 4
+and
+.Xr ip6 4
+protocol implementations.
+The
+.Fn ip:::send
+probe fires whenever the kernel prepares to transmit an IP packet, and the
+.Fn ip:::receive
+probe fires whenever the kernel receives an IP packet.
+The arguments to these probes can be used to obtain detailed information about
+the IP headers of the corresponding packet, as well as the network interface on
+which the packet was sent or received.
+Unlike the
+.Xr dtrace_tcp 4
+and
+.Xr dtrace_udp 4
+providers,
+.Nm ip
+provider probes are triggered by forwarded packets.
+That is, the probes will fire on packets that are not destined to the local
+host.
+.Sh ARGUMENTS
+The
+.Vt pktinfo_t
+argument is currently unimplemented and is included for compatibility with other
+implementations of this provider.
+Its fields are:
+.Bl -tag -width "uintptr_t pkt_addr" -offset indent
+.It Vt uintptr_t pkt_addr
+Always set to 0.
+.El
+.Pp
+The
+.Vt csinfo_t
+argument is currently unimplemented and is included for compatibility with other
+implementations of this provider.
+Its fields are:
+.Bl -tag -width "uintptr_t cs_addr" -offset indent
+.It Vt uintptr_t cs_addr
+Always set to 0.
+.It Vt uint64_t cs_cid
+A pointer to the
+.Vt struct inpcb
+for this packet, or
+.Dv NULL .
+.It Vt pid_t cs_pid
+Always set to 0.
+.El
+.Pp
+The
+.Vt ipinfo_t
+argument contains IP fields common to both IPv4 and IPv6 packets.
+Its fields are:
+.Bl -tag -width "uint32_t ip_plength" -offset indent
+.It Vt uint8_t ip_ver
+IP version of the packet, 4 for IPv4 packets and 6 for IPv6 packets.
+.It Vt uint32_t ip_plength
+IP payload size.
+This does not include the size of the IP header or IPv6 option headers.
+.It Vt string ip_saddr
+IP source address.
+.It Vt string ip_daddr
+IP destination address.
+.El
+.Pp
+The
+.Vt ifinfo_t
+argument describes the outgoing and incoming interfaces for the packet in the
+.Fn ip:::send
+and
+.Fn ip:::receive
+probes respectively.
+Its fields are:
+.Bl -tag -width "uintptr_t if_addr" -offset indent
+.It Vt string if_name
+The interface name.
+.It Vt int8_t if_local
+A boolean value indicating whether or not the interface is a loopback interface.
+.It Vt uintptr_t if_addr
+A pointer to the
+.Vt struct ifnet
+which describes the interface.
+See the
+.Xr ifnet 9
+manual page.
+.El
+.Pp
+The
+.Vt ipv4info_t
+argument contains the fields of the IP header for IPv4 packets.
+This argument is
+.Dv NULL
+for IPv6 packets.
+DTrace scripts should use the
+.Fn ip_ver
+field in the
+.Vt ipinfo_t
+argument to determine whether to use this argument.
+Its fields are:
+.Bl -tag -width "uint16_t ipv4_checksum" -offset indent
+.It Vt uint8_t ipv4_ver
+IP version.
+This will always be 4 for IPv4 packets.
+.It Vt uint8_t ipv4_ihl
+The IP header length, including options, in 32-bit words.
+.It Vt uint8_t ipv4_tos
+IP type of service field.
+.It Vt uint16_t ipv4_length
+The total packet length, including the header, in bytes.
+.It Vt uint16_t ipv4_ident
+Identification field.
+.It Vt uint8_t ipv4_flags
+The IP flags.
+.It Vt uint16_t ipv4_offset
+The fragment offset of the packet.
+.It Vt uint8_t ipv4_ttl
+Time to live field.
+.It Vt uint8_t ipv4_protocol
+Next-level protocol ID.
+.It Vt string ipv4_protostr
+A string containing the name of the encapsulated protocol.
+The protocol strings are defined in the
+.Va protocol
+array in
+.Pa /usr/lib/dtrace/ip.d
+.It Vt uint16_t ipv4_checksum
+The IP checksum.
+.It Vt ipaddr_t ipv4_src
+IPv4 source address.
+.It Vt ipaddr_t ipv4_dst
+IPv4 destination address.
+.It Vt string ipv4_saddr
+A string representation of the source address.
+.It Vt string ipv4_daddr
+A string representation of the destination address.
+.It Vt ipha_t *ipv4_hdr
+A pointer to the raw IPv4 header.
+.El
+.Pp
+The
+.Vt ipv6info_t
+argument contains the fields of the IP header for IPv6 packets.
+Its fields are not set for IPv4 packets; as with the
+.Vt ipv4info_t
+argument, the
+.Fn ip_ver
+field should be used to determine whether this argument is valid.
+Its fields are:
+.Bl -tag -width "uint16_t ipv4_checksum" -offset indent
+.It Vt uint8_t ipv6_ver
+IP version.
+This will always be 6 for IPv6 packets.
+.It Vt uint8_t ipv6_tclass
+The traffic class, used to set the differentiated services codepoint and
+extended congestion notification flags.
+.It Vt uint32_t ipv6_flow
+The flow label of the packet.
+.It Vt uint16_t ipv6_plen
+The IP payload size, including extension headers, in bytes.
+.It Vt uint8_t ipv6_nexthdr
+An identifier for the type of the next header.
+.It Vt string ipv6_nextstr
+A string representation of the type of the next header.
+.It Vt uint8_t ipv6_hlim
+The hop limit.
+.It Vt ip6_addr_t *ipv6_src
+IPv6 source address.
+.It Vt ip6_addr_t *ipv6_dst
+IPv6 destination address.
+.It Vt string ipv6_saddr
+A string representation of the source address.
+.It Vt string ipv6_daddr
+A string representation of the destination address.
+.It Vt struct ip6_hdr *ipv6_hdr
+A pointer to the raw IPv6 header.
+.El
+.Sh FILES
+.Bl -tag -width "/usr/lib/dtrace/ip.d" -compact
+.It Pa /usr/lib/dtrace/ip.d
+DTrace type and translator definitions for the
+.Nm ip
+provider.
+.El
+.Sh EXAMPLES
+The following script counts received packets by remote host address.
+.Bd -literal -offset indent
+ip:::receive
+{
+        @num[args[2]->ip_saddr] = count();
+}
+.Ed
+.Pp
+This script will print some details of each IP packet as it is sent or received
+by the kernel:
+.Bd -literal -offset indent
+#pragma D option quiet
+#pragma D option switchrate=10Hz
+
+dtrace:::BEGIN
+{
+        printf(" %10s %30s    %-30s %8s %6s\\n", "DELTA(us)", "SOURCE",
+            "DEST", "INT", "BYTES");
+        last = timestamp;
+}
+
+ip:::send
+{
+        this->elapsed = (timestamp - last) / 1000;
+        printf(" %10d %30s -> %-30s %8s %6d\\n", this->elapsed,
+            args[2]->ip_saddr, args[2]->ip_daddr, args[3]->if_name,
+            args[2]->ip_plength);
+        last = timestamp;
+}
+
+ip:::receive
+{
+        this->elapsed = (timestamp - last) / 1000;
+        printf(" %10d %30s <- %-30s %8s %6d\\n", this->elapsed,
+            args[2]->ip_daddr, args[2]->ip_saddr, args[3]->if_name,
+            args[2]->ip_plength);
+        last = timestamp;
+}
+.Ed
+.Sh COMPATIBILITY
+This provider is compatible with the
+.Nm ip
+providers found in Solaris and Darwin.
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr dtrace_tcp 4 ,
+.Xr dtrace_udp 4 ,
+.Xr ip 4 ,
+.Xr ip6 4 ,
+.Xr ifnet 9 ,
+.Xr SDT 9
+.Sh HISTORY
+The
+.Nm ip
+provider first appeared in
+.Fx
+10.0.
+.Sh AUTHORS
+This manual page was written by
+.An Mark Johnston Aq Mt markj@FreeBSD.org .

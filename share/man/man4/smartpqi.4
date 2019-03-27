@@ -1,0 +1,103 @@
+.\" Copyright (c) 2018 Murthy Bhat
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$ stable/10/share/man/man4/smartpqi.4 195614 2017-01-11 08:10:18Z jkim $
+.Dd April 6, 2018
+.Dt SMARTPQI 4
+.Os
+.Sh NAME
+.Nm smartpqi
+.Nd Microsemi smartpqi SCSI driver for PQI controllers
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd device pci
+.Cd device scbus
+.Cd device smartpqi
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+smartpqi_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+SCSI driver provides support for the new generation of PQI controllers from
+Microsemi.
+The
+.Nm
+driver is the first SCSI driver to implement the PQI queuing model.
+.Pp
+The
+.Nm
+driver will replace the aacraid driver for Adaptec Series 9 controllers.
+.Pp
+The
+.Pa /dev/smartpqi?
+device nodes provide access to the management interface of the controller.
+One node exists per installed card.
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+HPE Gen10 Smart Array Controller Family
+.It
+OEM Controllers based on the Microsemi Chipset  
+.El
+.Sh FILES
+.Bl -tag -width /boot/kernel/aac.ko -compact
+.It Pa /dev/smartpqi?
+smartpqi management interface
+.El
+.Sh SEE ALSO
+.Xr kld 4 ,
+.Xr linux 4 ,
+.Xr scsi 4 ,
+.Xr kldload 8 ,
+.Xr pass 4 ,
+.Xr xpt 4 ,
+.Xr loader.conf 5 ,
+.Xr camcontrol 8
+.Rs
+.%T "Microsemi Website"
+.%U http://www.microsemi.com/
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 11.1 .
+.Sh AUTHORS
+.An Murthy Bhat
+.Aq murthy.bhat@microsemi.com
+.Sh BUGS
+The controller is not actually paused on suspend/resume.

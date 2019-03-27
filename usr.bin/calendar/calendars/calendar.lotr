@@ -1,0 +1,48 @@
+/*
+ * Lord Of The Rings
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _calendar_lotr_
+#define _calendar_lotr_
+
+01/05	Fellowship enters Moria
+01/09	Fellowship reaches Lorien
+01/17	Passing of Gandalf
+02/07	Fellowship leaves Lorien
+02/17	Death of Boromir
+02/20	Meriadoc & Pippin meet Treebeard
+02/22	Passing of King Ellesar
+02/24	Ents destroy Isengard
+02/26	Aragorn takes the Paths of the Dead
+03/05	Frodo & Samwise encounter Shelob
+03/08	Deaths of Denethor & Theoden
+03/18	Destruction of the Ring
+03/29	Flowering of the Mallorn
+04/04	Gandalf visits Bilbo
+04/17	An unexpected party
+04/23	Crowning of King Ellesar
+05/19	Arwen leaves Lorian to wed King Ellesar
+06/11	Sauron attacks Osgilliath
+06/13	Bilbo returns to Bag End
+06/23	Wedding of Ellesar & Arwen
+07/04	Gandalf imprisoned by Saruman
+07/24	The ring comes to Bilbo
+07/26	Bilbo rescued from Wargs by Eagles
+08/03	Funeral of King Theoden
+08/29	Saruman enters the Shire
+09/10	Gandalf escapes from Orthanc
+09/14	Frodo & Bilbo's birthday
+09/15	Black riders enter the Shire
+09/18	Frodo and company rescued by Bombadil
+09/28	Frodo wounded at Weathertop
+10/05	Frodo crosses bridge of Mitheithel
+10/16	Boromir reaches Rivendell
+10/17	Council of Elrond
+10/25	End of War of the Ring
+11/16	Bilbo reaches the Lonely Mountain
+12/05	Death of Smaug
+12/16	Fellowship begins Quest
+
+#endif /* !_calendar_lotr_ */

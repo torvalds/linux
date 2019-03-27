@@ -1,0 +1,181 @@
+.\"-
+.\" Copyright (c) 2000-2001 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed by Robert Watson for the TrustedBSD Project.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" Developed by the TrustedBSD Project.
+.\" Support for file system extended attribute.
+.\"
+.Dd March 30, 2000
+.Dt EXTATTRCTL 8
+.Os
+.Sh NAME
+.Nm extattrctl
+.Nd manage UFS1 extended attributes
+.Sh SYNOPSIS
+.Nm
+.Cm start
+.Ar path
+.Nm
+.Cm stop
+.Ar path
+.Nm
+.Cm initattr
+.Op Fl f
+.Op Fl p Ar path
+.Ar attrsize
+.Ar attrfile
+.Nm
+.Cm showattr
+.Ar attrfile
+.Nm
+.Cm enable
+.Ar path
+.Ar attrnamespace
+.Ar attrname
+.Ar attrfile
+.Nm
+.Cm disable
+.Ar path
+.Ar attrnamespace
+.Ar attrname
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is the management utility for extended attributes over the UFS1 file system.
+It allows the starting and stopping of extended attributes on a file system,
+as well as initialization of attribute backing files, and enabling and
+disabling of specific extended attributes on a file system.
+.Pp
+The first argument on the command line indicates the operation to be
+performed.
+Operation must be one of the following:
+.Bl -tag -width indent
+.It Cm start Ar path
+Start extended attribute support on the file system named using
+.Ar path .
+The file system must be an UFS1 file system, and the UFS_EXTATTR kernel
+option must have been enabled.
+.It Cm stop Ar path
+Stop extended attribute support on the file system named using
+.Ar path .
+Extended attribute support must previously have been started.
+.It Xo
+.Cm initattr
+.Op Fl f
+.Op Fl p Ar path
+.Ar attrsize attrfile
+.Xc
+Create and initialize a file to use as an attribute backing file.
+You must specify a maximum per-inode size for the attribute in bytes in
+.Ar attrsize ,
+as well as the file where the attribute will be stored, using
+.Ar attrfile .
+.Pp
+The
+.Fl f
+argument may be used to indicate that it is alright to overwrite an
+existing attribute backing file; otherwise, if the target file exists,
+an error will be returned.
+.Pp
+The
+.Fl p Ar path
+argument may be used to preallocate space for all attributes rather than
+relying on sparse files to conserve space.
+This has the advantage of guaranteeing that space will be available
+for attributes when they are written, preventing low disk space conditions
+from denying attribute service.
+.Pp
+This file should not exist before running
+.Cm initattr .
+.It Cm showattr Ar attrfile
+Show the attribute header values in the attribute file named by
+.Ar attrfile .
+.It Cm enable Ar path attrnamespace attrname attrfile
+Enable an attribute named
+.Ar attrname
+in the namespace
+.Ar attrnamespace
+on the file system identified using
+.Ar path ,
+and backed by initialized attribute file
+.Ar attrfile .
+Available namespaces are "user" and "system".
+The backing file must have been initialized using
+.Cm initattr
+before its first use.
+Attributes must have been started on the file system prior to the
+enabling of any attributes.
+.It Cm disable Ar path attrnamespace attrname
+Disable the attributed named
+.Ar attrname
+in namespace
+.Ar attrnamespace
+on the file system identified by
+.Ar path .
+Available namespaces are "user" and "system".
+The file system must have attributes started on it, and the attribute
+most have been enabled using
+.Cm enable .
+.El
+.Sh EXAMPLES
+.Dl extattrctl start /
+.Pp
+Start extended attributes on the root file system.
+.Pp
+.Dl extattrctl initattr 17 /.attribute/system/md5
+.Pp
+Create an attribute backing file in /.attribute/system/md5, and set the maximum
+size of each attribute to 17 bytes, with a sparse file used for storing
+the attributes.
+.Pp
+.Dl extattrctl enable / system md5 /.attribute/system/md5
+.Pp
+Enable an attribute named md5 on the root file system, backed from the file
+/.attribute/system/md5.
+.Pp
+.Dl extattrctl disable / md5
+.Pp
+Disable the attribute named md5 on the root file system.
+.Pp
+.Dl extattrctl stop /
+.Pp
+Stop extended attributes on the root file system.
+.Sh SEE ALSO
+.Xr ffs 7 ,
+.Xr getextattr 8 ,
+.Xr setextattr 8 ,
+.Xr extattr 9
+.Sh HISTORY
+Extended attribute support was developed as part of the TrustedBSD Project,
+and introduced in
+.Fx 5.0 .
+It was developed to support security extensions requiring additional labels
+to be associated with each file or directory.
+.Sh AUTHORS
+Robert N M Watson

@@ -1,0 +1,140 @@
+$ $tcsh: set1,v 1.7 2015/05/26 17:38:25 christos Exp $
+$ Error messages
+$set 1 
+1 Syntax Error
+2 %s is not allowed
+3 Word too long
+4 $< line too long
+5 No file for $0
+6 Incomplete [] modifier
+7 $ expansion must end before ]
+8 Bad : modifier in $ '%c'
+9 Subscript error
+10 Badly formed number
+11 No more words
+12 Missing file name
+13 Internal glob error
+14 Command not found
+15 Too few arguments
+16 Too many arguments
+17 Too dangerous to alias that
+18 Empty if
+19 Improper then
+20 Words not parenthesized
+21 %s not found
+22 Improper mask
+23 No such limit
+24 Argument too large
+25 Improper or unknown scale factor
+26 Undefined variable
+27 Directory stack not that deep
+28 Bad signal number
+29 Unknown signal; kill -l lists signals
+30 Variable name must begin with a letter
+31 Variable name too long
+32 Variable name must contain alphanumeric characters
+33 No job control in this shell
+34 Expression Syntax
+35 No home directory
+36 Can't change to home directory
+37 Invalid null command
+38 Assignment missing expression
+39 Unknown operator
+40 Ambiguous
+41 %s: File exists
+42 Argument for -c ends in backslash
+43 Interrupted
+44 Subscript out of range
+45 Line overflow
+46 No such job
+47 Can't from terminal
+48 Not in while/foreach
+49 No more processes
+50 No match
+51 Missing '%c'
+52 Unmatched '%c'
+53 Out of memory
+54 Can't make pipe
+55 %s: %s
+56 %s
+57 Usage: jobs [ -l ]
+58 Arguments should be jobs or process id's
+59 No current job
+60 No previous job
+61 No job matches pattern
+62 Fork nesting > %d; maybe `...` loop
+63 No job control in subshells
+64 Sync fault: Process %d not found
+65 %sThere are suspended jobs
+66 %sThere are stopped jobs
+67 No other directory
+68 Directory stack empty
+69 Bad directory
+70 Usage: %s [-%s]%s
+71 No operand for -h flag
+72 Not a login shell
+73 Division by 0
+74 Mod by 0
+75 Bad scaling; did you mean "%s"?
+76 Can't suspend a login shell (yet)
+77 Unknown user: %s
+78 No $home variable set
+79 Usage: history [-%s] [# number of events]
+80 $, ! or < not allowed with $# or $?
+81 Newline in variable name
+82 * not allowed with $# or $?
+83 $?<digit> or $#<digit> not allowed
+84 Illegal variable name
+85 Newline in variable index
+86 Expansion buffer overflow
+87 Variable syntax
+88 Bad ! form
+89 No previous substitute
+90 Bad substitute
+91 No previous left hand side
+92 Right hand side too long
+93 Bad ! modifier: '%c'
+94 Modifier failed
+95 Substitution buffer overflow
+96 Bad ! arg selector
+97 No prev search
+98 %s: Event not found
+99 Too many )'s
+100 Too many ('s
+101 Badly placed (
+102 Missing name for redirect
+103 Ambiguous output redirect
+104 Can't << within ()'s
+105 Ambiguous input redirect
+106 Badly placed ()'s
+107 Alias loop
+108 No $watch variable set
+109 No scheduled events
+110 Usage: sched -<item#>.\nUsage: sched [+]hh:mm <command>
+111 Not that many scheduled events
+112 No command to run
+113 Invalid time for event
+114 Relative time inconsistent with am/pm
+115 Out of termcap string space
+116 Usage: settc %s [yes|no]
+117 Unknown capability `%s'
+118 Unknown termcap parameter '%%%c'
+119 Too many arguments for `%s' (%d)
+120 `%s' requires %d arguments
+121 Usage: echotc [-v|-s] [<capability> [<args>]]
+122 %s: %s. Wrong Architecture
+123 !# History loop
+124 Malformed file inquiry
+125 Selector overflow
+126 Unknown option: `-%s'\nUsage: %s [ -bcdefilmnqstvVxX -Dname[=value] ] [ argument ... ]
+127 Unknown option: `-%s'\nUsage: %s [ -bcdefFilmnqstvVxX ] [ argument ... ]
+128 Unknown option: `-%s'\nUsage: %s [ -bcdefilmnqstvVxX ] [ argument ... ]
+129 \nInvalid completion: "%s"
+130 \nInvalid %s: '%c'
+131 \nMissing separator '%c' after %s "%s"
+132 \nIncomplete %s: "%s"
+133 No operand for -m flag
+134 Usage: unlimit [-fh] [limits]
+135 $%S is read-only
+136 No such job
+137 Unknown colorls variable '%c%c'

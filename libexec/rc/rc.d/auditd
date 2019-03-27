@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+# Start up for the Audit daemon.
+#
+
+# PROVIDE: auditd
+# REQUIRE: syslogd
+# BEFORE:  DAEMON
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="auditd"
+desc="Audit daemon"
+stop_cmd="auditd_stop"
+command="/usr/sbin/${name}"
+rcvar="auditd_enable"
+command_args="${auditd_flags}"
+required_files="/etc/security/audit_class /etc/security/audit_control
+		/etc/security/audit_event /etc/security/audit_user
+		/etc/security/audit_warn"
+
+auditd_stop()
+{
+
+	/usr/sbin/audit -t
+	sleep 1
+}
+
+load_rc_config $name
+run_rc_command "$1"

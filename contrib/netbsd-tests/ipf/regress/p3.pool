@@ -1,0 +1,4 @@
+group-map in role = ipf number = 1010
+	{ 1.1.1.1/32, group = 1020; 3.3.0.0/16, group = 1030; };
+group-map out role = ipf number = 2010 group = 2020
+	{ 2.2.2.2/32; 4.4.0.0/16; 5.0.0.0/8, group = 2040; };

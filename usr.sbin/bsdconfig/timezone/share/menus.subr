@@ -1,0 +1,225 @@
+if [ ! "$_TIMEZONE_MENUS_SUBR" ]; then _TIMEZONE_MENUS_SUBR=1
+#
+# Copyright (c) 2011-2012 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." timezone/menus.subr
+f_include $BSDCFG_SHARE/dialog.subr
+
+############################################################ GLOBALS
+
+#
+# Export special included variables required by awk(1) for `ENVIRON' visibility
+#
+export DIALOG_MENU_TAGS
+
+############################################################ FUNCTIONS
+
+# f_make_menus
+#
+# Creates the tag/item ordered-pair list environment variables for the
+# continent and country menus.
+#
+# Required variables [from continents.subr]:
+#
+# 	CONTINENTS
+# 		Space-separated list of continents.
+# 	continent_*_title
+# 		Desired menu text for the continent represented by *.
+#
+# Required variables [created by f_read_iso3166_table from iso3166.subr]:
+#
+# 	COUNTRIES
+# 		Space-separated list of 2-character country codes.
+# 	country_*_name :: when country_*_nzones < 0
+# 		Desired menu text for the country-zone represented by *, the 2-
+# 		character country code.
+#
+# Required variables [created by f_read_zones from zones.subr]:
+#
+# 	country_*_nzones
+# 		Number of zones for the country represented by *, the 2-
+# 		character country code. Should be -1 if the country has only
+# 		one single zone, otherwise 1 or greater to indicate how many
+# 		zones the country has.
+# 	country_*_cont :: when country_*_nzones < 0
+# 		Principal continent (or ocean) in which the country-zone
+# 		represented by *, the 2-character country code, resides.
+# 	country_*_cont_N :: when country_*_nzones > 0
+# 		Principal continent (or ocean) in which zone-N of the country
+# 		represented by * resides, the 2-character country code.
+# 	country_*_descr_N :: when country_*_nzones > 0
+# 		Desired submenu text for zone-N of the country represented by
+# 		*, the 2-character country code.
+#
+# Variables created by this function:
+#
+# 	continent_menu_list
+# 		Menu-list of continents.
+# 	continent_*_nitems
+# 		Number of items associated with the continent represented by *,
+# 		the continent identifier.
+# 	continent_*_tlc_N
+# 		2-character country code of the Nth item in the continent menu
+# 		for the continent represented by *, the continent identifier.
+# 	continent_*_menu_list
+# 		Menu-list of countries/zones for each continent represented by
+# 		*, the continent identifier.
+# 	country_*_menu_list
+# 		For countries that have multiple zones, this is the submenu-
+# 		list of zones for said country represented by *, the 2-
+# 		character country code.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_make_menus_awk='
+function add_zone_n_to_country_menu(tlc, n)
+{
+	zone_title = ENVIRON["country_" tlc "_descr_" n]
+	gsub(/'\''/, "'\''\\'\'\''", zone_title)
+	country_menu_list[tlc] = country_menu_list[tlc] \
+		( length(country_menu_list[tlc]) > 0 ? "\n" : "" ) \
+		n " '\''" zone_title "'\''"
+}
+BEGIN {
+	#
+	# First, count up all the countries in each continent/ocean.
+	# Be careful to count those countries which have multiple zones
+	# only once for each.  NB: some countries are in multiple
+	# continents/oceans.
+	#
+	i = split(ENVIRON["COUNTRIES"], countries, /[[:space:]]+/)
+	for (cp = 1; cp <= i; cp++)
+	{
+		tlc = countries[cp]
+		title = ENVIRON["country_" tlc "_name"]
+		gsub(/'\''/, "'\''\\'\'\''", title)
+		nzones = ENVIRON["country_" tlc "_nzones"]
+		if (!nzones)
+		{
+			# Country has no zones
+			continue
+		}
+		else if (nzones < 0)
+		{
+			# Country has only one zone
+			cont = ENVIRON["country_" tlc "_cont"]
+			nitems = ++continent_nitems[cont]
+			continent_tlc[cont,nitems] = tlc
+			continent_title[cont,nitems] = title
+		}
+		else
+		{
+			# Country has one or more zones
+			for (n = 1; n <= nzones; n++)
+			{
+				add_zone_n_to_country_menu(tlc, n)
+				cont = ENVIRON["country_" tlc "_cont_" n]
+				for (x = 1; x < n; x++)
+				{
+					contx = ENVIRON["country_"tlc"_cont_"x]
+					if (cont == contx) break
+				}
+				if (x == n)
+				{
+					nitems = ++continent_nitems[cont]
+					continent_tlc[cont,nitems] = tlc
+					continent_title[cont,nitems] = title
+				}
+			}
+		}
+	}
+}
+END {
+	tags = ENVIRON["DIALOG_MENU_TAGS"]
+	cont_menu_list = ""
+	tagn = 0
+
+	#
+	# Assemble the menu items in the menu list for each continent/ocean.
+	#
+	i = split(ENVIRON["CONTINENTS"], array, /[[:space:]]+/)
+	for (item = 1; item <= i; item++)
+	{
+		cont = array[item]
+		if (!cont) continue
+
+		if (++tagn >= length(tags)) break
+		tag = substr(tags, tagn, 1)
+		cont_menu_list = cont_menu_list \
+			( length(cont_menu_list) > 0 ? "\n" : "" ) \
+			"'\''" tag "'\'' '\''" \
+			ENVIRON["continent_" cont "_title"] "'\''"
+
+		nitems = continent_nitems[cont]
+		printf "continent_%s_nitems=%d\n", cont, nitems
+
+		menu_list = ""
+		for (n = 1; n <= nitems; n++)
+		{
+			printf "continent_%s_tlc_%d=%s\n",
+			       cont, n, continent_tlc[cont,n]
+
+			title = continent_title[cont,n]
+			menu_list = menu_list \
+				( length(menu_list) > 0 ? "\n" : "" ) \
+				n " '\''" title "'\''"
+		}
+
+		gsub(/"/, "\\\"", menu_list)
+		printf "continent_%s_menu_list=\"%s\"\n", cont, menu_list
+	}
+
+	gsub(/"/, "\\\"", continent_menu_list)
+	printf "continent_menu_list=\"%s\"\n", cont_menu_list
+	print "export continent_menu_list"
+
+	#
+	# Dump the submenus of countries with multiple zones
+	#
+	for (tlc in country_menu_list)
+	{
+		menu_list = country_menu_list[tlc]
+		gsub(/"/, "\\\"", menu_list)
+		printf "country_%s_menu_list=\"%s\"\n", tlc, menu_list
+	}
+}
+'
+f_make_menus()
+{
+	eval $( :| awk "$f_make_menus_awk" )
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." timezone/menus.subr
+
+fi # ! $_TIMEZONE_MENUS_SUBR

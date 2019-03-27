@@ -1,0 +1,78 @@
+.\"
+.\" Copyright (c) 2018 Ian Lepore <ian@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 8, 2018
+.Dt IMX6_SNVS 4
+.Os
+.Sh NAME
+.Nm imx6_snvs
+.Nd device driver for the NXP i.MX6 on-chip Realtime Clock
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device imx6_snvs"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+imx6_snvs_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides
+support for the i.MX6 on-chip realtime clock.
+It provides the time of day with a resolution of approximately
+30 microseconds.
+.Pp
+.Sq SNVS
+stands for Secure Non-Volatile Storage, and refers to the subsystem
+within the chip that (optionally) remains powered by a battery when
+the rest of the system is powered down.
+The on-chip realtime clock is part of that subsystem.
+Other features of the SNVS subsystem are related to security, tamper
+monitoring, and power control; the
+.Nm
+driver does not currently support those features.
+.Pp
+Many i.MX6 systems do not use a battery to provide power to the SNVS
+due to its relatively high power draw.  In such systems, this driver
+is able to provide a very accurate time following a reboot, but cannot
+provide time at all if the power is cycled.  If the system provides an
+i2c or other type of alternate realtime clock with lower resolution,
+there is value in configuring both clock drivers.
+Doing so allows SNVS to provide accurate time after a reboot, while the
+external clock provides approximate time after power cycling.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 12.0 .

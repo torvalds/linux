@@ -1,0 +1,272 @@
+#!/bin/sh
+#
+# Copyright (c) 2003 The FreeBSD Project. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE PROJECT ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE PROJECT BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+# THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# PROVIDE: netif
+# REQUIRE: FILESYSTEMS iovctl serial sppp sysctl
+# REQUIRE: hostid ipfilter ipfs
+# KEYWORD: nojailvnet
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="netif"
+desc="Network interface setup"
+rcvar="${name}_enable"
+start_cmd="netif_start"
+stop_cmd="netif_stop"
+wlanup_cmd="wlan_up"
+wlandown_cmd="wlan_down"
+cloneup_cmd="clone_up"
+clonedown_cmd="clone_down"
+clear_cmd="doclear"
+vnetup_cmd="vnet_up"
+vnetdown_cmd="vnet_down"
+extra_commands="cloneup clonedown clear vnetup vnetdown"
+cmdifn=
+
+set_rcvar_obsolete ipv6_enable ipv6_activate_all_interfaces
+set_rcvar_obsolete ipv6_prefer
+
+netif_start()
+{
+	local _if
+
+	# Set the list of interfaces to work on.
+	#
+	cmdifn=$*
+
+	if [ -z "$cmdifn" ]; then
+		#
+		# We're operating as a general network start routine.
+		#
+
+		# disable SIGINT (Ctrl-c) when running at startup
+		trap : 2
+	fi
+
+	# Create IEEE802.11 interface
+	wlan_up $cmdifn
+
+	# Create cloned interfaces
+	clone_up $cmdifn
+
+	# Rename interfaces.
+	ifnet_rename $cmdifn
+
+	# Configure the interface(s).
+	netif_common ifn_start $cmdifn
+
+	if [ -f /etc/rc.d/ipfilter ] ; then
+		# Resync ipfilter
+		/etc/rc.d/ipfilter quietresync
+	fi
+	if [ -f /etc/rc.d/bridge -a -n "$cmdifn" ] ; then
+		/etc/rc.d/bridge start $cmdifn
+	fi
+	if [ -f /etc/rc.d/routing -a -n "$cmdifn" ] ; then
+		for _if in $cmdifn; do
+			/etc/rc.d/routing static any $_if
+		done
+	fi
+}
+
+netif_stop()
+{
+	_clone_down=1
+	_wlan_down=1
+	netif_stop0 $*
+}
+
+doclear()
+{
+	_clone_down=
+	_wlan_down=
+	netif_stop0 $*
+}
+
+netif_stop0()
+{
+	local _if
+
+	# Set the list of interfaces to work on.
+	#
+	cmdifn=$*
+
+	# Deconfigure the interface(s)
+	netif_common ifn_stop $cmdifn
+
+	# Destroy wlan interfaces
+	if [ -n "$_wlan_down" ]; then
+		wlan_down $cmdifn
+	fi
+
+	# Destroy cloned interfaces
+	if [ -n "$_clone_down" ]; then
+		clone_down $cmdifn
+	fi
+
+	if [ -f /etc/rc.d/routing -a -n "$cmdifn" ] ; then
+		for _if in $cmdifn; do
+			/etc/rc.d/routing stop any $_if
+		done
+	fi
+}
+
+vnet_up()
+{
+	cmdifn=$*
+
+	netif_common ifn_vnetup $cmdifn
+}
+
+vnet_down()
+{
+	cmdifn=$*
+
+	netif_common ifn_vnetdown $cmdifn
+}
+
+# netif_common routine
+#	Common configuration subroutine for network interfaces. This
+#	routine takes all the preparatory steps needed for configuriing
+#	an interface and then calls $routine.
+netif_common()
+{
+	local _cooked_list _tmp_list _fail _func _ok _str _cmdifn
+
+	_func=
+
+	if [ -z "$1" ]; then
+		err 1 "netif_common(): No function name specified."
+	else
+		_func="$1"
+		shift
+	fi
+
+	# Set the scope of the command (all interfaces or just one).
+	#
+	_cooked_list=
+	_tmp_list=
+	_cmdifn=$*
+	if [ -n "$_cmdifn" ]; then
+		# Don't check that the interface(s) exist.  We need to run
+		# the down code even when the interface doesn't exist to
+		# kill off wpa_supplicant.
+		# XXXBED: is this really true or does wpa_supplicant die?
+		# if so, we should get rid of the devd entry
+		_cooked_list="$_cmdifn"
+	else
+		_cooked_list="`list_net_interfaces`"
+	fi
+
+	# Expand epair[0-9] to epair[0-9][ab].
+	for ifn in $_cooked_list; do
+	case ${ifn#epair} in
+	[0-9]*[ab])	;;	# Skip epair[0-9]*[ab].
+	[0-9]*)
+		for _str in $_cooked_list; do
+		case $_str in
+		$ifn)	_tmp_list="$_tmp_list ${ifn}a ${ifn}b" ;;
+		*)	_tmp_list="$_tmp_list ${ifn}" ;;
+		esac
+		done
+		_cooked_list=${_tmp_list# }
+	;;
+	esac
+	done
+
+	_dadwait=
+	_fail=
+	_ok=
+	for ifn in ${_cooked_list# }; do
+		# Skip if ifn does not exist.
+		case $_func in
+		ifn_stop)
+			if ! ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
+				warn "$ifn does not exist.  Skipped."
+				_fail="${_fail} ${ifn}"
+				continue
+			fi
+		;;
+		esac
+		if ${_func} ${ifn} $2; then
+			_ok="${_ok} ${ifn}"
+			if ipv6if ${ifn}; then
+				_dadwait=1
+			fi
+		else
+			_fail="${_fail} ${ifn}"
+		fi
+	done
+
+	# inet6 address configuration needs sleep for DAD.
+	case ${_func}:${_dadwait} in
+	ifn_start:1|ifn_vnetup:1|ifn_vnetdown:1)
+		sleep `${SYSCTL_N} net.inet6.ip6.dad_count`
+		sleep 1
+	;;
+	esac
+
+	_str=
+	if [ -n "${_ok}" ]; then
+		case ${_func} in
+		ifn_start)
+			_str='Starting'
+		;;
+		ifn_stop)
+			_str='Stopping'
+		;;
+		ifn_vnetup)
+			_str='Moving'
+		;;
+		ifn_vnetdown)
+			_str='Reclaiming'
+		;;
+		esac
+		echo "${_str} Network:${_ok}."
+		case ${_func} in
+		ifn_vnetup)
+			# Clear _ok not to do "ifconfig $ifn"
+			# because $ifn is no longer in the current vnet.
+			_ok=
+		;;
+		esac
+		if check_startmsgs; then
+			for ifn in ${_ok}; do
+				/sbin/ifconfig ${ifn}
+			done
+		fi
+	fi
+
+	debug "The following interfaces were not configured: $_fail"
+}
+
+# Load the old "network" config file also for compatibility.
+# This is needed for mfsBSD at least.
+load_rc_config network
+load_rc_config $name
+run_rc_command $*

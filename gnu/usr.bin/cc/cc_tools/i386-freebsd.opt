@@ -1,0 +1,13 @@
+; $FreeBSD$
+
+mno-align-long-strings
+Target RejectNegative Report Mask(NO_ALIGN_LONG_STRINGS)
+Do not align long strings specially
+
+malign-long-strings
+Target RejectNegative Report InverseMask(NO_ALIGN_LONG_STRINGS, ALIGN_LONG_STRINGS) Undocumented
+
+mprofiler-epilogue
+Target Report Mask(PROFILER_EPILOGUE)
+Function profiler epilogue
+

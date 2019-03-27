@@ -1,0 +1,309 @@
+.\" $FreeBSD$
+.\" Man page generated from reStructuredText.
+.
+.TH "BUGPOINT" "1" "2018-08-02" "7" "LLVM"
+.SH NAME
+bugpoint \- automatic test case reduction tool
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH SYNOPSIS
+.sp
+\fBbugpoint\fP [\fIoptions\fP] [\fIinput LLVM ll/bc files\fP] [\fILLVM passes\fP] \fB\-\-args\fP
+\fIprogram arguments\fP
+.SH DESCRIPTION
+.sp
+\fBbugpoint\fP narrows down the source of problems in LLVM tools and passes.  It
+can be used to debug three types of failures: optimizer crashes, miscompilations
+by optimizers, or bad native code generation (including problems in the static
+and JIT compilers).  It aims to reduce large test cases to small, useful ones.
+For more information on the design and inner workings of \fBbugpoint\fP, as well as
+advice for using bugpoint, see /Bugpoint in the LLVM
+distribution.
+.SH OPTIONS
+.sp
+\fB\-\-additional\-so\fP \fIlibrary\fP
+.INDENT 0.0
+.INDENT 3.5
+Load the dynamic shared object \fIlibrary\fP into the test program whenever it is
+run.  This is useful if you are debugging programs which depend on non\-LLVM
+libraries (such as the X or curses libraries) to run.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-append\-exit\-code\fP=\fI{true,false}\fP
+.INDENT 0.0
+.INDENT 3.5
+Append the test programs exit code to the output file so that a change in exit
+code is considered a test failure. Defaults to false.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-args\fP \fIprogram args\fP
+.INDENT 0.0
+.INDENT 3.5
+Pass all arguments specified after \fB\-\-args\fP to the test program whenever it runs.
+Note that if any of the \fIprogram args\fP start with a "\fB\-\fP", you should use:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+bugpoint [bugpoint args] \-\-args \-\- [program args]
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The "\fB\-\-\fP" right after the \fB\-\-args\fP option tells \fBbugpoint\fP to consider
+any options starting with "\fB\-\fP" to be part of the \fB\-\-args\fP option, not as
+options to \fBbugpoint\fP itself.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-tool\-args\fP \fItool args\fP
+.INDENT 0.0
+.INDENT 3.5
+Pass all arguments specified after \fB\-\-tool\-args\fP to the LLVM tool under test
+(\fBllc\fP, \fBlli\fP, etc.) whenever it runs.  You should use this option in the
+following way:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+bugpoint [bugpoint args] \-\-tool\-args \-\- [tool args]
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The "\fB\-\-\fP" right after the \fB\-\-tool\-args\fP option tells \fBbugpoint\fP to
+consider any options starting with "\fB\-\fP" to be part of the \fB\-\-tool\-args\fP
+option, not as options to \fBbugpoint\fP itself. (See \fB\-\-args\fP, above.)
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-safe\-tool\-args\fP \fItool args\fP
+.INDENT 0.0
+.INDENT 3.5
+Pass all arguments specified after \fB\-\-safe\-tool\-args\fP to the "safe" execution
+tool.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-gcc\-tool\-args\fP \fIgcc tool args\fP
+.INDENT 0.0
+.INDENT 3.5
+Pass all arguments specified after \fB\-\-gcc\-tool\-args\fP to the invocation of
+\fBgcc\fP\&.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-opt\-args\fP \fIopt args\fP
+.INDENT 0.0
+.INDENT 3.5
+Pass all arguments specified after \fB\-\-opt\-args\fP to the invocation of \fBopt\fP\&.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-disable\-{dce,simplifycfg}\fP
+.INDENT 0.0
+.INDENT 3.5
+Do not run the specified passes to clean up and reduce the size of the test
+program. By default, \fBbugpoint\fP uses these passes internally when attempting to
+reduce test programs.  If you\(aqre trying to find a bug in one of these passes,
+\fBbugpoint\fP may crash.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-enable\-valgrind\fP
+.INDENT 0.0
+.INDENT 3.5
+Use valgrind to find faults in the optimization phase. This will allow
+bugpoint to find otherwise asymptomatic problems caused by memory
+mis\-management.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-find\-bugs\fP
+.INDENT 0.0
+.INDENT 3.5
+Continually randomize the specified passes and run them on the test program
+until a bug is found or the user kills \fBbugpoint\fP\&.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-help\fP
+.INDENT 0.0
+.INDENT 3.5
+Print a summary of command line options.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-input\fP \fIfilename\fP
+.INDENT 0.0
+.INDENT 3.5
+Open \fIfilename\fP and redirect the standard input of the test program, whenever
+it runs, to come from that file.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-load\fP \fIplugin\fP
+.INDENT 0.0
+.INDENT 3.5
+Load the dynamic object \fIplugin\fP into \fBbugpoint\fP itself.  This object should
+register new optimization passes.  Once loaded, the object will add new command
+line options to enable various optimizations.  To see the new complete list of
+optimizations, use the \fB\-help\fP and \fB\-\-load\fP options together; for example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+bugpoint \-\-load myNewPass.so \-help
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-mlimit\fP \fImegabytes\fP
+.INDENT 0.0
+.INDENT 3.5
+Specifies an upper limit on memory usage of the optimization and codegen. Set
+to zero to disable the limit.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-output\fP \fIfilename\fP
+.INDENT 0.0
+.INDENT 3.5
+Whenever the test program produces output on its standard output stream, it
+should match the contents of \fIfilename\fP (the "reference output"). If you
+do not use this option, \fBbugpoint\fP will attempt to generate a reference output
+by compiling the program with the "safe" backend and running it.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-run\-{int,jit,llc,custom}\fP
+.INDENT 0.0
+.INDENT 3.5
+Whenever the test program is compiled, \fBbugpoint\fP should generate code for it
+using the specified code generator.  These options allow you to choose the
+interpreter, the JIT compiler, the static native code compiler, or a
+custom command (see \fB\-\-exec\-command\fP) respectively.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-safe\-{llc,custom}\fP
+.INDENT 0.0
+.INDENT 3.5
+When debugging a code generator, \fBbugpoint\fP should use the specified code
+generator as the "safe" code generator. This is a known\-good code generator
+used to generate the "reference output" if it has not been provided, and to
+compile portions of the program that as they are excluded from the testcase.
+These options allow you to choose the
+static native code compiler, or a custom command, (see \fB\-\-exec\-command\fP)
+respectively. The interpreter and the JIT backends cannot currently
+be used as the "safe" backends.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-exec\-command\fP \fIcommand\fP
+.INDENT 0.0
+.INDENT 3.5
+This option defines the command to use with the \fB\-\-run\-custom\fP and
+\fB\-\-safe\-custom\fP options to execute the bitcode testcase. This can
+be useful for cross\-compilation.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-compile\-command\fP \fIcommand\fP
+.INDENT 0.0
+.INDENT 3.5
+This option defines the command to use with the \fB\-\-compile\-custom\fP
+option to compile the bitcode testcase. The command should exit with a
+failure exit code if the file is "interesting" and should exit with a
+success exit code (i.e. 0) otherwise (this is the same as if it crashed on
+"interesting" inputs).
+.sp
+This can be useful for
+testing compiler output without running any link or execute stages. To
+generate a reduced unit test, you may add CHECK directives to the
+testcase and pass the name of an executable compile\-command script in this form:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#!/bin/sh
+llc "$@"
+not FileCheck [bugpoint input file].ll < bugpoint\-test\-program.s
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+This script will "fail" as long as FileCheck passes. So the result
+will be the minimum bitcode that passes FileCheck.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-safe\-path\fP \fIpath\fP
+.INDENT 0.0
+.INDENT 3.5
+This option defines the path to the command to execute with the
+\fB\-\-safe\-{int,jit,llc,custom}\fP
+option.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-\-verbose\-errors\fP=\fI{true,false}\fP
+.INDENT 0.0
+.INDENT 3.5
+The default behavior of bugpoint is to print "<crash>" when it finds a reduced
+test that crashes compilation. This flag prints the output of the crashing
+program to stderr. This is useful to make sure it is the same error being
+tracked down and not a different error that happens to crash the compiler as
+well. Defaults to false.
+.UNINDENT
+.UNINDENT
+.SH EXIT STATUS
+.sp
+If \fBbugpoint\fP succeeds in finding a problem, it will exit with 0.  Otherwise,
+if an error occurs, it will exit with a non\-zero value.
+.SH SEE ALSO
+.sp
+opt|opt
+.SH AUTHOR
+Maintained by The LLVM Team (http://llvm.org/).
+.SH COPYRIGHT
+2003-2018, LLVM Project
+.\" Generated by docutils manpage writer.
+.

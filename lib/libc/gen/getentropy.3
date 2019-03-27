@@ -1,0 +1,86 @@
+.\"	$OpenBSD: getentropy.2,v 1.8 2015/01/31 00:20:12 schwarze Exp $
+.\"
+.\" Copyright (c) 2018 Conrad Meyer <cem@FreeBSD.org>
+.\" Copyright (c) 2014 Theo de Raadt
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 24, 2018
+.Dt GETENTROPY 3
+.Os
+.Sh NAME
+.Nm getentropy
+.Nd get entropy
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn getentropy "void *buf" "size_t buflen"
+.Sh DESCRIPTION
+.Fn getentropy
+fills a buffer with high-quality random data.
+.Pp
+The maximum
+.Fa buflen
+permitted is 256 bytes.
+.Pp
+If it does not produce an error,
+.Fn getentropy
+always provides the requested number of bytes of random data.
+.Pp
+Similar to reading from
+.Pa /dev/urandom
+just after boot,
+.Fn getentropy
+may block until the system has collected enough entropy to seed the CSPRNG.
+.Sh IMPLEMENTATION NOTES
+The
+.Fn getentropy
+function is implemented using
+.Xr getrandom 2 .
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Fn getentropy
+will succeed unless:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa buf
+parameter points to an
+invalid address.
+.It Bq Er EIO
+Too many bytes requested, or some other fatal error occurred.
+.El
+.Sh SEE ALSO
+.Xr arc4random 3 ,
+.Xr getrandom 2 ,
+.Xr random 4
+.Sh STANDARDS
+.Fn getentropy
+is non-standard.
+It is present on
+.Ox
+and Linux.
+.Sh HISTORY
+The
+.Fn getentropy
+function appeared in
+.Ox 5.6 .
+The
+.Fx
+libc compatibility shim first appeared in
+.Fx 12.0 .

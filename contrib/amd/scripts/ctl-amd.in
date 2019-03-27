@@ -1,0 +1,155 @@
+#!/bin/sh
+# control starting, stopping, or restarting amd.
+# usage: ctl-amd [start|stop|status|restart|condrestart|reload]
+#
+# Package:	am-utils-6.x
+# Author:	Erez Zadok <ezk@cs.columbia.edu>
+#
+# chkconfig: - 72 28
+# description: Runs the automount daemon that mounts devices and NFS hosts \
+#              on demand.
+# processname: amd
+# config: /etc/amd.conf
+#
+
+# set path
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+PATH=@sbindir@:@bindir@:/usr/ucb:/usr/bin:/bin:${PATH}
+export PATH
+
+# kill the named process(es)
+killproc()
+{
+# first try to get PID via an amq RPC
+pid=`amq -p 2>/dev/null`
+if test "$pid" != ""
+then
+	kill $pid
+	return 0
+fi
+
+# try bsd style ps
+pscmd="ps axc"
+pid=`${pscmd} 2>/dev/null | grep "$1" | sed -e 's/^  *//' -e 's/ .*//'`
+if test "$pid" != ""
+then
+	kill $pid
+	return 0
+fi
+
+# try bsd44 style ps
+pscmd="ps -x"
+pid=`${pscmd} 2>/dev/null | grep "$1" | sed -e 's/^  *//' -e 's/ .*//'`
+if test "$pid" != ""
+then
+	kill $pid
+	return 0
+fi
+
+# try svr4 style ps
+pscmd="ps -e"
+pid=`${pscmd} 2>/dev/null | grep "$1" | sed -e 's/^  *//' -e 's/ .*//'`
+if test "$pid" != ""
+then
+	kill $pid
+	return 0
+fi
+
+# failed
+return 1
+}
+
+# before running any real programs, chdir to / to avoid possible hangs on
+# (NFS) mounts which may be restarting.
+cd /
+
+# search for amd.conf file
+CF_FILE="@sysconfdir@/amd.conf"
+# any local copy of the conf file overrides the "global" one
+if [ -f /etc/amd.conf ]
+then
+	CF_FILE="/etc/amd.conf"
+fi
+if [ -f @sysconfdir@/amd.conf ]
+then
+	CF_FILE="@sysconfdir@/amd.conf"
+fi
+if [ -f /etc/local/amd.conf ]
+then
+	CF_FILE="/etc/local/amd.conf"
+fi
+
+# if have the directory /tftpboot/.amd, then add a tag to include it
+CF_TAG=""
+if [ -d /tftpboot/.amd ]
+then
+	CF_TAG="-T tftpboot"
+fi
+
+case "$1" in
+'start')
+	# Start the amd automounter.
+	if [ -x @sbindir@/amd ]
+	then
+		# do not specify full path of amd so killproc() works
+		amd -F $CF_FILE $CF_TAG
+		test -x /var/lock/subsys && touch /var/lock/subsys/amd
+	fi
+	;;
+
+'stop')
+	# prepend space to program name to ensure only amd process dies
+	echo "killing amd..."
+	killproc " amd"
+	wait4amd2die
+	rm -f /var/lock/subsys/amd
+	;;
+
+'restart')
+	# kill amd, wait for it to die, then restart
+	ctl-amd stop
+	if [ $? != 0 ]
+	then
+		echo "NOT restarting amd!"
+	else
+		echo "Restarting amd..."
+		sleep 1
+		ctl-amd start
+	fi
+	;;
+
+'condrestart')
+     if [ -f /var/lock/subsys/amd ]; then
+            ctl-amd stop
+            ctl-amd start
+        fi
+     ;;
+
+'reload')
+        amq -f
+        ;;
+
+'status')
+	# run amq -v to produce status
+	pid=`amq -p 2>/dev/null`
+	if [ $? = 0 ]
+	then
+		echo "amd (pid $pid) is running..."
+	else
+		echo "amd is stopped"
+	fi
+	;;
+
+# start_msg and stop_msg are for HPUX
+'start_msg')
+	echo "Start am-utils 6.1 automounter"
+	;;
+'stop_msg')
+	echo "Stop am-utils 6.1 automounter"
+	;;
+
+*)
+	echo "Usage: $0 [start|stop|status|restart|condrestart|reload]"
+	;;
+esac

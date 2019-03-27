@@ -1,0 +1,122 @@
+make: Bad modifier `:[]' for LIST
+LIST:[]="" is an error
+LIST:[0]="one two three four five six"
+LIST:[0x0]="one two three four five six"
+LIST:[000]="one two three four five six"
+LIST:[*]="one two three four five six"
+LIST:[@]="one two three four five six"
+LIST:[0]:C/ /,/="one,two three four five six"
+LIST:[0]:C/ /,/g="one,two,three,four,five,six"
+LIST:[0]:C/ /,/1g="one,two,three,four,five,six"
+LIST:[*]:C/ /,/="one,two three four five six"
+LIST:[*]:C/ /,/g="one,two,three,four,five,six"
+LIST:[*]:C/ /,/1g="one,two,three,four,five,six"
+LIST:[@]:C/ /,/="one two three four five six"
+LIST:[@]:C/ /,/g="one two three four five six"
+LIST:[@]:C/ /,/1g="one two three four five six"
+LIST:[@]:[0]:C/ /,/="one,two three four five six"
+LIST:[0]:[@]:C/ /,/="one two three four five six"
+LIST:[@]:[*]:C/ /,/="one,two three four five six"
+LIST:[*]:[@]:C/ /,/="one two three four five six"
+EMPTY=""
+EMPTY:[#]="1" == 1 ?
+ESCAPEDSPACE="\ "
+ESCAPEDSPACE:[#]="1" == 1 ?
+REALLYSPACE=" "
+REALLYSPACE:[#]="1" == 1 ?
+LIST:[#]="6"
+LIST:[0]:[#]="1" == 1 ?
+LIST:[*]:[#]="1" == 1 ?
+LIST:[@]:[#]="6"
+LIST:[1]:[#]="1"
+LIST:[1..3]:[#]="3"
+EMPTY:[1]=""
+ESCAPEDSPACE="\ "
+ESCAPEDSPACE:[1]="\ "
+REALLYSPACE=" "
+REALLYSPACE:[1]="" == "" ?
+REALLYSPACE:[*]:[1]=" " == " " ?
+LIST:[1]="one"
+make: Bad modifier `:[1.]' for LIST
+LIST:[1.]="" is an error
+make: Bad modifier `:[1].' for LIST
+LIST:[1].="}" is an error
+LIST:[2]="two"
+LIST:[6]="six"
+LIST:[7]=""
+LIST:[999]=""
+make: Bad modifier `:[-]' for LIST
+LIST:[-]="" is an error
+make: Bad modifier `:[--]' for LIST
+LIST:[--]="" is an error
+LIST:[-1]="six"
+LIST:[-2]="five"
+LIST:[-6]="one"
+LIST:[-7]=""
+LIST:[-999]=""
+LONGLIST:[17]="17"
+LONGLIST:[0x11]="17"
+LONGLIST:[021]="17"
+LIST:[0]:[1]="one two three four five six"
+LIST:[*]:[1]="one two three four five six"
+LIST:[@]:[1]="one"
+LIST:[0]:[2]=""
+LIST:[*]:[2]=""
+LIST:[@]:[2]="two"
+LIST:[*]:C/ /,/:[2]=""
+LIST:[*]:C/ /,/:[*]:[2]=""
+LIST:[*]:C/ /,/:[@]:[2]="three"
+make: Bad modifier `:[1.]' for LIST
+LIST:[1.]="" is an error
+make: Bad modifier `:[1..]' for LIST
+LIST:[1..]="" is an error
+LIST:[1..1]="one"
+make: Bad modifier `:[1..1.]' for LIST
+LIST:[1..1.]="" is an error
+LIST:[1..2]="one two"
+LIST:[2..1]="two one"
+LIST:[3..-2]="three four five"
+LIST:[-4..4]="three four"
+make: Bad modifier `:[0..1]' for LIST
+LIST:[0..1]="" is an error
+make: Bad modifier `:[-1..0]' for LIST
+LIST:[-1..0]="" is an error
+LIST:[-1..1]="six five four three two one"
+LIST:[0..0]="one two three four five six"
+LIST:[3..99]="three four five six"
+LIST:[-3..-99]="four three two one"
+LIST:[-99..-3]="one two three four"
+HASH="#" == "#" ?
+LIST:[${HASH}]="6"
+LIST:[${ZERO}]="one two three four five six"
+LIST:[${ZERO}x${ONE}]="one"
+LIST:[${ONE}]="one"
+LIST:[${MINUSONE}]="six"
+LIST:[${STAR}]="one two three four five six"
+LIST:[${AT}]="one two three four five six"
+make: Bad modifier `:[${EMPTY' for LIST
+LIST:[${EMPTY}]="" is an error
+LIST:[${LONGLIST:[21]:S/2//}]="one"
+LIST:[${LIST:[#]}]="six"
+LIST:[${LIST:[${HASH}]}]="six"
+LIST:S/ /,/="one two three four five six"
+LIST:S/ /,/W="one,two three four five six"
+LIST:S/ /,/gW="one,two,three,four,five,six"
+EMPTY:S/^/,/=","
+EMPTY:S/^/,/W=","
+LIST:C/ /,/="one two three four five six"
+LIST:C/ /,/W="one,two three four five six"
+LIST:C/ /,/gW="one,two,three,four,five,six"
+EMPTY:C/^/,/=","
+EMPTY:C/^/,/W=","
+LIST:tW="one two three four five six"
+LIST:tw="one two three four five six"
+LIST:tW:C/ /,/="one,two three four five six"
+LIST:tW:C/ /,/g="one,two,three,four,five,six"
+LIST:tW:C/ /,/1g="one,two,three,four,five,six"
+LIST:tw:C/ /,/="one two three four five six"
+LIST:tw:C/ /,/g="one two three four five six"
+LIST:tw:C/ /,/1g="one two three four five six"
+LIST:tw:tW:C/ /,/="one,two three four five six"
+LIST:tW:tw:C/ /,/="one two three four five six"
+exit status 0

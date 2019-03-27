@@ -1,0 +1,110 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_BREAKLOOP 3PCAP "8 March 2015"
+.SH NAME
+pcap_breakloop \- force a pcap_dispatch() or pcap_loop() call to return
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.ft B
+void pcap_breakloop(pcap_t *);
+.ft
+.fi
+.SH DESCRIPTION
+.B pcap_breakloop()
+sets a flag that will force
+.B pcap_dispatch()
+or
+.B pcap_loop()
+to return rather than looping; they will return the number of packets
+that have been processed so far, or \-2 if no packets have been
+processed so far.
+.PP
+This routine is safe to use inside a signal handler on UNIX or a console
+control handler on Windows, as it merely sets a flag that is checked
+within the loop.
+.PP
+The flag is checked in loops reading packets from the OS - a signal by
+itself will not necessarily terminate those loops - as well as in loops
+processing a set of packets returned by the OS.
+.ft B
+Note that if you are catching signals on UNIX systems that support
+restarting system calls after a signal, and calling pcap_breakloop()
+in the signal handler, you must specify, when catching those signals,
+that system calls should NOT be restarted by that signal.  Otherwise,
+if the signal interrupted a call reading packets in a live capture,
+when your signal handler returns after calling pcap_breakloop(), the
+call will be restarted, and the loop will not terminate until more
+packets arrive and the call completes.
+.ft R
+.PP
+.ft B
+Note also that, in a multi-threaded application, if one thread is
+blocked in pcap_dispatch(), pcap_loop(), pcap_next(), or pcap_next_ex(),
+a call to pcap_breakloop() in a different thread will not unblock that
+thread.
+.ft R
+You will need to use whatever mechanism the OS provides for
+breaking a thread out of blocking calls in order to unblock the thread,
+such as thread cancellation or thread signalling in systems that support
+POSIX threads, or
+.B SetEvent()
+on the result of
+.B pcap_getevent()
+on a
+.B pcap_t
+on which the thread is blocked on Windows.  Asynchronous procedure calls
+will not work on Windows, as a thread blocked on a
+.B pcap_t
+will not be in an alertable state.
+.ft R
+.PP
+Note that
+.B pcap_next()
+and
+.B pcap_next_ex()
+will, on some platforms, loop reading packets from the OS; that loop
+will not necessarily be terminated by a signal, so
+.B pcap_breakloop()
+should be used to terminate packet processing even if
+.B pcap_next()
+or
+.B pcap_next_ex()
+is being used.
+.PP
+.B pcap_breakloop()
+does not guarantee that no further packets will be processed by
+.B pcap_dispatch()
+or
+.B pcap_loop()
+after it is called; at most one more packet might be processed.
+.PP
+If \-2 is returned from
+.B pcap_dispatch()
+or
+.BR pcap_loop() ,
+the flag is cleared, so a subsequent call will resume reading packets.
+If a positive number is returned, the flag is not cleared, so a
+subsequent call will return \-2 and clear the flag.
+.SH SEE ALSO
+pcap(3PCAP), pcap_loop(3PCAP), pcap_next_ex(3PCAP)

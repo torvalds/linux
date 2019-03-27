@@ -1,0 +1,258 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 18, 2006
+.Dt BKTR 4
+.Os
+.Sh NAME
+.Nm bktr
+.Nd Brooktree Bt848/849/878/879 and Pinnacle PCTV video capture driver
+.Sh SYNOPSIS
+.Cd device bktr
+.Pp
+.Cd device iicbus
+.Cd device iicbb
+.Cd device smbus
+.Sh DESCRIPTION
+The
+.Nm bktr
+driver provides support for PCI
+.Em video
+capture and
+.Em VBI
+capture on low cost, high performance boards.
+The driver is based on the Matrox Meteor driver and uses the same API.
+The
+.Nm
+driver should support most video cards based on the
+.Em "Brooktree Bt848/849/878/879 Video Capture Chip" .
+Also supported are most
+.Em "Pinnacle PCTV"
+video cards.
+Furthermore, the driver supports
+.Em FM Radio
+if the tuner supports it.
+.Pp
+The driver currently supports the following features:
+.Bd -unfilled -offset indent
+PCI to PCI dma transfer
+clipping
+yuv
+rgb16
+rgb24
+rgb32
+.Ed
+.Pp
+On the supported cards, tuners and other components are interconnected
+with an I2C bus.
+The Brooktree848 chips act as a master device on the bus to control them.
+Therefore,
+.Xr iicbus 4 ,
+.Xr iicbb 4
+and
+.Xr smbus 4
+controller declarations are mandatory to activate
+.Nm
+support.
+.Pp
+The following kernel parameters may be used to further configure the driver:
+.Pp
+.Em options "BROOKTREE_ALLOC_PAGES=xxx"
+specifies the number of contiguous pages to allocate when successfully
+probed.
+The default number of pages allocated by the kernel is 216.
+This means that there are (216*4096) bytes available for use.
+.Bd -unfilled
+.Cd options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
+.Cd options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_NTSC
+.Ed
+One of these options can be used to set the default video format for the driver.
+This fixed random hangs and lockups with the VideoLogic Captivator PCI card.
+.Pp
+The following sysctls may be used to further configure the driver:
+.Pp
+.Em sysctl hw.bt848.card=nnnn
+This can be used to override the card make which was detected at boot time.
+.Ql nnnn
+is set to an integer from 1 to 23 taken from the following table:
+.Pp
+.Bl -tag -compact -width 30n
+.It MIRO
+1
+.It HAUPPAUGE
+2
+.It STB
+3
+.It INTEL
+4
+.It IMS_TURBO
+5
+.It AVER_MEDIA
+6
+.It OSPREY
+7
+.It NEC_PK
+8
+.It IO_GV
+9
+.It FLYVIDEO
+10
+.It ZOLTRIX
+11
+.It KISS
+12
+.It VIDEO_HIGHWAY_XTREME
+13
+.It ASKEY_DYNALINK_MAGIC_TVIEW
+14
+.It LEADTEK
+15
+.It TERRATVPLUS
+16
+.It IO_BCTV3
+17
+.It AOPEN_VA1000
+18
+.It PINNACLE_PCTV_RAVE
+19
+.It PIXELVIEW_PLAYTV_PAK
+20
+.It TERRATVALUE
+21
+.It PIXELVIEW_PLAYTV_PRO_REV_4C
+22
+.It Bt848_MAX
+23
+.El
+.Pp
+.Em sysctl hw.bt848.tuner=nnnn
+This can be used to override the tuner make which was detected at boot time.
+.Ql nnnn
+is set to an integer from 0 to 16 taken from the following table:
+.Pp
+.Bl -tag -compact -width 22n
+.It NO_TUNER
+0
+.It TEMIC_NTSC
+1
+.It TEMIC_PAL
+2
+.It TEMIC_SECAM
+3
+.It PHILIPS_NTSC
+4
+.It PHILIPS_PAL
+5
+.It PHILIPS_SECAM
+6
+.It TEMIC_PALI
+7
+.It PHILIPS_PALI
+8
+.It PHILIPS_FR1236_NTSC
+9       /* These have FM Radio support */
+.It PHILIPS_FR1216_PAL
+10      /* These have FM Radio support */
+.It PHILIPS_FR1236_SECAM
+11      /* These have FM Radio support */
+.It ALPS_TSCH5
+12
+.It ALPS_TSBH1
+13
+.It MT2032
+14
+.It LG_TPI8PSB12P_PAL
+15
+.It Bt848_MAX
+16
+.El
+.Sh HARDWARE
+The
+.Nm
+driver supports video capture cards based on the
+Brooktree Bt848/849/878/879 chips, as well as
+Pinnacle PCTV cards, including:
+.Pp
+.Bl -bullet -compact
+.It
+AOpen VA1000
+.It
+AVerMedia AVerTV Studio
+.It
+AVerMedia TF/FM-98
+.It
+ATI TV Wonder VE
+.It
+Hauppauge WinCast/TV
+.It
+Hauppauge WinTV-Go-FM
+.It
+Hauppauge WinTV-pci
+.It
+Hauppauge WinTV-radio
+.It
+Intel Smart Video Recorder III
+.It
+KWORLD PCI TV Tuner
+.It
+Miro PC TV
+.It
+Pinnacle PCTV Pro
+.It
+Pinnacle PCTV Rave
+.It
+PixelView PlayTV PAK
+.It
+PixelView PlayTV Pro (rev 4C, 9D)
+.It
+SIGMA TV II
+.It
+STB TV PCI Television Tuner
+.It
+Super TV Tuner
+.It
+TerraTec TValue
+.It
+V-Stream XPERT TV-PVR 878
+.It
+Video Highway XTreme
+.It
+VideoLogic Captivator PCI
+.El
+.Sh FILES
+.Bl -tag -width /usr/share/examples/meteor -compact
+.It Pa /usr/ports/multimedia/fxtv
+A TV and Camera display program utilizing the bktr driver - requires that
+.Em The X Window System
+and
+.Em The Ports Collection
+also be installed.
+.It Pa /usr/ports/audio/xmradio
+An FM Radio Tuner for cards which have an FM Radio tuner fitted - requires that
+.Em The X Window System
+and
+.Em The Ports Collection
+also be installed.
+It also requires
+.Em Motif
+or the
+.Em lesstif
+port.
+.El
+.Sh SEE ALSO
+.Xr meteor 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An -nosplit
+This driver is based on the work of
+.An Jim Lowe Aq Mt james@miller.cs.uwm.edu ,
+.An Mark Tinguely Aq Mt tinguely@plains.nodak.edu ,
+.An Amancio Hasty Aq Mt hasty@star-gate.com ,
+.An Roger Hardiman Aq Mt roger@FreeBSD.org
+and a bunch of other people.
+Support for Pinnacle PCTV Rave cards was added by
+.An Branko Lankester Aq Mt branko@euro.net .

@@ -1,0 +1,248 @@
+.\" Copyright (c) 1985 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)math.3	6.10 (Berkeley) 5/6/91
+.\" $FreeBSD$
+.\"
+.Dd December 7, 2017
+.Dt MATH 3
+.Os
+.Sh NAME
+.Nm math
+.Nd "floating-point mathematical library"
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Sh DESCRIPTION
+The math library includes the following components:
+.Bl -column "<complex.h>" "polymorphic (type-generic) versions of functions" -compact -offset indent
+.In math.h Ta basic routines and real-valued functions
+.In complex.h Ta complex number support
+.In tgmath.h Ta polymorphic (type-generic) versions of functions
+.In fenv.h Ta routines to control rounding and exceptions
+.El
+The rest of this manual page describes the functions provided by
+.In math.h .
+Please consult
+.Xr complex 3 ,
+.Xr tgmath 3 ,
+and
+.Xr fenv 3
+for information on the other components.
+.Sh "LIST OF FUNCTIONS"
+Each of the following
+.Vt double
+functions has a
+.Vt float
+counterpart with an
+.Ql f
+appended to the name and a
+.Vt "long double"
+counterpart with an
+.Ql l
+appended.
+As an example, the
+.Vt float
+and
+.Vt "long double"
+counterparts of
+.Ft double
+.Fn acos "double x"
+are
+.Ft float
+.Fn acosf "float x"
+and
+.Ft "long double"
+.Fn acosl "long double x" ,
+respectively.
+The classification macros and silent order predicates are type generic and
+should not be suffixed with
+.Ql f
+or
+.Ql l .
+.de Cl
+.Bl -column "isgreaterequal" "bessel function of the second kind of the order 0"
+.Em "Name	Description"
+..
+.Ss Algebraic Functions
+.Cl
+cbrt	cube root
+fma	fused multiply-add
+hypot	Euclidean distance
+sqrt	square root
+.El
+.Ss Classification Macros
+.Cl
+fpclassify	classify a floating-point value
+isfinite	determine whether a value is finite
+isinf	determine whether a value is infinite
+isnan	determine whether a value is \*(Na
+isnormal	determine whether a value is normalized
+.El
+.Ss Exponent Manipulation Functions
+.Cl
+frexp	extract exponent and mantissa
+ilogb	extract exponent
+ldexp	multiply by power of 2
+logb	extract exponent
+scalbln	adjust exponent
+scalbn	adjust exponent
+.El
+.Ss Extremum- and Sign-Related Functions
+.Cl
+copysign	copy sign bit
+fabs	absolute value
+fdim	positive difference
+fmax	maximum function
+fmin	minimum function
+signbit	extract sign bit
+.El
+.Ss Not a Number Functions
+.Cl
+nan	generate a quiet \*(Na
+.El
+.Ss Residue and Rounding Functions
+.Cl
+ceil	integer no less than
+floor	integer no greater than
+fmod	positive remainder
+llrint	round to integer in fixed-point format
+llround	round to nearest integer in fixed-point format
+lrint	round to integer in fixed-point format
+lround	round to nearest integer in fixed-point format
+modf	extract integer and fractional parts
+nearbyint	round to integer (silent)
+nextafter	next representable value
+nexttoward	next representable value
+remainder	remainder
+remquo	remainder with partial quotient
+rint	round to integer
+round	round to nearest integer
+trunc	integer no greater in magnitude than
+.El
+.Pp
+The
+.Fn ceil ,
+.Fn floor ,
+.Fn llround ,
+.Fn lround ,
+.Fn round ,
+and
+.Fn trunc
+functions round in predetermined directions, whereas
+.Fn llrint ,
+.Fn lrint ,
+and
+.Fn rint
+round according to the current (dynamic) rounding mode.
+For more information on controlling the dynamic rounding mode, see
+.Xr fenv 3
+and
+.Xr fesetround 3 .
+.Ss Silent Order Predicates
+.Cl
+isgreater	greater than relation
+isgreaterequal	greater than or equal to relation
+isless	less than relation
+islessequal	less than or equal to relation
+islessgreater	less than or greater than relation
+isunordered	unordered relation
+.El
+.Ss Transcendental Functions
+.Cl
+acos	inverse cosine
+acosh	inverse hyperbolic cosine
+asin	inverse sine
+asinh	inverse hyperbolic sine
+atan	inverse tangent
+atanh	inverse hyperbolic tangent
+atan2	atan(y/x); complex argument
+cos	cosine
+cosh	hyperbolic cosine
+erf	error function
+erfc	complementary error function
+exp	exponential base e
+exp2	exponential base 2
+expm1	exp(x)\-1
+j0	Bessel function of the first kind of the order 0
+j1	Bessel function of the first kind of the order 1
+jn	Bessel function of the first kind of the order n
+lgamma	log gamma function
+log	natural logarithm
+log10	logarithm to base 10
+log1p	log(1+x)
+log2	base 2 logarithm
+pow	exponential x**y
+sin	trigonometric function
+sinh	hyperbolic function
+tan	trigonometric function
+tanh	hyperbolic function
+tgamma	gamma function
+y0	Bessel function of the second kind of the order 0
+y1	Bessel function of the second kind of the order 1
+yn	Bessel function of the second kind of the order n
+.El
+.Pp
+The routines
+in this section might not produce a result that is correctly rounded,
+so reproducible results cannot be guaranteed across platforms.
+For most of these functions, however, incorrect rounding occurs
+rarely, and then only in very-close-to-halfway cases.
+.Sh SEE ALSO
+.Xr complex 3 ,
+.Xr fenv 3 ,
+.Xr ieee 3 ,
+.Xr tgmath 3
+.Sh HISTORY
+A math library with many of the present functions appeared in
+.At v7 .
+The library was substantially rewritten for
+.Bx 4.3
+to provide
+better accuracy and speed on machines supporting either VAX
+or IEEE 754 floating-point.
+Most of this library was replaced with FDLIBM, developed at Sun
+Microsystems, in
+.Fx 1.1.5 .
+Additional routines, including ones for
+.Vt float
+and
+.Vt long double
+values, were written for or imported into subsequent versions of FreeBSD.
+.Sh BUGS
+Many of the routines to compute transcendental functions produce
+inaccurate results in other than the default rounding mode.
+.Pp
+On the i386 platform, trigonometric argument reduction is not
+performed accurately for huge arguments, resulting in
+large errors
+for such arguments to
+.Fn cos ,
+.Fn sin ,
+and
+.Fn tan .

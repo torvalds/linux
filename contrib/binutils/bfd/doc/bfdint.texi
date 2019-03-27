@@ -1,0 +1,1900 @@
+\input texinfo
+@c Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998,
+@c 2000, 2001, 2002, 2003, 2004, 2006, 2007
+@c Free Software Foundation, Inc.
+@setfilename bfdint.info
+
+@settitle BFD Internals
+@iftex
+@titlepage
+@title{BFD Internals}
+@author{Ian Lance Taylor}
+@author{Cygnus Solutions}
+@page
+@end iftex
+
+@copying
+This file documents the internals of the BFD library.
+
+Copyright @copyright{} 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
+1996, 1998, 2000, 2001, 2002, 2003, 2004, 2006, 2007
+Free Software Foundation, Inc.
+Contributed by Cygnus Support.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``GNU General Public License'' and ``Funding
+Free Software'', the Front-Cover texts being (a) (see below), and with
+the Back-Cover Texts being (b) (see below).  A copy of the license is
+included in the section entitled ``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.
+@end copying
+
+@node Top
+@top BFD Internals
+@raisesections
+@cindex bfd internals
+
+This document describes some BFD internal information which may be
+helpful when working on BFD.  It is very incomplete.
+
+This document is not updated regularly, and may be out of date.
+
+The initial version of this document was written by Ian Lance Taylor
+@email{ian@@cygnus.com}.
+
+@menu
+* BFD overview::		BFD overview
+* BFD guidelines::		BFD programming guidelines
+* BFD target vector::		BFD target vector
+* BFD generated files::		BFD generated files
+* BFD multiple compilations::	Files compiled multiple times in BFD
+* BFD relocation handling::	BFD relocation handling
+* BFD ELF support::		BFD ELF support
+* BFD glossary::		Glossary
+* Index::			Index
+@end menu
+
+@node BFD overview
+@section BFD overview
+
+BFD is a library which provides a single interface to read and write
+object files, executables, archive files, and core files in any format.
+
+@menu
+* BFD library interfaces::	BFD library interfaces
+* BFD library users::		BFD library users
+* BFD view::			The BFD view of a file
+* BFD blindness::		BFD loses information
+@end menu
+
+@node BFD library interfaces
+@subsection BFD library interfaces
+
+One way to look at the BFD library is to divide it into four parts by
+type of interface.
+
+The first interface is the set of generic functions which programs using
+the BFD library will call.  These generic function normally translate
+directly or indirectly into calls to routines which are specific to a
+particular object file format.  Many of these generic functions are
+actually defined as macros in @file{bfd.h}.  These functions comprise
+the official BFD interface.
+
+The second interface is the set of functions which appear in the target
+vectors.  This is the bulk of the code in BFD.  A target vector is a set
+of function pointers specific to a particular object file format.  The
+target vector is used to implement the generic BFD functions.  These
+functions are always called through the target vector, and are never
+called directly.  The target vector is described in detail in @ref{BFD
+target vector}.  The set of functions which appear in a particular
+target vector is often referred to as a BFD backend.
+
+The third interface is a set of oddball functions which are typically
+specific to a particular object file format, are not generic functions,
+and are called from outside of the BFD library.  These are used as hooks
+by the linker and the assembler when a particular object file format
+requires some action which the BFD generic interface does not provide.
+These functions are typically declared in @file{bfd.h}, but in many
+cases they are only provided when BFD is configured with support for a
+particular object file format.  These functions live in a grey area, and
+are not really part of the official BFD interface.
+
+The fourth interface is the set of BFD support functions which are
+called by the other BFD functions.  These manage issues like memory
+allocation, error handling, file access, hash tables, swapping, and the
+like.  These functions are never called from outside of the BFD library.
+
+@node BFD library users
+@subsection BFD library users
+
+Another way to look at the BFD library is to divide it into three parts
+by the manner in which it is used.
+
+The first use is to read an object file.  The object file readers are
+programs like @samp{gdb}, @samp{nm}, @samp{objdump}, and @samp{objcopy}.
+These programs use BFD to view an object file in a generic form.  The
+official BFD interface is normally fully adequate for these programs.
+
+The second use is to write an object file.  The object file writers are
+programs like @samp{gas} and @samp{objcopy}.  These programs use BFD to
+create an object file.  The official BFD interface is normally adequate
+for these programs, but for some object file formats the assembler needs
+some additional hooks in order to set particular flags or other
+information.  The official BFD interface includes functions to copy
+private information from one object file to another, and these functions
+are used by @samp{objcopy} to avoid information loss.
+
+The third use is to link object files.  There is only one object file
+linker, @samp{ld}.  Originally, @samp{ld} was an object file reader and
+an object file writer, and it did the link operation using the generic
+BFD structures.  However, this turned out to be too slow and too memory
+intensive.
+
+The official BFD linker functions were written to permit specific BFD
+backends to perform the link without translating through the generic
+structures, in the normal case where all the input files and output file
+have the same object file format.  Not all of the backends currently
+implement the new interface, and there are default linking functions
+within BFD which use the generic structures and which work with all
+backends.
+
+For several object file formats the linker needs additional hooks which
+are not provided by the official BFD interface, particularly for dynamic
+linking support.  These functions are typically called from the linker
+emulation template.
+
+@node BFD view
+@subsection The BFD view of a file
+
+BFD uses generic structures to manage information.  It translates data
+into the generic form when reading files, and out of the generic form
+when writing files.
+
+BFD describes a file as a pointer to the @samp{bfd} type.  A @samp{bfd}
+is composed of the following elements.  The BFD information can be
+displayed using the @samp{objdump} program with various options.
+
+@table @asis
+@item general information
+The object file format, a few general flags, the start address.
+@item architecture
+The architecture, including both a general processor type (m68k, MIPS
+etc.) and a specific machine number (m68000, R4000, etc.).
+@item sections
+A list of sections.
+@item symbols
+A symbol table.
+@end table
+
+BFD represents a section as a pointer to the @samp{asection} type.  Each
+section has a name and a size.  Most sections also have an associated
+block of data, known as the section contents.  Sections also have
+associated flags, a virtual memory address, a load memory address, a
+required alignment, a list of relocations, and other miscellaneous
+information.
+
+BFD represents a relocation as a pointer to the @samp{arelent} type.  A
+relocation describes an action which the linker must take to modify the
+section contents.  Relocations have a symbol, an address, an addend, and
+a pointer to a howto structure which describes how to perform the
+relocation.  For more information, see @ref{BFD relocation handling}.
+
+BFD represents a symbol as a pointer to the @samp{asymbol} type.  A
+symbol has a name, a pointer to a section, an offset within that
+section, and some flags.
+
+Archive files do not have any sections or symbols.  Instead, BFD
+represents an archive file as a file which contains a list of
+@samp{bfd}s.  BFD also provides access to the archive symbol map, as a
+list of symbol names.  BFD provides a function to return the @samp{bfd}
+within the archive which corresponds to a particular entry in the
+archive symbol map.
+
+@node BFD blindness
+@subsection BFD loses information
+
+Most object file formats have information which BFD can not represent in
+its generic form, at least as currently defined.
+
+There is often explicit information which BFD can not represent.  For
+example, the COFF version stamp, or the ELF program segments.  BFD
+provides special hooks to handle this information when copying,
+printing, or linking an object file.  The BFD support for a particular
+object file format will normally store this information in private data
+and handle it using the special hooks.
+
+In some cases there is also implicit information which BFD can not
+represent.  For example, the MIPS processor distinguishes small and
+large symbols, and requires that all small symbols be within 32K of the
+GP register.  This means that the MIPS assembler must be able to mark
+variables as either small or large, and the MIPS linker must know to put
+small symbols within range of the GP register.  Since BFD can not
+represent this information, this means that the assembler and linker
+must have information that is specific to a particular object file
+format which is outside of the BFD library.
+
+This loss of information indicates areas where the BFD paradigm breaks
+down.  It is not actually possible to represent the myriad differences
+among object file formats using a single generic interface, at least not
+in the manner which BFD does it today.
+
+Nevertheless, the BFD library does greatly simplify the task of dealing
+with object files, and particular problems caused by information loss
+can normally be solved using some sort of relatively constrained hook
+into the library.
+
+
+
+@node BFD guidelines
+@section BFD programming guidelines
+@cindex bfd programming guidelines
+@cindex programming guidelines for bfd
+@cindex guidelines, bfd programming
+
+There is a lot of poorly written and confusing code in BFD.  New BFD
+code should be written to a higher standard.  Merely because some BFD
+code is written in a particular manner does not mean that you should
+emulate it.
+
+Here are some general BFD programming guidelines:
+
+@itemize @bullet
+@item
+Follow the GNU coding standards.
+
+@item
+Avoid global variables.  We ideally want BFD to be fully reentrant, so
+that it can be used in multiple threads.  All uses of global or static
+variables interfere with that.  Initialized constant variables are OK,
+and they should be explicitly marked with @samp{const}.  Instead of global
+variables, use data attached to a BFD or to a linker hash table.
+
+@item
+All externally visible functions should have names which start with
+@samp{bfd_}.  All such functions should be declared in some header file,
+typically @file{bfd.h}.  See, for example, the various declarations near
+the end of @file{bfd-in.h}, which mostly declare functions required by
+specific linker emulations.
+
+@item
+All functions which need to be visible from one file to another within
+BFD, but should not be visible outside of BFD, should start with
+@samp{_bfd_}.  Although external names beginning with @samp{_} are
+prohibited by the ANSI standard, in practice this usage will always
+work, and it is required by the GNU coding standards.
+
+@item
+Always remember that people can compile using @samp{--enable-targets} to
+build several, or all, targets at once.  It must be possible to link
+together the files for all targets.
+
+@item
+BFD code should compile with few or no warnings using @samp{gcc -Wall}.
+Some warnings are OK, like the absence of certain function declarations
+which may or may not be declared in system header files.  Warnings about
+ambiguous expressions and the like should always be fixed.
+@end itemize
+
+@node BFD target vector
+@section BFD target vector
+@cindex bfd target vector
+@cindex target vector in bfd
+
+BFD supports multiple object file formats by using the @dfn{target
+vector}.  This is simply a set of function pointers which implement
+behaviour that is specific to a particular object file format.
+
+In this section I list all of the entries in the target vector and
+describe what they do.
+
+@menu
+* BFD target vector miscellaneous::	Miscellaneous constants
+* BFD target vector swap::		Swapping functions
+* BFD target vector format::		Format type dependent functions
+* BFD_JUMP_TABLE macros::		BFD_JUMP_TABLE macros
+* BFD target vector generic::		Generic functions
+* BFD target vector copy::		Copy functions
+* BFD target vector core::		Core file support functions
+* BFD target vector archive::		Archive functions
+* BFD target vector symbols::		Symbol table functions
+* BFD target vector relocs::		Relocation support
+* BFD target vector write::		Output functions
+* BFD target vector link::		Linker functions
+* BFD target vector dynamic::		Dynamic linking information functions
+@end menu
+
+@node BFD target vector miscellaneous
+@subsection Miscellaneous constants
+
+The target vector starts with a set of constants.
+
+@table @samp
+@item name
+The name of the target vector.  This is an arbitrary string.  This is
+how the target vector is named in command line options for tools which
+use BFD, such as the @samp{--oformat} linker option.
+
+@item flavour
+A general description of the type of target.  The following flavours are
+currently defined:
+
+@table @samp
+@item bfd_target_unknown_flavour
+Undefined or unknown.
+@item bfd_target_aout_flavour
+a.out.
+@item bfd_target_coff_flavour
+COFF.
+@item bfd_target_ecoff_flavour
+ECOFF.
+@item bfd_target_elf_flavour
+ELF.
+@item bfd_target_ieee_flavour
+IEEE-695.
+@item bfd_target_nlm_flavour
+NLM.
+@item bfd_target_oasys_flavour
+OASYS.
+@item bfd_target_tekhex_flavour
+Tektronix hex format.
+@item bfd_target_srec_flavour
+Motorola S-record format.
+@item bfd_target_ihex_flavour
+Intel hex format.
+@item bfd_target_som_flavour
+SOM (used on HP/UX).
+@item bfd_target_os9k_flavour
+os9000.
+@item bfd_target_versados_flavour
+VERSAdos.
+@item bfd_target_msdos_flavour
+MS-DOS.
+@item bfd_target_evax_flavour
+openVMS.
+@item bfd_target_mmo_flavour
+Donald Knuth's MMIXware object format.
+@end table
+
+@item byteorder
+The byte order of data in the object file.  One of
+@samp{BFD_ENDIAN_BIG}, @samp{BFD_ENDIAN_LITTLE}, or
+@samp{BFD_ENDIAN_UNKNOWN}.  The latter would be used for a format such
+as S-records which do not record the architecture of the data.
+
+@item header_byteorder
+The byte order of header information in the object file.  Normally the
+same as the @samp{byteorder} field, but there are certain cases where it
+may be different.
+
+@item object_flags
+Flags which may appear in the @samp{flags} field of a BFD with this
+format.
+
+@item section_flags
+Flags which may appear in the @samp{flags} field of a section within a
+BFD with this format.
+
+@item symbol_leading_char
+A character which the C compiler normally puts before a symbol.  For
+example, an a.out compiler will typically generate the symbol
+@samp{_foo} for a function named @samp{foo} in the C source, in which
+case this field would be @samp{_}.  If there is no such character, this
+field will be @samp{0}.
+
+@item ar_pad_char
+The padding character to use at the end of an archive name.  Normally
+@samp{/}.
+
+@item ar_max_namelen
+The maximum length of a short name in an archive.  Normally @samp{14}.
+
+@item backend_data
+A pointer to constant backend data.  This is used by backends to store
+whatever additional information they need to distinguish similar target
+vectors which use the same sets of functions.
+@end table
+
+@node BFD target vector swap
+@subsection Swapping functions
+
+Every target vector has function pointers used for swapping information
+in and out of the target representation.  There are two sets of
+functions: one for data information, and one for header information.
+Each set has three sizes: 64-bit, 32-bit, and 16-bit.  Each size has
+three actual functions: put, get unsigned, and get signed.
+
+These 18 functions are used to convert data between the host and target
+representations.
+
+@node BFD target vector format
+@subsection Format type dependent functions
+
+Every target vector has three arrays of function pointers which are
+indexed by the BFD format type.  The BFD format types are as follows:
+
+@table @samp
+@item bfd_unknown
+Unknown format.  Not used for anything useful.
+@item bfd_object
+Object file.
+@item bfd_archive
+Archive file.
+@item bfd_core
+Core file.
+@end table
+
+The three arrays of function pointers are as follows:
+
+@table @samp
+@item bfd_check_format
+Check whether the BFD is of a particular format (object file, archive
+file, or core file) corresponding to this target vector.  This is called
+by the @samp{bfd_check_format} function when examining an existing BFD.
+If the BFD matches the desired format, this function will initialize any
+format specific information such as the @samp{tdata} field of the BFD.
+This function must be called before any other BFD target vector function
+on a file opened for reading.
+
+@item bfd_set_format
+Set the format of a BFD which was created for output.  This is called by
+the @samp{bfd_set_format} function after creating the BFD with a
+function such as @samp{bfd_openw}.  This function will initialize format
+specific information required to write out an object file or whatever of
+the given format.  This function must be called before any other BFD
+target vector function on a file opened for writing.
+
+@item bfd_write_contents
+Write out the contents of the BFD in the given format.  This is called
+by @samp{bfd_close} function for a BFD opened for writing.  This really
+should not be an array selected by format type, as the
+@samp{bfd_set_format} function provides all the required information.
+In fact, BFD will fail if a different format is used when calling
+through the @samp{bfd_set_format} and the @samp{bfd_write_contents}
+arrays; fortunately, since @samp{bfd_close} gets it right, this is a
+difficult error to make.
+@end table
+
+@node BFD_JUMP_TABLE macros
+@subsection @samp{BFD_JUMP_TABLE} macros
+@cindex @samp{BFD_JUMP_TABLE}
+
+Most target vectors are defined using @samp{BFD_JUMP_TABLE} macros.
+These macros take a single argument, which is a prefix applied to a set
+of functions.  The macros are then used to initialize the fields in the
+target vector.
+
+For example, the @samp{BFD_JUMP_TABLE_RELOCS} macro defines three
+functions: @samp{_get_reloc_upper_bound}, @samp{_canonicalize_reloc},
+and @samp{_bfd_reloc_type_lookup}.  A reference like
+@samp{BFD_JUMP_TABLE_RELOCS (foo)} will expand into three functions
+prefixed with @samp{foo}: @samp{foo_get_reloc_upper_bound}, etc.  The
+@samp{BFD_JUMP_TABLE_RELOCS} macro will be placed such that those three
+functions initialize the appropriate fields in the BFD target vector.
+
+This is done because it turns out that many different target vectors can
+share certain classes of functions.  For example, archives are similar
+on most platforms, so most target vectors can use the same archive
+functions.  Those target vectors all use @samp{BFD_JUMP_TABLE_ARCHIVE}
+with the same argument, calling a set of functions which is defined in
+@file{archive.c}.
+
+Each of the @samp{BFD_JUMP_TABLE} macros is mentioned below along with
+the description of the function pointers which it defines.  The function
+pointers will be described using the name without the prefix which the
+@samp{BFD_JUMP_TABLE} macro defines.  This name is normally the same as
+the name of the field in the target vector structure.  Any differences
+will be noted.
+
+@node BFD target vector generic
+@subsection Generic functions
+@cindex @samp{BFD_JUMP_TABLE_GENERIC}
+
+The @samp{BFD_JUMP_TABLE_GENERIC} macro is used for some catch all
+functions which don't easily fit into other categories.
+
+@table @samp
+@item _close_and_cleanup
+Free any target specific information associated with the BFD.  This is
+called when any BFD is closed (the @samp{bfd_write_contents} function
+mentioned earlier is only called for a BFD opened for writing).  Most
+targets use @samp{bfd_alloc} to allocate all target specific
+information, and therefore don't have to do anything in this function.
+This function pointer is typically set to
+@samp{_bfd_generic_close_and_cleanup}, which simply returns true.
+
+@item _bfd_free_cached_info
+Free any cached information associated with the BFD which can be
+recreated later if necessary.  This is used to reduce the memory
+consumption required by programs using BFD.  This is normally called via
+the @samp{bfd_free_cached_info} macro.  It is used by the default
+archive routines when computing the archive map.  Most targets do not
+do anything special for this entry point, and just set it to
+@samp{_bfd_generic_free_cached_info}, which simply returns true.
+
+@item _new_section_hook
+This is called from @samp{bfd_make_section_anyway} whenever a new
+section is created.  Most targets use it to initialize section specific
+information.  This function is called whether or not the section
+corresponds to an actual section in an actual BFD.
+
+@item _get_section_contents
+Get the contents of a section.  This is called from
+@samp{bfd_get_section_contents}.  Most targets set this to
+@samp{_bfd_generic_get_section_contents}, which does a @samp{bfd_seek}
+based on the section's @samp{filepos} field and a @samp{bfd_bread}.  The
+corresponding field in the target vector is named
+@samp{_bfd_get_section_contents}.
+
+@item _get_section_contents_in_window
+Set a @samp{bfd_window} to hold the contents of a section.  This is
+called from @samp{bfd_get_section_contents_in_window}.  The
+@samp{bfd_window} idea never really caught on, and I don't think this is
+ever called.  Pretty much all targets implement this as
+@samp{bfd_generic_get_section_contents_in_window}, which uses
+@samp{bfd_get_section_contents} to do the right thing.  The
+corresponding field in the target vector is named
+@samp{_bfd_get_section_contents_in_window}.
+@end table
+
+@node BFD target vector copy
+@subsection Copy functions
+@cindex @samp{BFD_JUMP_TABLE_COPY}
+
+The @samp{BFD_JUMP_TABLE_COPY} macro is used for functions which are
+called when copying BFDs, and for a couple of functions which deal with
+internal BFD information.
+
+@table @samp
+@item _bfd_copy_private_bfd_data
+This is called when copying a BFD, via @samp{bfd_copy_private_bfd_data}.
+If the input and output BFDs have the same format, this will copy any
+private information over.  This is called after all the section contents
+have been written to the output file.  Only a few targets do anything in
+this function.
+
+@item _bfd_merge_private_bfd_data
+This is called when linking, via @samp{bfd_merge_private_bfd_data}.  It
+gives the backend linker code a chance to set any special flags in the
+output file based on the contents of the input file.  Only a few targets
+do anything in this function.
+
+@item _bfd_copy_private_section_data
+This is similar to @samp{_bfd_copy_private_bfd_data}, but it is called
+for each section, via @samp{bfd_copy_private_section_data}.  This
+function is called before any section contents have been written.  Only
+a few targets do anything in this function.
+
+@item _bfd_copy_private_symbol_data
+This is called via @samp{bfd_copy_private_symbol_data}, but I don't
+think anything actually calls it.  If it were defined, it could be used
+to copy private symbol data from one BFD to another.  However, most BFDs
+store extra symbol information by allocating space which is larger than
+the @samp{asymbol} structure and storing private information in the
+extra space.  Since @samp{objcopy} and other programs copy symbol
+information by copying pointers to @samp{asymbol} structures, the
+private symbol information is automatically copied as well.  Most
+targets do not do anything in this function.
+
+@item _bfd_set_private_flags
+This is called via @samp{bfd_set_private_flags}.  It is basically a hook
+for the assembler to set magic information.  For example, the PowerPC
+ELF assembler uses it to set flags which appear in the e_flags field of
+the ELF header.  Most targets do not do anything in this function.
+
+@item _bfd_print_private_bfd_data
+This is called by @samp{objdump} when the @samp{-p} option is used.  It
+is called via @samp{bfd_print_private_data}.  It prints any interesting
+information about the BFD which can not be otherwise represented by BFD
+and thus can not be printed by @samp{objdump}.  Most targets do not do
+anything in this function.
+@end table
+
+@node BFD target vector core
+@subsection Core file support functions
+@cindex @samp{BFD_JUMP_TABLE_CORE}
+
+The @samp{BFD_JUMP_TABLE_CORE} macro is used for functions which deal
+with core files.  Obviously, these functions only do something
+interesting for targets which have core file support.
+
+@table @samp
+@item _core_file_failing_command
+Given a core file, this returns the command which was run to produce the
+core file.
+
+@item _core_file_failing_signal
+Given a core file, this returns the signal number which produced the
+core file.
+
+@item _core_file_matches_executable_p
+Given a core file and a BFD for an executable, this returns whether the
+core file was generated by the executable.
+@end table
+
+@node BFD target vector archive
+@subsection Archive functions
+@cindex @samp{BFD_JUMP_TABLE_ARCHIVE}
+
+The @samp{BFD_JUMP_TABLE_ARCHIVE} macro is used for functions which deal
+with archive files.  Most targets use COFF style archive files
+(including ELF targets), and these use @samp{_bfd_archive_coff} as the
+argument to @samp{BFD_JUMP_TABLE_ARCHIVE}.  Some targets use BSD/a.out
+style archives, and these use @samp{_bfd_archive_bsd}.  (The main
+difference between BSD and COFF archives is the format of the archive
+symbol table).  Targets with no archive support use
+@samp{_bfd_noarchive}.  Finally, a few targets have unusual archive
+handling.
+
+@table @samp
+@item _slurp_armap
+Read in the archive symbol table, storing it in private BFD data.  This
+is normally called from the archive @samp{check_format} routine.  The
+corresponding field in the target vector is named
+@samp{_bfd_slurp_armap}.
+
+@item _slurp_extended_name_table
+Read in the extended name table from the archive, if there is one,
+storing it in private BFD data.  This is normally called from the
+archive @samp{check_format} routine.  The corresponding field in the
+target vector is named @samp{_bfd_slurp_extended_name_table}.
+
+@item construct_extended_name_table
+Build and return an extended name table if one is needed to write out
+the archive.  This also adjusts the archive headers to refer to the
+extended name table appropriately.  This is normally called from the
+archive @samp{write_contents} routine.  The corresponding field in the
+target vector is named @samp{_bfd_construct_extended_name_table}.
+
+@item _truncate_arname
+This copies a file name into an archive header, truncating it as
+required.  It is normally called from the archive @samp{write_contents}
+routine.  This function is more interesting in targets which do not
+support extended name tables, but I think the GNU @samp{ar} program
+always uses extended name tables anyhow.  The corresponding field in the
+target vector is named @samp{_bfd_truncate_arname}.
+
+@item _write_armap
+Write out the archive symbol table using calls to @samp{bfd_bwrite}.
+This is normally called from the archive @samp{write_contents} routine.
+The corresponding field in the target vector is named @samp{write_armap}
+(no leading underscore).
+
+@item _read_ar_hdr
+Read and parse an archive header.  This handles expanding the archive
+header name into the real file name using the extended name table.  This
+is called by routines which read the archive symbol table or the archive
+itself.  The corresponding field in the target vector is named
+@samp{_bfd_read_ar_hdr_fn}.
+
+@item _openr_next_archived_file
+Given an archive and a BFD representing a file stored within the
+archive, return a BFD for the next file in the archive.  This is called
+via @samp{bfd_openr_next_archived_file}.  The corresponding field in the
+target vector is named @samp{openr_next_archived_file} (no leading
+underscore).
+
+@item _get_elt_at_index
+Given an archive and an index, return a BFD for the file in the archive
+corresponding to that entry in the archive symbol table.  This is called
+via @samp{bfd_get_elt_at_index}.  The corresponding field in the target
+vector is named @samp{_bfd_get_elt_at_index}.
+
+@item _generic_stat_arch_elt
+Do a stat on an element of an archive, returning information read from
+the archive header (modification time, uid, gid, file mode, size).  This
+is called via @samp{bfd_stat_arch_elt}.  The corresponding field in the
+target vector is named @samp{_bfd_stat_arch_elt}.
+
+@item _update_armap_timestamp
+After the entire contents of an archive have been written out, update
+the timestamp of the archive symbol table to be newer than that of the
+file.  This is required for a.out style archives.  This is normally
+called by the archive @samp{write_contents} routine.  The corresponding
+field in the target vector is named @samp{_bfd_update_armap_timestamp}.
+@end table
+
+@node BFD target vector symbols
+@subsection Symbol table functions
+@cindex @samp{BFD_JUMP_TABLE_SYMBOLS}
+
+The @samp{BFD_JUMP_TABLE_SYMBOLS} macro is used for functions which deal
+with symbols.
+
+@table @samp
+@item _get_symtab_upper_bound
+Return a sensible upper bound on the amount of memory which will be
+required to read the symbol table.  In practice most targets return the
+amount of memory required to hold @samp{asymbol} pointers for all the
+symbols plus a trailing @samp{NULL} entry, and store the actual symbol
+information in BFD private data.  This is called via
+@samp{bfd_get_symtab_upper_bound}.  The corresponding field in the
+target vector is named @samp{_bfd_get_symtab_upper_bound}.
+
+@item _canonicalize_symtab
+Read in the symbol table.  This is called via
+@samp{bfd_canonicalize_symtab}.  The corresponding field in the target
+vector is named @samp{_bfd_canonicalize_symtab}.
+
+@item _make_empty_symbol
+Create an empty symbol for the BFD.  This is needed because most targets
+store extra information with each symbol by allocating a structure
+larger than an @samp{asymbol} and storing the extra information at the
+end.  This function will allocate the right amount of memory, and return
+what looks like a pointer to an empty @samp{asymbol}.  This is called
+via @samp{bfd_make_empty_symbol}.  The corresponding field in the target
+vector is named @samp{_bfd_make_empty_symbol}.
+
+@item _print_symbol
+Print information about the symbol.  This is called via
+@samp{bfd_print_symbol}.  One of the arguments indicates what sort of
+information should be printed:
+
+@table @samp
+@item bfd_print_symbol_name
+Just print the symbol name.
+@item bfd_print_symbol_more
+Print the symbol name and some interesting flags.  I don't think
+anything actually uses this.
+@item bfd_print_symbol_all
+Print all information about the symbol.  This is used by @samp{objdump}
+when run with the @samp{-t} option.
+@end table
+The corresponding field in the target vector is named
+@samp{_bfd_print_symbol}.
+
+@item _get_symbol_info
+Return a standard set of information about the symbol.  This is called
+via @samp{bfd_symbol_info}.  The corresponding field in the target
+vector is named @samp{_bfd_get_symbol_info}.
+
+@item _bfd_is_local_label_name
+Return whether the given string would normally represent the name of a
+local label.  This is called via @samp{bfd_is_local_label} and
+@samp{bfd_is_local_label_name}.  Local labels are normally discarded by
+the assembler.  In the linker, this defines the difference between the
+@samp{-x} and @samp{-X} options.
+
+@item _get_lineno
+Return line number information for a symbol.  This is only meaningful
+for a COFF target.  This is called when writing out COFF line numbers.
+
+@item _find_nearest_line
+Given an address within a section, use the debugging information to find
+the matching file name, function name, and line number, if any.  This is
+called via @samp{bfd_find_nearest_line}.  The corresponding field in the
+target vector is named @samp{_bfd_find_nearest_line}.
+
+@item _bfd_make_debug_symbol
+Make a debugging symbol.  This is only meaningful for a COFF target,
+where it simply returns a symbol which will be placed in the
+@samp{N_DEBUG} section when it is written out.  This is called via
+@samp{bfd_make_debug_symbol}.
+
+@item _read_minisymbols
+Minisymbols are used to reduce the memory requirements of programs like
+@samp{nm}.  A minisymbol is a cookie pointing to internal symbol
+information which the caller can use to extract complete symbol
+information.  This permits BFD to not convert all the symbols into
+generic form, but to instead convert them one at a time.  This is called
+via @samp{bfd_read_minisymbols}.  Most targets do not implement this,
+and just use generic support which is based on using standard
+@samp{asymbol} structures.
+
+@item _minisymbol_to_symbol
+Convert a minisymbol to a standard @samp{asymbol}.  This is called via
+@samp{bfd_minisymbol_to_symbol}.
+@end table
+
+@node BFD target vector relocs
+@subsection Relocation support
+@cindex @samp{BFD_JUMP_TABLE_RELOCS}
+
+The @samp{BFD_JUMP_TABLE_RELOCS} macro is used for functions which deal
+with relocations.
+
+@table @samp
+@item _get_reloc_upper_bound
+Return a sensible upper bound on the amount of memory which will be
+required to read the relocations for a section.  In practice most
+targets return the amount of memory required to hold @samp{arelent}
+pointers for all the relocations plus a trailing @samp{NULL} entry, and
+store the actual relocation information in BFD private data.  This is
+called via @samp{bfd_get_reloc_upper_bound}.
+
+@item _canonicalize_reloc
+Return the relocation information for a section.  This is called via
+@samp{bfd_canonicalize_reloc}.  The corresponding field in the target
+vector is named @samp{_bfd_canonicalize_reloc}.
+
+@item _bfd_reloc_type_lookup
+Given a relocation code, return the corresponding howto structure
+(@pxref{BFD relocation codes}).  This is called via
+@samp{bfd_reloc_type_lookup}.  The corresponding field in the target
+vector is named @samp{reloc_type_lookup}.
+@end table
+
+@node BFD target vector write
+@subsection Output functions
+@cindex @samp{BFD_JUMP_TABLE_WRITE}
+
+The @samp{BFD_JUMP_TABLE_WRITE} macro is used for functions which deal
+with writing out a BFD.
+
+@table @samp
+@item _set_arch_mach
+Set the architecture and machine number for a BFD.  This is called via
+@samp{bfd_set_arch_mach}.  Most targets implement this by calling
+@samp{bfd_default_set_arch_mach}.  The corresponding field in the target
+vector is named @samp{_bfd_set_arch_mach}.
+
+@item _set_section_contents
+Write out the contents of a section.  This is called via
+@samp{bfd_set_section_contents}.  The corresponding field in the target
+vector is named @samp{_bfd_set_section_contents}.
+@end table
+
+@node BFD target vector link
+@subsection Linker functions
+@cindex @samp{BFD_JUMP_TABLE_LINK}
+
+The @samp{BFD_JUMP_TABLE_LINK} macro is used for functions called by the
+linker.
+
+@table @samp
+@item _sizeof_headers
+Return the size of the header information required for a BFD.  This is
+used to implement the @samp{SIZEOF_HEADERS} linker script function.  It
+is normally used to align the first section at an efficient position on
+the page.  This is called via @samp{bfd_sizeof_headers}.  The
+corresponding field in the target vector is named
+@samp{_bfd_sizeof_headers}.
+
+@item _bfd_get_relocated_section_contents
+Read the contents of a section and apply the relocation information.
+This handles both a final link and a relocatable link; in the latter
+case, it adjust the relocation information as well.  This is called via
+@samp{bfd_get_relocated_section_contents}.  Most targets implement it by
+calling @samp{bfd_generic_get_relocated_section_contents}.
+
+@item _bfd_relax_section
+Try to use relaxation to shrink the size of a section.  This is called
+by the linker when the @samp{-relax} option is used.  This is called via
+@samp{bfd_relax_section}.  Most targets do not support any sort of
+relaxation.
+
+@item _bfd_link_hash_table_create
+Create the symbol hash table to use for the linker.  This linker hook
+permits the backend to control the size and information of the elements
+in the linker symbol hash table.  This is called via
+@samp{bfd_link_hash_table_create}.
+
+@item _bfd_link_add_symbols
+Given an object file or an archive, add all symbols into the linker
+symbol hash table.  Use callbacks to the linker to include archive
+elements in the link.  This is called via @samp{bfd_link_add_symbols}.
+
+@item _bfd_final_link
+Finish the linking process.  The linker calls this hook after all of the
+input files have been read, when it is ready to finish the link and
+generate the output file.  This is called via @samp{bfd_final_link}.
+
+@item _bfd_link_split_section
+I don't know what this is for.  Nothing seems to call it.  The only
+non-trivial definition is in @file{som.c}.
+@end table
+
+@node BFD target vector dynamic
+@subsection Dynamic linking information functions
+@cindex @samp{BFD_JUMP_TABLE_DYNAMIC}
+
+The @samp{BFD_JUMP_TABLE_DYNAMIC} macro is used for functions which read
+dynamic linking information.
+
+@table @samp
+@item _get_dynamic_symtab_upper_bound
+Return a sensible upper bound on the amount of memory which will be
+required to read the dynamic symbol table.  In practice most targets
+return the amount of memory required to hold @samp{asymbol} pointers for
+all the symbols plus a trailing @samp{NULL} entry, and store the actual
+symbol information in BFD private data.  This is called via
+@samp{bfd_get_dynamic_symtab_upper_bound}.  The corresponding field in
+the target vector is named @samp{_bfd_get_dynamic_symtab_upper_bound}.
+
+@item _canonicalize_dynamic_symtab
+Read the dynamic symbol table.  This is called via
+@samp{bfd_canonicalize_dynamic_symtab}.  The corresponding field in the
+target vector is named @samp{_bfd_canonicalize_dynamic_symtab}.
+
+@item _get_dynamic_reloc_upper_bound
+Return a sensible upper bound on the amount of memory which will be
+required to read the dynamic relocations.  In practice most targets
+return the amount of memory required to hold @samp{arelent} pointers for
+all the relocations plus a trailing @samp{NULL} entry, and store the
+actual relocation information in BFD private data.  This is called via
+@samp{bfd_get_dynamic_reloc_upper_bound}.  The corresponding field in
+the target vector is named @samp{_bfd_get_dynamic_reloc_upper_bound}.
+
+@item _canonicalize_dynamic_reloc
+Read the dynamic relocations.  This is called via
+@samp{bfd_canonicalize_dynamic_reloc}.  The corresponding field in the
+target vector is named @samp{_bfd_canonicalize_dynamic_reloc}.
+@end table
+
+@node BFD generated files
+@section BFD generated files
+@cindex generated files in bfd
+@cindex bfd generated files
+
+BFD contains several automatically generated files.  This section
+describes them.  Some files are created at configure time, when you
+configure BFD.  Some files are created at make time, when you build
+BFD.  Some files are automatically rebuilt at make time, but only if
+you configure with the @samp{--enable-maintainer-mode} option.  Some
+files live in the object directory---the directory from which you run
+configure---and some live in the source directory.  All files that live
+in the source directory are checked into the CVS repository.
+
+@table @file
+@item bfd.h
+@cindex @file{bfd.h}
+@cindex @file{bfd-in3.h}
+Lives in the object directory.  Created at make time from
+@file{bfd-in2.h} via @file{bfd-in3.h}.  @file{bfd-in3.h} is created at
+configure time from @file{bfd-in2.h}.  There are automatic dependencies
+to rebuild @file{bfd-in3.h} and hence @file{bfd.h} if @file{bfd-in2.h}
+changes, so you can normally ignore @file{bfd-in3.h}, and just think
+about @file{bfd-in2.h} and @file{bfd.h}.
+
+@file{bfd.h} is built by replacing a few strings in @file{bfd-in2.h}.
+To see them, search for @samp{@@} in @file{bfd-in2.h}.  They mainly
+control whether BFD is built for a 32 bit target or a 64 bit target.
+
+@item bfd-in2.h
+@cindex @file{bfd-in2.h}
+Lives in the source directory.  Created from @file{bfd-in.h} and several
+other BFD source files.  If you configure with the
+@samp{--enable-maintainer-mode} option, @file{bfd-in2.h} is rebuilt
+automatically when a source file changes.
+
+@item elf32-target.h
+@itemx elf64-target.h
+@cindex @file{elf32-target.h}
+@cindex @file{elf64-target.h}
+Live in the object directory.  Created from @file{elfxx-target.h}.
+These files are versions of @file{elfxx-target.h} customized for either
+a 32 bit ELF target or a 64 bit ELF target.
+
+@item libbfd.h
+@cindex @file{libbfd.h}
+Lives in the source directory.  Created from @file{libbfd-in.h} and
+several other BFD source files.  If you configure with the
+@samp{--enable-maintainer-mode} option, @file{libbfd.h} is rebuilt
+automatically when a source file changes.
+
+@item libcoff.h
+@cindex @file{libcoff.h}
+Lives in the source directory.  Created from @file{libcoff-in.h} and
+@file{coffcode.h}.  If you configure with the
+@samp{--enable-maintainer-mode} option, @file{libcoff.h} is rebuilt
+automatically when a source file changes.
+
+@item targmatch.h
+@cindex @file{targmatch.h}
+Lives in the object directory.  Created at make time from
+@file{config.bfd}.  This file is used to map configuration triplets into
+BFD target vector variable names at run time.
+@end table
+
+@node BFD multiple compilations
+@section Files compiled multiple times in BFD
+Several files in BFD are compiled multiple times.  By this I mean that
+there are header files which contain function definitions.  These header
+files are included by other files, and thus the functions are compiled
+once per file which includes them.
+
+Preprocessor macros are used to control the compilation, so that each
+time the files are compiled the resulting functions are slightly
+different.  Naturally, if they weren't different, there would be no
+reason to compile them multiple times.
+
+This is a not a particularly good programming technique, and future BFD
+work should avoid it.
+
+@itemize @bullet
+@item
+Since this technique is rarely used, even experienced C programmers find
+it confusing.
+
+@item
+It is difficult to debug programs which use BFD, since there is no way
+to describe which version of a particular function you are looking at.
+
+@item
+Programs which use BFD wind up incorporating two or more slightly
+different versions of the same function, which wastes space in the
+executable.
+
+@item
+This technique is never required nor is it especially efficient.  It is
+always possible to use statically initialized structures holding
+function pointers and magic constants instead.
+@end itemize
+
+The following is a list of the files which are compiled multiple times.
+
+@table @file
+@item aout-target.h
+@cindex @file{aout-target.h}
+Describes a few functions and the target vector for a.out targets.  This
+is used by individual a.out targets with different definitions of
+@samp{N_TXTADDR} and similar a.out macros.
+
+@item aoutf1.h
+@cindex @file{aoutf1.h}
+Implements standard SunOS a.out files.  In principle it supports 64 bit
+a.out targets based on the preprocessor macro @samp{ARCH_SIZE}, but
+since all known a.out targets are 32 bits, this code may or may not
+work.  This file is only included by a few other files, and it is
+difficult to justify its existence.
+
+@item aoutx.h
+@cindex @file{aoutx.h}
+Implements basic a.out support routines.  This file can be compiled for
+either 32 or 64 bit support.  Since all known a.out targets are 32 bits,
+the 64 bit support may or may not work.  I believe the original
+intention was that this file would only be included by @samp{aout32.c}
+and @samp{aout64.c}, and that other a.out targets would simply refer to
+the functions it defined.  Unfortunately, some other a.out targets
+started including it directly, leading to a somewhat confused state of
+affairs.
+
+@item coffcode.h
+@cindex @file{coffcode.h}
+Implements basic COFF support routines.  This file is included by every
+COFF target.  It implements code which handles COFF magic numbers as
+well as various hook functions called by the generic COFF functions in
+@file{coffgen.c}.  This file is controlled by a number of different
+macros, and more are added regularly.
+
+@item coffswap.h
+@cindex @file{coffswap.h}
+Implements COFF swapping routines.  This file is included by
+@file{coffcode.h}, and thus by every COFF target.  It implements the
+routines which swap COFF structures between internal and external
+format.  The main control for this file is the external structure
+definitions in the files in the @file{include/coff} directory.  A COFF
+target file will include one of those files before including
+@file{coffcode.h} and thus @file{coffswap.h}.  There are a few other
+macros which affect @file{coffswap.h} as well, mostly describing whether
+certain fields are present in the external structures.
+
+@item ecoffswap.h
+@cindex @file{ecoffswap.h}
+Implements ECOFF swapping routines.  This is like @file{coffswap.h}, but
+for ECOFF.  It is included by the ECOFF target files (of which there are
+only two).  The control is the preprocessor macro @samp{ECOFF_32} or
+@samp{ECOFF_64}.
+
+@item elfcode.h
+@cindex @file{elfcode.h}
+Implements ELF functions that use external structure definitions.  This
+file is included by two other files: @file{elf32.c} and @file{elf64.c}.
+It is controlled by the @samp{ARCH_SIZE} macro which is defined to be
+@samp{32} or @samp{64} before including it.  The @samp{NAME} macro is
+used internally to give the functions different names for the two target
+sizes.
+
+@item elfcore.h
+@cindex @file{elfcore.h}
+Like @file{elfcode.h}, but for functions that are specific to ELF core
+files.  This is included only by @file{elfcode.h}.
+
+@item elfxx-target.h
+@cindex @file{elfxx-target.h}
+This file is the source for the generated files @file{elf32-target.h}
+and @file{elf64-target.h}, one of which is included by every ELF target.
+It defines the ELF target vector.
+
+@item freebsd.h
+@cindex @file{freebsd.h}
+Presumably intended to be included by all FreeBSD targets, but in fact
+there is only one such target, @samp{i386-freebsd}.  This defines a
+function used to set the right magic number for FreeBSD, as well as
+various macros, and includes @file{aout-target.h}.
+
+@item netbsd.h
+@cindex @file{netbsd.h}
+Like @file{freebsd.h}, except that there are several files which include
+it.
+
+@item nlm-target.h
+@cindex @file{nlm-target.h}
+Defines the target vector for a standard NLM target.
+
+@item nlmcode.h
+@cindex @file{nlmcode.h}
+Like @file{elfcode.h}, but for NLM targets.  This is only included by
+@file{nlm32.c} and @file{nlm64.c}, both of which define the macro
+@samp{ARCH_SIZE} to an appropriate value.  There are no 64 bit NLM
+targets anyhow, so this is sort of useless.
+
+@item nlmswap.h
+@cindex @file{nlmswap.h}
+Like @file{coffswap.h}, but for NLM targets.  This is included by each
+NLM target, but I think it winds up compiling to the exact same code for
+every target, and as such is fairly useless.
+
+@item peicode.h
+@cindex @file{peicode.h}
+Provides swapping routines and other hooks for PE targets.
+@file{coffcode.h} will include this rather than @file{coffswap.h} for a
+PE target.  This defines PE specific versions of the COFF swapping
+routines, and also defines some macros which control @file{coffcode.h}
+itself.
+@end table
+
+@node BFD relocation handling
+@section BFD relocation handling
+@cindex bfd relocation handling
+@cindex relocations in bfd
+
+The handling of relocations is one of the more confusing aspects of BFD.
+Relocation handling has been implemented in various different ways, all
+somewhat incompatible, none perfect.
+
+@menu
+* BFD relocation concepts::	BFD relocation concepts
+* BFD relocation functions::	BFD relocation functions
+* BFD relocation codes::	BFD relocation codes
+* BFD relocation future::	BFD relocation future
+@end menu
+
+@node BFD relocation concepts
+@subsection BFD relocation concepts
+
+A relocation is an action which the linker must take when linking.  It
+describes a change to the contents of a section.  The change is normally
+based on the final value of one or more symbols.  Relocations are
+created by the assembler when it creates an object file.
+
+Most relocations are simple.  A typical simple relocation is to set 32
+bits at a given offset in a section to the value of a symbol.  This type
+of relocation would be generated for code like @code{int *p = &i;} where
+@samp{p} and @samp{i} are global variables.  A relocation for the symbol
+@samp{i} would be generated such that the linker would initialize the
+area of memory which holds the value of @samp{p} to the value of the
+symbol @samp{i}.
+
+Slightly more complex relocations may include an addend, which is a
+constant to add to the symbol value before using it.  In some cases a
+relocation will require adding the symbol value to the existing contents
+of the section in the object file.  In others the relocation will simply
+replace the contents of the section with the symbol value.  Some
+relocations are PC relative, so that the value to be stored in the
+section is the difference between the value of a symbol and the final
+address of the section contents.
+
+In general, relocations can be arbitrarily complex.  For example,
+relocations used in dynamic linking systems often require the linker to
+allocate space in a different section and use the offset within that
+section as the value to store.  In the IEEE object file format,
+relocations may involve arbitrary expressions.
+
+When doing a relocatable link, the linker may or may not have to do
+anything with a relocation, depending upon the definition of the
+relocation.  Simple relocations generally do not require any special
+action.
+
+@node BFD relocation functions
+@subsection BFD relocation functions
+
+In BFD, each section has an array of @samp{arelent} structures.  Each
+structure has a pointer to a symbol, an address within the section, an
+addend, and a pointer to a @samp{reloc_howto_struct} structure.  The
+howto structure has a bunch of fields describing the reloc, including a
+type field.  The type field is specific to the object file format
+backend; none of the generic code in BFD examines it.
+
+Originally, the function @samp{bfd_perform_relocation} was supposed to
+handle all relocations.  In theory, many relocations would be simple
+enough to be described by the fields in the howto structure.  For those
+that weren't, the howto structure included a @samp{special_function}
+field to use as an escape.
+
+While this seems plausible, a look at @samp{bfd_perform_relocation}
+shows that it failed.  The function has odd special cases.  Some of the
+fields in the howto structure, such as @samp{pcrel_offset}, were not
+adequately documented.
+
+The linker uses @samp{bfd_perform_relocation} to do all relocations when
+the input and output file have different formats (e.g., when generating
+S-records).  The generic linker code, which is used by all targets which
+do not define their own special purpose linker, uses
+@samp{bfd_get_relocated_section_contents}, which for most targets turns
+into a call to @samp{bfd_generic_get_relocated_section_contents}, which
+calls @samp{bfd_perform_relocation}.  So @samp{bfd_perform_relocation}
+is still widely used, which makes it difficult to change, since it is
+difficult to test all possible cases.
+
+The assembler used @samp{bfd_perform_relocation} for a while.  This
+turned out to be the wrong thing to do, since
+@samp{bfd_perform_relocation} was written to handle relocations on an
+existing object file, while the assembler needed to create relocations
+in a new object file.  The assembler was changed to use the new function
+@samp{bfd_install_relocation} instead, and @samp{bfd_install_relocation}
+was created as a copy of @samp{bfd_perform_relocation}.
+
+Unfortunately, the work did not progress any farther, so
+@samp{bfd_install_relocation} remains a simple copy of
+@samp{bfd_perform_relocation}, with all the odd special cases and
+confusing code.  This again is difficult to change, because again any
+change can affect any assembler target, and so is difficult to test.
+
+The new linker, when using the same object file format for all input
+files and the output file, does not convert relocations into
+@samp{arelent} structures, so it can not use
+@samp{bfd_perform_relocation} at all.  Instead, users of the new linker
+are expected to write a @samp{relocate_section} function which will
+handle relocations in a target specific fashion.
+
+There are two helper functions for target specific relocation:
+@samp{_bfd_final_link_relocate} and @samp{_bfd_relocate_contents}.
+These functions use a howto structure, but they @emph{do not} use the
+@samp{special_function} field.  Since the functions are normally called
+from target specific code, the @samp{special_function} field adds
+little; any relocations which require special handling can be handled
+without calling those functions.
+
+So, if you want to add a new target, or add a new relocation to an
+existing target, you need to do the following:
+
+@itemize @bullet
+@item
+Make sure you clearly understand what the contents of the section should
+look like after assembly, after a relocatable link, and after a final
+link.  Make sure you clearly understand the operations the linker must
+perform during a relocatable link and during a final link.
+
+@item
+Write a howto structure for the relocation.  The howto structure is
+flexible enough to represent any relocation which should be handled by
+setting a contiguous bitfield in the destination to the value of a
+symbol, possibly with an addend, possibly adding the symbol value to the
+value already present in the destination.
+
+@item
+Change the assembler to generate your relocation.  The assembler will
+call @samp{bfd_install_relocation}, so your howto structure has to be
+able to handle that.  You may need to set the @samp{special_function}
+field to handle assembly correctly.  Be careful to ensure that any code
+you write to handle the assembler will also work correctly when doing a
+relocatable link.  For example, see @samp{bfd_elf_generic_reloc}.
+
+@item
+Test the assembler.  Consider the cases of relocation against an
+undefined symbol, a common symbol, a symbol defined in the object file
+in the same section, and a symbol defined in the object file in a
+different section.  These cases may not all be applicable for your
+reloc.
+
+@item
+If your target uses the new linker, which is recommended, add any
+required handling to the target specific relocation function.  In simple
+cases this will just involve a call to @samp{_bfd_final_link_relocate}
+or @samp{_bfd_relocate_contents}, depending upon the definition of the
+relocation and whether the link is relocatable or not.
+
+@item
+Test the linker.  Test the case of a final link.  If the relocation can
+overflow, use a linker script to force an overflow and make sure the
+error is reported correctly.  Test a relocatable link, whether the
+symbol is defined or undefined in the relocatable output.  For both the
+final and relocatable link, test the case when the symbol is a common
+symbol, when the symbol looked like a common symbol but became a defined
+symbol, when the symbol is defined in a different object file, and when
+the symbol is defined in the same object file.
+
+@item
+In order for linking to another object file format, such as S-records,
+to work correctly, @samp{bfd_perform_relocation} has to do the right
+thing for the relocation.  You may need to set the
+@samp{special_function} field to handle this correctly.  Test this by
+doing a link in which the output object file format is S-records.
+
+@item
+Using the linker to generate relocatable output in a different object
+file format is impossible in the general case, so you generally don't
+have to worry about that.  The GNU linker makes sure to stop that from
+happening when an input file in a different format has relocations.
+
+Linking input files of different object file formats together is quite
+unusual, but if you're really dedicated you may want to consider testing
+this case, both when the output object file format is the same as your
+format, and when it is different.
+@end itemize
+
+@node BFD relocation codes
+@subsection BFD relocation codes
+
+BFD has another way of describing relocations besides the howto
+structures described above: the enum @samp{bfd_reloc_code_real_type}.
+
+Every known relocation type can be described as a value in this
+enumeration.  The enumeration contains many target specific relocations,
+but where two or more targets have the same relocation, a single code is
+used.  For example, the single value @samp{BFD_RELOC_32} is used for all
+simple 32 bit relocation types.
+
+The main purpose of this relocation code is to give the assembler some
+mechanism to create @samp{arelent} structures.  In order for the
+assembler to create an @samp{arelent} structure, it has to be able to
+obtain a howto structure.  The function @samp{bfd_reloc_type_lookup},
+which simply calls the target vector entry point
+@samp{reloc_type_lookup}, takes a relocation code and returns a howto
+structure.
+
+The function @samp{bfd_get_reloc_code_name} returns the name of a
+relocation code.  This is mainly used in error messages.
+
+Using both howto structures and relocation codes can be somewhat
+confusing.  There are many processor specific relocation codes.
+However, the relocation is only fully defined by the howto structure.
+The same relocation code will map to different howto structures in
+different object file formats.  For example, the addend handling may be
+different.
+
+Most of the relocation codes are not really general.  The assembler can
+not use them without already understanding what sorts of relocations can
+be used for a particular target.  It might be possible to replace the
+relocation codes with something simpler.
+
+@node BFD relocation future
+@subsection BFD relocation future
+
+Clearly the current BFD relocation support is in bad shape.  A
+wholescale rewrite would be very difficult, because it would require
+thorough testing of every BFD target.  So some sort of incremental
+change is required.
+
+My vague thoughts on this would involve defining a new, clearly defined,
+howto structure.  Some mechanism would be used to determine which type
+of howto structure was being used by a particular format.
+
+The new howto structure would clearly define the relocation behaviour in
+the case of an assembly, a relocatable link, and a final link.  At
+least one special function would be defined as an escape, and it might
+make sense to define more.
+
+One or more generic functions similar to @samp{bfd_perform_relocation}
+would be written to handle the new howto structure.
+
+This should make it possible to write a generic version of the relocate
+section functions used by the new linker.  The target specific code
+would provide some mechanism (a function pointer or an initial
+conversion) to convert target specific relocations into howto
+structures.
+
+Ideally it would be possible to use this generic relocate section
+function for the generic linker as well.  That is, it would replace the
+@samp{bfd_generic_get_relocated_section_contents} function which is
+currently normally used.
+
+For the special case of ELF dynamic linking, more consideration needs to
+be given to writing ELF specific but ELF target generic code to handle
+special relocation types such as GOT and PLT.
+
+@node BFD ELF support
+@section BFD ELF support
+@cindex elf support in bfd
+@cindex bfd elf support
+
+The ELF object file format is defined in two parts: a generic ABI and a
+processor specific supplement.  The ELF support in BFD is split in a
+similar fashion.  The processor specific support is largely kept within
+a single file.  The generic support is provided by several other files.
+The processor specific support provides a set of function pointers and
+constants used by the generic support.
+
+@menu
+* BFD ELF sections and segments::	ELF sections and segments
+* BFD ELF generic support::		BFD ELF generic support
+* BFD ELF processor specific support::	BFD ELF processor specific support
+* BFD ELF core files::			BFD ELF core files
+* BFD ELF future::			BFD ELF future
+@end menu
+
+@node BFD ELF sections and segments
+@subsection ELF sections and segments
+
+The ELF ABI permits a file to have either sections or segments or both.
+Relocatable object files conventionally have only sections.
+Executables conventionally have both.  Core files conventionally have
+only program segments.
+
+ELF sections are similar to sections in other object file formats: they
+have a name, a VMA, file contents, flags, and other miscellaneous
+information.  ELF relocations are stored in sections of a particular
+type; BFD automatically converts these sections into internal relocation
+information.
+
+ELF program segments are intended for fast interpretation by a system
+loader.  They have a type, a VMA, an LMA, file contents, and a couple of
+other fields.  When an ELF executable is run on a Unix system, the
+system loader will examine the program segments to decide how to load
+it.  The loader will ignore the section information.  Loadable program
+segments (type @samp{PT_LOAD}) are directly loaded into memory.  Other
+program segments are interpreted by the loader, and generally provide
+dynamic linking information.
+
+When an ELF file has both program segments and sections, an ELF program
+segment may encompass one or more ELF sections, in the sense that the
+portion of the file which corresponds to the program segment may include
+the portions of the file corresponding to one or more sections.  When
+there is more than one section in a loadable program segment, the
+relative positions of the section contents in the file must correspond
+to the relative positions they should hold when the program segment is
+loaded.  This requirement should be obvious if you consider that the
+system loader will load an entire program segment at a time.
+
+On a system which supports dynamic paging, such as any native Unix
+system, the contents of a loadable program segment must be at the same
+offset in the file as in memory, modulo the memory page size used on the
+system.  This is because the system loader will map the file into memory
+starting at the start of a page.  The system loader can easily remap
+entire pages to the correct load address.  However, if the contents of
+the file were not correctly aligned within the page, the system loader
+would have to shift the contents around within the page, which is too
+expensive.  For example, if the LMA of a loadable program segment is
+@samp{0x40080} and the page size is @samp{0x1000}, then the position of
+the segment contents within the file must equal @samp{0x80} modulo
+@samp{0x1000}.
+
+BFD has only a single set of sections.  It does not provide any generic
+way to examine both sections and segments.  When BFD is used to open an
+object file or executable, the BFD sections will represent ELF sections.
+When BFD is used to open a core file, the BFD sections will represent
+ELF program segments.
+
+When BFD is used to examine an object file or executable, any program
+segments will be read to set the LMA of the sections.  This is because
+ELF sections only have a VMA, while ELF program segments have both a VMA
+and an LMA.  Any program segments will be copied by the
+@samp{copy_private} entry points.  They will be printed by the
+@samp{print_private} entry point.  Otherwise, the program segments are
+ignored.  In particular, programs which use BFD currently have no direct
+access to the program segments.
+
+When BFD is used to create an executable, the program segments will be
+created automatically based on the section information.  This is done in
+the function @samp{assign_file_positions_for_segments} in @file{elf.c}.
+This function has been tweaked many times, and probably still has
+problems that arise in particular cases.
+
+There is a hook which may be used to explicitly define the program
+segments when creating an executable: the @samp{bfd_record_phdr}
+function in @file{bfd.c}.  If this function is called, BFD will not
+create program segments itself, but will only create the program
+segments specified by the caller.  The linker uses this function to
+implement the @samp{PHDRS} linker script command.
+
+@node BFD ELF generic support
+@subsection BFD ELF generic support
+
+In general, functions which do not read external data from the ELF file
+are found in @file{elf.c}.  They operate on the internal forms of the
+ELF structures, which are defined in @file{include/elf/internal.h}.  The
+internal structures are defined in terms of @samp{bfd_vma}, and so may
+be used for both 32 bit and 64 bit ELF targets.
+
+The file @file{elfcode.h} contains functions which operate on the
+external data.  @file{elfcode.h} is compiled twice, once via
+@file{elf32.c} with @samp{ARCH_SIZE} defined as @samp{32}, and once via
+@file{elf64.c} with @samp{ARCH_SIZE} defined as @samp{64}.
+@file{elfcode.h} includes functions to swap the ELF structures in and
+out of external form, as well as a few more complex functions.
+
+Linker support is found in @file{elflink.c}.  The
+linker support is only used if the processor specific file defines
+@samp{elf_backend_relocate_section}, which is required to relocate the
+section contents.  If that macro is not defined, the generic linker code
+is used, and relocations are handled via @samp{bfd_perform_relocation}.
+
+The core file support is in @file{elfcore.h}, which is compiled twice,
+for both 32 and 64 bit support.  The more interesting cases of core file
+support only work on a native system which has the @file{sys/procfs.h}
+header file.  Without that file, the core file support does little more
+than read the ELF program segments as BFD sections.
+
+The BFD internal header file @file{elf-bfd.h} is used for communication
+among these files and the processor specific files.
+
+The default entries for the BFD ELF target vector are found mainly in
+@file{elf.c}.  Some functions are found in @file{elfcode.h}.
+
+The processor specific files may override particular entries in the
+target vector, but most do not, with one exception: the
+@samp{bfd_reloc_type_lookup} entry point is always processor specific.
+
+@node BFD ELF processor specific support
+@subsection BFD ELF processor specific support
+
+By convention, the processor specific support for a particular processor
+will be found in @file{elf@var{nn}-@var{cpu}.c}, where @var{nn} is
+either 32 or 64, and @var{cpu} is the name of the processor.
+
+@menu
+* BFD ELF processor required::	Required processor specific support
+* BFD ELF processor linker::	Processor specific linker support
+* BFD ELF processor other::	Other processor specific support options
+@end menu
+
+@node BFD ELF processor required
+@subsubsection Required processor specific support
+
+When writing a @file{elf@var{nn}-@var{cpu}.c} file, you must do the
+following:
+
+@itemize @bullet
+@item
+Define either @samp{TARGET_BIG_SYM} or @samp{TARGET_LITTLE_SYM}, or
+both, to a unique C name to use for the target vector.  This name should
+appear in the list of target vectors in @file{targets.c}, and will also
+have to appear in @file{config.bfd} and @file{configure.in}.  Define
+@samp{TARGET_BIG_SYM} for a big-endian processor,
+@samp{TARGET_LITTLE_SYM} for a little-endian processor, and define both
+for a bi-endian processor.
+@item
+Define either @samp{TARGET_BIG_NAME} or @samp{TARGET_LITTLE_NAME}, or
+both, to a string used as the name of the target vector.  This is the
+name which a user of the BFD tool would use to specify the object file
+format.  It would normally appear in a linker emulation parameters
+file.
+@item
+Define @samp{ELF_ARCH} to the BFD architecture (an element of the
+@samp{bfd_architecture} enum, typically @samp{bfd_arch_@var{cpu}}).
+@item
+Define @samp{ELF_MACHINE_CODE} to the magic number which should appear
+in the @samp{e_machine} field of the ELF header.  As of this writing,
+these magic numbers are assigned by Caldera; if you want to get a magic
+number for a particular processor, try sending a note to
+@email{registry@@caldera.com}.  In the BFD sources, the magic numbers are
+found in @file{include/elf/common.h}; they have names beginning with
+@samp{EM_}.
+@item
+Define @samp{ELF_MAXPAGESIZE} to the maximum size of a virtual page in
+memory.  This can normally be found at the start of chapter 5 in the
+processor specific supplement.  For a processor which will only be used
+in an embedded system, or which has no memory management hardware, this
+can simply be @samp{1}.
+@item
+If the format should use @samp{Rel} rather than @samp{Rela} relocations,
+define @samp{USE_REL}.  This is normally defined in chapter 4 of the
+processor specific supplement.
+
+In the absence of a supplement, it's easier to work with @samp{Rela}
+relocations.  @samp{Rela} relocations will require more space in object
+files (but not in executables, except when using dynamic linking).
+However, this is outweighed by the simplicity of addend handling when
+using @samp{Rela} relocations.  With @samp{Rel} relocations, the addend
+must be stored in the section contents, which makes relocatable links
+more complex.
+
+For example, consider C code like @code{i = a[1000];} where @samp{a} is
+a global array.  The instructions which load the value of @samp{a[1000]}
+will most likely use a relocation which refers to the symbol
+representing @samp{a}, with an addend that gives the offset from the
+start of @samp{a} to element @samp{1000}.  When using @samp{Rel}
+relocations, that addend must be stored in the instructions themselves.
+If you are adding support for a RISC chip which uses two or more
+instructions to load an address, then the addend may not fit in a single
+instruction, and will have to be somehow split among the instructions.
+This makes linking awkward, particularly when doing a relocatable link
+in which the addend may have to be updated.  It can be done---the MIPS
+ELF support does it---but it should be avoided when possible.
+
+It is possible, though somewhat awkward, to support both @samp{Rel} and
+@samp{Rela} relocations for a single target; @file{elf64-mips.c} does it
+by overriding the relocation reading and writing routines.
+@item
+Define howto structures for all the relocation types.
+@item
+Define a @samp{bfd_reloc_type_lookup} routine.  This must be named
+@samp{bfd_elf@var{nn}_bfd_reloc_type_lookup}, and may be either a
+function or a macro.  It must translate a BFD relocation code into a
+howto structure.  This is normally a table lookup or a simple switch.
+@item
+If using @samp{Rel} relocations, define @samp{elf_info_to_howto_rel}.
+If using @samp{Rela} relocations, define @samp{elf_info_to_howto}.
+Either way, this is a macro defined as the name of a function which
+takes an @samp{arelent} and a @samp{Rel} or @samp{Rela} structure, and
+sets the @samp{howto} field of the @samp{arelent} based on the
+@samp{Rel} or @samp{Rela} structure.  This is normally uses
+@samp{ELF@var{nn}_R_TYPE} to get the ELF relocation type and uses it as
+an index into a table of howto structures.
+@end itemize
+
+You must also add the magic number for this processor to the
+@samp{prep_headers} function in @file{elf.c}.
+
+You must also create a header file in the @file{include/elf} directory
+called @file{@var{cpu}.h}.  This file should define any target specific 
+information which may be needed outside of the BFD code.  In particular
+it should use the @samp{START_RELOC_NUMBERS}, @samp{RELOC_NUMBER},
+@samp{FAKE_RELOC}, @samp{EMPTY_RELOC} and @samp{END_RELOC_NUMBERS}
+macros to create a table mapping the number used to identify a
+relocation to a name describing that relocation.
+
+While not a BFD component, you probably also want to make the binutils
+program @samp{readelf} parse your ELF objects.  For this, you need to add
+code for @code{EM_@var{cpu}} as appropriate in @file{binutils/readelf.c}.
+
+@node BFD ELF processor linker
+@subsubsection Processor specific linker support
+
+The linker will be much more efficient if you define a relocate section
+function.  This will permit BFD to use the ELF specific linker support.
+
+If you do not define a relocate section function, BFD must use the
+generic linker support, which requires converting all symbols and
+relocations into BFD @samp{asymbol} and @samp{arelent} structures.  In
+this case, relocations will be handled by calling
+@samp{bfd_perform_relocation}, which will use the howto structures you
+have defined.  @xref{BFD relocation handling}.
+
+In order to support linking into a different object file format, such as
+S-records, @samp{bfd_perform_relocation} must work correctly with your
+howto structures, so you can't skip that step.  However, if you define
+the relocate section function, then in the normal case of linking into
+an ELF file the linker will not need to convert symbols and relocations,
+and will be much more efficient.
+
+To use a relocation section function, define the macro
+@samp{elf_backend_relocate_section} as the name of a function which will
+take the contents of a section, as well as relocation, symbol, and other
+information, and modify the section contents according to the relocation
+information.  In simple cases, this is little more than a loop over the
+relocations which computes the value of each relocation and calls
+@samp{_bfd_final_link_relocate}.  The function must check for a
+relocatable link, and in that case normally needs to do nothing other
+than adjust the addend for relocations against a section symbol.
+
+The complex cases generally have to do with dynamic linker support.  GOT
+and PLT relocations must be handled specially, and the linker normally
+arranges to set up the GOT and PLT sections while handling relocations.
+When generating a shared library, random relocations must normally be
+copied into the shared library, or converted to RELATIVE relocations
+when possible.
+
+@node BFD ELF processor other
+@subsubsection Other processor specific support options
+
+There are many other macros which may be defined in
+@file{elf@var{nn}-@var{cpu}.c}.  These macros may be found in
+@file{elfxx-target.h}.
+
+Macros may be used to override some of the generic ELF target vector
+functions.
+
+Several processor specific hook functions which may be defined as
+macros.  These functions are found as function pointers in the
+@samp{elf_backend_data} structure defined in @file{elf-bfd.h}.  In
+general, a hook function is set by defining a macro
+@samp{elf_backend_@var{name}}.
+
+There are a few processor specific constants which may also be defined.
+These are again found in the @samp{elf_backend_data} structure.
+
+I will not define the various functions and constants here; see the
+comments in @file{elf-bfd.h}.
+
+Normally any odd characteristic of a particular ELF processor is handled
+via a hook function.  For example, the special @samp{SHN_MIPS_SCOMMON}
+section number found in MIPS ELF is handled via the hooks
+@samp{section_from_bfd_section}, @samp{symbol_processing},
+@samp{add_symbol_hook}, and @samp{output_symbol_hook}.
+
+Dynamic linking support, which involves processor specific relocations
+requiring special handling, is also implemented via hook functions.
+
+@node BFD ELF core files
+@subsection BFD ELF core files
+@cindex elf core files
+
+On native ELF Unix systems, core files are generated without any
+sections.  Instead, they only have program segments.
+
+When BFD is used to read an ELF core file, the BFD sections will
+actually represent program segments.  Since ELF program segments do not
+have names, BFD will invent names like @samp{segment@var{n}} where
+@var{n} is a number.
+
+A single ELF program segment may include both an initialized part and an
+uninitialized part.  The size of the initialized part is given by the
+@samp{p_filesz} field.  The total size of the segment is given by the
+@samp{p_memsz} field.  If @samp{p_memsz} is larger than @samp{p_filesz},
+then the extra space is uninitialized, or, more precisely, initialized
+to zero.
+
+BFD will represent such a program segment as two different sections.
+The first, named @samp{segment@var{n}a}, will represent the initialized
+part of the program segment.  The second, named @samp{segment@var{n}b},
+will represent the uninitialized part.
+
+ELF core files store special information such as register values in
+program segments with the type @samp{PT_NOTE}.  BFD will attempt to
+interpret the information in these segments, and will create additional
+sections holding the information.  Some of this interpretation requires
+information found in the host header file @file{sys/procfs.h}, and so
+will only work when BFD is built on a native system.
+
+BFD does not currently provide any way to create an ELF core file.  In
+general, BFD does not provide a way to create core files.  The way to
+implement this would be to write @samp{bfd_set_format} and
+@samp{bfd_write_contents} routines for the @samp{bfd_core} type; see
+@ref{BFD target vector format}.
+
+@node BFD ELF future
+@subsection BFD ELF future
+
+The current dynamic linking support has too much code duplication.
+While each processor has particular differences, much of the dynamic
+linking support is quite similar for each processor.  The GOT and PLT
+are handled in fairly similar ways, the details of -Bsymbolic linking
+are generally similar, etc.  This code should be reworked to use more
+generic functions, eliminating the duplication.
+
+Similarly, the relocation handling has too much duplication.  Many of
+the @samp{reloc_type_lookup} and @samp{info_to_howto} functions are
+quite similar.  The relocate section functions are also often quite
+similar, both in the standard linker handling and the dynamic linker
+handling.  Many of the COFF processor specific backends share a single
+relocate section function (@samp{_bfd_coff_generic_relocate_section}),
+and it should be possible to do something like this for the ELF targets
+as well.
+
+The appearance of the processor specific magic number in
+@samp{prep_headers} in @file{elf.c} is somewhat bogus.  It should be
+possible to add support for a new processor without changing the generic
+support.
+
+The processor function hooks and constants are ad hoc and need better
+documentation.
+
+@node BFD glossary
+@section BFD glossary
+@cindex glossary for bfd
+@cindex bfd glossary
+
+This is a short glossary of some BFD terms.
+
+@table @asis
+@item a.out
+The a.out object file format.  The original Unix object file format.
+Still used on SunOS, though not Solaris.  Supports only three sections.
+
+@item archive
+A collection of object files produced and manipulated by the @samp{ar}
+program.
+
+@item backend
+The implementation within BFD of a particular object file format.  The
+set of functions which appear in a particular target vector.
+
+@item BFD
+The BFD library itself.  Also, each object file, archive, or executable
+opened by the BFD library has the type @samp{bfd *}, and is sometimes
+referred to as a bfd.
+
+@item COFF
+The Common Object File Format.  Used on Unix SVR3.  Used by some
+embedded targets, although ELF is normally better.
+
+@item DLL
+A shared library on Windows.
+
+@item dynamic linker
+When a program linked against a shared library is run, the dynamic
+linker will locate the appropriate shared library and arrange to somehow
+include it in the running image.
+
+@item dynamic object
+Another name for an ELF shared library.
+
+@item ECOFF
+The Extended Common Object File Format.  Used on Alpha Digital Unix
+(formerly OSF/1), as well as Ultrix and Irix 4.  A variant of COFF.
+
+@item ELF
+The Executable and Linking Format.  The object file format used on most
+modern Unix systems, including GNU/Linux, Solaris, Irix, and SVR4.  Also
+used on many embedded systems.
+
+@item executable
+A program, with instructions and symbols, and perhaps dynamic linking
+information.  Normally produced by a linker.
+
+@item LMA
+Load Memory Address.  This is the address at which a section will be
+loaded.  Compare with VMA, below.
+
+@item NLM
+NetWare Loadable Module.  Used to describe the format of an object which
+be loaded into NetWare, which is some kind of PC based network server
+program.
+
+@item object file
+A binary file including machine instructions, symbols, and relocation
+information.  Normally produced by an assembler.
+
+@item object file format
+The format of an object file.  Typically object files and executables
+for a particular system are in the same format, although executables
+will not contain any relocation information.
+
+@item PE
+The Portable Executable format.  This is the object file format used for
+Windows (specifically, Win32) object files.  It is based closely on
+COFF, but has a few significant differences.
+
+@item PEI
+The Portable Executable Image format.  This is the object file format
+used for Windows (specifically, Win32) executables.  It is very similar
+to PE, but includes some additional header information.
+
+@item relocations
+Information used by the linker to adjust section contents.  Also called
+relocs.
+
+@item section
+Object files and executable are composed of sections.  Sections have
+optional data and optional relocation information.
+
+@item shared library
+A library of functions which may be used by many executables without
+actually being linked into each executable.  There are several different
+implementations of shared libraries, each having slightly different
+features.
+
+@item symbol
+Each object file and executable may have a list of symbols, often
+referred to as the symbol table.  A symbol is basically a name and an
+address.  There may also be some additional information like the type of
+symbol, although the type of a symbol is normally something simple like
+function or object, and should be confused with the more complex C
+notion of type.  Typically every global function and variable in a C
+program will have an associated symbol.
+
+@item target vector
+A set of functions which implement support for a particular object file
+format.  The @samp{bfd_target} structure.
+
+@item Win32
+The current Windows API, implemented by Windows 95 and later and Windows
+NT 3.51 and later, but not by Windows 3.1.
+
+@item XCOFF
+The eXtended Common Object File Format.  Used on AIX.  A variant of
+COFF, with a completely different symbol table implementation.
+
+@item VMA
+Virtual Memory Address.  This is the address a section will have when
+an executable is run.  Compare with LMA, above.
+@end table
+
+@node Index
+@unnumberedsec Index
+@printindex cp
+
+@contents
+@bye

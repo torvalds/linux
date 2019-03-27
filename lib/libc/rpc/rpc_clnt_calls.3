@@ -1,0 +1,316 @@
+.\" @(#)rpc_clnt_calls.3n 1.30 93/08/31 SMI; from SVr4
+.\" Copyright 1989 AT&T
+.\" @(#)rpc_clnt_calls 1.4 89/07/20 SMI;
+.\" Copyright (c) 1988 Sun Microsystems, Inc. - All Rights Reserved.
+.\" $FreeBSD$
+.Dd May 7, 1993
+.Dt RPC_CLNT_CALLS 3
+.Os
+.Sh NAME
+.Nm rpc_clnt_calls ,
+.Nm clnt_call ,
+.Nm clnt_freeres ,
+.Nm clnt_geterr ,
+.Nm clnt_perrno ,
+.Nm clnt_perror ,
+.Nm clnt_sperrno ,
+.Nm clnt_sperror ,
+.Nm rpc_broadcast ,
+.Nm rpc_broadcast_exp ,
+.Nm rpc_call
+.Nd library routines for client side calls
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In rpc/rpc.h
+.Ft "enum clnt_stat"
+.Fn clnt_call "CLIENT *clnt" "const rpcproc_t procnum" "const xdrproc_t inproc" "const caddr_t in" "const xdrproc_t outproc" "caddr_t out" "const struct timeval tout"
+.Ft bool_t
+.Fn clnt_freeres "CLIENT *clnt" "const xdrproc_t outproc" "caddr_t out"
+.Ft void
+.Fn clnt_geterr "const CLIENT * clnt" "struct rpc_err * errp"
+.Ft void
+.Fn clnt_perrno "const enum clnt_stat stat"
+.Ft void
+.Fn clnt_perror "CLIENT *clnt" "const char *s"
+.Ft "char *"
+.Fn clnt_sperrno "const enum clnt_stat stat"
+.Ft "char *"
+.Fn clnt_sperror "CLIENT *clnt" "const char * s"
+.Ft "enum clnt_stat"
+.Fo rpc_broadcast
+.Fa "const rpcprog_t prognum" "const rpcvers_t versnum"
+.Fa "const rpcproc_t procnum" "const xdrproc_t inproc"
+.Fa "const caddr_t in" "const xdrproc_t outproc" "caddr_t out"
+.Fa "const resultproc_t eachresult" "const char *nettype"
+.Fc
+.Ft "enum clnt_stat"
+.Fo rpc_broadcast_exp
+.Fa "const rpcprog_t prognum" "const rpcvers_t versnum"
+.Fa "const rpcproc_t procnum" "const xdrproc_t xargs"
+.Fa "caddr_t argsp" "const xdrproc_t xresults"
+.Fa "caddr_t resultsp" "const resultproc_t eachresult"
+.Fa "const int inittime" "const int waittime"
+.Fa "const char * nettype"
+.Fc
+.Ft "enum clnt_stat"
+.Fo rpc_call
+.Fa "const char *host" "const rpcprog_t prognum"
+.Fa "const rpcvers_t versnum" "const rpcproc_t procnum"
+.Fa "const xdrproc_t inproc" "const char *in"
+.Fa "const xdrproc_t outproc" "char *out" "const char *nettype"
+.Fc
+.Sh DESCRIPTION
+RPC library routines allow C language programs to make procedure
+calls on other machines across the network.
+First, the client calls a procedure to send a request to the server.
+Upon receipt of the request, the server calls a dispatch routine
+to perform the requested service, and then sends back a reply.
+.Pp
+The
+.Fn clnt_call ,
+.Fn rpc_call ,
+and
+.Fn rpc_broadcast
+routines handle the client side of the procedure call.
+The remaining routines deal with error handling in the case of errors.
+.Pp
+Some of the routines take a
+.Vt CLIENT
+handle as one of the arguments.
+A
+.Vt CLIENT
+handle can be created by an RPC creation routine such as
+.Fn clnt_create
+(see
+.Xr rpc_clnt_create 3 ) .
+.Pp
+These routines are safe for use in multithreaded applications.
+.Vt CLIENT
+handles can be shared between threads, however in this implementation
+requests by different threads are serialized (that is, the first request will
+receive its results before the second request is sent).
+.Sh Routines
+See
+.Xr rpc 3
+for the definition of the
+.Vt CLIENT
+data structure.
+.Bl -tag -width XXXXX
+.It Fn clnt_call
+A function macro that calls the remote procedure
+.Fa procnum
+associated with the client handle,
+.Fa clnt ,
+which is obtained with an RPC
+client creation routine such as
+.Fn clnt_create
+(see
+.Xr rpc_clnt_create 3 ) .
+The
+.Fa inproc
+argument
+is the XDR function used to encode the procedure's arguments, and
+.Fa outproc
+is the XDR function used to decode the procedure's results;
+.Fa in
+is the address of the procedure's argument(s), and
+.Fa out
+is the address of where to place the result(s).
+The
+.Fa tout
+argument
+is the time allowed for results to be returned, which is overridden by
+a time-out set explicitly through
+.Fn clnt_control ,
+see
+.Xr rpc_clnt_create 3 .
+If the remote call succeeds, the status returned is
+.Dv RPC_SUCCESS ,
+otherwise an appropriate status is returned.
+.It Fn clnt_freeres
+A function macro that frees any data allocated by the
+RPC/XDR system when it decoded the results of an RPC call.
+The
+.Fa out
+argument
+is the address of the results, and
+.Fa outproc
+is the XDR routine describing the results.
+This routine returns 1 if the results were successfully freed,
+and 0 otherwise.
+.It Fn clnt_geterr
+A function macro that copies the error structure out of the client
+handle to the structure at address
+.Fa errp .
+.It Fn clnt_perrno
+Print a message to standard error corresponding
+to the condition indicated by
+.Fa stat .
+A newline is appended.
+Normally used after a procedure call fails for a routine
+for which a client handle is not needed, for instance
+.Fn rpc_call .
+.It Fn clnt_perror
+Print a message to the standard error indicating why an
+RPC call failed;
+.Fa clnt
+is the handle used to do the call.
+The message is prepended with string
+.Fa s
+and a colon.
+A newline is appended.
+Normally used after a remote procedure call fails
+for a routine which requires a client handle,
+for instance
+.Fn clnt_call .
+.It Fn clnt_sperrno
+Take the same arguments as
+.Fn clnt_perrno ,
+but instead of sending a message to the standard error
+indicating why an RPC
+call failed, return a pointer to a string which contains the message.
+The
+.Fn clnt_sperrno
+function
+is normally used instead of
+.Fn clnt_perrno
+when the program does not have a standard error (as a program
+running as a server quite likely does not), or if the programmer
+does not want the message to be output with
+.Fn printf
+(see
+.Xr printf 3 ) ,
+or if a message format different than that supported by
+.Fn clnt_perrno
+is to be used.
+Note:
+unlike
+.Fn clnt_sperror
+and
+.Fn clnt_spcreateerror
+(see
+.Xr rpc_clnt_create 3 ) ,
+.Fn clnt_sperrno
+does not return pointer to static data so the
+result will not get overwritten on each call.
+.It Fn clnt_sperror
+Like
+.Fn clnt_perror ,
+except that (like
+.Fn clnt_sperrno )
+it returns a string instead of printing to standard error.
+However,
+.Fn clnt_sperror
+does not append a newline at the end of the message.
+Warning:
+returns pointer to a buffer that is overwritten
+on each call.
+.It Fn rpc_broadcast
+Like
+.Fn rpc_call ,
+except the call message is broadcast to
+all the connectionless transports specified by
+.Fa nettype .
+If
+.Fa nettype
+is
+.Dv NULL ,
+it defaults to
+.Qq netpath .
+Each time it receives a response,
+this routine calls
+.Fn eachresult ,
+whose form is:
+.Ft bool_t
+.Fn eachresult "caddr_t out" "const struct netbuf * addr" "const struct netconfig * netconf"
+where
+.Fa out
+is the same as
+.Fa out
+passed to
+.Fn rpc_broadcast ,
+except that the remote procedure's output is decoded there;
+.Fa addr
+points to the address of the machine that sent the results, and
+.Fa netconf
+is the netconfig structure of the transport on which the remote
+server responded.
+If
+.Fn eachresult
+returns 0,
+.Fn rpc_broadcast
+waits for more replies;
+otherwise it returns with appropriate status.
+Warning:
+broadcast file descriptors are limited in size to the
+maximum transfer size of that transport.
+For Ethernet, this value is 1500 bytes.
+The
+.Fn rpc_broadcast
+function
+uses
+.Dv AUTH_SYS
+credentials by default (see
+.Xr rpc_clnt_auth 3 ) .
+.It Fn rpc_broadcast_exp
+Like
+.Fn rpc_broadcast ,
+except that the initial timeout,
+.Fa inittime
+and the maximum timeout,
+.Fa waittime
+are specified in milliseconds.
+The
+.Fa inittime
+argument
+is the initial time that
+.Fn rpc_broadcast_exp
+waits before resending the request.
+After the first resend, the re-transmission interval
+increases exponentially until it exceeds
+.Fa waittime .
+.It Fn rpc_call
+Call the remote procedure associated with
+.Fa prognum ,
+.Fa versnum ,
+and
+.Fa procnum
+on the machine,
+.Fa host .
+The
+.Fa inproc
+argument
+is used to encode the procedure's arguments, and
+.Fa outproc
+is used to decode the procedure's results;
+.Fa in
+is the address of the procedure's argument(s), and
+.Fa out
+is the address of where to place the result(s).
+The
+.Fa nettype
+argument
+can be any of the values listed on
+.Xr rpc 3 .
+This routine returns
+.Dv RPC_SUCCESS
+if it succeeds,
+or an appropriate status is returned.
+Use the
+.Fn clnt_perrno
+routine to translate failure status into error messages.
+Warning:
+.Fn rpc_call
+uses the first available transport belonging
+to the class
+.Fa nettype ,
+on which it can create a connection.
+You do not have control of timeouts or authentication
+using this routine.
+.El
+.Sh SEE ALSO
+.Xr printf 3 ,
+.Xr rpc 3 ,
+.Xr rpc_clnt_auth 3 ,
+.Xr rpc_clnt_create 3

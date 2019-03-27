@@ -1,0 +1,27 @@
+LIBRARY			LIBBZ2
+DESCRIPTION		"libbzip2: library for data compression"
+EXPORTS
+	BZ2_bzCompressInit
+	BZ2_bzCompress
+	BZ2_bzCompressEnd
+	BZ2_bzDecompressInit
+	BZ2_bzDecompress
+	BZ2_bzDecompressEnd
+	BZ2_bzReadOpen
+	BZ2_bzReadClose
+	BZ2_bzReadGetUnused
+	BZ2_bzRead
+	BZ2_bzWriteOpen
+	BZ2_bzWrite
+	BZ2_bzWriteClose
+	BZ2_bzWriteClose64
+	BZ2_bzBuffToBuffCompress
+	BZ2_bzBuffToBuffDecompress
+	BZ2_bzlibVersion
+	BZ2_bzopen
+	BZ2_bzdopen
+	BZ2_bzread
+	BZ2_bzwrite
+	BZ2_bzflush
+	BZ2_bzclose
+	BZ2_bzerror

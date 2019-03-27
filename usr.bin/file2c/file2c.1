@@ -1,0 +1,75 @@
+.\"----------------------------------------------------------------------------
+.\" "THE BEER-WARE LICENSE" (Revision 42):
+.\" <phk@FreeBSD.org> wrote this file.  As long as you retain this notice, you
+.\" can do whatever you want with this file. If we meet some day, and you think
+.\" this stuff is worth it, you can buy me a beer in return.  Poul-Henning Kamp
+.\" ---------------------------------------------------------------------------
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 22, 2007
+.Dt FILE2C 1
+.Os
+.Sh NAME
+.Nm file2c
+.Nd convert file to c-source
+.Sh SYNOPSIS
+.Nm
+.Op Fl sx
+.Op Fl n Ar count
+.Op Ar prefix Op Ar suffix
+.Sh DESCRIPTION
+The
+.Nm
+utility reads a file from stdin and writes it to stdout, converting each
+byte to its decimal or hexadecimal representation on the fly.
+The byte values are separated by a comma.
+This also means that the last byte value is not followed by a comma.
+By default the byte values are printed in decimal, but when the
+.Fl x
+option is given, the values will be printed in hexadecimal.
+When
+.Fl s
+option is given, each line is printed with a leading tab and each comma is
+followed by a space except for the last one on the line.
+.Pp
+If more than 70 characters are printed on the same line, that line is
+ended and the output continues on the next line.
+With the
+.Fl n
+option this can be made to happen after the specified number of
+byte values have been printed.
+The length of the line will not be considered anymore.
+To have all the byte values printed on the same line, give the
+.Fl n
+option a negative number.
+.Pp
+A prefix and suffix strings can be printed before and after the byte values
+(resp.)
+If a suffix is to be printed, a prefix must also be specified.
+The first non-option word is the prefix, which may optionally be followed
+by a word that is to be used as the suffix.
+.Pp
+This program is typically used to embed binary files into C source files.
+The prefix is used to define an array type and the suffix is used to end
+the C statement.
+The
+.Fl n , s
+and
+.Fl x
+options are useful when the binary data represents a bitmap and the output
+needs to remain readable and/or editable.
+Fonts, for example, are a good example of this.
+.Sh EXAMPLES
+The command:
+.Bd -literal -offset indent
+date | file2c 'const char date[] = {' ',0};'
+.Ed
+.Pp
+will produce:
+.Bd -literal -offset indent
+const char date[] = {
+83,97,116,32,74,97,110,32,50,56,32,49,54,58,50,56,58,48,53,
+32,80,83,84,32,49,57,57,53,10
+,0};
+.Ed

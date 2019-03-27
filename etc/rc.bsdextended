@@ -1,0 +1,138 @@
+#!/bin/sh
+#
+# Copyright (c) 2004  Tom Rhodes
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+####
+# Sample startup policy for the mac_bsdextended(4) security module.
+#
+# Suck in the system configuration variables.
+####
+if [ -z "${source_rc_confs_defined}" ]; then
+        if [ -r /etc/defaults/rc.conf ]; then
+                . /etc/defaults/rc.conf
+                source_rc_confs
+        elif [ -r /etc/rc.conf ]; then
+                . /etc/rc.conf
+        fi
+fi
+
+####
+# Set ugidfw(8) to CMD:
+####
+CMD=/usr/sbin/ugidfw
+
+####
+# WARNING: recommended reading is the handbook's MAC
+# chapter and the ugidfw(8) manual page.  You can
+# lock yourself out of the system very quickly by setting
+# incorrect values here.  These are only examples.
+####
+
+####
+# Build a generic list of rules here, these should be
+# modified before using this script.
+#
+# For apache to read user files, the ruleadd must give
+# it permissions by default.
+####
+#${CMD} add subject uid 80 object not uid 80 mode rxws;
+#${CMD} add subject gid 80 object not gid 80 mode rxws;
+
+####
+# majordomo compat:
+#${CMD} add subject uid 54 object not uid 54 mode rxws;
+#${CMD} add subject gid 26 object gid 54 mode rxws;
+
+####
+# This is for root:
+${CMD} add subject uid 0 object not uid 0 mode arxws;
+${CMD} add subject gid 0 object not gid 0 mode arxws;
+
+####
+# And for majordomo:
+#${CMD} add subject uid 54 object not uid 54 mode rxws;
+#${CMD} add subject gid 54 object not gid 54 mode rxws;
+
+####
+# And for bin:
+${CMD} add subject uid 3 object not uid 3 mode rxws;
+${CMD} add subject gid 7 object not gid 7 mode rxws;
+
+####
+# And for mail/pop:
+#${CMD} add subject uid 68 object not uid 68 mode rxws;
+#${CMD} add subject gid 6 object not gid 6 mode arxws;
+
+####
+# And for smmsp:
+${CMD} add subject uid 25 object not uid 25 mode rxws;
+${CMD} add subject gid 25 object not gid 25 mode rxws;
+
+####
+# And for mailnull:
+${CMD} add subject uid 26 object not uid 26 mode rxws;
+${CMD} add subject gid 26 object not gid 26 mode rxws;
+
+####
+# For cyrus:
+#${CMD} add subject uid 60 object not uid 60 mode rxws;
+#${CMD} add subject gid 60 object not gid 60 mode rxws;
+
+####
+# For stunnel:
+#${CMD} add subject uid 1018 object not uid 1018 mode rxws;
+#${CMD} add subject gid 1018 object not gid 1018 mode rxws;
+
+####
+# For the nobody account:
+${CMD} add subject uid 65534 object not uid 65534 mode rxws;
+${CMD} add subject gid 65534 object not gid 65534 mode rxws;
+
+####
+# NOTICE: The next script adds a rule to allow
+#	 access their mailbox which is owned by GID `6'.
+#	 Removing this will give mailbox lock issues.
+for x in `awk -F: '($3 >= 1001) && ($3 != 65534) { print $1 }' /etc/passwd`;
+    do ${CMD} add subject uid $x object gid 6 mode arwxs;
+done;
+
+####
+# Use some script to get a list of users and
+# add all users to mode n for all other users.  This
+# will isolate all users from other user home directories while
+# permitting them to use commands and browse the system.
+for x in `awk -F: '($3 >= 1001) && ($3 != 65534) { print $1 }' /etc/passwd`;
+    do ${CMD} add subject not uid $x object uid $x mode n;
+done;
+
+###
+# Do the same thing but only for group ids in place of
+# user IDs.
+for x in `awk -F: '($3 >= 1001) && ($3 != 65534) { print $3 }' /etc/passwd`;
+    do ${CMD} add subject not gid $x object uid $x mode n;
+done;

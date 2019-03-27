@@ -1,0 +1,47 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 22, 1994
+.Dt FBTAB 5
+.Os
+.Sh NAME
+.Nm fbtab
+.Nd change device protection upon login
+.Sh DESCRIPTION
+The
+.Nm
+file contains a number of lines specifying a device together with a list
+of devices with associated protections.
+Comments start with a
+.Ql #
+and extend to the end of the line.
+.Pp
+Blank lines or lines with only a comment are ignored.
+.Pp
+All other lines consist of three fields delimited by
+whitespace: a login device
+.Pq Pa /dev/ttyv0 ,
+an octal permission number (0600), and a colon
+.Pq Ql \&:
+delimited list of device patterns
+.Pq Pa /dev/console , /dev/dsp* .
+All device patterns are absolute paths.
+.Pp
+If the tty argument (relative path) matches a login device
+name (absolute path), the permissions of the devices in the
+colon-delimited list are set as specified in the second
+field, and their ownership is changed to that of the UID
+and GID arguments.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/fbtab" -compact
+.It Pa /etc/fbtab
+The
+.Nm
+file resides in
+.Pa /etc .
+.El
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr getty 8
+.Sh AUTHORS
+.An Guido van Rooij

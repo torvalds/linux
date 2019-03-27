@@ -1,0 +1,16 @@
+Expect: Unknown modifier 'Z'
+make: Unknown modifier 'Z'
+VAR:Z=
+Expect: Unknown modifier 'Z'
+make: Unknown modifier 'Z'
+VAR:Z=
+Expect: Unclosed variable specification for VAR
+make: Unclosed variable specification (expecting '}') for "VAR" (value "Thevariable") modifier S
+VAR:S,V,v,=Thevariable
+Expect: Unclosed variable specification for VAR
+make: Unclosed variable specification after complex modifier (expecting '}') for VAR
+VAR:S,V,v,=Thevariable
+Expect: Unclosed substitution for VAR (, missing)
+make: Unclosed substitution for VAR (, missing)
+VAR:S,V,v=
+exit status 0

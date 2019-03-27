@@ -1,0 +1,69 @@
+=pod
+
+=head1 NAME
+
+BN_set_bit, BN_clear_bit, BN_is_bit_set, BN_mask_bits, BN_lshift,
+BN_lshift1, BN_rshift, BN_rshift1 - bit operations on BIGNUMs
+
+=head1 SYNOPSIS
+
+ #include <openssl/bn.h>
+
+ int BN_set_bit(BIGNUM *a, int n);
+ int BN_clear_bit(BIGNUM *a, int n);
+
+ int BN_is_bit_set(const BIGNUM *a, int n);
+
+ int BN_mask_bits(BIGNUM *a, int n);
+
+ int BN_lshift(BIGNUM *r, const BIGNUM *a, int n);
+ int BN_lshift1(BIGNUM *r, BIGNUM *a);
+
+ int BN_rshift(BIGNUM *r, BIGNUM *a, int n);
+ int BN_rshift1(BIGNUM *r, BIGNUM *a);
+
+=head1 DESCRIPTION
+
+BN_set_bit() sets bit B<n> in B<a> to 1 (C<a|=(1E<lt>E<lt>n)>). The
+number is expanded if necessary.
+
+BN_clear_bit() sets bit B<n> in B<a> to 0 (C<a&=~(1E<lt>E<lt>n)>). An
+error occurs if B<a> is shorter than B<n> bits.
+
+BN_is_bit_set() tests if bit B<n> in B<a> is set.
+
+BN_mask_bits() truncates B<a> to an B<n> bit number
+(C<a&=~((~0)E<gt>E<gt>n)>).  An error occurs if B<a> already is
+shorter than B<n> bits.
+
+BN_lshift() shifts B<a> left by B<n> bits and places the result in
+B<r> (C<r=a*2^n>). Note that B<n> must be non-negative. BN_lshift1() shifts
+B<a> left by one and places the result in B<r> (C<r=2*a>).
+
+BN_rshift() shifts B<a> right by B<n> bits and places the result in
+B<r> (C<r=a/2^n>). Note that B<n> must be non-negative. BN_rshift1() shifts
+B<a> right by one and places the result in B<r> (C<r=a/2>).
+
+For the shift functions, B<r> and B<a> may be the same variable.
+
+=head1 RETURN VALUES
+
+BN_is_bit_set() returns 1 if the bit is set, 0 otherwise.
+
+All other functions return 1 for success, 0 on error. The error codes
+can be obtained by L<ERR_get_error(3)>.
+
+=head1 SEE ALSO
+
+L<BN_num_bytes(3)>, L<BN_add(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

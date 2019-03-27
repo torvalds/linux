@@ -1,0 +1,52 @@
+%ifndef _SOFT_FLOAT
+%ifndef __powerpc64__
+%exclude {
+  __multc3
+  __divtc3
+  __powitf2
+  __fixtfdi
+  __fixunstfdi
+  __floatditf
+}
+
+GCC_4.1.0 {
+  # long double support
+  __multc3
+  __divtc3
+  __powitf2
+  __fixtfdi
+  __fixunstfdi
+  __floatditf
+
+%else
+GCC_3.4.4 {
+%endif
+%else
+GCC_4.2.0 {
+%endif
+
+  # long double support
+  __gcc_qadd
+  __gcc_qsub
+  __gcc_qmul
+  __gcc_qdiv
+
+%ifdef _SOFT_FLOAT
+  __gcc_qneg
+  __gcc_qeq
+  __gcc_qne
+  __gcc_qgt
+  __gcc_qge
+  __gcc_qlt
+  __gcc_qle
+  __gcc_qunord
+  __gcc_stoq
+  __gcc_dtoq
+  __gcc_qtos
+  __gcc_qtod
+  __gcc_qtoi
+  __gcc_qtou
+  __gcc_itoq
+  __gcc_utoq
+%endif
+}

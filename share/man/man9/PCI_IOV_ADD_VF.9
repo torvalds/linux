@@ -1,0 +1,112 @@
+.\"
+.\" Copyright (c) 2014 Sandvine Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 28, 2015
+.Dt PCI_IOV_ADD_VF 9
+.Os
+.Sh NAME
+.Nm PCI_IOV_ADD_VF
+.Nd inform a PF driver that a VF is being created
+.Sh SYNOPSIS
+.In sys/bus.h
+.In machine/stdarg.h
+.In sys/nv.h
+.In dev/pci/pci_iov.h
+.Ft int
+.Fn PCI_IOV_ADD_VF "device_t dev" "uint16_t vfnum" "const nvlist_t *vf_config"
+.Sh DESCRIPTION
+The
+.Fn PCI_IOV_ADD_VF
+method is called by the PCI Single-Root I/O Virtualization
+.Pq SR-IOV
+infrastructure when it is initializating a new Virtual Function (VF) as a child
+of the given Physical Function (PF) device.
+This method will not be called until a successful call to
+.Xr PCI_IOV_INIT 9
+has been made.
+It is not guaranteed that this method will be called following a successful call
+to
+.Xr PCI_IOV_INIT 9 .
+If the infrastructure encounters a failure to allocate resources following the
+call to
+.Xr PCI_IOV_INIT 9 ,
+the VF creation will be aborted and
+.Xr PCI_IOV_UNINIT 9
+will be called immediately without any preceding calls to
+.Nm .
+.Pp
+The index of the VF being initialized is passed in the
+.Fa vfnum
+argument.
+VFs are always numbered sequentially starting at 0.
+.Pp
+If the driver requested device-specific configuration parameters via a VF schema
+in its call to
+.Xr pci_iov_attach 9 ,
+those parameters will be contained in the
+.Pa vf_config
+argument.
+All configuration parameters that were either set as required parameters or that
+had a default value set in the VF schema are guaranteed to be present in
+.Fa vf_config .
+Configuration parameters that were neither set as required nor were given a
+default value are optional and may or may not be present in
+.Fa vf_config .
+.Fa vf_config
+will not contain any configuration parameters that were not specified in the VF
+schema.
+All configuration parameters will have the correct type and will be in the range
+of valid values specified in the schema.
+.Pp
+Note that it is possible for the user to set different configuration values on
+different VF devices that are children of the same PF.
+The PF driver must not cache configuration parameters passed in previous calls
+to
+.Fn PCI_IOV_ADD_VF
+for other VFs and apply those parameters to the current VF.
+.Pp
+This function will not be called twice for the same
+.Fa vf_num
+on the same PF device without
+.Xr PCI_IOV_UNINIT 9
+and
+.Xr PCI_IOV_INIT 9
+first being called, in that order.
+.Sh RETURN VALUES
+This method returns 0 on success, otherwise an appropriate error is returned.
+If this method returns an error then the current VF device will be destroyed
+but the rest of the VF devices will be created and SR-IOV will be enabled on
+the PF.
+.Sh SEE ALSO
+.Xr nv 9 ,
+.Xr pci 9 ,
+.Xr PCI_IOV_INIT 9 ,
+.Xr pci_iov_schema 9 ,
+.Xr PCI_IOV_UNINIT 9
+.Sh AUTHORS
+This manual page was written by
+.An Ryan Stone Aq Mt rstone@FreeBSD.org .

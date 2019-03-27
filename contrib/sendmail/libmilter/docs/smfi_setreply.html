@@ -1,0 +1,117 @@
+<HTML>
+<HEAD><TITLE>smfi_setreply</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_setreply.html,v 1.18 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_setreply</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_setreply(
+	SMFICTX *ctx,
+	char *rcode,
+	char *xcode,
+	char *message
+);
+</PRE>
+Set the default SMTP error reply code.  Only 4XX and 5XX replies are accepted.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>smfi_setreply may be called from any of the xxfi_ callbacks
+other than xxfi_connect.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>Directly set the SMTP error reply code for this connection.  This code 
+will be used on subsequent error replies resulting from actions taken by 
+this filter.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>ctx</TD>
+	<TD>Opaque context structure.
+	</TD></TR>
+    <TR valign="top"><TD>rcode</TD>
+	<TD>The three-digit (RFC 821/2821) SMTP reply code, as a
+	null-terminated string.  rcode cannot be NULL, and must be a valid
+	4XX or 5XX reply code.
+        </TD></TR>
+    <TR valign="top"><TD>xcode</TD>
+	<TD>The extended (RFC 1893/2034) reply code.  If xcode is NULL, no
+	extended code is used.  Otherwise, xcode must conform to RFC 1893/2034.
+	</TD></TR>
+    <TR valign="top"><TD>message</TD>
+	<TD>The text part of the SMTP reply.  If message is NULL, an empty message is used.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>smfi_setreply will fail and return MI_FAILURE if:
+<UL>
+    <LI>The rcode or xcode argument is invalid.
+    <LI>A memory-allocation failure occurs.
+</UL>
+Otherwise, it return MI_SUCCESS.
+</TD>
+</TR>
+
+<!----------- Notes ---------->
+<TR align="left" valign=top>
+<TH>NOTES</TH> 
+<TD>
+<UL>
+<LI>Values passed to smfi_setreply are not checked for standards compliance.
+<LI>The message parameter should contain only printable characters,
+other characters may lead to undefined behavior.
+For example, CR or LF will cause the call to fail,
+single '%' characters will cause the text to be ignored
+(if there really should be a '%' in the string,
+use '%%' just like for <TT>printf(3)</TT>).
+<LI>For details about reply codes and their meanings, please see RFC's 
+<A href="http://www.rfc-editor.org/rfc/rfc821.txt">821</A>/
+<A href="http://www.rfc-editor.org/rfc/rfc2821.txt">2821</A>
+and
+<A href="http://www.rfc-editor.org/rfc/rfc1893.txt">1893</A>/
+<A href="http://www.rfc-editor.org/rfc/rfc2034.txt">2034</A>.
+<LI>If the reply code (rcode) given is a '4XX' code but SMFI_REJECT is used
+for the message, the custom reply is not used.
+<LI>Similarly, if the reply code (rcode) given is a '5XX' code but
+SMFI_TEMPFAIL is used for the message, the custom reply is not used.
+<BR>
+Note: in neither of the last two cases an error is returned to the milter,
+libmilter silently ignores the reply code.
+<LI>If the milter returns SMFI_TEMPFAIL and sets the reply code to '421',
+then the SMTP server will terminate the SMTP session with a 421 error code.
+</UL>
+</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000, 2002-2003 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

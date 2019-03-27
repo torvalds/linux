@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Do not build dynamically linked binaries as
+Position-Independent Executable (PIE).

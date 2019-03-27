@@ -1,0 +1,111 @@
+=pod
+
+=head1 NAME
+
+SSL_client_version, SSL_get_version, SSL_is_dtls, SSL_version - get the
+protocol information of a connection
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_client_version(const SSL *s);
+
+ const char *SSL_get_version(const SSL *ssl);
+
+ int SSL_is_dtls(const SSL *ssl);
+
+ int SSL_version(const SSL *s);
+
+=head1 DESCRIPTION
+
+SSL_client_version() returns the numeric protocol version advertised by the
+client in the legacy_version field of the ClientHello when initiating the
+connection. Note that, for TLS, this value will never indicate a version greater
+than TLSv1.2 even if TLSv1.3 is subsequently negotiated. SSL_get_version()
+returns the name of the protocol used for the connection. SSL_version() returns
+the numeric protocol version used for the connection. They should only be called
+after the initial handshake has been completed. Prior to that the results
+returned from these functions may be unreliable.
+
+SSL_is_dtls() returns one if the connection is using DTLS, zero if not.
+
+=head1 RETURN VALUES
+
+
+SSL_get_version() returns one of the following strings:
+
+=over 4
+
+=item SSLv3
+
+The connection uses the SSLv3 protocol.
+
+=item TLSv1
+
+The connection uses the TLSv1.0 protocol.
+
+=item TLSv1.1
+
+The connection uses the TLSv1.1 protocol.
+
+=item TLSv1.2
+
+The connection uses the TLSv1.2 protocol.
+
+=item TLSv1.3
+
+The connection uses the TLSv1.3 protocol.
+
+=item unknown
+
+This indicates an unknown protocol version.
+
+=back
+
+SSL_version() and SSL_client_version() return an integer which could include any
+of the following:
+
+=over 4
+
+=item SSL3_VERSION
+
+The connection uses the SSLv3 protocol.
+
+=item TLS1_VERSION
+
+The connection uses the TLSv1.0 protocol.
+
+=item TLS1_1_VERSION
+
+The connection uses the TLSv1.1 protocol.
+
+=item TLS1_2_VERSION
+
+The connection uses the TLSv1.2 protocol.
+
+=item TLS1_3_VERSION
+
+The connection uses the TLSv1.3 protocol (never returned for
+SSL_client_version()).
+
+=back
+
+=head1 SEE ALSO
+
+L<ssl(7)>
+
+=head1 HISTORY
+
+The SSL_is_dtls() function was added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

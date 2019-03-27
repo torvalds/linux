@@ -1,0 +1,315 @@
+if [ ! "$_VARIABLE_SUBR" ]; then _VARIABLE_SUBR=1
+#
+# Copyright (c) 2012-2014 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." variable.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
+
+############################################################ GLOBALS
+
+VARIABLES=
+
+#
+# Default behavior is to call f_variable_set_defaults() when loaded.
+#
+: ${VARIABLE_SELF_INITIALIZE=1}
+
+#
+# File to write when f_dump_variables() is called.
+#
+: ${VARIABLE_DUMPFILE:=/etc/bsdconfig.vars}
+
+############################################################ FUNCTIONS
+
+# f_variable_new $handle $variable
+#
+# Register a new variable named $variable with the given reference-handle
+# $handle. The environment variable $handle is set to $variable allowing you to
+# use the f_getvar() function (from common.subr) with $handle to get the value
+# of environment variable $variable. For example:
+#
+# 	f_variable_new VAR_ABC abc
+#
+# allows the later indirection:
+#
+# 	f_getvar $VAR_ABC
+#
+# to return the value of environment variable `abc'. Variables registered in
+# this manner are recorded in the $VARIABLES environment variable for later
+# allowing dynamic enumeration of so-called `registered/advertised' variables.
+#
+f_variable_new()
+{
+	local handle="$1" variable="$2"
+	[ "$handle" ] || return $FAILURE
+	f_dprintf "variable.subr: New variable %s -> %s" "$handle" "$variable"
+	setvar $handle $variable
+	VARIABLES="$VARIABLES${VARIABLES:+ }$handle"
+}
+
+# f_variable_get_value $var [ $fmt [ $opts ... ] ]
+#
+# Unless nonInteractive is set, prompt the user with a given value (pre-filled
+# with the value of $var) and give them the chance to change the value.
+#
+# Unlike f_getvar() (from common.subr) which can return a variable to the
+# caller on standard output, this function has no [meaningful] output.
+#
+# Returns success unless $var is either NULL or missing.
+#
+f_variable_get_value()
+{
+	local var="$1" cp
+
+	[ "$var" ] || return $FAILURE
+
+	if ! { f_getvar $var cp && ! f_interactive; }; then
+		shift 1 # var
+		f_dialog_input cp "$( printf "$@" )" "$cp" && setvar $var "$cp"
+	fi
+
+	return $SUCCESS
+}
+
+# f_variable_set_defaults
+#
+# Installs sensible defaults for registered/advertised variables.
+#
+f_variable_set_defaults()
+{
+	f_dprintf "f_variable_set_defaults: Initializing defaults..."
+
+	#
+	# Initialize various user-edittable values to their defaults
+	#
+	setvar $VAR_EDITOR		"${EDITOR:-/usr/bin/ee}"
+	setvar $VAR_FTP_STATE		"auto"
+	setvar $VAR_FTP_USER		"ftp"
+	setvar $VAR_HOSTNAME		"$( hostname )"
+	setvar $VAR_MEDIA_TIMEOUT	"300"
+	setvar $VAR_NFS_SECURE		"NO"
+	setvar $VAR_NFS_TCP		"NO"
+	setvar $VAR_NFS_V3		"YES"
+	setvar $VAR_PKG_TMPDIR		"/var/tmp"
+	setvar $VAR_RELNAME		"$UNAME_R"
+
+	#
+	# Debugging
+	#
+	if f_debugging; then
+		local var
+		for var in \
+			$VAR_EDITOR		\
+			$VAR_FTP_STATE		\
+			$VAR_FTP_USER		\
+			$VAR_HOSTNAME		\
+			$VAR_MEDIA_TIMEOUT	\
+			$VAR_NFS_SECURE		\
+			$VAR_NFS_TCP		\
+			$VAR_NFS_V3		\
+			$VAR_PKG_TMPDIR		\
+			$VAR_RELNAME		\
+		; do
+			f_quietly f_getvar $var
+		done
+	fi
+
+	f_dprintf "f_variable_set_defaults: Defaults initialized."
+}
+
+# f_dump_variables
+#
+# Dump a list of registered/advertised variables and their respective values to
+# $VARIABLE_DUMPFILE. Returns success unless the file couldn't be written. If
+# an error occurs, it is displayed using f_dialog_msgbox() (from dialog.subr).
+#
+f_dump_variables()
+{
+	local err
+	if ! err=$(
+		( for handle in $VARIABLES; do
+			f_getvar $handle var || continue
+			f_getvar $var value || continue
+			f_shell_escape "$value" value
+			printf "%s='%s'\n" "$var" "$value"
+		  done > "$VARIABLE_DUMPFILE" ) 2>&1
+	); then
+		f_dialog_msgbox "$err"
+		return $FAILURE
+	fi
+}
+
+# f_debugging
+#
+# Are we in debug mode? Returns success if extra DEBUG information has been
+# requested (by setting $debug to non-NULL), otherwise false.
+#
+f_debugging()
+{
+	local value
+	f_getvar $VAR_DEBUG value && [ "$value" ]
+}
+
+# f_interactive
+#
+# Are we running interactively? Return error if $nonInteractive is set and non-
+# NULL, otherwise return success.
+#
+f_interactive()
+{
+	local value
+	! f_getvar $VAR_NONINTERACTIVE value || [ ! "$value" ]
+}
+
+# f_netinteractive
+#
+# Has the user specifically requested the network-portion of configuration and
+# setup to be performed interactively? Returns success if the user has asked
+# for the network configuration to be done interactively even if perhaps over-
+# all non-interactive mode has been requested (by setting nonInteractive).
+#
+# Returns success if $netInteractive is set and non-NULL.
+#
+f_netinteractive()
+{
+	local value
+	f_getvar $VAR_NETINTERACTIVE value && [ "$value" ]
+}
+
+# f_zfsinteractive
+#
+# Has the user specifically requested the ZFS-portion of configuration and
+# setup to be performed interactively? Returns success if the user has asked
+# for the ZFS configuration to be done interactively even if perhaps overall
+# non-interactive mode has been requested (by setting nonInteractive).
+#
+# Returns success if $zfsInteractive is set and non-NULL.
+#
+f_zfsinteractive()
+{
+	local value
+	f_getvar $VAR_ZFSINTERACTIVE value && [ "$value" ]
+}
+
+############################################################ MAIN
+
+#
+# Variables that can be tweaked from config files
+#
+#              Handle                   Variable Name
+f_variable_new VAR_CONFIG_FILE		configFile
+f_variable_new VAR_DEBUG		debug
+f_variable_new VAR_DEBUG_FILE		debugFile
+f_variable_new VAR_DIRECTORY_PATH	_directoryPath
+f_variable_new VAR_DOMAINNAME		domainname
+f_variable_new VAR_EDITOR		editor
+f_variable_new VAR_EXTRAS		ifconfig_
+f_variable_new VAR_FTP_DIR		ftpDirectory
+f_variable_new VAR_FTP_HOST		ftpHost
+f_variable_new VAR_FTP_PASS		ftpPass
+f_variable_new VAR_FTP_PATH		_ftpPath
+f_variable_new VAR_FTP_PORT		ftpPort
+f_variable_new VAR_FTP_STATE		ftpState
+f_variable_new VAR_FTP_USER		ftpUser
+f_variable_new VAR_GATEWAY		defaultrouter
+f_variable_new VAR_GROUP		group
+f_variable_new VAR_GROUP_GID		groupGid
+f_variable_new VAR_GROUP_MEMBERS	groupMembers
+f_variable_new VAR_GROUP_PASSWORD	groupPassword
+f_variable_new VAR_HOSTNAME		hostname
+f_variable_new VAR_HTTP_DIR		httpDirectory
+f_variable_new VAR_HTTP_FTP_MODE	httpFtpMode
+f_variable_new VAR_HTTP_HOST		httpHost
+f_variable_new VAR_HTTP_PATH		_httpPath
+f_variable_new VAR_HTTP_PORT		httpPort
+f_variable_new VAR_HTTP_PROXY		httpProxy
+f_variable_new VAR_HTTP_PROXY_HOST	httpProxyHost
+f_variable_new VAR_HTTP_PROXY_PATH	_httpProxyPath
+f_variable_new VAR_HTTP_PROXY_PORT	httpProxyPort
+f_variable_new VAR_IFCONFIG		ifconfig_
+f_variable_new VAR_IPADDR		ipaddr
+f_variable_new VAR_IPV6ADDR		ipv6addr
+f_variable_new VAR_IPV6_ENABLE		ipv6_activate_all_interfaces
+f_variable_new VAR_KEYMAP		keymap
+f_variable_new VAR_MEDIA_TIMEOUT	MEDIA_TIMEOUT
+f_variable_new VAR_MEDIA_TYPE		mediaType
+f_variable_new VAR_NAMESERVER		nameserver
+f_variable_new VAR_NETINTERACTIVE	netInteractive
+f_variable_new VAR_NETMASK		netmask
+f_variable_new VAR_NETWORK_DEVICE	netDev
+f_variable_new VAR_NFS_HOST		nfsHost
+f_variable_new VAR_NFS_PATH		nfsPath
+f_variable_new VAR_NFS_SECURE		nfs_reserved_port_only
+f_variable_new VAR_NFS_TCP		nfs_use_tcp
+f_variable_new VAR_NFS_V3		nfs_use_v3
+f_variable_new VAR_NONINTERACTIVE	nonInteractive
+f_variable_new VAR_NO_CONFIRM		noConfirm
+f_variable_new VAR_NO_ERROR		noError
+f_variable_new VAR_NO_INET6		noInet6
+f_variable_new VAR_PACKAGE		package
+f_variable_new VAR_PKG_TMPDIR		PKG_TMPDIR
+f_variable_new VAR_PORTS_PATH		ports
+f_variable_new VAR_RELNAME		releaseName
+f_variable_new VAR_SLOW_ETHER		slowEthernetCard
+f_variable_new VAR_TRY_DHCP		tryDHCP
+f_variable_new VAR_TRY_RTSOL		tryRTSOL
+f_variable_new VAR_UFS_PATH		ufs
+f_variable_new VAR_USER			user
+f_variable_new VAR_USER_ACCOUNT_EXPIRE	userAccountExpire
+f_variable_new VAR_USER_DOTFILES_CREATE	userDotfilesCreate
+f_variable_new VAR_USER_GECOS		userGecos
+f_variable_new VAR_USER_GID		userGid
+f_variable_new VAR_USER_GROUPS		userGroups
+f_variable_new VAR_USER_GROUP_DELETE	userGroupDelete
+f_variable_new VAR_USER_HOME		userHome
+f_variable_new VAR_USER_HOME_CREATE	userHomeCreate
+f_variable_new VAR_USER_HOME_DELETE	userHomeDelete
+f_variable_new VAR_USER_LOGIN_CLASS	userLoginClass
+f_variable_new VAR_USER_PASSWORD	userPassword
+f_variable_new VAR_USER_PASSWORD_EXPIRE	userPasswordExpire
+f_variable_new VAR_USER_SHELL		userShell
+f_variable_new VAR_USER_UID		userUid
+f_variable_new VAR_ZFSINTERACTIVE	zfsInteractive
+
+#
+# Self-initialize unless requested otherwise
+#
+f_dprintf "%s: VARIABLE_SELF_INITIALIZE=[%s]" \
+          variable.subr "$VARIABLE_SELF_INITIALIZE"
+case "$VARIABLE_SELF_INITIALIZE" in
+""|0|[Nn][Oo]|[Oo][Ff][Ff]|[Ff][Aa][Ll][Ss][Ee]) : do nothing ;;
+*) f_variable_set_defaults
+esac
+
+f_dprintf "%s: Successfully loaded." variable.subr
+
+fi # ! $_VARIABLE_SUBR

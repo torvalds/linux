@@ -1,0 +1,22 @@
+#
+# $FreeBSD$
+#
+HEIMDAL_KAFS5_1.0 {
+	global:
+		k_afs_cell_of_file;
+		k_hasafs;
+		k_hasafs_recheck;
+		k_pioctl;
+		k_setpag;
+		k_unlog;
+		kafs_set_verbose;
+		kafs_settoken5;
+		kafs_settoken_rxkad;
+		krb5_afslog;
+		krb5_afslog_home;
+		krb5_afslog_uid;
+		krb5_afslog_uid_home;
+		krb5_realm_of_cell;
+	local:
+		*;
+};

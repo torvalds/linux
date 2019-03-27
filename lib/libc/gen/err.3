@@ -1,0 +1,245 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	From: @(#)err.3	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd March 29, 2012
+.Dt ERR 3
+.Os
+.Sh NAME
+.Nm err ,
+.Nm verr ,
+.Nm errc ,
+.Nm verrc ,
+.Nm errx ,
+.Nm verrx ,
+.Nm warn ,
+.Nm vwarn ,
+.Nm warnc ,
+.Nm vwarnc ,
+.Nm warnx ,
+.Nm vwarnx ,
+.Nm err_set_exit ,
+.Nm err_set_file
+.Nd formatted error messages
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In err.h
+.Ft void
+.Fn err "int eval" "const char *fmt" "..."
+.Ft void
+.Fn err_set_exit "void (*exitf)(int)"
+.Ft void
+.Fn err_set_file "void *vfp"
+.Ft void
+.Fn errc "int eval" "int code" "const char *fmt" "..."
+.Ft void
+.Fn errx "int eval" "const char *fmt" "..."
+.Ft void
+.Fn warn "const char *fmt" "..."
+.Ft void
+.Fn warnc "int code" "const char *fmt" "..."
+.Ft void
+.Fn warnx "const char *fmt" "..."
+.In stdarg.h
+.Ft void
+.Fn verr "int eval" "const char *fmt" "va_list args"
+.Ft void
+.Fn verrc "int eval" "int code" "const char *fmt" "va_list args"
+.Ft void
+.Fn verrx "int eval" "const char *fmt" "va_list args"
+.Ft void
+.Fn vwarn "const char *fmt" "va_list args"
+.Ft void
+.Fn vwarnc "int code" "const char *fmt" "va_list args"
+.Ft void
+.Fn vwarnx "const char *fmt" "va_list args"
+.Sh DESCRIPTION
+The
+.Fn err
+and
+.Fn warn
+family of functions display a formatted error message on the standard
+error output, or on another file specified using the
+.Fn err_set_file
+function.
+In all cases, the last component of the program name, a colon character,
+and a space are output.
+If the
+.Fa fmt
+argument is not NULL, the
+.Xr printf 3 Ns
+-like formatted error message is output.
+The output is terminated by a newline character.
+.Pp
+The
+.Fn err ,
+.Fn errc ,
+.Fn verr ,
+.Fn verrc ,
+.Fn warn ,
+.Fn warnc ,
+.Fn vwarn ,
+and
+.Fn vwarnc
+functions append an error message obtained from
+.Xr strerror 3
+based on a supplied error code value or the global variable
+.Va errno ,
+preceded by another colon and space unless the
+.Fa fmt
+argument is
+.Dv NULL .
+.Pp
+In the case of the
+.Fn errc ,
+.Fn verrc ,
+.Fn warnc ,
+and
+.Fn vwarnc
+functions,
+the
+.Fa code
+argument is used to look up the error message.
+.Pp
+The
+.Fn err ,
+.Fn verr ,
+.Fn warn ,
+and
+.Fn vwarn
+functions use the global variable
+.Va errno
+to look up the error message.
+.Pp
+The
+.Fn errx
+and
+.Fn warnx
+functions do not append an error message.
+.Pp
+The
+.Fn err ,
+.Fn verr ,
+.Fn errc ,
+.Fn verrc ,
+.Fn errx ,
+and
+.Fn verrx
+functions do not return, but exit with the value of the argument
+.Fa eval .
+It is recommended that the standard values defined in
+.Xr sysexits 3
+be used for the value of
+.Fa eval .
+The
+.Fn err_set_exit
+function can be used to specify a function which is called before
+.Xr exit 3
+to perform any necessary cleanup; passing a null function pointer for
+.Va exitf
+resets the hook to do nothing.
+The
+.Fn err_set_file
+function sets the output stream used by the other functions.
+Its
+.Fa vfp
+argument must be either a pointer to an open stream
+(possibly already converted to void *)
+or a null pointer
+(in which case the output stream is set to standard error).
+.Sh EXAMPLES
+Display the current errno information string and exit:
+.Bd -literal -offset indent
+if ((p = malloc(size)) == NULL)
+	err(EX_OSERR, NULL);
+if ((fd = open(file_name, O_RDONLY, 0)) == -1)
+	err(EX_NOINPUT, "%s", file_name);
+.Ed
+.Pp
+Display an error message and exit:
+.Bd -literal -offset indent
+if (tm.tm_hour < START_TIME)
+	errx(EX_DATAERR, "too early, wait until %s",
+	    start_time_string);
+.Ed
+.Pp
+Warn of an error:
+.Bd -literal -offset indent
+if ((fd = open(raw_device, O_RDONLY, 0)) == -1)
+	warnx("%s: %s: trying the block device",
+	    raw_device, strerror(errno));
+if ((fd = open(block_device, O_RDONLY, 0)) == -1)
+	err(EX_OSFILE, "%s", block_device);
+.Ed
+.Pp
+Warn of an error without using the global variable
+.Va errno :
+.Bd -literal -offset indent
+error = my_function();	/* returns a value from <errno.h> */
+if (error != 0)
+	warnc(error, "my_function");
+.Ed
+.Sh SEE ALSO
+.Xr exit 3 ,
+.Xr fmtmsg 3 ,
+.Xr printf 3 ,
+.Xr strerror 3 ,
+.Xr sysexits 3
+.Sh STANDARDS
+The
+.Fn err
+and
+.Fn warn
+families of functions are
+.Bx
+extensions.
+As such they should not be used in truly portable code.
+Use
+.Fn strerror
+or similar functions instead.
+.Sh HISTORY
+The
+.Fn err
+and
+.Fn warn
+functions first appeared in
+.Bx 4.4 .
+The
+.Fn err_set_exit
+and
+.Fn err_set_file
+functions first appeared in
+.Fx 2.1 .
+The
+.Fn errc
+and
+.Fn warnc
+functions first appeared in
+.Fx 3.0 .

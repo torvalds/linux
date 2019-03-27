@@ -1,0 +1,6 @@
+# Host: RS6000 running LynxOS
+
+XM_CLIBS= -lbsd
+
+NAT_FILE= nm-rs6000ly.h
+NATDEPFILES= fork-child.o infptrace.o inftarg.o corelow.o lynx-nat.o xcoffread.o

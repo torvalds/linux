@@ -1,0 +1,103 @@
+$FreeBSD$
+Development ideas..
+
+Archie's suggestions... :-)
+
+ - There should be a new malloc type: M_NETGRAPH
+	[DONE]
+	- all mallocs/frees now changed to use this.. JRE
+	- might further split them out some time.
+
+ - Use MALLOC and FREE macros instead of direct function calls
+	[DONE]
+	- They allow conditional compilation which keeps
+	  statistics & counters on various memory allocation
+	  (or so it seems)
+	   - Now tend to have NG_FREE_XX() macros. they
+	     allow better debugging
+
+ - In struct ng_mesg: at least make "header" into "hdr", if not
+   getting rid of it altogether. It doesn't seem necessary and
+   makes all my C code lines too long.
+
+	- I understand.. one thought however.. consider..
+	  if char data[0] were not legal,  so that data[1] needed to be
+	  used instead, then the only way to get the size of the header
+	  would be sizeof(msg.header) as sizeof(msg) would include the dummy
+	  following bytes. this is a portability issue and I hope
+	  it will be ported eventually :)
+
+	- Baloney! you can use sizeof(msg) - 1 then.. or just
+	  make it a macro, then its always portable:
+
+	  #ifdef __GNU_C__
+	    #define NG_MSG_HDR_SIZE	(sizeof(struct ng_message))
+	  #else
+	    #define NG_MSG_HDR_SIZE	(sizeof(struct ng_message) - 1)
+	  #endif
+
+	  - inertia rules :-b
+
+
+ - Have a user level program to print out and manipulate nodes, etc.
+	- [DONE]
+		see ngctl, nghook
+
+ - "Netgraph global" flags to turn on tracing, etc.
+
+ - ngctl needs to be rewritten using libnetgraph. Also it needs a
+   command to list all existing nodes (in case you don't know the
+   name of what you're looking for).
+	[DONE]
+
+ - Need a way to get a list of ALL nodes.
+	[DONE]
+	- see NGM_LISTNODES
+
+ - Enhance "netstat" to display all netgraph nodes -- or at least
+   all netgraph socket nodes.
+	[DONE]
+
+ - BUG FIX: bind() on a socket should neither require nor allow a
+   colon character at the end of the name. Note ngctl allows you
+   to do it either way!
+	[DONE] (I think)
+	- bind on a control socket has been disabled
+	  it was a bad idea.
+
+ - Need to implement passing meta information through socket nodes
+   using sendmsg() and recvmsg().
+
+ - Stuff needing to be added to manual:
+
+   - Awareness of SPL level, use ng_queue*() functions when necessary.
+   - Malloc all memory with type M_NETGRAPH. -DONE
+   - Write code so it can be an LKM or built into the kernel.. this means
+     be careful with things like #ifdef INET.
+   - All nodes assume that all data mbufs have the M_PKTHDR flag set!
+     The ng_send_data() and related functions should have an
+     #ifdef DIAGNOSTIC check to check this assumption for every mbuf.
+     -DONE with INVARIANTS. Framework should test this more.
+   - More generally, netgraph code should make liberal use of the
+     #ifdef DIAGNOSTIC definition.
+     -INVARIANTS.
+   - Since data and messages are sent functionally, programmers need
+     to watch out for infinite feedback loops. Should ng_base.c detect
+     this automatically?
+      - I've been thinking about this. each node could have a 'colour'
+	which is set to the colour of the packet as you pass through.
+	hitting a node already of your colour would abort. Each packet
+	has another (incremented) colour.
+	-new 'item' type can hold a hopcount...
+
+NEW in 2001
+All piggyback responses have gone away.
+use the node ID in the return address field for quick response delivery.
+
+Every node has a queue, plus there is a list of nodes that have queued work.
+Extensive use of Mutexes. Getting in shape for SMP.
+
+Messages and data are deliverd in a new form. An Item now has
+all information needed to queue such a request and deliver it later, so 
+it is now the basis of all data transfer since any transfer may need to
+be queued.

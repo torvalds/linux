@@ -1,0 +1,101 @@
+.\" Copyright (c) 2017 Steven G. Kargl <kargl@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 6, 2018
+.Dt CLOG 3
+.Os
+.Sh NAME
+.Nm clog ,
+.Nm clogf ,
+and
+.Nm clogl
+.Nd complex natural logarithm functions
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In complex.h
+.Ft double complex
+.Fn clog "double complex z"
+.Ft float complex
+.Fn clogf "float complex z"
+.Ft long double complex
+.Fn clogl "long double complex z"
+.Sh DESCRIPTION
+The
+.Fn clog ,
+.Fn clogf ,
+and
+.Fn clogl
+functions compute the complex natural logarithm of
+.Fa z .
+with a branch cut along the negative real axis .
+.Sh RETURN VALUES
+The
+.Fn clog
+function returns the complex natural logarithm value, in the
+range of a strip mathematically unbounded along the real axis and in
+the interval [-I* \*(Pi , +I* \*(Pi ] along the imaginary axis.
+The function satisfies the relationship:
+.Fo clog
+.Fn conj "z" Fc
+=
+.Fo conj
+.Fn clog "z" Fc .
+.Pp
+.\" Table is formatted for an 80-column xterm.
+.Bl -column ".Sy +\*(If + I*\*(Na" ".Sy Return value" ".Sy Divide-by-zero exception"
+.It Sy Argument          Ta Sy Return value Ta Sy Comment
+.It -0 + I*0             Ta -\*(If + I*\*(Pi    Ta Divide-by-zero exception
+.It                      Ta                     Ta raised
+.It +0 + I*0             Ta -\*(If + I*0        Ta Divide by zero exception
+.It                      Ta                     Ta raised
+.It x + I*\*(If          Ta +\*(If + I*\*(Pi/2  Ta For finite x
+.It x + I*\*(Na          Ta  \*(Na + I*\*(Na    Ta Optionally raises invalid
+.It                      Ta                     Ta floating-point exception
+.It                      Ta                     Ta for finite x
+.It -\*(If + I*y         Ta +\*(If + I*\*(Pi    Ta For finite positive-signed y
+.It +\*(If + I*y         Ta +\*(If + I*0        Ta For finite positive-signed y
+.It -\*(If + I*\*(If     Ta +\*(If + I*3\*(Pi/4
+.It +\*(If + I*\*(If     Ta +\*(If + I*\*(Pi/4
+.It \*(Pm\*(If + I*\*(Na Ta +\*(If + I*\*(Na
+.It \*(Na + I*y          Ta \*(Na + I*\*(Na    Ta Optionally raises invalid
+.It                      Ta                    Ta floating-point exception
+.It                      Ta                    Ta for finite y
+.It \*(Na + I*\*(If      Ta +\*(If + I*\*(Na
+.It \*(Na + I*\*(Na      Ta \*(Na + I*\*(Na
+.El
+.Sh SEE ALSO
+.Xr complex 3 ,
+.Xr log 3 ,
+.Xr math 3
+.Sh STANDARDS
+The
+.Fn clog ,
+.Fn cexpf ,
+and
+.Fn clogl
+functions conform to
+.St -isoC-99 .

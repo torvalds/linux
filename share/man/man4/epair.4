@@ -1,0 +1,121 @@
+.\"-
+.\" Copyright (c) 2008 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by CK Software GmbH under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\" notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 18, 2015
+.Dt EPAIR 4
+.Os
+.Sh NAME
+.Nm epair
+.Nd A pair of virtual back-to-back connected Ethernet interfaces
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device epair"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_epair_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+is a pair of Ethernet-like software interfaces,
+which are connected back-to-back with a virtual cross-over cable.
+.Pp
+Each
+.Nm
+interface pair is created at runtime using interface cloning.
+This is most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
+While for cloning you only give either
+.Pa epair
+or
+.Pa epair<n>
+the
+.Nm
+pair will be named like
+.Pa epair<n>[ab] .
+This means the names of the first
+.Nm
+interfaces will be
+.Pa epair0a
+and
+.Pa epair0b .
+.Pp
+Like any other Ethernet interface, an
+.Nm
+needs to have a network address.
+Each
+.Nm
+will be assigned a locally administered address by default,
+that is only guaranteed to be unique within one network stack.
+To change the default addresses one may use the SIOCSIFADDR ioctl(2) or
+ifconfig(8) utility.
+.Pp
+The basic intent is to provide connectivity between two virtual
+network stack instances.
+When connected to an
+.Xr if_bridge 4 ,
+one end of the interface pair can also be part of another (virtual) LAN.
+As with any other Ethernet interface,
+.Nm epair
+can have a
+.Xr vlan 4
+configured on top of it.
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr altq 4 ,
+.Xr bpf 4 ,
+.Xr if_bridge 4 ,
+.Xr vlan 4 ,
+.Xr loader.conf 5 ,
+.Xr rc.conf 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+interface first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+The
+.Nm
+interface was written by
+.An Bjoern A. Zeeb, CK Software GmbH,
+under sponsorship from the FreeBSD Foundation.

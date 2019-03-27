@@ -1,0 +1,234 @@
+.\" Copyright (c) 2018 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 18, 2018
+.Dt CAP_DNS 3
+.Os
+.Sh NAME
+.Nm cap_getaddrinfo ,
+.Nm cap_getnameinfo ,
+.Nm cap_gethostbyname ,
+.Nm cap_gethostbyname2 ,
+.Nm cap_gethostbyaddr ,
+.Nm cap_dns_type_limit ,
+.Nm cap_dns_family_limit
+.Nd "library for getting network host entry in capability mode"
+.Sh LIBRARY
+.Lb libcap_dns
+.Sh SYNOPSIS
+.In sys/nv.h
+.In libcasper.h
+.In casper/cap_dns.h
+.Ft int
+.Fn cap_getaddrinfo "cap_channel_t *chan" "const char *hostname" "const char *servname" "const struct addrinfo *hints" "struct addrinfo **res"
+.Ft int
+.Fn cap_getnameinfo "cap_channel_t *chan" "const struct sockaddr *sa" "socklen_t salen" "char *host" "size_t hostlen" "char *serv" "size_t servlen" "int flags"
+.Ft "struct hostent *"
+.Fn cap_gethostbyname "const cap_channel_t *chan" "const char *name"
+.Ft "struct hostent *"
+.Fn cap_gethostbyname2 "const cap_channel_t *chan" "const char *name" "int af"
+.Ft "struct hostent *"
+.Fn cap_gethostbyaddr "const cap_channel_t *chan" "const void *addr" "socklen_t len" "int af"
+.Ft "int"
+.Fn cap_dns_type_limit "cap_channel_t *chan" "const char * const *types" "size_t ntypes"
+.Ft "int"
+.Fn cap_dns_family_limit "const cap_channel_t *chan" "const int *families" "size_t nfamilies"
+.Sh DESCRIPTION
+.Bf -symbolic
+The
+.Fn cap_getaddrinfo ,
+and
+.Fn cap_getnameinfo ,
+functions are preferred over the
+.Fn cap_gethostbyname ,
+.Fn cap_gethostbyname2 ,
+and
+.Fn cap_gethostbyaddr
+functions.
+.Ef
+.Pp
+The functions
+.Fn cap_gethostbyname ,
+.Fn cap_gethostbyname2 ,
+.Fn cep_gethostbyaddr
+and
+.Fn cap_getnameinfo
+are respectively equivalent to
+.Xr gethostbyname 2 ,
+.Xr gethostbyname2 2 ,
+.Xr gethostbyaddr 2
+and
+.Xr getnameinfo 2
+except that the connection to the
+.Nm system.dns
+service needs to be provided.
+.Pp
+The
+.Fn cap_dns_type_limit
+function limits the functions allowed in the service.
+The
+.Fa types
+variable can be set to
+.Dv ADDR2NAME
+or
+.Dv NAME2ADDR .
+See the
+.Sx LIMITS
+section for more details.
+The
+.Fa ntpyes
+variable contains the number of
+.Fa types
+provided.
+.Pp
+The
+.Fn cap_dns_family_limit
+functions allows to limit address families.
+For details see
+.Sx LIMITS .
+The
+.Fa nfamilies
+variable contains the number of
+.Fa families
+provided.
+.Sh LIMITS
+The preferred way of setting limits is to use the
+.Fn cap_dns_type_limit
+and
+.Fn cap_dns_family_limit
+functions, but the limits of service can be set also using
+.Xr cap_limit_set 3 .
+The
+.Xr nvlist 9
+for that function can contain the following values and types:
+.Bl -ohang -offset indent
+.It type ( NV_TYPE_STRING )
+The
+.Va type
+can have two values:
+.Dv ADDR2NAME
+or
+.Dv NAME2ADDR .
+The
+.Dv ADDR2NAME
+means that reverse DNS lookups are allowed with
+.Fn cap_getnameinfo
+and
+.Fn cap_gethostbyaddr
+functions.
+In case when
+.Va type
+is set to
+.Dv NAME2ADDR
+the name resolution is allowed with
+.Fn cap_getaddrinfo ,
+.Fn cap_gethostbyname ,
+and
+.Fn cap_gethostbyname2
+functions.
+.It family ( NV_TYPE_NUMBER )
+The
+.Va family
+limits service to one of the address families (e.g.
+.Dv AF_INET , AF_INET6 ,
+etc.).
+.Sh EXAMPLES
+The following example first opens a capability to casper and then uses this
+capability to create the
+.Nm system.dns
+casper service and uses it to resolve an IP address.
+.Bd -literal
+cap_channel_t *capcas, *capdns;
+int familylimit, error;
+const char *ipstr = "127.0.0.1";
+const char *typelimit = "ADDR2NAME";
+char hname[NI_MAXHOST];
+struct addrinfo hints, *res;
+
+/* Open capability to Casper. */
+capcas = cap_init();
+if (capcas == NULL)
+	err(1, "Unable to contact Casper");
+
+/* Cache NLA for gai_strerror. */
+caph_cache_catpages();
+
+/* Enter capability mode sandbox. */
+if (caph_enter() < 0)
+	err(1, "Unable to enter capability mode");
+
+/* Use Casper capability to create capability to the system.dns service. */
+capdns = cap_service_open(capcas, "system.dns");
+if (capdns == NULL)
+	err(1, "Unable to open system.dns service");
+
+/* Close Casper capability, we don't need it anymore. */
+cap_close(capcas);
+
+/* Limit system.dns to reserve IPv4 addresses */
+familylimit = AF_INET;
+if (cap_dns_family_limit(capdns, &familylimit, 1) < 0)
+	err(1, "Unable to limit access to the system.dns service");
+
+/* Convert IP address in C-string to struct sockaddr. */
+memset(&hints, 0, sizeof(hints));
+hints.ai_family = familylimit;
+hints.ai_flags = AI_NUMERICHOST;
+error = cap_getaddrinfo(capdns, ipstr, NULL, &hints, &res);
+if (error != 0)
+       errx(1, "cap_getaddrinfo(): %s: %s", ipstr, gai_strerror(error));
+
+/* Limit system.dns to reverse DNS lookups. */
+if (cap_dns_type_limit(capdns, &typelimit, 1) < 0)
+	err(1, "Unable to limit access to the system.dns service");
+
+/* Find hostname for the given IP address. */
+error = cap_getnameinfo(capdns, res->ai_addr, res->ai_addrlen, hname, sizeof(hname),
+    NULL, 0, 0);
+if (error != 0)
+	errx(1, "cap_getnameinfo(): %s: %s", ipstr, gai_strerror(error));
+
+printf("Name associated with %s is %s.\\n", ipstr, hname);
+.Ed
+.Sh SEE ALSO
+.Xr cap_enter 2 ,
+.Xr caph_enter 3 ,
+.Xr err 3 ,
+.Xr gethostbyaddr 3 ,
+.Xr gethostbyname 3 ,
+.Xr gethostbyname2 3 ,
+.Xr getnameinfo 3 ,
+.Xr capsicum 4 ,
+.Xr nv 9
+.Sh AUTHORS
+The
+.Nm cap_dns
+service was implemented by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship from the FreeBSD Foundation.
+.Pp
+This manual page was written by
+.An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org .

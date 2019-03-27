@@ -1,0 +1,109 @@
+.\" Copyright (c) 1989, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jef Poskanzer and Craig Leres of the Lawrence Berkeley Laboratory.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)write.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd February 13, 2012
+.Dt WRITE 1
+.Os
+.Sh NAME
+.Nm write
+.Nd send a message to another user
+.Sh SYNOPSIS
+.Nm
+.Ar user
+.Op Ar tty
+.Sh DESCRIPTION
+The
+.Nm
+utility allows you to communicate with other users, by copying lines from
+your terminal to theirs.
+.Pp
+When you run the
+.Nm
+command, the user you are writing to gets a message of the form:
+.Pp
+.Dl Message from yourname@yourhost on yourtty at hh:mm ...
+.Pp
+Any further lines you enter will be copied to the specified user's
+terminal.
+If the other user wants to reply, they must run
+.Nm
+as well.
+.Pp
+When you are done, type an end-of-file or interrupt character.
+The other user will see the message
+.Ql EOF
+indicating that the
+conversation is over.
+.Pp
+You can prevent people (other than the super-user) from writing to you
+with the
+.Xr mesg 1
+command.
+.Pp
+If the user you want to write to is logged in on more than one terminal,
+you can specify which terminal to write to by specifying the terminal
+name as the second operand to the
+.Nm
+command.
+Alternatively, you can let
+.Nm
+select one of the terminals \- it will pick the one with the shortest
+idle time.
+This is so that if the user is logged in at work and also dialed up from
+home, the message will go to the right place.
+.Pp
+The traditional protocol for writing to someone is that the string
+.Ql \-o ,
+either at the end of a line or on a line by itself, means that it is the
+other person's turn to talk.
+The string
+.Ql oo
+means that the person believes the conversation to be
+over.
+.Sh SEE ALSO
+.Xr mesg 1 ,
+.Xr talk 1 ,
+.Xr wall 1 ,
+.Xr who 1
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .
+.Sh BUGS
+The sender's
+.Ev LC_CTYPE
+setting is used to determine which characters are safe to write to a
+terminal, not the receiver's (which
+.Nm
+has no way of knowing).

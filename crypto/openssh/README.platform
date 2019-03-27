@@ -1,0 +1,96 @@
+This file contains notes about OpenSSH on specific platforms.
+
+AIX
+---
+As of OpenSSH 3.8p1, sshd will now honour an accounts password expiry
+settings, where previously it did not.  Because of this, it's possible for
+sites that have used OpenSSH's sshd exclusively to have accounts which
+have passwords expired longer than the inactive time (ie the "Weeks between
+password EXPIRATION and LOCKOUT" setting in SMIT or the maxexpired
+chuser attribute).
+
+Accounts in this state must have their passwords reset manually by the
+administrator.  As a precaution, it is recommended that the administrative
+passwords be reset before upgrading from OpenSSH <3.8.
+
+As of OpenSSH 4.0, configure will attempt to detect if your version
+and maintenance level of AIX has a working getaddrinfo, and will use it
+if found.  This will enable IPv6 support.  If for some reason configure
+gets it wrong, or if you want to build binaries to work on earlier MLs
+than the build host then you can add "-DBROKEN_GETADDRINFO" to CFLAGS
+to force the previous IPv4-only behaviour.
+
+IPv6 known to work: 5.1ML7 5.2ML2 5.2ML5
+IPv6 known broken: 4.3.3ML11 5.1ML4
+
+If you wish to use dynamic libraries that aren't in the normal system
+locations (eg IBM's OpenSSL and zlib packages) then you will need to
+define the environment variable blibpath before running configure, eg
+
+blibpath=/lib:/usr/lib:/opt/freeware/lib ./configure \
+  --with-ssl-dir=/opt/freeware --with-zlib=/opt/freeware
+
+If sshd is built with the WITH_AIXAUTHENTICATE option (which is enabled
+by default) then sshd checks that users are permitted via the
+loginrestrictions() function, in particular that the user has the
+"rlogin" attribute set.  This check is not done for the root account,
+instead the PermitRootLogin setting in sshd_config is used.
+
+If you are using the IBM compiler you probably want to use CC=xlc rather
+than the default of cc.
+
+
+Cygwin
+------
+To build on Cygwin, OpenSSH requires the following packages:
+gcc, gcc-mingw-core, mingw-runtime, binutils, make, openssl,
+openssl-devel, zlib, minres, minires-devel.
+
+
+Darwin and MacOS X
+------------------
+Darwin does not provide a tun(4) driver required for OpenSSH-based
+virtual private networks. The BSD manpage still exists, but the driver
+has been removed in recent releases of Darwin and MacOS X.
+
+Nevertheless, tunnel support is known to work with Darwin 8 and
+MacOS X 10.4 in Point-to-Point (Layer 3) and Ethernet (Layer 2) mode
+using a third party driver. More information is available at:
+	http://www-user.rhrk.uni-kl.de/~nissler/tuntap/
+
+
+Linux
+-----
+
+Some Linux distributions (including Red Hat/Fedora/CentOS) include
+headers and library links in the -devel RPMs rather than the main
+binary RPMs. If you get an error about headers, or complaining about a
+missing prerequisite then you may need to install the equivalent
+development packages.  On Redhat based distros these may be openssl-devel,
+zlib-devel and pam-devel, on Debian based distros these may be
+libssl-dev, libz-dev and libpam-dev.
+
+
+Solaris
+-------
+If you enable BSM auditing on Solaris, you need to update audit_event(4)
+for praudit(1m) to give sensible output.  The following line needs to be
+added to /etc/security/audit_event:
+
+	32800:AUE_openssh:OpenSSH login:lo
+
+The BSM audit event range available for third party TCB applications is
+32768 - 65535.  Event number 32800 has been chosen for AUE_openssh.
+There is no official registry of 3rd party event numbers, so if this
+number is already in use on your system, you may change it at build time
+by configure'ing --with-cflags=-DAUE_openssh=32801 then rebuilding.
+
+
+Platforms using PAM
+-------------------
+As of OpenSSH 4.3p1, sshd will no longer check /etc/nologin itself when
+PAM is enabled.  To maintain existing behaviour, pam_nologin should be
+added to sshd's session stack which will prevent users from starting shell
+sessions.  Alternatively, pam_nologin can be added to either the auth or
+account stacks which will prevent authentication entirely, but will still
+return the output from pam_nologin to the client.

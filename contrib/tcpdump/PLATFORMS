@@ -1,0 +1,16 @@
+In many operating systems tcpdump is available as a native package or port,
+which simplifies installation of updates and long-term maintenance. However,
+the native packages are sometimes a few versions behind and to try a more
+recent snapshot it will take to compile tcpdump from the source code.
+
+tcpdump compiles and works on at least the following platforms:
+
+* AIX
+* FreeBSD
+* HP-UX 11i
+* Linux (any) with glibc (usually just works)
+* Linux (any) with musl libc (sometimes fails to compile, please report any bugs)
+* Mac OS X / macOS
+* NetBSD
+* OpenWrt
+* Solaris

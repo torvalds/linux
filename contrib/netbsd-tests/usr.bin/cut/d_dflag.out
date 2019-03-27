@@ -1,0 +1,88 @@
+----- test: cut -f 1 -d : d_cut.in -----
+1
+
+12	34	56
+	12		34	56
+qwe		rty	uio	p[]	asd		fgh	jkl	zxc	vbn	nm
+1
+
+12
+qwe
+
+----- test: cut -f 2 -d : d_cut.in -----
+1
+
+12	34	56
+	12		34	56
+qwe		rty	uio	p[]	asd		fgh	jkl	zxc	vbn	nm
+1
+
+34
+rty
+qwe
+----- test: cut -f 3 -d : d_cut.in -----
+1
+
+12	34	56
+	12		34	56
+qwe		rty	uio	p[]	asd		fgh	jkl	zxc	vbn	nm
+1
+
+56
+uio
+
+----- test: cut -f 1-2 -d : d_cut.in -----
+1
+
+12	34	56
+	12		34	56
+qwe		rty	uio	p[]	asd		fgh	jkl	zxc	vbn	nm
+1
+
+12:34
+qwe:rty
+:qwe
+----- test: cut -f 2,3 -d : d_cut.in -----
+1
+
+12	34	56
+	12		34	56
+qwe		rty	uio	p[]	asd		fgh	jkl	zxc	vbn	nm
+1
+
+34:56
+rty:uio
+qwe:
+----- test: cut -f 4 -d : d_cut.in -----
+1
+
+12	34	56
+	12		34	56
+qwe		rty	uio	p[]	asd		fgh	jkl	zxc	vbn	nm
+1
+
+
+p[]
+
+----- test: cut -f 1-3,4-7 -d : d_cut.in -----
+1
+
+12	34	56
+	12		34	56
+qwe		rty	uio	p[]	asd		fgh	jkl	zxc	vbn	nm
+1
+
+12:34:56
+qwe:rty:uio:p[]:asd:fgh:jkl
+:qwe:::rty:uio:
+----- test: cut -f 1,2-7 -d : d_cut.in -----
+1
+
+12	34	56
+	12		34	56
+qwe		rty	uio	p[]	asd		fgh	jkl	zxc	vbn	nm
+1
+
+12:34:56
+qwe:rty:uio:p[]:asd:fgh:jkl
+:qwe:::rty:uio:

@@ -1,0 +1,166 @@
+
+README  smrsh - sendmail restricted shell.
+
+This README file is provided as a courtesy of the CERT Coordination Center,
+Software Engineering Institute, Carnegie Mellon University.  This file is
+intended as a supplement to the CERT advisory CA-93:16.sendmail.vulnerability,
+and to the software, smrsh.c, written by Eric Allman.
+
+
+
+The smrsh(8) program is intended as a replacement for /bin/sh in the
+program mailer definition of sendmail(8).  This README file describes
+the steps needed to compile and install smrsh.
+
+smrsh is a restricted shell utility that provides the ability to
+specify, through a configuration, an explicit list of executable
+programs.  When used in conjunction with sendmail, smrsh effectively
+limits sendmail's scope of program execution to only those programs
+specified in smrsh's configuration.
+
+smrsh has been written with portability in mind, and uses traditional
+Unix library utilities.  As such, smrsh should compile on most
+Unix C compilers.
+
+smrsh should build on most systems with the enclosed Build script:
+
+	host.domain% sh ./Build
+
+To compile smrsh.c by hand, use the following command:
+
+	host.domain% cc -o smrsh smrsh.c
+
+For machines that provide dynamic linking, it is advisable to compile
+smrsh without dynamic linking.  As an example with the Sun Microsystems
+compiler, you should compile with the -Bstatic option.
+
+	host.domain% cc -Bstatic -o smrsh smrsh.c
+		or
+	host.domain% sh ./Build LDOPTS=-Bstatic
+
+With gcc, the GNU C compiler, use the -static option.
+
+	host.domain% cc -static -o smrsh smrsh.c
+		or
+	host.domain% sh ./Build LDOPTS=-static
+
+The following C defines can be set defined to change the search path and
+the bin directory used by smrsh.
+
+-DSMRSH_PATH=\"path\"	\"/bin:/usr/bin:/usr/ucb\"	The default search
+							path.
+-DSMRSH_CMDDIR=\"dir\"	\"/usr/adm/sm.bin\"		The default smrsh
+							program directory
+ 
+These can be added to the devtools/Site/site.config.m4 file using the
+global M4 macro confENVDEF or the smrsh specific M4 macro
+conf_smrsh_ENVDEF.
+
+As root, install smrsh in /usr/libexec.  Using the Build script:
+
+	host.domain# sh ./Build install
+
+For manual installation: install smrsh in the /usr/libexec
+directory, with mode 511.
+
+	host.domain# mv smrsh /usr/libexec
+	host.domain# chmod 511 /usr/libexec/smrsh
+
+
+
+Next, determine the list of commands that smrsh should allow sendmail
+to run.  This list of allowable commands can be determined by:
+
+   1.  examining your /etc/mail/aliases file, to indicate what commands
+       are being used by the system.
+
+   2.  surveying your host's .forward files, to determine what
+       commands users have specified.
+
+See the man page for aliases(5) if you are unfamiliar with the format of
+these specifications. Additionally, you should include in the list,
+popular commands such as /usr/ucb/vacation.
+
+You should NOT include interpreter programs such as sh(1), csh(1),
+perl(1), uudecode(1) or the stream editor sed(1) in your list of
+acceptable commands.
+
+If your platform doesn't have a default SMRSH_CMDDIR setting, you will
+next need to create the directory /usr/adm/sm.bin and populate
+it with the programs that your site feels are allowable for sendmail
+to execute.   This directory is explicitly specified in the source
+code for smrsh, so changing this directory must be accompanied with
+a change in smrsh.c.
+
+
+You will have to be root to make these modifications.
+
+After creating the /usr/adm/sm.bin directory, either copy the programs
+to the directory, or establish links to the allowable programs from
+/usr/adm/sm.bin.  Change the file permissions, so that these programs
+can not be modified by non-root users.  If you use links, you should
+ensure that the target programs are not modifiable.
+
+To allow the popular vacation(1) program by creating a link in the
+/usr/adm/sm.bin directory, you should:
+
+	host.domain# cd /usr/adm/sm.bin
+	host.domain# ln -s /usr/ucb/vacation vacation
+
+
+
+
+After populating the /usr/adm/sm.bin directory, you can now configure
+sendmail to use the restricted shell.  Save the current sendmail.cf
+file prior to modifying it, as a prudent precaution.
+
+Typically, the program mailer is defined by a single line in the
+sendmail configuration file, sendmail.cf.  This file is traditionally
+found in the /etc, /usr/lib or /etc/mail directories, depending on
+the UNIX vendor.
+
+If you are unsure of the location of the actual sendmail configuration
+file, a search of the strings(1) output of the sendmail binary, will
+help to locate it.
+
+In order to configure sendmail to use smrsh, you must modify the Mprog
+definition in the sendmail.cf file, by replacing the /bin/sh specification
+with /usr/libexec/smrsh.
+
+As an example:
+
+In most Sun Microsystems' sendmail.cf files, the line is:
+Mprog,	P=/bin/sh,   F=lsDFMeuP,  S=10, R=20, A=sh -c $u
+
+which should be changed to:
+Mprog,	P=/usr/libexec/smrsh,   F=lsDFMeuP,  S=10, R=20, A=sh -c $u
+          ^^^^^^^^^^^^^^^^^^
+
+A more generic line may be:
+Mprog,		P=/bin/sh, F=lsDFM, A=sh -c $u
+
+and should be changed to;
+Mprog,		P=/usr/libexec/smrsh, F=lsDFM, A=sh -c $u
+
+
+After modifying the Mprog definition in the sendmail.cf file, if a frozen
+configuration file is being used, it is essential to create a new one.
+You can determine if you need a frozen configuration by discovering
+if a sendmail.fc file currently exists in either the /etc/, /usr/lib,
+or /etc/mail directories.  The specific location can be determined using
+a search of the strings(1) output of the sendmail binary.
+
+In order to create a new frozen configuration, if it is required:
+	host.domain# /usr/lib/sendmail -bz
+
+Now re-start the sendmail process.  An example of how to do this on
+a typical system follows:
+
+	host.domain# cat /var/run/sendmail.pid
+	130
+	/usr/sbin/sendmail -bd -q30m
+	host.domain# /bin/kill -15 130
+	host.domain# /usr/sbin/sendmail -bd -q30m
+
+
+$Revision: 8.10 $, Last updated $Date: 2008-02-12 16:40:06 $

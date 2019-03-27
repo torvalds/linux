@@ -1,0 +1,97 @@
+#! /usr/local/bin/wish8.0 -f
+#
+# Copyright (c) 1999 Brian Somers <brian@Awfulhak.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+#
+# Display a window to request a users CHAP secret, accepting the relevant
+# values from ppp (``set authkey !thisprogram'') and passing the entered
+# ``authname'' and ``authkey'' back to ppp.
+#
+
+set pwidth 12;		# Prompt field width
+set vwidth 20;		# Value field width
+set fxpad 7;		# Value field width
+set fypad 3;		# Value field width
+
+wm title . "PPP Authentication";
+
+# We expect three lines of input from ppp
+set hostname [gets stdin];
+set challenge [gets stdin];
+set authname [gets stdin];
+
+proc mkhalfframe { n prompt } {
+  global pwidth;
+
+  frame .$n;
+  text  .$n.prompt -width $pwidth -height 1 -relief flat;
+        .$n.prompt insert 1.0 $prompt;
+  pack  .$n.prompt -side left;
+        .$n.prompt configure -state disabled;
+}
+
+proc mkframe { n prompt value entry } {
+  global vwidth fxpad fypad;
+
+  mkhalfframe $n $prompt;
+  text  .$n.value -width $vwidth -height 1;
+        .$n.value insert 1.0 $value;
+  pack  .$n.value -side right;
+  if ($entry) {
+    # Allow entry, but don't encourage it
+    .$n.value configure -state normal -takefocus 0;
+    bind .$n.value <Return> {done};
+  } else {
+    .$n.value configure -state disabled;
+  }
+  pack .$n -side top -padx $fxpad -pady $fypad;
+}
+
+# Dump our fields to stdout and exit
+proc done {} {
+  puts [.n.value get 1.0 {end - 1 char}];
+  puts [.k.value get];
+  exit 0;
+}
+
+mkframe h "Hostname:" $hostname 0;
+mkframe c "Challenge:" $challenge 0;
+mkframe n "Authname:" $authname 1;
+
+mkhalfframe k "Authkey:";
+entry .k.value -show "*" -width $vwidth;
+pack  .k.value -side right;
+bind  .k.value <Return> {done};
+focus .k.value;
+pack  .k -side top -padx $fxpad -pady $fypad;
+
+frame  .b;
+button .b.ok -default active -text "Ok" -command {done};
+pack   .b.ok -side left;
+button .b.cancel -default normal -text "Cancel" -command {exit 1};
+pack   .b.cancel -side right;
+pack   .b -side top -padx $fxpad -pady $fypad;

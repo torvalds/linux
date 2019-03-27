@@ -1,0 +1,475 @@
+.\" Copyright (c) 2003 Joseph Koshy
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 11, 2018
+.Dt CONFIG 5
+.Os
+.Sh NAME
+.Nm config
+.Nd kernel configuration file format
+.Sh DESCRIPTION
+A kernel configuration file specifies the configuration of a
+.Fx
+kernel.
+It is processed by
+.Xr config 8
+to create a build environment where a kernel may be built using
+.Xr make 1 .
+.Ss Lexical Structure
+A kernel configuration file comprises a sequence of specification
+directives.
+.Pp
+A specification directive starts with a keyword at the beginning
+of the line and is followed by additional parameters.
+.Pp
+A specification directive may be terminated by a semicolon
+.Ql \&;
+or by a newline.
+Long input lines may be broken into shorter lines by starting the
+second and subsequent lines with a white space character.
+.Pp
+Case is significant,
+.Dq Li machine
+and
+.Dq Li MACHINE
+are different tokens.
+.Pp
+A double quote character
+.Ql \[dq]
+starts a quoted string.
+All characters up to the next quote character form the value
+of the quoted string.
+A
+.Ql \[dq]
+character may be inserted into a quoted string by
+using the sequence
+.Ql \e\[dq] .
+.Pp
+Numbers are specified using
+.Tn C Ns -style
+syntax.
+.Pp
+A
+.Ql #
+character starts a comment; all characters from the
+.Ql #
+character till the end of the current line are ignored.
+.Pp
+Whitespace between tokens is ignored, except inside quoted strings.
+Whitespace following a comment line is ignored.
+.Ss Configuration Directives
+Kernel configuration directives may appear in any order
+in a kernel configuration file.
+Directives are processed in order of appearance with subsequent
+directive lines overriding the effect of prior ones.
+.Pp
+The list of keywords and their meanings are as follows:
+.Pp
+.Bl -tag -width indent -compact
+.\" -------- CPU --------
+.It Ic cpu Ar cputype
+Specify the CPU this kernel will run on.
+There can be more than one
+.Ic cpu
+directive in a configuration file.
+The allowed list of CPU names is architecture specific and is
+defined in the file
+.Pa sys/conf/options. Ns Aq Ar arch .
+.\" -------- DEVICE --------
+.Pp
+.It Ic device Ar name Op , Ar name Op ...
+.It Ic devices Ar name Op , Ar name Op ...
+Configures the specified devices
+for inclusion into the kernel image.
+Devices that are common to all architectures are
+defined in the file
+.Pa sys/conf/files .
+Devices that are specific to architecture
+.Ar arch
+are defined in the file
+.Pa sys/conf/files. Ns Aq Ar arch .
+.\" -------- ENV --------
+.Pp
+.It Ic env Ar filename
+Specifies a filename containing a kernel environment definition.
+.Pp
+The kernel will augment this compiled-in environment with the environment
+prepared for it at boot time by
+.Xr loader 8 .
+Environment variables specified in the
+.Xr loader 8
+environment will take precedence over environment variables specified in
+.Ar filename ,
+and environment variables specified in the dynamic environment take precedence
+over both of these.
+.Pp
+.Va loader_env.disabled=1
+may be specified in the static environment to disable the
+.Xr loader 8
+environment.
+Disabling the
+.Xr loader 8
+should be done with caution and due consideration for whether or not it supplies
+environment variables needed for properly booting the system.
+.Pp
+.Va static_env.disabled=1
+may be specified in the
+.Xr loader 8
+environment to disable use of the static environment.
+This option has no effect if specified in any environment after the
+.Xr loader 8
+environment is processed.
+This option is not usable in conjunction with
+.Va loader_env.disabled .
+.Pp
+This directive is useful for setting kernel tunables in
+embedded environments that do not start from
+.Xr loader 8 .
+.Pp
+All
+.Ic env
+and
+.Ic envvar
+directives will be processed and added to the static environment in reversed
+order of appearance so that later specified variables properly override earlier
+specified variables.
+Note that within
+.Ar filename ,
+the first appearance of a given variable will be the first one seen by the
+kernel, effectively shadowing any later appearances of the same variable within
+.Ar filename .
+.\" -------- ENVVAR --------
+.Pp
+.It Ic envvar Ar setting
+Specifies an individual environment setting to be added to the kernel's
+compiled-in environment.
+.Ar setting
+must be of the form
+.Dq Va name=value .
+Optional quotes are supported in both name and value.
+.Pp
+All
+.Ic env
+and
+.Ic envvar
+directives will be processed and added to the static environment in reversed
+order of appearance so that later specified variables properly override earlier
+specified variables.
+.\" -------- FILES --------
+.Pp
+.It Ic files Ar filename
+Specifies a file containing a list of files specific to that kernel
+configuration file (a la
+.Pa files. Ns Aq Ar arch ) .
+.\" -------- HINTS --------
+.Pp
+.It Ic hints Ar filename
+Specifies a file to load a static device configuration specification
+from.
+From
+.Fx 5.0
+onwards, the kernel reads the system's device configuration at boot
+time (see
+.Xr device.hints 5 ) .
+This directive configures the kernel to use the static device configuration
+listed in
+.Ar filename .
+.Pp
+Hints provided in this static device configuration will be overwritten in the
+order in which they're encountered.
+Hints in the compiled-in environment takes precedence over compiled-in hints,
+and hints in the environment prepared for the kernel by
+.Xr loader 8
+takes precedence over hints in the compiled-in environment.
+.Pp
+Once the dynamic environment becomes available, all compiled-in hints will be
+added to the dynamic environment if they do not already have an override in
+the dynamic environment.
+The dynamic environment will then be used for all searches of hints.
+.Pp
+.Va static_hints.disabled=1
+may be specified in either a compiled-in environment or the
+.Xr loader 8
+environment to disable use of these hints files.
+This option has no effect if specified in any environment after the
+.Xr loader 8
+environment is processed.
+.Pp
+The file
+.Ar filename
+must conform to the syntax specified by
+.Xr device.hints 5 .
+Multiple hints lines are allowed.
+The resulting hints will be the files concatenated in reverse order of
+appearance so that hints in later files properly override hints in earlier
+files.
+.\" -------- IDENT --------
+.Pp
+.It Ic ident Ar name
+Set the kernel name to
+.Ar name .
+At least one
+.Ic ident
+directive is required.
+.\" -------- INCLUDE --------
+.Pp
+.It Ic include Ar filename
+Read subsequent text from file
+.Ar filename
+and return to the current file after
+.Ar filename
+is successfully processed.
+.\" -------- MACHINE --------
+.Pp
+.It Ic machine Ar arch Op Ar cpuarch
+Specifies the architecture of the machine the kernel is being
+compiled for.
+Legal values for
+.Ar arch
+include:
+.Pp
+.Bl -tag -width ".Cm powerpc" -compact
+.It Cm alpha
+The DEC Alpha architecture.
+.It Cm arm
+The ARM architecture.
+.It Cm amd64
+The AMD x86-64 architecture.
+.It Cm i386
+The Intel x86 based PC architecture.
+.It Cm mips
+The MIPS architecture.
+.It Cm powerpc
+The IBM PowerPC architecture.
+.It Cm sparc64
+The Sun Sparc64 architecture.
+.El
+.Pp
+If argument
+.Ar cpuarch
+is specified, it points
+.Xr config 8
+to the cpu architecture of the machine.
+When
+.Ar cpuarch
+is not specified, it is assumed to be the same as
+.Ar arch .
+.Ar arch
+corresponds to MACHINE.
+.Ar cpuarch
+corresponds to MACHINE_ARCH.
+.Pp
+A kernel configuration file may have only one
+.Ic machine
+directive.
+.\" -------- MAKEOPTION --------
+.Pp
+.It Ic makeoption Ar options
+.It Ic makeoptions Ar options
+Add
+.Ar options
+to the generated makefile.
+.Pp
+The
+.Ar options
+argument is a comma separated list of one or more option
+specifications.
+Each option specification has the form
+.Pp
+.D1 Ar MakeVariableName Ns Op = Ns Ar Value
+.D1 Ar MakeVariableName Ns += Ns Ar Value
+.Pp
+and results in the appropriate
+.Xr make 1
+variable definition being inserted into the generated makefile.
+If only the name of the
+.Xr make 1
+variable is specified,
+.Ar value
+is assumed to be the empty string.
+.Pp
+Example:
+.Bd -literal -offset indent -compact
+makeoptions MYMAKEOPTION="foo"
+makeoptions MYMAKEOPTION+="bar"
+makeoptions MYNULLMAKEOPTION
+.Ed
+.\" -------- MAXUSERS --------
+.Pp
+.It Ic maxusers Ar number
+This optional directive is used to configure the size
+of some kernel data structures.
+The parameter
+.Ar number
+can be 0 (the default) or an integer greater than or equal to 2.
+A value of 0 indicates that the kernel should configure
+its data structures according to the size of available
+physical memory.
+If auto configuration is requested, the kernel will set
+this tunable to a value between 32 and 384.
+.Pp
+As explained in
+.Xr tuning 7 ,
+this tunable can also be set at boot time using
+.Xr loader 8 .
+.\" -------- NOCPU --------
+.Pp
+.It Ic nocpu Ar cputype
+Remove the specified CPU
+from the list of previously selected CPUs.
+This directive can be used to cancel the effect of
+.Ic cpu
+directives in files included using
+.Ic include .
+.\" -------- NODEVICE --------
+.Pp
+.It Ic nodevice Ar name Op , Ar name Op ...
+.It Ic nodevices Ar name Op , Ar name Op ...
+Remove the specified devices
+from the list of previously selected devices.
+This directive can be used to cancel the effects of
+.Ic device
+or
+.Ic devices
+directives in files included using
+.Ic include .
+.\" -------- NOMAKEOPTION --------
+.Pp
+.It Ic nomakeoption Ar name
+.It Ic nomakeoptions Ar name
+Removes previously defined
+.Xr make 1
+option
+.Ar name
+from the kernel build.
+This directive can be used to cancel the effects of
+.Ic makeoption
+directives in files included using
+.Ic include .
+.\" -------- NOOPTION --------
+.Pp
+.It Ic nooption Ar name Op , Ar name Op ...
+.It Ic nooptions Ar name Op , Ar name Op ...
+Remove the specified kernel options
+from the list of previously defined options.
+This directive can be used to cancel the effects of
+.Ic option
+or
+.Ic options
+directives in files included using
+.Ic include .
+.\" -------- OPTIONS --------
+.Pp
+.It Ic option Ar optionspec Op , Ar optionspec Op ...
+.It Ic options Ar optionspec Op , Ar optionspec Op ...
+Add compile time kernel options to the kernel build.
+Each option specification has the form
+.Pp
+.D1 Ar name Ns Op = Ns Ar value
+.Pp
+If
+.Ar value
+is not specified, it is assumed to be
+.Dv NULL .
+Options common to all architectures are specified in
+the file
+.Pa sys/conf/options .
+Options specific to architecture
+.Ar arch
+are specified in the file
+.Pa sys/conf/options. Ns Aq Ar arch .
+.\" -------- PROFILE --------
+.Pp
+.It Ic profile Ar number
+Enables kernel profiling if
+.Ar number
+is non-zero.
+If
+.Ar number
+is 2 or greater, the kernel is configured for
+high-resolution profiling.
+Kernels can also be built for profiling using the
+.Fl p
+option to
+.Xr config 8 .
+.El
+.Ss Obsolete Directives
+The following kernel configuration directives are obsolete.
+.Bl -tag -width indent
+.\" -------- CONFIG --------
+.It Ic config
+This directive was used to specify the device to be used for the root
+file system.
+From
+.Fx 4.0
+onwards, this information is passed to a booting kernel by
+.Xr loader 8 .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa sys/conf/Makefile. Ns Ar arch" -compact
+.It Pa sys/compile/ Ns Ar NAME
+Compile directory created from a kernel configuration.
+.It Pa sys/conf/Makefile. Ns Ar arch
+.Pa Makefile
+fragments for architecture
+.Ar arch .
+.It Pa sys/conf/files
+Devices common to all architectures.
+.It Pa sys/conf/files. Ns Ar arch
+Devices for architecture
+.Ar arch .
+.It Pa sys/conf/options
+Options common to all architectures.
+.It Pa sys/conf/options. Ns Ar arch
+Options for architecture
+.Ar arch .
+.El
+.Sh SEE ALSO
+.Xr kenv 1 ,
+.Xr make 1 ,
+.Xr device.hints 5 ,
+.Xr loader.conf 5 ,
+.Xr config 8 ,
+.Xr kldload 8 ,
+.Xr loader 8
+.Rs
+.%T "Building 4.4BSD Kernels with Config"
+.%A "Samuel J. Leffler"
+.%A "Michael J. Karels"
+.Re
+.Sh HISTORY
+The
+.Xr config 8
+utility first appeared in
+.Bx 4.1 ,
+and was subsequently revised in
+.Bx 4.4 .
+.Pp
+The kernel configuration mechanism changed further in
+.Fx 4.0
+and
+.Fx 5.0 ,
+moving toward an architecture supporting dynamic kernel
+configuration.

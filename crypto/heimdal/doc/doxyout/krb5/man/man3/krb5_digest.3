@@ -1,0 +1,38 @@
+.TH "Heimdal Kerberos 5 digest service" 3 "11 Jan 2012" "Version 1.5.2" "HeimdalKerberos5library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+Heimdal Kerberos 5 digest service \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_digest_probe\fP (krb5_context context, krb5_realm realm, krb5_ccache ccache, unsigned *flags)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_digest_probe (krb5_context context, krb5_realm realm, krb5_ccache ccache, unsigned * flags)"
+.PP
+Get the supported/allowed mechanism for this principal.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Keberos context. 
+.br
+\fIrealm\fP The realm of the KDC. 
+.br
+\fIccache\fP The credential cache to use when talking to the KDC. 
+.br
+\fIflags\fP The supported mechanism.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+

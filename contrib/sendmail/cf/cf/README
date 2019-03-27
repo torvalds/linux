@@ -1,0 +1,34 @@
+
+	SENDMAIL CONFIGURATION FILES INSTALLATION
+
+This document describes how to install the sendmail configuration files.
+Please see ../README about the sendmail configuration files themselves.
+
+By default you need two .mc files: sendmail.mc and submit.mc.  The
+latter is an OS independent configuration file for the mail submission
+program (MSP).  See ../README for details about both files.
+
+Installation of these two files can be done via:
+
+	make install-cf
+
+If you use a different name than "sendmail" for your main .mc file"
+then you should use
+
+	make install-cf CF=config
+
+where "config" is the name of your main .mc file.
+
+The default installation directory is /etc/mail and can be changed
+by specifying
+
+	MAILDIR=/other/dir
+
+The name of the source file for "submit.cf" can be overridden by
+
+	SUBMIT=msp
+
+For more details see Makefile.
+
+
+$Revision: 1.2 $, Last updated $Date: 2002-02-22 00:33:54 $

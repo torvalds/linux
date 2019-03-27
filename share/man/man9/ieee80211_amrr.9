@@ -1,0 +1,194 @@
+.\"
+.\" Copyright (c) 2009 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 4, 2009
+.Dt IEEE8021_AMRR 9
+.Os
+.Sh NAME
+.Nm ieee80211_amrr
+.Nd 802.11 network driver transmit rate control support
+.Sh SYNOPSIS
+.In net80211/ieee80211_amrr.h
+.Ft void
+.Fo ieee80211_amrr_init
+.Fa "struct ieee80211_amrr *"
+.Fa "struct ieee80211vap *"
+.Fa "int amin"
+.Fa "int amax"
+.Fa "int interval"
+.Fc
+.\"
+.Ft void
+.Fn ieee80211_amrr_cleanup "struct ieee80211_amrr *"
+.\"
+.Ft void
+.Fn ieee80211_amrr_setinterval "struct ieee80211_amrr *" "int interval"
+.\"
+.Ft void
+.Fo ieee80211_amrr_node_init
+.Fa "struct ieee80211_amrr *"
+.Fa "struct ieee80211_amrr_node *"
+.Fa "struct ieee80211_node *"
+.Fc
+.\"
+.Ft int
+.Fo ieee80211_amrr_choose
+.Fa "struct ieee80211_node *"
+.Fa "struct ieee80211_amrr_node *"
+.Fc
+.\"
+.Ft void
+.Fo ieee80211_amrr_tx_complete
+.Fa "struct ieee80211_amrr_node *"
+.Fa "int ok"
+.Fa "int retries"
+.Fc
+.\"
+.Ft void
+.Fo ieee80211_amrr_tx_update
+.Fa "struct ieee80211_amrr_node *"
+.Fa "int txnct"
+.Fa "int success"
+.Fa "int retrycnt"
+.Fc
+.Sh DESCRIPTION
+.Nm
+is an implementation of the AMRR transmit rate control algorithm
+for drivers that use the
+.Nm net80211
+software layer.
+A rate control algorithm is responsible for choosing the transmit
+rate for each frame.
+To maximize throughput algorithms try to use the highest rate that
+is appropriate for the operating conditions.
+The rate will vary as conditions change; the distance between two stations
+may change, transient noise may be present that affects signal quality,
+etc.
+.Nm
+uses very simple information from a driver to do it's job:
+whether a frame was successfully delivered and how many transmit
+attempts were made.
+While this enables its use with virtually any wireless device it
+limits it's effectiveness--do not expect it to function well in
+difficult environments and/or respond quickly to changing conditions.
+.Pp
+.Nm
+requires per-vap state and per-node state for each station it is to
+select rates for.
+The API's are designed for drivers to pre-allocate state in the
+driver-private extension areas of each vap and node.
+For example the
+.Xr ral 4
+driver defines a vap as:
+.Bd -literal -offset indent
+struct rt2560_vap {
+        struct ieee80211vap     ral_vap;
+        struct ieee80211_beacon_offsets ral_bo;
+        struct ieee80211_amrr   amrr;
+
+        int      (*ral_newstate)(struct ieee80211vap *,
+                      enum ieee80211_state, int);
+};
+.Ed
+.Pp
+The
+.Vt amrr
+structure member holds the per-vap state for
+.Nm
+and
+.Xr ral 4
+initializes it in the vap create method with:
+.Bd -literal -offset indent
+ieee80211_amrr_init(&rvp->amrr, vap,
+    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
+    IEEE80211_AMRR_MAX_SUCCESS_THRESHOLD,
+    500 /* ms */);
+.Ed
+.Pp
+The node is defined as:
+.Bd -literal -offset indent
+struct rt2560_node {
+        struct ieee80211_node   ni;
+        struct ieee80211_amrr_node amrr;
+};
+.Ed
+.Pp
+with initialization done in the driver's
+.Vt iv_newassoc
+method:
+.Bd -literal -offset indent
+static void
+rt2560_newassoc(struct ieee80211_node *ni, int isnew)
+{
+        struct ieee80211vap *vap = ni->ni_vap;
+
+        ieee80211_amrr_node_init(&RT2560_VAP(vap)->amrr,
+            &RT2560_NODE(ni)->amrr, ni);
+}
+.Ed
+.Pp
+Once
+.Nm
+state is setup, transmit rates are requested by calling
+.Fn ieee80211_amrr_choose
+in the transmit path; e.g.:
+.Bd -literal -offset indent
+tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
+if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+	rate = tp->mcastrate;
+} else if (m0->m_flags & M_EAPOL) {
+	rate = tp->mgmtrate;
+} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
+	rate = tp->ucastrate;
+} else {
+	(void) ieee80211_amrr_choose(ni, &RT2560_NODE(ni)->amrr);
+	rate = ni->ni_txrate;
+}
+.Ed
+.Pp
+Note a rate is chosen only for unicast data frames when a fixed
+transmit rate is not configured; the other cases are handled with
+the
+.Nm net80211
+transmit parameters.
+Note also that
+.Fn ieee80211_amrr_choose
+writes the chosen rate in
+.Vt ni_txrate ;
+this eliminates copying the value as it is exported to user applications so
+they can display the current transmit rate in status.
+.Pp
+The remaining work a driver must do is feed status back to
+.Nm
+when a frame transmit completes using
+.Fn ieee80211_amrr_tx_complete .
+Drivers that poll a device to retrieve statistics can use
+.Fn ieee80211_amrr_tx_update
+(instead or in addition).
+.Sh SEE ALSO
+.Xr ieee80211 9 ,
+.Xr ieee80211_output 9

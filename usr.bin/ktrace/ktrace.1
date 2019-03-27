@@ -1,0 +1,196 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)ktrace.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd July 24, 2017
+.Dt KTRACE 1
+.Os
+.Sh NAME
+.Nm ktrace
+.Nd enable kernel process tracing
+.Sh SYNOPSIS
+.Nm
+.Op Fl aCcdi
+.Op Fl f Ar trfile
+.Op Fl g Ar pgrp | Fl p Ar pid
+.Op Fl t Ar trstr
+.Nm
+.Op Fl adi
+.Op Fl f Ar trfile
+.Op Fl t Ar trstr
+.Ar command
+.Sh DESCRIPTION
+The
+.Nm
+utility enables kernel trace logging for the specified processes.
+Kernel trace data is logged to the file
+.Pa ktrace.out .
+The kernel operations that are traced include system calls, namei
+translations, signal processing, and
+.Tn I/O .
+.Pp
+Once tracing is enabled on a process, trace data will be logged until
+either the process exits or the trace point is cleared.
+A traced process can generate enormous amounts of log data quickly;
+It is strongly suggested that users memorize how to disable tracing before
+attempting to trace a process.
+The following command is sufficient to disable tracing on all user-owned
+processes, and, if executed by root, all processes:
+.Pp
+.Dl \&$ ktrace -C
+.Pp
+The trace file is not human readable; use
+.Xr kdump 1
+to decode it.
+.Pp
+The utility may be used only with a kernel that has been built with the
+.Dq KTRACE
+option in the kernel configuration file.
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl a
+Append to the trace file instead of recreating it.
+.It Fl C
+Disable tracing on all user-owned processes, and, if executed by root, all
+processes in the system.
+.It Fl c
+Clear the specified trace points associated with the given file or processes.
+.It Fl d
+Descendants; perform the operation for all current children of the
+designated processes.
+See also the
+.Fl i
+option.
+.It Fl f Ar trfile
+Log trace records to
+.Ar trfile
+instead of
+.Pa ktrace.out .
+.It Fl g Ar pgid
+Enable (disable) tracing on all processes in the process group (only one
+.Fl g
+flag is permitted).
+.It Fl i
+Inherit; pass the trace flags to all future children of the designated
+processes.
+See also the
+.Fl d
+option.
+.It Fl p Ar pid
+Enable (disable) tracing on the indicated process id (only one
+.Fl p
+flag is permitted).
+.It Fl t Ar trstr
+Specify the list of trace points to enable or disable, one per letter.
+If an explicit list is not specified, the default set of trace points is used.
+.Pp
+The following trace points are supported:
+.Pp
+.Bl -tag -width flag -compact
+.It Cm c
+trace system calls
+.It Cm f
+trace page faults
+.It Cm i
+trace
+.Tn I/O
+.It Cm n
+trace namei translations
+.It Cm p
+trace capability check failures
+.It Cm s
+trace signal processing
+.It Cm t
+trace various structures
+.It Cm u
+userland traces
+.It Cm w
+context switches
+.It Cm y
+trace
+.Xr sysctl 3
+requests
+.It Cm +
+trace the default set of trace points -
+.Cm c , i , n , p , s , t , u , y
+.El
+.It Ar command
+Execute
+.Ar command
+with the specified trace flags.
+.El
+.Pp
+The
+.Fl p ,
+.Fl g ,
+and
+.Ar command
+options are mutually exclusive.
+.Sh EXAMPLES
+Run "make", then trace it and any child processes:
+.Dl $ ktrace -i make
+.Pp
+Trace all kernel operations of process id 34:
+.Dl $ ktrace -p 34
+.Pp
+Trace all kernel operations of processes in process group 15 and
+pass the trace flags to all current and future children:
+.Dl $ ktrace -idg 15
+.Pp
+Disable all tracing of process 65:
+.Dl $ ktrace -cp 65
+.Pp
+Disable tracing signals on process 70 and all current children:
+.Dl $ ktrace -t s -cdp 70
+.Pp
+Enable tracing of
+.Tn I/O
+on process 67:
+.Dl $ ktrace -ti -p 67
+.Pp
+Disable all tracing to the file "tracedata":
+.Dl $ ktrace -c -f tracedata
+.Pp
+Disable tracing of all user-owned processes:
+.Dl $ ktrace -C
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr kdump 1 ,
+.Xr truss 1 ,
+.Xr ktrace 2
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.4 .
+.Sh BUGS
+Only works if
+.Ar trfile
+is a regular file.

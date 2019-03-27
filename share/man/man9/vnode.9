@@ -1,0 +1,197 @@
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 12, 2014
+.Dt VNODE 9
+.Os
+.Sh NAME
+.Nm vnode
+.Nd internal representation of a file or directory
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Sh DESCRIPTION
+The vnode is the focus of all file activity in
+.Ux .
+A vnode is described by
+.Vt "struct vnode" .
+There is a
+unique vnode allocated for each active file, each current directory,
+each mounted-on file, text file, and the root.
+.Pp
+Each vnode has three reference counts,
+.Va v_usecount ,
+.Va v_holdcnt
+and
+.Va v_writecount .
+The first is the number of clients within the kernel which are
+using this vnode.
+This count is maintained by
+.Xr vref 9 ,
+.Xr vrele 9
+and
+.Xr vput 9 .
+The second is the number of clients within the kernel who veto
+the recycling of this vnode.
+This count is
+maintained by
+.Xr vhold 9
+and
+.Xr vdrop 9 .
+When both the
+.Va v_usecount
+and the
+.Va v_holdcnt
+of a vnode reaches zero then the vnode will be put on the freelist
+and may be reused for another file, possibly in another file system.
+The transition from the freelist is handled by
+.Xr getnewvnode 9 .
+The third is a count of the number of clients which are writing into
+the file.
+It is maintained by the
+.Xr open 2
+and
+.Xr close 2
+system calls.
+.Pp
+Any call which returns a vnode (e.g.,\&
+.Xr vget 9 ,
+.Xr VOP_LOOKUP 9 ,
+etc.\&)
+will increase the
+.Va v_usecount
+of the vnode by one.
+When the caller is finished with the vnode, it
+should release this reference by calling
+.Xr vrele 9
+(or
+.Xr vput 9
+if the vnode is locked).
+.Pp
+Other commonly used members of the vnode structure are
+.Va v_id
+which is used to maintain consistency in the name cache,
+.Va v_mount
+which points at the file system which owns the vnode,
+.Va v_type
+which contains the type of object the vnode represents and
+.Va v_data
+which is used by file systems to store file system specific data with
+the vnode.
+The
+.Va v_op
+field is used by the
+.Dv VOP_*
+macros to call functions in the file system which implement the vnode's
+functionality.
+.Sh VNODE TYPES
+.Bl -tag -width VSOCK
+.It Dv VNON
+No type.
+.It Dv VREG
+A regular file; may be with or without VM object backing.
+If you want to make sure this get a backing object, call
+.Fn vnode_create_vobject .
+.It Dv VDIR
+A directory.
+.It Dv VBLK
+A block device; may be with or without VM object backing.
+If you want to make sure this get a backing object, call
+.Fn vnode_create_vobject .
+.It Dv VCHR
+A character device.
+.It Dv VLNK
+A symbolic link.
+.It Dv VSOCK
+A socket.
+Advisory locking will not work on this.
+.It Dv VFIFO
+A FIFO (named pipe).
+Advisory locking will not work on this.
+.It Dv VBAD
+Indicates that the vnode has been reclaimed.
+.El
+.Sh IMPLEMENTATION NOTES
+VFIFO uses the "struct fileops" from
+.Pa /sys/kern/sys_pipe.c .
+VSOCK uses the "struct fileops" from
+.Pa /sys/kern/sys_socket.c .
+Everything else uses the one from
+.Pa /sys/kern/vfs_vnops.c .
+.Pp
+The VFIFO/VSOCK code, which is why "struct fileops" is used at all, is
+an artifact of an incomplete integration of the VFS code into the
+kernel.
+.Pp
+Calls to
+.Xr malloc 9
+or
+.Xr free 9
+when holding a
+.Nm
+interlock, will cause a LOR (Lock Order Reversal) due to the
+intertwining of VM Objects and Vnodes.
+.Sh SEE ALSO
+.Xr malloc 9 ,
+.Xr VFS 9 ,
+.Xr VOP_ACCESS 9 ,
+.Xr VOP_ACLCHECK 9 ,
+.Xr VOP_ADVISE 9 ,
+.Xr VOP_ADVLOCK 9 ,
+.Xr VOP_ALLOCATE 9 ,
+.Xr VOP_ATTRIB 9 ,
+.Xr VOP_BWRITE 9 ,
+.Xr VOP_CREATE 9 ,
+.Xr VOP_FSYNC 9 ,
+.Xr VOP_GETACL 9 ,
+.Xr VOP_GETEXTATTR 9 ,
+.Xr VOP_GETPAGES 9 ,
+.Xr VOP_INACTIVE 9 ,
+.Xr VOP_IOCTL 9 ,
+.Xr VOP_LINK 9 ,
+.Xr VOP_LISTEXTATTR 9 ,
+.Xr VOP_LOCK 9 ,
+.Xr VOP_LOOKUP 9 ,
+.Xr VOP_OPENCLOSE 9 ,
+.Xr VOP_PATHCONF 9 ,
+.Xr VOP_PRINT 9 ,
+.Xr VOP_RDWR 9 ,
+.Xr VOP_READDIR 9 ,
+.Xr VOP_READLINK 9 ,
+.Xr VOP_REALLOCBLKS 9 ,
+.Xr VOP_REMOVE 9 ,
+.Xr VOP_RENAME 9 ,
+.Xr VOP_REVOKE 9 ,
+.Xr VOP_SETACL 9 ,
+.Xr VOP_SETEXTATTR 9 ,
+.Xr VOP_STRATEGY 9 ,
+.Xr VOP_VPTOCNP 9 ,
+.Xr VOP_VPTOFH 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

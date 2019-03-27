@@ -1,0 +1,115 @@
+.\"
+.\" Copyright (c) 2009 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 4, 2009
+.Dt IEEE80211_BEACON 9
+.Os
+.Sh NAME
+.Nm ieee80211_beacon
+.Nd 802.11 beacon support
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.Pp
+.Ft "struct mbuf *"
+.Fo ieee80211_beacon_alloc
+.Fa "struct ieee80211_node *"
+.Fa "struct ieee80211_beacon_offsets *"
+.Fc
+.\"
+.Ft int
+.Fo ieee80211_beacon_update
+.Fa "struct ieee80211_node *"
+.Fa "struct ieee80211_beacon_offsets *"
+.Fa "struct mbuf *"
+.Fa "int mcast"
+.Fc
+.\"
+.Ft void
+.Fn ieee80211_beacon_notify "struct ieee80211vap *" "int what"
+.Sh DESCRIPTION
+The
+.Nm net80211
+software layer provides a support framework for drivers that includes
+a template-based mechanism for dynamic update of beacon frames transmit
+in hostap, adhoc, and mesh operating modes.
+Drivers should use
+.Fn ieee80211_beacon_alloc
+to create an initial beacon frame.
+The
+.Vt ieee80211_beacon_offsets
+structure holds information about the beacon contents that is used
+to optimize updates done with
+.Fn ieee80211_beacon_update .
+.Pp
+Update calls should only be done when something changes that
+affects the contents of the beacon frame.
+When this happens the
+.Dv iv_update_beacon
+method is invoked and a driver-supplied routine must do the right thing.
+For devices that involve the host to transmit each
+beacon frame this work may be as simple as marking a bit in the
+.Vt ieee80211_beacon_offsets
+structure:
+.Bd -literal
+static void
+ath_beacon_update(struct ieee80211vap *vap, int item)
+{
+        struct ieee80211_beacon_offsets *bo = &ATH_VAP(vap)->av_boff;
+	setbit(bo->bo_flags, item);
+}
+.Ed
+.Pp
+with the
+.Fn ieee80211_beacon_update
+call done before the next beacon is to be sent.
+.Pp
+Devices that off-load beacon generation may instead choose to use
+this callback to push updates immediately to the device.
+Exactly how that is accomplished is unspecified.
+One possibility is to update the beacon frame contents and extract
+the appropriate information element, but other scenarios are possible.
+.Sh MULTI-VAP BEACON SCHEDULING
+Drivers that support multiple vaps that can each beacon need to consider
+how to schedule beacon frames.
+There are two possibilities at the moment:
+.Em burst
+all beacons at TBTT or
+.Em stagger beacons
+over the beacon interval.
+Bursting beacon frames may result in aperiodic delivery that can affect
+power save operation of associated stations.
+Applying some jitter (e.g. by randomly ordering burst frames) may be
+sufficient to combat this and typically this is not an issue unless
+stations are using aggressive power save techniques
+such as U-APSD (sometimes employed by VoIP phones).
+Staggering frames requires more interrupts and device support that
+may not be available.
+Staggering beacon frames is usually superior to bursting frames, up to
+about eight vaps, at which point the overhead becomes significant and
+the channel becomes noticeably busy anyway.
+.Sh SEE ALSO
+.Xr ieee80211 9

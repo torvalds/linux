@@ -1,0 +1,134 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+#
+# XML RELAX NG schema for Subversion command-line client output
+# For "svn info"
+
+include "common.rnc"
+
+start = info
+
+info = element info { entry* }
+
+entry =
+  element entry {
+    attlist.entry, url?, relative-url?, repository?, wc-info?,
+    commit?, conflict?, lock?, tree-conflict?
+  }
+attlist.entry &=
+  ## Local path.
+  attribute path { string },
+  ## Path type.
+  attribute kind { "file" | "dir" },
+  ## Revision number of path/URL.
+  attribute revision { revnum.type }
+
+## URL of this item in the repository.
+url = element url { xsd:anyURI }
+
+## Repository relative URL (^/...) of this item in the repository.
+relative-url = element relative-url { string }
+
+## Information of this item's repository.
+repository = element repository { root?, uuid? }
+
+## URL of the repository.
+root = element root { xsd:anyURI }
+
+## UUID of the repository.
+uuid = element uuid { uuid.type }
+
+## Info in the working copy entry.
+wc-info =
+  element wc-info {
+    wcroot-abspath?,
+    schedule?,
+    changelist?,
+    copy-from-url?,
+    copy-from-rev?,
+    depth?,
+    text-updated?,
+    prop-updated?,
+    checksum?,
+    moved-from?,
+    moved-to?
+  }
+
+wcroot-abspath = element wcroot-abspath { string }
+
+schedule =
+  element schedule { "normal" | "add" | "delete" | "replace" | "none" }
+
+## The name of the changelist that the path may be a member of.
+changelist = element changelist { string }
+
+copy-from-url = element copy-from-url { xsd:anyURI }
+
+copy-from-rev = element copy-from-rev { revnum.type }
+
+# Date when text was last updated.
+text-updated = element text-updated { xsd:dateTime }
+
+# Date when properties were last updated.
+prop-updated = element prop-updated { xsd:dateTime }
+
+checksum = element checksum { md5sum.type }
+
+moved-from = element moved-from { string }
+
+moved-to = element moved-to { string }
+
+conflict =
+  element conflict {
+    prev-base-file,
+    prev-wc-file?,
+    cur-base-file,
+    prop-file?
+  }
+
+## Previous base file.
+prev-base-file = element prev-base-file { string }
+
+## Previous WC file.
+prev-wc-file = element prev-wc-file { string }
+
+## Current base file.
+cur-base-file = element cur-base-file { string }
+
+## Current properties file.
+prop-file = element prop-file { string }
+
+## Depth of this directory, always "infinity" for non-directories
+depth = element depth { "infinity" | "immediates" | "files" | "empty" }
+
+tree-conflict =
+  element tree-conflict { attlist.tree-conflict }
+
+attlist.tree-conflict &=
+  ## Local path to the original victim.
+  attribute victim { string },
+  ## Path type.
+  attribute kind { "file" | "dir" },
+  ## Operation causing the tree conflict.
+  attribute operation { "update" | "merge" | "switch" },
+  ## Operation's action on the victim.
+  attribute action { "edit" | "add" | "delete" | "replace" },
+  ## Local reason for the conflict.
+  attribute reason { "edit" | "obstruction" | "delete" | "add" |
+                     "missing" | "unversioned" | "replace" |
+                     "moved-away" | "moved-here" }

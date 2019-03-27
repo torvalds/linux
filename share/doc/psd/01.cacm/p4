@@ -1,0 +1,524 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)p4	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+VI. THE SHELL
+.PP
+For most users,
+communication with
+the system
+is carried on with the
+aid of a program called the \&shell.
+The \&shell is a
+command-line interpreter: it reads lines typed by the user and
+interprets them as requests to execute
+other programs.
+(The \&shell is described fully elsewhere,
+.[
+bourne shell bstj
+%Q This issue
+.]
+so this section will discuss only the theory of its operation.)
+In simplest form, a command line consists of the command
+name followed by arguments to the command, all separated
+by spaces:
+.P1
+command arg\*s\d1\u\*n arg\*s\d2\u\*n .\|.\|. arg\*s\dn\u\*n
+.P2
+The \&shell splits up the command name and the arguments into
+separate strings.
+Then a file with name
+.UL command
+is sought;
+.UL command
+may be a path name including the ``/'' character to
+specify any file in the system.
+If
+.UL command
+is found, it is brought into
+memory and executed.
+The arguments
+collected by the \&shell are accessible
+to the command.
+When the command is finished, the \&shell
+resumes its own execution, and indicates its readiness
+to accept another command by typing a prompt character.
+.PP
+If file
+.UL command
+cannot be found,
+the \&shell generally prefixes a string 
+such as
+.UL /\|bin\|/
+to
+.UL command
+and
+attempts again to find the file.
+Directory
+.UL /\|bin
+contains commands
+intended to be generally used.
+(The sequence of directories to be searched
+may be changed by user request.)
+.SH
+6.1 Standard I/O
+.PP
+The discussion of I/O in Section III above seems to imply that
+every file used by a program must be opened or created by the program in
+order to get a file descriptor for the file.
+Programs executed by the \&shell, however, start off with
+three open files with file descriptors
+0, 1, and 2.
+As such a program begins execution, file 1 is open for writing,
+and is best understood as the standard output file.
+Except under circumstances indicated below, this file
+is the user's terminal.
+Thus programs that wish to write informative
+information ordinarily use file descriptor 1.
+Conversely, file 0 starts off open for reading, and programs that
+wish to read messages typed by the user
+read this file.
+.PP
+The \&shell is able to change the standard assignments of
+these file descriptors from the
+user's terminal printer and keyboard.
+If one of the
+arguments to a command is prefixed by ``>'', file descriptor
+1 will, for the duration of the command, refer to the
+file named after the ``>''.
+For example:
+.P1
+ls
+.P2
+ordinarily lists, on the typewriter, the names of the files in the current
+directory.
+The command:
+.P1
+ls >there
+.P2
+creates a file called
+.UL there
+and places the listing there.
+Thus the argument
+.UL >there
+means
+``place output on
+.UL there .''
+On the other hand:
+.P1
+ed
+.P2
+ordinarily enters the editor, which takes requests from the
+user via his keyboard.
+The command
+.P1
+ed <script
+.P2
+interprets
+.UL script
+as a file of editor commands;
+thus
+.UL <script
+means ``take input from
+.UL script .''
+.PP
+Although the file name following ``<'' or ``>'' appears
+to be an argument to the command, in fact it is interpreted
+completely by the \&shell and is not passed to the
+command at all.
+Thus no special coding to handle I/O redirection is needed within each
+command; the command need merely use the standard file
+descriptors 0 and 1 where appropriate.
+.PP
+File descriptor 2 is, like file 1,
+ordinarily associated with the terminal output stream.
+When an output-diversion request with ``>'' is specified,
+file 2 remains attached to the terminal, so that commands
+may produce diagnostic messages that
+do not silently end up in the output file.
+.SH
+6.2 Filters
+.PP
+An extension of the standard I/O notion is used
+to direct output from one command to
+the input of another.
+A sequence of commands separated by
+vertical bars causes the \&shell to
+execute all the commands simultaneously and to arrange
+that the standard output of each command
+be delivered to the standard input of
+the next command in the sequence.
+Thus in the command line:
+.P1
+ls | pr \(mi2 | opr
+.P2
+.UL ls
+lists the names of the files in the current directory;
+its output is passed to
+.UL pr ,
+which
+paginates its input with dated headings.
+(The argument ``\(mi2'' requests
+double-column output.)
+Likewise, the output from
+.UL pr
+is input to
+.UL opr ;
+this command spools its input onto a file for off-line
+printing.
+.PP
+This procedure could have been carried out
+more clumsily by:
+.P1
+ls >temp1
+pr \(mi2 <temp1 >temp2
+opr <temp2
+.P2
+followed by removal of the temporary files.
+In the absence of the ability
+to redirect output and input,
+a still clumsier method would have been to
+require the
+.UL ls
+command
+to accept user requests to paginate its output,
+to print in multi-column format, and to arrange
+that its output be delivered off-line.
+Actually it would be surprising, and in fact
+unwise for efficiency reasons,
+to expect authors of
+commands such as
+.UL ls
+to provide such a wide variety of output options.
+.PP
+A program
+such as
+.UL pr
+which copies its standard input to its standard output
+(with processing)
+is called a
+.IT filter .
+Some filters that we have found useful
+perform
+character transliteration,
+selection of lines according to a pattern,
+sorting of the input,
+and encryption and decryption.
+.SH
+6.3 Command separators; multitasking
+.PP
+Another feature provided by the \&shell is relatively straightforward.
+Commands need not be on different lines; instead they may be separated
+by semicolons:
+.P1
+ls; ed
+.P2
+will first list the contents of the current directory, then enter
+the editor.
+.PP
+A related feature is more interesting.
+If a command is followed
+by ``\f3&\f1,'' the \&shell will not wait for the command to finish before
+prompting again; instead, it is ready immediately
+to accept a new command.
+For example:
+.bd 3
+.P1
+as source >output &
+.P2
+causes
+.UL source
+to be assembled, with diagnostic
+output going to
+.UL output ;
+no matter how long the
+assembly takes, the \&shell returns immediately.
+When the \&shell does not wait for
+the completion of a command,
+the identification number of the
+process running that command is printed.
+This identification may be used to
+wait for the completion of the command or to
+terminate it.
+The ``\f3&\f1'' may be used
+several times in a line:
+.P1
+as source >output & ls >files &
+.P2
+does both the assembly and the listing in the background.
+In these examples, an output file
+other than the terminal was provided; if this had not been
+done, the outputs of the various commands would have been
+intermingled.
+.PP
+The \&shell also allows parentheses in the above operations.
+For example:
+.P1
+(\|date; ls\|) >x &
+.P2
+writes the current date and time followed by
+a list of the current directory onto the file
+.UL x .
+The \&shell also returns immediately for another request.
+.SH 1
+6.4 The \&shell as a command; command files
+.PP
+The \&shell is itself a command, and may be called recursively.
+Suppose file
+.UL tryout
+contains the lines:
+.P1
+as source
+mv a.out testprog
+testprog
+.P2
+The
+.UL mv
+command causes the file
+.UL a.out
+to be renamed
+.UL testprog.
+.UL \&a.out
+is the (binary) output of the assembler, ready to be executed.
+Thus if the three lines above were typed on the keyboard,
+.UL source
+would be assembled, the resulting program renamed
+.UL testprog ,
+and
+.UL testprog
+executed.
+When the lines are in
+.UL tryout ,
+the command:
+.P1
+sh <tryout
+.P2
+would cause the \&shell
+.UL sh
+to execute the commands
+sequentially.
+.PP
+The \&shell has further capabilities, including the
+ability to substitute parameters
+and
+to construct argument lists from a specified
+subset of the file names in a directory.
+It also provides general conditional and looping constructions.
+.SH 1
+6.5 Implementation of the \&shell
+.PP
+The outline of the operation of the \&shell can now be understood.
+Most of the time, the \&shell
+is waiting for the user to type a command.
+When the
+newline character ending the line
+is typed, the \&shell's
+.UL read
+call returns.
+The \&shell analyzes the command line, putting the
+arguments in a form appropriate for
+.UL execute .
+Then
+.UL fork
+is called.
+The child process, whose code
+of course is still that of the \&shell, attempts
+to perform an
+.UL execute
+with the appropriate arguments.
+If successful, this will bring in and start execution of the program whose name
+was given.
+Meanwhile, the other process resulting from the
+.UL fork ,
+which is the
+parent process,
+.UL wait s
+for the child process to die.
+When this happens, the \&shell knows the command is finished, so
+it types its prompt and reads the keyboard to obtain another
+command.
+.PP
+Given this framework, the implementation of background processes
+is trivial; whenever a command line contains ``\f3&\f1,''
+the \&shell merely refrains from waiting for the process
+that it created
+to execute the command.
+.PP
+Happily, all of this mechanism meshes very nicely with
+the notion of standard input and output files.
+When a process is created by the
+.UL fork
+primitive, it
+inherits not only the memory image of its parent
+but also all the files currently open in its parent,
+including those with file descriptors 0, 1, and 2.
+The \&shell, of course, uses these files to read command
+lines and to write its prompts and diagnostics, and in the ordinary case
+its children\(emthe command programs\(eminherit them automatically.
+When an argument with ``<'' or ``>'' is given, however, the
+offspring process, just before it performs
+.UL execute,
+makes the standard I/O
+file descriptor (0 or 1, respectively) refer to the named file.
+This is easy
+because, by agreement,
+the smallest unused file descriptor is assigned
+when a new file is
+.UL open ed
+(or
+.UL create d);
+it is only necessary to close file 0 (or 1)
+and open the named file.
+Because the process in which the command program runs simply terminates
+when it is through, the association between a file
+specified after ``<'' or ``>'' and file descriptor 0 or 1 is ended
+automatically when the process dies.
+Therefore
+the \&shell need not know the actual names of the files
+that are its own standard input and output, because it need
+never reopen them.
+.PP
+Filters are straightforward extensions
+of standard I/O redirection with pipes used
+instead of files.
+.PP
+In ordinary circumstances, the main loop of the \&shell never
+terminates.
+(The main loop includes the
+branch of the return from
+.UL fork
+belonging to the
+parent process; that is, the branch that does a
+.UL wait ,
+then
+reads another command line.)
+The one thing that causes the \&shell to terminate is
+discovering an end-of-file condition on its input file.
+Thus, when the \&shell is executed as a command with
+a given input file, as in:
+.P1
+sh <comfile
+.P2
+the commands in
+.UL comfile
+will be executed until
+the end of
+.UL comfile
+is reached; then the instance of the \&shell
+invoked by
+.UL sh
+will terminate.
+Because this \&shell process
+is the child of another instance of the \&shell, the
+.UL wait
+executed in the latter will return, and another
+command may then be processed.
+.SH
+6.6 Initialization
+.PP
+The instances of the \&shell to which users type
+commands are themselves children of another process.
+The last step in the initialization of
+the system
+is the creation of
+a single process and the invocation (via
+.UL execute )
+of a program called
+.UL init .
+The role of
+.UL init
+is to create one process
+for each terminal channel.
+The various subinstances of
+.UL init
+open the appropriate terminals
+for input and output
+on files 0, 1, and 2,
+waiting, if necessary, for carrier to be established on dial-up lines.
+Then a message is typed out requesting that the user log in.
+When the user types a name or other identification,
+the appropriate instance of
+.UL init
+wakes up, receives the log-in
+line, and reads a password file.
+If the user's name is found, and if
+he is able to supply the correct password,
+.UL init
+changes to the user's default current directory, sets
+the process's user \*sID\*n to that of the person logging in, and performs
+an
+.UL execute
+of the \&shell.
+At this point, the \&shell is ready to receive commands
+and the logging-in protocol is complete.
+.PP
+Meanwhile, the mainstream path of
+.UL init
+(the parent of all
+the subinstances of itself that will later become \&shells)
+does a
+.UL wait .
+If one of the child processes terminates, either
+because a \&shell found an end of file or because a user
+typed an incorrect name or password, this path of
+.UL init
+simply recreates the defunct process, which in turn reopens the appropriate
+input and output files and types another log-in message.
+Thus a user may log out simply by typing the end-of-file
+sequence to the \&shell.
+.SH
+6.7 Other programs as \&shell
+.PP
+The \&shell as described above is designed to allow users
+full access to the facilities of the system, because it will
+invoke the execution of any program
+with appropriate protection mode.
+Sometimes, however, a different interface to the system
+is desirable, and this feature is easily arranged for.
+.PP
+Recall that after a user has successfully logged in by supplying
+a name and password,
+.UL init
+ordinarily invokes the \&shell
+to interpret command lines.
+The user's entry
+in the password file may contain the name
+of a program to be invoked after log-in instead of the \&shell.
+This program is free to interpret the user's messages
+in any way it wishes.
+.PP
+For example, the password file entries
+for users of a secretarial editing system
+might
+specify that the
+editor
+.UL ed
+is to be used instead of the \&shell.
+Thus when users of the editing system log in, they are inside the editor and
+can begin work immediately; also, they can be prevented from
+invoking
+programs not intended for their use.
+In practice, it has proved desirable to allow a temporary
+escape from the editor
+to execute the formatting program and other utilities.
+.PP
+Several of the games (e.g., chess, blackjack, 3D tic-tac-toe)
+available on
+the system
+illustrate
+a much more severely restricted environment.
+For each of these, an entry exists
+in the password file specifying that the appropriate game-playing
+program is to be invoked instead of the \&shell.
+People who log in as a player
+of one of these games find themselves limited to the
+game and unable to investigate the (presumably more interesting)
+offerings of
+the
+.UX
+system
+as a whole.

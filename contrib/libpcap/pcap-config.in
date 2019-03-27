@@ -1,0 +1,94 @@
+#! /bin/sh
+
+#
+# Script to give the appropriate compiler flags and linker flags
+# to use when building code that uses libpcap.
+#
+# These variables come from the configure script, so includedir and
+# libdir may be defined in terms of prefix and exec_prefix, so the
+# latter must be defined as well.
+#
+prefix="@prefix@"
+exec_prefix="@exec_prefix@"
+includedir="@includedir@"
+libdir="@libdir@"
+V_RPATH_OPT="@V_RPATH_OPT@"
+LIBS="@LIBS@"
+PACKAGE_NAME="@PACKAGE_NAME@"
+
+static=0
+show_cflags=0
+show_libs=0
+while [ "$#" != 0 ]
+do
+	case "$1" in
+
+	--static)
+		static=1
+		;;
+
+	--cflags)
+		show_cflags=1
+		;;
+
+	--libs)
+		show_libs=1
+		;;
+
+	--additional-libs)
+		show_additional_libs=1
+		;;
+	esac
+	shift
+done
+if [ "$V_RPATH_OPT" != "" ]
+then
+	#
+	# If libdir isn't /usr/lib, add it to the run-time linker path.
+	#
+	if [ "$libdir" != "/usr/lib" ]
+	then
+		RPATH=$V_RPATH_OPT$libdir
+	fi
+fi
+if [ "$static" = 1 ]
+then
+	#
+	# Include LIBS so that the flags include libraries containing
+	# routines that libpcap uses.
+	#
+	if [ "$show_cflags" = 1 -a "$show_libs" = 1 ]
+	then
+		echo "-I$includedir -L$libdir -lpcap $LIBS"
+	elif [ "$show_cflags" = 1 -a "$show_additional_libs" = 1 ]
+	then
+		echo "-I$includedir -L$libdir $LIBS"
+	elif [ "$show_cflags" = 1 ]
+	then
+		echo "-I$includedir"
+	elif [ "$show_libs" = 1 ]
+	then
+		echo "-L$libdir -lpcap $LIBS"
+	elif [ "$show_additional_libs" = 1 ]
+	then
+		echo "$LIBS"
+	fi
+else
+	#
+	# Omit LIBS - libpcap is assumed to be linked with those
+	# libraries, so there's no need to do so explicitly.
+	#
+	if [ "$show_cflags" = 1 -a "$show_libs" = 1 ]
+	then
+		echo "-I$includedir -L$libdir $RPATH -l$PACKAGE_NAME"
+	elif [ "$show_cflags" = 1 -a "$show_additional_libs" = 1 ]
+	then
+		echo "-I$includedir"
+	elif [ "$show_cflags" = 1 ]
+	then
+		echo "-I$includedir"
+	elif [ "$show_libs" = 1 ]
+	then
+		echo "-L$libdir $RPATH -l$PACKAGE_NAME"
+	fi
+fi

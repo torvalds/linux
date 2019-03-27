@@ -1,0 +1,280 @@
+.\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\"	All rights reserved.
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\"	All rights reserved.
+.\"
+.\" Author: Harti Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Begemot: bsnmp/snmpd/bsnmpd.1,v 1.12 2006/02/27 09:50:03 brandt_h Exp $
+.\"
+.Dd May 14, 2016
+.Dt BSNMPD 1
+.Os
+.Sh NAME
+.Nm bsnmpd
+.Nd "simple and extensible SNMP daemon"
+.Sh SYNOPSIS
+.Nm
+.Op Fl dh
+.Op Fl c Ar file
+.Op Fl D Ar options
+.Op Fl e Ar file
+.Op Fl I Ar paths
+.Op Fl l Ar prefix
+.Op Fl m Ar variable Ns Op = Ns Ar value
+.Op Fl p Ar file
+.Sh DESCRIPTION
+The
+.Nm
+daemon serves the internet SNMP (Simple Network Management Protocol).
+It is intended to serve only the absolute basic MIBs and implement all other
+MIBs through loadable modules.
+In this way the
+.Nm
+can be used in unexpected ways.
+.Pp
+The options are as follows:
+.Bl -tag -width ".It Fl D Ar options"
+.It Fl d
+Do not daemonize.
+Used for debugging.
+.It Fl h
+Print a short usage message.
+.It Fl c Ar file
+Use
+.Ar file
+as configuration file instead of the standard one.
+.It Fl D Ar options
+Debugging options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+The following options are available.
+.Bl -tag -width ".It Cm trace Ns Cm = Ns Cm level"
+.It Cm dump
+Dump all sent and received PDUs to the terminal.
+.It Cm events
+Set the debugging level of the event library (see
+.Xr eventlib 3 )
+to 10.
+.It Cm trace Ns Cm = Ns Cm level
+Set the snmp library trace flag to the specified
+value.
+.El
+The value can be specified in the usual C-syntax for numbers.
+.It Fl e Ar file
+Specify an alternate file where the agent's engine id and number of boots
+are saved.
+.It Fl I Ar paths
+Specify a colon separated list of directories to search for configuration
+include files.
+The default is
+.Pa /etc:/usr/etc/:/usr/local/etc .
+These paths are only searched for include specified within <> parentheses.
+.It Fl l Ar prefix
+Use
+.Ar prefix
+as the default basename for the pid and the configuration files.
+.It Fl m Ar variable Ns Op = Ns Ar value
+Define a configuration variable.
+.It Fl p Ar file
+Specify an alternate pid file instead of the default one.
+.El
+.Sh CONFIGURATION
+.Nm
+reads its configuration from either the default or the user specified
+configuration file.
+The configuration file consists of the following types of lines:
+.Bl -bullet -offset indent
+.It
+variable assignments
+.It
+section separators
+.It
+include directives
+.It
+MIB variable assignments
+.El
+.Pp
+If a line is too long it can be continued on the next line by ending it with
+a backslash.
+Empty lines and lines in which the first non-blank character is a
+.Dq #
+sign are ignored.
+.Pp
+All MIB variable assignments of the entire configuration (including nested
+configuration files) are handled as one transaction, i.e., as if they arrived
+in a single SET PDU.
+Any failure during the initial configuration read causes
+.Nm
+to exit.
+A failure during the configuration read caused by a module load
+causes the loading of the module to fail.
+.Pp
+The configuration is read during initialization of
+.Nm ,
+when a module is loaded and when
+.Nm
+receives a SIGHUP.
+.Ss VARIABLE ASSIGNMENTS
+Variable assignments can take one of two forms:
+.Bd -unfilled -offset indent
+variable := string
+variable ?= string
+.Ed
+.Pp
+The string reaches from the first non-blank character after the
+equal sign until the first new line or
+.Dq #
+character.
+In the first case
+the string is assigned to the variable unconditionally, in the second case the
+variable is only assigned if it does not exist yet.
+.Pp
+Variable names must begin with a letter or underscore and contain only letters,
+digits or underscores.
+.Ss SECTION SEPARATORS
+The configuration consists of named sections.
+The MIB variable assignments in the section named
+.Dq snmpd
+are executed only during initial setup or when
+.Nm
+receives a SIGHUP.
+All other sections are executed when either a module
+with the same name as the section is loaded or
+.Nm
+receives a SIGHUP and that module is already loaded.
+The default section at the start of the configuration is
+.Dq snmpd .
+One can switch to another section with the syntax
+.Bd -unfilled -offset indent
+%secname
+.Ed
+.Pp
+Where
+.Ar secname
+is the name of the section.
+The same
+.Ar secname
+can be used in more than one place in the configuration.
+All of these parts are collected into one section.
+.Ss INCLUDE DIRECTIVES
+Another configuration file can be included into the current one with the
+include directive that takes one of two forms:
+.Bd -unfilled -offset indent
+\&.include "file"
+\&.include <"file">
+.Ed
+.Pp
+The first form causes the file to be searched in the current directory, the
+second form causes the file to be searched in the directories specified in
+the system include path.
+Nesting depth is only restricted by available memory.
+.Ss MIB VARIABLE ASSIGNMENTS
+A MIB variable is assigned with the syntax
+.Bd -unfilled -offset indent
+oid [ suboids ] = value
+.Ed
+.Pp
+.Va oid
+is the name of the variable to be set.
+Only the last component of the entire name is used here.
+If the variable is a scalar, the index (.0) is automatically
+appended and need not to be specified.
+If the variable is a table column, the index
+.Pq Va suboids
+must be specified.
+The index consist of elements each separated from the
+previous one by a dot.
+Elements may be either numbers, strings or hostnames
+enclosed in [] brackets.
+If the element is a number it is appended
+to the current oid.
+If the element is a string, its length and the
+.Tn ASCII
+code of each of its characters are appended to the current oid.
+If the
+element is a hostname, the IP address of the host is looked up and the four
+elements of the IP address are appended to the oid.
+.Pp
+For example, an oid of
+.Bd -unfilled -offset indent
+myvariable.27.foooll.[localhost]."&^!"
+.Ed
+.Pp
+results in the oid
+.Bd -unfilled -offset indent
+myvariable.27.102.111.111.111.108.108.127.0.0.1.38.94.33
+.Ed
+.Pp
+The value of the assignment may be either empty, a string or a number.
+If a string starts with a letter or an underscore and consists only of
+letters, digits, underscores and minus signs, it can be written without
+quotes.
+In all other cases the string must be enclosed in double quotes.
+.Sh SUBSTITUTIONS
+A variable substitution is written as
+.Bd -unfilled -offset indent
+$(variable)
+.Ed
+.Pp
+where
+.Ar variable
+is the name of the variable to substitute.
+Using an undefined variable is considered an error.
+.Sh FILES
+.Bl -tag -width ".It Pa /var/run/ Ns Ao Ar prefix Ac Ns \&.pid" -compact
+.It Pa /etc/ Ns Ao Ar prefix Ac Ns \&.config
+Default configuration file, where the default
+.Aq prefix
+is
+.Dq snmpd .
+.It Pa /var/ Ns Ao Ar prefix Ac Ns \&.engine
+Default engine id file.
+.It Pa /var/run/ Ns Ao Ar prefix Ac Ns \&.pid
+Default pid file.
+.It Pa /etc:/usr/etc/:/usr/local/etc
+Default search path for system include files.
+.It Pa @MIBSPATH@FOKUS-MIB.txt
+.It Pa @MIBSPATH@BEGEMOT-MIB.txt
+.It Pa @MIBSPATH@BEGEMOT-SNMPD.txt
+Definitions for the MIBs implemented in the daemon.
+.It Pa /etc/hosts.allow, /etc/hosts.deny
+Access controls that should be enforced by TCP wrappers are defined here.
+Further details are described in
+.Xr hosts_access 5 .
+.El
+.Sh SEE ALSO
+.Xr gensnmptree 1 ,
+.Xr hosts_access 5
+.Sh STANDARDS
+The
+.Nm
+conforms to the applicable IETF RFCs.
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@FreeBSD.org
+.Sh BUGS
+Sure.

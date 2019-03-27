@@ -1,0 +1,122 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_memory.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd June 28, 2006
+.Dt ELF_MEMORY 3
+.Os
+.Sh NAME
+.Nm elf_memory
+.Nd process an ELF or ar(1) archive mapped into memory
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft "Elf *"
+.Fn elf_memory "char *image" "size_t size"
+.Sh DESCRIPTION
+Function
+.Fn elf_memory
+is used to process an ELF file or
+.Xr ar 1
+archive whose image is present in memory.
+.Pp
+Argument
+.Ar image
+points to the start of the memory image of the file or archive.
+Argument
+.Ar size
+contains the size in bytes of the memory image.
+.Pp
+The ELF descriptor is created for reading (i.e., analogous to the
+use of
+.Xr elf_begin 3
+with a command argument value of
+.Dv ELF_C_READ Ns ).
+.Sh RETURN VALUES
+Function
+.Fn elf_memory
+returns a pointer to a new ELF descriptor if successful, or NULL if an
+error occurred.
+.Pp
+The return value may be queried for the file type using
+.Xr elf_kind 3 .
+.Sh EXAMPLES
+To read parse an elf file, use:
+.Bd -literal -offset indent
+int fd;
+void *p;
+struct stat sb;
+Elf *e;
+\&...
+if ((fd = open("./elf-file", O_RDONLY)) < 0 ||
+    fstat(fd, &sb) < 0 ||
+    (p = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, (off_t) 0)) ==
+    MAP_FAILED) {
+	... handle system error ...
+}
+
+if ((e = elf_memory(p, sb.st_size)) == NULL) {
+	... handle elf(3) error ...
+}
+\&... use ELF descriptor "e" here ...
+.Ed
+.Sh ERRORS
+Function
+.Fn elf_memory
+can fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+A NULL value was used for argument
+.Ar image
+or the value of argument
+.Ar sz
+was zero.
+.It Bq Er ELF_E_HEADER
+The header of the ELF object contained an unsupported value in its
+.Va e_ident[EI_CLASS]
+field.
+.It Bq Er ELF_E_HEADER
+The header of the ELF object contained an unsupported value in its
+.Va e_ident[EI_DATA]
+field.
+.It Bq Er ELF_E_RESOURCE
+An out of memory condition was detected.
+.It Bq Er ELF_E_SEQUENCE
+Function
+.Fn elf_memory
+was called before a working version was set using
+.Xr elf_version 3 .
+.It Bq Er ELF_E_VERSION
+The ELF object referenced by argument
+.Ar image
+was of an unsupported ELF version.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_begin 3 ,
+.Xr elf_end 3 ,
+.Xr elf_errno 3 ,
+.Xr elf_kind 3 ,
+.Xr gelf 3

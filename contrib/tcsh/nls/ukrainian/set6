@@ -1,0 +1,11 @@
+$ $tcsh: set6,v 1.4 2011/02/04 18:19:45 christos Exp $
+$ ed.inputl.c
+$set 6
+1 ERROR: illegal command from key 0%o\r\n
+2 yes\n
+3 edit\n
+4 abort\n
+5 no\n
+6 Немає схожої команди\n
+7 Неоднозначна команда\n
+8 *** Фатальна ПОМИЛКА редактора ***\r\n\n

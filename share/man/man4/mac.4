@@ -1,0 +1,246 @@
+.\" Copyright (c) 2003 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris Costello
+.\" at Safeport Network Services and Network Associates Labs, the
+.\" Security Research Division of Network Associates, Inc. under
+.\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 25, 2015
+.Dt MAC 4
+.Os
+.Sh NAME
+.Nm mac
+.Nd Mandatory Access Control
+.Sh SYNOPSIS
+.Cd "options MAC"
+.Sh DESCRIPTION
+.Ss Introduction
+The Mandatory Access Control, or MAC, framework allows administrators to
+finely control system security by providing for a loadable security policy
+architecture.
+It is important to note that due to its nature, MAC security policies may
+only restrict access relative to one another and the base system policy;
+they cannot override traditional
+.Ux
+security provisions such as file permissions and superuser checks.
+.Pp
+Currently, the following MAC policy modules are shipped with
+.Fx :
+.Bl -column ".Xr mac_seeotheruids 4" "low-watermark mac policy" ".Em Labeling" "boot only"
+.It Sy Name Ta Sy Description Ta Sy Labeling Ta Sy "Load time"
+.It Xr mac_biba 4 Ta "Biba integrity policy" Ta yes Ta boot only
+.It Xr mac_bsdextended 4 Ta "File system firewall" Ta no Ta any time
+.It Xr mac_ifoff 4 Ta "Interface silencing" Ta no Ta any time
+.It Xr mac_lomac 4 Ta "Low-Watermark MAC policy" Ta yes Ta boot only
+.It Xr mac_mls 4 Ta "Confidentiality policy" Ta yes Ta boot only
+.It Xr mac_none 4 Ta "Sample no-op policy" Ta no Ta any time
+.It Xr mac_partition 4 Ta "Process partition policy" Ta yes Ta any time
+.It Xr mac_portacl 4 Ta "Port bind(2) access control" Ta no Ta any time
+.It Xr mac_seeotheruids 4 Ta "See-other-UIDs policy" Ta no Ta any time
+.It Xr mac_test 4 Ta "MAC testing policy" Ta no Ta any time
+.El
+.Ss MAC Labels
+Each system subject (processes, sockets, etc.) and each system object
+(file system objects, sockets, etc.) can carry with it a MAC label.
+MAC labels contain data in an arbitrary format
+taken into consideration in making access control decisions
+for a given operation.
+Most MAC labels on system subjects and objects
+can be modified directly or indirectly by the system
+administrator.
+The format for a given policy's label may vary depending on the type
+of object or subject being labeled.
+More information on the format for MAC labels can be found in the
+.Xr maclabel 7
+man page.
+.Ss MAC Support for UFS2 File Systems
+By default, file system enforcement of labeled MAC policies relies on
+a single file system label
+(see
+.Sx "MAC Labels" )
+in order to make access control decisions for all the files in a particular
+file system.
+With some policies, this configuration may not allow administrators to take
+full advantage of features.
+In order to enable support for labeling files on an individual basis
+for a particular file system,
+the
+.Dq multilabel
+flag must be enabled on the file system.
+To set the
+.Dq multilabel
+flag, drop to single-user mode and unmount the file system,
+then execute the following command:
+.Pp
+.Dl "tunefs -l enable" Ar filesystem
+.Pp
+where
+.Ar filesystem
+is either the mount point
+(in
+.Xr fstab 5 )
+or the special file
+(in
+.Pa /dev )
+corresponding to the file system on which to enable multilabel support.
+.Ss Policy Enforcement
+Policy enforcement is divided into the following areas of the system:
+.Bl -ohang
+.It Sy "File System"
+File system mounts, modifying directories, modifying files, etc.
+.It Sy KLD
+Loading, unloading, and retrieving statistics on loaded kernel modules
+.It Sy Network
+Network interfaces,
+.Xr bpf 4 ,
+packet delivery and transmission,
+interface configuration
+.Xr ( ioctl 2 ,
+.Xr ifconfig 8 )
+.It Sy Pipes
+Creation of and operation on
+.Xr pipe 2
+objects
+.It Sy Processes
+Debugging
+(e.g.\&
+.Xr ktrace 2 ) ,
+process visibility
+.Pq Xr ps 1 ,
+process execution
+.Pq Xr execve 2 ,
+signalling
+.Pq Xr kill 2
+.It Sy Sockets
+Creation of and operation on
+.Xr socket 2
+objects
+.It Sy System
+Kernel environment
+.Pq Xr kenv 1 ,
+system accounting
+.Pq Xr acct 2 ,
+.Xr reboot 2 ,
+.Xr settimeofday 2 ,
+.Xr swapon 2 ,
+.Xr sysctl 3 ,
+.Xr nfsd 8 Ns
+-related operations
+.It Sy VM
+.Xr mmap 2 Ns
+-ed files
+.El
+.Ss Setting MAC Labels
+From the command line, each type of system object has its own means for setting
+and modifying its MAC policy label.
+.Bl -column "user (by login class)" "Xr setfmac 8 , Xr setfsmac 8" -offset indent
+.It Sy "Subject/Object" Ta Sy "Utility"
+.It "File system object" Ta Xr setfmac 8 , Xr setfsmac 8
+.It "Network interface" Ta Xr ifconfig 8
+.It "TTY (by login class)" Ta Xr login.conf 5
+.It "User (by login class)" Ta Xr login.conf 5
+.El
+.Pp
+Additionally, the
+.Xr su 1
+and
+.Xr setpmac 8
+utilities can be used to run a command with a different process label than
+the shell's current label.
+.Ss Programming With MAC
+MAC security enforcement itself is transparent to application
+programs, with the exception that some programs may need to be aware of
+additional
+.Xr errno 2
+returns from various system calls.
+.Pp
+The interface for retrieving, handling, and setting policy labels
+is documented in the
+.Xr mac 3
+man page.
+.\" *** XXX ***
+.\" Support for this feature is poor and should not be encouraged.
+.\"
+.\" .It Va security.mac.mmap_revocation
+.\" Revoke
+.\" .Xr mmap 2
+.\" access to files on subject relabel.
+.\" .It Va security.mac.mmap_revocation_via_cow
+.\" Revoke
+.\" .Xr mmap 2
+.\" access to files via copy-on-write semantics;
+.\" mapped regions will still appear writable, but will no longer
+.\" effect a change on the underlying vnode.
+.\" (Default: 0).
+.Sh SEE ALSO
+.Xr mac 3 ,
+.Xr mac_biba 4 ,
+.Xr mac_bsdextended 4 ,
+.Xr mac_ifoff 4 ,
+.Xr mac_lomac 4 ,
+.Xr mac_mls 4 ,
+.Xr mac_none 4 ,
+.Xr mac_partition 4 ,
+.Xr mac_portacl 4 ,
+.Xr mac_seeotheruids 4 ,
+.Xr mac_test 4 ,
+.Xr login.conf 5 ,
+.Xr maclabel 7 ,
+.Xr getfmac 8 ,
+.Xr getpmac 8 ,
+.Xr setfmac 8 ,
+.Xr setpmac 8 ,
+.Xr mac 9
+.Rs
+.%B "The FreeBSD Handbook"
+.%T "Mandatory Access Control"
+.%U https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mac.html
+.Re
+.Sh HISTORY
+The
+.Nm
+implementation first appeared in
+.Fx 5.0
+and was developed by the
+.Tn TrustedBSD
+Project.
+.Sh AUTHORS
+This software was contributed to the
+.Fx
+Project by Network Associates Labs,
+the Security Research Division of Network Associates
+Inc.
+under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Sh BUGS
+While the MAC Framework design is intended to support the containment of
+the root user, not all attack channels are currently protected by entry
+point checks.
+As such, MAC Framework policies should not be relied on, in isolation,
+to protect against a malicious privileged user.

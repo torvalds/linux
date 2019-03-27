@@ -1,0 +1,24 @@
+$FreeBSD$
+
+This directory is for standalone test programs.  For the FreeBSD
+Test Suite, which uses Kyua, please see /usr/src/tests/
+
+A test program is one that exercises a particular bit of the system
+and either tries to break it or measures its performance.
+
+Please make a subdir per program, and add a brief description to this file.
+
+auxinfo		Return information on page sizes, CPUs, and OS release date.
+devrandom	Programs to test /dev/*random.
+hwpmc		Automatically trigger every event in hwpmc(4).
+iconv		Character set conversion tests.
+malloc		A program to test and benchmark malloc().
+net		A set of generic test programs for networking.
+netfibs		Programs to test multi-FIB network stacks.
+posixshm	A program to test POSIX shared memory.
+ppsapi		Test 1 Pulse Per Second (1PPS) input for time control.
+pthread_vfork	Check that vfork and pthreads work together.
+ptrace		Verify that ptrace works with syscalls, vfork etc.
+sort		Tests for the sort command, including a full regression.
+testfloat	Programs to test floating-point implementations
+upsdl		Test of mmap functionality.

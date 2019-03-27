@@ -1,0 +1,148 @@
+/dts-v1/;
+
+#include "mt7620a.dtsi"
+
+/ {
+	compatible = "ralink,mt7620a-soc";
+	model = "Planex MZK-EX750NP";
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		power {
+			label = "mzk-ex750np:red:power";
+			gpios = <&gpio0 14 1>;
+		};
+
+		wifi {
+			label = "mzk-ex750np:red:wifi";
+			gpios = <&gpio3 0 1>;
+		};
+
+		wps {
+			label = "mzk-ex750np:green:wps";
+			gpios = <&gpio0 10 1>;
+		};
+
+		rep {
+			label = "mzk-ex750np:blue:rep";
+			gpios = <&gpio2 16 1>;
+		};
+
+		wifi1 {
+			label = "mzk-ex750np:blue:wifi1";
+			gpios = <&gpio2 19 1>;
+		};
+
+		wifi2 {
+			label = "mzk-ex750np:blue:wifi2";
+			gpios = <&gpio2 18 1>;
+		};
+
+		wifi3 {
+			label = "mzk-ex750np:blue:wifi3";
+			gpios = <&gpio2 17 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 9 1>;
+			linux,code = <0x198>;
+		};
+
+		wps {
+			label = "wps";
+			gpios = <&gpio0 13 0>;
+			linux,code = <0x211>;
+		};
+	};
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+&gpio3 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "w25q64";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x730000>;
+		};
+
+		partition@780000 {
+			label = "Udata";
+			reg = <0x780000 0x80000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "uartf", "nd_sd", "rgmii2", "wled";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ephy_pins>;
+	mtd-mac-address = <&factory 0x4>;
+	mediatek,portmap = "llllw";
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&pcie {
+	status = "okay";
+
+	pcie-bridge {
+		mt76@0,0 {
+			reg = <0x0000 0 0 0 0>;
+			device_type = "pci";
+			mediatek,mtd-eeprom = <&factory 0x8000>;
+			mediatek,2ghz = <0>;
+		};
+	};
+};

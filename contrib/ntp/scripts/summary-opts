@@ -1,0 +1,69 @@
+# EDIT THIS FILE WITH CAUTION  (summary-opts)
+#
+# It has been AutoGen-ed  February 20, 2019 at 05:04:25 PM by AutoGen 5.18.5
+# From the definitions    summary-opts.def
+# and the template file   perlopt
+
+use Getopt::Long qw(GetOptionsFromArray);
+Getopt::Long::Configure(qw(no_auto_abbrev no_ignore_case_always));
+
+my $usage;
+
+sub usage {
+    my ($ret) = @_;
+    print STDERR $usage;
+    exit $ret;
+}
+
+sub paged_usage {
+    my ($ret) = @_;
+    my $pager = $ENV{PAGER} || '(less || more)';
+
+    open STDOUT, "| $pager" or die "Can't fork a pager: $!";
+    print $usage;
+
+    exit $ret;
+}
+
+sub processOptions {
+    my $args = shift;
+
+    my $opts = {
+        'directory' => '/var/log/ntp',
+        'end-date' => '',
+        'output-directory' => '/tmp',
+        'peer-dist-limit' => '400',
+        'skip-time-steps' => '3600',
+        'start-date' => '19700101',
+        'help' => '', 'more-help' => ''
+    };
+    my $argument = '';
+    my $ret = GetOptionsFromArray($args, $opts, (
+        'directory=s', 'end-date=i', 'output-directory=s',
+        'peer-dist-limit=f', 'skip-time-steps=f', 'start-date=i',
+        'help|?', 'more-help'));
+
+    $usage = <<'USAGE';
+summary - compute various stastics from NTP stat files - Ver. 4.2.8p13
+USAGE: summary [ -<flag> [<val>] | --<name>[{=| }<val>] ]... 
+
+        --directory=str          Directory containing stat files
+        --end-date=num           End date
+        --output-directory=str   Output directory
+        --peer-dist-limit=float  Peer dist limit
+        --skip-time-steps=float  Ignore time offsets larger that this
+        --start-date=num         Start date
+    -?, --help                   Display usage information and exit
+        --more-help              Pass the extended usage text through a pager
+
+Options are specified by doubled hyphens and their name or by a single
+hyphen and the flag character.
+USAGE
+
+    usage(0)       if $opts->{'help'};
+    paged_usage(0) if $opts->{'more-help'};
+    $_[0] = $opts;
+    return $ret;
+}
+
+END { close STDOUT };

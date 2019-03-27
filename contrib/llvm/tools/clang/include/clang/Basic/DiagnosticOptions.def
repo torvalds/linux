@@ -1,0 +1,102 @@
+//===--- DiagOptions.def - Diagnostic option database ------------- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the diagnostic options. Users of this file
+// must define the DIAGOPT macro to make use of this information.
+// Optionally, the user may also define ENUM_DIAGOPT (for options
+// that have enumeration type and VALUE_DIAGOPT (for options that
+// describe a value rather than a flag). The SEMANTIC_* variants of these macros
+// indicate options that affect the processing of the program, rather than
+// simply the output.
+//
+//===----------------------------------------------------------------------===//
+#ifndef DIAGOPT
+#  error Define the DIAGOPT macro to handle language options
+#endif
+
+#ifndef VALUE_DIAGOPT
+#  define VALUE_DIAGOPT(Name, Bits, Default) \
+DIAGOPT(Name, Bits, Default)
+#endif
+
+#ifndef ENUM_DIAGOPT
+#  define ENUM_DIAGOPT(Name, Type, Bits, Default) \
+DIAGOPT(Name, Bits, Default)
+#endif
+
+#ifndef SEMANTIC_DIAGOPT
+#  define SEMANTIC_DIAGOPT(Name, Bits, Default) DIAGOPT(Name, Bits, Default)
+#endif
+
+#ifndef SEMANTIC_VALUE_DIAGOPT
+#  define SEMANTIC_VALUE_DIAGOPT(Name, Bits, Default) \
+     VALUE_DIAGOPT(Name, Bits, Default)
+#endif
+
+#ifndef SEMANTIC_ENUM_DIAGOPT
+#  define SEMANTIC_ENUM_DIAGOPT(Name, Type, Bits, Default) \
+     ENUM_DIAGOPT(Name, Type, Bits, Default)
+#endif
+
+SEMANTIC_DIAGOPT(IgnoreWarnings, 1, 0)   /// -w
+DIAGOPT(NoRewriteMacros, 1, 0)  /// -Wno-rewrite-macros
+DIAGOPT(Pedantic, 1, 0)         /// -pedantic
+DIAGOPT(PedanticErrors, 1, 0)   /// -pedantic-errors
+DIAGOPT(ShowColumn, 1, 1)       /// Show column number on diagnostics.
+DIAGOPT(ShowLocation, 1, 1)     /// Show source location information.
+DIAGOPT(AbsolutePath, 1, 0)     /// Use absolute paths.
+DIAGOPT(ShowCarets, 1, 1)       /// Show carets in diagnostics.
+DIAGOPT(ShowFixits, 1, 1)       /// Show fixit information.
+DIAGOPT(ShowSourceRanges, 1, 0) /// Show source ranges in numeric form.
+DIAGOPT(ShowParseableFixits, 1, 0) /// Show machine parseable fix-its.
+DIAGOPT(ShowPresumedLoc, 1, 0)  /// Show presumed location for diagnostics.
+DIAGOPT(ShowOptionNames, 1, 0)  /// Show the option name for mappable
+                                /// diagnostics.
+DIAGOPT(ShowNoteIncludeStack, 1, 0) /// Show include stacks for notes.
+VALUE_DIAGOPT(ShowCategories, 2, 0) /// Show categories: 0 -> none, 1 -> Number,
+                                    /// 2 -> Full Name.
+
+ENUM_DIAGOPT(Format, TextDiagnosticFormat, 2, Clang) /// Format for diagnostics:
+
+DIAGOPT(ShowColors, 1, 0)       /// Show diagnostics with ANSI color sequences.
+ENUM_DIAGOPT(ShowOverloads, OverloadsShown, 1,
+             Ovl_All)    /// Overload candidates to show.
+DIAGOPT(VerifyDiagnostics, 1, 0) /// Check that diagnostics match the expected
+                                 /// diagnostics, indicated by markers in the
+                                 /// input source file.
+ENUM_DIAGOPT(VerifyIgnoreUnexpected, DiagnosticLevelMask, 4,
+             DiagnosticLevelMask::None) /// Ignore unexpected diagnostics of
+                                        /// the specified levels when using
+                                        /// -verify.
+DIAGOPT(ElideType, 1, 0)         /// Elide identical types in template diffing
+DIAGOPT(ShowTemplateTree, 1, 0)  /// Print a template tree when diffing
+DIAGOPT(CLFallbackMode, 1, 0)    /// Format for clang-cl fallback mode
+
+VALUE_DIAGOPT(ErrorLimit, 32, 0)           /// Limit # errors emitted.
+/// Limit depth of macro expansion backtrace.
+VALUE_DIAGOPT(MacroBacktraceLimit, 32, DefaultMacroBacktraceLimit)
+/// Limit depth of instantiation backtrace.
+VALUE_DIAGOPT(TemplateBacktraceLimit, 32, DefaultTemplateBacktraceLimit)
+/// Limit depth of constexpr backtrace.
+VALUE_DIAGOPT(ConstexprBacktraceLimit, 32, DefaultConstexprBacktraceLimit)
+/// Limit number of times to perform spell checking.
+VALUE_DIAGOPT(SpellCheckingLimit, 32, DefaultSpellCheckingLimit)
+/// Limit number of lines shown in a snippet.
+VALUE_DIAGOPT(SnippetLineLimit, 32, DefaultSnippetLineLimit)
+
+VALUE_DIAGOPT(TabStop, 32, DefaultTabStop) /// The distance between tab stops.
+/// Column limit for formatting message diagnostics, or 0 if unused.
+VALUE_DIAGOPT(MessageLength, 32, 0)
+
+#undef DIAGOPT
+#undef ENUM_DIAGOPT
+#undef VALUE_DIAGOPT
+#undef SEMANTIC_DIAGOPT
+#undef SEMANTIC_ENUM_DIAGOPT
+#undef SEMANTIC_VALUE_DIAGOPT

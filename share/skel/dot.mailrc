@@ -1,0 +1,17 @@
+# $FreeBSD$
+#
+# .mailrc - mail resources
+#
+# see also mail(1)
+#
+
+set append ask autoprint 
+set indentprefix="> "
+set PAGER=less
+set EDITOR=vi
+set VISUAL=vi
+set folder=Mail
+retain bcc cc date from subject to
+
+# include your private mail aliases
+source ~/.mail_aliases

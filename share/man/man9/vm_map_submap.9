@@ -1,0 +1,95 @@
+.\"
+.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 19, 2003
+.Dt VM_MAP_SUBMAP 9
+.Os
+.Sh NAME
+.Nm vm_map_submap
+.Nd create a subordinate map
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_map.h
+.Ft int
+.Fo vm_map_submap
+.Fa "vm_map_t map" "vm_offset_t start" "vm_offset_t end" "vm_map_t submap"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn vm_map_submap
+function marks the range bounded by
+.Fa start
+and
+.Fa end
+within the map
+.Fa map
+as being handled by a subordinate map
+.Fa sub_map .
+.Pp
+It is generally called by the kernel memory allocator.
+.Sh IMPLEMENTATION NOTES
+This function is for internal use only.
+.Pp
+Both maps must exist.
+The range must have been created with
+.Xr vm_map_find 9
+previously.
+.Pp
+No other operations may have been performed on this range
+before calling this function.
+Only the
+.Fn vm_fault
+operation may be performed within this range after calling
+this function.
+.Pp
+To remove a submapping, one must first remove the range from
+the parent
+.Fa map ,
+and then destroy the
+.Fa sub_map .
+This procedure is not recommended.
+.Sh RETURN VALUES
+The
+.Fn vm_map_submap
+function returns
+.Dv KERN_SUCCESS
+if successful.
+.Pp
+Otherwise, it returns
+.Dv KERN_INVALID_ARGUMENT
+if the caller requested copy-on-write flags,
+or if the range specified for the sub-map was out of range for the parent map,
+or if a
+.Dv NULL
+backing object was specified.
+.Sh SEE ALSO
+.Xr vm_map 9 ,
+.Xr vm_map_find 9
+.Sh AUTHORS
+This manual page was written by
+.An Bruce M Simpson Aq Mt bms@spc.org .

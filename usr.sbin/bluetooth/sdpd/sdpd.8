@@ -1,0 +1,140 @@
+.\" Copyright (c) 2004 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: sdpd.8,v 1.1 2004/01/13 19:31:54 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd January 13, 2004
+.Dt SDPD 8
+.Os
+.Sh NAME
+.Nm sdpd
+.Nd Bluetooth Service Discovery Protocol daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl dh
+.Op Fl c Ar path
+.Op Fl g Ar group
+.Op Fl u Ar user
+.Sh DESCRIPTION
+The
+.Nm
+daemon keeps track of the Bluetooth services registered on the host
+and responds to Service Discovery inquiries from the remote Bluetooth devices.
+.Pp
+In order to use any service remote Bluetooth device need to send Service
+Search and Service Attribute or Service Search Attribute request over
+Bluetooth L2CAP connection on SDP PSM (0x0001).
+The
+.Nm
+daemon will try to find matching Service Record in its Service Database
+and will send appropriate response back.
+The remote device then will process the response, extract all required
+information and will make a separate connection in order to use the service.
+.Pp
+Bluetooth applications, running on the host, register services with
+the local
+.Nm
+daemon.
+Operation like service registration, service removal and service change are
+performed over the control socket.
+It is possible to query entire content of the
+.Nm
+Service Database with
+.Xr sdpcontrol 8
+by issuing
+.Cm browse
+command on the control socket.
+.Pp
+The command line options are as follows:
+.Bl -tag -width indent
+.It Fl d
+Do not detach from the controlling terminal.
+.It Fl c Ar path
+Specify path to the control socket.
+The default path is
+.Pa /var/run/sdp .
+.It Fl g Ar group
+Specifies the group the
+.Nm
+should run as after it initializes.
+The value specified may be either a group name or a numeric group ID.
+This only works if
+.Nm
+was started as root.
+The default group name is
+.Dq Li nobody .
+.It Fl h
+Display usage message and exit.
+.It Fl u Ar user
+Specifies the user the
+.Nm
+should run as after it initializes.
+The value specified may be either a user name or a numeric user ID.
+This only works if
+.Nm
+was started as root.
+The default user name is
+.Dq Li nobody .
+.El
+.Sh CAVEAT
+The
+.Nm
+daemon
+will listen for incoming L2CAP connections on a wildcard BD_ADDR.
+.Pp
+In case of multiple Bluetooth devices connected to the same host it is
+possible to specify which services should be
+.Dq bound
+to which Bluetooth device.
+Such assignment should be done at service registration time.
+.Pp
+Requests to register, remove or change service can only be made via the
+control socket.
+The
+.Nm
+daemon will check peer's credentials and will only accept the request if
+the application has the same effective user ID as the
+.Dq Li root
+user ID.
+.Pp
+The
+.Nm
+daemon does not check for duplicated Service Records.
+It only performs minimal checking on the service data sent in the Service
+Register request.
+It is assumed that application must obtain all required resources such
+as RFCOMM channels etc., before registering the service.
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/sdp" -compact
+.It Pa /var/run/sdp
+.El
+.Sh SEE ALSO
+.Xr sdp 3 ,
+.Xr sdpcontrol 8
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh BUGS
+Most likely.
+Please report if found.

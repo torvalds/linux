@@ -1,0 +1,648 @@
+wpa_supplicant and Hotspot 2.0
+==============================
+
+This document describe how the IEEE 802.11u Interworking and Wi-Fi
+Hotspot 2.0 (Release 1) implementation in wpa_supplicant can be
+configured and how an external component on the client e.g., management
+GUI or Wi-Fi framework) is used to manage this functionality.
+
+
+Introduction to Wi-Fi Hotspot 2.0
+---------------------------------
+
+Hotspot 2.0 is the name of the Wi-Fi Alliance specification that is used
+in the Wi-Fi CERTIFIED Passpoint<TM> program. More information about
+this is available in this white paper:
+
+http://www.wi-fi.org/knowledge-center/white-papers/wi-fi-certified-passpoint%E2%84%A2-new-program-wi-fi-alliance%C2%AE-enable-seamless
+
+The Hotspot 2.0 specification is also available from WFA:
+https://www.wi-fi.org/knowledge-center/published-specifications
+
+The core Interworking functionality (network selection, GAS/ANQP) were
+standardized in IEEE Std 802.11u-2011 which is now part of the IEEE Std
+802.11-2012.
+
+
+wpa_supplicant network selection
+--------------------------------
+
+Interworking support added option for configuring credentials that can
+work with multiple networks as an alternative to configuration of
+network blocks (e.g., per-SSID parameters). When requested to perform
+network selection, wpa_supplicant picks the highest priority enabled
+network block or credential. If a credential is picked (based on ANQP
+information from APs), a temporary network block is created
+automatically for the matching network. This temporary network block is
+used similarly to the network blocks that can be configured by the user,
+but it is not stored into the configuration file and is meant to be used
+only for temporary period of time since a new one can be created
+whenever needed based on ANQP information and the credential.
+
+By default, wpa_supplicant is not using automatic network selection
+unless requested explicitly with the interworking_select command. This
+can be changed with the auto_interworking=1 parameter to perform network
+selection automatically whenever trying to find a network for connection
+and none of the enabled network blocks match with the scan results. This
+case works similarly to "interworking_select auto", i.e., wpa_supplicant
+will internally determine which network or credential is going to be
+used based on configured priorities, scan results, and ANQP information.
+
+
+wpa_supplicant configuration
+----------------------------
+
+Interworking and Hotspot 2.0 functionality are optional components that
+need to be enabled in the wpa_supplicant build configuration
+(.config). This is done by adding following parameters into that file:
+
+CONFIG_INTERWORKING=y
+CONFIG_HS20=y
+
+It should be noted that this functionality requires a driver that
+supports GAS/ANQP operations. This uses the same design as P2P, i.e.,
+Action frame processing and building in user space within
+wpa_supplicant. The Linux nl80211 driver interface provides the needed
+functionality for this.
+
+
+There are number of run-time configuration parameters (e.g., in
+wpa_supplicant.conf when using the configuration file) that can be used
+to control Hotspot 2.0 operations.
+
+# Enable Interworking
+interworking=1
+
+# Enable Hotspot 2.0
+hs20=1
+
+# Parameters for controlling scanning
+
+# Homogenous ESS identifier
+# If this is set, scans will be used to request response only from BSSes
+# belonging to the specified Homogeneous ESS. This is used only if interworking
+# is enabled.
+#hessid=00:11:22:33:44:55
+
+# Access Network Type
+# When Interworking is enabled, scans can be limited to APs that advertise the
+# specified Access Network Type (0..15; with 15 indicating wildcard match).
+# This value controls the Access Network Type value in Probe Request frames.
+#access_network_type=15
+
+# Automatic network selection behavior
+# 0 = do not automatically go through Interworking network selection
+#     (i.e., require explicit interworking_select command for this; default)
+# 1 = perform Interworking network selection if one or more
+#     credentials have been configured and scan did not find a
+#     matching network block
+#auto_interworking=0
+
+
+Credentials can be pre-configured for automatic network selection:
+
+# credential block
+#
+# Each credential used for automatic network selection is configured as a set
+# of parameters that are compared to the information advertised by the APs when
+# interworking_select and interworking_connect commands are used.
+#
+# credential fields:
+#
+# temporary: Whether this credential is temporary and not to be saved
+#
+# priority: Priority group
+#	By default, all networks and credentials get the same priority group
+#	(0). This field can be used to give higher priority for credentials
+#	(and similarly in struct wpa_ssid for network blocks) to change the
+#	Interworking automatic networking selection behavior. The matching
+#	network (based on either an enabled network block or a credential)
+#	with the highest priority value will be selected.
+#
+# pcsc: Use PC/SC and SIM/USIM card
+#
+# realm: Home Realm for Interworking
+#
+# username: Username for Interworking network selection
+#
+# password: Password for Interworking network selection
+#
+# ca_cert: CA certificate for Interworking network selection
+#
+# client_cert: File path to client certificate file (PEM/DER)
+#	This field is used with Interworking networking selection for a case
+#	where client certificate/private key is used for authentication
+#	(EAP-TLS). Full path to the file should be used since working
+#	directory may change when wpa_supplicant is run in the background.
+#
+#	Alternatively, a named configuration blob can be used by setting
+#	this to blob://blob_name.
+#
+# private_key: File path to client private key file (PEM/DER/PFX)
+#	When PKCS#12/PFX file (.p12/.pfx) is used, client_cert should be
+#	commented out. Both the private key and certificate will be read
+#	from the PKCS#12 file in this case. Full path to the file should be
+#	used since working directory may change when wpa_supplicant is run
+#	in the background.
+#
+#	Windows certificate store can be used by leaving client_cert out and
+#	configuring private_key in one of the following formats:
+#
+#	cert://substring_to_match
+#
+#	hash://certificate_thumbprint_in_hex
+#
+#	For example: private_key="hash://63093aa9c47f56ae88334c7b65a4"
+#
+#	Note that when running wpa_supplicant as an application, the user
+#	certificate store (My user account) is used, whereas computer store
+#	(Computer account) is used when running wpasvc as a service.
+#
+#	Alternatively, a named configuration blob can be used by setting
+#	this to blob://blob_name.
+#
+# private_key_passwd: Password for private key file
+#
+# imsi: IMSI in <MCC> | <MNC> | '-' | <MSIN> format
+#
+# milenage: Milenage parameters for SIM/USIM simulator in <Ki>:<OPc>:<SQN>
+#	format
+#
+# domain_suffix_match: Constraint for server domain name
+#	If set, this FQDN is used as a suffix match requirement for the AAA
+#	server certificate in SubjectAltName dNSName element(s). If a
+#	matching dNSName is found, this constraint is met. If no dNSName
+#	values are present, this constraint is matched against SubjectName CN
+#	using same suffix match comparison. Suffix match here means that the
+#	host/domain name is compared one label at a time starting from the
+#	top-level domain and all the labels in @domain_suffix_match shall be
+#	included in the certificate. The certificate may include additional
+#	sub-level labels in addition to the required labels.
+#
+#	For example, domain_suffix_match=example.com would match
+#	test.example.com but would not match test-example.com.
+#
+# domain: Home service provider FQDN(s)
+#	This is used to compare against the Domain Name List to figure out
+#	whether the AP is operated by the Home SP. Multiple domain entries can
+#	be used to configure alternative FQDNs that will be considered home
+#	networks.
+#
+# roaming_consortium: Roaming Consortium OI
+#	If roaming_consortium_len is non-zero, this field contains the
+#	Roaming Consortium OI that can be used to determine which access
+#	points support authentication with this credential. This is an
+#	alternative to the use of the realm parameter. When using Roaming
+#	Consortium to match the network, the EAP parameters need to be
+#	pre-configured with the credential since the NAI Realm information
+#	may not be available or fetched.
+#
+# required_roaming_consortium: Required Roaming Consortium OI
+#	If required_roaming_consortium_len is non-zero, this field contains the
+#	Roaming Consortium OI that is required to be advertised by the AP for
+#	the credential to be considered matching.
+#
+# roaming_consortiums: Roaming Consortium OI(s) memberships
+#	This string field contains one or more comma delimited OIs (hexdump)
+#	identifying the roaming consortiums of which the provider is a member.
+#	The list is sorted from the most preferred one to the least preferred
+#	one. A match between the Roaming Consortium OIs advertised by an AP and
+#	the OIs in this list indicates that successful authentication is
+#	possible.
+#	(Hotspot 2.0 PerProviderSubscription/<X+>/HomeSP/RoamingConsortiumOI)
+#
+# eap: Pre-configured EAP method
+#	This optional field can be used to specify which EAP method will be
+#	used with this credential. If not set, the EAP method is selected
+#	automatically based on ANQP information (e.g., NAI Realm).
+#
+# phase1: Pre-configure Phase 1 (outer authentication) parameters
+#	This optional field is used with like the 'eap' parameter.
+#
+# phase2: Pre-configure Phase 2 (inner authentication) parameters
+#	This optional field is used with like the 'eap' parameter.
+#
+# excluded_ssid: Excluded SSID
+#	This optional field can be used to excluded specific SSID(s) from
+#	matching with the network. Multiple entries can be used to specify more
+#	than one SSID.
+#
+# roaming_partner: Roaming partner information
+#	This optional field can be used to configure preferences between roaming
+#	partners. The field is a string in following format:
+#	<FQDN>,<0/1 exact match>,<priority>,<* or country code>
+#	(non-exact match means any subdomain matches the entry; priority is in
+#	0..255 range with 0 being the highest priority)
+#
+# update_identifier: PPS MO ID
+#	(Hotspot 2.0 PerProviderSubscription/UpdateIdentifier)
+#
+# provisioning_sp: FQDN of the SP that provisioned the credential
+#	This optional field can be used to keep track of the SP that provisioned
+#	the credential to find the PPS MO (./Wi-Fi/<provisioning_sp>).
+#
+# sp_priority: Credential priority within a provisioning SP
+#	This is the priority of the credential among all credentials
+#	provisioned by the same SP (i.e., for entries that have identical
+#	provisioning_sp value). The range of this priority is 0-255 with 0
+#	being the highest and 255 the lower priority.
+#
+# Minimum backhaul threshold (PPS/<X+>/Policy/MinBackhauldThreshold/*)
+#	These fields can be used to specify minimum download/upload backhaul
+#	bandwidth that is preferred for the credential. This constraint is
+#	ignored if the AP does not advertise WAN Metrics information or if the
+#	limit would prevent any connection. Values are in kilobits per second.
+# min_dl_bandwidth_home
+# min_ul_bandwidth_home
+# min_dl_bandwidth_roaming
+# min_ul_bandwidth_roaming
+#
+# max_bss_load: Maximum BSS Load Channel Utilization (1..255)
+#	(PPS/<X+>/Policy/MaximumBSSLoadValue)
+#	This value is used as the maximum channel utilization for network
+#	selection purposes for home networks. If the AP does not advertise
+#	BSS Load or if the limit would prevent any connection, this constraint
+#	will be ignored.
+#
+# req_conn_capab: Required connection capability
+#	(PPS/<X+>/Policy/RequiredProtoPortTuple)
+#	This value is used to configure set of required protocol/port pairs that
+#	a roaming network shall support (include explicitly in Connection
+#	Capability ANQP element). This constraint is ignored if the AP does not
+#	advertise Connection Capability or if this constraint would prevent any
+#	network connection. This policy is not used in home networks.
+#	Format: <protocol>[:<comma-separated list of ports]
+#	Multiple entries can be used to list multiple requirements.
+#	For example, number of common TCP protocols:
+#	req_conn_capab=6:22,80,443
+#	For example, IPSec/IKE:
+#	req_conn_capab=17:500
+#	req_conn_capab=50
+#
+# ocsp: Whether to use/require OCSP to check server certificate
+#	0 = do not use OCSP stapling (TLS certificate status extension)
+#	1 = try to use OCSP stapling, but not require response
+#	2 = require valid OCSP stapling response
+#
+# sim_num: Identifier for which SIM to use in multi-SIM devices
+#
+# for example:
+#
+#cred={
+#	realm="example.com"
+#	username="user@example.com"
+#	password="password"
+#	ca_cert="/etc/wpa_supplicant/ca.pem"
+#	domain="example.com"
+#	domain_suffix_match="example.com"
+#}
+#
+#cred={
+#	imsi="310026-000000000"
+#	milenage="90dca4eda45b53cf0f12d7c9c3bc6a89:cb9cccc4b9258e6dca4760379fb82"
+#}
+#
+#cred={
+#	realm="example.com"
+#	username="user"
+#	password="password"
+#	ca_cert="/etc/wpa_supplicant/ca.pem"
+#	domain="example.com"
+#	roaming_consortium=223344
+#	roaming_consortiums="112233,4455667788,aabbcc"
+#	eap=TTLS
+#	phase2="auth=MSCHAPV2"
+#}
+
+
+Control interface
+-----------------
+
+wpa_supplicant provides a control interface that can be used from
+external programs to manage various operations. The included command
+line tool, wpa_cli, can be used for manual testing with this interface.
+
+Following wpa_cli interactive mode commands show some examples of manual
+operations related to Hotspot 2.0:
+
+Remove configured networks and credentials:
+
+> remove_network all
+OK
+> remove_cred all
+OK
+
+
+Add a username/password credential:
+
+> add_cred
+0
+> set_cred 0 realm "mail.example.com"
+OK
+> set_cred 0 username "username"
+OK
+> set_cred 0 password "password"
+OK
+> set_cred 0 priority 1
+OK
+> set_cred 0 temporary 1
+OK
+
+Add a SIM credential using a simulated SIM/USIM card for testing:
+
+> add_cred
+1
+> set_cred 1 imsi "23456-0000000000"
+OK
+> set_cred 1 milenage "90dca4eda45b53cf0f12d7c9c3bc6a89:cb9cccc4b9258e6dca4760379fb82581:000000000123"
+OK
+> set_cred 1 priority 1
+OK
+
+Note: the return value of add_cred is used as the first argument to
+the following set_cred commands.
+
+Add a SIM credential using a external SIM/USIM processing:
+
+> set external_sim 1
+OK
+> add_cred
+1
+> set_cred 1 imsi "23456-0000000000"
+OK
+> set_cred 1 eap SIM
+OK
+
+
+Add a WPA2-Enterprise network:
+
+> add_network
+0
+> set_network 0 key_mgmt WPA-EAP
+OK
+> set_network 0 ssid "enterprise"
+OK
+> set_network 0 eap TTLS
+OK
+> set_network 0 anonymous_identity "anonymous"
+OK
+> set_network 0 identity "user"
+OK
+> set_network 0 password "password"
+OK
+> set_network 0 priority 0
+OK
+> enable_network 0 no-connect
+OK
+
+
+Add an open network:
+
+> add_network
+3
+> set_network 3 key_mgmt NONE
+OK
+> set_network 3 ssid "coffee-shop"
+OK
+> select_network 3
+OK
+
+Note: the return value of add_network is used as the first argument to
+the following set_network commands.
+
+The preferred credentials/networks can be indicated with the priority
+parameter (1 is higher priority than 0).
+
+
+Interworking network selection can be started with interworking_select
+command. This instructs wpa_supplicant to run a network scan and iterate
+through the discovered APs to request ANQP information from the APs that
+advertise support for Interworking/Hotspot 2.0:
+
+> interworking_select
+OK
+<3>Starting ANQP fetch for 02:00:00:00:01:00
+<3>RX-ANQP 02:00:00:00:01:00 ANQP Capability list
+<3>RX-ANQP 02:00:00:00:01:00 Roaming Consortium list
+<3>RX-HS20-ANQP 02:00:00:00:01:00 HS Capability List
+<3>ANQP fetch completed
+<3>INTERWORKING-AP 02:00:00:00:01:00 type=unknown
+
+
+INTERWORKING-AP event messages indicate the APs that support network
+selection and for which there is a matching
+credential. interworking_connect command can be used to select a network
+to connect with:
+
+
+> interworking_connect 02:00:00:00:01:00
+OK
+<3>CTRL-EVENT-SCAN-RESULTS
+<3>SME: Trying to authenticate with 02:00:00:00:01:00 (SSID='Example Network' freq=2412 MHz)
+<3>Trying to associate with 02:00:00:00:01:00 (SSID='Example Network' freq=2412 MHz)
+<3>Associated with 02:00:00:00:01:00
+<3>CTRL-EVENT-EAP-STARTED EAP authentication started
+<3>CTRL-EVENT-EAP-PROPOSED-METHOD vendor=0 method=21
+<3>CTRL-EVENT-EAP-METHOD EAP vendor 0 method 21 (TTLS) selected
+<3>CTRL-EVENT-EAP-SUCCESS EAP authentication completed successfully
+<3>WPA: Key negotiation completed with 02:00:00:00:01:00 [PTK=CCMP GTK=CCMP]
+<3>CTRL-EVENT-CONNECTED - Connection to 02:00:00:00:01:00 completed (auth) [id=0 id_str=]
+
+
+wpa_supplicant creates a temporary network block for the selected
+network based on the configured credential and ANQP information from the
+AP:
+
+> list_networks
+network id / ssid / bssid / flags
+0	Example Network	any	[CURRENT]
+> get_network 0 key_mgmt
+WPA-EAP
+> get_network 0 eap
+TTLS
+
+
+Alternatively to using an external program to select the network,
+"interworking_select auto" command can be used to request wpa_supplicant
+to select which network to use based on configured priorities:
+
+
+> remove_network all
+OK
+<3>CTRL-EVENT-DISCONNECTED bssid=02:00:00:00:01:00 reason=1 locally_generated=1
+> interworking_select auto
+OK
+<3>Starting ANQP fetch for 02:00:00:00:01:00
+<3>RX-ANQP 02:00:00:00:01:00 ANQP Capability list
+<3>RX-ANQP 02:00:00:00:01:00 Roaming Consortium list
+<3>RX-HS20-ANQP 02:00:00:00:01:00 HS Capability List
+<3>ANQP fetch completed
+<3>INTERWORKING-AP 02:00:00:00:01:00 type=unknown
+<3>CTRL-EVENT-SCAN-RESULTS
+<3>SME: Trying to authenticate with 02:00:00:00:01:00 (SSID='Example Network' freq=2412 MHz)
+<3>Trying to associate with 02:00:00:00:01:00 (SSID='Example Network' freq=2412 MHz)
+<3>Associated with 02:00:00:00:01:00
+<3>CTRL-EVENT-EAP-STARTED EAP authentication started
+<3>CTRL-EVENT-EAP-PROPOSED-METHOD vendor=0 method=21
+<3>CTRL-EVENT-EAP-METHOD EAP vendor 0 method 21 (TTLS) selected
+<3>CTRL-EVENT-EAP-SUCCESS EAP authentication completed successfully
+<3>WPA: Key negotiation completed with 02:00:00:00:01:00 [PTK=CCMP GTK=CCMP]
+<3>CTRL-EVENT-CONNECTED - Connection to 02:00:00:00:01:00 completed (reauth) [id=0 id_str=]
+
+
+The connection status can be shown with the status command:
+
+> status
+bssid=02:00:00:00:01:00
+ssid=Example Network
+id=0
+mode=station
+pairwise_cipher=CCMP       <--- link layer security indication
+group_cipher=CCMP
+key_mgmt=WPA2/IEEE 802.1X/EAP
+wpa_state=COMPLETED
+p2p_device_address=02:00:00:00:00:00
+address=02:00:00:00:00:00
+hs20=1      <--- HS 2.0 indication
+Supplicant PAE state=AUTHENTICATED
+suppPortStatus=Authorized
+EAP state=SUCCESS
+selectedMethod=21 (EAP-TTLS)
+EAP TLS cipher=AES-128-SHA
+EAP-TTLSv0 Phase2 method=PAP
+
+
+> status
+bssid=02:00:00:00:02:00
+ssid=coffee-shop
+id=3
+mode=station
+pairwise_cipher=NONE
+group_cipher=NONE
+key_mgmt=NONE
+wpa_state=COMPLETED
+p2p_device_address=02:00:00:00:00:00
+address=02:00:00:00:00:00
+
+
+Note: The Hotspot 2.0 indication is shown as "hs20=1" in the status
+command output. Link layer security is indicated with the
+pairwise_cipher (CCMP = secure, NONE = no encryption used).
+
+
+Also the scan results include the Hotspot 2.0 indication:
+
+> scan_results
+bssid / frequency / signal level / flags / ssid
+02:00:00:00:01:00	2412	-30	[WPA2-EAP-CCMP][ESS][HS20]	Example Network
+
+
+ANQP information for the BSS can be fetched using the BSS command:
+
+> bss 02:00:00:00:01:00
+id=1
+bssid=02:00:00:00:01:00
+freq=2412
+beacon_int=100
+capabilities=0x0411
+qual=0
+noise=-92
+level=-30
+tsf=1345573286517276
+age=105
+ie=000f4578616d706c65204e6574776f726b010882848b960c1218240301012a010432043048606c30140100000fac040100000fac040100000fac0100007f04000000806b091e07010203040506076c027f006f1001531122331020304050010203040506dd05506f9a1000
+flags=[WPA2-EAP-CCMP][ESS][HS20]
+ssid=Example Network
+anqp_roaming_consortium=031122330510203040500601020304050603fedcba
+
+
+ANQP queries can also be requested with the anqp_get and hs20_anqp_get
+commands:
+
+> anqp_get 02:00:00:00:01:00 261
+OK
+<3>RX-ANQP 02:00:00:00:01:00 Roaming Consortium list
+> hs20_anqp_get 02:00:00:00:01:00 2
+OK
+<3>RX-HS20-ANQP 02:00:00:00:01:00 HS Capability List
+
+In addition, fetch_anqp command can be used to request similar set of
+ANQP queries to be done as is run as part of interworking_select:
+
+> scan
+OK
+<3>CTRL-EVENT-SCAN-RESULTS
+> fetch_anqp
+OK
+<3>Starting ANQP fetch for 02:00:00:00:01:00
+<3>RX-ANQP 02:00:00:00:01:00 ANQP Capability list
+<3>RX-ANQP 02:00:00:00:01:00 Roaming Consortium list
+<3>RX-HS20-ANQP 02:00:00:00:01:00 HS Capability List
+<3>ANQP fetch completed
+
+
+Hotspot 2.0 Rel 2 online signup and OSEN
+----------------------------------------
+
+Following parameters can be used to create a network profile for
+link-layer protected Hotspot 2.0 online signup connection with
+OSEN. Note that ssid and identify (NAI) values need to be set based on
+the information for the selected provider in the OSU Providers list
+ANQP-element.
+
+network={
+    ssid="HS 2.0 OSU"
+    proto=OSEN
+    key_mgmt=OSEN
+    pairwise=CCMP
+    group=GTK_NOT_USED
+    eap=WFA-UNAUTH-TLS
+    identity="anonymous@example.com"
+    ca_cert="osu-ca.pem"
+    ocsp=2
+}
+
+
+Hotspot 2.0 connection with external network selection
+------------------------------------------------------
+
+When a component controlling wpa_supplicant takes care of Interworking
+network selection, following configuration and network profile
+parameters can be used to configure a temporary network profile for a
+Hotspot 2.0 connection (e.g., with SET, ADD_NETWORK, SET_NETWORK, and
+SELECT_NETWORK control interface commands):
+
+interworking=1
+hs20=1
+auto_interworking=0
+
+network={
+    ssid="test-hs20"
+    proto=RSN
+    key_mgmt=WPA-EAP
+    pairwise=CCMP
+    anonymous_identity="anonymous@example.com"
+    identity="hs20-test@example.com"
+    password="password"
+    ca_cert="ca.pem"
+    eap=TTLS
+    phase2="auth=MSCHAPV2"
+    update_identifier=54321
+    roaming_consortium_selection=112233
+    #ocsp=2
+}
+
+
+These parameters are set based on the PPS MO credential and/or NAI Realm
+list ANQP-element:
+
+anonymous_identity: Credential/UsernamePassword/Username with username part
+		    replaced with "anonymous"
+identity: Credential/UsernamePassword/Username
+password: Credential/UsernamePassword/Password
+update_identifier: PPS/UpdateIdentifier
+ca_cert: from the downloaded trust root based on PPS information
+eap: Credential/UsernamePassword/EAPMethod or NAI Realm list
+phase2: Credential/UsernamePassword/EAPMethod or NAI Realm list
+roaming_consortium_selection: Matching OI from HomeSP/RoamingConsortiumOI
+ocsp: Credential/CheckAAAServerCertStatus

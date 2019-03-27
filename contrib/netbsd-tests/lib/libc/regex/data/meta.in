@@ -1,0 +1,21 @@
+# metacharacters, backslashes
+a.c		&	abc	abc
+a[bc]d		&	abd	abd
+a\*c		&	a*c	a*c
+a\\b		&	a\b	a\b
+a\\\*b		&	a\*b	a\*b
+a\bc		&	abc	abc
+a\		&C	EESCAPE
+a\\bc		&	a\bc	a\bc
+\{		bC	BADRPT
+a\[b		&	a[b	a[b
+a[b		&C	EBRACK
+# trailing $ is a peculiar special case for the BRE code
+a$		&	a	a
+a$		&	a$
+a\$		&	a
+a\$		&	a$	a$
+a\\$		&	a
+a\\$		&	a$
+a\\$		&	a\$
+a\\$		&	a\	a\

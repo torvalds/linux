@@ -1,0 +1,127 @@
+#!/bin/sh
+# $FreeBSD$
+
+# Change some defaults for serial devices.
+# Standard defaults are:
+#	dtrwait 300 drainwait 0
+#	initial cflag from <sys/ttydefaults.h> = cread cs8 hupcl
+#	initial iflag, lflag and oflag all 0
+#	speed 9600
+#	special chars from <sys/ttydefaults.h>
+#	nothing locked
+# except for serial consoles the initial iflag, lflag and oflag are from
+# <sys/ttydefaults.h> and clocal is locked on.
+
+default() {
+	# Reset everything changed by the other functions to initial defaults.
+
+	ci=$1; shift	# call in device identifier
+	co=$1; shift	# call out device identifier
+
+	for i in $*
+	do
+		comcontrol /dev/tty$ci$i dtrwait 300 drainwait 0
+		stty </dev/ttyi$ci$i -clocal  crtscts  hupcl 9600 reprint ^R
+		stty </dev/ttyl$ci$i -clocal -crtscts -hupcl 0
+		stty </dev/cuai$co$i -clocal  crtscts  hupcl 9600 reprint ^R
+		stty </dev/cual$co$i -clocal -crtscts -hupcl 0
+	done
+}
+
+maybe() {
+	# Special settings.
+
+	ci=$1; shift
+	co=$1; shift
+
+	for i in $*
+	do
+		# Don't use ^R; it breaks bash's ^R when typed ahead.
+		stty </dev/ttyi$ci$i reprint undef
+		stty </dev/cuai$co$i reprint undef
+		# Lock clocal off on dialin device for security.
+		stty </dev/ttyl$ci$i clocal
+		# Lock the speeds to use old binaries that don't support them.
+		# Any legal speed works to lock the initial speed.
+		stty </dev/ttyl$ci$i 300
+		stty </dev/cual$co$i 300
+	done
+}
+
+modem() {
+	# Modem that supports CTS and perhaps RTS handshaking.
+
+	ci=$1; shift
+	co=$1; shift
+
+	for i in $*
+	do
+		# may depend on modem
+		comcontrol /dev/tty$ci$i dtrwait 100 drainwait 180
+		# Lock crtscts on.
+		# Speed reasonable for V42bis.
+		stty </dev/ttyi$ci$i crtscts 57600
+		stty </dev/ttyl$ci$i crtscts
+		stty </dev/cuai$co$i crtscts 57600
+		stty </dev/cual$co$i crtscts
+	done
+}
+
+mouse() {
+	# Mouse on either callin or callout port.
+
+	ci=$1; shift
+	co=$1; shift
+
+	for i in $*
+	do
+		# Lock clocal on, hupcl off.
+		# Standard speed for Microsoft mouse.
+		stty </dev/ttyi$ci$i clocal -hupcl 1200
+		stty </dev/ttyl$ci$i clocal  hupcl
+		stty </dev/cuai$co$i clocal -hupcl 1200
+		stty </dev/cual$co$i clocal  hupcl
+	done
+}
+
+terminal() {
+	# Terminal that supports CTS and perhaps RTS handshaking
+	# with the cable or terminal arranged so that DCD is on
+	# at least while the terminal is on.
+	# Also works for bidirectional communications to another pc
+	# provided at most one side runs getty.
+	# Same as modem() except we want a faster speed and no dtrwait.
+
+	ci=$1; shift
+	co=$1; shift
+
+	modem $ci $co $*
+	for i in $*
+	do
+		comcontrol /dev/tty$ci$i dtrwait 0
+		stty </dev/ttyi$ci$i 115200
+		stty </dev/cuai$co$i 115200
+	done
+}
+
+# Don't use anything from this file unless you have some buggy programs
+# that require it.
+
+# Edit the functions and the examples to suit your system.
+# $1 is the call in device identifier, $2 is the call out device identifier
+# and the remainder of the line lists the device numbers.
+
+# Initialize assorted 8250-16550 (sio) ports.
+# maybe    d a  0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v
+# mouse    d a      2
+# modem    d a    1
+# terminal d a  0
+
+# Initialize all ports on a Cyclades-8yo.
+# modem    c c  00 01 02 03 04 05 06 07
+
+# Initialize all ports on a Cyclades-16ye.
+# modem    c c  00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 
+
+# Initialize all ports on a Digiboard 8.
+# modem    D D  00 01 02 03 04 05 06 07

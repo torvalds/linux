@@ -1,0 +1,248 @@
+.\" $NetBSD: blacklistd.8,v 1.18 2016/07/30 06:09:29 dholland Exp $
+.\"
+.\" Copyright (c) 2015 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Christos Zoulas.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd October 5, 2018
+.Dt BLACKLISTD 8
+.Os
+.Sh NAME
+.Nm blacklistd
+.Nd block and release ports on demand to avoid DoS abuse
+.Sh SYNOPSIS
+.Nm
+.Op Fl dfrv
+.Op Fl C Ar controlprog
+.Op Fl c Ar configfile
+.Op Fl D Ar dbfile
+.Op Fl P Ar sockpathsfile
+.Op Fl R Ar rulename
+.Op Fl s Ar sockpath
+.Op Fl t Ar timeout
+.Sh DESCRIPTION
+.Nm
+is a daemon similar to
+.Xr syslogd 8
+that listens to sockets at paths specified in the
+.Ar sockpathsfile
+for notifications from other daemons about successful or failed connection
+attempts.
+If no such file is specified, then it only listens to the socket path
+specified by
+.Ar sockspath
+or if that is not specified to
+.Pa /var/run/blacklistd.sock .
+Each notification contains an (action, port, protocol, address, owner) tuple
+that identifies the remote connection and the action.
+This tuple is consulted against entries in
+.Ar configfile
+with syntax specified in
+.Xr blacklistd.conf 5 .
+If an entry is matched, a state entry is created for that tuple.
+Each entry contains a number of tries limit and a duration.
+.Pp
+If the action is
+.Dq add
+and the number of tries limit is reached, then a
+control script
+.Ar controlprog
+is invoked with arguments:
+.Bd -literal -offset indent
+control add <rulename> <proto> <address> <mask> <port>
+.Ed
+.Pp
+and should invoke a packet filter command to block the connection
+specified by the arguments.
+The
+.Ar rulename
+argument can be set from the command line (default
+.Dv blacklistd ) .
+The script could print a numerical id to stdout as a handle for
+the rule that can be used later to remove that connection, but
+that is not required as all information to remove the rule is
+kept.
+.Pp
+If the action is
+.Dq remove
+Then the same control script is invoked as:
+.Bd -literal -offset indent
+control remove <rulename> <proto> <address> <mask> <port> <id>
+.Ed
+.Pp
+where
+.Ar id
+is the number returned from the
+.Dq add
+action.
+.Pp
+.Nm
+maintains a database of known connections in
+.Ar dbfile .
+On startup it reads entries from that file, and updates its internal state.
+.Pp
+.Nm
+checks the list of active entries every
+.Ar timeout
+seconds (default
+.Dv 15 )
+and removes entries and block rules using the control program as necessary.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl C Ar controlprog
+Use
+.Ar controlprog
+to communicate with the packet filter, usually
+.Pa /usr/libexec/blacklistd-helper .
+The following arguments are passed to the control program:
+.Bl -tag -width protocol
+.It action
+The action to perform:
+.Dv add ,
+.Dv rem ,
+or
+.Dv flush
+to add, remove or flush a firewall rule.
+.It name
+The rule name.
+.It protocol
+The optional protocol name (can be empty):
+.Dv tcp ,
+.Dv tcp6 ,
+.Dv udp ,
+.Dv udp6 .
+.It address
+The IPv4 or IPv6 numeric address to be blocked or released.
+.It mask
+The numeric mask to be applied to the blocked or released address
+.It port
+The optional numeric port to be blocked (can be empty).
+.It id
+For packet filters that support removal of rules by rule identifier, the
+identifier of the rule to be removed.
+The add command is expected to return the rule identifier string to stdout.
+.El
+.It Fl c Ar configuration
+The name of the configuration file to read, usually
+.Pa /etc/blacklistd.conf .
+.It Fl D Ar dbfile
+The Berkeley DB file where
+.Nm
+stores its state, usually
+.Pa /var/run/blacklistd.db .
+.It Fl d
+Normally,
+.Nm
+disassociates itself from the terminal unless the
+.Fl d
+flag is specified, in which case it stays in the foreground.
+.It Fl f
+Truncate the state database and flush all the rules named
+.Ar rulename
+are deleted by invoking the control script as:
+.Bd -literal -offset indent
+control flush <rulename>
+.Ed
+.It Fl P Ar sockspathsfile
+A file containing a list of pathnames, one per line that
+.Nm
+will create sockets to listen to.
+This is useful for chrooted environments.
+.It Fl R Ar rulename
+Specify the default rule name for the packet filter rules, usually
+.Dv blacklistd .
+.It Fl r
+Re-read the firewall rules from the internal database, then
+remove and re-add them.
+This helps for packet filters that do not retain state across reboots.
+.It Fl s Ar sockpath
+Add
+.Ar sockpath
+to the list of Unix sockets
+.Nm
+listens to.
+.It Fl t Ar timeout
+The interval in seconds
+.Nm
+polls the state file to update the rules.
+.It Fl v
+Cause
+.Nm
+to print
+diagnostic messages to
+.Dv stdout
+instead of
+.Xr syslogd 8 .
+.El
+.Sh SIGNAL HANDLING
+.Nm
+deals with the following signals:
+.Bl -tag -width "USR2"
+.It HUP
+Receipt of this signal causes
+.Nm
+to re-read the configuration file.
+.It INT, TERM & QUIT
+These signals tell
+.Nm
+to exit in an orderly fashion.
+.It USR1
+This signal tells
+.Nm
+to increase the internal debugging level by 1.
+.It USR2
+This signal tells
+.Nm
+to decrease the internal debugging level by 1.
+.El
+.Sh FILES
+.Bl -tag -width /usr/libexec/blacklistd-helper -compact
+.It Pa /usr/libexec/blacklistd-helper
+Shell script invoked to interface with the packet filter.
+.It Pa /etc/blacklistd.conf
+Configuration file.
+.It Pa /var/db/blacklistd.db
+Database of current connection entries.
+.It Pa /var/run/blacklistd.sock
+Socket to receive connection notifications.
+.El
+.Sh SEE ALSO
+.Xr blacklistd.conf 5 ,
+.Xr blacklistctl 8 ,
+.Xr npfctl 8 ,
+.Xr syslogd 8
+.Sh HISTORY
+.Nm
+first appeared in
+.Nx 7 .
+.Fx
+support for
+.Nm
+was implemented in
+.Fx 11 .
+.Sh AUTHORS
+.An Christos Zoulas

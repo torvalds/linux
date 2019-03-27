@@ -1,0 +1,11 @@
+# $FreeBSD$ 
+# $NetBSD: ARMSCII.alias,v 1.1 2006/04/01 04:13:22 tnozaki Exp $
+
+7		ast_34.005
+7		ast166-7
+
+8		ast_34.002
+8		ast166-8
+
+8A		ast_34.002_a
+8A		ast166-a

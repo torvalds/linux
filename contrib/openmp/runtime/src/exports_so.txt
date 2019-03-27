@@ -1,0 +1,126 @@
+# exports_so.txt #
+
+#
+#//===----------------------------------------------------------------------===//
+#//
+#//                     The LLVM Compiler Infrastructure
+#//
+#// This file is dual licensed under the MIT and the University of Illinois Open
+#// Source Licenses. See LICENSE.txt for details.
+#//
+#//===----------------------------------------------------------------------===//
+#
+
+# This is version script for OMP RTL shared library (libomp*.so)
+
+VERSION {
+
+    global: # Exported symbols.
+
+        #
+        # "Normal" symbols.
+        #
+        omp_*;     # Standard OpenMP functions.
+        OMP_*;     # Standard OpenMP symbols.
+
+        #
+        # OMPT API
+        #
+        ompt_start_tool;     # OMPT start interface
+
+        # icc drops weak attribute at linking step without the following line:
+        Annotate*;           # TSAN annotation
+
+        ompc_*;    # omp.h renames some standard functions to ompc_*.
+        kmp_*;     # Intel extensions.
+        kmpc_*;    # Intel extensions.
+        __kmpc_*;  # Functions called by compiler-generated code.
+        GOMP_*;    # GNU C compatibility functions.
+
+        _You_must_link_with_*;     # Mutual detection/MS compatibility symbols.
+
+
+        #
+        # Debugger support.
+        #
+#if USE_DEBUGGER
+        __kmp_debugging;
+        __kmp_omp_debug_struct_info;
+#endif /* USE_DEBUGGER */
+
+        #
+        # Internal functions exported for testing purposes.
+        #
+        __kmp_get_reduce_method;
+        ___kmp_allocate;
+        ___kmp_free;
+        __kmp_thread_pool;
+        __kmp_thread_pool_nth;
+
+	__kmp_reset_stats;
+
+#if USE_ITT_BUILD
+        #
+        # ITT support.
+        #
+        # The following entry points are added so that the backtraces from
+        # the tools contain meaningful names for all the functions that might
+        # appear in a backtrace of a thread which is blocked in the RTL.
+        __kmp_acquire_drdpa_lock;
+        __kmp_acquire_nested_drdpa_lock;
+        __kmp_acquire_nested_queuing_lock;
+        __kmp_acquire_nested_tas_lock;
+        __kmp_acquire_nested_ticket_lock;
+        __kmp_acquire_queuing_lock;
+        __kmp_acquire_tas_lock;
+        __kmp_acquire_ticket_lock;
+        __kmp_fork_call;
+        __kmp_invoke_microtask;
+#if KMP_USE_MONITOR
+        __kmp_launch_monitor;
+        __kmp_reap_monitor;
+#endif
+        __kmp_launch_worker;
+        __kmp_reap_worker;
+        __kmp_release_64;
+        __kmp_wait_64;
+        __kmp_wait_yield_4;
+
+        # ittnotify symbols to be used by debugger
+        __kmp_itt_fini_ittlib;
+        __kmp_itt_init_ittlib;
+#endif /* USE_ITT_BUILD */
+
+    local: # Non-exported symbols.
+
+        *;         # All other symbols are not exported.
+
+}; # VERSION
+
+# sets up GCC OMP_ version dependency chain
+OMP_1.0 {
+};
+OMP_2.0 {
+} OMP_1.0;
+OMP_3.0 {
+} OMP_2.0;
+OMP_3.1 {
+} OMP_3.0;
+OMP_4.0 {
+} OMP_3.1;
+OMP_4.5 {
+} OMP_4.0;
+
+# sets up GCC GOMP_ version dependency chain
+GOMP_1.0 {
+};
+GOMP_2.0 {
+} GOMP_1.0;
+GOMP_3.0 {
+} GOMP_2.0;
+GOMP_4.0 {
+} GOMP_3.0;
+GOMP_4.5 {
+} GOMP_4.0;
+
+# end of file #

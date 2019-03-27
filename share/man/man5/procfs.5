@@ -1,0 +1,208 @@
+.\" $FreeBSD$
+.\" Written by Garrett Wollman
+.\" This file is in the public domain.
+.\"
+.Dd March 4, 2017
+.Dt PROCFS 5
+.Os
+.Sh NAME
+.Nm procfs
+.Nd process file system
+.Sh SYNOPSIS
+.Bd -literal
+proc		/proc	procfs	rw 0 0
+.Ed
+.Sh DESCRIPTION
+The process file system, or
+.Nm ,
+implements a view of the system process table inside the file system.
+It is normally mounted on
+.Pa /proc .
+.Pp
+The
+.Nm
+provides a two-level view of process space, unlike the previous
+.Fx 1.1
+.Nm
+implementation.
+At the highest level, processes themselves are named, according to
+their process ids in decimal, with no leading zeros.
+There is also a
+special node called
+.Pa curproc
+which always refers to the process making the lookup request.
+.Pp
+Each node is a directory which contains the following entries:
+.Bl -tag -width status
+.It Pa dbregs
+The debug registers as defined by
+.Dv "struct dbregs"
+in
+.In machine/reg.h .
+.Pa dbregs
+is currently only implemented on the i386 architecture.
+.It Pa etype
+The type of the executable referenced by the
+.Pa file
+entry.
+.It Pa file
+A symbolic link to the file from which the process text was read.
+This can be used to gain access to the process' symbol table,
+or to start another copy of the process.
+If the file cannot be found, the link target is
+.Ql unknown .
+.It Pa fpregs
+The floating point registers as defined by
+.Dv "struct fpregs"
+in
+.In machine/reg.h .
+.Pa fpregs
+is only implemented on machines which have distinct general
+purpose and floating point register sets.
+.It Pa map
+A map of the process' virtual memory.
+.It Pa mem
+The complete virtual memory image of the process.
+Only those address which exist in the process can be accessed.
+Reads and writes to this file modify the process.
+Writes to the text segment remain private to the process.
+.It Pa note
+Used for sending signals to the process.
+Not implemented.
+.It Pa notepg
+Used for sending signal to the process group.
+Not implemented.
+.It Pa osrel
+Allows read and write of the kernel osrel value assigned to the process.
+It affects the compatibility shims that are turned on and off
+depending on the value.
+Initial process value is read from the ABI note tag in the executed ELF image,
+and is zero if the tag not supported by binary format or was not found.
+.It Pa regs
+Allows read and write access to the process' register set.
+This file contains a binary data structure
+.Dv "struct regs"
+defined in
+.In machine/reg.h .
+.Pa regs
+can only be written when the process is stopped.
+.It Pa rlimit
+This is a read-only file containing the process current and maximum
+limits.
+Each line is of the format
+.Ar rlimit current max ,
+with -1
+indicating infinity.
+.It Pa status
+The process status.
+This file is read-only and returns a single line containing
+multiple space-separated fields as follows:
+.Pp
+.Bl -bullet -compact
+.It
+command name
+.It
+process id
+.It
+parent process id
+.It
+process group id
+.It
+session id
+.It
+device name
+of the controlling terminal, or
+a minus sign
+.Pq Dq -
+if there is no controlling terminal.
+.It
+a list of process flags:
+.Dv ctty
+if there is a controlling terminal,
+.Dv sldr
+if the process is a session leader,
+.Dv noflags
+if neither of the other two flags are set.
+.It
+the process start time in seconds and microseconds,
+comma separated.
+.It
+the user time in seconds and microseconds,
+comma separated.
+.It
+the system time in seconds and microseconds,
+comma separated.
+.It
+the wait channel message
+.It
+the process credentials consisting of
+the effective user id
+and the list of groups (whose first member
+is the effective group id)
+all comma separated.
+.It
+the hostname of the jail in which the process runs, or
+.Ql -
+to indicate that the process is not running within a jail.
+.El
+.El
+.Pp
+Each node is owned by the process's user, and belongs to that user's
+primary group.
+.Sh FILES
+.Bl -tag -width /proc/curproc/XXXXXXX -compact
+.It Pa /proc
+normal mount point for the
+.Nm .
+.It Pa /proc/pid
+directory containing process information for process
+.Pa pid .
+.It Pa /proc/curproc
+directory containing process information for the current process
+.It Pa /proc/curproc/cmdline
+the process executable name
+.It Pa /proc/curproc/etype
+executable type
+.It Pa /proc/curproc/file
+executable image
+.It Pa /proc/curproc/fpregs
+the process floating point register set
+.It Pa /proc/curproc/map
+virtual memory map of the process
+.It Pa /proc/curproc/mem
+the complete virtual address space of the process
+.It Pa /proc/curproc/note
+used for signaling the process
+.It Pa /proc/curproc/notepg
+used for signaling the process group
+.It Pa /proc/curproc/osrel
+the process osrel value
+.It Pa /proc/curproc/regs
+the process register set
+.It Pa /proc/curproc/rlimit
+the process current and maximum rlimit
+.It Pa /proc/curproc/status
+the process' current status
+.El
+.Sh EXAMPLES
+To mount a
+.Nm
+file system on
+.Pa /proc :
+.Pp
+.Dl "mount -t procfs proc /proc"
+.Sh SEE ALSO
+.Xr procstat 1 ,
+.Xr mount 2 ,
+.Xr sigaction 2 ,
+.Xr unmount 2 ,
+.Xr pseudofs 9
+.Sh AUTHORS
+.An -nosplit
+This manual page written by
+.An Garrett Wollman ,
+based on the description
+provided by
+.An Jan-Simon Pendry ,
+and revamped later by
+.An Mike Pritchard .

@@ -1,0 +1,223 @@
+/*-
+ * Copyright (c) 2012-2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 SRI International
+ * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+
+/*
+ * Device names here have been largely made up on the spot, especially for the
+ * "compatible" strings, and might want to be revised.
+ */
+
+/ {
+	model = "SRI/Cambridge BeriPad (SoCKit)";
+	compatible = "sri-cambridge,beripad-sockit";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/*
+		 * Secondary CPUs all start disabled and use the
+		 * spin-table enable method.  cpu-release-addr must be
+		 * specified for each cpu other than cpu@0.  Values of
+		 * cpu-release-addr grow down from 0x100000 (kernel).
+		 */
+		status = "disabled";
+		enable-method = "spin-table";
+
+		cpu@0 {
+			device-type = "cpu";
+			compatible = "sri-cambridge,beri";
+
+			reg = <0 1>;
+			status = "okay";
+		};
+
+/*
+		cpu@1 {
+			device-type = "cpu";
+			compatible = "sri-cambridge,beri";
+
+			reg = <1 1>;
+			// XXX: should we need cached prefix?
+			cpu-release-addr = <0xffffffff 0x800fffe0>;
+		};
+*/
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x10000000>; /* 256MB at 0x0 */
+	};
+
+	cpuintc: cpuintc@0 {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
+	beripic0: beripic@7f804000 {
+		compatible = "sri-cambridge,beri-pic";
+		interrupt-controller;
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x0 0x7f804000 0x0 0x400
+		       0x0 0x7f806000 0x0 0x10
+		       0x0 0x7f806080 0x0 0x10
+		       0x0 0x7f806100 0x0 0x10>;
+		interrupts = < 2 3 4 5 6 >;
+		hard-interrupt-sources = <64>;
+		soft-interrupt-sources = <64>;
+		interrupt-parent = <&cpuintc>;
+	};
+
+	soc {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+
+		compatible = "simple-bus", "mips,mips4k";
+		ranges;
+
+		pio0: pio@7f020000 {
+			compatible = "altr,pio";
+			reg = <0x0 0x7f020000 0x0 0x1000>; /* send */
+			interrupts = <4>; /* not used */
+			interrupt-parent = <&beripic0>;
+		};
+
+		pio1: pio@7f021000 {
+			compatible = "altr,pio";
+			reg = <0x0 0x7f021000 0x0 0x1000>; /* recv */
+			interrupts = <10>;
+			interrupt-parent = <&beripic0>;
+		};
+
+		pio2: pio@7f022000 {
+			compatible = "altr,pio";
+			reg = <0x0 0x7f022000 0x0 0x1000>; /* send */
+			interrupts = <5>; /* not used */
+			interrupt-parent = <&beripic0>;
+		};
+
+		pio3: pio@7f023000 {
+			compatible = "altr,pio";
+			reg = <0x0 0x7f023000 0x0 0x1000>; /* recv */
+			interrupts = <11>;
+			interrupt-parent = <&beripic0>;
+		};
+
+		virtio_mmio_platform0: virtio_mmio_platform@0 {
+			compatible = "beri,virtio_mmio_platform";
+			pio-send = <&pio0>;
+			pio-recv = <&pio1>;
+		};
+
+		virtio_mmio_platform1: virtio_mmio_platform@1 {
+			compatible = "beri,virtio_mmio_platform";
+			pio-send = <&pio2>;
+			pio-recv = <&pio3>;
+		};
+
+		virtio_block@200001000 {
+			compatible = "virtio,mmio";
+			reg = <0x2 0x1000 0x0 0x1000>;
+			platform = <&virtio_mmio_platform0>;
+			status = "okay";
+		};
+
+		virtio_net@200002000 {
+			compatible = "virtio,mmio";
+			reg = <0x2 0x2000 0x0 0x1000>;
+			platform = <&virtio_mmio_platform1>;
+			status = "okay";
+		};
+
+		serial@7f000000 {
+			compatible = "altera,jtag_uart-11_0";
+			reg = <0x0 0x7f000000 0x0 0x40>;
+			interrupts = <0>;
+			interrupt-parent = <&beripic0>;
+		};
+
+/*
+		serial@7f001000 {
+			compatible = "altera,jtag_uart-11_0";
+			reg = <0x7f001000 0x40>;
+		};
+
+		serial@7f002000 {
+			compatible = "altera,jtag_uart-11_0";
+			reg = <0x7f002000 0x40>;
+		};
+*/
+
+/*
+		led@7f006000 {
+			compatible = "sri-cambridge,de4led";
+			reg = <0x7f006000 0x1>;
+		};
+*/
+
+/*
+		avgen@0x7f009000 {
+			compatible = "sri-cambridge,avgen";
+			reg = <0x7f009000 0x2>;	
+			sri-cambridge,width = <1>;
+			sri-cambridge,fileio = "r";
+			sri-cambridge,devname = "de4bsw";
+		};
+*/
+
+/*
+		berirom@0x7f00a000 {
+			compatible = "sri-cambridge,berirom";
+			reg = <0x7f00a000 0x1000>;
+		};
+*/
+
+/*
+		avgen@0x7f00c000 {
+			compatible = "sri-cambridge,avgen";
+			reg = <0x7f00c000 0x8>;
+			sri-cambridge,width = <4>;
+			sri-cambridge,fileio = "rw";
+			sri-cambridge,devname = "de4tempfan";
+		};
+*/
+	};
+};

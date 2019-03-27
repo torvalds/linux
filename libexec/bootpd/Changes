@@ -1,0 +1,294 @@
+# $FreeBSD$
+
+Changes, most recent first
+Date, <email> Real Name
+	what...
+
+--> bootp-2.4.3
+
+03/27/96  gwr@mc.com (Gordon W. Ross)
+	Use LOG_NOTICE in place of LOG_INFO for messages related
+	to unsatisfied clients [at request of <otto@tukki.jyu.fi>]
+	Fix the irix Makefile targets, and other misc.
+
+03/25/95  gwr@mc.com (Gordon W. Ross)
+	Corrected a bug I introduced into SunOS setarp, where
+	bad IP address caused "network unreachable" errors.
+	[Thanks to andrew@ntplx.net (Andrew Lindh) for the fix!]
+
+--> bootp-2.4.2
+
+01/14/95  middelin@polyware.iaf.nl (Pauline Middelink)
+	Corrected support for the Linux networking code.
+	Fixed lots of warnings (gcc -Wall)
+	Added "linux" Makefile target.
+
+01/02/95  Jukka Ukkonen <ukkonen@csc.fi>
+	Allow bootptab syntax: ha="0:0:c0:80:e8:a7"
+
+11/30/94  Tonny van Lankveld <A.L.M.G.v.Lankveld@urc.tue.nl>
+	Fix reporting of duplicate Ethernet addresses.
+
+09/06/94  longyear@netcom.com (Al Longyear)
+	Better setarp for linux, allows non-ether types.
+
+09/02/94  Robert MacKinnon <rbm@montrouge.mis.slb.com>
+	Add support for IBM's AIX 3.2.5
+
+08/30/94  piercarl@ltd.c-d.com (Piercarlo Grandi)
+	Fix select calls on linux (modifies timeval arg).
+	Fix setarp (specify Ethernet type for now).
+
+08/27/94  drew@drewsun.FEITH.COM (Andrew B. Sudell)
+	Add support for Wollongong Win-TCP (SysVr4 variant).
+
+08/24/94  gwr@mc.com (Gordon W. Ross)
+	Use sigaction() on systems that define SA_NOCLDSTOP
+	(a symbol required by POSIX) for HP/UX and others.
+
+--> bootp-2.4.1
+
+08/24/94  gwr@mc.com (Gordon W. Ross)
+	Fix bug in boot file name generation (missing init)
+
+--> bootp-2.4.0
+
+08/20/94  gwr@mc.com (Gordon W. Ross)
+	Fix code to build bootfile name based on combination of
+	client requested name and bootfile specifications.
+	Behave similarly with or without CHECK_FILE_ACCESS.
+
+07/30/94  Dirk Koeppen <dirk@incom.de>
+	Add "min wait" option (mw) to cause bootpd to ignore
+	requests from clients that have not waited long enough.
+	Add code to honor client requests containing the DHCP
+	option "Maximum Message Size" and use its value to
+	determine the size of the reply message.
+
+--> bootp-2.3.8
+
+06/25/94  Christos Zoulas <christos@deshaw.com>
+	Add "-h" flag to override host name (affects default IP
+	address provided in reply messages.  (Also minor bug fix)
+
+05/27/94  gwr@mc.com (Gordon W. Ross)
+	Add code to call "arp -s IPADDR HWADDR" on systems
+	that do not provide an SIOCSARP ioctl (i.e. NetBSD)
+
+--> bootp-2.3.7
+
+05/05/94  Walter Wong <wcw+@CMU.EDU>
+	Reduce noize at debug level one, where log messages
+	are generated only for hosts that are recognized
+	and replied to by bootpd.  (At request of HP folks.)
+
+04/30/94  gwr@mc.com (Gordon W. Ross)
+	Use memxxx functions unless USE_BFUNCS is defined.
+	Added -f <file> option to bootptest (requested file).
+
+04/29/94  tpaquett@ita.lgc.com (Trevor Paquette)
+	Remove call to haddr_conv802() in sendreply().
+	The setarp should get the non-transformed address.
+
+04/27/94  gwr@mc.com
+	Improve logic for building bootfile pathname, so a path
+	will be put in the reply if either the client or bootpd
+	specifies a boot file.  (Needed for NetBSD diskless boot)
+
+04/25/94  shamash@boxhill.com (Ari Shamash)
+	Fix prs_inetaddr() so it allows '_' in hostnames.
+
+04/16/94  gwr@mc.com (Gordon W. Ross)
+	Fix setarp for SVR4 (needs to use I_STR ioctl)
+	Thanks to several people: (all sent the same fix)
+		Barney Wolff <barney@databus.com>,
+		bear@upsys.se (Bj|rn Sj|holm),
+		Michael Kuschke <Michael.Kuschke@Materna.DE>,
+
+03/25/95  Ulrich Heuer </I=zhhi9/G=Ulrich/S=Heuer/@zhflur.ubs.ubs.ch>
+	Make option string lengths not include a null terminator.
+	The trailing null breaks some clients.
+
+03/15/94  "Edmund J. Sutcliffe" <ejs1@tower.york.ac.uk>
+	Add support for the "EX" option:  Execute a program
+	before sending a BOOTREPLY to a client.  Support for
+	this option is conditional on YORK_EX_OPTION.
+
+03/10/94  Nigel Metheringham <nigelm@ohm.york.ac.uk>
+	Make getether.c work on Linux.
+
+03/09/94  Koch@Math.Uni-Duisburg.DE (Peter Koch)
+	Add missing MANDIR definition to Makefile.
+
+03/08/94  Jeroen.Scheerder@let.ruu.nl
+	Fix args to report in getether code for Ultrix.
+	Run install individually for each program.
+
+--> bootp-2.3.6
+03/07/94  gwr@mc.com
+	Cleanup for release (run gnu indent, tab-size=4)
+
+02/24/94  Jeroen.Scheerder@let.ruu.nl
+	Allow underscore in host names - readfile.c:goodname()
+	Add ConvOldTab.sh - converts 1.1 bootptab to new format.
+
+02/20/94  gwr@mc.com (Gordon W. Ross)
+	Make readfile tolerant of hardware addresses that start
+	with a letter.  (If lookup_hwa() fails, assume numeric.)
+	Fix whitespace skip before :vm= auto: and avoid lookup.
+
+02/12/94  walker@zk3.dec.com (Mary Walker)
+	Added support for 64-bit longs (for the DEC Alpha)
+	Allow ieee802 hardware address in bit-reversed oreder
+
+02/07/94  hl@tekla.fi (Harald Lundberg)
+	Fix conflict with DUMP_FILE in syslog.h on OSF1
+	Use int for (struct bootp).bp_xid (for DEC Alpha)
+	Added Ultrix support to bootptest (getether)
+
+02/06/94  brezak@ch.hp.com (John Brezak)
+	Add man-page and install targets to Makefile.NetBSD
+	Add getether support for NetBSD
+
+02/05/94  gwr@mc.com (Gordon W. Ross)
+	Added tags 40,41,42 (NIS domain, NIS server, NTP server)
+	Add stub to getether for machines not yet supported.
+
+--> bootp-2.3.5
+01/29/94  gwr@mc.com (Gordon W. Ross)
+	Make bootpgw put a correct address in "giaddr" when
+		the client request came via broadcast.
+
+01/22/94  gwr@mc.com (Gordon W. Ross)
+	Fix syslog call (missing "facility" code)
+	Add SVR4/Streams support to getif() and getether()
+	Fix getif bug (matched when it should not)
+	Macro-ize lots of similar cases in readfile.c
+
+12/27/93  brezak@ch.hp.com (John Brezak)
+	Remove all newlines passed to syslog(3)
+	Add /etc/ethers support for NetBSD.
+
+12/18/93  gwr@mc.com (Gordon W. Ross)
+	Fix bootptest IP address printing.
+	Fix byte-order bugs in bootpgw and bootptest.
+	Clean-up signed/unsigned mismatches.
+	Back out SLIP support changes for now
+		(code fragment saved in ToDo).
+
+--> bootp-2.3.4 (beta test release)
+12/12/93  gwr@mc.com (Gordon W. Ross)
+	Fixed several more NULL references in readfile.
+	Added proper length checks to option insertions.
+
+--> bootp-2.3.3 (beta test release)
+12/09/93  gwr@mc.com (Gordon W. Ross)
+	Added ASSERT checks to readfile.c:fill_defaults()
+
+12/08/93  brezak@ch.hp.com (John Brezak)
+	New Makefile.NetBSD
+	Added setsid() and #ifdef TIOCNOTTY
+		(bootpd.c, bootpgw.c)
+	Moved #include <net/if.h> out of #ifdef SUNOS
+	Fixed several multiple declaration problems
+
+12/04/93  gwr@mc.com (Gordon W. Ross)
+	Re-implemented Extension File support
+	  based on work by Jason Zions <jazz@hal.com>
+	Added support for Reply-Address-Override to support
+	  HP clients (need reply sent to broadcast address)
+	  from David R. Linn <drl@vuse.vanderbilt.edu>
+
+--> bootp-2.3.2 (beta test release)
+11/27/93  gwr@mc.com (Gordon W. Ross)
+	Incorporated bootptest into the bootp release.
+	Added ANSI function prototypes everywhere.
+
+11/17/93  dpm@depend.com (David P. Maynard)
+	Added automatic SLIP address determination.
+	(This is NOT dynamic IP address assignment.)
+	Cleaned up some type warnings from gcc.
+
+11/11/93  gwr@mc.com (Gordon W. Ross)
+	Works (again) with no -DSYSLOGD defined.
+	Provide a default value for the subnet mask.
+	More #ifdef's for SunOS specific code (lookup_hwa)
+	Added a simple BOOTP gateway program: bootpgw
+	Reorganized for more code sharing (with bootpgw)
+
+--> bootp-2.3.1 (alpha test release)
+11/08/93  gwr@mc.com (Gordon W. Ross)
+	Back-out changes to honor option structure in request
+		(this needs to be a per-client option).
+	Merged changes from NetBSD and Columbia versions.
+	Allow host name anywhere IP address is expected.
+	Add null terminators to option strings.
+	Add missing symbols to dump routine, dump symbols
+		in alphabetical order, one tag per line.
+
+--> bootp-2.2.D (posted as patch 2)
+10/19/93  gwr@mc.com (Gordon W. Ross)
+	Fix references to free memory (leads to core dumps).
+
+--> bootp-2.2.C (posted as patch 1)
+10/14/93  gwr@mc.com (Gordon W. Ross)
+	Fix data access alignment problems on SPARC/Solaris.
+
+--> bootp-2.2.B (posted to usenet)
+10/11/93  gwr@mc.com (Gordon W. Ross)
+	Allow extended-length BOOTP packets (more vendor options)
+	Honor option format specified in client requests.
+	Added Solaris-2.X changes from db@sunbim.be (Danny Backx).
+
+All history before this point may be inaccurate.  Please send
+changes if any of the credits are incorrect. -gwr
+
+--> bootp-2.2+NetBSD released
+08/27/93  brezak@ch.hp.com (John Brezak)
+	Added RFC 1396 support (tags 14-17)
+
+--> bootp-2.2+NetBSD (version?)
+??/??/93  mckim@lerc.nasa.gov (Jim McKim)
+	Ported to NetBSD (see Makefile.NetBSD)
+	Set server host name in responses.
+	Check all interfaces in address match routine.
+
+--> bootp-2.2+FdC released
+01/27/93  <fdc@watsun.cc.columbia.edu> Frank da Cruz
+	Added RFC 1395 information: Merit dump file, 
+	client domain name, swap server address, root path.
+
+--> bootp-2.2alpha released
+11/14/91 <walt+@cmu.edu> Walter L. Wimer
+	Add "td" to TFTP directory for "secure" (chroot) TFTP.
+	Add "sa" tag to set explicit server address.
+	Automatically determine if child of inetd.
+	Use RFC 1048 format when request has magic number zero.
+	Fixed various bugs.  Give bootptab a separate man page.
+
+--> bootp-2.1 released
+01/09/89  <walt+@cmu.edu> Walter L. Wimer
+	Check world read bit on TFTP boot file.
+	Add support for rfc1085 "bootfile size" tag.
+	Add generic tags.  Fix byte order of rfc1048 data.
+	Fix various crashing bugs.
+
+--> bootp-2.0 released
+07/15/88  <walt+@cmu.edu> Walter L. Wimer
+	Added vendor information to conform to RFC1048.
+	Adopted termcap-like file format to support above.
+	Added hash table lookup instead of linear search.
+	Other cleanups.
+
+--> bootp-1.3(?) released
+07/24/87  <ddp@andrew.cmu.edu> Drew D. Perkins
+	Modified to use syslog instead of Kovar's
+	routines.  Add debugging dumps.  Many other fixups.
+
+--> bootp-1.2(?) released
+07/30/86  David Kovar at Carnegie Mellon University
+	Modified to work at CMU.
+
+--> bootp-1.1 released
+01/22/86  Bill Croft at Stanford University
+	Original created.

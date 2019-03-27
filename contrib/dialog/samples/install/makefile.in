@@ -1,0 +1,35 @@
+# $Id: makefile.in,v 1.1 2000/10/08 17:22:53 tom Exp $
+# template makefile for DIALOG sample 'install'
+#
+SHELL		= /bin/sh
+
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+
+srcdir		= @srcdir@
+top_builddir	= ../..
+
+DESTDIR		=
+bindir		= $(DESTDIR)@bindir@
+
+CFLAGS		= @CFLAGS@
+CPPFLAGS	= @CPPFLAGS@ @DEFS@ -I$(top_builddir) -I$(srcdir)/../.. -I. -I$(srcdir)
+EXTRA_CFLAGS	= @EXTRA_CFLAGS@
+CC		= @CC@
+LDFLAGS		= @LDFLAGS@
+LIBS		= -L../.. -ldialog @LIBS@
+RANLIB		= @RANLIB@
+
+RM		= rm -f
+
+all: setup
+
+setup: setup.o
+	$(CC) -o $@ setup.o $(LIBS)
+
+clean:
+	rm -f *.o setup
+
+test: setup
+	./setup
+

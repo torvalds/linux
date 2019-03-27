@@ -1,0 +1,129 @@
+2008-07-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: no krb4
+
+	* su.c: Drop kerberos 4 support.
+
+2007-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* su.c: read environment from _PATH_ETC_ENVIRONMENT
+
+	* supaths.c: paths
+
+2007-08-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* su.c: Check all local realms when su-ing, from Magnus Holmberg.
+
+2007-06-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* su.c: If not root and not setuid, print warning.
+
+2006-01-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* su.c (group_member_p): rename from group_member to avoid name
+	pollution from glibc headers. Fixed based on report from David Love.
+
+2006-01-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* su.c: fix reversed logic when deciding to print tty or not
+	
+2005-10-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* su.c: Check return value from asprintf instead of string != NULL
+	since it undefined behavior on Linux. From Björn Sandell
+	
+2005-05-10  Dave Love  <fx@gnu.org>
+
+	* su.c: Include <crypt.h>.
+
+2003-09-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* su.c: s/des_read_pw_string/UI_UTIL_read_pw_string/
+	
+2003-05-06  Johan Danielsson  <joda@pdc.kth.se>
+
+	* su.c: remove accidentally committed code that prints the command
+	being executed
+
+2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* su.c (krb5_start_session): krb5_afslog doesn't depend on KRB4
+	any more
+
+2002-02-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* su.c: make this build without krb5
+
+2002-01-09  Jacques Vidrine <n@nectar.cc>
+	
+	* su.c: Don't use getlogin() to determine whether we are root.
+	Patch by joda.
+
+2001-06-12  Assar Westerlund  <assar@sics.se>
+
+	* su.c: check memory allocations.  add some const
+
+2000-12-31  Assar Westerlund  <assar@sics.se>
+
+	* su.c (krb5_verify): handle krb5_init_context failure
+	consistently
+
+2000-08-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* su.c: set KRBTKFILE
+
+2000-07-10  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: actually install su
+	* su.c (krb5_verify): try harder freeing.  do not get upset on
+	interrupted password read
+
+2000-06-09  Assar Westerlund  <assar@sics.se>
+
+	* su.c (main): work-around for setuid and capabilities bug fixed
+	in Linux 2.2.16
+
+2000-06-03  Assar Westerlund  <assar@sics.se>
+
+	* su.c (main): just ignore shadow information if getspnam returns
+	NULL
+
+1999-10-20  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: use LIB_roken
+
+1999-09-28  Assar Westerlund  <assar@sics.se>
+
+	* su.c (krb5_verify): use krb5_verify_user_lrealm
+
+1999-08-04  Assar Westerlund  <assar@sics.se>
+
+	* su.c: add support for shadow passwords and rewrite some logic.
+  	From Miroslav Ruda <ruda@ics.muni.cz>
+
+	* Makefile.am: add libkafs
+
+1999-06-15  Assar Westerlund  <assar@sics.se>
+
+	* su.c (main): conditionalize `getlogin'
+
+1999-05-11  Assar Westerlund  <assar@sics.se>
+
+	* su.c (verfiy_krb5): get the name out of the ccache before
+ 	closing it
+
+1999-05-05  Assar Westerlund  <assar@sics.se>
+
+	* su.c: some more error checking
+
+Wed Apr 21 21:04:36 1999  Assar Westerlund  <assar@sics.se>
+
+	* su.c (-f): implement
+
+	* su.c: implement -i
+	(verify_krb5): correct the ownership on the credential cache
+
+Tue Apr 20 13:26:13 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* su.c: don't depend on paths.h
+

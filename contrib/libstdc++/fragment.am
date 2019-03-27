@@ -1,0 +1,25 @@
+
+## This is used in all Makefile.am's except for libmath's.  Set defaults here.
+
+# May be used by various substitution variables.
+gcc_version := $(shell cat $(top_srcdir)/../gcc/BASE-VER)
+
+MAINT_CHARSET = latin1
+
+mkinstalldirs = $(SHELL) $(toplevel_srcdir)/mkinstalldirs
+PWD_COMMAND = $${PWDCMD-pwd}
+STAMP = echo timestamp >
+
+toolexecdir = $(glibcxx_toolexecdir)
+toolexeclibdir = $(glibcxx_toolexeclibdir)
+
+# These bits are all figured out from configure.  Look in acinclude.m4
+# or configure.ac to see how they are set.  See GLIBCXX_EXPORT_FLAGS.
+CONFIG_CXXFLAGS = \
+	$(SECTION_FLAGS) $(EXTRA_CXX_FLAGS)
+WARN_CXXFLAGS = \
+	$(WARN_FLAGS) $(WERROR) -fdiagnostics-show-location=once
+
+# -I/-D flags to pass when compiling.
+AM_CPPFLAGS = $(GLIBCXX_INCLUDES)
+

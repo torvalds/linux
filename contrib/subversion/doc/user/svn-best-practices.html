@@ -1,0 +1,318 @@
+<!--
+
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+
+-->
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
+   "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+<title>Subversion Best Practices</title>
+<style type="text/css">
+h1 {
+  text-align: center;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Subversion Best Practices</h1>
+
+<p>This is a quick set of guidelines for making the best use of
+Subversion in your day-to-day software development work.</p>
+
+
+<h2>Use a sane repository layout</h2>
+
+<p>There are many ways to lay out your repository.  Because branches
+and tags are ordinary directories, you'll need to account for them in
+your repository structure.</p>
+
+<p>The Subversion project officially recommends the idea of a "project
+root", which represents an anchoring point for a project.  A "project
+root" contains exactly three subdirectories: <tt>/trunk</tt>,
+<tt>/branches</tt>, and <tt>/tags</tt>.  A repository may contain
+only one project root, or it may contain a number of them.</p>
+
+<p><em>Book reference:</em> <a
+        href="http://svnbook.red-bean.com/nightly/en/svn.reposadmin.planning.html#svn.reposadmin.projects.chooselayout">Choosing
+        a Repository Layout</a>.</p>
+
+
+
+<!-- =================================================== -->
+
+<h2>Commit logical changesets</h2>
+
+<p>When you commit a change to the repository, make sure your change
+reflects a single purpose: the fixing of a specific bug, the addition
+of a new feature, or some particular task.  Your commit will create a
+new revision number which can forever be used as a "name" for the
+change.  You can mention this revision number in bug databases, or use
+it as an argument to <tt>svn merge</tt> should you want to undo the
+change or port it to another branch.</p>
+
+<p><em>Book reference:</em> <a
+        href="http://svnbook.red-bean.com/nightly/en/svn.branchmerge.basicmerging.html#svn.branchmerge.changesets">Changesets</a>.</p>
+
+<!-- =================================================== -->
+
+<h2>Use the issue-tracker wisely</h2>
+
+<p>Try to create as many two-way links between Subversion changesets
+and your issue-tracking database as possible:</p>
+
+<ul>
+<li>If possible, refer to a specific issue ID in every commit log message.</li>
+<li>When appending information to an issue (to describe progress, or
+    to close the issue) name the revision number(s) responsible
+    for the change.</li>
+</ul>
+
+<!-- =================================================== -->
+
+<div style="color:grey">
+<h2>Track merges manually</h2>
+
+<p><em>### OBSOLETE RECOMMENDATION ###</em></p>
+
+<p>When committing the result of a merge, be sure to write a
+descriptive log message that explains what was merged, something
+like:</p>
+
+  <pre>Merged revisions 3490:4120 of /branches/foobranch to /trunk.</pre>
+
+<p><em>Book reference:</em> <a
+        href="http://svnbook.red-bean.com/svnbook/ch04s03.html#svn-ch-4-sect-3.2">Tracking
+        merges manually</a>, and <a
+        href="http://svnbook.red-bean.com/svnbook/ch04s04.html#svn-ch-4-sect-4.1">Merging a whole branch to another</a>.</p>
+</div>
+
+<!-- =================================================== -->
+
+<h2>Understand mixed-revision working copies</h2>
+
+<p>Your working copy's directories and files can be at different
+"working" revisions: this is a deliberate feature which allows you to
+mix and match older versions of things with newer ones.  But there are
+few facts you must be aware of:</p>
+
+<ol>
+
+<li>After every <tt>svn commit</tt>, your working copy has mixed
+revisions.  The things you just committed are now at the HEAD
+revision, and everything else is at an older revision.</li>
+
+<li>Certain commits are disallowed:
+   <ul>
+     <li>You cannot commit the deletion of a file or directory which
+     doesn't have a working revision of HEAD.</li>
+     <li>You cannot commit a property change to a directory which
+     doesn't have a working revision of HEAD.</li>
+   </ul>
+</li>
+
+<li><tt>svn update</tt> will bring your entire working copy to one
+            working revision, and is the typical solution to the
+            problems mentioned in point #2.</li>
+</ol>
+
+<p><em>Book reference:</em> <a
+        href="http://svnbook.red-bean.com/nightly/en/svn.basic.in-action.html#svn.basic.in-action.mixedrevs">Mixed-revision working copies</a>.</p>
+
+
+<!-- =================================================== -->
+
+<h2>Be patient with large files</h2>
+
+<p>A nice feature of Subversion is that by design, there is no limit
+to the size of files it can handle.  Files are sent "streamily" in
+both directions between Subversion client and server, using a small,
+constant amount of memory on each side of the network.</p>
+
+<p>Of course, there are a number of practical issues to consider.
+While there's no need to worry about files in the kilobyte-sized range
+(e.g. typical source-code files), committing larger files can take a
+tremendous amount of both time and space (e.g. files that are dozens
+or hundreds of megabytes large.)</p>
+
+<p>To begin with, remember that your Subversion working copy stores
+pristine copies of all version-controlled files in the
+<tt>.svn/text-base/</tt> area.  This means that your working copy
+takes up at least twice as much disk space as the original dataset.
+Beyond that, the Subversion client follows a (currently unadjustable)
+algorithm for committing files:</p>
+               
+   <ul>
+     <li>Copies the file to <tt>.svn/tmp/</tt>  <em>(can take a while,
+          and temporarily uses extra disk space)</em>)</li>
+
+     <li>Performs a binary diff between the tmpfile and the pristine
+          copy, or between the tmpfile and an empty-file if newly
+          added.  <em>(can take a very long time to compute, even
+          though only a small amount of data might ultimately be sent
+          over the network)</em></li>
+
+     <li>Sends the diff to the server, then moves the tmpfile into
+        <tt>.svn/text-base/</tt></li>
+   </ul>
+
+<p>So while there's no theoretical limit to the size of your files,
+you'll need to be aware that very large files may require quite a bit
+of patient waiting while your client chugs away.  You can rest
+assured, however, that unlike CVS, your large files won't incapacitate
+the server or affect other users.</p>
+
+<!-- =================================================== -->
+
+<h2>Know when to create branches</h2>
+
+<p>This is a hotly debated question, and it really depends on the
+culture of your software project.  Rather than prescribe a universal
+policy, we'll describe three common ones here.</p>
+
+<h3>The Never-Branch system</h3>
+
+<p>(Often used by nascent projects that don't yet have runnable code.)</p>
+
+<ul>
+<li>Users commit their day-to-day work on <tt>/trunk</tt>.</li>
+<li>Occasionally <tt>/trunk</tt> "breaks" (doesn't compile, or fails
+functional tests) when a user begins to commit a series of complicated
+changes.</li>
+</ul>
+
+<p><em>Pros:</em> Very easy policy to follow.  New developers have low
+        barrier to entry.  Nobody needs to learn how to branch or merge.</p>
+
+<p><em>Cons:</em> Chaotic development, code could be unstable at any
+        time.</p>
+
+<p>A side note: this sort of development is a bit less risky in
+Subversion than in CVS.  Because Subversion commits are atomic, it's
+not possible for a checkout or update to receive a "partial" commit
+while somebody else is in the process of committing.</p>
+
+
+<h3>The Always-Branch system</h3>
+
+<p>(Often used by projects that favor heavy management and supervision.)</p>
+
+<ul>
+<li>Each user creates/works on a private branch for <em>every</em> coding task.
+    </li>
+<li>When coding is complete, someone (original coder, peer, or
+    manager) reviews all private branch changes and merges them to
+    <tt>/trunk</tt>.</li>
+</ul>
+
+<p><em>Pros:</em> <tt>/trunk</tt> is guaranteed to be
+       <em>extremely</em> stable at all times. </p>
+
+<p><em>Cons:</em> Coders are artificially isolated from each other,
+          possibly creating more merge conflicts than necessary.
+          Requires users to do lots of extra merging.</p>
+
+
+<h3>The Branch-When-Needed system</h3>
+
+<p>(This is the system used by the Subversion project.)
+
+<ul>
+<li>Users commit their day-to-day work on <tt>/trunk</tt>.</li>
+
+<li>Rule #1: <tt>/trunk</tt> must compile and pass regression tests at
+all times.  Committers who violate this rule are publically
+humiliated.</li>
+
+<li>Rule #2: a single commit (changeset) must not be so large
+so as to discourage peer-review.</li>
+
+<li>Rule #3: if rules #1 and #2 come into conflict (i.e. it's
+impossible to make a series of small commits without disrupting the
+trunk), then the user should create a branch and commit a series of
+smaller changesets there.  This allows peer-review without disrupting
+the stability of <tt>/trunk</tt>.</li>
+
+</ul>
+
+<p><em>Pros:</em> <tt>/trunk</tt> is guaranteed to be stable at all
+       times.  The hassle of branching/merging is somewhat rare.</p>
+
+<p><em>Cons:</em> Adds a bit of burden to users' daily work:
+          they must compile and test before every commit.</p>
+
+
+<!--
+
+
+Mapping CVS tasks to SVN tasks
+==============================
+
+This section is just a re-indexing of topics covered in the book,
+for people who prefer to learn from the "bottom up" rather than "top down".
+It shows some common CVS operations, and then the equivalent SVN operation,
+followed by a link to the book which explains more.
+
+
+* Importing data.
+
+* Checking out a working copy.
+
+* Seeing your changes.
+
+* Undoing your changes.
+
+* Resolving a conflict.
+
+* Adding binary files.
+
+* Activating keyword expansion and/or EOL translation.
+
+
+TAGS:
+
+* Creating a tag from a working copy
+
+* Creating a remote tag
+
+* Seeing all of a project's tags
+
+* Comparing two tags
+
+* Seeing the logs between two tags
+
+* Tweaking a tag
+
+
+BRANCHES:
+
+* Creating a branch and switching to it
+
+* Finding the beginning of a branch
+
+* Merging a branch to trunk, or vice versa
+
+-->
+
+
+</body>
+</html>

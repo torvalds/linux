@@ -1,0 +1,133 @@
+#! /bin/sh
+
+IAM=`hostname || uname -n`
+MYNAME=`IFS=. ; set $IAM ; echo $1`
+
+case "$1" in
+ '--one'|'-1')
+     shift
+     FB_FIRSTONLY=1
+     LIST=$MYNAME
+     ;;
+ *)
+     FB_FIRSTONLY=0
+esac
+
+BUILD_ARGS="$@"
+PARSE="--enable-parse-clocks"
+#PARSE=
+STD="--enable-simulator"
+
+case "$SIMUL::$FB_FIRSTONLY" in
+ ::*)
+    PARALLEL_BUILDS=1
+    ;;
+ *::0)
+    PARALLEL_BUILDS=$SIMUL
+    ;;
+ *)
+    PARALLEL_BUILDS=1
+esac
+
+case "$PARALLEL_BUILDS" in
+ 1)  ;;
+ *)  echo Launching $PARALLEL_BUILDS parallel builds on each machine
+esac
+
+# Backroom:
+#   barnstable	   freebsd-6.1
+#   beauregard	   freebsd-6.0
+# X churchy	   alpha-dec-osf5.1
+#   deacon	   sparc-sun-solaris2.10
+#   grundoon	   freebsd-6.2
+#   howland	   freebsd-6.1
+# o macabre	   freebsd-6.1-STABLE
+# o mort	   freebsd-6.1
+#   whimsy	   sparc-sun-solaris2.10
+
+# Campus:
+# * baldwin	   sparc-sun-solaris2.10
+# * bridgeport	   sparc-sun-solaris2.10
+# * malarky	   sparc-sun-solaris2.10
+# * pogo	   sparc-sun-solaris2.10
+# * rackety	   freebsd-6.1
+
+if [ ! -r sntp/libevent/build-aux/config.guess ] ; then
+	echo "Error: bootstrap required." 1>&2 && exit 1
+fi
+
+# HMS: we need $PWD because solaris produces /deacon/backroom when
+# we are in /backroom and in general there is no /deacon/backroom.
+c_d=${PWD:-`pwd`}
+
+SIG=`perl -e 'print rand'`
+
+case "$LIST" in
+ '') LIST="pogo" ;;
+esac
+
+for i in $LIST
+do
+    SKIPTHIS=0
+    [ -f .buildkey-$i ] && SKIPTHIS=1
+    case "$SKIPTHIS" in
+     1)
+	echo flock-build running on $i? check LIST, skipping
+	;;
+     0)
+	echo $i
+	echo $SIG > .buildkey-$i
+	case "1" in
+	 0)
+	    ssh $i "cd $c_d ; ./build $SIG $PARSE $STD $BUILD_ARGS" &
+	    ssh $i "cd $c_d ; ./build $SIG $PARSE $STD --disable-debugging $BUILD_ARGS" &
+	    ssh $i "cd $c_d ; ./build $SIG $PARSE $STD --without-crypto --enable-c99-snprintf $BUILD_ARGS" &
+	    ssh $i "cd $c_d ; ./build $SIG        $STD --disable-all-clocks --disable-autokey --without-sntp --disable-thread-support $BUILD_ARGS" &
+	    ;;
+	 1)
+	    cat > .flockbuild-$i-$SIG <<-ENDQUOT
+		#!/bin/sh
+
+		# script uses job control and expects to be invoked
+		# in a ssh session started with the -tt option, 
+		# which forces a pseudo-tty to be used.
+		
+		cd $c_d
+		COUNT=0
+
+		./build $SIG $PARSE $STD $BUILD_ARGS &
+
+		COUNT=\`expr \$COUNT + 1\`
+		echo \`date -u '+%H:%M:%S'\` $i started build \$COUNT of 4
+		[ 0 -lt \`expr \$COUNT % $PARALLEL_BUILDS\` ] || wait
+
+		case $FB_FIRSTONLY in
+		 '0')
+			./build $SIG $PARSE $STD --disable-debugging $BUILD_ARGS &
+
+			COUNT=\`expr \$COUNT + 1\`
+			echo \`date -u '+%H:%M:%S'\` $i started build \$COUNT of 4
+			[ 0 -lt \`expr \$COUNT % $PARALLEL_BUILDS\` ] || wait
+
+			./build $SIG $PARSE $STD --without-crypto --enable-c99-snprintf $BUILD_ARGS &
+
+			COUNT=\`expr \$COUNT + 1\`
+			echo \`date -u '+%H:%M:%S'\` $i started build \$COUNT of 4
+			[ 0 -lt \`expr \$COUNT % $PARALLEL_BUILDS\` ] || wait
+
+			./build $SIG        $STD --disable-all-clocks --disable-autokey --without-sntp --disable-thread-support $BUILD_ARGS &
+
+			COUNT=\`expr \$COUNT + 1\`
+			echo \`date -u '+%H:%M:%S'\` $i started build \$COUNT of 4
+			wait
+		esac
+		echo \`date -u '+%H:%M:%S'\` $i flock-build $c_d done.
+		rm .buildkey-$i
+ENDQUOT
+	    chmod +x .flockbuild-$i-$SIG
+	    ssh -tt $i "$c_d/.flockbuild-$i-$SIG ; \
+		rm $c_d/.flockbuild-$i-$SIG" 2>/dev/null &
+	esac
+    esac
+done
+echo `date -u '+%H:%M:%S'` flock-build launched

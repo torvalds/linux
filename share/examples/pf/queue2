@@ -1,0 +1,29 @@
+# $FreeBSD$
+# $OpenBSD: queue2,v 1.4 2006/10/07 04:48:01 mcbride Exp $
+# advanced queue example.
+# give interactive ssh traffic priority over ssh bulk transfers (scp, sftp)
+
+ext_if="dc0"
+developerhosts="192.168.2.0/24"
+employeehosts="192.168.0.0/23"
+
+altq on $ext_if cbq bandwidth 5Mb queue { std, http, mail, ssh }
+
+queue std bandwidth 10% cbq(default)
+queue http bandwidth 60% priority 2 cbq(borrow red) { employees, developers }
+queue  developers bandwidth 75% cbq(borrow)
+queue  employees bandwidth 15%
+queue mail bandwidth 10% priority 0 cbq(borrow ecn)
+queue ssh bandwidth 20% cbq(borrow) { ssh_interactive, ssh_bulk }
+queue  ssh_interactive bandwidth 25% priority 7
+queue  ssh_bulk bandwidth 75% priority 0
+
+block return out on $ext_if inet all queue std
+pass out on $ext_if inet proto tcp from $developerhosts to any port 80 \
+    queue developers
+pass out on $ext_if inet proto tcp from $employeehosts to any port 80 \
+    queue employees
+pass out on $ext_if inet proto tcp from any to any port 22 \
+    queue(ssh_bulk, ssh_interactive)
+pass out on $ext_if inet proto tcp from any to any port 25 \
+    queue mail

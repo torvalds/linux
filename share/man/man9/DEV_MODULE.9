@@ -1,0 +1,105 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2001 Alexander Langer
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 19, 2012
+.Dt DEV_MODULE 9
+.Os
+.Sh NAME
+.Nm DEV_MODULE
+.Nd device driver module declaration macro
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/kernel.h
+.In sys/module.h
+.In sys/conf.h
+.Fn DEV_MODULE "name" "modeventhand_t evh" "void *arg"
+.Sh DESCRIPTION
+The
+.Fn DEV_MODULE
+macro declares a device driver kernel module.
+It fills in a
+.Vt moduledata_t
+structure and then calls
+.Fn DECLARE_MODULE
+with the correct args, where
+.Fa name
+is the name of the module and
+.Fa evh
+(with its argument
+.Fa arg )
+is the event handler for the module (refer to
+.Xr DECLARE_MODULE 9
+for more information).
+The event handler is supposed to create the device with
+.Fn make_dev
+on load and to destroy it when it is unloaded using
+.Fn destroy_dev .
+.Sh EXAMPLES
+.Bd -literal
+#include <sys/module.h>
+#include <sys/conf.h>
+
+static struct cdevsw foo_devsw = { ... };
+
+static struct cdev *sdev;
+
+static int
+foo_load(module_t mod, int cmd, void *arg)
+{
+    int err = 0;
+
+    switch (cmd) {
+    case MOD_LOAD:
+        sdev = make_dev(&foo_devsw, 0, UID_ROOT, GID_WHEEL, 0600, "foo");
+        break;          /* Success*/
+
+    case MOD_UNLOAD:
+    case MOD_SHUTDOWN:
+        destroy_dev(sdev);
+        break;          /* Success*/
+
+    default:
+        err = EINVAL;
+        break;
+    }
+
+    return(err);
+}
+
+DEV_MODULE(foo, foo_load, NULL);
+.Ed
+.Sh SEE ALSO
+.Xr DECLARE_MODULE 9 ,
+.Xr destroy_dev 9 ,
+.Xr make_dev 9 ,
+.Xr module 9
+.Sh AUTHORS
+This manual page was written by
+.An Alexander Langer Aq Mt alex@FreeBSD.org .

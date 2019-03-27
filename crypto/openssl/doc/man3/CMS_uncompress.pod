@@ -1,0 +1,59 @@
+=pod
+
+=head1 NAME
+
+CMS_uncompress - uncompress a CMS CompressedData structure
+
+=head1 SYNOPSIS
+
+ #include <openssl/cms.h>
+
+ int CMS_uncompress(CMS_ContentInfo *cms, BIO *dcont, BIO *out, unsigned int flags);
+
+=head1 DESCRIPTION
+
+CMS_uncompress() extracts and uncompresses the content from a CMS
+CompressedData structure B<cms>. B<data> is a BIO to write the content to and
+B<flags> is an optional set of flags.
+
+The B<dcont> parameter is used in the rare case where the compressed content
+is detached. It will normally be set to NULL.
+
+=head1 NOTES
+
+The only currently supported compression algorithm is zlib: if the structure
+indicates the use of any other algorithm an error is returned.
+
+If zlib support is not compiled into OpenSSL then CMS_uncompress() will always
+return an error.
+
+The following flags can be passed in the B<flags> parameter.
+
+If the B<CMS_TEXT> flag is set MIME headers for type B<text/plain> are deleted
+from the content. If the content is not of type B<text/plain> then an error is
+returned.
+
+=head1 RETURN VALUES
+
+CMS_uncompress() returns either 1 for success or 0 for failure. The error can
+be obtained from ERR_get_error(3)
+
+=head1 BUGS
+
+The lack of single pass processing and the need to hold all data in memory as
+mentioned in CMS_verify() also applies to CMS_decompress().
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<CMS_compress(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

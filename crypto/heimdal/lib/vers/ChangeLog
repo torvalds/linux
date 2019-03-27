@@ -1,0 +1,74 @@
+2007-10-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: don't run local checks.
+	
+2006-12-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* print_version.c: Update (c).
+	
+2006-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* make-print-version.c: include <string.h>
+
+2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* make-print-version.c: Avoid creating a file called --version.
+	
+2006-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: fix spelling of build_HEADERZ
+
+2006-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: Add build_HEADERZ to EXTRA_DIST
+	
+2005-01-01  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* print_version.c: Happy New Year
+
+2004-01-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* print_version.c: add year 2004
+	
+2003-01-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* print_version.c: considerable clean up
+
+	* make-print-version.c: make VERSIONLIST a string instead of an
+	array of strings
+
+2002-08-28  Assar Westerlund  <assar@kth.se>
+
+	* Makefile.am (make_print_version_LDADD): do not hardcode -ldes,
+	use $(LIB_des)
+
+2002-08-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* print_version.c: add bug-report message
+
+2002-05-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* print_version.c: update year
+
+2001-08-24  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (make_print_version_LDADD): use = instead of += (be
+	nice to current automake)
+
+2001-04-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* print_version.c: 2001
+
+2001-01-31  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: remove -static turning this into a convenience
+	library
+
+2000-11-15  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: make the library static and don't install it
+
+2000-07-08  Assar Westerlund  <assar@sics.se>
+
+	* make-print-version.c (heimdal_version, krb4_version): const-ize,
+	based on thorpej@netbsd.org's change to NetBSD

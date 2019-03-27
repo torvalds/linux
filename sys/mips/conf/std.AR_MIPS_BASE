@@ -1,0 +1,95 @@
+# These are the base base bits shared between all of the various Atheros
+# MIPS bases.
+#
+# This allows a shared set of configuration and drivers to be built for
+# all of the Atheros MIPS platforms without a lot of configuration file
+# duplication.
+#
+# $FreeBSD$
+
+# debugging
+options 	EARLY_PRINTF
+options 	ALT_BREAK_TO_DEBUGGER
+
+# For small memory footprints
+options 	VM_KMEM_SIZE_SCALE=1
+options 	UMTX_CHAINS=16
+options 	NBUF=128
+# Don't include the SCSI/CAM strings in the default build
+options 	SCSI_NO_SENSE_STRINGS
+options 	SCSI_NO_OP_STRINGS
+# .. And no sysctl strings
+options 	NO_SYSCTL_DESCR
+
+makeoptions 	MODULES_OVERRIDE+="gpio ar71xx if_gif if_vlan if_gre if_tap"
+makeoptions 	MODULES_OVERRIDE+="if_tun if_bridge bridgestp usb"
+makeoptions 	MODULES_OVERRIDE+="alq"
+
+# Random - required during early boot!
+device 		random
+
+# net80211
+options 	IEEE80211_DEBUG
+options 	IEEE80211_SUPPORT_MESH
+options 	IEEE80211_SUPPORT_TDMA
+options 	IEEE80211_SUPPORT_SUPERG
+options 	IEEE80211_ALQ   # 802.11 ALQ logging support
+
+makeoptions 	MODULES_OVERRIDE+="wlan wlan_xauth wlan_acl wlan_wep"
+makeoptions 	MODULES_OVERRIDE+="wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr"
+
+# firewalling
+options 	IPFIREWALL_DEFAULT_TO_ACCEPT
+
+makeoptions 	MODULES_OVERRIDE+="ipfw ipfw_nat libalias ipfw_nptv6"
+
+# USB wifi device drivers
+makeoptions 	MODULES_OVERRIDE+="rtwn rtwn_usb rtwnfw"
+makeoptions	MODULES_OVERRIDE+="otus otusfw"
+
+# Atheros wifi device drivers
+options 	ATH_DEBUG
+options 	ATH_DIAGAPI
+options 	ATH_ENABLE_11N
+options 	ATH_ENABLE_DFS
+
+options 	AH_DEBUG_ALQ
+options 	AH_DEBUG
+options 	AH_AR5416_INTERRUPT_MITIGATION
+options 	AH_RXCFG_SDMAMW_4BYTES
+
+makeoptions 	MODULES_OVERRIDE+="ath_main ath_pci ath_ahb ath_rate ath_dfs"
+makeoptions 	MODULES_OVERRIDE+="ath_hal_ar5210 ath_hal_ar5211"
+makeoptions 	MODULES_OVERRIDE+="ath_hal_ar5212 ath_hal_ar5416"
+makeoptions 	MODULES_OVERRIDE+="ath_hal_ar9300 ath_hal"
+
+# USB configuration
+options 	USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
+options 	USB_DEBUG
+options 	USB_HOST_ALIGN=32               # AR71XX (MIPS in general?) requires this
+
+# Ethernet configuration
+device 		mii
+device 		arge
+options 	ARGE_DEBUG
+
+# SPI, flash
+device 		spibus
+device 		ar71xx_spi
+device 		mx25l
+device 		ar71xx_wdog
+
+# Serial driver
+device 		uart
+
+# Networking
+device 		loop
+device 		ether
+device 		md
+device 		bpf
+#device 		if_bridge
+
+# GPIO - normally it's okay as a module
+#device 		gpio
+#device 		gpioled
+

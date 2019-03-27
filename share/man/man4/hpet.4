@@ -1,0 +1,112 @@
+.\" Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 14, 2010
+.Dt HPET 4
+.Os
+.Sh NAME
+.Nm hpet
+.Nd High Precision Event Timer driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device acpi"
+.Ed
+.Pp
+The following tunables are settable from the
+.Xr loader 8 :
+.Bl -ohang
+.It Va hint.hpet. Ns Ar X Ns Va .allowed_irqs
+is a 32bit mask.
+Each set bit allows driver to use respective IRQ,
+if BIOS also set respective capability bit in comparator's configuration
+register.
+Default value is 0xffff0000, except some known broken hardware.
+.It Va hint.hpet. Ns Ar X Ns Va .clock
+controls event timers functionality support.
+Setting to 0, disables it.
+Default value is 1.
+.It Va hint.hpet. Ns Ar X Ns Va .legacy_route
+controls "LegacyReplacement Route" mode.
+If enabled, HPET will steal IRQ0 of i8254 timer and IRQ8 of RTC.
+Before using it, make sure that respective
+drivers are not using interrupts, by setting also:
+.Bd -literal
+hint.attimer.0.clock=0
+hint.atrtc.0.clock=0
+.Ed
+Default value is 0.
+.It Va hint.hpet. Ns Ar X Ns Va .per_cpu
+controls how much per-CPU event timers should driver attempt to register.
+This functionality requires every comparator in a group to have own unshared
+IRQ, so it depends on hardware capabilities and interrupts configuration.
+Default value is 1.
+.El
+.Sh DESCRIPTION
+This driver uses High Precision Event Timer hardware (part of the chipset,
+usually enumerated via ACPI) to supply kernel with one time counter and
+several (usually from 3 to 8) event timers.
+This hardware includes single main counter with known increment frequency
+(10MHz or more), and several programmable comparators (optionally with
+automatic reload feature).
+When value of the main counter matches current value of any comparator,
+interrupt can be generated.
+Depending on hardware capabilities and configuration, interrupt can be
+delivered as regular I/O APIC interrupt (ISA or PCI) in range from 0 to 31,
+or as Front Side Bus interrupt, alike to PCI MSI interrupts, or in so called
+"LegacyReplacement Route" HPET can steal IRQ0 of i8254 and IRQ8 of the RTC.
+Interrupt can be either edge- or level-triggered.
+In last case they could be safely shared with PCI IRQs.
+Driver prefers to use FSB interrupts, if supported, to avoid sharing.
+If it is not possible, it uses single sharable IRQ from PCI range.
+Other modes (LegacyReplacement and ISA IRQs) require special care to setup,
+but could be configured manually via device hints.
+.Pp
+Event timers provided by the driver support both one-shot an periodic modes
+and irrelevant to CPU power states.
+.Pp
+Depending on hardware capabilities and configuration, driver can expose each
+comparator as separate event timer or group them into one or several per-CPU
+event timers.
+In last case interrupt of every of those comparators within
+group is bound to specific CPU core.
+This is possible only when each of these comparators has own unsharable IRQ.
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr apic 4 ,
+.Xr atrtc 4 ,
+.Xr attimer 4 ,
+.Xr eventtimers 4 ,
+.Xr timecounters 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 6.3 .
+Support for event timers was added in
+.Fx 9.0 .

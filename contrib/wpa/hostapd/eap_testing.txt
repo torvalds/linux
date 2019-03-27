@@ -1,0 +1,77 @@
+Interoperability testing of hostapd's IEEE 802.1X/EAPOL authentication
+
+Test matrix
+
++) tested successfully
+F) failed
+-) peer did not support
+?) not tested
+
+XSupplicant --------------------------------.
+Intel PROSet ---------------------------.   |
+Windows XP -------------------------.   |   |
+Mac OS X 10.4 ------------------.   |   |   |
+Nokia S60 ------------------.   |   |   |   |
+wpa_supplicant ---------.   |   |   |   |   |
+			|   |   |   |   |   |
+
+EAP-MD5			+   -   ?   ?   -
+EAP-GTC			+   -   ?   -   -
+EAP-MSCHAPv2		+   -   ?   -   -
+EAP-TLS			+   +   +1  +   +
+EAP-PEAPv0/MSCHAPv2	+   +   +   +   +   +
+EAP-PEAPv0/GTC		+   +   +   -   +
+EAP-PEAPv0/MD5		+   -   +   -   -
+EAP-PEAPv0/TLS		+   F   -   +   +
+EAP-PEAPv0/SIM		+   +   -   -   -
+EAP-PEAPv0/AKA		+   +   -   -   -
+EAP-PEAPv0/PSK		+   -   -   -   -
+EAP-PEAPv0/PAX		+   -   -   -   -
+EAP-PEAPv0/SAKE		+   -   -   -   -
+EAP-PEAPv0/GPSK		+   -   -   -   -
+EAP-PEAPv1/MSCHAPv2	+   +   +   -   +   +
+EAP-PEAPv1/GTC		+   +   +   -   +
+EAP-PEAPv1/MD5		+   -   +   -   -
+EAP-PEAPv1/TLS		+   F   -   -   +
+EAP-PEAPv1/SIM		+   +   -   -   -
+EAP-PEAPv1/AKA		+   +   -   -   -
+EAP-PEAPv1/PSK		+   -   -   -   -
+EAP-PEAPv1/PAX		+   -   -   -   -
+EAP-PEAPv1/SAKE		+   -   -   -   -
+EAP-PEAPv1/GPSK		+   -   -   -   -
+EAP-TTLS/CHAP		+   -   +   -   +   +
+EAP-TTLS/MSCHAP		+   -   +   -   +   +
+EAP-TTLS/MSCHAPv2	+   +   +   -   +   +
+EAP-TTLS/PAP		+   -   +   -   +   +
+EAP-TTLS/EAP-MD5	+   -   -   -   -   +
+EAP-TTLS/EAP-GTC	+   +   -   -   -
+EAP-TTLS/EAP-MSCHAPv2	+   +   -   -   -
+EAP-TTLS/EAP-TLS	+   F   -   -   -
+EAP-TTLS/EAP-SIM	+   +   -   -   -
+EAP-TTLS/EAP-AKA	+   +   -   -   -
+EAP-TTLS + TNC		+   -   -   -   -
+EAP-SIM			+   +   -   -   +
+EAP-AKA			+   +   -   -   -
+EAP-PAX			+   -   -   -   -
+EAP-SAKE		+   -   -   -   -
+EAP-GPSK		+   -   -   -   -
+EAP-FAST/MSCHAPv2(prov)	+   -   F   -   F
+EAP-FAST/GTC(auth)	+   -   +   -   +
+EAP-FAST/MSCHAPv2(aprov)+   -   F   -   F
+EAP-FAST/GTC(aprov)	+   -   F   -   F
+EAP-FAST/MD5(aprov)	+   -   -   -   -
+EAP-FAST/TLS(aprov)	+   -   -   -   -
+EAP-FAST/SIM(aprov)	+   -   -   -   -
+EAP-FAST/AKA(aprov)	+   -   -   -   -
+EAP-FAST/MSCHAPv2(auth)	+   -   +   -   +
+EAP-FAST/MD5(auth)	+   -   +   -   -
+EAP-FAST/TLS(auth)	+   -   -   -   -
+EAP-FAST/SIM(auth)	+   -   -   -   -
+EAP-FAST/AKA(auth)	+   -   -   -   -
+EAP-FAST + TNC		+   -   -   -   -
+EAP-IKEv2		+   -   -   -   -
+EAP-TNC			+   -   -   -   -
+
+1) EAP-TLS itself worked, but peer certificate validation failed at
+   least when using the internal TLS server (peer included incorrect
+   certificates in the chain?)

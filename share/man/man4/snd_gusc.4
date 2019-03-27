@@ -1,0 +1,97 @@
+.\"
+.\" Copyright (c) 1999 Seigo Tanimura
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 15, 2005
+.Dt SND_GUSC 4
+.Os
+.Sh NAME
+.Nm snd_gusc
+.Nd Gravis UltraSound ISA bridge device driver
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device sound"
+.Cd "device snd_gusc"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_gusc_load="YES"
+.Ed
+.Pp
+Non-PnP cards require the following lines in
+.Xr device.hints 5 :
+.Bd -literal -offset indent
+hint.gusc.0.at="isa"
+hint.gusc.0.port="0x220"
+hint.gusc.0.irq="5"
+hint.gusc.0.drq="1"
+hint.gusc.0.flags="0x13"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+bridge driver allows the generic audio driver
+.Xr sound 4
+to attach to Gravis UltraSound sound cards.
+.Pp
+The value of flags specifies the secondary DMA channel.
+If the secondary
+DMA channel is C, set the flags to (C | 0x10).
+For a sound card without the
+secondary DMA channel, the flags should be set to zero.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following sound cards:
+.Pp
+.Bl -bullet -compact
+.It
+Gravis UltraSound MAX
+.It
+Gravis UltraSound PnP
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It xxx: gus pcm not attached, out of memory
+There are not enough memory to drive the device.
+.El
+.Sh SEE ALSO
+.Xr sound 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Ville-Pertti Keinonen Aq Mt will@iki.fi
+.An Seigo Tanimura Aq Mt tanimura@r.dl.itc.u-tokyo.ac.jp
+.Sh BUGS
+Recording pcm sound data is not supported yet.

@@ -1,0 +1,87 @@
+.\" Copyright (c) 1998 Jonathan Lemon
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 27, 1998
+.Dt I386_GET_IOPERM 2
+.Os
+.Sh NAME
+.Nm i386_get_ioperm ,
+.Nm i386_set_ioperm
+.Nd manage per-process access to the i386 I/O port space
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In machine/sysarch.h
+.Ft int
+.Fn i386_get_ioperm "unsigned int start" "unsigned int *length" "int *enable"
+.Ft int
+.Fn i386_set_ioperm "unsigned int start" "unsigned int length" "int enable"
+.Sh DESCRIPTION
+The
+.Fn i386_get_ioperm
+system call
+will return the permission for the process' I/O port space in the
+.Fa *enable
+argument.
+The port range starts at
+.Fa start
+and the number of contiguous entries will be returned in
+.Fa *length .
+.Pp
+The
+.Fn i386_set_ioperm
+system call
+will set access to a range of I/O ports described by the
+.Fa start
+and
+.Fa length
+arguments to the state specified by the
+.Fa enable
+argument.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn i386_get_ioperm
+and
+.Fn i386_set_ioperm
+system calls
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+An invalid range was specified by the
+.Fa start
+or
+.Fa length
+arguments.
+.It Bq Er EPERM
+The caller of i386_set_ioperm was not the superuser.
+.El
+.Sh SEE ALSO
+.Xr io 4
+.Sh AUTHORS
+This man page was written by
+.An Jonathan Lemon .

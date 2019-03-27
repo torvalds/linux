@@ -1,0 +1,113 @@
+# Dialog
+# Copyright 2003-2007,2008 # Thomas Dickey
+# This file is distributed under the same license as the dialog package.
+#
+# Seyed Ali Akbar Najafian <s.ali.najafian@chmail.ir>, 2012.
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2013-08-03 17:04+0330\n"
+"Last-Translator: سید‌علی‌اکبر نجفیان <s.ali.najafian@chmail.ir>\n"
+"Language-Team: Persian <translation-team-fa@lists.sourceforge.net>\n"
+"Language: persian\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 1.5.4\n"
+
+#: buttons.c:385
+#, fuzzy
+msgid "Yes"
+msgstr "بله"
+
+#: buttons.c:393
+msgid "No"
+msgstr "خیر"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "باشه"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "لغو"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "خروج"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "اضافس"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "راهنما"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "ماه"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "سال"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "تغییر نام"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "مسیرها"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "پرونده‌ها"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "موفقیت آمیز"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "شکست خورد"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "متوقف شد"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "کامل شد"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "بررسی شد"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "انجام شد"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "رها شد"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "در حال پیشرفت"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "N/A"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "پیشرفت جاری"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "جستجو"

@@ -1,0 +1,27 @@
+$FreeBSD$
+
+ 1. Download latest less(1) tarball.  The homepage of less(1) is at:
+	http://www.greenwoodsoftware.com/less/
+ 2. Checkout $FSVN/vendor/less/ into less/
+ 3. Extract new code to, say, less/lessv429
+ 4. cd less/dist
+ 5. svn list -R | grep -v '/$' | sort >../old
+ 6. cd ../lessv429
+ 7. find . -type f | cut -c 3- | sort >../new
+ 8. tar cf - . | tar xf - -C ../dist
+ 9. cd ../dist
+10. comm -23 ../old ../new | xargs svn rm
+11. comm -13 ../old ../new | xargs svn add
+12. Check svn status output and make sure that all changes are appropriate.
+13. Commit and tag the result.
+14. Resolve any conflicts that happen in head/contrib/less.
+15. Regenerate defines.h:
+	./configure --prefix=/ --bindir=/usr/bin --sbindir=/usr/sbin \
+		    --libexecdir=/usr/libexec --datarootdir=/usr/share
+16. Manually merge changes into src/usr.bin/less/defines.h; adjust
+    Makefile glue to reflect added/removed files.
+17. Replace your src/contrib/less with the merged copy, and do a ``make
+    universe'' to make sure that nothing was broken;
+18. Commit the result.
+
+delphij@FreeBSD.org - May 08, 2009

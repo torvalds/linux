@@ -1,0 +1,169 @@
+.\" Copyright (c) 2002 Tim J. Robbins.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 6, 2014
+.Dt CSPLIT 1
+.Os
+.Sh NAME
+.Nm csplit
+.Nd split files based on context
+.Sh SYNOPSIS
+.Nm
+.Op Fl ks
+.Op Fl f Ar prefix
+.Op Fl n Ar number
+.Ar file args ...
+.Sh DESCRIPTION
+The
+.Nm
+utility splits
+.Ar file
+into pieces using the patterns
+.Ar args .
+If
+.Ar file
+is
+a dash
+.Pq Sq Fl ,
+.Nm
+reads from standard input.
+.Pp
+Files are created with a prefix of
+.Dq xx
+and two decimal digits.
+The size of each file is written to standard output
+as it is created.
+If an error occurs whilst files are being created,
+or a
+.Dv HUP ,
+.Dv INT ,
+or
+.Dv TERM
+signal is received,
+all files previously written are removed.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl f Ar prefix
+Create file names beginning with
+.Ar prefix ,
+instead of
+.Dq Pa xx .
+.It Fl k
+Do not remove previously created files if an error occurs or a
+.Dv HUP ,
+.Dv INT ,
+or
+.Dv TERM
+signal is received.
+.It Fl n Ar number
+Create file names beginning with
+.Ar number
+of decimal digits after the prefix,
+instead of 2.
+.It Fl s
+Do not write the size of each output file to standard output as it is
+created.
+.El
+.Pp
+The
+.Ar args
+operands may be a combination of the following patterns:
+.Bl -tag -width indent
+.It Xo
+.Sm off
+.Cm / Ar regexp Cm / Op Oo Cm + | - Oc Ar offset
+.Sm on
+.Xc
+Create a file containing the input from the current line to (but not including)
+the next line matching the given basic regular expression.
+An optional
+.Ar offset
+from the line that matched may be specified.
+.It Xo
+.Sm off
+.Cm % Ar regexp Cm % Op Oo Cm + | - Oc Ar offset
+.Sm on
+.Xc
+Same as above but a file is not created for the output.
+.It Ar line_no
+Create containing the input from the current line to (but not including)
+the specified line number.
+.It Cm { Ns Ar num Ns Cm }
+Repeat the previous pattern the specified number of times.
+If it follows a line number pattern, a new file will be created for each
+.Ar line_no
+lines,
+.Ar num
+times.
+The first line of the file is line number 1 for historic reasons.
+.El
+.Pp
+After all the patterns have been processed, the remaining input data
+(if there is any) will be written to a new file.
+.Pp
+Requesting to split at a line before the current line number or past the
+end of the file will result in an error.
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL , LC_COLLATE
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Split the
+.Xr mdoc 7
+file
+.Pa foo.1
+into one file for each section (up to 21 plus one for the rest, if any):
+.Pp
+.Dl "csplit -k foo.1 '%^\e.Sh%' '/^\e.Sh/' '{20}'"
+.Pp
+Split standard input after the first 99 lines and every 100 lines thereafter:
+.Pp
+.Dl "csplit -k - 100 '{19}'"
+.Sh SEE ALSO
+.Xr sed 1 ,
+.Xr split 1 ,
+.Xr re_format 7
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+A
+.Nm
+command appeared in PWB UNIX.
+.Sh BUGS
+Input lines are limited to
+.Dv LINE_MAX
+(2048) bytes in length.

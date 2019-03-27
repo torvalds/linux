@@ -1,0 +1,55 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_POST_UD_SEND" 3 "2010-07-19" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_post_ud_send \- post a work request to send a datagram.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_verbs.h>"
+.P
+.B "int" rdma_post_ud_send
+.BI "(struct rdma_cm_id *" id ","
+.BI "void *" context ","
+.BI "void *" addr ","
+.BI "size_t " length ","
+.BI "struct ibv_mr *" mr ","
+.BI "int " flags ","
+.BI "struct ibv_ah *" ah ","
+.BI "uint32_t " remote_qpn ");"
+.SH ARGUMENTS
+.IP "id" 12
+A reference to a communication identifier where the message buffer
+will be posted.
+.IP "context" 12
+User-defined context associated with the request.
+.IP "addr" 12
+The address of the memory buffer to post.
+.IP "length" 12
+The length of the memory buffer.
+.IP "mr" 12
+Optional registered memory region associated with the posted buffer.
+.IP "flags" 12
+Optional flags used to control the send operation.
+.IP "ah" 12
+An address handle describing the address of the remote node.
+.IP "remote_qpn" 12
+The number of the destination queue pair.
+.SH "DESCRIPTION"
+Posts a work request to the send queue of the queue pair associated
+with the rdma_cm_id.  The contents of the posted buffer will be sent
+to the specified destination queue pair.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+The user is responsible for ensuring that the destination queue pair
+has queued a receive request before issuing the send operations.  For a list of
+supported flags, see ibv_post_send.  Unless the send request is using
+inline data, the message buffer must have been registered
+before being posted, with the mr parameter referencing the registration.
+The buffer must remain registered until the send completes.
+.P
+The user-defined context associated with the send request will be
+returned to the user through the work completion wr_id, work request
+identifier, field.
+.SH "SEE ALSO"
+rdma_cm(7), rdma_connect(3), rdma_accept(3), rdma_reg_msgs(3)
+ibv_post_send(3), rdma_post_recv(3)

@@ -1,0 +1,54 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: nscd
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: shutdown
+
+#
+# Add the following lines to /etc/rc.conf to enable nscd:
+#
+# nscd_enable="YES"
+#
+# See nscd(8) for flags
+#
+
+. /etc/rc.subr
+
+name="nscd"
+desc="Name-service caching daemon"
+rcvar="nscd_enable"
+
+command=/usr/sbin/nscd
+extra_commands="flush"
+flush_cmd="${command} -I all"
+
+# usage: _nscd_set_option <option name> <default value>
+#
+_nscd_set_option() {
+	local _optname _defoptval _nscd_opt_val _cached_opt_val
+	_optname=$1
+	_defoptval=$2
+
+	_nscd_opt_val=$(eval "echo \$nscd_${_optname}")
+	_cached_opt_val=$(eval "echo \$cached_${_optname}")
+
+	if [ -n "$_cached_opt_val" -a "$_nscd_opt_val" != "$_defoptval" ]; then
+		warn "You should use nscd_${_optname} instead of" \
+		    "cached_${_optname}"
+		setvar "nscd_${_optname}" "$_cached_opt_val"
+	else
+		setvar "nscd_${_optname}" "${_nscd_opt_val:-$_defoptval}"
+	fi
+}
+
+
+load_rc_config $name
+_nscd_set_option "enable" "NO"
+_nscd_set_option "pidfile" "/var/run/nscd.pid"
+_nscd_set_option "flags" ""
+run_rc_command "$1"
+

@@ -1,0 +1,35 @@
+pass
+pass
+pass
+List of active MAP/Redirect filters:
+
+List of active sessions:
+
+Hostmap table:
+List of active state sessions:
+4:udp src:192.168.1.235,8008 dst:239.255.255.250,1900 240
+	FWD: IN pkts 1 bytes 129 OUT pkts 0 bytes 0
+	REV: IN pkts 0 bytes 0 OUT pkts 0 bytes 0
+	tag 0 pass 0x2008402 = pass in keep state
+	interfaces: in X[hme0],X[] out X[],X[]
+	Sync status: not synchronized
+4:udp src:192.168.1.235,8008 dst:192.168.1.254,1900 24
+	FWD: IN pkts 1 bytes 129 OUT pkts 0 bytes 0
+	REV: IN pkts 0 bytes 0 OUT pkts 1 bytes 264
+	tag 0 pass 0x2008402 = pass in keep state
+	interfaces: in X[hme0],X[] out X[],X[hme0]
+	Sync status: not synchronized
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+2 pass in on hme0 proto udp from any to any with mcast keep state
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+--------

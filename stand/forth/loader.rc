@@ -1,0 +1,26 @@
+\ Loader.rc
+\ $FreeBSD$
+\
+\ You should not edit this file! Put any overrides in loader.rc.local
+\ instead as this file can be replaced during system updates.
+\
+\ Includes additional commands
+include /boot/loader.4th
+include /boot/efi.4th
+try-include /boot/loader.rc.local
+
+\ Reads and processes loader.conf variables
+\ NOTE: Change to `initialize' if you enable the below boot menu
+start
+
+maybe-efi-resizecons
+
+\ Tests for password -- executes autoboot first if a password was defined
+check-password
+
+\ Uncomment to enable boot menu
+\ include /boot/beastie.4th
+\ beastie-start
+
+\ Unless set otherwise, autoboot is automatic at this point
+

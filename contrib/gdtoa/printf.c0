@@ -1,0 +1,1669 @@
+/****************************************************************
+Copyright (C) 1997, 1999, 2001 Lucent Technologies
+All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and
+its documentation for any purpose and without fee is hereby
+granted, provided that the above copyright notice appear in all
+copies and that both that the copyright notice and this
+permission notice and warranty disclaimer appear in supporting
+documentation, and that the name of Lucent or any of its entities
+not be used in advertising or publicity pertaining to
+distribution of the software without specific, written prior
+permission.
+
+LUCENT DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.
+IN NO EVENT SHALL LUCENT OR ANY OF ITS ENTITIES BE LIABLE FOR ANY
+SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+THIS SOFTWARE.
+****************************************************************/
+
+/* This implements most of ANSI C's printf, fprintf, and sprintf,
+ * omitting L, with %.0g and %.0G giving the shortest decimal string
+ * that rounds to the number being converted, and with negative
+ * precisions allowed for %f.
+ */
+
+#ifdef KR_headers
+#include "varargs.h"
+#else
+#include "stddef.h"
+#include "stdarg.h"
+#include "stdlib.h"
+#endif
+
+#ifdef Use_GDTOA_for_i386_long_double /*{{*/
+#include "gdtoa.h"
+#else /*}{*/
+#ifndef NO_PRINTF_A_FMT /*{*/
+#include "gdtoa.h"
+#endif /*}*/
+#endif /*}}*/
+
+#ifdef __i386
+#define NO_GDTOA_i386_Quad
+#endif
+
+#ifdef Use_GDTOA_for_i386_long_double /*{*/
+#ifndef NO_GDTOA_i386_Quad /*{*/
+#define GDTOA_both
+#define Use_GDTOA_Qtype
+#ifdef __ICC__ /* or __INTEL_COMPILER__ or __INTEL_COMPILER ?? */
+#define GDTOA_Qtype _Quad
+#else
+#define GDTOA_Qtype __float128
+#endif
+#endif /*} NO_GDTOA_i386_Quad */
+#endif /*} Use_GDTOA_for_i386_long_double */
+
+#ifdef Use_GDTOA_Qtype /*{*/
+#ifndef GDTOA_H_INCLUDED
+#include "gdtoa.h"
+#endif
+#ifndef GDTOA_Qtype
+#define GDTOA_Qtype long double
+#endif
+#endif /*}*/
+
+#ifndef GDTOA_H_INCLUDED /*{*/
+
+ enum {	/* return values from strtodg */
+	STRTOG_Zero	= 0,
+	STRTOG_Normal	= 1,
+	STRTOG_Denormal	= 2,
+	STRTOG_Infinite	= 3,
+	STRTOG_NaN	= 4,
+	STRTOG_NaNbits	= 5,
+	STRTOG_NoNumber	= 6,
+	STRTOG_Retmask	= 7};
+
+ typedef struct
+FPI {
+	int nbits;
+	int emin;
+	int emax;
+	int rounding;
+	int sudden_underflow;
+	} FPI;
+
+enum {	/* FPI.rounding values: same as FLT_ROUNDS */
+	FPI_Round_zero = 0,
+	FPI_Round_near = 1,
+	FPI_Round_up = 2,
+	FPI_Round_down = 3
+	};
+#endif /*}*/
+
+#ifdef NO_PRINTF_A_FMT /*{{*/
+#define WANT_A_FMT(x) /*nothing*/
+#else /*}{*/
+#define WANT_A_FMT(x) x
+#endif /*}}*/
+
+#include "stdio1.h"
+#include "string.h"
+#include "errno.h"
+
+ typedef struct
+Finfo {
+	union { FILE *cf; char *sf; } u;
+	char *ob0, *obe1;
+	size_t lastlen;
+	} Finfo;
+
+ typedef char *(*pgdtoa) ANSI((FPI*, int be, ULong *bits, int *kind, int mode, int ndigits, int *decpt, char **rve));
+
+ typedef struct
+FPBits {
+	ULong bits[4];	/* sufficient for quad; modify if considering wider types */
+	FPI *fpi;
+	pgdtoa gdtoa;
+	int sign;
+	int ex;	/* exponent */
+	int kind;
+	} FPBits;
+
+ typedef union U
+{
+	double d;
+	long double ld;
+#ifdef GDTOA_Qtype
+	GDTOA_Qtype Qd;
+#endif
+	unsigned int ui[4];
+	unsigned short us[5];
+	} U;
+
+ typedef char *(*Putfunc) ANSI((Finfo*, int*));
+ typedef void (*Fpbits) ANSI((U*, FPBits*));
+
+/* Would have preferred typedef void (*Fpbits)(va_list*, FPBits*)
+ * but gcc is buggy in this regard.
+ */
+
+#ifdef Use_GDTOA_for_i386_long_double /*{*/
+
+#ifdef IEEE_MC68k
+#define _0 0
+#define _1 1
+#define _2 2
+#define _3 3
+#define _4 4
+#endif
+#ifdef IEEE_8087
+#define _0 4
+#define _1 3
+#define _2 2
+#define _3 1
+#define _4 0
+#endif
+
+ static void
+xfpbits(U *u, FPBits *b)
+{
+	ULong *bits;
+	int ex, i;
+	static FPI fpi0 = { 64, 1-16383-64+1, 32766 - 16383 - 64 + 1, 1, 0 };
+
+	b->fpi = &fpi0;
+	b->gdtoa = gdtoa;
+	b->sign = u->us[_0] & 0x8000;
+	bits = b->bits;
+	bits[1] = (u->us[_1] << 16) | u->us[_2];
+	bits[0] = (u->us[_3] << 16) | u->us[_4];
+	if ( (ex = u->us[_0] & 0x7fff) !=0) {
+		i = STRTOG_Normal;
+		if (ex == 0x7fff)
+			/* Infinity or NaN */
+			i = bits[0] | bits[1] ? STRTOG_NaN : STRTOG_Infinite;
+		}
+	else if (bits[0] | bits[1]) {
+		i = STRTOG_Denormal;
+		ex = 1;
+		}
+	else
+		i = STRTOG_Zero;
+	b->kind = i;
+	b->ex = ex - (0x3fff + 63);
+	}
+
+#undef _0
+#undef _1
+#undef _2
+#undef _3
+#undef _4
+#define GDTOA_LD_fpbits xfpbits
+#endif /*} Use_GDTOA_for_i386_long_double */
+
+#ifdef Use_GDTOA_Qtype /*{*/
+#include "gdtoa.h"
+#ifndef GDTOA_Qtype
+#define GDTOA_Qtype long double
+#endif
+#ifdef GDTOA_LD_fpbits
+#define GDTOA_Q_fpbits Qfpbits
+#else
+#define GDTOA_LD_fpbits Qfpbits
+#endif
+
+#ifdef IEEE_MC68k
+#define _0 0
+#define _1 1
+#define _2 2
+#define _3 3
+#endif
+#ifdef IEEE_8087
+#define _0 3
+#define _1 2
+#define _2 1
+#define _3 0
+#endif
+
+ static void
+Qfpbits(U *u, FPBits *b)
+{
+	ULong *bits;
+	int ex, i;
+	static FPI fpi0 = { 113, 1-16383-113+1, 32766 - 16383 - 113 + 1, 1, 0 };
+
+	b->fpi = &fpi0;
+	b->gdtoa = gdtoa;
+	b->sign = u->ui[_0] & 0x80000000L;
+	bits = b->bits;
+	bits[3] = u->ui[_0] & 0xffff;
+	bits[2] = u->ui[_1];
+	bits[1] = u->ui[_2];
+	bits[0] = u->ui[_3];
+	if ( (ex = (u->ui[_0] & 0x7fff0000L) >> 16) !=0) {
+		if (ex == 0x7fff) {
+			/* Infinity or NaN */
+			i = bits[0] | bits[1] | bits[2] | bits[3]
+				? STRTOG_NaN : STRTOG_Infinite;
+			}
+		else {
+			i = STRTOG_Normal;
+			bits[3] |= 0x10000;
+			}
+		}
+	else if (bits[0] | bits[1] | bits[2] | bits[3]) {
+		i = STRTOG_Denormal;
+		ex = 1;
+		}
+	else
+		i = STRTOG_Zero;
+	b->kind = i;
+	b->ex = ex - (0x3fff + 112);
+	}
+
+#undef _0
+#undef _1
+#undef _2
+#undef _3
+#endif /*} GDTOA_Qtype */
+
+#ifdef KR_headers
+#define Const /* const */
+#define Voidptr char*
+#ifndef size_t__
+#define size_t int
+#define size_t__
+#endif
+
+#else
+
+#define Const const
+#define Voidptr void*
+
+#endif
+
+#undef MESS
+#ifndef Stderr
+#define Stderr stderr
+#endif
+
+#ifdef _windows_
+#undef PF_BUF
+#define MESS
+#include "mux0.h"
+#define stdout_or_err(f) (f == stdout)
+#else
+#define stdout_or_err(f) (f == Stderr || f == stdout)
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+ extern char *dtoa ANSI((double, int, int, int*, int*, char **));
+ extern void freedtoa ANSI((char*));
+
+
+
+#ifdef USE_ULDIV
+/* This is for avoiding 64-bit divisions on the DEC Alpha, since */
+/* they are not portable among variants of OSF1 (DEC's Unix). */
+
+#define ULDIV(a,b) uldiv_ASL(a,(unsigned long)(b))
+
+#ifndef LLBITS
+#define LLBITS 6
+#endif
+#ifndef ULONG
+#define ULONG unsigned long
+#endif
+
+ static int
+klog(ULONG x)
+{
+	int k, rv = 0;
+
+	if (x > 1L)
+	    for(k = 1 << LLBITS-1;;) {
+		if (x >= (1L << k)) {
+			rv |= k;
+			x >>= k;
+			}
+		if (!(k >>= 1))
+			break;
+		}
+	return rv;
+	}
+
+ ULONG
+uldiv_ASL(ULONG a, ULONG b)
+{
+	int ka;
+	ULONG c, k;
+	static ULONG b0;
+	static int kb;
+
+	if (a < b)
+		return 0;
+	if (b != b0) {
+		b0 = b;
+		kb = klog(b);
+		}
+	k = 1;
+	if ((ka = klog(a) - kb) > 0) {
+		k <<= ka;
+		b <<= ka;
+		}
+	c = 0;
+	for(;;) {
+		if (a >= b) {
+			a -= b;
+			c |= k;
+			}
+		if (!(k >>= 1))
+			break;
+		a <<= 1;
+		}
+	return c;
+	}
+
+#else
+#define ULDIV(a,b) a / b
+#endif /* USE_ULDIV */
+
+#ifdef PF_BUF
+FILE *stderr_ASL = (FILE*)&stderr_ASL;
+void (*pfbuf_print_ASL) ANSI((char*));
+char *pfbuf_ASL;
+static char *pfbuf_next;
+static size_t pfbuf_len;
+extern Char *mymalloc_ASL ANSI((size_t));
+extern Char *myralloc_ASL ANSI((void *, size_t));
+
+#undef fflush
+#ifdef old_fflush_ASL
+#define fflush old_fflush_ASL
+#endif
+
+ void
+fflush_ASL(FILE *f)
+{
+	if (f == stderr_ASL) {
+		if (pfbuf_ASL && pfbuf_print_ASL) {
+			(*pfbuf_print_ASL)(pfbuf_ASL);
+			free(pfbuf_ASL);
+			pfbuf_ASL = 0;
+			}
+		}
+	else
+		fflush(f);
+	}
+
+ static void
+pf_put(char *buf, int len)
+{
+	size_t x, y;
+	if (!pfbuf_ASL) {
+		x = len + 256;
+		if (x < 512)
+			x = 512;
+		pfbuf_ASL = pfbuf_next = (char*)mymalloc_ASL(pfbuf_len = x);
+		}
+	else if ((y = (pfbuf_next - pfbuf_ASL) + len) >= pfbuf_len) {
+		x = pfbuf_len;
+		while((x <<= 1) <= y);
+		y = pfbuf_next - pfbuf_ASL;
+		pfbuf_ASL = (char*)myralloc_ASL(pfbuf_ASL, x);
+		pfbuf_next = pfbuf_ASL + y;
+		pfbuf_len = x;
+		}
+	memcpy(pfbuf_next, buf, len);
+	pfbuf_next += len;
+	*pfbuf_next = 0;
+	}
+
+ static char *
+pfput(Finfo *f, int *rvp)
+{
+	int n;
+	char *ob0 = f->ob0;
+	*rvp += n = (int)(f->obe1 - ob0);
+	pf_put(ob0, n);
+	return ob0;
+	}
+#endif /* PF_BUF */
+
+ static char *
+Fput
+#ifdef KR_headers
+	(f, rvp) Finfo *f; int *rvp;
+#else
+	(Finfo *f, int *rvp)
+#endif
+{
+	char *ob0 = f->ob0;
+
+	*rvp += f->obe1 - ob0;
+	*f->obe1 = 0;
+	fputs(ob0, f->u.cf);
+	return ob0;
+	}
+
+
+#ifdef _windows_
+int stdout_fileno_ASL = 1;
+
+ static char *
+Wput
+#ifdef KR_headers
+	(f, rvp) Finfo *f; int *rvp;
+#else
+	(Finfo *f, int *rvp)
+#endif
+{
+	char *ob0 = f->ob0;
+
+	*rvp += f->obe1 - ob0;
+	*f->obe1 = 0;
+	mwrite(ob0, f->obe1 - ob0);
+	return ob0;
+	}
+#endif /*_windows_*/
+
+
+#ifdef IEEE_MC68k
+#define _0 0
+#define _1 1
+#endif
+#ifdef IEEE_8087
+#define _0 1
+#define _1 0
+#endif
+
+ static void
+dfpbits(U *u, FPBits *b)
+{
+	ULong *bits;
+	int ex, i;
+	static FPI fpi0 = { 53, 1-1023-53+1, 2046-1023-53+1, 1, 0 };
+
+	b->fpi = &fpi0;
+	b->gdtoa = gdtoa;
+	b->sign = u->ui[_0] & 0x80000000L;
+	bits = b->bits;
+	bits[1] = u->ui[_0] & 0xfffff;
+	bits[0] = u->ui[_1];
+	if ( (ex = (u->ui[_0] & 0x7ff00000L) >> 20) !=0) {
+		if (ex == 0x7ff) {
+			/* Infinity or NaN */
+			i = bits[0] | bits[1] ? STRTOG_NaN : STRTOG_Infinite;
+			}
+		else {
+			i = STRTOG_Normal;
+			bits[1] |= 0x100000;
+			}
+		}
+	else if (bits[0] | bits[1]) {
+		i = STRTOG_Denormal;
+		ex = 1;
+		}
+	else
+		i = STRTOG_Zero;
+	b->kind = i;
+	b->ex = ex - (0x3ff + 52);
+	}
+
+#undef _0
+#undef _1
+
+#ifdef Honor_FLT_ROUNDS /*{{*/
+#ifdef Trust_FLT_ROUNDS /*{{*/
+#define RoundCheck if (Rounding == -1) Rounding = Flt_Rounds; if (Rounding != 1){\
+	fpi1 = *fpb.fpi; fpi1.rounding = Rounding; fpb.fpi = &fpi1;}
+#else /*}{*/
+#define RoundCheck if (Rounding == -1) { Rounding = 1; switch((fegetround()) {\
+	  case FE_TOWARDZERO:	Rounding = 0; break;\
+	  case FE_UPWARD:	Rounding = 2; break;\
+	  case FE_DOWNWARD:	Rounding = 3; }}\
+	if (Rounding != 1){\
+	fpi1 = *fpb.fpi; fpi1.rounding = Rounding; fpb.fpi = &fpi1;}
+#endif /*}}*/
+#else /*}{*/
+#define RoundCheck /*nothing*/
+#endif /*}}*/
+
+#ifndef NO_PRINTF_A_FMT /*{*/
+ static int
+fpiprec(FPBits *b)	/* return number of hex digits minus 1, or 0 for zero */
+{
+	FPI *fpi;
+	ULong *bits;
+	int i, j, k, m;
+
+	if (b->kind == STRTOG_Zero)
+		return b->ex = 0;
+	fpi = b->fpi;
+	bits = b->bits;
+	for(k = (fpi->nbits - 1) >> 2; k > 0; --k)
+		if ((bits[k >> 3] >> 4*(k & 7)) & 0xf) {
+			m = k >> 3;
+			for(i = 0; i <= m; ++i)
+				if (bits[i]) {
+					if (i > 0) {
+						k -= 8*i;
+						b->ex += 32*i;
+						for(j = i; j <= m; ++j)
+							bits[j-i] = bits[j];
+						}
+					break;
+					}
+			for(i = 0; i < 28 && !((bits[0] >> i) & 0xf); i += 4);
+			if (i) {
+				b->ex += i;
+				m = k >> 3;
+				k -= (i >> 2);
+				for(j = 0;;++j) {
+					bits[j] >>= i;
+					if (j == m)
+						break;
+					bits[j] |= bits[j+1] << (32 - i);
+					}
+				}
+			break;
+			}
+	return k;
+	}
+
+ static int
+bround(FPBits *b, int prec, int prec1)	/* round to prec hex digits after the "." */
+{					/* prec1 = incoming precision (after ".") */
+	FPI *fpi = b->fpi;
+	ULong *bits, t;
+	int i, inc, j, k, m, n;
+#ifdef Honor_FLT_ROUNDS
+	int rounding = fpi->rounding;
+
+	if (rounding > FPI_Round_near && b->sign)
+		rounding = FPI_Round_up + FPI_Round_down - rounding;
+	if (rounding == FPI_Round_down)
+		rounding = FPI_Round_zero;
+#endif
+	m = prec1 - prec;
+	bits = b->bits;
+	inc = 0;
+#ifdef Honor_FLT_ROUNDS
+	switch(rounding) {
+		case FPI_Round_up:
+			for(i = 0; i < m; i += 8)
+				if (bits[i>>3])
+					goto inc1;
+			if ((j = i - m) > 0 && bits[(i-8)>>3] << j*4)
+				goto inc1;
+			break;
+		case FPI_Round_near:
+#endif
+			k = m - 1;
+			if ((t = bits[k >> 3] >> (j = (k&7)*4)) & 8) {
+				if (t & 7)
+					goto inc1;
+				if (j && bits[k >> 3] << (32 - j))
+					goto inc1;
+				while(k >= 8) {
+					k -= 8;
+					if (bits[k>>3]) {
+ inc1:
+						inc = 1;
+						goto haveinc;
+						}
+					}
+				}
+#ifdef Honor_FLT_ROUNDS
+		}
+#endif
+ haveinc:
+	b->ex += m*4;
+	i = m >> 3;
+	k = prec1 >> 3;
+	j = i;
+	if ((n = 4*(m & 7)))
+		for(;; ++j) {
+			bits[j-i] = bits[j] >> n;
+			if (j == k)
+				break;
+			bits[j-i] |= bits[j+1] << (32-n);
+			}
+	else
+		for(;; ++j) {
+			bits[j-i] = bits[j];
+			if (j == k)
+				break;
+			}
+	k = prec >> 3;
+	if (inc) {
+		for(j = 0; !(++bits[j] & 0xffffffff); ++j);
+		if (j > k) {
+ onebit:
+			bits[0] = 1;
+			b->ex += 4*prec;
+			return 1;
+			}
+		if ((j = prec & 7) < 7 && bits[k] >> (j+1)*4)
+			goto onebit;
+		}
+	for(i = 0; !(bits[i >> 3] & (0xf << 4*(i&7))); ++i);
+	if (i) {
+		b->ex += 4*i;
+		prec -= i;
+		j = i >> 3;
+		i &= 7;
+		i *= 4;
+		for(m = j; ; ++m) {
+			bits[m-j] = bits[m] >> i;
+			if (m == k)
+				break;
+			bits[m-j] |= bits[m+1] << (32 - i);
+			}
+		}
+	return prec;
+	}
+#endif /*}NO_PRINTF_A_FMT*/
+
+#define put(x) { *outbuf++ = x; if (outbuf == obe) outbuf = (*fput)(f,&rv); }
+
+ static int
+x_sprintf
+#ifdef KR_headers
+	(obe, fput, f, fmt, ap)
+	char *obe, *fmt; Finfo *f; Putfunc fput; va_list ap;
+#else
+	(char *obe, Putfunc fput, Finfo *f, const char *fmt, va_list ap)
+#endif
+{
+	FPBits fpb;
+	Fpbits fpbits;
+	U u;
+	char *digits, *ob0, *outbuf, *s, *s0, *se;
+	Const char *fmt0;
+	char buf[32];
+	long i;
+	unsigned long j, ul;
+	double x;
+	int alt, base, c, decpt, dot, conv, i1, k, lead0, left,
+		len, prec, prec1, psign, rv, sign, width;
+	long Ltmp, *ip;
+	short sh;
+	unsigned short us;
+	unsigned int ui;
+#ifdef Honor_FLT_ROUNDS
+	FPI fpi1;
+	int Rounding = -1;
+#endif
+#ifndef NO_PRINTF_A_FMT /*{*/
+	int bex, bw;
+#endif /*} NO_PRINTF_A_FMT */
+	static char hex[] = "0123456789abcdefpx";
+	static char Hex[] = "0123456789ABCDEFPX";
+
+	ob0 = outbuf = f->ob0;
+	rv = 0;
+	for(;;) {
+		for(;;) {
+			switch(c = *fmt++) {
+				case 0:
+					goto done;
+				case '%':
+					break;
+				default:
+					put(c)
+					continue;
+				}
+			break;
+			}
+		alt=dot=lead0=left=len=prec=psign=sign=width=0;
+		fpbits = dfpbits;
+		fmt0 = fmt;
+ fmtloop:
+		switch(conv = *fmt++) {
+			case ' ':
+			case '+':
+				sign = conv;
+				goto fmtloop;
+			case '-':
+				if (dot)
+					psign = 1;
+				else
+					left = 1;
+				goto fmtloop;
+			case '#':
+				alt = 1;
+				goto fmtloop;
+			case '0':
+				if (!lead0 && !dot) {
+					lead0 = 1;
+					goto fmtloop;
+					}
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+			case '8':
+			case '9':
+				k = conv - '0';
+				while((c = *fmt) >= '0' && c <= '9') {
+					k = 10*k + c - '0';
+					fmt++;
+					}
+				if (dot)
+					prec = psign ? -k : k;
+				else
+					width = k;
+				goto fmtloop;
+			case 'h':
+				len = 2;
+				goto fmtloop;
+			case 'L':
+#ifdef GDTOA_LD_fpbits /*{*/
+				fpbits = GDTOA_LD_fpbits;
+#ifdef GDTOA_Q_fpbits
+				if (*fmt == 'q') {
+					++fmt;
+					fpbits = Qfpbits;
+					}
+#endif
+#endif /*}*/
+				goto fmtloop;
+			case 'l':
+				len = 1;
+				goto fmtloop;
+			case '.':
+				dot = 1;
+				goto fmtloop;
+			case '*':
+				k = va_arg(ap, int);
+				if (dot)
+					prec = k;
+				else {
+					if (k < 0) {
+						sign = '-';
+						k = -k;
+						}
+					width = k;
+					}
+				goto fmtloop;
+			case 'c':
+				c = va_arg(ap, int);
+				put(c)
+				continue;
+			case '%':
+				put(conv)
+				continue;
+			case 'u':
+				switch(len) {
+				  case 0:
+					ui = va_arg(ap, int);
+					i = ui;
+					break;
+				  case 1:
+					i = va_arg(ap, long);
+					break;
+				  case 2:
+					us = va_arg(ap, int);
+					i = us;
+				  }
+				sign = 0;
+				goto have_i;
+			case 'i':
+			case 'd':
+				switch(len) {
+				  case 0:
+					k = va_arg(ap, int);
+					i = k;
+					break;
+				  case 1:
+					i = va_arg(ap, long);
+					break;
+				  case 2:
+					sh = va_arg(ap, int);
+					i = sh;
+				  }
+				if (i < 0) {
+					sign = '-';
+					i = -i;
+					}
+ have_i:
+				base = 10;
+				ul = i;
+				digits = hex;
+ baseloop:
+				if (dot)
+					lead0 = 0;
+				s = buf;
+				if (!ul)
+					alt = 0;
+				do {
+					j = ULDIV(ul, base);
+					*s++ = digits[ul - base*j];
+					}
+					while((ul = j));
+				prec -= c = s - buf;
+				if (alt && conv == 'o' && prec <= 0)
+					prec = 1;
+				if ((width -= c) > 0) {
+					if (prec > 0)
+						width -= prec;
+					if (sign)
+						width--;
+					if (alt == 2)
+						width--;
+					}
+				if (left) {
+					if (alt == 2)
+						put('0') /* for 0x */
+					if (sign)
+						put(sign)
+					while(--prec >= 0)
+						put('0')
+					do put(*--s)
+						while(s > buf);
+					while(--width >= 0)
+						put(' ')
+					continue;
+					}
+				if (width > 0) {
+					if (lead0) {
+						if (alt == 2)
+							put('0')
+						if (sign)
+							put(sign)
+						while(--width >= 0)
+							put('0')
+						goto s_loop;
+						}
+					else
+						while(--width >= 0)
+							put(' ')
+					}
+				if (alt == 2)
+					put('0')
+				if (sign)
+					put(sign)
+ s_loop:
+				while(--prec >= 0)
+					put('0')
+				do put(*--s)
+					while(s > buf);
+				continue;
+			case 'n':
+				ip = va_arg(ap, long*);
+				if (!ip)
+					ip = &Ltmp;
+				c = outbuf - ob0 + rv;
+				switch(len) {
+				  case 0:
+					*(int*)ip = c;
+					break;
+				  case 1:
+					*ip = c;
+					break;
+				  case 2:
+					*(short*)ip = c;
+				  }
+				break;
+			case 'p':
+				len = alt = 1;
+				/* no break */
+			case 'x':
+				digits = hex;
+				goto more_x;
+			case 'X':
+				digits = Hex;
+ more_x:
+				if (alt) {
+					alt = 2;
+					sign = conv;
+					}
+				else
+					sign = 0;
+				base = 16;
+ get_u:
+				switch(len) {
+				  case 0:
+					ui = va_arg(ap, int);
+					ul = ui;
+					break;
+				  case 1:
+					ul = va_arg(ap, long);
+					break;
+				  case 2:
+					us = va_arg(ap, int);
+					ul = us;
+				  }
+				if (!ul)
+					sign = alt = 0;
+				goto baseloop;
+			case 'o':
+				base = 8;
+				digits = hex;
+				goto get_u;
+			case 's':
+				s0 = 0;
+				s = va_arg(ap, char*);
+				if (!s)
+					s = "<NULL>";
+				if (prec < 0)
+					prec = 0;
+ have_s:
+				if (dot) {
+					for(c = 0; c < prec; c++)
+						if (!s[c])
+							break;
+					prec = c;
+					}
+				else
+					prec = strlen(s);
+				width -= prec;
+				if (!left)
+					while(--width >= 0)
+						put(' ')
+				while(--prec >= 0)
+					put(*s++)
+				while(--width >= 0)
+					put(' ')
+				if (s0)
+					freedtoa(s0);
+				continue;
+			case 'f':
+				if (!dot)
+					prec = 6;
+#ifdef GDTOA_H_INCLUDED
+				if (fpbits == dfpbits) {
+#endif
+				x = va_arg(ap, double);
+				s = s0 = dtoa(x, 3, prec, &decpt, &fpb.sign, &se);
+#ifdef GDTOA_H_INCLUDED
+					}
+				else {
+#ifdef GDTOA_both
+					if (fpbits == GDTOA_LD_fpbits)
+						u.ld = va_arg(ap, long double);
+					else
+						u.Qd = va_arg(ap, GDTOA_Qtype);
+#else
+					u.ld = va_arg(ap, long double);
+#endif
+					fpbits(&u, &fpb);
+					RoundCheck
+					s = s0 = fpb.gdtoa(fpb.fpi, fpb.ex, fpb.bits,
+						&fpb.kind, 3, prec, &decpt, &se);
+					}
+#endif
+				if (decpt == 9999) {
+ fmt9999:
+					dot = prec = alt = 0;
+					if (*s == 'N')
+						goto have_s;
+					decpt = strlen(s);
+					}
+ f_fmt:
+				if (fpb.sign && (x||sign))
+					sign = '-';
+				if (prec > 0)
+					width -= prec;
+				if (width > 0) {
+					if (sign)
+						--width;
+					if (decpt <= 0) {
+						--width;
+						if (prec > 0)
+							--width;
+						}
+					else {
+						if (s == se)
+							decpt = 1;
+						width -= decpt;
+						if (prec > 0 || alt)
+							--width;
+						}
+					}
+				if (width > 0 && !left) {
+					if (lead0) {
+						if (sign)
+							put(sign)
+						sign = 0;
+						do put('0')
+							while(--width > 0);
+						}
+					else do put(' ')
+						while(--width > 0);
+					}
+				if (sign)
+					put(sign)
+				if (decpt <= 0) {
+					put('0')
+					if (prec > 0 || alt)
+						put('.')
+					while(decpt < 0) {
+						put('0')
+						prec--;
+						decpt++;
+						}
+					}
+				else {
+					do {
+						if ((c = *s))
+							s++;
+						else
+							c = '0';
+						put(c)
+						}
+						while(--decpt > 0);
+					if (prec > 0 || alt)
+						put('.')
+					}
+				while(--prec >= 0) {
+					if ((c = *s))
+						s++;
+					else
+						c = '0';
+					put(c)
+					}
+				while(--width >= 0)
+					put(' ')
+				if (s0)
+					freedtoa(s0);
+				continue;
+			case 'G':
+			case 'g':
+				if (!dot)
+					prec = 6;
+				if (prec < 0)
+					prec = 0;
+#ifdef GDTOA_H_INCLUDED
+				if (fpbits == dfpbits) {
+#endif
+					x = va_arg(ap, double);
+					s = s0 = dtoa(x, prec ? 2 : 0, prec, &decpt,
+						&fpb.sign, &se);
+#ifdef GDTOA_H_INCLUDED
+					}
+				else {
+#ifdef GDTOA_both
+					if (fpbits == GDTOA_LD_fpbits)
+						u.ld = va_arg(ap, long double);
+					else
+						u.Qd = va_arg(ap, GDTOA_Qtype);
+#else
+					u.ld = va_arg(ap, long double);
+#endif
+					fpbits(&u, &fpb);
+					RoundCheck
+					s = s0 = fpb.gdtoa(fpb.fpi, fpb.ex, fpb.bits,
+						&fpb.kind, prec ? 2 : 0, prec, &decpt, &se);
+					}
+#endif
+				if (decpt == 9999)
+					goto fmt9999;
+				c = se - s;
+				prec1 = prec;
+				if (!prec) {
+					prec = c;
+					prec1 = c + (s[1] || alt ? 5 : 4);
+					/* %.0g gives 10 rather than 1e1 */
+					}
+				if (decpt > -4 && decpt <= prec1) {
+					if (alt)
+						prec -= decpt;
+					else
+						prec = c - decpt;
+					if (prec < 0)
+						prec = 0;
+					goto f_fmt;
+					}
+				conv -= 2;
+				if (!alt && prec > c)
+					prec = c;
+				--prec;
+				goto e_fmt;
+			case 'e':
+			case 'E':
+				if (!dot)
+					prec = 6;
+				if (prec < 0)
+					prec = 0;
+#ifdef GDTOA_H_INCLUDED
+				if (fpbits == dfpbits) {
+#endif
+					x = va_arg(ap, double);
+					s = s0 = dtoa(x, prec ? 2 : 0, prec+1, &decpt,
+						&fpb.sign, &se);
+#ifdef GDTOA_H_INCLUDED
+					}
+				else {
+#ifdef GDTOA_both
+					if (fpbits == GDTOA_LD_fpbits)
+						u.ld = va_arg(ap, long double);
+					else
+						u.Qd = va_arg(ap, GDTOA_Qtype);
+#else
+					u.ld = va_arg(ap, long double);
+#endif
+					fpbits(&u, &fpb);
+					RoundCheck
+					s = s0 = fpb.gdtoa(fpb.fpi, fpb.ex, fpb.bits,
+						&fpb.kind, prec ? 2 : 0, prec, &decpt, &se);
+					}
+#endif
+				if (decpt == 9999)
+					goto fmt9999;
+ e_fmt:
+				if (fpb.sign && (x||sign))
+					sign = '-';
+				if ((width -= prec + 5) > 0) {
+					if (sign)
+						--width;
+					if (prec || alt)
+						--width;
+					}
+				if ((c = --decpt) < 0)
+					c = -c;
+				while(c >= 100) {
+					--width;
+					c /= 10;
+					}
+				if (width > 0 && !left) {
+					if (lead0) {
+						if (sign)
+							put(sign)
+						sign = 0;
+						do put('0')
+							while(--width > 0);
+						}
+					else do put(' ')
+						while(--width > 0);
+					}
+				if (sign)
+					put(sign)
+				put(*s++)
+				if (prec || alt)
+					put('.')
+				while(--prec >= 0) {
+					if ((c = *s))
+						s++;
+					else
+						c = '0';
+					put(c)
+					}
+				put(conv)
+				if (decpt < 0) {
+					put('-')
+					decpt = -decpt;
+					}
+				else
+					put('+')
+				for(c = 2, k = 10; 10*k <= decpt; c++, k *= 10);
+				for(;;) {
+					i1 = decpt / k;
+					put(i1 + '0')
+					if (--c <= 0)
+						break;
+					decpt -= i1*k;
+					decpt *= 10;
+					}
+				while(--width >= 0)
+					put(' ')
+				freedtoa(s0);
+				continue;
+#ifndef NO_PRINTF_A_FMT
+			case 'a':
+				digits = hex;
+				goto more_a;
+			case 'A':
+				digits = Hex;
+ more_a:
+#ifdef GDTOA_H_INCLUDED /*{{*/
+				if (fpbits == dfpbits)
+					u.d = va_arg(ap, double);
+#ifdef GDTOA_both /*{*/
+				else if (fpbits == GDTOA_LD_fpbits)
+					u.ld = va_arg(ap, long double);
+				else
+					u.Qd = va_arg(ap, GDTOA_Qtype);
+#else
+				else
+					u.ld = va_arg(ap, long double);
+#endif /*}*/
+#else /*}{*/
+				u.d = va_arg(ap, double);
+#endif /*}}*/
+				fpbits(&u, &fpb);
+				if (fpb.kind == STRTOG_Infinite) {
+					s = "Infinity";
+					s0 = 0;
+					goto fmt9999;
+					}
+				if (fpb.kind == STRTOG_NaN) {
+					s = "NaN";
+					s0 = 0;
+					goto fmt9999;
+					}
+				prec1 = fpiprec(&fpb);
+				if (dot && prec < prec1)
+					prec1 = bround(&fpb, prec, prec1);
+				bw = 1;
+				bex = fpb.ex + 4*prec1;
+				if (bex) {
+					if ((i1 = bex) < 0)
+						i1 = -i1;
+					while(i1 >= 10) {
+						++bw;
+						i1 /= 10;
+						}
+					}
+				if (fpb.sign && (sign || fpb.kind != STRTOG_Zero))
+					sign = '-';
+				if ((width -= bw + 5) > 0) {
+					if (sign)
+						--width;
+					if (prec1 || alt)
+						--width;
+					}
+				if ((width -= prec1) > 0 && !left && !lead0) {
+					do put(' ')
+						while(--width > 0);
+					}
+				if (sign)
+					put(sign)
+				put('0')
+				put(digits[17])
+				if (lead0 && width > 0 && !left) {
+					do put('0')
+						while(--width > 0);
+					}
+				i1 = prec1 & 7;
+				k = prec1 >> 3;
+				put(digits[(fpb.bits[k] >> 4*i1) & 0xf])
+				if (prec1 > 0 || alt)
+					put('.')
+				if (prec1 > 0) {
+					prec -= prec1;
+					while(prec1 > 0) {
+						if (--i1 < 0) {
+							if (--k < 0)
+								break;
+							i1 = 7;
+							}
+						put(digits[(fpb.bits[k] >> 4*i1) & 0xf])
+						--prec1;
+						}
+					if (alt && prec > 0)
+						do put(0)
+							while(--prec > 0);
+					}
+				put(digits[16])
+				if (bex < 0) {
+					put('-')
+					bex = -bex;
+					}
+				else
+					put('+')
+				for(c = 1; 10*c <= bex; c *= 10);
+				for(;;) {
+					i1 = bex / c;
+					put('0' + i1)
+					if (!--bw)
+						break;
+					bex -= i1 * c;
+					bex *= 10;
+					}
+				while(--width >= 0)
+					put(' ')
+				continue;
+#endif /* NO_PRINTF_A_FMT */
+			default:
+				put('%')
+				while(fmt0 < fmt)
+					put(*fmt0++)
+				continue;
+			}
+		}
+ done:
+	*outbuf = 0;
+	return (f->lastlen = outbuf - ob0) + rv;
+	}
+
+#define Bsize 256
+
+ int
+Printf
+#ifdef KR_headers
+	(va_alist)
+ va_dcl
+{
+	char *fmt;
+
+	va_list ap;
+	int rv;
+	Finfo f;
+	char buf[Bsize];
+
+	va_start(ap);
+	fmt = va_arg(ap, char*);
+	/*}*/
+#else
+	(const char *fmt, ...)
+{
+	va_list ap;
+	int rv;
+	Finfo f;
+	char buf[Bsize];
+
+	va_start(ap, fmt);
+#endif
+	f.u.cf = stdout;
+	f.ob0 = buf;
+	f.obe1 = buf + Bsize - 1;
+#ifdef _windows_
+	if (fileno(stdout) == stdout_fileno_ASL) {
+		rv = x_sprintf(f.obe1, Wput, &f, fmt, ap);
+		mwrite(buf, f.lastlen);
+		}
+	else
+#endif
+#ifdef PF_BUF
+	if (stdout == stderr_ASL) {
+		rv = x_sprintf(f.obe1, pfput, &f, fmt, ap);
+		pf_put(buf, f.lastlen);
+		}
+	else
+#endif
+		{
+		rv = x_sprintf(f.obe1, Fput, &f, fmt, ap);
+		fputs(buf, stdout);
+		}
+	va_end(ap);
+	return rv;
+	}
+
+ static char *
+Sput
+#ifdef KR_headers
+	(f, rvp) Finfo *f; int *rvp;
+#else
+	(Finfo *f, int *rvp)
+#endif
+{
+	if (Printf("\nBUG! Sput called!\n", f, rvp))
+		/* pass vp, rvp and return 0 to shut diagnostics off */
+		exit(250);
+	return 0;
+	}
+
+ int
+Sprintf
+#ifdef KR_headers
+	(va_alist)
+ va_dcl
+{
+	char *s, *fmt;
+	va_list ap;
+	int rv;
+	Finfo f;
+
+	va_start(ap);
+	s = va_arg(ap, char*);
+	fmt = va_arg(ap, char*);
+	/*}*/
+#else
+	(char *s, const char *fmt, ...)
+{
+	va_list ap;
+	int rv;
+	Finfo f;
+
+	va_start(ap, fmt);
+#endif
+	f.ob0 = s;
+	rv = x_sprintf(s, Sput, &f, fmt, ap);
+	va_end(ap);
+	return rv;
+	}
+
+ int
+Fprintf
+#ifdef KR_headers
+	(va_alist)
+ va_dcl
+{
+	FILE *F;
+	char *s, *fmt;
+	va_list ap;
+	int rv;
+	Finfo f;
+	char buf[Bsize];
+
+	va_start(ap);
+	F = va_arg(ap, FILE*);
+	fmt = va_arg(ap, char*);
+	/*}*/
+#else
+	(FILE *F, const char *fmt, ...)
+{
+	va_list ap;
+	int rv;
+	Finfo f;
+	char buf[Bsize];
+
+	va_start(ap, fmt);
+#endif
+	f.u.cf = F;
+	f.ob0 = buf;
+	f.obe1 = buf + Bsize - 1;
+#ifdef MESS
+	if (stdout_or_err(F)) {
+#ifdef _windows_
+		if (fileno(stdout) == stdout_fileno_ASL) {
+			rv = x_sprintf(f.obe1, Wput, &f, fmt, ap);
+			mwrite(buf, f.lastlen);
+			}
+		else
+#endif
+#ifdef PF_BUF
+		if (F == stderr_ASL) {
+			rv = x_sprintf(f.obe1, pfput, &f, fmt, ap);
+			pf_put(buf, f.lastlen);
+			}
+		else
+#endif
+			{
+			rv = x_sprintf(f.obe1, Fput, &f, fmt, ap);
+			fputs(buf, F);
+			}
+		}
+	else
+#endif /*MESS*/
+		{
+#ifdef PF_BUF
+		if (F == stderr_ASL) {
+			rv = x_sprintf(f.obe1, pfput, &f, fmt, ap);
+			pf_put(buf, f.lastlen);
+			}
+	else
+#endif
+			{
+			rv = x_sprintf(f.obe1, Fput, &f, fmt, ap);
+			fputs(buf, F);
+			}
+		}
+	va_end(ap);
+	return rv;
+	}
+
+ int
+Vsprintf
+#ifdef KR_headers
+	(s, fmt, ap) char *s, *fmt; va_list ap;
+#else
+	(char *s, const char *fmt, va_list ap)
+#endif
+{
+	Finfo f;
+	return x_sprintf(f.ob0 = s, Sput, &f, fmt, ap);
+	}
+
+ int
+Vfprintf
+#ifdef KR_headers
+	(F, fmt, ap) FILE *F; char *fmt; va_list ap;
+#else
+	(FILE *F, const char *fmt, va_list ap)
+#endif
+{
+	char buf[Bsize];
+	int rv;
+	Finfo f;
+
+	f.u.cf = F;
+	f.ob0 = buf;
+	f.obe1 = buf + Bsize - 1;
+#ifdef MESS
+	if (stdout_or_err(F)) {
+#ifdef _windows_
+		if (fileno(stdout) == stdout_fileno_ASL) {
+			rv = x_sprintf(f.obe1, Wput, &f, fmt, ap);
+			mwrite(buf, f.lastlen);
+			}
+		else
+#endif
+#ifdef PF_BUF
+		if (F == stderr_ASL) {
+			rv = x_sprintf(f.obe1, pfput, &f, fmt, ap);
+			pf_put(buf, f.lastlen);
+			}
+		else
+#endif
+			{
+			rv = x_sprintf(f.obe1, Fput, &f, fmt, ap);
+			fputs(buf, F);
+			}
+		}
+	else
+#endif /*MESS*/
+		{
+#ifdef PF_BUF
+		if (F == stderr_ASL) {
+			rv = x_sprintf(f.obe1, pfput, &f, fmt, ap);
+			pf_put(buf, f.lastlen);
+			}
+		else
+#endif
+			{
+			rv = x_sprintf(f.obe1, Fput, &f, fmt, ap);
+			fputs(buf, F);
+			}
+		}
+	va_end(ap);
+	return rv;
+	}
+
+ void
+Perror
+#ifdef KR_headers
+	(s) char *s;
+#else
+	(const char *s)
+#endif
+{
+	if (s && *s)
+		Fprintf(Stderr, "%s: ", s);
+	Fprintf(Stderr, "%s\n", strerror(errno));
+	}
+
+ static char *
+Snput
+#ifdef KR_headers
+	(f, rvp) Finfo *f; int *rvp;
+#else
+	(Finfo *f, int *rvp)
+#endif
+{
+	char *s, *s0;
+	size_t L;
+
+	*rvp += Bsize;
+	s0 = f->ob0;
+	s = f->u.sf;
+	if ((L = f->obe1 - s) > Bsize) {
+		L = Bsize;
+		goto copy;
+		}
+	if (L > 0) {
+ copy:
+		memcpy(s, s0, L);
+		f->u.sf = s + L;
+		}
+	return s0;
+	}
+
+ int
+Vsnprintf
+#ifdef KR_headers
+	(s, n, fmt, ap) char *s; size_t n; char *fmt; va_list ap;
+#else
+	(char *s, size_t n, const char *fmt, va_list ap)
+#endif
+{
+	Finfo f;
+	char buf[Bsize];
+	int L, rv;
+
+	if (n <= 0 || !s) {
+		n = 1;
+		s = buf;
+		}
+	f.u.sf = s;
+	f.ob0 = buf;
+	f.obe1 = s + n - 1;
+	rv = x_sprintf(buf + Bsize, Snput, &f, fmt, ap);
+	if (f.lastlen > (L = f.obe1 - f.u.sf))
+		f.lastlen = L;
+	if (f.lastlen > 0) {
+		memcpy(f.u.sf, buf, f.lastlen);
+		f.u.sf += f.lastlen;
+		}
+	*f.u.sf = 0;
+	return rv;
+	}
+ int
+Snprintf
+#ifdef KR_headers
+	(va_alist)
+ va_dcl
+{
+	char *s, *fmt;
+	int rv;
+	size_t n;
+	va_list ap;
+
+	va_start(ap);
+	s = va_arg(ap, char*);
+	n = va_arg(ap, size_t);
+	fmt = va_arg(ap, char*);
+	/*}*/
+#else
+	(char *s, size_t n, const char *fmt, ...)
+{
+	int rv;
+	va_list ap;
+
+	va_start(ap, fmt);
+#endif
+	rv = Vsnprintf(s, n, fmt, ap);
+	va_end(ap);
+	return rv;
+	}
+
+
+#ifdef __cplusplus
+}
+#endif

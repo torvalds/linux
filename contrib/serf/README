@@ -1,0 +1,92 @@
+Welcome to Apache Serf, a high-performance asynchronous HTTP client library.
+
+The Apache Serf library is a C-based HTTP client library built upon the Apache
+Portable Runtime (APR) library. It multiplexes connections, running the
+read/write communication asynchronously. Memory copies and transformations are
+kept to a minimum to provide high performance operation.
+
+  * Site: http://serf.apache.org//
+  * Code: http://svn.apache.org/repos/asf/serf/
+  * Issues: https://issues.apache.org/jira/browse/SERF
+  * Mail: dev@serf.apache.org
+  * People: Justin Erenkrantz, Greg Stein 
+
+----
+
+1. INSTALL
+
+1.1. SCons build system
+
+Apache Serf uses SCons 2.3 for its build system. If it is not installed
+on your system, then you can install it onto your system. If you do not
+have permissions, then you can download and install the "local"
+version into your home directory. When installed privately, simply
+create a symlink for 'scons' in your PATH to /path/to/scons/scons.py.
+
+Fetch the scons-local package:
+  http://prdownloads.sourceforge.net/scons/scons-local-2.3.0.tar.gz
+
+
+1.2 Building Apache Serf
+
+To build serf:
+
+$ scons APR=/path/to/apr APU=/path/to/apu OPENSSL=/openssl/base PREFIX=/path/to/prefix
+
+The switches are recorded into .saved_config, so they only need to be
+specified the first time scons is run.
+
+PREFIX should specify where serf should be installed.  PREFIX defaults to
+/usr/local.
+
+The default for the other three switches (APR, APU, OPENSSL) is /usr.
+
+The build system looks for apr-1-config at $APR/bin/apr-1-config, or
+the path should indicate apr-1-config itself. Similarly for the path
+to apu-1-config.
+
+OPENSSL should specify the root of the install (eg. /opt/local). The
+includes will be found OPENSSL/include and libraries at OPENSSL/lib.
+
+If you wish to use VPATH-style builds (where objects are created in a
+distinct directory from the source), you can use:
+
+$ scons -Y /path/to/serf/source
+
+If you plan to install the library on a system that uses different
+paths for architecture dependent files, specify LIBDIR. LIBDIR defaults
+to /usr/local/lib otherwise. Example for a 64 bit GNU/Linux system:
+
+$ scons PREFIX=/usr/ LIBDIR=/usr/lib64
+
+At any point, the current settings can be examined:
+
+$ scons --help
+
+
+1.3 Running the test suite
+
+$ scons check
+
+
+1.4 Installing Apache Serf
+
+$ scons install
+
+Note that the PREFIX variable should have been specified in a previous
+invocation of scons (and saved into .saved_config), or it can be
+specified on the install command line:
+
+$ scons PREFIX=/some/path install
+
+Distribution package maintainers regulary install to a buildroot, and
+would normally use something like below in their build systems, with
+placeholders for the specific paths:
+
+$ scons PREFIX=/usr/ LIBDIR=/usr/lib64
+$ scons install --install-sandbox=/path/to/buildroot
+
+
+1.4 Cleaning up the build
+
+$ scons -c

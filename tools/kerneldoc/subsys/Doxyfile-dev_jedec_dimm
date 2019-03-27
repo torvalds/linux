@@ -1,0 +1,21 @@
+# Doxyfile 1.5.2
+
+# $FreeBSD$
+
+#---------------------------------------------------------------------------
+# Project related configuration options
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "FreeBSD kernel jedec_dimm device code"
+OUTPUT_DIRECTORY       = $(DOXYGEN_DEST_PATH)/dev_jedec_dimm/
+EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
+#---------------------------------------------------------------------------
+# configuration options related to the input files
+#---------------------------------------------------------------------------
+INPUT                  = $(DOXYGEN_SRC_PATH)/dev/jedec_dimm/ \
+                         $(NOTREVIEWED)
+
+GENERATE_TAGFILE       jedec_= dev_jedec_dimm/dev_dimm.tag
+
+@INCLUDE_PATH          = $(DOXYGEN_INCLUDE_PATH)
+@INCLUDE               = common-Doxyfile
+

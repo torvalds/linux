@@ -1,0 +1,56 @@
+Upgrade Instructions for OpenBSM
+--------------------------------
+
+OpenBSM integrates into the FreeBSD source tree in several places:
+
+src/contrib/openbsm        The OpenBSM distribution itself
+src/sys/bsm                Modified versions of some bsm/ include files
+src/sys/security/audit     Kernel audit framework, some OpenBSM-based files
+src/usr.sbin/*audit*       Makefiles for various OpenBSM tools
+src/etc/Makefile           Installation of /etc OpenBSM files
+src/lib/libbsm/*           Build for OpenBSM library
+
+OpenBSM is normally built using an integrated autoconf/automake build
+system.  For the purposes of tight integration with FreeBSD, we use an
+adapted BSD make (bmake) build system loosely based on the automake
+setup.  We also rely on a static config.h generated when OpenBSM is
+imported, rather than re-configuring every build.  This leads to a
+more reproduceable build environment, and avoids dependence on things
+not in the base tree (i.e., autoconf, automake, GNU make, etc).  An
+upgrade of OpenBSM generally involves the following steps:
+
+- Vendor import of OpenBSM into src/contrib.
+- Run configure, commit src/contrib/openbsm/config/config.h.
+- Replication of src/contrib/openbsm/bsm changes into src/sys/bsm.
+- Possible updates to src/sys/security/audit, especially relating to
+  audit_bsm_token.c.
+- Update any library, tool, or etc BSD Makefiles to add new files,
+  defines, or other generally useful or necessary things.
+
+Certain files are present only in the vendor branch, and not in FreeBSD
+development branches:
+
+  contrib/openbsm/bsm  audit.h audit_internal.h audit_kevents.h 
+                       audit_record.h 
+
+This prevents confusion regarding whether the src/sys/bsm or contrib
+versions of the include files should be used in the build.  Normally, the
+CVS vendor import goes along the following lines:
+
+  cd ~/p4/projects/trustedbsd/openbsm
+  cvs -n -d rwatson@repoman.FreeBSD.org:/home/ncvs -q import \
+	src/contrib/openbsm TrustedBSD OPENBSM_1_0_ALPHA_1
+
+Replacing the version string as required.  Remove the "-n" argument once
+the import is tested in order to perform the actual import.
+
+Propagation of changes to src/sys/{bsm,security/audit} is something that
+requires careful coordination and attention to detail.  These files are
+not on CVS vendor branches, but do have the same local vs. vendor merge
+issues.  Remember that contrib/openbsm (and the rest of the system) will
+be built with the version of the bsm/ include files in src/sys/bsm, not
+the version in contrib/openbsm/bsm, so buildworld tests before committing
+are necessary, and the commits to various parts of the system must be
+made in close succession.
+
+$FreeBSD$

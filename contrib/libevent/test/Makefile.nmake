@@ -1,0 +1,79 @@
+# WATCH OUT!  This makefile is a work in progress.             -*- makefile -*-
+
+!IFDEF OPENSSL_DIR
+SSL_CFLAGS=/I$(OPENSSL_DIR)\include /DEVENT__HAVE_OPENSSL
+SSL_OBJS=regress_ssl.obj
+SSL_LIBS=..\libevent_openssl.lib $(OPENSSL_DIR)\lib\libeay32.lib $(OPENSSL_DIR)\lib\ssleay32.lib gdi32.lib User32.lib
+!ELSE
+SSL_CFLAGS=
+SSL_OBJS=
+SSL_LIBS=
+!ENDIF
+
+CFLAGS=/I.. /I../WIN32-Code /I../WIN32-Code/nmake /I../include /I../compat /DHAVE_CONFIG_H /DTINYTEST_LOCAL $(SSL_CFLAGS)
+
+CFLAGS=$(CFLAGS) /Ox /W3 /wd4996 /nologo
+
+REGRESS_OBJS=regress.obj regress_buffer.obj regress_http.obj regress_dns.obj \
+	regress_testutils.obj \
+        regress_rpc.obj regress.gen.obj \
+	regress_et.obj regress_bufferevent.obj \
+	regress_listener.obj regress_util.obj tinytest.obj \
+	regress_main.obj regress_minheap.obj regress_iocp.obj \
+	regress_thread.obj regress_finalize.obj $(SSL_OBJS)
+
+OTHER_OBJS=test-init.obj test-eof.obj test-closed.obj test-weof.obj test-time.obj \
+	bench.obj bench_cascade.obj bench_http.obj bench_httpclient.obj \
+	test-changelist.obj \
+	print-winsock-errors.obj
+
+PROGRAMS=regress.exe \
+	test-init.exe test-eof.exe test-closed.exe test-weof.exe test-time.exe \
+	test-changelist.exe \
+	print-winsock-errors.exe
+
+# Disabled for now:
+#	bench.exe bench_cascade.exe bench_http.exe bench_httpclient.exe
+
+
+LIBS=..\libevent.lib ws2_32.lib shell32.lib advapi32.lib
+
+all: $(PROGRAMS)
+
+regress.exe: $(REGRESS_OBJS)
+	$(CC) $(CFLAGS) $(LIBS) $(SSL_LIBS) $(REGRESS_OBJS)
+
+test-init.exe: test-init.obj
+	$(CC) $(CFLAGS) $(LIBS) test-init.obj
+test-eof.exe: test-eof.obj
+	$(CC) $(CFLAGS) $(LIBS) test-eof.obj
+test-closed.exe: test-closed.obj
+	$(CC) $(CFLAGS) $(LIBS) test-closed.obj
+test-changelist.exe: test-changelist.obj
+	$(CC) $(CFLAGS) $(LIBS) test-changelist.obj
+test-weof.exe: test-weof.obj
+	$(CC) $(CFLAGS) $(LIBS) test-weof.obj
+test-time.exe: test-time.obj
+	$(CC) $(CFLAGS) $(LIBS) test-time.obj
+
+print-winsock-errors.exe: print-winsock-errors.obj
+	$(CC) $(CFLAGS) $(LIBS) print-winsock-errors.obj
+
+bench.exe: bench.obj
+	$(CC) $(CFLAGS) $(LIBS) bench.obj
+bench_cascade.exe: bench_cascade.obj
+	$(CC) $(CFLAGS) $(LIBS) bench_cascade.obj
+bench_http.exe: bench_http.obj
+	$(CC) $(CFLAGS) $(LIBS) bench_http.obj
+bench_httpclient.exe: bench_httpclient.obj
+	$(CC) $(CFLAGS) $(LIBS) bench_httpclient.obj
+
+regress.gen.c regress.gen.h: regress.rpc ../event_rpcgen.py
+	echo // > regress.gen.c
+	echo #define NO_PYTHON_EXISTS > regress.gen.h
+	-python ..\event_rpcgen.py regress.rpc
+
+clean:
+	-del $(REGRESS_OBJS)
+	-del $(OTHER_OBJS)
+	-del $(PROGRAMS)

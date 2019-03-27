@@ -1,0 +1,301 @@
+.\" Copyright (c) 2012 Baptiste Daroussin <bapt@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 26, 2018
+.Dt PW_UTIL 3
+.Os
+.Sh NAME
+.Nm pw_copy ,
+.Nm pw_dup ,
+.Nm pw_edit ,
+.Nm pw_equal ,
+.Nm pw_fini ,
+.Nm pw_init ,
+.Nm pw_make ,
+.Nm pw_make_v7 ,
+.Nm pw_mkdb ,
+.Nm pw_lock ,
+.Nm pw_scan ,
+.Nm pw_tempname ,
+.Nm pw_tmp
+.Nd "functions for passwd file handling"
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In pwd.h
+.In libutil.h
+.Ft int
+.Fn pw_copy "int ffd" "int tfd" "const struct passwd *pw" "struct passwd *oldpw"
+.Ft "struct passwd *"
+.Fn pw_dup "const struct passwd *pw"
+.Ft int
+.Fn pw_edit "int nosetuid"
+.Ft int
+.Fn pw_equal "const struct passwd *pw1" "const struct passwd *pw2"
+.Ft void
+.Fn pw_fini "void"
+.Ft int
+.Fn pw_init "const char *dir" const char *master"
+.Ft void
+.Fn pw_initpwd "struct passwd *pw"
+.Ft "char *"
+.Fn pw_make "const struct passwd *pw"
+.Ft "char *"
+.Fn pw_make_v7 "const struct passwd *pw"
+.Ft int
+.Fn pw_mkdb "const char *user"
+.Ft int
+.Fn pw_lock "void"
+.Ft "struct passwd *"
+.Fn pw_scan "const char *line" "int flags"
+.Ft "const char *"
+.Fn pw_tempname "void"
+.Ft int
+.Fn pw_tmp "int mfd"
+.Sh DESCRIPTION
+The
+.Fn pw_copy
+function reads a password file from
+.Vt ffd
+and writes it back out to
+.Vt tfd
+possibly with modifications:
+.Bl -dash
+.It
+If
+.Fa pw
+is
+.Dv NULL
+and
+.Fa oldpw
+is not
+.Dv NULL ,
+then the record represented by
+.Fa oldpw
+will not be copied (corresponding to user deletion).
+.It
+If
+.Fa pw
+and
+.Fa oldpw
+are not
+.Dv NULL
+then the record corresponding to
+.Fa pw
+will be replaced by the record corresponding to
+.Fa oldpw .
+.It
+If
+.Vt pw
+is set and
+.Vt oldpw
+is
+.Dv NULL
+then the record corresponding to
+.Vt pw
+will be appended (corresponding to user addition).
+.El
+.Pp
+The
+.Fn pw_copy
+function returns -1 in case of failure otherwise 0.
+.Pp
+The
+.Fn pw_dup
+function duplicates the
+.Vt struct passwd
+pointed to by
+.Fa pw
+and returns a pointer to the copy, or
+.Dv NULL
+in case of failure.
+The new
+.Vt struct passwd
+is allocated with
+.Xr malloc 3 ,
+and it is the caller's responsibility to free it with
+.Xr free 3 .
+.Pp
+The
+.Fn pw_edit
+function invokes the command specified by the
+.Ev EDITOR
+environment variable (or
+.Pa /usr/bin/vi
+if
+.Ev EDITOR
+is not defined)
+on a temporary copy of the master password file created by
+.Fn pw_tmp .
+If the file was modified,
+.Fn pw_edit
+installs it and regenerates the password database.
+The
+.Fn pw_edit
+function returns -1 in case of failure, 0 if the file was not modified,
+and a non-zero positive number if the file was modified and successfully
+installed.
+.Pp
+The
+.Fn pw_equal
+function compares two
+.Vt struct passwd
+and returns 0 if they are equal.
+.Pp
+The
+.Fn pw_fini
+function destroy the temporary file created by
+.Fn pw_tmp
+if any,
+kills any running instance of
+.Ev EDITOR
+executed by
+.Fn pw_edit
+if any,
+and closes the lock created by
+.Fn pw_lock
+if any.
+.Pp
+The
+.Fn pw_init
+initializes the static variable representing the path to a password file.
+.Fa dir
+is the directory where the password file is located.
+If set to
+.Dv NULL ,
+it will default to
+.Pa /etc .
+.Fa master
+is the name of the password file.
+If set to
+.Dv NULL?
+it will default to
+.Pa master.passwd
+.Pp
+The
+.Fn pw_initpwd
+function initializes the
+.Vt passwd
+struct to canonical values.
+The entire structure is zeroed, then
+.Va pw_uid
+and
+.Va pw_gid
+are set to -1, and all string pointers are set to point at
+an internally-defined zero-length string.
+.Pp
+The
+.Fn pw_make
+function creates a properly formatted
+.Bx
+.Xr passwd 5
+line from a
+.Vt struct passwd ,
+and returns a pointer to the resulting string.
+The string is allocated with
+.Xr malloc 3 ,
+and it is the caller's responsibility to free it with
+.Xr free 3 .
+.Pp
+The
+.Fn pw_make_v7
+function creates a properly formatted
+.Ux V7
+.Xr passwd 5
+line from a
+.Vt struct passwd ,
+and returns a pointer to the resulting string.
+The string is allocated with
+.Xr malloc 3 ,
+and it is the caller's responsibility to free it with
+.Xr free 3 .
+.Pp
+The
+.Fn pw_mkdb
+function regenerates the password database by running
+.Xr pwd_mkdb 8 .
+If
+.Fa user
+only the record corresponding to that user will be updated.
+The
+.Fn pw_mkdb
+function returns 0 in case of success and -1 in case of failure.
+.Pp
+The
+.Fn pw_lock
+function locks the master password file.
+It returns a file descriptor to the master password file on success
+and -1 on failure.
+.Pp
+The
+.Fn pw_scan
+function is a wrapper around the internal libc function
+.Fn __pw_scan .
+It scans the master password file for a line corresponding to the
+.Fa line
+provided and return a
+.Vt struct passwd
+if it matched an existing record.
+In case of failure, it returns
+.Dv NULL .
+Otherwise, it returns a pointer to a
+.Vt struct passwd
+containing the matching record.
+The
+.Vt struct passwd
+is allocated with
+.Xr malloc 3 ,
+and it is the caller's responsibility to free it with
+.Xr free 3 .
+.Pp
+The
+.Fn pw_tempname
+function returns the temporary name of the masterfile created via
+.Fn pw_tmp .
+.Pp
+The
+.Fn pw_tmp
+creates and opens a presumably safe temporary password file.
+If
+.Fa mfd
+is a file descriptor to an open password file, it will be read and
+written back to the temporary password file.
+Otherwise if should be set -1.
+The
+.Fn pw_tmp
+returns an open file descriptor to the temporary password file or -1 in case of
+failure.
+.Sh AUTHORS
+Portions of this software were developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+This manual page was written by
+.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org .

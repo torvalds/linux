@@ -1,0 +1,96 @@
+.\"
+.\" Copyright (c) 2017 Netflix, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 16, 2018
+.Dt DEVMATCH 8
+.Os
+.Sh NAME
+.Nm devmatch
+.Nd print information about unattached devices
+.Sh SYNOPSIS
+.Nm
+.Op Fl adhpuv
+.Op Fl -all
+.Op Fl -dump
+.Op Fl -hints Ar file
+.Op Fl -nomatch Ar event
+.Op Fl -unbound
+.Op Fl -verbose
+.Sh DESCRIPTION
+The
+.Nm
+utility, without any arguments, prints all the kernel modules it has
+found for all the unattached, enabled devices in the system.
+.Bl -tag -width 20m
+.It Fl a Fl -all
+Include all devices, not just the ones that are unattached.
+.It Fl d Fl -dump
+Produce a human readable dump of the
+.Pa linker.hints
+file.
+.It Fl h Fl -hints Ar file
+Use the named
+.Ar file
+instead of
+.Pa linker.hints
+guessed from the current module load path.
+.It Fl p Fl -nomatch Ar event
+Parse and use a standard NOMATCH event from
+.Xr devd 8
+for matching instead of searching the device tree.
+.It Fl u Fl -unbound
+Attempt to produce a list of those drivers with PNP info whose driver
+tables with that PNP info can't be found.
+.It Fl v Fl -verbose
+Produce more verbose output.
+.El
+.Sh SEE ALSO
+.Xr devinfo 8 ,
+.Xr MODULE_PNP_INFO 9
+.Sh BUGS
+The kernel has hints in it, but we exclude it from the list of modules
+to suggest for unmatched devices.
+We exclude it when suggesting drivers, but include it when looking for
+unbound devices or producing a full dump of
+.Pa linker.hints .
+This can be confusing.
+.Pp
+Some modules are hard links in
+.Pa /boot/kernel
+and will be reported twice.
+.Pp
+The PNP string's attributes are evaluated once per PNP entry on that
+bus rather than once.
+.Pp
+The term PNP is overloaded in FreeBSD.
+It means, generically, the identifying data the bus provides about a
+device.
+While this include old ISA PNP identifiers, it also includes the
+logical equivalent in USB, PCI, and others.
+.Pp
+Many drivers currently lack proper PNP table decorations and need to
+be updated.
+.Sh AUTHORS
+.An Warner Losh Aq Mt imp@FreeBSD.org

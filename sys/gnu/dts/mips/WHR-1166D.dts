@@ -1,0 +1,170 @@
+/dts-v1/;
+
+#include "mt7620a.dtsi"
+
+/ {
+	compatible = "ralink,mt7620a-soc";
+	model = "Buffalo WHR-1166D";
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		power {
+			label = "whr-1166d:red:power";
+			gpios = <&gpio0 7 1>;
+		};
+
+		wifi {
+			label = "whr-1166d:green:wifi";
+			gpios = <&gpio0 8 1>;
+		};
+
+		power2 {
+			label = "whr-1166d:green:power";
+			gpios = <&gpio0 9 1>;
+		};
+
+		wifi2 {
+			label = "whr-1166d:orange:wifi";
+			gpios = <&gpio0 10 1>;
+		};
+
+		internet {
+			label = "whr-1166d:green:internet";
+			gpios = <&gpio2 17 1>;
+		};
+
+		router {
+			label = "whr-1166d:orange:router";
+			gpios = <&gpio2 18 1>;
+		};
+
+		router2 {
+			label = "whr-1166d:green:router";
+			gpios = <&gpio2 19 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio2 12 1>;
+			linux,code = <0x198>;
+		};
+
+		aoss {
+			label = "aoss";
+			gpios = <&gpio2 13 1>;
+			linux,code = <0x211>;
+		};
+
+		ap {
+			label = "ap";
+			gpios = <&gpio2 14 1>;
+			linux,code = <0x100>;
+			linux,input-type = <5>; /* EV_SW */
+		};
+
+		bridge {
+			label = "bridge";
+			gpios = <&gpio2 15 1>;
+			linux,code = <0x100>;
+			linux,input-type = <5>; /* EV_SW */
+		};
+	};
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "mx25l6405d";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0xfb0000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "uartf", "wled", "nd_sd";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii1_pins &mdio_pins>;
+
+	port@5 {
+		status = "okay";
+		phy-handle = <&phy5>;
+		phy-mode = "rgmii";
+	};
+
+	mdio-bus {
+		status = "okay";
+
+		phy5: ethernet-phy@5 {
+			reg = <5>;
+			phy-mode = "rgmii";
+		};
+	};
+};
+
+&gsw {
+	mediatek,port4 = "ephy";
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&pcie {
+	status = "okay";
+
+	pcie-bridge {
+		mt76@0,0 {
+			reg = <0x0000 0 0 0 0>;
+			device_type = "pci";
+			mediatek,mtd-eeprom = <&factory 32768>;
+			mediatek,2ghz = <0>;
+		};
+	};
+};

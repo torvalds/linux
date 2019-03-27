@@ -1,0 +1,75 @@
+# $FreeBSD$
+
+unset LC_ALL
+LC_CTYPE=en_US.UTF-8
+export LC_CTYPE
+
+c1=e
+# a umlaut
+c2=$(printf '\303\244')
+# euro sign
+c3=$(printf '\342\202\254')
+# some sort of 't' outside BMP
+c4=$(printf '\360\235\225\245')
+
+s=$c1$c2$c3$c4
+
+testcase() {
+	code="$1"
+	expected="$2"
+	oIFS="$IFS"
+	eval "$code"
+	IFS='|'
+	result="$#|$*"
+	IFS="$oIFS"
+	if [ "x$result" = "x$expected" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "For $code, expected $expected actual $result"
+	fi
+}
+
+testcase 'set -- "$s"'				"1|$s"
+testcase 'set -- "${s#$c2}"'			"1|$s"
+testcase 'set -- "${s#*}"'			"1|$s"
+testcase 'set -- "${s#$c1}"'			"1|$c2$c3$c4"
+testcase 'set -- "${s#$c1$c2}"'			"1|$c3$c4"
+testcase 'set -- "${s#$c1$c2$c3}"'		"1|$c4"
+testcase 'set -- "${s#$c1$c2$c3$c4}"'		"1|"
+testcase 'set -- "${s#?}"'			"1|$c2$c3$c4"
+testcase 'set -- "${s#??}"'			"1|$c3$c4"
+testcase 'set -- "${s#???}"'			"1|$c4"
+testcase 'set -- "${s#????}"'			"1|"
+testcase 'set -- "${s#*$c3}"'			"1|$c4"
+testcase 'set -- "${s%$c4}"'			"1|$c1$c2$c3"
+testcase 'set -- "${s%$c3$c4}"'			"1|$c1$c2"
+testcase 'set -- "${s%$c2$c3$c4}"'		"1|$c1"
+testcase 'set -- "${s%$c1$c2$c3$c4}"'		"1|"
+testcase 'set -- "${s%?}"'			"1|$c1$c2$c3"
+testcase 'set -- "${s%??}"'			"1|$c1$c2"
+testcase 'set -- "${s%???}"'			"1|$c1"
+testcase 'set -- "${s%????}"'			"1|"
+testcase 'set -- "${s%$c2*}"'			"1|$c1"
+testcase 'set -- "${s##$c2}"'			"1|$s"
+testcase 'set -- "${s##*}"'			"1|"
+testcase 'set -- "${s##$c1}"'			"1|$c2$c3$c4"
+testcase 'set -- "${s##$c1$c2}"'		"1|$c3$c4"
+testcase 'set -- "${s##$c1$c2$c3}"'		"1|$c4"
+testcase 'set -- "${s##$c1$c2$c3$c4}"'		"1|"
+testcase 'set -- "${s##?}"'			"1|$c2$c3$c4"
+testcase 'set -- "${s##??}"'			"1|$c3$c4"
+testcase 'set -- "${s##???}"'			"1|$c4"
+testcase 'set -- "${s##????}"'			"1|"
+testcase 'set -- "${s##*$c3}"'			"1|$c4"
+testcase 'set -- "${s%%$c4}"'			"1|$c1$c2$c3"
+testcase 'set -- "${s%%$c3$c4}"'		"1|$c1$c2"
+testcase 'set -- "${s%%$c2$c3$c4}"'		"1|$c1"
+testcase 'set -- "${s%%$c1$c2$c3$c4}"'		"1|"
+testcase 'set -- "${s%%?}"'			"1|$c1$c2$c3"
+testcase 'set -- "${s%%??}"'			"1|$c1$c2"
+testcase 'set -- "${s%%???}"'			"1|$c1"
+testcase 'set -- "${s%%????}"'			"1|"
+testcase 'set -- "${s%%$c2*}"'			"1|$c1"
+
+test "x$failures" = x

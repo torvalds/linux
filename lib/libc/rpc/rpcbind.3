@@ -1,0 +1,194 @@
+.\" @(#)rpcbind.3n 1.25 93/05/07 SMI; from SVr4
+.\" Copyright 1989 AT&T
+.\" Copyright (c) 1988 Sun Microsystem's, Inc. - All Right's Reserved.
+.\"	$NetBSD: rpcbind.3,v 1.2 2000/06/03 18:47:28 fvdl Exp	$
+.\" $FreeBSD$
+.Dd May 7, 1993
+.Dt RPCBIND 3
+.Os
+.Sh NAME
+.Nm rpcb_getmaps ,
+.Nm rpcb_getaddr ,
+.Nm rpcb_gettime ,
+.Nm rpcb_rmtcall ,
+.Nm rpcb_set ,
+.Nm rpcb_unset
+.Nd library routines for RPC bind service
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In rpc/rpc.h
+.Ft "rpcblist *"
+.Fn rpcb_getmaps "const struct netconfig *netconf" "const char *host"
+.Ft bool_t
+.Fn rpcb_getaddr "const rpcprog_t prognum" "const rpcvers_t versnum" "const struct netconfig *netconf" "struct netbuf *svcaddr" "const char *host"
+.Ft bool_t
+.Fn rpcb_gettime "const char *host" "time_t * timep"
+.Ft "enum clnt_stat"
+.Fn rpcb_rmtcall "const struct netconfig *netconf" "const char *host" "const rpcprog_t prognum" "const rpcvers_t versnum" "const rpcproc_t procnum" "const xdrproc_t inproc" "const caddr_t in" "const xdrproc_t outproc" "const caddr_t out" "const struct timeval tout" "const struct netbuf *svcaddr"
+.Ft bool_t
+.Fn rpcb_set "const rpcprog_t prognum" "const rpcvers_t versnum" "const struct netconfig *netconf" "const struct netbuf *svcaddr"
+.Ft bool_t
+.Fn rpcb_unset "const rpcprog_t prognum" "const rpcvers_t versnum" "const struct netconfig *netconf"
+.Sh DESCRIPTION
+These routines allow client C programs to make procedure
+calls to the RPC binder service.
+(see
+.Xr rpcbind 8 )
+maintains a list of mappings between programs
+and their universal addresses.
+.Sh Routines
+.Bl -tag -width XXXXX
+.It Fn rpcb_getmaps
+An interface to the rpcbind service,
+which returns a list of the current
+RPC program-to-address mappings on
+.Fa host .
+It uses the transport specified through
+.Fa netconf
+to contact the remote rpcbind
+service on
+.Fa host .
+This routine will return
+.Dv NULL ,
+if the remote rpcbind could not be contacted.
+.It Fn rpcb_getaddr
+An interface to the rpcbind
+service, which finds the address of the service on
+.Fa host
+that is registered with program number
+.Fa prognum ,
+version
+.Fa versnum ,
+and speaks the transport protocol associated with
+.Fa netconf .
+The address found is returned in
+.Fa svcaddr .
+The
+.Fa svcaddr
+argument
+should be preallocated.
+This routine returns
+.Dv TRUE
+if it succeeds.
+A return value of
+.Dv FALSE
+means that the mapping does not exist
+or that the RPC
+system failed to contact the remote
+rpcbind service.
+In the latter case, the global variable
+.Va rpc_createerr
+(see
+.Xr rpc_clnt_create 3 )
+contains the
+RPC status.
+.It Fn rpcb_gettime
+This routine returns the time on
+.Fa host
+in
+.Fa timep .
+If
+.Fa host
+is
+.Dv NULL ,
+.Fn rpcb_gettime
+returns the time on its own machine.
+This routine returns
+.Dv TRUE
+if it succeeds,
+.Dv FALSE
+if it fails.
+The
+.Fn rpcb_gettime
+function
+can be used to synchronize the time between the
+client and the remote server.
+.It Fn rpcb_rmtcall
+An interface to the rpcbind service, which instructs
+rpcbind on
+.Fa host
+to make an RPC
+call on your behalf to a procedure on that host.
+The
+.Fn netconfig
+structure should correspond to a connectionless transport.
+The
+.Fa svcaddr
+argument
+will be modified to the server's address if the procedure succeeds
+(see
+.Fn rpc_call
+and
+.Fn clnt_call
+in
+.Xr rpc_clnt_calls 3
+for the definitions of other arguments).
+.Pp
+This procedure should normally be used for a
+.Dq ping
+and nothing else.
+This routine allows programs to do lookup and call, all in one step.
+.Pp
+Note: Even if the server is not running
+.Fn rpcb_rmtcall
+does not return any error messages to the caller.
+In such a case, the caller times out.
+.Pp
+Note:
+.Fn rpcb_rmtcall
+is only available for connectionless transports.
+.It Fn rpcb_set
+An interface to the rpcbind
+service, which establishes a mapping between the triple
+.Bq Fa prognum , versnum , netconf->nc_netid
+and
+.Fa svcaddr
+on the machine's rpcbind
+service.
+The value of
+.Fa nc_netid
+must correspond to a network identifier that is defined by the
+netconfig database.
+This routine returns
+.Dv TRUE
+if it succeeds,
+.Dv FALSE
+otherwise.
+(See also
+.Fn svc_reg
+in
+.Xr rpc_svc_calls 3 . )
+If there already exists such an entry with rpcbind,
+.Fn rpcb_set
+will fail.
+.It Fn rpcb_unset
+An interface to the rpcbind
+service, which destroys the mapping between the triple
+.Bq Fa prognum , versnum , netconf->nc_netid
+and the address on the machine's rpcbind
+service.
+If
+.Fa netconf
+is
+.Dv NULL ,
+.Fn rpcb_unset
+destroys all mapping between the triple
+.Bq Fa prognum , versnum , No all-transports
+and the addresses on the machine's rpcbind service.
+This routine returns
+.Dv TRUE
+if it succeeds,
+.Dv FALSE
+otherwise.
+Only the owner of the service or the super-user can destroy the mapping.
+(See also
+.Fn svc_unreg
+in
+.Xr rpc_svc_calls 3 . )
+.El
+.Sh SEE ALSO
+.Xr rpc_clnt_calls 3 ,
+.Xr rpc_svc_calls 3 ,
+.Xr rpcbind 8 ,
+.Xr rpcinfo 8

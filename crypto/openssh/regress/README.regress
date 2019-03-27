@@ -1,0 +1,102 @@
+Overview.
+
+$ ./configure && make tests
+
+You'll see some progress info. A failure will cause either the make to
+abort or the driver script to report a "FATAL" failure.
+
+The test consists of 2 parts. The first is the file-based tests which is
+driven by the Makefile, and the second is a set of network or proxycommand
+based tests, which are driven by a driver script (test-exec.sh) which is
+called multiple times by the Makefile.
+
+Failures in the first part will cause the Makefile to return an error.
+Failures in the second part will print a "FATAL" message for the failed
+test and continue.
+
+OpenBSD has a system-wide regression test suite. OpenSSH Portable's test
+suite is based on OpenBSD's with modifications.
+
+
+Environment variables.
+
+SUDO: path to sudo command, if desired. Note that some systems (notably
+	systems using PAM) require sudo to execute some tests.
+TEST_SSH_TRACE: set to "yes" for verbose output from tests 
+TEST_SSH_QUIET: set to "yes" to suppress non-fatal output.
+TEST_SSH_x: path to "ssh" command under test, where x=SSH,SSHD,SSHAGENT,SSHADD
+	SSHKEYGEN,SSHKEYSCAN,SFTP,SFTPSERVER
+OBJ: used by test scripts to access build dir.
+TEST_SHELL: shell used for running the test scripts.
+TEST_SSH_PORT: TCP port to be used for the listening tests.
+TEST_SSH_SSH_CONFOPTS: Configuration directives to be added to ssh_config
+	before running each test.
+TEST_SSH_SSHD_CONFOPTS: Configuration directives to be added to sshd_config
+	before running each test.
+
+
+Individual tests.
+
+You can run an individual test from the top-level Makefile, eg:
+$ make tests LTESTS=agent-timeout
+
+If you need to manipulate the environment more you can invoke test-exec.sh
+directly if you set up the path to find the binaries under test and the
+test scripts themselves, for example:
+
+$ cd regress
+$ PATH=`pwd`/..:$PATH:. TEST_SHELL=/bin/sh sh test-exec.sh `pwd` \
+    agent-timeout.sh
+ok agent timeout test
+
+
+Files.
+
+test-exec.sh: the main test driver. Sets environment, creates config files
+and keys and runs the specified test.
+
+At the time of writing, the individual tests are:
+agent-timeout.sh:	agent timeout test
+agent.sh:		simple agent test
+broken-pipe.sh:		broken pipe test
+connect-privsep.sh:	proxy connect with privsep
+connect.sh:		simple connect
+exit-status.sh:		remote exit status
+forwarding.sh:		local and remote forwarding
+keygen-change.sh:	change passphrase for key
+keyscan.sh:		keyscan
+proto-mismatch.sh:	protocol version mismatch
+proto-version.sh:	sshd version with different protocol combinations
+proxy-connect.sh:	proxy connect
+sftp.sh:		basic sftp put/get
+ssh-com-client.sh:	connect with ssh.com client
+ssh-com-keygen.sh:	ssh.com key import
+ssh-com-sftp.sh:	basic sftp put/get with ssh.com server
+ssh-com.sh:		connect to ssh.com server
+stderr-after-eof.sh:	stderr data after eof
+stderr-data.sh:		stderr data transfer
+transfer.sh:		transfer data
+try-ciphers.sh:		try ciphers
+yes-head.sh:		yes pipe head
+
+
+Problems?
+
+Run the failing test with shell tracing (-x) turned on:
+$ PATH=`pwd`/..:$PATH:. sh -x test-exec.sh `pwd` agent-timeout.sh
+
+Failed tests can be difficult to diagnose. Suggestions:
+- run the individual test via ./test-exec.sh `pwd` [testname]
+- set LogLevel to VERBOSE in test-exec.sh and enable syslogging of
+  auth.debug (eg to /var/log/authlog).
+
+
+Known Issues.
+
+- Similarly, if you do not have "scp" in your system's $PATH then the
+  multiplex scp tests will fail (since the system's shell startup scripts
+  will determine where the shell started by sshd will look for scp).
+
+- Recent GNU coreutils deprecate "head -[n]": this will cause the yes-head
+  test to fail.  The old behaviour can be restored by setting (and
+  exporting) _POSIX2_VERSION=199209 before running the tests.

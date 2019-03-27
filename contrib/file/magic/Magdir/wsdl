@@ -1,0 +1,23 @@
+
+#------------------------------------------------------------------------------
+# $File: wsdl,v 1.3 2013/02/06 14:18:52 christos Exp $
+# wsdl: PHP WSDL Cache, http://www.php.net/manual/en/book.soap.php
+# Cache format extracted from source:
+# http://svn.php.net/viewvc/php/php-src/trunk/ext/soap/php_sdl.c?revision=HEAD&view=markup
+# Requires file >= 5.05, see http://mx.gw.com/pipermail/file/2010/000683.html
+# By Elan Ruusamae <glen@delfi.ee>, Patryk Zawadzki <patrys@pld-linux.org>, 2010-2011
+0		string		wsdl		PHP WSDL cache,
+>4		byte		x		version 0x%02x
+>6		ledate		x		\b, created %s
+
+# uri
+>10		lelong		<0x7fffffff
+>>10		pstring/l	x		\b, uri: "%s"
+
+# source
+>>>&0		lelong		<0x7fffffff
+>>>>&-4		pstring/l	x		\b, source: "%s"
+
+# target_ns
+>>>>>&0		lelong		<0x7fffffff
+>>>>>>&-4	pstring/l	x		\b, target_ns: "%s"

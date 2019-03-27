@@ -1,0 +1,54 @@
+# $FreeBSD$
+IFS=,
+
+SPECIAL="break,\
+	:,\
+	continue,\
+	. /dev/null,\
+	eval,\
+	exec,\
+	export -p,\
+	readonly -p,\
+	set,\
+	shift,\
+	times,\
+	trap,\
+	unset foo"
+
+UTILS="alias,\
+	bg,\
+	bind,\
+	cd,\
+	command echo,\
+	echo,\
+	false,\
+	fc -l,\
+	fg,\
+	getopts a -a,\
+	hash,\
+	jobs,\
+	printf a,\
+	pwd,\
+	read var < /dev/null,\
+	test,\
+	true,\
+	type ls,\
+	ulimit,\
+	umask,\
+	unalias -a,\
+	wait"
+
+# When used with 'command', neither special built-in utilities nor other
+# utilities must abort on a redirection error.
+
+set -- ${SPECIAL}
+for cmd in "$@"
+do
+	${SH} -c "command ${cmd} > /; exit 0" 2>/dev/null || exit 1
+done
+
+set -- ${UTILS}
+for cmd in "$@"
+do
+	${SH} -c "command ${cmd} > /; exit 0" 2>/dev/null || exit 1
+done

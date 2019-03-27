@@ -1,0 +1,182 @@
+.\" Copyright (c) 2005 Sam Leffler <sam@errno.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 28, 2018
+.Dt WPA_SUPPLICANT 8
+.Os
+.Sh NAME
+.Nm wpa_supplicant
+.Nd "WPA/802.11i Supplicant for wireless network devices"
+.Sh SYNOPSIS
+.Nm
+.Op Fl BdhKLqstuvW
+.Op Fl b Ar br_ifname
+.Fl c Ar config-file
+.Op Fl C Ar ctrl
+.Op Fl D Ar driver
+.Op Fl f Ar debug file
+.Op Fl g Ar global ctrl
+.Fl i Ar ifname
+.Op Fl o Ar override driver
+.Op Fl O Ar override ctrl
+.Op Fl P Ar pid file
+.Oo Fl N
+.Fl i Ar ifname
+.Fl c Ar config-file
+.Op Fl C Ar ctrl
+.Op Fl D driver
+.Op Fl p Ar driver_param
+.Op Fl b Ar br_ifname
+.No ...
+.Oc
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is an implementation of the WPA Supplicant component,
+i.e., the part that runs in the client stations.
+It implements WPA key negotiation with a WPA Authenticator
+and EAP authentication with an Authentication Server.
+In addition,
+.Nm
+controls the roaming and IEEE 802.11
+authentication/association support of the
+.Xr wlan 4
+module and can be used to configure static WEP keys
+based on identified networks.
+.Pp
+The
+.Nm
+utility
+is designed to be a
+.Dq daemon
+program that runs in the
+background and acts as the backend component controlling
+the wireless connection.
+It supports separate frontend programs such as the
+text-based
+.Xr wpa_cli 8
+program.
+.Pp
+The following arguments must be specified on the command line:
+.Bl -tag -width indent
+.It Fl i Ar ifname
+Use the specified wireless interface.
+.It Fl c Ar config-file
+Use the settings in the specified configuration file when managing
+the wireless interface.
+See
+.Xr wpa_supplicant.conf 5
+for a description of the configuration file syntax and contents.
+.Pp
+Changes to the configuration file can be reloaded by sending a
+.Dv SIGHUP
+to the
+.Nm
+process or with the
+.Xr wpa_cli 8
+utility, using
+.Dq Li "wpa_cli reconfigure" .
+.El
+.Sh OPTIONS
+The following options are available:
+.Bl -tag -width indent
+.It Fl b
+Optional bridge interface name.
+.It Fl B
+Detach from the controlling terminal and run as a daemon process
+in the background.
+.It Fl d
+Enable debugging messages.
+If this option is supplied twice, more verbose messages are displayed.
+.It Fl D
+Driver name (can be multiple drivers: nl80211,wext).
+.It Fl f
+Log output to debug file instead of stdout.
+.It Fl g
+Global ctrl_interface.
+.It Fl h
+Show help text.
+.It Fl K
+Include key information in debugging output.
+.It Fl L
+Display the license for this program on the terminal and exit.
+.It Fl N
+Start describing a new interface.
+.It Fl o
+Overrides driver parameter for new interfaces.
+.It Fl O
+Override ctrl_interface parameter for new interfaces.
+.It Fl p
+Specify driver parameters.
+.It Fl P
+File in which to save the process PID.
+.It Fl q
+Decrease debugging verbosity (i.e., counteract the use of the
+.Fl d
+flag).
+.It Fl s
+Send log messages through
+.Xr syslog 3
+instead of to the terminal.
+.It Fl t
+Include timestamp in debug messages.
+.It Fl v
+Display version information on the terminal and exit.
+.It Fl W
+Wait for a control interface monitor before starting.
+.El
+.Sh SEE ALSO
+.Xr an 4 ,
+.Xr ath 4 ,
+.Xr ipw 4 ,
+.Xr iwi 4 ,
+.Xr ral 4 ,
+.Xr rum 4 ,
+.Xr ural 4 ,
+.Xr wi 4 ,
+.Xr wlan 4 ,
+.Xr wpi 4 ,
+.Xr zyd 4 ,
+.Xr wpa_supplicant.conf 5 ,
+.Xr devd 8 ,
+.Xr ifconfig 8 ,
+.Xr wpa_cli 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Jouni Malinen Aq Mt j@w1.fi .
+This manual page is derived from the
+.Pa README
+file included in the
+.Nm
+distribution.

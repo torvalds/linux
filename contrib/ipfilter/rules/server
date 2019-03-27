@@ -1,0 +1,11 @@
+#
+# For a network server, which has two interfaces, 128.1.40.1 (le0) and
+# 128.1.2.1 (le1), we want to block all IP spoofing attacks.  le1 is
+# connected to the majority of the network, whilst le0 is connected to a
+# leaf subnet.  We're not concerned about filtering individual services
+# or
+#
+pass in quick on le0 from 128.1.40.0/24 to any
+block in log quick on le0 from any to any
+block in log quick on le1 from 128.1.1.0/24 to any
+pass in quick on le1 from any to any

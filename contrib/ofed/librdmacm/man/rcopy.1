@@ -1,0 +1,38 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RCOPY" 1 "2011-12-2" "librdmacm" "librdmacm" librdmacm
+.SH NAME
+rcopy \- simple file copy over RDMA.
+.SH SYNOPSIS
+.sp
+.nf
+\fIrcopy\fR source server[:destination] [-p port]
+\fIrcopy\fR [-p port]
+.fi
+.SH "DESCRIPTION"
+Uses sockets over RDMA interface to copy a source file to the
+specified destination. 
+.SH "OPTIONS"
+.TP
+source
+The name and path of the source file to copy.
+.TP
+server
+The name or address of the destination server.
+.TP
+:destination
+An optional destination filename and path.  If not given, the destination
+filename will match that of the source.
+.TP
+\-p server_port
+The server's port number.
+.TP
+.SH "NOTES"
+Basic usage is to start rcopy on a server system, then run
+rcopy sourcefile servername.  The server application will continue to run after
+copying the file, but is currently single-threaded.
+.P
+Because this test maps RDMA resources to userspace, users must ensure
+that they have available system resources and permissions.  See the
+libibverbs README file for additional details.
+.SH "SEE ALSO"
+rdma_cm(7)

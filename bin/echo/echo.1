@@ -1,0 +1,110 @@
+.\"-
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)echo.1	8.1 (Berkeley) 7/22/93
+.\" $FreeBSD$
+.\"
+.Dd October 5, 2016
+.Dt ECHO 1
+.Os
+.Sh NAME
+.Nm echo
+.Nd write arguments to the standard output
+.Sh SYNOPSIS
+.Nm
+.Op Fl n
+.Op Ar string ...
+.Sh DESCRIPTION
+The
+.Nm
+utility writes any specified operands, separated by single blank
+.Pq Ql "\ "
+characters and followed by a newline
+.Pq Ql \en
+character, to the standard
+output.
+.Pp
+The following option is available:
+.Bl -tag -width flag
+.It Fl n
+Do not print the trailing newline character.
+.El
+.Pp
+The end-of-options marker
+.Fl Fl
+is not recognized and written literally.
+.Pp
+The newline may also be suppressed by appending
+.Ql \ec
+to the end of the string, as is done
+by iBCS2 compatible systems.
+Note that the
+.Fl n
+option as well as the effect of
+.Ql \ec
+are implementation-defined in
+.St -p1003.1-2001
+as amended by Cor.\& 1-2002.
+For portability,
+.Nm
+should only be used if the first argument does not start with a hyphen
+.Pq Ql "-"
+and does not contain any backslashes
+.Pq Ql "\e" .
+If this is not sufficient,
+.Xr printf 1
+should be used.
+.Pp
+Most shells provide a builtin
+.Nm
+command which tends to differ from this utility
+in the treatment of options and backslashes.
+Consult the
+.Xr builtin 1
+manual page.
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr builtin 1 ,
+.Xr csh 1 ,
+.Xr printf 1 ,
+.Xr sh 1
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001
+as amended by Cor.\& 1-2002.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.At v2 .

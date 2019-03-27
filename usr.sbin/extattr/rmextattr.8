@@ -1,0 +1,143 @@
+.\"-
+.\" Copyright (c) 2000, 2001 Robert N. M. Watson
+.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Poul-Henning
+.\" Kamp and Network Associates Laboratories, the Security Research Division
+.\" of Network Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.\" ("CBOSS"), as part of the DARPA CHATS research program
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 27, 2016
+.Dt RMEXTATTR 8
+.Os
+.Sh NAME
+.Nm getextattr ,
+.Nm lsextattr ,
+.Nm rmextattr ,
+.Nm setextattr
+.Nd manipulate extended attributes
+.Sh SYNOPSIS
+.Nm getextattr
+.Op Fl fhqsx
+.Ar attrnamespace
+.Ar attrname
+.Ar filename ...
+.Nm lsextattr
+.Op Fl fhq
+.Ar attrnamespace
+.Ar filename ...
+.Nm rmextattr
+.Op Fl fhq
+.Ar attrnamespace
+.Ar attrname
+.Ar filename ...
+.Nm setextattr
+.Op Fl fhnq
+.Ar attrnamespace
+.Ar attrname
+.Ar attrvalue
+.Ar filename ...
+.Nm setextattr
+.Fl i
+.Op Fl fhnq
+.Ar attrnamespace
+.Ar attrname
+.Ar filename ...
+.Sh DESCRIPTION
+These
+utilities
+are user tools to manipulate the named extended attributes on files and
+directories.
+The
+.Ar attrnamespace
+argument should be the namespace of the attribute to retrieve: legal
+values are
+.Cm user
+and
+.Cm system .
+The
+.Ar attrname
+argument should be the name of the attribute,
+.Ar filename
+the name of the target file or directory,
+.Ar attrvalue
+a string to store in the attribute.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl f
+(Force.)
+Ignore errors on individual filenames and continue with
+the remaining arguments.
+.It Fl h
+(No follow.)
+If the file is a symbolic link, perform the operation on the
+link itself rather than the file that the link points to.
+.It Fl i
+(From stdin.)
+Read attribute data from stdin instead of as an argument.
+.It Fl n
+.Dv ( NUL Ns
+-terminate.)
+.Dv NUL Ns
+-terminate the extent content written out.
+.It Fl q
+(Quiet.)
+Do not print out the pathname and suppress error messages.
+When given twice, print only the attribute value, with no trailing newline.
+.It Fl s
+(Stringify.)
+Escape nonprinting characters and put quotes around the output.
+.It Fl x
+(Hex.)
+Print the output in hexadecimal.
+.El
+.Sh EXAMPLES
+.Bd -literal
+setextattr system md5 `md5 -q /boot/kernel/kernel` /boot/kernel/kernel
+md5 -q /boot/kernel/kernel | setextattr -i system md5 /boot/kernel/kernel
+getextattr system md5 /boot/kernel/kernel
+getextattr -qq system md5 /boot/kernel/kernel | od -x
+lsextattr system /boot/kernel/kernel
+rmextattr system md5 /boot/kernel/kernel
+.Ed
+.Sh SEE ALSO
+.Xr extattr 2 ,
+.Xr extattr 3 ,
+.Xr extattrctl 8 ,
+.Xr extattr 9
+.Sh HISTORY
+Extended attribute support was developed as part of the
+.Tn TrustedBSD
+Project,
+and introduced in
+.Fx 5.0 .
+It was developed to support security extensions requiring additional labels
+to be associated with each file or directory.
+.Sh AUTHORS
+.An Robert N M Watson
+.An Poul-Henning Kamp

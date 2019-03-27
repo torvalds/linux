@@ -1,0 +1,3028 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
+.\" $FreeBSD$
+.\"
+.Dd June 27, 2018
+.Dt IFCONFIG 8
+.Os
+.Sh NAME
+.Nm ifconfig
+.Nd configure network interface parameters
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar type:format Ns Op Ar ,type:format
+.Op Fl L
+.Op Fl k
+.Op Fl m
+.Op Fl n
+.Ar interface
+.Op Cm create
+.Ar address_family
+.Oo
+.Ar address
+.Op Ar dest_address
+.Oc
+.Op Ar parameters
+.Nm
+.Ar interface
+.Cm destroy
+.Nm
+.Fl a
+.Op Fl L
+.Op Fl d
+.Op Fl m
+.Op Fl u
+.Op Fl v
+.Op Ar address_family
+.Nm
+.Fl l
+.Op Fl d
+.Op Fl u
+.Op Ar address_family
+.Nm
+.Op Fl L
+.Op Fl d
+.Op Fl k
+.Op Fl m
+.Op Fl u
+.Op Fl v
+.Op Fl C
+.Nm
+.Op Fl g Ar groupname
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to assign an address
+to a network interface and/or configure
+network interface parameters.
+The
+.Nm
+utility must be used at boot time to define the network address
+of each interface present on a machine; it may also be used at
+a later time to redefine an interface's address
+or other operating parameters.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Ar address
+For the
+.Tn DARPA Ns -Internet
+family,
+the address is either a host name present in the host name data
+base,
+.Xr hosts 5 ,
+or a
+.Tn DARPA
+Internet address expressed in the Internet standard
+.Dq dot notation .
+.Pp
+It is also possible to use the CIDR notation (also known as the
+slash notation) to include the netmask.
+That is, one can specify an address like
+.Li 192.168.0.1/16 .
+.Pp
+For the
+.Dq inet6
+family, it is also possible to specify the prefix length using the slash
+notation, like
+.Li ::1/128 .
+See the
+.Cm prefixlen
+parameter below for more information.
+.\" For the Xerox Network Systems(tm) family,
+.\" addresses are
+.\" .Ar net:a.b.c.d.e.f ,
+.\" where
+.\" .Ar net
+.\" is the assigned network number (in decimal),
+.\" and each of the six bytes of the host number,
+.\" .Ar a
+.\" through
+.\" .Ar f ,
+.\" are specified in hexadecimal.
+.\" The host number may be omitted on IEEE 802 protocol
+.\" (Ethernet, FDDI, and Token Ring) interfaces,
+.\" which use the hardware physical address,
+.\" and on interfaces other than the first.
+.\" For the
+.\" .Tn ISO
+.\" family, addresses are specified as a long hexadecimal string,
+.\" as in the Xerox family.
+.\" However, two consecutive dots imply a zero
+.\" byte, and the dots are optional, if the user wishes to (carefully)
+.\" count out long strings of digits in network byte order.
+.Pp
+The link-level
+.Pq Dq link
+address
+is specified as a series of colon-separated hex digits.
+This can be used to, for example,
+set a new MAC address on an Ethernet interface, though the
+mechanism used is not Ethernet specific.
+Use the
+.Pq Dq random
+keyword to set a randomly generated MAC address.
+A randomly-generated MAC address might be the same as one already in use
+in the network.
+Such duplications are extremely unlikely.
+If the interface is already
+up when this option is used, it will be briefly brought down and
+then brought back up again in order to ensure that the receive
+filter in the underlying Ethernet hardware is properly reprogrammed.
+.It Ar address_family
+Specify the
+address family
+which affects interpretation of the remaining parameters.
+Since an interface can receive transmissions in differing protocols
+with different naming schemes, specifying the address family is recommended.
+The address or protocol families currently
+supported are
+.Dq inet ,
+.Dq inet6 ,
+and
+.Dq link .
+The default if available is
+.Dq inet
+or otherwise
+.Dq link .
+.Dq ether
+and
+.Dq lladdr
+are synonyms for
+.Dq link .
+When using the
+.Fl l
+flag, the
+.Dq ether
+address family has special meaning and is no longer synonymous with
+.Dq link
+or
+.Dq lladdr .
+Specifying
+.Fl l Dq ether
+will list only Ethernet interfaces, excluding all other interface types,
+including the loopback interface.
+.It Ar dest_address
+Specify the address of the correspondent on the other end
+of a point to point link.
+.It Ar interface
+This
+parameter is a string of the form
+.Dq name unit ,
+for example,
+.Dq Li ed0 .
+.It Ar groupname
+List the interfaces in the given group.
+.El
+.Pp
+The output format of
+.Nm
+can be controlled using the
+.Fl f
+flag or the
+.Ev IFCONFIG_FORMAT
+environment variable.
+The format is specified as a comma separated list of
+.Sy type:format
+pairs.
+See the
+.Sx EXAMPLES
+section for more information.
+The
+.Sy types
+and their associated
+.Sy format
+strings are:
+.Bl -tag -width ether
+.It Sy addr
+Adjust the display of inet and inet6 addresses
+.Bl -tag -width default
+.It Sy default
+Display inet and inet6 addresses in the default format,
+.Sy numeric
+.It Sy fqdn
+Display inet and inet6 addresses as fully qualified domain names
+.Pq FQDN
+.It Sy host
+Display inet and inet6 addresses as unqualified hostnames
+.It Sy numeric
+Display inet and inet6 addresses in numeric format
+.El
+.It Sy ether
+Adjust the display of link-level ethernet (MAC) addresses
+.Bl -tag -width default
+.It Sy colon
+Separate address segments with a colon
+.It Sy dash
+Separate address segments with a dash
+.It Sy default
+Display ethernet addresses in the default format,
+.Sy colon
+.El
+.It Sy inet
+Adjust the display of inet address subnet masks:
+.Bl -tag -width default
+.It Sy cidr
+Display subnet masks in CIDR notation, for example:
+.br
+10.0.0.0/8 or 203.0.113.224/26
+.It Sy default
+Display subnet masks in the default format,
+.Sy hex
+.It Sy dotted
+Display subnet masks in dotted quad notation, for example:
+.br
+255.255.0.0 or 255.255.255.192
+.It Sy hex
+Display subnet masks in hexadecimal, for example:
+.br
+0xffff0000 or 0xffffffc0
+.El
+.It Sy inet6
+Adjust the display of inet6 address prefixes (subnet masks):
+.Bl -tag -width default
+.It Sy cidr
+Display subnet prefix in CIDR notation, for example:
+.br
+::1/128 or fe80::1%lo0/64
+.It Sy default
+Display subnet prefix in the default format
+.Sy numeric
+.It Sy numeric
+Display subnet prefix in integer format, for example:
+.br
+prefixlen 64
+.El
+.El
+.Pp
+The following parameters may be set with
+.Nm :
+.Bl -tag -width indent
+.It Cm add
+Another name for the
+.Cm alias
+parameter.
+Introduced for compatibility
+with
+.Bsx .
+.It Cm alias
+Establish an additional network address for this interface.
+This is sometimes useful when changing network numbers, and
+one wishes to accept packets addressed to the old interface.
+If the address is on the same subnet as the first network address
+for this interface, a non-conflicting netmask must be given.
+Usually
+.Li 0xffffffff
+is most appropriate.
+.It Fl alias
+Remove the network address specified.
+This would be used if you incorrectly specified an alias, or it
+was no longer needed.
+If you have incorrectly set an NS address having the side effect
+of specifying the host portion, removing all NS addresses will
+allow you to respecify the host portion.
+.It Cm anycast
+(Inet6 only.)
+Specify that the address configured is an anycast address.
+Based on the current specification,
+only routers may configure anycast addresses.
+Anycast address will not be used as source address of any of outgoing
+IPv6 packets.
+.It Cm arp
+Enable the use of the Address Resolution Protocol
+.Pq Xr arp 4
+in mapping
+between network level addresses and link level addresses (default).
+This is currently implemented for mapping between
+.Tn DARPA
+Internet
+addresses and
+.Tn IEEE
+802 48-bit MAC addresses (Ethernet, FDDI, and Token Ring addresses).
+.It Fl arp
+Disable the use of the Address Resolution Protocol
+.Pq Xr arp 4 .
+.It Cm staticarp
+If the Address Resolution Protocol is enabled,
+the host will only reply to requests for its addresses,
+and will never send any requests.
+.It Fl staticarp
+If the Address Resolution Protocol is enabled,
+the host will perform normally,
+sending out requests and listening for replies.
+.It Cm broadcast
+(Inet only.)
+Specify the address to use to represent broadcasts to the
+network.
+The default broadcast address is the address with a host part of all 1's.
+.It Cm debug
+Enable driver dependent debugging code; usually, this turns on
+extra console error logging.
+.It Fl debug
+Disable driver dependent debugging code.
+.It Cm promisc
+Put interface into permanently promiscuous mode.
+.It Fl promisc
+Disable permanently promiscuous mode.
+.It Cm delete
+Another name for the
+.Fl alias
+parameter.
+.It Cm description Ar value , Cm descr Ar value
+Specify a description of the interface.
+This can be used to label interfaces in situations where they may
+otherwise be difficult to distinguish.
+.It Cm -description , Cm -descr
+Clear the interface description.
+.It Cm down
+Mark an interface
+.Dq down .
+When an interface is marked
+.Dq down ,
+the system will not attempt to
+transmit messages through that interface.
+If possible, the interface will be reset to disable reception as well.
+This action does not automatically disable routes using the interface.
+.It Cm group Ar group-name
+Assign the interface to a
+.Dq group .
+Any interface can be in multiple groups.
+.Pp
+Cloned interfaces are members of their interface family group by default.
+For example, a PPP interface such as
+.Em ppp0
+is a member of the PPP interface family group,
+.Em ppp .
+.\" The interface(s) the default route(s) point to are members of the
+.\" .Em egress
+.\" interface group.
+.It Cm -group Ar group-name
+Remove the interface from the given
+.Dq group .
+.It Cm eui64
+(Inet6 only.)
+Fill interface index
+(lowermost 64bit of an IPv6 address)
+automatically.
+.It Cm fib Ar fib_number
+Specify interface FIB.
+A FIB
+.Ar fib_number
+is assigned to all frames or packets received on that interface.
+The FIB is not inherited, e.g., vlans or other sub-interfaces will use
+the default FIB (0) irrespective of the parent interface's FIB.
+The kernel needs to be tuned to support more than the default FIB
+using the
+.Va ROUTETABLES
+kernel configuration option, or the
+.Va net.fibs
+tunable.
+.It Cm tunnelfib Ar fib_number
+Specify tunnel FIB.
+A FIB
+.Ar fib_number
+is assigned to all packets encapsulated by tunnel interface, e.g.,
+.Xr gif 4
+and
+.Xr gre 4 .
+.It Cm maclabel Ar label
+If Mandatory Access Control support is enabled in the kernel,
+set the MAC label to
+.Ar label .
+.\" (see
+.\" .Xr maclabel 7 ) .
+.It Cm media Ar type
+If the driver supports the media selection system, set the media type
+of the interface to
+.Ar type .
+Some interfaces support the mutually exclusive use of one of several
+different physical media connectors.
+For example, a 10Mbit/s Ethernet
+interface might support the use of either
+.Tn AUI
+or twisted pair connectors.
+Setting the media type to
+.Cm 10base5/AUI
+would change the currently active connector to the AUI port.
+Setting it to
+.Cm 10baseT/UTP
+would activate twisted pair.
+Refer to the interfaces' driver
+specific documentation or man page for a complete list of the
+available types.
+.It Cm mediaopt Ar opts
+If the driver supports the media selection system, set the specified
+media options on the interface.
+The
+.Ar opts
+argument
+is a comma delimited list of options to apply to the interface.
+Refer to the interfaces' driver specific man page for a complete
+list of available options.
+.It Fl mediaopt Ar opts
+If the driver supports the media selection system, disable the
+specified media options on the interface.
+.It Cm mode Ar mode
+If the driver supports the media selection system, set the specified
+operating mode on the interface to
+.Ar mode .
+For IEEE 802.11 wireless interfaces that support multiple operating modes
+this directive is used to select between 802.11a
+.Pq Cm 11a ,
+802.11b
+.Pq Cm 11b ,
+and 802.11g
+.Pq Cm 11g
+operating modes.
+.It Cm txrtlmt
+Set if the driver supports TX rate limiting.
+.It Cm inst Ar minst , Cm instance Ar minst
+Set the media instance to
+.Ar minst .
+This is useful for devices which have multiple physical layer interfaces
+.Pq PHYs .
+.It Cm name Ar name
+Set the interface name to
+.Ar name .
+.It Cm rxcsum , txcsum , rxcsum6 , txcsum6
+If the driver supports user-configurable checksum offloading,
+enable receive (or transmit) checksum offloading on the interface.
+The feature can be turned on selectively per protocol family.
+Use
+.Cm rxcsum6 , txcsum6
+for
+.Xr ip6 4
+or
+.Cm rxcsum , txcsum
+otherwise.
+Some drivers may not be able to enable these flags independently
+of each other, so setting one may also set the other.
+The driver will offload as much checksum work as it can reliably
+support, the exact level of offloading varies between drivers.
+.It Fl rxcsum , txcsum , rxcsum6 , txcsum6
+If the driver supports user-configurable checksum offloading,
+disable receive (or transmit) checksum offloading on the interface.
+The feature can be turned off selectively per protocol family.
+Use
+.Fl rxcsum6 , txcsum6
+for
+.Xr ip6 4
+or
+.Fl rxcsum , txcsum
+otherwise.
+These settings may not always be independent of each other.
+.It Cm tso
+If the driver supports
+.Xr tcp 4
+segmentation offloading, enable TSO on the interface.
+Some drivers may not be able to support TSO for
+.Xr ip 4
+and
+.Xr ip6 4
+packets, so they may enable only one of them.
+.It Fl tso
+If the driver supports
+.Xr tcp 4
+segmentation offloading, disable TSO on the interface.
+It will always disable TSO for
+.Xr ip 4
+and
+.Xr ip6 4 .
+.It Cm tso6 , tso4
+If the driver supports
+.Xr tcp 4
+segmentation offloading for
+.Xr ip6 4
+or
+.Xr ip 4
+use one of these to selectively enabled it only for one protocol family.
+.It Fl tso6 , tso4
+If the driver supports
+.Xr tcp 4
+segmentation offloading for
+.Xr ip6 4
+or
+.Xr ip 4
+use one of these to selectively disable it only for one protocol family.
+.It Cm lro
+If the driver supports
+.Xr tcp 4
+large receive offloading, enable LRO on the interface.
+.It Fl lro
+If the driver supports
+.Xr tcp 4
+large receive offloading, disable LRO on the interface.
+.It Cm wol , wol_ucast , wol_mcast , wol_magic
+Enable Wake On Lan (WOL) support, if available.
+WOL is a facility whereby a machine in a low power state may be woken
+in response to a received packet.
+There are three types of packets that may wake a system:
+ucast (directed solely to the machine's mac address),
+mcast (directed to a broadcast or multicast address),
+or
+magic (unicast or multicast frames with a ``magic contents'').
+Not all devices support WOL, those that do indicate the mechanisms
+they support in their capabilities.
+.Cm wol
+is a synonym for enabling all available WOL mechanisms.
+To disable WOL use
+.Fl wol .
+.It Cm vlanmtu , vlanhwtag, vlanhwfilter, vlanhwcsum, vlanhwtso
+If the driver offers user-configurable VLAN support, enable
+reception of extended frames, tag processing in hardware,
+frame filtering in hardware, checksum offloading, or TSO on VLAN,
+respectively.
+Note that this must be issued on a physical interface associated with
+.Xr vlan 4 ,
+not on a
+.Xr vlan 4
+interface itself.
+.It Fl vlanmtu , vlanhwtag, vlanhwfilter, vlanhwtso
+If the driver offers user-configurable VLAN support, disable
+reception of extended frames, tag processing in hardware,
+frame filtering in hardware, or TSO on VLAN,
+respectively.
+.It Cm vnet Ar jail
+Move the interface to the
+.Xr jail 8 ,
+specified by name or JID.
+If the jail has a virtual network stack, the interface will disappear
+from the current environment and become visible to the jail.
+.It Fl vnet Ar jail
+Reclaim the interface from the
+.Xr jail 8 ,
+specified by name or JID.
+If the jail has a virtual network stack, the interface will disappear
+from the jail, and become visible to the current network environment.
+.It Cm polling
+Turn on
+.Xr polling 4
+feature and disable interrupts on the interface, if driver supports
+this mode.
+.It Fl polling
+Turn off
+.Xr polling 4
+feature and enable interrupt mode on the interface.
+.It Cm create
+Create the specified network pseudo-device.
+If the interface is given without a unit number, try to create a new
+device with an arbitrary unit number.
+If creation of an arbitrary device is successful, the new device name is
+printed to standard output unless the interface is renamed or destroyed
+in the same
+.Nm
+invocation.
+.It Cm destroy
+Destroy the specified network pseudo-device.
+.It Cm plumb
+Another name for the
+.Cm create
+parameter.
+Included for
+.Tn Solaris
+compatibility.
+.It Cm unplumb
+Another name for the
+.Cm destroy
+parameter.
+Included for
+.Tn Solaris
+compatibility.
+.It Cm metric Ar n
+Set the routing metric of the interface to
+.Ar n ,
+default 0.
+The routing metric is used by the routing protocol
+.Pq Xr routed 8 .
+Higher metrics have the effect of making a route
+less favorable; metrics are counted as additional hops
+to the destination network or host.
+.It Cm mtu Ar n
+Set the maximum transmission unit of the interface to
+.Ar n ,
+default is interface specific.
+The MTU is used to limit the size of packets that are transmitted on an
+interface.
+Not all interfaces support setting the MTU, and some interfaces have
+range restrictions.
+.It Cm netmask Ar mask
+.\" (Inet and ISO.)
+(Inet only.)
+Specify how much of the address to reserve for subdividing
+networks into sub-networks.
+The mask includes the network part of the local address
+and the subnet part, which is taken from the host field of the address.
+The mask can be specified as a single hexadecimal number
+with a leading
+.Ql 0x ,
+with a dot-notation Internet address,
+or with a pseudo-network name listed in the network table
+.Xr networks 5 .
+The mask contains 1's for the bit positions in the 32-bit address
+which are to be used for the network and subnet parts,
+and 0's for the host part.
+The mask should contain at least the standard network portion,
+and the subnet field should be contiguous with the network
+portion.
+.Pp
+The netmask can also be specified in CIDR notation after the address.
+See the
+.Ar address
+option above for more information.
+.It Cm prefixlen Ar len
+(Inet6 only.)
+Specify that
+.Ar len
+bits are reserved for subdividing networks into sub-networks.
+The
+.Ar len
+must be integer, and for syntactical reason it must be between 0 to 128.
+It is almost always 64 under the current IPv6 assignment rule.
+If the parameter is omitted, 64 is used.
+.Pp
+The prefix can also be specified using the slash notation after the address.
+See the
+.Ar address
+option above for more information.
+.It Cm remove
+Another name for the
+.Fl alias
+parameter.
+Introduced for compatibility
+with
+.Bsx .
+.Sm off
+.It Cm link Op Cm 0 No - Cm 2
+.Sm on
+Enable special processing of the link level of the interface.
+These three options are interface specific in actual effect, however,
+they are in general used to select special modes of operation.
+An example
+of this is to enable SLIP compression, or to select the connector type
+for some Ethernet cards.
+Refer to the man page for the specific driver
+for more information.
+.Sm off
+.It Fl link Op Cm 0 No - Cm 2
+.Sm on
+Disable special processing at the link level with the specified interface.
+.It Cm monitor
+Put the interface in monitor mode.
+No packets are transmitted, and received packets are discarded after
+.Xr bpf 4
+processing.
+.It Fl monitor
+Take the interface out of monitor mode.
+.It Cm up
+Mark an interface
+.Dq up .
+This may be used to enable an interface after an
+.Dq Nm Cm down .
+It happens automatically when setting the first address on an interface.
+If the interface was reset when previously marked down,
+the hardware will be re-initialized.
+.El
+.Pp
+The following parameters are for ICMPv6 Neighbor Discovery Protocol.
+Note that the address family keyword
+.Dq Li inet6
+is needed for them:
+.Bl -tag -width indent
+.It Cm accept_rtadv
+Set a flag to enable accepting ICMPv6 Router Advertisement messages.
+The
+.Xr sysctl 8
+variable
+.Va net.inet6.ip6.accept_rtadv
+controls whether this flag is set by default or not.
+.It Cm -accept_rtadv
+Clear a flag
+.Cm accept_rtadv .
+.It Cm no_radr
+Set a flag to control whether routers from which the system accepts
+Router Advertisement messages will be added to the Default Router List
+or not.
+When the
+.Cm accept_rtadv
+flag is disabled, this flag has no effect.
+The
+.Xr sysctl 8
+variable
+.Va net.inet6.ip6.no_radr
+controls whether this flag is set by default or not.
+.It Cm -no_radr
+Clear a flag
+.Cm no_radr .
+.It Cm auto_linklocal
+Set a flag to perform automatic link-local address configuration when
+the interface becomes available.
+The
+.Xr sysctl 8
+variable
+.Va net.inet6.ip6.auto_linklocal
+controls whether this flag is set by default or not.
+.It Cm -auto_linklocal
+Clear a flag
+.Cm auto_linklocal .
+.It Cm defaultif
+Set the specified interface as the default route when there is no
+default router.
+.It Cm -defaultif
+Clear a flag
+.Cm defaultif .
+.It Cm ifdisabled
+Set a flag to disable all of IPv6 network communications on the
+specified interface.
+Note that if there are already configured IPv6
+addresses on that interface, all of them are marked as
+.Dq tentative
+and DAD will be performed when this flag is cleared.
+.It Cm -ifdisabled
+Clear a flag
+.Cm ifdisabled .
+When this flag is cleared and
+.Cm auto_linklocal
+flag is enabled, automatic configuration of a link-local address is
+performed.
+.It Cm nud
+Set a flag to enable Neighbor Unreachability Detection.
+.It Cm -nud
+Clear a flag
+.Cm nud .
+.It Cm no_prefer_iface
+Set a flag to not honor rule 5 of source address selection in RFC 3484.
+In practice this means the address on the outgoing interface will not be
+preferred, effectively yielding the decision to the address selection
+policy table, configurable with
+.Xr ip6addrctl 8 .
+.It Cm -no_prefer_iface
+Clear a flag
+.Cm no_prefer_iface .
+.It Cm no_dad
+Set a flag to disable Duplicate Address Detection.
+.It Cm -no_dad
+Clear a flag
+.Cm no_dad .
+.El
+.Pp
+The following parameters are specific for IPv6 addresses.
+Note that the address family keyword
+.Dq Li inet6
+is needed for them:
+.Bl -tag -width indent
+.It Cm autoconf
+Set the IPv6 autoconfigured address bit.
+.It Fl autoconf
+Clear the IPv6 autoconfigured address bit.
+.It Cm deprecated
+Set the IPv6 deprecated address bit.
+.It Fl deprecated
+Clear the IPv6 deprecated address bit.
+.It Cm pltime Ar n
+Set preferred lifetime for the address.
+.It Cm prefer_source
+Set a flag to prefer address as a candidate of the source address for
+outgoing packets.
+.It Cm -prefer_source
+Clear a flag
+.Cm prefer_source .
+.It Cm vltime Ar n
+Set valid lifetime for the address.
+.El
+.Pp
+The following parameters are specific to cloning
+IEEE 802.11 wireless interfaces with the
+.Cm create
+request:
+.Bl -tag -width indent
+.It Cm wlandev Ar device
+Use
+.Ar device
+as the parent for the cloned device.
+.It Cm wlanmode Ar mode
+Specify the operating mode for this cloned device.
+.Ar mode
+is one of
+.Cm sta ,
+.Cm ahdemo
+(or
+.Cm adhoc-demo ) ,
+.Cm ibss ,
+(or
+.Cm adhoc ) ,
+.Cm ap ,
+(or
+.Cm hostap ) ,
+.Cm wds ,
+.Cm tdma ,
+.Cm mesh ,
+and
+.Cm monitor .
+The operating mode of a cloned interface cannot be changed.
+The
+.Cm tdma
+mode is actually implemented as an
+.Cm adhoc-demo
+interface with special properties.
+.It Cm wlanbssid Ar bssid
+The 802.11 mac address to use for the bssid.
+This must be specified at create time for a legacy
+.Cm wds
+device.
+.It Cm wlanaddr Ar address
+The local mac address.
+If this is not specified then a mac address will automatically be assigned
+to the cloned device.
+Typically this address is the same as the address of the parent device
+but if the
+.Cm bssid
+parameter is specified then the driver will craft a unique address for
+the device (if supported).
+.It Cm wdslegacy
+Mark a
+.Cm wds
+device as operating in ``legacy mode''.
+Legacy
+.Cm wds
+devices have a fixed peer relationship and do not, for example, roam
+if their peer stops communicating.
+For completeness a Dynamic WDS (DWDS) interface may marked as
+.Fl wdslegacy .
+.It Cm bssid
+Request a unique local mac address for the cloned device.
+This is only possible if the device supports multiple mac addresses.
+To force use of the parent's mac address use
+.Fl bssid .
+.It Cm beacons
+Mark the cloned interface as depending on hardware support to
+track received beacons.
+To have beacons tracked in software use
+.Fl beacons .
+For
+.Cm hostap
+mode
+.Fl beacons
+can also be used to indicate no beacons should
+be transmitted; this can be useful when creating a WDS configuration but
+.Cm wds
+interfaces can only be created as companions to an access point.
+.El
+.Pp
+The following parameters are specific to IEEE 802.11 wireless interfaces
+cloned with a
+.Cm create
+operation:
+.Bl -tag -width indent
+.It Cm ampdu
+Enable sending and receiving AMPDU frames when using 802.11n (default).
+The 802.11n specification states a compliant station must be capable
+of receiving AMPDU frames but transmission is optional.
+Use
+.Fl ampdu
+to disable all use of AMPDU with 802.11n.
+For testing and/or to work around interoperability problems one can use
+.Cm ampdutx
+and
+.Cm ampdurx
+to control use of AMPDU in one direction.
+.It Cm ampdudensity Ar density
+Set the AMPDU density parameter used when operating with 802.11n.
+This parameter controls the inter-packet gap for AMPDU frames.
+The sending device normally controls this setting but a receiving station
+may request wider gaps.
+Legal values for
+.Ar density
+are 0, .25, .5, 1, 2, 4, 8, and 16 (microseconds).
+A value of
+.Cm -
+is treated the same as 0.
+.It Cm ampdulimit Ar limit
+Set the limit on packet size for receiving AMPDU frames when operating
+with 802.11n.
+Legal values for
+.Ar limit
+are 8192, 16384, 32768, and 65536 but one can also specify
+just the unique prefix: 8, 16, 32, 64.
+Note the sender may limit the size of AMPDU frames to be less
+than the maximum specified by the receiving station.
+.It Cm amsdu
+Enable sending and receiving AMSDU frames when using 802.11n.
+By default AMSDU is received but not transmitted.
+Use
+.Fl amsdu
+to disable all use of AMSDU with 802.11n.
+For testing and/or to work around interoperability problems one can use
+.Cm amsdutx
+and
+.Cm amsdurx
+to control use of AMSDU in one direction.
+.It Cm amsdulimit Ar limit
+Set the limit on packet size for sending and receiving AMSDU frames
+when operating with 802.11n.
+Legal values for
+.Ar limit
+are 7935 and 3839 (bytes).
+Note the sender may limit the size of AMSDU frames to be less
+than the maximum specified by the receiving station.
+Note also that devices are not required to support the 7935 limit,
+only 3839 is required by the specification and the larger value
+may require more memory to be dedicated to support functionality
+that is rarely used.
+.It Cm apbridge
+When operating as an access point, pass packets between
+wireless clients directly (default).
+To instead let them pass up through the
+system and be forwarded using some other mechanism, use
+.Fl apbridge .
+Disabling the internal bridging
+is useful when traffic is to be processed with
+packet filtering.
+.It Cm authmode Ar mode
+Set the desired authentication mode in infrastructure mode.
+Not all adapters support all modes.
+The set of
+valid modes is
+.Cm none , open , shared
+(shared key),
+.Cm 8021x
+(IEEE 802.1x),
+and
+.Cm wpa
+(IEEE WPA/WPA2/802.11i).
+The
+.Cm 8021x
+and
+.Cm wpa
+modes are only useful when using an authentication service
+(a supplicant for client operation or an authenticator when
+operating as an access point).
+Modes are case insensitive.
+.It Cm bgscan
+Enable background scanning when operating as a station.
+Background scanning is a technique whereby a station associated to
+an access point will temporarily leave the channel to scan for
+neighboring stations.
+This allows a station to maintain a cache of nearby access points
+so that roaming between access points can be done without
+a lengthy scan operation.
+Background scanning is done only when a station is not busy and
+any outbound traffic will cancel a scan operation.
+Background scanning should never cause packets to be lost though
+there may be some small latency if outbound traffic interrupts a
+scan operation.
+By default background scanning is enabled if the device is capable.
+To disable background scanning, use
+.Fl bgscan .
+Background scanning is controlled by the
+.Cm bgscanidle
+and
+.Cm bgscanintvl
+parameters.
+Background scanning must be enabled for roaming; this is an artifact
+of the current implementation and may not be required in the future.
+.It Cm bgscanidle Ar idletime
+Set the minimum time a station must be idle (not transmitting or
+receiving frames) before a background scan is initiated.
+The
+.Ar idletime
+parameter is specified in milliseconds.
+By default a station must be idle at least 250 milliseconds before
+a background scan is initiated.
+The idle time may not be set to less than 100 milliseconds.
+.It Cm bgscanintvl Ar interval
+Set the interval at which background scanning is attempted.
+The
+.Ar interval
+parameter is specified in seconds.
+By default a background scan is considered every 300 seconds (5 minutes).
+The
+.Ar interval
+may not be set to less than 15 seconds.
+.It Cm bintval Ar interval
+Set the interval at which beacon frames are sent when operating in
+ad-hoc or ap mode.
+The
+.Ar interval
+parameter is specified in TU's (1024 usecs).
+By default beacon frames are transmitted every 100 TU's.
+.It Cm bmissthreshold Ar count
+Set the number of consecutive missed beacons at which the station
+will attempt to roam (i.e., search for a new access point).
+The
+.Ar count
+parameter must be in the range 1 to 255; though the
+upper bound may be reduced according to device capabilities.
+The default threshold is 7 consecutive missed beacons; but
+this may be overridden by the device driver.
+Another name for the
+.Cm bmissthreshold
+parameter is
+.Cm bmiss .
+.It Cm bssid Ar address
+Specify the MAC address of the access point to use when operating
+as a station in a BSS network.
+This overrides any automatic selection done by the system.
+To disable a previously selected access point, supply
+.Cm any , none ,
+or
+.Cm -
+for the address.
+This option is useful when more than one access point uses the same SSID.
+Another name for the
+.Cm bssid
+parameter is
+.Cm ap .
+.It Cm burst
+Enable packet bursting.
+Packet bursting is a transmission technique whereby the wireless
+medium is acquired once to send multiple frames and the interframe
+spacing is reduced.
+This technique can significantly increase throughput by reducing
+transmission overhead.
+Packet bursting is supported by the 802.11e QoS specification
+and some devices that do not support QoS may still be capable.
+By default packet bursting is enabled if a device is capable
+of doing it.
+To disable packet bursting, use
+.Fl burst .
+.It Cm chanlist Ar channels
+Set the desired channels to use when scanning for access
+points, neighbors in an IBSS network, or looking for unoccupied
+channels when operating as an access point.
+The set of channels is specified as a comma-separated list with
+each element in the list representing either a single channel number or a range
+of the form
+.Dq Li a-b .
+Channel numbers must be in the range 1 to 255 and be permissible
+according to the operating characteristics of the device.
+.It Cm channel Ar number
+Set a single desired channel.
+Channels range from 1 to 255, but the exact selection available
+depends on the region your adaptor was manufactured for.
+Setting
+the channel to
+.Li any ,
+or
+.Cm -
+will clear any desired channel and, if the device is marked up,
+force a scan for a channel to operate on.
+Alternatively the frequency, in megahertz, may be specified
+instead of the channel number.
+.Pp
+When there are several ways to use a channel the channel
+number/frequency may be appended with attributes to clarify.
+For example, if a device is capable of operating on channel 6
+with 802.11n and 802.11g then one can specify that g-only use
+should be used by specifying ``6:g''.
+Similarly the channel width can be specified by appending it
+with ``/''; e.g., ``6/40'' specifies a 40MHz wide channel,
+These attributes can be combined as in: ``6:ht/40''.
+The full set of flags specified following a ``:'' are:
+.Cm a
+(802.11a),
+.Cm b
+(802.11b),
+.Cm d
+(Atheros Dynamic Turbo mode),
+.Cm g
+(802.11g),
+.Cm h
+or
+.Cm n
+(802.11n aka HT),
+.Cm s
+(Atheros Static Turbo mode),
+and
+.Cm t
+(Atheros Dynamic Turbo mode, or appended to ``st'' and ``dt'').
+The full set of channel widths following a '/' are:
+.Cm 5
+(5MHz aka quarter-rate channel),
+.Cm 10
+(10MHz aka half-rate channel),
+.Cm 20
+(20MHz mostly for use in specifying ht20),
+and
+.Cm 40
+(40MHz mostly for use in specifying ht40).
+In addition,
+a 40MHz HT channel specification may include the location
+of the extension channel by appending ``+'' or ``-'' for above and below,
+respectively; e.g., ``2437:ht/40+'' specifies 40MHz wide HT operation
+with the center channel at frequency 2437 and the extension channel above.
+.It Cm country Ar name
+Set the country code to use in calculating the regulatory constraints
+for operation.
+In particular the set of available channels, how the wireless device
+will operation on the channels, and the maximum transmit power that
+can be used on a channel are defined by this setting.
+Country/Region codes are specified as a 2-character abbreviation
+defined by ISO 3166 or using a longer, but possibly ambiguous, spelling;
+e.g., "ES" and "Spain".
+The set of country codes are taken from
+.Pa /etc/regdomain.xml
+and can also
+be viewed with the ``list countries'' request.
+Note that not all devices support changing the country code from a default
+setting; typically stored in EEPROM.
+See also
+.Cm regdomain ,
+.Cm indoor ,
+.Cm outdoor ,
+and
+.Cm anywhere .
+.It Cm dfs
+Enable Dynamic Frequency Selection (DFS) as specified in 802.11h.
+DFS embodies several facilities including detection of overlapping
+radar signals, dynamic transmit power control, and channel selection
+according to a least-congested criteria.
+DFS support is mandatory for some 5GHz frequencies in certain
+locales (e.g., ETSI).
+By default DFS is enabled according to the regulatory definitions
+specified in
+.Pa /etc/regdomain.xml
+and the current country code, regdomain,
+and channel.
+Note the underlying device (and driver) must support radar detection
+for full DFS support to work.
+To be fully compliant with the local regulatory agency frequencies that
+require DFS should not be used unless it is fully supported.
+Use
+.Fl dfs
+to disable this functionality for testing.
+.It Cm dotd
+Enable support for the 802.11d specification (default).
+When this support is enabled in station mode, beacon frames that advertise
+a country code different than the currently configured country code will
+cause an event to be dispatched to user applications.
+This event can be used by the station to adopt that country code and
+operate according to the associated regulatory constraints.
+When operating as an access point with 802.11d enabled the beacon and
+probe response frames transmitted will advertise the current regulatory
+domain settings.
+To disable 802.11d use
+.Fl dotd .
+.It Cm doth
+Enable 802.11h support including spectrum management.
+When 802.11h is enabled beacon and probe response frames will have
+the SpectrumMgt bit set in the capabilities field and
+country and power constraint information elements will be present.
+802.11h support also includes handling Channel Switch Announcements (CSA)
+which are a mechanism to coordinate channel changes by an access point.
+By default 802.11h is enabled if the device is capable.
+To disable 802.11h use
+.Fl doth .
+.It Cm deftxkey Ar index
+Set the default key to use for transmission.
+Typically this is only set when using WEP encryption.
+Note that you must set a default transmit key
+for the system to know which key to use in encrypting outbound traffic.
+The
+.Cm weptxkey
+is an alias for this request; it is provided for backwards compatibility.
+.It Cm dtimperiod Ar period
+Set the
+DTIM
+period for transmitting buffered multicast data frames when
+operating in ap mode.
+The
+.Ar period
+specifies the number of beacon intervals between DTIM
+and must be in the range 1 to 15.
+By default DTIM is 1 (i.e., DTIM occurs at each beacon).
+.It Cm quiet
+Enable the use of quiet IE.
+Hostap will use this to silence other
+stations to reduce interference for radar detection when
+operating on 5GHz frequency and doth support is enabled.
+Use
+.Fl quiet
+to disable this functionality.
+.It Cm quiet_period Ar period
+Set the QUIET
+.Ar period
+to the number of beacon intervals between the start of regularly
+scheduled quiet intervals defined by Quiet element.
+.It Cm quiet_count Ar count
+Set the QUIET
+.Ar count
+to the number of TBTTs until the beacon interval during which the
+next quiet interval shall start.
+A value of 1 indicates the quiet
+interval will start during the beacon interval starting at the next
+TBTT.
+A value 0 is reserved.
+.It Cm quiet_offset Ar offset
+Set the QUIET
+.Ar offset
+to the offset of the start of the quiet interval from the TBTT
+specified by the Quiet count, expressed in TUs.
+The value of the
+.Ar offset
+shall be less than one beacon interval.
+.It Cm quiet_duration Ar dur
+Set the QUIET
+.Ar dur
+to the duration of the Quiet interval, expressed in TUs.
+The value should be less than beacon interval.
+.It Cm dturbo
+Enable the use of Atheros Dynamic Turbo mode when communicating with
+another Dynamic Turbo-capable station.
+Dynamic Turbo mode is an Atheros-specific mechanism by which
+stations switch between normal 802.11 operation and a ``boosted''
+mode in which a 40MHz wide channel is used for communication.
+Stations using Dynamic Turbo mode operate boosted only when the
+channel is free of non-dturbo stations; when a non-dturbo station
+is identified on the channel all stations will automatically drop
+back to normal operation.
+By default, Dynamic Turbo mode is not enabled, even if the device is capable.
+Note that turbo mode (dynamic or static) is only allowed on some
+channels depending on the regulatory constraints; use the
+.Cm list chan
+command to identify the channels where turbo mode may be used.
+To disable Dynamic Turbo mode use
+.Fl dturbo .
+.It Cm dwds
+Enable Dynamic WDS (DWDS) support.
+DWDS is a facility by which 4-address traffic can be carried between
+stations operating in infrastructure mode.
+A station first associates to an access point and authenticates using
+normal procedures (e.g., WPA).
+Then 4-address frames are passed to carry traffic for stations
+operating on either side of the wireless link.
+DWDS extends the normal WDS mechanism by leveraging existing security
+protocols and eliminating static binding.
+.Pp
+When DWDS is enabled on an access point 4-address frames received from
+an authorized station will generate a ``DWDS discovery'' event to user
+applications.
+This event should be used to create a WDS interface that is bound
+to the remote station (and usually plumbed into a bridge).
+Once the WDS interface is up and running 4-address traffic then logically
+flows through that interface.
+.Pp
+When DWDS is enabled on a station, traffic with a destination address
+different from the peer station are encapsulated in a 4-address frame
+and transmitted to the peer.
+All 4-address traffic uses the security information of the stations
+(e.g., cryptographic keys).
+A station is associated using 802.11n facilities may transport
+4-address traffic using these same mechanisms; this depends on available
+resources and capabilities of the device.
+The DWDS implementation guards against layer 2 routing loops of
+multicast traffic.
+.It Cm ff
+Enable the use of Atheros Fast Frames when communicating with
+another Fast Frames-capable station.
+Fast Frames are an encapsulation technique by which two 802.3
+frames are transmitted in a single 802.11 frame.
+This can noticeably improve throughput but requires that the
+receiving station understand how to decapsulate the frame.
+Fast frame use is negotiated using the Atheros 802.11 vendor-specific
+protocol extension so enabling use is safe when communicating with
+non-Atheros devices.
+By default, use of fast frames is enabled if the device is capable.
+To explicitly disable fast frames, use
+.Fl ff .
+.It Cm fragthreshold Ar length
+Set the threshold for which transmitted frames are broken into fragments.
+The
+.Ar length
+argument is the frame size in bytes and must be in the range 256 to 2346.
+Setting
+.Ar length
+to
+.Li 2346 ,
+.Cm any ,
+or
+.Cm -
+disables transmit fragmentation.
+Not all adapters honor the fragmentation threshold.
+.It Cm hidessid
+When operating as an access point, do not broadcast the SSID
+in beacon frames or respond to probe request frames unless
+they are directed to the ap (i.e., they include the ap's SSID).
+By default, the SSID is included in beacon frames and
+undirected probe request frames are answered.
+To re-enable the broadcast of the SSID etc., use
+.Fl hidessid .
+.It Cm ht
+Enable use of High Throughput (HT) when using 802.11n (default).
+The 802.11n specification includes mechanisms for operation
+on 20MHz and 40MHz wide channels using different signalling mechanisms
+than specified in 802.11b, 802.11g, and 802.11a.
+Stations negotiate use of these facilities, termed HT20 and HT40,
+when they associate.
+To disable all use of 802.11n use
+.Fl ht .
+To disable use of HT20 (e.g., to force only HT40 use) use
+.Fl ht20 .
+To disable use of HT40 use
+.Fl ht40 .
+.Pp
+HT configuration is used to ``auto promote'' operation
+when several choices are available.
+For example, if a station associates to an 11n-capable access point
+it controls whether the station uses legacy operation, HT20, or HT40.
+When an 11n-capable device is setup as an access point and
+Auto Channel Selection is used to locate a channel to operate on,
+HT configuration controls whether legacy, HT20, or HT40 operation is setup
+on the selected channel.
+If a fixed channel is specified for a station then HT configuration can
+be given as part of the channel specification; e.g., 6:ht/20 to setup
+HT20 operation on channel 6.
+.It Cm htcompat
+Enable use of compatibility support for pre-802.11n devices (default).
+The 802.11n protocol specification went through several incompatible iterations.
+Some vendors implemented 11n support to older specifications that
+will not interoperate with a purely 11n-compliant station.
+In particular the information elements included in management frames
+for old devices are different.
+When compatibility support is enabled both standard and compatible data
+will be provided.
+Stations that associate using the compatibility mechanisms are flagged
+in ``list sta''.
+To disable compatibility support use
+.Fl htcompat .
+.It Cm htprotmode Ar technique
+For interfaces operating in 802.11n, use the specified
+.Ar technique
+for protecting HT frames in a mixed legacy/HT network.
+The set of valid techniques is
+.Cm off ,
+and
+.Cm rts
+(RTS/CTS, default).
+Technique names are case insensitive.
+.It Cm inact
+Enable inactivity processing for stations associated to an
+access point (default).
+When operating as an access point the 802.11 layer monitors
+the activity of each associated station.
+When a station is inactive for 5 minutes it will send several
+``probe frames'' to see if the station is still present.
+If no response is received then the station is deauthenticated.
+Applications that prefer to handle this work can disable this
+facility by using
+.Fl inact .
+.It Cm indoor
+Set the location to use in calculating regulatory constraints.
+The location is also advertised in beacon and probe response frames
+when 802.11d is enabled with
+.Cm dotd .
+See also
+.Cm outdoor ,
+.Cm anywhere ,
+.Cm country ,
+and
+.Cm regdomain .
+.It Cm list active
+Display the list of channels available for use taking into account
+any restrictions set with the
+.Cm chanlist
+directive.
+See the description of
+.Cm list chan
+for more information.
+.It Cm list caps
+Display the adaptor's capabilities, including the operating
+modes supported.
+.It Cm list chan
+Display the list of channels available for use.
+Channels are shown with their IEEE channel number, equivalent
+frequency, and usage modes.
+Channels identified as
+.Ql 11g
+are also usable in
+.Ql 11b
+mode.
+Channels identified as
+.Ql 11a Turbo
+may be used only for Atheros' Static Turbo mode
+(specified with
+. Cm mediaopt turbo ) .
+Channels marked with a
+.Ql *
+have a regulatory constraint that they be passively scanned.
+This means a station is not permitted to transmit on the channel until
+it identifies the channel is being used for 802.11 communication;
+typically by hearing a beacon frame from an access point operating
+on the channel.
+.Cm list freq
+is another way of requesting this information.
+By default a compacted list of channels is displayed; if the
+.Fl v
+option is specified then all channels are shown.
+.It Cm list countries
+Display the set of country codes and regulatory domains that can be
+used in regulatory configuration.
+.It Cm list mac
+Display the current MAC Access Control List state.
+Each address is prefixed with a character that indicates the
+current policy applied to it:
+.Ql +
+indicates the address is allowed access,
+.Ql -
+indicates the address is denied access,
+.Ql *
+indicates the address is present but the current policy open
+(so the ACL is not consulted).
+.It Cm list mesh
+Displays the mesh routing table, used for forwarding packets on a mesh
+network.
+.It Cm list regdomain
+Display the current regulatory settings including the available channels
+and transmit power caps.
+.It Cm list roam
+Display the parameters that govern roaming operation.
+.It Cm list txparam
+Display the parameters that govern transmit operation.
+.It Cm list txpower
+Display the transmit power caps for each channel.
+.It Cm list scan
+Display the access points and/or ad-hoc neighbors
+located in the vicinity.
+This information may be updated automatically by the adapter
+with a
+.Cm scan
+request or through background scanning.
+Depending on the capabilities of the stations the following
+flags can be included in the output:
+.Bl -tag -width 3n
+.It Li A
+Authorized.
+Indicates that the station is permitted to send/receive data frames.
+.It Li E
+Extended Rate Phy (ERP).
+Indicates that the station is operating in an 802.11g network
+using extended transmit rates.
+.It Li H
+High Throughput (HT).
+Indicates that the station is using HT transmit rates.
+If a `+' follows immediately after then the station associated
+using deprecated mechanisms supported only when
+.Cm htcompat
+is enabled.
+.It Li P
+Power Save.
+Indicates that the station is operating in power save mode.
+.It Li Q
+Quality of Service (QoS).
+Indicates that the station is using QoS encapsulation for
+data frame.
+QoS encapsulation is enabled only when WME mode is enabled.
+.It Li S
+Short Preamble.
+Indicates that the station is doing short preamble to optionally
+improve throughput performance with 802.11g and 802.11b.
+.It Li T
+Transitional Security Network (TSN).
+Indicates that the station associated using TSN; see also
+.Cm tsn
+below.
+.It Li W
+Wi-Fi Protected Setup (WPS).
+Indicates that the station associated using WPS.
+.El
+.Pp
+By default interesting information elements captured from the neighboring
+stations are displayed at the end of each row.
+Possible elements include:
+.Cm WME
+(station supports WME),
+.Cm WPA
+(station supports WPA),
+.Cm WPS
+(station supports WPS),
+.Cm RSN
+(station supports 802.11i/RSN),
+.Cm HTCAP
+(station supports 802.11n/HT communication),
+.Cm ATH
+(station supports Atheros protocol extensions),
+.Cm VEN
+(station supports unknown vendor-specific extensions).
+If the
+.Fl v
+flag is used all the information elements and their
+contents will be shown.
+Specifying the
+.Fl v
+flag also enables display of long SSIDs.
+The
+.Cm list ap
+command is another way of requesting this information.
+.It Cm list sta
+When operating as an access point display the stations that are
+currently associated.
+When operating in ad-hoc mode display stations identified as
+neighbors in the IBSS.
+When operating in mesh mode display stations identified as
+neighbors in the MBSS.
+When operating in station mode display the access point.
+Capabilities advertised by the stations are described under
+the
+.Cm scan
+request.
+Depending on the capabilities of the stations the following
+flags can be included in the output:
+.Bl -tag -width 3n
+.It Li A
+Authorized.
+Indicates that the station is permitted to send/receive data frames.
+.It Li E
+Extended Rate Phy (ERP).
+Indicates that the station is operating in an 802.11g network
+using extended transmit rates.
+.It Li H
+High Throughput (HT).
+Indicates that the station is using HT transmit rates.
+If a `+' follows immediately after then the station associated
+using deprecated mechanisms supported only when
+.Cm htcompat
+is enabled.
+.It Li P
+Power Save.
+Indicates that the station is operating in power save mode.
+.It Li Q
+Quality of Service (QoS).
+Indicates that the station is using QoS encapsulation for
+data frame.
+QoS encapsulation is enabled only when WME mode is enabled.
+.It Li S
+Short Preamble.
+Indicates that the station is doing short preamble to optionally
+improve throughput performance with 802.11g and 802.11b.
+.It Li T
+Transitional Security Network (TSN).
+Indicates that the station associated using TSN; see also
+.Cm tsn
+below.
+.It Li W
+Wi-Fi Protected Setup (WPS).
+Indicates that the station associated using WPS.
+.El
+.Pp
+By default information elements received from associated stations
+are displayed in a short form; the
+.Fl v
+flag causes this information to be displayed symbolically.
+.It Cm list wme
+Display the current channel parameters to use when operating in WME mode.
+If the
+.Fl v
+option is specified then both channel and BSS parameters are displayed
+for each AC (first channel, then BSS).
+When WME mode is enabled for an adaptor this information will be
+displayed with the regular status; this command is mostly useful
+for examining parameters when WME mode is disabled.
+See the description of the
+.Cm wme
+directive for information on the various parameters.
+.It Cm maxretry Ar count
+Set the maximum number of tries to use in sending unicast frames.
+The default setting is 6 but drivers may override this with a value
+they choose.
+.It Cm mcastrate Ar rate
+Set the rate for transmitting multicast/broadcast frames.
+Rates are specified as megabits/second in decimal; e.g.,\& 5.5 for 5.5 Mb/s.
+This rate should be valid for the current operating conditions;
+if an invalid rate is specified drivers are free to chose an
+appropriate rate.
+.It Cm mgtrate Ar rate
+Set the rate for transmitting management and/or control frames.
+Rates are specified as megabits/second in decimal; e.g.,\& 5.5 for 5.5 Mb/s.
+.It Cm outdoor
+Set the location to use in calculating regulatory constraints.
+The location is also advertised in beacon and probe response frames
+when 802.11d is enabled with
+.Cm dotd .
+See also
+.Cm anywhere ,
+.Cm country ,
+.Cm indoor ,
+and
+.Cm regdomain .
+.It Cm powersave
+Enable powersave operation.
+When operating as a client, the station will conserve power by
+periodically turning off the radio and listening for
+messages from the access point telling it there are packets waiting.
+The station must then retrieve the packets.
+Not all devices support power save operation as a client.
+The 802.11 specification requires that all access points support
+power save but some drivers do not.
+Use
+.Fl powersave
+to disable powersave operation when operating as a client.
+.It Cm powersavesleep Ar sleep
+Set the desired max powersave sleep time in TU's (1024 usecs).
+By default the max powersave sleep time is 100 TU's.
+.It Cm protmode Ar technique
+For interfaces operating in 802.11g, use the specified
+.Ar technique
+for protecting OFDM frames in a mixed 11b/11g network.
+The set of valid techniques is
+.Cm off , cts
+(CTS to self),
+and
+.Cm rtscts
+(RTS/CTS).
+Technique names are case insensitive.
+Not all devices support
+.Cm cts
+as a protection technique.
+.It Cm pureg
+When operating as an access point in 802.11g mode allow only
+11g-capable stations to associate (11b-only stations are not
+permitted to associate).
+To allow both 11g and 11b-only stations to associate, use
+.Fl pureg .
+.It Cm puren
+When operating as an access point in 802.11n mode allow only
+HT-capable stations to associate (legacy stations are not
+permitted to associate).
+To allow both HT and legacy stations to associate, use
+.Fl puren .
+.It Cm regdomain Ar sku
+Set the regulatory domain to use in calculating the regulatory constraints
+for operation.
+In particular the set of available channels, how the wireless device
+will operation on the channels, and the maximum transmit power that
+can be used on a channel are defined by this setting.
+Regdomain codes (SKU's) are taken from
+.Pa /etc/regdomain.xml
+and can also
+be viewed with the ``list countries'' request.
+Note that not all devices support changing the regdomain from a default
+setting; typically stored in EEPROM.
+See also
+.Cm country ,
+.Cm indoor ,
+.Cm outdoor ,
+and
+.Cm anywhere .
+.It Cm rifs
+Enable use of Reduced InterFrame Spacing (RIFS) when operating in 802.11n
+on an HT channel.
+Note that RIFS must be supported by both the station and access point
+for it to be used.
+To disable RIFS use
+.Fl rifs .
+.It Cm roam:rate Ar rate
+Set the threshold for controlling roaming when operating in a BSS.
+The
+.Ar rate
+parameter specifies the transmit rate in megabits
+at which roaming should be considered.
+If the current transmit rate drops below this setting and background scanning
+is enabled, then the system will check if a more desirable access point is
+available and switch over to it.
+The current scan cache contents are used if they are considered
+valid according to the
+.Cm scanvalid
+parameter; otherwise a background scan operation is triggered before
+any selection occurs.
+Each channel type has a separate rate threshold; the default values are:
+12 Mb/s (11a), 2 Mb/s (11b), 2 Mb/s (11g), MCS 1 (11na, 11ng).
+.It Cm roam:rssi Ar rssi
+Set the threshold for controlling roaming when operating in a BSS.
+The
+.Ar rssi
+parameter specifies the receive signal strength in dBm units
+at which roaming should be considered.
+If the current rssi drops below this setting and background scanning
+is enabled, then the system will check if a more desirable access point is
+available and switch over to it.
+The current scan cache contents are used if they are considered
+valid according to the
+.Cm scanvalid
+parameter; otherwise a background scan operation is triggered before
+any selection occurs.
+Each channel type has a separate rssi threshold; the default values are
+all 7 dBm.
+.It Cm roaming Ar mode
+When operating as a station, control how the system will
+behave when communication with the current access point
+is broken.
+The
+.Ar mode
+argument may be one of
+.Cm device
+(leave it to the hardware device to decide),
+.Cm auto
+(handle either in the device or the operating system\[em]as appropriate),
+.Cm manual
+(do nothing until explicitly instructed).
+By default, the device is left to handle this if it is
+capable; otherwise, the operating system will automatically
+attempt to reestablish communication.
+Manual mode is used by applications such as
+.Xr wpa_supplicant 8
+that want to control the selection of an access point.
+.It Cm rtsthreshold Ar length
+Set the threshold for which
+transmitted frames are preceded by transmission of an
+RTS
+control frame.
+The
+.Ar length
+argument
+is the frame size in bytes and must be in the range 1 to 2346.
+Setting
+.Ar length
+to
+.Li 2346 ,
+.Cm any ,
+or
+.Cm -
+disables transmission of RTS frames.
+Not all adapters support setting the RTS threshold.
+.It Cm scan
+Initiate a scan of neighboring stations, wait for it to complete, and
+display all stations found.
+Only the super-user can initiate a scan.
+See
+.Cm list scan
+for information on the display.
+By default a background scan is done; otherwise a foreground
+scan is done and the station may roam to a different access point.
+The
+.Cm list scan
+request can be used to show recent scan results without
+initiating a new scan.
+.It Cm scanvalid Ar threshold
+Set the maximum time the scan cache contents are considered valid;
+i.e., will be used without first triggering a scan operation to
+refresh the data.
+The
+.Ar threshold
+parameter is specified in seconds and defaults to 60 seconds.
+The minimum setting for
+.Ar threshold
+is 10 seconds.
+One should take care setting this threshold; if it is set too low
+then attempts to roam to another access point may trigger unnecessary
+background scan operations.
+.It Cm shortgi
+Enable use of Short Guard Interval when operating in 802.11n
+on an HT channel.
+NB: this currently enables Short GI on both HT40 and HT20 channels.
+To disable Short GI use
+.Fl shortgi .
+.It Cm smps
+Enable use of Static Spatial Multiplexing Power Save (SMPS)
+when operating in 802.11n.
+A station operating with Static SMPS maintains only a single
+receive chain active (this can significantly reduce power consumption).
+To disable SMPS use
+.Fl smps .
+.It Cm smpsdyn
+Enable use of Dynamic Spatial Multiplexing Power Save (SMPS)
+when operating in 802.11n.
+A station operating with Dynamic SMPS maintains only a single
+receive chain active but switches to multiple receive chains when it
+receives an RTS frame (this can significantly reduce power consumption).
+Note that stations cannot distinguish between RTS/CTS intended to
+enable multiple receive chains and those used for other purposes.
+To disable SMPS use
+.Fl smps .
+.It Cm ssid Ar ssid
+Set the desired Service Set Identifier (aka network name).
+The SSID is a string up to 32 characters
+in length and may be specified as either a normal string or in
+hexadecimal when preceded by
+.Ql 0x .
+Additionally, the SSID may be cleared by setting it to
+.Ql - .
+.It Cm tdmaslot Ar slot
+When operating with TDMA, use the specified
+.Ar slot
+configuration.
+The
+.Ar slot
+is a number between 0 and the maximum number of slots in the BSS.
+Note that a station configured as slot 0 is a master and
+will broadcast beacon frames advertising the BSS;
+stations configured to use other slots will always
+scan to locate a master before they ever transmit.
+By default
+.Cm tdmaslot
+is set to 1.
+.It Cm tdmaslotcnt Ar cnt
+When operating with TDMA, setup a BSS with
+.Ar cnt
+slots.
+The slot count may be at most 8.
+The current implementation is only tested with two stations
+(i.e., point to point applications).
+This setting is only meaningful when a station is configured as slot 0;
+other stations adopt this setting from the BSS they join.
+By default
+.Cm tdmaslotcnt
+is set to 2.
+.It Cm tdmaslotlen Ar len
+When operating with TDMA, setup a BSS such that each station has a slot
+.Ar len
+microseconds long.
+The slot length must be at least 150 microseconds (1/8 TU)
+and no more than 65 milliseconds.
+Note that setting too small a slot length may result in poor channel
+bandwidth utilization due to factors such as timer granularity and
+guard time.
+This setting is only meaningful when a station is configured as slot 0;
+other stations adopt this setting from the BSS they join.
+By default
+.Cm tdmaslotlen
+is set to 10 milliseconds.
+.It Cm tdmabintval Ar intval
+When operating with TDMA, setup a BSS such that beacons are transmitted every
+.Ar intval
+superframes to synchronize the TDMA slot timing.
+A superframe is defined as the number of slots times the slot length; e.g.,
+a BSS with two slots of 10 milliseconds has a 20 millisecond superframe.
+The beacon interval may not be zero.
+A lower setting of
+.Cm tdmabintval
+causes the timers to be resynchronized more often; this can be help if
+significant timer drift is observed.
+By default
+.Cm tdmabintval
+is set to 5.
+.It Cm tsn
+When operating as an access point with WPA/802.11i allow legacy
+stations to associate using static key WEP and open authentication.
+To disallow legacy station use of WEP, use
+.Fl tsn .
+.It Cm txpower Ar power
+Set the power used to transmit frames.
+The
+.Ar power
+argument is specified in .5 dBm units.
+Out of range values are truncated.
+Typically only a few discreet power settings are available and
+the driver will use the setting closest to the specified value.
+Not all adapters support changing the transmit power.
+.It Cm ucastrate Ar rate
+Set a fixed rate for transmitting unicast frames.
+Rates are specified as megabits/second in decimal; e.g.,\& 5.5 for 5.5 Mb/s.
+This rate should be valid for the current operating conditions;
+if an invalid rate is specified drivers are free to chose an
+appropriate rate.
+.It Cm wepmode Ar mode
+Set the desired WEP mode.
+Not all adapters support all modes.
+The set of valid modes is
+.Cm off , on ,
+and
+.Cm mixed .
+The
+.Cm mixed
+mode explicitly tells the adaptor to allow association with access
+points which allow both encrypted and unencrypted traffic.
+On these adapters,
+.Cm on
+means that the access point must only allow encrypted connections.
+On other adapters,
+.Cm on
+is generally another name for
+.Cm mixed .
+Modes are case insensitive.
+.It Cm weptxkey Ar index
+Set the WEP key to be used for transmission.
+This is the same as setting the default transmission key with
+.Cm deftxkey .
+.It Cm wepkey Ar key Ns | Ns Ar index : Ns Ar key
+Set the selected WEP key.
+If an
+.Ar index
+is not given, key 1 is set.
+A WEP key will be either 5 or 13
+characters (40 or 104 bits) depending on the local network and the
+capabilities of the adaptor.
+It may be specified either as a plain
+string or as a string of hexadecimal digits preceded by
+.Ql 0x .
+For maximum portability, hex keys are recommended;
+the mapping of text keys to WEP encryption is usually driver-specific.
+In particular, the
+.Tn Windows
+drivers do this mapping differently to
+.Fx .
+A key may be cleared by setting it to
+.Ql - .
+If WEP is supported then there are at least four keys.
+Some adapters support more than four keys.
+If that is the case, then the first four keys
+(1-4) will be the standard temporary keys and any others will be adaptor
+specific keys such as permanent keys stored in NVRAM.
+.Pp
+Note that you must set a default transmit key with
+.Cm deftxkey
+for the system to know which key to use in encrypting outbound traffic.
+.It Cm wme
+Enable Wireless Multimedia Extensions (WME) support, if available,
+for the specified interface.
+WME is a subset of the IEEE 802.11e standard to support the
+efficient communication of realtime and multimedia data.
+To disable WME support, use
+.Fl wme .
+Another name for this parameter is
+.Cm wmm .
+.Pp
+The following parameters are meaningful only when WME support is in use.
+Parameters are specified per-AC (Access Category) and
+split into those that are used by a station when acting
+as an access point and those for client stations in the BSS.
+The latter are received from the access point and may not be changed
+(at the station).
+The following Access Categories are recognized:
+.Pp
+.Bl -tag -width ".Cm AC_BK" -compact
+.It Cm AC_BE
+(or
+.Cm BE )
+best effort delivery,
+.It Cm AC_BK
+(or
+.Cm BK )
+background traffic,
+.It Cm AC_VI
+(or
+.Cm VI )
+video traffic,
+.It Cm AC_VO
+(or
+.Cm VO )
+voice traffic.
+.El
+.Pp
+AC parameters are case-insensitive.
+Traffic classification is done in the operating system using the
+vlan priority associated with data frames or the
+ToS (Type of Service) indication in IP-encapsulated frames.
+If neither information is present, traffic is assigned to the
+Best Effort (BE) category.
+.Bl -tag -width indent
+.It Cm ack Ar ac
+Set the ACK policy for QoS transmissions by the local station;
+this controls whether or not data frames transmitted by a station
+require an ACK response from the receiving station.
+To disable waiting for an ACK use
+.Fl ack .
+This parameter is applied only to the local station.
+.It Cm acm Ar ac
+Enable the Admission Control Mandatory (ACM) mechanism
+for transmissions by the local station.
+To disable the ACM use
+.Fl acm .
+On stations in a BSS this parameter is read-only and indicates
+the setting received from the access point.
+NB: ACM is not supported right now.
+.It Cm aifs Ar ac Ar count
+Set the Arbitration Inter Frame Spacing (AIFS)
+channel access parameter to use for transmissions
+by the local station.
+On stations in a BSS this parameter is read-only and indicates
+the setting received from the access point.
+.It Cm cwmin Ar ac Ar count
+Set the CWmin channel access parameter to use for transmissions
+by the local station.
+On stations in a BSS this parameter is read-only and indicates
+the setting received from the access point.
+.It Cm cwmax Ar ac Ar count
+Set the CWmax channel access parameter to use for transmissions
+by the local station.
+On stations in a BSS this parameter is read-only and indicates
+the setting received from the access point.
+.It Cm txoplimit Ar ac Ar limit
+Set the Transmission Opportunity Limit channel access parameter
+to use for transmissions by the local station.
+This parameter defines an interval of time when a WME station
+has the right to initiate transmissions onto the wireless medium.
+On stations in a BSS this parameter is read-only and indicates
+the setting received from the access point.
+.It Cm bss:aifs Ar ac Ar count
+Set the AIFS channel access parameter to send to stations in a BSS.
+This parameter is meaningful only when operating in ap mode.
+.It Cm bss:cwmin Ar ac Ar count
+Set the CWmin channel access parameter to send to stations in a BSS.
+This parameter is meaningful only when operating in ap mode.
+.It Cm bss:cwmax Ar ac Ar count
+Set the CWmax channel access parameter to send to stations in a BSS.
+This parameter is meaningful only when operating in ap mode.
+.It Cm bss:txoplimit Ar ac Ar limit
+Set the TxOpLimit channel access parameter to send to stations in a BSS.
+This parameter is meaningful only when operating in ap mode.
+.El
+.It Cm wps
+Enable Wireless Privacy Subscriber support.
+Note that WPS support requires a WPS-capable supplicant.
+To disable this function use
+.Fl wps .
+.El
+.Pp
+The following parameters support an optional access control list
+feature available with some adapters when operating in ap mode; see
+.Xr wlan_acl 4 .
+This facility allows an access point to accept/deny association
+requests based on the MAC address of the station.
+Note that this feature does not significantly enhance security
+as MAC address spoofing is easy to do.
+.Bl -tag -width indent
+.It Cm mac:add Ar address
+Add the specified MAC address to the database.
+Depending on the policy setting association requests from the
+specified station will be allowed or denied.
+.It Cm mac:allow
+Set the ACL policy to permit association only by
+stations registered in the database.
+.It Cm mac:del Ar address
+Delete the specified MAC address from the database.
+.It Cm mac:deny
+Set the ACL policy to deny association only by
+stations registered in the database.
+.It Cm mac:kick Ar address
+Force the specified station to be deauthenticated.
+This typically is done to block a station after updating the
+address database.
+.It Cm mac:open
+Set the ACL policy to allow all stations to associate.
+.It Cm mac:flush
+Delete all entries in the database.
+.It Cm mac:radius
+Set the ACL policy to permit association only by
+stations approved by a RADIUS server.
+Note that this feature requires the
+.Xr hostapd 8
+program be configured to do the right thing
+as it handles the RADIUS processing
+(and marks stations as authorized).
+.El
+.Pp
+The following parameters are related to a wireless interface operating in mesh
+mode:
+.Bl -tag -width indent
+.It Cm meshid Ar meshid
+Set the desired Mesh Identifier.
+The Mesh ID is a string up to 32 characters in length.
+A mesh interface must have a Mesh Identifier specified
+to reach an operational state.
+.It Cm meshttl Ar ttl
+Set the desired ``time to live'' for mesh forwarded packets;
+this is the number of hops a packet may be forwarded before
+it is discarded.
+The default setting for
+.Cm meshttl
+is 31.
+.It Cm meshpeering
+Enable or disable peering with neighbor mesh stations.
+Stations must peer before any data packets can be exchanged.
+By default
+.Cm meshpeering
+is enabled.
+.It Cm meshforward
+Enable or disable forwarding packets by a mesh interface.
+By default
+.Cm meshforward
+is enabled.
+.It Cm meshgate
+This attribute specifies whether or not the mesh STA activates mesh gate
+announcements.
+By default
+.Cm meshgate
+is disabled.
+.It Cm meshmetric Ar protocol
+Set the specified
+.Ar protocol
+as the link metric protocol used on a mesh network.
+The default protocol is called
+.Ar AIRTIME .
+The mesh interface will restart after changing this setting.
+.It Cm meshpath Ar protocol
+Set the specified
+.Ar protocol
+as the path selection protocol used on a mesh network.
+The only available protocol at the moment is called
+.Ar HWMP
+(Hybrid Wireless Mesh Protocol).
+The mesh interface will restart after changing this setting.
+.It Cm hwmprootmode Ar mode
+Stations on a mesh network can operate as ``root nodes.''
+Root nodes try to find paths to all mesh nodes and advertise themselves
+regularly.
+When there is a root mesh node on a network, other mesh nodes can setup
+paths between themselves faster because they can use the root node
+to find the destination.
+This path may not be the best, but on-demand
+routing will eventually find the best path.
+The following modes are recognized:
+.Pp
+.Bl -tag -width ".Cm PROACTIVE" -compact
+.It Cm DISABLED
+Disable root mode.
+.It Cm NORMAL
+Send broadcast path requests every two seconds.
+Nodes on the mesh without a path to this root mesh station with try to
+discover a path to us.
+.It Cm PROACTIVE
+Send broadcast path requests every two seconds and every node must reply
+with a path reply even if it already has a path to this root mesh station.
+.It Cm RANN
+Send broadcast root announcement (RANN) frames.
+Nodes on the mesh without a path to this root mesh station with try to
+discover a path to us.
+.El
+By default
+.Cm hwmprootmode
+is set to
+.Ar DISABLED .
+.It Cm hwmpmaxhops Ar cnt
+Set the maximum number of hops allowed in an HMWP path to
+.Ar cnt .
+The default setting for
+.Cm hwmpmaxhops
+is 31.
+.El
+.Pp
+The following parameters are for compatibility with other systems:
+.Bl -tag -width indent
+.It Cm nwid Ar ssid
+Another name for the
+.Cm ssid
+parameter.
+Included for
+.Nx
+compatibility.
+.It Cm stationname Ar name
+Set the name of this station.
+The station name is not part of the IEEE 802.11
+protocol though some interfaces support it.
+As such it only
+seems to be meaningful to identical or virtually identical equipment.
+Setting the station name is identical in syntax to setting the SSID.
+One can also use
+.Cm station
+for
+.Bsx
+compatibility.
+.It Cm wep
+Another way of saying
+.Cm wepmode on .
+Included for
+.Bsx
+compatibility.
+.It Fl wep
+Another way of saying
+.Cm wepmode off .
+Included for
+.Bsx
+compatibility.
+.It Cm nwkey key
+Another way of saying:
+.Dq Li "wepmode on weptxkey 1 wepkey 1:key wepkey 2:- wepkey 3:- wepkey 4:-" .
+Included for
+.Nx
+compatibility.
+.It Cm nwkey Xo
+.Sm off
+.Ar n : k1 , k2 , k3 , k4
+.Sm on
+.Xc
+Another way of saying
+.Dq Li "wepmode on weptxkey n wepkey 1:k1 wepkey 2:k2 wepkey 3:k3 wepkey 4:k4" .
+Included for
+.Nx
+compatibility.
+.It Fl nwkey
+Another way of saying
+.Cm wepmode off .
+Included for
+.Nx
+compatibility.
+.El
+.Pp
+The following parameters are specific to bridge interfaces:
+.Bl -tag -width indent
+.It Cm addm Ar interface
+Add the interface named by
+.Ar interface
+as a member of the bridge.
+The interface is put into promiscuous mode
+so that it can receive every packet sent on the network.
+.It Cm deletem Ar interface
+Remove the interface named by
+.Ar interface
+from the bridge.
+Promiscuous mode is disabled on the interface when
+it is removed from the bridge.
+.It Cm maxaddr Ar size
+Set the size of the bridge address cache to
+.Ar size .
+The default is 2000 entries.
+.It Cm timeout Ar seconds
+Set the timeout of address cache entries to
+.Ar seconds
+seconds.
+If
+.Ar seconds
+is zero, then address cache entries will not be expired.
+The default is 1200 seconds.
+.It Cm addr
+Display the addresses that have been learned by the bridge.
+.It Cm static Ar interface-name Ar address
+Add a static entry into the address cache pointing to
+.Ar interface-name .
+Static entries are never aged out of the cache or re-placed, even if the
+address is seen on a different interface.
+.It Cm deladdr Ar address
+Delete
+.Ar address
+from the address cache.
+.It Cm flush
+Delete all dynamically-learned addresses from the address cache.
+.It Cm flushall
+Delete all addresses, including static addresses, from the address cache.
+.It Cm discover Ar interface
+Mark an interface as a
+.Dq discovering
+interface.
+When the bridge has no address cache entry
+(either dynamic or static)
+for the destination address of a packet,
+the bridge will forward the packet to all
+member interfaces marked as
+.Dq discovering .
+This is the default for all interfaces added to a bridge.
+.It Cm -discover Ar interface
+Clear the
+.Dq discovering
+attribute on a member interface.
+For packets without the
+.Dq discovering
+attribute, the only packets forwarded on the interface are broadcast
+or multicast packets and packets for which the destination address
+is known to be on the interface's segment.
+.It Cm learn Ar interface
+Mark an interface as a
+.Dq learning
+interface.
+When a packet arrives on such an interface, the source
+address of the packet is entered into the address cache as being a
+destination address on the interface's segment.
+This is the default for all interfaces added to a bridge.
+.It Cm -learn Ar interface
+Clear the
+.Dq learning
+attribute on a member interface.
+.It Cm sticky Ar interface
+Mark an interface as a
+.Dq sticky
+interface.
+Dynamically learned address entries are treated at static once entered into
+the cache.
+Sticky entries are never aged out of the cache or replaced, even if the
+address is seen on a different interface.
+.It Cm -sticky Ar interface
+Clear the
+.Dq sticky
+attribute on a member interface.
+.It Cm private Ar interface
+Mark an interface as a
+.Dq private
+interface.
+A private interface does not forward any traffic to any other port that is also
+a private interface.
+.It Cm -private Ar interface
+Clear the
+.Dq private
+attribute on a member interface.
+.It Cm span Ar interface
+Add the interface named by
+.Ar interface
+as a span port on the bridge.
+Span ports transmit a copy of every frame received by the bridge.
+This is most useful for snooping a bridged network passively on
+another host connected to one of the span ports of the bridge.
+.It Cm -span Ar interface
+Delete the interface named by
+.Ar interface
+from the list of span ports of the bridge.
+.It Cm stp Ar interface
+Enable Spanning Tree protocol on
+.Ar interface .
+The
+.Xr if_bridge 4
+driver has support for the IEEE 802.1D Spanning Tree protocol (STP).
+Spanning Tree is used to detect and remove loops in a network topology.
+.It Cm -stp Ar interface
+Disable Spanning Tree protocol on
+.Ar interface .
+This is the default for all interfaces added to a bridge.
+.It Cm edge Ar interface
+Set
+.Ar interface
+as an edge port.
+An edge port connects directly to end stations cannot create bridging
+loops in the network, this allows it to transition straight to forwarding.
+.It Cm -edge Ar interface
+Disable edge status on
+.Ar interface .
+.It Cm autoedge Ar interface
+Allow
+.Ar interface
+to automatically detect edge status.
+This is the default for all interfaces added to a bridge.
+.It Cm -autoedge Ar interface
+Disable automatic edge status on
+.Ar interface .
+.It Cm ptp Ar interface
+Set the
+.Ar interface
+as a point to point link.
+This is required for straight transitions to forwarding and
+should be enabled on a direct link to another RSTP capable switch.
+.It Cm -ptp Ar interface
+Disable point to point link status on
+.Ar interface .
+This should be disabled for a half duplex link and for an interface
+connected to a shared network segment,
+like a hub or a wireless network.
+.It Cm autoptp Ar interface
+Automatically detect the point to point status on
+.Ar interface
+by checking the full duplex link status.
+This is the default for interfaces added to the bridge.
+.It Cm -autoptp Ar interface
+Disable automatic point to point link detection on
+.Ar interface .
+.It Cm maxage Ar seconds
+Set the time that a Spanning Tree protocol configuration is valid.
+The default is 20 seconds.
+The minimum is 6 seconds and the maximum is 40 seconds.
+.It Cm fwddelay Ar seconds
+Set the time that must pass before an interface begins forwarding
+packets when Spanning Tree is enabled.
+The default is 15 seconds.
+The minimum is 4 seconds and the maximum is 30 seconds.
+.It Cm hellotime Ar seconds
+Set the time between broadcasting of Spanning Tree protocol
+configuration messages.
+The hello time may only be changed when operating in legacy stp mode.
+The default is 2 seconds.
+The minimum is 1 second and the maximum is 2 seconds.
+.It Cm priority Ar value
+Set the bridge priority for Spanning Tree.
+The default is 32768.
+The minimum is 0 and the maximum is 61440.
+.It Cm proto Ar value
+Set the Spanning Tree protocol.
+The default is rstp.
+The available options are stp and rstp.
+.It Cm holdcnt Ar value
+Set the transmit hold count for Spanning Tree.
+This is the number of packets transmitted before being rate limited.
+The default is 6.
+The minimum is 1 and the maximum is 10.
+.It Cm ifpriority Ar interface Ar value
+Set the Spanning Tree priority of
+.Ar interface
+to
+.Ar value .
+The default is 128.
+The minimum is 0 and the maximum is 240.
+.It Cm ifpathcost Ar interface Ar value
+Set the Spanning Tree path cost of
+.Ar interface
+to
+.Ar value .
+The default is calculated from the link speed.
+To change a previously selected path cost back to automatic, set the
+cost to 0.
+The minimum is 1 and the maximum is 200000000.
+.It Cm ifmaxaddr Ar interface Ar size
+Set the maximum number of hosts allowed from an interface, packets with unknown
+source addresses are dropped until an existing host cache entry expires or is
+removed.
+Set to 0 to disable.
+.El
+.Pp
+The following parameters are specific to lagg interfaces:
+.Bl -tag -width indent
+.It Cm laggport Ar interface
+Add the interface named by
+.Ar interface
+as a port of the aggregation interface.
+.It Cm -laggport Ar interface
+Remove the interface named by
+.Ar interface
+from the aggregation interface.
+.It Cm laggproto Ar proto
+Set the aggregation protocol.
+The default is
+.Li failover .
+The available options are
+.Li failover ,
+.Li lacp ,
+.Li loadbalance ,
+.Li roundrobin ,
+.Li broadcast
+and
+.Li none .
+.It Cm lagghash Ar option Ns Oo , Ns Ar option Oc
+Set the packet layers to hash for aggregation protocols which load balance.
+The default is
+.Dq l2,l3,l4 .
+The options can be combined using commas.
+.Pp
+.Bl -tag -width ".Cm l2" -compact
+.It Cm l2
+src/dst mac address and optional vlan number.
+.It Cm l3
+src/dst address for IPv4 or IPv6.
+.It Cm l4
+src/dst port for TCP/UDP/SCTP.
+.El
+.It Cm -use_flowid
+Enable local hash computation for RSS hash on the interface.
+The
+.Li loadbalance
+and
+.Li lacp
+modes will use the RSS hash from the network card if available
+to avoid computing one, this may give poor traffic distribution
+if the hash is invalid or uses less of the protocol header information.
+.Cm -use_flowid
+disables use of RSS hash from the network card.
+The default value can be set via the
+.Va net.link.lagg.default_use_flowid
+.Xr sysctl 8
+variable.
+.Li 0
+means
+.Dq disabled
+and
+.Li 1
+means
+.Dq enabled .
+.It Cm use_flowid
+Use the RSS hash from the network card if available.
+.It Cm flowid_shift Ar number
+Set a shift parameter for RSS local hash computation.
+Hash is calculated by using flowid bits in a packet header mbuf
+which are shifted by the number of this parameter.
+.It Cm lacp_fast_timeout
+Enable lacp fast-timeout on the interface.
+.It Cm -lacp_fast_timeout
+Disable lacp fast-timeout on the interface.
+.It Cm lacp_strict
+Enable lacp strict compliance on the interface.
+The default value can be set via the
+.Va net.link.lagg.lacp.default_strict_mode
+.Xr sysctl 8
+variable.
+.Li 0
+means
+.Dq disabled
+and
+.Li 1
+means
+.Dq enabled .
+.It Cm -lacp_strict
+Disable lacp strict compliance on the interface.
+.El
+.Pp
+The following parameters apply to IP tunnel interfaces,
+.Xr gif 4 :
+.Bl -tag -width indent
+.It Cm tunnel Ar src_addr dest_addr
+Configure the physical source and destination address for IP tunnel
+interfaces.
+The arguments
+.Ar src_addr
+and
+.Ar dest_addr
+are interpreted as the outer source/destination for the encapsulating
+IPv4/IPv6 header.
+.It Fl tunnel
+Unconfigure the physical source and destination address for IP tunnel
+interfaces previously configured with
+.Cm tunnel .
+.It Cm deletetunnel
+Another name for the
+.Fl tunnel
+parameter.
+.It Cm accept_rev_ethip_ver
+Set a flag to accept both correct EtherIP packets and ones
+with reversed version field.
+Enabled by default.
+This is for backward compatibility with
+.Fx 6.1 ,
+6.2, 6.3, 7.0, and 7.1.
+.It Cm -accept_rev_ethip_ver
+Clear a flag
+.Cm accept_rev_ethip_ver .
+.It Cm ignore_source
+Set a flag to accept encapsulated packets destined to this host
+independently from source address.
+This may be useful for hosts, that receive encapsulated packets
+from the load balancers.
+.It Cm -ignore_source
+Clear a flag
+.Cm ignore_source .
+.It Cm send_rev_ethip_ver
+Set a flag to send EtherIP packets with reversed version
+field intentionally.
+Disabled by default.
+This is for backward compatibility with
+.Fx 6.1 ,
+6.2, 6.3, 7.0, and 7.1.
+.It Cm -send_rev_ethip_ver
+Clear a flag
+.Cm send_rev_ethip_ver .
+.El
+.Pp
+The following parameters apply to GRE tunnel interfaces,
+.Xr gre 4 :
+.Bl -tag -width indent
+.It Cm tunnel Ar src_addr dest_addr
+Configure the physical source and destination address for GRE tunnel
+interfaces.
+The arguments
+.Ar src_addr
+and
+.Ar dest_addr
+are interpreted as the outer source/destination for the encapsulating
+IPv4/IPv6 header.
+.It Fl tunnel
+Unconfigure the physical source and destination address for GRE tunnel
+interfaces previously configured with
+.Cm tunnel .
+.It Cm deletetunnel
+Another name for the
+.Fl tunnel
+parameter.
+.It Cm grekey Ar key
+Configure the GRE key to be used for outgoing packets.
+Note that
+.Xr gre 4 will always accept GRE packets with invalid or absent keys.
+This command will result in a four byte MTU reduction on the interface.
+.El
+.Pp
+The following parameters are specific to
+.Xr pfsync 4
+interfaces:
+.Bl -tag -width indent
+.It Cm syncdev Ar iface
+Use the specified interface
+to send and receive pfsync state synchronisation messages.
+.It Fl syncdev
+Stop sending pfsync state synchronisation messages over the network.
+.It Cm syncpeer Ar peer_address
+Make the pfsync link point-to-point rather than using
+multicast to broadcast the state synchronisation messages.
+The peer_address is the IP address of the other host taking part in
+the pfsync cluster.
+.It Fl syncpeer
+Broadcast the packets using multicast.
+.It Cm maxupd Ar n
+Set the maximum number of updates for a single state which
+can be collapsed into one.
+This is an 8-bit number; the default value is 128.
+.It Cm defer
+Defer transmission of the first packet in a state until a peer has
+acknowledged that the associated state has been inserted.
+.It Fl defer
+Do not defer the first packet in a state.
+This is the default.
+.El
+.Pp
+The following parameters are specific to
+.Xr vlan 4
+interfaces:
+.Bl -tag -width indent
+.It Cm vlan Ar vlan_tag
+Set the VLAN tag value to
+.Ar vlan_tag .
+This value is a 12-bit VLAN Identifier (VID) which is used to create an 802.1Q
+VLAN header for packets sent from the
+.Xr vlan 4
+interface.
+Note that
+.Cm vlan
+and
+.Cm vlandev
+must both be set at the same time.
+.It Cm vlanpcp Ar priority_code_point
+Priority code point
+.Pq Dv PCP
+is an 3-bit field which refers to the IEEE 802.1p
+class of service and maps to the frame priority level.
+.Pp
+Values in order of priority are:
+.Cm 1
+.Pq Dv Background (lowest) ,
+.Cm 0
+.Pq Dv Best effort (default) ,
+.Cm 2
+.Pq Dv Excellent effort ,
+.Cm 3
+.Pq Dv Critical applications ,
+.Cm 4
+.Pq Dv Video, < 100ms latency ,
+.Cm 5
+.Pq Dv Video, < 10ms latency ,
+.Cm 6
+.Pq Dv Internetwork control ,
+.Cm 7
+.Pq Dv Network control (highest) .
+.It Cm vlandev Ar iface
+Associate the physical interface
+.Ar iface
+with a
+.Xr vlan 4
+interface.
+Packets transmitted through the
+.Xr vlan 4
+interface will be
+diverted to the specified physical interface
+.Ar iface
+with 802.1Q VLAN encapsulation.
+Packets with 802.1Q encapsulation received
+by the parent interface with the correct VLAN Identifier will be diverted to
+the associated
+.Xr vlan 4
+pseudo-interface.
+The
+.Xr vlan 4
+interface is assigned a
+copy of the parent interface's flags and the parent's Ethernet address.
+The
+.Cm vlandev
+and
+.Cm vlan
+must both be set at the same time.
+If the
+.Xr vlan 4
+interface already has
+a physical interface associated with it, this command will fail.
+To
+change the association to another physical interface, the existing
+association must be cleared first.
+.Pp
+Note: if the hardware tagging capability
+is set on the parent interface, the
+.Xr vlan 4
+pseudo
+interface's behavior changes:
+the
+.Xr vlan 4
+interface recognizes that the
+parent interface supports insertion and extraction of VLAN tags on its
+own (usually in firmware) and that it should pass packets to and from
+the parent unaltered.
+.It Fl vlandev Op Ar iface
+If the driver is a
+.Xr vlan 4
+pseudo device, disassociate the parent interface from it.
+This breaks the link between the
+.Xr vlan 4
+interface and its parent,
+clears its VLAN Identifier, flags and its link address and shuts the interface
+down.
+The
+.Ar iface
+argument is useless and hence deprecated.
+.El
+.Pp
+The following parameters are used to configure
+.Xr vxlan 4
+interfaces.
+.Bl -tag -width indent
+.It Cm vxlanid Ar identifier
+This value is a 24-bit VXLAN Network Identifier (VNI) that identifies the
+virtual network segment membership of the interface.
+.It Cm vxlanlocal Ar address
+The source address used in the encapsulating IPv4/IPv6 header.
+The address should already be assigned to an existing interface.
+When the interface is configured in unicast mode, the listening socket
+is bound to this address.
+.It Cm vxlanremote Ar address
+The interface can be configured in a unicast, or point-to-point, mode
+to create a tunnel between two hosts.
+This is the IP address of the remote end of the tunnel.
+.It Cm vxlangroup Ar address
+The interface can be configured in a multicast mode
+to create a virtual network of hosts.
+This is the IP multicast group address the interface will join.
+.It Cm vxlanlocalport Ar port
+The port number the interface will listen on.
+The default port number is 4789.
+.It Cm vxlanremoteport Ar port
+The destination port number used in the encapsulating IPv4/IPv6 header.
+The remote host should be listening on this port.
+The default port number is 4789.
+Note some other implementations, such as Linux,
+do not default to the IANA assigned port,
+but instead listen on port 8472.
+.It Cm vxlanportrange Ar low high
+The range of source ports used in the encapsulating IPv4/IPv6 header.
+The port selected within the range is based on a hash of the inner frame.
+A range is useful to provide entropy within the outer IP header
+for more effective load balancing.
+The default range is between the
+.Xr sysctl 8
+variables
+.Va net.inet.ip.portrange.first
+and
+.Va net.inet.ip.portrange.last
+.It Cm vxlantimeout Ar timeout
+The maximum time, in seconds, before an entry in the forwarding table
+is pruned.
+The default is 1200 seconds (20 minutes).
+.It Cm vxlanmaxaddr Ar max
+The maximum number of entries in the forwarding table.
+The default is 2000.
+.It Cm vxlandev Ar dev
+When the interface is configured in multicast mode, the
+.Cm dev
+interface is used to transmit IP multicast packets.
+.It Cm vxlanttl Ar ttl
+The TTL used in the encapsulating IPv4/IPv6 header.
+The default is 64.
+.It Cm vxlanlearn
+The source IP address and inner source Ethernet MAC address of
+received packets are used to dynamically populate the forwarding table.
+When in multicast mode, an entry in the forwarding table allows the
+interface to send the frame directly to the remote host instead of
+broadcasting the frame to the multicast group.
+This is the default.
+.It Fl vxlanlearn
+The forwarding table is not populated by received packets.
+.It Cm vxlanflush
+Delete all dynamically-learned addresses from the forwarding table.
+.It Cm vxlanflushall
+Delete all addresses, including static addresses, from the forwarding table.
+.El
+.Pp
+The following parameters are used to configure
+.Xr carp 4
+protocol on an interface:
+.Bl -tag -width indent
+.It Cm vhid Ar n
+Set the virtual host ID.
+This is a required setting to initiate
+.Xr carp 4 .
+If the virtual host ID does not exist yet, it is created and attached to the
+interface, otherwise configuration of an existing vhid is adjusted.
+If the
+.Cm vhid
+keyword is supplied along with an
+.Dq inet6
+or
+.Dq inet
+address, then this address is configured to be run under control of the
+specified vhid.
+Whenever a last address that refers to a particular vhid is removed from an
+interface, the vhid is automatically removed from interface and destroyed.
+Any other configuration parameters for the
+.Xr carp 4
+protocol should be supplied along with the
+.Cm vhid
+keyword.
+Acceptable values for vhid are 1 to 255.
+.It Cm advbase Ar seconds
+Specifies the base of the advertisement interval in seconds.
+The acceptable values are 1 to 255.
+The default value is 1.
+.It Cm advskew Ar interval
+Specifies the skew to add to the base advertisement interval to
+make one host advertise slower than another host.
+It is specified in 1/256 of seconds.
+The acceptable values are 1 to 254.
+The default value is 0.
+.It Cm pass Ar phrase
+Set the authentication key to
+.Ar phrase .
+.It Cm state Ar MASTER|BACKUP
+Forcibly change state of a given vhid.
+.El
+.Pp
+The
+.Nm
+utility displays the current configuration for a network interface
+when no optional parameters are supplied.
+If a protocol family is specified,
+.Nm
+will report only the details specific to that protocol family.
+.Pp
+If the
+.Fl m
+flag is passed before an interface name,
+.Nm
+will display the capability list and all
+of the supported media for the specified interface.
+If
+.Fl L
+flag is supplied, address lifetime is displayed for IPv6 addresses,
+as time offset string.
+.Pp
+Optionally, the
+.Fl a
+flag may be used instead of an interface name.
+This flag instructs
+.Nm
+to display information about all interfaces in the system.
+The
+.Fl d
+flag limits this to interfaces that are down, and
+.Fl u
+limits this to interfaces that are up.
+When no arguments are given,
+.Fl a
+is implied.
+.Pp
+The
+.Fl l
+flag may be used to list all available interfaces on the system, with
+no other additional information.
+If an
+.Ar address_family
+is specified, only interfaces of that type will be listed.
+.Fl l Dq ether
+will list only Ethernet adapters, excluding the loopback interface.
+Use of this flag is mutually exclusive
+with all other flags and commands, except for
+.Fl d
+(only list interfaces that are down)
+and
+.Fl u
+(only list interfaces that are up).
+.Pp
+The
+.Fl v
+flag may be used to get more verbose status for an interface.
+.Pp
+The
+.Fl C
+flag may be used to list all of the interface cloners available on
+the system, with no additional information.
+Use of this flag is mutually exclusive with all other flags and commands.
+.Pp
+The
+.Fl k
+flag causes keying information for the interface, if available, to be
+printed.
+For example, the values of 802.11 WEP keys and
+.Xr carp 4
+passphrases will be printed, if accessible to the current user.
+This information is not printed by default, as it may be considered
+sensitive.
+.Pp
+If the network interface driver is not present in the kernel then
+.Nm
+will attempt to load it.
+The
+.Fl n
+flag disables this behavior.
+.Pp
+Only the super-user may modify the configuration of a network interface.
+.Sh EXAMPLES
+Assign the IPv4 address
+.Li 192.0.2.10 ,
+with a network mask of
+.Li 255.255.255.0 ,
+to the interface
+.Li fxp0 :
+.Dl # ifconfig fxp0 inet 192.0.2.10 netmask 255.255.255.0
+.Pp
+Add the IPv4 address
+.Li 192.0.2.45 ,
+with the CIDR network prefix
+.Li /28 ,
+to the interface
+.Li ed0 ,
+using
+.Cm add
+as a synonym for the canonical form of the option
+.Cm alias :
+.Dl # ifconfig ed0 inet 192.0.2.45/28 add
+.Pp
+Remove the IPv4 address
+.Li 192.0.2.45
+from the interface
+.Li ed0 :
+.Dl # ifconfig ed0 inet 192.0.2.45 -alias
+.Pp
+Enable IPv6 functionality of the interface:
+.Dl # ifconfig em0 inet6 -ifdisabled
+.Pp
+Add the IPv6 address
+.Li 2001:DB8:DBDB::123/48
+to the interface
+.Li em0 :
+.Dl # ifconfig em0 inet6 2001:db8:bdbd::123 prefixlen 48 alias
+Note that lower case hexadecimal IPv6 addresses are acceptable.
+.Pp
+Remove the IPv6 address added in the above example,
+using the
+.Li /
+character as shorthand for the network prefix,
+and using
+.Cm delete
+as a synonym for the canonical form of the option
+.Fl alias :
+.Dl # ifconfig em0 inet6 2001:db8:bdbd::123/48 delete
+.Pp
+Configure a single CARP redundant address on igb0, and then switch it
+to be master:
+.Dl # ifconfig igb0 vhid 1 10.0.0.1/24 pass foobar up
+.Dl # ifconfig igb0 vhid 1 state master
+.Pp
+Configure the interface
+.Li xl0 ,
+to use 100baseTX, full duplex Ethernet media options:
+.Dl # ifconfig xl0 media 100baseTX mediaopt full-duplex
+.Pp
+Label the em0 interface as an uplink:
+.Dl # ifconfig em0 description \&"Uplink to Gigabit Switch 2\&"
+.Pp
+Create the software network interface
+.Li gif1 :
+.Dl # ifconfig gif1 create
+.Pp
+Destroy the software network interface
+.Li gif1 :
+.Dl # ifconfig gif1 destroy
+.Pp
+Display available wireless networks using
+.Li wlan0 :
+.Dl # ifconfig wlan0 list scan
+.Pp
+Display inet and inet6 address subnet masks in CIDR notation
+.Dl # ifconfig -f inet:cidr,inet6:cidr
+.Sh DIAGNOSTICS
+Messages indicating the specified interface does not exist, the
+requested address is unknown, or the user is not privileged and
+tried to alter an interface's configuration.
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr carp 4 ,
+.Xr gif 4 ,
+.Xr netintro 4 ,
+.Xr pfsync 4 ,
+.Xr polling 4 ,
+.Xr vlan 4 ,
+.Xr vxlan 4 ,
+.Xr devd.conf 5 ,
+.\" .Xr eon 5 ,
+.Xr devd 8 ,
+.Xr jail 8 ,
+.Xr rc 8 ,
+.Xr routed 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.2 .
+.Sh BUGS
+Basic IPv6 node operation requires a link-local address on each
+interface configured for IPv6.
+Normally, such an address is automatically configured by the
+kernel on each interface added to the system or enabled; this behavior may
+be disabled by setting per-interface flag
+.Cm -auto_linklocal .
+The default value of this flag is 1 and can be disabled by using the sysctl
+MIB variable
+.Va net.inet6.ip6.auto_linklocal .
+.Pp
+Do not configure IPv6 addresses with no link-local address by using
+.Nm .
+It can result in unexpected behaviors of the kernel.

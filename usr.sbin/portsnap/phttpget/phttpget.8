@@ -1,0 +1,87 @@
+.\"-
+.\" Copyright (c) 2015 Xin LI <delphij@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 3, 2015
+.Dt PHTTPGET 8
+.Os
+.Sh NAME
+.Nm phttpget
+.Nd retrieve multiple files via pipelined HTTP
+.Sh SYNOPSIS
+.Nm
+.Ar server
+.Ar file ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is a minimalist pipelined HTTP client,
+which is used to retrieve multiple
+.Ar file Ns s
+from one
+.Ar server ,
+and saves the downloaded files in the current working directory,
+using the last portion of their download path as file names.
+.Pp
+By making several "in flight" HTTP requests,
+it can dramatically increase performance when a large number of
+small files need to be downloaded.
+.Pp
+The
+.Xr freebsd-update 8
+and
+.Xr portsnap 8
+tools use
+.Nm
+to download binary patch files.
+.Sh ENVIRONMENT
+.Bl -tag -width HTTP_PROXY_AUTH
+.It Ev HTTP_PROXY
+URL of the proxy to use for HTTP requests.
+.It Ev HTTP_PROXY_AUTH
+Authorization parameters for the HTTP proxy.
+.It Ev HTTP_USER_AGENT
+The User-Agent string to use for HTTP requests.
+The default is
+.Dq phttpget/0.1 .
+.It Ev HTTP_TIMEOUT
+Timeout for HTTP request in seconds.
+.El
+.Sh SEE ALSO
+.Xr fetch 1 ,
+.Xr freebsd-update 8 ,
+.Xr portsnap 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An Colin Percival Aq Mt cperciva@FreeBSD.org
+for use with
+.Xr portsnap 8
+and later with
+.Xr freebsd-update 8 .
+This manual page was written by
+.An Xin LI Aq Mt delphij@FreeBSD.org .

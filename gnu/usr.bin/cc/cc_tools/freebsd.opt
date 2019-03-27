@@ -1,0 +1,6 @@
+; $FreeBSD$
+
+fformat-extensions
+Common Report Var(flag_format_extensions) Init(0)
+Allow FreeBSD kernel-specific printf format specifiers.
+

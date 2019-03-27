@@ -1,0 +1,1487 @@
+.\"-
+.\" Copyright (c) 2001 Charles Mott <cm@linktel.net>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 25, 2013
+.Dt LIBALIAS 3
+.Os
+.Sh NAME
+.Nm libalias
+.Nd packet aliasing library for masquerading and network address translation
+.Sh SYNOPSIS
+.In sys/types.h
+.In netinet/in.h
+.In alias.h
+.Pp
+Function prototypes are given in the main body of the text.
+.Sh DESCRIPTION
+The
+.Nm
+library is a collection of functions for aliasing and de-aliasing of IP
+packets, intended for masquerading and network address translation (NAT).
+.Sh INTRODUCTION
+This library is a moderately portable set of functions designed to assist
+in the process of IP masquerading and network address translation.
+Outgoing packets from a local network with unregistered IP addresses can
+be aliased to appear as if they came from an accessible IP address.
+Incoming packets are then de-aliased so that they are sent to the correct
+machine on the local network.
+.Pp
+A certain amount of flexibility is built into the packet aliasing engine.
+In the simplest mode of operation, a many-to-one address mapping takes
+place between the local network and the packet aliasing host.
+This is known as IP masquerading.
+In addition, one-to-one mappings between local and public addresses can
+also be implemented, which is known as static NAT.
+In between these extremes, different groups of private addresses can be
+linked to different public addresses, comprising several distinct
+many-to-one mappings.
+Also, a given public address and port can be statically redirected to a
+private address/port.
+.Sh INITIALIZATION AND CONTROL
+One special function,
+.Fn LibAliasInit ,
+must always be called before any packet handling may be performed, and
+the returned instance pointer must be passed to all the other functions.
+Normally, the
+.Fn LibAliasSetAddress
+function is called afterwards, to set the default aliasing address.
+In addition, the operating mode of the packet aliasing engine can be
+customized by calling
+.Fn LibAliasSetMode .
+.Pp
+.Ft "struct libalias *"
+.Fn LibAliasInit "struct libalias *"
+.Bd -ragged -offset indent
+This function is used to initialize
+internal data structures.
+When called the first time, a
+.Dv NULL
+pointer should be passed as an argument.
+The following mode bits are always set after calling
+.Fn LibAliasInit .
+See the description of
+.Fn LibAliasSetMode
+below for the meaning of these mode bits.
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Dv PKT_ALIAS_SAME_PORTS
+.It
+.Dv PKT_ALIAS_USE_SOCKETS
+.It
+.Dv PKT_ALIAS_RESET_ON_ADDR_CHANGE
+.El
+.Pp
+This function will always return the packet aliasing engine to the same
+initial state.
+The
+.Fn LibAliasSetAddress
+function is normally called afterwards, and any desired changes from the
+default mode bits listed above require a call to
+.Fn LibAliasSetMode .
+.Pp
+It is mandatory that this function be called at the beginning of a program
+prior to any packet handling.
+.Ed
+.Pp
+.Ft void
+.Fn LibAliasUninit "struct libalias *"
+.Bd -ragged -offset indent
+This function has no return value and is used to clear any
+resources attached to internal data structures.
+.Pp
+This function should be called when a program stops using the aliasing
+engine; amongst other things, it clears out any firewall holes.
+To provide backwards compatibility and extra security, it is added to
+the
+.Xr atexit 3
+chain by
+.Fn LibAliasInit .
+.Ed
+.Pp
+.Ft void
+.Fn LibAliasSetAddress "struct libalias *" "struct in_addr addr"
+.Bd -ragged -offset indent
+This function sets the source address to which outgoing packets from the
+local area network are aliased.
+All outgoing packets are re-mapped to this address unless overridden by a
+static address mapping established by
+.Fn LibAliasRedirectAddr .
+If this function has not been called, and no static rules match, an outgoing
+packet retains its source address.
+.Pp
+If the
+.Dv PKT_ALIAS_RESET_ON_ADDR_CHANGE
+mode bit is set (the default mode of operation), then the internal aliasing
+link tables will be reset any time the aliasing address changes.
+This is useful for interfaces such as
+.Xr ppp 8 ,
+where the IP
+address may or may not change on successive dial-up attempts.
+.Pp
+If the
+.Dv PKT_ALIAS_RESET_ON_ADDR_CHANGE
+mode bit is set to zero, this function can also be used to dynamically change
+the aliasing address on a packet-to-packet basis (it is a low overhead call).
+.Pp
+It is mandatory that this function be called prior to any packet handling.
+.Ed
+.Pp
+.Ft unsigned int
+.Fn LibAliasSetMode "struct libalias *" "unsigned int flags" "unsigned int mask"
+.Bd -ragged -offset indent
+This function sets or clears mode bits
+according to the value of
+.Fa flags .
+Only bits marked in
+.Fa mask
+are affected.
+The following mode bits are defined in
+.In alias.h :
+.Bl -tag -width indent
+.It Dv PKT_ALIAS_LOG
+Enables logging into
+.Pa /var/log/alias.log .
+Each time an aliasing link is created or deleted, the log file is appended to
+with the current number of ICMP, TCP and UDP links.
+Mainly useful for debugging when the log file is viewed continuously with
+.Xr tail 1 .
+.It Dv PKT_ALIAS_DENY_INCOMING
+If this mode bit is set, all incoming packets associated with new TCP
+connections or new UDP transactions will be marked for being ignored
+.Po
+.Fn LibAliasIn
+returns
+.Dv PKT_ALIAS_IGNORED
+code
+.Pc
+by the calling program.
+Response packets to connections or transactions initiated from the packet
+aliasing host or local network will be unaffected.
+This mode bit is useful for implementing a one-way firewall.
+.It Dv PKT_ALIAS_SAME_PORTS
+If this mode bit is set, the packet-aliasing engine will attempt to leave
+the alias port numbers unchanged from the actual local port numbers.
+This can be done as long as the quintuple (proto, alias addr, alias port,
+remote addr, remote port) is unique.
+If a conflict exists, a new aliasing port number is chosen even if this
+mode bit is set.
+.It Dv PKT_ALIAS_USE_SOCKETS
+This bit should be set when the packet aliasing host originates network
+traffic as well as forwards it.
+When the packet aliasing host is waiting for a connection from an unknown
+host address or unknown port number (e.g.\& an FTP data connection), this
+mode bit specifies that a socket be allocated as a place holder to prevent
+port conflicts.
+Once a connection is established, usually within a minute or so, the socket
+is closed.
+.It Dv PKT_ALIAS_UNREGISTERED_ONLY
+If this mode bit is set, traffic on the local network which does not
+originate from unregistered address spaces will be ignored.
+Standard Class A, B and C unregistered addresses are:
+.Pp
+10.0.0.0     ->  10.255.255.255   (Class A subnet)
+172.16.0.0   ->  172.31.255.255   (Class B subnets)
+192.168.0.0  ->  192.168.255.255  (Class C subnets)
+.Pp
+This option is useful in the case that the packet aliasing host has both
+registered and unregistered subnets on different interfaces.
+The registered subnet is fully accessible to the outside world, so traffic
+from it does not need to be passed through the packet aliasing engine.
+.It Dv PKT_ALIAS_RESET_ON_ADDR_CHANGE
+When this mode bit is set and
+.Fn LibAliasSetAddress
+is called to change the aliasing address, the internal link table of the
+packet aliasing engine will be cleared.
+This operating mode is useful for
+.Xr ppp 8
+links where the interface address can sometimes change or remain the same
+between dial-up attempts.
+If this mode bit is not set, the link table will never be reset in the event
+of an address change.
+.It Dv PKT_ALIAS_PUNCH_FW
+This option makes
+.Nm
+.Dq punch holes
+in an
+.Xr ipfirewall 4 -
+based firewall for FTP/IRC DCC connections.
+The holes punched are bound by from/to IP address and port; it will not be
+possible to use a hole for another connection.
+A hole is removed when the connection that uses it dies.
+To cater to unexpected death of a program using
+.Nm
+(e.g.\& kill -9),
+changing the state of the flag will clear the entire firewall range
+allocated for holes.
+This clearing will also happen on the initial call to
+.Fn LibAliasSetFWBase ,
+which must happen prior to setting this flag.
+.It Dv PKT_ALIAS_REVERSE
+This option makes
+.Nm
+reverse the way it handles incoming and outgoing packets, allowing it
+to be fed with data that passes through the internal interface rather
+than the external one.
+.It Dv PKT_ALIAS_PROXY_ONLY
+This option tells
+.Nm
+to obey transparent proxy rules only.
+Normal packet aliasing is not performed.
+See
+.Fn LibAliasProxyRule
+below for details.
+.It Dv PKT_ALIAS_SKIP_GLOBAL
+This option is used by
+.Pa ipfw_nat
+only.
+Specifying it as a flag to
+.Fn LibAliasSetMode
+has no effect.
+See section
+.Sx NETWORK ADDRESS TRANSLATION
+in
+.Xr ipfw 8
+for more details.
+.El
+.Ed
+.Pp
+.Ft void
+.Fn LibAliasSetFWBase "struct libalias *" "unsigned int base" "unsigned int num"
+.Bd -ragged -offset indent
+Set the firewall range allocated for punching firewall holes (with the
+.Dv PKT_ALIAS_PUNCH_FW
+flag).
+The range is cleared for all rules on initialization.
+.Ed
+.Pp
+.Ft void
+.Fn LibAliasSkinnyPort "struct libalias *" "unsigned int port"
+.Bd -ragged -offset indent
+Set the TCP port used by the Skinny Station protocol.
+Skinny is used by Cisco IP phones to communicate with
+Cisco Call Managers to set up voice over IP calls.
+If this is not set, Skinny aliasing will not be done.
+The typical port used by Skinny is 2000.
+.Ed
+.Sh PACKET HANDLING
+The packet handling functions are used to modify incoming (remote to local)
+and outgoing (local to remote) packets.
+The calling program is responsible for receiving and sending packets via
+network interfaces.
+.Pp
+Along with
+.Fn LibAliasInit
+and
+.Fn LibAliasSetAddress ,
+the two packet handling functions,
+.Fn LibAliasIn
+and
+.Fn LibAliasOut ,
+comprise the minimal set of functions needed for a basic IP masquerading
+implementation.
+.Pp
+.Ft int
+.Fn LibAliasIn "struct libalias *" "char *buffer" "int maxpacketsize"
+.Bd -ragged -offset indent
+An incoming packet coming from a remote machine to the local network is
+de-aliased by this function.
+The IP packet is pointed to by
+.Fa buffer ,
+and
+.Fa maxpacketsize
+indicates the size of the data structure containing the packet and should
+be at least as large as the actual packet size.
+.Pp
+Return codes:
+.Bl -tag -width indent
+.It Dv PKT_ALIAS_OK
+The packet aliasing process was successful.
+.It Dv PKT_ALIAS_IGNORED
+The packet was ignored and not de-aliased.
+This can happen if the protocol is unrecognized, as for an ICMP message
+type that is not handled, or if incoming packets for new connections are being
+ignored (if the
+.Dv PKT_ALIAS_DENY_INCOMING
+mode bit was set using
+.Fn LibAliasSetMode ) .
+.It Dv PKT_ALIAS_UNRESOLVED_FRAGMENT
+This is returned when a fragment cannot be resolved because the header
+fragment has not been sent yet.
+In this situation, fragments must be saved with
+.Fn LibAliasSaveFragment
+until a header fragment is found.
+.It Dv PKT_ALIAS_FOUND_HEADER_FRAGMENT
+The packet aliasing process was successful, and a header fragment was found.
+This is a signal to retrieve any unresolved fragments with
+.Fn LibAliasGetFragment
+and de-alias them with
+.Fn LibAliasFragmentIn .
+.It Dv PKT_ALIAS_ERROR
+An internal error within the packet aliasing engine occurred.
+.El
+.Ed
+.Pp
+.Ft int
+.Fn LibAliasOut "struct libalias *" "char *buffer" "int maxpacketsize"
+.Bd -ragged -offset indent
+An outgoing packet coming from the local network to a remote machine is
+aliased by this function.
+The IP packet is pointed to by
+.Fa buffer ,
+and
+.Fa maxpacketsize
+indicates the maximum packet size permissible should the packet length be
+changed.
+IP encoding protocols place address and port information in the encapsulated
+data stream which has to be modified and can account for changes in packet
+length.
+Well known examples of such protocols are FTP and IRC DCC.
+.Pp
+Return codes:
+.Bl -tag -width indent
+.It Dv PKT_ALIAS_OK
+The packet aliasing process was successful.
+.It Dv PKT_ALIAS_IGNORED
+The packet was ignored and not aliased.
+This can happen if the protocol is unrecognized, or possibly an ICMP message
+type is not handled.
+.It Dv PKT_ALIAS_ERROR
+An internal error within the packet aliasing engine occurred.
+.El
+.Ed
+.Sh PORT AND ADDRESS REDIRECTION
+The functions described in this section allow machines on the local network
+to be accessible in some degree to new incoming connections from the external
+network.
+Individual ports can be re-mapped or static network address translations can
+be designated.
+.Pp
+.Ft struct alias_link *
+.Fo LibAliasRedirectPort
+.Fa "struct libalias *"
+.Fa "struct in_addr local_addr"
+.Fa "u_short local_port"
+.Fa "struct in_addr remote_addr"
+.Fa "u_short remote_port"
+.Fa "struct in_addr alias_addr"
+.Fa "u_short alias_port"
+.Fa "u_char proto"
+.Fc
+.Bd -ragged -offset indent
+This function specifies that traffic from a given remote address/port to
+an alias address/port be redirected to a specified local address/port.
+The parameter
+.Fa proto
+can be either
+.Dv IPPROTO_TCP
+or
+.Dv IPPROTO_UDP ,
+as defined in
+.In netinet/in.h .
+.Pp
+If
+.Fa local_addr
+or
+.Fa alias_addr
+is zero, this indicates that the packet aliasing address as established
+by
+.Fn LibAliasSetAddress
+is to be used.
+Even if
+.Fn LibAliasSetAddress
+is called to change the address after
+.Fn LibAliasRedirectPort
+is called, a zero reference will track this change.
+.Pp
+If the link is further set up to operate with load sharing, then
+.Fa local_addr
+and
+.Fa local_port
+are ignored, and are selected dynamically from the server pool, as described in
+.Fn LibAliasAddServer
+below.
+.Pp
+If
+.Fa remote_addr
+is zero, this indicates to redirect packets from any remote address.
+Likewise, if
+.Fa remote_port
+is zero, this indicates to redirect packets originating from any remote
+port number.
+The remote port specification will almost always be zero, but non-zero
+remote addresses can sometimes be useful for firewalling.
+If two calls to
+.Fn LibAliasRedirectPort
+overlap in their address/port specifications, then the most recent call
+will have precedence.
+.Pp
+This function returns a pointer which can subsequently be used by
+.Fn LibAliasRedirectDelete .
+If
+.Dv NULL
+is returned, then the function call did not complete successfully.
+.Pp
+All port numbers should be in network address byte order, so it is necessary
+to use
+.Xr htons 3
+to convert these parameters from internally readable numbers to network byte
+order.
+Addresses are also in network byte order, which is implicit in the use of the
+.Fa struct in_addr
+data type.
+.Ed
+.Pp
+.Ft struct alias_link *
+.Fo LibAliasRedirectAddr
+.Fa "struct libalias *"
+.Fa "struct in_addr local_addr"
+.Fa "struct in_addr alias_addr"
+.Fc
+.Bd -ragged -offset indent
+This function designates that all incoming traffic to
+.Fa alias_addr
+be redirected to
+.Fa local_addr .
+Similarly, all outgoing traffic from
+.Fa local_addr
+is aliased to
+.Fa alias_addr .
+.Pp
+If
+.Fa local_addr
+or
+.Fa alias_addr
+is zero, this indicates that the packet aliasing address as established by
+.Fn LibAliasSetAddress
+is to be used.
+Even if
+.Fn LibAliasSetAddress
+is called to change the address after
+.Fn LibAliasRedirectAddr
+is called, a zero reference will track this change.
+.Pp
+If the link is further set up to operate with load sharing, then the
+.Fa local_addr
+argument is ignored, and is selected dynamically from the server pool,
+as described in
+.Fn LibAliasAddServer
+below.
+.Pp
+If subsequent calls to
+.Fn LibAliasRedirectAddr
+use the same aliasing address, all new incoming traffic to this aliasing
+address will be redirected to the local address made in the last function
+call.
+New traffic generated by any of the local machines, designated in the
+several function calls, will be aliased to the same address.
+Consider the following example:
+.Pp
+LibAliasRedirectAddr(la, inet_aton("192.168.0.2"),
+                        inet_aton("141.221.254.101"));
+LibAliasRedirectAddr(la, inet_aton("192.168.0.3"),
+                        inet_aton("141.221.254.101"));
+LibAliasRedirectAddr(la, inet_aton("192.168.0.4"),
+                        inet_aton("141.221.254.101"));
+.Pp
+Any outgoing connections such as
+.Xr telnet 1
+or
+.Xr ftp 1
+from 192.168.0.2, 192.168.0.3 and 192.168.0.4 will appear to come from
+141.221.254.101.
+Any incoming connections to 141.221.254.101 will be directed to 192.168.0.4.
+.Pp
+Any calls to
+.Fn LibAliasRedirectPort
+will have precedence over address mappings designated by
+.Fn LibAliasRedirectAddr .
+.Pp
+This function returns a pointer which can subsequently be used by
+.Fn LibAliasRedirectDelete .
+If
+.Dv NULL
+is returned, then the function call did not complete successfully.
+.Ed
+.Pp
+.Ft int
+.Fo LibAliasAddServer
+.Fa "struct libalias *"
+.Fa "struct alias_link *link"
+.Fa "struct in_addr addr"
+.Fa "u_short port"
+.Fc
+.Bd -ragged -offset indent
+This function sets the
+.Fa link
+up for Load Sharing using IP Network Address Translation (RFC 2391, LSNAT).
+LSNAT operates as follows.
+A client attempts to access a server by using the server virtual address.
+The LSNAT router transparently redirects the request to one of the hosts
+in the server pool, using a real-time load sharing algorithm.
+Multiple sessions may be initiated from the same client, and each session
+could be directed to a different host based on the load balance across server
+pool hosts when the sessions are initiated.
+If load sharing is desired for just a few specific services, the configuration
+on LSNAT could be defined to restrict load sharing to just the services
+desired.
+.Pp
+Currently, only the simplest selection algorithm is implemented, where a
+host is selected on a round-robin basis only, without regard to load on
+the host.
+.Pp
+First, the
+.Fa link
+is created by either
+.Fn LibAliasRedirectPort
+or
+.Fn LibAliasRedirectAddr .
+Then,
+.Fn LibAliasAddServer
+is called multiple times to add entries to the
+.Fa link Ns 's
+server pool.
+.Pp
+For links created with
+.Fn LibAliasRedirectAddr ,
+the
+.Fa port
+argument is ignored and could have any value, e.g.\& htons(~0).
+.Pp
+This function returns 0 on success, \-1 otherwise.
+.Ed
+.Pp
+.Ft int
+.Fn LibAliasRedirectDynamic "struct libalias *" "struct alias_link *link"
+.Bd -ragged -offset indent
+This function marks the specified static redirect rule entered by
+.Fn LibAliasRedirectPort
+as dynamic.
+This can be used to e.g.\& dynamically redirect a single TCP connection,
+after which the rule is removed.
+Only fully specified links can be made dynamic.
+(See the
+.Sx STATIC AND DYNAMIC LINKS
+and
+.Sx PARTIALLY SPECIFIED ALIASING LINKS
+sections below for a definition of static vs.\& dynamic,
+and partially vs.\& fully specified links.)
+.Pp
+This function returns 0 on success, \-1 otherwise.
+.Ed
+.Pp
+.Ft void
+.Fn LibAliasRedirectDelete "struct libalias *" "struct alias_link *link"
+.Bd -ragged -offset indent
+This function will delete a specific static redirect rule entered by
+.Fn LibAliasRedirectPort
+or
+.Fn LibAliasRedirectAddr .
+The parameter
+.Fa link
+is the pointer returned by either of the redirection functions.
+If an invalid pointer is passed to
+.Fn LibAliasRedirectDelete ,
+then a program crash or unpredictable operation could result, so
+care is needed when using this function.
+.Ed
+.Pp
+.Ft int
+.Fn LibAliasProxyRule "struct libalias *" "const char *cmd"
+.Bd -ragged -offset indent
+The passed
+.Fa cmd
+string consists of one or more pairs of words.
+The first word in each pair is a token and the second is the value that
+should be applied for that token.
+Tokens and their argument types are as follows:
+.Bl -tag -width indent
+.It Cm type encode_ip_hdr | encode_tcp_stream | no_encode
+In order to support transparent proxying, it is necessary to somehow
+pass the original address and port information into the new destination
+server.
+If
+.Cm encode_ip_hdr
+is specified, the original destination address and port are passed
+as an extra IP option.
+If
+.Cm encode_tcp_stream
+is specified, the original destination address and port are passed
+as the first piece of data in the TCP stream in the format
+.Dq Li DEST Ar IP port .
+.It Cm port Ar portnum
+Only packets with the destination port
+.Ar portnum
+are proxied.
+.It Cm server Ar host Ns Op : Ns Ar portnum
+This specifies the
+.Ar host
+and
+.Ar portnum
+that the data is to be redirected to.
+.Ar host
+must be an IP address rather than a DNS host name.
+If
+.Ar portnum
+is not specified, the destination port number is not changed.
+.Pp
+The
+.Ar server
+specification is mandatory unless the
+.Cm delete
+command is being used.
+.It Cm rule Ar index
+Normally, each call to
+.Fn LibAliasProxyRule
+inserts the next rule at the start of a linear list of rules.
+If an
+.Ar index
+is specified, the new rule will be checked after all rules with lower
+indices.
+Calls to
+.Fn LibAliasProxyRule
+that do not specify a rule are assigned rule 0.
+.It Cm delete Ar index
+This token and its argument MUST NOT be used with any other tokens.
+When used, all existing rules with the given
+.Ar index
+are deleted.
+.It Cm proto tcp | udp
+If specified, only packets of the given protocol type are matched.
+.It Cm src Ar IP Ns Op / Ns Ar bits
+If specified, only packets with a source address matching the given
+.Ar IP
+are matched.
+If
+.Ar bits
+is also specified, then the first
+.Ar bits
+bits of
+.Ar IP
+are taken as a network specification, and all IP addresses from that
+network will be matched.
+.It Cm dst Ar IP Ns Op / Ns Ar bits
+If specified, only packets with a destination address matching the given
+.Ar IP
+are matched.
+If
+.Ar bits
+is also specified, then the first
+.Ar bits
+bits of
+.Ar IP
+are taken as a network specification, and all IP addresses from that
+network will be matched.
+.El
+.Pp
+This function is usually used to redirect outgoing connections for
+internal machines that are not permitted certain types of internet
+access, or to restrict access to certain external machines.
+.Ed
+.Pp
+.Ft struct alias_link *
+.Fo LibAliasRedirectProto
+.Fa "struct libalias *"
+.Fa "struct in_addr local_addr"
+.Fa "struct in_addr remote_addr"
+.Fa "struct in_addr alias_addr"
+.Fa "u_char proto"
+.Fc
+.Bd -ragged -offset indent
+This function specifies that any IP packet with protocol number of
+.Fa proto
+from a given remote address to an alias address will be
+redirected to a specified local address.
+.Pp
+If
+.Fa local_addr
+or
+.Fa alias_addr
+is zero, this indicates that the packet aliasing address as established
+by
+.Fn LibAliasSetAddress
+is to be used.
+Even if
+.Fn LibAliasSetAddress
+is called to change the address after
+.Fn LibAliasRedirectProto
+is called, a zero reference will track this change.
+.Pp
+If
+.Fa remote_addr
+is zero, this indicates to redirect packets from any remote address.
+Non-zero remote addresses can sometimes be useful for firewalling.
+.Pp
+If two calls to
+.Fn LibAliasRedirectProto
+overlap in their address specifications, then the most recent call
+will have precedence.
+.Pp
+This function returns a pointer which can subsequently be used by
+.Fn LibAliasRedirectDelete .
+If
+.Dv NULL
+is returned, then the function call did not complete successfully.
+.Ed
+.Sh FRAGMENT HANDLING
+The functions in this section are used to deal with incoming fragments.
+.Pp
+Outgoing fragments are handled within
+.Fn LibAliasOut
+by changing the address according to any applicable mapping set by
+.Fn LibAliasRedirectAddr ,
+or the default aliasing address set by
+.Fn LibAliasSetAddress .
+.Pp
+Incoming fragments are handled in one of two ways.
+If the header of a fragmented IP packet has already been seen, then all
+subsequent fragments will be re-mapped in the same manner the header
+fragment was.
+Fragments which arrive before the header are saved and then retrieved
+once the header fragment has been resolved.
+.Pp
+.Ft int
+.Fn LibAliasSaveFragment "struct libalias *" "char *ptr"
+.Bd -ragged -offset indent
+When
+.Fn LibAliasIn
+returns
+.Dv PKT_ALIAS_UNRESOLVED_FRAGMENT ,
+this function can be used to save the pointer to the unresolved fragment.
+.Pp
+It is implicitly assumed that
+.Fa ptr
+points to a block of memory allocated by
+.Xr malloc 3 .
+If the fragment is never resolved, the packet aliasing engine will
+automatically free the memory after a timeout period.
+[Eventually this function should be modified so that a callback function
+for freeing memory is passed as an argument.]
+.Pp
+This function returns
+.Dv PKT_ALIAS_OK
+if it was successful and
+.Dv PKT_ALIAS_ERROR
+if there was an error.
+.Ed
+.Pp
+.Ft char *
+.Fn LibAliasGetFragment "struct libalias *" "char *buffer"
+.Bd -ragged -offset indent
+This function can be used to retrieve fragment pointers saved by
+.Fn LibAliasSaveFragment .
+The IP header fragment pointed to by
+.Fa buffer
+is the header fragment indicated when
+.Fn LibAliasIn
+returns
+.Dv PKT_ALIAS_FOUND_HEADER_FRAGMENT .
+Once a fragment pointer is retrieved, it becomes the calling program's
+responsibility to free the dynamically allocated memory for the fragment.
+.Pp
+The
+.Fn LibAliasGetFragment
+function can be called sequentially until there are no more fragments
+available, at which time it returns
+.Dv NULL .
+.Ed
+.Pp
+.Ft void
+.Fn LibAliasFragmentIn "struct libalias *" "char *header" "char *fragment"
+.Bd -ragged -offset indent
+When a fragment is retrieved with
+.Fn LibAliasGetFragment ,
+it can then be de-aliased with a call to
+.Fn LibAliasFragmentIn .
+The
+.Fa header
+argument is the pointer to a header fragment used as a template, and
+.Fa fragment
+is the pointer to the packet to be de-aliased.
+.Ed
+.Sh MISCELLANEOUS FUNCTIONS
+.Ft struct alias_link *
+.Fn AddLink "struct libalias *" "struct in_addr src_addr" "struct in_addr dst_addr" \
+"struct in_addr alias_addr" "u_short src_port" "u_short dst_port" \
+"int alias_param" "int link_type"
+.Bd -ragged -offset indent
+This function adds new state to the instance hash table.
+The dst_address and/or dst_port may be given as zero, which
+introduces some dynamic character into the link, since
+LibAliasSetAddress can change the address that is used.
+However, in the current implementation, such links can only be used
+for inbound (ext -> int) traffic.
+.Ed
+.Pp
+.Ft void
+.Fn LibAliasSetTarget "struct libalias *" "struct in_addr addr"
+.Bd -ragged -offset indent
+When an incoming packet not associated with any pre-existing aliasing link
+arrives at the host machine, it will be sent to the address indicated by a
+call to
+.Fn LibAliasSetTarget .
+.Pp
+If this function is called with an
+.Dv INADDR_NONE
+address argument, then all new incoming packets go to the address set by
+.Fn LibAliasSetAddress .
+.Pp
+If this function is not called, or is called with an
+.Dv INADDR_ANY
+address argument, then all new incoming packets go to the address specified
+in the packet.
+This allows external machines to talk directly to internal machines if they
+can route packets to the machine in question.
+.Ed
+.Pp
+.Ft int
+.Fn LibAliasCheckNewLink "struct libalias *"
+.Bd -ragged -offset indent
+This function returns a non-zero value when a new aliasing link is created.
+In circumstances where incoming traffic is being sequentially sent to
+different local servers, this function can be used to trigger when
+.Fn LibAliasSetTarget
+is called to change the default target address.
+.Ed
+.Pp
+.Ft u_short
+.Fn LibAliasInternetChecksum "struct libalias *" "u_short *buffer" "int nbytes"
+.Bd -ragged -offset indent
+This is a utility function that does not seem to be available elsewhere and
+is included as a convenience.
+It computes the internet checksum, which is used in both IP and
+protocol-specific headers (TCP, UDP, ICMP).
+.Pp
+The
+.Fa buffer
+argument points to the data block to be checksummed, and
+.Fa nbytes
+is the number of bytes.
+The 16-bit checksum field should be zeroed before computing the checksum.
+.Pp
+Checksums can also be verified by operating on a block of data including
+its checksum.
+If the checksum is valid,
+.Fn LibAliasInternetChecksum
+will return zero.
+.Ed
+.Pp
+.Ft int
+.Fn LibAliasUnaliasOut "struct libalias *" "char *buffer" "int maxpacketsize"
+.Bd -ragged -offset indent
+An outgoing packet, which has already been aliased,
+has its private address/port information restored by this function.
+The IP packet is pointed to by
+.Fa buffer ,
+and
+.Fa maxpacketsize
+is provided for error checking purposes.
+This function can be used if an already-aliased packet needs to have its
+original IP header restored for further processing (e.g.\& logging).
+.Ed
+.Sh CONCEPTUAL BACKGROUND
+This section is intended for those who are planning to modify the source
+code or want to create somewhat esoteric applications using the packet
+aliasing functions.
+.Pp
+The conceptual framework under which the packet aliasing engine operates
+is described here.
+Central to the discussion is the idea of an
+.Em aliasing link
+which describes the relationship for a given packet transaction between
+the local machine, aliased identity and remote machine.
+It is discussed how such links come into existence and are destroyed.
+.Ss ALIASING LINKS
+There is a notion of an
+.Em aliasing link ,
+which is a 7-tuple describing a specific translation:
+.Bd -literal -offset indent
+(local addr, local port, alias addr, alias port,
+ remote addr, remote port, protocol)
+.Ed
+.Pp
+Outgoing packets have the local address and port number replaced with the
+alias address and port number.
+Incoming packets undergo the reverse process.
+The packet aliasing engine attempts to match packets against an internal
+table of aliasing links to determine how to modify a given IP packet.
+Both the IP header and protocol dependent headers are modified as necessary.
+Aliasing links are created and deleted as necessary according to network
+traffic.
+.Pp
+Protocols can be TCP, UDP or even ICMP in certain circumstances.
+(Some types of ICMP packets can be aliased according to sequence or ID
+number which acts as an equivalent port number for identifying how
+individual packets should be handled.)
+.Pp
+Each aliasing link must have a unique combination of the following five
+quantities: alias address/port, remote address/port and protocol.
+This ensures that several machines on a local network can share the
+same aliasing IP address.
+In cases where conflicts might arise, the aliasing port is chosen so that
+uniqueness is maintained.
+.Ss STATIC AND DYNAMIC LINKS
+Aliasing links can either be static or dynamic.
+Static links persist indefinitely and represent fixed rules for translating
+IP packets.
+Dynamic links come into existence for a specific TCP connection or UDP
+transaction or ICMP ECHO sequence.
+For the case of TCP, the connection can be monitored to see when the
+associated aliasing link should be deleted.
+Aliasing links for UDP transactions (and ICMP ECHO and TIMESTAMP requests)
+work on a simple timeout rule.
+When no activity is observed on a dynamic link for a certain amount of time
+it is automatically deleted.
+Timeout rules also apply to TCP connections which do not open or close
+properly.
+.Ss PARTIALLY SPECIFIED ALIASING LINKS
+Aliasing links can be partially specified, meaning that the remote address
+and/or remote port are unknown.
+In this case, when a packet matching the incomplete specification is found,
+a fully specified dynamic link is created.
+If the original partially specified link is dynamic, it will be deleted
+after the fully specified link is created, otherwise it will persist.
+.Pp
+For instance, a partially specified link might be
+.Bd -literal -offset indent
+(192.168.0.4, 23, 204.228.203.215, 8066, 0, 0, tcp)
+.Ed
+.Pp
+The zeros denote unspecified components for the remote address and port.
+If this link were static it would have the effect of redirecting all
+incoming traffic from port 8066 of 204.228.203.215 to port 23 (telnet)
+of machine 192.168.0.4 on the local network.
+Each individual telnet connection would initiate the creation of a distinct
+dynamic link.
+.Ss DYNAMIC LINK CREATION
+In addition to aliasing links, there are also address mappings that can be
+stored within the internal data table of the packet aliasing mechanism.
+.Bd -literal -offset indent
+(local addr, alias addr)
+.Ed
+.Pp
+Address mappings are searched when creating new dynamic links.
+.Pp
+All outgoing packets from the local network automatically create a dynamic
+link if they do not match an already existing fully specified link.
+If an address mapping exists for the outgoing packet, this determines
+the alias address to be used.
+If no mapping exists, then a default address, usually the address of the
+packet aliasing host, is used.
+If necessary, this default address can be changed as often as each individual
+packet arrives.
+.Pp
+The aliasing port number is determined such that the new dynamic link does
+not conflict with any existing links.
+In the default operating mode, the packet aliasing engine attempts to set
+the aliasing port equal to the local port number.
+If this results in a conflict, then port numbers are randomly chosen until
+a unique aliasing link can be established.
+In an alternate operating mode, the first choice of an aliasing port is also
+random and unrelated to the local port number.
+.Sh MODULAR ARCHITECTURE Po AND Xr ipfw 4 SUPPORT Pc
+One of the latest improvements to
+.Nm
+was to make its support
+for new protocols independent from the rest of the library, giving it
+the ability to load/unload support for new protocols at run-time.
+To achieve this feature, all the code for protocol handling was moved
+to a series of modules outside of the main library.
+These modules are compiled from the same sources but work in
+different ways, depending on whether they are compiled to work inside a kernel
+or as part of the userland library.
+.Ss LIBALIAS MODULES IN KERNEL LAND
+When compiled for the kernel,
+.Nm
+modules are plain KLDs recognizable with the
+.Pa alias_
+prefix.
+.Pp
+To add support for a new protocol, load the corresponding module.
+For example:
+.Pp
+.Dl "kldload alias_ftp"
+.Pp
+When support for a protocol is no longer needed, its module can be unloaded:
+.Pp
+.Dl "kldunload alias_ftp"
+.Ss LIBALIAS MODULES IN USERLAND
+Due to the differences between kernel and userland (no KLD mechanism,
+many different address spaces, etc.), we had to change a bit how to
+handle module loading/tracking/unloading in userland.
+.Pp
+While compiled for a userland
+.Nm ,
+all the modules are plain libraries, residing in
+.Pa /usr/lib ,
+and recognizable with the
+.Pa libalias_
+prefix.
+.Pp
+There is a configuration file,
+.Pa /etc/libalias.conf ,
+with the following contents (by default):
+.Bd -literal -offset indent
+/usr/lib/libalias_cuseeme.so
+/usr/lib/libalias_ftp.so
+/usr/lib/libalias_irc.so
+/usr/lib/libalias_nbt.so
+/usr/lib/libalias_pptp.so
+/usr/lib/libalias_skinny.so
+/usr/lib/libalias_smedia.so
+.Ed
+.Pp
+This file contains the paths to the modules that
+.Nm
+will load.
+To load/unload a new module, just add its path to
+.Pa libalias.conf
+and call
+.Fn LibAliasRefreshModules
+from the program.
+In case the application provides a
+.Dv SIGHUP
+signal handler, add a call to
+.Fn LibAliasRefreshModules
+inside the handler, and every time you want to refresh the loaded modules,
+send it the
+.Dv SIGHUP
+signal:
+.Pp
+.Dl "kill -HUP <process_pid>"
+.Ss MODULAR ARCHITECURE: HOW IT WORKS
+The modular architecture of
+.Nm
+works similar whether it is running inside the
+kernel or in userland.
+From
+.Pa alias_mod.c :
+.Bd -literal
+/* Protocol and userland module handlers chains. */
+LIST_HEAD(handler_chain, proto_handler) handler_chain ...
+\&...
+SLIST_HEAD(dll_chain, dll) dll_chain ...
+.Ed
+.Pp
+.Va handler_chain
+keeps track of all the protocol handlers loaded, while
+.Va ddl_chain
+tracks which userland modules are loaded.
+.Pp
+.Va handler_chain
+is composed of
+.Vt "struct proto_handler"
+entries:
+.Bd -literal
+struct proto_handler {
+	u_int pri;
+	int16_t dir;
+	uint8_t proto;
+	int (*fingerprint)(struct libalias *la,
+		 struct ip *pip, struct alias_data *ah);
+	int (*protohandler)(struct libalias *la,
+		 struct ip *pip, struct alias_data *ah);
+	TAILQ_ENTRY(proto_handler) link;
+};
+.Ed
+.Pp
+where:
+.Bl -inset
+.It Va pri
+is the priority assigned to a protocol handler; lower priority
+is better.
+.It Va dir
+is the direction of packets: ingoing or outgoing.
+.It Va proto
+indicates to which protocol this packet belongs: IP, TCP or UDP.
+.It Va fingerprint
+points to the fingerprint function while protohandler points
+to the protocol handler function.
+.El
+.Pp
+The
+.Va fingerprint
+function has the dual role of checking if the
+incoming packet is found, and if it belongs to any categories that this
+module can handle.
+.Pp
+The
+.Va protohandler
+function actually manipulates
+the packet to make
+.Nm
+correctly NAT it.
+.Pp
+When a packet enters
+.Nm ,
+if it meets a module hook,
+.Va handler_chain
+is searched to see if there is an handler that matches
+this type of a packet (it checks protocol and direction of packet).
+Then, if more than one handler is found, it starts with the module with
+the lowest priority number: it calls the
+.Va fingerprint
+function and interprets the result.
+.Pp
+If the result value is equal to 0 then it calls the protocol handler
+of this handler and returns.
+Otherwise, it proceeds to the next eligible module until the
+.Va handler_chain
+is exhausted.
+.Pp
+Inside
+.Nm ,
+the module hook looks like this:
+.Bd -literal -offset indent
+struct alias_data ad = {
+	lnk,
+	&original_address,
+	&alias_address,
+	&alias_port,
+	&ud->uh_sport,          /* original source port */
+	&ud->uh_dport,		/* original dest port */
+	256                     /* maxpacketsize */
+};
+
+\&...
+
+/* walk out chain */
+err = find_handler(IN, UDP, la, pip, &ad);
+.Ed
+.Pp
+All data useful to a module are gathered together in an
+.Vt alias_data
+structure, then
+.Fn find_handler
+is called.
+The
+.Fn find_handler
+function is responsible for walking the handler
+chain; it receives as input parameters:
+.Bl -tag -width indent
+.It Fa IN
+direction
+.It Fa UDP
+working protocol
+.It Fa la
+pointer to this instance of libalias
+.It Fa pip
+pointer to a
+.Vt "struct ip"
+.It Fa ad
+pointer to
+.Vt "struct alias_data"
+(see above)
+.El
+.Pp
+In this case,
+.Fn find_handler
+will search only for modules registered for
+supporting INcoming UDP packets.
+.Pp
+As was mentioned earlier,
+.Nm
+in userland is a bit different, as
+care must be taken in module handling as well (avoiding duplicate load of
+modules, avoiding modules with same name, etc.) so
+.Va dll_chain
+was introduced.
+.Pp
+.Va dll_chain
+contains a list of all userland
+.Nm
+modules loaded.
+.Pp
+When an application calls
+.Fn LibAliasRefreshModules ,
+.Nm
+first unloads all the loaded modules, then reloads all the modules listed in
+.Pa /etc/libalias.conf :
+for every module loaded, a new entry is added to
+.Va dll_chain .
+.Pp
+.Va dll_chain
+is composed of
+.Vt "struct dll"
+entries:
+.Bd -literal
+struct dll {
+	/* name of module */
+	char            name[DLL_LEN];
+	/*
+	 * ptr to shared obj obtained through
+	 * dlopen() - use this ptr to get access
+	 * to any symbols from a loaded module
+	 * via dlsym()
+	 */
+	void            *handle;
+	struct dll      *next;
+};
+.Ed
+.Bl -inset
+.It Va name
+is the name of the module.
+.It Va handle
+is a pointer to the module obtained through
+.Xr dlopen 3 .
+.El
+Whenever a module is loaded in userland, an entry is added to
+.Va dll_chain ,
+then every protocol handler present in that module
+is resolved and registered in
+.Va handler_chain .
+.Ss HOW TO WRITE A MODULE FOR LIBALIAS
+There is a module (called
+.Pa alias_dummy.[ch] )
+in
+.Nm
+that can be used as a skeleton for future work.
+Here we analyse some parts of that module.
+From
+.Pa alias_dummy.c :
+.Bd -literal
+struct proto_handler handlers[] = {
+    {
+	.pri = 666,
+	.dir = IN|OUT,
+	.proto = UDP|TCP,
+	.fingerprint = fingerprint,
+	.protohandler= protohandler,
+    },
+    { EOH }
+};
+.Ed
+.Pp
+The variable
+.Va handlers
+is the
+.Dq "most important thing"
+in a module
+since it describes the handlers present and lets the outside world use
+it in an opaque way.
+.Pp
+It must ALWAYS be present in every module, and it MUST retain
+the name
+.Va handlers ,
+otherwise attempting to load a module in userland will fail and
+complain about missing symbols: for more information about module
+load/unload, please refer to
+.Fn LibAliasRefreshModules ,
+.Fn LibAliasLoadModule
+and
+.Fn LibAliasUnloadModule
+in
+.Pa alias.c .
+.Pp
+.Va handlers
+contains all the
+.Vt proto_handler
+structures present in a module.
+.Bd -literal
+static int
+mod_handler(module_t mod, int type, void *data)
+{
+	int error;
+
+	switch (type) {
+	case MOD_LOAD:
+		error = LibAliasAttachHandlers(handlers);
+		break;
+	case MOD_UNLOAD:
+		error = LibAliasDetachHandlers(handlers);
+		break;
+	default:
+		error = EINVAL;
+	}
+	return (error);
+}
+.Ed
+When running as KLD,
+.Fn mod_handler
+registers/deregisters the module using
+.Fn LibAliasAttachHandlers
+and
+.Fn LibAliasDetachHandlers ,
+respectively.
+.Pp
+Every module must contain at least 2 functions: one fingerprint
+function and a protocol handler function.
+.Bd -literal
+#ifdef _KERNEL
+static
+#endif
+int
+fingerprint(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+
+\&...
+}
+
+#ifdef _KERNEL
+static
+#endif
+int
+protohandler(struct libalias *la, struct ip *pip,
+             struct alias_data *ah)
+{
+
+\&...
+}
+.Ed
+and they must accept exactly these input parameters.
+.Ss PATCHING AN APPLICATION FOR USERLAND LIBALIAS MODULES
+To add module support into an application that uses
+.Nm ,
+the following simple steps can be followed.
+.Bl -enum
+.It
+Find the main file of an application
+(let us call it
+.Pa main.c ) .
+.It
+Add this to the header section of
+.Pa main.c ,
+if not already present:
+.Pp
+.Dl "#include <signal.h>"
+.Pp
+and this just after the header section:
+.Pp
+.Dl "static void signal_handler(int);"
+.It
+Add the following line to the init function of an application or,
+if it does not have any init function, put it in
+.Fn main :
+.Pp
+.Dl "signal(SIGHUP, signal_handler);"
+.Pp
+and place the
+.Fn signal_handler
+function somewhere in
+.Pa main.c :
+.Bd -literal -offset indent
+static void
+signal_handler(int sig)
+{
+
+	LibAliasRefreshModules();
+}
+.Ed
+.Pp
+Otherwise, if an application already traps the
+.Dv SIGHUP
+signal, just add a call to
+.Fn LibAliasRefreshModules
+in the signal handler function.
+.El
+For example, to patch
+.Xr natd 8
+to use
+.Nm
+modules, just add the following line to
+.Fn RefreshAddr "int sig __unused" :
+.Pp
+.Dl "LibAliasRefreshModules()"
+.Pp
+recompile and you are done.
+.Ss LOGGING SUPPORT IN KERNEL LAND
+When working as KLD,
+.Nm
+now has log support that
+happens on a buffer allocated inside
+.Vt "struct libalias"
+(from
+.Pa alias_local.h ) :
+.Bd -literal
+struct libalias {
+       ...
+
+	/* log descriptor        */
+#ifdef	KERNEL_LOG
+	char           *logDesc;        /*
+					 * ptr to an auto-malloced
+					 * memory buffer when libalias
+					 * works as kld
+					 */
+#else
+	FILE           *logDesc;	/*
+					 * ptr to /var/log/alias.log
+					 * when libalias runs as a
+					 * userland lib
+					 */
+#endif
+
+	...
+}
+.Ed
+so all applications using
+.Nm
+will be able to handle their
+own logs, if they want, accessing
+.Va logDesc .
+Moreover, every change to a log buffer is automatically added to
+.Xr syslog 3
+with the
+.Dv LOG_SECURITY
+facility and the
+.Dv LOG_INFO
+level.
+.Sh AUTHORS
+.An Charles Mott Aq cm@linktel.net ,
+versions 1.0 - 1.8, 2.0 - 2.4.
+.An Eivind Eklund Aq eivind@FreeBSD.org ,
+versions 1.8b, 1.9 and 2.5.
+Added IRC DCC support as well as contributing a number of architectural
+improvements; added the firewall bypass for FTP/IRC DCC.
+.An Erik Salander Aq erik@whistle.com
+added support for PPTP and RTSP.
+.An Junichi Satoh Aq junichi@junichi.org
+added support for RTSP/PNA.
+.An Ruslan Ermilov Aq ru@FreeBSD.org
+added support for PPTP and LSNAT as well as general hacking.
+.An Gleb Smirnoff Aq glebius@FreeBSD.org
+ported the library to kernel space.
+.An Paolo Pisati Aq piso@FreeBSD.org
+made the library modular, moving support for all
+protocols (except for IP, TCP and UDP) to external modules.
+.Sh ACKNOWLEDGEMENTS
+Listed below, in approximate chronological order, are individuals who
+have provided valuable comments and/or debugging assistance.
+.Bd -ragged -offset indent
+.An -split
+.An Gary Roberts
+.An Tom Torrance
+.An Reto Burkhalter
+.An Martin Renters
+.An Brian Somers
+.An Paul Traina
+.An Ari Suutari
+.An Dave Remien
+.An J. Fortes
+.An Andrzej Bialecki
+.An Gordon Burditt
+.Ed

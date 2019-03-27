@@ -1,0 +1,143 @@
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+Usage: bsdconfig @PROGRAM_NAME@ [OPTIONS]
+
+OPTIONS:
+	-h    Print this usage statement and exit.
+	-c    Don't show command-line shortcut relationships.
+	-d    Don't show the date in the graph label.
+	-i    Don't show include relationships.
+
+EXAMPLES:
+	View dot(1) language output describing bsdconfig(8) layout/make-up:
+
+		bsdconfig @PROGRAM_NAME@ | less
+
+	Render dot(1) output in SVG format (displays in most modern browsers):
+
+		bsdconfig @PROGRAM_NAME@ | dot -Tsvg -o bsdconfig.svg
+
+		NOTE: Requires `graphics/graphviz' from ports/packages.
+
+	View the above-rendered SVG file using your favorite X11-based viewer:
+
+		gimmage bsdconfig.svg
+
+			NOTE: Requires `graphics/gimmage' from ports/packages.
+
+		or
+
+		gthumb bsdconfig.svg
+
+			NOTE: Image is scaled to fit window on launch.
+			NOTE: Requires `graphics/gthumb' from ports/packages.
+
+		or
+
+		gqview bsdconfig.svg
+
+			NOTE: Requires `graphics/gqview' from ports/packages.
+
+		or
+
+		gx bsdconfig.svg
+
+			NOTE: Image is scaled to fit window on launch.
+			NOTE: Requires `graphics/gx' from ports/packages.
+
+		or
+
+		eog bsdconfig.svg
+
+			NOTE: Requires `graphics/eog' from ports/packages.
+
+	Render dot(1) output as PostScript print output consisting of multiple
+	US-Letter sized pages that can be assembled into a large poster (using
+	traditional tools such as scissors and tape):
+
+		bsdconfig @PROGRAM_NAME@ | dot -Teps -o bsdconfig.eps
+		poster -v -mLet -s1 -o bsdconfig.ps bsdconfig.eps
+
+		NOTE: Change "-s1" above to "-s0.5" to halve the size of the
+		      poster or "-s2", for example, to double the poster size.
+
+		NOTE: Requires both `graphics/graphviz' and `print/poster' from
+		      ports/packages.
+
+	Render dot(1) output as PostScript scaled to fit on a poster consisting
+	of 2x-wide and 4x-tall US-Letter sized pages:
+
+		bsdconfig @PROGRAM_NAME@ | dot -Teps -o bsdconfig.eps
+		poster -v -mLet -p2x4Letter -o bsdconfig.ps bsdconfig.eps
+
+		NOTE: Requires both `graphics/graphviz' and `print/poster' from
+		      ports/packages.
+
+	View the above-rendered PostScript poster using X11:
+
+		gsview bsdconfig.ps
+
+			NOTE: Requires `print/gsview' from ports/packages.
+
+		or
+
+		convert bsdconfig.ps bsdconfig.pdf
+		xpdf bsdconfig.pdf
+
+			NOTE: Requires both `graphics/ImageMagick' and
+			      `graphics/xdpf' from ports/packages.
+
+			NOTE: The converted PDF file is not suitable for
+			      printing due to loss of quality during the
+			      conversion process.
+
+	Print the above-rendered PostScript poster:
+
+		lpr -h bsdconfig.ps
+
+		NOTE: Requires configuration of a printer in `/etc/printcap'.
+
+	Extract each page of the poster into a separate PNG file:
+
+		gs -q -dNOPAUSE -dBATCH -sPAPERSIZE=letter \
+		   -dTextAlphaBits=4 -dGraphicsAlphaBits=4 \
+		   -sDEVICE=png16m -sOutputFile=bsdconfig%03d.png \
+		   bsdconfig.ps
+
+		NOTE: Requires `print/ghostscript9' from ports/packages.
+
+		NOTE: The converted PNG files are not suitable for printing
+		      due to loss of quality during the conversion process.
+
+	Extract a single page of the poster into a separate PostScript file for
+	printing individual pages from the command-line:
+
+		psselect 1 bsdconfig.ps bsdconfig-page1.ps
+		lpr -h bsdconfig-page1.ps
+
+		NOTE: Change "1" to "2" for the second page, ad-infinitum.
+		NOTE: Requires `print/psutils-letter' from ports/packages.

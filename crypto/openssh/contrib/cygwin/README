@@ -1,0 +1,91 @@
+This package describes important Cygwin specific stuff concerning OpenSSH.
+
+The binary package is usually built for recent Cygwin versions and might
+not run on older versions.  Please check http://cygwin.com/ for information
+about current Cygwin releases.
+
+==================
+Host configuration
+==================
+
+If you are installing OpenSSH the first time, you can generate global config
+files and server keys, as well as installing sshd as a service, by running
+
+   /usr/bin/ssh-host-config
+
+Note that this binary archive doesn't contain default config files in /etc.
+That files are only created if ssh-host-config is started.
+
+To support testing and unattended installation ssh-host-config got
+some options:
+
+usage: ssh-host-config [OPTION]...
+Options:
+    --debug  -d            Enable shell's debug output.
+    --yes    -y            Answer all questions with "yes" automatically.
+    --no     -n            Answer all questions with "no" automatically.
+    --cygwin -c <options>  Use "options" as value for CYGWIN environment var.
+    --name   -N <name>     sshd windows service name.
+    --port   -p <n>        sshd listens on port n.
+    --user   -u <account>  privileged user for service, default 'cyg_server'.
+    --pwd    -w <passwd>   Use "pwd" as password for privileged user.
+    --privileged           On Windows XP, require privileged user
+                           instead of LocalSystem for sshd service.
+
+Installing sshd as daemon via ssh-host-config is recommended.
+
+Alternatively you can start sshd via inetd, if you have the inetutils
+package installed.  Just run ssh-host-config, but answer "no" when asked
+to install sshd as service.  The ssh-host-config script also adds the
+required lines to /etc/inetd.conf and /etc/services.
+
+==================
+User configuration
+==================
+
+Any user can simplify creating the own private and public keys by running
+
+  /usr/bin/ssh-user-config
+
+To support testing and unattended installation ssh-user-config got
+some options as well:
+
+usage: ssh-user-config [OPTION]...
+Options:
+    --debug      -d        Enable shell's debug output.
+    --yes        -y        Answer all questions with "yes" automatically.
+    --no         -n        Answer all questions with "no" automatically.
+    --passphrase -p word   Use "word" as passphrase automatically.
+
+Please note that OpenSSH does never use the value of $HOME to
+search for the users configuration files! It always uses the
+value of the pw_dir field in /etc/passwd as the home directory.
+If no home diretory is set in /etc/passwd, the root directory
+is used instead!
+
+================
+Building OpenSSH
+================
+
+Building from source is easy.  Just unpack the source archive, cd to that
+directory, and call cygport:
+
+	cygport openssh.cygport all
+
+You must have installed the following packages to be able to build OpenSSH
+with the aforementioned cygport script:
+
+  zlib
+  crypt
+  openssl-devel
+  libedit-devel
+  libkrb5-devel
+
+Please send requests, error reports etc. to cygwin@cygwin.com.
+
+
+Have fun,
+
+Corinna Vinschen
+Cygwin Developer
+Red Hat Inc.

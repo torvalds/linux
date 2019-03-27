@@ -1,0 +1,21 @@
+# $FreeBSD$
+
+failures=
+failure() {
+	echo "Error at line $1" >&2
+	failures=x$failures
+}
+
+T=$(mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXX) || exit
+trap 'rm -rf $T' 0
+cd $T || exit 3
+unset x
+echo 'x=2' >testscript
+. -- ./testscript
+[ "$x" = 2 ] || failure $LINENO
+cd / || exit 3
+x=1
+PATH=$T:$PATH . -- testscript
+[ "$x" = 2 ] || failure $LINENO
+
+test -z "$failures"

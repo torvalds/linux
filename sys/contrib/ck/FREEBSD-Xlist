@@ -1,0 +1,12 @@
+#$FreeBSD$
+*/LICENSE
+*/Makefile.in
+*/README
+*/build
+*/configure
+*/doc
+*/regressions
+*/tools
+*/include/ck_md.h.in
+*/include/freebsd/ck_md.h.in
+*/src/Makefile.in

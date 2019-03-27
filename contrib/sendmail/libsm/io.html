@@ -1,0 +1,745 @@
+<html>
+<head>
+<title>libsm sm_io general overview</title>
+</head>
+<body>
+<a href="index.html">Back to libsm overview</a>
+<center>
+<h1>libsm sm_io general overview</h1>
+<br> $Id: io.html,v 1.3 2001-03-17 03:22:50 gshapiro Exp $
+</center>
+<h2> Introduction </h2>
+<p>
+The <i>sm_io</i> portion of the <i>libsm</i> library is similar to
+the <i>stdio</i> library. It is derived from the Chris Torek version
+of the <i>stdio</i> library (BSD). There are some key differences
+described below between <i>sm_io</i> and <i>stdio</i> but many
+similarities will be noticed.
+</p>
+<p>
+A key difference between <i>stdio</i> and <i>sm_io</i> is that the
+functional code that does the open, close, read, write, etc. on a file
+can be different for different files. For example, with <i>stdio</i>
+the functional code (read, write) is either the default supplied in the
+library or a "programmer specified" set of functions set via
+<i>sm_io_open()</i>. Whichever set of functions are specified <b>all</b>
+open's, read's, write's, etc use the same set of functions. In contrast, with
+<i>sm_io</i> a different set of functions can be specified with each
+active file for read's, write's, etc. These different function sets
+are identified as <b>file types</b> (see <tt>sm_io_open()</tt>). Each function
+set can handle the actions directly, pass the action request to
+another function set or do some work before passing it on to another function
+set. The setting of a function set for a file type can be done for
+a file type at any time (even after the type is open).
+</p>
+<p>
+A second difference is the use of <a href="rpool.html"><b>rpools</b></a>.
+An <b>rpool</b> is specified with the opening of a file
+(<tt>sm_io_open()</tt>).
+This allows of a file to be associated with an rpool so that when the
+rpool is released the open file will be closed; the <tt>sm_io_open()</tt>
+registers that <tt>sm_io_close()</tt> should be called when the rpool is
+released.
+</p>
+<p>
+A third difference is that the I/O functions take a <i>timeout</i>
+argument. This allows the setting of a maximum amount of time allowable
+for the I/O to be completed. This means the calling program does not need
+to setup it's own timeout mechanism. NOTE: SIGALRM's should not be
+active in the calling program when an I/O function with a <i>timeout</i>
+is used.
+</p>
+<p>
+When converting source code from <i>stdio</i> to <i>sm_io</i> be
+very careful to NOTE: the arguments to functions have been rationalized.
+That is, unlike <i>stdio</i>, all <i>sm_io</i> functions that
+take a file pointer (SM_FILE_T *) argument have the file pointer
+as the first argument. Also not all functions with <i>stdio</i> have
+an identical matching <i>sm_io</i> API: the API list has been thinned
+since a number of <i>stdio</i> API's overlapped in functionality.
+Remember many functions also have a <i>timeout</i> argument added.
+</p>
+<p>
+When a file is going to be opened, the file type is included with
+<tt>sm_io_open()</tt>.
+A file type is either one automatically included with the <i>sm_io</i>
+library or one created by the program at runtime.
+File types can be either buffered or unbuffered. When buffered the buffering
+is either the builtin <i>sm_io</i> buffering or as done by the file type.
+File types can be disk files, strings, TCP/IP connections or whatever
+your imagination can come up with that can be read and/or written to.
+</p>
+<p>
+Information about a particular file type or pointer can be obtained or set with
+the <i>sm_io</i> "info" functions.
+The <tt>sm_io_setinfo()</tt> and <tt>sm_io_getinfo()</tt> functions work on
+an active file pointer.
+</p>
+<h2>Include files</h2>
+<p>
+There is one main include file for use with sm_io: <i>io.h</i>. Since the
+use of <b>rpools</b> is specified with <tt>sm_io_open()</tt> an
+<b>rpool</b> may
+be created and thus <i>rpool.h</i> may need to be included as well
+(before io.h).
+</p>
+<pre>
+#include &lt;rpool.h&gt;
+#include &lt;io.h&gt;
+</pre>
+
+<h2>Functions/API's</h2>
+<p>
+Below is a list of the functions for <i>sm_io</i> listed in
+alphabetical order. Currently these functions return error codes
+and set errno when appropriate. These (may?/will?) change to
+raising exceptions later.
+</p>
+<pre>
+<a href="#sm_io_autoflush">SM_FILE_T *sm_io_autoflush(SM_FILE_T *fp, SM_FILE_T *)</a>
+
+<a href="#sm_io_automode">void sm_io_automode(SM_FILE_T *fp, SM_FILE_T *)</a>
+
+<a href="#defaultapi">void sm_io_clearerr(SM_FILE_T *fp)</a>
+
+<a href="#sm_io_close">int sm_io_close(SM_FILE_T *fp, int timeout)</a>
+
+<a href="#defaultapi">int sm_io_dup(SM_FILE_T *fp)</a>
+
+<a href="#defaultapi">int sm_io_eof(SM_FILE_T *fp)</a>
+
+<a href="#defaultapi">int sm_io_error(SM_FILE_T *fp)</a>
+
+<a href="#defaultapi">char * sm_io_fgets(SM_FILE_T *fp, int timeout, char *buf, int n)</a>
+
+<a href="#defaultapi">int sm_io_flush(SM_FILE_T *fp, int timeout)</a>
+
+<a href="#sm_io_fopen">int sm_io_fopen(char *pathname, int flags [, MODE_T mode])</a>
+
+<a href="#defaultapi">int sm_io_fprintf(SM_FILE_T *fp, int timeout, const char *fmt, ...)</a>
+
+<a href="#defaultapi">int sm_io_fputs(s, int, SM_FILE_T *fp)</a>
+
+<a href="#defaultapi">int sm_io_fscanf(SM_FILE_T *fp, int timeout, char const *fmt, ...) </a>
+
+<a href="#defaultapi">int sm_io_getc(SM_FILE_T *fp, int timeout)</a>
+
+<a href="#sm_io_getinfo">void sm_io_getinfo(SM_FILE_T *sfp, int what, void *valp)</a>
+
+<a href="#sm_io_open">SM_FILE_T * sm_io_open(SM_FILE_T type, int timeout, void *info, int flags, void *rpool)</a>
+
+<a href="#defaultapi">int sm_io_purge(SM_FILE_T *fp)</a>
+
+<a href="#defaultapi">int sm_io_putc(SM_FILE_T *fp, int timeout, int c)</a>
+
+<a href="#defaultapi">size_t sm_io_read(SM_FILE_T *fp, int timeout, char *buf, size_t size)</a>
+
+<a href="#sm_io_reopen">SM_FILE_T * sm_io_open(SM_FILE_T type, int timeout, void *info, int flags, void *rpool)</a>
+
+<a href="#defaultapi">void sm_io_rewind(SM_FILE_T *fp, int timeout)</a>
+
+<a href="#defaultapi">int sm_io_seek(SM_FILE_T *fp, off_t offset, int timeout, int whence)</a>
+
+<a href="#sm_io_setinfo">void sm_io_setinfo(SM_FILE_T *sfp, int what, void *valp)</a>
+
+<a href="#defaultapi">int sm_io_setvbuf(SM_FILE_T *fp, int timeout, char *buf, int mode, size_t size)</a>
+
+<a href="#defaultapi">int sm_io_sscanf(const char *str, char const *fmt, ...)</a>
+
+<a href="#defaultapi">long sm_io_tell(SM_FILE_T *fp, int timeout)</a>
+
+<a href="#defaultapi">int sm_io_ungetc(SM_FILE_T *fp, int timeout, int c)</a>
+
+<a href="#defaultapi">size_t sm_io_write(SM_FILE_T *fp, int timeout, char *buf, size_t size)</a>
+
+<a href="#defaultapi">int sm_snprintf(char *str, size_t n, char const *fmt, ...)</a>
+
+</pre>
+<a name="timeouts">
+<h2>Timeouts</h2>
+<p>
+For many of the functions a <i>timeout</i> argument is given. This limits
+the amount of time allowed for the function to complete. There are three
+pre-defined values:
+<menu>
+<li>
+SM_TIME_DEFAULT - timeout using the default setting for this file type
+</li>
+<li>
+SM_TIME_FOREVER - timeout will take forever; blocks until task completed
+</li>
+<li>
+SM_TIME_IMMEDIATE - timeout (virtually) now
+</li>
+</menu>
+</p>
+<p>
+A function caller can also specify a positive integer value in milliseconds.
+A function will return with <i>errno</i> set to EINVAL if a bad value
+is given for <i>timeout</i>.
+When a function times out the function returns in error with <i>errno</i>
+set to <b>EAGAIN</b>. In the future this may change to an exception being
+thrown.
+</p>
+<h2>Function Descriptions</h2>
+<dl>
+<!-- SM_IO_FOPEN -->
+<p></p>
+<dt><tt><a name="sm_io_fopen">
+SM_FILE_T *
+<br>
+sm_io_fopen(char *pathname, int flags)
+<br>
+SM_FILE_T *
+<br>
+sm_io_fopen(char *pathname, int flags, MODE_T mode)
+</a></tt></dt>
+<dd>
+Open the file named by <tt>pathname</tt>, and associate a stream with it.
+The arguments are the same as for the <tt>open(2)</tt> system call.
+<br>
+If memory could not be allocated, an exception is raised.
+If successful, an <tt>SM_FILE_T</tt> pointer is returned.
+Otherwise, <tt>NULL</tt> is returned and <tt>errno</tt> is set.
+<!-- SM_IO_OPEN -->
+<p></p>
+<dt><tt><a name="sm_io_open">
+SM_FILE_T *
+<br>
+sm_io_open(const SM_FILE_T *type, int timeout, const void *info, int flags, void *rpool)
+</a></tt></dt>
+<dd>
+Opens a file by <i>type</i> directed by <i>info</i>. <i>Type</i> is a filled-in
+SM_FILE_T structure from the following builtin list
+(<a href="#builtins"><b>descriptions below</b></a>)
+or one specified by the program. 
+<menu>
+<li>
+SmFtString
+</li>
+<li>
+SmFtStdio
+</li>
+<li>
+SmFtStdiofd
+</li>
+<li>
+smioin <b>*</b>
+</li>
+<li>
+smioout <b>*</b>
+</li>
+<li>
+smioerr <b>*</b>
+</li>
+<li>
+smiostdin <b>*</b>
+</li>
+<li>
+smiostdout <b>*</b>
+</li>
+<li>
+smiostderr <b>*</b>
+</li>
+<li>
+SmFtSyslog
+</li>
+</menu>
+<br>
+The above list of file types are already appropriately filled in. Those marked
+with a "<b>*</b>" are already open and may be used directly and immediately.
+For program specified types, to set the <i>type</i> argument easily and with minimal error the macro
+<b>SM_IO_SET_TYPE</b> should be used. The SM_FILE_T structure is fairly
+large, but only a small portion of it need to be initialized for a new
+type.
+See also <a href="#writefunctions">"Writing Functions for a File Type"</a>.
+<menu>
+<pre>
+SM_IO_SET_TYPE(type, name, open, close, read, write, seek, get, set, timeout)
+</pre>
+</menu>
+<br>
+<i>Timeout</i> is set as described in the <a href="#timeouts"><b>Timeouts</b></a>
+section.
+<br>
+<i>Info</i> is information that describes for the file type what is
+to be opened and any associated information.
+For a disk file this would be a file path; with a TCP
+connection this could be an a structure containing an IP address and port.
+<br><i>Flags</i> is a
+set of sm_io flags that describes how the file is to be interacted with:
+<menu>
+<li>
+SM_IO_RDWR	- read and write
+</li>
+<li>
+SM_IO_RDONLY	- read only
+</li>
+<li>
+SM_IO_WRONLY	- write only
+</li>
+<li>
+SM_IO_APPEND	- allow write to EOF only
+</li>
+<li>
+SM_IO_APPENDRW	- allow read-write from EOF only
+</li>
+<li>
+SM_IO_RDWRTR	- read and write with truncation of file first
+</li>
+</menu>
+<i>Rpool</i> is the address of the rpool that this open is to be associated
+with. When the rpool is released then the close function for this
+file type will be automatically called to close the file for cleanup.
+If NULL is specified for <i>rpool</i> then the close function is not
+associated (attached) to an rpool.
+<br>
+On cannot allocate memory, an exception is raised.
+If the <i>type</i> is invalid, <tt>sm_io_open</tt> will abort the process.
+On success an SM_FILE_T * pointer is returned.
+On failure the NULL pointer is returned and errno is set.
+</dd>
+<!-- SM_IO_SETINFO -->
+<p></p>
+<dt><tt><a name="sm_io_setinfo">
+int
+<br>
+sm_io_setinfo(SM_FILE_T *sfp, int what, void *valp)
+</a></tt></dt>
+<dd>
+For the open file <i>sfp</i> set the indicated information (<i>what</i>)
+to the new value <i>(valp</i>).
+This will make the change for this SM_FILE_T only. The file
+type that <i>sfp</i> originally belonged to will still be
+configured the same way (this is to prevent side-effect
+to other open's of the same file type, particularly with threads).
+The value of <i>what</i> will be file-type dependant since this function
+is one of the per file type setable functions.
+One value for <i>what</i> that is valid for all file types is
+SM_WHAT_VECTORS. This sets the currently open file with a new function
+vector set for open, close, etc. The new values are taken from <i>valp</i>
+a SM_FILE_T filled in by the used via the macro SM_IO_SET_TYPE
+(see and <a href="#writefunctions">
+"Writing Functions for a File Type"</a> for more information).
+<br>
+On success 0 (zero) is returned. On failure -1 is returned and errno is set.
+</dd>
+<!-- SM_IO_GETINFO -->
+<p></p>
+<dt><tt><a name="sm_io_getinfo">
+int
+<br>
+sm_io_getinfo(SM_FILE_T *sfp, int what, void *valp)
+</a></tt></dt>
+<dd>
+For the open file <i>sfp</i> get the indicated information (<i>what</i>)
+and place the result in <i>(valp</i>).
+This will obtain information for SM_FILE_T only and may be different than
+the information for the file type it was originally opened as.
+The value of <i>what</i> will be file type dependant since this function
+is one of the per file type setable functions.
+One value for <i>what</i> that is valid for all file types is
+SM_WHAT_VECTORS. This gets from the currently open file a copy of
+the function vectors and stores them in <i>valp</i> a SM_FILE_T
+(see <a href="#writefunctions">
+"Writing Functions for a File Type"</a> for more information).
+<br>
+On success 0 (zero) is returned. On failure -1 is returned and errno is set.
+</dd>
+<!-- SM_IO_AUTOFLUSH -->
+<p></p>
+<dt><tt><a name="sm_io_autoflush">
+void
+<br>
+sm_io_autoflush(SM_FILE_T *fp1, *SM_FILE_T fp2)
+</a></tt></dt>
+<dd>
+Associate a read of <i>fp1</i> with a data flush for <i>fp2</i>. If a read
+of <i>fp1</i> discovers that there is no data available to be read, then
+<i>fp2</i> will have it's data buffer flushed for writable data. It is
+assumed that <i>fp1</i> is open for reading and <i>fp2</i> is open
+for writing.
+<br>
+On return the old file pointer associated with <i>fp1</i> for flushing
+is returned. A return of NULL is no an error; this merely indicates no
+previous association.
+</dd>
+<!-- SM_IO_AUTOMODE -->
+<p></p>
+<dt><tt><a name="sm_io_automode">
+void
+<br>
+sm_io_automode(SM_FILE_T *fp1, *SM_FILE_T fp2)
+<dt><tt><a name="sm_io_automode">
+</a></tt></dt>
+<dd>
+Associate the two file pointers for blocking/non-blocking mode changes.
+In the handling of timeouts <i>sm_io</i> may need to switch the mode of
+a file between blocking and non-blocking. If the underlying file descriptor
+has been duplicated with <tt>dup(2)</tt> and these descriptors are used
+by <i>sm_io</i> (for example with an SmFtStdiofd file type), then this API
+should be called to associate them. Otherwise odd behavior (i.e. errors)
+may result that is not consistently reproducable nor easily identifiable.
+</dd>
+<!-- SM_IO_CLOSE -->
+<p></p>
+<dt><tt><a name="sm_io_close">
+int
+<br>
+sm_io_close(SM_FILE_T *sfp, int timeout)
+</a></tt></dt>
+<dd>
+Release all resources (file handles, memory, etc.) associated with
+the open SM_FILE_T <i>sfp</i>. If buffering is active then the
+buffer is flushed before any resources are released.
+<i>Timeout</i> is set as described in the <a href="#timeouts"><b>Timeouts</b></a>
+section.
+The first resources released after buffer flushing will be the
+buffer itself. Then the <b>close</b> function specified in the
+file type at open will be called. It is the responsibility
+of the <b>close</b> function to release any file type
+specific resources allocated and to call <tt>sm_io_close()</tt>
+for the next file type layer(s) that the current file type uses (if any).
+<br>
+On success 0 (zero) is returned. On failure SM_IO_EOF is returned and
+errno is set.
+</dd>
+</dl>
+<h2>
+<a name="builtins">Description of Builtin File Types</a>
+</h2>
+<p>
+There are several builtin file types as mentioned in <tt>sm_io_open()</tt>.
+More file types may be added later.
+</p>
+<dl>
+<p></p>
+<dt><tt>SmFtString</tt></dt>
+<dd>
+Operates on a character string. <i>SmFtString</i> is a file type only.
+The string starts at the location 0 (zero)
+and ends at the last character. A read will obtain the requested
+number of characters if available; else as many as possible. A read
+will not terminate the read characters with a NULL ('\0'). A write
+will place the number of requested characters at the current location.
+To append to a string either the pointer must currently be at the end
+of the string or a seek done to position the pointer. The file type
+handles the space needed for the string. Thus space needed for the
+string will be grown automagically without the user worrying about
+space management.
+</dd>
+<dt><tt>SmFtStdio</tt></dt>
+<dd>
+A predefined SM_FILE_T structure with function vectors pointing to
+functions that result in the file-type behaving as the system stdio
+normally does. The <i>info</i> portion of the <tt>sm_io_open</tt>
+is the path of the file to be opened. Note that this file type
+does not interact with the system's stdio. Thus a program mixing system
+stdio and sm_io stdio (SmFtStdio) will result in uncoordinated input
+and output.
+</dd>
+<dt><tt>SmFtStdiofd</tt></dt>
+<dd>
+A predefined SM_FILE_T structure with function vectors pointing to
+functions that result in the file-type behaving as the system stdio
+normally does. The <i>info</i> portion of the <tt>sm_io_open</tt>
+is a file descriptor (the value returned by open(2)).  Note that this file type
+does not interact with the system's stdio. Thus a program mixing system
+stdio and sm_io stdio (SmFtStdio) will result in uncoordinated input
+and output.
+</dd>
+<dt><tt>smioin</tt></dt>
+<dt><tt>smioout</tt></dt>
+<dt><tt>smioerr</tt></dt>
+<dd>
+The three types <i>smioin</i>, <i>smioout</i> and <i>smioerr</i> are grouped
+together. These three types
+perform in the same manner as <b>stdio</b>'s <i>stdin</i>, <i>stdout</i>
+and <i>stderr</i>.  These types are both the names and the file pointers.
+They are already open when a program starts (unless the parent explictly
+closed file descriptors 0, 1 and 2).
+Thus <tt>sm_io_open()</tt> should never be called for these types:
+the named file pointers should be used directly.
+<i>Smioin</i> and <i>smioout</i> are buffered
+by default. <i>Smioerr</i> is not buffered by default. Calls to <b>stdio</b>
+are safe to make when using these three<b>sm_io</b> file pointers.
+There is no interaction between <b>sm_io</b> and <b>stdio</b>. Hence,
+due to buffering, the sequence of input and output data from both <b>sm_io</b>
+and <b>stdio</b> at the same time may appear unordered. For
+coordination between <b>sm_io</b> and <b>stdio</b> use the three
+file pointers below (<i>smiostdin, smiostdout, smiostderr</i>).
+</dd>
+<dt><tt>smiostdin</tt></dt>
+<dt><tt>smiostdout</tt></dt>
+<dt><tt>smiostderr</tt></dt>
+<dd>
+The three types <i>smiostdin</i>, <i>smioostdut</i> and <i>smiostderr</i>
+are grouped together. These three types
+perform in the same manner as <b>stdio</b>'s <i>stdin</i>, <i>stdout</i>
+and <i>stderr</i>.  These types are both the names and file pointers.
+They are already open when a program starts (unless the parent explictly
+close file descriptors 0, 1 and 2).
+Thus <tt>sm_io_open()</tt> should
+never be called: the named file pointers should be used directly.
+Calls to <b>stdio</b> are safe to make when using these three<b>sm_io</b>
+file pointers though no code is shared between the two libaries.
+However, the input and output between <i>sm_io</i> and <i>stdio</i> is
+coordinated for these three file pointers: <i>smiostdin</i>,
+<i>smiostdout</i> and <i>smiostderr</i> are layered on-top-of
+the system's <i>stdio</i>.
+<i>Smiostdin</i>, <i>smiostdout</i>
+and <i>Smiostderr</i> are not buffered by default.
+Hence, due to buffering in <i>stdio</i> only, the sequence of input and
+output data from both <b>sm_io</b> and <b>stdio</b> at the same time will
+appear ordered. If <i>sm_io</i> buffering is turned on then the
+input and output can appear unordered or lost.
+</dd>
+<dt><tt>SmFtSyslog</tt></dt>
+<dd>
+This opens the channel to the system log. Reads are not allowed. Writes
+cannot be undone once they have left the <i>sm_io</i> buffer.
+The man pages for <tt>syslog(3)</tt> should be read for information
+on syslog.
+</dd>
+</dl>
+<p></p>
+<hr>
+<p></p>
+<h2>
+<a name="writefunctions">
+Writing Functions for a File Type
+</a>
+</h2>
+<p>
+When writing functions to create a file type a function needs to
+be created for each function vector in the SM_FILE_T structure
+that will be passed to <tt>sm_io_open()</tt> or <tt>sm_io_setinfo()</tt>.
+Otherwise the setting will be rejected and <i>errno</i> set to EINVAL.
+Each function should accept and handle the number and types of arguments as
+described in the portion of the SM_FILE_T structure shown below:
+</p>
+<pre>
+        int      (*open) __P((SM_FILE_T *fp, const void *, int flags,
+                              const void *rpool));
+        int      (*close) __P((SM_FILE_T *fp));
+        int      (*read)  __P((SM_FILE_T *fp, char *buf, size_t size));
+        int      (*write) __P((SM_FILE_T *fp, const char *buf, size_t size));
+        off_t    (*seek)  __P((SM_FILE_T *fp, off_t offset, int whence));
+        int      (*getinfo) __P((SM_FILE_T *fp, int what, void *valp));
+        int      (*setinfo) __P((SM_FILE_T *fp, int what, void *valp));
+</pre>
+<p>
+The macro SM_IO_SET_TYPE should be used to initialized an SM_FILE_T as a file
+type for an <tt>sm_io_open()</tt>:
+<menu>
+<pre>
+SM_IO_SET_TYPE(type, name, open, close, read, write, seek, get, set, timeout)
+</pre>
+<br>
+where:
+<menu>
+<li>
+type	- is the SM_FILE_T being filled-in
+</li>
+<li>
+name	- a human readable character string for human identification purposes
+</li>
+<li>
+open	- the vector to the open function
+</li>
+<li>
+close	- the vector to the close function
+</li>
+<li>
+read	- the vector to the read function
+</li>
+<li>
+write	- the vector to the write function
+</li>
+<li>
+seek	- the vector to the seek function
+</li>
+<li>
+set	- the vector to the set function
+</li>
+<li>
+get	- the vector to the get function
+</li>
+<li>
+timeout	- the default to be used for a timeout when SM_TIME_DEFAULT specified
+</li>
+</menu>
+</menu>
+You should avoid trying to change or use the other structure members of the
+SM_FILE_T. The file pointer content (internal structure members) of an active
+file should only be set and observed with the "info" functions.
+The two exceptions to the above statement are the structure members
+<i>cookie</i> and <i>ival</i>. <i>Cookie</i> is of type <tt>void *</tt>
+while <i>ival</i> is of type <tt>int</tt>. These two structure members exist
+specificly for your created file type to use. The <i>sm_io</i> functions
+will not change or set these two structure members; only specific file type
+will change or set these variables.
+</p>
+<p>
+For maintaining information privately about status for a file type the
+information should be encapsulated in a <i>cookie</i>. A <i>cookie</i>
+is an opaque type that contains information that is only known to
+the file type layer itself. The <i>sm_io</i> package will know
+nothing about the contents of the <i>cookie</i>; <i>sm_io</i> only
+maintains the location of the <i>cookie</i> so that it may be passed
+to the functions of a file type. It is up to the file type to
+determine what to do with the <i>cookie</i>. It is the responsibility
+of the file type's open to create the cookie and point the SM_FILE_T's
+<i>cookie</i> at the address of the cookie.
+It is the responsibility of close to clean up
+any resources that the cookie and instance of the file type have used.
+</p>
+<p>
+For the <i>cookie</i> to be passed to all members of a function type
+cleanly the location of the cookie must assigned during
+the call to open. The file type functions should not attempt to
+maintain the <i>cookie</i> internally since the file type may have
+serveral instances (file pointers).
+</p>
+<p>
+The SM_FILE_T's member <i>ival</i> may be used in a manner similar to
+<i>cookie</i>. It is not to be used for maintaining the file's offset
+or access status (other members do that). It is intended as a "light"
+reference.
+</p>
+<p>
+The file type vector functions are called by the <tt>sm_io_*()</tt>
+functions after <i>sm_io</i> processing has occurred. The <i>sm_io</i>
+processing validates SM_FILE_T's and may then handle the call entirely
+itself or pass the request to the file type vector functions.
+</p>
+<p>
+All of the "int" functions should return -1 (minus one) on failure
+and 0 (zero) or greater on success. <i>Errno</i> should be set to
+provide diagnostic information to the caller if it has not already
+been set by another function the file type function used.
+</p>
+<p>
+Examples are a wonderful manner of clarifying details. Below is an example
+of an open function.
+</p>
+<p>
+This shows the setup.
+<menu>
+<pre>
+SM_FILE_T *fp;
+SM_FILE_T SM_IO_SET_TYPE(vector, "my_type", myopen, myclose, myread, mywrite,
+				myseek, myget, myset, SM_TIME_FOREVER);
+
+fp = sm_io_open(&vector, 1000, "data", SM_IO_RDONLY, NULL);
+
+if (fp == NULL)
+	return(-1);
+</pre>
+The above code open's a file of type "my_type". The <i>info</i> is set
+to a string "data". "data" may be the name of a file or have some special
+meaning to the file type. For sake of the example, we will have it be
+the name of a file in the home directory of the user running the program.
+Now the only file type function that is dependent on this information
+will be the open function.
+<br>
+We have also specified read-only access (SM_IO_RDONLY) and that no <i>rpool</i>
+will be used. The <i>timeout</i> has been set to 1000 milliseconds which
+directs that the file and all associated setup should be done within
+1000 milliseconds or return that the function erred (with errno==EAGAIN).
+<pre>
+int myopen(fp, info, flags, rpools)
+	SM_FILE_T *fp;
+        const void *info; 
+        int flags;
+        void *rpool;
+{
+	/*
+	**  now we could do the open raw (i.e with read(2)), but we will
+	**  use file layering instead. We will use the <i>stdio</i> file
+	**  type (different than the system's stdio).
+	*/
+	struct passwd *pw;
+	char path[PATH_MAX];
+
+	pw = getpwuid(getuid());
+	sm_io_snprintf(path, PATH_MAX, "%s/%s", pw->pw_dir, info);
+
+	/*
+	**  Okay. Now the path pass-in has been prefixed with the
+	**  user's HOME directory. We'll call the regular stdio (SmFtStdio)
+	**  now to handle the rest of the open.
+	*/
+	fp->cookie = sm_io_open(SmFtStdio, path, flags, rpools);
+	if (fp->cookie == NULL)
+		return(-1) /* errno set by sm_io_open call */
+	else
+		return(0);
+}
+</pre>
+Later on when a write is performed the function <tt>mywrite</tt> will
+be invoked. To match the above <tt>myopen</tt>, <tt>mywrite</tt> could
+be written as:
+<pre>
+int mywrite(fp, buf, size)
+	SM_FILE_T *fp;
+        char *buf;
+        size_t size;
+{
+	/*
+	**  As an example, we can change, modify, refuse, filter, etc.
+	**  the content being passed through before we ask the SmFtStdio
+	**  to do the actual write.
+	**  This example is very simple and contrived, but this keeps it
+	**  clear.
+	*/
+	if (size == 0)
+		return(0); /* why waste the cycles? */
+	if (*buf == 'X')
+		*buf = 'Y';
+
+	/*
+	**  Note that the file pointer passed to the next level is the
+	**  one that was stored in the cookie during the open.
+	*/
+	return(sm_io_write(fp->cookie, buf, size));
+}
+</pre>
+As a thought-exercise for the fair reader: how would you modify the
+above two functions to make a "tee". That is the program will call
+<tt>sm_io_open</tt> or <tt>sm_io_write</tt> and two or more files will
+be opened and written to. (Hint: create a cookie to hold two or more
+file pointers).
+</menu>
+</p>
+<p></p>
+<hr>
+<br>
+<hr>
+<p></p>
+<center>
+<h1>
+<a name="defaultapi">
+libsm sm_io default API definition
+</a>
+</h1>
+</center>
+<h2> Introduction </h2>
+<p>
+A number of <i>sm_io</i> API's perform similar to their <i>stdio</i>
+counterparts (same name as when the "sm_io_" is removed).
+One difference between <i>sm_io</i> and <i>stdio</i> functions is that
+if a "file pointer" (FILE/SM_FILE_T)
+is one of the arguments for the function, then it is now the first
+argument. <i>Sm_io</i> is standardized so that when a file pointer is
+one of the arguments to function then it will always be the first
+arguement. Many of the <i>sm_io</i> function take a <i>timeout</i>
+argument (see <a href="#timeouts"><b>Timeouts</b></a>).
+</p>
+<p>
+The API you have selected is one of these. Please consult the
+appropriate <i>stdio</i> man page for now.
+</p>
+
+</body>
+</html>

@@ -1,0 +1,4 @@
+a = "10.0.0.1"
+b = "x"
+b = "y"
+pass in inet from 10.0.0.1 to any flags S/SA keep state

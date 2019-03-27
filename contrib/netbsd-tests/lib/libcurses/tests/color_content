@@ -1,0 +1,12 @@
+include start
+call OK start_color
+call4 OK 0 0 0 color_content $COLOR_BLACK
+call4 OK 1000 0 0 color_content $COLOR_RED
+call4 OK 0 1000 0 color_content $COLOR_GREEN
+call4 OK 1000 1000 0 color_content $COLOR_YELLOW
+call4 OK 0 0 1000 color_content $COLOR_BLUE
+call4 OK 1000 0 1000 color_content $COLOR_MAGENTA
+call4 OK 0 1000 1000 color_content $COLOR_CYAN
+call4 OK 1000 1000 1000 color_content $COLOR_WHITE
+
+

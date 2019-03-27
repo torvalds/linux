@@ -1,0 +1,82 @@
+// -*- C++ -*-
+//===---------------------------- cfenv -----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CFENV
+#define _LIBCPP_CFENV
+
+/*
+    cfenv synopsis
+
+This entire header is C99 / C++0X
+
+Macros:
+
+    FE_DIVBYZERO
+    FE_INEXACT
+    FE_INVALID
+    FE_OVERFLOW
+    FE_UNDERFLOW
+    FE_ALL_EXCEPT
+    FE_DOWNWARD
+    FE_TONEAREST
+    FE_TOWARDZERO
+    FE_UPWARD
+    FE_DFL_ENV
+
+namespace std
+{
+
+Types:
+
+    fenv_t
+    fexcept_t
+
+int feclearexcept(int excepts);
+int fegetexceptflag(fexcept_t* flagp, int excepts);
+int feraiseexcept(int excepts);
+int fesetexceptflag(const fexcept_t* flagp, int excepts);
+int fetestexcept(int excepts);
+int fegetround();
+int fesetround(int round);
+int fegetenv(fenv_t* envp);
+int feholdexcept(fenv_t* envp);
+int fesetenv(const fenv_t* envp);
+int feupdateenv(const fenv_t* envp);
+
+}  // std
+*/
+
+#include <__config>
+#include <fenv.h>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::fenv_t;
+using ::fexcept_t;
+
+using ::feclearexcept;
+using ::fegetexceptflag;
+using ::feraiseexcept;
+using ::fesetexceptflag;
+using ::fetestexcept;
+using ::fegetround;
+using ::fesetround;
+using ::fegetenv;
+using ::feholdexcept;
+using ::fesetenv;
+using ::feupdateenv;
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_CFENV

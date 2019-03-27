@@ -1,0 +1,354 @@
+.\"	$Id: tbl.3,v 1.2 2015/01/30 04:11:50 schwarze Exp $
+.\"
+.\" Copyright (c) 2013 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 30 2015 $
+.Dt TBL 3
+.Os
+.Sh NAME
+.Nm tbl_alloc ,
+.Nm tbl_read ,
+.Nm tbl_restart ,
+.Nm tbl_span ,
+.Nm tbl_end ,
+.Nm tbl_free
+.Nd roff table parser library for mandoc
+.Sh SYNOPSIS
+.In mandoc.h
+.In libmandoc.h
+.In libroff.h
+.Ft struct tbl_node *
+.Fo tbl_alloc
+.Fa "int pos"
+.Fa "int line"
+.Fa "struct mparse *parse"
+.Fc
+.Ft enum rofferr
+.Fo tbl_read
+.Fa "struct tbl_node *tbl"
+.Fa "int ln"
+.Fa "const char *p"
+.Fa "int offs"
+.Fc
+.Ft void
+.Fo tbl_restart
+.Fa "int line"
+.Fa "int pos"
+.Fa "struct tbl_node *tbl"
+.Fc
+.Ft const struct tbl_span *
+.Fo tbl_span
+.Fa "struct tbl_node *tbl"
+.Fc
+.Ft void
+.Fo tbl_end
+.Fa "struct tbl_node **tblp"
+.Fc
+.Ft void
+.Fo tbl_free
+.Fa "struct tbl_node *tbl"
+.Fc
+.Sh DESCRIPTION
+This library is tightly integrated into the
+.Xr mandoc 1
+utility and not designed for stand-alone use.
+The present manual is intended as a reference for developers working on
+.Xr mandoc 1 .
+.Ss Data structures
+Unless otherwise noted, all of the following data structures are defined in
+.In mandoc.h
+and are deleted in
+.Fn tbl_free .
+.Bl -tag -width Ds
+.It Vt struct tbl_node
+This structure describes a complete table.
+It is defined in
+.In libroff.h ,
+created in
+.Fn tbl_alloc ,
+and stored in the members
+.Fa first_tbl ,
+.Fa last_tbl ,
+and
+.Fa tbl
+of
+.Vt struct roff Bq Pa roff.c .
+.Pp
+The
+.Fa first_span ,
+.Fa current_span ,
+.Fa last_span ,
+and
+.Fa next
+members may be
+.Dv NULL .
+The
+.Fa first_row
+and
+.Fa last_row
+members may be
+.Dv NULL ,
+but if there is a span, the function
+.Fn tbl_layout
+guarantees that these pointers are not
+.Dv NULL .
+The function
+.Fn tbl_alloc
+guarantees that the
+.Fa parse
+member is not
+.Dv NULL .
+.It Vt struct tbl_opts
+This structure describes the options of one table.
+It is used as a substructure of
+.Vt struct tbl_node
+and thus created and deleted together with it.
+It is filled in
+.Fn tbl_options .
+.It Vt struct tbl_row
+This structure describes one layout line in a table
+by maintaining a list of all the cells in that line.
+It is allocated and filled in
+.Fn row Bq Pa tbl_layout.c
+and referenced from the
+.Fa layout
+member of
+.Vt struct tbl_node .
+.Pp
+The
+.Fa next
+member may be
+.Dv NULL .
+The function
+.Fn tbl_layout
+guarantees that the
+.Fa first
+and
+.Fa last
+members are not NULL.
+.It Vt struct tbl_cell
+This structure describes one layout cell in a table,
+in particular its alignment, membership in spans, and
+usage for lines.
+It is allocated and filled in
+.Fn cell_alloc Bq Pa tbl_layout.c
+and referenced from the
+.Fa first
+and
+.Fa last
+members of
+.Vt struct tbl_row .
+.Pp
+The
+.Fa next
+member may be
+.Dv NULL .
+.It Vt struct tbl_span
+This structure describes one data line in a table
+by maintaining a list of all data cells in that line
+or by specifying that it is a horizontal line.
+It is allocated and filled in
+.Fn newspan Bq Pa tbl_data.c
+which is called from
+.Fn tbl_data
+and referenced from the
+.Fa first_span ,
+.Fa current_span ,
+and
+.Fa last_span
+members of
+.Vt struct tbl_node ,
+and from the
+.Fa span
+members of
+.Vt struct man_node
+and
+.Vt struct mdoc_node
+from
+.In man.h
+and
+.In mdoc.h .
+.Pp
+The
+.Fa first ,
+.Fa last ,
+.Fa prev ,
+and
+.Fa next
+members may be
+.Dv NULL .
+The function
+.Fn newspan Bq Pa tbl_data.c
+guarantees that the
+.Fa opts
+and
+.Fa layout
+members are not
+.Dv NULL .
+.It Vt struct tbl_dat
+This structure describes one data cell in a table by specifying
+whether it contains a line or data, whether it spans additional
+layout cells, and by storing the data.
+It is allocated and filled in
+.Fn tbl_data
+and referenced from the
+.Fa first
+and
+.Fa last
+members of
+.Vt struct tbl_span .
+.Pp
+The
+.Fa string
+and
+.Fa next
+members may be
+.Dv NULL .
+The function
+.Fn getdata
+guarantees that the
+.Fa layout
+member is not
+.Dv NULL .
+.El
+.Ss Interface functions
+The following functions are implemented in
+.Pa tbl.c ,
+and all callers in
+.Pa roff.c .
+.Bl -tag -width Ds
+.It Fn tbl_alloc
+Allocates, initializes, and returns a new
+.Vt struct tbl_node .
+Called from
+.Fn roff_TS .
+.It Fn tbl_read
+Dispatches to
+.Fn tbl_option ,
+.Fn tbl_layout ,
+.Fn tbl_cdata ,
+and
+.Fn tbl_data ,
+see below.
+Called from
+.Fn roff_parseln .
+.It Fn tbl_restart
+Resets the
+.Fa part
+member of
+.Vt struct tbl_node
+to
+.Dv TBL_PART_LAYOUT .
+Called from
+.Fn roff_T_ .
+.It Fn tbl_span
+On the first call, return the first
+.Vt struct tbl_span ;
+for later calls, return the next one or
+.Dv NULL .
+Called from
+.Fn roff_span .
+.It Fn tbl_end
+Flags the last span as
+.Dv TBL_SPAN_LAST
+and clears the pointer passed as an argment.
+Called from
+.Fn roff_TE
+and
+.Fn roff_endparse .
+.It Fn tbl_free
+Frees the specified
+.Vt struct tbl_node
+and all the tbl_row, tbl_cell, tbl_span, and tbl_dat structures
+referenced from it.
+Called from
+.Fn roff_free
+and
+.Fn roff_reset .
+.El
+.Ss Private functions
+.Bl -tag -width Ds
+.It Ft int Fn tbl_options "struct tbl_node *tbl" "int ln" "const char *p"
+Parses the options line into
+.Vt struct tbl_opts .
+Implemented in
+.Pa tbl_opts.c ,
+called from
+.Fn tbl_read .
+.It Ft int Fn tbl_layout "struct tbl_node *tbl" "int ln" "const char *p"
+Allocates and fills one
+.Vt struct tbl_row
+for each layout line and one
+.Vt struct tbl_cell
+for each layout cell.
+Implemented in
+.Pa tbl_layout.c ,
+called from
+.Fn tbl_read .
+.It Ft int Fn tbl_data "struct tbl_node *tbl" "int ln" "const char *p"
+Allocates one
+.Vt struct tbl_span
+for each data line and calls
+.Fn getdata
+for each data cell.
+Implemented in
+.Pa tbl_data.c ,
+called from
+.Fn tbl_read .
+.It Ft int Fn tbl_cdata "struct tbl_node *tbl" "int ln" "const char *p"
+Continues parsing a data line:
+When finding
+.Sq T} ,
+switches back to
+.Dv TBL_PART_DATA
+mode and calls
+.Fn getdata
+if there are more data cells on the line.
+Otherwise, appends the data to the current data cell.
+Implemented in
+.Pa tbl_data.c ,
+called from
+.Fn tbl_read .
+.It Xo
+.Ft int
+.Fo getdata
+.Fa "struct tbl_node *tbl"
+.Fa "struct tbl_span *dp"
+.Fa "int ln"
+.Fa "const char *p"
+.Fa "int *pos"
+.Fc
+.Xc
+Parses one data cell into one
+.Vt struct tbl_dat .
+Implemented in
+.Pa tbl_data.c ,
+called from
+.Fn tbl_data
+and
+.Fn tbl_cdata .
+.El
+.Sh SEE ALSO
+.Xr mandoc 1 ,
+.Xr mandoc 3 ,
+.Xr tbl 7
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm tbl
+library was written by
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
+with contributions from
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org .

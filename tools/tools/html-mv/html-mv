@@ -1,0 +1,59 @@
+#!/bin/sh
+# 
+# Copyright (c) 1997 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
+# All rights reserved.
+#
+# rename sgml/html generated file names to human readable file names
+# 
+# $ cd FAQ
+# $ make FORMATS=html
+# $ html-mv FAQ
+# $ ls
+# FAQ_ACKNOWLEDGMENTS.html
+# FAQ_Any_restrictions_on_how_I_divide_the_disk_up_.html
+# FAQ_Are_there_any_Database_systems_for_FreeBSD_.html
+# FAQ_Are_there_any_commercial_high-performance_X_servers_.html
+# FAQ_Books_on_FreeBSD.html
+# FAQ_Can_FreeBSD_handle_multiport_serial_cards_sharing_irqs_.html
+# [...]
+# 
+# $FreeBSD$
+
+case $# in 0)
+	echo "usage `basename $0` file"
+	exit 1
+esac
+
+file=$1; export file
+
+if [ -f "$file.html" ]; then :
+else
+	echo "$file.html does not exist"
+	exit 1
+fi
+
+# search for title name
+egrep -i '^<title' $file[1-9]*.html |
+	perl -npe 's/<TITLE>[\*\s]*//; s%\s*</TITLE>.*%%;
+	           s/[^a-zA-Z0-9\_\-\.:\n]/_/g' > .list
+
+# create sed commands
+awk -F: '{print "s/" $1 "/'$file'_" $2 ".html/g;"}' .list > .sed
+
+# create mv(1) shell script
+perl -ne 'chop;($a,$b)=split(/:/); 
+	      print qq[rename ("$a", "$ENV{'file'}_$b.html") || ] .
+	            qq[die "rename $a $ENV{'file'}_$b.html:\$\!";\n]' .list > .mv
+
+# replace links
+if [ -f "$file.ln" ]; then
+	perl -i -p .sed $file.ln
+fi
+
+# replace links
+perl -i -p .sed $file*.html
+
+# rename file names
+perl .mv
+
+rm -f .mv .sed .list

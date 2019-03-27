@@ -1,0 +1,21 @@
+nomatch
+pass
+nomatch
+nomatch
+nomatch
+pass
+nomatch
+nomatch
+List of active MAP/Redirect filters:
+
+List of active sessions:
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+table role=ipf type=tree name=letters
+	{ 1.1.1.1/32; ! 2.2.0.0/16; 2.2.2.0/24; };
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+-------------------------------

@@ -1,0 +1,20 @@
+#
+# Homebrew formula file for libxo
+# https://github.com/mxcl/homebrew
+#
+
+require 'formula'
+
+class Libxo < Formula
+  homepage 'https://github.com/Juniper/@PACKAGE_NAME@'
+  url 'https://github.com/Juniper/@PACKAGE_NAME@/releases/download/@PACKAGE_VERSION@/@PACKAGE_NAME@-@PACKAGE_VERSION@.tar.gz'
+  sha1 '__SHA1__'
+
+  depends_on 'libtool' => :build
+
+  def install
+    system "./configure", "--disable-dependency-tracking", "--disable-silent-rules",
+                          "--prefix=#{prefix}"
+    system "make", "install"
+  end
+end

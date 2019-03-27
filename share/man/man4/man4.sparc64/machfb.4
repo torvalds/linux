@@ -1,0 +1,180 @@
+.\"-
+.\" Copyright (c) 2002 Jason L. Wright (jason@thought.net)
+.\" Copyright (c) 2005, 2006 Marius Strobl <marius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	from: OpenBSD: creator.4,v 1.20 2005/03/05 01:48:59 miod Exp
+.\" $FreeBSD$
+.\"
+.Dd September 2, 2006
+.Dt MACHFB 4 sparc64
+.Os
+.Sh NAME
+.Nm machfb
+.Nd "accelerated color frame buffer"
+.Sh SYNOPSIS
+.Cd "device machfb"
+.Sh DESCRIPTION
+The
+.Tn ATI Mach64
+family of chips are color frame buffers with graphics acceleration.
+The
+.Nm
+driver interfaces those frame buffers with the
+.Xr syscons 4
+console driver.
+.Pp
+.Tn ATI Mach64
+chips are very common as low-end graphics chips in
+.Tn PCI
+based
+.Tn UltraSPARC
+systems.
+They are found on-board in
+.Tn Sun Blade 100 ,
+.Tn Sun Blade 150 ,
+.Tn Sun Ultra 5
+and
+.Tn Sun Ultra 10
+as well as on
+.Tn Sun
+OEM mainboards like the
+.Tn Sun AXe .
+They are also used on add-on cards like the
+.Tn Sun PGX
+and
+.Tn Sun PGX64 .
+.Pp
+The
+.Nm
+driver requires the chip which it is supposed to drive to be also
+supported by the
+.Tn Open Firmware ,
+either by a built-in FCode driver package of the on-board firmware
+or by additional FCode on the add-on card.
+As a matter of course
+.Tn UltraSPARC
+systems with an on-board
+.Tn ATI Mach64 chip
+also have a built-in FCode driver package for this chip.
+There are also mainboards like the
+.Tn Sun AX1105
+and
+.Tn Sun AXi
+boards however,
+which have built-in FCode for certain
+.Tn ATI Mach64
+chips although they are not equipped with an on-board one.
+Mainboards with built-in FCode for certain
+.Tn ATI Mach64
+chips can be used with any add-on card which is based on one of those
+chips,
+including cards which are equipped with x86 firmware and intended for
+use in PCs.
+Otherwise an add-on card which comes with its own FCode like the
+.Tn Sun PGX
+or
+.Tn Sun PGX64
+has to be used.
+.Sh HARDWARE
+The
+.Nm
+driver provides support for the following chips:
+.Pp
+.Bl -bullet -compact
+.It
+.Tn ATI 3D Rage II+
+.It
+.Tn ATI 3D Rage IIC
+.It
+.Tn ATI 3D Rage I/II
+.It
+.Tn ATI 3D Rage LT
+.It
+.Tn ATI 3D Rage LT Pro
+.It
+.Tn ATI 3D Rage Pro
+.It
+.Tn ATI 3D Rage Pro Turbo
+.It
+.Tn ATI Mach64 CT
+.It
+.Tn ATI Mach64 VT
+.It
+.Tn ATI Mach64 VT4
+.It
+.Tn ATI Mach64 VTB
+.It
+.Tn ATI Rage L Mobility
+.It
+.Tn ATI Rage Mobility
+.It
+.Tn ATI Rage Mobility M1
+.It
+.Tn ATI Rage Mobility M3
+.It
+.Tn ATI Rage XC
+.It
+.Tn ATI Rage XL
+.El
+.Pp
+The
+following add-on cards are known to work with the
+.Nm
+driver at this time:
+.Pp
+.Bl -bullet -compact
+.It
+.Tn ATI 3D Charger PCI
+.It
+.Tn Sun PGX 8-Bit Color Frame Buffer
+(part no.\& 370-2256)
+.It
+.Tn Sun PGX64 8/24-Bit Color Frame Buffer
+(part no.\& 370-4362)
+.El
+.Sh SEE ALSO
+.Xr creator 4 ,
+.Xr syscons 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Nx 2.0 .
+The first
+.Fx
+version to include it was
+.Fx 6.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Marius Strobl Aq Mt marius@FreeBSD.org
+based on the
+.Nx
+driver written by
+.An Bang Jun-Young .
+.Sh CAVEATS
+Font loading and mode switching are not implemented.

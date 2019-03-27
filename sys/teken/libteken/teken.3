@@ -1,0 +1,249 @@
+.\" Copyright (c) 2011 Ed Schouten <ed@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Mar 13, 2017
+.Dt TEKEN 3
+.Os
+.Sh NAME
+.Nm teken
+.Nd xterm-like terminal emulation interface
+.Sh LIBRARY
+.Lb libteken
+.Sh SYNOPSIS
+.In teken.h
+.Ft void
+.Fn teken_init "teken_t *t" "const teken_funcs_t *funcs" "void *thunk"
+.Ft void
+.Fn teken_input "teken_t *t" "const void *buf" "size_t nbytes"
+.Ft const teken_pos_t *
+.Fn teken_get_winsize "teken_t *t"
+.Ft void
+.Fn teken_set_winsize "teken_t *t" "const teken_pos_t *size"
+.Ft const teken_pos_t *
+.Fn teken_get_cursor "const teken_t *t"
+.Ft void
+.Fn teken_set_cursor "teken_t *t" "const teken_pos_t *pos"
+.Ft const teken_attr_t *
+.Fn teken_get_curattr "const teken_t *t"
+.Ft void
+.Fn teken_set_curattr "teken_t *t" "const teken_attr_t *attr"
+.Ft const teken_attr_t *
+.Fn teken_get_defattr "const teken_t *t"
+.Ft void
+.Fn teken_set_defattr "teken_t *t" "const teken_attr_t *attr"
+.Ft const char *
+.Fn teken_get_sequence "const teken_t *t" "unsigned int id"
+.Ft teken_color_t
+.Fn teken_256to16 "teken_color_t color"
+.Ft teken_color_t
+.Fn teken_256to8 "teken_color_t color"
+.Ft void
+.Fn teken_get_defattr_cons25 "const teken_t *t" "int *fg" "int *bg"
+.Ft void
+.Fn teken_set_8bit "teken_t *t"
+.Ft void
+.Fn teken_set_cons25 "teken_t *t"
+.Ft void
+.Fn teken_set_cons25keys "teken_t *t"
+.Sh DESCRIPTION
+The
+.Nm
+library implements the input parser of a 256-color xterm-like terminal.
+It converts a stream of UTF-8 encoded characters into a series of
+primitive drawing instructions that can be used by a console driver or
+terminal emulator to render a terminal application.
+.Pp
+The
+.Fn teken_init
+function is used to initialize terminal state object
+.Fa t ,
+having type
+.Vt teken_t .
+The supplied
+.Vt teken_funcs_t
+structure
+.Fa funcs
+contains a set of callback functions, which are called when supplying
+data to
+.Fn teken_input .
+The
+.Fa thunk
+argument stores an arbitrary pointer, which is passed to each invocation
+of the callback functions.
+.Pp
+The
+.Vt teken_funcs_t
+structure stores the following callbacks:
+.Bd -literal -offset indent
+typedef struct {
+	tf_bell_t     *tf_bell;     /* Audible/visible bell. */
+	tf_cursor_t   *tf_cursor;   /* Move cursor to x/y. */
+	tf_putchar_t  *tf_putchar;  /* Put Unicode character at x/y. */
+	tf_fill_t     *tf_fill;     /* Fill rectangle with character. */
+	tf_copy_t     *tf_copy;     /* Copy rectangle to new location. */
+	tf_param_t    *tf_param;    /* Miscellaneous options. */
+	tf_respond_t  *tf_respond;  /* Send response string to user. */
+} teken_funcs_t;
+.Ed
+.Pp
+All callbacks must be provided, though unimplemented callbacks may some
+times be sufficient.
+The actual types of these callbacks can be found in
+.In teken.h .
+.Pp
+By default,
+.Fn teken_init
+initializes the
+.Vt teken_t
+structure to emulate a terminal having 24 rows and 80 columns.
+The
+.Fn teken_get_winsize
+and
+.Fn teken_set_winsize
+functions can be used to obtain and modify the dimensions of the
+terminal.
+.Pp
+Even though the cursor position is normally controlled by input of data
+through
+.Fn teken_input
+and returned by the
+.Fn tf_cursor
+callback, it can be obtained and modified manually using the
+.Fn teken_get_cursor
+and
+.Fn teken_set_cursor
+functions.
+The same holds for
+.Fn teken_get_curattr
+and
+.Fn teken_set_curattr ,
+which can be used to change the currently selected font attributes and
+foreground and background color.
+.Pp
+By default,
+.Nm
+emulates a white-on-black terminal, which means the default foreground
+color is white, while the background color is black.
+These defaults can be modified using
+.Fn teken_get_defattr
+and
+.Fn teken_set_defattr .
+.Pp
+The
+.Fn teken_get_sequence
+function is a utility function that can be used to obtain escape
+sequences of special keyboard keys, generated by user input.
+The
+.Fa id
+parameter must be one of the
+.Dv TKEY_*
+parameters listed in
+.In teken.h .
+.Sh LEGACY FEATURES
+This library also provides a set of functions that shouldn't be used in
+any modern applications.
+.Pp
+The
+.Fn teken_256to16
+function converts an xterm-256 256-color code to an xterm 16-color code
+whose color with default palettes is as similar as possible (not very
+similar).
+The lower 3 bits of the result are the ANSI color and the next lowest
+bit is brightness.
+Other layers (hardare and software) that only support 16 colors can use
+this to avoid knowing the details of 256-color codes.
+.Pp
+The
+.Fn teken_256to8
+function is similar to
+.Fn teken_256to16
+except it converts to an ANSI 8-color code.
+This is more accurate than discarding the brigtness bit in the result of
+.Fn teken_256to16 .
+.Pp
+The
+.Fn teken_get_defattr_cons25
+function obtains the default terminal attributes as a pair of foreground
+and background colors, using ANSI color numbering.
+.Pp
+The
+.Fn teken_set_8bit
+function disables UTF-8 processing and switches to 8-bit character mode,
+which can be used to support character sets like CP437 and ISO-8859-1.
+.Pp
+The
+.Fn teken_set_cons25
+function sets the terminal emulation to
+.Dv cons25 ,
+which was the default for
+.Xr syscons 4
+in versions of
+.Fx
+prior to 9.0.
+This function is only useful for initialization.
+The emulation can be changed at any time using an escape sequence,
+and this function is not used then.
+.Pp
+The
+.Fn teken_set_cons25keys
+function tells the
+.Fn teken_get_sequence
+function to not interpret special keys in
+.Dv cons25
+mode.
+.Sh SEE ALSO
+.Xr ncurses 3 ,
+.Xr termcap 3 ,
+.Xr syscons 4
+.Sh HISTORY
+The
+.Nm
+library appeared in
+.Fx 8.0 ,
+though it was only available and used inside the kernel.
+In
+.Fx 9.0 ,
+the
+.Nm
+library appeared in userspace.
+.Sh AUTHORS
+.An Ed Schouten Aq ed@FreeBSD.org
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn tf_respond
+callback is used to respond to device status requests commands generated
+by an application.
+In the past, there have been various security issues, where a malicious
+application sends a device status request before termination, causing
+the generated response to be interpreted by applications such as
+.Xr sh 1 .
+.Pp
+.Nm
+only implements a small subset of responses which are unlikely to cause
+any harm.
+Still, it is advised to leave
+.Fn tf_respond
+unimplemented.

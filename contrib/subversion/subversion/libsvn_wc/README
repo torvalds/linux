@@ -1,0 +1,195 @@
+     Oh Most High and Fragrant Emacs, please be in -*- text -*- mode!
+
+##############################################################################
+### The vast majority of this file is completely out-of-date as a result   ###
+### of the ongoing work known as WC-NG.  Please consult that documentation ###
+### for a more relevant and complete reference.                            ###
+### (See the files in notes/wc-ng )                                        ###
+##############################################################################
+
+
+This is the library described in the section "The working copy
+management library" of svn-design.texi.  It performs local operations
+in the working copy, tweaking administrative files and versioned data.
+It does not communicate directly with a repository; instead, other
+libraries that do talk to the repository call into this library to
+make queries and changes in the working copy.
+
+Note: This document attempts to describe (insofar as development is still
+a moving target) the current working copy layout.  For historic layouts,
+consulting the versioned history of this file (yay version control!)
+
+
+The Problem We're Solving
+-------------------------
+
+The working copy is arranged as a directory tree, which, at checkout,
+mirrors a tree rooted at some node in the repository.  Over time, the
+working copy accumulates uncommitted changes, some of which may affect
+its tree layout.  By commit time, the working copy's layout could be
+arbitrarily different from the repository tree on which it was based.
+
+Furthermore, updates/commits do not always involve the entire tree, so
+it is possible for the working copy to go a very long time without
+being a perfect mirror of some tree in the repository.
+
+
+One Way We're Not Solving It
+----------------------------
+
+Updates and commits are about merging two trees that share a common
+ancestor, but have diverged since that ancestor.  In real life, one of
+the trees comes from the working copy, the other from the repository.
+But when thinking about how to merge two such trees, we can ignore the
+question of which is the working copy and which is the repository,
+because the principles involved are symmetrical.
+
+Why do we say symmetrical?
+
+It's tempting to think of a change as being either "from" the working
+copy or "in" the repository.  But the true source of a change is some
+committer -- each change represents some developer's intention toward
+a file or a tree, and a conflict is what happens when two intentions
+are incompatible (or their compatibility cannot be automatically
+determined).
+
+It doesn't matter in what order the intentions were discovered --
+which has already made it into the repository versus which exists only
+in someone's working copy.  Incompatibility is incompatibility,
+independent of timing.
+
+In fact, a working copy can be viewed as a "branch" off the
+repository, and the changes committed in the repository *since* then
+represent another, divergent branch.  Thus, every update or commit is
+a general branch-merge problem:
+
+   - An update is an attempt to merge the repository's branch into the
+     working copy's branch, and the attempt may fail wholly or
+     partially depending on the number of conflicts.
+
+   - A commit is an attempt to merge the working copy's branch into
+     the repository.  The exact same algorithm is used as with
+     updates, the only difference being that a commit must succeed
+     completely or not at all.  That last condition is merely a
+     usability decision: the repository tree is shared by many
+     people, so folding both sides of a conflict into it to aid
+     resolution would actually make it less usable, not more.  On the
+     other hand, representing both sides of a conflict in a working
+     copy is often helpful to the person who owns that copy.
+
+So below we consider the general problem of how to merge two trees
+that have a common ancestor.  The concrete tree layout discussed will
+be that of the working copy, because this library needs to know
+exactly how to massage a working copy from one state to another.
+
+
+Structure of the Working Copy
+-----------------------------
+
+Working copy meta-information is stored in a single .svn/ subdirectory, in
+the root of a given working copy.  For the purposes of storage, directories
+pull in through the use of svn:externals are considered separate working
+copies.
+
+  .svn/wc.db                    /* SQLite database containing node metadata. */
+       pristine/                /* Sharded directory containing base files. */
+       tmp/                     /* Local tmp area. */
+
+`wc.db':
+   A self-contained SQLite database containing all the metadata Subversion
+   needs to track for this working copy.  The schema is described by
+   libsvn_wc/wc-metadata.sql.
+
+`pristine':
+   Each file in the working copy has a corresponding unmodified version in
+   the .svn/pristine subdirectory.  This files are stored by the SHA-1
+   hash of their contents, sharded into 256 subdirectories based upon the
+   first two characters of the hex expansion of the hash.  In this way,
+   multiple identical files can share the same pristine representation.
+
+   Pristines are used for sending diffs back to the server, etc.
+
+
+How the client applies an update delta
+--------------------------------------
+
+Updating is more than just bringing changes down from the repository;
+it's also folding those changes into the working copy.  Getting the
+right changes is the easy part -- folding them in is hard.
+
+Before we examine how Subversion handles this, let's look at what CVS
+does:
+
+   1. Unmodified portions of the working copy are simply brought
+      up-to-date.  The server sends a forward diff, the client applies
+      it.
+
+   2. Locally modified portions are "merged", where possible.  That
+      is, the changes from the repository are incorporated into the
+      local changes in an intelligent way (if the diff application
+      succeeds, then no conflict, else go to 3...)
+
+   3. Where merging is not possible, a conflict is flagged, and *both*
+      sides of the conflict are folded into the local file in such a
+      way that it's easy for the developer to figure out what
+      happened.  (And the old locally-modified file is saved under a
+      temp name, just in case.)
+
+It would be nice for Subversion to do things this way too;
+unfortunately, that's not possible in every case.
+
+CVS has a wonderfully simplifying limitation: it doesn't version
+directories, so never has tree-structure conflicts.  Given that only
+textual conflicts are possible, there is usually a natural way to
+express both sides of a conflict -- just include the opposing texts
+inside the file, delimited with conflict markers.  (Or for binary
+files, make both revisions available under temporary names.)
+
+While Subversion can behave the same way for textual conflicts, the
+situation is more complex for trees.  There is sometimes no way for a
+working copy to reflect both sides of a tree conflict without being
+more confusing than helpful.  How does one put "conflict markers" into
+a directory, especially when what was a directory might now be a file,
+or vice-versa?
+
+Therefore, while Subversion does everything it can to fold conflicts
+intelligently (doing at least as well as CVS does), in extreme cases
+it is acceptable for the Subversion client to punt, saying in effect
+"Your working copy is too out of whack; please move it aside, check
+out a fresh one, redo your changes in the fresh copy, and commit from
+that."  (This response may also apply to subtrees of the working copy,
+of course).
+
+Usually it offers more detail than that, too.  In addition to the
+overall out-of-whackness message, it can say "Directory foo was
+renamed to bar, conflicting with your new file bar; file blah was
+deleted, conflicting with your local change to file blah, ..." and so
+on.  The important thing is that these are informational only -- they
+tell the user what's wrong, but they don't try to fix it
+automatically.
+
+All this is purely a matter of *client-side* intelligence.  Nothing in
+the repository logic or protocol affects the client's ability to fold
+conflicts.  So as we get smarter, and/or as there is demand for more
+informative conflicting updates, the client's behavior can improve and
+punting can become a rare event.  We should start out with a _simple_
+conflict-folding algorithm initially, though.
+
+
+Text and Property Components
+----------------------------
+
+A Subversion working copy keeps track of *two* forks per file, much
+like the way MacOS files have "data" forks and "resource" forks.  Each
+file under revision control has its "text" and "properties" tracked
+with different timestamps and different conflict (reject) files.  In
+this vein, each file's status-line has two columns which describe the
+file's state.
+
+Examples:
+
+  --  glub.c      --> glub.c is completely up-to-date.
+  U-  foo.c       --> foo.c's textual component was updated.
+  -M  bar.c       --> bar.c's properties have been locally modified
+  UC  baz.c       --> baz.c has had both components patched, but a
+                      local property change is creating a conflict.

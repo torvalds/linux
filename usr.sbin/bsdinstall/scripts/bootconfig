@@ -1,0 +1,156 @@
+#!/bin/sh
+#-
+# Copyright (c) 2018 Rebecca Cran
+# Copyright (c) 2017 Nathan Whitehorn
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+die() {
+	echo $*
+	exit 1
+}
+
+if [ `uname -m` == powerpc ]; then
+	platform=`sysctl -n hw.platform`
+	if [ "$platform" == ps3 -o "$platform" == powernv ]; then
+		rootpart=$(awk '{ if($2 == "/") printf("%s:%s\n", $3, $1); }' $PATH_FSTAB)
+		mkdir -p $BSDINSTALL_CHROOT/boot/etc/
+		echo FreeBSD=\'/kernel/kernel kernelname=/boot/kernel/kernel vfs.root.mountfrom=${rootpart}\' > $BSDINSTALL_CHROOT/boot/etc/kboot.conf
+	fi
+fi
+
+# Update the ESP (EFI System Partition) with the new bootloader
+if [ "$(uname -m)" = "amd64" ] || [ "$(uname -m)" = "i386" ]; then
+	X86_BOOTMETHOD=$(sysctl -n machdep.bootmethod)
+fi
+
+if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
+	UFSBOOT_ESPS=$(cat /tmp/bsdinstall-esps)
+	num_esps=0
+
+	if [ -n "$ZFSBOOT_DISKS" ]; then
+		# We're in a ZFS install environment
+		for disk in $ZFSBOOT_DISKS; do
+			index=$(gpart show "$disk" | cut -w -f 4,5 | grep "efi" | cut -w -f 1)
+			# Check that $index is an integer
+			[ -n "$index" ] && [ "$index" -eq "$index" ] && [ "$index" -ge 0 ] 2> /dev/null
+			if [ $? -ne 0 ]; then
+				continue
+			fi
+
+			if [ -e "/dev/${disk}p${index}" ]; then
+				ESPS="$ESPS ${disk}p${index}"
+			elif [ -e "/dev/${disk}s${index}" ]; then
+				ESPS="$ESPS ${disk}s${index}"
+			else
+				continue
+			fi
+
+			num_esps=$((num_esps + 1))
+		done
+	fi
+
+	if [ -n "$UFSBOOT_ESPS" ]; then
+		# We're in a UFS install environment
+		for partition in $UFSBOOT_ESPS; do
+			ESPS="$ESPS $partition"
+			num_esps=$((num_esps + 1))
+		done
+	fi
+
+	if [ -z "$ESPS" ]; then
+		# The installer hasn't given us any ESPs to use.
+		# Try and figure out which to use by looking for an
+		# unformatted efi partition
+
+		for geom in $(gpart status -sg | awk '{print $1}'); do
+			hasfreebsd=$(gpart show "${geom}" | cut -w -f 4,5 | grep "freebsd")
+			if [ -n "$hasfreebsd" ]; then
+				index=$(gpart show "${geom}" | cut -w -f 4,5 | grep "efi" | cut -w -f 1)
+				# Check that $index is a valid integer
+				[ -n "$index" ] && [ "$index" -eq "$index" ] && [ "$index" -ge 0 ] 2> /dev/null 
+				if [ $? -ne 0 ]; then
+					continue
+				fi
+
+				mntpt=$(mktemp -d /tmp/stand-test.XXXXXX)
+				if [ -e "/dev/${geom}p${index}" ]; then
+					dev=${geom}p${index}
+				elif [ -e "/dev/${geom}s${index}" ]; then
+					dev=/${geom}s${index}
+				else
+					continue
+				fi
+
+				# Try and mount it. If it fails, assume it's
+				# unformatted and should be used.
+				mount -t msdosfs -o ro "/dev/${dev}" "${mntpt}"
+				if [ $? -ne 0 ]; then
+					ESPS="$ESPS ${dev}"
+					num_esps=$((num_esps + 1))
+				else
+					umount "${mntpt}"
+				fi
+				rmdir "${mntpt}"
+			fi
+		done
+	fi
+
+	for esp in $ESPS; do
+		echo "Formatting /dev/${esp} as FAT32"
+		newfs_msdos -F 32 -c 1 -L EFISYS "/dev/$esp" > /dev/null 2>&1
+		if [ $? -ne 0 ]; then
+			die "Failed to format ESP $esp as FAT32"
+		fi
+
+		mntpt=$(mktemp -d /tmp/stand-test.XXXXXX)
+		echo "Mounting ESP /dev/${esp}"
+		mount -t msdosfs "/dev/${esp}" "${mntpt}"
+		if [ $? -ne 0 ]; then
+			die "Failed to mount ESP ${dev} on ${mntpt}"
+		fi
+
+		echo "Installing loader.efi onto ESP"
+		mkdir -p "$mntpt/EFI/freebsd"
+		cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/EFI/freebsd/loader.efi"
+
+		if [ "$num_esps" -gt 1 ]; then
+			bootlabel="FreeBSD (${esp})"
+		else
+			bootlabel="FreeBSD"
+		fi
+
+		echo "Creating UEFI boot entry"
+		efibootmgr --create --activate --label "$bootlabel" --loader "${mntpt}/EFI/freebsd/loader.efi" > /dev/null
+
+		echo "Unmounting ESP"
+		umount "${mntpt}"
+		rmdir "${mntpt}"
+
+		echo "Finished configuring /dev/${esp} as ESP"
+	done
+fi
+
+# Add boot0cfg for MBR BIOS booting?

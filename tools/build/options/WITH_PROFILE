@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to build profiled libraries for use with
+.Xr gprof 8 .

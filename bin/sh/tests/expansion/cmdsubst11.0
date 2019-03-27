@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+# Not required by POSIX but useful for efficiency.
+
+[ $$ = $(eval '${SH} -c echo\ \$PPID') ]

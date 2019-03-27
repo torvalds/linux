@@ -1,0 +1,233 @@
+.\"-
+.\" Copyright 2006 Colin Percival
+.\" All rights reserved
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted providing that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 19, 2009
+.Dt FREEBSD-UPDATE.CONF 5
+.Os FreeBSD
+.Sh NAME
+.Nm freebsd-update.conf
+.Nd configuration file for
+.Xr freebsd-update 8
+.Sh DESCRIPTION
+The
+.Nm
+file controls the behaviour of the
+.Xr freebsd-update 8
+utility.
+The file contains lines consisting of a case-sensitive option name and
+zero or more parameters.
+Empty lines and any part of a line following a
+.Ql #
+character are ignored.
+Unless stated otherwise, specifying an option multiple times is an
+error.
+.Pp
+The possible options and their meanings are as follows:
+.Bl -tag -width ".Cm BackupKernelSymbolFiles"
+.It Cm KeyPrint
+The single parameter following this keyword is the SHA256 hash
+of the RSA key which will be trusted to sign updates.
+.It Cm ServerName
+The single parameter following this keyword is the name of the
+server or server pool from which updates will be downloaded.
+.It Cm Components
+The parameters following this keyword are the components or
+sub-components of
+.Fx
+which will be updated.
+The components are
+.Dq src
+(source code),
+.Dq world
+(non-kernel binaries), and
+.Dq kernel ;
+the sub-components are the individual distribution sets generated as
+part of the release process (e.g.,
+.Dq src/base ,
+.Dq src/sys ,
+.Dq world/base ,
+.Dq world/catpages ,
+.Dq kernel/smp ) .
+Note that prior to
+.Fx 6.1 ,
+the
+.Dq kernel
+component was distributed as part of
+.Dq world/base .
+.Pp
+This option can be specified multiple times, and the parameters
+accumulate.
+.It Cm IgnorePaths
+The parameters following this keyword are regular expressions;
+updates to paths which start with a string matching one of
+these regular expressions will be ignored.
+.Pp
+This option can be specified multiple times, and the parameters
+accumulate.
+.It Cm IDSIgnorePaths
+The parameters following this keyword are regular expressions;
+paths which start with a string matching one of these regular
+expressions will be ignored by "freebsd-update IDS".
+.Pp
+This option can be specified multiple times, and the parameters
+accumulate.
+.It Cm UpdateIfUnmodified
+The parameters following this keyword are regular expressions;
+updates to paths which start with a string matching one of
+these regular expressions will be ignored if the files have
+been modified locally (unless they are merged -- see MergeChanges
+below).
+.Pp
+This option can be specified multiple times, and the parameters
+accumulate.
+.It Cm MergeChanges
+The parameters following this keyword are regular expressions;
+updates to paths which start with a string matching one of
+these regular expressions will be merged with local modifications.
+.Pp
+This option can be specified multiple times, and the parameters
+accumulate.
+.It Cm WorkDir
+The single parameter following this keyword is the directory
+in which temporary files and downloaded updates will be stored.
+.It Cm MailTo
+The single parameter following this keyword is the address
+to which
+.Cm cron
+output will be mailed.
+.It Cm AllowAdd
+The single parameter following this keyword must be
+.Dq yes
+or
+.Dq no
+and specifies whether
+.Cm freebsd-update
+is allowed to create new files, directories, and symlinks if
+these are part of updates downloaded.
+Note that
+.Cm freebsd-update
+will not re-add files which have been deleted from a
+.Fx
+installation unless those files were previously added as part
+of an update.
+.It Cm AllowDelete
+The single parameter following this keyword must be
+.Dq yes
+or
+.Dq no
+and specifies whether
+.Cm freebsd-update
+is allowed to delete files, directories, and symlinks as
+part of updates downloaded.
+.It Cm KeepModifiedMetadata
+The single parameter following this keyword must be
+.Dq yes
+or
+.Dq no
+and specifies whether
+.Cm freebsd-update
+should keep existing file ownership, permissions, and flags
+when installing updates if these have been modified locally.
+.It Cm StrictComponents
+The single parameter following this keyword must be
+.Dq yes
+or
+.Dq no
+and specifies whether
+.Cm freebsd-update
+should interpret the list of components of
+.Fx
+specified via the
+.Cm Components
+option strictly as a list of components installed which
+should be upgraded when the
+.Cm upgrade
+command is used ("yes"), or merely as a list of components
+which might be installed, of which
+.Cm freebsd-update
+should identify which in fact are present ("no").
+.It Cm BackupKernel
+The single parameter following this keyword must be
+.Dq yes
+or
+.Dq no
+and specifies whether
+.Cm freebsd-update
+will create a backup of the old kernel before installing a new kernel.
+This backup kernel can be used to recover a system where the newly
+installed kernel somehow did not work.
+Note that the backup kernel is not reverted to its original state by
+the
+.Cm freebsd-update
+rollback command.
+.It Cm BackupKernelDir
+This keyword sets the directory which is used to store a backup
+kernel, if the BackupKernel feature is enabled.
+If the directory already exist, and it was not created by
+.Cm freebsd-update ,
+the directory is skipped.
+In the case of the primary directory name not being usable, a number
+starting with
+.Sq 1
+is appended to the directory name.
+Like with the primary directory name, the constructed directory name is
+only used if the path name does not exist, or if the directory was
+previously created by
+.Cm freebsd-update .
+If the constructed directory still exist the appended number is
+incremented with 1 and the directory search process restarted.
+Should the number increment go above 9,
+.Cm freebsd-update
+will abort.
+.It Cm BackupKernelSymbolFiles
+The single parameter following this keyword must be
+.Dq yes
+or
+.Dq no
+and specifies whether
+.Cm freebsd-update
+will also backup kernel symbol files, if they exist.
+The kernel symbol files takes up a lot of disk space and are not
+needed for recovery purposes.
+If the symbol files are needed, after recovering a system using the
+backup kernel, the
+.Cm freebsd-update
+rollback command will recreate the symbol files along with the old
+kernel.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/freebsd-update.conf"
+.It Pa /etc/freebsd-update.conf
+Default location of the
+.Cm freebsd-update
+configuration file.
+.El
+.Sh SEE ALSO
+.Xr sha256 1 ,
+.Xr freebsd-update 8
+.Sh AUTHORS
+.An Colin Percival Aq Mt cperciva@FreeBSD.org

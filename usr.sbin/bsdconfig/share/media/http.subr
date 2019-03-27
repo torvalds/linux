@@ -1,0 +1,688 @@
+if [ ! "$_MEDIA_HTTP_SUBR" ]; then _MEDIA_HTTP_SUBR=1
+#
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." media/http.subr
+f_include $BSDCFG_SHARE/device.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/media/common.subr
+f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/struct.subr
+f_include $BSDCFG_SHARE/variable.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+############################################################ GLOBALS
+
+HTTP_SKIP_RESOLV=
+
+URL_MAX=261261
+	# NOTE: This is according to actual fetch(1) test-results. We actually
+	# use nc(1) to retrieve files, but it's still a good idea to keep the
+	# URLs short enough that fetch(1) won't complain.
+
+HTTP_DIRS="
+	.
+	releases/$UNAME_P
+	snapshots/$UNAME_P
+	pub/FreeBSD
+	pub/FreeBSD/releases/$UNAME_P
+	pub/FreeBSD/snapshots/$UNAME_P
+	pub/FreeBSD-Archive/old-releases/$UNAME_P
+" # END-QUOTE
+
+############################################################ FUNCTIONS
+
+# f_dialog_menu_media_http
+#
+# Prompt the user to select from a range of ``built-in'' HTTP servers or
+# specify their own. If the user makes a choice and doesn't cancel or press
+# Esc, stores the user's choice in VAR_FTP_PATH (see variable.subr) and returns
+# success.
+#
+f_dialog_menu_media_http()
+{
+	f_dialog_title "$msg_please_select_a_freebsd_http_distribution_site"
+	local title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
+	f_dialog_title_restore
+	local prompt="$msg_please_select_the_site_closest_to_you_or_other"
+	local menu_list="
+		'dist $msg_main_site' 'ftp.freebsd.org'
+		'pkg $msg_main_site'  'pkg.freebsd.org'
+		'URL'                 '$msg_specify_some_other_http_site'
+	" # END-QUOTE
+	local hline="$msg_select_a_site_thats_close"
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$title\"  \
+	                        \"\$btitle\" \
+	                        \"\$prompt\" \
+	                        \"\$hline\"  \
+	                        $menu_list
+
+	local mtag
+	mtag=$( eval $DIALOG \
+		--title \"\$title\"             \
+		--backtitle \"\$btitle\"        \
+		--hline \"\$hline\"             \
+		--ok-label \"\$msg_ok\"         \
+		--cancel-label \"\$msg_cancel\" \
+		--menu \"\$prompt\"             \
+		$height $width $rows            \
+		$menu_list                      \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	) || return $DIALOG_CANCEL
+	f_dialog_data_sanitize mtag
+
+	case "$mtag" in
+	URL) setvar $VAR_HTTP_PATH "other" ;;
+	*)
+		local value
+		value=$( eval f_dialog_menutag2item \"\$mtag\" $menu_list )
+		setvar $VAR_HTTP_PATH "http://$value"
+	esac
+	
+	return $DIALOG_OK
+}
+
+# f_media_set_http
+#
+# Return success if we both found and set the media type to be an HTTP server.
+#
+# Variables from variable.subr that can be used to script user input:
+#
+# 	VAR_HTTP_PATH
+# 		URL containing host and optionally a target path to the release
+# 		repository on the HTTP server. Valid examples include:
+# 			http://myhost
+# 			http://somename:80/pub/
+# 			http://192.168.2.3/pub/
+# 			http://[::1]:8000/
+# 		The default port if not specified is 80.
+# 	VAR_NAMESERVER [Optional]
+# 		If set, overrides resolv.conf(5) and sets the nameserver that
+# 		is used to convert names into addresses (when a name converts
+# 		into multiple addresses, the first address to successfully
+# 		connect is used).
+#
+# Meanwhile, the following variables from variable.subr are set after
+# successful execution:
+#
+# 	VAR_HTTP_HOST
+# 		The HTTP host to connect to, parsed from VAR_HTTP_PATH. In the
+# 		example case of IPv6 where VAR_HTTP_PATH is "http://[::1]" this
+# 		variable will be set to "::1" (the outer brackets are removed).
+# 	VAR_HTTP_PORT
+# 		The TCP port to connect to, parsed from VAR_HTTP_PATH. Usually
+# 		80 unless VAR_HTTP_PATH was one of the following forms:
+# 			http://hostname:OTHER_PORT
+# 			http://hostname:OTHER_PORT/*
+# 			http://ip:OTHER_PORT
+# 			http://ip:OTHER_PORT/*
+# 			http://[ip6]:OTHER_PORT
+# 			http://[ip6]:OTHER_PORT/*
+# 	VAR_HTTP_DIR
+# 		If VAR_HTTP_PATH contained a directory element (e.g.,
+# 		"http://localhost/pub") this variable contains only the
+# 		directory element (e.g., "/pub").
+#
+f_media_set_http()
+{
+	f_media_close
+
+	local url
+	f_getvar $VAR_HTTP_PATH url
+
+	# If we've been through here before ...
+	if f_struct device_network && [ "${url#$msg_other}" ]; then
+		f_dialog_yesno "$msg_reuse_old_http_site_settings" || url=
+	fi
+
+	if [ ! "$url" ]; then
+		f_dialog_menu_media_http || return $FAILURE
+		f_getvar $VAR_HTTP_PATH url
+	fi
+	[ "$url" ] || return $FAILURE
+
+	case "$url" in
+	other)
+		setvar $VAR_HTTP_PATH "http://"
+		f_variable_get_value $VAR_HTTP_PATH \
+			"$msg_please_specify_url_of_freebsd_http_distribution"
+		f_getvar $VAR_HTTP_PATH url
+		if [ ! "${url#http://}" ]; then
+			unset $VAR_HTTP_PATH
+			return $FAILURE
+		fi
+		if [ ${#url} -gt ${URL_MAX:-261261} ]; then
+			f_show_msg "$msg_length_of_specified_url_is_too_long" \
+			           ${#url} ${URL_MAX:-261261}
+			unset $VAR_HTTP_PATH
+			return $FAILURE
+		fi
+		case "$url" in
+		http://*) : valid URL ;;
+		*)
+			f_show_msg "$msg_sorry_invalid_url" "$url"
+			unset $VAR_HTTP_PATH
+			return $FAILURE
+		esac
+	esac
+	case "$url" in
+	http://*) : valid URL ;;
+	*)
+		f_show_msg "$msg_sorry_invalid_url" "$url"
+		unset $VAR_HTTP_PATH
+		return $FAILURE
+	esac
+
+	# Set the name of the HTTP device to the URL
+	f_struct_new DEVICE device_http
+	device_http set name "$url"
+
+	if ! f_struct device_network ||
+	   ! f_dialog_yesno "$msg_youve_already_done_the_network_configuration"
+	then
+		f_struct device_network &&
+			f_device_shutdown device_network
+		if ! f_device_select_tcp; then
+			unset $VAR_HTTP_PATH
+			return $FAILURE
+		fi
+		local dev if
+		f_getvar $VAR_NETWORK_DEVICE if
+		f_device_find -1 "$if" $DEVICE_TYPE_NETWORK dev
+		f_struct_copy "$dev" device_network
+	fi
+	if ! f_device_init device_network; then
+		f_dprintf "f_media_set_http: %s" "$msg_net_device_init_failed"
+		unset $VAR_HTTP_PATH
+		return $FAILURE
+	fi
+
+	local hostname="${url#*://}" port=80 dir=/
+	case "$hostname" in
+	#
+	# The order in-which the below individual cases appear is important!
+	#
+	"["*"]":*/*) # IPv6 address with port and directory
+		f_dprintf "Looks like an IPv6 addr with port/dir: %s" \
+		          "$hostname"
+		hostname="${hostname#\[}"
+		port="${hostname#*\]:}"
+		port="${port%%[!0-9]*}"
+		dir="/${hostname#*/}"
+		hostname="${hostname%%\]:*}"
+		;;
+	"["*"]":*) # IPv6 address with port
+		f_dprintf "Looks like an IPv6 addr with port: %s" "$hostname"
+		hostname="${hostname#\[}"
+		port="${hostname#*\]:}"
+		port="${port%%[!0-9]*}"
+		hostname="${hostname%%\]:*}"
+		;;
+	"["*"]"/*) # IPv6 address with directory
+		f_dprintf "Looks like an IPv6 addr with dir: %s" "$hostname"
+		hostname="${hostname#\[}"
+		dir="/${hostname#*/}"
+		hostname="${hostname%%\]*}"
+		;;
+	"["*"]") # IPv6 address
+		f_dprintf "Looks like an IPv6 addr: %s" "$hostname"
+		hostname="${hostname#\[}"
+		hostname="${hostname%\]}"
+		;;
+	#
+	# ^^^ IPv6 above / DNS Name or IPv4 below vvv
+	#
+	*:*/*) # DNS name or IPv4 address with port and directory
+		f_dprintf "Looks like a %s with port/dir: %s" \
+		          "DNS name or IPv4 addr" "$hostname"
+		port="${hostname#*:}"
+		port="${port%%[!0-9]*}"
+		dir="/${hostname#*/}"
+		hostname="${hostname%%:*}"
+		;;
+	*:*) # DNS name or IPv4 address with port
+		f_dprintf "Looks like a DNS name or IPv4 addr with port: %s" \
+		          "$hostname"
+		port="${hostname#*:}"
+		hostname="${hostname%%:*}"
+		;;
+	*/*) # DNS name or IPv4 address with directory
+		f_dprintf "Looks like a DNS name or IPv4 addr with dir: %s" \
+		          "$hostname"
+		dir="/${hostname#*/}"
+		hostname="${hostname%%/*}"
+		;;
+	*) # DNS name or IPv4 address
+		f_dprintf "Looks like a DNS name or IPv4 addr: %s" "$hostname"
+		: leave hostname as-is
+	esac
+
+	f_dprintf "hostname = \`%s'" "$hostname"
+	f_dprintf "dir = \`%s'" "$dir"
+	f_dprintf "port \# = \`%d'" "$port"
+
+	local ns
+	f_getvar $VAR_NAMESERVER ns
+	[ "$ns" ] || f_resolv_conf_nameservers ns
+	if [ "$ns" -a ! "$HTTP_SKIP_RESOLV" ] && ! {
+		f_validate_ipaddr "$hostname" ||
+		f_validate_ipaddr6 "$hostname"
+	}; then
+		f_show_info "$msg_looking_up_host" "$hostname"
+		f_dprintf "%s: Looking up hostname, %s, using host(1)" \
+		          "f_media_set_http" "$hostname"
+		if ! f_quietly f_host_lookup "$hostname"; then
+			f_show_msg "$msg_cannot_resolve_hostname" "$hostname"
+			f_struct device_network &&
+				f_device_shutdown device_network
+			f_struct_free device_network
+			unset $VAR_HTTP_PATH
+			return $FAILURE
+		fi
+		f_dprintf "Found DNS entry for %s successfully." "$hostname"
+	fi
+
+	setvar $VAR_HTTP_HOST "$hostname"
+	setvar $VAR_HTTP_PORT "$port"
+	setvar $VAR_HTTP_DIR  "$dir"
+
+	device_http set type     $DEVICE_TYPE_HTTP
+	device_http set init     f_media_init_http
+	device_http set get      f_media_get_http
+	device_http set shutdown f_media_shutdown_http
+	device_http set private  device_network
+	f_struct_copy device_http device_media
+	f_struct_free device_http
+
+	return $SUCCESS
+}
+
+# f_http_check_access [$connect_only]
+#
+# Return success if able list a remote HTTP directory. If $connect_only is
+# present and non-null, then returns success if a connection can be made.
+# Variables from variable.subr that can be used to script user input:
+#
+# 	VAR_HTTP_HOST
+# 		The HTTP server host name, IPv4 address or IPv6 address.
+# 		Valid examples include:
+# 			myhost
+# 			192.168.2.3
+# 			::1
+# 	VAR_HTTP_PORT
+# 		The TCP port to connect to when communicating with the server.
+# 	VAR_HTTP_PATH
+# 		The HTTP path sent to the server. Unused if $connect_only is
+# 		present and non-NULL.
+#
+f_http_check_access()
+{
+	local connect_only="$1" hosts=
+
+	local http_host http_port
+	f_getvar $VAR_HTTP_HOST http_host
+	f_getvar $VAR_HTTP_PORT http_port
+
+	if ! {
+		f_validate_ipaddr "$http_host" ||
+		f_validate_ipaddr6 "$http_host" ||
+		{
+		  f_dprintf "%s: Looking up hostname, %s, using host(1)" \
+		            "f_http_check_access" "$http_host"
+		  f_host_lookup "$http_host" hosts
+		}
+	}; then
+		# All the above validations failed
+		[ "$hosts" ] && f_dialog_msgbox "$hosts"
+		unset $VAR_HTTP_HOST
+		return $FAILURE
+	elif [ ! "$hosts" ]; then
+		# One of the first two validations passed
+		hosts="$http_host"
+	fi
+
+	local host connected=
+	for host in $hosts; do
+		f_quietly nc -nz "$host" "$http_port" || continue
+		connected=1; break
+	done
+	if [ ! "$connected" ]; then
+		f_show_msg "$msg_couldnt_connect_to_server http://%s:%s/" \
+		           "$http_host" "$http_port"
+		unset $VAR_HTTP_HOST
+		return $FAILURE
+	fi
+	[ "$connect_only" ] && return $SUCCESS
+
+	local http_path
+	f_getvar $VAR_HTTP_PATH http_path
+	f_show_info "$msg_checking_access_to" "$http_path"
+
+	local rx
+	case "$http_path" in
+	http://*|/*) : valid request ;;
+	*) http_path="/$http_path" # full URI requests only
+	esac
+	if ! rx=$(
+		printf "GET %s/ HTTP/1.0\r\n\r\n" "${http_path%/}" |
+			nc -n "$host" "$http_port"
+	); then
+		f_show_msg "$msg_couldnt_connect_to_server http://%s:%s/" \
+		           "$http_host" "$http_port"
+		unset $VAR_HTTP_HOST
+		return $FAILURE
+	fi
+
+	local hdr
+	hdr=$( echo "$rx" | awk '/^\r$/{exit}{print}' )
+
+	local http_found=$FAILURE
+	if echo "$hdr" | awk '
+		BEGIN { found = 0 }
+		/^HTTP.... 200 / {
+			found = 1
+			exit
+		}
+		END { exit ! found }
+	'; then
+		http_found=$SUCCESS
+	fi
+
+	return $http_found
+}
+
+# f_media_init_http $device
+#
+# Initializes the HTTP media device. Returns success if able to confirm the
+# existence of at least one known HTTP server release path directly via HTTP
+# using f_http_check_access(), above.
+#
+# Variables from variable.subr that can be used to script user input:
+#
+# 	VAR_HTTP_HOST
+#		The HTTP server to connect to. Must be set. Also see
+# 		f_http_check_access() for additional variables.
+# 	VAR_RELNAME
+# 		Usually set to `uname -r' but can be overridden.
+# 	VAR_HTTP_PATH
+# 		The HTTP path sent to the server. Usually set by calling
+# 		f_media_set_http().
+#
+# Meanwhile, after successful execution, the following variables (also from
+# variable.subr) are set:
+#
+# 	VAR_HTTP_PATH
+# 		The [possibly] adjusted VAR_HTTP_PATH that was found to contain
+# 		a valid FreeBSD repository.
+#
+f_media_init_http()
+{
+	local dev="$1"
+	f_dprintf "Init routine called for HTTP device. dev=[%s]" "$dev"
+
+	if [ "$HTTP_INITIALIZED" ]; then
+		f_dprintf "HTTP device already initialized."
+		return $SUCCESS
+	fi
+
+	#
+	# First verify access
+	#
+	local connect_only=1
+	f_http_check_access $connect_only
+
+	local http_host
+	f_getvar $VAR_HTTP_HOST http_host
+	while [ ! "$http_host" ]; do
+		f_media_set_http || return $FAILURE
+		f_http_check_access $connect_only
+		f_getvar $VAR_HTTP_HOST http_host
+	done
+
+	local http_path http_found=$FAILURE
+	while :; do
+		#
+		# Now that we've verified that the path we're given is ok,
+		# let's try to be a bit intelligent in locating the release we
+		# are looking for.  First off, if the release is specified as
+		# "__RELEASE" or "any", then just assume that the current
+		# directory is the one we want and give up.
+		#
+		local rel
+		f_getvar $VAR_RELNAME rel
+		f_dprintf "f_media_init_http: rel=[%s]" "$rel"
+
+		case "$rel" in
+		__RELEASE|any)
+			f_getvar $VAR_HTTP_DIR $VAR_HTTP_PATH
+			f_http_check_access
+			http_found=$?
+			;;
+		*)
+			#
+			# Ok, since we have a release variable, let's walk
+			# through the list of directories looking for a release
+			# directory. First successful path wins.
+			#
+			local fdir hp
+			f_getvar $VAR_HTTP_PATH%/ hp
+			setvar $VAR_HTTP_PATH "$hp/$PKG_ABI/latest"
+			if [ "$PKG_ABI" ] && f_http_check_access; then
+				http_found=$SUCCESS
+				setvar $VAR_HTTP_PATH "$hp"
+			else
+				for fdir in $HTTP_DIRS; do
+					setvar $VAR_HTTP_PATH "$hp/$fdir/$rel"
+					if f_http_check_access; then
+						http_found=$SUCCESS
+						break
+					fi
+				done
+			fi
+		esac
+
+		[ $http_found -eq $SUCCESS ] && HTTP_INITIALIZED=YES break
+
+		f_getvar $VAR_HTTP_PATH http_path
+		f_show_msg "$msg_please_check_the_url_and_try_again" \
+		           "$http_path"
+
+		unset HTTP_INITIALIZED $VAR_HTTP_PATH
+		f_media_set_http || break
+	done
+
+	return $http_found
+}
+
+# f_media_get_http $device $file [$probe_type]
+#
+# Returns data from $file on an HTTP server using nc(1). Please note that
+# $device is unused but must be present (even if null). Information is instead
+# gathered from the environment. If $probe_type is both present and non-NULL,
+# this function exits after receiving the HTTP header response from the server
+# (if the HTTP response code is 200, success is returned; otherwise failure).
+# If $probe_type is equal to $PROBE_SIZE, prints the content-length in bytes
+# from the response (or -1 if not found) to standard-out.
+#
+# The variables used to configure the connection are as follows (all of which
+# are configured by f_media_set_http above):
+#
+# 	VAR_HTTP_HOST
+# 		HTTP server which to connect. Can be an IPv4 address, IPv6
+# 		address, or DNS hostname of your choice.
+# 	VAR_HTTP_PORT
+# 		TCP port to connect on; see f_media_set_http above.
+# 	VAR_HTTP_PATH
+# 		Directory prefix to use when requesting $file. Default is `/'
+# 		unless f_media_init_http was able to use f_http_check_access
+# 		to validate one of the defaults in $HTTP_DIRS (see GLOBALS at
+# 		the top of this file); assuming VAR_RELNAME was not set to
+# 		either `__RELEASE' or `any' (indicating that the global set of
+# 		$HTTP_DIRS should be ignored).
+#
+# See variable.subr for additional information.
+#
+# Example usage:
+# 	f_media_set_http
+# 	f_media_get_http media $file
+#
+f_media_get_http()
+{
+	local dev="$1" file="$2" probe_type="$3" hosts=
+	local name
+
+	$dev get name name
+	f_dprintf "f_media_get_http: dev=[%s] file=[%s] probe_type=%s" \
+	          "$name" "$file" "$probe_type"
+
+	local http_host http_port
+	f_getvar $VAR_HTTP_HOST http_host
+	f_getvar $VAR_HTTP_PORT http_port
+
+	if [ ! "$HTTP_INITIALIZED" ]; then
+		f_dprintf "No HTTP connection open, can't get file %s" "$file"
+		return $FAILURE
+	fi
+
+	if ! {
+		f_validate_ipaddr "$http_host" ||
+		f_validate_ipaddr6 "$http_host" ||
+		{
+		  f_dprintf "%s: Looking up hostname, %s, using host(1)" \
+		            "f_media_get_http" "$http_host"
+		  f_host_lookup "$http_host" hosts
+		}
+	}; then
+		# All the above validations failed
+		[ "$hosts" ] && f_dialog_msgbox "$hosts"
+		return $FAILURE
+	elif [ ! "$hosts" ]; then
+		# One of the first two validations passed
+		hosts="$http_host"
+	fi
+
+	local host connected=
+	for host in $hosts; do
+		f_quietly nc -nz "$host" "$http_port" || continue
+		connected=1; break
+	done
+	if [ ! "$connected" ]; then
+		f_show_msg "$msg_couldnt_connect_to_server http://%s:%s/" \
+		           "$http_host" "$http_port"
+		return $FAILURE
+	fi
+
+	local http_path
+	f_getvar $VAR_HTTP_PATH%/ http_path
+	case "$http_path" in
+	http://*|/*) : valid request ;;
+	*) http_path="/$http_path" # full URI requests only
+	esac
+
+	local url="$http_path/$file" rx
+	f_dprintf "sending http request for: %s" "$url"
+	f_dprintf "using nc to connect to: %s:%s" "$host" "$http_port"
+	printf "GET %s HTTP/1.0\r\n\r\n" "$url" | nc -n "$host" "$http_port" |
+	(
+		#
+		# scan the headers of the response
+		# this is extremely quick'n dirty
+		#
+
+		rv=0 length=-1
+		while read LINE; do
+			case "$LINE" in
+			HTTP*)
+				f_dprintf "received response: %s" "$LINE"
+				set -- $LINE; rv=$2
+				f_isinteger "$rv" || rv=0
+				;;
+			"Content-Length: "*)
+				length="${LINE%}"
+				length="${length#Content-Length: }"
+				f_dprintf "received content-length: %s" \
+				          "$length"
+				;;
+			*)
+				[ "${LINE%}" ] || break # End of headers
+			esac
+		done
+
+		[ $rv -ge 500 ] && exit 5
+		[ $rv -eq 404 ] && exit 44
+		[ $rv -ge 400 ] && exit 4
+		[ $rv -ge 300 ] && exit 3
+		[ $rv -eq 200 ] || exit $FAILURE
+
+		if [ ! "$probe_type" ]; then
+			cat # output the rest ``as-is''
+		elif [ "$probe_type" = "$PROBE_SIZE" ]; then
+			f_isinteger "$length" || length=-1
+			echo "$length"
+		fi
+		exit 200
+	)
+	local retval=$?
+	[ $retval -eq 200 ] && return $SUCCESS
+	[ "$probe_type" ] && return $FAILURE
+
+	case "$retval" in
+	  5) f_show_msg "$msg_server_error_when_requesting_url" "$url" ;;
+	 44) f_show_msg "$msg_url_was_not_found" "$url" ;;
+	  4) f_show_msg "$msg_client_error" ;;
+	  *) f_show_msg "$msg_error_when_requesting_url" "$url" ;;
+	esac 2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	return $FAILURE
+}
+
+# f_media_shutdown_http $device
+#
+# Shuts down the HTTP device. Return status should be ignored. Note that since
+# we don't maintain an open connection to the HTTP server, nothing to do.
+#
+f_media_shutdown_http()
+{
+	[ "$HTTP_INITIALIZED" ] || return $SUCCESS
+
+	unset HTTP_INITIALIZED
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." media/http.subr
+
+fi # ! $_MEDIA_HTTP_SUBR

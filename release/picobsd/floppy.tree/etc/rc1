@@ -1,0 +1,63 @@
+#!/bin/sh
+# $FreeBSD$
+### rc1, next stage 'rc' for PicoBSD -- THIS IS NOT THE NORMAL /etc/rc 
+
+. /etc/rc.conf.defaults		# Load default procedures
+rc_conf_set_defaults		# Assign default values to variables.
+find_system_id			# Set $main_eth $main_if
+set_main_interface		# Set ${hostname} and ${ifconfig_${main_if}}
+set_all_interfaces		# Set ${ifconfig_${if}} for other interfaces.
+
+# Now process local configurations if present. ${hostname} should be set now,
+# so rc.conf[.local] can make use of a case statement to set per-host things.
+
+[ -f /etc/rc.conf ] && . /etc/rc.conf
+[ -f /etc/rc.conf.local ] && . /etc/rc.conf.local
+
+### Now use some variables to override files in /etc ###
+( IFS=''
+[ -n "${host_conf}" ] && echo ${host_conf} > /etc/host.conf
+[ -n "${resolv_conf}" ] && echo ${resolv_conf} > /etc/resolv.conf
+[ -n "${rc_local}" ] && echo ${rc_local} > /etc/rc.local
+unset IFS
+)
+
+rm -f /var/run/*
+if [ "x$swapfile" != "xNO" -a -w "$swapfile" -a -b /dev/vn0b ]; then
+	echo "Adding $swapfile as additional swap."
+	vnconfig /dev/vn0b $swapfile && swapon /dev/vn0b
+else
+	echo "No swap partition available!"
+fi
+# configure serial devices
+[ -f /etc/rc.serial ] && . /etc/rc.serial
+
+# start up the initial network configuration.
+if [ -f /etc/rc.network ]; then
+	. /etc/rc.network
+	network_pass1
+fi
+mount -a -t nfs
+# clean up left-over files
+(cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
+
+[ -n "$network_pass1_done" ] && network_pass2
+[ -n "$network_pass2_done" ] && network_pass3
+
+pwd_mkdb -p ./master.passwd
+
+[ -f /etc/syslog.conf -a -f /stand/syslogd ] && \
+	{ echo "Starting syslogd."; syslogd ${syslogd_flags} ; }
+
+[ "${inetd_enable}" = "YES" -a -f /stand/inetd ] && \
+	{ echo "Starting inetd."; inetd ${inetd_flags} ; }
+
+if [ "${sshd_enable}" = "YES" -a -f /usr/sbin/sshd ] ; then
+	echo "Starting sshd..."
+	chmod 600 /etc/ssh_host*key
+	/usr/sbin/sshd -f /etc/sshd_config
+fi
+
+echo ''
+cat /etc/motd
+exit 0

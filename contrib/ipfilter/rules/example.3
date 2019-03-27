@@ -1,0 +1,40 @@
+#
+# block all inbound packets.
+#
+block in from any to any
+#
+# pass through packets to and from localhost.
+#
+pass in from 127.0.0.1/32 to 127.0.0.1/32
+#
+# allow a variety of individual hosts to send any type of IP packet to any
+# other host.
+#
+pass in from 10.1.3.1/32 to any
+pass in from 10.1.3.2/32 to any
+pass in from 10.1.3.3/32 to any
+pass in from 10.1.3.4/32 to any
+pass in from 10.1.3.5/32 to any
+pass in from 10.1.0.13/32 to any
+pass in from 10.1.1.1/32 to any
+pass in from 10.1.2.1/32 to any
+#
+#
+# block all outbound packets.
+#
+block out from any to any
+#
+# allow any packets destined for localhost out.
+#
+pass out from any to 127.0.0.1/32
+#
+# allow any host to send any IP packet out to a limited number of hosts.
+#
+pass out from any to 10.1.3.1/32
+pass out from any to 10.1.3.2/32
+pass out from any to 10.1.3.3/32
+pass out from any to 10.1.3.4/32
+pass out from any to 10.1.3.5/32
+pass out from any to 10.1.0.13/32
+pass out from any to 10.1.1.1/32
+pass out from any to 10.1.2.1/32

@@ -1,0 +1,189 @@
+.\" $FreeBSD$
+.\" Man page generated from reStructuredText.
+.
+.TH "LLVM-DWARFDUMP" "1" "2018-08-02" "7" "LLVM"
+.SH NAME
+llvm-dwarfdump \- dump and verify DWARF debug information
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH SYNOPSIS
+.sp
+\fBllvm\-dwarfdump\fP [\fIoptions\fP] [\fIfilename ...\fP]
+.SH DESCRIPTION
+.sp
+\fBllvm\-dwarfdump\fP parses DWARF sections in object files,
+archives, and \fI\&.dSYM\fP bundles and prints their contents in
+human\-readable form. Only the .debug_info section is printed unless one of
+the section\-specific options or \fI\%\-\-all\fP is specified.
+.SH OPTIONS
+.INDENT 0.0
+.TP
+.B \-a, \-\-all
+Disassemble all supported DWARF sections.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-arch=<arch>
+Dump DWARF debug information for the specified CPU architecture.
+Architectures may be specified by name or by number.  This
+option can be specified multiple times, once for each desired
+architecture.  All CPU architectures will be printed by
+default.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-c, \-\-show\-children
+Show a debug info entry\(aqs children when using
+the \fI\%\-\-debug\-info\fP, \fI\%\-\-find\fP,
+and \fI\%\-\-name\fP options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-f <name>, \-\-find=<name>
+Search for the exact text <name> in the accelerator tables
+and print the matching debug information entries.
+When there is no accelerator tables or the name of the DIE
+you are looking for is not found in the accelerator tables,
+try using the slower but more complete \fI\%\-\-name\fP option.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-F, \-\-show\-form
+Show DWARF form types after the DWARF attribute types.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-h, \-\-help
+Show help and usage for this command.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-i, \-\-ignore\-case
+Ignore case distinctions in when searching entries by name
+or by regular expression.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-n <pattern>, \-\-name=<pattern>
+Find and print all debug info entries whose name
+(\fIDW_AT_name\fP attribute) matches the exact text in
+<pattern>. Use the \fI\%\-\-regex\fP option to have
+<pattern> become a regular expression for more flexible
+pattern matching.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-lookup=<address>
+Lookup <address> in the debug information and print out the file,
+function, block, and line table details.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-o <path>, \-\-out\-file=<path>
+Redirect output to a file specified by <path>.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-p, \-\-show\-parents
+Show a debug info entry\(aqs parent objects when using the
+\fI\%\-\-debug\-info\fP, \fI\%\-\-find\fP, and
+\fI\%\-\-name\fP options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-r <n>, \-\-recurse\-depth=<n>
+Only recurse to a maximum depth of <n> when dumping debug info
+entries.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-statistics
+Collect debug info quality metrics and print the results
+as machine\-readable single\-line JSON output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-x, \-\-regex
+Treat any <pattern> strings as regular expressions when searching
+instead of just as an exact string match.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-u, \-\-uuid
+Show the UUID for each architecture.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-diff
+Dump the output in a format that is more friendly for comparing
+DWARF output from two different files.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-v, \-\-verbose
+Display verbose information when dumping. This can help to debug
+DWARF issues.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-verify
+Verify the structure of the DWARF information by verifying the
+compile unit chains, DIE relationships graph, address
+ranges, and more.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-version
+Display the version of the tool.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debug\-abbrev, \-\-debug\-aranges, \-\-debug\-cu\-index, \-\-debug\-frame [=<offset>], \-\-debug\-gnu\-pubnames, \-\-debug\-gnu\-pubtypes, \-\-debug\-info [=<offset>], \-\-debug\-line [=<offset>], \-\-debug\-loc [=<offset>], \-\-debug\-macro, \-\-debug\-pubnames, \-\-debug\-pubtypes, \-\-debug\-ranges, \-\-debug\-str, \-\-debug\-str\-offsets, \-\-debug\-tu\-index, \-\-debug\-types, \-\-eh\-frame, \-\-gdb\-index, \-\-apple\-names, \-\-apple\-types, \-\-apple\-namespaces, \-\-apple\-objc
+Dump the specified DWARF section by name. Only the
+\fI\&.debug_info\fP section is shown by default. Some entries
+support adding an \fI=<offset>\fP as a way to provide an
+optional offset of the exact entry to dump within the
+respective section. When an offset is provided, only the
+entry at that offset will be dumped, else the entire
+section will be dumped. Children of items at a specific
+offset can be dumped by also using the
+\fI\%\-\-show\-children\fP option where applicable.
+.UNINDENT
+.SH EXIT STATUS
+.sp
+\fBllvm\-dwarfdump\fP returns 0 if the input files were parsed and dumped
+successfully. Otherwise, it returns 1.
+.SH SEE ALSO
+.sp
+\fBdsymutil(1)\fP
+.SH AUTHOR
+Maintained by The LLVM Team (http://llvm.org/).
+.SH COPYRIGHT
+2003-2018, LLVM Project
+.\" Generated by docutils manpage writer.
+.

@@ -1,0 +1,20 @@
+tcpstream - a simple TCP streaming test tool
+--------------------------------------------
+
+tcpstream generates TCP connections between a 'client' and a 'server'.  The
+client writes a pseudo-random byte stream using varying write sizes.  The
+server then reads the stream and uses the same generator to confirm that the
+data is correct.  To run tcpstream, select a seed value (should be the same
+for the client and server), and a port number (also the same for client and
+server).  Typical use might be:
+
+Run the server on port 8080 and use a seed of 100:
+
+    tcpstream server 8080 100
+
+Now run the client on a second machine with the server's IP, port 8080, and
+seed of 100:
+
+    tcpstream client 192.168.10.10 8080 100
+
+$FreeBSD$

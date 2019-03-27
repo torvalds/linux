@@ -1,0 +1,257 @@
+# Doxyfile 1.5.1
+
+# This file describes the settings to be used by the documentation system
+# doxygen (www.doxygen.org) for a project
+#
+# All text after a hash (#) is considered a comment and will be ignored
+# The format is:
+#       TAG = value [value, ...]
+# For lists items can also be appended using:
+#       TAG += value [value, ...]
+# Values that contain spaces should be placed between quotes (" ")
+
+#---------------------------------------------------------------------------
+# Project related configuration options
+#---------------------------------------------------------------------------
+
+# The PROJECT_NAME tag is a single word (or a sequence of words surrounded 
+# by quotes) that should identify the project.
+
+PROJECT_NAME           = libevent
+
+# Place all output under 'doxygen/'
+
+OUTPUT_DIRECTORY        = doxygen/
+
+# If the JAVADOC_AUTOBRIEF tag is set to YES then Doxygen 
+# will interpret the first line (until the first dot) of a JavaDoc-style 
+# comment as the brief description. If set to NO, the JavaDoc 
+# comments will behave just like the Qt-style comments (thus requiring an 
+# explicit @brief command for a brief description.
+
+JAVADOC_AUTOBRIEF      = YES
+
+# Set the OPTIMIZE_OUTPUT_FOR_C tag to YES if your project consists of C 
+# sources only. Doxygen will then generate output that is more tailored for C. 
+# For instance, some of the names that are used will be different. The list 
+# of all members will be omitted, etc.
+
+OPTIMIZE_OUTPUT_FOR_C  = YES
+
+# If the SORT_BRIEF_DOCS tag is set to YES then doxygen will sort the 
+# brief documentation of file, namespace and class members alphabetically 
+# by member name. If set to NO (the default) the members will appear in 
+# declaration order.
+
+SORT_BRIEF_DOCS        = YES
+
+# If the FULL_PATH_NAMES tag is set to YES then the STRIP_FROM_PATH tag 
+# can be used to strip a user-defined part of the path. Stripping is 
+# only done if one of the specified strings matches the left-hand part of 
+# the path. The tag can be used to show relative paths in the file list. 
+# If left blank the directory from which doxygen is run is used as the 
+# path to strip.
+
+STRIP_FROM_PATH        = include/
+
+#---------------------------------------------------------------------------
+# configuration options related to the input files
+#---------------------------------------------------------------------------
+
+# The INPUT tag can be used to specify the files and/or directories that contain 
+# documented source files. You may enter file names like "myfile.cpp" or 
+# directories like "/usr/src/myproject". Separate the files or directories 
+# with spaces.
+
+INPUT                  = \
+        include/event2/buffer.h \
+        include/event2/buffer_compat.h \
+        include/event2/bufferevent.h \
+        include/event2/bufferevent_compat.h \
+        include/event2/bufferevent_ssl.h \
+        include/event2/dns.h \
+        include/event2/dns_compat.h \
+        include/event2/event.h \
+        include/event2/event_compat.h \
+        include/event2/http.h \
+        include/event2/http_compat.h \
+        include/event2/listener.h \
+        include/event2/rpc.h \
+        include/event2/rpc_compat.h \
+        include/event2/tag.h \
+        include/event2/tag_compat.h \
+        include/event2/thread.h \
+        include/event2/util.h
+
+#---------------------------------------------------------------------------
+# configuration options related to the HTML output
+#---------------------------------------------------------------------------
+
+# If the GENERATE_HTML tag is set to YES (the default) Doxygen will 
+# generate HTML output.
+
+GENERATE_HTML          = YES
+
+#---------------------------------------------------------------------------
+# configuration options related to the LaTeX output
+#---------------------------------------------------------------------------
+
+# If the GENERATE_LATEX tag is set to YES (the default) Doxygen will 
+# generate Latex output.
+
+GENERATE_LATEX         = YES
+
+# The LATEX_OUTPUT tag is used to specify where the LaTeX docs will be put. 
+# If a relative path is entered the value of OUTPUT_DIRECTORY will be 
+# put in front of it. If left blank `latex' will be used as the default path.
+
+LATEX_OUTPUT           = latex
+
+# The LATEX_CMD_NAME tag can be used to specify the LaTeX command name to be 
+# invoked. If left blank `latex' will be used as the default command name.
+
+LATEX_CMD_NAME         = latex
+
+# The MAKEINDEX_CMD_NAME tag can be used to specify the command name to 
+# generate index for LaTeX. If left blank `makeindex' will be used as the 
+# default command name.
+
+MAKEINDEX_CMD_NAME     = makeindex
+
+# If the COMPACT_LATEX tag is set to YES Doxygen generates more compact 
+# LaTeX documents. This may be useful for small projects and may help to 
+# save some trees in general.
+
+COMPACT_LATEX          = NO
+
+# The PAPER_TYPE tag can be used to set the paper type that is used 
+# by the printer. Possible values are: a4, a4wide, letter, legal and 
+# executive. If left blank a4wide will be used.
+
+PAPER_TYPE             = a4wide
+
+# The EXTRA_PACKAGES tag can be to specify one or more names of LaTeX 
+# packages that should be included in the LaTeX output.
+
+EXTRA_PACKAGES         = 
+
+# The LATEX_HEADER tag can be used to specify a personal LaTeX header for 
+# the generated latex document. The header should contain everything until 
+# the first chapter. If it is left blank doxygen will generate a 
+# standard header. Notice: only use this tag if you know what you are doing!
+
+LATEX_HEADER           = 
+
+# If the PDF_HYPERLINKS tag is set to YES, the LaTeX that is generated 
+# is prepared for conversion to pdf (using ps2pdf). The pdf file will 
+# contain links (just like the HTML output) instead of page references 
+# This makes the output suitable for online browsing using a pdf viewer.
+
+PDF_HYPERLINKS         = NO
+
+# If the USE_PDFLATEX tag is set to YES, pdflatex will be used instead of 
+# plain latex in the generated Makefile. Set this option to YES to get a 
+# higher quality PDF documentation.
+
+USE_PDFLATEX           = YES
+
+# If the LATEX_BATCHMODE tag is set to YES, doxygen will add the \\batchmode. 
+# command to the generated LaTeX files. This will instruct LaTeX to keep 
+# running if errors occur, instead of asking the user for help. 
+# This option is also used when generating formulas in HTML.
+
+LATEX_BATCHMODE        = NO
+
+# If LATEX_HIDE_INDICES is set to YES then doxygen will not 
+# include the index chapters (such as File Index, Compound Index, etc.) 
+# in the output.
+
+LATEX_HIDE_INDICES     = NO
+
+#---------------------------------------------------------------------------
+# configuration options related to the man page output
+#---------------------------------------------------------------------------
+
+# If the GENERATE_MAN tag is set to YES (the default) Doxygen will 
+# generate man pages
+
+GENERATE_MAN           = NO
+
+# The MAN_EXTENSION tag determines the extension that is added to 
+# the generated man pages (default is the subroutine's section .3)
+
+MAN_EXTENSION          = .3
+
+# If the MAN_LINKS tag is set to YES and Doxygen generates man output, 
+# then it will generate one additional man file for each entity 
+# documented in the real man page(s). These additional files 
+# only source the real man page, but without them the man command 
+# would be unable to find the correct page. The default is NO.
+
+MAN_LINKS              = YES
+
+#---------------------------------------------------------------------------
+# Configuration options related to the preprocessor   
+#---------------------------------------------------------------------------
+
+# If the ENABLE_PREPROCESSING tag is set to YES (the default) Doxygen will 
+# evaluate all C-preprocessor directives found in the sources and include 
+# files.
+
+ENABLE_PREPROCESSING   = YES
+
+# If the MACRO_EXPANSION tag is set to YES Doxygen will expand all macro 
+# names in the source code. If set to NO (the default) only conditional 
+# compilation will be performed. Macro expansion can be done in a controlled 
+# way by setting EXPAND_ONLY_PREDEF to YES.
+
+MACRO_EXPANSION        = NO
+
+# If the EXPAND_ONLY_PREDEF and MACRO_EXPANSION tags are both set to YES 
+# then the macro expansion is limited to the macros specified with the 
+# PREDEFINED and EXPAND_AS_DEFINED tags.
+
+EXPAND_ONLY_PREDEF     = NO
+
+# If the SEARCH_INCLUDES tag is set to YES (the default) the includes files 
+# in the INCLUDE_PATH (see below) will be search if a #include is found.
+
+SEARCH_INCLUDES        = YES
+
+# The INCLUDE_PATH tag can be used to specify one or more directories that 
+# contain include files that are not input files but should be processed by 
+# the preprocessor.
+
+INCLUDE_PATH           = 
+
+# You can use the INCLUDE_FILE_PATTERNS tag to specify one or more wildcard 
+# patterns (like *.h and *.hpp) to filter out the header-files in the 
+# directories. If left blank, the patterns specified with FILE_PATTERNS will 
+# be used.
+
+INCLUDE_FILE_PATTERNS  = 
+
+# The PREDEFINED tag can be used to specify one or more macro names that 
+# are defined before the preprocessor is started (similar to the -D option of 
+# gcc). The argument of the tag is a list of macros of the form: name 
+# or name=definition (no spaces). If the definition and the = are 
+# omitted =1 is assumed. To prevent a macro definition from being 
+# undefined via #undef or recursively expanded use the := operator 
+# instead of the = operator.
+
+PREDEFINED             = TAILQ_ENTRY RB_ENTRY EVENT_DEFINED_TQENTRY_ EVENT_IN_DOXYGEN_
+
+# If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then 
+# this tag can be used to specify a list of macro names that should be expanded. 
+# The macro definition that is found in the sources will be used. 
+# Use the PREDEFINED tag if you want to use a different macro definition.
+
+EXPAND_AS_DEFINED      = 
+
+# If the SKIP_FUNCTION_MACROS tag is set to YES (the default) then 
+# doxygen's preprocessor will remove all function-like macros that are alone 
+# on a line, have an all uppercase name, and do not end with a semicolon. Such 
+# function macros are typically used for boiler-plate code, and will confuse 
+# the parser if not removed.
+
+SKIP_FUNCTION_MACROS   = YES

@@ -1,0 +1,38 @@
+#! /bin/bash
+
+# This script uses the bash <(...) extension.
+# If you want to change this to work with a generic /bin/sh, make sure
+# you fix that.
+
+
+DTC=dtc
+
+source_and_sort () {
+    DT="$1"
+    if [ -d "$DT" ]; then
+	IFORMAT=fs
+    elif [ -f "$DT" ]; then
+	case "$DT" in
+	    *.dts)
+		IFORMAT=dts
+		;;
+	    *.dtb)
+		IFORMAT=dtb
+		;;
+	esac
+    fi
+
+    if [ -z "$IFORMAT" ]; then
+	echo "Unrecognized format for $DT" >&2
+	exit 2
+    fi
+
+    $DTC -I $IFORMAT -O dts -qq -f -s -o - "$DT"
+}
+
+if [ $# != 2 ]; then
+    echo "Usage: dtdiff <device tree> <device tree>" >&2
+    exit 1
+fi
+
+diff -u <(source_and_sort "$1") <(source_and_sort "$2")

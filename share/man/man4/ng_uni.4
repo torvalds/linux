@@ -1,0 +1,420 @@
+.\"
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\" 	All rights reserved.
+.\"
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 6, 2003
+.Dt NG_UNI 4
+.Os
+.Sh NAME
+.Nm ng_uni
+.Nd netgraph UNI node type
+.Sh SYNOPSIS
+.In netnatm/msg/unistruct.h
+.In netnatm/sig/unidef.h
+.In netgraph/atm/ng_uni.h
+.Sh DESCRIPTION
+The
+.Nm uni
+netgraph node type implements ATM Forum signalling 4.0.
+.Pp
+After creation of the node, the UNI instance must be created by sending
+an
+.Dq enable
+message to the node.
+If the node is enabled, the UNI parameters
+can be retrieved and modified, and the protocol can be started.
+.Pp
+The node is shut down either by an
+.Dv NGM_SHUTDOWN
+message, or when all hooks are disconnected.
+.Sh HOOKS
+Each
+.Nm uni
+node has three hooks with fixed names:
+.Bl -tag -width ".Va upper"
+.It Va lower
+This hook is the interface of the UNI protocol to the transport layer of
+the ATM control plane.
+The node expects the interface exported by
+.Xr ng_sscfu 4
+at this hook.
+.It Va upper
+This hook is the
+.Dq user
+interface of the UNI protocol.
+Because there is no standardized interface
+at this point, this implementation follows more or less the interface
+specified by the SDL diagrams in ITU-T recommendations Q.2931 and Q.2971.
+Normally either a
+.Xr ng_ccatm 4
+or a switch CAC should be stacked at this interface.
+The message format at the
+.Va upper
+hook is described below.
+Because
+.Xr netgraph 4
+is functional, it makes sometimes sense to switch this hook to queueing mode
+from the peer node upon connection.
+.El
+.Pp
+The
+.Va upper
+interface of the
+.Nm uni
+node is loosely modelled after the interface specified in the ITU-T signalling
+standards.
+There is however one derivation from this: normally there exists
+four kinds of signals: requests, responses, indications and confirmations.
+These signals are usually triggered either by external events (receiving a
+message) or internal events (a timer or another signal).
+This scheme works
+fine for user APIs that are entirely asynchronous, and in cases where
+error handling is not taken into account.
+With synchronous APIs and error
+handling however, there is a problem.
+If, for example, the application
+issues a request to set up a connection,
+it may do it by sending a
+.Dv SETUP.request
+signal to the UNI.
+Normally, the UNI stack will send a SETUP message and
+receive a message from the switch (a RELEASE, CONNECT, CALL PROCEEDING or
+ALERTING), or a timer in the UNI stack will time out.
+In any of these cases,
+the UNI stack is supposed to report an event back to the application, and
+the application will unblock (in the case of a synchronous API) and handle
+the event.
+The problem occurs when an error happens.
+Suppose there is no
+memory to send the SETUP message and to start the timer.
+In this case, the
+application will block forever because no received message and no timer
+will wake it up.
+For this reason this implementation uses an additional message:
+for each signal sent from the application to the stack, the stack will
+respond with an error code.
+If this code is zero, the stack has accepted
+the signal and the application may block; if the code is non-zero, the signal
+is effectively ignored and the code describes what was wrong.
+This system
+makes it very easy to make a blocking interface out of the message based
+netgraph interface.
+.Pp
+The
+.Va upper
+interface uses the following structure:
+.Bd -literal
+struct uni_arg {
+	uint32_t	sig;
+	uint32_t	cookie;
+	u_char		data[];
+};
+.Ed
+The
+.Va sig
+field contains the actual signal that is sent from the user to UNI or from
+UNI to the user.
+The
+.Va cookie
+can be used by the user to correlate requests with events and responses.
+If an error response, a confirmation or an indication was triggered by
+a request or response, the cookie from that request or response is carried in
+the message from the stack to the user.
+The
+.Va cookie
+field is followed by the actual data for the signal.
+.Pp
+The signal is one of the following:
+.Bd -literal
+enum uni_sig {
+    UNIAPI_ERROR,			/* UNI -> API */
+
+    UNIAPI_CALL_CREATED,		/* UNI -> API */
+    UNIAPI_CALL_DESTROYED,		/* UNI -> API */
+    UNIAPI_PARTY_CREATED,		/* UNI -> API */
+    UNIAPI_PARTY_DESTROYED,		/* UNI -> API */
+
+    UNIAPI_LINK_ESTABLISH_request,	/* API -> UNI */
+    UNIAPI_LINK_ESTABLISH_confirm,	/* UNI -> API */
+    UNIAPI_LINK_RELEASE_request,	/* API -> UNI */
+    UNIAPI_LINK_RELEASE_confirm,	/* UNI -> API */
+
+    UNIAPI_RESET_request,		/* API -> UNI */
+    UNIAPI_RESET_confirm,		/* UNI -> API */
+    UNIAPI_RESET_indication,		/* UNI -> API */
+    UNIAPI_RESET_ERROR_indication,	/* UNI -> API */
+    UNIAPI_RESET_response,		/* API -> UNI */
+    UNIAPI_RESET_ERROR_response,	/* API -> UNI */
+    UNIAPI_RESET_STATUS_indication,	/* UNI -> API */
+
+    UNIAPI_SETUP_request,		/* API -> UNI */
+    UNIAPI_SETUP_indication,		/* UNI -> API */
+    UNIAPI_SETUP_response,		/* API -> UNI */
+    UNIAPI_SETUP_confirm,		/* UNI -> API */
+    UNIAPI_SETUP_COMPLETE_indication,	/* UNI -> API */
+    UNIAPI_ALERTING_request,		/* API -> UNI */
+    UNIAPI_ALERTING_indication,		/* UNI -> API */
+    UNIAPI_PROCEEDING_request,		/* API -> UNI */
+    UNIAPI_PROCEEDING_indication,	/* UNI -> API */
+    UNIAPI_RELEASE_request,		/* API -> UNI */
+    UNIAPI_RELEASE_indication,		/* UNI -> API */
+    UNIAPI_RELEASE_response,		/* API -> UNI */
+    UNIAPI_RELEASE_confirm,		/* UNI -> API */
+    UNIAPI_NOTIFY_request,		/* API -> UNI */
+    UNIAPI_NOTIFY_indication,		/* UNI -> API */
+    UNIAPI_STATUS_indication,		/* UNI -> API */
+    UNIAPI_STATUS_ENQUIRY_request,	/* API -> UNI */
+
+    UNIAPI_ADD_PARTY_request,		/* API -> UNI */
+    UNIAPI_ADD_PARTY_indication,	/* UNI -> API */
+    UNIAPI_PARTY_ALERTING_request,	/* API -> UNI */
+    UNIAPI_PARTY_ALERTING_indication,	/* UNI -> API */
+    UNIAPI_ADD_PARTY_ACK_request,	/* API -> UNI */
+    UNIAPI_ADD_PARTY_ACK_indication,	/* UNI -> API */
+    UNIAPI_ADD_PARTY_REJ_request,	/* API -> UNI */
+    UNIAPI_ADD_PARTY_REJ_indication,	/* UNI -> API */
+    UNIAPI_DROP_PARTY_request,		/* API -> UNI */
+    UNIAPI_DROP_PARTY_indication,	/* UNI -> API */
+    UNIAPI_DROP_PARTY_ACK_request,	/* API -> UNI */
+    UNIAPI_DROP_PARTY_ACK_indication,	/* UNI -> API */
+
+    UNIAPI_ABORT_CALL_request,		/* API -> UNI */
+
+    UNIAPI_MAXSIG
+};
+.Ed
+.Pp
+The meaning of most of the signals can be deduced from the ITU-T SDLs.
+A number of signals, however, is unique to this implementation:
+.Bl -tag -width foo
+.It Dv UNIAPI_ERROR
+This is the error response, mentioned earlier.
+It carries an error code or
+zero, if the signal was accepted by the stack.
+.It Dv UNIAPI_CALL_CREATED
+The UNI stack has created a call instance either from an incoming SETUP or
+from the user requesting an outgoing SETUP.
+This may be used to synchronize
+the creation and destroying of call data between the UNI stack and the user.
+.It Dv UNIAPI_CALL_DESTROYED
+A call instance has been destroyed and all resources have been freed.
+.It Dv UNIAPI_PARTY_CREATED
+A new party has been created for an existing point-to-multipoint call.
+This may be used to synchronize the creation and destroying of party data
+between the UNI stack and the user.
+.It Dv UNIAPI_PARTY_DESTROYED
+A party has been destroyed and all resources have been freed.
+.It Dv UNIAPI_ABORT_CALL_request
+This requests the stack to destroy the call instance
+and free all its resources,
+without sending any messages to the network.
+.It Dv UNIAPI_MAXSIG
+This is not a signal, but rather a definition to get the number of defined
+signals.
+.El
+.Pp
+Each of the signals is followed by a fixed size structure defined in
+.In netnatm/sig/unidef.h .
+.Sh CONTROL MESSAGES
+The
+.Nm uni
+node understands the standard control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_UNI_SETDEBUG Pq Ic setdebug
+Set debugging facility levels.
+The UNI stack defines a number of debugging
+facilities, each one associated with a debugging level.
+If the debugging level
+of a facility is non-zero, text output will be generated to the console.
+The message uses the following structure:
+.Bd -literal
+struct ngm_uni_debug {
+	uint32_t	level[UNI_MAXFACILITY];
+};
+.Ed
+.It Dv NGM_UNI_GETDEBUG Pq Ic getdebug
+Get debugging facility levels.
+This returns an
+.Vt ngm_uni_debug
+structure.
+.It Dv NGM_UNI_GET_CONFIG Pq Ic get_config
+Retrieve the current configuration of the UNI instance.
+This message returns a
+.Vt uni_config
+structure:
+.Bd -literal
+struct uni_config {
+	uint32_t proto;		/* which protocol */
+	uint32_t popt;		/* protocol option */
+	uint32_t option;	/* other options */
+	uint32_t timer301;	/* T301 */
+	uint32_t timer303;	/* T303 */
+	uint32_t init303;	/* T303 retransmission count */
+	uint32_t timer308;	/* T308 */
+	uint32_t init308;	/* T308 retransmission count */
+	uint32_t timer309;	/* T309 */
+	uint32_t timer310;	/* T310 */
+	uint32_t timer313;	/* T313 */
+	uint32_t timer316;	/* T316 */
+	uint32_t init316;	/* T316 retransmission count */
+	uint32_t timer317;	/* T317 */
+	uint32_t timer322;	/* T322 */
+	uint32_t init322;	/* T322 retransmission count */
+	uint32_t timer397;	/* T397 */
+	uint32_t timer398;	/* T398 */
+	uint32_t timer399;	/* T399 */
+};
+.Ed
+.Pp
+The field
+.Va proto
+specifies one of the following protocols:
+.Bd -literal
+enum uni_proto {
+	UNIPROTO_UNI40U,	/* UNI4.0 user side */
+	UNIPROTO_UNI40N,	/* UNI4.0 network side */
+	UNIPROTO_PNNI10,	/* PNNI1.0 */
+};
+.Ed
+.Pp
+Some protocols may have options which can be set in
+.Va popt :
+.Bd -literal
+enum uni_popt {
+	UNIPROTO_GFP,		/* enable GFP */
+};
+.Ed
+.Pp
+The
+.Va option
+field controls parsing and checking of messages:
+.Bd -literal
+enum uni_option {
+	UNIOPT_GIT_HARD,	/* harder check of GIT IE */
+	UNIOPT_BEARER_HARD,	/* harder check of BEARER IE */
+	UNIOPT_CAUSE_HARD,	/* harder check of CAUSE IE */
+};
+.Ed
+.Pp
+All timer values are given in milliseconds.
+Note, however, that the actual
+resolution of the timers depend on system configuration (see
+.Xr timeout 9 ) .
+.It Dv NGM_UNI_SET_CONFIG Pq Ic set_config
+Change the UNI configuration.
+This takes a
+.Bd -literal
+struct ngm_uni_set_config {
+	struct uni_config		config;
+	struct ngm_uni_config_mask	mask;
+};
+struct ngm_uni_config_mask {
+	uint32_t	mask;
+	uint32_t	popt_mask;
+	uint32_t	option_mask;
+};
+.Ed
+.Pp
+The fields of the
+.Vt ngm_uni_config_mask
+specify which configuration parameter to change.
+The
+.Va mask
+field contains bit definitions for all timers, retransmission counters
+and the
+.Va proto
+field,
+.Va popt_mask
+selects which of the protocol options to change, and
+.Va option_mask
+specifies which options should be changed.
+The following bits are defined:
+.Bd -literal
+enum uni_config_mask {
+	UNICFG_PROTO,
+	UNICFG_TIMER301,
+	UNICFG_TIMER303,
+	UNICFG_INIT303,
+	UNICFG_TIMER308,
+	UNICFG_INIT308,
+	UNICFG_TIMER309,
+	UNICFG_TIMER310,
+	UNICFG_TIMER313,
+	UNICFG_TIMER316,
+	UNICFG_INIT316,
+	UNICFG_TIMER317,
+	UNICFG_TIMER322,
+	UNICFG_INIT322,
+	UNICFG_TIMER397,
+	UNICFG_TIMER398,
+	UNICFG_TIMER399,
+};
+.Ed
+.Pp
+For
+.Va popt_mask
+and
+.Va option_mask ,
+the definitions from
+.Vt "enum uni_popt"
+and
+.Vt "enum uni_option"
+should be used.
+.It Dv NGM_UNI_ENABLE Pq Ic enable
+Create the UNI instance and enable processing.
+Before the UNI is enabled parameters cannot be retrieved or set.
+.It Dv NGM_UNI_DISABLE Pq Ic disable
+Destroy the UNI instance and free all resources.
+Note, that connections are not released.
+.El
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_atm 4 ,
+.Xr ng_sscfu 4 ,
+.Xr ng_sscop 4 ,
+.Xr ngctl 8
+.Sh AUTHORS
+The
+.Nm uni
+netgraph node
+and this manual page were written by
+.An Harti Brandt Aq Mt harti@FreeBSD.org
+.Sh BUGS
+.Bl -bullet -compact
+.It
+LIJ (leaf-initiated-join) is not implemented yet.
+.It
+GFP (generic functional protocol, Q.2932.1) is not yet implemented.
+.It
+More testing needed.
+.It
+PNNI not yet implemented.
+.It
+Need to implement connection modification and the Q.2931 amendments.
+.El

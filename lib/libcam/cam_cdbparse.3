@@ -1,0 +1,570 @@
+.\"
+.\" Copyright (c) 1998 Kenneth D. Merry.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" This man page borrows heavily from the old scsi(3) man page, which had
+.\" the following copyright:
+.\"
+.\" Copyright (c) 1994 HD Associates (hd@world.std.com)
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by HD Associates
+.\" 4. Neither the name of the HD Associates nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY HD ASSOCIATES``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL HD ASSOCIATES OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd March 13, 2017
+.Dt CAM_CDBPARSE 3
+.Os
+.Sh NAME
+.Nm csio_build ,
+.Nm csio_build_visit ,
+.Nm csio_decode ,
+.Nm csio_decode_visit ,
+.Nm buff_decode ,
+.Nm buff_decode_visit ,
+.Nm csio_encode ,
+.Nm csio_encode_visit ,
+.Nm buff_encode_visit
+.Nd CAM user library SCSI buffer parsing routines
+.Sh LIBRARY
+.Lb libcam
+.Sh SYNOPSIS
+.In stdio.h
+.In camlib.h
+.Ft int
+.Fo csio_build
+.Fa "struct ccb_scsiio *csio"
+.Fa "uint8_t *data_ptr"
+.Fa "uint32_t dxfer_len"
+.Fa "uint32_t flags"
+.Fa "int retry_count"
+.Fa "int timeout"
+.Fa "const char *cmd_spec"
+.Fa "..."
+.Fc
+.Ft int
+.Fo csio_build_visit
+.Fa "struct ccb_scsiio *csio"
+.Fa "uint8_t *data_ptr"
+.Fa "uint32_t dxfer_len"
+.Fa "uint32_t flags"
+.Fa "int retry_count"
+.Fa "int timeout"
+.Fa "const char *cmd_spec"
+.Fa "int (*arg_get)(void *hook, char *field_name)"
+.Fa "void *gethook"
+.Fc
+.Ft int
+.Fo csio_decode
+.Fa "struct ccb_scsiio *csio"
+.Fa "const char *fmt"
+.Fa "..."
+.Fc
+.Ft int
+.Fo csio_decode_visit
+.Fa "struct ccb_scsiio *csio"
+.Fa "const char *fmt"
+.Fa "void (*arg_put)(void *hook"
+.Fa "int letter"
+.Fa "void *val"
+.Fa "int count"
+.Fa "char *name)"
+.Fa "void *puthook"
+.Fc
+.Ft int
+.Fo buff_decode
+.Fa "uint8_t *buff"
+.Fa "size_t len"
+.Fa "const char *fmt"
+.Fa "..."
+.Fc
+.Ft int
+.Fo buff_decode_visit
+.Fa "uint8_t *buff"
+.Fa "size_t len"
+.Fa "const char *fmt"
+.Fa "void (*arg_put)(void *, int, void *, int, char *)"
+.Fa "void *puthook"
+.Fc
+.Ft int
+.Fo csio_encode
+.Fa "struct ccb_scsiio *csio"
+.Fa "const char *fmt"
+.Fa "..."
+.Fc
+.Ft int
+.Fo csio_encode_visit
+.Fa "struct ccb_scsiio *csio"
+.Fa "const char *fmt"
+.Fa "int (*arg_get)(void *hook, char *field_name)"
+.Fa "void *gethook"
+.Fc
+.Ft int
+.Fo buff_encode_visit
+.Fa "uint8_t *buff"
+.Fa "size_t len"
+.Fa "const char *fmt"
+.Fa "int (*arg_get)(void *hook, char *field_name)"
+.Fa "void *gethook"
+.Fc
+.Sh DESCRIPTION
+The CAM buffer/CDB encoding and decoding routines provide a relatively easy
+migration path for userland
+.Tn SCSI
+applications written with the similarly-named
+.Va scsireq_ Ns *
+functions from the old
+.Fx
+.Tn SCSI
+layer.
+.Pp
+These functions may be used in new applications, but users may find it
+easier to use the various SCSI CCB building functions included with the
+.Xr cam 3
+library, e.g., \&
+.Fn cam_fill_csio ,
+.Fn scsi_start_stop ,
+and
+.Fn scsi_read_write .
+.Pp
+.Fn csio_build
+builds up a
+.Va ccb_scsiio
+structure based on the information provided in
+the variable argument list.
+It gracefully handles a NULL
+.Fa data_ptr
+argument passed to it.
+.Pp
+.Fa dxfer_len
+is the length of the data phase; the data transfer direction is
+determined by the
+.Fa flags
+argument.
+.Pp
+.Fa data_ptr
+is the data buffer used during the
+.Tn SCSI
+data phase.
+If no data is to be
+transferred for the
+.Tn SCSI
+command in question, this should be set to NULL.
+If there is data to
+transfer for the command, this buffer must be at least
+.Fa dxfer_len
+long.
+.Pp
+.Fa flags
+are the flags defined in
+.In cam/cam_ccb.h :
+.Bd -literal
+/* Common CCB header */
+/* CAM CCB flags */
+typedef enum {
+     CAM_CDB_POINTER       = 0x00000001,/* The CDB field is a pointer    */
+     CAM_QUEUE_ENABLE      = 0x00000002,/* SIM queue actions are enabled */
+     CAM_CDB_LINKED        = 0x00000004,/* CCB contains a linked CDB     */
+     CAM_SCATTER_VALID     = 0x00000010,/* Scatter/gather list is valid  */
+     CAM_DIS_AUTOSENSE     = 0x00000020,/* Disable autosense feature     */
+     CAM_DIR_RESV          = 0x00000000,/* Data direction (00:reserved)  */
+     CAM_DIR_IN            = 0x00000040,/* Data direction (01:DATA IN)   */
+     CAM_DIR_OUT           = 0x00000080,/* Data direction (10:DATA OUT)  */
+     CAM_DIR_NONE          = 0x000000C0,/* Data direction (11:no data)   */
+     CAM_DIR_MASK          = 0x000000C0,/* Data direction Mask		 */
+     CAM_SOFT_RST_OP       = 0x00000100,/* Use Soft reset alternative    */
+     CAM_ENG_SYNC          = 0x00000200,/* Flush resid bytes on complete */
+     CAM_DEV_QFRZDIS       = 0x00000400,/* Disable DEV Q freezing	 */
+     CAM_DEV_QFREEZE       = 0x00000800,/* Freeze DEV Q on execution     */
+     CAM_HIGH_POWER        = 0x00001000,/* Command takes a lot of power  */
+     CAM_SENSE_PTR         = 0x00002000,/* Sense data is a pointer	 */
+     CAM_SENSE_PHYS        = 0x00004000,/* Sense pointer is physical addr*/
+     CAM_TAG_ACTION_VALID  = 0x00008000,/* Use the tag action in this ccb*/
+     CAM_PASS_ERR_RECOVER  = 0x00010000,/* Pass driver does err. recovery*/
+     CAM_DIS_DISCONNECT    = 0x00020000,/* Disable disconnect		 */
+     CAM_SG_LIST_PHYS      = 0x00040000,/* SG list has physical addrs.   */
+     CAM_MSG_BUF_PHYS      = 0x00080000,/* Message buffer ptr is physical*/
+     CAM_SNS_BUF_PHYS      = 0x00100000,/* Autosense data ptr is physical*/
+     CAM_DATA_PHYS         = 0x00200000,/* SG/Buffer data ptrs are phys. */
+     CAM_CDB_PHYS          = 0x00400000,/* CDB pointer is physical	 */
+     CAM_ENG_SGLIST        = 0x00800000,/* SG list is for the HBA engine */
+
+/* Phase cognizant mode flags */
+     CAM_DIS_AUTOSRP       = 0x01000000,/* Disable autosave/restore ptrs */
+     CAM_DIS_AUTODISC      = 0x02000000,/* Disable auto disconnect	 */
+     CAM_TGT_CCB_AVAIL     = 0x04000000,/* Target CCB available		 */
+     CAM_TGT_PHASE_MODE    = 0x08000000,/* The SIM runs in phase mode	 */
+     CAM_MSGB_VALID        = 0x20000000,/* Message buffer valid		 */
+     CAM_STATUS_VALID      = 0x40000000,/* Status buffer valid		 */
+     CAM_DATAB_VALID       = 0x80000000,/* Data buffer valid		 */
+
+/* Host target Mode flags */
+     CAM_TERM_IO           = 0x20000000,/* Terminate I/O Message sup.    */
+     CAM_DISCONNECT        = 0x40000000,/* Disconnects are mandatory     */
+     CAM_SEND_STATUS       = 0x80000000,/* Send status after data phase  */
+} ccb_flags;
+.Ed
+.Pp
+Multiple flags should be ORed together.
+Any of the CCB flags may be used,
+although it is worth noting several important ones here:
+.Bl -tag -width CAM_PASS_ERR_RECOVER
+.It Dv CAM_DIR_IN
+This indicates that the operation in question is a read operation.
+i.e.,
+data is being read from the
+.Tn SCSI
+device to the user-supplied buffer.
+.It Dv CAM_DIR_OUT
+This indicates that the operation is a write operation.
+i.e., data is being
+written from the user-supplied buffer to the device.
+.It Dv CAM_DIR_NONE
+This indicates that there is no data to be transferred for this command.
+.It Dv CAM_DEV_QFRZDIS
+This flag disables device queue freezing as an error recovery mechanism.
+.It Dv CAM_PASS_ERR_RECOVER
+This flag tells the
+.Xr pass 4
+driver to enable error recovery.
+The default is to not perform error
+recovery, which means that the retry count will not be honored without this
+flag, among other things.
+.It Dv CAM_DATA_PHYS
+This indicates that the address contained in
+.Fa data_ptr
+is a physical address, not a virtual address.
+.El
+.Pp
+The
+.Fa retry_count
+tells the kernel how many times to retry the command in question.
+The
+retry count is ignored unless the
+.Xr pass 4
+driver is told to enable error recovery via the
+.Dv CAM_PASS_ERR_RECOVER
+flag.
+.Pp
+The
+.Fa timeout
+tells the kernel how long to wait for the given command to complete.
+If
+the timeout expires and the command has not completed, the CCB will be
+returned from the kernel with an appropriate error status.
+.Pp
+.Fa cmd_spec
+is a CDB format specifier used to build up the SCSI CDB.
+This text string is made up of a list of field specifiers.
+Field
+specifiers specify the value for each CDB field (including indicating
+that the value be taken from the next argument in the
+variable argument list), the width
+of the field in bits or bytes, and an optional name.
+White space is
+ignored, and the pound sign ('#') introduces a comment that ends at the
+end of the current line.
+.Pp
+The optional name is the first part of a field specifier and
+is in curly braces.
+The text in curly braces in this example are
+the names:
+.Dl "{PS} v:b1 {Reserved} 0:b1 {Page Code} v:b6 # Mode select page"
+.Pp
+This field specifier has two one bit fields and one six bit field.
+The second one bit field is the constant value 0 and the first
+one bit field and the six bit field are taken from the variable
+argument list.
+Multi byte fields are swapped into the SCSI byte order in the
+CDB and white space is ignored.
+.Pp
+When the field is a hex value or the letter v, (e.g.,
+.Fa "1A"
+or
+.Fa "v" )
+then a single byte value
+is copied to the next unused byte of the CDB.
+When the letter
+.Fa v
+is used the next integer argument is taken from the variable argument list
+and that value used.
+.Pp
+A constant hex value followed by a field width specifier or the letter
+.Fa v
+followed by a field width specifier (e.g.,
+.Fa 3:4 ,
+.Fa 3:b4 ,
+.Fa 3:i3 ,
+.Fa v:i3 )
+specifies a field of a given bit or byte width.
+Either the constant value or (for the V specifier) the next integer value from
+the variable argument list is copied to the next unused
+bits or bytes of the CDB.
+.Pp
+A decimal number or the letter
+.Fa b
+followed by a decimal number field width indicates a bit field of that width.
+The bit fields are packed as tightly as possible beginning with the
+high bit (so that it reads the same as the SCSI spec), and a new byte of
+the CDB is started whenever a byte fills completely or when an
+.Fa i
+field is encountered.
+.Pp
+A field width specifier consisting of the letter
+.Fa i
+followed by either
+1, 2, 3 or 4 indicates a 1, 2, 3 or 4 byte integral value that must
+be swapped into SCSI byte order (MSB first).
+.Pp
+For the
+.Fa v
+field specifier the next integer argument is taken from the variable argument
+list and that value is used swapped into SCSI byte order.
+.Pp
+.Fn csio_build_visit
+operates similarly to
+.Fn csio_build ,
+except that the values to substitute for variable arguments in
+.Fa cmd_spec
+are retrieved via the
+.Fn arg_get
+function passed in to
+.Fn csio_build_visit
+instead of via
+.Xr stdarg 3 .
+The
+.Fn arg_get
+function takes two arguments:
+.Bl -tag -width field_name
+.It Fa gethook
+is passed into the
+.Fn arg_get
+function at each invocation.
+This enables the
+.Fn arg_get
+function to keep some state in between calls without using global or static
+variables.
+.It Fa field_name
+is the field name supplied in
+.Fa fmt ,
+if any.
+.El
+.Pp
+.Fn csio_decode
+is used to decode information from the data in phase of the SCSI
+transfer.
+.Pp
+The decoding is similar to
+the command specifier processing of
+.Fn csio_build
+except that the data is extracted from the data pointed to by
+.Fa csio->data_ptr .
+The stdarg list should be pointers to integers instead of integer
+values.
+A seek field type and a suppression modifier are added.
+The
+.Fa *
+suppression modifier (e.g.,
+.Fa *i3
+or
+.Fa *b4 )
+suppresses assignment from the field and can be used to skip
+over bytes or bits in the data, without having to copy
+them to a dummy variable in the arg list.
+.Pp
+The seek field type
+.Fa s
+permits you to skip over data.
+This seeks to an absolute position
+.Pq Fa s3
+or a relative position
+.Pq Fa s+3
+in the data, based on whether or not the presence of the '+' sign.
+The seek value can be specified as
+.Fa v
+and the next integer value from the argument list will be
+used as the seek value.
+.Pp
+.Fn csio_decode_visit
+operates like
+.Fn csio_decode
+except that instead of placing the decoded contents of the buffer in
+variadic arguments, the decoded buffer contents are returned to the user
+via the
+.Fn arg_put
+function that is passed in.
+The
+.Fn arg_put
+function takes several arguments:
+.Bl -tag -width letter
+.It Fa hook
+The "hook" is a mechanism to allow the
+.Fn arg_put
+function to save state in between calls.
+.It Fa letter
+is the letter describing the format of the argument being passed into the
+function.
+.It Fa val
+is a void pointer to the value being passed into the function.
+.It Fa count
+is the size of the value being passed into the
+.Fn arg_put
+function.
+The argument format determines the unit of measure.
+.It Fa name
+This is a text description of the field, if one was provided in the
+.Fa fmt .
+.El
+.Pp
+.Fn buff_decode
+decodes an arbitrary data buffer using the method
+described above for
+.Fn csio_decode .
+.Pp
+.Fn buff_decode_visit
+decodes an arbitrary data buffer using the method described above for
+.Fn csio_decode_visit .
+.Pp
+.Fn csio_encode
+encodes the
+.Fa data_ptr
+portion (not the CDB!) of a
+.Va ccb_scsiio
+structure, using the method described above for
+.Fn csio_build .
+.Pp
+.Fn csio_encode_visit
+encodes the
+.Fa data_ptr
+portion (not the CDB!) of a
+.Va ccb_scsiio
+structure, using the method described above for
+.Fn csio_build_visit .
+.Pp
+.Fn buff_encode_visit
+encodes an arbitrary data pointer, using the method described
+above for
+.Fn csio_build_visit .
+.Sh RETURN VALUES
+.Fn csio_build ,
+.Fn csio_build_visit ,
+.Fn csio_encode ,
+.Fn csio_encode_visit ,
+and
+.Fn buff_encode_visit
+return the number of fields processed.
+.Pp
+.Fn csio_decode ,
+.Fn csio_decode_visit ,
+.Fn buff_decode ,
+and
+.Fn buff_decode_visit
+return the number of assignments performed.
+.Sh SEE ALSO
+.Xr cam 3 ,
+.Xr pass 4 ,
+.Xr camcontrol 8
+.Sh HISTORY
+The CAM versions of these functions are based upon similar functions
+implemented for the old
+.Fx
+.Tn SCSI
+layer.
+The encoding/decoding functions in the old
+.Tn SCSI
+code were written by
+.An Peter Dufault Aq Mt dufault@hda.com .
+.Pp
+Many systems have comparable interfaces to permit a user to construct a
+SCSI command in user space.
+.Pp
+The old
+.Va scsireq
+data structure was almost identical to the SGI /dev/scsi data structure.
+If anyone knows the name of the authors it should go here;
+Peter Dufault
+first read about it in a 1989 Sun Expert magazine.
+.Pp
+The new CCB data structures are derived from the CAM-2 and CAM-3
+specifications.
+.Pp
+.An Peter Dufault
+implemented a clone of SGI's interface in
+.Bx 386
+that
+led to the original
+.Fx
+.Tn SCSI
+library and the related kernel ioctl.
+If anyone needs that for compatibility, contact
+.Mt dufault@hda.com .
+.Sh AUTHORS
+.An -nosplit
+.An Kenneth Merry Aq Mt ken@FreeBSD.org
+implemented the CAM versions of these encoding and decoding functions.
+This current work is based upon earlier work by
+.An Peter Dufault Aq Mt dufault@hda.com .
+.Sh BUGS
+There should probably be a function that encodes both the CDB and the data
+buffer portions of a
+.Tn SCSI
+CCB.
+I discovered this while implementing the arbitrary command execution
+code in
+.Xr camcontrol 8 ,
+but I have not yet had time to implement such a function.
+.Pp
+Some of the CCB flag descriptions really do not belong here.
+Rather they
+belong in a generic CCB man page.
+Since that man page has not yet been
+written, the shorter descriptions here will have to suffice.

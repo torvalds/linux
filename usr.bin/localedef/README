@@ -1,0 +1,11 @@
+While there are tools called "localedef" in Solaris and Linux, this
+tool does not share heritage with any other implementation.  It was
+written independently by Garrett D'Amore while employed at Nexenta
+Systems, and thus carries the Nexenta Copyright.
+
+It was initially released under the CDDL license, but on 4 July 2014,
+Nexenta reissued the source under the BSD 2-clause license.  This
+code is part of the Illumos project.
+
+see:
+https://github.com/Nexenta/illumos-nexenta/commit/cf17542a37fc83d0ae093777e30d480423858c29

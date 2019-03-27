@@ -1,0 +1,73 @@
+
+#------------------------------------------------------------------------------
+# $File: iff,v 1.14 2015/09/07 10:03:21 christos Exp $
+# iff:	file(1) magic for Interchange File Format (see also "audio" & "images")
+#
+# Daniel Quinlan (quinlan@yggdrasil.com) -- IFF was designed by Electronic
+# Arts for file interchange.  It has also been used by Apple, SGI, and
+# especially Commodore-Amiga.
+#
+# IFF files begin with an 8 byte FORM header, followed by a 4 character
+# FORM type, which is followed by the first chunk in the FORM.
+
+0	string		FORM		IFF data
+#>4	belong		x		\b, FORM is %d bytes long
+# audio formats
+>8	string		AIFF		\b, AIFF audio
+!:mime	audio/x-aiff
+>8	string		AIFC		\b, AIFF-C compressed audio
+!:mime	audio/x-aiff
+>8	string		8SVX		\b, 8SVX 8-bit sampled sound voice
+!:mime	audio/x-aiff
+>8	string		16SV		\b, 16SV 16-bit sampled sound voice
+>8	string		SAMP		\b, SAMP sampled audio
+>8	string		MAUD		\b, MAUD MacroSystem audio
+>8	string		SMUS		\b, SMUS simple music
+>8	string		CMUS		\b, CMUS complex music
+# image formats
+>8	string		ILBMBMHD	\b, ILBM interleaved image
+>>20	beshort		x		\b, %d x
+>>22	beshort		x		%d
+>8	string		RGBN		\b, RGBN 12-bit RGB image
+>8	string		RGB8		\b, RGB8 24-bit RGB image
+>8	string		DEEP		\b, DEEP TVPaint/XiPaint image
+>8	string		DR2D		\b, DR2D 2-D object
+>8	string		TDDD		\b, TDDD 3-D rendering
+>8	string		LWOB		\b, LWOB 3-D object
+>8	string		LWO2		\b, LWO2 3-D object, v2
+>8	string		LWLO		\b, LWLO 3-D layered object
+>8	string		REAL		\b, REAL Real3D rendering
+>8	string		MC4D		\b, MC4D MaxonCinema4D rendering
+>8	string		ANIM		\b, ANIM animation
+>8	string		YAFA		\b, YAFA animation
+>8	string		SSA\ 		\b, SSA super smooth animation
+>8	string		ACBM		\b, ACBM continuous image
+>8	string		FAXX		\b, FAXX fax image
+# other formats
+>8	string		FTXT		\b, FTXT formatted text
+>8	string		CTLG		\b, CTLG message catalog
+>8	string		PREF		\b, PREF preferences
+>8	string		DTYP		\b, DTYP datatype description
+>8	string		PTCH		\b, PTCH binary patch
+>8	string		AMFF		\b, AMFF AmigaMetaFile format
+>8	string		WZRD		\b, WZRD StormWIZARD resource
+>8	string		DOC\ 		\b, DOC desktop publishing document
+>8	string		WVQA 		\b, Westwood Studios VQA Multimedia,
+>>24	leshort		x		%d video frames,
+>>26	leshort		x		%d x
+>>28	leshort		x		%d
+>8	string		MOVE		\b, Wing Commander III Video
+>>12	string		_PC_		\b, PC version
+>>12	string		3DO_		\b, 3DO version
+
+# These go at the end of the iff rules
+#
+# David Griffith <dave@661.org>
+# I don't see why these might collide with anything else.
+#
+# Interactive Fiction related formats
+#
+>8	string		IFRS		\b, Blorb Interactive Fiction
+>>24	string		Exec		with executable chunk
+>8	string          IFZS		\b, Z-machine or Glulx saved game file (Quetzal)
+!:mime	application/x-blorb

@@ -1,0 +1,73 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_status_mail_rejects_shorten" in
+[Yy][Ee][Ss])	shorten='cut -d" " -f2,3';;
+*)		shorten=cat;;
+esac
+
+case "$daily_status_mail_rejects_enable" in
+    [Yy][Ee][Ss])
+	if [ ! -d /etc/mail ]
+	then
+	    echo '$daily_status_mail_rejects_enable is set but /etc/mail' \
+		"doesn't exist"
+	    rc=2
+	elif [ ! -f /var/log/maillog ]
+	then
+	    echo '$daily_status_mail_rejects_enable is set but ' \
+		"/var/log/maillog doesn't exist"
+	    rc=2
+	elif [ "$daily_status_mail_rejects_logs" -le 0 ]
+	then
+	    echo '$daily_status_mail_rejects_enable is set but ' \
+		'$daily_status_mail_rejects_logs is not greater than zero'
+	    rc=2
+	else
+	    echo
+	    echo Checking for rejected mail hosts:
+
+	    yesterday=$(date -v-1d '+%b %e')
+	    today=$(date '+%b %e')
+	    n=$(($daily_status_mail_rejects_logs - 2))
+	    rc=$({
+		while [ $n -ge 0 ]
+		do
+		    if [ -f /var/log/maillog.$n ]
+		    then
+			cat /var/log/maillog.$n
+		    elif [ -f /var/log/maillog.$n.gz ]
+		    then
+			zcat -fc /var/log/maillog.$n.gz
+		    elif [ -f /var/log/maillog.$n.bz2 ]
+		    then
+			bzcat -fc /var/log/maillog.$n.bz2
+		    fi
+		    n=$(($n - 1))
+		done
+		cat /var/log/maillog
+	    } | sed -Ene "/^$today/q" -e "/^$yesterday/{"'
+		    s/.*ruleset=check_relay,.* relay=([^,]+), reject=([^ ]*).*/\2 check_relay \1/p
+		    t end
+                    s/.*ruleset=check_rcpt,.* arg1=<?([^>,]+).* reject=([^ ]+) .* ([^ ]+)/\2 check_rcpt \1 \3/p
+		    t end
+                    s/.*ruleset=check_([^,]+),.* arg1=<?([^@]+@)?([^>,]+).* reject=([^ ]+) .* ([^ ]+)/\4 check_\1 \3 \5/p
+		    :end
+		}' | eval $shorten | sort -f | uniq -ic | sort -fnr | tee /dev/stderr | wc -l)
+	    [ $rc -gt 0 ] && rc=1
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

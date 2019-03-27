@@ -1,0 +1,19 @@
+# parentheses and perversions thereof
+a(b)c		-	abc	abc
+a\(b\)c		b	abc	abc
+a(		C	EPAREN
+a(		b	a(	a(
+a\(		-	a(	a(
+a\(		bC	EPAREN
+a\(b		bC	EPAREN
+a(b		C	EPAREN
+a(b		b	a(b	a(b
+# gag me with a right parenthesis -- 1003.2 goofed here (my fault, partly)
+a)		-	a)	a)
+)		-	)	)
+# end gagging (in a just world, those *should* give EPAREN)
+a)		b	a)	a)
+a\)		bC	EPAREN
+\)		bC	EPAREN
+a()b		-	ab	ab
+a\(\)b		b	ab	ab

@@ -1,0 +1,33 @@
+#!/usr/local/bin/perl
+
+if ($#ARGV < 1) {
+    die "usage master counter command comandargs ... \n";
+}
+
+$count = $ARGV[0]; shift @ARGV;
+@command = @ARGV;
+$file = pop(@command);
+undef @ARGV;
+$debug = 0;
+
+for($i = 0; $i < $count; $i ++) {
+    @c = (@command, "$file.$i");
+    warn "Start process: $i @c\n" if $debug;
+    open("OUT$i", "| @c") || die "open @c\n";
+    select("OUT$i"); $| = 1;
+}
+select(STDOUT);
+
+$n = 0;
+while(<>) {
+    $o = 'OUT' . ($n % $count);
+    print $o $_;
+    warn "$o $_" if $debug;
+    $n++
+}
+
+for($i = 0; $i < $count; $i ++) {
+    warn "Close process $i\n" if $debug;
+    close("OUT$i") || warn "close OUT$i: $!\n";
+}
+

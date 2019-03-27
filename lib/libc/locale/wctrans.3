@@ -1,0 +1,122 @@
+.\" Copyright (c) 2002 Tim J. Robbins
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 3, 2002
+.Dt WCTRANS 3
+.Os
+.Sh NAME
+.Nm towctrans , wctrans
+.Nd "wide character mapping functions"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In wctype.h
+.Ft wint_t
+.Fn towctrans "wint_t wc" "wctrans_t desc"
+.Ft wctrans_t
+.Fn wctrans "const char *charclass"
+.Sh DESCRIPTION
+The
+.Fn wctrans
+function returns a value of type
+.Vt wctrans_t
+which represents the requested wide character mapping operation and
+may be used as the second argument for calls to
+.Fn towctrans .
+.Pp
+The following character mapping names are recognised:
+.Bl -column -offset indent ".Li tolower" ".Li toupper"
+.It Li "tolower	toupper"
+.El
+.Pp
+The
+.Fn towctrans
+function transliterates the wide character
+.Fa wc
+according to the mapping described by
+.Fa desc .
+.Sh RETURN VALUES
+The
+.Fn towctrans
+function returns the transliterated character if successful, otherwise
+it returns the character unchanged and sets
+.Va errno .
+.Pp
+The
+.Fn wctrans
+function returns non-zero if successful, otherwise it returns zero
+and sets
+.Va errno .
+.Sh EXAMPLES
+Reimplement
+.Fn towupper
+in terms of
+.Fn towctrans
+and
+.Fn wctrans :
+.Bd -literal -offset indent
+wint_t
+mytowupper(wint_t wc)
+{
+	return (towctrans(wc, wctrans("toupper")));
+}
+.Ed
+.Sh ERRORS
+The
+.Fn towctrans
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The supplied
+.Fa desc
+argument is invalid.
+.El
+.Pp
+The
+.Fn wctrans
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The requested mapping name is invalid.
+.El
+.Sh SEE ALSO
+.Xr tolower 3 ,
+.Xr toupper 3 ,
+.Xr wctype 3
+.Sh STANDARDS
+The
+.Fn towctrans
+and
+.Fn wctrans
+functions conform to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn towctrans
+and
+.Fn wctrans
+functions first appeared in
+.Fx 5.0 .

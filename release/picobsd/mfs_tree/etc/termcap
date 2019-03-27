@@ -1,0 +1,187 @@
+# Copyright (c) 1980, 1985, 1989 The Regents of the University of California.
+# All rights reserved.
+#	@(#)termcap.src	5.88 (Berkeley) 4/30/91
+#
+# $FreeBSD$
+#
+# for syscons
+# common entry without semigraphics
+cons25w|ansiw|ansi80x25-raw:\
+	:al=\E[L:am:bs:NP:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:co#80:\
+	:dc=\E[P:dl=\E[M:do=\E[B:bt=\E[Z:ho=\E[H:ic=\E[@:li#25:cb=\E[1K:\
+	:ms:nd=\E[C:pt:rs=\E[x\E[m\Ec:so=\E[7m:se=\E[m:up=\E[A:\
+	:pa#64:Co#8:Sf=\E[3%dm:Sb=\E[4%dm:op=\E[37;40m:\
+	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
+	:k9=\E[U:k;=\E[V:F1=\E[W:F2=\E[X:K2=\E[E:nw=\E[E:ec=\E[%dX:\
+	:kb=^H:kh=\E[H:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:le=^H:eo:sf=\E[S:sr=\E[T:\
+	:kN=\E[G:kP=\E[I:@7=\E[F:kI=\E[L:kD=\E[K:kB=\E[Z:\
+	:IC=\E[%d@:DC=\E[%dP:SF=\E[%dS:SR=\E[%dT:AL=\E[%dL:DL=\E[%dM:\
+	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:cv=\E[%i%dd:ch=\E[%i%d`:bw:\
+	:mb=\E[5m:md=\E[1m:mh=\E[30;1m:mr=\E[7m:me=\E[m:bl=^G:ut:it#8:
+cons25|ansis|ansi80x25:\
+	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261I^U0\333y\363z\362:\
+	:tc=cons25w:
+cons25-m|ansis-mono|ansi80x25-mono:\
+	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25:
+cons50|ansil|ansi80x50:\
+	:li#50:tc=cons25:
+cons50-m|ansil-mono|ansi80x50-mono:\
+	:li#50:tc=cons25-m:
+# 80x25 ISO 8859-1 FreeBSD console
+cons25l1|cons25-iso8859-1:\
+	:ac=l\215m\216k\214j\213u\226t\225v\227w\230q\222x\231n\217o\220s\224p\221r\223`\201a\202f\207g\210~\237.^Y-^X+\253,\273I\247y\232z\233:\
+	:tc=cons25w:
+cons25l1-m|cons25-iso8859-1-mono:\
+	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25l1:
+# 80x50 ISO 8859-1 FreeBSD console
+cons50l1|cons50-iso8859-1:\
+	:li#50:tc=cons25l1:
+cons50l1-m|cons50-iso8859-1-mono:\
+	:li#50:tc=cons25l1-m:
+dosansi|ANSI.SYS standard crt|ansi:\
+	:am:bs:ce=\E[K:cl=\E[2J:cm=\E[%i%d;%dH:co#80:\
+	:do=\E[B:li#25:mi:nd=\E[C:\
+	:se=\E[m:so=\E[7m:up=\E[A:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mh=\E[m:mb=\E[5m:me=\E[m:\
+	:kh=\EG:kb=^h:ku=\EH:kd=\EP:kl=\EK:kr=\EM:\
+	:k1=\E;:k2=\E<:k3=\E=:k4=\E>:k5=\E?:\
+	:k6=\E@:k7=\EA:k8=\EB:k9=\EC:k0=\ED:
+vt200|vt220|vt220am|vt200am|dec-vt220|dec-vt200|dec vt200 series with jump scroll:\
+	:@7=\E[4~:kD=\E[3~:kI=\E[2~:kN=\E[6~:kP=\E[5~:kh=\E[1~:\
+	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:\
+	:k1=\E[11~:k2=\E[12~:k3=\E[13~:k4=\E[14~:k5=\E[15~:\
+	:ve=\E[?25h:vi=\E[?25l:k0@:im@:ei@:\
+	:F1=\E[23~:F2=\E[24~:ic=\E[@:IC=\E[%d@:ec=\E[%dX:tc=vt102:
+vt100|dec-vt100|vt100-am|vt100am|dec vt100:\
+	:do=2\E[B:co#80:li#24:cl=50\E[H\E[J:sf=2*\ED:\
+	:le=^H:bs:am:cm=5\E[%i%d;%dH:nd=2\E[C:up=2\E[A:\
+	:ce=3\E[K:cd=50\E[J:so=2\E[7m:se=2\E[m:us=2\E[4m:ue=2\E[m:\
+	:md=2\E[1m:mr=2\E[7m:mb=2\E[5m:me=2\E[m:\
+	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;24r\E[24;1H:\
+	:if=/usr/share/tabset/vt100:nw=2\EE:ho=\E[H:\
+	:as=2\E(0:ae=2\E(B:ac=llmmkkjjuuttvvwwqqxxnnpprr``aa:\
+	:rs=\E>\E[?1;3;4;5l\E[?7;8h:ks=\E[?1h\E=:ke=\E[?1l\E>:\
+	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=\177:\
+	:k0=\EOy:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\EOt:\
+	:k6=\EOu:k7=\EOv:k8=\EOl:k9=\EOw:k;=\EOx:@8=\EOM:\
+	:K1=\EOq:K2=\EOr:K3=\EOs:K4=\EOp:K5=\EOn:pt:sr=2*\EM:vt#3:xn:\
+	:sc=2\E7:rc=2\E8:cs=5\E[%i%d;%dr:UP=2\E[%dA:DO=2\E[%dB:RI=2\E[%dC:\
+	:LE=2\E[%dD:ct=2\E[3g:st=2\EH:ta=^I:ms:bl=^G:cr=^M:eo:it#8:ut:\
+	:RA=\E[?7l:SA=\E[?7h:
+xterm|vs100|xterm terminal emulator (X window system):\
+	:li#25:\
+	:kh=\EOH:@7=\EOF:kb=^H:kD=^?:\
+	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:km:\
+	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;65r\E[65;1H:\
+	:rs=\E>\E[?1;3;4;5l\E[?7;8h:\
+	:tc=vt220:
+xterm-color|xterm-co|xterm with ANSI colors:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:tc=xterm:
+
+
+vt100-nam|dec-vt100-nam|vt100nam|vt100 w/no am:\
+	:am@:xn@:\
+	:is=\E>\E[?1;3;4;5;7l\E[?8h\E[1;24r\E[24;1H:\
+	:rs=\E>\E[?1;3;4;5;7l\E[?8h:\
+	:tc=vt100-am:
+vt100-np|dec-vt100-np|vt100 with no padding (for psl games):\
+	:do=\E[B:cl=\E[H\E[J:sf=\ED:as=\E(0:ae=\E(B:\
+	:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:nw=\EE:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:sr=\EM:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:UP=\E[%dA:DO=\E[%dB:RI=\E[%dC:\
+	:LE=\E[%dD:ct=\E[3g:st=\EH:tc=vt100-am:
+vt100-nac|dec-vt100-nac|vt100 without pseudographics and padding:\
+	:as@:ae@:ac@:tc=vt100-np:
+vt102|dec-vt102-am|vt102am|vt100 w/adv. video:\
+	:al=\E[L:dl=\E[M:im=\E[4h:ei=\E[4l:mi:dc=\E[P:\
+	:AL=\E[%dL:DL=\E[%dM:DC=\E[%dP:tc=vt100-np:
+
+# Note: this entry describes the "native"
+# capabilities of the PC monochrome display, without ANY emulation; most
+# communications packages (but NOT PC/IX connect) do some kind of emulation.
+pc|ibmpc|ibm pc PC/IX:\
+	:li#24:co#80:am:bs:bw:eo:\
+	:cd=\E[J:ce=\E[K:cl=\Ec:cm=\E[%i%2;%2H:do=\E[B:ho=\E[;H:\
+	:nd=\E[C:up=\E[A:so=\E[7m:se=\E[0m:us=\E[4m:ue=\E[0m:
+pc3mono|IBM PC 386BSD Console with monochrome monitor:\
+	:so=\E[0;1r\E[m:tc=pc3:
+pc3|ibmpc3|IBM PC 386BSD Console:\
+	:Co#8:\
+	:DO=\E[%dB:\
+	:F1=\E[W:F2=\E[X:\
+	:K1=\E[H:K2=\E[I:K3=\E[E:K4=\E[F:K5=\E[G:\
+	:LE=\E[%dD:\
+	:RI=\E[%dC:\
+	:Sb=\E[1;%dx:\
+	:Sf=\E[2;%dx:\
+	:UP=\E[%dA:\
+	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261I^U0\333y\363z\362:\
+	:am:\
+	:bl=^G:\
+	:bs:\
+	:cb=\E[1K:\
+	:cd=\E[J:\
+	:ce=\E[K:\
+	:cl=\E[H\E[J:\
+	:cm=\E[%i%d;%dH:\
+	:co#80:\
+	:cr=^M:\
+	:do=\E[B:\
+	:ho=\E[H:\
+	:is=\E[m:\
+	:it#8:\
+	:k;=\E[V:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:k9=\E[U:\
+	:kD=\177:\
+	:@7=\E[F:\
+	:kN=\E[G:\
+	:kP=\E[I:\
+	:kb=\177:\
+	:kd=\E[B:\
+	:kh=\E[H:\
+	:kl=\E[D:\
+	:kr=\E[C:\
+	:ku=\E[A:\
+	:le=^H:\
+	:li#25:\
+	:ms:\
+	:nd=\E[C:\
+	:op=\E[x:\
+	:pa#64:\
+	:rs=\E[m:\
+	:se=\E[m:\
+	:sf=\E[S:\
+	:so=\E[7;1r\E[7m:\
+	:sr=\E[T:\
+	:ta=^I:\
+	:te=\E[m:\
+	:ti=\E[m:\
+	:up=\E[A:\
+	:ut:
+du|dialup:\
+	:tc=unknown:
+dumb|un|unknown:\
+	:am:co#80:do=^J:
+# SC,SW names needed for screen(1)        ache
+SC|screen|VT 100/ANSI X3.64 virtual terminal:\
+	:am:xn:ms:mi:G0:km:\
+	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:bs:bt=\E[Z:\
+	:cb=\E[1K:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:ct=\E[3g:\
+	:do=^J:nd=\E[C:pt:rc=\E8:rs=\Ec:sc=\E7:st=\EH:up=\EM:\
+	:le=^H:bl=^G:cr=^M:it#8:ho=\E[H:nw=\EE:ta=^I:is=\E)0:\
+	:li#24:co#80:us=\E[4m:ue=\E[24m:so=\E[3m:se=\E[23m:\
+	:mb=\E[5m:md=\E[1m:mr=\E[7m:me=\E[m:sr=\EM:al=\E[L:\
+	:AL=\E[%dL:dl=\E[M:DL=\E[%dM:cs=\E[%i%d;%dr:dc=\E[P:\
+	:DC=\E[%dP:ic=\E[@:IC=\E[%d@:\
+	:ks=\E[?1h\E=:ke=\E[?1l\E>:vb=\Eg:\
+	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=^H:\
+	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[15~:k6=\E[17~:\
+	:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:F1=\E[23~:F2=\E[24~:\
+	:kh=\E[1~:kI=\E[2~:kD=\E[3~:kH=\E[4~:kP=\E[5~:kN=\E[6~:\
+	:eA=\E(B\E)0:as=^N:ae=^O:\
+	:vi=\E[?25l:ve=\E[34h\E[?25h:vs=\E[34l:\
+	:Co#8:pa#64:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:AX:\
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~..--++,,hhii00:
+SW|screen-w|VT 100/ANSI X3.64 virtual terminal with 132 cols:\
+	:co#132:tc=screen:
+

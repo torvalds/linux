@@ -1,0 +1,602 @@
+.\"	$NetBSD: altq.9,v 1.8 2002/05/28 11:41:45 wiz Exp $
+.\"	$OpenBSD: altq.9,v 1.4 2001/07/12 12:41:42 itojun Exp $
+.\"
+.\" Copyright (C) 2004 Max Laier. All rights reserved.
+.\" Copyright (C) 2001
+.\" Sony Computer Science Laboratories Inc.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY SONY CSL AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL SONY CSL OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 20, 2018
+.Dt ALTQ 9
+.Os
+.\"
+.Sh NAME
+.Nm ALTQ
+.Nd kernel interfaces for manipulating output queues on network interfaces
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In net/if.h
+.In net/if_var.h
+.\"
+.Ss Enqueue macros
+.Fn IFQ_ENQUEUE "struct ifaltq *ifq" "struct mbuf *m" "int error"
+.Fn IFQ_HANDOFF "struct ifnet *ifp" "struct mbuf *m" "int error"
+.Fo IFQ_HANDOFF_ADJ
+.Fa "struct ifnet *ifp" "struct mbuf *m" "int adjust" "int error"
+.Fc
+.\"
+.Ss Dequeue macros
+.Fn IFQ_DEQUEUE "struct ifaltq *ifq" "struct mbuf *m"
+.Fn IFQ_POLL_NOLOCK "struct ifaltq *ifq" "struct mbuf *m"
+.Fn IFQ_PURGE "struct ifaltq *ifq"
+.Fn IFQ_IS_EMPTY "struct ifaltq *ifq"
+.\"
+.Ss Driver managed dequeue macros
+.Fn IFQ_DRV_DEQUEUE "struct ifaltq *ifq" "struct mbuf *m"
+.Fn IFQ_DRV_PREPEND "struct ifaltq *ifq" "struct mbuf *m"
+.Fn IFQ_DRV_PURGE "struct ifaltq *ifq"
+.Fn IFQ_DRV_IS_EMPTY "struct ifaltq *ifq"
+.\"
+.Ss General setup macros
+.Fn IFQ_SET_MAXLEN "struct ifaltq *ifq" "int len"
+.Fn IFQ_INC_LEN "struct ifaltq *ifq"
+.Fn IFQ_DEC_LEN "struct ifaltq *ifq"
+.Fn IFQ_INC_DROPS "struct ifaltq *ifq"
+.Fn IFQ_SET_READY "struct ifaltq *ifq"
+.Sh DESCRIPTION
+The
+.Nm
+system is a framework to manage queuing disciplines on network
+interfaces.
+.Nm
+introduces new macros to manipulate output queues.
+The output queue macros are used to abstract queue operations and not to
+touch the internal fields of the output queue structure.
+The macros are independent from the
+.Nm
+implementation, and compatible with the traditional
+.Vt ifqueue
+macros for ease of transition.
+.Pp
+.Fn IFQ_ENQUEUE ,
+.Fn IFQ_HANDOFF
+and
+.Fn IFQ_HANDOFF_ADJ
+enqueue a packet
+.Fa m
+to the queue
+.Fa ifq .
+The underlying queuing discipline may discard the packet.
+The
+.Fa error
+argument is set to 0 on success, or
+.Er ENOBUFS
+if the packet is discarded.
+The packet pointed to by
+.Fa m
+will be freed by the device driver on success, or by the queuing discipline on
+failure, so the caller should not touch
+.Fa m
+after enqueuing.
+.Fn IFQ_HANDOFF
+and
+.Fn IFQ_HANDOFF_ADJ
+combine the enqueue operation with statistic generation and call
+.Fn if_start
+upon successful enqueue to initiate the actual send.
+.Pp
+.Fn IFQ_DEQUEUE
+dequeues a packet from the queue.
+The dequeued packet is returned in
+.Fa m ,
+or
+.Fa m
+is set to
+.Dv NULL
+if no packet is dequeued.
+The caller must always check
+.Fa m
+since a non-empty queue could return
+.Dv NULL
+under rate-limiting.
+.Pp
+.Fn IFQ_POLL_NOLOCK
+returns the next packet without removing it from the queue.
+The caller must hold the queue mutex when calling
+.Fn IFQ_POLL_NOLOCK
+in order to guarantee that a subsequent call to
+.Fn IFQ_DEQUEUE_NOLOCK
+dequeues the same packet.
+.Pp
+.Fn IFQ_*_NOLOCK
+variants (if available) always assume that the caller holds the queue mutex.
+They can be grabbed with
+.Fn IFQ_LOCK
+and released with
+.Fn IFQ_UNLOCK .
+.Pp
+.Fn IFQ_PURGE
+discards all the packets in the queue.
+The purge operation is needed since a non-work conserving queue cannot be
+emptied by a dequeue loop.
+.Pp
+.Fn IFQ_IS_EMPTY
+can be used to check if the queue is empty.
+Note that
+.Fn IFQ_DEQUEUE
+could still return
+.Dv NULL
+if the queuing discipline is non-work conserving.
+.Pp
+.Fn IFQ_DRV_DEQUEUE
+moves up to
+.Fa ifq->ifq_drv_maxlen
+packets from the queue to the
+.Dq "driver managed"
+queue and returns the first one via
+.Fa m .
+As for
+.Fn IFQ_DEQUEUE ,
+.Fa m
+can be
+.Dv NULL
+even for a non-empty queue.
+Subsequent calls to
+.Fn IFQ_DRV_DEQUEUE
+pass the packets from the
+.Dq "driver managed"
+queue without obtaining the queue mutex.
+It is the responsibility of the caller to protect against concurrent access.
+Enabling
+.Nm
+for a given queue sets
+.Va ifq_drv_maxlen
+to 0 as the
+.Dq "bulk dequeue"
+performed by
+.Fn IFQ_DRV_DEQUEUE
+for higher values of
+.Va ifq_drv_maxlen
+is adverse to
+.Nm ALTQ Ns 's
+internal timing.
+Note that a driver must not mix
+.Fn IFQ_DRV_*
+macros with the default dequeue macros as the default macros do not look at the
+.Dq "driver managed"
+queue which might lead to an mbuf leak.
+.Pp
+.Fn IFQ_DRV_PREPEND
+prepends
+.Fa m
+to the
+.Dq "driver managed"
+queue from where it will be obtained with the next call to
+.Fn IFQ_DRV_DEQUEUE .
+.Pp
+.Fn IFQ_DRV_PURGE
+flushes all packets in the
+.Dq "driver managed"
+queue and calls to
+.Fn IFQ_PURGE
+afterwards.
+.Pp
+.Fn IFQ_DRV_IS_EMPTY
+checks for packets in the
+.Dq "driver managed"
+part of the queue.
+If it is empty, it forwards to
+.Fn IFQ_IS_EMPTY .
+.Pp
+.Fn IFQ_SET_MAXLEN
+sets the queue length limit to the default FIFO queue.
+The
+.Va ifq_drv_maxlen
+member of the
+.Vt ifaltq
+structure controls the length limit of the
+.Dq "driver managed"
+queue.
+.Pp
+.Fn IFQ_INC_LEN
+and
+.Fn IFQ_DEC_LEN
+increment or decrement the current queue length in packets.
+This is mostly for internal purposes.
+.Pp
+.Fn IFQ_INC_DROPS
+increments the drop counter and is identical to
+.Fn IF_DROP .
+It is defined for naming consistency only.
+.Pp
+.Fn IFQ_SET_READY
+sets a flag to indicate that a driver was converted to use the new macros.
+.Nm
+can be enabled only on interfaces with this flag.
+.Sh COMPATIBILITY
+.Ss Vt ifaltq structure
+In order to keep compatibility with the existing code, the new
+output queue structure
+.Vt ifaltq
+has the same fields.
+The traditional
+.Fn IF_*
+macros and the code directly referencing the fields within
+.Va if_snd
+still work with
+.Vt ifaltq .
+.Bd -literal
+            ##old-style##                           ##new-style##
+                                       |
+ struct ifqueue {                      | struct ifaltq {
+    struct mbuf *ifq_head;             |    struct mbuf *ifq_head;
+    struct mbuf *ifq_tail;             |    struct mbuf *ifq_tail;
+    int          ifq_len;              |    int          ifq_len;
+    int          ifq_maxlen;           |    int          ifq_maxlen;
+ };                                    |    /* driver queue fields */
+                                       |    ......
+                                       |    /* altq related fields */
+                                       |    ......
+                                       | };
+                                       |
+.Ed
+The new structure replaces
+.Vt "struct ifqueue"
+in
+.Vt "struct ifnet" .
+.Bd -literal
+            ##old-style##                           ##new-style##
+                                       |
+ struct ifnet {                        | struct ifnet {
+     ....                              |     ....
+                                       |
+     struct ifqueue if_snd;            |     struct ifaltq if_snd;
+                                       |
+     ....                              |     ....
+ };                                    | };
+                                       |
+.Ed
+The (simplified) new
+.Fn IFQ_*
+macros look like:
+.Bd -literal
+	#define IFQ_DEQUEUE(ifq, m)			\e
+		if (ALTQ_IS_ENABLED((ifq))		\e
+			ALTQ_DEQUEUE((ifq), (m));	\e
+		else					\e
+			IF_DEQUEUE((ifq), (m));
+.Ed
+.Ss Enqueue operation
+The semantics of the enqueue operation is changed.
+In the new style,
+enqueue and packet drop are combined since they cannot be easily
+separated in many queuing disciplines.
+The new enqueue operation corresponds to the following macro that is
+written with the old macros.
+.Bd -literal
+#define	IFQ_ENQUEUE(ifq, m, error)                      \e
+do {                                                    \e
+        if (IF_QFULL((ifq))) {                          \e
+                m_freem((m));                           \e
+                (error) = ENOBUFS;                      \e
+                IF_DROP(ifq);                           \e
+        } else {                                        \e
+                IF_ENQUEUE((ifq), (m));                 \e
+                (error) = 0;                            \e
+        }                                               \e
+} while (0)
+.Ed
+.Pp
+.Fn IFQ_ENQUEUE
+does the following:
+.Pp
+.Bl -hyphen -compact
+.It
+queue a packet,
+.It
+drop (and free) a packet if the enqueue operation fails.
+.El
+.Pp
+If the enqueue operation fails,
+.Fa error
+is set to
+.Er ENOBUFS .
+The
+.Fa m
+mbuf is freed by the queuing discipline.
+The caller should not touch mbuf after calling
+.Fn IFQ_ENQUEUE
+so that the caller may need to copy
+.Va m_pkthdr.len
+or
+.Va m_flags
+field beforehand for statistics.
+.Fn IFQ_HANDOFF
+and
+.Fn IFQ_HANDOFF_ADJ
+can be used if only default interface statistics and an immediate call to
+.Fn if_start
+are desired.
+The caller should not use
+.Fn senderr
+since mbuf was already freed.
+.Pp
+The new style
+.Fn if_output
+looks as follows:
+.Bd -literal
+            ##old-style##                           ##new-style##
+                                       |
+ int                                   | int
+ ether_output(ifp, m0, dst, rt0)       | ether_output(ifp, m0, dst, rt0)
+ {                                     | {
+     ......                            |     ......
+                                       |
+                                       |     mflags = m->m_flags;
+                                       |     len = m->m_pkthdr.len;
+     s = splimp();                     |     s = splimp();
+     if (IF_QFULL(&ifp->if_snd)) {     |     IFQ_ENQUEUE(&ifp->if_snd, m,
+                                       |                 error);
+         IF_DROP(&ifp->if_snd);        |     if (error != 0) {
+         splx(s);                      |         splx(s);
+         senderr(ENOBUFS);             |         return (error);
+     }                                 |     }
+     IF_ENQUEUE(&ifp->if_snd, m);      |
+     ifp->if_obytes +=                 |     ifp->if_obytes += len;
+                    m->m_pkthdr.len;   |
+     if (m->m_flags & M_MCAST)         |     if (mflags & M_MCAST)
+         ifp->if_omcasts++;            |         ifp->if_omcasts++;
+                                       |
+     if ((ifp->if_flags & IFF_OACTIVE) |     if ((ifp->if_flags & IFF_OACTIVE)
+         == 0)                         |         == 0)
+         (*ifp->if_start)(ifp);        |         (*ifp->if_start)(ifp);
+     splx(s);                          |     splx(s);
+     return (error);                   |     return (error);
+                                       |
+ bad:                                  | bad:
+     if (m)                            |     if (m)
+         m_freem(m);                   |         m_freem(m);
+     return (error);                   |     return (error);
+ }                                     | }
+                                       |
+.Ed
+.Sh HOW TO CONVERT THE EXISTING DRIVERS
+First, make sure the corresponding
+.Fn if_output
+is already converted to the new style.
+.Pp
+Look for
+.Va if_snd
+in the driver.
+Probably, you need to make changes to the lines that include
+.Va if_snd .
+.Ss Empty check operation
+If the code checks
+.Va ifq_head
+to see whether the queue is empty or not, use
+.Fn IFQ_IS_EMPTY .
+.Bd -literal
+            ##old-style##                           ##new-style##
+                                       |
+ if (ifp->if_snd.ifq_head != NULL)     | if (!IFQ_IS_EMPTY(&ifp->if_snd))
+                                       |
+.Ed
+.Fn IFQ_IS_EMPTY
+only checks if there is any packet stored in the queue.
+Note that even when
+.Fn IFQ_IS_EMPTY
+is
+.Dv FALSE ,
+.Fn IFQ_DEQUEUE
+could still return
+.Dv NULL
+if the queue is under rate-limiting.
+.Ss Dequeue operation
+Replace
+.Fn IF_DEQUEUE
+by
+.Fn IFQ_DEQUEUE .
+Always check whether the dequeued mbuf is
+.Dv NULL
+or not.
+Note that even when
+.Fn IFQ_IS_EMPTY
+is
+.Dv FALSE ,
+.Fn IFQ_DEQUEUE
+could return
+.Dv NULL
+due to rate-limiting.
+.Bd -literal
+            ##old-style##                           ##new-style##
+                                       |
+ IF_DEQUEUE(&ifp->if_snd, m);          | IFQ_DEQUEUE(&ifp->if_snd, m);
+                                       | if (m == NULL)
+                                       |     return;
+                                       |
+.Ed
+A driver is supposed to call
+.Fn if_start
+from transmission complete interrupts in order to trigger the next dequeue.
+.Ss Poll-and-dequeue operation
+If the code polls the packet at the head of the queue and actually uses
+the packet before dequeuing it, use
+.Fn IFQ_POLL_NOLOCK
+and
+.Fn IFQ_DEQUEUE_NOLOCK .
+.Bd -literal
+            ##old-style##                           ##new-style##
+                                       |
+                                       | IFQ_LOCK(&ifp->if_snd);
+ m = ifp->if_snd.ifq_head;             | IFQ_POLL_NOLOCK(&ifp->if_snd, m);
+ if (m != NULL) {                      | if (m != NULL) {
+                                       |
+     /* use m to get resources */      |     /* use m to get resources */
+     if (something goes wrong)         |     if (something goes wrong)
+                                       |         IFQ_UNLOCK(&ifp->if_snd);
+         return;                       |         return;
+                                       |
+     IF_DEQUEUE(&ifp->if_snd, m);      |     IFQ_DEQUEUE_NOLOCK(&ifp->if_snd, m);
+                                       |     IFQ_UNLOCK(&ifp->if_snd);
+                                       |
+     /* kick the hardware */           |     /* kick the hardware */
+ }                                     | }
+                                       |
+.Ed
+It is guaranteed that
+.Fn IFQ_DEQUEUE_NOLOCK
+under the same lock as a previous
+.Fn IFQ_POLL_NOLOCK
+returns the same packet.
+Note that they need to be guarded by
+.Fn IFQ_LOCK .
+.Ss Eliminating Fn IF_PREPEND
+If the code uses
+.Fn IF_PREPEND ,
+you have to eliminate it unless you can use a
+.Dq "driver managed"
+queue which allows the use of
+.Fn IFQ_DRV_PREPEND
+as a substitute.
+A common usage of
+.Fn IF_PREPEND
+is to cancel the previous dequeue operation.
+You have to convert the logic into poll-and-dequeue.
+.Bd -literal
+            ##old-style##                           ##new-style##
+                                       |
+                                       | IFQ_LOCK(&ifp->if_snd);
+ IF_DEQUEUE(&ifp->if_snd, m);          | IFQ_POLL_NOLOCK(&ifp->if_snd, m);
+ if (m != NULL) {                      | if (m != NULL) {
+                                       |
+     if (something_goes_wrong) {       |     if (something_goes_wrong) {
+         IF_PREPEND(&ifp->if_snd, m);  |         IFQ_UNLOCK(&ifp->if_snd);
+         return;                       |         return;
+     }                                 |     }
+                                       |
+                                       |     /* at this point, the driver
+                                       |      * is committed to send this
+                                       |      * packet.
+                                       |      */
+                                       |     IFQ_DEQUEUE_NOLOCK(&ifp->if_snd, m);
+                                       |     IFQ_UNLOCK(&ifp->if_snd);
+                                       |
+     /* kick the hardware */           |     /* kick the hardware */
+ }                                     | }
+                                       |
+.Ed
+.Ss Purge operation
+Use
+.Fn IFQ_PURGE
+to empty the queue.
+Note that a non-work conserving queue cannot be emptied by a dequeue loop.
+.Bd -literal
+            ##old-style##                           ##new-style##
+                                       |
+ while (ifp->if_snd.ifq_head != NULL) {|  IFQ_PURGE(&ifp->if_snd);
+     IF_DEQUEUE(&ifp->if_snd, m);      |
+     m_freem(m);                       |
+ }                                     |
+                                       |
+.Ed
+.Ss Conversion using a driver managed queue
+Convert
+.Fn IF_*
+macros to their equivalent
+.Fn IFQ_DRV_*
+and employ
+.Fn IFQ_DRV_IS_EMPTY
+where appropriate.
+.Bd -literal
+            ##old-style##                           ##new-style##
+                                       |
+ if (ifp->if_snd.ifq_head != NULL)     | if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+                                       |
+.Ed
+Make sure that calls to
+.Fn IFQ_DRV_DEQUEUE ,
+.Fn IFQ_DRV_PREPEND
+and
+.Fn IFQ_DRV_PURGE
+are protected with a mutex of some kind.
+.Ss Attach routine
+Use
+.Fn IFQ_SET_MAXLEN
+to set
+.Va ifq_maxlen
+to
+.Fa len .
+Initialize
+.Va ifq_drv_maxlen
+with a sensible value if you plan to use the
+.Fn IFQ_DRV_*
+macros.
+Add
+.Fn IFQ_SET_READY
+to show this driver is converted to the new style.
+(This is used to distinguish new-style drivers.)
+.Bd -literal
+            ##old-style##                           ##new-style##
+                                       |
+ ifp->if_snd.ifq_maxlen = qsize;       | IFQ_SET_MAXLEN(&ifp->if_snd, qsize);
+                                       | ifp->if_snd.ifq_drv_maxlen = qsize;
+                                       | IFQ_SET_READY(&ifp->if_snd);
+ if_attach(ifp);                       | if_attach(ifp);
+                                       |
+.Ed
+.Ss Other issues
+The new macros for statistics:
+.Bd -literal
+            ##old-style##                           ##new-style##
+                                       |
+ IF_DROP(&ifp->if_snd);                | IFQ_INC_DROPS(&ifp->if_snd);
+                                       |
+ ifp->if_snd.ifq_len++;                | IFQ_INC_LEN(&ifp->if_snd);
+                                       |
+ ifp->if_snd.ifq_len--;                | IFQ_DEC_LEN(&ifp->if_snd);
+                                       |
+.Ed
+.Sh QUEUING DISCIPLINES
+Queuing disciplines need to maintain
+.Fa ifq_len
+(used by
+.Fn IFQ_IS_EMPTY ) .
+Queuing disciplines also need to guarantee that the same mbuf is returned if
+.Fn IFQ_DEQUEUE
+is called immediately after
+.Fn IFQ_POLL .
+.Sh SEE ALSO
+.Xr pf 4 ,
+.Xr pf.conf 5 ,
+.Xr pfctl 8
+.Sh HISTORY
+The
+.Nm
+system first appeared in March 1997 and found home in the KAME project
+(http://www.kame.net).
+It was imported to
+.Fx
+in 5.3 .

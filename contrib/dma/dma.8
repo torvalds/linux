@@ -1,0 +1,365 @@
+.\"
+.\" Copyright (c) 2008-2014, Simon Schubert <2@0x2c.org>.
+.\" Copyright (c) 2008
+.\"	The DragonFly Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. Neither the name of The DragonFly Project nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific, prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 20, 2017
+.Dt DMA 8
+.Os
+.Sh NAME
+.Nm dma
+.Nd DragonFly Mail Agent
+.Sh SYNOPSIS
+.Nm
+.Op Fl DiOt
+.Op Fl A Ns Ar mode
+.Op Fl b Ns Ar mode
+.Op Fl f Ar sender
+.Op Fl L Ar tag
+.Op Fl o Ns Ar option
+.Op Fl r Ar sender
+.Op Fl q Ns Op Ar arg
+.Op Ar recipient ...
+.Sh DESCRIPTION
+.Nm
+is a small Mail Transport Agent (MTA), designed for home and office use.
+It accepts mails from locally installed Mail User Agents (MUA) and
+delivers the mails either locally or to a remote destination.
+Remote delivery includes several features like TLS/SSL support and SMTP
+authentication.
+.Pp
+.Nm
+is not intended as a replacement for real, big MTAs like
+.Xr sendmail 8
+or
+.Xr postfix 1 .
+Consequently,
+.Nm
+does not listen on port 25 for incoming connections.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl A Ns Ar mode
+.Fl \&Ac
+acts as a compatibility option for sendmail.
+.It Fl b Ns Ar mode
+.Bl -tag -width indent
+.It Fl bp
+List all mails currently stored in the mail queue.
+.It Fl bq
+Queue the mail, but do not attempt to deliver it.
+See also the
+.Sq DEFER
+config file setting below.
+.El
+.Pp
+All other
+.Ar mode Ns
+s are ignored.
+.It Fl D
+Do not run in the background.
+Useful for debugging.
+.It Fl f Ar sender
+Set sender address (envelope-from) to
+.Ar sender .
+This overrides the value of the environment variable
+.Ev EMAIL .
+.It Fl i
+Ignore dots alone on lines by themselves in incoming messages.
+This should be set if you are reading data from a file.
+.It Fl L Ar tag
+Set the identifier used in syslog messages to the supplied
+.Ar tag .
+This is a compatibility option for sendmail.
+.It Fl O
+This is a compatibility option for sendmail.
+.It Fl o Ns Ar option
+Specifying
+.Fl oi
+is synonymous to
+.Fl i .
+All other options are ignored.
+.It Fl q Ns Op Ar arg
+Process saved messages in the queue.
+The argument is optional and ignored.
+.It Fl r Ar sender
+Same as
+.Fl f .
+.It Fl t
+Obtain recipient addresses from the message header.
+.Nm
+will parse the
+.Li To: ,
+.Li Cc: ,
+and
+.Li Bcc:
+headers.
+The
+.Li Bcc:
+header will be removed independent of whether
+.Fl t
+is specified or not.
+.El
+.Sh CONFIGURATION
+.Nm
+can be configured with two config files:
+.Pp
+.Bl -bullet -compact
+.It
+auth.conf
+.It
+dma.conf
+.El
+.Pp
+These two files are stored per default in
+.Pa /etc/dma .
+.Sh FILE FORMAT
+Every file contains parameters of the form
+.Sq name value .
+Lines containing boolean values are set to
+.Sq NO
+if the line is commented and to
+.Sq YES
+if the line is uncommented.
+Empty lines or lines beginning with a
+.Sq #
+are ignored.
+Parameter names and their values are case sensitive.
+.Sh PARAMETERS
+.Ss auth.conf
+SMTP authentication can be configured in
+.Pa auth.conf .
+Each line has the format
+.Dq Li user|smarthost:password .
+.Ss dma.conf
+Most of the behaviour of
+.Nm
+can be configured in
+.Pa dma.conf .
+.Bl -tag -width 4n
+.It Ic SMARTHOST Xo
+(string, default=empty)
+.Xc
+If you want to send outgoing mails via a smarthost, set this variable to
+your smarthosts address.
+.It Ic PORT Xo
+(numeric, default=25)
+.Xc
+Use this port to deliver remote emails.
+Only useful together with the
+.Sq SMARTHOST
+option, because
+.Nm
+will deliver all mails to this port, regardless of whether a smarthost is set
+or not.
+.It Ic ALIASES Xo
+(string, default=/etc/aliases)
+.Xc
+Path to the local aliases file.
+Just stick with the default.
+The aliases file is of the format
+.Dl nam: dest1 dest2 ...
+In this case, mails to
+.Li nam
+will instead be delivered to
+.Li dest1
+and
+.Li dest2 ,
+which in turn could be entries in
+.Pa /etc/aliases .
+The special name
+.Ql *
+can be used to create a catch-all alias, which gets used if no other
+matching alias is found.
+Use the catch-all alias only if you do not want any local mail to be
+delivered.
+.It Ic SPOOLDIR Xo
+(string, default=/var/spool/dma)
+.Xc
+Path to
+.Nm Ap s
+spool directory.
+Just stick with the default.
+.It Ic AUTHPATH Xo
+(string, default=not set)
+.Xc
+Path to the
+.Sq auth.conf
+file.
+.It Ic SECURETRANSFER Xo
+(boolean, default=commented)
+.Xc
+Uncomment if you want TLS/SSL secured transfer.
+.It Ic STARTTLS Xo
+(boolean, default=commented)
+.Xc
+Uncomment if you want to use STARTTLS.
+Only useful together with
+.Sq SECURETRANSFER .
+.It Ic OPPORTUNISTIC_TLS Xo
+(boolean, default=commented)
+.Xc
+Uncomment if you want to allow the STARTTLS negotiation to fail.
+Most useful when
+.Nm
+is used without a smarthost, delivering remote messages directly to
+the outside mail exchangers; in opportunistic TLS mode, the connection will
+be encrypted if the remote server supports STARTTLS, but an unencrypted
+delivery will still be made if the negotiation fails.
+Only useful together with
+.Sq SECURETRANSFER
+and
+.Sq STARTTLS .
+.It Ic CERTFILE Xo
+(string, default=empty)
+.Xc
+Path to your SSL certificate file.
+.It Ic SECURE Xo
+(boolean, default=commented)
+.Xc
+Uncomment this entry and change it to
+.Sq INSECURE
+to use plain text SMTP login over an insecure connection.
+You have to rename this variable manually to prevent that you send your
+password accidentally over an insecure connection.
+.It Ic DEFER Xo
+(boolean, default=commented)
+.Xc
+Uncomment if you want that
+.Nm
+defers your mail.
+You have to flush your mail queue manually with the
+.Fl q
+option.
+This option is handy if you are behind a dialup line.
+.It Ic FULLBOUNCE Xo
+(boolean, default=commented)
+.Xc
+Uncomment if you want the bounce message to include the complete original
+message, not just the headers.
+.It Ic MAILNAME Xo
+(string, default=empty)
+.Xc
+The internet hostname
+.Nm
+uses to identify the host.
+If not set or empty, the result of
+.Xr gethostname 3
+is used.
+If
+.Sq MAILNAME
+is an absolute path to a file, the first line of this file will be used
+as the hostname.
+.It Ic MASQUERADE Xo
+(string, default=empty)
+.Xc
+Masquerade the envelope-from addresses with this address/hostname.
+Use this setting if mails are not accepted by destination mail servers
+because your sender domain is invalid.
+This setting is overridden by the
+.Fl f
+flag and the
+.Ev EMAIL
+environment variable.
+.Pp
+If
+.Sq MASQUERADE
+does not contain a
+.Li @
+sign, the string is interpreted as a host name.
+For example, setting
+.Sq MASQUERADE
+to
+.Ql john@
+on host
+.Ql hamlet
+will send all mails as
+.Ql john@hamlet ;
+setting it to
+.Ql percolator
+will send all mails as
+.Sm off
+.Ql Va username @percolator .
+.Sm on
+.It Ic NULLCLIENT Xo
+.Xc
+Bypass aliases and local delivery, and instead forward all mails to
+the defined
+.Sq SMARTHOST .
+.Sq NULLCLIENT
+requires
+.Sq SMARTHOST
+to be set.
+.El
+.Ss Environment variables
+The behavior of
+.Nm
+can be influenced by some environment variables.
+.Bl -tag -width 4n
+.It Ev EMAIL Xo
+.Xc
+Used to set the sender address (envelope-from).
+Use a plain address, in the form of
+.Li user@example.com .
+This value will be overridden when the
+.Fl f
+flag is used.
+.El
+.Sh SEE ALSO
+.Xr mailaddr 7 ,
+.Xr mailwrapper 8 ,
+.Xr sendmail 8
+.Rs
+.%A "J. B. Postel"
+.%T "Simple Mail Transfer Protocol"
+.%O RFC 821
+.Re
+.Rs
+.%A "J. Myers"
+.%T "SMTP Service Extension for Authentication"
+.%O RFC 2554
+.Re
+.Rs
+.%A "P. Hoffman"
+.%T "SMTP Service Extension for Secure SMTP over TLS"
+.%O RFC 2487
+.Re
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Dx 1.11 .
+.Sh AUTHORS
+.An -nosplit
+.Nm
+was written by
+.An Matthias Schmidt Aq Mt matthias@dragonflybsd.org
+and
+.An Simon Schubert Aq Mt 2@0x2c.org .

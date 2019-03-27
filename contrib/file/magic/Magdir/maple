@@ -1,0 +1,57 @@
+
+#------------------------------------------------------------------------------
+# $File: maple,v 1.8 2017/03/17 21:35:28 christos Exp $
+# maple:  file(1) magic for maple files
+# "H. Nanosecond" <aldomel@ix.netcom.com>
+# Maple V release 4, a multi-purpose math program
+#
+
+# maple library .lib
+0	string	\000MVR4\nI	MapleVr4 library
+
+# .ind
+# no magic for these :-(
+# they are compiled indexes for maple files
+
+# .hdb
+0	string	\000\004\000\000	Maple help database
+
+# .mhp
+# this has the form <PACKAGE=name>
+0	string	\<PACKAGE=	Maple help file
+0	string	\<HELP\ NAME=	Maple help file
+0	string	\n\<HELP\ NAME=	Maple help file with extra carriage return at start (yuck)
+#0	string	#\ Newton	Maple help file, old style
+0	string	#\ daub	Maple help file, old style
+#0	string	#===========	Maple help file, old style
+
+# .mws
+0	string	\000\000\001\044\000\221	Maple worksheet
+#this is anomalous
+0	string	WriteNow\000\002\000\001\000\000\000\000\100\000\000\000\000\000	Maple worksheet, but weird
+# this has the form {VERSION 2 3 "IBM INTEL NT" "2.3" }\n
+# that is {VERSION major_version miunor_version computer_type version_string}
+0	string	{VERSION\ 	Maple worksheet
+>9	string	>\0	version %.1s.
+>>11	string	>\0	%.1s
+
+# .mps
+0	string	\0\0\001$	Maple something
+# from byte 4 it is either 'nul E' or 'soh R'
+# I think 'nul E' means a file that was saved as  a different name
+# a sort of revision marking
+# 'soh R' means new
+>4	string	\000\105	An old revision
+>4	string	\001\122	The latest save
+
+# .mpl
+# some of these are the same as .mps above
+#0000000 000 000 001 044 000 105 same as .mps
+#0000000 000 000 001 044 001 122 same as .mps
+
+0	string	#\n##\ <SHAREFILE=	Maple something
+0	string	\n#\n##\ <SHAREFILE=	Maple something
+0	string	##\ <SHAREFILE=	Maple something
+0	string	#\r##\ <SHAREFILE=	Maple something
+0	string	\r#\r##\ <SHAREFILE=	Maple something
+0	string	#\ \r##\ <DESCRIBE>	Maple something anomalous.

@@ -1,0 +1,196 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<title>Miscellaneous Commands and Options</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>Miscellaneous Commands and Options</h3>
+<img src="pic/boom3.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Pogo</i>, Walt Kelly</a>
+<p>We have three, now looking for more.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->14-Oct-2017  08:34<!-- #EndDate -->
+    UTC</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/command.txt"></script>
+<script type="text/javascript" language="javascript" src="scripts/miscopt.txt"></script>
+<hr>
+<h4>Commands and Options</h4>
+<dl>
+  <dt id="broadcastdelay"><tt>broadcastdelay <i>delay</i></tt></dt>
+  <dd>In broadcast and multicast modes, means are required   to determine the network delay between the server and client. Ordinarily, this is done automatically by the initial calibration exchanges between the client and server. In some cases, the  exchange might not be possible due to network or server access controls. The value of <em><tt>delay</tt></em> is by default zero, in which case the  exchange is enabled. If <em><tt>delay</tt></em> is greater than zero, it becomes the roundtrip delay (s), as measured by the Unix <tt>ping</tt> program, and the exchange is disabled. </dd>
+  <dt>&nbsp;</dt>
+  <dt id="driftfile"><tt>driftfile <i>driftfile</i></tt></dt>
+  <dd>This command specifies the complete path and name of the file used to record the frequency of the local clock oscillator. This is the same operation as the <tt>-f</tt> command line option. This command is mutually exclusive with the <tt>freq</tt> option of the <tt>tinker</tt> command.</dd>
+  <dd> If the file exists, it is read at startup in order to set the initial frequency and then updated once per hour or more with the current frequency computed by the daemon. If the file name is specified, but the file itself does not exist, the starts with an initial frequency of zero and creates the file when writing it for the first time. If this command is not given, the daemon will always start with an initial frequency of zero.</dd>
+  <dd>The file format consists of a single line containing a single floating point number, which records the frequency offset measured in parts-per-million (PPM). The file is updated by first writing the current drift value into a temporary file and then renaming this file to replace the old version.</dd>
+  <dt id="dscp"><tt>dscp <i>dscp</i></tt></dt>
+  <dd>This command specifies the Differentiated Services Code Point (DSCP) value that is used in sent NTP packets.  The default value is 46 for Expedited Forwarding (EF).</dd>
+  <dt id="enable"><tt>enable [auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats | unpeer_crypto_early | unpeer_crypto_nak_early | unpeer_digest_early]</tt></dt>
+
+  <dt><tt>disable [auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats | unpeer_crypto_early | unpeer_crypto_nak_early | unpeer_digest_early]</tt></dt>
+  <dd>Provides a way to enable or disable various system options. Flags not mentioned are unaffected. Note that most of these flags can be modified remotely using <a href="ntpq.html"><tt>ntpq</tt></a> utility program's <tt>:config</tt> and <tt>config-from-file</tt> commands.
+    <dl>
+      <dt><tt>auth</tt></dt>
+      <dd>Enables the server to synchronize with unconfigured peers only if the peer has been correctly authenticated using either public key or private key cryptography. The default for this flag is enable.</dd>
+      <dt><tt>bclient</tt></dt>
+      <dd>Enables the server to listen for a message from a broadcast or multicast server, as in the <tt>multicastclient</tt> command with default address. The default for this flag is disable.</dd>
+      <dt><tt>calibrate</tt></dt>
+      <dd>Enables the calibrate feature for reference clocks. The default for this flag is disable.</dd>
+      <dt><tt>kernel</tt></dt>
+      <dd>Enables the kernel time discipline, if available. The default for this flag is enable if support is available, otherwise disable.</dd>
+      <dt><tt>mode7</tt></dt>
+      <dd>Enables processing of NTP mode 7 implementation-specific requests which are used by the deprecated <tt>ntpdc</tt> program. The default for this flag is disable. This flag is excluded from runtime configuration using <tt>ntpq</tt>. The <tt>ntpq</tt> program provides the same capabilities as <tt>ntpdc</tt> using standard mode 6 requests.</dd>
+      <dt><tt>monitor</tt></dt>
+      <dd>Enables the monitoring facility. See the <a href="ntpq.html"><tt>ntpq</tt> program</a> and the <tt>monstats</tt> and <tt>mrulist</tt> commands, as well as the <a href="accopt.html#discard">Access Control Options</a> for details.
+        The monitoring facility is also enabled by the presence of <a href="accopt.html#limited"><tt>limited</tt></a> in any <tt>restrict</tt> commands. The default for this flag is enable.</dd>
+      <dt><tt>ntp</tt></dt>
+      <dd>Enables time and frequency discipline. In effect, this switch opens and closes the feedback loop, which is useful for testing. The default for this flag is enable.</dd>
+      <dt><tt>stats</tt></dt>
+      <dd>Enables the statistics facility. See the <a href="monopt.html">Monitoring Options</a> page for further information. The default for this flag is enabled. This flag is excluded from runtime configuration using <tt>ntpq</tt>.</dd>
+| unpeer_crypto_early | unpeer_crypto_nak_early | unpeer_digest_early
+      <dt><tt>unpeer_crypto_early</tt></dt>
+      <dd>Enables the early resetting of an association in case of a crypto failure.  This is generally a feature, but it can be used in a DoS attack.  If you are seeing these packets being used as a DoS attack against your server, you should disable this flag.  The default for this flag is enabled. This flag is excluded from runtime configuration using <tt>ntpq</tt>.</dd>
+      <dt><tt>unpeer_crypto_nak_early</tt></dt>
+      <dd>Enables the early resetting of an association in case of a crypto_NAK message.  This is generally a feature, but it can be used in a DoS attack.  If you are seeing these packets being used as a DoS attack against your server, you should disable this flag.  The default for this flag is enabled. This flag is excluded from runtime configuration using <tt>ntpq</tt>.</dd>
+      <dt><tt>unpeer_digest_early</tt></dt>
+      <dd>Enables the early resetting of an association in case of an autokey digest failur.  This is generally a feature, but it can be used in a DoS attack.  If you are seeing these packets being used as a DoS attack against your server, you should disable this flag.  The default for this flag is enabled. This flag is excluded from runtime configuration using <tt>ntpq</tt>.</dd>
+    </dl>
+  </dd>
+  <dt id="includefile"><tt>includefile <i>includefile</i></tt></dt>
+  <dd>This command allows additional configuration commands to be included from a separate file. Include files may be nested to a depth of five; upon reaching the end of any include file, command processing resumes in the previous configuration file. This option is useful for sites that run <tt>ntpd</tt> on multiple hosts, with (mostly) common options (e.g., a restriction list).</dd>
+  <dt id="interface"><tt>interface [listen | ignore | drop] [all | ipv4 | ipv6 | wildcard | <i>name</i> | <i>address</i>[/<i>prefixlen</i>]]</tt></dt>
+  <dd>This command controls which network addresses <tt>ntpd</tt> opens, and whether input is dropped without processing. The first parameter determines the action for addresses which match the second parameter. That parameter specifies a class of addresses, or a specific interface name, or an address. In the address case, <tt><i>prefixlen</i></tt> determines how many bits must match for this rule to apply. <tt>ignore</tt> prevents opening matching addresses, <tt>drop</tt> causes <tt>ntpd</tt> to open the address and drop all received packets without examination. Multiple <tt>interface</tt> commands can be used. The last rule which matches a particular address determines the action for it. <tt>interface</tt> commands are disabled if any <a href="ntpd.html#--interface"><tt>-I</tt></a>, <a href="ntpd.html#--interface"><tt>--interface</tt></a>, <a href="ntpd.html#--novirtualips"><tt>-L</tt></a>, or <a href="ntpd.html#--novirtualips"><tt>--novirtualips</tt></a> command-line options are used.  If none of those options are used and no <tt>interface</tt> actions are specified in the configuration file, all available network addresses are opened. The <tt>nic</tt> command is an alias for <tt>interface</tt>.</dd>
+  <dt id="leapfile"><tt>leapfile <i>leapfile</i></tt></dt>
+  <dd>This command loads the IERS leapseconds file and initializes the leapsecond values for the next leapsecond time, expiration time and TAI offset. The file can be obtained directly from the IERS at <a href="https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list">https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list</a> or <a href="ftp://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list">ftp://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list</a>.</dd>
+  <dd>The <i>leapfile</i> is scanned when <tt>ntpd</tt> processes the <tt>leapfile</tt> directive or when <tt>ntpd</tt> detects that <i>leapfile</i> has changed.  <tt>ntpd</tt> checks once a day to see if the <i>leapfile</i> has changed.</dd>
+  <dd>While not strictly a security function, the Autokey protocol provides means to securely retrieve the current or updated leapsecond values from a server.</dd>
+  <dt id="leapsmearinterval"><tt>leapsmearinterval <i>seconds</i></tt></dt>
+  <dd>This EXPERIMENTAL option is only available if <tt>ntpd</tt> was built with the <tt>--enable-leap-smear</tt> option to the <tt>configure</tt> script.  It specifies the interval over which a leap second correction will be applied.  Recommended values for this option are between 7200 (2 hours) and 86400 (24 hours).  <b>DO NOT USE THIS OPTION ON PUBLIC-ACCESS SERVERS!</b>  See http://bugs.ntp.org/2855 for more information.</dd>
+  <dt id="logconfig"><tt>logconfig <i>configkeyword</i></tt></dt>
+  <dd>This command controls the amount and type of output written to the system <tt>syslog</tt> facility or the alternate <tt>logfile</tt> log file. All <i><tt>configkeyword</tt></i> keywords can be prefixed with <tt>=</tt>, <tt>+</tt> and <tt>-</tt>, where <tt>=</tt> sets the <tt>syslogmask</tt>, <tt>+</tt> adds and <tt>-</tt> removes messages. <tt>syslog messages</tt> can be controlled in four classes (<tt>clock</tt>, <tt>peer</tt>, <tt>sys</tt> and <tt>sync</tt>). Within these classes four types of messages can be controlled: informational messages (<tt>info</tt>), event messages (<tt>events</tt>), statistics messages (<tt>statistics</tt>) and status messages (<tt>status</tt>).</dd>
+  <dd>Configuration keywords are formed by concatenating the message class with the event class. The <tt>all</tt> prefix can be used instead of a message class. A message class may also be followed by the <tt>all</tt> keyword to enable/disable all messages of the respective message class. By default, <tt>logconfig</tt> output is set to <tt>allsync</tt>.</dd>
+  <dd>Thus, a minimal log configuration could look like this:</dd>
+  <dd><tt>logconfig=syncstatus +sysevents</tt></dd>
+  <dd>This would just list the synchronizations state of <tt>ntpd</tt> and the major system events. For a simple reference server, the following minimum message configuration could be useful:</dd>
+  <dd><tt>logconfig=syncall +clockall</tt></dd>
+  <dd>This configuration will list all clock information and synchronization information. All other events and messages about peers, system events and so on is suppressed.</dd>
+  <dt id="logfile"><tt>logfile <i>logfile</i></tt></dt>
+  <dd>This command specifies the location of an alternate log file to be used instead of the default system <tt>syslog</tt> facility. This is the same operation as the <tt>-l </tt>command line option.</dd>
+  <dt id="mru"><tt>mru [maxdepth <i>count</i> | maxmem <i>kilobytes</i> | mindepth <i>count</i> | maxage <i>seconds</i> | initalloc <i>count</i> | initmem <i>kilobytes</i> | incalloc <i>count</i> | incmem <i>kilobytes</i>]</tt></dt>
+  <dd>Controls size limits of the monitoring facility Most Recently Used <a href="ntpq.html#mrulist">(MRU) list</a> of client addresses, which is also used by the <a href="accopt.html#discard">rate control facility</a>.
+    <dl>
+      <dt><tt>maxdepth <i>count</i><br>
+        maxmem <i>kilobytes</i></tt></dt>
+      <dd>Equivalent upper limits on the size of the MRU list, in terms of entries or kilobytes. The actual limit will be up to <tt>incalloc</tt> entries or <tt>incmem</tt> kilobytes larger. As with all
+        of the <tt>mru</tt> options offered in units of entries or kilobytes, if both <tt>maxdepth</tt> and <tt>maxmem</tt> are used, the last one used controls. The default is 1024 kilobytes.</dd>
+      <dt><tt>mindepth <i>count</i></tt></dt>
+      <dd>Lower limit on the MRU list size. When the MRU list has fewer than <tt>mindepth</tt> entries, existing entries are never removed to make room for newer ones, regardless of their age.
+        The default is 600 entries.</dd>
+      <dt><tt>maxage <i>seconds</i></tt></dt>
+      <dd>Once the MRU list has <tt>mindepth</tt> entries and an additional client address is to be added to the list, if the oldest entry was updated more than <tt>maxage</tt> seconds ago, that entry
+        is removed and its storage reused. If the oldest entry was updated more recently, the MRU list
+        is grown, subject to <tt>maxdepth</tt>/<tt>maxmem</tt>. The default is 64 seconds.</dd>
+      <dt><tt>initalloc <i>count</i><br>
+        initmem <i>kilobytes</i></tt></dt>
+      <dd>Initial memory allocation at the time the monitoring facility is first enabled, in terms of entries or kilobytes.  The default is 4 kilobytes.</dd>
+      <dt><tt>incalloc <i>count</i><br>
+        incmem <i>kilobytes</i></tt></dt>
+      <dd>Size of additional memory allocations when growing the MRU list, in entries or kilobytes. The default is 4 kilobytes.</dd>
+    </dl>
+  </dd>
+  <dt id="nonvolatile"><tt>nonvolatile <i>threshold</i></tt></dt>
+  <dd>Specify the <i><tt>threshold</tt></i> in seconds to write the frequency file, with default of 1e-7 (0.1 PPM). The frequency file is inspected each hour. If the difference between the current frequency  and the last value written exceeds the threshold, the file is written and the <tt><em>threshold</em></tt>  becomes the new threshold value. If the threshold is not exceeded, it is reduced by half. This is intended to reduce the frequency of unnecessary file writes for embedded systems with nonvolatile memory.</dd>
+  <dt id="phone"><tt>phone <i>dial</i> ...</tt></dt>
+  <dd>This command is used in conjunction with the ACTS modem driver (type 18) or the JJY driver (type 40 mode 100 - 180).
+      For the ACTS modem driver (type 18), the arguments consist of a maximum of 10 telephone numbers used to dial USNO, NIST or European time services.
+      For the JJY driver (type 40 mode 100 - 180), the argument is one telephone number used to dial the telephone JJY service.
+      The Hayes command ATDT&nbsp;is normally prepended to the number, which can contain other modem control codes as well.</dd>
+  <dt id="reset"><tt>reset [allpeers] [auth] [ctl] [io] [mem] [sys] [timer]</tt></dt>
+  <dd>Reset one or more groups of counters maintained by ntpd and exposed by <tt>ntpq</tt> and <tt>ntpdc</tt>.</dd>
+  <dt id="rlimit"><tt>rlimit [memlock <i>Nmegabytes</i> | stacksize <i>N4kPages</i> | filenum <i>Nfiledescriptors</i>]</tt></dt>
+  <dd>This command alters certain process storage allocation limits, and is only available on some operating systems.  Options are as follows:</dd>
+  <dd>
+    <dl>
+      <dt><tt>memlock <i>Nmegabytes</i></tt></dt>
+      <dd>Specify the number of megabytes of memory that should be allocated and locked.  Probably only available under Linux, this option may be useful when dropping root (the <tt>-i</tt> option).  The default is 32 megabytes on non-Linux machines, and -1 under Linux.  -1 means "do not lock the process into memory".  0 means "lock whatever memory the process wants into memory".</dd>
+      <dt><tt>stacksize <i>N4kPages</i></tt></dt>
+      <dd>Specifies the maximum size of the process stack on systems with the <tt>mlockall()</tt> function. Defaults to 50 4k pages (200 4k pages in OpenBSD).</dd>
+      <dt><tt>filenum <i>Nfiledescriptors</i></tt></dt>
+      <dd>Specifies the maximum number of file descriptors ntp may have open at the same time. Defaults to system default.</dd>
+    </dl>
+  </dd>
+  <dt id="saveconfigdir"><tt>saveconfigdir <i>directory_path</i></tt></dt>
+  <dd>Specify the directory in which to write configuration snapshots requested with <tt>ntpq</tt>'s <a href="ntpq.html#saveconfig">saveconfig</a> command.  If <tt>saveconfigdir</tt> does not appear in the configuration file, saveconfig requests are rejected by ntpd.</dd>
+  <dt id="setvar"><tt>setvar <i>variable</i> [default]</tt></dt>
+  <dd>This command adds an additional system variable. These variables can be used to distribute additional information such as the access policy. If the variable of the form <tt><i>name</i> = <i>value</i></tt> is followed by the <tt>default</tt> keyword, the variable will be listed as part of the default system variables (<tt>ntpq rv</tt> command). These additional variables serve informational purposes only. They are not related to the protocol other that they can be listed. The known protocol variables will always override any variables defined via the <tt>setvar</tt> mechanism. There are three special variables that contain the names of all variable of the same group. The <tt>sys_var_list</tt> holds the names of all system variables. The <tt>peer_var_list</tt> holds the names of all peer variables and the <tt>clock_var_list</tt> holds the names of the reference clock variables.</dd>
+  <dt id="tinker"><tt>tinker [allan <i>allan</i> | dispersion <i>dispersion</i> | freq <i>freq</i> | huffpuff <i>huffpuff</i> | panic <i>panic</i> | step <i>step</i> | stepout <i>stepout</i>]</tt></dt>
+  <dd>This command alters certain system variables used by the clock discipline algorithm. The default values of these variables have been carefully optimized for a wide range of network speeds and reliability expectations. Very rarely is it necessary to change the default values; but, some folks can't resist twisting the knobs. Options are as follows:</dd>
+  <dd>
+    <dl>
+      <dt><tt>allan <i>allan</i></tt></dt>
+      <dd>Specifies the Allan intercept, which is a parameter of the PLL/FLL clock discipline algorithm, in log2 seconds with default 11 (2048 s).</dd>
+      <dt><tt>dispersion <i>dispersion</i></tt></dt>
+      <dd>Specifies the dispersion increase rate in parts-per-million (PPM) with default 15 PPM.</dd>
+      <dt><tt>freq <i>freq</i></tt></dt>
+      <dd>Specifies the frequency offset in parts-per-million (PPM). This option is mutually exclusive with the driftfile command.</dd>
+      <dt><tt>huffpuff <i>huffpuff</i></tt></dt>
+      <dd>Specifies the huff-n'-puff filter span, which determines the most recent interval the algorithm will search for a minimum delay. The lower limit is 900 s (15 min), but a more reasonable value is 7200 (2 hours).See the <a href="huffpuff.html">Huff-n'-Puff Filter</a> page for further information.</dd>
+      <dt><tt>panic <i>panic</i></tt></dt>
+      <dd>Specifies the panic threshold in seconds with default 1000 s. If set to zero, the panic sanity check is disabled and a clock offset of any value will be accepted.</dd>
+      <dt><tt>step <i>step</i></tt></dt>
+      <dd>Specifies the step threshold in seconds. The default without this command is 0.128 s. If set to zero, step adjustments will never occur. Note: The kernel time discipline is disabled if the step threshold is set to zero or greater than 0.5
+        s. Further details are on the <a href="clock.html">Clock State Machine</a> page.</dd>
+      <dt><tt>stepout <i>stepout</i></tt></dt>
+      <dd>Specifies the stepout threshold in seconds. The default without this command is 300 s. Since this option also affects the training and startup intervals, it should not be set less than the default. Further details are on the <a href="clock.html">Clock State Machine</a> page.</dd>
+    </dl>
+  </dd>
+  <dt id="tos"><tt>tos [basedate <i>date<i> | bcpollbstep <i>poll-gate</i> | beacon <i>beacon</i> | ceiling <i>ceiling</i> | cohort {0 | 1} | floor <i>floor</i> | maxclock <i>maxclock </i>| maxdist <i>maxdist</i> | minclock <i>minclock</i> | mindist <i>mindist </i>| minsane <i>minsane</i> | orphan <i>stratum</i> | orphanwait <em>delay</em>]</tt></dt>
+  <dd>This command alters certain system variables used by the the clock selection and clustering algorithms. The default values of these variables have been carefully optimized for a wide range of network speeds and reliability expectations. Very rarely is it necessary to change the default values; but, some folks can't resist twisting the knobs. It can be used to select the quality and quantity of peers used to synchronize the system clock and is most useful in dynamic server discovery schemes. The options are as follows:</dd>
+  <dd>
+    <dl>
+      <dt><tt>basedate <i>date</i></tt></dt>
+      <dd>Set NTP era anchor. <tt><i>date</i></tt> is either a date in ISO8601 format (<i>YYYY-MM-DD<i>) or an integer giving the days since 1900-01-01, the start of the NTP epoch. <tt>ntpd</tt> will clamp the system time to an era starting with the begin of this this day (00:00:00Z), covering a range of 2<sup>32</sup> seconds or roughly 136 years. The default is the begin of the UNIX epoch, 1970-01-01.</dd>
+      <dt><tt>bcpollbstep <i>poll-gate</i></tt></dt>
+      <dd>This option will cause the client to delay believing backward time steps from a broadcast server for <tt>bcpollbstep</tt> poll intervals.  NTP Broadcast networks are expected to be trusted, and if the server's time gets stepped backwards then it's desireable that the clients follow this change as soon as possible.  However, in spite of various protections built-in to the broadcast protocol, it is possible that an attacker could perform a carefully-constructed replay attack and cause clients to erroneously step their clocks backward.  If the risk of a successful broadcast replay attack is greater than the risk of the clients being out of sync in the event that there is a backward step on the broadcast time servers, this option may be used to cause the clients to delay beliveving backward time steps until <i>poll-gate</i> consecutive polls have been received.  The default is 0, which means the client will accept these steps upon receipt.  Any value from 0 to 4 can be specified.</dd>
+      <dt><tt>beacon <i>beacon</i></tt></dt>
+      <dd>The manycast server sends packets at intervals of 64 s if less than <tt>maxclock</tt> servers are available. Otherwise, it sends packets at the <i><tt>beacon</tt></i> interval in seconds. The default is 3600 s. See the <a href="discover.html">Automatic Server Discovery</a> page for further details.</dd>
+      <dt><tt>ceiling <i>ceiling</i></tt></dt>
+      <dd>Specify the maximum stratum (exclusive) for acceptable server packets. The default is 16. See the <a href="discover.html">Automatic Server Discovery</a> page for further details.</dd>
+      <dt><tt>cohort { 0 | 1 }</tt></dt>
+      <dd>Specify whether (1) or whether not (0) a server packet will be accepted for the same stratum as the client. The default is 0. See the <a href="discover.html">Automatic Server Discovery</a> page for further details.</dd>
+      <dt><tt>floor <i>floor</i></tt></dt>
+      <dd>Specify the minimum stratum (inclusive) for acceptable server packets. The default is 1. See the <a href="discover.html">Automatic Server Discovery</a> page for further details.</dd>
+      <dt><tt>maxclock <i>maxclock</i></tt></dt>
+      <dd>Specify the maximum number of servers retained by the server discovery schemes. The default is 10. See the <a href="discover.html">Automatic Server Discovery</a> page for further details.</dd>
+      <dt><tt>maxdist <i>maxdistance</i></tt></dt>
+      <dd>Specify the synchronization distance threshold used by the clock selection algorithm. The default is 1.5 s. This determines both the minimum number of packets to set the system clock and the maximum roundtrip delay. It can be decreased to improve reliability or increased to synchronize clocks on the Moon or planets.</dd>
+      <dt><tt>minclock <i>minclock</i></tt></dt>
+      <dd>Specify the number of servers used by the clustering algorithm as the minimum to include on the candidate list. The default is 3. This is also the number of servers to be averaged by the combining algorithm.</dd>
+      <dt><tt>mindist <i>mindistance</i></tt></dt>
+      <dd>Specify the minimum distance used by the selection and anticlockhop
+        algorithm. Larger values increase the tolerance for outliers;
+        smaller values increase the selectivity. The default is .001 s. In some
+        cases, such as reference clocks with high jitter and a PPS signal, it is
+        useful to increase the value to insure the intersection interval is
+        always nonempty.</dd>
+      <dt><tt>minsane <i>minsane</i></tt></dt>
+      <dd>Specify the number of servers used by the selection algorithm as the minimum to set the system clock. The default is 1 for legacy purposes; however, for critical applications the value should be somewhat higher but less than <tt>minclock</tt>.</dd>
+      <dt><tt>orphan <i>stratum</i></tt></dt>
+      <dd>Specify the orphan stratum with default 16. If less than 16 this is the stratum assumed by the root servers. See the <a href="orphan.html">Orphan Mode</a> page for further details.</dd>
+      <dt><tt>orphanwait <em>delay</em></tt></dt>
+      <dd>Specify the delay in seconds from the time all sources are lost until orphan parent mode is enabled with default 300 s (five minutes). During this period, the local clock driver and the modem driver are not selectable, unless marked with the <tt>prefer</tt> keyword. This allows time for one or more primary sources to become reachable and selectable before using backup sources, and avoids transient use of the backup sources at startup.</dd>
+    </dl>
+  </dd>
+  <dt id="trap"><tt>trap <i>host_address</i> [port <i>port_number</i>] [interface <i>interfSace_address</i>]</tt></dt>
+  <dd>This command configures a trap receiver at the given host address and port number for sending messages with the specified local interface address. If the port number is unspecified, a value of 18447 is used. If the interface address is not specified, the message is sent with a source address of the local interface the message is sent through. Note that on a multihomed host the interface used may vary from time to time with routing changes.</dd>
+  <dd>The trap receiver will generally log event messages and other information from the server in a log file. While such monitor programs may also request their own trap dynamically, configuring a trap receiver will ensure that no messages are lost when the server is started.</dd>
+  <dt id="ttl"><tt>ttl <i>hop</i> ...</tt></dt>
+  <dd>This command specifies a list of TTL values in increasing order. up to 8 values can be specified. In manycast mode these values are used in turn in an expanding-ring search. The default is eight multiples of 32 starting at 31.</dd>
+</dl>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

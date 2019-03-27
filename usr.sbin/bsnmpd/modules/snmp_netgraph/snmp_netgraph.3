@@ -1,0 +1,436 @@
+.\"
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\"	All rights reserved.
+.\"
+.\" Author: Harti Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution of this software and documentation and use in source and
+.\" binary forms, with or without modification, are permitted provided that
+.\" the following conditions are met:
+.\"
+.\" 1. Redistributions of source code or documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE AND DOCUMENTATION IS PROVIDED BY FRAUNHOFER FOKUS
+.\" AND ITS CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+.\" FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+.\" FRAUNHOFER FOKUS OR ITS CONTRIBUTORS  BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+.\" OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 14, 2003
+.Dt SNMP_NETGRAPH 3
+.Os
+.Sh NAME
+.Nm snmp_netgraph ,
+.Nm snmp_node ,
+.Nm snmp_nodename ,
+.Nm ng_cookie_f ,
+.Nm ng_hook_f ,
+.Nm ng_register_cookie ,
+.Nm ng_unregister_cookie ,
+.Nm ng_register_hook ,
+.Nm ng_unregister_hook ,
+.Nm ng_unregister_module ,
+.Nm ng_output ,
+.Nm ng_output_node ,
+.Nm ng_output_id ,
+.Nm ng_dialog ,
+.Nm ng_dialog_node ,
+.Nm ng_dialog_id ,
+.Nm ng_send_data ,
+.Nm ng_mkpeer_id ,
+.Nm ng_connect_node ,
+.Nm ng_connect_id ,
+.Nm ng_connect2_id ,
+.Nm ng_connect2_tee_id ,
+.Nm ng_rmhook ,
+.Nm ng_rmhook_id ,
+.Nm ng_rmhook_tee_id ,
+.Nm ng_shutdown_id ,
+.Nm ng_next_node_id ,
+.Nm ng_node_id ,
+.Nm ng_node_id_node ,
+.Nm ng_node_name ,
+.Nm ng_node_type ,
+.Nm ng_peer_hook_id
+.Nd "netgraph module for snmpd"
+.Sh LIBRARY
+.Pq begemotSnmpdModulePath."netgraph" = "/usr/lib/snmp_netgraph.so"
+.Sh SYNOPSIS
+.In bsnmp/snmpmod.h
+.In bsnmp/snmp_netgraph.h
+.Vt extern ng_ID_t snmp_node ;
+.Vt extern u_char *snmp_nodename ;
+.Ft typedef void
+.Fn ng_cookie_f "const struct ng_mesg *mesg" "const char *path" "ng_ID_t id" "void *uarg"
+.Ft typedef void
+.Fn ng_hook_f "const char *hook" "const u_char *mesg" "size_t len" "void *uarg"
+.Ft void *
+.Fn ng_register_cookie "const struct lmodule *mod" "uint32_t cookie" "ng_ID_t id" "ng_cookie_f *func" "void *uarg"
+.Ft void
+.Fn ng_unregister_cookie "void *reg"
+.Ft void *
+.Fn ng_register_hook "const struct lmodule *mod" "const char *hook" "ng_hook_f *func" "void *uarg"
+.Ft void
+.Fn ng_unregister_hook "void *reg"
+.Ft void
+.Fn ng_unregister_module "const struct lmodule *mod"
+.Ft int
+.Fn ng_output "const char *path" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen"
+.Ft int
+.Fn ng_output_node "const char *node" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen"
+.Ft int
+.Fn ng_output_id "ng_ID_t node" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen"
+.Ft struct ng_mesg *
+.Fn ng_dialog "const char *path" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen"
+.Ft struct ng_mesg *
+.Fn ng_dialog_node "const char *node" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen"
+.Ft struct ng_mesg *
+.Fn ng_dialog_id "ng_ID_t id" "u_int cookie" "u_int opcode" "const void *arg" "size_t arglen"
+.Ft int
+.Fn ng_send_data "const char *hook" "const void *sndbuf" "size_t sndlen"
+.Ft ng_ID_t
+.Fn ng_mkpeer_id "ng_ID_t id" "const char *name" "const char *type" "const char *hook" "const char *peerhook"
+.Ft int
+.Fn ng_connect_node "const char *node" "const char *ourhook" "const char *peerhook"
+.Ft int
+.Fn ng_connect_id "ng_ID_t id" "const char *ourhook" "const char *peerhook"
+.Ft int
+.Fn ng_connect2_id "ng_ID_t id" "ng_ID_t peer" "const char *ourhook" "const char *peerhook"
+.Ft int
+.Fn ng_connect2_tee_id "ng_ID_t id" "ng_ID_t peer" "const char *ourhook" "const char *peerhook"
+.Ft int
+.Fn ng_rmhook "const char *ourhook"
+.Ft int
+.Fn ng_rmhook_id "ng_ID_t id" "const char *hook"
+.Ft int
+.Fn ng_rmhook_tee_id "ng_ID_t id" "const char *hook"
+.Ft int
+.Fn ng_shutdown_id "ng_ID_t id"
+.Ft ng_ID_t
+.Fn ng_next_node_id "ng_ID_t node" "const char *type" "const char *hook"
+.Ft ng_ID_t
+.Fn ng_node_id "const char *path"
+.Ft ng_ID_t
+.Fn ng_node_id_node "const char *node"
+.Ft ng_ID_t
+.Fn ng_node_name "ng_ID_t id" "char *name"
+.Ft ng_ID_t
+.Fn ng_node_type "ng_ID_t id" "char *type"
+.Ft int
+.Fn ng_peer_hook_id "ng_ID_t id" "const char *hook" "char *peerhook"
+.Sh DESCRIPTION
+The
+.Nm snmp_netgraph
+module implements a number of tables and scalars that enable remote access to
+the netgraph subsystem.
+It also exports a number of global variables and
+functions, that allow other modules to easily use the netgraph system.
+.Pp
+If upon start up of the module the variable
+.Va begemotNgControlNodeName
+is not empty the module opens a netgraph socket and names that socket node.
+If the variable is empty, the socket is created, as soon as the variable is
+written with a non-empty name.
+The socket can be closed by writing an empty
+string to the variable.
+The socket itself and its name are available in
+.Va snmp_node
+and
+.Va snmp_nodename .
+.Ss SENDING AND RECEIVING MESSAGES AND DATA
+There are three functions for sending control message:
+.Bl -tag -width ".It Fn ng_output_node"
+.It Fn ng_output
+sends a control message along the given
+.Fa path .
+.It Fn ng_output_node
+sends a control message to the node with name
+.Fa node
+and
+.It Fn ng_output_id
+sends a control message to the node with node id
+.Fa id .
+.El
+.Pp
+Each of these functions takes the following arguments:
+.Bl -tag -width ".It Fa cookie"
+.It Fa cookie
+is the node specific command cookie,
+.It Fa opcode
+is the node specific code for the operation to perform,
+.It Fa arg
+is a pointer to the message itself.
+This message must start with a
+.Vt struct ng_mesg .
+.It Fa arglen
+is the overall length of the message (header plus arguments).
+.El
+The functions return the message id that can be used to match incoming responses
+or -1 if an error occurs.
+.Pp
+Another class of functions is used to send a control message and to wait for
+a matching response.
+Note, that this operation blocks the daemon, so use it
+only if you are sure that the response will happen.
+There is a maximum timeout
+that is configurable in the MIB variable
+.Va begemotNgTimeout .
+Other messages arriving while the functions are waiting for the response are
+queued and delivered on the next call to the module's idle function.
+.Bl -tag -width ".It Fn ng_output_node"
+.It Fn ng_dialog
+sends a control message along the given
+.Fa path
+and waits for a matching response.
+.It Fn ng_dialog_node
+sends a control message to the node with name
+.Fa node
+and waits for a matching response.
+.It Fn ng_dialog_id
+sends a control message to the node with id
+.Fa id
+and waits for a matching response.
+.El
+.Pp
+All three functions take the same arguments as the
+.Fn ng_output*
+functions.
+The functions return the response message in a buffer allocated by
+.Xr malloc 3
+or NULL in case of an error.
+The maximum size of the response buffer can be
+configured in the variable
+.Va begemotNgResBufSiz .
+.Pp
+A data message can be send with the function
+.Fn ng_send_data .
+This function takes the name of the
+.Va snmp_node Ns 's
+hook through which to send the data, a pointer to the message buffer and
+the size of the message.
+It returns -1 if an error happens.
+.Ss ASYNCHRONOUS CONTROL AND DATA MESSAGES
+A module can register functions to asynchronously receive control and data
+message.
+.Pp
+The function
+.Fn ng_register_cookie
+registers a control message receive function.
+If a control message is
+received, that is not consumed by the dialog functions, the list of registered
+control message receive functions is scanned.
+If the cookie in the received
+message is the same as the
+.Fa cookie
+argument to the
+.Fn ng_register_cookie
+call and the
+.Fa id
+argument to the
+.Fn ng_register_cookie
+call was either 0 or equals the node id which sent the control message, the
+handler function
+.Fa func
+is called with a pointer to the received message, the hook on which the
+message was received (or NULL if it was received not on a hook), the id
+of the sender's node and the
+.Fa uarg
+argument of the registration call.
+The handler function should not modify
+the contents of the message, because more than one function may be registered
+to the same cookie and node id.
+.Pp
+A control message registration can be undone by calling
+.Fn ng_unregister_cookie
+with the return value of the registration call.
+If an error occurs while registering,
+.Fn ng_register_cookie
+returns NULL.
+.Pp
+A module can call
+.Fn ng_register_hook
+to register a callback for data messages on one of the
+.Va snmp_node Ns 's
+hooks.
+If a data message is received on that hook, the callback function
+.Fa func
+is called with the hook name, a pointer to the data message, the size of
+the message and the argument
+.Fa uarg
+to the registration function.
+The message should be treated as read-only.
+A data message registration can be undone by calling
+.Fn ng_unregister_hook
+with the return value of the registration call.
+If an error occurs while registering,
+.Fn ng_register_hook
+returns NULL.
+.Pp
+The function
+.Fn ng_unregister_module
+removes all control and data registrations for that module.
+.Ss FINDING NODES AND NODE CHARACTERISTICS
+The function
+.Fn ng_node_id
+returns the id of the node addressed by
+.Fa path
+or 0 if the node does not exists.
+.Pp
+The function
+.Fn ng_node_id_node
+returns the id of the node with name
+.Fa node
+or 0 if the node does not exist.
+.Pp
+The function
+.Fn ng_node_node
+retrieves the name of the node with id
+.Fa id
+and writes it to the buffer pointed to by
+.Fa name .
+This buffer should be at least
+.Li NG_NODESIZ
+bytes long.
+The function returns the node id or 0 if the
+node is not found.
+.Pp
+The function
+.Fn ng_node_type
+retrieves the name of the node with id
+.Fa id
+and writes it to the buffer pointed to by
+.Fa type .
+This buffer should be at least
+.Li NG_TYPESIZ
+bytes long.
+The function returns the node id or 0 if the
+node is not found.
+.Pp
+The function
+.Fn ng_peer_hook_id
+writes the name of the peer hook of the hook
+.Fa hook
+on the node with
+.Fa id
+to the buffer pointed to by
+.Fa peer_hook .
+The buffer should be at least
+.Li NG_HOOKSIZ
+bytes long.
+The function returns 0 if the node and the hook is found, -1
+otherwise.
+The function skips intermediate tee nodes (see
+.Xr ng_tee 4 ) .
+.Pp
+The function
+.Fn ng_next_node_id
+returns the node id of the peer node that is on the other side of hook
+.Fa hook
+of node
+.Fa id .
+If
+.Fa type
+is not NULL, the function checks, that the peer node's type is
+.Fa type .
+The function skips intermediate tee nodes (see
+.Xr ng_tee 4 ) .
+It returns the node id of the peer node or 0 if an error occurs or the
+types do not match.
+.Ss CHANGING THE GRAPH
+A number of functions can be used to create or destroy nodes and hooks.
+.Pp
+The function
+.Fn ng_mkpeer_id
+creates a new node of type
+.Fa type
+whose hook
+.Fa peerhook
+will be connected to
+.Fa hook
+of node
+.Fa id .
+If
+.Fa name
+is not NULL the new node is named with this name.
+The function returns
+The node id of the new node or 0 if an error happens.
+.Pp
+The functions
+.Fn ng_connect_node
+and
+.Fn ng_connect_id
+make a new hook connecting
+.Fa ourhook
+of the modules socket node
+.Va snmp_node
+to
+.Fa peerhook
+of the node identified by id
+.Fa id
+or name
+.Fa node .
+The functions return 0 on success or -1 otherwise.
+.Pp
+The function
+.Fn ng_connect2_id
+connects hook
+.Fa ourhook
+of the node with id
+.Fa id
+to hook
+.Fa peerhook
+of the node with id
+.Fa peer .
+The functions return 0 on success or -1 otherwise.
+The function
+.Fn ng_connect2_tee_id
+does the same as
+.Fn ng_connect2_id
+except, that it puts an unnamed tee node between the two nodes.
+.Pp
+The function
+.Fn ng_rmhook
+removes hook
+.Fa hook
+on the module's
+.Va snmp_node .
+The function
+.Fn ng_rmhook_id
+removes hook
+.Fa hook
+on the node with id
+.Fa id .
+The function
+.Fn ng_rmhook_tee_id
+additionally shuts down all tee nodes between the node and the first non-tee
+peer.
+.Pp
+The function
+.Fn ng_shutdown_id
+destroys the given node.
+.Sh FILES
+.Bl -tag -width "XXXXXXXXX"
+.It Pa /usr/share/bsnmp/defs/netgraph_tree.def
+The description of the MIB tree implemented by
+.Nm .
+.It Pa /usr/share/bsnmp/mibs/BEGEMOT-NETGRAPH.txt
+This is the MIB that is implemented by this module.
+.El
+.Sh SEE ALSO
+.Xr gensnmptree 1 ,
+.Xr snmpmod 3
+.Sh AUTHORS
+.An Hartmut Brandt Aq Mt harti@FreeBSD.org

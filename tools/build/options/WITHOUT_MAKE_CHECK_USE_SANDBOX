@@ -1,0 +1,10 @@
+.\" $FreeBSD$
+Set to not execute
+.Dq Li "make check"
+in limited sandbox mode.
+This option should be paired with
+.Va WITH_INSTALL_AS_USER
+if executed as an unprivileged user.
+See
+.Xr tests 7
+for more details.

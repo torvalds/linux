@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+files		"../mv/files.arm7"
+cpu		CPU_MV_PJ4B
+machine 	arm	armv7
+makeoptions	CONF_CFLAGS="-march=armv7a"
+
+# This was originally defined as "(KERNBASE-(1024*1024*1024))" but that
+# (in opt_global.h) clashed with the value emitted by genassym which
+# reduces the original macro text to its numeric value.  The only way
+# to avoid that is to define it here as the numeric value genassym emits.
+options		VM_MAXUSER_ADDRESS="0x80000000"

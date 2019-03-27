@@ -1,0 +1,353 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)chmod.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd November 11, 2018
+.Dt CHMOD 2
+.Os
+.Sh NAME
+.Nm chmod ,
+.Nm fchmod ,
+.Nm lchmod ,
+.Nm fchmodat
+.Nd change mode of file
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/stat.h
+.Ft int
+.Fn chmod "const char *path" "mode_t mode"
+.Ft int
+.Fn fchmod "int fd" "mode_t mode"
+.Ft int
+.Fn lchmod "const char *path" "mode_t mode"
+.Ft int
+.Fn fchmodat "int fd" "const char *path" "mode_t mode" "int flag"
+.Sh DESCRIPTION
+The file permission bits of the file named specified by
+.Fa path
+or referenced by the file descriptor
+.Fa fd
+are changed to
+.Fa mode .
+The
+.Fn chmod
+system call verifies that the process owner (user) either owns
+the file specified by
+.Fa path
+(or
+.Fa fd ) ,
+or
+is the super-user.
+The
+.Fn chmod
+system call follows symbolic links to operate on the target of the link
+rather than the link itself.
+.Pp
+The
+.Fn lchmod
+system call is similar to
+.Fn chmod
+but does not follow symbolic links.
+.Pp
+The
+.Fn fchmodat
+is equivalent to either
+.Fn chmod
+or
+.Fn lchmod
+depending on the
+.Fa flag
+except in the case where
+.Fa path
+specifies a relative path.
+In this case the file to be changed is determined relative to the directory
+associated with the file descriptor
+.Fa fd
+instead of the current working directory.
+The values for the
+.Fa flag
+are constructed by a bitwise-inclusive OR of flags from the following list, defined
+in
+.In fcntl.h :
+.Bl -tag -width indent
+.It Dv AT_SYMLINK_NOFOLLOW
+If
+.Fa path
+names a symbolic link, then the mode of the symbolic link is changed.
+.It Dv AT_BENEATH
+Only allow to change permissions of a file which is beneath of
+the topping directory.
+See the description of the
+.Dv O_BENEATH
+flag in the
+.Xr open 2
+manual page.
+.El
+.Pp
+If
+.Fn fchmodat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the current working directory is used.
+If also
+.Fa flag
+is zero, the behavior is identical to a call to
+.Fn chmod .
+.Pp
+A mode is created from
+.Em or'd
+permission bit masks
+defined in
+.In sys/stat.h :
+.Pp
+.Bd -literal -offset indent -compact
+#define S_IRWXU 0000700    /* RWX mask for owner */
+#define S_IRUSR 0000400    /* R for owner */
+#define S_IWUSR 0000200    /* W for owner */
+#define S_IXUSR 0000100    /* X for owner */
+
+#define S_IRWXG 0000070    /* RWX mask for group */
+#define S_IRGRP 0000040    /* R for group */
+#define S_IWGRP 0000020    /* W for group */
+#define S_IXGRP 0000010    /* X for group */
+
+#define S_IRWXO 0000007    /* RWX mask for other */
+#define S_IROTH 0000004    /* R for other */
+#define S_IWOTH 0000002    /* W for other */
+#define S_IXOTH 0000001    /* X for other */
+
+#define S_ISUID 0004000    /* set user id on execution */
+#define S_ISGID 0002000    /* set group id on execution */
+#define S_ISVTX 0001000    /* sticky bit */
+.Ed
+.Pp
+The non-standard
+.Dv S_ISTXT
+is a synonym for
+.Dv S_ISVTX .
+.Pp
+The
+.Fx
+VM system totally ignores the sticky bit
+.Pq Dv S_ISVTX
+for executables.
+On UFS-based file systems (FFS, LFS) the sticky
+bit may only be set upon directories.
+.Pp
+If mode
+.Dv S_ISVTX
+(the `sticky bit') is set on a directory,
+an unprivileged user may not delete or rename
+files of other users in that directory.
+The sticky bit may be
+set by any user on a directory which the user owns or has appropriate
+permissions.
+For more details of the properties of the sticky bit, see
+.Xr sticky 7 .
+.Pp
+If mode ISUID (set UID) is set on a directory,
+and the MNT_SUIDDIR option was used in the mount of the file system,
+then the owner of any new files and sub-directories
+created within this directory are set
+to be the same as the owner of that directory.
+If this function is enabled, new directories will inherit
+the bit from their parents.
+Execute bits are removed from
+the file, and it will not be given to root.
+This behavior does not change the
+requirements for the user to be allowed to write the file, but only the eventual
+owner after it has been created.
+Group inheritance is not affected.
+.Pp
+This feature is designed for use on fileservers serving PC users via
+ftp, SAMBA, or netatalk.
+It provides security holes for shell users and as
+such should not be used on shell machines, especially on home directories.
+This option requires the SUIDDIR
+option in the kernel to work.
+Only UFS file systems support this option.
+For more details of the suiddir mount option, see
+.Xr mount 8 .
+.Pp
+Writing or changing the owner of a file
+turns off the set-user-id and set-group-id bits
+unless the user is the super-user.
+This makes the system somewhat more secure
+by protecting set-user-id (set-group-id) files
+from remaining set-user-id (set-group-id) if they are modified,
+at the expense of a degree of compatibility.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn chmod
+system call
+will fail and the file mode will be unchanged if:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded 255 characters,
+or an entire path name exceeded 1023 characters.
+.It Bq Er ENOENT
+The named file does not exist.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EPERM
+The effective user ID does not match the owner of the file and
+the effective user ID is not the super-user.
+.It Bq Er EPERM
+The effective user ID is not the super-user, the effective user ID do match the
+owner of the file, but the group ID of the file does not match the effective
+group ID nor one of the supplementary group IDs.
+.It Bq Er EPERM
+The named file has its immutable or append-only flag set, see the
+.Xr chflags 2
+manual page for more information.
+.It Bq Er EROFS
+The named file resides on a read-only file system.
+.It Bq Er EFAULT
+The
+.Fa path
+argument
+points outside the process's allocated address space.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.It Bq Er EFTYPE
+The effective user ID is not the super-user, the mode includes the sticky bit
+.Dv ( S_ISVTX ) ,
+and path does not refer to a directory.
+.El
+.Pp
+The
+.Fn fchmod
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The descriptor is not valid.
+.It Bq Er EINVAL
+The
+.Fa fd
+argument
+refers to a socket, not to a file.
+.It Bq Er EROFS
+The file resides on a read-only file system.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.El
+.Pp
+In addition to the
+.Fn chmod
+errors,
+.Fn fchmodat
+fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa path
+argument does not specify an absolute path and the
+.Fa fd
+argument is neither
+.Fa AT_FDCWD
+nor a valid file descriptor open for searching.
+.It Bq Er EINVAL
+The value of the
+.Fa flag
+argument is not valid.
+.It Bq Er ENOTDIR
+The
+.Fa path
+argument is not an absolute path and
+.Fa fd
+is neither
+.Dv AT_FDCWD
+nor a file descriptor associated with a directory.
+.It Bq Er ENOTCAPABLE
+.Fa path
+is an absolute path,
+or contained a ".." component leading to a
+directory outside of the directory hierarchy specified by
+.Fa fd ,
+and the process is in capability mode.
+.It Bq Er ENOTCAPABLE
+The
+.Dv AT_BENEATH
+flag was provided to
+.Fn fchmodat ,
+and the absolute
+.Fa path
+does not have its tail fully contained under the topping directory,
+or the relative
+.Fa path
+escapes it.
+.El
+.Sh SEE ALSO
+.Xr chmod 1 ,
+.Xr chflags 2 ,
+.Xr chown 2 ,
+.Xr open 2 ,
+.Xr stat 2 ,
+.Xr sticky 7
+.Sh STANDARDS
+The
+.Fn chmod
+system call is expected to conform to
+.St -p1003.1-90 ,
+except for the return of
+.Er EFTYPE .
+The
+.Dv S_ISVTX
+bit on directories is expected to conform to
+.St -susv3 .
+The
+.Fn fchmodat
+system call is expected to conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn chmod
+function appeared in
+.At v1 .
+The
+.Fn fchmod
+system call appeared in
+.Bx 4.2 .
+The
+.Fn lchmod
+system call appeared in
+.Fx 3.0 .
+The
+.Fn fchmodat
+system call appeared in
+.Fx 8.0 .

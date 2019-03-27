@@ -1,0 +1,205 @@
+.\" $FreeBSD$
+.TH ipftest 1
+.SH NAME
+ipftest \- test packet filter rules with arbitrary input.
+.SH SYNOPSIS
+.B ipftest
+[
+.B \-6bCdDoRvx
+] [
+.B \-F
+input-format
+] [
+.B \-i
+<filename>
+] [
+.B \-I
+interface
+] [
+.B \-l
+<filename>
+] [
+.B \-N
+<filename>
+] [
+.B \-P
+<filename>
+] [
+.B \-r
+<filename>
+] [
+.B \-S
+<ip_address>
+] [
+.B \-T
+<optionlist>
+]
+.SH DESCRIPTION
+.PP
+\fBipftest\fP is provided for the purpose of being able to test a set of
+filter rules without having to put them in place, in operation and proceed
+to test their effectiveness.  The hope is that this minimises disruptions
+in providing a secure IP environment.
+.PP
+\fBipftest\fP will parse any standard ruleset for use with \fBipf\fP,
+\fBipnat\fP and/or \fBippool\fP
+and apply input, returning output as to the result.  However, \fBipftest\fP
+will return one of three values for packets passed through the filter:
+pass, block or nomatch.  This is intended to give the operator a better
+idea of what is happening with packets passing through their filter
+ruleset.
+.PP
+At least one of \fB\-N\fP, \fB-P\fP or \fB\-r\fP must be specified.
+.SH OPTIONS
+.TP
+.B \-6
+Use IPv6.
+.TP
+.B \-b
+Cause the output to be a brief summary (one-word) of the result of passing
+the packet through the filter; either "pass", "block" or "nomatch".
+This is used in the regression testing.
+.TP
+.B \-C
+Force the checksums to be (re)calculated for all packets being input into
+\fBipftest\fP.  This may be necessary if pcap files from tcpdump are being
+fed in where there are partial checksums present due to hardware offloading.
+.TP
+.B \-d
+Turn on filter rule debugging.  Currently, this only shows you what caused
+the rule to not match in the IP header checking (addresses/netmasks, etc).
+.TP
+.B \-D
+Dump internal tables before exiting.
+This excludes log messages.
+.TP
+.B \-F
+This option is used to select which input format the input file is in.
+The following formats are available: etherfind, hex, pcap, snoop, tcpdump,text.
+.RS
+.TP
+.B etherfind
+The input file is to be text output from etherfind.  The text formats which
+are currently supported are those which result from the following etherfind
+option combinations:
+.PP
+.nf
+		etherfind -n
+		etherfind -n -t
+.fi
+.TP
+.B hex
+The input file is to be hex digits, representing the binary makeup of the
+packet.  No length correction is made, if an incorrect length is put in
+the IP header.  A packet may be broken up over several lines of hex digits,
+a blank line indicating the end of the packet.  It is possible to specify
+both the interface name and direction of the packet (for filtering purposes)
+at the start of the line using this format: [direction,interface]  To define
+a packet going in on le0, we would use \fB[in,le0]\fP - the []'s are required
+and part of the input syntax.
+.HP
+.B pcap
+The input file specified by \fB\-i\fP is a binary file produced using libpcap
+(i.e., tcpdump version 3).  Packets are read from this file as being input
+(for rule purposes).  An interface maybe specified using \fB\-I\fP.
+.TP
+.B snoop
+The input file is to be in "snoop" format (see RFC 1761).  Packets are read
+from this file and used as input from any interface.  This is perhaps the
+most useful input type, currently.
+.TP
+.B tcpdump
+The input file is to be text output from tcpdump.  The text formats which
+are currently supported are those which result from the following tcpdump
+option combinations:
+.PP
+.nf
+		tcpdump -n
+		tcpdump -nq
+		tcpdump -nqt
+		tcpdump -nqtt
+		tcpdump -nqte
+.fi
+.TP
+.B text
+The input file is in \fBipftest\fP text input format.
+This is the default if no \fB\-F\fP argument is specified.
+The format used is as follows:
+.nf
+	"in"|"out" "on" if ["tcp"|"udp"|"icmp"]
+		srchost[,srcport] dsthost[,destport] [FSRPAU]
+.fi
+.PP
+This allows for a packet going "in" or "out" of an interface (if) to be
+generated, being one of the three main protocols (optionally), and if
+either TCP or UDP, a port parameter is also expected.  If TCP is selected,
+it is possible to (optionally) supply TCP flags at the end.  Some examples
+are:
+.nf
+	# a UDP packet coming in on le0
+	in on le0 udp 10.1.1.1,2210 10.2.1.5,23
+	# an IP packet coming in on le0 from localhost - hmm :)
+	in on le0 localhost 10.4.12.1
+	# a TCP packet going out of le0 with the SYN flag set.
+	out on le0 tcp 10.4.12.1,2245 10.1.1.1,23 S
+.fi
+.RE
+.DT
+.TP
+.BR \-i \0<filename>
+Specify the filename from which to take input.  Default is stdin.
+.TP
+.BR \-I \0<interface>
+Set the interface name (used in rule matching) to be the name supplied.
+This is useful where it is
+not otherwise possible to associate a packet with an interface.  Normal
+"text packets" can override this setting.
+.TP
+.BR \-l \0<filename>
+Dump log messages generated during testing to the specified file.
+.TP
+.BR \-N \0<filename>
+Specify the filename from which to read NAT rules in \fBipnat\fP(5) format.
+.TP
+.B \-o
+Save output packets that would have been written to each interface in
+a file /tmp/\fIinterface_name\fP in raw format.
+.TP
+.BR \-P \0<filename>
+Read IP pool configuration information in \fBippool\fP(5) format from the
+specified file.
+.TP
+.BR \-r \0<filename>
+Specify the filename from which to read filter rules in \fBipf\fP(5) format.
+.TP
+.B \-R
+Don't attempt to convert IP addresses to hostnames.
+.TP
+.BR \-S \0<ip_address>
+The IP address specifived with this option is used by ipftest to determine
+whether a packet should be treated as "input" or "output".  If the source
+address in an IP packet matches then it is considered to be inbound.  If it
+does not match then it is considered to be outbound.  This is primarily
+for use with tcpdump (pcap) files where there is no in/out information
+saved with each packet.
+.TP
+.BR \-T \0<optionlist>
+This option simulates the run-time changing of IPFilter kernel variables
+available with the \fB\-T\fP option of \fBipf\fP.
+The optionlist parameter is a comma separated list of tuning
+commands.  A tuning command is either "list" (retrieve a list of all variables
+in the kernel, their maximum, minimum and current value), a single variable
+name (retrieve its current value) and a variable name with a following
+assignment to set a new value.  See \fBipf\fP(8) for examples.
+.TP
+.B \-v
+Verbose mode.  This provides more information about which parts of rule
+matching the input packet passes and fails.
+.TP
+.B \-x
+Print a hex dump of each packet before printing the decoded contents.
+.SH SEE ALSO
+ipf(5), ipf(8), snoop(1m), tcpdump(8), etherfind(8c)
+.SH BUGS
+Not all of the input formats are sufficiently capable of introducing a
+wide enough variety of packets for them to be all useful in testing.

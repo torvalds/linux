@@ -1,0 +1,141 @@
+#!/bin/sh
+##############################################################################
+# Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Author: Thomas E. Dickey <dickey@clark.net> 1996
+#
+# $Id: shlib,v 1.11 2007/01/13 17:09:52 tom Exp $
+# Use this script as a wrapper when running executables linked to shared
+# libraries on systems that use the $LD_LIBRARY_PATH variable and don't embed
+# the soname's path within the linked executable (such as IRIX), e.g,
+#
+#	shlib knight
+#
+# Setting LD_LIBRARY_PATH, overrides/supplements the loader's normal search
+# path, and works on most systems.  The drawback is that then the environment
+# variable has to be set to run the programs within this directory tree.
+#
+# For Linux (and other systems using the GNU loader), we can use the rpath
+# directive, which embeds the pathname of the library within the executable.
+# Using the Linux loader's rpath directive introduces a constraint, since
+# it's embedded into the binary, and means that the binary cannot be moved
+# around (though it'll work if the $exec_prefix convention that puts the bin
+# and lib directories under the same parent is followed).
+#
+# Using the actual soname (e.g., ../lib/libncurses.so) alone, is a more
+# flexible solution; you can link without having to set the environment
+# variable, and on some systems (IRIX) you can even run the resulting binaries
+# without setting LD_LIBRARY_PATH.
+#
+# Using a conventional link, with -L and -l options on Linux results in a
+# statically linked executable, which we don't want at all.
+#
+# Special cases:
+#
+#	BeOS R4.5 uses $LIBRARY_PATH rather than $LD_LIBRARY_PATH.
+#	Cygwin uses $PATH
+#	Mac OS X uses $DYLD_LIBRARY_PATH
+#
+# Other cases not handled by this script:
+#
+#	AIX uses $LIBPATH
+#	IRIX64 may use $LD_LIBRARY64_PATH or $LD_LIBRARYN32_PATH
+#	Solaris may use $LD_LIBRARY_PATH_64
+#
+CDPATH=
+#
+# Make sure that we use the PATH that was set in run_tic.sh
+if test -n "$SHLIB_PATH" ; then
+	PATH=$SHLIB_PATH
+	export PATH
+fi
+
+# Find the lib-directory for this build tree
+q=""
+for p in lib ../lib ../../lib ../../../lib
+do
+	if test -d $p; then
+		q=`cd $p; pwd`
+		break
+	elif test -f configure && test ! -d ../$p ; then
+		break
+	fi
+done
+
+# Set the environment variable.
+if test -n "$q" ; then
+	system=
+	if test -n "$SHLIB_HOST" ; then
+		system="$SHLIB_HOST"
+	elif test -n "$PATHEXT" ; then
+		system=cygwin
+	elif test -n "$LIBRARY_PATH" ; then
+		system=beos
+	elif test -n "$DYLD_LIBRARY_PATH" ; then
+		system=darwin
+	elif test -n "$LD_LIBRARY_PATH"; then
+		system=unix
+	else
+		for r in $q/*.*
+		do
+			if test -f "$r"
+			then
+				case $r in
+				*.dll)
+					system=cygwin
+					;;
+				*.dylib)
+					system=darwin
+					;;
+				esac
+			fi
+			test -n "$system" && break
+		done
+	fi
+
+	case .$system in
+	.cygwin*)
+		variable=PATH
+		;;
+	.beos*)
+		variable=LIBRARY_PATH
+		;;
+	.darwin*)
+		variable=DYLD_LIBRARY_PATH
+		;;
+	*)
+		variable=LD_LIBRARY_PATH
+		;;
+	esac
+
+	eval 'test -z "$'$variable'" && '$variable'=":"'
+	eval $variable'="$q:$'$variable'"'
+	eval 'export '$variable
+fi
+
+eval "$*"

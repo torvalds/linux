@@ -1,0 +1,92 @@
+<HTML>
+<HEAD>
+<TITLE>Filtering Mail with Sendmail</TITLE>
+</HEAD>
+<BODY>
+<!--
+$Id: index.html,v 1.14 2013-11-22 20:51:39 ca Exp $
+-->
+
+<H1>Filtering Mail with Sendmail</H1>
+
+<!--
+<P><B>Disclaimer</B>: 
+This preliminary API description is provided for review only.  This
+specification may change based on feedback from reviewers, and does
+not bind Sendmail to offer this functionality in any release.
+-->
+
+<H2>Introduction</H2>
+
+<P>
+Sendmail's Content Management API (milter) provides third-party
+programs to access mail messages as they are being processed by the
+Mail Transfer Agent (MTA), allowing them to examine and modify message
+content and meta-information.  Filtering policies implemented by
+Milter-conformant filters may then be centrally configured and
+composed in an end-user's MTA configuration file.
+
+<P>
+Possible uses for filters include spam rejection, virus
+filtering, and content control.  In general, Milter seeks to address
+site-wide filtering concerns in a scalable way.  Individual users' mail
+filtering needs (e.g. sorting messages by subject) are left to
+client-level programs such as <A href="http://www.procmail.org">Procmail</A>.
+
+<P>
+This document is a technical introduction intended for those
+interested in developing Milter filters.  It includes:
+<UL>
+<LI>A description of Milter's design goals.
+
+<LI>An explanation of Milter application architecture, including
+interactions between the support library and user code, and between
+filters and the MTA.
+
+<LI>A specification of the C application programming interface.
+<LI>An example of a simple Milter filter.
+</UL>
+
+<H2>Contents</H2>
+
+<UL>
+<LI><A href="design.html">Architecture</A>
+<UL>
+    <LI>Design Goals
+    <LI>Implementing Filtering Policies
+    <LI>MTA - Filter communication
+</UL>
+<LI><A href="overview.html">Technical Overview</A>
+<UL>
+    <LI>Initialization
+    <LI>Control flow
+    <LI>Multithreading
+    <LI>Resource Management
+    <LI>Signal Handling
+</UL>
+<LI><A href="api.html">API Documentation</A>
+<UL>
+    <LI>Library Control Functions
+    <LI>Data Access Functions
+    <LI>Message Modification Functions
+    <LI>Callbacks
+</UL>
+<LI><A href="installation.html">Installation and Configuration</A>
+<UL>
+    <LI>Compiling and Installing Your Filter
+    <LI>Configuring Sendmail
+</UL>
+<LI><A href="sample.html">A Sample Filter</A>
+<!-- <LI><A href="other.html">Other Sources of Information</A> -->
+</UL>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000, 2001, 2003 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

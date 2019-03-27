@@ -1,0 +1,76 @@
+.\" @(#)bootparamd.8
+.\" $FreeBSD$
+.Dd December 14, 2000
+.Dt BOOTPARAMD 8
+.Os
+.Sh NAME
+.Nm bootparamd
+.Nd boot parameter server
+.Sh SYNOPSIS
+.Nm
+.Op Fl ds
+.Op Fl r Ar router
+.Op Fl f Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility is a server process that provides information to
+.Xr diskless 8
+clients necessary for booting.
+It consults the
+.Pa /etc/bootparams
+file.
+.Pp
+This version will allow the use of aliases on the hostname in the
+.Pa /etc/bootparams
+file.
+The returned hostname to the
+.Em whoami
+request done by the booting client
+will be the name that appears in
+.Pa /etc/bootparams
+and not the canonical name.
+In this way you can keep the answer short enough
+so that machines that cannot handle long hostnames will not fail during boot.
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl d
+Display the debugging information.
+.It Fl s
+Log the debugging information with
+.Xr syslog 3 .
+.It Fl r Ar router
+The default router (a machine or an IP-address).
+This defaults to the machine running the server.
+.It Fl f Ar file
+The file to use as boot parameter file instead of
+.Pa /etc/bootparams .
+.El
+.Sh FILES
+.Bl -tag -width /etc/bootparams -compact
+.It Pa /etc/bootparams
+default boot parameter file
+.El
+.Sh EXAMPLES
+When netbooting diskless SunOS/Xkernel SPARCstations the booted SunOS kernel
+also broadcasts to the all-0 address.
+The SunOS kernel hangs until it receives a reply.
+To accommodate this behaviour add an alias address
+that responds to an all-0 broadcast.
+So, add something like
+.Ql "ifconfig xl0 192.168.200.254 netmask 255.255.255.255 broadcast 192.168.200.0 alias"
+on the relevant network interface on your
+.Nm
+server.
+The alias address must of course be free for use.
+.Sh SEE ALSO
+.Xr syslog 3 ,
+.Xr bootparams 5 ,
+.Xr diskless 8
+.Sh AUTHORS
+Written by
+.An Klas Heggemann Aq Mt klas@nada.kth.se .
+.Sh BUGS
+You may find the
+.Xr syslog 3
+loggings to be verbose.

@@ -1,0 +1,228 @@
+.\" Copyright (c) 2008 Christian Brueffer
+.\" Copyright (c) 2008 Jeffrey Roberson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 3, 2018
+.Dt CPUSET 1
+.Os
+.Sh NAME
+.Nm cpuset
+.Nd "configure processor sets"
+.Sh SYNOPSIS
+.Nm
+.Op Fl l Ar cpu-list
+.Op Fl n Ar policy:domain-list 
+.Op Fl s Ar setid
+.Ar cmd ...
+.Nm
+.Op Fl l Ar cpu-list
+.Op Fl n Ar policy:domain-list 
+.Op Fl s Ar setid
+.Fl p Ar pid
+.Nm
+.Op Fl c
+.Op Fl l Ar cpu-list
+.Op Fl n Ar policy:domain-list 
+.Fl C
+.Fl p Ar pid
+.Nm
+.Op Fl c
+.Op Fl l Ar cpu-list
+.Op Fl n Ar policy:domain-list 
+.Op Fl j Ar jail | Fl p Ar pid | Fl t Ar tid | Fl s Ar setid | Fl x Ar irq
+.Nm
+.Fl g
+.Op Fl cir
+.Op Fl d Ar domain | Fl j Ar jail | Fl p Ar pid | Fl t Ar tid | Fl s Ar setid | Fl x Ar irq
+.Sh DESCRIPTION
+The
+.Nm
+command can be used to assign processor sets to processes, run commands
+constrained to a given set or list of processors and memory domains, and query
+information about processor binding, memory binding and policy, sets, and
+available processors and memory domains in the system.
+.Pp
+.Nm
+requires a target to modify or query.
+The target may be specified as a command, process id, thread id, a
+cpuset id, an irq, a jail, or a NUMA domain.
+Using
+.Fl g
+the target's set id or mask may be queried.
+Using
+.Fl l
+or
+.Fl s
+the target's CPU mask or set id may be set.
+If no target is specified,
+.Nm
+operates on itself.
+Not all combinations of operations and targets are supported.
+For example,
+you may not set the id of an existing set or query and launch a command
+at the same time.
+.Pp
+There are two sets applicable to each process and one private mask per thread.
+Every process in the system belongs to a cpuset.
+By default processes are started in set 1.
+The mask or id may be queried using
+.Fl c .
+Each thread also has a private mask of CPUs it is allowed to run
+on that must be a subset of the assigned set.
+And finally, there is a root set, numbered 0, that is immutable.
+This last set is the list of all possible CPUs in the system and is
+queried using
+.Fl r .
+.Pp
+Most sets include NUMA memory domain and policy information.  This can be
+inspected with
+.Fl g
+and set with
+.Fl n .
+This will specify which NUMA domains are visible to the process and
+affect where anonymous memory and file pages will be stored on first access.
+Files accessed first by other processes may specify conflicting policy.
+.Pp
+When running a command it may join a set specified with
+.Fl s
+otherwise a new set is created.
+In addition, a mask for the command may be specified using
+.Fl l .
+When used in conjunction with
+.Fl c
+the mask modifies the supplied or created set rather than the private mask
+for the thread.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl l Ar cpu-list"
+.It Fl C
+Create a new cpuset and assign the target process to that set.
+.It Fl c
+The requested operation should reference the cpuset available via the
+target specifier.
+.It Fl d Ar domain
+Specifies a NUMA domain id as the target of the operation.  This can only
+be used to query the cpus visible in each numberd domain.
+.It Fl g
+Causes
+.Nm
+to print either a list of valid CPUs or, using
+.Fl i ,
+the id of the target.
+.It Fl i
+When used with the
+.Fl g
+option print the id rather than the valid mask of the target.
+.It Fl j Ar jail
+Specifies a jail id or name as the target of the operation.
+.It Fl l Ar cpu-list
+Specifies a list of CPUs to apply to a target.
+Specification may include
+numbers separated by '-' for ranges and commas separating individual numbers.
+A special list of
+.Dq all
+may be specified in which case the list includes all CPUs from the root set.
+.It Fl n Ar policy:domain-list
+Specifies a list of domains and allocation policy to apply to a target.  Ranges
+may be specified as in
+.Fl l .
+Valid policies include first-touch (ft), round-robin (rr), prefer and
+interleave (il).
+First-touch allocates on the local domain when memory is available.
+Round-robin alternates between every possible domain page at at time.
+The prefer policy accepts only a single domain in the set.
+The parent of the set is consulted if the preferred domain is unavailable.
+Interleave operates like round-robin with an implementation defined stripe
+width.
+See
+.Xr domainset 9
+for more details on policies.
+.It Fl p Ar pid
+Specifies a pid as the target of the operation.
+.It Fl s Ar setid
+Specifies a set id as the target of the operation.
+.It Fl r
+The requested operation should reference the root set available via the
+target specifier.
+.It Fl t Ar tid
+Specifies a thread id as the target of the operation.
+.It Fl x Ar irq
+Specifies an irq as the target of the operation.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Create a new group with CPUs 0-4 inclusive and run
+.Pa /bin/sh
+on it:
+.Dl cpuset -c -l 0-4 /bin/sh
+.Pp
+Query the mask of CPUs the
+.Aq sh pid
+is allowed to run on:
+.Dl cpuset -g -p <sh pid>
+.Pp
+Restrict
+.Pa /bin/sh
+to run on CPUs 0 and 2 while its group is still allowed to run on
+CPUs 0-4:
+.Dl cpuset -l 0,2 -p <sh pid>
+.Pp
+Modify the cpuset
+.Pa /bin/sh
+belongs to restricting it to CPUs 0 and 2:
+.Dl cpuset -l 0,2 -c -p <sh pid>
+.Pp
+Modify the cpuset all threads are in by default to contain only
+the first 4 CPUs, leaving the rest idle:
+.Dl cpuset -l 0-3 -s 1
+.Pp
+Print the id of the cpuset
+.Pa /bin/sh
+is in:
+.Dl cpuset -g -i -p <sh pid>
+.Pp
+Move the
+.Ar pid
+into the specified cpuset
+.Ar setid
+so it may be managed with other pids in that set:
+.Dl cpuset -s <setid> -p <pid>
+.Pp
+Create a new cpuset that is restricted to CPUs 0 and 2 and move
+.Ar pid
+into the new set:
+.Dl cpuset -C -c -l 0,2 -p <pid>
+.Sh SEE ALSO
+.Xr cpuset 2 ,
+.Xr rctl 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 7.1 .
+.Sh AUTHORS
+.An Jeffrey Roberson Aq Mt jeff@FreeBSD.org

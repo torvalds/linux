@@ -1,0 +1,91 @@
+@c Copyright 1992, 1993, 1994, 1996, 1997, 1999, 2000, 2001, 2002,
+@c 2003, 2005
+@c Free Software Foundation, Inc.
+@c This file is part of the documentation for the GAS manual
+
+@c Configuration settings for all-inclusive version of manual
+
+@c switches:------------------------------------------------------------
+@c Properties of the manual
+@c ========================
+@c Discuss all architectures?
+@set ALL-ARCH
+@c A generic form of manual (not tailored to specific target)?
+@set GENERIC
+@c Include text on assembler internals?
+@clear INTERNALS
+@c Many object formats supported in this config?
+@set MULTI-OBJ
+
+@c Object formats of interest
+@c ==========================
+@set AOUT
+@set COFF
+@set ELF
+@set SOM
+
+@c CPUs of interest
+@c ================
+@set ALPHA
+@set ARC
+@set ARM
+@set AVR
+@set BFIN
+@set CR16
+@set CRIS
+@set D10V
+@set D30V
+@set H8/300
+@set HPPA
+@set I370
+@set I80386
+@set I860
+@set I960
+@set IA64
+@set IP2K
+@set M32C
+@set M32R
+@set xc16x
+@set M68HC11
+@set M680X0
+@set MCORE
+@set MIPS
+@set MMIX
+@set MS1
+@set MSP430
+@set PDP11
+@set PJ
+@set PPC
+@set SH
+@set SPARC
+@set TIC54X
+@set V850
+@set VAX
+@set XTENSA
+@set Z80
+@set Z8000
+
+@c Does this version of the assembler use the difference-table kludge?
+@set DIFF-TBL-KLUGE
+
+@c Do all machines described use IEEE floating point?
+@clear IEEEFLOAT
+
+@c Is a word 32 bits, or 16?
+@clear W32
+@set W16
+
+@c Do symbols have different characters than usual?
+@clear SPECIAL-SYMS
+
+@c strings:------------------------------------------------------------
+@c Name of the assembler:
+@set AS as
+@c Name of C compiler:
+@set GCC gcc
+@c Name of linker:
+@set LD ld
+@c Text for target machine (best not used in generic case; but just in case...)
+@set TARGET machine specific
+@c Name of object format NOT SET in generic version
+@clear OBJ-NAME

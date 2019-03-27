@@ -1,0 +1,79 @@
+.\" Copyright (c) 2010 Joseph Koshy
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_whatattr.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd May 22, 2010
+.Dt DWARF_WHATATTR 3
+.Os
+.Sh NAME
+.Nm dwarf_whatattr
+.Nd retrieve the attribute code for a DWARF attribute
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_whatattr
+.Fa "Dwarf_Attribute attr"
+.Fa "Dwarf_Half *retcode"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_whatattr
+retrieves the attribute code for the DWARF attribute referenced
+by argument
+.Ar attr ,
+and writes it to the location pointed to by argument
+.Ar retcode .
+If argument
+.Ar err
+is not NULL, it will be used to return an error descriptor in case
+of an error.
+.Sh RETURN VALUES
+On success, function
+.Fn dwarf_whatattr
+returns
+.Dv DW_DLV_OK .
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets argument
+.Ar err .
+.Sh ERRORS
+Function
+.Fn dwarf_whatattr
+can fail with the following error:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Either of argument
+.Va attr
+or
+.Va retcode
+was NULL.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_attr 3 ,
+.Xr dwarf_hasattr 3

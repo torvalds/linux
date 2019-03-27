@@ -1,0 +1,57 @@
+# $FreeBSD$
+#
+# Specific board setup for the D-Link DIR-825C1 router.
+#
+# The DIR-825C1 has the following hardware:
+#
+# + AR9344 CPU SoC 74k MIPS
+# + ARxxx 2.4GHz 11n
+# + ARXXX 5GHz 11n
+# + AR8327 Gigabit switch
+# + m25p80 based 16MB flash
+# + 128MB RAM
+# + uboot environment
+
+#NO_UNIVERSE
+
+# Include the default AR934x parameters
+include         "std.AR934X"
+ident           DIR825C1
+
+# Override hints with board values
+hints           "DIR-825C1.hints"
+
+# Force the board memory - the base DB120 has 128MB RAM
+options         AR71XX_REALMEM=(128*1024*1024)
+
+# Options required for miiproxy and mdiobus
+options 	ARGE_MDIO	# Export an MDIO bus separate from arge
+device		miiproxy	# MDIO bus <-> MII PHY rendezvous
+
+device		etherswitch
+device		arswitch
+
+# read MSDOS formatted disks - USB
+options		MSDOSFS
+
+# Enable the uboot environment stuff rather then the
+# redboot stuff.
+options		AR71XX_ENV_UBOOT
+
+# Used for the static uboot partition map
+device          geom_map
+
+# uzip - to boot natively from flash
+options 	GEOM_UZIP
+options         GEOM_PART_GPT
+device		xz
+
+# Boot off of the rootfs, as defined in the geom_map setup.
+options         ROOTDEVNAME=\"ufs:map/rootfs.uzip\"
+
+# In order to netboot, you have to build the mfsroot into the kernel
+# 19443712 or 19M is the biggest rootfs via netboot this thing supports
+#options         MD_ROOT         # md device usable as a potential root device
+#options         MD_ROOT_SIZE=19444
+#makeoptions     MFS_IMAGE=/tftpboot/mfsroot-dir825c1.img.ulzma
+#options         ROOTDEVNAME=\"ufs:md0.uzip\"

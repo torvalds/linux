@@ -1,0 +1,319 @@
+=pod
+
+=head1 NAME
+
+openssl-pkcs8,
+pkcs8 - PKCS#8 format private key conversion tool
+
+=head1 SYNOPSIS
+
+B<openssl> B<pkcs8>
+[B<-help>]
+[B<-topk8>]
+[B<-inform PEM|DER>]
+[B<-outform PEM|DER>]
+[B<-in filename>]
+[B<-passin arg>]
+[B<-out filename>]
+[B<-passout arg>]
+[B<-iter count>]
+[B<-noiter>]
+[B<-rand file...>]
+[B<-writerand file>]
+[B<-nocrypt>]
+[B<-traditional>]
+[B<-v2 alg>]
+[B<-v2prf alg>]
+[B<-v1 alg>]
+[B<-engine id>]
+[B<-scrypt>]
+[B<-scrypt_N N>]
+[B<-scrypt_r r>]
+[B<-scrypt_p p>]
+
+=head1 DESCRIPTION
+
+The B<pkcs8> command processes private keys in PKCS#8 format. It can handle
+both unencrypted PKCS#8 PrivateKeyInfo format and EncryptedPrivateKeyInfo
+format with a variety of PKCS#5 (v1.5 and v2.0) and PKCS#12 algorithms.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-topk8>
+
+Normally a PKCS#8 private key is expected on input and a private key will be
+written to the output file. With the B<-topk8> option the situation is
+reversed: it reads a private key and writes a PKCS#8 format key.
+
+=item B<-inform DER|PEM>
+
+This specifies the input format: see L<KEY FORMATS> for more details. The default
+format is PEM.
+
+=item B<-outform DER|PEM>
+
+This specifies the output format: see L<KEY FORMATS> for more details. The default
+format is PEM.
+
+=item B<-traditional>
+
+When this option is present and B<-topk8> is not a traditional format private
+key is written.
+
+=item B<-in filename>
+
+This specifies the input filename to read a key from or standard input if this
+option is not specified. If the key is encrypted a pass phrase will be
+prompted for.
+
+=item B<-passin arg>
+
+The input file password source. For more information about the format of B<arg>
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
+
+=item B<-out filename>
+
+This specifies the output filename to write a key to or standard output by
+default. If any encryption options are set then a pass phrase will be
+prompted for. The output filename should B<not> be the same as the input
+filename.
+
+=item B<-passout arg>
+
+The output file password source. For more information about the format of B<arg>
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
+
+=item B<-iter count>
+
+When creating new PKCS#8 containers, use a given number of iterations on
+the password in deriving the encryption key for the PKCS#8 output.
+High values increase the time required to brute-force a PKCS#8 container.
+
+=item B<-nocrypt>
+
+PKCS#8 keys generated or input are normally PKCS#8 EncryptedPrivateKeyInfo
+structures using an appropriate password based encryption algorithm. With
+this option an unencrypted PrivateKeyInfo structure is expected or output.
+This option does not encrypt private keys at all and should only be used
+when absolutely necessary. Certain software such as some versions of Java
+code signing software used unencrypted private keys.
+
+=item B<-rand file...>
+
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
+The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
+all others.
+
+=item [B<-writerand file>]
+
+Writes random data to the specified I<file> upon exit.
+This can be used with a subsequent B<-rand> flag.
+
+=item B<-v2 alg>
+
+This option sets the PKCS#5 v2.0 algorithm.
+
+The B<alg> argument is the encryption algorithm to use, valid values include
+B<aes128>, B<aes256> and B<des3>. If this option isn't specified then B<aes256>
+is used.
+
+=item B<-v2prf alg>
+
+This option sets the PRF algorithm to use with PKCS#5 v2.0. A typical value
+value would be B<hmacWithSHA256>. If this option isn't set then the default
+for the cipher is used or B<hmacWithSHA256> if there is no default.
+
+Some implementations may not support custom PRF algorithms and may require
+the B<hmacWithSHA1> option to work.
+
+=item B<-v1 alg>
+
+This option indicates a PKCS#5 v1.5 or PKCS#12 algorithm should be used.  Some
+older implementations may not support PKCS#5 v2.0 and may require this option.
+If not specified PKCS#5 v2.0 form is used.
+
+=item B<-engine id>
+
+Specifying an engine (by its unique B<id> string) will cause B<pkcs8>
+to attempt to obtain a functional reference to the specified engine,
+thus initialising it if needed. The engine will then be set as the default
+for all available algorithms.
+
+=item B<-scrypt>
+
+Uses the B<scrypt> algorithm for private key encryption using default
+parameters: currently N=16384, r=8 and p=1 and AES in CBC mode with a 256 bit
+key. These parameters can be modified using the B<-scrypt_N>, B<-scrypt_r>,
+B<-scrypt_p> and B<-v2> options.
+
+=item B<-scrypt_N N> B<-scrypt_r r> B<-scrypt_p p>
+
+Sets the scrypt B<N>, B<r> or B<p> parameters.
+
+=back
+
+=head1 KEY FORMATS
+
+Various different formats are used by the pkcs8 utility. These are detailed
+below.
+
+If a key is being converted from PKCS#8 form (i.e. the B<-topk8> option is
+not used) then the input file must be in PKCS#8 format. An encrypted
+key is expected unless B<-nocrypt> is included.
+
+If B<-topk8> is not used and B<PEM> mode is set the output file will be an
+unencrypted private key in PKCS#8 format. If the B<-traditional> option is
+used then a traditional format private key is written instead.
+
+If B<-topk8> is not used and B<DER> mode is set the output file will be an
+unencrypted private key in traditional DER format.
+
+If B<-topk8> is used then any supported private key can be used for the input
+file in a format specified by B<-inform>. The output file will be encrypted
+PKCS#8 format using the specified encryption parameters unless B<-nocrypt>
+is included.
+
+=head1 NOTES
+
+By default, when converting a key to PKCS#8 format, PKCS#5 v2.0 using 256 bit
+AES with HMAC and SHA256 is used.
+
+Some older implementations do not support PKCS#5 v2.0 format and require
+the older PKCS#5 v1.5 form instead, possibly also requiring insecure weak
+encryption algorithms such as 56 bit DES.
+
+The encrypted form of a PEM encode PKCS#8 files uses the following
+headers and footers:
+
+ -----BEGIN ENCRYPTED PRIVATE KEY-----
+ -----END ENCRYPTED PRIVATE KEY-----
+
+The unencrypted form uses:
+
+ -----BEGIN PRIVATE KEY-----
+ -----END PRIVATE KEY-----
+
+Private keys encrypted using PKCS#5 v2.0 algorithms and high iteration
+counts are more secure that those encrypted using the traditional
+SSLeay compatible formats. So if additional security is considered
+important the keys should be converted.
+
+It is possible to write out DER encoded encrypted private keys in
+PKCS#8 format because the encryption details are included at an ASN1
+level whereas the traditional format includes them at a PEM level.
+
+=head1 PKCS#5 v1.5 and PKCS#12 algorithms.
+
+Various algorithms can be used with the B<-v1> command line option,
+including PKCS#5 v1.5 and PKCS#12. These are described in more detail
+below.
+
+=over 4
+
+=item B<PBE-MD2-DES PBE-MD5-DES>
+
+These algorithms were included in the original PKCS#5 v1.5 specification.
+They only offer 56 bits of protection since they both use DES.
+
+=item B<PBE-SHA1-RC2-64>, B<PBE-MD2-RC2-64>, B<PBE-MD5-RC2-64>, B<PBE-SHA1-DES>
+
+These algorithms are not mentioned in the original PKCS#5 v1.5 specification
+but they use the same key derivation algorithm and are supported by some
+software. They are mentioned in PKCS#5 v2.0. They use either 64 bit RC2 or
+56 bit DES.
+
+=item B<PBE-SHA1-RC4-128>, B<PBE-SHA1-RC4-40>, B<PBE-SHA1-3DES>, B<PBE-SHA1-2DES>, B<PBE-SHA1-RC2-128>, B<PBE-SHA1-RC2-40>
+
+These algorithms use the PKCS#12 password based encryption algorithm and
+allow strong encryption algorithms like triple DES or 128 bit RC2 to be used.
+
+=back
+
+=head1 EXAMPLES
+
+Convert a private key to PKCS#8 format using default parameters (AES with
+256 bit key and B<hmacWithSHA256>):
+
+ openssl pkcs8 -in key.pem -topk8 -out enckey.pem
+
+Convert a private key to PKCS#8 unencrypted format:
+
+ openssl pkcs8 -in key.pem -topk8 -nocrypt -out enckey.pem
+
+Convert a private key to PKCS#5 v2.0 format using triple DES:
+
+ openssl pkcs8 -in key.pem -topk8 -v2 des3 -out enckey.pem
+
+Convert a private key to PKCS#5 v2.0 format using AES with 256 bits in CBC
+mode and B<hmacWithSHA512> PRF:
+
+ openssl pkcs8 -in key.pem -topk8 -v2 aes-256-cbc -v2prf hmacWithSHA512 -out enckey.pem
+
+Convert a private key to PKCS#8 using a PKCS#5 1.5 compatible algorithm
+(DES):
+
+ openssl pkcs8 -in key.pem -topk8 -v1 PBE-MD5-DES -out enckey.pem
+
+Convert a private key to PKCS#8 using a PKCS#12 compatible algorithm
+(3DES):
+
+ openssl pkcs8 -in key.pem -topk8 -out enckey.pem -v1 PBE-SHA1-3DES
+
+Read a DER unencrypted PKCS#8 format private key:
+
+ openssl pkcs8 -inform DER -nocrypt -in key.der -out key.pem
+
+Convert a private key from any PKCS#8 encrypted format to traditional format:
+
+ openssl pkcs8 -in pk8.pem -traditional -out key.pem
+
+Convert a private key to PKCS#8 format, encrypting with AES-256 and with
+one million iterations of the password:
+
+ openssl pkcs8 -in key.pem -topk8 -v2 aes-256-cbc -iter 1000000 -out pk8.pem
+
+=head1 STANDARDS
+
+Test vectors from this PKCS#5 v2.0 implementation were posted to the
+pkcs-tng mailing list using triple DES, DES and RC2 with high iteration
+counts, several people confirmed that they could decrypt the private
+keys produced and Therefore it can be assumed that the PKCS#5 v2.0
+implementation is reasonably accurate at least as far as these
+algorithms are concerned.
+
+The format of PKCS#8 DSA (and other) private keys is not well documented:
+it is hidden away in PKCS#11 v2.01, section 11.9. OpenSSL's default DSA
+PKCS#8 private key format complies with this standard.
+
+=head1 BUGS
+
+There should be an option that prints out the encryption algorithm
+in use and other details such as the iteration count.
+
+=head1 SEE ALSO
+
+L<dsa(1)>, L<rsa(1)>, L<genrsa(1)>,
+L<gendsa(1)>
+
+=head1 HISTORY
+
+The B<-iter> option was added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

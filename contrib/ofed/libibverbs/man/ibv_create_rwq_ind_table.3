@@ -1,0 +1,59 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH CREATE_RWQ_IND_TBL 3  2016-07-27 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_create_rwq_ind_table, ibv_destroy_rwq_ind_table  \- create or destroy a Receive Work Queue Indirection Table (RWQ IND TBL).
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "struct ibv_rwq_ind_table *ibv_create_rwq_ind_table(struct ibv_context " "*context,"
+.BI "                                                           struct ibv_rwq_ind_table_init_attr " "*init_attr" );
+.sp
+.BI "int ibv_destroy_rwq_ind_table(struct ibv_rwq_ind_table " "*rwq_ind_table" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_create_rwq_ind_table()
+creates a RWQ IND TBL associated with the ibv_context
+.I context\fR.
+The argument
+.I init_attr
+is an ibv_rwq_ind_table_init_attr struct, as defined in <infiniband/verbs.h>.
+.PP
+.nf
+struct ibv_rwq_ind_table_init_attr {
+.in +8
+uint32_t        log_ind_tbl_size;     /* Log, base 2, of Indirection table size */
+struct          ibv_wq **ind_tbl;     /* Each entry is a pointer to Receive Work Queue */
+uint32_t        comp_mask;            /* Identifies valid fields. Use ibv_ind_table_init_attr_mask */
+.in -8
+};
+.fi
+.PP
+The function
+.B ibv_create_rwq_ind_table()
+will create a RWQ IND TBL that holds a table of Receive Work Queue.
+For further usage of the created object see below
+.I NOTES\fR.
+.PP
+.B ibv_destroy_rwq_ind_table()
+destroys the RWQ IND TBL
+.I rwq_ind_table\fR.
+.SH "RETURN VALUE"
+.B ibv_create_rwq_ind_table()
+returns a pointer to the created RWQ IND TBL, or NULL if the request fails.
+.PP
+.B ibv_destroy_rwq_ind_table()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+The created object should be used as part of
+.I ibv_create_qp_ex()
+to enable dispatching of incoming packets based on some RX hash configuration.
+.SH "SEE ALSO"
+.BR ibv_create_wq (3),
+.BR ibv_modify_wq (3),
+.BR ibv_create_qp_ex (3),
+.SH "AUTHORS"
+.TP
+Yishai Hadas <yishaih@mellanox.com>

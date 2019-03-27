@@ -1,0 +1,28 @@
+
+#------------------------------------------------------------------------------
+# $File: gpu,v 1.2 2017/03/23 22:11:53 christos Exp $
+# gpu: file(1) magic for GPU input files
+
+# Standard Portable Intermediate Representation (SPIR)
+# Documentation: https://www.khronos.org/spir
+# Typical file extension: .spv
+
+0	belong	0x07230203	Khronos SPIR-V binary, big-endian
+>4	belong	x		\b, version 0x%08x
+>8	belong	x		\b, generator 0x%08x
+
+0	lelong	0x07230203      Khronos SPIR-V binary, little-endian
+>4	lelong	x		\b, version 0x%08x
+>8	lelong	x		\b, generator 0x%08x
+
+# Vulkan Trace file
+# Documentation:
+# https://github.com/LunarG/VulkanTools/blob/master/vktrace/vktrace_common/\
+# vktrace_trace_packet_identifiers.h
+# Typical file extension: .vktrace
+
+8	lequad  0xABADD068ADEAFD0C	Vulkan trace file, little-endian
+>0	leshort	x			\b, version %d
+
+8	bequad  0xABADD068ADEAFD0C	Vulkan trace file, big-endian
+>0	beshort	x			\b, version %d

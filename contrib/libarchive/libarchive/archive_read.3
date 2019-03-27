@@ -1,0 +1,252 @@
+.\" Copyright (c) 2003-2007 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 2, 2012
+.Dt ARCHIVE_READ 3
+.Os
+.Sh NAME
+.Nm archive_read
+.Nd functions for reading streaming archives
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive.h
+.Sh DESCRIPTION
+These functions provide a complete API for reading streaming archives.
+The general process is to first create the
+.Tn struct archive
+object, set options, initialize the reader, iterate over the archive
+headers and associated data, then close the archive and release all
+resources.
+.\"
+.Ss Create archive object
+See
+.Xr archive_read_new 3 .
+.Pp
+To read an archive, you must first obtain an initialized
+.Tn struct archive
+object from
+.Fn archive_read_new .
+.\"
+.Ss Enable filters and formats
+See
+.Xr archive_read_filter 3
+and
+.Xr archive_read_format 3 .
+.Pp
+You can then modify this object for the desired operations with the
+various
+.Fn archive_read_set_XXX
+and
+.Fn archive_read_support_XXX
+functions.
+In particular, you will need to invoke appropriate
+.Fn archive_read_support_XXX
+functions to enable the corresponding compression and format
+support.
+Note that these latter functions perform two distinct operations:
+they cause the corresponding support code to be linked into your
+program, and they enable the corresponding auto-detect code.
+Unless you have specific constraints, you will generally want
+to invoke
+.Fn archive_read_support_filter_all
+and
+.Fn archive_read_support_format_all
+to enable auto-detect for all formats and compression types
+currently supported by the library.
+.\"
+.Ss Set options
+See
+.Xr archive_read_set_options 3 .
+.\"
+.Ss Open archive
+See
+.Xr archive_read_open 3 .
+.Pp
+Once you have prepared the
+.Tn struct archive
+object, you call
+.Fn archive_read_open
+to actually open the archive and prepare it for reading.
+There are several variants of this function;
+the most basic expects you to provide pointers to several
+functions that can provide blocks of bytes from the archive.
+There are convenience forms that allow you to
+specify a filename, file descriptor,
+.Ft "FILE *"
+object, or a block of memory from which to read the archive data.
+Note that the core library makes no assumptions about the
+size of the blocks read;
+callback functions are free to read whatever block size is
+most appropriate for the medium.
+.\"
+.Ss Consume archive
+See
+.Xr archive_read_header 3 ,
+.Xr archive_read_data 3
+and
+.Xr archive_read_extract 3 .
+.Pp
+Each archive entry consists of a header followed by a certain
+amount of data.
+You can obtain the next header with
+.Fn archive_read_next_header ,
+which returns a pointer to an
+.Tn struct archive_entry
+structure with information about the current archive element.
+If the entry is a regular file, then the header will be followed
+by the file data.
+You can use
+.Fn archive_read_data
+(which works much like the
+.Xr read 2
+system call)
+to read this data from the archive, or
+.Fn archive_read_data_block
+which provides a slightly more efficient interface.
+You may prefer to use the higher-level
+.Fn archive_read_data_skip ,
+which reads and discards the data for this entry,
+.Fn archive_read_data_into_fd ,
+which copies the data to the provided file descriptor, or
+.Fn archive_read_extract ,
+which recreates the specified entry on disk and copies data
+from the archive.
+In particular, note that
+.Fn archive_read_extract
+uses the
+.Tn struct archive_entry
+structure that you provide it, which may differ from the
+entry just read from the archive.
+In particular, many applications will want to override the
+pathname, file permissions, or ownership.
+.\"
+.Ss Release resources
+See
+.Xr archive_read_free 3 .
+.Pp
+Once you have finished reading data from the archive, you
+should call
+.Fn archive_read_close
+to close the archive, then call
+.Fn archive_read_free
+to release all resources, including all memory allocated by the library.
+.\"
+.Sh EXAMPLE
+The following illustrates basic usage of the library.
+In this example,
+the callback functions are simply wrappers around the standard
+.Xr open 2 ,
+.Xr read 2 ,
+and
+.Xr close 2
+system calls.
+.Bd -literal -offset indent
+void
+list_archive(const char *name)
+{
+  struct mydata *mydata;
+  struct archive *a;
+  struct archive_entry *entry;
+
+  mydata = malloc(sizeof(struct mydata));
+  a = archive_read_new();
+  mydata->name = name;
+  archive_read_support_filter_all(a);
+  archive_read_support_format_all(a);
+  archive_read_open(a, mydata, myopen, myread, myclose);
+  while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
+    printf("%s\en",archive_entry_pathname(entry));
+    archive_read_data_skip(a);
+  }
+  archive_read_free(a);
+  free(mydata);
+}
+
+la_ssize_t
+myread(struct archive *a, void *client_data, const void **buff)
+{
+  struct mydata *mydata = client_data;
+
+  *buff = mydata->buff;
+  return (read(mydata->fd, mydata->buff, 10240));
+}
+
+int
+myopen(struct archive *a, void *client_data)
+{
+  struct mydata *mydata = client_data;
+
+  mydata->fd = open(mydata->name, O_RDONLY);
+  return (mydata->fd >= 0 ? ARCHIVE_OK : ARCHIVE_FATAL);
+}
+
+int
+myclose(struct archive *a, void *client_data)
+{
+  struct mydata *mydata = client_data;
+
+  if (mydata->fd > 0)
+    close(mydata->fd);
+  return (ARCHIVE_OK);
+}
+.Ed
+.\" .Sh ERRORS
+.Sh SEE ALSO
+.Xr tar 1 ,
+.Xr libarchive 3 ,
+.Xr archive_read_new 3 ,
+.Xr archive_read_data 3 ,
+.Xr archive_read_extract 3 ,
+.Xr archive_read_filter 3 ,
+.Xr archive_read_format 3 ,
+.Xr archive_read_header 3 ,
+.Xr archive_read_open 3 ,
+.Xr archive_read_set_options 3 ,
+.Xr archive_util 3 ,
+.Xr tar 5
+.Sh HISTORY
+The
+.Nm libarchive
+library first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm libarchive
+library was written by
+.An Tim Kientzle Aq kientzle@acm.org .
+.Sh BUGS
+Many traditional archiver programs treat
+empty files as valid empty archives.
+For example, many implementations of
+.Xr tar 1
+allow you to append entries to an empty file.
+Of course, it is impossible to determine the format of an empty file
+by inspecting the contents, so this library treats empty files as
+having a special
+.Dq empty
+format.

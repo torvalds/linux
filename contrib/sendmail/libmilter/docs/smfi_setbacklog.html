@@ -1,0 +1,64 @@
+<HTML>
+<HEAD><TITLE>smfi_setbacklog</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_setbacklog.html,v 1.7 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_setbacklog</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_setbacklog(
+	int obacklog
+);
+</PRE>
+Set the filter's <CODE>listen(2)</CODE> backlog value.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>smfi_setbacklog should only be called before <A href="smfi_main.html">smfi_main</A>.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>Sets the incoming socket backlog used by <CODE>listen(2)</CODE>.
+If smfi_setbacklog is not called, the operating system default is used.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>obacklog</TD>
+	<TD>The number of incoming connections to allow in the listen queue.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>smfi_setbacklog returns MI_FAILURE if obacklog is less than or equal
+to zero.</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2002-2003 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

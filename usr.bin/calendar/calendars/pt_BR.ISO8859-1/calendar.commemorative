@@ -1,0 +1,191 @@
+/*
+ * $FreeBSD$
+ *
+ * Originally submitted by Renato Tambellini <rtsanch@gmail.com>
+ *
+ * Brazilian commemorative days
+ *
+ * http://www.ibge.gov.br/ibgeteen/datas/home.html
+ */
+
+#ifndef _pt_BR_ISO8859_1_commemorative_
+#define _pt_BR_ISO8859_1_commemorative_
+
+LANG=pt_BR.ISO8859-1
+
+01/06	Dia nacional do fotógrafo
+01/06	Dia da gratidão
+01/07	Dia da liberdade de culto
+01/09	Dia do Fico
+01/12	Aniversário de Belém
+01/20	Dia do farmacêutico
+01/20	Dia nacional do fusca
+01/21	Dia mundial da religião
+01/24	Dia da Previdência Social
+01/25	Dia do carteiro
+01/25	Aniversário da cidade de São Paulo
+01/28	Aniversário da abertura dos portos no Brasil, em 1808
+01/30	Dia da saudade
+02/01	Dia do publicitário
+02/04	Aniversário de Macapá
+02/07	Dia do gráfico
+02/16	Dia do repórter
+02/19	Dia do esportista
+03/01	Aniversário da cidade do Rio de Janeiro
+03/02	Dia do turismo
+03/05	Dia do filatelista brasileiro
+03/07	Dia do fuzileiro naval
+03/08	Dia internacional da mulher
+03/10	Dia do telefone
+03/12	Aniversário de Recife
+03/12	Dia do bibliotecário
+03/14	Dia nacional da poesia
+03/15	Dia da escola
+03/15	Dia mundial do consumidor
+03/17	Aniversário de Aracaju
+03/21	Dia da eliminação da discriminação racial
+03/22	Dia mundial da água
+03/23	Aniversário de Florianópolis
+03/23	Dia do meteorologista
+03/26	Aniversário de Porto Alegre
+03/27	Dia do circo
+03/27	Dia do teatro
+03/28	Dia do revisor e do diagramador
+03/29	Aniversário de Curitiba
+03/31	Aniversário do golpe militar
+04/01	Dia da mentira
+04/02	Dia internacional do livro para crianças
+04/07	Dia mundial da saúde
+04/07	Dia do jornalismo
+04/08	Dia mundial de combate ao câncer
+04/08	Dia da natação
+04/08	Aniversário de Cuiabá
+04/12	Aniversário de Fortaleza
+04/13	Dia dos jovens
+04/14	Dia internacional do café
+04/15	Dia mundial do desenhista
+04/15	Dia da conservação do solo
+04/19	Dia do índio
+04/20	Dia do diplomata
+04/21	Aniversário de Brasília
+04/21	Dia do metalúrgico
+04/22	Dia do descobrimento do Brasil
+04/22	Dia do planeta Terra
+04/22	Dia da Força Aérea Brasileira
+04/23	Dia mundial do escoteiro
+04/25	Dia do contabilista
+04/27	Dia da empregada doméstica
+04/28	Dia da educação
+04/30	Dia do ferroviário
+05/05	Dia do cartógrafo
+05/08	Dia do artista plástico
+05/08	Dia internacional da Cruz Vermelha
+05/12	Dia mundial do enfermeiro
+05/13	Dia da abolição da escravatura
+05/13	Dia do automóvel
+05/15	Dia do assistente social
+05/16	Dia do gari
+05/17	Dia internacional das telecomunicações
+05/18	Dia mundial dos museus
+05/20	Aniversário de Palmas
+05/21	Dia da Língua Nacional
+05/22	Dia do apicultor
+05/24	Dia do vestibulando
+05/25	Dia da indústria
+05/27	Dia do profissional liberal
+05/29	Dia do estatístico
+05/29	Dia do geógrafo
+05/30	Dia do geólogo
+06/01	Dia da imprensa
+06/04	Dia internacional das crianças vítimas de agressão
+06/05	Dia mundial do meio ambiente e da ecologia
+06/09	Dia do porteiro
+06/10	Dia da Língua Portuguesa
+06/11	Dia da Marinha do Brasil
+06/12	Dia dos namorados
+06/15	Dia do paleontólogo
+06/18	Dia do químico
+06/19	Dia do migrante
+06/21	Dia da música
+06/22	Dia do aeroviário
+06/25	Dia do imigrante
+06/26	Dia internacional do combate às drogas
+06/26	Dia do metrologista
+06/29	Dia da telefonista
+06/29	Dia do pescador
+07/01	Dia da vacina BCG
+07/02	Dia do bombeiro
+07/09	Aniversário de Boa Vista
+07/11	Dia mundial da população
+07/12	Dia do engenheiro florestal
+07/13	Dia mundial do rock
+07/17	Dia de proteção às florestas
+07/19	Dia do futebol
+07/20	Chegada do homem à Lua
+07/20	Dia da amizade
+07/25	Dia do escritor
+07/27	Dia nacional da prevenção de acidentes de trabalho
+07/28	Dia do agricultor
+08/11	Dia do advogado
+08/11	Dia da televisão
+08/13	Dia do economista
+08/15	Dia da informática
+08/16	Aniversário de Teresina
+08/21	Dia da habitação
+08/22	Dia do folclore
+08/25	Dia do soldado
+08/26	Aniversário de Campo Grande
+08/27	Dia do psicólogo
+08/31	Dia do nutricionista
+09/03	Dia do biólogo
+09/08	Dia mundial da alfabetização
+09/08	Aniversário de Vitória
+09/08	Aniversário de São Luís
+09/09	Dia do administrador
+09/09	Dia do médico veterinário
+09/16	Dia internacional para preservação da camada de ozônio
+09/18	Dia dos símbolos nacionais
+09/21	Dia do idoso
+09/21	Dia da árvore
+09/25	Dia do rádio
+09/25	Dia nacional do trânsito
+09/30	Dia da secretária
+10/04	Dia dos animais
+10/05	Dia da promulgação da atual Constituição brasileira
+10/11	Dia nacional da pessoa portadora de deficiência física
+10/12	Dia da criança
+10/12	Dia do descobrimento da América
+10/12	Dia do agrônomo
+10/13	Dia do fisioterapeuta
+10/14	Dia da pecuária
+10/15	Dia do professor
+10/16	Dia mundial da alimentação
+10/18	Dia do médico
+10/23	Dia do aviador
+10/24	Dia da ONU
+10/25	Dia da democracia
+10/25	Dia do dentista
+10/28	Dia do funcionário público
+10/29	Dia nacional do livro
+10/30	Dia do comércio
+10/31	Dia das bruxas
+11/05	Dia do cinema brasileiro
+11/19	Dia da bandeira
+11/20	Dia nacional da consciência negra
+11/30	Dia do teólogo
+11/30	Dia da reforma agrária
+12/01	Dia mundial de luta contra a AIDS
+12/02	Dia da astronomia
+12/03	Dia internacional das pessoas portadoras de deficiência
+12/04	Dia do orientador educacional
+12/05	Aniversário de Maceió
+12/05	Dia internacional do voluntário
+12/08	Dia da família
+12/09	Dia do fonoaudiólogo
+12/10	Dia da declaração dos direitos do homem
+12/11	Dia do engenheiro
+12/11	Dia do arquiteto
+12/12	Aniversário de Belo Horizonte
+12/28	Aniversário de Rio Branco
+
+#endif

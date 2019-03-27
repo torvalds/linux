@@ -1,0 +1,8 @@
+before while
+before dotcmd
+compound start
+before continue
+before dotcmd
+compound start
+before continue
+after while

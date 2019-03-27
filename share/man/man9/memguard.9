@@ -1,0 +1,206 @@
+.\" Copyright (c) 2005 Christian Brueffer
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 22, 2017
+.Dt MEMGUARD 9
+.Os
+.Sh NAME
+.Nm MemGuard
+.Nd "memory allocator for debugging purposes"
+.Sh SYNOPSIS
+.Cd "options DEBUG_MEMGUARD"
+.Sh DESCRIPTION
+.Nm
+is a simple and small replacement memory allocator designed
+to help detect tamper-after-free scenarios.
+These problems are more and more common and likely with
+multithreaded kernels where race conditions are more prevalent.
+.Pp
+.Nm
+can take over
+.Fn malloc ,
+.Fn realloc
+and
+.Fn free
+for a single malloc type.
+Alternatively
+.Nm
+can take over
+.Fn uma_zalloc ,
+.Fn uma_zalloc_arg
+and
+.Fn uma_free
+for a single
+.Xr uma 9
+zone.
+Also
+.Nm
+can guard all allocations larger than
+.Dv PAGE_SIZE ,
+and can guard a random fraction of all allocations.
+There is also a knob to prevent allocations smaller than a specified
+size from being guarded, to limit memory waste.
+.Sh EXAMPLES
+To use
+.Nm
+for a memory type, either add an entry to
+.Pa /boot/loader.conf :
+.Bd -literal -offset indent
+vm.memguard.desc=<memory_type>
+.Ed
+.Pp
+Or set the
+.Va vm.memguard.desc
+.Xr sysctl 8
+variable at run-time:
+.Bd -literal -offset indent
+sysctl vm.memguard.desc=<memory_type>
+.Ed
+.Pp
+Where
+.Ar memory_type
+can be either a short description of the memory type to monitor,
+either name of
+.Xr uma 9
+zone.
+Only allocations from that
+.Ar memory_type
+made after
+.Va vm.memguard.desc
+is set will potentially be guarded.
+If
+.Va vm.memguard.desc
+is modified at run-time then only allocations of the new
+.Ar memory_type
+will potentially be guarded once the
+.Xr sysctl 8
+is set.
+Existing guarded allocations will still be properly released by
+either
+.Xr free 9
+or
+.Xr uma_zfree 9 ,
+depending on what kind of allocation was taken over.
+.Pp
+To determine short description of a
+.Xr malloc 9
+type one can either take it from the first column of
+.Xr vmstat 8 Fl m
+output, or to find it in the kernel source.
+It is the second argument to
+.Xr MALLOC_DEFINE 9
+macro.
+To determine name of
+.Xr uma 9
+zone one can either take it from the first column of
+.Xr vmstat 8 Fl z
+output, or to find it in the kernel source.
+It is the first argument to the
+.Xr uma_zcreate 9
+function.
+.Pp
+The
+.Va vm.memguard.divisor
+boot-time tunable is used to scale how much of the system's physical
+memory
+.Nm
+is allowed to consume.
+The default is 10, so up to
+.Va vm_cnt.v_page_count Ns /10
+pages can be used.
+.Nm
+will reserve
+.Va vm_kmem_max
+/
+.Va vm.memguard.divisor
+bytes of virtual address space, limited by twice the physical memory
+size.
+The physical limit is reported as
+.Va vm.memguard.phys_limit
+and the virtual space reserved for
+.Nm
+is reported as
+.Va vm.memguard.mapsize .
+.Pp
+.Nm
+will not do page promotions for any allocation smaller than
+.Va vm.memguard.minsize
+bytes.
+The default is 0, meaning all allocations can potentially be guarded.
+.Nm
+can guard sufficiently large allocations randomly, with average
+frequency of every one in 100000 /
+.Va vm.memguard.frequency
+allocations.
+The default is 0, meaning no allocations are randomly guarded.
+.Pp
+.Nm
+can optionally add unmapped guard pages around each allocation to
+detect overflow and underflow, if
+.Va vm.memguard.options
+has the 1 bit set.
+This option is enabled by default.
+.Nm
+will optionally guard all allocations of
+.Dv PAGE_SIZE
+or larger if
+.Va vm.memguard.options
+has the 2 bit set.
+This option is off by default.
+By default
+.Nm
+does not guard
+.Xr uma 9
+zones that have been initialized with the
+.Dv UMA_ZONE_NOFREE
+flag set, since it can produce false positives on them.
+However, this safety measure can be turned off by setting bit 3
+of the
+.Va vm.memguard.options
+tunable.
+.Sh SEE ALSO
+.Xr sysctl 8 ,
+.Xr vmstat 8 ,
+.Xr contigmalloc 9 ,
+.Xr malloc 9 ,
+.Xr redzone 9 ,
+.Xr uma 9
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+.An -nosplit
+.Nm
+was originally written by
+.An Bosko Milekic Aq Mt bmilekic@FreeBSD.org .
+This manual page was originally written by
+.An Christian Brueffer Aq Mt brueffer@FreeBSD.org .
+Additions have been made by
+.An Matthew Fleming Aq Mt mdf@FreeBSD.org
+and
+.An Gleb Smirnoff Aq Mt glebius@FreeBSD.org
+to both the implementation and the documentation.

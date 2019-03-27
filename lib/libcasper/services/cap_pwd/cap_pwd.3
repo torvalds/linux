@@ -1,0 +1,234 @@
+.\" Copyright (c) 2018 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 20, 2018
+.Dt CAP_PWD 3
+.Os
+.Sh NAME
+.Nm cap_getpwent ,
+.Nm cap_getpwnam ,
+.Nm cap_getpwuid ,
+.Nm cap_getpwent_r ,
+.Nm cap_getpwnam_r ,
+.Nm cap_getpwuid_r ,
+.Nm cap_setpassent ,
+.Nm cap_setpwent ,
+.Nm cap_endpwent ,
+.Nm cap_pwd_limit_cmds ,
+.Nm cap_pwd_limit_fields ,
+.Nm cap_pwd_limit_users
+.Nd "library for password database operations in capability mode"
+.Sh LIBRARY
+.Lb libcap_pwd
+.Sh SYNOPSIS
+.In libcasper.h
+.In casper/cap_pwd.h
+.Ft struct passwd *
+.Fn cap_getpwent "cap_channel_t *chan"
+.Ft struct passwd *
+.Fn cap_getpwnam "cap_channel_t *chan" "const char *login"
+.Ft struct passwd *
+.Fn cap_getpwuid "cap_channel_t *chan" "uid_t uid"
+.Ft int
+.Fn cap_getpwent_r "cap_channel_t *chan" "struct passwd *pwd" "char *buffer" "size_t bufsize" "struct passwd **result"
+.Ft int
+.Fn cap_getpwnam_r "cap_channel_t *chan" "const char *name" "struct passwd *pwd" "char *buffer" "size_t bufsize" "struct passwd **result"
+.Ft int
+.Fn cap_getpwuid_r "cap_channel_t *chan" "uid_t uid" "struct passwd *pwd" "char *buffer" "size_t bufsize" "struct passwd **result"
+.Ft int
+.Fn cap_setpassent "cap_channel_t *chan" "int stayopen"
+.Ft void
+.Fn cap_setpwent "cap_channel_t *chan"
+.Ft void
+.Fn cap_endpwent "cap_channel_t *chan"
+.Ft int
+.Fn cap_pwd_limit_cmds "cap_channel_t *chan" "const char * const *cmds" "size_t ncmds"
+.Ft int
+.Fn cap_pwd_limit_fields "cap_channel_t *chan" "const char * const *fields" "size_t nfields"
+.Ft int
+.Fn cap_pwd_limit_users "cap_channel_t *chan" "const char * const *names" "size_t nnames" "uid_t *uids" "size_t nuids"
+.Sh DESCRIPTION
+The functions
+.Fn cap_getpwent ,
+.Fn cap_getpwnam ,
+.Fn cap_getpwuid ,
+.Fn cap_getpwent_r ,
+.Fn cap_getpwnam_r ,
+.Fn cap_getpwuid_r ,
+.Fn cap_setpassent ,
+.Fn cap_setpwent ,
+and
+.Fn cap_endpwent
+are respectively equivalent to
+.Xr getpwent 3 ,
+.Xr getpwnam 3 ,
+.Xr getpwuid 3 ,
+.Xr getpwent_r 3 ,
+.Xr getpwnam_r 3 ,
+.Xr getpwuid_r 3 ,
+.Xr setpassent 3 ,
+.Xr setpwent 3 ,
+and
+.Xr cap_endpwent 3
+except that the connection to the
+.Nm system.pwd
+service needs to be provided.
+.Pp
+The
+.Fn cap_pwd_limit_cmds
+function limits the functions allowed in the service.
+The
+.Fa cmds
+variable can be set to
+.Dv getpwent ,
+.Dv getpwnam ,
+.Dv getpwuid ,
+.Dv getpwent_r ,
+.Dv getpwnam_r ,
+.Dv getpwuid_r ,
+.Dv setpassent ,
+.Dv setpwent ,
+or
+.Dv endpwent
+which will allow to use the function associated with the name.
+The
+.Fa ncmds
+variable contains the number of
+.Fa cmds
+provided.
+.Pp
+The
+.Fn cap_pwd_limit_fields
+function allows limit fields returned in the structure
+.Vt passwd .
+The
+.Fa fields
+variable can be set to
+.Dv pw_name ,
+.Dv pw_passwd ,
+.Dv pw_uid ,
+.Dv pw_gid ,
+.Dv pw_change ,
+.Dv pw_class ,
+.Dv pw_gecos ,
+.Dv pw_dir ,
+.Dv pw_shell ,
+.Dv pw_expire
+or
+.Dv pw_fields
+The field which was set as the limit will be returned, while the rest of the
+values not set this way will have default values.
+The
+.Fa nfields
+variable contains the number of
+.Fa fields
+provided.
+.Pp
+The
+.Fn cap_pwd_limit_users
+function allows to limit access to users.
+The
+.Fa names
+variable allows to limit users by name and the
+.Fa uids
+variable by the user number.
+The
+.Fa nnames
+and
+.Fa nuids
+variables provide numbers of limited names and uids.
+.Sh EXAMPLES
+The following example first opens a capability to casper and then uses this
+capability to create the
+.Nm system.pwd
+casper service and uses it to get a user name.
+.Bd -literal
+cap_channel_t *capcas, *cappwd;
+const char *cmds[] = { "getpwuid" };
+const char *fields[] = { "pw_name" };
+uid_t uid[] = { 1 };
+struct passwd *passwd;
+
+/* Open capability to Casper. */
+capcas = cap_init();
+if (capcas == NULL)
+        err(1, "Unable to contact Casper");
+
+/* Enter capability mode sandbox. */
+if (cap_enter() < 0 && errno != ENOSYS)
+        err(1, "Unable to enter capability mode");
+
+/* Use Casper capability to create capability to the system.pwd service. */
+cappwd = cap_service_open(capcas, "system.pwd");
+if (cappwd == NULL)
+        err(1, "Unable to open system.pwd service");
+
+/* Close Casper capability, we don't need it anymore. */
+cap_close(capcas);
+
+/* Limit service to one single function. */
+if (cap_pwd_limit_cmds(cappwd, cmds, nitems(cmds)))
+	err(1, "Unable to limit access to system.pwd service");
+
+/* Limit service to one field as we only need name of the user. */
+if (cap_pwd_limit_fields(cappwd, fields, nitems(fields)))
+	err(1, "Unable to limit access to system.pwd service");
+
+/* Limit service to one uid. */
+if (cap_pwd_limit_users(cappwd, NULL, 0, uid, nitems(uid)))
+	err(1, "Unable to limit access to system.pwd service");
+
+passwd = cap_getpwuid(cappwd, uid[0]);
+if (passwd == NULL)
+	err(1, "Unable to get name of user");
+
+printf("UID %d is associated with name %s.\\n", uid[0], passwd->pw_name);
+
+cap_close(cappwd);
+.Ed
+.Sh SEE ALSO
+.Xr cap_enter 2 ,
+.Xr endpwent 3 ,
+.Xr err 3 ,
+.Xr getpwent 3 ,
+.Xr getpwent_r 3 ,
+.Xr getpwnam 3 ,
+.Xr getpwnam_r 3 ,
+.Xr getpwuid 3 ,
+.Xr getpwuid_r 3 ,
+.Xr setpassent 3 ,
+.Xr setpwent 3 ,
+.Xr capsicum 4 ,
+.Xr nv 9
+.Sh AUTHORS
+The
+.Nm cap_pwd
+service was implemented by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship from the FreeBSD Foundation.
+.Pp
+This manual page was written by
+.An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org .

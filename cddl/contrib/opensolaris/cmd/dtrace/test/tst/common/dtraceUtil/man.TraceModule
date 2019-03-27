@@ -1,0 +1,114 @@
+/*
+ * CDDL HEADER START
+ *
+ * The contents of this file are subject to the terms of the
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
+ *
+ * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+ * or http://www.opensolaris.org/os/licensing.
+ * See the License for the specific language governing permissions
+ * and limitations under the License.
+ *
+ * When distributing Covered Code, include this CDDL HEADER in each
+ * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+ * If applicable, add the following below this CDDL HEADER, with the
+ * fields enclosed by brackets "[]" replaced with your own identifying
+ * information: Portions Copyright [yyyy] [name of copyright owner]
+ *
+ * CDDL HEADER END
+ */
+
+/*
+ * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Use is subject to license terms.
+ */
+
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
+
+/*
+ * ASSERTION:
+ * Tracing a module using the -m option.
+ *
+ * SECTION: dtrace Utility/-m Option
+ *
+ * NOTES: Manually check:
+ *
+ * 1) automated in tst.InvalidTraceModule1.d.ksh
+ * /usr/sbin/dtrace -m profile
+ * RESULT: invalid probe specifier
+ *
+ * 2)
+ * /usr/sbin/dtrace -m genunix
+ * RESULT: trace of all probes with module genunix.
+ *
+ * 3)
+ * /usr/sbin/dtrace -m vtrace:genunix
+ * RESULT: trace of probes with provider vtrace and module genunix.
+ *
+ * 4) automated in tst.InvalidTraceModule2.d.ksh
+ * /usr/sbin/dtrace -m :genunix::
+ * RESULT: invalid probe specifier
+ *
+ * 5)
+ * /usr/sbin/dtrace -m :genunix
+ * RESULT: trace of all probes with module genunix.
+ *
+ * 6) automated in tst.InvalidTraceModule3.d.ksh
+ * /usr/sbin/dtrace -m genunix::
+ * RESULT: invalid probe specifier
+ *
+ * 7) automated in tst.InvalidTraceModule4.d.ksh
+ * /usr/sbin/dtrace -m profile:::profile-97
+ * RESULT: not a valid probe description.
+ *
+ * 8) 
+ * /usr/sbin/dtrace -m genunix -m unix
+ * RESULT: tracing of both genunix and unix probes.
+ *
+ * 9)
+ * /usr/sbin/dtrace -m genunix -m foounix
+ * RESULT: Number of probes matching the description genunix
+ * and an invalid probe specifier for foounix.
+ *
+ * 10) automated in tst.InvalidTraceModule5.d.ksh
+ * /usr/sbin/dtrace -m foounix -m unix
+ * RESULT: invalid probe specifier for foounix.
+ *
+ * 11) automated in tst.InvalidTraceModule6.d.ksh
+ * /usr/sbin/dtrace -m fbt:des:des3_crunch_block:return
+ * RESULT: invalid probe description.
+ *
+ * 12)
+ * /usr/sbin/dtrace -m fbt:genunix'{printf("FOUND");}'
+ * RESULT: tracing of all the probes matching provider fbt and module
+ * genunix.
+ *
+ * 13)
+ * /usr/sbin/dtrace -m genunix'{printf("FOUND");}'
+ * RESULT: tracing of all the probes matching module genunix with
+ * message FOUND
+ *
+ * 14)
+ * /usr/sbin/dtrace -m :genunix'{printf("FOUND");}'
+ * RESULT: tracing of all the probes matching module genunix with
+ * message FOUND
+ *
+ * 15) automated in tst.InvalidTraceModule7.d.ksh
+ * /usr/sbin/dtrace -m genunix::'{printf("FOUND");}'
+ * RESULT: invalid probe specifier.
+ *
+ * 16) automated in tst.InvalidTraceModule8.d.ksh
+ * /usr/sbin/dtrace -m genunix:'{printf("FOUND");}'
+ * RESULT: invalid probe specifier.
+ *
+ * 17)
+ * /usr/sbin/dtrace -m unix '{printf("FOUND");}'
+ * RESULT: invalid probe specifier.
+ *
+ * 18)
+ * /usr/sbin/dtrace -m
+ * unix'/probefunc == "preempt"/{printf("FOUND");}'
+ * RESULT: tracing of all the probes matching module genunix,
+ * probe function preempt with message FOUND.
+ */

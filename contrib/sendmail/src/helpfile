@@ -1,0 +1,137 @@
+#vers	2
+cpyr
+cpyr	Copyright (c) 1998-2000, 2002, 2004-2007 Proofpoint, Inc. and its suppliers.
+cpyr	    All rights reserved.
+cpyr	Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
+cpyr	Copyright (c) 1988, 1993
+cpyr	    The Regents of the University of California.  All rights reserved.
+cpyr
+cpyr
+cpyr	By using this file, you agree to the terms and conditions set
+cpyr	forth in the LICENSE file which can be found at the top level of
+cpyr	the sendmail distribution.
+cpyr
+cpyr	$$Id: helpfile,v 8.49 2013-11-22 20:51:55 ca Exp $$
+cpyr
+smtp	This is sendmail version $v
+smtp	Topics:
+smtp		HELO	EHLO	MAIL	RCPT	DATA
+smtp		RSET	NOOP	QUIT	HELP	VRFY
+smtp		EXPN	VERB	ETRN	DSN	AUTH
+smtp		STARTTLS
+smtp	For more info use "HELP <topic>".
+smtp	To report bugs in the implementation see
+smtp		http://www.sendmail.org/email-addresses.html
+smtp	For local information send email to Postmaster at your site.
+help	HELP [ <topic> ]
+help		The HELP command gives help info.
+helo	HELO <hostname>
+helo		Introduce yourself.
+ehlo	EHLO <hostname>
+ehlo		Introduce yourself, and request extended SMTP mode.
+ehlo	Possible replies include:
+ehlo		SEND		Send as mail			[RFC821]
+ehlo		SOML		Send as mail or terminal	[RFC821]
+ehlo		SAML		Send as mail and terminal	[RFC821]
+ehlo		EXPN		Expand the mailing list		[RFC821]
+ehlo		HELP		Supply helpful information	[RFC821]
+ehlo		TURN		Turn the operation around	[RFC821]
+ehlo		8BITMIME	Use 8-bit data			[RFC1652]
+ehlo		SIZE		Message size declaration	[RFC1870]
+ehlo		VERB		Verbose				[Allman]
+ehlo		CHUNKING	Chunking			[RFC1830]
+ehlo		BINARYMIME	Binary MIME			[RFC1830]
+ehlo		PIPELINING	Command Pipelining		[RFC1854]
+ehlo		DSN		Delivery Status Notification	[RFC1891]
+ehlo		ETRN		Remote Message Queue Starting	[RFC1985]
+ehlo		STARTTLS	Secure SMTP			[RFC2487]
+ehlo		AUTH		Authentication			[RFC2554]
+ehlo		ENHANCEDSTATUSCODES	Enhanced status codes	[RFC2034]
+ehlo		DELIVERBY	Deliver By			[RFC2852]
+mail	MAIL From:<sender> [ <parameters> ]
+mail		Specifies the sender.  Parameters are ESMTP extensions.
+mail		See "HELP DSN" for details.
+rcpt	RCPT To:<recipient> [ <parameters> ]
+rcpt		Specifies the recipient.  Can be used any number of times.
+rcpt		Parameters are ESMTP extensions.  See "HELP DSN" for details.
+data	DATA
+data		Following text is collected as the message.
+data		End with a single dot.
+rset	RSET
+rset		Resets the system.
+quit	QUIT
+quit		Exit sendmail (SMTP).
+auth	AUTH mechanism [initial-response]
+auth		Start authentication.
+starttls	STARTTLS
+starttls		Start TLS negotiation.
+verb	VERB
+verb		Go into verbose mode.  This sends 0xy responses that are
+verb		not RFC821 standard (but should be)  They are recognized
+verb		by humans and other sendmail implementations.
+vrfy	VRFY <recipient>
+vrfy		Verify an address.  If you want to see what it aliases
+vrfy		to, use EXPN instead.
+expn	EXPN <recipient>
+expn		Expand an address.  If the address indicates a mailing
+expn		list, return the contents of that list.
+noop	NOOP
+noop		Do nothing.
+send	SEND FROM:<sender>
+send		replaces the MAIL command, and can be used to send
+send		directly to a users terminal.  Not supported in this
+send		implementation.
+soml	SOML FROM:<sender>
+soml		Send or mail.  If the user is logged in, send directly,
+soml		otherwise mail.  Not supported in this implementation.
+saml	SAML FROM:<sender>
+saml		Send and mail.  Send directly to the user's terminal,
+saml		and also mail a letter.  Not supported in this
+saml		implementation.
+turn	TURN
+turn		Reverses the direction of the connection.  Not currently
+turn		implemented.
+etrn	ETRN [ <hostname> | @<domain> | \#<queuename> ]
+etrn		Run the queue for the specified <hostname>, or
+etrn		all hosts within a given <domain>, or a specially-named
+etrn		<queuename> (implementation-specific).
+dsn	MAIL From:<sender> [ RET={ FULL | HDRS} ] [ ENVID=<envid> ]
+dsn	RCPT To:<recipient> [ NOTIFY={NEVER,SUCCESS,FAILURE,DELAY} ]
+dsn			     [ ORCPT=<recipient> ]
+dsn		SMTP Delivery Status Notifications.
+dsn	Descriptions:
+dsn		RET	Return either the full message or only headers.
+dsn		ENVID	Sender's "envelope identifier" for tracking.
+dsn		NOTIFY	When to send a DSN. Multiple options are OK, comma-
+dsn			delimited. NEVER must appear by itself.
+dsn		ORCPT	Original recipient.
+-bt	Help for test mode:
+-bt	?		 :this help message.
+-bt	.Dmvalue	 :define macro `m' to `value'.
+-bt	.Ccvalue	 :add `value' to class `c'.
+-bt	=Sruleset	 :dump the contents of the indicated ruleset.
+-bt	=M		 :display the known mailers.
+-bt	-ddebug-spec	 :equivalent to the command-line -d debug flag.
+-bt	$$m		 :print the value of macro $$m.
+-bt	$$=c		 :print the contents of class $$=c.
+-bt	/mx host	 :returns the MX records for `host'.
+-bt	/parse address	 :parse address, returning the value of crackaddr, and
+-bt			  the parsed address.
+-bt	/try mailer addr :rewrite address into the form it will have when
+-bt			  presented to the indicated mailer.
+-bt	/tryflags flags	 :set flags used by parsing.  The flags can be `H' for
+-bt			  Header or `E' for Envelope, and `S' for Sender or `R'
+-bt			  for Recipient.  These can be combined, `HR' sets
+-bt			  flags for header recipients.
+-bt	/canon hostname	 :try to canonify hostname.
+-bt	/map mapname key :look up `key' in the indicated `mapname'.
+-bt	/quit		 :quit address test mode.
+-bt	rules addr	 :run the indicated address through the named rules.
+-bt			  Rules can be a comma separated list of rules.
+control	Help for smcontrol:
+control	help		This message.
+control	restart		Restart sendmail.
+control	shutdown	Shutdown sendmail.
+control	status		Show sendmail status.
+control	mstat		Show sendmail status (machine readable format).
+control	memdump		Dump allocated memory list (for debugging only).

@@ -1,0 +1,113 @@
+.\" Copyright (c) 1990, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)basename.1	8.2 (Berkeley) 4/18/94
+.\" $FreeBSD$
+.\"
+.Dd April 18, 1994
+.Dt BASENAME 1
+.Os
+.Sh NAME
+.Nm basename , dirname
+.Nd return filename or directory portion of pathname
+.Sh SYNOPSIS
+.Nm
+.Ar string
+.Op Ar suffix
+.Nm
+.Op Fl a
+.Op Fl s Ar suffix
+.Ar string
+.Op Ar ...
+.Nm dirname
+.Ar string
+.Op Ar ...
+.Sh DESCRIPTION
+The
+.Nm
+utility deletes any prefix ending with the last slash
+.Ql \&/
+character present in
+.Ar string
+(after first stripping trailing slashes),
+and a
+.Ar suffix ,
+if given.
+The
+.Ar suffix
+is not stripped if it is identical to the remaining characters in
+.Ar string .
+The resulting filename is written to the standard output.
+A non-existent suffix is ignored.
+If
+.Fl a
+is specified, then every argument is treated as a
+.Ar string
+as if
+.Nm
+were invoked with just one argument.
+If
+.Fl s
+is specified, then the
+.Ar suffix
+is taken as its argument, and all other arguments are treated as a
+.Ar string .
+.Pp
+The
+.Nm dirname
+utility deletes the filename portion, beginning
+with the last slash
+.Ql \&/
+character to the end of
+.Ar string
+(after first stripping trailing slashes),
+and writes the result to the standard output.
+.Sh EXIT STATUS
+.Ex -std basename dirname
+.Sh EXAMPLES
+The following line sets the shell variable
+.Ev FOO
+to
+.Pa /usr/bin .
+.Pp
+.Dl FOO=`dirname /usr/bin/trail`
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr sh 1 ,
+.Xr basename 3 ,
+.Xr dirname 3
+.Sh STANDARDS
+The
+.Nm
+and
+.Nm dirname
+utilities are expected to be
+.St -p1003.2
+compatible.

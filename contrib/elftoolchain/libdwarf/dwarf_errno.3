@@ -1,0 +1,58 @@
+.\" Copyright (c) 2009,2010 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: dwarf_errno.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd March 25, 2010
+.Dt DWARF_ERRNO 3
+.Os
+.Sh NAME
+.Nm dwarf_errno
+.Nd retrieve the error number corresponding to a
+.Vt Dwarf_Error
+instance
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fn dwarf_errno "Dwarf_Error err"
+.Sh DESCRIPTION
+Function
+.Fn dwarf_errno
+returns the error number associated with a
+.Vt Dwarf_Error
+instance.
+.Pp
+Argument
+.Ar err
+should be a valid handle to a
+.Vt Dwarf_Error
+instance.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_errno
+returns an integral value.
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_errmsg 3

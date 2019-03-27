@@ -1,0 +1,24 @@
+section1 { param1 = value; param2 = value, 
+section3 {param = value; param2 = value, param3 = ["value1", value2, 100500]}}
+section2 { param1 = {key = value}, param1 = ["key"]}
+
+# Numbers
+key1 = 1s
+key2 = 1min
+key3 = 1kb
+key4 = 5M
+key5 = 10mS
+key6 = 10y
+
+# Strings
+key1 = "some string";
+key2 = /some/path;
+key3 = 111some,
+key4: s1,
+"key5": "\n\r123"
+
+# Variables
+keyvar = "$ABItest";
+keyvar = "${ABI}$ABI${ABI}${$ABI}";
+keyvar = "${some}$no${}$$test$$$$$$$";
+keyvar = "$ABI$$ABI$$$ABI$$$$";

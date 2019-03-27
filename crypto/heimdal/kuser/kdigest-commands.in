@@ -1,0 +1,280 @@
+/*
+ * Copyright (c) 2006 Kungliga Tekniska Högskolan
+ * (Royal Institute of Technology, Stockholm, Sweden). 
+ * All rights reserved. 
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met: 
+ *
+ * 1. Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright 
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the distribution. 
+ *
+ * 3. Neither the name of the Institute nor the names of its contributors 
+ *    may be used to endorse or promote products derived from this software 
+ *    without specific prior written permission. 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+ * SUCH DAMAGE. 
+ */
+/* $Id$ */
+
+command = {
+	name = "digest-probe"
+	option = {
+		long = "realm"
+		type = "string"
+		help = "Kerberos realm to communicate with"
+	}
+	help = "probe what mech is allowed/supported for this server"
+}
+command = {
+	name = "digest-server-init"
+	option = {
+		long = "type"
+		type = "string"
+		help = "digest type"
+		default = "sasl"
+	}
+	option = {
+		long = "kerberos-realm"
+		type = "string"
+		argument = "realm"
+		help = ""
+	}
+	option = {
+		long = "digest"
+		type = "string"
+		argument = "digest-type"
+		help = "digest type to use in the algorithm"
+	}
+	option = {
+		long = "cb-type"
+		type = "string"
+		argument = "type"
+		help = "type of channel bindings"
+	}
+	option = {
+		long = "cb-value"
+		type = "string"
+		argument = "value"
+		help = "value of channel bindings"
+	}
+	option = {
+		long = "hostname"
+		type = "string"
+		argument = "hostname"
+		help = "hostname of the server"
+	}
+	option = {
+		long = "realm"
+		type = "string"
+		help = "Kerberos realm to communicate with"
+	}
+	help = "Sets up a digest context and return initial parameters"
+}
+command = {
+	name = "digest-server-request"
+	option = {
+		long = "type"
+		type = "string"
+		help = "digest type"
+		default = "sasl"
+	}
+	option = {
+		long = "kerberos-realm"
+		type = "string"
+		argument = "realm"
+		help = ""
+	}
+	option = {
+		long = "username"
+		type = "string"
+		argument = "name"
+		help = "digest type"
+	}
+	option = {
+		long = "server-nonce"
+		type = "string"
+		argument = "nonce"
+		help = ""
+	}
+	option = {
+		long = "server-identifier"
+		type = "string"
+		argument = "nonce"
+		help = ""
+	}
+	option = {
+		long = "client-nonce"
+		type = "string"
+		argument = "nonce"
+		help = ""
+	}
+	option = {
+		long = "client-response"
+		type = "string"
+		argument = "response"
+		help = ""
+	}
+	option = {
+		long = "opaque"
+		type = "string"
+		argument = "string"
+		help = ""
+	}
+	option = {
+		long = "authentication-name"
+		type = "string"
+		argument = "name"
+		help = ""
+	}
+	option = {
+		long = "realm"
+		type = "string"
+		argument = "realm"
+		help = ""
+	}
+	option = {
+		long = "method"
+		type = "string"
+		argument = "method"
+		help = ""
+	}
+	option = {
+		long = "uri"
+		type = "string"
+		argument = "uri"
+		help = ""
+	}
+	option = {
+		long = "nounce-count"
+		type = "string"
+		argument = "count"
+		help = ""
+	}
+	option = {
+		long = "qop"
+		type = "string"
+		argument = "qop"
+		help = ""
+	}
+	option = {
+		long = "ccache"
+		type = "string"
+		argument = "ccache"
+		help = "Where the the credential cache is created when the KDC returns tickets"
+	}
+	help = "Completes digest negotiation and return final parameters"
+}
+command = {
+	name = "digest-client-request"
+	option = {
+		long = "type"
+		type = "string"
+		help = "digest type"
+		default = "sasl"
+	}
+	option = {
+		long = "username"
+		type = "string"
+		argument = "name"
+		help = "digest type"
+	}
+	option = {
+		long = "password"
+		type = "string"
+		argument = "password"
+	}
+	option = {
+		long = "server-nonce"
+		type = "string"
+		argument = "nonce"
+		help = ""
+	}
+	option = {
+		long = "server-identifier"
+		type = "string"
+		argument = "nonce"
+		help = ""
+	}
+	option = {
+		long = "client-nonce"
+		type = "string"
+		argument = "nonce"
+		help = ""
+	}
+	option = {
+		long = "opaque"
+		type = "string"
+		argument = "string"
+		help = ""
+	}
+	option = {
+		long = "realm"
+		type = "string"
+		argument = "realm"
+		help = ""
+	}
+	option = {
+		long = "method"
+		type = "string"
+		argument = "method"
+		help = ""
+	}
+	option = {
+		long = "uri"
+		type = "string"
+		argument = "uri"
+		help = ""
+	}
+	option = {
+		long = "nounce-count"
+		type = "string"
+		argument = "count"
+		help = ""
+	}
+	option = {
+		long = "qop"
+		type = "string"
+		argument = "qop"
+		help = ""
+	}
+	help = "Client part of a digest exchange"
+}
+command = {
+	name = "ntlm-server-init"
+	option = {
+		long = "version"
+		type = "integer"
+		help = "ntlm version"
+		default = "1"
+	}
+	option = {
+		long = "kerberos-realm"
+		type = "string"
+		help = "Kerberos realm to communicate with"
+	}
+	help = "Sets up a digest context and return initial parameters"
+}
+command = {
+	name = "help"
+	name = "?"
+	argument = "[command]"
+	min_args = "0"
+	max_args = "1"
+	help = "Help! I need somebody."
+}

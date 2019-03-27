@@ -1,0 +1,39 @@
+
+#------------------------------------------------------------------------------
+# $File: editors,v 1.11 2017/03/17 21:35:28 christos Exp $
+# T602 editor documents
+# by David Necas <yeti@physics.muni.cz>
+0	string	@CT\ 	T602 document data,
+>4	string	0	Kamenicky
+>4	string	1	CP 852
+>4	string	2	KOI8-CS
+>4	string	>2	unknown encoding
+
+# Vi IMproved Encrypted file
+# by David Necas <yeti@physics.muni.cz>
+0	string	VimCrypt~	Vim encrypted file data
+
+0	name	vimnanoswap
+>67	byte	0
+>>107	byte	0
+#>>>2	string	x	%s swap file
+>>>24	ulelong	x	\b, pid %d
+>>>28	string	>\0	\b, user %s
+>>>68	string	>\0	\b, host %s
+>>>108	string	>\0	\b, file %s
+>>>1007	byte	0x55	\b, modified
+
+# Vi IMproved Swap file
+# by Sven Wegener <swegener@gentoo.org>
+0	string  b0VIM\ 		Vim swap file
+>&0	string  >\0		\b, version %s
+>0	use	vimnanoswap
+
+
+# Lock/swap file for several editors, at least
+# Vi IMproved and nano
+0	string	b0nano		Nano swap file
+>0	use	vimnanoswap
+
+# kate (K Advanced Text Editor)
+0	string	\x00\x00\x00\x12Kate\ Swap\ File\ 2.0\x00	Kate swap file

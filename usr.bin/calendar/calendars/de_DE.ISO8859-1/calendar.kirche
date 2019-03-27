@@ -1,0 +1,32 @@
+/*
+ * Kirche in Deutschland
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _de_DE_ISO8859_1_kirche_
+#define _de_DE_ISO8859_1_kirche_
+
+LANG=de_DE.ISO8859-1
+
+Easter-46	Aschermittwoch
+Easter-48	Rosenmontag
+Easter-7	Palmsonntag
+
+11/Sun-3	Volkstrauertag (maybe)
+11/Sun-2	Volkstrauertag oder Totensonntag
+11/Sun-1	1. Advent oder Totensonntag
+12/Sun+1	1. oder 2. Advent
+12/Sun+2	2. oder 3. Advent
+12/Sun+3	3. oder 4. Advent
+12/Sun+4	4. Advent (maybe)
+
+12/06	Nikolaus
+12/25	1. Weihnachtstag
+12/26	2. Weihnachtstag
+
+/* Evangelische Kirche */
+11/10   Martin Luther geboren in Eisleben, 1483
+10/31   95 Thesen von Luther, Wittenberg, 1517
+
+#endif /* !_de_DE_ISO8859_1_kirche_ */

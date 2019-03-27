@@ -1,0 +1,533 @@
+.de EX
+.nf
+.ft CW
+..
+.de EE
+.br
+.fi
+.ft 1
+..
+awk
+.TH AWK 1
+.CT 1 files prog_other
+.SH NAME
+awk \- pattern-directed scanning and processing language
+.SH SYNOPSIS
+.B awk
+[
+.BI \-F
+.I fs
+]
+[
+.BI \-v
+.I var=value
+]
+[
+.I 'prog'
+|
+.BI \-f
+.I progfile
+]
+[
+.I file ...
+]
+.SH DESCRIPTION
+.I Awk
+scans each input
+.I file
+for lines that match any of a set of patterns specified literally in
+.IR prog
+or in one or more files
+specified as
+.B \-f
+.IR progfile .
+With each pattern
+there can be an associated action that will be performed
+when a line of a
+.I file
+matches the pattern.
+Each line is matched against the
+pattern portion of every pattern-action statement;
+the associated action is performed for each matched pattern.
+The file name 
+.B \-
+means the standard input.
+Any
+.IR file
+of the form
+.I var=value
+is treated as an assignment, not a filename,
+and is executed at the time it would have been opened if it were a filename.
+The option
+.B \-v
+followed by
+.I var=value
+is an assignment to be done before
+.I prog
+is executed;
+any number of
+.B \-v
+options may be present.
+The
+.B \-F
+.IR fs
+option defines the input field separator to be the regular expression
+.IR fs.
+.PP
+An input line is normally made up of fields separated by white space,
+or by regular expression
+.BR FS .
+The fields are denoted
+.BR $1 ,
+.BR $2 ,
+\&..., while
+.B $0
+refers to the entire line.
+If
+.BR FS
+is null, the input line is split into one field per character.
+.PP
+A pattern-action statement has the form
+.IP
+.IB pattern " { " action " }
+.PP
+A missing 
+.BI { " action " }
+means print the line;
+a missing pattern always matches.
+Pattern-action statements are separated by newlines or semicolons.
+.PP
+An action is a sequence of statements.
+A statement can be one of the following:
+.PP
+.EX
+.ta \w'\f(CWdelete array[expression]'u
+.RS
+.nf
+.ft CW
+if(\fI expression \fP)\fI statement \fP\fR[ \fPelse\fI statement \fP\fR]\fP
+while(\fI expression \fP)\fI statement\fP
+for(\fI expression \fP;\fI expression \fP;\fI expression \fP)\fI statement\fP
+for(\fI var \fPin\fI array \fP)\fI statement\fP
+do\fI statement \fPwhile(\fI expression \fP)
+break
+continue
+{\fR [\fP\fI statement ... \fP\fR] \fP}
+\fIexpression\fP	#\fR commonly\fP\fI var = expression\fP
+print\fR [ \fP\fIexpression-list \fP\fR] \fP\fR[ \fP>\fI expression \fP\fR]\fP
+printf\fI format \fP\fR[ \fP,\fI expression-list \fP\fR] \fP\fR[ \fP>\fI expression \fP\fR]\fP
+return\fR [ \fP\fIexpression \fP\fR]\fP
+next	#\fR skip remaining patterns on this input line\fP
+nextfile	#\fR skip rest of this file, open next, start at top\fP
+delete\fI array\fP[\fI expression \fP]	#\fR delete an array element\fP
+delete\fI array\fP	#\fR delete all elements of array\fP
+exit\fR [ \fP\fIexpression \fP\fR]\fP	#\fR exit immediately; status is \fP\fIexpression\fP
+.fi
+.RE
+.EE
+.DT
+.PP
+Statements are terminated by
+semicolons, newlines or right braces.
+An empty
+.I expression-list
+stands for
+.BR $0 .
+String constants are quoted \&\f(CW"\ "\fR,
+with the usual C escapes recognized within.
+Expressions take on string or numeric values as appropriate,
+and are built using the operators
+.B + \- * / % ^
+(exponentiation), and concatenation (indicated by white space).
+The operators
+.B
+! ++ \-\- += \-= *= /= %= ^= > >= < <= == != ?:
+are also available in expressions.
+Variables may be scalars, array elements
+(denoted
+.IB x  [ i ] )
+or fields.
+Variables are initialized to the null string.
+Array subscripts may be any string,
+not necessarily numeric;
+this allows for a form of associative memory.
+Multiple subscripts such as
+.B [i,j,k]
+are permitted; the constituents are concatenated,
+separated by the value of
+.BR SUBSEP .
+.PP
+The
+.B print
+statement prints its arguments on the standard output
+(or on a file if
+.BI > file
+or
+.BI >> file
+is present or on a pipe if
+.BI | cmd
+is present), separated by the current output field separator,
+and terminated by the output record separator.
+.I file
+and
+.I cmd
+may be literal names or parenthesized expressions;
+identical string values in different statements denote
+the same open file.
+The
+.B printf
+statement formats its expression list according to the format
+(see
+.IR printf (3)) .
+The built-in function
+.BI close( expr )
+closes the file or pipe
+.IR expr .
+The built-in function
+.BI fflush( expr )
+flushes any buffered output for the file or pipe
+.IR expr .
+.PP
+The mathematical functions
+.BR exp ,
+.BR log ,
+.BR sqrt ,
+.BR sin ,
+.BR cos ,
+and
+.BR atan2 
+are built in.
+Other built-in functions:
+.TF length
+.TP
+.B length
+the length of its argument
+taken as a string,
+or of
+.B $0
+if no argument.
+.TP
+.B rand
+random number on [0,1)
+.TP
+.B srand
+sets seed for
+.B rand
+and returns the previous seed.
+.TP
+.B int
+truncates to an integer value
+.TP
+.BI substr( s , " m" , " n\fB)
+the
+.IR n -character
+substring of
+.I s
+that begins at position
+.IR m 
+counted from 1.
+.TP
+.BI index( s , " t" )
+the position in
+.I s
+where the string
+.I t
+occurs, or 0 if it does not.
+.TP
+.BI match( s , " r" )
+the position in
+.I s
+where the regular expression
+.I r
+occurs, or 0 if it does not.
+The variables
+.B RSTART
+and
+.B RLENGTH
+are set to the position and length of the matched string.
+.TP
+.BI split( s , " a" , " fs\fB)
+splits the string
+.I s
+into array elements
+.IB a [1] ,
+.IB a [2] ,
+\&...,
+.IB a [ n ] ,
+and returns
+.IR n .
+The separation is done with the regular expression
+.I fs
+or with the field separator
+.B FS
+if
+.I fs
+is not given.
+An empty string as field separator splits the string
+into one array element per character.
+.TP
+.BI sub( r , " t" , " s\fB)
+substitutes
+.I t
+for the first occurrence of the regular expression
+.I r
+in the string
+.IR s .
+If
+.I s
+is not given,
+.B $0
+is used.
+.TP
+.B gsub
+same as
+.B sub
+except that all occurrences of the regular expression
+are replaced;
+.B sub
+and
+.B gsub
+return the number of replacements.
+.TP
+.BI sprintf( fmt , " expr" , " ...\fB )
+the string resulting from formatting
+.I expr ...
+according to the
+.IR printf (3)
+format
+.I fmt
+.TP
+.BI system( cmd )
+executes
+.I cmd
+and returns its exit status
+.TP
+.BI tolower( str )
+returns a copy of
+.I str
+with all upper-case characters translated to their
+corresponding lower-case equivalents.
+.TP
+.BI toupper( str )
+returns a copy of
+.I str
+with all lower-case characters translated to their
+corresponding upper-case equivalents.
+.PD
+.PP
+The ``function''
+.B getline
+sets
+.B $0
+to the next input record from the current input file;
+.B getline
+.BI < file
+sets
+.B $0
+to the next record from
+.IR file .
+.B getline
+.I x
+sets variable
+.I x
+instead.
+Finally,
+.IB cmd " | getline
+pipes the output of
+.I cmd
+into
+.BR getline ;
+each call of
+.B getline
+returns the next line of output from
+.IR cmd .
+In all cases,
+.B getline
+returns 1 for a successful input,
+0 for end of file, and \-1 for an error.
+.PP
+Patterns are arbitrary Boolean combinations
+(with
+.BR "! || &&" )
+of regular expressions and
+relational expressions.
+Regular expressions are as in
+.IR egrep (1) 
+except numeric quantifiers are not supported beyond the basic
+.B +
+and
+.B ?
+for quantities \&\f(CW"0 or 1"\fP and \&\f(CW"1 or more"\fP
+respectively.
+Isolated regular expressions
+in a pattern apply to the entire line.
+Regular expressions may also occur in
+relational expressions, using the operators
+.BR ~
+and
+.BR !~ .
+.BI / re /
+is a constant regular expression;
+any string (constant or variable) may be used
+as a regular expression, except in the position of an isolated regular expression
+in a pattern.
+.PP
+A pattern may consist of two patterns separated by a comma;
+in this case, the action is performed for all lines
+from an occurrence of the first pattern
+though an occurrence of the second.
+.PP
+A relational expression is one of the following:
+.IP
+.I expression matchop regular-expression
+.br
+.I expression relop expression
+.br
+.IB expression " in " array-name
+.br
+.BI ( expr , expr,... ") in " array-name
+.PP
+where a relop is any of the six relational operators in C,
+and a matchop is either
+.B ~
+(matches)
+or
+.B !~
+(does not match).
+A conditional is an arithmetic expression,
+a relational expression,
+or a Boolean combination
+of these.
+.PP
+The special patterns
+.B BEGIN
+and
+.B END
+may be used to capture control before the first input line is read
+and after the last.
+.B BEGIN
+and
+.B END
+do not combine with other patterns.
+.PP
+Variable names with special meanings:
+.TF FILENAME
+.TP
+.B CONVFMT
+conversion format used when converting numbers
+(default
+.BR "%.6g" )
+.TP
+.B FS
+regular expression used to separate fields; also settable
+by option
+.BI \-F fs.
+.TP
+.BR NF
+number of fields in the current record
+.TP
+.B NR
+ordinal number of the current record
+.TP
+.B FNR
+ordinal number of the current record in the current file
+.TP
+.B FILENAME
+the name of the current input file
+.TP
+.B RS
+input record separator (default newline)
+.TP
+.B OFS
+output field separator (default blank)
+.TP
+.B ORS
+output record separator (default newline)
+.TP
+.B OFMT
+output format for numbers (default
+.BR "%.6g" )
+.TP
+.B SUBSEP
+separates multiple subscripts (default 034)
+.TP
+.B ARGC
+argument count, assignable
+.TP
+.B ARGV
+argument array, assignable;
+non-null members are taken as filenames
+.TP
+.B ENVIRON
+array of environment variables; subscripts are names.
+.PD
+.PP
+Functions may be defined (at the position of a pattern-action statement) thus:
+.IP
+.B
+function foo(a, b, c) { ...; return x }
+.PP
+Parameters are passed by value if scalar and by reference if array name;
+functions may be called recursively.
+Parameters are local to the function; all other variables are global.
+Thus local variables may be created by providing excess parameters in
+the function definition.
+.SH EXAMPLES
+.TP
+.EX
+length($0) > 72
+.EE
+Print lines longer than 72 characters.
+.TP
+.EX
+{ print $2, $1 }
+.EE
+Print first two fields in opposite order.
+.PP
+.EX
+BEGIN { FS = ",[ \et]*|[ \et]+" }
+      { print $2, $1 }
+.EE
+.ns
+.IP
+Same, with input fields separated by comma and/or blanks and tabs.
+.PP
+.EX
+.nf
+	{ s += $1 }
+END	{ print "sum is", s, " average is", s/NR }
+.fi
+.EE
+.ns
+.IP
+Add up first column, print sum and average.
+.TP
+.EX
+/start/, /stop/
+.EE
+Print all lines between start/stop pairs.
+.PP
+.EX
+.nf
+BEGIN	{	# Simulate echo(1)
+	for (i = 1; i < ARGC; i++) printf "%s ", ARGV[i]
+	printf "\en"
+	exit }
+.fi
+.EE
+.SH SEE ALSO
+.IR lex (1), 
+.IR sed (1)
+.br
+A. V. Aho, B. W. Kernighan, P. J. Weinberger,
+.I
+The AWK Programming Language,
+Addison-Wesley, 1988.  ISBN 0-201-07981-X
+.SH BUGS
+There are no explicit conversions between numbers and strings.
+To force an expression to be treated as a number add 0 to it;
+to force it to be treated as a string concatenate
+\&\f(CW""\fP to it.
+.br
+The scope rules for variables in functions are a botch;
+the syntax is worse.

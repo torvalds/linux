@@ -1,0 +1,428 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012 Ron McDowell
+# Copyright (c) 2012-2014 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+# When common.subr is included, it automatically scans "$@" for `-d' and/or
+# `-D file' arguments to conditionally enable debugging. Similarly, when
+# dialog.subr is included, it automatically scans "$@" for `-X' and/or `-S'.
+# To prevent this scanning from becoming confused by extra options, define
+# any/all extra arguments to use in the optstring to getopts when scanning
+# for dedicated options such as those described.
+#
+# NOTE: This needs to be declared before including `common.subr'.
+# NOTE: You really only need to list flags that require an argument as unknown
+#       flags are silently accepted unless they take an argument (in which case
+#       the following argument will terminate option processing unless it looks
+#       like a flag).
+#
+GETOPTS_EXTRA="f:"
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/strings.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+BSDCONFIG_HELPFILE=$BSDCFG_LIBE/include/bsdconfig.hlp
+USAGE_HELPFILE=$BSDCFG_LIBE/include/usage.hlp
+
+############################################################ CONFIGURATION
+
+#
+# Alternate `local' libexec directory for add-on modules (e.g., from ports)
+#
+BSDCFG_LOCAL_LIBE="/usr/local/libexec/bsdconfig"
+
+############################################################ FUNCTIONS
+
+# usage
+#
+# display usage and exit
+#
+usage()
+{
+	local index="INDEX"
+	local cmd_list # Calculated below
+
+	cd $BSDCFG_LIBE
+		# No need to preserve CWD (headed toward exit)
+
+	# Test for language-specific indices
+	f_quietly ls */"$index.${LANG:-$LC_ALL}" &&
+		index="$index.${LANG:-$LC_ALL}"
+
+	cmd_list=$(
+		awk '/^menu_selection="/ {
+			sub(/\|.*/, "")
+			sub(/^menu_selection="/, "")
+			print
+		}' */$index | sort
+	)
+
+	local alt_cmd_list # Calculated below (if $BSDCFG_LOCAL_LIBE exists)
+	if f_quietly cd $BSDCFG_LOCAL_LIBE; then
+		# No need to preserve CWD (headed toward exit)
+
+		# Test for language-specific indices
+		f_quietly ls */"$index.${LANG:-$LC_ALL}" &&
+			index="$index.${LANG:-$LC_ALL}"
+
+		alt_cmd_list=$(
+			awk '/^menu_selection="/ {
+				sub(/\|.*/, "")
+				sub(/^menu_selection="/, "")
+				print
+			}' */$index 2> /dev/null | sort
+		)
+
+		# Conflate lists, removing duplicates
+		cmd_list=$( printf "%s\n%s\n" \
+		                   "$cmd_list" "$alt_cmd_list" | sort -u )
+	fi
+
+	#
+	# Determine the longest command-length (in characters)
+	#
+	local longest_cmd
+	longest_cmd=$( echo "$cmd_list" | f_longest_line_length )
+	f_dprintf "longest_cmd=[%s]" "$longest_cmd"
+
+	#
+	# Determine the maximum width of terminal/console
+	#
+	local max_size="$( stty size 2> /dev/null )"
+	: ${max_size:="24 80"}
+	local max_width="${max_size#*[$IFS]}"
+	f_dprintf "max_width=[%s]" "$max_width"
+
+	#
+	# Using the longest command-length as the width of a single column,
+	# determine if we can use more than one column to display commands.
+	#
+	local x=$longest_cmd ncols=1
+	x=$(( $x + 8 )) # Accommodate leading tab character
+	x=$(( $x + 3 + $longest_cmd )) # Preload end of next column
+	while [ $x -lt $max_width ]; do
+		ncols=$(( $ncols + 1 ))
+		x=$(( $x + 3 + $longest_cmd ))
+	done
+	f_dprintf "ncols=[%u] x=[%u]" $ncols $x
+
+	#
+	# Re-format the command-list into multiple columns
+	#
+	cmd_list=$( eval "$( echo "$cmd_list" |
+		awk -v ncols=$ncols -v size=$longest_cmd '
+		BEGIN {
+			n = 0
+			row_item[1] = ""
+		}
+		function print_row()
+		{
+			fmt = "printf \"\\t%-" size "s"
+			for (i = 1; i < cur_col; i++)
+				fmt = fmt "   %-" size "s"
+			fmt = fmt "\\n\""
+			printf "%s", fmt
+			for (i = 1; i <= cur_col; i++)
+				printf " \"%s\"", row_item[i]
+			print ""
+		}
+		{
+			n++
+			cur_col = (( n - 1 ) % ncols ) + 1
+			printf "f_dprintf \"row_item[%u]=[%%s]\" \"%s\"\n",
+			       cur_col, $0
+			row_item[cur_col] = $0
+			if ( cur_col == ncols ) print_row()
+		}
+		END {
+			if ( cur_col < ncols ) print_row()
+		}' )"
+	)
+
+	f_usage $BSDCFG_LIBE/USAGE \
+	        "PROGRAM_NAME" "$pgm" \
+	        "COMMAND_LIST" "$cmd_list"
+
+	# Never reached
+}
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt="$msg_menu_text"
+	local menu_list="
+		'X' '$msg_exit'  '$msg_exit_bsdconfig'
+		'1' '$msg_usage' '$msg_quick_start_how_to_use_this_menu_system'
+	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline=
+
+	#
+	# Pick up the base modules (directories named `[0-9][0-9][0-9].*')
+	#
+	local menuitem menu_title menu_help menu_selection index=2
+	for menuitem in $( cd $BSDCFG_LIBE && ls -d [0-9][0-9][0-9].* ); do
+		[ -f "$BSDCFG_LIBE/$menuitem/INDEX" ] || continue
+		[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
+
+		menu_program= menu_title= menu_help=
+		f_include_lang $BSDCFG_LIBE/$menuitem/INDEX
+		[ "$menu_program" ] || continue
+
+		case "$menu_program" in
+		/*) : already fully qualified ;;
+		 *) menu_program="$menuitem/$menu_program"
+		esac
+
+		f_substr -v tag "$DIALOG_MENU_TAGS" $index 1
+		setvar "menu_program$tag" "$menu_program"
+
+		f_shell_escape "$menu_title" menu_title
+		f_shell_escape "$menu_help" menu_help
+		menu_list="$menu_list '$tag' '$menu_title' '$menu_help'"
+
+		index=$(( $index + 1 ))
+	done
+
+	#
+	# Process the `local' libexec sources.
+	#
+	# Whereas modules in $BSDCFG_LIBE must be named [0-9][0-9][0-9].*
+	# modules in $BSDCFG_LOCAL_LIBE should NOT be named this way (making it
+	# more practical for port-maintainers).
+	#
+	# This also has the fortunate side-effect of making the de-duplication
+	# effort rather simple (because so-called `base' modules must be named
+	# differently than add-on modules).
+	#
+	local separator_added=
+	for menuitem in $( cd "$BSDCFG_LOCAL_LIBE" 2> /dev/null && ls -d * )
+	do
+		# Skip the module if it looks like a `base' module
+		case "$menuitem" in [0-9][0-9][0-9].*) continue;; esac
+
+		[ -f "$BSDCFG_LOCAL_LIBE/$menuitem/INDEX" ] || continue
+		[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
+
+		menu_program= menu_title= menu_help=
+		f_include_lang $BSDCFG_LOCAL_LIBE/$menuitem/INDEX || continue
+		[ "$menu_program" ] || continue
+
+		if [ ! "$separator_added" ]; then
+			menu_list="$menu_list '-' '-' ''"
+			separator_added=1
+		fi
+
+		case "$menu_program" in
+		/*) : already fully qualified ;;
+		 *) menu_program="$BSDCFG_LOCAL_LIBE/$menuitem/$menu_program"
+		esac
+
+		f_substr -v tag "$DIALOG_MENU_TAGS" $index 1
+		setvar "menu_program$tag" "$menu_program"
+
+		f_shell_escape "$menu_title" menu_title
+		f_shell_escape "$menu_help" menu_help
+		menu_list="$menu_list '$tag' '$menu_title' '$menu_help'"
+
+		index=$(( $index + 1 ))
+	done
+
+	local height width rows
+	eval f_dialog_menu_with_help_size height width rows \
+	                                  \"\$title\"  \
+	                                  \"\$btitle\" \
+	                                  \"\$prompt\" \
+	                                  \"\$hline\"  \
+	                                  $menu_list
+
+	# Obtain default-item from previously stored selection
+	f_dialog_default_fetch defaultitem
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--clear                                 \
+		--title \"\$title\"                     \
+		--backtitle \"\$btitle\"                \
+		--hline \"\$hline\"                     \
+		--item-help                             \
+		--ok-label \"\$msg_ok\"                 \
+		--cancel-label \"\$msg_exit_bsdconfig\" \
+		--help-button                           \
+		--help-label \"\$msg_help\"             \
+		${USE_XDIALOG:+--help \"\"}             \
+		--default-item \"\$defaultitem\"        \
+		--menu \"\$prompt\"                     \
+		$height $width $rows                    \
+		$menu_list                              \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+
+	# Only update default-item on success
+	[ $retval -eq $DIALOG_OK ] && f_dialog_default_store "$menu_choice"
+
+	return $retval
+}
+
+############################################################ MAIN
+
+#
+# If $0 is not "bsdconfig", interpret it either as a keyword to a menuitem or
+# as a valid resword (see script.subr for additional details about reswords).
+#
+if [ "$pgm" != "bsdconfig" ]; then
+	if indexfile=$( f_index_file "$pgm" ) &&
+	   cmd=$( f_index_menusel_command "$indexfile" "$pgm" )
+	then
+		f_dprintf "pgm=[%s] cmd=[%s] *=[%s]" "$pgm" "$cmd" "$*"
+		exec "$cmd" "$@" || exit 1
+	else
+		f_include $BSDCFG_SHARE/script.subr
+		for resword in $RESWORDS; do
+			[ "$pgm" = "$resword" ] || continue
+			# Found a match
+			f_dprintf "pgm=[%s] A valid resWord!" "$pgm"
+			f_dispatch $resword $resword "$@"
+			exit $?
+		done
+	fi
+fi
+
+#
+# Process command-line arguments
+#
+scripts_loaded=0
+while getopts f:h$GETOPTS_STDARGS flag; do
+	case "$flag" in
+	f) [ $scripts_loaded -eq 0 ] && f_include $BSDCFG_SHARE/script.subr
+	   f_script_load "$OPTARG"
+	   scripts_loaded=$(( $scripts_loaded + 1 )) ;;
+	h|\?) usage ;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+# If we've loaded any scripts, do not continue any further
+[ $scripts_loaded -gt 0 ] && exit
+
+#
+# Initialize
+#
+f_dialog_title "$msg_main_menu"
+
+[ "$SECURE" ] && f_mustberoot_init
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# If a non-option argument was passed, process it as a menuitem selection...
+#
+if [ "$1" ]; then
+	#
+	# ...unless it's a long-option for usage.
+	#
+	case "$1" in -help|--help|-\?)
+		usage
+		# Not reached
+	esac
+
+	#
+	# Find the INDEX (possibly i18n) claiming this keyword and get the
+	# command to execute from the menu_selection line.
+	#
+	if ! { indexfile=$( f_index_file "$1" ) &&
+	       cmd=$( f_index_menusel_command "$indexfile" "$1" )
+	}; then
+		# no matches, display usage (which shows valid keywords)
+		f_err "%s: %s: $msg_not_found\n" "$pgm" "$1"
+		usage
+		# Not reached
+	fi
+
+	f_dprintf "cmd=[%s] *=[%s]" "$cmd" "$*"
+	shift
+	exec $cmd ${USE_XDIALOG:+-X} "$@" || exit 1
+	# Not reached
+fi
+
+#
+# Launch application main menu
+#
+while :; do
+	dialog_menu_main
+	retval=$?
+	f_dialog_menutag_fetch mtag
+	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
+
+	if [ $retval -eq $DIALOG_HELP ]; then
+		f_show_help "$BSDCONFIG_HELPFILE"
+		continue
+	elif [ $retval -ne $DIALOG_OK ]; then
+		f_die
+	fi
+
+	case "$mtag" in
+	X) break ;;
+	1) # Usage
+	   f_show_help "$USAGE_HELPFILE"
+	   continue
+	esac
+
+	# Anything else is a dynamically loaded menuitem
+
+	f_getvar menu_program$mtag menu_program
+	case "$menu_program" in
+	/*) cmd="$menu_program" ;;
+	 *) cmd="$BSDCFG_LIBE/$menu_program"
+	esac
+	f_dprintf "cmd=[%s]" "$cmd"
+	$cmd ${USE_XDIALOG:+-X}
+done
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

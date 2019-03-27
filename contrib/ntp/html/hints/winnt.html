@@ -1,0 +1,90 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+	<head>
+		<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+		<meta name="generator" content="HTML Tidy, see www.w3.org">
+        <title>NTP on Windows NT</title>
+		<link href="../scripts/style.css" type="text/css" rel="stylesheet">
+	</head>
+    <body>
+        <h3>NTP 4.x for Windows</h3>
+
+        <h4>Introduction</h4>
+		<p>The NTP 4 distribution runs as service on Windows 2000 and later. It will NOT run on Windows 95, 98, ME, etc.  Lately it has been run the most on Windows-7 and later.  The binaries work on multi-processor systems. This port has not been tested on the Alpha platform. This release now uses OpenSSL for authentication. IPv6 is not implemented yet for Win32 platforms. A ready-to-run install distribution is available from Meinberg at <a href="http://www.meinberg.de/english/sw/ntp.htm">http://www.meinberg.de/english/sw/ntp.htm.</a></p>
+		<p>Users should note that the stock Windows client sends requests as mode-1 packets, which can have unintended consequences and create a security risk. The client should send requests as mode-3 (client) packets, which conform to the protocol specification. The issues and resolution are described in Microsoft KB 875424. A less desirable alternative that avoids changing registry keys is to use the <tt>--with-wintime</tt> option when building the executable.</p>
+		<h4>Authentication Keys</h4>
+		<p>With this release ntp-keygen is supported. See the <a href="../keygen.html"> ntp keygen documentation</a> for details on how to use ntp-keygen.</p>
+        <p><tt>ntpd</tt> can now use the generated keys in the same way as on Unix platforms. Please refer to the <a href="../authopt.html">Authentication Options</a> for details on how to use these.</p>
+        <p><B>NOTE:</B> ntpd and <tt>ntp-keygen</tt> both use OpenSSL which requires a random
+        character file called <tt>.rnd</tt> by default. Both of these programs will automatically generate this file if they are not found. The programs will look for an environmental variable called RANDFILE and use that for the name of the random character file if the variable exists. If it does not exist it will look for an environmental variable called HOME and use that directory to search for a file called <tt>.rnd</tt> in that directory. Finally, if neither RANDFILE nor HOME exists it will look in <tt>C:\</tt> for a .rnd file. In each case it will search for and create the file if the environmental variable exists or in the C:\ directory if it doesn't.</p>
+        <p>Note that ntpd normally runs as a service so that the only way that it will have either RANDFILE or HOME defined is if it is a System environmental variable or if the service is run under a specific account name and that account has one of those variables defined. Otherwise it will use the file <tt>c:\.rnd</tt>. This was done so that OpenSSL will work normally on Win32 systems. This obviates the need to ship the OpenSSL.exe file and explain how to generate the .rnd file. A future version may change this behavior.</p>
+        <p>Refer to <a href="#Compiling">Compiling Requirements</a> and Instructions for how to compile the program.</p>
+        <h4>Reference Clocks</h4>
+        <p>Reference clock support under Windows NT is tricky because the IO functions are so much different. Some of the clock types have been built into the ntpd executable and should work but have not been tested by the ntp project. If you have a clock that runs on Win32 and the driver is there but not implemented on Win32 you will have make the required configuration changes in config.h and then build ntpd from source and test it. The following reference clock is known to work and is supported by Windows NT: <a href="../drivers/driver1.html">Type 1</a> Undisciplined Local Clock (LOCAL)</p>
+        <h4>Functions Supported</h4>
+        <p>All NTP functions are supported with some constraints. See the <a href="#ToDo">TODO list</a> below. Note that the ntptrace executable is not supported and you should use the PERL script version instead.</p>
+        <h4>Accuracy</h4>
+        <p>Greg Brackley has implemented a fantastic interpolation scheme that improves the precision of the NTP clock using a realtime thread (is that poetic or what!) which captures a tick count from the 8253 counter after each OS tick. The count is used to interpolate the time between operating system ticks.</p>
+        <p>On a typical 200+ MHz system NTP achieves a precision of about 5 microseconds and synchronizes the clock to +/-500 microseconds using the <a href="http://www.trimble.com/products/ntp">Trimble Palisade</a> as UTC reference. This allows distributed applications to use the 10 milliseconds ticks available to them with high confidence.</p>
+        <h4>Binaries</h4>
+        <p>Recent InstallShield based executable versions of NTP for Windows NT (intel) are available from:</p>
+        <ul>
+			<li><a href="http://www.five-ten-sg.com/">http://www.five-ten-sg.com/</a>
+		</ul>
+        <h4 id="ToDo">ToDo</h4>
+        <p>These tasks are in no particular order of priority.</p>
+        <ul>
+            <li>Add IPv6 support
+            <li>See if precision can be improved by using CPU cycle counter for tick interpolation.
+            <li>Make precision time available to applications using NTP_GETTIME API
+        </ul>
+        <h4>Compiling Requirements</h4>
+        <ul>
+            <li>Windows 7 or Windows.NET Server 2003, or later.
+            <li>Windows NT 4.0 Windows 2000, Windows XP or Windows Vista <i>may</i> still work.
+            <li>Microsoft Visual C++ 2008, 2010, or 2013 EE
+            <li>Some way of uncompressing and untarring the gzipped tar file.
+            <li>OpenSSL must be built on the box before building NTP. Additional steps would
+            be required to not use OpenSSL.
+        <li>Microsoft Visual C++ redistributables</ul>
+        <a name="Compiling"><B>Compiling Instructions</B></a>
+        <ol>
+            <li>Install Micosoft Visual C++ <a href="http://www.microsoft.com/downloads/details.aspx?familyid=9B2DA534-3E03-4391-8A4D-074B9F2BC1BF">redistributables</a>
+            <li>Install <a href="http://www.slproweb.com/products/Win32OpenSSL.html">OpenSSL full installer for Windows</a>. Add the following to your system environment variables in the control panel (adjusting paths as appropriate to point to the directory containing only an openssl subdirectory, for OPENSSL_INC, and to the directory containing openssl .lib files for OPENSSL_LIB:
+<ul><li>	OPENSSL_INC=C:\OpenSSL\include
+<li>	OPENSSL_LIB=C:\OpenSSL\lib</ul>
+            <li>Unpack the NTP-4.x.tar.gz using utilities such as WinZip or WinRar.
+            <li>Run Microsoft Visual C++ 2008 EE.
+            <li>Open the ports\winnt\vs2008\ntp.sln solution file
+            <li>Batch build all projects (Build menu, Batch Build..., select all, build).
+            <li>The built binaries can be found in the <tt>ports\winnt\v2008\Win32-bin\Release</tt> directory.
+            <li>If you are shipping binaries in a kit it is strongly recommended that you ship this file (winnt.html) along with the binaries.
+        </ol>
+        <h4>Configuration File</h4>
+        <p>The default NTP configuration file path is %SystemRoot%<tt>\system32\drivers\etc\. </tt>(%SystemRoot% is an environmental variable that can be determined by typing &quot;set&quot; at the &quot;Command Prompt&quot; or from the &quot;System&quot; icon in the &quot;Control Panel&quot;).</p>
+        <p>Refer to your system environment and create your<tt> ntp.conf</tt> file in the directory corresponding to your system&nbsp; installation. The older <tt>&lt;WINDIR&gt;\ntp.conf</tt> is still supported but you will get a log entry reporting that the first file wasn't found.
+        <h4>Installation Instructions</h4>
+        <p>The <tt>instsrv</tt> program in the instsrv subdirectory of the distribution can be used to install 'ntpd' as a service and start automatically at boot time. Instsrv is automatically compiled with the rest of the distribution if you followed the steps above.</p>
+        <ol>
+            <li>Start a command prompt and enter &quot;instsrv.exe &lt;pathname_for_ntpd.exe&gt;&quot;
+            <li>Clicking on the &quot;Services&quot; icon in the &quot;Control Panel&quot; will display the list of currently installed services in a dialog box. The NetworkTimeProtocol service should show up in this list. Select it in the list and hit the &quot;Start&quot; button in the dialog box. The NTP service should start.
+            <li>You can also stop and start the service by typing net start|stop NetworkTimeProtocol at the DOS prompt.
+            <li>View the event log by clicking on the &quot;Event Viewer&quot; icon in the &quot;Administrative Tools&quot; group, there should be several successful startup messages from NTP. NTP will keep running and restart automatically when the machine is rebooted.
+        </ol>
+        <p>You can change the start mode (automatic/manual) and other startup parameters corresponding to the NTP service in the &quot;Services&quot; dialog box if you wish.</p>
+        <h4>Removing NTP</h4>
+        <p>You can also use <tt>instsrv</tt> to delete the NTP service by entering: <tt>>&quot;instsrv.exe remove&quot;</tt>
+        <h4>Command Line Parameters and Registry Entries</h4>
+        <p>Unlike the Unix environment, there is no clean way to run 'ntpdate' and reset the clock before starting 'ntpd' at boot time. NTP will step the clock up to 1000 seconds by default. While there is no reason that the system clock should be that much off during bootup if <tt>ntpd</tt> was running before, you may wish to override this default and/or pass other command line directives.
+        <p>Use the registry editor to edit the value for the ntpd executable under LocalMachine\System\CurrentControlSet\Services\NTP.</p>
+        <p>Add the -g option to the ImagePath key, behind &quot;%INSTALLDIR&gt;\ntpd.exe&quot;. This will force NTP to accept large time errors (including 1.1.1980 00:00)</p>
+        <h4>Bug Reports</h4>
+        <p>Please follow the <a href="../bugs.html">NTP Bug Reporting Procedures</a> to report bugs or request enhancements.</p>
+	<p>Last update:
+	  <!-- #BeginDate format:En2m -->6-Apr-2014  23:27<!-- #EndDate -->
+	</p>
+	
+    </body>
+</html>

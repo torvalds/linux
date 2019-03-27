@@ -1,0 +1,113 @@
+
+			Known problems in GDB 6.1
+
+		See also: http://www.gnu.org/software/gdb/bugs/
+
+
+*** Build problems
+
+build/1458: comple failed on hpux11
+
+GDB 6.1 is known to have build problems on HP/UX 11.00 using the
+vendor supplied compilers (GDB does build on HP/UX 11.11, and using
+GCC).
+
+*** Misc
+
+gdb/1560: Control-C does not always interrupt GDB.
+
+When GDB is busy processing a command which takes a long time to
+complete, hitting Control-C does not have the expected effect.
+The command execution is not aborted, and the "QUIT" message confirming
+the abortion is displayed only after the command has been completed.
+
+*** C++ support
+
+gdb/931: GDB could be more generous when reading types C++ templates on input
+
+When the user types a template, GDB frequently requires the type to be
+typed in a certain way (e.g. "const char*" as opposed to "const char *"
+or "char const *" or "char const*").
+
+gdb/1512: no canonical way to output names of C++ types
+
+We currently don't have any canonical way to output names of C++ types.
+E.g. "const char *" versus "char const *"; more subtleties arise when
+dealing with templates.
+
+gdb/1516: [regression] local classes, gcc 2.95.3, dwarf-2
+
+With gcc 2.95.3 and the dwarf-2 debugging format, classes which are
+defined locally to a function include the demangled name of the function
+as part of their name.  For example, if a function "foobar" contains a
+local class definition "Local", gdb will say that the name of the class
+type is "foobar__Fi.0:Local".
+
+This applies only to classes where the class type is defined inside a
+function, not to variables defined with types that are defined somewhere
+outside any function (which most types are).
+
+gdb/1588: names of c++ nested types in casts must be enclosed in quotes
+
+You must type
+  (gdb) print ('Foo::Bar') x
+or
+  (gdb) print ('Foo::Bar' *) y
+instead of
+  (gdb) print (Foo::Bar) x
+or
+  (gdb) print (Foo::Bar *) y
+respectively.
+
+gdb/1091: Constructor breakpoints ignored
+gdb/1193: g++ 3.3 creates multiple constructors: gdb 5.3 can't set breakpoints
+
+When gcc 3.x compiles a C++ constructor or C++ destructor, it generates
+2 or 3 different versions of the object code.  These versions have
+unique mangled names (they have to, in order for linking to work), but
+they have identical source code names, which leads to a great deal of
+confusion.  Specifically, if you set a breakpoint in a constructor or a
+destructor, gdb will put a breakpoint in one of the versions, but your
+program may execute the other version.  This makes it impossible to set
+breakpoints reliably in constructors or destructors.
+
+gcc 3.x generates these multiple object code functions in order to
+implement virtual base classes.  gcc 2.x generated just one object code
+function with a hidden parameter, but gcc 3.x conforms to a multi-vendor
+ABI for C++ which requires multiple object code functions.
+
+*** Stack backtraces
+
+GDB's core code base has been updated to use a new backtrace
+mechanism.  This mechanism makes it possible to support new features
+such DWARF 2 Call Frame Information (which in turn makes possible
+backtraces through optimized code).
+
+Since this code is new, it is known to still have a few problems:
+
+gdb/1505: [regression] gdb prints a bad backtrace for a thread
+
+When backtracing a thread, gdb does not stop when it reaches the
+outermost frame, instead continuing until it hits garbage.  This is
+sensitive to the operating system and thread library.
+
+hppa*-*-*
+mips*-*-*
+
+The MIPS and HPPA backtrace code has only very recently been updated
+to use GDB's new frame mechanism.  At present there are still a few
+problems, in particular backtraces through signal handlers do not
+work.
+
+People encountering problems with these architectures should consult
+GDB's web pages and mailing lists (http://www.gnu.org/software/gdb/)
+to see if there are updates.
+
+powerpc*-*-*
+
+PowerPC architecture support, in 6.1, does not use the new frame code.
+
+Fortunately, PowerPC architecture support, in GDB's mainline sources,
+have been updated.  People encountering problems should consider
+downloading a more current snapshot of GDB
+(http://www.gnu.org/software/gdb/current/).

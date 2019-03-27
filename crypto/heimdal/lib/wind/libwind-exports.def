@@ -1,0 +1,26 @@
+EXPORTS
+	wind_stringprep
+	wind_profile
+	wind_punycode_label_toascii
+	wind_utf8ucs4
+	wind_utf8ucs4_length
+	wind_ucs4utf8
+	wind_ucs4utf8_length
+	wind_ucs2utf8
+	wind_utf8ucs2
+	wind_utf8ucs2_length
+	wind_ucs2utf8_length
+	wind_ucs2read
+
+        initialize_wind_error_table_r   ;!
+
+; testing
+	_wind_combining_class
+	_wind_stringprep_testbidi
+	_wind_stringprep_error
+	_wind_stringprep_prohibited
+	_wind_stringprep_map
+	_wind_stringprep_normalize
+	_wind_ldap_case_exact_attribute
+;!	_wind_ucs2read
+

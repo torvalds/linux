@@ -1,0 +1,531 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd November 1, 2016
+.Dt SYSLOG.CONF 5
+.Os
+.Sh NAME
+.Nm syslog.conf
+.Nd
+.Xr syslogd 8
+configuration file
+.Sh DESCRIPTION
+The
+.Nm
+file is the configuration file for the
+.Xr syslogd 8
+program.
+It consists of
+blocks of lines separated by
+.Em program
+and
+.Em hostname
+specifications (separations appear alone on their lines),
+with each line containing two fields: the
+.Em selector
+field which specifies the types of messages and priorities to which the
+line applies, and an
+.Em action
+field which specifies the action to be taken if a message
+.Xr syslogd 8
+receives matches the selection criteria.
+The
+.Em selector
+field is separated from the
+.Em action
+field by one or more tab characters or spaces.
+.Pp
+A special
+.Em include
+keyword can be used to include all files with names ending in '.conf' and not
+beginning with a '.' contained in the directory following the keyword.
+This keyword can only be used in the first level configuration file.
+.Pp
+Note that if you use spaces as separators, your
+.Nm
+might be incompatible with other Unices or Unix-like systems.
+This functionality was added for ease of configuration
+(e.g.\& it is possible to cut-and-paste into
+.Nm ) ,
+and to avoid possible mistakes.
+This change however preserves
+backwards compatibility with the old style of
+.Nm
+(i.e., tab characters only).
+.Pp
+The
+.Em selectors
+are encoded as a
+.Em facility ,
+a period
+.Pq Dq \&. ,
+an optional set of comparison flags
+.Pq Oo \&! Oc Op <=> ,
+and a
+.Em level ,
+with no intervening white-space.
+Both the
+.Em facility
+and the
+.Em level
+are case insensitive.
+.Pp
+The
+.Em facility
+describes the part of the system generating the message, and is one of
+the following keywords:
+.Cm auth , authpriv , console , cron , daemon , ftp , kern , lpr ,
+.Cm mail , mark , news , ntp , security , syslog , user , uucp ,
+and
+.Cm local0
+through
+.Cm local7 .
+These keywords (with the exception of mark) correspond to
+similar
+.Dq Dv LOG_
+values specified to the
+.Xr openlog 3
+and
+.Xr syslog 3
+library routines.
+.Pp
+The
+.Em comparison flags
+may be used to specify exactly what is logged.
+The default comparison is
+.Dq =>
+(or, if you prefer,
+.Dq >= ) ,
+which means that messages from the specified
+.Em facility
+list, and of a priority
+level equal to or greater than
+.Em level
+will be logged.
+Comparison flags beginning with
+.Dq Li \&!
+will have their logical sense inverted.
+Thus
+.Dq !=info
+means all levels except info and
+.Dq !notice
+has the same meaning as
+.Dq <notice .
+.Pp
+The
+.Em level
+describes the severity of the message, and is a keyword from the
+following ordered list (higher to lower):
+.Cm emerg , crit , alert , err , warning , notice , info
+and
+.Cm debug .
+These keywords correspond to
+similar
+.Dq Dv LOG_
+values specified to the
+.Xr syslog 3
+library routine.
+.Pp
+Each block of lines is separated from the previous block by a
+.Em program
+or
+.Em hostname
+specification.
+A block will only log messages corresponding to the most recent
+.Em program
+and
+.Em hostname
+specifications given.
+Thus, with a block which selects
+.Ql ppp
+as the
+.Em program ,
+directly followed by a block that selects messages from the
+.Em hostname
+.Ql dialhost ,
+the second block will only log messages
+from the
+.Xr ppp 8
+program on dialhost.
+.Pp
+A
+.Em program
+specification is a line beginning with
+.Ql #!prog
+or
+.Ql !prog
+(the former is for compatibility with the previous syslogd, if one is sharing
+.Nm
+files, for example)
+and the following blocks will be associated with calls to
+.Xr syslog 3
+from that specific program.
+A
+.Em program
+specification for
+.Ql foo
+will also match any message logged by the kernel with the prefix
+.Ql "foo: " .
+The
+.Ql #!+prog
+or
+.Ql !+prog
+specification works just like the previous one,
+and the
+.Ql #!-prog
+or
+.Ql !-prog
+specification will match any message but the ones from that
+program.
+Multiple programs may be listed, separated by commas:
+.Ql !prog1,prog2
+matches messages from either program, while
+.Ql !-prog1,prog2
+matches all messages but those from
+.Ql prog1
+or
+.Ql prog2 .
+.Pp
+A
+.Em hostname
+specification of the form
+.Ql #+hostname
+or
+.Ql +hostname
+means the following blocks will be applied to messages
+received from the specified hostname.
+Alternatively, the
+.Em hostname
+specification
+.Ql #-hostname
+or
+.Ql -hostname
+causes the following blocks to be applied to messages
+from any host but the one specified.
+If the hostname is given as
+.Ql @ ,
+the local hostname will be used.
+As for program specifications, multiple comma-separated
+values may be specified for hostname specifications.
+.Pp
+A
+.Em program
+or
+.Em hostname
+specification may be reset by giving the program or hostname as
+.Ql * .
+.Pp
+See
+.Xr syslog 3
+for further descriptions of both the
+.Em facility
+and
+.Em level
+keywords and their significance.
+It is preferred that selections be made on
+.Em facility
+rather than
+.Em program ,
+since the latter can easily vary in a networked environment.
+In some cases,
+though, an appropriate
+.Em facility
+simply does not exist.
+.Pp
+If a received message matches the specified
+.Em facility
+and is of the specified
+.Em level
+.Em (or a higher level) ,
+and the first word in the message after the date matches the
+.Em program ,
+the action specified in the
+.Em action
+field will be taken.
+.Pp
+Multiple
+.Em selectors
+may be specified for a single
+.Em action
+by separating them with semicolon
+.Pq Dq \&;
+characters.
+It is important to note, however, that each
+.Em selector
+can modify the ones preceding it.
+.Pp
+Multiple
+.Em facilities
+may be specified for a single
+.Em level
+by separating them with comma
+.Pq Dq \&,
+characters.
+.Pp
+An asterisk
+.Pq Dq *
+can be used to specify all
+.Em facilities ,
+all
+.Em levels ,
+or all
+.Em programs .
+.Pp
+The special
+.Em facility
+.Dq mark
+receives a message at priority
+.Dq info
+every 20 minutes
+(see
+.Xr syslogd 8 ) .
+This is not enabled by a
+.Em facility
+field containing an asterisk.
+.Pp
+The special
+.Em level
+.Dq none
+disables a particular
+.Em facility .
+.Pp
+The
+.Em action
+field of each line specifies the action to be taken when the
+.Em selector
+field selects a message.
+There are five forms:
+.Bl -bullet
+.It
+A pathname (beginning with a leading slash).
+Selected messages are appended to the file.
+.Pp
+To ensure that kernel messages are written to disk promptly,
+.Nm
+calls
+.Xr fsync 2
+after writing messages from the kernel.
+Other messages are not synced explicitly.
+You may prefix a pathname with the minus sign,
+.Dq - ,
+to forego syncing the specified file after every kernel message.
+Note that you might lose information if the system crashes
+immediately following a write attempt.
+Nevertheless, using the
+.Dq -
+option may improve performance,
+especially if the kernel is logging many messages.
+.It
+A hostname (preceded by an at
+.Pq Dq @
+sign).
+Selected messages are forwarded to the
+.Xr syslogd 8
+program on the named host.
+If a port number is added after a colon
+.Pq Ql :\&
+then that port will be used as the destination port
+rather than the usual syslog port.
+IPv6 addresses can be used
+by surrounding the address portion with
+square brackets
+.Po
+.Ql [\&
+and
+.Ql ]\&
+.Pc .
+.It
+A comma separated list of users.
+Selected messages are written to those users
+if they are logged in.
+.It
+An asterisk.
+Selected messages are written to all logged-in users.
+.It
+A vertical bar
+.Pq Dq \&| ,
+followed by a command to pipe the selected
+messages to.
+The command is passed to
+.Xr sh 1
+for evaluation, so usual shell metacharacters or input/output
+redirection can occur.
+(Note however that redirecting
+.Xr stdio 3
+buffered output from the invoked command can cause additional delays,
+or even lost output data in case a logging subprocess exited with a
+signal.)
+The command itself runs with
+.Em stdout
+and
+.Em stderr
+redirected to
+.Pa /dev/null .
+Upon receipt of a
+.Dv SIGHUP ,
+.Xr syslogd 8
+will close the pipe to the process.
+If the process did not exit
+voluntarily, it will be sent a
+.Dv SIGTERM
+signal after a grace period of up to 60 seconds.
+.Pp
+The command will only be started once data arrives that should be piped
+to it.
+If it exited later, it will be restarted as necessary.
+So if it
+is desired that the subprocess should get exactly one line of input only
+(which can be very resource-consuming if there are a lot of messages
+flowing quickly), this can be achieved by exiting after just one line of
+input.
+If necessary, a script wrapper can be written to this effect.
+.Pp
+Unless the command is a full pipeline, it is probably useful to
+start the command with
+.Em exec
+so that the invoking shell process does not wait for the command to
+complete.
+Warning: the process is started under the UID invoking
+.Xr syslogd 8 ,
+normally the superuser.
+.El
+.Pp
+Blank lines and lines whose first non-blank character is a hash
+.Pq Dq #
+character are ignored.
+If
+.Ql #
+is placed in the middle of the line, the
+.Ql #
+character and the rest of the line after it is ignored.
+To prevent special meaning, the
+.Ql #
+character may be escaped with
+.Ql \e ;
+in this case preceding
+.Ql \e
+is removed and
+.Ql #
+is treated as an ordinary character.
+.Sh IMPLEMENTATION NOTES
+The
+.Dq kern
+facility is usually reserved for messages
+generated by the local kernel.
+Other messages logged with facility
+.Dq kern
+are usually translated to facility
+.Dq user .
+This translation can be disabled;
+see
+.Xr syslogd 8
+for details.
+.Sh FILES
+.Bl -tag -width /etc/syslog.conf -compact
+.It Pa /etc/syslog.conf
+.Xr syslogd 8
+configuration file
+.El
+.Sh EXAMPLES
+A configuration file might appear as follows:
+.Bd -literal
+# Log all kernel messages, authentication messages of
+# level notice or higher, and anything of level err or
+# higher to the console.
+# Don't log private authentication messages!
+*.err;kern.*;auth.notice;authpriv.none;mail.crit	/dev/console
+
+# Log anything (except mail) of level info or higher.
+# Don't log private authentication messages!
+*.info;mail.none;authpriv.none		/var/log/messages
+
+# Log daemon messages at debug level only
+daemon.=debug						/var/log/daemon.debug
+
+# The authpriv file has restricted access.
+authpriv.*						/var/log/secure
+
+# Log all the mail messages in one place.
+mail.*							/var/log/maillog
+
+# Everybody gets emergency messages, plus log them on another
+# machine.
+*.emerg							*
+*.emerg							@arpa.berkeley.edu
+
+# Root and Eric get alert and higher messages.
+*.alert							root,eric
+
+# Save mail and news errors of level err and higher in a
+# special file.
+uucp,news.crit						/var/log/spoolerr
+
+# Pipe all authentication messages to a filter.
+auth.*					|exec /usr/local/sbin/authfilter
+
+# Log all security messages to a separate file.
+security.*						/var/log/security
+
+# Log all writes to /dev/console to a separate file.
+console.*						/var/log/console.log
+
+# Save ftpd transactions along with mail and news
+!ftpd
+*.*							/var/log/spoolerr
+
+# Log ipfw messages without syncing after every message.
+!ipfw
+*.*							-/var/log/ipfw
+.Ed
+.Sh SEE ALSO
+.Xr syslog 3 ,
+.Xr syslogd 8
+.Sh BUGS
+The effects of multiple
+.Em selectors
+are sometimes not intuitive.
+For example
+.Dq mail.crit,*.err
+will select
+.Dq mail
+facility messages at the level of
+.Dq err
+or higher, not at the level of
+.Dq crit
+or higher.
+.Pp
+In networked environments, note that not all operating systems
+implement the same set of facilities.
+The facilities
+authpriv, cron, ftp, and ntp that are known to this implementation
+might be absent on the target system.
+Even worse, DEC UNIX uses
+facility number 10 (which is authpriv in this implementation) to
+log events for their AdvFS file system.

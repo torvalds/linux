@@ -1,0 +1,152 @@
+.\" $FreeBSD$
+.Dd September 13, 1994
+.Dt TZFILE 5
+.Os
+.Sh NAME
+.Nm tzfile
+.Nd timezone information
+.Sh SYNOPSIS
+.Fd #include \&"/usr/src/contrib/tzcode/stdtime/tzfile.h\&"
+.Sh DESCRIPTION
+The time zone information files used by
+.Xr tzset 3
+begin with the magic characters
+.Dq Li TZif
+to identify them as
+time zone information files,
+followed by a character identifying the version of the file's format
+(as of 2005, either an ASCII NUL or a '2')
+followed by fifteen bytes containing zeroes reserved for future use,
+followed by four four-byte values
+written in a ``standard'' byte order
+(the high-order byte of the value is written first).
+These values are,
+in order:
+.Pp
+.Bl -tag -compact -width tzh_ttisstdcnt
+.It Va tzh_ttisgmtcnt
+The number of UTC/local indicators stored in the file.
+.It Va tzh_ttisstdcnt
+The number of standard/wall indicators stored in the file.
+.It Va tzh_leapcnt
+The number of leap seconds for which data is stored in the file.
+.It Va tzh_timecnt
+The number of ``transition times'' for which data is stored
+in the file.
+.It Va tzh_typecnt
+The number of ``local time types'' for which data is stored
+in the file (must not be zero).
+.It Va tzh_charcnt
+The number of characters of ``time zone abbreviation strings''
+stored in the file.
+.El
+.Pp
+The above header is followed by
+.Va tzh_timecnt
+four-byte values of type
+.Fa long ,
+sorted in ascending order.
+These values are written in ``standard'' byte order.
+Each is used as a transition time (as returned by
+.Xr time 3 )
+at which the rules for computing local time change.
+Next come
+.Va tzh_timecnt
+one-byte values of type
+.Fa "unsigned char" ;
+each one tells which of the different types of ``local time'' types
+described in the file is associated with the same-indexed transition time.
+These values serve as indices into an array of
+.Fa ttinfo
+structures (with
+.Fa tzh_typecnt
+entries) that appears next in the file;
+these structures are defined as follows:
+.Pp
+.Bd -literal -offset indent
+struct ttinfo {
+	long	tt_gmtoff;
+	int	tt_isdst;
+	unsigned int	tt_abbrind;
+};
+.Ed
+.Pp
+Each structure is written as a four-byte value for
+.Va tt_gmtoff
+of type
+.Fa long ,
+in a standard byte order, followed by a one-byte value for
+.Va tt_isdst
+and a one-byte value for
+.Va tt_abbrind .
+In each structure,
+.Va tt_gmtoff
+gives the number of seconds to be added to UTC,
+.Li tt_isdst
+tells whether
+.Li tm_isdst
+should be set by
+.Xr localtime 3
+and
+.Va tt_abbrind
+serves as an index into the array of time zone abbreviation characters
+that follow the
+.Li ttinfo
+structure(s) in the file.
+.Pp
+Then there are
+.Va tzh_leapcnt
+pairs of four-byte values, written in standard byte order;
+the first value of each pair gives the time
+(as returned by
+.Xr time 3 )
+at which a leap second occurs;
+the second gives the
+.Em total
+number of leap seconds to be applied after the given time.
+The pairs of values are sorted in ascending order by time.
+.Pp
+Then there are
+.Va tzh_ttisstdcnt
+standard/wall indicators, each stored as a one-byte value;
+they tell whether the transition times associated with local time types
+were specified as standard time or wall clock time,
+and are used when a time zone file is used in handling POSIX-style
+time zone environment variables.
+.Pp
+Finally there are
+.Va tzh_ttisgmtcnt
+UTC/local indicators, each stored as a one-byte value;
+they tell whether the transition times associated with local time types
+were specified as UTC or local time,
+and are used when a time zone file is used in handling POSIX-style
+time zone environment variables.
+.Pp
+.Nm localtime
+uses the first standard-time
+.Li ttinfo
+structure in the file
+(or simply the first
+.Li ttinfo
+structure in the absence of a standard-time structure)
+if either
+.Li tzh_timecnt
+is zero or the time argument is less than the first transition time recorded
+in the file.
+.Pp
+For version-2-format time zone files,
+the above header and data is followed by a second header and data,
+identical in format except that eight bytes are used for each
+transition time or leap second time.
+After the second header and data comes a newline-enclosed,
+POSIX-TZ-environment-variable-style string for use in handling instants
+after the last transition time stored in the file
+(with nothing between the newlines if there is no POSIX representation for
+such instants).
+.Sh SEE ALSO
+.Xr ctime 3 ,
+.Xr time2posix 3 ,
+.Xr zic 8
+.\" @(#)tzfile.5	8.3
+.\" This file is in the public domain, so clarified as of
+.\" 1996-06-05 by Arthur David Olson.

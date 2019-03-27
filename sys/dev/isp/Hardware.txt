@@ -1,0 +1,304 @@
+/* $FreeBSD$ */
+
+	Hardware that is Known To or Should Work with This Driver
+
+
+0. Intro
+
+	This is not an endorsement for hardware vendors (there will be
+	no "where to buy" URLs here with a couple of exception). This
+	is simply a list of things I know work, or should work, plus
+	maybe a couple of notes as to what you should do to make it
+	work. Corrections accepted. Even better would be to send me
+	hardware to I can test it.
+
+	I'll put a rough range of costs in US$ that I know about. No doubt
+	it'll differ from your expectations.
+
+1. HBAs
+
+Qlogic	2100, 2102
+	2200, 2202, 2204
+
+	There are various suffices that indicate copper or optical
+	connectors, or 33 vs. 66MHz PCI bus operation. None of these
+	have a software impact.
+
+	Approx cost: 1K$ for a 2200
+
+Qlogic	2300, 2312
+
+	These are the new 2-Gigabit cards. Optical only.
+
+	Approx cost: ??????
+
+
+Antares	P-0033, P-0034, P-0036
+
+	There many other vendors that use the Qlogic 2X00 chipset. Some older
+	2100 boards (not on this list) have a bug in the ROM that causes a
+	failure to download newer firmware that is larger than 0x7fff words.
+
+	Approx cost: 850$ for a P-0036
+
+
+
+	In general, the 2200 class chip is to be preferred.
+
+
+2. Hubs
+
+Vixel 1000
+Vixel 2000
+	Of the two, the 1000 (7 ports, vs. 12 ports) has had fewer problems-
+	it's an old workhorse.
+
+
+	Approx cost: 1.5K$ for Vixel 1000, 2.5K$ for 2000
+
+Gadzoox Cappellix 3000
+	Don't forget to use telnet to configure the Cappellix ports
+	to the role you're using them for- otherwise things don't
+	work well at all.
+
+	(cost: I have no idea... certainly less than a switch)
+
+3. Switches
+
+Brocade Silkworm II
+Brocade 2400
+(other brocades should be fine)
+
+	Especially with revision 2 or higher f/w, this is now best
+	of breed for fabrics or segmented loop (which Brocade
+	calls "QuickLoop").
+
+	For the Silkworm II, set operating mode to "Tachyon" (mode 3).
+
+	The web interace isn't good- but telnet is what I prefer anyhow.
+
+	You can't connect a Silkworm II and the other Brocades together
+	as E-ports to make a large fabric (at least with the f/w *I*
+	had for the Silkworm II).
+
+	Approx cost of a Brocade 2400 with no GBICs is about 8K$ when
+	I recently checked the US Government SEWP price list- no doubt
+	it'll be a bit more for others. I'd assume around 10K$.
+
+ANCOR SA-8
+
+	This also is a fine switch, but you have to use a browser
+	with working java to manage it- which is a bit of a pain.
+	This also supports fabric and segmented loop.
+
+	These switches don't form E-ports with each other for a larger
+	fabric.
+
+	(cost: no idea)
+
+McData (model unknown)
+
+	I tried one exactly once for 30 minutes. Seemed to work once
+	I added the "register FC4 types" command to the driver.
+
+	(cost: very very expensive, 40K$ plus)
+
+4. Cables/GBICs
+
+	Multimode optical is adequate for Fibre Channel- the same cable is
+	used for Gigabit Ethernet.
+
+	Copper DB-9 and Copper HSS-DC connectors are also fine. Copper &&
+	Optical both are rated to 1.026Gbit- copper is naturally shorter
+	(the longest I've used is a 15meter cable but it's supposed to go
+	longer).
+
+	The reason to use copper instead of optical is that if step on one of
+	the really fat DB-9 cables you can get, it'll survive. Optical usually
+	dies quickly if you step on it.
+
+	Approx cost: I don't know what optical is- you can expect to pay maybe
+	a 100$ for a 3m copper cable.
+
+GBICs-
+
+	I use Finisar copper and IBM Opticals.
+
+	Approx Cost: Copper GBICs are 70$ each. Opticals are twice that or more.
+
+
+Vendor: (this is the one exception I'll make because it turns out to be
+	an incredible pain to find FC copper cabling and GBICs- the source I
+	use for GBICs and copper cables is http://www.scsi-cables.com)
+
+
+Other:
+	There now is apparently a source for little connector boards
+	to connect to bare drives: http://www.cinonic.com.
+
+
+5. Storage JBODs/RAID
+
+JMR 4-Bay
+
+	Rinky-tink, but a solid 4 bay loop only entry model.
+
+	I paid 1000$ for mine- overprice, IMO.
+
+JMR Fortra
+
+	I rather like this box. The blue LEDs are a very nice touch- you
+	can see them very clearly from 50 feet away.
+
+	I paid 2000$ for one used.
+
+Sun A5X00
+
+	Very expensive (in my opinion) but well crafted. Has two SES
+	instances, so you can use the ses driver (and the example
+	code in /usr/share/examples) for power/thermal/slot monitoring.
+
+	Approx Cost: The last I saw for a price list item on this was 22K$
+	for an unpopulated (no disk drive) A5X00.
+
+
+DataDirect E1000 RAID
+
+	Don't connect both SCSI and FC interfaces at the same time- a SCSI
+	reset will cause the DataDirect to think you want to use the SCSI
+	interface and a LIP on the FC interface will cause it to think you
+	want to use the FC interface. Use only one connector at a time so
+	both you and the DataDirect are sure about what you want.
+
+	Cost: I have no idea.
+
+Veritas ServPoint
+
+	This is a software storage virtualization engine that
+	runs on Sparc/Solaris in target mode for frontend
+	and with other FC or SCSI as the backend storage. FreeBSD
+	has been used extensively to test it.
+
+
+	Cost: I have no idea.
+
+6. Disk Drives
+
+	I have used lots of different Seagate and a few IBM drives and
+	typically have had few problems with them. These are the bare
+	drives with 40-pin SCA connectors in back. They go into the JBODs
+	you assemble.
+
+	Seagate does make, but I can no longer find, a little paddleboard
+	single drive connector that goes from DB-9 FC to the 40-pin SCA
+	connector- primarily for you to try and evaluate a single FC drive.
+
+	All FC-AL disk drives are dual ported (i.e., have separte 'A' and
+	'B' ports- which are completely separate loops). This seems to work
+	reasonably enough, but I haven't tested it much. It really depends
+	on the JBOD you put them to carry this dual port to the outside
+	world. The JMR boxes have it. The Sun A5X00 you have to pay for
+	an extra IB card to carry it out.
+
+	Approx Cost: You'll find that FC drives are the same cost if not
+	slightly cheaper than the equivalent Ultra3 SCSI drives.
+
+7. Recommended Configurations
+
+These are recommendations that are biased toward the cautious side. They
+do not represent formal engineering commitments- just suggestions as to
+what I would expect to work.
+
+A. The simpletst form of a connection topology I can suggest for
+a small SAN (i.e., replacement for SCSI JBOD/RAID):
+
+HOST
+2xxx <----------> Single Unit of Storage (JBOD, RAID)
+
+This is called a PL_DA (Private Loop, Direct Attach) topology.
+
+B. The next most simple form of a connection topology I can suggest for
+a medium local SAN (where you do not plan to do dynamic insertion
+and removal of devices while I/Os are active):
+
+HOST
+2xxx <----------> +--------
+                  | Vixel |
+                  | 1000  |
+                  |       +<---> Storage
+                  |       |
+                  |       +<---> Storage
+                  |       |
+                  |       +<---> Storage
+                  --------
+
+This is a Private Loop topology. Remember that this can get very unstable
+if you make it too long. A good practice is to try it in a staged fashion.
+
+It is possible with some units to "daisy chain", e.g.:
+
+HOST
+2xxx <----------> (JBOD, RAID) <--------> (JBOD, RAID)
+
+In practice I have had poor results with these configurations. They *should*
+work fine, but for both the JMR and the Sun A5X00 I tend to get LIP storms
+and so the second unit just isn't seen and the loop isn't stable.
+
+Now, this could simply be my lack of clean, newer, h/w (or, in general,
+a lack of h/w), but I would recommend the use of a hub if you want to
+stay with Private Loop and have more than one FC target.
+
+You should also note this can begin to be the basis for a shared SAN
+solution. For example, the above configuration can be extended to be:
+
+HOST
+2xxx <----------> +--------
+                  | Vixel |
+                  | 1000  |
+                  |       +<---> Storage
+                  |       |
+                  |       +<---> Storage
+                  |       |
+                  |       +<---> Storage
+HOST              |       |
+2xxx <----------> +--------
+
+However, note that there is nothing to mediate locking of devices, and
+it is also conceivable that the reboot of one host can, by causing
+a LIP storm, cause problems with the I/Os from the other host.
+(in other words, this topology hasn't really been made safe yet for
+this driver).
+
+D. You can repeat the topology in #B with a switch that is set to be
+in segmented loop mode. This avoids LIPs propagating where you don't
+want them to- and this makes for a much more reliable, if more expensive,
+SAN.
+
+E. The next level of complexity is a Switched Fabric. The following topology
+is good when you start to begin to get to want more performance. Private
+and Public Arbitrated Loop, while 100MB/s, is a shared medium. Direct
+connections to a switch can run full-duplex at full speed.
+
+HOST
+2xxx <----------> +---------
+                  | Brocade|
+                  | 2400   |
+                  |        +<---> Storage
+                  |        |
+                  |        +<---> Storage
+                  |        |
+                  |        +<---> Storage
+HOST              |        |
+2xxx <----------> +---------
+
+
+I would call this the best configuration available now. It can expand
+substantially if you cascade switches.
+
+There is a hard limit of about 253 devices for each Qlogic HBA- and the
+fabric login policy is simplistic (log them in as you find them). If
+somebody actually runs into a configuration that's larger, let me know
+and I'll work on some tools that would allow you some policy choices
+as to which would be interesting devices to actually connect to.
+
+

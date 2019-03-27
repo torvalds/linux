@@ -1,0 +1,95 @@
+.\" Copyright (c) 2009 Gabor Kovesdan <gabor@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Portions of this text are reprinted and reproduced in electronic form
+.\" from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --
+.\" Portable Operating System Interface (POSIX), The Open Group Base
+.\" Specifications Issue 6, Copyright (C) 2001-2004 by the Institute of
+.\" Electrical and Electronics Engineers, Inc and The Open Group.  In the
+.\" event of any discrepancy between this version and the original IEEE and
+.\" The Open Group Standard, the original IEEE and The Open Group Standard is
+.\" the referee document.  The original Standard can be obtained online at
+.\"	http://www.opengroup.org/unix/online.html.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 20, 2009
+.Dt __ICONV_GET_LIST 3
+.Os
+.Sh NAME
+.Nm __iconv_get_list ,
+.Nm __iconv_free_list
+.Nd retrieving a list of character encodings supported by
+.Xr iconv 3
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In iconv.h
+.Ft int
+.Fn __iconv_get_list "char ***names" "size_t count" "bool paired"
+.Ft void
+.Fn __iconv_free_list "char **names" "size_t count"
+.Sh DESCRIPTION
+The
+.Fn __iconv_get_list
+function obtains a list of character encodings that are supported by the
+.Xr iconv 3
+call.
+The list of the encoding names will be stored in
+.Fa names
+and the number of the entries is stored in
+.Fa count .
+If the
+.Fa paired
+variable is true, the list will be arranged into
+canonical/alias name pairs.
+.Pp
+The
+.Fn __iconv_free_list
+function is to free the allocated memory during the call of
+.Fn __iconv_get_list .
+.Sh RETURN VALUES
+Upon successful completion
+.Fn __iconv_get_list
+returns 0 and set the
+.Fa names
+and
+.Fa count
+arguments.
+Otherwise, \-1 is returned and errno is set to indicate the error.
+.Sh SEE ALSO
+.Xr iconv 3 ,
+.Xr iconvlist 3
+.Sh STANDARDS
+The
+.Nm __iconv_get_list
+and
+.Nm __iconv_free_list
+functions are non-standard interfaces, which appeared in
+the implementation of the Citrus Project.
+The iconv implementation of the Citrus Project was adopted in
+.Fx 9.0 .
+.Sh AUTHORS
+This manual page was written by
+.An Gabor Kovesdan Aq Mt gabor@FreeBSD.org .

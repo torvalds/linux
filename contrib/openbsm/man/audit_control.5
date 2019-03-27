@@ -1,0 +1,314 @@
+.\" Copyright (c) 2004-2009 Apple Inc.
+.\" Copyright (c) 2006, 2016 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Portions of this software were developed by BAE Systems, the University of
+.\" Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+.\" contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+.\" Computing (TC) research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1.  Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\" 2.  Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\" 3.  Neither the name of Apple Inc. ("Apple") nor the names of
+.\"     its contributors may be used to endorse or promote products derived
+.\"     from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL APPLE OR ITS CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd August 19, 2016
+.Dt AUDIT_CONTROL 5
+.Os
+.Sh NAME
+.Nm audit_control
+.Nd "audit system parameters"
+.Sh DESCRIPTION
+The
+.Nm
+file contains several audit system parameters.
+Each line of this file is of the form:
+.Pp
+.D1 Ar parameter Ns : Ns Ar value
+.Pp
+The parameters are:
+.Bl -tag -width indent
+.It Va dir
+The directory where audit log files are stored.
+There may be more than one of these entries.
+Changes to this entry can only be enacted by restarting the
+audit system.
+See
+.Xr audit 8
+for a description of how to restart the audit system.
+.It Va dist
+When set to
+.Va on
+or
+.Va yes ,
+.Xr auditd 8
+will be creating hardlinks to all trail files in
+.Pa /var/audit/dist
+directory.
+Those hardlinks will be consumed by the
+.Xr auditdistd 8
+daemon.
+.It Va flags
+Specifies which audit event classes are audited for all users.
+.Xr audit_user 5
+describes how to audit events for individual users.
+See the information below for the format of the audit flags.
+.It Va host
+Specify the hostname or IP address to be used when setting the local
+systems's audit host information.
+This hostname will be converted into an IP or IPv6 address and will
+be included in the header of each audit record.
+Due to the possibility of transient errors coupled with the
+security issues in the DNS protocol itself, the use of DNS
+should be avoided.
+Instead, it is strongly recommended that the hostname be
+specified in the /etc/hosts file.
+For more information see
+.Xr hosts 5 .
+.It Va naflags
+Contains the audit flags that define what classes of events are audited when
+an action cannot be attributed to a specific user.
+.It Va minfree
+The minimum free space required on the file system audit logs are being written to.
+When the free space falls below this limit a warning will be issued.
+If no value for the minimum free space is set, the default of 20 percent is
+applied by the kernel.
+.It Va policy
+A list of global audit policy flags specifying various behaviors, such as
+fail stop, auditing of paths and arguments, etc.
+.It Va filesz
+Maximum trail size in bytes; if set to a non-0 value, the audit daemon will
+rotate the audit trail file at around this size.
+Sizes less than the minimum trail size (default of 512K) will be rejected as
+invalid.
+If 0, trail files will not be automatically rotated based on file size.
+For convenience, the trail size may be expressed with suffix letters:
+B (Bytes), K (Kilobytes), M (Megabytes), or G (Gigabytes).
+For example, 2M is the same as 2097152.
+.It Va expire-after
+Specifies when audit log files will expire and be removed.
+This may be after a time period has passed since the file was last
+written to or when the aggregate of all the trail files have reached a
+specified size or a combination of both.
+If no expire-after parameter is given then audit log files will not
+expire and be removed by the audit control system.
+See the information below for the format of the expiration
+specification.
+.It Va qsize
+Specifies the maximum number of outstanding committed audit records that can
+be in the kernel's post-commit queue pending write to disk.
+If this number has been reached, user threads performing an auditable event
+will be suspended until the queue has fallen below the limit.
+Depending on the underlying kernel implementation, the number of in-flight
+records can exceed this number, as it does not constrain uncommitted records
+(e.g., those associated with incomplete auditable system calls), and may also
+exclude the set of records extracted from the queue and currently being
+prepared for or undergoing I/O.
+Other operational limits may be affected by this parameter, such as the
+minimum free space on disk required to continue system operation, estimated as
+the maximum number of allowable in-flight records multiplied by the maximum
+audit record size.
+.El
+.Sh AUDIT FLAGS
+Audit flags are a comma-delimited list of audit classes as defined in the
+.Xr audit_class 5
+file.
+Event classes may be preceded by a prefix which changes their interpretation.
+The following prefixes may be used for each class:
+.Pp
+.Bl -tag -width indent -compact -offset indent
+.It (none)
+Record both successful and failed events.
+.It Li +
+Record successful events.
+.It Li -
+Record failed events.
+.It Li ^
+Record neither successful nor failed events.
+.It Li ^+
+Do not record successful events.
+.It Li ^-
+Do not record failed events.
+.El
+.Sh AUDIT POLICY FLAGS
+The policy flags field is a comma-delimited list of policy flags from the
+following list:
+.Pp
+.Bl -tag -width ".Cm zonename" -compact -offset indent
+.It Cm cnt
+Allow processes to continue running even though events are not being audited.
+If not set, processes will be suspended when the audit store space is
+exhausted.
+Currently, this is not a recoverable state.
+.It Cm ahlt
+Fail stop the system if unable to audit an event\[em]this consists of first
+draining pending records to disk, and then halting the operating system.
+.It Cm argv
+Audit command line arguments to
+.Xr execve 2 .
+.It Cm arge
+Audit environmental variable arguments to
+.Xr execve 2 .
+.It Cm seq
+Include a unique audit sequence number token in generated audit records (not
+implemented on
+.Fx
+or Darwin).
+.It Cm group
+Include supplementary groups list in generated audit records (not implemented
+on
+.Fx
+or Darwin; supplementary groups are never included in records on
+these systems).
+.It Cm trail
+Append a trailer token to each audit record (not implemented on
+.Fx
+or
+Darwin; trailers are always included in records on these systems).
+.It Cm path
+Include secondary file paths in audit records (not implemented on
+.Fx
+or
+Darwin; secondary paths are never included in records on these systems).
+.It Cm zonename
+Include a zone ID token with each audit record (not implemented on
+.Fx
+or
+Darwin;
+.Fx
+audit records do not currently include the jail ID or name).
+.It Cm perzone
+Enable auditing for each local zone (not implemented on
+.Fx
+or Darwin; on
+.Fx ,
+audit records are collected from all jails and placed in a single
+global trail, and only limited audit controls are permitted within a jail).
+.El
+.Pp
+It is recommended that installations set the
+.Cm cnt
+flag but not
+.Cm ahlt
+flag unless it is intended that audit logs exceeding available disk space
+halt the system.
+.Sh AUDIT LOG EXPIRATION SPECIFICATION
+The expiration specification can be one value or two values with the
+logical conjunction of AND/OR between them.
+Values for the audit log file age are numbers with the following
+suffixes:
+.Pp
+.Bl -tag -width "(space) or" -compact -offset indent
+.It Li s
+Log file age in seconds.
+.It Li h
+Log file age in hours.
+.It Li d
+Log file age in days.
+.It Li y
+Log file age in years.
+.El
+.Pp
+Values for the disk space used are numbers with the following suffixes:
+.Pp
+.Bl -tag -width "(space) or" -compact -offset indent
+.It (space) or
+.It Li B
+Disk space used in Bytes.
+.It Li K
+Disk space used in Kilobytes.
+.It Li M
+Disk space used in Megabytes.
+.It Li G
+Disk space used in Gigabytes.
+.El
+.Pp
+The suffixes on the values are case sensitive.
+If both an age and disk space value are used they are separated by
+AND or OR and both values are used to determine when audit
+log files expire.
+In the case of AND, both the age and disk space conditions must be met
+before the log file is removed.
+In the case of OR, either condition may expire the log file.
+For example:
+.Bd -literal -offset indent
+expire-after: 60d AND 1G
+.Ed
+.Pp
+will expire files that are older than 60 days but only if 1
+gigabyte of disk space total is being used by the audit logs.
+.Sh DEFAULT
+The following settings appear in the default
+.Nm
+file:
+.Bd -literal -offset indent
+dir:/var/audit
+flags:lo,aa
+minfree:5
+naflags:lo,aa
+policy:cnt,argv
+filesz:2M
+expire-after:10M
+.Ed
+.Pp
+The
+.Va flags
+parameter above specifies the system-wide mask corresponding to login/logout
+as well as authentication and authorization events.
+The
+.Va policy
+parameter specifies that the system should neither fail stop nor suspend
+processes when the audit store fills and that command line arguments should
+be audited for
+.Dv AUE_EXECVE
+events.
+The trail file will be automatically rotated by the audit daemon when the
+file size reaches approximately 2MB.
+Trail files will expire when their aggregate size exceeds 10MB.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/security/audit_control" -compact
+.It Pa /etc/security/audit_control
+.El
+.Sh SEE ALSO
+.Xr auditon 2 ,
+.Xr audit 4 ,
+.Xr audit_class 5 ,
+.Xr audit_event 5 ,
+.Xr audit_user 5 ,
+.Xr audit 8 ,
+.Xr auditd 8
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Sh AUTHORS
+.An -nosplit
+This software was created by McAfee Research, the security research division
+of McAfee, Inc., under contract to Apple Computer Inc.
+Additional authors include
+.An Wayne Salamon ,
+.An Robert Watson ,
+and SPARTA Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.

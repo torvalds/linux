@@ -1,0 +1,828 @@
+.\"	$Id: mandoc_char.7,v 1.72 2018/08/08 14:30:48 schwarze Exp $
+.\"
+.\" Copyright (c) 2003 Jason McIntyre <jmc@openbsd.org>
+.\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+.\" Copyright (c) 2011, 2013, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 8 2018 $
+.Dt MANDOC_CHAR 7
+.Os
+.Sh NAME
+.Nm mandoc_char
+.Nd mandoc special characters
+.Sh DESCRIPTION
+This page documents the
+.Xr roff 7
+escape sequences accepted by
+.Xr mandoc 1
+to represent special characters in
+.Xr mdoc 7
+and
+.Xr man 7
+documents.
+.Pp
+The rendering depends on the
+.Xr mandoc 1
+output mode; it can be inspected by calling
+.Xr man 1
+on the
+.Nm
+manual page with different
+.Fl T
+arguments.
+In ASCII output, the rendering of some characters may be hard
+to interpret for the reader.
+Many are rendered as descriptive strings like
+.Qq <integral> ,
+.Qq <degree> ,
+or
+.Qq <Gamma> ,
+which may look ugly, and many are replaced by similar ASCII characters.
+In particular, accented characters are usually shown without the accent.
+For that reason, try to avoid using any of the special characters
+documented here except those discussed in the
+.Sx DESCRIPTION ,
+unless they are essential for explaining the subject matter at hand,
+for example when documenting complicated mathematical functions.
+.Pp
+In particular, in English manual pages, do not use special-character
+escape sequences to represent national language characters in author
+names; instead, provide ASCII transcriptions of the names.
+.Ss Dashes and Hyphens
+In typography there are different types of dashes of various width:
+the hyphen (\(hy),
+the en-dash (\(en),
+the em-dash (\(em),
+and the mathematical minus sign (\(mi).
+.Pp
+Hyphens are used for adjectives;
+to separate the two parts of a compound word;
+or to separate a word across two successive lines of text.
+The hyphen does not need to be escaped:
+.Bd -unfilled -offset indent
+blue-eyed
+lorry-driver
+.Ed
+.Pp
+The en-dash is used to separate the two elements of a range,
+or can be used the same way as an em-dash.
+It should be written as
+.Sq \e(en :
+.Bd -unfilled -offset indent
+pp. 95\e(en97.
+Go away \e(en or else!
+.Ed
+.Pp
+The em-dash can be used to show an interruption
+or can be used the same way as colons, semi-colons, or parentheses.
+It should be written as
+.Sq \e(em :
+.Bd -unfilled -offset indent
+Three things \e(em apples, oranges, and bananas.
+This is not that \e(em rather, this is that.
+.Ed
+.Pp
+In
+.Xr roff 7
+documents, the minus sign is normally written as
+.Sq \e- .
+In manual pages, some style guides recommend to also use
+.Sq \e-
+if an ASCII 0x2d
+.Dq hyphen-minus
+output glyph that can be copied and pasted is desired in output modes
+supporting it, for example in
+.Fl T Cm utf8
+and
+.Fl T Cm html .
+But currently, no practically relevant manual page formatter actually
+requires that subtlety, so in manual pages just write plain
+.Sq -
+to represent hyphen, minus, and hyphen-minus.
+.Pp
+If a word on a text input line contains a hyphen, a formatter may decide
+to insert an output line break after the hyphen if that helps filling
+the current output line, but the whole word would overflow the line.
+If it is important that the word is not broken across lines in this
+way, a zero-width space
+.Pq Sq \e&
+can be inserted before or after the hyphen.
+While
+.Xr mandoc 1
+never breaks the output line after hyphens adjacent to a zero-width
+space, after any of the other dash- or hyphen-like characters
+represented by escape sequences, or after hyphens inside words in
+macro arguments, other software may not respect these rules and may
+break the line even in such cases.
+.Pp
+Some
+.Xr roff 7
+implementations contains dictionaries allowing to break the line
+at syllable boundaries even inside words that contain no hyphens.
+Such automatic hyphenation is not supported by
+.Xr mandoc 1 ,
+which only breaks the line at whitespace, and inside words only
+after existing hyphens.
+.Ss Spaces
+To separate words in normal text, for indenting and alignment
+in literal context, and when none of the following special cases apply,
+just use the normal space character
+.Pq Sq \  .
+.Pp
+When filling text, output lines may be broken between words, i.e. at space
+characters.
+To prevent a line break between two particular words,
+use the unpaddable non-breaking space escape sequence
+.Pq Sq \e\ \&
+instead of the normal space character.
+For example, the input string
+.Dq number\e\ 1
+will be kept together as
+.Dq number\ 1
+on the same output line.
+.Pp
+On request and macro lines, the normal space character serves as an
+argument delimiter.
+To include whitespace into arguments, quoting is usually the best choice;
+see the MACRO SYNTAX section in
+.Xr roff 7 .
+In some cases, using the non-breaking space escape sequence
+.Pq Sq \e\ \&
+may be preferable.
+.Pp
+To escape macro names and to protect whitespace at the end
+of input lines, the zero-width space
+.Pq Sq \e&
+is often useful.
+For example, in
+.Xr mdoc 7 ,
+a normal space character can be displayed in single quotes in either
+of the following ways:
+.Pp
+.Dl .Sq \(dq \(dq
+.Dl .Sq \e \e&
+.Ss Quotes
+On request and macro lines, the double-quote character
+.Pq Sq \(dq
+is handled specially to allow quoting.
+One way to prevent this special handling is by using the
+.Sq \e(dq
+escape sequence.
+.Pp
+Note that on text lines, literal double-quote characters can be used
+verbatim.
+All other quote-like characters can be used verbatim as well,
+even on request and macro lines.
+.Ss Accents
+In output modes supporting such special output characters, for example
+.Fl T Cm pdf ,
+and sometimes less consistently in
+.Fl T Cm utf8 ,
+some
+.Xr roff 7
+formatters convert the following ASCII input characters to the
+following Unicode special output characters:
+.Bl -column x(ga U+2018 -offset indent
+.It \(ga Ta U+2018 Ta left single quotation mark
+.It \(aq Ta U+2019 Ta right single quotation mark
+.It \(ti Ta U+02DC Ta small tilde
+.It \(ha Ta U+02C6 Ta modifier letter circumflex
+.El
+.Pp
+In prose, this automatic substitution is often desirable;
+but when these characters have to be displayed as plain ASCII
+characters, for example in source code samples, they require
+escaping to render as follows:
+.Bl -column x(ga U+2018 -offset indent
+.It \e(ga Ta U+0060 Ta grave accent
+.It \e(aq Ta U+0027 Ta apostrophe
+.It \e(ti Ta U+007E Ta tilde
+.It \e(ha Ta U+005E Ta circumflex accent
+.El
+.Ss Periods
+The period
+.Pq Sq \&.
+is handled specially at the beginning of an input line,
+where it introduces a
+.Xr roff 7
+request or a macro, and when appearing alone as a macro argument in
+.Xr mdoc 7 .
+In such situations, prepend a zero-width space
+.Pq Sq \e&.
+to make it behave like normal text.
+.Pp
+Do not use the
+.Sq \e.
+escape sequence.
+It does not prevent special handling of the period.
+.Ss Backslashes
+To include a literal backslash
+.Pq Sq \e
+into the output, use the
+.Pq Sq \ee
+escape sequence.
+.Pp
+Note that doubling it
+.Pq Sq \e\e
+is not the right way to output a backslash.
+Because
+.Xr mandoc 1
+does not implement full
+.Xr roff 7
+functionality, it may work with
+.Xr mandoc 1 ,
+but it may have weird effects on complete
+.Xr roff 7
+implementations.
+.Sh SPECIAL CHARACTERS
+Special characters are encoded as
+.Sq \eX
+.Pq for a one-character escape ,
+.Sq \e(XX
+.Pq two-character ,
+and
+.Sq \e[N]
+.Pq N-character .
+For details, see the
+.Em Special Characters
+subsection of the
+.Xr roff 7
+manual.
+.Pp
+Spacing:
+.Bl -column "Input" "Description" -offset indent -compact
+.It Em Input Ta Em Description
+.It Sq \e\ \& Ta unpaddable non-breaking space
+.It \e\(ti   Ta paddable non-breaking space
+.It \e0      Ta unpaddable, breaking digit-width space
+.It \e|      Ta one-sixth \e(em narrow space, zero width in nroff mode
+.It \e^      Ta one-twelfth \e(em half-narrow space, zero width in nroff
+.It \e&      Ta zero-width space
+.It \e%      Ta zero-width space allowing hyphenation
+.El
+.Pp
+Lines:
+.Bl -column "Input" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(ba    Ta \(ba        Ta bar
+.It \e(br    Ta \(br        Ta box rule
+.It \e(ul    Ta \(ul        Ta underscore
+.It \e(ru    Ta \(ru        Ta underscore (width 0.5m)
+.It \e(rn    Ta \(rn        Ta overline
+.It \e(bb    Ta \(bb        Ta broken bar
+.It \e(sl    Ta \(sl        Ta forward slash
+.It \e(rs    Ta \(rs        Ta backward slash
+.El
+.Pp
+Text markers:
+.Bl -column "Input" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(ci    Ta \(ci        Ta circle
+.It \e(bu    Ta \(bu        Ta bullet
+.It \e(dd    Ta \(dd        Ta double dagger
+.It \e(dg    Ta \(dg        Ta dagger
+.It \e(lz    Ta \(lz        Ta lozenge
+.It \e(sq    Ta \(sq        Ta white square
+.It \e(ps    Ta \(ps        Ta paragraph
+.It \e(sc    Ta \(sc        Ta section
+.It \e(lh    Ta \(lh        Ta left hand
+.It \e(rh    Ta \(rh        Ta right hand
+.It \e(at    Ta \(at        Ta at
+.It \e(sh    Ta \(sh        Ta hash (pound)
+.It \e(CR    Ta \(CR        Ta carriage return
+.It \e(OK    Ta \(OK        Ta check mark
+.It \e(CL    Ta \(CL        Ta club suit
+.It \e(SP    Ta \(SP        Ta spade suit
+.It \e(HE    Ta \(HE        Ta heart suit
+.It \e(DI    Ta \(DI        Ta diamond suit
+.El
+.Pp
+Legal symbols:
+.Bl -column "Input" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(co    Ta \(co        Ta copyright
+.It \e(rg    Ta \(rg        Ta registered
+.It \e(tm    Ta \(tm        Ta trademarked
+.El
+.Pp
+Punctuation:
+.Bl -column "Input" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(em    Ta \(em        Ta em-dash
+.It \e(en    Ta \(en        Ta en-dash
+.It \e(hy    Ta \(hy        Ta hyphen
+.It \ee      Ta \e          Ta back-slash
+.It \e.      Ta \.          Ta period
+.It \e(r!    Ta \(r!        Ta upside-down exclamation
+.It \e(r?    Ta \(r?        Ta upside-down question
+.El
+.Pp
+Quotes:
+.Bl -column "Input" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(Bq    Ta \(Bq        Ta right low double-quote
+.It \e(bq    Ta \(bq        Ta right low single-quote
+.It \e(lq    Ta \(lq        Ta left double-quote
+.It \e(rq    Ta \(rq        Ta right double-quote
+.It \e(oq    Ta \(oq        Ta left single-quote
+.It \e(cq    Ta \(cq        Ta right single-quote
+.It \e(aq    Ta \(aq        Ta apostrophe quote (ASCII character)
+.It \e(dq    Ta \(dq        Ta double quote (ASCII character)
+.It \e(Fo    Ta \(Fo        Ta left guillemet
+.It \e(Fc    Ta \(Fc        Ta right guillemet
+.It \e(fo    Ta \(fo        Ta left single guillemet
+.It \e(fc    Ta \(fc        Ta right single guillemet
+.El
+.Pp
+Brackets:
+.Bl -column "xxbracketrightbtx" Rendered Description -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(lB    Ta \(lB        Ta left bracket
+.It \e(rB    Ta \(rB        Ta right bracket
+.It \e(lC    Ta \(lC        Ta left brace
+.It \e(rC    Ta \(rC        Ta right brace
+.It \e(la    Ta \(la        Ta left angle
+.It \e(ra    Ta \(ra        Ta right angle
+.It \e(bv    Ta \(bv        Ta brace extension (special font)
+.It \e[braceex] Ta \[braceex] Ta brace extension
+.It \e[bracketlefttp] Ta \[bracketlefttp] Ta top-left hooked bracket
+.It \e[bracketleftbt] Ta \[bracketleftbt] Ta bottom-left hooked bracket
+.It \e[bracketleftex] Ta \[bracketleftex] Ta left hooked bracket extension
+.It \e[bracketrighttp] Ta \[bracketrighttp] Ta top-right hooked bracket
+.It \e[bracketrightbt] Ta \[bracketrightbt] Ta bottom-right hooked bracket
+.It \e[bracketrightex] Ta \[bracketrightex] Ta right hooked bracket extension
+.It \e(lt    Ta \(lt        Ta top-left hooked brace
+.It \e[bracelefttp] Ta \[bracelefttp] Ta top-left hooked brace
+.It \e(lk    Ta \(lk        Ta mid-left hooked brace
+.It \e[braceleftmid] Ta \[braceleftmid] Ta mid-left hooked brace
+.It \e(lb    Ta \(lb        Ta bottom-left hooked brace
+.It \e[braceleftbt] Ta \[braceleftbt] Ta bottom-left hooked brace
+.It \e[braceleftex] Ta \[braceleftex] Ta left hooked brace extension
+.It \e(rt    Ta \(rt        Ta top-left hooked brace
+.It \e[bracerighttp] Ta \[bracerighttp] Ta top-right hooked brace
+.It \e(rk    Ta \(rk        Ta mid-right hooked brace
+.It \e[bracerightmid] Ta \[bracerightmid] Ta mid-right hooked brace
+.It \e(rb    Ta \(rb        Ta bottom-right hooked brace
+.It \e[bracerightbt] Ta \[bracerightbt] Ta bottom-right hooked brace
+.It \e[bracerightex] Ta \[bracerightex] Ta right hooked brace extension
+.It \e[parenlefttp] Ta \[parenlefttp] Ta top-left hooked parenthesis
+.It \e[parenleftbt] Ta \[parenleftbt] Ta bottom-left hooked parenthesis
+.It \e[parenleftex] Ta \[parenleftex] Ta left hooked parenthesis extension
+.It \e[parenrighttp] Ta \[parenrighttp] Ta top-right hooked parenthesis
+.It \e[parenrightbt] Ta \[parenrightbt] Ta bottom-right hooked parenthesis
+.It \e[parenrightex] Ta \[parenrightex] Ta right hooked parenthesis extension
+.El
+.Pp
+Arrows:
+.Bl -column "Input" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(<-    Ta \(<-        Ta left arrow
+.It \e(->    Ta \(->        Ta right arrow
+.It \e(<>    Ta \(<>        Ta left-right arrow
+.It \e(da    Ta \(da        Ta down arrow
+.It \e(ua    Ta \(ua        Ta up arrow
+.It \e(va    Ta \(va        Ta up-down arrow
+.It \e(lA    Ta \(lA        Ta left double-arrow
+.It \e(rA    Ta \(rA        Ta right double-arrow
+.It \e(hA    Ta \(hA        Ta left-right double-arrow
+.It \e(uA    Ta \(uA        Ta up double-arrow
+.It \e(dA    Ta \(dA        Ta down double-arrow
+.It \e(vA    Ta \(vA        Ta up-down double-arrow
+.It \e(an    Ta \(an        Ta horizontal arrow extension
+.El
+.Pp
+Logical:
+.Bl -column "Input" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(AN    Ta \(AN        Ta logical and
+.It \e(OR    Ta \(OR        Ta logical or
+.It \e[tno]  Ta \[tno]      Ta logical not (text font)
+.It \e(no    Ta \(no        Ta logical not (special font)
+.It \e(te    Ta \(te        Ta existential quantifier
+.It \e(fa    Ta \(fa        Ta universal quantifier
+.It \e(st    Ta \(st        Ta such that
+.It \e(tf    Ta \(tf        Ta therefore
+.It \e(3d    Ta \(3d        Ta therefore
+.It \e(or    Ta \(or        Ta bitwise or
+.El
+.Pp
+Mathematical:
+.Bl -column "xxcoproductxx" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e-      Ta \-          Ta minus (text font)
+.It \e(mi    Ta \(mi        Ta minus (special font)
+.It +        Ta +           Ta plus (text font)
+.It \e(pl    Ta \(pl        Ta plus (special font)
+.It \e(-+    Ta \(-+        Ta minus-plus
+.It \e[t+-]  Ta \[t+-]      Ta plus-minus (text font)
+.It \e(+-    Ta \(+-        Ta plus-minus (special font)
+.It \e(pc    Ta \(pc        Ta center-dot
+.It \e[tmu]  Ta \[tmu]      Ta multiply (text font)
+.It \e(mu    Ta \(mu        Ta multiply (special font)
+.It \e(c*    Ta \(c*        Ta circle-multiply
+.It \e(c+    Ta \(c+        Ta circle-plus
+.It \e[tdi]  Ta \[tdi]      Ta divide (text font)
+.It \e(di    Ta \(di        Ta divide (special font)
+.It \e(f/    Ta \(f/        Ta fraction
+.It \e(**    Ta \(**        Ta asterisk
+.It \e(<=    Ta \(<=        Ta less-than-equal
+.It \e(>=    Ta \(>=        Ta greater-than-equal
+.It \e(<<    Ta \(<<        Ta much less
+.It \e(>>    Ta \(>>        Ta much greater
+.It \e(eq    Ta \(eq        Ta equal
+.It \e(!=    Ta \(!=        Ta not equal
+.It \e(==    Ta \(==        Ta equivalent
+.It \e(ne    Ta \(ne        Ta not equivalent
+.It \e(ap    Ta \(ap        Ta tilde operator
+.It \e(|=    Ta \(|=        Ta asymptotically equal
+.It \e(=\(ti Ta \(=~        Ta approximately equal
+.It \e(\(ti\(ti Ta \(~~        Ta almost equal
+.It \e(\(ti= Ta \(~=        Ta almost equal
+.It \e(pt    Ta \(pt        Ta proportionate
+.It \e(es    Ta \(es        Ta empty set
+.It \e(mo    Ta \(mo        Ta element
+.It \e(nm    Ta \(nm        Ta not element
+.It \e(sb    Ta \(sb        Ta proper subset
+.It \e(nb    Ta \(nb        Ta not subset
+.It \e(sp    Ta \(sp        Ta proper superset
+.It \e(nc    Ta \(nc        Ta not superset
+.It \e(ib    Ta \(ib        Ta reflexive subset
+.It \e(ip    Ta \(ip        Ta reflexive superset
+.It \e(ca    Ta \(ca        Ta intersection
+.It \e(cu    Ta \(cu        Ta union
+.It \e(/_    Ta \(/_        Ta angle
+.It \e(pp    Ta \(pp        Ta perpendicular
+.It \e(is    Ta \(is        Ta integral
+.It \e[integral] Ta \[integral] Ta integral
+.It \e[sum]    Ta \[sum]   Ta summation
+.It \e[product] Ta \[product] Ta product
+.It \e[coproduct] Ta \[coproduct] Ta coproduct
+.It \e(gr    Ta \(gr        Ta gradient
+.It \e(sr    Ta \(sr        Ta square root
+.It \e[sqrt] Ta \[sqrt]     Ta square root
+.It \e(lc    Ta \(lc        Ta left-ceiling
+.It \e(rc    Ta \(rc        Ta right-ceiling
+.It \e(lf    Ta \(lf        Ta left-floor
+.It \e(rf    Ta \(rf        Ta right-floor
+.It \e(if    Ta \(if        Ta infinity
+.It \e(Ah    Ta \(Ah        Ta aleph
+.It \e(Im    Ta \(Im        Ta imaginary
+.It \e(Re    Ta \(Re        Ta real
+.It \e(wp    Ta \(wp        Ta Weierstrass p
+.It \e(pd    Ta \(pd        Ta partial differential
+.It \e(-h    Ta \(-h        Ta Planck constant over 2\(*p
+.It \e[hbar] Ta \[hbar]     Ta Planck constant over 2\(*p
+.It \e(12    Ta \(12        Ta one-half
+.It \e(14    Ta \(14        Ta one-fourth
+.It \e(34    Ta \(34        Ta three-fourths
+.It \e(18    Ta \(18        Ta one-eighth
+.It \e(38    Ta \(38        Ta three-eighths
+.It \e(58    Ta \(58        Ta five-eighths
+.It \e(78    Ta \(78        Ta seven-eighths
+.It \e(S1    Ta \(S1        Ta superscript 1
+.It \e(S2    Ta \(S2        Ta superscript 2
+.It \e(S3    Ta \(S3        Ta superscript 3
+.El
+.Pp
+Ligatures:
+.Bl -column "Input" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(ff    Ta \(ff        Ta ff ligature
+.It \e(fi    Ta \(fi        Ta fi ligature
+.It \e(fl    Ta \(fl        Ta fl ligature
+.It \e(Fi    Ta \(Fi        Ta ffi ligature
+.It \e(Fl    Ta \(Fl        Ta ffl ligature
+.It \e(AE    Ta \(AE        Ta AE
+.It \e(ae    Ta \(ae        Ta ae
+.It \e(OE    Ta \(OE        Ta OE
+.It \e(oe    Ta \(oe        Ta oe
+.It \e(ss    Ta \(ss        Ta German eszett
+.It \e(IJ    Ta \(IJ        Ta IJ ligature
+.It \e(ij    Ta \(ij        Ta ij ligature
+.El
+.Pp
+Accents:
+.Bl -column "Input" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(a"    Ta \(a"        Ta Hungarian umlaut
+.It \e(a-    Ta \(a-        Ta macron
+.It \e(a.    Ta \(a.        Ta dotted
+.It \e(a^    Ta \(a^        Ta circumflex
+.It \e(aa    Ta \(aa        Ta acute
+.It \e\(aq   Ta \'          Ta acute
+.It \e(ga    Ta \(ga        Ta grave
+.It \e\(ga   Ta \`          Ta grave
+.It \e(ab    Ta \(ab        Ta breve
+.It \e(ac    Ta \(ac        Ta cedilla
+.It \e(ad    Ta \(ad        Ta dieresis
+.It \e(ah    Ta \(ah        Ta caron
+.It \e(ao    Ta \(ao        Ta ring
+.It \e(a\(ti Ta \(a~        Ta tilde
+.It \e(ho    Ta \(ho        Ta ogonek
+.It \e(ha    Ta \(ha        Ta hat (ASCII character)
+.It \e(ti    Ta \(ti        Ta tilde (ASCII character)
+.El
+.Pp
+Accented letters:
+.Bl -column "Input" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(\(aqA Ta \('A        Ta acute A
+.It \e(\(aqE Ta \('E        Ta acute E
+.It \e(\(aqI Ta \('I        Ta acute I
+.It \e(\(aqO Ta \('O        Ta acute O
+.It \e(\(aqU Ta \('U        Ta acute U
+.It \e(\(aqa Ta \('a        Ta acute a
+.It \e(\(aqe Ta \('e        Ta acute e
+.It \e(\(aqi Ta \('i        Ta acute i
+.It \e(\(aqo Ta \('o        Ta acute o
+.It \e(\(aqu Ta \('u        Ta acute u
+.It \e(\(gaA Ta \(`A        Ta grave A
+.It \e(\(gaE Ta \(`E        Ta grave E
+.It \e(\(gaI Ta \(`I        Ta grave I
+.It \e(\(gaO Ta \(`O        Ta grave O
+.It \e(\(gaU Ta \(`U        Ta grave U
+.It \e(\(gaa Ta \(`a        Ta grave a
+.It \e(\(gae Ta \(`e        Ta grave e
+.It \e(\(gai Ta \(`i        Ta grave i
+.It \e(\(gao Ta \(`i        Ta grave o
+.It \e(\(gau Ta \(`u        Ta grave u
+.It \e(\(tiA Ta \(~A        Ta tilde A
+.It \e(\(tiN Ta \(~N        Ta tilde N
+.It \e(\(tiO Ta \(~O        Ta tilde O
+.It \e(\(tia Ta \(~a        Ta tilde a
+.It \e(\(tin Ta \(~n        Ta tilde n
+.It \e(\(tio Ta \(~o        Ta tilde o
+.It \e(:A    Ta \(:A        Ta dieresis A
+.It \e(:E    Ta \(:E        Ta dieresis E
+.It \e(:I    Ta \(:I        Ta dieresis I
+.It \e(:O    Ta \(:O        Ta dieresis O
+.It \e(:U    Ta \(:U        Ta dieresis U
+.It \e(:a    Ta \(:a        Ta dieresis a
+.It \e(:e    Ta \(:e        Ta dieresis e
+.It \e(:i    Ta \(:i        Ta dieresis i
+.It \e(:o    Ta \(:o        Ta dieresis o
+.It \e(:u    Ta \(:u        Ta dieresis u
+.It \e(:y    Ta \(:y        Ta dieresis y
+.It \e(^A    Ta \(^A        Ta circumflex A
+.It \e(^E    Ta \(^E        Ta circumflex E
+.It \e(^I    Ta \(^I        Ta circumflex I
+.It \e(^O    Ta \(^O        Ta circumflex O
+.It \e(^U    Ta \(^U        Ta circumflex U
+.It \e(^a    Ta \(^a        Ta circumflex a
+.It \e(^e    Ta \(^e        Ta circumflex e
+.It \e(^i    Ta \(^i        Ta circumflex i
+.It \e(^o    Ta \(^o        Ta circumflex o
+.It \e(^u    Ta \(^u        Ta circumflex u
+.It \e(,C    Ta \(,C        Ta cedilla C
+.It \e(,c    Ta \(,c        Ta cedilla c
+.It \e(/L    Ta \(/L        Ta stroke L
+.It \e(/l    Ta \(/l        Ta stroke l
+.It \e(/O    Ta \(/O        Ta stroke O
+.It \e(/o    Ta \(/o        Ta stroke o
+.It \e(oA    Ta \(oA        Ta ring A
+.It \e(oa    Ta \(oa        Ta ring a
+.El
+.Pp
+Special letters:
+.Bl -column "Input" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(-D    Ta \(-D        Ta Eth
+.It \e(Sd    Ta \(Sd        Ta eth
+.It \e(TP    Ta \(TP        Ta Thorn
+.It \e(Tp    Ta \(Tp        Ta thorn
+.It \e(.i    Ta \(.i        Ta dotless i
+.It \e(.j    Ta \(.j        Ta dotless j
+.El
+.Pp
+Currency:
+.Bl -column "Input" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(Do    Ta \(Do        Ta dollar
+.It \e(ct    Ta \(ct        Ta cent
+.It \e(Eu    Ta \(Eu        Ta Euro symbol
+.It \e(eu    Ta \(eu        Ta Euro symbol
+.It \e(Ye    Ta \(Ye        Ta yen
+.It \e(Po    Ta \(Po        Ta pound
+.It \e(Cs    Ta \(Cs        Ta Scandinavian
+.It \e(Fn    Ta \(Fn        Ta florin
+.El
+.Pp
+Units:
+.Bl -column "Input" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(de    Ta \(de        Ta degree
+.It \e(%0    Ta \(%0        Ta per-thousand
+.It \e(fm    Ta \(fm        Ta minute
+.It \e(sd    Ta \(sd        Ta second
+.It \e(mc    Ta \(mc        Ta micro
+.It \e(Of    Ta \(Of        Ta Spanish female ordinal
+.It \e(Om    Ta \(Om        Ta Spanish masculine ordinal
+.El
+.Pp
+Greek letters:
+.Bl -column "Input" "Rendered" "Description" -offset indent -compact
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e(*A    Ta \(*A        Ta Alpha
+.It \e(*B    Ta \(*B        Ta Beta
+.It \e(*G    Ta \(*G        Ta Gamma
+.It \e(*D    Ta \(*D        Ta Delta
+.It \e(*E    Ta \(*E        Ta Epsilon
+.It \e(*Z    Ta \(*Z        Ta Zeta
+.It \e(*Y    Ta \(*Y        Ta Eta
+.It \e(*H    Ta \(*H        Ta Theta
+.It \e(*I    Ta \(*I        Ta Iota
+.It \e(*K    Ta \(*K        Ta Kappa
+.It \e(*L    Ta \(*L        Ta Lambda
+.It \e(*M    Ta \(*M        Ta Mu
+.It \e(*N    Ta \(*N        Ta Nu
+.It \e(*C    Ta \(*C        Ta Xi
+.It \e(*O    Ta \(*O        Ta Omicron
+.It \e(*P    Ta \(*P        Ta Pi
+.It \e(*R    Ta \(*R        Ta Rho
+.It \e(*S    Ta \(*S        Ta Sigma
+.It \e(*T    Ta \(*T        Ta Tau
+.It \e(*U    Ta \(*U        Ta Upsilon
+.It \e(*F    Ta \(*F        Ta Phi
+.It \e(*X    Ta \(*X        Ta Chi
+.It \e(*Q    Ta \(*Q        Ta Psi
+.It \e(*W    Ta \(*W        Ta Omega
+.It \e(*a    Ta \(*a        Ta alpha
+.It \e(*b    Ta \(*b        Ta beta
+.It \e(*g    Ta \(*g        Ta gamma
+.It \e(*d    Ta \(*d        Ta delta
+.It \e(*e    Ta \(*e        Ta epsilon
+.It \e(*z    Ta \(*z        Ta zeta
+.It \e(*y    Ta \(*y        Ta eta
+.It \e(*h    Ta \(*h        Ta theta
+.It \e(*i    Ta \(*i        Ta iota
+.It \e(*k    Ta \(*k        Ta kappa
+.It \e(*l    Ta \(*l        Ta lambda
+.It \e(*m    Ta \(*m        Ta mu
+.It \e(*n    Ta \(*n        Ta nu
+.It \e(*c    Ta \(*c        Ta xi
+.It \e(*o    Ta \(*o        Ta omicron
+.It \e(*p    Ta \(*p        Ta pi
+.It \e(*r    Ta \(*r        Ta rho
+.It \e(*s    Ta \(*s        Ta sigma
+.It \e(*t    Ta \(*t        Ta tau
+.It \e(*u    Ta \(*u        Ta upsilon
+.It \e(*f    Ta \(*f        Ta phi
+.It \e(*x    Ta \(*x        Ta chi
+.It \e(*q    Ta \(*q        Ta psi
+.It \e(*w    Ta \(*w        Ta omega
+.It \e(+h    Ta \(+h        Ta theta variant
+.It \e(+f    Ta \(+f        Ta phi variant
+.It \e(+p    Ta \(+p        Ta pi variant
+.It \e(+e    Ta \(+e        Ta epsilon variant
+.It \e(ts    Ta \(ts        Ta sigma terminal
+.El
+.Sh PREDEFINED STRINGS
+Predefined strings are inherited from the macro packages of historical
+troff implementations.
+They are
+.Em not recommended
+for use, as they differ across implementations.
+Manuals using these predefined strings are almost certainly not
+portable.
+.Pp
+Their syntax is similar to special characters, using
+.Sq \e*X
+.Pq for a one-character escape ,
+.Sq \e*(XX
+.Pq two-character ,
+and
+.Sq \e*[N]
+.Pq N-character .
+For details, see the
+.Em Predefined Strings
+subsection of the
+.Xr roff 7
+manual.
+.Bl -column "Input" "Rendered" "Description" -offset indent
+.It Em Input Ta Em Rendered Ta Em Description
+.It \e*(Ba   Ta \*(Ba       Ta vertical bar
+.It \e*(Ne   Ta \*(Ne       Ta not equal
+.It \e*(Ge   Ta \*(Ge       Ta greater-than-equal
+.It \e*(Le   Ta \*(Le       Ta less-than-equal
+.It \e*(Gt   Ta \*(Gt       Ta greater-than
+.It \e*(Lt   Ta \*(Lt       Ta less-than
+.It \e*(Pm   Ta \*(Pm       Ta plus-minus
+.It \e*(If   Ta \*(If       Ta infinity
+.It \e*(Pi   Ta \*(Pi       Ta pi
+.It \e*(Na   Ta \*(Na       Ta NaN
+.It \e*(Am   Ta \*(Am       Ta ampersand
+.It \e*R     Ta \*R         Ta restricted mark
+.It \e*(Tm   Ta \*(Tm       Ta trade mark
+.It \e*q     Ta \*q         Ta double-quote
+.It \e*(Rq   Ta \*(Rq       Ta right-double-quote
+.It \e*(Lq   Ta \*(Lq       Ta left-double-quote
+.It \e*(lp   Ta \*(lp       Ta right-parenthesis
+.It \e*(rp   Ta \*(rp       Ta left-parenthesis
+.It \e*(lq   Ta \*(lq       Ta left double-quote
+.It \e*(rq   Ta \*(rq       Ta right double-quote
+.It \e*(ua   Ta \*(ua       Ta up arrow
+.It \e*(va   Ta \*(va       Ta up-down arrow
+.It \e*(<=   Ta \*(<=       Ta less-than-equal
+.It \e*(>=   Ta \*(>=       Ta greater-than-equal
+.It \e*(aa   Ta \*(aa       Ta acute
+.It \e*(ga   Ta \*(ga       Ta grave
+.It \e*(Px   Ta \*(Px       Ta POSIX standard name
+.It \e*(Ai   Ta \*(Ai       Ta ANSI standard name
+.El
+.Sh UNICODE CHARACTERS
+The escape sequences
+.Pp
+.Dl \e[uXXXX] and \eC\(aquXXXX\(aq
+.Pp
+are interpreted as Unicode codepoints.
+The codepoint must be in the range above U+0080 and less than U+10FFFF.
+For compatibility, the hexadecimal digits
+.Sq A
+to
+.Sq F
+must be given as uppercase characters,
+and points must be zero-padded to four characters; if
+greater than four characters, no zero padding is allowed.
+Unicode surrogates are not allowed.
+.Sh NUMBERED CHARACTERS
+For backward compatibility with existing manuals,
+.Xr mandoc 1
+also supports the
+.Pp
+.Dl \eN\(aq Ns Ar number Ns \(aq
+.Pp
+escape sequence, inserting the character
+.Ar number
+from the current character set into the output.
+Of course, this is inherently non-portable and is already marked
+as deprecated in the Heirloom roff manual.
+For example, do not use \eN\(aq34\(aq, use \e(dq, or even the plain
+.Sq \(dq
+character where possible.
+.Sh COMPATIBILITY
+This section documents compatibility between mandoc and other
+troff implementations, at this time limited to GNU troff
+.Pq Qq groff .
+.Pp
+.Bl -dash -compact
+.It
+The \eN\(aq\(aq escape sequence is limited to printable characters; in
+groff, it accepts arbitrary character numbers.
+.It
+In
+.Fl T Ns Cm ascii ,
+the
+\e(ss, \e(nm, \e(nb, \e(nc, \e(ib, \e(ip, \e(pp, \e[sum], \e[product],
+\e[coproduct], \e(gr, \e(-h, and \e(a. special characters render
+differently between mandoc and groff.
+.It
+In
+.Fl T Ns Cm html ,
+the \e(\(ti=, \e(nb, and \e(nc special characters render differently
+between mandoc and groff.
+.It
+The
+.Fl T Ns Cm ps
+and
+.Fl T Ns Cm pdf
+modes format like
+.Fl T Ns Cm ascii
+instead of rendering glyphs as in groff.
+.It
+The \e[radicalex], \e[sqrtex], and \e(ru special characters have been omitted
+from mandoc either because they are poorly documented or they have no
+known representation.
+.El
+.Sh SEE ALSO
+.Xr mandoc 1 ,
+.Xr man 7 ,
+.Xr mdoc 7 ,
+.Xr roff 7
+.Sh AUTHORS
+The
+.Nm
+manual page was written by
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv .
+.Sh CAVEATS
+The predefined string
+.Sq \e*(Ba
+mimics the behaviour of the
+.Sq \&|
+character in
+.Xr mdoc 7 ;
+thus, if you wish to render a vertical bar with no side effects, use
+the
+.Sq \e(ba
+escape.

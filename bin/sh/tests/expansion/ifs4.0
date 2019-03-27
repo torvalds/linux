@@ -1,0 +1,39 @@
+# $FreeBSD$
+
+c=: e= s=' '
+failures=''
+ok=''
+
+check_result() {
+	if [ "x$2" = "x$3" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "For $1, expected $3 actual $2"
+	fi
+}
+
+IFS=' 	
+'
+set -- a b '' c
+set -- $@
+check_result 'set -- $@' "($#)($1)($2)($3)($4)" "(3)(a)(b)(c)()"
+
+IFS=''
+set -- a b '' c
+set -- $@
+check_result 'set -- $@' "($#)($1)($2)($3)($4)" "(3)(a)(b)(c)()"
+
+set -- a b '' c
+set -- $*
+check_result 'set -- $*' "($#)($1)($2)($3)($4)" "(3)(a)(b)(c)()"
+
+set -- a b '' c
+set -- "$@"
+check_result 'set -- "$@"' "($#)($1)($2)($3)($4)" "(4)(a)(b)()(c)"
+
+set -- a b '' c
+set -- "$*"
+check_result 'set -- "$*"' "($#)($1)($2)($3)($4)" "(1)(abc)()()()"
+
+test "x$failures" = x

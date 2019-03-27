@@ -1,0 +1,153 @@
+.\" Copyright (c) 2003
+.\"	Bill Paul <wpaul@windriver.com>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 14, 2010
+.Dt NDIS 4
+.Os
+.Sh NAME
+.Nm ndis
+.Nd NDIS miniport driver wrapper
+.Sh SYNOPSIS
+.Cd "options NDISAPI"
+.Cd "device ndis"
+.Cd "device wlan"
+.Sh DESCRIPTION
+The
+.Nm
+driver is a wrapper designed to allow binary
+.Tn Windows\[rg]
+NDIS miniport
+network drivers to be used with
+.Fx .
+The
+.Nm
+driver is provided in source code form and must be combined with
+the
+.Tn Windows\[rg]
+driver supplied with your network adapter.
+The
+.Nm
+driver uses the
+.Nm ndisapi
+kernel subsystem to relocate and link the
+.Tn Windows\[rg]
+binary so
+that it can be used in conjunction with native code.
+The
+.Nm ndisapi
+subsystem provides an interface between the NDIS API and the
+.Fx
+networking infrastructure.
+The
+.Tn Windows\[rg]
+driver is essentially
+fooled into thinking it is running on
+.Tn Windows\[rg] .
+Note that this
+means the
+.Nm
+driver is only useful on x86 machines.
+.Pp
+To build a functional driver, the user must have a copy of the
+driver distribution media for his or her card.
+From this distribution,
+the user must extract two files: the
+.Pa .SYS
+file containing the driver
+binary code, and its companion
+.Pa .INF
+file, which contains the
+definitions for driver-specific registry keys and other installation
+data such as device identifiers.
+These two files can be converted
+into a kernel module file using the
+.Xr ndisgen 8
+utility.
+This file contains a binary image of the driver plus
+registry key data.
+When the
+.Nm
+driver loads, it will create
+.Xr sysctl 3
+nodes for each registry key extracted from the
+.Pa .INF
+file.
+.Pp
+The
+.Nm
+driver is designed to support mainly Ethernet and wireless
+network devices with PCI, PCMCIA and USB bus attachments.
+(Cardbus
+devices are also supported as a subset of PCI.)
+It can
+support many different media types and speeds.
+One limitation
+however, is that there is no consistent way to learn if an
+Ethernet device is operating in full or half duplex mode.
+The NDIS API allows for a generic means for determining link
+state and speed, but not the duplex setting.
+There may be
+driver-specific registry keys to control the media setting
+which can be configured via the
+.Xr sysctl 8
+command.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ndis%d: watchdog timeout"
+A packet was queued for transmission and a transmit command was
+issued, however the device failed to acknowledge the transmission
+before a timeout expired.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8 ,
+.Xr ndis_events 8 ,
+.Xr ndiscvt 8 ,
+.Xr ndisgen 8 ,
+.Xr wpa_supplicant 8
+.Rs
+.%T "NDIS 5.1 specification"
+.%U http://www.microsoft.com
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@windriver.com .

@@ -1,0 +1,311 @@
+.\" Copyright (c) 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Paul Borman at Krystal Technologies.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mklocale.1	8.2 (Berkeley) 4/18/94
+.\" $FreeBSD$
+.\"
+.Dd April 18, 2016
+.Dt MKLOCALE 1
+.Os
+.Sh NAME
+.Nm mklocale
+.Nd make LC_CTYPE locale files
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Ar "< src-file"
+.Ar "> language/LC_CTYPE"
+.Nm
+.Op Fl d
+.Fl o
+.Ar language/LC_CTYPE
+.Ar src-file
+.Sh DESCRIPTION
+The
+.Nm
+utility reads a
+.Dv LC_CTYPE
+source file from standard input and produces a
+.Dv LC_CTYPE
+binary file on standard output suitable for placement in
+.Pa /usr/share/locale/ Ns Ar language Ns Pa /LC_CTYPE .
+.Pp
+The format of
+.Ar src-file
+is quite simple.
+It consists of a series of lines which start with a keyword and have
+associated data following.
+C style comments are used
+to place comments in the file.
+.Pp
+Following options are available:
+.Bl -tag -width indent
+.It Fl d
+Turns on debugging messages.
+.It Fl o
+Specify output file.
+.El
+.Pp
+Besides the keywords which will be listed below,
+the following are valid tokens in
+.Ar src-file :
+.Bl -tag -width ".Ar literal"
+.It Dv RUNE
+A
+.Dv RUNE
+may be any of the following:
+.Bl -tag -width ".Ar 0x[0-9a-z]*"
+.It Ar 'x'
+The ASCII character
+.Ar x .
+.It Ar '\ex'
+The ANSI C character
+.Ar \ex
+where
+.Ar \ex
+is one of
+.Dv \ea ,
+.Dv \eb ,
+.Dv \ef ,
+.Dv \en ,
+.Dv \er ,
+.Dv \et ,
+or
+.Dv \ev .
+.It Ar 0x[0-9a-z]*
+A hexadecimal number representing a rune code.
+.It Ar 0[0-7]*
+An octal number representing a rune code.
+.It Ar [1-9][0-9]*
+A decimal number representing a rune code.
+.El
+.It Dv STRING
+A string enclosed in double quotes (").
+.It Dv THRU
+Either
+.Dv ...
+or
+.Dv - .
+Used to indicate ranges.
+.It Ar literal
+The follow characters are taken literally:
+.Bl -tag -width ".Dv <\|\|(\|\|["
+.It Dv "<\|(\|["
+Used to start a mapping.
+All are equivalent.
+.It Dv ">\|\^)\|]"
+Used to end a mapping.
+All are equivalent.
+.It Dv ":"
+Used as a delimiter in mappings.
+.El
+.El
+.Pp
+Key words which should only appear once are:
+.Bl -tag -width ".Dv PHONOGRAM"
+.It Dv ENCODING
+Followed by a
+.Dv STRING
+which indicates the encoding mechanism to be used for this locale.
+The current encodings are:
+.Bl -tag -width ".Dv MSKanji"
+.It Dv ASCII
+American Standard Code for Information Interchange.
+.It Dv BIG5
+The
+.Dq Big5
+encoding of Chinese.
+.It Dv EUC
+.Dv EUC
+encoding as used by several
+vendors of
+.Ux
+systems.
+.It Dv GB18030
+PRC national standard for encoding of Chinese text.
+.It Dv GB2312
+Older PRC national standard for encoding Chinese text.
+.It Dv GBK
+A widely used encoding method for Chinese text,
+backwards compatible with GB\ 2312-1980.
+.It Dv MSKanji
+The method of encoding Japanese used by Microsoft,
+loosely based on JIS.
+Also known as
+.Dq "Shift JIS"
+and
+.Dq SJIS .
+.It Dv NONE
+No translation and the default.
+.It Dv UTF-8
+The
+.Dv UTF-8
+transformation format of
+.Tn ISO
+10646
+as defined by RFC 2279.
+.El
+.It Dv VARIABLE
+This keyword must be followed by a single tab or space character,
+after which encoding specific data is placed.
+Currently only the
+.Dv "EUC"
+encoding requires variable data.
+See
+.Xr euc 5
+for further details.
+.It Dv INVALID
+(obsolete)
+A single
+.Dv RUNE
+follows and is used as the invalid rune for this locale.
+.El
+.Pp
+The following keywords may appear multiple times and have the following
+format for data:
+.Bl -tag -width ".Dv <RUNE1 THRU RUNEn : RUNE2>" -offset indent
+.It Dv <RUNE1 RUNE2>
+.Dv RUNE1
+is mapped to
+.Dv RUNE2 .
+.It Dv <RUNE1 THRU RUNEn : RUNE2>
+Runes
+.Dv RUNE1
+through
+.Dv RUNEn
+are mapped to
+.Dv RUNE2
+through
+.Dv RUNE2
++ n-1.
+.El
+.Bl -tag -width ".Dv PHONOGRAM"
+.It Dv MAPLOWER
+Defines the tolower mappings.
+.Dv RUNE2
+is the lower case representation of
+.Dv RUNE1 .
+.It Dv MAPUPPER
+Defines the toupper mappings.
+.Dv RUNE2
+is the upper case representation of
+.Dv RUNE1 .
+.It Dv TODIGIT
+Defines a map from runes to their digit value.
+.Dv RUNE2
+is the integer value represented by
+.Dv RUNE1 .
+For example, the ASCII character
+.Ql 0
+would map to the decimal value 0.
+Only values up to 255
+are allowed.
+.El
+.Pp
+The following keywords may appear multiple times and have the following
+format for data:
+.Bl -tag -width ".Dv RUNE1 THRU RUNEn" -offset indent
+.It Dv RUNE
+This rune has the property defined by the keyword.
+.It Dv "RUNE1 THRU RUNEn"
+All the runes between and including
+.Dv RUNE1
+and
+.Dv RUNEn
+have the property defined by the keyword.
+.El
+.Bl -tag -width ".Dv PHONOGRAM"
+.It Dv ALPHA
+Defines runes which are alphabetic, printable and graphic.
+.It Dv CONTROL
+Defines runes which are control characters.
+.It Dv DIGIT
+Defines runes which are decimal digits, printable and graphic.
+.It Dv GRAPH
+Defines runes which are graphic and printable.
+.It Dv LOWER
+Defines runes which are lower case, printable and graphic.
+.It Dv PUNCT
+Defines runes which are punctuation, printable and graphic.
+.It Dv SPACE
+Defines runes which are spaces.
+.It Dv UPPER
+Defines runes which are upper case, printable and graphic.
+.It Dv XDIGIT
+Defines runes which are hexadecimal digits, printable and graphic.
+.It Dv BLANK
+Defines runes which are blank.
+.It Dv PRINT
+Defines runes which are printable.
+.It Dv IDEOGRAM
+Defines runes which are ideograms, printable and graphic.
+.It Dv SPECIAL
+Defines runes which are special characters, printable and graphic.
+.It Dv PHONOGRAM
+Defines runes which are phonograms, printable and graphic.
+.It Dv SWIDTH0
+Defines runes with display width 0.
+.It Dv SWIDTH1
+Defines runes with display width 1.
+.It Dv SWIDTH2
+Defines runes with display width 2.
+.It Dv SWIDTH3
+Defines runes with display width 3.
+.El
+.Pp
+If no display width explicitly defined, width 1 assumed
+for printable runes by default.
+.Sh NOTES
+.Nm
+has been replaced by
+.Xr localedef 1
+in
+.Fx 11.0 .
+.Sh SEE ALSO
+.Xr colldef 1 ,
+.Xr localedef 1 ,
+.Xr setlocale 3 ,
+.Xr wcwidth 3 ,
+.Xr big5 5 ,
+.Xr euc 5 ,
+.Xr gb18030 5 ,
+.Xr gb2312 5 ,
+.Xr gbk 5 ,
+.Xr mskanji 5 ,
+.Xr utf8 5
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.4 .
+.Sh BUGS
+The
+.Nm
+utility is overly simplistic.

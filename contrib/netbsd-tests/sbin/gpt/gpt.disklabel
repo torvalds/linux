@@ -1,0 +1,27 @@
+# gpt.disk:
+type: ESDI
+disk: WDC WD2500SD-01K
+label: fictitious
+flags:
+bytes/sector: 512
+sectors/track: 63
+tracks/cylinder: 16
+sectors/cylinder: 1000
+cylinders: 10
+total sectors: 10000
+rpm: 3600
+interleave: 1
+trackskew: 0
+cylinderskew: 0
+headswitch: 0		# microseconds
+track-to-track seek: 0	# microseconds
+drivedata: 0 
+
+6 partitions:
+#        size    offset     fstype [fsize bsize cpg/sgs]
+ a:       500        63     4.2BSD   1024  8192     0  # (Cyl.      0*-      0*)
+ b:      1000       563       swap                     # (Cyl.      0*-      1*)
+ c:      1000        63     unused      0     0        # (Cyl.      0*-      1*)
+ d:      1063         0     unused      0     0        # (Cyl.      0 -      1*)
+ e:      1000      1563     4.2BSD   1024  8192     0  # (Cyl.      1*-      2*)
+ f:       400      2563      MSDOS                     # (Cyl.      2*-      2*)

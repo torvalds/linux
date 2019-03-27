@@ -1,0 +1,14 @@
+# $Id$
+# Sample for TESTSeq in test.asn1
+#
+
+UNIV CONS Sequence 23
+  CONTEXT CONS 0 3
+    UNIV PRIM Integer 1 01
+   CONTEXT CONS 1 8
+     UNIV CONS Sequence 6
+       CONTEXT CONS 127 3
+         UNIV PRIM Integer 1 01
+   UNIV PRIM Integer 1 01
+   CONTEXT CONS 2 3
+     UNIV PRIM Integer 1 01

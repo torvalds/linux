@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+hint.ssd1289.0.at="spibus0"
+hint.ssd1289.0.cs=26

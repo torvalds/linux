@@ -1,0 +1,83 @@
+$FreeBSD$
+
+Marvell Device bus (localbus) configuration.
+============================================
+
+1. Properties for localbus nodes
+
+1.1 ranges
+
+Property:	ranges
+
+Value type:	<prop-encoded-array> encoded as arbitrary number of localbus 
+		nodes specifiers.
+		
+Description:	ranges property defines values used for mapping devices 
+		connected to localbus, in Marvell devices it is used also for 
+		setting decoding windows. 
+		
+		a) child node address-cells:
+		   - first cell: number of bank (chip select) 
+		   - second cell: (Marvell devices) Target ID for decoding
+		   	windows setup
+		   	
+		b) parent node address cells:
+		   - address offset: used with parent's node base address to 
+		   	specify base address of mapped device
+		
+		c) child node size-cells:
+		   - size: defines amount of memory that should be reserved for
+			device      
+			
+1.2 bank-count
+
+Property:	bank-count
+
+Value type:	<u32>	
+
+Description:	The bank_count property defines maximum number of banks on
+		localbus node. Bank is most often interpreted as device chip
+		select, but may also describe another device (e.g. SPI flash).  
+		
+1.3 Example
+
+	localbus@0 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "mrvl,lbc";
+		bank-count = <5>;
+
+		/* This reflects CPU decode windows setup. */
+		ranges = <0x0 0x2f 0xb2200000 0x00100000
+			  0x1 0x3e 0xb2100000 0x00100000
+			  0x2 0x3d 0xb0000000 0x02000000
+			  0x3 0x3b 0xb2000000 0x00100000>;
+	};
+
+2. Properties for localbus consumer nodes:
+
+2.1 reg
+
+Property:	reg
+
+Value type: 	<prop-encoded-array>
+
+Description:	A standard property required for localbus child nodes. Defines 
+		the device memory region.
+		
+		a) first cell: number of bank (chip select)
+		
+		b) address offset: used with address offset from parent's ranges
+			for corresponding bank to specify base address of 
+			the device
+		   	
+		c) size: defines size of the device memory region
+		
+2.2 Example
+
+	nor@0,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "cfi-flash";
+		reg = <0x0 0x0 0x00100000>;
+	};

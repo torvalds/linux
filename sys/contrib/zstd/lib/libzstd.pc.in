@@ -1,0 +1,14 @@
+#   ZSTD - standard compression algorithm
+#   Copyright (C) 2014-2016, Yann Collet, Facebook
+#   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+
+prefix=@PREFIX@
+libdir=@LIBDIR@
+includedir=@INCLUDEDIR@
+
+Name: zstd
+Description: fast lossless compression algorithm library
+URL: http://www.zstd.net/
+Version: @VERSION@
+Libs: -L${libdir} -lzstd
+Cflags: -I${includedir}

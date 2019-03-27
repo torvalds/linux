@@ -1,0 +1,78 @@
+To do:
+- add support for WPA with ap_scan=0 (update selected cipher etc. based on
+  AssocInfo; make sure these match with configuration)
+- consider closing smart card / PCSC connection when EAP-SIM/EAP-AKA
+  authentication has been completed (cache scard data based on serial#(?)
+  and try to optimize next connection if the same card is present for next
+  auth)
+- if driver/hw is not WPA2 capable, must remove WPA_PROTO_RSN flag from
+  ssid->proto fields to avoid detecting downgrade attacks when the driver
+  is not reporting RSN IE, but msg 3/4 has one
+- Cisco AP and non-zero keyidx for unicast -> map to broadcast
+  (actually, this already works with driver_ndis; so maybe just change
+  driver_*.c to do the mapping for drivers that cannot handle non-zero keyidx
+  for unicast); worked also with Host AP driver and madwifi
+- IEEE 802.1X and key update with driver_ndis?? wpa_supplicant did not seem
+  to see unencrypted EAPOL-Key frames at all..
+- EAP-PAX with PAX_SEC
+- EAP (RFC 3748)
+  * OTP Extended Responses (Sect. 5.5)
+- test what happens if authenticator sends EAP-Success before real EAP
+  authentication ("canned" Success); this should be ignored based on
+  RFC 3748 Sect. 4.2
+- test compilation with gcc -W options (more warnings?)
+  (Done once; number of unused function arguments still present)
+- ctrl_iface: get/remove blob
+- use doc/docbook/*.sgml and docbook2{txt,html,pdf} to replace README and
+  web pages including the same information.. i.e., have this information only
+  in one page; how to build a PDF file with all the SGML included?
+- EAP-POTP/RSA SecurID profile (RFC 4793)
+- document wpa_gui build and consider adding it to 'make install'
+- consider merging hostapd and wpa_supplicant PMKSA cache implementations
+- consider redesigning pending EAP requests (identity/password/otp from
+  ctrl_iface) by moving the retrying of the previous request into EAP
+  state machine so that EAPOL state machine is not needed for this
+- rfc4284.txt (network selection for eap)
+- www pages about configuring wpa_supplicant:
+  * global options (ap_scan, ctrl_interfaces) based on OS/driver
+  * network block
+  * key_mgmt selection
+  * WPA parameters
+  * EAP options (one page for each method)
+  * "configuration wizard" (step 1: select OS, step 2: select driver, ...) to
+    generate example configuration
+- error path in rsn_preauth_init: should probably deinit l2_packet handlers
+  if something fails; does something else need deinit?
+- consider moving SIM card functionality (IMSI fetching) away from eap.c;
+  this should likely happen before EAP is initialized for authentication;
+  now IMSI is read only after receiving EAP-Identity/Request, but since it is
+  really needed for all cases, reading IMSI and generating Identity string
+  could very well be done before EAP has been started
+- try to work around race in receiving association event and first EAPOL
+  message
+- try to work around race in configuring PTK and sending msg 4/4 (some NDIS
+  drivers with ndiswrapper end up not being able to complete 4-way handshake
+  in some cases; extra delay before setting the key seems to help)
+- make sure that TLS session cache is not shared between EAP types or if it
+  is, that the cache entries are bound to only one EAP type; e.g., cache entry
+  created with EAP-TLS must not be allowed to do fast re-auth with EAP-TTLS
+- consider moving eap_peer_tls_build_ack() call into
+  eap_peer_tls_process_helper()
+  (it seems to be called always if helper returns 1)
+  * could need to modify eap_{ttls,peap,fast}_decrypt to do same
+- add support for fetching full user cert chain from Windows certificate
+  stores even when there are intermediate CA certs that are not in the
+  configured ca_cert store (e.g., ROOT) (they could be, e.g., in CA store)
+- clean up common.[ch]
+- change TLS/crypto library interface to use a structure of function
+  pointers and helper inline functions (like driver_ops) instead of
+  requiring every TLS wrapper to implement all functions
+- add support for encrypted configuration fields (e.g., password, psk,
+  passphrase, pin)
+- wpa_gui: add support for setting and showing priority
+- cleanup TLS/PEAP/TTLS/FAST fragmentation: both the handshake and Appl. Data
+  phases should be able to use the same functions for this;
+  the last step in processing sent should be this code and rest of the code
+  should not need to care about fragmentation at all
+- test EAP-FAST peer with OpenSSL and verify that fallback to full handshake
+  (ServerHello followed by something else than ChangeCipherSpec)

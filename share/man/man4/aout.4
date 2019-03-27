@@ -1,0 +1,146 @@
+.\" Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 14, 2012
+.Dt AOUT 4
+.Os
+.Sh NAME
+.Nm aout
+.Nd kernel support for executing binary files in legacy a.out format
+.Sh SYNOPSIS
+.Bd -literal -offset indent
+kldload a.out
+.Ed
+.Sh DESCRIPTION
+The
+.Xr a.out 5
+executable format was used before the release of
+.Fx 3.0 .
+Since i386 was the only supported architecture at that time,
+.Xr a.out 5
+executables can only be activated on platforms that support
+execution of i386 code, such as i386 and amd64.
+.Pp
+To add kernel support for old syscalls and old syscall invocation methods,
+place the following options in the kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options COMPAT_43"
+.br
+.Cd "options COMPAT_FREEBSD32"
+.Ed
+.Pp
+The
+.Va COMPAT_FREEBSD32
+option is only required on 64-bit CPU architectures.
+.Pp
+The
+.Va aout.ko
+module needs to be loaded with the
+.Xr kldload 8
+utility in order to support the
+.Xr a.out 5
+image activator:
+.Bd -ragged -offset indent
+.Ic kldload aout
+.Ed
+.Pp
+Alternatively, to load the module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+aout_load="YES"
+.Ed
+.Pp
+The
+.Xr a.out 5
+format was mainstream quite a long time ago.
+Reasonable default settings and security requirements of
+modern operating systems today contradict the default environment of that time
+and require adjustments of the system to mimic natural environment for
+old binaries.
+.Pp
+The following
+.Xr sysctl 8
+tunables are useful for this:
+.Bl -tag -offset indent -width "XXXXXXXXXXXXXXXXXXXXXXXXX"
+.It Xo Va security.bsd.map_at_zero
+.Xc
+Set to 1 to allow mapping of process pages at address 0.
+Some very old
+.Va ZMAGIC
+executable images require text mapping at address 0.
+.It Xo Va kern.pid_max
+.Xc
+Old versions of
+.Fx
+used signed 16-bit type for
+.Vt pid_t .
+Current kernels use 32-bit type for
+.Vt pid_t ,
+and allow process id's up to 99999.
+Such values cannot be represented by old
+.Vt pid_t ,
+mostly causing issues for processes using
+.Xr wait 2
+syscalls, for example shells.
+Set the sysctl to 30000 to work around the problem.
+.It Xo Va kern.elf32.read_exec
+.Xc
+Set to 1 to force any accessible memory mapping performed by 32-bit
+process to allow execution, see
+.Xr mmap 2 .
+Old i386 CPUs did not have a bit in PTE which disallowed execution
+from the page, so many old programs did not specify
+.Va PROT_EXEC
+even for mapping of executable code.
+The sysctl forces
+.Va PROT_EXEC
+if mapping has any access allowed at all.
+The setting is only needed if the host architecture allows
+non-executable mappings.
+.El
+.Sh SEE ALSO
+.Xr execve 2 ,
+.Xr a.out 5 ,
+.Xr elf 5 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Xr a.out 5
+executable format was used on ancient
+.At
+and served as the main executable format for
+.Fx
+from the beginning up to
+.Fx 2.2.9 .
+In
+.Fx 3.0
+it was superseded by
+.Xr elf 5 .
+.Sh AUTHORS
+The
+.Nm
+manual page was written by
+.An Konstantin Belousov Aq Mt kib@FreeBSD.org .
+.Sh BUGS
+On 64bit architectures, not all wrappers for older syscalls are implemented.

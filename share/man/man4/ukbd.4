@@ -1,0 +1,186 @@
+.\" Copyright (c) 1997, 1998
+.\"	Nick Hibma <n_hibma@FreeBSD.org>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 24, 2018
+.Dt UKBD 4
+.Os
+.Sh NAME
+.Nm ukbd
+.Nd USB keyboard driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ukbd"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ukbd_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for keyboards that attach to the USB port.
+.Xr usb 4
+and one of
+.Xr uhci 4
+or
+.Xr ohci 4
+must be configured in the kernel as well.
+.Sh CONFIGURATION
+By default, the keyboard subsystem does not create the appropriate devices yet.
+Make sure you reconfigure your kernel with the following option in the kernel
+config file:
+.Pp
+.Dl "options KBD_INSTALL_CDEV"
+.Pp
+If both an AT keyboard USB keyboards are used at the same time, the
+AT keyboard will appear as
+.Pa kbd0
+in
+.Pa /dev .
+The USB keyboards will be
+.Pa kbd1 , kbd2 ,
+etc.
+You can see some information about the keyboard with the following command:
+.Pp
+.Dl "kbdcontrol -i < /dev/kbd1"
+.Pp
+or load a keymap with
+.Pp
+.Dl "kbdcontrol -l keymaps/pt.iso < /dev/kbd1"
+.Pp
+See
+.Xr kbdcontrol 1
+for more possible options.
+.Pp
+You can swap console keyboards by using the command
+.Pp
+.Dl "kbdcontrol -k /dev/kbd1"
+.Pp
+From this point on, the first USB keyboard will be the keyboard
+to be used by the console.
+.Pp
+If you want to use a USB keyboard as your default and not use an AT keyboard at
+all, you will have to remove the
+.Cd "device atkbd"
+line from the kernel configuration file.
+Because of the device initialization order,
+the USB keyboard will be detected
+.Em after
+the console driver
+initializes itself and you have to explicitly tell the console
+driver to use the existence of the USB keyboard.
+This can be done in
+one of the following two ways.
+.Pp
+Run the following command as a part of system initialization:
+.Pp
+.Dl "kbdcontrol -k /dev/kbd0 < /dev/ttyv0 > /dev/null"
+.Pp
+(Note that as the USB keyboard is the only keyboard, it is accessed as
+.Pa /dev/kbd0 )
+or otherwise tell the console driver to periodically look for a
+keyboard by setting a flag in the kernel configuration file:
+.Pp
+.Dl "device sc0 at isa? flags 0x100"
+.Pp
+With the above flag, the console driver will try to detect any
+keyboard in the system if it did not detect one while it was
+initialized at boot time.
+.Sh DRIVER CONFIGURATION
+.D1 Cd "options KBD_INSTALL_CDEV"
+.Pp
+Make the keyboards available through a character device in
+.Pa /dev .
+.Pp
+.D1 Cd options UKBD_DFLT_KEYMAP
+.D1 Cd makeoptions UKBD_DFLT_KEYMAP=fr.iso
+.Pp
+The above lines will put the French ISO keymap in the ukbd driver.
+You can specify any keymap in
+.Pa /usr/share/syscons/keymaps
+or
+.Pa /usr/share/vt/keymaps
+(depending on the console driver being used) with this option.
+.Pp
+.D1 Cd "options KBD_DISABLE_KEYMAP_LOADING"
+.Pp
+Do not allow the user to change the keymap.
+Note that these options also affect the AT keyboard driver,
+.Xr atkbd 4 .
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.ukbd.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/kbd*" -compact
+.It Pa /dev/kbd*
+blocking device nodes
+.El
+.Sh EXAMPLES
+.D1 Cd "device ukbd"
+.Pp
+Add the
+.Nm
+driver to the kernel.
+.Sh SEE ALSO
+.Xr kbdcontrol 1 ,
+.Xr ohci 4 ,
+.Xr syscons 4 ,
+.Xr uhci 4 ,
+.Xr usb 4 ,
+.Xr vt 4 ,
+.Xr config 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Lennart Augustsson Aq Mt augustss@cs.chalmers.se
+for
+.Nx
+and was substantially rewritten for
+.Fx
+by
+.An Kazutaka YOKOTA Aq Mt yokota@zodiac.mech.utsunomiya-u.ac.jp .
+.Pp
+This manual page was written by
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org
+with a large amount of input from
+.An Kazutaka YOKOTA Aq Mt yokota@zodiac.mech.utsunomiya-u.ac.jp .

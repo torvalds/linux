@@ -1,0 +1,252 @@
+# This is the linker host specific file.  This is invoked by the
+# autoconf generated configure script.  Putting it in a separate shell
+# file lets us skip running autoconf when modifying host specific
+# information.
+
+# This file sets the following shell variables:
+#  HDEFINES		host specific compiler flags
+#  HOSTING_CRT0		crt0.o file used for bootstrapping
+#  HOSTING_LIBS		libraries used for bootstrapping
+
+HDEFINES=
+HOSTING_CRT0=/lib/crt0.o
+HOSTING_LIBS='`if [ -f ../gcc/libgcc.a ]; then libgcc=../gcc/libgcc.a; else libgcc=\`${CC} -print-libgcc-file-name\`; fi; if [ -f ../gcc/libgcc_eh.a ]; then libgcc="$libgcc ../gcc/libgcc_eh.a"; else libgcc_eh=\`${CC} -print-file-name=libgcc_eh.a\`; if [ x"$libgcc_eh" != xlibgcc_eh.a ]; then libgcc="$libgcc $libgcc_eh"; fi; fi; if [ -f ../gcc/libunwind.a ]; then libgcc="$libgcc ../gcc/libunwind.a"; else libunwind=\`${CC} -print-file-name=libunwind.a\`; if [ x"$libunwind" != xlibunwind.a ]; then libgcc="$libgcc $libunwind"; fi; fi; echo --start-group $libgcc -lc --end-group`'
+
+#
+#	Generic configurations:
+#
+
+case "${host}" in
+
+*-*-freebsd* | *-*-kfreebsd*-gnu)
+  HOSTING_CRT0='-dynamic-linker `[ -f \`${CC} --print-prog-name=ld-elf.so.1\` ] || echo /usr/libexec/``${CC} --print-prog-name=ld-elf.so.1` `${CC} --print-file-name=crt1.o` `${CC} --print-file-name=crti.o` `${CC} --print-file-name=crtbegin.o`'
+  HOSTING_LIBS='-L`dirname \`${CC} --print-file-name=libc.so\`` '"$HOSTING_LIBS"' `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; else ${CC} --print-file-name=crtend.o; fi` `${CC} --print-file-name=crtn.o`'
+  ;;
+
+*-*-linux*aout* | *-*-linux*oldld)
+  HOSTING_CRT0=/usr/lib/crt0.o
+  ;;
+
+*-*-linux*libc1*)
+  HOSTING_CRT0='-dynamic-linker /lib/ld-linux.so.1 /usr/lib/crt1.o /usr/lib/crti.o `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; elif [ -f /usr/lib/crtbegin.o ]; then echo /usr/lib/crtbegin.o; else ${CC} --print-file-name=crtbegin.o; fi`'
+  HOSTING_LIBS="$HOSTING_LIBS"' `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; elif [ -f /usr/lib/crtend.o ]; then echo /usr/lib/crtend.o; else ${CC} --print-file-name=crtend.o; fi` /usr/lib/crtn.o'
+  ;;
+
+*-*-linux*)
+  HOSTING_CRT0='-dynamic-linker `${CC} --help --verbose 2>&1 | egrep "ld[^ ]*\.so" | sed -e "s,.*-dynamic-linker[ 	][ 	]*\(.*/ld[^ ]*\.so..\).*,\1,"` `${CC} --print-file-name=crt1.o` `${CC} --print-file-name=crti.o` `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; else ${CC} --print-file-name=crtbegin.o; fi`'
+  HOSTING_LIBS='-L`dirname \`${CC} --print-file-name=libc.so\`` '"$HOSTING_LIBS"' `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; else ${CC} --print-file-name=crtend.o; fi` `${CC} --print-file-name=crtn.o`'
+  ;;
+
+*-*-netbsd*)
+  # Different versions of NetBSD with the ELF object format use different
+  # sets of start/end files.
+  HOSTING_CRT0='-dynamic-linker /usr/libexec/ld.elf_so /usr/lib/crt0.o'
+  if [ -f `${CC} --print-file-name=crti.o` ]; then
+    # Support for GCC's crtstuff present.
+    HOSTING_CRT0="$HOSTING_CRT0 `${CC} --print-file-name=crti.o`"
+    if [ -f ../gcc/crtbegin.o ]; then
+      HOSTING_CRT0="$HOSTING_CRT0 ../gcc/crtbegin.o"
+    else
+      HOSTING_CRT0="$HOSTING_CRT0 `${CC} --print-file-name=crtbegin.o`"
+    fi
+  else
+    # Support for GCC's crtstuff not present.
+    HOSTING_CRT0="$HOSTING_CRT0 `${CC} --print-file-name=crtbegin.o`"
+  fi
+  if [ -f `${CC} --print-file-name=crtn.o` ]; then
+    # Support for GCC's crtstuff present.
+    if [ -f ../gcc/crtbegin.o ]; then
+      HOSTING_LIBS="$HOSTING_LIBS ../gcc/crtend.o"
+    else
+      HOSTING_LIBS="$HOSTING_LIBS `${CC} --print-file-name=crtend.o`"
+    fi
+    HOSTING_LIBS="$HOSTING_LIBS `${CC} --print-file-name=crtn.o`"
+  else
+    # Support for GCC's crtstuff not present.
+    HOSTING_LIBS="$HOSTING_LIBS `${CC} --print-file-name=crtend.o`"
+  fi
+  ;;
+
+*-*-openbsd*)
+  HOSTING_CRT0="-dynamic-linker /usr/libexec/ld.so /usr/lib/crt0.o"
+  HOSTING_CRT0="$HOSTING_CRT0 /usr/lib/crtbegin.o"
+  HOSTING_LIBS="$HOSTING_LIBS /usr/lib/crtend.o"
+  ;;
+
+esac
+
+#
+# Now more specific configurations
+#
+
+case "${host}" in
+
+*-*-linux*aout* | *-*-linux*oldld | *-*-linux*libc1*)
+  # No further tweaking needed
+  ;;
+
+am33_2.0-*-linux*)
+  HOSTING_CRT0=`echo "$HOSTING_CRT0" | sed -e "s,ld\[^ \]\*,ld-linux,g"`
+  ;;
+
+arm*-*-linux-*)
+  HOSTING_CRT0='-p '`echo "$HOSTING_CRT0" | sed -e "s,ld\[^ \]\*,ld-linux,g"`
+  ;;
+
+hppa*64*-*-hpux11*)
+  HOSTING_CRT0=/usr/ccs/lib/pa20_64/crt0.o
+  # Even if CC is not gcc, the tests use gcc.
+  HOSTING_LIBS='--start-group `if [ -f ../gcc/libgcc.a ]; then echo ../gcc/libgcc.a; else if test "$GCC" = yes; then ${CC} --print-libgcc-file-name; else gcc --print-libgcc-file-name; fi fi` -lc --end-group /usr/lib/pa20_64/milli.a'
+  ;;
+
+i[3-7]86-*-bsd* | i[3-7]86-*-freebsd[12] | i[3-7]86-*-freebsd[12]\.* | i[3-7]86-*-freebsd*aout*)
+  HOSTING_CRT0=/usr/lib/crt0.o
+  ;;
+
+i[3-7]86-*-sysv4*)
+  HOSTING_CRT0='/usr/ccs/lib/crt1.o /usr/ccs/lib/crti.o /usr/ccs/lib/values-Xa.o `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; else ${CC} -print-file-name=crtbegin.o; fi`'
+  HOSTING_LIBS="$HOSTING_LIBS"' `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; else ${CC} -print-file-name=crtend.o; fi` /usr/ccs/lib/crtn.o'
+  ;;
+
+i[3-7]86-sequent-ptx* | i[3-7]86-sequent-sysv*)
+  HOSTING_CRT0='/lib/crt0.o `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; else ${CC} -print-file-name=crtbegin.o; fi`'
+  HOSTING_LIBS="$HOSTING_LIBS"' `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; else ${CC} -print-file-name=crtend.o; fi`'
+  ;;
+
+i[3-7]86-*-sysv*)
+  HOSTING_CRT0='/lib/crt1.o `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; fi`'
+  HOSTING_LIBS="$HOSTING_LIBS"' `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; fi` /lib/crtn.o'
+  ;;
+
+i[3-7]86-*-solaris*)
+  HOSTING_CRT0='`if [ -f ../gcc/crt1.o ]; then echo ../gcc/crt1.o; else ${CC} -print-file-name=crt1.o; fi` `if [ -f ../gcc/crti.o ]; then echo ../gcc/crti.o; else ${CC} -print-file-name=crti.o; fi` /usr/ccs/lib/values-Xa.o `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; else ${CC} -print-file-name=crtbegin.o; fi`'
+  HOSTING_LIBS="$HOSTING_LIBS"' `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; else ${CC} -print-file-name=crtend.o; fi` `if [ -f ../gcc/crtn.o ]; then echo ../gcc/crtn.o; else ${CC} -print-file-name=crtn.o; fi`'
+  ;;
+
+i[3-7]86-*-sco* | i[3-7]86-*-isc*)
+  # In some configurations gcc does not use crtbegin.o and crtend.o.
+  # In that case gcc -print-file-name=crtbegin.o will simply print
+  # crtbegin.o.  We create dummy crtbegin.o and crtend.o files to
+  # handle this.
+  echo "int dummy_crtbegin () { return 0; }" > crtbegin.c
+  ${CC} -c crtbegin.c -o crtbegin.o
+  rm -f crtbegin.c
+  echo "int dummy_crteng () { return 0; }" > crtend.c
+  ${CC} -c crtend.c -o crtend.o
+  rm -f crtend.c
+  HOSTING_CRT0='/lib/crt1.o `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; else ${CC} -print-file-name=crtbegin.o; fi`'
+  HOSTING_LIBS="$HOSTING_LIBS"' `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; else ${CC} -print-file-name=crtend.o; fi` /lib/crtn.o'
+  ;;
+
+i[3-7]86-pc-interix*)
+  HOSTING_CRT0='$$INTERIX_ROOT/usr/lib/crt0.o'
+  HOSTING_LIBS='-L $$X/local_bin -L $$INTERIX_ROOT/usr/lib '"$HOSTING_LIBS"' -lcpsx -lc -lcpsx $$INTERIX_ROOT/usr/lib/psxdll.a $$INTERIX_ROOT/usr/lib/psxdll2.a'
+  ;;
+
+i[3-7]86-*-cygwin*)
+  HOSTING_LIBS="$HOSTING_LIBS"' -lcygwin -L/usr/lib/w32api -luser32 -lkernel32 -ladvapi32 -lshell32 `if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else ${CC} -print-libgcc-file-name; fi`'
+  ;;
+
+i[3-7]86-*-mingw*)
+  #We only support msvcrt.dll, crtid == 2.
+  HOSTING_CRT0='/mingw/lib/crt2.o'
+  HOSTING_LIBS='-L/mingw/lib -lmingw32 -lmoldname -lmingwex -lmsvcrt -luser32 -lkernel32 -ladvapi32 -lshell32 -lmingw32 -lmoldname -lmingwex -lmsvcrt `if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else ${CC} -print-libgcc-file-name; fi`'
+  ;; 
+
+ia64-*-linux-*)
+  HOSTING_CRT0=`echo "$HOSTING_CRT0" | sed -e "s,ld\[^ \]*\*,ld-linux-ia64,g"`
+  ;;
+
+mips*-sgi-irix4* | mips*-sgi-irix5*)
+  HOSTING_CRT0=/usr/lib/crt1.o
+  HOSTING_LIBS="$HOSTING_LIBS"' /usr/lib/crtn.o'
+  ;;
+
+mips*-sgi-irix6*)
+  HOSTING_CRT0='/usr/lib32/crt1.o `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o ; else ${CC} -print-file-name=crtbegin.o; fi`'
+  HOSTING_LIBS='-L/usr/lib32 '"$HOSTING_LIBS"' `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o ; else ${CC} -print-file-name=crtend.o; fi` /usr/lib32/crtn.o -init __do_global_ctors -fini __do_global_dtors'
+  ;;
+
+mips*-*-linux-*)
+  HOSTING_CRT0=`echo "$HOSTING_CRT0" | sed -e "s,\\\`specs.*\"\\\`,/lib/ld.so.1,"`
+  ;;
+
+m68*-*-linux-*)
+  HOSTING_CRT0=`echo "$HOSTING_CRT0" | sed -e "s,\\\`specs.*\"\\\`,/lib/ld.so.1,"`
+  ;;
+
+m68*-motorola-sysv)
+  HOSTING_CRT0='`if [ -f ../gcc/crt0.o ]; then echo ../gcc/crt0.o; elif [ -f \`${CC} -print-file-name=\`crt0.o ]; then echo \`${CC} -print-file-name=\`crt0.o; else echo /lib/crt0.o; fi`'
+  HOSTING_LIBS=`echo "$HOSTING_LIBS" | sed -e "s,-lc,-lc881,"`
+  ;;
+
+m68*-sun-*)
+  HOSTING_CRT0='/usr/lib/crt0.o /usr/lib/Fcrt1.o -L/usr/lib/fsoft.o'
+  ;;
+
+m88*-*-dgux*)
+  HDEFINES=-D__using_DGUX
+  HOSTING_CRT0='/lib/crt0.o -X'
+  HOSTING_LIBS=/usr/sde/m88kbcs/lib/libc.a
+  ;;
+
+m88*-motorola-sysv3)
+  HOSTING_CRT0='/lib/crt0.o `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; else ${CC} -print-file-name=crtbegin.o; fi`'
+  HOSTING_LIBS="$HOSTING_LIBS"' `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; else ${CC} -print-file-name=crtend.o; fi`'
+  ;;
+
+powerpc64*-*-linux-*)
+  HOSTING_CRT0=`echo "$HOSTING_CRT0" | sed -e "s,\\\`specs.*\"\\\`,/lib64/ld64.so.1,"`
+  ;;
+
+powerpc*-*-linux-*)
+  HOSTING_CRT0=`echo "$HOSTING_CRT0" | sed -e "s,\\\`specs.*\"\\\`,/lib/ld.so.1,"`
+  ;;
+
+s390x-*-linux-*)
+  HOSTING_CRT0=`echo "$HOSTING_CRT0" | sed -e "s,\\\`specs.*\"\\\`,/lib/ld64.so.1,"`
+  ;;
+
+s390-*-linux-*)
+  HOSTING_CRT0=`echo "$HOSTING_CRT0" | sed -e "s,\\\`specs.*\"\\\`,/lib/ld.so.1,"`
+  ;;
+
+sparc-*-solaris2*)
+  HOSTING_CRT0='`if [ -f ../gcc/crt1.o ]; then echo ../gcc/crt1.o; else ${CC} -print-file-name=crt1.o; fi` `if [ -f ../gcc/crti.o ]; then echo ../gcc/crti.o; else ${CC} -print-file-name=crti.o; fi` /usr/ccs/lib/values-Xa.o `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; else ${CC} -print-file-name=crtbegin.o; fi`'
+  HOSTING_LIBS="$HOSTING_LIBS"' `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; else ${CC} -print-file-name=crtend.o; fi` `if [ -f ../gcc/crtn.o ]; then echo ../gcc/crtn.o; else ${CC} -print-file-name=crtn.o; fi`'
+  ;;
+
+sparc64-*-solaris2* | sparcv9-*-solaris2*)
+  HOSTING_CRT0='`if [ -f ../gcc/crt1.o ]; then echo ../gcc/crt1.o; else ${CC} -print-file-name=crt1.o; fi` `if [ -f ../gcc/crti.o ]; then echo ../gcc/crti.o; else ${CC} -print-file-name=crti.o; fi` /usr/ccs/lib/sparcv9/values-Xa.o `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; else ${CC} -print-file-name=crtbegin.o; fi`'
+  HOSTING_LIBS="$HOSTING_LIBS"' `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; else ${CC} -print-file-name=crtend.o; fi` `if [ -f ../gcc/crtn.o ]; then echo ../gcc/crtn.o; else ${CC} -print-file-name=crtn.o; fi`'
+  ;;
+
+sparc-*-linux-*)
+  HOSTING_CRT0=`echo "$HOSTING_CRT0" | sed -e "s,\\\`specs.*\"\\\`,/lib/ld-linux.so.2,"`
+  ;;
+
+sparc64-*-linux-*)
+  HOSTING_CRT0=`echo "$HOSTING_CRT0" | sed -e "s,\\\`specs.*\"\\\`,/lib64/ld-linux.so.2,"`
+  ;;
+
+x86_64-*-linux-*)
+  HOSTING_CRT0=`echo "$HOSTING_CRT0" | sed -e "s,\\\`specs.*\"\\\`,/lib64/ld-linux-x86-64.so.2,"`
+  ;;
+
+*-*-freebsd* | *-*-kfreebsd*-gnu)
+  ;;
+
+*-*-linux*)
+  ;;
+
+*-*-netbsd*)
+  ;;
+
+*-*-openbsd*)
+  ;;
+
+alpha*-*-*)
+  HOSTING_CRT0=/usr/ccs/lib/crt0.o
+  ;;
+
+esac

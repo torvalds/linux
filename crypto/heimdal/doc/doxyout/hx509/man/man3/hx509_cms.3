@@ -1,0 +1,206 @@
+.TH "hx509 CMS/pkcs7 functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hx509 CMS/pkcs7 functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "int \fBhx509_cms_wrap_ContentInfo\fP (const heim_oid *oid, const heim_octet_string *buf, heim_octet_string *res)"
+.br
+.ti -1c
+.RI "int \fBhx509_cms_unwrap_ContentInfo\fP (const heim_octet_string *in, heim_oid *oid, heim_octet_string *out, int *have_data)"
+.br
+.ti -1c
+.RI "int \fBhx509_cms_unenvelope\fP (hx509_context context, hx509_certs certs, int flags, const void *data, size_t length, const heim_octet_string *encryptedContent, time_t time_now, heim_oid *contentType, heim_octet_string *content)"
+.br
+.ti -1c
+.RI "int \fBhx509_cms_envelope_1\fP (hx509_context context, int flags, hx509_cert cert, const void *data, size_t length, const heim_oid *encryption_type, const heim_oid *contentType, heim_octet_string *content)"
+.br
+.ti -1c
+.RI "int \fBhx509_cms_verify_signed\fP (hx509_context context, hx509_verify_ctx ctx, unsigned int flags, const void *data, size_t length, const heim_octet_string *signedContent, hx509_certs pool, heim_oid *contentType, heim_octet_string *content, hx509_certs *signer_certs)"
+.br
+.ti -1c
+.RI "int \fBhx509_cms_create_signed_1\fP (hx509_context context, int flags, const heim_oid *eContentType, const void *data, size_t length, const AlgorithmIdentifier *digest_alg, hx509_cert cert, hx509_peer_info peer, hx509_certs anchors, hx509_certs pool, heim_octet_string *signed_data)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+See the \fBCMS/PKCS7 message functions.\fP for description and examples. 
+.SH "Function Documentation"
+.PP 
+.SS "int hx509_cms_create_signed_1 (hx509_context context, int flags, const heim_oid * eContentType, const void * data, size_t length, const AlgorithmIdentifier * digest_alg, hx509_cert cert, hx509_peer_info peer, hx509_certs anchors, hx509_certs pool, heim_octet_string * signed_data)"
+.PP
+Decode SignedData and verify that the signature is correct.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIflags\fP 
+.br
+\fIeContentType\fP the type of the data. 
+.br
+\fIdata\fP data to sign 
+.br
+\fIlength\fP length of the data that data point to. 
+.br
+\fIdigest_alg\fP digest algorithm to use, use NULL to get the default or the peer determined algorithm. 
+.br
+\fIcert\fP certificate to use for sign the data. 
+.br
+\fIpeer\fP info about the peer the message to send the message to, like what digest algorithm to use. 
+.br
+\fIanchors\fP trust anchors that the client will use, used to polulate the certificates included in the message 
+.br
+\fIpool\fP certificates to use in try to build the path to the trust anchors. 
+.br
+\fIsigned_data\fP the output of the function, free with der_free_octet_string(). 
+.RE
+.PP
+
+.SS "int hx509_cms_envelope_1 (hx509_context context, int flags, hx509_cert cert, const void * data, size_t length, const heim_oid * encryption_type, const heim_oid * contentType, heim_octet_string * content)"
+.PP
+Encrypt end encode EnvelopedData.
+.PP
+Encrypt and encode EnvelopedData. The data is encrypted with a random key and the the random key is encrypted with the certificates private key. This limits what private key type can be used to RSA.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIflags\fP flags to control the behavior.
+.IP "\(bu" 2
+HX509_CMS_EV_NO_KU_CHECK - Dont check KU on certificate
+.IP "\(bu" 2
+HX509_CMS_EV_ALLOW_WEAK - Allow weak crytpo
+.IP "\(bu" 2
+HX509_CMS_EV_ID_NAME - prefer issuer name and serial number 
+.PP
+.br
+\fIcert\fP Certificate to encrypt the EnvelopedData encryption key with. 
+.br
+\fIdata\fP pointer the data to encrypt. 
+.br
+\fIlength\fP length of the data that data point to. 
+.br
+\fIencryption_type\fP Encryption cipher to use for the bulk data, use NULL to get default. 
+.br
+\fIcontentType\fP type of the data that is encrypted 
+.br
+\fIcontent\fP the output of the function, free with der_free_octet_string(). 
+.RE
+.PP
+
+.SS "int hx509_cms_unenvelope (hx509_context context, hx509_certs certs, int flags, const void * data, size_t length, const heim_octet_string * encryptedContent, time_t time_now, heim_oid * contentType, heim_octet_string * content)"
+.PP
+Decode and unencrypt EnvelopedData.
+.PP
+Extract data and parameteres from from the EnvelopedData. Also supports using detached EnvelopedData.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIcerts\fP Certificate that can decrypt the EnvelopedData encryption key. 
+.br
+\fIflags\fP HX509_CMS_UE flags to control the behavior. 
+.br
+\fIdata\fP pointer the structure the contains the DER/BER encoded EnvelopedData stucture. 
+.br
+\fIlength\fP length of the data that data point to. 
+.br
+\fIencryptedContent\fP in case of detached signature, this contains the actual encrypted data, othersize its should be NULL. 
+.br
+\fItime_now\fP set the current time, if zero the library uses now as the date. 
+.br
+\fIcontentType\fP output type oid, should be freed with der_free_oid(). 
+.br
+\fIcontent\fP the data, free with der_free_octet_string(). 
+.RE
+.PP
+
+.SS "int hx509_cms_unwrap_ContentInfo (const heim_octet_string * in, heim_oid * oid, heim_octet_string * out, int * have_data)"
+.PP
+Decode an ContentInfo and unwrap data and oid it.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIin\fP the encoded buffer. 
+.br
+\fIoid\fP type of the content. 
+.br
+\fIout\fP data to be wrapped. 
+.br
+\fIhave_data\fP since the data is optional, this flags show dthe diffrence between no data and the zero length data.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. 
+.RE
+.PP
+
+.SS "int hx509_cms_verify_signed (hx509_context context, hx509_verify_ctx ctx, unsigned int flags, const void * data, size_t length, const heim_octet_string * signedContent, hx509_certs pool, heim_oid * contentType, heim_octet_string * content, hx509_certs * signer_certs)"
+.PP
+Decode SignedData and verify that the signature is correct.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIctx\fP a hx509 verify context. 
+.br
+\fIflags\fP to control the behaivor of the function.
+.IP "\(bu" 2
+HX509_CMS_VS_NO_KU_CHECK - Don't check KeyUsage
+.IP "\(bu" 2
+HX509_CMS_VS_ALLOW_DATA_OID_MISMATCH - allow oid mismatch
+.IP "\(bu" 2
+HX509_CMS_VS_ALLOW_ZERO_SIGNER - no signer, see below. 
+.PP
+.br
+\fIdata\fP pointer to CMS SignedData encoded data. 
+.br
+\fIlength\fP length of the data that data point to. 
+.br
+\fIsignedContent\fP external data used for signature. 
+.br
+\fIpool\fP certificate pool to build certificates paths. 
+.br
+\fIcontentType\fP free with der_free_oid(). 
+.br
+\fIcontent\fP the output of the function, free with der_free_octet_string(). 
+.br
+\fIsigner_certs\fP list of the cerficates used to sign this request, free with \fBhx509_certs_free()\fP. 
+.RE
+.PP
+
+.PP
+If HX509_CMS_VS_NO_KU_CHECK is set, allow more liberal search for matching certificates by not considering KeyUsage bits on the certificates.
+.PP
+If HX509_CMS_VS_ALLOW_DATA_OID_MISMATCH, allow encapContentInfo mismatch with the oid in signedAttributes (or if no signedAttributes where use, pkcs7-data oid). This is only needed to work with broken CMS implementations that doesn't follow CMS signedAttributes rules.
+.PP
+If HX509_CMS_VS_NO_VALIDATE flags is set, do not verify the signing certificates and leave that up to the caller.
+.PP
+If HX509_CMS_VS_ALLOW_ZERO_SIGNER is set, allow empty SignerInfo (no signatures). If SignedData have no signatures, the function will return 0 with signer_certs set to NULL. Zero signers is allowed by the standard, but since its only useful in corner cases, it make into a flag that the caller have to turn on. 
+.SS "int hx509_cms_wrap_ContentInfo (const heim_oid * oid, const heim_octet_string * buf, heim_octet_string * res)"
+.PP
+Wrap data and oid in a ContentInfo and encode it.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIoid\fP type of the content. 
+.br
+\fIbuf\fP data to be wrapped. If a NULL pointer is passed in, the optional content field in the ContentInfo is not going be filled in. 
+.br
+\fIres\fP the encoded buffer, the result should be freed with der_free_octet_string().
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. 
+.RE
+.PP
+

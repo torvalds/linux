@@ -1,0 +1,255 @@
+.\"
+.\" Copyright (c) 2003 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 3, 2017
+.Dt DISK 9
+.Os
+.Sh NAME
+.Nm disk
+.Nd kernel disk storage API
+.Sh SYNOPSIS
+.In geom/geom_disk.h
+.Ft struct disk *
+.Fn disk_alloc void
+.Ft void
+.Fn disk_create "struct disk *disk" "int version"
+.Ft void
+.Fn disk_gone "struct disk *disk"
+.Ft void
+.Fn disk_destroy "struct disk *disk"
+.Ft int
+.Fn disk_resize "struct disk *disk" "int flags"
+.Ft void
+.Fn disk_add_alias "struct disk *disk" "const char *alias"
+.Sh DESCRIPTION
+The disk storage API permits kernel device drivers providing access to
+disk-like storage devices to advertise the device to other kernel
+components, including
+.Xr GEOM 4
+and
+.Xr devfs 5 .
+.Pp
+Each disk device is described by a
+.Vt "struct disk"
+structure, which contains a variety of parameters for the disk device,
+function pointers for various methods that may be performed on the device,
+as well as private data storage for the device driver.
+In addition, some fields are reserved for use by GEOM in managing access
+to the device and its statistics.
+.Pp
+GEOM has the ownership of
+.Vt "struct disk" ,
+and drivers must allocate storage for it with the
+.Fn disk_alloc
+function,
+fill in the fields and call
+.Fn disk_create
+when the device is ready to service requests.
+.Fn disk_add_alias
+adds an alias for the disk and must be called before
+.Fn disk_create ,
+but may be called multiple times.
+For each alias added, a device node will be created with
+.Xr make_dev_alias 9
+in the same way primary device nodes are created with
+.Xr make_dev 9
+for
+.Va d_name
+and
+.Va d_unit .
+Care should be taken to ensure that only one driver creates aliases
+for any given name.
+.Fn disk_resize
+can be called by the driver after modifying
+.Va d_mediasize
+to notify GEOM about the disk capacity change.
+The
+.Fa flags
+field should be set to either M_WAITOK, or M_NOWAIT.
+.Fn disk_gone
+orphans all of the providers associated with the drive, setting an error
+condition of ENXIO in each one.
+In addition, it prevents a re-taste on last close for writing if an error
+condition has been set in the provider.
+After calling
+.Fn disk_destroy ,
+the device driver is not allowed to access the contents of
+.Vt "struct disk"
+anymore.
+.Pp
+The
+.Fn disk_create
+function
+takes a second parameter,
+.Fa version ,
+which must always be passed
+.Dv DISK_VERSION .
+If GEOM detects that the driver is compiled against an unsupported version,
+it will ignore the device and print a warning on the console.
+.Ss Descriptive Fields
+The following fields identify the disk device described by the structure
+instance, and must be filled in prior to submitting the structure to
+.Fn disk_create
+and may not be subsequently changed:
+.Bl -tag -width indent
+.It Vt u_int Va d_flags
+Optional flags indicating to the storage framework what optional features
+or descriptions the storage device driver supports.
+Currently supported flags are
+.Dv DISKFLAG_OPEN
+(maintained by storage framework),
+.Dv DISKFLAG_CANDELETE
+(maintained by device driver),
+and
+.Dv DISKFLAG_CANFLUSHCACHE
+(maintained by device driver).
+.It Vt "const char *" Va d_name
+Holds the name of the storage device class, e.g.,
+.Dq Li ahd .
+This value typically uniquely identifies a particular driver device,
+and must not conflict with devices serviced by other device drivers.
+.It Vt u_int Va d_unit
+Holds the instance of the storage device class, e.g.,
+.Dq Li 4 .
+This namespace is managed by the device driver, and assignment of unit
+numbers might be a property of probe order, or in some cases topology.
+Together, the
+.Va d_name
+and
+.Va d_unit
+values will uniquely identify a disk storage device.
+.El
+.Ss Disk Device Methods
+The following fields identify various disk device methods, if implemented:
+.Bl -tag -width indent
+.It Vt "disk_open_t *" Va d_open
+Optional: invoked when the disk device is opened.
+If no method is provided, open will always succeed.
+.It Vt "disk_close_t *" Va d_close
+Optional: invoked when the disk device is closed.
+Although an error code may be returned, the call should always terminate
+any state setup by the corresponding open method call.
+.It Vt "disk_strategy_t *" Va d_strategy
+Mandatory: invoked when a new
+.Vt "struct bio"
+is to be initiated on the disk device.
+.It Vt "disk_ioctl_t *" Va d_ioctl
+Optional: invoked when an I/O control operation is initiated on the disk device.
+Please note that for security reasons these operations should not
+be able to affect other devices than the one on which they are performed.
+.It Vt "dumper_t *" Va d_dump
+Optional: if configured with
+.Xr dumpon 8 ,
+this function is invoked from a very restricted system state after a
+kernel panic to record a copy of the system RAM to the disk.
+.It Vt "disk_getattr_t *" Va d_getattr
+Optional: if this method is provided, it gives the disk driver the
+opportunity to override the default GEOM response to BIO_GETATTR requests.
+This function should return -1 if the attribute is not handled, 0 if the
+attribute is handled, or an errno to be passed to g_io_deliver().
+.It Vt "disk_gone_t *" Va d_gone
+Optional: if this method is provided, it will be called after disk_gone()
+is called, once GEOM has finished its cleanup process.
+Once this callback is called, it is safe for the disk driver to free all of
+its resources, as it will not be receiving further calls from GEOM.
+.El
+.Ss Mandatory Media Properties
+The following fields identify the size and granularity of the disk device.
+These fields must stay stable from return of the drivers open method until
+the close method is called, but it is perfectly legal to modify them in
+the open method before returning.
+.Bl -tag -width indent
+.It Vt u_int Va d_sectorsize
+The sector size of the disk device in bytes.
+.It Vt off_t Va d_mediasize
+The size of the disk device in bytes.
+.It Vt u_int Va d_maxsize
+The maximum supported size in bytes of an I/O request.
+Requests larger than this size will be chopped up by GEOM.
+.El
+.Ss Optional Media Properties
+These optional fields can provide extra information about the disk
+device.
+Do not initialize these fields if the field/concept does not apply.
+These fields must stay stable from return of the drivers open method until
+the close method is called, but it is perfectly legal to modify them in
+the open method before returning.
+.Bl -tag -width indent
+.It Vt u_int Va d_fwsectors , Vt u_int Va d_fwheads
+The number of sectors and heads advertised on the disk device by the
+firmware or BIOS.
+These values are almost universally bogus, but on some architectures
+necessary for the correct calculation of disk partitioning.
+.It Vt u_int Va d_stripeoffset , Vt u_int Va d_stripesize
+These two fields can be used to describe the width and location of
+natural performance boundaries for most disk technologies.
+Please see
+.Pa src/sys/geom/notes
+for details.
+.It Vt char Va d_ident[DISK_IDENT_SIZE]
+This field can and should be used to store disk's serial number if the
+d_getattr method described above isn't implemented, or if it does not
+support the GEOM::ident attribute.
+.It Vt char Va d_descr[DISK_IDENT_SIZE]
+This field can be used to store the disk vendor and product description.
+.It Vt uint16_t Va d_hba_vendor
+This field can be used to store the PCI vendor ID for the HBA connected to
+the disk.
+.It Vt uint16_t Va d_hba_device
+This field can be used to store the PCI device ID for the HBA connected to
+the disk.
+.It Vt uint16_t Va d_hba_subvendor
+This field can be used to store the PCI subvendor ID for the HBA connected to
+the disk.
+.It Vt uint16_t Va d_hba_subdevice
+This field can be used to store the PCI subdevice ID for the HBA connected to
+the disk.
+.El
+.Ss Driver Private Data
+This field may be used by the device driver to store a pointer to
+private data to implement the disk service.
+.Bl -tag -width indent
+.It Vt "void *" Va d_drv1
+Private data pointer.
+Typically used to store a pointer to the drivers
+.Vt softc
+structure for this disk device.
+.El
+.Sh SEE ALSO
+.Xr GEOM 4 ,
+.Xr devfs 5 ,
+.Xr MAKE_DEV 9
+.Sh AUTHORS
+This manual page was written by
+.An Robert Watson .
+.Sh BUGS
+Disk aliases are not a general purpose aliasing mechanism, but are
+intended only to ease the transition from one name to another.
+They can be used to ensure that nvd0 and nda0 are the same thing.
+They cannot be used to implement the diskX concept from macOS.

@@ -1,0 +1,9 @@
+Berkeley Yacc reflects its origins.  The reason so many routines
+use exactly six register variables is that Berkeley Yacc was
+developed on a VAX using PCC.  PCC placed at most six variables
+in registers.  I went to considerable effort to find which six
+variables most belonged in registers.  Changes in machines and
+compilers make that effort worthless, perhaps even harmful.
+
+The code contains many instances where address calculations are
+performed in particular ways to optimize the code for the VAX.

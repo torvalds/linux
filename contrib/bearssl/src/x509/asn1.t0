@@ -1,0 +1,757 @@
+\ Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
+\
+\ Permission is hereby granted, free of charge, to any person obtaining 
+\ a copy of this software and associated documentation files (the
+\ "Software"), to deal in the Software without restriction, including
+\ without limitation the rights to use, copy, modify, merge, publish,
+\ distribute, sublicense, and/or sell copies of the Software, and to
+\ permit persons to whom the Software is furnished to do so, subject to
+\ the following conditions:
+\
+\ The above copyright notice and this permission notice shall be 
+\ included in all copies or substantial portions of the Software.
+\
+\ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
+\ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+\ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+\ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+\ BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+\ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+\ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+\ SOFTWARE.
+
+\ =======================================================================
+
+\ This file contains code which is common to all engines that do some
+\ ASN.1 decoding. It should not be compiled on its own, but only along
+\ with another file (e.g. x509_minimal.t0) which uses it.
+\
+\ Users must define several things:
+\
+\ -- In the preamble, a macro called "CTX" that evaluates to the current
+\ context structure.
+\
+\ -- In the preamble, a macro called "CONTEXT_NAME" that evaluates to the
+\ context structure type. This will be invoked during compilation.
+\
+\ -- A word called "read8-low" ( -- x ) that reads the next byte, or -1
+\ if the input buffer is empty. That word is usually written in C.
+\
+\ -- A word called "read-blob-inner" ( addr len -- addr len ) that is
+\ the multi-byte version of read8-low.
+\
+\ -- A word called "skip-remaining-inner" ( lim -- lim ) which reads but
+\ drops some input bytes.
+
+preamble {
+
+#include "inner.h"
+
+}
+
+\ Read next source character, skipping blanks.
+: skip-blanks begin char dup 32 > if ret then drop again ;
+
+: fail-oid
+	"Invalid OID" puts cr exitvm ;
+
+\ Read a decimal integer, followed by either a dot or whitespace.
+\ Note: this does not check for overflows.
+: parse-number ( -- val nextchar )
+	char decval
+	begin
+		char
+		dup dup `. = swap 32 <= or if ret then
+		decval swap 10 * +
+	again ;
+
+\ Encode a number in unsigned 7E format.
+: encode7E ( val -- )
+	0 encode7E-inner ;
+
+: encode7E-inner ( val eb -- )
+	swap dup 0x7F > if
+		dup 7 u>> 0x80 encode7E-inner 0x7F and
+	then
+	or data-add8 ;
+
+\ Decode an OID from source, and encode it. First byte is length,
+\ followed by encoded ASN.1 DER value. The OID is encoded in the
+\ current data block.
+: OID
+	\ Get current data address, and push a 0 for length.
+	current-data 0 data-add8
+	\ Skip blanks and get first digit, which must be 0, 1 or 2.
+	skip-blanks decval dup 2 > if fail-oid then
+	40 *
+	\ Next character must be a dot.
+	char `. <> if fail-oid then
+	\ Second group must be one or two digits.
+	parse-number { nextchar }
+	dup 40 >= if fail-oid then
+	+ encode7E
+	\ While next character is a dot, keep encoding numbers.
+	begin nextchar `. = while
+		parse-number >nextchar
+		encode7E
+	repeat
+	\ Write back length in the first byte.
+	dup current-data swap - 1- swap data-set8
+	; immediate
+
+\ Define a new data word for an encoded OID. The OID is read from the
+\ source.
+: OID:
+	new-data-block next-word define-data-word postpone OID ;
+
+\ Define a word that evaluates to the address of a field within the
+\ context.
+: addr:
+	next-word { field }
+	"addr-" field + 0 1 define-word
+	0 8191 "offsetof(CONTEXT_NAME, " field + ")" + make-CX
+	postpone literal postpone ; ;
+
+addr: pad
+
+\ Define a word that evaluates to an error code through a macro name.
+: err:
+	next-word { name }
+	name 0 1 define-word
+	0 63 "BR_" name + make-CX postpone literal postpone ; ;
+
+err: ERR_X509_INVALID_VALUE
+err: ERR_X509_TRUNCATED
+err: ERR_X509_EMPTY_CHAIN
+err: ERR_X509_INNER_TRUNC
+err: ERR_X509_BAD_TAG_CLASS
+err: ERR_X509_BAD_TAG_VALUE
+err: ERR_X509_INDEFINITE_LENGTH
+err: ERR_X509_EXTRA_ELEMENT
+err: ERR_X509_UNEXPECTED
+err: ERR_X509_NOT_CONSTRUCTED
+err: ERR_X509_NOT_PRIMITIVE
+err: ERR_X509_PARTIAL_BYTE
+err: ERR_X509_BAD_BOOLEAN
+err: ERR_X509_OVERFLOW
+err: ERR_X509_BAD_DN
+err: ERR_X509_BAD_TIME
+err: ERR_X509_UNSUPPORTED
+err: ERR_X509_LIMIT_EXCEEDED
+err: ERR_X509_WRONG_KEY_TYPE
+err: ERR_X509_BAD_SIGNATURE
+err: ERR_X509_EXPIRED
+err: ERR_X509_DN_MISMATCH
+err: ERR_X509_BAD_SERVER_NAME
+err: ERR_X509_CRITICAL_EXTENSION
+err: ERR_X509_NOT_CA
+err: ERR_X509_FORBIDDEN_KEY_USAGE
+err: ERR_X509_WEAK_PUBLIC_KEY
+
+: KEYTYPE_RSA     CX 0 15 { BR_KEYTYPE_RSA } ;
+: KEYTYPE_EC      CX 0 15 { BR_KEYTYPE_EC } ;
+
+cc: fail ( err -- ! ) {
+	CTX->err = T0_POPi();
+	T0_CO();
+}
+
+\ Read one byte from the stream.
+: read8-nc ( -- x )
+	begin
+		read8-low dup 0 >= if ret then
+		drop co
+	again ;
+
+\ Read one byte, enforcing current read limit.
+: read8 ( lim -- lim x )
+	dup ifnot ERR_X509_INNER_TRUNC fail then
+	1- read8-nc ;
+
+\ Read a 16-bit value, big-endian encoding.
+: read16be ( lim -- lim x )
+	read8 8 << swap read8 rot + ;
+
+\ Read a 16-bit value, little-endian encoding.
+: read16le ( lim -- lim x )
+	read8 swap read8 8 << rot + ;
+
+\ Read all bytes from the current element, then close it (i.e. drop the
+\ limit). Destination address is an offset within the context.
+: read-blob ( lim addr -- )
+	swap
+	begin dup while read-blob-inner dup if co then repeat
+	2drop ;
+
+\ Skip remaining bytes in the current structure, but do not close it
+\ (thus, this leaves the value 0 on the stack).
+: skip-remaining ( lim -- lim )
+	begin dup while skip-remaining-inner dup if co then repeat ;
+
+: skip-remaining-inner ( lim -- lim )
+	0 over read-blob-inner -rot 2drop ;
+
+cc: set8 ( val addr -- ) {
+	uint32_t addr = T0_POP();
+	*((unsigned char *)CTX + addr) = (unsigned char)T0_POP();
+}
+
+cc: set16 ( val addr -- ) {
+	uint32_t addr = T0_POP();
+	*(uint16_t *)(void *)((unsigned char *)CTX + addr) = T0_POP();
+}
+
+cc: set32 ( val addr -- ) {
+	uint32_t addr = T0_POP();
+	*(uint32_t *)(void *)((unsigned char *)CTX + addr) = T0_POP();
+}
+
+cc: get8 ( addr -- val ) {
+	uint32_t addr = T0_POP();
+	T0_PUSH(*((unsigned char *)CTX + addr));
+}
+
+cc: get16 ( addr -- val ) {
+	uint32_t addr = T0_POP();
+	T0_PUSH(*(uint16_t *)(void *)((unsigned char *)CTX + addr));
+}
+
+cc: get32 ( addr -- val ) {
+	uint32_t addr = T0_POP();
+	T0_PUSH(*(uint32_t *)(void *)((unsigned char *)CTX + addr));
+}
+
+\ Read an ASN.1 tag. This function returns the "constructed" status
+\ and the tag value. The constructed status is a boolean (-1 for
+\ constructed, 0 for primitive). The tag value is either 0 to 31 for
+\ a universal tag, or 32+x for a contextual tag of value x. Tag classes
+\ "application" and "private" are rejected. Universal tags beyond 30
+\ are rejected. Contextual tags beyond 30 are rejected. Thus, accepted
+\ tags will necessarily fit on exactly one byte. This does not support
+\ the whole of ASN.1/BER, but is sufficient for certificate parsing.
+: read-tag ( lim -- lim constructed value )
+	read8 { fb }
+
+	\ Constructed flag is bit 5.
+	fb 5 >> 0x01 and neg
+
+	\ Class is in bits 6 and 7. Accepted classes are 00 (universal)
+	\ and 10 (context). We check that bit 6 is 0, and shift back
+	\ bit 7 so that we get 0 (universal) or 32 (context).
+	fb 6 >> dup 0x01 and if ERR_X509_BAD_TAG_CLASS fail then
+	4 <<
+
+	\ Tag value is in bits 0..4. If the value is 31, then this is
+	\ an extended tag, encoded over subsequent bytes, and we do
+	\ not support that.
+	fb 0x1F and dup 0x1F = if ERR_X509_BAD_TAG_VALUE fail then
+	+ ;
+
+\ Read a tag, but only if not at the end of the current object. If there
+\ is no room for another element (limit is zero), then this will push a
+\ synthetic "no tag" value (primitive, with value -1).
+: read-tag-or-end ( lim -- lim constructed value )
+	dup ifnot 0 -1 ret then
+	read-tag ;
+
+\ Compare the read tag with the provided value. If equal, then the
+\ element is skipped, and a new tag is read (or end of object).
+: iftag-skip ( lim constructed value ref -- lim constructed value )
+	over = if
+		2drop
+		read-length-open-elt skip-close-elt
+		read-tag-or-end
+	then ;
+
+\ Read an ASN.1 length. This supports only definite lengths (theoretically,
+\ certificates may use an indefinite length for the outer structure, using
+\ DER only in the TBS, but this never happens in practice, except in a
+\ single example certificate from 15 years ago that also fails to decode
+\ properly for other reasons).
+: read-length ( lim -- lim length )
+	read8
+	\ Lengths in 0x00..0x7F get encoded as a single byte.
+	dup 0x80 < if ret then
+
+	\ If the byte is 0x80 then this is an indefinite length, and we
+	\ do not support that.
+	0x80 - dup ifnot ERR_X509_INDEFINITE_LENGTH fail then
+
+	\ Masking out bit 7, this yields the number of bytes over which
+	\ the value is encoded. Since the total certificate length must
+	\ fit over 3 bytes (this is a consequence of SSL/TLS message
+	\ format), we can reject big lengths and keep the length in a
+	\ single integer.
+	{ n } 0
+	begin n 0 > while n 1- >n
+		dup 0x7FFFFF > if ERR_X509_INNER_TRUNC fail then
+		8 << swap read8 rot +
+	repeat ;
+
+\ Open a sub-structure. This subtracts the length from the limit, and
+\ pushes the length back as new limit.
+: open-elt ( lim length -- lim_outer lim_inner )
+	dup2 < if ERR_X509_INNER_TRUNC fail then
+	dup { len } - len ;
+
+\ Read a length and open the value as a sub-structure.
+: read-length-open-elt ( lim -- lim_outer lim_inner )
+	read-length open-elt ;
+
+\ Close a sub-structure. This verifies that there is no remaining
+\ element to read.
+: close-elt ( lim -- )
+	if ERR_X509_EXTRA_ELEMENT fail then ;
+
+\ Skip remaining bytes in the current structure, then close it.
+: skip-close-elt ( lim -- )
+	skip-remaining drop ;
+
+\ Read a length and then skip the value.
+: read-length-skip ( lim -- lim )
+	read-length-open-elt skip-close-elt ;
+
+\ Check that a given tag is constructed and has the expected value.
+: check-tag-constructed ( constructed value refvalue -- )
+	= ifnot ERR_X509_UNEXPECTED fail then
+	check-constructed ;
+
+\ Check that the top value is true; report a "not constructed"
+\ error otherwise.
+: check-constructed ( constructed -- )
+	ifnot ERR_X509_NOT_CONSTRUCTED fail then ;
+
+\ Check that a given tag is primitive and has the expected value.
+: check-tag-primitive ( constructed value refvalue -- )
+	= ifnot ERR_X509_UNEXPECTED fail then
+	check-primitive ;
+
+\ Check that the top value is true; report a "not primitive"
+\ error otherwise.
+: check-primitive ( constructed -- )
+	if ERR_X509_NOT_PRIMITIVE fail then ;
+
+\ Check that the tag is for a constructed SEQUENCE.
+: check-sequence ( constructed value -- )
+	0x10 check-tag-constructed ;
+
+\ Read a tag, check that it is for a constructed SEQUENCE, and open
+\ it as a sub-element.
+: read-sequence-open ( lim -- lim_outer lim_inner )
+	read-tag check-sequence read-length-open-elt ;
+
+\ Read the next element as a BIT STRING with no ignore bits, and open
+\ it as a sub-element.
+: read-bits-open ( lim -- lim_outer lim_inner )
+	read-tag 0x03 check-tag-primitive
+	read-length-open-elt
+	read8 if ERR_X509_PARTIAL_BYTE fail then ;
+
+OID: rsaEncryption               1.2.840.113549.1.1.1
+
+OID: sha1WithRSAEncryption       1.2.840.113549.1.1.5
+OID: sha224WithRSAEncryption     1.2.840.113549.1.1.14
+OID: sha256WithRSAEncryption     1.2.840.113549.1.1.11
+OID: sha384WithRSAEncryption     1.2.840.113549.1.1.12
+OID: sha512WithRSAEncryption     1.2.840.113549.1.1.13
+
+OID: id-sha1                     1.3.14.3.2.26
+OID: id-sha224                   2.16.840.1.101.3.4.2.4
+OID: id-sha256                   2.16.840.1.101.3.4.2.1
+OID: id-sha384                   2.16.840.1.101.3.4.2.2
+OID: id-sha512                   2.16.840.1.101.3.4.2.3
+
+OID: id-ecPublicKey              1.2.840.10045.2.1
+
+OID: ansix9p256r1                1.2.840.10045.3.1.7
+OID: ansix9p384r1                1.3.132.0.34
+OID: ansix9p521r1                1.3.132.0.35
+
+OID: ecdsa-with-SHA1             1.2.840.10045.4.1
+OID: ecdsa-with-SHA224           1.2.840.10045.4.3.1
+OID: ecdsa-with-SHA256           1.2.840.10045.4.3.2
+OID: ecdsa-with-SHA384           1.2.840.10045.4.3.3
+OID: ecdsa-with-SHA512           1.2.840.10045.4.3.4
+
+OID: id-at-commonName            2.5.4.3
+
+\ Read a "small value". This assumes that the tag has just been read
+\ and processed, but not the length. The first pad byte is set to the
+\ value length; the encoded value itself follows. If the value length
+\ exceeds 255 bytes, then a single 0 is written in the pad, and this
+\ method returns false (0). Otherwise, it returns true (-1).
+\ Either way, the element is fully read.
+: read-small-value ( lim -- lim bool )
+	read-length-open-elt
+	dup 255 > if skip-close-elt 0 addr-pad set8 0 ret then
+	dup addr-pad set8
+	addr-pad 1+ read-blob
+	-1 ;
+
+\ Read an OID as a "small value" (tag, length and value). A boolean
+\ value is returned, which is true (-1) if the OID value fits on the pad,
+\ false (0) otherwise.
+: read-OID ( lim -- lim bool )
+	read-tag 0x06 check-tag-primitive read-small-value ;
+
+\ Read a UTF-8 code point. On error, return 0. Reading a code point of
+\ value 0 is considered to be an error.
+: read-UTF8 ( lim -- lim val )
+	read8
+	choice
+		dup 0x80 < uf ret enduf
+		dup 0xC0 < uf drop 0 ret enduf
+		dup 0xE0 < uf 0x1F and 1 read-UTF8-next 0x80 0x7FF enduf
+		dup 0xF0 < uf 0x0F and 2 read-UTF8-next 0x800 0xFFFF enduf
+		dup 0xF8 < uf 0x07 and 3 read-UTF8-next 0x10000 0x10FFFF enduf
+		drop 0 ret
+	endchoice
+	between? ifnot drop 0 then
+	;
+
+\ Read n subsequent bytes to complete the provided first byte. The final
+\ value is -1 on error, or the code point numerical value. The final
+\ value is duplicated.
+: read-UTF8-next ( lim val n -- lim val val )
+	begin dup while
+		-rot
+		read-UTF8-chunk
+		rot 1-
+	repeat
+	drop dup ;
+
+\ Read one byte, that should be a trailing UTF-8 byte, and complement the
+\ current value. On error, value is set to -1.
+: read-UTF8-chunk ( lim val -- lim val )
+	swap
+	\ If we are at the end of the value, report an error but don't fail.
+	dup ifnot 2drop 0 -1 ret then
+	read8 rot
+	dup 0< if swap drop ret then 6 <<
+	swap dup 6 >> 2 <> if 2drop -1 ret then
+	0x3F and + ;
+
+: high-surrogate? ( x -- x bool )
+	dup 0xD800 0xDBFF between? ;
+
+: low-surrogate? ( x -- x bool )
+	dup 0xDC00 0xDFFF between? ;
+
+: assemble-surrogate-pair ( hi lim lo -- lim val )
+	low-surrogate? ifnot rot 2drop 0 ret then
+	rot 10 << + 0x35FDC00 - ;
+
+\ Read a UTF-16 code point (big-endian). Returned value is 0 on error.
+: read-UTF16BE ( lim -- lim val )
+	read16be
+	choice
+		high-surrogate? uf
+			swap dup ifnot 2drop 0 0 ret then
+			read16be assemble-surrogate-pair
+		enduf
+		low-surrogate? uf
+			drop 0
+		enduf
+	endchoice ;
+
+\ Read a UTF-16 code point (little-endian). Returned value is 0 on error.
+: read-UTF16LE ( lim -- lim val )
+	read16le
+	choice
+		high-surrogate? uf
+			swap dup ifnot 2drop 0 0 ret then
+			read16le assemble-surrogate-pair
+		enduf
+		low-surrogate? uf
+			drop 0
+		enduf
+	endchoice ;
+
+\ Add byte to current pad value. Offset is updated, or set to 0 on error.
+: pad-append ( off val -- off )
+	over dup 0= swap 256 >= or if 2drop 0 ret then
+	over addr-pad + set8 1+ ;
+
+\ Add UTF-8 chunk byte to the pad. The 'nn' parameter is the shift count.
+: pad-append-UTF8-chunk ( off val nn -- off )
+	>> 0x3F and 0x80 or pad-append ;
+
+\ Test whether a code point is invalid when encoding. This rejects the
+\ 66 noncharacters, and also the surrogate range; this function does NOT
+\ check that the value is in the 0..10FFFF range.
+: valid-unicode? ( val -- bool )
+	dup 0xFDD0 0xFEDF between? if drop 0 ret then
+	dup 0xD800 0xDFFF between? if drop 0 ret then
+	0xFFFF and 0xFFFE < ;
+
+\ Encode a code point in UTF-8. Offset is in the pad; it is updated, or
+\ set to 0 on error. Leading BOM are ignored.
+: encode-UTF8 ( val off -- off )
+	\ Skip leading BOM (U+FEFF when off is 1).
+	dup2 1 = swap 0xFEFF = and if swap drop ret then
+
+	swap dup { val }
+	dup valid-unicode? ifnot 2drop 0 ret then
+	choice
+		dup 0x80 < uf pad-append enduf
+		dup 0x800 < uf
+			6 >> 0xC0 or pad-append
+			val 0 pad-append-UTF8-chunk
+		enduf
+		dup 0xFFFF < uf
+			12 >> 0xE0 or pad-append
+			val 6 pad-append-UTF8-chunk
+			val 0 pad-append-UTF8-chunk
+		enduf
+		18 >> 0xF0 or pad-append
+		val 12 pad-append-UTF8-chunk
+		val 6 pad-append-UTF8-chunk
+		val 0 pad-append-UTF8-chunk
+	endchoice ;
+
+\ Read a string value into the pad; this function checks that the source
+\ characters are UTF-8 and non-zero. The string length (in bytes) is
+\ written in the first pad byte. Returned value is true (-1) on success,
+\ false (0) on error.
+: read-value-UTF8 ( lim -- lim bool )
+	read-length-open-elt
+	1 { off }
+	begin dup while
+		read-UTF8 dup ifnot drop skip-close-elt 0 ret then
+		off encode-UTF8 >off
+	repeat
+	drop off dup ifnot ret then 1- addr-pad set8 -1 ;
+
+\ Decode a UTF-16 string into the pad. The string is converted to UTF-8,
+\ and the length is written in the first pad byte. A leading BOM is
+\ honoured (big-endian is assumed if there is no BOM). A code point of
+\ value 0 is an error. Returned value is true (-1) on success, false (0)
+\ on error.
+: read-value-UTF16 ( lim -- lim bool )
+	read-length-open-elt
+	dup ifnot addr-pad set8 -1 ret then
+	1 { off }
+	read-UTF16BE dup 0xFFFE = if
+		\ Leading BOM, and indicates little-endian.
+		drop
+		begin dup while
+			read-UTF16LE dup ifnot drop skip-close-elt 0 ret then
+			off encode-UTF8 >off
+		repeat
+	else
+		dup ifnot drop skip-close-elt 0 ret then
+		\ Big-endian BOM, or no BOM.
+		begin
+			off encode-UTF8 >off
+			dup while
+			read-UTF16BE dup ifnot drop skip-close-elt 0 ret then
+		repeat
+	then
+	drop off dup ifnot ret then 1- addr-pad set8 -1 ;
+
+\ Decode a latin-1 string into the pad. The string is converted to UTF-8,
+\ and the length is written in the first pad byte. A source byte of
+\ value 0 is an error. Returned value is true (-1) on success, false (0)
+\ on error.
+: read-value-latin1 ( lim -- lim bool )
+	read-length-open-elt
+	1 { off }
+	begin dup while
+		read8 dup ifnot drop skip-close-elt 0 ret then
+		off encode-UTF8 >off
+	repeat
+	drop off dup ifnot ret then 1- addr-pad set8 -1 ;
+
+\ Read a value and interpret it as an INTEGER or ENUMERATED value. If
+\ the integer value does not fit on an unsigned 32-bit value, an error
+\ is reported. This function assumes that the tag has just been read
+\ and processed, but not the length.
+: read-small-int-value ( lim -- lim x )
+	read-length-open-elt
+	dup ifnot ERR_X509_OVERFLOW fail then
+	read8 dup 0x80 >= if ERR_X509_OVERFLOW fail then
+	{ x }
+	begin dup while
+		read8 x dup 0xFFFFFF >= if ERR_X509_OVERFLOW fail then
+		8 << + >x
+	repeat
+	drop x ;
+
+\ Compare the OID in the pad with an OID in the constant data block.
+\ Returned value is -1 on equality, 0 otherwise.
+cc: eqOID ( addrConst -- bool ) {
+	const unsigned char *a2 = &t0_datablock[T0_POP()];
+	const unsigned char *a1 = &CTX->pad[0];
+	size_t len = a1[0];
+	int x;
+	if (len == a2[0]) {
+		x = -(memcmp(a1 + 1, a2 + 1, len) == 0);
+	} else {
+		x = 0;
+	}
+	T0_PUSH((uint32_t)x);
+}
+
+\ Compare two blobs in the context. Returned value is -1 on equality, 0
+\ otherwise.
+cc: eqblob ( addr1 addr2 len -- bool ) {
+	size_t len = T0_POP();
+	const unsigned char *a2 = (const unsigned char *)CTX + T0_POP();
+	const unsigned char *a1 = (const unsigned char *)CTX + T0_POP();
+	T0_PUSHi(-(memcmp(a1, a2, len) == 0));
+}
+
+\ Check that a value is in a given range (inclusive).
+: between? ( x min max -- bool )
+	{ min max } dup min >= swap max <= and ;
+
+\ Convert the provided byte value into a number in the 0..9 range,
+\ assuming that it is an ASCII digit. A non-digit triggers an error
+\ (a "bad time" error since this is used in date/time decoding).
+: digit-dec ( char -- value )
+	`0 - dup 0 9 between? ifnot ERR_X509_BAD_TIME fail then ;
+
+\ Read two ASCII digits and return the value in the 0..99 range. An
+\ error is reported if the characters are not ASCII digits.
+: read-dec2 ( lim -- lim x )
+	read8 digit-dec 10 * { x } read8 digit-dec x + ;
+
+\ Read two ASCII digits and check that the value is in the provided
+\ range (inclusive).
+: read-dec2-range ( lim min max -- lim x )
+	{ min max }
+	read-dec2 dup min max between? ifnot ERR_X509_BAD_TIME fail then ;
+
+\ Maximum days in a month and accumulated day count. Each
+\ 16-bit value contains the month day count in its lower 5 bits. The first
+\ 12 values are for a normal year, the other 12 for a leap year.
+data: month-to-days
+hexb| 001F 03FC 077F 0B5E 0F1F 12FE 16BF 1A9F 1E7E 223F 261E 29DF |
+hexb| 001F 03FD 079F 0B7E 0F3F 131E 16DF 1ABF 1E9E 225F 263E 29FF |
+
+\ Read a date (UTCTime or GeneralizedTime). The date value is converted
+\ to a day count and a second count. The day count starts at 0 for
+\ January 1st, 0 AD (that's they year before 1 AD, also known as 1 BC)
+\ in a proleptic Gregorian calendar (i.e. Gregorian rules are assumed to
+\ extend indefinitely in the past). The second count is between 0 and
+\ 86400 (inclusive, in case of a leap second).
+: read-date ( lim -- lim days seconds )
+	\ Read tag; must be UTCTime or GeneralizedTime. Year count is
+	\ 4 digits with GeneralizedTime, 2 digits with UTCTime.
+	read-tag
+	dup 0x17 0x18 between? ifnot ERR_X509_BAD_TIME fail then
+	0x18 = { y4d }
+	check-primitive
+	read-length-open-elt
+
+	\ We compute the days and seconds counts during decoding, in
+	\ order to minimize the number of needed temporary variables.
+	{ ; days seconds x }
+
+	\ Year is 4-digit with GeneralizedTime. With UTCTime, the year
+	\ is in the 1950..2049 range, and only the last two digits are
+	\ present in the encoding.
+	read-dec2
+	y4d if
+		100 * >x read-dec2 x +
+	else
+		dup 50 < if 100 + then 1900 +
+	then
+	>x
+	x 365 * x 3 + 4 / + x 99 + 100 / - x 399 + 400 / + >days
+
+	\ Month is 1..12. Number of days in a months depend on the
+	\ month and on the year (year count is in x at that point).
+	1 12 read-dec2-range
+	1- 1 <<
+	x 4 % 0= x 100 % 0<> x 400 % 0= or and if 24 + then
+	month-to-days + data-get16
+	dup 5 >> days + >days
+	0x1F and
+
+	\ Day. At this point, the TOS contains the maximum day count for
+	\ the current month.
+	1 swap read-dec2-range
+	days + 1- >days
+
+	\ Hour, minute and seconds. Count of seconds is allowed to go to
+	\ 60 in case of leap seconds (in practice, leap seconds really
+	\ occur only at the very end of the day, so this computation is
+	\ exact for a real leap second, and a spurious leap second only
+	\ implies a one-second shift that we can ignore).
+	0 23 read-dec2-range 3600 * >seconds
+	0 59 read-dec2-range 60 * seconds + >seconds
+	0 60 read-dec2-range seconds + >seconds
+
+	\ At this point, we may have fractional seconds. This should
+	\ happen only with GeneralizedTime, but we accept it for UTCTime
+	\ too (and, anyway, we ignore these fractional seconds).
+	read8 dup `. = if
+		drop
+		begin read8 dup `0 `9 between? while drop repeat
+	then
+
+	\ The time zone should be 'Z', not followed by anything. Other
+	\ time zone indications are not DER and thus not supposed to
+	\ appear in certificates.
+	`Z <> if ERR_X509_BAD_TIME fail then
+	close-elt
+	days seconds ;
+
+\ Read an INTEGER (tag, length and value). The INTEGER is supposed to be
+\ positive; its unsigned big-endian encoding is stored in the provided
+\ in-context buffer. Returned value is the decoded length. If the integer
+\ did not fit, or the value is negative, then an error is reported.
+: read-integer ( lim addr len -- lim dlen )
+	rot read-tag 0x02 check-tag-primitive -rot
+	read-integer-next ;
+
+\ Identical to read-integer, but the tag has already been read and checked.
+: read-integer-next ( lim addr len -- lim dlen )
+	dup { addr len origlen }
+	read-length-open-elt
+	\ Read first byte; sign bit must be 0.
+	read8 dup 0x80 >= if ERR_X509_OVERFLOW fail then
+	\ Skip leading bytes of value 0. If there are only bytes of
+	\ value 0, then return.
+	begin dup 0 = while
+		drop dup ifnot drop 0 ret then
+		read8
+	repeat
+	\ At that point, we have the first non-zero byte on the stack.
+	begin
+		len dup ifnot ERR_X509_LIMIT_EXCEEDED fail then 1- >len
+		addr set8 addr 1+ >addr
+		dup while read8
+	repeat
+	drop origlen len - ;
+
+\ Read a BOOLEAN value. This should be called immediately after reading
+\ the tag.
+: read-boolean ( lim constructed value -- lim bool )
+	0x01 check-tag-primitive
+	read-length 1 <> if ERR_X509_BAD_BOOLEAN fail then
+	read8 0<> ;
+
+\ Identify an elliptic curve: read the OID, then check it against the
+\ known curve OID.
+: read-curve-ID ( lim -- lim curve )
+	read-OID ifnot ERR_X509_UNSUPPORTED fail then
+	choice
+		ansix9p256r1 eqOID uf 23 enduf
+		ansix9p384r1 eqOID uf 24 enduf
+		ansix9p521r1 eqOID uf 25 enduf
+		ERR_X509_UNSUPPORTED fail
+	endchoice ;
+
+\ A convenient debug word: print the current data stack contents.
+cc: DEBUG ( -- ) {
+	extern int printf(const char *fmt, ...);
+	uint32_t *p;
+
+	printf("<stack:");
+	for (p = &CTX->dp_stack[0]; p != dp; p ++) {
+		printf(" %lu", (unsigned long)*p);
+	}
+	printf(" >\n");
+}

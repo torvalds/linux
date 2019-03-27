@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+f() { return $1; }
+
+[ `f 42; cat <<EOF
+$?
+EOF
+` = 42 ] || echo simple command bad
+
+long=`printf %08192d 0`
+
+[ `f 42; cat <<EOF
+$long.$?
+EOF
+` = $long.42 ] || echo long simple command bad

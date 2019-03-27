@@ -1,0 +1,166 @@
+# Copyright (c) 2001, 2008, Juniper Networks, Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the Juniper Networks, Inc. nor the names of its
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY JUNIPER NETWORKS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL JUNIPER NETWORKS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	JNPR: options.mips,v 1.2 2006/09/15 12:52:34
+# $FreeBSD$
+
+CPU_MIPS4KC	opt_global.h
+CPU_MIPS24K	opt_global.h
+CPU_MIPS34K	opt_global.h
+CPU_MIPS74K	opt_global.h
+CPU_MIPS1004K	opt_global.h
+CPU_MIPS1074K	opt_global.h
+CPU_INTERAPTIV	opt_global.h
+CPU_PROAPTIV	opt_global.h
+CPU_MIPS32	opt_global.h
+CPU_MIPS64	opt_global.h
+CPU_SENTRY5	opt_global.h
+CPU_SB1 	opt_global.h
+CPU_CNMIPS	opt_global.h
+CPU_RMI		opt_global.h
+CPU_NLM		opt_global.h
+CPU_BERI	opt_global.h
+CPU_XBURST	opt_global.h
+CPU_MALTA	opt_global.h
+
+# which MACHINE_ARCH architecture
+MIPS
+MIPSHF
+MIPSEL
+MIPSELHF
+MIPS64
+MIPS64HF
+MIPS64EL
+MIPS64ELHF
+MIPSN32
+
+COMPAT_FREEBSD32	opt_global.h
+
+YAMON		opt_global.h
+CFE		opt_global.h
+CFE_CONSOLE	opt_global.h
+CFE_ENV		opt_global.h
+CFE_ENV_SIZE	opt_global.h
+
+GFB_DEBUG		opt_gfb.h
+GFB_NO_FONT_LOADING	opt_gfb.h
+GFB_NO_MODE_CHANGE	opt_gfb.h
+
+NOFPU		opt_global.h
+
+TICK_USE_YAMON_FREQ	opt_global.h
+TICK_USE_MALTA_RTC	opt_global.h
+
+#
+# The highest memory address that can be used by the kernel in units of KB.
+#
+MAXMEM			opt_global.h
+
+#
+# Manual override of cache config
+#
+MIPS_DISABLE_L1_CACHE	opt_global.h
+
+#
+# Options that control the Cavium Simple Executive.
+#
+OCTEON_MODEL			opt_cvmx.h
+OCTEON_VENDOR_LANNER		opt_cvmx.h
+OCTEON_VENDOR_UBIQUITI		opt_cvmx.h
+OCTEON_VENDOR_RADISYS		opt_cvmx.h
+OCTEON_VENDOR_GEFES		opt_cvmx.h
+OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h
+
+#
+# Options specific to the BERI platform. 
+#
+BERI_LARGE_TLB			opt_global.h
+PLATFORM_INIT_SECONDARY		opt_global.h
+
+#
+# Options that control the NetFPGA-10G Embedded CPU Ethernet Core.
+#
+NF10BMAC_64BIT			opt_netfpga.h
+
+#
+# Options that control the Atheros SoC peripherals
+#
+ARGE_DEBUG			opt_arge.h
+ARGE_MDIO			opt_arge.h
+
+#
+# At least one of the AR71XX ubiquiti boards has a Redboot configuration
+# that "lies" about the amount of RAM it has. Until a cleaner method is
+# defined, this option will suffice in overriding what Redboot says.
+#
+AR71XX_REALMEM			opt_ar71xx.h
+AR71XX_ENV_UBOOT		opt_ar71xx.h
+AR71XX_ENV_REDBOOT		opt_ar71xx.h
+AR71XX_ENV_ROUTERBOOT		opt_ar71xx.h
+AR71XX_ATH_EEPROM		opt_ar71xx.h
+
+#
+# Options for AR531X SOC. AR531X_1ST_GENERATION is AR5311 to AR5314.
+#
+
+AR531X_1ST_GENERATION		opt_ar531x.h
+AR531X_REALMEM			opt_ar531x.h
+AR531X_ENV_UBOOT		opt_ar531x.h
+AR531X_APB_DEBUG		opt_ar531x.h
+ARE_MDIO			opt_ar531x.h
+ARE_MII				opt_ar531x.h
+
+#
+# Options that control the Ralink RT305xF Etherenet MAC.
+#
+IF_RT_DEBUG			opt_if_rt.h
+IF_RT_PHY_SUPPORT		opt_if_rt.h
+IF_RT_RING_DATA_COUNT		opt_if_rt.h
+
+#
+# Options that control the Ralink/Mediatek SoC type.
+#
+MT7620				opt_rt305x.h
+RT5350				opt_rt305x.h
+RT305XF				opt_rt305x.h
+RT3052F				opt_rt305x.h
+RT3050F				opt_rt305x.h
+RT305X				opt_rt305x.h
+RT305X_UBOOT			opt_rt305x.h
+RT305X_USE_UART			opt_rt305x.h
+RT_MDIO				opt_rt305x.h
+
+#
+# Options that affect the pmap.
+#
+PV_STATS		opt_pmap.h
+
+#
+# Options to use INTRNG code
+#
+INTRNG			opt_global.h
+MIPS_NIRQ		opt_global.h

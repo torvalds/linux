@@ -1,0 +1,179 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 19, 2018
+.Dt DRAWER.LUA 8
+.Os
+.Sh NAME
+.Nm drawer.lua
+.Nd FreeBSD menu/screen drawer module
+.Sh DESCRIPTION
+.Nm
+contains functionality for drawing and manipulating the menu, logo, and brand
+to the screen.
+.Pp
+Before using the functionality provided by
+.Nm ,
+it must be included with a statement such as the following:
+.Pp
+.Dl local drawer = require("drawer")
+.Ss BRAND DEFINITIONS
+Brand definitions describe a
+.Dq brand ,
+traditionally drawn above the menu.
+The exact position may be controlled by using the
+.Xr loader.conf 5
+variables
+.Va loader_brand_x
+and
+.Va loader_brand_y .
+The following keys may be defined for a brand definition:
+.Bl -tag -width ".Ic Graphic" -offset indent
+.It Ic graphic
+A table of strings containing rows of text to be drawn to the screen.
+.El
+.Ss LOGO DEFINITIONS
+Logo definitions describe a
+.Dq logo ,
+traditionally to the right of the menu.
+The exact position may be controlled by using the
+.Xr loader.conf 5
+variables
+.Va loader_logo_x
+and
+.Va loader_logo_y .
+The following keys may be defined for a logo definition:
+.Bl -tag -width ".Ic requires_color" -offset indent
+.It Ic requires_color
+A boolean describing whether or not this logo definition requires color.
+If it is chosen to be drawn and it requires color on a color-disabled boot,
+.Nm
+will elect to use the default
+.Dq orbbw
+logo rather than the chosen logo.
+.It Ic graphic
+A table of strings containing rows of text to be drawn to the screen.
+.It Ic shift
+A table describing the
+.Va x
+and
+.Va y
+shift that should be applied to all elements should this logo be selected.
+This is typically used for shifting the menu and brand if an empty or minimal
+logo are selected.
+.El
+.Ss CUSTOM BRANDS AND LOGOS
+The brand and logo system is designed to allow brands and logos to be easily
+plugged in.
+When an unrecognized
+.Ev loader_brand
+or
+.Ev loader_logo
+are encountered,
+.Nm
+will attempt to include
+.Pa brand-${loader_brand}.lua
+or
+.Pa logo-${loader_logo}.lua
+respectively.
+These files are expected to call either
+.Fn drawer.addBrand
+or
+.Fn drawer.addLogo
+to add the requested branddef or logodef.
+.Nm
+will attempt to do another lookup for the requested brand or logo before falling
+back to one of the following:
+.Bl -tag -width ".Ic drawer.default_color_logodef" -offset indent
+.It Ic drawer.default_brand
+The default brand to be used if the requested brand cannot be located.
+.It Ic drawer.default_color_logodef
+The default logodef to be used if an invalid logodef is requested and
+.Xr loader 8
+has been configured to allow output of color.
+.It Ic drawer.default_bw_logodef
+The default logodef to be used if either an invalid logodef has been requested,
+or a logodef has been requested that requires color and
+.Xr loader 8
+has been configured to not output color.
+.El
+.Ss FRAME STYLES
+.Nm
+contains the definitions for the different frame styles that may be drawn around
+the menu.
+Frame styles define the characters drawn for horizontal lines, vertical aligns,
+and each of the four corner styles.
+The following keys may be defined for a frame style:
+.Bl -bullet -width ""
+.It
+horizontal
+.It
+vertical
+.It
+top_left
+.It
+bottom_left
+.It
+top_right
+.It
+bottom_right
+.El
+Frame styles are currently defined in the table
+.Ic drawer.frame_styles
+indexed by the name used for
+.Ev loader_menu_frame .
+No API currently exists for manipulating this table indirectly.
+.Ss Exported functions
+The following functions are exported from
+.Nm :
+.Bl -tag -width hook.registerType -offset indent
+.It Fn drawer.addBrand name def
+Add the brand definition described by
+.Fa def
+to the table of known brand definitions, indexed by
+.Fa name .
+.It Fn drawer.addLogo name def
+Add the logo definition described by
+.Fa def
+to the table of known logo definitions, indexed by
+.Fa name .
+.It Fn drawer.drawscreen menudef
+Draws the logo, brand, menu frame, and the current menu as described in
+.Fa menudef ,
+formatted as defined by
+.Xr menu.lua 8 .
+.El
+.Sh SEE ALSO
+.Xr menu.lua 8
+.Sh AUTHORS
+The
+.Nm
+file was originally written by
+.An Pedro Souza Aq Mt pedrosouza@FreeBSD.org .
+Later work and this manual page was done by
+.An Kyle Evans Aq Mt kevans@FreeBSD.org .

@@ -1,0 +1,25 @@
+-- $Id$
+PKCS10 DEFINITIONS ::=
+
+BEGIN
+
+IMPORTS
+	Name, SubjectPublicKeyInfo, Attribute, AlgorithmIdentifier
+	FROM rfc2459;
+
+
+CertificationRequestInfo ::= SEQUENCE {
+    version       INTEGER { pkcs10-v1(0) },
+    subject       Name,
+    subjectPKInfo SubjectPublicKeyInfo,
+    attributes    [0] IMPLICIT SET OF Attribute OPTIONAL 
+}
+
+CertificationRequest ::= SEQUENCE {
+    certificationRequestInfo CertificationRequestInfo,
+    signatureAlgorithm	     AlgorithmIdentifier,
+    signature                BIT STRING
+}
+
+END
+

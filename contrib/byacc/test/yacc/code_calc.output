@@ -1,0 +1,461 @@
+   0  $accept : list $end
+
+   1  list :
+   2       | list stat '\n'
+   3       | list error '\n'
+
+   4  stat : expr
+   5       | LETTER '=' expr
+
+   6  expr : '(' expr ')'
+   7       | expr '+' expr
+   8       | expr '-' expr
+   9       | expr '*' expr
+  10       | expr '/' expr
+  11       | expr '%' expr
+  12       | expr '&' expr
+  13       | expr '|' expr
+  14       | '-' expr
+  15       | LETTER
+  16       | number
+
+  17  number : DIGIT
+  18         | number DIGIT
+
+state 0
+	$accept : . list $end  (0)
+	list : .  (1)
+
+	.  reduce 1
+
+	list  goto 1
+
+
+state 1
+	$accept : list . $end  (0)
+	list : list . stat '\n'  (2)
+	list : list . error '\n'  (3)
+
+	$end  accept
+	error  shift 2
+	DIGIT  shift 3
+	LETTER  shift 4
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	stat  goto 7
+	expr  goto 8
+	number  goto 9
+
+
+state 2
+	list : list error . '\n'  (3)
+
+	'\n'  shift 10
+	.  error
+
+
+state 3
+	number : DIGIT .  (17)
+
+	.  reduce 17
+
+
+state 4
+	stat : LETTER . '=' expr  (5)
+	expr : LETTER .  (15)
+
+	'='  shift 11
+	'|'  reduce 15
+	'&'  reduce 15
+	'+'  reduce 15
+	'-'  reduce 15
+	'*'  reduce 15
+	'/'  reduce 15
+	'%'  reduce 15
+	'\n'  reduce 15
+
+
+state 5
+	expr : '-' . expr  (14)
+
+	DIGIT  shift 3
+	LETTER  shift 12
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	expr  goto 13
+	number  goto 9
+
+
+state 6
+	expr : '(' . expr ')'  (6)
+
+	DIGIT  shift 3
+	LETTER  shift 12
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	expr  goto 14
+	number  goto 9
+
+
+state 7
+	list : list stat . '\n'  (2)
+
+	'\n'  shift 15
+	.  error
+
+
+state 8
+	stat : expr .  (4)
+	expr : expr . '+' expr  (7)
+	expr : expr . '-' expr  (8)
+	expr : expr . '*' expr  (9)
+	expr : expr . '/' expr  (10)
+	expr : expr . '%' expr  (11)
+	expr : expr . '&' expr  (12)
+	expr : expr . '|' expr  (13)
+
+	'|'  shift 16
+	'&'  shift 17
+	'+'  shift 18
+	'-'  shift 19
+	'*'  shift 20
+	'/'  shift 21
+	'%'  shift 22
+	'\n'  reduce 4
+
+
+state 9
+	expr : number .  (16)
+	number : number . DIGIT  (18)
+
+	DIGIT  shift 23
+	'|'  reduce 16
+	'&'  reduce 16
+	'+'  reduce 16
+	'-'  reduce 16
+	'*'  reduce 16
+	'/'  reduce 16
+	'%'  reduce 16
+	'\n'  reduce 16
+	')'  reduce 16
+
+
+state 10
+	list : list error '\n' .  (3)
+
+	.  reduce 3
+
+
+state 11
+	stat : LETTER '=' . expr  (5)
+
+	DIGIT  shift 3
+	LETTER  shift 12
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	expr  goto 24
+	number  goto 9
+
+
+state 12
+	expr : LETTER .  (15)
+
+	.  reduce 15
+
+
+state 13
+	expr : expr . '+' expr  (7)
+	expr : expr . '-' expr  (8)
+	expr : expr . '*' expr  (9)
+	expr : expr . '/' expr  (10)
+	expr : expr . '%' expr  (11)
+	expr : expr . '&' expr  (12)
+	expr : expr . '|' expr  (13)
+	expr : '-' expr .  (14)
+
+	.  reduce 14
+
+
+state 14
+	expr : '(' expr . ')'  (6)
+	expr : expr . '+' expr  (7)
+	expr : expr . '-' expr  (8)
+	expr : expr . '*' expr  (9)
+	expr : expr . '/' expr  (10)
+	expr : expr . '%' expr  (11)
+	expr : expr . '&' expr  (12)
+	expr : expr . '|' expr  (13)
+
+	'|'  shift 16
+	'&'  shift 17
+	'+'  shift 18
+	'-'  shift 19
+	'*'  shift 20
+	'/'  shift 21
+	'%'  shift 22
+	')'  shift 25
+	.  error
+
+
+state 15
+	list : list stat '\n' .  (2)
+
+	.  reduce 2
+
+
+state 16
+	expr : expr '|' . expr  (13)
+
+	DIGIT  shift 3
+	LETTER  shift 12
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	expr  goto 26
+	number  goto 9
+
+
+state 17
+	expr : expr '&' . expr  (12)
+
+	DIGIT  shift 3
+	LETTER  shift 12
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	expr  goto 27
+	number  goto 9
+
+
+state 18
+	expr : expr '+' . expr  (7)
+
+	DIGIT  shift 3
+	LETTER  shift 12
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	expr  goto 28
+	number  goto 9
+
+
+state 19
+	expr : expr '-' . expr  (8)
+
+	DIGIT  shift 3
+	LETTER  shift 12
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	expr  goto 29
+	number  goto 9
+
+
+state 20
+	expr : expr '*' . expr  (9)
+
+	DIGIT  shift 3
+	LETTER  shift 12
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	expr  goto 30
+	number  goto 9
+
+
+state 21
+	expr : expr '/' . expr  (10)
+
+	DIGIT  shift 3
+	LETTER  shift 12
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	expr  goto 31
+	number  goto 9
+
+
+state 22
+	expr : expr '%' . expr  (11)
+
+	DIGIT  shift 3
+	LETTER  shift 12
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	expr  goto 32
+	number  goto 9
+
+
+state 23
+	number : number DIGIT .  (18)
+
+	.  reduce 18
+
+
+state 24
+	stat : LETTER '=' expr .  (5)
+	expr : expr . '+' expr  (7)
+	expr : expr . '-' expr  (8)
+	expr : expr . '*' expr  (9)
+	expr : expr . '/' expr  (10)
+	expr : expr . '%' expr  (11)
+	expr : expr . '&' expr  (12)
+	expr : expr . '|' expr  (13)
+
+	'|'  shift 16
+	'&'  shift 17
+	'+'  shift 18
+	'-'  shift 19
+	'*'  shift 20
+	'/'  shift 21
+	'%'  shift 22
+	'\n'  reduce 5
+
+
+state 25
+	expr : '(' expr ')' .  (6)
+
+	.  reduce 6
+
+
+state 26
+	expr : expr . '+' expr  (7)
+	expr : expr . '-' expr  (8)
+	expr : expr . '*' expr  (9)
+	expr : expr . '/' expr  (10)
+	expr : expr . '%' expr  (11)
+	expr : expr . '&' expr  (12)
+	expr : expr . '|' expr  (13)
+	expr : expr '|' expr .  (13)
+
+	'&'  shift 17
+	'+'  shift 18
+	'-'  shift 19
+	'*'  shift 20
+	'/'  shift 21
+	'%'  shift 22
+	'|'  reduce 13
+	'\n'  reduce 13
+	')'  reduce 13
+
+
+state 27
+	expr : expr . '+' expr  (7)
+	expr : expr . '-' expr  (8)
+	expr : expr . '*' expr  (9)
+	expr : expr . '/' expr  (10)
+	expr : expr . '%' expr  (11)
+	expr : expr . '&' expr  (12)
+	expr : expr '&' expr .  (12)
+	expr : expr . '|' expr  (13)
+
+	'+'  shift 18
+	'-'  shift 19
+	'*'  shift 20
+	'/'  shift 21
+	'%'  shift 22
+	'|'  reduce 12
+	'&'  reduce 12
+	'\n'  reduce 12
+	')'  reduce 12
+
+
+state 28
+	expr : expr . '+' expr  (7)
+	expr : expr '+' expr .  (7)
+	expr : expr . '-' expr  (8)
+	expr : expr . '*' expr  (9)
+	expr : expr . '/' expr  (10)
+	expr : expr . '%' expr  (11)
+	expr : expr . '&' expr  (12)
+	expr : expr . '|' expr  (13)
+
+	'*'  shift 20
+	'/'  shift 21
+	'%'  shift 22
+	'|'  reduce 7
+	'&'  reduce 7
+	'+'  reduce 7
+	'-'  reduce 7
+	'\n'  reduce 7
+	')'  reduce 7
+
+
+state 29
+	expr : expr . '+' expr  (7)
+	expr : expr . '-' expr  (8)
+	expr : expr '-' expr .  (8)
+	expr : expr . '*' expr  (9)
+	expr : expr . '/' expr  (10)
+	expr : expr . '%' expr  (11)
+	expr : expr . '&' expr  (12)
+	expr : expr . '|' expr  (13)
+
+	'*'  shift 20
+	'/'  shift 21
+	'%'  shift 22
+	'|'  reduce 8
+	'&'  reduce 8
+	'+'  reduce 8
+	'-'  reduce 8
+	'\n'  reduce 8
+	')'  reduce 8
+
+
+state 30
+	expr : expr . '+' expr  (7)
+	expr : expr . '-' expr  (8)
+	expr : expr . '*' expr  (9)
+	expr : expr '*' expr .  (9)
+	expr : expr . '/' expr  (10)
+	expr : expr . '%' expr  (11)
+	expr : expr . '&' expr  (12)
+	expr : expr . '|' expr  (13)
+
+	.  reduce 9
+
+
+state 31
+	expr : expr . '+' expr  (7)
+	expr : expr . '-' expr  (8)
+	expr : expr . '*' expr  (9)
+	expr : expr . '/' expr  (10)
+	expr : expr '/' expr .  (10)
+	expr : expr . '%' expr  (11)
+	expr : expr . '&' expr  (12)
+	expr : expr . '|' expr  (13)
+
+	.  reduce 10
+
+
+state 32
+	expr : expr . '+' expr  (7)
+	expr : expr . '-' expr  (8)
+	expr : expr . '*' expr  (9)
+	expr : expr . '/' expr  (10)
+	expr : expr . '%' expr  (11)
+	expr : expr '%' expr .  (11)
+	expr : expr . '&' expr  (12)
+	expr : expr . '|' expr  (13)
+
+	.  reduce 11
+
+
+16 terminals, 5 nonterminals
+19 grammar rules, 33 states

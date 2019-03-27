@@ -1,0 +1,89 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2004 M. Warner Losh.
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 8, 2018
+.Dt BUS_ADD_CHILD 9
+.Os
+.Sh NAME
+.Nm BUS_ADD_CHILD
+.Nd "add a device node to the tree with a given priority"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Ft device_t
+.Fn BUS_ADD_CHILD "device_t dev" "int order" "const char *name" "int unit"
+.Sh DESCRIPTION
+The
+.Fn BUS_ADD_CHILD
+method
+is used by the driver identify routine to add devices to the tree.
+It can also be used to add children to buses that implement this
+routine in other contexts, although the behavior is bus specific.
+Please see
+.Xr device_add_child 9
+for more details.
+The interface is the same as
+.Xr device_add_child 9
+however, the bus'
+.Fn BUS_ADD_CHILD
+is called.
+.Pp
+Buses implementing
+.Fn BUS_ADD_CHILD
+should insert the device into the tree using
+.Xr device_add_child 9
+before adding things such as their own ivars and resource lists to the device.
+.Fn BUS_ADD_CHILD
+is not called by
+.Xr device_add_child 9 .
+.Fn BUS_ADD_CHILD
+instead calls
+.Xr device_add_child 9 .
+.Pp
+A panic will result when called for a bus that does not implement
+.Fn BUS_ADD_CHILD .
+Some buses require a special bus-specific routine to be called instead
+of
+.Fn BUS_ADD_CHILD .
+.Sh RETURN VALUES
+The
+.Fn BUS_ADD_CHILD
+method returns
+.Vt device_t
+added to the tree, or
+.Dv NULL
+to indicate failure.
+.Sh SEE ALSO
+.Xr device 9 ,
+.Xr device_add_child 9 ,
+.Xr driver 9
+.Sh AUTHORS
+This manual page was written by
+.An M. Warner Losh .

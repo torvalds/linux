@@ -1,0 +1,135 @@
+.\" Hey, Emacs, edit this file in -*- nroff-fill -*- mode!
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)ttcharset	8.1 (Berkeley) 6/8/93
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.bp
+.tr __
+.nr VS 12
+.vs 12p
+.1C
+.SH
+Appendix A: Phototypesetter Character Set (APS-5)
+.LP
+These characters exist in roman, italic, and bold.
+To get the one on the left, type the
+four-character name on the right.
+.sp
+.ta .2i .8i 1i 1.6i 1.8i 2.4i 2.6i 3.2i 3.4i 4.0i 4.2i 4.8i 5i 5.6i 5.8i
+.nf
+.in 0.5i
+\(ff	\\(ff	\(fi	\\(fi	\(fl	\\(fl	\(Fi	\\(Fi	\(Fl	\\(Fl
+\(ru	\\(ru	\(em	\\(em	\(14	\\(14	\(12	\\(12	\(34	\\(34
+\(co	\\(co	\(de	\\(de	\(dg	\\(dg	\(fm	\\(fm	\(ct	\\(ct	
+\(rg	\\(rg	\(bu	\\(bu	\(sq	\\(sq	\(hy	\\(hy
+				(In bold, \e(sq is \fB\(sq\fP.)
+.sp
+.in 0
+.tr ~~
+.ps 9
+.fi
+The following are special-font characters:
+.sp
+.in 0.5i
+.tr ~~
+.nf
+.ta .3i 1i 1.3i 2i 2.3i 3i 3.3i
+\(pl	\\(pl	\(mi	\\(mi	\(mu	\\(mu	\(di	\\(di	
+\(eq	\\(eq	\(==	\\(==	\(>=	\\(>=	\(<=	\\(<=	
+\(!=	\\(!=	\(+-	\\(+-	\(no	\\(no	\(sl	\\(sl	
+\(ap	\\(ap	\(~=	\\(~=	\(pt	\\(pt	\(gr	\\(gr	
+\(->	\\(->	\(<-	\\(<-	\(ua	\\(ua	\(da	\\(da	
+\(is	\\(is	\(pd	\\(pd	\(if	\\(if	\(sr	\\(sr	
+\(sb	\\(sb	\(sp	\\(sp	\(cu	\\(cu	\(ca	\\(ca	
+\(ib	\\(ib	\(ip	\\(ip	\(mo	\\(mo	\(es	\\(es	
+\(aa	\\(aa	\(ga	\\(ga	\(ci	\\(ci	(gone)	\\(bs
+\(sc	\\(sc	\(dd	\\(dd	\(lh	\\(lh	\(rh	\\(rh	
+\(lt	\\(lt	\(rt	\\(rt	\(lc	\\(lc	\(rc	\\(rc	
+\(lb	\\(lb	\(rb	\\(rb	\(lf	\\(lf	\(rf	\\(rf	
+\(lk	\\(lk	\(rk	\\(rk	\(bv	\\(bv	\(ts	\\(ts	
+\(br	\\(br	\(or	\\(or	\(ul	\\(ul	\(rn	\\(rn	
+\(**	\\(**
+.sp
+.in 0
+.ps 9
+.fi
+These
+four
+characters also have two-character names. 
+The \' is the apostrophe on terminals;
+the \` is the other quote mark.
+.sp
+.in .5i
+\'	\e\(aa	\`	\e\(ga	\(mi	\e\(mi	\_	\e\_
+.sp
+.in 0
+These
+characters exist only on the special font,
+but they do not have four-character names:
+.sp
+.in .5i
+.nf
+.tr ^^
+"      {      }      <      >      ~      ^      \e      #      @
+.sp
+.in 0
+.fi
+For greek, precede the roman letter by
+.BD \e(*
+to get the corresponding greek;
+for example, 
+.BD \e(*a
+is
+\(*a.
+.sp
+.in 0.5i
+.nf
+.cs R 36
+abgdezyhiklmncoprstufxqw
+\(*a\(*b\(*g\(*d\(*e\(*z\(*y\(*h\(*i\(*k\(*l\(*m\(*n\(*c\(*o\(*p\(*r\(*s\(*t\(*u\(*f\(*x\(*q\(*w
+.sp
+ABGDEZYHIKLMNCOPRSTUFXQW
+\(*A\(*B\(*G\(*D\(*E\(*Z\(*Y\(*H\(*I\(*K\(*L\(*M\(*N\(*C\(*O\(*P\(*R\(*S\(*T\(*U\(*F\(*X\(*Q\(*W
+.ps 9
+.cs R
+.in 0
+.fi

@@ -1,0 +1,89 @@
+#!/bin/sh
+#-
+# Copyright (c) 2016 Bartek Rutkowski
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+: ${DIALOG_OK=0}
+
+echo -n > $BSDINSTALL_TMPETC/rc.conf.hardening
+echo -n > $BSDINSTALL_TMPETC/sysctl.conf.hardening
+echo -n > $BSDINSTALL_TMPBOOT/loader.conf.hardening
+
+exec 3>&1
+FEATURES=$( dialog --backtitle "FreeBSD Installer" \
+    --title "System Hardening" --nocancel --separate-output \
+    --checklist "Choose system security hardening options:" \
+    0 0 0 \
+	"0 hide_uids" "Hide processes running as other users" ${hide_uids:-off} \
+	"1 hide_gids" "Hide processes running as other groups" ${hide_gids:-off} \
+	"2 hide_jail" "Hide processes running in jails" ${hide_jail:-off} \
+	"3 read_msgbuf" "Disable reading kernel message buffer for unprivileged users" ${read_msgbuf:-off} \
+	"4 proc_debug" "Disable process debugging facilities for unprivileged users" ${proc_debug:-off} \
+	"5 random_pid" "Randomize the PID of newly created processes" ${random_pid:-off} \
+	"6 clear_tmp" "Clean the /tmp filesystem on system startup" ${clear_tmp:-off} \
+	"7 disable_syslogd" "Disable opening Syslogd network socket (disables remote logging)" ${disable_syslogd:-off} \
+	"8 disable_sendmail" "Disable Sendmail service" ${disable_sendmail:-off} \
+	"9 secure_console" "Enable console password prompt" ${secure_console:-off} \
+	"10 disable_ddtrace" "Disallow DTrace destructive-mode" ${disable_ddtrace:-off} \
+2>&1 1>&3 )
+exec 3>&-
+
+for feature in $FEATURES; do
+	if [ "$feature" = "hide_uids" ]; then
+		echo security.bsd.see_other_uids=0 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
+	fi
+	if [ "$feature" = "hide_gids" ]; then
+		echo security.bsd.see_other_gids=0 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
+	fi
+	if [ "$feature" = "hide_jail" ]; then
+		echo security.bsd.see_jail_proc=0 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
+	fi
+	if [ "$feature" = "read_msgbuf" ]; then
+		echo security.bsd.unprivileged_read_msgbuf=0 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
+	fi
+	if [ "$feature" = "proc_debug" ]; then
+		echo security.bsd.unprivileged_proc_debug=0 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
+	fi
+	if [ "$feature" = "random_pid" ]; then
+		echo kern.randompid=1 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
+	fi
+	if [ "$feature" = "clear_tmp" ]; then
+		echo 'clear_tmp_enable="YES"' >> $BSDINSTALL_TMPETC/rc.conf.hardening
+	fi
+	if [ "$feature" = "disable_syslogd" ]; then
+		echo 'syslogd_flags="-ss"' >> $BSDINSTALL_TMPETC/rc.conf.hardening
+	fi
+	if [ "$feature" = "disable_sendmail" ]; then
+		echo 'sendmail_enable="NONE"' >> $BSDINSTALL_TMPETC/rc.conf.hardening
+	fi
+	if [ "$feature" = "secure_console" ]; then
+		sed "s/unknown	off secure/unknown	off insecure/g" $BSDINSTALL_CHROOT/etc/ttys > $BSDINSTALL_TMPETC/ttys.hardening
+	fi
+	if [ "$feature" = "disable_ddtrace" ]; then
+		echo 'security.bsd.allow_destructive_dtrace=0' >> $BSDINSTALL_TMPBOOT/loader.conf.hardening
+	fi
+done
+

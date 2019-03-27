@@ -1,0 +1,181 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fgets.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd April 3, 2018
+.Dt FGETS 3
+.Os
+.Sh NAME
+.Nm fgets ,
+.Nm gets ,
+.Nm gets_s
+.Nd get a line from a stream
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Ft char *
+.Fn fgets "char * restrict str" "int size" "FILE * restrict stream"
+.Ft char *
+.Fn gets_s "char *str" "rsize_t size"
+.Ft char *
+.Fn gets "char *str"
+.Sh DESCRIPTION
+The
+.Fn fgets
+function
+reads at most one less than the number of characters specified by
+.Fa size
+from the given
+.Fa stream
+and stores them in the string
+.Fa str .
+Reading stops when a newline character is found,
+at end-of-file or error.
+The newline, if any, is retained.
+If any characters are read and there is no error, a
+.Ql \e0
+character is appended to end the string.
+.Pp
+The
+.Fn gets_s
+function
+is equivalent to
+.Fn fgets
+with a
+.Fa stream
+of
+.Dv stdin ,
+except that the newline character (if any) is not stored in the string.
+.Pp
+The
+.Fn gets
+function
+is equivalent to
+.Fn fgets
+with an infinite
+.Fa size
+and a
+.Fa stream
+of
+.Dv stdin ,
+except that the newline character (if any) is not stored in the string.
+It is the caller's responsibility to ensure that the input line,
+if any, is sufficiently short to fit in the string.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn fgets ,
+.Fn gets_s ,
+and
+.Fn gets
+return
+a pointer to the string.
+If end-of-file occurs before any characters are read,
+they return
+.Dv NULL
+and the buffer contents remain unchanged.
+If an error occurs,
+they return
+.Dv NULL
+and the buffer contents are indeterminate.
+The
+.Fn fgets ,
+.Fn gets_s ,
+and
+.Fn gets
+functions
+do not distinguish between end-of-file and error, and callers must use
+.Xr feof 3
+and
+.Xr ferror 3
+to determine which occurred.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EBADF
+The given
+.Fa stream
+is not a readable stream.
+.El
+.Pp
+The function
+.Fn fgets
+may also fail and set
+.Va errno
+for any of the errors specified for the routines
+.Xr fflush 3 ,
+.Xr fstat 2 ,
+.Xr read 2 ,
+or
+.Xr malloc 3 .
+.Pp
+The function
+.Fn gets
+and
+.Fn gets_s
+may also fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr getchar 3 .
+.Sh SEE ALSO
+.Xr feof 3 ,
+.Xr ferror 3 ,
+.Xr fgetln 3 ,
+.Xr fgetws 3 ,
+.Xr getline 3
+.Sh STANDARDS
+The functions
+.Fn fgets
+and
+.Fn gets
+conform to
+.St -isoC-99 .
+.Fn gets_s
+conforms to
+.St -isoC-2011
+K.3.7.4.1.
+.Fn gets
+has been removed from
+.St -isoC-2011 .
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn gets
+function cannot be used securely.
+Because of its lack of bounds checking,
+and the inability for the calling program
+to reliably determine the length of the next incoming line,
+the use of this function enables malicious users
+to arbitrarily change a running program's functionality through
+a buffer overflow attack.
+It is strongly suggested that the
+.Fn fgets
+function be used in all cases.

@@ -1,0 +1,13 @@
+Known Problems with some *roff versions
+
+If you encounter the error:
+
+Unknown escape sequence in input: 33, 133
+
+when trying to create op.txt then set the GROFF_NO_SGR environment
+variable (see grotty(1) man page), e.g.,
+
+csh% setenv GROFF_NO_SGR 1
+sh$ GROFF_NO_SGR=1; export GROFF_NO_SGR
+
+$Id: README,v 8.1 2004-07-20 20:25:10 ca Exp $

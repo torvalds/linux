@@ -1,0 +1,11 @@
+#include "AWM002.dtsi"
+
+/ {
+	compatible = "AWM002", "ralink,rt5350-soc";
+	model = "AsiaRF AWM002";
+};
+
+&m25p80 {
+	compatible = "jedec,spi-nor";
+	linux,modalias = "m25p80", "mx25l3205d";
+};

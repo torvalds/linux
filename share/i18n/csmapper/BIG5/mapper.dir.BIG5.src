@@ -1,0 +1,39 @@
+# $FreeBSD$
+# $NetBSD: mapper.dir.BIG5.src,v 1.2 2007/03/05 16:57:12 tnozaki Exp $
+
+Big5:1984/UCS		mapper_std	BIG5/Big5@1984%UCS.mps
+Big5EXT:2003/UCS	mapper_std	BIG5/Big5EXT@2003%UCS.mps
+Big5EXT:E/UCS		mapper_std	BIG5/Big5EXT@E%UCS.mps
+Big5EXT:IBM/UCS		mapper_std	BIG5/Big5EXT@IBM%UCS.mps
+Big5EXT:Plus/UCS	mapper_std	BIG5/Big5EXT@Plus%UCS.mps
+Big5UDA/UCS		mapper_std	BIG5/Big5UDA%UCS.mps
+ETen/UCS:BMP		mapper_std	BIG5/ETen%UCS@BMP.mps
+ETen/UCS:SIP		mapper_std	BIG5/ETen%UCS@SIP.mps
+ETen/UCS		mapper_parallel	ETen/UCS:BMP,ETen/UCS:SIP
+HKSCS/UCS:BMP		mapper_std	BIG5/HKSCS%UCS@BMP.mps
+HKSCS/UCS:SIP		mapper_std	BIG5/HKSCS%UCS@SIP.mps
+HKSCS/UCS		mapper_parallel	HKSCS/UCS:BMP,HKSCS/UCS:SIP
+UCS/Big5:1984		mapper_std	BIG5/UCS%Big5@1984.mps
+UCS/Big5EXT:2003	mapper_std	BIG5/UCS%Big5EXT@2003.mps
+UCS/Big5EXT:E		mapper_std	BIG5/UCS%Big5EXT@E.mps
+UCS/Big5EXT:IBM		mapper_std	BIG5/UCS%Big5EXT@IBM.mps
+UCS/Big5EXT:Plus	mapper_std	BIG5/UCS%Big5EXT@Plus.mps
+UCS/Big5UDA		mapper_std	BIG5/UCS%Big5UDA.mps
+UCS:BMP/ETen		mapper_std	BIG5/UCS@BMP%ETen.mps
+UCS:SIP/ETen		mapper_std	BIG5/UCS@SIP%ETen.mps
+UCS/ETen		mapper_parallel	UCS:BMP/ETen,UCS:SIP/ETen
+UCS:BMP/HKSCS		mapper_std	BIG5/UCS@BMP%HKSCS.mps
+UCS:SIP/HKSCS		mapper_std	BIG5/UCS@SIP%HKSCS.mps
+UCS/HKSCS		mapper_parallel	UCS:BMP/HKSCS,UCS:SIP/HKSCS
+Big5-2003/UCS		mapper_parallel	ETen/UCS,Big5EXT:2003/UCS,Big5UDA/UCS,Big5:1984/UCS
+Big5-E/UCS		mapper_parallel	ETen/UCS,Big5EXT:E/UCS,Big5:1984/UCS
+Big5-ETen/UCS		mapper_parallel	ETen/UCS,Big5UDA/UCS,Big5:1984/UCS
+Big5-HKSCS/UCS		mapper_parallel	ETen/UCS,Big5EXT:2003/UCS,HKSCS/UCS,Big5UDA/UCS,Big5:1984/UCS
+Big5-IBM/UCS		mapper_parallel	Big5EXT:IBM/UCS,Big5:1984/UCS
+Big5-Plus/UCS		mapper_parallel	Big5EXT:Plus/UCS,Big5:1984/UCS
+UCS/Big5-2003		mapper_parallel	UCS/Big5:1984,UCS/ETen,UCS/Big5EXT:2003,UCS/Big5UDA
+UCS/Big5-E		mapper_parallel	UCS/Big5:1984,UCS/ETen,UCS/Big5EXT:E
+UCS/Big5-ETen		mapper_parallel	UCS/Big5:1984,UCS/ETen,UCS/Big5UDA
+UCS/Big5-HKSCS		mapper_parallel	UCS/Big5:1984,UCS/ETen,UCS/Big5EXT:2003,UCS/HKSCS,UCS/Big5UDA
+UCS/Big5-IBM		mapper_parallel	UCS/Big5:1984,UCS/Big5EXT:IBM
+UCS/Big5-Plus		mapper_parallel	UCS/Big5:1984,UCS/Big5EXT:Plus

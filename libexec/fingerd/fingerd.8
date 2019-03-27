@@ -1,0 +1,161 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fingerd.8	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd November 19, 2014
+.Dt FINGERD 8
+.Os
+.Sh NAME
+.Nm fingerd
+.Nd remote user information server
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl k
+.Op Fl s
+.Op Fl l
+.Op Fl p Ar filename
+.Sh DESCRIPTION
+The
+.Nm
+utility uses a simple protocol based on
+.%T RFC1196
+that provides an interface to
+.Xr finger 1
+at several network sites.
+It is supposed to return a friendly,
+human-oriented status report on either the system at the moment
+or a particular person in depth.
+There is no required format and the
+protocol consists mostly of specifying a single
+.Dq "command line" ,
+thus,
+.Nm
+can also be used to implement other protocols in conjunction with the
+.Fl p
+flag.
+.Pp
+The
+.Nm
+utility is started by
+.Xr inetd 8 ,
+which listens for
+.Tn TCP
+requests at port 79.
+Once connected it reads a single command line
+terminated by a
+.Aq Tn CRLF
+which is passed to
+.Xr finger 1 .
+The
+.Nm
+utility closes its connections as soon as the output is finished.
+.Pp
+If the line is null (i.e., just a
+.Aq Tn CRLF
+is sent) then
+.Xr finger 1
+returns a
+.Dq default
+report that lists all people logged into
+the system at that moment.
+.Pp
+If a user name is specified (e.g.,\&
+.Pf eric Aq Tn CRLF )
+then the
+response lists more extended information for only that particular user,
+whether logged in or not.
+Allowable
+.Dq names
+in the command line include both
+.Dq login names
+and
+.Dq user names .
+If a name is ambiguous, all possible derivations are returned.
+.Pp
+The following options may be passed to
+.Nm
+as server program arguments in
+.Pa /etc/inetd.conf :
+.Bl -tag -width indent
+.It Fl d
+Enable debugging mode.
+In debugging mode,
+.Nm
+will not attempt any network-related operations on
+.Va stdin ,
+and it will print the full
+.Nm finger
+command line
+to
+.Va stderr
+before executing it.
+.It Fl k
+Suppress login information.
+See the description of the
+.Fl k
+option in
+.Xr finger 1
+for details.
+.It Fl s
+Enable secure mode.
+Queries without a user name are rejected and
+forwarding of queries to other remote hosts is denied.
+.It Fl l
+Enable logging.
+The name of the host originating the query is reported via
+.Xr syslog 3
+at LOG_NOTICE priority.
+.It Fl p
+Use an alternate program as the local information provider.
+The default local program
+executed by
+.Nm
+is
+.Xr finger 1 .
+By specifying a customized local server,
+this option allows a system manager
+to have more control over what information is
+provided to remote sites.
+If
+.Fl p
+is specified,
+.Nm
+will also set the environment variable
+.Ev FINGERD_REMOTE_HOST
+to the name of the host making the request.
+.El
+.Sh SEE ALSO
+.Xr finger 1 ,
+.Xr inetd 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.3 .

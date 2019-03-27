@@ -1,0 +1,116 @@
+/dts-v1/;
+
+#include "mt7620a.dtsi"
+
+/ {
+	compatible = "ralink,mt7620a-soc";
+	model = "TP-Link Archer C20i";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+	};
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "mx25l6405d";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x20000>;
+			read-only;
+		};
+
+		partition@20000 {
+			label = "firmware";
+			reg = <0x20000 0x7a0000>;
+		};
+
+		partition@7c0000 {
+			label = "config";
+			reg = <0x7c0000 0x10000>;
+		};
+
+		rom: partition@7d0000 {
+			label = "rom";
+			reg = <0x7d0000 0x10000>;
+		};
+
+		partition@7e0000 {
+			label = "romfile";
+			reg = <0x7e0000 0x10000>;
+		};
+
+		radio: partition@7f0000 {
+			label = "radio";
+			reg = <0x7f0000 0x10000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "uartf", "rgmii1", "rgmii2", "wled", "nd_sd";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+		pinctrl-names = "default";
+		pinctrl-0 = <&ephy_pins>;
+		mtd-mac-address = <&rom 0xf100>;
+		mediatek,portmap = "wllll";
+	};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};
+
+&gsw {
+	mediatek,port4 = "ephy";
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&radio 0>;
+};
+
+&pcie {
+	status = "okay";
+
+	pcie-bridge {
+		mt76@0,0 {
+			reg = <0x0000 0 0 0 0>;
+			device_type = "pci";
+			mediatek,mtd-eeprom = <&radio 32768>;
+			mediatek,2ghz = <0>;
+		};
+	};
+};

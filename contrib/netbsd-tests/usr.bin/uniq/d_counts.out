@@ -1,0 +1,6 @@
+   1 #01 foo0 bar0 foo1 bar1
+   1 #02 bar0 foo1 bar1 foo1
+   1 #03 foo0 bar0 foo1 bar1
+   1 #04
+   2 #05 foo0 bar0 foo1 bar1
+   1 #07 bar0 foo1 bar1 foo0

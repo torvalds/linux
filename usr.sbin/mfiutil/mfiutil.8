@@ -1,0 +1,723 @@
+.\" Copyright (c) 2008, 2009 Yahoo!, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 2, 2011
+.Dt MFIUTIL 8
+.Os
+.Sh NAME
+.Nm mfiutil
+.Nd Utility for managing LSI MegaRAID SAS controllers
+.Sh SYNOPSIS
+.Nm
+.Cm version
+.Nm
+.Op Fl u Ar unit
+.Cm show adapter
+.Nm
+.Op Fl u Ar unit
+.Cm show battery
+.Nm
+.Op Fl d
+.Op Fl e
+.Op Fl u Ar unit
+.Cm show config
+.Nm
+.Op Fl u Ar unit
+.Cm show drives
+.Nm
+.Op Fl u Ar unit
+.Cm show events
+.Op Fl c Ar class
+.Op Fl l Ar locale
+.Op Fl n Ar count
+.Op Fl v
+.Op Ar start Op Ar stop
+.Nm
+.Op Fl u Ar unit
+.Cm show firmware
+.Nm
+.Op Fl u Ar unit
+.Cm show foreign Op Ar volume
+.Nm
+.Op Fl u Ar unit
+.Cm show logstate
+.Nm
+.Op Fl d
+.Op Fl e
+.Op Fl u Ar unit
+.Cm show patrol
+.Nm
+.Op Fl d
+.Op Fl e
+.Op Fl u Ar unit
+.Cm show progress
+.Nm
+.Op Fl u Ar unit
+.Cm show volumes
+.Nm
+.Op Fl u Ar unit
+.Cm fail Ar drive
+.Nm
+.Op Fl u Ar unit
+.Cm good Ar drive
+.Nm
+.Op Fl u Ar unit
+.Cm rebuild Ar drive
+.Nm
+.Op Fl u Ar unit
+.Cm syspd Ar drive
+.Nm
+.Op Fl u Ar unit
+.Cm drive progress Ar drive
+.Nm
+.Op Fl u Ar unit
+.Cm drive clear Ar drive Brq "start | stop"
+.Nm
+.Op Fl u Ar unit
+.Cm start rebuild Ar drive
+.Nm
+.Op Fl u Ar unit
+.Cm abort rebuild Ar drive
+.Nm
+.Op Fl u Ar unit
+.Cm locate Ar drive Brq "on | off"
+.Nm
+.Op Fl u Ar unit
+.Cm cache Ar volume Op Ar setting Oo Ar value Oc Op ...
+.Nm
+.Op Fl u Ar unit
+.Cm name Ar volume Ar name
+.Nm
+.Op Fl u Ar unit
+.Cm volume progress Ar volume
+.Nm
+.Op Fl u Ar unit
+.Cm clear
+.Nm
+.Op Fl u Ar unit
+.Cm create Ar type
+.Op Fl v
+.Op Fl s Ar stripe_size
+.Ar drive Ns Op \&, Ns Ar drive Ns Op ",..."
+.Op Ar drive Ns Op \&, Ns Ar drive Ns Op ",..."
+.Nm
+.Op Fl u Ar unit
+.Cm delete Ar volume
+.Nm
+.Op Fl u Ar unit
+.Cm add Ar drive Op Ar volume
+.Nm
+.Op Fl u Ar unit
+.Cm remove Ar drive
+.Nm
+.Op Fl u Ar unit
+.Cm start patrol
+.Nm
+.Op Fl u Ar unit
+.Cm stop patrol
+.Nm
+.Op Fl u Ar unit
+.Cm patrol Ar command Op Ar interval Op Ar start
+.Nm
+.Op Fl u Ar unit
+.Cm foreign scan
+.Nm
+.Op Fl u Ar unit
+.Cm foreign clear Op Ar config
+.Nm
+.Op Fl u Ar unit
+.Cm foreign diag Op Ar config
+.Nm
+.Op Fl u Ar unit
+.Cm foreign preview Op Ar config
+.Nm
+.Op Fl u Ar unit
+.Cm foreign import Op Ar config
+.Nm
+.Op Fl u Ar unit
+.Cm flash Ar file
+.Nm
+.Op Fl u Ar unit
+.Cm start learn
+.Nm
+.Op Fl u Ar unit
+.Cm bbu Ar setting Ar value
+.Nm
+.Op Fl u Ar unit
+.Cm ctrlprop Ar rebuild Op Ar rate
+.Nm
+.Op Fl u Ar unit
+.Cm ctrlprop Ar alarm Op Ar 0/1
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to display or modify various parameters on LSI
+MegaRAID SAS RAID controllers.
+Each invocation of
+.Nm
+consists of zero or more global options followed by a command.
+Commands may support additional optional or required arguments after the
+command.
+.Pp
+Currently one global option is supported:
+.Bl -tag -width indent
+.It Fl u Ar unit
+.Ar unit
+specifies the unit of the controller to work with.
+If no unit is specified,
+then unit 0 is used.
+.El
+.Pp
+Various commands accept either or both of the two options:
+.Bl -tag -width indent
+.It Fl d
+Print numeric device IDs as drive identifier.
+This is the default.
+Useful in combination with
+.Fl e
+to print both, numeric device IDs and enclosure:slot information.
+.It Fl e
+Print drive identifiers in enclosure:slot form.
+See next paragraph on format details in context of input rather than
+output.
+.El
+.Pp
+Drives may be specified in two forms.
+First,
+a drive may be identified by its device ID.
+The device ID for configured drives can be found in
+.Cm show config .
+Second,
+a drive may be identified by its location as
+.Sm off
+.Op E Ar xx Ns \&:
+.Li S Ns Ar yy
+.Sm on
+where
+.Ar xx
+is the enclosure
+and
+.Ar yy
+is the slot for each drive as displayed in
+.Cm show drives .
+.Pp
+Volumes may be specified in two forms.
+First,
+a volume may be identified by its target ID.
+Second,
+on the volume may be specified by the corresponding
+.Em mfidX
+device,
+such as
+.Em mfid0 .
+.Pp
+The
+.Nm
+utility supports several different groups of commands.
+The first group of commands provide information about the controller,
+the volumes it manages, and the drives it controls.
+The second group of commands are used to manage the physical drives
+attached to the controller.
+The third group of commands are used to manage the logical volumes
+managed by the controller.
+The fourth group of commands are used to manage the drive configuration for
+the controller.
+The fifth group of commands are used to manage controller-wide operations.
+.Pp
+The informational commands include:
+.Bl -tag -width indent
+.It Cm version
+Displays the version of
+.Nm .
+.It Cm show adapter
+Displays information about the RAID controller such as the model number.
+.It Cm show battery
+Displays information about the battery from the battery backup unit.
+.It Cm show config
+Displays the volume and drive configuration for the controller.
+Each array is listed along with the physical drives the array is built from.
+Each volume is listed along with the arrays that the volume spans.
+If any hot spare drives are configured, then they are listed as well.
+.It Cm show drives
+Lists all of the physical drives attached to the controller.
+.It Xo Cm show events
+.Op Fl c Ar class
+.Op Fl l Ar locale
+.Op Fl n Ar count
+.Op Fl v
+.Op Ar start Op Ar stop
+.Xc
+Display entries from the controller's event log.
+The controller maintains a circular buffer of events.
+Each event is tagged with a class and locale.
+.Pp
+The
+.Ar class
+parameter limits the output to entries at the specified class or higher.
+The default class is
+.Dq warn .
+The available classes from lowest priority to highest are:
+.Bl -tag -width indent
+.It Cm debug
+Debug messages.
+.It Cm progress
+Periodic progress updates for long-running operations such as background
+initializations, array rebuilds, or patrol reads.
+.It Cm info
+Informational messages such as drive insertions and volume creations.
+.It Cm warn
+Indicates that some component may be close to failing.
+.It Cm crit
+A component has failed, but no data is lost.
+For example, a volume becoming degraded due to a drive failure.
+.It Cm fatal
+A component has failed resulting in data loss.
+.It Cm dead
+The controller itself has died.
+.El
+.Pp
+The
+.Ar locale
+parameter limits the output to entries for the specified part of the controller.
+The default locale is
+.Dq all .
+The available locales are
+.Dq volume ,
+.Dq drive ,
+.Dq enclosure ,
+.Dq battery ,
+.Dq sas ,
+.Dq controller ,
+.Dq config ,
+.Dq cluster ,
+and
+.Dq all .
+.Pp
+The
+.Ar count
+parameter is a debugging aid that specifies the number of events to fetch from
+the controller for each low-level request.
+The default is 15 events.
+.Pp
+By default, matching event log entries from the previous shutdown up to the
+present are displayed.  This range can be adjusted via the
+.Ar start
+and
+.Ar stop
+parameters.
+Each of these parameters can either be specified as a log entry number or as
+one of the following aliases:
+.Bl -tag -width indent
+.It Cm newest
+The newest entry in the event log.
+.It Cm oldest
+The oldest entry in the event log.
+.It Cm clear
+The first entry since the event log was cleared.
+.It Cm shutdown
+The entry in the event log corresponding to the last time the controller was
+cleanly shut down.
+.It Cm boot
+The entry in the event log corresponding to the most recent boot.
+.El
+.It Cm show firmware
+Lists all of the firmware images present on the controller.
+.It Cm show foreign
+Displays detected foreign configurations on disks for importation or removal.
+.It Cm show logstate
+Display the various sequence numbers associated with the event log.
+.It Cm show patrol
+Display the status of the controller's patrol read operation.
+.It Cm show progress
+Report the current progress and estimated completion time for active
+operations on all volumes and drives.
+.It Cm show volumes
+Lists all of the logical volumes managed by the controller.
+.El
+.Pp
+The physical drive management commands include:
+.Bl -tag -width indent
+.It Cm fail Ar drive
+Mark
+.Ar drive
+as failed.
+.Ar Drive
+must be an online drive that is part of an array.
+.It Cm good Ar drive
+Mark
+.Ar drive
+as an unconfigured good drive.
+.Ar Drive
+must not be part of an existing array.
+.It Cm rebuild Ar drive
+Mark a failed
+.Ar drive
+that is still part of an array as a good drive suitable for a rebuild.
+The firmware should kick off an array rebuild on its own if a failed drive
+is marked as a rebuild drive.
+.It Cm syspd Ar drive
+Present the drive to the host operating system as a disk SYSPD block device in
+the format /dev/mfisyspdX.  Clear this flag with
+.Cm good
+.Ar drive
+.It Cm drive progress Ar drive
+Report the current progress and estimated completion time of drive operations
+such as rebuilds or patrol reads.
+.It Cm drive clear Ar drive Brq "start | stop"
+Start or stop the writing of all 0x00 characters to a drive.
+.It Cm start rebuild Ar drive
+Manually start a rebuild on
+.Ar drive .
+.It Cm abort rebuild Ar drive
+Abort an in-progress rebuild operation on
+.Ar drive .
+It can be resumed with the
+.Cm start rebuild
+command.
+.It Cm locate Ar drive Brq "on | off"
+Change the state of the external LED associated with
+.Ar drive .
+.El
+.Pp
+The logical volume management commands include:
+.Bl -tag -width indent
+.It Cm cache Ar volume Op Ar setting Oo Ar value Oc Op ...
+If no
+.Ar setting
+arguments are supplied, then the current cache policy for
+.Ar volume
+is displayed;
+otherwise,
+the cache policy for
+.Ar volume
+is modified.
+One or more
+.Ar setting
+arguments may be given.
+Some settings take an additional
+.Ar value
+argument as noted below.
+The valid settings are:
+.Bl -tag -width indent
+.It Cm enable
+Enable caching for both read and write I/O operations.
+.It Cm disable
+Disable caching for both read and write I/O operations.
+.It Cm reads
+Enable caching only for read I/O operations.
+.It Cm writes
+Enable caching only for write I/O operations.
+.It Cm write-back
+Use write-back policy for cached writes.
+.It Cm write-through
+Use write-through policy for cached writes.
+.It Cm read-ahead Ar value
+Set the read ahead policy for cached reads.
+The
+.Ar value
+argument can be set to either
+.Dq none ,
+.Dq adaptive ,
+or
+.Dq always .
+.It Cm bad-bbu-write-cache Ar value
+Control the behavior of I/O write caching if the battery is dead or
+missing.
+The
+.Ar value
+argument can be set to either
+.Dq disable
+or
+.Dq enable .
+In general this setting should be left disabled to avoid data loss when
+the system loses power.
+.It Cm write-cache Ar value
+Control the write caches on the physical drives backing
+.Ar volume .
+The
+.Ar value
+argument can be set to either
+.Dq disable ,
+.Dq enable ,
+or
+.Dq default .
+.Pp
+In general this setting should be left disabled to avoid data loss when the
+physical drives lose power.
+The battery backup of the RAID controller does not save data in the write
+caches of the physical drives.
+.El
+.It Cm name Ar volume Ar name
+Sets the name of
+.Ar volume
+to
+.Ar name .
+.It Cm volume progress Ar volume
+Report the current progress and estimated completion time of volume operations
+such as consistency checks and initializations.
+.El
+.Pp
+The configuration commands include:
+.Bl -tag -width indent
+.It Cm clear
+Delete the entire configuration including all volumes, arrays, and spares.
+.It Xo Cm create Ar type
+.Op Fl v
+.Op Fl s Ar stripe_size
+.Ar drive Ns Op \&, Ns Ar drive Ns Op ",..."
+.Op Ar drive Ns Op \&, Ns Ar drive Ns Op ",..."
+.Xc
+Create a new volume.
+The
+.Ar type
+specifies the type of volume to create.
+Currently supported types include:
+.Bl -tag -width indent
+.It Cm jbod
+Creates a RAID0 volume for each drive specified.
+Each drive must be specified as a separate argument.
+.It Cm raid0
+Creates one RAID0 volume spanning the drives listed in the single drive list.
+.It Cm raid1
+Creates one RAID1 volume spanning the drives listed in the single drive list.
+.It Cm raid5
+Creates one RAID5 volume spanning the drives listed in the single drive list.
+.It Cm raid6
+Creates one RAID6 volume spanning the drives listed in the single drive list.
+.It Cm raid10
+Creates one RAID10 volume spanning multiple RAID1 arrays.
+The drives for each RAID1 array are specified as a single drive list.
+.It Cm raid50
+Creates one RAID50 volume spanning multiple RAID5 arrays.
+The drives for each RAID5 array are specified as a single drive list.
+.It Cm raid60
+Creates one RAID60 volume spanning multiple RAID6 arrays.
+The drives for each RAID6 array are specified as a single drive list.
+.It Cm concat
+Creates a single volume by concatenating all of the drives in the single drive
+list.
+.El
+.Pp
+.Sy Note:
+Not all volume types are supported by all controllers.
+.Pp
+If the
+.Fl v
+flag is specified after
+.Ar type ,
+then more verbose output will be enabled.
+Currently this just provides notification as drives are added to arrays and
+arrays to volumes when building the configuration.
+.Pp
+The
+.Fl s
+.Ar stripe_size
+parameter allows the stripe size of the array to be set.
+By default a stripe size of 64K is used.
+Valid values are 512 through 1M, though the MFI firmware may reject some
+values.
+.It Cm delete Ar volume
+Delete the volume
+.Ar volume .
+.It Cm add Ar drive Op Ar volume
+Mark
+.Ar drive
+as a hot spare.
+.Ar Drive
+must be in the unconfigured good state.
+If
+.Ar volume
+is specified,
+then the hot spare will be dedicated to arrays backing that volume.
+Otherwise,
+.Ar drive
+will be used as a global hot spare backing all arrays for this controller.
+Note that
+.Ar drive
+must be as large as the smallest drive in all of the arrays it is going to
+back.
+.It Cm remove Ar drive
+Remove the hot spare
+.Ar drive
+from service.
+It will be placed in the unconfigured good state.
+.El
+.Pp
+The controller management commands include:
+.Bl -tag -width indent
+.It Cm patrol Ar command Op Ar interval Op Ar start
+Set the patrol read operation mode.
+The
+.Ar command
+argument can be one of the following values:
+.Bl -tag -width indent
+.It Cm disable
+Disable patrol reads.
+.It Cm auto
+Enable periodic patrol reads initiated by the firmware.
+The optional
+.Ar interval
+argument specifies the interval in seconds between patrol reads.
+If patrol reads should be run continuously,
+then
+.Ar interval
+should consist of the word
+.Dq continuously .
+The optional
+.Ar start
+argument specifies a non-negative, relative start time for the next patrol read.
+If an interval or start time is not specified,
+then the existing setting will be used.
+.It Cm manual
+Enable manual patrol reads that are only initiated by the user.
+.El
+.It Cm start patrol
+Start a patrol read operation.
+.It Cm stop patrol
+Stop a currently running patrol read operation.
+.It Cm foreign scan
+Scan for foreign configurations and display the number found. The
+.Ar config
+argument for the commands below takes the form of a number from 0 to the total
+configurations found.
+.It Cm foreign clear Op config
+Clear the specified foreign
+.Ar config
+or all if no
+.Ar config
+argument is provided.
+.It Cm foreign diag Op config
+Display a diagnostic display of the specified foreign
+.Ar config
+or all if no
+.Ar config
+argument is provided.
+.It Cm foreign preview Op config
+Preview the specified foreign
+.Ar config
+after import or all if no
+.Ar config
+argument is provided.
+.It Cm foreign import Op config
+Import the specified foreign
+.Ar config
+or all if no
+.Ar config
+argument is provided.
+.It Cm flash Ar file
+Updates the flash on the controller with the firmware stored in
+.Ar file .
+A reboot is required for the new firmware to take effect.
+.It Cm start learn
+Start a battery relearn.
+Note that this seems to always result in the battery being completely drained,
+regardless of the BBU mode.
+In particular, the controller write cache will be disabled during the relearn
+even if transparent learning mode is enabled.
+.It Cm bbu Ar setting Ar value
+Update battery backup unit (BBU) properties related to battery relearning.
+The following settings are configurable:
+.Bl -tag -width indent
+.It Cm learn-delay
+Add a delay to the next scheduled battery relearn event. This setting is
+given in hours and must lie in the range of 0 to 255.
+.It Cm autolearn-mode
+Enable or disable automatic periodic battery relearning.
+The setting may be set to
+.Dq enable
+or
+.Dq disable
+to respectively enable or disable the relearn cycle.
+Alternatively, a mode of 0, 1 or 2 may be given.
+Mode 0 enables periodic relearning, mode 1 disables it, and mode 2 disables
+it and logs a warning to the event log when it detects that a battery relearn
+should be performed.
+.It Cm bbu-mode
+Set the BBU's mode of operation. This setting is not supported by all BBUs.
+Where it is supported, the possible values are the integers between 1 and 5
+inclusive.
+Modes 1, 2 and 3 enable a transparent learn cycle, whereas modes 4 and 5 do not.
+The BBU's data retention time is greater when transparent learning is not used.
+.El
+.It Cm ctrlprop Ar rebuild Op Ar rate
+With no arguments display the rate of rebuild (percentage)a for volumes.
+With an integer argument (0-100), set that value as the new rebuild rate for volumes.
+.It Cm ctrlprop Ar alarm Op Ar 0/1
+With no arguments display the current alarm enable/disable status.
+With a 0, disable alarms.  With a 1, enable alarms.
+.El
+.Sh EXAMPLES
+Configure the cache for volume mfid0 to cache only writes:
+.Pp
+.Dl Nm Cm cache mfid0 writes
+.Dl Nm Cm cache mfid0 write-back
+.Pp
+Create a RAID5 array spanning the first four disks in the second enclosure:
+.Pp
+.Dl Nm Cm create raid5 e1:s0,e1:s1,e1:s2,e1:s4
+.Pp
+Configure the first three disks on a controller as JBOD:
+.Pp
+.Dl Nm Cm create jbod 0 1 2
+.Pp
+Create a RAID10 volume that spans two arrays each of which contains two disks
+from two different enclosures:
+.Pp
+.Dl Nm Cm create raid10 e1:s0,e1:s1 e2:s0,e2:s1
+.Pp
+Add drive with the device ID of 4 as a global hot spare:
+.Pp
+.Dl Nm Cm add 4
+.Pp
+Add the drive in slot 2 in the main chassis as a hot spare for volume mfid0:
+.Pp
+.Dl Nm Cm add s2 mfid0
+.Pp
+Reconfigure a disk as a SYSPD block device with no RAID
+.Pp
+.Dl Nm Cm syspd 0
+.Pp
+Configure the adapter to run periodic patrol reads once a week with the first
+patrol read starting in 5 minutes:
+.Pp
+.Dl Nm Cm patrol auto 604800 300
+.Pp
+Display the second detected foreign configuration:
+.Pp
+.Dl Nm Cm show foreign 1
+.Pp
+Set the current rebuild rate for volumes to 40%:
+.Dl Nm Cm ctrlprop rebuild 40
+.Sh SEE ALSO
+.Xr mfi 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 8.0 .

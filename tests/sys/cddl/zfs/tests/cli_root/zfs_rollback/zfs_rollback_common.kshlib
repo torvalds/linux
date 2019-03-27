@@ -1,0 +1,305 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)zfs_rollback_common.kshlib	1.6	08/05/14 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+# Get file sum
+#
+# $1 full file name
+function getsum #fname
+{
+	(( ${#1} == 0 )) && \
+		log_fail "Need give file name."
+	return $($SUM $1 | $AWK '{print $1}')
+}
+
+# Define global variable checksum, get the original file sum.
+#
+origsum=$(getsum /etc/passwd)
+
+#
+# Setup or recover the test environment. Firstly, copy /etc/passwd to ZFS file
+# system or volume, then make a snapshot or clone. Repeat up to three times.
+# 
+# $1 number of snapshot. Note: Currently only support three snapshots.
+# $2 indicate if it is necessary to create clone
+#
+function setup_snap_env
+{
+	typeset -i cnt=${1:-3}
+	typeset createclone=${2:-"false"}
+
+	if datasetnonexists $FS; then
+		log_must $ZFS create $FS
+		log_must $ZFS set mountpoint=$TESTDIR $FS
+	fi
+	# Volume can't be created in Local Zone.
+	if datasetnonexists $VOL && is_global_zone; then
+		log_must $ZFS create -V $VOLSIZE $VOL
+	fi
+
+	# Make sure $VOL is volume
+	typeset type=$(get_prop type $VOL)
+	if datasetexists $VOL && \
+		[[ $type == 'volume' ]]; then
+		#
+		# At the first time, Make a UFS file system in volume and 
+		# mount it. Otherwise, only check if this ufs file system 
+		# was mounted.
+		#
+		log_must eval "$ECHO "y" | \
+			$NEWFS /dev/zvol/$VOL > /dev/null 2>&1"
+
+		[[ ! -d $TESTDIR1 ]] && log_must $MKDIR $TESTDIR1
+
+		# Make sure the ufs filesystem hasn't been mounted, 
+		# then mount the new ufs filesystem.
+		$MOUNT | grep -q "/dev/zvol/$VOL" > /dev/null 2>&1
+		if (( $? != 0 )); then
+			log_must $MOUNT \
+				/dev/zvol/$TESTPOOL/$TESTVOL $TESTDIR1
+		fi
+	fi
+
+	# Separately Create three snapshots for file system & volume
+	typeset -i ind=0
+	typeset dtst
+	for dtst in $FS $VOL; do
+		# Volume can be created in Local Zone.
+		if [[ $dtst == $VOL ]]; then
+			if ! is_global_zone; then
+				break
+			fi
+		fi
+
+		ind=0
+		while (( ind < cnt )); do
+			case $dtst in
+			$FS)
+				eval typeset snap=\$FSSNAP$ind
+				eval typeset clone=\$FSCLONE$ind
+				eval typeset fname=\$TESTDIR/\$TESTFILE$ind
+				;;
+			$VOL)
+				eval typeset snap=\$VOLSNAP$ind
+				eval typeset clone=\$VOLCLONE$ind
+				eval typeset fname=\$TESTDIR1/\$TESTFILE$ind
+				;;
+			esac
+
+			if datasetnonexists $snap; then
+				log_must $CP /etc/passwd $fname
+				#
+				# Take the snapshot with the zvol unmounted so
+				# that its filesystem's state will be
+				# consistent.
+				#
+				mount -u -o ro /dev/zvol/$TESTPOOL/$TESTVOL
+				log_must $ZFS snapshot $snap
+				mount -u -o rw /dev/zvol/$TESTPOOL/$TESTVOL
+			fi
+			if [[ $createclone == "true" ]]; then
+				if datasetnonexists $clone; then
+					log_must $ZFS clone $snap $clone
+				fi
+			fi
+			(( ind += 1 ))
+		done
+	done
+}
+
+function setup_clone_env
+{
+	setup_snap_env $1 "true"
+}
+
+#
+# Clean up the test environmnet
+#
+# $1 number of snapshot Note: Currently only support three snapshots.
+#
+function cleanup_env
+{
+	typeset -i cnt=${1:-3}
+	typeset -i ind=0
+	typeset dtst
+	typeset snap
+
+	$PKILL ${DD##*/}
+
+	$MOUNT | grep -q "/dev/zvol/$VOL" > /dev/null 2>&1
+	if (( $? == 0 )); then
+		log_must $UMOUNT -f $TESTDIR1
+	fi
+
+	[[ -d $TESTDIR ]] && log_must $RM -rf $TESTDIR/*
+	[[ -d $TESTDIR1 ]] && log_must $RM -rf $TESTDIR1/*
+	
+	for dtst in $FS $VOL; do
+		for snap in $TESTSNAP $TESTSNAP1 $TESTSNAP2; do
+			if snapexists $dtst@$snap; then
+				 log_must $ZFS destroy -Rf $dtst@$snap
+			fi
+		done
+	done
+
+	# Restore original test environment
+	if datasetnonexists $FS ; then
+		log_must $ZFS create $FS
+	fi
+	if datasetnonexists $VOL ; then
+		if is_global_zone ; then
+			log_must $ZFS create -V $VOLSIZE $VOL
+		else
+			log_must $ZFS create $VOL
+		fi
+	fi
+}
+
+#
+# check if the specified files have specified status.
+#
+# $1 expected status
+# $2-n full file name
+# If it is true return 0, else return 1
+#
+function file_status
+{
+	(( $# == 0 )) && \
+		log_fail "The file name is not defined."
+	
+	typeset opt
+	case $1 in
+		exist)	opt="-e" ;;
+		nonexist) opt="! -e" ;;
+		*) 	log_fail "Unsupported file status." ;;
+	esac
+
+	shift
+	while (( $# > 0 )); do
+		eval [[ $opt $1 ]] || return 1
+		shift
+	done
+
+	return 0
+}
+
+function files_exist
+{
+	file_status "exist" $@
+}
+
+function files_nonexist
+{
+	file_status "nonexist" $@
+}
+
+#
+# According to snapshot check if the file system was recovered to the right 
+# point.
+#
+# $1 snapshot. fs@snap or vol@snap
+#
+function check_files
+{
+	typeset dtst=$1
+
+	if [[ $(get_prop type $dtst) != snapshot ]]; then
+		log_fail "Parameter must be a snapshot."
+	fi
+
+	typeset fsvol=${dtst%%@*}
+	typeset snap=${dtst##*@}
+	if [[ $(get_prop type $fsvol) == "filesystem" ]]; then
+		ind=""
+	else
+		ind="1"
+	fi
+
+	eval typeset file0=\$TESTDIR$ind/\$TESTFILE0
+	eval typeset file1=\$TESTDIR$ind/\$TESTFILE1
+	eval typeset file2=\$TESTDIR$ind/\$TESTFILE2
+
+	case $snap in
+		$TESTSNAP2)
+			log_must files_exist $file0 $file1 $file2
+
+			typeset sum0=$(getsum $file0)
+			typeset sum1=$(getsum $file1)
+			typeset sum2=$(getsum $file2)
+			if [[ $sum0 != $origsum || \
+				$sum1 != $origsum || sum2 != $origsum ]]
+			then
+				log_fail "After rollback, file sum is changed."
+			fi
+			;;
+		$TESTSNAP1)
+			log_must files_exist $file0 $file1
+			log_must files_nonexist $file2 
+
+			typeset sum0=$(getsum $file0)
+			typeset sum1=$(getsum $file1)
+			if [[ $sum0 != $origsum || $sum1 != $origsum ]]
+			then
+				log_fail "After rollback, file sum is changed."
+			fi
+			;;
+		$TESTSNAP)
+			log_must files_exist $file0
+			log_must files_nonexist $file1 $file2
+
+			typeset sum0=$(getsum $file0)
+			if [[ $sum0 != $origsum ]]; then
+				log_fail "After rollback, file sum is changed."
+			fi
+			;;
+	esac
+}
+
+# According to dataset type, write file to different directories.
+#
+# $1 dataset
+#
+function write_mountpoint_dir
+{
+	typeset dtst=$1
+	typeset dir
+
+	if [[ $dtst == $FS ]]; then
+		dir=$TESTDIR
+		log_must ismounted $dir
+	else
+		dir=$TESTDIR1
+		log_must ismounted $dir "ufs"
+	fi
+	$DD if=/dev/urandom of=$dir/$TESTFILE1 &
+	log_must $SLEEP 3
+}

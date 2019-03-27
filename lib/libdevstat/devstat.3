@@ -1,0 +1,824 @@
+.\"
+.\" Copyright (c) 1998, 1999, 2001 Kenneth D. Merry.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 15, 2012
+.Dt DEVSTAT 3
+.Os
+.Sh NAME
+.Nm devstat ,
+.Nm devstat_getnumdevs ,
+.Nm devstat_getgeneration ,
+.Nm devstat_getversion ,
+.Nm devstat_checkversion ,
+.Nm devstat_getdevs ,
+.Nm devstat_selectdevs ,
+.Nm devstat_buildmatch ,
+.Nm devstat_compute_statistics ,
+.Nm devstat_compute_etime
+.Nd device statistics utility library
+.Sh LIBRARY
+.Lb libdevstat
+.Sh SYNOPSIS
+.In devstat.h
+.Ft int
+.Fn devstat_getnumdevs "kvm_t *kd"
+.Ft long
+.Fn devstat_getgeneration "kvm_t *kd"
+.Ft int
+.Fn devstat_getversion "kvm_t *kd"
+.Ft int
+.Fn devstat_checkversion "kvm_t *kd"
+.Ft int
+.Fn devstat_getdevs "kvm_t *kd" "struct statinfo *stats"
+.Ft int
+.Fo devstat_selectdevs
+.Fa "struct device_selection **dev_select"
+.Fa "int *num_selected"
+.Fa "int *num_selections"
+.Fa "long *select_generation"
+.Fa "long current_generation"
+.Fa "struct devstat *devices"
+.Fa "int numdevs"
+.Fa "struct devstat_match *matches"
+.Fa "int num_matches"
+.Fa "char **dev_selections"
+.Fa "int num_dev_selections"
+.Fa "devstat_select_mode select_mode"
+.Fa "int maxshowdevs"
+.Fa "int perf_select"
+.Fc
+.Ft int
+.Fo devstat_buildmatch
+.Fa "char *match_str"
+.Fa "struct devstat_match **matches"
+.Fa "int *num_matches"
+.Fc
+.Ft int
+.Fo devstat_compute_statistics
+.Fa "struct devstat *current"
+.Fa "struct devstat *previous"
+.Fa "long double etime"
+.Fa "..."
+.Fc
+.Ft "long double"
+.Fo devstat_compute_etime
+.Fa "struct bintime *cur_time"
+.Fa "struct bintime *prev_time"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+library is a library of helper functions for dealing with the kernel
+.Xr devstat 9
+interface, which is accessible to users via
+.Xr sysctl 3
+and
+.Xr kvm 3 .
+All functions that take a
+.Vt "kvm_t *"
+as first argument can be passed
+.Dv NULL
+instead of a kvm handle as this argument,
+which causes the data to be read via
+.Xr sysctl 3 .
+Otherwise, it is read via
+.Xr kvm 3
+using the supplied handle.
+The
+.Fn devstat_checkversion
+function
+should be called with each kvm handle that is going to be used (or with
+.Dv NULL
+if
+.Xr sysctl 3
+is going to be used).
+.Pp
+The
+.Fn devstat_getnumdevs
+function
+returns the number of devices registered with the
+.Nm
+subsystem in the kernel.
+.Pp
+The
+.Fn devstat_getgeneration
+function
+returns the current generation of the
+.Nm
+list of devices in the kernel.
+.Pp
+The
+.Fn devstat_getversion
+function
+returns the current kernel
+.Nm
+version.
+.Pp
+The
+.Fn devstat_checkversion
+function
+checks the userland
+.Nm
+version against the kernel
+.Nm
+version.
+If the two are identical, it returns zero.
+Otherwise, it prints an appropriate error in
+.Va devstat_errbuf
+and returns \-1.
+.Pp
+The
+.Fn devstat_getdevs
+function
+fetches the current list of devices and statistics into the supplied
+.Vt statinfo
+structure.
+The
+.Vt statinfo
+structure can be found in
+.In devstat.h :
+.Bd -literal -offset indent
+struct statinfo {
+	long            cp_time[CPUSTATES];
+	long            tk_nin;
+	long            tk_nout;
+	struct devinfo  *dinfo;
+	long double     snap_time;
+};
+.Ed
+.Pp
+The
+.Fn devstat_getdevs
+function
+expects the
+.Vt statinfo
+structure to be allocated, and it also expects the
+.Va dinfo
+subelement to be allocated and zeroed prior to the first invocation of
+.Fn devstat_getdevs .
+The
+.Va dinfo
+subelement is used to store state between calls, and should not be modified
+after the first call to
+.Fn devstat_getdevs .
+The
+.Va dinfo
+subelement contains the following elements:
+.Bd -literal -offset indent
+struct devinfo {
+	struct devstat	*devices;
+	uint8_t		*mem_ptr;
+	long		generation;
+	int		numdevs;
+};
+.Ed
+.Pp
+The
+.Va kern.devstat.all
+.Xr sysctl 8
+variable contains an array of
+.Nm
+structures, but at the head of the array is the current
+.Nm
+generation.
+The reason the generation is at the head of the buffer is so that userland
+software accessing the
+.Nm
+statistics information can atomically get
+both the statistics information and the corresponding generation number.
+If client software were forced to get the generation number via a separate
+.Xr sysctl 8
+variable (which is available for convenience), the list of devices could
+change between the time the client gets the generation and the time the
+client gets the device list.
+.Pp
+The
+.Va mem_ptr
+subelement of the
+.Vt devinfo
+structure is a pointer to memory that is allocated, and resized if
+necessary, by
+.Fn devstat_getdevs .
+The devices subelement of the
+.Vt devinfo
+structure is basically a pointer to the beginning of the array of devstat
+structures from the
+.Va kern.devstat.all
+.Xr sysctl 8
+variable (or the corresponding values read via
+.Xr kvm 3 ) .
+The generation subelement of the
+.Vt devinfo
+structure contains the corresponding generation number.
+The
+.Va numdevs
+subelement of the
+.Vt devinfo
+structure contains the current
+number of devices registered with the kernel
+.Nm
+subsystem.
+.Pp
+The
+.Fn devstat_selectdevs
+function
+selects devices to display based upon a number of criteria:
+.Bl -tag -width indent
+.It specified devices
+Specified devices are the first selection priority.
+These are generally devices specified by name by the user e.g.\&
+.Li da0 , da1 , cd0 .
+.It match patterns
+These are pattern matching expressions generated by
+.Fn devstat_buildmatch
+from user input.
+.It performance
+If performance mode is enabled, devices will be sorted based on the
+.Va bytes
+field in the
+.Vt device_selection
+structure passed in to
+.Fn devstat_selectdevs .
+The
+.Va bytes
+value currently must be maintained by the user.
+In the future, this may be done for him in a
+.Nm
+library routine.
+If no devices have been selected by name or by pattern, the performance
+tracking code will select every device in the system, and sort them by
+performance.
+If devices have been selected by name or pattern, the performance tracking
+code will honor those selections and will only sort among the selected
+devices.
+.It order in the devstat list
+If the selection mode is set to
+.Dv DS_SELECT_ADD ,
+and if there are still less
+than
+.Fa maxshowdevs
+devices selected,
+.Fn devstat_selectdevs
+will automatically select up to
+.Fa maxshowdevs
+devices.
+.El
+.Pp
+The
+.Fn devstat_selectdevs
+function
+performs selections in four different modes:
+.Bl -tag -width ".Dv DS_SELECT_ADDONLY"
+.It Dv DS_SELECT_ADD
+In
+.Dq add
+mode,
+.Fn devstat_selectdevs
+will select any unselected devices specified by name or matching pattern.
+It will also select more devices, in devstat list order, until the number
+of selected devices is equal to
+.Fa maxshowdevs
+or until all devices are
+selected.
+.It Dv DS_SELECT_ONLY
+In
+.Dq only
+mode,
+.Fn devstat_selectdevs
+will clear all current selections, and will only select devices specified
+by name or by matching pattern.
+.It Dv DS_SELECT_REMOVE
+In
+.Dq remove
+mode,
+.Fn devstat_selectdevs
+will remove devices specified by name or by matching pattern.
+It will not select any additional devices.
+.It Dv DS_SELECT_ADDONLY
+In
+.Dq "add only"
+mode,
+.Fn devstat_selectdevs
+will select any unselected devices specified by name or matching pattern.
+In this respect it is identical to
+.Dq add
+mode.
+It will not, however, select any devices other than those specified.
+.El
+.Pp
+In all selection modes,
+.Fn devstat_selectdevs
+will not select any more than
+.Fa maxshowdevs
+devices.
+One exception to this is when you are in
+.Dq top
+mode and no devices have been selected.
+In this case,
+.Fn devstat_selectdevs
+will select every device in the system.
+Client programs must pay attention to selection order when deciding whether
+to pay attention to a particular device.
+This may be the wrong behavior, and probably requires additional thought.
+.Pp
+The
+.Fn devstat_selectdevs
+function
+handles allocation and resizing of the
+.Fa dev_select
+structure passed in
+by the client.
+The
+.Fn devstat_selectdevs
+function
+uses the
+.Fa numdevs
+and
+.Fa current_generation
+fields to track the
+current
+.Nm
+generation and number of devices.
+If
+.Fa num_selections
+is not the same
+as
+.Fa numdevs
+or if
+.Fa select_generation
+is not the same as
+.Fa current_generation ,
+.Fn devstat_selectdevs
+will resize the selection list as necessary, and re-initialize the
+selection array.
+.Pp
+The
+.Fn devstat_buildmatch
+function
+takes a comma separated match string and compiles it into a
+.Vt devstat_match
+structure that is understood by
+.Fn devstat_selectdevs .
+Match strings have the following format:
+.Pp
+.D1 Ar device , Ns Ar type , Ns Ar if
+.Pp
+The
+.Fn devstat_buildmatch
+function
+takes care of allocating and reallocating the match list as necessary.
+Currently known match types include:
+.Bl -tag -width indent
+.It device type:
+.Bl -tag -width ".Li enclosure" -compact
+.It Li da
+Direct Access devices
+.It Li sa
+Sequential Access devices
+.It Li printer
+Printers
+.It Li proc
+Processor devices
+.It Li worm
+Write Once Read Multiple devices
+.It Li cd
+CD devices
+.It Li scanner
+Scanner devices
+.It Li optical
+Optical Memory devices
+.It Li changer
+Medium Changer devices
+.It Li comm
+Communication devices
+.It Li array
+Storage Array devices
+.It Li enclosure
+Enclosure Services devices
+.It Li floppy
+Floppy devices
+.El
+.It interface:
+.Bl -tag -width ".Li enclosure" -compact
+.It Li IDE
+Integrated Drive Electronics devices
+.It Li SCSI
+Small Computer System Interface devices
+.It Li other
+Any other device interface
+.El
+.It passthrough:
+.Bl -tag -width ".Li enclosure" -compact
+.It Li pass
+Passthrough devices
+.El
+.El
+.Pp
+The
+.Fn devstat_compute_statistics
+function provides complete statistics calculation.
+There are four arguments for which values
+.Em must
+be supplied:
+.Fa current ,
+.Fa previous ,
+.Fa etime ,
+and the terminating argument for the varargs list,
+.Dv DSM_NONE .
+For most applications, the user will want to supply valid
+.Vt devstat
+structures for both
+.Fa current
+and
+.Fa previous .
+In some instances, for instance when calculating statistics since system
+boot, the user may pass in a
+.Dv NULL
+pointer for the
+.Fa previous
+argument.
+In that case,
+.Fn devstat_compute_statistics
+will use the total stats in the
+.Fa current
+structure to calculate statistics over
+.Fa etime .
+For each statistics to be calculated, the user should supply the proper
+enumerated type (listed below), and a variable of the indicated type.
+All statistics are either integer values, for which a
+.Vt uint64_t
+is used,
+or floating point, for which a
+.Vt "long double"
+is used.
+The statistics that may be calculated are:
+.Bl -tag -width ".Dv DSM_TRANSFERS_PER_SECOND_OTHER"
+.It Dv DSM_NONE
+type: N/A
+.Pp
+This
+.Em must
+be the last argument passed to
+.Fn devstat_compute_statistics .
+It is an argument list terminator.
+.It Dv DSM_TOTAL_BYTES
+type:
+.Vt "uint64_t *"
+.Pp
+The total number of bytes transferred between the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_TOTAL_BYTES_READ
+.It Dv DSM_TOTAL_BYTES_WRITE
+.It Dv DSM_TOTAL_BYTES_FREE
+type:
+.Vt "uint64_t *"
+.Pp
+The total number of bytes in transactions of the specified type
+between the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_TOTAL_TRANSFERS
+type:
+.Vt "uint64_t *"
+.Pp
+The total number of transfers between the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_TOTAL_TRANSFERS_OTHER
+.It Dv DSM_TOTAL_TRANSFERS_READ
+.It Dv DSM_TOTAL_TRANSFERS_WRITE
+.It Dv DSM_TOTAL_TRANSFERS_FREE
+type:
+.Vt "uint64_t *"
+.Pp
+The total number of transactions of the specified type between
+the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_TOTAL_DURATION
+type:
+.Vt "long double *"
+.Pp
+The total duration of transactions, in seconds, between the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_TOTAL_DURATION_OTHER
+.It Dv DSM_TOTAL_DURATION_READ
+.It Dv DSM_TOTAL_DURATION_WRITE
+.It Dv DSM_TOTAL_DURATION_FREE
+type:
+.Vt "long double *"
+.Pp
+The total duration of transactions of the specified type between
+the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_TOTAL_BUSY_TIME
+type:
+.Vt "long double *"
+.Pp
+Total time the device had one or more transactions outstanding
+between the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_TOTAL_BLOCKS
+type:
+.Vt "uint64_t *"
+.Pp
+The total number of blocks transferred between the acquisition of
+.Fa previous
+and
+.Fa current .
+This number is in terms of the blocksize reported by the device.
+If no blocksize has been reported (i.e., the block size is 0), a default
+blocksize of 512 bytes will be used in the calculation.
+.It Dv DSM_TOTAL_BLOCKS_READ
+.It Dv DSM_TOTAL_BLOCKS_WRITE
+.It Dv DSM_TOTAL_BLOCKS_FREE
+type:
+.Vt "uint64_t *"
+.Pp
+The total number of blocks of the specified type between the acquisition of
+.Fa previous
+and
+.Fa current .
+This number is in terms of the blocksize reported by the device.
+If no blocksize has been reported (i.e., the block size is 0), a default
+blocksize of 512 bytes will be used in the calculation.
+.It Dv DSM_KB_PER_TRANSFER
+type:
+.Vt "long double *"
+.Pp
+The average number of kilobytes per transfer between the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_KB_PER_TRANSFER_READ
+.It Dv DSM_KB_PER_TRANSFER_WRITE
+.It Dv DSM_KB_PER_TRANSFER_FREE
+type:
+.Vt "long double *"
+.Pp
+The average number of kilobytes in the specified type transaction between
+the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_TRANSFERS_PER_SECOND
+type:
+.Vt "long double *"
+.Pp
+The average number of transfers per second between the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_TRANSFERS_PER_SECOND_OTHER
+.It Dv DSM_TRANSFERS_PER_SECOND_READ
+.It Dv DSM_TRANSFERS_PER_SECOND_WRITE
+.It Dv DSM_TRANSFERS_PER_SECOND_FREE
+type:
+.Vt "long double *"
+.Pp
+The average number of transactions of the specified type per second
+between the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_MB_PER_SECOND
+type:
+.Vt "long double *"
+.Pp
+The average number of megabytes transferred per second between the
+acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_MB_PER_SECOND_READ
+.It Dv DSM_MB_PER_SECOND_WRITE
+.It Dv DSM_MB_PER_SECOND_FREE
+type:
+.Vt "long double *"
+.Pp
+The average number of megabytes per second in the specified type of
+transaction between the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_BLOCKS_PER_SECOND
+type:
+.Vt "long double *"
+.Pp
+The average number of blocks transferred per second between the acquisition of
+.Fa previous
+and
+.Fa current .
+This number is in terms of the blocksize reported by the device.
+If no blocksize has been reported (i.e., the block size is 0), a default
+blocksize of 512 bytes will be used in the calculation.
+.It Dv DSM_BLOCKS_PER_SECOND_READ
+.It Dv DSM_BLOCKS_PER_SECOND_WRITE
+.It Dv DSM_BLOCKS_PER_SECOND_FREE
+type:
+.Vt "long double *"
+.Pp
+The average number of blocks per second in the specified type of transaction
+between the acquisition of
+.Fa previous
+and
+.Fa current .
+This number is in terms of the blocksize reported by the device.
+If no blocksize has been reported (i.e., the block size is 0), a default
+blocksize of 512 bytes will be used in the calculation.
+.It Dv DSM_MS_PER_TRANSACTION
+type:
+.Vt "long double *"
+.Pp
+The average duration of transactions between the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_MS_PER_TRANSACTION_OTHER
+.It Dv DSM_MS_PER_TRANSACTION_READ
+.It Dv DSM_MS_PER_TRANSACTION_WRITE
+.It Dv DSM_MS_PER_TRANSACTION_FREE
+type:
+.Vt "long double *"
+.Pp
+The average duration of transactions of the specified type between the
+acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_BUSY_PCT
+type:
+.Vt "long double *"
+.Pp
+The percentage of time the device had one or more transactions outstanding
+between the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_QUEUE_LENGTH
+type:
+.Vt "uint64_t *"
+.Pp
+The number of not yet completed transactions at the time when
+.Fa current
+was acquired.
+.It Dv DSM_SKIP
+type: N/A
+.Pp
+If you do not need a result from
+.Fn devstat_compute_statistics ,
+just put
+.Dv DSM_SKIP
+as first (type) parameter and
+.Dv NULL
+as second parameter.
+This can be useful in scenarios where the statistics to be calculated
+are determined at run time.
+.El
+.Pp
+The
+.Fn devstat_compute_etime
+function
+provides an easy way to find the difference in seconds between two
+.Vt bintime
+structures.
+This is most commonly used in conjunction with the time recorded by the
+.Fn devstat_getdevs
+function (in
+.Vt "struct statinfo" )
+each time it fetches the current
+.Nm
+list.
+.Sh RETURN VALUES
+The
+.Fn devstat_getnumdevs ,
+.Fn devstat_getgeneration ,
+and
+.Fn devstat_getversion
+function
+return the indicated sysctl variable, or \-1 if there is an error
+fetching the variable.
+.Pp
+The
+.Fn devstat_checkversion
+function
+returns 0 if the kernel and userland
+.Nm
+versions match.
+If they do not match, it returns \-1.
+.Pp
+The
+.Fn devstat_getdevs
+and
+.Fn devstat_selectdevs
+functions
+return \-1 in case of an error, 0 if there is no error, and 1 if the device
+list or selected devices have changed.
+A return value of 1 from
+.Fn devstat_getdevs
+is usually a hint to re-run
+.Fn devstat_selectdevs
+because the device list has changed.
+.Pp
+The
+.Fn devstat_buildmatch
+function returns \-1 for error, and 0 if there is no error.
+.Pp
+The
+.Fn devstat_compute_etime
+function
+returns the computed elapsed time.
+.Pp
+The
+.Fn devstat_compute_statistics
+function returns \-1 for error, and 0 for success.
+.Pp
+If an error is returned from one of the
+.Nm
+library functions, the reason for the error is generally printed in
+the global string
+.Va devstat_errbuf
+which is
+.Dv DEVSTAT_ERRBUF_SIZE
+characters long.
+.Sh SEE ALSO
+.Xr systat 1 ,
+.Xr kvm 3 ,
+.Xr sysctl 3 ,
+.Xr iostat 8 ,
+.Xr rpc.rstatd 8 ,
+.Xr sysctl 8 ,
+.Xr vmstat 8 ,
+.Xr devstat 9
+.Sh HISTORY
+The
+.Nm
+statistics system first appeared in
+.Fx 3.0 .
+The new interface (the functions prefixed with
+.Li devstat_ )
+first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Kenneth Merry Aq Mt ken@FreeBSD.org
+.Sh BUGS
+There should probably be an interface to de-allocate memory allocated by
+.Fn devstat_getdevs ,
+.Fn devstat_selectdevs ,
+and
+.Fn devstat_buildmatch .
+.Pp
+The
+.Fn devstat_selectdevs
+function
+should probably not select more than
+.Fa maxshowdevs
+devices in
+.Dq top
+mode when no devices have been selected previously.
+.Pp
+There should probably be functions to perform the statistics buffer
+swapping that goes on in most of the clients of this library.
+.Pp
+The
+.Vt statinfo
+and
+.Vt devinfo
+structures should probably be cleaned up and thought out a little more.

@@ -1,0 +1,30 @@
+Please see the README for instructions common to all platforms and
+descriptions of the options mentioned here.
+
+
+	Linux.
+
+Most modern Linux distributions use Linux-PAM with a password changing
+module which understands "use_authtok".  Thus, you may choose which
+module prompts for the old password, things should work either way.
+
+
+	FreeBSD.
+
+As of this writing (April 2002), FreeBSD-current is moving to OpenPAM
+which pam_passwdqc already includes support for.  The next step would
+be for FreeBSD to start actually using PAM from password changing.
+Once that becomes a reality, you should be able to use pam_passwdqc
+with FreeBSD.
+
+
+	Solaris.
+
+pam_passwdqc has to ask for the old password during the update phase.
+Use "ask_oldauthtok=update check_oldauthtok" with pam_passwdqc and
+"use_first_pass" with pam_unix.
+
+You will likely also need to set "max=8" in order to actually enforce
+not-so-weak passwords with the obsolete "traditional" crypt(3) hashes
+that most Solaris systems use.  Of course this way you only get about
+one third of the functionality of pam_passwdqc.

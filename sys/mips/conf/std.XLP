@@ -1,0 +1,119 @@
+# $FreeBSD$
+
+include		"../nlm/std.xlp"
+makeoptions	MODULES_OVERRIDE=""
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+#profile 	2
+
+hints		"XLP.hints"
+
+options 	SCHED_ULE		# ULE scheduler
+#options 	VERBOSE_SYSINIT
+#options 	SCHED_4BSD		# 4BSD scheduler
+options         SMP
+options 	PREEMPTION		# Enable kernel thread preemption
+#options 	FULL_PREEMPTION		# Enable kernel thread preemption
+options 	INET			# InterNETworking
+options 	INET6			# IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+options 	FFS			# Berkeley Fast Filesystem
+#options 	SOFTUPDATES		# Enable FFS soft updates support
+options 	UFS_ACL			# Support for access control lists
+options 	UFS_DIRHASH		# Improve performance on big directories
+options 	NFSCL
+options 	NFS_ROOT
+options 	MSDOSFS			#MSDOS Filesystem
+#
+#options 	BOOTP
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_NFSV3
+#options 	BOOTP_WIRED_TO=nlge0
+#options 	BOOTP_COMPAT
+#options 	ROOTDEVNAME=\"nfs:10.1.1.8:/usr/extra/nfsroot\"
+
+options 	MD_ROOT			# MD is a potential root device
+options 	MD_ROOT_SIZE=132000
+options 	ROOTDEVNAME=\"ufs:md0\"
+options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
+options 	HZ=1000	
+options 	NO_SWAPPING
+
+# Debugging options
+options 	KTRACE			# ktrace(1) support
+options 	DDB
+options 	KDB
+options 	GDB
+options 	BREAK_TO_DEBUGGER
+options 	ALT_BREAK_TO_DEBUGGER
+#options 	DEADLKRES		# Enable the deadlock resolver
+#options 	INVARIANTS
+#options 	INVARIANT_SUPPORT
+#options 	WITNESS			# Detect deadlocks and cycles
+#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
+#options 	KTR			# ktr(4) and ktrdump(8) support
+#options 	KTR_COMPILE=(KTR_LOCK|KTR_PROC|KTR_INTR|KTR_CALLOUT|KTR_UMA|KTR_SYSC)
+#options 	KTR_ENTRIES=131072
+#options 	LOCK_DEBUG
+#options 	LOCK_PROFILING
+
+device		xz
+options 	GEOM_UZIP
+
+# Device tree
+options 	FDT
+options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=xlp-basic.dts
+
+# Pseudo
+device		loop
+device		random
+device		md
+device		bpf
+
+# Network
+device		miibus
+device		ether
+device		xlpge
+#device		re
+device		msk
+device		iflib
+device		em
+
+# Disks
+device		siis
+device		da
+device		scbus
+#device		ata
+
+# USB
+device		usb			# USB Bus (required)
+device		ehci			# EHCI PCI->USB interface (USB 2.0)
+#options 	USB_DEBUG		# enable debug msgs
+#device		ugen			# Generic
+#device		uhid			# "Human Interface Devices"
+device		umass			# Requires scbus and da
+
+# i2c driver and devices
+device		iic
+device		iicbus
+device		iicoc
+device		ds13rtc			# RTC on XLP boards
+
+# Crypto
+device		crypto
+device		cryptodev
+device		nlmsec
+device		nlmrsa
+
+# Options that use crypto
+options 	IPSEC
+options 	GEOM_ELI
+
+# NOR
+device		cfi
+device		cfid
+
+# MMC/SD
+device		mmc			# MMC/SD bus
+device		mmcsd			# MMC/SD memory card
+device		sdhci			# Generic PCI SD Host Controller

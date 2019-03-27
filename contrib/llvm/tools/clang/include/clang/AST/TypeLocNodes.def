@@ -1,0 +1,41 @@
+//===-- TypeLocNodes.def - Metadata about TypeLoc wrappers ------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+//  This file defines the TypeLoc info database.  Each node is
+//  enumerated by providing its core name (e.g., "Pointer" for "PointerTypeLoc")
+//  and base class (e.g., "DeclaratorLoc").  All nodes except QualifiedTypeLoc
+//  are associated
+//
+//    TYPELOC(Class, Base) - A TypeLoc subclass.  If UNQUAL_TYPELOC is
+//      provided, there will be exactly one of these, Qualified.
+//
+//    UNQUAL_TYPELOC(Class, Base, Type) - An UnqualTypeLoc subclass.
+//
+//    ABSTRACT_TYPELOC(Class) - Refers to TypeSpecLoc and DeclaratorLoc.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef UNQUAL_TYPELOC
+#  define UNQUAL_TYPELOC(Class, Base) TYPELOC(Class, Base)
+#endif
+
+#ifndef ABSTRACT_TYPELOC
+#  define ABSTRACT_TYPELOC(Class, Base) UNQUAL_TYPELOC(Class, Base)
+#endif
+
+TYPELOC(Qualified, TypeLoc)
+#define TYPE(Class, Base) UNQUAL_TYPELOC(Class, Base##Loc)
+#define ABSTRACT_TYPE(Class, Base) ABSTRACT_TYPELOC(Class, Base##Loc)
+#include "clang/AST/TypeNodes.def"
+
+#undef DECLARATOR_TYPELOC
+#undef TYPESPEC_TYPELOC
+#undef ABSTRACT_TYPELOC
+#undef UNQUAL_TYPELOC
+#undef TYPELOC

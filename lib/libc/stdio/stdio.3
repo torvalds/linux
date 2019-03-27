@@ -1,0 +1,333 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)stdio.3	8.7 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\"
+.Dd March 3, 2009
+.Dt STDIO 3
+.Os
+.Sh NAME
+.Nm stdio
+.Nd standard input/output library functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Vt FILE *stdin ;
+.Vt FILE *stdout ;
+.Vt FILE *stderr ;
+.Sh DESCRIPTION
+The standard
+.Tn I/O
+library provides a simple and efficient buffered stream
+.Tn I/O
+interface.
+Input and output is mapped into logical data streams
+and the physical
+.Tn I/O
+characteristics are concealed.
+The functions and macros are listed
+below; more information is available from the individual man pages.
+.Pp
+A stream is associated with an external file (which may be a physical
+device) by
+.Em opening
+a file, which may involve creating a new file.
+Creating an
+existing file causes its former contents to be discarded.
+If a file can support positioning requests (such as a disk file, as opposed
+to a terminal) then a
+.Em file position indicator
+associated with the stream is positioned at the start of the file (byte
+zero), unless the file is opened with append mode.
+If append mode
+is used, the position indicator will be placed at the end-of-file.
+The position indicator is maintained by subsequent reads, writes
+and positioning requests.
+All input occurs as if the characters
+were read by successive calls to the
+.Xr fgetc 3
+function; all output takes place as if all characters were
+written by successive calls to the
+.Xr fputc 3
+function.
+.Pp
+A file is disassociated from a stream by
+.Em closing
+the file.
+Output streams are flushed (any unwritten buffer contents are transferred
+to the host environment) before the stream is disassociated from the file.
+The value of a pointer to a
+.Dv FILE
+object is indeterminate (garbage) after a file is closed.
+.Pp
+A file may be subsequently reopened, by the same or another program
+execution, and its contents reclaimed or modified (if it can be repositioned
+at the start).
+If the main function returns to its original caller, or
+the
+.Xr exit 3
+function is called, all open files are closed (hence all output
+streams are flushed) before program termination.
+Other methods
+of program termination may not close files properly and hence
+buffered output may be lost.
+In particular,
+.Xr _exit 2
+does not flush stdio files.
+Neither does an exit due to a signal.
+Buffers are flushed by
+.Xr abort 3
+as required by POSIX, although previous implementations did not.
+.Pp
+This implementation makes no distinction between
+.Dq text
+and
+.Dq binary
+streams.
+In effect, all streams are binary.
+No translation is performed and no extra padding appears on any stream.
+.Pp
+At program startup, three streams are predefined and need not be
+opened explicitly:
+.Bl -bullet -compact -offset indent
+.It
+.Em standard input
+(for reading conventional input),
+.It
+.Em standard output
+(for writing conventional output), and
+.It
+.Em standard error
+(for writing diagnostic output).
+.El
+These streams are abbreviated
+.Dv stdin , stdout
+and
+.Dv stderr .
+Initially, the standard error stream
+is unbuffered; the standard input and output streams are
+fully buffered if and only if the streams do not refer to
+an interactive or
+.Dq terminal
+device, as determined by the
+.Xr isatty 3
+function.
+In fact,
+.Em all
+freshly-opened streams that refer to terminal devices
+default to line buffering, and
+pending output to such streams is written automatically
+whenever such an input stream is read.
+Note that this applies only to
+.Dq "true reads" ;
+if the read request can be satisfied by existing buffered data,
+no automatic flush will occur.
+In these cases,
+or when a large amount of computation is done after printing
+part of a line on an output terminal, it is necessary to
+.Xr fflush 3
+the standard output before going off and computing so that the output
+will appear.
+Alternatively, these defaults may be modified via the
+.Xr setvbuf 3
+function.
+.Pp
+The
+.Nm
+library is a part of the library
+.Nm libc
+and routines are automatically loaded as needed by the C compiler.
+The
+.Tn SYNOPSIS
+sections of the following manual pages indicate which include files
+are to be used, what the compiler declaration for the function
+looks like and which external variables are of interest.
+.Pp
+The following are defined as macros;
+these names may not be re-used
+without first removing their current definitions with
+.Ic #undef :
+.Dv BUFSIZ ,
+.Dv EOF ,
+.Dv FILENAME_MAX ,
+.Dv FOPEN_MAX ,
+.Dv L_ctermid ,
+.Dv L_cuserid ,
+.Dv L_tmpnam ,
+.Dv NULL ,
+.Dv P_tmpdir ,
+.Dv SEEK_CUR ,
+.Dv SEEK_END ,
+.Dv SEEK_SET ,
+.Dv TMP_MAX ,
+.Dv clearerr ,
+.Dv clearerr_unlocked ,
+.Dv feof ,
+.Dv feof_unlocked ,
+.Dv ferror ,
+.Dv ferror_unlocked ,
+.Dv fileno ,
+.Dv fileno_unlocked ,
+.Dv fropen ,
+.Dv fwopen ,
+.Dv getc ,
+.Dv getc_unlocked ,
+.Dv getchar ,
+.Dv getchar_unlocked ,
+.Dv putc ,
+.Dv putc_unlocked ,
+.Dv putchar ,
+.Dv putchar_unlocked ,
+.Dv stderr ,
+.Dv stdin
+and
+.Dv stdout .
+Function versions of the macro functions
+.Dv clearerr ,
+.Dv clearerr_unlocked ,
+.Dv feof ,
+.Dv feof_unlocked ,
+.Dv ferror ,
+.Dv ferror_unlocked ,
+.Dv fileno ,
+.Dv fileno_unlocked ,
+.Dv getc ,
+.Dv getc_unlocked ,
+.Dv getchar ,
+.Dv getchar_unlocked ,
+.Dv putc ,
+.Dv putc_unlocked ,
+.Dv putchar ,
+and
+.Dv putchar_unlocked
+exist and will be used if the macro
+definitions are explicitly removed.
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr open 2 ,
+.Xr read 2 ,
+.Xr write 2
+.Sh STANDARDS
+The
+.Nm
+library conforms to
+.St -isoC-99 .
+.Sh LIST OF FUNCTIONS
+.Bl -column "Description"
+.It Sy "Function	Description"
+.It "asprintf	formatted output conversion"
+.It "clearerr	check and reset stream status"
+.It "dprintf	formatted output conversion"
+.It "fclose	close a stream"
+.It "fdopen	stream open functions"
+.It "feof	check and reset stream status"
+.It "ferror	check and reset stream status"
+.It "fflush	flush a stream"
+.It "fgetc	get next character or word from input stream"
+.It "fgetln	get a line from a stream"
+.It "fgetpos	reposition a stream"
+.It "fgets	get a line from a stream"
+.It "fgetwc	get next wide character from input stream"
+.It "fgetws	get a line of wide characters from a stream"
+.It "fileno	check and reset stream status"
+.It "fopen	stream open functions"
+.It "fprintf	formatted output conversion"
+.It "fpurge	flush a stream"
+.It "fputc	output a character or word to a stream"
+.It "fputs	output a line to a stream"
+.It "fputwc	output a wide character to a stream"
+.It "fputws	output a line of wide characters to a stream"
+.It "fread	binary stream input/output"
+.It "freopen	stream open functions"
+.It "fropen	open a stream"
+.It "fscanf	input format conversion"
+.It "fseek	reposition a stream"
+.It "fsetpos	reposition a stream"
+.It "ftell	reposition a stream"
+.It "funopen	open a stream"
+.It "fwide	set/get orientation of stream"
+.It "fwopen	open a stream"
+.It "fwprintf	formatted wide character output conversion"
+.It "fwrite	binary stream input/output"
+.It "getc	get next character or word from input stream"
+.It "getchar	get next character or word from input stream"
+.It "getdelim	get a line from a stream"
+.It "getline	get a line from a stream"
+.It "gets	get a line from a stream"
+.It "getw	get next character or word from input stream"
+.It "getwc	get next wide character from input stream"
+.It "getwchar	get next wide character from input stream"
+.It "mkdtemp	create unique temporary directory"
+.It "mkstemp	create unique temporary file"
+.It "mktemp	create unique temporary file"
+.It "perror	system error messages"
+.It "printf	formatted output conversion"
+.It "putc	output a character or word to a stream"
+.It "putchar	output a character or word to a stream"
+.It "puts	output a line to a stream"
+.It "putw	output a character or word to a stream"
+.It "putwc	output a wide character to a stream"
+.It "putwchar	output a wide character to a stream"
+.It "remove	remove directory entry"
+.It "rewind	reposition a stream"
+.It "scanf	input format conversion"
+.It "setbuf	stream buffering operations"
+.It "setbuffer	stream buffering operations"
+.It "setlinebuf	stream buffering operations"
+.It "setvbuf	stream buffering operations"
+.It "snprintf	formatted output conversion"
+.It "sprintf	formatted output conversion"
+.It "sscanf	input format conversion"
+.It "strerror	system error messages"
+.It "swprintf	formatted wide character output conversion"
+.It "sys_errlist	system error messages"
+.It "sys_nerr	system error messages"
+.It "tempnam	temporary file routines"
+.It "tmpfile	temporary file routines"
+.It "tmpnam	temporary file routines"
+.It "ungetc	un-get character from input stream"
+.It "ungetwc	un-get wide character from input stream"
+.It "vasprintf	formatted output conversion"
+.It "vdprintf	formatted output conversion"
+.It "vfprintf	formatted output conversion"
+.It "vfscanf	input format conversion"
+.It "vfwprintf	formatted wide character output conversion"
+.It "vprintf	formatted output conversion"
+.It "vscanf	input format conversion"
+.It "vsnprintf	formatted output conversion"
+.It "vsprintf	formatted output conversion"
+.It "vsscanf	input format conversion"
+.It "vswprintf	formatted wide character output conversion"
+.It "vwprintf	formatted wide character output conversion"
+.It "wprintf	formatted wide character output conversion"
+.El
+.Sh BUGS
+The standard buffered functions do not interact well with certain other
+library and system functions, especially
+.Xr vfork 2 .

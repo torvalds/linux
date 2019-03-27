@@ -1,0 +1,256 @@
+.\" Copyright (c) 2015-2017 Amazon.com, Inc. or its affiliates.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 04, 2017
+.Dt ENA 4
+.Os
+.Sh NAME
+.Nm ena
+.Nd "FreeBSD kernel driver for Elastic Network Adapter (ENA) family"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ena"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ena_load="YES"
+.Ed
+.Sh DESCRIPTION
+The ENA is a networking interface designed to make good use of modern CPU
+features and system architectures.
+.Pp
+The ENA device exposes a lightweight management interface with a
+minimal set of memory mapped registers and extendable command set
+through an Admin Queue.
+.Pp
+The driver supports a range of ENA devices, is link-speed independent
+(i.e., the same driver is used for 10GbE, 25GbE, 40GbE, etc.), and has
+a negotiated and extendable feature set.
+.Pp
+Some ENA devices support SR-IOV. This driver is used for both the
+SR-IOV Physical Function (PF) and Virtual Function (VF) devices.
+.Pp
+The ENA devices enable high speed and low overhead network traffic
+processing by providing multiple Tx/Rx queue pairs (the maximum number
+is advertised by the device via the Admin Queue), a dedicated MSI-X
+interrupt vector per Tx/Rx queue pair, and CPU cacheline optimized
+data placement.
+.Pp
+The
+.Nm
+driver supports industry standard TCP/IP offload features such
+as checksum offload and TCP transmit segmentation offload (TSO).
+Receive-side scaling (RSS) is supported for multi-core scaling.
+.Pp
+The
+.Nm
+driver and its corresponding devices implement health
+monitoring mechanisms such as watchdog, enabling the device and driver
+to recover in a manner transparent to the application, as well as
+debug logs.
+.Pp
+Some of the ENA devices support a working mode called Low-latency
+Queue (LLQ), which saves several more microseconds. This feature will
+be implemented for driver in future releases.
+.Sh HARDWARE
+Supported PCI vendor ID/device IDs:
+.Pp
+.Bl -bullet -compact
+.It
+1d0f:0ec2 - ENA PF
+.It
+1d0f:1ec2 - ENA PF with LLQ support
+.It
+1d0f:ec20 - ENA VF
+.It
+1d0f:ec21 - ENA VF with LLQ support
+.El
+.Sh DIAGNOSTICS
+.Ss Device initialization phase:
+.Bl -diag
+.It ena%d: failed to init mmio read less
+.Pp
+Error occurred during initialization of the mmio register read request.
+.It ena%d: Can not reset device
+.Pp
+Device could not be reset; device may not be responding or is already
+during reset.
+.It ena%d: device version is too low
+.Pp
+Version of the controller is too low and it is not supported by the driver.
+.It ena%d: Invalid dma width value %d
+.Pp
+The controller is able to request dma transcation width. Device stopped
+responding or it demanded invalid value.
+.It ena%d: Can not initialize ena admin queue with device
+.Pp
+Initialization of the Admin Queue failed; device may not be responding or there
+was a problem with initialization of the resources.
+.It ena%d: Cannot get attribute for ena device rc: %d
+.Pp
+Failed to get attributes of the device from the controller.
+.It ena%d: Cannot configure aenq groups rc: %d
+.Pp
+Errors occurred when trying to configure AENQ groups.
+.El
+.Ss Driver initialisation/shutdown phase:
+.Bl -diag
+.It ena%d: PCI resource allocation failed!
+.It ena%d: allocating ena_dev failed
+.It ena%d: failed to pmap registers bar
+.It ena%d: Error while setting up bufring
+.It ena%d: Error with initialization of IO rings
+.It ena%d: can not allocate ifnet structure
+.It ena%d: Error with network interface setup
+.It ena%d: Failed to enable and set the admin interrupts
+.It ena%d: Failed to allocate %d, vectors %d
+.It ena%d: Failed to enable MSIX, vectors %d rc %d
+.It ena%d: Error with MSI-X enablement
+.It ena%d: could not allocate irq vector: %d
+.It ena%d: Unable to allocate bus resource: registers
+.Pp
+Resource allocation failed when initializing the device; driver will not
+be attached.
+.It ena%d: ENA device init failed (err: %d)
+.Pp
+Device initialization failed; driver will not be attached.
+.It ena%d: could not activate irq vector: %d
+.Pp
+Error occurred when trying to activate interrupt vectors for Admin Queue.
+.It ena%d: failed to register interrupt handler for irq %ju: %d
+.Pp
+Error occurred when trying to register Admin Queue interrupt handler.
+.It ena%d: Cannot setup mgmnt queue intr
+.Pp
+Error occurred during configuration of the Admin Queue interrupts.
+.It ena%d: Enable MSI-X failed
+.Pp
+Configuration of the MSI-X for Admin Queue failed; there could be lack
+of resources or interrupts could not have been configured; driver will
+not be attached.
+.It ena%d: VLAN is in use, detach first
+.Pp
+VLANs are being used when trying to detach the driver; VLANs should be detached
+first and then detach routine should be called again.
+.It ena%d: Unmapped RX DMA tag associations
+.It ena%d: Unmapped TX DMA tag associations
+.Pp
+Error occurred when trying to destroy RX/TX DMA tag.
+.It ena%d: Cannot init RSS
+.It ena%d: Cannot fill indirect table
+.It ena%d: Cannot fill indirect table
+.It ena%d: Cannot fill hash function
+.It ena%d: Cannot fill hash control
+.It ena%d: WARNING: RSS was not properly initialized, it will affect bandwidth
+.Pp
+Error occurred during initialization of one of RSS resources; device is still
+going to work but it will affect performance because all RX packets will be
+passed to queue 0 and there will be no hash information.
+.It ena%d: failed to tear down irq: %d
+.It ena%d: dev has no parent while releasing res for irq: %d
+Release of the interrupts failed.
+.El
+.Ss Additional diagnostic:
+.Bl -diag
+.It ena%d: Cannot get attribute for ena device
+.Pp
+This message appears when trying to change MTU and driver is unable to get
+attributes from the device.
+.It ena%d: Invalid MTU setting. new_mtu: %d
+.Pp
+Requested MTU value is not supported and will not be set.
+.It ena%d: keep alive watchdog timeout
+.Pp
+Device stopped responding and will be reset.
+.It ena%d: Found a Tx that wasn't completed on time, qid %d, index %d.
+.Pp
+Packet was pushed to the NIC but not sent within given time limit; it may
+be caused by hang of the IO queue.
+.It ena%d: The number of lost tx completion is aboce the threshold (%d > %d). Reset the device
+.Pp
+If too many Tx wasn't completed on time the device is going to be reset; it may
+be caused by hanged queue or device.
+.It ena%d: trigger reset is on
+.Pp
+Device will be reset; reset is triggered either by watchdog or if too many TX
+packets were not completed on time.
+.It ena%d: invalid value recvd
+.Pp
+Link status received from the device in the AENQ handler is invalid.
+.It ena%d: Allocation for Tx Queue %u failed
+.It ena%d: Allocation for Rx Queue %u failed
+.It ena%d: Unable to create Rx DMA map for buffer %d
+.It ena%d: Failed to create io TX queue #%d rc: %d
+.It ena%d: Failed to get TX queue handlers. TX queue num %d rc: %d
+.It ena%d: Failed to create io RX queue[%d] rc: %d
+.It ena%d: Failed to get RX queue handlers. RX queue num %d rc: %d
+.It ena%d: failed to request irq
+.It ena%d: could not allocate irq vector: %d
+.It ena%d: failed to register interrupt handler for irq %ju: %d
+.Pp
+IO resources initialization failed. Interface will not be brought up.
+.It ena%d: LRO[%d] Initialization failed!
+.Pp
+Initialization of the LRO for the RX ring failed.
+.It ena%d: failed to alloc buffer for rx queue
+.It ena%d: failed to add buffer for rx queue %d
+.It ena%d: refilled rx queue %d with %d pages only
+.Pp
+Allocation of resources used on RX path failed; if happened during
+initialization of the IO queue, the interface will not be brought up.
+.It ena%d: ioctl promisc/allmulti
+.Pp
+IOCTL request for the device to work in promiscuous/allmulti mode; see
+.Xr ifconfig 8
+for more details.
+.It ena%d: too many fragments. Last fragment: %d!
+.Pp
+Packet with unsupported number of segments was queued for sending to the
+device; packet will be dropped.
+.El
+.Sh SUPPORT
+If an issue is identified with the released source code with a supported adapter
+email the specific information related to the issue to
+.Aq Mt mk@semihalf.com
+and
+.Aq Mt mw@semihalf.com .
+.Sh SEE ALSO
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Semihalf.

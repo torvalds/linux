@@ -1,0 +1,8 @@
+#! /bin/sh
+
+lynx -source http://www.eecis.udel.edu/~mills/ntp/clock2.htm |
+	sed -n -e 's,).*,,' -e' /([0-9.]*$/s/.*(//p' |
+	xargs ntpdate -q |
+	sort -n +7 > /tmp/ntp-close
+
+# From: Neal McBurnett <neal@bcn.boulder.co.us>

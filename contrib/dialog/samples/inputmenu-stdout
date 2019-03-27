@@ -1,0 +1,63 @@
+#! /bin/sh
+# $Id: inputmenu-stdout,v 1.13 2012/07/06 18:11:12 tom Exp $
+# 2002 - written by Tobias Rittweiler <tobrit@freebits.de>
+
+. ./setup-vars
+
+user="$USER"
+uid=`id|sed -e 's/^uid=//' -e 's/(.*//'`
+gid=`id|sed -e 's/^.*gid=//' -e 's/(.*//'`
+home="$HOME"
+
+while [ ${returncode:-99} -ne 1 -a ${returncode:-99} -ne 250 ]; do
+	value=`$DIALOG \
+		--stdout --clear --ok-label "Create" \
+		--backtitle "An Example for the use of --inputmenu:" "$@" \
+		--inputmenu "Originally I designed --inputmenu for a \
+configuration purpose. Here is a possible piece of a configuration program. \
+" 20 50 10 \
+"Username:" "$user" \
+"UID:"      "$uid" \
+"GID:"      "$gid" \
+"HOME:"     "$home" \
+`
+	returncode=$?
+	case $returncode in
+	$DIALOG_CANCEL)
+		"$DIALOG" \
+			--clear --backtitle "An Example for the use of --inputmenu:" \
+			--yesno "Really quit?" 10 30
+		case $? in
+		$DIALOG_OK) break;;
+		$DIALOG_CANCEL) returncode=99;;
+		esac
+		;;
+	$DIALOG_OK)
+		"$DIALOG" \
+			--clear --backtitle "An Example for the use of --inputmenu:"  \
+			--msgbox "useradd \n\
+				-d $home \n\
+				-u $uid \n\
+				-g $gid \n\
+				$user" 10 40
+		;;
+	$DIALOG_EXTRA)
+		value=`echo "$value" | sed -e 's/^RENAMED //'`
+		tag=`echo "$value" | sed -e 's/:.*//'`
+		item=`echo "$value" | sed -e 's/^[^:]*:[ 	][ 	]*//'`
+
+		case "$tag" in
+		Username) user="$item" ;;
+		UID)	  uid="$item"  ;;
+		GID)	  gid="$item"  ;;
+		HOME)	  home="$item" ;;
+		esac
+		;;
+
+	$DIALOG_ESC)
+		echo "ESC pressed."
+		break
+		;;
+
+	esac
+done

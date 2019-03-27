@@ -1,0 +1,195 @@
+.\" Copyright (c) 2004 Apple Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1.  Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\" 2.  Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\" 3.  Neither the name of Apple Inc. ("Apple") nor the names of
+.\"     its contributors may be used to endorse or promote products derived
+.\"     from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL APPLE OR ITS CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd January 24, 2004
+.Dt AUDITREDUCE 1
+.Os
+.Sh NAME
+.Nm auditreduce
+.Nd "select records from audit trail files"
+.Sh SYNOPSIS
+.Nm
+.Op Fl A
+.Op Fl a Ar YYYYMMDD Ns Op Ar HH Ns Op Ar MM Ns Op Ar SS
+.Op Fl b Ar YYYYMMDD Ns Op Ar HH Ns Op Ar MM Ns Op Ar SS
+.Op Fl c Ar flags
+.Op Fl d Ar YYYYMMDD
+.Op Fl e Ar euid
+.Op Fl f Ar egid
+.Op Fl g Ar rgid
+.Op Fl j Ar id
+.Op Fl m Ar event
+.Op Fl o Ar object Ns = Ns Ar value
+.Op Fl r Ar ruid
+.Op Fl u Ar auid
+.Op Fl v
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility selects records from the audit trail files based on the specified
+criteria.
+Matching audit records are printed to the standard output in
+their raw binary form.
+If no
+.Ar file
+argument is specified, the standard input is used
+by default.
+Use the
+.Xr praudit 1
+utility to print the selected audit records in human-readable form.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl A
+Select all records.
+.It Fl a Ar YYYYMMDD Ns Op Ar HH Ns Op Ar MM Ns Op Ar SS
+Select records that occurred after or on the given datetime.
+.It Fl b Ar YYYYMMDD Ns Op Ar HH Ns Op Ar MM Ns Op Ar SS
+Select records that occurred before the given datetime.
+.It Fl c Ar flags
+Select records matching the given audit classes specified as a comma
+separated list of audit flags.
+See
+.Xr audit_control 5
+for a description of audit flags.
+.It Fl d Ar YYYYMMDD
+Select records that occurred on a given date.
+This option cannot be used with
+.Fl a
+or
+.Fl b .
+.It Fl e Ar euid
+Select records with the given effective user ID or name.
+.It Fl f Ar egid
+Select records with the given effective group ID or name.
+.It Fl g Ar rgid
+Select records with the given real group ID or name.
+.It Fl j Ar id
+Select records having a subject token with matching ID, where ID is a process ID.
+.It Fl m Ar event
+Select records with the given event name or number. This option can
+be used more then once to select records of multiple event types.
+See
+.Xr audit_event 5
+for a description of audit event names and numbers.
+.It Fl o Ar object Ns = Ns Ar value
+.Bl -tag -width ".Cm msgqid"
+.It Cm file
+Select records containing path tokens, where the pathname matches
+one of the comma delimited extended regular expression contained in
+given specification.
+Regular expressions which are prefixed with a tilde
+.Pq Ql ~
+are excluded
+from the search results.
+These extended regular expressions are processed from left to right,
+and a path will either be selected or deslected based on the first match.
+.Pp
+Since commas are used to delimit the regular expressions, a backslash
+.Pq Ql \e
+character should be used to escape the comma if it is a part of the search
+pattern.
+.It Cm msgqid
+Select records containing the given message queue ID.
+.It Cm pid
+Select records containing the given process ID.
+.It Cm semid
+Select records containing the given semaphore ID.
+.It Cm shmid
+Select records containing the given shared memory ID.
+.El
+.It Fl r Ar ruid
+Select records with the given real user ID or name.
+.It Fl u Ar auid
+Select records with the given audit ID.
+.It Fl v
+Invert sense of matching, to select records that do not match.
+.El
+.Sh EXAMPLES
+To select all records associated with effective user ID root from the audit
+log
+.Pa /var/audit/20031016184719.20031017122634 :
+.Bd -literal -offset indent
+auditreduce -e root \e
+    /var/audit/20031016184719.20031017122634
+.Ed
+.Pp
+To select all
+.Xr setlogin 2
+events from that log:
+.Bd -literal -offset indent
+auditreduce -m AUE_SETLOGIN \e
+    /var/audit/20031016184719.20031017122634
+.Ed
+.Pp
+Output from the above command lines will typically be piped to a new trail
+file, or via standard output to the
+.Xr praudit 1
+command.
+.Pp
+Select all records containing a path token where the pathname contains
+.Pa /etc/master.passwd :
+.Bd -literal -offset indent
+auditreduce -o file="/etc/master.passwd" \e
+    /var/audit/20031016184719.20031017122634
+.Ed
+.Pp
+Select all records containing path tokens, where the pathname is a TTY
+device:
+.Bd -literal -offset indent
+auditreduce -o file="/dev/tty[a-zA-Z][0-9]+" \e
+    /var/audit/20031016184719.20031017122634
+.Ed
+.Pp
+Select all records containing path tokens, where the pathname is a TTY
+except for
+.Pa /dev/ttyp2 :
+.Bd -literal -offset indent
+auditreduce -o file="~/dev/ttyp2,/dev/tty[a-zA-Z][0-9]+" \e
+    /var/audit/20031016184719.20031017122634
+.Ed
+.Sh SEE ALSO
+.Xr praudit 1 ,
+.Xr audit_control 5 ,
+.Xr audit_event 5
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Sh AUTHORS
+.An -nosplit
+This software was created by McAfee Research, the security research division
+of McAfee, Inc., under contract to Apple Computer Inc.
+Additional authors include
+.An Wayne Salamon ,
+.An Robert Watson ,
+and SPARTA Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.

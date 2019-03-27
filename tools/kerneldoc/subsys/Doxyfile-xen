@@ -1,0 +1,20 @@
+# Doxyfile 1.5.2
+
+# $FreeBSD$
+
+#---------------------------------------------------------------------------
+# Project related configuration options
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "FreeBSD xen subsystem code"
+OUTPUT_DIRECTORY       = $(DOXYGEN_DEST_PATH)/xen/
+EXTRACT_ALL            = NO
+#---------------------------------------------------------------------------
+# configuration options related to the input files
+#---------------------------------------------------------------------------
+INPUT                  = $(DOXYGEN_SRC_PATH)/xen/
+
+GENERATE_TAGFILE       = xen/xen.tag
+
+@INCLUDE_PATH          = $(DOXYGEN_INCLUDE_PATH)
+@INCLUDE               = common-Doxyfile
+

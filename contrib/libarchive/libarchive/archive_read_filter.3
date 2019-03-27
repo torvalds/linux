@@ -1,0 +1,154 @@
+.\" Copyright (c) 2003-2011 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 14, 2014
+.Dt ARCHIVE_READ_FILTER 3
+.Os
+.Sh NAME
+.Nm archive_read_support_filter_all ,
+.Nm archive_read_support_filter_bzip2 ,
+.Nm archive_read_support_filter_compress ,
+.Nm archive_read_support_filter_gzip ,
+.Nm archive_read_support_filter_lz4 ,
+.Nm archive_read_support_filter_lzma ,
+.Nm archive_read_support_filter_none ,
+.Nm archive_read_support_filter_rpm ,
+.Nm archive_read_support_filter_uu ,
+.Nm archive_read_support_filter_xz ,
+.Nm archive_read_support_filter_zstd ,
+.Nm archive_read_support_filter_program ,
+.Nm archive_read_support_filter_program_signature
+.Nd functions for reading streaming archives
+.\"
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive.h
+.Ft int
+.Fn archive_read_support_filter_all "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_bzip2 "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_compress "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_grzip "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_gzip "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_lrzip "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_lz4 "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_lzma "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_lzop "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_none "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_rpm "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_uu "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_xz "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_zstd "struct archive *"
+.Ft int
+.Fo archive_read_support_filter_program
+.Fa "struct archive *"
+.Fa "const char *cmd"
+.Fc
+.Ft int
+.Fo archive_read_support_filter_program_signature
+.Fa "struct archive *"
+.Fa "const char *cmd"
+.Fa "const void *signature"
+.Fa "size_t signature_length"
+.Fc
+.\"
+.Sh DESCRIPTION
+.Bl -tag -compact -width indent
+.It Xo
+.Fn archive_read_support_filter_bzip2 ,
+.Fn archive_read_support_filter_compress ,
+.Fn archive_read_support_filter_grzip ,
+.Fn archive_read_support_filter_gzip ,
+.Fn archive_read_support_filter_lrzip ,
+.Fn archive_read_support_filter_lz4 ,
+.Fn archive_read_support_filter_lzma ,
+.Fn archive_read_support_filter_lzop ,
+.Fn archive_read_support_filter_none ,
+.Fn archive_read_support_filter_rpm ,
+.Fn archive_read_support_filter_uu ,
+.Fn archive_read_support_filter_xz ,
+.Fn archive_read_support_filter_zstd ,
+.Xc
+Enables auto-detection code and decompression support for the
+specified compression.
+These functions may fall back on external programs if an appropriate
+library was not available at build time.
+Decompression using an external program is usually slower than
+decompression through built-in libraries.
+Note that
+.Dq none
+is always enabled by default.
+.It Fn archive_read_support_filter_all
+Enables all available decompression filters.
+.It Fn archive_read_support_filter_program
+Data is fed through the specified external program before being dearchived.
+Note that this disables automatic detection of the compression format,
+so it makes no sense to specify this in conjunction with any other
+decompression option.
+.It Fn archive_read_support_filter_program_signature
+This feeds data through the specified external program
+but only if the initial bytes of the data match the specified
+signature value.
+.El
+.\"
+.\". Sh EXAMPLE
+.\"
+.Sh RETURN VALUES
+These functions return
+.Cm ARCHIVE_OK
+if the compression is fully supported,
+.Cm ARCHIVE_WARN
+if the compression is supported only through an external program.
+.Pp
+.Fn archive_read_support_filter_none
+always succeeds.
+.\"
+.Sh ERRORS
+Detailed error codes and textual descriptions are available from the
+.Fn archive_errno
+and
+.Fn archive_error_string
+functions.
+.\"
+.Sh SEE ALSO
+.Xr libarchive 3 ,
+.Xr archive_read 3 ,
+.Xr archive_read_data 3 ,
+.Xr archive_read_format 3 ,
+.Xr archive_read_format 3

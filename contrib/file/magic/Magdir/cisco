@@ -1,0 +1,12 @@
+
+#------------------------------------------------------------------------------
+# $File: cisco,v 1.4 2009/09/19 16:28:08 christos Exp $
+# cisco:  file(1) magic for cisco Systems routers
+#
+# Most cisco file-formats are covered by the generic elf code
+#
+# Microcode files are non-ELF, 0x8501 conflicts with NetBSD/alpha.
+0	belong&0xffffff00	0x85011400  cisco IOS microcode
+>7	string		>\0		    for '%s'
+0	belong&0xffffff00	0x8501cb00  cisco IOS experimental microcode
+>7	string		>\0		    for '%s'

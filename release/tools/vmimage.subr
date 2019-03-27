@@ -1,0 +1,257 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+#
+# Common functions for virtual machine image build scripts.
+#
+
+scriptdir=$(dirname $(realpath $0))
+. ${scriptdir}/../../tools/boot/install-boot.sh
+
+export PATH="/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+trap "cleanup" INT QUIT TRAP ABRT TERM
+
+write_partition_layout() {
+	if [ -z "${NOSWAP}" ]; then
+		SWAPOPT="-p freebsd-swap/swapfs::${SWAPSIZE}"
+	fi
+
+	BOOTFILES="$(env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		WITH_UNIFIED_OBJDIR=yes \
+		make -C ${WORLDDIR}/stand -V .OBJDIR)"
+	BOOTFILES="$(realpath ${BOOTFILES})"
+
+	case "${TARGET}:${TARGET_ARCH}" in
+		amd64:amd64 | i386:i386)
+			mkimg -s gpt -f ${VMFORMAT} \
+				-b ${BOOTFILES}/i386/pmbr/pmbr \
+				-p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot \
+				${SWAPOPT} \
+				-p freebsd-ufs/rootfs:=${VMBASE} \
+				-o ${VMIMAGE}
+			;;
+		arm64:aarch64)
+			# Create an ESP
+			espfilename=$(mktemp /tmp/efiboot.XXXXXX)
+			make_esp_file ${espfilename} ${fat32min} ${BOOTFILES}/efi/loader_lua/loader_lua.efi
+			mkimg -s mbr -f ${VMFORMAT} \
+				-p efi:=${espfilename} \
+				-p freebsd:=${VMBASE} \
+				-o ${VMIMAGE}
+			rm ${espfilename}
+			;;
+		powerpc:powerpc*)
+			mkimg -s apm -f ${VMFORMAT} \
+				-p apple-boot/bootfs:=${BOOTFILES}/powerpc/boot1.chrp/boot1.hfs \
+				${SWAPOPT} \
+				-p freebsd-ufs/rootfs:=${VMBASE} \
+				-o ${VMIMAGE}
+			;;
+		*)
+			# ENOTSUPP
+			return 1
+			;;
+	esac
+
+	return 0
+}
+
+err() {
+	printf "${@}\n"
+	cleanup
+	return 1
+}
+
+cleanup() {
+	if [ -c "${DESTDIR}/dev/null" ]; then
+		umount_loop ${DESTDIR}/dev 2>/dev/null
+	fi
+	umount_loop ${DESTDIR}
+	if [ ! -z "${mddev}" ]; then
+		mdconfig -d -u ${mddev}
+	fi
+
+	return 0
+}
+
+vm_create_base() {
+	# Creates the UFS root filesystem for the virtual machine disk,
+	# written to the formatted disk image with mkimg(1).
+
+	mkdir -p ${DESTDIR}
+	truncate -s ${VMSIZE} ${VMBASE}
+	mddev=$(mdconfig -f ${VMBASE})
+	newfs -L rootfs /dev/${mddev}
+	mount /dev/${mddev} ${DESTDIR}
+
+	return 0
+}
+
+vm_copy_base() {
+	# Creates a new UFS root filesystem and copies the contents of the
+	# current root filesystem into it.  This produces a "clean" disk
+	# image without any remnants of files which were created temporarily
+	# during image-creation and have since been deleted (e.g., downloaded
+	# package archives).
+
+	mkdir -p ${DESTDIR}/old
+	mdold=$(mdconfig -f ${VMBASE})
+	mount /dev/${mdold} ${DESTDIR}/old
+
+	truncate -s ${VMSIZE} ${VMBASE}.tmp
+	mkdir -p ${DESTDIR}/new
+	mdnew=$(mdconfig -f ${VMBASE}.tmp)
+	newfs -L rootfs /dev/${mdnew}
+	mount /dev/${mdnew} ${DESTDIR}/new
+
+	tar -cf- -C ${DESTDIR}/old . | tar -xUf- -C ${DESTDIR}/new
+
+	umount_loop /dev/${mdold}
+	rmdir ${DESTDIR}/old
+	mdconfig -d -u ${mdold}
+
+	umount_loop /dev/${mdnew}
+	rmdir ${DESTDIR}/new
+	tunefs -n enable /dev/${mdnew}
+	mdconfig -d -u ${mdnew}
+	mv ${VMBASE}.tmp ${VMBASE}
+}
+
+vm_install_base() {
+	# Installs the FreeBSD userland/kernel to the virtual machine disk.
+
+	cd ${WORLDDIR} && \
+		make DESTDIR=${DESTDIR} \
+		installworld installkernel distribution || \
+		err "\n\nCannot install the base system to ${DESTDIR}."
+
+	# Bootstrap etcupdate(8) and mergemaster(8) databases.
+	mkdir -p ${DESTDIR}/var/db/etcupdate
+	etcupdate extract -B \
+		-M "TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}" \
+		-s ${WORLDDIR} -d ${DESTDIR}/var/db/etcupdate
+	sh ${WORLDDIR}/release/scripts/mm-mtree.sh -m ${WORLDDIR} \
+		-F "TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}" \
+		-D ${DESTDIR}
+
+	echo '# Custom /etc/fstab for FreeBSD VM images' \
+		> ${DESTDIR}/etc/fstab
+	echo "/dev/${ROOTLABEL}/rootfs   /       ufs     rw      1       1" \
+		>> ${DESTDIR}/etc/fstab
+	if [ -z "${NOSWAP}" ]; then
+		echo '/dev/gpt/swapfs  none    swap    sw      0       0' \
+			>> ${DESTDIR}/etc/fstab
+	fi
+
+	local hostname
+	hostname="$(echo $(uname -o) | tr '[:upper:]' '[:lower:]')"
+	echo "hostname=\"${hostname}\"" >> ${DESTDIR}/etc/rc.conf
+
+	mkdir -p ${DESTDIR}/dev
+	mount -t devfs devfs ${DESTDIR}/dev
+	chroot ${DESTDIR} /usr/bin/newaliases
+	chroot ${DESTDIR} /etc/rc.d/ldconfig forcestart
+	umount_loop ${DESTDIR}/dev
+
+	cp /etc/resolv.conf ${DESTDIR}/etc/resolv.conf
+
+	return 0
+}
+
+vm_extra_install_base() {
+	# Prototype.  When overridden, runs extra post-installworld commands
+	# as needed, based on the target virtual machine image or cloud
+	# provider image target.
+
+	return 0
+}
+
+vm_extra_enable_services() {
+	if [ ! -z "${VM_RC_LIST}" ]; then
+		for _rcvar in ${VM_RC_LIST}; do
+			echo ${_rcvar}_enable="YES" >> ${DESTDIR}/etc/rc.conf
+		done
+	fi
+
+	if [ -z "${VMCONFIG}" -o -c "${VMCONFIG}" ]; then
+		echo 'ifconfig_DEFAULT="DHCP inet6 accept_rtadv"' >> \
+			${DESTDIR}/etc/rc.conf
+	fi
+
+	return 0
+}
+
+vm_extra_install_packages() {
+	if [ -z "${VM_EXTRA_PACKAGES}" ]; then
+		return 0
+	fi
+	mkdir -p ${DESTDIR}/dev
+	mount -t devfs devfs ${DESTDIR}/dev
+	chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
+		/usr/sbin/pkg bootstrap -y
+	chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
+		/usr/sbin/pkg install -y ${VM_EXTRA_PACKAGES}
+	umount_loop ${DESTDIR}/dev
+
+	return 0
+}
+
+vm_extra_install_ports() {
+	# Prototype.  When overridden, installs additional ports within the
+	# virtual machine environment.
+
+	return 0
+}
+
+vm_extra_pre_umount() {
+	# Prototype.  When overridden, performs additional tasks within the
+	# virtual machine environment prior to unmounting the filesystem.
+	# Note: When overriding this function, removing resolv.conf in the
+	# disk image must be included.
+
+	rm -f ${DESTDIR}/etc/resolv.conf
+	return 0
+}
+
+vm_extra_pkg_rmcache() {
+	if [ -e ${DESTDIR}/usr/local/sbin/pkg ]; then
+		chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
+			/usr/local/sbin/pkg clean -y -a
+	fi
+
+	return 0
+}
+
+umount_loop() {
+	DIR=$1
+	i=0
+	sync
+	while ! umount ${DIR}; do
+		i=$(( $i + 1 ))
+		if [ $i -ge 10 ]; then
+			# This should never happen.  But, it has happened.
+			echo "Cannot umount(8) ${DIR}"
+			echo "Something has gone horribly wrong."
+			return 1
+		fi
+		sleep 1
+	done
+
+	return 0
+}
+
+vm_create_disk() {
+	echo "Creating image...  Please wait."
+	echo
+
+	write_partition_layout || return 1
+
+	return 0
+}
+
+vm_extra_create_disk() {
+
+	return 0
+}
+

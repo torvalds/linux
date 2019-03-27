@@ -1,0 +1,16 @@
+$ $tcsh: set30,v 1.3 2011/02/04 18:19:43 christos Exp $
+$ tw.parse.c
+$set 30 
+1 comienzo_de_comando %d\n
+2 completar %d 
+3 completar %d %S\n
+4 %s: Error interno de concordancia.\n
+5 ítems
+6 filas
+7 Existen %d %s, ¿listarlas de todos modos? [n/s] 
+8 buscando = %d\n
+9 \nerror interno de tcsh: ¡No sé lo que busco!\n
+10 no es un directorio
+11 no he encontrado nada
+12 ilegible
+13 sSyY

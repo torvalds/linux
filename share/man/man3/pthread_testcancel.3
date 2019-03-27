@@ -1,0 +1,259 @@
+.\" $FreeBSD$
+.Dd March 18, 2017
+.Dt PTHREAD_TESTCANCEL 3
+.Os
+.Sh NAME
+.Nm pthread_setcancelstate ,
+.Nm pthread_setcanceltype ,
+.Nm pthread_testcancel
+.Nd set cancelability state
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_setcancelstate "int state" "int *oldstate"
+.Ft int
+.Fn pthread_setcanceltype "int type" "int *oldtype"
+.Ft void
+.Fn pthread_testcancel "void"
+.Sh DESCRIPTION
+The
+.Fn pthread_setcancelstate
+function atomically both sets the calling thread's cancelability state
+to the indicated
+.Fa state
+and, if
+.Fa oldstate
+is not
+.Dv NULL ,
+returns the previous cancelability state at the location referenced by
+.Fa oldstate .
+Legal values for
+.Fa state
+are
+.Dv PTHREAD_CANCEL_ENABLE
+and
+.Dv PTHREAD_CANCEL_DISABLE .
+.Pp
+The
+.Fn pthread_setcanceltype
+function atomically both sets the calling thread's cancelability type
+to the indicated
+.Fa type
+and, if
+.Fa oldtype
+is not
+.Dv NULL ,
+returns the previous cancelability type at the location referenced by
+.Fa oldtype .
+Legal values for
+.Fa type
+are
+.Dv PTHREAD_CANCEL_DEFERRED
+and
+.Dv PTHREAD_CANCEL_ASYNCHRONOUS .
+.Pp
+The cancelability state and type of any newly created threads, including the
+thread in which
+.Fn main
+was first invoked, are
+.Dv PTHREAD_CANCEL_ENABLE
+and
+.Dv PTHREAD_CANCEL_DEFERRED
+respectively.
+.Pp
+The
+.Fn pthread_testcancel
+function creates a cancellation point in the calling thread.
+The
+.Fn pthread_testcancel
+function has no effect if cancelability is disabled.
+.Pp
+.Ss Cancelability States
+The cancelability state of a thread determines the action taken upon
+receipt of a cancellation request.
+The thread may control cancellation in
+a number of ways.
+.Pp
+Each thread maintains its own
+.Dq cancelability state
+which may be encoded in two bits:
+.Bl -hang
+.It Em Cancelability Enable
+When cancelability is
+.Dv PTHREAD_CANCEL_DISABLE ,
+cancellation requests against the target thread are held pending.
+.It Em Cancelability Type
+When cancelability is enabled and the cancelability type is
+.Dv PTHREAD_CANCEL_ASYNCHRONOUS ,
+new or pending cancellation requests may be acted upon at any time.
+When cancelability is enabled and the cancelability type is
+.Dv PTHREAD_CANCEL_DEFERRED ,
+cancellation requests are held pending until a cancellation point (see
+below) is reached.
+If cancelability is disabled, the setting of the
+cancelability type has no immediate effect as all cancellation requests
+are held pending; however, once cancelability is enabled again the new
+type will be in effect.
+.El
+.Ss Cancellation Points
+Cancellation points will occur when a thread is executing the following
+functions:
+.Bl -tag -width "Fn pthread_cond_timedwait" -compact
+.It Fn accept
+.It Fn accept4
+.It Fn aio_suspend
+.It Fn connect
+.It Fn clock_nanosleep
+.It Fn close
+.It Fn creat
+.It Fn fcntl
+The
+.Fn fcntl
+function is a cancellation point if
+.Fa cmd
+is
+.Dv F_SETLKW .
+.It Fn fdatasync
+.It Fn fsync
+.It Fn kevent
+The
+.Fn kevent
+function is a cancellation point if it is potentially blocking,
+such as when the
+.Fa nevents
+argument is non-zero.
+.It Fn mq_receive
+.It Fn mq_send
+.It Fn mq_timedreceive
+.It Fn mq_timedsend
+.It Fn msync
+.It Fn nanosleep
+.It Fn open
+.It Fn openat
+.It Fn pause
+.It Fn poll
+.It Fn ppoll
+.It Fn pselect
+.It Fn pthread_cond_timedwait
+.It Fn pthread_cond_wait
+.It Fn pthread_join
+.It Fn pthread_testcancel
+.It Fn read
+.It Fn readv
+.It Fn recv
+.It Fn recvfrom
+.It Fn recvmsg
+.It Fn select
+.It Fn sem_timedwait
+.It Fn sem_clockwait_np
+.It Fn sem_wait
+.It Fn send
+.It Fn sendmsg
+.It Fn sendto
+.It Fn sigsuspend
+.It Fn sigtimedwait
+.It Fn sigwaitinfo
+.It Fn sigwait
+.It Fn sleep
+.It Fn system
+.It Fn tcdrain
+.It Fn usleep
+.It Fn wait
+.It Fn wait3
+.It Fn wait4
+.It Fn wait6
+.It Fn waitid
+.It Fn waitpid
+.It Fn write
+.It Fn writev
+.El
+.Sh NOTES
+The
+.Fn pthread_setcancelstate
+and
+.Fn pthread_setcanceltype
+functions are used to control the points at which a thread may be
+asynchronously canceled.
+For cancellation control to be usable in modular
+fashion, some rules must be followed.
+.Pp
+For purposes of this discussion, consider an object to be a generalization
+of a procedure.
+It is a set of procedures and global variables written as
+a unit and called by clients not known by the object.
+Objects may depend
+on other objects.
+.Pp
+First, cancelability should only be disabled on entry to an object, never
+explicitly enabled.
+On exit from an object, the cancelability state should
+always be restored to its value on entry to the object.
+.Pp
+This follows from a modularity argument: if the client of an object (or the
+client of an object that uses that object) has disabled cancelability, it is
+because the client does not want to have to worry about how to clean up if the
+thread is canceled while executing some sequence of actions.
+If an object
+is called in such a state and it enables cancelability and a cancellation
+request is pending for that thread, then the thread will be canceled,
+contrary to the wish of the client that disabled.
+.Pp
+Second, the cancelability type may be explicitly set to either
+.Em deferred
+or
+.Em asynchronous
+upon entry to an object.
+But as with the cancelability state, on exit from
+an object that cancelability type should always be restored to its value on
+entry to the object.
+.Pp
+Finally, only functions that are cancel-safe may be called from a thread that
+is asynchronously cancelable.
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_setcancelstate
+and
+.Fn pthread_setcanceltype
+functions will return zero.
+Otherwise, an error number shall be returned to
+indicate the error.
+.Sh ERRORS
+The function
+.Fn pthread_setcancelstate
+may fail with:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The specified state is not
+.Dv PTHREAD_CANCEL_ENABLE
+or
+.Dv PTHREAD_CANCEL_DISABLE .
+.El
+.Pp
+The function
+.Fn pthread_setcanceltype
+may fail with:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The specified state is not
+.Dv PTHREAD_CANCEL_DEFERRED
+or
+.Dv PTHREAD_CANCEL_ASYNCHRONOUS .
+.El
+.Sh SEE ALSO
+.Xr pthread_cancel 3
+.Sh STANDARDS
+The
+.Fn pthread_testcancel
+function conforms to
+.St -p1003.1-96 .
+The standard allows implementations to make many more functions
+cancellation points.
+.Sh AUTHORS
+This manual page was written by
+.An David Leonard Aq Mt d@openbsd.org
+for the
+.Ox
+implementation of
+.Xr pthread_cancel 3 .

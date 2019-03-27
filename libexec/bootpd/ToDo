@@ -1,0 +1,61 @@
+ToDo:							-*- text -*-
+
+----------------------------------------------------------------------
+Memory allocation locality:
+
+Currently mallocs memory in a very haphazard manner.  As such, most of
+the program ends up core-resident all the time just to follow all the
+stupid pointers around. . . .
+
+----------------------------------------------------------------------
+Input parser:
+
+The reader implemented in readfile.c could use improvement.  Some sort
+of "data-driven" parser should be used so the big switch statements
+would have only one case for each data type instead of one case for
+every recognized option symbol.  Then adding a new tag would involve
+only adding a new element to the data table describing known symbols.
+Hopefully, this would shrink the code a bit too. -gwr
+
+----------------------------------------------------------------------
+SLIP Initialization via BOOTP:
+
+In the function handle_request(), both in bootpd and bootpgw,
+we might want to add code like the following just before testing
+the client IP address field for zero. (bp->bp_ciaddr == 0)
+(David suggests we leave this out for now. -gwr)
+
+#if 1	/* XXX - Experimental */
+	/*
+	 * SLIP initialization support.
+	 *
+	 * If this packet came from a SLIP driver that does
+	 * automatic IP address initialization, then the socket
+	 * will have the IP address and the packet will
+	 * have zeros for both the IP and HW addresses.
+	 *
+	 * Thanks to David P. Maynard <dpm@depend.com>
+	 * for explaining how this works. -gwr
+	 */
+	if ((bp->bp_ciaddr.s_addr == 0) &&
+		(bp->bp_htype == 0))
+	{
+		/* Pretend the client knows its address.  It will soon. */
+		bp->bp_ciaddr = recv_addr.sin_addr;
+		if (debug)
+			report(LOG_INFO, "fixed blank request from IP addr %s",
+				   inet_ntoa(recv_addr.sin_addr));
+	}
+#endif
+
+----------------------------------------------------------------------
+DHCP Support:
+
+There is a set of patches from Jeanette Pauline Middelink
+<middelin@calvin.polyware.iaf.nl> to add DHCP support.
+
+Those patches will be integrated into the BOOTP release stream
+very soon, but if you can't wait, you can get them from:
+nimbus.anu.edu.au:/pub/tridge/samba/contributed/DHCP.patch
+
+----------------------------------------------------------------------

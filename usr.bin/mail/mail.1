@@ -1,0 +1,1273 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mail.1	8.8 (Berkeley) 4/28/95
+.\" $FreeBSD$
+.\"
+.Dd August 8, 2018
+.Dt MAIL 1
+.Os
+.Sh NAME
+.Nm mail ,
+.Nm Mail ,
+.Nm mailx
+.Nd send and receive mail
+.Sh SYNOPSIS
+.Nm
+.Op Fl dEiInv
+.Op Fl s Ar subject
+.Op Fl c Ar cc-addr
+.Op Fl b Ar bcc-addr
+.Op Fl F
+.Ar to-addr ...
+.Op Fl Ar sendmail-option ...
+.Nm
+.Op Fl dEHiInNv
+.Op Fl F
+.Fl f
+.Op Ar name
+.Nm
+.Op Fl dEHiInNv
+.Op Fl F
+.Op Fl u Ar user
+.Nm
+.Op Fl d
+.Fl e
+.Op Fl f Ar name
+.Sh INTRODUCTION
+The
+.Nm
+utility is an intelligent mail processing system, which has
+a command syntax reminiscent of
+.Xr ed 1
+with lines replaced by messages.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl v
+Verbose mode.
+The details of
+delivery are displayed on the user's terminal.
+.It Fl d
+Debugging mode.
+See the
+.Va debug
+mail option for details.
+.It Fl e
+Test for the presence of mail in the (by default, system)
+mailbox.
+An exit status of 0 is returned if
+it has mail; otherwise, an exit status
+of 1 is returned.
+.It Fl H
+Write a header summary only, then exit.
+.It Fl E
+Do not send messages with an empty body.
+This is useful for piping errors from
+.Xr cron 8
+scripts.
+.It Fl i
+Ignore tty interrupt signals.
+This is
+particularly useful when using
+.Nm
+on noisy phone lines.
+.It Fl I
+Force
+.Nm
+to run in interactive mode even when
+input is not a terminal.
+In particular, the
+.Ql ~
+special
+character when sending mail is only active in interactive mode.
+.It Fl n
+Inhibit reading the system-wide
+.Pa mail.rc
+files upon startup.
+.It Fl N
+Inhibit the initial display of message headers
+when reading mail or editing a mail folder.
+.It Fl s Ar subject
+Specify
+.Ar subject
+on command line.
+(Only the first argument after the
+.Fl s
+flag is used as a subject; be careful to quote subjects
+containing spaces.)
+.It Fl c Ar cc-addr
+Send carbon copies to
+.Ar cc-addr
+list of users.
+The
+.Ar cc-addr
+argument should be a comma-separated list of names.
+.It Fl b Ar bcc-addr
+Send blind carbon copies to
+.Ar bcc-addr
+list of users.
+The
+.Ar bcc-addr
+argument should be a comma-separated list of names.
+.It Fl f Op Ar mbox
+Read in the contents of your
+.Pa mbox
+(or the specified file)
+for processing; when you
+.Ic quit ,
+.Nm
+writes undeleted messages back to this file.
+.It Fl F
+Record the message in a file named after the first
+recipient.
+The name is the login-name portion of the
+address found first on the
+.Dq Li To:
+line in the mail header.
+Overrides the
+.Va record
+variable, if set.
+.It Fl u Ar user
+Is equivalent to:
+.Pp
+.Dl "mail -f /var/mail/user"
+.El
+.Ss "Startup Actions"
+At startup time
+.Nm
+will execute commands in the system command files
+.Pa /usr/share/misc/mail.rc ,
+.Pa /usr/local/etc/mail.rc
+and
+.Pa /etc/mail.rc
+in order, unless explicitly told not to by the use of the
+.Fl n
+option.
+Next, the commands in the user's personal command file
+.Pa ~/.mailrc
+are executed.
+The
+.Nm
+utility then examines its command line options to determine whether a
+new message is to be sent, or whether an existing mailbox is to
+be read.
+.Ss "Sending Mail"
+To send a message to one or more people,
+.Nm
+can be invoked with arguments which are the names of people to
+whom the mail will be sent.
+You are then expected to type in
+your message, followed
+by a
+.Aq Li control-D
+at the beginning of a line.
+The section below
+.Sx "Replying To or Originating Mail" ,
+describes some features of
+.Nm
+available to help you compose your letter.
+.Ss "Reading Mail"
+In normal usage
+.Nm
+is given no arguments and checks your mail out of the
+post office, then
+prints out a one line header of each message found.
+The current message is initially the first message (numbered 1)
+and can be printed using the
+.Ic print
+command (which can be abbreviated
+.Ic p ) .
+You can move among the messages much as you move between lines in
+.Xr ed 1 ,
+with the commands
+.Ic +
+and
+.Ic \-
+moving backwards and forwards, and
+simple numbers.
+.Ss "Disposing of Mail"
+After examining a message you can
+.Ic delete
+.Pq Ic d
+the message or
+.Ic reply
+.Pq Ic r
+to it.
+Deletion causes the
+.Nm
+program to forget about the message.
+This is not irreversible; the message can be
+.Ic undeleted
+.Pq Ic u
+by giving its number, or the
+.Nm
+session can be aborted by giving the
+.Ic exit
+.Pq Ic x
+command.
+Deleted messages will, however, usually disappear never to be seen again.
+.Ss "Specifying Messages"
+Commands such as
+.Ic print
+and
+.Ic delete
+can be given a list of message numbers as arguments to apply
+to a number of messages at once.
+Thus
+.Dq Li "delete 1 2"
+deletes messages 1 and 2, while
+.Dq Li "delete 1\-5"
+deletes messages 1 through 5.
+The special name
+.Ql *
+addresses all messages, and
+.Ql $
+addresses
+the last message; thus the command
+.Ic top
+which prints the first few lines of a message could be used in
+.Dq Li "top *"
+to print the first few lines of all messages.
+.Ss "Replying To or Originating Mail"
+You can use the
+.Ic reply
+command to
+set up a response to a message, sending it back to the
+person who it was from.
+Text you then type in, up to an end-of-file,
+defines the contents of the message.
+While you are composing a message,
+.Nm
+treats lines beginning with the character
+.Ql ~
+specially.
+For instance, typing
+.Ic ~m
+(alone on a line) will place a copy
+of the current message into the response right shifting it by a tabstop
+(see
+.Va indentprefix
+variable, below).
+Other escapes will set up subject fields, add and delete recipients
+to the message and allow you to escape to an editor to revise the
+message or to a shell to run some commands.
+(These options
+are given in the summary below.)
+.Ss "Ending a Mail Processing Session"
+You can end a
+.Nm
+session with the
+.Ic quit
+.Pq Ic q
+command.
+Messages which have been examined go to your
+.Pa mbox
+file unless they have been deleted in which case they are discarded.
+Unexamined messages go back to the post office.
+(See the
+.Fl f
+option above).
+.Ss "Personal and System Wide Distribution Lists"
+It is also possible to create a personal distribution lists so that,
+for instance, you can send mail to
+.Dq Li cohorts
+and have it go
+to a group of people.
+Such lists can be defined by placing a line like
+.Pp
+.Dl "alias cohorts bill ozalp jkf mark kridle@ucbcory"
+.Pp
+in the file
+.Pa .mailrc
+in your home directory.
+The current list of such aliases can be displayed with the
+.Ic alias
+command in
+.Nm .
+System wide distribution lists can be created by editing
+.Pa /etc/mail/aliases ,
+see
+.Xr aliases 5
+and
+.Xr sendmail 8 ;
+these are kept in a different syntax.
+In mail you send, personal aliases will be expanded in mail sent
+to others so that they will be able to
+.Ic reply
+to the recipients.
+System wide
+aliases
+are not expanded when the mail is sent,
+but any reply returned to the machine will have the system wide
+alias expanded as all mail goes through
+.Xr sendmail 8 .
+.Ss "Network Mail (ARPA, UUCP, Berknet)"
+.Pp
+The
+.Nm
+utility has a number of options which can be set in the
+.Pa .mailrc
+file to alter its behavior; thus
+.Dq Li "set askcc"
+enables the
+.Va askcc
+feature.
+(These options are summarized below.)
+.Sh SUMMARY
+(Adapted from the
+.%T "Mail Reference Manual" . )
+.Pp
+Each command is typed on a line by itself, and may take arguments
+following the command word.
+The command need not be typed in its
+entirety \(em the first command which matches the typed prefix is used.
+For commands which take message lists as arguments, if no message
+list is given, then the next message forward which satisfies the
+command's requirements is used.
+If there are no messages forward of
+the current message, the search proceeds backwards, and if there are no
+good messages at all,
+.Nm
+types
+.Dq Li "No applicable messages"
+and
+aborts the command.
+.Bl -tag -width indent
+.It Ic \-
+Print out the preceding message.
+If given a numeric
+argument
+.Ar n ,
+goes to the
+.Ar n Ns 'th
+previous message and prints it.
+.It Ic #
+ignore the remainder of the line as a comment.
+.It Ic \&?
+Prints a brief summary of commands.
+.It Ic \&!
+Executes the shell
+(see
+.Xr sh 1
+and
+.Xr csh 1 )
+command which follows.
+.It Ic Print
+.Pq Ic P
+Like
+.Ic print
+but also prints out ignored header fields.
+See also
+.Ic print , ignore
+and
+.Ic retain .
+.It Ic Reply
+.Pq Ic R
+Reply to originator.
+Does not reply to other
+recipients of the original message.
+.It Ic Type
+.Pq Ic T
+Identical to the
+.Ic Print
+command.
+.It Ic alias
+.Pq Ic a
+With no arguments, prints out all currently-defined aliases.
+With one
+argument, prints out that alias.
+With more than one argument, creates
+a new alias or changes an old one.
+.It Ic alternates
+.Pq Ic alt
+The
+.Ic alternates
+command is useful if you have accounts on several machines.
+It can be used to inform
+.Nm
+that the listed addresses are really you.
+When you
+.Ic reply
+to messages,
+.Nm
+will not send a copy of the message to any of the addresses
+listed on the
+.Ic alternates
+list.
+If the
+.Ic alternates
+command is given with no argument, the current set of alternative
+names is displayed.
+.It Ic chdir
+.Pq Ic c
+Changes the user's working directory to that specified, if given.
+If
+no directory is given, then changes to the user's login directory.
+.It Ic copy
+.Pq Ic co
+The
+.Ic copy
+command does the same thing that
+.Ic save
+does, except that it does not mark the messages it
+is used on for deletion when you
+.Ic quit .
+.It Ic delete
+.Pq Ic d
+Takes a list of messages as argument and marks them all as deleted.
+Deleted messages will not be saved in
+.Pa mbox ,
+nor will they be available for most other commands.
+.It Ic dp
+(also
+.Ic dt )
+Deletes the current message and prints the next message.
+If there is no next message,
+.Nm
+says
+.Dq Li "at EOF" .
+.It Ic edit
+.Pq Ic e
+Takes a list of messages and points the text editor at each one in
+turn.
+On return from the editor, the message is read back in.
+.It Ic exit
+.Ic ( ex
+or
+.Ic x )
+Effects an immediate return to the shell without
+modifying the user's system mailbox, his
+.Pa mbox
+file, or his edit file in
+.Fl f .
+.It Ic file
+.Pq Ic fi
+The same as
+.Ic folder .
+.It Ic folders
+List the names of the folders in your folder directory.
+.It Ic folder
+.Pq Ic fo
+The
+.Ic folder
+command switches to a new mail file or folder.
+With no
+arguments, it tells you which file you are currently reading.
+If you give it an argument, it will write out changes (such
+as deletions) you have made in the current file and read in
+the new file.
+Some special conventions are recognized for
+the name.
+.Ql #
+means the previous file,
+.Ql %
+means your system mailbox,
+.Dq Li % Ns Ar user
+means user's system mailbox,
+.Ql &
+means your
+.Pa mbox
+file, and
+.Dq Li + Ns Ar folder
+means a file in your folder
+directory.
+.It Ic from
+.Pq Ic f
+Takes a list of messages and prints their message headers.
+.It Ic headers
+.Pq Ic h
+Lists the current range of headers, which is an 18-message group.
+If
+a
+.Ql +
+argument is given, then the next 18-message group is printed, and if
+a
+.Ql \-
+argument is given, the previous 18-message group is printed.
+.It Ic help
+A synonym for
+.Ic \&? .
+.It Ic hold
+.Ic ( ho ,
+also
+.Ic preserve )
+Takes a message list and marks each
+message therein to be saved in the
+user's system mailbox instead of in
+.Pa mbox .
+Does not override the
+.Ic delete
+command.
+.It Ic ignore
+Add the list of header fields named to the
+.Ar ignored list .
+Header fields in the ignore list are not printed
+on your terminal when you print a message.
+This
+command is very handy for suppression of certain machine-generated
+header fields.
+The
+.Ic Type
+and
+.Ic Print
+commands can be used to print a message in its entirety, including
+ignored fields.
+If
+.Ic ignore
+is executed with no arguments, it lists the current set of
+ignored fields.
+.It Ic inc
+Incorporate any new messages that have arrived while mail
+is being read.
+The new messages are added to the end of the message list,
+and the current message is reset to be the first new mail message.
+This does not renumber the existing message list, nor
+does it cause any changes made so far to be saved.
+.It Ic mail
+.Pq Ic m
+Takes as argument login names and distribution group names and sends
+mail to those people.
+.It Ic mbox
+Indicate that a list of messages be sent to
+.Pa mbox
+in your home directory when you quit.
+This is the default
+action for messages if you do
+.Em not
+have the
+.Ic hold
+option set.
+.It Ic more
+.Pq Ic mo
+Takes a list of messages and invokes the pager on that list.
+.It Ic next
+.Ic ( n ,
+like
+.Ic +
+or
+.Tn CR )
+Goes to the next message in sequence and types it.
+With an argument list, types the next matching message.
+.It Ic preserve
+.Pq Ic pre
+A synonym for
+.Ic hold .
+.It Ic print
+.Pq Ic p
+Takes a message list and types out each message on the user's terminal.
+.It Ic quit
+.Pq Ic q
+Terminates the session, saving all undeleted, unsaved messages in
+the user's
+.Pa mbox
+file in his login directory, preserving all messages marked with
+.Ic hold
+or
+.Ic preserve
+or never referenced
+in his system mailbox, and removing all other messages from his system
+mailbox.
+If new mail has arrived during the session, the message
+.Dq Li "You have new mail"
+is given.
+If given while editing a
+mailbox file with the
+.Fl f
+flag, then the edit file is rewritten.
+A return to the shell is
+effected, unless the rewrite of edit file fails, in which case the user
+can escape with the
+.Ic exit
+command.
+.It Ic reply
+.Pq Ic r
+Takes a message list and sends mail to the sender and all
+recipients of the specified message.
+The default message must not be deleted.
+.It Ic respond
+A synonym for
+.Ic reply .
+.It Ic retain
+Add the list of header fields named to the
+.Em "retained list" .
+Only the header fields in the retained list
+are shown on your terminal when you print a message.
+All other header fields are suppressed.
+The
+.Ic type
+and
+.Ic print
+commands can be used to print a message in its entirety.
+If
+.Ic retain
+is executed with no arguments, it lists the current set of
+retained fields.
+.It Ic save
+.Pq Ic s
+Takes a message list and a filename and appends each message in
+turn to the end of the file.
+The filename in quotes, followed by the line
+count and character count is echoed on the user's terminal.
+.It Ic set
+.Pq Ic se
+With no arguments, prints all variable values.
+Otherwise, sets
+option.
+Arguments are of the form
+.Ar option Ns Li = Ns Ar value
+(no space before or after
+.Ql = )
+or
+.Ar option .
+Quotation marks may be placed around any part of the assignment statement to
+quote blanks or tabs, i.e.\&
+.Dq Li "set indentprefix=\*q->\*q"
+.It Ic saveignore
+.Ic Saveignore
+is to
+.Ic save
+what
+.Ic ignore
+is to
+.Ic print
+and
+.Ic type .
+Header fields thus marked are filtered out when
+saving a message by
+.Ic save
+or when automatically saving to
+.Pa mbox .
+.It Ic saveretain
+.Ic Saveretain
+is to
+.Ic save
+what
+.Ic retain
+is to
+.Ic print
+and
+.Ic type .
+Header fields thus marked are the only ones saved
+with a message when saving by
+.Ic save
+or when automatically saving to
+.Pa mbox .
+.Ic Saveretain
+overrides
+.Ic saveignore .
+.It Ic shell
+.Pq Ic sh
+Invokes an interactive version of the shell.
+.It Ic size
+Takes a message list and prints out the size in characters of each
+message.
+.It Ic source
+The
+.Ic source
+command reads
+commands from a file.
+.It Ic top
+Takes a message list and prints the top few lines of each.
+The number of
+lines printed is controlled by the variable
+.Va toplines
+and defaults to 5.
+.It Ic type
+.Pq Ic t
+A synonym for
+.Ic print .
+.It Ic unalias
+Takes a list of names defined by
+.Ic alias
+commands and discards the remembered groups of users.
+The group names
+no longer have any significance.
+.It Ic undelete
+.Pq Ic u
+Takes a message list and marks each message as
+.Em not
+being deleted.
+.It Ic unread
+.Pq Ic U
+Takes a message list and marks each message as
+.Em not
+having been read.
+.It Ic unset
+Takes a list of option names and discards their remembered values;
+the inverse of
+.Ic set .
+.It Ic visual
+.Pq Ic v
+Takes a message list and invokes the display editor on each message.
+.It Ic write
+.Pq Ic w
+Similar to
+.Ic save ,
+except that
+.Em only
+the message body
+.Em ( without
+the header) is saved.
+Extremely useful for such tasks as sending and receiving source
+program text over the message system.
+.It Ic xit
+.Pq Ic x
+A synonym for
+.Ic exit .
+.It Ic z
+The
+.Nm
+utility presents message headers in windowfuls as described under the
+.Ic headers
+command.
+You can move
+.Nm Ns 's
+attention forward to the next window with the
+.Ic z
+command.
+Also, you can move to the previous window by using
+.Ic z\- .
+.El
+.Ss Tilde/Escapes
+Here is a summary of the tilde escapes,
+which are used when composing messages to perform
+special functions.
+Tilde escapes are only recognized at the beginning
+of lines.
+The name
+.Dq "tilde escape"
+is somewhat of a misnomer since the actual escape character can be set
+by the option
+.Va escape .
+.Bl -tag -width indent
+.It Ic ~a
+Inserts the autograph string from the sign= option into the message.
+.It Ic ~A
+Inserts the autograph string from the Sign= option into the message.
+.It Ic ~b Ar name ...
+Add the given names to the list of carbon copy recipients but do not make
+the names visible in the Cc: line
+.Dq ( blind
+carbon copy).
+.It Ic ~c Ar name ...
+Add the given names to the list of carbon copy recipients.
+.It Ic ~d
+Read the file
+.Pa dead.letter
+from your home directory into the message.
+.It Ic ~e
+Invoke the text editor on the message collected so far.
+After the
+editing session is finished, you may continue appending text to the
+message.
+.It Ic ~f Ar messages
+Read the named messages into the message being sent.
+If no messages are specified, read in the current message.
+Message headers currently being ignored (by the
+.Ic ignore
+or
+.Ic retain
+command) are not included.
+.It Ic ~F Ar messages
+Identical to
+.Ic ~f ,
+except all message headers are included.
+.It Ic ~h
+Edit the message header fields by typing each one in turn and allowing
+the user to append text to the end or modify the field by using the
+current terminal erase and kill characters.
+.It Ic ~i Ar string
+Inserts the value of the named option into the text of the message.
+.It Ic ~m Ar messages
+Read the named messages into the message being sent, indented by a
+tab or by the value of
+.Va indentprefix .
+If no messages are specified,
+read the current message.
+Message headers currently being ignored (by the
+.Ic ignore
+or
+.Ic retain
+command) are not included.
+.It Ic ~M Ar messages
+Identical to
+.Ic ~m ,
+except all message headers are included.
+.It Ic ~p
+Print out the message collected so far, prefaced by the message header
+fields.
+.It Ic ~q
+Abort the message being sent, copying the message to
+.Pa dead.letter
+in your home directory if
+.Va save
+is set.
+.It Ic ~r Ar filename , Ic ~r Li \&! Ns Ar command
+.It Ic ~< Ar filename , Ic ~< Li \&! Ns Ar command
+Read the named file into the message.
+If the argument begins with a
+.Ql \&! ,
+the rest of the string is taken as an arbitrary system command and is
+executed, with the standard output inserted into the message.
+.It Ic ~R Ar string
+Use
+.Ar string
+as the Reply-To field.
+.It Ic ~s Ar string
+Cause the named string to become the current subject field.
+.It Ic ~t Ar name ...
+Add the given names to the direct recipient list.
+.It Ic ~v
+Invoke an alternative editor (defined by the
+.Ev VISUAL
+environment variable) on the
+message collected so far.
+Usually, the alternative editor will be a
+screen editor.
+After you quit the editor, you may resume appending
+text to the end of your message.
+.It Ic ~w Ar filename
+Write the message onto the named file.
+.It Ic ~x
+Exits as with
+.Ic ~q ,
+except the message is not saved in
+.Pa dead.letter .
+.It Ic ~! Ar command
+Execute the indicated shell command, then return to the message.
+.It Ic ~| Ar command , Ic ~^ Ar command
+Pipe the message through the command as a filter.
+If the command gives
+no output or terminates abnormally, retain the original text of the
+message.
+The command
+.Xr fmt 1
+is often used as
+.Ar command
+to rejustify the message.
+.It Ic ~: Ar mail-command , Ic ~_ Ar mail-command
+Execute the given
+.Nm
+command.
+Not all commands, however, are allowed.
+.It Ic ~.
+Simulate end-of-file on input.
+.It Ic ~?
+Print a summary of the available command escapes.
+.It Ic ~~ Ar string
+Insert the string of text in the message prefaced by a single
+.Ql ~ .
+If
+you have changed the escape character, then you should double
+that character in order to send it.
+.El
+.Ss "Mail Options"
+Options can be set with the
+.Ic set
+command
+and can be disabled with the
+.Ic unset
+or
+.Ic set Cm no Ns Ar name
+commands.
+Options may be either binary, in which case it is only
+significant to see whether they are set or not; or string, in which
+case the actual value is of interest.
+If an option is not set,
+.Nm
+will look for an environment variable of the same name.
+The available options include the following:
+.Bl -tag -width indent
+.It Va append
+Causes messages saved in
+.Pa mbox
+to be appended to the end rather than prepended.
+This should always be set (preferably in one of the system-wide
+.Pa mail.rc
+files).
+Default is
+.Va noappend .
+.It Va ask , asksub
+Causes
+.Nm
+to prompt you for the subject of each message you send.
+If
+you respond with simply a newline, no subject field will be sent.
+Default is
+.Va asksub .
+.It Va askbcc
+Causes you to be prompted for additional blind carbon copy recipients at the
+end of each message.
+Responding with a newline indicates your
+satisfaction with the current list.
+Default is
+.Va noaskbcc .
+.It Va askcc
+Causes you to be prompted for additional carbon copy recipients at the
+end of each message.
+Responding with a newline indicates your
+satisfaction with the current list.
+Default is
+.Va noaskcc .
+.It Va autoinc
+Causes new mail to be automatically incorporated when it arrives.
+Setting this is similar to issuing the
+.Ic inc
+command at each prompt, except that the current message is not
+reset when new mail arrives.
+Default is
+.Va noautoinc .
+.It Va autoprint
+Causes the
+.Ic delete
+command to behave like
+.Ic dp ;
+thus, after deleting a message, the next one will be typed
+automatically.
+Default is
+.Va noautoprint .
+.It Va crt
+The valued option
+.Va crt
+is used as a threshold to determine how long a message must
+be before
+.Ev PAGER
+is used to read it.
+If
+.Va crt
+is set without a value,
+then the height of the terminal screen stored in the system
+is used to compute the threshold (see
+.Xr stty 1 ) .
+Default is
+.Va nocrt .
+.It Va debug
+Setting the binary option
+.Va debug
+is the same as specifying
+.Fl d
+on the command line and causes
+.Nm
+to output all sorts of information useful for debugging
+.Nm .
+In case
+.Nm
+is invoked in this mode to send mail, all preparations
+will be performed and reported about, but the mail will
+not be actually sent.
+Default is
+.Va nodebug .
+.It Va dot
+The binary option
+.Va dot
+causes
+.Nm
+to interpret a period alone on a line as the terminator
+of a message you are sending.
+Default is
+.Va nodot .
+.It Va escape
+If defined, the first character of this option gives the character to
+use in place of
+.Ql ~
+to denote escapes.
+.It Va flipr
+Reverses the sense of
+.Ic reply
+and
+.Ic Reply
+commands.
+Default is
+.Va noflipr .
+.It Va folder
+The name of the directory to use for storing folders of
+messages.
+If this name begins with a
+.Ql / ,
+.Nm
+considers it to be an absolute pathname; otherwise, the
+folder directory is found relative to your home directory.
+.It Va header
+If defined, initially display message headers when reading mail or
+editing a mail folder.
+Default is
+.Va header .
+This option can be disabled by giving the
+.Fl N
+flag on the command line.
+.It Va hold
+This option is used to hold messages in the system mailbox
+by default.
+Default is
+.Va nohold .
+.It Va ignore
+Causes interrupt signals from your terminal to be ignored and echoed as
+.Li @ Ns 's.
+Default is
+.Va noignore .
+.It Va ignoreeof
+An option related to
+.Va dot
+is
+.Va ignoreeof
+which makes
+.Nm
+refuse to accept a
+.Aq Li control-D
+as the end of a message.
+.Ar Ignoreeof
+also applies to
+.Nm
+command mode.
+Default is
+.Va noignoreeof .
+.It Va indentprefix
+String used by the
+.Ic ~m
+tilde escape for indenting messages, in place of
+the normal tab character
+.Pq Li ^I .
+Be sure to quote the value if it contains
+spaces or tabs.
+.It Va metoo
+Usually, when a group is expanded that contains the sender, the sender
+is removed from the expansion.
+Setting this option causes the sender
+to be included in the group.
+Default is
+.Va nometoo .
+.It Va quiet
+Suppresses the printing of the version when first invoked.
+Default is
+.Va noquiet .
+.It Va record
+If defined, gives the pathname of the file used to record all outgoing
+mail.
+If not defined, outgoing mail is not saved.
+Default is
+.Va norecord .
+.It Va Replyall
+Reverses the sense of
+.Ic reply
+and
+.Ic Reply
+commands.
+Default is
+.Va noReplyall .
+.It Va save
+If this option is set, and you abort a message with two
+.Tn RUBOUT
+(erase or delete),
+.Nm
+will copy the partial letter to the file
+.Pa dead.letter
+in your home directory.
+Default is
+.Va save .
+.It Va searchheaders
+If this option is set, then a message-list specifier in the form
+.Dq Li / Ns Ar x Ns : Ns Ar y
+will expand to all messages containing the substring
+.Ar y
+in the header field
+.Ar x .
+The string search is case insensitive.
+If
+.Ar x
+is omitted, it will default to the
+.Dq Li Subject
+header field.
+The form
+.Dq Li /to: Ns Ar y
+is a special case, and will expand
+to all messages containing the substring
+.Ar y
+in the
+.Dq Li To ,
+.Dq Li Cc
+or
+.Dq Li Bcc
+header fields.
+The check for
+.Qq Li "to"
+is case sensitive, so that
+.Dq Li /To: Ns Ar y
+can be used to limit the search for
+.Ar y
+to just the
+.Dq Li To:
+field.
+Default is
+.Va nosearchheaders .
+.It Va toplines
+If defined, gives the number of lines of a message to be printed out
+with the
+.Ic top
+command; normally, the first five lines are printed.
+.It Va verbose
+Setting the option
+.Va verbose
+is the same as using the
+.Fl v
+flag on the command line.
+When
+.Nm
+runs in verbose mode,
+the actual delivery of messages is displayed on the user's
+terminal.
+Default is
+.Va noverbose .
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev REPLYTO"
+.It Ev DEAD
+Pathname of the file to save partial messages to in case of interrupts
+or delivery errors.
+Default is
+.Pa ~/dead.letter .
+.It Ev EDITOR
+Pathname of the text editor to use in the
+.Ic edit
+command and
+.Ic ~e
+escape.
+If not defined, then a default editor is used.
+.It Ev HOME
+Pathname of the user's home directory.
+.It Ev LISTER
+Pathname of the directory lister to use in the
+.Ic folders
+command.
+Default is
+.Pa /bin/ls .
+.It Ev MAIL
+Location of the user's mailbox.
+Default is
+.Pa /var/mail .
+.It Ev MAILRC
+Pathname of file containing initial
+.Nm
+commands.
+Default is
+.Pa ~/.mailrc .
+.It Ev MBOX
+The name of the mailbox file.
+It can be the name of a folder.
+The default is
+.Pa mbox
+in the user's home directory.
+.It Ev PAGER
+Pathname of the program to use in the
+.Ic more
+command or when
+.Va crt
+variable is set.
+The default paginator
+.Xr less 1
+is used if this option is not defined.
+.It Ev REPLYTO
+If set, will be used to initialize the Reply-To field for outgoing
+messages.
+.It Ev SHELL
+Pathname of the shell to use in the
+.Ic \&!
+command and the
+.Ic ~!
+escape.
+A default shell is used if this option is
+not defined.
+.It Ev TMPDIR
+Pathname of the directory used for creating temporary files.
+.It Ev VISUAL
+Pathname of the text editor to use in the
+.Ic visual
+command and
+.Ic ~v
+escape.
+.It Ev USER
+Login name of the user executing mail.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/misc/mail.*help" -compact
+.It Pa /var/mail/*
+Post office.
+.It Pa ~/mbox
+User's old mail.
+.It Pa ~/.mailrc
+File giving initial
+.Nm
+commands.
+This can be overridden by setting the
+.Ev MAILRC
+environment variable.
+.It Pa /tmp/R*
+Temporary files.
+.It Pa /usr/share/misc/mail.*help
+Help files.
+.Pp
+.It Pa /usr/share/misc/mail.rc
+.It Pa /usr/local/etc/mail.rc
+.It Pa /etc/mail.rc
+System-wide initialization files.
+Each file will be sourced, in order,
+if it exists.
+.El
+.Sh SEE ALSO
+.Xr fmt 1 ,
+.Xr newaliases 1 ,
+.Xr vacation 1 ,
+.Xr aliases 5 ,
+.Xr sendmail 8
+.Sh HISTORY
+A
+.Nm
+command
+appeared in
+.At v1 .
+This man page is derived from
+.%T "The Mail Reference Manual"
+originally written by
+.An Kurt Shoens .
+.Sh BUGS
+There are some flags that are not documented here.
+Most are
+not useful to the general user.
+.Pp
+Usually,
+.Nm
+is just a link to
+.Nm Mail
+and
+.Nm mailx ,
+which can be confusing.
+.Pp
+The name of the
+.Ic alternates
+list is incorrect English (it should be
+.Dq alternatives ) ,
+but is retained for compatibility.

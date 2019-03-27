@@ -1,0 +1,1375 @@
+\input texinfo @c -*-texinfo-*-
+
+@c %**start of header
+@setfilename libgomp.info
+@settitle GNU libgomp
+@c %**end of header
+
+
+@copying
+Copyright @copyright{} 2006 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``GNU General Public License'' and ``Funding
+Free Software'', the Front-Cover
+texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.
+@end copying
+
+@ifinfo
+@dircategory GNU Libraries
+@direntry
+* libgomp: (libgomp).                    GNU OpenMP runtime library
+@end direntry
+
+This manual documents the GNU implementation of the OpenMP API for 
+multi-platform shared-memory parallel programming in C/C++ and Fortran.
+
+Published by the Free Software Foundation
+51 Franklin Street, Fifth Floor
+Boston, MA 02110-1301 USA
+
+@insertcopying
+@end ifinfo
+
+
+@setchapternewpage odd
+
+@titlepage
+@title The GNU OpenMP Implementation
+@page
+@vskip 0pt plus 1filll
+@comment For the @value{version-GCC} Version*
+@sp 1
+Published by the Free Software Foundation @*
+51 Franklin Street, Fifth Floor@*
+Boston, MA 02110-1301, USA@*
+@sp 1
+@insertcopying
+@end titlepage
+
+@summarycontents
+@contents
+@page
+
+
+@node Top
+@top Introduction
+@cindex Introduction
+
+This manual documents the usage of libgomp, the GNU implementation of the 
+@uref{http://www.openmp.org, OpenMP} Application Programming Interface (API)
+for multi-platform shared-memory parallel programming in C/C++ and Fortran.
+
+
+
+@comment
+@comment  When you add a new menu item, please keep the right hand
+@comment  aligned to the same column.  Do not use tabs.  This provides
+@comment  better formatting.
+@comment
+@menu
+* Enabling OpenMP::            How to enable OpenMP for your applications.
+* Runtime Library Routines::   The OpenMP runtime application programming 
+                               interface.
+* Environment Variables::      Influencing runtime behavior with environment 
+                               variables.
+* The libgomp ABI::            Notes on the external ABI presented by libgomp.
+* Reporting Bugs::             How to report bugs in GNU OpenMP.
+* Copying::                    GNU general public license says
+                               how you can copy and share libgomp.
+* GNU Free Documentation License::
+                               How you can copy and share this manual.
+* Funding::                    How to help assure continued work for free 
+                               software.
+* Index::                      Index of this documentation.
+@end menu
+
+
+@c ---------------------------------------------------------------------
+@c Enabling OpenMP
+@c ---------------------------------------------------------------------
+
+@node Enabling OpenMP
+@chapter Enabling OpenMP
+
+To activate the OpenMP extensions for C/C++ and Fortran, the compile-time 
+flag @command{-fopenmp} must be specified. This enables the OpenMP directive
+@code{#pragma omp} in C/C++ and @code{!$omp} directives in free form, 
+@code{c$omp}, @code{*$omp} and @code{!$omp} directives in fixed form, 
+@code{!$} conditional compilation sentinels in free form and @code{c$},
+@code{*$} and @code{!$} sentinels in fixed form, for Fortran. The flag also
+arranges for automatic linking of the OpenMP runtime library 
+(@ref{Runtime Library Routines}).
+
+A complete description of all OpenMP directives accepted may be found in 
+the @uref{http://www.openmp.org, OpenMP Application Program Interface} manual,
+version 2.5.
+
+
+@c ---------------------------------------------------------------------
+@c Runtime Library Routines
+@c ---------------------------------------------------------------------
+
+@node Runtime Library Routines
+@chapter Runtime Library Routines
+
+The runtime routines described here are defined by section 3 of the OpenMP 
+specifications in version 2.5.
+
+Control threads, processors and the parallel environment.
+
+@menu
+* omp_get_dynamic::          Dynamic teams setting
+* omp_get_max_threads::      Maximum number of threads
+* omp_get_nested::           Nested parallel regions
+* omp_get_num_procs::        Number of processors online
+* omp_get_num_threads::      Size of the active team
+* omp_get_thread_num::       Current thread ID
+* omp_in_parallel::          Whether a parallel region is active
+* omp_set_dynamic::          Enable/disable dynamic teams
+* omp_set_nested::           Enable/disable nested parallel regions
+* omp_set_num_threads::      Set upper team size limit
+@end menu
+
+Initialize, set, test, unset and destroy simple and nested locks.
+
+@menu
+* omp_init_lock::            Initialize simple lock
+* omp_set_lock::             Wait for and set simple lock
+* omp_test_lock::            Test and set simple lock if available
+* omp_unset_lock::           Unset simple lock
+* omp_destroy_lock::         Destroy simple lock
+* omp_init_nest_lock::       Initialize nested lock
+* omp_set_nest_lock::        Wait for and set simple lock
+* omp_test_nest_lock::       Test and set nested lock if available
+* omp_unset_nest_lock::      Unset nested lock
+* omp_destroy_nest_lock::    Destroy nested lock
+@end menu
+
+Portable, thread-based, wall clock timer.
+
+@menu
+* omp_get_wtick::            Get timer precision.
+* omp_get_wtime::            Elapsed wall clock time.
+@end menu
+
+@node omp_get_dynamic
+@section @code{omp_get_dynamic} -- Dynamic teams setting
+@table @asis
+@item @emph{Description}:
+This function returns @code{true} if enabled, @code{false} otherwise. 
+Here, @code{true} and @code{false} represent their language-specific 
+counterparts.
+
+The dynamic team setting may be initialized at startup by the 
+@code{OMP_DYNAMIC} environment variable or at runtime using 
+@code{omp_set_dynamic}. If undefined, dynamic adjustment is 
+disabled by default.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{int omp_get_dynamic();}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{logical function omp_get_dynamic()}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_set_dynamic}, @ref{OMP_DYNAMIC}
+
+@item @emph{Reference}:
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.2.8.
+@end table
+
+
+
+@node omp_get_max_threads
+@section @code{omp_get_max_threads} -- Maximum number of threads
+@table @asis
+@item @emph{Description}:
+Return the maximum number of threads used for parallel regions that do
+not use the clause @code{num_threads}.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{int omp_get_max_threads();}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{integer function omp_get_max_threads()}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_set_num_threads}, @ref{omp_set_dynamic}
+
+@item @emph{Reference}:
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.2.3.
+@end table
+
+
+
+@node omp_get_nested
+@section @code{omp_get_nested} -- Nested parallel regions
+@table @asis
+@item @emph{Description}:
+This function returns @code{true} if nested parallel regions are
+enabled, @code{false} otherwise. Here, @code{true} and @code{false} 
+represent their language-specific counterparts.
+
+Nested parallel regions may be initialized at startup by the 
+@code{OMP_NESTED} environment variable or at runtime using 
+@code{omp_set_nested}. If undefined, nested parallel regions are
+disabled by default.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{int omp_get_nested();}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{integer function omp_get_nested()}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_set_nested}, @ref{OMP_NESTED}
+
+@item @emph{Reference}:
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.2.10.
+@end table
+
+
+
+@node omp_get_num_procs
+@section @code{omp_get_num_procs} -- Number of processors online
+@table @asis
+@item @emph{Description}:
+Returns the number of processors online.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{int omp_get_num_procs();}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{integer function omp_get_num_procs()}
+@end multitable
+
+@item @emph{Reference}:
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.2.5.
+@end table
+
+
+
+@node omp_get_num_threads
+@section @code{omp_get_num_threads} -- Size of the active team
+@table @asis
+@item @emph{Description}:
+The number of threads in the current team. In a sequential section of 
+the program @code{omp_get_num_threads} returns 1.
+
+The default team size may be initialized at startup by the 
+@code{OMP_NUM_THREADS} environment variable. At runtime, the size 
+of the current team may be set either by the @code{NUM_THREADS}
+clause or by @code{omp_set_num_threads}. If none of the above were 
+used to define a specific value and @code{OMP_DYNAMIC} is disabled,
+one thread per CPU online is used.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{int omp_get_num_threads();}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{integer function omp_get_num_threads()}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_get_max_threads}, @ref{omp_set_num_threads}, @ref{OMP_NUM_THREADS}
+
+@item @emph{Reference}:
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.2.2.
+@end table
+
+
+
+@node omp_get_thread_num 
+@section @code{omp_get_thread_num} -- Current thread ID
+@table @asis
+@item @emph{Description}:
+Unique thread identification number. In a sequential parts of the program, 
+@code{omp_get_thread_num} always returns 0. In parallel regions the return
+value varies from 0 to @code{omp_get_max_threads}-1 inclusive. The return 
+value of the master thread of a team is always 0.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{int omp_get_thread_num();}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{integer function omp_get_thread_num()}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_get_max_threads}
+
+@item @emph{Reference}:
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.2.4.
+@end table
+
+
+
+@node omp_in_parallel
+@section @code{omp_in_parallel} -- Whether a parallel region is active
+@table @asis
+@item @emph{Description}:
+This function returns @code{true} if currently running in parallel, 
+@code{false} otherwise. Here, @code{true} and @code{false} represent 
+their language-specific counterparts.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{int omp_in_parallel();}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{logical function omp_in_parallel()}
+@end multitable
+
+@item @emph{Reference}:
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.2.6.
+@end table
+
+
+@node omp_set_dynamic
+@section @code{omp_set_dynamic} -- Enable/disable dynamic teams
+@table @asis
+@item @emph{Description}:
+Enable or disable the dynamic adjustment of the number of threads 
+within a team. The function takes the language-specific equivalent
+of @code{true} and @code{false}, where @code{true} enables dynamic 
+adjustment of team sizes and @code{false} disables it.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{void omp_set_dynamic(int);}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{subroutine omp_set_dynamic(set)}
+@item                   @tab @code{integer, intent(in) :: set}
+@end multitable
+
+@item @emph{See also}:
+@ref{OMP_DYNAMIC}, @ref{omp_get_dynamic}
+
+@item @emph{Reference}:
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.2.7.
+@end table
+
+
+
+@node omp_set_nested
+@section @code{omp_set_nested} -- Enable/disable nested parallel regions
+@table @asis
+@item @emph{Description}:
+Enable or disable nested parallel regions, i.e., whether team members
+are allowed to create new teams. The function takes the language-specific 
+equivalent of @code{true} and @code{false}, where @code{true} enables 
+dynamic adjustment of team sizes and @code{false} disables it.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{void omp_set_dynamic(int);}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{subroutine omp_set_dynamic(set)}
+@item                   @tab @code{integer, intent(in) :: set}
+@end multitable
+
+@item @emph{See also}:
+@ref{OMP_NESTED}, @ref{omp_get_nested}
+
+@item @emph{Reference}:
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.2.9.
+@end table
+
+
+
+@node omp_set_num_threads
+@section @code{omp_set_num_threads} -- Set upper team size limit
+@table @asis
+@item @emph{Description}:
+Specifies the number of threads used by default in subsequent parallel 
+sections, if those do not specify a @code{num_threads} clause. The 
+argument of @code{omp_set_num_threads} shall be a positive integer. 
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{void omp_set_num_threads(int);}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{subroutine omp_set_num_threads(set)}
+@item                   @tab @code{integer, intent(in) :: set}
+@end multitable
+
+@item @emph{See also}:
+@ref{OMP_NUM_THREADS}, @ref{omp_get_num_threads}, @ref{omp_get_max_threads}
+
+@item @emph{Reference}:
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.2.1.
+@end table
+
+
+
+@node omp_init_lock
+@section @code{omp_init_lock} -- Initialize simple lock
+@table @asis
+@item @emph{Description}:
+Initialize a simple lock. After initialization, the lock is in 
+an unlocked state.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{void omp_init_lock(omp_lock_t *lock);}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{subroutine omp_init_lock(lock)}
+@item                   @tab @code{integer(omp_lock_kind), intent(out) :: lock}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_destroy_lock}
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.3.1.
+@end table
+
+
+
+@node omp_set_lock
+@section @code{omp_set_lock} -- Wait for and set simple lock
+@table @asis
+@item @emph{Description}:
+Before setting a simple lock, the lock variable must be initialized by 
+@code{omp_init_lock}. The calling thread is blocked until the lock 
+is available. If the lock is already held by the current thread, 
+a deadlock occurs.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{void omp_set_lock(omp_lock_t *lock);}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{subroutine omp_set_lock(lock)}
+@item                   @tab @code{integer(omp_lock_kind), intent(out) :: lock}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_init_lock}, @ref{omp_test_lock}, @ref{omp_unset_lock}
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.3.3.
+@end table
+
+
+
+@node omp_test_lock
+@section @code{omp_test_lock} -- Test and set simple lock if available
+@table @asis
+@item @emph{Description}:
+Before setting a simple lock, the lock variable must be initialized by 
+@code{omp_init_lock}. Contrary to @code{omp_set_lock}, @code{omp_test_lock} 
+does not block if the lock is not available. This function returns 
+@code{true} upon success,@code{false} otherwise. Here, @code{true} and 
+@code{false} represent their language-specific counterparts.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{int omp_test_lock(omp_lock_t *lock);}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{subroutine omp_test_lock(lock)}
+@item                   @tab @code{logical(omp_logical_kind) :: omp_test_lock}
+@item                   @tab @code{integer(omp_lock_kind), intent(out) :: lock}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_init_lock}, @ref{omp_set_lock}, @ref{omp_set_lock}
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.3.5.
+@end table
+
+
+
+@node omp_unset_lock
+@section @code{omp_unset_lock} -- Unset simple lock
+@table @asis
+@item @emph{Description}:
+A simple lock about to be unset must have been locked by @code{omp_set_lock}
+or @code{omp_test_lock} before. In addition, the lock must be held by the 
+thread calling @code{omp_unset_lock}. Then, the lock becomes unlocked. If one 
+ore more threads attempted to set the lock before, one of them is chosen to, 
+again, set the lock for itself.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{void omp_unset_lock(omp_lock_t *lock);}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{subroutine omp_unset_lock(lock)}
+@item                   @tab @code{integer(omp_lock_kind), intent(out) :: lock}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_set_lock}, @ref{omp_test_lock}
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.3.4.
+@end table
+
+
+
+@node omp_destroy_lock
+@section @code{omp_destroy_lock} -- Destroy simple lock
+@table @asis
+@item @emph{Description}:
+Destroy a simple lock. In order to be destroyed, a simple lock must be 
+in the unlocked state. 
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{void omp_destroy_lock(omp_lock_t *);}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{subroutine omp_destroy_lock(lock)}
+@item                   @tab @code{integer(omp_lock_kind), intent(inout) :: lock}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_init_lock}
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.3.2.
+@end table
+
+
+
+@node omp_init_nest_lock
+@section @code{omp_init_nest_lock} -- Initialize nested lock
+@table @asis
+@item @emph{Description}:
+Initialize a nested lock. After initialization, the lock is in 
+an unlocked state and the nesting count is set to zero.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{void omp_init_nest_lock(omp_nest_lock_t *lock);}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{subroutine omp_init_nest_lock(lock)}
+@item                   @tab @code{integer(omp_nest_lock_kind), intent(out) :: lock}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_destroy_nest_lock}
+
+@item @emph{Reference}:
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.3.1.
+@end table
+
+
+@node omp_set_nest_lock
+@section @code{omp_set_nest_lock} -- Wait for and set simple lock
+@table @asis
+@item @emph{Description}:
+Before setting a nested lock, the lock variable must be initialized by 
+@code{omp_init_nest_lock}. The calling thread is blocked until the lock 
+is available. If the lock is already held by the current thread, the 
+nesting count for the lock in incremented.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{void omp_set_nest_lock(omp_nest_lock_t *lock);}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{subroutine omp_set_nest_lock(lock)}
+@item                   @tab @code{integer(omp_nest_lock_kind), intent(out) :: lock}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_init_nest_lock}, @ref{omp_unset_nest_lock}
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.3.3.
+@end table
+
+
+
+@node omp_test_nest_lock
+@section @code{omp_test_nest_lock} -- Test and set nested lock if available
+@table @asis
+@item @emph{Description}:
+Before setting a nested lock, the lock variable must be initialized by 
+@code{omp_init_nest_lock}. Contrary to @code{omp_set_nest_lock}, 
+@code{omp_test_nest_lock} does not block if the lock is not available. 
+If the lock is already held by the current thread, the new nesting count 
+is returned. Otherwise, the return value equals zero.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{int omp_test_nest_lock(omp_nest_lock_t *lock);}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{integer function omp_test_nest_lock(lock)}
+@item                   @tab @code{integer(omp_integer_kind) :: omp_test_nest_lock}
+@item                   @tab @code{integer(omp_nest_lock_kind), intent(inout) :: lock}
+@end multitable
+
+
+@item @emph{See also}:
+@ref{omp_init_lock}, @ref{omp_set_lock}, @ref{omp_set_lock}
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.3.5.
+@end table
+
+
+
+@node omp_unset_nest_lock
+@section @code{omp_unset_nest_lock} -- Unset nested lock
+@table @asis
+@item @emph{Description}:
+A nested lock about to be unset must have been locked by @code{omp_set_nested_lock}
+or @code{omp_test_nested_lock} before. In addition, the lock must be held by the 
+thread calling @code{omp_unset_nested_lock}. If the nesting count drops to zero, the 
+lock becomes unlocked. If one ore more threads attempted to set the lock before, 
+one of them is chosen to, again, set the lock for itself.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{void omp_unset_nest_lock(omp_nest_lock_t *lock);}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{subroutine omp_unset_nest_lock(lock)}
+@item                   @tab @code{integer(omp_nest_lock_kind), intent(out) :: lock}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_set_nest_lock}
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.3.4.
+@end table
+
+
+
+@node omp_destroy_nest_lock
+@section @code{omp_destroy_nest_lock} -- Destroy nested lock
+@table @asis
+@item @emph{Description}:
+Destroy a nested lock. In order to be destroyed, a nested lock must be 
+in the unlocked state and its nesting count must equal zero.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{void omp_destroy_nest_lock(omp_nest_lock_t *);}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{subroutine omp_destroy_nest_lock(lock)}
+@item                   @tab @code{integer(omp_nest_lock_kind), intent(inout) :: lock}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_init_lock}
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.3.2.
+@end table
+
+
+
+@node omp_get_wtick
+@section @code{omp_get_wtick} -- Get timer precision
+@table @asis
+@item @emph{Description}:
+Gets the timer precision, i.e., the number of seconds between two 
+successive clock ticks.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{double omp_get_wtick();}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{double precision function omp_get_wtick()}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_get_wtime}
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.4.2.
+@end table
+
+
+
+@node omp_get_wtime
+@section @code{omp_get_wtime} -- Elapsed wall clock time
+@table @asis
+@item @emph{Description}:
+Elapsed wall clock time in seconds. The time is measured per thread, no 
+guarantee can bee made that two distinct threads measure the same time.
+Time is measured from some "time in the past". On POSIX compliant systems 
+the seconds since the Epoch (00:00:00 UTC, January 1, 1970) are returned.
+
+@item @emph{C/C++}:
+@multitable @columnfractions .20 .80
+@item @emph{Prototype}: @tab @code{double omp_get_wtime();}
+@end multitable
+
+@item @emph{Fortran}:
+@multitable @columnfractions .20 .80
+@item @emph{Interface}: @tab @code{double precision function omp_get_wtime()}
+@end multitable
+
+@item @emph{See also}:
+@ref{omp_get_wtick}
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 3.4.1.
+@end table
+
+
+
+@c ---------------------------------------------------------------------
+@c Environment Variables
+@c ---------------------------------------------------------------------
+
+@node Environment Variables
+@chapter Environment Variables
+
+The variables @env{OMP_DYNAMIC}, @env{OMP_NESTED}, @env{OMP_NUM_THREADS} and 
+@env{OMP_SCHEDULE} are defined by section 4 of the OpenMP specifications in 
+version 2.5, while @env{GOMP_CPU_AFFINITY} and @env{GOMP_STACKSIZE} are GNU 
+extensions.
+
+@menu
+* OMP_DYNAMIC::        Dynamic adjustment of threads
+* OMP_NESTED::         Nested parallel regions
+* OMP_NUM_THREADS::    Specifies the number of threads to use
+* OMP_SCHEDULE::       How threads are scheduled
+* GOMP_CPU_AFFINITY::  Bind threads to specific CPUs
+* GOMP_STACKSIZE::     Set default thread stack size
+@end menu
+
+
+@node OMP_DYNAMIC
+@section @env{OMP_DYNAMIC} -- Dynamic adjustment of threads
+@cindex Environment Variable
+@cindex Implementation specific setting
+@table @asis
+@item @emph{Description}:
+Enable or disable the dynamic adjustment of the number of threads 
+within a team. The value of this environment variable shall be 
+@code{TRUE} or @code{FALSE}. If undefined, dynamic adjustment is
+disabled by default.
+
+@item @emph{See also}:
+@ref{omp_set_dynamic}
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 4.3
+@end table
+
+
+
+@node OMP_NESTED
+@section @env{OMP_NESTED} -- Nested parallel regions
+@cindex Environment Variable
+@cindex Implementation specific setting
+@table @asis
+@item @emph{Description}:
+Enable or disable nested parallel regions, i.e., whether team members
+are allowed to create new teams. The value of this environment variable 
+shall be @code{TRUE} or @code{FALSE}. If undefined, nested parallel 
+regions are disabled by default.
+
+@item @emph{See also}:
+@ref{omp_set_nested}
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 4.4
+@end table
+
+
+
+@node OMP_NUM_THREADS
+@section @env{OMP_NUM_THREADS} -- Specifies the number of threads to use
+@cindex Environment Variable
+@cindex Implementation specific setting
+@table @asis
+@item @emph{Description}:
+Specifies the default number of threads to use in parallel regions. The 
+value of this variable shall be positive integer. If undefined one thread 
+per CPU online is used.
+
+@item @emph{See also}:
+@ref{omp_set_num_threads}
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, section 4.2
+@end table
+
+
+
+@node OMP_SCHEDULE
+@section @env{OMP_SCHEDULE} -- How threads are scheduled
+@cindex Environment Variable
+@cindex Implementation specific setting
+@table @asis
+@item @emph{Description}:
+Allows to specify @code{schedule type} and @code{chunk size}. 
+The value of the variable shall have the form: @code{type[,chunk]} where
+@code{type} is one of @code{static}, @code{dynamic} or @code{guided}. 
+The optional @code{chunk size} shall be a positive integer. If undefined,
+dynamic scheduling and a chunk size of 1 is used.
+
+@item @emph{Reference}: 
+@uref{http://www.openmp.org/, OpenMP specifications v2.5}, sections 2.5.1 and 4.1
+@end table
+
+
+
+@node GOMP_CPU_AFFINITY
+@section @env{GOMP_CPU_AFFINITY} -- Bind threads to specific CPUs
+@cindex Environment Variable
+@table @asis
+@item @emph{Description}:
+Binds threads to specific CPUs. The variable should contain a space- or
+comma-separated list of CPUs. This list may contain different kind of 
+entries: either single CPU numbers in any order, a range of CPUs (M-N) 
+or a range with some stride (M-N:S). CPU numbers are zero based. For example,
+@code{GOMP_CPU_AFFINITY="0 3 1-2 4-15:2"} will bind the initial thread
+to CPU 0, the second to CPU 3, the third to CPU 1, the fourth to 
+CPU 2, the fifth to CPU 4, the sixth through tenth to CPUs 6, 8, 10, 12,
+and 14 respectively and then start assigning back from the beginning of
+the list. @code{GOMP_CPU_AFFINITY=0} binds all threads to CPU 0.
+
+There is no GNU OpenMP library routine to determine whether a CPU affinity 
+specification is in effect. As a workaround, language-specific library 
+functions, e.g., @code{getenv} in C or @code{GET_ENVIRONMENT_VARIABLE} in 
+Fortran, may be used to query the setting of the @code{GOMP_CPU_AFFINITY} 
+environment variable. A defined CPU affinity on startup cannot be changed 
+or disabled during the runtime of the application.
+
+If this environment variable is omitted, the host system will handle the 
+assignment of threads to CPUs. 
+@end table
+
+
+
+@node GOMP_STACKSIZE
+@section @env{GOMP_STACKSIZE} -- Set default thread stack size
+@cindex Environment Variable
+@cindex Implementation specific setting
+@table @asis
+@item @emph{Description}:
+Set the default thread stack size in kilobytes. This is in opposition 
+to @code{pthread_attr_setstacksize} which gets the number of bytes as an 
+argument. If the stacksize can not be set due to system constraints, an 
+error is reported and the initial stacksize is left unchanged. If undefined,
+the stack size is system dependent.
+
+@item @emph{Reference}: 
+@uref{http://gcc.gnu.org/ml/gcc-patches/2006-06/msg00493.html, 
+GCC Patches Mailinglist}, 
+@uref{http://gcc.gnu.org/ml/gcc-patches/2006-06/msg00496.html,
+GCC Patches Mailinglist}
+@end table
+
+
+
+@c ---------------------------------------------------------------------
+@c The libgomp ABI
+@c ---------------------------------------------------------------------
+
+@node The libgomp ABI
+@chapter The libgomp ABI
+
+The following sections present notes on the external ABI as 
+presented by libgomp. Only maintainers should need them.
+
+@menu
+* Implementing MASTER construct::
+* Implementing CRITICAL construct::
+* Implementing ATOMIC construct::
+* Implementing FLUSH construct::
+* Implementing BARRIER construct::
+* Implementing THREADPRIVATE construct::
+* Implementing PRIVATE clause::
+* Implementing FIRSTPRIVATE LASTPRIVATE COPYIN and COPYPRIVATE clauses::
+* Implementing REDUCTION clause::
+* Implementing PARALLEL construct::
+* Implementing FOR construct::
+* Implementing ORDERED construct::
+* Implementing SECTIONS construct::
+* Implementing SINGLE construct::
+@end menu
+
+
+@node Implementing MASTER construct
+@section Implementing MASTER construct
+
+@smallexample
+if (omp_get_thread_num () == 0)
+  block
+@end smallexample
+
+Alternately, we generate two copies of the parallel subfunction
+and only include this in the version run by the master thread.
+Surely that's not worthwhile though...
+
+
+
+@node Implementing CRITICAL construct
+@section Implementing CRITICAL construct
+
+Without a specified name,
+
+@smallexample
+  void GOMP_critical_start (void);
+  void GOMP_critical_end (void);
+@end smallexample
+
+so that we don't get COPY relocations from libgomp to the main
+application.
+
+With a specified name, use omp_set_lock and omp_unset_lock with
+name being transformed into a variable declared like
+
+@smallexample
+  omp_lock_t gomp_critical_user_<name> __attribute__((common))
+@end smallexample
+
+Ideally the ABI would specify that all zero is a valid unlocked
+state, and so we wouldn't actually need to initialize this at
+startup.
+
+
+
+@node Implementing ATOMIC construct
+@section Implementing ATOMIC construct
+
+The target should implement the @code{__sync} builtins.
+
+Failing that we could add
+
+@smallexample
+  void GOMP_atomic_enter (void)
+  void GOMP_atomic_exit (void)
+@end smallexample
+
+which reuses the regular lock code, but with yet another lock
+object private to the library.
+
+
+
+@node Implementing FLUSH construct
+@section Implementing FLUSH construct
+
+Expands to the @code{__sync_synchronize} builtin.
+
+
+
+@node Implementing BARRIER construct
+@section Implementing BARRIER construct
+
+@smallexample
+  void GOMP_barrier (void)
+@end smallexample
+
+
+@node Implementing THREADPRIVATE construct
+@section Implementing THREADPRIVATE construct
+
+In _most_ cases we can map this directly to @code{__thread}.  Except
+that OMP allows constructors for C++ objects.  We can either
+refuse to support this (how often is it used?) or we can 
+implement something akin to .ctors.
+
+Even more ideally, this ctor feature is handled by extensions
+to the main pthreads library.  Failing that, we can have a set
+of entry points to register ctor functions to be called.
+
+
+
+@node Implementing PRIVATE clause
+@section Implementing PRIVATE clause
+
+In association with a PARALLEL, or within the lexical extent
+of a PARALLEL block, the variable becomes a local variable in
+the parallel subfunction.
+
+In association with FOR or SECTIONS blocks, create a new
+automatic variable within the current function.  This preserves
+the semantic of new variable creation.
+
+
+
+@node Implementing FIRSTPRIVATE LASTPRIVATE COPYIN and COPYPRIVATE clauses
+@section Implementing FIRSTPRIVATE LASTPRIVATE COPYIN and COPYPRIVATE clauses
+
+Seems simple enough for PARALLEL blocks.  Create a private 
+struct for communicating between parent and subfunction.
+In the parent, copy in values for scalar and "small" structs;
+copy in addresses for others TREE_ADDRESSABLE types.  In the 
+subfunction, copy the value into the local variable.
+
+Not clear at all what to do with bare FOR or SECTION blocks.
+The only thing I can figure is that we do something like
+
+@smallexample
+#pragma omp for firstprivate(x) lastprivate(y)
+for (int i = 0; i < n; ++i)
+  body;
+@end smallexample
+
+which becomes
+
+@smallexample
+@{
+  int x = x, y;
+
+  // for stuff
+
+  if (i == n)
+    y = y;
+@}
+@end smallexample
+
+where the "x=x" and "y=y" assignments actually have different
+uids for the two variables, i.e. not something you could write
+directly in C.  Presumably this only makes sense if the "outer"
+x and y are global variables.
+
+COPYPRIVATE would work the same way, except the structure 
+broadcast would have to happen via SINGLE machinery instead.
+
+
+
+@node Implementing REDUCTION clause
+@section Implementing REDUCTION clause
+
+The private struct mentioned in the previous section should have 
+a pointer to an array of the type of the variable, indexed by the 
+thread's @var{team_id}.  The thread stores its final value into the 
+array, and after the barrier the master thread iterates over the
+array to collect the values.
+
+
+@node Implementing PARALLEL construct
+@section Implementing PARALLEL construct
+
+@smallexample
+  #pragma omp parallel
+  @{
+    body;
+  @}
+@end smallexample
+
+becomes
+
+@smallexample
+  void subfunction (void *data)
+  @{
+    use data;
+    body;
+  @}
+
+  setup data;
+  GOMP_parallel_start (subfunction, &data, num_threads);
+  subfunction (&data);
+  GOMP_parallel_end ();
+@end smallexample
+
+@smallexample
+  void GOMP_parallel_start (void (*fn)(void *), void *data, unsigned num_threads)
+@end smallexample
+
+The @var{FN} argument is the subfunction to be run in parallel.
+
+The @var{DATA} argument is a pointer to a structure used to 
+communicate data in and out of the subfunction, as discussed
+above with respect to FIRSTPRIVATE et al.
+
+The @var{NUM_THREADS} argument is 1 if an IF clause is present
+and false, or the value of the NUM_THREADS clause, if
+present, or 0.
+
+The function needs to create the appropriate number of
+threads and/or launch them from the dock.  It needs to
+create the team structure and assign team ids.
+
+@smallexample
+  void GOMP_parallel_end (void)
+@end smallexample
+
+Tears down the team and returns us to the previous @code{omp_in_parallel()} state.
+
+
+
+@node Implementing FOR construct
+@section Implementing FOR construct
+
+@smallexample
+  #pragma omp parallel for
+  for (i = lb; i <= ub; i++)
+    body;
+@end smallexample
+
+becomes
+
+@smallexample
+  void subfunction (void *data)
+  @{
+    long _s0, _e0;
+    while (GOMP_loop_static_next (&_s0, &_e0))
+    @{
+      long _e1 = _e0, i;
+      for (i = _s0; i < _e1; i++)
+        body;
+    @}
+    GOMP_loop_end_nowait ();
+  @}
+
+  GOMP_parallel_loop_static (subfunction, NULL, 0, lb, ub+1, 1, 0);
+  subfunction (NULL);
+  GOMP_parallel_end ();
+@end smallexample
+
+@smallexample
+  #pragma omp for schedule(runtime)
+  for (i = 0; i < n; i++)
+    body;
+@end smallexample
+
+becomes
+
+@smallexample
+  @{
+    long i, _s0, _e0;
+    if (GOMP_loop_runtime_start (0, n, 1, &_s0, &_e0))
+      do @{
+        long _e1 = _e0;
+        for (i = _s0, i < _e0; i++)
+          body;
+      @} while (GOMP_loop_runtime_next (&_s0, _&e0));
+    GOMP_loop_end ();
+  @}
+@end smallexample
+
+Note that while it looks like there is trickyness to propagating
+a non-constant STEP, there isn't really.  We're explicitly allowed
+to evaluate it as many times as we want, and any variables involved
+should automatically be handled as PRIVATE or SHARED like any other
+variables.  So the expression should remain evaluable in the 
+subfunction.  We can also pull it into a local variable if we like,
+but since its supposed to remain unchanged, we can also not if we like.
+
+If we have SCHEDULE(STATIC), and no ORDERED, then we ought to be
+able to get away with no work-sharing context at all, since we can
+simply perform the arithmetic directly in each thread to divide up
+the iterations.  Which would mean that we wouldn't need to call any
+of these routines.
+
+There are separate routines for handling loops with an ORDERED
+clause.  Bookkeeping for that is non-trivial...
+
+
+
+@node Implementing ORDERED construct
+@section Implementing ORDERED construct
+
+@smallexample
+  void GOMP_ordered_start (void)
+  void GOMP_ordered_end (void)
+@end smallexample
+
+
+
+@node Implementing SECTIONS construct
+@section Implementing SECTIONS construct
+
+A block as 
+
+@smallexample
+  #pragma omp sections
+  @{
+    #pragma omp section
+    stmt1;
+    #pragma omp section
+    stmt2;
+    #pragma omp section
+    stmt3;
+  @}
+@end smallexample
+
+becomes
+
+@smallexample
+  for (i = GOMP_sections_start (3); i != 0; i = GOMP_sections_next ())
+    switch (i)
+      @{
+      case 1:
+        stmt1;
+        break;
+      case 2:
+        stmt2;
+        break;
+      case 3:
+        stmt3;
+        break;
+      @}
+  GOMP_barrier ();
+@end smallexample
+
+
+@node Implementing SINGLE construct
+@section Implementing SINGLE construct
+
+A block like 
+
+@smallexample
+  #pragma omp single
+  @{
+    body;
+  @}
+@end smallexample
+
+becomes
+
+@smallexample
+  if (GOMP_single_start ())
+    body;
+  GOMP_barrier ();
+@end smallexample
+
+while 
+
+@smallexample
+  #pragma omp single copyprivate(x)
+    body;
+@end smallexample
+
+becomes
+
+@smallexample
+  datap = GOMP_single_copy_start ();
+  if (datap == NULL)
+    @{
+      body;
+      data.x = x;
+      GOMP_single_copy_end (&data);
+    @}
+  else
+    x = datap->x;
+  GOMP_barrier ();
+@end smallexample
+
+
+
+@c ---------------------------------------------------------------------
+@c 
+@c ---------------------------------------------------------------------
+
+@node Reporting Bugs
+@chapter Reporting Bugs
+
+Bugs in the GNU OpenMP implementation should be reported via 
+@uref{http://gcc.gnu.org/bugzilla/, bugzilla}. In all cases, please add 
+"openmp" to the keywords field in the bug report.
+
+
+
+@c ---------------------------------------------------------------------
+@c GNU General Public License
+@c ---------------------------------------------------------------------
+
+@include gpl.texi
+
+
+
+@c ---------------------------------------------------------------------
+@c GNU Free Documentation License
+@c ---------------------------------------------------------------------
+
+@include fdl.texi
+
+
+
+@c ---------------------------------------------------------------------
+@c Funding Free Software
+@c ---------------------------------------------------------------------
+
+@include funding.texi
+
+@c ---------------------------------------------------------------------
+@c Index
+@c ---------------------------------------------------------------------
+
+@node Index
+@unnumbered Index
+
+@printindex cp
+
+@bye

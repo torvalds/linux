@@ -1,0 +1,94 @@
+.\" Copyright (c) 2018 Baptiste Daroussin <bapt@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 21, 2018
+.Dt ZGREP 1
+.Os
+.Sh NAME
+.Nm zgrep ,
+.Nm zegrep ,
+.Nm zfgrep ,
+.Nm bzgrep ,
+.Nm bzegrep ,
+.Nm bzfgrep ,
+.Nm lzgrep ,
+.Nm lzegrep ,
+.Nm lzfgrep ,
+.Nm xzgrep ,
+.Nm xzegrep ,
+.Nm xzfgrep ,
+.Nm zstdgrep ,
+.Nm zstdegrep ,
+.Nm zstdfgrep
+.Nd grep compressed files
+.Sh SYNOPSIS
+.Nm
+.Oo Ar flags Oc Ar files
+.Nm zegrep
+.Oo Ar flags Oc Ar files
+.Nm zfgrep
+.Oo Ar flags Oc Ar files
+.Pp
+.Nm bzgrep
+.Oo Ar flags Oc Ar files
+.Nm bzegrep
+.Oo Ar flags Oc Ar files
+.Nm bzfgrep
+.Oo Ar flags Oc Ar files
+.Pp
+.Nm lzgrep
+.Oo Ar flags Oc Ar files
+.Nm lzegrep
+.Oo Ar flags Oc Ar files
+.Nm lzfgrep
+.Oo Ar flags Oc Ar files
+.Pp
+.Nm xzgrep
+.Oo Ar flags Oc Ar files
+.Nm xzegrep
+.Oo Ar flags Oc Ar files
+.Nm xzfgrep
+.Oo Ar flags Oc Ar files
+.Pp
+.Nm zstdgrep
+.Oo Ar flags Oc Ar files
+.Nm zstdegrep
+.Oo Ar flags Oc Ar files
+.Nm zstdfgrep
+.Oo Ar flags Oc Ar files
+.Sh DESCRIPTION
+Allow
+.Xr grep 1
+to read compressed files.
+.Sh SEE ALSO
+.Xr bzip2 1 ,
+.Xr grep 1 ,
+.Xr xz 1
+.Sh AUTHORS
+This version of the
+.Nm
+utility was written by
+.An Thomas Klausner Aq Mt wiz@NetBSD.org .

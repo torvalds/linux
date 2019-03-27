@@ -1,0 +1,153 @@
+.\" Copyright (c) 2018 Conrad Meyer <cem@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 29, 2018
+.Dt DEV_REFTHREAD 9
+.Os
+.Sh NAME
+.Nm dev_refthread ,
+.Nm devvn_refthread ,
+.Nm dev_relthread
+.Nd safely access device methods
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/conf.h
+.Ft "struct cdevsw *"
+.Fn dev_refthread "struct cdev *dev" "int *ref"
+.Ft "struct cdevsw *"
+.Fn devvn_refthread "struct vnode *vp" "struct cdev **devp" "int *ref"
+.Ft void
+.Fn dev_relthread "struct cdev *dev" "int ref"
+.Sh DESCRIPTION
+The
+.Fn dev_refthread
+(or
+.Fn devvn_refthread )
+and
+.Fn dev_relthread
+routines provide a safe way to access
+.Xr devfs 5
+devices that may be concurrently destroyed by
+.Fn destroy_dev
+(e.g., removable media).
+.Pp
+If successful,
+.Fn dev_refthread
+and
+.Fn devvn_refthread
+acquire a "thread reference" to the associated
+.Vt "struct cdev"
+and return a non-NULL pointer to the cdev's
+.Vt "struct cdevsw"
+method table.
+For the duration of that reference, the cdev's associated private data and
+method table object are valid.
+Destruction of the cdev sleeps until the thread reference is released.
+.Pp
+A reference cannot prevent media removal.
+It is an implementation detail of individual drivers how method calls from
+callers with
+.Fn dev_refthread
+references are handled when the device is
+pending destruction.
+A common behavior for disk devices is to return the
+.Er ENXIO
+status, but that is not required by this KPI.
+.Pp
+The
+.Fn devvn_refthread
+variant of
+.Fn dev_refthread
+extracts the
+.Vt "struct cdev"
+pointer out of the
+.Dv VCHR
+.Xr vnode 9
+automatically before performing the same actions as
+.Fn dev_refthread .
+Additionally, a pointer to the
+.Vt "struct cdev"
+is returned to the caller via
+.Fa "*devp" .
+.Fn devvn_refthread
+correctly handles possible parallel reclamation of the vnode.
+.Pp
+.Fn dev_relthread
+is used to release a reference to a
+.Vt "struct cdev" .
+.Fn dev_relthread
+.Sy must
+only be invoked when the associated invocation of
+.Fn dev_refthread
+or
+.Fn devvn_refthread
+returned a non-NULL
+.Vt "struct cdevsw *" .
+.Sh CONTEXT
+.Vt struct cdev
+objects have two reference counts,
+.Va si_refcount
+and
+.Va si_threadcount .
+The
+.Fn dev_refthread ,
+.Fn devvn_refthread ,
+and
+.Fn dev_relthread
+functions manipulate the
+.Va si_threadcount .
+The
+.Va si_threadcount
+reference guarantees the liveness of the
+.Vt struct cdev
+object.
+The other
+.Va si_refcount
+reference provides only the weaker guarantee that the memory backing the
+.Vt struct cdev
+has not been freed.
+.Sh RETURN VALUES
+If
+.Fn dev_refthread
+or
+.Fn devvn_refthread
+are unsuccessful, they return
+.Dv NULL .
+.Bf Em
+If these routines are unsuccessful, they do not increment the
+.Vt "struct cdev"
+.Va si_threadcount
+and do not initialize the value pointed to by the
+.Fa "*ref"
+parameter in any way.
+.Ef
+.Sh SEE ALSO
+.Xr destroy_dev 9 ,
+.Xr devfs 5
+.Sh CAVEATS
+Do not invoke
+.Fn dev_relthread
+unless the matching refthread routine succeeded!

@@ -1,0 +1,232 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_types.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd April 10, 2011
+.Dt DWARF_GET_TYPES 3
+.Os
+.Sh NAME
+.Nm dwarf_get_types ,
+.Nm dwarf_type_cu_offset ,
+.Nm dwarf_type_die_offset ,
+.Nm dwarf_type_name_offsets ,
+.Nm dwarf_typename
+.Nd retrieve information about user-defined types
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_get_types
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Type **types"
+.Fa "Dwarf_Signed *ntypes"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_type_cu_offset
+.Fa "Dwarf_Type type"
+.Fa "Dwarf_Off *cu_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_type_die_offset
+.Fa "Dwarf_Type type"
+.Fa "Dwarf_Off *die_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_type_name_offsets
+.Fa "Dwarf_Type type"
+.Fa "char **name"
+.Fa "Dwarf_Off *die_offset"
+.Fa "Dwarf_Off *cu_die_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_typename
+.Fa "Dwarf_Type type"
+.Fa "char **name"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+These APIs retrieve information about user-defined types from the
+SGI-specific
+.Dq ".debug_typenames"
+section.
+.Pp
+Standards-conformant applications should use the functions
+.Xr dwarf_get_pubtypes 3 ,
+.Xr dwarf_pubtype_cu_offset 3 ,
+.Xr dwarf_pubtype_die_offset 3 ,
+.Xr dwarf_pubtype_name_offsets 3
+and
+.Xr dwarf_pubtypename 3 ,
+which operate on the equivalent
+.Dq ".debug_pubtypes"
+section defined by the DWARF3 standard.
+.Pp
+Information about user-defined types is returned using opaque descriptors
+of type
+.Vt Dwarf_Type .
+Applications need to use the functions described below to retrieve
+the name and offset information contained in these descriptors.
+.Pp
+Function
+.Fn dwarf_get_types
+retrieves descriptors for all user-defined types associated with the
+DWARF debug context specified by argument
+.Ar dbg .
+The argument
+.Ar types
+should point to a location that will be set to a pointer to an array
+of
+.Vt Dwarf_Type
+descriptors.
+The argument
+.Ar ntypes
+should point to a location that will be set to the number of
+descriptors returned.
+.Pp
+Function
+.Fn dwarf_type_cu_offset
+returns the offset, relative to the
+.Dq ".debug_info"
+section, of the compilation unit that contains the debugging
+information entry associated with the argument
+.Ar type .
+Argument
+.Ar cu_offset
+should point to a location that will hold the returned offset.
+.Pp
+Function
+.Fn dwarf_type_die_offset
+retrieves the offset, relative to the
+.Dq ".debug_info"
+section, of the debugging information entry associated with the
+argument
+.Ar type ,
+and stores it into the location pointed to by the argument
+.Ar die_offset .
+.Pp
+Function
+.Fn dwarf_type_name_offsets
+retrieves the name and offsets for the debugging information
+entry for argument
+.Ar type .
+Argument
+.Ar name
+should point to a location which will be set to a pointer to a
+NUL-terminated string containing the name of the associated debugging
+information entry.
+Argument
+.Ar die_offset
+should point to a location which will be set to the offset, relative
+to the
+.Dq ".debug_info"
+section, of the associated debugging information entry.
+Argument
+.Ar cu_die_offset
+should point to a location which will be set to a offset, relative to
+the
+.Dq ".debug_info"
+section, of the first debugging information entry in the compilation
+unit associated with argument
+.Ar type .
+.Pp
+Function
+.Fn dwarf_typename
+sets the location pointed to by argument
+.Ar name
+to a pointer to a NUL-terminated string holding the name of the
+debugging information entry associated with the argument
+.Ar type .
+.Ss Memory Management
+The memory area used for the array of
+.Vt Dwarf_Type
+descriptors returned in argument
+.Ar types
+by function
+.Fn dwarf_get_types
+is owned by the
+.Lb libdwarf .
+Application code should not attempt to directly free this pointer.
+Portable code should instead use the function
+.Xr dwarf_types_dealloc 3
+to indicate that the memory area may be freed.
+.Pp
+The memory area used for the string returned in the
+.Ar name
+argument to functions
+.Fn dwarf_type_name_offsets
+and
+.Fn dwarf_typename
+is owned by the
+.Lb libdwarf .
+Portable code should indicate that the memory area can
+be freed using the
+.Xr dwarf_dealloc 3
+function.
+.Ss Error Returns
+If argument
+.Ar err
+is not NULL, these functions will use it to store error information,
+in case of an error.
+.Sh RETURN VALUES
+On success, these functions returns
+.Dv DW_DLV_OK .
+In case of an error, they return
+.Dv DW_DLV_ERROR
+and set the argument
+.Ar err .
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Va cu_die_offset ,
+.Va cu_offset ,
+.Va dbg ,
+.Va die_offset ,
+.Va type ,
+.Va types ,
+.Va name ,
+or
+.Va ntypes
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+The DWARF debugging context referenced by argument
+.Ar dbg
+did not contain information about user-defined types.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_get_cu_die_offset_given_cu_header_offset 3 ,
+.Xr dwarf_get_pubtypes 3 ,
+.Xr dwarf_pubtype_cu_offset 3 ,
+.Xr dwarf_pubtype_die_offset 3 ,
+.Xr dwarf_pubtype_name_offsets 3 ,
+.Xr dwarf_pubtypename 3 ,
+.Xr dwarf_types_dealloc 3

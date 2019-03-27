@@ -1,0 +1,112 @@
+# translation of dialog to Lithuanian
+# This file is distributed under the same license as the dialog package.
+# Gintautas Miliauskas <gintas@akl.lt>, 2008.
+# Rimas Kudelis <rq@akl.lt>, 2013.
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog-1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2013-06-28 18:38+0300\n"
+"Last-Translator: Rimas Kudelis <rq@akl.lt>\n"
+"Language-Team: Lithuanian <komp_lt@konferencijos.lt>\n"
+"Language: lt\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"X-Generator: Virtaal 0.7.1\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "Taip"
+
+#: buttons.c:393
+msgid "No"
+msgstr "Ne"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "Gerai"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "Atsisakyti"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "IŠEITI"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "Kita"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "Žinynas"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "Mėnuo"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "Metai"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "Pervadinti"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "Aplankai"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "Failai"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Pavyko"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Nepavyko"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Praėjo"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Užbaigta"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Patikrinta"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Atlikta"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Praleista"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "Vykdoma"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "Nepasiekiama"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Bendras progresas"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "Ieškoti"

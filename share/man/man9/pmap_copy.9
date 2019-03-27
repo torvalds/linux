@@ -1,0 +1,84 @@
+.\"
+.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 21, 2003
+.Dt PMAP_COPY 9
+.Os
+.Sh NAME
+.Nm pmap_copy ,
+.Nm pmap_copy_page
+.Nd copy physical memory pages
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/pmap.h
+.Ft void
+.Fo pmap_copy
+.Fa "pmap_t dst_pmap" "pmap_t src_pmap" "vm_offset_t dst_addr"
+.Fa "vm_size_t len" "vm_offset_t src_addr"
+.Fc
+.Ft void
+.Fn pmap_copy_page "vm_page_t src" "vm_page_t dst"
+.Sh DESCRIPTION
+The
+.Fn pmap_copy
+function copies the range specified by
+.Fa src_addr
+and
+.Fa len
+from the source physical map
+.Fa src_pmap
+to the destination physical map
+.Fa dst_pmap
+at the address
+.Fa dst_addr .
+.Pp
+The
+.Fn pmap_copy_page
+function
+copies the physical page
+.Fa src
+to the physical page
+.Fa dst ,
+by mapping the page into kernel virtual address space (KVA), and using
+.Fn bcopy
+to copy the page.
+.Sh IMPLEMENTATION NOTES
+The
+.Fn pmap_copy
+routine is only advisory and need not do anything.
+Actually implementing it may seriously reduce system performance.
+.Pp
+The
+.Fn pmap_copy_page
+routine only operates upon a single page.
+.Sh SEE ALSO
+.Xr bcopy 3 ,
+.Xr pmap 9
+.Sh AUTHORS
+This manual page was written by
+.An Bruce M Simpson Aq Mt bms@spc.org .

@@ -1,0 +1,85 @@
+.\" Copyright (c) 2002 The FreeBSD Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 13, 2018
+.Dt GETOSRELDATE 3
+.Os
+.Sh NAME
+.Nm getosreldate
+.Nd get the value of
+.Dv __FreeBSD_version
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn getosreldate void
+.Sh DESCRIPTION
+The
+.Fn getosreldate
+function returns an integer showing the version of the
+currently running
+.Fx
+kernel.
+Definitions of the values can be found in
+.%B "The Porter's Handbook":
+.Pp
+.Lk https://www.FreeBSD.org/doc/en/books/porters-handbook/
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn getosreldate
+returns the value requested;
+otherwise the value \-1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev OSVERSION"
+.It Ev OSVERSION
+If the environment variable
+.Ev OSVERSION
+is set, it will override the
+.Fn getosreldate
+return value.
+.El
+.Sh EXAMPLES
+An example can be found in
+.Pa /usr/share/examples/FreeBSD_version .
+.Sh ERRORS
+The
+.Fn getosreldate
+function may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr sysctl 3 .
+.Sh SEE ALSO
+.Rs
+.%B "The Porter's Handbook"
+.Re
+.Sh HISTORY
+The
+.Fn getosreldate
+function appeared in
+.Fx 2.0 .

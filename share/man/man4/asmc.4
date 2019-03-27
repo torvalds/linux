@@ -1,0 +1,162 @@
+.\"-
+.\" Copyright (c) 2007, 2008, 2009 Rui Paulo <rpaulo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 27, 2009
+.Dt ASMC 4
+.Os
+.Sh NAME
+.Nm asmc
+.Nd device driver for the Apple System Management Console (SMC)
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device asmc"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+asmc_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver controls the Apple System Management Console (SMC for short)
+found on Intel Apple systems.
+.Pp
+The SMC is known to be found on the following systems:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+MacBook
+.It
+MacBook Pro
+.It
+Intel MacMini
+.It
+Mac Pro
+.It
+MacBook Air
+.It
+Intel iMac
+.El
+.Pp
+With this driver, you can configure your keyboard backlight
+brightness, check temperatures of several sensors, check the speed of
+the internal fans and check the status of the Sudden Motion Sensor.
+.Pp
+Variables related to the SMC control and inspection are exported via
+.Xr sysctl 3
+under the device tree
+.Va dev.asmc .
+.Sh KEYBOARD BACKLIGHT
+On
+.Tn MacBook Pro
+systems, you can control the keyboard brightness by writing a value to
+the
+.Va dev.asmc.%d.light.control
+sysctl MIB.
+.Pp
+The following sysctl MIBs contains the raw value returned by the left
+and right light sensors:
+.Va dev.asmc.%d.light.left
+or
+.Va dev.asmc.%d.light.right .
+.Sh TEMPERATURES
+The number of temperature sensors and their description varies among
+systems.
+You can inspect the temperature sensors on your system by traversing
+the
+.Va dev.asmc.temp
+sysctl MIB.
+.Pp
+All values are in degrees celsius.
+.Sh SYSTEM FANS
+The
+.Va dev.asmc.fan.%d
+sysctl tree contains the leaf nodes
+.Va speed ,
+.Va safespeed ,
+.Va minspeed ,
+.Va maxspeed
+and
+.Va targetspeed .
+Each of these leaf nodes represent the current fan speed, the safest
+minimum fan speed, the minimum speed and the maximum speed
+respectively.
+.Pp
+All values are in RPM.
+.Sh SUDDEN MOTION SENSOR
+The Sudden Motion Sensor (SMS for short) is a device that detects
+laptop movement and notifies the operating system via an interrupt.
+The sysctl MIBs present under
+.Va dev.asmc.sms
+all relate to the SMS.
+.Pp
+The most interesting usage of this device is to park the disk heads
+when the laptop is moved harshly.
+First, you need to install
+.Xr ataidle 8 Pq Pa ports/sysutils/ataidle
+and then configure
+.Xr devd 8
+the following way:
+.Bd -literal -offset indent
+notify 0 {
+	match "system"		"ACPI";
+	match "subsystem"	"asmc";
+	action			"/usr/local/sbin/ataidle -s X Y";
+};
+.Ed
+.Pp
+Do not forget to change the
+.Ar X
+and
+.Ar Y
+values in the command above.
+.Pp
+Also, please note that parking the disk heads too many times can
+dramatically reduce your hard drive's life span.
+Do not rely solely on
+the SMS to protect your hard drive: good care and common sense can
+increase your hard drive's life.
+.Sh SEE ALSO
+.Xr ataidle 8 Pq Pa ports/sysutils/ataidle ,
+.Xr devd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An Rui Paulo Aq Mt rpaulo@FreeBSD.org
+(Google Summer of Code project)
+.Sh BUGS
+Support for the latest models was never tested and is most likely not
+fully working.

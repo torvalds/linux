@@ -1,0 +1,124 @@
+$ $tcsh: set3,v 1.4 2011/02/04 18:19:43 christos Exp $
+$ Descripción de las funciones de edición
+$set 3 
+1 Retroceder un carácter
+2 Borrar el carácter detrás del cursor
+3 Cortar desde el comienzo de la palabra hasta el cursor - se guarda en el buffer
+4 Cortar desde el comienzo de la línea hasta el cursor - se guarda en el buffer
+5 Ir hasta el comienzo de la palabra
+6 Ir hasta el comienzo de la línea
+7 Convertir en mayúsculas los caracteres desde el cursor hasta el final de la palabra
+8 Vi: cambiar a mayúsculas o minúsculas el carácter bajo el cursor y avanza una posición
+9 Vi: cambia hasta el final de la línea
+10 Borra la pantalla y coloca la línea actual al comienzo
+11 Completa la palabra
+12 Avanza mediante `Tab' por los ficheros
+13 Retrocede mediante `Tab' por los ficheros
+14 Completa la palabra ignorando los modos programables
+15 Copia la palabra hasta el cursor
+16 Copia el área entre la marca y el cursor al buffer
+17 Expande a aquella palabra para la que esto es un prefijo
+18 Borra el carácter bajo el cursor
+19 Borra el carácter bajo el cursor o señala el fin de archivo en un archivo vacío
+20 Borra el carácter bajo el cursor o lista posibles finales si está al final de una línea
+21 Borra el carácter bajo el cursor, lista posibles finales o marca final de archivo
+22 Corta del cursor al final de la palabra - se guarda en el buffer
+23 Se suma al argumento si ha arrancado o introduce el dígito
+24 Dígito al comienzo del argumento
+25 Ir al final de la línea de historia
+26 Convierte en minúsculas los caracteres desde el cursor al final de la palabra
+27 Indica el fin de archivo
+28 Mover el cursor hasta el final de línea
+29 Intercambia el cursor y la marca
+30 Expande los comodines de nombre de archivo
+31 Expande los escapes del historial
+32 Expande los escapes del historial en una línea
+33 Expande variables
+34 Avanza un carácter
+35 Avanza hasta el final de la palabra
+36 Intercambia los dos caracteres delante del cursor
+37 Busca hacia atrás en el historial una línea que comience igual que la actual
+38 Busca hacia delante una línea que comience igual que la actual
+39 Inserta el último ítem del comando previo
+40 Búsqueda incremental hacia deleante
+41 Búsqueda incremental hacia atrás
+42 Borra la línea
+43 Corta hasta el final de la línea y guarda la información en el buffer
+44 Corta el área de la marca al cursor y guarda la información en el buffer
+45 Corta la línea completa y la guarda en el buffer
+46 Lista opciones para completar
+47 Lista opciones para completar ignorando los modos programables
+48 Lista los nombres de archivos que concuerdan con el comodín
+49 Lista opciones para completar o indica el final de línea si es una línea vacía
+50 Imprime la media de carga y es estado de este proceso
+51 Expande los escapes del historial e inserta un espacio
+52 Ejecuta el comando
+53 Expande rutas, eliminando cualquier `.' y `..' que encuentre al comienzo
+54 Expande comandos a la ruta o el alias resultante
+55 Cambia de modo de inserción a sobre escritura y vice versa
+56 Añade el octavo bit al siguiente carácter introducido
+57 Añade el siguiente carácter sin modificar a la línea
+58 Reimprime todo
+59 Reinicia un editor parado
+60 Busca ayuda sobre el comando actual
+61 Se añade este carácter a la línea
+62 Este carácter es el primero de una secuencia de caracteres
+63 Establece una marca bajo el cursor
+64 Corrige la ortografía de esta palabra
+65 Corrige la ortografía de la línea completa
+66 Envía el carácter a la terminal en modo `cooked'
+67 Cambia entre los modos literal y léxico en esta línea de historial
+68 Intercambia el carácter a la izquierda con el que está bajo el cursor
+69 Intercambia los dos caracteres que preceden al cursor
+70 Carácter tty para suspensión retrasada
+71 Carácter tty para `flush' de salida
+72 Carácter tty para interrupción
+73 Carácter tty para salida
+74 Carácter tty para suspensión
+75 Carácter tty para permitir salida
+76 Carácter tty para impedir salida
+77 Indica carácter no asignado
+78 Argumento Emacs universal (argumento por 4)
+79 Ir a la línea anterior
+80 Convierte en mayúsculas los caracteres desde el cursor al final de la palabra
+81 Vi: ir al comienzo de la siguiente palabra
+82 Vi: entrar en modo de inserción después el cursor
+83 Vi: entrar en modo de inserción al final de la línea
+84 Vi: cambia a mayúsculas o minúsculas el carácter bajo el cursor y avanza una posición
+85 Vi: cambiar el comando de prefijo
+86 Vi: cambiar hasta el final de la línea
+87 Entrar en modo vi (usa asignación de teclas alternativa)
+88 Vi: modo de comando completa la palabra
+89 Vi: ir al carácter previo (retroceso)
+90 Vi: borrar el comando de prefijo
+91 Vi: ir hasta el final de la palabra delimitado por espacios
+92 Vi: ir hasta el final de la palabra
+93 Vi: retroceder al carácter especificado
+94 Vi: avanzar al carácter especificado
+95 Vi: retrocede hasta el carácter especificado
+96 Vi: avanzar hasta el carácter especificado
+97 Entrar en modo de inserción `vi'
+98 Entrar en modo de inserción `vi' al comienzo de la línea
+99 Vi: repetir la búsqueda de carácter en la misma dirección
+100 Vi: repetir la búsqueda de carácter en la dirección contraria
+101 Vi: repetir la búsqueda en la misma dirección
+102 Vi: repetir la búsqueda en la dirección contraria
+103 Vi: reemplazar el carácter bajo el cursor por el que se introduzca
+104 Vi: modo de reemplazo
+105 Vi: buscar en el historial hacia atrás
+106 Vi: buscar en el historial hacia adelante
+107 Vi: reemplazar el carácter bajo el cursor cambiando a modo inserción
+108 Vi: reemplazar la línea completa
+109 Vi: ir a la palabra anterior
+110 Vi: ir a la palabra siguiente
+111 Vi: deshacer el cambio anterior
+112 Vi: ir al comienzo de la línea
+113 Ejecutar `which' para el comando actual
+114 Pegar el buffer donde el cursor
+115 Replace just-yanked text with yank from earlier kill
+116 (WIN32 only) Copy cut buffer to system clipboard
+117 (WIN32 only) Paste clipboard buffer at cursor position
+118 (WIN32 only) Convert each '/' in next word to '\\\\'
+119 (WIN32 only) Convert each '/' in previous word to '\\\\'
+120 (WIN32 only) Page visible console window up
+121 (WIN32 only) Page visible console window down

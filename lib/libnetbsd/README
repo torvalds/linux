@@ -1,0 +1,7 @@
+$FreeBSD$
+
+libnetbsd is a thin compatibility layer intended to allow a limited
+set of NetBSD software to compile as part of the FreeBSD build with
+little or no modification.  It is built as a static library and not
+installed for general use.  Likewise, its header files are not
+installed.

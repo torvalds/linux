@@ -1,0 +1,337 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) [year] [your name]
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" Note: The date here should be updated whenever a non-trivial
+.\" change is made to the manual page.
+.Dd July 30, 2004
+.Dt EXAMPLE 3
+.Os
+.Sh NAME
+.Nm example
+.Nd "example library function manual page"
+.Sh LIBRARY
+.\" Note: list of available libraries is available in mdoc(7)
+.Lb libc
+.Sh SYNOPSIS
+.In example.h
+.Ft int
+.Fn example "char *ptr" "int mode"
+.Sh DESCRIPTION
+This is an example library function manual page for the
+.Fn example
+function.
+It is intended that this example can be used as a template
+when writing a new manual page.
+.Pp
+The
+.Fn example
+function takes two arguments:
+.Fa ptr
+and
+.Fa mode .
+The argument
+.Fa mode
+may have one of the following values:
+.Bl -tag -width ".Dv EXAMPLE_ONE"
+.It Dv EXAMPLE_ONE
+First example of a defined variable.
+.Dv EXAMPLE_ONE
+is described below.
+.It Dv EXAMPLE_TWO
+Second example.
+.El
+.Pp
+The above values are defined in
+.In example.h
+as follows:
+.Bd -literal
+#define EXAMPLE_ONE  1
+#define EXAMPLE_TWO  2
+.Ed
+.Sh IMPLEMENTATION NOTES
+The
+.Fn example
+function is not actually implemented.
+.Sh RETURN VALUES
+.Rv -std example
+.Sh ENVIRONMENT
+The
+.Fn example
+library function ignores the
+.Ev EXAMPLE
+environment variable.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/null" -compact
+.It Pa /dev/null
+Example of a file in the
+.Sx FILES
+section.
+.El
+.Sh DIAGNOSTICS
+None.
+.Sh COMPATIBILITY
+The
+.Fn example
+function has no known compatibility issues.
+.Sh ERRORS
+.\" Delete any errno's that are not returned by your
+.\" function or system call and then tailor the
+.\" remaining text as needed.
+The
+.Fn example
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+Operation not permitted.
+.It Bq Er ENOENT
+No such file or directory.
+.It Bq Er ESRCH
+No such process.
+.It Bq Er EINTR
+Interrupted system call.
+.It Bq Er EIO
+Input/output error.
+.It Bq Er ENXIO
+Device not configured.
+.It Bq Er E2BIG
+Argument list too long.
+.It Bq Er ENOEXEC
+Exec format error.
+.It Bq Er EBADF
+Bad file descriptor.
+.It Bq Er ECHILD
+No child processes.
+.It Bq Er EDEADLK
+Resource deadlock avoided.
+.It Bq Er ENOMEM
+Cannot allocate memory.
+.It Bq Er EACCES
+Permission denied.
+.It Bq Er EFAULT
+Bad address.
+.It Bq Er ENOTBLK
+Block device required.
+.It Bq Er EBUSY
+Device busy.
+.It Bq Er EEXIST
+File exists.
+.It Bq Er EXDEV
+Cross-device link.
+.It Bq Er ENODEV
+Operation not supported by device.
+.It Bq Er ENOTDIR
+Not a directory.
+.It Bq Er EISDIR
+Is a directory.
+.It Bq Er EINVAL
+Invalid argument.
+.It Bq Er ENFILE
+Too many open files in system.
+.It Bq Er EMFILE
+Too many open files.
+.It Bq Er ENOTTY
+Inappropriate ioctl for device.
+.It Bq Er ETXTBSY
+Text file busy.
+.It Bq Er EFBIG
+File too large.
+.It Bq Er ENOSPC
+No space left on device.
+.It Bq Er ESPIPE
+Illegal seek.
+.It Bq Er EROFS
+Read-only file system.
+.It Bq Er EMLINK
+Too many links.
+.It Bq Er EPIPE
+Broken pipe.
+.It Bq Er EDOM
+Numerical argument out of domain.
+.It Bq Er ERANGE
+Result too large.
+.It Bq Er EAGAIN
+Resource temporarily unavailable.
+.It Bq Er EWOULDBLOCK
+Operation would block.
+.It Bq Er EINPROGRESS
+Operation now in progress.
+.It Bq Er EALREADY
+Operation already in progress.
+.It Bq Er ENOTSOCK
+Socket operation on non-socket.
+.It Bq Er EDESTADDRREQ
+Destination address required.
+.It Bq Er EMSGSIZE
+Message too long.
+.It Bq Er EPROTOTYPE
+Protocol wrong type for socket.
+.It Bq Er ENOPROTOOPT
+Protocol not available.
+.It Bq Er EPROTONOSUPPORT
+Protocol not supported.
+.It Bq Er ESOCKTNOSUPPORT
+Socket type not supported.
+.It Bq Er EOPNOTSUPP
+Operation not supported.
+.It Bq Er EPFNOSUPPORT
+Protocol family not supported.
+.It Bq Er EAFNOSUPPORT
+Address family not supported by protocol family.
+.It Bq Er EADDRINUSE
+Address already in use.
+.It Bq Er EADDRNOTAVAIL
+Cannot assign requested address.
+.It Bq Er ENETDOWN
+Network is down.
+.It Bq Er ENETUNREACH
+Network is unreachable.
+.It Bq Er ENETRESET
+Network dropped connection on reset.
+.It Bq Er ECONNABORTED
+Software causes connection abort.
+.It Bq Er ENOBUFS
+No buffer space available.
+.It Bq Er EISCONN
+Socket is already connected.
+.It Bq Er ENOTCONN
+Socket is not connected.
+.It Bq Er ESHUTDOWN
+Cannot send after socket shutdown.
+.It Bq Er ETOOMANYREFS
+Too many references: cannot splice.
+.It Bq Er ETIMEDOUT
+Operation timed out.
+.It Bq Er ECONNREFUSED
+Connection refused.
+.It Bq Er ELOOP
+Too many levels of symbolic links.
+.It Bq Er ENAMETOOLONG
+File name too long.
+.It Bq Er EHOSTDOWN
+Host is down.
+.It Bq Er EHOSTUNREACH
+No route to host.
+.It Bq Er ENOTEMPTY
+Directory not empty.
+.It Bq Er EPROCLIM
+Too many processes.
+.It Bq Er EUSERS
+Too many users.
+.It Bq Er EDQUOT
+Disc quota exceeded.
+.It Bq Er ESTALE
+Stale NFS file handle.
+.It Bq Er EREMOTE
+Too many levels of remote in path.
+.It Bq Er EBADRPC
+RPC struct is bad.
+.It Bq Er ERPCMISMATCH
+RPC version wrong.
+.It Bq Er EPROGUNAVAIL
+RPC program not available.
+.It Bq Er EPROGMISMATCH
+Program version wrong.
+.It Bq Er EPROCUNAVAIL
+Bad procedure for program.
+.It Bq Er ENOLCK
+No locks available.
+.It Bq Er ENOSYS
+Function not implemented.
+.It Bq Er EFTYPE
+Inappropriate file type or format.
+.It Bq Er EAUTH
+Authentication error.
+.It Bq Er ENEEDAUTH
+Need authenticator.
+.It Bq Er EIDRM
+Identifier removed.
+.It Bq Er ENOMSG
+No message of desired type.
+.It Bq Er EOVERFLOW
+Value too large to be stored in data type.
+.It Bq Er ECANCELED
+Operation canceled.
+.It Bq Er EILSEQ
+Illegal byte sequence.
+.It Bq Er ENOATTR
+Attribute not found.
+.It Bq Er EDOOFUS
+Programming error.
+.El
+.Sh SEE ALSO
+.Xr example 1 ,
+.Xr example 4 ,
+.Xr mdoc 7 ,
+.Xr example 9
+.Rs
+.%A "A. B. Author"
+.%T "Example RFC Title"
+.%O RFC0000
+.Re
+.Rs
+.%A "A. B. Author"
+.%B "Example Book Title"
+.%O ISBN-0-000-00000-0
+.Re
+.Rs
+.%A "A. B. Author"
+.%D "January 1997"
+.%J "Example Journal Name"
+.%T "Example Article Title"
+.Re
+.Sh STANDARDS
+If the function conforms to some standard, such as
+.St -p1003.1-2004
+or
+.St -isoC-99 ,
+it should be noted here.
+.Sh HISTORY
+The
+.Nm
+manual page example first appeared in
+.Fx 2.2 .
+.Pp
+Some other common
+.Sx HISTORY
+section examples are:
+.Pp
+The
+.Nm
+manual page example first appeared in
+.Bx 4.4 .
+.Pp
+The
+.Nm
+manual page example first appeared in
+.At v6 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Mike Pritchard Aq Mt mpp@FreeBSD.org .
+.Sh BUGS
+The actual code for this function is vaporware.

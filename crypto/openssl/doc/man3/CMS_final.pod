@@ -1,0 +1,46 @@
+=pod
+
+=head1 NAME
+
+CMS_final - finalise a CMS_ContentInfo structure
+
+=head1 SYNOPSIS
+
+ #include <openssl/cms.h>
+
+ int CMS_final(CMS_ContentInfo *cms, BIO *data, BIO *dcont, unsigned int flags);
+
+=head1 DESCRIPTION
+
+CMS_final() finalises the structure B<cms>. It's purpose is to perform any
+operations necessary on B<cms> (digest computation for example) and set the
+appropriate fields. The parameter B<data> contains the content to be
+processed. The B<dcont> parameter contains a BIO to write content to after
+processing: this is only used with detached data and will usually be set to
+NULL.
+
+=head1 NOTES
+
+This function will normally be called when the B<CMS_PARTIAL> flag is used. It
+should only be used when streaming is not performed because the streaming
+I/O functions perform finalisation operations internally.
+
+=head1 RETURN VALUES
+
+CMS_final() returns 1 for success or 0 for failure.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<CMS_sign(3)>,
+L<CMS_encrypt(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

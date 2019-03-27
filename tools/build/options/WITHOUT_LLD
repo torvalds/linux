@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to not build LLVM's lld linker.

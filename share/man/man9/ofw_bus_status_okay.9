@@ -1,0 +1,77 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2018 Oleksandr Tymoshenko
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 8, 2018
+.Dt ofw_bus_status_okay 9
+.Os
+.Sh NAME
+.Nm ofw_bus_get_status
+.Nm ofw_bus_status_okay
+.Nm ofw_bus_node_status_okay
+.Nd check status of the device tree node
+.Sh SYNOPSIS
+.In dev/ofw/openfirm.h
+.In dev/ofw/ofw_bus.h
+.In dev/ofw/ofw_bus_subr.h
+.Ft const char *
+.Fn ofw_bus_get_status "device_t dev"
+.Ft int
+.Fn ofw_bus_status_okay "device_t dev"
+.Ft int
+.Fn ofw_bus_node_status_okay "phandle_t node"
+.Sh DESCRIPTION
+.Pp
+The "status" property of the device tree node indicates whether the device is
+enabled or not.
+Multiple hardware versions might be built using the same base System-on-Chip
+but with a different set of blocks enabled.
+It is common to use  SoC device tree and only enable/disable device nodes for
+the derivative boards.
+The device tree node is considered enabled only if it has "status" property
+with the value set to either "ok" or "okay".
+.Pp
+.Fn ofw_bus_get_status
+returns the value of the "status" property of the device tree node associated with the device
+.Fa dev .
+If the node does not have "status" property or there is no node associated with
+the device the function returns NULL.
+.Pp
+.Fn ofw_bus_status_okay
+returns 1 if the device tree node associated with the device
+.Fa dev
+has "status" property and its value is either "ok" or "okay".
+.Pp
+.Fn ofw_bus_node_status_okay
+returns 1 if the device tree node
+.Fa node
+has "status" property and its value is either "ok" or "okay".
+.Sh AUTHORS
+This manual page was written by
+.An Oleksandr Tymoshenko .

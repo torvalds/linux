@@ -1,0 +1,59 @@
+
+#------------------------------------------------------------------------------
+# $File: gnome,v 1.5 2014/04/30 21:41:02 christos Exp $
+# GNOME related files
+
+# Contributed by Josh Triplett
+# FIXME: Could be simplified if pstring supported two-byte counts
+0         string   GnomeKeyring\n\r\0\n GNOME keyring
+>&0       ubyte    0                    \b, major version 0
+>>&0      ubyte    0                    \b, minor version 0
+>>>&0     ubyte    0                    \b, crypto type 0 (AES)
+>>>&0     ubyte    >0                   \b, crypto type %u (unknown)
+>>>&1     ubyte    0                    \b, hash type 0 (MD5)
+>>>&1     ubyte    >0                   \b, hash type %u (unknown)
+>>>&2     ubelong  0xFFFFFFFF           \b, name NULL
+>>>&2     ubelong  !0xFFFFFFFF
+>>>>&-4   ubelong  >255                 \b, name too long for file's pstring type
+>>>>&-4   ubelong  <256
+>>>>>&-1  pstring  x                    \b, name "%s"
+>>>>>>&0  ubeqdate x                    \b, last modified %s
+>>>>>>&8  ubeqdate x                    \b, created %s
+>>>>>>&16 ubelong  &1
+>>>>>>>&0 ubelong  x                    \b, locked if idle for %u seconds
+>>>>>>&16 ubelong  ^1                   \b, not locked if idle
+>>>>>>&24 ubelong  x                    \b, hash iterations %u
+>>>>>>&28 ubequad  x                    \b, salt %llu
+>>>>>>&52 ubelong  x                    \b, %u item(s)
+
+# From: Alex Beregszaszi <alex@fsn.hu>
+4	string	gtktalog		GNOME Catalogue (gtktalog)
+>13	string	>\0			version %s
+
+# Summary: GStreamer binary registry
+# Extension: .bin
+# Submitted by: Josh Triplett <josh@joshtriplett.org>
+0	belong	0xc0def00d		GStreamer binary registry
+>4	string	x			\b, version %s
+
+# GVariant Database file
+# By Elan Ruusamae <glen@delfi.ee>
+# https://github.com/GNOME/gvdb/blob/master/gvdb-format.h
+# It's always "GVariant", it's byte swapped on incompatible archs
+# See https://github.com/GNOME/gvdb/blob/master/gvdb-builder.c
+# file_builder_serialise()
+# http://developer.gnome.org/glib/2.34/glib-GVariant.html#GVariant
+0	string	GVariant	GVariant Database file,
+# version is never filled. probably future extension
+>8	lelong	x		version %d
+# not sure are these usable, so commented out
+#>>16	lelong	x		start %d,
+#>>>20	lelong	x		end %d
+
+# G-IR database made by gobject-introspect toolset,
+# http://live.gnome.org/GObjectIntrospection
+0	string		GOBJ\nMETADATA\r\n\032	G-IR binary database
+>16	byte		x			\b, v%d
+>17	byte		x			\b.%d
+>20	leshort		x			\b, %d entries
+>22	leshort		x			\b/%d local

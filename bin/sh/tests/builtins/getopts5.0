@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+set -- -x arg
+opt=not
+getopts x opt
+r1=$? OPTIND1=$OPTIND opt1=$opt
+getopts x opt
+r2=$? OPTIND2=$OPTIND
+[ "$r1" = 0 ] && [ "$OPTIND1" = 2 ] && [ "$opt1" = x ] && [ "$r2" != 0 ] &&
+	[ "$OPTIND2" = 2 ]

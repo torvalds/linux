@@ -1,0 +1,23 @@
+# $FreeBSD$
+
+failures=
+failure() {
+	echo "Error at line $1" >&2
+	failures=x$failures
+}
+
+exit 4 & p4=$!
+exit 8 & p8=$!
+wait $p4
+[ $? = 4 ] || failure $LINENO
+wait $p8
+[ $? = 8 ] || failure $LINENO
+
+exit 3 & p3=$!
+exit 7 & p7=$!
+wait $p7
+[ $? = 7 ] || failure $LINENO
+wait $p3
+[ $? = 3 ] || failure $LINENO
+
+test -z "$failures"

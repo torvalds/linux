@@ -1,0 +1,7 @@
+#
+# Tcl package index file
+#
+# Note sqlite*3* init specifically
+#
+package ifneeded sqlite3 @PACKAGE_VERSION@ \
+    [list load [file join $dir @PKG_LIB_FILE@] Sqlite3]

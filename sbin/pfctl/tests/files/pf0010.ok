@@ -1,0 +1,30 @@
+pass in inet proto icmp all keep state
+pass in inet6 proto ipv6-icmp all keep state
+block drop in inet proto icmp all
+block drop in inet6 proto ipv6-icmp all
+block return-rst in inet proto tcp all
+block return-rst in inet6 proto tcp all
+block return-rst(ttl 10) in inet proto tcp all
+block return-rst(ttl 10) in inet6 proto tcp all
+block return-icmp(port-unr) in inet proto icmp all
+block return-icmp(net-unr) in inet proto icmp all
+block return-icmp(net-unr) in inet proto icmp all
+block return-icmp(srcfail) in inet proto icmp all
+block return-icmp(srcfail) in inet proto icmp all
+block return-icmp(host-prohib) in inet proto icmp all
+block return-icmp(host-prohib) in inet proto icmp all
+block return-icmp(cutoff-preced) in inet proto icmp all
+block return-icmp(cutoff-preced) in inet proto icmp all
+block return-icmp6(port-unr) in inet6 proto ipv6-icmp all
+block return-icmp6(noroute-unr) in inet6 proto ipv6-icmp all
+block return-icmp6(noroute-unr) in inet6 proto ipv6-icmp all
+block return-icmp6(admin-unr) in inet6 proto ipv6-icmp all
+block return-icmp6(admin-unr) in inet6 proto ipv6-icmp all
+block return-icmp6(notnbr-unr) in inet6 proto ipv6-icmp all
+block return-icmp6(notnbr-unr) in inet6 proto ipv6-icmp all
+block return-icmp6(addr-unr) in inet6 proto ipv6-icmp all
+block return-icmp6(addr-unr) in inet6 proto ipv6-icmp all
+block return-icmp6(port-unr) in inet6 proto ipv6-icmp all
+block return-icmp6(port-unr) in inet6 proto ipv6-icmp all
+block return-icmp(srcfail, admin-unr) in all
+block return-icmp(srcfail, admin-unr) in all

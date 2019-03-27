@@ -1,0 +1,6 @@
+# $FreeBSD$
+proc				/proc		procfs	rw 0 0
+/dev/fd0c			/fd	ufs	rw,noauto 0 0
+/dev/ad0s1			/dos		msdosfs	rw,noauto 0 0
+/dev/ad0s1a			/wd		ufs	rw,noauto 0 0
+/dev/acd0c			/cdrom		cd9660	ro,noauto 0 0

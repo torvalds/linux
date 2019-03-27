@@ -1,0 +1,140 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ttyname.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd July 18, 2014
+.Dt TTYNAME 3
+.Os
+.Sh NAME
+.Nm ttyname ,
+.Nm ttyname_r ,
+.Nm isatty
+.Nd get name of associated terminal (tty) from file descriptor
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft char *
+.Fn ttyname "int fd"
+.Ft int
+.Fn ttyname_r "int fd" "char *buf" "size_t len"
+.Ft int
+.Fn isatty "int fd"
+.Sh DESCRIPTION
+These functions operate on file descriptors for terminal type devices.
+.Pp
+The
+.Fn isatty
+function
+determines if the file descriptor
+.Fa fd
+refers to a valid
+terminal type device.
+.Pp
+The
+.Fn ttyname
+function
+gets the related device name of
+a file descriptor for which
+.Fn isatty
+is true.
+.Pp
+The
+.Fn ttyname
+function
+returns the name stored in a static buffer which will be overwritten
+on subsequent calls.
+The
+.Fn ttyname_r
+function
+takes a buffer and length as arguments to avoid this problem.
+.Sh RETURN VALUES
+The
+.Fn isatty
+function returns 1 if
+.Fa fd
+refers to a terminal type device;
+otherwise, it returns 0 and may set
+.Va errno
+to indicate the error.
+The
+.Fn ttyname
+function
+returns the null terminated name if the device is found and
+.Fn isatty
+is true; otherwise
+a
+.Dv NULL
+pointer is returned.
+The
+.Fn ttyname_r
+function returns 0 if successful.
+Otherwise an error number is returned.
+.Sh ERRORS
+These functions may fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument
+is not a valid file descriptor.
+.It Bq Er ENOTTY
+The file associated with
+.Fa fd
+is not a terminal.
+.El
+.Pp
+Additionally,
+.Fn ttyname_r
+may fail if:
+.Bl -tag -width Er
+.It Bq Er ERANGE
+The
+.Fa bufsize
+argument
+is smaller than the length of the string to be returned.
+.El
+.Sh SEE ALSO
+.Xr fdevname 3 ,
+.Xr ptsname 3 ,
+.Xr tcgetattr 3 ,
+.Xr tty 4
+.Sh HISTORY
+The
+.Fn isatty
+and
+.Fn ttyname
+functions
+appeared in
+.At v7 .
+The
+.Fn ttyname_r
+function
+appeared in
+.Fx 6.0 .

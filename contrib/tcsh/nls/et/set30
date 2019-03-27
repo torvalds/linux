@@ -1,0 +1,16 @@
+$ $tcsh: set30,v 1.3 2011/02/04 18:19:33 christos Exp $
+$ tw.parse.c
+$set 30 
+1 starting_a_command %d\n
+2 complete %d 
+3 complete %d %S\n
+4 %s: Internal match error.\n
+5 elementi
+6 veergu
+7 Leidsin %d %s, näitan neid? [e/j] 
+8 looking = %d\n
+9 \n%s sisemine viga: Ma ei tea, mida ma otsin!\n
+10 pole kataloog
+11 pole leitav
+12 loetamatu
+13 jJ

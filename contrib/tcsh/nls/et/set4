@@ -1,0 +1,45 @@
+$ $tcsh: set4,v 1.3 2011/02/04 18:19:33 christos Exp $
+$ Termcap strings
+$set 4
+1 lisa uus tühi rida
+2 kuuldav kell
+3 puhasta põhjani
+4 puhasta rea lõpuni
+5 kursori horisontaal positsioon
+6 ekraani puhastamine
+7 sümboli kustutamine
+8 rea kustutamine
+9 alusta kustutamis mood
+10 lõpeta kustutamis mood
+11 lõpeta vahelekirjutamise mood
+12 kursor olekurealt
+13 kursor koju
+14 lisa sümbol
+15 alusta vahelekirjutamise mood
+16 lisa täide
+17 saadab kursori alla
+18 saadab kursori vasakule
+19 saadab kursori paremale
+20 saadab kursori üles
+21 alusta rasvast
+22 atribuutide lõpp
+23 mitte-purustav tühik
+24 lõpeta rõhutatud
+25 alusta rõhutatud
+26 kursor olekureale
+27 kursor ühe võrra üles
+28 alusta allajoonimist
+29 lõpeta allajoonimine
+30 nähtav kell
+31 kustuta mitu sümbolit
+32 kursor korduvalt alla
+33 lisa mitu sümbolit
+34 kursor korduvalt vasakule
+35 kursor korduvalt paremale
+36 kursor korduvalt üles
+37 Omab automaatseid ääri
+38 Saab kasutada füüsilist tabulaatorit
+39 Ridade arv
+40 Veergude arv
+41 Omab meta klahvi
+42 Parem äär ignoreerib uut rida

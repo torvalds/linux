@@ -1,0 +1,58 @@
+#
+# DIR-655A1 - 3x3 2GHz D-Link AP
+#
+# This contains a QCA9558 MIPS74k SoC with on-board 3x3 2GHz wifi,
+# 128MiB RAM, an AR8327 5-port gigabit ethernet switch.
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+# Include the default QCA955x parameters
+include         "std.QCA955X"
+
+ident           DIR-655A1
+
+# Override hints with board values
+hints           "DIR-655A1.hints"
+
+# Force the board memory - the base AP135 has 128MB RAM
+options         AR71XX_REALMEM=(128*1024*1024)
+
+# i2c GPIO bus
+#device		gpioiic
+#device		iicbb
+#device		iicbus
+#device		iic
+
+# Options required for miiproxy and mdiobus
+options 	ARGE_MDIO	# Export an MDIO bus separate from arge
+device		miiproxy	# MDIO bus <-> MII PHY rendezvous
+
+device		etherswitch
+device		arswitch
+
+# read MSDOS formatted disks - USB
+#options 	MSDOSFS
+
+# Enable the uboot environment stuff rather then the
+# redboot stuff.
+options 	AR71XX_ENV_UBOOT
+
+# uzip - to boot natively from flash
+device		xz
+options 	GEOM_UZIP
+
+# Used for the static uboot partition map
+device          geom_map
+
+options 	AR71XX_ATH_EEPROM
+device		firmware		# Used by the above
+options 	ATH_EEPROM_FIRMWARE
+
+# Boot off of the rootfs, as defined in the geom_map setup.
+options 	ROOTDEVNAME=\"ufs:map/rootfs.uzip\"
+
+# Default to accept
+options		IPFIREWALL_DEFAULT_TO_ACCEPT

@@ -1,0 +1,74 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# netif is required for lo0 because syslogd tries to open a local socket
+#
+# PROVIDE: syslogd
+# REQUIRE: mountcritremote FILESYSTEMS newsyslog netif
+# BEFORE:  SERVERS
+
+. /etc/rc.subr
+
+name="syslogd"
+desc="System log daemon"
+rcvar="syslogd_enable"
+pidfile="/var/run/syslog.pid"
+command="/usr/sbin/${name}"
+required_files="/etc/syslog.conf"
+start_precmd="syslogd_precmd"
+extra_commands="reload"
+
+sockfile="/var/run/syslogd.sockets"
+evalargs="rc_flags=\"\`set_socketlist\` \$rc_flags\""
+
+syslogd_precmd()
+{
+	local _l _ldir
+
+	#	Transitional symlink for old binaries
+	#
+	if [ ! -L /dev/log ] && ! check_jail jailed; then
+		ln -sf /var/run/log /dev/log
+	fi
+	rm -f /var/run/log
+
+	#	Create default list of syslog sockets to watch
+	#
+	( umask 022 ; > $sockfile )
+
+	#	If running named(8) or ntpd(8) chrooted, added appropriate
+	#	syslog socket to list of sockets to watch.
+	#
+	for _l in $altlog_proglist; do
+		eval _ldir=\$${_l}_chrootdir
+		if checkyesno ${_l}_enable && [ -n "$_ldir" ]; then
+			echo "${_ldir}/var/run/log" >> $sockfile
+		fi
+	done
+
+	#	If other sockets have been provided, change run_rc_command()'s
+	#	internal copy of $syslogd_flags to force use of specific
+	#	syslogd sockets.
+	#
+	if [ -s $sockfile ]; then
+		echo "/var/run/log" >> $sockfile
+		eval $evalargs
+	fi
+
+	return 0
+}
+
+set_socketlist()
+{
+	local _s _socketargs
+
+	_socketargs=
+	for _s in `cat $sockfile | tr '\n' ' '` ; do
+		_socketargs="-l $_s $_socketargs"
+	done
+	echo $_socketargs
+}
+load_rc_config $name
+run_rc_command "$1"

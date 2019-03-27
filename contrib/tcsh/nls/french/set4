@@ -1,0 +1,45 @@
+$ $tcsh: set4,v 1.3 2011/02/04 18:19:35 christos Exp $
+$ Termcap strings
+$set 4
+1 ajoute une nouvelle ligne vide
+2 bip audible
+3 efface jusqu'en bas
+4 efface jusqu'à la fin de la ligne
+5 curseur vers un position horizontale
+6 efface l'écran
+7 efface un caractère
+8 efface une ligne
+9 commence le mode d'effacement
+10 termine le mode d'effacement
+11 termine le mode d'insertion
+12 curseur de la ligne d'état
+13 curseur origine
+14 insère caractère
+15 commence le mode insertion
+16 insère du remplissage
+17 curseur vers le bas
+18 curseur vers la gauche
+19 curseur vers la droite
+20 curseur vers le haut
+21 commence le gras
+22 fin attributs
+23 espaces non-destructives
+24 fin mise en évidence
+25 commence mise en évidence
+26 curseur à la ligne d'état
+27 curseur d'une vers le haut
+28 commence souligné
+29 fin souligné
+30 bip `visible'
+31 efface plusiseurs caractères
+32 curseur vers le bas (plusieurs)
+33 insert plusieurs caractères
+34 curseur vers la gauche (plusieurs)
+35 curseur vers la droite (plusieurs)
+36 curseur vers le haut (plusieurs)
+37 A les marge automatiques
+38 Peut utiliser les tabulations physiques
+39 Nombre de lignes
+40 Nombre de colonnes
+41 A les touches `alternatives'
+42 retoure-chariot ignoré à la droite de la marge

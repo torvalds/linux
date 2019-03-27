@@ -1,0 +1,112 @@
+.\" Copyright (c) 2005 Sam Leffler <sam@errno.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 16, 2005
+.Dt HOSTAPD_CLI 8
+.Os
+.Sh NAME
+.Nm hostapd_cli
+.Nd text-based frontend program for interacting with
+.Xr hostapd 8
+.Sh SYNOPSIS
+.Nm
+.Op Ar commands
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is a text-based frontend program for interacting with
+.Xr hostapd 8 .
+It is used to query the current status.
+.Pp
+The
+.Nm
+utility
+can show the
+current authentication status,
+dot11 and dot1x MIBs, etc.
+.Pp
+The
+.Nm
+utility
+supports two modes: interactive and command line.
+Both modes share the same command set.
+.Pp
+Interactive mode is started when
+.Nm
+is executed without any parameters on the command line.
+Commands are then entered from the controlling terminal in
+response to the
+.Nm
+prompt.
+In command line mode, the same commands are
+entered as command line arguments.
+.Sh COMMANDS
+The following commands may be supplied on the command line
+or at a prompt when operating interactively.
+.Bl -tag -width indent
+.It Ic mib
+Report MIB variables (dot1x, dot11) for the current interface.
+.It Ic sta Ar addr
+Report the MIB variables for the associated station with MAC address
+.Ar addr .
+.It Ic all_sta
+Report the MIB variables for all associated stations.
+.It Ic help
+Show usage help.
+.It Ic interface Op Ar ifname
+Show available interfaces and/or set the current interface
+when multiple are available.
+.It Ic level Ar debug_level
+Change the debugging level in
+.Xr hostapd 8 .
+Larger numbers generate more messages.
+.It Ic license
+Display the full
+license for
+.Nm .
+.It Ic quit
+Exit
+.Nm .
+.El
+.Sh SEE ALSO
+.Xr hostapd.conf 5 ,
+.Xr hostapd 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Jouni Malinen Aq Mt j@w1.fi .
+This manual page is derived from the
+.Pa README
+file included in the
+.Nm hostapd
+distribution.

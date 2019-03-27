@@ -1,0 +1,96 @@
+
+#------------------------------------------------------------------------------
+# $File: dump,v 1.17 2018/06/26 01:07:17 christos Exp $
+# dump:  file(1) magic for dump file format--for new and old dump filesystems
+#
+# We specify both byte orders in order to recognize byte-swapped dumps.
+#
+0	name	new-dump-be
+>4	bedate	x		This dump %s,
+>8	bedate	x		Previous dump %s,
+>12	belong	>0		Volume %d,
+>692	belong	0		Level zero, type:
+>692	belong	>0		Level %d, type:
+>0	belong	1		tape header,
+>0	belong	2		beginning of file record,
+>0	belong	3		map of inodes on tape,
+>0	belong	4		continuation of file record,
+>0	belong	5		end of volume,
+>0	belong	6		map of inodes deleted,
+>0	belong	7		end of medium (for floppy),
+>676	string	>\0		Label %s,
+>696	string	>\0		Filesystem %s,
+>760	string	>\0		Device %s,
+>824	string	>\0		Host %s,
+>888	belong	>0		Flags %x
+
+0	name	old-dump-be
+#>4	bedate	x		This dump %s,
+#>8	bedate	x		Previous dump %s,
+>12	belong	>0		Volume %d,
+>692	belong	0		Level zero, type:
+>692	belong	>0		Level %d, type:
+>0	belong	1		tape header,
+>0	belong	2		beginning of file record,
+>0	belong	3		map of inodes on tape,
+>0	belong	4		continuation of file record,
+>0	belong	5		end of volume,
+>0	belong	6		map of inodes deleted,
+>0	belong	7		end of medium (for floppy),
+>676	string	>\0		Label %s,
+>696	string	>\0		Filesystem %s,
+>760	string	>\0		Device %s,
+>824	string	>\0		Host %s,
+>888	belong	>0		Flags %x
+
+0	name	ufs2-dump-be
+>896	beqdate	x		This dump %s,
+>904	beqdate	x		Previous dump %s,
+>12	belong	>0		Volume %d,
+>692	belong	0		Level zero, type:
+>692	belong	>0		Level %d, type:
+>0	belong	1		tape header,
+>0	belong	2		beginning of file record,
+>0	belong	3		map of inodes on tape,
+>0	belong	4		continuation of file record,
+>0	belong	5		end of volume,
+>0	belong	6		map of inodes deleted,
+>0	belong	7		end of medium (for floppy),
+>676	string	>\0		Label %s,
+>696	string	>\0		Filesystem %s,
+>760	string	>\0		Device %s,
+>824	string	>\0		Host %s,
+>888	belong	>0		Flags %x
+
+24	belong	60012		new-fs dump file (big endian),
+>0	use	new-dump-be
+
+24	belong	60011		old-fs dump file (big endian),
+>0	use	old-dump-be
+
+24	lelong	60012		new-fs dump file (little endian),
+# to correctly recognize '*.mo' GNU message catalog (little endian)
+!:strength - 15
+>0	use	\^new-dump-be
+
+24	lelong	60011		old-fs dump file (little endian),
+>0	use	\^old-dump-be
+
+
+24	belong	0x19540119	new-fs dump file (ufs2, big endian),
+>0	use	ufs2-dump-be
+
+24	lelong	0x19540119	new-fs dump file (ufs2, little endian),
+>0	use	\^ufs2-dump-be
+
+18	leshort	60011		old-fs dump file (16-bit, assuming PDP-11 endianness),
+>2	medate	x		Previous dump %s,
+>6	medate	x		This dump %s,
+>10	leshort	>0		Volume %d,
+>0	leshort	1		tape header.
+>0	leshort	2		beginning of file record.
+>0	leshort	3		map of inodes on tape.
+>0	leshort	4		continuation of file record.
+>0	leshort	5		end of volume.
+>0	leshort	6		map of inodes deleted.
+>0	leshort	7		end of medium (for floppy).

@@ -1,0 +1,130 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ss8	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+8: The Yacc Environment
+.PP
+When the user inputs a specification
+to Yacc, the output is a file of C programs, called
+.I y.tab.c
+on most
+systems
+(due to local file system conventions, the names may differ from
+installation to installation).
+The function produced by Yacc is called
+.I yyparse \|;
+it is an integer valued function.
+When it is called, it in turn repeatedly calls
+.I yylex ,
+the lexical analyzer
+supplied by the user (see Section 3)
+to obtain input tokens.
+Eventually, either an error is detected, in which case
+(if no error recovery is possible)
+.I yyparse
+returns the value 1,
+or the lexical analyzer returns the endmarker token
+and the parser accepts.
+In this case,
+.I yyparse
+returns the value 0.
+.PP
+The user must provide a certain amount of environment for this
+parser in order to obtain a working program.
+For example, as with every C program, a program called
+.I main
+must be defined, that eventually calls
+.I yyparse .
+In addition, a routine called
+.I yyerror
+prints a message
+when a syntax error is detected.
+.PP
+These two routines must be supplied in one form or another by the
+user.
+To ease the initial effort of using Yacc, a library has been
+provided with default versions of
+.I main
+and
+.I yyerror .
+The name of this library is system dependent;
+on many systems the library is accessed by a
+.B \-ly
+argument to the loader.
+To show the triviality of these default programs, the source is
+given below:
+.DS
+main(){
+	return( yyparse() );
+	}
+.DE
+and
+.DS
+# include <stdio.h>
+
+yyerror(s) char *s; {
+	fprintf( stderr, "%s\en", s );
+	}
+.DE
+The argument to
+.I yyerror
+is a string containing an error message, usually
+the string ``syntax error''.
+The average application will want to do better than this.
+Ordinarily, the program should keep track of the input line number, and print it
+along with the message when a syntax error is detected.
+The external integer variable
+.I yychar
+contains the lookahead token number at the time the error was detected;
+this may be of some interest in giving better diagnostics.
+Since the
+.I main
+program is probably supplied by the user (to read arguments, etc.)
+the Yacc library is useful only in small
+projects, or in the earliest stages of larger ones.
+.PP
+The external integer variable
+.I yydebug
+is normally set to 0.
+If it is set to a nonzero value, the parser will output a
+verbose description of its actions, including
+a discussion of which input symbols have been read, and
+what the parser actions are.
+Depending on the operating environment,
+it may be possible to set this variable by using a debugging system.

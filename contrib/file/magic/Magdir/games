@@ -1,0 +1,301 @@
+
+#------------------------------------------------------------------------------
+# $File: games,v 1.16 2017/10/19 16:40:37 christos Exp $
+# games:  file(1) for games
+
+# Fabio Bonelli <fabiobonelli@libero.it>
+# Quake II - III data files
+0       string  IDP2        	Quake II 3D Model file,
+>20     long    x               %u skin(s),
+>8      long    x               (%u x
+>12     long    x 		%u),
+>40     long    x               %u frame(s),
+>16     long    x               Frame size %u bytes,
+>24     long  	x               %u vertices/frame,
+>28     long    x            	%u texture coordinates,
+>32     long    x               %u triangles/frame
+
+0       string  IBSP            Quake
+>4      long    0x26            II Map file (BSP)
+>4      long    0x2E      	III Map file (BSP)
+
+0       string  IDS2            Quake II SP2 sprite file
+
+#---------------------------------------------------------------------------
+# Doom and Quake
+# submitted by Nicolas Patrois
+
+0       string  \xcb\x1dBoom\xe6\xff\x03\x01    Boom or linuxdoom demo
+# some doom lmp files don't match, I've got one beginning with \x6d\x02\x01\x01
+
+24      string  LxD\ 203        Linuxdoom save
+>0      string  x       , name=%s
+>44     string  x       , world=%s
+
+# Quake
+
+# Update: Joerg Jenderek
+# URL: http://fileformats.archiveteam.org/wiki/PAK
+# reference: https://quakewiki.org/wiki/.pak
+# GRR: line below is too general as it matches also Acorn PackDir compressed Archive
+# and Git pack ./revision
+0       string  PACK    
+# real Quake examples like pak0.pak have only some hundreds like 150 files
+# So test for few files
+>8	ulelong <0x01000000	
+# in file version 5.32 test for null terminator is only true for
+# offset ~< FILE_BYTES_MAX = 1 MB defined in ../../src/file.h 
+# look for null terminator of 1st entry name
+>>(4.l+55)	ubyte	0	Quake I or II world or extension
+!:mime	application/x-dzip
+!:ext	pak
+#>>>8	ulelong	x	\b, table size %u
+# dividing this by entry size (64) gives number of files
+>>>8	ulelong/64 x	\b, %u files
+# offset to the beginning of the file table
+>>>4	ulelong	x	\b, offset 0x%x
+# 1st file entry
+>>>(4.l)	use	pak-entry
+# 2nd file entry
+#>>>4	ulelong+64	x	\b, offset 0x%x
+#>>>(4.l+64)	use	pak-entry
+#
+#	display file table entry of Quake PAK archive
+0	name		pak-entry
+# normally entry start after header which implies offset 12 or higher
+>56	ulelong	>11	
+# the offset from the beginning of pak to beginning of this entry file contents
+>>56	ulelong	x	at 0x%x
+# the size of file for this entry 
+>>60	ulelong	x	%u bytes
+# 56 byte null-terminated entry name string includes path like maps/e1m1.bsp
+>>0	string	x	'%-.56s'
+# inspect entry content by jumping to entry offset
+>>(56)	indirect x	\b: 
+
+#0       string  -1\x0a  Quake I demo
+#>30     string  x        version %.4s
+#>61     string  x        level %s
+
+#0       string  5\x0a   Quake I save
+
+# The levels
+
+# Quake 1
+
+0	string	5\x0aIntroduction             Quake I save: start Introduction
+0	string	5\x0athe_Slipgate_Complex     Quake I save: e1m1 The slipgate complex
+0	string	5\x0aCastle_of_the_Damned     Quake I save: e1m2 Castle of the damned
+0	string	5\x0athe_Necropolis           Quake I save: e1m3 The necropolis
+0	string	5\x0athe_Grisly_Grotto        Quake I save: e1m4 The grisly grotto
+0	string	5\x0aZiggurat_Vertigo         Quake I save: e1m8 Ziggurat vertigo (secret)
+0	string	5\x0aGloom_Keep               Quake I save: e1m5 Gloom keep
+0	string	5\x0aThe_Door_To_Chthon       Quake I save: e1m6 The door to Chthon
+0	string	5\x0aThe_House_of_Chthon      Quake I save: e1m7 The house of Chthon
+0	string	5\x0athe_Installation         Quake I save: e2m1 The installation
+0	string	5\x0athe_Ogre_Citadel         Quake I save: e2m2 The ogre citadel
+0	string	5\x0athe_Crypt_of_Decay       Quake I save: e2m3 The crypt of decay (dopefish lives!)
+0	string	5\x0aUnderearth               Quake I save: e2m7 Underearth (secret)
+0	string	5\x0athe_Ebon_Fortress        Quake I save: e2m4 The ebon fortress
+0	string	5\x0athe_Wizard's_Manse       Quake I save: e2m5 The wizard's manse
+0	string	5\x0athe_Dismal_Oubliette     Quake I save: e2m6 The dismal oubliette
+0	string	5\x0aTermination_Central      Quake I save: e3m1 Termination central
+0	string	5\x0aVaults_of_Zin            Quake I save: e3m2 Vaults of Zin
+0	string	5\x0athe_Tomb_of_Terror       Quake I save: e3m3 The tomb of terror
+0	string	5\x0aSatan's_Dark_Delight     Quake I save: e3m4 Satan's dark delight
+0	string	5\x0athe_Haunted_Halls        Quake I save: e3m7 The haunted halls (secret)
+0	string	5\x0aWind_Tunnels             Quake I save: e3m5 Wind tunnels
+0	string	5\x0aChambers_of_Torment      Quake I save: e3m6 Chambers of torment
+0	string	5\x0athe_Sewage_System        Quake I save: e4m1 The sewage system
+0	string	5\x0aThe_Tower_of_Despair     Quake I save: e4m2 The tower of despair
+0	string	5\x0aThe_Elder_God_Shrine     Quake I save: e4m3 The elder god shrine
+0	string	5\x0athe_Palace_of_Hate       Quake I save: e4m4 The palace of hate
+0	string	5\x0aHell's_Atrium            Quake I save: e4m5 Hell's atrium
+0	string	5\x0athe_Nameless_City        Quake I save: e4m8 The nameless city (secret)
+0	string	5\x0aThe_Pain_Maze            Quake I save: e4m6 The pain maze
+0	string	5\x0aAzure_Agony              Quake I save: e4m7 Azure agony
+0	string	5\x0aShub-Niggurath's_Pit     Quake I save: end Shub-Niggurath's pit
+
+# Quake DeathMatch levels
+
+0	string	5\x0aPlace_of_Two_Deaths	 Quake I save: dm1 Place of two deaths
+0	string	5\x0aClaustrophobopolis		 Quake I save: dm2 Claustrophobopolis
+0	string	5\x0aThe_Abandoned_Base		 Quake I save: dm3 The abandoned base
+0	string	5\x0aThe_Bad_Place		 Quake I save: dm4 The bad place
+0	string	5\x0aThe_Cistern		 Quake I save: dm5 The cistern
+0	string	5\x0aThe_Dark_Zone		 Quake I save: dm6 The dark zone
+
+# Scourge of Armagon
+
+0	string	5\x0aCommand_HQ               Quake I save: start Command HQ
+0	string	5\x0aThe_Pumping_Station      Quake I save: hip1m1 The pumping station
+0	string	5\x0aStorage_Facility         Quake I save: hip1m2 Storage facility
+0	string	5\x0aMilitary_Complex         Quake I save: hip1m5 Military complex (secret)
+0	string	5\x0athe_Lost_Mine            Quake I save: hip1m3 The lost mine
+0	string	5\x0aResearch_Facility        Quake I save: hip1m4 Research facility
+0	string	5\x0aAncient_Realms           Quake I save: hip2m1 Ancient realms
+0	string	5\x0aThe_Gremlin's_Domain     Quake I save: hip2m6 The gremlin's domain (secret)
+0	string	5\x0aThe_Black_Cathedral      Quake I save: hip2m2 The black cathedral
+0	string	5\x0aThe_Catacombs            Quake I save: hip2m3 The catacombs
+0	string	5\x0athe_Crypt__              Quake I save: hip2m4 The crypt
+0	string	5\x0aMortum's_Keep            Quake I save: hip2m5 Mortum's keep
+0	string	5\x0aTur_Torment              Quake I save: hip3m1 Tur torment
+0	string	5\x0aPandemonium              Quake I save: hip3m2 Pandemonium
+0	string	5\x0aLimbo                    Quake I save: hip3m3 Limbo
+0	string	5\x0athe_Edge_of_Oblivion     Quake I save: hipdm1 The edge of oblivion (secret)
+0	string	5\x0aThe_Gauntlet             Quake I save: hip3m4 The gauntlet
+0	string	5\x0aArmagon's_Lair           Quake I save: hipend Armagon's lair
+
+# Malice
+
+0	string	5\x0aThe_Academy      Quake I save: start The academy
+0	string	5\x0aThe_Lab          Quake I save: d1 The lab
+0	string	5\x0aArea_33          Quake I save: d1b Area 33
+0	string	5\x0aSECRET_MISSIONS  Quake I save: d3b Secret missions
+0	string	5\x0aThe_Hospital     Quake I save: d10 The hospital (secret)
+0	string	5\x0aThe_Genetics_Lab Quake I save: d11 The genetics lab (secret)
+0	string	5\x0aBACK_2_MALICE    Quake I save: d4b Back to Malice
+0	string	5\x0aArea44           Quake I save: d1c Area 44
+0	string	5\x0aTakahiro_Towers  Quake I save: d2 Takahiro towers
+0	string	5\x0aA_Rat's_Life     Quake I save: d3 A rat's life
+0	string	5\x0aInto_The_Flood   Quake I save: d4 Into the flood
+0	string	5\x0aThe_Flood        Quake I save: d5 The flood
+0	string	5\x0aNuclear_Plant    Quake I save: d6 Nuclear plant
+0	string	5\x0aThe_Incinerator_Plant    Quake I save: d7 The incinerator plant
+0	string	5\x0aThe_Foundry              Quake I save: d7b The foundry
+0	string	5\x0aThe_Underwater_Base      Quake I save: d8 The underwater base
+0	string	5\x0aTakahiro_Base            Quake I save: d9 Takahiro base
+0	string	5\x0aTakahiro_Laboratories    Quake I save: d12 Takahiro laboratories
+0	string	5\x0aStayin'_Alive    Quake I save: d13 Stayin' alive
+0	string	5\x0aB.O.S.S._HQ      Quake I save: d14 B.O.S.S. HQ
+0	string	5\x0aSHOWDOWN!        Quake I save: d15 Showdown!
+
+# Malice DeathMatch levels
+
+0	string	5\x0aThe_Seventh_Precinct	 Quake I save: ddm1 The seventh precinct
+0	string	5\x0aSub_Station		 Quake I save: ddm2 Sub station
+0	string	5\x0aCrazy_Eights!		 Quake I save: ddm3 Crazy eights!
+0	string	5\x0aEast_Side_Invertationa	 Quake I save: ddm4 East side invertationa
+0	string	5\x0aSlaughterhouse		 Quake I save: ddm5 Slaughterhouse
+0	string	5\x0aDOMINO			 Quake I save: ddm6 Domino
+0	string	5\x0aSANDRA'S_LADDER		 Quake I save: ddm7 Sandra's ladder
+
+
+0	string	MComprHD	MAME CHD compressed hard disk image,
+>12	belong	x		version %u
+
+# doom - submitted by Jon Dowland
+
+0	string	=IWAD		doom main IWAD data
+>4	lelong	x		containing %d lumps
+0	string	=PWAD		doom patch PWAD data
+>4	lelong	x		containing %d lumps
+
+# Build engine group files (Duke Nukem, Shadow Warrior, ...)
+# Extension: .grp
+# Created by: "Ganael Laplanche" <ganael.laplanche@martymac.org>
+0	string	KenSilverman	Build engine group file
+>12	lelong	x		containing %d files
+
+# Summary: Warcraft 3 save
+# Extension: .w3g
+# Created by: "Nelson A. de Oliveira" <naoliv@gmail.com>
+0	string		Warcraft\ III\ recorded\ game	%s
+
+
+# Summary: Warcraft 3 map
+# Extension: .w3m
+# Created by: "Nelson A. de Oliveira" <naoliv@gmail.com>
+0	string		HM3W		Warcraft III map file
+
+
+# Summary: SGF Smart Game Format
+# Extension: .sgf
+# Reference: http://www.red-bean.com/sgf/
+# Created by: Eduardo Sabbatella <eduardo_sabbatella@yahoo.com.ar>
+# Modified by (1): Abel Cheung (regex, more game format)
+# FIXME: Some games don't have GM (game type)
+0	regex		\\(;.*GM\\[[0-9]{1,2}\\]	Smart Game Format
+>2	search/0x200/b	GM[
+>>&0	string		1]	(Go)
+>>&0	string		2]	(Othello)
+>>&0	string		3]	(chess)
+>>&0	string		4]	(Gomoku+Renju)
+>>&0	string		5]	(Nine Men's Morris)
+>>&0	string		6]	(Backgammon)
+>>&0	string		7]	(Chinese chess)
+>>&0	string		8]	(Shogi)
+>>&0	string		9]	(Lines of Action)
+>>&0	string		10]	(Ataxx)
+>>&0	string		11]	(Hex)
+>>&0	string		12]	(Jungle)
+>>&0	string		13]	(Neutron)
+>>&0	string		14]	(Philosopher's Football)
+>>&0	string		15]	(Quadrature)
+>>&0	string		16]	(Trax)
+>>&0	string		17]	(Tantrix)
+>>&0	string		18]	(Amazons)
+>>&0	string		19]	(Octi)
+>>&0	string		20]	(Gess)
+>>&0	string		21]	(Twixt)
+>>&0	string		22]	(Zertz)
+>>&0	string		23]	(Plateau)
+>>&0	string		24]	(Yinsh)
+>>&0	string		25]	(Punct)
+>>&0	string		26]	(Gobblet)
+>>&0	string		27]	(hive)
+>>&0	string		28]	(Exxit)
+>>&0	string		29]	(Hnefatal)
+>>&0	string		30]	(Kuba)
+>>&0	string		31]	(Tripples)
+>>&0	string		32]	(Chase)
+>>&0	string		33]	(Tumbling Down)
+>>&0	string		34]	(Sahara)
+>>&0	string		35]	(Byte)
+>>&0	string		36]	(Focus)
+>>&0	string		37]	(Dvonn)
+>>&0	string		38]	(Tamsk)
+>>&0	string		39]	(Gipf)
+>>&0	string		40]	(Kropki)
+
+##############################################
+# NetImmerse/Gamebryo game engine entries
+
+# Summary: Gamebryo game engine file
+# Extension: .nif, .kf
+# Created by: Abel Cheung <abelcheung@gmail.com>
+0		string		Gamebryo\ File\ Format,\ Version\ 	Gamebryo game engine file
+>&0		regex		[0-9a-z.]+				\b, version %s
+
+# Summary: Gamebryo game engine file
+# Extension: .kfm
+# Created by: Abel Cheung <abelcheung@gmail.com>
+0		string		;Gamebryo\ KFM\ File\ Version\ 		Gamebryo game engine animation File
+>&0		regex		[0-9a-z.]+				\b, version %s
+
+# Summary: NetImmerse game engine file
+# Extension .nif
+# Created by: Abel Cheung <abelcheung@gmail.com>
+0		string		NetImmerse\ File\ Format,\ Versio
+>&0		string		n\ 					NetImmerse game engine file
+>>&0		regex		[0-9a-z.]+				\b, version %s
+
+# Type:	SGF Smart Game Format
+# URL:	http://www.red-bean.com/sgf/
+# From:	Eduardo Sabbatella <eduardo_sabbatella@yahoo.com.ar>
+2	regex/c	\\(;.*GM\\[[0-9]{1,2}\\]	Smart Game Format
+>2	regex/c	GM\\[1\\]			- Go Game
+>2	regex/c	GM\\[6\\]			- BackGammon Game
+>2	regex/c	GM\\[11\\]			- Hex Game
+>2	regex/c	GM\\[18\\]			- Amazons Game
+>2	regex/c	GM\\[19\\]			- Octi Game
+>2	regex/c	GM\\[20\\]			- Gess Game
+>2	regex/c	GM\\[21\\]			- twix Game
+
+# Epic Games/Unreal Engine Package
+#
+0	lelong		0x9E2A83C1	Unreal Engine Package,
+>4	leshort		x		version: %i
+>12	lelong		!0		\b, names: %i
+>28	lelong		!0		\b, imports: %i
+>20	lelong		!0		\b, exports: %i

@@ -1,0 +1,142 @@
+.\" Copyright (c) 1995 David Nugent <davidn@blaze.net.au>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, is permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice immediately at the beginning of the file, without modification,
+.\"    this list of conditions, and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. This work was done expressly for inclusion into FreeBSD.  Other use
+.\"    is permitted provided this notation is included.
+.\" 4. Absolutely no warranty of function or purpose is made by the author
+.\"    David Nugent.
+.\" 5. Modifications may be freely made to this file providing the above
+.\"    conditions are met.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 2, 1997
+.Dt LOGIN_OK 3
+.Os
+.Sh NAME
+.Nm auth_ttyok ,
+.Nm auth_hostok ,
+.Nm auth_timeok
+.Nd functions for checking login class based login restrictions
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/types.h
+.In time.h
+.In login_cap.h
+.Ft int
+.Fn auth_ttyok "login_cap_t *lc" "const char *tty"
+.Ft int
+.Fn auth_hostok "login_cap_t *lc" "const char *host" "char const *ip"
+.Ft int
+.Fn auth_timeok "login_cap_t *lc" "time_t t"
+.Sh DESCRIPTION
+This set of functions checks to see if login is allowed based on login
+class capability entries in the login database,
+.Xr login.conf 5 .
+.Pp
+The
+.Fn auth_ttyok
+function checks to see if the named tty is available to users of a specific
+class, and is either in the
+.Em ttys.allow
+access list, and not in
+the
+.Em ttys.deny
+access list.
+An empty
+.Em ttys.allow
+list (or if no such capability exists for
+the given login class) logins via any tty device are allowed unless
+the
+.Em ttys.deny
+list exists and is non-empty, and the device or its
+tty group (see
+.Xr ttys 5 )
+is not in the list.
+Access to ttys may be allowed or restricted specifically by tty device
+name, a device name which includes a wildcard (e.g.\& ttyD* or cuaD*),
+or may name a ttygroup, when group=<name> tags have been assigned in
+.Pa /etc/ttys .
+Matching of ttys and ttygroups is case sensitive.
+Passing a
+.Dv NULL
+or empty string as the
+.Ar tty
+parameter causes the function to return a non-zero value.
+.Pp
+The
+.Fn auth_hostok
+function checks for any host restrictions for remote logins.
+The function checks on both a host name and IP address (given in its
+text form, typically n.n.n.n) against the
+.Em host.allow
+and
+.Em host.deny
+login class capabilities.
+As with ttys and their groups, wildcards and character classes may be
+used in the host allow and deny capability records.
+The
+.Xr fnmatch 3
+function is used for matching, and the matching on hostnames is case
+insensitive.
+Note that this function expects that the hostname is fully expanded
+(i.e., the local domain name added if necessary) and the IP address
+is in its canonical form.
+No hostname or address lookups are attempted.
+.Pp
+It is possible to call this function with either the hostname or
+the IP address missing (i.e.\&
+.Dv NULL )
+and matching will be performed
+only on the basis of the parameter given.
+Passing
+.Dv NULL
+or empty strings in both parameters will result in
+a non-zero return value.
+.Pp
+The
+.Fn auth_timeok
+function checks to see that a given time value is within the
+.Em times.allow
+login class capability and not within the
+.Em times.deny
+access lists.
+An empty or non-existent
+.Em times.allow
+list allows access at any
+time, except if a given time is falls within a period in the
+.Em times.deny
+list.
+The format of time period records contained in both
+.Em times.allow
+and
+.Em times.deny
+capability fields is explained in detail in the
+.Xr login_times 3
+manual page.
+.Sh RETURN VALUES
+A non-zero return value from any of these functions indicates that
+login access is granted.
+A zero return value means either that the item being tested is not
+in the
+.Em allow
+access list, or is within the
+.Em deny
+access list.
+.Sh SEE ALSO
+.Xr getcap 3 ,
+.Xr login_cap 3 ,
+.Xr login_class 3 ,
+.Xr login_times 3 ,
+.Xr login.conf 5 ,
+.Xr termcap 5

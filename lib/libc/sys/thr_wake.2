@@ -1,0 +1,112 @@
+.\" Copyright (c) 2016 The FreeBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 23, 2016
+.Dt THR_WAKE 2
+.Os
+.Sh NAME
+.Nm thr_wake
+.Nd wake up the suspended thread
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/thr.h
+.Ft int
+.Fn thr_wake "long id"
+.Sh DESCRIPTION
+.Bf -symbolic
+This function is intended for implementing threading.
+Normal applications should use
+.Xr pthread_cond_timedwait 3
+together with
+.Xr pthread_cond_broadcast 3
+for typical safe suspension with cooperation of the thread
+being suspended, or
+.Xr pthread_suspend_np 3
+and
+.Xr pthread_resume_np 3
+in some specific situations, instead.
+.Ef
+.Pp
+Passing the thread identifier of the calling thread
+.Po
+see
+.Xr thr_self 2
+.Pc
+to
+.Fn thr_wake
+sets a thread's flag to cause the next signal-interruptible sleep
+of that thread in the kernel to fail immediately with the
+.Er EINTR
+error.
+The flag is cleared by an interruptible sleep attempt or by a call to
+.Xr thr_suspend 2 .
+This is used by the system threading library to implement cancellation.
+.Pp
+If
+.Fa id
+is not equal to the current thread identifier, the specified thread is
+woken up if suspended by the
+.Xr thr_suspend
+system call.
+If the thread is not suspended at the time of the
+.Nm
+call, the wake is remembered and the next attempt of the thread to
+suspend itself with the
+.Xr thr_suspend 2
+results in immediate return with success.
+Only one wake is remembered.
+.Sh RETURN VALUES
+.Rv -std thr_wake
+.Sh ERRORS
+The
+.Fn thr_wake
+operation returns these errors:
+.Bl -tag -width Er
+.It Bq Er ESRCH
+The specified thread was not found or does not belong to the process
+of the calling thread.
+.El
+.Sh SEE ALSO
+.Xr ps 1 ,
+.Xr thr_self 2 ,
+.Xr thr_suspend 2 ,
+.Xr pthread_cancel 3 ,
+.Xr pthread_resume_np 3 ,
+.Xr pthread_suspend_np 3
+.Sh STANDARDS
+The
+.Fn thr_suspend
+system call is non-standard and is used by
+.Lb libthr
+to implement
+.St -p1003.1-2001
+.Xr pthread 3
+functionality.

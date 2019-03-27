@@ -1,0 +1,84 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 23, 2009
+.Dt VFS_MOUNT 9
+.Os
+.Sh NAME
+.Nm VFS_MOUNT
+.Nd mount a file system
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.In sys/vnode.h
+.Ft int
+.Fn VFS_MOUNT "struct mount *mp"
+.Sh DESCRIPTION
+The
+.Fn VFS_MOUNT
+macro mounts a file system into the system's namespace or updates the
+attributes of an already mounted file system.
+.Pp
+The arguments it expects are:
+.Bl -tag -width data
+.It Fa mp
+Structure representing the file system.
+.El
+.Pp
+The
+.Fn VFS_MOUNT
+macro is called both to mount new file systems and to change the
+attributes of an existing file system.
+If the
+.Dv MNT_UPDATE
+flag is set in
+.Fa mp->mnt_flag
+then the file system should update its internal state from the value of
+.Fa mp->mnt_flag .
+This can be used, for instance, to convert a read-only file system to
+read-write.
+It is also used by
+.Xr mountd 8
+to update the NFS export information for the file system.
+.Pp
+If the
+.Dv MNT_UPDATE
+flag is not specified, then this is a newly mounted file system.
+The file system code should allocate and initialize
+any private data needed to represent
+the file system (it can use the
+.Fa mp->mnt_data
+field to store this information).
+.Sh SEE ALSO
+.Xr VFS 9 ,
+.Xr vnode 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

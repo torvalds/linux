@@ -1,0 +1,186 @@
+.\" Copyright (c) 2005 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 27, 2008
+.Dt BLUETOOTH.DEVICE.CONF 5
+.Os
+.Sh NAME
+.Nm bluetooth.device.conf
+.Nd Bluetooth device configuration file
+.Sh DESCRIPTION
+Bluetooth device configuration framework provides ability to adjust certain
+Bluetooth device parameters on per-device basis.
+.Pp
+Bluetooth device configuration files are plain text files that should conform
+to basic
+.Xr sh 1
+syntax.
+Even though Bluetooth device are not exactly shell scripts,
+they are parsed and passed through shell
+.Ic eval
+command.
+This makes it possible to use various shell tricks in the Bluetooth device
+configuration files.
+.Pp
+The
+.Pa /etc/rc.d/bluetooth
+script is used to start and stop Bluetooth devices.
+This script is not executed by default when system boots.
+It is called by
+.Xr devd 8
+in response to Bluetooth device arrival and departure events.
+It is possible to execute this script by hand if required.
+The script accepts Bluetooth device driver name as an extra parameter.
+.Pp
+The system wide Bluetooth device configuration file is called
+.Pa /etc/defaults/\:bluetooth.device.conf .
+Configuration parameters set in the system wide Bluetooth device configuration
+file apply to every Bluetooth device connected to the system.
+.Pp
+Configuration parameters overrides for the specific Bluetooth device
+should be placed in the
+.Pa /etc/bluetooth/ Ns Ar DEVICE_DRIVER_NAME Ns Pa .conf
+file.
+Where
+.Ar DEVICE_DRIVER_NAME
+is the device driver name of the Bluetooth device.
+.Pp
+The following list provides a name and short description for each
+variable that can be set in a Bluetooth device configuration file.
+.Bl -tag -width indent-two
+.It Va authentication_enable
+.Pq Vt bool
+The
+.Va authentication_enable
+parameter controls if the device requires to authenticate the remote device
+at connection setup.
+If set to
+.Dq Li YES ,
+the device will try to authenticate the other device at connection setup.
+Bluetooth authentication requests are handled by
+.Xr hcsecd 8
+daemon.
+.It Va class
+.Pq Vt str
+The
+.Va class
+parameter is used to indicate the capabilities of the device to
+other devices.
+For more details see
+.Dq Assigned Numbers - Bluetooth Baseband
+document.
+.It Va connectable
+.Pq Vt bool
+The
+.Va connectable
+parameter controls whether or not the device should periodically scan for
+page attempts from other devices.
+If set to
+.Dq Li YES ,
+the device will periodically scan for page attempts from other devices.
+.It Va discoverable
+.Pq Vt bool
+The
+.Va discoverable
+parameter controls whether or not the device should periodically scan for
+inquiry requests from other devices.
+If set to
+.Dq Li YES ,
+the device will periodically scan for inquiry requests from other devices.
+.It Va encryption_mode
+.Pq Vt str
+The
+.Va encryption_mode
+parameter controls if the device requires encryption to the remote device
+at connection setup.
+At connection setup, only the devices with the
+.Va authentication_enable
+parameter enabled and
+.Va encryption_mode
+parameter enabled will try to encrypt the connection to the other device.
+Possible values are
+.Dq Li NONE
+encryption disabled,
+.Dq Li P2P
+encryption for only point-to-point packets,
+or
+.Dq Li ALL
+encryption for both point-to-point and broadcast packets.
+.It Va hci_debug_level
+.Pq Vt int
+HCI node debug level.
+Higher values mean more verbose output.
+.It Va l2cap_debug_level
+.Pq Vt int
+L2CAP node debug level.
+Higher values mean more verbose output.
+.It Va local_name
+.Pq Vt str
+The
+.Va local_name
+parameter provides the ability to modify the user friendly name for the device.
+.It Va role_switch
+.Pq Vt bool
+The
+.Va role_switch
+parameter controls whether the local device should perform role switch.
+By default, if role switch is supported, the local device will try to perform
+role switch and become Master on incoming connection.
+Some devices do not support role switch and thus incoming connections from
+such devices will fail.
+If
+.Va role switch
+is disabled then accepting device will remain Slave.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/defaults/bluetooth.device.conf" -compact
+.It Pa /etc/defaults/bluetooth.device.conf
+.It Pa /etc/rc.d/bluetooth
+.El
+.Sh EXAMPLES
+The
+.Pa /etc/bluetooth/ubt0.conf
+file should be used to specify configuration parameters overrides for the
+first USB Bluetooth device
+(device driver name is
+.Li ubt0 ) .
+.Pp
+The
+.Pa /etc/bluetooth/ubt1.conf
+file should be used to specify configuration parameters overrides for the
+second USB Bluetooth device.
+.Sh SEE ALSO
+.Xr ng_bt3c 4 ,
+.Xr ng_h4 4 ,
+.Xr ng_hci 4 ,
+.Xr ng_l2cap 4 ,
+.Xr ng_ubt 4 ,
+.Xr devd 8 ,
+.Xr hccontrol 8 ,
+.Xr hcsecd 8 ,
+.Xr l2control 8
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com

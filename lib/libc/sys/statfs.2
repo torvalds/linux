@@ -1,0 +1,236 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)statfs.2	8.5 (Berkeley) 5/24/95
+.\" $FreeBSD$
+.\"
+.Dd February 13, 2017
+.Dt STATFS 2
+.Os
+.Sh NAME
+.Nm statfs
+.Nd get file system statistics
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.Ft int
+.Fn statfs "const char *path" "struct statfs *buf"
+.Ft int
+.Fn fstatfs "int fd" "struct statfs *buf"
+.Sh DESCRIPTION
+The
+.Fn statfs
+system call
+returns information about a mounted file system.
+The
+.Fa path
+argument
+is the path name of any file within the mounted file system.
+The
+.Fa buf
+argument
+is a pointer to a
+.Vt statfs
+structure defined as follows:
+.Bd -literal
+typedef struct fsid { int32_t val[2]; } fsid_t; /* file system id type */
+
+/*
+ * filesystem statistics
+ */
+
+#define	MFSNAMELEN	16		/* length of type name including null */
+#define	MNAMELEN	1024		/* size of on/from name bufs */
+#define	STATFS_VERSION	0x20140518	/* current version number */
+
+struct statfs {
+uint32_t f_version;		/* structure version number */
+uint32_t f_type;		/* type of filesystem */
+uint64_t f_flags;		/* copy of mount exported flags */
+uint64_t f_bsize;		/* filesystem fragment size */
+uint64_t f_iosize;		/* optimal transfer block size */
+uint64_t f_blocks;		/* total data blocks in filesystem */
+uint64_t f_bfree;		/* free blocks in filesystem */
+int64_t	 f_bavail;		/* free blocks avail to non-superuser */
+uint64_t f_files;		/* total file nodes in filesystem */
+int64_t	 f_ffree;		/* free nodes avail to non-superuser */
+uint64_t f_syncwrites;		/* count of sync writes since mount */
+uint64_t f_asyncwrites;		/* count of async writes since mount */
+uint64_t f_syncreads;		/* count of sync reads since mount */
+uint64_t f_asyncreads;		/* count of async reads since mount */
+uint64_t f_spare[10];		/* unused spare */
+uint32_t f_namemax;		/* maximum filename length */
+uid_t	  f_owner;		/* user that mounted the filesystem */
+fsid_t	  f_fsid;		/* filesystem id */
+char	  f_charspare[80];	    /* spare string space */
+char	  f_fstypename[MFSNAMELEN]; /* filesystem type name */
+char	  f_mntfromname[MNAMELEN];  /* mounted filesystem */
+char	  f_mntonname[MNAMELEN];    /* directory on which mounted */
+};
+.Ed
+.Pp
+The flags that may be returned include:
+.Bl -tag -width MNT_SYNCHRONOUS
+.It Dv MNT_RDONLY
+The file system is mounted read-only;
+Even the super-user may not write on it.
+.It Dv MNT_NOEXEC
+Files may not be executed from the file system.
+.It Dv MNT_NOSUID
+Setuid and setgid bits on files are not honored when they are executed.
+.It Dv MNT_SYNCHRONOUS
+All I/O to the file system is done synchronously.
+.It Dv MNT_ASYNC
+No file system I/O is done synchronously.
+.It Dv MNT_SOFTDEP
+Soft updates being done (see
+.Xr ffs 7 ) .
+.It Dv MNT_GJOURNAL
+Journaling with gjournal is enabled (see
+.Xr gjournal 8 ) .
+.It Dv MNT_SUIDDIR
+Special handling of SUID bit on directories.
+.It Dv MNT_UNION
+Union with underlying file system.
+.It Dv MNT_NOSYMFOLLOW
+Symbolic links are not followed.
+.It Dv MNT_NOCLUSTERR
+Read clustering is disabled.
+.It Dv MNT_NOCLUSTERW
+Write clustering is disabled.
+.\".It Dv MNT_JAILDEVFS
+.\"XXX
+.It Dv MNT_MULTILABEL
+Mandatory Access Control (MAC) support for individual objects
+(see
+.Xr mac 4 ) .
+.It Dv MNT_ACLS
+Access Control List (ACL) support enabled.
+.It Dv MNT_LOCAL
+The file system resides locally.
+.It Dv MNT_QUOTA
+The file system has quotas enabled on it.
+.It Dv MNT_ROOTFS
+Identifies the root file system.
+.It Dv MNT_EXRDONLY
+The file system is exported read-only.
+.It Dv MNT_NOATIME
+Updating of file access times is disabled.
+.It Dv MNT_USER
+The file system has been mounted by a user.
+.\".It Dv MNT_IGNORE
+.\"XXX
+.It Dv MNT_EXPORTED
+The file system is exported for both reading and writing.
+.It Dv MNT_DEFEXPORTED
+The file system is exported for both reading and writing to any Internet host.
+.It Dv MNT_EXPORTANON
+The file system maps all remote accesses to the anonymous user.
+.It Dv MNT_EXKERB
+The file system is exported with Kerberos uid mapping.
+.It Dv MNT_EXPUBLIC
+The file system is exported publicly (WebNFS).
+.El
+.Pp
+Fields that are undefined for a particular file system are set to -1.
+The
+.Fn fstatfs
+system call
+returns the same information about an open file referenced by descriptor
+.Fa fd .
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn statfs
+system call
+fails if one or more of the following are true:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path prefix of
+.Fa path
+is not a directory.
+.It Bq Er ENAMETOOLONG
+The length of a component of
+.Fa path
+exceeds 255 characters,
+or the length of
+.Fa path
+exceeds 1023 characters.
+.It Bq Er ENOENT
+The file referred to by
+.Fa path
+does not exist.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix of
+.Fa path .
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating
+.Fa path .
+.It Bq Er EFAULT
+The
+.Fa buf
+or
+.Fa path
+argument
+points to an invalid address.
+.It Bq Er EIO
+An
+.Tn I/O
+error occurred while reading from or writing to the file system.
+.El
+.Pp
+The
+.Fn fstatfs
+system call
+fails if one or more of the following are true:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument
+is not a valid open file descriptor.
+.It Bq Er EFAULT
+The
+.Fa buf
+argument
+points to an invalid address.
+.It Bq Er EIO
+An
+.Tn I/O
+error occurred while reading from or writing to the file system.
+.El
+.Sh SEE ALSO
+.Xr fhstatfs 2 ,
+.Xr getfsstat 2
+.Sh HISTORY
+The
+.Fn statfs
+system call first appeared in
+.Bx 4.4 .

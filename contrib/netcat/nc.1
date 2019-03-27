@@ -1,0 +1,523 @@
+.\"     $OpenBSD: nc.1,v 1.68 2015/03/26 10:35:04 tobias Exp $
+.\"
+.\" Copyright (c) 1996 David Sacerdote
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 26, 2015
+.Dt NC 1
+.Os
+.Sh NAME
+.Nm nc
+.Nd arbitrary TCP and UDP connections and listens
+.Sh SYNOPSIS
+.Nm nc
+.Bk -words
+.Op Fl 46DdEFhklNnrStUuvz
+.Op Fl e Ar IPsec_policy
+.Op Fl I Ar length
+.Op Fl i Ar interval
+.Op Fl -no-tcpopt
+.Op Fl O Ar length
+.Op Fl P Ar proxy_username
+.Op Fl p Ar source_port
+.Op Fl s Ar source
+.Op Fl T Ar toskeyword
+.Op Fl V Ar rtable
+.Op Fl w Ar timeout
+.Op Fl X Ar proxy_protocol
+.Oo Xo
+.Fl x Ar proxy_address Ns Oo : Ns
+.Ar port Oc
+.Xc Oc
+.Op Ar destination
+.Op Ar port
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+(or
+.Nm netcat )
+utility is used for just about anything under the sun involving TCP,
+UDP, or
+.Ux Ns -domain
+sockets.
+It can open TCP connections, send UDP packets, listen on arbitrary
+TCP and UDP ports, do port scanning, and deal with both IPv4 and
+IPv6.
+Unlike
+.Xr telnet 1 ,
+.Nm
+scripts nicely, and separates error messages onto standard error instead
+of sending them to standard output, as
+.Xr telnet 1
+does with some.
+.Pp
+Common uses include:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+simple TCP proxies
+.It
+shell-script based HTTP clients and servers
+.It
+network daemon testing
+.It
+a SOCKS or HTTP ProxyCommand for
+.Xr ssh 1
+.It
+and much, much more
+.El
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
+.It Fl D
+Enable debugging on the socket.
+.It Fl d
+Do not attempt to read from stdin.
+.It Fl E
+Shortcut for
+.Qo
+.Li "-e 'in ipsec esp/transport//require'"
+.Li "-e 'out ipsec esp/transport//require'" 
+.Qc ,
+which enables IPsec ESP transport mode in both
+directions.
+.It Fl e
+If IPsec support is available, then one can specify the IPsec policies
+to be used using the syntax described in
+.Xr ipsec_set_policy 3 .
+This flag can be specified up to two times, as typically one policy for
+each direction is needed.
+.It Fl F
+Pass the first connected socket using
+.Xr sendmsg 2
+to stdout and exit.
+This is useful in conjunction with
+.Fl X
+to have
+.Nm
+perform connection setup with a proxy but then leave the rest of the
+connection to another program (e.g.\&
+.Xr ssh 1
+using the
+.Xr ssh_config 5
+.Cm ProxyUseFdpass
+option).
+.It Fl h
+Prints out
+.Nm
+help.
+.It Fl I Ar length
+Specifies the size of the TCP receive buffer.
+.It Fl i Ar interval
+Specifies a delay time interval between lines of text sent and received.
+Also causes a delay time between connections to multiple ports.
+.It Fl k
+Forces
+.Nm
+to stay listening for another connection after its current connection
+is completed.
+It is an error to use this option without the
+.Fl l
+option.
+When used together with the
+.Fl u
+option, the server socket is not connected and it can receive UDP datagrams from
+multiple hosts.
+.It Fl l
+Used to specify that
+.Nm
+should listen for an incoming connection rather than initiate a
+connection to a remote host.
+It is an error to use this option in conjunction with the
+.Fl p ,
+.Fl s ,
+or
+.Fl z
+options.
+Additionally, any timeouts specified with the
+.Fl w
+option are ignored.
+.It Fl N
+.Xr shutdown 2
+the network socket after EOF on the input.
+Some servers require this to finish their work.
+.It Fl n
+Do not do any DNS or service lookups on any specified addresses,
+hostnames or ports.
+.It Fl -no-tcpopt
+Disables the use of TCP options on the socket, by setting the boolean
+TCP_NOOPT
+socket option.
+.It Fl O Ar length
+Specifies the size of the TCP send buffer.
+.It Fl P Ar proxy_username
+Specifies a username to present to a proxy server that requires authentication.
+If no username is specified then authentication will not be attempted.
+Proxy authentication is only supported for HTTP CONNECT proxies at present.
+.It Fl p Ar source_port
+Specifies the source port
+.Nm
+should use, subject to privilege restrictions and availability.
+It is an error to use this option in conjunction with the
+.Fl l
+option.
+.It Fl r
+Specifies that source and/or destination ports should be chosen randomly
+instead of sequentially within a range or in the order that the system
+assigns them.
+.It Fl S
+Enables the RFC 2385 TCP MD5 signature option.
+.It Fl s Ar source
+Specifies the IP of the interface which is used to send the packets.
+For
+.Ux Ns -domain
+datagram sockets, specifies the local temporary socket file
+to create and use so that datagrams can be received.
+It is an error to use this option in conjunction with the
+.Fl l
+option.
+.It Fl T Ar toskeyword
+Change IPv4 TOS value.
+.Ar toskeyword
+may be one of
+.Ar critical ,
+.Ar inetcontrol ,
+.Ar lowdelay ,
+.Ar netcontrol ,
+.Ar throughput ,
+.Ar reliability ,
+or one of the DiffServ Code Points:
+.Ar ef ,
+.Ar af11 ... af43 ,
+.Ar cs0 ... cs7 ;
+or a number in either hex or decimal.
+.It Fl t
+Causes
+.Nm
+to send RFC 854 DON'T and WON'T responses to RFC 854 DO and WILL requests.
+This makes it possible to use
+.Nm
+to script telnet sessions.
+.It Fl U
+Specifies to use
+.Ux Ns -domain
+sockets.
+.It Fl u
+Use UDP instead of the default option of TCP.
+For
+.Ux Ns -domain
+sockets, use a datagram socket instead of a stream socket.
+If a
+.Ux Ns -domain
+socket is used, a temporary receiving socket is created in
+.Pa /tmp
+unless the
+.Fl s
+flag is given.
+.It Fl V Ar rtable
+Set the routing table
+.Pq Dq FIB
+to be used.
+.It Fl v
+Have
+.Nm
+give more verbose output.
+.It Fl w Ar timeout
+Connections which cannot be established or are idle timeout after
+.Ar timeout
+seconds.
+The
+.Fl w
+flag has no effect on the
+.Fl l
+option, i.e.\&
+.Nm
+will listen forever for a connection, with or without the
+.Fl w
+flag.
+The default is no timeout.
+.It Fl X Ar proxy_protocol
+Requests that
+.Nm
+should use the specified protocol when talking to the proxy server.
+Supported protocols are
+.Dq 4
+(SOCKS v.4),
+.Dq 5
+(SOCKS v.5)
+and
+.Dq connect
+(HTTPS proxy).
+If the protocol is not specified, SOCKS version 5 is used.
+.It Xo
+.Fl x Ar proxy_address Ns Oo : Ns
+.Ar port Oc
+.Xc
+Requests that
+.Nm
+should connect to
+.Ar destination
+using a proxy at
+.Ar proxy_address
+and
+.Ar port .
+If
+.Ar port
+is not specified, the well-known port for the proxy protocol is used (1080
+for SOCKS, 3128 for HTTPS).
+.It Fl z
+Specifies that
+.Nm
+should just scan for listening daemons, without sending any data to them.
+It is an error to use this option in conjunction with the
+.Fl l
+option.
+.El
+.Pp
+.Ar destination
+can be a numerical IP address or a symbolic hostname
+(unless the
+.Fl n
+option is given).
+In general, a destination must be specified,
+unless the
+.Fl l
+option is given
+(in which case the local host is used).
+For
+.Ux Ns -domain
+sockets, a destination is required and is the socket path to connect to
+(or listen on if the
+.Fl l
+option is given).
+.Pp
+.Ar port
+can be a single integer or a range of ports.
+Ranges are in the form nn-mm.
+In general,
+a destination port must be specified,
+unless the
+.Fl U
+option is given.
+.Sh CLIENT/SERVER MODEL
+It is quite simple to build a very basic client/server model using
+.Nm .
+On one console, start
+.Nm
+listening on a specific port for a connection.
+For example:
+.Pp
+.Dl $ nc -l 1234
+.Pp
+.Nm
+is now listening on port 1234 for a connection.
+On a second console
+.Pq or a second machine ,
+connect to the machine and port being listened on:
+.Pp
+.Dl $ nc 127.0.0.1 1234
+.Pp
+There should now be a connection between the ports.
+Anything typed at the second console will be concatenated to the first,
+and vice-versa.
+After the connection has been set up,
+.Nm
+does not really care which side is being used as a
+.Sq server
+and which side is being used as a
+.Sq client .
+The connection may be terminated using an
+.Dv EOF
+.Pq Sq ^D .
+.Sh DATA TRANSFER
+The example in the previous section can be expanded to build a
+basic data transfer model.
+Any information input into one end of the connection will be output
+to the other end, and input and output can be easily captured in order to
+emulate file transfer.
+.Pp
+Start by using
+.Nm
+to listen on a specific port, with output captured into a file:
+.Pp
+.Dl $ nc -l 1234 \*(Gt filename.out
+.Pp
+Using a second machine, connect to the listening
+.Nm
+process, feeding it the file which is to be transferred:
+.Pp
+.Dl $ nc -N host.example.com 1234 \*(Lt filename.in
+.Pp
+After the file has been transferred, the connection will close automatically.
+.Sh TALKING TO SERVERS
+It is sometimes useful to talk to servers
+.Dq by hand
+rather than through a user interface.
+It can aid in troubleshooting,
+when it might be necessary to verify what data a server is sending
+in response to commands issued by the client.
+For example, to retrieve the home page of a web site:
+.Bd -literal -offset indent
+$ printf "GET / HTTP/1.0\er\en\er\en" | nc host.example.com 80
+.Ed
+.Pp
+Note that this also displays the headers sent by the web server.
+They can be filtered, using a tool such as
+.Xr sed 1 ,
+if necessary.
+.Pp
+More complicated examples can be built up when the user knows the format
+of requests required by the server.
+As another example, an email may be submitted to an SMTP server using:
+.Bd -literal -offset indent
+$ nc localhost 25 \*(Lt\*(Lt EOF
+HELO host.example.com
+MAIL FROM:\*(Ltuser@host.example.com\*(Gt
+RCPT TO:\*(Ltuser2@host.example.com\*(Gt
+DATA
+Body of email.
+\&.
+QUIT
+EOF
+.Ed
+.Sh PORT SCANNING
+It may be useful to know which ports are open and running services on
+a target machine.
+The
+.Fl z
+flag can be used to tell
+.Nm
+to report open ports,
+rather than initiate a connection.
+For example:
+.Bd -literal -offset indent
+$ nc -z host.example.com 20-30
+Connection to host.example.com 22 port [tcp/ssh] succeeded!
+Connection to host.example.com 25 port [tcp/smtp] succeeded!
+.Ed
+.Pp
+The port range was specified to limit the search to ports 20 \- 30.
+.Pp
+Alternatively, it might be useful to know which server software
+is running, and which versions.
+This information is often contained within the greeting banners.
+In order to retrieve these, it is necessary to first make a connection,
+and then break the connection when the banner has been retrieved.
+This can be accomplished by specifying a small timeout with the
+.Fl w
+flag, or perhaps by issuing a
+.Qq Dv QUIT
+command to the server:
+.Bd -literal -offset indent
+$ echo "QUIT" | nc host.example.com 20-30
+SSH-1.99-OpenSSH_3.6.1p2
+Protocol mismatch.
+220 host.example.com IMS SMTP Receiver Version 0.84 Ready
+.Ed
+.Sh EXAMPLES
+Open a TCP connection to port 42 of host.example.com, using port 31337 as
+the source port, with a timeout of 5 seconds:
+.Pp
+.Dl $ nc -p 31337 -w 5 host.example.com 42
+.Pp
+Open a UDP connection to port 53 of host.example.com:
+.Pp
+.Dl $ nc -u host.example.com 53
+.Pp
+Open a TCP connection to port 42 of host.example.com using 10.1.2.3 as the
+IP for the local end of the connection:
+.Pp
+.Dl $ nc -s 10.1.2.3 host.example.com 42
+.Pp
+Open a TCP connection to port 42 of host.example.com using IPsec ESP for
+incoming and outgoing traffic.
+.Pp
+.Dl $ nc -E host.example.com 42
+.Pp
+Open a TCP connection to port 42 of host.example.com using IPsec ESP for
+outgoing traffic only.
+.Pp
+.Dl $ nc -e 'out ipsec esp/transport//require' host.example.com 42
+.Pp
+Create and listen on a
+.Ux Ns -domain
+stream socket:
+.Pp
+.Dl $ nc -lU /var/tmp/dsocket
+.Pp
+Connect to port 42 of host.example.com via an HTTP proxy at 10.2.3.4,
+port 8080.
+This example could also be used by
+.Xr ssh 1 ;
+see the
+.Cm ProxyCommand
+directive in
+.Xr ssh_config 5
+for more information.
+.Pp
+.Dl $ nc -x10.2.3.4:8080 -Xconnect host.example.com 42
+.Pp
+The same example again, this time enabling proxy authentication with username
+.Dq ruser
+if the proxy requires it:
+.Pp
+.Dl $ nc -x10.2.3.4:8080 -Xconnect -Pruser host.example.com 42
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr cat 1 ,
+.Xr setfib 1 ,
+.Xr ssh 1 ,
+.Xr tcp 4
+.Sh AUTHORS
+Original implementation by *Hobbit*
+.Aq Mt hobbit@avian.org .
+.br
+Rewritten with IPv6 support by
+.An Eric Jackson Aq Mt ericj@monkey.org .
+.Sh CAVEATS
+UDP port scans using the
+.Fl uz
+combination of flags will always report success irrespective of
+the target machine's state.
+However,
+in conjunction with a traffic sniffer either on the target machine
+or an intermediary device,
+the
+.Fl uz
+combination could be useful for communications diagnostics.
+Note that the amount of UDP traffic generated may be limited either
+due to hardware resources and/or configuration settings.

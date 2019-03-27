@@ -1,0 +1,162 @@
+.\" Copyright (C) 2000 Jason Evans <jasone@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd May 31, 2016
+.Dt PTHREAD_CONDATTR 3
+.Os
+.Sh NAME
+.Nm pthread_condattr_init ,
+.Nm pthread_condattr_destroy ,
+.Nm pthread_condattr_getclock ,
+.Nm pthread_condattr_setclock ,
+.Nm pthread_condattr_getpshared ,
+.Nm pthread_condattr_setpshared
+.Nd condition attribute operations
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_condattr_init "pthread_condattr_t *attr"
+.Ft int
+.Fn pthread_condattr_destroy "pthread_condattr_t *attr"
+.Ft int
+.Fn pthread_condattr_getclock "pthread_condattr_t * restrict attr" "clockid_t * restrict clock_id"
+.Ft int
+.Fn pthread_condattr_setclock "pthread_condattr_t *attr" "clockid_t clock_id"
+.Ft int
+.Fn pthread_condattr_getpshared "pthread_condattr_t * restrict attr" "int * restrict pshared"
+.Ft int
+.Fn pthread_condattr_setpshared "pthread_condattr_t *attr" "int pshared"
+.Sh DESCRIPTION
+Condition attribute objects are used to specify parameters to
+.Fn pthread_cond_init .
+.Pp
+The
+.Fn pthread_condattr_init
+function initializes a condition attribute object with the default attributes.
+.Pp
+The
+.Fn pthread_condattr_destroy
+function destroys a condition attribute object.
+.Pp
+The
+.Fn pthread_condattr_getclock
+function will put the value of the clock attribute from
+.Fa attr
+into the memory area pointed to by
+.Fa clock_id .
+The
+.Fn pthread_condattr_setclock
+function will set the clock attribute of
+.Fa attr
+to the value specified in
+.Fa clock_id .
+The clock attribute affects the interpretation of
+.Fa abstime
+in
+.Xr pthread_cond_timedwait 3
+and may be set to
+.Dv CLOCK_REALTIME
+(default)
+or
+.Dv CLOCK_MONOTONIC .
+.Pp
+The
+.Fn pthread_condattr_getpshared
+function will put the value of the process-shared attribute from
+.Fa attr
+into the memory area pointed to by
+.Fa pshared .
+The
+.Fn pthread_condattr_setpshared
+function will set the process-shared attribute of
+.Fa attr
+to the value specified in
+.Fa pshared .
+The argument
+.Fa pshared
+may have one of the following values:
+.Bl -tag -width ".Dv PTHREAD_PROCESS_PRIVATE"
+.It Dv PTHREAD_PROCESS_PRIVATE
+The condition variable it is attached to may only be accessed by
+threads in the same process as the one that created the object.
+.It Dv PTHREAD_PROCESS_SHARED
+The condition variable it is attached to may be accessed by
+threads in processes other than the one that created the object.
+.El
+.Sh RETURN VALUES
+If successful, these functions return 0.
+Otherwise, an error number is returned to indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_condattr_init
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Out of memory.
+.El
+.Pp
+The
+.Fn pthread_condattr_destroy
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for
+.Fa attr .
+.El
+.Pp
+The
+.Fn pthread_condattr_setclock
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified in
+.Fa clock_id
+is not one of the allowed values.
+.El
+.Pp
+The
+.Fn pthread_condattr_setpshared
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified in
+.Fa pshared
+is not one of the allowed values.
+.El
+.Sh SEE ALSO
+.Xr pthread_cond_init 3 ,
+.Xr pthread_cond_timedwait 3
+.Sh STANDARDS
+The
+.Fn pthread_condattr_init
+and
+.Fn pthread_condattr_destroy
+functions conform to
+.St -p1003.1-96

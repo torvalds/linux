@@ -1,0 +1,113 @@
+-- $Id$
+PKCS10 DEFINITIONS ::=
+
+BEGIN
+
+IMPORTS
+	Time,
+	GeneralName,
+	SubjectPublicKeyInfo,
+	RelativeDistinguishedName,
+	AttributeTypeAndValue,
+	Extension,
+	AlgorithmIdentifier
+	FROM rfc2459
+	heim_any
+	FROM heim;
+
+CRMFRDNSequence ::= SEQUENCE OF RelativeDistinguishedName
+
+Controls  ::= SEQUENCE -- SIZE(1..MAX) -- OF AttributeTypeAndValue
+
+-- XXX IMPLICIT brokenness
+POPOSigningKey ::= SEQUENCE {
+	poposkInput           [0] IMPLICIT POPOSigningKeyInput OPTIONAL,
+	algorithmIdentifier   AlgorithmIdentifier,
+	signature             BIT STRING }
+
+PKMACValue ::= SEQUENCE {
+	algId  AlgorithmIdentifier,
+	value  BIT STRING
+}
+
+-- XXX IMPLICIT brokenness
+POPOSigningKeyInput ::= SEQUENCE {
+	authInfo            CHOICE {
+		sender              [0] IMPLICIT GeneralName,
+		publicKeyMAC        PKMACValue
+	},
+	publicKey           SubjectPublicKeyInfo
+}  -- from CertTemplate
+
+
+PBMParameter ::= SEQUENCE {
+   salt                OCTET STRING,
+   owf                 AlgorithmIdentifier,
+   iterationCount      INTEGER,
+   mac                 AlgorithmIdentifier
+}
+
+SubsequentMessage ::= INTEGER {
+	encrCert (0),
+	challengeResp (1)
+}
+
+-- XXX IMPLICIT brokenness
+POPOPrivKey ::= CHOICE {
+	thisMessage       [0] BIT STRING,         -- Deprecated
+	subsequentMessage [1] IMPLICIT SubsequentMessage,
+	dhMAC             [2] BIT STRING,         -- Deprecated
+	agreeMAC          [3] IMPLICIT PKMACValue,
+	encryptedKey      [4] heim_any
+}
+
+-- XXX IMPLICIT brokenness
+ProofOfPossession ::= CHOICE {
+	raVerified        [0] NULL,
+	signature         [1] POPOSigningKey,
+	keyEncipherment   [2] POPOPrivKey,
+	keyAgreement      [3] POPOPrivKey
+}
+
+CertTemplate ::= SEQUENCE {
+	version      [0] INTEGER OPTIONAL,
+	serialNumber [1] INTEGER OPTIONAL,
+	signingAlg   [2] SEQUENCE {
+		algorithm	OBJECT IDENTIFIER,
+		parameters	heim_any OPTIONAL
+	} -- AlgorithmIdentifier --   OPTIONAL,
+	issuer       [3] IMPLICIT CHOICE {
+		rdnSequence  CRMFRDNSequence
+	} -- Name --  OPTIONAL,
+	validity     [4] SEQUENCE {
+		notBefore  [0] Time OPTIONAL,
+		notAfter   [1] Time OPTIONAL
+	} -- OptionalValidity -- OPTIONAL,
+	subject      [5] IMPLICIT CHOICE {
+		rdnSequence  CRMFRDNSequence
+	} -- Name -- OPTIONAL,
+	publicKey    [6] IMPLICIT SEQUENCE  {
+		algorithm            AlgorithmIdentifier,
+		subjectPublicKey     BIT STRING OPTIONAL
+	} -- SubjectPublicKeyInfo -- OPTIONAL,
+	issuerUID    [7] IMPLICIT BIT STRING OPTIONAL,
+	subjectUID   [8] IMPLICIT BIT STRING OPTIONAL,
+	extensions   [9] IMPLICIT SEQUENCE OF Extension OPTIONAL
+}
+
+CertRequest ::= SEQUENCE {
+	certReqId	INTEGER,
+	certTemplate	CertTemplate,
+	controls	Controls OPTIONAL
+}
+
+CertReqMsg ::= SEQUENCE {
+	certReq		CertRequest,
+	popo		ProofOfPossession  OPTIONAL,
+	regInfo		SEQUENCE OF AttributeTypeAndValue OPTIONAL }
+
+CertReqMessages ::= SEQUENCE OF CertReqMsg
+
+
+END
+

@@ -1,0 +1,699 @@
+# Zones that go back beyond the scope of the tz database
+
+# This file is in the public domain.
+
+# This file is by no means authoritative; if you think you know
+# better, go ahead and edit it (and please send any changes to
+# tz@iana.org for general use in the future).  For more, please see
+# the file CONTRIBUTING in the tz distribution.
+
+
+# From Paul Eggert (2014-10-31):
+
+# This file contains data outside the normal scope of the tz database,
+# in that its zones do not differ from normal tz zones after 1970.
+# Links in this file point to zones in this file, superseding links in
+# the file 'backward'.
+
+# Although zones in this file may be of some use for analyzing
+# pre-1970 timestamps, they are less reliable, cover only a tiny
+# sliver of the pre-1970 era, and cannot feasibly be improved to cover
+# most of the era.  Because the zones are out of normal scope for the
+# database, less effort is put into maintaining this file.  Many of
+# the zones were formerly in other source files, but were removed or
+# replaced by links as their data entries were questionable and/or they
+# differed from other zones only in pre-1970 timestamps.
+
+# Unless otherwise specified, the source for data through 1990 is:
+# Thomas G. Shanks and Rique Pottenger, The International Atlas (6th edition),
+# San Diego: ACS Publications, Inc. (2003).
+# Unfortunately this book contains many errors and cites no sources.
+
+# This file is not intended to be compiled standalone, as it
+# assumes rules from other files.  In the tz distribution, use
+# 'make PACKRATDATA=backzone zones' to compile and install this file.
+
+# Zones are sorted by zone name.  Each zone is preceded by the
+# name of the country that the zone is in, along with any other
+# commentary and rules associated with the entry.
+#
+# As explained in the zic man page, the zone columns are:
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+
+# Ethiopia
+# From Paul Eggert (2014-07-31):
+# Like the Swahili of Kenya and Tanzania, many Ethiopians keep a
+# 12-hour clock starting at our 06:00, so their "8 o'clock" is our
+# 02:00 or 14:00.  Keep this in mind when you ask the time in Amharic.
+#
+# Shanks & Pottenger write that Ethiopia had six narrowly-spaced time
+# zones between 1870 and 1890, that they merged to 38E50 (2:35:20) in
+# 1890, and that they switched to 3:00 on 1936-05-05.  Perhaps 38E50
+# was for Adis Dera.  Quite likely the Shanks data entries are wrong
+# anyway.
+Zone Africa/Addis_Ababa	2:34:48 -	LMT	1870
+			2:35:20	-	ADMT	1936 May  5 # Adis Dera MT
+			3:00	-	EAT
+
+# Eritrea
+Zone	Africa/Asmara	2:35:32 -	LMT	1870
+			2:35:32	-	AMT	1890        # Asmara Mean Time
+			2:35:20	-	ADMT	1936 May  5 # Adis Dera MT
+			3:00	-	EAT
+Link Africa/Asmara Africa/Asmera
+
+# Mali (southern)
+Zone	Africa/Bamako	-0:32:00 -	LMT	1912
+			 0:00	-	GMT	1934 Feb 26
+			-1:00	-	-01	1960 Jun 20
+			 0:00	-	GMT
+
+# Central African Republic
+Zone	Africa/Bangui	1:14:20	-	LMT	1912
+			1:00	-	WAT
+
+# Gambia
+Zone	Africa/Banjul	-1:06:36 -	LMT	1912
+			-1:06:36 -	BMT	1935 # Banjul Mean Time
+			-1:00	-	-01	1964
+			 0:00	-	GMT
+
+# Malawi
+Zone	Africa/Blantyre	2:20:00 -	LMT	1903 Mar
+			2:00	-	CAT
+
+# Republic of the Congo
+Zone Africa/Brazzaville	1:01:08 -	LMT	1912
+			1:00	-	WAT
+
+# Burundi
+Zone Africa/Bujumbura	1:57:28	-	LMT	1890
+			2:00	-	CAT
+
+# Guinea
+Zone	Africa/Conakry	-0:54:52 -	LMT	1912
+			 0:00	-	GMT	1934 Feb 26
+			-1:00	-	-01	1960
+			 0:00	-	GMT
+
+# Senegal
+Zone	Africa/Dakar	-1:09:44 -	LMT	1912
+			-1:00	-	-01	1941 Jun
+			 0:00	-	GMT
+
+# Tanzania
+Zone Africa/Dar_es_Salaam 2:37:08 -	LMT	1931
+			3:00	-	EAT	1948
+			2:45	-	+0245	1961
+			3:00	-	EAT
+
+# Djibouti
+Zone	Africa/Djibouti	2:52:36 -	LMT	1911 Jul
+			3:00	-	EAT
+
+# Cameroon
+# Whitman says they switched to 1:00 in 1920; go with Shanks & Pottenger.
+Zone	Africa/Douala	0:38:48	-	LMT	1912
+			1:00	-	WAT
+# Sierra Leone
+# From Paul Eggert (2014-08-12):
+# The following table is from Shanks & Pottenger, but it can't be right.
+# Whitman gives Mar 31 - Aug 31 for 1931 on.
+# The International Hydrographic Bulletin, 1932-33, p 63 says that
+# Sierra Leone would advance its clocks by 20 minutes on 1933-10-01.
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	SL	1935	1942	-	Jun	 1	0:00	0:40	-0020
+Rule	SL	1935	1942	-	Oct	 1	0:00	0	-01
+Rule	SL	1957	1962	-	Jun	 1	0:00	1:00	+01
+Rule	SL	1957	1962	-	Sep	 1	0:00	0	GMT
+Zone	Africa/Freetown	-0:53:00 -	LMT	1882
+			-0:53:00 -	FMT	1913 Jun # Freetown Mean Time
+			-1:00	SL	%s	1957
+			 0:00	SL	GMT/+01
+
+# Botswana
+# From Paul Eggert (2013-02-21):
+# Milne says they were regulated by the Cape Town Signal in 1899;
+# assume they switched to 2:00 when Cape Town did.
+Zone	Africa/Gaborone	1:43:40 -	LMT	1885
+			1:30	-	SAST	1903 Mar
+			2:00	-	CAT	1943 Sep 19  2:00
+			2:00	1:00	CAST	1944 Mar 19  2:00
+			2:00	-	CAT
+
+# Zimbabwe
+Zone	Africa/Harare	2:04:12 -	LMT	1903 Mar
+			2:00	-	CAT
+
+# Uganda
+Zone	Africa/Kampala	2:09:40 -	LMT	1928 Jul
+			3:00	-	EAT	1930
+			2:30	-	+0230	1948
+			2:45	-	+0245	1957
+			3:00	-	EAT
+
+# Rwanda
+Zone	Africa/Kigali	2:00:16 -	LMT	1935 Jun
+			2:00	-	CAT
+
+# Democratic Republic of the Congo (west)
+Zone Africa/Kinshasa	1:01:12 -	LMT	1897 Nov  9
+			1:00	-	WAT
+
+# Gabon
+Zone Africa/Libreville	0:37:48 -	LMT	1912
+			1:00	-	WAT
+
+# Togo
+Zone	Africa/Lome	0:04:52 -	LMT	1893
+			0:00	-	GMT
+
+# Angola
+#
+# From Paul Eggert (2018-02-16):
+# Shanks gives 1911-05-26 for the transition to WAT,
+# evidently confusing the date of the Portuguese decree
+# (see Europe/Lisbon) with the date that it took effect.
+#
+Zone	Africa/Luanda	0:52:56	-	LMT	1892
+			0:52:04	-	LMT	1911 Dec 31 23:00u # Luanda MT?
+			1:00	-	WAT
+
+# Democratic Republic of the Congo (east)
+Zone Africa/Lubumbashi	1:49:52 -	LMT	1897 Nov 9
+			2:00	-	CAT
+
+# Zambia
+Zone	Africa/Lusaka	1:53:08 -	LMT	1903 Mar
+			2:00	-	CAT
+
+# Equatorial Guinea
+#
+# Although Shanks says that Malabo switched from UT +00 to +01 on 1963-12-15,
+# a Google Books search says that London Calling, Issues 432-465 (1948), p 19,
+# says that Spanish Guinea was at +01 back then.  The Shanks data entries
+# are most likely wrong, but we have nothing better; use them here for now.
+#
+Zone	Africa/Malabo	0:35:08 -	LMT	1912
+			0:00	-	GMT	1963 Dec 15
+			1:00	-	WAT
+
+# Lesotho
+Zone	Africa/Maseru	1:50:00 -	LMT	1903 Mar
+			2:00	-	SAST	1943 Sep 19  2:00
+			2:00	1:00	SAST	1944 Mar 19  2:00
+			2:00	-	SAST
+
+# Eswatini (formerly Swaziland)
+Zone	Africa/Mbabane	2:04:24 -	LMT	1903 Mar
+			2:00	-	SAST
+
+# Somalia
+Zone Africa/Mogadishu	3:01:28 -	LMT	1893 Nov
+			3:00	-	EAT	1931
+			2:30	-	+0230	1957
+			3:00	-	EAT
+
+# Niger
+Zone	Africa/Niamey	 0:08:28 -	LMT	1912
+			-1:00	-	-01	1934 Feb 26
+			 0:00	-	GMT	1960
+			 1:00	-	WAT
+
+# Mauritania
+Zone Africa/Nouakchott	-1:03:48 -	LMT	1912
+			 0:00	-	GMT	1934 Feb 26
+			-1:00	-	-01	1960 Nov 28
+			 0:00	-	GMT
+
+# Burkina Faso
+Zone Africa/Ouagadougou	-0:06:04 -	LMT	1912
+			 0:00	-	GMT
+
+# Benin
+# Whitman says they switched to 1:00 in 1946, not 1934;
+# go with Shanks & Pottenger.
+Zone Africa/Porto-Novo	0:10:28	-	LMT	1912 Jan  1
+			0:00	-	GMT	1934 Feb 26
+			1:00	-	WAT
+
+# Mali (northern)
+Zone	Africa/Timbuktu	-0:12:04 -	LMT	1912
+			 0:00	-	GMT
+
+# Anguilla
+Zone America/Anguilla	-4:12:16 -	LMT	1912 Mar  2
+			-4:00	-	AST
+
+# Antigua and Barbuda
+Zone	America/Antigua	-4:07:12 -	LMT	1912 Mar 2
+			-5:00	-	EST	1951
+			-4:00	-	AST
+
+# Chubut, Argentina
+# The name "Comodoro Rivadavia" exceeds the 14-byte POSIX limit.
+Zone America/Argentina/ComodRivadavia -4:30:00 - LMT	1894 Oct 31
+			-4:16:48 -	CMT	1920 May
+			-4:00	-	-04	1930 Dec
+			-4:00	Arg	-04/-03	1969 Oct  5
+			-3:00	Arg	-03/-02	1991 Mar  3
+			-4:00	-	-04	1991 Oct 20
+			-3:00	Arg	-03/-02	1999 Oct  3
+			-4:00	Arg	-04/-03	2000 Mar  3
+			-3:00	-	-03	2004 Jun  1
+			-4:00	-	-04	2004 Jun 20
+			-3:00	-	-03
+
+# Aruba
+Zone	America/Aruba	-4:40:24 -	LMT	1912 Feb 12 # Oranjestad
+			-4:30	-	-0430	1965
+			-4:00	-	AST
+
+# Cayman Is
+Zone	America/Cayman	-5:25:32 -	LMT	1890     # Georgetown
+			-5:07:10 -	KMT	1912 Feb # Kingston Mean Time
+			-5:00	-	EST
+
+# United States
+#
+# From Paul Eggert (2018-03-18):
+# America/Chillicothe would be tricky, as it was a city of two-timers:
+# "To prevent a constant mixup at Chillicothe, caused by the courthouse
+#  clock running on central time and the city running on 'daylight saving'
+#  time, a third hand was added to the dial of the courthouse clock."
+# -- Ohio news in brief. The Cedarville Herald. 1920-05-21;43(21):1 (col. 5)
+# https://digitalcommons.cedarville.edu/cedarville_herald/794
+
+# Canada
+Zone America/Coral_Harbour -5:32:40 -	LMT	1884
+			-5:00	NT_YK	E%sT	1946
+			-5:00	-	EST
+
+# Dominica
+Zone America/Dominica	-4:05:36 -	LMT	1911 Jul  1  0:01 # Roseau
+			-4:00	-	AST
+
+# Baja California
+# See 'northamerica' for why this entry is here rather than there.
+Zone America/Ensenada	-7:46:28 -	LMT	1922 Jan  1  0:13:32
+			-8:00	-	PST	1927 Jun 10 23:00
+			-7:00	-	MST	1930 Nov 16
+			-8:00	-	PST	1942 Apr
+			-7:00	-	MST	1949 Jan 14
+			-8:00	-	PST	1996
+			-8:00	Mexico	P%sT
+
+# Grenada
+Zone	America/Grenada	-4:07:00 -	LMT	1911 Jul # St George's
+			-4:00	-	AST
+
+# Guadeloupe
+Zone America/Guadeloupe	-4:06:08 -	LMT	1911 Jun  8 # Pointe-à-Pitre
+			-4:00	 -	AST
+
+# Canada
+#
+# From Paul Eggert (2015-03-24):
+# Since 1970 most of Quebec has been like Toronto; see
+# America/Toronto.  However, earlier versions of the tz database
+# mistakenly relied on data from Shanks & Pottenger saying that Quebec
+# differed from Ontario after 1970, and the following rules and zone
+# were created for most of Quebec from the incorrect Shanks &
+# Pottenger data.  The post-1970 entries have been corrected, but the
+# pre-1970 entries are unchecked and probably have errors.
+#
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Mont	1917	only	-	Mar	25	2:00	1:00	D
+Rule	Mont	1917	only	-	Apr	24	0:00	0	S
+Rule	Mont	1919	only	-	Mar	31	2:30	1:00	D
+Rule	Mont	1919	only	-	Oct	25	2:30	0	S
+Rule	Mont	1920	only	-	May	 2	2:30	1:00	D
+Rule	Mont	1920	1922	-	Oct	Sun>=1	2:30	0	S
+Rule	Mont	1921	only	-	May	 1	2:00	1:00	D
+Rule	Mont	1922	only	-	Apr	30	2:00	1:00	D
+Rule	Mont	1924	only	-	May	17	2:00	1:00	D
+Rule	Mont	1924	1926	-	Sep	lastSun	2:30	0	S
+Rule	Mont	1925	1926	-	May	Sun>=1	2:00	1:00	D
+Rule	Mont	1927	1937	-	Apr	lastSat	24:00	1:00	D
+Rule	Mont	1927	1937	-	Sep	lastSat	24:00	0	S
+Rule	Mont	1938	1940	-	Apr	lastSun	0:00	1:00	D
+Rule	Mont	1938	1939	-	Sep	lastSun	0:00	0	S
+Rule	Mont	1946	1973	-	Apr	lastSun	2:00	1:00	D
+Rule	Mont	1945	1948	-	Sep	lastSun	2:00	0	S
+Rule	Mont	1949	1950	-	Oct	lastSun	2:00	0	S
+Rule	Mont	1951	1956	-	Sep	lastSun	2:00	0	S
+Rule	Mont	1957	1973	-	Oct	lastSun	2:00	0	S
+Zone America/Montreal	-4:54:16 -	LMT	1884
+			-5:00	Mont	E%sT	1918
+			-5:00	Canada	E%sT	1919
+			-5:00	Mont	E%sT	1942 Feb  9  2:00s
+			-5:00	Canada	E%sT	1946
+			-5:00	Mont	E%sT	1974
+			-5:00	Canada	E%sT
+
+# Montserrat
+# From Paul Eggert (2006-03-22):
+# In 1995 volcanic eruptions forced evacuation of Plymouth, the capital.
+# world.gazetteer.com says Cork Hill is the most populous location now.
+Zone America/Montserrat	-4:08:52 -	LMT	1911 Jul  1  0:01 # Cork Hill
+			-4:00	-	AST
+
+# United States
+#
+# From Paul Eggert (2018-03-18):
+# America/Palm_Springs would be tricky, as it kept two sets of clocks
+# in 1946/7.  See the following notes.
+#
+# From Steve Allen (2018-01-19):
+# The shadow of Mt. San Jacinto brings darkness very early in the winter
+# months.  In 1946 the chamber of commerce decided to put the clocks of Palm
+# Springs forward by an hour in the winter.
+# https://www.desertsun.com/story/life/2017/12/27/palm-springs-struggle-daylight-savings-time-and-idea-sun-time/984416001/
+# Desert Sun, Number 18, 1 November 1946
+# https://cdnc.ucr.edu/cgi-bin/cdnc?a=d&d=DS19461101
+# has proposal for meeting on front page and page 21.
+# Desert Sun, Number 19, 5 November 1946
+# https://cdnc.ucr.edu/cgi-bin/cdnc?a=d&d=DS19461105
+# reports that Sun Time won at the meeting on front page and page 5.
+# Desert Sun, Number 37, 7 January 1947
+# https://cdnc.ucr.edu/cgi-bin/cdnc?a=d&d=DS19470107.2.12
+# front page reports request to abandon Sun Time and page 7 notes a "class war".
+# Desert Sun, Number 38, 10 January 1947
+# https://cdnc.ucr.edu/cgi-bin/cdnc?a=d&d=DS19470110
+# front page reports on end.
+
+# Argentina
+# This entry was intended for the following areas, but has been superseded by
+# more detailed zones.
+# Santa Fe (SF), Entre Ríos (ER), Corrientes (CN), Misiones (MN), Chaco (CC),
+# Formosa (FM), La Pampa (LP), Chubut (CH)
+Zone America/Rosario	-4:02:40 -	LMT	1894 Nov
+			-4:16:44 -	CMT	1920 May
+			-4:00	-	-04	1930 Dec
+			-4:00	Arg	-04/-03	1969 Oct  5
+			-3:00	Arg	-03/-02	1991 Jul
+			-3:00	-	-03	1999 Oct  3  0:00
+			-4:00	Arg	-04/-03	2000 Mar  3  0:00
+			-3:00	-	-03
+
+# St Kitts-Nevis
+Zone America/St_Kitts	-4:10:52 -	LMT	1912 Mar  2 # Basseterre
+			-4:00	-	AST
+
+# St Lucia
+Zone America/St_Lucia	-4:04:00 -	LMT	1890 # Castries
+			-4:04:00 -	CMT	1912 # Castries Mean Time
+			-4:00	-	AST
+
+# Virgin Is
+Zone America/St_Thomas	-4:19:44 -	LMT	1911 Jul # Charlotte Amalie
+			-4:00	-	AST
+
+# St Vincent and the Grenadines
+Zone America/St_Vincent	-4:04:56 -	LMT	1890 # Kingstown
+			-4:04:56 -	KMT	1912 # Kingstown Mean Time
+			-4:00	-	AST
+
+# British Virgin Is
+Zone America/Tortola	-4:18:28 -	LMT	1911 Jul # Road Town
+			-4:00	-	AST
+
+# McMurdo, Ross Island, since 1955-12
+Zone Antarctica/McMurdo	0	-	-00	1956
+			12:00	NZ	NZ%sT
+Link Antarctica/McMurdo Antarctica/South_Pole
+
+# Yemen
+# Milne says 2:59:54 was the meridian of the saluting battery at Aden,
+# and that Yemen was at 1:55:56, the meridian of the Hagia Sophia.
+Zone	Asia/Aden	2:59:54	-	LMT	1950
+			3:00	-	+03
+
+# Bahrain
+Zone	Asia/Bahrain	3:22:20 -	LMT	1920     # Manamah
+			4:00	-	+04	1972 Jun
+			3:00	-	+03
+
+# India
+#
+# From Paul Eggert (2014-09-06):
+# The 1876 Report of the Secretary of the [US] Navy, p 305 says that Madras
+# civil time was 5:20:57.3.
+#
+# From Paul Eggert (2014-08-21):
+# In tomorrow's The Hindu, Nitya Menon reports that India had two civil time
+# zones starting in 1884, one in Bombay and one in Calcutta, and that railways
+# used a third time zone based on Madras time (80° 18' 30" E).  Also,
+# in 1881 Bombay briefly switched to Madras time, but switched back.  See:
+# http://www.thehindu.com/news/cities/chennai/madras-375-when-madras-clocked-the-time/article6339393.ece
+#Zone	  Asia/Chennai  [not enough info to complete]
+
+# China
+# Long-shu Time (probably due to Long and Shu being two names of that area)
+# Guangxi, Guizhou, Hainan, Ningxia, Sichuan, Shaanxi, and Yunnan;
+# most of Gansu; west Inner Mongolia; west Qinghai; and the Guangdong
+# counties Deqing, Enping, Kaiping, Luoding, Taishan, Xinxing,
+# Yangchun, Yangjiang, Yu'nan, and Yunfu.
+Zone	Asia/Chongqing	7:06:20	-	LMT	1928     # or Chungking
+			7:00	-	+07	1980 May
+			8:00	PRC	C%sT
+Link Asia/Chongqing Asia/Chungking
+
+# Vietnam
+# From Paul Eggert (2014-10-13):
+# See Asia/Ho_Chi_Minh for the source for this data.
+# Trần's book says the 1954-55 transition to 07:00 in Hanoi was in
+# October 1954, with exact date and time unspecified.
+Zone	Asia/Hanoi	7:03:24 -	LMT	1906 Jul  1
+			7:06:30	-	PLMT	1911 May  1
+			7:00	-	+07	1942 Dec 31 23:00
+			8:00	-	+08	1945 Mar 14 23:00
+			9:00	-	+09	1945 Sep  2
+			7:00	-	+07	1947 Apr  1
+			8:00	-	+08	1954 Oct
+			7:00	-	+07
+
+# China
+# Changbai Time ("Long-white Time", Long-white = Heilongjiang area)
+# Heilongjiang (except Mohe county), Jilin
+Zone	Asia/Harbin	8:26:44	-	LMT	1928     # or Haerbin
+			8:30	-	+0830	1932 Mar
+			8:00	-	CST	1940
+			9:00	-	+09	1966 May
+			8:30	-	+0830	1980 May
+			8:00	PRC	C%sT
+
+# far west China
+Zone	Asia/Kashgar	5:03:56	-	LMT	1928     # or Kashi or Kaxgar
+			5:30	-	+0530	1940
+			5:00	-	+05	1980 May
+			8:00	PRC	C%sT
+
+# Kuwait
+Zone	Asia/Kuwait	3:11:56 -	LMT	1950
+			3:00	-	+03
+
+
+# Oman
+# Milne says 3:54:24 was the meridian of the Muscat Tidal Observatory.
+Zone	Asia/Muscat	3:54:24 -	LMT	1920
+			4:00	-	+04
+
+# India
+# From Paul Eggert (2014-08-11), after a heads-up from Stephen Colebourne:
+# According to a Portuguese decree (1911-05-26)
+# https://dre.pt/pdf1sdip/1911/05/12500/23132313.pdf
+# Portuguese India switched to UT +05 on 1912-01-01.
+#Zone	Asia/Panaji	[not enough info to complete]
+
+# Cambodia
+# From Paul Eggert (2014-10-11):
+# See Asia/Ho_Chi_Minh for the source for most of this data.  Also, guess
+# (1) Cambodia reverted to UT +07 on 1945-09-02, when Vietnam did, and
+# (2) they also reverted to +07 on 1953-11-09, the date of independence.
+# These guesses are probably wrong but they're better than guessing no
+# transitions there.
+Zone	Asia/Phnom_Penh	6:59:40 -	LMT	1906 Jul  1
+			7:06:30	-	PLMT	1911 May  1
+			7:00	-	+07	1942 Dec 31 23:00
+			8:00	-	+08	1945 Mar 14 23:00
+			9:00	-	+09	1945 Sep  2
+			7:00	-	+07	1947 Apr  1
+			8:00	-	+08	1953 Nov  9
+			7:00	-	+07
+
+# Israel
+Zone	Asia/Tel_Aviv	2:19:04 -	LMT	1880
+			2:21	-	JMT	1918
+			2:00	Zion	I%sT
+
+# Laos
+# From Paul Eggert (2014-10-11):
+# See Asia/Ho_Chi_Minh for the source for most of this data.
+# Trần's book says that Laos reverted to UT +07 on 1955-04-15.
+# Also, guess that Laos reverted to +07 on 1945-09-02, when Vietnam did;
+# this is probably wrong but it's better than guessing no transition.
+Zone	Asia/Vientiane	6:50:24 -	LMT	1906 Jul  1
+			7:06:30	-	PLMT	1911 May  1
+			7:00	-	+07	1942 Dec 31 23:00
+			8:00	-	+08	1945 Mar 14 23:00
+			9:00	-	+09	1945 Sep  2
+			7:00	-	+07	1947 Apr  1
+			8:00	-	+08	1955 Apr 15
+			7:00	-	+07
+
+# Jan Mayen
+# From Whitman:
+Zone Atlantic/Jan_Mayen	-1:00	-	-01
+
+# St Helena
+Zone Atlantic/St_Helena	-0:22:48 -	LMT	1890 # Jamestown
+			-0:22:48 -	JMT	1951 # Jamestown Mean Time
+			 0:00	-	GMT
+
+# Northern Ireland
+Zone	Europe/Belfast	-0:23:40 -	LMT	1880 Aug  2
+			-0:25:21 -	DMT	1916 May 21  2:00
+						# DMT = Dublin/Dunsink MT
+			-0:25:21 1:00	IST	1916 Oct  1  2:00s
+						# IST = Irish Summer Time
+			 0:00	GB-Eire	%s	1968 Oct 27
+			 1:00	-	BST	1971 Oct 31  2:00u
+			 0:00	GB-Eire	%s	1996
+			 0:00	EU	GMT/BST
+
+# Guernsey
+# Data from Joseph S. Myers
+# https://mm.icann.org/pipermail/tz/2013-September/019883.html
+# References to be added
+# LMT is for Town Church, St. Peter Port, 49° 27' 17" N, 2° 32' 10" W.
+Zone	Europe/Guernsey	-0:10:09 -	LMT	1913 Jun 18
+			 0:00	GB-Eire	%s	1940 Jul  2
+			 1:00	C-Eur	CE%sT	1945 May  8
+			 0:00	GB-Eire	%s	1968 Oct 27
+			 1:00	-	BST	1971 Oct 31  2:00u
+			 0:00	GB-Eire	%s	1996
+			 0:00	EU	GMT/BST
+
+# Isle of Man
+#
+# From Lester Caine (2013-09-04):
+# The Isle of Man legislation is now on-line at
+# <https://www.legislation.gov.im>, starting with the original Statutory
+# Time Act in 1883 and including additional confirmation of some of
+# the dates of the 'Summer Time' orders originating at
+# Westminster.  There is a little uncertainty as to the starting date
+# of the first summer time in 1916 which may have been announced a
+# couple of days late.  There is still a substantial number of
+# documents to work through, but it is thought that every GB change
+# was also implemented on the island.
+#
+# AT4 of 1883 - The Statutory Time et cetera Act 1883 -
+# LMT Location - 54.1508N -4.4814E - Tynwald Hill ( Manx parliament )
+Zone Europe/Isle_of_Man	-0:17:55 -	LMT	1883 Mar 30  0:00s
+			 0:00	GB-Eire	%s	1968 Oct 27
+			 1:00	-	BST	1971 Oct 31  2:00u
+			 0:00	GB-Eire	%s	1996
+			 0:00	EU	GMT/BST
+
+# Jersey
+# Data from Joseph S. Myers
+# https://mm.icann.org/pipermail/tz/2013-September/019883.html
+# References to be added
+# LMT is for Parish Church, St. Helier, 49° 11' 0.57" N, 2° 6' 24.33" W.
+Zone	Europe/Jersey	-0:08:26 -	LMT	1898 Jun 11 16:00u
+			 0:00	GB-Eire	%s	1940 Jul  2
+			 1:00	C-Eur	CE%sT	1945 May  8
+			 0:00	GB-Eire	%s	1968 Oct 27
+			 1:00	-	BST	1971 Oct 31  2:00u
+			 0:00	GB-Eire	%s	1996
+			 0:00	EU	GMT/BST
+
+# Slovenia
+Zone Europe/Ljubljana	0:58:04	-	LMT	1884
+			1:00	-	CET	1941 Apr 18 23:00
+			1:00	C-Eur	CE%sT	1945 May  8  2:00s
+			1:00	1:00	CEST	1945 Sep 16  2:00s
+			1:00	-	CET	1982 Nov 27
+			1:00	EU	CE%sT
+
+# Bosnia and Herzegovina
+Zone	Europe/Sarajevo	1:13:40	-	LMT	1884
+			1:00	-	CET	1941 Apr 18 23:00
+			1:00	C-Eur	CE%sT	1945 May  8  2:00s
+			1:00	1:00	CEST	1945 Sep 16  2:00s
+			1:00	-	CET	1982 Nov 27
+			1:00	EU	CE%sT
+
+# North Macedonia
+Zone	Europe/Skopje	1:25:44	-	LMT	1884
+			1:00	-	CET	1941 Apr 18 23:00
+			1:00	C-Eur	CE%sT	1945 May  8  2:00s
+			1:00	1:00	CEST	1945 Sep 16  2:00s
+			1:00	-	CET	1982 Nov 27
+			1:00	EU	CE%sT
+
+# Moldova / Transnistria
+Zone	Europe/Tiraspol	1:58:32	-	LMT	1880
+			1:55	-	CMT	1918 Feb 15 # Chisinau MT
+			1:44:24	-	BMT	1931 Jul 24 # Bucharest MT
+			2:00	Romania	EE%sT	1940 Aug 15
+			2:00	1:00	EEST	1941 Jul 17
+			1:00	C-Eur	CE%sT	1944 Aug 24
+			3:00	Russia	MSK/MSD	1991 Mar 31  2:00
+			2:00	Russia	EE%sT	1992 Jan 19  2:00
+			3:00	Russia	MSK/MSD
+
+# Liechtenstein
+Zone	Europe/Vaduz	0:38:04 -	LMT	1894 Jun
+			1:00	-	CET	1981
+			1:00	EU	CE%sT
+
+# Croatia
+Zone	Europe/Zagreb	1:03:52	-	LMT	1884
+			1:00	-	CET	1941 Apr 18 23:00
+			1:00	C-Eur	CE%sT	1945 May  8  2:00s
+			1:00	1:00	CEST	1945 Sep 16  2:00s
+			1:00	-	CET	1982 Nov 27
+			1:00	EU	CE%sT
+
+# Madagascar
+Zone Indian/Antananarivo 3:10:04 -	LMT	1911 Jul
+			3:00	-	EAT	1954 Feb 27 23:00s
+			3:00	1:00	EAST	1954 May 29 23:00s
+			3:00	-	EAT
+
+# Comoros
+Zone	Indian/Comoro	2:53:04 -	LMT	1911 Jul # Moroni, Gran Comoro
+			3:00	-	EAT
+
+# Mayotte
+Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul # Mamoutzou
+			3:00	-	EAT
+
+# US minor outlying islands
+Zone Pacific/Johnston	-10:00	-	HST
+
+# US minor outlying islands
+#
+# From Mark Brader (2005-01-23):
+# [Fallacies and Fantasies of Air Transport History, by R.E.G. Davies,
+# published 1994 by Paladwr Press, McLean, VA, USA; ISBN 0-9626483-5-3]
+# reproduced a Pan American Airways timetable from 1936, for their weekly
+# "Orient Express" flights between San Francisco and Manila, and connecting
+# flights to Chicago and the US East Coast.  As it uses some time zone
+# designations that I've never seen before:....
+# Fri. 6:30A Lv. HONOLOLU (Pearl Harbor), H.I.   H.L.T. Ar. 5:30P Sun.
+#  "   3:00P Ar. MIDWAY ISLAND . . . . . . . . . M.L.T. Lv. 6:00A  "
+#
+Zone Pacific/Midway	-11:49:28 -	LMT	1901
+			-11:00	-	-11	1956 Jun  3
+			-11:00	1:00	-10	1956 Sep  2
+			-11:00	-	-11
+
+# N Mariana Is
+Zone Pacific/Saipan	-14:17:00 -	LMT	1844 Dec 31
+			 9:43:00 -	LMT	1901
+			 9:00	-	+09	1969 Oct
+			10:00	-	+10	2000 Dec 23
+			10:00	-	ChST	# Chamorro Standard Time

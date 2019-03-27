@@ -1,0 +1,98 @@
+.\" Copyright (c) 1985, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)erf.3	6.4 (Berkeley) 4/20/91
+.\" $FreeBSD$
+.\"
+.Dd July 13, 2014
+.Dt ERF 3
+.Os
+.Sh NAME
+.Nm erf ,
+.Nm erff ,
+.Nm erfl ,
+.Nm erfc ,
+.Nm erfcf ,
+.Nm erfcl
+.Nd error function operators
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn erf "double x"
+.Ft float
+.Fn erff "float x"
+.Ft "long double"
+.Fn erfl "long double x"
+.Ft double
+.Fn erfc "double x"
+.Ft float
+.Fn erfcf "float x"
+.Ft "long double"
+.Fn erfcl "long double x"
+.Sh DESCRIPTION
+These functions calculate the error function of
+.Fa x .
+.Pp
+The
+.Fn erf ,
+.Fn erff ,
+and
+.Fn erfl
+functions calculate the error function of x; where
+.Bd -ragged -offset indent
+.if n \{\
+erf(x) = 2/sqrt(pi)\(**\|integral from 0 to x of exp(\-t\(**t) dt.
+\}
+.if t \{\
+erf\|(x) :=
+(2/\(sr\(*p)\|\(is\d\s8\z0\s10\u\u\s8x\s10\d\|exp(\-t\u\s82\s10\d)\|dt.
+\}
+.Ed
+.Pp
+The
+.Fn erfc ,
+.Fn erfcf ,
+and
+.Fn erfcl
+functions calculate the complementary error function of
+.Fa x ;
+that is
+.Fn erfc
+subtracts the result of the error function
+.Fn erf x
+from 1.0.
+.Sh SEE ALSO
+.Xr math 3
+.Sh HISTORY
+The
+.Fn erf
+and
+.Fn erfc
+functions appeared in
+.Bx 4.3 .

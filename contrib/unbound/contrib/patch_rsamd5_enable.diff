@@ -1,0 +1,22 @@
+Index: validator/val_secalgo.c
+===================================================================
+--- validator/val_secalgo.c	(revision 2759)
++++ validator/val_secalgo.c	(working copy)
+@@ -153,7 +153,7 @@
+ 	switch(id) {
+ 	case LDNS_RSAMD5:
+ 		/* RFC 6725 deprecates RSAMD5 */
+-		return 0;
++		return 1;
+ 	case LDNS_DSA:
+ 	case LDNS_DSA_NSEC3:
+ 	case LDNS_RSASHA1:
+@@ -617,7 +617,7 @@
+ 	switch(id) {
+ 	case LDNS_RSAMD5:
+ 		/* RFC 6725 deprecates RSAMD5 */
+-		return 0;
++		return 1;
+ 	case LDNS_DSA:
+ 	case LDNS_DSA_NSEC3:
+ 	case LDNS_RSASHA1:

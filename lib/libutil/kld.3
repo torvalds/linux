@@ -1,0 +1,93 @@
+.\"-
+.\" Copyright (c) 2006 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 18, 2006
+.Dt KLD 3
+.Os
+.Sh NAME
+.Nm kld_isloaded ,
+.Nm kld_load
+.Nd kld utility functions
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In libutil.h
+.Ft int
+.Fn kld_isloaded "const char *name"
+.Ft int
+.Fn kld_load "const char *name"
+.Sh DESCRIPTION
+These functions facilitate loading kernel modules from userland
+applications.
+.Pp
+The
+.Fn kld_isloaded
+function takes a name and returns a non-zero value if a module of that
+name is currently loaded.
+The name can be either the name of a module file
+.Pq Pa cpufreq.ko ,
+the same name without the
+.Pa .ko
+extension
+.Pq Pa cpufreq ,
+or the name of a module contained within that file
+.Pq Pa cpu/ichss .
+Only the latter will return correct results if the module is compiled
+into the kernel.
+.Pp
+The
+.Fn kld_load
+function is a simple wrapper around the
+.Xr kldload 2
+function.
+It returns zero if and only if the corresponding
+.Fn kldload
+call succeeded or returned
+.Er EEXIST
+(signifying that the requested module was already loaded).
+.Sh SEE ALSO
+.Xr kldfirstmod 2 ,
+.Xr kldload 2 ,
+.Xr kldnext 2 ,
+.Xr kldstat 2 ,
+.Xr modfnext 2 ,
+.Xr modstat 2 ,
+.Xr kld 4
+.Sh HISTORY
+The
+.Fn kld_isloaded
+and
+.Fn kld_load
+functions first appeared in
+.Fx 6.3 .
+.Sh AUTHORS
+The
+.Fn kld_isloaded
+and
+.Fn kld_load
+functions and this manual page were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

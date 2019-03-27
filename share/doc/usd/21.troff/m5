@@ -1,0 +1,462 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)m5	8.1 (Berkeley) 8/14/93
+.\"
+.\" $FreeBSD$
+.ds H T
+.tr |
+.tr ~|
+.de x1
+.xx
+.ft B
+.in .2i
+.nf
+.ne 2.1
+.ta 1i
+..
+.de x2
+.fi
+.in 0
+.ft R
+.xx
+..
+.br
+.ce
+.ft B
+.rs
+.sp 0.5i
+TUTORIAL EXAMPLES
+.ft R
+.sp 2
+.nr p 0
+.2C
+.ns
+.mh
+.mk
+Introduction
+.pg
+Although \*(NR and \*(TR
+have by design a syntax reminiscent
+of earlier text processors*
+.fn
+.xx
+*For example:
+P.|A.|Crisman, Ed.,
+.ul
+The Compatible Time-Sharing System,
+MIT Press, 1965, Section|AH9.01
+(Description of RUNOFF program on MIT's CTSS system).
+.ef
+with the intent of easing their use,
+it is almost always necessary to
+prepare at least a small set of macro definitions
+to describe most documents.
+Such common formatting needs
+as page margins and footnotes
+are deliberately not built into \*(NR and \*(TR.
+Instead,
+the macro and string definition, number register, diversion,
+environment switching, page-position trap, and conditional input mechanisms
+provide the basis for user-defined implementations.
+.pg
+The examples to be discussed are intended to be useful and somewhat realistic,
+but won't necessarily cover all relevant contingencies.
+Explicit numerical parameters are used
+in the examples
+to make them easier to read and to
+illustrate typical values.
+In many cases, number registers would really be used
+to reduce the number of places where numerical
+information is kept,
+and to concentrate conditional parameter initialization
+like that which depends on whether \*(TR or \*(NR is being used.
+.mh
+Page Margins
+.pg
+As discussed in \(sc3,
+\fIheader\fR and \fIfooter\fR macros are usually defined
+to describe the top and bottom page margin areas respectively.
+A trap is planted at page position 0 for the header, and at
+\fI\-N\fR (\fIN\fR from the page bottom) for the footer.
+The simplest such definitions might be
+.x1
+&de hd	\e"define header
+\'sp 1i
+&&	\e"end definition
+&de fo	\e"define footer
+\'bp
+&&	\e"end definition
+&wh 0 hd
+&wh \-1i fo
+.x2
+which provide blank 1|inch top and bottom margins.
+The header will occur on the \fIfirst\fR page,
+only if the definition and trap exist prior to
+the initial pseudo-page transition (\(sc3).
+In fill mode, the output line that springs the footer trap
+was typically forced out because some part or whole word didn't fit on it.
+If anything in the footer and header that follows causes a \fIbreak\fR,
+that word or part word will be forced out.
+In this and other examples,
+requests like \fBbp\fR and \fBsp\fR that normally cause breaks are invoked using
+the \fIno-break\fR control character \fB\'\fR
+to avoid this.
+When the header\(slfooter design contains material
+requiring independent text processing, the
+environment may be switched, avoiding
+most interaction with the running text.
+.pg
+A more realistic example would be
+.x1
+&de hd	\e"header
+&if t .tl \'\|\e(rn\'\'\e(rn\'  \e"troff cut mark
+&if \e\en%>1 \e{\e
+\'sp ~\|0.5i\-1	\e"tl base at 0.5i
+&tl \'\'\- % \-\'\'	\e"centered page number
+&ps	\e"restore size
+&ft	\e"restore font
+&vs  \e}	\e"restore vs
+\'sp ~\|1.0i  	\e"space to 1.0i
+&ns	\e"turn on no-space mode
+&&
+&de fo	\e"footer
+&ps 10	\e"set footer\(slheader size
+&ft R	\e"set font
+&vs 12p	\e"set base-line spacing
+&if \e\en%=1 \e{\e
+\'sp ~\|\e\en(.pu\-0.5i\-1  \e"tl base 0.5i up
+&tl \'\'\- % \-\'\' \e}  \e"first page number
+\'bp
+&&
+&wh 0 hd
+&wh \-1i fo
+.x2
+which sets the size, font, and base-line spacing for the
+header\(slfooter material, and ultimately restores them.
+The material in this case is a page number at the bottom of the
+first page and at the top of the remaining pages.
+If \*(TR is used, a \fIcut mark\fR is drawn in the form
+of \fIroot-en\fR's at each margin.
+The \fBsp\fR's refer to absolute positions to avoid
+dependence on the base-line spacing.
+Another reason for this in the footer
+is that the footer is invoked by printing a line whose
+vertical spacing swept past the trap position by possibly
+as much as the base-line spacing.
+The \fIno-space\fR mode is turned on at the end of \fBhd\fR
+to render ineffective
+accidental occurrences of \fBsp\fR at the top of the running text.
+.pg
+The above method of restoring size, font, etc. presupposes
+that such requests (that set \fIprevious\fR value) are \fInot\fR
+used in the running text.
+A better scheme is save and restore both the current \fIand\fR
+previous values as shown for size in the following:
+.x1
+&de fo
+&nr s1 \e\en(.s	\e"current size
+&ps
+&nr s2 \e\en(.s	\e"previous size
+&  ---	\e"rest of footer
+&&
+&de hd
+&  ---	\e"header stuff
+&ps \e\en(s2	\e"restore previous size
+&ps \e\en(s1	\e"restore current size
+&&
+.x2
+Page numbers may be printed in the bottom margin
+by a separate macro triggered during the footer's
+page ejection:
+.x1
+&de bn	\e"bottom number
+&tl \'\'\- % \-\'\'	\e"centered page number
+&&
+&wh \-0.5i\-1v bn	 \e"tl base 0.5i up
+.x2
+.mh
+Paragraphs and Headings
+.pg
+The housekeeping
+associated with starting a new paragraph should be collected
+in a paragraph macro
+that, for example,
+does the desired preparagraph spacing,
+forces the correct font, size, base-line spacing, and indent,
+checks that enough space remains for \fImore than one\fR line,
+and
+requests a temporary indent.
+.x1
+&de pg	\e"paragraph
+&br	\e"break
+&ft R	\e"force font,
+&ps 10	\e"size,
+&vs 12p	\e"spacing,
+&in 0	\e"and indent
+&sp 0.4	\e"prespace
+&ne 1+\e\en(.Vu	\e"want more than 1 line
+&ti 0.2i	\e"temp indent
+&&
+.x2
+The first break in \fBpg\fR
+will force out any previous partial lines,
+and must occur before the \fBvs\fR.
+The forcing of font, etc. is
+partly a defense against prior error and
+partly to permit
+things like section heading macros to
+set parameters only once.
+The prespacing parameter is suitable for \*(TR;
+a larger space, at least as big as the output device vertical resolution, would be
+more suitable in \*(NR.
+The choice of remaining space to test for in the \fBne\fR
+is the smallest amount greater than one line
+(the \fB.V\fR is the available vertical resolution).
+.pg
+A macro to automatically number section headings
+might look like:
+.x1
+&de sc	\e"section
+&  ---	\e"force font, etc.
+&sp 0.4	\e"prespace
+&ne 2.4+\e\en(.Vu \e"want 2.4+ lines
+.lg 0
+&fi
+.lg
+\e\en+S.
+&&
+&nr S 0 1	\e"init S
+.x2
+The usage is \fB.sc\fR,
+followed by the section heading text,
+followed by \fB.pg\fR.
+The \fBne\fR test value includes one line of heading,
+0.4 line in the following \fBpg\fR, and
+one line of the paragraph text.
+A word consisting of the next section number and a period is
+produced to begin the heading line.
+The format of the number may be set by \fBaf\fR (\(sc8).
+.pg
+Another common form is the labeled, indented paragraph,
+where the label protrudes left into the indent space.
+.x1
+&de lp	\e"labeled paragraph
+&pg
+&in 0.5i	\e"paragraph indent
+&ta 0.2i 0.5i	\e"label, paragraph
+&ti 0
+\et\e\e$1\et\ec	\e"flow into paragraph
+&&
+.x2
+The intended usage is "\fB.lp\fR \fIlabel\fR\|";
+\fIlabel\fR will begin at 0.2\|inch, and
+cannot exceed a length of 0.3\|inch without intruding into
+the paragraph.
+The label could be right adjusted against 0.4\|inch by
+setting the tabs instead with \fB.ta|0.4iR|0.5i\fR.
+The last line of \fBlp\fR ends with \fB\ec\fR so that
+it will become a part of the first line of the text
+that follows.
+.mh
+Multiple Column Output
+.pg
+The production of multiple column pages requires
+the footer macro to decide whether it was
+invoked by other than the last column,
+so that it will begin a new column rather than
+produce the bottom margin.
+The header can initialize a column register that
+the footer will increment and test.
+The following is arranged for two columns, but
+is easily modified for more.
+.x1
+&de hd	\e"header
+&  ---
+&nr cl 0 1	\e"init column count
+&mk	\e"mark top of text
+&&
+&de fo	\e"footer
+&ie \e\en+(cl<2 \e{\e
+&po +3.4i	\e"next column; 3.1+0.3
+&rt	\e"back to mark
+&ns \e}	\e"no-space mode
+&el \e{\e
+&po \e\enMu	\e"restore left margin
+&  ---
+\'bp \e}
+&&
+&ll 3.1i	\e"column width
+&nr M \e\en(.o	\e"save left margin
+.x2
+Typically a portion of the top of the first page
+contains full width text;
+the request for the narrower line length,
+as well as another \fB.mk\fR would
+be made where the two column output was to begin.
+.mh
+Footnote Processing
+.pg
+The footnote mechanism to be described is used by
+imbedding the footnotes in the input text at the
+point of reference,
+demarcated by an initial \fB.fn\fR and a terminal \fB.ef\fR:
+.x1
+&fn
+\fIFootnote text and control lines...\fP
+&ef
+.x2
+In the following,
+footnotes are processed in a separate environment and diverted
+for later printing in the space immediately prior to the bottom
+margin.
+There is provision for the case where the last collected
+footnote doesn't completely fit in the available space.
+.x1
+&de hd	\e"header
+&  ---
+&nr x 0 1	\e"init footnote count
+&nr y 0\-\e\enb	\e"current footer place
+&ch fo \-\e\enbu	\e"reset footer trap
+&if \e\en(dn .fz	\e"leftover footnote
+&&
+&de fo	\e"footer
+&nr dn 0	\e"zero last diversion size
+&if \e\enx \e{\e
+&ev 1	\e"expand footnotes in ev1
+&nf	\e"retain vertical size
+&FN	\e"footnotes
+&rm FN	\e"delete it
+&if "\e\en(.z"fy" .di	 \e"end overflow diversion
+&nr x 0	\e"disable fx
+&ev  \e}	\e"pop environment
+&  ---
+\'bp
+&&
+&de fx	\e"process footnote overflow
+&if \e\enx .di fy	\e"divert overflow
+&&
+&de fn	\e"start footnote
+&da FN	\e"divert (append) footnote
+&ev 1	\e"in environment 1
+&if \e\en+x=1 .fs	 \e"if first, include separator
+.lg 0
+&fi	\e"fill mode
+.lg
+&&
+&de ef	\e"end footnote
+&br	\e"finish output
+&nr z \e\en(.v	\e"save spacing
+&ev	\e"pop ev
+&di	\e"end diversion
+&nr y \-\e\en(dn	\e"new footer position,
+&if \e\enx=1 .nr y \-(\e\en(.v\-\e\enz) \e
+	\e"uncertainty correction
+&ch fo \e\enyu	\e"y is negative
+&if (\|\e\en(nl+1v)>(\|\e\en(.p+\e\eny) \e
+&ch fo \e\en(nlu+1v	 \e"it didn't fit
+&&
+&de fs	\e"separator
+\el\'\|1i\'	\e"1 inch rule
+&br
+&&
+&de fz	\e"get leftover footnote
+&fn
+&nf	\e"retain vertical size
+&fy	\e"where fx put it
+&ef
+&&
+&nr b 1.0i	\e"bottom margin size
+&wh 0 hd	\e"header trap
+&wh 12i fo	\e"footer trap, temp position
+&wh \-\e\enbu fx	\e"fx at footer position
+&ch fo \-\e\enbu	\e"conceal fx with fo
+.x2
+The header \fBhd\fR initializes a footnote count register \fBx\fR,
+and sets both the current footer trap position register \fBy\fR and
+the footer trap itself to a nominal position specified in
+register \fBb\fR.
+In addition, if the register \fBdn\fR indicates a leftover footnote,
+\fBfz\fR is invoked to reprocess it.
+The footnote start macro \fBfn\fR begins a diversion (append) in environment 1,
+and increments the count \fBx\fR; if the count is one, the footnote separator \fBfs\fR
+is interpolated.
+The separator is kept in a separate macro to permit user redefinition.
+The footnote end macro \fBef\fR restores
+the previous environment and ends the diversion after saving the spacing size in register \fBz\fR.
+\fBy\fR is then decremented by the size of the footnote, available in \fBdn\fR;
+then on the first footnote, \fBy\fR is further decremented by the difference
+in vertical base-line spacings of the two environments, to
+prevent the late triggering the footer trap from causing the last
+line of the combined footnotes to overflow.
+The footer trap is then set to the lower (on the page) of \fBy\fR or the current page position (\fBnl\fR)
+plus one line, to allow for printing the reference line.
+If indicated by \fBx\fR, the footer \fBfo\fR rereads the footnotes from \fBFN\fR in nofill mode
+in environment 1,
+and deletes \fBFN\fR.
+If the footnotes were too large to fit, the macro \fBfx\fR will be trap-invoked to redivert
+the overflow into \fBfy\fR,
+and the register \fBdn\fR will later indicate to the header whether \fBfy\fR is empty.
+Both \fBfo\fR and \fBfx\fR are planted in the nominal footer trap position in an order
+that causes \fBfx\fR to be concealed unless the \fBfo\fR trap is moved.
+The footer then terminates the overflow diversion, if necessary, and
+zeros \fBx\fR to disable \fBfx\fR,
+because the uncertainty correction
+together with a not-too-late triggering of the footer can result
+in the footnote rereading finishing before reaching the \fBfx\fR trap.
+.pg
+A good exercise for the student is to combine the multiple-column and footnote mechanisms.
+.mh
+The Last Page
+.pg
+After the last input file has ended, \*(NR and \*(TR
+invoke the \fIend macro\fR (\(sc7), if any,
+and when it finishes, eject the remainder of the page.
+During the eject, any traps encountered are processed normally.
+At the \fIend\fR of this last page, processing terminates
+\fIunless\fR a partial line, word, or partial word remains.
+If it is desired that another page be started, the end-macro
+.x1
+&de en	\e"end-macro
+\ec
+\'bp
+&&
+&em en
+.x2
+will deposit a null partial word,
+and effect another last page.
+.1C
+'bp

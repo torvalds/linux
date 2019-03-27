@@ -1,0 +1,8 @@
+before function
+before dotcmd
+before for
+before continue
+before continue
+after for
+after dotcmd
+after function

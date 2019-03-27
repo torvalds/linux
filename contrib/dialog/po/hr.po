@@ -1,0 +1,114 @@
+# Dialog
+# Copyright 2003-2007,2008 # Thomas Dickey
+# This file is distributed under the same license as the dialog package.
+# Tomislav Krznar <tomislav.krznar@gmail.com>, 2012.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2017-03-26 15:31+0200\n"
+"Last-Translator: gogo <trebelnik2@gmail.com>\n"
+"Language-Team: Croatian <lokalizacija@linux.hr>\n"
+"Language: hr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Bugs: Report translation errors to the Language-Team address.\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"X-Generator: Poedit 1.8.7.1\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "Da"
+
+#: buttons.c:393
+msgid "No"
+msgstr "Ne"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "U redu"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "Odustani"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "IZLAZ"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "Dodatno"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "Pomoć"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "Mjesec"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "Godina"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "Preimenuj"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "Direktoriji"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "Datoteke"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Uspjeh"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Neuspjeh"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Prošlo"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Završeno"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Provjereno"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Gotovo"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Preskočeno"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "U tijeku"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "Nedostupno"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Ukupni napredak"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "Pretraga"

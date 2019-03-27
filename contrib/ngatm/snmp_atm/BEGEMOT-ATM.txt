@@ -1,0 +1,301 @@
+--
+-- Copyright (c) 2001-2002
+--	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+--	All rights reserved.
+-- Copyright (c) 2004
+--	Hartmut Brandt.
+-- 	All rights reserved.
+--
+-- Author: Hartmut Brandt <harti@freebsd.org>
+-- 
+-- Redistribution and use in source and binary forms, with or without
+-- modification, are permitted provided that the following conditions
+-- are met:
+-- 1. Redistributions of source code must retain the above copyright
+--    notice, this list of conditions and the following disclaimer.
+-- 2. Redistributions in binary form must reproduce the above copyright
+--    notice, this list of conditions and the following disclaimer in the
+--    documentation and/or other materials provided with the distribution.
+-- 
+-- THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+-- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-- ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+-- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+-- OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+-- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+-- LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+-- OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+-- SUCH DAMAGE.
+--  
+-- $Begemot: libunimsg/snmp_atm/BEGEMOT-ATM.txt,v 1.2 2004/08/06 14:50:26 brandt Exp $
+--
+-- Private Begemot MIB for ATM interfaces.
+--
+BEGEMOT-ATM-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, Unsigned32, TimeTicks
+	FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION, DisplayString
+	FROM SNMPv2-TC
+    ifIndex
+	FROM IF-MIB
+    begemot
+	FROM BEGEMOT-MIB;
+
+begemotAtm MODULE-IDENTITY
+    LAST-UPDATED "200407190000Z"
+    ORGANIZATION "German Aerospace Centre"
+    CONTACT-INFO
+	    "		Hartmut Brandt
+
+             Postal:    German Aerospace Centre (DLR)
+                        Institute of Communications and Navigation
+                        82234 Wessling
+                        Germany
+
+	     Fax:	+49 8153 28 2844
+
+	     E-mail:	harti@freebsd.org"
+    DESCRIPTION
+	    "The Begemot MIB for ATM interfaces."
+
+    ::= { begemot 101 }
+
+begemotAtmObjects	OBJECT IDENTIFIER ::= { begemotAtm 1 }
+
+-- --------------------------------------------------------------------------
+
+AtmESI ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "1x:"
+    STATUS	current
+    DESCRIPTION
+	    "An ATM End System Identifier. This is basically the same as
+	    an Ethernet Address and is assigned using the same rules."
+    SYNTAX	OCTET STRING (SIZE(6))
+
+-- --------------------------------------------------------------------------
+
+--
+-- Interfaces table
+--
+begemotAtmIfTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotAtmIfEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "This table contains an entry for each hardware ATM
+	    interface. The table is indexed by the interface index."
+    ::= { begemotAtmObjects 1 }
+
+begemotAtmIfEntry OBJECT-TYPE
+    SYNTAX	BegemotAtmIfEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "This is a table entry describing one ATM hardware interface."
+    INDEX	{ ifIndex }
+    ::= { begemotAtmIfTable 1 }
+
+BegemotAtmIfEntry ::= SEQUENCE {
+    begemotAtmIfName		DisplayString,
+    begemotAtmIfPcr		Unsigned32,
+    begemotAtmIfMedia		INTEGER,
+    begemotAtmIfVpiBits		Unsigned32,
+    begemotAtmIfVciBits		Unsigned32,
+    begemotAtmIfMaxVpcs		Unsigned32,
+    begemotAtmIfMaxVccs		Unsigned32,
+    begemotAtmIfEsi		AtmESI,
+    begemotAtmIfCarrierStatus	INTEGER,
+    begemotAtmIfMode		INTEGER
+}
+
+begemotAtmIfName OBJECT-TYPE
+    SYNTAX	DisplayString (SIZE(1..15))
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Name of the ATM interface."
+    ::= { begemotAtmIfEntry 1 }
+
+begemotAtmIfPcr OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The line cell rate of the interface."
+    ::= { begemotAtmIfEntry 2 }
+
+begemotAtmIfMedia OBJECT-TYPE
+    SYNTAX	INTEGER {
+			other(1),
+			unknown(3),
+			utp25(4),
+			taxi100(5),
+			taxi140(6),
+			mm155(7),
+			sm155(8),
+			utp155(9),
+			mm622(10),
+			sm622(11),
+			virtual(12)
+		}
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The physical medium."
+    ::= { begemotAtmIfEntry 3 }
+
+begemotAtmIfVpiBits OBJECT-TYPE
+    SYNTAX	Unsigned32 (0..12)
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Number of VPI bits that are used by the device."
+    ::= { begemotAtmIfEntry 4 }
+
+begemotAtmIfVciBits OBJECT-TYPE
+    SYNTAX	Unsigned32 (0..16)
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Number of VCI bits that are used by the device."
+    ::= { begemotAtmIfEntry 5 }
+
+begemotAtmIfMaxVpcs OBJECT-TYPE
+    SYNTAX	Unsigned32 (0..256)
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The maximum number of VPC supported on this device. This may not
+	    be larger than 2^begemotAtmIfVpiBits."
+    ::= { begemotAtmIfEntry 6 }
+
+begemotAtmIfMaxVccs OBJECT-TYPE
+    SYNTAX	Unsigned32 (0..16777216)
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The maximum number of VCC supported on this device. This may not
+	    be larger than 2^(begemotAtmIfVpiBits + begemotAtmVciBits)."
+    ::= { begemotAtmIfEntry 7 }
+
+begemotAtmIfEsi OBJECT-TYPE
+    SYNTAX	AtmESI
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The default End System Identifier as reported by the hardware.
+	    If the hardware has no ESI all six bytes are reported as 0."
+    ::= { begemotAtmIfEntry 8 }
+
+begemotAtmIfCarrierStatus OBJECT-TYPE
+    SYNTAX	INTEGER { carrierOn(1), carrierOff(2), unknown(3), none(4) }
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The state of the carrier. For interfaces which don't have the
+	    notion of a carriere none is reported."
+    ::= { begemotAtmIfEntry 9 }
+
+begemotAtmIfMode OBJECT-TYPE
+    SYNTAX	INTEGER { sonet(1), sdh(2), unknown(3) }
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The mode of the SUNI interface. For interfaces without SUNI
+	    unknown is reported in which case the variable is read-only.
+	    Some types of interfaces may not be able to change this value."
+    ::= { begemotAtmIfEntry 10 }
+
+begemotAtmIfTableLastChange OBJECT-TYPE
+    SYNTAX	TimeTicks
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The value of sysUpTime the last time that an entry in
+	    begemotIfTable was created or destroyed. If the table is
+	    unchanged since the last coldStart this value is zero."
+    ::= { begemotAtmObjects 2 }
+
+--
+-- Interface hardware table
+--
+begemotAtmHWTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotAtmHWEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "This table augments the begemotAtmIfTable and contains an entry
+	    for each hardware ATM interface. The entries describe the
+	    ATM hardware interface."
+    ::= { begemotAtmObjects 3 }
+
+begemotAtmHWEntry OBJECT-TYPE
+    SYNTAX	BegemotAtmHWEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "This is a table entry describing one ATM hardware interface."
+    AUGMENTS	{ begemotAtmIfEntry }
+    ::= { begemotAtmHWTable 1 }
+
+BegemotAtmHWEntry ::= SEQUENCE {
+    begemotAtmHWVendor		DisplayString,
+    begemotAtmHWDevice		DisplayString,
+    begemotAtmHWSerial		Unsigned32,
+    begemotAtmHWVersion 	Unsigned32,
+    begemotAtmHWSoftVersion	Unsigned32
+}
+
+begemotAtmHWVendor OBJECT-TYPE
+    SYNTAX	DisplayString
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "A short string naming the vendor of the interface card."
+    ::= { begemotAtmHWEntry 1 }
+
+begemotAtmHWDevice OBJECT-TYPE
+    SYNTAX	DisplayString
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "A short string naming the brand of the interface card."
+    ::= { begemotAtmHWEntry 2 }
+
+begemotAtmHWSerial OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The serial number of the interface card or 0 if it doesn't
+	    report a serial number."
+    ::= { begemotAtmHWEntry 3 }
+
+begemotAtmHWVersion OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The hardware version of the interface card or 0 if it doesn't
+	    report a hardware version number."
+    ::= { begemotAtmHWEntry 4 }
+
+begemotAtmHWSoftVersion OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The firmware version of the interface card or 0 if it doesn't
+	    report a firmware version number."
+    ::= { begemotAtmHWEntry 5 }
+
+-- --------------------------------------------------------------------
+
+-- System specific parts
+begemotAtmSysGroup	OBJECT IDENTIFIER ::= { begemotAtmObjects 4 }
+
+END

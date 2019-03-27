@@ -1,0 +1,10 @@
+anchor on tun1000000 all {
+  anchor "foo" out all {
+    pass proto tcp from any to any port = 1234 flags S/SA keep state
+    anchor proto tcp from any to any port = 2413 user = 0 label "foo" {
+      block drop all
+      pass inet from 127.0.0.1 to any flags S/SA keep state
+    }
+  }
+  pass in proto tcp from any to any port = 1234 flags S/SA keep state
+}

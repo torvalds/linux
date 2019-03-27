@@ -1,0 +1,530 @@
+.\"	$NetBSD: grep.1,v 1.2 2011/02/16 01:31:33 joerg Exp $
+.\"	$FreeBSD$
+.\"	$OpenBSD: grep.1,v 1.38 2010/04/05 06:30:59 jmc Exp $
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)grep.1	8.3 (Berkeley) 4/18/94
+.\"
+.Dd August 21, 2018
+.Dt GREP 1
+.Os
+.Sh NAME
+.Nm grep ,
+.Nm egrep ,
+.Nm fgrep ,
+.Nm rgrep
+.Nd file pattern searcher
+.Sh SYNOPSIS
+.Nm grep
+.Bk -words
+.Op Fl abcdDEFGHhIiLlmnOopqRSsUVvwxz
+.Op Fl A Ar num
+.Op Fl B Ar num
+.Op Fl C Ns Op Ar num
+.Op Fl e Ar pattern
+.Op Fl f Ar file
+.Op Fl Fl binary-files= Ns Ar value
+.Op Fl Fl color Ns Op Cm = Ns Ar when
+.Op Fl Fl colour Ns Op Cm = Ns Ar when
+.Op Fl Fl context Ns Op Cm = Ns Ar num
+.Op Fl Fl label
+.Op Fl Fl line-buffered
+.Op Fl Fl null
+.Op Ar pattern
+.Op Ar
+.Ek
+.Sh DESCRIPTION
+The
+.Nm grep
+utility searches any given input files,
+selecting lines that match one or more patterns.
+By default, a pattern matches an input line if the regular expression
+(RE) in the pattern matches the input line
+without its trailing newline.
+An empty expression matches every line.
+Each input line that matches at least one of the patterns is written
+to the standard output.
+.Pp
+.Nm grep
+is used for simple patterns and
+basic regular expressions
+.Pq BREs ;
+.Nm egrep
+can handle extended regular expressions
+.Pq EREs .
+See
+.Xr re_format 7
+for more information on regular expressions.
+.Nm fgrep
+is quicker than both
+.Nm grep
+and
+.Nm egrep ,
+but can only handle fixed patterns
+(i.e., it does not interpret regular expressions).
+Patterns may consist of one or more lines,
+allowing any of the pattern lines to match a portion of the input.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl A Ar num , Fl Fl after-context= Ns Ar num
+Print
+.Ar num
+lines of trailing context after each match.
+See also the
+.Fl B
+and
+.Fl C
+options.
+.It Fl a , Fl Fl text
+Treat all files as ASCII text.
+Normally
+.Nm
+will simply print
+.Dq Binary file ... matches
+if files contain binary characters.
+Use of this option forces
+.Nm
+to output lines matching the specified pattern.
+.It Fl B Ar num , Fl Fl before-context= Ns Ar num
+Print
+.Ar num
+lines of leading context before each match.
+See also the
+.Fl A
+and
+.Fl C
+options.
+.It Fl b , Fl Fl byte-offset
+The offset in bytes of a matched pattern is
+displayed in front of the respective matched line.
+.It Fl C Ns Oo Ar num Oc , Fl Fl context Ns Oo = Ns Ar num Oc
+Print
+.Ar num
+lines of leading and trailing context surrounding each match.
+The default value of
+.Ar num
+is
+.Dq 2
+and is equivalent to
+.Dq Fl A Ar 2 Fl B Ar 2 .
+Note:
+no whitespace may be given between the option and its argument.
+.It Fl c , Fl Fl count
+Only a count of selected lines is written to standard output.
+.It Fl Fl colour= Ns Oo Ar when Oc , Fl Fl color= Ns Oo Ar when Oc
+Mark up the matching text with the expression stored in the
+.Ev GREP_COLOR
+environment variable.
+The possible values of
+.Ar when
+are
+.Dq Cm never ,
+.Dq Cm always
+and
+.Dq Cm auto .
+.It Fl D Ar action , Fl Fl devices= Ns Ar action
+Specify the demanded
+.Ar action
+for devices, FIFOs and sockets.
+The default
+.Ar action
+is
+.Dq Cm read ,
+which means, that they are read as if they were normal files.
+If the
+.Ar action
+is set to
+.Dq Cm skip ,
+devices are silently skipped.
+.It Fl d Ar action , Fl Fl directories= Ns Ar action
+Specify the demanded
+.Ar action
+for directories.
+It is
+.Dq Cm read
+by default, which means that the directories
+are read in the same manner as normal files.
+Other possible values are
+.Dq Cm skip
+to silently ignore the directories, and
+.Dq Cm recurse
+to read them recursively, which has the same effect as the
+.Fl R
+and
+.Fl r
+option.
+.It Fl E , Fl Fl extended-regexp
+Interpret
+.Ar pattern
+as an extended regular expression
+(i.e., force
+.Nm grep
+to behave as
+.Nm egrep ) .
+.It Fl e Ar pattern , Fl Fl regexp= Ns Ar pattern
+Specify a
+.Ar pattern
+used during the search of the input:
+an input line is selected if it matches any of the specified patterns.
+This option is most useful when multiple
+.Fl e
+options are used to specify multiple patterns,
+or when a
+.Ar pattern
+begins with a dash
+.Pq Sq - .
+.It Fl Fl exclude Ar pattern
+If specified, it excludes files matching the given
+filename
+.Ar pattern
+from the search.
+Note that
+.Fl Fl exclude
+and
+.Fl Fl include
+patterns are processed in the order given.
+If a name patches multiple patterns, the latest matching rule wins.
+If no
+.Fl Fl include
+pattern is specified, all files are searched that are
+not excluded.
+Patterns are matched to the full path specified,
+not only to the filename component.
+.It Fl Fl exclude-dir Ar pattern
+If
+.Fl R
+is specified, it excludes directories matching the
+given filename
+.Ar pattern
+from the search.
+Note that
+.Fl Fl exclude-dir
+and
+.Fl Fl include-dir
+patterns are processed in the order given.
+If a name patches multiple patterns, the latest matching rule wins.
+If no
+.Fl Fl include-dir
+pattern is specified, all directories are searched that are
+not excluded.
+.It Fl F , Fl Fl fixed-strings
+Interpret
+.Ar pattern
+as a set of fixed strings
+(i.e., force
+.Nm grep
+to behave as
+.Nm fgrep ) .
+.It Fl f Ar file , Fl Fl file= Ns Ar file
+Read one or more newline separated patterns from
+.Ar file .
+Empty pattern lines match every input line.
+Newlines are not considered part of a pattern.
+If
+.Ar file
+is empty, nothing is matched.
+.It Fl G , Fl Fl basic-regexp
+Interpret
+.Ar pattern
+as a basic regular expression
+(i.e., force
+.Nm grep
+to behave as traditional
+.Nm grep ) .
+.It Fl H
+Always print filename headers with output lines.
+.It Fl h , Fl Fl no-filename
+Never print filename headers
+.Pq i.e., filenames
+with output lines.
+.It Fl Fl help
+Print a brief help message.
+.It Fl I
+Ignore binary files.
+This option is equivalent to the
+.Dq Fl Fl binary-file= Ns Cm without-match
+option.
+.It Fl i , Fl Fl ignore-case
+Perform case insensitive matching.
+By default,
+.Nm grep
+is case sensitive.
+.It Fl Fl include Ar pattern
+If specified, only files matching the given filename
+.Ar pattern
+are searched.
+Note that
+.Fl Fl include
+and
+.Fl Fl exclude
+patterns are processed in the order given.
+If a name patches multiple patterns, the latest matching rule wins.
+Patterns are matched to the full path specified,
+not only to the filename component.
+.It Fl Fl include-dir Ar pattern
+If
+.Fl R
+is specified, only directories matching the given filename
+.Ar pattern
+are searched.
+Note that
+.Fl Fl include-dir
+and
+.Fl Fl exclude-dir
+patterns are processed in the order given.
+If a name patches multiple patterns, the latest matching rule wins.
+.It Fl L , Fl Fl files-without-match
+Only the names of files not containing selected lines are written to
+standard output.
+Pathnames are listed once per file searched.
+If the standard input is searched, the string
+.Dq (standard input)
+is written unless a
+.Fl Fl label
+is specified.
+.It Fl l , Fl Fl files-with-matches
+Only the names of files containing selected lines are written to
+standard output.
+.Nm grep
+will only search a file until a match has been found,
+making searches potentially less expensive.
+Pathnames are listed once per file searched.
+If the standard input is searched, the string
+.Dq (standard input)
+is written unless a
+.Fl Fl label
+is specified.
+.It Fl Fl label
+Label to use in place of
+.Dq (standard input)
+for a file name where a file name would normally be printed.
+This option applies to
+.Fl H ,
+.Fl L ,
+and
+.Fl l .
+.It Fl Fl mmap
+Use
+.Xr mmap 2
+instead of
+.Xr read 2
+to read input, which can result in better performance under some
+circumstances but can cause undefined behaviour.
+.It Fl m Ar num , Fl Fl max-count= Ns Ar num
+Stop reading the file after
+.Ar num
+matches.
+.It Fl n , Fl Fl line-number
+Each output line is preceded by its relative line number in the file,
+starting at line 1.
+The line number counter is reset for each file processed.
+This option is ignored if
+.Fl c ,
+.Fl L ,
+.Fl l ,
+or
+.Fl q
+is
+specified.
+.It Fl Fl null
+Prints a zero-byte after the file name.
+.It Fl O
+If
+.Fl R
+is specified, follow symbolic links only if they were explicitly listed
+on the command line.
+The default is not to follow symbolic links.
+.It Fl o , Fl Fl only-matching
+Prints only the matching part of the lines.
+.It Fl p
+If
+.Fl R
+is specified, no symbolic links are followed.
+This is the default.
+.It Fl q , Fl Fl quiet , Fl Fl silent
+Quiet mode:
+suppress normal output.
+.Nm grep
+will only search a file until a match has been found,
+making searches potentially less expensive.
+.It Fl R , Fl r , Fl Fl recursive
+Recursively search subdirectories listed.
+(i.e., force
+.Nm grep
+to behave as
+.Nm rgrep ) .
+.It Fl S
+If
+.Fl R
+is specified, all symbolic links are followed.
+The default is not to follow symbolic links.
+.It Fl s , Fl Fl no-messages
+Silent mode.
+Nonexistent and unreadable files are ignored
+(i.e., their error messages are suppressed).
+.It Fl U , Fl Fl binary
+Search binary files, but do not attempt to print them.
+.It Fl u
+This option has no effect and is provided only for compatibility with GNU grep.
+.It Fl V , Fl Fl version
+Display version information and exit.
+.It Fl v , Fl Fl invert-match
+Selected lines are those
+.Em not
+matching any of the specified patterns.
+.It Fl w , Fl Fl word-regexp
+The expression is searched for as a word (as if surrounded by
+.Sq [[:<:]]
+and
+.Sq [[:>:]] ;
+see
+.Xr re_format 7 ) .
+.It Fl x , Fl Fl line-regexp
+Only input lines selected against an entire fixed string or regular
+expression are considered to be matching lines.
+.It Fl y
+Equivalent to
+.Fl i .
+Obsoleted.
+.It Fl z , Fl Fl null-data
+Treat input and output data as sequences of lines terminated by a
+zero-byte instead of a newline.
+.It Fl Fl binary-files= Ns Ar value
+Controls searching and printing of binary files.
+Options are:
+.Bl -tag -compact -width "binary (default)"
+.It Cm binary No (default)
+Search binary files but do not print them.
+.It Cm without-match
+Do not search binary files.
+.It Cm text
+Treat all files as text.
+.El
+.It Fl Fl line-buffered
+Force output to be line buffered.
+By default, output is line buffered when standard output is a terminal
+and block buffered otherwise.
+.El
+.Pp
+If no file arguments are specified, the standard input is used.
+Additionally,
+.Dq Cm -
+may be used in place of a file name, anywhere that a file name is accepted, to
+read from standard input.
+This includes both
+.Fl f
+and file arguments.
+.Sh EXIT STATUS
+The
+.Nm grep
+utility exits with one of the following values:
+.Pp
+.Bl -tag -width flag -compact
+.It Li 0
+One or more lines were selected.
+.It Li 1
+No lines were selected.
+.It Li \*(Gt1
+An error occurred.
+.El
+.Sh EXAMPLES
+.Bl -dash
+.It
+To find all occurrences of the word
+.Sq patricia
+in a file:
+.Pp
+.Dl $ grep 'patricia' myfile
+.It
+To find all occurrences of the pattern
+.Ql .Pp
+at the beginning of a line:
+.Pp
+.Dl $ grep '^\e.Pp' myfile
+.Pp
+The apostrophes ensure the entire expression is evaluated by
+.Nm grep
+instead of by the user's shell.
+The caret
+.Ql ^
+matches the null string at the beginning of a line,
+and the
+.Ql \e
+escapes the
+.Ql \&. ,
+which would otherwise match any character.
+.It
+To find all lines in a file which do not contain the words
+.Sq foo
+or
+.Sq bar :
+.Pp
+.Dl $ grep -v -e 'foo' -e 'bar' myfile
+.It
+A simple example of an extended regular expression:
+.Pp
+.Dl $ egrep '19|20|25' calendar
+.Pp
+Peruses the file
+.Sq calendar
+looking for either 19, 20, or 25.
+.El
+.Sh SEE ALSO
+.Xr ed 1 ,
+.Xr ex 1 ,
+.Xr sed 1 ,
+.Xr zgrep 1 ,
+.Xr re_format 7
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The flags
+.Op Fl AaBbCDdGHhILmoPRSUVw
+are extensions to that specification, and the behaviour of the
+.Fl f
+flag when used with an empty pattern file is left undefined.
+.Pp
+All long options are provided for compatibility with
+GNU versions of this utility.
+.Pp
+Historic versions of the
+.Nm grep
+utility also supported the flags
+.Op Fl ruy .
+This implementation supports those options;
+however, their use is strongly discouraged.
+.Sh HISTORY
+The
+.Nm grep
+command first appeared in
+.At v6 .

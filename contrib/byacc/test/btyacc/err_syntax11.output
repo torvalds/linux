@@ -1,0 +1,35 @@
+   0  $accept : S $end
+
+   1  S : error
+
+state 0
+	$accept : . S $end  (0)
+
+	error  shift 1
+	.  error
+
+	S  goto 2
+
+
+state 1
+	S : error .  (1)
+
+	.  reduce 1
+
+
+state 2
+	$accept : S . $end  (0)
+
+	$end  accept
+
+
+3 terminals, 2 nonterminals
+2 grammar rules, 3 states
+
+grammar parser grammar
+symbol# value# symbol
+     0      0  $end
+     1    256  error
+     2    124  '|'
+     3    257  $accept
+     4    258  S

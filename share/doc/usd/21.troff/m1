@@ -1,0 +1,746 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\"
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\"
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\"
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)m1	8.1 (Berkeley) 8/14/93
+.\"
+.\" $FreeBSD$
+.nr p 0 1
+.tr |
+.tr ~|
+.rm mx
+.br
+.ce
+.ft B
+.ps +2
+.rs
+.\".sp1.0i
+REFERENCE MANUAL
+.ft R
+.ps -2
+.sp
+.mh
+General Explanation
+.sc
+Form of input.
+Input consists of \fItext lines\fR, which are destined to be printed,
+interspersed with \fIcontrol lines\fR,
+which set parameters or otherwise control subsequent processing.
+Control lines begin with a \fIcontrol character\fR\(em\
+normally \fB.\fR (period) or \fB\'\fR (acute accent)\(em\
+followed by a one or two character name that specifies
+a basic \fIrequest\fR or the substitution of
+a user-defined \fImacro\fR in place of the control line.
+The control character \fB\'\fR suppresses the \fIbreak\fR function\(em\
+the forced output of a partially filled line\(em\
+caused by certain requests.
+The control character may be separated from the request/macro name by
+white space (spaces and/or tabs) for \(aesthetic reasons.
+Names must be followed by either
+space or newline.
+Control lines with unrecognized names are ignored.
+.pg
+Various special functions may be introduced anywhere in the input by
+means of an \fIescape\fR character, normally \fB\e\fR.
+For example, the function
+\fB\en\fIR\fR
+causes the interpolation (insertion in place) of the contents of the
+\fInumber register R\fR
+in place of the function;
+here \fIR\fR is either a single character name
+as in \fB\en\fIx\fR,
+or left-parenthesis-introduced, two-character name as in \fB\en(\fIxx\fR.
+.sc
+Formatter and device resolution.
+\*(TR internally uses 432 units\(slinch, (for historical reasons, corresponding to
+the Graphic Systems phototypesetter
+which had a horizontal resolution of
+1\(sl432 inch and a vertical resolution
+of 1\(sl144 inch.)
+\*(NR internally uses 240 units\(slinch,
+corresponding to the least common multiple of the
+horizontal and vertical resolutions of various
+typewriter-like output devices.
+\*(TR rounds horizontal\(slvertical numerical parameter input to its own
+internal horizontal\(slvertical resolution.
+\*(NR similarly rounds numerical input to the actual resolution
+of the output device indicated by the \fB\(miT\fR option
+(default Model 37 Teletype).
+.sc
+Numerical parameter input.
+Both \*(NR and \*(TR
+accept numerical input with the scale
+indicator suffixes
+shown in the following table,
+where
+\fIS\fR is the current type size in points,
+\fIV\fR is the current vertical line spacing in
+basic units,
+and
+\fIC\fR is a \fInominal character width\fR in basic units.
+.TS
+center box;
+c|c|ls
+c|c|ll
+c|l|l|l.
+Scale		Number of basic units
+Indicator	Meaning	\*(TR	\*(NR
+_
+\fBi\fR	Inch	432	240
+\fBc\fR	Centimeter	432\(mu50\(sl127	240\(mu50\(sl127
+\fBP\fR	Pica = 1\(sl6 inch	72	240\(sl6
+\fBm\fR	Em = \fIS\fR points	6\(mu\fIS\fR	\fIC\fR
+\fBn\fR	En = Em\(sl2	3\(mu\fIS\fR	\fIC, same as Em\fR
+\fBp\fR	Point = 1\(sl72 inch	6	240\(sl72
+\fBu\fR	Basic unit	1	1
+\fBv\fR	Vertical line space	\fIV\fR	\fIV\fR
+none	Default, see below
+.TE
+In \*(NR, \fIboth\fR the em and the en are taken to be equal to the \fIC\fR,
+which is output-device dependent;
+common values are 1\(sl10 and 1\(sl12 inch.
+Actual character widths in \*(NR need not be all the same and constructed characters
+such as \(mi> (\(->) are often extra wide.
+The default scaling is ems for the horizontally-oriented requests
+and functions
+\fBll\fR,
+\fBin\fR,
+\fBti\fR,
+\fBta\fR,
+\fBlt\fR,
+\fBpo\fR,
+\fBmc\fR,
+\fB\eh\fR,
+and
+\fB\el\fR;
+\fIV\^\fRs
+for the vertically-oriented requests and functions
+\fBpl\fR,
+\fBwh\fR,
+\fBch\fR,
+\fBdt\fR,
+\fBsp\fR,
+\fBsv\fR,
+\fBne\fR,
+\fBrt\fR,
+\fB\ev\fR,
+\fB\ex\fR,
+and
+\fB\eL\fR;
+\fBp\fR for the \fBvs\fR request;
+and \fBu\fR for the requests
+\fBnr\fR,
+\fBif\fR,
+and
+\fBie\fR.
+\fIAll\fR other requests ignore any scale indicators.
+When a number register containing an already appropriately scaled number
+is interpolated to provide numerical input,
+the unit scale indicator
+\fBu\fR may need to be appended to prevent
+an additional inappropriate default scaling.
+The number, \fIN\fR, may be specified in decimal-fraction form
+but the parameter finally stored is rounded to an integer number of basic units.
+.pg
+The \fIabsolute position\fR indicator \fB~\fR may be prefixed
+to a number \fIN\fR
+to generate the distance to the vertical or horizontal place \fIN\fR.
+For vertically-oriented requests and functions, \fB~\|\fIN\fR
+becomes the distance in basic units from the current vertical place on the page or in a \fIdiversion\fR (\(sc7.4)
+to the vertical place \fIN\fR.
+For \fIall\fR other requests and functions,
+\fB~\|\fIN\fR
+becomes the distance from
+the current horizontal place on the \fIinput\fR line to the horizontal place \fIN\fR.
+For example,
+.x1
+\&\fB.sp  ~\|3.2c\fR
+.x2
+will space \fIin the required direction\fR to 3.2 centimeters from the top of the page.
+.sc
+.tr &&
+Numerical expressions.
+Wherever numerical input is expected, an expression involving parentheses,
+the arithmetic operators \fB\(pl\fR, \fB\(mi\fR, \fB\(sl\fR, \fB\(**\fR, \fB%\fR (mod),
+and the logical operators
+\fB<\fR,
+\fB>\fR,
+\fB<\(eq\fR,
+\fB>\(eq\fR,
+\fB\(eq\fR (or \fB\(eq\(eq\fR),
+\fB&\fR\ (and),
+\fB:\fR\ (or)
+may be used.
+Except where controlled by parentheses, evaluation of expressions is left-to-right;
+there is no operator precedence.
+In the case of certain requests, an initial \fB\(pl\fR or \fB\(mi\fR is stripped
+and interpreted as an increment or decrement indicator respectively.
+In the presence of default scaling, the desired scale indicator must be
+attached to \fIevery\fR number in an expression
+for which the desired and default scaling differ.
+For example,
+if the number register \fBx\fR contains 2
+and the current point size is 10,
+then
+.br
+.tr &.
+.x1
+.ft B
+\&.ll  (4.25i\(pl\enxP\(pl3)\(sl2u
+.ft R
+.x2
+will set the line length to 1\(sl2 the sum of 4.25 inches \(pl 2 picas \(pl 30 points.
+.sc
+Notation.
+Numerical parameters are indicated in this manual in two ways.
+\(+-\fIN\fR means that the argument may take the forms \fIN\fR, \(pl\fIN\fR, or \(mi\fIN\fR and
+that the corresponding effect is to set the affected parameter
+to \fIN\fR, to increment it by \fIN\fR, or to decrement it by \fIN\fR respectively.
+Plain \fIN\fR means that an initial algebraic sign is \fInot\fR
+an increment indicator,
+but merely the sign of \fIN\fR.
+Generally, unreasonable numerical input is either ignored
+or truncated to a reasonable value.
+For example,
+most requests expect to set parameters to non-negative
+values;
+exceptions are
+\fBsp\fR,
+\fBwh\fR,
+\fBch\fR,
+\fBnr\fR,
+and
+\fBif\fR.
+The requests
+\fBps\fR,
+\fBft\fR,
+\fBpo\fR,
+\fBvs\fR,
+\fBls\fR,
+\fBll\fR,
+\fBin\fR,
+and
+\fBlt\fR
+restore the \fIprevious\fR parameter value in the \fIabsence\fR
+of an argument.
+.pg
+Single character arguments are indicated by single lower case letters
+and
+one/two character arguments are indicated by a pair of lower case letters.
+Character string arguments are indicated by multi-character mnemonics.
+.mh
+Font and Character Size Control
+.sc
+Character set.
+The \*(TR character set consists of a typesetter-dependent basic
+character set plus a Special Mathematical Font character
+set\(emeach having 102 characters.
+An example of these character sets is shown in the Appendix Table|I.
+All printable \s-1ASCII\s+1 characters are included,
+with some on the Special Font.
+With three exceptions, these \s-1ASCII\s+1 characters are input as themselves,
+and non-\s-1ASCII\s+1 characters are input in the form \fB\e(\fIxx\fR where
+\fIxx\fR is a two-character name given in the Appendix Table|II.
+The three \s-1ASCII\s+1 exceptions are mapped as follows:
+.TS
+center box;
+cs|cs
+cc|cc
+cl|cl.
+\s-1ASCII\s+1 Input	Printed by \*(TR
+Character	Name	Character	Name
+_
+\'	acute accent	'	close quote
+\`	grave accent	`	open quote
+\(mi	minus	-	hyphen
+.TE
+.tr ~~
+The characters
+\fB\'\fR,
+\fB\`\fR,
+and
+\fB\-\fR
+may be input
+by \fB\e\'\fR, \fB\e\`\fR, and \fB\e\-\fR respectively or by their names (Table II).
+The \s-1ASCII\s+1 characters \fB@\fR, \fB#\fR, \fB"\fR, \fB\(aa\fR, \fB\(ga\fR, \fB<\fR, \fB>\fR, \fB\e\fR, \fB{\fR, \fB}\fR, \fB~\fR, \fB^\fR, and \fB\(ul\fR exist
+only on the Special Font and are printed as a 1-em space if that font
+is not mounted.
+.pg
+.tr ~|
+\*(NR understands the entire \*(TR character set,
+but can in general print only \s-1ASCII\s+1
+characters,
+additional characters as may be available on
+the output device,
+such characters as may be able to be constructed
+by overstriking or other combination,
+and those that can reasonably be mapped
+into other printable characters.
+The exact behavior is determined by a driving
+table prepared for each device.
+The characters
+\fB\'\fR,
+\fB\`\fR,
+and
+\fB\(ul\fR
+print
+as themselves.
+.sc
+Fonts.
+The default mounted fonts are
+Times Roman (\fBR\fR),
+Times Italic (\fBI\fR),
+Times Bold (\fBB\fR),
+and the Special Mathematical Font (\fBS\fR)
+on physical typesetter positions 1, 2, 3, and 4 respectively.
+These fonts are used in this document.
+The \fIcurrent\fR font, initially Roman, may be changed
+(among the mounted fonts)
+by use of the \fBft\fR request,
+or by imbedding at any desired point
+either \fB\ef\fIx\fR, \fB\ef(\fIxx\fR, or \fB\ef\fIN\fR
+where
+\fIx\fR and \fIxx\fR are the name of a mounted font
+and \fIN\fR is a numerical font position.
+It is \fInot\fR necessary to change to the Special Font;
+characters on that font are automatically handled.
+A request for a named but not-mounted font is \fIignored\fR.
+\*(TR can be informed that any particular font is mounted
+by use of the \fBfp\fR request.
+The list of known fonts is installation dependent.
+In the subsequent discussion of font-related requests,
+\fIF\fR represents either a one\(sltwo-character
+font name or the numerical font position, 1-4.
+The current font is available (as numerical position) in the read-only number register \fB.f\fR.
+.pg
+\*(NR understands font control
+and normally underlines Italic characters (see \(sc10.5).
+.sc
+Character size.
+Character point sizes available are typesetter dependent, but often include
+6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, and 36.
+This is a range of 1\(sl12 inch to 1\(sl2 inch.
+The \fBps\fR request is used to change or restore the point size.
+Alternatively the point size may be changed between any two characters
+by imbedding a \fB\es\fIN\fR
+at the desired point
+to set the size to \fIN\fR,
+or a \fB\es\fI\(+-N\fR (1\(<=\fIN\fR\(<=9)
+to increment\(sldecrement the size by \fIN\fR;
+\fB\es0\fR restores the \fIprevious\fR size.
+Requested point size values that are between two valid
+sizes yield the larger of the two.
+The current size is available in the \fB.s\fR register.
+\*(NR ignores type size control.
+.h1 *
+.fn
+.xx
+*Notes are explained at the end of the Summary and Index above.
+.ef
+.bt
+\fB&ps\fI|\(+-N\fR	10\|point	previous	E	Point size
+set to \(+-\fIN\fR.
+Alternatively imbed \fB\es\fIN\fR or \fB\es\fI\(+-N\fR.
+Any positive size value may be requested;
+if invalid, the next larger valid size will result, with a
+maximum of 36.
+A paired sequence
+\(pl\fIN\fR,\|\(mi\fIN\fR
+will work because the previous requested value is also remembered.
+Ignored in \*(NR.
+.bt
+\fB&fz\fI|F|\(+-N\fR	off	-	E	The characters in font \fIF\fR will be adjusted to
+be in size \(+-\fIN\fR.  Characters in the Special Font encountered during the
+use of font \fIF\fR will have the same size modification. (Use the \fB&fz S\fR
+request if different treatment of Special Font characters is required). \fB&fz\fR
+must follow any \fB&fp\fR request for the position.
+.bt
+\fB&fz|S|\fIF|\(+-N\fR	off	-	E	The characters in the Special Font
+will be in size \(+-\fIN\fR independent of previous \fB&fz\fR requests.
+.bt
+\fB&ss\fI|N\fR	12\(sl36\|em	ignored	E	Space-character size
+is set to \fIN\fR\(sl36\|ems.
+This size is the minimum word spacing in adjusted text.
+Ignored in \*(NR.
+.bt
+\fB&cs|\fIF\|N\|M\fR	off	-	P	Constant character space
+(width) mode is
+set on for font \fIF\fR (if mounted); the width of every character will be
+taken to be \fIN\fR\(sl36 ems.
+If \fIM\fR is absent,
+the em is that of the character's point size;
+if \fIM\fR is given,
+the em is \fIM\fR-points.
+All affected characters
+are centered in this space, including those with an actual width
+larger than this space.
+Special Font characters occurring while the current font
+is \fIF\fR are also so treated.
+If \fIN\fR is absent, the mode is turned off.
+The mode must be still or again in effect when the characters are physically printed.
+Ignored in \*(NR.
+.bt
+\fB&bd\fI|F|N\fR	off	-	P	The characters in font \fIF\fR will be artificially
+emboldened by printing each one twice, separated by \fIN\fR\^\(mi1 basic units.
+A reasonable value for \fIN\fR is 3 when the character size is in the vicinity
+of 10 points.
+If \fIN\fR is missing the embolden mode is turned off.
+The column heads above were printed with \fB.bd|I|3\fR.
+The mode must be still or again in effect when the characters are physically printed.
+Ignored in \*(NR.
+.bt
+\fB&bd|S|\fIF|N\fR	off	-	P	The characters in the Special Font
+will be emboldened whenever the current font is \fIF\fR.
+This manual was printed with \fB.bd\|S\|B\|3\fR.
+The mode must be still or again in effect when the characters are physically printed.
+.bt
+\fB&ft|\fIF\fR	Roman	previous	E	Font changed to
+\fIF\fR.
+Alternatively, imbed \fB\ef\fIF\fR.
+The font name \fBP\fR is reserved to mean the previous font.
+.bt
+\fB&fp|\fIN|F\fR	R,I,B,S	ignored	-	Font position.
+This is a statement
+that a font named \fIF\fR is mounted on position \fIN\fR (1-4).
+It is a fatal error if \fIF\fR is not known.
+The phototypesetter has four fonts physically mounted.
+Each font consists of a film strip which can be mounted on a numbered
+quadrant of a wheel.
+The default mounting sequence assumed by \*(TR is
+R, I, B, and S on positions 1, 2, 3 and 4.
+.mh
+Page control
+.pg
+Top and bottom margins are \fInot\fR automatically provided;
+it is conventional to define two \fImacros\fR and to set \fItraps\fR
+for them at vertical positions 0 (top) and \fI\(miN\fR (\fIN\fR from the bottom).
+See \(sc7 and Tutorial Examples \(scT2.
+A pseudo-page transition onto the \fIfirst\fR page occurs
+either when the first \fIbreak\fR occurs or
+when the first \fInon-diverted\fR text processing occurs.
+Arrangements
+for a trap to occur at the top of the first page
+must be completed before this transition.
+In the following, references to the \fIcurrent diversion\fR (\(sc7.4)
+mean that the mechanism being described works during both
+ordinary and diverted output (the former considered as the top diversion level).
+.pg
+The usable page width on the Graphic Systems phototypesetter
+was about 7.54|inches,
+beginning about 1\(sl27|inch from the left edge of the
+8|inch wide, continuous roll paper, but these characteristics are typesetter-
+dependent.
+The physical limitations on \*(NR output
+are output-device dependent.
+.h1
+.bt
+\fB&pl\fI|\(+-N\fR	11\|in	11\|in	\fBv\fR	Page length set to \fI\(+-N\fR.
+The internal limitation is about 75|inches in \*(TR and
+about 136|inches in \*(NR.
+The current page length is available in the \fB.p\fR register.
+.bt
+\fB&bp\fI|\(+-N\fR	\fIN\(eq\fR1	-	B*,\fBv\fR	Begin page.
+.fn
+.xx
+*The use of "\ \fB\'\fR\ " as control character (instead of "\fB.\fR")
+suppresses the break function.
+.ef
+The current page is ejected and a new page is begun.
+If \fI\(+-N\fR is given, the new page number will be \fI\(+-N\fR.
+Also see request \fBns\fR.
+.bt
+\fB&pn\fI|\(+-N\fR	\fIN\fR\(eq1	ignored	-	Page number.
+The next page (when it occurs) will have the page number \fI\(+-N\fR.
+A \fBpn\fR must occur before the initial pseudo-page transition
+to affect the page number of the first page.
+The current page number is in the \fB%\fR register.
+.bt
+\fB&po\fI|\(+-N\fR	0;|26\(sl27\|in\(dg	previous	\fBv\fR	Page offset.
+.fn
+.xx
+\(dgValues separated by ";" are for \*(NR and \*(TR respectively.
+.ef
+The current \fIleft margin\fR is set to \fI\(+-N\fR.
+The \*(TR initial value provides about 1|inch of paper margin
+including the physical typesetter margin of 1\(sl27|inch.
+In \*(TR the maximum (line-length)+(page-offset) is about 7.54 inches.
+See \(sc6.
+The current page offset is available in the \fB.o\fR register.
+.bt
+\fB&ne\fI|N\fR	-	\fIN\(eq\fR1\|\fIV\fR	D,\fBv\fR	Need \fIN\fR vertical space.
+If the distance, \fID\fR, to the next trap position (see \(sc7.5) is less than \fIN\fR,
+a forward vertical space of size \fID\fR occurs,
+which will spring the trap.
+If there are no remaining
+traps on the page,
+\fID\fR is the distance to the bottom of the page.
+If \fID\|<\|V\fR, another line could still be output
+and spring the trap.
+In a diversion, \fID\fR is the distance to the \fIdiversion trap\fR, if any,
+or is very large.
+.bt
+\fB&mk\fI|R\fR	none	internal	D	Mark the \fIcurrent\fR vertical place
+in an internal register (both associated with the current diversion level),
+or in register \fIR\fR, if given.
+See \fBrt\fR request.
+.bt
+\fB&rt\fI|\(+-N\fR	none	internal	D,\fBv\fR	Return \fIupward only\fR to a marked vertical place
+in the current diversion.
+If \fI\(+-N\fR (w.r.t. current place) is given,
+the place is \fI\(+-N\fR from the top of the page or diversion
+or, if \fIN\fR is absent, to a
+place marked by a previous \fBmk\fR.
+Note that the \fBsp\fR request (\(sc5.3) may be used
+in all cases instead of \fBrt\fR
+by spacing to the absolute place stored in an explicit register;
+e.|g. using the sequence \fB.mk|\fIR\fR ... \fB.sp|~\|\en\fIR\fBu\fR.
+.mh
+Text Filling, Adjusting, and Centering
+.sc
+Filling and adjusting.
+Normally,
+words are collected from input text lines
+and assembled into an output text line
+until some word doesn't fit.
+An attempt is then made
+to hyphenate the word to assemble a part
+of it into the output line.
+The spaces between the words on the output line
+are then increased to spread out the line
+to the current \fIline length\fR
+minus any current \fIindent\fR.
+A \fIword\fR is any string of characters delimited by
+the \fIspace\fR character or the beginning/end of the input line.
+Any adjacent pair of words that must be kept together
+(neither split across output lines nor spread apart
+in the adjustment process)
+can be tied together by separating them with the
+\fIunpaddable space\fR character
+"\fB\e\ \ \fR" (backslash-space).
+The adjusted word spacings are uniform in \*(TR
+and the minimum interword spacing can be controlled
+with the \fBss\fR request (\(sc2).
+In \*(NR, they are normally nonuniform because of
+quantization to character-size spaces;
+however,
+the command line option \fB\-e\fR causes uniform
+spacing with full output device resolution.
+Filling, adjustment, and hyphenation (\(sc13) can all be
+prevented or controlled.
+The \fItext length\fR on the last line output is available in the \fB.n\fR register,
+and text base-line position on the page for this line is in the \fBnl\fR register.
+The text base-line high-water mark (lowest place) on the current page is in
+the \fB.h\fR register. The \fB.k\fR register (read-only) contains the horizontal size of
+the text portion (without indent) of the current partially-collected output
+line (if any) in the current environment.
+.pg
+An input text line ending with \fB.\fR\^, \fB?\fR, or \fB!\fR is taken
+to be the end of a \fIsentence\fR, and an additional space character is
+automatically provided during filling.
+Multiple inter-word space characters found in the input are retained,
+except for trailing spaces;
+initial spaces also cause a \fIbreak\fR.
+.pg
+When filling is in effect, a \fB\ep\fR may be imbedded or attached to a word to
+cause a \fIbreak\fR at the \fIend\fR of the word and have the resulting output
+line \fIspread out\fR to fill the current line length.
+.pg
+.tr &&
+A text input line that happens to begin
+with a control character (\(sc10.4) can
+be made to not look like a control line
+by preceding it by
+the non-printing, zero-width filler character \fB\e&\fR.
+Still another way is to specify output translation of some
+convenient character into the control character
+using \fBtr\fR (\(sc10.5).
+.tr &.
+.sc
+Interrupted text.
+The copying of an input line in \fInofill\fR
+(non-fill) mode can be \fIinterrupted\fR by terminating
+the partial line with a \fB\ec\fR.
+The \fInext\fR encountered input text line will be considered to be a continuation
+of the same line of input text.
+Similarly,
+a word within \fIfilled\fR text may be interrupted by terminating the
+word (and line) with \fB\ec\fR;
+the next encountered text will be taken as a continuation of the
+interrupted word.
+If the intervening control lines cause a break,
+any partial line will be forced out along with any partial word.
+.h1
+.bt
+\fB&br\fR	-	-	B	Break.
+The filling of the line currently
+being collected is stopped and
+the line is output without adjustment.
+Text lines beginning with space characters
+and empty text lines (blank lines) also cause a break.
+.bt
+.lg 0
+\fB&fi\fR	\(fill|on	-	B,E	Fill subsequent output lines.
+.lg
+The register \fB.u\fR is 1 in fill mode and 0 in nofill mode.
+.bt
+\fB&nf\fR	fill|on	-	B,E	Nofill.
+Subsequent output lines are \fIneither\fR filled \fInor\fR adjusted.
+Input text lines are copied directly to output lines
+\fIwithout regard\fR for the current line length.
+.bt
+\fB&ad\fI|c\fR	adj,both	adjust	E	\
+Line adjustment is begun.
+If fill mode is not on, adjustment will be deferred until
+fill mode is back on.
+If the type indicator \fIc\fR is present,
+the adjustment type is changed as shown in the following table.
+The type indicator can also be a value saved  from the read-only \fB.j\fR number
+register, which is set to contain the current adjustment mode and type.
+.TS
+center box;
+c|c
+c|l.
+Indicator	Adjust Type
+_
+\fBl\fR	adjust left margin only
+\fBr\fR	adjust right margin only
+\fBc\fR	center
+\fBb\fR or \fBn\fR	adjust both margins
+absent	unchanged
+.TE
+.bt
+\fB&na\fR	adjust	-	E	Noadjust.
+Adjustment is turned off;
+the right margin will be ragged.
+The adjustment type for \fBad\fR is not changed.
+Output line filling still occurs if fill mode is on.
+.bt
+\fB&ce\fI|N\fR	off	\fIN\fR\(eq1	B,E	Center the next \fIN\fR input text lines
+within the current (line-length minus indent).
+If \fIN\fR\(eq\^0, any residual count is cleared.
+A break occurs after each of the \fIN\fR input lines.
+If the input line is too long,
+it will be left adjusted.
+.mh
+Vertical Spacing
+.sc
+Base-line spacing.
+The vertical spacing \fI(V)\fR between the base-lines of successive
+output lines can be set
+using the \fBvs\fR request
+with a resolution of 1\(sl144\|inch\|\(eq\|1\(sl2|point
+in \*(TR,
+and to the output device resolution in \*(NR.
+\fIV\fR must be large enough to accommodate the character sizes
+on the affected output lines.
+For the common type sizes (9-12 points),
+usual typesetting practice is to set \fIV\fR to 2\ points greater than the
+point size;
+\*(TR default is 10-point type on a 12-point spacing
+(as in this document).
+The current \fIV\fR is available in the \fB.v\fR register.
+Multiple-\fIV\|\fR line separation (e.\|g. double spacing) may be requested
+with \fBls\fR.
+.sc
+Extra line-space.
+If a word contains a vertically tall construct requiring
+the output line containing it to have extra vertical space
+before and\(slor after it,
+the \fIextra-line-space\fR function \fB\ex\fI\'N\|\|\'\fR
+can be imbedded in or attached to that word.
+In this and other functions having a pair of delimiters around
+their parameter (here \fB\'\fR\|),
+the delimiter choice is arbitrary,
+except that it can't look like the continuation of a number expression for \fIN\fR.
+If \fIN\fR is negative,
+the output line containing the word will
+be preceded by \fIN\fR extra vertical space;
+if \fIN\fR is positive,
+the output line containing the word
+will be followed by \fIN\fR extra vertical space.
+If successive requests for extra space apply to the same line,
+the maximum values are used.
+The most recently utilized post-line extra line-space is available in the \fB.a\fR register.
+.sc
+Blocks of vertical space.
+A block of vertical space is ordinarily requested using \fBsp\fR,
+which honors the \fIno-space\fR mode and which does
+not space \fIpast\fR a trap.
+A contiguous block of vertical space may be reserved using \fBsv\fR.
+.h1
+.bt
+\fB&vs\fI|N\fR	1\(sl6in;12pts	previous	E,\fBp\fR	Set vertical base-line spacing size \fIV\fR.
+Transient \fIextra\fR vertical space available with \fB\ex\fI\'N\|\|\'\fR (see above).
+.bt
+\fB&ls\fI|N\fR	\fIN\(eq\^\fR1	previous	E	\fILine\fR spacing
+set to \fI\(+-N\fR.
+\fIN\(mi\fR1 \fIV\fR\^s \fI(blank lines)\fR are
+appended to each output text line. The (read-only) number register \fB.L\fR
+is set to contain the current line-spacing value.
+Appended blank lines are omitted, if the text or previous appended blank line reached a trap position.
+.bt
+\fB&sp\fI|N\fR	-	\fIN\fR\(eq1\fIV\fR	B,\fBv\fR	Space vertically in \fIeither\fR direction.
+If \fIN\fR is negative, the motion is \fIbackward\fR (upward)
+and is limited to the distance to the top of the page.
+Forward (downward) motion is truncated to the distance to the
+nearest trap.
+If the no-space mode is on,
+no spacing occurs (see \fBns\fR, and \fBrs\fR below).
+.bt
+\fB&sv\fI|N\fR	-	\fIN\(eq\fR1\fIV\fR	\fBv\fR	Save a contiguous vertical block of size \fIN\fR.
+If the distance to the next trap is greater
+than \fIN\fR, \fIN\fR vertical space is output.
+No-space mode has \fIno\fR effect.
+If this distance is less than \fIN\fR,
+no vertical space is immediately output,
+but \fIN\fR is remembered for later output (see \fBos\fR).
+Subsequent \fBsv\fR requests will overwrite any still remembered \fIN\fR.
+.bt
+\fB&os\fR	-	-	-	Output saved vertical space.
+No-space mode has \fIno\fR effect.
+Used to finally output a block of vertical space requested
+by an earlier \fBsv\fR request.
+.bt
+\fB&ns\fR	space	-	D	No-space mode turned on.
+When on, the no-space mode inhibits \fBsp\fR requests and
+\fBbp\fR requests \fIwithout\fR a next page number.
+The no-space mode is turned off when a line of
+output occurs, or with \fBrs\fR.
+.bt
+\fB&rs\fR	space	-	D	Restore spacing.
+The no-space mode is turned off.
+.bt
+Blank|text|line.	-	B	Causes a break and
+outputs a blank line just like \fBsp|1\fR.

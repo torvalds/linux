@@ -1,0 +1,159 @@
+.\"
+.\" Copyright (c) 2009 Semihalf, Rafal Jaworowski
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 20, 2015
+.Dt TSEC 4
+.Os
+.Sh NAME
+.Nm tsec
+.Nd "Freescale Three-Speed Ethernet Controller device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device tsec"
+.Cd "device miibus"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the gigabit Ethernet controller integrated in
+some of the Freescale system-on-chip devices.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It autoselect
+Enable autoselection of the media type and options
+.It 10baseT/UTP
+Set 10Mbps operation
+.It 100baseTX
+Set 100Mbps operation
+.It 1000baseT
+Set 1000baseT operation
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It full-duplex
+Set full duplex operation
+.El
+.Pp
+The
+.Nm
+driver supports polled operation when the system is configured with
+DEVICE_POLLING kernel option, see
+.Xr polling 4
+for more details.
+.Pp
+The
+.Nm
+driver supports reception and transmission of extended frames
+for
+.Xr vlan 4 .
+This capability of
+.Nm
+can be controlled by means of the
+.Cm vlanmtu
+parameter
+to
+.Xr ifconfig 8 .
+.Pp
+The
+.Nm
+driver supports interrupts coalescing (IC) so that raising a transmit/receive
+frame interrupt is delayed, if possible, until a threshold-defined period of
+time has elapsed, or a threshold-defined frame counter has been reached
+(whichever occurs first).
+The following sysctls regulate this behaviour:
+.Bl -tag -width indent
+.It Va dev.tsec.X.int_coal.rx_time
+.It Va dev.tsec.X.int_coal.rx_count
+.It Va dev.tsec.X.int_coal.tx_time
+.It Va dev.tsec.X.int_coal.tx_count
+.Pp
+Value of 0 for either time or count disables IC on the given path.
+Time value
+1-65535 corresponds to a real time period and is expressed in units equivalent
+to 64 ticks of the TSEC clock.
+Count 1-255 represents the number of frames
+(note that value of 1 is equivalent to IC disabled).
+User provided values
+larger than supported will be trimmed to the maximum supported.
+More details
+are available in the reference manual of the device.
+.El
+.Sh HARDWARE
+Gigabit Ethernet controllers built into the following Freescale
+system-on-chip devices are known to work with the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+MPC8349
+.It
+MPC8533, MPC8541, MPC8555
+.El
+.Pp
+The enhanced version of the controller (eTSEC), integrated in the following
+devices, is also supported by this driver:
+.Pp
+.Bl -bullet -compact
+.It
+MPC8548, MPC8572
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr polling 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An -nosplit
+The base version of
+.Nm
+device driver was written by
+.An Piotr Kruszynski .
+It has been extended with polling and interrupt coalescing support by
+.An Rafal Jaworowski .
+It has been further enhanced with multicast, h/w checksum calculation and vlan
+support by
+.An Piotr Ziecik .
+This manual page was written by
+.An Rafal Jaworowski .

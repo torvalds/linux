@@ -1,0 +1,14 @@
+#
+# $FreeBSD$
+#
+
+include	ALIX_DSK
+ident		ALIX_NFS
+
+options		NFS_ROOT
+options         BOOTP
+options         BOOTP_NFSROOT
+options         BOOTP_NFSV3
+#options                BOOTP_WIRED_TO=fxp0
+#options                BOOTP_WIRED_TO=ath0
+options         BOOTP_COMPAT

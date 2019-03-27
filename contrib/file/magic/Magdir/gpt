@@ -1,0 +1,240 @@
+
+#------------------------------------------------------------------------------
+# $File: gpt,v 1.4 2017/03/17 21:35:28 christos Exp $
+#
+# GPT Partition table patterns.
+# Author: Rogier Goossens (goossens.rogier@gmail.com)
+# Note that a GPT-formatted disk must contain an MBR as well.
+#
+
+# The initial segment (up to >>>>>>>>422) was copied from the X86
+# partition table code (aka MBR).
+# This is kept separate, so that MBR partitions are not reported as well.
+# (use -k if you do want them as well)
+
+# First, detect the MBR partiton table
+# If more than one GPT protective MBR partition exists, don't print anything
+# (the other MBR detection code will then just print the MBR partition table)
+0x1FE			leshort		0xAA55
+>3			string		!MS
+>>3			string		!SYSLINUX
+>>>3			string		!MTOOL
+>>>>3			string		!NEWLDR
+>>>>>5			string		!DOS
+# not FAT (32 bit)
+>>>>>>82		string		!FAT32
+#not Linux kernel
+>>>>>>>514		string		!HdrS
+#not BeOS
+>>>>>>>>422		string		!Be\ Boot\ Loader
+# GPT with protective MBR entry in partition 1 (only)
+>>>>>>>>>450		ubyte		0xee
+>>>>>>>>>>466		ubyte		!0xee
+>>>>>>>>>>>482		ubyte		!0xee
+>>>>>>>>>>>>498		ubyte		!0xee
+#>>>>>>>>>>>>>446	use		gpt-mbr-partition
+>>>>>>>>>>>>>(454.l*8192)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>0			use		gpt-mbr-type
+>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>0			ubyte		x		of 8192 bytes
+>>>>>>>>>>>>>(454.l*8192)	string		!EFI\ PART
+>>>>>>>>>>>>>>(454.l*4096)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>0		ubyte		x		of 4096 bytes
+>>>>>>>>>>>>>>(454.l*4096)	string		!EFI\ PART
+>>>>>>>>>>>>>>>(454.l*2048)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>>0		ubyte		x		of 2048 bytes
+>>>>>>>>>>>>>>>(454.l*2048)	string		!EFI\ PART
+>>>>>>>>>>>>>>>>(454.l*1024)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>>>0		ubyte		x		of 1024 bytes
+>>>>>>>>>>>>>>>>(454.l*1024)	string		!EFI\ PART
+>>>>>>>>>>>>>>>>>(454.l*512)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>>>>0		ubyte		x		of 512 bytes
+# GPT with protective MBR entry in partition 2 (only)
+>>>>>>>>>450		ubyte		!0xee
+>>>>>>>>>>466		ubyte		0xee
+>>>>>>>>>>>482		ubyte		!0xee
+>>>>>>>>>>>>498		ubyte		!0xee
+#>>>>>>>>>>>>>462	use		gpt-mbr-partition
+>>>>>>>>>>>>>(470.l*8192)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>0			use		gpt-mbr-type
+>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>0			ubyte		x		of 8192 bytes
+>>>>>>>>>>>>>(470.l*8192)	string		!EFI\ PART
+>>>>>>>>>>>>>>(470.l*4096)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>0		ubyte		x		of 4096 bytes
+>>>>>>>>>>>>>>(470.l*4096)	string		!EFI\ PART
+>>>>>>>>>>>>>>>(470.l*2048)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>>0		ubyte		x		of 2048 bytes
+>>>>>>>>>>>>>>>(470.l*2048)	string		!EFI\ PART
+>>>>>>>>>>>>>>>>(470.l*1024)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>>>0		ubyte		x		of 1024 bytes
+>>>>>>>>>>>>>>>>(470.l*1024)	string		!EFI\ PART
+>>>>>>>>>>>>>>>>>(470.l*512)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>>>>0		ubyte		x		of 512 bytes
+# GPT with protective MBR entry in partition 3 (only)
+>>>>>>>>>450		ubyte		!0xee
+>>>>>>>>>>466		ubyte		!0xee
+>>>>>>>>>>>482		ubyte		0xee
+>>>>>>>>>>>>498		ubyte		!0xee
+#>>>>>>>>>>>>>478	use		gpt-mbr-partition
+>>>>>>>>>>>>>(486.l*8192)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>0			use		gpt-mbr-type
+>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>0			ubyte		x		of 8192 bytes
+>>>>>>>>>>>>>(486.l*8192)	string		!EFI\ PART
+>>>>>>>>>>>>>>(486.l*4096)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>0		ubyte		x		of 4096 bytes
+>>>>>>>>>>>>>>(486.l*4096)	string		!EFI\ PART
+>>>>>>>>>>>>>>>(486.l*2048)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>>0		ubyte		x		of 2048 bytes
+>>>>>>>>>>>>>>>(486.l*2048)	string		!EFI\ PART
+>>>>>>>>>>>>>>>>(486.l*1024)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>>>0		ubyte		x		of 1024 bytes
+>>>>>>>>>>>>>>>>(486.l*1024)	string		!EFI\ PART
+>>>>>>>>>>>>>>>>>(486.l*512)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>>>>0		ubyte		x		of 512 bytes
+# GPT with protective MBR entry in partition 4 (only)
+>>>>>>>>>450		ubyte		!0xee
+>>>>>>>>>>466		ubyte		!0xee
+>>>>>>>>>>>482		ubyte		!0xee
+>>>>>>>>>>>>498		ubyte		0xee
+#>>>>>>>>>>>>>494	use		gpt-mbr-partition
+>>>>>>>>>>>>>(502.l*8192)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>0			use		gpt-mbr-type
+>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>0			ubyte		x		of 8192 bytes
+>>>>>>>>>>>>>(502.l*8192)	string		!EFI\ PART
+>>>>>>>>>>>>>>(502.l*4096)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>0		ubyte		x		of 4096 bytes
+>>>>>>>>>>>>>>(502.l*4096)	string		!EFI\ PART
+>>>>>>>>>>>>>>>(502.l*2048)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>>0		ubyte		x		of 2048 bytes
+>>>>>>>>>>>>>>>(502.l*2048)	string		!EFI\ PART
+>>>>>>>>>>>>>>>>(502.l*1024)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>>>0		ubyte		x		of 1024 bytes
+>>>>>>>>>>>>>>>>(502.l*1024)	string		!EFI\ PART
+>>>>>>>>>>>>>>>>>(502.l*512)	string		EFI\ PART	GPT partition table
+>>>>>>>>>>>>>>>>>>0		use		gpt-mbr-type
+>>>>>>>>>>>>>>>>>>&-8		use		gpt-table
+>>>>>>>>>>>>>>>>>>0		ubyte		x		of 512 bytes
+
+# The following code does GPT detection and processing, including
+# sector size detection.
+# It has to be duplicated above because the top-level pattern
+# (i.e. not called using 'use') must print *something* for file
+# to count it as a match. Text only printed in named patterns is
+# not counted, and causes file to continue, and try and match
+# other patterns.
+#
+# Unfortunately, when assuming sector sizes >=16k, if the sector size
+# happens to be 512 instead, we may find confusing data after the GPT
+# table...  If the GPT table has less than 128 entries, this may even
+# happen for assumed sector sizes as small as 4k
+# This could be solved by checking for the presence of the backup GPT
+# header as well, but that makes the logic extremely complex
+##0		name		gpt-mbr-partition
+##>(8.l*8192)	string		EFI\ PART
+##>>(8.l*8192)	use		gpt-mbr-type
+##>>&-8		use		gpt-table
+##>>0		ubyte		x		of 8192 bytes
+##>(8.l*8192)	string		!EFI\ PART
+##>>(8.l*4096)	string		EFI\ PART	GPT partition table
+##>>>0		use		gpt-mbr-type
+##>>>&-8		use		gpt-table
+##>>>0		ubyte		x		of 4096 bytes
+##>>(8.l*4096)	string		!EFI\ PART
+##>>>(8.l*2048)	string		EFI\ PART	GPT partition table
+##>>>>0		use		gpt-mbr-type
+##>>>>&-8		use		gpt-table
+##>>>>0		ubyte		x		of 2048 bytes
+##>>>(8.l*2048)	string		!EFI\ PART
+##>>>>(8.l*1024)	string		EFI\ PART	GPT partition table
+##>>>>>0		use		gpt-mbr-type
+##>>>>>&-8	use		gpt-table
+##>>>>>0		ubyte		x		of 1024 bytes
+##>>>>(8.l*1024)	string		!EFI\ PART
+##>>>>>(8.l*512)	string		EFI\ PART	GPT partition table
+##>>>>>>0		use		gpt-mbr-type
+##>>>>>>&-8	use		gpt-table
+##>>>>>>0		ubyte		x		of 512 bytes
+
+# Print details of MBR type for a GPT-disk
+# Calling code ensures that there is only one 0xee partition.
+0		name		gpt-mbr-type
+# GPT with protective MBR entry in partition 1
+>450		ubyte		0xee
+>>454		ulelong		1
+>>>462		string		!\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0	\b (with hybrid MBR)
+>>454		ulelong		!1													\b (nonstandard: not at LBA 1)
+# GPT with protective MBR entry in partition 2
+>466		ubyte		0xee
+>>470		ulelong		1
+>>>478		string		\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+>>>>446		string		!\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0					\b (with hybrid MBR)
+>>>478		string		!\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0	\b (with hybrid MBR)
+>>470		ulelong		!1									\b (nonstandard: not at LBA 1)
+# GPT with protective MBR entry in partition 3
+>482		ubyte		0xee
+>>486		ulelong		1
+>>>494		string		\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+>>>>446		string		!\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0	\b (with hybrid MBR)
+>>>494		string		!\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0					\b (with hybrid MBR)
+>>486		ulelong		!1									\b (nonstandard: not at LBA 1)
+# GPT with protective MBR entry in partition 4
+>498		ubyte		0xee
+>>502		ulelong		1
+>>>446		string		!\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0	\b (with hybrid MBR)
+>>502		ulelong		!1													\b (nonstandard: not at LBA 1)
+
+# Print the information from a GPT partition table structure
+0		name		gpt-table
+>10		uleshort	x		\b, version %u
+>8		uleshort	x		\b.%u
+>56		ulelong		x		\b, GUID: %08x
+>60		uleshort	x		\b-%04x
+>62		uleshort	x		\b-%04x
+>64		ubeshort	x		\b-%04x
+>66		ubeshort	x		\b-%04x
+>68		ubelong		x		\b%08x
+#>80		uleshort	x		\b, %d partition entries
+>32		ulequad+1	x		\b, disk size: %lld sectors
+
+# In case a GPT data-structure is at LBA 0, report it as well
+# This covers systems which are not GPT-aware, and which show
+# and allow access to the protective partition. This code will
+# detect the contents of such a partition.
+0		string		EFI\ PART	GPT data structure (nonstandard: at LBA 0)
+>0		use		gpt-table
+>0		ubyte		x		(sector size unknown)
+
+

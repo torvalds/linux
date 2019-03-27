@@ -1,0 +1,203 @@
+.\" Copyright (c) 2009-2011 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: dwarf_dealloc.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd July 23, 2011
+.Dt DWARF_DEALLOC 3
+.Os
+.Sh NAME
+.Nm dwarf_dealloc ,
+.Nm dwarf_fde_cie_list_dealloc ,
+.Nm dwarf_funcs_dealloc ,
+.Nm dwarf_globals_dealloc ,
+.Nm dwarf_pubtypes_dealloc ,
+.Nm dwarf_ranges_dealloc ,
+.Nm dwarf_srclines_dealloc ,
+.Nm dwarf_types_dealloc ,
+.Nm dwarf_vars_dealloc ,
+.Nm dwarf_weaks_dealloc
+.Nd release resources
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft void
+.Fo dwarf_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Ptr ptr"
+.Fa "Dwarf_Unsigned type"
+.Fc
+.Fo dwarf_fde_cie_list_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Cie *cie_list"
+.Fa "Dwarf_Signed cie_count"
+.Fa "Dwarf_Fde *fde_list"
+.Fa "Dwarf_Signed fde_count"
+.Fc
+.Ft void
+.Fo dwarf_funcs_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Func *funcs"
+.Fa "Dwarf_Signed funccount"
+.Fc
+.Ft void
+.Fo dwarf_globals_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Global *globals"
+.Fa "Dwarf_Signed globalcount"
+.Fc
+.Ft void
+.Fo dwarf_pubtypes_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Type *pubtypes"
+.Fa "Dwarf_Signed pubtypecount"
+.Fc
+.Ft void
+.Fo dwarf_ranges_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Ranges *ranges"
+.Fa "Dwarf_Signed rangecount"
+.Fc
+.Ft void
+.Fo dwarf_srclines_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Line *lines"
+.Fa "Dwarf_Signed linecount"
+.Fc
+.Ft void
+.Fo dwarf_types_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Type *types"
+.Fa "Dwarf_Signed typecount"
+.Fc
+.Ft void
+.Fo dwarf_vars_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Var *vars"
+.Fa "Dwarf_Signed varcount"
+.Fc
+.Ft void
+.Fo dwarf_weaks_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Weak *weaks"
+.Fa "Dwarf_Signed weakcount"
+.Fc
+.Sh DESCRIPTION
+The function
+.Fn dwarf_dealloc
+is used by applications to indicate that memory areas returned by
+.Lb libdwarf
+may be safely disposed off.
+Due to the way memory is managed in the current implementation, the
+use of
+.Fn dwarf_dealloc
+is only necessary for a small set of DWARF types.
+.Pp
+Argument
+.Ar dbg
+should reference a valid debugging context allocated using
+.Xr dwarf_init 3 .
+.Pp
+Argument
+.Ar ptr
+should point to an object or memory area obtained by a prior call
+to a DWARF(3) function.
+.Pp
+Argument
+.Ar type
+indicates the type of object being deallocated.
+The indicated type must match that of the object being passed in
+argument
+.Ar ptr .
+Valid values for the
+.Ar type
+argument are:
+.Bl -tag -width ".Dv DW_DLA_FRAME_BLOCK"
+.It Dv DW_DLA_ABBREV
+An object of type
+.Vt Dwarf_Abbrev ,
+as returned by a call to the function
+.Xr dwarf_get_abbrev 3 .
+.It Dv DW_DLA_DIE
+An object of type
+.Vt Dwarf_Die ,
+as returned by calls to the functions
+.Xr dwarf_child 3 ,
+.Xr dwarf_offdie 3
+or
+.Xr dwarf_siblingof 3 .
+.It Dv DW_DLA_FRAME_BLOCK
+An array of objects of type
+.Vt Dwarf_Frame_op ,
+as returned by a call to the function
+.Xr dwarf_expand_frame_instructions 3 .
+.El
+.Pp
+Calls to
+.Fn dwarf_dealloc
+with other values for argument
+.Ar type
+are no-ops in this implementation.
+.Pp
+The functions
+.Fn dwarf_fde_cie_list_dealloc ,
+.Fn dwarf_funcs_dealloc ,
+.Fn dwarf_globals_dealloc ,
+.Fn dwarf_pubtypes_dealloc ,
+.Fn dwarf_ranges_dealloc ,
+.Fn dwarf_srclines_dealloc ,
+.Fn dwarf_types_dealloc ,
+.Fn dwarf_vars_dealloc
+and
+.Fn dwarf_weaks_dealloc
+are provided for compatibility with other implementations of the
+DWARF(3) API.
+Due to the way memory is managed in the current implementation, these
+functions are effectively no-ops.
+.Pp
+See
+.Xr dwarf 3
+for more information about the memory management scheme in this
+implementation of the DWARF(3) API.
+.Sh RETURN VALUES
+Functions
+.Fn dwarf_dealloc ,
+.Fn dwarf_fde_cie_list_dealloc ,
+.Fn dwarf_funcs_dealloc ,
+.Fn dwarf_globals_dealloc ,
+.Fn dwarf_pubtypes_dealloc ,
+.Fn dwarf_ranges_dealloc ,
+.Fn dwarf_srclines_dealloc ,
+.Fn dwarf_types_dealloc ,
+.Fn dwarf_vars_dealloc
+and
+.Fn dwarf_weaks_dealloc
+have no return value.
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_child 3 ,
+.Xr dwarf_expand_frame_instructions 3 ,
+.Xr dwarf_get_abbrev 3 ,
+.Xr dwarf_offdie 3 ,
+.Xr dwarf_siblingof 3

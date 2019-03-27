@@ -1,0 +1,19 @@
+# $FreeBSD$ 
+# $NetBSD: UCS%ISO-5427.src,v 1.1 2006/09/16 08:38:20 tnozaki Exp $
+
+TYPE		ROWCOL
+NAME		"UCS/ISO-5427"
+SRC_ZONE	0x00-0xA4
+OOB_MODE	INVALID
+DST_INVALID	0xFF
+DST_UNIT_BITS	8
+
+BEGIN_MAP
+# this mapping generated from:
+# - Basic Cyrillic Graphic Character Set
+#     http://www.itscj.ipsj.or.jp/ISO-IR/037.pdf
+#
+0x0000 - 0x0023 = 0x00 -
+0x0025 - 0x003F = 0x25 -
+0xA4 = 0x24
+END_MAP

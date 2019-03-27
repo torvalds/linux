@@ -1,0 +1,8 @@
+AT&T test data from: http://www2.research.att.com/~gsf/testregex/
+
+Quoting from the page:
+    testregex.c 2004-05-31 is the latest source for the AT&T Research
+    regression test harness for the X/Open regex pattern match interface.
+    See testregex(1) for option and test input details. The source and
+    test data posted here are license free.
+

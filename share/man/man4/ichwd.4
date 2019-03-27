@@ -1,0 +1,90 @@
+.\"-
+.\" Copyright (c) 2007 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 20, 2008
+.Dt ICHWD 4
+.Os
+.Sh NAME
+.Nm ichwd
+.Nd device driver for the Intel ICH watchdog interrupt timer
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ichwd"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ichwd_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides
+.Xr watchdog 4
+support for the watchdog interrupt timer present on
+all Intel ICH motherboard chipsets.
+.Pp
+The ICH WDT counts down in ticks of approximately 0.6 seconds; the
+exact value depends on hardware quality and environmental factors.
+Supported watchdog intervals range from 2 to 63 ticks.
+.Pp
+Note that on some ICH-based systems, the WDT may be present but
+disabled, either in hardware or by the BIOS.
+The
+.Nm
+driver attempts to detect this condition and will refuse to attach if
+it believes the WDT is disabled.
+.Sh SEE ALSO
+.Xr watchdog 4 ,
+.Xr watchdog 8 ,
+.Xr watchdogd 8 ,
+.Xr watchdog 9
+.Rs
+.%T Using the Intel ICH Family Watchdog Timer (WDT)
+.%R Intel Application Note AP-725
+.%O Document Number 292273-001
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Wm. Daryl Hawkins Aq Mt dhawkins@tamu.edu
+of Texas A&M University and
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .
+This manual page was written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

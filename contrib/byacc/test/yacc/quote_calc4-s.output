@@ -1,0 +1,557 @@
+   0  $accept : list $end
+
+   1  list :
+   2       | list stat '\n'
+   3       | list error '\n'
+
+   4  stat : expr
+   5       | LETTER '=' expr
+
+   6  expr : '(' expr ')'
+   7       | expr "ADD-operator" expr
+   8       | expr "SUB-operator" expr
+   9       | expr "MUL-operator" expr
+  10       | expr "DIV-operator" expr
+  11       | expr "MOD-operator" expr
+  12       | expr "AND-operator" expr
+  13       | expr '|' expr
+  14       | "SUB-operator" expr
+  15       | LETTER
+  16       | number
+
+  17  number : DIGIT
+  18         | number DIGIT
+
+state 0
+	$accept : . list $end  (0)
+	list : .  (1)
+
+	.  reduce 1
+
+	list  goto 1
+
+
+state 1
+	$accept : list . $end  (0)
+	list : list . stat '\n'  (2)
+	list : list . error '\n'  (3)
+
+	$end  accept
+	error  shift 2
+	"SUB-operator"  shift 3
+	DIGIT  shift 4
+	LETTER  shift 5
+	'('  shift 6
+	.  error
+
+	stat  goto 7
+	expr  goto 8
+	number  goto 9
+
+
+state 2
+	list : list error . '\n'  (3)
+
+	'\n'  shift 10
+	.  error
+
+
+state 3
+	expr : "SUB-operator" . expr  (14)
+
+	"SUB-operator"  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 12
+	number  goto 9
+
+
+state 4
+	number : DIGIT .  (17)
+
+	.  reduce 17
+
+
+state 5
+	stat : LETTER . '=' expr  (5)
+	expr : LETTER .  (15)
+
+	'='  shift 13
+	"ADD-operator"  reduce 15
+	"SUB-operator"  reduce 15
+	"MUL-operator"  reduce 15
+	"DIV-operator"  reduce 15
+	"MOD-operator"  reduce 15
+	"AND-operator"  reduce 15
+	'|'  reduce 15
+	'\n'  reduce 15
+
+
+state 6
+	expr : '(' . expr ')'  (6)
+
+	"SUB-operator"  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 14
+	number  goto 9
+
+
+state 7
+	list : list stat . '\n'  (2)
+
+	'\n'  shift 15
+	.  error
+
+
+state 8
+	stat : expr .  (4)
+	expr : expr . "ADD-operator" expr  (7)
+	expr : expr . "SUB-operator" expr  (8)
+	expr : expr . "MUL-operator" expr  (9)
+	expr : expr . "DIV-operator" expr  (10)
+	expr : expr . "MOD-operator" expr  (11)
+	expr : expr . "AND-operator" expr  (12)
+	expr : expr . '|' expr  (13)
+
+	"ADD-operator"  shift 16
+	"SUB-operator"  shift 17
+	"MUL-operator"  shift 18
+	"DIV-operator"  shift 19
+	"MOD-operator"  shift 20
+	"AND-operator"  shift 21
+	'|'  shift 22
+	'\n'  reduce 4
+
+
+state 9
+	expr : number .  (16)
+	number : number . DIGIT  (18)
+
+	DIGIT  shift 23
+	"ADD-operator"  reduce 16
+	"SUB-operator"  reduce 16
+	"MUL-operator"  reduce 16
+	"DIV-operator"  reduce 16
+	"MOD-operator"  reduce 16
+	"AND-operator"  reduce 16
+	'|'  reduce 16
+	'\n'  reduce 16
+	')'  reduce 16
+
+
+state 10
+	list : list error '\n' .  (3)
+
+	.  reduce 3
+
+
+state 11
+	expr : LETTER .  (15)
+
+	.  reduce 15
+
+
+12: shift/reduce conflict (shift 16, reduce 14) on "ADD-operator"
+12: shift/reduce conflict (shift 17, reduce 14) on "SUB-operator"
+12: shift/reduce conflict (shift 18, reduce 14) on "MUL-operator"
+12: shift/reduce conflict (shift 19, reduce 14) on "DIV-operator"
+12: shift/reduce conflict (shift 20, reduce 14) on "MOD-operator"
+12: shift/reduce conflict (shift 21, reduce 14) on "AND-operator"
+state 12
+	expr : expr . "ADD-operator" expr  (7)
+	expr : expr . "SUB-operator" expr  (8)
+	expr : expr . "MUL-operator" expr  (9)
+	expr : expr . "DIV-operator" expr  (10)
+	expr : expr . "MOD-operator" expr  (11)
+	expr : expr . "AND-operator" expr  (12)
+	expr : expr . '|' expr  (13)
+	expr : "SUB-operator" expr .  (14)
+
+	"ADD-operator"  shift 16
+	"SUB-operator"  shift 17
+	"MUL-operator"  shift 18
+	"DIV-operator"  shift 19
+	"MOD-operator"  shift 20
+	"AND-operator"  shift 21
+	'|'  reduce 14
+	'\n'  reduce 14
+	')'  reduce 14
+
+
+state 13
+	stat : LETTER '=' . expr  (5)
+
+	"SUB-operator"  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 24
+	number  goto 9
+
+
+state 14
+	expr : '(' expr . ')'  (6)
+	expr : expr . "ADD-operator" expr  (7)
+	expr : expr . "SUB-operator" expr  (8)
+	expr : expr . "MUL-operator" expr  (9)
+	expr : expr . "DIV-operator" expr  (10)
+	expr : expr . "MOD-operator" expr  (11)
+	expr : expr . "AND-operator" expr  (12)
+	expr : expr . '|' expr  (13)
+
+	"ADD-operator"  shift 16
+	"SUB-operator"  shift 17
+	"MUL-operator"  shift 18
+	"DIV-operator"  shift 19
+	"MOD-operator"  shift 20
+	"AND-operator"  shift 21
+	'|'  shift 22
+	')'  shift 25
+	.  error
+
+
+state 15
+	list : list stat '\n' .  (2)
+
+	.  reduce 2
+
+
+state 16
+	expr : expr "ADD-operator" . expr  (7)
+
+	"SUB-operator"  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 26
+	number  goto 9
+
+
+state 17
+	expr : expr "SUB-operator" . expr  (8)
+
+	"SUB-operator"  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 27
+	number  goto 9
+
+
+state 18
+	expr : expr "MUL-operator" . expr  (9)
+
+	"SUB-operator"  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 28
+	number  goto 9
+
+
+state 19
+	expr : expr "DIV-operator" . expr  (10)
+
+	"SUB-operator"  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 29
+	number  goto 9
+
+
+state 20
+	expr : expr "MOD-operator" . expr  (11)
+
+	"SUB-operator"  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 30
+	number  goto 9
+
+
+state 21
+	expr : expr "AND-operator" . expr  (12)
+
+	"SUB-operator"  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 31
+	number  goto 9
+
+
+state 22
+	expr : expr '|' . expr  (13)
+
+	"SUB-operator"  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 32
+	number  goto 9
+
+
+state 23
+	number : number DIGIT .  (18)
+
+	.  reduce 18
+
+
+state 24
+	stat : LETTER '=' expr .  (5)
+	expr : expr . "ADD-operator" expr  (7)
+	expr : expr . "SUB-operator" expr  (8)
+	expr : expr . "MUL-operator" expr  (9)
+	expr : expr . "DIV-operator" expr  (10)
+	expr : expr . "MOD-operator" expr  (11)
+	expr : expr . "AND-operator" expr  (12)
+	expr : expr . '|' expr  (13)
+
+	"ADD-operator"  shift 16
+	"SUB-operator"  shift 17
+	"MUL-operator"  shift 18
+	"DIV-operator"  shift 19
+	"MOD-operator"  shift 20
+	"AND-operator"  shift 21
+	'|'  shift 22
+	'\n'  reduce 5
+
+
+state 25
+	expr : '(' expr ')' .  (6)
+
+	.  reduce 6
+
+
+26: shift/reduce conflict (shift 16, reduce 7) on "ADD-operator"
+26: shift/reduce conflict (shift 17, reduce 7) on "SUB-operator"
+26: shift/reduce conflict (shift 18, reduce 7) on "MUL-operator"
+26: shift/reduce conflict (shift 19, reduce 7) on "DIV-operator"
+26: shift/reduce conflict (shift 20, reduce 7) on "MOD-operator"
+26: shift/reduce conflict (shift 21, reduce 7) on "AND-operator"
+26: shift/reduce conflict (shift 22, reduce 7) on '|'
+state 26
+	expr : expr . "ADD-operator" expr  (7)
+	expr : expr "ADD-operator" expr .  (7)
+	expr : expr . "SUB-operator" expr  (8)
+	expr : expr . "MUL-operator" expr  (9)
+	expr : expr . "DIV-operator" expr  (10)
+	expr : expr . "MOD-operator" expr  (11)
+	expr : expr . "AND-operator" expr  (12)
+	expr : expr . '|' expr  (13)
+
+	"ADD-operator"  shift 16
+	"SUB-operator"  shift 17
+	"MUL-operator"  shift 18
+	"DIV-operator"  shift 19
+	"MOD-operator"  shift 20
+	"AND-operator"  shift 21
+	'|'  shift 22
+	'\n'  reduce 7
+	')'  reduce 7
+
+
+27: shift/reduce conflict (shift 16, reduce 8) on "ADD-operator"
+27: shift/reduce conflict (shift 17, reduce 8) on "SUB-operator"
+27: shift/reduce conflict (shift 18, reduce 8) on "MUL-operator"
+27: shift/reduce conflict (shift 19, reduce 8) on "DIV-operator"
+27: shift/reduce conflict (shift 20, reduce 8) on "MOD-operator"
+27: shift/reduce conflict (shift 21, reduce 8) on "AND-operator"
+27: shift/reduce conflict (shift 22, reduce 8) on '|'
+state 27
+	expr : expr . "ADD-operator" expr  (7)
+	expr : expr . "SUB-operator" expr  (8)
+	expr : expr "SUB-operator" expr .  (8)
+	expr : expr . "MUL-operator" expr  (9)
+	expr : expr . "DIV-operator" expr  (10)
+	expr : expr . "MOD-operator" expr  (11)
+	expr : expr . "AND-operator" expr  (12)
+	expr : expr . '|' expr  (13)
+
+	"ADD-operator"  shift 16
+	"SUB-operator"  shift 17
+	"MUL-operator"  shift 18
+	"DIV-operator"  shift 19
+	"MOD-operator"  shift 20
+	"AND-operator"  shift 21
+	'|'  shift 22
+	'\n'  reduce 8
+	')'  reduce 8
+
+
+28: shift/reduce conflict (shift 16, reduce 9) on "ADD-operator"
+28: shift/reduce conflict (shift 17, reduce 9) on "SUB-operator"
+28: shift/reduce conflict (shift 18, reduce 9) on "MUL-operator"
+28: shift/reduce conflict (shift 19, reduce 9) on "DIV-operator"
+28: shift/reduce conflict (shift 20, reduce 9) on "MOD-operator"
+28: shift/reduce conflict (shift 21, reduce 9) on "AND-operator"
+28: shift/reduce conflict (shift 22, reduce 9) on '|'
+state 28
+	expr : expr . "ADD-operator" expr  (7)
+	expr : expr . "SUB-operator" expr  (8)
+	expr : expr . "MUL-operator" expr  (9)
+	expr : expr "MUL-operator" expr .  (9)
+	expr : expr . "DIV-operator" expr  (10)
+	expr : expr . "MOD-operator" expr  (11)
+	expr : expr . "AND-operator" expr  (12)
+	expr : expr . '|' expr  (13)
+
+	"ADD-operator"  shift 16
+	"SUB-operator"  shift 17
+	"MUL-operator"  shift 18
+	"DIV-operator"  shift 19
+	"MOD-operator"  shift 20
+	"AND-operator"  shift 21
+	'|'  shift 22
+	'\n'  reduce 9
+	')'  reduce 9
+
+
+29: shift/reduce conflict (shift 16, reduce 10) on "ADD-operator"
+29: shift/reduce conflict (shift 17, reduce 10) on "SUB-operator"
+29: shift/reduce conflict (shift 18, reduce 10) on "MUL-operator"
+29: shift/reduce conflict (shift 19, reduce 10) on "DIV-operator"
+29: shift/reduce conflict (shift 20, reduce 10) on "MOD-operator"
+29: shift/reduce conflict (shift 21, reduce 10) on "AND-operator"
+29: shift/reduce conflict (shift 22, reduce 10) on '|'
+state 29
+	expr : expr . "ADD-operator" expr  (7)
+	expr : expr . "SUB-operator" expr  (8)
+	expr : expr . "MUL-operator" expr  (9)
+	expr : expr . "DIV-operator" expr  (10)
+	expr : expr "DIV-operator" expr .  (10)
+	expr : expr . "MOD-operator" expr  (11)
+	expr : expr . "AND-operator" expr  (12)
+	expr : expr . '|' expr  (13)
+
+	"ADD-operator"  shift 16
+	"SUB-operator"  shift 17
+	"MUL-operator"  shift 18
+	"DIV-operator"  shift 19
+	"MOD-operator"  shift 20
+	"AND-operator"  shift 21
+	'|'  shift 22
+	'\n'  reduce 10
+	')'  reduce 10
+
+
+30: shift/reduce conflict (shift 16, reduce 11) on "ADD-operator"
+30: shift/reduce conflict (shift 17, reduce 11) on "SUB-operator"
+30: shift/reduce conflict (shift 18, reduce 11) on "MUL-operator"
+30: shift/reduce conflict (shift 19, reduce 11) on "DIV-operator"
+30: shift/reduce conflict (shift 20, reduce 11) on "MOD-operator"
+30: shift/reduce conflict (shift 21, reduce 11) on "AND-operator"
+30: shift/reduce conflict (shift 22, reduce 11) on '|'
+state 30
+	expr : expr . "ADD-operator" expr  (7)
+	expr : expr . "SUB-operator" expr  (8)
+	expr : expr . "MUL-operator" expr  (9)
+	expr : expr . "DIV-operator" expr  (10)
+	expr : expr . "MOD-operator" expr  (11)
+	expr : expr "MOD-operator" expr .  (11)
+	expr : expr . "AND-operator" expr  (12)
+	expr : expr . '|' expr  (13)
+
+	"ADD-operator"  shift 16
+	"SUB-operator"  shift 17
+	"MUL-operator"  shift 18
+	"DIV-operator"  shift 19
+	"MOD-operator"  shift 20
+	"AND-operator"  shift 21
+	'|'  shift 22
+	'\n'  reduce 11
+	')'  reduce 11
+
+
+31: shift/reduce conflict (shift 16, reduce 12) on "ADD-operator"
+31: shift/reduce conflict (shift 17, reduce 12) on "SUB-operator"
+31: shift/reduce conflict (shift 18, reduce 12) on "MUL-operator"
+31: shift/reduce conflict (shift 19, reduce 12) on "DIV-operator"
+31: shift/reduce conflict (shift 20, reduce 12) on "MOD-operator"
+31: shift/reduce conflict (shift 21, reduce 12) on "AND-operator"
+31: shift/reduce conflict (shift 22, reduce 12) on '|'
+state 31
+	expr : expr . "ADD-operator" expr  (7)
+	expr : expr . "SUB-operator" expr  (8)
+	expr : expr . "MUL-operator" expr  (9)
+	expr : expr . "DIV-operator" expr  (10)
+	expr : expr . "MOD-operator" expr  (11)
+	expr : expr . "AND-operator" expr  (12)
+	expr : expr "AND-operator" expr .  (12)
+	expr : expr . '|' expr  (13)
+
+	"ADD-operator"  shift 16
+	"SUB-operator"  shift 17
+	"MUL-operator"  shift 18
+	"DIV-operator"  shift 19
+	"MOD-operator"  shift 20
+	"AND-operator"  shift 21
+	'|'  shift 22
+	'\n'  reduce 12
+	')'  reduce 12
+
+
+32: shift/reduce conflict (shift 16, reduce 13) on "ADD-operator"
+32: shift/reduce conflict (shift 17, reduce 13) on "SUB-operator"
+32: shift/reduce conflict (shift 18, reduce 13) on "MUL-operator"
+32: shift/reduce conflict (shift 19, reduce 13) on "DIV-operator"
+32: shift/reduce conflict (shift 20, reduce 13) on "MOD-operator"
+32: shift/reduce conflict (shift 21, reduce 13) on "AND-operator"
+state 32
+	expr : expr . "ADD-operator" expr  (7)
+	expr : expr . "SUB-operator" expr  (8)
+	expr : expr . "MUL-operator" expr  (9)
+	expr : expr . "DIV-operator" expr  (10)
+	expr : expr . "MOD-operator" expr  (11)
+	expr : expr . "AND-operator" expr  (12)
+	expr : expr . '|' expr  (13)
+	expr : expr '|' expr .  (13)
+
+	"ADD-operator"  shift 16
+	"SUB-operator"  shift 17
+	"MUL-operator"  shift 18
+	"DIV-operator"  shift 19
+	"MOD-operator"  shift 20
+	"AND-operator"  shift 21
+	'|'  reduce 13
+	'\n'  reduce 13
+	')'  reduce 13
+
+
+State 12 contains 6 shift/reduce conflicts.
+State 26 contains 7 shift/reduce conflicts.
+State 27 contains 7 shift/reduce conflicts.
+State 28 contains 7 shift/reduce conflicts.
+State 29 contains 7 shift/reduce conflicts.
+State 30 contains 7 shift/reduce conflicts.
+State 31 contains 7 shift/reduce conflicts.
+State 32 contains 6 shift/reduce conflicts.
+
+
+28 terminals, 5 nonterminals
+19 grammar rules, 33 states

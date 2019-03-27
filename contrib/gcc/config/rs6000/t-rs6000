@@ -1,0 +1,20 @@
+# General rules that all rs6000/ targets must have.
+
+gt-rs6000.h: s-gtype ; @true
+
+rs6000.o: $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) \
+  $(RTL_H) $(REGS_H) hard-reg-set.h \
+  real.h insn-config.h conditions.h insn-attr.h flags.h $(RECOG_H) \
+  $(OBSTACK_H) $(TREE_H) $(EXPR_H) $(OPTABS_H) except.h function.h \
+  output.h $(BASIC_BLOCK_H) $(INTEGRATE_H) toplev.h $(GGC_H) $(HASHTAB_H) \
+  $(TM_P_H) $(TARGET_H) $(TARGET_DEF_H) langhooks.h reload.h gt-rs6000.h \
+  cfglayout.h
+
+rs6000-c.o: $(srcdir)/config/rs6000/rs6000-c.c \
+    $(srcdir)/config/rs6000/rs6000-protos.h \
+    $(CONFIG_H) $(SYSTEM_H) $(TREE_H) $(CPPLIB_H) \
+    $(TM_P_H) c-pragma.h errors.h coretypes.h $(TM_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/rs6000/rs6000-c.c
+
+# The rs6000 backend doesn't cause warnings in these files.
+insn-conditions.o-warn =

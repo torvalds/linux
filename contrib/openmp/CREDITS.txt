@@ -1,0 +1,61 @@
+This file is a partial list of people who have contributed to the LLVM/openmp
+project.  If you have contributed a patch or made some other contribution to
+LLVM/openmp, please submit a patch to this file to add yourself, and it will be
+done!
+
+The list is sorted by surname and formatted to allow easy grepping and
+beautification by scripts.  The fields are: name (N), email (E), web-address
+(W), PGP key ID and fingerprint (P), description (D), and snail-mail address
+(S).
+
+N: Adam Azarchs
+W: 10xgenomics.com
+D: Bug fix for lock code
+
+N: Carlo Bertolli
+W: http://ibm.com
+D: IBM contributor to PowerPC support in CMake files and elsewhere.
+
+N: Diego Caballero
+E: diego.l.caballero@gmail.com
+D: Fork performance improvements
+
+N: Sunita Chandrasekaran
+D: Contributor to testsuite from OpenUH
+
+N: Barbara Chapman
+D: Contributor to testsuite from OpenUH
+
+N: University of Houston
+W: http://web.cs.uh.edu/~openuh/download/
+D: OpenUH test suite
+
+N: Intel Corporation OpenMP runtime team
+W: http://openmprtl.org
+D: Created the runtime.
+
+N: John Mellor-Crummey and other members of the OpenMP Tools Working Group
+E: johnmc@rice.edu
+D: OpenMP Tools Interface (OMPT)
+
+N: Matthias Muller
+D: Contributor to testsuite from OpenUH
+
+N: Tal Nevo
+E: tal@scalemp.com
+D: ScaleMP contributor to improve runtime performance there.
+W: http://scalemp.com
+
+N: Pavel Neytchev
+D: Contributor to testsuite from OpenUH
+
+N: Steven Noonan
+E: steven@uplinklabs.net
+D: Patches for the ARM architecture and removal of several inconsistencies.
+
+N: Alp Toker
+E: alp@nuanti.com
+D: Making build work for FreeBSD.
+
+N: Cheng Wang
+D: Contributor to testsuite from OpenUH

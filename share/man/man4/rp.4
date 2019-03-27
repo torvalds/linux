@@ -1,0 +1,195 @@
+.\" Copyright (c) 1995 Comtrol, Inc.
+.\" All rights reserved.
+.\"
+.\" $FreeBSD$
+.Dd November 15, 1995
+.Dt RP 4
+.Os
+.Sh NAME
+.Nm rp
+.Nd "driver for Comtrol RocketPort Intelligent Serial Port Cards"
+.Sh SYNOPSIS
+.Cd "device rp"
+.Pp
+For ISA cards, you must specify the port address in
+.Pa /boot/device.hints :
+.Cd hint.rp.0.at="isa"
+.Cd hint.rp.0.port="0x100"
+.Sh DESCRIPTION
+This driver provides a kernel device driver for the
+.Tn RocketPort
+and
+.Tn RocketPort RA
+serial boards.
+These boards provide 8, 16, or 32 high-speed serial ports
+while requiring only 68 bytes of I/O space for all 8, 16,
+or 32 ports, and do not require an interrupt channel.
+This driver supports up to four
+.Tn RocketPort
+or
+.Tn RocketPort RA
+boards in one machine simultaneously.
+If you are using four 32 port
+.Tn RocketPort
+boards, you can put as many as 128 intelligent serial ports
+on your system.
+.Pp
+The
+.Nm
+driver supports the following speeds: 50, 75, 110, 134, 150,
+200, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200, 38400, 7200,
+14400, 57600, 76800, 115200, and 230400.
+(You must use
+.Xr termios 4 ,
+rather than the old style ioctl interface to use non-traditional
+speeds.)
+.Pp
+An open on the
+.Nm
+driver will block until carrier is present, unless
+.Dv O_NONBLOCK
+or
+.Dv CLOCAL
+is set.
+.Sh HARDWARE CONFIGURATION
+The first
+.Tn RocketPort
+or
+.Tn RocketPort RA
+card requires a 68-byte contiguous block of I/O addresses,
+starting at one of the following:
+0x100h, 0x140h, 0x180h, 0x200h, 0x240h, 0x280h, 0x300h, 0x340h,
+0x380h.
+The second, third, and fourth
+.Tn RocketPort
+cards require only a
+64-byte contiguous block of I/O addresses, starting at one of the
+above address ranges.
+The I/O address range used by any of the
+.Tn RocketPort
+cards must not conflict with any other cards in the system,
+including other
+.Tn RocketPort
+cards.
+The starting range of the I/O ports used by each card
+must match with the I/O address specified in
+.Pa /boot/device.hints .
+.Pp
+Since the first
+.Tn RocketPort
+uses 68 I/O addresses, if the first card is
+set to use an I/O block starting at 0x100,
+it will occupy the I/O ports between 0x100 and 0x143.
+This means that the second, third, or fourth
+.Tn RocketPort
+board may not use the block of addresses starting at 0x140,
+since the first three I/O addresses of that range
+are used by the first board.
+This is an important point to keep in mind.
+.Pp
+If you have two ISA cards, one installed at 0x100 and the
+second installed at 0x180, then you should add the following to
+.Pa /boot/device.hints :
+.Pp
+.Dl hint.rp.0.at="isa"
+.Dl hint.rp.0.port="0x100"
+.Dl hint.rp.1.at="isa"
+.Dl hint.rp.1.port="0x180"
+.Pp
+The configuration of the
+.Tn RocketPort
+cards is done via the set of 8 DIP switches,
+labeled SW1 on the
+.Tn RocketPort
+card:
+.Bd -literal -offset indent
++-------------------------------+
+| 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 |
++-------+-------+---------------+
+| Unused| Card  | I/O Port Block|
++-------------------------------+
+.Ed
+.Pp
+DIP switches 7 and 8 are unused, and must be left on.
+.Pp
+DIP switches 6 and 5 identify the card number of each
+.Tn RocketPort
+card.
+The first card installed in the system must have its DIP switches set
+as card number one; the second card installed in the system must have
+its DIP switches set as card number two; and so on.
+As shipped from
+the factory, DIP switches 6 and 5 are both on by default, indicating
+that this is the first card installed on the system:
+.Bd -literal -offset indent
+DIP Switches
+6    5
+===================
+On   On   First Card
+On   Off  Second Card
+Off  On   Third Card
+Off  Off  Fourth Card
+.Ed
+.Pp
+DIP switches 4, 3, 2, and 1 indicate the I/O address range used by the
+first
+.Tn RocketPort
+card.
+If there are more than one
+.Tn RocketPort
+cards installed in a system,
+the second, third and fourth
+.Tn RocketPort
+cards must
+also be set to the I/O address range used by the first
+.Tn RocketPort
+card;
+all cards must have these DIP switches set identically
+for proper operation.
+As shipped from the factory, DIP switch 4 is on,
+and switches 3, 2, and 1 are off by default,
+indicating an I/O address range used by the first
+card which starts at 0x180 and extends to 0x1C3.
+.Bd -literal -offset indent
+DIP Switches         I/O Address Range
+4    3    2    1     Used by the First Card
+=====================================
+On   Off  On   Off   100-143
+On   Off  Off  On    140-183
+On   Off  Off  Off   180-1C3
+Off  On   On   Off   200-243
+Off  On   Off  On    240-283
+Off  On   Off  Off   280-2C3
+Off  Off  On   Off   300-343
+Off  Off  Off  On    340-383
+Off  Off  Off  Off   380-3C3
+.Ed
+.Sh FILES
+.Bl -tag -width ".Pa /dev/ttyR[0-4][0-9a-f]"
+.It Pa /dev/ttyR[0-4][0-9a-f]
+.El
+.Sh AUTHORS
+.An Theodore Ts'o Aq Mt tytso@mit.edu
+.Pp
+This driver was written under contract for Comtrol Corporation.
+For dealer, distributor and other information regarding Comtrol
+.Tn RocketPort ,
+contact Comtrol Corporation at (800) 926-6876 or send email to
+.Aq Mt info@comtrol.com .
+To report bugs for this driver, please send email to
+.Aq Mt bug-bsdi-rocketport@comtrol.com .
+.Sh BUGS
+If incoming software flow control is enabled on a 486 or Pentium
+machine, and the flow control is very heavily exercised, on rare occasions
+a character will get dropped.
+This problem does not occur on a 386, and
+it is not currently known whether the bug is in the
+.Nm
+driver
+or in the
+.Bsx
+tty layer.
+.\" (Although my bet is that it's in the higher-level tty layer;
+.\" given the bugs I found while writing this driver, it's clear
+.\" the BSD software flow control code has not been tested very much
+.\" at all! -- TYT)

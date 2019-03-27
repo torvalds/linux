@@ -1,0 +1,56 @@
+=pod
+
+=head1 NAME
+
+SSL_CONF_CTX_set_ssl_ctx, SSL_CONF_CTX_set_ssl - set context to configure
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ void SSL_CONF_CTX_set_ssl_ctx(SSL_CONF_CTX *cctx, SSL_CTX *ctx);
+ void SSL_CONF_CTX_set_ssl(SSL_CONF_CTX *cctx, SSL *ssl);
+
+=head1 DESCRIPTION
+
+SSL_CONF_CTX_set_ssl_ctx() sets the context associated with B<cctx> to the
+B<SSL_CTX> structure B<ctx>. Any previous B<SSL> or B<SSL_CTX> associated with
+B<cctx> is cleared. Subsequent calls to SSL_CONF_cmd() will be sent to
+B<ctx>.
+
+SSL_CONF_CTX_set_ssl() sets the context associated with B<cctx> to the
+B<SSL> structure B<ssl>. Any previous B<SSL> or B<SSL_CTX> associated with
+B<cctx> is cleared. Subsequent calls to SSL_CONF_cmd() will be sent to
+B<ssl>.
+
+=head1 NOTES
+
+The context need not be set or it can be set to B<NULL> in which case only
+syntax checking of commands is performed, where possible.
+
+=head1 RETURN VALUES
+
+SSL_CONF_CTX_set_ssl_ctx() and SSL_CTX_set_ssl() do not return a value.
+
+=head1 SEE ALSO
+
+L<SSL_CONF_CTX_new(3)>,
+L<SSL_CONF_CTX_set_flags(3)>,
+L<SSL_CONF_CTX_set1_prefix(3)>,
+L<SSL_CONF_cmd(3)>,
+L<SSL_CONF_cmd_argv(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 1.0.2.
+
+=head1 COPYRIGHT
+
+Copyright 2012-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

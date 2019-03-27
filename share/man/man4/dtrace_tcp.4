@@ -1,0 +1,398 @@
+.\" Copyright (c) 2015 Mark Johnston <markj@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 1, 2018
+.Dt DTRACE_TCP 4
+.Os
+.Sh NAME
+.Nm dtrace_tcp
+.Nd a DTrace provider for tracing events related to the
+.Xr tcp 4
+protocol
+.Sh SYNOPSIS
+.Fn tcp:::accept-established "pktinfo_t *" "csinfo_t *" "ipinfo_t *" \
+    "tcpsinfo_t *" "tcpinfo_t *"
+.Fn tcp:::accept-refused "pktinfo_t *" "csinfo_t *" "ipinfo_t *" \
+    "tcpsinfo_t *" "tcpinfo_t *"
+.Fn tcp:::connect-established "pktinfo_t *" "csinfo_t *" "ipinfo_t *" \
+    "tcpsinfo_t *" "tcpinfo_t *"
+.Fn tcp:::connect-refused "pktinfo_t *" "csinfo_t *" "ipinfo_t *" \
+    "tcpsinfo_t *" "tcpinfo_t *"
+.Fn tcp:::connect-request "pktinfo_t *" "csinfo_t *" "ipinfo_t *" \
+    "tcpsinfo_t *" "tcpinfo_t *"
+.Fn tcp:::receive "pktinfo_t *" "csinfo_t *" "ipinfo_t *" "tcpsinfo_t *" \
+    "tcpinfo_t *"
+.Fn tcp:::send "pktinfo_t *" "csinfo_t *" "ipinfo_t *" "tcpsinfo_t *" \
+    "tcpinfo_t *"
+.Fn tcp:::state-change "void *" "csinfo_t *" "void *" "tcpsinfo_t *" "void *" \
+    "tcplsinfo_t *"
+.Sh DESCRIPTION
+The DTrace
+.Nm tcp
+provider allows users to trace events in the
+.Xr tcp 4
+protocol implementation.
+This provider is similar to the
+.Xr dtrace_ip 4
+and
+.Xr dtrace_udp 4
+providers, but additionally contains probes corresponding to protocol events at
+a level higher than packet reception and transmission.
+All
+.Nm tcp
+probes except for
+.Fn tcp:::state-change
+have the same number and type of arguments.
+The last three arguments are used to describe a TCP segment: the
+.Vt ipinfo_t
+argument exposes the version-agnostic fields of the IP header, while the
+.Vt tcpinfo_t
+argument exposes the TCP header, and the
+.Vt tcpsinfo_t
+argument describes details of the corresponding TCP connection state, if any.
+Their fields are described in the ARGUMENTS section.
+.Pp
+The
+.Fn tcp:::accept-established
+probe fires when a remotely-initiated active TCP open succeeds.
+At this point the new connection is in the ESTABLISHED state, and the probe
+arguments expose the headers associated with the final ACK of the three-way
+handshake.
+The
+.Fn tcp:::accept-refused
+probe fires when a SYN arrives on a port without a listening socket.
+The probe arguments expose the headers associated with the RST to be transmitted
+to the remote host in response to the SYN segment.
+.Pp
+The
+.Fn tcp:::connect-established ,
+.Fn tcp:::connect-refused ,
+and
+.Fn tcp:::connect-request
+probes are similar to the
+.Ql accept
+probes, except that they correspond to locally-initiated TCP connections.
+The
+.Fn tcp:::connect-established
+probe fires when the SYN-ACK segment of a three-way handshake is received from
+the remote host and a final ACK is prepared for transmission.
+This occurs immediately after the local connection state transitions from
+SYN-SENT to ESTABLISHED.
+The probe arguments describe the headers associated with the received SYN-ACK
+segment.
+The
+.Fn tcp:::connect-refused
+probe fires when the local host receives a RST segment in response to a SYN
+segment, indicating that the remote host refused to open a connection.
+The probe arguments describe the IP and TCP headers associated with the received
+RST segment.
+The
+.Fn tcp:::connect-request
+probe fires as the kernel prepares to transmit the initial SYN segment of a
+three-way handshake.
+.Pp
+The
+.Fn tcp:::send
+and
+.Fn tcp:::receive
+probes fire when the host sends or receives a TCP packet, respectively.
+As with the
+.Xr dtrace_udp 4
+provider,
+.Nm tcp
+probes fire only for packets sent by or to the local host; forwarded packets are
+handled in the IP layer and are only visible to the
+.Xr dtrace_ip 4
+provider.
+.Pp
+The
+.Fn tcp:::state-change
+probe fires upon local TCP connection state transitions.
+Its first, third and fifth arguments are currently always
+.Dv NULL .
+Its last argument describes the from-state in the transition, and the to-state
+can be obtained from
+.Dv args[3]->tcps_state .
+.Sh ARGUMENTS
+The
+.Vt pktinfo_t
+argument is currently unimplemented and is included for compatibility with other
+implementations of this provider.
+Its fields are:
+.Bl -tag -width "uinptr_t pkt_addr" -offset indent
+.It Vt uinptr_t pkt_addr
+Always set to 0.
+.El
+.Pp
+The
+.Vt csinfo_t
+argument is currently unimplemented and is included for compatibility with other
+implementations of this provider.
+Its fields are:
+.Bl -tag -width "uintptr_t cs_addr" -offset indent
+.It Vt uintptr_t cs_addr
+Always set to 0.
+.It Vt uint64_t cs_cid
+A pointer to the
+.Vt struct inpcb
+for this packet, or
+.Dv NULL .
+.It Vt pid_t cs_pid
+Always set to 0.
+.El
+.Pp
+The
+.Vt ipinfo_t
+type is a version-agnostic representation of fields from an IP header.
+Its fields are described in the
+.Xr dtrace_ip 4
+manual page.
+.Pp
+The
+.Vt tcpsinfo_t
+type is used to provide a stable representation of TCP connection state.
+Some
+.Nm tcp
+probes, such as
+.Fn tcp:::accept-refused ,
+fire in a context where there is no TCP connection; this argument is
+.Dv NULL
+in that case.
+Its fields are:
+.Bl -tag -width "uint16_t tcps_lport" -offset indent
+.It Vt uintptr_t tcps_addr
+The address of the corresponding TCP control block.
+This is currently a pointer to a
+.Vt struct tcpcb .
+.It Vt int tcps_local
+A boolean indicating whether the connection is local to the host.
+Currently unimplemented and always set to -1.
+.It Vt int tcps_active
+A boolean indicating whether the connection was initiated by the local host.
+Currently unimplemented and always set to -1.
+.It Vt uint16_t tcps_lport
+Local TCP port.
+.It Vt uint16_t tcps_rport
+Remote TCP port.
+.It Vt string tcps_laddr
+Local address.
+.It Vt string tcps_raddr
+Remote address.
+.It Vt int32_t tcps_state
+Current TCP state.
+The valid TCP state values are given by the constants prefixed with
+.Ql TCPS_
+in
+.Pa /usr/lib/dtrace/tcp.d .
+.It Vt uint32_t tcps_iss
+Initial send sequence number.
+.It Vt uint32_t tcps_suna
+Initial sequence number of sent but unacknowledged data.
+.It Vt uint32_t tcps_snxt
+Next sequence number for send.
+.It Vt uint32_t tcps_rack
+Sequence number of received and acknowledged data.
+.It Vt uint32_t tcps_rnxt
+Next expected sequence number for receive.
+.It Vt u_long tcps_swnd
+TCP send window size.
+.It Vt int32_t tcps_snd_ws
+Window scaling factor for the TCP send window.
+.It Vt u_long tcps_rwnd
+TCP receive window size.
+.It Vt int32_t tcps_rcv_ws
+Window scaling factor for the TCP receive window.
+.It Vt u_long tcps_cwnd
+TCP congestion window size.
+.It Vt u_long tcps_cwnd_ssthresh
+Congestion window threshold at which slow start ends and congestion avoidance
+begins.
+.It Vt uint32_t tcps_sack_fack
+Last sequence number selectively acknowledged by the receiver.
+.It Vt uint32_t tcps_sack_snxt
+Next selectively acknowledge sequence number at which to begin retransmitting.
+.It Vt uint32_t tcps_rto
+Round-trip timeout, in milliseconds.
+.It Vt uint32_t tcps_mss
+Maximum segment size.
+.It Vt int tcps_retransmit
+A boolean indicating that the local sender is retransmitting data.
+.It Vt int tcps_srtt
+Smoothed round-trip time.
+.El
+.Pp
+The
+.Vt tcpinfo_t
+type exposes the fields in a TCP segment header in host order.
+Its fields are:
+.Bl -tag -width "struct tcphdr *tcp_hdr" -offset indent
+.It Vt uint16_t tcp_sport
+Source TCP port.
+.It Vt uint16_t tcp_dport
+Destination TCP port.
+.It Vt uint32_t tcp_seq
+Sequence number.
+.It Vt uint32_t tcp_ack
+Acknowledgement number.
+.It Vt uint8_t tcp_offset
+Data offset, in bytes.
+.It Vt uint8_t tcp_flags
+TCP flags.
+.It Vt uint16_t tcp_window
+TCP window size.
+.It Vt uint16_t tcp_checksum
+Checksum.
+.It Vt uint16_t tcp_urgent
+Urgent data pointer.
+.It Vt struct tcphdr *tcp_hdr
+A pointer to the raw TCP header.
+.El
+.Pp
+The
+.Vt tcplsinfo_t
+type is used by the
+.Fn tcp:::state-change
+probe to provide the from-state of a transition.
+Its fields are:
+.Bl -tag -width "int32_t tcps_state" -offset indent
+.It Vt int32_t tcps_state
+A TCP state.
+The valid TCP state values are given by the constants prefixed with
+.Ql TCPS_
+in
+.Pa /usr/lib/dtrace/tcp.d .
+.El
+.Sh FILES
+.Bl -tag -width "/usr/lib/dtrace/tcp.d" -compact
+.It Pa /usr/lib/dtrace/tcp.d
+DTrace type and translator definitions for the
+.Nm tcp
+provider.
+.El
+.Sh EXAMPLES
+The following script logs TCP segments in real time:
+.Bd -literal -offset indent
+#pragma D option quiet
+#pragma D option switchrate=10hz
+
+dtrace:::BEGIN
+{
+        printf(" %3s %15s:%-5s      %15s:%-5s %6s  %s\\n", "CPU",
+            "LADDR", "LPORT", "RADDR", "RPORT", "BYTES", "FLAGS");
+}
+
+tcp:::send
+{
+        this->length = args[2]->ip_plength - args[4]->tcp_offset;
+        printf(" %3d %16s:%-5d -> %16s:%-5d %6d  (", cpu, args[2]->ip_saddr,
+            args[4]->tcp_sport, args[2]->ip_daddr, args[4]->tcp_dport,
+            this->length);
+        printf("%s", args[4]->tcp_flags & TH_FIN ? "FIN|" : "");
+        printf("%s", args[4]->tcp_flags & TH_SYN ? "SYN|" : "");
+        printf("%s", args[4]->tcp_flags & TH_RST ? "RST|" : "");
+        printf("%s", args[4]->tcp_flags & TH_PUSH ? "PUSH|" : "");
+        printf("%s", args[4]->tcp_flags & TH_ACK ? "ACK|" : "");
+        printf("%s", args[4]->tcp_flags & TH_URG ? "URG|" : "");
+        printf("%s", args[4]->tcp_flags == 0 ? "null " : "");
+        printf("\b)\\n");
+}
+
+tcp:::receive
+{
+        this->length = args[2]->ip_plength - args[4]->tcp_offset;
+        printf(" %3d %16s:%-5d <- %16s:%-5d %6d  (", cpu,
+            args[2]->ip_daddr, args[4]->tcp_dport, args[2]->ip_saddr,
+            args[4]->tcp_sport, this->length);
+        printf("%s", args[4]->tcp_flags & TH_FIN ? "FIN|" : "");
+        printf("%s", args[4]->tcp_flags & TH_SYN ? "SYN|" : "");
+        printf("%s", args[4]->tcp_flags & TH_RST ? "RST|" : "");
+        printf("%s", args[4]->tcp_flags & TH_PUSH ? "PUSH|" : "");
+        printf("%s", args[4]->tcp_flags & TH_ACK ? "ACK|" : "");
+        printf("%s", args[4]->tcp_flags & TH_URG ? "URG|" : "");
+        printf("%s", args[4]->tcp_flags == 0 ? "null " : "");
+        printf("\b)\\n");
+}
+.Ed
+The following script logs TCP connection state changes as they occur:
+.Bd -literal -offset indent
+#pragma D option quiet
+#pragma D option switchrate=25hz
+
+int last[int];
+
+dtrace:::BEGIN
+{
+        printf("   %12s %-20s    %-20s %s\\n",
+            "DELTA(us)", "OLD", "NEW", "TIMESTAMP");
+}
+
+tcp:::state-change
+{
+        this->elapsed = (timestamp - last[args[1]->cs_cid]) / 1000;
+        printf("   %12d %-20s -> %-20s %d\\n", this->elapsed,
+            tcp_state_string[args[5]->tcps_state],
+            tcp_state_string[args[3]->tcps_state], timestamp);
+        last[args[1]->cs_cid] = timestamp;
+}
+
+tcp:::state-change
+/last[args[1]->cs_cid] == 0/
+{
+        printf("   %12s %-20s -> %-20s %d\\n", "-",
+            tcp_state_string[args[5]->tcps_state],
+            tcp_state_string[args[3]->tcps_state], timestamp);
+        last[args[1]->cs_cid] = timestamp;
+}
+.Ed
+.Sh COMPATIBILITY
+This provider is compatible with the
+.Nm tcp
+provider in Solaris.
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr dtrace_ip 4 ,
+.Xr dtrace_sctp 4 ,
+.Xr dtrace_udp 4 ,
+.Xr dtrace_udplite 4 ,
+.Xr tcp 4 ,
+.Xr SDT 9
+.Sh HISTORY
+The
+.Nm tcp
+provider first appeared in
+.Fx
+10.0.
+.Sh AUTHORS
+This manual page was written by
+.An Mark Johnston Aq Mt markj@FreeBSD.org .
+.Sh BUGS
+The
+.Vt tcps_local
+and
+.Vt tcps_active
+fields of
+.Vt tcpsinfo_t
+are not filled in by the translator.

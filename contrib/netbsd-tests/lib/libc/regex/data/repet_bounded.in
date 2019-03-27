@@ -1,0 +1,66 @@
+# the dreaded bounded repetitions
+# Begin FreeBSD
+{		C	BADRPT
+{		b	{	{
+\{		-	{	{
+\{		bC	BADRPT
+{}		C	BADRPT
+{}		b	{}	{}
+\{\}		-	{}	{}
+\{\}		bC	BADRPT
+}		&	}	}
+\}		&	}	}
+{abc		b	{abc	{abc
+{abc		C	BADRPT
+# End FreeBSD
+{1		C	BADRPT
+{1}		C	BADRPT
+# Begin FreeBSD
+a{b		b	a{b	a{b
+a{b		C	BADRPT
+# End FreeBSD
+a{1}b		-	ab	ab
+a\{1\}b		b	ab	ab
+a{1,}b		-	ab	ab
+a\{1,\}b	b	ab	ab
+a{1,2}b		-	aab	aab
+a\{1,2\}b	b	aab	aab
+a{1		C	EBRACE
+a\{1		bC	EBRACE
+a{1a		C	EBRACE
+a\{1a		bC	EBRACE
+a{1a}		C	BADBR
+a\{1a\}		bC	BADBR
+# Begin FreeBSD
+a{,2}		b	a{,2}	a{,2}
+a{,2}		C	BADBR
+# End FreeBSD
+a\{,2\}		bC	BADBR
+# Begin FreeBSD
+a{,}		b	a{,}	a{,}
+a{,}		C	BADBR
+# End FreeBSD
+a\{,\}		bC	BADBR
+a{1,x}		C	BADBR
+a\{1,x\}	bC	BADBR
+a{1,x		C	EBRACE
+a\{1,x		bC	EBRACE
+a{300}		C	BADBR
+a\{300\}	bC	BADBR
+a{1,0}		C	BADBR
+a\{1,0\}	bC	BADBR
+ab{0,0}c	-	abcac	ac
+ab\{0,0\}c	b	abcac	ac
+ab{0,1}c	-	abcac	abc
+ab\{0,1\}c	b	abcac	abc
+ab{0,3}c	-	abbcac	abbc
+ab\{0,3\}c	b	abbcac	abbc
+ab{1,1}c	-	acabc	abc
+ab\{1,1\}c	b	acabc	abc
+ab{1,3}c	-	acabc	abc
+ab\{1,3\}c	b	acabc	abc
+ab{2,2}c	-	abcabbc	abbc
+ab\{2,2\}c	b	abcabbc	abbc
+ab{2,4}c	-	abcabbc	abbc
+ab\{2,4\}c	b	abcabbc	abbc
+((a{1,10}){1,10}){1,10}	-	a	a	a,a

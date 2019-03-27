@@ -1,0 +1,103 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_cu_die_offset.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd April 10, 2011
+.Dt DWARF_GET_CU_DIE_OFFSET 3
+.Os
+.Sh NAME
+.Nm dwarf_get_arange_cu_header_offset ,
+.Nm dwarf_get_cu_die_offset
+.Nd retrieve compilation unit offsets
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_get_arange_cu_header_offset
+.Fa "Dwarf_Arange ar"
+.Fa "Dwarf_Off *ret"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_get_cu_die_offset
+.Fa "Dwarf_Arange ar"
+.Fa "Dwarf_Off *ret"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+These functions retrieve the offsets, relative to the
+.Dq ".debug_info"
+DWARF section, of the debugging information entries describing the
+compilation unit associated with a
+.Vt Dwarf_Arange
+descriptor.
+.Pp
+Function
+.Fn dwarf_get_arange_cu_header_offset
+retrieves the offset of the compilation unit header associated with
+argument
+.Ar ar ,
+and stores it in the location pointed to by argument
+.Ar ret .
+.Pp
+Function
+.Fn dwarf_get_cu_die_offset
+retrieves the offset of the debugging information entry for the
+compilation unit associated with argument
+.Ar ar ,
+and stores it in the location pointed to by argument
+.Ar ret .
+.Pp
+If argument
+.Ar err
+is not NULL, these functions will use it to store error information,
+in case of an error.
+.Sh RETURN VALUES
+On success, these functions returns
+.Dv DW_DLV_OK .
+In case of an error, they return
+.Dv DW_DLV_ERROR
+and set the argument
+.Ar err .
+.Sh ERRORS
+These functions may fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Ar ar
+was not a valid
+.Vt Dwarf_Arange
+descriptor.
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Ar ret
+was NULL.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_get_arange 3 ,
+.Xr dwarf_get_arange_info 3 ,
+.Xr dwarf_get_aranges 3

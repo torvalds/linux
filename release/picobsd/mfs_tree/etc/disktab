@@ -1,0 +1,85 @@
+# $FreeBSD$
+# Floppy formats:
+#
+# To make a filesystem on a floppy:
+#	fdformat [-f <size>] fd<drive>[.<size>]
+#	disklabel -B -r -w fd<drive>[.<size>] fd<size>
+#	newfs <opts> fd<drive>[.<size>]
+#
+# with <opts>:
+#	-t 2	- two heads
+#	-u 9|15|18 - sectors per track
+#	(using the default value of 1/4096 is not much useful for floppies)
+#	-l 1	- interleave 1 (for most floppies)
+#	-i 65536 - bytes of data per i-node
+#	(the default -i value will render you with a floppy wasting way
+#	too much space in i-node areas)
+
+fd360:\
+	:ty=floppy:se#512:nt#2:rm#300:ns#9:nc#40:\
+	:pa#720:oa#0:ba#4096:fa#512:\
+	:pb#720:ob#0:bb#4096:fb#512:\
+	:pc#720:oc#0:bc#4096:fc#512:
+
+fd720:\
+	:ty=floppy:se#512:nt#2:rm#300:ns#9:nc#80:\
+	:pa#1440:oa#0:ba#4096:fa#512:\
+	:pb#1440:ob#0:bb#4096:fb#512:\
+	:pc#1440:oc#0:bc#4096:fc#512:
+
+fd1200|floppy5|5in|5.25in High Density Floppy:\
+	:ty=floppy:se#512:nt#2:rm#360:ns#15:nc#80:\
+	:pa#2400:oa#0:ba#4096:fa#512:\
+	:pb#2400:ob#0:bb#4096:fb#512:\
+	:pc#2400:oc#0:bc#4096:fc#512:
+
+fd1440|floppy|floppy3|3in|3.5in High Density Floppy:\
+	:ty=floppy:se#512:nt#2:rm#300:ns#18:nc#80:\
+	:pa#2880:oa#0:ba#4096:fa#512:\
+	:pb#2880:ob#0:bb#4096:fb#512:\
+	:pc#2880:oc#0:bc#4096:fc#512:
+
+fd1024|floppy0|3.5in Special Density Floppy:\
+	:ty=floppy:se#512:nt#2:rm#300:ns#16:nc#64:\
+	:pa#2048:oa#0:ba#4096:fa#512:\
+	:pb#2048:ob#0:bb#4096:fb#512:\
+	:pc#2048:oc#0:bc#4096:fc#512:
+
+# a == root
+# b == swap
+# c == d == whole disk
+# e == /var
+# f == scratch
+# h == /usr
+
+cp3100new|Connor Peripherals 100MB IDE, with a different configuration:\
+	:dt=ST506:ty=winchester:se#512:nt#8:ns#33:nc#766: \
+	:pa#15840:oa#0:ta=4.2BSD:ba#4096:fa#512: \
+	:pb#24288:ob#15840:tb=swap: \
+	:pc#202224:oc#0: \
+	:pd#202224:od#0: \
+	:pe#15840:oe#40128:te=4.2BSD:be#4096:fe#512: \
+	:pg#15840:og#55968:tg=4.2BSD:bg#4096:fg#512: \
+	:ph#130416:oh#71808:th=4.2BSD:bh#4096:fh#512:
+
+sony650|Sony 650 MB MOD|\
+	:ty=removable:dt=SCSI:se#512:nt#1:ns#31:nc#18600:ts#1:rm#4800:\
+	:pc#576600:oc#0:\
+	:pa#576600:oa#0:ta=4.2BSD:ba#8192:fa#1024:
+
+mta3230|mo230|IBM MTA-3230 230 Meg 3.5inch Magneto-Optical:\
+	:ty=removeable:dt=SCSI:rm#3600:\
+	:se#512:nt#64:ns#32:nc#216:sc#2048:su#444384:\
+	:pa#444384:oa#0:ba#4096:fa#0:ta=4.2BSD:\
+	:pc#444384:oc#0:
+
+minimum:ty=mfs:se#512:nt#1:rm#300:\
+	:ns#2880:nc#1:\
+	:pa#2880:oa#0:ba#4096:fa#512:\
+	:pc#2880:oc#0:bc#4096:fc#512:
+
+zip100|zip 100:\
+	:ty=removable:se#512:nc#96:nt#64:ns#32:\
+	:pa#196608:oa#0:ba#4096:fa#512:\
+	:pb#196608:ob#0:bb#4096:fb#512:\
+	:pc#196608:oc#0:bc#4096:fc#512:

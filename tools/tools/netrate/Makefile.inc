@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+WARNS?= 5
+WFORMAT?= 2

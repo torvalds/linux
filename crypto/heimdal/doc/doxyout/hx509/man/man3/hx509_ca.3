@@ -1,0 +1,573 @@
+.TH "hx509 CA functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hx509 CA functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "int \fBhx509_ca_tbs_init\fP (hx509_context context, hx509_ca_tbs *tbs)"
+.br
+.ti -1c
+.RI "void \fBhx509_ca_tbs_free\fP (hx509_ca_tbs *tbs)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_set_notBefore\fP (hx509_context context, hx509_ca_tbs tbs, time_t t)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_set_notAfter\fP (hx509_context context, hx509_ca_tbs tbs, time_t t)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_set_notAfter_lifetime\fP (hx509_context context, hx509_ca_tbs tbs, time_t delta)"
+.br
+.ti -1c
+.RI "struct units * \fBhx509_ca_tbs_template_units\fP (void)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_set_template\fP (hx509_context context, hx509_ca_tbs tbs, int flags, hx509_cert cert)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_set_ca\fP (hx509_context context, hx509_ca_tbs tbs, int pathLenConstraint)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_set_proxy\fP (hx509_context context, hx509_ca_tbs tbs, int pathLenConstraint)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_set_domaincontroller\fP (hx509_context context, hx509_ca_tbs tbs)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_set_spki\fP (hx509_context context, hx509_ca_tbs tbs, const SubjectPublicKeyInfo *spki)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_set_serialnumber\fP (hx509_context context, hx509_ca_tbs tbs, const heim_integer *serialNumber)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_add_eku\fP (hx509_context context, hx509_ca_tbs tbs, const heim_oid *oid)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_add_crl_dp_uri\fP (hx509_context context, hx509_ca_tbs tbs, const char *uri, hx509_name issuername)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_add_san_otherName\fP (hx509_context context, hx509_ca_tbs tbs, const heim_oid *oid, const heim_octet_string *os)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_add_san_pkinit\fP (hx509_context context, hx509_ca_tbs tbs, const char *principal)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_add_san_ms_upn\fP (hx509_context context, hx509_ca_tbs tbs, const char *principal)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_add_san_jid\fP (hx509_context context, hx509_ca_tbs tbs, const char *jid)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_add_san_hostname\fP (hx509_context context, hx509_ca_tbs tbs, const char *dnsname)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_add_san_rfc822name\fP (hx509_context context, hx509_ca_tbs tbs, const char *rfc822Name)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_set_subject\fP (hx509_context context, hx509_ca_tbs tbs, hx509_name subject)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_set_unique\fP (hx509_context context, hx509_ca_tbs tbs, const heim_bit_string *subjectUniqueID, const heim_bit_string *issuerUniqueID)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_tbs_subject_expand\fP (hx509_context context, hx509_ca_tbs tbs, hx509_env env)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_sign\fP (hx509_context context, hx509_ca_tbs tbs, hx509_cert signer, hx509_cert *certificate)"
+.br
+.ti -1c
+.RI "int \fBhx509_ca_sign_self\fP (hx509_context context, hx509_ca_tbs tbs, hx509_private_key signer, hx509_cert *certificate)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+See the \fBHx509 CA functions\fP for description and examples. 
+.SH "Function Documentation"
+.PP 
+.SS "int hx509_ca_sign (hx509_context context, hx509_ca_tbs tbs, hx509_cert signer, hx509_cert * certificate)"
+.PP
+Sign a to-be-signed certificate object with a issuer certificate.
+.PP
+The caller needs to at least have called the following functions on the to-be-signed certificate object:
+.IP "\(bu" 2
+\fBhx509_ca_tbs_init()\fP
+.IP "\(bu" 2
+\fBhx509_ca_tbs_set_subject()\fP
+.IP "\(bu" 2
+\fBhx509_ca_tbs_set_spki()\fP
+.PP
+.PP
+When done the to-be-signed certificate object should be freed with \fBhx509_ca_tbs_free()\fP.
+.PP
+When creating self-signed certificate use \fBhx509_ca_sign_self()\fP instead.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIsigner\fP the CA certificate object to sign with (need private key). 
+.br
+\fIcertificate\fP return cerificate, free with \fBhx509_cert_free()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_sign_self (hx509_context context, hx509_ca_tbs tbs, hx509_private_key signer, hx509_cert * certificate)"
+.PP
+Work just like \fBhx509_ca_sign()\fP but signs it-self.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIsigner\fP private key to sign with. 
+.br
+\fIcertificate\fP return cerificate, free with \fBhx509_cert_free()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_add_crl_dp_uri (hx509_context context, hx509_ca_tbs tbs, const char * uri, hx509_name issuername)"
+.PP
+Add CRL distribution point URI to the to-be-signed certificate object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIuri\fP uri to the CRL. 
+.br
+\fIissuername\fP name of the issuer.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.PP
+issuername not supported 
+.SS "int hx509_ca_tbs_add_eku (hx509_context context, hx509_ca_tbs tbs, const heim_oid * oid)"
+.PP
+An an extended key usage to the to-be-signed certificate object. Duplicates will detected and not added.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIoid\fP extended key usage to add.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_add_san_hostname (hx509_context context, hx509_ca_tbs tbs, const char * dnsname)"
+.PP
+Add a Subject Alternative Name hostname to to-be-signed certificate object. A domain match starts with ., an exact match does not.
+.PP
+Example of a an domain match: .domain.se matches the hostname host.domain.se.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIdnsname\fP a hostame.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_add_san_jid (hx509_context context, hx509_ca_tbs tbs, const char * jid)"
+.PP
+Add a Jabber/XMPP jid Subject Alternative Name to the to-be-signed certificate object. The jid is an UTF8 string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIjid\fP string of an a jabber id in UTF8.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_add_san_ms_upn (hx509_context context, hx509_ca_tbs tbs, const char * principal)"
+.PP
+Add Microsoft UPN Subject Alternative Name to the to-be-signed certificate object. The principal string is a UTF8 string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIprincipal\fP Microsoft UPN string.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_add_san_otherName (hx509_context context, hx509_ca_tbs tbs, const heim_oid * oid, const heim_octet_string * os)"
+.PP
+Add Subject Alternative Name otherName to the to-be-signed certificate object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIoid\fP the oid of the OtherName. 
+.br
+\fIos\fP data in the other name.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_add_san_pkinit (hx509_context context, hx509_ca_tbs tbs, const char * principal)"
+.PP
+Add Kerberos Subject Alternative Name to the to-be-signed certificate object. The principal string is a UTF8 string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIprincipal\fP Kerberos principal to add to the certificate.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_add_san_rfc822name (hx509_context context, hx509_ca_tbs tbs, const char * rfc822Name)"
+.PP
+Add a Subject Alternative Name rfc822 (email address) to to-be-signed certificate object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIrfc822Name\fP a string to a email address.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "void hx509_ca_tbs_free (hx509_ca_tbs * tbs)"
+.PP
+Free an To Be Signed object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fItbs\fP object to free. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_init (hx509_context context, hx509_ca_tbs * tbs)"
+.PP
+Allocate an to-be-signed certificate object that will be converted into an certificate.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP returned to-be-signed certicate object, free with \fBhx509_ca_tbs_free()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_set_ca (hx509_context context, hx509_ca_tbs tbs, int pathLenConstraint)"
+.PP
+Make the to-be-signed certificate object a CA certificate. If the pathLenConstraint is negative path length constraint is used.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIpathLenConstraint\fP path length constraint, negative, no constraint.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_set_domaincontroller (hx509_context context, hx509_ca_tbs tbs)"
+.PP
+Make the to-be-signed certificate object a windows domain controller certificate.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_set_notAfter (hx509_context context, hx509_ca_tbs tbs, time_t t)"
+.PP
+Set the absolute time when the certificate is valid to.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIt\fP time when the certificate will expire
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_set_notAfter_lifetime (hx509_context context, hx509_ca_tbs tbs, time_t delta)"
+.PP
+Set the relative time when the certificiate is going to expire.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIdelta\fP seconds to the certificate is going to expire.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_set_notBefore (hx509_context context, hx509_ca_tbs tbs, time_t t)"
+.PP
+Set the absolute time when the certificate is valid from. If not set the current time will be used.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIt\fP time the certificated will start to be valid
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_set_proxy (hx509_context context, hx509_ca_tbs tbs, int pathLenConstraint)"
+.PP
+Make the to-be-signed certificate object a proxy certificate. If the pathLenConstraint is negative path length constraint is used.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIpathLenConstraint\fP path length constraint, negative, no constraint.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_set_serialnumber (hx509_context context, hx509_ca_tbs tbs, const heim_integer * serialNumber)"
+.PP
+Set the serial number to use for to-be-signed certificate object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIserialNumber\fP serial number to use for the to-be-signed certificate object.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_set_spki (hx509_context context, hx509_ca_tbs tbs, const SubjectPublicKeyInfo * spki)"
+.PP
+Set the subject public key info (SPKI) in the to-be-signed certificate object. SPKI is the public key and key related parameters in the certificate.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIspki\fP subject public key info to use for the to-be-signed certificate object.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_set_subject (hx509_context context, hx509_ca_tbs tbs, hx509_name subject)"
+.PP
+Set the subject name of a to-be-signed certificate object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIsubject\fP the name to set a subject.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_set_template (hx509_context context, hx509_ca_tbs tbs, int flags, hx509_cert cert)"
+.PP
+Initialize the to-be-signed certificate object from a template certifiate.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIflags\fP bit field selecting what to copy from the template certifiate. 
+.br
+\fIcert\fP template certificate.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_set_unique (hx509_context context, hx509_ca_tbs tbs, const heim_bit_string * subjectUniqueID, const heim_bit_string * issuerUniqueID)"
+.PP
+Set the issuerUniqueID and subjectUniqueID
+.PP
+These are only supposed to be used considered with version 2 certificates, replaced by the two extensions SubjectKeyIdentifier and IssuerKeyIdentifier. This function is to allow application using legacy protocol to issue them.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIissuerUniqueID\fP to be set 
+.br
+\fIsubjectUniqueID\fP to be set
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_ca_tbs_subject_expand (hx509_context context, hx509_ca_tbs tbs, hx509_env env)"
+.PP
+Expand the the subject name in the to-be-signed certificate object using \fBhx509_name_expand()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fItbs\fP object to be signed. 
+.br
+\fIenv\fP enviroment variable to expand variables in the subject name, see hx509_env_init().
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "struct units* hx509_ca_tbs_template_units (void)\fC [read]\fP"
+.PP
+Make of template units, use to build flags argument to \fBhx509_ca_tbs_set_template()\fP with parse_units().
+.PP
+\fBReturns:\fP
+.RS 4
+an units structure. 
+.RE
+.PP
+

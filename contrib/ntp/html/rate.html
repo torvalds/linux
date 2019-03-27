@@ -1,0 +1,67 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Rate Management and the Kiss-o'-Death</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+<style type="text/css">
+<!--
+<style1 {
+color: #FF0000;
+ font-weight: bold;
+}
+-->
+</style>
+</head>
+<body>
+<h3>Rate Management and the Kiss-o'-Death Packet</h3>
+<img src="pic/boom4.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html">from <i>Pogo</i>, Walt Kelly</a>
+<p>Our junior managers and the administrators.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->10-Mar-2014  05:19<!-- #EndDate -->
+    UTC</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/hand.txt"></script>
+<script type="text/javascript" language="javascript" src="scripts/config.txt"></script>
+<h4>Table of Contents</h4>
+<ul>
+  <li class="inline"><a href="#intro">Introduction</a></li>
+  <li class="inline"><a href="#guard">Minimum Headway Time</a></li>
+  <li class="inline"><a href="#mah">Minimum Average Headway Time</a></li>
+  <li class="inline"><a href="#kiss">The Kiss-o'-Death Packet</a></li>
+  <li class="inline"><a href="#ref">References</a></li>
+</ul>
+<hr>
+<h4 id="intro">Introduction</h4>
+<p>This page describes the various rate management provisions in NTPv4. Some national time metrology laboratories, including NIST and USNO, use the NTP reference implementation in their very busy public time servers. They operate multiple servers behind load-balancing devices to support aggregate rates up to ten thousand packets per second. The servers need to defend themselves against all manner of broken client implementations that can clog the server and  network infrastructure. On the other hand, friendly clients need to avoid configurations that can result in unfriendly behavior.</p>
+<p>A review of past client abuse incidence shows the most frequent scenario is a broken client that attempts to send  packets at rates of one per second or more. On one occasion due to a defective client design [1], over 750,000 clients demonstrated this abuse. There have been occasions where this abuse has persisted for days at a time. These scenarios are the most damaging, as they can threaten not only the victim server but the network infrastructure as well.</p>
+<p>There are several features in the reference implementation<tt></tt> designed to defend the servers and network against accidental or intentional flood attack. Other  features are  used  to insure that the client <tt></tt> is a good citizen, even if configured in unfriendly ways. The ground rules are:</p>
+<ul>
+  <li>Send at the lowest rate consistent with the expected accuracy requirements.</li>
+  <li>Maintain strict guard time and minimum average headway   time, even if multiple burst options and/or the Autokey protocol are operating.</li>
+  <li>When the first packet of a burst is sent  to a server, do not send further packets until the first packet has been received from the server.</li>
+  <li>Upon receiving a Kiss-o'-Death packet (KoD, see below), immediately reduce the sending rate.</li>
+</ul>
+<p>Rate management involves four algorithms to manage resources: (1) poll rate control, (2) burst control, (3) average headway time and (4) guard time. The first two algorithms are described on the <a href="poll.html">Poll Program</a> page; the remaining two are described  in following sections.</p>
+<h4 id="guard">Minimum Headway Time</h4>
+<p>The  headway is defined for each source as the interval between the last packet sent or received and the next packet for that source. The minimum receive headway is defined as the guard time. In the reference implementation, if the  receive headway is less than the guard time, the packet is discarded. The guard time defaults to 2 s, but this can be changed using the <tt>minimum</tt> option of the <a href="accopt.html#discard"><tt>discard</tt></a> command. By design,  the minimum interval between <tt>burst</tt> and <tt>iburst</tt> packets sent by any client is  2 s, which does not  violate this constraint. Packets sent by other implementations that violate this constraint will be dropped and a KoD packet returned, if enabled.</p>
+<h4 id="mah">Minimum Average Headway Time</h4>
+<p>There are two features in the reference implementation to manage the minimum average headway time between one packet and the next, and thus the maximum average rate for each source. The transmit throttle limits the rate for transmit packets, while the receive discard  limits the rate for receive packets. These features make use of a pair of counters: a client output counter for each association and a server input counter for each distinct client IP address. For each packet received, the input counter increments by  a value equal to the minimum average headway (MAH) and then decrements by one each second.   For each packet transmitted, the output counter increments by   the MAH and then decrements by one each second. The default MAH   is 8 s, but this can be changed using the <tt>average</tt> option of the <a href="accopt.html#discard"><tt>discard</tt></a> command.</p>
+<p>If the <tt>iburst</tt> or <tt>burst</tt> options are present, the poll algorithm sends a burst of packets instead of a single packet at each poll opportunity. The NTPv4 specification requires that bursts contain no more than eight packets.  Starting from an output counter value of zero, the maximum counter  value, called the   ceiling, can be no more than eight times the  MAH.  However, if the burst starts with a  counter value other than zero, there is a potential to exceed the ceiling. This can  result from protocol restarts and/or Autokey protocol operations. In these cases the poll algorithm throttles the output rate by  computing an additional headway time so that the next packet sent will not exceed the ceiling.  Designs such as this are often called leaky buckets.</p>
+<p>The reference implementation  uses a special most-recently used (MRU) list of entries, one entry for each distinct client IP address found. Each entry includes the IP address, input counter and process time at the last packet arrival.   As each packet arrives, the IP source address is compared to the IP address in each entry in turn. If a match is found the entry is removed and inserted first on the list. If the IP source address does not match any entry, a new entry is created and inserted first, possibly discarding the last entry  if the list is full. Observers will note this is the same algorithm used for page replacement in virtual memory systems. However, in the virtual memory algorithm the entry of interest is the last, whereas here the entry of interest is the first.</p>
+<p> The input counter for the first entry on the MRU list, representing the current input packet,  is decreased by the interval since the entry was last referenced, but not below zero. If the  input counter is greater than the ceiling, the packet is discarded. Otherwise, the counter is increased by the MAH and the packet is processed. The result is, if the client maintains an average headway  greater than  the  ceiling and transmits no more than eight packets in a burst, the input counter will not exceed the ceiling. Packets sent by other implementations that violate this constraint will be dropped and a KoD packet returned, if enabled.</p>
+<p>The reference implementation has a maximum MRU list size of a few hundred entries. The national time servers operated by NIST and USNO have  an aggregate packet  rate in the thousands of packets per second from many thousands of customers. Under these conditions,  the list overflows after only a few seconds of traffic. However, analysis shows that the vast majority of the abusive traffic is  due to a tiny minority of the customers, some of which send  at over one packet per second. This means that the few seconds retained on the list is sufficient to identify and discard by far the majority of the abusive traffic.</p>
+<h4 id="kiss">The Kiss-of-Death Packet</h4>
+<p>Ordinarily, packets denied service are simply dropped with no further action except incrementing statistics counters. Sometimes a more proactive response is needed to cause the client to slow down. A special packet  has been created for this purpose called the kiss-o'-death (KoD) packet. KoD packets have leap indicator 3, stratum 0 and the reference identifier set to a four-octet ASCII code. At present, only one code <tt>RATE</tt> is sent by the server if the <tt>limited</tt> and <tt>kod</tt> flags of the <a href="accopt.html#restrict"><tt>restrict</tt></a> command are present and either the guard time or MAH time are violated.</p>
+<p>A client receiving a KoD packet is expected to slow down; however, no explicit mechanism is specified in the protocol to do this. In the  reference implementation, the server sets the  poll field of the KoD packet to the greater of (a) the server MAH and (b) client packet poll field. In response to the KoD packet, the client sets the peer poll interval to the maximum of (a) the client MAH and (b) the server packet poll field. This automatically increases the headway for following client packets. </p>
+<p> In order to make sure the client notices the KoD packet, the server sets the receive and transmit timestamps  to the transmit timestamp of the client packet. Thus, even if the client ignores all except the timestamps, it cannot do any useful time computations. KoD packets themselves are rate limited to no more than one packet per guard time, in order to defend against flood attacks.</p>
+<h4 id="ref">References</h4>
+<ol>
+  <li>Mills, D.L., J. Levine, R. Schmidt and D. Plonka. Coping with overload on the Network Time Protocol public servers. <i>Proc. Precision Time and Time Interval (PTTI) Applications and Planning Meeting</i> (Washington DC, December 2004), 5-16. Paper: <a href="http://www.eecis.udel.edu/~mills/database/papers/ptti/ptti04a.pdf">PDF</a>, Slides:<a href="http://www.eecis.udel.edu/~mills/database/brief/ptti/ptti04.pdf">PDF</a> | <a href="http://www.eecis.udel.edu/~mills/database/brief/ptti/ptti04.ppt">PowerPoint</a></li>
+</ol>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

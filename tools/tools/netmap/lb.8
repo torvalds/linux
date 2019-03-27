@@ -1,0 +1,130 @@
+.\" Copyright (c) 2017 Corelight, Inc. and Universita` di Pisa
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 28, 2018
+.Dt LB 8
+.Os
+.Sh NAME
+.Nm lb
+.Nd netmap-based load balancer
+.Sh SYNOPSIS
+.Bk -words
+.Bl -tag -width "lb"
+.It Nm
+.Op Fl i Ar port
+.Op Fl p Ar pipe-group
+.Op Fl B Ar extra-buffers
+.Op Fl b Ar batch-size
+.Op Fl w Ar wait-link
+.El
+.Ek
+.Sh DESCRIPTION
+.Nm
+reads packets from an input netmap port and sends them to a number of netmap pipes,
+trying to balance the packets received by each pipe.
+Packets belonging to the
+same connection will always be sent to the same pipe.
+.Pp
+Command line options are listed below.
+.Bl -tag -width Ds
+.It Fl i Ar port
+Name of a netmap port.
+It must be supplied exactly once to identify
+the input port.
+Any netmap port type (e.g., physical interface, VALE switch, pipe,
+monitor port) can be used.
+.It Fl p Ar name Ns Cm \&: Ns Ar number | number
+Add a new pipe group of the given number of pipes.
+The pipe group will receive all the packets read from the input port, balanced
+among the available pipes.
+The receiving ends of the pipes
+will be called
+.Dq Ar name Ns Em }0
+to
+.Dq Ar name No Ns Em } Ns Aq Ar number No - 1 .
+The name is optional and defaults to
+the name of the input port (stripped down of any netmap operator).
+If the name is omitted, also the colon can be omitted.
+.Pp
+This option can be supplied multiple times to define a sequence of pipe groups,
+each group receiving all the packets in turn.
+.Pp
+If no
+.Fl p
+option is given, a single group of two pipes with default name is assumed.
+.Pp
+It is allowed to use the same name for several groups.
+The pipe numbering in each
+group will start from were the previous identically-named group had left.
+.It Fl B Ar extra-buffers
+Try to reserve the given number of extra buffers.
+Extra buffers are shared among
+all pipes in all groups and work as an extension of the pipe rings.
+If a pipe ring is full for whatever reason,
+.Nm
+tries to use extra buffers before dropping any packets directed to that pipe.
+.Pp
+If all extra buffers are busy, some are stolen from the pipe with the longest
+backlog.
+This gives preference to newer packets over old ones, and prevents a
+stalled pipe to deplete the pool of extra buffers.
+.It Fl b Ar batch-size
+Maximum number of packets processed between two read operations from the input port.
+Higher values of batch-size improve performance by amortizing read operations,
+but increase the risk of filling up the port internal queues.
+.It Fl w Ar wait-link
+indicates the number of seconds to wait before transmitting.
+It defaults to 2, and may be useful when talking to physical
+ports to let link negotiation complete before starting transmission.
+.El
+.Sh LIMITATIONS
+The group chaining assumes that the applications on the receiving end of the
+pipes are read-only: they must not modify the buffers or the pipe ring slots
+in any way.
+.Pp
+The group naming is currently implemented by creating a persistent VALE port
+with the given name.
+If
+.Nm
+does not exit cleanly the ports will not be removed.
+Please use
+.Xr vale-ctl 4
+to remove any stale persistent VALE port.
+.Sh SEE ALSO
+.Xr netmap 4 ,
+.Xr bridge 8 ,
+.Xr pkt-gen 8
+.Pp
+.Pa http://info.iet.unipi.it/~luigi/netmap/
+.Sh AUTHORS
+.An -nosplit
+.Nm
+has been written by
+.An Seth Hall
+at Corelight, USA.
+The facilities related to extra buffers and pipe groups have been added by
+.An Giuseppe Lettieri
+at University of Pisa, Italy, under contract by Corelight, USA.

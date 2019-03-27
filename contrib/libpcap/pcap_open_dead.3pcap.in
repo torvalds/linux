@@ -1,0 +1,79 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_OPEN_DEAD 3PCAP "3 January 2014"
+.SH NAME
+pcap_open_dead, pcap_open_dead_with_tstamp_precision \- open a fake
+pcap_t for compiling filters or opening a capture for output
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.ft B
+pcap_t *pcap_open_dead(int linktype, int snaplen);
+pcap_t *pcap_open_dead_with_tstamp_precision(int linktype, int snaplen,
+    u_int precision);
+.ft
+.fi
+.SH DESCRIPTION
+.PP
+.B pcap_open_dead()
+and
+.B pcap_open_dead_with_tstamp_precision()
+are used for creating a
+.B pcap_t
+structure to use when calling the other functions in libpcap.  It is
+typically used when just using libpcap for compiling BPF code; it can
+also be used if using
+.BR pcap_dump_open() ,
+.BR pcap_dump() ,
+and
+.B pcap_dump_close()
+to write a savefile if there is no
+.B pcap_t
+that supplies the packets to be written.
+.PP
+.I linktype
+specifies the link-layer type for the
+.BR pcap_t .
+.PP
+.I snaplen
+specifies the snapshot length for the
+.BR pcap_t .
+.PP
+When
+.BR pcap_open_dead_with_tstamp_precision() ,
+is used to create a
+.B pcap_t
+for use with
+.BR pcap_dump_open() ,
+.I precision
+specifies the time stamp precision for packets;
+.B PCAP_TSTAMP_PRECISION_MICRO
+should be specified if the packets to be written have time stamps in
+seconds and microseconds, and
+.B PCAP_TSTAMP_PRECISION_NANO
+should be specified if the packets to be written have time stamps in
+seconds and nanoseconds.  Its value does not affect
+.BR pcap_compile() .
+.SH SEE ALSO
+pcap(3PCAP), pcap_compile(3PCAP), pcap_dump_open(3PCAP),
+\%pcap-linktype(@MAN_MISC_INFO@)

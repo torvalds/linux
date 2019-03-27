@@ -1,0 +1,164 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for dtrace_proc(4) activity $
+# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $FreeBSD$
+#
+############################################################ DESCRIPTION
+#
+# Display process activity
+#
+############################################################ PROBE
+
+case "$PROFILE" in
+proc)
+	: ${PROBE:=$( echo \
+		proc:::create, \
+		proc:::exec, \
+		proc:::exec-failure, \
+		proc:::exec-success, \
+		proc:::exit, \
+		proc:::signal-clear, \
+		proc:::signal-discard, \
+		proc:::signal-send )}
+	;;
+proc-signal)
+	: ${PROBE:=$( echo \
+		proc:::signal-clear, \
+		proc:::signal-discard, \
+		proc:::signal-send )}
+	;;
+proc-status)
+	: ${PROBE:=$( echo \
+		proc:::create, \
+		proc:::exec, \
+		proc:::exec-failure, \
+		proc:::exec-success, \
+		proc:::exit )}
+	;;
+*)
+	: ${PROBE:=proc:::${PROFILE#proc-}}
+esac
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+this int	sig;
+this pid_t	pid;
+this string	details;
+this string	exec_arg0;
+
+inline string probealias[string name] =
+	name == "create" ?		"FORK" :
+	name == "exec" ?		"EXEC" :
+	name == "exec-failure" ?	"FAIL" :
+	name == "exec-success" ?	"INIT" :
+	name == "exit" ?		"EXIT" :
+	name == "signal-clear" ?	"CLEAR" :
+	name == "signal-discard" ?	"DISCARD" :
+	name == "signal-send" ?		"SEND" :
+	name;
+
+$PROBE /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");}
+	this->details = "";
+}
+
+proc:::create /* probe ID $(( $ID + 1 )) */
+{${TRACE:+
+	printf("<$(( $ID + 1 ))>");
+}
+	$( pproc -P _create "(struct proc *)args[0]" )
+
+	/* details = "pid <pid of args[0]> -- <proc args of args[0]>" */
+	this->details = strjoin(
+		strjoin("pid ", lltostr(this->pid_create)),
+		strjoin(" -- ", this->args_create));
+}
+
+proc:::exec /* probe ID $(( $ID + 2 )) */
+{${TRACE:+
+	printf("<$(( $ID + 2 ))");}
+	this->details = this->exec_arg0 = stringof(arg0);
+}
+
+proc:::exec-failure /* probe ID $(( $ID + 3 )) */
+{${TRACE:+
+	printf("<$(( $ID + 3 ))>");
+}
+	/* details = "<arg0 from proc:::exec>: <strerror of arg0> (<arg0>)" */
+	this->details = strjoin(
+		strjoin(this->exec_arg0, ": "),
+		strjoin(strerror[(int)arg0],
+			strjoin(" (", strjoin(lltostr((int)arg0), ")"))));
+}
+
+proc:::exec-success /* probe ID $(( $ID + 4 )) */
+{${TRACE:+
+	printf("<$(( $ID + 4 ))>");}
+	this->details = this->args0;
+}
+
+proc:::exit /* probe ID $(( $ID + 5 )) */
+{${TRACE:+
+	printf("<$(( $ID + 5 ))>");}
+	this->details = child_signal_string[(int)arg0];
+}
+
+proc:::signal-clear /* probe ID $(( $ID + 6 )) */
+{${TRACE:+
+	printf("<$(( $ID + 6 ))>");}
+	this->pid = (pid_t)((ksiginfo_t *)args[1])->ksi_info.si_pid;
+	this->sig = (int)arg0;
+}
+
+proc:::signal-discard, proc:::signal-send /* probe ID $(( $ID + 7 )) */
+{${TRACE:+
+	printf("<$(( $ID + 7 ))>");}
+	this->pid = (pid_t)((struct proc *)args[1])->p_pid;
+	this->sig = (int)arg2;
+}
+
+proc:::signal-clear,
+proc:::signal-discard,
+proc:::signal-send /* probe ID $(( $ID + 8 )) */
+{${TRACE:+
+	printf("<$(( $ID + 8 ))>");
+}
+	/* details = "<signal>[<num>] pid <pid>" */
+	this->details = strjoin(strjoin(signal_string[this->sig], "["),
+		strjoin(strjoin(lltostr(this->sig), "] pid "),
+		lltostr(this->pid)));
+}
+
+proc:::signal-send, proc:::signal-discard /* probe ID $(( $ID + 9 )) */
+{${TRACE:+
+	printf("<$(( $ID + 9 ))>");
+}
+	$( pproc -P _signal "(struct proc *)args[1]" )
+
+	this->details = strjoin(this->details,
+		strjoin(" -- ", this->args_signal));
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 10 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print details
+	 */
+	printf("%s %s", probealias[probename], this->details);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

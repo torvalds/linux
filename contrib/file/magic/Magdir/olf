@@ -1,0 +1,98 @@
+
+#------------------------------------------------------------------------------
+# $File: olf,v 1.4 2009/09/19 16:28:11 christos Exp $
+# olf:  file(1) magic for OLF executables
+#
+# We have to check the byte order flag to see what byte order all the
+# other stuff in the header is in.
+#
+# MIPS R3000 may also be for MIPS R2000.
+# What're the correct byte orders for the nCUBE and the Fujitsu VPP500?
+#
+# Created by Erik Theisen <etheisen@openbsd.org>
+# Based on elf from Daniel Quinlan <quinlan@yggdrasil.com>
+0	string		\177OLF		OLF
+>4	byte		0		invalid class
+>4	byte		1		32-bit
+>4	byte		2		64-bit
+>7	byte		0		invalid os
+>7	byte		1		OpenBSD
+>7	byte		2		NetBSD
+>7	byte		3		FreeBSD
+>7	byte		4		4.4BSD
+>7	byte		5		Linux
+>7	byte		6		SVR4
+>7	byte		7		esix
+>7	byte		8		Solaris
+>7	byte		9		Irix
+>7	byte		10		SCO
+>7	byte		11		Dell
+>7	byte		12		NCR
+>5	byte		0		invalid byte order
+>5	byte		1		LSB
+>>16	leshort		0		no file type,
+>>16	leshort		1		relocatable,
+>>16	leshort		2		executable,
+>>16	leshort		3		shared object,
+# Core handling from Peter Tobias <tobias@server.et-inf.fho-emden.de>
+# corrections by Christian 'Dr. Disk' Hechelmann <drdisk@ds9.au.s.shuttle.de>
+>>16	leshort		4		core file
+>>>(0x38+0xcc) string	>\0		of '%s'
+>>>(0x38+0x10) lelong	>0		(signal %d),
+>>16	leshort		&0xff00		processor-specific,
+>>18	leshort		0		no machine,
+>>18	leshort		1		AT&T WE32100 - invalid byte order,
+>>18	leshort		2		SPARC - invalid byte order,
+>>18	leshort		3		Intel 80386,
+>>18	leshort		4		Motorola 68000 - invalid byte order,
+>>18	leshort		5		Motorola 88000 - invalid byte order,
+>>18	leshort		6		Intel 80486,
+>>18	leshort		7		Intel 80860,
+>>18	leshort		8		MIPS R3000_BE - invalid byte order,
+>>18	leshort		9		Amdahl - invalid byte order,
+>>18	leshort		10		MIPS R3000_LE,
+>>18	leshort		11		RS6000 - invalid byte order,
+>>18	leshort		15		PA-RISC - invalid byte order,
+>>18	leshort		16		nCUBE,
+>>18	leshort		17		VPP500,
+>>18	leshort		18		SPARC32PLUS,
+>>18	leshort		20		PowerPC,
+>>18	leshort		0x9026		Alpha,
+>>20	lelong		0		invalid version
+>>20	lelong		1		version 1
+>>36	lelong		1		MathCoPro/FPU/MAU Required
+>8	string		>\0		(%s)
+>5	byte		2		MSB
+>>16	beshort		0		no file type,
+>>16	beshort		1		relocatable,
+>>16	beshort		2		executable,
+>>16	beshort		3		shared object,
+>>16	beshort		4		core file,
+>>>(0x38+0xcc) string	>\0		of '%s'
+>>>(0x38+0x10) belong	>0		(signal %d),
+>>16	beshort		&0xff00		processor-specific,
+>>18	beshort		0		no machine,
+>>18	beshort		1		AT&T WE32100,
+>>18	beshort		2		SPARC,
+>>18	beshort		3		Intel 80386 - invalid byte order,
+>>18	beshort		4		Motorola 68000,
+>>18	beshort		5		Motorola 88000,
+>>18	beshort		6		Intel 80486 - invalid byte order,
+>>18	beshort		7		Intel 80860,
+>>18	beshort		8		MIPS R3000_BE,
+>>18	beshort		9		Amdahl,
+>>18	beshort		10		MIPS R3000_LE - invalid byte order,
+>>18	beshort		11		RS6000,
+>>18	beshort		15		PA-RISC,
+>>18	beshort		16		nCUBE,
+>>18	beshort		17		VPP500,
+>>18	beshort		18		SPARC32PLUS,
+>>18	beshort		20		PowerPC or cisco 4500,
+>>18	beshort		21		cisco 7500,
+>>18	beshort		24		cisco SVIP,
+>>18	beshort		25		cisco 7200,
+>>18	beshort		36		cisco 12000,
+>>18	beshort		0x9026		Alpha,
+>>20	belong		0		invalid version
+>>20	belong		1		version 1
+>>36	belong		1		MathCoPro/FPU/MAU Required

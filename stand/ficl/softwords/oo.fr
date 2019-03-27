@@ -1,0 +1,694 @@
+\ #if FICL_WANT_OOP
+\ ** ficl/softwords/oo.fr
+\ ** F I C L   O - O   E X T E N S I O N S
+\ ** john sadler aug 1998
+\
+\ $FreeBSD$
+
+17 ficl-vocabulary oop
+also oop definitions
+
+\ Design goals:
+\ 0. Traditional OOP: late binding by default for safety. 
+\    Early binding if you ask for it.
+\ 1. Single inheritance
+\ 2. Object aggregation (has-a relationship)
+\ 3. Support objects in the dictionary and as proxies for 
+\    existing structures (by reference):
+\    *** A ficl object can wrap a C struct ***
+\ 4. Separate name-spaces for methods - methods are
+\    only visible in the context of a class / object
+\ 5. Methods can be overridden, and subclasses can add methods.
+\    No limit on number of methods.
+
+\ General info:
+\ Classes are objects, too: all classes are instances of METACLASS
+\ All classes are derived (by convention) from OBJECT. This
+\ base class provides a default initializer and superclass 
+\ access method
+
+\ A ficl object binds instance storage (payload) to a class.
+\ object  ( -- instance class )
+\ All objects push their payload address and class address when
+\ executed. 
+
+\ A ficl class consists of a parent class pointer, a wordlist
+\ ID for the methods of the class, and a size for the payload
+\ of objects created by the class. A class is an object.
+\ The NEW method creates and initializes an instance of a class.
+\ Classes have this footprint:
+\ cell 0: parent class address
+\ cell 1: wordlist ID
+\ cell 2: size of instance's payload
+
+\ Methods expect an object couple ( instance class ) 
+\ on the stack. This is by convention - ficl has no way to 
+\ police your code to make sure this is always done, but it 
+\ happens naturally if you use the facilities presented here.
+\
+\ Overridden methods must maintain the same stack signature as
+\ their predecessors. Ficl has no way of enforcing this, either.
+\
+\ Revised Apr 2001 - Added Guy Carver's vtable extensions. Class now
+\ has an extra field for the vtable method count. Hasvtable declares
+\ refs to vtable classes
+\
+\ Revised Nov 2001 - metaclass debug method now finds only metaclass methods
+\
+\ Planned: Ficl vtable support
+\ Each class has a vtable size parameter
+\ END-CLASS allocates and clears the vtable - then it walks class's method 
+\ list and inserts all new methods into table. For each method, if the table
+\ slot is already nonzero, do nothing (overridden method). Otherwise fill
+\ vtable slot. Now do same check for parent class vtable, filling only
+\ empty slots in the new vtable.
+\ Methods are now structured as follows:
+\ - header
+\ - vtable index
+\ - xt
+\ :noname definition for code
+\
+\ : is redefined to check for override, fill in vtable index, increment method
+\ count if not an override, create header and fill in index. Allot code pointer
+\ and run :noname
+\ ; is overridden to fill in xt returned by :noname
+\ --> compiles code to fetch vtable address, offset by index, and execute
+\ => looks up xt in the vtable and compiles it directly
+
+
+
+user current-class
+0 current-class !
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\ ** L A T E   B I N D I N G
+\ Compile the method name, and code to find and
+\ execute it at run-time...
+\
+
+\ p a r s e - m e t h o d
+\ compiles a method name so that it pushes
+\ the string base address and count at run-time.
+
+: parse-method  \ name  run: ( -- c-addr u )
+    parse-word
+    postpone sliteral
+; compile-only
+
+
+
+: (lookup-method)  { class 2:name -- class 0 | class xt 1 | class xt -1  }
+    class  name class cell+ @  ( class c-addr u wid )
+    search-wordlist
+;
+
+\ l o o k u p - m e t h o d
+\ takes a counted string method name from the stack (as compiled
+\ by parse-method) and attempts to look this method up in the method list of 
+\ the class that's on the stack. If successful, it leaves the class on the stack
+\ and pushes the xt of the method. If not, it aborts with an error message.
+
+: lookup-method  { class 2:name -- class xt }
+    class name (lookup-method)    ( 0 | xt 1 | xt -1 )
+    0= if
+        name type ."  not found in " 
+        class body> >name type
+        cr abort 
+    endif 
+;
+
+: find-method-xt   \ name ( class -- class xt )
+    parse-word lookup-method
+;
+
+: catch-method  ( instance class c-addr u -- <method-signature> exc-flag )
+    lookup-method catch
+;
+
+: exec-method  ( instance class c-addr u -- <method-signature> )
+    lookup-method execute
+;
+
+\ Method lookup operator takes a class-addr and instance-addr
+\ and executes the method from the class's wordlist if
+\ interpreting. If compiling, bind late.
+\
+: -->   ( instance class -- ??? )
+    state @ 0= if
+        find-method-xt execute 
+    else  
+        parse-method  postpone exec-method
+    endif
+; immediate
+
+\ Method lookup with CATCH in case of exceptions
+: c->   ( instance class -- ?? exc-flag )
+    state @ 0= if
+        find-method-xt catch  
+    else  
+        parse-method  postpone catch-method
+    endif
+; immediate
+
+\ METHOD  makes global words that do method invocations by late binding
+\ in case you prefer this style (no --> in your code)
+\ Example: everything has next and prev for array access, so...
+\ method next
+\ method prev
+\ my-instance next ( does whatever next does to my-instance by late binding )
+
+: method   create does> body> >name lookup-method execute ;
+
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\ ** E A R L Y   B I N D I N G
+\ Early binding operator compiles code to execute a method
+\ given its class at compile time. Classes are immediate,
+\ so they leave their cell-pair on the stack when compiling.
+\ Example: 
+\   : get-wid   metaclass => .wid @ ;
+\ Usage
+\   my-class get-wid  ( -- wid-of-my-class )
+\
+1 ficl-named-wordlist instance-vars
+instance-vars dup >search ficl-set-current
+
+: =>   \ c:( class meta -- ) run: ( -- ??? ) invokes compiled method
+    drop find-method-xt compile, drop
+; immediate compile-only
+
+: my=>   \ c:( -- ) run: ( -- ??? ) late bind compiled method of current-class
+    current-class @ dup postpone =>
+; immediate compile-only
+
+\ Problem: my=[ assumes that each method except the last is am obj: member
+\ which contains its class as the first field of its parameter area. The code
+\ detects non-obect members and assumes the class does not change in this case.
+\ This handles methods like index, prev, and next correctly, but does not deal
+\ correctly with CLASS.
+: my=[   \ same as my=> , but binds a chain of methods
+    current-class @  
+    begin 
+        parse-word 2dup             ( class c-addr u c-addr u )
+        s" ]" compare while         ( class c-addr u )
+        lookup-method               ( class xt )
+        dup compile,                ( class xt )
+        dup ?object if        \ If object member, get new class. Otherwise assume same class
+           nip >body cell+ @        ( new-class )
+        else 
+           drop                     ( class )
+        endif
+    repeat 2drop drop 
+; immediate compile-only
+
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\ ** I N S T A N C E   V A R I A B L E S
+\ Instance variables (IV) are represented by words in the class's
+\ private wordlist. Each IV word contains the offset
+\ of the IV it represents, and runs code to add that offset
+\ to the base address of an instance when executed.
+\ The metaclass SUB method, defined below, leaves the address
+\ of the new class's offset field and its initial size on the
+\ stack for these words to update. When a class definition is
+\ complete, END-CLASS saves the final size in the class's size
+\ field, and restores the search order and compile wordlist to
+\ prior state. Note that these words are hidden in their own
+\ wordlist to prevent accidental use outside a SUB END-CLASS pair.
+\
+: do-instance-var
+    does>   ( instance class addr[offset] -- addr[field] )
+        nip @ +
+;
+
+: addr-units:  ( offset size "name" -- offset' )
+    create over , + 
+    do-instance-var
+;
+
+: chars:    \ ( offset nCells "name" -- offset' ) Create n char member.
+   chars addr-units: ;
+
+: char:     \ ( offset nCells "name" -- offset' ) Create 1 char member.
+   1 chars: ;
+
+: cells:  ( offset nCells "name" -- offset' )
+    cells >r aligned r> addr-units:
+;
+
+: cell:   ( offset nCells "name" -- offset' )
+    1 cells: ;
+
+\ Aggregate an object into the class...
+\ Needs the class of the instance to create
+\ Example: object obj: m_obj
+\
+: do-aggregate
+    objectify
+    does>   ( instance class pfa -- a-instance a-class )
+    2@          ( inst class a-class a-offset )
+    2swap drop  ( a-class a-offset inst )
+    + swap      ( a-inst a-class )
+;
+
+: obj:   { offset class meta -- offset' }  \ "name" 
+    create  offset , class , 
+    class meta --> get-size  offset +
+    do-aggregate
+;
+
+\ Aggregate an array of objects into a class
+\ Usage example:
+\ 3 my-class array: my-array
+\ Makes an instance variable array of 3 instances of my-class
+\ named my-array.
+\
+: array:   ( offset n class meta "name" -- offset' )
+    locals| meta class nobjs offset |
+    create offset , class , 
+    class meta --> get-size  nobjs * offset + 
+    do-aggregate
+;
+
+\ Aggregate a pointer to an object: REF is a member variable
+\ whose class is set at compile time. This is useful for wrapping
+\ data structures in C, where there is only a pointer and the type
+\ it refers to is known. If you want polymorphism, see c_ref
+\ in classes.fr. REF is only useful for pre-initialized structures,
+\ since there's no supported way to set one.
+: ref:   ( offset class meta "name" -- offset' )
+    locals| meta class offset |
+    create offset , class ,
+    offset cell+
+    does>    ( inst class pfa -- ptr-inst ptr-class )
+    2@       ( inst class ptr-class ptr-offset )
+    2swap drop + @ swap
+;
+
+\ #if FICL_WANT_VCALL
+\ vcall extensions contributed by Guy Carver
+: vcall:  ( paramcnt "name" -- )   
+    current-class @ 8 + dup @ dup 1+ rot !  \ Kludge fix to get to .vtCount before it's defined.
+    create , ,                              \ ( paramcnt index -- )
+    does>                                   \ ( inst class pfa -- ptr-inst ptr-class )
+   nip 2@ vcall                             \ ( params offset inst class offset -- )
+;
+
+: vcallr: 0x80000000 or vcall: ;            \ Call with return address desired.
+
+\ #if FICL_WANT_FLOAT
+: vcallf:                                   \ ( paramcnt -<name>- f: r )
+    0x80000000 or 
+    current-class @ 8 + dup @ dup 1+ rot !  \ Kludge fix to get to .vtCount before it's defined.
+    create , ,                              \ ( paramcnt index -- )
+    does>                                   \ ( inst class pfa -- ptr-inst ptr-class )
+    nip 2@ vcall f>                         \ ( params offset inst class offset -- f: r )
+;
+\ #endif /* FLOAT */
+\ #endif /* VCALL */
+
+\ END-CLASS terminates construction of a class by storing
+\  the size of its instance variables in the class's size field
+\ ( -- old-wid addr[size] 0 )
+\
+: end-class  ( old-wid addr[size] size -- )
+    swap ! set-current 
+    search> drop        \ pop struct builder wordlist
+;
+
+\ See resume-class (a metaclass method) below for usage
+\ This is equivalent to end-class for now, but that will change
+\ when we support vtable bindings.
+: suspend-class  ( old-wid addr[size] size -- )   end-class ;
+
+set-current previous
+\ E N D   I N S T A N C E   V A R I A B L E S
+
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\ D O - D O - I N S T A N C E
+\ Makes a class method that contains the code for an 
+\ instance of the class. This word gets compiled into
+\ the wordlist of every class by the SUB method.
+\ PRECONDITION: current-class contains the class address
+\ why use a state variable instead of the stack?
+\ >> Stack state is not well-defined during compilation (there are
+\ >> control structure match codes on the stack, of undefined size
+\ >> easiest way around this is use of this thread-local variable
+\
+: do-do-instance  ( -- )
+    s" : .do-instance does> [ current-class @ ] literal ;" 
+    evaluate 
+;
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\ ** M E T A C L A S S 
+\ Every class is an instance of metaclass. This lets
+\ classes have methods that are different from those
+\ of their instances.
+\ Classes are IMMEDIATE to make early binding simpler
+\ See above...
+\
+:noname
+    wordlist
+    create  
+    immediate
+    0       ,   \ NULL parent class
+    dup     ,   \ wid
+\ #if FICL_WANT_VCALL
+    4 cells ,   \ instance size 
+\ #else
+    3 cells ,   \ instance size 
+\ #endif
+    ficl-set-current
+    does> dup
+;  execute metaclass 
+\ now brand OBJECT's wordlist (so that ORDER can display it by name)
+metaclass drop cell+ @ brand-wordlist
+
+metaclass drop current-class !
+do-do-instance
+
+\
+\ C L A S S   M E T H O D S
+\
+instance-vars >search
+
+create .super  ( class metaclass -- parent-class )
+    0 cells , do-instance-var 
+
+create .wid    ( class metaclass -- wid ) \ return wid of class
+    1 cells , do-instance-var 
+
+\ #if FICL_WANT_VCALL
+create .vtCount   \ Number of VTABLE methods, if any
+    2 cells , do-instance-var 
+
+create  .size  ( class metaclass -- size ) \ return class's payload size 
+    3 cells , do-instance-var 
+\ #else
+create  .size  ( class metaclass -- size ) \ return class's payload size 
+    2 cells , do-instance-var 
+\ #endif
+
+: get-size    metaclass => .size  @ ;
+: get-wid     metaclass => .wid   @ ;
+: get-super   metaclass => .super @ ;
+\ #if FICL_WANT_VCALL
+: get-vtCount metaclass => .vtCount @ ;
+: get-vtAdd   metaclass => .vtCount ;
+\ #endif
+
+\ create an uninitialized instance of a class, leaving
+\ the address of the new instance and its class
+\
+: instance   ( class metaclass "name" -- instance class )
+    locals| meta parent |
+    create
+    here parent --> .do-instance \ ( inst class )
+    parent meta metaclass => get-size 
+    allot                        \ allocate payload space
+;
+
+\ create an uninitialized array
+: array   ( n class metaclass "name" -- n instance class ) 
+    locals| meta parent nobj |
+    create  nobj
+    here parent --> .do-instance \ ( nobj inst class )
+    parent meta metaclass => get-size
+    nobj *  allot           \ allocate payload space
+;
+
+\ create an initialized instance
+\
+: new   \ ( class metaclass "name" -- ) 
+    metaclass => instance --> init
+;
+
+\ create an initialized array of instances
+: new-array   ( n class metaclass "name" -- ) 
+    metaclass => array 
+    --> array-init
+;
+
+\ Create an anonymous initialized instance from the heap
+: alloc   \ ( class metaclass -- instance class )
+    locals| meta class |
+    class meta metaclass => get-size allocate   ( -- addr fail-flag )
+    abort" allocate failed "                    ( -- addr )
+    class 2dup --> init
+;
+
+\ Create an anonymous array of initialized instances from the heap
+: alloc-array   \ ( n class metaclass -- instance class )
+    locals| meta class nobj |
+    class meta metaclass => get-size 
+    nobj * allocate                 ( -- addr fail-flag )
+    abort" allocate failed "        ( -- addr )
+    nobj over class --> array-init
+    class 
+;
+
+\ Create an anonymous initialized instance from the dictionary
+: allot   { 2:this -- 2:instance }
+    here   ( instance-address )
+    this my=> get-size  allot
+    this drop 2dup --> init
+;
+
+\ Create an anonymous array of initialized instances from the dictionary
+: allot-array   { nobj 2:this -- 2:instance }
+    here   ( instance-address )
+    this my=> get-size  nobj * allot
+    this drop 2dup     ( 2instance 2instance )
+    nobj -rot --> array-init
+;
+
+\ create a proxy object with initialized payload address given
+: ref   ( instance-addr class metaclass "name" -- )
+    drop create , ,
+    does> 2@ 
+;
+
+\ suspend-class and resume-class help to build mutually referent classes.
+\ Example: 
+\ object subclass c-akbar
+\ suspend-class   ( put akbar on hold while we define jeff )
+\ object subclass c-jeff
+\     c-akbar ref: .akbar
+\     ( and whatever else comprises this class )
+\ end-class    ( done with c-jeff )
+\ c-akbar --> resume-class
+\     c-jeff ref: .jeff
+\     ( and whatever else goes in c-akbar )
+\ end-class    ( done with c-akbar )
+\
+: resume-class   { 2:this -- old-wid addr[size] size }
+    this --> .wid @ ficl-set-current  ( old-wid )
+    this --> .size dup @   ( old-wid addr[size] size )
+    instance-vars >search
+;
+
+\ create a subclass
+\ This method leaves the stack and search order ready for instance variable
+\ building. Pushes the instance-vars wordlist onto the search order,
+\ and sets the compilation wordlist to be the private wordlist of the
+\ new class. The class's wordlist is deliberately NOT in the search order -
+\ to prevent methods from getting used with wrong data.
+\ Postcondition: leaves the address of the new class in current-class
+: sub   ( class metaclass "name" -- old-wid addr[size] size )
+    wordlist
+    locals| wid meta parent |
+    parent meta metaclass => get-wid
+    wid wid-set-super       \ set superclass
+    create  immediate       \ get the  subclass name
+    wid brand-wordlist      \ label the subclass wordlist
+    here current-class !    \ prep for do-do-instance
+    parent ,                \ save parent class
+    wid    ,                \ save wid
+\ #if FICL_WANT_VCALL
+    parent meta --> get-vtCount , 
+\ #endif
+    here parent meta --> get-size dup ,  ( addr[size] size )
+    metaclass => .do-instance
+    wid ficl-set-current -rot
+    do-do-instance
+    instance-vars >search \ push struct builder wordlist
+;
+
+\ OFFSET-OF returns the offset of an instance variable
+\ from the instance base address. If the next token is not
+\ the name of in instance variable method, you get garbage
+\ results -- there is no way at present to check for this error.
+: offset-of   ( class metaclass "name" -- offset )
+    drop find-method-xt nip >body @ ;
+
+\ ID returns the string name cell-pair of its class
+: id   ( class metaclass -- c-addr u )
+    drop body> >name  ;
+
+\ list methods of the class
+: methods \ ( class meta -- ) 
+    locals| meta class |
+    begin
+        class body> >name type ."  methods:" cr 
+        class meta --> get-wid >search words cr previous 
+        class meta metaclass => get-super
+        dup to class
+    0= until  cr
+;
+
+\ list class's ancestors
+: pedigree  ( class meta -- )
+    locals| meta class |
+    begin
+        class body> >name type space
+        class meta metaclass => get-super
+        dup to class
+    0= until  cr
+;
+
+\ decompile an instance method
+: see  ( class meta -- )   
+    metaclass => get-wid >search see previous ;
+
+\ debug a method of metaclass
+\ Eg: my-class --> debug my-method
+: debug  ( class meta -- )
+	find-method-xt debug-xt ;
+
+previous set-current    
+\ E N D   M E T A C L A S S
+
+\ ** META is a nickname for the address of METACLASS...
+metaclass drop  
+constant meta
+
+\ ** SUBCLASS is a nickname for a class's SUB method...
+\ Subclass compilation ends when you invoke end-class
+\ This method is late bound for safety...
+: subclass   --> sub ;
+
+\ #if FICL_WANT_VCALL
+\ VTABLE Support extensions (Guy Carver)
+\ object --> sub mine hasvtable
+: hasvtable 4 + ; immediate
+\ #endif
+
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\ ** O B J E C T
+\ Root of all classes
+:noname
+    wordlist
+    create  immediate
+    0       ,   \ NULL parent class
+    dup     ,   \ wid
+    0       ,   \ instance size 
+    ficl-set-current
+    does> meta
+;  execute object
+\ now brand OBJECT's wordlist (so that ORDER can display it by name)
+object drop cell+ @ brand-wordlist
+
+object drop current-class ! 
+do-do-instance
+instance-vars >search
+
+\ O B J E C T   M E T H O D S
+\ Convert instance cell-pair to class cell-pair
+\ Useful for binding class methods from an instance
+: class  ( instance class -- class metaclass )
+    nip meta ;
+
+\ default INIT method zero fills an instance
+: init   ( instance class -- )
+    meta 
+    metaclass => get-size   ( inst size )
+    erase ;
+
+\ Apply INIT to an array of NOBJ objects...
+\
+: array-init   ( nobj inst class -- )
+    0 dup locals| &init &next class inst |
+    \
+    \ bind methods outside the loop to save time
+    \
+    class s" init" lookup-method to &init
+          s" next" lookup-method to &next
+    drop
+    0 ?do 
+        inst class 2dup 
+        &init execute
+        &next execute  drop to inst
+    loop
+;
+
+\ free storage allocated to a heap instance by alloc or alloc-array
+\ NOTE: not protected against errors like FREEing something that's
+\ really in the dictionary.
+: free   \ ( instance class -- )
+    drop free 
+    abort" free failed "
+;
+
+\ Instance aliases for common class methods
+\ Upcast to parent class
+: super     ( instance class -- instance parent-class )
+    meta  metaclass => get-super ;
+
+: pedigree  ( instance class -- )
+    object => class 
+    metaclass => pedigree ;
+
+: size      ( instance class -- sizeof-instance )
+    object => class 
+    metaclass => get-size ;
+
+: methods   ( instance class -- )
+    object => class 
+    metaclass => methods ;
+
+\ Array indexing methods...
+\ Usage examples:
+\ 10 object-array --> index
+\ obj --> next
+\
+: index   ( n instance class -- instance[n] class )
+    locals| class inst |
+    inst class 
+    object => class
+    metaclass => get-size  *   ( n*size )
+    inst +  class ;
+
+: next   ( instance[n] class -- instance[n+1] class )
+    locals| class inst |
+    inst class 
+    object => class
+    metaclass => get-size 
+    inst +
+    class ;
+
+: prev   ( instance[n] class -- instance[n-1] class )
+    locals| class inst |
+    inst class 
+    object => class
+    metaclass => get-size
+    inst swap -
+    class ;
+
+: debug   ( 2this --  ?? )
+    find-method-xt debug-xt ;
+
+previous set-current
+\ E N D   O B J E C T
+
+\ reset to default search order
+only definitions
+
+\ redefine oop in default search order to put OOP words in the search order and make them
+\ the compiling wordlist...
+
+: oo   only also oop definitions ;
+
+\ #endif

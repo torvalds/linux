@@ -1,0 +1,6 @@
+# $FreeBSD$ 
+# $NetBSD: CP.src,v 1.1 2003/06/27 08:40:51 tshiozak Exp $
+
+NAME		"CPx"
+ENCODING	"NONE"
+DEFCSID		"CPx"	0

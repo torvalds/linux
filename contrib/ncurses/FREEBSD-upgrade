@@ -1,0 +1,51 @@
+$FreeBSD$
+
+ncurses
+
+	The release tarball can be found at GNU FTP sites.
+	The beta version can be found at ftp://invisible-island.net/ncurses/
+	or ftp://dickey.his.com/ncurses/
+
+For the import files and directories were pruned by:
+
+	tar -X FREEBSD-Xlist -zxf ncurses-5.7.tar.gz
+
+check if there are any new bits that we don't want.
+
+The instructions for importing new release and merging to HEAD can be found
+at FreeBSD wiki:
+
+	http://wiki.freebsd.org/SubversionPrimer/VendorImports
+
+The version tag can be obtained from contrib/ncurses/dist.mk.
+
+To make local changes to ncurses, simply patch and commit to the trunk
+branch (aka HEAD).  Never make local changes on the vendor branch.
+
+All local changes should be submitted to Thomas Dickey for inclusion in
+the next vendor release. The author is very willing to help us.
+
+After importing, you have to update files in lib/ncurses. To configure
+ncurses, go to /usr/ports/devel/ncurses and
+
+	make WITHOUT_TERMINFO=1 configure
+
+Update ncurses_cfg.h and necessary Makefile glues from ${WRKSRC}/build.nowidec.
+Directory for wide character support is ${WRKSRC}/build.widec
+You may have to update ncurses-specific glue in termcap.c (check if 
+ncurses/tinfo/read_termcap.c has been changed since last import).
+
+Current local changes:
+
+ncurses/tinfo/comp_scan.c
+  r50620: native termcap tweaking      (cvs r1.2)
+
+ncurses/tinfo/lib_termcap.c
+  r50620: native termcap tweaking      (cvs r1.2)
+  r50850: remove GCC_UNUSED for r50620 (cvs r1.4)
+
+ncurses/tinfo/read_termcap.c
+  This is not used. We have our own src/lib/ncurses/termcap.c
+
+rafan@FreeBSD.org
+15-Nov-2008

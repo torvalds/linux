@@ -1,0 +1,23 @@
+#
+# $FreeBSD$
+#
+0x00000000:no:invalid class
+0x00000001:fr:file read
+0x00000002:fw:file write
+0x00000004:fa:file attribute access
+0x00000008:fm:file attribute modify
+0x00000010:fc:file create
+0x00000020:fd:file delete
+0x00000040:cl:file close
+0x00000080:pc:process
+0x00000100:nt:network
+0x00000200:ip:ipc
+0x00000400:na:non attributable
+0x00000800:ad:administrative
+0x00001000:lo:login_logout
+0x00002000:aa:authentication and authorization
+0x00004000:ap:application
+0x20000000:io:ioctl
+0x40000000:ex:exec
+0x80000000:ot:miscellaneous
+0xffffffff:all:all flags set

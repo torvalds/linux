@@ -1,0 +1,1392 @@
+if [ ! "$_MEDIA_WLAN_SUBR" ]; then _MEDIA_WLAN_SUBR=1
+#
+# Copyright (c) 2013-2016 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." media/wlan.subr
+f_include $BSDCFG_SHARE/device.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+############################################################ GLOBALS
+
+NWIRELESS_CONFIGS=0
+NWSCAN_RESULTS=0
+
+#
+# Settings used while interacting with various dialog(1) menus
+#
+: ${DIALOG_MENU_WLAN_SCAN_DURATION:=5}
+: ${DIALOG_MENU_WLAN_SHOW_ALL=}
+: ${DIALOG_MENU_WLAN_SHOW_CONFIGURED=1}
+: ${DIALOG_MENU_WLAN_SHOW_SCAN_RESULTS=1}
+
+# 
+# Structure to contain the wpa_supplicant.conf(5) default overrides
+#
+f_struct_define WPA_DEFAULTS \
+	ap_scan			\
+	ctrl_interface		\
+	ctrl_interface_group	\
+	eapol_version		\
+	fast_reauth
+
+#
+# Structure of wpa_supplicant.conf(5) network={ ... } entry
+#
+f_struct_define WPA_NETWORK \
+	anonymous_identity	\
+	auth_alg		\
+	bssid			\
+	ca_cert			\
+	ca_cert2		\
+	client_cert		\
+	client_cert2		\
+	dh_file			\
+	dh_file2		\
+	eap			\
+	eap_workaround		\
+	eapol_flags		\
+	eappsk			\
+	engine			\
+	engine_id		\
+	frequency		\
+	group			\
+	identity		\
+	key_id			\
+	key_mgmt		\
+	mixed_cell		\
+	mode			\
+	nai			\
+	pac_file		\
+	pairwise		\
+	password		\
+	pcsc			\
+	phase1			\
+	phase2			\
+	pin			\
+	priority		\
+	private_key		\
+	private_key2		\
+	private_key2_passwd	\
+	private_key_passwd	\
+	proto			\
+	psk			\
+	scan_ssid		\
+	server_nai		\
+	ssid			\
+	subject_match		\
+	subject_match2		\
+	wep_key0		\
+	wep_key1		\
+	wep_key2		\
+	wep_key3		\
+	wpa_ptk_rekey		\
+	wep_tx_keyidx
+
+#
+# The following properties are ``Lists'' and as such should not be quoted.
+# Everything else should be quoted.
+#
+WPA_NETWORK_LIST_PROPERTIES="
+	auth_algo
+	eap
+	group
+	key_mgmt
+	pairwise
+	proto
+" # END-QUOTE
+
+#
+# Structure of wpa_cli(8) `scan_results' entry
+#
+f_struct_define WPA_SCAN_RESULT \
+	bssid	\
+	flags	\
+	freq	\
+	siglev	\
+	ssid
+
+#
+# Structure of a menu item in the wireless editor
+#
+f_struct_define WLAN_MENU_ITEM \
+	letter		\
+	ssid		\
+	nconfigs	\
+	nfound		\
+	help
+
+############################################################ FUNCTIONS
+
+# f_wpa_supplicant_init $file
+#
+# Initialize $file with basic contents of new wpa_supplicant.conf(5).
+#
+f_wpa_supplicant_init()
+{
+	local funcname=f_wpa_supplicant_init
+	local conf_file="$1" tmpfile
+
+	# Create a temporary file
+	f_eval_catch -k tmpfile $funcname mktemp 'mktemp -t "%s"' "$pgm" ||
+		return $FAILURE
+
+	# Make it unreadable by anyone but ourselves
+	f_eval_catch $funcname chmod \
+		'chmod 0600 "%s"' "$tmpfile" || return $FAILURE
+
+	# Make it owned by root/wheel
+	f_eval_catch $funcname chown \
+		'chown 0:0 "%s"' "$tmpfile" || return $FAILURE
+
+	# Populate it
+	cat <<-EOF >> "$tmpfile"
+	ctrl_interface=/var/run/wpa_supplicant
+	eapol_version=2
+	ap_scan=1
+	fast_reauth=1
+	EOF
+	echo >> "$tmpfile"
+
+	# Move it into place
+	f_eval_catch $funcname mv 'mv "%s" "%s"' "$tmpfile" "$conf_file"
+}
+
+# f_wpa_supplicant_parse $file [struct_prefix [count_var]]
+#
+# Parse wpa_supplicant.conf(5) $file. Default overrides are stored in a struct
+# (see struct.subr for additional details) named `{struct_prefix}defaults'. See
+# WPA_DEFAULTS struct definition in the GLOBALS section above.
+#
+# In addition, for each one of the wireless networks we parse from $file,
+# create a struct named `struct_prefixN' where `N' is a number starting from 1
+# and ending in $count_var (zero means no networks). See WPA_NETWORK struct
+# definition in the GLOBALS section above.
+#
+# If a `blob-base64-*={ ... }' entry appears, a struct named
+# `{struct_prefix}blob_base64_*' is created and the `data' property holds the
+# base64 encoded binary data without whitespace.
+#
+# Custom `*={ ... }' definitions are also supported, but should be unique
+# (unlike the `network' definition). A struct named `{struct_prefix}*' is
+# created if at least one property is defined in the block.
+#
+f_wpa_supplicant_parse()
+{
+	local file="$1" struct_prefix="$2" count_var="$3"
+
+	[ "$count_var" ] && setvar "$count_var" 0
+
+	[ "$file" ] || file=$( f_sysrc_get wpa_supplicant_conf_file )
+	if [ ! -e "$file" ]; then
+		f_dprintf "%s: No such file or directory" "$file"
+		return $FAILURE
+	fi
+
+	local list_properties
+	f_replaceall "$WPA_NETWORK_LIST_PROPERTIES" "$NL" "" list_properties
+	eval "$( awk \
+		-v count_var="$count_var"         \
+		-v struct_prefix="$struct_prefix" \
+		-v list_properties="$list_properties" '
+	BEGIN {
+		if (!count_var && !struct_prefix) exit
+		blob = count = custom_struct = network = 0
+		split(list_properties, lists, FS)
+	}
+	function set_value(struct, prop, value)
+	{
+		quoted = substr(value, 0, 1) == "\""
+		for (l in lists) if (list = prop == lists[l]) break
+		# Remove data after whitespace if unquoted and not a list
+		if (!quoted && !list) sub("[[:space:]].*", "", value)
+		# Otherwise if quoted and not a list, remove the quotes
+		# NB: wep_keyN needs to retain quoting if/when present
+		else if (quoted && !list && prop !~ /^wep_key[[:digit:]]+/) {
+			sub("^\"", "", value)
+			sub("\".*", "", value)
+		}
+		gsub(/'\''/, "'\''\\'\'\''", value) # Sanitize the value
+		if (!created[struct]) {
+			print "debug= f_struct_free", struct
+			print "debug= f_struct_new WPA_NETWORK", struct
+			created[struct] = 1
+		}
+		printf "debug= %s set %s '\'%s\''\n", struct, prop, value
+	}
+	{
+		if ($1 ~ /^network={/) {
+			empty = 1 # We do not increment count unless !empty
+			network = 1
+			next
+		} else if (match($1, "^blob-base64-[[:alnum:]_./-]+={")) {
+			blob = 1
+			blob_data = ""
+			struct = struct_prefix "blob_bas64_"
+			struct = struct substr($1, 13, RLENGTH - 14)
+			next
+		} else if (match($1, "^[[:alnum:]_./-]+={")) {
+			empty = 1
+			custom_struct = 1
+			struct = struct_prefix substr($1, 0, RLENGTH - 2)
+			gsub(/[^[:alnum:]_]/, "_", struct)
+			next
+		} else if ($1 ~ /^}/) {
+			if (blob) {
+				gsub("[[:space:]]", "", blob_data)
+				set_value(struct, "data", blob_data)
+			}
+			blob = custom_struct = network = 0
+			next
+		} else if (!match($0, /^[[:space:]]*[[:alnum:]_]+=/))
+			next
+
+		if (blob) {
+			blob_data = blob_data $0
+			next
+		} else if (network) {
+			if (empty) { count++; empty = 0 }
+			struct = struct_prefix count
+		} else if (!custom_struct)
+			struct = struct_prefix "defaults"
+
+		if (!struct_prefix) next
+
+		prop = substr($0, 0, RLENGTH - 1)
+		sub(/^[[:space:]]*/, "", prop)
+		value = substr($0, RSTART + RLENGTH)
+
+		set_value(struct, prop, value)
+	}
+	END { if (count_var) print count_var "=" count }' "$file" )"
+}
+
+# f_wpa_scan_results_parse [struct_prefix [count_var]]
+#
+# Parse the results of wpa_cli(8) `scan_results' into a series of structs (see
+# struct.subr for additional details) named `struct_prefixN' where `N' is a
+# number starting from 1 and ending in $count_var (zero means no results). See
+# WPA_SCAN_RESULT struct definition in the GLOBALS section above.
+#
+f_wpa_scan_results_parse()
+{
+	local struct_prefix="$1" count_var="$2"
+
+	[ "$count_var" ] && setvar "$count_var" 0
+
+	eval "$( wpa_cli scan_results 2> /dev/null | awk \
+		-v count_var="$count_var" \
+		-v struct_prefix="$struct_prefix" '
+	BEGIN {
+		if (!count_var && !struct_prefix) exit
+		count = 0
+		seg = "[[:xdigit:]][[:xdigit:]]"
+		bssid = seg":"seg":"seg":"seg":"seg":"seg
+		freq = siglev = flags = "[^[:space:]]+"
+		S = "[[:space:]]+"
+		line = bssid S freq S siglev S flags
+		line = "^[[:space:]]*" line "[[:space:]]*"
+	}
+	function set_value(struct, prop, value)
+	{
+		gsub(/'\''/, "'\''\\'\'\''", value) # Sanitize the value
+		if (!created[struct]) {
+			print "debug= f_struct_free", struct
+			print "debug= f_struct_new WPA_SCAN_RESULT", struct
+			created[struct] = 1
+		}
+		printf "debug= %s set %s '\'%s\''\n", struct, prop, value
+	}
+	{
+		if (!match($0, line)) next
+		ssid = substr($0, RLENGTH + 1)
+
+		count++
+		if (!struct_prefix) next
+
+		struct = struct_prefix count
+		set_value(struct, "ssid", ssid)
+		set_value(struct, "bssid",  $1)
+		set_value(struct, "freq",   $2)
+		set_value(struct, "siglev", $3)
+		set_value(struct, "flags",  $4)
+	}
+	END { if (count_var) print count_var "=" count }' )"
+}
+
+# f_wpa_scan_match_network WPA_SCAN_RESULT WPA_NETWORK
+#
+# Compares a WPA_SCAN_RESULT struct to a WPA_NETWORK struct. If they appear to
+# be a match returns success, otherwise failure.
+#
+f_wpa_scan_match_network()
+{
+	local scan_struct="$1" wireless_struct="$2"
+	local cp debug=
+
+	f_struct "$scan_struct" || return $FAILURE
+	f_struct "$wireless_struct" || return $FAILURE
+
+	local scan_ssid scan_bssid
+	$scan_struct get ssid scan_ssid
+	$scan_struct get bssid scan_bssid
+	local wireless_ssid wireless_bssid
+	$wireless_struct get ssid wireless_ssid
+	$wireless_struct get bssid wireless_bssid
+
+	local id_matched=
+	if [ "$wireless_ssid" -a "$wireless_bssid" ]; then
+		# Must match both SSID and BSSID
+		[ "$scan_ssid" = "$wireless_ssid" -a \
+		  "$scan_bssid" = "$wireless_bssid" ] && id_matched=1
+	elif [ "$wireless_ssid" ]; then
+		# Must match SSID only
+		[ "$scan_ssid" = "$wireless_ssid" ] && id_matched=1
+	elif [ "$wireless_bssid" ]; then
+		# Must match BSSID only
+		[ "$scan_bssid" = "$wireless_bssid" ] && id_matched=1
+	fi
+	[ "$id_matched" ] || return $FAILURE
+
+
+	#
+	# Get the scanned flags for the next few comparisons
+	#
+	local flags
+	$scan_struct get flags flags
+
+	#
+	# Compare configured key management against scanned network
+	#
+	if $wireless_struct get key_mgmt cp && [ "$cp" -a "$cp" != "NONE" ]
+	then
+		local mgmt mgmt_matched=
+		for mgmt in $cp; do
+			local mgmt2="$mgmt"
+			[ "$mgmt" != "${mgmt#WPA-}" ] &&
+				mgmt2="WPA2${mgmt#WPA}"
+			case "$flags" in
+			"$mgmt"|"$mgmt"-*|*-"$mgmt"|*-"$mgmt"-*)
+				mgmt_matched=1 break ;;
+			"$mgmt2"|"$mgmt2"-*|*-"$mgmt2"|*-"$mgmt2"-*)
+				mgmt_matched=1 break ;;
+			esac
+		done
+		[ "$mgmt_matched" ] || return $FAILURE
+	fi
+
+	local enc type flag
+
+	#
+	# Compare configured encryption against scanned network
+	#
+	for enc in psk:PSK eap:EAP \
+		wep_key0:WEP wep_key1:WEP wep_key2:WEP wep_key3:WEP
+	do
+		type=${enc%%:*}
+		flag=${enc#*:}
+		{ debug= $wireless_struct get $type cp && [ "$cp" ]; } ||
+			continue
+		# Configured network requires encryption
+		case "$flags" in "[$flag]"|*"-$flag-"*)
+			break # Success; stop after first match
+		esac
+		return $FAILURE
+	done
+	cp="" # sensitive info
+
+	#
+	# Compare scanned network encryption against configuration
+	# NB: Scanned network flags indicates _one_ of PSK EAP or WEP
+	# NB: Otherwise, no encryption (so encryption won't match)
+	#
+	local enc_wanted=
+	for enc in -PSK-:psk -EAP-:eap; do
+		flag=${enc%%:*}
+		type=${enc#*:}
+		case "$flags" in *"$flag"*)
+			enc_wanted=1
+			{ debug= $wireless_struct get $type cp &&
+				[ "$cp" ]; } || return $FAILURE
+			break # success
+		esac
+	done
+	case "$flags" in *"[WEP]"*)
+		enc_wanted=1
+		local wep_found=
+		for type in wep_key0 wep_key1 wep_key2 wep_key3; do
+			debug= $wireless_struct get $type cp && [ "$cp" ] &&
+				wep_found=1 break
+		done
+		[ "$wep_found" ] || return $FAILURE
+	esac
+	if [ ! "$enc_wanted" ]; then
+		# No match if the network specifies encryption
+		for type in psk eap wep_key0 wep_key1 wep_key2 wep_key3; do
+			debug= $wireless_struct get $type cp && [ "$cp" ] &&
+				return $FAILURE
+		done
+	fi
+	cp="" # sensitive info
+
+	return $SUCCESS
+}
+
+# f_wpa_scan_find_matches scans_prefix $scans_count \
+#                         wireless_prefix $wireless_count
+#
+# For each struct from `{scans_prefix}1' up to `{scans_prefix}$scans_count'
+# (see struct.subr for additional details) compare the wireless network info
+# (defined as struct WPA_SCAN_RESULT) to that of each configured wireless 
+# stored in `{wireless_prefix}1' (defined as struct WPA_NETWORK) up to
+# `{wireless_prefix}$wireless_count'.
+#
+# If a scanned network is deemed to be a match to a configured wireless
+# network, a new `match' property is set on the WPA_NETWORK struct with a value
+# of `{scans_prefix}N' (where N represents the scanned network that matched).
+# At the same time, a new `matched' property is set on the WPA_SCAN_RESULT
+# struct with a value of 1, indicating that this network has been matched to a
+# stored [known] configuration and that it should not be displayed in menus.
+#
+# NB: If a matching entry is not correct, the user can optionally `Forget' the
+# network and that will cause the WPA_SCAN_RESULT to no longer match anything,
+# causing it to appear in the menus again.
+#
+# Return status should be ignored.
+#
+f_wpa_scan_find_matches()
+{
+	local scans_prefix="$1" scans_count="$2"
+	local wireless_prefix="$3" wireless_count="$4"
+	local matches
+
+	[ "$scans_count" -a "$wireless_count" ] || return $SUCCESS
+	f_isinteger "$scans_count" || return $FAILURE
+	f_isinteger "$wireless_count" || return $FAILURE
+
+	#
+	# Go through and eradicate any flags we set in a prior run, as things
+	# might have changed on us (either from the config side or scan side)
+	#
+	local w=1
+	while [ $w -le $wireless_count ]; do
+		f_struct "$wireless_prefix$w" set matches ""
+		w=$(( $w + 1 ))
+	done
+
+	#
+	# Find matches and set match data on structs
+	#
+	local s=1
+	while [ $s -le $scans_count ]; do
+		f_struct "$scans_prefix$s" set matched ""
+		w=1
+		while [ $w -le $wireless_count ]; do
+			if f_wpa_scan_match_network \
+				"$scans_prefix$s" "$wireless_prefix$w"
+			then
+				f_struct "$scans_prefix$s" set matched 1
+				debug= f_struct "$wireless_prefix$w" \
+				         get matches matches
+				matches="$matches${matches:+ }$scans_prefix$s"
+				f_struct "$wireless_prefix$w" \
+				         set matches "$matches"
+				break # to next scan result
+			fi
+			w=$(( $w + 1 ))
+		done
+		s=$(( $s + 1 ))
+	done
+}
+
+# f_dialog_menu_wlandev_edit $wlandev [$defaultitem]
+#
+# Display a list of wireless network devices (wlan*) associated with
+# $wlandev (e.g., `iwn0'). Allow the user to create and destroy wlan interfaces
+# while selecting ones to be cloned at startup (by setting `wlans_$wlandev').
+#
+f_dialog_menu_wlandev_edit()
+{
+	local funcname=f_dialog_menu_wlandev_edit
+	local wlandev="$1" defaultitem="$2"
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt # Calculated below
+	local hline="$hline_arrows_tab_enter"
+
+	[ "$wlandev" ] || return $FAILURE
+
+	f_sprintf prompt "$msg_select_wlan_interfaces_for" "wlandev"
+
+	#
+	# Initially mark wlan devices with a %parent of $wlandev
+	#
+	local dev devs if list_to_save=
+	f_device_find "" $DEVICE_TYPE_NETWORK devs
+	for dev in $devs; do
+		f_struct "$dev" get name if || continue
+		case "$if" in wlan[0-9]*)
+			parent=$( sysctl -n net.wlan.${if#wlan}.%parent \
+				2> /dev/null )
+			if [ "$parent" = "$if" ]; then
+				local _wlanmark_$if="X"
+				list_to_save="$list_to_save $if"
+			fi
+		esac
+	done
+	list_to_save="${list_to_save# }"
+
+	#
+	# Operate in a loop so we can create/destroy interfaces from here
+	#
+	while :; do
+		#
+		# Refresh list of wlan interfaces
+		#
+		local wlanlist=
+		f_device_rescan_network
+		f_device_find "" $DEVICE_TYPE_NETWORK devs
+		for dev in $devs; do
+			f_struct "$dev" get name if || continue
+			case "$if" in wlan[0-9]*)
+				wlanlist="$wlanlist $if"
+			esac
+		done
+
+		#
+		# Build menu list of wlan devices
+		#
+		local menu_list="
+			'> $msg_save_exit'  '$msg_return_to_previous_menu'
+			'> $msg_create_new' 'wlan'
+			'> $msg_destroy'    '...'
+		" # END-QUOTE
+		local parent X
+		for if in $wlanlist; do
+			f_getvar _wlanmark_$if-" " X
+			menu_list="$menu_list '[$X] $if' '%parent: $parent'"
+			[ "$defaultitem" = "$if" ] && defaultitem="[$X] $if"
+		done 
+
+		#
+		# Ask user to make a choice
+		#
+		local height width rows
+		eval f_dialog_menu_size height width rows \
+			\"\$title\" \"\$btitle\" \"\$prompt\" \"\$hline\" \
+			$menu_list
+		local menu_choice
+		menu_choice=$( eval $DIALOG \
+			--title \"\$title\"              \
+			--backtitle \"\$btitle\"         \
+			--hline \"\$hline\"              \
+			--ok-label \"\$msg_select\"      \
+			--cancel-label \"\$msg_cancel\"  \
+			--default-item \"\$defaultitem\" \
+			--menu \"\$prompt\"              \
+			$height $width $rows             \
+			$menu_list                       \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		) || return $FAILURE
+		f_dialog_data_sanitize menu_choice
+
+		case "$menu_choice" in
+		"> $msg_save_exit") # Save list to rc.conf(5) `wlans_$wlandev'
+			f_eval_catch $funcname f_sysrc_set \
+				'f_sysrc_set "wlans_%s" "%s"' \
+				"$wlandev" "$list_to_save" || continue
+			break # to success
+			;;
+		"> $msg_create_new") # Create new wlan interface for wlandev
+			local wlan
+			f_eval_catch -k wlan $funcname ifconfig \
+				'ifconfig wlan create wlandev "%s"' \
+				"$wlandev" || continue
+			local _wlanmark_$wlan="X"
+			list_to_save="$list_to_save${list_to_save:+ }$wlan"
+			;;
+		"> $msg_destroy") # Display a menu to pick one item to destroy
+			[ "$wlanlist" ] || continue # Nothing to destroy
+
+			menu_list=
+			for if in $wlanlist; do
+				menu_list="$menu_list '$if' ''"
+			done
+			local msg="$msg_pick_an_interface_to_destroy"
+			eval f_dialog_menu_size height width rows \
+			    \"\$title\" \"$btitle\" \"\$msg\" \"\" $menu_list
+			menu_choice=$( eval $DIALOG \
+				--title \"\$title\"             \
+				--backtitle \"\$btitle\"        \
+				--ok-label \"\$msg_destroy\"    \
+				--cancel-label \"\$msg_cancel\" \
+				--menu \"\$msg\"                \
+				$height $width $rows            \
+				$menu_list                      \
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			) || continue
+			f_dialog_data_sanitize menu_choice
+			f_eval_catch $funcname ifconfig \
+				'ifconfig "%s" destroy' "$menu_choice"
+			;;
+		"[ ] wlan"[0-9]*) # Unmarked; Mark
+			if="${menu_choice#??? }"
+			local _wlanmark_$if="X"
+			list_to_save="$list_to_save${list_to_save:+ }$if"
+			;;
+		"[X] wlan"[0-9]*) # Marked; Unmark
+			menu_choice="${menu_choice#??? }"
+			local _wlanmark_$menu_choice=" "
+			local new_list_to_save=
+			for if in $list_to_save; do
+				[ "$if" = "$menu_choice" ] && continue
+				new_list_to_save="$new_list_to_save $if"
+			done
+			list_to_save="${new_list_to_save# }"
+			;;
+		esac
+	done
+
+	return $SUCCESS
+}
+
+# f_dialog_scan_wireless
+#
+# Initiate a scan for wireless networks. If wpa_supplicant(8) is not running
+# but a wlan interface has been created, start an instance of wpa_supplicant(8)
+# with the first wlan(4) interface we find. After initiating the scan, displays
+# a message for 5 seconds (with option to dismiss). Returns failure if an error
+# occurs, otherwise success.
+#
+f_dialog_scan_wireless()
+{
+	local funcname=f_dialog_scan_wireless
+
+	#
+	# Try to communicate with a running wpa_supplicant(8)
+	#
+	if ! f_eval_catch -d $funcname wpa_cli 'wpa_cli ping'; then
+
+		# If there is indeed one running, bail!
+		if ps axo ucomm= | grep -qw wpa_supplicant; then
+			f_show_msg "$msg_failed_to_reach_wpa_supplicant" \
+			           "$msg_wpa_cli_ping_failed"
+			return $FAILURE
+		fi
+
+		# Try and find a wlan device so we can start wpa_supplicant
+		local dev devs if wlan=
+		f_device_rescan_network
+		f_device_find "" $DEVICE_TYPE_NETWORK devs
+		for dev in $devs; do
+			f_struct "$dev" get name if || continue
+			case "$if" in wlan[0-9]*)
+				wlan=$if
+				break
+			esac
+		done
+		if [ ! "$wlan" ]; then
+			# We can't start wpa_supplicant without wlan interface
+			# Tell the user they have to create one by navigating
+			# to a Wireless device to create a wlan interface. But
+			# let's go one step further and find an interface that
+			# we can provide in the prompt text.
+			local wlandev=
+			for if in $devs; do
+				case "$if" in wlan[0-9]*) next; esac
+				if f_device_is_wireless $if; then
+					wlandev=$if
+					break
+				fi
+			done
+			if [ "$wlandev" ]; then
+				f_show_msg "$msg_cant_start_wpa_supplicant" \
+				           "$wlandev"
+			else
+				# Warn user, appears no wireless available
+				f_show_msg "$msg_warning_no_wireless_devices"
+			fi
+			return $FAILURE
+		fi
+
+		# NB: Before we can proceed to fire up wpa_supplicant(8), let's
+		# make sure there is a bare-bones wpa_supplicant.conf(5) for it
+		local conf_file
+		conf_file=$( f_sysrc_get wpa_supplicant_conf_file )
+		if [ ! -e "$conf_file" ]; then
+			f_wpa_supplicant_init "$conf_file" || return $FAILURE
+			f_eval_catch -d $funcname wpa_cli 'wpa_cli reconfigure'
+		fi
+
+		# Try and start wpa_supplicant(8)
+		f_eval_catch $funcname wpa_supplicant \
+		        '/etc/rc.d/wpa_supplicant start "%s"' "$wlan" ||
+			return $FAILURE
+
+		# Try to reach this new wpa_supplicant(8)
+		if ! f_eval_catch -d $funcname wpa_cli 'wpa_cli ping'; then
+			f_show_msg "$msg_failed_to_reach_wpa_supplicant" \
+			           "$msg_wpa_cli_ping_failed"
+			return $FAILURE
+		fi
+
+	fi # ! f_quietly wpa_cli ping
+
+	# If we reach hear, then it should be OK to scan the airwaves
+	f_eval_catch -d $funcname wpa_cli 'wpa_cli scan' || return $FAILURE
+
+	# Return immediately if a duration is: null or not a number >= 1
+	local duration="$DIALOG_MENU_WLAN_SCAN_DURATION"
+	f_isinteger "$duration" || return $SUCCESS
+	[ $duration -gt 0 ] || return $SUCCESS
+
+	# Display a message that times-out if not dismissed manually
+	local prompt
+	f_sprintf prompt "$msg_scanning_wireless_pausing" "$duration"
+	f_dialog_pause "$prompt" "$duration"
+}
+
+# f_dialog_wireless_edit $ssid
+#
+# Display a menu to allow the user to either create a new entry for the
+# wpa_supplicants.conf(5) file, or to edit values for an existing entry.
+#
+# If more than one wireless network is found to match $ssid, a sub-menu is
+# presented, allowing the user to select the desired network.
+#
+f_dialog_wireless_edit()
+{
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt1="$msg_select_the_configuration_you_would_like"
+	local prompt2 # Calculated below
+	local hline="$hline_alnum_arrows_punc_tab_enter"
+	local ssid="$1" bssid="$2"
+
+	f_sprintf prompt2 "$msg_wireless_network_configuration_for" "$ssid"
+
+	#
+	# Find one or more configurations that match the SSID selection
+	#
+	local height1 width1 rows1 menu_list1=
+	local n=0 nmatches=0 tag wssid wbssid help matches=
+	while [ $n -lt $NWIRELESS_CONFIGS ]; do
+		n=$(( $n + 1 ))
+
+		debug= f_struct WIRELESS_$n get ssid wssid
+		[ "$ssid" = "$wssid" ] || continue
+		debug= f_struct WIRELESS_$n get bssid wbssid
+		[ "${bssid:-$wbssid}" = "$wbssid" ] || continue
+
+		nmatches=$(( $nmatches + 1 ))
+		[ $nmatches -le ${#DIALOG_MENU_TAGS} ] || break
+		f_substr -v tag "$DIALOG_MENU_TAGS" $nmatches 1
+
+		f_wireless_describe WIRELESS_$n help
+		menu_list1="$menu_list1
+			'$tag $wssid' '$wbssid' '$help'
+		" # END-QUOTE
+
+		matches="$matches WIRELESS_$n"
+	done
+	if [ $nmatches -eq 0 ]; then
+		f_show_msg "$msg_cannot_edit_wireless_ssid" "$ssid"
+		return $FAILURE
+	elif [ $nmatches -eq 1 ]; then
+		struct=${matches# }
+	else
+		eval f_dialog_menu_with_help_size height1 width1 rows1 \
+			\"\$title\" \"\$btitle\" \"\$prompt1\" \"\$hline\" \
+			$menu_list1
+	fi
+
+	#
+	# Operate in a loop; for the case of $nmatches > 1, we can cycle back
+	# to allow the user to make another choice after inspecting each one.
+	#
+	local menu_choice index struct defaultitem1=
+	while :; do
+		if [ $nmatches -gt 1 ]; then
+			menu_choice=$( eval $DIALOG \
+				--title \"\$title\"               \
+				--backtitle \"\$btitle\"          \
+				--hline \"\$hline\"               \
+				--ok-label \"\$msg_select\"       \
+				--cancel-label \"\$msg_cancel\"   \
+				--item-help                       \
+				--default-item \"\$defaultitem1\" \
+				--menu \"\$prompt1\"              \
+				$height1 $width1 $rows1           \
+				$menu_list1                       \
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			) || return $FAILURE
+			f_dialog_data_sanitize menu_choice
+			defaultitem1="$menu_choice"
+			index=$( eval f_dialog_menutag2index_with_help \
+				\"\$menu_choice\" $menu_list1 )
+			struct=$( set -- $matches; eval echo \${$index} )
+		fi
+
+		#
+		# Operate within another loop to allow editing multiple values
+		#
+		local menu_list2 height2 width2 rows2 member
+		while :; do
+			menu_list2="
+				'> $msg_save_exit'
+					'$msg_return_to_previous_menu'
+			" # END-QUOTE
+			n=0
+			for member in $_struct_typedef_WPA_NETWORK; do
+				[ "$member" = "ssid" ] && continue
+				debug= $struct get $member value || continue
+				n=$(( $n + 1 ))
+				[ $n -le ${#DIALOG_MENU_TAGS} ] || break
+				f_substr -v tag "$DIALOG_MENU_TAGS" $n 1
+				if [ ${#value} -gt 32 ]; then
+					f_snprintf value 29 "%s" "$value"
+					value="$value..."
+				fi
+				case "$member" in
+				password|pin|private_key_passwd|psk|wep_key*)
+					f_replaceall "$value" "?" "*" value ;;
+				esac
+				f_shell_escape "$value" value
+				menu_list2="$menu_list2
+					'$tag $member' '$value'
+				" # END-QUOTE
+			done
+			eval f_dialog_menu_size height2 width2 rows2 \
+				\"\$title\" \"\$btitle\" \"\$prompt2\" \
+				\"\$hline\" $menu_list2
+			menu_choice=$( eval $DIALOG \
+				--title \"\$title\"               \
+				--backtitle \"\$btitle\"          \
+				--hline \"\$hline\"               \
+				--ok-label \"\$msg_select\"       \
+				--cancel-label \"\$msg_cancel\"   \
+				--default-item \"\$defaultitem2\" \
+				--menu \"\$prompt2\"              \
+				$height2 $width2 $rows2           \
+				$menu_list2                       \
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			) || break
+			f_dialog_data_sanitize menu_choice
+			defaultitem2="$menu_choice"
+
+			# XXXDT Unfinished
+		done
+		[ $nmatches -eq 1 ] && break
+	done
+
+	#
+	# XXXDT Unfinished
+	# This is where we display a menu that edits the entry
+	# And then we modify the wpa_supplicants.conf(5) config file
+	# XXXDT Unfinished
+	#
+
+	return $FAILURE # XXXDT Simulating DIALOG_CANCEL to mean ``no changes''
+}
+
+# f_wireless_describe WPA_NETWORK [$var_to_set]
+#
+# Provide a description of the WPA_NETWORK struct. If $var_to_set is missing or
+# NULL, the description is provided on standard output (which is less preferred
+# due to performance; e.g., if called in a loop).
+#
+f_wireless_describe()
+{
+	local __struct="$1" __var_to_set="$2" debug=
+
+	[ "$__var_to_set" ] && setvar "$__var_to_set" ""
+	f_struct "$__struct" || return $FAILURE
+
+	#
+	# Basic description is `proto key_mgmt group eap'
+	#
+	local __member __cp __desc=
+	for __member in proto key_mgmt group eap; do
+		$__struct get $__member __cp && [ "$__cp" ] &&
+			__desc="$__desc${__desc:+ }$__cp"
+	done
+
+	local __check __kk
+
+	#
+	# Make sure we add WEP40/WEP140 even if omitted from the key_mgmt
+	# section of entry
+	#
+	local __wep_keyN __f_wireless_describe_first_char __length
+	for __wep_keyN in wep_key0 wep_key1 wep_key2 wep_key3; do
+		$__struct get $__wep_keyN __kk
+		[ "$__kk" ] || continue
+
+		# What type is it? ASCII or HEX?
+		__check=WEP
+		f_substr -v __f_wireless_describe_first_char "$__kk" 1 1
+		case "$__f_wireless_describe_first_char" in
+		\") # ASCII
+			__length=$(( ${#__kk} - 2 ))
+			if [ $__length -le 5 ]; then
+				__check=WEP40
+			elif [ $__length -le 13 ]; then
+				__check=WEP104
+			fi ;;
+		*) # HEX
+			__length=${#__kk}
+			if [ $__length -eq 10 ]; then
+				__check=WEP40
+			elif [ $__length -le 26 ]; then
+				__check=WEP104
+			fi
+		esac
+		__kk="" # sensitive info
+
+		case "$__desc" in
+		*"$__check"*) : already there ;;
+		*) __desc="$__desc${__desc:+ }$__check"
+		esac
+	done
+
+	#
+	# Make sure we display PSK even if omitted
+	# from the key_mgmt section of the entry
+	#
+	$__struct get psk __kk
+	if [ "$__kk" ]; then
+		__kk="" # sensitive info
+		__check=PSK
+		case "$__desc" in
+		*"$__check"*) : already there ;;
+		*) __desc="$__desc${__desc:+ }$__check"
+		esac
+	fi
+
+	#
+	# Produce results
+	#
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "${__desc:-NONE}"
+	else
+		echo "$__desc"
+	fi
+}
+
+# f_menu_wireless_configs
+#
+# Generates the tag/item/help triplets for wireless network menu (`--item-help'
+# required) from wpa_supplicant.conf(5) [WPA_NETWORK] structs.
+#
+f_menu_wireless_configs()
+{
+	[ "$DIALOG_MENU_WLAN_SHOW_CONFIGURED" ] || return $SUCCESS
+
+	echo "' - $msg_configured_ssids -' ' - $msg_details -' ''"
+
+	local n=0 nunique=0 debug=
+	local ssid ussid matches nmatches nconfigs nfound help desc w
+	while [ $n -lt $NWIRELESS_CONFIGS ]; do
+		n=$(( $n + 1 ))
+
+		f_struct WIRELESS_$n get ssid ssid
+		[ ! "$DIALOG_MENU_WLAN_SHOW_ALL" -a ! "$ssid" ] && continue
+
+		local u=0 unique=1
+		while [ $u -lt $nunique ]; do
+			u=$(( $u + 1 ))
+			menuitem_$u get ssid ussid
+			[ "$ssid" != "$ussid" ] || unique= break
+		done
+		if [ "$unique" ]; then
+			nunique=$(( $nunique + 1 ))
+			u=$nunique
+
+			# Set SSID and initialize number of configs found (1)
+			f_struct_new WLAN_MENU_ITEM menuitem_$u
+			menuitem_$u set ssid "$ssid"
+			menuitem_$u set nconfigs 1
+
+			# Set number of wireless networks that match config
+			WIRELESS_$n get matches matches
+			f_count nmatches $matches
+			menuitem_$u set nfound $nmatches
+
+			# Set help to description of the wireless config
+			f_wireless_describe WIRELESS_$n desc
+			menuitem_$u set help "$desc"
+		else
+			# Increment number of configs found with this SSID
+			menuitem_$u get nconfigs nconfigs
+			nconfigs=$(( $nconfigs + 1 ))
+			menuitem_$u set nconfigs $nconfigs
+
+			# Add number of matched networks to existing count
+			WIRELESS_$n get matches matches
+			f_count nmatches $matches
+			menuitem_$u get nfound nfound
+			nfound=$(( $nfound + $nmatches ))
+			menuitem_$u set nfound $nfound
+
+			# Combine description with existing help
+			menuitem_$u get help help
+			f_wireless_describe WIRELESS_$n desc
+			for w in $desc; do
+				case "$help" in
+				"$w"|"$w "*|*" $w"|*" $w "*) : already there ;;
+				*) help="$help $w"
+				esac
+			done
+			menuitem_$u set help "${help# }"
+		fi
+	done
+
+	n=0
+	while [ $n -lt $nunique ]; do
+		n=$(( $n + 1 ))
+		menuitem_$n get ssid ssid
+
+		menuitem_$n get nconfigs nconfigs
+		desc="$nconfigs $msg_configured_lc"
+		[ $nconfigs -lt 10 ] && desc=" $desc"
+		menuitem_$n get nfound nfound
+		[ $nfound -gt 0 ] && desc="$desc $nfound $msg_found"
+
+		menuitem_$n get help help
+		echo "'[X] $ssid' '$desc' '$help'"
+	done | sort -bf | awk 'BEGIN { prefix = "" }
+	{
+		cur_prefix = toupper(substr($0, 6, 1))
+		if (cur_prefix != "'\''" && prefix != cur_prefix ) {
+			prefix = cur_prefix
+			printf "'\''%c%s\n", prefix, substr($0, 2)
+		} else
+			printf "'\'' %s\n", substr($0, 2)
+	}'
+}
+
+# f_menu_wpa_scan_results
+#
+# Generates the tag/item/help triplets for wireless network menu (`--item-help'
+# required) from wpa_cli(8) `scan_results' [WPA_SCAN_RESULT] structs.
+#
+f_menu_wpa_scan_results()
+{
+	[ "$DIALOG_MENU_WLAN_SHOW_SCAN_RESULTS" ] || return $SUCCESS
+
+	if [ "$DIALOG_MENU_WLAN_SHOW_ALL" ]; then
+		echo "' - $msg_discovered_ssids -' ' - $msg_details -' ''"
+	else
+		echo "' - $msg_discovered_ssids -' '' ''"
+	fi
+
+	local n=0 nunique=0 debug=
+	local ssid ussid matched nfound help flags f
+	while [ $n -lt $NWSCAN_RESULTS ]; do
+		n=$(( $n + 1 ))
+
+		WSCANS_$n get ssid ssid
+		[ ! "$DIALOG_MENU_WLAN_SHOW_ALL" -a ! "$ssid" ] && continue
+
+		WSCANS_$n get matched matched
+		[ "$DIALOG_MENU_WLAN_SHOW_CONFIGURED" -a "$matched" ] &&
+			continue
+
+		local u=0 unique=1
+		while [ $u -lt $nunique ]; do
+			u=$(( $u + 1 ))
+			menuitem_$u get ssid ussid
+			[ "$ssid" != "$ussid" ] || unique= break
+		done
+		if [ "$unique" ]; then
+			nunique=$(( $nunique + 1 ))
+			u=$nunique
+
+			# Set SSID and initialize number of networks found (1)
+			f_struct_new WLAN_MENU_ITEM menuitem_$u
+			menuitem_$u set ssid "$ssid"
+			menuitem_$u set nfound 1
+
+			# Set help to flags
+			WSCANS_$n get flags flags
+			f_replaceall "$flags" "[" " " flags
+			f_replaceall "$flags" "]" "" flags
+			flags="${flags# }"
+			case "$flags" in
+			"") flags="NONE" ;;
+			ESS) flags="NONE ESS" ;;
+			esac
+			menuitem_$u set help "$flags"
+		else
+			# Increment number of networks found with this SSID
+			menuitem_$u get nfound nfound
+			nfound=$(( $nfound + 1 ))
+			menuitem_$u set nfound $nfound
+
+			# Combine flags into existing help
+			WSCANS_$n get flags flags
+			f_replaceall "$flags" "[" " " flags
+			f_replaceall "$flags" "]" "" flags
+			local flags_ess=
+			case "$flags" in *" ESS")
+				flags_ess=1
+				flags="${flags% ESS}"
+			esac
+			local help_ess=
+			menuitem_$u get help help
+			case "$help" in *" ESS")
+				help_ess=1
+				help="${help% ESS}"
+			esac
+			for f in ${flags:-NONE}; do 
+				case "$help" in
+				"$f"|"$f "*|*" $f"|*" $f "*) : already there ;;
+				*) help="$help $f"
+				esac
+			done
+			[ "$flags_ess" -a ! "$help_ess" ] && help="$help ESS"
+			menuitem_$u set help "${help# }"
+		fi
+	done
+
+	local desc n=0
+	while [ $n -lt $nunique ]; do
+		n=$(( $n + 1 ))
+		menuitem_$n get ssid ssid
+
+		desc=
+		if [ "$DIALOG_MENU_WLAN_SHOW_ALL" ]; then
+			menuitem_$n get nfound nfound
+			desc="$nfound $msg_found"
+			[ $nfound -lt 10 ] && desc=" $desc"
+		fi
+
+		menuitem_$n get help help
+		echo "'[ ] $ssid' '$desc' '$help'"
+	done | sort -bf | awk 'BEGIN { prefix = "" }
+	{
+		cur_prefix = toupper(substr($0, 6, 1))
+		if (cur_prefix != "'\''" && prefix != cur_prefix ) {
+			prefix = cur_prefix
+			printf "'\''%c%s\n", prefix, substr($0, 2)
+		} else
+			printf "'\'' %s\n", substr($0, 2)
+	}'
+}
+
+# f_dialog_menu_wireless_edit
+#
+# Display a list of wireless networks configured in wpa_supplicants.conf(5) and
+# (if wpa_supplicant(8) is running) also displays scan results for unconfigured
+# wireless networks.
+#
+f_dialog_menu_wireless_edit()
+{
+	local funcname=f_dialog_menu_wireless_edit
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt="$msg_wireless_networks_text"
+	local menu_list # Calculated below
+	local defaultitem= # Calculated below
+	local hline="$hline_alnum_arrows_punc_tab_enter"
+
+	f_show_info "$msg_loading_wireless_menu"
+
+	local conf_file
+	conf_file=$( f_sysrc_get wpa_supplicant_conf_file )
+
+	#
+	# Operate in a loop so we can edit wpa_supplicant.conf(5) and rescan
+	# for new wireless networks from here.
+	#
+	local do_parse=1 remake_menu=1 item
+	while :; do
+		#
+		# If this is the first time here, parse wpa_supplicant.conf(5),
+		# scan the airwaves, and compare to find matches.
+		#
+		if [ "$do_parse" -a "$DIALOG_MENU_WLAN_SHOW_SCAN_RESULTS" ]
+		then
+			f_dprintf "$funcname: Parsing wireless scan results"
+			f_dialog_scan_wireless &&
+				f_wpa_scan_results_parse WSCANS_ NWSCAN_RESULTS
+			f_dprintf "$funcname: Parsed %i scanned networks" \
+			          $NWSCAN_RESULTS
+		fi
+		if [ "$do_parse" -a "$DIALOG_MENU_WLAN_SHOW_CONFIGURED" ]
+		then
+			f_dprintf "$funcname: Parsing wpa_supplicants.conf(5)"
+			f_wpa_supplicant_parse "$conf_file" \
+			                       WIRELESS_ NWIRELESS_CONFIGS
+			f_dprintf "%s: Parsed %i wireless configurations" \
+				  $funcname $NWIRELESS_CONFIGS
+			f_wpa_scan_find_matches WSCANS_ $NWSCAN_RESULTS \
+			                        WIRELESS_ $NWIRELESS_CONFIGS
+		fi
+		do_parse=
+
+		if [ "$remake_menu" ]; then
+			remake_menu=
+
+			#
+			# Add both items scanned from the airwaves and networks
+			# parsed from wpa_supplicants.conf(5). Latter items are
+			# marked, sorted, and added to top of list above the
+			# former (which are unmarked and sorted separately).
+			#
+			f_dprintf "$funcname: Building menu list..."
+			menu_list=$( 
+				# Process wpa_supplicant.conf(5) structs
+				f_menu_wireless_configs
+				# Process wpa_cli(8) `scan_results' structs
+				f_menu_wpa_scan_results
+			)
+			f_dprintf "$funcname: menu list built."
+
+			#
+			# Add static top-level menu items
+			#
+			local XA=" " XC=" " XS=" "
+			[ "$DIALOG_MENU_WLAN_SHOW_ALL"          ] && XA="X"
+			[ "$DIALOG_MENU_WLAN_SHOW_CONFIGURED"   ] && XC="X"
+			[ "$DIALOG_MENU_WLAN_SHOW_SCAN_RESULTS" ] && XS="X"
+			menu_list="
+				'> $msg_exit' '$msg_return_to_previous_menu'
+					''
+				'> $msg_rescan_wireless'   '*'
+					'$msg_rescan_wireless_help'
+				'> $msg_forget_all'        '*'
+					'$msg_forget_all_help'
+				'> $msg_show_configured'   '[$XC]'
+					'$msg_show_configured_help'
+				'> $msg_show_scan_results' '[$XS]'
+					'$msg_show_scan_results_help'
+				'> $msg_show_all'          '[$XA]'
+					'$msg_show_all_help'
+				'> $msg_manually_connect'  '...'
+					'$msg_manually_connect_help'
+			$menu_list" # END-QUOTE
+		fi
+
+		local height width rows
+		eval f_dialog_menu_with_help_size height width rows \
+			\"\$title\" \"\$btitle\" \"\$prompt\" \"\$hline\" \
+			$menu_list
+
+		local menu_choice
+		menu_choice=$( eval $DIALOG \
+			--title \"\$title\"              \
+			--backtitle \"\$btitle\"         \
+			--hline \"\$hline\"              \
+			--ok-label \"\$msg_select\"      \
+			--cancel-label \"\$msg_cancel\"  \
+			--item-help                      \
+			--default-item \"\$defaultitem\" \
+			--menu \"\$prompt\"              \
+			$height $width $rows             \
+			$menu_list                       \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		) || break
+		f_dialog_data_sanitize menu_choice
+		defaultitem="$menu_choice"
+
+		case "$menu_choice" in
+		"> $msg_exit") break ;;
+		"> $msg_rescan_wireless") do_parse=1 remake_menu=1 ;;
+		"> $msg_forget_all")
+			if f_noyes "$msg_forget_all_confirm"; then
+				f_eval_catch $funcname rm \
+					'rm -f "%s"' "$conf_file" || continue
+				f_wpa_supplicant_init "$conf_file" || continue
+				f_eval_catch -d $funcname wpa_cli \
+					'wpa_cli reconfigure'
+				f_wpa_supplicant_parse "$conf_file" \
+					WIRELESS_ NWIRELESS_CONFIGS
+				f_wpa_scan_find_matches \
+					WSCANS_ $NWSCAN_RESULTS \
+					WIRELESS_ $NWIRELESS_CONFIGS
+				do_parse=1 remake_menu=1
+			fi ;;
+		"> $msg_show_configured")
+			item=$( eval f_dialog_menutag2item_with_help \
+			        		\"\$menu_choice\" $menu_list )
+			if [ "$item" = "[ ]" ]; then
+				DIALOG_MENU_WLAN_SHOW_CONFIGURED=1
+			else
+				DIALOG_MENU_WLAN_SHOW_CONFIGURED=
+			fi
+			remake_menu=1 ;;
+		"> $msg_show_scan_results")
+			item=$( eval f_dialog_menutag2item_with_help \
+			        		\"\$menu_choice\" $menu_list )
+			if [ "$item" = "[ ]" ]; then
+				DIALOG_MENU_WLAN_SHOW_SCAN_RESULTS=1
+			else
+				DIALOG_MENU_WLAN_SHOW_SCAN_RESULTS=
+			fi
+			remake_menu=1 ;;
+		"> $msg_show_all")
+			item=$( eval f_dialog_menutag2item_with_help \
+			        		\"\$menu_choice\" $menu_list )
+			if [ "$item" = "[ ]" ]; then
+				DIALOG_MENU_WLAN_SHOW_ALL=1
+			else
+				DIALOG_MENU_WLAN_SHOW_ALL=
+			fi
+			remake_menu=1 ;;
+		"> $msg_manually_connect")
+			f_dialog_wireless_edit && remake_menu=1 ;;
+		?"[X] "*)
+			ssid="${menu_choice#??X? }"
+			f_dialog_wireless_edit "$ssid" || continue
+			do_parse=1 remake_menu=1 ;;
+		"[ ] "*)
+			:
+			: XXXDT Unfinished
+			:
+			;;
+		esac
+	done
+
+	#
+	# XXXDT Unfinished
+	#
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." media/wlan.subr
+
+fi # ! $_MEDIA_WLAN_SUBR

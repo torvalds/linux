@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: yppasswdd
+# REQUIRE: ypserv ypset
+# BEFORE:  LOGIN
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="yppasswdd"
+desc="Server for updating NIS passwords"
+rcvar="nis_yppasswdd_enable"
+
+load_rc_config $name
+
+command="/usr/sbin/rpc.${name}"
+command_args="${nis_yppasswdd_flags}"
+
+start_precmd="yppasswdd_precmd"
+
+yppasswdd_precmd()
+{
+	local _domain
+
+	force_depend rpcbind || return 1
+	force_depend ypserv nis_server || return 1
+	
+	_domain=`domainname`
+	if [ -z "$_domain" ]; then
+		warn "NIS domainname(1) is not set."
+		return 1
+	fi
+}
+
+run_rc_command "$1"

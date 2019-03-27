@@ -1,0 +1,37 @@
+\input texinfo    @c -*-texinfo-*-
+@c %**start of header
+@setfilename calc_tickadj.info
+@settitle calc_tickadj User's Manual
+@include ../../sntp/include/version.texi
+@paragraphindent 2
+@c %**end of header
+
+@ifinfo
+This file documents the use of @code{calc_tickadj}, a program from the NTP
+Project, that is used calculate optimal tick value based on given drift file.
+@end ifinfo
+
+@direntry
+* calc_tickadj: (calc_tickadj).     Calculate optimal tick value from a drift file.
+@end direntry
+
+@titlepage
+@title calc_tickadj User's Manual
+@subtitle calc_tickadj, version @value{VERSION}, @value{UPDATED}
+@c @author Max @email{foo@ntp.org}
+@end titlepage
+
+@node Top, calc_tickadj Description, (dir), (dir)
+@top calc_tickadj User's Manual
+
+This document describes the use of the NTP Project's @code{calc_tickadj} program.
+This document applies to version @value{VERSION} of @code{calc_tickadj}.
+
+@shortcontents
+
+@menu
+* calc_tickadj Description::       Description
+* calc_tickadj Invocation::        Invoking calc_tickadj
+@end menu
+
+@include invoke-calc_tickadj.texi

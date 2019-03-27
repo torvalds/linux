@@ -1,0 +1,4 @@
+pass from 10.1.2.3 - 10.1.2.4 to 10.2.3.4 - 10.3.4.5
+pass from 0.0.0.0 - 255.255.255.255
+pass from 2001:6f8:1098::2 - 2001:6f8:1098::5 to 2001:6f8:1098::3 - 2001:6f8:1098::4
+pass from ::0 - ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff

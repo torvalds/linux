@@ -1,0 +1,60 @@
+# $FreeBSD: head/tools/regression/pjdfstest/tests/conf 211354 2010-08-15 21:29:03Z pjd $
+# vim: filetype=sh noexpandtab ts=8 sw=8
+# pjdfstest configuration file
+
+# Supported operating systems: FreeBSD, Darwin, SunOS, Linux
+os=`uname`
+
+unsupported_os()
+{
+	echo "Unsupported operating system ${os}." >/dev/stderr
+	exit 1
+}
+
+get_mountpoint()
+{
+	case "${os}" in
+	Darwin|FreeBSD)
+		df . | tail -1 | awk '{print $NF}'
+		;;
+	*)
+		unsupported_os
+		;;
+	esac
+}
+
+case "${os}" in
+Darwin)
+	GREP=grep
+	#fs=`df -T . | tail -1 | awk '{print $2}'`
+	mountpoint="`get_mountpoint`"
+	fs=`mount | grep "on $mountpoint" | sed -e 's/.*(//' -e 's/,.*//g' | tr '[:lower:]' '[:upper:]'`
+	;;
+FreeBSD)
+	GREP=grep
+	#fs=`df -T . | tail -1 | awk '{print $2}'`
+	mountpoint="`get_mountpoint`"
+	fs=`mount -p | awk '$2 == "'$mountpoint'" { print toupper($3) }'`
+	;;
+Solaris|SunOS)
+	GREP=ggrep
+	pattern=`df -Pk . | tail -1 | awk '{printf("%s on %s \n", $1, $6)}'`
+	fs=`mount -v | ${GREP} -E "^${pattern}" | awk '{print $5}' | \
+	    tr -s '[:lower:]' '[:upper:]'`
+	;;
+Linux)
+	GREP=grep
+	fs=`df -PT . | tail -1 | awk '{print toupper($2)}'`
+	;;
+*)
+	unsupported_os
+	;;
+esac
+
+# If we cannot figure out file system type, define it here.
+#fs="UFS"
+
+if [ -z "${fs}" ]; then
+	echo "Cannot figure out file system type, define it by hand." >/dev/stderr
+	exit 1
+fi

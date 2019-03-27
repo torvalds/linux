@@ -1,0 +1,80 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2001 Alexander Langer
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 11, 2005
+.Dt MODULE_DEPEND 9
+.Os
+.Sh NAME
+.Nm MODULE_DEPEND
+.Nd set kernel module dependencies
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/module.h
+.Fn MODULE_DEPEND "name" "moddepend" "int minversion" "int prefversion" "int maxversion"
+.Sh DESCRIPTION
+The
+.Fn MODULE_DEPEND
+macro sets a dependency on another kernel module with name
+.Fa moddepend ,
+which has registered
+its version with
+.Fn MODULE_VERSION .
+.Pp
+The
+.Fn MODULE_DEPEND
+macro provides hints to the kernel
+.Xr loader 8
+and to the kernel linker to ensure that the named dependency is loaded
+prior to the existing module.
+It does not change or dictate the order in which modules are
+initialized at runtime.
+.Pp
+Three versions must be specified for
+.Fa moddepend :
+.Bl -tag -width ".Fa prefversion"
+.It Fa minversion
+The minimum version on which the current module can depend.
+.It Fa maxversion
+The maximum version on which the current module can depend.
+.It Fa prefversion
+The preferred version on which the current module can depend.
+.El
+.Sh EXAMPLES
+.Bd -literal
+MODULE_DEPEND(foo, bar, 1, 3, 4);
+.Ed
+.Sh SEE ALSO
+.Xr DECLARE_MODULE 9 ,
+.Xr module 9 ,
+.Xr MODULE_VERSION 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Alexander Langer Aq Mt alex@FreeBSD.org .

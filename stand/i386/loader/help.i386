@@ -1,0 +1,54 @@
+################################################################################
+# Treboot DReboot the system
+
+	reboot
+
+	Causes the system to immediately reboot.
+
+################################################################################
+# Theap DDisplay memory management statistics
+
+	heap
+
+	Requests debugging output from the heap manager.  For debugging use
+	only.
+
+################################################################################
+# Tset Snum_ide_disks DSet the number of IDE disks
+
+	NOTE: this variable is deprecated, use root_disk_unit instead.
+
+	set num_ide_disks=<value>
+
+	When booting from a SCSI disk on a system with one or more IDE disks,
+	and where the IDE disks are the default boot device, it is necessary
+	to tell the kernel how many IDE disks there are in order to have it
+	correctly locate the SCSI disk you are booting from.
+
+################################################################################
+# Tset Sroot_disk_unit DForce the root disk unit number.
+
+	set root_disk_unit=<value>
+
+	If the code which detects the disk unit number for the root disk is
+	confused, eg. by a mix of SCSI and IDE disks, or IDE disks with
+	gaps in the sequence (eg. no primary slave), the unit number can be
+	forced by setting this variable.
+
+################################################################################
+# Tsmap DDisplay BIOS SMAP table
+
+	smap
+
+	Displays the BIOS SMAP (system memory map) table.
+
+################################################################################
+# Tchain DChain load disk block
+
+	chain disk:
+
+	chain will read stage1 (MBR or VBR) boot block from specified device
+	to address 0000:7C00 and attempts to run it. Use lsdev to get available
+	device names. Disk name must end with colon.
+
+################################################################################

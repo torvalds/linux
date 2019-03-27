@@ -1,0 +1,28 @@
+# $FreeBSD$
+# minimal config for sshd on picobsd
+Port 22
+ListenAddress 0.0.0.0
+HostKey  /etc/ssh_host_key
+#RandomSeed /etc/ssh_random_seed
+ServerKeyBits 768
+LoginGraceTime 600
+KeyRegenerationInterval 3600
+PermitRootLogin yes
+IgnoreRhosts no
+StrictModes yes
+X11Forwarding no
+X11DisplayOffset 10
+PrintMotd yes
+KeepAlive yes
+SyslogFacility AUTH
+RhostsRSAAuthentication yes
+RSAAuthentication yes
+PasswordAuthentication yes
+PermitEmptyPasswords no
+UseLogin no
+# CheckMail no
+# PidFile /u/zappa/.ssh/pid
+# AllowHosts *.our.com friend.other.com
+# DenyHosts lowsecurity.theirs.com *.evil.org evil.org
+# Umask 022
+# SilentDeny yes

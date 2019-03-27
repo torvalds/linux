@@ -1,0 +1,165 @@
+.\" Copyright (c) 1999
+.\"	Nick Hibma <n_hibma@FreeBSD.org>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 20, 2017
+.Dt UDBP 4
+.Os
+.Sh NAME
+.Nm udbp
+.Nd USB Double Bulk Pipe driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device udbp"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+udbp_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for host-to-host cables
+that contain at least two bulk pipes (one for each direction).
+This typically includes cables branded for use with
+.Sy Windows USB Easy Transfer ,
+and many cables based on the Prolific PL2xx1 series of USB bridge chips.
+A useful (but non-comprehensive) list of compatible USB host cables
+is listed in the
+.Sx SEE ALSO
+section below.
+.Pp
+.\" XXX	The description of how to add netgraph to the kernel
+.\"	is out of place here.  It should be limited to the
+.\"	netgraph(4) manpage only.  However, that page does
+.\"	not yet give instructions for kldload(8) for the
+.\"	clueless.  Working on it -- sheldonh
+It requires
+.Xr netgraph 4
+to be available.
+This can be done either by adding
+.Cd "options NETGRAPH"
+to your kernel configuration file, or alternatively loading
+.Xr netgraph 4
+as a module, either from
+.Pa /boot/loader.conf
+or from the command line, before the
+.Nm
+module.
+.Sh EXAMPLES
+.Dl options NETGRAPH
+.Dl device udbp
+.Pp
+Add the
+.Nm
+driver to the kernel.
+.Pp
+.Dl kldload netgraph
+.Dl kldload udbp
+.Pp
+Load the
+.Xr netgraph 4
+module and then the
+.Nm
+driver.
+.Pp
+.Dl ngctl mkpeer udbp0: eiface data ether
+.Dl ifconfig ngeth0 ether aa:dd:xx:xx:xx
+.Dl ifconfig ngeth0 inet 169.254.x.x/16
+.Pp
+Create a new Ethernet network interface node
+and connect its ether hook to the data hook of the
+.Nm
+driver.
+.Pp
+This enables FreeBSD to communicate with a Linux peer (e.g. using the
+.Sy plusb
+driver).
+The Linux node should be configured to prefer link-local IPv4 addresses
+(e.g. using Network Manager in Debian and Red Hat derived distributions).
+.Pp
+Whilst both FreeBSD and Linux are able to interoperate by
+loosely following CDC EEM 1.0 in their behaviour, neither implementation
+has been expressly designed to follow its specification.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_eiface 4 ,
+.Xr ohci 4 ,
+.Xr uhci 4 ,
+.Xr usb 4 ,
+.Xr ngctl 8
+.\"
+.Rs
+.%B Universal Serial Bus: Communications Class Subclass Specification for Ethernet Emulation Model Devices 
+.%N Revision 1.0
+.%D February 2, 2005
+.%I USB Implementers Forum, Inc.
+.%U http://www.usb.org/developers/docs/devclass_docs/CDC_EEM10.pdf
+.Re
+.\"
+.Rs
+.%B Total Commander: Supported cables for USB cable connection
+.%I Ghisler Software GmbH.
+.%U https://www.ghisler.com/cables/index.htm
+.Re
+.Sh CAVEATS
+The point-to-point nature and additional latency of USB host-host links
+makes them unsuitable as a "drop-in" replacement for an Ethernet LAN;
+for a USB 3.0 SuperSpeed cable, latency is comparable to 100BaseTX Ethernet
+(but often worse), with throughput comparable to 2.5GBASE-T.
+.Pp
+However, their energy efficiency makes them attractive for embedded
+applications. A Plugable PL27A1 cable claims 24mA of USB3 bus power,
+as compared to 150mA for a typical USB 3.0 to Gigabit Ethernet interface.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.0 .
+.Sh BUGS
+The
+.Nm
+driver does not support the special packets described in section 5.1
+of the CDC EEM specification.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Doug Ambrisko Aq Mt ambrisko@whistle.com ,
+.An Julian Elischer Aq Mt julian@FreeBSD.org
+and
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org 
+and updated by
+.An Bruce Simpson Aq Mt bms@FreeBSD.org .

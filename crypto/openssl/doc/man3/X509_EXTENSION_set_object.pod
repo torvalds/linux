@@ -1,0 +1,96 @@
+=pod
+
+=head1 NAME
+
+X509_EXTENSION_set_object, X509_EXTENSION_set_critical,
+X509_EXTENSION_set_data, X509_EXTENSION_create_by_NID,
+X509_EXTENSION_create_by_OBJ, X509_EXTENSION_get_object,
+X509_EXTENSION_get_critical, X509_EXTENSION_get_data - extension utility
+functions
+
+=head1 SYNOPSIS
+
+ int X509_EXTENSION_set_object(X509_EXTENSION *ex, const ASN1_OBJECT *obj);
+ int X509_EXTENSION_set_critical(X509_EXTENSION *ex, int crit);
+ int X509_EXTENSION_set_data(X509_EXTENSION *ex, ASN1_OCTET_STRING *data);
+
+ X509_EXTENSION *X509_EXTENSION_create_by_NID(X509_EXTENSION **ex,
+                                              int nid, int crit,
+                                              ASN1_OCTET_STRING *data);
+ X509_EXTENSION *X509_EXTENSION_create_by_OBJ(X509_EXTENSION **ex,
+                                              const ASN1_OBJECT *obj, int crit,
+                                              ASN1_OCTET_STRING *data);
+
+ ASN1_OBJECT *X509_EXTENSION_get_object(X509_EXTENSION *ex);
+ int X509_EXTENSION_get_critical(const X509_EXTENSION *ex);
+ ASN1_OCTET_STRING *X509_EXTENSION_get_data(X509_EXTENSION *ne);
+
+=head1 DESCRIPTION
+
+X509_EXTENSION_set_object() sets the extension type of B<ex> to B<obj>. The
+B<obj> pointer is duplicated internally so B<obj> should be freed up after use.
+
+X509_EXTENSION_set_critical() sets the criticality of B<ex> to B<crit>. If
+B<crit> is zero the extension in non-critical otherwise it is critical.
+
+X509_EXTENSION_set_data() sets the data in extension B<ex> to B<data>. The
+B<data> pointer is duplicated internally.
+
+X509_EXTENSION_create_by_NID() creates an extension of type B<nid>,
+criticality B<crit> using data B<data>. The created extension is returned and
+written to B<*ex> reusing or allocating a new extension if necessary so B<*ex>
+should either be B<NULL> or a valid B<X509_EXTENSION> structure it must
+B<not> be an uninitialised pointer.
+
+X509_EXTENSION_create_by_OBJ() is identical to X509_EXTENSION_create_by_NID()
+except it creates and extension using B<obj> instead of a NID.
+
+X509_EXTENSION_get_object() returns the extension type of B<ex> as an
+B<ASN1_OBJECT> pointer. The returned pointer is an internal value which must
+not be freed up.
+
+X509_EXTENSION_get_critical() returns the criticality of extension B<ex> it
+returns B<1> for critical and B<0> for non-critical.
+
+X509_EXTENSION_get_data() returns the data of extension B<ex>. The returned
+pointer is an internal value which must not be freed up.
+
+=head1 NOTES
+
+These functions manipulate the contents of an extension directly. Most
+applications will want to parse or encode and add an extension: they should
+use the extension encode and decode functions instead such as
+X509_add1_ext_i2d() and X509_get_ext_d2i().
+
+The B<data> associated with an extension is the extension encoding in an
+B<ASN1_OCTET_STRING> structure.
+
+=head1 RETURN VALUES
+
+X509_EXTENSION_set_object() X509_EXTENSION_set_critical() and
+X509_EXTENSION_set_data() return B<1> for success and B<0> for failure.
+
+X509_EXTENSION_create_by_NID() and X509_EXTENSION_create_by_OBJ() return
+an B<X509_EXTENSION> pointer or B<NULL> if an error occurs.
+
+X509_EXTENSION_get_object() returns an B<ASN1_OBJECT> pointer.
+
+X509_EXTENSION_get_critical() returns B<0> for non-critical and B<1> for
+critical.
+
+X509_EXTENSION_get_data() returns an B<ASN1_OCTET_STRING> pointer.
+
+=head1 SEE ALSO
+
+L<X509V3_get_d2i(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

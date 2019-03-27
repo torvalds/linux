@@ -1,0 +1,378 @@
+.\" Copyright (c) 2006-2011 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_update.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd August 14, 2011
+.Dt ELF_UPDATE 3
+.Os
+.Sh NAME
+.Nm elf_update
+.Nd update an ELF descriptor
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft off_t
+.Fn elf_update "Elf *elf" "Elf_Cmd cmd"
+.Sh DESCRIPTION
+Function
+.Fn elf_update
+causes the library to recalculate the structure of an ELF
+object and optionally write out the image of the object
+to file.
+.Pp
+Argument
+.Ar elf
+should reference a valid ELF descriptor.
+.Pp
+Argument
+.Ar cmd
+can be one of the following values:
+.Bl -tag -width "Dv ELF_C_WRITE"
+.It Dv ELF_C_NULL
+The library will recalculate structural information flagging
+modified structures with the
+.Dv ELF_F_DIRTY
+flag, but will not write data to the underlying file image.
+.It Dv ELF_C_WRITE
+The library will recalculate structural information and will
+also write the new image to the underlying file.
+The ELF descriptor referenced by argument
+.Ar elf
+should permit the underlying ELF object to be written or updated
+(see
+.Xr elf_begin 3 ) .
+.El
+.Pp
+All pointers to
+.Vt Elf_Scn
+and
+.Vt Elf_Data
+descriptors associated with descriptor
+.Ar elf
+should be considered invalid after a call to
+.Fn elf_update .
+.Ss Specifying Object Layout
+The
+.Lb libelf
+supports two layout modes.
+.Bl -tag -width indent
+.It "Library Layout"
+If the
+.Dv ELF_F_LAYOUT
+flag is not set on the ELF descriptor, the ELF library will lay out
+the ELF object according to the following scheme:
+.Bl -tag -compact -width "Section Data"
+.It Em EHDR
+The ELF executable header will be placed at the start of the object.
+.It Em PHDR
+If the ELF descriptor contains a program header table, it will be
+placed after the Executable Header.
+.It Em Section Data
+ELF section data, if any, will be placed next, keeping each section's
+alignment requirements in mind.
+.It Em SHDR
+The ELF section header table, if any, will be placed last.
+.El
+.It "Application Controlled Layout"
+The application can take full control of the layout of the ELF object
+by setting the
+.Dv ELF_F_LAYOUT
+flag on the ELF descriptor (see
+.Xr elf_flagelf 3 ) .
+In this case the library will lay out the ELF object using
+application-supplied information as below:
+.Pp
+.Bl -tag -compact -width "Section Data"
+.It Em EHDR
+The ELF executable header will be placed at the start of the object.
+.It Em PHDR
+The ELF program header table, if any, it will be placed at the offset
+specified in the
+.Va e_phoff
+field of the ELF executable header.
+.It Em Section Data
+The data for each ELF section will be placed at the offset specified
+by the
+.Va sh_offset
+field of the section's header.
+The size of the section will be taken from the
+.Va sh_size
+field of the section header.
+.It Em SHDR
+The ELF section header table, if any, will be placed at the offset
+specified by the
+.Va e_shoff
+field of the executable header.
+.El
+.El
+.Pp
+Gaps in the coverage of the file's contents will be set to the fill value
+specified by
+.Xr elf_fill 3 .
+.Ss Application Supplied Information
+The application needs to set the following fields in the data
+structures associated with the ELF descriptor prior to calling
+.Fn elf_update .
+.Bl -tag -width indent
+.It "Executable Header"
+The fields of the ELF executable header that need to be set by the
+application are:
+.Pp
+.Bl -tag -width "e_ident[EI_OSABI]" -compact
+.It Va e_entry
+To be set to the desired entry address for executables.
+.It Va e_flags
+To be set to the desired processor specific flags.
+.It Va "e_ident[EI_DATA]"
+Must be set to one of
+.Dv ELFDATA2LSB
+or
+.Dv ELFDATA2MSB .
+.It Va "e_ident[EI_OSABI]"
+To be set to the OS ABI desired.
+For example, for
+.Fx
+executables, this field should be set to
+.Dv ELFOSABI_FREEBSD .
+.It Va e_machine
+To be set to the desired machine architecture, one of the
+.Dv EM_*
+values in the header file
+.In elfdefinitions.h .
+.It Va e_phoff
+If the application is managing the object's layout, it must
+set this field to the file offset of the ELF program header table.
+.It Va e_shoff
+If the application is managing the object's layout, it must
+set this field to the file offset of the ELF section header table.
+.It Va e_shstrndx
+To be set to the index of the string table containing
+section names.
+.It Va e_type
+To be set to the type of the ELF object, one of the
+.Dv ET_*
+values in the header file
+.In elfdefinitions.h .
+.It Va e_version
+To be set to the desired version of the ELF object.
+.El
+.It "Program Header"
+All fields of the entries in the program header table need to be
+set by the application.
+.It "Section Header"
+The fields of ELF section headers that need to be set by the
+application are:
+.Pp
+.Bl -tag -width "sh_addralign" -compact
+.It Va sh_addr
+To be set to the memory address where the section should reside.
+.It Va sh_addralign
+If the application is managing the file layout, it must set this
+field to the desired alignment for the section's contents.
+This value must be a power of two and must be at least as large as the
+largest alignment needed by any
+.Vt Elf_Data
+descriptor associated with the section.
+.It Va sh_entsize
+To be set to the size of each entry, for sections containing fixed size
+elements, or set to zero for sections without fixed size elements.
+If the application is not managing file layout, it may leave this
+field as zero for those sections whose types are known to the library.
+.It Va sh_flags
+To be set to the desired section flags.
+.It Va sh_info
+To be set as described in
+.Xr elf 5 .
+.It Va sh_link
+To be set as described in
+.Xr elf 5 .
+.It Va sh_name
+To be set to the index of the section's name in the string table
+containing section names.
+.It Va sh_offset
+If the application is managing the file layout, it must set this
+field to the file offset of the section's contents.
+.It Va sh_size
+If the application is managing the file layout, it must set this
+field to the file size of the section's contents.
+.It Va sh_type
+To be set to the type of the section.
+.El
+.It "Section Data"
+The
+.Vt Elf_Data
+descriptors associated with each section specify its contents
+(see
+.Xr elf_getdata 3 ) .
+While all the fields in these descriptors are under application
+control, the following fields influence object layout:
+.Bl -tag -width "Va d_align" -compact
+.It Va d_align
+To be set to the desired alignment, within the containing section, of
+the descriptor's data.
+.It Va d_off
+If the application is managing object layout, it must set this field
+to the file offset, within the section, at which the descriptor's data
+should be placed.
+.It Va d_size
+To be set to the size in bytes of the memory representation of the
+descriptor's data.
+.El
+.El
+.Sh RETURN VALUES
+Function
+.Fn elf_update
+returns the total size of the file image if successful, or -1 if an
+error occurred.
+.Sh ERRORS
+This function may fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was null.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar cmd
+was not recognized.
+.It Bq Er ELF_E_ARGUMENT
+The argument
+.Ar elf
+was not a descriptor for an ELF object.
+.It Bq Er ELF_E_CLASS
+The
+.Va e_ident[EI_CLASS]
+field of the executable header of argument
+.Ar elf
+did not match the class of the file.
+.It Bq Er ELF_E_DATA
+An
+.Vt Elf_Data
+descriptor contained in argument
+.Ar elf
+specified an unsupported type.
+.It Bq Er ELF_E_DATA
+An
+.Vt Elf_Data
+descriptor specified an alignment that was zero or was not a power of
+two.
+.It Bq Er ELF_E_HEADER
+The ELF header in argument
+.Ar elf
+requested a different byte order from the byte order already
+associated with the file.
+.It Bq Er ELF_E_IO
+An I/O error was encountered.
+.It Bq Er ELF_E_LAYOUT
+An
+.Vt Elf_Data
+descriptor contained in argument
+.Ar elf
+specified an alignment incompatible with its containing section.
+.It Bq Er ELF_E_LAYOUT
+Argument
+.Ar elf
+contained section descriptors that overlapped in extent.
+.It Bq Er ELF_E_LAYOUT
+Argument
+.Ar elf
+contained section descriptors that were incorrectly aligned or were
+too small for their data.
+.It Bq Er ELF_E_LAYOUT
+The flag
+.Dv ELF_F_LAYOUT
+was set on the Elf descriptor and the executable header overlapped
+with the program header table.
+.It Bq Er ELF_E_LAYOUT
+The flag
+.Dv ELF_F_LAYOUT
+was set on the Elf descriptor and the program header table was placed
+at a misaligned file offset.
+.It Bq Er ELF_E_LAYOUT
+The flag
+.Dv ELF_F_LAYOUT
+was set on the Elf descriptor and the section header table overlapped
+an extent mapped by a section descriptor.
+.It Bq Er ELF_E_LAYOUT
+The
+.Dv ELF_F_LAYOUT
+flag was set on the Elf descriptor, and the
+.Va d_offset
+field in an
+.Vt Elf_Data
+descriptor contained a value that was not a multiple of the
+descriptor's specified alignment.
+.It Bq Er ELF_E_MODE
+An
+.Dv ELF_C_WRITE
+operation was requested with an ELF descriptor that was not opened for
+writing or updating.
+.It Bq Er ELF_E_SECTION
+Argument
+.Ar elf
+contained a section with an unrecognized type.
+.It Bq Er ELF_E_SECTION
+The section header at index
+.Dv SHN_UNDEF
+had an illegal section type.
+.It Bq Er ELF_E_SEQUENCE
+An
+.Dv ELF_C_WRITE
+operation was requested after a prior call to
+.Fn elf_cntl elf ELF_C_FDDONE
+disassociated the ELF descriptor
+.Ar elf
+from its underlying file.
+.It Bq Er ELF_E_VERSION
+Argument
+.Ar elf
+had an unsupported version or contained an
+.Vt Elf_Data
+descriptor with an unsupported version.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf32_getehdr 3 ,
+.Xr elf32_getphdr 3 ,
+.Xr elf32_newehdr 3 ,
+.Xr elf32_newphdr 3 ,
+.Xr elf64_getehdr 3 ,
+.Xr elf64_getphdr 3 ,
+.Xr elf64_newehdr 3 ,
+.Xr elf64_newphdr 3 ,
+.Xr elf_begin 3 ,
+.Xr elf_cntl 3 ,
+.Xr elf_fill 3 ,
+.Xr elf_flagehdr 3 ,
+.Xr elf_flagelf 3 ,
+.Xr elf_getdata 3 ,
+.Xr elf_getscn 3 ,
+.Xr elf_newdata 3 ,
+.Xr elf_newscn 3 ,
+.Xr elf_rawdata 3 ,
+.Xr gelf 3 ,
+.Xr gelf_newehdr 3 ,
+.Xr gelf_newphdr 3 ,
+.Xr elf 5

@@ -1,0 +1,104 @@
+.\" Copyright (c) 2010 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd March 6, 2017
+.Dt ATF-SH 1
+.Os
+.Sh NAME
+.Nm atf-sh
+.Nd interpreter for shell-based test programs
+.Sh SYNOPSIS
+.Nm
+.Op Fl s Ar shell
+.Ar script
+.Sh DESCRIPTION
+.Nm
+is an interpreter that runs the test program given in
+.Ar script
+after loading the
+.Xr atf-sh 3
+library.
+.Pp
+.Nm
+is not a real interpreter though: it is just a wrapper around
+the system-wide shell defined by
+.Va ATF_SHELL .
+.Nm
+executes the interpreter, loads the
+.Xr atf-sh 3
+library and then runs the script.
+You must consider
+.Nm atf-sh
+to be a POSIX shell by default and thus should not use any non-standard
+extensions.
+.Pp
+The following options are available:
+.Bl -tag -width XsXshellXXX
+.It Fl s Ar shell
+Specifies the shell to use instead of the value provided by
+.Va ATF_SHELL .
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ATFXLIBEXECDIRXX -compact
+.It Va ATF_LIBEXECDIR
+Overrides the builtin directory where
+.Nm
+is located.
+Should not be overridden other than for testing purposes.
+.It Va ATF_PKGDATADIR
+Overrides the builtin directory where
+.Pa libatf-sh.subr
+is located.
+Should not be overridden other than for testing purposes.
+.It Va ATF_SHELL
+Path to the system shell to be used in the generated scripts.
+Scripts must not rely on this variable being set to select a specific
+interpreter.
+.It Va ATF_SHELL
+Path to the system shell to be used in the generated scripts.
+.El
+.Sh EXAMPLES
+Scripts using
+.Xr atf-sh 3
+should start with:
+.Bd -literal -offset indent
+#! /usr/bin/env atf-sh
+.Ed
+.Pp
+Alternatively, if you want to explicitly choose a shell interpreter, you cannot
+rely on
+.Xr env 1
+to find
+.Nm .
+Instead, you have to hardcode the path to
+.Nm
+in the script and then use the
+.Fl s
+option afterwards as a
+.Em single parameter :
+.Bd -literal -offset indent
+#! /path/to/bin/atf-sh -s/bin/bash
+.Ed
+.Sh SEE ALSO
+.Xr atf-sh 3

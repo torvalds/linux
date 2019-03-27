@@ -1,0 +1,364 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)unix.4	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd August 19, 2018
+.Dt UNIX 4
+.Os
+.Sh NAME
+.Nm unix
+.Nd UNIX-domain protocol family
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/un.h
+.Sh DESCRIPTION
+The
+.Ux Ns -domain
+protocol family is a collection of protocols
+that provides local (on-machine) interprocess
+communication through the normal
+.Xr socket 2
+mechanisms.
+The
+.Ux Ns -domain
+family supports the
+.Dv SOCK_STREAM ,
+.Dv SOCK_SEQPACKET ,
+and
+.Dv SOCK_DGRAM
+socket types and uses
+file system pathnames for addressing.
+.Sh ADDRESSING
+.Ux Ns -domain
+addresses are variable-length file system pathnames of
+at most 104 characters.
+The include file
+.In sys/un.h
+defines this address:
+.Bd -literal -offset indent
+struct sockaddr_un {
+	u_char	sun_len;
+	u_char	sun_family;
+	char	sun_path[104];
+};
+.Ed
+.Pp
+Binding a name to a
+.Ux Ns -domain
+socket with
+.Xr bind 2
+causes a socket file to be created in the file system.
+This file is
+.Em not
+removed when the socket is closed \(em
+.Xr unlink 2
+must be used to remove the file.
+.Pp
+The length of
+.Ux Ns -domain
+address, required by
+.Xr bind 2
+and
+.Xr connect 2 ,
+can be calculated by the macro
+.Fn SUN_LEN
+defined in
+.In sys/un.h .
+The
+.Va sun_path
+field must be terminated by a
+.Dv NUL
+character to be used with
+.Fn SUN_LEN ,
+but the terminating
+.Dv NUL
+is
+.Em not
+part of the address.
+.Pp
+The
+.Ux Ns -domain
+protocol family does not support broadcast addressing or any form
+of
+.Dq wildcard
+matching on incoming messages.
+All addresses are absolute- or relative-pathnames
+of other
+.Ux Ns -domain
+sockets.
+Normal file system access-control mechanisms are also
+applied when referencing pathnames; e.g., the destination
+of a
+.Xr connect 2
+or
+.Xr sendto 2
+must be writable.
+.Sh CONTROL MESSAGES
+The
+.Ux Ns -domain
+sockets support the communication of
+.Ux
+file descriptors and process credentials through the use of the
+.Va msg_control
+field in the
+.Fa msg
+argument to
+.Xr sendmsg 2
+and
+.Xr recvmsg 2 .
+The items to be passed are described using a
+.Vt "struct cmsghdr"
+that is defined in the include file
+.In sys/socket.h .
+.Pp
+To send file descriptors, the type of the message is
+.Dv SCM_RIGHTS ,
+and the data portion of the messages is an array of integers
+representing the file descriptors to be passed.
+The number of descriptors being passed is defined
+by the length field of the message;
+the length field is the sum of the size of the header
+plus the size of the array of file descriptors.
+.Pp
+The received descriptor is a
+.Em duplicate
+of the sender's descriptor, as if it were created via
+.Li dup(fd)
+or
+.Li fcntl(fd, F_DUPFD_CLOEXEC, 0)
+depending on whether
+.Dv MSG_CMSG_CLOEXEC
+is passed in the
+.Xr recvmsg 2
+call.
+Descriptors that are awaiting delivery, or that are
+purposely not received, are automatically closed by the system
+when the destination socket is closed.
+.Pp
+Credentials of the sending process can be transmitted explicitly using a
+control message of type
+.Dv SCM_CREDS
+with a data portion of type
+.Vt "struct cmsgcred" ,
+defined in
+.In sys/socket.h
+as follows:
+.Bd -literal
+struct cmsgcred {
+  pid_t	cmcred_pid;		/* PID of sending process */
+  uid_t	cmcred_uid;		/* real UID of sending process */
+  uid_t	cmcred_euid;		/* effective UID of sending process */
+  gid_t	cmcred_gid;		/* real GID of sending process */
+  short	cmcred_ngroups;		/* number of groups */
+  gid_t	cmcred_groups[CMGROUP_MAX];	/* groups */
+};
+.Ed
+.Pp
+The sender should pass a zeroed buffer which will be filled in by the system.
+.Pp
+The group list is truncated to at most
+.Dv CMGROUP_MAX
+GIDs.
+.Pp
+The process ID
+.Fa cmcred_pid
+should not be looked up (such as via the
+.Dv KERN_PROC_PID
+sysctl) for making security decisions.
+The sending process could have exited and its process ID already been
+reused for a new process.
+.Sh SOCKET OPTIONS
+.Tn UNIX
+domain sockets support a number of socket options which can be set with
+.Xr setsockopt 2
+and tested with
+.Xr getsockopt 2 :
+.Bl -tag -width ".Dv LOCAL_CONNWAIT"
+.It Dv LOCAL_CREDS
+This option may be enabled on
+.Dv SOCK_DGRAM ,
+.Dv SOCK_SEQPACKET ,
+or a
+.Dv SOCK_STREAM
+socket.
+This option provides a mechanism for the receiver to
+receive the credentials of the process calling
+.Xr write 2 ,
+.Xr send 2 ,
+.Xr sendto 2
+or
+.Xr sendmsg 2
+as a
+.Xr recvmsg 2
+control message.
+The
+.Va msg_control
+field in the
+.Vt msghdr
+structure points to a buffer that contains a
+.Vt cmsghdr
+structure followed by a variable length
+.Vt sockcred
+structure, defined in
+.In sys/socket.h
+as follows:
+.Bd -literal
+struct sockcred {
+  uid_t	sc_uid;		/* real user id */
+  uid_t	sc_euid;	/* effective user id */
+  gid_t	sc_gid;		/* real group id */
+  gid_t	sc_egid;	/* effective group id */
+  int	sc_ngroups;	/* number of supplemental groups */
+  gid_t	sc_groups[1];	/* variable length */
+};
+.Ed
+.Pp
+The current implementation truncates the group list to at most
+.Dv CMGROUP_MAX
+groups.
+.Pp
+The
+.Fn SOCKCREDSIZE
+macro computes the size of the
+.Vt sockcred
+structure for a specified number
+of groups.
+The
+.Vt cmsghdr
+fields have the following values:
+.Bd -literal
+cmsg_len = CMSG_LEN(SOCKCREDSIZE(ngroups))
+cmsg_level = SOL_SOCKET
+cmsg_type = SCM_CREDS
+.Ed
+.Pp
+On
+.Dv SOCK_STREAM
+and
+.Dv SOCK_SEQPACKET
+sockets credentials are passed only on the first read from a socket,
+then the system clears the option on the socket.
+.Pp
+This option and the above explicit
+.Vt "struct cmsgcred"
+both use the same value
+.Dv SCM_CREDS
+but incompatible control messages.
+If this option is enabled and the sender attached a
+.Dv SCM_CREDS
+control message with a
+.Vt "struct cmsgcred" ,
+it will be discarded and a
+.Vt "struct sockcred"
+will be included.
+.Pp
+Many setuid programs will
+.Xr write 2
+data at least partially controlled by the invoker,
+such as error messages.
+Therefore, a message accompanied by a particular
+.Fa sc_euid
+value should not be trusted as being from that user.
+.It Dv LOCAL_CONNWAIT
+Used with
+.Dv SOCK_STREAM
+sockets, this option causes the
+.Xr connect 2
+function to block until
+.Xr accept 2
+has been called on the listening socket.
+.It Dv LOCAL_PEERCRED
+Requested via
+.Xr getsockopt 2
+on a
+.Dv SOCK_STREAM
+socket returns credentials of the remote side.
+These will arrive in the form of a filled in
+.Vt xucred
+structure, defined in
+.In sys/ucred.h
+as follows:
+.Bd -literal
+struct xucred {
+  u_int	cr_version;		/* structure layout version */
+  uid_t	cr_uid;			/* effective user id */
+  short	cr_ngroups;		/* number of groups */
+  gid_t	cr_groups[XU_NGROUPS];	/* groups */
+};
+.Ed
+The
+.Vt cr_version
+fields should be checked against
+.Dv XUCRED_VERSION
+define.
+.Pp
+The credentials presented to the server (the
+.Xr listen 2
+caller) are those of the client when it called
+.Xr connect 2 ;
+the credentials presented to the client (the
+.Xr connect 2
+caller) are those of the server when it called
+.Xr listen 2 .
+This mechanism is reliable; there is no way for either party to influence
+the credentials presented to its peer except by calling the appropriate
+system call (e.g.,
+.Xr connect 2
+or
+.Xr listen 2 )
+under different effective credentials.
+.Pp
+To reliably obtain peer credentials on a
+.Dv SOCK_DGRAM
+socket refer to the
+.Dv LOCAL_CREDS
+socket option.
+.El
+.Sh SEE ALSO
+.Xr connect 2 ,
+.Xr dup 2 ,
+.Xr fcntl 2 ,
+.Xr getsockopt 2 ,
+.Xr listen 2 ,
+.Xr recvmsg 2 ,
+.Xr sendto 2 ,
+.Xr setsockopt 2 ,
+.Xr socket 2 ,
+.Xr CMSG_DATA 3 ,
+.Xr intro 4
+.Rs
+.%T "An Introductory 4.3 BSD Interprocess Communication Tutorial"
+.%B PS1
+.%N 7
+.Re
+.Rs
+.%T "An Advanced 4.3 BSD Interprocess Communication Tutorial"
+.%B PS1
+.%N 8
+.Re

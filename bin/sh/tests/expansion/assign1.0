@@ -1,0 +1,37 @@
+# $FreeBSD$
+
+e= q='?' a='*' t=texttext s='ast*que?non' p='/et[c]/' w='a b c' b='{{(#)}}'
+h='##'
+failures=''
+ok=''
+
+testcase() {
+	code="$1"
+	expected="$2"
+	oIFS="$IFS"
+	eval "$code"
+	IFS='|'
+	result="$#|$*"
+	IFS="$oIFS"
+	if [ "x$result" = "x$expected" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "For $code, expected $expected actual $result"
+	fi
+}
+
+testcase 'v=; set -- ${v=a b} $v'		'0|'
+testcase 'unset v; set -- ${v=a b} $v'		'4|a|b|a|b'
+testcase 'v=; set -- ${v:=a b} $v'		'4|a|b|a|b'
+testcase 'v=; set -- "${v:=a b}" "$v"'		'2|a b|a b'
+# expect sensible behaviour, although it disagrees with POSIX
+testcase 'v=; set -- ${v:=a\ b} $v'		'4|a|b|a|b'
+testcase 'v=; set -- ${v:=$p} $v'		'2|/etc/|/etc/'
+testcase 'v=; set -- "${v:=$p}" "$v"'		'2|/et[c]/|/et[c]/'
+testcase 'v=; set -- "${v:=a\ b}" "$v"'		'2|a\ b|a\ b'
+testcase 'v=; set -- ${v:="$p"} $v'		'2|/etc/|/etc/'
+# whether $p is quoted or not shouldn't really matter
+testcase 'v=; set -- "${v:="$p"}" "$v"'		'2|/et[c]/|/et[c]/'
+
+test "x$failures" = x

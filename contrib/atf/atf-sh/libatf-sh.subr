@@ -1,0 +1,770 @@
+# Copyright (c) 2007 The NetBSD Foundation, Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
+# CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+# INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+# GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+# IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# ------------------------------------------------------------------------
+# GLOBAL VARIABLES
+# ------------------------------------------------------------------------
+
+# Values for the expect property.
+Expect=pass
+Expect_Reason=
+
+# A boolean variable that indicates whether we are parsing a test case's
+# head or not.
+Parsing_Head=false
+
+# The program name.
+Prog_Name=${0##*/}
+
+# The file to which the test case will print its result.
+Results_File=
+
+# The test program's source directory: i.e. where its auxiliary data files
+# and helper utilities can be found.  Can be overriden through the '-s' flag.
+Source_Dir="$(dirname ${0})"
+
+# Indicates the test case we are currently processing.
+Test_Case=
+
+# List of meta-data variables for the current test case.
+Test_Case_Vars=
+
+# The list of all test cases provided by the test program.
+Test_Cases=
+
+# ------------------------------------------------------------------------
+# PUBLIC INTERFACE
+# ------------------------------------------------------------------------
+
+#
+# atf_add_test_case tc-name
+#
+#   Adds the given test case to the list of test cases that form the test
+#   program.  The name provided here must be accompanied by two functions
+#   named after it: <tc-name>_head and <tc-name>_body, and optionally by
+#   a <tc-name>_cleanup function.
+#
+atf_add_test_case()
+{
+    Test_Cases="${Test_Cases} ${1}"
+}
+
+#
+# atf_check cmd expcode expout experr
+#
+#   Executes atf-check with given arguments and automatically calls
+#   atf_fail in case of failure.
+#
+atf_check()
+{
+    ${Atf_Check} "${@}" || \
+        atf_fail "atf-check failed; see the output of the test for details"
+}
+
+#
+# atf_check_equal expected_expression actual_expression
+#
+#   Checks that expected_expression's value matches actual_expression's
+#   and, if not, raises an error.  Ideally expected_expression and
+#   actual_expression should be provided quoted (not expanded) so that
+#   the error message is helpful; otherwise it will only show the values,
+#   not the expressions themselves.
+#
+atf_check_equal()
+{
+    eval _val1=\"${1}\"
+    eval _val2=\"${2}\"
+    test "${_val1}" = "${_val2}" || \
+        atf_fail "${1} != ${2} (${_val1} != ${_val2})"
+}
+
+#
+# atf_config_get varname [defvalue]
+#
+#   Prints the value of a configuration variable.  If it is not
+#   defined, prints the given default value.
+#
+atf_config_get()
+{
+    _varname="__tc_config_var_$(_atf_normalize ${1})"
+    if [ ${#} -eq 1 ]; then
+        eval _value=\"\${${_varname}-__unset__}\"
+        [ "${_value}" = __unset__ ] && \
+            _atf_error 1 "Could not find configuration variable \`${1}'"
+        echo ${_value}
+    elif [ ${#} -eq 2 ]; then
+        eval echo \${${_varname}-${2}}
+    else
+        _atf_error 1 "Incorrect number of parameters for atf_config_get"
+    fi
+}
+
+#
+# atf_config_has varname
+#
+#   Returns a boolean indicating if the given configuration variable is
+#   defined or not.
+#
+atf_config_has()
+{
+    _varname="__tc_config_var_$(_atf_normalize ${1})"
+    eval _value=\"\${${_varname}-__unset__}\"
+    [ "${_value}" != __unset__ ]
+}
+
+#
+# atf_expect_death reason
+#
+#   Sets the expectations to 'death'.
+#
+atf_expect_death()
+{
+    _atf_validate_expect
+
+    Expect=death
+    _atf_create_resfile "expected_death: ${*}"
+}
+
+#
+# atf_expect_timeout reason
+#
+#   Sets the expectations to 'timeout'.
+#
+atf_expect_timeout()
+{
+    _atf_validate_expect
+
+    Expect=timeout
+    _atf_create_resfile "expected_timeout: ${*}"
+}
+
+#
+# atf_expect_exit exitcode reason
+#
+#   Sets the expectations to 'exit'.
+#
+atf_expect_exit()
+{
+    _exitcode="${1}"; shift
+
+    _atf_validate_expect
+
+    Expect=exit
+    if [ "${_exitcode}" = "-1" ]; then
+        _atf_create_resfile "expected_exit: ${*}"
+    else
+        _atf_create_resfile "expected_exit(${_exitcode}): ${*}"
+    fi
+}
+
+#
+# atf_expect_fail reason
+#
+#   Sets the expectations to 'fail'.
+#
+atf_expect_fail()
+{
+    _atf_validate_expect
+
+    Expect=fail
+    Expect_Reason="${*}"
+}
+
+#
+# atf_expect_pass
+#
+#   Sets the expectations to 'pass'.
+#
+atf_expect_pass()
+{
+    _atf_validate_expect
+
+    Expect=pass
+    Expect_Reason=
+}
+
+#
+# atf_expect_signal signo reason
+#
+#   Sets the expectations to 'signal'.
+#
+atf_expect_signal()
+{
+    _signo="${1}"; shift
+
+    _atf_validate_expect
+
+    Expect=signal
+    if [ "${_signo}" = "-1" ]; then
+        _atf_create_resfile "expected_signal: ${*}"
+    else
+        _atf_create_resfile "expected_signal(${_signo}): ${*}"
+    fi
+}
+
+#
+# atf_expected_failure msg1 [.. msgN]
+#
+#   Makes the test case report an expected failure with the given error
+#   message.  Multiple words can be provided, which are concatenated with
+#   a single blank space.
+#
+atf_expected_failure()
+{
+    _atf_create_resfile "expected_failure: ${Expect_Reason}: ${*}"
+    exit 0
+}
+
+#
+# atf_fail msg1 [.. msgN]
+#
+#   Makes the test case fail with the given error message.  Multiple
+#   words can be provided, in which case they are joined by a single
+#   blank space.
+#
+atf_fail()
+{
+    case "${Expect}" in
+        fail)
+            atf_expected_failure "${@}"
+            ;;
+        pass)
+            _atf_create_resfile "failed: ${*}"
+            exit 1
+            ;;
+        *)
+            _atf_error 128 "Unreachable"
+            ;;
+    esac
+}
+
+#
+# atf_get varname
+#
+#   Prints the value of a test case-specific variable.  Given that one
+#   should not get the value of non-existent variables, it is fine to
+#   always use this function as 'val=$(atf_get var)'.
+#
+atf_get()
+{
+    eval echo \${__tc_var_${Test_Case}_$(_atf_normalize ${1})}
+}
+
+#
+# atf_get_srcdir
+#
+#   Prints the value of the test case's source directory.
+#
+atf_get_srcdir()
+{
+    echo ${Source_Dir}
+}
+
+#
+# atf_pass
+#
+#   Makes the test case pass.  Shouldn't be used in general, as a test
+#   case that does not explicitly fail is assumed to pass.
+#
+atf_pass()
+{
+    case "${Expect}" in
+        fail)
+            Expect=pass
+            atf_fail "Test case was expecting a failure but got a pass instead"
+            ;;
+        pass)
+            _atf_create_resfile passed
+            exit 0
+            ;;
+        *)
+            _atf_error 128 "Unreachable"
+            ;;
+    esac
+}
+
+#
+# atf_require_prog prog
+#
+#   Checks that the given program name (either provided as an absolute
+#   path or as a plain file name) can be found.  If it is not available,
+#   automatically skips the test case with an appropriate message.
+#
+#   Relative paths are not allowed because the test case cannot predict
+#   where it will be executed from.
+#
+atf_require_prog()
+{
+    _prog=
+    case ${1} in
+    /*)
+        _prog="${1}"
+        [ -x ${_prog} ] || \
+            atf_skip "The required program ${1} could not be found"
+        ;;
+    */*)
+        atf_fail "atf_require_prog does not accept relative path names \`${1}'"
+        ;;
+    *)
+        _prog=$(_atf_find_in_path "${1}")
+        [ -n "${_prog}" ] || \
+            atf_skip "The required program ${1} could not be found" \
+                     "in the PATH"
+        ;;
+    esac
+}
+
+#
+# atf_set varname val1 [.. valN]
+#
+#   Sets the test case's variable 'varname' to the specified values
+#   which are concatenated using a single blank space.  This function
+#   is supposed to be called form the test case's head only.
+#
+atf_set()
+{
+    ${Parsing_Head} || \
+        _atf_error 128 "atf_set called from the test case's body"
+
+    Test_Case_Vars="${Test_Case_Vars} ${1}"
+    _var=$(_atf_normalize ${1}); shift
+    eval __tc_var_${Test_Case}_${_var}=\"\${*}\"
+}
+
+#
+# atf_skip msg1 [.. msgN]
+#
+#   Skips the test case because of the reason provided.  Multiple words
+#   can be given, in which case they are joined by a single blank space.
+#
+atf_skip()
+{
+    _atf_create_resfile "skipped: ${*}"
+    exit 0
+}
+
+#
+# atf_test_case tc-name cleanup
+#
+#   Defines a new test case named tc-name.  The name provided here must be
+#   accompanied by two functions named after it: <tc-name>_head and
+#   <tc-name>_body.  If cleanup is set to 'cleanup', then this also expects
+#   a <tc-name>_cleanup function to be defined.
+#
+atf_test_case()
+{
+    eval "${1}_head() { :; }"
+    eval "${1}_body() { atf_fail 'Test case not implemented'; }"
+    if [ "${2}" = cleanup ]; then
+        eval __has_cleanup_${1}=true
+        eval "${1}_cleanup() { :; }"
+    else
+        eval "${1}_cleanup() {
+            _atf_error 1 'Test case ${1} declared without a cleanup routine'; }"
+    fi
+}
+
+# ------------------------------------------------------------------------
+# PRIVATE INTERFACE
+# ------------------------------------------------------------------------
+
+#
+# _atf_config_set varname val1 [.. valN]
+#
+#   Sets the test case's private variable 'varname' to the specified
+#   values which are concatenated using a single blank space.
+#
+_atf_config_set()
+{
+    _var=$(_atf_normalize ${1}); shift
+    eval __tc_config_var_${_var}=\"\${*}\"
+    Config_Vars="${Config_Vars} __tc_config_var_${_var}"
+}
+
+#
+# _atf_config_set_str varname=val
+#
+#   Sets the test case's private variable 'varname' to the specified
+#   value.  The parameter is of the form 'varname=val'.
+#
+_atf_config_set_from_str()
+{
+    _oldifs=${IFS}
+    IFS='='
+    set -- ${*}
+    _var=${1}
+    shift
+    _val="${@}"
+    IFS=${_oldifs}
+    _atf_config_set "${_var}" "${_val}"
+}
+
+#
+# _atf_create_resfile contents
+#
+#   Creates the results file.
+#
+_atf_create_resfile()
+{
+    if [ -n "${Results_File}" ]; then
+        echo "${*}" >"${Results_File}" || \
+            _atf_error 128 "Cannot create results file '${Results_File}'"
+    else
+        echo "${*}"
+    fi
+}
+
+#
+# _atf_error error_code [msg1 [.. msgN]]
+#
+#   Prints the given error message (which can be composed of multiple
+#   arguments, in which case are joined by a single space) and exits
+#   with the specified error code.
+#
+#   This must not be used by test programs themselves (hence making
+#   the function private) to indicate a test case's failure.  They
+#   have to use the atf_fail function.
+#
+_atf_error()
+{
+    _error_code="${1}"; shift
+
+    echo "${Prog_Name}: ERROR:" "$@" 1>&2
+    exit ${_error_code}
+}
+
+#
+# _atf_warning msg1 [.. msgN]
+#
+#   Prints the given warning message (which can be composed of multiple
+#   arguments, in which case are joined by a single space).
+#
+_atf_warning()
+{
+    echo "${Prog_Name}: WARNING:" "$@" 1>&2
+}
+
+#
+# _atf_find_in_path program
+#
+#   Looks for a program in the path and prints the full path to it or
+#   nothing if it could not be found.  It also returns true in case of
+#   success.
+#
+_atf_find_in_path()
+{
+    _prog="${1}"
+
+    _oldifs=${IFS}
+    IFS=:
+    for _dir in ${PATH}
+    do
+        if [ -x ${_dir}/${_prog} ]; then
+            IFS=${_oldifs}
+            echo ${_dir}/${_prog}
+            return 0
+        fi
+    done
+    IFS=${_oldifs}
+
+    return 1
+}
+
+#
+# _atf_has_tc name
+#
+#   Returns true if the given test case exists.
+#
+_atf_has_tc()
+{
+    for _tc in ${Test_Cases}; do
+        [ "${_tc}" != "${1}" ] || return 0
+    done
+    return 1
+}
+
+#
+# _atf_list_tcs
+#
+#   Describes all test cases and prints the list to the standard output.
+#
+_atf_list_tcs()
+{
+    echo 'Content-Type: application/X-atf-tp; version="1"'
+    echo
+
+    set -- ${Test_Cases}
+    while [ ${#} -gt 0 ]; do
+        _atf_parse_head ${1}
+
+        echo "ident: $(atf_get ident)"
+        for _var in ${Test_Case_Vars}; do
+            [ "${_var}" != "ident" ] && echo "${_var}: $(atf_get ${_var})"
+        done
+
+        [ ${#} -gt 1 ] && echo
+        shift
+    done
+}
+
+#
+# _atf_normalize str
+#
+#   Normalizes a string so that it is a valid shell variable name.
+#
+_atf_normalize()
+{
+    echo ${1} | tr .- __
+}
+
+#
+# _atf_parse_head tcname
+#
+#   Evaluates a test case's head to gather its variables and prepares the
+#   test program to run it.
+#
+_atf_parse_head()
+{
+    Parsing_Head=true
+
+    Test_Case="${1}"
+    Test_Case_Vars=
+
+    if _atf_has_cleanup "${1}"; then
+        atf_set has.cleanup "true"
+    fi
+
+    ${1}_head
+    atf_set ident "${1}"
+
+    Parsing_Head=false
+}
+
+#
+# _atf_run_tc tc
+#
+#   Runs the specified test case.  Prints its exit status to the
+#   standard output and returns a boolean indicating if the test was
+#   successful or not.
+#
+_atf_run_tc()
+{
+    case ${1} in
+    *:*)
+        _tcname=${1%%:*}
+        _tcpart=${1#*:}
+
+        if [ "${_tcpart}" != body -a "${_tcpart}" != cleanup ]; then
+            _atf_syntax_error "Unknown test case part \`${_tcpart}'"
+        fi
+        ;;
+
+    *)
+        _tcname=${1}
+        _tcpart=body
+        ;;
+    esac
+
+    _atf_has_tc "${_tcname}" || _atf_syntax_error "Unknown test case \`${1}'"
+
+    if [ "${__RUNNING_INSIDE_ATF_RUN}" != "internal-yes-value" ]; then
+        _atf_warning "Running test cases outside of kyua(1) is unsupported"
+        _atf_warning "No isolation nor timeout control is being applied;" \
+            "you may get unexpected failures; see atf-test-case(4)"
+    fi
+
+    _atf_parse_head ${_tcname}
+
+    case ${_tcpart} in
+    body)
+        if ${_tcname}_body; then
+            _atf_validate_expect
+            _atf_create_resfile passed
+        else
+            Expect=pass
+            atf_fail "Test case body returned a non-ok exit code, but" \
+                "this is not allowed"
+        fi
+        ;;
+    cleanup)
+        if _atf_has_cleanup "${_tcname}"; then
+            ${_tcname}_cleanup || _atf_error 128 "The test case cleanup" \
+                "returned a non-ok exit code, but this is not allowed"
+        fi
+        ;;
+    *)
+        _atf_error 128 "Unknown test case part"
+        ;;
+    esac
+}
+
+#
+# _atf_syntax_error msg1 [.. msgN]
+#
+#   Formats and prints a syntax error message and terminates the
+#   program prematurely.
+#
+_atf_syntax_error()
+{
+    echo "${Prog_Name}: ERROR: ${@}" 1>&2
+    echo "${Prog_Name}: See atf-test-program(1) for usage details." 1>&2
+    exit 1
+}
+
+#
+# _atf_has_cleanup tc-name
+#
+#   Returns a boolean indicating if the given test case has a cleanup
+#   routine or not.
+#
+_atf_has_cleanup()
+{
+    _found=true
+    eval "[ x\"\${__has_cleanup_${1}}\" = xtrue ] || _found=false"
+    [ "${_found}" = true ]
+}
+
+#
+# _atf_validate_expect
+#
+#   Ensures that the current test case state is correct regarding the expect
+#   status.
+#
+_atf_validate_expect()
+{
+    case "${Expect}" in
+        death)
+            Expect=pass
+            atf_fail "Test case was expected to terminate abruptly but it" \
+                "continued execution"
+            ;;
+        exit)
+            Expect=pass
+            atf_fail "Test case was expected to exit cleanly but it continued" \
+                "execution"
+            ;;
+        fail)
+            Expect=pass
+            atf_fail "Test case was expecting a failure but none were raised"
+            ;;
+        pass)
+            ;;
+        signal)
+            Expect=pass
+            atf_fail "Test case was expected to receive a termination signal" \
+                "but it continued execution"
+            ;;
+        timeout)
+            Expect=pass
+            atf_fail "Test case was expected to hang but it continued execution"
+            ;;
+        *)
+            _atf_error 128 "Unreachable"
+            ;;
+    esac
+}
+
+#
+# _atf_warning [msg1 [.. msgN]]
+#
+#   Prints the given warning message (which can be composed of multiple
+#   arguments, in which case are joined by a single space).
+#
+#   This must not be used by test programs themselves (hence making
+#   the function private).
+#
+_atf_warning()
+{
+    echo "${Prog_Name}: WARNING:" "$@" 1>&2
+}
+
+#
+# main [options] test_case
+#
+#   Test program's entry point.
+#
+main()
+{
+    # Process command-line options first.
+    _numargs=${#}
+    _lflag=false
+    while getopts :lr:s:v: arg; do
+        case ${arg} in
+        l)
+            _lflag=true
+            ;;
+
+        r)
+            Results_File=${OPTARG}
+            ;;
+
+        s)
+            Source_Dir=${OPTARG}
+            ;;
+
+        v)
+            _atf_config_set_from_str "${OPTARG}"
+            ;;
+
+        \?)
+            _atf_syntax_error "Unknown option -${OPTARG}."
+            # NOTREACHED
+            ;;
+        esac
+    done
+    shift `expr ${OPTIND} - 1`
+
+    case ${Source_Dir} in
+        /*)
+            ;;
+        *)
+            Source_Dir=$(pwd)/${Source_Dir}
+            ;;
+    esac
+    [ -f ${Source_Dir}/${Prog_Name} ] || \
+        _atf_error 1 "Cannot find the test program in the source" \
+                     "directory \`${Source_Dir}'"
+
+    # Call the test program's hook to register all available test cases.
+    atf_init_test_cases
+
+    # Run or list test cases.
+    if `${_lflag}`; then
+        if [ ${#} -gt 0 ]; then
+            _atf_syntax_error "Cannot provide test case names with -l"
+        fi
+        _atf_list_tcs
+    else
+        if [ ${#} -eq 0 ]; then
+            _atf_syntax_error "Must provide a test case name"
+        elif [ ${#} -gt 1 ]; then
+            _atf_syntax_error "Cannot provide more than one test case name"
+        else
+            _atf_run_tc "${1}"
+        fi
+    fi
+}
+
+# vim: syntax=sh:expandtab:shiftwidth=4:softtabstop=4

@@ -1,0 +1,12 @@
+# $FreeBSD$
+# A redirection error on a compound command should not abort the shell.
+exec 2>/dev/null
+{ echo bad; } </var/empty/x
+if :; then echo bad; fi </var/empty/x
+for i in 1; do echo bad; done </var/empty/x
+i=0
+while [ $i = 0 ]; do echo bad; i=1; done </var/empty/x
+i=0
+until [ $i != 0 ]; do echo bad; i=1; done </var/empty/x
+case i in *) echo bad ;; esac </var/empty/x
+exit 0

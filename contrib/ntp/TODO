@@ -1,0 +1,122 @@
+
+      *** IF YOU CAN HELP FIX ANY OF THESE THINGS, PLEASE DO! ***
+
+010402: Look harder at -lm and -lelf - they are needed less and less...
+
+970711: Look Real Hard at changing the key stuff from u_long to u_int32.
+
+970711: Make sure it's safe to convert proto_config's 2nd argument from
+	u_long to u_int32.  Watch "set" in ntp_request.c:setclr_flags().
+
+970318: in hourly_stats(?), squawk if the magnitude of the drift is,
+	say, >400.
+
+970301: Implement the utmp/wtmp timestamping on time steps.
+
+970210: Find a way to dump the current configuration to either syslog or
+	a file.
+
+Problems that need to be fixed:
+
+- Get rid of the old SYS_* macros:
+  (It's worth noting that any code that would have been "enabled" by any
+  of these macros has not been used since 5.83, and there have been very
+  few complaints...)
+
+  SYS_44BSD:
+   authstuff/md5driver.c
+
+  SYS_BSDI:
+   authstuff/md5driver.c
+
+  SYS_DECOSF1:
+   util/ntptime.c
+
+  SYS_DOMAINOS:
+   parseutil/dcfd.c
+   xntpd/ntpd.c
+
+  SYS_HPUX:
+   kernel/sys/ppsclock.h
+   ntpdate/ntpdate.c
+   ntptrace/ntptrace.c
+
+  SYS_PTX:
+   libntp/machines.c
+
+  SYS_SOLARIS:
+   libparse/parse.c
+   libparse/clk_trimtsip.c
+   xntpd/ntp_io.c
+   xntpd/ntp_refclock.c
+   xntpd/ntpd.c
+
+  SYS_SUNOS4:
+   libparse/parse.c
+   libparse/clk_trimsip.c
+
+  SYS_WINNT:
+   include/ntp.h
+   include/ntp_fp.h
+   include/ntp_if.h
+   include/ntp_machine.h
+   include/ntp_select.h
+   include/ntp_syslog.h
+   include/ntp_unixtime.h
+   include/ntpd.h
+   libntp/libntp.mak
+   libntp/machines.c
+   libntp/mexit.c
+   libntp/msyslog.c
+   libntp/systime.c
+   ntpdate/ntpdate.c
+   ntpdate/ntpdate.mak
+   ntpq/ntpq.c
+   ntpq/ntpq.mak
+   ntpq/ntpq_ops.c
+   ntptrace/ntptrace.c
+   ntptrace/ntptrace.mak
+   xntpd/ntp_config.c
+   xntpd/ntp_filegen.c
+   xntpd/ntp_intres.c
+   xntpd/ntp_io.c
+   xntpd/ntp_loopfilter.c
+   xntpd/ntp_peer.c
+   xntpd/ntp_proto.c
+   xntpd/ntp_refclock.c
+   xntpd/ntp_timer.c
+   xntpd/ntp_unixclock.c
+   xntpd/ntp_util.c
+   xntpd/ntpd.c
+   xntpd/xntpd.mak
+   xntpdc/ntpdc.c
+   xntpdc/xntpdc.mak
+
+- config.guess might need help to identify:
+
+  Fujitsu's UXP				--enable-adjtime-is-accurate
+					--enable-step-slew
+
+  Unixware				--enable-adjtime-is-accurate
+					--enable-tick=10000
+					--enable-tickadj=80
+					--enable-udp-wildcard
+					--disable-step-slew
+
+  DomainOS				--enable-adjtime-is-accurate
+					--disable-kmem
+					--enable-tick=1000000
+
+  OpenVMS				--enable-slew-always
+					--enable-hourly-todr-sync
+
+  Is adjtime accurate on ALL sysv4* machines?
+  Can we identify DomainOS with *-apollo-* ?
+  Do we catch all Unixware machines with *-univel-sysv* ?
+
+- Combine enable-step-slew and enable-ntpdate-step
+
+- Make sure enable-hourly-todr-sync is always disabled
+  What about NextStep and OpenVMS, where hourly TODR sync used to be enabled?
+
+- Check dcfd.c for variables that need to be volatile.

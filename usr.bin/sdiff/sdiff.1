@@ -1,0 +1,172 @@
+.\" $FreeBSD$
+.\" $OpenBSD: sdiff.1,v 1.15 2007/06/29 14:48:07 jmc Exp $
+.\"
+.\" Written by Raymond Lai <ray@cyth.net>.
+.\" Public domain.
+.\"
+.Dd April 8, 2017
+.Dt SDIFF 1
+.Os
+.Sh NAME
+.Nm sdiff
+.Nd side-by-side diff
+.Sh SYNOPSIS
+.Nm
+.Op Fl abdilstHW
+.Op Fl I Ar regexp
+.Op Fl o Ar outfile
+.Op Fl w Ar width
+.Ar file1
+.Ar file2
+.Sh DESCRIPTION
+.Nm
+displays two files side by side,
+with any differences between the two highlighted as follows:
+new lines are marked with
+.Sq \*(Gt ;
+deleted lines are marked with
+.Sq \*(Lt ;
+and changed lines are marked with
+.Sq \*(Ba .
+.Pp
+.Nm
+can also be used to interactively merge two files,
+prompting at each set of differences.
+See the
+.Fl o
+option for an explanation.
+.Pp
+The options are:
+.Bl -tag -width Ds
+.It Fl l -left-column
+Only print the left column for identical lines.
+.It Fl o -output Ar outfile
+Interactively merge
+.Ar file1
+and
+.Ar file2
+into
+.Ar outfile .
+In this mode, the user is prompted for each set of differences.
+See
+.Ev EDITOR
+and
+.Ev VISUAL ,
+below,
+for details of which editor, if any, is invoked.
+.Pp
+The commands are as follows:
+.Bl -tag -width Ds
+.It Cm l | 1
+Choose left set of diffs.
+.It Cm r | 2
+Choose right set of diffs.
+.It Cm s
+Silent mode \(en identical lines are not printed.
+.It Cm v
+Verbose mode \(en identical lines are printed.
+.It Cm e
+Start editing an empty file, which will be merged into
+.Ar outfile
+upon exiting the editor.
+.It Cm e Cm l
+Start editing file with left set of diffs.
+.It Cm e Cm r
+Start editing file with right set of diffs.
+.It Cm e Cm b
+Start editing file with both sets of diffs.
+.It Cm q
+Quit
+.Nm .
+.El
+.It Fl s -suppress-common-lines
+Skip identical lines.
+.It Fl w -width Ar width
+Print a maximum of
+.Ar width
+characters on each line.
+The default is 130 characters.
+.El
+.Pp
+Options passed to
+.Xr diff 1
+are:
+.Bl -tag -width Ds
+.It Fl a -text
+Treat
+.Ar file1
+and
+.Ar file2
+as text files.
+.It Fl b -ignore-space-change
+Ignore trailing blank spaces.
+.It Fl d -minimal
+Minimize diff size.
+.It Fl I -ignore-matching-lines Ar regexp
+Ignore line changes matching
+.Ar regexp .
+All lines in the change must match
+.Ar regexp
+for the change to be ignored.
+.It Fl i -ignore-case
+Do a case-insensitive comparison.
+.It Fl t -expand-tabs
+Expand tabs to spaces.
+.It Fl W -ignore-all-space
+Ignore all spaces.
+.It Fl B -ignore-blank-lines
+Ignore blank lines.
+.It Fl E -ignore-tab-expansion
+Treat tabs and eight spaces as the same.
+.It Fl t -ignore-tabs
+Ignore tabs.
+.It Fl H -speed-large-files
+Assume scattered small changes in a large file.
+.It Fl -ignore-file-name-case
+Ignore the case of file names.
+.It Fl -no-ignore-file-name-case
+Do not ignore file name case.
+.It Fl -strip-trailing-cr
+Skip identical lines.
+.It Fl -tabsize Ar NUM
+Change the size of tabs (default is 8.)
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev EDITOR , VISUAL
+Specifies an editor to use with the
+.Fl o
+option.
+If both
+.Ev EDITOR
+and
+.Ev VISUAL
+are set,
+.Ev VISUAL
+takes precedence.
+If neither
+.Ev EDITOR
+nor
+.Ev VISUAL
+are set,
+the default is
+.Xr vi 1 .
+.It Ev TMPDIR
+Specifies a directory for temporary files to be created.
+The default is
+.Pa /tmp .
+.El
+.Sh SEE ALSO
+.Xr cmp 1 ,
+.Xr diff 1 ,
+.Xr diff3 1 ,
+.Xr vi 1 ,
+.Xr re_format 7
+.Sh AUTHORS
+.Nm
+was written from scratch for the public domain by
+.An Ray Lai Aq ray@cyth.net .
+.Sh CAVEATS
+Tabs are treated as anywhere from one to eight characters wide,
+depending on the current column.
+Terminals that treat tabs as eight characters wide will look best.

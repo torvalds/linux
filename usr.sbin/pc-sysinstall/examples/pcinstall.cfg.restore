@@ -1,0 +1,57 @@
+# Sample configuration file for an installation using pc-sysinstall
+#$FreeBSD$
+
+installMode=fresh
+installInteractive=no
+hostname=freebsd8
+
+# Set the disk parameters
+disk0=ad1
+partition=all
+bootManager=none
+commitDiskPart
+
+# Setup the disk label
+# All sizes are expressed in MB
+# Avail FS Types, UFS, UFS+S, UFS+J, ZFS, SWAP
+# UFS.eli, UFS+S.eli, UFS+J.eli, ZFS.eli, SWAP.eli
+disk0-part=UFS+S 500 /
+disk0-part=SWAP.eli 2000 none
+disk0-part=UFS+S 0 /usr
+# Size 0 means use the rest of the slice size
+# Do it now!
+commitDiskLabel
+
+# Set if we are installing via optical, USB, or FTP
+installType=FreeBSD
+installMedium=dvd
+installFile=freebsd-release.tbz
+
+#packageType=uzip
+packageType=tar
+#installComponents=ports,src
+
+# Run any commands post-install
+#runCommand=echo 'root' | pw usermod root -h 0
+#runScript=/root/test.sh
+#runExtCommand=echo 'hey there'; touch $FSMNT/touched
+
+# Set the root pass
+rootPass=root
+
+# Setup our users
+userName=kris
+userComment=Kris Moore
+userPass=kris
+userShell=/bin/csh
+userHome=/home/kris
+userGroups=wheel,operator
+commitUser
+
+#autoLoginUser=kris
+
+# Options for localizing an install
+localizeLang="ru"
+localizeKeyLayout="ru"
+localizeKeyModel="pc104"
+localizeKeyVariant="intl"

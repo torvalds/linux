@@ -1,0 +1,6 @@
+
+#------------------------------------------------------------------------------
+# $File: securitycerts,v 1.4 2009/09/19 16:28:12 christos Exp $
+0	search/1		-----BEGIN\ CERTIFICATE------	RFC1421 Security Certificate text
+0	search/1		-----BEGIN\ NEW\ CERTIFICATE	RFC1421 Security Certificate Signing Request text
+0	belong	0xedfeedfe	Sun 'jks' Java Keystore File data

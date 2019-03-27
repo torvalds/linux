@@ -1,0 +1,9 @@
+.\" $FreeBSD$
+Set to not build
+.Xr NIS 8
+support and related programs.
+If set, you might need to adopt your
+.Xr nsswitch.conf 5
+and remove
+.Sq nis
+entries.

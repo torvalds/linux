@@ -1,0 +1,211 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_globals.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd April 2, 2011
+.Dt DWARF_GET_GLOBALS 3
+.Os
+.Sh NAME
+.Nm dwarf_get_globals ,
+.Nm dwarf_global_cu_offset ,
+.Nm dwarf_global_die_offset ,
+.Nm dwarf_global_name_offsets ,
+.Nm dwarf_globname
+.Nd retrieve information about global objects
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_get_globals
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Global **globals"
+.Fa "Dwarf_Signed *nglobals"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_global_cu_offset
+.Fa "Dwarf_Global global"
+.Fa "Dwarf_Off *cu_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_global_die_offset
+.Fa "Dwarf_Global global"
+.Fa "Dwarf_Off *die_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_global_name_offsets
+.Fa "Dwarf_Global global"
+.Fa "char **name"
+.Fa "Dwarf_Off *die_offset"
+.Fa "Dwarf_Off *cu_die_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_globname
+.Fa "Dwarf_Global global"
+.Fa "char **name"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+These functions retrieve information about global symbols from the
+lookup tables in the
+.Dq ".debug_pubnames"
+DWARF section.
+Information about these global symbols is returned using opaque descriptors
+of type
+.Vt Dwarf_Global .
+Applications need to use the functions described below to retrieve the
+name and the offsets for these descriptors.
+.Pp
+Function
+.Fn dwarf_get_globals
+retrieves descriptors for all the global symbols associated with the
+DWARF debug context specified by argument
+.Ar dbg .
+The argument
+.Ar globals
+should point to a location that will be set to a pointer to an array
+of
+.Vt Dwarf_Global
+descriptors.
+The argument
+.Ar nglobals
+should point to a location that will be set to the number of
+descriptors returned.
+.Pp
+Function
+.Fn dwarf_global_cu_offset
+returns the section-relative offset, relative to the
+.Dq ".debug_info"
+section, of the compilation unit that contains the debugging
+information entry associated with the argument
+.Ar global .
+Argument
+.Ar cu_offset
+should point to a location that will hold the returned offset.
+.Pp
+Function
+.Fn dwarf_global_die_offset
+retrieves the section-relative offset, relative to the
+.Dq ".debug_info"
+section, of the debugging information entry associated with the
+argument
+.Ar global ,
+and stores it into the location pointed to by the argument
+.Ar die_offset .
+.Pp
+Function
+.Fn dwarf_global_name_offsets
+retrieves the name and the offsets for the debugging information
+entry for argument
+.Ar global .
+Argument
+.Ar name
+should point to a location which will be set to a pointer to a
+NUL-terminated string containing the name of the associated debugging
+information entry.
+Argument
+.Ar die_offset
+should point to a location which will be set to a section-relative
+offset, relative to the
+.Dq ".debug_info"
+section, of the associated debugging information entry.
+Argument
+.Ar cu_die_offset
+should point to a location which will be set to a
+section-relative offset, relative to the
+.Dq ".debug_info"
+section, of the first debugging information entry in
+the compilation unit associated with argument
+.Ar global .
+.Pp
+Function
+.Fn dwarf_globname
+sets the location pointed to by argument
+.Ar name
+to a pointer to a NUL-terminated string holding the name of the
+debugging information entry associated with the argument
+.Ar global .
+.Ss Memory Management
+The memory area used for the array of
+.Vt Dwarf_Global
+descriptors returned in argument
+.Ar globals
+by function
+.Fn dwarf_get_globals
+is owned by the
+.Lb libdwarf .
+Application code should not attempt to directly free this pointer.
+Portable code should instead use the function
+.Xr dwarf_globals_dealloc 3
+to indicate that the memory area may be freed.
+.Pp
+The memory area used for the string returned in the
+.Ar name
+argument to functions
+.Fn dwarf_globname
+and
+.Fn dwarf_global_name_offsets
+is owned by the
+.Lb libdwarf .
+Portable code should use the
+.Xr dwarf_dealloc 3
+function to indicate that the memory area may be freed.
+.Ss Error Returns
+If argument
+.Ar err
+is not NULL, these functions will use it to store error information,
+in case of an error.
+.Sh RETURN VALUES
+On success, these functions returns
+.Dv DW_DLV_OK .
+In case of an error, they return
+.Dv DW_DLV_ERROR
+and set the argument
+.Ar err .
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Va cu_die_offset ,
+.Va cu_offset ,
+.Va dbg ,
+.Va die_offset ,
+.Va global ,
+.Va globals ,
+.Va name ,
+or
+.Va nglobals
+was NULL.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_dealloc 3 ,
+.Xr dwarf_get_cu_die_offset_given_cu_header_offset 3 ,
+.Xr dwarf_globals_dealloc 3

@@ -1,0 +1,74 @@
+=pod
+
+=head1 NAME
+
+ERR_error_string, ERR_error_string_n, ERR_lib_error_string,
+ERR_func_error_string, ERR_reason_error_string - obtain human-readable
+error message
+
+=head1 SYNOPSIS
+
+ #include <openssl/err.h>
+
+ char *ERR_error_string(unsigned long e, char *buf);
+ void ERR_error_string_n(unsigned long e, char *buf, size_t len);
+
+ const char *ERR_lib_error_string(unsigned long e);
+ const char *ERR_func_error_string(unsigned long e);
+ const char *ERR_reason_error_string(unsigned long e);
+
+=head1 DESCRIPTION
+
+ERR_error_string() generates a human-readable string representing the
+error code I<e>, and places it at I<buf>. I<buf> must be at least 256
+bytes long. If I<buf> is B<NULL>, the error string is placed in a
+static buffer.
+Note that this function is not thread-safe and does no checks on the size
+of the buffer; use ERR_error_string_n() instead.
+
+ERR_error_string_n() is a variant of ERR_error_string() that writes
+at most I<len> characters (including the terminating 0)
+and truncates the string if necessary.
+For ERR_error_string_n(), I<buf> may not be B<NULL>.
+
+The string will have the following format:
+
+ error:[error code]:[library name]:[function name]:[reason string]
+
+I<error code> is an 8 digit hexadecimal number, I<library name>,
+I<function name> and I<reason string> are ASCII text.
+
+ERR_lib_error_string(), ERR_func_error_string() and
+ERR_reason_error_string() return the library name, function
+name and reason string respectively.
+
+If there is no text string registered for the given error code,
+the error string will contain the numeric code.
+
+L<ERR_print_errors(3)> can be used to print
+all error codes currently in the queue.
+
+=head1 RETURN VALUES
+
+ERR_error_string() returns a pointer to a static buffer containing the
+string if I<buf> B<== NULL>, I<buf> otherwise.
+
+ERR_lib_error_string(), ERR_func_error_string() and
+ERR_reason_error_string() return the strings, and B<NULL> if
+none is registered for the error code.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>,
+L<ERR_print_errors(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

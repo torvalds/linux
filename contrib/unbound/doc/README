@@ -1,0 +1,151 @@
+README for Unbound 1.8.1
+Copyright 2007 NLnet Labs
+http://unbound.net
+
+This software is under BSD license, see LICENSE for details.
+The DNS64 module has BSD license in dns64/dns64.c.
+The DNSTAP code has BSD license in dnstap/dnstap.c.
+
+* Download the latest release version of this software from 
+  	http://unbound.net 
+  or get a beta version from the svn repository at 
+  	http://unbound.net/svn/
+
+* Uses the following libraries; 
+  * libevent	http://www.monkey.org/~provos/libevent/		(BSD license)
+    (optional) can use builtin alternative instead.
+  * libexpat	(for the unbound-anchor helper program)		(MIT license)
+
+* Make and install: ./configure; make; make install
+  * --with-libevent=/path/to/libevent
+  	Can be set to either the system install or the build directory.
+	--with-libevent=no (default) gives a builtin alternative 
+	implementation. libevent is useful when having many (thousands) 
+	of outgoing ports. This improves randomization and spoof 
+	resistance. For the default of 16 ports the builtin alternative 
+	works well and is a little faster.
+  * --with-libexpat=/path/to/libexpat
+  	Can be set to the install directory of libexpat.
+  * --without-pthreads 
+	This disables pthreads. Without this option the pthreads library 
+	is detected automatically. Use this option to disable threading
+	altogether, or, on Solaris, also use --with(out)-solaris-threads.
+  * --enable-checking
+  	This enables assertions in the code that guard against a variety of
+	programming errors, among which buffer overflows.  The program exits
+	with an error if an assertion fails (but the buffer did not overflow).
+  * --enable-static-exe
+	This enables a debug option to statically link against the
+	libevent library.
+  * --enable-lock-checks
+  	This enables a debug option to check lock and unlock calls. It needs
+	a recent pthreads library to work.
+  * --enable-alloc-checks
+	This enables a debug option to check malloc (calloc, realloc, free).
+	The server periodically checks if the amount of memory used fits with
+	the amount of memory it thinks it should be using, and reports 
+	memory usage in detail.
+  * --with-conf-file=filename
+  	Set default location of config file, 
+	the default is /usr/local/etc/unbound/unbound.conf.
+  * --with-pidfile=filename
+  	Set default location of pidfile,
+	the default is /usr/local/etc/unbound/unbound.pid.
+  * --with-run-dir=path
+  	Set default working directory,
+	the default is /usr/local/etc/unbound.
+  * --with-chroot-dir=path
+  	Set default chroot directory,
+	the default is /usr/local/etc/unbound.
+  * --with-rootkey-file=path
+  	Set the default root.key path.  This file is read and written.
+	the default is /usr/local/etc/unbound/root.key
+  * --with-rootcert-file=path
+  	Set the default root update certificate path.  A builtin certificate
+	is used if this file is empty or does not exist.
+	the default is /usr/local/etc/unbound/icannbundle.pem
+  * --with-username=user
+  	Set default user name to change to,
+	the default is the "unbound" user.
+  * --with-pyunbound
+  	Create libunbound wrapper usable from python.
+	Needs python-devel and swig development tools.
+  * --with-pythonmodule
+  	Compile the python module that processes responses in the server.
+  * --disable-sha2
+  	Disable support for RSASHA256 and RSASHA512 crypto.
+  * --disable-gost
+  	Disable support for GOST crypto, RFC 5933.
+  * --enable-subnet
+  	Enable EDNS client subnet processing.
+
+* 'make test' runs a series of self checks.
+
+Known issues
+------------
+o If there are no replies for a forward or stub zone, for a reverse zone,
+  you may need to add a local-zone: name transparent or nodefault to the
+  server: section of the config file to unblock the reverse zone.
+  Only happens for (sub)zones that are blocked by default; e.g. 10.in-addr.arpa
+o If libevent is older (before 1.3c), unbound will exit instead of reload
+  on sighup. On a restart 'did not exit gracefully last time' warning is 
+  printed. Perform ./configure --with-libevent=no or update libevent, rerun 
+  configure and recompile unbound to make sighup work correctly.
+  It is strongly suggested to use a recent version of libevent.
+o If you are not receiving the correct source IP address on replies (e.g.
+  you are running a multihomed, anycast server), the interface-automatic
+  option can be enabled to set socket options to achieve the correct
+  source IP address on UDP replies. Listing all IP addresses explicitly in
+  the config file is an alternative. The interface-automatic option uses
+  non portable socket options, Linux and FreeBSD should work fine.
+o The warning 'openssl has no entropy, seeding with time', with chroot 
+  enabled, may be solved with a symbolic link to /dev/random from <chrootdir>.
+o On Solaris 5.10 some libtool packages from repositories do not work with
+  gcc, showing errors gcc: unrecognized option `-KPIC'
+  To solve this do ./configure libtool=./libtool [your options...].
+  On Solaris you may pass CFLAGS="-xO4 -xtarget=generic" if you use sun-cc.
+o If unbound-control (or munin graphs) do not work, this can often be because
+  the unbound-control-setup script creates the keys with restricted 
+  permissions, and the files need to be made readable or ownered by both the
+  unbound daemon and unbound-control.
+o Crosscompile seems to hang.  You tried to install unbound under wine.
+  wine regedit and remove all the unbound entries from the registry or
+  delete .wine/drive_c.
+
+Acknowledgements
+----------------
+o Unbound was written in portable C by Wouter Wijngaards (NLnet Labs).
+o Thanks to David Blacka and Matt Larson (Verisign) for the unbound-java
+  prototype. Design and code from that prototype has been used to create
+  this program. Such as the iterator state machine and the cache design.
+o Other code origins are from the NSD (NLnet Labs) and LDNS (NLnet Labs)
+  projects. Such as buffer, region-allocator and red-black tree code.
+o See Credits file for contributors.
+
+
+Your Support
+------------
+NLnet Labs offers all of its software products as open source, most are
+published under a BSD license. You can download them, not only from the
+NLnet Labs website but also through the various OS distributions for
+which NSD, ldns, and Unbound are packaged. We therefore have little idea
+who uses our software in production environments and have no direct ties
+with 'our customers'.
+
+Therefore, we ask you to contact us at users@NLnetLabs.nl and tell us
+whether you use one of our products in your production environment,
+what that environment looks like, and maybe even share some praise.
+We would like to refer to the fact that your organization is using our
+products. We will only do that if you explicitly allow us. In all other
+cases we will keep the information you share with us to ourselves.
+
+In addition to the moral support you can also support us
+financially. NLnet Labs is a recognized not-for-profit charity foundation
+that is chartered to develop open-source software and open-standards
+for the Internet. If you use our software to satisfaction please express
+that by giving us a donation. For small donations PayPal can be used. For
+larger and regular donations please contact us at users@NLnetLabs.nl. Also
+see http://www.nlnetlabs.nl/labs/contributors/.
+
+
+* mailto:unbound-bugs@nlnetlabs.nl

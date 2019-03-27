@@ -1,0 +1,16 @@
+# Doxyfile 1.5.3
+
+PROJECT_NAME           = Heimdal ntlm library
+PROJECT_NUMBER         = @PACKAGE_VERSION@
+OUTPUT_DIRECTORY       = @srcdir@/doxyout/ntlm
+INPUT                  = @srcdir@/../lib/ntlm
+EXAMPLE_PATH	       = @srcdir@/../lib/ntlm
+
+WARN_IF_UNDOCUMENTED   = YES
+
+PERL_PATH              = /usr/bin/perl
+
+HTML_HEADER = "@srcdir@/header.html"
+HTML_FOOTER = "@srcdir@/footer.html"
+
+@INCLUDE = "@srcdir@/doxytmpl.dxy"

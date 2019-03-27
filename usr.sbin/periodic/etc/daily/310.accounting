@@ -1,0 +1,65 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_accounting_enable" in
+    [Yy][Ee][Ss])
+	if [ ! -f /var/account/acct ]
+	then
+	    echo '$daily_accounting_enable is set but /var/account/acct' \
+		"doesn't exist"
+	    rc=2
+	elif [ -z "$daily_accounting_save" ]
+	then
+	    echo '$daily_accounting_enable is set but ' \
+		'$daily_accounting_save is not'
+	    rc=2
+	else
+	    echo ""
+	    echo "Rotating accounting logs and gathering statistics:"
+
+	    cd /var/account
+	    rc=0
+
+	    n=$(( $daily_accounting_save - 1 ))
+	    for f in acct.*; do
+	    	case "$f" in acct.\*) continue ;; esac	# No files match
+	    	m=${f%.gz} ; m=${m#acct.}
+		[ $m -ge $n ] && { rm $f || rc=3; }
+	    done
+
+	    m=$n
+	    n=$(($n - 1))
+	    while [ $n -ge 0 ]
+	    do
+		[ -f acct.$n.gz ] && { mv -f acct.$n.gz acct.$m.gz || rc=3; }
+		[ -f acct.$n ] &&    { mv -f acct.$n acct.$m || rc=3; }
+		m=$n
+		n=$(($n - 1))
+	    done
+
+	    /etc/rc.d/accounting rotate_log || rc=3
+
+	    rm -f acct.merge && cp acct.0 acct.merge || rc=3
+	    sa -s $daily_accounting_flags /var/account/acct.merge || rc=3
+	    rm acct.merge
+
+	    case "$daily_accounting_compress" in
+		[Yy][Ee][Ss])
+		    gzip -f acct.0 || rc=3;;
+	    esac
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

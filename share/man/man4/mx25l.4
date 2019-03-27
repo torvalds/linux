@@ -1,0 +1,209 @@
+.\"
+.\" Copyright (c) 2019 Ian Lepore <ian@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 26, 2019
+.Dt MX25L 4
+.Os
+.Sh NAME
+.Nm mx25l
+.Nd driver for SpiFlash(tm) compatible non-volatile storage devices
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device mx25l"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mx25l_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the family of non-volatile storage
+devices known collectively as SpiFlash(tm).
+SpiFlash chips typically have part numbers beginning with EN25,
+IS25, MX25, S25, SST25, or W25.
+.Pp
+The
+.Nm
+driver uses opcode 0x9f to read the manufacturer and device ID
+data to determine whether the device is supported.
+The device ID is looked up using a table of data within the driver
+which describes the attributes of each supported device,
+such as block size, sector size, and device capacity.
+When a supported device is found, the
+.Nm
+driver creates a disk device and makes it accessible at
+.Pa /dev/flash/mx25l? .
+The new disk device is then tasted by the available
+.Xr geom 4
+modules as with any disk device.
+.Sh HARDWARE
+The
+.Nm
+driver provides support for the following devices:
+.Pp
+.Bl -bullet -compact
+.It
+AT25DF641
+.It
+EN25F32
+.It
+EN25P32
+.It
+EN25P64
+.It
+EN25Q32
+.It
+EN25Q64
+.It
+GD25Q64
+.It
+M25P32
+.It
+M25P64
+.It
+MX25L1606E
+.It
+MX25LL128
+.It
+MX25LL256
+.It
+MX25LL32
+.It
+MX25LL64
+.It
+S25FL032
+.It
+S25FL064
+.It
+S25FL128
+.It
+S25FL256S
+.It
+SST25VF010A
+.It
+SST25VF032B
+.It
+W25Q128
+.It
+W25Q256
+.It
+W25Q32
+.It
+W25Q64
+.It
+W25Q64BV
+.It
+W25X32
+.It
+W25X64
+.El
+.Sh FDT CONFIGURATION
+On an
+.Xr fdt 4
+based system, the
+.Nm
+device is defined as a slave device subnode
+of the SPI bus controller node.
+All properties documented in the
+.Va spibus.txt
+bindings document can be used with the
+.Nm
+device.
+The most commonly-used ones are documented below.
+.Pp
+The following properties are required in the
+.Nm
+device subnode:
+.Bl -tag -width indent
+.It Va compatible
+Must be the string "jedec,spi-nor".
+.It Va reg
+Chip select address of device.
+.It Va spi-max-frequency
+The maximum bus frequency to use when communicating with this slave device.
+Actual bus speed may be lower, depending on the capabilities of the SPI
+bus controller hardware.
+.El
+.Pp
+The following properties are optional for the
+.Nm
+device subnode:
+.Bl -tag -width indent
+.It Va spi-cpha
+Empty property indicating the slave device requires shifted clock
+phase (CPHA) mode.
+.It Va spi-cpol
+Empty property indicating the slave device requires inverse clock
+polarity (CPOL) mode.
+.It Va spi-cs-high
+Empty property indicating the slave device requires chip select active high.
+.El
+.Sh HINTS CONFIGURATION
+On a
+.Xr device.hints 5
+based system, such as
+.Li MIPS ,
+these values are configurable for
+.Nm :
+.Bl -tag -width indent
+.It Va hint.mx25l.%d.at
+The spibus the
+.Nm
+instance is attached to.
+.It Va hint.mx25l.%d.clock
+The maximum bus frequency to use when communicating with this device.
+Actual bus speed may be lower, depending on the capabilities of the SPI
+bus controller hardware.
+.It Va hint.mx25l.%d.cs
+The chip-select number to assert when performing I/O for this device.
+Set the high bit (1 << 31) to invert the logic level of the chip select line.
+.It Va hint.mx25l.%d.mode
+The SPI mode (0-3) to use when communicating with this device.
+.El
+.Sh FILES
+.Bl -tag -width /dev/flash/mx25l?
+.It Pa /dev/flash/mx25l?
+Provides read/write access to the storage device.
+.It Pa /dev/flash/spi?
+An alias for the
+.Pa /dev/mx25l?
+device, for backwards compatibility with older versions of the driver.
+.El
+.Sh SEE ALSO
+.Xr fdt 4 ,
+.Xr geom 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 8.0 .

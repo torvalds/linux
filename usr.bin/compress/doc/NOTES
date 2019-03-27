@@ -1,0 +1,142 @@
+
+  $FreeBSD$
+
+From: James A. Woods <jaw@eos.arc.nasa.gov>
+
+>From vn Fri Dec  2 18:05:27 1988
+Subject: Re: Looking for C source for RSA
+Newsgroups: sci.crypt
+
+# Illegitimi noncarborundum
+
+Patents are a tar pit.
+
+A good case can be made that most are just a license to sue, and nothing
+is illegal until a patent is upheld in court.
+
+For example, if you receive netnews by means other than 'nntp',
+these very words are being modulated by 'compress',
+a variation on the patented Lempel-Ziv-Welch algorithm.
+
+Original Ziv-Lempel is patent number 4,464,650, and the more powerful
+LZW method is #4,558,302.  Yet despite any similarities between 'compress'
+and LZW (the public-domain 'compress' code was designed and given to the
+world before the ink on the Welch patent was dry), no attorneys from Sperry
+(the assignee) have asked you to unplug your Usenet connection.
+
+Why?  I can't speak for them, but it is possible the claims are too broad,
+or, just as bad, not broad enough.  ('compress' does things not mentioned
+in the Welch patent.)  Maybe they realize that they can commercialize
+LZW better by selling hardware implementations rather than by licensing
+software.  Again, the LZW software delineated in the patent is *not*
+the same as that of 'compress'.
+
+At any rate, court-tested software patents are a different animal;
+corporate patents in a portfolio are usually traded like baseball cards
+to shut out small fry rather than actually be defended before
+non-technical juries.  Perhaps RSA will undergo this test successfully,
+although the grant to "exclude others from making, using, or selling"
+the invention would then only apply to the U.S. (witness the 
+Genentech patent of the TPA molecule in the U.S. but struck down
+in Great Britain as too broad.)
+
+The concept is still exotic for those who learned in school the rule of thumb
+that one may patent "apparatus" but not an "idea".
+Apparently this all changed in Diamond v. Diehr (1981) when the U. S. Supreme
+Court reversed itself.  
+
+Scholars should consult the excellent article in the Washington and Lee
+Law Review (fall 1984, vol. 41, no. 4) by Anthony and Colwell for a
+comprehensive survey of an area which will remain murky for some time.
+
+Until the dust clears, how you approach ideas which are patented depends
+on how paranoid you are of a legal onslaught.  Arbitrary?  Yes.  But
+the patent bar of the CCPA (Court of Customs and Patent Appeals)
+thanks you for any uncertainty as they, at least, stand to gain
+from any trouble.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+From: James A. Woods <jaw@eos.arc.nasa.gov>
+Subject: Re: Looking for C source for RSA (actually 'compress' patents)
+
+	In article <2042@eos.UUCP> you write:
+	>The concept is still exotic for those who learned in school the rule of thumb
+	>that one may patent "apparatus" but not an "idea".
+
+A rule of thumb that has never been completely valid, as any chemical
+engineer can tell you.  (Chemical processes were among the earliest patents,
+as I recall.)
+
+	ah yes -- i date myself when relaying out-of-date advice from elderly
+	attorneys who don't even specialize in patents.  one other interesting
+	class of patents include the output of optical lens design programs,
+	which yield formulae which can then fairly directly can be molded
+	into glass.  although there are restrictions on patenting equations,
+	the "embedded systems" seem to fly past the legal gauntlets.
+
+	anyway, I'm still learning about intellectual property law after
+	several conversations from a Unisys (nee sperry) lawyer re 'compress'.
+
+	it's more complicated than this, but they're letting (oral
+	communication only) software versions of 'compress' slide
+	as far as licensing fees go.  this includes 'arc', 'stuffit',
+	and other commercial wrappers for 'compress'.  yet they are
+	signing up licensees for hardware chips.  Hewlett-Packard
+	supposedly has an active vlsi project, and Unisys has
+	board-level LZW-based tape controllers.  (to build LZW into
+	a disk controller would be strange, as you'd have to build
+	in a filesystem too!)
+
+ 	it's byzantine
+	that Unisys is in a tiff with HP regarding the patents,
+	after discovering some sort of "compress" button on some
+	HP terminal product.  why?  well, professor Abraham Lempel jumped
+	from being department chairman of computer science at technion in
+	Israel to sperry (where he got the first patent), but then to work
+	at Hewlett-Packard on sabbatical.  the second Welch patent
+	is only weakly derivative of the first, so they want chip
+	licenses and HP relented.  however, everyone agrees something
+	like the current Unix implementation is the way to go with
+	software, so HP (and UCB) long ago asked spencer Thomas and i to sign
+	off on copyright permission (although they didn't need to, it being pd).
+	Lempel, HP, and Unisys grumbles they can't make money off the
+	software since a good free implementation (not the best --
+	i have more ideas!) escaped via Usenet.  (Lempel's own pascal
+	code was apparently horribly slow.)
+	i don't follow the IBM 'arc' legal bickering; my impression
+	is that the pc folks are making money off the archiver/wrapper
+	look/feel of the thing [if ms-dos can be said to have a look and feel]. 
+
+	now where is telebit with the compress firmware?  in a limbo
+	netherworld, probably, with sperry still welcoming outfits
+	to sign patent licenses, a common tactic to bring other small fry
+	into the fold.  the guy who crammed 12-bit compress into the modem
+	there left.  also what is transpiring with 'compress' and sys 5 rel 4?
+	beats me, but if sperry got a hold of them on these issues,
+	at&t would likely re-implement another algorithm if they
+	thought 'compress' infringes.  needful to say, i don't think
+	it does after the above mentioned legal conversation.
+	my own beliefs on whether algorithms should be patentable at all
+	change with the weather.  if the courts finally nail down
+	patent protection for algorithms, academic publication in
+	textbooks will be somewhat at odds with the engineering world,
+	where the textbook codes will simply be a big tease to get
+	money into the patent holder coffers...
+
+	oh, if you implement LZW from the patent, you won't get
+	good rates because it doesn't mention adaptive table reset,
+	lack thereof being *the* serious deficiency of Thomas' first version.
+
+	now i know that patent law generally protects against independent
+	re-invention (like the 'xor' hash function pleasantly mentioned
+	in the patent [but not the paper]).
+	but the upshot is that if anyone ever wanted to sue us,
+	we're partially covered with
+	independently-developed twists, plus the fact that some of us work
+	in a bureaucratic morass (as contractor to a public agency in my case).
+
+	quite a mess, huh?  I've wanted to tell someone this stuff
+	for a long time, for posterity if nothing else.
+
+james 
+

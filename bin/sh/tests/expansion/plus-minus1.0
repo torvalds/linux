@@ -1,0 +1,76 @@
+# $FreeBSD$
+
+e= q='?' a='*' t=texttext s='ast*que?non' p='/et[c]/' w='a b c' b='{{(#)}}'
+h='##'
+failures=''
+ok=''
+
+testcase() {
+	code="$1"
+	expected="$2"
+	oIFS="$IFS"
+	eval "$code"
+	IFS='|'
+	result="$#|$*"
+	IFS="$oIFS"
+	if [ "x$result" = "x$expected" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "For $code, expected $expected actual $result"
+	fi
+}
+
+testcase 'set -- a b'				'2|a|b'
+testcase 'set --'				'0|'
+testcase 'set -- ${e}'				'0|'
+testcase 'set -- "${e}"'			'1|'
+
+testcase 'set -- $p'				'1|/etc/'
+testcase 'set -- "$p"'				'1|/et[c]/'
+testcase 'set -- ${s+$p}'			'1|/etc/'
+testcase 'set -- "${s+$p}"'			'1|/et[c]/'
+testcase 'set -- ${s+"$p"}'			'1|/et[c]/'
+# Dquotes in dquotes is undefined for Bourne shell operators
+#testcase 'set -- "${s+"$p"}"'			'1|/et[c]/'
+testcase 'set -- ${e:-$p}'			'1|/etc/'
+testcase 'set -- "${e:-$p}"'			'1|/et[c]/'
+testcase 'set -- ${e:-"$p"}'			'1|/et[c]/'
+# Dquotes in dquotes is undefined for Bourne shell operators
+#testcase 'set -- "${e:-"$p"}"'			'1|/et[c]/'
+testcase 'set -- ${e:+"$e"}'			'0|'
+testcase 'set -- ${e:+$w"$e"}'			'0|'
+testcase 'set -- ${w:+"$w"}'			'1|a b c'
+testcase 'set -- ${w:+$w"$w"}'			'3|a|b|ca b c'
+
+testcase 'set -- "${s+a b}"'			'1|a b'
+testcase 'set -- "${e:-a b}"'			'1|a b'
+testcase 'set -- ${e:-\}}'			'1|}'
+testcase 'set -- ${e:+{}}'			'1|}'
+testcase 'set -- "${e:+{}}"'			'1|}'
+
+testcase 'set -- ${e+x}${e+x}'			'1|xx'
+testcase 'set -- "${e+x}"${e+x}'		'1|xx'
+testcase 'set -- ${e+x}"${e+x}"'		'1|xx'
+testcase 'set -- "${e+x}${e+x}"'		'1|xx'
+testcase 'set -- "${e+x}""${e+x}"'		'1|xx'
+
+testcase 'set -- ${e:-${e:-$p}}'		'1|/etc/'
+testcase 'set -- "${e:-${e:-$p}}"'		'1|/et[c]/'
+testcase 'set -- ${e:-"${e:-$p}"}'		'1|/et[c]/'
+testcase 'set -- ${e:-${e:-"$p"}}'		'1|/et[c]/'
+testcase 'set -- ${e:-${e:-${e:-$w}}}'		'3|a|b|c'
+testcase 'set -- ${e:-${e:-${e:-"$w"}}}'	'1|a b c'
+testcase 'set -- ${e:-${e:-"${e:-$w}"}}'	'1|a b c'
+testcase 'set -- ${e:-"${e:-${e:-$w}}"}'	'1|a b c'
+testcase 'set -- "${e:-${e:-${e:-$w}}}"'	'1|a b c'
+
+testcase 'shift $#; set -- ${1+"$@"}'		'0|'
+testcase 'set -- ""; set -- ${1+"$@"}'		'1|'
+testcase 'set -- "" a; set -- ${1+"$@"}'	'2||a'
+testcase 'set -- a ""; set -- ${1+"$@"}'	'2|a|'
+testcase 'set -- a b; set -- ${1+"$@"}'		'2|a|b'
+testcase 'set -- a\ b; set -- ${1+"$@"}'	'1|a b'
+testcase 'set -- " " ""; set -- ${1+"$@"}'	'2| |'
+
+test "x$failures" = x

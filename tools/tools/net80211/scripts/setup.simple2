@@ -1,0 +1,24 @@
+#! /bin/sh
+#
+# Script for testing multi-bss ap operation.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+athdebug state
+WLAN=`ifconfig wlan create wlanmode hostap wlandev $WIRELESS`
+ifconfig $WLAN ssid $SSID-1 channel $CHANNEL mtu 1500
+BRIDGE=`ifconfig bridge create`
+ifconfig $BRIDGE addm $WLAN addm $WIRED up
+ifconfig $WIRED up
+wlandebug -i $WLAN state+scan+assoc
+ifconfig $WLAN up
+
+WLAN=`ifconfig wlan create wlanmode hostap wlandev $WIRELESS bssid`
+#ifconfig $WLAN ssid $SSID-2 channel $CHANNEL mtu 1500
+ifconfig $WLAN ssid $SSID-2 mtu 1500 -ht
+ifconfig $BRIDGE addm $WLAN
+wlandebug -i $WLAN state+scan+assoc
+ifconfig $WLAN up

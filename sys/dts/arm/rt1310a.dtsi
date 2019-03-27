@@ -1,0 +1,159 @@
+/*
+ * Copyright (c) 2011 Jakub Klama <jceel@FreeBSD.org>
+ * Copyright (c) 2015 Hiroki Mori
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * Ralink RT1310A Device Tree Source.
+ *
+ * $FreeBSD$
+ */
+
+/ {
+	compatible = "ralink,rt1310a-soc";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		serial0 = &serial0;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "ARM,926EJ-S";
+			reg = <0x0>;
+			d-cache-line-size = <32>;	// 32 bytes
+			i-cache-line-size = <32>;	// 32 bytes
+			d-cache-size = <0x4000>;	// L1, 16K
+			i-cache-size = <0x4000>;	// L1, 16K
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x40000000 0x1000000>;		// 16M at 0x40000000
+	};
+
+	localbus@1f000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x0 0x1f000000 0x400000>;
+	};
+
+	ahb@19C00000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x0 0x19C00000 0xE0000>;
+		bus-frequency = <13000000>;
+
+		PIC: pic@40000 {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg = <0x40000 0x20000>;
+			compatible = "rt,pic";
+		};
+
+		fvmdio@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fv,mdio";
+			reg = <0x80000 0x20000>;
+		};
+
+		enet0:fv_mac0@80000 {
+			compatible = "fv,ethernet";
+			reg = <0x80000 0x20000>;
+			interrupts = <7>;
+			interrupt-parent = <&PIC>;	
+
+		};
+
+		enet1:fv_mac1@A0000 {
+			compatible = "fv,ethernet";
+			reg = <0xA0000 0x20000>;
+			interrupts = <8>;
+			interrupt-parent = <&PIC>;	
+		};
+
+	};
+
+	apb@1E800000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x0 0x1E800000 0x800000>;
+		bus-frequency = <75000000>;
+
+		timer@000000 {
+			compatible = "rt,timer";
+			reg = <0x0 0x10
+				0x10 0x10
+				0x20 0x10
+				0x30 0x10>;
+			interrupts = <3 4 5>;
+			interrupt-parent = <&PIC>;
+		};
+
+		rtc@20000 {
+			compatible = "rt,rtc";
+			interrupts = <6>;
+			reg = <0x20000 0x20000>;
+		};
+
+		serial0: serial@40000 {
+			compatible = "ns16550";
+			reg = <0x40000 0x20000>;
+			interrupts = <1>;
+			reg-shift = <2>;
+			clock-frequency = <6758400>;
+			current-speed = <38400>;
+			interrupt-parent = <&PIC>;
+		};
+
+		gpio0: gpio@A0000 {
+			compatible = "ralink,rt1310-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupts = <8>;
+			reg = <0xA0000 0x20000>;
+		};
+	};
+
+
+/*
+	chosen {
+		stdin = "serial0";
+		stdout = "serial0";
+	};
+*/
+};
+

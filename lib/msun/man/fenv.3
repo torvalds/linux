@@ -1,0 +1,293 @@
+.\" Copyright (c) 2004 David Schultz <das@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 16, 2005
+.Dt FENV 3
+.Os
+.Sh NAME
+.Nm feclearexcept ,
+.Nm fegetexceptflag ,
+.Nm feraiseexcept ,
+.Nm fesetexceptflag ,
+.Nm fetestexcept ,
+.Nm fegetround ,
+.Nm fesetround ,
+.Nm fegetenv ,
+.Nm feholdexcept ,
+.Nm fesetenv ,
+.Nm feupdateenv ,
+.Nm feenableexcept ,
+.Nm fedisableexcept ,
+.Nm fegetexcept
+.Nd floating-point environment control
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In fenv.h
+.Fd "#pragma STDC FENV_ACCESS ON"
+.Ft int
+.Fn feclearexcept "int excepts"
+.Ft int
+.Fn fegetexceptflag "fexcept_t *flagp" "int excepts"
+.Ft int
+.Fn feraiseexcept "int excepts"
+.Ft int
+.Fn fesetexceptflag "const fexcept_t *flagp" "int excepts"
+.Ft int
+.Fn fetestexcept "int excepts"
+.Ft int
+.Fn fegetround void
+.Ft int
+.Fn fesetround "int round"
+.Ft int
+.Fn fegetenv "fenv_t *envp"
+.Ft int
+.Fn feholdexcept "fenv_t *envp"
+.Ft int
+.Fn fesetenv "const fenv_t *envp"
+.Ft int
+.Fn feupdateenv "const fenv_t *envp"
+.Ft int
+.Fn feenableexcept "int excepts"
+.Ft int
+.Fn fedisableexcept "int excepts"
+.Ft int
+.Fn fegetexcept void
+.Sh DESCRIPTION
+The
+.In fenv.h
+routines manipulate the floating-point environment,
+which includes the exception flags and rounding modes defined in
+.St -ieee754 .
+.Ss Exceptions
+Exception flags are set as side-effects of floating-point arithmetic
+operations and math library routines, and they remain set until
+explicitly cleared.
+The following macros expand to bit flags of type
+.Vt int
+representing the five standard floating-point exceptions.
+.Bl -tag -width ".Dv FE_DIVBYZERO"
+.It Dv FE_DIVBYZERO
+A divide-by-zero exception occurs when the
+.Em exact
+result of a computation is infinite (according to the limit definition).
+For example, dividing a finite non-zero number by zero or computing
+.Fn log 0
+raises a divide-by-zero exception.
+.It Dv FE_INEXACT
+An inexact exception is raised whenever there is a loss of accuracy
+due to rounding.
+.It Dv FE_INVALID
+Invalid operation exceptions occur when a program attempts to
+perform calculations for which there is no reasonable representable
+answer.
+For instance, subtraction of like-signed infinities, division of zero by zero,
+ordered comparison involving \*(Nas, and taking the real square root of a
+negative number are all invalid operations.
+.It Dv FE_OVERFLOW
+In contrast with divide-by-zero,
+an overflow exception occurs when an infinity is produced because
+the magnitude of the exact result is
+.Em finite
+but too large to fit in the destination type.
+For example, computing
+.Li DBL_MAX * 2
+raises an overflow exception.
+.It Dv FE_UNDERFLOW
+Underflow occurs when the result of a computation loses precision
+because it is too close to zero.
+The result is a subnormal number or zero.
+.El
+.Pp
+Additionally, the
+.Dv FE_ALL_EXCEPT
+macro expands to the bitwise OR of the above flags and any
+architecture-specific flags.
+Combinations of these flags are passed to the
+.Fn feclearexcept ,
+.Fn fegetexceptflag ,
+.Fn feraiseexcept ,
+.Fn fesetexceptflag ,
+and
+.Fn fetestexcept
+functions to clear, save, raise, restore, and examine the
+processor's floating-point exception flags, respectively.
+.Pp
+Exceptions may be
+.Em unmasked
+with
+.Fn feenableexcept
+and masked with
+.Fn fedisableexcept .
+Unmasked exceptions cause a trap when they are produced, and
+all exceptions are masked by default.
+The current mask can be tested with
+.Fn fegetexcept .
+.Ss Rounding Modes
+.St -ieee754
+specifies four rounding modes.
+These modes control the direction in which results are rounded
+from their exact values in order to fit them into binary
+floating-point variables.
+The four modes correspond with the following symbolic constants.
+.Bl -tag -width ".Dv FE_TOWARDZERO"
+.It Dv FE_TONEAREST
+Results are rounded to the closest representable value.
+If the exact result is exactly half way between two representable
+values, the value whose last binary digit is even (zero) is chosen.
+This is the default mode.
+.It Dv FE_DOWNWARD
+Results are rounded towards negative \*[If].
+.It Dv FE_UPWARD
+Results are rounded towards positive \*[If].
+.It Dv FE_TOWARDZERO
+Results are rounded towards zero.
+.El
+.Pp
+The
+.Fn fegetround
+and
+.Fn fesetround
+functions query and set the rounding mode.
+.Ss Environment Control
+The
+.Fn fegetenv
+and
+.Fn fesetenv
+functions save and restore the floating-point environment,
+which includes exception flags, the current exception mask,
+the rounding mode, and possibly other implementation-specific
+state.
+The
+.Fn feholdexcept
+function behaves like
+.Fn fegetenv ,
+but with the additional effect of clearing the exception flags and
+installing a
+.Em non-stop
+mode.
+In non-stop mode, floating-point operations will set exception flags
+as usual, but no
+.Dv SIGFPE
+signals will be generated as a result.
+Non-stop mode is the default, but it may be altered by
+.Fn feenableexcept
+and
+.Fn fedisableexcept .
+The
+.Fn feupdateenv
+function restores a saved environment similarly to
+.Fn fesetenv ,
+but it also re-raises any floating-point exceptions from the old
+environment.
+.Pp
+The macro
+.Dv FE_DFL_ENV
+expands to a pointer to the default environment.
+.Sh EXAMPLES
+The following routine computes the square root function.
+It explicitly raises an invalid exception on appropriate inputs using
+.Fn feraiseexcept .
+It also defers inexact exceptions while it computes intermediate
+values, and then it allows an inexact exception to be raised only if
+the final answer is inexact.
+.Bd -literal -offset indent
+#pragma STDC FENV_ACCESS ON
+double sqrt(double n) {
+	double x = 1.0;
+	fenv_t env;
+
+	if (isnan(n) || n < 0.0) {
+		feraiseexcept(FE_INVALID);
+		return (NAN);
+	}
+	if (isinf(n) || n == 0.0)
+		return (n);
+	feholdexcept(&env);
+	while (fabs((x * x) - n) > DBL_EPSILON * 2 * x)
+		x = (x / 2) + (n / (2 * x));
+	if (x * x == n)
+		feclearexcept(FE_INEXACT);
+	feupdateenv(&env);
+	return (x);
+}
+.Ed
+.Sh SEE ALSO
+.Xr cc 1 ,
+.Xr feclearexcept 3 ,
+.Xr fedisableexcept 3 ,
+.Xr feenableexcept 3 ,
+.Xr fegetenv 3 ,
+.Xr fegetexcept 3 ,
+.Xr fegetexceptflag 3 ,
+.Xr fegetround 3 ,
+.Xr feholdexcept 3 ,
+.Xr feraiseexcept 3 ,
+.Xr fesetenv 3 ,
+.Xr fesetexceptflag 3 ,
+.Xr fesetround 3 ,
+.Xr fetestexcept 3 ,
+.Xr feupdateenv 3 ,
+.Xr fpgetprec 3 ,
+.Xr fpsetprec 3
+.Sh STANDARDS
+Except as noted below,
+.In fenv.h
+conforms to
+.St -isoC-99 .
+The
+.Fn feenableexcept ,
+.Fn fedisableexcept ,
+and
+.Fn fegetexcept
+routines are extensions.
+.Sh HISTORY
+The
+.In fenv.h
+header first appeared in
+.Fx 5.3 .
+It supersedes the non-standard routines defined in
+.In ieeefp.h
+and documented in
+.Xr fpgetround 3 .
+.Sh CAVEATS
+The FENV_ACCESS pragma can be enabled with
+.Dl "#pragma STDC FENV_ACCESS ON"
+and disabled with the
+.Dl "#pragma STDC FENV_ACCESS OFF"
+directive.
+This lexically-scoped annotation tells the compiler that the program
+may access the floating-point environment, so optimizations that would
+violate strict IEEE-754 semantics are disabled.
+If execution reaches a block of code for which
+.Dv FENV_ACCESS
+is off, the floating-point environment will become undefined.
+.Sh BUGS
+The
+.Dv FENV_ACCESS
+pragma is unimplemented in the system compiler.
+However, non-constant expressions generally produce the correct
+side-effects at low optimization levels.

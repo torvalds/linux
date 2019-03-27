@@ -1,0 +1,84 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\" Copyright (c) 2013 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Konstantin Belousov
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 23, 2013
+.Dt VM_PAGE_GRAB 9
+.Os
+.Sh NAME
+.Nm vm_page_grab
+.Nd "returns a page from an object"
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_page.h
+.Ft vm_page_t
+.Fn vm_page_grab "vm_object_t object" "vm_pindex_t pindex" "int allocflags"
+.Sh DESCRIPTION
+The
+.Fn vm_page_grab
+function returns the page at
+.Fa pindex
+from the given object.
+If the page exists and is busy,
+.Fn vm_page_grab
+will sleep while waiting for it.
+If the page does not exist, it is allocated.
+The function sleeps until the allocation request can be satisfied.
+.Pp
+The function requires the
+.Fa object
+to be locked on entry, and returns with the object locked.
+If the
+.Fn vm_page_grab
+function sleeps for any reason, the object lock is temporary dropped.
+.Pp
+The
+.Fn vm_page_grab
+supports all of the flags supported by
+.Xr vm_page_alloc 9 .
+In addition,
+.Fn vm_page_grab
+supports the following flags:
+.Bl -tag -width ".Dv VM_ALLOC_IGN_SBUSY"
+.It Dv VM_ALLOC_IGN_SBUSY
+When waiting for the busy state of the existing page to drain,
+only test for exclusive busy; ignore the shared busy counter.
+.El
+.Sh RETURN VALUES
+The
+.Fn vm_page_grab
+always returns the page.
+.Sh SEE ALSO
+.Xr vm_page_alloc 9
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@acns.ab.ca .

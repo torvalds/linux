@@ -1,0 +1,241 @@
+.\" Copyright (c) 2018 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 12, 2018
+.Dt CAP_FILEARGS 3
+.Os
+.Sh NAME
+.Nm fileargs_cinit ,
+.Nm fileargs_cinitnv ,
+.Nm fileargs_init ,
+.Nm fileargs_initnv ,
+.Nm fileargs_free ,
+.Nm fileargs_open ,
+.Nm fileargs_fopen
+.Nd "library for handling files in capability mode"
+.Sh LIBRARY
+.Lb libcap_fileargs
+.Sh SYNOPSIS
+.In sys/nv.h
+.In libcasper.h
+.In casper/cap_fileargs.h
+.Ft "fileargs_t *"
+.Fn fileargs_init "int argc" "char *argv[]" "int flags" "mode_t mode" "cap_rights_t *rightsp"
+.Ft "fileargs_t *"
+.Fn fileargs_cinit "cap_channel_t *cas" "int argc" "char *argv[]" "int flags" "mode_t mode" "cap_rights_t *rightsp"
+.Ft "fileargs_t *"
+.Fn fileargs_cinitnv "cap_channel_t *cas" "nvlist_t *limits"
+.Ft "fileargs_t *"
+.Fn fileargs_initnv "nvlist_t *limits"
+.Ft "void"
+.Fn fileargs_free "fileargs_t *fa"
+.Ft "int"
+.Fn fileargs_open "fileargs_t *fa" "const char *name"
+.Ft "FILE *"
+.Fn fileargs_fopen "fileargs_t *fa" "const char *name" "const char *mode"
+.Sh DESCRIPTION
+The library is used to simplify Capsicumizing a tools that are using file system.
+Idea behind the library is that we are passing a remaining
+.Fa argc
+and
+.Fa argv
+which contains a list of files that should be open for this program.
+The library will create a service that will serve those files.
+.Pp
+The function
+.Fn fileargs_init
+create a service to the
+.Nm system.fileargs .
+The
+.Fa argv
+contains a list of files that should be opened.
+The argument can be set to
+.Dv NULL
+which will not create a service and all files will be prohibited to be opened.
+The
+.Fa argc
+argument contains a number of passed files.
+The
+.Fa flags
+argument limits opened files for either execution or reading and/or writing.
+The
+.Fa mode
+argument tells which what mode file should be created if the
+.Dv O_CREATE
+flag is present .
+For more details of the
+.Fa flags
+and
+.Fa mode
+arguments see
+.Xr open 2 .
+The
+.Fa rightsp
+argument contains a list of the capability rights which file should be limited to.
+For more details of the capability rights see
+.Xr cap_rights_init 3 .
+.Pp
+The function
+.Fn fileargs_cinit
+is equivalent to
+.Fn fileargs_init
+except that the connection to the Casper needs to be provided.
+.Pp
+The functions
+.Fn fileargs_ininv
+and
+.Fn fileargs_cininv
+are respectively equivalent to
+.Fn fileargs_init
+and
+.Fn fileargs_cinit
+expect that all arguments all provided as
+.Xr nvlist 9 .
+For details see
+.Sx LIMITS .
+.Pp
+The
+.Fa fileargs_free
+close connection to the
+.Nm system.filerags
+service and free are structures.
+The function handle
+.Dv NULL
+argument.
+.Pp
+The functions
+.Fn fileargs_open
+and
+.Fn fileargs_fopen
+are respectively equivalent to
+.Xr open 2
+and
+.Xr fopen 3
+expect that all arguments are fetched from the
+.Va fileargs_t
+structure.
+.Sh LIMITS
+This section describe which values and types should be used to pass arguments to the
+.Fa system.filerags
+through the
+.Fn fileargs_ininv
+and
+.Fn fileargs_cinit
+functions.
+The
+.Xr nvlist 9
+for that functions must contain the following values and types:
+.Bl -ohang -offset indent
+.It flags ( NV_TYPE_NUMBER )
+The
+.Va flags
+limits opened files for either execution or reading and/or writing.
+.It mode (NV_TYPE_NUMBER)
+If in the
+.Va flags
+argument the
+.Dv O_CREATE
+flag was defined the
+.Xr nvlist 9
+must contain the
+.Va mode .
+The
+.Va mode
+argument tells which what mode file should be created.
+.El
+.Pp
+The
+.Xr nvlist 9
+for that functions may contain the following values and types:
+.Bl -ohang -offset indent
+.It cap_rights ( NV_TYPE_BINARY )
+The
+.Va cap_rights
+argument contains a list of the capability rights which file should be limited to.
+.It ( NV_TYPE_NULL )
+Any number of
+.Dv NV_TYPE_NULL
+where the name of the element is name of the file which can be opened.
+.Sh EXAMPLES
+The following example first parse some options and then create the
+.Nm system.filerags
+service with remaining arguments.
+.Bd -literal
+int ch, fd, i;
+cap_rights_t rights;
+fileargs_t *fa;
+
+while ((ch = getopt(argc, argv, "h")) != -1) {
+	switch (ch) {
+		case 'h':
+		default:
+			usage();
+	}
+}
+
+argc -= optind;
+argv += optind;
+
+/* Create capability to the system.fileargs service. */
+fa = fileargs_init(argc, argv, O_RDONLY, 0,
+    cap_rights_init(&rights, CAP_READ));
+if (fa == NULL)
+	err(1, "unable to open system.fileargs service");
+
+/* Enter capability mode sandbox. */
+if (cap_enter() < 0 && errno != ENOSYS)
+	err(1, "unable to enter capability mode");
+
+/* Open files. */
+for (i = 0; i < argc; i++) {
+	fd = fileargs_open(fa, argv[i]);
+	if (fd < 0)
+		err(1, "unable to open file %s", argv[i]);
+	printf("File %s opened in capability mode\n", argv[i]);
+	close(fd);
+}
+
+fileargs_free(fa);
+.Ed
+.Sh SEE ALSO
+.Xr cap_enter 2 ,
+.Xr open 2 ,
+.Xr cap_rights_init 3 ,
+.Xr err 3 ,
+.Xr fopen 3,
+.Xr getopt 3,
+.Xr capsicum 4 ,
+.Xr nv 9
+.Sh BUGS
+The
+.Lb cap_fileargs
+included in
+.Fx
+is considered experimental, and should not be deployed in production
+environments without careful consideration of the risks associated with
+the use of experimental operating system features.
+.Sh AUTHORS
+.An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org

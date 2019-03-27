@@ -1,0 +1,7 @@
+# Host: Intel 386 running QNX.
+
+NAT_FILE= nm-nto.h
+
+NATDEPFILES= nto-procfs.o
+
+XM_FILE= xm-i386.h

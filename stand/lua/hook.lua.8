@@ -1,0 +1,94 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 9, 2018
+.Dt HOOK.LUA 8
+.Os
+.Sh NAME
+.Nm hook.lua
+.Nd FreeBSD hook module
+.Sh DESCRIPTION
+.Nm
+contains functionality for defining hook types and attaching hooks.
+Hooks are functions used to attach custom behaviors at pre-defined points in
+loader execution.
+These pre-defined points are what we refer to as
+.Dq hook types .
+.Pp
+Before using the functionality provided by
+.Nm ,
+it must be included with a statement such as the following:
+.Pp
+.Dl local hook = require("hook")
+.Ss Exported functions
+The following functions are exported from
+.Nm :
+.Bl -tag -width hook.registerType -offset indent
+.It Fn hook.registerType hooktype
+Adds
+.Ev hooktype
+as a recognized hook type.
+This allows functions to be added to run when hooks of this type are invoked
+using
+.Fn hook.runAll hooktype .
+.It Fn hook.register hooktype hookfunc
+Register
+.Ev hookfunc
+to be run when hooks of type
+.Ev hooktype
+are invoked.
+.It Fn hook.runAll hooktype
+Invoke all hooks registered for type
+.Ev hooktype .
+Hooks are invoked in the order in which they are registered.
+.El
+.Ss Hook Naming Guidelines
+Hook names should consist of the name of the module they are defined in, as well
+as a verb describing when the hook is executed, separated by a period.
+For example,
+.Dq config.reloaded
+is defined in the
+.Xr config.lua 8
+module and run when the configuration is reloaded.
+.Sh EXAMPLES
+To register a hook to be run when configuration is reloaded:
+.Pp
+.Bd -literal -offset indent -compact
+local hook = require("hook")
+
+local function configuration_was_reloaded()
+	print("Configuration was reloaded!")
+end
+
+hook.register("config.reloaded", configuration_was_reloaded)
+.Ed
+.Sh AUTHORS
+The
+.Nm
+file was originally written by
+.An Kyle Evans Aq Mt kevans@FreeBSD.org .

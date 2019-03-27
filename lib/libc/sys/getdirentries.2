@@ -1,0 +1,204 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)getdirentries.2	8.2 (Berkeley) 5/3/95
+.\" $FreeBSD$
+.\"
+.Dd Nov 14, 2018
+.Dt GETDIRENTRIES 2
+.Os
+.Sh NAME
+.Nm getdirentries ,
+.Nm getdents
+.Nd "get directory entries in a file system independent format"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In dirent.h
+.Ft ssize_t
+.Fn getdirentries "int fd" "char *buf" "size_t nbytes" "off_t *basep"
+.Ft ssize_t
+.Fn getdents "int fd" "char *buf" "size_t nbytes"
+.Sh DESCRIPTION
+The
+.Fn getdirentries
+and
+.Fn getdents
+system calls read directory entries from the directory
+referenced by the file descriptor
+.Fa fd
+into the buffer pointed to by
+.Fa buf ,
+in a file system independent format.
+Up to
+.Fa nbytes
+of data will be transferred.
+The
+.Fa nbytes
+argument must be greater than or equal to the
+block size associated with the file,
+see
+.Xr stat 2 .
+Some file systems may not support these system calls
+with buffers smaller than this size.
+.Pp
+The data in the buffer is a series of
+.Vt dirent
+structures each containing the following entries:
+.Bd -literal -offset indent
+ino_t	d_fileno;
+off_t	d_off;
+uint16_t	d_reclen;
+uint8_t	d_type;
+uint16_t	d_namlen;
+char	d_name[MAXNAMLEN + 1];	/* see below */
+.Ed
+.Pp
+The
+.Fa d_fileno
+entry is a number which is unique for each
+distinct file in the file system.
+Files that are linked by hard links (see
+.Xr link 2 )
+have the same
+.Fa d_fileno .
+The
+.Fa d_off
+field returns a cookie which can be used with
+.Xr lseek 2
+to position the directory descriptor to the next entry.
+The
+.Fa d_reclen
+entry is the length, in bytes, of the directory record.
+The
+.Fa d_type
+entry is the type of the file pointed to by the directory record.
+The file type values are defined in
+.Fa <sys/dirent.h> .
+The
+.Fa d_name
+entry contains a null terminated file name.
+The
+.Fa d_namlen
+entry specifies the length of the file name excluding the null byte.
+Thus the actual size of
+.Fa d_name
+may vary from 1 to
+.Dv MAXNAMLEN
+\&+ 1.
+.Pp
+Entries may be separated by extra space.
+The
+.Fa d_reclen
+entry may be used as an offset from the start of a
+.Fa dirent
+structure to the next structure, if any.
+.Pp
+The actual number of bytes transferred is returned.
+The current position pointer associated with
+.Fa fd
+is set to point to the next block of entries.
+The pointer may not advance by the number of bytes returned by
+.Fn getdirentries
+or
+.Fn getdents .
+A value of zero is returned when
+the end of the directory has been reached.
+.Pp
+If the
+.Fa basep
+pointer value is non-NULL ,
+the
+.Fn getdirentries
+system call writes the position of the block read into the location pointed to by
+.Fa basep .
+Alternatively, the current position pointer may be set and retrieved by
+.Xr lseek 2 .
+The current position pointer should only be set to a value returned by
+.Xr lseek 2 ,
+a value returned in the location pointed to by
+.Fa basep
+.Po Fn getdirentries
+only
+.Pc ,
+a value returned in the
+.Fa d_off
+field,
+or zero.
+.Sh IMPLEMENTATION NOTES
+The
+.Fa d_off
+field is being used as a cookie to readdir for nfs servers.
+These cookies can be cached and allow to read directory entries at a specific
+offset on demand.
+.Sh RETURN VALUES
+If successful, the number of bytes actually transferred is returned.
+Otherwise, -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn getdirentries
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument
+is not a valid file descriptor open for reading.
+.It Bq Er EFAULT
+Either
+.Fa buf
+or non-NULL
+.Fa basep
+point outside the allocated address space.
+.It Bq Er EINVAL
+The file referenced by
+.Fa fd
+is not a directory, or
+.Fa nbytes
+is too small for returning a directory entry or block of entries,
+or the current position pointer is invalid.
+.It Bq Er EIO
+An
+.Tn I/O
+error occurred while reading from or writing to the file system.
+.El
+.Sh SEE ALSO
+.Xr lseek 2 ,
+.Xr open 2
+.Sh HISTORY
+The
+.Fn getdirentries
+system call first appeared in
+.Bx 4.4 .
+The
+.Fn getdents
+system call first appeared in
+.Fx 3.0 .

@@ -1,0 +1,143 @@
+.\" Copyright (c) 2018 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 18, 2018
+.Dt CAP_SYSCTL 3
+.Os
+.Sh NAME
+.Nm cap_sysctlbyname
+.Nd "library for getting or setting system information in capability mode"
+.Sh LIBRARY
+.Lb libcap_sysctl
+.Sh SYNOPSIS
+.In sys/nv.h
+.In libcasper.h
+.In casper/cap_sysctl.h
+.Ft int
+.Fn cap_sysctlbyname "cap_channel_t *chan" " const char *name" " void *oldp" " size_t *oldlenp" " const void *newp" " size_t newlen"
+.Sh DESCRIPTION
+The function
+.Fn cap_sysctlbyname
+is equivalent to
+.Xr sysctlbyname 3
+except that the connection to the
+.Nm system.sysctl
+service needs to be provided.
+.Sh LIMITS
+The service can be limited using
+.Xr cap_limit_set 3
+function.
+The
+.Xr nvlist 9
+for that function can contain the following values and types:
+.Bl -ohang -offset indent
+.It ( NV_TYPE_NUMBER )
+The name of the element with type number will be treated as the limited sysctl.
+The value of the element will describe the access rights for given sysctl.
+There are four different rights
+.Dv CAP_SYSCTL_READ ,
+.Dv CAP_SYSCTL_WRITE ,
+.Dv CAP_SYSCTL_RDWR ,
+and
+.Dv CAP_SYSCTL_RECURSIVE .
+The
+.Dv CAP_SYSCTL_READ
+flag allows to fetch the value of a given sysctl.
+The
+.Dv CAP_SYSCTL_WIRTE
+flag allows to override the value of a given sysctl.
+The
+.Dv CAP_SYSCTL_RDWR
+is combination of the
+.Dv CAP_SYSCTL_WIRTE
+and
+.Dv CAP_SYSCTL_READ
+and allows to read and write the value of a given sysctl.
+The
+.Dv CAP_SYSCTL_RECURSIVE
+allows access to all children of a given sysctl.
+This right must be combined with at least one other right.
+.Sh EXAMPLES
+The following example first opens a capability to casper and then uses this
+capability to create the
+.Nm system.sysctl
+casper service and uses it to get the value of
+.Dv kern.trap_enotcap .
+.Bd -literal
+cap_channel_t *capcas, *capsysctl;
+const char *name = "kern.trap_enotcap";
+nvlist_t *limits;
+int value;
+size_t size;
+
+/* Open capability to Casper. */
+capcas = cap_init();
+if (capcas == NULL)
+	err(1, "Unable to contact Casper");
+
+/* Enter capability mode sandbox. */
+if (cap_enter() < 0 && errno != ENOSYS)
+	err(1, "Unable to enter capability mode");
+
+/* Use Casper capability to create capability to the system.sysctl service. */
+capsysctl = cap_service_open(capcas, "system.sysctl");
+if (capsysctl == NULL)
+	err(1, "Unable to open system.sysctl service");
+
+/* Close Casper capability, we don't need it anymore. */
+cap_close(capcas);
+
+/* Create limit for one MIB with read access only. */
+limits = nvlist_create(0);
+nvlist_add_number(limits, name, CAP_SYSCTL_READ);
+
+/* Limit system.sysctl. */
+if (cap_limit_set(capsysctl, limits) < 0)
+	err(1, "Unable to set limits");
+
+/* Fetch value. */
+if (cap_sysctlbyname(capsysctl, name, &value, &size, NULL, 0) < 0)
+	err(1, "Unable to get value of sysctl");
+
+printf("The value of %s is %d.\\n", name, value);
+
+cap_close(capsysctl);
+.Ed
+.Sh SEE ALSO
+.Xr cap_enter 2 ,
+.Xr err 3 ,
+.Xr sysctlbyname 3 ,
+.Xr capsicum 4 ,
+.Xr nv 9
+.Sh AUTHORS
+The
+.Nm cap_sysctl
+service was implemented by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship from the FreeBSD Foundation.
+.Pp
+This manual page was written by
+.An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org .

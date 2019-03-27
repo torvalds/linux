@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: kfd
+# REQUIRE: NETWORK
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name=kfd
+desc="Receive forwarded tickets"
+rcvar=${name}_enable
+start_precmd=${name}_start_precmd
+
+kfd_start_precmd()
+{
+
+	command_args="$command_args -i &"
+}
+
+load_rc_config $name
+run_rc_command "$1"

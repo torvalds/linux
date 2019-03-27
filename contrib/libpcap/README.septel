@@ -1,0 +1,50 @@
+The following instructions apply if you have a Linux platform and want
+libpcap to support the Septel range of passive network monitoring cards
+from Intel (http://www.intel.com)
+
+1) Install and build the Septel software distribution by following the
+instructions supplied with that package.
+
+2) Configure libcap. To allow the 'configure' script to locate the Septel
+software distribution use the '--with-septel' option:
+
+        ./configure --with-septel=DIR
+
+where DIR is the root of the Septel software distribution, for example
+/var/src/septel.
+
+By default (if you write only ./configure --with-septel) it takes
+./../septel as argument for DIR.
+
+If the Septel software is correctly detected 'configure' will
+report:
+
+        checking whether we have Septel API... yes
+
+If 'configure' reports that there is no Septel API, the directory may have been
+incorrectly specified or the Septel software was not built before configuring
+libpcap.
+
+See also the libpcap INSTALL.txt file for further libpcap configuration
+options.
+
+Building libpcap at this stage will include support for both the native
+packet capture stream and for capturing from Septel cards.  To build
+libpcap with only Septel support specify the capture type as 'septel'
+when configuring libpcap:
+
+        ./configure --with-septel=DIR --with-pcap=septel
+
+Applications built with libpcap configured in this way will only detect Septel
+cards and will not capture from the native OS packet stream.
+
+Note: As mentioned in pcap-septel.c we should first edit the system.txt
+file to change the user part example (UPE) module id to 0xdd instead of
+0x2d for technical reason.  So this change in system.txt is crucial and
+things will go wrong if it's not done.  System.txt along with config.txt
+are configuration files that are edited by the user before running the
+gctload program that uses these files for initialising modules and
+configuring parameters.
+
+----------------------------------------------------------------------
+for more information please contact me : gil_hoyek@hotmail.com

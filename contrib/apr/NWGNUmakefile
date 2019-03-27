@@ -1,0 +1,433 @@
+#
+# Define our macros with defaults if we dont got them already.
+#
+ifndef APR_WORK
+export APR_WORK = $(CURDIR)
+endif
+ifneq "$(wildcard $(APR_WORK)/include/apr_version.h)" "$(APR_WORK)/include/apr_version.h"
+$(error APR_WORK does not point to a valid APR source tree) 
+endif
+ifndef APU_WORK
+export APU_WORK = $(CURDIR)/../apr-util
+endif
+ifneq "$(wildcard $(APU_WORK)/include/apu_version.h)" "$(APU_WORK)/include/apu_version.h"
+$(error APU_WORK does not point to a valid APU source tree) 
+endif
+
+#
+# Declare the sub-directories to be built here
+#
+
+SUBDIRS = \
+		build \
+		$(APU_WORK) \
+		$(EOLIST)
+
+ifeq "$(TEST)" "1"
+SUBDIRS += \
+		test \
+		$(APU_WORK)/test \
+		$(EOLIST)
+endif
+
+#
+# Get the 'head' of the build environment.  This includes default targets and
+# paths to tools
+#
+
+include $(APR_WORK)/build/NWGNUhead.inc
+
+#
+# build this level's files
+
+#
+# Make sure all needed macro's are defined
+#
+
+#
+# These directories will be at the beginning of the include list, followed by
+# INCDIRS
+#
+XINCDIRS	+= \
+			$(APR)/include \
+			$(APR)/include/private \
+			$(APR)/include/arch/NetWare \
+			$(APR)/include/arch/unix \
+			$(APR)/memory/unix \
+			$(APR)/random/unix \
+			$(APU)/include \
+			$(APU)/xml \
+			$(LDAPSDK)/inc \
+			$(EOLIST)
+
+#
+# These flags will come after CFLAGS
+#
+XCFLAGS		+= \
+			$(EOLIST)
+
+#
+# These defines will come after DEFINES
+#
+XDEFINES	+= \
+			$(EOLIST)
+
+#
+# These flags will be added to the link.opt file
+#
+XLFLAGS		+= \
+			$(EOLIST)
+
+#
+# These values will be appended to the correct variables based on the value of
+# RELEASE
+#
+ifeq "$(RELEASE)" "debug"
+XINCDIRS	+= \
+			$(EOLIST)
+
+XCFLAGS		+= \
+			$(EOLIST)
+
+XDEFINES	+= \
+			$(EOLIST)
+
+XLFLAGS		+= \
+			$(EOLIST)
+endif
+
+ifeq "$(RELEASE)" "noopt"
+XINCDIRS	+= \
+			$(EOLIST)
+
+XCFLAGS		+= \
+			$(EOLIST)
+
+XDEFINES	+= \
+			$(EOLIST)
+
+XLFLAGS		+= \
+			$(EOLIST)
+endif
+
+ifeq "$(RELEASE)" "release"
+XINCDIRS	+= \
+			$(EOLIST)
+
+XCFLAGS		+= \
+			$(EOLIST)
+
+XDEFINES	+= \
+			$(EOLIST)
+
+XLFLAGS		+= \
+			$(EOLIST)
+endif
+
+#
+# These are used by the link target if an NLM is being generated
+# This is used by the link 'name' directive to name the nlm.  If left blank
+# TARGET_nlm (see below) will be used.
+#
+NLM_NAME	= aprlib
+
+#
+# This is used by the link '-desc ' directive.
+# If left blank, NLM_NAME will be used.
+#
+NLM_DESCRIPTION	= Apache Portability Runtime Library $(VERSION_STR) $(VERSION_SKT)
+
+#
+# This is used by the '-threadname' directive.  If left blank,
+# NLM_NAME Thread will be used.
+#
+NLM_THREAD_NAME	=
+#
+# If this is specified, it will override VERSION value in
+# $(APR_WORK)/build/NWGNUenvironment.inc
+#
+NLM_VERSION	=
+
+#
+# If this is specified, it will override the default of 64K
+#
+NLM_STACK_SIZE	=
+
+#
+# If this is specified it will be used by the link '-entry' directive
+#
+NLM_ENTRY_SYM	=
+
+#
+# If this is specified it will be used by the link '-exit' directive
+#
+NLM_EXIT_SYM	=
+
+#
+# If this is specified it will be used by the link '-check' directive
+#
+NLM_CHECK_SYM	=
+
+#
+# If this is specified it will be used by the link '-flags' directive
+#
+NLM_FLAGS	=
+
+#
+# If this is specified it will be linked in with the XDCData option in the def
+# file instead of the default of $(APR)/misc/netware/apache.xdc.  XDCData can
+# be disabled by setting APACHE_UNIPROC in the environment
+#
+XDCDATA		=
+
+#
+# Declare all target files (you must add your files here)
+#
+
+#
+# If there is an NLM target, put it here
+#
+TARGET_nlm = \
+	$(OBJDIR)/aprlib.nlm \
+	$(EOLIST)
+
+#
+# If there is an LIB target, put it here
+#
+TARGET_lib = \
+	$(OBJDIR)/aprlib.lib \
+	$(EOLIST)
+
+#
+# These are the OBJ files needed to create the NLM target above.
+# Paths must all use the '/' character
+#
+FILES_nlm_objs = \
+	$(OBJDIR)/libprews.o \
+	$(EOLIST)
+
+#
+# These are the LIB files needed to create the NLM target above.
+# These will be added as a library command in the link.opt file.
+#
+FILES_nlm_libs = \
+	$(PRELUDE) \
+	$(APRLIB) \
+	$(APULIB) \
+	$(APULDAPLIB) \
+	$(APUXMLLIB) \
+	$(EOLIST)
+
+#
+# These are the modules that the above NLM target depends on to load.
+# These will be added as a module command in the link.opt file.
+#
+FILES_nlm_modules = \
+	Libc \
+	$(EOLIST)
+
+# Include the Winsock libraries if Winsock is being used
+ifndef USE_STDSOCKETS
+FILES_nlm_modules += ws2_32 \
+	$(EOLIST)
+endif
+
+#If the LDAP support is defined then add the auto-load modules
+ifneq "$(LDAPSDK)" ""
+FILES_nlm_modules += \
+	lldapsdk \
+	lldapssl \
+	$(EOLIST)
+endif
+
+#
+# If the nlm has a msg file, put it's path here
+#
+FILE_nlm_msg =
+
+#
+# If the nlm has a hlp file put it's path here
+#
+FILE_nlm_hlp =
+
+#
+# If this is specified, it will override $(NWOS)\copyright.txt.
+#
+FILE_nlm_copyright =
+
+#
+# Any additional imports go here
+#
+FILES_nlm_Ximports = \
+	@libc.imp \
+	@netware.imp \
+	$(EOLIST)
+
+# Include the Winsock imports if Winsock is being used
+ifndef USE_STDSOCKETS
+FILES_nlm_Ximports +=  \
+	@ws2nlm.imp \
+	WSAStartupRTags \
+	WSACleanupRTag \
+	$(EOLIST)
+endif
+
+#If the LDAP support is defined then add the imports
+ifneq "$(LDAPSDK)" ""
+FILES_nlm_Ximports += \
+	@lldapsdk.imp \
+	@lldapssl.imp \
+	$(EOLIST)
+endif
+
+#
+# Any symbols exported to here
+#
+FILES_nlm_exports = \
+	@aprlib.imp \
+	$(EOLIST)
+
+#
+# These are the OBJ files needed to create the LIB target above.
+# Paths must all use the '/' character
+#
+FILES_lib_objs = \
+	$(OBJDIR)/apr_atomic.o \
+	$(OBJDIR)/apr_cpystrn.o \
+	$(OBJDIR)/apr_escape.o \
+	$(OBJDIR)/apr_fnmatch.o \
+	$(OBJDIR)/apr_getpass.o \
+	$(OBJDIR)/apr_hash.o \
+	$(OBJDIR)/apr_pools.o \
+	$(OBJDIR)/apr_random.o \
+	$(OBJDIR)/apr_skiplist.o \
+	$(OBJDIR)/apr_snprintf.o \
+	$(OBJDIR)/apr_strings.o \
+	$(OBJDIR)/apr_strnatcmp.o \
+	$(OBJDIR)/apr_strtok.o \
+	$(OBJDIR)/apr_tables.o \
+	$(OBJDIR)/buffer.o \
+	$(OBJDIR)/charset.o \
+	$(OBJDIR)/copy.o \
+	$(OBJDIR)/common.o \
+	$(OBJDIR)/dir.o \
+	$(OBJDIR)/dso.o \
+	$(OBJDIR)/errorcodes.o \
+	$(OBJDIR)/env.o \
+	$(OBJDIR)/fileacc.o \
+	$(OBJDIR)/filedup.o \
+	$(OBJDIR)/filepath.o \
+	$(OBJDIR)/filepath_util.o \
+	$(OBJDIR)/filestat.o \
+	$(OBJDIR)/filesys.o \
+	$(OBJDIR)/flock.o \
+	$(OBJDIR)/fullrw.o \
+	$(OBJDIR)/getopt.o \
+	$(OBJDIR)/groupinfo.o \
+	$(OBJDIR)/inet_pton.o \
+	$(OBJDIR)/inet_ntop.o \
+	$(OBJDIR)/mktemp.o \
+	$(OBJDIR)/mmap.o \
+	$(OBJDIR)/multicast.o \
+	$(OBJDIR)/open.o \
+	$(OBJDIR)/pipe.o \
+	$(OBJDIR)/otherchild.o \
+	$(OBJDIR)/proc.o \
+	$(OBJDIR)/procsup.o \
+	$(OBJDIR)/proc_mutex.o \
+	$(OBJDIR)/rand.o \
+	$(OBJDIR)/readwrite.o \
+	$(OBJDIR)/seek.o \
+	$(OBJDIR)/pollcb.o \
+	$(OBJDIR)/pollset.o \
+	$(OBJDIR)/select.o \
+	$(OBJDIR)/sendrecv.o \
+	$(OBJDIR)/sha2.o \
+	$(OBJDIR)/sha2_glue.o \
+	$(OBJDIR)/shm.o \
+	$(OBJDIR)/signals.o \
+	$(OBJDIR)/sockaddr.o \
+	$(OBJDIR)/socket_util.o \
+	$(OBJDIR)/sockets.o \
+	$(OBJDIR)/sockopt.o \
+	$(OBJDIR)/start.o \
+	$(OBJDIR)/tempdir.o \
+	$(OBJDIR)/thread.o \
+	$(OBJDIR)/thread_cond.o \
+	$(OBJDIR)/thread_mutex.o \
+	$(OBJDIR)/thread_rwlock.o \
+	$(OBJDIR)/threadpriv.o \
+	$(OBJDIR)/time.o \
+	$(OBJDIR)/timestr.o \
+	$(OBJDIR)/userinfo.o \
+	$(OBJDIR)/version.o \
+	$(OBJDIR)/waitio.o \
+	$(EOLIST)
+
+
+#
+# implement targets and dependancies (leave this section alone)
+#
+
+libs :: $(OBJDIR) $(TARGET_lib)
+
+nlms :: libs $(TARGET_nlm)
+
+#
+# Updated this target to create necessary directories and copy files to the
+# correct place.  (See $(APR_WORK)/build/NWGNUhead.inc for examples)
+#
+install :: nlms $(INSTDIRS) FORCE
+	$(call COPY,$(APR)/$(TARGET_nlm),$(INSTALLBASE)/)
+ifndef DEST
+	-$(call COPY,$(APR)/LICENSE,$(INSTALLBASE)/)
+	-$(call COPY,$(APR)/STATUS,$(INSTALLBASE)/STATUS.apr)
+	-$(call COPY,$(APR)/CHANGES,$(INSTALLBASE)/CHANGES.apr)
+	-$(call COPY,$(APU)/STATUS,$(INSTALLBASE)/STATUS.apu)
+	-$(call COPY,$(APU)/CHANGES,$(INSTALLBASE)/CHANGES.apu)
+	-$(call COPYR,$(APR)/docs,$(INSTALLBASE)/docs/)
+endif
+
+ifndef DEST
+installdev :: $(INSTDEVDIRS) FORCE
+	$(call COPY,$(APR)/include/*.h,$(INSTALLBASE)/include/)
+	$(call COPY,$(APR)/*.imp,$(INSTALLBASE)/lib/)
+	$(call COPY,$(APR)/misc/netware/*.xdc,$(INSTALLBASE)/lib/)
+	$(call COPY,$(APR)/$(TARGET_nlm),$(INSTALLBASE)/bin/)
+	$(call COPY,$(APRLIB),$(INSTALLBASE)/lib/)
+	$(call COPY,$(APULIB),$(INSTALLBASE)/lib/)
+	$(call COPY,$(APULDAPLIB),$(INSTALLBASE)/lib/)
+	$(call COPY,$(APUXMLLIB),$(INSTALLBASE)/lib/)
+
+$(INSTDEVDIRS) ::
+	$(call MKDIR,$@)
+endif
+
+#
+# Any specialized rules here
+#
+
+vpath %.c atomic/netware:strings:tables:passwd:lib:time/unix
+vpath %.c file_io/unix:locks/netware:misc/netware:misc/unix:threadproc/netware
+vpath %.c poll/unix:shmem/unix:support/unix:random/unix
+vpath %.c dso/netware:memory/unix:mmap/unix:user/netware:encoding
+
+# Use the win32 network_io if Winsock is being used
+ifndef USE_STDSOCKETS
+vpath %.c network_io/win32
+endif
+vpath %.c network_io/unix
+
+$(OBJDIR)/%.o: file_io/netware/%.c $(OBJDIR)/$(NLM_NAME)_cc.opt
+#	@echo Compiling $<
+	@echo $(DL)CC   $<$(DL)
+	$(CC) $< -cwd source -o=$@ @$(OBJDIR)/$(NLM_NAME)_cc.opt
+
+#
+# Include the 'tail' makefile that has targets that depend on variables defined
+# in this makefile
+#
+
+include $(APRBUILD)/NWGNUtail.inc
+
+

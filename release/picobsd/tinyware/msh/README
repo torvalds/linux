@@ -1,0 +1,13 @@
+This is a port of Minix /bin/sh shell.
+
+It's quite limited, but also quite small. One of most serious
+limitations is lack of support for user-defined functions. Also,
+globbing should be implemented with our glob(3) - the version in
+sh4.c is rather primitive.
+
+This version is under BSD license.
+
+Andrzej Bialecki
+<abial@FreeBSD.org>
+
+$Id$

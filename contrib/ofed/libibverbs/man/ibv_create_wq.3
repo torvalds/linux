@@ -1,0 +1,72 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_CREATE_WQ 3 2016-07-27 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_create_wq, ibv_destroy_wq \- create or destroy a Work Queue (WQ).
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs_exp.h>
+.sp
+.BI "struct ibv_wq *ibv_create_wq(struct ibv_context " "*context,"
+.BI "                                     struct ibv_wq_init_attr " "*wq_init_attr" );
+.sp
+.BI "int ibv_destroy_wq(struct ibv_wq " "*wq" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_create_wq()
+creates a WQ associated with the ibv_context
+.I context\fR.
+The argument
+.I wq_init_attr
+is an ibv_wq_init_attr struct, as defined in <infiniband/verbs.h>.
+.PP
+.nf
+struct ibv_wq_init_attr {
+.in +8
+void                      *wq_context;    /* Associated context of the WQ */
+enum ibv_wq_type           wq_type;       /* WQ type */
+uint32_t                   max_wr;        /* Requested max number of outstanding WRs in the WQ */
+uint32_t                   max_sge;       /* Requested max number of scatter/gather (s/g) elements per WR in the WQ */
+struct  ibv_pd            *pd;            /* PD to be associated with the WQ */
+struct  ibv_cq            *cq;            /* CQ to be associated with the WQ */
+uint32_t                   comp_mask;     /* Identifies valid fields. Use ibv_wq_init_attr_mask */
+uint32_t                   create_flags    /* Creation flags for this WQ, use enum ibv_wq_flags */
+.in -8
+};
+
+.sp
+.nf
+enum ibv_wq_flags {
+.in +8
+IBV_WQ_FLAGS_CVLAN_STRIPPING		= 1 << 0, /* CVLAN field will be stripped from incoming packets */
+IBV_WQ_FLAGS_SCATTER_FCS		= 1 << 1, /* FCS field will be scattered to host memory */
+IBV_WQ_FLAGS_RESERVED			= 1 << 2,
+.in -8
+};
+.nf
+.fi
+.PP
+The function
+.B ibv_create_wq()
+will update the
+.I wq_init_attr\fB\fR->max_wr
+and
+.I wq_init_attr\fB\fR->max_sge
+fields with the actual \s-1WQ\s0 values of the WQ that was created;
+the values will be greater than or equal to the values requested.
+.PP
+.B ibv_destroy_wq()
+destroys the WQ
+.I wq\fR.
+.SH "RETURN VALUE"
+.B ibv_create_wq()
+returns a pointer to the created WQ, or NULL if the request fails.
+.PP
+.B ibv_destroy_wq()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "SEE ALSO"
+.BR ibv_modify_wq (3),
+.SH "AUTHORS"
+.TP
+Yishai Hadas <yishaih@mellanox.com>

@@ -1,0 +1,49 @@
+=pod
+
+=head1 NAME
+
+PEM_write_bio_PKCS7_stream - output PKCS7 structure in PEM format
+
+=head1 SYNOPSIS
+
+ #include <openssl/pkcs7.h>
+
+ int PEM_write_bio_PKCS7_stream(BIO *out, PKCS7 *p7, BIO *data, int flags);
+
+=head1 DESCRIPTION
+
+PEM_write_bio_PKCS7_stream() outputs a PKCS7 structure in PEM format.
+
+It is otherwise identical to the function SMIME_write_PKCS7().
+
+=head1 NOTES
+
+This function is effectively a version of the PEM_write_bio_PKCS7() supporting
+streaming.
+
+=head1 RETURN VALUES
+
+PEM_write_bio_PKCS7_stream() returns 1 for success or 0 for failure.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<PKCS7_sign(3)>,
+L<PKCS7_verify(3)>, L<PKCS7_encrypt(3)>
+L<PKCS7_decrypt(3)>,
+L<SMIME_write_PKCS7(3)>,
+L<i2d_PKCS7_bio_stream(3)>
+
+=head1 HISTORY
+
+The PEM_write_bio_PKCS7_stream() function was added in OpenSSL 1.0.0.
+
+=head1 COPYRIGHT
+
+Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

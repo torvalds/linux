@@ -1,0 +1,11 @@
+
+#------------------------------------------------------------------------------
+# $File: kde,v 1.5 2010/11/25 15:00:12 christos Exp $
+# kde:  file(1) magic for KDE
+
+0		string/t	[KDE\ Desktop\ Entry]	KDE desktop entry
+!:mime	application/x-kdelnk
+0		string/t	#\ KDE\ Config\ File	KDE config file
+!:mime	application/x-kdelnk
+0		string/t	#\ xmcd	xmcd database file for kscd
+!:mime	text/x-xmcd

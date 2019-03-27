@@ -1,0 +1,173 @@
+.\" Copyright (c) 2004 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" $Id$
+.\"
+.Dd October 31, 2004
+.Dt PARSE_TIME 3
+.Os HEIMDAL
+.Sh NAME
+.Nm parse_time ,
+.Nm print_time_table ,
+.Nm unparse_time ,
+.Nm unparse_time_approx ,
+.Nd parse and unparse time intervals
+.Sh LIBRARY
+The roken library (libroken, -lroken)
+.Sh SYNOPSIS
+.Fd #include <parse_time.h>
+.Ft int
+.Fn parse_time "const char *timespec" "const char *def_unit"
+.Ft void
+.Fn print_time_table "FILE *f"
+.Ft size_t
+.Fn unparse_time "int seconds" "char *buf" "size_t len"
+.Ft size_t
+.Fn unparse_time_approx "int seconds" "char *buf" "size_t len"
+.Sh DESCRIPTION
+The
+.Fn parse_time
+function converts a the period of time specified in
+into a number of seconds.
+The
+.Fa timespec
+can be any number of
+.Aq number unit
+pairs separated by comma and whitespace. The number can be
+negative. Number without explicit units are taken as being
+.Fa def_unit .
+.Pp
+The
+.Fn unparse_time
+and
+.Fn unparse_time_approx
+does the opposite of
+.Fn parse_time ,
+that is they take a number of seconds and express that as human
+readable string.
+.Fa unparse_time
+produces an exact time, while
+.Fa unparse_time_approx
+restricts the result to only include one units.
+.Pp
+.Fn print_time_table
+prints a descriptive list of available units on the passed file
+descriptor.
+.Pp
+The possible units include:
+.Bl -tag -width "month" -compact -offset indent
+.It Li second , s
+.It Li minute , m
+.It Li hour , h
+.It day
+.It week
+seven days
+.It month
+30 days
+.It year
+365 days
+.El
+.Pp
+Units names can be arbitrarily abbreviated (as long as they are
+unique).
+.Sh RETURN VALUES
+.Fn parse_time
+returns the number of seconds that represents the expression in
+.Fa timespec
+or -1 on error.
+.Fn unparse_time
+and
+.Fn unparse_time_approx
+return the number of characters written to
+.Fa buf .
+if the return value is greater than or equal to the
+.Fa len
+argument, the string was too short and some of the printed characters
+were discarded.
+.Sh EXAMPLES
+.Bd -literal
+#include <stdio.h>
+#include <parse_time.h>
+
+int
+main(int argc, char **argv)
+{
+    int i;
+    int result;
+    char buf[128];
+    print_time_table(stdout);
+    for (i = 1; i < argc; i++) {
+	result = parse_time(argv[i], "second");
+	if(result == -1) {
+	    fprintf(stderr, "%s: parse error\\n", argv[i]);
+	    continue;
+	}
+	printf("--\\n");
+	printf("parse_time = %d\\n", result);
+	unparse_time(result, buf, sizeof(buf));
+	printf("unparse_time = %s\\n", buf);
+	unparse_time_approx(result, buf, sizeof(buf));
+	printf("unparse_time_approx = %s\\n", buf);
+    }
+    return 0;
+}
+.Ed
+.Bd -literal
+$ ./a.out "1 minute 30 seconds" "90 s" "1 y -1 s"
+1   year = 365 days
+1  month = 30 days
+1   week = 7 days
+1    day = 24 hours
+1   hour = 60 minutes
+1 minute = 60 seconds
+1 second
+--
+parse_time = 90
+unparse_time = 1 minute 30 seconds
+unparse_time_approx = 1 minute
+--
+parse_time = 90
+unparse_time = 1 minute 30 seconds
+unparse_time_approx = 1 minute
+--
+parse_time = 31535999
+unparse_time = 12 months 4 days 23 hours 59 minutes 59 seconds
+unparse_time_approx = 12 months
+.Ed
+.Sh BUGS
+Since
+.Fn parse_time
+returns -1 on error there is no way to parse "minus one second".
+Currently "s" at the end of units is ignored. This is a hack for
+English plural forms. If these functions are ever localised, this
+scheme will have to change.
+.\".Sh SEE ALSO
+.\".Xr parse_bytes 3
+.\".Xr parse_units 3

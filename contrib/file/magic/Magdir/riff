@@ -1,0 +1,332 @@
+
+#------------------------------------------------------------------------------
+# $File: riff,v 1.33 2017/10/06 01:11:24 christos Exp $
+# riff:  file(1) magic for RIFF format
+# See
+#
+#	http://www.seanet.com/users/matts/riffmci/riffmci.htm
+#	http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/Docs/riffmci.pdf
+#
+
+# audio format tag. Assume limits: max 1024 bit, 128 channels, 1 MHz
+0   name    riff-wave
+>0	leshort		1		\b, Microsoft PCM
+>>14	leshort		>0
+>>>14	leshort		<1024	\b, %d bit
+>0	leshort		2		\b, Microsoft ADPCM
+>0	leshort		6		\b, ITU G.711 A-law
+>0	leshort		7		\b, ITU G.711 mu-law
+>0	leshort		8		\b, Microsoft DTS
+>0	leshort		17		\b, IMA ADPCM
+>0	leshort		20		\b, ITU G.723 ADPCM (Yamaha)
+>0	leshort		49		\b, GSM 6.10
+>0	leshort		64		\b, ITU G.721 ADPCM
+>0	leshort		80		\b, MPEG
+>0	leshort		85		\b, MPEG Layer 3
+>0	leshort		0x2001		\b, DTS
+>2	leshort		=1		\b, mono
+>2	leshort		=2		\b, stereo
+>2	leshort		>2
+>>2	leshort		<128	\b, %d channels
+>4	lelong		>0
+>>4	lelong		<1000000	%d Hz
+
+# try to find "fmt "
+0   name    riff-walk
+>0  string  fmt\x20
+>>4 lelong  <0x80
+>>>8 use    riff-wave
+>0  string  LIST
+>>&(4.l+4)  use riff-walk
+>0  string  DISP
+>>&(4.l+4)  use riff-walk
+>0  string  bext
+>>&(4.l+4)  use riff-walk
+>0  string  Fake
+>>&(4.l+4)  use riff-walk
+>0  string  fact
+>>&(4.l+4)  use riff-walk
+>0  string  VP8
+>>11		byte		0x9d
+>>>12		byte		0x01
+>>>>13		byte		0x2a	\b, VP8 encoding
+>>>>>14		leshort&0x3fff	x	\b, %d
+>>>>>16		leshort&0x3fff	x	\bx%d, Scaling:
+>>>>>14		leshort&0xc000	0x0000	\b [none]
+>>>>>14		leshort&0xc000	0x1000	\b [5/4]
+>>>>>14		leshort&0xc000	0x2000	\b [5/3]
+>>>>>14		leshort&0xc000	0x3000	\b [2]
+>>>>>14		leshort&0xc000	0x0000	\bx[none]
+>>>>>14		leshort&0xc000	0x1000	\bx[5/4]
+>>>>>14		leshort&0xc000	0x2000	\bx[5/3]
+>>>>>14		leshort&0xc000	0x3000	\bx[2]
+>>>>>15		byte&0x80	=0x00	\b, YUV color
+>>>>>15		byte&0x80	=0x80	\b, bad color specification
+>>>>>15		byte&0x40	=0x40	\b, no clamping required
+>>>>>15		byte&0x40	=0x00	\b, decoders should clamp
+#>0  string  x		we got %s
+#>>&(4.l+4)  use riff-walk
+
+# AVI section extended by Patrik Radman <patrik+file-magic@iki.fi>
+#
+0	string		RIFF		RIFF (little-endian) data
+# RIFF Palette format
+# Update: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/Resource_Interchange_File_Format
+# Reference: http://worms2d.info/Palette_file
+>8	string		PAL\ 		\b, palette
+!:mime	application/x-riff
+# color palette by Microsoft Corporation
+!:ext	pal
+# file size =  chunk size + 8 in most cases
+>>4	ulelong+8	x		\b, %u bytes
+# Extended PAL Format
+>>12	string		plth		\b, extended
+# Simple PAL Format
+>>12	string		data		
+# data chunk size = color entries * 4 + 4 + sometimes extra (4) appended bytes
+>>>16	ulelong		x		\b, data size %u
+# palVersion is always 0x0300
+#>>>20	leshort		x		\b, version 0x%4.4x
+# palNumEntries specifies the number of palette color entries
+>>>22	uleshort	x		\b, %u entries
+# after palPalEntry sized (number of color entries * 4 ) vector
+>>>(22.s*4)	ubequad	x		
+# jump relative 22 ( 8 + 16) bytes forward points after end of file or to
+# appended extra bytes like in http://safecolours.rigdenage.com/set(ms).zip/Protan(MS).pal
+>>>>&16		ubelong	x		\b, extra bytes
+>>>>>&-4	ubelong	>0		0x%8.8x
+# RIFF Device Independent Bitmap format
+>8	string		RDIB		\b, device-independent bitmap
+>>16	string		BM
+>>>30	leshort		12		\b, OS/2 1.x format
+>>>>34	leshort		x		\b, %d x
+>>>>36	leshort		x		%d
+>>>30	leshort		64		\b, OS/2 2.x format
+>>>>34	leshort		x		\b, %d x
+>>>>36	leshort		x		%d
+>>>30	leshort		40		\b, Windows 3.x format
+>>>>34	lelong		x		\b, %d x
+>>>>38	lelong		x		%d x
+>>>>44	leshort		x		%d
+# RIFF MIDI format
+>8	string		RMID		\b, MIDI
+# RIFF Multimedia Movie File format
+>8	string		RMMP		\b, multimedia movie
+# RIFF wrapper for MP3
+>8	string		RMP3		\b, MPEG Layer 3 audio
+# Microsoft WAVE format (*.wav)
+>8	string		WAVE		\b, WAVE audio
+!:mime	audio/x-wav
+>>12    string  >\0
+>>>12   use     riff-walk
+# Corel Draw Picture
+>8	string		CDRA		\b, Corel Draw Picture
+!:mime	image/x-coreldraw
+>8	string		CDR6		\b, Corel Draw Picture, version 6
+!:mime	image/x-coreldraw
+>8	string		NUNDROOT	\b, Steinberg CuBase
+# AVI == Audio Video Interleave
+>8	string		AVI\040		\b, AVI
+!:mime	video/x-msvideo
+>>12    string          LIST
+>>>20   string          hdrlavih
+>>>>&36 lelong          x               \b, %u x
+>>>>&40 lelong          x               %u,
+>>>>&4  lelong          >1000000        <1 fps,
+>>>>&4  lelong          1000000         1.00 fps,
+>>>>&4  lelong          500000          2.00 fps,
+>>>>&4  lelong          333333          3.00 fps,
+>>>>&4  lelong          250000          4.00 fps,
+>>>>&4  lelong          200000          5.00 fps,
+>>>>&4  lelong          166667          6.00 fps,
+>>>>&4  lelong          142857          7.00 fps,
+>>>>&4  lelong          125000          8.00 fps,
+>>>>&4  lelong          111111          9.00 fps,
+>>>>&4  lelong          100000          10.00 fps,
+# ]9.9,10.1[
+>>>>&4  lelong          <101010
+>>>>>&-4        lelong  >99010
+>>>>>>&-4       lelong  !100000         ~10 fps,
+>>>>&4  lelong          83333           12.00 fps,
+# ]11.9,12.1[
+>>>>&4  lelong          <84034
+>>>>>&-4        lelong  >82645
+>>>>>>&-4       lelong  !83333          ~12 fps,
+>>>>&4  lelong          66667           15.00 fps,
+# ]14.9,15.1[
+>>>>&4  lelong          <67114
+>>>>>&-4        lelong  >66225
+>>>>>>&-4       lelong  !66667          ~15 fps,
+>>>>&4  lelong          50000           20.00 fps,
+>>>>&4  lelong          41708           23.98 fps,
+>>>>&4  lelong          41667           24.00 fps,
+# ]23.9,24.1[
+>>>>&4  lelong          <41841
+>>>>>&-4        lelong  >41494
+>>>>>>&-4       lelong  !41708
+>>>>>>>&-4      lelong  !41667          ~24 fps,
+>>>>&4  lelong          40000           25.00 fps,
+# ]24.9,25.1[
+>>>>&4  lelong          <40161
+>>>>>&-4        lelong  >39841
+>>>>>>&-4       lelong  !40000          ~25 fps,
+>>>>&4  lelong          33367           29.97 fps,
+>>>>&4  lelong          33333           30.00 fps,
+# ]29.9,30.1[
+>>>>&4  lelong          <33445
+>>>>>&-4        lelong  >33223
+>>>>>>&-4       lelong  !33367
+>>>>>>>&-4      lelong  !33333          ~30 fps,
+>>>>&4  lelong          <32224          >30 fps,
+##>>>>&4  lelong          x               (%lu)
+##>>>>&20 lelong          x               %lu frames,
+# Note: The tests below assume that the AVI has 1 or 2 streams,
+#       "vids" optionally followed by "auds".
+#       (Should cover 99.9% of all AVIs.)
+# assuming avih length = 56
+>>>88   string  LIST
+>>>>96  string  strlstrh
+>>>>>108        string  vids    video:
+>>>>>>&0        lelong  0               uncompressed
+# skip past vids strh
+>>>>>>(104.l+108)       string  strf
+>>>>>>>(104.l+132)      lelong          1       RLE 8bpp
+>>>>>>>(104.l+132)      string/c        cvid    Cinepak
+>>>>>>>(104.l+132)      string/c        i263    Intel I.263
+>>>>>>>(104.l+132)      string/c        iv32    Indeo 3.2
+>>>>>>>(104.l+132)      string/c        iv41    Indeo 4.1
+>>>>>>>(104.l+132)      string/c        iv50    Indeo 5.0
+>>>>>>>(104.l+132)      string/c        mp42    Microsoft MPEG-4 v2
+>>>>>>>(104.l+132)      string/c        mp43    Microsoft MPEG-4 v3
+>>>>>>>(104.l+132)      string/c        fmp4    FFMpeg MPEG-4
+>>>>>>>(104.l+132)      string/c        mjpg    Motion JPEG
+>>>>>>>(104.l+132)      string/c        div3    DivX 3
+>>>>>>>>112             string/c        div3    Low-Motion
+>>>>>>>>112             string/c        div4    Fast-Motion
+>>>>>>>(104.l+132)      string/c        divx    DivX 4
+>>>>>>>(104.l+132)      string/c        dx50    DivX 5
+>>>>>>>(104.l+132)      string/c        xvid    XviD
+>>>>>>>(104.l+132)	string/c	h264	H.264
+>>>>>>>(104.l+132)      string/c        wmv3    Windows Media Video 9
+>>>>>>>(104.l+132)      string/c        h264    X.264 or H.264
+>>>>>>>(104.l+132)      lelong  0
+##>>>>>>>(104.l+132)      string  x       (%.4s)
+# skip past first (video) LIST
+>>>>(92.l+96)   string  LIST
+>>>>>(92.l+104) string  strlstrh
+>>>>>>(92.l+116)        string          auds    \b, audio:
+# auds strh length = 56:
+>>>>>>>(92.l+172)       string          strf
+>>>>>>>>(92.l+180)      leshort 0x0001  uncompressed PCM
+>>>>>>>>(92.l+180)      leshort 0x0002  ADPCM
+>>>>>>>>(92.l+180)      leshort 0x0006  aLaw
+>>>>>>>>(92.l+180)      leshort 0x0007  uLaw
+>>>>>>>>(92.l+180)      leshort 0x0050  MPEG-1 Layer 1 or 2
+>>>>>>>>(92.l+180)      leshort 0x0055  MPEG-1 Layer 3
+>>>>>>>>(92.l+180)      leshort 0x2000  Dolby AC3
+>>>>>>>>(92.l+180)      leshort 0x0161  DivX
+##>>>>>>>>(92.l+180)      leshort x       (0x%.4x)
+>>>>>>>>(92.l+182)      leshort 1       (mono,
+>>>>>>>>(92.l+182)      leshort 2       (stereo,
+>>>>>>>>(92.l+182)      leshort >2      (%d channels,
+>>>>>>>>(92.l+184)      lelong  x       %d Hz)
+# auds strh length = 64:
+>>>>>>>(92.l+180)       string          strf
+>>>>>>>>(92.l+188)      leshort 0x0001  uncompressed PCM
+>>>>>>>>(92.l+188)      leshort 0x0002  ADPCM
+>>>>>>>>(92.l+188)      leshort 0x0055  MPEG-1 Layer 3
+>>>>>>>>(92.l+188)      leshort 0x2000  Dolby AC3
+>>>>>>>>(92.l+188)      leshort 0x0161  DivX
+##>>>>>>>>(92.l+188)      leshort x       (0x%.4x)
+>>>>>>>>(92.l+190)      leshort 1       (mono,
+>>>>>>>>(92.l+190)      leshort 2       (stereo,
+>>>>>>>>(92.l+190)      leshort >2      (%d channels,
+>>>>>>>>(92.l+192)      lelong  x       %d Hz)
+# Animated Cursor format
+>8	string		ACON		\b, animated cursor
+# SoundFont 2 <mpruett@sgi.com>
+>8	string		sfbk		SoundFont/Bank
+# MPEG-1 wrapped in a RIFF, apparently
+>8      string          CDXA            \b, wrapped MPEG-1 (CDXA)
+>8	string		4XMV		\b, 4X Movie file
+# AMV-type AVI file: http://wiki.multimedia.cx/index.php?title=AMV
+>8	string		AMV\040		\b, AMV
+>8      string          WEBP            \b, Web/P image
+!:mime	image/webp
+>>12	use		riff-walk
+
+#
+# XXX - some of the below may only appear in little-endian form.
+#
+# Also "MV93" appears to be for one form of Macromedia Director
+# files, and "GDMF" appears to be another multimedia format.
+#
+0	string		RIFX		RIFF (big-endian) data
+# RIFF Palette format
+>8	string		PAL		\b, palette
+>>16	beshort		x		\b, version %d
+>>18	beshort		x		\b, %d entries
+# RIFF Device Independent Bitmap format
+>8	string		RDIB		\b, device-independent bitmap
+>>16	string		BM
+>>>30	beshort		12		\b, OS/2 1.x format
+>>>>34	beshort		x		\b, %d x
+>>>>36	beshort		x		%d
+>>>30	beshort		64		\b, OS/2 2.x format
+>>>>34	beshort		x		\b, %d x
+>>>>36	beshort		x		%d
+>>>30	beshort		40		\b, Windows 3.x format
+>>>>34	belong		x		\b, %d x
+>>>>38	belong		x		%d x
+>>>>44	beshort		x		%d
+# RIFF MIDI format
+>8	string		RMID		\b, MIDI
+# RIFF Multimedia Movie File format
+>8	string		RMMP		\b, multimedia movie
+# Microsoft WAVE format (*.wav)
+>8	string		WAVE		\b, WAVE audio
+>>20	leshort		1		\b, Microsoft PCM
+>>>34	leshort		>0		\b, %d bit
+>>22	beshort		=1		\b, mono
+>>22	beshort		=2		\b, stereo
+>>22	beshort		>2		\b, %d channels
+>>24	belong		>0		%d Hz
+# Corel Draw Picture
+>8	string		CDRA		\b, Corel Draw Picture
+>8	string		CDR6		\b, Corel Draw Picture, version 6
+# AVI == Audio Video Interleave
+>8	string		AVI\040		\b, AVI
+# Animated Cursor format
+>8	string		ACON		\b, animated cursor
+# Notation Interchange File Format (big-endian only)
+>8	string		NIFF		\b, Notation Interchange File Format
+# SoundFont 2 <mpruett@sgi.com>
+>8	string		sfbk		SoundFont/Bank
+
+#------------------------------------------------------------------------------
+# Sony Wave64
+# see http://www.vcs.de/fileadmin/user_upload/MBS/PDF/Whitepaper/Informations_about_Sony_Wave64.pdf
+# 128 bit RIFF-GUID { 66666972-912E-11CF-A5D6-28DB04C10000 } in little-endian
+0	string	riff\x2E\x91\xCF\x11\xA5\xD6\x28\xDB\x04\xC1\x00\x00		Sony Wave64 RIFF data
+# 128 bit + total file size (64 bits) so 24 bytes
+# then WAVE-GUID { 65766177-ACF3-11D3-8CD1-00C04F8EDB8A }
+>24	string		wave\xF3\xAC\xD3\x11\x8C\xD1\x00\xC0\x4F\x8E\xDB\x8A		\b, WAVE 64 audio
+!:mime	audio/x-w64
+# FMT-GUID { 20746D66-ACF3-11D3-8CD1-00C04F8EDB8A }
+>>40	search/256	fmt\x20\xF3\xAC\xD3\x11\x8C\xD1\x00\xC0\x4F\x8E\xDB\x8A		\b
+>>>&10	leshort		=1		\b, mono
+>>>&10	leshort		=2		\b, stereo
+>>>&10	leshort		>2		\b, %d channels
+>>>&12	lelong		>0		%d Hz
+
+#------------------------------------------------------------------------------
+# MBWF/RF64
+# see EBU TECH 3306 http://tech.ebu.ch/docs/tech/tech3306-2009.pdf
+0	string	RF64\xff\xff\xff\xffWAVEds64		MBWF/RF64 audio
+!:mime	audio/x-wav
+>40	search/256	fmt\x20		\b
+>>&6	leshort		=1		\b, mono
+>>&6	leshort		=2		\b, stereo
+>>&6	leshort		>2		\b, %d channels
+>>&8	lelong		>0		%d Hz

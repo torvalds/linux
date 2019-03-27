@@ -1,0 +1,147 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 12, 2018
+.Dt EFIDEV 4
+.Os
+.Sh NAME
+.Nm efidev ,
+.Nm efirtc
+.Nd user-mode access to UEFI runtime services
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset -indent
+.Cd "options EFIRT"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the following
+line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+efirt_load="YES"
+.Ed
+.Pp
+The driver may be disabled by setting the
+.Xr loader 8
+tunable
+.Va efi.rt.disabled
+to
+.Dq Li 1 .
+.Sh DESCRIPTION
+The
+.Nm
+device provides user-mode access to UEFI runtime services.
+.Nm
+also includes a driver to provide a time-of-day clock using the UEFI
+real time clock (RTC).
+However, the RTC may not always be available, based on the UEFI firmware.
+If the RTC is not available, it will not be registered as a time-of-day clock
+and the time related ioctls below will not be functional.
+.Pp
+.Nm
+provides the following ioctls defined in
+.In sys/efiio.h
+with supplemental structures and constants defined in
+.In sys/efi.h :
+.Bl -tag -width indent
+.It Dv EFIIOC_GET_TABLE Pq Vt "struct efi_get_table_ioc"
+Get a table by uuid from the UEFI system table.
+.Bd -literal -offset indent
+struct efi_get_table_ioc {
+	struct uuid uuid;
+	void *ptr;
+};
+.Ed
+.It Dv EFIIOC_GET_TIME Pq Vt "struct efi_tm"
+Get the time from the RTC, if the RTC is available.
+The
+.Vt struct efi_tm
+passed is populated with the current time, unless an error occurs.
+.Bd -literal -offset indent
+struct efi_tm {
+	uint16_t	tm_year;
+	uint8_t		tm_mon
+	uint8_t		tm_mday
+	uint8_t		tm_hour;
+	uint8_t		tm_min;
+	uint8_t		tm_sec;
+	uint8_t		 __pad1;
+	uint32_t	tm_nsec;
+	int16_t		tm_tz;
+	uint8_t		tm_dst;
+	uint8_t		__pad2;
+};
+.Ed
+.It Dv EFIIOC_SET_TIME Pq Vt "struct efi_tm"
+Sets the time stored by the RTC, if the RTC is available.
+.It Dv EFIIOC_VAR_GET Pq Vt "struct efi_var_ioc"
+Gets data from the variable described by the vendor and name fields of the
+.Vt struct efi_var_ioc
+into the
+.Fa data
+field.
+.Dv EFIIOC_VAR_GET Pq Vt "struct efi_var_ioc"
+will also populate the
+.Fa attrib
+field.
+.Bd -literal
+struct efi_var_ioc {
+	efi_char	*name;
+	size_t		 namesize;
+	struct uuid	 vendor;
+	uint32_t	 attrib;
+	void		*data;
+	size_t		 datasize;
+};
+.Ed
+.It Dv EFIIOC_VAR_NEXT Pq Vt "struct efi_var_ioc"
+Used for enumerating all UEFI variables.
+The initial call should use an empty string for the name attribute.
+Subsequent calls should supply the vendor uuid and name of the last variable
+returned.
+.It Dv EFIIOC_VAR_SET Pq Vt "struct efi_var_ioc"
+Sets data and attributes for the variable described by the name and vendor in
+the
+.Vt struct efi_var_ioc .
+.El
+.Sh FILES
+.Bl -tag -width /dev/efi
+.It Pa /dev/efi
+.El
+.Sh SEE ALSO
+.Xr efivar 3 ,
+.Xr efirt 9
+.Sh HISTORY
+A
+.Nm
+device first appeared in
+.Fx 11.1 .
+.Sh BUGS
+.Nm
+is currently only available on amd64 and arm64.

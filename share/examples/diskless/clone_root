@@ -1,0 +1,138 @@
+#!/bin/sh
+#
+# (C) 2001 Luigi Rizzo, Gabriele Cecchetti
+#	<Standard BSD copyright>
+# Revised 2001.04.16
+#
+# $FreeBSD$
+#
+# clone root filesystem for diskless root stuff
+#
+# usage
+#	clone_root all		to do a full copy (e.g. bin, sbin...)
+#	clone_root update	to recreate /var (including devices)
+#	clone_root		to copy /conf and password-related files
+#
+# This script assumes that you use a shared readonly root and /usr
+# partition. The script creates a partial clone of the root partition,
+# and puts it into ${DEST} (defaults to /diskless_root ) on the server,
+# where it is read.
+#
+# To run a diskless install you need to do the following:
+#
+# create /conf/default/etc/fstab
+#    this will replace the standard /etc/fstab and should contain
+#    as a minimum the following lines
+#    ${SERVER}:${DEST} /     nfs    ro 0 0
+#    ${SERVER}:/usr    /usr  nfs    ro 0 0
+#    proc              /proc procfs rw 0 0
+#
+# create /conf/default/etc/rc.conf
+#    this will replace the standard rc.conf and should contain
+#    the startup options for the diskless client. Most likely
+#    you will not need to set hostname and ifconfig_* because these
+#    will be already set by the startup code. You will also
+#    probably need to set local_startup="" so that the server's
+#    local startup files will not be used.
+#
+# create a kernel config file in /sys/i386/conf/DISKLESS with
+#	options MD_ROOT
+#	options BOOTP
+#	options BOOTP_NFSROOT
+#	options BOOTP_COMPAT
+# and do a full build of the kernel.
+# If you use the firewall, remember to default to open or your kernel
+# will not be able to send/receive the bootp packets.
+#
+# On the server:
+# enable NFS server and set /etc/exports as
+#	${DEST}	-maproot=0 -alldirs <list of diskless clients>
+#	/usr -alldirs
+#
+# enable bootpd by uncommenting the bootps line in /etc/inetd.conf
+# and putting at least the following entries in /etc/bootptab:
+#  .default:\
+#	hn:ht=1:vm=rfc1048:\
+#	:sm=255.255.255.0:\
+#	:sa=${SERVER}:\
+#	:gw=${GATEWAY}:\
+#	:rp="${SERVER}:${DEST}":
+#
+#  client1:ha=0123456789ab:tc=.default
+#
+# and make sure that client1 is listed in /etc/hosts
+
+# VARIABLES:
+#	some manual init is needed here.
+# DEST	the diskless_root dir (goes into /etc/bootptab and /etc/exports
+#	on the server)
+DEST=/diskless_root
+
+# you should not touch these vars:
+# SYSDIRS	system directories and mountpoints
+# DIRS		mountpoints (empty dirs)
+# PWFILES	files related to passwords
+# TOCOPY	files and dirs to copy from root partition
+
+SYSDIRS="dev proc root usr var"
+DIRS="cdrom home mnt"
+PWFILES="master.passwd passwd spwd.db pwd.db"
+TOCOPY="bin boot compat etc modules sbin stand sys"
+
+init_diskless_root() {
+	echo "Cleaning old diskless root ($DEST)"
+	cd /
+	rm -rf ${DEST} && echo "Old diskless root removed."
+	echo "Creating $DEST..."
+	mkdir -p $DEST && echo "New diskless root created."
+	echo "+++ Now copy original tree from / ..."
+	ex=""
+	(cd / ; tar -clf - ${TOCOPY} ) | (cd $DEST; tar xvf - )
+	#(cd / ; find -x dev | cpio -o -H newc ) | \
+	#	(cd $DEST; cpio -i -H newc -d )
+	echo "+++ Fixing permissions on some objects"
+	chmod 555 $DEST/sbin/init
+}
+
+update_conf_and_pw() {
+	echo "+++ Copying files in /conf and password files"
+	(cd ${DEST} ; rm -rf conf )
+	(cd / ; tar clf - conf ) | (cd ${DEST}; tar xvf - )
+	mkdir -p ${DEST}/conf/etc	# used to mount things
+	(cd /etc ; tar cvf - ${PWFILES} ) | (cd ${DEST}/etc ; tar xf - )
+}
+
+update() {
+	echo "+++ update: create mountpoints and device entries, kernel"
+	for i in ${SYSDIRS} ${DIRS}
+	do
+	    rm -r -f ${DEST}/$i
+	    mkdir -p ${DEST}/$i && chown root:wheel ${DEST}/$i && echo -n "$i "
+	done
+	echo "."
+	ln -s /var/tmp ${DEST}/tmp
+	echo "+++ Copying kernel from /sys/compile/DISKLESS"
+	cp /sys/compile/DISKLESS/kernel $DEST/kernel
+	echo "."
+}
+
+
+# Main entry point
+case $1 in
+	all)	# clean and reinstall the whole diskless_root
+		init_diskless_root
+		update
+		update_conf_and_pw
+		;;
+
+	update)	# clean and rebuild mountpoints and device entries
+		update
+		update_conf_and_pw
+		;;
+
+	*)	# copy /conf and password files
+		update_conf_and_pw
+		;;
+esac
+exit 0
+### end of file ###

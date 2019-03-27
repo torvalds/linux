@@ -1,0 +1,31 @@
+$ $tcsh: set11,v 1.4 2006/03/02 18:46:45 christos Exp $
+$ sh.c
+$set 11 
+1 Warning: no access to tty (%s).\n
+2 Thus no job control in this shell.\n
+3 You have %d mail messages.\n
+4 You have %d mail messages in %s.\n
+5 You have %smail.\n
+6 new 
+7 You have %smail in %s.\n
+8 -b file		batch mode, read and execute commands from `file' \n\
+-c command	run `command' from next argument \n\
+-d		load directory stack from `~/.cshdirs' \n\
+-Dname[=value]	define environment variable `name' to `value' (DomainOS only) \n\
+-e		exit on any error \n\
+-f		start faster by ignoring the start-up file \n\
+-F		use fork() instead of vfork() when spawning (ConvexOS only) \n\
+-i		interactive, even when input is not from a terminal \n\
+-l		act as a login shell, must be the only option specified \n\
+-m		load the start-up file, whether or not owned by effective user \n\
+-n file		no execute mode, just check syntax of the following `file' \n\
+-q		accept SIGQUIT for running under a debugger \n\
+-s		read commands from standard input \n\
+-t		read one line from standard input \n\
+-v		echo commands after history substitution \n\
+-V		like -v but including commands read from the start-up file \n\
+-x		echo commands immediately before execution \n\
+-X		like -x but including commands read from the start-up file \n\
+--help		print this message and exit \n\
+--version	print the version shell variable and exit \n\
+\nSee the tcsh(1) manual page for detailed information.\n

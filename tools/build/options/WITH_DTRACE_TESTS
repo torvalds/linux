@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to build and install the DTrace test suite in
+.Pa /usr/tests/cddl/usr.sbin/dtrace .
+This test suite is considered experimental on architectures other than
+amd64/amd64 and running it may cause system instability.

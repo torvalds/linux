@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+# Copyright (c) 1999  Mitsuru IWASAKI
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# sample run command file for APM Suspend Event
+
+if [ $# -ne 2 ]; then
+	echo "Usage: $0 [apm|acpi] [standby,suspend|1-4]"
+	exit 1
+fi
+
+subsystem=$1
+state=$2
+
+if [ -r /var/run/rc.suspend.pid ]; then
+	exit 1
+fi
+
+echo $$ 2> /dev/null > /var/run/rc.suspend.pid
+
+# If you have troubles on suspending with PC-CARD modem, try this.
+# See also contrib/pccardq.c (Only for PAO users).
+# pccardq | awk -F '~' '$5 == "filled" && $4 ~ /uart/ \
+#	{ printf("pccardc power %d 0", $1); }' | sh
+
+# If a device driver has problems suspending, try unloading it before
+# suspend and reloading it on resume.  Example:
+# kldunload usb
+
+/usr/bin/logger -t $subsystem suspend at `/bin/date +'%Y%m%d %H:%M:%S'`
+/bin/sync && /bin/sync && /bin/sync
+/bin/sleep 3
+
+/bin/rm -f /var/run/rc.suspend.pid
+if [ $subsystem = "apm" ]; then
+	/usr/sbin/zzz
+else
+	# Notify the kernel to continue the suspend process
+	/usr/sbin/acpiconf -k 0
+fi
+
+exit 0

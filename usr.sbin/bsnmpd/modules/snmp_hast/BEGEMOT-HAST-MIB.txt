@@ -1,0 +1,362 @@
+--
+-- Copyright (c) 2013 Mikolaj Golub <trociny@FreeBSD.org>
+-- All rights reserved.
+--
+-- Redistribution and use in source and binary forms, with or without
+-- modification, are permitted provided that the following conditions
+-- are met:
+-- 1. Redistributions of source code must retain the above copyright
+--    notice, this list of conditions and the following disclaimer.
+-- 2. Redistributions in binary form must reproduce the above copyright
+--    notice, this list of conditions and the following disclaimer in the
+--    documentation and/or other materials provided with the distribution.
+--
+-- THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+-- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-- ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+-- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+-- OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+-- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+-- LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+-- OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+-- SUCH DAMAGE.
+--
+-- $FreeBSD$
+--
+
+BEGEMOT-HAST-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE,
+    Counter64, Integer32
+	FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION, RowStatus
+	FROM SNMPv2-TC
+    InterfaceIndex, ifIndex
+	FROM IF-MIB
+    begemot
+	FROM BEGEMOT-MIB;
+
+begemotHast MODULE-IDENTITY
+    LAST-UPDATED "201304130000Z"
+    ORGANIZATION "FreeBSD"
+    CONTACT-INFO
+	    "		Mikolaj Golub
+
+	     Postal:	Bluhera 27v 11
+			61146 Kharkiv
+			Ukraine
+
+	     Fax:	N/A
+
+	     E-Mail:	trociny@FreeBSD.org"
+    DESCRIPTION
+	    "The Begemot MIB for managing HAST."
+    REVISION     "201304130000Z"
+    DESCRIPTION
+	    "Initial revision."
+    REVISION     "201307010000Z"
+    DESCRIPTION
+	    "Added hastResourceWorkerPid."
+    REVISION     "201312290000Z"
+    DESCRIPTION
+	    "Added hastResourceLocalQueue, hastResourceSendQueue,
+	    hastResourceRecvQueue, hastResourceDoneQueue,
+	    hastResourceIdleQueue."
+    ::= { begemot 220 }
+
+begemotHastObjects	OBJECT IDENTIFIER ::= { begemotHast 1 }
+
+-- ---------------------------------------------------------- --
+-- Configuration parameters
+-- ---------------------------------------------------------- --
+
+hastConfig	OBJECT IDENTIFIER ::= { begemotHastObjects 1 }
+
+hastConfigFile OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "HAST configuration file location."
+    ::= { hastConfig 1 }
+
+-- ---------------------------------------------------------- --
+-- Resource Table
+-- ---------------------------------------------------------- --
+hastResourceTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF HastResourceEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table containing information about all HAST resources."
+    ::= { begemotHastObjects 2 }
+
+hastResourceEntry OBJECT-TYPE
+    SYNTAX	HastResourceEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Table entry that describes one HAST resource."
+    INDEX	{ hastResourceIndex }
+    ::= { hastResourceTable 1 }
+
+HastResourceEntry ::= SEQUENCE {
+    hastResourceIndex			Integer32,
+    hastResourceName			OCTET STRING,
+    hastResourceRole			INTEGER,
+    hastResourceProvName		OCTET STRING,
+    hastResourceLocalPath		OCTET STRING,
+    hastResourceExtentSize		Integer32,
+    hastResourceKeepDirty		Integer32,
+    hastResourceRemoteAddr		OCTET STRING,
+    hastResourceSourceAddr		OCTET STRING,
+    hastResourceReplication		INTEGER,
+    hastResourceStatus			INTEGER,
+    hastResourceDirty			Counter64,
+    hastResourceReads			Counter64,
+    hastResourceWrites			Counter64,
+    hastResourceDeletes			Counter64,
+    hastResourceFlushes			Counter64,
+    hastResourceActivemapUpdates	Counter64,
+    hastResourceReadErrors		Counter64,
+    hastResourceWriteErrors		Counter64,
+    hastResourceDeleteErrors		Counter64,
+    hastResourceFlushErrors		Counter64,
+    hastResourceWorkerPid		INTEGER,
+    hastResourceLocalQueue		UNSIGNED32,
+    hastResourceSendQueue		UNSIGNED32,
+    hastResourceRecvQueue		UNSIGNED32,
+    hastResourceDoneQueue		UNSIGNED32,
+    hastResourceIdleQueue		UNSIGNED32
+}
+
+hastResourceIndex OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Resource index."
+    ::= { hastResourceEntry 1 }
+
+hastResourceName OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Resource name."
+    ::= { hastResourceEntry 2 }
+
+hastResourceRole OBJECT-TYPE
+    SYNTAX	INTEGER { undef(0), init(1), primary(2), secondary(3) }
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"Resource role."
+    ::= { hastResourceEntry 3 }
+
+hastResourceProvName OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Resource GEOM provider name that appears as /dev/hast/<name>."
+    ::= { hastResourceEntry 4 }
+
+hastResourceLocalPath OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Path to the local component which is used as a backend
+	provider for the resource."
+    ::= { hastResourceEntry 5 }
+
+hastResourceExtentSize OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Size of an extent.  Extent is a block which is
+	used for synchronization.  hastd(8) maintains a
+	map of dirty extents and extent is the smallest
+	region that can be marked as dirty.  If any part
+	of an extent is modified, entire extent will be
+	synchronized when nodes connect."
+    ::= { hastResourceEntry 6 }
+
+hastResourceKeepDirty OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Maximum number of dirty extents to keep dirty all
+	the time.  Most recently used extents are kept
+	dirty to reduce number of metadata updates."
+    ::= { hastResourceEntry 7 }
+
+hastResourceRemoteAddr OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Address of the remote hastd(8) daemon for the resource."
+    ::= { hastResourceEntry 8 }
+
+hastResourceSourceAddr OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Local address the resource is bound to."
+    ::= { hastResourceEntry 9 }
+
+hastResourceReplication OBJECT-TYPE
+    SYNTAX	INTEGER { fullsync(0), memsync(1), async(2) }
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Resource replication mode."
+    ::= { hastResourceEntry 10 }
+
+hastResourceStatus OBJECT-TYPE
+    SYNTAX	INTEGER { complete(0), degraded(1) }
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Resource replication status."
+    ::= { hastResourceEntry 11 }
+
+hastResourceDirty OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Current number of dirty extents for the resource."
+    ::= { hastResourceEntry 12 }
+
+hastResourceReads OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Count of resource local read operations."
+    ::= { hastResourceEntry 13 }
+
+hastResourceWrites OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Count of resource local write operations."
+    ::= { hastResourceEntry 14 }
+
+hastResourceDeletes OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Count of resource local delete operations."
+    ::= { hastResourceEntry 15 }
+
+hastResourceFlushes OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Count of resource local flush operations."
+    ::= { hastResourceEntry 16 }
+
+hastResourceActivemapUpdates OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Count of resource local activemap updates."
+    ::= { hastResourceEntry 17 }
+
+hastResourceReadErrors OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Count of resource local read operations that failed."
+    ::= { hastResourceEntry 18 }
+
+hastResourceWriteErrors OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Count of resource local write operations that failed."
+    ::= { hastResourceEntry 19 }
+
+hastResourceDeleteErrors OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Count of resource local delete operations that failed."
+    ::= { hastResourceEntry 20 }
+
+hastResourceFlushErrors OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Count of resource local flush operations that failed."
+    ::= { hastResourceEntry 21 }
+
+hastResourceWorkerPid OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Worker process ID."
+    ::= { hastResourceEntry 22 }
+
+hastResourceLocalQueue OBJECT-TYPE
+    SYNTAX	UNSIGNED32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of outstanding I/O requests to the local component."
+    ::= { hastResourceEntry 23 }
+
+hastResourceSendQueue OBJECT-TYPE
+    SYNTAX	UNSIGNED32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of outstanding I/O requests to send to the remote
+	component."
+    ::= { hastResourceEntry 24 }
+
+hastResourceRecvQueue OBJECT-TYPE
+    SYNTAX	UNSIGNED32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of outstanding I/O requests waiting for response
+	from the remote component."
+    ::= { hastResourceEntry 25 }
+
+hastResourceDoneQueue OBJECT-TYPE
+    SYNTAX	UNSIGNED32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of processed I/O requests to return to the kernel."
+    ::= { hastResourceEntry 26 }
+
+hastResourceIdleQueue OBJECT-TYPE
+    SYNTAX	UNSIGNED32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of request objects in the free bucket."
+    ::= { hastResourceEntry 27 }
+
+END

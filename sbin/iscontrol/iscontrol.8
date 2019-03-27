@@ -1,0 +1,141 @@
+.\" Copyright (c) 2007-2010 Daniel Braniss <danny@cs.huji.ac.il>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 9, 2016
+.Dt ISCONTROL 8
+.Os
+.Sh NAME
+.Nm iscontrol
+.Nd login/negotiator/control for an iSCSI initiator session
+.Sh SYNOPSIS
+.Nm
+.Op Fl dv
+.Oo
+.Fl c Ar file
+.Op Fl n Ar nickname
+.Oc
+.Op Fl p Ar pidfile
+.Op Fl t Ar target
+.Op Ar variable Ns = Ns Ar value
+.Sh DESCRIPTION
+.Bf -symbolic
+This command, along with its kernel counterpart
+.Xr iscsi_initiator 4 ,
+is obsolete.
+Users are advised to use
+.Xr iscsictl 8
+instead.
+.Ef
+.Pp
+Internet SCSI (iSCSI) is a network protocol standard, that allows the
+use of the SCSI protocol over TCP/IP networks,
+the
+.Nm
+program is the userland side of an iSCSI session, see
+.Xr iscsi_initiator 4 .
+It has 2 modes of operation, if -d (discovery session) is specified,
+it will print out the
+.Em target names
+returned by the target and exit.
+In the second mode, it will, after a successful login/negotiation, run
+in daemon mode, monitoring the connection, and will try to reconnect
+in case of a network/target failure.
+It will terminate/logout the session
+when a SIGHUP signal is received.
+The flags are as follows:
+.Bl -tag -width variable=value
+.It Fl c Ar file
+a file containing configuration
+.Em key-options ,
+see
+.Xr iscsi.conf 5 .
+.It Fl d
+do a
+.Em discovery session
+and exit.
+.It Fl n Ar nickname
+if
+.Sy -c file
+is specified, then search for the block named
+.Em nickname
+in that file, see
+.Xr iscsi.conf 5 .
+.It Fl p Ar pidfile
+will write the process ID of the session to the specified
+.Em pidfile
+.It Fl t Ar target
+the target's IP address or name.
+.It Fl v
+verbose mode.
+.It Ar variable Ns = Ns Ar value
+see
+.Xr iscsi.conf 5
+for the complete list of variables/options and their
+possible values.
+.El
+.Sh EXAMPLES
+.Dl iscontrol -dt myiscsitarget
+.Pp
+will start a
+.Em discovery session
+with the target and
+print to stdout the list of available targetnames/targetadresses.
+Note: this listing does not necessarily mean availability, since
+depending on the target configuration, a discovery session might
+not need login/access permission, but a
+.Em full session
+certainly does.
+.sp
+.Dl iscontrol -c /etc/iscsi.conf -n myiscsi
+.Pp
+will read options from
+.Pa /etc/iscsi.conf ,
+use the targetaddress
+found in the block nicknamed myiscsi, login and negotiate
+whatever options are specified, and start an iscsi-session.
+.Sh SEE ALSO
+.Xr da 4 ,
+.Xr iscsi_initiator 4 ,
+.Xr sa 4 ,
+.Xr iscsi.conf 5 ,
+.Xr camcontrol 8 ,
+.Xr iscsictl 8
+.Sh STANDARDS
+RFC 3720
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+Fx 7.0 .
+.Sh BUGS
+.Nm
+should probably load the iscsi_initiator module if needed.
+.br
+Not all functions/specifications have been implemented yet, noticeably
+missing are the Task Management Functions.
+The error recovery, though not
+.Em fully compliant
+does a brave effort to recover from network disconnects.

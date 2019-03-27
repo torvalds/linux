@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+NATIVE_EMULATION=	elf32ppc_fbsd
+
+SRCS+=		e${NATIVE_EMULATION}.c
+CLEANFILES+=	e${NATIVE_EMULATION}.c
+e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em \
+    scripttempl/elf.sc genscripts.sh stringify.sed ldemul-list.h
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSEARCHPATH} \
+	    ${TOOLS_PREFIX}/usr \
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    ${NATIVE_EMULATION} ""  no ${NATIVE_EMULATION} ${TARGET_TUPLE}

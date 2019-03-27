@@ -1,0 +1,14 @@
+
+#------------------------------------------------------------------------------
+# $File: nitpicker,v 1.7 2017/03/17 21:35:28 christos Exp $
+# nitpicker:  file(1) magic for Flowfiles.
+# From: Christian Jachmann <C.Jachmann@gmx.net> http://www.nitpicker.de
+0	string	NPFF	NItpicker Flow File
+>4	byte	x	V%d.
+>5	byte	x	%d
+>6	bedate	x	started: %s
+>10	bedate	x	stopped: %s
+>14	belong	x	Bytes: %u
+>18	belong	x	Bytes1: %u
+>22	belong	x	Flows: %u
+>26	belong	x	Pkts: %u

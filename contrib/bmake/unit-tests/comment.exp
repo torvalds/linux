@@ -1,0 +1,5 @@
+comment testing start
+this is foo
+This is how a comment looks: # comment
+comment testing done
+exit status 0

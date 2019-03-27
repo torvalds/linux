@@ -1,0 +1,266 @@
+if [ ! "$_KEYMAP_SUBR" ]; then _KEYMAP_SUBR=1
+#
+# Copyright (c) 2013-2015 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." keymap.subr
+f_include $BSDCFG_SHARE/struct.subr
+
+############################################################ CONFIGURATION
+
+#
+# Defaults taken from usr.sbin/kbdmap/kbdmap.h
+#
+: ${DEFAULT_LANG:=en}
+case "$( sysctl -n kern.vty )" in
+vt)	: ${DEFAULT_KEYMAP_DIR:=/usr/share/vt/keymaps}		;;
+*)	: ${DEFAULT_KEYMAP_DIR:=/usr/share/syscons/keymaps}	;;
+esac
+
+############################################################ GLOBALS
+
+KEYMAPS=
+NKEYMAPS=0
+
+# A "keymap" from kbdmap's point of view
+f_struct_define KEYMAP \
+	desc \
+	keym \
+	mark
+
+#
+# Default behavior is to call f_keymap_get_all() automatically when loaded.
+#
+: ${KEYMAP_SELF_SCAN_ALL=1}
+
+############################################################ FUNCTIONS
+
+# f_keymap_register $name $desc $keym $mark
+#
+# Register a keymap. A `structure' (see struct.subr) is created with the name
+# keymap_$name (so make sure $name contains only alpha-numeric characters or
+# the underscore, `_'). The remaining arguments after $name correspond to the
+# propertise of the `KEYMAP' structure-type (defined above).
+#
+# If not already registered, the keymap is then appended to the KEYMAPS
+# environment variable, a space-separated list of all registered keymaps.
+#
+f_keymap_register()
+{
+	local name="$1" desc="$2" keym="$3" mark="$4"
+
+	f_struct_new KEYMAP "keymap_$name" || return $FAILURE
+	keymap_$name set desc "$desc"
+	keymap_$name set keym "$keym"
+	keymap_$name set mark "$mark"
+
+	# Scan our global register to see if needs ammending
+	local k found=
+	for k in $KEYMAPS; do
+		[ "$k" = "$name" ] || continue
+		found=1 && break
+	done
+	[ "$found" ] || KEYMAPS="$KEYMAPS $name"
+
+	return $SUCCESS
+}
+
+# f_keymap_checkfile $keymap
+#
+# Check that $keymap is a readable kbdmap(5) file. Returns success if $keymap
+# is a file, is readable, and exists in $DEFAULT_KEYMAP_DIR; otherwise failure.
+# If debugging is enabled, an appropriate debug error message is printed if
+# $keymap is not available.
+#
+f_keymap_checkfile()
+{
+	local keym="$1"
+	
+	# Fixup keymap if it doesn't already contain at least one `/'
+	[ "${keym#*/}" = "$keym" ] && keym="$DEFAULT_KEYMAP_DIR/$keym"
+
+	# Short-cuts
+	[ -f "$keym" -a -r "$keym" ] && return $SUCCESS
+	f_debugging || return $FAILURE
+
+	# Print an appropriate debug error message
+	if [ ! -e "$keym" ]; then
+		f_dprintf "%s: No such file or directory" "$keym"
+	elif [ ! -f "$keym" ]; then
+		f_dprintf "%s: Not a file!" "$keym"
+	elif [ ! -r "$keym" ]; then
+		f_dprintf "%s: Permission denied" "$keym"
+	fi
+
+	return $FAILURE
+}
+
+# f_keymap_get_all
+#
+# Get all keymap information for kbdmap(5) entries both in the database and
+# loosely existing in $DEFAULT_KEYMAP_DIR.
+#
+f_keymap_get_all()
+{
+	local fname=f_keymap_get_all
+	local lang="${LC_ALL:-${LC_CTYPE:-${LANG:-$DEFAULT_LANG}}}"
+	[ "$lang" = "C" ] && lang="$DEFAULT_LANG"
+
+	f_dprintf "%s: Looking for keymap files..." $fname
+	f_dialog_info "$msg_looking_for_keymap_files"
+	f_dprintf "DEFAULT_LANG=[%s]" "$DEFAULT_LANG"
+
+	eval "$( awk -F: -v lang="$lang" -v lang_default="$DEFAULT_LANG" '
+		BEGIN {
+			# en_US.ISO8859-1 -> en_..\.ISO8859-1
+			dialect = lang
+			if (length(dialect) >= 6 &&
+			    substr(dialect, 3, 1) == "_")
+				dialect = substr(dialect, 1, 3) ".." \
+				          substr(dialect, 6)
+			printf "f_dprintf \"dialect=[%%s]\" \"%s\";\n", dialect
+
+			# en_US.ISO8859-1 -> en
+			lang_abk = lang
+			if (length(lang_abk) >= 3 &&
+			    substr(lang_abk, 3, 1) == "_")
+				lang_abk = substr(lang_abk, 1, 2)
+			printf "f_dprintf \"lang_abk=[%%s]\" \"%s\";\n",
+			       lang_abk
+		}
+		function find_token(buffer, token)
+		{
+			if (split(buffer, tokens, /,/) == 0) return 0
+			found = 0
+			for (t in tokens)
+				if (token == tokens[t]) { found = 1; break }
+			return found
+		}
+		function add_keymap(desc,mark,keym)
+		{
+			marks[keym] = mark
+			name = keym
+			gsub(/[^[:alnum:]_]/, "_", name)
+			gsub(/'\''/, "'\''\\'\'\''", desc);
+			printf "f_keymap_checkfile %s && " \
+			       "f_keymap_register %s '\'%s\'' %s %u\n",
+			       keym, name, desc, keym, mark
+		}
+		!/^[[:space:]]*(#|$)/ {
+			sub(/^[[:space:]]*/, "", $0)
+			keym = $1
+			if (keym ~ /^(MENU|FONT)$/) next
+			lg = ($2 == "" ? lang_default : $2)
+
+			# Match the entry and store the type of match we made
+			# as the mark value (so that if we make a better match
+			# later on with a higher mark, it overwrites previous)
+
+			mark = marks[keym];
+			if (find_token(lg, lang))
+				add_keymap($3, 4, keym) # Best match
+			else if (mark <= 3 && find_token(lg, dialect))
+				add_keymap($3, 3, keym)
+			else if (mark <= 2 && find_token(lg, lang_abk))
+				add_keymap($3, 2, keym)
+			else if (mark <= 1 && find_token(lg, lang_default))
+				add_keymap($3, 1, keym)
+			else if (mark <= 0)
+				add_keymap($3, 0, keym)
+		}
+	' "$DEFAULT_KEYMAP_DIR/INDEX.${DEFAULT_KEYMAP_DIR##*/}" )"
+
+
+	#
+	# Look for keymaps not in database
+	#
+	local direntry keym name
+	set +f # glob
+	for direntry in "$DEFAULT_KEYMAP_DIR"/*; do
+		[ "${direntry##*.}" = ".kbd" ] || continue
+		keym="${direntry##*/}"
+		f_str2varname "$keym" name
+		f_struct keymap_$name && continue
+		f_keymap_checkfile "$keym" &&
+			f_keymap_register $name "${keym%.*}" "$keym" 0
+		f_dprintf "%s: not in kbdmap(5) database" "$keym"
+	done
+
+	#
+	# Sort the items by their descriptions
+	#
+	f_dprintf "%s: Sorting keymap entries by description..." $fname
+	KEYMAPS=$(
+		for k in $KEYMAPS; do
+			echo -n "$k "
+			# NOTE: Translate '8x8' to '8x08' before sending to
+			# sort(1) so that things work out as we might expect.
+			debug= keymap_$k get desc | awk 'gsub(/8x8/,"8x08")||1'
+		done | sort -k2 | awk '{
+			printf "%s%s", (started ? " " : ""), $1; started = 1
+		}'
+	)
+
+	return $SUCCESS
+}
+
+# f_keymap_kbdcontrol $keymap
+#
+# Install keyboard map file from $keymap.
+#
+f_keymap_kbdcontrol()
+{
+	local keymap="$1"
+
+	[ "$keymap" ] || return $SUCCESS
+
+	# Fixup keymap if it doesn't already contain at least one `/'
+	[ "${keymap#*/}" = "$keymap" ] && keymap="$DEFAULT_KEYMAP_DIR/$keymap"
+
+	[ "$USE_XDIALOG" ] || kbdcontrol -l "$keymap"
+}
+
+############################################################ MAIN
+
+#
+# Scan for keymaps unless requeted otherwise
+#
+f_dprintf "%s: KEYMAP_SELF_SCAN_ALL=[%s]" keymap.subr "$KEYMAP_SELF_SCAN_ALL"
+case "$KEYMAP_SELF_SCAN_ALL" in
+""|0|[Nn][Oo]|[Oo][Ff][Ff]|[Ff][Aa][Ll][Ss][Ee]) : do nothing ;;
+*) f_keymap_get_all
+esac
+
+f_count NKEYMAPS $KEYMAPS
+f_dprintf "%s: Found %u keymap file(s)." keymap.subr $NKEYMAPS
+
+f_dprintf "%s: Successfully loaded." keymap.subr
+
+fi # ! $_KEYMAP_SUBR

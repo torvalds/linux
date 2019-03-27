@@ -1,0 +1,134 @@
+.\" Copyright (c) 2014 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_next_types_section.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd December 20, 2014
+.Dt DWARF_NEXT_TYPES_SECTION 3
+.Os
+.Sh NAME
+.Nm dwarf_next_types_section
+.Nd step through .debug_types sections in a debug context
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_next_types_section
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_next_types_section
+steps through the
+.Dq \&.debug_types
+sections found in a debug context.
+.Pp
+Argument
+.Ar dbg
+should reference a DWARF debug context allocated using
+.Xr dwarf_init 3 .
+Argument
+.Ar err
+should point to a location that will hold an error descriptor in case
+of an error.
+.Pp
+When a DWARF debug context is allocated using
+.Xr dwarf_init 3 ,
+an internal pointer associated with the context will point to the
+first
+.Dq \&.debug_types
+section present in the debug object.
+When the application calls function
+.Fn dwarf_next_types_section ,
+this internal pointer will move to the next
+.Dq \&.debug_types
+section present.
+On stepping past the last
+.Dq \&.debug_types
+section left in the debug context, function
+.Fn dwarf_next_types_section
+returns
+.Dv DW_DLV_NO_ENTRY .
+The next call to the function will restart from the first
+.Dq \&.debug_types
+section in the debug context.
+.Pp
+Application code should call function
+.Xr dwarf_next_cu_header_c 3
+to iterate though the type units associated with the current
+.Dq \&.debug_types
+section.
+.Sh RETURN VALUES
+On success, function
+.Fn dwarf_next_types_section
+returns
+.Dv DW_DLV_OK .
+.Pp
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets argument
+.Ar err .
+When there are no more
+.Dq \&.debug_types
+sections left to traverse, it returns
+.Dv DW_DLV_NO_ENTRY .
+.Sh EXAMPLES
+To iterate though every type unit in all the
+.Dq \&.debug_types
+sections found in a debug context:
+.Bd -literal -offset indent
+Dwarf_Debug dbg;
+Dwarf_Sig8 sig8;
+Dwarf_Unsigned typeoff;
+Dwarf_Error de;
+
+\&... allocate dbg using dwarf_init() etc ...
+
+do {
+	while ((ret = dwarf_next_cu_header_c(dbg, 0, NULL, NULL, NULL,
+	    NULL, NULL, NULL, &sig8, &typeoff, NULL, &de)) == DW_DLV_OK) {
+		/* Access DIEs etc ... */
+	}
+} while (dwarf_next_types_section(dbg, &de) == DW_DLV_OK);
+.Ed
+.Sh COMPATIBILITY
+This function is an extension to the
+.Xr DWARF 3
+API.
+.Sh ERRORS
+The
+.Fn dwarf_next_types_section
+function may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Va dbg
+was NULL.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_init 3 ,
+.Xr dwarf_next_cu_header_c 3

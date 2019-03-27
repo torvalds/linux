@@ -1,0 +1,80 @@
+#
+# ZEDBOARD -- Custom configuration for the Xilinx Zynq-7000 based
+#             ZedBoard (www.zedboard.org) and similar Zynq boards.
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+ident		ZEDBOARD
+
+include 	"std.armv7"
+include 	"../xilinx/std.zynq7"
+
+makeoptions	MODULES_EXTRA="dtb/zynq"
+
+options 	SCHED_ULE		# ULE scheduler
+options 	PLATFORM		# Platform based SoC
+#options 	NFSSD			# Network Filesystem Server
+options 	SMP			# Enable multiple cores
+
+# NFS root from boopt/dhcp
+#options 	BOOTP
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_COMPAT
+#options 	BOOTP_NFSV3
+
+options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
+
+# Interrupt controller
+device		gic
+
+# Cache controller
+device		pl310			# PL310 L2 cache controller
+# ARM MPCore timer
+device		mpcore_timer
+
+device		loop
+device		random
+device		ether
+device		cgem			# Zynq-7000 gig ethernet device
+device		mii
+device		e1000phy
+device		rgephy			# Zybo uses Realtek RTL8211E
+device		pty
+device		uart
+device		gpio
+
+device		md
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		sdhci			# generic sdhci
+device		bpf			# Berkeley packet filter
+
+# USB support
+device		usb
+device		ehci
+device		umass
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+device		axe			# USB-Ethernet
+
+
+# Flattened Device Tree
+options 	FDT			# Configure using FDT/DTB data
+#options 	FDT_DTB_STATIC
+#makeoptions	FDT_DTS_FILE=zedboard.dts
+

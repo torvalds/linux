@@ -1,0 +1,133 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)exit.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd May 28, 2018
+.Dt EXIT 3
+.Os
+.Sh NAME
+.Nm exit , _Exit
+.Nd perform normal program termination
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft void
+.Fn exit "int status"
+.Ft void
+.Fn _Exit "int status"
+.Sh DESCRIPTION
+The
+.Fn exit
+and
+.Fn _Exit
+functions terminate a process.
+.Pp
+Before termination,
+.Fn exit
+performs the following functions in the order listed:
+.Bl -enum -offset indent
+.It
+Call the functions registered with the
+.Xr atexit 3
+function, in the reverse order of their registration.
+.It
+Flush all open output streams.
+.It
+Close all open streams.
+.It
+Unlink all files created with the
+.Xr tmpfile 3
+function.
+.El
+.Pp
+The
+.Fn _Exit
+function terminates without calling the functions registered with the
+.Xr atexit 3
+function, and may or may not perform the other actions listed.
+Both functions make the low-order eight bits of the
+.Fa status
+argument available to a parent process which has called a
+.Xr wait 2 Ns -family
+function.
+.Pp
+The C Standard
+.Pq St -isoC-99
+defines the values
+.Li 0 ,
+.Dv EXIT_SUCCESS ,
+and
+.Dv EXIT_FAILURE
+as possible values of
+.Fa status .
+Cooperating processes may use other values;
+in a program which might be called by a mail transfer agent, the
+values described in
+.Xr sysexits 3
+may be used to provide more information to the parent process.
+.Pp
+Note that
+.Fn exit
+does nothing to prevent bottomless recursion should a function registered
+using
+.Xr atexit 3
+itself call
+.Fn exit .
+Such functions must call
+.Fn _Exit
+instead (although this has other effects as well which may not be desired).
+.Sh RETURN VALUES
+The
+.Fn exit
+and
+.Fn _Exit
+functions
+never return.
+.Sh SEE ALSO
+.Xr _exit 2 ,
+.Xr abort2 2 ,
+.Xr wait 2 ,
+.Xr at_quick_exit 3 ,
+.Xr atexit 3 ,
+.Xr intro 3 ,
+.Xr quick_exit 3 ,
+.Xr sysexits 3 ,
+.Xr tmpfile 3
+.Sh STANDARDS
+The
+.Fn exit
+and
+.Fn _Exit
+functions conform to
+.St -isoC-99 .

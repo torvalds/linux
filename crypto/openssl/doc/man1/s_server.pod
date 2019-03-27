@@ -1,0 +1,855 @@
+=pod
+
+=head1 NAME
+
+openssl-s_server,
+s_server - SSL/TLS server program
+
+=head1 SYNOPSIS
+
+B<openssl> B<s_server>
+[B<-help>]
+[B<-port +int>]
+[B<-accept val>]
+[B<-unix val>]
+[B<-4>]
+[B<-6>]
+[B<-unlink>]
+[B<-context val>]
+[B<-verify int>]
+[B<-Verify int>]
+[B<-cert infile>]
+[B<-nameopt val>]
+[B<-naccept +int>]
+[B<-serverinfo val>]
+[B<-certform PEM|DER>]
+[B<-key infile>]
+[B<-keyform format>]
+[B<-pass val>]
+[B<-dcert infile>]
+[B<-dcertform PEM|DER>]
+[B<-dkey infile>]
+[B<-dkeyform PEM|DER>]
+[B<-dpass val>]
+[B<-nbio_test>]
+[B<-crlf>]
+[B<-debug>]
+[B<-msg>]
+[B<-msgfile outfile>]
+[B<-state>]
+[B<-CAfile infile>]
+[B<-CApath dir>]
+[B<-no-CAfile>]
+[B<-no-CApath>]
+[B<-nocert>]
+[B<-quiet>]
+[B<-no_resume_ephemeral>]
+[B<-www>]
+[B<-WWW>]
+[B<-servername>]
+[B<-servername_fatal>]
+[B<-cert2 infile>]
+[B<-key2 infile>]
+[B<-tlsextdebug>]
+[B<-HTTP>]
+[B<-id_prefix val>]
+[B<-rand file...>]
+[B<-writerand file>]
+[B<-keymatexport val>]
+[B<-keymatexportlen +int>]
+[B<-CRL infile>]
+[B<-crl_download>]
+[B<-cert_chain infile>]
+[B<-dcert_chain infile>]
+[B<-chainCApath dir>]
+[B<-verifyCApath dir>]
+[B<-no_cache>]
+[B<-ext_cache>]
+[B<-CRLform PEM|DER>]
+[B<-verify_return_error>]
+[B<-verify_quiet>]
+[B<-build_chain>]
+[B<-chainCAfile infile>]
+[B<-verifyCAfile infile>]
+[B<-ign_eof>]
+[B<-no_ign_eof>]
+[B<-status>]
+[B<-status_verbose>]
+[B<-status_timeout int>]
+[B<-status_url val>]
+[B<-status_file infile>]
+[B<-trace>]
+[B<-security_debug>]
+[B<-security_debug_verbose>]
+[B<-brief>]
+[B<-rev>]
+[B<-async>]
+[B<-ssl_config val>]
+[B<-max_send_frag +int>]
+[B<-split_send_frag +int>]
+[B<-max_pipelines +int>]
+[B<-read_buf +int>]
+[B<-no_ssl3>]
+[B<-no_tls1>]
+[B<-no_tls1_1>]
+[B<-no_tls1_2>]
+[B<-no_tls1_3>]
+[B<-bugs>]
+[B<-no_comp>]
+[B<-comp>]
+[B<-no_ticket>]
+[B<-num_tickets>]
+[B<-serverpref>]
+[B<-legacy_renegotiation>]
+[B<-no_renegotiation>]
+[B<-legacy_server_connect>]
+[B<-no_resumption_on_reneg>]
+[B<-no_legacy_server_connect>]
+[B<-allow_no_dhe_kex>]
+[B<-prioritize_chacha>]
+[B<-strict>]
+[B<-sigalgs val>]
+[B<-client_sigalgs val>]
+[B<-groups val>]
+[B<-curves val>]
+[B<-named_curve val>]
+[B<-cipher val>]
+[B<-ciphersuites val>]
+[B<-dhparam infile>]
+[B<-record_padding val>]
+[B<-debug_broken_protocol>]
+[B<-policy val>]
+[B<-purpose val>]
+[B<-verify_name val>]
+[B<-verify_depth int>]
+[B<-auth_level int>]
+[B<-attime intmax>]
+[B<-verify_hostname val>]
+[B<-verify_email val>]
+[B<-verify_ip>]
+[B<-ignore_critical>]
+[B<-issuer_checks>]
+[B<-crl_check>]
+[B<-crl_check_all>]
+[B<-policy_check>]
+[B<-explicit_policy>]
+[B<-inhibit_any>]
+[B<-inhibit_map>]
+[B<-x509_strict>]
+[B<-extended_crl>]
+[B<-use_deltas>]
+[B<-policy_print>]
+[B<-check_ss_sig>]
+[B<-trusted_first>]
+[B<-suiteB_128_only>]
+[B<-suiteB_128>]
+[B<-suiteB_192>]
+[B<-partial_chain>]
+[B<-no_alt_chains>]
+[B<-no_check_time>]
+[B<-allow_proxy_certs>]
+[B<-xkey>]
+[B<-xcert>]
+[B<-xchain>]
+[B<-xchain_build>]
+[B<-xcertform PEM|DER>]
+[B<-xkeyform PEM|DER>]
+[B<-nbio>]
+[B<-psk_identity val>]
+[B<-psk_hint val>]
+[B<-psk val>]
+[B<-psk_session file>]
+[B<-srpvfile infile>]
+[B<-srpuserseed val>]
+[B<-ssl3>]
+[B<-tls1>]
+[B<-tls1_1>]
+[B<-tls1_2>]
+[B<-tls1_3>]
+[B<-dtls>]
+[B<-timeout>]
+[B<-mtu +int>]
+[B<-listen>]
+[B<-dtls1>]
+[B<-dtls1_2>]
+[B<-sctp>]
+[B<-sctp_label_bug>]
+[B<-no_dhe>]
+[B<-nextprotoneg val>]
+[B<-use_srtp val>]
+[B<-alpn val>]
+[B<-engine val>]
+[B<-keylogfile outfile>]
+[B<-max_early_data int>]
+[B<-early_data>]
+[B<-anti_replay>]
+[B<-no_anti_replay>]
+
+=head1 DESCRIPTION
+
+The B<s_server> command implements a generic SSL/TLS server which listens
+for connections on a given port using SSL/TLS.
+
+=head1 OPTIONS
+
+In addition to the options below the B<s_server> utility also supports the
+common and server only options documented in the
+in the "Supported Command Line Commands" section of the L<SSL_CONF_cmd(3)>
+manual page.
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-port +int>
+
+The TCP port to listen on for connections. If not specified 4433 is used.
+
+=item B<-accept val>
+
+The optional TCP host and port to listen on for connections. If not specified, *:4433 is used.
+
+=item B<-unix val>
+
+Unix domain socket to accept on.
+
+=item B<-4>
+
+Use IPv4 only.
+
+=item B<-6>
+
+Use IPv6 only.
+
+=item B<-unlink>
+
+For -unix, unlink any existing socket first.
+
+=item B<-context val>
+
+Sets the SSL context id. It can be given any string value. If this option
+is not present a default value will be used.
+
+=item B<-verify int>, B<-Verify int>
+
+The verify depth to use. This specifies the maximum length of the
+client certificate chain and makes the server request a certificate from
+the client. With the B<-verify> option a certificate is requested but the
+client does not have to send one, with the B<-Verify> option the client
+must supply a certificate or an error occurs.
+
+If the cipher suite cannot request a client certificate (for example an
+anonymous cipher suite or PSK) this option has no effect.
+
+=item B<-cert infile>
+
+The certificate to use, most servers cipher suites require the use of a
+certificate and some require a certificate with a certain public key type:
+for example the DSS cipher suites require a certificate containing a DSS
+(DSA) key. If not specified then the filename "server.pem" will be used.
+
+=item B<-cert_chain>
+
+A file containing trusted certificates to use when attempting to build the
+client/server certificate chain related to the certificate specified via the
+B<-cert> option.
+
+=item B<-build_chain>
+
+Specify whether the application should build the certificate chain to be
+provided to the client.
+
+=item B<-nameopt val>
+
+Option which determines how the subject or issuer names are displayed. The
+B<val> argument can be a single option or multiple options separated by
+commas.  Alternatively the B<-nameopt> switch may be used more than once to
+set multiple options. See the L<x509(1)> manual page for details.
+
+=item B<-naccept +int>
+
+The server will exit after receiving the specified number of connections,
+default unlimited.
+
+=item B<-serverinfo val>
+
+A file containing one or more blocks of PEM data.  Each PEM block
+must encode a TLS ServerHello extension (2 bytes type, 2 bytes length,
+followed by "length" bytes of extension data).  If the client sends
+an empty TLS ClientHello extension matching the type, the corresponding
+ServerHello extension will be returned.
+
+=item B<-certform PEM|DER>
+
+The certificate format to use: DER or PEM. PEM is the default.
+
+=item B<-key infile>
+
+The private key to use. If not specified then the certificate file will
+be used.
+
+=item B<-keyform format>
+
+The private format to use: DER or PEM. PEM is the default.
+
+=item B<-pass val>
+
+The private key password source. For more information about the format of B<val>
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
+
+=item B<-dcert infile>, B<-dkey infile>
+
+Specify an additional certificate and private key, these behave in the
+same manner as the B<-cert> and B<-key> options except there is no default
+if they are not specified (no additional certificate and key is used). As
+noted above some cipher suites require a certificate containing a key of
+a certain type. Some cipher suites need a certificate carrying an RSA key
+and some a DSS (DSA) key. By using RSA and DSS certificates and keys
+a server can support clients which only support RSA or DSS cipher suites
+by using an appropriate certificate.
+
+=item B<-dcert_chain>
+
+A file containing trusted certificates to use when attempting to build the
+server certificate chain when a certificate specified via the B<-dcert> option
+is in use.
+
+=item B<-dcertform PEM|DER>, B<-dkeyform PEM|DER>, B<-dpass val>
+
+Additional certificate and private key format and passphrase respectively.
+
+=item B<-xkey infile>, B<-xcert infile>, B<-xchain>
+
+Specify an extra certificate, private key and certificate chain. These behave
+in the same manner as the B<-cert>, B<-key> and B<-cert_chain> options.  When
+specified, the callback returning the first valid chain will be in use by
+the server.
+
+=item B<-xchain_build>
+
+Specify whether the application should build the certificate chain to be
+provided to the client for the extra certificates provided via B<-xkey infile>,
+B<-xcert infile>, B<-xchain> options.
+
+=item B<-xcertform PEM|DER>, B<-xkeyform PEM|DER>
+
+Extra certificate and private key format respectively.
+
+=item B<-nbio_test>
+
+Tests non blocking I/O.
+
+=item B<-crlf>
+
+This option translated a line feed from the terminal into CR+LF.
+
+=item B<-debug>
+
+Print extensive debugging information including a hex dump of all traffic.
+
+=item B<-msg>
+
+Show all protocol messages with hex dump.
+
+=item B<-msgfile outfile>
+
+File to send output of B<-msg> or B<-trace> to, default standard output.
+
+=item B<-state>
+
+Prints the SSL session states.
+
+=item B<-CAfile infile>
+
+A file containing trusted certificates to use during client authentication
+and to use when attempting to build the server certificate chain. The list
+is also used in the list of acceptable client CAs passed to the client when
+a certificate is requested.
+
+=item B<-CApath dir>
+
+The directory to use for client certificate verification. This directory
+must be in "hash format", see L<verify(1)> for more information. These are
+also used when building the server certificate chain.
+
+=item B<-chainCApath dir>
+
+The directory to use for building the chain provided to the client. This
+directory must be in "hash format", see L<verify(1)> for more information.
+
+=item B<-chainCAfile file>
+
+A file containing trusted certificates to use when attempting to build the
+server certificate chain.
+
+=item B<-no-CAfile>
+
+Do not load the trusted CA certificates from the default file location.
+
+=item B<-no-CApath>
+
+Do not load the trusted CA certificates from the default directory location.
+
+=item B<-nocert>
+
+If this option is set then no certificate is used. This restricts the
+cipher suites available to the anonymous ones (currently just anonymous
+DH).
+
+=item B<-quiet>
+
+Inhibit printing of session and certificate information.
+
+=item B<-www>
+
+Sends a status message back to the client when it connects. This includes
+information about the ciphers used and various session parameters.
+The output is in HTML format so this option will normally be used with a
+web browser. Cannot be used in conjunction with B<-early_data>.
+
+=item B<-WWW>
+
+Emulates a simple web server. Pages will be resolved relative to the
+current directory, for example if the URL https://myhost/page.html is
+requested the file ./page.html will be loaded. Cannot be used in conjunction
+with B<-early_data>.
+
+=item B<-tlsextdebug>
+
+Print a hex dump of any TLS extensions received from the server.
+
+=item B<-HTTP>
+
+Emulates a simple web server. Pages will be resolved relative to the
+current directory, for example if the URL https://myhost/page.html is
+requested the file ./page.html will be loaded. The files loaded are
+assumed to contain a complete and correct HTTP response (lines that
+are part of the HTTP response line and headers must end with CRLF). Cannot be
+used in conjunction with B<-early_data>.
+
+=item B<-id_prefix val>
+
+Generate SSL/TLS session IDs prefixed by B<val>. This is mostly useful
+for testing any SSL/TLS code (eg. proxies) that wish to deal with multiple
+servers, when each of which might be generating a unique range of session
+IDs (eg. with a certain prefix).
+
+=item B<-rand file...>
+
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
+The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
+all others.
+
+=item [B<-writerand file>]
+
+Writes random data to the specified I<file> upon exit.
+This can be used with a subsequent B<-rand> flag.
+
+=item B<-verify_return_error>
+
+Verification errors normally just print a message but allow the
+connection to continue, for debugging purposes.
+If this option is used, then verification errors close the connection.
+
+=item B<-status>
+
+Enables certificate status request support (aka OCSP stapling).
+
+=item B<-status_verbose>
+
+Enables certificate status request support (aka OCSP stapling) and gives
+a verbose printout of the OCSP response.
+
+=item B<-status_timeout int>
+
+Sets the timeout for OCSP response to B<int> seconds.
+
+=item B<-status_url val>
+
+Sets a fallback responder URL to use if no responder URL is present in the
+server certificate. Without this option an error is returned if the server
+certificate does not contain a responder address.
+
+=item B<-status_file infile>
+
+Overrides any OCSP responder URLs from the certificate and always provides the
+OCSP Response stored in the file. The file must be in DER format.
+
+=item B<-trace>
+
+Show verbose trace output of protocol messages. OpenSSL needs to be compiled
+with B<enable-ssl-trace> for this option to work.
+
+=item B<-brief>
+
+Provide a brief summary of connection parameters instead of the normal verbose
+output.
+
+=item B<-rev>
+
+Simple test server which just reverses the text received from the client
+and sends it back to the server. Also sets B<-brief>. Cannot be used in
+conjunction with B<-early_data>.
+
+=item B<-async>
+
+Switch on asynchronous mode. Cryptographic operations will be performed
+asynchronously. This will only have an effect if an asynchronous capable engine
+is also used via the B<-engine> option. For test purposes the dummy async engine
+(dasync) can be used (if available).
+
+=item B<-max_send_frag +int>
+
+The maximum size of data fragment to send.
+See L<SSL_CTX_set_max_send_fragment(3)> for further information.
+
+=item B<-split_send_frag +int>
+
+The size used to split data for encrypt pipelines. If more data is written in
+one go than this value then it will be split into multiple pipelines, up to the
+maximum number of pipelines defined by max_pipelines. This only has an effect if
+a suitable cipher suite has been negotiated, an engine that supports pipelining
+has been loaded, and max_pipelines is greater than 1. See
+L<SSL_CTX_set_split_send_fragment(3)> for further information.
+
+=item B<-max_pipelines +int>
+
+The maximum number of encrypt/decrypt pipelines to be used. This will only have
+an effect if an engine has been loaded that supports pipelining (e.g. the dasync
+engine) and a suitable cipher suite has been negotiated. The default value is 1.
+See L<SSL_CTX_set_max_pipelines(3)> for further information.
+
+=item B<-read_buf +int>
+
+The default read buffer size to be used for connections. This will only have an
+effect if the buffer size is larger than the size that would otherwise be used
+and pipelining is in use (see L<SSL_CTX_set_default_read_buffer_len(3)> for
+further information).
+
+=item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-tls1_1>, B<-tls1_2>, B<-tls1_3>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>, B<-no_tls1_3>
+
+These options require or disable the use of the specified SSL or TLS protocols.
+By default B<s_server> will negotiate the highest mutually supported protocol
+version.
+When a specific TLS version is required, only that version will be accepted
+from the client.
+Note that not all protocols and flags may be available, depending on how
+OpenSSL was built.
+
+=item B<-bugs>
+
+There are several known bug in SSL and TLS implementations. Adding this
+option enables various workarounds.
+
+=item B<-no_comp>
+
+Disable negotiation of TLS compression.
+TLS compression is not recommended and is off by default as of
+OpenSSL 1.1.0.
+
+=item B<-comp>
+
+Enable negotiation of TLS compression.
+This option was introduced in OpenSSL 1.1.0.
+TLS compression is not recommended and is off by default as of
+OpenSSL 1.1.0.
+
+=item B<-no_ticket>
+
+Disable RFC4507bis session ticket support. This option has no effect if TLSv1.3
+is negotiated. See B<-num_tickets>.
+
+=item B<-num_tickets>
+
+Control the number of tickets that will be sent to the client after a full
+handshake in TLSv1.3. The default number of tickets is 2. This option does not
+affect the number of tickets sent after a resumption handshake.
+
+=item B<-serverpref>
+
+Use the server's cipher preferences, rather than the client's preferences.
+
+=item B<-prioritize_chacha>
+
+Prioritize ChaCha ciphers when preferred by clients. Requires B<-serverpref>.
+
+=item B<-no_resumption_on_reneg>
+
+Set the B<SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION> option.
+
+=item B<-client_sigalgs val>
+
+Signature algorithms to support for client certificate authentication
+(colon-separated list).
+
+=item B<-named_curve val>
+
+Specifies the elliptic curve to use. NOTE: this is single curve, not a list.
+For a list of all possible curves, use:
+
+    $ openssl ecparam -list_curves
+
+=item B<-cipher val>
+
+This allows the list of TLSv1.2 and below ciphersuites used by the server to be
+modified. This list is combined with any TLSv1.3 ciphersuites that have been
+configured. When the client sends a list of supported ciphers the first client
+cipher also included in the server list is used. Because the client specifies
+the preference order, the order of the server cipherlist is irrelevant. See
+the B<ciphers> command for more information.
+
+=item B<-ciphersuites val>
+
+This allows the list of TLSv1.3 ciphersuites used by the server to be modified.
+This list is combined with any TLSv1.2 and below ciphersuites that have been
+configured. When the client sends a list of supported ciphers the first client
+cipher also included in the server list is used. Because the client specifies
+the preference order, the order of the server cipherlist is irrelevant. See
+the B<ciphers> command for more information. The format for this list is a
+simple colon (":") separated list of TLSv1.3 ciphersuite names.
+
+=item B<-dhparam infile>
+
+The DH parameter file to use. The ephemeral DH cipher suites generate keys
+using a set of DH parameters. If not specified then an attempt is made to
+load the parameters from the server certificate file.
+If this fails then a static set of parameters hard coded into the B<s_server>
+program will be used.
+
+=item B<-attime>, B<-check_ss_sig>, B<-crl_check>, B<-crl_check_all>,
+B<-explicit_policy>, B<-extended_crl>, B<-ignore_critical>, B<-inhibit_any>,
+B<-inhibit_map>, B<-no_alt_chains>, B<-no_check_time>, B<-partial_chain>, B<-policy>,
+B<-policy_check>, B<-policy_print>, B<-purpose>, B<-suiteB_128>,
+B<-suiteB_128_only>, B<-suiteB_192>, B<-trusted_first>, B<-use_deltas>,
+B<-auth_level>, B<-verify_depth>, B<-verify_email>, B<-verify_hostname>,
+B<-verify_ip>, B<-verify_name>, B<-x509_strict>
+
+Set different peer certificate verification options.
+See the L<verify(1)> manual page for details.
+
+=item B<-crl_check>, B<-crl_check_all>
+
+Check the peer certificate has not been revoked by its CA.
+The CRL(s) are appended to the certificate file. With the B<-crl_check_all>
+option all CRLs of all CAs in the chain are checked.
+
+=item B<-nbio>
+
+Turns on non blocking I/O.
+
+=item B<-psk_identity val>
+
+Expect the client to send PSK identity B<val> when using a PSK
+cipher suite, and warn if they do not.  By default, the expected PSK
+identity is the string "Client_identity".
+
+=item B<-psk_hint val>
+
+Use the PSK identity hint B<val> when using a PSK cipher suite.
+
+=item B<-psk val>
+
+Use the PSK key B<val> when using a PSK cipher suite. The key is
+given as a hexadecimal number without leading 0x, for example -psk
+1a2b3c4d.
+This option must be provided in order to use a PSK cipher.
+
+=item B<-psk_session file>
+
+Use the pem encoded SSL_SESSION data stored in B<file> as the basis of a PSK.
+Note that this will only work if TLSv1.3 is negotiated.
+
+=item B<-listen>
+
+This option can only be used in conjunction with one of the DTLS options above.
+With this option B<s_server> will listen on a UDP port for incoming connections.
+Any ClientHellos that arrive will be checked to see if they have a cookie in
+them or not.
+Any without a cookie will be responded to with a HelloVerifyRequest.
+If a ClientHello with a cookie is received then B<s_server> will connect to
+that peer and complete the handshake.
+
+=item B<-dtls>, B<-dtls1>, B<-dtls1_2>
+
+These options make B<s_server> use DTLS protocols instead of TLS.
+With B<-dtls>, B<s_server> will negotiate any supported DTLS protocol version,
+whilst B<-dtls1> and B<-dtls1_2> will only support DTLSv1.0 and DTLSv1.2
+respectively.
+
+=item B<-sctp>
+
+Use SCTP for the transport protocol instead of UDP in DTLS. Must be used in
+conjunction with B<-dtls>, B<-dtls1> or B<-dtls1_2>. This option is only
+available where OpenSSL has support for SCTP enabled.
+
+=item B<-sctp_label_bug>
+
+Use the incorrect behaviour of older OpenSSL implementations when computing
+endpoint-pair shared secrets for DTLS/SCTP. This allows communication with
+older broken implementations but breaks interoperability with correct
+implementations. Must be used in conjunction with B<-sctp>. This option is only
+available where OpenSSL has support for SCTP enabled.
+
+=item B<-no_dhe>
+
+If this option is set then no DH parameters will be loaded effectively
+disabling the ephemeral DH cipher suites.
+
+=item B<-alpn val>, B<-nextprotoneg val>
+
+These flags enable the Enable the Application-Layer Protocol Negotiation
+or Next Protocol Negotiation (NPN) extension, respectively. ALPN is the
+IETF standard and replaces NPN.
+The B<val> list is a comma-separated list of supported protocol
+names.  The list should contain the most desirable protocols first.
+Protocol names are printable ASCII strings, for example "http/1.1" or
+"spdy/3".
+The flag B<-nextprotoneg> cannot be specified if B<-tls1_3> is used.
+
+=item B<-engine val>
+
+Specifying an engine (by its unique id string in B<val>) will cause B<s_server>
+to attempt to obtain a functional reference to the specified engine,
+thus initialising it if needed. The engine will then be set as the default
+for all available algorithms.
+
+=item B<-keylogfile outfile>
+
+Appends TLS secrets to the specified keylog file such that external programs
+(like Wireshark) can decrypt TLS connections.
+
+=item B<-max_early_data int>
+
+Change the default maximum early data bytes that are specified for new sessions
+and any incoming early data (when used in conjunction with the B<-early_data>
+flag). The default value is approximately 16k. The argument must be an integer
+greater than or equal to 0.
+
+=item B<-early_data>
+
+Accept early data where possible. Cannot be used in conjunction with B<-www>,
+B<-WWW>, B<-HTTP> or B<-rev>.
+
+=item B<-anti_replay>, B<-no_anti_replay>
+
+Switches replay protection on or off, respectively. Replay protection is on by
+default unless overridden by a configuration file. When it is on, OpenSSL will
+automatically detect if a session ticket has been used more than once, TLSv1.3
+has been negotiated, and early data is enabled on the server. A full handshake
+is forced if a session ticket is used a second or subsequent time. Any early
+data that was sent will be rejected.
+
+=back
+
+=head1 CONNECTED COMMANDS
+
+If a connection request is established with an SSL client and neither the
+B<-www> nor the B<-WWW> option has been used then normally any data received
+from the client is displayed and any key presses will be sent to the client.
+
+Certain commands are also recognized which perform special operations. These
+commands are a letter which must appear at the start of a line. They are listed
+below.
+
+=over 4
+
+=item B<q>
+
+End the current SSL connection but still accept new connections.
+
+=item B<Q>
+
+End the current SSL connection and exit.
+
+=item B<r>
+
+Renegotiate the SSL session (TLSv1.2 and below only).
+
+=item B<R>
+
+Renegotiate the SSL session and request a client certificate (TLSv1.2 and below
+only).
+
+=item B<P>
+
+Send some plain text down the underlying TCP connection: this should
+cause the client to disconnect due to a protocol violation.
+
+=item B<S>
+
+Print out some session cache status information.
+
+=item B<B>
+
+Send a heartbeat message to the client (DTLS only)
+
+=item B<k>
+
+Send a key update message to the client (TLSv1.3 only)
+
+=item B<K>
+
+Send a key update message to the client and request one back (TLSv1.3 only)
+
+=item B<c>
+
+Send a certificate request to the client (TLSv1.3 only)
+
+=back
+
+=head1 NOTES
+
+B<s_server> can be used to debug SSL clients. To accept connections from
+a web browser the command:
+
+ openssl s_server -accept 443 -www
+
+can be used for example.
+
+Although specifying an empty list of CAs when requesting a client certificate
+is strictly speaking a protocol violation, some SSL clients interpret this to
+mean any CA is acceptable. This is useful for debugging purposes.
+
+The session parameters can printed out using the B<sess_id> program.
+
+=head1 BUGS
+
+Because this program has a lot of options and also because some of the
+techniques used are rather old, the C source of B<s_server> is rather hard to
+read and not a model of how things should be done.
+A typical SSL server program would be much simpler.
+
+The output of common ciphers is wrong: it just gives the list of ciphers that
+OpenSSL recognizes and the client supports.
+
+There should be a way for the B<s_server> program to print out details of any
+unknown cipher suites a client says it supports.
+
+=head1 SEE ALSO
+
+L<SSL_CONF_cmd(3)>, L<sess_id(1)>, L<s_client(1)>, L<ciphers(1)>
+L<SSL_CTX_set_max_send_fragment(3)>,
+L<SSL_CTX_set_split_send_fragment(3)>,
+L<SSL_CTX_set_max_pipelines(3)>
+
+=head1 HISTORY
+
+The -no_alt_chains option was added in OpenSSL 1.1.0.
+
+The
+-allow-no-dhe-kex and -prioritize_chacha options were added in OpenSSL 1.1.1.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

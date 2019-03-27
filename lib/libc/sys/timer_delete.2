@@ -1,0 +1,80 @@
+.\" Copyright (c) 2005 David Xu <davidxu@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 11, 2000
+.Dt TIMER_DELETE 2
+.Os
+.Sh NAME
+.Nm timer_delete
+.Nd "delete a per-process timer (REALTIME)"
+.Sh LIBRARY
+.Lb librt
+.Sh SYNOPSIS
+.In time.h
+.Ft int
+.Fn timer_delete "timer_t timerid"
+.Sh DESCRIPTION
+The
+.Fn timer_delete
+system call
+deletes the specified timer,
+.Fa timerid ,
+previously created by the
+.Xr timer_create 2
+system call.
+If the timer is armed when
+.Fn timer_delete
+is called, the behavior is as if the timer is automatically disarmed before
+removal.
+Pending signals for the deleted timer are cleared.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn timer_delete
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The timer ID specified by
+.Fa timerid
+is not a valid timer ID.
+.El
+.Sh SEE ALSO
+.Xr timer_create 2
+.Sh STANDARDS
+The
+.Fn timer_delete
+system call conforms to
+.St -p1003.1-2004 .
+.Sh HISTORY
+Support for
+.Tn POSIX
+per-process timer first appeared in
+.Fx 7.0 .

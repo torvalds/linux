@@ -1,0 +1,131 @@
+.\" Copyright (c) 2001, 2002 Chuck Rouillard
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 1, 2010
+.Dt PATHCHK 1
+.Os
+.Sh NAME
+.Nm pathchk
+.Nd check pathnames
+.Sh SYNOPSIS
+.Nm
+.Op Fl pP
+.Ar pathname ...
+.Sh DESCRIPTION
+The
+.Nm
+utility checks whether each of the specified
+.Ar pathname
+arguments is valid or portable.
+.Pp
+A diagnostic message is written for each argument that:
+.Bl -bullet
+.It
+Is longer than
+.Dv PATH_MAX
+bytes.
+.It
+Contains any component longer than
+.Dv NAME_MAX
+bytes.
+(The value of
+.Dv NAME_MAX
+depends on the underlying file system.)
+.It
+Contains a directory component that is not searchable.
+.El
+.Pp
+It is not considered an error if a
+.Ar pathname
+argument contains a nonexistent component as long as a component by that
+name could be created.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl p
+Perform portability checks on the specified
+.Ar pathname
+arguments.
+Diagnostic messages will be written for each argument that:
+.Bl -bullet
+.It
+Is longer than
+.Dv _POSIX_PATH_MAX
+.Pq 255
+bytes.
+.It
+Contains a component longer than
+.Dv _POSIX_NAME_MAX
+.Pq 14
+bytes.
+.It
+Contains any character not in the portable filename character set (that is,
+alphanumeric characters,
+.Ql \&. ,
+.Ql \&-
+and
+.Ql _ ) .
+No component may start with the hyphen
+.Pq Ql \&-
+character.
+.El
+.It Fl P
+In addition to the default or
+.Fl p
+checks, write a diagnostic for each argument that:
+.Bl -bullet
+.It
+Is empty.
+.It
+Contains a component that starts with a hyphen.
+.El
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Check whether the names of files in the current directory are portable to
+other
+.Tn POSIX
+systems:
+.Pp
+.Dl "find . -exec pathchk -p -- {} +"
+.Sh SEE ALSO
+.Xr getconf 1 ,
+.Xr pathconf 2 ,
+.Xr stat 2
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.Fx 5.0 .

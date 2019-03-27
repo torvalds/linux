@@ -1,0 +1,118 @@
+.\"-
+.\" Copyright (c) 2012 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 18, 2012
+.Dt ALTERA_SDCARD 4
+.Os
+.Sh NAME
+.Nm altera_sdcard
+.Nd driver for the Altera University Program Secure Data Card IP Core
+.Sh SYNOPSIS
+.Cd "device altera_sdcard"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.altera_sdcardc.0.at="nexus0"
+.Cd hint.altera_sdcardc.0.maddr=0x7f008000
+.Cd hint.altera_sdcardc.0.msize=0x400
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides support for the Altera University Program Secure Data
+Card (SD Card) IP Core device.
+A controller device,
+.Li altera_sdcardcX ,
+will be attached during boot.
+Inserted disks are presented as
+.Xr disk 9
+devices,
+.Li altera_sdcardX ,
+corresponding to the controller number.
+.Sh HARDWARE
+The current version of the
+.Nm
+driver supports the SD Card IP core as described in the August 2011 version of
+Altera's documentation.
+The core supports only cards up to 2G (CSD 0); larger cards, or cards using
+newer CSD versions, will not be detected.
+The IP core has two key limitations: a lack of interrupt support, requiring
+timer-driven polling to detect I/O completion, and support for only single
+512-byte block read and write operations at a time.
+The combined effect of those two limits is that the system clock rate,
+.Dv HZ ,
+must be set to at least 200 in order to accomplish the maximum 100KB/s data
+rate supported by the IP core.
+.Sh SEE ALSO
+.Xr disk 9
+.Rs
+.%T Altera University Program Secure Data Card IP Core
+.%D August 2011
+.%I Altera Corporation - University Program
+.%U ftp://ftp.altera.com/up/pub/Altera_Material/11.0/University_Program_IP_Cores/Memory/SD_Card_Interface_for_SoPC_Builder.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were
+developed by SRI International and the University of Cambridge Computer
+Laboratory under DARPA/AFRL contract
+.Pq FA8750-10-C-0237
+.Pq Do CTSRD Dc ,
+as part of the DARPA CRASH research programme.
+This device driver was written by
+.An Robert N. M. Watson .
+.Sh BUGS
+.Nm
+contains a number of work-arounds for IP core bugs.
+Perhaps most critically,
+.Nm
+ignores the CRC error bit returned in the RR1 register, which appears to be
+unexpectedly set by the IP core.
+.Pp
+.Nm
+uses fixed polling intervals are used for card insertion/removal and
+I/O completion detection; an adaptive strategy might improve performance by
+reducing the latency to detecting completed I/O.
+However, in our experiments, using polling rates greater than 200 times a
+second did not improve performance.
+.Pp
+.Nm
+supports only a
+.Li nexus
+bus attachment, which is appropriate for system-on-chip busses such as
+Altera's Avalon bus.
+If the IP core is configured off of another bus type, then additional bus
+attachments will be required.

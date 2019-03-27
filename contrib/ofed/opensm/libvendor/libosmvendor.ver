@@ -1,0 +1,9 @@
+# In this file we track the current API version
+# of the vendor interface (and libraries)
+# The version is built of the following
+# tree numbers:
+# API_REV:RUNNING_REV:AGE
+# API_REV - advance on any added API
+# RUNNING_REV - advance any change to the vendor files
+# AGE - number of backward versions the API still supports
+LIBVERSION=4:2:0

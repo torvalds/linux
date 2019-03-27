@@ -1,0 +1,53 @@
+# $FreeBSD$
+# Utility functions
+##
+
+. $(atf_get_srcdir)/../../common/vnet.subr
+
+pft_init()
+{
+	vnet_init
+
+	if [ ! -c /dev/pf ]; then
+		atf_skip "This test requires pf"
+	fi
+}
+
+pfsynct_init()
+{
+	pft_init
+
+	if ! kldstat -q -m pfsync; then
+		atf_skip "This test requires pfsync"
+	fi
+}
+
+pft_set_rules()
+{
+	jname=$1
+	shift
+
+	if [ $jname == "noflush" ];
+	then
+		jname=$1
+		shift
+	else
+		# Flush all states, rules, fragments, ...
+		jexec ${jname} pfctl -F all
+	fi
+
+	while [ $# -gt 0 ]; do
+		printf "$1\n"
+		shift
+	done | jexec ${jname} pfctl -f -
+}
+
+pft_cleanup()
+{
+	vnet_cleanup
+}
+
+pfsynct_cleanup()
+{
+	pft_cleanup
+}

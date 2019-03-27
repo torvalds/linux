@@ -1,0 +1,176 @@
+.\"
+.\" Copyright (c) 2003 Tom Rhodes
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 24, 2018
+.Dt XE 4
+.Os
+.Sh NAME
+.Nm xe
+.Nd "Xircom PCMCIA Ethernet device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device xe"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_xe_load="YES"
+.Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
+.Sh DESCRIPTION
+The
+.Nm
+driver supports
+.Tn PCMCIA
+Ethernet adapters based on Xircom CE2- and CE3-class hardware.
+This includes devices made by Xircom along with
+various
+.Tn OEM
+manufacturers.
+.Pp
+Please note that the
+.Nm
+driver only supports
+.Tn PCMCIA
+cards and their Ethernet functions.
+.Nm
+does not support the on-board modem device located on some
+version of the Ethernet/modem combo cards.
+In particular, Xircom RealPort2 cards are not supported by this driver.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm autoselect"
+.It Cm autoselect
+Enable autoselection of media type and options.
+.It Cm 10Base2/BNC
+Select 10Mbps operation on a BNC coaxial connector.
+.It Cm 10BaseT/UTP
+Select 10Mbps operation on a RJ-45 connector.
+.It Cm 100BaseTX
+Select 100Mbps operation.
+.El
+.Pp
+Note that 100BaseTX operation is not available on CE2-class cards,
+while the 10Base2/BNC mode is only available on CE2-class cards.
+Full-duplex
+operation is currently not supported.
+For more information on configuring network interface devices,
+see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the following cards:
+.Pp
+.Bl -bullet -compact
+.It
+Xircom CreditCard Ethernet (PS-CE2-10)
+.It
+Xircom CreditCard Ethernet + Modem 28 (PS-CEM-28)
+.It
+Xircom CreditCard Ethernet + Modem 33 (CEM33)
+.It
+Xircom CreditCard 10/100 (CE3, CE3B)
+.It
+Xircom CreditCard Ethernet 10/100 + Modem 56 (CEM56)
+.It
+Xircom RealPort Ethernet 10 (RE10)
+.It
+Xircom RealPort Ethernet 10/100 (RE100)
+.It
+Xircom RealPort Ethernet 10/100 + Modem 56 (REM56, REM56G)
+.It
+Accton Fast EtherCard-16 (EN2226)
+.It
+Compaq Microcom CPQ550 Ethernet/Modem PC Card
+.It
+Compaq Netelligent 10/100 PC Card (CPQ-10/100)
+.It
+Intel EtherExpress Pro/100 PC Card Mobile Adapter 16 (Pro/100 M16A)
+.It
+Intel EtherExpress Pro/100 LAN/Modem PC Card Adapter (Pro/100 M16B)
+.El
+.Pp
+Other similar devices using the same hardware may also be supported.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "xe%d: Cannot allocate ioport"
+.It "xe%d: Cannot allocate irq"
+A fatal initialization error occurred while attempting to allocate
+system resources for the card.
+.It "xe%d: Unable to fix your %s combo card"
+A fatal initialization error occurred while attempting to attach an
+Ethernet/modem combo card.
+.It "xe%d: watchdog timeout: resetting card"
+The card failed to generate an interrupt acknowledging a
+transmitted packet.
+May indicate a
+.Tn PCMCIA
+configuration problem.
+.It "xe%d: no carrier"
+The card has lost all contact with the network; this
+usually indicates a cable problem.
+.El
+.Sh SEE ALSO
+.Xr pccard 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 3.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An Scott Mitchell Aq Mt rsm@FreeBSD.org .
+This manual page was written by
+.An Scott Mitchell Aq Mt rsm@FreeBSD.org ,
+and
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org .
+.Sh BUGS
+Supported devices will fail to attach on some machines using the
+.Tn NEWCARD
+.Tn PC
+Card framework.
+.Pp
+Automatic media selection is usually unreliable.

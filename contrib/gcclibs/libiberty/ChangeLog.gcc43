@@ -1,0 +1,60 @@
+2007-05-05  Geoffrey Keating  <geoffk@apple.com> (r124467)
+
+	PR 31775
+	* mangle.c (write_mangled_name): Mangle static variable names.
+	(write_unqualified_name): Use local-source-name for
+	namespace-scope static variables.
+
+2007-03-15  Geoffrey Keating  <geoffk@apple.com> (r122972)
+
+	* cp-demangle.c (d_encoding): Exit early on error.
+	(d_pointer_to_member_type): Exit early if cplus_demangle_type
+	returns NULL.
+	(cplus_demangle_type): Likewise.
+	* testsuite/demangle-expected: New testcase.
+
+2007-01-31  Ben Elliston  <bje@au.ibm.com> (r121364)
+
+	* strsignal.c (psignal): Change type of signo to int.
+	* functions.texi: Regenerate.
+
+2007-01-12  Ben Elliston  <bje@au.ibm.com> (r120702)
+
+	* pex-unix.c (writeerr): Cast write result to void.
+
+	* choose-temp.c (choose_temp_base): Check the result of the call
+	to mktemp rather than testing the length of the modified string.
+
+2006-12-20  Geoffrey Keating  <geoffk@apple.com> (r120097)
+
+	* cp-demangle.h: Add comment explaining what to do to avoid
+	overrunning string.
+	(d_check_char): New.
+	(d_next_char): Don't advance past trailing '\0'.
+	* cp-demangle.c (cplus_demangle_mangled_name): Use d_check_char.
+	(d_nested_name): Likewise.
+	(d_special_name): Likewise.
+	(d_call_offset): Likewise.
+	(d_function_type): Likewise.
+	(d_array_type): Likewise.
+	(d_pointer_to_member_type): Likewise.
+	(d_template_param): Likewise.
+	(d_template_args): Likewise.
+	(d_template_arg): Likewise.
+	(d_expr_primary): Likewise.
+	(d_local_name): Likewise.
+	(d_substitution): Likewise.
+	(d_ctor_dtor_name): Use d_advance rather than d_next_char.
+	* testsuite/test-demangle.c: Include sys/mman.h.
+	(MAP_ANONYMOUS): Define.
+	(protect_end): New.
+	(main): Use protect_end.
+	* testsuite/demangle-expected: Add testcases for overrunning
+	the end of the string.
+
+2006-11-07  Julian Brown  <julian@codesourcery.com> (r118552)
+
+	* floatformat.c (get_field): Fix segfault with little-endian word
+	order on 64-bit hosts.
+	(put_field): Likewise.
+	(min): Move definition.

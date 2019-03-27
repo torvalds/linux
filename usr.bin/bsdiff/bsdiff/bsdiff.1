@@ -1,0 +1,88 @@
+.\"-
+.\" Copyright 2003-2005 Colin Percival
+.\" All rights reserved
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted providing that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 18, 2003
+.Dt BSDIFF 1
+.Os
+.Sh NAME
+.Nm bsdiff
+.Nd "generate a patch between two binary files"
+.Sh SYNOPSIS
+.Nm
+.Ar oldfile newfile patchfile
+.Sh DESCRIPTION
+The
+.Nm
+utility
+compares
+.Ar oldfile
+to
+.Ar newfile
+and writes to
+.Ar patchfile
+a binary patch suitable for use by
+.Xr bspatch 1 .
+When
+.Ar oldfile
+and
+.Ar newfile
+are two versions of an executable program, the
+patches produced are on average a factor of five smaller
+than those produced by any other binary patch tool known
+to the author.
+.Pp
+The
+.Nm
+utility
+uses memory equal to 17 times the size of
+.Ar oldfile ,
+and requires
+an absolute minimum working set size of 8 times the size of
+.Ar oldfile .
+.Sh SEE ALSO
+.Xr bspatch 1
+.Sh AUTHORS
+.An Colin Percival Aq Mt cperciva@FreeBSD.org
+.Sh BUGS
+The
+.Nm
+utility does not store the hashes of
+.Ar oldfile
+or
+.Ar newfile
+in
+.Ar patchfile .
+As a result, it is possible to apply a patch to the wrong file; this
+will usually produce garbage.
+It is recommended that users of
+.Nm
+store the hashes of
+.Ar oldfile
+and
+.Ar newfile
+and compare against them before and after applying
+.Ar patchfile .

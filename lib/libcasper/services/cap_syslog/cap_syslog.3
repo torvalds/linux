@@ -1,0 +1,107 @@
+.\" Copyright (c) 2018 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 27, 2018
+.Dt CAP_SYSLOG 3
+.Os
+.Sh NAME
+.Nm cap_syslog
+.Nm cap_vsyslog
+.Nm cap_openlog
+.Nm cap_closelog
+.Nm cap_setlogmask
+.Nd "library for syslog in capability mode"
+.Sh LIBRARY
+.Lb libcap_syslog
+.Sh SYNOPSIS
+.In libcasper.h
+.In casper/cap_syslog.h
+.Ft void
+.Fn cap_syslog "cap_channel_t *chan" "int pri" "const char *fmt" "..."
+.Ft void
+.Fn cap_vsyslog "cap_channel_t *chan" "int priority" "const char *fmt" "va_list ap"
+.Ft void
+.Fn cap_openlog "cap_channel_t *chan" "const char *ident" "int logopt" "int facility"
+.Ft void
+.Fn cap_closelog "cap_channel_t *chan"
+.Ft int
+.Fn cap_setlogmask "cap_channel_t *chan" "int maskpri"
+.Sh DESCRIPTION
+The functions
+.Fn cap_syslog
+.Fn cap_vsyslog
+.Fn cap_openlog
+.Fn cap_closelog
+.Fn cap_setlogmask
+are respectively equivalent to
+.Xr syslog 3 ,
+.Xr vsyslog 3 ,
+.Xr openlog 3 ,
+.Xr closelog 3 ,
+.Xr setlogmask 3
+except that the connection to the
+.Nm system.syslog
+service needs to be provided.
+.Sh EXAMPLES
+The following example first opens a capability to casper and then uses this
+capability to create the
+.Nm system.syslog
+casper service to log messages.
+.Bd -literal
+cap_channel_t *capcas, *capsyslog;
+
+/* Open capability to Casper. */
+capcas = cap_init();
+if (capcas == NULL)
+	err(1, "Unable to contact Casper");
+
+/* Enter capability mode sandbox. */
+if (cap_enter() < 0 && errno != ENOSYS)
+	err(1, "Unable to enter capability mode");
+
+/* Use Casper capability to create capability to the system.syslog service. */
+capsyslog = cap_service_open(capcas, "system.syslog");
+if (capsyslog == NULL)
+	err(1, "Unable to open system.syslog service");
+
+/* Close Casper capability, we don't need it anymore. */
+cap_close(capcas);
+
+/* Let's log something. */
+cap_syslog(capsyslog, LOG_NOTICE, "System logs from capability mode.");
+.Ed
+.Sh SEE ALSO
+.Xr cap_enter 2 ,
+.Xr closelog 3 ,
+.Xr err 3 ,
+.Xr openlog 3 ,
+.Xr setlogmask 3
+.Xr syslog 3 ,
+.Xr vsyslog 3 ,
+.Xr capsicum 4 ,
+.Xr nv 9
+.Sh AUTHORS
+.An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org

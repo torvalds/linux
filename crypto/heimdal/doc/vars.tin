@@ -1,0 +1,7 @@
+
+@c
+@c Variables depending on installation
+@c
+
+@set dbdir @dbdir@
+@set PACKAGE_VERSION @PACKAGE_VERSION@

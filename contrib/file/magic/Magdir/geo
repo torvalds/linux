@@ -1,0 +1,130 @@
+
+#------------------------------------------------------------------------------
+# $File: geo,v 1.6 2018/03/11 00:48:16 christos Exp $
+# Geo- files from Kurt Schwehr <schwehr@ccom.unh.edu>
+
+######################################################################
+#
+# Acoustic Doppler Current Profilers (ADCP)
+#
+######################################################################
+
+0	beshort	0x7f7f	RDI Acoustic Doppler Current Profiler (ADCP)
+
+######################################################################
+#
+# Metadata
+#
+######################################################################
+
+0	string	Identification_Information	FGDC ASCII metadata
+
+######################################################################
+#
+# Seimsic / Subbottom
+#
+######################################################################
+
+# Knudsen subbottom chirp profiler - Binary File Format: B9
+# KEB D409-03167 V1.75 Huffman
+0	string	KEB\ 	Knudsen seismic KEL binary (KEB) -
+>4	regex	[-A-Z0-9]*	Software: %s
+>>&1	regex	V[0-9]*\.[0-9]*	version %s
+
+######################################################################
+#
+# LIDAR - Laser altimetry or bathy
+#
+######################################################################
+
+
+# Caris LIDAR format for LADS comes as two parts... ascii location file and binary waveform data
+0	string	HCA	LADS Caris Ascii Format (CAF) bathymetric lidar
+>4	regex [0-9]*\.[0-9]*	version %s
+
+0	string	HCB	LADS Caris Binary Format (CBF) bathymetric lidar waveform data
+>3      byte    x	version %d .
+>4	byte	x	%d
+
+
+######################################################################
+#
+# MULTIBEAM SONARS http://www.ldeo.columbia.edu/res/pi/MB-System/formatdoc/
+#
+######################################################################
+
+# GeoAcoustics - GeoSwath Plus
+4	beshort	0x2002	GeoSwath RDF
+0	string	Start:-	GeoSwatch auf text file
+
+# Seabeam 2100
+# mbsystem code mb41
+0	string SB2100	SeaBeam 2100 multibeam sonar
+0	string SB2100DR	SeaBeam 2100 DR multibeam sonar
+0	string SB2100PR SeaBeam 2100 PR multibeam sonar
+
+# This corresponds to MB-System format 94, L-3/ELAC/SeaBeam XSE vendor
+# format. It is the format of our upgraded SeaBeam 2112 on R/V KNORR.
+0    string $HSF    XSE multibeam
+
+# mb121 http://www.saic.com/maritime/gsf/
+8	string	GSF-v	SAIC generic sensor format (GSF) sonar data,
+>&0	regex [0-9]*\.[0-9]*	version %s
+
+# MGD77 - http://www.ngdc.noaa.gov/mgg/dat/geodas/docs/mgd77.htm
+# mb161
+9	string MGD77	MGD77 Header, Marine Geophysical Data Exchange Format
+
+# MBSystem processing caches the mbinfo output
+1	string	Swath\ Data\ File:	mbsystem info cache
+
+# Caris John Hughes Clark format
+0	string	HDCS	Caris multibeam sonar related data
+1	string	Start/Stop\ parameter\ header:	Caris ASCII project summary
+
+######################################################################
+#
+# Visualization and 3D modeling
+#
+######################################################################
+
+# IVS - IVS3d.com Tagged Data Represetation
+0	string	%%\ TDR\ 2.0	IVS Fledermaus TDR file
+
+# http://www.ecma-international.org/publications/standards/Ecma-363.htm
+# 3D in PDFs
+0	string	U3D	ECMA-363, Universal 3D
+
+######################################################################
+#
+# Support files
+#
+######################################################################
+
+# https://midas.psi.ch/elog/
+0	string	$@MID@$	elog journal entry
+
+# Geospatial Designs http://www.geospatialdesigns.com/surfer6_format.htm
+0	string		DSBB	Surfer 6 binary grid file
+>4	leshort		x	\b, %d
+>6	leshort		x	\bx%d
+>8	ledouble	x	\b, minx=%g
+>16	ledouble	x	\b, maxx=%g
+>24	ledouble	x	\b, miny=%g
+>32	ledouble	x	\b, maxy=%g
+>40	ledouble	x	\b, minz=%g
+>48	ledouble	x	\b, maxz=%g
+
+# magic for LAS format files
+# alex myczko <alex@aiei.ch>
+# http://www.asprs.org/wp-content/uploads/2010/12/LAS_1_3_r11.pdf
+0	string		LASF	LIDAR point data records
+>24	byte		>0	\b, version %u
+>25	byte		>0	\b.%u
+>26	string		>\0	\b, SYSID %s
+>58	string		>\0	\b, Generating Software %s
+
+# magic for PCD format files
+# alex myczko <alex@aiei.ch>
+# http://pointclouds.org/documentation/tutorials/pcd_file_format.php
+0	string		#\ .PCD	Point Cloud Data

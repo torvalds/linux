@@ -1,0 +1,22 @@
+#! /bin/sh
+
+# Look at the file specified in $1 to see if it contains 'no --help'.
+# If it does:
+# - Squawk
+# - rename the file to ($1)-
+# - exit with a non-zero status.
+# otherwise:
+# - exit with a 0 status.
+
+if test ! -f $1
+then
+	echo "$0: $1 is not a regular file!" 1>&2
+	exit 1
+fi
+
+if grep -q 'no --help' $1
+then
+	echo "$0: $1 contains 'no --help'!" 1>&2
+	mv ${1} ${1}-
+	exit 1
+fi

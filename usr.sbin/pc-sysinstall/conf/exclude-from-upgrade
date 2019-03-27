@@ -1,0 +1,15 @@
+etc/fstab
+dev
+etc/passwd
+etc/pwd.db
+etc/group
+etc/master.passwd
+etc/spwd.db
+etc/hosts
+etc/resolv.conf
+etc/localtime
+etc/hosts
+etc/X11
+etc/nsmb.conf
+usr/Programs/.config/ProgList
+Programs/.config/ProgList

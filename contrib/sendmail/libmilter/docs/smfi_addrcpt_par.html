@@ -1,0 +1,88 @@
+<HTML>
+<HEAD><TITLE>smfi_addrcpt_par</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_addrcpt_par.html,v 1.5 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_addrcpt_par</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_addrcpt_par(
+	SMFICTX *ctx,
+	char *rcpt,
+	char *args
+);
+</PRE>
+Add a recipient for the current message including ESMTP arguments.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>Called only from <A href="xxfi_eom.html">xxfi_eom</A>.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>Add a recipient to the message envelope.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>ctx</TD>
+	<TD>Opaque context structure.
+	</TD></TR>
+    <TR valign="top"><TD>rcpt</TD>
+	<TD>The new recipient's address.
+	</TD></TR>
+    <TR valign="top"><TD>args</TD>
+	<TD>The new recipient's ESMTP parameters.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>smfi_addrcpt will fail and return MI_FAILURE if:
+<UL><LI>rcpt is NULL.
+    <LI>Adding recipients in the current connection state is invalid.
+    <LI>A network error occurs.
+    <LI>SMFIF_ADDRCPT_PAR was not set when
+	<A href="smfi_register.html">smfi_register</A> was called.
+</UL>
+Otherwise, it will return MI_SUCCESS.
+</TD>
+</TR>
+
+<!----------- Notes ---------->
+<TR align="left" valign=top>
+<TH>NOTES</TH> 
+<TD>
+A filter which calls smfi_addrcpt must have set the SMFIF_ADDRCPT_PAR flag
+in the smfiDesc_str passed to 
+<A href="smfi_register.html">smfi_register</A>.
+</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2006 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

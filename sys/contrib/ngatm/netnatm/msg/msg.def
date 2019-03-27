@@ -1,0 +1,582 @@
+#
+# Copyright (c) 2001-2003
+# Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+# 	All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# Author: Hartmut Brandt <harti@freebsd.org>
+#
+# $Begemot: libunimsg/netnatm/msg/msg.def,v 1.4 2003/09/29 10:47:18 hbb Exp $
+#
+# Define message contents
+#
+#########################################################################
+# 
+#  ALERTING message
+# 
+#  References:
+# 	Q.2931	8, 17*
+#	...A4	4, 11*
+# 	Q.2957	3
+# 	Q.2971	6
+# 	UNI4.0	5
+# 	PNNI1.0 177...178, 184*
+# 
+#  Notes:
+# 	N-ISDN compatiblity not implemented.
+# 
+start alerting 0x01
+	connid		-		!pnni
+	epref
+	notify
+	git		UNI_NUM_IE_GIT
+	uu		-		!pnni
+	report		-		!pnni
+	unrec
+end
+
+#########################################################################
+#
+#  CALL PROCEEDING message
+# 
+#  References:
+# 	Q.2931	9, 18*
+# 	Q.2971	6
+# 	UNI4.0	5
+# 	PNNI1.0 178
+# 
+#  Notes:
+# 	N-ISDN compatiblity not implemented.
+# 
+start call_proc 0x02
+	connid
+	epref
+	notify		-		!pnni
+	unrec
+end
+
+#########################################################################
+#
+# CONNECT message
+#
+# References:
+#	Q.2931	 p. 10, 19*
+#	...A4	6, 12*
+#	Q.2932.1 p. 17
+#	Q.2951   p. 30
+#	Q.2957   p. 4
+#	Q.2962   p. 3
+#	Q.2971   p. 7
+#	UNI4.0   p. 5-6, 61, 68, 77
+#	PNNI1.0  pp. 178...179, 184...185*
+#
+# Notes:
+#	N-ISDN compatiblity not implemented.
+#
+start connect 0x07
+	aal
+	blli
+	connid		-		!pnni
+	epref
+	notify
+	conned
+	connedsub
+	eetd
+	git		UNI_NUM_IE_GIT
+	uu		-		!pnni
+	traffic
+	exqos
+	facility	-		q2932
+	abrsetup
+	abradd
+	called_soft	-		pnni
+	report		-		!pnni
+	unrec
+end
+
+#########################################################################
+#
+# CONNECT ACKNOWLEDGE message
+#
+# References:
+#	Q.2931	11
+#
+start connect_ack 0x0f !pnni
+	notify
+	unrec
+end
+
+#########################################################################
+#
+#  RELEASE message
+# 
+#  References:
+# 	Q.2931	 p. 11, 22*
+# 	Q.2932.1 p. 18
+# 	Q.2957   p. 4
+# 	Q.2962   p. 3
+# 	UNI4.0   p. 6
+# 	PNNI1.0	 pp. 179...180, 185...186*
+# 
+#  Notes:
+# 	N-ISDN compatiblity not implemented.
+# 
+start release 0x4d
+	cause		2
+	notify
+	git		UNI_NUM_IE_GIT
+	uu		-		!pnni
+	facility	-		q2932
+	crankback	-		pnni
+	unrec
+end
+
+#########################################################################
+#
+#  RELEASE COMPLETE message
+# 
+#  References:
+# 	Q.2931	 p. 12
+# 	UNI4.0   p. 6
+# 	PNNI1.0  p. 180
+# 
+start release_compl 0x5a
+	cause		2
+	git		UNI_NUM_IE_GIT		!pnni
+	uu		-			!pnni
+	crankback	-			pnni
+	unrec
+end
+
+#########################################################################
+#
+#  SETUP message
+# 
+#  References:
+# 	Q.2931	13-14, 23-24*
+#	...A4	7-9, 13-16*
+# 	Q.2957	5
+# 	Q.2962	3
+# 	Q.2971	7
+# 	UNI4.0	6-7, 43, 57*, 60-61, 68-69, 78
+# 	PNNI1.0 180...182, 186*
+#	af-cs-0147.000
+# 
+#  Notes:
+# 
+start setup 0x05
+	aal
+	traffic
+	bearer
+	bhli
+	blli		UNI_NUM_IE_BLLI/R
+	called
+	calledsub	UNI_NUM_IE_CALLEDSUB
+	calling
+	callingsub	UNI_NUM_IE_CALLINGSUB
+	connid
+	qos
+	eetd
+	notify
+	scompl		-		!pnni
+	tns		UNI_NUM_IE_TNS
+	epref
+	atraffic
+	mintraffic
+	uu		-		!pnni
+	git		UNI_NUM_IE_GIT
+	lij_callid	-		!pnni
+	lij_param	-		!pnni
+	lij_seqno	-		!pnni
+	exqos
+	abrsetup
+	abradd
+	cscope
+	calling_soft	-		pnni
+	called_soft	-		pnni
+	dtl		UNI_NUM_IE_DTL/R pnni
+	report		-		!pnni
+	mdcr
+	unrec
+end
+
+#########################################################################
+#
+#  STATUS message
+# 
+#  References:
+# 	Q.2931	 p. 14
+# 	Q.2971   p. 8
+# 	PNNI1.0  p. 182
+# 
+start status 0x7d
+	callstate
+	cause
+	epref
+	epstate
+	unrec
+end
+
+#########################################################################
+#
+#  STATUS ENQUIRY message
+# 
+#  References:
+# 	Q.2931	 p. 15
+# 	Q.2971   p. 8
+# 	PNNI1.0  pp. 182...183
+# 
+start status_enq 0x75
+	epref
+	unrec
+end
+
+#########################################################################
+#
+#  NOTIFY message
+# 
+#  References:
+# 	Q.2931	 p. 15
+# 	Q.2971   p. 8
+# 	PNNI1.0  p. 183
+#
+start notify 0x6e
+	notify
+	epref
+	unrec
+end
+
+#########################################################################
+#
+#  RESTART message
+# 
+#  References:
+# 	Q.2931	 p. 26
+# 	UNI4.0	 p. 7
+# 	PNNI1.0  pp. 186...187
+#
+start restart 0x46
+	connid
+	restart
+	unrec
+end
+
+#########################################################################
+#
+#  RESTART ACKNOWLEDGE message
+# 
+#  References:
+# 	Q.2931	 p. 26
+# 	UNI4.0	 p. 7
+# 	PNNI1.0  p. 187
+#
+start restart_ack 0x4e
+	connid
+	restart
+	unrec
+end
+
+#########################################################################
+#
+#  ADD PARTY message
+# 
+#  References:
+# 	Q.2971	10, 47
+# 	UNI4.0	39, 43-44
+# 	PNNI1.0 188...189
+# 
+#  Notes:
+# 
+start add_party 0x80
+	aal
+	bhli
+	blli
+	called
+	calledsub	UNI_NUM_IE_CALLEDSUB
+	calling
+	callingsub	UNI_NUM_IE_CALLINGSUB
+	scompl		-		!pnni
+	tns		UNI_NUM_IE_TNS
+	epref
+	notify
+	eetd
+	uu		-		!pnni
+	git		UNI_NUM_IE_GIT
+	lij_seqno	-		!pnni
+	calling_soft	-		pnni
+	called_soft	-		pnni
+	dtl		UNI_NUM_IE_DTL/R pnni
+	unrec
+end
+
+#########################################################################
+#
+#  ADD PARTY ACKNOWLEDGE message
+# 
+#  References:
+# 	Q.2971	10, 42, 47
+# 	UNI4.0	39
+# 	PNNI1.0 189
+# 
+#  Notes:
+# 
+start add_party_ack 0x81
+	epref
+	aal
+	blli
+	notify
+	eetd
+	conned
+	connedsub
+	uu		-		!pnni
+	git		UNI_NUM_IE_GIT
+	called_soft	-		pnni
+	unrec
+end
+
+#########################################################################
+#
+#  PARTY ALERTING message
+# 
+#  References:
+# 	Q.2971	12, 49
+# 	UNI4.0	39
+# 	PNNI1.0 189...190
+# 
+#  Notes:
+# 
+start party_alerting 0x85
+	epref
+	notify
+	uu		-		!pnni
+	git		UNI_NUM_IE_GIT
+	unrec
+end
+
+#########################################################################
+#
+#  ADD PARTY REJECT message
+# 
+#  References:
+# 	Q.2971	12, 48
+# 	UNI4.0	40
+# 	PNNI1.0 190
+# 
+#  Notes:
+# 
+start add_party_rej 0x82
+	cause
+	epref
+	uu		-		!pnni
+	git		UNI_NUM_IE_GIT
+	crankback	-		pnni
+	unrec
+end
+
+#########################################################################
+#
+#  DROP PARTY message
+# 
+#  References:
+# 	Q.2971	13, 48
+# 	UNI4.0	40
+# 	PNNI1.0 191
+# 
+#  Notes:
+# 
+start drop_party 0x83
+	cause
+	epref
+	notify
+	uu		-		!pnni
+	git		UNI_NUM_IE_GIT
+	unrec
+end
+
+#########################################################################
+#
+#  DROP PARTY ACKNOWLEDGE message
+# 
+#  References:
+# 	Q.2971	13, 49
+# 	UNI4.0	40
+# 	PNNI1.0	191
+# 
+#  Notes:
+# 
+start drop_party_ack 0x84
+	epref
+	cause
+	uu		-		!pnni
+	git		UNI_NUM_IE_GIT
+	unrec
+end
+
+#########################################################################
+#
+#  LEAF SETUP REQUEST message
+# 
+#  References:
+# 	UNI4.0	45...46
+# 
+#  Notes:
+# 
+start leaf_setup_req 0x91 !pnni
+	tns		UNI_NUM_IE_TNS
+	calling
+	callingsub	UNI_NUM_IE_CALLINGSUB
+	called
+	calledsub	UNI_NUM_IE_CALLEDSUB
+	lij_callid
+	lij_seqno
+	unrec
+end
+
+#########################################################################
+#
+#  LEAF SETUP FAIL message
+# 
+#  References:
+# 	UNI4.0	45...46
+# 
+#  Notes:
+# 
+start leaf_setup_fail 0x90 !pnni
+	cause
+	called
+	calledsub
+	lij_seqno
+	tns		UNI_NUM_IE_TNS
+	unrec
+end
+
+#########################################################################
+#
+#  CO-BI SETUP message
+# 
+#  References:
+#  Q.2932.1	16
+# 
+#  Notes:
+# 
+start cobisetup 0x15 !pnni&&q2932
+	facility
+	called
+	calledsub
+	calling
+	notify
+	unrec
+end
+
+#########################################################################
+#
+#  FACILITY message
+# 
+#  References:
+# 	Q.2932.1	14...15
+# 
+#  Notes:
+# 
+start facility 0x62 !pnni&&q2932
+	facility
+	called
+	calledsub
+	calling
+	notify
+	unrec
+end
+
+#########################################################################
+#
+#   MODIFY REQUEST message
+# 
+#  References:
+# 	Q.2963.1	p. 6
+# 	Q.2963.4	p. 4
+# 	UNI4.0-MFY	p. 3
+# 
+start modify_req 0x88 !pnni
+	traffic
+	atraffic
+	mintraffic
+	notify
+	git		UNI_NUM_IE_GIT
+	unrec
+end
+
+#########################################################################
+#
+#   MODIFY ACKNOWLEDGE message
+# 
+#  References:
+# 	Q.2963.1	p.6
+# 	Q.2963.3	p.5
+# 	UNI4.0-MFY	p.3
+# 
+start modify_ack 0x89 !pnni
+	report
+	traffic
+	notify
+	git		UNI_NUM_IE_GIT
+	unrec
+end
+
+#########################################################################
+#
+#   MODIFY REJECT message
+# 
+#  References:
+# 	Q.2963		p.6
+# 	UNI4.0-MFY	p.3
+# 
+start modify_rej 0x8a !pnni
+	cause
+	notify
+	git		UNI_NUM_IE_GIT
+	unrec
+end
+
+#########################################################################
+#
+#  CONNECTION AVAILABLE message
+# 
+#  References:
+#	Q.2931A4	9...10
+# 	Q.2963		p.6
+# 	UNI4.0-MFY	p.3
+# 
+start conn_avail 0x8b !pnni
+	notify
+	git		UNI_NUM_IE_GIT
+	report
+	unrec
+end
+
+#########################################################################
+#
+#  UNKNOWN message
+#
+start unknown 0x100
+	epref
+	unrec
+end

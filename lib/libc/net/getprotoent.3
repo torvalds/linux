@@ -1,0 +1,144 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getprotoent.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 4, 1993
+.Dt GETPROTOENT 3
+.Os
+.Sh NAME
+.Nm getprotoent ,
+.Nm getprotobynumber ,
+.Nm getprotobyname ,
+.Nm setprotoent ,
+.Nm endprotoent
+.Nd get protocol entry
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In netdb.h
+.Ft struct protoent *
+.Fn getprotoent void
+.Ft struct protoent *
+.Fn getprotobyname "const char *name"
+.Ft struct protoent *
+.Fn getprotobynumber "int proto"
+.Ft void
+.Fn setprotoent "int stayopen"
+.Ft void
+.Fn endprotoent void
+.Sh DESCRIPTION
+The
+.Fn getprotoent ,
+.Fn getprotobyname ,
+and
+.Fn getprotobynumber
+functions
+each return a pointer to an object with the
+following structure
+containing the broken-out
+fields of a line in the network protocol data base,
+.Pa /etc/protocols .
+.Bd -literal -offset indent
+struct protoent {
+	char	*p_name;	/* official name of protocol */
+	char	**p_aliases;	/* alias list */
+	int	p_proto;	/* protocol number */
+};
+.Ed
+.Pp
+The members of this structure are:
+.Bl -tag -width p_aliases
+.It Fa p_name
+The official name of the protocol.
+.It Fa p_aliases
+A zero terminated list of alternate names for the protocol.
+.It Fa p_proto
+The protocol number.
+.El
+.Pp
+The
+.Fn getprotoent
+function
+reads the next line of the file, opening the file if necessary.
+.Pp
+The
+.Fn setprotoent
+function
+opens and rewinds the file.
+If the
+.Fa stayopen
+flag is non-zero,
+the net data base will not be closed after each call to
+.Fn getprotobyname
+or
+.Fn getprotobynumber .
+.Pp
+The
+.Fn endprotoent
+function
+closes the file.
+.Pp
+The
+.Fn getprotobyname
+function
+and
+.Fn getprotobynumber
+sequentially search from the beginning
+of the file until a matching
+protocol name or
+protocol number is found,
+or until
+.Dv EOF
+is encountered.
+.Sh RETURN VALUES
+Null pointer returned on
+.Dv EOF
+or error.
+.Sh FILES
+.Bl -tag -width /etc/protocols -compact
+.It Pa /etc/protocols
+.El
+.Sh SEE ALSO
+.Xr protocols 5
+.Sh HISTORY
+The
+.Fn getprotoent ,
+.Fn getprotobynumber ,
+.Fn getprotobyname ,
+.Fn setprotoent ,
+and
+.Fn endprotoent
+functions appeared in
+.Bx 4.2 .
+.Sh BUGS
+These functions use a thread-specific data space;
+if the data is needed for future use, it should be
+copied before any subsequent calls overwrite it.
+Only the Internet
+protocols are currently understood.

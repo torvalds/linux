@@ -1,0 +1,136 @@
+.\" Copyright (c) 2000-2001 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 15, 2010
+.Dt RUNQUEUE 9
+.Os
+.Sh NAME
+.Nm choosethread ,
+.Nm procrunnable ,
+.Nm remrunqueue ,
+.Nm setrunqueue
+.Nd manage the queue of runnable processes
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
+.Vt "extern struct rq itqueues[]" ;
+.Vt "extern struct rq rtqueues[]" ;
+.Vt "extern struct rq queues[]" ;
+.Vt "extern struct rq idqueues[]" ;
+.Ft struct thread *
+.Fn choosethread "void"
+.Ft int
+.Fn procrunnable "void"
+.Ft void
+.Fn remrunqueue "struct thread *td"
+.Ft void
+.Fn setrunqueue "struct thread *td"
+.Sh DESCRIPTION
+The run queue consists of four priority queues:
+.Va itqueues
+for interrupt threads,
+.Va rtqueues
+for realtime priority processes,
+.Va queues
+for time sharing processes, and
+.Va idqueues
+for idle priority processes.
+Each priority queue consists of an array of
+.Dv NQS
+queue header structures.
+Each queue header identifies a list of runnable processes of equal priority.
+Each queue also has a single word that contains a bit mask identifying
+non-empty queues to assist in selecting a process quickly.
+These are named
+.Va itqueuebits ,
+.Va rtqueuebits ,
+.Va queuebits ,
+and
+.Va idqueuebits .
+The run queues are protected by the
+.Va sched_lock
+mutex.
+.Pp
+.Fn procrunnable
+returns zero if there are no runnable processes other than the idle process.
+If there is at least one runnable process other than the idle process, it
+will return a non-zero value.
+Note that the
+.Va sched_lock
+mutex does
+.Em not
+need to be held when this function is called.
+There is a small race window where one CPU may place a process on the run queue
+when there are currently no other runnable processes while another CPU is
+calling this function.
+In that case the second CPU will simply travel through the idle loop one
+additional time before noticing that there is a runnable process.
+This works because idle CPUs are not halted in SMP systems.
+If idle CPUs are halted in SMP systems, then this race condition might have
+more serious repercussions in the losing case, and
+.Fn procrunnable
+may have to require that the
+.Va sched_lock
+mutex be acquired.
+.Pp
+.Fn choosethread
+returns the highest priority runnable thread.
+If there are no runnable threads, then the idle thread is returned.
+This function is called by
+.Fn cpu_switch
+and
+.Fn cpu_throw
+to determine which thread to switch to.
+.Fn choosethread
+must be called with the
+.Va sched_lock
+mutex held.
+.Pp
+.Fn setrunqueue
+adds the thread
+.Fa td
+to the tail of the appropriate queue in the proper priority queue.
+The thread must be runnable, i.e.\&
+.Va p_stat
+must be set to
+.Dv SRUN .
+This function must be called with the
+.Va sched_lock
+mutex held.
+.Pp
+.Fn remrunqueue
+removes thread
+.Fa td
+from its run queue.
+If
+.Fa td
+is not on a run queue, then the kernel will
+.Xr panic 9 .
+This function must be called with the
+.Va sched_lock
+mutex held.
+.Sh SEE ALSO
+.Xr cpu_switch 9 ,
+.Xr scheduler 9 ,
+.Xr sleepqueue 9

@@ -1,0 +1,125 @@
+.\" Copyright (c) 2008 Weongyo Jeong
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 17, 2009
+.Dt URTW 4
+.Os
+.Sh NAME
+.Nm urtw
+.Nd Realtek RTL8187B/L USB IEEE 802.11b/g wireless network device
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ehci"
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device urtw"
+.Cd "device wlan"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time,
+place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_urtw_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB 802.11b/g wireless adapters based on the
+Realtek RTL8187B/L.
+.Pp
+.Nm
+supports
+.Cm station
+and
+.Cm monitor
+mode operation.
+Only one virtual interface may be configured at any time.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Realtek RTL8187B/L based wireless network devices, including:
+.Pp
+.Bl -column "Shuttle XPC Accessory PN20" "RTL8225" "USB" -compact -offset 6n
+.It Em "Card	Radio	Bus"
+.It "Belkin F5D7050E	RTL8225	USB"
+.It "Linksys WUSB54GCv2	RTL8225	USB"
+.It "Netgear WG111v2	RTL8225	USB"
+.It "Netgear WG111v3	RTL8225	USB"
+.It "Safehome WLG-1500SMA5	RTL8225	USB"
+.It "Shuttle XPC Accessory PN20	RTL8225	USB"
+.It "Sitecom WL168v1	RTL8225	USB"
+.It "Sitecom WL168v4	RTL8225	USB"
+.It "SureCom EP-9001-g(2A)	RTL8225	USB"
+.It "TRENDnet TEW-424UB V3.xR	RTL8225	USB"
+.El
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Bd -literal -offset indent
+ifconfig wlan create wlandev urtw0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wlan create wlandev urtw0 ssid my_net up"
+.Pp
+Join a specific BSS network with 64-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev urtw0 ssid my_net \e
+	wepmode on wepkey 0x1234567890 weptxkey 1 up
+.Ed
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr wlan 4 ,
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Rs
+.%T Realtek
+.%U http://www.realtek.com.tw
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Weongyo Jeong Aq Mt weongyo@FreeBSD.org .

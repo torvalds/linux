@@ -1,0 +1,26 @@
+
+#------------------------------------------------------------------------------
+# $File: netscape,v 1.8 2017/03/17 21:35:28 christos Exp $
+# netscape:  file(1) magic for Netscape files
+# "H. Nanosecond" <aldomel@ix.netcom.com>
+# version 3 and 4 I think
+#
+
+# Netscape Address book  .nab
+0	string \000\017\102\104\000\000\000\000\000\000\001\000\000\000\000\002\000\000\000\002\000\000\004\000 Netscape Address book
+
+# Netscape Communicator address book
+0   string   \000\017\102\111 Netscape Communicator address book
+
+# .snm Caches
+0	string		#\ Netscape\ folder\ cache	Netscape folder cache
+0	string	\000\036\204\220\000	Netscape folder cache
+# .n2p
+# Net 2 Phone
+#0	string	123\130\071\066\061\071\071\071\060\070\061\060\061\063\060
+0	string	SX961999	Net2phone
+
+#
+#This is files ending in .art, FIXME add more rules
+0	string	JG\004\016\0\0\0\0	AOL ART image
+0	string	JG\003\016\0\0\0\0	AOL ART image

@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+(exit 42) | : &
+set -o pipefail
+wait %+

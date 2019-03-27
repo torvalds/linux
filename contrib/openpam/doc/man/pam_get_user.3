@@ -1,0 +1,108 @@
+.\" Generated from pam_get_user.c by gendoc.pl
+.\" $OpenPAM: pam_get_user.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_GET_USER 3
+.Os
+.Sh NAME
+.Nm pam_get_user
+.Nd retrieve user name
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.Ft "int"
+.Fn pam_get_user "pam_handle_t *pamh" "const char **user" "const char *prompt"
+.Sh DESCRIPTION
+The
+.Fn pam_get_user
+function returns the name of the target user, as
+specified to
+.Xr pam_start 3 .
+If no user was specified, nor set using
+.Xr pam_set_item 3 ,
+.Fn pam_get_user
+will prompt for a user name.
+Either way, a pointer to the user name is stored in the location
+pointed to by the
+.Fa user
+argument, and the corresponding PAM item is
+updated.
+.Pp
+The
+.Fa prompt
+argument specifies a prompt to use if no user name is
+cached.
+If it is
+.Dv NULL ,
+the
+.Dv PAM_USER_PROMPT
+item will be used.
+If that item is also
+.Dv NULL ,
+a hardcoded default prompt will be used.
+Additionally, when
+.Fn pam_get_user
+is called from a service module, the
+prompt may be affected by module options as described below.
+The prompt is then expanded using
+.Xr openpam_subst 3
+before it is passed to
+the conversation function.
+.Sh MODULE OPTIONS
+When called by a service module,
+.Fn pam_get_user
+will recognize the
+following module options:
+.Bl -tag -width 18n
+.It Dv user_prompt
+Prompt to use when asking for the user name.
+This option overrides both the
+.Fa prompt
+argument and the
+.Dv PAM_USER_PROMPT
+item.
+.El
+.Sh RETURN VALUES
+The
+.Fn pam_get_user
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BAD_ITEM
+Unrecognized or restricted item.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.El
+.Sh SEE ALSO
+.Xr openpam_get_option 3 ,
+.Xr openpam_subst 3 ,
+.Xr pam 3 ,
+.Xr pam_conv 3 ,
+.Xr pam_get_authtok 3 ,
+.Xr pam_get_item 3 ,
+.Xr pam_set_item 3 ,
+.Xr pam_start 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The
+.Fn pam_get_user
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

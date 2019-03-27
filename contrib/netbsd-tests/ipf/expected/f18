@@ -1,0 +1,27 @@
+pass
+pass
+pass
+pass
+List of active MAP/Redirect filters:
+
+List of active sessions:
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+2 pass in inet from 1.1.1.1/32 to any
+Rules configured (set 0, out)
+2 pass out inet from 2.2.2.2/32 to any
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+1 count in inet from 1.1.1.1/32 to 3.3.3.3/32
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+1 count out inet from 2.2.2.2/32 to 4.4.4.4/32
+Accounting rules configured (set 1, out)
+--------

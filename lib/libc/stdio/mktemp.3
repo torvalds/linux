@@ -1,0 +1,326 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)mktemp.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd August 8, 2013
+.Dt MKTEMP 3
+.Os
+.Sh NAME
+.Nm mktemp
+.Nd make temporary file name (unique)
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft char *
+.Fn mktemp "char *template"
+.Ft int
+.Fn mkstemp "char *template"
+.Ft int
+.Fn mkostemp "char *template" "int oflags"
+.Ft int
+.Fn mkostemps "char *template" "int suffixlen" "int oflags"
+.Ft char *
+.Fn mkdtemp "char *template"
+.In unistd.h
+.Ft int
+.Fn mkstemps "char *template" "int suffixlen"
+.Sh DESCRIPTION
+The
+.Fn mktemp
+function
+takes the given file name template and overwrites a portion of it
+to create a file name.
+This file name is guaranteed not to exist at the time of function invocation
+and is suitable for use
+by the application.
+The template may be any file name with some number of
+.Ql X Ns s
+appended
+to it, for example
+.Pa /tmp/temp.XXXXXX .
+The trailing
+.Ql X Ns s
+are replaced with a
+unique alphanumeric combination.
+The number of unique file names
+.Fn mktemp
+can return depends on the number of
+.Ql X Ns s
+provided; six
+.Ql X Ns s
+will
+result in
+.Fn mktemp
+selecting one of 56800235584 (62 ** 6) possible temporary file names.
+.Pp
+The
+.Fn mkstemp
+function
+makes the same replacement to the template and creates the template file,
+mode 0600, returning a file descriptor opened for reading and writing.
+This avoids the race between testing for a file's existence and opening it
+for use.
+.Pp
+The
+.Fn mkostemp
+function
+is like
+.Fn mkstemp
+but allows specifying additional
+.Xr open 2
+flags (defined in
+.In fcntl.h ) .
+The permitted flags are
+.Dv O_APPEND ,
+.Dv O_DIRECT ,
+.Dv O_SHLOCK ,
+.Dv O_EXLOCK ,
+.Dv O_SYNC
+and
+.Dv O_CLOEXEC .
+.Pp
+The
+.Fn mkstemps
+and
+.Fn mkostemps
+functions act the same as
+.Fn mkstemp
+and
+.Fn mkostemp
+respectively,
+except they permit a suffix to exist in the template.
+The template should be of the form
+.Pa /tmp/tmpXXXXXXsuffix .
+The
+.Fn mkstemps
+and
+.Fn mkostemps
+function
+are told the length of the suffix string.
+.Pp
+The
+.Fn mkdtemp
+function makes the same replacement to the template as in
+.Fn mktemp
+and creates the template directory, mode 0700.
+.Sh RETURN VALUES
+The
+.Fn mktemp
+and
+.Fn mkdtemp
+functions return a pointer to the template on success and
+.Dv NULL
+on failure.
+The
+.Fn mkstemp ,
+.Fn mkostemp
+.Fn mkstemps
+and
+.Fn mkostemps
+functions
+return \-1 if no suitable file could be created.
+If either call fails an error code is placed in the global variable
+.Va errno .
+.Sh ERRORS
+The
+.Fn mkstemp ,
+.Fn mkostemp ,
+.Fn mkstemps ,
+.Fn mkostemps
+and
+.Fn mkdtemp
+functions
+may set
+.Va errno
+to one of the following values:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+The pathname portion of the template is not an existing directory.
+.El
+.Pp
+The
+.Fn mkostemp
+and
+.Fn mkostemps
+functions
+may also set
+.Va errno
+to the following value:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa oflags
+argument is invalid.
+.El
+.Pp
+The
+.Fn mkstemp ,
+.Fn mkostemp ,
+.Fn mkstemps ,
+.Fn mkostemps
+and
+.Fn mkdtemp
+functions
+may also set
+.Va errno
+to any value specified by the
+.Xr stat 2
+function.
+.Pp
+The
+.Fn mkstemp ,
+.Fn mkostemp ,
+.Fn mkstemps
+and
+.Fn mkostemps
+functions
+may also set
+.Va errno
+to any value specified by the
+.Xr open 2
+function.
+.Pp
+The
+.Fn mkdtemp
+function
+may also set
+.Va errno
+to any value specified by the
+.Xr mkdir 2
+function.
+.Sh NOTES
+A common problem that results in a core dump is that the programmer
+passes in a read-only string to
+.Fn mktemp ,
+.Fn mkstemp ,
+.Fn mkstemps
+or
+.Fn mkdtemp .
+This is common with programs that were developed before
+.St -isoC
+compilers were common.
+For example, calling
+.Fn mkstemp
+with an argument of
+.Qq /tmp/tempfile.XXXXXX
+will result in a core dump due to
+.Fn mkstemp
+attempting to modify the string constant that was given.
+.Pp
+The
+.Fn mkdtemp ,
+.Fn mkstemp
+and
+.Fn mktemp
+function prototypes are also available from
+.In unistd.h .
+.Sh SEE ALSO
+.Xr chmod 2 ,
+.Xr getpid 2 ,
+.Xr mkdir 2 ,
+.Xr open 2 ,
+.Xr stat 2
+.Sh STANDARDS
+The
+.Fn mkstemp
+and
+.Fn mkdtemp
+functions are expected to conform to
+.St -p1003.1-2008 .
+The
+.Fn mktemp
+function is expected to conform to
+.St -p1003.1-2001
+and is not specified by
+.St -p1003.1-2008 .
+The
+.Fn mkostemp ,
+.Fn mkstemps
+and
+.Fn mkostemps
+functions do not conform to any standard.
+.Sh HISTORY
+A
+.Fn mktemp
+function appeared in
+.At v7 .
+The
+.Fn mkstemp
+function appeared in
+.Bx 4.4 .
+The
+.Fn mkdtemp
+function first appeared in
+.Ox 2.2 ,
+and later in
+.Fx 3.2 .
+The
+.Fn mkstemps
+function first appeared in
+.Ox 2.4 ,
+and later in
+.Fx 3.4 .
+The
+.Fn mkostemp
+and
+.Fn mkostemps
+functions appeared in
+.Fx 10.0 .
+.Sh BUGS
+This family of functions produces filenames which can be guessed,
+though the risk is minimized when large numbers of
+.Ql X Ns s
+are used to
+increase the number of possible temporary filenames.
+This makes the race in
+.Fn mktemp ,
+between testing for a file's existence (in the
+.Fn mktemp
+function call)
+and opening it for use
+(later in the user application)
+particularly dangerous from a security perspective.
+Whenever it is possible,
+.Fn mkstemp
+or
+.Fn mkostemp
+should be used instead, since it does not have the race condition.
+If
+.Fn mkstemp
+cannot be used, the filename created by
+.Fn mktemp
+should be created using the
+.Dv O_EXCL
+flag to
+.Xr open 2
+and the return status of the call should be tested for failure.
+This will ensure that the program does not continue blindly
+in the event that an attacker has already created the file
+with the intention of manipulating or reading its contents.

@@ -1,0 +1,80 @@
+.\" $FreeBSD$
+.\" Written by Tom Rhodes
+.\" This file is public domain
+.\"
+.Dd February 15, 2017
+.Dt IDA 4
+.Os
+.Sh NAME
+.Nm ida
+.Nd Compaq Intelligent Drive Array Controllers
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device ida"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ida_load="YES"
+.Ed
+.Sh DESCRIPTION
+The Compaq Intelligent Drive Array (IDA) technology is used to
+distribute data across an array of hard drives.
+It unites these hard drives into one or more high-performance logical drives.
+The drive array is managed by an array controller.
+.Pp
+These controllers have the ability to provide fault tolerance for the connected
+drives and optionally provide write cache for the logical drives.
+It is also possible for an application to access the SCSI bus subsystem
+directly by using the pass-through interface.
+.Sh HARDWARE
+The following controllers are supported by the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+Compaq SMART Array 221
+.It
+Compaq Integrated SMART Array Controller
+.It
+Compaq SMART Array 4200
+.It
+Compaq SMART Array 4250ES
+.It
+Compaq SMART 3200 Controller
+.It
+Compaq SMART 3100ES Controller
+.It
+Compaq SMART-2/DH Controller
+.It
+Compaq SMART-2/SL Controller
+.It
+Compaq SMART-2/P Controller
+.El
+.Sh IMPLEMENTATION NOTES
+Extreme caution should be exercised when using the pass-through interface.
+It is possible to interfere with normal system I/O and cause hangs if
+pass-through is used to an active device.
+Pass-through should only be used to a device that is otherwise quiescent.
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr pass 4 ,
+.Xr xpt 4 ,
+.Xr camcontrol 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jonathan Lemon Aq Mt jlemon@FreeBSD.org
+and
+.An Matthew N. Dodd Aq Mt mdodd@FreeBSD.org .
+This manual page was written by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org .

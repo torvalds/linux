@@ -1,0 +1,149 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_str.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd April 3, 2011
+.Dt DWARF_GET_STR 3
+.Os
+.Sh NAME
+.Nm dwarf_get_str
+.Nd retrieve a string from the DWARF string section
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_get_str
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Off offset"
+.Fa "char **string"
+.Fa "Dwarf_Signed *len"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_get_str
+retrieves a NUL-terminated string from the DWARF string section
+.Dq ".debug_str" .
+.Pp
+Argument
+.Ar dbg
+should reference a DWARF debug context allocated using
+.Xr dwarf_init 3 .
+.Pp
+Argument
+.Ar offset
+should be an offset, relative to the
+.Dq ".debug_str"
+section, specifying the start of the desired string.
+.Pp
+Argument
+.Ar string
+should point to a location which will hold a returned
+pointer to a NUL-terminated string.
+.Pp
+Argument
+.Ar len
+should point to a location which will hold the length
+of the returned string.
+The returned length does not include the space needed for
+the NUL-terminator.
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case of an
+error.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_get_str
+returns
+.Dv DW_DLV_OK
+when it succeeds.
+It returns
+.Dv DW_DLV_NO_ENTRY
+if there is no
+.Dq ".debug_str"
+section associated with the specified debugging context,
+or if the provided offset
+.Ar offset
+is at the very end of
+.Dq ".debug_str"
+section.
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh EXAMPLES
+To retrieve all the strings in the DWARF string section, use:
+.Bd -literal -offset indent
+Dwarf_Debug dbg;
+Dwarf_Off offset;
+Dwarf_Signed len;
+Dwarf_Error de;
+char *str;
+int ret
+
+offset = 0;
+while ((ret = dwarf_get_str(dbg, offset, &str, &len, &de)) ==
+	DW_DLV_OK) {
+	/* .. Use the retrieved string. .. */
+	offset += len + 1; /* Account for the terminating NUL. */
+}
+
+if (ret == DW_DLV_ERROR)
+	warnx("dwarf_get_str: %s", dwarf_errmsg(de));
+.Ed
+.Sh ERRORS
+Function
+.Fn dwarf_get_str
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar dbg ,
+.Ar string
+or
+.Ar len
+was NULL.
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Ar offset
+was out of range.
+.It Bq Er DW_DLE_NO_ENTRY
+The debugging context
+.Ar dbg
+did not contain a
+.Dq ".debug_str"
+string section.
+.It Bq Er DW_DLE_NO_ENTRY
+Argument
+.Ar offset
+was at the very end of the
+.Dq ".debug_str"
+section.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_init 3

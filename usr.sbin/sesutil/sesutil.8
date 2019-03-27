@@ -1,0 +1,140 @@
+.\" Copyright (c) 2015 Baptiste Daroussin <bapt@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 29, 2017
+.Dt SESUTIL 8
+.Os
+.Sh NAME
+.Nm sesutil
+.Nd Utility for managing SCSI Enclosure Services (SES) device
+.Sh SYNOPSIS
+.Nm
+.Cm fault
+.Op Fl u Ar /dev/sesN
+.Aq Ar disk | Ar sesid | Li all
+.Op on | off
+.Nm
+.Cm locate
+.Op Fl u Ar /dev/sesN
+.Aq Ar disk | Ar sesid | Li all
+.Op on | off
+.Nm
+.Cm map
+.Op Fl -libxo Ar options
+.Op Fl u Ar /dev/sesN
+.Nm
+.Cm status
+.Op Fl -libxo Ar options
+.Op Fl u Ar /dev/sesN
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to query and modify various parameter of SCSI Enclosure
+Services (SES) devices.
+.Pp
+List of supported commands:
+.Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+.It Cm fault Oo Fl u Ar /dev/sesN Oc Ao Ar disk | Li all Ac Op on | off
+Change the state of the external fault LED associated with
+.Ar disk .
+.Ar disk
+can be the device name of the disk, like
+.Cm da12 ,
+or
+.Ql all .
+to indicate all disks attached to SES controllers.
+.It Cm fault Fl u Ar /dev/sesN Ar sesid Op on | off
+Change the state of the external fault LED associated with an element
+connected to the SES controller.
+.Ar sesid
+must be the element ID of a valid item attached to the controller.
+Use the
+.Cm map
+command to list the elements attached to a controller.
+.It Cm locate Oo Fl u Ar /dev/sesN Oc Ao Ar disk | Li all Ac Op on | off
+Change the state of the external locate LED associated with
+.Ar disk .
+.Ar disk
+can be the device name of the disk, like
+.Cm da12 ,
+or
+.Ql all .
+to indicate all disks attached to SES controllers.
+.It Cm locate Fl u Ar /dev/sesN Ar sesid Op on | off
+Change the state of the external locate LED associated with an element
+connected to the SES controller.
+.Ar sesid
+must be the element ID of a valid item attached to the controller.
+Use the
+.Cm map
+command to list the elements attached to a controller.
+.It Cm map Op Fl u Ar /dev/sesN
+Display a map of all elements connected to the specified
+.Xr ses 4
+controller.
+If no controller is specified, all controllers are mapped.
+.It Cm status Op Fl u Ar /dev/sesN
+Display the status of the specified
+.Xr ses 4
+controller.
+If no controller is specified, the status of each controller is returned.
+.El
+.Sh EXAMPLES
+Turn off all locate LEDs:
+.Pp
+.Dl Nm Cm locate all off
+.Pp
+Turn on the locate LED for the drive bay corresponding to
+.Pa da15 :
+.Pp
+.Dl Nm Cm locate da15 on
+.Pp
+Turn on the fault LED for a drive bay not associated with a device:
+.Pp
+.Dl Nm Cm fault -u /dev/ses2 7 on
+.Sh SEE ALSO
+.Xr libxo 3 ,
+.Xr xo_parse_args 3 ,
+.Xr ses 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org
+and
+.An Allan Jude Aq Mt allanjude@FreeBSD.org .

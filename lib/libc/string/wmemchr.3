@@ -1,0 +1,174 @@
+.\"	$NetBSD: wmemchr.3,v 1.4 2001/01/02 11:26:23 itojun Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)strcpy.3	8.1 (Berkeley) 6/4/93
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 4, 2009
+.Dt WMEMCHR 3
+.Os
+.Sh NAME
+.Nm wmemchr ,
+.Nm wmemcmp ,
+.Nm wmemcpy ,
+.Nm wmemmove ,
+.Nm wmemset ,
+.Nm wcpcpy ,
+.Nm wcpncpy ,
+.Nm wcscasecmp ,
+.Nm wcscat ,
+.Nm wcschr ,
+.Nm wcscmp ,
+.Nm wcscpy ,
+.Nm wcscspn ,
+.Nm wcsdup ,
+.Nm wcslcat ,
+.Nm wcslcpy ,
+.Nm wcslen ,
+.Nm wcsncasecmp ,
+.Nm wcsncat ,
+.Nm wcsncmp ,
+.Nm wcsncpy ,
+.Nm wcsnlen ,
+.Nm wcspbrk ,
+.Nm wcsrchr ,
+.Nm wcsspn ,
+.Nm wcsstr
+.Nd wide character string manipulation operations
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In wchar.h
+.Ft wchar_t *
+.Fn wmemchr "const wchar_t *s" "wchar_t c" "size_t n"
+.Ft int
+.Fn wmemcmp "const wchar_t *s1" "const wchar_t *s2" "size_t n"
+.Ft wchar_t *
+.Fn wmemcpy "wchar_t * restrict s1" "const wchar_t * restrict s2" "size_t n"
+.Ft wchar_t *
+.Fn wmemmove "wchar_t *s1" "const wchar_t *s2" "size_t n"
+.Ft wchar_t *
+.Fn wmemset "wchar_t *s" "wchar_t c" "size_t n"
+.Ft wchar_t *
+.Fn wcpcpy "wchar_t *s1" "wchar_t *s2"
+.Ft wchar_t *
+.Fn wcpncpy "wchar_t *s1" "wchar_t *s2" "size_t n"
+.Ft int
+.Fn wcscasecmp "const wchar_t *s1" "const wchar_t *s2"
+.Ft wchar_t *
+.Fn wcscat "wchar_t * restrict s1" "const wchar_t * restrict s2"
+.Ft wchar_t *
+.Fn wcschr "const wchar_t *s" "wchar_t c"
+.Ft int
+.Fn wcscmp "const wchar_t *s1" "const wchar_t *s2"
+.Ft wchar_t *
+.Fn wcscpy "wchar_t * restrict s1" "const wchar_t * restrict s2"
+.Ft size_t
+.Fn wcscspn "const wchar_t *s1" "const wchar_t *s2"
+.Ft wchar_t *
+.Fn wcsdup "const wchar_t *s"
+.Ft size_t
+.Fn wcslcat "wchar_t *s1" "const wchar_t *s2" "size_t n"
+.Ft size_t
+.Fn wcslcpy "wchar_t *s1" "const wchar_t *s2" "size_t n"
+.Ft size_t
+.Fn wcslen "const wchar_t *s"
+.Ft int
+.Fn wcsncasecmp "const wchar_t *s1" "const wchar_t *s2" "size_t n"
+.Ft wchar_t *
+.Fn wcsncat "wchar_t * restrict s1" "const wchar_t * restrict s2" "size_t n"
+.Ft int
+.Fn wcsncmp "const wchar_t *s1" "const wchar_t * s2" "size_t n"
+.Ft wchar_t *
+.Fn wcsncpy "wchar_t * restrict s1" "const wchar_t * restrict s2" "size_t n"
+.Ft size_t
+.Fn wcsnlen "const wchar_t *s" "size_t maxlen"
+.Ft wchar_t *
+.Fn wcspbrk "const wchar_t *s1" "const wchar_t *s2"
+.Ft wchar_t *
+.Fn wcsrchr "const wchar_t *s" "wchar_t c"
+.Ft size_t
+.Fn wcsspn "const wchar_t *s1" "const wchar_t *s2"
+.Ft wchar_t *
+.Fn wcsstr "const wchar_t * restrict s1" "const wchar_t * restrict s2"
+.Sh DESCRIPTION
+The functions implement string manipulation operations over wide character
+strings.
+For a detailed description, refer to documents for the respective single-byte
+counterpart, such as
+.Xr memchr 3 .
+.Sh SEE ALSO
+.Xr memchr 3 ,
+.Xr memcmp 3 ,
+.Xr memcpy 3 ,
+.Xr memmove 3 ,
+.Xr memset 3 ,
+.Xr stpcpy 3 ,
+.Xr stpncpy 3 ,
+.Xr strcasecmp 3 ,
+.Xr strcat 3 ,
+.Xr strchr 3 ,
+.Xr strcmp 3 ,
+.Xr strcpy 3 ,
+.Xr strcspn 3 ,
+.Xr strdup 3 ,
+.Xr strlcat 3 ,
+.Xr strlcpy 3 ,
+.Xr strlen 3 ,
+.Xr strncat 3 ,
+.Xr strncmp 3 ,
+.Xr strncpy 3 ,
+.Xr strnlen 3 ,
+.Xr strpbrk 3 ,
+.Xr strrchr 3 ,
+.Xr strspn 3 ,
+.Xr strstr 3
+.Sh STANDARDS
+These functions conform to
+.St -isoC-99 ,
+with the exception of
+.Fn wcpcpy ,
+.Fn wcpncpy ,
+.Fn wcscasecmp ,
+.Fn wcsdup ,
+.Fn wcsncasecmp ,
+and
+.Fn wcsnlen ,
+which conform to
+.St -p1003.1-2008 ;
+and
+.Fn wcslcat
+and
+.Fn wcslcpy ,
+which are extensions.

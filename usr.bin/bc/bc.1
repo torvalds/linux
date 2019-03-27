@@ -1,0 +1,416 @@
+.\"	$FreeBSD$
+.\"	$OpenBSD: bc.1,v 1.32 2015/11/17 05:45:35 mmcc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)bc.1	6.8 (Berkeley) 8/8/91
+.\"
+.Dd November 21, 2015
+.Dt BC 1
+.Os
+.Sh NAME
+.Nm bc
+.Nd arbitrary-precision arithmetic language and calculator
+.Sh SYNOPSIS
+.Nm bc
+.Op Fl chlv
+.Op Fl e Ar expression
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+is an interactive processor for a language which resembles
+C but provides unlimited precision arithmetic.
+It takes input from any expressions on the command line and
+any files given, then reads the standard input.
+.Pp
+Options available:
+.Bl -tag -width Ds
+.It Fl c
+.Nm
+is actually a preprocessor for
+.Xr dc 1 ,
+which it invokes automatically, unless the
+.Fl c
+.Pq compile only
+option is present.
+In this case the generated
+.Xr dc 1
+instructions are sent to the standard output,
+instead of being interpreted by a running
+.Xr dc 1
+process.
+.It Fl e Ar expression , Fl Fl expression Ar expression
+Evaluate
+.Ar expression .
+If multiple
+.Fl e
+options are specified, they are processed in the order given,
+separated by newlines.
+.It Fl h , Fl Fl help
+Prints usage information.
+.It Fl l , Fl Fl mathlib
+Allow specification of an arbitrary precision math library.
+The definitions in the library are available to command line
+expressions.
+.It Fl v , Fl Fl version
+Prints version information.
+.El
+.Pp
+The syntax for
+.Nm
+programs is as follows:
+.Sq L
+means letter a-z;
+.Sq E
+means expression;
+.Sq S
+means statement.
+As a non-portable extension, it is possible to use long names
+in addition to single letter names.
+A long name is a sequence starting with a lowercase letter
+followed by any number of lowercase letters and digits.
+The underscore character
+.Pq Sq _
+counts as a letter.
+.Pp
+Comments
+.Bd -unfilled -offset indent -compact
+are enclosed in /* and */
+are enclosed in # and the next newline
+.Ed
+.Pp
+The newline is not part of the line comment,
+which in itself is a non-portable extension.
+.Pp
+Names
+.Bd -unfilled -offset indent -compact
+simple variables: L
+array elements: L [ E ]
+The words `ibase', `obase', and `scale'
+The word `last' or a single dot
+.Ed
+.Pp
+Other operands
+.Bd -unfilled -offset indent -compact
+arbitrarily long numbers with optional sign and decimal point
+( E )
+sqrt ( E )
+length ( E )	number of significant decimal digits
+scale ( E )	number of digits right of decimal point
+L ( E , ... , E )
+.Ed
+.Pp
+The sequence
+.Sq \e<newline><whitespace>
+is ignored within numbers.
+.Pp
+Operators
+.Pp
+The following arithmetic and logical operators can be used.
+The semantics of the operators is the same as in the C language.
+They are listed in order of decreasing precedence.
+Operators in the same group have the same precedence.
+.Bl -column "= += \-= *= /= %= ^=" "Associativity" "multiply, divide, modulus" -offset indent
+.It Sy "Operator" Ta Sy "Associativity" Ta Sy "Description"
+.It "++ \-\-" Ta "none" Ta "increment, decrement"
+.It "\-" Ta "none" Ta "unary minus"
+.It "^" Ta "right" Ta "power"
+.It "* / %" Ta "left" Ta "multiply, divide, modulus"
+.It "+ \-" Ta "left" Ta "plus, minus"
+.It "= += -= *= /= %= ^=" Ta "right" Ta "assignment"
+.It "== <= >= != < >" Ta "none" Ta "relational"
+.It "!" Ta "none" Ta "boolean not"
+.It "&&" Ta "left" Ta "boolean and"
+.It "||" Ta "left" Ta "boolean or"
+.El
+.Pp
+Note the following:
+.Bl -bullet -offset indent
+.It
+The relational operators may appear in any expression.
+The
+.St -p1003.1-2008
+standard only allows them in the conditional expression of an
+.Sq if ,
+.Sq while
+or
+.Sq for
+statement.
+.It
+The relational operators have a lower precedence than the assignment
+operators.
+This has the consequence that the expression
+.Sy a = b < c
+is interpreted as
+.Sy (a = b) < c ,
+which is probably not what the programmer intended.
+.It
+In contrast with the C language, the relational operators all have
+the same precedence, and are non-associative.
+The expression
+.Sy a < b < c
+will produce a syntax error.
+.It
+The boolean operators (!, && and ||) are non-portable extensions.
+.It
+The boolean not
+(!) operator has much lower precedence than the same operator in the
+C language.
+This has the consequence that the expression
+.Sy !a < b
+is interpreted as
+.Sy !(a < b) .
+Prudent programmers use parentheses when writing expressions involving
+boolean operators.
+.El
+.Pp
+Statements
+.Bd -unfilled -offset indent -compact
+E
+{ S ; ... ; S }
+if ( E ) S
+if ( E ) S else S
+while ( E ) S
+for ( E ; E ; E ) S
+null statement
+break
+continue
+quit
+a string of characters, enclosed in double quotes
+print E ,..., E
+.Ed
+.Pp
+A string may contain any character, except double quote.
+The if statement with an else branch is a non-portable extension.
+All three E's in a for statement may be empty.
+This is a non-portable extension.
+The continue and print statements are also non-portable extensions.
+.Pp
+The print statement takes a list of comma-separated expressions.
+Each expression in the list is evaluated and the computed
+value is printed and assigned to the variable `last'.
+No trailing newline is printed.
+The expression may also be a string enclosed in double quotes.
+Within these strings the following escape sequences may be used:
+.Sq \ea
+for bell (alert),
+.Sq \eb
+for backspace,
+.Sq \ef
+for formfeed,
+.Sq \en
+for newline,
+.Sq \er
+for carriage return,
+.Sq \et
+for tab,
+.Sq \eq
+for double quote and
+.Sq \e\e
+for backslash.
+Any other character following a backslash will be ignored.
+Strings will not be assigned to `last'.
+.Pp
+Function definitions
+.Bd -unfilled -offset indent
+define L ( L ,..., L ) {
+	auto L, ... , L
+	S; ... S
+	return ( E )
+}
+.Ed
+.Pp
+As a non-portable extension, the opening brace of the define statement
+may appear on the next line.
+The return statement may also appear in the following forms:
+.Bd -unfilled -offset indent
+return
+return ()
+return E
+.Ed
+.Pp
+The first two are equivalent to the statement
+.Dq return 0 .
+The last form is a non-portable extension.
+Not specifying a return statement is equivalent to writing
+.Dq return (0) .
+.Pp
+Functions available in the math library, which is loaded by specifying the
+.Fl l
+flag on the command line
+.Pp
+.Bl -tag -width j(n,x) -offset indent -compact
+.It s(x)
+sine
+.It c(x)
+cosine
+.It e(x)
+exponential
+.It l(x)
+log
+.It a(x)
+arctangent
+.It j(n,x)
+Bessel function
+.El
+.Pp
+All function arguments are passed by value.
+.Pp
+The value of a statement that is an expression is printed
+unless the main operator is an assignment.
+The value printed is assigned to the special variable `last'.
+This is a non-portable extension.
+A single dot may be used as a synonym for `last'.
+Either semicolons or newlines may separate statements.
+Assignment to
+.Ar scale
+influences the number of digits to be retained on arithmetic
+operations in the manner of
+.Xr dc 1 .
+Assignments to
+.Ar ibase
+or
+.Ar obase
+set the input and output number radix respectively.
+.Pp
+The same letter may be used as an array, a function,
+and a simple variable simultaneously.
+All variables are global to the program.
+`Auto' variables are pushed down during function calls.
+When using arrays as function arguments
+or defining them as automatic variables,
+empty square brackets must follow the array name.
+.Pp
+For example
+.Bd -literal -offset indent
+scale = 20
+define e(x){
+	auto a, b, c, i, s
+	a = 1
+	b = 1
+	s = 1
+	for(i=1; 1==1; i++){
+		a = a*x
+		b = b*i
+		c = a/b
+		if(c == 0) return(s)
+		s = s+c
+	}
+}
+.Ed
+.Pp
+defines a function to compute an approximate value of
+the exponential function and
+.Pp
+.Dl for(i=1; i<=10; i++) e(i)
+.Pp
+prints approximate values of the exponential function of
+the first ten integers.
+.Bd -literal -offset indent
+$ bc -l -e 'scale = 500; 2 * a(2^10000)' -e quit
+.Ed
+.Pp
+prints an approximation of pi.
+.Sh COMMAND LINE EDITING
+.Nm
+supports interactive command line editing, via the
+.Xr editline 3
+library.
+It is enabled by default if input is from a tty.
+Previous lines can be recalled and edited with the arrow keys,
+and other GNU Emacs-style editing keys may be used as well.
+.Pp
+The
+.Xr editline 3
+library is configured with a
+.Pa .editrc
+file \- refer to
+.Xr editrc 5
+for more information.
+.Sh FILES
+.Bl -tag -width /usr/share/misc/bc.library -compact
+.It Pa /usr/share/misc/bc.library
+math library, read when the
+.Fl l
+option is specified on the command line.
+.El
+.Sh COMPATIBILITY
+The
+.Fl q
+and
+.Fl Fl quiet
+options are no-ops for compatibility with some other implementations of
+.Nm
+and their use is discouraged.
+.Sh SEE ALSO
+.Xr dc 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The flags
+.Op Fl ce ,
+as well as the parts noted above,
+are extensions to that specification.
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.At v6 .
+A complete rewrite of the
+.Nm
+command first appeared in
+.Ox 3.5 .
+.Sh AUTHORS
+.An -nosplit
+The original version of the
+.Nm
+command was written by
+.An Robert Morris
+and
+.An Lorinda Cherry .
+The current version of the
+.Nm
+utility was written by
+.An Otto Moerbeek .
+.Sh BUGS
+The
+.Ql quit
+statement is interpreted when read, not when executed.
+.Pp
+Some non-portable extensions, as found in the GNU version of the
+.Nm
+utility are not implemented (yet).

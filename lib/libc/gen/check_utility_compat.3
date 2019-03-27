@@ -1,0 +1,89 @@
+.\"
+.\" Copyright 2002 Massachusetts Institute of Technology
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby
+.\" granted, provided that both the above copyright notice and this
+.\" permission notice appear in all copies, that both the above
+.\" copyright notice and this permission notice appear in all
+.\" supporting documentation, and that the name of M.I.T. not be used
+.\" in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.  M.I.T. makes
+.\" no representations about the suitability of this software for any
+.\" purpose.  It is provided "as is" without express or implied
+.\" warranty.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+.\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+.\" SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 27, 2002
+.Dt CHECK_UTILITY_COMPAT 3
+.Os
+.Sh NAME
+.Nm check_utility_compat
+.Nd "determine whether a utility should be compatible"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn check_utility_compat "const char *utility"
+.Sh DESCRIPTION
+The
+.Fn check_utility_compat
+function checks whether
+.Fa utility
+should behave in a traditional
+.Pq Fx 4.7 Ns -compatible
+manner, or in accordance with
+.St -p1003.1-2001 .
+The configuration is given as a comma-separated list of utility names;
+if the list is present but empty, all supported utilities assume their
+most compatible mode.
+The
+.Fn check_utility_compat
+function first checks for an environment variable named
+.Ev _COMPAT_FreeBSD_4 .
+If that environment variable does not exist, then
+.Fn check_utility_compat
+will attempt to read the contents of a symbolic link named
+.Pa /etc/compat-FreeBSD-4-util .
+If no configuration is found, compatibility mode is disabled.
+.Sh RETURN VALUES
+The
+.Fn check_utility_compat
+function returns zero if
+.Fa utility
+should implement strict
+.St -p1003.1-2001
+behavior, and nonzero otherwise.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/compat-FreeBSD-4-util"
+.It Pa /etc/compat-FreeBSD-4-util
+If present, a symbolic link whose expansion gives system-wide default settings
+for the
+.Fn check_utility_compat
+function.
+.El
+.Sh ERRORS
+No errors are detected.
+.Sh HISTORY
+The
+.Fn check_utility_compat
+function first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+This manual page was written by
+.An Garrett Wollman Aq Mt wollman@FreeBSD.org .

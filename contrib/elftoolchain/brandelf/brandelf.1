@@ -1,0 +1,147 @@
+.\" Copyright 1997 John-Mark Gurney.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/usr.bin/brandelf/brandelf.1,v 1.17 2007/03/09 14:36:18 ru Exp $
+.\" $Id: brandelf.1 3235 2015-07-31 16:44:47Z emaste $
+.\"
+.Dd October 27, 2014
+.Dt BRANDELF 1
+.Os
+.Sh NAME
+.Nm brandelf
+.Nd mark an ELF binary for a specific ABI
+.Sh SYNOPSIS
+.Nm
+.Op Fl V | Fl -version
+.Op Fl f Ar ELF_ABI_number
+.Op Fl h | Fl -help
+.Op Fl l
+.Op Fl t Ar brand
+.Op Fl v
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility marks an ELF binary to be run under a certain ABI.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl f Ar ELF_ABI_number
+Forces branding with the supplied ELF ABI number.
+Incompatible with the
+.Fl t
+option.
+These values are assigned by SCO/USL.
+.It Fl h | Fl -help
+Print a usage message and exit.
+.It Fl l
+Writes the list of all known ELF types to standard output.
+.It Fl t Ar brand
+Brands the given ELF binaries to be of the ABI specified by argument
+.Ar brand .
+Supported ABIs include
+.Dq Li 86Open ,
+.Dq Li AIX ,
+.Dq Li ARM ,
+.Dq Li AROS ,
+.Dq Li FreeBSD ,
+.Dq Li GNU ,
+.Dq Li HP/UX ,
+.Dq Li Hurd ,
+.Dq Li IRIX ,
+.Dq Li Linux
+(an alias for
+.Dq Li GNU ) ,
+.Dq Li Modesto ,
+.Dq Li NSK ,
+.Dq Li NetBSD ,
+.Dq Li None ,
+.Dq Li OpenBSD ,
+.Dq Li OpenVMS ,
+.Dq Li Standalone ,
+.Dq Li SVR4
+(an alias for
+.Dq Li None ) ,
+.Dq Li Solaris
+and
+.Dq Li Tru64 .
+.It Fl v
+This option is accepted for compatibility with other versions of
+.Nm ,
+but is otherwise ignored.
+.It Fl V | Fl -version
+Print a version identifier and exit.
+.El
+.Pp
+If the options
+.Fl f Ar ELF_ABI_number
+or
+.Fl t Ar brand
+were specified,
+.Nm
+will brand the files named by command-line arguments
+.Ar
+to be of type
+.Ar ELF_ABI_number
+or
+.Ar brand
+respectively.
+.Pp
+If neither of the
+.Fl f
+or
+.Fl t
+options were specified,
+.Nm
+will display the current branding for the files named by the arguments
+.Ar .
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command
+fails if a file does not exist, is too short, fails to brand properly,
+or the brand requested is not one of the known types and the
+.Fl f
+option is not set.
+.Sh EXAMPLES
+The following is an example of a typical usage
+of the
+.Nm
+command:
+.Bd -literal -offset indent
+brandelf file
+brandelf -t GNU file
+.Ed
+.Sh SEE ALSO
+.Rs
+.%A The Santa Cruz Operation, Inc.
+.%T System V Application Binary Interface
+.%D April 29, 1998 (DRAFT)
+.%O http://www.sco.com/developer/devspecs/
+.Re
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+This manual page was written by
+.An John-Mark Gurney Aq Mt jmg@FreeBSD.org .

@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+arm/mv/discovery/discovery.c	standard
+arm/mv/ic.c			standard
+

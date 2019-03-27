@@ -1,0 +1,37 @@
+# Standard kernel config items for all ARMv4/v5 systems.
+#
+# $FreeBSD$
+
+options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
+options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
+
+# Debugging support.  Always need this:
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+options 	KDB			# Enable kernel debugger support.
+options 	KDB_TRACE		# Print a stack trace for a panic.
+
+# For full debugger support use (turn off in stable branch):
+options 	DDB			# Support DDB
+#options 	DEADLKRES		# Enable the deadlock resolver
+options 	INVARIANTS		# Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
+options 	WITNESS			# Enable checks to detect deadlocks and cycles
+options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
+#options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
+options 	ALT_BREAK_TO_DEBUGGER	# Enter debugger on keyboard escape sequence
+options 	USB_DEBUG		# Enable usb debug support code
+options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
+
+# Optional extras, never enabled by default:
+#options 	BOOTVERBOSE
+#options 	DEBUG			# May result in extreme spewage
+#options 	KTR
+#options 	KTR_COMPILE=KTR_ALL
+#options 	KTR_ENTRIES=16384
+#options 	KTR_MASK=(KTR_SPARE2)
+#options 	KTR_VERBOSE=0
+#options 	USB_REQ_DEBUG
+#options 	USB_VERBOSE
+
+
+

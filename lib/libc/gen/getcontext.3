@@ -1,0 +1,150 @@
+.\" Copyright (c) 2002 Packet Design, LLC.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty,
+.\" use and redistribution of this software, in source or object code
+.\" forms, with or without modifications are expressly permitted by
+.\" Packet Design; provided, however, that:
+.\"
+.\"    (i)  Any and all reproductions of the source or object code
+.\"         must include the copyright notice above and the following
+.\"         disclaimer of warranties; and
+.\"    (ii) No rights are granted, in any manner or form, to use
+.\"         Packet Design trademarks, including the mark "PACKET DESIGN"
+.\"         on advertising, endorsements, or otherwise except as such
+.\"         appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY PACKET DESIGN "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, PACKET DESIGN MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING
+.\" THIS SOFTWARE, INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+.\" OR NON-INFRINGEMENT.  PACKET DESIGN DOES NOT WARRANT, GUARANTEE,
+.\" OR MAKE ANY REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS
+.\" OF THE USE OF THIS SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY,
+.\" RELIABILITY OR OTHERWISE.  IN NO EVENT SHALL PACKET DESIGN BE
+.\" LIABLE FOR ANY DAMAGES RESULTING FROM OR ARISING OUT OF ANY USE
+.\" OF THIS SOFTWARE, INCLUDING WITHOUT LIMITATION, ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, PUNITIVE, OR CONSEQUENTIAL
+.\" DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, LOSS OF
+.\" USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+.\" THE USE OF THIS SOFTWARE, EVEN IF PACKET DESIGN IS ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 13, 2013
+.Dt GETCONTEXT 3
+.Os
+.Sh NAME
+.Nm getcontext , getcontextx , setcontext
+.Nd get and set user thread context
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In ucontext.h
+.Ft int
+.Fn getcontext "ucontext_t *ucp"
+.Ft ucontext_t *
+.Fn getcontextx "void"
+.Ft int
+.Fn setcontext "const ucontext_t *ucp"
+.Sh DESCRIPTION
+The
+.Fn getcontext
+function
+saves the current thread's execution context in the structure pointed to by
+.Fa ucp .
+This saved context may then later be restored by calling
+.Fn setcontext .
+.Pp
+The
+.Fn getcontextx
+function saves the current execution context in the newly allocated structure
+.Vt ucontext_t ,
+which is returned on success.
+If architecture defines additional CPU states that can be stored in extended
+blocks referenced from the
+.Vt ucontext_t ,
+the memory for them may be allocated and their context also stored.
+Memory returned by
+.Fn getcontextx
+function shall be freed using
+.Fn free 3 .
+.Pp
+The
+.Fn setcontext
+function
+makes a previously saved thread context the current thread context, i.e.,
+the current context is lost and
+.Fn setcontext
+does not return.
+Instead, execution continues in the context specified by
+.Fa ucp ,
+which must have been previously initialized by a call to
+.Fn getcontext ,
+.Xr makecontext 3 ,
+or by being passed as an argument to a signal handler (see
+.Xr sigaction 2 ) .
+.Pp
+If
+.Fa ucp
+was initialized by
+.Fn getcontext ,
+then execution continues as if the original
+.Fn getcontext
+call had just returned (again).
+.Pp
+If
+.Fa ucp
+was initialized by
+.Xr makecontext 3 ,
+execution continues with the invocation of the function specified to
+.Xr makecontext 3 .
+When that function returns,
+.Fa "ucp->uc_link"
+determines what happens next:
+if
+.Fa "ucp->uc_link"
+is
+.Dv NULL ,
+the process exits;
+otherwise,
+.Fn setcontext "ucp->uc_link"
+is implicitly invoked.
+.Pp
+If
+.Fa ucp
+was initialized by the invocation of a signal handler, execution continues
+at the point the thread was interrupted by the signal.
+.Sh RETURN VALUES
+If successful,
+.Fn getcontext
+returns zero and
+.Fn setcontext
+does not return; otherwise \-1 is returned.
+The
+.Fn getcontextx
+returns pointer to the allocated and initialized context on success, and
+.Va NULL
+on failure.
+.Sh ERRORS
+No errors are defined for
+.Fn getcontext
+or
+.Fn setcontext .
+The
+.Fn getcontextx
+may return the following errors in
+.Va errno :
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+No memory was available to allocate for the context or some extended state.
+.El
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr sigaltstack 2 ,
+.Xr makecontext 3 ,
+.Xr ucontext 3

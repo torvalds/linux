@@ -1,0 +1,231 @@
+.\" Copyright (c) 2008 Isilon Inc http://www.isilon.com/
+.\" Authors: Doug Rabson <dfr@rabson.org>
+.\" Developed with Red Inc: Alfred Perlstein <alfred@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd January 26, 2010
+.Dt RPC_GSS_SECCREATE 3
+.Os
+.Sh NAME
+.Nm RPCSEC_GSS
+.Nd "GSS-API based authentication for RPC"
+.Sh LIBRARY
+.Lb librpcsec_gss
+.Sh SYNOPSIS
+.In rpc/rpcsec_gss.h
+.Sh DESCRIPTION
+.Nm
+is a security mechanism for the RPC protocol.
+It uses the Generic Security Service API (GSS-API) to establish a
+security context between a client and a server and to ensure that all
+subsequent communication between client and server are properly
+authenticated.
+Optionally, extra protection can be applied to the connection.
+The integrity service uses checksums to ensure that all data sent by
+a peer is received without modification.
+The privacy service uses encryption to ensure that no third party can
+access the data for a connection.
+.Pp
+To use this system, an application must first use
+.Fn rpc_gss_seccreate
+to establish a security context.
+.Sh DATA STRUCTURES
+Data structures used by
+.Nm
+appear below.
+.Bl -tag -width "MMMM"
+.It Vt rpc_gss_service_t
+This type defines the types of security service required for
+.Fn rpc_gss_seccreate .
+.Bd -literal
+typedef enum {
+	rpc_gss_svc_default	= 0,
+	rpc_gss_svc_none	= 1,
+	rpc_gss_svc_integrity	= 2,
+	rpc_gss_svc_privacy	= 3
+} rpc_gss_service_t;
+.Ed
+.It Vt rpc_gss_options_ret_t
+This structure contains various optional values which are used while
+creating a security context.
+.Bd -literal
+typedef struct {
+	int		req_flags;	/* GSS request bits */
+	int		time_req;	/* requested lifetime */
+	gss_cred_id_t	my_cred;	/* GSS credential */
+	gss_channel_bindings_t input_channel_bindings;
+} rpc_gss_options_req_t;
+.Ed
+.It Vt rpc_gss_options_ret_t
+Various details of the created security context are returned using
+this structure.
+.Bd -literal
+typedef struct {
+	int		major_status;
+	int		minor_status;
+	u_int		rpcsec_version;
+	int		ret_flags;
+	int		time_req;
+	gss_ctx_id_t	gss_context;
+	char		actual_mechanism[MAX_GSS_MECH];
+} rpc_gss_options_ret_t;
+.Ed
+.It Vt rpc_gss_principal_t
+This type is used to refer to an client principal which is represented
+in GSS-API exported name form
+(see
+.Xr gss_export_name 3
+for more details).
+Names in this format may be stored in access control lists or compared
+with other names in exported name form.
+This structure is returned by
+.Fn rpc_gss_get_principal_name
+and is also referenced by the
+.Vt rpc_gss_rawcred_t
+structure.
+.Bd -literal
+typedef struct {
+	int		len;
+	char		name[1];
+} *rpc_gss_principal_t;
+.Ed
+.It Vt rpc_gss_rawcred_t
+This structure is used to access the raw credentials associated with a
+security context.
+.Bd -literal
+typedef struct {
+	u_int		version;	/* RPC version number */
+	const char	*mechanism;	/* security mechanism */
+	const char	*qop;		/* quality of protection */
+	rpc_gss_principal_t client_principal; /* client name */
+	const char	*svc_principal;	/* server name */
+	rpc_gss_service_t service;	/* service type */
+} rpc_gss_rawcred_t;
+.Ed
+.It Vt rpc_gss_ucred_t
+Unix credentials which are derived form the raw credentials,
+accessed via
+.Fn rpc_gss_getcred .
+.Bd -literal
+typedef struct {
+	uid_t		uid;		/* user ID */
+	gid_t		gid;		/* group ID */
+	short		gidlen;
+	gid_t		*gidlist;	/* list of groups */
+} rpc_gss_ucred_t;
+.Ed
+.It Vt rpc_gss_lock_t
+Structure used to enforce a particular QOP and service.
+.Bd -literal
+typedef struct {
+	bool_t		locked;
+	rpc_gss_rawcred_t *raw_cred;
+} rpc_gss_lock_t;
+.Ed
+.It Vt rpc_gss_callback_t
+Callback structure used by
+.Fn rpc_gss_set_callback .
+.Bd -literal
+typedef struct {
+	u_int		program;	/* RPC program number */
+	u_int		version;	/* RPC version number */
+					/* user defined callback */
+	bool_t		(*callback)(struct svc_req *req,
+				    gss_cred_id_t deleg,
+				    gss_ctx_id_t gss_context,
+				    rpc_gss_lock_t *lock,
+				    void **cookie);
+} rpc_gss_callback_t;
+.Ed
+.It Vt rpc_gss_error_t
+Structure used to return error information by
+.Fn rpc_gss_get_error .
+.Bd -literal
+typedef struct {
+	int		rpc_gss_error;
+	int		system_error;	/* same as errno */
+} rpc_gss_error_t;
+
+/*
+ * Values for rpc_gss_error
+ */
+#define RPC_GSS_ER_SUCCESS	0	/* no error */
+#define RPC_GSS_ER_SYSTEMERROR	1	/* system error */
+.Ed
+.El
+.Sh INDEX
+.Bl -tag -width "MMMM"
+.It Xr rpc_gss_seccreate 3
+Create a new security context
+.It Xr rpc_gss_set_defaults 3
+Set service and quality of protection for a context
+.It Xr rpc_gss_max_data_length 3
+Calculate maximum client message sizes.
+.It Xr rpc_gss_get_error 3
+Get details of the last error
+.It Xr rpc_gss_mech_to_oid 3
+Convert a mechanism name to the corresponding GSS-API oid.
+.It Xr rpc_gss_oid_to_mech 3
+Convert a GSS-API oid to a mechanism name
+.It Xr rpc_gss_qop_to_num 3
+Convert a quality of protection name to the corresponding number
+.It Xr rpc_gss_get_mechanisms 3
+Get a list of security mechanisms.
+.It Xr rpc_gss_get_mech_info 3
+Return extra information about a security mechanism
+.It Xr rpc_gss_get_versions 3
+Return the maximum and minimum supported versions of the
+.Nm
+protocol
+.It Xr rpc_gss_is_installed 3
+Query for the presence of a particular security mechanism
+.It Xr rpc_gss_set_svc_name 3
+Set the name of a service principal which matches a given RPC program
+plus version pair
+.It Xr rpc_gss_getcred 3
+Get credential details for the security context of an RPC request
+.It Xr rpc_gss_set_callback 3
+Install a callback routine which is called on the server when new
+security contexts are created
+.It Xr rpc_gss_get_principal_name 3
+Create a client principal name from various strings
+.It Xr rpc_gss_svc_max_data_length 3
+Calculate maximum server message sizes.
+.El
+.Sh SEE ALSO
+.Xr gss_export_name 3 ,
+.Xr gssapi 3 ,
+.Xr rpc 3 ,
+.Xr rpcset_gss 3 ,
+.Xr mech 5 ,
+.Xr qop 5
+.Sh HISTORY
+The
+.Nm
+library first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Doug Rabson Aq Mt dfr@FreeBSD.org .

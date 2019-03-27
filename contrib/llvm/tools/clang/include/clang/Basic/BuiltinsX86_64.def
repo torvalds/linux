@@ -1,0 +1,109 @@
+//===--- BuiltinsX86_64.def - X86-64 Builtin function database --*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the X86-64-specific builtin function database. Users of
+// this file must define the BUILTIN macro to make use of this information.
+//
+//===----------------------------------------------------------------------===//
+
+// The format of this database matches clang/Basic/Builtins.def.
+
+#if defined(BUILTIN) && !defined(TARGET_BUILTIN)
+#   define TARGET_BUILTIN(ID, TYPE, ATTRS, FEATURE) BUILTIN(ID, TYPE, ATTRS)
+#endif
+
+#if defined(BUILTIN) && !defined(TARGET_HEADER_BUILTIN)
+#  define TARGET_HEADER_BUILTIN(ID, TYPE, ATTRS, HEADER, LANG, FEATURE) BUILTIN(ID, TYPE, ATTRS)
+#endif
+
+TARGET_HEADER_BUILTIN(_BitScanForward64, "UcUNi*ULLi", "nh", "intrin.h", ALL_MS_LANGUAGES, "")
+TARGET_HEADER_BUILTIN(_BitScanReverse64, "UcUNi*ULLi", "nh", "intrin.h", ALL_MS_LANGUAGES, "")
+
+TARGET_HEADER_BUILTIN(__mulh,  "LLiLLiLLi",    "nch", "intrin.h", ALL_MS_LANGUAGES, "")
+TARGET_HEADER_BUILTIN(__umulh, "ULLiULLiULLi", "nch", "intrin.h", ALL_MS_LANGUAGES, "")
+TARGET_HEADER_BUILTIN(_mul128, "LLiLLiLLiLLi*",      "nch",   "intrin.h", ALL_MS_LANGUAGES, "")
+TARGET_HEADER_BUILTIN(_umul128, "ULLiULLiULLiULLi*", "nch",   "intrin.h", ALL_MS_LANGUAGES, "")
+
+TARGET_HEADER_BUILTIN(__faststorefence, "v", "nh", "intrin.h", ALL_MS_LANGUAGES, "")
+TARGET_HEADER_BUILTIN(__shiftleft128, "ULLiULLiULLiUc", "nch", "intrin.h", ALL_MS_LANGUAGES, "")
+TARGET_HEADER_BUILTIN(__shiftright128, "ULLiULLiULLiUc", "nch", "intrin.h", ALL_MS_LANGUAGES, "")
+
+TARGET_HEADER_BUILTIN(_InterlockedAnd64,         "LLiLLiD*LLi", "nh", "intrin.h", ALL_MS_LANGUAGES, "")
+TARGET_HEADER_BUILTIN(_InterlockedDecrement64,   "LLiLLiD*",    "nh", "intrin.h", ALL_MS_LANGUAGES, "")
+TARGET_HEADER_BUILTIN(_InterlockedExchange64,    "LLiLLiD*LLi", "nh", "intrin.h", ALL_MS_LANGUAGES, "")
+TARGET_HEADER_BUILTIN(_InterlockedExchangeAdd64, "LLiLLiD*LLi", "nh", "intrin.h", ALL_MS_LANGUAGES, "")
+TARGET_HEADER_BUILTIN(_InterlockedExchangeSub64, "LLiLLiD*LLi", "nh", "intrin.h", ALL_MS_LANGUAGES, "")
+TARGET_HEADER_BUILTIN(_InterlockedIncrement64,   "LLiLLiD*",    "nh", "intrin.h", ALL_MS_LANGUAGES, "")
+TARGET_HEADER_BUILTIN(_InterlockedOr64,          "LLiLLiD*LLi", "nh", "intrin.h", ALL_MS_LANGUAGES, "")
+TARGET_HEADER_BUILTIN(_InterlockedXor64,         "LLiLLiD*LLi", "nh", "intrin.h", ALL_MS_LANGUAGES, "")
+TARGET_HEADER_BUILTIN(_InterlockedCompareExchange128, "UcLLiD*LLiLLiLLi*", "nh", "intrin.h", ALL_MS_LANGUAGES, "cx16")
+
+TARGET_BUILTIN(__builtin_ia32_readeflags_u64, "ULLi", "n", "")
+TARGET_BUILTIN(__builtin_ia32_writeeflags_u64, "vULLi", "n", "")
+TARGET_BUILTIN(__builtin_ia32_cvtss2si64, "LLiV4f", "ncV:128:", "sse")
+TARGET_BUILTIN(__builtin_ia32_cvttss2si64, "LLiV4f", "ncV:128:", "sse")
+TARGET_BUILTIN(__builtin_ia32_cvtsd2si64, "LLiV2d", "ncV:128:", "sse2")
+TARGET_BUILTIN(__builtin_ia32_cvttsd2si64, "LLiV2d", "ncV:128:", "sse2")
+TARGET_BUILTIN(__builtin_ia32_movnti64, "vLLi*LLi", "n", "sse2")
+TARGET_BUILTIN(__builtin_ia32_vec_ext_v2di, "LLiV2LLiIi", "ncV:128:", "sse2")
+TARGET_BUILTIN(__builtin_ia32_vec_set_v2di, "V2LLiV2LLiLLiIi", "ncV:128:", "sse4.1")
+TARGET_BUILTIN(__builtin_ia32_crc32di, "ULLiULLiULLi", "nc", "sse4.2")
+TARGET_BUILTIN(__builtin_ia32_vec_ext_v4di, "LLiV4LLiIi", "ncV:256:", "avx")
+TARGET_BUILTIN(__builtin_ia32_vec_set_v4di, "V4LLiV4LLiLLiIi", "ncV:256:", "avx")
+TARGET_BUILTIN(__builtin_ia32_rdfsbase32, "Ui", "n", "fsgsbase")
+TARGET_BUILTIN(__builtin_ia32_rdfsbase64, "ULLi", "n", "fsgsbase")
+TARGET_BUILTIN(__builtin_ia32_rdgsbase32, "Ui", "n", "fsgsbase")
+TARGET_BUILTIN(__builtin_ia32_rdgsbase64, "ULLi", "n", "fsgsbase")
+TARGET_BUILTIN(__builtin_ia32_wrfsbase32, "vUi", "n", "fsgsbase")
+TARGET_BUILTIN(__builtin_ia32_wrfsbase64, "vULLi", "n", "fsgsbase")
+TARGET_BUILTIN(__builtin_ia32_wrgsbase32, "vUi", "n", "fsgsbase")
+TARGET_BUILTIN(__builtin_ia32_wrgsbase64, "vULLi", "n", "fsgsbase")
+TARGET_BUILTIN(__builtin_ia32_fxrstor64, "vv*", "n", "fxsr")
+TARGET_BUILTIN(__builtin_ia32_fxsave64, "vv*", "n", "fxsr")
+TARGET_BUILTIN(__builtin_ia32_xsave64, "vv*ULLi", "n", "xsave")
+TARGET_BUILTIN(__builtin_ia32_xrstor64, "vv*ULLi", "n", "xsave")
+TARGET_BUILTIN(__builtin_ia32_xsaveopt64, "vv*ULLi", "n", "xsaveopt")
+TARGET_BUILTIN(__builtin_ia32_xrstors64, "vv*ULLi", "n", "xsaves")
+TARGET_BUILTIN(__builtin_ia32_xsavec64, "vv*ULLi", "n", "xsavec")
+TARGET_BUILTIN(__builtin_ia32_xsaves64, "vv*ULLi", "n", "xsaves")
+TARGET_BUILTIN(__builtin_ia32_incsspq, "vULLi", "n", "shstk")
+TARGET_BUILTIN(__builtin_ia32_rdsspq, "ULLiULLi", "n", "shstk")
+TARGET_BUILTIN(__builtin_ia32_wrssq, "vULLiv*", "n", "shstk")
+TARGET_BUILTIN(__builtin_ia32_wrussq, "vULLiv*", "n", "shstk")
+TARGET_BUILTIN(__builtin_ia32_addcarryx_u64, "UcUcULLiULLiULLi*", "n", "")
+TARGET_BUILTIN(__builtin_ia32_subborrow_u64, "UcUcULLiULLiULLi*", "n", "")
+TARGET_BUILTIN(__builtin_ia32_rdrand64_step, "UiULLi*", "n", "rdrnd")
+TARGET_BUILTIN(__builtin_ia32_rdseed64_step, "UiULLi*", "n", "rdseed")
+TARGET_BUILTIN(__builtin_ia32_lzcnt_u64, "ULLiULLi", "nc", "lzcnt")
+TARGET_BUILTIN(__builtin_ia32_bextr_u64, "ULLiULLiULLi", "nc", "bmi")
+TARGET_BUILTIN(__builtin_ia32_tzcnt_u64, "ULLiULLi", "nc", "")
+TARGET_BUILTIN(__builtin_ia32_bzhi_di, "ULLiULLiULLi", "nc", "bmi2")
+TARGET_BUILTIN(__builtin_ia32_pdep_di, "ULLiULLiULLi", "nc", "bmi2")
+TARGET_BUILTIN(__builtin_ia32_pext_di, "ULLiULLiULLi", "nc", "bmi2")
+TARGET_BUILTIN(__builtin_ia32_bextri_u64, "ULLiULLiIULLi", "nc", "tbm")
+TARGET_BUILTIN(__builtin_ia32_lwpins64, "UcULLiUiUi", "n", "lwp")
+TARGET_BUILTIN(__builtin_ia32_lwpval64, "vULLiUiUi", "n", "lwp")
+TARGET_BUILTIN(__builtin_ia32_vcvtsd2si64, "LLiV2dIi", "ncV:128:", "avx512f")
+TARGET_BUILTIN(__builtin_ia32_vcvtsd2usi64, "ULLiV2dIi", "ncV:128:", "avx512f")
+TARGET_BUILTIN(__builtin_ia32_vcvtss2si64, "LLiV4fIi", "ncV:128:", "avx512f")
+TARGET_BUILTIN(__builtin_ia32_vcvtss2usi64, "ULLiV4fIi", "ncV:128:", "avx512f")
+TARGET_BUILTIN(__builtin_ia32_vcvttsd2si64, "LLiV2dIi", "ncV:128:", "avx512f")
+TARGET_BUILTIN(__builtin_ia32_vcvttsd2usi64, "ULLiV2dIi", "ncV:128:", "avx512f")
+TARGET_BUILTIN(__builtin_ia32_vcvttss2si64, "LLiV4fIi", "ncV:128:", "avx512f")
+TARGET_BUILTIN(__builtin_ia32_vcvttss2usi64, "ULLiV4fIi", "ncV:128:", "avx512f")
+TARGET_BUILTIN(__builtin_ia32_cvtsi2sd64, "V2dV2dLLiIi", "ncV:128:", "avx512f")
+TARGET_BUILTIN(__builtin_ia32_cvtsi2ss64, "V4fV4fLLiIi", "ncV:128:", "avx512f")
+TARGET_BUILTIN(__builtin_ia32_cvtusi2sd64, "V2dV2dULLiIi", "ncV:128:", "avx512f")
+TARGET_BUILTIN(__builtin_ia32_cvtusi2ss64, "V4fV4fULLiIi", "ncV:128:", "avx512f")
+TARGET_BUILTIN(__builtin_ia32_directstore_u64, "vULi*ULi", "n", "movdiri")
+TARGET_BUILTIN(__builtin_ia32_ptwrite64, "vULLi", "n", "ptwrite")
+
+#undef BUILTIN
+#undef TARGET_BUILTIN
+#undef TARGET_HEADER_BUILTIN

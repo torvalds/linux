@@ -1,0 +1,24 @@
+# Sample configuration file for an installation using pc-sysinstall
+#$FreeBSD$
+
+installMode=upgrade
+installInteractive=no
+hostname=freebsd8
+
+# Set the disk parameters
+disk0=ada0s1a
+bootManager=none
+commitDiskPart
+
+# Set if we are installing via optical, USB, or FTP
+installType=PCBSD
+installMedium=dvd
+
+packageType=uzip
+#installComponents=ports,src
+
+# Options for localizing an install
+localizeLang="ru"
+localizeKeyLayout="ru"
+localizeKeyModel="pc104"
+localizeKeyVariant="intl"

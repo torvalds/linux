@@ -1,0 +1,23 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_DESTROY_EVENT_CHANNEL" 3 "2007-05-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_destroy_event_channel \- Close an event communication channel.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "void" rdma_destroy_event_channel
+.BI "(struct rdma_event_channel *" channel ");"
+.SH ARGUMENTS
+.IP "channel" 12
+The communication channel to destroy.
+.SH "DESCRIPTION"
+Release all resources associated with an event channel and closes the
+associated file descriptor.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+All rdma_cm_id's associated with the event channel must be destroyed,
+and all returned events must be acked before calling this function.
+.SH "SEE ALSO"
+rdma_create_event_channel(3), rdma_get_cm_event(3), rdma_ack_cm_event(3)

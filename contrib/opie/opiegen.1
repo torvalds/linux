@@ -1,0 +1,90 @@
+.\" opiegen.1: Manual page for the opiegen(1) program.
+.\"
+.\" %%% portions-copyright-cmetz-96
+.\" Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
+.\" Reserved. The Inner Net License Version 2 applies to these portions of
+.\" the software.
+.\" You should have received a copy of the license with this software. If
+.\" you didn't get a copy, you may request one from <license@inner.net>.
+.\"
+.\" Portions of this software are Copyright 1995 by Randall Atkinson and Dan
+.\" McDonald, All Rights Reserved. All Rights under this copyright are assigned
+.\" to the U.S. Naval Research Laboratory (NRL). The NRL Copyright Notice and
+.\" License Agreement applies to this software.
+.\"
+.\"	History:
+.\"
+.\"	Modified by cmetz for OPIE 2.4. Fixed *roff bug.
+.\"     Created by cmetz for OPIE 2.2 from opiekey.1.
+.\"
+.ll 6i
+.pl 10.5i
+.lt 6.0i
+.TH OPIEKEY 1 "February 20, 1996"
+.AT 3
+.SH NAME
+opiegen \- Example OPIE-based OTP generator
+
+.SH SYNOPSIS
+.B opiegen
+.sp 0
+[
+.I challenge
+]
+.sp 0
+
+.SH DESCRIPTION
+.I opiegen
+takes a properly formed OTP challenge either from the command line or from
+standard input, prompts the user for a secret pass phrase, and generates an
+OTP response to that challenge. It is intended as an example for programmers
+of how a simple OTP generator can be built. Users should probably use the
+.I opiekey
+program instead.
+
+.SH EXAMPLE
+.sp 0
+wintermute$ opiegen otp-md5 495 wi01309
+.sp 0
+Secret Pass Phrase:
+.sp 0
+GILL HUED GOES CHUM LIEU VAIN
+.sp 0
+wintermute$
+.LP
+
+.SH BUGS
+.BR opiegen(1)
+can lull a user into revealing his/her password when remotely logged in, thus
+defeating the purpose of OPIE. This is especially a problem with xterm. 
+.BR opiegen(1)
+implements simple checks to reduce the risk of a user making
+this mistake. Better checks are needed.
+.LP
+
+.SH SEE ALSO
+.BR opiekey (1),
+.BR opieserv (1),
+.BR opie (4),
+.BR opiepasswd (1),
+.BR opieinfo (1),
+.BR opiesu (1),
+.BR opielogin (1),
+.BR opieftpd (8),
+.BR opiekeys (5),
+.BR opieaccess (5)
+
+.SH AUTHOR
+The opiegen(1) program was created by Craig Metz for OPIE 2.2.
+
+Bellcore's S/Key was written by Phil Karn, Neil M. Haller, and John S. Walden
+of Bellcore. OPIE was created at NRL by Randall Atkinson, Dan McDonald, and
+Craig Metz.
+
+S/Key is a trademark of Bell Communications Research (Bellcore).
+
+.SH CONTACT
+OPIE is discussed on the Bellcore "S/Key Users" mailing list. To join,
+send an email request to:
+.sp
+skey-users-request@thumper.bellcore.com

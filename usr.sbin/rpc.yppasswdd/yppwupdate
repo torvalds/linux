@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# This script is invoked by rpc.yppasswdd to update the password
+# maps after the master password file has been modified. It expects
+# to be passed two arguments: the name of the master.passwd template
+# file that was modified by the server, and the name of the domain to
+# update. These are passed to /var/yp/Makefile.
+#
+# Comment out the LOG=yes line to disable logging.
+#
+# $FreeBSD$
+#
+
+PATH=/bin:/usr/bin; export PATH
+LOG=yes
+LOGFILE=/var/yp/ypupdate.log
+
+umask 077
+
+if [ ! -f $LOGFILE ];
+then
+	touch $LOGFILE
+	echo "# Edit /usr/libexec/yppwupdate to disable" >> $LOGFILE
+	echo "# logging to this file from yppasswdd." >> $LOGFILE
+	echo -n "# Log started on: " >> $LOGFILE
+	date >> $LOGFILE
+fi
+
+if [ ! $LOG ];
+then
+	cd /var/yp && make MASTER_PASSWD=$1 UPDATE_DOMAIN=$2 $3 2>&1
+else
+	cd /var/yp && make MASTER_PASSWD=$1 UPDATE_DOMAIN=$2 $3 >> $LOGFILE 2>&1
+fi

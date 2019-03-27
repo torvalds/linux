@@ -1,0 +1,5 @@
+# Host: FreeBSD/Alpha
+NATDEPFILES= fork-child.o infptrace.o inftarg.o \
+	solib.o solib-svr4.o solib-legacy.o \
+	corelow.o core-regset.o alphabsd-nat.o
+NAT_FILE= nm-fbsd.h

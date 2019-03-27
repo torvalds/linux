@@ -1,0 +1,126 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)msync.2	8.2 (Berkeley) 6/21/94
+.\" $FreeBSD$
+.\"
+.Dd March 18, 2012
+.Dt MSYNC 2
+.Os
+.Sh NAME
+.Nm msync
+.Nd synchronize a mapped region
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft int
+.Fn msync "void *addr" "size_t len" "int flags"
+.Sh DESCRIPTION
+The
+.Fn msync
+system call
+writes any modified pages back to the file system and updates
+the file modification time.
+If
+.Fa len
+is 0, all modified pages within the region containing
+.Fa addr
+will be flushed;
+if
+.Fa len
+is non-zero, only those pages containing
+.Fa addr
+and
+.Fa len-1
+succeeding locations will be examined.
+The
+.Fa flags
+argument may be specified as follows:
+.Pp
+.Bl -tag -width ".Dv MS_INVALIDATE" -compact
+.It Dv MS_ASYNC
+Return immediately
+.It Dv MS_SYNC
+Perform synchronous writes
+.It Dv MS_INVALIDATE
+Invalidate all cached data
+.El
+.Sh RETURN VALUES
+.Rv -std msync
+.Sh ERRORS
+The
+.Fn msync
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+Some or all of the pages in the specified region are locked and
+.Dv MS_INVALIDATE
+is specified.
+.It Bq Er EINVAL
+The
+.Fa addr
+argument
+is not a multiple of the hardware page size.
+.It Bq Er ENOMEM
+The addresses in the range starting at
+.Fa addr
+and continuing for
+.Fa len
+bytes are outside the range allowed for the address space of a
+process or specify one or more pages that are not mapped.
+.It Bq Er EINVAL
+The
+.Fa flags
+argument
+was both MS_ASYNC and MS_INVALIDATE.
+Only one of these flags is allowed.
+.It Bq Er EIO
+An error occurred while writing at least one of the pages in
+the specified region.
+.El
+.Sh SEE ALSO
+.Xr madvise 2 ,
+.Xr mincore 2 ,
+.Xr mlock 2 ,
+.Xr mprotect 2 ,
+.Xr munmap 2
+.Sh HISTORY
+The
+.Fn msync
+system call first appeared in
+.Bx 4.4 .
+.Sh BUGS
+The
+.Fn msync
+system call is usually not needed since
+.Bx
+implements a coherent file system buffer cache.
+However, it may be used to associate dirty VM pages with file system
+buffers and thus cause them to be flushed to physical media sooner
+rather than later.

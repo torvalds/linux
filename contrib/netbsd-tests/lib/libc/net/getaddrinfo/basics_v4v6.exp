@@ -1,0 +1,42 @@
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host ::1 serv http
+ai1: flags 0x2 family 24 socktype 2 protocol 17 addrlen 28 host ::1 serv http
+ai2: flags 0x2 family 24 socktype 1 protocol 6 addrlen 28 host ::1 serv http
+
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host 127.0.0.1 serv http
+ai1: flags 0x2 family 2 socktype 2 protocol 17 addrlen 16 host 127.0.0.1 serv http
+ai2: flags 0x2 family 2 socktype 1 protocol 6 addrlen 16 host 127.0.0.1 serv http
+
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host localhost serv http
+ai1: flags 0x2 family 24 socktype 2 protocol 17 addrlen 28 host ::1 serv http
+ai2: flags 0x2 family 2 socktype 2 protocol 17 addrlen 16 host 127.0.0.1 serv http
+ai3: flags 0x2 family 24 socktype 1 protocol 6 addrlen 28 host ::1 serv http
+ai4: flags 0x2 family 2 socktype 1 protocol 6 addrlen 16 host 127.0.0.1 serv http
+
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host ::1 serv tftp
+ai1: flags 0x2 family 24 socktype 2 protocol 17 addrlen 28 host ::1 serv tftp
+ai2: flags 0x2 family 24 socktype 1 protocol 6 addrlen 28 host ::1 serv tftp
+
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host 127.0.0.1 serv tftp
+ai1: flags 0x2 family 2 socktype 2 protocol 17 addrlen 16 host 127.0.0.1 serv tftp
+ai2: flags 0x2 family 2 socktype 1 protocol 6 addrlen 16 host 127.0.0.1 serv tftp
+
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host localhost serv tftp
+ai1: flags 0x2 family 24 socktype 2 protocol 17 addrlen 28 host ::1 serv tftp
+ai2: flags 0x2 family 2 socktype 2 protocol 17 addrlen 16 host 127.0.0.1 serv tftp
+ai3: flags 0x2 family 24 socktype 1 protocol 6 addrlen 28 host ::1 serv tftp
+ai4: flags 0x2 family 2 socktype 1 protocol 6 addrlen 16 host 127.0.0.1 serv tftp
+
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host ::1 serv echo
+ai1: flags 0x2 family 24 socktype 2 protocol 17 addrlen 28 host ::1 serv echo
+ai2: flags 0x2 family 24 socktype 1 protocol 6 addrlen 28 host ::1 serv echo
+
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host 127.0.0.1 serv echo
+ai1: flags 0x2 family 2 socktype 2 protocol 17 addrlen 16 host 127.0.0.1 serv echo
+ai2: flags 0x2 family 2 socktype 1 protocol 6 addrlen 16 host 127.0.0.1 serv echo
+
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host localhost serv echo
+ai1: flags 0x2 family 24 socktype 2 protocol 17 addrlen 28 host ::1 serv echo
+ai2: flags 0x2 family 2 socktype 2 protocol 17 addrlen 16 host 127.0.0.1 serv echo
+ai3: flags 0x2 family 24 socktype 1 protocol 6 addrlen 28 host ::1 serv echo
+ai4: flags 0x2 family 2 socktype 1 protocol 6 addrlen 16 host 127.0.0.1 serv echo
+

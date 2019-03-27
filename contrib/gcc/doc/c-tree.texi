@@ -1,0 +1,2738 @@
+@c Copyright (c) 1999, 2000, 2001, 2002, 2003, 2004, 2005
+@c Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gcc.texi.
+
+@c ---------------------------------------------------------------------
+@c Trees
+@c ---------------------------------------------------------------------
+
+@node Trees
+@chapter Trees: The intermediate representation used by the C and C++ front ends
+@cindex Trees
+@cindex C/C++ Internal Representation
+
+This chapter documents the internal representation used by GCC to
+represent C and C++ source programs.  When presented with a C or C++
+source program, GCC parses the program, performs semantic analysis
+(including the generation of error messages), and then produces the
+internal representation described here.  This representation contains a
+complete representation for the entire translation unit provided as
+input to the front end.  This representation is then typically processed
+by a code-generator in order to produce machine code, but could also be
+used in the creation of source browsers, intelligent editors, automatic
+documentation generators, interpreters, and any other programs needing
+the ability to process C or C++ code.
+
+This chapter explains the internal representation.  In particular, it
+documents the internal representation for C and C++ source
+constructs, and the macros, functions, and variables that can be used to
+access these constructs.  The C++ representation is largely a superset
+of the representation used in the C front end.  There is only one
+construct used in C that does not appear in the C++ front end and that
+is the GNU ``nested function'' extension.  Many of the macros documented
+here do not apply in C because the corresponding language constructs do
+not appear in C@.
+
+If you are developing a ``back end'', be it is a code-generator or some
+other tool, that uses this representation, you may occasionally find
+that you need to ask questions not easily answered by the functions and
+macros available here.  If that situation occurs, it is quite likely
+that GCC already supports the functionality you desire, but that the
+interface is simply not documented here.  In that case, you should ask
+the GCC maintainers (via mail to @email{gcc@@gcc.gnu.org}) about
+documenting the functionality you require.  Similarly, if you find
+yourself writing functions that do not deal directly with your back end,
+but instead might be useful to other people using the GCC front end, you
+should submit your patches for inclusion in GCC@.
+
+@menu
+* Deficiencies::        Topics net yet covered in this document.
+* Tree overview::       All about @code{tree}s.
+* Types::               Fundamental and aggregate types.
+* Scopes::              Namespaces and classes.
+* Functions::           Overloading, function bodies, and linkage.
+* Declarations::        Type declarations and variables.
+* Attributes::          Declaration and type attributes.
+* Expression trees::    From @code{typeid} to @code{throw}.
+@end menu
+
+@c ---------------------------------------------------------------------
+@c Deficiencies
+@c ---------------------------------------------------------------------
+
+@node Deficiencies
+@section Deficiencies
+
+There are many places in which this document is incomplet and incorrekt.
+It is, as of yet, only @emph{preliminary} documentation.
+
+@c ---------------------------------------------------------------------
+@c Overview
+@c ---------------------------------------------------------------------
+
+@node Tree overview
+@section Overview
+@cindex tree
+@findex TREE_CODE
+
+The central data structure used by the internal representation is the
+@code{tree}.  These nodes, while all of the C type @code{tree}, are of
+many varieties.  A @code{tree} is a pointer type, but the object to
+which it points may be of a variety of types.  From this point forward,
+we will refer to trees in ordinary type, rather than in @code{this
+font}, except when talking about the actual C type @code{tree}.
+
+You can tell what kind of node a particular tree is by using the
+@code{TREE_CODE} macro.  Many, many macros take trees as input and
+return trees as output.  However, most macros require a certain kind of
+tree node as input.  In other words, there is a type-system for trees,
+but it is not reflected in the C type-system.
+
+For safety, it is useful to configure GCC with @option{--enable-checking}.
+Although this results in a significant performance penalty (since all
+tree types are checked at run-time), and is therefore inappropriate in a
+release version, it is extremely helpful during the development process.
+
+Many macros behave as predicates.  Many, although not all, of these
+predicates end in @samp{_P}.  Do not rely on the result type of these
+macros being of any particular type.  You may, however, rely on the fact
+that the type can be compared to @code{0}, so that statements like
+@smallexample
+if (TEST_P (t) && !TEST_P (y))
+  x = 1;
+@end smallexample
+@noindent
+and
+@smallexample
+int i = (TEST_P (t) != 0);
+@end smallexample
+@noindent
+are legal.  Macros that return @code{int} values now may be changed to
+return @code{tree} values, or other pointers in the future.  Even those
+that continue to return @code{int} may return multiple nonzero codes
+where previously they returned only zero and one.  Therefore, you should
+not write code like
+@smallexample
+if (TEST_P (t) == 1)
+@end smallexample
+@noindent
+as this code is not guaranteed to work correctly in the future.
+
+You should not take the address of values returned by the macros or
+functions described here.  In particular, no guarantee is given that the
+values are lvalues.
+
+In general, the names of macros are all in uppercase, while the names of
+functions are entirely in lowercase.  There are rare exceptions to this
+rule.  You should assume that any macro or function whose name is made
+up entirely of uppercase letters may evaluate its arguments more than
+once.  You may assume that a macro or function whose name is made up
+entirely of lowercase letters will evaluate its arguments only once.
+
+The @code{error_mark_node} is a special tree.  Its tree code is
+@code{ERROR_MARK}, but since there is only ever one node with that code,
+the usual practice is to compare the tree against
+@code{error_mark_node}.  (This test is just a test for pointer
+equality.)  If an error has occurred during front-end processing the
+flag @code{errorcount} will be set.  If the front end has encountered
+code it cannot handle, it will issue a message to the user and set
+@code{sorrycount}.  When these flags are set, any macro or function
+which normally returns a tree of a particular kind may instead return
+the @code{error_mark_node}.  Thus, if you intend to do any processing of
+erroneous code, you must be prepared to deal with the
+@code{error_mark_node}.
+
+Occasionally, a particular tree slot (like an operand to an expression,
+or a particular field in a declaration) will be referred to as
+``reserved for the back end''.  These slots are used to store RTL when
+the tree is converted to RTL for use by the GCC back end.  However, if
+that process is not taking place (e.g., if the front end is being hooked
+up to an intelligent editor), then those slots may be used by the
+back end presently in use.
+
+If you encounter situations that do not match this documentation, such
+as tree nodes of types not mentioned here, or macros documented to
+return entities of a particular kind that instead return entities of
+some different kind, you have found a bug, either in the front end or in
+the documentation.  Please report these bugs as you would any other
+bug.
+
+@menu
+* Macros and Functions::Macros and functions that can be used with all trees.
+* Identifiers::         The names of things.
+* Containers::          Lists and vectors.
+@end menu
+
+@c ---------------------------------------------------------------------
+@c Trees
+@c ---------------------------------------------------------------------
+
+@node Macros and Functions
+@subsection Trees
+@cindex tree
+
+This section is not here yet.
+
+@c ---------------------------------------------------------------------
+@c Identifiers
+@c ---------------------------------------------------------------------
+
+@node Identifiers
+@subsection Identifiers
+@cindex identifier
+@cindex name
+@tindex IDENTIFIER_NODE
+
+An @code{IDENTIFIER_NODE} represents a slightly more general concept
+that the standard C or C++ concept of identifier.  In particular, an
+@code{IDENTIFIER_NODE} may contain a @samp{$}, or other extraordinary
+characters.
+
+There are never two distinct @code{IDENTIFIER_NODE}s representing the
+same identifier.  Therefore, you may use pointer equality to compare
+@code{IDENTIFIER_NODE}s, rather than using a routine like @code{strcmp}.
+
+You can use the following macros to access identifiers:
+@ftable @code
+@item IDENTIFIER_POINTER
+The string represented by the identifier, represented as a
+@code{char*}.  This string is always @code{NUL}-terminated, and contains
+no embedded @code{NUL} characters.
+
+@item IDENTIFIER_LENGTH
+The length of the string returned by @code{IDENTIFIER_POINTER}, not
+including the trailing @code{NUL}.  This value of
+@code{IDENTIFIER_LENGTH (x)} is always the same as @code{strlen
+(IDENTIFIER_POINTER (x))}.
+
+@item IDENTIFIER_OPNAME_P
+This predicate holds if the identifier represents the name of an
+overloaded operator.  In this case, you should not depend on the
+contents of either the @code{IDENTIFIER_POINTER} or the
+@code{IDENTIFIER_LENGTH}.
+
+@item IDENTIFIER_TYPENAME_P
+This predicate holds if the identifier represents the name of a
+user-defined conversion operator.  In this case, the @code{TREE_TYPE} of
+the @code{IDENTIFIER_NODE} holds the type to which the conversion
+operator converts.
+
+@end ftable
+
+@c ---------------------------------------------------------------------
+@c Containers
+@c ---------------------------------------------------------------------
+
+@node Containers
+@subsection Containers
+@cindex container
+@cindex list
+@cindex vector
+@tindex TREE_LIST
+@tindex TREE_VEC
+@findex TREE_PURPOSE
+@findex TREE_VALUE
+@findex TREE_VEC_LENGTH
+@findex TREE_VEC_ELT
+
+Two common container data structures can be represented directly with
+tree nodes.  A @code{TREE_LIST} is a singly linked list containing two
+trees per node.  These are the @code{TREE_PURPOSE} and @code{TREE_VALUE}
+of each node.  (Often, the @code{TREE_PURPOSE} contains some kind of
+tag, or additional information, while the @code{TREE_VALUE} contains the
+majority of the payload.  In other cases, the @code{TREE_PURPOSE} is
+simply @code{NULL_TREE}, while in still others both the
+@code{TREE_PURPOSE} and @code{TREE_VALUE} are of equal stature.)  Given
+one @code{TREE_LIST} node, the next node is found by following the
+@code{TREE_CHAIN}.  If the @code{TREE_CHAIN} is @code{NULL_TREE}, then
+you have reached the end of the list.
+
+A @code{TREE_VEC} is a simple vector.  The @code{TREE_VEC_LENGTH} is an
+integer (not a tree) giving the number of nodes in the vector.  The
+nodes themselves are accessed using the @code{TREE_VEC_ELT} macro, which
+takes two arguments.  The first is the @code{TREE_VEC} in question; the
+second is an integer indicating which element in the vector is desired.
+The elements are indexed from zero.
+
+@c ---------------------------------------------------------------------
+@c Types
+@c ---------------------------------------------------------------------
+
+@node Types
+@section Types
+@cindex type
+@cindex pointer
+@cindex reference
+@cindex fundamental type
+@cindex array
+@tindex VOID_TYPE
+@tindex INTEGER_TYPE
+@tindex TYPE_MIN_VALUE
+@tindex TYPE_MAX_VALUE
+@tindex REAL_TYPE
+@tindex COMPLEX_TYPE
+@tindex ENUMERAL_TYPE
+@tindex BOOLEAN_TYPE
+@tindex POINTER_TYPE
+@tindex REFERENCE_TYPE
+@tindex FUNCTION_TYPE
+@tindex METHOD_TYPE
+@tindex ARRAY_TYPE
+@tindex RECORD_TYPE
+@tindex UNION_TYPE
+@tindex UNKNOWN_TYPE
+@tindex OFFSET_TYPE
+@tindex TYPENAME_TYPE
+@tindex TYPEOF_TYPE
+@findex CP_TYPE_QUALS
+@findex TYPE_UNQUALIFIED
+@findex TYPE_QUAL_CONST
+@findex TYPE_QUAL_VOLATILE
+@findex TYPE_QUAL_RESTRICT
+@findex TYPE_MAIN_VARIANT
+@cindex qualified type
+@findex TYPE_SIZE
+@findex TYPE_ALIGN
+@findex TYPE_PRECISION
+@findex TYPE_ARG_TYPES
+@findex TYPE_METHOD_BASETYPE
+@findex TYPE_PTRMEM_P
+@findex TYPE_OFFSET_BASETYPE
+@findex TREE_TYPE
+@findex TYPE_CONTEXT
+@findex TYPE_NAME
+@findex TYPENAME_TYPE_FULLNAME
+@findex TYPE_FIELDS
+@findex TYPE_PTROBV_P
+
+All types have corresponding tree nodes.  However, you should not assume
+that there is exactly one tree node corresponding to each type.  There
+are often several nodes each of which correspond to the same type.
+
+For the most part, different kinds of types have different tree codes.
+(For example, pointer types use a @code{POINTER_TYPE} code while arrays
+use an @code{ARRAY_TYPE} code.)  However, pointers to member functions
+use the @code{RECORD_TYPE} code.  Therefore, when writing a
+@code{switch} statement that depends on the code associated with a
+particular type, you should take care to handle pointers to member
+functions under the @code{RECORD_TYPE} case label.
+
+In C++, an array type is not qualified; rather the type of the array
+elements is qualified.  This situation is reflected in the intermediate
+representation.  The macros described here will always examine the
+qualification of the underlying element type when applied to an array
+type.  (If the element type is itself an array, then the recursion
+continues until a non-array type is found, and the qualification of this
+type is examined.)  So, for example, @code{CP_TYPE_CONST_P} will hold of
+the type @code{const int ()[7]}, denoting an array of seven @code{int}s.
+
+The following functions and macros deal with cv-qualification of types:
+@ftable @code
+@item CP_TYPE_QUALS
+This macro returns the set of type qualifiers applied to this type.
+This value is @code{TYPE_UNQUALIFIED} if no qualifiers have been
+applied.  The @code{TYPE_QUAL_CONST} bit is set if the type is
+@code{const}-qualified.  The @code{TYPE_QUAL_VOLATILE} bit is set if the
+type is @code{volatile}-qualified.  The @code{TYPE_QUAL_RESTRICT} bit is
+set if the type is @code{restrict}-qualified.
+
+@item CP_TYPE_CONST_P
+This macro holds if the type is @code{const}-qualified.
+
+@item CP_TYPE_VOLATILE_P
+This macro holds if the type is @code{volatile}-qualified.
+
+@item CP_TYPE_RESTRICT_P
+This macro holds if the type is @code{restrict}-qualified.
+
+@item CP_TYPE_CONST_NON_VOLATILE_P
+This predicate holds for a type that is @code{const}-qualified, but
+@emph{not} @code{volatile}-qualified; other cv-qualifiers are ignored as
+well: only the @code{const}-ness is tested.
+
+@item TYPE_MAIN_VARIANT
+This macro returns the unqualified version of a type.  It may be applied
+to an unqualified type, but it is not always the identity function in
+that case.
+@end ftable
+
+A few other macros and functions are usable with all types:
+@ftable @code
+@item TYPE_SIZE
+The number of bits required to represent the type, represented as an
+@code{INTEGER_CST}.  For an incomplete type, @code{TYPE_SIZE} will be
+@code{NULL_TREE}.
+
+@item TYPE_ALIGN
+The alignment of the type, in bits, represented as an @code{int}.
+
+@item TYPE_NAME
+This macro returns a declaration (in the form of a @code{TYPE_DECL}) for
+the type.  (Note this macro does @emph{not} return a
+@code{IDENTIFIER_NODE}, as you might expect, given its name!)  You can
+look at the @code{DECL_NAME} of the @code{TYPE_DECL} to obtain the
+actual name of the type.  The @code{TYPE_NAME} will be @code{NULL_TREE}
+for a type that is not a built-in type, the result of a typedef, or a
+named class type.
+
+@item CP_INTEGRAL_TYPE
+This predicate holds if the type is an integral type.  Notice that in
+C++, enumerations are @emph{not} integral types.
+
+@item ARITHMETIC_TYPE_P
+This predicate holds if the type is an integral type (in the C++ sense)
+or a floating point type.
+
+@item CLASS_TYPE_P
+This predicate holds for a class-type.
+
+@item TYPE_BUILT_IN
+This predicate holds for a built-in type.
+
+@item TYPE_PTRMEM_P
+This predicate holds if the type is a pointer to data member.
+
+@item TYPE_PTR_P
+This predicate holds if the type is a pointer type, and the pointee is
+not a data member.
+
+@item TYPE_PTRFN_P
+This predicate holds for a pointer to function type.
+
+@item TYPE_PTROB_P
+This predicate holds for a pointer to object type.  Note however that it
+does not hold for the generic pointer to object type @code{void *}.  You
+may use @code{TYPE_PTROBV_P} to test for a pointer to object type as
+well as @code{void *}.
+
+@item same_type_p
+This predicate takes two types as input, and holds if they are the same
+type.  For example, if one type is a @code{typedef} for the other, or
+both are @code{typedef}s for the same type.  This predicate also holds if
+the two trees given as input are simply copies of one another; i.e.,
+there is no difference between them at the source level, but, for
+whatever reason, a duplicate has been made in the representation.  You
+should never use @code{==} (pointer equality) to compare types; always
+use @code{same_type_p} instead.
+@end ftable
+
+Detailed below are the various kinds of types, and the macros that can
+be used to access them.  Although other kinds of types are used
+elsewhere in G++, the types described here are the only ones that you
+will encounter while examining the intermediate representation.
+
+@table @code
+@item VOID_TYPE
+Used to represent the @code{void} type.
+
+@item INTEGER_TYPE
+Used to represent the various integral types, including @code{char},
+@code{short}, @code{int}, @code{long}, and @code{long long}.  This code
+is not used for enumeration types, nor for the @code{bool} type.
+The @code{TYPE_PRECISION} is the number of bits used in
+the representation, represented as an @code{unsigned int}.  (Note that
+in the general case this is not the same value as @code{TYPE_SIZE};
+suppose that there were a 24-bit integer type, but that alignment
+requirements for the ABI required 32-bit alignment.  Then,
+@code{TYPE_SIZE} would be an @code{INTEGER_CST} for 32, while
+@code{TYPE_PRECISION} would be 24.)  The integer type is unsigned if
+@code{TYPE_UNSIGNED} holds; otherwise, it is signed.
+
+The @code{TYPE_MIN_VALUE} is an @code{INTEGER_CST} for the smallest
+integer that may be represented by this type.  Similarly, the
+@code{TYPE_MAX_VALUE} is an @code{INTEGER_CST} for the largest integer
+that may be represented by this type.
+
+@item REAL_TYPE
+Used to represent the @code{float}, @code{double}, and @code{long
+double} types.  The number of bits in the floating-point representation
+is given by @code{TYPE_PRECISION}, as in the @code{INTEGER_TYPE} case.
+
+@item COMPLEX_TYPE
+Used to represent GCC built-in @code{__complex__} data types.  The
+@code{TREE_TYPE} is the type of the real and imaginary parts.
+
+@item ENUMERAL_TYPE
+Used to represent an enumeration type.  The @code{TYPE_PRECISION} gives
+(as an @code{int}), the number of bits used to represent the type.  If
+there are no negative enumeration constants, @code{TYPE_UNSIGNED} will
+hold.  The minimum and maximum enumeration constants may be obtained
+with @code{TYPE_MIN_VALUE} and @code{TYPE_MAX_VALUE}, respectively; each
+of these macros returns an @code{INTEGER_CST}.
+
+The actual enumeration constants themselves may be obtained by looking
+at the @code{TYPE_VALUES}.  This macro will return a @code{TREE_LIST},
+containing the constants.  The @code{TREE_PURPOSE} of each node will be
+an @code{IDENTIFIER_NODE} giving the name of the constant; the
+@code{TREE_VALUE} will be an @code{INTEGER_CST} giving the value
+assigned to that constant.  These constants will appear in the order in
+which they were declared.  The @code{TREE_TYPE} of each of these
+constants will be the type of enumeration type itself.
+
+@item BOOLEAN_TYPE
+Used to represent the @code{bool} type.
+
+@item POINTER_TYPE
+Used to represent pointer types, and pointer to data member types.  The
+@code{TREE_TYPE} gives the type to which this type points.  If the type
+is a pointer to data member type, then @code{TYPE_PTRMEM_P} will hold.
+For a pointer to data member type of the form @samp{T X::*},
+@code{TYPE_PTRMEM_CLASS_TYPE} will be the type @code{X}, while
+@code{TYPE_PTRMEM_POINTED_TO_TYPE} will be the type @code{T}.
+
+@item REFERENCE_TYPE
+Used to represent reference types.  The @code{TREE_TYPE} gives the type
+to which this type refers.
+
+@item FUNCTION_TYPE
+Used to represent the type of non-member functions and of static member
+functions.  The @code{TREE_TYPE} gives the return type of the function.
+The @code{TYPE_ARG_TYPES} are a @code{TREE_LIST} of the argument types.
+The @code{TREE_VALUE} of each node in this list is the type of the
+corresponding argument; the @code{TREE_PURPOSE} is an expression for the
+default argument value, if any.  If the last node in the list is
+@code{void_list_node} (a @code{TREE_LIST} node whose @code{TREE_VALUE}
+is the @code{void_type_node}), then functions of this type do not take
+variable arguments.  Otherwise, they do take a variable number of
+arguments.
+
+Note that in C (but not in C++) a function declared like @code{void f()}
+is an unprototyped function taking a variable number of arguments; the
+@code{TYPE_ARG_TYPES} of such a function will be @code{NULL}.
+
+@item METHOD_TYPE
+Used to represent the type of a non-static member function.  Like a
+@code{FUNCTION_TYPE}, the return type is given by the @code{TREE_TYPE}.
+The type of @code{*this}, i.e., the class of which functions of this
+type are a member, is given by the @code{TYPE_METHOD_BASETYPE}.  The
+@code{TYPE_ARG_TYPES} is the parameter list, as for a
+@code{FUNCTION_TYPE}, and includes the @code{this} argument.
+
+@item ARRAY_TYPE
+Used to represent array types.  The @code{TREE_TYPE} gives the type of
+the elements in the array.  If the array-bound is present in the type,
+the @code{TYPE_DOMAIN} is an @code{INTEGER_TYPE} whose
+@code{TYPE_MIN_VALUE} and @code{TYPE_MAX_VALUE} will be the lower and
+upper bounds of the array, respectively.  The @code{TYPE_MIN_VALUE} will
+always be an @code{INTEGER_CST} for zero, while the
+@code{TYPE_MAX_VALUE} will be one less than the number of elements in
+the array, i.e., the highest value which may be used to index an element
+in the array.
+
+@item RECORD_TYPE
+Used to represent @code{struct} and @code{class} types, as well as
+pointers to member functions and similar constructs in other languages.
+@code{TYPE_FIELDS} contains the items contained in this type, each of
+which can be a @code{FIELD_DECL}, @code{VAR_DECL}, @code{CONST_DECL}, or
+@code{TYPE_DECL}.  You may not make any assumptions about the ordering
+of the fields in the type or whether one or more of them overlap.  If
+@code{TYPE_PTRMEMFUNC_P} holds, then this type is a pointer-to-member
+type.  In that case, the @code{TYPE_PTRMEMFUNC_FN_TYPE} is a
+@code{POINTER_TYPE} pointing to a @code{METHOD_TYPE}.  The
+@code{METHOD_TYPE} is the type of a function pointed to by the
+pointer-to-member function.  If @code{TYPE_PTRMEMFUNC_P} does not hold,
+this type is a class type.  For more information, see @pxref{Classes}.
+
+@item UNION_TYPE
+Used to represent @code{union} types.  Similar to @code{RECORD_TYPE}
+except that all @code{FIELD_DECL} nodes in @code{TYPE_FIELD} start at
+bit position zero.
+
+@item QUAL_UNION_TYPE
+Used to represent part of a variant record in Ada.  Similar to
+@code{UNION_TYPE} except that each @code{FIELD_DECL} has a
+@code{DECL_QUALIFIER} field, which contains a boolean expression that
+indicates whether the field is present in the object.  The type will only
+have one field, so each field's @code{DECL_QUALIFIER} is only evaluated
+if none of the expressions in the previous fields in @code{TYPE_FIELDS}
+are nonzero.  Normally these expressions will reference a field in the
+outer object using a @code{PLACEHOLDER_EXPR}.
+
+@item UNKNOWN_TYPE
+This node is used to represent a type the knowledge of which is
+insufficient for a sound processing.
+
+@item OFFSET_TYPE
+This node is used to represent a pointer-to-data member.  For a data
+member @code{X::m} the @code{TYPE_OFFSET_BASETYPE} is @code{X} and the
+@code{TREE_TYPE} is the type of @code{m}.
+
+@item TYPENAME_TYPE
+Used to represent a construct of the form @code{typename T::A}.  The
+@code{TYPE_CONTEXT} is @code{T}; the @code{TYPE_NAME} is an
+@code{IDENTIFIER_NODE} for @code{A}.  If the type is specified via a
+template-id, then @code{TYPENAME_TYPE_FULLNAME} yields a
+@code{TEMPLATE_ID_EXPR}.  The @code{TREE_TYPE} is non-@code{NULL} if the
+node is implicitly generated in support for the implicit typename
+extension; in which case the @code{TREE_TYPE} is a type node for the
+base-class.
+
+@item TYPEOF_TYPE
+Used to represent the @code{__typeof__} extension.  The
+@code{TYPE_FIELDS} is the expression the type of which is being
+represented.
+@end table
+
+There are variables whose values represent some of the basic types.
+These include:
+@table @code
+@item void_type_node
+A node for @code{void}.
+
+@item integer_type_node
+A node for @code{int}.
+
+@item unsigned_type_node.
+A node for @code{unsigned int}.
+
+@item char_type_node.
+A node for @code{char}.
+@end table
+@noindent
+It may sometimes be useful to compare one of these variables with a type
+in hand, using @code{same_type_p}.
+
+@c ---------------------------------------------------------------------
+@c Scopes
+@c ---------------------------------------------------------------------
+
+@node Scopes
+@section Scopes
+@cindex namespace, class, scope
+
+The root of the entire intermediate representation is the variable
+@code{global_namespace}.  This is the namespace specified with @code{::}
+in C++ source code.  All other namespaces, types, variables, functions,
+and so forth can be found starting with this namespace.
+
+Besides namespaces, the other high-level scoping construct in C++ is the
+class.  (Throughout this manual the term @dfn{class} is used to mean the
+types referred to in the ANSI/ISO C++ Standard as classes; these include
+types defined with the @code{class}, @code{struct}, and @code{union}
+keywords.)
+
+@menu
+* Namespaces::          Member functions, types, etc.
+* Classes::             Members, bases, friends, etc.
+@end menu
+
+@c ---------------------------------------------------------------------
+@c Namespaces
+@c ---------------------------------------------------------------------
+
+@node Namespaces
+@subsection Namespaces
+@cindex namespace
+@tindex NAMESPACE_DECL
+
+A namespace is represented by a @code{NAMESPACE_DECL} node.
+
+However, except for the fact that it is distinguished as the root of the
+representation, the global namespace is no different from any other
+namespace.  Thus, in what follows, we describe namespaces generally,
+rather than the global namespace in particular.
+
+The following macros and functions can be used on a @code{NAMESPACE_DECL}:
+
+@ftable @code
+@item DECL_NAME
+This macro is used to obtain the @code{IDENTIFIER_NODE} corresponding to
+the unqualified name of the name of the namespace (@pxref{Identifiers}).
+The name of the global namespace is @samp{::}, even though in C++ the
+global namespace is unnamed.  However, you should use comparison with
+@code{global_namespace}, rather than @code{DECL_NAME} to determine
+whether or not a namespace is the global one.  An unnamed namespace
+will have a @code{DECL_NAME} equal to @code{anonymous_namespace_name}.
+Within a single translation unit, all unnamed namespaces will have the
+same name.
+
+@item DECL_CONTEXT
+This macro returns the enclosing namespace.  The @code{DECL_CONTEXT} for
+the @code{global_namespace} is @code{NULL_TREE}.
+
+@item DECL_NAMESPACE_ALIAS
+If this declaration is for a namespace alias, then
+@code{DECL_NAMESPACE_ALIAS} is the namespace for which this one is an
+alias.
+
+Do not attempt to use @code{cp_namespace_decls} for a namespace which is
+an alias.  Instead, follow @code{DECL_NAMESPACE_ALIAS} links until you
+reach an ordinary, non-alias, namespace, and call
+@code{cp_namespace_decls} there.
+
+@item DECL_NAMESPACE_STD_P
+This predicate holds if the namespace is the special @code{::std}
+namespace.
+
+@item cp_namespace_decls
+This function will return the declarations contained in the namespace,
+including types, overloaded functions, other namespaces, and so forth.
+If there are no declarations, this function will return
+@code{NULL_TREE}.  The declarations are connected through their
+@code{TREE_CHAIN} fields.
+
+Although most entries on this list will be declarations,
+@code{TREE_LIST} nodes may also appear.  In this case, the
+@code{TREE_VALUE} will be an @code{OVERLOAD}.  The value of the
+@code{TREE_PURPOSE} is unspecified; back ends should ignore this value.
+As with the other kinds of declarations returned by
+@code{cp_namespace_decls}, the @code{TREE_CHAIN} will point to the next
+declaration in this list.
+
+For more information on the kinds of declarations that can occur on this
+list, @xref{Declarations}.  Some declarations will not appear on this
+list.  In particular, no @code{FIELD_DECL}, @code{LABEL_DECL}, or
+@code{PARM_DECL} nodes will appear here.
+
+This function cannot be used with namespaces that have
+@code{DECL_NAMESPACE_ALIAS} set.
+
+@end ftable
+
+@c ---------------------------------------------------------------------
+@c Classes
+@c ---------------------------------------------------------------------
+
+@node Classes
+@subsection Classes
+@cindex class
+@tindex RECORD_TYPE
+@tindex UNION_TYPE
+@findex CLASSTYPE_DECLARED_CLASS
+@findex TYPE_BINFO
+@findex BINFO_TYPE
+@findex TYPE_FIELDS
+@findex TYPE_VFIELD
+@findex TYPE_METHODS
+
+A class type is represented by either a @code{RECORD_TYPE} or a
+@code{UNION_TYPE}.  A class declared with the @code{union} tag is
+represented by a @code{UNION_TYPE}, while classes declared with either
+the @code{struct} or the @code{class} tag are represented by
+@code{RECORD_TYPE}s.  You can use the @code{CLASSTYPE_DECLARED_CLASS}
+macro to discern whether or not a particular type is a @code{class} as
+opposed to a @code{struct}.  This macro will be true only for classes
+declared with the @code{class} tag.
+
+Almost all non-function members are available on the @code{TYPE_FIELDS}
+list.  Given one member, the next can be found by following the
+@code{TREE_CHAIN}.  You should not depend in any way on the order in
+which fields appear on this list.  All nodes on this list will be
+@samp{DECL} nodes.  A @code{FIELD_DECL} is used to represent a non-static
+data member, a @code{VAR_DECL} is used to represent a static data
+member, and a @code{TYPE_DECL} is used to represent a type.  Note that
+the @code{CONST_DECL} for an enumeration constant will appear on this
+list, if the enumeration type was declared in the class.  (Of course,
+the @code{TYPE_DECL} for the enumeration type will appear here as well.)
+There are no entries for base classes on this list.  In particular,
+there is no @code{FIELD_DECL} for the ``base-class portion'' of an
+object.
+
+The @code{TYPE_VFIELD} is a compiler-generated field used to point to
+virtual function tables.  It may or may not appear on the
+@code{TYPE_FIELDS} list.  However, back ends should handle the
+@code{TYPE_VFIELD} just like all the entries on the @code{TYPE_FIELDS}
+list.
+
+The function members are available on the @code{TYPE_METHODS} list.
+Again, subsequent members are found by following the @code{TREE_CHAIN}
+field.  If a function is overloaded, each of the overloaded functions
+appears; no @code{OVERLOAD} nodes appear on the @code{TYPE_METHODS}
+list.  Implicitly declared functions (including default constructors,
+copy constructors, assignment operators, and destructors) will appear on
+this list as well.
+
+Every class has an associated @dfn{binfo}, which can be obtained with
+@code{TYPE_BINFO}.  Binfos are used to represent base-classes.  The
+binfo given by @code{TYPE_BINFO} is the degenerate case, whereby every
+class is considered to be its own base-class.  The base binfos for a
+particular binfo are held in a vector, whose length is obtained with
+@code{BINFO_N_BASE_BINFOS}.  The base binfos themselves are obtained
+with @code{BINFO_BASE_BINFO} and @code{BINFO_BASE_ITERATE}.  To add a
+new binfo, use @code{BINFO_BASE_APPEND}.  The vector of base binfos can
+be obtained with @code{BINFO_BASE_BINFOS}, but normally you do not need
+to use that.  The class type associated with a binfo is given by
+@code{BINFO_TYPE}.  It is not always the case that @code{BINFO_TYPE
+(TYPE_BINFO (x))}, because of typedefs and qualified types.  Neither is
+it the case that @code{TYPE_BINFO (BINFO_TYPE (y))} is the same binfo as
+@code{y}.  The reason is that if @code{y} is a binfo representing a
+base-class @code{B} of a derived class @code{D}, then @code{BINFO_TYPE
+(y)} will be @code{B}, and @code{TYPE_BINFO (BINFO_TYPE (y))} will be
+@code{B} as its own base-class, rather than as a base-class of @code{D}.
+
+The access to a base type can be found with @code{BINFO_BASE_ACCESS}.
+This will produce @code{access_public_node}, @code{access_private_node}
+or @code{access_protected_node}.  If bases are always public,
+@code{BINFO_BASE_ACCESSES} may be @code{NULL}.
+
+@code{BINFO_VIRTUAL_P} is used to specify whether the binfo is inherited
+virtually or not.  The other flags, @code{BINFO_MARKED_P} and
+@code{BINFO_FLAG_1} to @code{BINFO_FLAG_6} can be used for language
+specific use.
+
+The following macros can be used on a tree node representing a class-type.
+
+@ftable @code
+@item LOCAL_CLASS_P
+This predicate holds if the class is local class @emph{i.e.}@: declared
+inside a function body.
+
+@item TYPE_POLYMORPHIC_P
+This predicate holds if the class has at least one virtual function
+(declared or inherited).
+
+@item TYPE_HAS_DEFAULT_CONSTRUCTOR
+This predicate holds whenever its argument represents a class-type with
+default constructor.
+
+@item CLASSTYPE_HAS_MUTABLE
+@itemx TYPE_HAS_MUTABLE_P
+These predicates hold for a class-type having a mutable data member.
+
+@item CLASSTYPE_NON_POD_P
+This predicate holds only for class-types that are not PODs.
+
+@item TYPE_HAS_NEW_OPERATOR
+This predicate holds for a class-type that defines
+@code{operator new}.
+
+@item TYPE_HAS_ARRAY_NEW_OPERATOR
+This predicate holds for a class-type for which
+@code{operator new[]} is defined.
+
+@item TYPE_OVERLOADS_CALL_EXPR
+This predicate holds for class-type for which the function call
+@code{operator()} is overloaded.
+
+@item TYPE_OVERLOADS_ARRAY_REF
+This predicate holds for a class-type that overloads
+@code{operator[]}
+
+@item TYPE_OVERLOADS_ARROW
+This predicate holds for a class-type for which @code{operator->} is
+overloaded.
+
+@end ftable
+
+@c ---------------------------------------------------------------------
+@c Declarations
+@c ---------------------------------------------------------------------
+
+@node Declarations
+@section Declarations
+@cindex declaration
+@cindex variable
+@cindex type declaration
+@tindex LABEL_DECL
+@tindex CONST_DECL
+@tindex TYPE_DECL
+@tindex VAR_DECL
+@tindex PARM_DECL
+@tindex FIELD_DECL
+@tindex NAMESPACE_DECL
+@tindex RESULT_DECL
+@tindex TEMPLATE_DECL
+@tindex THUNK_DECL
+@tindex USING_DECL
+@findex THUNK_DELTA
+@findex DECL_INITIAL
+@findex DECL_SIZE
+@findex DECL_ALIGN
+@findex DECL_EXTERNAL
+
+This section covers the various kinds of declarations that appear in the
+internal representation, except for declarations of functions
+(represented by @code{FUNCTION_DECL} nodes), which are described in
+@ref{Functions}.
+
+@menu
+* Working with declarations::  Macros and functions that work on
+declarations.
+* Internal structure:: How declaration nodes are represented. 
+@end menu
+
+@node Working with declarations
+@subsection Working with declarations
+
+Some macros can be used with any kind of declaration.  These include:
+@ftable @code
+@item DECL_NAME
+This macro returns an @code{IDENTIFIER_NODE} giving the name of the
+entity.
+
+@item TREE_TYPE
+This macro returns the type of the entity declared.
+
+@item TREE_FILENAME
+This macro returns the name of the file in which the entity was
+declared, as a @code{char*}.  For an entity declared implicitly by the
+compiler (like @code{__builtin_memcpy}), this will be the string
+@code{"<internal>"}.
+
+@item TREE_LINENO
+This macro returns the line number at which the entity was declared, as
+an @code{int}.
+
+@item DECL_ARTIFICIAL
+This predicate holds if the declaration was implicitly generated by the
+compiler.  For example, this predicate will hold of an implicitly
+declared member function, or of the @code{TYPE_DECL} implicitly
+generated for a class type.  Recall that in C++ code like:
+@smallexample
+struct S @{@};
+@end smallexample
+@noindent
+is roughly equivalent to C code like:
+@smallexample
+struct S @{@};
+typedef struct S S;
+@end smallexample
+The implicitly generated @code{typedef} declaration is represented by a
+@code{TYPE_DECL} for which @code{DECL_ARTIFICIAL} holds.
+
+@item DECL_NAMESPACE_SCOPE_P
+This predicate holds if the entity was declared at a namespace scope.
+
+@item DECL_CLASS_SCOPE_P
+This predicate holds if the entity was declared at a class scope.
+
+@item DECL_FUNCTION_SCOPE_P
+This predicate holds if the entity was declared inside a function
+body.
+
+@end ftable
+
+The various kinds of declarations include:
+@table @code
+@item LABEL_DECL
+These nodes are used to represent labels in function bodies.  For more
+information, see @ref{Functions}.  These nodes only appear in block
+scopes.
+
+@item CONST_DECL
+These nodes are used to represent enumeration constants.  The value of
+the constant is given by @code{DECL_INITIAL} which will be an
+@code{INTEGER_CST} with the same type as the @code{TREE_TYPE} of the
+@code{CONST_DECL}, i.e., an @code{ENUMERAL_TYPE}.
+
+@item RESULT_DECL
+These nodes represent the value returned by a function.  When a value is
+assigned to a @code{RESULT_DECL}, that indicates that the value should
+be returned, via bitwise copy, by the function.  You can use
+@code{DECL_SIZE} and @code{DECL_ALIGN} on a @code{RESULT_DECL}, just as
+with a @code{VAR_DECL}.
+
+@item TYPE_DECL
+These nodes represent @code{typedef} declarations.  The @code{TREE_TYPE}
+is the type declared to have the name given by @code{DECL_NAME}.  In
+some cases, there is no associated name.
+
+@item VAR_DECL
+These nodes represent variables with namespace or block scope, as well
+as static data members.  The @code{DECL_SIZE} and @code{DECL_ALIGN} are
+analogous to @code{TYPE_SIZE} and @code{TYPE_ALIGN}.  For a declaration,
+you should always use the @code{DECL_SIZE} and @code{DECL_ALIGN} rather
+than the @code{TYPE_SIZE} and @code{TYPE_ALIGN} given by the
+@code{TREE_TYPE}, since special attributes may have been applied to the
+variable to give it a particular size and alignment.  You may use the
+predicates @code{DECL_THIS_STATIC} or @code{DECL_THIS_EXTERN} to test
+whether the storage class specifiers @code{static} or @code{extern} were
+used to declare a variable.
+
+If this variable is initialized (but does not require a constructor),
+the @code{DECL_INITIAL} will be an expression for the initializer.  The
+initializer should be evaluated, and a bitwise copy into the variable
+performed.  If the @code{DECL_INITIAL} is the @code{error_mark_node},
+there is an initializer, but it is given by an explicit statement later
+in the code; no bitwise copy is required.
+
+GCC provides an extension that allows either automatic variables, or
+global variables, to be placed in particular registers.  This extension
+is being used for a particular @code{VAR_DECL} if @code{DECL_REGISTER}
+holds for the @code{VAR_DECL}, and if @code{DECL_ASSEMBLER_NAME} is not
+equal to @code{DECL_NAME}.  In that case, @code{DECL_ASSEMBLER_NAME} is
+the name of the register into which the variable will be placed.
+
+@item PARM_DECL
+Used to represent a parameter to a function.  Treat these nodes
+similarly to @code{VAR_DECL} nodes.  These nodes only appear in the
+@code{DECL_ARGUMENTS} for a @code{FUNCTION_DECL}.
+
+The @code{DECL_ARG_TYPE} for a @code{PARM_DECL} is the type that will
+actually be used when a value is passed to this function.  It may be a
+wider type than the @code{TREE_TYPE} of the parameter; for example, the
+ordinary type might be @code{short} while the @code{DECL_ARG_TYPE} is
+@code{int}.
+
+@item FIELD_DECL
+These nodes represent non-static data members.  The @code{DECL_SIZE} and
+@code{DECL_ALIGN} behave as for @code{VAR_DECL} nodes.  
+The position of the field within the parent record is specified by a 
+combination of three attributes.  @code{DECL_FIELD_OFFSET} is the position,
+counting in bytes, of the @code{DECL_OFFSET_ALIGN}-bit sized word containing
+the bit of the field closest to the beginning of the structure.  
+@code{DECL_FIELD_BIT_OFFSET} is the bit offset of the first bit of the field
+within this word; this may be nonzero even for fields that are not bit-fields,
+since @code{DECL_OFFSET_ALIGN} may be greater than the natural alignment
+of the field's type.
+
+If @code{DECL_C_BIT_FIELD} holds, this field is a bit-field.  In a bit-field,
+@code{DECL_BIT_FIELD_TYPE} also contains the type that was originally
+specified for it, while DECL_TYPE may be a modified type with lesser precision,
+according to the size of the bit field.
+
+@item NAMESPACE_DECL
+@xref{Namespaces}.
+
+@item TEMPLATE_DECL
+
+These nodes are used to represent class, function, and variable (static
+data member) templates.  The @code{DECL_TEMPLATE_SPECIALIZATIONS} are a
+@code{TREE_LIST}.  The @code{TREE_VALUE} of each node in the list is a
+@code{TEMPLATE_DECL}s or @code{FUNCTION_DECL}s representing
+specializations (including instantiations) of this template.  Back ends
+can safely ignore @code{TEMPLATE_DECL}s, but should examine
+@code{FUNCTION_DECL} nodes on the specializations list just as they
+would ordinary @code{FUNCTION_DECL} nodes.
+
+For a class template, the @code{DECL_TEMPLATE_INSTANTIATIONS} list
+contains the instantiations.  The @code{TREE_VALUE} of each node is an
+instantiation of the class.  The @code{DECL_TEMPLATE_SPECIALIZATIONS}
+contains partial specializations of the class.
+
+@item USING_DECL
+
+Back ends can safely ignore these nodes.
+
+@end table
+
+@node Internal structure
+@subsection Internal structure
+
+@code{DECL} nodes are represented internally as a hierarchy of
+structures.
+
+@menu
+* Current structure hierarchy::  The current DECL node structure
+hierarchy.
+* Adding new DECL node types:: How to add a new DECL node to a
+frontend.
+@end menu
+
+@node Current structure hierarchy
+@subsubsection Current structure hierarchy
+
+@table @code
+
+@item struct tree_decl_minimal
+This is the minimal structure to inherit from in order for common
+@code{DECL} macros to work.  The fields it contains are a unique ID,
+source location, context, and name.
+
+@item struct tree_decl_common
+This structure inherits from @code{struct tree_decl_minimal}.  It
+contains fields that most @code{DECL} nodes need, such as a field to
+store alignment, machine mode, size, and attributes.
+
+@item struct tree_field_decl
+This structure inherits from @code{struct tree_decl_common}.  It is
+used to represent @code{FIELD_DECL}.
+
+@item struct tree_label_decl
+This structure inherits from @code{struct tree_decl_common}.  It is
+used to represent @code{LABEL_DECL}.
+
+@item struct tree_translation_unit_decl
+This structure inherits from @code{struct tree_decl_common}.  It is
+used to represent @code{TRANSLATION_UNIT_DECL}.
+
+@item struct tree_decl_with_rtl
+This structure inherits from @code{struct tree_decl_common}.  It
+contains a field to store the low-level RTL associated with a
+@code{DECL} node.
+
+@item struct tree_result_decl
+This structure inherits from @code{struct tree_decl_with_rtl}.  It is
+used to represent @code{RESULT_DECL}.
+
+@item struct tree_const_decl
+This structure inherits from @code{struct tree_decl_with_rtl}.  It is
+used to represent @code{CONST_DECL}.
+
+@item struct tree_parm_decl
+This structure inherits from @code{struct tree_decl_with_rtl}.  It is
+used to represent @code{PARM_DECL}.  
+
+@item struct tree_decl_with_vis
+This structure inherits from @code{struct tree_decl_with_rtl}.  It
+contains fields necessary to store visibility information, as well as
+a section name and assembler name.
+
+@item struct tree_var_decl
+This structure inherits from @code{struct tree_decl_with_vis}.  It is
+used to represent @code{VAR_DECL}.  
+
+@item struct tree_function_decl
+This structure inherits from @code{struct tree_decl_with_vis}.  It is
+used to represent @code{FUNCTION_DECL}.  
+
+@end table
+@node Adding new DECL node types
+@subsubsection Adding new DECL node types
+
+Adding a new @code{DECL} tree consists of the following steps
+
+@table @asis
+
+@item Add a new tree code for the @code{DECL} node
+For language specific @code{DECL} nodes, there is a @file{.def} file
+in each frontend directory where the tree code should be added.
+For @code{DECL} nodes that are part of the middle-end, the code should
+be added to @file{tree.def}.
+
+@item Create a new structure type for the @code{DECL} node
+These structures should inherit from one of the existing structures in
+the language hierarchy by using that structure as the first member.
+
+@smallexample
+struct tree_foo_decl
+@{
+   struct tree_decl_with_vis common;
+@}
+@end smallexample
+
+Would create a structure name @code{tree_foo_decl} that inherits from
+@code{struct tree_decl_with_vis}.
+
+For language specific @code{DECL} nodes, this new structure type
+should go in the appropriate @file{.h} file.
+For @code{DECL} nodes that are part of the middle-end, the structure
+type should go in @file{tree.h}.
+
+@item Add a member to the tree structure enumerator for the node
+For garbage collection and dynamic checking purposes, each @code{DECL}
+node structure type is required to have a unique enumerator value
+specified with it.
+For language specific @code{DECL} nodes, this new enumerator value
+should go in the appropriate @file{.def} file.
+For @code{DECL} nodes that are part of the middle-end, the enumerator
+values are specified in @file{treestruct.def}.
+
+@item Update @code{union tree_node}
+In order to make your new structure type usable, it must be added to
+@code{union tree_node}.
+For language specific @code{DECL} nodes, a new entry should be added
+to the appropriate @file{.h} file of the form
+@smallexample
+  struct tree_foo_decl GTY ((tag ("TS_VAR_DECL"))) foo_decl;
+@end smallexample
+For @code{DECL} nodes that are part of the middle-end, the additional
+member goes directly into @code{union tree_node} in @file{tree.h}.
+
+@item Update dynamic checking info
+In order to be able to check whether accessing a named portion of
+@code{union tree_node} is legal, and whether a certain @code{DECL} node
+contains one of the enumerated @code{DECL} node structures in the
+hierarchy, a simple lookup table is used.
+This lookup table needs to be kept up to date with the tree structure
+hierarchy, or else checking and containment macros will fail
+inappropriately.
+
+For language specific @code{DECL} nodes, their is an @code{init_ts}
+function in an appropriate @file{.c} file, which initializes the lookup
+table.
+Code setting up the table for new @code{DECL} nodes should be added
+there.
+For each @code{DECL} tree code and enumerator value representing a
+member of the inheritance  hierarchy, the table should contain 1 if
+that tree code inherits (directly or indirectly) from that member.
+Thus, a @code{FOO_DECL} node derived from @code{struct decl_with_rtl},
+and enumerator value @code{TS_FOO_DECL}, would be set up as follows
+@smallexample
+tree_contains_struct[FOO_DECL][TS_FOO_DECL] = 1;
+tree_contains_struct[FOO_DECL][TS_DECL_WRTL] = 1;
+tree_contains_struct[FOO_DECL][TS_DECL_COMMON] = 1;
+tree_contains_struct[FOO_DECL][TS_DECL_MINIMAL] = 1;
+@end smallexample
+
+For @code{DECL} nodes that are part of the middle-end, the setup code
+goes into @file{tree.c}.
+
+@item Add macros to access any new fields and flags
+
+Each added field or flag should have a macro that is used to access
+it, that performs appropriate checking to ensure only the right type of
+@code{DECL} nodes access the field.
+
+These macros generally take the following form
+@smallexample
+#define FOO_DECL_FIELDNAME(NODE) FOO_DECL_CHECK(NODE)->foo_decl.fieldname
+@end smallexample
+However, if the structure is simply a base class for further
+structures, something like the following should be used
+@smallexample
+#define BASE_STRUCT_CHECK(T) CONTAINS_STRUCT_CHECK(T, TS_BASE_STRUCT)
+#define BASE_STRUCT_FIELDNAME(NODE) \
+   (BASE_STRUCT_CHECK(NODE)->base_struct.fieldname
+@end smallexample
+
+@end table
+
+
+@c ---------------------------------------------------------------------
+@c Functions
+@c ---------------------------------------------------------------------
+
+@node Functions
+@section Functions
+@cindex function
+@tindex FUNCTION_DECL
+@tindex OVERLOAD
+@findex OVL_CURRENT
+@findex OVL_NEXT
+
+A function is represented by a @code{FUNCTION_DECL} node.  A set of
+overloaded functions is sometimes represented by a @code{OVERLOAD} node.
+
+An @code{OVERLOAD} node is not a declaration, so none of the
+@samp{DECL_} macros should be used on an @code{OVERLOAD}.  An
+@code{OVERLOAD} node is similar to a @code{TREE_LIST}.  Use
+@code{OVL_CURRENT} to get the function associated with an
+@code{OVERLOAD} node; use @code{OVL_NEXT} to get the next
+@code{OVERLOAD} node in the list of overloaded functions.  The macros
+@code{OVL_CURRENT} and @code{OVL_NEXT} are actually polymorphic; you can
+use them to work with @code{FUNCTION_DECL} nodes as well as with
+overloads.  In the case of a @code{FUNCTION_DECL}, @code{OVL_CURRENT}
+will always return the function itself, and @code{OVL_NEXT} will always
+be @code{NULL_TREE}.
+
+To determine the scope of a function, you can use the
+@code{DECL_CONTEXT} macro.  This macro will return the class
+(either a @code{RECORD_TYPE} or a @code{UNION_TYPE}) or namespace (a
+@code{NAMESPACE_DECL}) of which the function is a member.  For a virtual
+function, this macro returns the class in which the function was
+actually defined, not the base class in which the virtual declaration
+occurred.
+
+If a friend function is defined in a class scope, the
+@code{DECL_FRIEND_CONTEXT} macro can be used to determine the class in
+which it was defined.  For example, in
+@smallexample
+class C @{ friend void f() @{@} @};
+@end smallexample
+@noindent
+the @code{DECL_CONTEXT} for @code{f} will be the
+@code{global_namespace}, but the @code{DECL_FRIEND_CONTEXT} will be the
+@code{RECORD_TYPE} for @code{C}.
+
+In C, the @code{DECL_CONTEXT} for a function maybe another function.
+This representation indicates that the GNU nested function extension
+is in use.  For details on the semantics of nested functions, see the
+GCC Manual.  The nested function can refer to local variables in its
+containing function.  Such references are not explicitly marked in the
+tree structure; back ends must look at the @code{DECL_CONTEXT} for the
+referenced @code{VAR_DECL}.  If the @code{DECL_CONTEXT} for the
+referenced @code{VAR_DECL} is not the same as the function currently
+being processed, and neither @code{DECL_EXTERNAL} nor
+@code{DECL_STATIC} hold, then the reference is to a local variable in
+a containing function, and the back end must take appropriate action.
+
+@menu
+* Function Basics::     Function names, linkage, and so forth.
+* Function Bodies::     The statements that make up a function body.
+@end menu
+
+@c ---------------------------------------------------------------------
+@c Function Basics
+@c ---------------------------------------------------------------------
+
+@node Function Basics
+@subsection Function Basics
+@cindex constructor
+@cindex destructor
+@cindex copy constructor
+@cindex assignment operator
+@cindex linkage
+@findex DECL_NAME
+@findex DECL_ASSEMBLER_NAME
+@findex TREE_PUBLIC
+@findex DECL_LINKONCE_P
+@findex DECL_FUNCTION_MEMBER_P
+@findex DECL_CONSTRUCTOR_P
+@findex DECL_DESTRUCTOR_P
+@findex DECL_OVERLOADED_OPERATOR_P
+@findex DECL_CONV_FN_P
+@findex DECL_ARTIFICIAL
+@findex DECL_GLOBAL_CTOR_P
+@findex DECL_GLOBAL_DTOR_P
+@findex GLOBAL_INIT_PRIORITY
+
+The following macros and functions can be used on a @code{FUNCTION_DECL}:
+@ftable @code
+@item DECL_MAIN_P
+This predicate holds for a function that is the program entry point
+@code{::code}.
+
+@item DECL_NAME
+This macro returns the unqualified name of the function, as an
+@code{IDENTIFIER_NODE}.  For an instantiation of a function template,
+the @code{DECL_NAME} is the unqualified name of the template, not
+something like @code{f<int>}.  The value of @code{DECL_NAME} is
+undefined when used on a constructor, destructor, overloaded operator,
+or type-conversion operator, or any function that is implicitly
+generated by the compiler.  See below for macros that can be used to
+distinguish these cases.
+
+@item DECL_ASSEMBLER_NAME
+This macro returns the mangled name of the function, also an
+@code{IDENTIFIER_NODE}.  This name does not contain leading underscores
+on systems that prefix all identifiers with underscores.  The mangled
+name is computed in the same way on all platforms; if special processing
+is required to deal with the object file format used on a particular
+platform, it is the responsibility of the back end to perform those
+modifications.  (Of course, the back end should not modify
+@code{DECL_ASSEMBLER_NAME} itself.)
+
+Using @code{DECL_ASSEMBLER_NAME} will cause additional memory to be
+allocated (for the mangled name of the entity) so it should be used
+only when emitting assembly code.  It should not be used within the
+optimizers to determine whether or not two declarations are the same,
+even though some of the existing optimizers do use it in that way.
+These uses will be removed over time.
+
+@item DECL_EXTERNAL
+This predicate holds if the function is undefined.
+
+@item TREE_PUBLIC
+This predicate holds if the function has external linkage.
+
+@item DECL_LOCAL_FUNCTION_P
+This predicate holds if the function was declared at block scope, even
+though it has a global scope.
+
+@item DECL_ANTICIPATED
+This predicate holds if the function is a built-in function but its
+prototype is not yet explicitly declared.
+
+@item DECL_EXTERN_C_FUNCTION_P
+This predicate holds if the function is declared as an
+`@code{extern "C"}' function.
+
+@item DECL_LINKONCE_P
+This macro holds if multiple copies of this function may be emitted in
+various translation units.  It is the responsibility of the linker to
+merge the various copies.  Template instantiations are the most common
+example of functions for which @code{DECL_LINKONCE_P} holds; G++
+instantiates needed templates in all translation units which require them,
+and then relies on the linker to remove duplicate instantiations.
+
+FIXME: This macro is not yet implemented.
+
+@item DECL_FUNCTION_MEMBER_P
+This macro holds if the function is a member of a class, rather than a
+member of a namespace.
+
+@item DECL_STATIC_FUNCTION_P
+This predicate holds if the function a static member function.
+
+@item DECL_NONSTATIC_MEMBER_FUNCTION_P
+This macro holds for a non-static member function.
+
+@item DECL_CONST_MEMFUNC_P
+This predicate holds for a @code{const}-member function.
+
+@item DECL_VOLATILE_MEMFUNC_P
+This predicate holds for a @code{volatile}-member function.
+
+@item DECL_CONSTRUCTOR_P
+This macro holds if the function is a constructor.
+
+@item DECL_NONCONVERTING_P
+This predicate holds if the constructor is a non-converting constructor.
+
+@item DECL_COMPLETE_CONSTRUCTOR_P
+This predicate holds for a function which is a constructor for an object
+of a complete type.
+
+@item DECL_BASE_CONSTRUCTOR_P
+This predicate holds for a function which is a constructor for a base
+class sub-object.
+
+@item DECL_COPY_CONSTRUCTOR_P
+This predicate holds for a function which is a copy-constructor.
+
+@item DECL_DESTRUCTOR_P
+This macro holds if the function is a destructor.
+
+@item DECL_COMPLETE_DESTRUCTOR_P
+This predicate holds if the function is the destructor for an object a
+complete type.
+
+@item DECL_OVERLOADED_OPERATOR_P
+This macro holds if the function is an overloaded operator.
+
+@item DECL_CONV_FN_P
+This macro holds if the function is a type-conversion operator.
+
+@item DECL_GLOBAL_CTOR_P
+This predicate holds if the function is a file-scope initialization
+function.
+
+@item DECL_GLOBAL_DTOR_P
+This predicate holds if the function is a file-scope finalization
+function.
+
+@item DECL_THUNK_P
+This predicate holds if the function is a thunk.
+
+These functions represent stub code that adjusts the @code{this} pointer
+and then jumps to another function.  When the jumped-to function
+returns, control is transferred directly to the caller, without
+returning to the thunk.  The first parameter to the thunk is always the
+@code{this} pointer; the thunk should add @code{THUNK_DELTA} to this
+value.  (The @code{THUNK_DELTA} is an @code{int}, not an
+@code{INTEGER_CST}.)
+
+Then, if @code{THUNK_VCALL_OFFSET} (an @code{INTEGER_CST}) is nonzero
+the adjusted @code{this} pointer must be adjusted again.  The complete
+calculation is given by the following pseudo-code:
+
+@smallexample
+this += THUNK_DELTA
+if (THUNK_VCALL_OFFSET)
+  this += (*((ptrdiff_t **) this))[THUNK_VCALL_OFFSET]
+@end smallexample
+
+Finally, the thunk should jump to the location given
+by @code{DECL_INITIAL}; this will always be an expression for the
+address of a function.
+
+@item DECL_NON_THUNK_FUNCTION_P
+This predicate holds if the function is @emph{not} a thunk function.
+
+@item GLOBAL_INIT_PRIORITY
+If either @code{DECL_GLOBAL_CTOR_P} or @code{DECL_GLOBAL_DTOR_P} holds,
+then this gives the initialization priority for the function.  The
+linker will arrange that all functions for which
+@code{DECL_GLOBAL_CTOR_P} holds are run in increasing order of priority
+before @code{main} is called.  When the program exits, all functions for
+which @code{DECL_GLOBAL_DTOR_P} holds are run in the reverse order.
+
+@item DECL_ARTIFICIAL
+This macro holds if the function was implicitly generated by the
+compiler, rather than explicitly declared.  In addition to implicitly
+generated class member functions, this macro holds for the special
+functions created to implement static initialization and destruction, to
+compute run-time type information, and so forth.
+
+@item DECL_ARGUMENTS
+This macro returns the @code{PARM_DECL} for the first argument to the
+function.  Subsequent @code{PARM_DECL} nodes can be obtained by
+following the @code{TREE_CHAIN} links.
+
+@item DECL_RESULT
+This macro returns the @code{RESULT_DECL} for the function.
+
+@item TREE_TYPE
+This macro returns the @code{FUNCTION_TYPE} or @code{METHOD_TYPE} for
+the function.
+
+@item TYPE_RAISES_EXCEPTIONS
+This macro returns the list of exceptions that a (member-)function can
+raise.  The returned list, if non @code{NULL}, is comprised of nodes
+whose @code{TREE_VALUE} represents a type.
+
+@item TYPE_NOTHROW_P
+This predicate holds when the exception-specification of its arguments
+if of the form `@code{()}'.
+
+@item DECL_ARRAY_DELETE_OPERATOR_P
+This predicate holds if the function an overloaded
+@code{operator delete[]}.
+
+@end ftable
+
+@c ---------------------------------------------------------------------
+@c Function Bodies
+@c ---------------------------------------------------------------------
+
+@node Function Bodies
+@subsection Function Bodies
+@cindex function body
+@cindex statements
+@tindex BREAK_STMT
+@tindex CLEANUP_STMT
+@findex CLEANUP_DECL
+@findex CLEANUP_EXPR
+@tindex CONTINUE_STMT
+@tindex DECL_STMT
+@findex DECL_STMT_DECL
+@tindex DO_STMT
+@findex DO_BODY
+@findex DO_COND
+@tindex EMPTY_CLASS_EXPR
+@tindex EXPR_STMT
+@findex EXPR_STMT_EXPR
+@tindex FOR_STMT
+@findex FOR_INIT_STMT
+@findex FOR_COND
+@findex FOR_EXPR
+@findex FOR_BODY
+@tindex HANDLER
+@tindex IF_STMT
+@findex IF_COND
+@findex THEN_CLAUSE
+@findex ELSE_CLAUSE
+@tindex RETURN_STMT
+@findex RETURN_EXPR
+@tindex SUBOBJECT
+@findex SUBOBJECT_CLEANUP
+@tindex SWITCH_STMT
+@findex SWITCH_COND
+@findex SWITCH_BODY
+@tindex TRY_BLOCK
+@findex TRY_STMTS
+@findex TRY_HANDLERS
+@findex HANDLER_PARMS
+@findex HANDLER_BODY
+@findex USING_STMT
+@tindex WHILE_STMT
+@findex WHILE_BODY
+@findex WHILE_COND
+
+A function that has a definition in the current translation unit will
+have a non-@code{NULL} @code{DECL_INITIAL}.  However, back ends should not make
+use of the particular value given by @code{DECL_INITIAL}.
+
+The @code{DECL_SAVED_TREE} macro will give the complete body of the
+function.
+
+@subsubsection Statements
+
+There are tree nodes corresponding to all of the source-level
+statement constructs, used within the C and C++ frontends.  These are
+enumerated here, together with a list of the various macros that can
+be used to obtain information about them.  There are a few macros that
+can be used with all statements:
+
+@ftable @code
+@item STMT_IS_FULL_EXPR_P
+In C++, statements normally constitute ``full expressions''; temporaries
+created during a statement are destroyed when the statement is complete.
+However, G++ sometimes represents expressions by statements; these
+statements will not have @code{STMT_IS_FULL_EXPR_P} set.  Temporaries
+created during such statements should be destroyed when the innermost
+enclosing statement with @code{STMT_IS_FULL_EXPR_P} set is exited.
+
+@end ftable
+
+Here is the list of the various statement nodes, and the macros used to
+access them.  This documentation describes the use of these nodes in
+non-template functions (including instantiations of template functions).
+In template functions, the same nodes are used, but sometimes in
+slightly different ways.
+
+Many of the statements have substatements.  For example, a @code{while}
+loop will have a body, which is itself a statement.  If the substatement
+is @code{NULL_TREE}, it is considered equivalent to a statement
+consisting of a single @code{;}, i.e., an expression statement in which
+the expression has been omitted.  A substatement may in fact be a list
+of statements, connected via their @code{TREE_CHAIN}s.  So, you should
+always process the statement tree by looping over substatements, like
+this:
+@smallexample
+void process_stmt (stmt)
+     tree stmt;
+@{
+  while (stmt)
+    @{
+      switch (TREE_CODE (stmt))
+        @{
+        case IF_STMT:
+          process_stmt (THEN_CLAUSE (stmt));
+          /* @r{More processing here.}  */
+          break;
+
+        @dots{}
+        @}
+
+      stmt = TREE_CHAIN (stmt);
+    @}
+@}
+@end smallexample
+In other words, while the @code{then} clause of an @code{if} statement
+in C++ can be only one statement (although that one statement may be a
+compound statement), the intermediate representation will sometimes use
+several statements chained together.
+
+@table @code
+@item ASM_EXPR
+
+Used to represent an inline assembly statement.  For an inline assembly
+statement like:
+@smallexample
+asm ("mov x, y");
+@end smallexample
+The @code{ASM_STRING} macro will return a @code{STRING_CST} node for
+@code{"mov x, y"}.  If the original statement made use of the
+extended-assembly syntax, then @code{ASM_OUTPUTS},
+@code{ASM_INPUTS}, and @code{ASM_CLOBBERS} will be the outputs, inputs,
+and clobbers for the statement, represented as @code{STRING_CST} nodes.
+The extended-assembly syntax looks like:
+@smallexample
+asm ("fsinx %1,%0" : "=f" (result) : "f" (angle));
+@end smallexample
+The first string is the @code{ASM_STRING}, containing the instruction
+template.  The next two strings are the output and inputs, respectively;
+this statement has no clobbers.  As this example indicates, ``plain''
+assembly statements are merely a special case of extended assembly
+statements; they have no cv-qualifiers, outputs, inputs, or clobbers.
+All of the strings will be @code{NUL}-terminated, and will contain no
+embedded @code{NUL}-characters.
+
+If the assembly statement is declared @code{volatile}, or if the
+statement was not an extended assembly statement, and is therefore
+implicitly volatile, then the predicate @code{ASM_VOLATILE_P} will hold
+of the @code{ASM_EXPR}.
+
+@item BREAK_STMT
+
+Used to represent a @code{break} statement.  There are no additional
+fields.
+
+@item CASE_LABEL_EXPR
+
+Use to represent a @code{case} label, range of @code{case} labels, or a
+@code{default} label.  If @code{CASE_LOW} is @code{NULL_TREE}, then this is a
+@code{default} label.  Otherwise, if @code{CASE_HIGH} is @code{NULL_TREE}, then
+this is an ordinary @code{case} label.  In this case, @code{CASE_LOW} is
+an expression giving the value of the label.  Both @code{CASE_LOW} and
+@code{CASE_HIGH} are @code{INTEGER_CST} nodes.  These values will have
+the same type as the condition expression in the switch statement.
+
+Otherwise, if both @code{CASE_LOW} and @code{CASE_HIGH} are defined, the
+statement is a range of case labels.  Such statements originate with the
+extension that allows users to write things of the form:
+@smallexample
+case 2 ... 5:
+@end smallexample
+The first value will be @code{CASE_LOW}, while the second will be
+@code{CASE_HIGH}.
+
+@item CLEANUP_STMT
+
+Used to represent an action that should take place upon exit from the
+enclosing scope.  Typically, these actions are calls to destructors for
+local objects, but back ends cannot rely on this fact.  If these nodes
+are in fact representing such destructors, @code{CLEANUP_DECL} will be
+the @code{VAR_DECL} destroyed.  Otherwise, @code{CLEANUP_DECL} will be
+@code{NULL_TREE}.  In any case, the @code{CLEANUP_EXPR} is the
+expression to execute.  The cleanups executed on exit from a scope
+should be run in the reverse order of the order in which the associated
+@code{CLEANUP_STMT}s were encountered.
+
+@item CONTINUE_STMT
+
+Used to represent a @code{continue} statement.  There are no additional
+fields.
+
+@item CTOR_STMT
+
+Used to mark the beginning (if @code{CTOR_BEGIN_P} holds) or end (if
+@code{CTOR_END_P} holds of the main body of a constructor.  See also
+@code{SUBOBJECT} for more information on how to use these nodes.
+
+@item DECL_STMT
+
+Used to represent a local declaration.  The @code{DECL_STMT_DECL} macro
+can be used to obtain the entity declared.  This declaration may be a
+@code{LABEL_DECL}, indicating that the label declared is a local label.
+(As an extension, GCC allows the declaration of labels with scope.)  In
+C, this declaration may be a @code{FUNCTION_DECL}, indicating the
+use of the GCC nested function extension.  For more information,
+@pxref{Functions}.
+
+@item DO_STMT
+
+Used to represent a @code{do} loop.  The body of the loop is given by
+@code{DO_BODY} while the termination condition for the loop is given by
+@code{DO_COND}.  The condition for a @code{do}-statement is always an
+expression.
+
+@item EMPTY_CLASS_EXPR
+
+Used to represent a temporary object of a class with no data whose
+address is never taken.  (All such objects are interchangeable.)  The
+@code{TREE_TYPE} represents the type of the object.
+
+@item EXPR_STMT
+
+Used to represent an expression statement.  Use @code{EXPR_STMT_EXPR} to
+obtain the expression.
+
+@item FOR_STMT
+
+Used to represent a @code{for} statement.  The @code{FOR_INIT_STMT} is
+the initialization statement for the loop.  The @code{FOR_COND} is the
+termination condition.  The @code{FOR_EXPR} is the expression executed
+right before the @code{FOR_COND} on each loop iteration; often, this
+expression increments a counter.  The body of the loop is given by
+@code{FOR_BODY}.  Note that @code{FOR_INIT_STMT} and @code{FOR_BODY}
+return statements, while @code{FOR_COND} and @code{FOR_EXPR} return
+expressions.
+
+@item GOTO_EXPR
+
+Used to represent a @code{goto} statement.  The @code{GOTO_DESTINATION} will
+usually be a @code{LABEL_DECL}.  However, if the ``computed goto'' extension
+has been used, the @code{GOTO_DESTINATION} will be an arbitrary expression
+indicating the destination.  This expression will always have pointer type.
+
+@item HANDLER
+
+Used to represent a C++ @code{catch} block.  The @code{HANDLER_TYPE}
+is the type of exception that will be caught by this handler; it is
+equal (by pointer equality) to @code{NULL} if this handler is for all
+types.  @code{HANDLER_PARMS} is the @code{DECL_STMT} for the catch
+parameter, and @code{HANDLER_BODY} is the code for the block itself.
+
+@item IF_STMT
+
+Used to represent an @code{if} statement.  The @code{IF_COND} is the
+expression.
+
+If the condition is a @code{TREE_LIST}, then the @code{TREE_PURPOSE} is
+a statement (usually a @code{DECL_STMT}).  Each time the condition is
+evaluated, the statement should be executed.  Then, the
+@code{TREE_VALUE} should be used as the conditional expression itself.
+This representation is used to handle C++ code like this:
+
+@smallexample
+if (int i = 7) @dots{}
+@end smallexample
+
+where there is a new local variable (or variables) declared within the
+condition.
+
+The @code{THEN_CLAUSE} represents the statement given by the @code{then}
+condition, while the @code{ELSE_CLAUSE} represents the statement given
+by the @code{else} condition.
+
+@item LABEL_EXPR
+
+Used to represent a label.  The @code{LABEL_DECL} declared by this
+statement can be obtained with the @code{LABEL_EXPR_LABEL} macro.  The
+@code{IDENTIFIER_NODE} giving the name of the label can be obtained from
+the @code{LABEL_DECL} with @code{DECL_NAME}.
+
+@item RETURN_STMT
+
+Used to represent a @code{return} statement.  The @code{RETURN_EXPR} is
+the expression returned; it will be @code{NULL_TREE} if the statement
+was just
+@smallexample
+return;
+@end smallexample
+
+@item SUBOBJECT
+
+In a constructor, these nodes are used to mark the point at which a
+subobject of @code{this} is fully constructed.  If, after this point, an
+exception is thrown before a @code{CTOR_STMT} with @code{CTOR_END_P} set
+is encountered, the @code{SUBOBJECT_CLEANUP} must be executed.  The
+cleanups must be executed in the reverse order in which they appear.
+
+@item SWITCH_STMT
+
+Used to represent a @code{switch} statement.  The @code{SWITCH_STMT_COND}
+is the expression on which the switch is occurring.  See the documentation
+for an @code{IF_STMT} for more information on the representation used
+for the condition.  The @code{SWITCH_STMT_BODY} is the body of the switch
+statement.   The @code{SWITCH_STMT_TYPE} is the original type of switch
+expression as given in the source, before any compiler conversions.
+
+@item TRY_BLOCK
+Used to represent a @code{try} block.  The body of the try block is
+given by @code{TRY_STMTS}.  Each of the catch blocks is a @code{HANDLER}
+node.  The first handler is given by @code{TRY_HANDLERS}.  Subsequent
+handlers are obtained by following the @code{TREE_CHAIN} link from one
+handler to the next.  The body of the handler is given by
+@code{HANDLER_BODY}.
+
+If @code{CLEANUP_P} holds of the @code{TRY_BLOCK}, then the
+@code{TRY_HANDLERS} will not be a @code{HANDLER} node.  Instead, it will
+be an expression that should be executed if an exception is thrown in
+the try block.  It must rethrow the exception after executing that code.
+And, if an exception is thrown while the expression is executing,
+@code{terminate} must be called.
+
+@item USING_STMT
+Used to represent a @code{using} directive.  The namespace is given by
+@code{USING_STMT_NAMESPACE}, which will be a NAMESPACE_DECL@.  This node
+is needed inside template functions, to implement using directives
+during instantiation.
+
+@item WHILE_STMT
+
+Used to represent a @code{while} loop.  The @code{WHILE_COND} is the
+termination condition for the loop.  See the documentation for an
+@code{IF_STMT} for more information on the representation used for the
+condition.
+
+The @code{WHILE_BODY} is the body of the loop.
+
+@end table
+
+@c ---------------------------------------------------------------------
+@c Attributes
+@c ---------------------------------------------------------------------
+@node Attributes
+@section Attributes in trees
+@cindex attributes
+
+Attributes, as specified using the @code{__attribute__} keyword, are
+represented internally as a @code{TREE_LIST}.  The @code{TREE_PURPOSE}
+is the name of the attribute, as an @code{IDENTIFIER_NODE}.  The
+@code{TREE_VALUE} is a @code{TREE_LIST} of the arguments of the
+attribute, if any, or @code{NULL_TREE} if there are no arguments; the
+arguments are stored as the @code{TREE_VALUE} of successive entries in
+the list, and may be identifiers or expressions.  The @code{TREE_CHAIN}
+of the attribute is the next attribute in a list of attributes applying
+to the same declaration or type, or @code{NULL_TREE} if there are no
+further attributes in the list.
+
+Attributes may be attached to declarations and to types; these
+attributes may be accessed with the following macros.  All attributes
+are stored in this way, and many also cause other changes to the
+declaration or type or to other internal compiler data structures.
+
+@deftypefn {Tree Macro} tree DECL_ATTRIBUTES (tree @var{decl})
+This macro returns the attributes on the declaration @var{decl}.
+@end deftypefn
+
+@deftypefn {Tree Macro} tree TYPE_ATTRIBUTES (tree @var{type})
+This macro returns the attributes on the type @var{type}.
+@end deftypefn
+
+@c ---------------------------------------------------------------------
+@c Expressions
+@c ---------------------------------------------------------------------
+
+@node Expression trees
+@section Expressions
+@cindex expression
+@findex TREE_TYPE
+@findex TREE_OPERAND
+@tindex INTEGER_CST
+@findex TREE_INT_CST_HIGH
+@findex TREE_INT_CST_LOW
+@findex tree_int_cst_lt
+@findex tree_int_cst_equal
+@tindex REAL_CST
+@tindex COMPLEX_CST
+@tindex VECTOR_CST
+@tindex STRING_CST
+@findex TREE_STRING_LENGTH
+@findex TREE_STRING_POINTER
+@tindex PTRMEM_CST
+@findex PTRMEM_CST_CLASS
+@findex PTRMEM_CST_MEMBER
+@tindex VAR_DECL
+@tindex NEGATE_EXPR
+@tindex ABS_EXPR
+@tindex BIT_NOT_EXPR
+@tindex TRUTH_NOT_EXPR
+@tindex PREDECREMENT_EXPR
+@tindex PREINCREMENT_EXPR
+@tindex POSTDECREMENT_EXPR
+@tindex POSTINCREMENT_EXPR
+@tindex ADDR_EXPR
+@tindex INDIRECT_REF
+@tindex FIX_TRUNC_EXPR
+@tindex FLOAT_EXPR
+@tindex COMPLEX_EXPR
+@tindex CONJ_EXPR
+@tindex REALPART_EXPR
+@tindex IMAGPART_EXPR
+@tindex NON_LVALUE_EXPR
+@tindex NOP_EXPR
+@tindex CONVERT_EXPR
+@tindex THROW_EXPR
+@tindex LSHIFT_EXPR
+@tindex RSHIFT_EXPR
+@tindex BIT_IOR_EXPR
+@tindex BIT_XOR_EXPR
+@tindex BIT_AND_EXPR
+@tindex TRUTH_ANDIF_EXPR
+@tindex TRUTH_ORIF_EXPR
+@tindex TRUTH_AND_EXPR
+@tindex TRUTH_OR_EXPR
+@tindex TRUTH_XOR_EXPR
+@tindex PLUS_EXPR
+@tindex MINUS_EXPR
+@tindex MULT_EXPR
+@tindex RDIV_EXPR
+@tindex TRUNC_DIV_EXPR
+@tindex FLOOR_DIV_EXPR
+@tindex CEIL_DIV_EXPR
+@tindex ROUND_DIV_EXPR
+@tindex TRUNC_MOD_EXPR
+@tindex FLOOR_MOD_EXPR
+@tindex CEIL_MOD_EXPR
+@tindex ROUND_MOD_EXPR
+@tindex EXACT_DIV_EXPR
+@tindex ARRAY_REF
+@tindex ARRAY_RANGE_REF
+@tindex TARGET_MEM_REF
+@tindex LT_EXPR
+@tindex LE_EXPR
+@tindex GT_EXPR
+@tindex GE_EXPR
+@tindex EQ_EXPR
+@tindex NE_EXPR
+@tindex ORDERED_EXPR
+@tindex UNORDERED_EXPR
+@tindex UNLT_EXPR
+@tindex UNLE_EXPR
+@tindex UNGT_EXPR
+@tindex UNGE_EXPR
+@tindex UNEQ_EXPR
+@tindex LTGT_EXPR
+@tindex MODIFY_EXPR
+@tindex INIT_EXPR
+@tindex COMPONENT_REF
+@tindex COMPOUND_EXPR
+@tindex COND_EXPR
+@tindex CALL_EXPR
+@tindex STMT_EXPR
+@tindex BIND_EXPR
+@tindex LOOP_EXPR
+@tindex EXIT_EXPR
+@tindex CLEANUP_POINT_EXPR
+@tindex CONSTRUCTOR
+@tindex COMPOUND_LITERAL_EXPR
+@tindex SAVE_EXPR
+@tindex TARGET_EXPR
+@tindex AGGR_INIT_EXPR
+@tindex VA_ARG_EXPR
+@tindex OMP_PARALLEL
+@tindex OMP_FOR
+@tindex OMP_SECTIONS
+@tindex OMP_SINGLE
+@tindex OMP_SECTION
+@tindex OMP_MASTER
+@tindex OMP_ORDERED
+@tindex OMP_CRITICAL
+@tindex OMP_RETURN
+@tindex OMP_CONTINUE
+@tindex OMP_ATOMIC
+@tindex OMP_CLAUSE
+
+The internal representation for expressions is for the most part quite
+straightforward.  However, there are a few facts that one must bear in
+mind.  In particular, the expression ``tree'' is actually a directed
+acyclic graph.  (For example there may be many references to the integer
+constant zero throughout the source program; many of these will be
+represented by the same expression node.)  You should not rely on
+certain kinds of node being shared, nor should rely on certain kinds of
+nodes being unshared.
+
+The following macros can be used with all expression nodes:
+
+@ftable @code
+@item TREE_TYPE
+Returns the type of the expression.  This value may not be precisely the
+same type that would be given the expression in the original program.
+@end ftable
+
+In what follows, some nodes that one might expect to always have type
+@code{bool} are documented to have either integral or boolean type.  At
+some point in the future, the C front end may also make use of this same
+intermediate representation, and at this point these nodes will
+certainly have integral type.  The previous sentence is not meant to
+imply that the C++ front end does not or will not give these nodes
+integral type.
+
+Below, we list the various kinds of expression nodes.  Except where
+noted otherwise, the operands to an expression are accessed using the
+@code{TREE_OPERAND} macro.  For example, to access the first operand to
+a binary plus expression @code{expr}, use:
+
+@smallexample
+TREE_OPERAND (expr, 0)
+@end smallexample
+@noindent
+As this example indicates, the operands are zero-indexed.
+
+All the expressions starting with @code{OMP_} represent directives and
+clauses used by the OpenMP API @w{@uref{http://www.openmp.org/}}.
+
+The table below begins with constants, moves on to unary expressions,
+then proceeds to binary expressions, and concludes with various other
+kinds of expressions:
+
+@table @code
+@item INTEGER_CST
+These nodes represent integer constants.  Note that the type of these
+constants is obtained with @code{TREE_TYPE}; they are not always of type
+@code{int}.  In particular, @code{char} constants are represented with
+@code{INTEGER_CST} nodes.  The value of the integer constant @code{e} is
+given by
+@smallexample
+((TREE_INT_CST_HIGH (e) << HOST_BITS_PER_WIDE_INT)
++ TREE_INST_CST_LOW (e))
+@end smallexample
+@noindent
+HOST_BITS_PER_WIDE_INT is at least thirty-two on all platforms.  Both
+@code{TREE_INT_CST_HIGH} and @code{TREE_INT_CST_LOW} return a
+@code{HOST_WIDE_INT}.  The value of an @code{INTEGER_CST} is interpreted
+as a signed or unsigned quantity depending on the type of the constant.
+In general, the expression given above will overflow, so it should not
+be used to calculate the value of the constant.
+
+The variable @code{integer_zero_node} is an integer constant with value
+zero.  Similarly, @code{integer_one_node} is an integer constant with
+value one.  The @code{size_zero_node} and @code{size_one_node} variables
+are analogous, but have type @code{size_t} rather than @code{int}.
+
+The function @code{tree_int_cst_lt} is a predicate which holds if its
+first argument is less than its second.  Both constants are assumed to
+have the same signedness (i.e., either both should be signed or both
+should be unsigned.)  The full width of the constant is used when doing
+the comparison; the usual rules about promotions and conversions are
+ignored.  Similarly, @code{tree_int_cst_equal} holds if the two
+constants are equal.  The @code{tree_int_cst_sgn} function returns the
+sign of a constant.  The value is @code{1}, @code{0}, or @code{-1}
+according on whether the constant is greater than, equal to, or less
+than zero.  Again, the signedness of the constant's type is taken into
+account; an unsigned constant is never less than zero, no matter what
+its bit-pattern.
+
+@item REAL_CST
+
+FIXME: Talk about how to obtain representations of this constant, do
+comparisons, and so forth.
+
+@item COMPLEX_CST
+These nodes are used to represent complex number constants, that is a
+@code{__complex__} whose parts are constant nodes.  The
+@code{TREE_REALPART} and @code{TREE_IMAGPART} return the real and the
+imaginary parts respectively.
+
+@item VECTOR_CST
+These nodes are used to represent vector constants, whose parts are
+constant nodes.  Each individual constant node is either an integer or a
+double constant node.  The first operand is a @code{TREE_LIST} of the
+constant nodes and is accessed through @code{TREE_VECTOR_CST_ELTS}.
+
+@item STRING_CST
+These nodes represent string-constants.  The @code{TREE_STRING_LENGTH}
+returns the length of the string, as an @code{int}.  The
+@code{TREE_STRING_POINTER} is a @code{char*} containing the string
+itself.  The string may not be @code{NUL}-terminated, and it may contain
+embedded @code{NUL} characters.  Therefore, the
+@code{TREE_STRING_LENGTH} includes the trailing @code{NUL} if it is
+present.
+
+For wide string constants, the @code{TREE_STRING_LENGTH} is the number
+of bytes in the string, and the @code{TREE_STRING_POINTER}
+points to an array of the bytes of the string, as represented on the
+target system (that is, as integers in the target endianness).  Wide and
+non-wide string constants are distinguished only by the @code{TREE_TYPE}
+of the @code{STRING_CST}.
+
+FIXME: The formats of string constants are not well-defined when the
+target system bytes are not the same width as host system bytes.
+
+@item PTRMEM_CST
+These nodes are used to represent pointer-to-member constants.  The
+@code{PTRMEM_CST_CLASS} is the class type (either a @code{RECORD_TYPE}
+or @code{UNION_TYPE} within which the pointer points), and the
+@code{PTRMEM_CST_MEMBER} is the declaration for the pointed to object.
+Note that the @code{DECL_CONTEXT} for the @code{PTRMEM_CST_MEMBER} is in
+general different from the @code{PTRMEM_CST_CLASS}.  For example,
+given:
+@smallexample
+struct B @{ int i; @};
+struct D : public B @{@};
+int D::*dp = &D::i;
+@end smallexample
+@noindent
+The @code{PTRMEM_CST_CLASS} for @code{&D::i} is @code{D}, even though
+the @code{DECL_CONTEXT} for the @code{PTRMEM_CST_MEMBER} is @code{B},
+since @code{B::i} is a member of @code{B}, not @code{D}.
+
+@item VAR_DECL
+
+These nodes represent variables, including static data members.  For
+more information, @pxref{Declarations}.
+
+@item NEGATE_EXPR
+These nodes represent unary negation of the single operand, for both
+integer and floating-point types.  The type of negation can be
+determined by looking at the type of the expression.
+
+The behavior of this operation on signed arithmetic overflow is
+controlled by the @code{flag_wrapv} and @code{flag_trapv} variables.
+
+@item ABS_EXPR
+These nodes represent the absolute value of the single operand, for
+both integer and floating-point types.  This is typically used to
+implement the @code{abs}, @code{labs} and @code{llabs} builtins for
+integer types, and the @code{fabs}, @code{fabsf} and @code{fabsl}
+builtins for floating point types.  The type of abs operation can
+be determined by looking at the type of the expression.
+
+This node is not used for complex types.  To represent the modulus
+or complex abs of a complex value, use the @code{BUILT_IN_CABS},
+@code{BUILT_IN_CABSF} or @code{BUILT_IN_CABSL} builtins, as used
+to implement the C99 @code{cabs}, @code{cabsf} and @code{cabsl}
+built-in functions.
+
+@item BIT_NOT_EXPR
+These nodes represent bitwise complement, and will always have integral
+type.  The only operand is the value to be complemented.
+
+@item TRUTH_NOT_EXPR
+These nodes represent logical negation, and will always have integral
+(or boolean) type.  The operand is the value being negated.  The type
+of the operand and that of the result are always of @code{BOOLEAN_TYPE}
+or @code{INTEGER_TYPE}.
+
+@item PREDECREMENT_EXPR
+@itemx PREINCREMENT_EXPR
+@itemx POSTDECREMENT_EXPR
+@itemx POSTINCREMENT_EXPR
+These nodes represent increment and decrement expressions.  The value of
+the single operand is computed, and the operand incremented or
+decremented.  In the case of @code{PREDECREMENT_EXPR} and
+@code{PREINCREMENT_EXPR}, the value of the expression is the value
+resulting after the increment or decrement; in the case of
+@code{POSTDECREMENT_EXPR} and @code{POSTINCREMENT_EXPR} is the value
+before the increment or decrement occurs.  The type of the operand, like
+that of the result, will be either integral, boolean, or floating-point.
+
+@item ADDR_EXPR
+These nodes are used to represent the address of an object.  (These
+expressions will always have pointer or reference type.)  The operand may
+be another expression, or it may be a declaration.
+
+As an extension, GCC allows users to take the address of a label.  In
+this case, the operand of the @code{ADDR_EXPR} will be a
+@code{LABEL_DECL}.  The type of such an expression is @code{void*}.
+
+If the object addressed is not an lvalue, a temporary is created, and
+the address of the temporary is used.
+
+@item INDIRECT_REF
+These nodes are used to represent the object pointed to by a pointer.
+The operand is the pointer being dereferenced; it will always have
+pointer or reference type.
+
+@item FIX_TRUNC_EXPR
+These nodes represent conversion of a floating-point value to an
+integer.  The single operand will have a floating-point type, while
+the complete expression will have an integral (or boolean) type.  The
+operand is rounded towards zero.
+
+@item FLOAT_EXPR
+These nodes represent conversion of an integral (or boolean) value to a
+floating-point value.  The single operand will have integral type, while
+the complete expression will have a floating-point type.
+
+FIXME: How is the operand supposed to be rounded?  Is this dependent on
+@option{-mieee}?
+
+@item COMPLEX_EXPR
+These nodes are used to represent complex numbers constructed from two
+expressions of the same (integer or real) type.  The first operand is the
+real part and the second operand is the imaginary part.
+
+@item CONJ_EXPR
+These nodes represent the conjugate of their operand.
+
+@item REALPART_EXPR
+@itemx IMAGPART_EXPR
+These nodes represent respectively the real and the imaginary parts
+of complex numbers (their sole argument).
+
+@item NON_LVALUE_EXPR
+These nodes indicate that their one and only operand is not an lvalue.
+A back end can treat these identically to the single operand.
+
+@item NOP_EXPR
+These nodes are used to represent conversions that do not require any
+code-generation.  For example, conversion of a @code{char*} to an
+@code{int*} does not require any code be generated; such a conversion is
+represented by a @code{NOP_EXPR}.  The single operand is the expression
+to be converted.  The conversion from a pointer to a reference is also
+represented with a @code{NOP_EXPR}.
+
+@item CONVERT_EXPR
+These nodes are similar to @code{NOP_EXPR}s, but are used in those
+situations where code may need to be generated.  For example, if an
+@code{int*} is converted to an @code{int} code may need to be generated
+on some platforms.  These nodes are never used for C++-specific
+conversions, like conversions between pointers to different classes in
+an inheritance hierarchy.  Any adjustments that need to be made in such
+cases are always indicated explicitly.  Similarly, a user-defined
+conversion is never represented by a @code{CONVERT_EXPR}; instead, the
+function calls are made explicit.
+
+@item THROW_EXPR
+These nodes represent @code{throw} expressions.  The single operand is
+an expression for the code that should be executed to throw the
+exception.  However, there is one implicit action not represented in
+that expression; namely the call to @code{__throw}.  This function takes
+no arguments.  If @code{setjmp}/@code{longjmp} exceptions are used, the
+function @code{__sjthrow} is called instead.  The normal GCC back end
+uses the function @code{emit_throw} to generate this code; you can
+examine this function to see what needs to be done.
+
+@item LSHIFT_EXPR
+@itemx RSHIFT_EXPR
+These nodes represent left and right shifts, respectively.  The first
+operand is the value to shift; it will always be of integral type.  The
+second operand is an expression for the number of bits by which to
+shift.  Right shift should be treated as arithmetic, i.e., the
+high-order bits should be zero-filled when the expression has unsigned
+type and filled with the sign bit when the expression has signed type.
+Note that the result is undefined if the second operand is larger
+than or equal to the first operand's type size.
+
+
+@item BIT_IOR_EXPR
+@itemx BIT_XOR_EXPR
+@itemx BIT_AND_EXPR
+These nodes represent bitwise inclusive or, bitwise exclusive or, and
+bitwise and, respectively.  Both operands will always have integral
+type.
+
+@item TRUTH_ANDIF_EXPR
+@itemx TRUTH_ORIF_EXPR
+These nodes represent logical and and logical or, respectively.  These
+operators are not strict; i.e., the second operand is evaluated only if
+the value of the expression is not determined by evaluation of the first
+operand.  The type of the operands and that of the result are always of
+@code{BOOLEAN_TYPE} or @code{INTEGER_TYPE}.
+
+@item TRUTH_AND_EXPR
+@itemx TRUTH_OR_EXPR
+@itemx TRUTH_XOR_EXPR
+These nodes represent logical and, logical or, and logical exclusive or.
+They are strict; both arguments are always evaluated.  There are no
+corresponding operators in C or C++, but the front end will sometimes
+generate these expressions anyhow, if it can tell that strictness does
+not matter.  The type of the operands and that of the result are
+always of @code{BOOLEAN_TYPE} or @code{INTEGER_TYPE}.
+
+@itemx PLUS_EXPR
+@itemx MINUS_EXPR
+@itemx MULT_EXPR
+These nodes represent various binary arithmetic operations.
+Respectively, these operations are addition, subtraction (of the second
+operand from the first) and multiplication.  Their operands may have
+either integral or floating type, but there will never be case in which
+one operand is of floating type and the other is of integral type.
+
+The behavior of these operations on signed arithmetic overflow is
+controlled by the @code{flag_wrapv} and @code{flag_trapv} variables.
+
+@item RDIV_EXPR
+This node represents a floating point division operation.
+
+@item TRUNC_DIV_EXPR
+@itemx FLOOR_DIV_EXPR
+@itemx CEIL_DIV_EXPR
+@itemx ROUND_DIV_EXPR
+These nodes represent integer division operations that return an integer
+result.  @code{TRUNC_DIV_EXPR} rounds towards zero, @code{FLOOR_DIV_EXPR}
+rounds towards negative infinity, @code{CEIL_DIV_EXPR} rounds towards
+positive infinity and @code{ROUND_DIV_EXPR} rounds to the closest integer.
+Integer division in C and C++ is truncating, i.e.@: @code{TRUNC_DIV_EXPR}.
+
+The behavior of these operations on signed arithmetic overflow, when
+dividing the minimum signed integer by minus one, is controlled by the
+@code{flag_wrapv} and @code{flag_trapv} variables.
+
+@item TRUNC_MOD_EXPR
+@itemx FLOOR_MOD_EXPR
+@itemx CEIL_MOD_EXPR
+@itemx ROUND_MOD_EXPR
+These nodes represent the integer remainder or modulus operation.
+The integer modulus of two operands @code{a} and @code{b} is
+defined as @code{a - (a/b)*b} where the division calculated using
+the corresponding division operator.  Hence for @code{TRUNC_MOD_EXPR}
+this definition assumes division using truncation towards zero, i.e.@:
+@code{TRUNC_DIV_EXPR}.  Integer remainder in C and C++ uses truncating
+division, i.e.@: @code{TRUNC_MOD_EXPR}.
+
+@item EXACT_DIV_EXPR
+The @code{EXACT_DIV_EXPR} code is used to represent integer divisions where
+the numerator is known to be an exact multiple of the denominator.  This
+allows the backend to choose between the faster of @code{TRUNC_DIV_EXPR},
+@code{CEIL_DIV_EXPR} and @code{FLOOR_DIV_EXPR} for the current target.
+
+@item ARRAY_REF
+These nodes represent array accesses.  The first operand is the array;
+the second is the index.  To calculate the address of the memory
+accessed, you must scale the index by the size of the type of the array
+elements.  The type of these expressions must be the type of a component of
+the array.  The third and fourth operands are used after gimplification
+to represent the lower bound and component size but should not be used
+directly; call @code{array_ref_low_bound} and @code{array_ref_element_size}
+instead.
+
+@item ARRAY_RANGE_REF
+These nodes represent access to a range (or ``slice'') of an array.  The
+operands are the same as that for @code{ARRAY_REF} and have the same
+meanings.  The type of these expressions must be an array whose component
+type is the same as that of the first operand.  The range of that array
+type determines the amount of data these expressions access.
+
+@item TARGET_MEM_REF
+These nodes represent memory accesses whose address directly map to
+an addressing mode of the target architecture.  The first argument
+is @code{TMR_SYMBOL} and must be a @code{VAR_DECL} of an object with
+a fixed address.  The second argument is @code{TMR_BASE} and the
+third one is @code{TMR_INDEX}.  The fourth argument is
+@code{TMR_STEP} and must be an @code{INTEGER_CST}.  The fifth
+argument is @code{TMR_OFFSET} and must be an @code{INTEGER_CST}.
+Any of the arguments may be NULL if the appropriate component
+does not appear in the address.  Address of the @code{TARGET_MEM_REF}
+is determined in the following way.
+
+@smallexample
+&TMR_SYMBOL + TMR_BASE + TMR_INDEX * TMR_STEP + TMR_OFFSET
+@end smallexample
+
+The sixth argument is the reference to the original memory access, which
+is preserved for the purposes of the RTL alias analysis.  The seventh
+argument is a tag representing the results of tree level alias analysis.
+
+@item LT_EXPR
+@itemx LE_EXPR
+@itemx GT_EXPR
+@itemx GE_EXPR
+@itemx EQ_EXPR
+@itemx NE_EXPR
+These nodes represent the less than, less than or equal to, greater
+than, greater than or equal to, equal, and not equal comparison
+operators.  The first and second operand with either be both of integral
+type or both of floating type.  The result type of these expressions
+will always be of integral or boolean type.  These operations return
+the result type's zero value for false, and the result type's one value
+for true.
+
+For floating point comparisons, if we honor IEEE NaNs and either operand
+is NaN, then @code{NE_EXPR} always returns true and the remaining operators
+always return false.  On some targets, comparisons against an IEEE NaN,
+other than equality and inequality, may generate a floating point exception.
+
+@item ORDERED_EXPR
+@itemx UNORDERED_EXPR
+These nodes represent non-trapping ordered and unordered comparison
+operators.  These operations take two floating point operands and
+determine whether they are ordered or unordered relative to each other.
+If either operand is an IEEE NaN, their comparison is defined to be
+unordered, otherwise the comparison is defined to be ordered.  The
+result type of these expressions will always be of integral or boolean
+type.  These operations return the result type's zero value for false,
+and the result type's one value for true.
+
+@item UNLT_EXPR
+@itemx UNLE_EXPR
+@itemx UNGT_EXPR
+@itemx UNGE_EXPR
+@itemx UNEQ_EXPR
+@itemx LTGT_EXPR
+These nodes represent the unordered comparison operators.
+These operations take two floating point operands and determine whether
+the operands are unordered or are less than, less than or equal to,
+greater than, greater than or equal to, or equal respectively.  For
+example, @code{UNLT_EXPR} returns true if either operand is an IEEE
+NaN or the first operand is less than the second.  With the possible
+exception of @code{LTGT_EXPR}, all of these operations are guaranteed
+not to generate a floating point exception.  The result
+type of these expressions will always be of integral or boolean type.
+These operations return the result type's zero value for false,
+and the result type's one value for true.
+
+@item MODIFY_EXPR
+These nodes represent assignment.  The left-hand side is the first
+operand; the right-hand side is the second operand.  The left-hand side
+will be a @code{VAR_DECL}, @code{INDIRECT_REF}, @code{COMPONENT_REF}, or
+other lvalue.
+
+These nodes are used to represent not only assignment with @samp{=} but
+also compound assignments (like @samp{+=}), by reduction to @samp{=}
+assignment.  In other words, the representation for @samp{i += 3} looks
+just like that for @samp{i = i + 3}.
+
+@item INIT_EXPR
+These nodes are just like @code{MODIFY_EXPR}, but are used only when a
+variable is initialized, rather than assigned to subsequently.  This
+means that we can assume that the target of the initialization is not
+used in computing its own value; any reference to the lhs in computing
+the rhs is undefined.
+
+@item COMPONENT_REF
+These nodes represent non-static data member accesses.  The first
+operand is the object (rather than a pointer to it); the second operand
+is the @code{FIELD_DECL} for the data member.  The third operand represents
+the byte offset of the field, but should not be used directly; call
+@code{component_ref_field_offset} instead.
+
+@item COMPOUND_EXPR
+These nodes represent comma-expressions.  The first operand is an
+expression whose value is computed and thrown away prior to the
+evaluation of the second operand.  The value of the entire expression is
+the value of the second operand.
+
+@item COND_EXPR
+These nodes represent @code{?:} expressions.  The first operand
+is of boolean or integral type.  If it evaluates to a nonzero value,
+the second operand should be evaluated, and returned as the value of the
+expression.  Otherwise, the third operand is evaluated, and returned as
+the value of the expression.
+
+The second operand must have the same type as the entire expression,
+unless it unconditionally throws an exception or calls a noreturn
+function, in which case it should have void type.  The same constraints
+apply to the third operand.  This allows array bounds checks to be
+represented conveniently as @code{(i >= 0 && i < 10) ? i : abort()}.
+
+As a GNU extension, the C language front-ends allow the second
+operand of the @code{?:} operator may be omitted in the source.
+For example, @code{x ? : 3} is equivalent to @code{x ? x : 3},
+assuming that @code{x} is an expression without side-effects.
+In the tree representation, however, the second operand is always
+present, possibly protected by @code{SAVE_EXPR} if the first
+argument does cause side-effects.
+
+@item CALL_EXPR
+These nodes are used to represent calls to functions, including
+non-static member functions.  The first operand is a pointer to the
+function to call; it is always an expression whose type is a
+@code{POINTER_TYPE}.  The second argument is a @code{TREE_LIST}.  The
+arguments to the call appear left-to-right in the list.  The
+@code{TREE_VALUE} of each list node contains the expression
+corresponding to that argument.  (The value of @code{TREE_PURPOSE} for
+these nodes is unspecified, and should be ignored.)  For non-static
+member functions, there will be an operand corresponding to the
+@code{this} pointer.  There will always be expressions corresponding to
+all of the arguments, even if the function is declared with default
+arguments and some arguments are not explicitly provided at the call
+sites.
+
+@item STMT_EXPR
+These nodes are used to represent GCC's statement-expression extension.
+The statement-expression extension allows code like this:
+@smallexample
+int f() @{ return (@{ int j; j = 3; j + 7; @}); @}
+@end smallexample
+In other words, an sequence of statements may occur where a single
+expression would normally appear.  The @code{STMT_EXPR} node represents
+such an expression.  The @code{STMT_EXPR_STMT} gives the statement
+contained in the expression.  The value of the expression is the value
+of the last sub-statement in the body.  More precisely, the value is the
+value computed by the last statement nested inside @code{BIND_EXPR},
+@code{TRY_FINALLY_EXPR}, or @code{TRY_CATCH_EXPR}.  For example, in:
+@smallexample
+(@{ 3; @})
+@end smallexample
+the value is @code{3} while in:
+@smallexample
+(@{ if (x) @{ 3; @} @})
+@end smallexample
+there is no value.  If the @code{STMT_EXPR} does not yield a value,
+it's type will be @code{void}.
+
+@item BIND_EXPR
+These nodes represent local blocks.  The first operand is a list of
+variables, connected via their @code{TREE_CHAIN} field.  These will
+never require cleanups.  The scope of these variables is just the body
+of the @code{BIND_EXPR}.  The body of the @code{BIND_EXPR} is the
+second operand.
+
+@item LOOP_EXPR
+These nodes represent ``infinite'' loops.  The @code{LOOP_EXPR_BODY}
+represents the body of the loop.  It should be executed forever, unless
+an @code{EXIT_EXPR} is encountered.
+
+@item EXIT_EXPR
+These nodes represent conditional exits from the nearest enclosing
+@code{LOOP_EXPR}.  The single operand is the condition; if it is
+nonzero, then the loop should be exited.  An @code{EXIT_EXPR} will only
+appear within a @code{LOOP_EXPR}.
+
+@item CLEANUP_POINT_EXPR
+These nodes represent full-expressions.  The single operand is an
+expression to evaluate.  Any destructor calls engendered by the creation
+of temporaries during the evaluation of that expression should be
+performed immediately after the expression is evaluated.
+
+@item CONSTRUCTOR
+These nodes represent the brace-enclosed initializers for a structure or
+array.  The first operand is reserved for use by the back end.  The
+second operand is a @code{TREE_LIST}.  If the @code{TREE_TYPE} of the
+@code{CONSTRUCTOR} is a @code{RECORD_TYPE} or @code{UNION_TYPE}, then
+the @code{TREE_PURPOSE} of each node in the @code{TREE_LIST} will be a
+@code{FIELD_DECL} and the @code{TREE_VALUE} of each node will be the
+expression used to initialize that field.
+
+If the @code{TREE_TYPE} of the @code{CONSTRUCTOR} is an
+@code{ARRAY_TYPE}, then the @code{TREE_PURPOSE} of each element in the
+@code{TREE_LIST} will be an @code{INTEGER_CST} or a @code{RANGE_EXPR} of
+two @code{INTEGER_CST}s.  A single @code{INTEGER_CST} indicates which
+element of the array (indexed from zero) is being assigned to.  A
+@code{RANGE_EXPR} indicates an inclusive range of elements to
+initialize.  In both cases the @code{TREE_VALUE} is the corresponding
+initializer.  It is re-evaluated for each element of a
+@code{RANGE_EXPR}.  If the @code{TREE_PURPOSE} is @code{NULL_TREE}, then
+the initializer is for the next available array element.
+
+In the front end, you should not depend on the fields appearing in any
+particular order.  However, in the middle end, fields must appear in
+declaration order.  You should not assume that all fields will be
+represented.  Unrepresented fields will be set to zero.
+
+@item COMPOUND_LITERAL_EXPR
+@findex COMPOUND_LITERAL_EXPR_DECL_STMT
+@findex COMPOUND_LITERAL_EXPR_DECL
+These nodes represent ISO C99 compound literals.  The
+@code{COMPOUND_LITERAL_EXPR_DECL_STMT} is a @code{DECL_STMT}
+containing an anonymous @code{VAR_DECL} for
+the unnamed object represented by the compound literal; the
+@code{DECL_INITIAL} of that @code{VAR_DECL} is a @code{CONSTRUCTOR}
+representing the brace-enclosed list of initializers in the compound
+literal.  That anonymous @code{VAR_DECL} can also be accessed directly
+by the @code{COMPOUND_LITERAL_EXPR_DECL} macro.
+
+@item SAVE_EXPR
+
+A @code{SAVE_EXPR} represents an expression (possibly involving
+side-effects) that is used more than once.  The side-effects should
+occur only the first time the expression is evaluated.  Subsequent uses
+should just reuse the computed value.  The first operand to the
+@code{SAVE_EXPR} is the expression to evaluate.  The side-effects should
+be executed where the @code{SAVE_EXPR} is first encountered in a
+depth-first preorder traversal of the expression tree.
+
+@item TARGET_EXPR
+A @code{TARGET_EXPR} represents a temporary object.  The first operand
+is a @code{VAR_DECL} for the temporary variable.  The second operand is
+the initializer for the temporary.  The initializer is evaluated and,
+if non-void, copied (bitwise) into the temporary.  If the initializer
+is void, that means that it will perform the initialization itself.
+
+Often, a @code{TARGET_EXPR} occurs on the right-hand side of an
+assignment, or as the second operand to a comma-expression which is
+itself the right-hand side of an assignment, etc.  In this case, we say
+that the @code{TARGET_EXPR} is ``normal''; otherwise, we say it is
+``orphaned''.  For a normal @code{TARGET_EXPR} the temporary variable
+should be treated as an alias for the left-hand side of the assignment,
+rather than as a new temporary variable.
+
+The third operand to the @code{TARGET_EXPR}, if present, is a
+cleanup-expression (i.e., destructor call) for the temporary.  If this
+expression is orphaned, then this expression must be executed when the
+statement containing this expression is complete.  These cleanups must
+always be executed in the order opposite to that in which they were
+encountered.  Note that if a temporary is created on one branch of a
+conditional operator (i.e., in the second or third operand to a
+@code{COND_EXPR}), the cleanup must be run only if that branch is
+actually executed.
+
+See @code{STMT_IS_FULL_EXPR_P} for more information about running these
+cleanups.
+
+@item AGGR_INIT_EXPR
+An @code{AGGR_INIT_EXPR} represents the initialization as the return
+value of a function call, or as the result of a constructor.  An
+@code{AGGR_INIT_EXPR} will only appear as a full-expression, or as the
+second operand of a @code{TARGET_EXPR}.  The first operand to the
+@code{AGGR_INIT_EXPR} is the address of a function to call, just as in
+a @code{CALL_EXPR}.  The second operand are the arguments to pass that
+function, as a @code{TREE_LIST}, again in a manner similar to that of
+a @code{CALL_EXPR}.
+
+If @code{AGGR_INIT_VIA_CTOR_P} holds of the @code{AGGR_INIT_EXPR}, then
+the initialization is via a constructor call.  The address of the third
+operand of the @code{AGGR_INIT_EXPR}, which is always a @code{VAR_DECL},
+is taken, and this value replaces the first argument in the argument
+list.
+
+In either case, the expression is void.
+
+@item VA_ARG_EXPR
+This node is used to implement support for the C/C++ variable argument-list
+mechanism.  It represents expressions like @code{va_arg (ap, type)}.
+Its @code{TREE_TYPE} yields the tree representation for @code{type} and
+its sole argument yields the representation for @code{ap}.
+
+@item OMP_PARALLEL
+
+Represents @code{#pragma omp parallel [clause1 ... clauseN]}. It
+has four operands:
+
+Operand @code{OMP_PARALLEL_BODY} is valid while in GENERIC and
+High GIMPLE forms.  It contains the body of code to be executed
+by all the threads.  During GIMPLE lowering, this operand becomes
+@code{NULL} and the body is emitted linearly after
+@code{OMP_PARALLEL}.
+
+Operand @code{OMP_PARALLEL_CLAUSES} is the list of clauses
+associated with the directive.
+
+Operand @code{OMP_PARALLEL_FN} is created by
+@code{pass_lower_omp}, it contains the @code{FUNCTION_DECL}
+for the function that will contain the body of the parallel
+region.
+
+Operand @code{OMP_PARALLEL_DATA_ARG} is also created by
+@code{pass_lower_omp}. If there are shared variables to be
+communicated to the children threads, this operand will contain
+the @code{VAR_DECL} that contains all the shared values and
+variables.
+
+@item OMP_FOR
+
+Represents @code{#pragma omp for [clause1 ... clauseN]}.  It
+has 5 operands:
+
+Operand @code{OMP_FOR_BODY} contains the loop body.
+
+Operand @code{OMP_FOR_CLAUSES} is the list of clauses
+associated with the directive.
+
+Operand @code{OMP_FOR_INIT} is the loop initialization code of
+the form @code{VAR = N1}.
+
+Operand @code{OMP_FOR_COND} is the loop conditional expression
+of the form @code{VAR @{<,>,<=,>=@} N2}.
+
+Operand @code{OMP_FOR_INCR} is the loop index increment of the
+form @code{VAR @{+=,-=@} INCR}.
+
+Operand @code{OMP_FOR_PRE_BODY} contains side-effect code from
+operands @code{OMP_FOR_INIT}, @code{OMP_FOR_COND} and
+@code{OMP_FOR_INC}.  These side-effects are part of the
+@code{OMP_FOR} block but must be evaluated before the start of
+loop body.
+
+The loop index variable @code{VAR} must be a signed integer variable,
+which is implicitly private to each thread.  Bounds
+@code{N1} and @code{N2} and the increment expression
+@code{INCR} are required to be loop invariant integer
+expressions that are evaluated without any synchronization. The
+evaluation order, frequency of evaluation and side-effects are
+unspecified by the standard.
+
+@item OMP_SECTIONS
+
+Represents @code{#pragma omp sections [clause1 ... clauseN]}.
+
+Operand @code{OMP_SECTIONS_BODY} contains the sections body,
+which in turn contains a set of @code{OMP_SECTION} nodes for
+each of the concurrent sections delimited by @code{#pragma omp
+section}.
+
+Operand @code{OMP_SECTIONS_CLAUSES} is the list of clauses
+associated with the directive.
+
+@item OMP_SECTION
+
+Section delimiter for @code{OMP_SECTIONS}.
+
+@item OMP_SINGLE
+
+Represents @code{#pragma omp single}.
+
+Operand @code{OMP_SINGLE_BODY} contains the body of code to be
+executed by a single thread.
+
+Operand @code{OMP_SINGLE_CLAUSES} is the list of clauses
+associated with the directive.
+
+@item OMP_MASTER
+
+Represents @code{#pragma omp master}.
+
+Operand @code{OMP_MASTER_BODY} contains the body of code to be
+executed by the master thread.
+
+@item OMP_ORDERED
+
+Represents @code{#pragma omp ordered}.
+
+Operand @code{OMP_ORDERED_BODY} contains the body of code to be
+executed in the sequential order dictated by the loop index
+variable.
+
+@item OMP_CRITICAL
+
+Represents @code{#pragma omp critical [name]}.
+
+Operand @code{OMP_CRITICAL_BODY} is the critical section.
+
+Operand @code{OMP_CRITICAL_NAME} is an optional identifier to
+label the critical section.
+
+@item OMP_RETURN
+
+This does not represent any OpenMP directive, it is an artificial
+marker to indicate the end of the body of an OpenMP. It is used
+by the flow graph (@code{tree-cfg.c}) and OpenMP region
+building code (@code{omp-low.c}).
+
+@item OMP_CONTINUE
+
+Similarly, this instruction does not represent an OpenMP
+directive, it is used by @code{OMP_FOR} and
+@code{OMP_SECTIONS} to mark the place where the code needs to
+loop to the next iteration (in the case of @code{OMP_FOR}) or
+the next section (in the case of @code{OMP_SECTIONS}).
+
+In some cases, @code{OMP_CONTINUE} is placed right before
+@code{OMP_RETURN}.  But if there are cleanups that need to
+occur right after the looping body, it will be emitted between
+@code{OMP_CONTINUE} and @code{OMP_RETURN}.
+
+@item OMP_ATOMIC
+
+Represents @code{#pragma omp atomic}.
+
+Operand 0 is the address at which the atomic operation is to be
+performed.
+
+Operand 1 is the expression to evaluate.  The gimplifier tries
+three alternative code generation strategies.  Whenever possible,
+an atomic update built-in is used.  If that fails, a
+compare-and-swap loop is attempted.  If that also fails, a
+regular critical section around the expression is used.
+
+@item OMP_CLAUSE
+
+Represents clauses associated with one of the @code{OMP_} directives.
+Clauses are represented by separate sub-codes defined in
+@file{tree.h}.  Clauses codes can be one of:
+@code{OMP_CLAUSE_PRIVATE}, @code{OMP_CLAUSE_SHARED},
+@code{OMP_CLAUSE_FIRSTPRIVATE},
+@code{OMP_CLAUSE_LASTPRIVATE}, @code{OMP_CLAUSE_COPYIN},
+@code{OMP_CLAUSE_COPYPRIVATE}, @code{OMP_CLAUSE_IF},
+@code{OMP_CLAUSE_NUM_THREADS}, @code{OMP_CLAUSE_SCHEDULE},
+@code{OMP_CLAUSE_NOWAIT}, @code{OMP_CLAUSE_ORDERED},
+@code{OMP_CLAUSE_DEFAULT}, and @code{OMP_CLAUSE_REDUCTION}.  Each code
+represents the corresponding OpenMP clause.
+
+Clauses associated with the same directive are chained together
+via @code{OMP_CLAUSE_CHAIN}. Those clauses that accept a list
+of variables are restricted to exactly one, accessed with
+@code{OMP_CLAUSE_VAR}.  Therefore, multiple variables under the
+same clause @code{C} need to be represented as multiple @code{C} clauses
+chained together.  This facilitates adding new clauses during
+compilation.
+
+@end table

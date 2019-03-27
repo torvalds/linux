@@ -1,0 +1,531 @@
+.\" Copyright (c) 2013-2018 Devin Teske
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 13, 2018
+.Dt DPV 3
+.Os
+.Sh NAME
+.Nm dpv
+.Nd dialog progress view library
+.Sh LIBRARY
+.Lb libdpv
+.Sh SYNOPSIS
+.In dpv.h
+.Ft int
+.Fo dpv
+.Fa "struct dpv_config *config"
+.Fa "struct dpv_file_node *file_list"
+.Fc
+.Ft void
+.Fo dpv_free
+.Fa "void"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+library provides an interface for creating complex
+.Dq gauge
+widgets for displaying progress on various actions.
+The
+.Nm
+library can display progress with one of
+.Xr dialog 3 ,
+.Xr dialog 1 ,
+or
+.Xr Xdialog 1
+.Pq x11/xdialog from the ports tree .
+.Pp
+The
+.Fn dpv
+.Fa config
+argument properties for configuring global display features:
+.Bd -literal -offset indent
+struct dpv_config {
+    uint8_t          keep_tite;     /* Cleaner exit for scripts */
+    enum dpv_display display_type;  /* Def. DPV_DISPLAY_LIBDIALOG */
+    enum dpv_output  output_type;   /* Default DPV_OUTPUT_NONE */
+    int              debug;         /* Enable debug on stderr */
+    int              display_limit; /* Files/page. Default -1 */
+    int              label_size;    /* Label size. Default 28 */
+    int              pbar_size;     /* Mini-progress size */
+    int              dialog_updates_per_second; /* Default 16 */
+    int              status_updates_per_second; /* Default 2 */
+    uint16_t         options;       /* Default 0 (none) */
+    char             *title;        /* Widget title */
+    char             *backtitle;    /* Widget backtitle */
+    char             *aprompt;      /* Append. Default NULL */
+    char             *pprompt;      /* Prefix. Default NULL */
+    char             *msg_done;     /* Default `Done' */
+    char             *msg_fail;     /* Default `Fail' */
+    char             *msg_pending;  /* Default `Pending' */
+    char             *output;       /* Output format string */
+    const char       *status_solo;  /* dialog(3) solo-status format.
+                                     * Default DPV_STATUS_SOLO */
+    const char       *status_many;  /* dialog(3) many-status format.
+                                     * Default DPV_STATUS_MANY */
+
+    /*
+     * Function pointer; action to perform data transfer
+     */
+    int (*action)(struct dpv_file_node *file, int out);
+};
+
+enum dpv_display {
+    DPV_DISPLAY_LIBDIALOG = 0, /* Use dialog(3) (default) */
+    DPV_DISPLAY_STDOUT,        /* Use stdout */
+    DPV_DISPLAY_DIALOG,        /* Use spawned dialog(1) */
+    DPV_DISPLAY_XDIALOG,       /* Use spawned Xdialog(1) */
+};
+
+enum dpv_output {
+    DPV_OUTPUT_NONE = 0, /* No output (default) */
+    DPV_OUTPUT_FILE,     /* Read `output' member as file path */
+    DPV_OUTPUT_SHELL,    /* Read `output' member as shell cmd */
+};
+.Ed
+.Pp
+The
+.Va options
+member of the
+.Fn dpv
+.Fa config
+argument is a mask of bit fields indicating various processing options.
+Possible flags are:
+.Bl -tag -width DPV_NO_OVERRUN
+.It Dv DPV_TEST_MODE
+Enable test mode.
+In test mode,
+the
+.Fn action
+callback of the
+.Fa config
+argument is not called but instead simulated-data is used to drive progress.
+Appends
+.Dq [TEST MODE]
+to the status line
+.Po
+to override,
+set the
+.Va status_format
+member of the
+.Fn dpv
+.Fa config
+argument;
+for example,
+to
+.Dv DPV_STATUS_DEFAULT
+.Pc .
+.It Dv DPV_WIDE_MODE
+Enable wide mode.
+In wide mode,
+the length of the
+.Va aprompt
+and
+.Va pprompt
+members of the
+.Fn dpv
+.Fa config
+argument will bump the width of the gauge widget.
+Prompts wider than the maximum width will wrap
+.Po
+unless using
+.Xr Xdialog 1 ;
+see BUGS section below
+.Pc .
+.It Dv DPV_NO_LABELS
+Disables the display of labels associated with each transfer
+.Po
+.Va label_size
+member of
+.Fn dpv
+.Fa config
+argument is ignored
+.Pc .
+.It Dv DPV_USE_COLOR
+Force the use of color even if the
+.Va display_type
+does not support color
+.Po
+.Ev USE_COLOR
+environment variable is ignored
+.Pc .
+.It Dv DPV_NO_OVERRUN
+When enabled,
+callbacks for the current
+.Vt dpv_file_node
+are terminated when
+.Fn action
+returns 100 or greater
+.Po
+alleviates the need to change the
+.Va status
+of the current
+.Vt dpv_file_node
+but may also cause file truncation if the stream exceeds expected length
+.Pc .
+.El
+.Pp
+The
+.Fa file_list
+argument to
+.Fn dpv
+is a pointer to a
+.Dq linked-list ,
+described in
+.In dpv.h :
+.Bd -literal -offset indent
+struct dpv_file_node {
+    enum dpv_status    status; /* status of read operation */
+    char               *msg;   /* display instead of "Done/Fail" */
+    char               *name;  /* name of file to read */
+    char               *path;  /* path to file */
+    long long          length; /* expected size */
+    long long          read;   /* number units read (e.g., bytes) */
+    struct dpv_file_node *next;/* pointer to next (end with NULL) */
+};
+.Ed
+.Pp
+For each of the items in the
+.Fa file_list
+.Dq linked-list
+argument,
+the
+.Fn action
+callback member of the
+.Fn dpv
+.Fa config
+argument is called.
+The
+.Fn action
+function performs a
+.Dq nominal
+action on the file and return.
+The return value of
+.Vt int
+represents the current progress percentage
+.Pq 0-100
+for the current file.
+.Pp
+The
+.Fn action
+callback provides two variables for each call.
+.Fa file
+provides a reference to the current
+.Vt dpv_file_node
+being processed.
+.Fa out
+provides a file descriptor where the data goes.
+.Pp
+If the
+.Va output
+member of the
+.Fn dpv
+.Fa config
+argument was set to DPV_OUTPUT_NONE
+.Pq default ; when invoking Fn dpv ,
+the
+.Fa out
+file descriptor of
+.Fn action
+will be zero and can be ignored.
+If
+.Fa output
+was set to DPV_OUTPUT_FILE,
+.Fa out
+will be an open file descriptor to a file.
+If
+.Fa output
+was set to DPV_OUTPUT_SHELL,
+.Fa out
+will be an open file descriptor to a pipe for a spawned shell program.
+When
+.Fa out
+is greater than zero,
+write data that has been read back to
+.Fa out .
+.Pp
+To abort
+.Fn dpv ,
+either from the
+.Fn action
+callback or asynchronously from a signal handler,
+two globals are provided via
+.In dpv.h :
+.Bd -literal -offset indent
+extern int dpv_interrupt; /* Set to TRUE in interrupt handler */
+extern int dpv_abort;     /* Set to true in callback to abort */
+.Ed
+.Pp
+These globals are not automatically reset and must be manually maintained.
+Do not forget to reset these globals before subsequent invocations of
+.Fn dpv
+when making multiple calls from the same program.
+.Pp
+In addition,
+the
+.Va status
+member of the
+.Fn action
+.Fa file
+argument can be used to control callbacks for the current file.
+The
+.Va status
+member can be set to any of the below from
+.In dpv.h :
+.Bd -literal -offset indent
+enum dpv_status {
+	DPV_STATUS_RUNNING = 0, /* Running (default) */
+	DPV_STATUS_DONE,        /* Completed */
+	DPV_STATUS_FAILED,      /* Oops, something went wrong */
+};
+.Ed
+.Pp
+The default
+.Fa status
+is zero,
+DPV_STATUS_RUNNING,
+which keeps the callbacks coming for the current
+.Fn file .
+Setting
+.Ql file->status
+to anything other than DPV_STATUS_RUNNING will cause
+.Fn dpv
+to loop to the next file,
+effecting the next callback,
+if any.
+.Pp
+The
+.Fn action
+callback is responsible for calculating percentages and
+.Pq recommended
+maintaining a
+.Nm
+global counter so
+.Fn dpv
+can display throughput statistics.
+Percentages are reported through the
+.Vt int
+return value of the
+.Fn action
+callback.
+Throughput statistics are calculated from the below global
+.Vt int
+in
+.In dpv.h :
+.Bd -literal -offset indent
+extern int dpv_overall_read;
+.Ed
+.Pp
+Set this to the number of bytes that have been read for all files.
+Throughput information is displayed in the status line
+.Pq only available when using Xr dialog 3
+at the bottom of the screen.
+See DPV_DISPLAY_LIBDIALOG above.
+.Pp
+Note that
+.Va dpv_overall_read
+does not have to represent bytes.
+For example,
+the
+.Va status_format
+can be changed to display something other than
+.Dq Li bytes
+and increment
+.Va dpv_overall_read
+accordingly
+.Pq for example, counting lines .
+.Pp
+When
+.Fn dpv
+is processing the current file,
+the
+.Va length
+and
+.Va read
+members of the
+.Fn action
+.Fa file
+argument are used for calculating the display of mini progress bars
+.Po
+if enabled;
+see
+.Va pbar_size
+above
+.Pc .
+If the
+.Va length
+member of the current
+.Fa file
+is less than zero
+.Pq indicating an unknown file length ,
+a
+.Xr humanize_number 3
+version of the
+.Va read
+member is used instead of a traditional progress bar.
+Otherwise a progress bar is calculated as percentage read to file length.
+.Fn action
+callback must maintain these member values for mini-progress bars.
+.Pp
+The
+.Fn dpv_free
+function performs
+.Xr free 3
+on private global variables initialized by
+.Fn dpv .
+.Sh ENVIRONMENT
+The below environment variables are referenced by
+.Nm :
+.Bl -tag -width ".Ev USE_COLOR"
+.It Ev DIALOG
+Override command string used to launch
+.Xr dialog 1
+.Pq requires Dv DPV_DISPLAY_DIALOG
+or
+.Xr Xdialog 1
+.Pq requires Dv DPV_DISPLAY_XDIALOG ;
+default is either
+.Ql dialog
+.Pq for Dv DPV_DISPLAY_DIALOG
+or
+.Ql Xdialog
+.Pq for Dv DPV_DISPLAY_XDIALOG .
+.It Ev DIALOGRC
+If set and non-NULL,
+path to
+.Ql .dialogrc
+file.
+.It Ev HOME
+If
+.Ql Ev $DIALOGRC
+is either not set or NULL,
+used as a prefix to
+.Ql .dialogrc
+.Pq that is, Ql $HOME/.dialogrc .
+.It Ev USE_COLOR
+If set and NULL,
+disables the use of color when using
+.Xr dialog 1
+.Pq does not apply to Xr Xdialog 1 .
+.It Ev msg_done Ev msg_fail Ev msg_pending
+Internationalization strings for overriding the default English strings
+.Ql Done ,
+.Ql Fail ,
+and
+.Ql Pending
+respectively.
+To prevent their usage,
+explicitly set the
+.Va msg_done ,
+.Va msg_fail ,
+and
+.Va msg_pending
+members of
+.Fn dpv
+.Fa config
+argument to default macros
+.Pq DPV_DONE_DEFAULT, DPV_FAIL_DEFAULT, and DPV_PENDING_DEFAULT
+or desired values.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa $HOME/.dialogrc" -compact
+.It Pa $HOME/.dialogrc
+.El
+.Sh SEE ALSO
+.Xr dialog 1 ,
+.Xr Xdialog 1 ,
+.Xr dialog 3
+.Sh HISTORY
+The
+.Nm
+library first appeared in
+.Fx 10.2 .
+.Sh AUTHORS
+.An Devin Teske Aq dteske@FreeBSD.org
+.Sh BUGS
+.Xr Xdialog 1 ,
+when given both
+.Ql Fl -title Ar title
+.Po
+see above
+.Ql Va title
+member of
+.Va struct dpv_config
+.Pc
+and
+.Ql Fl -backtitle Ar backtitle
+.Po
+see above
+.Ql Va backtitle
+member of
+.Va struct dpv_config
+.Pc ,
+displays the backtitle in place of the title and vice-versa.
+.Pp
+.Xr Xdialog 1
+does not wrap long prompt texts received after initial launch.
+This is a known issue with the
+.Ql --gauge
+widget in
+.Xr Xdialog 1 .
+Embed escaped newlines within prompt text to force line breaks.
+.Pp
+.Xr dialog 1
+does not display the first character after a series of escaped escape-sequences
+(for example, ``\\\\n'' produces ``\\'' instead of ``\\n'').
+This is a known issue with
+.Xr dialog 1
+and does not affect
+.Xr dialog 3
+or
+.Xr Xdialog 1 .
+.Pp
+If an application ignores
+.Ev USE_COLOR
+when set and NULL before calling
+.Fn dpv
+with color escape sequences anyway,
+.Xr dialog 3
+and
+.Xr dialog 1
+may not render properly.
+Workaround is to detect when
+.Ev USE_COLOR
+is set and NULL and either not use color escape sequences at that time or use
+.Xr unsetenv 3
+to unset
+.Ev USE_COLOR ,
+forcing interpretation of color sequences.
+This does not effect
+.Xr Xdialog 1 ,
+which renders the color escape sequences as plain text.
+See
+.Do
+embedded "\\Z" sequences
+.Dc
+in
+.Xr dialog 1
+for additional information.

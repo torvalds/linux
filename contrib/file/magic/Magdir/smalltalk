@@ -1,0 +1,25 @@
+
+#-----------------------------------------------
+# $File: smalltalk,v 1.5 2009/09/19 16:28:12 christos Exp $
+# GNU Smalltalk image, starting at version 1.6.2
+# From: catull_us@yahoo.com
+#
+0	string	GSTIm\0\0	GNU SmallTalk
+# little-endian
+>7	byte&1	=0		LE image version
+>>10	byte	x		%d.
+>>9	byte	x		\b%d.
+>>8	byte	x		\b%d
+#>>12	lelong	x		, data: %ld
+#>>16	lelong	x		, table: %ld
+#>>20	lelong	x		, memory: %ld
+# big-endian
+>7	byte&1	=1		BE image version
+>>8	byte	x		%d.
+>>9	byte	x		\b%d.
+>>10	byte	x		\b%d
+#>>12	belong	x		, data: %ld
+#>>16	belong	x		, table: %ld
+#>>20	belong	x		, memory: %ld
+
+

@@ -1,0 +1,138 @@
+.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Edward Tomasz Napierala under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 2, 2017
+.Dt AUTOFS 5
+.Os
+.Sh NAME
+.Nm autofs
+.Nd "automounter filesystem"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options AUTOFS"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+autofs_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver is the kernel component of the automounter infrastructure.
+Its job is to pass mount requests to the
+.Xr automountd 8
+daemon, and pause the processes trying to access the automounted filesystem
+until the mount is completed.
+It is mounted by the
+.Xr automount 8 .
+.Sh OPTIONS
+These options are available when
+mounting
+.Nm
+file systems:
+.Bl -tag -width indent
+.It Cm master_options
+Mount options for all filesystems specified in the map entry.
+.It Cm master_prefix
+Filesystem mountpoint prefix.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va vfs.autofs.debug
+Verbosity level for log messages from the
+.Nm
+driver.
+Set to 0 to disable logging or 1 to warn about potential problems.
+Larger values enable debugging output.
+Defaults to 1.
+.It Va vfs.autofs.interruptible
+Set to 1 to allow mount requests to be interrupted by signal.
+Defaults to 1.
+.It Va vfs.autofs.retry_delay
+Number of seconds before retrying mount requests.
+Defaults to 1.
+.It Va vfs.autofs.retry_attempts
+Number of attempts before failing mount.
+Defaults to 3.
+.It Va vfs.autofs.cache
+Number of seconds to wait before reinvoking
+.Xr automountd 8
+for any given file or directory.
+Defaults to 600.
+.It Va vfs.autofs.timeout
+Number of seconds to wait for
+.Xr automountd 8
+to handle the mount request.
+Defaults to 30.
+.It Va vfs.autofs.mount_on_stat
+Set to 1 to trigger mount on
+.Xr stat 2
+on mountpoint.
+Defaults to 0.
+.El
+.Sh EXAMPLES
+To unmount all mounted
+.Nm
+filesystems:
+.Pp
+.Dl "umount -At autofs"
+.Pp
+To mount
+.Nm
+filesystems specified in
+.Xr auto_master 5 :
+.Pp
+.Dl "automount"
+.Sh SEE ALSO
+.Xr auto_master 5 ,
+.Xr automount 8 ,
+.Xr automountd 8 ,
+.Xr autounmountd 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 10.1 .
+.Sh AUTHORS
+The
+.Nm
+was developed by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.

@@ -1,0 +1,11 @@
+
+#------------------------------------------------------------------------------
+# $File: pbf,v 1.2 2017/01/18 16:16:21 christos Exp $
+# file(1) magic(5) data for OpenStreetMap
+
+# OpenStreetMap Protocolbuffer Binary Format (.osm.pbf)
+# http://wiki.openstreetmap.org/wiki/PBF_Format
+# From: Markus Heidelberg <markus.heidelberg@web.de>
+0	belong&0xfffffff0	0
+>4	beshort			0x0A09
+>>6	string			OSMHeader	OpenStreetMap Protocolbuffer Binary Format

@@ -1,0 +1,12 @@
+#
+# drop all packets without IP security options
+#
+block in all
+pass in all with opt sec
+#
+# only allow packets in and out on le1 which are top secret
+#
+block out on le1 all
+pass out on le1 all with opt sec-class topsecret
+block in on le1 all
+pass in on le1 all with opt sec-class topsecret

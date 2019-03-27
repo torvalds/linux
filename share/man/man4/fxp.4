@@ -1,0 +1,214 @@
+.\"
+.\" Copyright (c) 1997 David E. O'Brien
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 26, 2010
+.Dt FXP 4
+.Os
+.Sh NAME
+.Nm fxp
+.Nd "Intel EtherExpress PRO/100 Ethernet device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device fxp"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_fxp_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Ethernet adapters based on the Intel
+i82557, i82558, i82559, i82550, and i82562 chips.
+The driver supports TCP/UDP/IP checksum offload for both transmit
+and receive on i82550 and i82551.
+On i82559 only TCP/UDP checksum offload for receive is supported.
+TCP segmentation offload (TSO) for IPv4 as well as VLAN hardware
+tag insertion/stripping is supported on i82550 and i82551.
+Wake On Lan (WOL) support is provided on all controllers
+except i82557, i82259ER and early i82558 revisions.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width "10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The autoselected mode can be overridden by adding the media options to
+.Xr rc.conf 5 .
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width "full-duplex"
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+Note that 100baseTX media type is not available on the Pro/10.
+For further information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+The
+.Nm
+driver supports reception and transmission of extended frames
+for
+.Xr vlan 4 .
+This capability of
+.Nm
+can be controlled by means of the
+.Cm vlanmtu
+parameter
+to
+.Xr ifconfig 8 .
+.Pp
+The
+.Nm
+driver also supports a special link option:
+.Bl -tag -width link0
+.It Cm link0
+Some chip revisions have loadable microcode which can be used to reduce the
+interrupt load on the host cpu.
+Not all boards have microcode support.
+Setting the
+.Cm link0
+flag with
+.Xr ifconfig 8
+will download the microcode to the chip if it is available.
+.El
+.Sh HARDWARE
+Adapters supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Intel EtherExpress PRO/10
+.It
+Intel InBusiness 10/100
+.It
+Intel PRO/100B / EtherExpressPRO/100 B PCI Adapter
+.It
+Intel PRO/100+ Management Adapter
+.It
+Intel PRO/100 VE Desktop Adapter
+.It
+Intel PRO/100 VM Network Connection
+.It
+Intel PRO/100 M Desktop Adapter
+.It
+Intel PRO/100 S Desktop, Server and Dual-Port Server Adapters
+.It
+Many on-board network interfaces on Intel motherboards
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+The following variables are available as both
+.Xr loader 8
+tunables and
+.Xr sysctl 8
+variables:
+.Bl -tag -width "xxxxxx"
+.It Va dev.fxp.%d.int_delay
+Maximum amount of time, in microseconds, that an interrupt may
+be delayed in an attempt to coalesce interrupts.
+This is only effective if the Intel microcode is loaded.
+The accepted range is 300 to 3000, the default is 1000.
+.It Va dev.fxp.%d.bundle_max
+Number of packets that will be bundled, before an interrupt is
+generated.
+This is only effective if the Intel microcode is loaded.
+The accepted range is 1 to 65535, the default is 6.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as
+.Xr sysctl 8
+variables.
+.Bl -tag -width "xxxxxx"
+.It Va dev.fxp.%d.rnr
+This is a read-only variable and shows the number of events of
+RNR (resource not ready).
+.It Va dev.fxp.%d.stats
+This is a read-only variable and displays useful MAC counters
+maintained in the driver.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "fxp%d: couldn't map memory"
+A fatal initialization error has occurred.
+.It "fxp%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "fxp%d: Failed to malloc memory"
+There are not enough mbuf's available for allocation.
+.It "fxp%d: device timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.It "fxp%d: Microcode loaded, int_delay: %d usec  bundle_max: %d"
+The chip has successfully downloaded the microcode, and changed the
+parameterized values to the given settings.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr polling 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 2.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An David Greenman .
+It has then been updated to use the busdma API and made endian-clean by
+.An Maxime Henrion .
+This manual page was written by
+.An David E. O'Brien .

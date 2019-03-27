@@ -1,0 +1,33 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_INC_RKEY 3 2015-01-29 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+.nf
+ibv_inc_rkey \- creates a new rkey from the given one
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "uint32_t ibv_inc_rkey(uint32_t " "rkey" ");
+.fi
+.SH "DESCRIPTION"
+.B ibv_inc_rkey()
+Increases the 8 LSB of
+.I rkey
+and returns the new value.
+.PP
+.SH "RETURN VALUE"
+.B ibv_inc_rkey()
+returns the new rkey.
+.SH "NOTES"
+.PP
+The verb generates a new rkey that is different from the previous one on its tag part
+but has the same index (bits 0xffffff00).
+A use case for this verb can be to create a new rkey from a Memory window's rkey
+when binding it to a Memory region.
+.SH "AUTHORS"
+.TP
+Majd Dibbiny <majd@mellanox.com>
+.TP
+Yishai Hadas <yishaih@mellanox.com>

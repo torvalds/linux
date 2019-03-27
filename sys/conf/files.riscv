@@ -1,0 +1,68 @@
+# $FreeBSD$
+cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs | dtrace compile-with "${CDDL_C}"
+cddl/dev/dtrace/riscv/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
+cddl/dev/dtrace/riscv/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
+cddl/dev/fbt/riscv/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
+crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
+dev/ofw/ofw_cpu.c		optional	fdt
+dev/uart/uart_cpu_fdt.c		optional	uart fdt
+dev/uart/uart_dev_lowrisc.c	optional	uart_lowrisc
+dev/xilinx/axi_quad_spi.c	optional	xilinx_spi
+kern/kern_clocksource.c		standard
+kern/msi_if.m			standard
+kern/pic_if.m			standard
+kern/subr_devmap.c		standard
+kern/subr_dummy_vdso_tc.c	standard
+kern/subr_intr.c		standard
+libkern/bcmp.c			standard
+libkern/bcopy.c			standard
+libkern/ffs.c			standard
+libkern/ffsl.c			standard
+libkern/ffsll.c			standard
+libkern/fls.c			standard
+libkern/flsl.c			standard
+libkern/flsll.c			standard
+libkern/memcmp.c		standard
+libkern/memset.c		standard
+riscv/riscv/autoconf.c		standard
+riscv/riscv/bus_machdep.c	standard
+riscv/riscv/bus_space_asm.S	standard
+riscv/riscv/busdma_machdep.c	standard
+riscv/riscv/clock.c		standard
+riscv/riscv/copyinout.S		standard
+riscv/riscv/copystr.c		standard
+riscv/riscv/cpufunc_asm.S	standard
+riscv/riscv/db_disasm.c		optional	ddb
+riscv/riscv/db_interface.c	optional	ddb
+riscv/riscv/db_trace.c		optional	ddb
+riscv/riscv/dump_machdep.c	standard
+riscv/riscv/elf_machdep.c	standard
+riscv/riscv/exception.S		standard
+riscv/riscv/intr_machdep.c	standard
+riscv/riscv/in_cksum.c		optional	inet | inet6
+riscv/riscv/identcpu.c		standard
+riscv/riscv/locore.S		standard	no-obj
+riscv/riscv/machdep.c		standard
+riscv/riscv/minidump_machdep.c	standard
+riscv/riscv/mp_machdep.c	optional	smp
+riscv/riscv/mem.c		standard
+riscv/riscv/nexus.c		standard
+riscv/riscv/ofw_machdep.c	optional	fdt
+riscv/riscv/plic.c		standard
+riscv/riscv/pmap.c		standard
+riscv/riscv/riscv_console.c	optional	rcons
+riscv/riscv/soc.c		standard
+riscv/riscv/stack_machdep.c	optional	ddb | stack
+riscv/riscv/support.S		standard
+riscv/riscv/swtch.S		standard
+riscv/riscv/sys_machdep.c	standard
+riscv/riscv/trap.c		standard
+riscv/riscv/timer.c		standard
+riscv/riscv/uio_machdep.c	standard
+riscv/riscv/uma_machdep.c	standard
+riscv/riscv/unwind.c		optional	ddb | kdtrace_hooks | stack
+riscv/riscv/vm_machdep.c	standard
+
+# Zstd
+contrib/zstd/lib/freebsd/zstd_kfreebsd.c		optional zstdio compile-with ${ZSTD_C}

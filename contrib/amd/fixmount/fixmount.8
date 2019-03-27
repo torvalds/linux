@@ -1,0 +1,216 @@
+.\"
+.\" Copyright (c) 1997-2014 Erez Zadok
+.\" Copyright (c) 1990 Jan-Simon Pendry
+.\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
+.\" Copyright (c) 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry at Imperial College, London.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.\" File: am-utils/fixmount/fixmount.8
+.\" $FreeBSD$
+.\"
+.Dd February 26, 2016
+.Dt FIXMOUNT 8
+.Os
+.Sh NAME
+.Nm fixmount
+.Nd fix remote mount entries
+.Sh SYNOPSIS
+.Nm
+.Op Fl adervq
+.Op Fl h Ar name
+.Ar host ...
+.Sh DESCRIPTION
+.Bf -symbolic
+This command is obsolete.
+Users are advised to use
+.Xr autofs 5
+instead.
+.Ef
+.Pp
+The
+.Nm
+utility
+is a variant of
+.Xr showmount 8
+that can delete bogus mount entries in remote
+.Xr mountd 8
+daemons.
+The actions specified by the options are performed for each
+.Ar host
+in turn.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl a , d , e
+These options work as in
+.Xr showmount 8
+except that only entries pertaining to the local host are printed.
+.It Fl r
+Removes those remote mount entries on
+.Ar host
+that do not correspond to current mounts, i.e., which are left-over
+from a crash or are the result of improper mount protocol.
+The actuality of mounts is verified using the entries in
+.Pa /etc/mtab .
+.It Fl v
+Verify remote mounts.
+Similar to
+.Fl r
+except that only a notification message is printed for each bogus entry
+found.
+The remote mount table is not changed.
+.It Fl A
+Issues a command to the remote mountd declaring that
+.Em all
+of its file systems have been unmounted.
+This should be used with caution, as it removes all
+remote mount entries pertaining to the local system, whether or not any
+file systems are still mounted locally.
+.It Fl q
+Be quiet.
+Suppresses error messages due to timeouts and
+.Dq Li "Program not registered" ,
+i.e., due to remote hosts not supporting RPC or not running
+.Xr mountd 8 .
+.It Fl h Ar name
+Pretend the local hostname is
+.Ar name .
+This is useful after the local hostname has been changed and rmtab entries
+using the old name remain on a remote machine.
+Unfortunately, most mountd's will not be able to successfully handle removal
+of such entries, so this option is useful in combination with
+.Fl v
+only.
+.Pp
+This option also saves time as comparisons of remotely recorded and local
+hostnames by address are avoided.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/rmtab"
+.It Pa /etc/mtab
+List of current mounts.
+.It Pa /etc/rmtab
+Backup file for remote mount entries on
+.Tn NFS
+server.
+.El
+.Sh SEE ALSO
+.Xr mtab 5 ,
+.Xr rmtab 5 ,
+.Xr mountd 8 ,
+.Xr showmount 8
+.Pp
+.Dq am-utils
+.Xr info 1
+entry.
+.Rs
+.%A Erez Zadok
+.%B "Linux NFS and Automounter Administration"
+.%O ISBN 0-7821-2739-8
+.%I Sybex
+.%D 2001
+.Re
+.Pp
+.Pa http://www.am-utils.org/
+.Rs
+.%T Amd \- The 4.4 BSD Automounter
+.Re
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An Jan-Simon Pendry Aq jsp@doc.ic.ac.uk ,
+Department of Computing, Imperial College, London, UK.
+.Pp
+.An Erez Zadok Aq ezk@cs.columbia.edu ,
+Department of Computer Science, Columbia University, New York, USA.
+.Pp
+.An Other authors and contributors to
+.Nm am-utils
+are listed in the
+.Pa AUTHORS
+file distributed with
+.Nm am-utils .
+.Sh AUTHORS
+.An Andreas Stolcke Aq stolcke@icsi.berkeley.edu
+.Pp
+.An Erez Zadok Aq ezk@cs.sunysb.edu ,
+Computer Science Department, Stony Brook University, Stony Brook, New York, USA.
+.Pp
+Other authors and contributors to am-utils are listed in the
+.Pa AUTHORS
+file distributed with am-utils.
+.Sh BUGS
+No attempt is made to verify the information in
+.Pa /etc/mtab
+itself.
+.Pp
+Since swap file mounts are not recorded in
+.Pa /etc/mtab ,
+a heuristic specific to SunOS is used to determine whether such a mount
+is actual (replacing the string
+.Dq Li swap
+with
+.Dq Li root
+and verifying the resulting path).
+.Pp
+Symbolic links on the server will cause the path in the remote entry to differ
+from the one in
+.Pa /etc/mtab .
+To catch those cases, a file system is also deemed mounted if its
+.Em local
+mount point is identical to the remote entry.
+I.e., on a SunOS diskless client,
+.Pa server:/export/share/sunos.4.1.1
+is actually
+.Pa /usr/share .
+Since the local mount point is
+.Pa /usr/share
+as well this will be handled correctly.
+.Pp
+There is no way to clear a stale entry in a remote
+.Xr mountd 8
+after the
+local hostname (or whatever reverse name resolution returns for it)
+has been changed.
+To take care of these cases,
+the remote
+.Pa /etc/rmtab
+file has to be edited and
+.Xr mountd 8
+restarted.
+.Pp
+The RPC timeouts for
+.Xr mountd 8
+calls can only be changed by recompiling.
+The defaults are 2 seconds for client handle creation and 5 seconds for
+RPC calls.

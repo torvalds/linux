@@ -1,0 +1,138 @@
+-------------------------------------------------------------------------------
+-- Copyright (c) 2008-2011,2012 Free Software Foundation, Inc.               --
+--                                                                           --
+-- Permission is hereby granted, free of charge, to any person obtaining a   --
+-- copy of this software and associated documentation files (the             --
+-- "Software"), to deal in the Software without restriction, including       --
+-- without limitation the rights to use, copy, modify, merge, publish,       --
+-- distribute, distribute with modifications, sublicense, and/or sell copies --
+-- of the Software, and to permit persons to whom the Software is furnished  --
+-- to do so, subject to the following conditions:                            --
+--                                                                           --
+-- The above copyright notice and this permission notice shall be included   --
+-- in all copies or substantial portions of the Software.                    --
+--                                                                           --
+-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS   --
+-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF                --
+-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN --
+-- NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,       --
+-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR     --
+-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE --
+-- USE OR OTHER DEALINGS IN THE SOFTWARE.                                    --
+--                                                                           --
+-- Except as contained in this notice, the name(s) of the above copyright    --
+-- holders shall not be used in advertising or otherwise to promote the      --
+-- sale, use or other dealings in this Software without prior written        --
+-- authorization.                                                            --
+-------------------------------------------------------------------------------
+-- $Id: README.MinGW,v 1.9 2012/09/22 17:46:04 tom Exp $
+-- Author: Juergen Pfeifer
+-------------------------------------------------------------------------------
+
+This is work in progress, but it's in an state where one can see it
+works at least on the Windows Console.
+
+You should install the MSYS package, so that you've a shell environment that
+allows you to run the scripts, especially configure etc.  You can get that
+from http://www.mingw.org
+
+To build ncurses for native Windows, you need the MinGW toolchain.  The
+original MinGW toolchain from the above site is only for 32-Bit Windows.  As
+Windows Server - and also regular workstations - are moving to 64-Bit, it
+seems to be reasonable to have a toolchain that supports both architectures.
+I recommend to use the TDM gcc toolchain which you can find at
+http://tdm-gcc.tdragon.net/download.  Go to the download section and select
+the bundle installer for tdm64 (MinGW-w64).  This installs a multilib version
+of the gcc toolchain that can compile for native 32- and 64-Bit Windows
+versions.  It also comes with a working pthread implementation.
+
+The latest config and build scripts we use for MinGW have only been tested
+for the gcc-4.6.1 compiler toolchain (or better).
+
+Using MinGW is a pragmatic decision, it's the easiest way to port this
+heavily UNIX based sourcebase to native Windows. The goal is of course
+to provide the includes, libraries and DLLs to be used with the more
+common traditional development environments on Windows, mainly with
+Microsoft Visual Studio.
+
+The TERM environment variable must be set specially to active the Windows
+console-driver.  The driver checks if TERM is set to "#win32con" (explicit
+use) or if TERM is unset or empty (implicit).
+
+Please also make sure that MSYS links to the correct directory containing
+your MinGW toolchain. For TDM this is usually C:\MinGW64. In your Windows
+CMD.EXE command shell go to the MSYS root directory (most probably
+C:\MSYS or C:\MSYS\1.0) and verify, that there is a junction point mingw
+that points to the MinGW toolchain directory. If not, delete the mingw
+directory and use the mklink command (or the linkd.exe utility on older
+Windows) to create the junction point.
+
+This code requires WindowsNT 5.1 or better, which means on the client
+Windows XP or better, on the server Windows Server 2003 or better.
+
+I recommend using libtool to build ncurses on MinGW, because libtool
+knows exactly how to build dll's on Windows for use with MinGW.
+
+To build a modern but still small footprint ncurses that provides
+hooks for interop, I recommend using these options:
+
+	  --with-libtool
+	  --disable-home-terminfo
+	  --enable-database
+	  --disable-termcap
+	  --enable-sp-funcs
+	  --enable-term-driver
+	  --enable-interop
+
+This is the configuration commandline as I'm using it at the moment (assuming
+environment variable MINGW_ROOT to hold the root directory name of your MinGW
+build):
+
+./configure \
+	--prefix=$MINGW_ROOT \
+	--with-cxx \
+	--without-ada \
+	--enable-warnings \
+	--enable-assertions \
+	--disable-home-terminfo \
+	--enable-database \
+	--enable-sp-funcs \
+	--enable-term-driver \
+	--enable-interop \
+	--disable-termcap \
+	--with-progs \
+	--with-libtool \
+	--enable-pc-files \
+	--mandir=$MINGW_ROOT/share/man
+
+Please note that it is also necessary to set this environment variable:
+
+export PATH_SEPARATOR=";"
+
+in order to parse the terminfo paths correctly. Terminfo paths should
+always be separated by a seeeemicolon,even when running under MSYS.
+
+To support regular expressions properly, ncurses under MinGW should be
+linked against the gnurx regex library, which must be built separately
+under MinGW.  See
+
+    ftp.gnome.org/pub/GNOME/binaries/win32/dependencies/libgnurx-src-2.5.zip
+
+All the options above are - like the whole Windows support -
+experimental.
+
+A lot is still TODO, e.g.:
+
+  - Wide Character support (display is workable, but input untested)
+    The Win32Con driver should actually only use Unicode in the
+    future.
+  - Thread support (locking). If using TDM toolchain this is done by
+    configuring pthreads.
+  - A GUI console driver
+  - Support for Terminals attached via a serial port (via terminfo)
+  - Support for networked Terminal connections (via terminfo)
+  - Workarounds for MinGW's filesystem access are necessary to make infocmp
+    work (though tic works).
+
+To support terminfo, we would need to have an ioctl() simulation for the
+serial and networked terminals.

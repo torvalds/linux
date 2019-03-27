@@ -1,0 +1,169 @@
+This file contains visible (incompatible) changes to the users.
+This version of tcsh has the following new things:
+
+6.08
+* %$variables are now expanded in the prompt.
+* print_by_columns prints in a single column if the output is not a tty.
+* REMOTEHOST contains only the IP address, not the host name of the machine.
+* names in .cshdirs are quoted.
+* exit value from 0..255 not -128..127 as posix mandates.
+
+6.07
+* Implicit cd when the variable implicitcd is set or set to verbose
+
+6.06
+* NLS Message Catalog support.
+
+6.05
+* The bind, aliases, linedit builtins are not used anymore; they are
+  #ifdef'ed OBSOLETE and will be really removed in the next version
+* new filetest builtin
+* new hup builtin
+* =x obeys nonomatch
+* tcsh.man2html nroff to HTML converter for the tcsh manpage
+* prompt is now %# by default.
+* $REMOTEHOST contains the name of the remote host (optional)
+* $HOSTTYPE is going away. New variables $OSTYPE, $MACHTYPE, $VENDOR similar
+  to the gnu ones.
+* $< can be interrupted and takes modifiers. Does not quote args by default
+  like csh.
+
+6.04
+* Variable modifiers do not stop processing after the first one fails
+     > set i=aabbcc
+     > echo $i:s/a/A/:s/b/B/
+     AaBbcc
+     > echo $i:s/x/A/:s/b/B/
+     aabbcc
+* set -r makes variables readonly
+* set nonomatch, echo ~notaser returns ~notauser instead of an error
+* file operators: Changed -s == !-z and -S == socket
+* $?0 returns false now on interactive shells for csh compatibility.
+* %p%P include seconds in prompt strings.
+
+6.03
+* $%var contains the number of characters in $var.
+* Shell -w -x are now POSIX compliant on POSIX machines.
+* Imported environment variables are not globbed.
+* $dirstack can be used to set and examine the directory stack.
+* $? == $status and $# == $#argv like in the bourne shell.
+* expand variables expands arrays too (but not array elements yet).
+* $0 contains argv[0] on interactive shells.
+* new -b -c etc file operators from SGI csh.
+* nostat takes a list of shell patterns.
+* symbolic names for arrow key bindings [left, right, up, down]
+* shift, left operators update variables correctly.
+* builtins builtin.
+* history and dirs accept now -LSc flags.
+* $history accepts an optional second argument, that can change the
+  history builtin output similar to the $time format.
+* History timestamps preserved in .history. The history file contains
+  now the timestamps as csh comments.
+
+
+6.02
+* ignore_symlinks and chase_symlinks are replaced with symlinks=ignore
+  and symlinks=chase; symlinks=expand addition
+* complete and uncomplete builtins; user-programmable completion additions.
+* Tcsh now uses the rightmost column of the terminal, allowing cut-and-paste
+  operations in terminal emulators that work [xterm R5 not R4]
+* echo_style controls now the behaviour of the builtin echo; the default
+  should match the builtin echo of /bin/csh; if your system does not
+  come with csh, then the default echo should match /bin/echo.
+* cd -; changes to the previous directory.
+* setting dunique variable pushes only unique directories on the directory
+  stack.
+* source builtin allows additional arguments that get passed in $argv in
+  the sourced script.
+* tcsh now mirrors correctly all exported csh variables [term=TERM,path=PATH
+  etc.]
+* showdots=-A makes listing behave like ls -A. 
+* directory stack access =<num> allows for entries > 9.
+* $a:u uppercase the first character in $a, $a:l downcases the first
+  character in $a.
+* Shorthand for file tests in 'if' expressions ( -dx file ) is the
+  same as ( -d file && -x file )
+
+6.01
+* Nothing new.
+
+6.00 PL3
+* %d in the prompt is the week-day and no longer $cwd; use %/ instead.
+* changes in the prompt format. Date changes to accomodate people from
+  down under. 
+* vi insert mode to command mode transition does not move the cursor.
+
+6.00 PL2
+* setty builtin
+  This is used to specify what tcsh modes can be altered using stty,
+  Modes that should be set are specified as +<mode>, modes that should 
+  be cleared are specified as -<mode>, and the ones that should be 
+  untouched are specified as <mode>. setty with no arguments prints
+  the modes that are affected by tcsh, and setty -a prints all modes.
+* multiple : modifiers in variables and ! escapes. Things like:
+      > set prompt="$host:r:$cwd>"
+  don't work any more, they should be replaced with
+      > set prompt="${host:r}:$cwd>"
+  or
+      > set prompt="$host:r"":$cwd>"
+  the reason is that now you can
+      > set foo=/usr/local/a.b.c
+      > echo $foo:t:r:e
+      b
+  If for some reason you don't like this change you can disable it with
+  -DCOMPAT. -DCOMPAT may go away in future tcsh versions and the way tcsh
+  works now is the way the 4.4BSD csh works.
+
+6.00 PL1
+* There is no more config.iris4d, use config.sgi instead
+
+6.00
+* History searching searches using shell patterns too.
+* The autolist values that controlled beeping are not supported any more;
+  used matchbeep instead.
+* /etc/Login and /etc/Logout were renamed to /etc/csh.login /etc/csh.logout
+  and /etc/csh.cshrc was added
+* prompt2 and prompt3 can have prompt escapes.
+* eval pipes work
+* ignore_symlinks works
+
+5.20 PL2
+* %{..%} escapes in prompt
+
+5.20 PL0
+* bindkey -r
+* history -t
+* shell variables in paths expand correctly.
+* variable expansion 
+* quoted expansions now work.
+* new version and tcsh variable format
+
+5.19 PL2
+* NLS support
+* New bindkey and echotc builtins
+* Underline and Bold in the prompt; additions and changes to the prompt and 
+  who syntax (%u is now %n, so that %u can be used to turn undeline off, 
+  and %n is now \n).
+* rmstar needs to be set to protect from accidental removal
+* Fixed editor, and spell line.
+* Glob-expand, on arguments.
+* Added process migration builtins for aix370
+
+5.19 PL1
+* Maintainance release for mainly the rs6000
+
+5.19 PL0
+* 8 bit clean code, by using 16 bit strings.
+* Mostly shared strings (a side-effect)
+* Highlights everywhere (and in ls-F) filenames that contain characters
+  with the eighth bit set (or passes them unchanged depending on the
+  variable 'nometa')
+* Newline in the prompt via %n.
+* dirs takes also a -v flag for `vertical display'
+* There is a new variable `listjobs' which controls if and how jobs
+  are displayed when a new job is suspended. [Idea from the mtXinu 
+  code, very useful for novice users who hit control-Z 10 times on
+  the same job!]
+  set listjobs=long, jobs -l is executed every time a job is suspended.
+  set listjobs=short, jobs is executed every time a job is suspended.
+* Passes lint... At least on a sun.

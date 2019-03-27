@@ -1,0 +1,4 @@
+pass in on hme0 proto udp all with not ipopts keep state
+pass in on hme0 proto udp all with ipopts keep state
+pass in on hme0 proto tcp all flags S with opt rr keep state
+pass in on hme0 proto tcp all flags S with opt sec-class secret keep state

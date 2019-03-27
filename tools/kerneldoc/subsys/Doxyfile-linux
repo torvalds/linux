@@ -1,0 +1,23 @@
+# Doxyfile 1.5.2
+
+# $FreeBSD$
+
+#---------------------------------------------------------------------------
+# Project related configuration options
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "FreeBSD kernel $(DOXYGEN_TARGET_ARCH) linuxolator code"
+OUTPUT_DIRECTORY       = $(DOXYGEN_DEST_PATH)/linux/
+EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
+#--------------------------------------------------------------------------
+# configuration options related to the input files
+#---------------------------------------------------------------------------
+INPUT                  = $(DOXYGEN_SRC_PATH)/compat/linux \
+			 $(DOXYGEN_SRC_PATH)/compat/linprocfs \
+			 $(DOXYGEN_SRC_PATH)/compat/linsysfs \
+                         $(DOXYGEN_LINUX_PATH) $(NOTREVIEWED)
+
+GENERATE_TAGFILE       = linux/linux.tag
+
+@INCLUDE_PATH          = $(DOXYGEN_INCLUDE_PATH)
+@INCLUDE               = common-Doxyfile
+

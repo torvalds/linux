@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+alias alias0=exit
+x=alias0
+eval 'case $x in alias0) exit 0;; esac'
+exit 1

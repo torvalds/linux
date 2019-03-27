@@ -1,0 +1,8 @@
+# $FreeBSD$
+# Per POSIX, this need only work if LONG_MAX > 4294967295.
+
+while :; do
+	break 4294967296
+	echo bad
+	exit 3
+done

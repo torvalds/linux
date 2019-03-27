@@ -1,0 +1,1753 @@
+2018-07-25   8:50  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.34
+
+2018-06-22  16:38  Christos Zoulas <christos@zoulas.com>
+
+	* Add Quad indirect offsets
+
+2018-05-24  14:10  Christos Zoulas <christos@zoulas.com>
+
+	* Enable parsing of ELF dynamic sections to handle PIE better
+
+2018-04-15  14:52  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.33
+
+2018-02-24  14:50  Christos Zoulas <christos@zoulas.com> 
+
+	* extend the support for ${x?:} expansions for magic descriptions
+
+2018-02-21  16:25  Christos Zoulas <christos@zoulas.com> 
+
+	* add support for ${x?:} in mime types to handle
+	  pie binaries.
+
+2017-11-03   9:23  Christos Zoulas <christos@zoulas.com>
+
+	* add support for negative offsets (offsets from the end of file)
+
+2017-09-26   8:22  Christos Zoulas <christos@zoulas.com>
+
+	* close the file on error when writing magic (Steve Grubb)
+
+2017-09-24  12:02  Christos Zoulas <christos@zoulas.com>
+
+	* seccomp support (Paul Moore)
+
+2017-09-02  11:53  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.32
+
+2017-08-28  16:37  Christos Zoulas <christos@zoulas.com>
+
+	* Always reset state in {file,buffer}_apprentice (Krzysztof Wilczynski)
+
+2017-08-27  03:55  Christos Zoulas <christos@zoulas.com>
+
+	* Fix always true condition (Thomas Jarosch)
+
+2017-05-24  17:30  Christos Zoulas <christos@zoulas.com>
+
+	* pickier parsing of numeric values in magic files.
+
+2017-05-23  17:55  Christos Zoulas <christos@zoulas.com>
+
+	* PR/615 add magic_getflags()
+
+2017-05-23  13:55  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.31
+
+2017-03-17  20:32  Christos Zoulas <christos@zoulas.com>
+
+	* remove trailing spaces from magic files
+	* refactor is_tar
+	* better bounds checks for cdf
+
+2017-02-10  12:24  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.30
+
+2017-02-07  23:27  Christos Zoulas <christos@zoulas.com>
+
+	* If we exceeded the offset in a search return no match
+	  (Christoph Biedl)
+	* Be more lenient on corrupt CDF files (Christoph Biedl)
+
+2017-02-04  16:46  Christos Zoulas <christos@zoulas.com>
+
+	* pacify ubsan sign extension (oss-fuzz/524)
+
+2017-02-01  12:42  Christos Zoulas <christos@zoulas.com>
+
+	* off by one in cdf parsing (PR/593)
+	* report debugging sections in elf (PR/591)
+
+2016-11-06  10:52  Christos Zoulas <christos@zoulas.com>
+
+	* Allow @@@ in extensions
+	* Add missing overflow check in der magic (Jonas Wagner)
+
+2016-10-25  10:40  Christos Zoulas <christos@zoulas.com>
+	
+	* release 5.29
+
+2016-10-24  11:20  Christos Zoulas <christos@zoulas.com>
+
+	* der getlength overflow (Jonas Wagner)
+	* multiple magic file load failure (Christoph Biedl)
+
+2016-10-17  11:26  Christos Zoulas <christos@zoulas.com>
+
+	* CDF parsing improvements (Guy Helmer)
+
+2016-07-20   7:26  Christos Zoulas <christos@zoulas.com>
+
+	* Add support for signed indirect offsets
+
+2016-07-18   7:41  Christos Zoulas <christos@zoulas.com>
+
+	* cat /dev/null | file - should print empty (Christoph Biedl)
+
+2016-07-05  15:20  Christos Zoulas <christos@zoulas.com>
+
+	* Bump string size from 64 to 96.
+
+2016-06-13  20:20  Christos Zoulas <christos@zoulas.com>
+
+	* PR/556: Fix separators on annotations.
+
+2016-06-13  19:40  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.28
+	* fix leak on allocation failure
+
+2016-06-01   1:20  Christos Zoulas <christos@zoulas.com>
+
+	* PR/555: Avoid overflow for offset > nbytes
+	* PR/550: Segv on DER parsing:
+	    - use the correct variable for length
+	    - set offset to 0 on failure.
+
+2016-05-13  12:00  Christos Zoulas <christos@zoulas.com>
+	
+	* release 5.27
+
+2016-04-18   9:35  Christos Zoulas <christos@zoulas.com>
+	
+	* Errors comparing DER entries or computing offsets
+	  are just indications of malformed non-DER files.
+	  Don't print them.
+	* Offset comparison was off-by-one.
+	* Fix compression code (Werner Fink)
+	* Put new bytes constant in the right file (not the generated one)
+
+2016-04-16  18:34  Christos Zoulas <christos@zoulas.com>
+	
+	* release 5.26
+
+2016-03-31  13:50  Christos Zoulas <christos@zoulas.com>
+
+	* make the number of bytes read from files configurable.
+
+2016-03-21  13:40  Christos Zoulas <christos@zoulas.com>
+
+	* Add bounds checks for DER code (discovered by Thomas Jarosch)
+	* Change indirect recursion limit to indirect use count and
+	  bump from 15 to 50 to prevent abuse.
+
+2016-03-13  20:39  Christos Zoulas <christos@zoulas.com>
+
+	* Add -00 which prints filename\0description\0
+
+2016-03-01  13:28  Christos Zoulas <christos@zoulas.com>
+
+	* Fix ID3 indirect parsing
+
+2016-01-19  10:18  Christos Zoulas <christos@zoulas.com>
+
+	* add DER parsing capability
+
+2015-11-13  10:35  Christos Zoulas <christos@zoulas.com>
+
+	* provide dprintf(3) for the OS's that don't have it.
+
+2015-11-11  16:25  Christos Zoulas <christos@zoulas.com>
+
+	* redo the compression code report decompression errors
+
+2015-11-10  23:25  Christos Zoulas <christos@zoulas.com>
+
+	* REG_STARTEND code is not working as expected, delete it.
+
+2015-11-09  16:05  Christos Zoulas <christos@zoulas.com>
+
+	* Add zlib support if we have it.
+
+2015-11-05  11:22  Christos Zoulas <christos@zoulas.com>
+
+	* PR/492: compression forking was broken with magic_buffer.
+
+2015-09-16   9:50  Christos Zoulas <christos@zoulas.com>
+	
+	* release 5.25
+
+2015-09-11  13:25  Christos Zoulas <christos@zoulas.com>
+
+	* add a limit to the length of regex searches
+
+2015-09-08   9:50  Christos Zoulas <christos@zoulas.com>
+
+	* fix problems with --parameter (Christoph Biedl)
+
+2015-07-11  10:35  Christos Zoulas <christos@zoulas.com>
+
+	* Windows fixes PR/466 (Jason Hood)
+
+2015-07-09  10:35  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.24
+
+2015-06-11   8:52  Christos Zoulas <christos@zoulas.com>
+
+	* redo long option encoding to fix off-by-one in 5.23
+
+2015-06-10  13:50  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.23
+
+2015-06-09  16:10  Christos Zoulas <christos@zoulas.com>
+	
+	* Fix issue with regex range for magic with offset
+	* Always return true from mget with USE (success to mget not match
+	  indication). Fixes mime evaluation after USE magic
+	* PR/459: Don't insert magic entries to the list if there are parsing
+	  errors for them.
+
+2015-06-03  16:00  Christos Zoulas <christos@zoulas.com>
+
+	* PR/455: Add utf-7 encoding
+
+2015-06-03  14:30  Christos Zoulas <christos@zoulas.com>
+
+	* PR/455: Implement -Z, look inside, but don't report on compression
+	* PR/454: Fix allocation error on bad magic.
+
+2015-05-29  10:30  Christos Zoulas <christos@zoulas.com>
+
+	* handle MAGIC_CONTINUE everywhere, not just in softmagic
+
+2015-05-21  14:30  Christos Zoulas <christos@zoulas.com>
+
+	* don't print descriptions for NAME types when mime.
+
+2015-04-09  15:59  Christos Zoulas <christos@zoulas.com>
+
+	* Add --extension to list the known extensions for this file type
+	  Idea by Andrew J Roazen
+
+2015-02-14  12:23  Christos Zoulas <christos@zoulas.com>
+
+	* Bump file search buffer size to 1M.
+
+2015-01-09  14:35  Christos Zoulas <christos@zoulas.com>
+
+	* Fix multiple issues with date formats reported by Christoph Biedl:
+		- T_LOCAL meaning was reversed
+		- Arithmetic did not work
+	  Also stop adjusting daylight savings for gmt printing.
+
+2015-01-05  13:00  Christos Zoulas <christos@zoulas.com>
+
+	* PR/411: Fix memory corruption from corrupt cdf file.
+
+2015-01-02  15:15  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.22
+
+2015-01-01  12:01  Christos Zoulas <christos@zoulas.com>
+
+	* add indirect relative for TIFF/Exif
+
+2014-12-16  18:10  Christos Zoulas <christos@zoulas.com>
+	
+	* restructure elf note printing to avoid repeated messages
+	* add note limit, suggested by Alexander Cherepanov
+
+2014-12-16  16:53  Christos Zoulas <christos@zoulas.com>
+	
+	* Bail out on partial pread()'s (Alexander Cherepanov)
+	* Fix incorrect bounds check in file_printable (Alexander Cherepanov)
+
+2014-12-11  20:01  Christos Zoulas <christos@zoulas.com>
+
+	* PR/405: ignore SIGPIPE from uncompress programs
+	* change printable -> file_printable and use it in
+	  more places for safety
+	* in ELF, instead of "(uses dynamic libraries)" when PT_INTERP
+	  is present print the interpreter name.
+	
+2014-12-10  20:01  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.21
+
+2014-11-27  18:40  Christos Zoulas <christos@zoulas.com>
+
+	* Allow setting more parameters from the command line.
+	* Split name/use and indirect magic recursion limits.
+
+2014-11-27  11:12  Christos Zoulas <christos@zoulas.com>
+
+	* Adjust ELF parameters and the default recursion
+	  level.
+	* Allow setting the recursion level dynamically.
+
+2014-11-24   8:55  Christos Zoulas <christos@zoulas.com>
+
+	* The following fixes resulted from Thomas Jarosch's fuzzing
+	  tests that revealed severe performance issues on pathological
+	  input:
+	    - limit number of elf program and sections processing
+	    - abort elf note processing quickly
+	    - reduce the number of recursion levels from 20 to 10
+	    - preserve error messages in indirect magic handling
+
+	This is tracked as CVE-2014-8116 and CVE-2014-8117
+
+2014-11-12  10:30  Christos Zoulas <christos@zoulas.com>
+
+	* fix bogus free in the user buffer case.
+
+2014-11-11  12:35  Christos Zoulas <christos@zoulas.com>
+
+	* fix out of bounds read for pascal strings
+	* fix memory leak (not freeing the head of each mlist)
+
+2014-11-07  10:25  Christos Zoulas <christos@zoulas.com>
+
+	* When printing strings from a file, convert them to printable
+	  on a byte by byte basis, so that we don't get issues with
+	  locale's trying to interpret random byte streams as UTF-8 and
+	  having printf error out with EILSEQ.
+	  
+2014-10-17  11:48  Christos Zoulas <christos@zoulas.com>
+
+	* fix bounds in note reading (Francisco Alonso / Red Hat)
+
+2014-10-11  15:02  Christos Zoulas <christos@zoulas.com>
+
+	* fix autoconf glue for setlocale and locale_t; some OS's
+	  have locale_t in xlocale.h
+
+2014-10-10  15:01  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.20
+
+2014-08-17  10:01  Christos Zoulas <christos@zoulas.com>
+
+	* recognize encrypted CDF documents
+
+2014-08-04   9:18  Christos Zoulas <christos@zoulas.com>
+
+	* add magic_load_buffers from Brooks Davis
+
+2014-07-24  16:40  Christos Zoulas <christos@zoulas.com>
+
+	* add thumbs.db support
+
+2014-06-12  12:28  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.19
+
+2014-06-09   9:04  Christos Zoulas <christos@zoulas.com>
+	
+	* Misc buffer overruns and missing buffer size tests in cdf parsing
+	  (Francisco Alonso, Jan Kaluza)
+
+2014-06-02  14:50  Christos Zoulas <christos@zoulas.com>
+
+	* Enforce limit of 8K on regex searches that have no limits
+	* Allow the l modifier for regex to mean line count. Default
+	  to byte count. If line count is specified, assume a max
+	  of 80 characters per line to limit the byte count.
+	* Don't allow conversions to be used for dates, allowing
+	  the mask field to be used as an offset.
+
+2014-05-30  12:51  Christos Zoulas <christos@zoulas.com>
+
+	* Make the range operator limit the length of the
+	  regex search.
+
+2014-05-14  19:23  Christos Zoulas <christos@zoulas.com>
+
+	* PR/347: Windows fixes
+	* PR/352: Hangul word processor recognition
+	* PR/354: Encoding irregularities in text files
+
+2014-05-06  6:12  Christos Zoulas <christos@zoulas.com>
+
+	* Fix uninitialized title in CDF files (Jan Kaluza)
+
+2014-05-04  14:55  Christos Zoulas <christos@zoulas.com>
+
+	* PR/351: Fix compilation of empty files 
+
+2014-04-30  17:39  Christos Zoulas <christos@zoulas.com>
+
+	* Fix integer formats: We don't specify 'l' or
+	  'h' and 'hh' specifiers anymore, only 'll' for
+	  quads and nothing for the rest. This is so that
+	  magic writing is simpler.
+
+2014-04-01  15:25  Christos Zoulas <christos@zoulas.com>
+
+	* PR/341: Jan Kaluza, fix memory leak
+	* PR/342: Jan Kaluza, fix out of bounds read
+
+2014-03-28  15:25  Christos Zoulas <christos@zoulas.com>
+
+	* Fix issue with long formats not matching fmtcheck
+
+2014-03-26  11:25  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.18
+
+2014-03-15  17:45  Christos Zoulas <christos@zoulas.com>
+
+	* add fmtcheck(3) for those who don't have it
+
+2014-03-14  15:12  Christos Zoulas <christos@zoulas.com>
+
+	* prevent mime entries from being attached to magic
+	  entries with no descriptions
+
+	* adjust magic strength for regex type
+
+	* remove superfluous ascmagic with encoding test
+
+2014-03-06  12:01  Christos Zoulas <christos@zoulas.com>
+
+	* fix regression fix echo -ne "\012\013\014" | file -i -
+	  which printed "binary" instead of "application/octet-stream"
+
+	* add size_t overflow check for magic file size
+
+2014-02-27  16:01  Christos Zoulas <christos@zoulas.com>
+
+	* experimental support for matching with CFD CLSID
+
+2014-02-18  13:04  Kimmo Suominen (kimmo@suominen.com)
+
+	* Cache old LC_CTYPE locale before setting it to "C", so
+	  we can use it to restore LC_CTYPE instead of asking
+	  setlocale() to scan the environment variables.
+
+2014-02-12  18:21  Christos Zoulas <christos@zoulas.com>
+
+	* Count recursion levels through indirect magic
+
+2014-02-11  10:40  Christos Zoulas <christos@zoulas.com>
+
+	* Prevent infinite recursion on files with indirect offsets of 0
+
+2014-01-30  21:00  Christos Zoulas <christos@zoulas.com>
+
+	* Add -E flag that makes file print filesystem errors to stderr
+	  and exit.
+
+2014-01-08  17:20  Christos Zoulas <christos@zoulas.com>
+
+	* mime printing could print results from multiple magic entries
+	  if there were multiple matches.
+	* in some cases overflow was not detected when computing offsets
+	  in softmagic.
+
+2013-12-05  12:00  Christos Zoulas <christos@zoulas.com>
+
+	* use strcasestr() to for cdf strings
+	* reset to the "C" locale while doing regex operations, or case
+	  insensitive comparisons; this is provisional
+
+2013-11-19  20:10  Christos Zoulas <christos@zoulas.com>
+
+	* always leave magic file loaded, don't unload for magic_check, etc.
+	* fix default encoding to binary instead of unknown which broke recently
+	* handle empty and one byte files, less specially so that
+	  --mime-encoding does not break completely.
+		`
+2013-11-06  14:40  Christos Zoulas <christos@zoulas.com>
+
+	* fix erroneous non-zero exit code from non-existent file and message
+
+2013-10-29  14:25  Christos Zoulas <christos@zoulas.com>
+
+	* add CDF MSI file detection (Guy Helmer)
+
+2013-09-03  11:56  Christos Zoulas <christos@zoulas.com>
+
+	* Don't mix errors and regular output if there was an error
+	* in magic_descriptor() don't close the file and try to restore
+	  its position
+
+2013-05-30  17:25  Christos Zoulas <christos@zoulas.com>
+
+	* Don't treat magic as an error if offset was past EOF (Christoph Biedl)
+
+2013-05-28  17:25  Christos Zoulas <christos@zoulas.com>
+	
+	* Fix spacing issues in softmagic and elf (Jan Kaluza)
+
+2013-05-02  18:00  Christos Zoulas <christos@zoulas.com>
+
+	* Fix segmentation fault with multiple magic_load commands.
+
+2013-04-22  11:20  Christos Zoulas <christos@zoulas.com>
+
+	* The way "default" was implemented was not very useful
+	  because the "if something was printed at that level"
+	  was not easily controlled by the user, and the format
+	  was bound to a string which is too restrictive. Add
+	  a "clear" for that level keyword and make "default"
+	  void. This way one can do:
+
+		>>13	clear	x
+		>>13	lelong	1	foo
+		>>13	lelong	2	bar
+		>>13	default	x
+		>>>13	lelong	x	unknown %x
+
+2013-03-25  13:20  Christos Zoulas <christos@zoulas.com>
+
+	* disallow strength setting in "name" entries
+
+2013-03-06  21:24  Christos Zoulas <christos@zoulas.com>
+
+	* fix recursive magic separator printing
+
+2013-02-26  19:28  Christos Zoulas <christos@zoulas.com>
+
+	* limit recursion level for mget
+	* fix pread() related breakage in cdf
+	* handle offsets properly in recursive "use"
+
+2013-02-18  10:39  Christos Zoulas <christos@zoulas.com>
+
+	* add elf reading of debug info to determine if file is stripped
+	  (Jan Kaluza)
+	* use pread()
+
+2013-01-25  18:05  Christos Zoulas <christos@zoulas.com>
+
+	* change mime description size from 64 to 80 to accommodate OOXML.
+
+2013-01-11  14:50  Christos Zoulas <christos@zoulas.com>
+
+	* Warn about inconsistent continuation levels.
+	* Change fsmagic to add a space after it prints.
+
+2013-01-10  21:00  Christos Zoulas <christos@zoulas.com>
+
+	* Make getline public so that file can link against it.
+	  Perhaps it is better to rename it, or hide it differently.
+	  Fixes builds on platforms that do not provide it.
+	  
+2013-01-07  16:30  Christos Zoulas <christos@zoulas.com>
+
+	* Add SuS d{,1,2,4,8}, u{,1,2,4,8} and document
+	  what long, int, short, etc is (Guy Harris)
+
+2013-01-06  11:20  Christos Zoulas <christos@zoulas.com>
+
+	* add magic_version function and constant
+	* Redo memory allocation and de-allocation.
+	  (prevents double frees on non mmap platforms)
+	* Fix bug with name/use having to do with passing
+	  found state from the parent to the child and back.
+
+2012-12-19   8:47  Christos Zoulas <christos@zoulas.com>
+
+	* Only print elf capabilities for archs we know (Jan Kaluza)
+
+2012-10-30  19:14  Christos Zoulas <christos@zoulas.com>
+
+	* Add "name" and "use" file types in order to look
+	  inside mach-o files.
+
+2012-09-06  10:40  Christos Zoulas <christos@zoulas.com>
+
+	* make --version exit 0 (Matthew Schultz)
+	* add string/T (Jan Kaluza)
+
+2012-08-09  2:15  Christos Zoulas <christos@zoulas.com>
+
+	* add z and t modifiers for our own vasprintf
+	* search for $HOME/.magic.mgc if it is there first
+	* fix reads from a pipe, and preserve errno
+
+2012-05-15  13:12  Christos Zoulas <christos@zoulas.com>
+
+	* use ctime_r, asctime_r
+
+2012-04-06  17:18  Christos Zoulas <christos@zoulas.com>
+
+	* Fixes for indirect offsets to handle apple disk formats
+
+2012-04-03  18:26  Christos Zoulas <christos@zoulas.com>
+
+	* Add windows date field types
+	* More info for windows shortcuts (incomplete)
+
+2012-02-20  17:33  Christos Zoulas <christos@zoulas.com>
+
+	* Fix CDF parsing issues found by CERT's fuzzing tool (Will Dormann)
+
+2011-12-15  12:17  Chris Metcalf <cmetcalf@tilera.com>
+
+	* Support Tilera architectures (tile64, tilepro, tilegx).
+
+2011-12-16  16:33  Reuben Thomas <rrt@sc3d.org>
+
+	* Add magic for /usr/bin/env Perl scripts
+	* Weaken generic script magic to avoid clashing with
+	language-specific magic.
+
+2011-12-08  13:37  Reuben Thomas <rrt@sc3d.org>
+
+	* Simplify if (p) free(p) to free(p).
+
+2011-12-08  13:07  Reuben Thomas <rrt@sc3d.org>
+
+	* Remove hardwired token finding (names.h), turning it into soft
+	magic. Patterns are either anchored regexs or search/8192. English
+	language detection and PL/1 detection have been removed as they
+	were too fragile. -e tokens is still accepted for backwards
+	compatibility.
+	* Move 3ds patterns (which are commented out anyway) into autodesk
+	(they were, oddly, in c-lang).
+
+2011-12-06  00:16  Reuben Thomas <rrt@sc3d.org>
+
+	* Tweak strength of generic hash-bang detectors to be less than
+	specific ones.
+	* Make an inconsistent description of Python scripts consistent.
+
+2011-12-05  23:58  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix minor error in file(1).
+
+2011-11-05  00:00  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix issue #150 (I hope).
+
+2011-09-22  12:57  Christos Zoulas <christos@zoulas.com>
+
+	* Python3 binding fixes from Kelly Anderson
+
+2011-09-20  11:32  Christos Zoulas <christos@zoulas.com>
+
+	* If a string type magic entry is marked as text or binary
+	  only match text files against text entries and binary
+	  files against binary entries.
+
+2011-09-01  12:12  Christos Zoulas <christos@zoulas.com>
+
+	* Don't wait for any subprocess, just the one we forked.
+
+2011-08-26  16:40  Christos Zoulas <christos@zoulas.com>
+
+	* If the application name is not set in a cdf file, try to see
+	  if it has a directory with the application name on it.
+
+2011-08-17  14:32  Christos Zoulas <christos@zoulas.com>
+
+	* Fix ELF lseek(2) madness. Inspired by PR/134 by Jan Kaluza
+
+2011-08-14  09:03  Christos Zoulas <christos@zoulas.com>
+
+	* Don't use variable string formats.
+
+2011-07-12  12:32  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix detection of Zip files (Mantis #128).
+	* Make some minor improvements to file(1).
+	* Rename MIME types for filesystem objects for consistency with
+	  xdg-utils. Typically this means that application/x-foo becomes
+	  inode/foo, but some names also change slightly, e.g.
+	  application/x-character-device becomes inode/chardevice.
+
+2011-05-10  20:57  Christos Zoulas <christos@zoulas.com>
+
+	* fix mingw compilation (Abradoks)
+
+2011-05-10  20:57  Christos Zoulas <christos@zoulas.com>
+
+	* remove patchlevel.h
+	* Fix read past allocated memory caused by double-incrementing
+	  a pointer in a loop (reported by Roberto Maar)
+
+2011-03-30  15:45  Christos Zoulas <christos@zoulas.com>
+
+	* Fix cdf string buffer setting (Sven Anders)
+
+2011-03-20  16:35  Christos Zoulas <christos@zoulas.com>
+
+	* Eliminate MAXPATHLEN and use dynamic allocation for
+	  path and file buffers.
+
+2011-03-15  18:15  Christos Zoulas <christos@zoulas.com>
+
+	* binary tests on magic entries with masks could spuriously
+	  get converted to ascii.
+
+2011-03-12  18:06  Reuben Thomas <rrt@sc3d.org>
+
+	* Improve file.man (remove BUGS, present email addresses consistently).
+
+2011-03-07  19:38  Christos Zoulas <christos@zoulas.com>
+
+	* add lrzip support (from Ville Skytta)
+
+2011-02-10  16:36  Christos Zoulas <christos@zoulas.com>
+
+	* fix CDF bounds checking (Guy Helmer)
+
+2011-02-10  12:03  Christos Zoulas <christos@zoulas.com>
+
+	* add cdf_ctime() that prints a meaningful error when time cannot
+	  be converted.
+
+2011-02-02  20:40  Christos Zoulas <christos@zoulas.com>
+
+	* help and version output to stdout.
+
+	* When matching softmagic for ascii files, don't just print
+	  the softmagic classification, keep going and print the
+	  text classification too. This fixes broken troff files when
+	  we moved them from keyword recognition to softmagic
+	  (they stopped printing "with CRLF" etc.)
+	  Reported by Doug McIlroy.
+
+2011-01-16  19:31  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix two potential buffer overruns in apprentice_list.
+
+2011-01-14  22:33  Reuben Thomas <rrt@sc3d.org>
+
+	* New Python binding in pure Python.
+	* Update libmagic(3).
+
+2011-01-06  21:40  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix Python bindings (including recent Python 3 compatibility
+	  update).
+
+2011-01-04  18:43  Reuben Thomas <rrt@sc3d.org>
+
+	* magic/Makefile.am: make it easier to recover from magic build failures.
+	* Fix pstring length specifier parsing to avoid generating invalid
+	  magic files.
+	* Add pstring length "J" (for "JPEG") to specify that the length
+	  include itself.
+	* Fix JPEG comment parsing at last using pstring/HJ!
+	* Ignore section 5 man pages in doc/.cvsignore.
+
+2010-12-22  13:12  Christos Zoulas <christos@zoulas.com>
+
+	* Add pstring/BHhLl to specify the type of the length of pascal
+	  strings.
+
+2010-11-26  18:39  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix "-e soft": it was ignored when softmagic was called
+	  during asciimagic.
+	* Improve comments and use "unsigned char" in tar.h/is_tar.c.
+
+2010-11-05  17:26  Reuben Thomas <rrt@sc3d.org>
+
+	* Make bug reporting addresses more visible.
+
+2010-11-01  18:35  Reuben Thomas <rrt@sc3d.org>
+
+	* Add tcl magic from Gustaf Neumann
+
+2010-10-24  10:42  Christos Zoulas <christos@zoulas.com>
+
+	* Fix the whitespace comparing code (Christopher Chittleborough)
+
+2010-10-06  21:05  Christos Zoulas <christos@zoulas.com>
+
+	* allow string/t to work (Jan Kaluza)
+
+2010-09-20  22:11  Reuben Thomas <rrt@sc3d.org>
+
+	* Apply some patches from Ubuntu and Fedora.
+
+2010-09-20  21:16  Reuben Thomas <rrt@sc3d.org>
+
+	* Apply all patches from Debian package 5.04-6 which have not
+	  already been applied and are not Debian-specific.
+
+2010-09-20  15:24  Reuben Thomas <rrt@sc3d.org>
+
+	* Minor security fix to softmagic.c (don't use untrusted
+	  string as printf format).
+
+2010-07-21  12:20  Christos Zoulas <christos@zoulas.com>
+
+	* MINGW32 portability from LRN
+
+	* Don't warn about escaping magic regex chars when we are in a regex.
+
+2010-07-19  10:55  Christos Zoulas <christos@zoulas.com>
+
+	* Only try to print prpsinfo for core files. (Jan Kaluza)
+
+2010-04-22  12:55  Christos Zoulas <christos@zoulas.com>
+
+	* Try more elf offsets for Debian core files.  (Arnaud Giersch)
+
+2010-02-20  15:18  Reuben Thomas <rrt@sc3d.org>
+
+	* Clarify which sort of CDF we mean.
+
+2010-02-14  22:58  Reuben Thomas <rrt@sc3d.org>
+
+	* Re-jig Zip file type magic so that unsupported special
+	  Zip types (those with "mimetype" at offset 30) can be
+	  recognized.
+
+2010-02-02  21:50  Reuben Thomas <rrt@sc3d.org>
+
+	* Add support for OCF (EPUB) files (application/epub+zip)
+
+2010-01-28  18:25  Christos Zoulas <christos@zoulas.com>
+
+	* Fix core-dump from unbound loop:
+	  https://bugzilla.redhat.com/show_bug.cgi?id=533245
+
+2010-01-22  15:45  Christos Zoulas <christos@zoulas.com>
+
+	* print proper mime for crystal reports file
+
+	* print the last summary information of a cdf document, not the
+	  first so that nested documents print the right info
+
+2010-01-16  18:42  Charles Longeau <chl@tuxfamily.org>
+
+	* bring back some fixes from OpenBSD:
+		- make gcc2 builds file
+		- fix typos in a magic file comment
+
+2009-11-17  18:35  Christos Zoulas <christos@zoulas.com>
+
+	* ctime/asctime can return NULL on some OS's although
+	  they should not (Toshit Antani)
+
+2009-09-14  13:49  Christos Zoulas <christos@zoulas.com>
+
+	* Centralize magic path handling routines and remove the
+	  special-casing from file.c so that the python module for
+	  example comes up with the same magic path (Fixes ~/.magic
+	  handling) (from Gab)
+
+2009-09-11  23:38  Reuben Thomas <rrt@sc3d.org>
+
+	* When magic argument is a directory, read the files in
+	  strcmp-sorted order (fixes Debian bug #488562 and our own FIXME).
+
+2009-09-11  13:11  Reuben Thomas <rrt@sc3d.org>
+
+	* Combine overlapping epoc and psion magic files into one (epoc).
+
+	* Add some more EPOC MIME types.
+
+2009-08-19  15:55  Christos Zoulas <christos@zoulas.com>
+
+	* Fix 3 bugs (From Ian Darwin):
+	    - file_showstr could move one past the end of the array
+	    - parse_apple did not nul terminate the string in the overflow case
+	    - parse_mime truncated the wrong string in the overflow case
+
+2009-08-12  12:28  Robert Byrnes  <byrnes@wildpumpkin.net>
+
+	* Include Localstuff when compiling magic.
+
+2009-07-15  10:05  Christos Zoulas <christos@zoulas.com>
+
+	* Fix logic for including mygetopts.h
+
+	* Make cdf.c compile again with debugging
+
+	* Add the necessary field handling for crystal reports files to work
+
+2009-06-23 01:34  Reuben Thomas <rrt@sc3d.org>
+
+	* Stop "(if" identifying Lisp files, that's plain dumb!
+
+2009-06-09 22:13  Reuben Thomas <rrt@sc3d.org>
+
+	* Add a couple of missing MP3 MIME types.
+
+2009-05-27 23:00  Reuben Thomas <rrt@sc3d.org>
+
+	* Add full range of hash-bang tests for Python and Ruby.
+
+	* Add MIME types for Python and Ruby scripts.
+
+2009-05-13  10:44  Christos Zoulas <christos@zoulas.com>
+
+	* off by one in parsing hw capabilities in elf
+	  (Cheng Renquan)
+
+2009-05-08  13:40  Christos Zoulas <christos@zoulas.com>
+	
+	* lint fixes and more from NetBSD
+
+2009-05-06  10:25  Christos Zoulas <christos@zoulas.com>
+
+	* Avoid null dereference in cdf code (Drew Yao)
+
+	* More cdf bounds checks and overflow checks
+
+2009-05-01  18:37  Christos Zoulas <christos@zoulas.com>
+
+	* Buffer overflow fixes from Drew Yao
+
+2009-04-30  17:10  Christos Zoulas <christos@zoulas.com>
+
+	* Fix more cdf lossage. All the documents I have
+	  right now print the correct information.
+
+2009-03-27  18:43  Christos Zoulas <christos@zoulas.com>
+
+	* don't print \012- separators in the same magic entry 
+	  if it consists of multiple magic printing lines.
+
+2009-03-23  10:20  Christos Zoulas <christos@zoulas.com>
+
+	* Avoid file descriptor leak in compress code from
+	  (Daniel Novotny)
+
+2009-03-18  16:50  Christos Zoulas <christos@zoulas.com>
+
+	* Allow escaping of relation characters, so that we can say \^[A-Z]
+	  and the ^ is not eaten as a relation char.
+
+	* Fix troff and fortran to their previous glory using
+	  regex. This was broken since their removel from ascmagic.
+
+2009-03-10  16:50  Christos Zoulas <christos@zoulas.com>
+
+	* don't use strlen in strndup() (Toby Peterson)
+
+2009-03-10  7:45  Christos Zoulas <christos@zoulas.com>
+
+	* avoid c99 syntax.
+
+2009-02-23 15:45  Christos Zoulas <christos@zoulas.com>
+
+	* make the cdf code use the buffer first if available,
+	  and then the fd code.
+
+2009-02-13 13:45  Christos Zoulas <christos@zoulas.com>
+
+	* look for struct option to determine if getopt.h is usable for IRIX.
+
+	* sanitize cdf document strings
+
+2009-02-04 13:25  Christos Zoulas <christos@zoulas.com>
+
+	* fix OS/2 warnings.
+
+2008-12-12 15:50  Christos Zoulas <christos@zoulas.com>
+
+	* fix initial offset calculation for non 4K sector files
+
+	* add loop limits to avoid DoS attacks by constructing
+	  looping sector references.
+
+2008-12-03 13:05  Christos Zoulas <christos@zoulas.com>
+
+	* fix memory botches on cdf file parsing.
+
+	* exit with non-zero value for any error, not just for the last
+	  file processed.
+
+2008-11-09 20:42  Charles Longeau <chl@tuxfamily.org>
+
+	* Replace all str{cpy,cat} functions with strl{cpy,cat}
+	* Ensure that strl{cpy,cat} are included in libmagic,
+	  as needed.
+
+2008-11-06 18:18  Christos Zoulas <christos@zoulas.com>
+
+	* Handle ID3 format files.
+
+2008-11-06 23:00  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix --mime, --mime-type and --mime-encoding under new scheme.
+
+	* Rename "ascii" to "text" and add "encoding" test.
+
+	* Return a precise ("utf-16le" or "utf-16be") MIME charset for
+	  UTF-16.
+
+	* Fix error in comment caused by automatic indentation adding
+	  words!
+
+2008-11-06 10:35  Christos Zoulas <christos@astron.com>
+
+	* use memchr instead of strchr because the string
+	  might not be NUL terminated (Scott MacVicar)
+
+2008-11-03 07:31  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix a printf with a non-literal format string.
+
+	* Fix formatting and punctuation of help for "--apple".
+
+2008-10-30 11:00  Reuben Thomas <rrt@sc3d.org>
+
+	* Correct words counts in comments of struct magic.
+
+	* Fix handle_annotation to allow both Apple and MIME types to be
+	  printed, and to return correct code if MIME type is
+	  printed (1, not 0) or if there's an error (-1 not 1).
+
+	* Fix output of charset for MIME type (precede with semi-colon;
+	  fixes Debian bug #501460).
+
+	* Fix potential attacks via conversion specifications in magic
+	  strings.
+
+	* Add a FIXME for Debian bug #488562 (magic files should be
+	  read in a defined order, by sorting the names).
+
+2008-10-18 16:45  Christos Zoulas <christos@astron.com>
+
+	* Added APPLE file creator/type
+
+2008-10-12 10:20  Christos Zoulas <christos@astron.com>
+
+	* Added CDF parsing
+
+2008-10-09 16:40  Christos Zoulas <christos@astron.com>
+
+	* filesystem and msdos patches (Joerg Jenderek)
+
+2008-10-09 13:20  Christos Zoulas <christos@astron.com>
+
+	* correct --exclude documentation issues: remove troff and fortran
+	  and rename "token" to "tokens". (Randy McMurchy)
+
+2008-10-01 10:30  Christos Zoulas <christos@astron.com>
+
+	* Read ~/.magic in addition to the default magic file not instead
+	  of, as documented in the man page.
+
+2008-09-10 21:30  Reuben Thomas  <rrt@sc3d.org>
+
+	* Comment out graphviz patterns, as they match too many files.
+
+2008-08-30 12:54  Christos Zoulas <christos@astron.com>
+
+	* Don't eat trailing \n in magic enties.
+
+	* Cast defines to allow compilation using a c++ compiler.
+
+2008-08-25 23:56  Reuben Thomas  <rrt@sc3d.org>
+
+	* Add text/x-lua MIME type for Lua scripts.
+
+	* Escape { in regex in graphviz patterns.
+
+2008-07-26 00:59  Reuben Thomas  <rrt@sc3d.org>
+
+	* Add MIME types for special files.
+
+	* Use access to give more accurate information for files that
+	  can't be opened.
+
+	* Add a TODO list.
+
+2008-07-02 11:15  Christos Zoulas  <christos@astron.com>
+
+	* add !:strength op to adjust magic strength (experimental)
+
+2008-06-16 21:41  Reuben Thomas  <rrt@sc3d.org>
+
+	* Fix automake error in configure.ac.
+
+	* Add MIME type for Psion Sketch files.
+
+2008-06-05 08:59  Christos Zoulas  <christos@astron.com>
+
+	* Don't print warnings about bad namesize in stripped
+	  binaries with PT_NOTE is still there, and the actual
+	  note is gone (Jakub Jelinek)
+
+2008-05-28 15:12  Robert Byrnes  <byrnes@wildpumpkin.net>
+
+	* magic/Magdir/elf:
+	  Note invalid byte order for little-endian SPARC32PLUS.
+	  Add SPARC V9 vendor extensions and memory model.
+
+	* src/elfclass.h:
+	  Pass target machine to doshn (for Solaris hardware capabilities).
+
+	* src/readelf.c (doshn):
+	  Add support for Solaris hardware/software capabilities.
+
+	* src/readelf.h:
+	  Ditto.
+
+	* src/vasprintf.c (dispatch):
+	  Add support for ll modifier.
+
+2008-05-16 10:25  Christos Zoulas  <christos@astron.com>
+
+	* Fix compiler warnings.
+
+	* remove stray printf, and fix a vprintf bug. (Martin Dorey)
+
+2008-05-06 00:13  Robert Byrnes  <byrnes@wildpumpkin.net>
+
+	* src/Makefile.am:
+	  Ensure that getopt_long and [v]asprintf are included in libmagic,
+	  as needed.
+
+	  Remove unnecessary EXTRA_DIST.
+
+	* src/Makefile.in:
+	  Rerun automake.
+
+	* src/vasprintf.c (dispatch):
+	  Fix variable precision bug: be sure to step past '*'.
+
+	* src/vasprintf.c (core):
+	  Remove unreachable code.
+
+	* src/apprentice.c (set_test_type):
+	  Add cast to avoid compiler warning.
+
+2008-04-22 23:45  Christos Zoulas  <christos@astron.com>
+
+	* Add magic submission guidelines (Abel Cheung)
+
+	* split msdos and windows magic (Abel Cheung)
+
+2008-04-04 11:00  Christos Zoulas  <christos@astron.com>
+
+	* >= <= is not supported, so fix the magic and warn about it.
+	  reported by: Thien-Thi Nguyen <ttn@gnuvola.org>
+
+2008-03-27 16:16  Robert Byrnes  <byrnes@wildpumpkin.net>
+
+	* src/readelf.c (donote):
+	  ELF core file command name/line bug fixes and enhancements:
+
+	  Try larger offsets first to avoid false matches
+	  from earlier data that happen to look like strings;
+	  this primarily affected SunOS 5.x 32-bit Intel core files.
+
+	  Add support for command line (instead of just short name)
+	  for SunOS 5.x.
+
+	  Add information about NT_PSINFO for SunOS 5.x.
+
+	  Only trim whitespace from end of command line.
+
+2007-02-11 01:36 Reuben Thomas <rrt@sc3d.org>
+
+	* Change strength of ! from MULT to 0, as it matches almost
+		  anything (Reuben Thomas)
+
+	* Debian fixes (Reuben Thomas)
+
+2007-02-11 00:17 Reuben Thomas <rrt@sc3d.org>
+
+	* Clarify UTF-8 BOM message (Reuben Thomas)
+
+	* Add HTML comment to token list in names.h
+
+2007-02-04 15:50 Christos Zoulas <christos@astron.com>
+
+	* Debian fixes (Reuben Thomas)
+
+2007-02-04 11:31 Christos Zoulas <christos@astron.com>
+
+	* !:mime annotations in magic files (Reuben Thomas)
+
+2007-01-29 15:35 Christos Zoulas <christos@astron.com>
+
+	* zero out utime/utimes structs (Gavin Atkinson)
+
+2007-01-26 13:45 Christos Zoulas <christos@astron.com>
+
+	* reduce writable data from Diego "Flameeyes" Petten
+
+2007-12-28 15:06 Christos Zoulas <christos@astron.com>
+
+	* strtof detection
+
+	* remove bogus regex magic that could cause a DoS
+
+	* better mismatch version message
+
+2007-12-27 11:35 Christos Zoulas <christos@astron.com>
+
+	* bring back some fixes from OpenBSD
+
+	* treat ELF dynamic objects as executables
+
+	* fix gcc warnings
+
+2007-12-01 19:55 Christos Zoulas <christos@astron.com>
+
+	* make sure we have zlib.h and libz to compile the builtin
+	  decompress code
+
+2007-10-28 20:48 Christos Zoulas <christos@astron.com>
+
+ 	* float and double magic support (Behan Webster)
+
+2007-10-28 20:48 Christos Zoulas <christos@astron.com>
+
+	* Convert fortran to a soft test (Reuben Thomas)
+
+2007-10-23  5:25 Christos Zoulas <christos@astron.com>
+
+	* Add --with-filename, and --no-filename (Reuben Thomas)
+
+2007-10-23  3:59 Christos Zoulas <christos@astron.com>
+
+	* Rest of the mime split (Reuben Thomas)
+
+	* Make usage message generated from the flags so that
+	  they stay consistent (Reuben Thomas)
+
+2007-10-20  3:06 Christos Zoulas <christos@astron.com>
+
+	* typo in comment, missing ifdef QUICK, remove unneeded code
+		(Charles Longeau)
+
+2007-10-17  3:33 Christos Zoulas <christos@astron.com>
+
+	* Fix problem printing -\012 in some entries
+
+	* Separate magic type and encoding flags (Reuben Thomas)
+
+2007-10-09  3:55 Christos Zoulas <christos@astron.com>
+
+	* configure fix for int64 and strndup (Reuben Thomas)
+
+2007-09-26  4:45 Christos Zoulas <christos@astron.com>
+
+	* Add magic_descriptor() function.
+
+	* Fix regression in elf reading code where the core name was
+	  not being printed.
+
+	* Don't convert NUL's to spaces in {l,b}estring16 (Daniel Dawson)
+
+2007-08-19  6:30 Christos Zoulas <christos@astron.com>
+
+	* Make mime format consistent so that it can
+	  be easily parsed:
+	      mimetype [charset=character-set] [encoding=encoding-mime-type]
+
+	  Remove spurious extra text from some MIME type printouts
+	  (mostly in is_tar).
+
+	  Fix one case where -i produced nothing at all (for a 1-byte file,
+	  which is now classed as application/octet-stream).
+
+	  Remove 7/8bit classifications, since they were arbitrary
+	  and not based on the file data.
+
+	  This work was done by Reuben Thomas
+
+2007-05-24 10:00 Christos Zoulas <christos@astron.com>
+
+	* Fix another integer overflow (Colin Percival)
+
+2007-03-26 13:58 Christos Zoulas <christos@astron.com>
+
+	* make sure that all of struct magic_set is initialized appropriately
+	  (Brett)
+
+2007-03-25 17:44 Christos Zoulas <christos@astron.com>
+
+	* reset left bytes in the buffer (Dmitry V. Levin)
+
+	* compilation failed with COMPILE_ONLY and ENABLE_CONDITIONALS
+	  (Peter Avalos)
+
+2007-03-15 10:51 Christos Zoulas <christos@astron.com>
+
+	* fix fortran and nroff reversed tests (Dmitry V. Levin)
+
+	* fix exclude option (Dmitry V. Levin)
+
+2007-02-08 17:30 Christos Zoulas <christos@astron.com>
+
+	* fix integer underflow in file_printf which can lead to
+	  to exploitable heap overflow (Jean-Sebastien Guay-Lero)
+
+2007-02-05 11:35 Christos Zoulas <christos@astron.com>
+
+	* make socket/pipe reading more robust
+
+2007-01-25 16:01 Christos Zoulas <christos@astron.com>
+
+	* Centralize all the tests in file_buffer.
+
+	* Add exclude flag.
+
+2007-01-18 05:29 Anon Ymous <do@not.spam.me>
+
+	* Move the "type" detection code from parse() into its own table
+	  driven routine.  This avoids maintaining multiple lists in
+	  file.h.
+
+	* Add an optional conditional field (ust before the type field).
+	  This code is wrapped in "#ifdef ENABLE_CONDITIONALS" as it is
+	  likely to go away.
+
+2007-01-16 23:24 Anon Ymous <do@not.spam.me>
+
+	* Fix an initialization bug in check_mem().
+
+2007-01-16 14:58 Anon Ymous <do@not.spam.me>
+
+	* Add a "default" type to print a message if nothing previously
+	  matched at that level or since the last default at that
+	  level.  This is useful for setting up switch-like statements.
+	  It can also be used to do if/else constructions without a
+	  redundant second test.
+
+	* Fix the "x" special case test so that one can test for that
+	  string with "=x".
+
+	* Allow "search" to search the entire buffer if the "/N"
+	  search count is missing.
+
+	* Make "regex" work!  It now starts its search at the
+	  specified offset and takes an (optional) "/N" line count to
+	  specify the search range; otherwise it searches to the end
+	  of the file.  The match is now grabbed correctly for format
+	  strings and the offset set to the end of the match.
+
+	* Add a "/s" flag to "regex" and "search" to set the offset to
+	  the start of the match.  By default the offset is set to the
+	  end of the match, as it is with other tests.  This is mostly
+	  useful for "regex".
+
+	* Make "search", "string" and "pstring" use the same
+	  file_strncmp() routine so that they support the same flags;
+	  "bestring16" and "lestring16" call the same routine, but
+	  with flags = 0.  Also add a "/C" flag (in analogy to "/c")
+	  to ignore the case on uppercase (lowercase) characters in
+	  the test string.
+
+	* Strict adherence to C style string escapes.  A warnings are
+	  printed when compiling.  Note: previously "\a" was
+	  incorrectly translated to 'a' instead of an <alert> (i.e.,
+	  BELL, typically 0x07).
+
+	* Make this compile with "-Wall -Wextra" and all the warning
+	  flags used with WARNS=4 in the NetBSD source.  Also make it
+	  pass lint.
+
+	* Many "cleanups" and hopefully not too many new bugs!
+
+2007-01-16 14:56 Anon Ymous <do@not.spam.me>
+
+	* make several more files compile with gcc warnings
+	  on and also make them pass lint.
+
+2007-01-16 14:54 Anon Ymous <do@not.spam.me>
+
+	* fix a puts()/putc() usage goof in file.c
+
+	* make file.c compile with gcc warnings and pass lint
+
+2006-12-11 16:49 Christos Zoulas <christos@astron.com>
+
+	* fix byteswapping issue
+
+	* report the number of bytes we tried to
+	  allocate when allocation fails
+
+	* add a few missed cases in the strength routine
+
+2006-12-08 16:32 Christos Zoulas <christos@astron.com>
+
+	* store and print the line number of the magic
+	  entry for debugging.
+
+	* if the magic entry did not print anything,
+	  don't treat it as a match
+
+	* change the magic strength algorithm to take
+	  into account the relationship op.
+
+	* fix a bug in search where we could accidentally
+	  return a match.
+
+	* propagate the error return from match to
+	  file_softmagic.
+
+2006-11-25 13:35 Christos Zoulas <christos@astron.com>
+
+	* Don't store the current offset in the magic
+	  struct, because it needs to be restored and
+	  it was not done properly all the time. Bug
+	  found by: Arkadiusz Miskiewicz
+
+	* Fix problem in the '\0' separator; and don't
+	  print it as an additional separator; print
+	  it as the only separator.
+
+2006-11-17 10:51 Christos Zoulas <christos@astron.com>
+
+	* Added a -0 option to print a '\0' separator
+	  Etienne Buira <etienne.buira@free.fr>
+
+2006-10-31 15:14 Christos Zoulas <christos@astron.com>
+
+	* Check offset before copying (Mike Frysinger)
+
+	* merge duplicated code
+
+	* add quad date support
+
+	* make sure that we nul terminate desc (Ryoji Kanai)
+
+	* don't process elf notes multiple times
+
+	* allow -z to report empty compressed files
+
+	* use calloc to initialize the ascii buffers (Jos van den Oever)
+
+2006-06-08 11:11 Christos Zoulas <christos@astron.com>
+
+	* QNX fixes (Mike Gorchak)
+
+	* Add quad support.
+
+	* FIFO checks (Dr. Werner Fink)
+
+	* Linux ELF fixes (Dr. Werner Fink)
+
+	* Magic format checks (Dr. Werner Fink)
+
+	* Magic format function improvent (Karl Chen)
+
+2006-05-03 11:11 Christos Zoulas <christos@astron.com>
+
+	* Pick up some elf changes and some constant fixes from SUSE
+
+	* Identify gnu tar vs. posix tar
+
+	* When keep going, don't print spurious newlines (Radek Vokal)
+
+2006-04-01 12:02 Christos Zoulas <christos@astron.com>
+
+	* Use calloc instead of malloc (Mike Frysinger)
+
+	* Fix configure script to detect wctypes.h (Mike Frysinger)
+
+2006-03-02 16:06 Christos Zoulas <christos@astron.com>
+
+	* Print empty if the file is (Mike Frysinger)
+
+	* Don't try to read past the end of the buffer (Mike Frysinger)
+
+	* Sort magic entries by strength [experimental]
+
+2005-11-29 13:26 Christos Zoulas <christos@astron.com>
+
+	* Use iswprint() to convert the output string.
+	    (Bastien Nocera)
+
+2005-10-31 8:54 Christos Zoulas <christos@astron.com>
+
+	* Fix regression where the core info was not completely processed
+	    (Radek Vokal)
+
+2005-10-20 11:15 Christos Zoulas <christos@astron.com>
+
+	* Middle Endian magic (Diomidis Spinellis)
+
+2005-10-17 11:15 Christos Zoulas <christos@astron.com>
+
+	* Open with O_BINARY for CYGWIN (Corinna Vinschen)
+
+	* Don't close stdin (Arkadiusz Miskiewicz)
+
+	* Look for note sections in non executables.
+
+2005-09-20 13:33 Christos Zoulas <christos@astron.com>
+
+	* Don't print SVR4 Style in core files multiple times
+	    (Radek Vokal)
+
+2005-08-27 04:09 Christos Zoulas <christos@astron.com>
+
+	* Cygwin changes Corinna Vinschen
+
+2005-08-18 09:53 Christos Zoulas <christos@astron.com>
+
+	* Remove erroreous mention of /etc/magic in the file man page
+	  This is gentoo bug 101639. (Mike Frysinger)
+
+	* Cross-compile support and detection (Mike Frysinger)
+
+2005-08-12 10:17 Christos Zoulas <christos@astron.com>
+
+	* Add -h flag and dereference symlinks if POSIXLY_CORRECT
+	  is set.
+
+2005-07-29 13:57 Christos Zoulas <christos@astron.com>
+
+	* Avoid search and regex buffer overflows (Kelledin)
+
+2005-07-12 11:48 Christos Zoulas <christos@astron.com>
+
+	* Provide stub implementations for {v,}nsprintf() for older
+	  OS's that don't have them.
+	* Change mbstate_t autoconf detection macro from AC_MBSTATE_T
+	  to AC_TYPE_MBSTATE_T.
+
+2005-06-25 11:48 Christos Zoulas <christos@astron.com>
+
+	* Dynamically allocate the string buffers and make the
+	  default read size 256K.
+
+2005-06-01 00:00 Joerg Sonnenberger <joerg@britannica.bec.de>
+
+	* Dragonfly ELF note support
+
+2005-03-14 00:00 Giuliano Bertoletti <gb@symbolic.it>
+
+	* Avoid NULL pointer dereference in time conversion.
+
+2005-03-06 00:00  Joerg Walter <jwalt@mail.garni.ch>
+
+	* Add indirect magic offset support, and search mode.
+
+2005-01-12 00:00  Stepan Kasal  <kasal@ucw.cz>
+
+	* src/ascmagic.c (file_ascmagic): Fix three bugs about text files:
+	  If a CRLF text file happens to have CR at offset HOWMANY - 1
+	  (currently 0xffff), it should not be counted as CR line
+	  terminator.
+	  If a line has length exactly MAXLINELEN, it should not yet be
+	  treated as a ``very long line'', as MAXLINELEN is ``longest sane
+	  line length''.
+	  With CRLF, the line length was not computed correctly, and even
+	  lines of length MAXLINELEN - 1 were treated as ``very long''.
+
+2004-12-07 14:15  Christos Zoulas  <christos@astron.com>
+
+	* bzip2 needs a lot of input buffer space on some files
+	  before it can begin uncompressing. This makes file -z
+	  fail on some bz2 files. Fix it by giving it a copy of
+	  the file descriptor to read as much as it wants if we
+	  have access to it. <christos@astron.com>
+
+2004-11-24 12:39  Christos Zoulas  <christos@astron.com>
+
+	* Stack smash fix, and ELF more conservative reading.
+	  Jakub Bogusz <qboosh@pld-linux.org>
+
+2004-11-20 18:50  Christos Zoulas  <christos@astron.com>
+
+	* New FreeBSD version parsing code:
+	  Jon Noack <noackjr@alumni.rice.edu>
+
+	* Hackish support for ucs16 strings <christos@astron.com>
+
+2004-11-13 03:07  Christos Zoulas  <christos@astron.com>
+
+	* print the file name and line number in syntax errors.
+
+2004 10-12 10:50  Christos Zoulas  <christos@astron.com>
+
+	* Fix stack overwriting on 0 length strings: Tim Waugh
+	    <twaugh@redhat.com> Ned Ludd <solar@gentoo.org>
+
+2004-09-27 11:30  Christos Zoulas  <christos@astron.com>
+
+	* Remove 3rd and 4th copyright clause; approved by Ian Darwin.
+
+	* Fix small memory leaks; caught by: Tamas Sarlos
+	    <stamas@csillag.ilab.sztaki.hu>
+
+2004-07-24 16:33  Christos Zoulas  <christos@astron.com>
+
+	* magic.mime update Danny Milosavljevic <danny.milo@gmx.net>
+
+	* FreeBSD version update Oliver Eikemeier <eikemeier@fillmore-labs.com>
+
+	* utime/utimes detection Ian Lance Taylor <ian@wasabisystems.com>
+
+  	* errors reading elf magic Jakub Bogusz <qboosh@pld-linux.org>
+
+2004-04-12 10:55  Christos Zoulas  <christos@astron.com>
+
+	* make sure that magic formats match magic types during compilation
+
+	* fix broken sgi magic file
+
+2004-04-06 20:36  Christos Zoulas  <christos@astron.com>
+
+	* detect present of mbstate_t Petter Reinholdtsen <pere@hungry.com>
+
+	* magic fixes
+
+2004-03-22 15:25  Christos Zoulas  <christos@astron.com>
+
+	* Lots of mime fixes
+	  (Joerg Ostertag) <ostertag@rechengilde.de>
+
+	* FreeBSD ELF version handling
+	  (Edwin Groothuis) <edwin@mavetju.org>
+
+	* correct cleanup in all cases; don't just close the file.
+	  (Christos Zoulas) <christos@astron.com>
+
+	* add gettext message catalogue support
+	  (Michael Piefel) <piefel@debian.org>
+
+	* better printout for unreadable files
+	  (Michael Piefel) <piefel@debian.org>
+
+	* compensate for missing MAXPATHLEN
+	  (Michael Piefel) <piefel@debian.org>
+
+	* add wide character string length computation
+	  (Michael Piefel) <piefel@debian.org>
+
+	* Avoid infinite loops caused by bad elf alignments
+	  or name and description note sizes. Reported by
+	  (Mikael Magnusson) <mmikael@comhem.se>
+
+2004-03-09 13:55  Christos Zoulas  <christos@astron.com>
+
+	* Fix possible memory leak on error and add missing regfree
+	  (Dmitry V. Levin) <ldv@altlinux.org>
+
+2003-12-23 12:12  Christos Zoulas  <christos@astron.com>
+
+	* fix -k flag (Maciej W. Rozycki)
+
+2003-11-18 14:10  Christos Zoulas  <christos@astron.com>
+
+	* Try to give us much info as possible on corrupt elf files.
+	  (Willy Tarreau) <willy@w.ods.org>
+	* Updated python bindings (Brett Funderburg)
+	   <brettf@deepfile.com>
+
+2003-11-11 15:03  Christos Zoulas  <christos@astron.com>
+
+	* Include file.h first, because it includes config.h
+	  breaks largefile test macros otherwise.
+	  (Paul Eggert <eggert@CS.UCLA.EDU> via
+	   Lars Hecking <lhecking@nmrc.ie>)
+
+2003-10-14 21:39  Christos Zoulas  <christos@astron.com>
+
+	* Python bindings (Brett Funderburg) <brettf@deepfile.com>
+	* Don't lookup past the end of the buffer
+	  (Chad Hanson) <chanson@tcs-sec.com>
+	* Add MAGIC_ERROR and api on magic_errno()
+
+2003-10-08 12:40  Christos Zoulas  <christos@astron.com>
+
+	* handle error conditions from compile as fatal
+	  (Antti Kantee) <pooka@netbsd.org>
+	* handle magic filename parsing sanely
+	* more magic fixes.
+	* fix a memory leak (Illes Marton) <illes.marton@balabit.hu>
+	* describe magic file handling
+	  (Bryan Henderson) <bryanh@giraffe-data.com>
+
+2003-09-12 15:09  Christos Zoulas  <christos@astron.com>
+
+	* update magic files.
+	* remove largefile support from file.h; it breaks things on most OS's
+
+2003-08-10 10:25  Christos Zoulas  <christos@astron.com>
+
+	* fix unmapping'ing of mmaped files.
+
+2003-07-10 12:03  Christos Zoulas  <christos@astron.com>
+
+	* don't exit with -1 on error; always exit 1 (Marty Leisner)
+	* restore utimes code.
+
+2003-06-10 17:03  Christos Zoulas  <christos@astron.com>
+
+	* make sure we don't access uninitialized memory.
+	* pass lint
+	* #ifdef __cplusplus in magic.h
+
+2003-05-25 19:23  Christos Zoulas  <christos@astron.com>
+
+	* rename cvs magic file to revision to deal with
+	  case insensitive filesystems.
+
+2003-05-23 17:03  Christos Zoulas  <christos@astron.com>
+
+	* documentation fixes from Michael Piefel <piefel@debian.org>
+	* magic fixes (various)
+	* revert basename magic in .mgc name determination
+	* buffer protection in uncompress,
+	  signness issues,
+	  close files
+	  Maciej W. Rozycki <macro@ds2.pg.gda.pl
+
+2003-04-21 20:12  Christos Zoulas  <christos@astron.com>
+
+	* fix zsh magic
+
+2003-04-04 16:59  Christos Zoulas  <christos@astron.com>
+
+	* fix operand sort order in string.
+
+2003-04-02 17:30  Christos Zoulas  <christos@astron.com>
+
+	* cleanup namespace in magic.h
+
+2003-04-02 13:50  Christos Zoulas  <christos@astron.com>
+
+	* Magic additions (Alex Ott)
+	* Fix bug that broke VPATH compilation (Peter Breitenlohner)
+
+2003-03-28 16:03  Christos Zoulas  <christos@astron.com>
+
+	* remove packed attribute from magic struct.
+	* make the magic struct properly aligned.
+	* bump version number of compiled files to 2.
+
+2003-03-27 13:10  Christos Zoulas  <christos@astron.com>
+
+	* separate tar detection and run it before softmagic.
+	* fix reversed symlink test.
+	* fix version printing.
+	* make separator a string instead of a char.
+	* update manual page and sort options.
+
+2003-03-26 11:00  Christos Zoulas  <christos@astron.com>
+
+	* Pass lint
+	* make NULL in magic_file mean stdin
+	* Fix "-" argument to file to pass NULL to magic_file
+	* avoid pointer casts by using memcpy
+	* rename magic_buf -> magic_buffer
+	* keep only the first error
+	* manual page: new sentence, new line
+	* fix typo in api function (magic_buf -> magic_buffer)

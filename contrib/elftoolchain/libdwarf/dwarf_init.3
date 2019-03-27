@@ -1,0 +1,178 @@
+.\" Copyright (c) 2009 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: dwarf_init.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd November 9, 2011
+.Dt DWARF_INIT 3
+.Os
+.Sh NAME
+.Nm dwarf_init ,
+.Nm dwarf_elf_init
+.Nd allocate a DWARF debug descriptor
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_init
+.Fa "int fd"
+.Fa "int mode"
+.Fa "Dwarf_Handler errhand"
+.Fa "Dwarf_Ptr errarg"
+.Fa "Dwarf_Debug *ret"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft in
+.Fo dwarf_elf_init
+.Fa "Elf *elf"
+.Fa "int mode"
+.Fa "Dwarf_Handler errhand"
+.Fa "Dwarf_Ptr errarg"
+.Fa "Dwarf_Debug *ret"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+These functions allocate and return a
+.Vt Dwarf_Debug
+instance for the object denoted by argument
+.Ar fd
+or
+.Ar elf .
+This instance would be used for subsequent access to debugging information in the object by other functions in the DWARF(3) library.
+.Pp
+For function
+.Fn dwarf_init ,
+argument
+.Ar fd
+denotes an open file descriptor referencing a compilation object.
+Function
+.Fn dwarf_init
+implicitly allocates an
+.Vt Elf
+descriptor for argument
+.Ar fd .
+.Pp
+For function
+.Fn dwarf_elf_init ,
+argument
+.Ar elf
+denotes a descriptor returned by
+.Xr elf_begin 3
+or
+.Xr elf_memory 3 .
+.Pp
+Argument
+.Ar mode
+specifies the access mode desired.
+It should be at least as permissive as the mode with which
+the file descriptor
+.Ar fd
+or the ELF descriptor
+.Ar elf
+was created with.
+Legal values for argument
+.Ar mode
+are:
+.Pp
+.Bl -tag -width "DW_DLC_WRITE" -compact
+.It DW_DLC_RDWR
+Permit reading and writing of DWARF information.
+.It DW_DLC_READ
+Operate in read-only mode.
+.It DW_DLC_WRITE
+Permit writing of DWARF information.
+.El
+.Pp
+Argument
+.Ar errhand
+denotes a function to be called in case of an error.
+If this argument is
+.Dv NULL
+then a default error handling scheme is used.
+See
+.Xr dwarf 3
+for a description of the error handling scheme used by the
+DWARF(3) library.
+.Pp
+Argument
+.Ar errarg
+is passed to the error handler function denoted by argument
+.Ar errhand
+when it is invoked.
+.Pp
+Argument
+.Ar ret
+points to the memory location that will hold a
+.Vt Dwarf_Debug
+reference on a successful call these functions.
+.Pp
+Argument
+.Ar err
+references a memory location that would hold a
+.Vt Dwarf_Error
+descriptor in case of an error.
+.Ss Memory Management
+The
+.Vt Dwarf_Debug
+instance returned by these functions should be freed using
+.Fn dwarf_finish .
+.Sh IMPLEMENTATION NOTES
+The current implementation does not support access modes
+.Dv DW_DLC_RDWR
+and
+.Dv DW_DLC_WRITE .
+.Sh RETURN VALUES
+These functions return the following values:
+.Bl -tag -width ".Bq Er DW_DLV_NO_ENTRY"
+.It Bq Er DW_DLV_OK
+This return value indicates a successful return.
+.It Bq Er DW_DLV_ERROR
+The operation failed.
+.It Bq Er DW_DLV_NO_ENTRY
+The object specified by arguments
+.Ar "fd"
+or
+.Ar "elf"
+did not contain debug information.
+.El
+.Sh EXAMPLES
+To initialize a
+.Vt Dwarf_Debug
+instance from a open file descriptor referencing an ELF object, and
+with the default error handler, use:
+.Bd -literal -offset indent
+Dwarf_Error err;
+Dwarf_Debug dbg;
+
+if (dwarf_init(fd, DW_DLC_READ, NULL, NULL, &dbg, &err) !=
+    DW_DLV_OK)
+	errx(EXIT_FAILURE, "dwarf_init: %s", dwarf_errmsg(err));
+.Ed
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_errmsg 3 ,
+.Xr dwarf_finish 3 ,
+.Xr dwarf_get_elf 3 ,
+.Xr elf_begin 3 ,
+.Xr elf_memory 3

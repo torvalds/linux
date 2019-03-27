@@ -1,0 +1,116 @@
+/dts-v1/;
+
+#include "mt7621.dtsi"
+
+/ {
+	compatible = "mediatek,mt7621-eval-board", "mediatek,mt7621-soc";
+	model = "NETIS WF-2881";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,57600";
+	};
+
+	nand@1e003000 {
+		status = "okay";
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x1000>;
+			read-only;
+		};
+
+		partition@80000 {
+			label = "config";
+			reg = <0x80000 0x80000>;
+			read-only;
+		};
+
+		factory: partition@100000 {
+			label = "factory";
+			reg = <0x100000 0x40000>;
+			read-only;
+		};
+
+		partition@140000 {
+			label = "firmware";
+			reg = <0x140000 0x7E40000>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		usb {
+			label = "wf-2881:green:usb";
+			gpios = <&gpio0 6 1>;
+		};
+
+		wps {
+			label = "wf-2881:green:wps";
+			gpios = <&gpio0 0 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 12 1>;
+			linux,code = <0x198>;
+		};
+	};
+};
+
+&spi0 {
+	status="disabled";
+};
+
+&pcie {
+	status = "okay";
+
+	pcie0 {
+		mt76@0,0 {
+			reg = <0x0000 0 0 0 0>;
+			device_type = "pci";
+			mediatek,mtd-eeprom = <&factory 0x8000>;
+			mediatek,2ghz = <0>;
+		};
+	};
+
+	pcie1 {
+		mt76@1,0 {
+			reg = <0x0000 0 0 0 0>;
+			device_type = "pci";
+			mediatek,mtd-eeprom = <&factory 0x0000>;
+			mediatek,5ghz = <0>;
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0xe006>;
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "uart3", "jtag";
+			ralink,function = "gpio";
+		};
+	};
+};

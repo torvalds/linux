@@ -1,0 +1,204 @@
+#	@(#)POSIX	8.1 (Berkeley) 6/6/93
+# $FreeBSD$
+
+Comments on the IEEE P1003.2 Draft 12
+     Part 2: Shell and Utilities
+  Section 4.55: sed - Stream editor
+
+Diomidis Spinellis <dds@doc.ic.ac.uk>
+Keith Bostic <bostic@cs.berkeley.edu>
+
+In the following paragraphs, "wrong" usually means "inconsistent with
+historic practice", as most of the following comments refer to
+undocumented inconsistencies between the historical versions of sed and
+the POSIX 1003.2 standard.  All the comments are notes taken while
+implementing a POSIX-compatible version of sed, and should not be
+interpreted as official opinions or criticism towards the POSIX committee.
+All uses of "POSIX" refer to section 4.55, Draft 12 of POSIX 1003.2.
+
+ 1.	32V and BSD derived implementations of sed strip the text
+	arguments of the a, c and i commands of their initial blanks,
+	i.e.
+
+	#!/bin/sed -f
+	a\
+		foo\
+		\  indent\
+		bar
+
+	produces:
+
+	foo
+	  indent
+	bar
+
+	POSIX does not specify this behavior as the System V versions of
+	sed do not do this stripping.  The argument against stripping is
+	that it is difficult to write sed scripts that have leading blanks
+	if they are stripped.  The argument for stripping is that it is
+	difficult to write readable sed scripts unless indentation is allowed
+	and ignored, and leading whitespace is obtainable by entering a
+	backslash in front of it.  This implementation follows the BSD
+	historic practice.
+
+ 2.	Historical versions of sed required that the w flag be the last
+	flag to an s command as it takes an additional argument.  This
+	is obvious, but not specified in POSIX.
+
+ 3.	Historical versions of sed required that whitespace follow a w
+	flag to an s command.  This is not specified in POSIX.  This
+	implementation permits whitespace but does not require it.
+
+ 4.	Historical versions of sed permitted any number of whitespace
+	characters to follow the w command.  This is not specified in
+	POSIX.  This implementation permits whitespace but does not
+	require it.
+
+ 5.	The rule for the l command differs from historic practice.  Table
+	2-15 includes the various ANSI C escape sequences, including \\
+	for backslash.  Some historical versions of sed displayed two
+	digit octal numbers, too, not three as specified by POSIX.  POSIX
+	is a cleanup, and is followed by this implementation.
+
+ 6.	The POSIX specification for ! does not specify that for a single
+	command the command must not contain an address specification
+	whereas the command list can contain address specifications.  The
+	specification for ! implies that "3!/hello/p" works, and it never
+	has, historically.  Note,
+
+		3!{
+			/hello/p
+		}
+
+	does work.
+
+ 7.	POSIX does not specify what happens with consecutive ! commands
+	(e.g. /foo/!!!p).  Historic implementations allow any number of
+	!'s without changing the behaviour.  (It seems logical that each
+	one might reverse the behaviour.)  This implementation follows
+	historic practice.
+
+ 8.	Historic versions of sed permitted commands to be separated
+	by semi-colons, e.g. 'sed -ne '1p;2p;3q' printed the first
+	three lines of a file.  This is not specified by POSIX.
+	Note, the ; command separator is not allowed for the commands
+	a, c, i, w, r, :, b, t, # and at the end of a w flag in the s
+	command.  This implementation follows historic practice and
+	implements the ; separator.
+
+ 9.	Historic versions of sed terminated the script if EOF was reached
+	during the execution of the 'n' command, i.e.:
+
+	sed -e '
+	n
+	i\
+	hello
+	' </dev/null
+
+	did not produce any output.  POSIX does not specify this behavior.
+	This implementation follows historic practice.
+
+10.	Deleted.
+
+11.	Historical implementations do not output the change text of a c
+	command in the case of an address range whose first line number
+	is greater than the second (e.g. 3,1).  POSIX requires that the
+	text be output.  Since the historic behavior doesn't seem to have
+	any particular purpose, this implementation follows the POSIX
+	behavior.
+
+12.	POSIX does not specify whether address ranges are checked and
+	reset if a command is not executed due to a jump.  The following
+	program will behave in different ways depending on whether the
+	'c' command is triggered at the third line, i.e. will the text
+	be output even though line 3 of the input will never logically
+	encounter that command.
+
+	2,4b
+	1,3c\
+		text
+
+	Historic implementations did not output the text in the above
+	example.  Therefore it was believed that a range whose second
+	address was never matched extended to the end of the input.
+	However, the current practice adopted by this implementation,
+	as well as by those from GNU and SUN, is as follows:  The text
+	from the 'c' command still isn't output because the second address
+	isn't actually matched; but the range is reset after all if its
+	second address is a line number.  In the above example, only the
+	first line of the input will be deleted.
+
+13.	Historical implementations allow an output suppressing #n at the
+	beginning of -e arguments as well as in a script file.  POSIX
+	does not specify this.  This implementation follows historical
+	practice.
+
+14.	POSIX does not explicitly specify how sed behaves if no script is
+	specified.  Since the sed Synopsis permits this form of the command,
+	and the language in the Description section states that the input
+	is output, it seems reasonable that it behave like the cat(1)
+	command.  Historic sed implementations behave differently for "ls |
+	sed", where they produce no output, and "ls | sed -e#", where they
+	behave like cat.  This implementation behaves like cat in both cases.
+
+15.	The POSIX requirement to open all w files at the beginning makes
+	sed behave nonintuitively when the w commands are preceded by
+	addresses or are within conditional blocks.  This implementation
+	follows historic practice and POSIX, by default, and provides the
+	-a option which opens the files only when they are needed.
+
+16.	POSIX does not specify how escape sequences other than \n and \D
+	(where D is the delimiter character) are to be treated.  This is
+	reasonable, however, it also doesn't state that the backslash is
+	to be discarded from the output regardless.  A strict reading of
+	POSIX would be that "echo xyz | sed s/./\a" would display "\ayz".
+	As historic sed implementations always discarded the backslash,
+	this implementation does as well.
+
+17.	POSIX specifies that an address can be "empty".  This implies
+	that constructs like ",d" or "1,d" and ",5d" are allowed.  This
+	is not true for historic implementations or this implementation
+	of sed.
+
+18.	The b t and : commands are documented in POSIX to ignore leading
+	white space, but no mention is made of trailing white space.
+	Historic implementations of sed assigned different locations to
+	the labels "x" and "x ".  This is not useful, and leads to subtle
+	programming errors, but it is historic practice and changing it
+	could theoretically break working scripts.  This implementation
+	follows historic practice.
+
+19.	Although POSIX specifies that reading from files that do not exist
+	from within the script must not terminate the script, it does not
+	specify what happens if a write command fails.  Historic practice
+	is to fail immediately if the file cannot be opened or written.
+	This implementation follows historic practice.
+
+20.	Historic practice is that the \n construct can be used for either
+	string1 or string2 of the y command.  This is not specified by
+	POSIX.  This implementation follows historic practice.
+
+21.	Deleted.
+
+22.	Historic implementations of sed ignore the RE delimiter characters
+	within character classes.  This is not specified in POSIX.  This
+	implementation follows historic practice.
+
+23.	Historic implementations handle empty RE's in a special way: the
+	empty RE is interpreted as if it were the last RE encountered,
+	whether in an address or elsewhere.  POSIX does not document this
+	behavior.  For example the command:
+
+		sed -e /abc/s//XXX/
+
+	substitutes XXX for the pattern abc.  The semantics of "the last
+	RE" can be defined in two different ways:
+
+	1. The last RE encountered when compiling (lexical/static scope).
+	2. The last RE encountered while running (dynamic scope).
+
+	While many historical implementations fail on programs depending
+	on scope differences, the SunOS version exhibited dynamic scope
+	behaviour.  This implementation does dynamic scoping, as this seems
+	the most useful and in order to remain consistent with historical
+	practice.

@@ -1,0 +1,2 @@
+# $FreeBSD$
+case x in x) </dev/null ;; esac

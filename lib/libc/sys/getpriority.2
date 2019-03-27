@@ -1,0 +1,150 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getpriority.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 4, 1993
+.Dt GETPRIORITY 2
+.Os
+.Sh NAME
+.Nm getpriority ,
+.Nm setpriority
+.Nd get/set program scheduling priority
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/time.h
+.In sys/resource.h
+.Ft int
+.Fn getpriority "int which" "int who"
+.Ft int
+.Fn setpriority "int which" "int who" "int prio"
+.Sh DESCRIPTION
+The scheduling
+priority of the process, process group, or user, as indicated by
+.Fa which
+and
+.Fa who
+is obtained with the
+.Fn getpriority
+system call and set with the
+.Fn setpriority
+system call.
+The
+.Fa which
+argument
+is one of
+.Dv PRIO_PROCESS ,
+.Dv PRIO_PGRP ,
+or
+.Dv PRIO_USER ,
+and
+.Fa who
+is interpreted relative to
+.Fa which
+(a process identifier for
+.Dv PRIO_PROCESS ,
+process group
+identifier for
+.Dv PRIO_PGRP ,
+and a user ID for
+.Dv PRIO_USER ) .
+A zero value of
+.Fa who
+denotes the current process, process group, or user.
+The
+.Fa prio
+argument
+is a value in the range -20 to 20.
+The default priority is 0;
+lower priorities cause more favorable scheduling.
+.Pp
+The
+.Fn getpriority
+system call returns the highest priority (lowest numerical value)
+enjoyed by any of the specified processes.
+The
+.Fn setpriority
+system call sets the priorities of all of the specified processes
+to the specified value.
+Only the super-user may lower priorities.
+.Sh RETURN VALUES
+Since
+.Fn getpriority
+can legitimately return the value -1, it is necessary
+to clear the external variable
+.Va errno
+prior to the
+call, then check it afterward to determine
+if a -1 is an error or a legitimate value.
+.Pp
+.Rv -std setpriority
+.Sh ERRORS
+The
+.Fn getpriority
+and
+.Fn setpriority
+system calls
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ESRCH
+No process was located using the
+.Fa which
+and
+.Fa who
+values specified.
+.It Bq Er EINVAL
+The
+.Fa which
+argument
+was not one of
+.Dv PRIO_PROCESS ,
+.Dv PRIO_PGRP ,
+or
+.Dv PRIO_USER .
+.El
+.Pp
+In addition to the errors indicated above,
+.Fn setpriority
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+A process was located, but neither its effective nor real user
+ID matched the effective user ID of the caller.
+.It Bq Er EACCES
+A non super-user attempted to lower a process priority.
+.El
+.Sh SEE ALSO
+.Xr nice 1 ,
+.Xr fork 2 ,
+.Xr renice 8
+.Sh HISTORY
+The
+.Fn getpriority
+system call appeared in
+.Bx 4.2 .

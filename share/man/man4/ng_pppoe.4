@@ -1,0 +1,576 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_pppoe.8,v 1.1 1999/01/25 23:46:27 archie Exp $
+.\"
+.Dd February 14, 2018
+.Dt NG_PPPOE 4
+.Os
+.Sh NAME
+.Nm ng_pppoe
+.Nd RFC 2516 PPPoE protocol netgraph node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In net/ethernet.h
+.In netgraph.h
+.In netgraph/ng_pppoe.h
+.Sh DESCRIPTION
+The
+.Nm pppoe
+node type performs the PPPoE protocol.
+It is used in conjunction with the
+.Xr netgraph 4
+extensions to the Ethernet framework to divert and inject Ethernet packets
+to and from a PPP agent (which is not specified).
+.Pp
+The
+.Dv NGM_PPPOE_GET_STATUS
+control message can be used at any time to query the current status
+of the PPPoE module.
+The only statistics presently available are the
+total packet counts for input and output.
+This node does not yet support
+the
+.Dv NGM_TEXT_STATUS
+control message.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va [unspecified]"
+.It Va ethernet
+The hook that should normally be connected to an
+.Xr ng_ether 4
+node.
+Once connected,
+.Nm
+will send a message down this hook to determine Ethernet address of
+the underlying node.
+Obtained address will be stored and then used for outgoing datagrams.
+.It Va debug
+Presently no use.
+.It Va [unspecified]
+Any other name is assumed to be a session hook that will be connected to
+a PPP client agent, or a PPP server agent.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width 3n
+.It Dv NGM_PPPOE_GET_STATUS
+This command returns status information in a
+.Dv "struct ngpppoestat" :
+.Bd -literal -offset 4n
+struct ngpppoestat {
+    u_int   packets_in;     /* packets in from Ethernet */
+    u_int   packets_out;    /* packets out towards Ethernet */
+};
+.Ed
+.It Dv NGM_TEXT_STATUS
+This generic message returns a human-readable version of the node status.
+(not yet)
+.It Dv NGM_PPPOE_CONNECT Pq Ic pppoe_connect
+Tell a nominated newly created hook that its session should enter
+the state machine as a client.
+It must be newly created and a service name can be given as an argument.
+It is legal to specify a zero-length service name, this is common
+on some DSL setups.
+It is possible to request a connection to a specific access concentrator,
+and/or set a specific Host-Uniq tag, required by some Internet providers,
+using the
+.Qq Li [AC-Name\\][Host-Uniq|]Service-Name
+syntax.
+To set a binary Host-Uniq, it must be encoded as a hexadecimal lowercase
+string and prefixed with 
+.Qq Li 0x ,
+for example 
+.Qq Li 0x6d792d746167
+is equivalent to
+.Qq Li my-tag .
+A session request packet will be broadcast on the Ethernet.
+This command uses the
+.Dv ngpppoe_init_data
+structure shown below.
+For example, this init data argument can be used to
+connect to
+.Qq Li my-isp
+service with
+.Qq Li my-host
+uniq tag, accepting only
+.Qq Li remote-ac
+as access concentrator:
+.Bd -literal -offset indent
+"remote-ac\\my-host|my-isp"
+.Ed
+.It Dv NGM_PPPOE_LISTEN Pq Ic pppoe_listen
+Tell a nominated newly created hook that its session should enter
+the state machine as a server listener.
+The argument
+given is the name of the service to listen for.
+A zero-length service name will match all requests for service.
+A matching service request
+packet will be passed unmodified back to the process responsible
+for starting the service.
+It can then examine it and pass it on to
+the session that is started to answer the request.
+This command uses the
+.Dv ngpppoe_init_data
+structure shown below.
+.It Dv NGM_PPPOE_OFFER Pq Ic pppoe_offer
+Tell a nominated newly created hook that its session should enter
+the state machine as a server.
+The argument given is the name of the service to offer.
+A zero-length service
+is legal.
+The State machine will progress to a state where it will await
+a request packet to be forwarded to it from the startup server,
+which in turn probably received it from a LISTEN mode hook (see above).
+This is so
+that information that is required for the session that is embedded in
+the original session request packet, is made available to the state machine
+that eventually answers the request.
+When the Session request packet is
+received, the session negotiation will proceed.
+This command uses the
+.Dv ngpppoe_init_data
+structure shown below.
+.El
+.Pp
+The three commands above use a common data structure:
+.Bd -literal -offset 4n
+struct ngpppoe_init_data {
+    char       hook[NG_HOOKSIZ];       /* hook to monitor on */
+    uint16_t   data_len;               /* length of the service name */
+    char       data[0];                /* init data goes here */
+};
+.Ed
+.Bl -tag -width 3n
+.It Dv NGM_PPPOE_SUCCESS Pq Ic pppoe_success
+This command is sent to the node that started this session with one of the
+above messages, and reports a state change.
+This message reports successful Session negotiation.
+It uses the structure shown below, and
+reports back the hook name corresponding to the successful session.
+.It Dv NGM_PPPOE_FAIL Pq Ic pppoe_fail
+This command is sent to the node that started this session with one of the
+above messages, and reports a state change.
+This message reports failed Session negotiation.
+It uses the structure shown below, and
+reports back the hook name corresponding to the failed session.
+The hook will probably have been removed immediately after sending this
+message.
+.It Dv NGM_PPPOE_CLOSE Pq Ic pppoe_close
+This command is sent to the node that started this session with one of the
+above messages, and reports a state change.
+This message reports a request to close a session.
+It uses the structure shown below, and
+reports back the hook name corresponding to the closed session.
+The hook will probably have been removed immediately after sending this
+message.
+At present this message is not yet used and a
+.Dv NGM_PPPOE_FAIL
+message
+will be received at closure instead.
+.It Dv NGM_PPPOE_ACNAME
+This command is sent to the node that started this session with one of the
+above messages, and reports the Access Concentrator Name.
+.El
+.Pp
+The four commands above use a common data structure:
+.Bd -literal -offset 4n
+struct ngpppoe_sts {
+    char    hook[NG_HOOKSIZ];
+};
+.Ed
+.Bl -tag -width 3n
+.It Dv NGM_PPPOE_GETMODE Pq Ic pppoe_getmode
+This command returns the current compatibility mode of the node
+as a string.
+.Tn ASCII
+form of this message is
+.Qq Li pppoe_getmode .
+The following keywords can be returned:
+.Bl -tag -width 3n
+.It Qq standard
+The node operates according to RFC 2516.
+.It Qq 3Com
+When
+.Nm
+is a PPPoE client, it initiates a session encapsulating packets into
+incorrect 3Com ethertypes.
+This compatibility option does not affect server mode.
+In server mode
+.Nm
+supports both modes simultaneously, depending on the ethertype, the
+client used when connecting.
+.It Qq D-Link
+When
+.Nm
+is a PPPoE server serving only specific Service-Name(s), it will respond
+to a PADI requests with empty Service-Name tag, returning all available
+Service-Name(s) on node.
+This option is necessary for compatibility with D-Link DI-614+ and DI-624+
+SOHO routers as clients, when serving only specific Service-Name.
+This compatibility option does not affect client mode.
+.El
+.It Dv NGM_PPPOE_SETMODE Pq Ic pppoe_setmode
+Configure node to the specified mode.
+The string argument is required.
+This command understands the same keywords that are returned by the
+.Dv NGM_PPPOE_GETMODE
+command.
+.Tn ASCII
+form of this message is
+.Qq Li pppoe_setmode .
+For example, the following command will configure the node to initiate
+the next session in the proprietary 3Com mode:
+.Bd -literal -offset indent
+ngctl msg fxp0:orphans pppoe_setmode '"3Com"'
+.Ed
+.It Dv NGM_PPPOE_SETENADDR Pq Ic setenaddr
+Set the node Ethernet address for outgoing datagrams.
+This message is important when a node has failed to obtain an Ethernet
+address from its peer on the
+.Dv ethernet
+hook, or when user wants to override this address with another one.
+.Tn ASCII
+form of this message is
+.Qq Li setenaddr .
+.It Dv NGM_PPPOE_SETMAXP Pq Ic setmaxp
+Set the node PPP-Max-Payload value as described in RFC 4638.
+This message applies only to a client configuration.
+.Tn ASCII
+form of this message is
+.Qq Li setmaxp .
+.Pp
+Data structure returned to client is:
+.Bd -literal -offset 4n
+struct ngpppoe_maxp {
+    char     hook[NG_HOOKSIZ];
+    uint16_t data;
+};
+.Ed
+.It Dv NGM_PPPOE_SEND_HURL Pq Ic send_hurl
+Tell a nominated hook with an active session to send a PADM message with
+a HURL tag.
+The argument is the URL to be delivered to the client:
+.Bd -literal -offset indent
+ngctl msg fxp0:orphans send_hurl '{ hook="myHook" data="http://example.net/cpe" }'
+.Ed
+.It Dv NGM_PPPOE_SEND_MOTM Pq Ic send_motm
+Tell a nominated hook with an active session to send a PADM message with
+a MOTM tag.
+The argument is the message to be delivered to the client:
+.Bd -literal -offset indent
+ngctl msg fxp0:orphans send_motm '{ hook="myHook" data="Welcome aboard" }'
+.Ed
+.El
+.Pp
+The two commands above use the same ngpppoe_init_data structure described
+above.
+.Bl -tag -width 3n
+.It Dv NGM_PPPOE_HURL
+This command is sent to the node that started this session when a PADM
+message with a HURL tag is received, and contains a URL that the host can
+pass to a web browser for presentation to the user.
+.It Dv NGM_PPPOE_MOTM
+This command is sent to the node that started this session when a PADM
+message with a MOTM tag is received, and contains a Message Of The
+Minute that the host can display to the user.
+.El
+.Pp
+The two commands above use a common data structure:
+.Bd -literal -offset 4n
+struct ngpppoe_padm {
+    char    msg[PPPOE_PADM_VALUE_SIZE];
+};
+.Ed
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, when all session have been disconnected or when the
+.Dv ethernet
+hook is disconnected.
+.Sh EXAMPLES
+The following code uses
+.Dv libnetgraph
+to set up a
+.Nm
+node and connect it to both a socket node and an Ethernet node.
+It can handle the case of when a
+.Nm
+node is already attached to the Ethernet.
+It then starts a client session.
+.Bd -literal
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <unistd.h>
+#include <sysexits.h>
+#include <errno.h>
+#include <err.h>
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <net/ethernet.h>
+
+#include <netgraph.h>
+#include <netgraph/ng_ether.h>
+#include <netgraph/ng_pppoe.h>
+#include <netgraph/ng_socket.h>
+static int setup(char *ethername, char *service, char *sessname,
+				int *dfd, int *cfd);
+
+int
+main()
+{
+	int  fd1, fd2;
+	setup("xl0", NULL, "fred", &fd1, &fd2);
+	sleep (30);
+}
+
+static int
+setup(char *ethername, char *service, char *sessname,
+			int *dfd, int *cfd)
+{
+	struct ngm_connect ngc;	/* connect */
+	struct ngm_mkpeer mkp;	/* mkpeer */
+	/******** nodeinfo stuff **********/
+	u_char          rbuf[2 * 1024];
+	struct ng_mesg *const resp = (struct ng_mesg *) rbuf;
+	struct hooklist *const hlist
+			= (struct hooklist *) resp->data;
+	struct nodeinfo *const ninfo = &hlist->nodeinfo;
+	int             ch, no_hooks = 0;
+	struct linkinfo *link;
+	struct nodeinfo *peer;
+	/****message to connect PPPoE session*****/
+	struct {
+		struct ngpppoe_init_data idata;
+		char            service[100];
+	}               message;
+	/********tracking our little graph ********/
+	char            path[100];
+	char            source_ID[NG_NODESIZ];
+	char            pppoe_node_name[100];
+	int             k;
+
+	/*
+	 * Create the data and control sockets
+	 */
+	if (NgMkSockNode(NULL, cfd, dfd) < 0) {
+		return (errno);
+	}
+	/*
+	 * find the ether node of the name requested by asking it for
+	 * it's inquiry information.
+	 */
+	if (strlen(ethername) > 16)
+		return (EINVAL);
+	sprintf(path, "%s:", ethername);
+	if (NgSendMsg(*cfd, path, NGM_GENERIC_COOKIE,
+		      NGM_LISTHOOKS, NULL, 0) < 0) {
+		return (errno);
+	}
+	/*
+	 * the command was accepted so it exists. Await the reply (It's
+	 * almost certainly already waiting).
+	 */
+	if (NgRecvMsg(*cfd, resp, sizeof(rbuf), NULL) < 0) {
+		return (errno);
+	}
+	/**
+	 * The following is available about the node:
+	 * ninfo->name		(string)
+	 * ninfo->type		(string)
+	 * ninfo->id		(uint32_t)
+	 * ninfo->hooks		(uint32_t) (count of hooks)
+	 * check it is the correct type. and get it's ID for use
+	 * with mkpeer later.
+	 */
+	if (strncmp(ninfo->type, NG_ETHER_NODE_TYPE,
+		    strlen(NG_ETHER_NODE_TYPE)) != 0) {
+		return (EPROTOTYPE);
+	}
+	sprintf(source_ID, "[%08x]:", ninfo->id);
+
+	/*
+	 * look for a hook already attached.
+	 */
+	for (k = 0; k < ninfo->hooks; k++) {
+		/**
+		 * The following are available about each hook.
+		 * link->ourhook	(string)
+		 * link->peerhook	(string)
+		 * peer->name		(string)
+		 * peer->type		(string)
+		 * peer->id		(uint32_t)
+		 * peer->hooks		(uint32_t)
+		 */
+		link = &hlist->link[k];
+		peer = &hlist->link[k].nodeinfo;
+
+		/* Ignore debug hooks */
+		if (strcmp("debug", link->ourhook) == 0)
+			continue;
+
+		/* If the orphans hook is attached, use that */
+		if (strcmp(NG_ETHER_HOOK_ORPHAN,
+		    link->ourhook) == 0) {
+			break;
+		}
+		/* the other option is the 'divert' hook */
+		if (strcmp("NG_ETHER_HOOK_DIVERT",
+		    link->ourhook) == 0) {
+			break;
+		}
+	}
+
+	/*
+	 * See if we found a hook there.
+	 */
+	if (k < ninfo->hooks) {
+		if (strcmp(peer->type, NG_PPPOE_NODE_TYPE) == 0) {
+			/*
+			 * If it's a type PPPoE, we skip making one
+			 * ourself, but we continue, using
+			 * the existing one.
+			 */
+			sprintf(pppoe_node_name, "[%08x]:", peer->id);
+		} else {
+			/*
+			 * There is already someone hogging the data,
+			 * return an error. Some day we'll try
+			 * daisy-chaining..
+			 */
+			return (EBUSY);
+		}
+	} else {
+
+		/*
+		 * Try make a node of type PPPoE against node "ID"
+		 * On hook NG_ETHER_HOOK_ORPHAN.
+		 */
+		snprintf(mkp.type, sizeof(mkp.type),
+			 "%s", NG_PPPOE_NODE_TYPE);
+		snprintf(mkp.ourhook, sizeof(mkp.ourhook),
+			 "%s", NG_ETHER_HOOK_ORPHAN);
+		snprintf(mkp.peerhook, sizeof(mkp.peerhook),
+			 "%s", NG_PPPOE_HOOK_ETHERNET);
+		/* Send message */
+		if (NgSendMsg(*cfd, source_ID, NGM_GENERIC_COOKIE,
+			      NGM_MKPEER, &mkp, sizeof(mkp)) < 0) {
+			return (errno);
+		}
+		/*
+		 * Work out a name for the new node.
+		 */
+		sprintf(pppoe_node_name, "%s:%s",
+			source_ID, NG_ETHER_HOOK_ORPHAN);
+	}
+	/*
+	 * We now have a PPPoE node attached to the Ethernet
+	 * card. The Ethernet is addressed as ethername: The PPPoE
+	 * node is addressed as pppoe_node_name: attach to it.
+	 * Connect socket node to specified node Use the same hook
+	 * name on both ends of the link.
+	 */
+	snprintf(ngc.path, sizeof(ngc.path), "%s", pppoe_node_name);
+	snprintf(ngc.ourhook, sizeof(ngc.ourhook), "%s", sessname);
+	snprintf(ngc.peerhook, sizeof(ngc.peerhook), "%s", sessname);
+
+	if (NgSendMsg(*cfd, ".:", NGM_GENERIC_COOKIE,
+		      NGM_CONNECT, &ngc, sizeof(ngc)) < 0) {
+		return (errno);
+	}
+
+#ifdef	NONSTANDARD
+	/*
+	 * In some cases we are speaking to 3Com hardware, so
+	 * configure node to non-standard mode.
+	 */
+	if (NgSendMsg(*cfd, ngc.path, NGM_PPPOE_COOKIE,
+			NGM_PPPOE_SETMODE, NG_PPPOE_NONSTANDARD,
+			strlen(NG_PPPOE_NONSTANDARD) + 1) == -1) {
+		return (errno);
+	}
+#endif
+
+	/*
+	 * Send it a message telling it to start up.
+	 */
+	bzero(&message, sizeof(message));
+	snprintf(message.idata.hook, sizeof(message.idata.hook),
+				"%s", sessname);
+	if (service == NULL) {
+		message.idata.data_len = 0;
+	} else {
+		snprintf(message.idata.data,
+			 sizeof(message.idata.data), "%s", service);
+		message.idata.data_len = strlen(service);
+	}
+	/* Tell session/hook to start up as a client */
+	if (NgSendMsg(*cfd, ngc.path,
+		      NGM_PPPOE_COOKIE, NGM_PPPOE_CONNECT, &message.idata,
+		      sizeof(message.idata) + message.idata.data_len) < 0) {
+		return (errno);
+	}
+	return (0);
+}
+.Ed
+.Sh SEE ALSO
+.Xr netgraph 3 ,
+.Xr netgraph 4 ,
+.Xr ng_ether 4 ,
+.Xr ng_ppp 4 ,
+.Xr ng_socket 4 ,
+.Xr ngctl 8 ,
+.Xr ppp 8
+.Rs
+.%A L. Mamakos
+.%A K. Lidl
+.%A J. Evarts
+.%A D. Carrel
+.%A D. Simone
+.%A R. Wheeler
+.%T "A Method for transmitting PPP over Ethernet (PPPoE)"
+.%O RFC 2516
+.Re
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq Mt julian@FreeBSD.org

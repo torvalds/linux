@@ -1,0 +1,256 @@
+'\" -*- coding: us-ascii -*-
+.if \n(.g .ds T< \\FC
+.if \n(.g .ds T> \\F[\n[.fam]]
+.de URL
+\\$2 \(la\\$1\(ra\\$3
+..
+.if \n(.g .mso www.tmac
+.TH XMLWF 1 "March 11, 2016" "" ""
+.SH NAME
+xmlwf \- Determines if an XML document is well-formed
+.SH SYNOPSIS
+'nh
+.fi
+.ad l
+\fBxmlwf\fR \kx
+.if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
+'in \n(.iu+\nxu
+[\fB-s\fR] [\fB-n\fR] [\fB-p\fR] [\fB-x\fR] [\fB-e \fIencoding\fB\fR] [\fB-w\fR] [\fB-d \fIoutput-dir\fB\fR] [\fB-c\fR] [\fB-m\fR] [\fB-r\fR] [\fB-t\fR] [\fB-N\fR] [\fB-v\fR] [file ...]
+'in \n(.iu-\nxu
+.ad b
+'hy
+.SH DESCRIPTION
+\fBxmlwf\fR uses the Expat library to
+determine if an XML document is well-formed. It is
+non-validating.
+.PP
+If you do not specify any files on the command-line, and you
+have a recent version of \fBxmlwf\fR, the
+input file will be read from standard input.
+.SH "WELL-FORMED DOCUMENTS"
+A well-formed document must adhere to the
+following rules:
+.TP 0.2i
+\(bu
+The file begins with an XML declaration. For instance,
+\*(T<<?xml version="1.0" standalone="yes"?>\*(T>.
+\fINOTE:\fR
+\fBxmlwf\fR does not currently
+check for a valid XML declaration.
+.TP 0.2i
+\(bu
+Every start tag is either empty (<tag/>)
+or has a corresponding end tag.
+.TP 0.2i
+\(bu
+There is exactly one root element. This element must contain
+all other elements in the document. Only comments, white
+space, and processing instructions may come after the close
+of the root element.
+.TP 0.2i
+\(bu
+All elements nest properly.
+.TP 0.2i
+\(bu
+All attribute values are enclosed in quotes (either single
+or double).
+.PP
+If the document has a DTD, and it strictly complies with that
+DTD, then the document is also considered \fIvalid\fR.
+\fBxmlwf\fR is a non-validating parser --
+it does not check the DTD. However, it does support
+external entities (see the \*(T<\fB\-x\fR\*(T> option).
+.SH OPTIONS
+When an option includes an argument, you may specify the argument either
+separately ("\*(T<\fB\-d\fR\*(T> output") or concatenated with the
+option ("\*(T<\fB\-d\fR\*(T>output"). \fBxmlwf\fR
+supports both.
+.TP 
+\*(T<\fB\-c\fR\*(T>
+If the input file is well-formed and \fBxmlwf\fR
+doesn't encounter any errors, the input file is simply copied to
+the output directory unchanged.
+This implies no namespaces (turns off \*(T<\fB\-n\fR\*(T>) and
+requires \*(T<\fB\-d\fR\*(T> to specify an output directory.
+.TP 
+\*(T<\fB\-d output\-dir\fR\*(T>
+Specifies a directory to contain transformed
+representations of the input files.
+By default, \*(T<\fB\-d\fR\*(T> outputs a canonical representation
+(described below).
+You can select different output formats using \*(T<\fB\-c\fR\*(T>,
+\*(T<\fB\-m\fR\*(T> and \*(T<\fB\-N\fR\*(T>.
+
+The output filenames will
+be exactly the same as the input filenames or "STDIN" if the input is
+coming from standard input. Therefore, you must be careful that the
+output file does not go into the same directory as the input
+file. Otherwise, \fBxmlwf\fR will delete the
+input file before it generates the output file (just like running
+\*(T<cat < file > file\*(T> in most shells).
+
+Two structurally equivalent XML documents have a byte-for-byte
+identical canonical XML representation.
+Note that ignorable white space is considered significant and
+is treated equivalently to data.
+More on canonical XML can be found at
+http://www.jclark.com/xml/canonxml.html .
+.TP 
+\*(T<\fB\-e encoding\fR\*(T>
+Specifies the character encoding for the document, overriding
+any document encoding declaration. \fBxmlwf\fR
+supports four built-in encodings:
+\*(T<US\-ASCII\*(T>,
+\*(T<UTF\-8\*(T>,
+\*(T<UTF\-16\*(T>, and
+\*(T<ISO\-8859\-1\*(T>.
+Also see the \*(T<\fB\-w\fR\*(T> option.
+.TP 
+\*(T<\fB\-m\fR\*(T>
+Outputs some strange sort of XML file that completely
+describes the input file, including character positions.
+Requires \*(T<\fB\-d\fR\*(T> to specify an output file.
+.TP 
+\*(T<\fB\-n\fR\*(T>
+Turns on namespace processing. (describe namespaces)
+\*(T<\fB\-c\fR\*(T> disables namespaces.
+.TP 
+\*(T<\fB\-N\fR\*(T>
+Adds a doctype and notation declarations to canonical XML output.
+This matches the example output used by the formal XML test cases.
+Requires \*(T<\fB\-d\fR\*(T> to specify an output file.
+.TP 
+\*(T<\fB\-p\fR\*(T>
+Tells xmlwf to process external DTDs and parameter
+entities.
+
+Normally \fBxmlwf\fR never parses parameter
+entities. \*(T<\fB\-p\fR\*(T> tells it to always parse them.
+\*(T<\fB\-p\fR\*(T> implies \*(T<\fB\-x\fR\*(T>.
+.TP 
+\*(T<\fB\-r\fR\*(T>
+Normally \fBxmlwf\fR memory-maps the XML file
+before parsing; this can result in faster parsing on many
+platforms.
+\*(T<\fB\-r\fR\*(T> turns off memory-mapping and uses normal file
+IO calls instead.
+Of course, memory-mapping is automatically turned off
+when reading from standard input.
+
+Use of memory-mapping can cause some platforms to report
+substantially higher memory usage for
+\fBxmlwf\fR, but this appears to be a matter of
+the operating system reporting memory in a strange way; there is
+not a leak in \fBxmlwf\fR.
+.TP 
+\*(T<\fB\-s\fR\*(T>
+Prints an error if the document is not standalone. 
+A document is standalone if it has no external subset and no
+references to parameter entities.
+.TP 
+\*(T<\fB\-t\fR\*(T>
+Turns on timings. This tells Expat to parse the entire file,
+but not perform any processing.
+This gives a fairly accurate idea of the raw speed of Expat itself
+without client overhead.
+\*(T<\fB\-t\fR\*(T> turns off most of the output options
+(\*(T<\fB\-d\fR\*(T>, \*(T<\fB\-m\fR\*(T>, \*(T<\fB\-c\fR\*(T>, ...).
+.TP 
+\*(T<\fB\-v\fR\*(T>
+Prints the version of the Expat library being used, including some
+information on the compile-time configuration of the library, and
+then exits.
+.TP 
+\*(T<\fB\-w\fR\*(T>
+Enables support for Windows code pages.
+Normally, \fBxmlwf\fR will throw an error if it
+runs across an encoding that it is not equipped to handle itself. With
+\*(T<\fB\-w\fR\*(T>, xmlwf will try to use a Windows code
+page. See also \*(T<\fB\-e\fR\*(T>.
+.TP 
+\*(T<\fB\-x\fR\*(T>
+Turns on parsing external entities.
+
+Non-validating parsers are not required to resolve external
+entities, or even expand entities at all.
+Expat always expands internal entities (?),
+but external entity parsing must be enabled explicitly.
+
+External entities are simply entities that obtain their
+data from outside the XML file currently being parsed.
+
+This is an example of an internal entity:
+
+.nf
+
+<!ENTITY vers '1.0.2'>
+.fi
+
+And here are some examples of external entities:
+
+.nf
+
+<!ENTITY header SYSTEM "header\-&vers;.xml">  (parsed)
+<!ENTITY logo SYSTEM "logo.png" PNG>         (unparsed)
+.fi
+.TP 
+\*(T<\fB\-\-\fR\*(T>
+(Two hyphens.)
+Terminates the list of options. This is only needed if a filename
+starts with a hyphen. For example:
+
+.nf
+
+xmlwf \-\- \-myfile.xml
+.fi
+
+will run \fBxmlwf\fR on the file
+\*(T<\fI\-myfile.xml\fR\*(T>.
+.PP
+Older versions of \fBxmlwf\fR do not support
+reading from standard input.
+.SH OUTPUT
+If an input file is not well-formed,
+\fBxmlwf\fR prints a single line describing
+the problem to standard output. If a file is well formed,
+\fBxmlwf\fR outputs nothing.
+Note that the result code is \fInot\fR set.
+.SH BUGS
+\fBxmlwf\fR returns a 0 - noerr result,
+even if the file is not well-formed. There is no good way for
+a program to use \fBxmlwf\fR to quickly
+check a file -- it must parse \fBxmlwf\fR's
+standard output.
+.PP
+The errors should go to standard error, not standard output.
+.PP
+There should be a way to get \*(T<\fB\-d\fR\*(T> to send its
+output to standard output rather than forcing the user to send
+it to a file.
+.PP
+I have no idea why anyone would want to use the
+\*(T<\fB\-d\fR\*(T>, \*(T<\fB\-c\fR\*(T>, and
+\*(T<\fB\-m\fR\*(T> options. If someone could explain it to
+me, I'd like to add this information to this manpage.
+.SH ALTERNATIVES
+Here are some XML validators on the web:
+
+.nf
+
+http://www.hcrc.ed.ac.uk/~richard/xml\-check.html
+http://www.stg.brown.edu/service/xmlvalid/
+http://www.scripting.com/frontier5/xml/code/xmlValidator.html
+http://www.xml.com/pub/a/tools/ruwf/check.html
+.fi
+.SH "SEE ALSO"
+.nf
+
+The Expat home page:        http://www.libexpat.org/
+The W3 XML specification:   http://www.w3.org/TR/REC\-xml
+.fi
+.SH AUTHOR
+This manual page was written by Scott Bronson <\*(T<bronson@rinspin.com\*(T>> for
+the Debian GNU/Linux system (but may be used by others). Permission is
+granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation
+License, Version 1.1.

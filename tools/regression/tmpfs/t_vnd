@@ -1,0 +1,88 @@
+#!/bin/sh
+#
+# $NetBSD: t_vnd,v 1.1 2006/11/09 15:25:37 jmmv Exp $
+#
+# Copyright (c) 2006 The NetBSD Foundation, Inc.
+# All rights reserved.
+#
+# This code is derived from software contributed to The NetBSD Foundation
+# by Julio M. Merino Vidal.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#
+# Verifies that vnd works with files stored in tmpfs.
+#
+
+die_mounted() {
+	umount mnt
+	die_configured
+}
+
+die_configured() {
+	mdconfig -d -u 3	
+	die
+}
+
+test_run() {
+	test_mount
+
+	test_name "Creation of disk image"
+	dd if=/dev/zero of=disk.img bs=1m count=10 >/dev/null 2>&1 || die
+
+	test_name "Configuration of vnd"
+	mdconfig -a -f disk.img -u 3 -x 32 -y 2 ||die
+
+	test_name "Labelling the md"
+	bsdlabel -m i386 -w /dev/md3 || die_configured
+	
+	test_name "Formatting of disk image"
+	newfs -n -U -m 0 -O 1 /dev/md3a >/dev/null 2>&1 || die_configured
+
+	test_name "Mounting of disk image"
+	mkdir mnt || die
+	mount /dev/md3a mnt || die_configured
+
+	test_name "Creation of several files"
+	for f in $(jot 100); do
+		jot 1000 >mnt/$f || die_mounted
+	done
+
+	test_name "Verification of created files"
+	for f in $(jot 100); do
+		[ $(md5 mnt/$f | cut -d ' ' -f 4) = \
+		    53d025127ae99ab79e8502aae2d9bea6 ] || die_mounted
+	done
+
+	test_name "Unmounting of disk image"
+	umount mnt || die_configured
+
+	test_name "Deconfiguration of vnd"
+	mdconfig -d -u 3 || die
+
+	test_unmount
+}
+
+. ${SUBRDIR}/h_funcs.subr

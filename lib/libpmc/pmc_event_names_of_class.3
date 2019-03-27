@@ -1,0 +1,75 @@
+.\" Copyright (c) 2007 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 23, 2007
+.Dt PMC_EVENT_NAMES_OF_CLASS 3
+.Os
+.Sh NAME
+.Nm pmc_event_names_of_class
+.Nd return a list of event names supported by a PMC class
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Ft int
+.Fo pmc_event_names_of_class
+.Fa "enum pmc_class cl"
+.Fa "const char ***eventnames"
+.Fa "int *nevents"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn pmc_event_names_of_class
+retrieves the hardware event names supported by the class of PMC hardware
+specified by argument
+.Fa cl .
+.Pp
+It returns an array of
+.Vt "const char *"
+pointers to names of events supported by the specified class of PMC
+hardware.
+The location pointed to by argument
+.Fa nevents
+is set to the number of event names returned.
+.Pp
+The returned array is allocated using
+.Xr malloc 3 .
+.Sh RETURN VALUES
+.Rv -std pmc_event_names_of_class
+.Sh ERRORS
+A call to
+.Fn pmc_event_names_of_class
+may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Argument
+.Fa cl
+was invalid.
+.It Bq Er ENOMEM
+Allocation of a memory area to hold the result failed.
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr hwpmc 4

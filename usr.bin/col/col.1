@@ -1,0 +1,167 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Michael Rendell.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)col.1	8.1 (Berkeley) 6/29/93
+.\" $FreeBSD$
+.\"
+.Dd May 10, 2015
+.Dt COL 1
+.Os
+.Sh NAME
+.Nm col
+.Nd filter reverse line feeds from input
+.Sh SYNOPSIS
+.Nm
+.Op Fl bfhpx
+.Op Fl l Ar num
+.Sh DESCRIPTION
+The
+.Nm
+utility filters out reverse (and half reverse) line feeds so that the output is
+in the correct order with only forward and half forward line
+feeds, and replaces white-space characters with tabs where possible.
+This can be useful in processing the output of
+.Xr nroff 1
+and
+.Xr tbl 1 .
+.Pp
+The
+.Nm
+utility reads from the standard input and writes to the standard output.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl b
+Do not output any backspaces, printing only the last character
+written to each column position.
+.It Fl f
+Forward half line feeds are permitted (``fine'' mode).
+Normally characters printed on a half line boundary are printed
+on the following line.
+.It Fl h
+Do not output multiple spaces instead of tabs (default).
+.It Fl l Ar num
+Buffer at least
+.Ar num
+lines in memory.
+By default, 128 lines are buffered.
+.It Fl p
+Force unknown control sequences to be passed through unchanged.
+Normally,
+.Nm
+will filter out any control sequences from the input other than those
+recognized and interpreted by itself, which are listed below.
+.It Fl x
+Output multiple spaces instead of tabs.
+.El
+.Pp
+In the input stream,
+.Nm
+understands both the escape sequences of the form escape-digit
+mandated by
+.St -susv2
+and the traditional
+.Bx
+format escape-control-character.
+The control sequences for carriage motion and their ASCII values
+are as follows:
+.Pp
+.Bl -tag -width "carriage return" -compact
+.It ESC\-BELL
+reverse line feed (escape then bell).
+.It ESC\-7
+reverse line feed (escape then 7).
+.It ESC\-BACKSPACE
+half reverse line feed (escape then backspace).
+.It ESC\-8
+half reverse line feed (escape then 8).
+.It ESC\-TAB
+half forward line feed (escape than tab).
+.It ESC\-9
+half forward line feed (escape then 9).
+In
+.Fl f
+mode, this sequence may also occur in the output stream.
+.It backspace
+moves back one column (8); ignored in the first column
+.It carriage return
+(13)
+.It newline
+forward line feed (10); also does carriage return
+.It shift in
+shift to normal character set (15)
+.It shift out
+shift to alternate character set (14)
+.It space
+moves forward one column (32)
+.It tab
+moves forward to next tab stop (9)
+.It vertical tab
+reverse line feed (11)
+.El
+.Pp
+All unrecognized control characters and escape sequences are
+discarded.
+.Pp
+The
+.Nm
+utility keeps track of the character set as characters are read and makes
+sure the character set is correct when they are output.
+.Pp
+If the input attempts to back up to the last flushed line,
+.Nm
+will display a warning message.
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr colcrt 1 ,
+.Xr expand 1 ,
+.Xr nroff 1 ,
+.Xr tbl 1
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -susv2 .
+.Sh HISTORY
+A
+.Nm
+command
+appeared in
+.At v6 .

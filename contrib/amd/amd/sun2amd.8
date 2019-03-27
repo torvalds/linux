@@ -1,0 +1,92 @@
+.\"
+.\" Copyright (c) 1997-2014 Erez Zadok
+.\" Copyright (c) 2005 Daniel P. Ottavio
+.\" Copyright (c) 1990 Jan-Simon Pendry
+.\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
+.\" Copyright (c) 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry at Imperial College, London.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.\" File: am-utils/amd/sun2amd.8
+.\"
+.TH SUN2AMD 8L "14 August 2005"
+
+.SH NAME
+sun2amd \- converts Sun automount maps to Amd maps
+
+.SH SYNOPSIS
+.B sun2amd
+[-hH] [-i infile] [-o outfile]
+
+.SH DESCRIPTION
+.B sun2amd
+is used to convert Sun style automount maps to Amd style automount
+maps.  By default
+.B sun2amd
+reads from stdin and writes to stdout.
+
+.SH OPTIONS
+.TP
+.B -h
+Help
+.TP
+.B -i
+Read Sun map information from specified file.
+.TP
+.B -o
+Write Amd map information to specified file.
+
+.SH EXAMPLE
+To convert a Sun automount file called auto_foo to an Amd file called
+auto.amd type:
+
+.B sun2amd
+-i auto_foo -o auto.amd
+
+.SH BUGS
+* Can not convert master maps yet.
+
+* NFS is the only automount type currently supported.
+
+total_bug_count = number_found + 1;
+
+.SH "SEE ALSO"
+.BR automount(8),
+.BR amd(8)
+
+.I "Linux NFS and Automounter Administration"
+by Erez Zadok, ISBN 0-7821-2739-8, (Sybex, 2001).
+.LP
+.I http://www.am-utils.org
+.LP
+
+.SH AUTHOR
+Daniel P. Ottavio
+.I <dottavio@ic.sunysb.edu>

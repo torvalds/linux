@@ -1,0 +1,111 @@
+<HTML>
+<HEAD><TITLE>xxfi_header</TITLE></HEAD>
+<BODY>
+<!--
+$Id: xxfi_header.html,v 1.18 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>xxfi_header</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+sfsistat (*xxfi_header)(
+	SMFICTX *ctx,
+	char *headerf,
+	char *headerv
+);
+</PRE>
+Handle a message header.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>xxfi_header is called once for each message header.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH>Default Behavior</TH>
+<TD>Do nothing; return SMFIS_CONTINUE.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>ctx</TD>
+	<TD>Opaque context structure.
+	</TD></TR>
+    <TR valign="top"><TD>headerf</TD>
+	<TD> Header field name.
+	</TD></TR>
+    <TR valign="top"><TD>headerv</TD>
+	<TD>Header field value.
+	The content of the header may include folded white space,
+	i.e., multiple lines with following white space
+	where lines are separated by LF (not CR/LF).
+	The trailing line terminator (CR/LF) is removed.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Notes ---------->
+<TR>
+<TH valign="top" align=left>NOTES</TH> 
+<TD>
+<UL>
+<LI>Starting with sendmail 8.14, spaces after the colon in a header
+field are preserved if requested using the flag
+<A HREF="xxfi_negotiate.html#SMFIP_HDR_LEADSPC"><CODE>SMFIP_HDR_LEADSPC</CODE></A>.
+That is, the header
+
+<PRE>
+From: sender &lt;f@example.com&gt;
+To:  user &lt;t@example.com&gt;
+Subject:no
+</PRE>
+
+will be sent to a milter as
+
+<PRE>
+"From", " sender &lt;f@example.com&gt;"
+"To", "  user &lt;t@example.com&gt;"
+"Subject", "no"
+</PRE>
+
+while previously
+(or without the flag
+<A HREF="xxfi_negotiate.html#SMFIP_HDR_LEADSPC"><CODE>SMFIP_HDR_LEADSPC</CODE></A>)
+it was:
+
+<PRE>
+"From", "sender &lt;f@example.com&gt;"
+"To", "user &lt;t@example.com&gt;"
+"Subject", "no"
+</PRE>
+
+
+<LI>Later filters will see header changes/additions made by earlier ones.
+<LI>For much more detail about header format, please see 
+RFC <A href="http://www.rfc-editor.org/rfc/rfc822.html">822</A>
+and
+RFC <A href="http://www.rfc-editor.org/rfc/rfc2822.html">2822</A>
+</UL>
+</TD>
+</TR>
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000, 2003, 2006 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

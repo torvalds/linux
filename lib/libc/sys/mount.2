@@ -1,0 +1,378 @@
+.\" Copyright (c) 1980, 1989, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)mount.2	8.3 (Berkeley) 5/24/95
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2017
+.Dt MOUNT 2
+.Os
+.Sh NAME
+.Nm mount ,
+.Nm nmount ,
+.Nm unmount
+.Nd mount or dismount a file system
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.Ft int
+.Fn mount "const char *type" "const char *dir" "int flags" "void *data"
+.Ft int
+.Fn unmount "const char *dir" "int flags"
+.In sys/uio.h
+.Ft int
+.Fn nmount "struct iovec *iov" "u_int niov" "int flags"
+.Sh DESCRIPTION
+The
+.Fn mount
+system call grafts
+a file system object onto the system file tree
+at the point
+.Fa dir .
+The argument
+.Fa data
+describes the file system object to be mounted.
+The argument
+.Fa type
+tells the kernel how to interpret
+.Fa data
+(See
+.Fa type
+below).
+The contents of the file system
+become available through the new mount point
+.Fa dir .
+Any files in
+.Fa dir
+at the time
+of a successful mount are swept under the carpet so to speak, and
+are unavailable until the file system is unmounted.
+.Pp
+The
+.Fn nmount
+system call behaves similarly to
+.Fn mount ,
+except that the mount options (file system type name, device to mount,
+mount-point name, etc.) are passed as an array of name-value pairs
+in the array
+.Fa iov ,
+containing
+.Fa niov
+elements.
+The following options are required by all file systems:
+.Bl -column fstype -offset indent
+.It
+.Li fstype Ta file system type name (e.g., Dq Li procfs )
+.It
+.Li fspath Ta mount point pathname (e.g., Dq Li /proc )
+.El
+.Pp
+Depending on the file system type, other options may be
+recognized or required;
+for example, most disk-based file systems require a
+.Dq Li from
+option containing the pathname of a special device
+in addition to the options listed above.
+.Pp
+By default only the super-user may call the
+.Fn mount
+system call.
+This restriction can be removed by setting the
+.Va vfs.usermount
+.Xr sysctl 8
+variable
+to a non-zero value; see the BUGS section for more information.
+.Pp
+The following
+.Fa flags
+may be specified to
+suppress default semantics which affect file system access.
+.Bl -tag -width MNT_SYNCHRONOUS
+.It Dv MNT_RDONLY
+The file system should be treated as read-only;
+even the super-user may not write on it.
+Specifying MNT_UPDATE without this option will upgrade
+a read-only file system to read/write.
+.It Dv MNT_NOEXEC
+Do not allow files to be executed from the file system.
+.It Dv MNT_NOSUID
+Do not honor setuid or setgid bits on files when executing them.
+This flag is set automatically when the caller is not the super-user.
+.It Dv MNT_NOATIME
+Disable update of file access times.
+.It Dv MNT_SNAPSHOT
+Create a snapshot of the file system.
+This is currently only supported on UFS2 file systems, see
+.Xr mksnap_ffs 8
+for more information.
+.It Dv MNT_SUIDDIR
+Directories with the SUID bit set chown new files to their own owner.
+This flag requires the SUIDDIR option to have been compiled into the kernel
+to have any effect.
+See the
+.Xr mount 8
+and
+.Xr chmod 2
+pages for more information.
+.It Dv MNT_SYNCHRONOUS
+All I/O to the file system should be done synchronously.
+.It Dv MNT_ASYNC
+All I/O to the file system should be done asynchronously.
+.It Dv MNT_FORCE
+Force a read-write mount even if the file system appears to be unclean.
+Dangerous.
+Together with
+.Dv MNT_UPDATE
+and
+.Dv MNT_RDONLY ,
+specify that the file system is to be forcibly downgraded to a read-only
+mount even if some files are open for writing.
+.It Dv MNT_NOCLUSTERR
+Disable read clustering.
+.It Dv MNT_NOCLUSTERW
+Disable write clustering.
+.El
+.Pp
+The flag
+.Dv MNT_UPDATE
+indicates that the mount command is being applied
+to an already mounted file system.
+This allows the mount flags to be changed without requiring
+that the file system be unmounted and remounted.
+Some file systems may not allow all flags to be changed.
+For example,
+many file systems will not allow a change from read-write to read-only.
+.Pp
+The flag
+.Dv MNT_RELOAD
+causes the vfs subsystem to update its data structures pertaining to
+the specified already mounted file system.
+.Pp
+The
+.Fa type
+argument names the file system.
+The types of file systems known to the system can be obtained with
+.Xr lsvfs 1 .
+.Pp
+The
+.Fa data
+argument
+is a pointer to a structure that contains the type
+specific arguments to mount.
+The format for these argument structures is described in the
+manual page for each file system.
+By convention file system manual pages are named
+by prefixing ``mount_'' to the name of the file system as returned by
+.Xr lsvfs 1 .
+Thus the
+.Tn NFS
+file system is described by the
+.Xr mount_nfs 8
+manual page.
+It should be noted that a manual page for default
+file systems, known as UFS and UFS2, does not exist.
+.Pp
+The
+.Fn unmount
+system call disassociates the file system from the specified
+mount point
+.Fa dir .
+.Pp
+The
+.Fa flags
+argument may include
+.Dv MNT_FORCE
+to specify that the file system should be forcibly unmounted
+even if files are still active.
+Active special devices continue to work,
+but any further accesses to any other active files result in errors
+even if the file system is later remounted.
+.Pp
+If the
+.Dv MNT_BYFSID
+flag is specified,
+.Fa dir
+should instead be a file system ID encoded as
+.Dq Li FSID : Ns Ar val0 : Ns Ar val1 ,
+where
+.Ar val0
+and
+.Ar val1
+are the contents of the
+.Vt fsid_t
+.Va val[]
+array in decimal.
+The file system that has the specified file system ID will be unmounted.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn mount
+and
+.Fn nmount
+system calls will fail when one of the following occurs:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The caller is neither the super-user nor the owner of
+.Fa dir .
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded 255 characters,
+or the entire length of a path name exceeded 1023 characters.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating a pathname.
+.It Bq Er ENOENT
+A component of
+.Fa dir
+does not exist.
+.It Bq Er ENOTDIR
+A component of
+.Fa name
+is not a directory,
+or a path prefix of
+.Fa special
+is not a directory.
+.It Bq Er EBUSY
+Another process currently holds a reference to
+.Fa dir .
+.It Bq Er EFAULT
+The
+.Fa dir
+argument
+points outside the process's allocated address space.
+.El
+.Pp
+The following errors can occur for a
+.Em ufs
+file system mount:
+.Bl -tag -width Er
+.It Bq Er ENODEV
+A component of ufs_args
+.Fa fspec
+does not exist.
+.It Bq Er ENOTBLK
+The
+.Fa fspec
+argument
+is not a block device.
+.It Bq Er ENXIO
+The major device number of
+.Fa fspec
+is out of range (this indicates no device driver exists
+for the associated hardware).
+.It Bq Er EBUSY
+.Fa fspec
+is already mounted.
+.It Bq Er EMFILE
+No space remains in the mount table.
+.It Bq Er EINVAL
+The super block for the file system had a bad magic
+number or an out of range block size.
+.It Bq Er ENOMEM
+Not enough memory was available to read the cylinder
+group information for the file system.
+.It Bq Er EIO
+An I/O error occurred while reading the super block or
+cylinder group information.
+.It Bq Er EFAULT
+The
+.Fa fspec
+argument
+points outside the process's allocated address space.
+.El
+.Pp
+The following errors can occur for a
+.Em nfs
+file system mount:
+.Bl -tag -width Er
+.It Bq Er ETIMEDOUT
+.Em Nfs
+timed out trying to contact the server.
+.It Bq Er EFAULT
+Some part of the information described by nfs_args
+points outside the process's allocated address space.
+.El
+.Pp
+The
+.Fn unmount
+system call may fail with one of the following errors:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The caller is neither the super-user nor the user who issued the corresponding
+.Fn mount
+call.
+.It Bq Er ENAMETOOLONG
+The length of the path name exceeded 1023 characters.
+.It Bq Er EINVAL
+The requested directory is not in the mount table.
+.It Bq Er ENOENT
+The file system ID specified using
+.Dv MNT_BYFSID
+was not found in the mount table.
+.It Bq Er EINVAL
+The file system ID specified using
+.Dv MNT_BYFSID
+could not be decoded.
+.It Bq Er EINVAL
+The specified file system is the root file system.
+.It Bq Er EBUSY
+A process is holding a reference to a file located
+on the file system.
+.It Bq Er EIO
+An I/O error occurred while writing cached file system information.
+.It Bq Er EFAULT
+The
+.Fa dir
+argument
+points outside the process's allocated address space.
+.El
+.Sh SEE ALSO
+.Xr lsvfs 1 ,
+.Xr mksnap_ffs 8 ,
+.Xr mount 8 ,
+.Xr umount 8
+.Sh HISTORY
+The
+.Fn mount
+and
+.Fn unmount
+functions appeared in
+.At v1 .
+The
+.Fn nmount
+system call first appeared in
+.Fx 5.0 .
+.Sh BUGS
+Some of the error codes need translation to more obvious messages.
+.Pp
+Allowing untrusted users to mount arbitrary media, e.g. by enabling
+.Va vfs.usermount ,
+should not be considered safe.
+Most file systems in
+.Fx
+were not built to safeguard against malicious devices.

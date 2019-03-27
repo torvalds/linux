@@ -1,0 +1,71 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>ntpdsim - Network Time Protocol (NTP) simulator</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3><tt>ntpdsim</tt> - Network Time Protocol (NTP) simulator</h3>
+<img src="pic/oz2.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html">from <i>The Wizard of Oz</i>, L. Frank Baum</a>
+<p>All in a row.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->11-Sep-2010  05:55<!-- #EndDate -->
+  UTC</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/manual.txt"></script>
+<h4>Table of Contents</h4>
+<ul>
+  <li class="inline"><a href="#synop">Synopsis</a></li>
+  <li class="inline"><a href="#descr">Description</a></li>
+  <li class="inline"><a href="#cmd">Command Line Oprionts</a></li>
+  <li class="inline"><a href="#files">Files</a></li>
+</ul>
+<hr>
+<h4 id="synop">Synopsis</h4>
+<tt>ntpdsim [ -B <i>bdly</i> ] [ -C <i>snse</i> ] [ -O <i>clk_time</i> ] [ -S <i>sim_time</i> ] [ -T <i>ferr</i> ] [ -W <i>fsne</i> ] [ -Y </tt><i><tt>ndly</tt></i><tt> ] [ -X </tt><i><tt>pdly</tt></i><tt> ]</tt>
+<h4 id="descr">Description</h4>
+<p>The <tt>ntpdsim</tt> program is an adaptation of the <tt>ntpd</tt> operating system daemon. The program operates as a discrete time simulator using specified systematic and random driving sources. It includes all the mitigation and discipline algorithms of the actual daemon, but with the packet I/O and system clock algorithms driven by simulation. Most functions of the real <tt>ntpd</tt> remain intact, including the monitoring, statistics recording, trace and host name resolution features. Further information on the simulator is on the <a href="http://www.eecis.udel.edu/%7emills/ntpsim.html">NTP Discrete Event Simulator</a> page.</p>
+<p>The simulator is most useful to study NTP behavior in response to time and/or frequency transients under specific conditions of network jitter and oscillator wander. For this purpose the daemon can be driven by pseudorandom jitter and wander sample sequences characteristic of real networks and oscillators. The jitter generator produces samples from a Poisson distribution, while the wander generator produces samples from a Guassian distribution.</p>
+<p>The easiest way to use this program is to create a <tt>ntpstats</tt> directory, configuration file <tt>ntp.conf</tt> and frequency file <tt>ntp.drift</tt> and test shell <tt>test.sh</tt> in the base directory. The <tt>ntp.drift</tt> file and <tt>ntpstats</tt> directory can be empty to start. The <tt>test.sh</tt> script can contain something like</p>
+<pre>rm ./ntpstats/*
+ntpdsim -O 0.1 -C .001 -T 400 -W 1 -c ./ntp.conf,
+</pre>
+<p>which starts the simulator with a time offset 100 ms, network jitter 1 ms, frequency offset 400 PPM and oscillator wander 1 PPM/s. These parameters represent typical conditions with modern workstations on a Ethernet LAN. The ntp.conf file should contain something like</p>
+<pre>disable kernel
+server pogo
+driftfile ./ntp.drift
+statsdir ./ntpstats/
+filegen loopstats type day enable
+filegen peerstats type day enable
+</pre>
+<h4 id="cmd">Command Line Options</h4>
+<dl>
+  <dt>Note: The NTP development team is moving to the use of a syntax-directed configuration file design. When complete these options will be replaced by a <a href="ntpdsim_new.html">new one</a>. Most of the <tt>ntpd</tt> command line options apply also to <tt>ntpdsim</tt>. In addition, the following command line options apply to <tt>ntpdsim.</tt></dt>
+  <dt><tt>-B <i>bdly</i></tt></dt>
+  <dd>Specify beep delay (3600) s.</dd>
+  <dt><tt>-C <i>snse</i></tt></dt>
+  <dd>Specify network jitter parameter (0) s.</dd>
+  <dt><tt>-O <i>clk_time</i></tt></dt>
+  <dd>Specify initial time offset (0) s.</dd>
+  <dt><tt>-S <i>sim_time</i></tt></dt>
+  <dd>Specify simulation duration (86400) s.</dd>
+  <dt><tt>-T <i>ferr</i></tt></dt>
+  <dd>Specify initial frequency offset (0) PPM.</dd>
+  <dt><tt>-W <i>fnse</i></tt></dt>
+  <dd>Specify oscillator wander parameter (0) PPM/s.</dd>
+  <dt><tt>-Y <i>ndly</i></tt></dt>
+  <dd>Specify network propagation delay (.001) s.</dd>
+  <dt><tt>-Z <i>pdly</i></tt></dt>
+  <dd>Specify server processing delay (.001) s.</dd>
+</dl>
+<h4 id="files">Files</h4>
+<tt>/etc/ntp.conf</tt> - the default name of the configuration file<br>
+<tt>/etc/ntp.drift</tt> - the default name of the drift file<br>
+<tt>/etc/ntp.keys</tt> - the default name of the key file
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

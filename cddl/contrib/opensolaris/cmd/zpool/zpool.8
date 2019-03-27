@@ -1,0 +1,2276 @@
+'\" te
+.\" Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>.
+.\" Copyright (c) 2013-2014, Xin Li <delphij@FreeBSD.org>.
+.\" All Rights Reserved.
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License (the "License").
+.\" You may not use this file except in compliance with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or http://www.opensolaris.org/os/licensing.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" Copyright (c) 2010, Sun Microsystems, Inc. All Rights Reserved.
+.\" Copyright (c) 2011, Justin T. Gibbs <gibbs@FreeBSD.org>
+.\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
+.\" Copyright (c) 2012, 2017 by Delphix. All Rights Reserved.
+.\" Copyright 2017 Nexenta Systems, Inc.
+.\" Copyright (c) 2017 Datto Inc.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 20, 2019
+.Dt ZPOOL 8
+.Os
+.Sh NAME
+.Nm zpool
+.Nd configures ZFS storage pools
+.Sh SYNOPSIS
+.Nm
+.Op Fl \&?
+.Nm
+.Cm add
+.Op Fl fn
+.Ar pool vdev ...
+.Nm
+.Cm attach
+.Op Fl f
+.Ar pool device new_device
+.Nm
+.Cm checkpoint
+.Op Fl d, -discard
+.Ar pool
+.Nm
+.Cm clear
+.Op Fl F Op Fl n
+.Ar pool
+.Op Ar device
+.Nm
+.Cm create
+.Op Fl fnd
+.Op Fl o Ar property Ns = Ns Ar value
+.Ar ...
+.Op Fl O Ar file-system-property Ns = Ns Ar value
+.Ar ...
+.Op Fl m Ar mountpoint
+.Op Fl R Ar root
+.Op Fl t Ar tempname
+.Ar pool vdev ...
+.Nm
+.Cm destroy
+.Op Fl f
+.Ar pool
+.Nm
+.Cm detach
+.Ar pool device
+.Nm
+.Cm export
+.Op Fl f
+.Ar pool ...
+.Nm
+.Cm get
+.Op Fl Hp
+.Op Fl o Ar field Ns Op , Ns Ar ...
+.Ar all | property Ns Op , Ns Ar ...
+.Ar pool ...
+.Nm
+.Cm history
+.Op Fl il
+.Op Ar pool
+.Ar ...
+.Nm
+.Cm import
+.Op Fl d Ar dir | Fl c Ar cachefile
+.Op Fl D
+.Nm
+.Cm import
+.Op Fl o Ar mntopts
+.Op Fl o Ar property Ns = Ns Ar value
+.Ar ...
+.Op Fl -rewind-to-checkpoint
+.Op Fl d Ar dir | Fl c Ar cachefile
+.Op Fl D
+.Op Fl f
+.Op Fl m
+.Op Fl N
+.Op Fl R Ar root
+.Op Fl F Op Fl n
+.Fl a
+.Nm
+.Cm import
+.Op Fl o Ar mntopts
+.Op Fl o Ar property Ns = Ns Ar value
+.Ar ...
+.Op Fl -rewind-to-checkpoint
+.Op Fl d Ar dir | Fl c Ar cachefile
+.Op Fl D
+.Op Fl f
+.Op Fl m
+.Op Fl N
+.Op Fl R Ar root
+.Op Fl t
+.Op Fl F Op Fl n
+.Ar pool | id
+.Op Ar newpool
+.Nm
+.Cm initialize
+.Op Fl cs
+.Ar pool
+.Op Ar device Ns ...
+.Nm
+.Cm iostat
+.Op Fl T Cm d Ns | Ns Cm u
+.Op Fl v
+.Op Ar pool
+.Ar ...
+.Nm
+.Cm labelclear
+.Op Fl f
+.Ar device
+.Nm
+.Cm list
+.Op Fl Hpv
+.Op Fl o Ar property Ns Op , Ns Ar ...
+.Op Fl T Cm d Ns | Ns Cm u
+.Op Ar pool
+.Ar ...
+.Op Ar inverval Op Ar count
+.Nm
+.Cm offline
+.Op Fl t
+.Ar pool device ...
+.Nm
+.Cm online
+.Op Fl e
+.Ar pool device ...
+.Nm
+.Cm reguid
+.Ar pool
+.Nm
+.Cm remove
+.Op Fl np
+.Ar pool device ...
+.Nm
+.Cm remove
+.Fl s
+.Ar pool
+.Nm
+.Cm reopen
+.Ar pool
+.Nm
+.Cm replace
+.Op Fl f
+.Ar pool device
+.Op Ar new_device
+.Nm
+.Cm scrub
+.Op Fl s | Fl p
+.Ar pool ...
+.Nm
+.Cm set
+.Ar property Ns = Ns Ar value pool
+.Nm
+.Cm split
+.Op Fl n
+.Op Fl R Ar altroot
+.Op Fl o Ar mntopts
+.Op Fl o Ar property Ns = Ns Ar value
+.Ar pool newpool
+.Op Ar device ...
+.Nm
+.Cm status
+.Op Fl Dvx
+.Op Fl T Cm d Ns | Ns Cm u
+.Op Ar pool
+.Ar ...
+.Op Ar interval Op Ar count
+.Nm
+.Cm upgrade
+.Op Fl v
+.Nm
+.Cm upgrade
+.Op Fl V Ar version
+.Fl a | Ar pool ...
+.Sh DESCRIPTION
+The
+.Nm
+command configures
+.Tn ZFS
+storage pools. A storage pool is a collection of devices that provides physical
+storage and data replication for
+.Tn ZFS
+datasets.
+.Pp
+All datasets within a storage pool share the same space. See
+.Xr zfs 8
+for information on managing datasets.
+.Ss Virtual Devices (vdevs)
+A
+.Qq virtual device
+.Pq No vdev
+describes a single device or a collection of devices organized according to
+certain performance and fault characteristics. The following virtual devices
+are supported:
+.Bl -tag -width "XXXXXX"
+.It Sy disk
+A block device, typically located under
+.Pa /dev .
+.Tn ZFS
+can use individual slices or partitions, though the recommended mode of
+operation is to use whole disks. A disk can be specified by a full path to the
+device or the
+.Xr geom 4
+provider name. When given a whole disk,
+.Tn ZFS
+automatically labels the disk, if necessary.
+.It Sy file
+A regular file. The use of files as a backing store is strongly discouraged. It
+is designed primarily for experimental purposes, as the fault tolerance of a
+file is only as good the file system of which it is a part. A file must be
+specified by a full path.
+.It Sy mirror
+A mirror of two or more devices. Data is replicated in an identical fashion
+across all components of a mirror. A mirror with
+.Em N
+disks of size
+.Em X
+can hold
+.Em X
+bytes and can withstand
+.Pq Em N-1
+devices failing before data integrity is compromised.
+.It Sy raidz
+(or
+.Sy raidz1 raidz2 raidz3 ) .
+A variation on
+.Sy RAID-5
+that allows for better distribution of parity and eliminates the
+.Qq Sy RAID-5
+write hole (in which data and parity become inconsistent after a power loss).
+Data and parity is striped across all disks within a
+.No raidz
+group.
+.Pp
+A
+.No raidz
+group can have single-, double- , or triple parity, meaning that the
+.No raidz
+group can sustain one, two, or three failures, respectively, without
+losing any data. The
+.Sy raidz1 No vdev
+type specifies a single-parity
+.No raidz
+group; the
+.Sy raidz2 No vdev
+type specifies a double-parity
+.No raidz
+group; and the
+.Sy raidz3 No vdev
+type specifies a triple-parity
+.No raidz
+group. The
+.Sy raidz No vdev
+type is an alias for
+.Sy raidz1 .
+.Pp
+A
+.No raidz
+group with
+.Em N
+disks of size
+.Em X
+with
+.Em P
+parity disks can hold approximately
+.Sm off
+.Pq Em N-P
+*X
+.Sm on
+bytes and can withstand
+.Em P
+device(s) failing before data integrity is compromised. The minimum number of
+devices in a
+.No raidz
+group is one more than the number of parity disks. The
+recommended number is between 3 and 9 to help increase performance.
+.It Sy spare
+A special
+.No pseudo- Ns No vdev
+which keeps track of available hot spares for a pool.
+For more information, see the
+.Qq Sx Hot Spares
+section.
+.It Sy log
+A separate-intent log device. If more than one log device is specified, then
+writes are load-balanced between devices. Log devices can be mirrored. However,
+.No raidz
+.No vdev
+types are not supported for the intent log. For more information,
+see the
+.Qq Sx Intent Log
+section.
+.It Sy cache
+A device used to cache storage pool data. A cache device cannot be configured
+as a mirror or
+.No raidz
+group. For more information, see the
+.Qq Sx Cache Devices
+section.
+.El
+.Pp
+Virtual devices cannot be nested, so a mirror or
+.No raidz
+virtual device can only
+contain files or disks. Mirrors of mirrors (or other combinations) are not
+allowed.
+.Pp
+A pool can have any number of virtual devices at the top of the configuration
+(known as
+.Qq root
+.No vdev Ns s).
+Data is dynamically distributed across all top-level devices to balance data
+among devices. As new virtual devices are added,
+.Tn ZFS
+automatically places data on the newly available devices.
+.Pp
+Virtual devices are specified one at a time on the command line, separated by
+whitespace. The keywords
+.Qq mirror
+and
+.Qq raidz
+are used to distinguish where a group ends and another begins. For example, the
+following creates two root
+.No vdev Ns s,
+each a mirror of two disks:
+.Bd -literal -offset 2n
+.Li # Ic zpool create mypool mirror da0 da1 mirror da2 da3
+.Ed
+.Ss Device Failure and Recovery
+.Tn ZFS
+supports a rich set of mechanisms for handling device failure and data
+corruption. All metadata and data is checksummed, and
+.Tn ZFS
+automatically repairs bad data from a good copy when corruption is detected.
+.Pp
+In order to take advantage of these features, a pool must make use of some form
+of redundancy, using either mirrored or
+.No raidz
+groups. While
+.Tn ZFS
+supports running in a non-redundant configuration, where each root
+.No vdev
+is simply a disk or file, this is strongly discouraged. A single case of bit
+corruption can render some or all of your data unavailable.
+.Pp
+A pool's health status is described by one of three states: online, degraded,
+or faulted. An online pool has all devices operating normally. A degraded pool
+is one in which one or more devices have failed, but the data is still
+available due to a redundant configuration. A faulted pool has corrupted
+metadata, or one or more faulted devices, and insufficient replicas to continue
+functioning.
+.Pp
+The health of the top-level
+.No vdev ,
+such as mirror or
+.No raidz
+device, is
+potentially impacted by the state of its associated
+.No vdev Ns s,
+or component devices. A top-level
+.No vdev
+or component device is in one of the following states:
+.Bl -tag -width "DEGRADED"
+.It Sy DEGRADED
+One or more top-level
+.No vdev Ns s
+is in the degraded state because one or more
+component devices are offline. Sufficient replicas exist to continue
+functioning.
+.Pp
+One or more component devices is in the degraded or faulted state, but
+sufficient replicas exist to continue functioning. The underlying conditions
+are as follows:
+.Bl -bullet -offset 2n
+.It
+The number of checksum errors exceeds acceptable levels and the device is
+degraded as an indication that something may be wrong.
+.Tn ZFS
+continues to use the device as necessary.
+.It
+The number of
+.Tn I/O
+errors exceeds acceptable levels. The device could not be
+marked as faulted because there are insufficient replicas to continue
+functioning.
+.El
+.It Sy FAULTED
+One or more top-level
+.No vdev Ns s
+is in the faulted state because one or more
+component devices are offline. Insufficient replicas exist to continue
+functioning.
+.Pp
+One or more component devices is in the faulted state, and insufficient
+replicas exist to continue functioning. The underlying conditions are as
+follows:
+.Bl -bullet -offset 2n
+.It
+The device could be opened, but the contents did not match expected values.
+.It
+The number of
+.Tn I/O
+errors exceeds acceptable levels and the device is faulted to
+prevent further use of the device.
+.El
+.It Sy OFFLINE
+The device was explicitly taken offline by the
+.Qq Nm Cm offline
+command.
+.It Sy ONLINE
+The device is online and functioning.
+.It Sy REMOVED
+The device was physically removed while the system was running. Device removal
+detection is hardware-dependent and may not be supported on all platforms.
+.It Sy UNAVAIL
+The device could not be opened. If a pool is imported when a device was
+unavailable, then the device will be identified by a unique identifier instead
+of its path since the path was never correct in the first place.
+.El
+.Pp
+If a device is removed and later reattached to the system,
+.Tn ZFS
+attempts to put the device online automatically. Device attach detection is
+hardware-dependent and might not be supported on all platforms.
+.Ss Hot Spares
+.Tn ZFS
+allows devices to be associated with pools as
+.Qq hot spares .
+These devices are not actively used in the pool, but when an active device
+fails, it is automatically replaced by a hot spare. To create a pool with hot
+spares, specify a
+.Qq spare
+.No vdev
+with any number of devices. For example,
+.Bd -literal -offset 2n
+.Li # Ic zpool create pool mirror da0 da1 spare da2 da3
+.Ed
+.Pp
+Spares can be shared across multiple pools, and can be added with the
+.Qq Nm Cm add
+command and removed with the
+.Qq Nm Cm remove
+command. Once a spare replacement is initiated, a new "spare"
+.No vdev
+is created
+within the configuration that will remain there until the original device is
+replaced. At this point, the hot spare becomes available again if another
+device fails.
+.Pp
+If a pool has a shared spare that is currently being used, the pool can not be
+exported since other pools may use this shared spare, which may lead to
+potential data corruption.
+.Pp
+An in-progress spare replacement can be cancelled by detaching the hot spare.
+If the original faulted device is detached, then the hot spare assumes its
+place in the configuration, and is removed from the spare list of all active
+pools.
+.Pp
+Spares cannot replace log devices.
+.Pp
+This feature requires a userland helper.
+FreeBSD provides
+.Xr zfsd 8
+for this purpose.
+It must be manually enabled by adding
+.Va zfsd_enable="YES"
+to
+.Pa /etc/rc.conf .
+.Ss Intent Log
+The
+.Tn ZFS
+Intent Log
+.Pq Tn ZIL
+satisfies
+.Tn POSIX
+requirements for synchronous transactions. For instance, databases often
+require their transactions to be on stable storage devices when returning from
+a system call.
+.Tn NFS
+and other applications can also use
+.Xr fsync 2
+to ensure data stability. By default, the intent log is allocated from blocks
+within the main pool. However, it might be possible to get better performance
+using separate intent log devices such as
+.Tn NVRAM
+or a dedicated disk. For example:
+.Bd -literal -offset 2n
+.Li # Ic zpool create pool da0 da1 log da2
+.Ed
+.Pp
+Multiple log devices can also be specified, and they can be mirrored. See the
+.Sx EXAMPLES
+section for an example of mirroring multiple log devices.
+.Pp
+Log devices can be added, replaced, attached, detached, imported and exported
+as part of the larger pool.
+Mirrored devices can be removed by specifying the top-level mirror vdev.
+.Ss Cache devices
+Devices can be added to a storage pool as "cache devices." These devices
+provide an additional layer of caching between main memory and disk. For
+read-heavy workloads, where the working set size is much larger than what can
+be cached in main memory, using cache devices allow much more of this working
+set to be served from low latency media. Using cache devices provides the
+greatest performance improvement for random read-workloads of mostly static
+content.
+.Pp
+To create a pool with cache devices, specify a "cache"
+.No vdev
+with any number of devices. For example:
+.Bd -literal -offset 2n
+.Li # Ic zpool create pool da0 da1 cache da2 da3
+.Ed
+.Pp
+Cache devices cannot be mirrored or part of a
+.No raidz
+configuration. If a read
+error is encountered on a cache device, that read
+.Tn I/O
+is reissued to the original storage pool device, which might be part of a
+mirrored or
+.No raidz
+configuration.
+.Pp
+The content of the cache devices is considered volatile, as is the case with
+other system caches.
+.Ss Pool checkpoint
+Before starting critical procedures that include destructive actions (e.g
+.Nm zfs Cm destroy
+), an administrator can checkpoint the pool's state and in the case of a
+mistake or failure, rewind the entire pool back to the checkpoint.
+Otherwise, the checkpoint can be discarded when the procedure has completed
+successfully.
+.Pp
+A pool checkpoint can be thought of as a pool-wide snapshot and should be used
+with care as it contains every part of the pool's state, from properties to vdev
+configuration.
+Thus, while a pool has a checkpoint certain operations are not allowed.
+Specifically, vdev removal/attach/detach, mirror splitting, and
+changing the pool's guid.
+Adding a new vdev is supported but in the case of a rewind it will have to be
+added again.
+Finally, users of this feature should keep in mind that scrubs in a pool that
+has a checkpoint do not repair checkpointed data.
+.Pp
+To create a checkpoint for a pool:
+.Bd -literal
+# zpool checkpoint pool
+.Ed
+.Pp
+To later rewind to its checkpointed state, you need to first export it and
+then rewind it during import:
+.Bd -literal
+# zpool export pool
+# zpool import --rewind-to-checkpoint pool
+.Ed
+.Pp
+To discard the checkpoint from a pool:
+.Bd -literal
+# zpool checkpoint -d pool
+.Ed
+.Pp
+Dataset reservations (controlled by the
+.Nm reservation
+or
+.Nm refreservation
+zfs properties) may be unenforceable while a checkpoint exists, because the
+checkpoint is allowed to consume the dataset's reservation.
+Finally, data that is part of the checkpoint but has been freed in the
+current state of the pool won't be scanned during a scrub.
+.Ss Properties
+Each pool has several properties associated with it. Some properties are
+read-only statistics while others are configurable and change the behavior of
+the pool. The following are read-only properties:
+.Bl -tag -width "dedupratio"
+.It Sy alloc
+Amount of storage space within the pool that has been physically allocated.
+.It Sy capacity
+Percentage of pool space used. This property can also be referred to by its
+shortened column name, "cap".
+.It Sy comment
+A text string consisting of printable ASCII characters that will be stored
+such that it is available even if the pool becomes faulted.  An administrator
+can provide additional information about a pool using this property.
+.It Sy dedupratio
+The deduplication ratio specified for a pool, expressed as a multiplier.
+For example, a
+.Sy dedupratio
+value of 1.76 indicates that 1.76 units of data were stored but only 1 unit of disk space was actually consumed. See
+.Xr zfs 8
+for a description of the deduplication feature.
+.It Sy expandsize
+Amount of uninitialized space within the pool or device that can be used to
+increase the total capacity of the pool.
+Uninitialized space consists of
+any space on an EFI labeled vdev which has not been brought online
+.Pq i.e. zpool online -e .
+This space occurs when a LUN is dynamically expanded.
+.It Sy fragmentation
+The amount of fragmentation in the pool.
+.It Sy free
+Number of blocks within the pool that are not allocated.
+.It Sy freeing
+After a file system or snapshot is destroyed, the space it was using is
+returned to the pool asynchronously.
+.Sy freeing
+is the amount of space remaining to be reclaimed.
+Over time
+.Sy freeing
+will decrease while
+.Sy free
+increases.
+.It Sy guid
+A unique identifier for the pool.
+.It Sy health
+The current health of the pool. Health can be
+.Qq Sy ONLINE ,
+.Qq Sy DEGRADED ,
+.Qq Sy FAULTED ,
+.Qq Sy OFFLINE ,
+.Qq Sy REMOVED ,
+or
+.Qq Sy UNAVAIL .
+.It Sy size
+Total size of the storage pool.
+.It Sy unsupported@ Ns Ar feature_guid
+Information about unsupported features that are enabled on the pool.
+See
+.Xr zpool-features 7
+for details.
+.It Sy used
+Amount of storage space used within the pool.
+.El
+.Pp
+The space usage properties report actual physical space available to the
+storage pool. The physical space can be different from the total amount of
+space that any contained datasets can actually use. The amount of space used in
+a
+.No raidz
+configuration depends on the characteristics of the data being written.
+In addition,
+.Tn ZFS
+reserves some space for internal accounting that the
+.Xr zfs 8
+command takes into account, but the
+.Xr zpool 8
+command does not. For non-full pools of a reasonable size, these effects should
+be invisible. For small pools, or pools that are close to being completely
+full, these discrepancies may become more noticeable.
+.Pp
+The following property can be set at creation time and import time:
+.Bl -tag -width 2n
+.It Sy altroot
+Alternate root directory. If set, this directory is prepended to any mount
+points within the pool. This can be used when examining an unknown pool where
+the mount points cannot be trusted, or in an alternate boot environment, where
+the typical paths are not valid.
+.Sy altroot
+is not a persistent property. It is valid only while the system is up.
+Setting
+.Sy altroot
+defaults to using
+.Cm cachefile=none ,
+though this may be overridden using an explicit setting.
+.El
+.Pp
+The following property can only be set at import time:
+.Bl -tag -width 2n
+.It Sy readonly Ns = Ns Cm on No | Cm off
+If set to
+.Cm on ,
+pool will be imported in read-only mode with the following restrictions:
+.Bl -bullet -offset 2n
+.It
+Synchronous data in the intent log will not be accessible
+.It
+Properties of the pool can not be changed
+.It
+Datasets of this pool can only be mounted read-only
+.It
+To write to a read-only pool, a export and import of the pool is required.
+.El
+.Pp
+This property can also be referred to by its shortened column name,
+.Sy rdonly .
+.El
+.Pp
+The following properties can be set at creation time and import time, and later
+changed with the
+.Ic zpool set
+command:
+.Bl -tag -width 2n
+.It Sy autoexpand Ns = Ns Cm on No | Cm off
+Controls automatic pool expansion when the underlying LUN is grown. If set to
+.Qq Cm on ,
+the pool will be resized according to the size of the expanded
+device. If the device is part of a mirror or
+.No raidz
+then all devices within that
+.No mirror/ Ns No raidz
+group must be expanded before the new space is made available to
+the pool. The default behavior is
+.Qq off .
+This property can also be referred to by its shortened column name,
+.Sy expand .
+.It Sy autoreplace Ns = Ns Cm on No | Cm off
+Controls automatic device replacement. If set to
+.Qq Cm off ,
+device replacement must be initiated by the administrator by using the
+.Qq Nm Cm replace
+command. If set to
+.Qq Cm on ,
+any new device, found in the same
+physical location as a device that previously belonged to the pool, is
+automatically formatted and replaced. The default behavior is
+.Qq Cm off .
+This property can also be referred to by its shortened column name, "replace".
+.It Sy bootfs Ns = Ns Ar pool Ns / Ns Ar dataset
+Identifies the default bootable dataset for the root pool. This property is
+expected to be set mainly by the installation and upgrade programs.
+.It Sy cachefile Ns = Ns Ar path No | Cm none
+Controls the location of where the pool configuration is cached. Discovering
+all pools on system startup requires a cached copy of the configuration data
+that is stored on the root file system. All pools in this cache are
+automatically imported when the system boots. Some environments, such as
+install and clustering, need to cache this information in a different location
+so that pools are not automatically imported. Setting this property caches the
+pool configuration in a different location that can later be imported with
+.Qq Nm Cm import Fl c .
+Setting it to the special value
+.Qq Cm none
+creates a temporary pool that is never cached, and the special value
+.Cm ''
+(empty string) uses the default location.
+.It Sy comment Ns = Ns Ar text
+A text string consisting of printable ASCII characters that will be stored
+such that it is available even if the pool becomes faulted.
+An administrator can provide additional information about a pool using this
+property.
+.It Sy dedupditto Ns = Ns Ar number
+Threshold for the number of block ditto copies. If the reference count for a
+deduplicated block increases above this number, a new ditto copy of this block
+is automatically stored. Default setting is
+.Cm 0
+which causes no ditto copies to be created for deduplicated blocks.
+The miniumum legal nonzero setting is 100.
+.It Sy delegation Ns = Ns Cm on No | Cm off
+Controls whether a non-privileged user is granted access based on the dataset
+permissions defined on the dataset. See
+.Xr zfs 8
+for more information on
+.Tn ZFS
+delegated administration.
+.It Sy failmode Ns = Ns Cm wait No | Cm continue No | Cm panic
+Controls the system behavior in the event of catastrophic pool failure. This
+condition is typically a result of a loss of connectivity to the underlying
+storage device(s) or a failure of all devices within the pool. The behavior of
+such an event is determined as follows:
+.Bl -tag -width indent
+.It Sy wait
+Blocks all
+.Tn I/O
+access until the device connectivity is recovered and the errors are cleared.
+This is the default behavior.
+.It Sy continue
+Returns
+.Em EIO
+to any new write
+.Tn I/O
+requests but allows reads to any of the remaining healthy devices. Any write
+requests that have yet to be committed to disk would be blocked.
+.It Sy panic
+Prints out a message to the console and generates a system crash dump.
+.El
+.It Sy feature@ Ns Ar feature_name Ns = Ns Sy enabled
+The value of this property is the current state of
+.Ar feature_name .
+The only valid value when setting this property is
+.Sy enabled
+which moves
+.Ar feature_name
+to the enabled state.
+See
+.Xr zpool-features 7
+for details on feature states.
+.It Sy listsnaps Ns = Ns Cm on No | Cm off
+Controls whether information about snapshots associated with this pool is
+output when
+.Qq Nm zfs Cm list
+is run without the
+.Fl t
+option. The default value is
+.Cm off .
+.It Sy version Ns = Ns Ar version
+The current on-disk version of the pool. This can be increased, but never
+decreased. The preferred method of updating pools is with the
+.Qq Nm Cm upgrade
+command, though this property can be used when a specific version is needed
+for backwards compatibility.
+Once feature flags is enabled on a pool this property will no longer have a
+value.
+.El
+.Sh SUBCOMMANDS
+All subcommands that modify state are logged persistently to the pool in their
+original form.
+.Pp
+The
+.Nm
+command provides subcommands to create and destroy storage pools, add capacity
+to storage pools, and provide information about the storage pools. The following
+subcommands are supported:
+.Bl -tag -width 2n
+.It Xo
+.Nm
+.Op Fl \&?
+.Xc
+.Pp
+Displays a help message.
+.It Xo
+.Nm
+.Cm add
+.Op Fl fn
+.Ar pool vdev ...
+.Xc
+.Pp
+Adds the specified virtual devices to the given pool. The
+.No vdev
+specification is described in the
+.Qq Sx Virtual Devices
+section. The behavior of the
+.Fl f
+option, and the device checks performed are described in the
+.Qq Nm Cm create
+subcommand.
+.Bl -tag -width indent
+.It Fl f
+Forces use of
+.Ar vdev ,
+even if they appear in use or specify a conflicting replication level.
+Not all devices can be overridden in this manner.
+.It Fl n
+Displays the configuration that would be used without actually adding the
+.Ar vdev Ns s.
+The actual pool creation can still fail due to insufficient privileges or device
+sharing.
+.Pp
+Do not add a disk that is currently configured as a quorum device to a zpool.
+After a disk is in the pool, that disk can then be configured as a quorum
+device.
+.El
+.It Xo
+.Nm
+.Cm attach
+.Op Fl f
+.Ar pool device new_device
+.Xc
+.Pp
+Attaches
+.Ar new_device
+to an existing
+.Sy zpool
+device. The existing device cannot be part of a
+.No raidz
+configuration. If
+.Ar device
+is not currently part of a mirrored configuration,
+.Ar device
+automatically transforms into a two-way mirror of
+.Ar device No and Ar new_device .
+If
+.Ar device
+is part of a two-way mirror, attaching
+.Ar new_device
+creates a three-way mirror, and so on. In either case,
+.Ar new_device
+begins to resilver immediately.
+.Bl -tag -width indent
+.It Fl f
+Forces use of
+.Ar new_device ,
+even if its appears to be in use. Not all devices can be overridden in this
+manner.
+.El
+.It Xo
+.Nm
+.Cm checkpoint
+.Op Fl d, -discard
+.Ar pool
+.Xc
+Checkpoints the current state of
+.Ar pool
+, which can be later restored by
+.Nm zpool Cm import --rewind-to-checkpoint .
+The existence of a checkpoint in a pool prohibits the following
+.Nm zpool
+commands:
+.Cm remove ,
+.Cm attach ,
+.Cm detach ,
+.Cm split ,
+and
+.Cm reguid .
+In addition, it may break reservation boundaries if the pool lacks free
+space.
+The
+.Nm zpool Cm status
+command indicates the existence of a checkpoint or the progress of discarding a
+checkpoint from a pool.
+The
+.Nm zpool Cm list
+command reports how much space the checkpoint takes from the pool.
+.Bl -tag -width Ds
+.It Fl d, -discard
+Discards an existing checkpoint from
+.Ar pool .
+.El
+.It Xo
+.Nm
+.Cm clear
+.Op Fl F Op Fl n
+.Ar pool
+.Op Ar device
+.Xc
+.Pp
+Clears device errors in a pool. If no arguments are specified, all device
+errors within the pool are cleared. If one or more devices is specified, only
+those errors associated with the specified device or devices are cleared.
+.Bl -tag -width indent
+.It Fl F
+Initiates recovery mode for an unopenable pool. Attempts to discard the last
+few transactions in the pool to return it to an openable state. Not all damaged
+pools can be recovered by using this option. If successful, the data from the
+discarded transactions is irretrievably lost.
+.It Fl n
+Used in combination with the
+.Fl F
+flag. Check whether discarding transactions would make the pool openable, but
+do not actually discard any transactions.
+.El
+.It Xo
+.Nm
+.Cm create
+.Op Fl fnd
+.Op Fl o Ar property Ns = Ns Ar value
+.Ar ...
+.Op Fl O Ar file-system-property Ns = Ns Ar value
+.Ar ...
+.Op Fl m Ar mountpoint
+.Op Fl R Ar root
+.Op Fl t Ar tempname
+.Ar pool vdev ...
+.Xc
+.Pp
+Creates a new storage pool containing the virtual devices specified on the
+command line. The pool name must begin with a letter, and can only contain
+alphanumeric characters as well as underscore ("_"), dash ("-"), and period
+("."). The pool names "mirror", "raidz", "spare" and "log" are reserved, as are
+names beginning with the pattern "c[0-9]". The
+.No vdev
+specification is described in the
+.Qq Sx Virtual Devices
+section.
+.Pp
+The command verifies that each device specified is accessible and not currently
+in use by another subsystem. There are some uses, such as being currently
+mounted, or specified as the dedicated dump device, that prevents a device from
+ever being used by
+.Tn ZFS
+Other uses, such as having a preexisting
+.Sy UFS
+file system, can be overridden with the
+.Fl f
+option.
+.Pp
+The command also checks that the replication strategy for the pool is
+consistent. An attempt to combine redundant and non-redundant storage in a
+single pool, or to mix disks and files, results in an error unless
+.Fl f
+is specified. The use of differently sized devices within a single
+.No raidz
+or mirror group is also flagged as an error unless
+.Fl f
+is specified.
+.Pp
+Unless the
+.Fl R
+option is specified, the default mount point is
+.Qq Pa /pool .
+The mount point must not exist or must be empty, or else the
+root dataset cannot be mounted. This can be overridden with the
+.Fl m
+option.
+.Pp
+By default all supported features are enabled on the new pool unless the
+.Fl d
+option is specified.
+.Bl -tag -width indent
+.It Fl f
+Forces use of
+.Ar vdev Ns s,
+even if they appear in use or specify a conflicting replication level.
+Not all devices can be overridden in this manner.
+.It Fl n
+Displays the configuration that would be used without actually creating the
+pool. The actual pool creation can still fail due to insufficient privileges or
+device sharing.
+.It Fl d
+Do not enable any features on the new pool.
+Individual features can be enabled by setting their corresponding properties
+to
+.Sy enabled
+with the
+.Fl o
+option.
+See
+.Xr zpool-features 7
+for details about feature properties.
+.It Xo
+.Fl o Ar property Ns = Ns Ar value
+.Op Fl o Ar property Ns = Ns Ar value
+.Ar ...
+.Xc
+Sets the given pool properties. See the
+.Qq Sx Properties
+section for a list of valid properties that can be set.
+.It Xo
+.Fl O
+.Ar file-system-property Ns = Ns Ar value
+.Op Fl O Ar file-system-property Ns = Ns Ar value
+.Ar ...
+.Xc
+Sets the given file system properties in the root file system of the pool. See
+.Xr zfs 8 Properties
+for a list of valid properties that
+can be set.
+.It Fl R Ar root
+Equivalent to
+.Qq Fl o Cm cachefile=none,altroot= Ns Pa root
+.It Fl m Ar mountpoint
+Sets the mount point for the root dataset. The default mount point is
+.Qq Pa /pool
+or
+.Qq Cm altroot Ns Pa /pool
+if
+.Sy altroot
+is specified. The mount point must be an absolute path,
+.Qq Cm legacy ,
+or
+.Qq Cm none .
+For more information on dataset mount points, see
+.Xr zfs 8 .
+.It Fl t Ar tempname
+Sets the in-core pool name to
+.Pa tempname
+while the on-disk name will be the name specified as the pool name
+.Pa pool .
+This will set the default
+.Sy cachefile
+property to
+.Sy none .
+This is intended to handle name space collisions when creating pools
+for other systems, such as virtual machines or physical machines
+whose pools live on network block devices.
+.El
+.It Xo
+.Nm
+.Cm destroy
+.Op Fl f
+.Ar pool
+.Xc
+.Pp
+Destroys the given pool, freeing up any devices for other use. This command
+tries to unmount any active datasets before destroying the pool.
+.Bl -tag -width indent
+.It Fl f
+Forces any active datasets contained within the pool to be unmounted.
+.El
+.It Xo
+.Nm
+.Cm detach
+.Ar pool device
+.Xc
+.Pp
+Detaches
+.Ar device
+from a mirror. The operation is refused if there are no other valid replicas
+of the data.
+.It Xo
+.Nm
+.Cm export
+.Op Fl f
+.Ar pool ...
+.Xc
+.Pp
+Exports the given pools from the system. All devices are marked as exported,
+but are still considered in use by other subsystems. The devices can be moved
+between systems (even those of different endianness) and imported as long as a
+sufficient number of devices are present.
+.Pp
+Before exporting the pool, all datasets within the pool are unmounted. A pool
+can not be exported if it has a shared spare that is currently being used.
+.Pp
+For pools to be portable, you must give the
+.Nm
+command whole disks, not just slices, so that
+.Tn ZFS
+can label the disks with portable
+.Sy EFI
+labels. Otherwise, disk drivers on platforms of different endianness will not
+recognize the disks.
+.Bl -tag -width indent
+.It Fl f
+Forcefully unmount all datasets, using the
+.Qq Nm unmount Fl f
+command.
+.Pp
+This command will forcefully export the pool even if it has a shared spare that
+is currently being used. This may lead to potential data corruption.
+.El
+.It Xo
+.Nm
+.Cm get
+.Op Fl Hp
+.Op Fl o Ar field Ns Op , Ns Ar ...
+.Ar all | property Ns Op , Ns Ar ...
+.Ar pool ...
+.Xc
+.Pp
+Retrieves the given list of properties (or all properties if
+.Qq Cm all
+is used) for the specified storage pool(s). These properties are displayed with
+the following fields:
+.Bl -column -offset indent "property"
+.It name Ta Name of storage pool
+.It property Ta Property name
+.It value Ta Property value
+.It source Ta Property source, either 'default' or 'local'.
+.El
+.Pp
+See the
+.Qq Sx Properties
+section for more information on the available pool properties.
+.It Fl H
+Scripted mode. Do not display headers, and separate fields by a single tab
+instead of arbitrary space.
+.It Fl p
+Display numbers in parsable (exact) values.
+.It Fl o Ar field
+A comma-separated list of columns to display.
+.Sy name Ns , Ns
+.Sy property Ns , Ns
+.Sy value Ns , Ns
+.Sy source
+is the default value.
+.It Xo
+.Nm
+.Cm history
+.Op Fl il
+.Op Ar pool
+.Ar ...
+.Xc
+.Pp
+Displays the command history of the specified pools or all pools if no pool is
+specified.
+.Bl -tag -width indent
+.It Fl i
+Displays internally logged
+.Tn ZFS
+events in addition to user initiated events.
+.It Fl l
+Displays log records in long format, which in addition to standard format
+includes, the user name, the hostname, and the zone in which the operation was
+performed.
+.El
+.It Xo
+.Nm
+.Cm import
+.Op Fl d Ar dir | Fl c Ar cachefile
+.Op Fl D
+.Xc
+.Pp
+Lists pools available to import. If the
+.Fl d
+option is not specified, this command searches for devices in
+.Qq Pa /dev .
+The
+.Fl d
+option can be specified multiple times, and all directories are searched. If
+the device appears to be part of an exported pool, this command displays a
+summary of the pool with the name of the pool, a numeric identifier, as well as
+the
+.No vdev
+layout and current health of the device for each device or file.
+Destroyed pools, pools that were previously destroyed with the
+.Qq Nm Cm destroy
+command, are not listed unless the
+.Fl D
+option is specified.
+.Pp
+The numeric identifier is unique, and can be used instead of the pool name when
+multiple exported pools of the same name are available.
+.Bl -tag -width indent
+.It Fl c Ar cachefile
+Reads configuration from the given
+.Ar cachefile
+that was created with the
+.Qq Sy cachefile
+pool property. This
+.Ar cachefile
+is used instead of searching for devices.
+.It Fl d Ar dir
+Searches for devices or files in
+.Ar dir .
+The
+.Fl d
+option can be specified multiple times.
+.It Fl D
+Lists destroyed pools only.
+.El
+.It Xo
+.Nm
+.Cm import
+.Op Fl o Ar mntopts
+.Op Fl o Ar property Ns = Ns Ar value
+.Ar ...
+.Op Fl d Ar dir | Fl c Ar cachefile
+.Op Fl D
+.Op Fl f
+.Op Fl m
+.Op Fl N
+.Op Fl R Ar root
+.Op Fl F Op Fl n
+.Fl a
+.Xc
+.Pp
+Imports all pools found in the search directories. Identical to the previous
+command, except that all pools with a sufficient number of devices available
+are imported. Destroyed pools, pools that were previously destroyed with the
+.Qq Nm Cm destroy
+command, will not be imported unless the
+.Fl D
+option is specified.
+.Bl -tag -width indent
+.It Fl o Ar mntopts
+Comma-separated list of mount options to use when mounting datasets within the
+pool. See
+.Xr zfs 8
+for a description of dataset properties and mount options.
+.It Fl o Ar property Ns = Ns Ar value
+Sets the specified property on the imported pool. See the
+.Qq Sx Properties
+section for more information on the available pool properties.
+.It Fl c Ar cachefile
+Reads configuration from the given
+.Ar cachefile
+that was created with the
+.Qq Sy cachefile
+pool property. This
+.Ar cachefile
+is used instead of searching for devices.
+.It Fl d Ar dir
+Searches for devices or files in
+.Ar dir .
+The
+.Fl d
+option can be specified multiple times. This option is incompatible with the
+.Fl c
+option.
+.It Fl D
+Imports destroyed pools only. The
+.Fl f
+option is also required.
+.It Fl f
+Forces import, even if the pool appears to be potentially active.
+.It Fl m
+Allows a pool to import when there is a missing log device. Recent transactions
+can be lost because the log device will be discarded.
+.It Fl N
+Import the pool without mounting any file systems.
+.It Fl R Ar root
+Sets the
+.Qq Sy cachefile
+property to
+.Qq Cm none
+and the
+.Qq Sy altroot
+property to
+.Qq Ar root
+.It Fl F
+Recovery mode for a non-importable pool. Attempt to return the pool to an
+importable state by discarding the last few transactions. Not all damaged pools
+can be recovered by using this option. If successful, the data from the
+discarded transactions is irretrievably lost. This option is ignored if the
+pool is importable or already imported.
+.It Fl n
+Used with the
+.Fl F
+recovery option. Determines whether a non-importable pool can be made
+importable again, but does not actually perform the pool recovery. For more
+details about pool recovery mode, see the
+.Fl F
+option, above.
+.It Fl a
+Searches for and imports all pools found.
+.El
+.It Xo
+.Nm
+.Cm import
+.Op Fl o Ar mntopts
+.Op Fl o Ar property Ns = Ns Ar value
+.Ar ...
+.Op Fl d Ar dir | Fl c Ar cachefile
+.Op Fl D
+.Op Fl f
+.Op Fl m
+.Op Fl N
+.Op Fl R Ar root
+.Op Fl t
+.Op Fl F Op Fl n
+.Ar pool | id
+.Op Ar newpool
+.Xc
+.Pp
+Imports a specific pool. A pool can be identified by its name or the numeric
+identifier. If
+.Ar newpool
+is specified, the pool is imported using the name
+.Ar newpool .
+Otherwise, it is imported with the same name as its exported name.
+.Pp
+If a device is removed from a system without running
+.Qq Nm Cm export
+first, the device appears as potentially active. It cannot be determined if
+this was a failed export, or whether the device is really in use from another
+host. To import a pool in this state, the
+.Fl f
+option is required.
+.Bl -tag -width indent
+.It Fl o Ar mntopts
+Comma-separated list of mount options to use when mounting datasets within the
+pool. See
+.Xr zfs 8
+for a description of dataset properties and mount options.
+.It Fl o Ar property Ns = Ns Ar value
+Sets the specified property on the imported pool. See the
+.Qq Sx Properties
+section for more information on the available pool properties.
+.It Fl c Ar cachefile
+Reads configuration from the given
+.Ar cachefile
+that was created with the
+.Qq Sy cachefile
+pool property. This
+.Ar cachefile
+is used instead of searching for devices.
+.It Fl d Ar dir
+Searches for devices or files in
+.Ar dir .
+The
+.Fl d
+option can be specified multiple times. This option is incompatible with the
+.Fl c
+option.
+.It Fl D
+Imports destroyed pools only. The
+.Fl f
+option is also required.
+.It Fl f
+Forces import, even if the pool appears to be potentially active.
+.It Fl m
+Allows a pool to import when there is a missing log device. Recent transactions
+can be lost because the log device will be discarded.
+.It Fl N
+Import the pool without mounting any file systems.
+.It Fl R Ar root
+Equivalent to
+.Qq Fl o Cm cachefile=none,altroot= Ns Pa root
+.It Fl t
+Used with
+.Ar newpool .
+Specifies that
+.Ar newpool
+is temporary.
+Temporary pool names last until export.
+Ensures that the original pool name will be used in all label updates and
+therefore is retained upon export.
+Will also set
+.Sy cachefile
+property to
+.Sy none
+when not explicitly specified.
+.It Fl F
+Recovery mode for a non-importable pool. Attempt to return the pool to an
+importable state by discarding the last few transactions. Not all damaged pools
+can be recovered by using this option. If successful, the data from the
+discarded transactions is irretrievably lost. This option is ignored if the
+pool is importable or already imported.
+.It Fl n
+Used with the
+.Fl F
+recovery option. Determines whether a non-importable pool can be made
+importable again, but does not actually perform the pool recovery. For more
+details about pool recovery mode, see the
+.Fl F
+option, above.
+.It Fl -rewind-to-checkpoint
+Rewinds pool to the checkpointed state.
+Once the pool is imported with this flag there is no way to undo the rewind.
+All changes and data that were written after the checkpoint are lost!
+The only exception is when the
+.Sy readonly
+mounting option is enabled.
+In this case, the checkpointed state of the pool is opened and an
+administrator can see how the pool would look like if they were
+to fully rewind.
+.El
+.It Xo
+.Nm
+.Cm initialize
+.Op Fl cs
+.Ar pool
+.Op Ar device Ns ...
+.Xc
+Begins initializing by writing to all unallocated regions on the specified
+devices, or all eligible devices in the pool if no individual devices are
+specified.
+Only leaf data or log devices may be initialized.
+.Bl -tag -width Ds
+.It Fl c, -cancel
+Cancel initializing on the specified devices, or all eligible devices if none
+are specified.
+If one or more target devices are invalid or are not currently being
+initialized, the command will fail and no cancellation will occur on any device.
+.It Fl s -suspend
+Suspend initializing on the specified devices, or all eligible devices if none
+are specified.
+If one or more target devices are invalid or are not currently being
+initialized, the command will fail and no suspension will occur on any device.
+Initializing can then be resumed by running
+.Nm zpool Cm initialize
+with no flags on the relevant target devices.
+.El
+.It Xo
+.Nm
+.Cm iostat
+.Op Fl T Cm d Ns | Ns Cm u
+.Op Fl v
+.Op Ar pool
+.Ar ...
+.Op Ar interval Op Ar count
+.Xc
+.Pp
+Displays
+.Tn I/O
+statistics for the given pools. When given an interval, the statistics are
+printed every
+.Ar interval
+seconds until
+.Sy Ctrl-C
+is pressed. If no
+.Ar pools
+are specified, statistics for every pool in the system is shown. If
+.Ar count
+is specified, the command exits after
+.Ar count
+reports are printed.
+.Bl -tag -width indent
+.It Fl T Cm d Ns | Ns Cm u
+Print a timestamp.
+.Pp
+Use modifier
+.Cm d
+for standard date format. See
+.Xr date 1 .
+Use modifier
+.Cm u
+for unixtime
+.Pq equals Qq Ic date +%s .
+.It Fl v
+Verbose statistics. Reports usage statistics for individual
+.No vdev Ns s
+within the pool, in addition to the pool-wide statistics.
+.El
+.It Xo
+.Nm
+.Cm labelclear
+.Op Fl f
+.Ar device
+.Xc
+.Pp
+Removes
+.Tn ZFS
+label information from the specified
+.Ar device .
+The
+.Ar device
+must not be part of an active pool configuration.
+.Bl -tag -width indent
+.It Fl f
+Treat exported or foreign devices as inactive.
+.El
+.It Xo
+.Nm
+.Cm list
+.Op Fl Hpv
+.Op Fl o Ar property Ns Op , Ns Ar ...
+.Op Fl T Cm d Ns | Ns Cm u
+.Op Ar pool
+.Ar ...
+.Op Ar inverval Op Ar count
+.Xc
+.Pp
+Lists the given pools along with a health status and space usage. If no
+.Ar pools
+are specified, all pools in the system are listed.
+.Pp
+When given an interval, the output is printed every
+.Ar interval
+seconds until
+.Sy Ctrl-C
+is pressed. If
+.Ar count
+is specified, the command exits after
+.Ar count
+reports are printed.
+.Bl -tag -width indent
+.It Fl T Cm d Ns | Ns Cm u
+Print a timestamp.
+.Pp
+Use modifier
+.Cm d
+for standard date format. See
+.Xr date 1 .
+Use modifier
+.Cm u
+for unixtime
+.Pq equals Qq Ic date +%s .
+.It Fl H
+Scripted mode. Do not display headers, and separate fields by a single tab
+instead of arbitrary space.
+.It Fl p
+Display numbers in parsable (exact) values.
+.It Fl v
+Verbose statistics. Reports usage statistics for individual
+.Em vdevs
+within
+the pool, in addition to the pool-wide statistics.
+.It Fl o Ar property Ns Op , Ns Ar ...
+Comma-separated list of properties to display. See the
+.Qq Sx Properties
+section for a list of valid properties. The default list is
+.Sy name ,
+.Sy size ,
+.Sy used ,
+.Sy available ,
+.Sy checkpoint ,
+.Sy expandsize ,
+.Sy fragmentation ,
+.Sy capacity  ,
+.Sy dedupratio ,
+.Sy health ,
+.Sy altroot .
+.It Fl T Cm d Ns | Ns Cm u
+Print a timestamp.
+.Pp
+Use modifier
+.Cm d
+for standard date format. See
+.Xr date 1 .
+Use modifier
+.Cm u
+for unixtime
+.Pq equals Qq Ic date +%s .
+.El
+.It Xo
+.Nm
+.Cm offline
+.Op Fl t
+.Ar pool device ...
+.Xc
+.Pp
+Takes the specified physical device offline. While the
+.Ar device
+is offline, no attempt is made to read or write to the device.
+.Bl -tag -width indent
+.It Fl t
+Temporary. Upon reboot, the specified physical device reverts to its previous
+state.
+.El
+.It Xo
+.Nm
+.Cm online
+.Op Fl e
+.Ar pool device ...
+.Xc
+.Pp
+Brings the specified physical device online.
+.Pp
+This command is not applicable to spares or cache devices.
+.Bl -tag -width indent
+.It Fl e
+Expand the device to use all available space. If the device is part of a mirror
+or
+.No raidz
+then all devices must be expanded before the new space will become
+available to the pool.
+.El
+.It Xo
+.Nm
+.Cm reguid
+.Ar pool
+.Xc
+.Pp
+Generates a new unique identifier for the pool.  You must ensure that all
+devices in this pool are online and healthy before performing this action.
+.It Xo
+.Nm
+.Cm remove
+.Op Fl np
+.Ar pool device ...
+.Xc
+.Pp
+Removes the specified device from the pool.
+This command currently only supports removing hot spares, cache, log
+devices and mirrored top-level vdevs (mirror of leaf devices); but not raidz.
+.sp
+Removing a top-level vdev reduces the total amount of space in the storage pool.
+The specified device will be evacuated by copying all allocated space from it to
+the other devices in the pool.
+In this case, the
+.Nm zpool Cm remove
+command initiates the removal and returns, while the evacuation continues in
+the background.
+The removal progress can be monitored with
+.Nm zpool Cm status.
+This feature must be enabled to be used, see
+.Xr zpool-features 5
+.Pp
+A mirrored top-level device (log or data) can be removed by specifying the
+top-level mirror for the same.
+Non-log devices or data devices that are part of a mirrored configuration can
+be removed using the
+.Qq Nm Cm detach
+command.
+.Bl -tag -width Ds
+.It Fl n
+Do not actually perform the removal ("no-op").
+Instead, print the estimated amount of memory that will be used by the
+mapping table after the removal completes.
+This is nonzero only for top-level vdevs.
+.El
+.Bl -tag -width Ds
+.It Fl p
+Used in conjunction with the
+.Fl n
+flag, displays numbers as parsable (exact) values.
+.El
+.It Xo
+.Nm
+.Cm remove
+.Fl s
+.Ar pool
+.Xc
+.Pp
+Stops and cancels an in-progress removal of a top-level vdev.
+.It Xo
+.Nm
+.Cm reopen
+.Ar pool
+.Xc
+.Pp
+Reopen all the vdevs associated with the pool.
+.It Xo
+.Nm
+.Cm replace
+.Op Fl f
+.Ar pool device
+.Op Ar new_device
+.Xc
+.Pp
+Replaces
+.Ar old_device
+with
+.Ar new_device .
+This is equivalent to attaching
+.Ar new_device ,
+waiting for it to resilver, and then detaching
+.Ar old_device .
+.Pp
+The size of
+.Ar new_device
+must be greater than or equal to the minimum size
+of all the devices in a mirror or
+.No raidz
+configuration.
+.Pp
+.Ar new_device
+is required if the pool is not redundant. If
+.Ar new_device
+is not specified, it defaults to
+.Ar old_device .
+This form of replacement is useful after an existing disk has failed and has
+been physically replaced. In this case, the new disk may have the same
+.Pa /dev
+path as the old device, even though it is actually a different disk.
+.Tn ZFS
+recognizes this.
+.Bl -tag -width indent
+.It Fl f
+Forces use of
+.Ar new_device ,
+even if its appears to be in use. Not all devices can be overridden in this
+manner.
+.El
+.It Xo
+.Nm
+.Cm scrub
+.Op Fl s | Fl p
+.Ar pool ...
+.Xc
+.Pp
+Begins a scrub or resumes a paused scrub.
+The scrub examines all data in the specified pools to verify that it checksums
+correctly.
+For replicated
+.Pq mirror or raidz
+devices, ZFS automatically repairs any damage discovered during the scrub.
+The
+.Nm zpool Cm status
+command reports the progress of the scrub and summarizes the results of the
+scrub upon completion.
+.Pp
+Scrubbing and resilvering are very similar operations.
+The difference is that resilvering only examines data that ZFS knows to be out
+of date
+.Po
+for example, when attaching a new device to a mirror or replacing an existing
+device
+.Pc ,
+whereas scrubbing examines all data to discover silent errors due to hardware
+faults or disk failure.
+.Pp
+Because scrubbing and resilvering are I/O-intensive operations, ZFS only allows
+one at a time.
+If a scrub is paused, the
+.Nm zpool Cm scrub
+resumes it.
+If a resilver is in progress, ZFS does not allow a scrub to be started until the
+resilver completes.
+.Bl -tag -width Ds
+.It Fl s
+Stop scrubbing.
+.El
+.Bl -tag -width Ds
+.It Fl p
+Pause scrubbing.
+Scrub pause state and progress are periodically synced to disk.
+If the system is restarted or pool is exported during a paused scrub,
+even after import, scrub will remain paused until it is resumed.
+Once resumed the scrub will pick up from the place where it was last
+checkpointed to disk.
+To resume a paused scrub issue
+.Nm zpool Cm scrub
+again.
+.El
+.It Xo
+.Nm
+.Cm set
+.Ar property Ns = Ns Ar value pool
+.Xc
+.Pp
+Sets the given property on the specified pool. See the
+.Qq Sx Properties
+section for more information on what properties can be set and acceptable
+values.
+.It Xo
+.Nm
+.Cm split
+.Op Fl n
+.Op Fl R Ar altroot
+.Op Fl o Ar mntopts
+.Op Fl o Ar property Ns = Ns Ar value
+.Ar pool newpool
+.Op Ar device ...
+.Xc
+.Pp
+Splits off one disk from each mirrored top-level
+.No vdev
+in a pool and creates a new pool from the split-off disks. The original pool
+must be made up of one or more mirrors and must not be in the process of
+resilvering. The
+.Cm split
+subcommand chooses the last device in each mirror
+.No vdev
+unless overridden by a device specification on the command line.
+.Pp
+When using a
+.Ar device
+argument,
+.Cm split
+includes the specified device(s) in a new pool and, should any devices remain
+unspecified, assigns the last device in each mirror
+.No vdev
+to that pool, as it does normally. If you are uncertain about the outcome of a
+.Cm split
+command, use the
+.Fl n
+("dry-run") option to ensure your command will have the effect you intend.
+.Bl -tag -width indent
+.It Fl R Ar altroot
+Automatically import the newly created pool after splitting, using the
+specified
+.Ar altroot
+parameter for the new pool's alternate root. See the
+.Sy altroot
+description in the
+.Qq Sx Properties
+section, above.
+.It Fl n
+Displays the configuration that would be created without actually splitting the
+pool. The actual pool split could still fail due to insufficient privileges or
+device status.
+.It Fl o Ar mntopts
+Comma-separated list of mount options to use when mounting datasets within the
+pool. See
+.Xr zfs 8
+for a description of dataset properties and mount options. Valid only in
+conjunction with the
+.Fl R
+option.
+.It Fl o Ar property Ns = Ns Ar value
+Sets the specified property on the new pool. See the
+.Qq Sx Properties
+section, above, for more information on the available pool properties.
+.El
+.It Xo
+.Nm
+.Cm status
+.Op Fl Dvx
+.Op Fl T Cm d Ns | Ns Cm u
+.Op Ar pool
+.Ar ...
+.Op Ar interval Op Ar count
+.Xc
+.Pp
+Displays the detailed health status for the given pools. If no
+.Ar pool
+is specified, then the status of each pool in the system is displayed. For more
+information on pool and device health, see the
+.Qq Sx Device Failure and Recovery
+section.
+.Pp
+When given an interval, the output is printed every
+.Ar interval
+seconds until
+.Sy Ctrl-C
+is pressed. If
+.Ar count
+is specified, the command exits after
+.Ar count
+reports are printed.
+.Pp
+If a scrub or resilver is in progress, this command reports the percentage
+done and the estimated time to completion. Both of these are only approximate,
+because the amount of data in the pool and the other workloads on the system
+can change.
+.Bl -tag -width indent
+.It Fl D
+Display a histogram of deduplication statistics, showing the allocated
+.Pq physically present on disk
+and referenced
+.Pq logically referenced in the pool
+block counts and sizes by reference count.
+.It Fl T Cm d Ns | Ns Cm u
+Print a timestamp.
+.Pp
+Use modifier
+.Cm d
+for standard date format. See
+.Xr date 1 .
+Use modifier
+.Cm u
+for unixtime
+.Pq equals Qq Ic date +%s .
+.It Fl v
+Displays verbose data error information, printing out a complete list of all
+data errors since the last complete pool scrub.
+.It Fl x
+Only display status for pools that are exhibiting errors or are otherwise
+unavailable.
+Warnings about pools not using the latest on-disk format, having non-native
+block size or disabled features will not be included.
+.El
+.It Xo
+.Nm
+.Cm upgrade
+.Op Fl v
+.Xc
+.Pp
+Displays pools which do not have all supported features enabled and pools
+formatted using a legacy
+.Tn ZFS
+version number.
+These pools can continue to be used, but some features may not be available.
+Use
+.Nm Cm upgrade Fl a
+to enable all features on all pools.
+.Bl -tag -width indent
+.It Fl v
+Displays legacy
+.Tn ZFS
+versions supported by the current software.
+See
+.Xr zpool-features 7
+for a description of feature flags features supported by the current software.
+.El
+.It Xo
+.Nm
+.Cm upgrade
+.Op Fl V Ar version
+.Fl a | Ar pool ...
+.Xc
+.Pp
+Enables all supported features on the given pool.
+Once this is done, the pool will no longer be accessible on systems that do
+not support feature flags.
+See
+.Xr zpool-features 7
+for details on compatibility with systems that support feature flags, but do
+not support all features enabled on the pool.
+.Bl -tag -width indent
+.It Fl a
+Enables all supported features on all pools.
+.It Fl V Ar version
+Upgrade to the specified legacy version. If the
+.Fl V
+flag is specified, no features will be enabled on the pool.
+This option can only be used to increase version number up to the last
+supported legacy version number.
+.El
+.El
+.Sh EXIT STATUS
+The following exit values are returned:
+.Bl -tag -offset 2n -width 2n
+.It 0
+Successful completion.
+.It 1
+An error occurred.
+.It 2
+Invalid command line options were specified.
+.El
+.Sh EXAMPLES
+.Bl -tag -width 0n
+.It Sy Example 1 No Creating a RAID-Z Storage Pool
+.Pp
+The following command creates a pool with a single
+.No raidz
+root
+.No vdev
+that consists of six disks.
+.Bd -literal -offset 2n
+.Li # Ic zpool create tank raidz da0 da1 da2 da3 da4 da5
+.Ed
+.It Sy Example 2 No Creating a Mirrored Storage Pool
+.Pp
+The following command creates a pool with two mirrors, where each mirror
+contains two disks.
+.Bd -literal -offset 2n
+.Li # Ic zpool create tank mirror da0 da1 mirror da2 da3
+.Ed
+.It Sy Example 3 No Creating a Tn ZFS No Storage Pool by Using Partitions
+.Pp
+The following command creates an unmirrored pool using two GPT partitions.
+.Bd -literal -offset 2n
+.Li # Ic zpool create tank da0p3 da1p3
+.Ed
+.It Sy Example 4 No Creating a Tn ZFS No Storage Pool by Using Files
+.Pp
+The following command creates an unmirrored pool using files. While not
+recommended, a pool based on files can be useful for experimental purposes.
+.Bd -literal -offset 2n
+.Li # Ic zpool create tank /path/to/file/a /path/to/file/b
+.Ed
+.It Sy Example 5 No Adding a Mirror to a Tn ZFS No Storage Pool
+.Pp
+The following command adds two mirrored disks to the pool
+.Em tank ,
+assuming the pool is already made up of two-way mirrors. The additional space
+is immediately available to any datasets within the pool.
+.Bd -literal -offset 2n
+.Li # Ic zpool add tank mirror da2 da3
+.Ed
+.It Sy Example 6 No Listing Available Tn ZFS No Storage Pools
+.Pp
+The following command lists all available pools on the system.
+.Bd -literal -offset 2n
+.Li # Ic zpool list
+NAME   SIZE  ALLOC   FREE   FRAG  EXPANDSZ    CAP  DEDUP  HEALTH  ALTROOT
+pool  2.70T   473G  2.24T    33%         -    17%  1.00x  ONLINE  -
+test  1.98G  89.5K  1.98G    48%         -     0%  1.00x  ONLINE  -
+.Ed
+.It Sy Example 7 No Listing All Properties for a Pool
+.Pp
+The following command lists all the properties for a pool.
+.Bd -literal -offset 2n
+.Li # Ic zpool get all pool
+pool  size           2.70T       -
+pool  capacity       17%         -
+pool  altroot        -           default
+pool  health         ONLINE      -
+pool  guid           2501120270416322443  default
+pool  version        28          default
+pool  bootfs         pool/root   local
+pool  delegation     on          default
+pool  autoreplace    off         default
+pool  cachefile      -           default
+pool  failmode       wait        default
+pool  listsnapshots  off         default
+pool  autoexpand     off         default
+pool  dedupditto     0           default
+pool  dedupratio     1.00x       -
+pool  free           2.24T       -
+pool  allocated      473G        -
+pool  readonly       off         -
+.Ed
+.It Sy Example 8 No Destroying a Tn ZFS No Storage Pool
+.Pp
+The following command destroys the pool
+.Qq Em tank
+and any datasets contained within.
+.Bd -literal -offset 2n
+.Li # Ic zpool destroy -f tank
+.Ed
+.It Sy Example 9 No Exporting a Tn ZFS No Storage Pool
+.Pp
+The following command exports the devices in pool
+.Em tank
+so that they can be relocated or later imported.
+.Bd -literal -offset 2n
+.Li # Ic zpool export tank
+.Ed
+.It Sy Example 10 No Importing a Tn ZFS No Storage Pool
+.Pp
+The following command displays available pools, and then imports the pool
+.Qq Em tank
+for use on the system.
+.Pp
+The results from this command are similar to the following:
+.Bd -literal -offset 2n
+.Li # Ic zpool import
+
+  pool: tank
+    id: 15451357997522795478
+ state: ONLINE
+action: The pool can be imported using its name or numeric identifier.
+config:
+
+        tank        ONLINE
+          mirror    ONLINE
+               da0  ONLINE
+               da1  ONLINE
+.Ed
+.It Xo
+.Sy Example 11
+Upgrading All
+.Tn ZFS
+Storage Pools to the Current Version
+.Xc
+.Pp
+The following command upgrades all
+.Tn ZFS
+Storage pools to the current version of
+the software.
+.Bd -literal -offset 2n
+.Li # Ic zpool upgrade -a
+This system is currently running ZFS pool version 28.
+.Ed
+.It Sy Example 12 No Managing Hot Spares
+.Pp
+The following command creates a new pool with an available hot spare:
+.Bd -literal -offset 2n
+.Li # Ic zpool create tank mirror da0 da1 spare da2
+.Ed
+.Pp
+If one of the disks were to fail, the pool would be reduced to the degraded
+state. The failed device can be replaced using the following command:
+.Bd -literal -offset 2n
+.Li # Ic zpool replace tank da0 da2
+.Ed
+.Pp
+Once the data has been resilvered, the spare is automatically removed and is
+made available should another device fails. The hot spare can be permanently
+removed from the pool using the following command:
+.Bd -literal -offset 2n
+.Li # Ic zpool remove tank da2
+.Ed
+.It Xo
+.Sy Example 13
+Creating a
+.Tn ZFS
+Pool with Mirrored Separate Intent Logs
+.Xc
+.Pp
+The following command creates a
+.Tn ZFS
+storage pool consisting of two, two-way
+mirrors and mirrored log devices:
+.Bd -literal -offset 2n
+.Li # Ic zpool create pool mirror da0 da1 mirror da2 da3 log mirror da4 da5
+.Ed
+.It Sy Example 14 No Adding Cache Devices to a Tn ZFS No Pool
+.Pp
+The following command adds two disks for use as cache devices to a
+.Tn ZFS
+storage pool:
+.Bd -literal -offset 2n
+.Li # Ic zpool add pool cache da2 da3
+.Ed
+.Pp
+Once added, the cache devices gradually fill with content from main memory.
+Depending on the size of your cache devices, it could take over an hour for
+them to fill. Capacity and reads can be monitored using the
+.Cm iostat
+subcommand as follows:
+.Bd -literal -offset 2n
+.Li # Ic zpool iostat -v pool 5
+.Ed
+.It Xo
+.Sy Example 15
+Displaying expanded space on a device
+.Xc
+.Pp
+The following command dipslays the detailed information for the
+.Em data
+pool.
+This pool is comprised of a single
+.Em raidz
+vdev where one of its
+devices increased its capacity by 10GB.
+In this example, the pool will not
+be able to utilized this extra capacity until all the devices under the
+.Em raidz
+vdev have been expanded.
+.Bd -literal -offset 2n
+.Li # Ic zpool list -v data
+NAME       SIZE  ALLOC   FREE   FRAG  EXPANDSZ    CAP  DEDUP  HEALTH  ALTROOT
+data      23.9G  14.6G  9.30G    48%         -    61%  1.00x  ONLINE  -
+  raidz1  23.9G  14.6G  9.30G    48%         -
+    ada0      -      -      -      -         -
+    ada1      -      -      -      -       10G
+    ada2      -      -      -      -         -
+.Ed
+.It Xo
+.Sy Example 16
+Removing a Mirrored top-level (Log or Data) Device
+.Xc
+.Pp
+The following commands remove the mirrored log device
+.Sy mirror-2
+and mirrored top-level data device
+.Sy mirror-1 .
+.Pp
+Given this configuration:
+.Bd -literal -offset 2n
+   pool: tank
+  state: ONLINE
+  scrub: none requested
+ config:
+
+         NAME        STATE     READ WRITE CKSUM
+         tank        ONLINE       0     0     0
+           mirror-0  ONLINE       0     0     0
+                da0  ONLINE       0     0     0
+                da1  ONLINE       0     0     0
+           mirror-1  ONLINE       0     0     0
+                da2  ONLINE       0     0     0
+                da3  ONLINE       0     0     0
+         logs
+           mirror-2  ONLINE       0     0     0
+                da4  ONLINE       0     0     0
+                da5  ONLINE       0     0     0
+.Ed
+.Pp
+The command to remove the mirrored log
+.Em mirror-2
+is:
+.Bd -literal -offset 2n
+.Li # Ic zpool remove tank mirror-2
+.Ed
+.Pp
+The command to remove the mirrored data
+.Em mirror-1
+is:
+.Bd -literal -offset 2n
+.Li # Ic zpool remove tank mirror-1
+.Ed
+.It Xo
+.Sy Example 17
+Recovering a Faulted
+.Tn ZFS
+Pool
+.Xc
+.Pp
+If a pool is faulted but recoverable, a message indicating this state is
+provided by
+.Qq Nm Cm status
+if the pool was cached (see the
+.Fl c Ar cachefile
+argument above), or as part of the error output from a failed
+.Qq Nm Cm import
+of the pool.
+.Pp
+Recover a cached pool with the
+.Qq Nm Cm clear
+command:
+.Bd -literal -offset 2n
+.Li # Ic zpool clear -F data
+Pool data returned to its state as of Tue Sep 08 13:23:35 2009.
+Discarded approximately 29 seconds of transactions.
+.Ed
+.Pp
+If the pool configuration was not cached, use
+.Qq Nm Cm import
+with the recovery mode flag:
+.Bd -literal -offset 2n
+.Li # Ic zpool import -F data
+Pool data returned to its state as of Tue Sep 08 13:23:35 2009.
+Discarded approximately 29 seconds of transactions.
+.Ed
+.El
+.Sh SEE ALSO
+.Xr zpool-features 7 ,
+.Xr zfs 8 ,
+.Xr zfsd 8
+.Sh AUTHORS
+This manual page is a
+.Xr mdoc 7
+reimplementation of the
+.Tn OpenSolaris
+manual page
+.Em zpool(1M) ,
+modified and customized for
+.Fx
+and licensed under the Common Development and Distribution License
+.Pq Tn CDDL .
+.Pp
+The
+.Xr mdoc 7
+implementation of this manual page was initially written by
+.An Martin Matuska Aq mm@FreeBSD.org .

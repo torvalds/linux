@@ -1,0 +1,94 @@
+.\"-
+.\" Copyright (c) 2001 Chris D. Faulhaber
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 10, 2001
+.Dt ACL_GET_PERM_NP 3
+.Os
+.Sh NAME
+.Nm acl_get_perm_np
+.Nd "check if a permission is set in a permission set"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/acl.h
+.Ft int
+.Fn acl_get_perm_np "acl_permset_t permset_d" "acl_perm_t perm"
+.Sh DESCRIPTION
+The
+.Fn acl_get_perm_np
+function
+is a non-portable function that checks if a permission is set in
+a permission set.
+.Sh RETURN VALUES
+If the permission in
+.Fa perm
+is set in the permission set
+.Fa permset_d ,
+a value of
+1
+is returned, otherwise a value of
+0
+is returned.
+.Sh ERRORS
+If any of the following conditions occur, the
+.Fn acl_get_perm_np
+function will return a value of
+\-1
+and set global variable
+.Va errno
+to the corresponding value:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Argument
+.Fa perm
+does not contain a valid ACL permission or argument
+.Fa permset_d
+is not a valid ACL permset.
+.El
+.Sh SEE ALSO
+.Xr acl 3 ,
+.Xr acl_add_perm 3 ,
+.Xr acl_clear_perms 3 ,
+.Xr acl_delete_perm 3 ,
+.Xr acl_get_permset 3 ,
+.Xr acl_set_permset 3 ,
+.Xr posix1e 3
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+.Sh HISTORY
+POSIX.1e support was introduced in
+.Fx 4.0 .
+The
+.Fn acl_get_perm_np
+function was added in
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Fn acl_get_perm_np
+function was written by
+.An Chris D. Faulhaber Aq Mt jedgar@fxp.org .

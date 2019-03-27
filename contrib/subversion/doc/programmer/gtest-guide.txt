@@ -1,0 +1,30 @@
+Googlemock and Googletest Suite for Subversion
+---------------------------------------------
+
+Googlemock and Googletest are external packages that are downloaded
+and compiled on request, as part of regular compilations.
+
+Googlemock is available here:
+
+    https://code.google.com/p/googlemock/
+
+The source packages already include Googletest, which is available
+here:
+
+   https://code.google.com/p/googletest/
+
+Subversion uses Googlemock and Googletest for the C++HL test suite.
+
+
+
+To configure Subversion to use Googlemock, type
+
+   ./get-dep.sh gmock
+
+This will download Googlemock and put the fused source into the
+'gmock-fused' directory. Once it's there, configure will pick it up
+automatically (but you do have to re-run autogen.sh and configure).
+
+You can disable building Googlemock (and hence the C++HL test suite)
+with the --disable-gmock configure option. This will tell configure to
+ignore the gmock-fused directory.

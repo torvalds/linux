@@ -1,0 +1,16 @@
+# Host: NCR 3000 (Intel 386 running SVR4)
+
+# The NCR 3000 ships with a MetaWare compiler installed as /bin/cc.
+# This compiler not only emits obnoxious copyright messages every time
+# you run it, but it chokes and dies on a whole bunch of GNU source
+# files.  Default to using the AT&T compiler installed in /usr/ccs/ATT/cc.
+# Unfortunately though, the AT&T compiler sometimes generates code that
+# the assembler barfs on if -g is used, so disable it by default as well.
+CC = /usr/ccs/ATT/cc
+CFLAGS =
+
+XM_FILE= xm-i386v4.h
+
+NAT_FILE= nm-i386v4.h
+NATDEPFILES= corelow.o core-regset.o fork-child.o i386v4-nat.o procfs.o \
+	proc-api.o proc-events.o proc-flags.o proc-why.o

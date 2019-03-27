@@ -1,0 +1,174 @@
+.\"
+.\" Copyright (C) 2008-2009 Semihalf, Michal Hajduk and Bartlomiej Sieka
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 23, 2009
+.Dt I2C 8
+.Os
+.Sh NAME
+.Nm i2c
+.Nd test I2C bus and slave devices
+.Sh SYNOPSIS
+.Nm
+.Cm -a Ar address
+.Op Fl f Ar device
+.Op Fl d Ar r|w
+.Op Fl w Ar 0|8|16
+.Op Fl o Ar offset
+.Op Fl c Ar count
+.Op Fl m Ar ss|rs|no
+.Op Fl b
+.Op Fl v
+.Nm
+.Cm -s
+.Op Fl f Ar device
+.Op Fl n Ar skip_addr
+.Op Fl v
+.Nm
+.Cm -r
+.Op Fl f Ar device
+.Op Fl v
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to perform raw data transfers (read or write) with devices
+on the I2C bus. It can also scan the bus for available devices and reset the
+I2C controller.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl d Ar direction"
+.It Fl a Ar address
+7-bit address on the I2C device to operate on (hex).
+.It Fl b
+binary mode - when performing a read operation, the data read from the device
+is output in binary format on stdout; when doing a write, the binary data to
+be written to the device is read from stdin.
+.It Fl c Ar count
+number of bytes to transfer (dec).
+.It Fl d Ar r|w
+transfer direction: r - read, w - write.
+.It Fl f Ar device
+I2C bus to use (default is /dev/iic0).
+.It Fl m Ar ss|rs|no
+addressing mode, i.e., I2C bus operations performed after the offset for the
+transfer has been written to the device and before the actual read/write
+operation. rs - repeated start; ss - stop start; no - none.
+.It Fl n Ar skip_addr
+skip address - address(es) to be skipped during bus scan.
+There are two ways to specify addresses to ignore: by range 'a..b' or
+using selected addresses 'a:b:c'. This option is available only when "-s" is
+used.
+.It Fl o Ar offset
+offset within the device for data transfer (hex).
+The default is zero.
+Use
+.Dq -w 0
+to disable writing of the offset to the slave.
+.It Fl r
+reset the controller.
+.It Fl s
+scan the bus for devices.
+.It Fl v
+be verbose.
+.It Fl w Ar 0|8|16
+device addressing width (in bits).
+This is used to determine how to pass
+.Ar offset
+specified with
+.Fl o
+to the slave.
+Zero means that the offset is ignored and not passed to the slave at all.
+.El
+.Sh WARNINGS
+Great care must be taken when manipulating slave I2C devices with the
+.Nm
+utility. Often times important configuration data for the system is kept in
+non-volatile but write enabled memories located on the I2C bus, for example
+Ethernet hardware addresses, RAM module parameters (SPD), processor reset
+configuration word etc.
+.Pp
+It is very easy to render the whole system unusable when such configuration
+data is deleted or altered, so use the
+.Dq -d w
+(write) command only if you know exactly what you are doing.
+.Pp
+Also avoid ungraceful interrupting of an ongoing transaction on the I2C bus,
+as it can lead to potentially dangerous effects. Consider the following
+scenario: when the host CPU is reset (for whatever reason) in the middle of a
+started I2C transaction, the I2C slave device could be left in write mode
+waiting for data or offset to arrive. When the CPU reinitializes itself and
+talks to this I2C slave device again, the commands and other control info it
+sends are treated by the slave device as data or offset it was waiting for,
+and there's great potential for corruption if such a write is performed.
+.Sh EXAMPLES
+.Bl -bullet
+.It
+Scan the default bus (/dev/iic0) for devices:
+.Pp
+i2c -s
+.It
+Scan the default bus (/dev/iic0) for devices and skip addresses 0x56 and
+0x45.
+.Pp
+i2c -s -n 0x56:0x45
+.It
+Scan the default bus (/dev/iic0) for devices and skip address range
+0x34 to 0x56.
+.Pp
+i2c -s -n 0x34..0x56
+.It
+Read 8 bytes of data from device at address 0x56 (e.g., an EEPROM):
+.Pp
+i2c -a 0x56 -d r -c 8
+.It
+Write 16 bytes of data from file data.bin to device 0x56 at offset 0x10:
+.Pp
+i2c -a 0x56 -d w -c 16 -o 0x10 -b < data.bin
+.It
+Copy 4 bytes between two EEPROMs (0x56 on /dev/iic1 to 0x57 on /dev/iic0):
+.Pp
+i2c -a 0x56 -f /dev/iic1 -d r -c 0x4 -b | i2c -a 0x57 -f /dev/iic0 -d w -c 4 -b
+.It
+Reset the controller:
+.Pp
+i2c -f /dev/iic1 -r
+.El
+.Sh SEE ALSO
+.Xr iic 4 ,
+.Xr iicbus 4
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility and this manual page were written by
+.An Bartlomiej Sieka Aq Mt tur@semihalf.com
+and
+.An Michal Hajduk Aq Mt mih@semihalf.com .

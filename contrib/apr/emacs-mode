@@ -1,0 +1,15 @@
+;; M-x load-file <this file>
+;; or emacs -l <this file>
+;; to use this style: C-c . apache
+(c-add-style "apache"
+	     '((inclass . ++)
+	       (defun-block-intro . ++)
+	       (statement-block-intro . ++)
+	       (substatement . ++)
+	       (brace-list-intro . ++)
+	       (statement-case-intro . ++)
+	       (inextern-lang . 0)
+	       ))
+(setq-default indent-tabs-mode nil)
+;; if you forgot to do this at startup, then M-x eval-expression
+;; (setq indent-tabs-mode nil) on each buffer

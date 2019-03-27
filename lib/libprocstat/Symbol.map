@@ -1,0 +1,46 @@
+/*
+ * $FreeBSD$
+ */
+FBSD_1.2 {
+	procstat_close;
+	procstat_freefiles;
+	procstat_freeprocs;
+	procstat_get_pipe_info;
+	procstat_getfiles;
+	procstat_getprocs;
+	procstat_open_kvm;
+	procstat_open_sysctl;
+};
+
+FBSD_1.3 {
+	procstat_freeargv;
+	procstat_freeauxv;
+	procstat_freeenvv;
+	procstat_freegroups;
+	procstat_freekstack;
+	procstat_freevmmap;
+	procstat_getargv;
+	procstat_getauxv;
+	procstat_getenvv;
+	procstat_getgroups;
+	procstat_getkstack;
+	procstat_getosrel;
+	procstat_getpathname;
+	procstat_getrlimit;
+	procstat_getumask;
+	procstat_getvmmap;
+	procstat_open_core;
+};
+
+FBSD_1.5 {
+	procstat_freeptlwpinfo;
+	procstat_getptlwpinfo;
+	procstat_get_sem_info;
+	procstat_get_shm_info;
+	procstat_get_socket_info;
+};
+
+FBSD_1.6 {
+	procstat_get_pts_info;
+	procstat_get_vnode_info;
+};

@@ -1,0 +1,8 @@
+#!/bin/sh
+# $FreeBSD$
+# print version string of NTP daemon
+# Copyright (c) 1997 by Ulrich Windl
+# Modified 970318: Harlan Stenn: rewritten...
+# usage: ntpver hostname
+
+ntpq -c "rv 0 daemon_version" $* | awk '/daemon_version/ { print $2 }'

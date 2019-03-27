@@ -1,0 +1,319 @@
+.\" $FreeBSD$
+.Dd May 3, 2018
+.Dt IFLIBDD 9
+.Os
+.Sh NAME
+.Nm iflibdd
+.Nd Device Dependent Configuration Functions
+.Sh SYNOPSIS
+.In "ifdi_if.h"
+.Ss "Soft Queue Setup and Teardown Functions"
+.Ss "Mandatory Functions"
+.Ft int
+.Fo ifdi_tx_queues_alloc
+.Fa "if_ctx_t ctx"
+.Fa "caddr_t *vaddrs"
+.Fa "uint64_t *paddrs"
+.Fa "int ntxqs"
+.Fa "int ntxqsets"
+.Fc
+.Ft int
+.Fo ifdi_rx_queues_alloc
+.Fa "if_ctx_t ctx"
+.Fa "caddr_t *vaddrs"
+.Fa "uint64_t *paddrs"
+.Fa "int nrxqs"
+.Fa "int nrxqsets"
+.Fc
+.Ft int
+.Fo ifdi_queues_free
+.Fa "if_ctx_t ctx"
+.Fc
+.Ss "Optional Functions"
+.Ft int
+.Fo ifdi_txq_setup
+.Fa "if_ctx_t ctx"
+.Fa "uint16_t qid"
+.Fc
+.Ft int
+.Fo ifdi_rxq_setup
+.Fa "if_ctx_t ctx"
+.Fa "uint16_t qid"
+.Fc
+.Ss "Device Setup and Teardown Functions"
+.Ss "Mandatory Functions"
+.Ft int
+.Fo ifdi_attach_pre
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft int
+.Fo ifdi_attach_post
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft int
+.Fo ifdi_detach
+.Fa "if_ctx_t ctx"
+.Fc
+.Ss "Optional Functions"
+.Ft void
+.Fo ifdi_vlan_register
+.Fa "if_ctx_t ctx"
+.Fa "uint16_t vtag"
+.Fc
+.Ft void
+.Fo ifdi_vlan_unregister
+.Fa "if_ctx_t ctx"
+.Fa "uint16_t vtag"
+.Fc
+.Ft int
+.Fo ifdi_suspend
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft int
+.Fo ifdi_resume
+.Fa "if_ctx_t ctx"
+.Fc
+.Ss "Device Configuration Functions"
+.Ss "Mandatory Functions"
+.Ft void
+.Fo ifdi_init
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft void
+.Fo ifdi_stop
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft void
+.Fo ifdi_multi_set
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft int
+.Fo ifdi_mtu_set
+.Fa "if_ctx_t ctx"
+.Fa "uint32_t mtu"
+.Fc
+.Ft void
+.Fo ifdi_media_status
+.Fa "if_ctx_t ctx"
+.Fa "struct ifmediareq *ifr"
+.Fc
+.Ft int
+.Fo ifdi_media_change
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft void
+.Fo ifdi_promisc_set
+.Fa "if_ctx_t ctx"
+.Fa "int flags"
+.Fc
+.Ft uint64_t
+.Fo ifdi_get_counter
+.Fa "if_ctx_t ctx"
+.Fa "ift_counter cnt"
+.Fc
+.Ft void
+.Fo ifdi_update_admin_status
+.Fa "if_ctx_t ctx"
+.Fc
+.Ss "Optional Functions"
+.Ft void
+.Fo ifdi_media_set
+.Fa "if_ctx_t ctx"
+.Fc
+.Ss "Interrupt enable/disable"
+.Ss "Mandatory Functions"
+.Ft void
+.Fo ifdi_intr_enable
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft void
+.Fo ifdi_queue_intr_enable
+.Fa "if_ctx_t ctx"
+.Fa "uint16_t qid"
+.Fc
+.Ft void
+.Fo ifdi_intr_disable
+.Fa "if_ctx_t ctx"
+.Fc
+.Ss IOV Support
+.Ft init
+.Fo iov_init
+.Fa "if_ctx_t ctx"
+.Fa "uint16_t num_vfs"
+.Fa "const nvlist_t *params"
+.Fc
+.Ft void
+.Fo iov_uinit
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft void
+.Fo ifdi_vflr_handle
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft int
+.Fo ifdi_vf_add
+.Fa "if_ctx_t ctx"
+.Fa "uint16_t vfnum"
+.Fa "const nvlist_t *params"
+.Fc
+.Ss "Optional Functions"
+.Ft void
+.Fo ifdi_link_intr_enable
+.Fa "if_ctx_t ctx"
+.Fc
+.Ss "Optional Service Routines"
+.Ft void
+.Fo ifdi_timer
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft void
+.Fo ifdi_watchdog_reset
+.Fa "if_ctx_t ctx"
+.Fc
+.Ss "Additional Functions"
+.Ft void
+.Fo ifdi_led_func
+.Fa "if_ctx_t ctx"
+.Fa "int onoff"
+.Fc
+.Ft int
+.Fo ifdi_sysctl_int_delay
+.Fa "if_ctx_t ctx"
+.Fa "if_int_delay_info_t iidi"
+.Fc
+.Ft int
+.Fo ifdi_i2c_req
+.Fa "if_ctx_t ctx"
+.Fa "struct ifi2creq *req"
+.Fc
+.Sh FUNCTIONS
+The above named functions are device dependent configuration functions.
+These routines are registered with iflib by the driver and are called from the
+corresponding iflib function to configure device specific functions and
+registers.
+.Ss Device Dependent Functions
+.Ss Soft Queue Setup and Teardown
+.Bl -ohang -offset indent
+.It Fn ifdi_tx_queues_alloc
+Mandatory function that is called during iflib_attach to allocate transmit
+queues.
+vaddrs and paddrs are arrays of virtual and physical addresses respectively of
+the hardware transmit queues.
+ntxqs is the number of queues per qset.
+ntxqsets is the number of qsets.
+.It Fn ifdi_rx_queues_alloc
+Mandatory function that is called during iflib_attach to allocate receive
+queues.
+vaddrs and paddrs are arrays of virtual and physical addresses respectively of
+the hardware receive queues.
+nrxqs is the number of queues per qset.
+nrxqsets is the number of qsets.
+.It Fn ifdi_queues_free
+Mandatory function that frees the allocated queues and associated transmit
+buffers.
+.It Fn ifdi_txq_setup
+Optional function for each transmit queue that handles device specific
+initialization.
+.It Fn ifdi_rxq_setup
+Optional function for each receive queue that handles device specific
+initialization.
+.El
+.Ss Device Setup and Teardown
+.Bl -ohang -offset indent
+.It Fn ifdi_attach_pre
+Mandatory function implemented by the driver to perform any attach logic that
+procedes interrupt and queue allocation, queue setup, and interrupt assignment.
+.It Fn ifdi_attach_post
+Mandatory function implemented by the driver to perform any attach logic that
+occurs after ifdi_attach_pre, and iflib's queue setup and MSI/MSIX(X) or legacy
+interrupt assignment.
+.It Fn ifdi_detach
+Mandatory function that frees any resources allocated by the driver in
+ifdi_attach_pre and ifdi_attach_post.
+.It Fn ifdi_vlan_register
+Optional function called by the VLAN config eventhandler.
+.Va vtag
+is the new VLAN tag.
+.It Fn ifdi_vlan_unregister
+Optional function called by the VLAN unconfig eventhandler.
+.It Fn ifdi_suspend
+Optional function that suspends the driver.
+.It Fn ifdi_resume
+Optional function that resumes a driver.
+.El
+.Ss Device Configuration Functions
+.Bl -ohang -offset indent
+.It Fn ifdi_init
+Mandatory function that will initialize and bring up the hardware.
+For example, it will reset the chip and enable the receiver unit.
+It should mark the interface running, but not active (
+.Dv IFF_DRV_RUNNING ,
+.Dv ~IIF_DRV_OACTIVE ).
+.It Fn ifdi_stop
+Mandatory function that should disable all traffic on the interface by issuing
+a global reset on the MAC and deallocating the TX and RX buffers.
+.It Fn ifdi_multi_set
+Programs the interfaces multicast addresses
+.It Fn ifdi_media_status
+Media Ioctl Callback.
+Function is called whenever the user queries the status of the interface using
+.Xr ifconfig 8 .
+The driver sets the appropriate link type and speed in ifmr->ifm_active.
+.It Fn ifdi_mtu_set
+Sets the mtu interface to the value of the second function parameter mtu.
+.It Fn ifdi_media_change
+Function is called when the user changes speed/duplex using the media/mediaopt
+option with
+.Xr ifconfig 8 .
+.It Fn ifdi_promisc_set
+Enables or disables promisc settings depending upon the flags value.
+.Va flags
+contains the interface's
+.Xr ifnet 9
+flags.
+.It Fn ifdi_get_counter
+Returns the value for counter cnt depending upon counter type.
+.It Fn ifdi_update_admin_status
+Sets the link_up state to TRUE or FALSE depending upon the OS link state.
+A real check of the hardware only happens with a link interrupt.
+.It Fn ifdi_media_set
+Need to define
+.El
+.Ss Interrupt Enable/Disable
+.Bl -ohang -offset indent
+.It Fn ifdi_intr_enable
+Mandatory function that enables all interrupts.
+.It Fn ifdi_intr_disable
+Mandatory function that disables all interrupts.
+.It Fn ifdi_queue_intr_enable
+Mandatory function that enables interrupts on queue qid.
+.It Fn iov_init
+Initialize num_vfs VFs.
+.It Fn io_uninit
+Tear down the context for all VFs.
+.It Fn ifdi_vflr_handle
+Handle any VFs that have reset themselves via a Function Level Reset (FLR).
+.It Fn ifdi_vf_add
+Set parameters in params in VF vfnum.
+.El
+.Ss Service Routines
+.Bl -ohang -offset indent
+.It Fn ifdi_timer
+Optional timer routine that will be run every 500ms.
+.It Fn ifdi_watchdog_reset
+Optional function to run when a transmit queue is hung.
+.El
+.Ss Additional Functions
+.Bl -ohang -offset indent
+.It Fn ifdi_led_func
+.It Fn ifdi_sysctl_int_delay
+.It Fn ifdi_i2c_req
+.El
+.Sh SEE ALSO
+.Xr ifconfig 8 ,
+.Xr iflibdi 9 ,
+.Xr iflibtxrx 9 ,
+.Xr ifnet 9
+.Sh AUTHORS
+This manual page was written by
+.An Nicole Graziano

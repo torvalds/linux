@@ -1,0 +1,475 @@
+.\"
+.\" Copyright (c) 2014, 2015 Marcel Moolenaar
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 7, 2015
+.Dt PROTO 4
+.Os
+.\"
+.Sh NAME
+.Nm proto
+.Nd Generic prototyping and diagnostics driver
+.\"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device proto"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+proto_load="YES"
+.Ed
+.Pp
+To have the driver attach to a device instead of its regular driver,
+mention it in the list of devices assigned to the following loader variable:
+.Bd -ragged -offset indent
+hw.proto.attach="desc[,desc]"
+.Ed
+.\"
+.Sh DESCRIPTION
+The
+.Nm
+device driver attaches to PCI or ISA devices when no other device drivers
+are present for those devices and it creates device special files for all
+resources associated with the device.
+The driver itself has no knowledge of the device it attaches to.
+Programs can open these device special files and perform register-level
+reads and writes.
+As such, the
+.Nm
+device driver is nothing but a conduit or gateway between user space
+programs and the hardware device.
+.Pp
+Examples for why this is useful include hardware diagnostics and prototyping.
+In both these use cases, it is far more convenient to develop and run the
+logic in user space.
+Especially hardware diagnostics requires a somewhat user-friendly interface
+and adequate reporting.
+Neither is done easily as kernel code.
+.Ss I/O port resources
+Device special files created for I/O port resources allow
+.Xr lseek 2 ,
+.Xr read 2 ,
+.Xr write 2
+and
+.Xr ioctl 2
+operations to be performed on them.
+The
+.Xr read 2
+and
+.Xr write 2
+system calls are used to perform input and output (resp.) on the port.
+The amount of data that can be read or written at any single time is either
+1, 2 or 4 bytes.
+While the
+.Nm
+driver does not prevent reading or writing 8 bytes at a time for some
+architectures, it should not be assumed that such actually produces
+correct results.
+The
+.Xr lseek 2
+system call is used to select the port number, relative to the I/O port
+region being represented by the device special file.
+If, for example, the device special file corresponds to an I/O port region
+from 0x3f8 to 0x3ff inclusive, then an offset of 4 given to lseek with a
+whence value of SEEK_SET will target port 0x3fc on the next read or write
+operation.
+The
+.Xr ioctl 2
+system call can be used for the
+.Dv PROTO_IOC_REGION
+request.
+This ioctl request returns the extend of the resource covered by this
+device special file.
+The extend is returned in the following structure:
+.Bd -literal
+struct proto_ioc_region {
+        unsigned long   address;
+        unsigned long   size;
+};
+.Ed
+.Ss Memory mapped I/O resources
+The device special files created for memory mapped I/O resources behave
+in the same way as those created for I/O port resources.
+Additionally, device special files for memory mapped I/O resources allow
+the memory to be mapped into the process' address space using
+.Xr mmap 2 .
+Reads and writes to the memory address returned by
+.Xr mmap 2
+go directly to the hardware.
+As such the use of
+.Xr read 2
+and
+.Xr write 2
+can be avoided, reducing the access overhead significantly.
+Alignment and access width constraints put forth by the underlying device
+apply.
+Also, make sure the compiler does not optimize memory accesses away or has
+them coalesced into bigger accesses.
+.Ss DMA pseudo resource
+A device special file named
+.Pa busdma
+is created for the purpose of doing DMA.
+It only supports
+.Xr ioctl 2
+and only for the
+.Dv PROTO_IOC_BUSDMA
+request.
+This device special file does not support
+.Xr read 2
+nor
+.Xr write 2 .
+The
+.Dv PROTO_IOC_BUSDMA
+request has an argument that is both in and out and is defined as
+follows:
+.Bd -literal
+struct proto_ioc_busdma {
+        unsigned int    request;
+        unsigned long   key;
+        union {
+                struct {
+                        unsigned long   align;
+                        unsigned long   bndry;
+                        unsigned long   maxaddr;
+                        unsigned long   maxsz;
+                        unsigned long   maxsegsz;
+                        unsigned int    nsegs;
+                        unsigned int    datarate;
+                        unsigned int    flags;
+                } tag;
+                struct {
+                        unsigned long   tag;
+                        unsigned int    flags;
+                        unsigned long   virt_addr;
+                        unsigned long   virt_size;
+                        unsigned int    phys_nsegs;
+                        unsigned long   phys_addr;
+                        unsigned long   bus_addr;
+                        unsigned int    bus_nsegs;
+                } md;
+                struct {
+                        unsigned int    op;
+                        unsigned long   base;
+                        unsigned long   size;
+                } sync;
+        } u;
+        unsigned long   result;
+};
+.Ed
+The
+.Va request
+field is used to specify which DMA operation is to be performed.
+The
+.Va key
+field is used to specify which object the operation applies to.
+An object is either a tag or a memory descriptor (md).
+The following DMA operations are defined:
+.Bl -tag -width XXXX
+.It PROTO_IOC_BUSDMA_TAG_CREATE
+Create a root tag.
+The
+.Va result
+field is set on output with the key of the DMA tag.
+The tag is created with the constraints given by the
+.Va tag
+sub-structure.
+These constraints correspond roughly to those that can be given to the
+.Xr bus_dma_tag_create 9
+function.
+.It PROTO_IOC_BUSDMA_TAG_DERIVE
+Create a derived tag.
+The
+.Va key
+field is used to identify the parent tag from which to derive the new tag.
+The key of the derived tag is returned in the
+.Va result
+field.
+The derived tag combines the constraints of the parent tag with those
+given by the
+.Va tag
+sub-structure.
+The combined constraints are written back to the
+.Va tag
+sub-structure on return.
+.It PROTO_IOC_BUSDMA_TAG_DESTROY
+Destroy a root or derived tag previously created.
+The
+.Va key
+field specifies the tag to destroy.
+A tag can only be destroyed when not referenced anymore.
+This means that derived tags that have this tag as a parent and memory
+descriptors created from this tag must be destroyed first.
+.It PROTO_IOC_BUSDMA_MEM_ALLOC
+Allocate memory that satisfies the constraints put forth by the tag
+given in the
+.Va tag
+field of the
+.Va md
+sub-structure.
+The key of the memory descriptor for this memory is returned in the
+.Va result
+field.
+The
+.Va md
+sub-structure is filled on return with details of the allocation.
+The kernel virtual address and the size of the allocated memory are returned
+in the
+.Va virt_addr
+and
+.Va virt_size
+fields.
+The number of contigous physical memory segments and the address of the first
+segment are returned in the
+.Va phys_nsegs
+and
+.Va phys_addr
+fields.
+Allocated memory is automatically loaded and thus mapped into bus space.
+The number of bus segments and the address of the first segment are returned
+in the
+.Va bus_nsegs
+and
+.Va bus_addr
+fields.
+The behaviour of this operation banks heavily on how
+.Xr bus_dmamem_alloc 9
+is implemented, which means that memory is currently always allocated as a
+single contigous region of physical memory.
+In practice this also tends to give a single contigous region in bus space.
+This may change over time.
+.It PROTO_IOC_BUSDMA_MEM_FREE
+Free previously allocated memory and destroy the memory desciptor.
+The
+.Nm
+driver is not in a position to track whether the memory has been mapped in
+the process' address space, so the application is responsible for unmapping
+the memory before it is freed.
+The
+.Nm
+driver also cannot protect against the hardware writing to or reading from
+the memory, even after it has been freed.
+When the memory is reused for other purposes it can be corrupted or cause
+the hardware to behave in unpredictable ways when DMA has not stopped
+completely before freeing.
+.It PROTO_IOC_BUSDMA_MD_CREATE
+Create an empty memory descriptor with the tag specified in the
+.Va tag
+field of the
+.Va md
+sub-structure.
+The key of the memory descriptor is returned in the
+.Va result
+field.
+.It PROTO_IOC_BUSDMA_MD_DESTROY
+Destroy the previously created memory descriptor specified by the
+.Va key
+field.
+When the memory descriptor is still loaded, it is unloaded first.
+.It PROTO_IOC_BUSDMA_MD_LOAD
+Load a contigous region of memory in the memory descriptor specified by the
+.Va key
+field.
+The size and address in the process' virtual address space are specified
+by the
+.Va virt_size
+and
+.Va virt_addr
+fields.
+On return, the
+.Va md
+sub-structure contains the result of the operation.
+The number of physical segments and the address of the first segment is
+returned in the
+.Va phys_nsegs
+and
+.Va phys_addr
+fields.
+The number of bus space segments and the address of the first segment in
+bus space is returned in the
+.Va bus_nsegs
+and
+.Va bus_addr
+fields.
+.It PROTO_IOC_BUSDMA_MD_UNLOAD
+Unload the memory descriptor specified by the
+.Va key
+field.
+.It PROTO_IOC_BUSDMA_SYNC
+Guarantee that all hardware components have a coherent view of the memory
+tracked by the memory descriptor, specified by the
+.Va key
+field.
+A sub-section of the memory can be targeted by specifying the relative
+offset and size of the memory to make coherent.
+The offset and size are given by the
+.Va base
+and
+.Va size
+fields of the
+.Va sync
+sub-structure.
+The
+.Va op
+field holds the sync operation to be performed.
+This is similar to the
+.Xr bus_dmamap_sync 9
+function.
+.El
+.Ss PCI configuration space
+Access to PCI configuration space is possible through the
+.Pa pcicfg
+device special file.
+The device special file supports
+.Xr lseek 2 ,
+.Xr read 2
+and
+.Xr write 2 .
+Usage is the asme as for I/O port resources.
+.Sh FILES
+All device special files corresponding to a PCI device are located under
+.Pa /dev/proto/pci<d>:<b>:<s>:<f>
+with
+.Pa pci<d>:<b>:<s>:<f>
+representing the location of the PCI device in the PCI hierarchy.
+A PCI location includes:
+.Pp
+.Bl -tag -width XXXXXX -compact -offset indent
+.It <d>
+The PCI domain number
+.It <b>
+The PCI bus number
+.It <s>
+The PCI slot or device number
+.It <f>
+The PCI function number
+.El
+.Pp
+Every PCI device has a device special file called
+.Pa pcicfg .
+This device special file gives access to the PCI configuration space.
+A device special file called
+.Pa busdma
+is also created.
+This device special file provides the interfaces needed for doing DMA.
+For each valid base address register (BAR), a device special file is created
+that contains the BAR offset and the resource type.
+A resource type can be either
+.Pa io
+or
+.Pa mem
+representing I/O port or memory mapped I/O space (resp.)
+.Pp
+ISA devices do not have a location.
+Instead, they are identified by the
+first I/O port address or first memory mapped I/O address.
+Consequently, all device special files corresponding to an ISA device are
+located under
+.Pa /dev/proto/isa:<addr>
+with
+.Pa addr
+the address in hexadecimal notation.
+For each I/O port or memory mapped I/O address, a device special file is
+created that contains the resource identification used by the kernel and
+the resource type.
+The resource type can be either
+.Pa io
+or
+.Pa mem
+representing I/O port or memory mapped I/O space (resp.)
+When the device has a DMA channel assigned to it, a device special file
+with the name
+.Pa busdma
+is created as well.
+This device special file provides the interfaces needed for doing DMA.
+.Pp
+If the ISA device is not a Plug-and-Play device nor present in the ACPI
+device tree, it must have the appropriate hints so that the kernel can
+reserve the resources for it.
+.\"
+.Sh EXAMPLES
+A single function PCI device in domain 0, on bus 1, in slot 2 and having a
+single memory mapped I/O region will have the following device special files:
+.Pp
+.Bl -tag -width XXXXXX -compact -offset indent
+.It Pa /dev/proto/pci0:1:2:0/10.mem
+.It Pa /dev/proto/pci0:1:2:0/pcicfg
+.El
+.Pp
+A legacy floppy controller will have the following device files:
+.Pp
+.Bl -tag -width XXXXXX -compact -offset indent
+.It Pa /dev/proto/isa:0x3f0/00.io
+.It Pa /dev/proto/isa:0x3f0/01.io
+.It Pa /dev/proto/isa:0x3f0/busdma
+.El
+.\"
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr lseek 2 ,
+.Xr mmap 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr bus_dma_tag_create 9 ,
+.Xr bus_dmamap_sync 9 ,
+.Xr bus_dmamem_alloc 9
+.\"
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were written by
+.An Marcel Moolenaar Aq Mt marcel@xcllnt.net .
+.Sh SECURITY CONSIDERATIONS
+Because programs have direct access to the hardware, the
+.Nm
+driver is inherently insecure.
+It is not advisable to use this driver on a production machine.
+.\"
+.Sh MISSING FUNCTIONALITY
+The
+.Nm
+driver does not fully support memory descriptors that need multiple
+physical memory segments or multiple bus space segments.
+At the very least, an operation is needed on the DMA pseudo resource
+for the application to obtain all segments.
+.Pp
+The
+.Nm
+driver does not yet support interrupts.
+Since interrupts cannot be handled by the driver itself, they must be
+converted into signals and delivered to the program that has registered
+for interrupts.
+A satisfactory mechanism for keeping the interrupt masked during the
+signal handling is still being worked out.
+.Pp
+DMA support for devices other than busmaster devices is not present yet.
+The details of how a program is to interact with the DMA controller still
+need to be fleshed out.

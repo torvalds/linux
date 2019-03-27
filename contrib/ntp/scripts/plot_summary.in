@@ -1,0 +1,329 @@
+#! @PATH_PERL@ -w
+# $Id$
+#
+# Use Gnuplot to display data in summary files produced by summary.pl.
+# This script requires GNUPLOT 3.7!
+#
+# Copyright (c) 1997, 1999 by Ulrich Windl <Ulrich.Windl@rz.uni-regensburg.de>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+package plot_summary;
+use 5.006_000;
+use strict;
+use Time::Local;
+
+my ($identifier, $offset_limit, $gnuplot_terminal, $wait_after_plot,
+    $output_file, $output_file_number);
+
+exit run(@ARGV) unless caller;
+
+sub run {
+    my $opts;
+    if (!processOptions(\@_, $opts)) {
+        usage(1);
+    }
+
+    $identifier  = $opts->{'identifier'};
+    if (!$identifier) {
+        $identifier = "host".`hostname`;
+        chomp $identifier;
+    }
+    $offset_limit       = $opts->{'offset-limit'};
+    $output_file        = $opts->{'output-file'};
+    $output_file_number = 1;
+    $gnuplot_terminal   = $opts->{'plot-terminal'}
+    || ( $ENV{DISPLAY} ? "x11" : "dumb" );
+    $wait_after_plot    = !$opts->{'dont-wait'};
+
+    die "illegal offset-limit: $offset_limit" unless $offset_limit > 0.0;
+    $offset_limit *= 1e6;			# scale to microseconds
+
+    my $summary_dir = $opts->{'directory'};
+
+    my $loop_summary ="$summary_dir/loop_summary";
+    my $peer_summary ="$summary_dir/peer_summary";
+    my $clock_summary="$summary_dir/clock_summary";
+
+    my @peer_list   = @{$opts->{'peer'}};
+
+    do_loop($loop_summary);
+    do_peer($peer_summary, $_) for @peer_list;
+}
+
+# return the smallest value in the given list
+sub min
+{
+    my ($result, @rest) = @_;
+    map { $result = $_ if ($_ < $result) } @rest;
+    return($result);
+}
+
+# return the largest value in the given list
+sub max
+{
+    my ($result, @rest) = @_;
+    map { $result = $_ if ($_ > $result) } @rest;
+    return($result);
+}
+
+# maybe open alternate output file
+sub open_output
+{
+    my $file;
+    if ($output_file) {
+	while ( -r ($file = "$output_file$output_file_number") ) {
+	    ++$output_file_number;
+	}
+	open TOUCH, ">$file" and close TOUCH or die "$file: $!";
+	print "set output \"$file\"\n";
+    }
+}
+
+# make Gnuplot wait
+sub maybe_add_pause
+{
+    print "pause -1 \"Press key to continue...\"\n" if $wait_after_plot;
+}
+
+# plot data from loop summary
+sub do_loop
+{
+    my $fname = shift;
+    my $line;
+    my $out_file = "/tmp/tempdata$$";
+    my $cmd_file = "/tmp/tempcmd$$";
+    my ($first_day, $day_out) = ("", 0);
+    my ($lower_bound, $upper_bound, $rms);
+    my ($min_offs, $max_offs) = (1e9, -1e9);
+    my ($min_rms, $max_rms) = (1e9, -1e9);
+    open INPUT, "$fname" or die "$fname: $!";
+    open OUTPUT, ">$out_file" or die "$out_file: $!";
+    my @Fld;
+    while (<INPUT>) {
+	chop;	# strip record separator
+	@Fld = split;
+	if ($#Fld == 0) {
+# loops.19960405
+	    $_ = $Fld[0]; s/.*([12]\d{3}[01]\d[0-3]\d)$/$1/;
+	    m/(\d{4})(\d{2})(\d{2})/;
+	    $line = timegm(59, 59, 23, $3, $2 - 1, $1 - 1900, 0, 0, 0);
+	    $line = int $line / 86400;	# days relative to 1970
+	    $first_day = "$1-$2-$3 ($line)" unless $day_out;
+	    next;
+	}
+	if ($#Fld != 8) {
+	    warn "Illegal number of fields in file $fname, line $.";
+	    next;
+	}
+# loop 216, 856106+/-874041.5, rms 117239.8, freq 67.52+/-10.335, var 4.850
+	$_ = $Fld[1]; s/,/ /; $line .= " $_";
+	$_ = $Fld[2]; m:(.+?)\+/-(.+),:;
+	$lower_bound = $1 - $2;
+	$upper_bound = $1 + $2;
+	$line .= "$1 $lower_bound $upper_bound";
+	$min_offs = min($min_offs, $lower_bound);
+	$max_offs = max($max_offs, $upper_bound);
+	$_ = $Fld[4]; s/,/ /; $rms = $_;
+	$min_rms = min($min_rms, $rms);
+	$max_rms = max($max_rms, $rms);
+	$line .= " $rms";
+	$_ = $Fld[6]; m:(.+?)\+/-(.+),:;
+	$line .= " $1 " . ($1-$2) . " " . ($1+$2);
+	$line .= " $Fld[8]";
+	print OUTPUT "$line\n";
+	$day_out = 1;
+# 9621 216 856106 -17935.5 1730147.5 117239.8  67.52 57.185 77.855 4.850
+    }
+    close INPUT;
+    close OUTPUT or die "close failed on $out_file: $!";
+    my $ylimit = "[";
+    if ($min_offs < -$offset_limit) {
+	$ylimit .= "-$offset_limit";
+    }
+    $ylimit .= ":";
+    if ($max_offs > $offset_limit) {
+	$ylimit .= "$offset_limit";
+    }
+    if ( $ylimit eq "[:" ) {
+	$ylimit = "";
+    } else {
+	$ylimit = "[] $ylimit]";
+    }
+# build command file for GNUplot
+    open OUTPUT, "> $cmd_file" or die "$cmd_file: $!";
+    my $oldfh = select OUTPUT;
+    print "set term $gnuplot_terminal\n";
+    open_output;
+    print "set grid\n";
+    print "set title \"Loop Summary for $identifier: " .
+	"Daily mean values since $first_day\\n" .
+	"(Offset limit is $offset_limit microseconds)\"\n";
+    print "set ylabel \"[us]\"\n";
+    print "set style data yerrorbars\n";
+    print "set multiplot\n";
+    print "set size 1, 0.5\n";
+    print "set lmargin 8\n";
+    print "set origin 0, 0.5\n";
+    print "plot $ylimit \"$out_file\"" .
+	" using 1:3:4:5 title \"mean offset\", ";
+    print "\"$out_file\" using 1:(\$3-\$6/2) " .
+	"title \"(sigma low)\" with lines, ";
+    print "\"$out_file\" using 1:3 smooth bezier " .
+	"title \"(Bezier med)\" with lines, ";
+    print "\"$out_file\" using 1:(\$3+\$6/2) " .
+	"title \"(sigma high)\" with lines\n";
+    print "set ylabel \"[ppm]\"\n";
+    print "set origin 0, 0.0\n";
+    print "set title\n";
+    print "set xlabel \"Days relative to 1970\"\n";
+    print "plot \"$out_file\" using 1:7:8:9 title \"mean frequency\", ";
+    print "\"$out_file\" using 1:(\$7-\$10/2) " .
+	"title \"(sigma low)\" with lines, ";
+    print "\"$out_file\" using 1:7 smooth bezier " .
+	"title \"(Bezier med)\" with lines, ";
+    print "\"$out_file\" using 1:(\$7+\$10/2) " .
+	"title \"(sigma high)\" with lines\n";
+    print "set nomultiplot\n";
+    maybe_add_pause;
+
+    $ylimit = "[";
+    if ($min_rms < -$offset_limit) {
+	$ylimit .= "-$offset_limit";
+    }
+    $ylimit .= ":";
+    if ($max_rms > $offset_limit) {
+	$ylimit .= "$offset_limit";
+    }
+    if ( $ylimit eq "[:" ) {
+	$ylimit ="";
+    } else {
+	$ylimit = "[] $ylimit]";
+    }
+
+    open_output;
+    print "set title \"Loop Summary for $identifier: " .
+	"Standard deviation since $first_day\\n" .
+	"(Offset limit is $offset_limit microseconds)\"\n";
+    print "set xlabel\n";
+    print "set ylabel \"[us]\"\n";
+    print "set origin 0, 0.5\n";
+    print "set style data linespoints\n";
+    print "set multiplot\n";
+    print "plot $ylimit \"$out_file\" using 1:6 title \"Offset\", ";
+    print "\"$out_file\" using 1:6 smooth bezier " .
+	"title \"(Bezier)\" with lines\n";
+    print "set title\n";
+    print "set origin 0, 0.0\n";
+    print "set xlabel \"Days relative to 1970\"\n";
+    print "set ylabel \"[ppm]\"\n";
+    print "plot \"$out_file\" using 1:10 title \"Frequency\", ";
+    print "\"$out_file\" using 1:10 smooth bezier " .
+	"title \"(Bezier)\" with lines\n";
+    print "set nomultiplot\n";
+    maybe_add_pause;
+
+    close OUTPUT or die "close failed on $cmd_file: $!";
+    select $oldfh;
+    print `gnuplot $cmd_file`;
+    unlink $cmd_file;
+    unlink $out_file;
+}
+
+# plot data form peer summary
+sub do_peer
+{
+    my $fname = shift;
+    my $peer = shift;
+    my $out_file = "/tmp/tempdata$$";
+    my $cmd_file = "/tmp/tempcmd$$";
+    my $line;
+    my ($first_day, $day_out) = ("", 0);
+    open INPUT, "$fname" or die "$fname: $!";
+    open OUTPUT, ">$out_file" or die "$out_file: $!";
+    my @Fld;
+    while (<INPUT>) {
+	chop;	# strip record separator
+	@Fld = split;
+	if ($#Fld == 0) {
+# peers.19960405
+	    $_ = $Fld[0]; s/.*([12]\d{3}[01]\d[0-3]\d)$/$1/;
+	    m/(\d{4})(\d{2})(\d{2})/ or next;
+	    $line = timegm(59, 59, 23, $3, $2 - 1, $1 - 1900, 0, 0, 0);
+	    $line = int $line / 86400;	# days relative to 1970
+	    $first_day = "$1-$2-$3 ($line)" unless $day_out;
+	    next;
+	}
+	if ($#Fld != 7) {
+	    warn "Illegal number of fields in file $fname, line $.";
+	    next;
+	}
+	next if ($Fld[0] ne $peer);
+#       ident     cnt     mean     rms      max     delay     dist     disp
+# 127.127.8.1       38   30.972  189.867 1154.607    0.000  879.760  111.037
+	$Fld[0] = $line;
+	print OUTPUT join(' ', @Fld) . "\n";
+# 9969 38 30.972 189.867 1154.607 0.000 879.760 111.037
+	$day_out = 1;
+    }
+    close INPUT;
+    close OUTPUT or die "close failed on $out_file: $!";
+    die "no data found for peer $peer" if !$day_out;
+    open OUTPUT, "> $cmd_file" or die "$cmd_file: $!";
+    my $oldfh = select OUTPUT;
+    print "set term $gnuplot_terminal\n";
+    open_output;
+    print "set grid\n";
+    print "set multiplot\n";
+    print "set lmargin 8\n";
+    print "set size 1, 0.34\n";
+    print "set origin 0, 0.66\n";
+    print "set title " .
+	"\"Peer Summary for $peer on $identifier since $first_day\"\n";
+    print "set style data linespoints\n";
+    print "set ylabel \"[us]\"\n";
+    print "plot \"$out_file\" using 1:3 title \"mean offset\", ";
+    print "\"$out_file\" using 1:3 smooth bezier " .
+	"title \"(Bezier)\" with lines, ";
+    print "\"$out_file\" using 1:(\$3-\$7/2) " .
+	"title \"(sigma low)\" with lines, ";
+    print "\"$out_file\" using 1:(\$3+\$7/2) " .
+	"title \"(sigma high)\" with lines\n";
+    print "set title\n";
+    print "set origin 0, 0.34\n";
+    print "set size 1, 0.32\n";
+    print "set ylabel\n";
+    print "plot \"$out_file\" using 1:7 title \"dist\", ";
+    print "\"$out_file\" using 1:7 smooth bezier " .
+	"title \"(Bezier)\" with lines\n";
+    print "set origin 0, 0.00\n";
+    print "set size 1, 0.35\n";
+    print "set xlabel \"Days relative to 1970\"\n";
+    print "plot \"$out_file\" using 1:8 title \"disp\", ";
+    print "\"$out_file\" using 1:8 smooth bezier " .
+	"title \"(Bezier)\" with lines\n";
+    print "set nomultiplot\n";
+    maybe_add_pause;
+
+    select $oldfh;
+    close OUTPUT or die "close failed on $cmd_file: $!";
+    print `gnuplot $cmd_file`;
+    unlink $cmd_file;
+    unlink $out_file;
+}
+
+@plot_summary_opts@
+
+1;
+__END__

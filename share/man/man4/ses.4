@@ -1,0 +1,136 @@
+.\" Copyright (c) 2000
+.\"	Matthew Jacob <mjacob@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 5, 2015
+.Dt SES 4
+.Os
+.Sh NAME
+.Nm ses
+.Nd SCSI Environmental Services driver
+.Sh SYNOPSIS
+.Cd device ses
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for all
+.Tn SCSI
+devices of the environmental services class that are attached to the system
+through a supported
+.Tn SCSI
+Host Adapter, as well as emulated support for SAF-TE (SCSI Accessible
+Fault Tolerant Enclosures).
+The environmental services class generally are enclosure devices that
+provide environmental information such as number of power supplies (and
+state), temperature, device slots, and so on.
+.Pp
+A
+.Tn SCSI
+Host
+adapter must also be separately configured into the system
+before a
+.Tn SCSI
+Environmental Services device can be configured.
+.Sh KERNEL CONFIGURATION
+It is only necessary to explicitly configure one
+.Nm
+device; data structures are dynamically allocated as devices are found
+on the
+.Tn SCSI
+bus.
+.Pp
+A separate option,
+.Va SES_ENABLE_PASSTHROUGH ,
+may be specified to allow the
+.Nm
+driver to perform functions on devices of other classes that claim to
+also support
+.Nm
+functionality.
+.Sh IOCTLS
+The following
+.Xr ioctl 2
+calls apply to
+.Nm
+devices.
+They are defined in the header file
+.In cam/scsi/scsi_ses.h
+(\fIq.v.\fR).
+.Bl -tag -width SESIOC_GETENCSTAT
+.It Dv SESIOC_GETNOBJ
+Used to find out how many
+.Nm
+objects are driven by this particular device instance.
+.It Dv SESIOC_GETOBJMAP
+Read, from the kernel, an array of SES objects which contains
+the object identifier, which subenclosure it is in, and the
+.Nm
+type of the object.
+.It Dv SESIOC_GETENCSTAT
+Get the overall enclosure status.
+.It Dv SESIOC_SETENCSTAT
+Set the overall enclosure status.
+.It Dv SESIOC_GETOBJSTAT
+Get the status of a particular object.
+.It Dv SESIOC_SETOBJSTAT
+Set the status of a particular object.
+.It Dv SESIOC_GETTEXT
+Get the associated help text for an object (not yet implemented).
+.Nm
+devices often have descriptive text for an object which can tell
+you things like location (e.g., "left power supply").
+.It Dv SESIOC_INIT
+Initialize the enclosure.
+.El
+.Sh EXAMPLE USAGE
+The files contained in
+.In /usr/share/examples/ses
+show simple mechanisms for how to use these interfaces, as well as a
+very stupid simple monitoring daemon.
+.Sh FILES
+.Bl -tag -width /dev/rsdXXXXX -compact
+.It Pa /dev/ses Ns Ar N
+The
+.Em Nth
+.Nm SES
+device.
+.El
+.Sh DIAGNOSTICS
+When the kernel is configured with
+.Tn DEBUG
+enabled, the first open to an SES device will spit out overall enclosure
+parameters to the console.
+.Sh SEE ALSO
+.Xr sesutil 8
+.Sh HISTORY
+The
+.Nm
+driver was written for the
+.Tn CAM
+.Tn SCSI
+subsystem by Matthew Jacob.
+This is a functional equivalent of a similar
+driver available in Solaris, Release 7.

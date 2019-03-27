@@ -1,0 +1,5 @@
+README file for directory ./libntp of the NTP Version 4 distribution
+
+This directory contains the sources for the NTP library used by most
+programs in this distribution. See the README and RELNOTES files in the
+parent directory for directions on how to make this library.

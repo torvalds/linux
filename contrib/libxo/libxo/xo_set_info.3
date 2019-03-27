@@ -1,0 +1,112 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_set_info
+.Nd set the field information data for libxo
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Fn xo_set_info "xo_handle_t *handle" "xo_info_t *info" "int count"
+.Sh DESCRIPTION
+HTML data can include additional information in attributes that
+begin with "data-".
+To enable this, three things must occur:
+.Pp
+First the application must build an array of
+.Dv xo_info_t
+structures,
+one per tag.
+The array must be sorted by name, since
+.Nm libxo
+uses a
+binary search to find the entry that matches names from format
+instructions.
+.Pp
+The
+.Dv xo_info_t
+structure is defined in
+.In libxo/xo.h :
+.Bd -literal -offset indent
+    typedef struct xo_info_s {
+        const char *xi_name;    /* Name of the element */
+        const char *xi_type;    /* Type of field */
+        const char *xi_help;    /* Description of field */
+    } xo_info_t;
+.Ed
+.Pp
+Second, the application must inform
+.Nm libxo
+about this information using the
+.Fn xo_set_info
+call.
+Like other
+.Nm libxo
+calls, passing
+.Dv NULL
+for the handle tells
+.Nm libxo
+to use the default handle.
+.Pp
+If the
+.Fa count
+is -1,
+.Nm libxo
+will count the elements of
+.Fa info ,
+but there
+must be an empty element at the end.
+More typically, the number is
+known to the application:
+.Bd -literal -offset indent
+    xo_info_t info[] = {
+        { "in-stock", "number", "Number of items in stock" },
+        { "name", "string", "Name of the item" },
+        { "on-order", "number", "Number of items on order" },
+        { "sku", "string", "Stock Keeping Unit" },
+        { "sold", "number", "Number of items sold" },
+    };
+    int info_count = (sizeof(info) / sizeof(info[0]));
+    ...
+    xo_set_info(NULL, info, info_count);
+.Ed
+.Pp
+Third, the emission of info must be triggered with the
+.Dv XOF_INFO
+flag
+using either the
+.Fn xo_set_flags
+function or the
+.Dq --libxo=info
+command line argument.
+.Pp
+The type and help values, if present, are emitted as the "data-type"
+and "data-help" attributes:
+.Bd -literal -offset indent
+  <div class="data" data-tag="sku" data-type="string" 
+       data-help="Stock Keeping Unit">GRO-000-533</div>
+.Ed
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

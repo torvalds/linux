@@ -1,0 +1,57 @@
+#
+# TP Link MR3020 - an AR9331 based SoC wifi device.
+#
+# This is for the 32 RAM/4 flash part. There is little to no
+# chance that this will ever boot FreeBSD directly from the 3.5MB
+# of flash.  The kernel can fit into the space, but userland is just
+# too big even when stripped down to its limits.
+#
+# * AR9331 SoC
+# * 32MB RAM
+# * 4MB flash
+# * Integrated 1x1 2GHz wifi and 10/100 bridge
+# * USB powered
+# * USB storage
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+# Include the default AR933x parameters
+include	"std.AR933X"
+
+ident	TP-MR3020
+
+# Override hints with board values
+hints	"TP-MR3020.hints"
+
+# Board memory - 32MB
+options	AR71XX_REALMEM=(32*1024*1024)
+
+# Disable support for paging
+options		NO_SWAPPING
+
+# i2c GPIO bus
+device	gpioiic
+device	iicbb
+device	iicbus
+device	iic
+
+# Options required for miiproxy and mdiobus
+options	ARGE_MDIO	# Export an MDIO bus separate from arge
+device	miiproxy	# MDIO bus <-> MII PHY rendezvous
+
+device	etherswitch
+device	arswitch
+
+# Enable the uboot environment stuff rather then the
+# redboot stuff.
+options	AR71XX_ENV_UBOOT
+
+# Used for the static uboot partition map
+device	geom_map
+
+# With only 4MB of flash, we are stuck using USB
+# for the rootfs.
+options		ROOTDEVNAME=\"ufs:da0\"

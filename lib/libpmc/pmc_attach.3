@@ -1,0 +1,149 @@
+.\" Copyright (c) 2007 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 25, 2007
+.Dt PMC_ATTACH 3
+.Os
+.Sh NAME
+.Nm pmc_attach ,
+.Nm pmc_detach
+.Nd attaching and detaching process scope PMCs to target processes
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Ft int
+.Fn pmc_attach "pmc_id_t pmcid" "pid_t pid"
+.Ft int
+.Fn pmc_detach "pmc_id_t pmcid" "pid_t pid"
+.Sh DESCRIPTION
+These functions control the set of target processes tracked by a
+process scope PMC.
+.Pp
+Function
+.Fn pmc_attach
+is used to attach a process scope PMC specified by argument
+.Fa pmcid
+to a target process specified by argument
+.Fa pid .
+Argument
+.Fa pid
+may be zero to denote the current process.
+If the PMC was allocated with modifier
+.Dv PMC_F_DESCENDANTS ,
+the PMC will additionally attach to current and future descendents of
+the specified target process.
+The PMC should be in a quiescent state (i.e., not running).
+.Pp
+Function
+.Fn pmc_detach
+is used to detach a process scope PMC specified by argument
+.Fa pmcid
+from a process specified by argument
+.Fa pid .
+Argument
+.Fa pid
+may be zero to denote the current process.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+A call to function
+.Fn pmc_attach
+may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+Argument
+.Fa pmcid
+specified a PMC that was not in a quiescent state.
+.It Bq Er EBUSY
+The target process specified by function
+.Fa pmc_attach
+is being tracked by another process scope PMC that uses the same PMC
+hardware resources.
+.It Bq Er EEXIST
+The target process is already being tracked by the specified PMC.
+.It Bq Er EINVAL
+Argument
+.Fa pmcid
+specified a PMC with system scope.
+.It Bq Er EINVAL
+Argument
+.Fa pid
+specified an illegal process id.
+.It Bq Er EINVAL
+The current process does not own a PMC with the handle specified in
+argument
+.Fa pmcid .
+.It Bq Er EPERM
+The caller lacked the privilege needed to attach PMCs to
+the specified target process.
+.It Bq Er EPERM
+(i386 and amd64 architectures) The PMC specified by argument
+.Fa pmcid
+has been setup to allow the use of the RDPMC instruction for
+self measurement.
+.It Bq Er ESRCH
+The current process does not own any PMCs.
+.It Bq Er ESRCH
+The process specified by argument
+.Fa pid
+did not exist.
+.El
+.Pp
+A call to function
+.Fn pmc_detach
+may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Argument
+.Fa pmcid
+specified a PMC with system scope.
+.It Bq Er EINVAL
+Argument
+.Fa pid
+specified an illegal process id.
+.It Bq Er EINVAL
+The current process does not own a PMC with the handle specified in
+argument
+.Fa pmcid .
+.It Bq Er EINVAL
+The specified PMC was not attached to the target process.
+.It Bq Er ESRCH
+The current process does not own any PMCs.
+.It Bq Er ESRCH
+The process specified by argument
+.Fa pid
+is not being monitored by
+.Xr hwpmc 4 .
+.It Bq Er ESRCH
+The process specified by argument
+.Fa pid
+did not exist.
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc_start 3 ,
+.Xr pmc_stop 3 ,
+.Xr hwpmc 4

@@ -1,0 +1,9 @@
+table <regress> { 1.2.3.4 !5.6.7.8 10.0.0.0/8 ::1 fe80::1 127.0.0.1 }
+table <regress.1> const { ::1 fe80::/64 }
+table <regress.a> const { 1.2.3.4 !5.6.7.8 ::1 ::2 ::3 } file "/dev/null" { 4.3.2.1 }
+pass in from <regress> to any flags S/SA keep state
+pass out from any to <regress> flags S/SA keep state
+pass in from <regress.1> to any flags S/SA keep state
+pass in from <regress.2> to any flags S/SA keep state
+pass out from any to ! <regress.1> flags S/SA keep state
+pass out from any to ! <regress.2> flags S/SA keep state

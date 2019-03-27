@@ -1,0 +1,958 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
+.\" $FreeBSD$
+.\"
+.Dd February 22, 2019
+.Dt IP 4
+.Os
+.Sh NAME
+.Nm ip
+.Nd Internet Protocol
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netinet/in.h
+.Ft int
+.Fn socket AF_INET SOCK_RAW proto
+.Sh DESCRIPTION
+.Tn IP
+is the transport layer protocol used
+by the Internet protocol family.
+Options may be set at the
+.Tn IP
+level
+when using higher-level protocols that are based on
+.Tn IP
+(such as
+.Tn TCP
+and
+.Tn UDP ) .
+It may also be accessed
+through a
+.Dq raw socket
+when developing new protocols, or
+special-purpose applications.
+.Pp
+There are several
+.Tn IP-level
+.Xr setsockopt 2
+and
+.Xr getsockopt 2
+options.
+.Dv IP_OPTIONS
+may be used to provide
+.Tn IP
+options to be transmitted in the
+.Tn IP
+header of each outgoing packet
+or to examine the header options on incoming packets.
+.Tn IP
+options may be used with any socket type in the Internet family.
+The format of
+.Tn IP
+options to be sent is that specified by the
+.Tn IP
+protocol specification (RFC-791), with one exception:
+the list of addresses for Source Route options must include the first-hop
+gateway at the beginning of the list of gateways.
+The first-hop gateway address will be extracted from the option list
+and the size adjusted accordingly before use.
+To disable previously specified options,
+use a zero-length buffer:
+.Bd -literal
+setsockopt(s, IPPROTO_IP, IP_OPTIONS, NULL, 0);
+.Ed
+.Pp
+.Dv IP_TOS
+and
+.Dv IP_TTL
+may be used to set the type-of-service and time-to-live
+fields in the
+.Tn IP
+header for
+.Dv SOCK_STREAM , SOCK_DGRAM ,
+and certain types of
+.Dv SOCK_RAW
+sockets.
+For example,
+.Bd -literal
+int tos = IPTOS_LOWDELAY;       /* see <netinet/ip.h> */
+setsockopt(s, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
+
+int ttl = 60;                   /* max = 255 */
+setsockopt(s, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
+.Ed
+.Pp
+.Dv IP_MINTTL
+may be used to set the minimum acceptable TTL a packet must have when
+received on a socket.
+All packets with a lower TTL are silently dropped.
+This option is only really useful when set to 255, preventing packets
+from outside the directly connected networks reaching local listeners
+on sockets.
+.Pp
+.Dv IP_DONTFRAG
+may be used to set the Don't Fragment flag on IP packets.
+Currently this option is respected only on
+.Xr udp 4
+and raw
+.Nm
+sockets, unless the
+.Dv IP_HDRINCL
+option has been set.
+On
+.Xr tcp 4
+sockets, the Don't Fragment flag is controlled by the Path
+MTU Discovery option.
+Sending a packet larger than the MTU size of the egress interface,
+determined by the destination address, returns an
+.Er EMSGSIZE
+error.
+.Pp
+If the
+.Dv IP_ORIGDSTADDR
+option is enabled on a
+.Dv SOCK_DGRAM
+socket,
+the
+.Xr recvmsg 2
+call will return the destination
+.Tn IP
+address and destination port or a
+.Tn UDP
+datagram.
+The
+.Vt msg_control
+field in the
+.Vt msghdr
+structure points to a buffer
+that contains a
+.Vt cmsghdr
+structure followed by the
+.Tn in_sockkaddr
+structre.
+The
+.Vt cmsghdr
+fields have the following values:
+.Bd -literal
+cmsg_len = CMSG_LEN(sizeof(struct in_sockaddr))
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_ORIGDSTADDR
+.Ed
+.Pp
+If the
+.Dv IP_RECVDSTADDR
+option is enabled on a
+.Dv SOCK_DGRAM
+socket,
+the
+.Xr recvmsg 2
+call will return the destination
+.Tn IP
+address for a
+.Tn UDP
+datagram.
+The
+.Vt msg_control
+field in the
+.Vt msghdr
+structure points to a buffer
+that contains a
+.Vt cmsghdr
+structure followed by the
+.Tn IP
+address.
+The
+.Vt cmsghdr
+fields have the following values:
+.Bd -literal
+cmsg_len = CMSG_LEN(sizeof(struct in_addr))
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_RECVDSTADDR
+.Ed
+.Pp
+The source address to be used for outgoing
+.Tn UDP
+datagrams on a socket can be specified as ancillary data with a type code of
+.Dv IP_SENDSRCADDR .
+The msg_control field in the msghdr structure should point to a buffer
+that contains a
+.Vt cmsghdr
+structure followed by the
+.Tn IP
+address.
+The cmsghdr fields should have the following values:
+.Bd -literal
+cmsg_len = CMSG_LEN(sizeof(struct in_addr))
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_SENDSRCADDR
+.Ed
+.Pp
+The socket should be either bound to
+.Dv INADDR_ANY
+and a local port, and the address supplied with
+.Dv IP_SENDSRCADDR
+should't be
+.Dv INADDR_ANY ,
+or the socket should be bound to a local address and the address supplied with
+.Dv IP_SENDSRCADDR
+should be
+.Dv INADDR_ANY .
+In the latter case bound address is overridden via generic source address
+selection logic, which would choose IP address of interface closest to
+destination.
+.Pp
+For convenience,
+.Dv IP_SENDSRCADDR
+is defined to have the same value as
+.Dv IP_RECVDSTADDR ,
+so the
+.Dv IP_RECVDSTADDR
+control message from
+.Xr recvmsg 2
+can be used directly as a control message for
+.Xr sendmsg 2 .
+.\"
+.Pp
+If the
+.Dv IP_ONESBCAST
+option is enabled on a
+.Dv SOCK_DGRAM
+or a
+.Dv SOCK_RAW
+socket, the destination address of outgoing
+broadcast datagrams on that socket will be forced
+to the undirected broadcast address,
+.Dv INADDR_BROADCAST ,
+before transmission.
+This is in contrast to the default behavior of the
+system, which is to transmit undirected broadcasts
+via the first network interface with the
+.Dv IFF_BROADCAST
+flag set.
+.Pp
+This option allows applications to choose which
+interface is used to transmit an undirected broadcast
+datagram.
+For example, the following code would force an
+undirected broadcast to be transmitted via the interface
+configured with the broadcast address 192.168.2.255:
+.Bd -literal
+char msg[512];
+struct sockaddr_in sin;
+int onesbcast = 1;	/* 0 = disable (default), 1 = enable */
+
+setsockopt(s, IPPROTO_IP, IP_ONESBCAST, &onesbcast, sizeof(onesbcast));
+sin.sin_addr.s_addr = inet_addr("192.168.2.255");
+sin.sin_port = htons(1234);
+sendto(s, msg, sizeof(msg), 0, &sin, sizeof(sin));
+.Ed
+.Pp
+It is the application's responsibility to set the
+.Dv IP_TTL
+option
+to an appropriate value in order to prevent broadcast storms.
+The application must have sufficient credentials to set the
+.Dv SO_BROADCAST
+socket level option, otherwise the
+.Dv IP_ONESBCAST
+option has no effect.
+.Pp
+If the
+.Dv IP_BINDANY
+option is enabled on a
+.Dv SOCK_STREAM ,
+.Dv SOCK_DGRAM
+or a
+.Dv SOCK_RAW
+socket, one can
+.Xr bind 2
+to any address, even one not bound to any available network interface in the
+system.
+This functionality (in conjunction with special firewall rules) can be used for
+implementing a transparent proxy.
+The
+.Dv PRIV_NETINET_BINDANY
+privilege is needed to set this option.
+.Pp
+If the
+.Dv IP_RECVTTL
+option is enabled on a
+.Dv SOCK_DGRAM
+socket, the
+.Xr recvmsg 2
+call will return the
+.Tn IP
+.Tn TTL
+(time to live) field for a
+.Tn UDP
+datagram.
+The msg_control field in the msghdr structure points to a buffer
+that contains a cmsghdr structure followed by the
+.Tn TTL .
+The cmsghdr fields have the following values:
+.Bd -literal
+cmsg_len = CMSG_LEN(sizeof(u_char))
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_RECVTTL
+.Ed
+.\"
+.Pp
+If the
+.Dv IP_RECVTOS
+option is enabled on a
+.Dv SOCK_DGRAM
+socket, the
+.Xr recvmsg 2
+call will return the
+.Tn IP
+.Tn TOS
+(type of service) field for a
+.Tn UDP
+datagram.
+The msg_control field in the msghdr structure points to a buffer
+that contains a cmsghdr structure followed by the
+.Tn TOS .
+The cmsghdr fields have the following values:
+.Bd -literal
+cmsg_len = CMSG_LEN(sizeof(u_char))
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_RECVTOS
+.Ed
+.\"
+.Pp
+If the
+.Dv IP_RECVIF
+option is enabled on a
+.Dv SOCK_DGRAM
+socket, the
+.Xr recvmsg 2
+call returns a
+.Vt "struct sockaddr_dl"
+corresponding to the interface on which the
+packet was received.
+The
+.Va msg_control
+field in the
+.Vt msghdr
+structure points to a buffer that contains a
+.Vt cmsghdr
+structure followed by the
+.Vt "struct sockaddr_dl" .
+The
+.Vt cmsghdr
+fields have the following values:
+.Bd -literal
+cmsg_len = CMSG_LEN(sizeof(struct sockaddr_dl))
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_RECVIF
+.Ed
+.Pp
+.Dv IP_PORTRANGE
+may be used to set the port range used for selecting a local port number
+on a socket with an unspecified (zero) port number.
+It has the following
+possible values:
+.Bl -tag -width IP_PORTRANGE_DEFAULT
+.It Dv IP_PORTRANGE_DEFAULT
+use the default range of values, normally
+.Dv IPPORT_HIFIRSTAUTO
+through
+.Dv IPPORT_HILASTAUTO .
+This is adjustable through the sysctl setting:
+.Va net.inet.ip.portrange.first
+and
+.Va net.inet.ip.portrange.last .
+.It Dv IP_PORTRANGE_HIGH
+use a high range of values, normally
+.Dv IPPORT_HIFIRSTAUTO
+and
+.Dv IPPORT_HILASTAUTO .
+This is adjustable through the sysctl setting:
+.Va net.inet.ip.portrange.hifirst
+and
+.Va net.inet.ip.portrange.hilast .
+.It Dv IP_PORTRANGE_LOW
+use a low range of ports, which are normally restricted to
+privileged processes on
+.Ux
+systems.
+The range is normally from
+.Dv IPPORT_RESERVED
+\- 1 down to
+.Li IPPORT_RESERVEDSTART
+in descending order.
+This is adjustable through the sysctl setting:
+.Va net.inet.ip.portrange.lowfirst
+and
+.Va net.inet.ip.portrange.lowlast .
+.El
+.Pp
+The range of privileged ports which only may be opened by
+root-owned processes may be modified by the
+.Va net.inet.ip.portrange.reservedlow
+and
+.Va net.inet.ip.portrange.reservedhigh
+sysctl settings.
+The values default to the traditional range,
+0 through
+.Dv IPPORT_RESERVED
+\- 1
+(0 through 1023), respectively.
+Note that these settings do not affect and are not accounted for in the
+use or calculation of the other
+.Va net.inet.ip.portrange
+values above.
+Changing these values departs from
+.Ux
+tradition and has security
+consequences that the administrator should carefully evaluate before
+modifying these settings.
+.Pp
+Ports are allocated at random within the specified port range in order
+to increase the difficulty of random spoofing attacks.
+In scenarios such as benchmarking, this behavior may be undesirable.
+In these cases,
+.Va net.inet.ip.portrange.randomized
+can be used to toggle randomization off.
+If more than
+.Va net.inet.ip.portrange.randomcps
+ports have been allocated in the last second, then return to sequential
+port allocation.
+Return to random allocation only once the current port allocation rate
+drops below
+.Va net.inet.ip.portrange.randomcps
+for at least
+.Va net.inet.ip.portrange.randomtime
+seconds.
+The default values for
+.Va net.inet.ip.portrange.randomcps
+and
+.Va net.inet.ip.portrange.randomtime
+are 10 port allocations per second and 45 seconds correspondingly.
+.Ss "Multicast Options"
+.Tn IP
+multicasting is supported only on
+.Dv AF_INET
+sockets of type
+.Dv SOCK_DGRAM
+and
+.Dv SOCK_RAW ,
+and only on networks where the interface
+driver supports multicasting.
+.Pp
+The
+.Dv IP_MULTICAST_TTL
+option changes the time-to-live (TTL)
+for outgoing multicast datagrams
+in order to control the scope of the multicasts:
+.Bd -literal
+u_char ttl;	/* range: 0 to 255, default = 1 */
+setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
+.Ed
+.Pp
+Datagrams with a TTL of 1 are not forwarded beyond the local network.
+Multicast datagrams with a TTL of 0 will not be transmitted on any network,
+but may be delivered locally if the sending host belongs to the destination
+group and if multicast loopback has not been disabled on the sending socket
+(see below).
+Multicast datagrams with TTL greater than 1 may be forwarded
+to other networks if a multicast router is attached to the local network.
+.Pp
+For hosts with multiple interfaces, where an interface has not
+been specified for a multicast group membership,
+each multicast transmission is sent from the primary network interface.
+The
+.Dv IP_MULTICAST_IF
+option overrides the default for
+subsequent transmissions from a given socket:
+.Bd -literal
+struct in_addr addr;
+setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF, &addr, sizeof(addr));
+.Ed
+.Pp
+where "addr" is the local
+.Tn IP
+address of the desired interface or
+.Dv INADDR_ANY
+to specify the default interface.
+.Pp
+To specify an interface by index, an instance of
+.Vt ip_mreqn
+may be passed instead.
+The
+.Vt imr_ifindex
+member should be set to the index of the desired interface,
+or 0 to specify the default interface.
+The kernel differentiates between these two structures by their size.
+.Pp
+The use of
+.Vt IP_MULTICAST_IF
+is
+.Em not recommended ,
+as multicast memberships are scoped to each
+individual interface.
+It is supported for legacy use only by applications,
+such as routing daemons, which expect to
+be able to transmit link-local IPv4 multicast datagrams (224.0.0.0/24)
+on multiple interfaces,
+without requesting an individual membership for each interface.
+.Pp
+.\"
+An interface's local IP address and multicast capability can
+be obtained via the
+.Dv SIOCGIFCONF
+and
+.Dv SIOCGIFFLAGS
+ioctls.
+Normal applications should not need to use this option.
+.Pp
+If a multicast datagram is sent to a group to which the sending host itself
+belongs (on the outgoing interface), a copy of the datagram is, by default,
+looped back by the IP layer for local delivery.
+The
+.Dv IP_MULTICAST_LOOP
+option gives the sender explicit control
+over whether or not subsequent datagrams are looped back:
+.Bd -literal
+u_char loop;	/* 0 = disable, 1 = enable (default) */
+setsockopt(s, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
+.Ed
+.Pp
+This option
+improves performance for applications that may have no more than one
+instance on a single host (such as a routing daemon), by eliminating
+the overhead of receiving their own transmissions.
+It should generally not
+be used by applications for which there may be more than one instance on a
+single host (such as a conferencing program) or for which the sender does
+not belong to the destination group (such as a time querying program).
+.Pp
+The sysctl setting
+.Va net.inet.ip.mcast.loop
+controls the default setting of the
+.Dv IP_MULTICAST_LOOP
+socket option for new sockets.
+.Pp
+A multicast datagram sent with an initial TTL greater than 1 may be delivered
+to the sending host on a different interface from that on which it was sent,
+if the host belongs to the destination group on that other interface.
+The loopback control option has no effect on such delivery.
+.Pp
+A host must become a member of a multicast group before it can receive
+datagrams sent to the group.
+To join a multicast group, use the
+.Dv IP_ADD_MEMBERSHIP
+option:
+.Bd -literal
+struct ip_mreqn mreqn;
+setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreqn, sizeof(mreqn));
+.Ed
+.Pp
+where
+.Fa mreqn
+is the following structure:
+.Bd -literal
+struct ip_mreqn {
+    struct in_addr imr_multiaddr; /* IP multicast address of group */
+    struct in_addr imr_interface; /* local IP address of interface */
+    int            imr_ifindex;   /* interface index */
+}
+.Ed
+.Pp
+.Va imr_ifindex
+should be set to the index of a particular multicast-capable interface if
+the host is multihomed.
+If
+.Va imr_ifindex
+is non-zero, value of
+.Va imr_interface
+is ignored.
+Otherwise, if
+.Va imr_ifindex
+is 0, kernel will use IP address from
+.Va imr_interface
+to lookup the interface.
+Value of
+.Va imr_interface
+may be set to
+.Va INADDR_ANY
+to choose the default interface, although this is not recommended; this is
+considered to be the first interface corresponding to the default route.
+Otherwise, the first multicast-capable interface configured in the system
+will be used.
+.Pp
+Legacy
+.Vt "struct ip_mreq" ,
+that lacks
+.Va imr_ifindex
+field is also supported by
+.Dv IP_ADD_MEMBERSHIP
+setsockopt.
+In this case kernel would behave as if
+.Va imr_ifindex
+was set to zero:
+.Va imr_interface
+will be used to lookup interface.
+.Pp
+Prior to
+.Fx 7.0 ,
+if the
+.Va imr_interface
+member is within the network range
+.Li 0.0.0.0/8 ,
+it is treated as an interface index in the system interface MIB,
+as per the RIP Version 2 MIB Extension (RFC-1724).
+In versions of
+.Fx
+since 7.0, this behavior is no longer supported.
+Developers should
+instead use the RFC 3678 multicast source filter APIs; in particular,
+.Dv MCAST_JOIN_GROUP .
+.Pp
+Up to
+.Dv IP_MAX_MEMBERSHIPS
+memberships may be added on a single socket.
+Membership is associated with a single interface;
+programs running on multihomed hosts may need to
+join the same group on more than one interface.
+.Pp
+To drop a membership, use:
+.Bd -literal
+struct ip_mreq mreq;
+setsockopt(s, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq));
+.Ed
+.Pp
+where
+.Fa mreq
+contains the same values as used to add the membership.
+Memberships are dropped when the socket is closed or the process exits.
+.\" TODO: Update this piece when IPv4 source-address selection is implemented.
+.Pp
+The IGMP protocol uses the primary IP address of the interface
+as its identifier for group membership.
+This is the first IP address configured on the interface.
+If this address is removed or changed, the results are
+undefined, as the IGMP membership state will then be inconsistent.
+If multiple IP aliases are configured on the same interface,
+they will be ignored.
+.Pp
+This shortcoming was addressed in IPv6; MLDv2 requires
+that the unique link-local address for an interface is
+used to identify an MLDv2 listener.
+.Ss "Source-Specific Multicast Options"
+Since
+.Fx 8.0 ,
+the use of Source-Specific Multicast (SSM) is supported.
+These extensions require an IGMPv3 multicast router in order to
+make best use of them.
+If a legacy multicast router is present on the link,
+.Fx
+will simply downgrade to the version of IGMP spoken by the router,
+and the benefits of source filtering on the upstream link
+will not be present, although the kernel will continue to
+squelch transmissions from blocked sources.
+.Pp
+Each group membership on a socket now has a filter mode:
+.Bl -tag -width MCAST_EXCLUDE
+.It Dv MCAST_EXCLUDE
+Datagrams sent to this group are accepted,
+unless the source is in a list of blocked source addresses.
+.It Dv MCAST_INCLUDE
+Datagrams sent to this group are accepted
+only if the source is in a list of accepted source addresses.
+.El
+.Pp
+Groups joined using the legacy
+.Dv IP_ADD_MEMBERSHIP
+option are placed in exclusive-mode,
+and are able to request that certain sources are blocked or allowed.
+This is known as the
+.Em delta-based API .
+.Pp
+To block a multicast source on an existing group membership:
+.Bd -literal
+struct ip_mreq_source mreqs;
+setsockopt(s, IPPROTO_IP, IP_BLOCK_SOURCE, &mreqs, sizeof(mreqs));
+.Ed
+.Pp
+where
+.Fa mreqs
+is the following structure:
+.Bd -literal
+struct ip_mreq_source {
+    struct in_addr imr_multiaddr; /* IP multicast address of group */
+    struct in_addr imr_sourceaddr; /* IP address of source */
+    struct in_addr imr_interface; /* local IP address of interface */
+}
+.Ed
+.Va imr_sourceaddr
+should be set to the address of the source to be blocked.
+.Pp
+To unblock a multicast source on an existing group:
+.Bd -literal
+struct ip_mreq_source mreqs;
+setsockopt(s, IPPROTO_IP, IP_UNBLOCK_SOURCE, &mreqs, sizeof(mreqs));
+.Ed
+.Pp
+The
+.Dv IP_BLOCK_SOURCE
+and
+.Dv IP_UNBLOCK_SOURCE
+options are
+.Em not permitted
+for inclusive-mode group memberships.
+.Pp
+To join a multicast group in
+.Dv MCAST_INCLUDE
+mode with a single source,
+or add another source to an existing inclusive-mode membership:
+.Bd -literal
+struct ip_mreq_source mreqs;
+setsockopt(s, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP, &mreqs, sizeof(mreqs));
+.Ed
+.Pp
+To leave a single source from an existing group in inclusive mode:
+.Bd -literal
+struct ip_mreq_source mreqs;
+setsockopt(s, IPPROTO_IP, IP_DROP_SOURCE_MEMBERSHIP, &mreqs, sizeof(mreqs));
+.Ed
+If this is the last accepted source for the group, the membership
+will be dropped.
+.Pp
+The
+.Dv IP_ADD_SOURCE_MEMBERSHIP
+and
+.Dv IP_DROP_SOURCE_MEMBERSHIP
+options are
+.Em not accepted
+for exclusive-mode group memberships.
+However, both exclusive and inclusive mode memberships
+support the use of the
+.Em full-state API
+documented in RFC 3678.
+For management of source filter lists using this API,
+please refer to
+.Xr sourcefilter 3 .
+.Pp
+The sysctl settings
+.Va net.inet.ip.mcast.maxsocksrc
+and
+.Va net.inet.ip.mcast.maxgrpsrc
+are used to specify an upper limit on the number of per-socket and per-group
+source filter entries which the kernel may allocate.
+.\"-----------------------
+.Ss "Raw IP Sockets"
+Raw
+.Tn IP
+sockets are connectionless,
+and are normally used with the
+.Xr sendto 2
+and
+.Xr recvfrom 2
+calls, though the
+.Xr connect 2
+call may also be used to fix the destination for future
+packets (in which case the
+.Xr read 2
+or
+.Xr recv 2
+and
+.Xr write 2
+or
+.Xr send 2
+system calls may be used).
+.Pp
+If
+.Fa proto
+is 0, the default protocol
+.Dv IPPROTO_RAW
+is used for outgoing
+packets, and only incoming packets destined for that protocol
+are received.
+If
+.Fa proto
+is non-zero, that protocol number will be used on outgoing packets
+and to filter incoming packets.
+.Pp
+Outgoing packets automatically have an
+.Tn IP
+header prepended to
+them (based on the destination address and the protocol
+number the socket is created with),
+unless the
+.Dv IP_HDRINCL
+option has been set.
+Unlike in previous
+.Bx
+releases, incoming packets are received with
+.Tn IP
+header and options intact, leaving all fields in network byte order.
+.Pp
+.Dv IP_HDRINCL
+indicates the complete IP header is included with the data
+and may be used only with the
+.Dv SOCK_RAW
+type.
+.Bd -literal
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+
+int hincl = 1;                  /* 1 = on, 0 = off */
+setsockopt(s, IPPROTO_IP, IP_HDRINCL, &hincl, sizeof(hincl));
+.Ed
+.Pp
+Unlike previous
+.Bx
+releases, the program must set all
+the fields of the IP header, including the following:
+.Bd -literal
+ip->ip_v = IPVERSION;
+ip->ip_hl = hlen >> 2;
+ip->ip_id = 0;  /* 0 means kernel set appropriate value */
+ip->ip_off = htons(offset);
+ip->ip_len = htons(len);
+.Ed
+.Pp
+The packet should be provided as is to be sent over wire.
+This implies all fields, including
+.Va ip_len
+and
+.Va ip_off
+to be in network byte order.
+See
+.Xr byteorder 3
+for more information on network byte order.
+If the
+.Va ip_id
+field is set to 0 then the kernel will choose an
+appropriate value.
+If the header source address is set to
+.Dv INADDR_ANY ,
+the kernel will choose an appropriate address.
+.Sh ERRORS
+A socket operation may fail with one of the following errors returned:
+.Bl -tag -width Er
+.It Bq Er EISCONN
+when trying to establish a connection on a socket which
+already has one, or when trying to send a datagram with the destination
+address specified and the socket is already connected;
+.It Bq Er ENOTCONN
+when trying to send a datagram, but
+no destination address is specified, and the socket has not been
+connected;
+.It Bq Er ENOBUFS
+when the system runs out of memory for
+an internal data structure;
+.It Bq Er EADDRNOTAVAIL
+when an attempt is made to create a
+socket with a network address for which no network interface
+exists.
+.It Bq Er EACCES
+when an attempt is made to create
+a raw IP socket by a non-privileged process.
+.El
+.Pp
+The following errors specific to
+.Tn IP
+may occur when setting or getting
+.Tn IP
+options:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+An unknown socket option name was given.
+.It Bq Er EINVAL
+The IP option field was improperly formed;
+an option field was shorter than the minimum value
+or longer than the option buffer provided.
+.El
+.Pp
+The following errors may occur when attempting to send
+.Tn IP
+datagrams via a
+.Dq raw socket
+with the
+.Dv IP_HDRINCL
+option set:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The user-supplied
+.Va ip_len
+field was not equal to the length of the datagram written to the socket.
+.El
+.Sh SEE ALSO
+.Xr getsockopt 2 ,
+.Xr recv 2 ,
+.Xr send 2 ,
+.Xr byteorder 3 ,
+.Xr CMSG_DATA 3 ,
+.Xr sourcefilter 3 ,
+.Xr icmp 4 ,
+.Xr igmp 4 ,
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr multicast 4
+.Rs
+.%A D. Thaler
+.%A B. Fenner
+.%A B. Quinn
+.%T "Socket Interface Extensions for Multicast Source Filters"
+.%N RFC 3678
+.%D Jan 2004
+.Re
+.Sh HISTORY
+The
+.Nm
+protocol appeared in
+.Bx 4.2 .
+The
+.Vt ip_mreqn
+structure appeared in
+.Tn Linux 2.4 .
+.Sh BUGS
+Before
+.Fx 10.0
+packets received on raw IP sockets had the
+.Va ip_hl
+subtracted from the
+.Va ip_len
+field.
+.Pp
+Before
+.Fx 11.0
+packets received on raw IP sockets had the
+.Va ip_len
+and
+.Va ip_off
+fields converted to host byte order.
+Packets written to raw IP sockets were expected to have
+.Va ip_len
+and
+.Va ip_off
+in host byte order.

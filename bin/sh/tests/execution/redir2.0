@@ -1,0 +1,29 @@
+# $FreeBSD$
+trap ': $((brokenpipe+=1))' PIPE
+
+P=${TMPDIR:-/tmp}
+cd $P
+T=$(mktemp -d sh-test.XXXXXX)
+cd $T
+
+brokenpipe=0
+mkfifo fifo1 fifo2
+{
+	{
+		exec ${SH} -c 'exec <fifo1; read dummy'
+	} 7<&- # fifo2 should be kept open, but not passed to programs
+	true
+} 7<fifo2 &
+
+exec 4>fifo2
+exec 3>fifo1
+echo dummy >&4 2>/dev/null
+if [ $brokenpipe -eq 1 ]; then
+	: ${rc:=0}
+fi
+echo dummy >&3
+wait
+
+rm fifo1 fifo2
+rmdir ${P}/${T}
+exit ${rc:-3}

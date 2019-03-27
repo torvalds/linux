@@ -1,0 +1,7 @@
+$FreeBSD$
+
+libopenbsd is a thin compatibility layer intended to allow a limited
+set of OpenBSD software to compile as part of the FreeBSD build with
+little or no modification.  It is built as a static library and not
+installed for general use.  Likewise, its header files are not
+installed.

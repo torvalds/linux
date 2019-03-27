@@ -1,0 +1,170 @@
+.\"***************************************************************************
+.\" Copyright (c) 2000-2009,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_trace.3x,v 1.12 2010/12/04 18:40:45 tom Exp $
+.TH curs_trace 3X ""
+.na
+.hy 0
+.SH NAME
+\fB_tracef\fR,
+\fB_tracedump\fR,
+\fB_traceattr\fR,
+\fB_traceattr2\fR,
+\fB_nc_tracebits\fR,
+\fB_tracecchar_t\fR,
+\fB_tracecchar_t2\fR,
+\fB_tracechar\fR,
+\fB_tracechtype\fR,
+\fB_tracechtype2\fR,
+\fB_tracemouse\fR,
+\fBtrace\fR \- \fBcurses\fR debugging routines
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBvoid _tracef(const char *format, ...);\fR
+.br
+\fBvoid _tracedump(const char *label, WINDOW *win);\fR
+.br
+\fBchar *_traceattr(attr_t attr);\fR
+.br
+\fBchar *_traceattr2(int buffer, chtype ch);\fR
+.br
+\fBchar *_nc_tracebits(void);\fR
+.br
+\fBchar * _tracecchar_t(const cchar_t *string);\fR
+.br
+\fBchar * _tracecchar_t2(int buffer, const cchar_t *string);\fR
+.br
+\fBchar *_tracechar(int ch);\fR
+.br
+\fBchar *_tracechtype(chtype ch);\fR
+.br
+\fBchar *_tracechtype2(int buffer, chtype ch);\fR
+.br
+\fBchar *_tracemouse(const MEVENT *event);\fR
+.br
+\fBvoid trace(const unsigned int param);\fR
+.SH DESCRIPTION
+The \fBtrace\fR routines are used for debugging the ncurses libraries,
+as well as applications which use the ncurses libraries.
+These functions are normally available only with the debugging library
+\fIlibncurses_g.a\fR, but may be compiled into any model (shared, static,
+profile) by defining the symbol \fBTRACE\fR.
+Additionally, some functions are only available with the wide-character
+configuration of the libraries.
+.PP
+The principal parts of this interface are the \fBtrace\fR routine which
+selectively enables different tracing features, and the \fB_tracef\fR
+routine which writes formatted data to the \fItrace\fR file.
+.PP
+Calling \fBtrace\fR with a nonzero parameter opens the file \fBtrace\fR
+in the current directory for output.  The parameter is formed by OR'ing
+values from the list of \fBTRACE_\fP\fIxxx\fR definitions in \fB<curses.h>\fR.
+These include:
+.TP 5
+TRACE_DISABLE
+turn off tracing.
+.TP 5
+TRACE_TIMES
+trace user and system times of updates.
+.TP 5
+TRACE_TPUTS
+trace tputs calls.
+.TP 5
+TRACE_UPDATE
+trace update actions, old & new screens.
+.TP 5
+TRACE_MOVE
+trace cursor movement and scrolling.
+.TP 5
+TRACE_CHARPUT
+trace all character outputs.
+.TP 5
+TRACE_ORDINARY
+trace all update actions.
+The old and new screen contents are written to the trace file
+for each refresh.
+.TP 5
+TRACE_CALLS
+trace all curses calls.
+The parameters for each call are traced, as well as return values.
+.TP 5
+TRACE_VIRTPUT
+trace virtual character puts, i.e., calls to \fBaddch\fR.
+.TP 5
+TRACE_IEVENT
+trace low-level input processing, including timeouts.
+.TP 5
+TRACE_BITS
+trace state of TTY control bits.
+.TP 5
+TRACE_ICALLS
+trace internal/nested calls.
+.TP 5
+TRACE_CCALLS
+trace per-character calls.
+.TP 5
+TRACE_DATABASE
+trace read/write of terminfo/termcap data.
+.TP 5
+TRACE_ATTRS
+trace changes to video attributes and colors.
+.TP 5
+TRACE_MAXIMUM
+maximum trace level, enables all of the separate trace features.
+.PP
+Some tracing features are enabled whenever the \fBtrace\fR parameter
+is nonzero.  Some features overlap.
+The specific names are used as a guideline.
+.PP
+These functions check the \fBNCURSES_TRACE\fP environment variable,
+to set the tracing feature as if \fBtrace\fP was called:
+.RS
+filter,
+initscr,
+new_prescr,
+newterm,
+nofilter,
+ripoffline,
+setupterm,
+slk_init,
+tgetent
+.RE
+
+.SH RETURN VALUE
+Routines which return a value are designed to be used as parameters
+to the \fB_tracef\fR routine.
+.SH PORTABILITY
+These functions are not part of the XSI interface.
+Some other curses implementations are known to
+have similar, undocumented features,
+but they are not compatible with ncurses.
+.SH SEE ALSO
+\fBcurses\fR(3X).

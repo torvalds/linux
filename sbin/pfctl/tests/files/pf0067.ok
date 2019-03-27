@@ -1,0 +1,2 @@
+pass in quick on tun1000000 all flags S/SA keep state tag regress
+pass out quick on lo0 all flags S/SA keep state tagged regress

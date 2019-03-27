@@ -1,0 +1,74 @@
+<HTML>
+<HEAD><TITLE>smfi_stop</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_stop.html,v 1.8 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_stop</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_stop(void);
+</PRE>
+Shutdown the milter.
+No connections will be accepted after this call.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>Called from any of the <A href="api.html#Callbacks">Callback</A> routines
+or any error-handling routines at any time.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>The smfi_stop routine prevents that new connections
+will be accepted,
+however, it does not wait for existing connections (threads) to terminate.
+It will cause
+<A href="smfi_main.html">smfi_main</A> to return to the calling program,
+which may then exit or warm-restart.
+</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>void</TD>
+	<TD>Takes no argument.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>smfi_stop always returns SMFI_CONTINUE. But note:
+<UL>
+    <LI>Another internal routine may already have asked the milter to abort.
+    <LI>Another routine may already have asked the milter to stop.
+    <LI>There is no way to cancel the stop process once it has begun.
+</UL>
+</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2003, 2005 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

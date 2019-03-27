@@ -1,0 +1,164 @@
+		README for GAS
+
+A number of things have changed since version 1 and the wonderful
+world of gas looks very different.  There's still a lot of irrelevant
+garbage lying around that will be cleaned up in time.  Documentation
+is scarce, as are logs of the changes made since the last gas release.
+My apologies, and I'll try to get something useful.
+
+Unpacking and Installation - Summary
+====================================
+
+See ../binutils/README.
+
+To build just the assembler, make the target all-gas.
+
+Documentation
+=============
+
+The GAS release includes texinfo source for its manual, which can be processed
+into `info' or `dvi' forms.
+
+The DVI form is suitable for printing or displaying; the commands for doing
+this vary from system to system.  On many systems, `lpr -d' will print a DVI
+file.  On others, you may need to run a program such as `dvips' to convert the
+DVI file into a form your system can print.
+
+If you wish to build the DVI file, you will need to have TeX installed on your
+system.  You can rebuild it by typing:
+
+	cd gas/doc
+	make as.dvi
+
+The Info form is viewable with the GNU Emacs `info' subsystem, or the
+stand-alone `info' program, available as part of the GNU Texinfo distribution.
+To build the info files, you will need the `makeinfo' program.  Type:
+
+	cd gas/doc
+	make info
+
+Specifying names for hosts and targets
+======================================
+
+   The specifications used for hosts and targets in the `configure'
+script are based on a three-part naming scheme, but some short
+predefined aliases are also supported.  The full naming scheme encodes
+three pieces of information in the following pattern:
+
+     ARCHITECTURE-VENDOR-OS
+
+   For example, you can use the alias `sun4' as a HOST argument or in a
+`--target=TARGET' option.  The equivalent full name is
+`sparc-sun-sunos4'.
+
+   The `configure' script accompanying GAS does not provide any query
+facility to list all supported host and target names or aliases. 
+`configure' calls the Bourne shell script `config.sub' to map
+abbreviations to full names; you can read the script, if you wish, or
+you can use it to test your guesses on abbreviations--for example:
+
+     % sh config.sub i386v
+     i386-unknown-sysv
+     % sh config.sub i786v
+     Invalid configuration `i786v': machine `i786v' not recognized
+
+
+`configure' options
+===================
+
+   Here is a summary of the `configure' options and arguments that are
+most often useful for building GAS.  `configure' also has several other
+options not listed here.
+
+     configure [--help]
+               [--prefix=DIR]
+               [--srcdir=PATH]
+               [--host=HOST]
+               [--target=TARGET]
+               [--with-OPTION]
+               [--enable-OPTION]
+
+You may introduce options with a single `-' rather than `--' if you
+prefer; but you may abbreviate option names if you use `--'.
+
+`--help'
+     Print a summary of the options to `configure', and exit.
+
+`-prefix=DIR'
+     Configure the source to install programs and files under directory
+     `DIR'.
+
+`--srcdir=PATH'
+     Look for the package's source code in directory DIR.  Usually
+     `configure' can determine that directory automatically.
+
+`--host=HOST'
+     Configure GAS to run on the specified HOST.  Normally the
+     configure script can figure this out automatically.
+
+     There is no convenient way to generate a list of all available
+     hosts.
+
+`--target=TARGET'
+     Configure GAS for cross-assembling programs for the specified
+     TARGET.  Without this option, GAS is configured to assemble .o files
+     that run on the same machine (HOST) as GAS itself.
+
+     There is no convenient way to generate a list of all available
+     targets.
+
+`--enable-OPTION'
+     These flags tell the program or library being configured to 
+     configure itself differently from the default for the specified
+     host/target combination.  See below for a list of `--enable'
+     options recognized in the gas distribution.
+
+`configure' accepts other options, for compatibility with configuring
+other GNU tools recursively; but these are the only options that affect
+GAS or its supporting libraries.
+
+The `--enable' options recognized by software in the gas distribution are:
+
+`--enable-targets=...'
+     This causes one or more specified configurations to be added to those for
+     which BFD support is compiled.  Currently gas cannot use any format other
+     than its compiled-in default, so this option is not very useful.
+
+`--enable-bfd-assembler'
+     This causes the assembler to use the new code being merged into it to use
+     BFD data structures internally, and use BFD for writing object files.
+     For most targets, this isn't supported yet.  For most targets where it has
+     been done, it's already the default.  So generally you won't need to use
+     this option.
+
+Compiler Support Hacks
+======================
+
+On a few targets, the assembler has been modified to support a feature
+that is potentially useful when assembling compiler output, but which
+may confuse assembly language programmers.  If assembler encounters a
+.word pseudo-op of the form symbol1-symbol2 (the difference of two
+symbols), and the difference of those two symbols will not fit in 16
+bits, the assembler will create a branch around a long jump to
+symbol1, and insert this into the output directly before the next
+label: The .word will (instead of containing garbage, or giving an
+error message) contain (the address of the long jump)-symbol2.  This
+allows the assembler to assemble jump tables that jump to locations
+very far away into code that works properly.  If the next label is
+more than 32K away from the .word, you lose (silently); RMS claims
+this will never happen.  If the -K option is given, you will get a
+warning message when this happens.
+
+
+REPORTING BUGS IN GAS
+=====================
+
+Bugs in gas should be reported to:
+
+   bug-binutils@gnu.org.
+
+They may be cross-posted to gcc-bugs@gnu.org if they affect the use of
+gas with gcc.  They should not be reported just to gcc-bugs, since not
+all of the maintainers read that list.
+
+See ../binutils/README for what we need in a bug report.

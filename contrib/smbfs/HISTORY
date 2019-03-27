@@ -1,0 +1,148 @@
+22.07.2002	1.4.5 (bug fix only)
+    - Some iconv libraries may refuse to recode some characters. This
+      caused problems with translation between server and local charsets.
+
+16.04.2002	1.4.4
+    - Workaround for W2K bug in resource listing.
+    - Minor bug fixes.
+    - Manual pages updated. Thanks to Ruslan Ermilov.
+
+26.12.2001	1.4.3 (interim)
+    - Additional cleanups for FreeBSD builds.
+    - Charset specifications now accepted in the [default] section.
+
+20.12.2001	1.4.2 (interim)
+    - Various merges (but not all) from Darwin project.
+    - Minor man pages corrections.
+    - Support builds in the FreeBSD main tree.
+
+16.04.2001	1.4.1
+    - Kernel side of smbfs committed in the FreeBSD-current. It controlled
+      by following options: LIBMCHAIN, LIBICONV, NETSMB, NETSMBCRYPTO and SMBFS.
+    - Removed static dependency on the libiconv library, option WITH_ICONV
+      removed as well. If you use libiconv support, make sure that the latest
+      port is installed.
+    - Multiple mount/umount operations called in parallel can cause kernel
+      panic - fixed.
+    - Misc code cleanups.
+
+26.02.2001	1.3.6
+    - Names of some options is the config.mk.in file are changed. The old ones
+      are still supported.
+    - Synch with changes in the recent -current (you'll need kernel compiled
+      from sources at least as of Feb 24).
+    - In all previous versions of smbfs signals weren't properly masked,
+      which caused erratical behavior of some programs (ftp(1) for example).
+    - Mounted shares may become "frozen" (no timeout occurs) if server died or
+      disconnected for some reason - fixed.
+
+09.02.2001	1.3.5
+    - The user and server names was swapped in the "TreeConnect"
+      request (fixed by Jonathan Hanna).
+    - smb requester could cause a panic if there is no free mbufs - fixed.
+    - It is possible to use smbfs with devfs now, but it wasn't tested under
+      SMP. Also note that device permissions will be wrong, because devfs
+      do not allow passing of credentials to the cloning function.
+    - nsmbX device moved from the /dev/net directory to /dev directory.
+
+31.01.2001	1.3.4
+    - Maintance: synch with changes in the recent -current
+
+28.01.2001	1.3.3
+    - Connection handling engine rewritten in order to reduce number of
+      possible deadlocks during reconnect operations.
+    - Directory traversals should be faster on large directories.
+    - smbfs now can talk to the NetApp servers (thanks to Jonathan Hanna).
+    - smbfs.sh.sample script updated (ideas from Nikolai Saoukh).
+    - Minor bug fixes.
+
+19.11.2000	1.3.2
+    - synch with changes in the recent -current
+    - nail down a nasty bug which may cause incorrect values supplied as
+      domain name (reported by Harald Weis).
+    - There was a bug in the directory listing code which caused long directory
+      traversals to fail (reported by A G F Keahan).
+
+29.10.2000	1.3.1
+    - An attempt was made to get rid from the possible kernel stack overflow.
+    - Now connection will be restored properly under -stable.
+    NOTE: NT servers have an 'AutoDisconnect' feature which will drop client
+    connection after some time of idleing. smbfs will restore connection on
+    the next request, but one may wish to setup a cron job with a simple
+    'ls /ntmount' command.
+
+20.10.2000	1.3.0
+    - Network IO engine significantly reworked. Now it uses kernel threads
+      to implement 'smbiod' process which handles network traffic for each VC.
+      Previous model were incapable to serve large number of mount points and
+      didn't work well with intensive IO operations performed on a different
+      files on the same mount point. Special care was taken on better 
+      usage of MP systems.
+      Unfortunately, kernel threads aren't supported by FreeBSD 3.X and for
+      now it is excluded from the list of supported systems.
+    - Reduce overhead caused by using single hash table for each mount point.
+
+26.09.2000	1.2.8 (never released)
+    - More SMP related bugs are fixed.
+    - Make smbfs compatible with the Linux emulator.
+    - smbfs now known to work with IBM LanManager (special thanks to
+      Eugen Averin <mad@euinf.dp.ua>)
+    - Fix problem with files bigger than 2GB (reported by Lee McKenna)
+    - Please note that smbfs may not work properly with FreeBSD 3.X.
+
+16.08.2000	1.2.7
+    - Maintance: use better algorithm to detect SYSCTL_HANDLER_ARGS changes
+      to avoid compilation problems on various versions of FreeBSD.
+
+07.08.2000	1.2.6
+    - Fix iconv support, was broken in the 1.2.5
+    - Minor corrections to 'smbutil view' command.
+    - Fix kernel memory leak caused by two subsequent and identical
+      'smbutil login' commands.
+
+25.07.2000	1.2.5
+    - NetBIOS name resolver added. '-I' option still supported. WINS server
+      can be specified in the nsmbrc file (nbns variable). To use resolver
+      with Win9X machines you have to specify WINS server in the config file.
+
+12.07.2000	1.2.4
+    - Variable SRCTREE in the config.mk replaced with SYSDIR and should
+      point to the sys directory. '/usr/src/sys' for example.
+    - Correct problem with the keep-alive packets
+
+04.07.2000	1.2.3
+    - Killed some bugs related to the out-of-mbufs condition.
+    - new keyword 'addr' added to the config file to specify server address.
+    - Another attempt to make reconnection procedure more stable.
+
+21.06.2000	1.2.2
+    - Device handles wasn't freed under FreeBSD 3.4 - fixed.
+      Implement correct handling of multiple connections to the same NT
+      server (thanks to kit <kit.mitchell@team.xtra.co.nz>) for report.
+      More misc fixes for an NT servers.
+
+11.06.2000	1.2.1
+    - More bug fixes in the connection handling mechanism.
+      mount_smbfs(8) manpage has now proper description for an '-N' option.
+      smbutil supports new commands:
+	'print'	- send file to the remote printer
+	'view'	- list shares available on the specified host
+	'login'	- create permanent connection to remote host
+	'logout'- counterpart of 'login'
+	'crypt'	- produce an encrypted password to store in the .nsmbrc file.
+
+01.06.2000	1.1.2
+    - Support for FreeBSD 3.4 added (see INSTALL file for details).
+      Add advisory locking support in order to make fcntl(2), flock(2)
+      system calls actually work on smbfs.
+      Few non-serious bugs fixed.
+
+16.05.2000	1.0.5
+    - fix authentication code, this caused troubles with NT server.
+      (Thanks to Neil Blakey-Milner and Andrew Zavjalov for testing)
+      Some documentation changes.
+
+14.05.2000	1.0.2
+    - first public release
+
+Boris Popov <bp@butya.kz>

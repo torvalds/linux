@@ -1,0 +1,10 @@
+.\" $FreeBSD$
+Set to install
+.Xr gdb 1
+into
+.Pa /usr/libexec .
+This permits
+.Xr gdb 1
+to be used as a fallback for
+.Xr crashinfo 8
+if a newer version is not installed.

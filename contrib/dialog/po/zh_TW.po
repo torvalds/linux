@@ -1,0 +1,112 @@
+# Traditional Chinese Messages for dialog.
+# Copyright (C) 2005 Free Software Foundation, Inc.
+# This file is distributed under the same license as the dialog package.
+# Wei-Lun Chao <bluebat@member.fsf.org>, 2005, 2007, 2013.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2013-02-12 23:39+0800\n"
+"Last-Translator: Wei-Lun Chao <bluebat@member.fsf.org>\n"
+"Language-Team: Chinese (traditional) <zh-l10n@linux.org.tw>\n"
+"Language: zh_TW\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "是"
+
+#: buttons.c:393
+msgid "No"
+msgstr "否"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "確定"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "取消"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "離開"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "其他"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "求助"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "月"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "年"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "更名"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "目錄"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "檔案"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "已成功"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "已失敗"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "已傳遞"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "已完成"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "已勾選"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "已完成"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "已略過"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "正在進行"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "不明"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "整體進度"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "搜尋"

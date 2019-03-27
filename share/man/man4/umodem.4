@@ -1,0 +1,130 @@
+.\" $NetBSD: umodem.4,v 1.6 2001/09/11 23:18:55 wiz Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 26, 2017
+.Dt UMODEM 4
+.Os
+.Sh NAME
+.Nm umodem
+.Nd USB Communication Device Class serial (CDC ACM) driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device ucom"
+.Cd "device umodem"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+umodem_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB modems and serial devices that
+implement the Communication Device Class Abstract Control Model (CDC ACM).
+It also provides device-side CDC ACM support.
+Supported modems are basically standard serial line modems, but they are
+accessed via USB instead.
+They support a regular AT command set.
+The commands can either be multiplexed with the data stream
+or handled through separate pipes.
+In the latter case the AT
+commands have to be given on a device separate from the data device.
+.Pp
+The device is accessed through the
+.Xr ucom 4
+driver which makes it behave like a
+.Xr tty 4 .
+.Sh HARDWARE
+Devices supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+3Com 5605
+.It
+Curitel PC5740 Wireless Modem
+.It
+Kyocera AH-K3001V Mobile Phone(WILLCOM)
+.It
+Kyocera WX320K Mobile Phone(WILLCOM)
+.It
+Metricom Ricochet GS USB wireless modem
+.It
+Sierra MC5720 Wireless Modem
+.It
+Yamaha Broadband Wireless Router RTW65b
+.It
+ELSA MicroLink 56k USB modem
+.It
+Sony Ericsson W810i phone
+.It
+Sonim XP5300 Force
+.El
+.Sh FILES
+.Bl -tag -width "/dev/ttyU*.init" -compact
+.It Pa /dev/ttyU*
+for callin ports
+.It Pa /dev/ttyU*.init
+.It Pa /dev/ttyU*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*
+for callout ports
+.It Pa /dev/cuaU*.init
+.It Pa /dev/cuaU*.lock
+corresponding callout initial-state and lock-state devices
+.El
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Nx 1.5 .
+This manual page was adopted from
+.Nx
+by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org
+in April 2002.
+.Sh BUGS
+Only modems with multiplexed commands and data are supported
+at the moment.

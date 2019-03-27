@@ -1,0 +1,5 @@
+bimap le0 inet6 any -> ::/128
+bimap le0 inet6 any -> any
+bimap le0 inet6 ::/1 -> any
+bimap le0 inet6 10::/16 -> 1:2:3::/96
+bimap le0 inet6 10:0:5::/96 -> 1:2:3::/96

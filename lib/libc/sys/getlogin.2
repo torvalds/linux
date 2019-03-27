@@ -1,0 +1,204 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)getlogin.2	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd June 9, 1993
+.Dt GETLOGIN 2
+.Os
+.Sh NAME
+.Nm getlogin ,
+.Nm getlogin_r ,
+.Nm setlogin
+.Nd get/set login name
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft char *
+.Fn getlogin void
+.In sys/param.h
+.Ft int
+.Fn getlogin_r "char *name" "int len"
+.Ft int
+.Fn setlogin "const char *name"
+.Sh DESCRIPTION
+The
+.Fn getlogin
+routine
+returns the login name of the user associated with the current session,
+as previously set by
+.Fn setlogin .
+The name is normally associated with a login shell
+at the time a session is created,
+and is inherited by all processes descended from the login shell.
+(This is true even if some of those processes assume another user ID,
+for example when
+.Xr su 1
+is used).
+.Pp
+The
+.Fn getlogin_r
+function
+provides the same service as
+.Fn getlogin
+except the caller must provide the buffer
+.Fa name
+with length
+.Fa len
+bytes
+to hold the result.
+The buffer should be at least
+.Dv MAXLOGNAME
+bytes in length.
+.Pp
+The
+.Fn setlogin
+system call
+sets the login name of the user associated with the current session to
+.Fa name .
+This system call is restricted to the super-user, and
+is normally used only when a new session is being created on behalf
+of the named user
+(for example, at login time, or when a remote shell is invoked).
+.Pp
+.Em NOTE :
+There is only one login name per session.
+.Pp
+It is
+.Em CRITICALLY
+important to ensure that
+.Fn setlogin
+is only ever called after the process has taken adequate steps to ensure
+that it is detached from its parent's session.
+Making a
+.Fn setsid
+system call is the
+.Em ONLY
+way to do this.
+The
+.Xr daemon 3
+function calls
+.Fn setsid
+which is an ideal way of detaching from a controlling terminal and
+forking into the background.
+.Pp
+In particular, doing a
+.Fn ioctl ttyfd TIOCNOTTY ...\&
+or
+.Fn setpgrp ...\&
+is
+.Em NOT
+sufficient.
+.Pp
+Once a parent process does a
+.Fn setsid
+system call, it is acceptable for some child of that process to then do a
+.Fn setlogin
+even though it is not the session leader, but beware that ALL processes
+in the session will change their login name at the same time, even the
+parent.
+.Pp
+This is not the same as the traditional UNIX behavior of inheriting privilege.
+.Pp
+Since the
+.Fn setlogin
+system call is restricted to the super-user, it is assumed that (like
+all other privileged programs) the programmer has taken adequate
+precautions to prevent security violations.
+.Sh RETURN VALUES
+If a call to
+.Fn getlogin
+succeeds, it returns a pointer to a null-terminated string in a static buffer,
+or
+.Dv NULL
+if the name has not been set.
+The
+.Fn getlogin_r
+function
+returns zero if successful, or the error number upon failure.
+.Pp
+.Rv -std setlogin
+.Sh ERRORS
+The following errors may be returned by these calls:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa name
+argument gave an
+invalid address.
+.It Bq Er EINVAL
+The
+.Fa name
+argument
+pointed to a string that was too long.
+Login names are limited to
+.Dv MAXLOGNAME
+(from
+.In sys/param.h )
+characters, currently 33 including null.
+.It Bq Er EPERM
+The caller tried to set the login name and was not the super-user.
+.It Bq Er ERANGE
+The size of the buffer is smaller than the result to be returned.
+.El
+.Sh SEE ALSO
+.Xr setsid 2 ,
+.Xr daemon 3
+.Sh STANDARDS
+The
+.Fn getlogin
+system call
+and
+the
+.Fn getlogin_r
+function
+conform to
+.St -p1003.1-96 .
+.Sh HISTORY
+The
+.Fn getlogin
+system call first appeared in
+.Bx 4.4 .
+The return value of
+.Fn getlogin_r
+was changed from earlier versions of
+.Fx
+to be conformant with
+.St -p1003.1-96 .
+.Sh BUGS
+In earlier versions of the system,
+.Fn getlogin
+failed unless the process was associated with a login terminal.
+The current implementation (using
+.Fn setlogin )
+allows getlogin to succeed even when the process has no controlling terminal.
+In earlier versions of the system, the value returned by
+.Fn getlogin
+could not be trusted without checking the user ID.
+Portable programs should probably still make this check.

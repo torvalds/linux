@@ -1,0 +1,2079 @@
+From: "Michael S. Muegel" <mmuegel@cssun6.corp.mot.com>
+Message-Id: <199307280818.AA08111@cssun6.corp.mot.com>
+Subject: Re: contributed software
+To: eric@cs.berkeley.edu (Eric Allman)
+Date: Wed, 28 Jul 1993 03:18:02 -0500 (CDT)
+In-Reply-To: <199307221853.LAA04266@mastodon.CS.Berkeley.EDU> from "Eric Allman" at Jul 22, 93 11:53:47 am
+X-Mailer: ELM [version 2.4 PL22]
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Content-Length: 69132     
+
+OK. Here is a new shell archive.
+
+Cheers,
+-Mike
+
+---- Cut Here and feed the following to sh ----
+#!/bin/sh
+# This is a shell archive (produced by shar 3.49)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 07/28/1993 08:13 UTC by mmuegel@mot.com (Michael S. Muegel)
+# Source directory /home/ustart/NeXT/src/mail-tools/dist/foo
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#   4308 -r--r--r-- README
+#  12339 -r--r--r-- libs/date.pl
+#   3198 -r--r--r-- libs/elapsed.pl
+#   4356 -r--r--r-- libs/mail.pl
+#   6908 -r--r--r-- libs/mqueue.pl
+#   7024 -r--r--r-- libs/newgetopts.pl
+#   4687 -r--r--r-- libs/strings1.pl
+#   1609 -r--r--r-- libs/timespec.pl
+#   5212 -r--r--r-- man/cqueue.1
+#   2078 -r--r--r-- man/postclip.1
+#   6647 -r-xr-xr-x src/cqueue
+#   1836 -r-xr-xr-x src/postclip
+#
+# ============= README ==============
+if test -f 'README' -a X"$1" != X"-c"; then
+	echo 'x - skipping README (File already exists)'
+else
+echo 'x - extracting README (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'README' &&
+-------------------------------------------------------------------------------
+Document Revision Control Information:
+X   mmuegel
+X   /usr/local/ustart/src/mail-tools/dist/foo/README,v
+X   1.1 of 1993/07/28 08:12:53
+-------------------------------------------------------------------------------
+X
+1. Introduction
+---------------
+X
+These tools may be of use to those sites using sendmail. Both are written in
+Perl. Our site, Mot.COM, receives a ton of mail being a top-level domain
+gateway. We have over 24 domains under us. Needless to say, we must have
+a robust mail system or my head, and others, would be on the chopping block.
+X
+2. Description
+--------------
+X
+The first tool, cqueue, checks the sendmail queue for problems. We use
+it to flag problems with subdomain mail servers (and even our own servers
+once in a while ;-). We run it via a cron job every hour during the day.
+You may find this too frequent, however. 
+X
+The other program, postclip, is used to "filter" non-deliverable NDNs that
+get sent to our Postmaster account now and then. This ensures privacy of
+e-mail and helps avoid disk problems from huge NDNs. It is different than
+a brute force "just keep the header" approach because it tries hard to keep
+other parts of the message that look like non-delivery information.
+X
+Both have been used for some time at our site with no problems. Everything 
+you need should be in this distribution: source, manual pages, and support 
+libs. See the manual pages for a complete description of each tool.
+X
+3. Installation
+---------------
+X
+No fancy Makefile simply because these tools are all under a large
+hierarchy at my site. Installation should be a snap, however. Install
+the nroff(1) man(5) manual pages from the man subdirectory to the
+appropriate directory on your system. This might be something like
+/usr/local/man/man1.
+X
+Next, install all of the Perl libraries located in the lib subdirectory
+to your Perl library area. /usr/local/lib/perl is a good bet. The person
+who installed Perl at your site will be able to tell you for sure. 
+X
+Finally, you need to install the programs. Note that cqueue wants to
+run setuid root by default. This is because the sendmail queue is normally
+only readable by root or some special group. In order to let any user
+run this suidperl is used. suidperl allows a Perl program to run with the
+privileges of another user. 
+X
+You will have to edit both the cqueue and postclip programs to change
+the #! line at the top of each. Just change the pathname to whatever is
+appropriate on your system. Note that Larry Wall's fixin program from
+the Camel book can also be used to do this. It is very handy. It changes
+#! lines by looking at your PATH.
+X
+If you do not have suidperl on your system change the #! line in cqueue
+to reference perl instead of suidperl.
+X
+You may also wish to change some constants in cqueue. $DEF_QUEUE should be
+changed to your queue directory if it is not /usr/spool/mqueue. $DEF_TIME
+could be changed easy enough also. It is the time spec for the time duration
+after which a mail message will be reported on if the -a option has not been
+specified. See the manual page for more information and the format of this
+constant (same as the -t argument). Then again, neither of these has to
+be changed. Command line options are there to override their default
+values.
+X
+After you have edited the programs as necessary, all that remains is to
+install them to some executable directory. Install postclip mode 555
+and cqueue mode 4555 with owner root (if using suidperl) or mode 555
+(if not using suidperl).
+X
+4. Gripes, Comments, Etc
+------------------------
+X
+If you start using either of these let me know. I have other mail tools I
+will likely post in the future if these prove useful. Also, if you think
+something is just plain dumb/wrong/stupid let me know!
+X
+Cheers,
+-Mike
+X
+--
++----------------------------------------------------------------------------+
+| Michael S. Muegel                    | Internet E-Mail:    mmuegel@mot.com |
+| UNIX Applications Startup Group      | Moto Dist E-Mail:   X10090          |
+| Corporate Information Office         | Voice:              (708) 576-0507  |
+| Motorola                             | Fax:                (708) 576-4153  |
++----------------------------------------------------------------------------+
+SHAR_EOF
+chmod 0444 README ||
+echo 'restore of README failed'
+Wc_c="`wc -c < 'README'`"
+test 4308 -eq "$Wc_c" ||
+	echo 'README: original size 4308, current size' "$Wc_c"
+fi
+# ============= libs/date.pl ==============
+if test ! -d 'libs'; then
+    echo 'x - creating directory libs'
+    mkdir 'libs'
+fi
+if test -f 'libs/date.pl' -a X"$1" != X"-c"; then
+	echo 'x - skipping libs/date.pl (File already exists)'
+else
+echo 'x - extracting libs/date.pl (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'libs/date.pl' &&
+;#
+;# Name
+;#	date.pl - Perl emulation of (the output side of) date(1)
+;#
+;# Synopsis
+;#	require "date.pl";
+;#	$Date = &date(time);
+;#	$Date = &date(time, $format);
+;#
+;# Description
+;#	This package implements the output formatting functions of date(1) in
+;#	Perl.  The format options are based on those supported by Ultrix 4.0
+;#	plus a couple of additions from SunOS 4.1.1 and elsewhere:
+;#
+;#		%a		abbreviated weekday name - Sun to Sat
+;#		%A		full weekday name - Sunday to Saturday
+;#		%b		abbreviated month name - Jan to Dec
+;#		%B		full month name - January to December
+;#		%c		date and time in local format [+]
+;#		%C		date and time in long local format [+]
+;#		%d		day of month - 01 to 31
+;#		%D		date as mm/dd/yy
+;#		%e		day of month (space padded) - ` 1' to `31'
+;#		%E		day of month (with suffix: 1st, 2nd, 3rd...)
+;#		%f		month of year (space padded) - ` 1' to `12'
+;#		%h		abbreviated month name - Jan to Dec
+;#		%H		hour - 00 to 23
+;#		%i		hour (space padded) - ` 1' to `12'
+;#		%I		hour - 01 to 12
+;#		%j		day of the year (Julian date) - 001 to 366
+;#		%k		hour (space padded) - ` 0' to `23'
+;#		%l		date in ls(1) format
+;#		%m		month of year - 01 to 12
+;#		%M		minute - 00 to 59
+;#		%n		insert a newline character
+;#		%p		ante-meridiem or post-meridiem indicator (AM or PM)
+;#		%r		time in AM/PM notation
+;#		%R		time as HH:MM
+;#		%S		second - 00 to 59
+;#		%t		insert a tab character
+;#		%T		time as HH:MM:SS
+;#		%u		date/time in date(1) required format
+;#		%U		week number, Sunday as first day of week - 00 to 53
+;#		%V		date-time in SysV touch format (mmddHHMMyy)
+;#		%w		day of week - 0 (Sunday) to 6
+;#		%W		week number, Monday as first day of week - 00 to 53
+;#		%x		date in local format [+]
+;#		%X		time in local format [+]
+;#		%y		last 2 digits of year - 00 to 99
+;#		%Y		all 4 digits of year ~ 1700 to 2000 odd ?
+;#		%z		time zone from TZ environment variable w/ a trailing space
+;#		%Z		time zone from TZ environment variable
+;#		%%		insert a `%' character
+;#		%+		insert a `+' character
+;#
+;#	[+]:  These may need adjustment to fit local conventions, see below.
+;#
+;#	For the sake of compatibility, a leading `+' in the format
+;#	specificaiton is removed if present.
+;#
+;# Remarks
+;#	This is version 3.4 of date.pl
+;#
+;#	An extension of `ctime.pl' by Waldemar Kebsch (kebsch.pad@nixpbe.UUCP),
+;#	as modified by Marion Hakanson (hakanson@ogicse.ogi.edu).
+;#
+;#  Unlike date(1), unknown format tags are silently replaced by "".
+;#
+;#  defaultTZ is a blatant hack, but I wanted to be able to get date(1)
+;#	like behaviour by default and there does'nt seem to be an easy (read
+;#	portable) way to get the local TZ name back...
+;#
+;#	For a cheap date, try...
+;#
+;#		#!/usr/local/bin/perl
+;#		require "date.pl";
+;#		exit print (&date(time, shift @ARGV) . "\n") ? 0 : 1;
+;#
+;#	This package is redistributable under the same terms as apply to
+;#	the Perl 4.0 release.  See the COPYING file in your Perl kit for
+;#	more information.
+;#
+;#	Please send any bug reports or comments to tmcgonigal@gallium.com
+;#
+;# Modification History
+;#	Nmemonic	Version	Date		Who
+;#
+;#	NONE		1.0		02feb91		Terry McGonigal (tmcgonigal@gallium.com)
+;#		Created from ctime.pl
+;#
+;#	NONE		2.0		07feb91		tmcgonigal
+;#		Added some of Marion Hakanson (hakanson@ogicse.ogi.edu)'s ctime.pl
+;#		TZ handling changes.
+;#
+;#	NONE		2.1		09feb91		tmcgonigal
+;#		Corrected week number calculations.
+;#
+;#	NONE		2.2		21oct91		tmcgonigal
+;#		Added ls(1) date format, `%l'.
+;#
+;#	NONE		2.3		06nov91		tmcgonigal
+;#		Added SysV touch(1) date-time format, `%V' (pretty thin as
+;#		mnemonics go, I know, but `t' and `T' were both gone already!)
+;#
+;#	NONE		2.4		05jan92		tmcgonigal
+;#		Corrected slight (cosmetic) problem with %V replacment string
+;#
+;#	NONE		3.0		09jul92		tmcgonigal
+;#		Fixed a couple of problems with &ls as pointed out by
+;#		Thomas Richter (richter@ki1.chemie.fu-berlin.de), thanks Thomas!
+;#		Also added a couple of SunOS 4.1.1 strftime-ish formats, %i and %k
+;#		for space padded hours (` 1' to `12' and ` 0' to `23' respectivly),
+;#		and %C for locale long date/time format.  Changed &ampmH to take a
+;#		pad char parameter to make to evaled code for %i and %k simpler. 
+;#		Added %E for suffixed day-of-month (ie 1st, 3rd, 4th etc).
+;#
+;#	NONE		3.1		16jul92		tmcgonigal
+;#		Added `%u' format to generate date/time in date(1) required
+;#		format (ie '%y%m%d%H%M.%S').
+;#
+;#	NONE		3.2		23jan93		tmcgonigal
+;#		Added `%f' format to generate space padded month numbers, added
+;#		`%E' to the header comments, it seems to have been left out (and
+;#		I'm sure I wanted to use it at some point in the past...).
+;#
+;#	NONE		3.3		03feb93		tmcgonigal
+;#		Corrected some problems with AM/PM handling pointed out by
+;#		Michael S. Muegel (mmuegel@mot.com).  Thanks Michael, I hope
+;#		this is the behaviour you were looking for, it seems more
+;#		correct to me...
+;#
+;#	NONE		3.4		26jul93		tmcgonigal
+;#		Incorporated some fixes provided by DaviD W. Sanderson
+;#		(dws@ssec.wisc.edu): February was spelled incorrectly and
+;#		&wkno() was always using the current year while calculating
+;#		week numbers, regardless of year implied by the time value
+;#		passed to &date().  DaviD also contributed an improved &date()
+;#		test script, thanks DaviD, I appreciate the effort.  Finally,
+;#		changed my mailling address from @gvc.com to @gallium.com
+;#		to reflect, well, my new address!
+;#
+;# SccsId = "%W% %E%"
+;#
+require 'timelocal.pl';
+package date;
+X
+# Months of the year
+@MoY = ('January',	'February',	'March',	'April',	'May',		'June',
+X		'July',		'August',	'September','October',	'November', 'December');
+X
+# days of the week
+@DoW = ('Sunday',	'Monday',	'Tuesday',	'Wednesday',
+X		'Thursday',	'Friday',	'Saturday');
+X
+# CUSTOMIZE - defaults
+$defaultTZ = 'CST';						# time zone (hack!)
+$defaultFMT = '%a %h %e %T %z%Y';		# format (ala date(1))
+X
+# CUSTOMIZE - `local' formats
+$locTF = '%T';							# time (as HH:MM:SS)
+$locDF = '%D';							# date (as mm/dd/yy)
+$locDTF = '%a %b %d %T %Y';				# date/time (as dow mon dd HH:MM:SS yyyy)
+$locLDTF = '%i:%M:%S %p %A %B %E %Y';	# long date/time (as HH:MM:SS a/p day month dom yyyy)
+X
+# Time zone info
+$TZ;									# wkno needs this info too
+X
+# define the known format tags as associative keys with their associated
+# replacement strings as values.  Each replacement string should be
+# an eval-able expresion assigning a value to $rep.  These expressions are
+# eval-ed, then the value of $rep is substituted into the supplied
+# format (if any).
+%Tags = ( '%a', q|($rep = $DoW[$wday])=~ s/^(...).*/\1/|,	# abbr. weekday name - Sun to Sat
+X		  '%A', q|$rep = $DoW[$wday]|,						# full weekday name - Sunday to Saturday
+X		  '%b', q|($rep = $MoY[$mon]) =~ s/^(...).*/\1/|,	# abbr. month name - Jan to Dec
+X		  '%B', q|$rep = $MoY[$mon]|,						# full month name - January to December
+X		  '%c', q|$rep = $locDTF; 1|,						# date/time in local format
+X		  '%C', q|$rep = $locLDTF; 1|,						# date/time in local long format
+X		  '%d',	q|$rep = &date'pad($mday, 2, "0")|,			# day of month - 01 to 31
+X		  '%D',	q|$rep = '%m/%d/%y'|,						# date as mm/dd/yy
+X		  '%e', q|$rep = &date'pad($mday, 2, " ")|,			# day of month (space padded) ` 1' to `31'
+X		  '%E', q|$rep = &date'dsuf($mday)|,				# day of month (w/suffix) `1st' to `31st'
+X		  '%f', q|$rep = &date'pad($mon+1, 2, " ")|,		# month of year (space padded) ` 1' to `12'
+X		  '%h', q|$rep = '%b'|,								# abbr. month name (same as %b)
+X		  '%H',	q|$rep = &date'pad($hour, 2, "0")|,			# hour - 00 to 23
+X		  '%i', q|$rep = &date'ampmH($hour, " ")|,			# hour (space padded ` 1' to `12'
+X		  '%I', q|$rep = &date'ampmH($hour, "0")|,			# hour - 01 to 12
+X		  '%j', q|$rep = &date'pad($yday+1, 3, "0")|,		# Julian date 001 - 366
+X		  '%k', q|$rep = &date'pad($hour, 2, " ")|,			# hour (space padded) ` 0' to `23'
+X		  '%l', q|$rep = '%b %d ' . &date'ls($year)|,		# ls(1) style date
+X		  '%m',	q|$rep = &date'pad($mon+1, 2, "0")|,		# month of year - 01 to 12
+X		  '%M', q|$rep = &date'pad($min, 2, "0")|,			# minute - 00 to 59
+X		  '%n',	q|$rep = "\n"|,								# insert a newline
+X		  '%p', q|$rep = &date'ampmD($hour)|,				# insert `AM' or `PM'
+X		  '%r', q|$rep = '%I:%M:%S %p'|,					# time in AM/PM notation
+X		  '%R', q|$rep = '%H:%M'|,							# time as HH:MM
+X		  '%S', q|$rep = &date'pad($sec, 2, "0")|,			# second - 00 to 59
+X		  '%t',	q|$rep = "\t"|,								# insert a tab
+X		  '%T',	q|$rep = '%H:%M:%S'|,						# time as HH:MM:SS
+X		  '%u', q|$rep = '%y%m%d%H%M.%S'|,					# daaate/time in date(1) required format
+X		  '%U',	q|$rep = &date'wkno($year, $yday, 0)|,		# week number (weeks start on Sun) - 00 to 53
+X		  '%V', q|$rep = '%m%d%H%M%y'|,						# SysV touch(1) date-time format (mmddHHMMyy)
+X		  '%w', q|$rep = $wday; 1|,							# day of week - Sunday = 0
+X		  '%W', q|$rep = &date'wkno($year, $yday, 1)|,		# week number (weeks start on Mon) - 00 to 53
+X		  '%x', q|$rep = $locDF; 1|,						# date in local format
+X		  '%X', q|$rep = $locTF; 1|,						# time in local format
+X		  '%y', q|($rep = $year) =~ s/..(..)/\1/|,			# last 2 digits of year - 00 to 99
+X		  '%Y', q|$rep = "$year"; 1|,						# full year ~ 1700 to 2000 odd
+X		  '%z', q|$rep = $TZ eq "" ? "" : "$TZ "|,			# time zone from TZ env var (w/trail. space)
+X		  '%Z', q|$rep = $TZ; 1|,							# time zone from TZ env. var.
+X		  '%%', q|$rep = '%'; $adv=1|,						# insert a `%'
+X		  '%+', q|$rep = '+'|								# insert a `+'
+);
+X	
+sub main'date {
+X	local($time, $format) = @_;
+X	local($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst);
+X	local($pos, $tag, $rep, $adv) = (0, "", "", 0);
+X
+X	# default to date/ctime format or strip leading `+'...
+X	if ($format eq "") {
+X		$format = $defaultFMT;
+X	} elsif ($format =~ /^\+/) {
+X		$format = $';
+X	}
+X
+X	# Use local time if can't find a TZ in the environment
+X	$TZ = defined($ENV{'TZ'}) ? $ENV{'TZ'} : $defaultTZ;
+X	($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = 
+X		&gettime ($TZ, $time);
+X
+X	# Hack to deal with 'PST8PDT' format of TZ
+X	# Note that this can't deal with all the esoteric forms, but it
+X	# does recognize the most common: [:]STDoff[DST[off][,rule]]
+X	if ($TZ =~ /^([^:\d+\-,]{3,})([+-]?\d{1,2}(:\d{1,2}){0,2})([^\d+\-,]{3,})?/) {
+X		$TZ = $isdst ? $4 : $1;
+X	}
+X
+X	# watch out in 2070...
+X	$year += ($year < 70) ? 2000 : 1900;
+X
+X	# now loop throught the supplied format looking for tags...
+X	while (($pos = index ($format, '%')) != -1) {
+X
+X		# grab the format tag
+X		$tag = substr($format, $pos, 2);
+X		$adv = 0;							# for `%%' processing
+X
+X		# do we have a replacement string?
+X		if (defined $Tags{$tag}) {
+X
+X			# trap dead evals...
+X			if (! eval $Tags{$tag}) {
+X				print STDERR "date.pl: internal error: eval for $tag failed: $@\n";
+X				return "";
+X			}
+X		} else {
+X			$rep = "";
+X		}
+X			
+X		# do the substitution
+X		substr ($format, $pos, 2) =~ s/$tag/$rep/;
+X		$pos++ if ($adv);
+X	}
+X
+X	$format;
+}
+X
+# dsuf - add `st', `nd', `rd', `th' to a date (ie 1st, 22nd, 29th)
+sub dsuf {
+X	local ($mday) = @_;
+X
+X	return $mday . 'st' if ($mday =~ m/.*1$/);
+X	return $mday . 'nd' if ($mday =~ m/.*2$/);
+X	return $mday . 'rd' if ($mday =~ m/.*3$/);
+X	return $mday . 'th';
+}
+X	
+# weekno - figure out week number
+sub wkno {
+X	local ($year, $yday, $firstweekday) = @_;   
+X	local ($jan1, @jan1, $wks);
+X
+X	# figure out the `time' value for January 1 of the given year
+X	$jan1 = &maketime ($TZ, 0, 0, 0, 1, 0, $year-1900);
+X
+X	# figure out what day of the week January 1 was
+X	@jan1= &gettime ($TZ, $jan1);
+X	
+X	# and calculate the week number
+X	$wks = (($yday + ($jan1[6] - $firstweekday)) + 1)/ 7;
+X	$wks += (($wks - int($wks) > 0.0) ? 1 : 0);
+X
+X	# supply zero padding
+X	&pad (int($wks), 2, "0");
+}
+X
+# ampmH - figure out am/pm (1 - 12) mode hour value, padded with $p (0 or ' ')
+sub ampmH { local ($h, $p) = @_;  &pad($h>12 ? $h-12 : ($h ? $h : 12), 2, $p); }
+X
+# ampmD - figure out am/pm designator
+sub ampmD { shift @_ >= 12 ? "PM" : "AM"; }
+X
+# gettime - get the time via {local,gmt}time
+sub gettime { ((shift @_) eq 'GMT') ? gmtime(shift @_) : localtime(shift @_); }
+X
+# maketime - make a time via time{local,gmt}
+sub maketime { ((shift @_) eq 'GMT') ? &main'timegm(@_) : &main'timelocal(@_); }
+X
+# ls - generate the time/year portion of an ls(1) style date
+sub ls {
+X	return ((&gettime ($TZ, time))[5] == @_[0]) ? "%R" : " %Y";
+}
+X
+# pad - pad $in with leading $pad until lenght $len
+sub pad {
+X	local ($in, $len, $pad) = @_;
+X	local ($out) = "$in";
+X
+X	$out = $pad . $out until (length ($out) == $len);
+X	return $out;
+}
+X
+1;
+SHAR_EOF
+chmod 0444 libs/date.pl ||
+echo 'restore of libs/date.pl failed'
+Wc_c="`wc -c < 'libs/date.pl'`"
+test 12339 -eq "$Wc_c" ||
+	echo 'libs/date.pl: original size 12339, current size' "$Wc_c"
+fi
+# ============= libs/elapsed.pl ==============
+if test -f 'libs/elapsed.pl' -a X"$1" != X"-c"; then
+	echo 'x - skipping libs/elapsed.pl (File already exists)'
+else
+echo 'x - extracting libs/elapsed.pl (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'libs/elapsed.pl' &&
+;# NAME
+;#    elapsed.pl - convert seconds to elapsed time format
+;#
+;# AUTHOR
+;#    Michael S. Muegel <mmuegel@mot.com>
+;#
+;# RCS INFORMATION
+;#    mmuegel
+;#    /usr/local/ustart/src/mail-tools/dist/foo/libs/elapsed.pl,v
+;#    1.1 of 1993/07/28 08:07:19
+X
+package elapsed;
+X
+# Time field types
+$DAYS		= 1;
+$HOURS		= 2;
+$MINUTES	= 3;
+$SECONDS	= 4;
+X
+# The array contains four records each with four fields. The fields are,
+# in order:
+#
+#    Type		Specifies what kind of time field this is. Once of
+#			$DAYS, $HOURS, $MINUTES, or $SECONDS.
+#
+#    Multiplier		Specifies what time field this is via the minimum
+#			number of seconds this time field may specify. For
+#			example, the minutes field would be non-zero
+#			when there are 60 or more seconds.
+#			
+#    Separator		How to separate this time field from the next
+#			*greater* field.
+#
+#    Format		sprintf() format specifier on how to print this
+#			time field.
+@MULT_AND_SEPS = ($DAYS, 60 * 60 * 24, "+", "%d",
+X                  $HOURS, 60 * 60, ":", "%d",
+X                  $MINUTES, 60, ":", "%02d",
+X                  $SECONDS, 1, "", "%02d"
+X                 );
+X
+;###############################################################################
+;# Seconds_To_Elapsed
+;#
+;# Coverts a seconds count to form [d+]h:mm:ss. If $Collapse
+;# is true then the result is compacted somewhat. The string returned
+;# will be of the form [d+][[h:]mm]:ss.
+;#
+;# Arguments:
+;#    $Seconds, $Collapse
+;#
+;# Examples:
+;#    &Seconds_To_Elapsed (0, 0) 	-> 0:00:00
+;#    &Seconds_To_Elapsed (0, 1) 	-> :00
+;#
+;#    &Seconds_To_Elapsed (119, 0) 	-> 0:01:59
+;#    &Seconds_To_Elapsed (119, 1) 	-> 01:59
+;#
+;#    &Seconds_To_Elapsed (3601, 0) 	-> 1:00:01
+;#    &Seconds_To_Elapsed (3601, 1) 	-> 1:00:01
+;#
+;#    &Seconds_To_Elapsed (86401, 0) 	-> 1+0:00:01
+;#    &Seconds_To_Elapsed (86401, 1) 	-> 1+:01
+;#
+;# Returns:
+;#    $Elapsed
+;###############################################################################
+sub main'Seconds_To_Elapsed
+{
+X   local ($Seconds, $Collapse) = @_;
+X   local ($Type, $Multiplier, @Multipliers, $Separator, $DHMS_Used, 
+X          $Elapsed, @Mult_And_Seps, $Print_Field);
+X
+X   $Multiplier = 1;
+X   @Mult_And_Seps = @MULT_AND_SEPS;
+X
+X   # Keep subtracting the number of seconds corresponding to a time field
+X   # from the number of seconds passed to the function.
+X   while (1)
+X   {
+X      ($Type, $Multiplier, $Separator, $Format) = splice (@Mult_And_Seps, 0, 4);
+X      last if (! $Multiplier);
+X      $Seconds -= $DHMS_Used * $Multiplier 
+X         if ($DHMS_Used = int ($Seconds / $Multiplier));
+X
+X      # Figure out if we should print this field
+X      if ($Type == $DAYS)
+X      {
+X	 $Print_Field = $DHMS_Used;
+X      }
+X
+X      elsif ($Collapse)
+X      {
+X	 if ($Type == $HOURS)
+X	 {
+X	    $Print_Field = $DHMS_Used;
+X	 }
+X	 elsif ($Type == $MINUTES)
+X	 {
+X	    $Print_Field = $DHMS_Used || $Printed_Field {$HOURS};
+X	 }
+X	 else
+X	 {
+X	    $Format = ":%02d" 
+X	       if (! $Printed_Field {$MINUTES});
+X	    $Print_Field = 1;
+X	 };
+X      }
+X
+X      else
+X      {
+X	 $Print_Field = 1;
+X      };
+X
+X      $Printed_Field {$Type} = $Print_Field;
+X      $Elapsed .= sprintf ("$Format%s", $DHMS_Used, $Separator) 
+X	 if ($Print_Field);
+X   };
+X
+X   return ($Elapsed);
+};
+X
+1;
+SHAR_EOF
+chmod 0444 libs/elapsed.pl ||
+echo 'restore of libs/elapsed.pl failed'
+Wc_c="`wc -c < 'libs/elapsed.pl'`"
+test 3198 -eq "$Wc_c" ||
+	echo 'libs/elapsed.pl: original size 3198, current size' "$Wc_c"
+fi
+# ============= libs/mail.pl ==============
+if test -f 'libs/mail.pl' -a X"$1" != X"-c"; then
+	echo 'x - skipping libs/mail.pl (File already exists)'
+else
+echo 'x - extracting libs/mail.pl (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'libs/mail.pl' &&
+;# NAME
+;#    mail.pl - perl function(s) to handle mail processing
+;#
+;# AUTHOR
+;#    Michael S. Muegel (mmuegel@mot.com)
+;#
+;# RCS INFORMATION
+;#    mmuegel
+;#    /usr/local/ustart/src/mail-tools/dist/foo/libs/mail.pl,v 1.1 1993/07/28 08:07:19 mmuegel Exp
+X
+package mail;
+X
+# Mailer statement to eval. $Users, $Subject, and $Verbose are substituted 
+# via eval
+$BIN_MAILER 		= "/usr/ucb/mail \$Verbose -s '\$Subject' \$Users";
+X
+# Sendmail command to use when $Use_Sendmail is true.
+$SENDMAIL		= '/usr/lib/sendmail $Verbose $Users';
+X
+;###############################################################################
+;# Send_Mail
+;#
+;# Sends $Message to $Users with a subject of $Subject. If $Message_Is_File
+;# is true then $Message is assumed to be a filename pointing to the mail
+;# message. This is a new option and thus the backwards-compatible hack.
+;# $Users should be a space separated list of mail-ids.
+;#
+;# If everything went OK $Status will be 1 and $Error_Msg can be ignored; 
+;# otherwise, $Status will be 0 and $Error_Msg will contain an error message.
+;# 
+;# If $Use_Sendmail is 1 then sendmail is used to send the message. Normally
+;# a mailer such as Mail is used. By specifiying this you can include 
+;# headers in addition to text in either $Message or $Message_Is_File.
+;# If either $Message or $Message_Is_File contain a Subject: header then
+;# $Subject is ignored; otherwise, a Subject: header is automatically created.
+;# Similar to the Subject: header, if a To: header does not exist one
+;# is automatically created from the $Users argument. The mail is still
+;# sent, however, to the recipients listed in $Users. This is keeping with
+;# normal sendmail usage (header vs. envelope).
+;# 
+;# In both bin mailer and sendmail modes $Verbose will turn on verbose mode
+;# (normally just sendmail verbose mode output).
+;#
+;# Arguments:
+;#    $Users, $Subject, $Message, $Message_Is_File, $Verbose, $Use_Sendmail
+;#
+;# Returns:
+;#    $Status, $Error_Msg
+;###############################################################################
+sub main'Send_Mail
+{
+X   local ($Users, $Subject, $Message, $Message_Is_File, $Verbose, 
+X	  $Use_Sendmail) = @_;
+X   local ($BIN_MAILER_HANDLE, $Mailer_Command, $Header_Found, %Header_Map,
+X	  $Header_Extra, $Mailer);
+X
+X   # If the message is contained in a file read it in so we can have one
+X   # consistent interface
+X   if ($Message_Is_File)
+X   {
+X      undef $/;
+X      $Message_Is_File = 0;
+X      open (Message) || return (0, "error reading $Message: $!");
+X      $Message = <Message>;
+X      close (Message);
+X   };
+X
+X   # If sendmail mode see if we need to add some headers
+X   if ($Use_Sendmail)
+X   {
+X      # Determine if a header block is included in the message and what headers
+X      # are there
+X      foreach (split (/\n/, $Message))
+X      {
+X	 last if ($_ eq "");
+X	 $Header_Found = $Header_Map {$1} = 1 if (/^([A-Z]\S*): /);
+X      };
+X
+X      # Add some headers?
+X      if (! $Header_Map {"To"})
+X      {
+X	 $Header_Extra .= "To: " . join (", ", $Users) . "\n";
+X      };
+X      if (($Subject ne "") && (! $Header_Map {"Subject"}))
+X      {
+X	 $Header_Extra .= "Subject: $Subject\n";
+X      };
+X
+X      # Add the required blank line between header/body if there where no
+X      # headers to begin with
+X      if ($Header_Found)
+X      {
+X         $Message = "$Header_Extra$Message";
+X      }
+X      else
+X      {
+X	 $Message = "$Header_Extra\n$Message";
+X      };
+X   };
+X
+X   # Get a string that is the mail command
+X   $Verbose = ($Verbose) ? "-v" : "";
+X   $Mailer = ($Use_Sendmail) ? $SENDMAIL : $BIN_MAILER;
+X   eval "\$Mailer = \"$Mailer\"";
+X   return (0, "error setting \$Mailer: $@") if ($@);
+X
+X   # need to catch SIGPIPE in case the $Mailer call fails
+X   $SIG {'PIPE'} = "mail'Cleanup";
+X
+X   # Open mailer
+X   return (0, "can not open mail program: $Mailer") if (! open (MAILER, "| $Mailer"));
+X   
+X   # Send off the mail!
+X   print MAILER $Message;
+X   close (MAILER);
+X   return (0, "error running mail program: $Mailer") if ($?);
+X   
+X   # Everything must have went AOK
+X   return (1);
+};
+X
+;###############################################################################
+;# Cleanup
+;#
+;# Simply here so we can catch SIGPIPE and not exit.
+;#
+;# Globals:
+;#    None
+;#
+;# Arguments:
+;#    None
+;#
+;# Returns:
+;#    Nothing exciting
+;###############################################################################
+sub Cleanup
+{
+};
+X
+1;
+SHAR_EOF
+chmod 0444 libs/mail.pl ||
+echo 'restore of libs/mail.pl failed'
+Wc_c="`wc -c < 'libs/mail.pl'`"
+test 4356 -eq "$Wc_c" ||
+	echo 'libs/mail.pl: original size 4356, current size' "$Wc_c"
+fi
+# ============= libs/mqueue.pl ==============
+if test -f 'libs/mqueue.pl' -a X"$1" != X"-c"; then
+	echo 'x - skipping libs/mqueue.pl (File already exists)'
+else
+echo 'x - extracting libs/mqueue.pl (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'libs/mqueue.pl' &&
+;# NAME
+;#    mqueue.pl - functions to work with the sendmail queue
+;#
+;# DESCRIPTION
+;#    Both Get_Queue_IDs and Parse_Control_File are available to get 
+;#    information about the sendmail queue. The cqueue program is a good
+;#    example of how these functions work.
+;#
+;# AUTHOR
+;#    Michael S. Muegel (mmuegel@mot.com)  
+;#
+;# RCS INFORMATION
+;#    mmuegel
+;#    /usr/local/ustart/src/mail-tools/dist/foo/libs/mqueue.pl,v
+;#    1.1 of 1993/07/28 08:07:19
+X
+package mqueue;
+X
+;###############################################################################
+;# Get_Queue_IDs
+;#
+;# Will figure out the queue IDs in $Queue that have both control and data
+;# files. They are returned in @Valid_IDs. Those IDs that have a
+;# control file and no data file are saved to the array globbed by 
+;# *Missing_Control_IDs. Likewise, those IDs that have a data file and no 
+;# control file are saved to the array globbed by *Missing_Data_IDs.
+;#
+;# If $Skip_Locked is true they a message that has a lock file is skipped
+;# and will not show up in any of the arrays.
+;#
+;# If everything went AOK then $Status is 1; otherwise, $Status is 0 and
+;# $Msg tells what went wrong.
+;#
+;# Globals:
+;#    None
+;#
+;# Arguments:
+;#    $Queue, $Skip_Locked, *Missing_Control_IDs, *Missing_Data_IDs
+;#
+;# Returns:
+;#    $Status, $Msg, @Valid_IDs
+;###############################################################################
+sub main'Get_Queue_IDs
+{
+X   local ($Queue, $Skip_Locked, *Missing_Control_IDs, 
+X          *Missing_Data_IDs) = @_;
+X   local (*QUEUE, @Files, %Lock_IDs, %Data_IDs, %Control_IDs, $_);
+X
+X   # Make sure that the * argument @arrays ar empty
+X   @Missing_Control_IDs = @Missing_Data_IDs = ();
+X
+X   # Save each data, lock, and queue file in @Files
+X   opendir (QUEUE, $Queue) || return (0, "error getting directory listing of $Queue");
+X   @Files = grep (/^(df|lf|qf)/, readdir (QUEUE));
+X   closedir (QUEUE);
+X   
+X   # Create indexed list of data and control files. IF $Skip_Locked is true
+X   # then skip either if there is a lock file present.
+X   if ($Skip_Locked)
+X   {
+X      grep ((s/^lf//) && ($Lock_IDs {$_} = 1), @Files);
+X      grep ((s/^df//) && (! $Lock_IDs {$_}) && ($Data_IDs {$_} = 1), @Files);
+X      grep ((s/^qf//) && (! $Lock_IDs {$_}) && ($Control_IDs {$_} = 1), @Files);
+X   }
+X   else
+X   {
+X      grep ((s/^df//) && ($Data_IDs {$_} = 1), @Files);
+X      grep ((s/^qf//) && ($Control_IDs {$_} = 1), @Files);
+X   };
+X   
+X   # Find missing control and data files and remove them from the lists of each
+X   @Missing_Control_IDs = sort (grep ((! $Control_IDs {$_}) && (delete $Data_IDs {$_}), keys (%Data_IDs)));
+X   @Missing_Data_IDs = sort (grep ((! $Data_IDs {$_} && (delete $Control_IDs {$_})), keys (%Control_IDs)));
+X   
+X   
+X   # Return the IDs in an appartently random order
+X   return (1, "", keys (%Control_IDs));
+};
+X
+X
+;###############################################################################
+;# Parse_Control_File
+;#
+;# Will pase a sendmail queue control file for useful information. See the
+;# Sendmail Installtion and Operation Guide (SMM:07) for a complete
+;# explanation of each field.
+;#
+;# The following globbed variables are set (or cleared) by this function:
+;#
+;#    $Sender           The sender's address. 
+;#
+;#    @Recipients       One or more addresses for the recipient of the mail.
+;#
+;#    @Errors_To        One or more addresses for addresses to which mail
+;#                      delivery errors should be sent.
+;#
+;#    $Creation_Time    The job creation time in time(3) format. That is,
+;#                      seconds since 00:00:00 GMT 1/1/70.
+;#
+;#    $Priority         An integer representing the current message priority.
+;#                      This is used to order the queue. Higher numbers mean 
+;#                      lower priorities.
+;#
+;#    $Status_Message   The status of the mail message. It can contain any
+;#                      text.
+;#
+;#    @Headers          Message headers unparsed but in their original order.
+;#                      Headers that span multiple lines are not mucked with,
+;#                      embedded \ns will be evident.
+;#
+;# In all e-mail addresses bounding <> pairs are stripped.
+;#
+;# If everything went AOK then $Status is 1. If the message with queue ID
+;# $Queue_ID just does not exist anymore -1 is returned. This is very
+;# possible and should be allowed for. Otherwise, $Status is 0 and $Msg 
+;# tells what went wrong.
+;#
+;# Globals:
+;#    None
+;#
+;# Arguments:
+;#    $Queue, $Queue_ID, *Sender, *Recipients, *Errors_To, *Creation_Time, 
+;#    *Priority, *Status_Message, *Headers
+;#
+;# Returns:
+;#    $Status, $Msg
+;###############################################################################
+sub main'Parse_Control_File
+{
+X   local ($Queue, $Queue_ID, *Sender, *Recipients, *Errors_To, *Creation_Time,
+X          *Priority, *Status_Message, *Headers) = @_;
+X   local (*Control, $_, $Not_Empty);
+X
+X   # Required variables and the associated control. If empty at the end of
+X   # parsing we return a bad status.
+X   @REQUIRED_INFO = ('$Creation_Time', 'T', '$Sender', 'S', '@Recipients', 'R',
+X		     '$Priority', 'P');
+X
+X   # Open up the control file for read
+X   $Control = "$Queue/qf$Queue_ID";
+X   if (! open (Control)) 
+X   {
+X      return (-1) if ((-x $Queue) && (! -f "$Queue/qf$Queue_ID") &&
+X       (! -f "$Queue/df$Queue_ID"));
+X      return (0, "error opening $Control for read: $!");
+X   };
+X
+X   # Reset the globbed variables just in case
+X   $Sender = $Creation_Time = $Priority = $Status_Message = "";
+X   @Recipients = @Errors_To = @Headers = ();
+X
+X   # Look for a few things in the control file
+X   READ: while (<Control>)
+X   {
+X      $Not_Empty = 1;
+X      chop;
+X
+X      PARSE:
+X      {
+X         if (/^T(\d+)$/)
+X         {
+X            $Creation_Time = $1;
+X         }
+X         elsif (/^S(<)?([^>]+)/)
+X         {
+X            $Sender = $2;
+X         }
+X         elsif (/^R(<)?([^>]+)/)
+X         {
+X            push (@Recipients, $2);
+X         }
+X         elsif (/^E(<)?([^>]+)/)
+X         {
+X            push (@Errors_To, $2);
+X         }
+X         elsif (/^M(.*)/)
+X         {
+X            $Status_Message = $1;
+X         }
+X         elsif (/^P(\d+)$/)
+X         {
+X            $Priority = $1;
+X         }
+X         elsif (/^H(.*)/)
+X         {
+X            $Header = $1;
+X            while (<Control>)
+X            {
+X               chop;
+X               last if (/^[A-Z]/);
+X               $Header .= "\n$_";
+X            };
+X            push (@Headers, $Header);
+X	    redo PARSE if ($_);
+X	    last if (eof);
+X         };
+X      };
+X   };
+X
+X   # If the file was empty scream bloody murder
+X   return (0, "empty control file") if (! $Not_Empty);
+X
+X   # Yell if we could not find a required field
+X   while (($Var, $Control) = splice (@REQUIRED_INFO, 0, 2))
+X   {
+X      eval "return (0, 'required control field $Control not found')
+X	       if (! $Var)";
+X      return (0, "error checking \$Var: $@") if ($@);
+X   };
+X
+X   # Everything went AOK
+X   return (1);
+};
+X
+1;
+SHAR_EOF
+chmod 0444 libs/mqueue.pl ||
+echo 'restore of libs/mqueue.pl failed'
+Wc_c="`wc -c < 'libs/mqueue.pl'`"
+test 6908 -eq "$Wc_c" ||
+	echo 'libs/mqueue.pl: original size 6908, current size' "$Wc_c"
+fi
+# ============= libs/newgetopts.pl ==============
+if test -f 'libs/newgetopts.pl' -a X"$1" != X"-c"; then
+	echo 'x - skipping libs/newgetopts.pl (File already exists)'
+else
+echo 'x - extracting libs/newgetopts.pl (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'libs/newgetopts.pl' &&
+;# NAME
+;#    newgetopts.pl - a better newgetopt (which is a better getopts which is
+;#                    a better getopt ;-)
+;#
+;# AUTHOR
+;#    Mike Muegel (mmuegel@mot.com)
+;#
+;# mmuegel
+;# /usr/local/ustart/src/mail-tools/dist/foo/libs/newgetopts.pl,v 1.1 1993/07/28 08:07:19 mmuegel Exp
+X
+;###############################################################################
+;# New_Getopts
+;#
+;# Does not care about order of switches, options, and arguments like 
+;# getopts.pl. Thus all non-switches/options will be kept in ARGV even if they
+;# are not at the end. If $Pass_Invalid is set all unkown options will be
+;# passed back to the caller by keeping them in @ARGV. This is useful when
+;# parsing a command line for your script while ignoring options that you
+;# may pass to another script. If this is set New_Getopts tries to maintain 
+;# the switch clustering on the unkown switches.
+;#
+;# Accepts the special argument -usage to print the Usage string. Also accepts 
+;# the special option -version which prints the contents of the string 
+;# $VERSION. $VERSION may or may not have an embeded \n in it. If -usage 
+;# or -version are specified a status of -1 is returned. Note that the usage
+;# option is only accepted if the usage string is not null.
+;# 
+;# $Switches is just like the formal arguemnt of getopts.pl. $Usage is a usage
+;# string with or without a trailing \n. *Switch_To_Order is an optional
+;# pointer to the name of an associative array which will contain a mapping of
+;# switch names to the order in which (if at all) the argument was entered.
+;#
+;# For example, if @ARGV contains -v, -x, test:
+;#
+;#    $Switch_To_Order {"v"} = 1;
+;#    $Switch_To_Order {"x"} = 2;
+;#
+;# Note that in the case of multiple occurances of an option $Switch_To_Order
+;# will store each occurance of the argument via a string that emulates
+;# an array. This is done by using join ($;, ...). You can retrieve the
+;# array by using split (/$;/, ...).
+;#
+;# *Split_ARGV is an optional pointer to an array which will conatin the
+;# original switches along with their values. For the example used above 
+;# Split_ARGV would contain:
+;#
+;#   @Split_ARGV = ("v", "", "x", "test");
+;#
+;# Another exciting ;-) feature that newgetopts has. Along with creating the 
+;# normal $opt_ scalars for the last value of an argument the list @opt_ is 
+;# created. It is an array which contains all the values of arguments to the 
+;# basename of the variable. They are stored in the order which they occured 
+;# on the command line starting with $[. Note that blank arguments are stored 
+;# as "". Along with providing support for multiple options on the command 
+;# line this also provides a method of counting the number of times an option 
+;# was specified via $#opt_.
+;#
+;# Automatically resets all $opt_, @opt_, %Switch_To_Order, and @Split_ARGV
+;# variables so that New_Getopts may be called more than once from within
+;# the same program. Thus, if $opt_v is set upon entry to New_Getopts and 
+;# -v is not in @ARGV $opt_v will not be set upon exit.
+;#
+;# Arguments:
+;#    $Switches, $Usage, $Pass_Invalid, *Switch_To_Order, *Split_ARGV
+;#
+;# Returns:
+;#    -1, 0, or 1 depending on status (printed Usage/Version, OK, not OK)
+;###############################################################################
+sub New_Getopts 
+{
+X    local($taint_argumentative, $Usage, $Pass_Invalid, *Switch_To_Order,
+X          *Split_ARGV) = @_;
+X    local(@args,$_,$first,$rest,$errs, @leftovers, @current_leftovers,
+X          %Switch_Found);
+X    local($[, $*, $Script_Name, $argumentative);
+X
+X    # Untaint the argument cluster so that we can use this with taintperl
+X    $taint_argumentative =~ /^(.*)$/;
+X    $argumentative = $1;
+X
+X    # Clear anything that might still be set from a previous New_Getopts
+X    # call.
+X    @Split_ARGV = ();
+X
+X    # Get the basename of the calling script
+X    ($Script_Name = $0) =~ s/.*\///;
+X    
+X    # Make Usage have a trailing \n
+X    $Usage .= "\n" if ($Usage !~ /\n$/);
+X
+X    @args = split( / */, $argumentative );
+X
+X    # Clear anything that might still be set from a previous New_Getopts call.
+X    foreach $first (@args)
+X    {
+X       next if ($first eq ":");
+X       delete $Switch_Found {$first};
+X       delete $Switch_To_Order {$first};
+X       eval "undef \@opt_$first; undef \$opt_$first;";
+X    };
+X
+X    while (@ARGV)
+X    {
+X        # Let usage through
+X        if (($ARGV[0] eq "-usage") && ($Usage ne "\n"))
+X        {
+X           print $Usage;
+X           exit (-1);
+X        }
+X
+X        elsif ($ARGV[0] eq "-version")
+X        {
+X           if ($VERSION)
+X           {
+X              print $VERSION;
+X              print "\n" if ($VERSION !~ /\n$/);
+X           }
+X           else
+X           {
+X              warn "${Script_Name}: no version information available, sorry\n";
+X           }
+X           exit (-1);
+X        }
+X
+X        elsif (($_ = $ARGV[0]) =~ /^-(.)(.*)/)
+X        {
+X           ($first,$rest) = ($1,$2);
+X           $pos = index($argumentative,$first);
+X
+X           $Switch_To_Order {$first} = join ($;, split (/$;/, $Switch_To_Order {$first}), ++$Order);
+X
+X           if($pos >= $[) 
+X           {
+X               if($args[$pos+1] eq ':') 
+X               {
+X                   shift(@ARGV);
+X                   if($rest eq '') 
+X                   {
+X                       $rest = shift(@ARGV);
+X                   }
+X
+X                   eval "\$opt_$first = \$rest;";
+X                   eval "push (\@opt_$first, \$rest);";
+X                   push (@Split_ARGV, $first, $rest);
+X               }
+X               else 
+X               {
+X                   eval "\$opt_$first = 1";
+X                   eval "push (\@opt_$first, '');";
+X                   push (@Split_ARGV, $first, "");
+X
+X                   if($rest eq '') 
+X                   {
+X                       shift(@ARGV);
+X                   }
+X                   else 
+X                   {
+X                       $ARGV[0] = "-$rest";
+X                   }
+X               }
+X           }
+X
+X           else 
+X           {
+X               # Save any other switches if $Pass_Valid
+X               if ($Pass_Invalid)
+X               {
+X                  push (@current_leftovers, $first);
+X               }
+X               else
+X               {
+X                  warn "${Script_Name}: unknown option: $first\n";
+X                  ++$errs;
+X               };
+X               if($rest ne '') 
+X               {
+X                   $ARGV[0] = "-$rest";
+X               }
+X               else 
+X               {
+X                   shift(@ARGV);
+X               }
+X           }
+X        }
+X
+X        else
+X        {
+X           push (@leftovers, shift (@ARGV));
+X        };
+X
+X        # Save any other switches if $Pass_Valid
+X        if ((@current_leftovers) && ($rest eq ''))
+X        {
+X           push (@leftovers, "-" . join ("", @current_leftovers));
+X           @current_leftovers = ();
+X        };
+X    };
+X
+X    # Automatically print Usage if a warning was given
+X    @ARGV = @leftovers;
+X    if ($errs != 0)
+X    {
+X       warn $Usage;
+X       return (0);
+X    }
+X    else
+X    {
+X       return (1);
+X    }
+X       
+}
+X
+1;
+SHAR_EOF
+chmod 0444 libs/newgetopts.pl ||
+echo 'restore of libs/newgetopts.pl failed'
+Wc_c="`wc -c < 'libs/newgetopts.pl'`"
+test 7024 -eq "$Wc_c" ||
+	echo 'libs/newgetopts.pl: original size 7024, current size' "$Wc_c"
+fi
+# ============= libs/strings1.pl ==============
+if test -f 'libs/strings1.pl' -a X"$1" != X"-c"; then
+	echo 'x - skipping libs/strings1.pl (File already exists)'
+else
+echo 'x - extracting libs/strings1.pl (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'libs/strings1.pl' &&
+;# NAME
+;#    strings1.pl - FUN with strings #1
+;#
+;# NOTES
+;#    I wrote Format_Text_Block when I just started programming Perl so
+;#    it is probably not very Perlish code. Center is more like it :-).
+;#
+;# AUTHOR
+;#    Michael S. Muegel (mmuegel@mot.com)
+;#
+;# RCS INFORMATION
+;#    mmuegel
+;#    /usr/local/ustart/src/mail-tools/dist/foo/libs/strings1.pl,v 1.1 1993/07/28 08:07:19 mmuegel Exp
+X
+package strings1;
+X
+;###############################################################################;# Center
+;#
+;# Center $Text assuming the output should be $Columns wide. $Text can span
+;# multiple lines, of course :-). Lines within $Text that contain only 
+;# whitespace are not centered and are instead collapsed. This may save time 
+;# when printing them later.
+;#
+;# Arguments:
+;#    $Text, $Columns
+;#
+;# Returns:
+;#    $Centered_Text
+;###############################################################################
+sub main'Center
+{
+X   local ($_, $Columns) = @_;
+X   local ($*) = 1;
+X
+X   s@^(.*)$@" " x (($Columns - length ($1)) / 2) . $1@eg;
+X   s/^[\t ]*$//g;
+X   return ($_);
+};
+X
+;###############################################################################
+;# Format_Text_Block
+;#
+;# Formats a text string to be printed to the display or other similar device.
+;# Text in $String will be fomratted such that the following hold:
+;#
+;#    + $String contains the (possibly) multi-line text to print. It is
+;#	automatically word-wrapped to fit in $Columns. 
+;#
+;#    + \n'd are maintained and are not folded.
+;#
+;#    + $Offset	is pre-pended before each separate line of text. 
+;#
+;#    + If $Offset_Once	is $TRUE $Offset will only appear on the first line.
+;#      All other lines will be indented to match the amount of whitespace of
+;#      $Offset.
+;#
+;#    + If $Bullet_Indent is $TRUE $Offset will only be applied to the begining
+;#      of lines as they occured in the original $String. Lines that are created
+;#      by this routine will always be indented by blank spaces.
+;#
+;#    + If $Columns is 0 no word-wrap is done. This might be useful to still
+;#      to offset each line in a buffer.
+;#
+;#    + If $Split_Expr is supplied the string is split on it. If not supplied
+;#      the string is split on " \t\/\-\,\." by default.
+;#
+;#    + If $Offset_Blank is $TRUE then empty lines will have $Offset pre-pended
+;#      to them. Otherwise, they will still empty.
+;#
+;# This is a realy workhorse routine that I use in many places because of its
+;# veratility.
+;#
+;# Arguments:
+;#    $String, $Offset, $Offset_Once, $Bullet_Indent, $Columns, $Split_Expr,
+;#    $Offset_Blank
+;#
+;# Returns:
+;#    $Buffer
+;###############################################################################
+sub main'Format_Text_Block
+{
+X   local ($String, $Real_Offset, $Offset_Once, $Bullet_Indent, $Columns, 
+X      $Split_Expr, $Offset_Blank) = @_;
+X
+X   local ($New_Line, $Line, $Chars_Per_Line, $Space_Offset, $Buffer,
+X      $Next_New_Line, $Num_Lines, $Num_Offsets, $Offset);
+X   local ($*) = 0;
+X   local ($BLANK_TAG) = "__FORMAT_BLANK__";
+X   local ($Blank_Offset) = $Real_Offset if ($Offset_Blank);
+X
+X   # What should we split on?
+X   $Split_Expr = " \\t\\/\\-\\,\\." if (! $Split_Expr);
+X
+X   # Pre-process the string - convert blank lines to __FORMAT_BLANK__ sequence
+X   $String =~ s/\n\n/\n$BLANK_TAG\n/g;
+X   $String =~ s/^\n/$BLANK_TAG\n/g;
+X   $String =~ s/\n$/\n$BLANK_TAG/g;
+X
+X   # If bad $Columns/$Offset combo or no $Columns make a VERRRYYY wide $Column
+X   $Offset = $Real_Offset;
+X   $Chars_Per_Line = 16000 if (($Chars_Per_Line = $Columns - length ($Offset)) <= 0);
+X   $Space_Offset = " " x length ($Offset);
+X
+X   # Get a buffer
+X   foreach $Line (split ("\n", $String))
+X   {
+X      $Offset = $Real_Offset if ($Bullet_Indent);
+X
+X      # Find where to split the line
+X      if ($Line ne $BLANK_TAG)
+X      { 
+X         $New_Line = "";
+X         while ($Line =~ /^([$Split_Expr]*)([^$Split_Expr]+)/)
+X         {
+X            if (length ("$New_Line$&") >= $Chars_Per_Line)
+X            {
+X               $Next_New_Line = $+;
+X               $New_Line = "$Offset$New_Line$1";
+X               $Buffer .= "\n" if ($Num_Lines++);
+X               $Buffer .= $New_Line;
+X               $Offset = $Space_Offset if (($Offset) && ($Offset_Once));
+X               $New_Line = $Next_New_Line;
+X               ++$Num_Lines;
+X            }
+X            else
+X            {
+X               $New_Line .= $&;
+X            };
+X            $Line = $';
+X         };
+X
+X         $Buffer .= "\n" if ($Num_Lines++);
+X         $Buffer .= "$Offset$New_Line$Line";
+X         $Offset = $Space_Offset if (($Offset) && ($Offset_Once));
+X      }
+X
+X      else
+X      {
+X         $Buffer .= "\n$Blank_Offset";
+X      };
+X   };
+X
+X   return ($Buffer);
+X
+};
+X
+1;
+SHAR_EOF
+chmod 0444 libs/strings1.pl ||
+echo 'restore of libs/strings1.pl failed'
+Wc_c="`wc -c < 'libs/strings1.pl'`"
+test 4687 -eq "$Wc_c" ||
+	echo 'libs/strings1.pl: original size 4687, current size' "$Wc_c"
+fi
+# ============= libs/timespec.pl ==============
+if test -f 'libs/timespec.pl' -a X"$1" != X"-c"; then
+	echo 'x - skipping libs/timespec.pl (File already exists)'
+else
+echo 'x - extracting libs/timespec.pl (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'libs/timespec.pl' &&
+;# NAME
+;#    timespec.pl - convert a pre-defined time specifyer to seconds
+;#
+;# AUTHOR
+;#    Michael S. Muegel (mmuegel@mot.com)
+;#
+;# RCS INFORMATION
+;#    mmuegel
+;#    /usr/local/ustart/src/mail-tools/dist/foo/libs/timespec.pl,v 1.1 1993/07/28 08:07:19 mmuegel Exp
+X
+package timespec;
+X
+%TIME_SPEC_TO_SECONDS 	= ("s", 1,
+X		    	   "m", 60,
+X		    	   "h", 60 * 60,
+X		    	   "d", 60 * 60 * 24
+X		    	   );
+X
+$VALID_TIME_SPEC_EXPR 	= "[" . join ("", keys (%TIME_SPEC_TO_SECONDS)) . "]";
+X
+;###############################################################################
+;# Time_Spec_To_Seconds
+;#
+;# Converts a string of the form:
+;#
+;#    (<number>(s|m|h|d))+
+;#
+;# to seconds. The second part of the time spec specifies seconds, minutes, 
+;# hours, or days, respectfully. The first part is the number of those untis. 
+;# There can be any number of such specifiers. As an example, 1h30m means 1 
+;# hour and 30 minutes.
+;#
+;# If the parsing went OK then $Status is 1, $Msg is undefined, and $Seconds
+;# is $Time_Spec converted to seconds. If something went wrong then $Status
+;# is 0 and $Msg explains what went wrong.
+;#
+;# Arguments:
+;#    $Time_Spec
+;#
+;# Returns:
+;#    $Status, $Msg, $Seconds
+;###############################################################################
+sub main'Time_Spec_To_Seconds
+{
+X   $Time_Spec = $_[0];
+X
+X   $Seconds = 0;
+X   while ($Time_Spec =~ /^(\d+)($VALID_TIME_SPEC_EXPR)/)
+X   {
+X      $Seconds += $1 * $TIME_SPEC_TO_SECONDS {$2};
+X      $Time_Spec = $';
+X   };
+X
+X   return (0, "error parsing time spec: $Time_Spec") if ($Time_Spec ne "");
+X   return (1, "", $Seconds);
+X
+};
+X
+X
+1;
+SHAR_EOF
+chmod 0444 libs/timespec.pl ||
+echo 'restore of libs/timespec.pl failed'
+Wc_c="`wc -c < 'libs/timespec.pl'`"
+test 1609 -eq "$Wc_c" ||
+	echo 'libs/timespec.pl: original size 1609, current size' "$Wc_c"
+fi
+# ============= man/cqueue.1 ==============
+if test ! -d 'man'; then
+    echo 'x - creating directory man'
+    mkdir 'man'
+fi
+if test -f 'man/cqueue.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping man/cqueue.1 (File already exists)'
+else
+echo 'x - extracting man/cqueue.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'man/cqueue.1' &&
+.TH CQUEUE 1L
+\"
+\" mmuegel
+\" /usr/local/ustart/src/mail-tools/dist/foo/man/cqueue.1,v 1.1 1993/07/28 08:08:25 mmuegel Exp
+\"
+.ds mp \fBcqueue\fR
+.de IB
+.IP \(bu 2
+..
+.SH NAME
+\*(mp - check sendmail queue for problems
+.SH SYNOPSIS
+.IP \*(mp 7 
+[ \fB-abdms\fR ] [ \fB-q\fR \fIqueue-dir\fI ] [ \fB-t\fR \fItime\fR ] 
+[ \fB-u\fR \fIusers\fR ] [ \fB-w\fR \fIwidth\fR ]
+.SH DESCRIPTION
+Reports on problems in the sendmail queue. With no options this simply
+means listing messages that have been in the queue longer than a default
+period along with a summary of queue mail by host and status message.
+.SH OPTIONS
+.IP \fB-a\fR 14
+Report on all messages in the queue. This is equivalent to saying \fB-t\fR 0s.
+You may like this command so much that you use it as a replacement for
+\fBmqueue\fR. For example:
+.sp 1
+.RS
+.RS
+\fBalias mqueue cqueue -a\fR
+.RE
+.RE
+.IP \fB-b\fR 14
+Also report on bogus queue files. Those are files that
+have data files and no control files or vice versa.
+.IP \fB-d\fR
+Print a detailed report of mail messages that have been queued longer than
+the specified or default time. Information that is presented includes:
+.RS
+.RS
+.IB
+Sendmail queue identifier.
+.IB
+Date the message was first queued.
+.IB
+Sender of the message.
+.IB
+One or more recipients of the message.
+.IB
+An optional status of the message. This usually indicates why the message
+has not been delivered.
+.RE
+.RE
+.IP \fB-m\fR 14
+Mail off the results if any problems were found.
+Normaly results are printed to stdout. If this option
+is specified they are mailed to one or more users. Results
+are not printed to stdout in this case. Results are \fBonly\fR
+mailed if \*(mp found something wrong.
+.IP "\fB-q\fR \fIqueue-dir\fI"
+The sendmail mail queue directory. Default is \fB/usr/spool/mqueue\fR or
+some other site configured value.
+.IP "\fB-t\fR \fItime\fR"
+List messages that have been in the queue longer than
+\fItime\fR. Time should of the form:
+.sp 1
+.RS
+.RS
+(<number>(s|m|h|d))+
+.sp 1
+.RE
+.RE
+.RS 14
+The second portion of the above definition
+specifies seconds, minutes, hours, or
+days, respectfully. The first portion is the number of
+those units. There can be any number of such specifiers.
+As an example, 1h30m means 1 hour and 30 minutes.
+.sp 1
+The default is 2 hours.
+.RE
+.IP \fB-s\fR 14
+Print a summary of messages that have been queued longer than
+the specified or default time. Two separate types of summaries are printed.
+The first summarizes the queue messages by destination host. The host name
+is gleaned from the recipient addresses for each message.
+Thus the actual host names for this summary should be taken with a grain
+of salt since ruleset 0 has not been applied to the address the host was
+taken from nor were MX records consulted. It would be possible to add
+this; however, the execution time of the script would increase 
+dramatically. The second summary is by status message.
+.IP "\fB-u\fR \fIusers\fR"
+Specify list of users to send a mail report to other than
+the invoker. This option is only valid when \fB-m\fR has been
+specified. Multiple recipients may be separated by spaces.
+.IP "\fB-w\fR \fIwidth\fR"
+Specify the page width to which the output should tailored. \fIwidth\fR
+should be an integer representing some character position. The default is
+80 or some other site configured value. Output is folded neatly to match 
+\fIwidth\fR.
+.SH EXAMPLES
+.nf
+% \fBdate\fR
+Tue Jan 19 12:07:20 CST 1993
+X
+% \fBcqueue -t 21h45m -w 70\fR
+X
+Summary of messages in queue longer than 21:45:00 by destination 
+host:
+X
+X   Number of
+X   Messages    Destination Host
+X   ---------   ----------------
+X   2           cigseg.rtsg.mot.com
+X   1           mnesouth.corp.mot.com
+X   ---------
+X   3
+X
+Summary of messages in queue longer than 21:45:00 by status message:
+X
+X   Number of
+X   Messages    Status Message
+X   ---------   --------------
+X   1           Deferred: Connection refused by mnesouth.corp.mot.com
+X   2           Deferred: Host Name Lookup Failure
+X   ---------
+X   3
+X
+Detail of messages in queue longer than 21:45:00 sorted by creation 
+date:
+X
+X   ID:        AA20573
+X   Date:      02:09:27 PM 01/18/93
+X   Sender:    melrose-place-owner@ferkel.ucsb.edu
+X   Recipient: pbaker@cigseg.rtsg.mot.com
+X   Status:    Deferred: Host Name Lookup Failure
+X
+X   ID:        AA20757
+X   Date:      02:11:30 PM 01/18/93
+X   Sender:    90210-owner@ferkel.ucsb.edu
+X   Recipient: pbaker@cigseg.rtsg.mot.com
+X   Status:    Deferred: Host Name Lookup Failure
+X
+X   ID:        AA21110
+X   Date:      02:17:01 PM 01/18/93
+X   Sender:    rd_lap_wg@mdd.comm.mot.com
+X   Recipient: jim_mathis@mnesouth.corp.mot.com
+X   Status:    Deferred: Connection refused by mnesouth.corp.mot.com
+.fi
+.SH AUTHOR
+.nf
+Michael S. Muegel (mmuegel@mot.com)
+UNIX Applications Startup Group
+Corporate Information Office, Schaumburg, IL
+Motorola, Inc.
+.fi
+.SH COPYRIGHT NOTICE
+Copyright 1993, Motorola, Inc.
+.sp 1
+Permission to use, copy, modify and distribute without charge this
+software, documentation, etc. is granted, provided that this
+comment and the author's name is retained.  The author nor Motorola assume any
+responsibility for problems resulting from the use of this software.
+.SH SEE ALSO
+.nf
+\fBsendmail(8)\fR
+\fISendmail Installation and Operation Guide\fR.
+.fi
+SHAR_EOF
+chmod 0444 man/cqueue.1 ||
+echo 'restore of man/cqueue.1 failed'
+Wc_c="`wc -c < 'man/cqueue.1'`"
+test 5212 -eq "$Wc_c" ||
+	echo 'man/cqueue.1: original size 5212, current size' "$Wc_c"
+fi
+# ============= man/postclip.1 ==============
+if test -f 'man/postclip.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping man/postclip.1 (File already exists)'
+else
+echo 'x - extracting man/postclip.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'man/postclip.1' &&
+.TH POSTCLIP 1L
+\"
+\" mmuegel
+\" /usr/local/ustart/src/mail-tools/dist/foo/man/postclip.1,v 1.1 1993/07/28 08:08:25 mmuegel Exp
+\"
+.ds mp \fBpostclip\fR
+.SH NAME
+\*(mp - send only the headers to Postmaster
+.SH SYNOPSIS
+\*(mp [ \fB-v\fR ] [ \fIto\fR ... ]
+.SH DESCRIPTION
+\*(mp  will forward non-delivery reports to a postmaster after deleting the body
+of the message. This keeps bounced mail private and helps to avoid disk space problems. \*(mp tries its best to keep as much of the header trail as possible.
+Hopefully only the original body of the message will be filtered. Only messages
+that have a subject that begins with 'Returned mail:' are filtered. This
+ensures that other mail is not accidently mucked with. Finally, note that
+\fBsendmail\fR is used to deliver the message after it has been (possibly)
+filtered. All of the original headers will remain intact.
+.sp 1 
+You can use this with any \fBsendmail\fR by modifying the Postmaster alias.
+If you use IDA \fBsendmail\fR you could add the following to <machine>.m4:
+.sp 1
+.RS
+define(POSTMASTERBOUNCE, mailer-errors)
+.RE
+.sp 1
+In the aliases file, add a line similar to the following:
+.sp 1
+.RS
+mailer-errors: "|/usr/local/bin/postclip postmaster"
+.RE
+.SH OPTIONS
+.IP \fB-v\fR
+Be verbose about delivery. Probably only useful when debugging \*(mp.
+.IP \fIto\fR
+A list of one or more e-mail ids to send the modified
+Postmaster messages to. If none are specified postmaster
+is used.
+.SH AUTHOR
+.nf
+Michael S. Muegel (mmuegel@mot.com)
+UNIX Applications Startup Group
+Corporate Information Office, Schaumburg, IL
+Motorola, Inc.
+.fi
+.SH CREDITS
+The original idea to filter Postmaster mail was taken from a script by 
+Christopher Davis <ckd@eff.org>.
+.SH COPYRIGHT NOTICE
+Copyright 1992, Motorola, Inc.
+.sp 1
+Permission to use, copy, modify and distribute without charge this
+software, documentation, etc. is granted, provided that this
+comment and the author's name is retained.  The author nor Motorola assume any
+responsibility for problems resulting from the use of this software.
+.SH SEE ALSO
+.nf
+\fBsendmail(8)\fR
+.fi
+SHAR_EOF
+chmod 0444 man/postclip.1 ||
+echo 'restore of man/postclip.1 failed'
+Wc_c="`wc -c < 'man/postclip.1'`"
+test 2078 -eq "$Wc_c" ||
+	echo 'man/postclip.1: original size 2078, current size' "$Wc_c"
+fi
+# ============= src/cqueue ==============
+if test ! -d 'src'; then
+    echo 'x - creating directory src'
+    mkdir 'src'
+fi
+if test -f 'src/cqueue' -a X"$1" != X"-c"; then
+	echo 'x - skipping src/cqueue (File already exists)'
+else
+echo 'x - extracting src/cqueue (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'src/cqueue' &&
+#!/usr/local/ustart/bin/suidperl
+X
+# NAME
+#    cqueue - check sendmail queue for problems
+#
+# SYNOPSIS
+#    Type cqueue -usage
+#
+# AUTHOR
+#    Michael S. Muegel <mmuegel@mot.com>
+#
+# RCS INFORMATION
+#    mmuegel
+#    /usr/local/ustart/src/mail-tools/dist/foo/src/cqueue,v 1.1 1993/07/28 08:09:02 mmuegel Exp
+X
+# So that date.pl does not yell (Domain/OS version does a ``)
+$ENV{'PATH'}    = "";
+X
+# A better getopts routine
+require "newgetopts.pl";
+require "timespec.pl";
+require "mail.pl";
+require "date.pl";
+require "mqueue.pl";
+require "strings1.pl";
+require "elapsed.pl";
+X
+($Script_Name = $0) =~ s/.*\///;
+X         
+# Some defaults you may want to change
+$DEF_TIME	= "2h";
+$DEF_QUEUE      = "/usr/spool/mqueue";
+$DEF_COLUMNS	= 80;
+$DATE_FORMAT    = "%r %D";
+X
+# Constants that probably should not be changed
+$USAGE          = "Usage: $Script_Name [ -abdms ] [ -q queue-dir ] [ -t time ] [ -u user ] [ -w width ]\n";
+$VERSION        = "${Script_Name} by mmuegel; 1.1 of 1993/07/28 08:09:02";
+$SWITCHES       = "abdmst:u:q:w:";
+$SPLIT_EXPR	= '\s,\.@!%:';
+$ADDR_PART_EXPR	= '[^!@%]+';
+X
+# Let getopts parse for switches
+$Status = &New_Getopts ($SWITCHES, $USAGE);
+exit (0) if ($Status == -1);
+exit (1) if (! $Status);
+X
+# Check args 
+die "${Script_Name}: -u only valid with -m\n" if (($opt_u) && (! $opt_m));
+die "${Script_Name}: -a not valid with -t option\n" if ($opt_a && $opt_t);
+$opt_u = getlogin || (getpwuid ($<))[0] || $ENV{"USER"} || die "${Script_Name}: can not determine who you are!\n" if (! $opt_u);
+X
+# Set defaults
+$opt_t = "0s" if ($opt_a);
+$opt_t = $DEF_TIME if ($opt_t eq "");
+$opt_w = $DEF_COLUMNS if ($opt_w eq "");
+$opt_q = $DEF_QUEUE if ($opt_q eq "");
+$opt_s = $opt_d = 1 if (! ($opt_s || $opt_d));
+X
+# Untaint the users to mail to
+$opt_u =~ /^(.*)$/;
+$Users = $1;
+X
+# Convert time option to seconds and seconds to elapsed form
+die "${Script_Name}: $Msg\n" if (! (($Status, $Msg, $Seconds) = &Time_Spec_To_Seconds ($opt_t))[0]);
+$Elapsed = &Seconds_To_Elapsed ($Seconds, 1);
+$Time_Info = " longer than $Elapsed" if ($Seconds);
+X
+# Get the current time
+$Current_Time = time;
+$Current_Date = &date ($Current_Time, $DATE_FORMAT);
+X
+($Status, $Msg, @Queue_IDs) = &Get_Queue_IDs ($opt_q, 1, @Missing_Control_IDs,
+X   @Missing_Data_IDs);
+die "$Script_Name: $Msg\n" if (! $Status);
+X
+# Yell about missing data/control files?
+if ($opt_b)
+{
+X
+X   $Report = "\nMessages missing control files:\n\n   " . 
+X             join ("\n   ", @Missing_Control_IDs) . 
+X             "\n" 
+X      if (@Missing_Control_IDs);
+X
+X   $Report .= "\nMessages missing data files:\n\n   " . 
+X              join ("\n   ", @Missing_Data_IDs) . 
+X              "\n"
+X      if (@Missing_Data_IDs);
+};
+X
+# See if any mail messages are older than $Seconds
+foreach $Queue_ID (@Queue_IDs)
+{
+X   # Get lots of info about this sendmail message via the control file
+X   ($Status, $Msg) = &Parse_Control_File ($opt_q, $Queue_ID, *Sender, 
+X      *Recipients, *Errors_To, *Creation_Time, *Priority, *Status_Message, 
+X      *Headers);
+X   next if ($Status == -1);
+X   if (! $Status)
+X   {
+X      warn "$Script_Name: $Queue_ID: $Msg\n";
+X      next;
+X   };
+X
+X   # Report on message if it is older than $Seconds
+X   if ($Current_Time - $Creation_Time >= $Seconds)
+X   {
+X      # Build summary by host information. Keep track of each host destination
+X      # encountered.
+X      if ($opt_s)
+X      {
+X         %Host_Map = ();
+X         foreach (@Recipients)
+X         {
+X	    if ((/@($ADDR_PART_EXPR)$/) || (/($ADDR_PART_EXPR)!$ADDR_PART_EXPR$/))
+X            {
+X	       ($Host = $1) =~ tr/A-Z/a-z/;
+X               $Host_Map {$Host} = 1;
+X	    }
+X	    else
+X	    {
+X	       warn "$Script_Name: could not find host part from $_; contact author\n";
+X	    };
+X         };
+X
+X         # For each unique target host add to its stats
+X         grep ($Host_Queued {$_}++, keys (%Host_Map));
+X
+X         # Build summary by message information.
+X         $Message_Queued {$Status_Message}++ if ($Status_Message);
+X      };
+X
+X      # Build long report information for this creation time (there may be
+X      # more than one message created at the same time)
+X      if ($opt_d)
+X      {
+X         $Creation_Date = &date ($Creation_Time, $DATE_FORMAT);
+X         $Recipient_Info = &Format_Text_Block (join (", ", @Recipients), 
+X	    "   Recipient: ", 1, 0, $opt_w, $SPLIT_EXPR);
+X         $Time_To_Report {$Creation_Time} .= <<"EOS";
+X
+X   ID:        $Queue_ID
+X   Date:      $Creation_Date
+X   Sender:    $Sender
+$Recipient_Info
+EOS
+X
+X         # Add the status message if available to long report
+X         if ($Status_Message)
+X         {
+X	    $Time_To_Report {$Creation_Time} .= &Format_Text_Block ($Status_Message, 
+X   	       "   Status:    ", 1, 0, $opt_w, $SPLIT_EXPR) . "\n";
+X         };
+X      };
+X   };
+X
+};
+X
+# Add the summary report by target host?
+if ($opt_s)
+{
+X   foreach $Host (sort (keys (%Host_Queued)))
+X   {
+X      $Host_Report .= &Format_Text_Block ($Host, 
+X         sprintf ("   %-9d   ", $Host_Queued{$Host}), 1, 0, $opt_w,
+X         $SPLIT_EXPR) . "\n";
+X      $Num_Hosts += $Host_Queued{$Host};
+X   };
+X   if ($Host_Report)
+X   {
+X      chop ($Host_Report);
+X      $Report .= &Format_Text_Block("\nSummary of messages in queue$Time_Info by destination host:\n", "", 0, 0, $opt_w);
+X
+X      $Report .= <<"EOS";
+X
+X   Number of
+X   Messages    Destination Host
+X   ---------   ----------------
+$Host_Report
+X   ---------
+X   $Num_Hosts
+EOS
+X   };
+};
+X
+# Add the summary by message report?
+if ($opt_s)
+{
+X   foreach $Message (sort (keys (%Message_Queued)))
+X   {
+X      $Message_Report .= &Format_Text_Block ($Message, 
+X         sprintf ("   %-9d   ", $Message_Queued{$Message}), 1, 0, $opt_w, 
+X         $SPLIT_EXPR) . "\n";
+X      $Num_Messages += $Message_Queued{$Message};
+X   };
+X   if ($Message_Report)
+X   {
+X      chop ($Message_Report);
+X      $Report .= &Format_Text_Block ("\nSummary of messages in queue$Time_Info by status message:\n", "", 0, 0, $opt_w);
+X
+X      $Report .= <<"EOS";
+X
+X   Number of
+X   Messages    Status Message
+X   ---------   --------------
+$Message_Report
+X   ---------
+X   $Num_Messages
+EOS
+X   };
+};
+X
+# Add the detailed message reports?
+if ($opt_d)
+{
+X   foreach $Time (sort { $a <=> $b} (keys (%Time_To_Report)))
+X   {
+X      $Report .= &Format_Text_Block ("\nDetail of messages in queue$Time_Info sorted by creation date:\n","", 0, 0, $opt_w) if (! $Detailed_Header++);
+X      $Report .= $Time_To_Report {$Time};
+X   };
+};
+X
+# Now mail or print the report
+if ($Report)
+{
+X   $Report .= "\n";
+X   if ($opt_m)
+X   {
+X      ($Status, $Msg) = &Send_Mail ($Users, "sendmail queue report for $Current_Date", $Report, 0);
+X      die "${Script_Name}: $Msg" if (! $Status);
+X   }
+X
+X   else
+X   {
+X      print $Report;
+X   };
+X
+};
+X
+# I am outta here...
+exit (0);
+SHAR_EOF
+chmod 0555 src/cqueue ||
+echo 'restore of src/cqueue failed'
+Wc_c="`wc -c < 'src/cqueue'`"
+test 6647 -eq "$Wc_c" ||
+	echo 'src/cqueue: original size 6647, current size' "$Wc_c"
+fi
+# ============= src/postclip ==============
+if test -f 'src/postclip' -a X"$1" != X"-c"; then
+	echo 'x - skipping src/postclip (File already exists)'
+else
+echo 'x - extracting src/postclip (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'src/postclip' &&
+#!/usr/local/bin/perl
+X
+# NAME
+#    postclip - send only the headers to Postmaster
+#
+# SYNOPSIS
+#    postclip [ -v ] [ to ... ]
+#
+# AUTHOR
+#    Michael S. Muegel <mmuegel@mot.com>
+#
+# RCS INFORMATION
+#    /usr/local/ustart/src/mail-tools/dist/foo/src/postclip,v
+#    1.1 of 1993/07/28 08:09:02
+X
+# We use this to send off the mail
+require "newgetopts.pl";
+require "mail.pl";
+X
+# Get the basename of the script
+($Script_Name = $0) =~ s/.*\///;
+X
+# Some famous constants
+$USAGE          = "Usage: $Script_Name [ -v ] [ to ... ]\n";
+$VERSION        = "${Script_Name} by mmuegel; 1.1 of 1993/07/28 08:09:02";
+$SWITCHES       = "v";
+X
+# Let getopts parse for switches
+$Status = &New_Getopts ($SWITCHES, $USAGE);
+exit (0) if ($Status == -1);
+exit (1) if (! $Status);
+X
+# Who should we send the modified mail to?
+@ARGV = ("postmaster") if (! @ARGV);
+$Users = join (" ", @ARGV);
+@ARGV = ();
+X
+# Suck in the original header and save a few interesting lines
+while (<>) 
+{
+X    $Buffer .= $_ if (! /^From /);
+X    $Subject = $1 if (/^Subject:\s+(.*)$/);
+X    $From = $1 if (/^From:\s+(.*)$/);
+X    last if (/^$/);
+};
+X
+# Do not filter the message unless it has a subject and the subject indicates
+# it is an NDN
+if ($Subject && ($Subject =~ /^returned mail/i))
+{
+X   # Slurp input by paragraph. Keep track of the last time we saw what
+X   # appeared to be NDN text. We keep this.
+X   $/ = "\n\n";
+X   $* = 1;
+X   while (<>)
+X   {
+X      push (@Paragraphs, $_);
+X      $Last_Error_Para = $#Paragraphs 
+X	 if (/unsent message follows/i || /was not delivered because/);
+X   };
+X
+X   # Now save the NDN text into $Buffer
+X   $Buffer .= join ("", @Paragraphs [0..$Last_Error_Para]);
+}
+X
+else
+{
+X   undef $/;
+X   $Buffer .= <>;
+};
+X
+# Send off the (possibly) modified mail
+($Status, $Msg) = &Send_Mail ($Users, "", $Buffer, 0, $opt_v, 1);
+die "$Script_Name: $Msg\n" if (! $Status);
+SHAR_EOF
+chmod 0555 src/postclip ||
+echo 'restore of src/postclip failed'
+Wc_c="`wc -c < 'src/postclip'`"
+test 1836 -eq "$Wc_c" ||
+	echo 'src/postclip: original size 1836, current size' "$Wc_c"
+fi
+exit 0
+
+--
++----------------------------------------------------------------------------+
+| Michael S. Muegel                    | Internet E-Mail:    mmuegel@mot.com |
+| UNIX Applications Startup Group      | Moto Dist E-Mail:   X10090          |
+| Corporate Information Office         | Voice:              (708) 576-0507  |
+| Motorola                             | Fax:                (708) 576-4153  |
++----------------------------------------------------------------------------+
+
+      "I'm disturbed, I'm depressed, I'm inadequate -- I've got it all!"
+	  -- George from _Seinfeld_

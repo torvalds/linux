@@ -1,0 +1,15 @@
+# EGD_START:		Set to 1 to start entropy gathering daemon
+# EGD_ARGS:		Command line arguments to pass to egd
+# EGD_LOG:		EGD stdout and stderr log file (default /etc/opt/egd/egd.log)
+#
+# To configure the egd environment:
+
+# groupadd egd
+# useradd -g egd egd
+# mkdir -p /etc/opt/egd
+# chown egd:egd /etc/opt/egd
+# chmod 711 /etc/opt/egd
+
+EGD_START=1
+EGD_ARGS='/etc/opt/egd/entropy'
+EGD_LOG=

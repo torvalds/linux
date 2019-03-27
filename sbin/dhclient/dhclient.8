@@ -1,0 +1,209 @@
+.\" $OpenBSD: dhclient.8,v 1.3 2004/04/09 18:30:15 jmc Exp $
+.\"
+.\" Copyright (c) 1997 The Internet Software Consortium.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The Internet Software Consortium nor the names
+.\"    of its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This software has been written for the Internet Software Consortium
+.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+.\" Enterprises.  To learn more about the Internet Software Consortium,
+.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
+.\" Enterprises, see ``http://www.vix.com''.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 4, 2018
+.Dt DHCLIENT 8
+.Os
+.Sh NAME
+.Nm dhclient
+.Nd "Dynamic Host Configuration Protocol (DHCP) client"
+.Sh SYNOPSIS
+.Nm
+.Op Fl bdqu
+.Op Fl c Ar file
+.Op Fl l Ar file
+.Op Fl p Ar file
+.Ar interface
+.Sh DESCRIPTION
+The
+.Nm
+utility provides a means for configuring network interfaces using DHCP, BOOTP,
+or if these protocols fail, by statically assigning an address.
+.Pp
+The name of the network interface that
+.Nm
+should attempt to
+configure must be specified on the command line.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl c Ar file"
+.It Fl b
+Forces
+.Nm
+to immediately move to the background.
+.It Fl c Ar file
+Specify an alternate location,
+.Ar file ,
+for the configuration file.
+.It Fl d
+Forces
+.Nm
+to always run as a foreground process.
+By default,
+.Nm
+runs in the foreground until it has configured the interface, and then
+will revert to running in the background.
+.It Fl l Ar file
+Specify an alternate location,
+.Ar file ,
+for the leases file.
+.It Fl p Ar file
+Specify an alternate location for the PID file.
+The default is
+.Pa /var/run/dhclient/dhclient. Ns Ar interface Ns Pa .pid .
+.It Fl q
+Forces
+.Nm
+to be less verbose on startup.
+.It Fl u
+Forces
+.Nm
+to reject leases with unknown options in them.
+The default behaviour is to accept such lease offers.
+.El
+.Pp
+The DHCP protocol allows a host to contact a central server which
+maintains a list of IP addresses which may be assigned on one or more
+subnets.
+A DHCP client may request an address from this pool, and
+then use it on a temporary basis for communication on the network.
+The DHCP protocol also provides a mechanism whereby a client can learn
+important details about the network to which it is attached, such as
+the location of a default router, the location of a name server, and
+so on.
+.Pp
+On startup,
+.Nm
+reads
+.Pa /etc/dhclient.conf
+for configuration instructions.
+It then gets a list of all the
+network interfaces that are configured in the current system.
+It then attempts to configure each interface with DHCP.
+.Pp
+In order to keep track of leases across system reboots and server
+restarts,
+.Nm
+keeps a list of leases it has been assigned in the
+.Pa /var/db/dhclient.leases. Ns Ar IFNAME
+file.
+.Ar IFNAME
+represents the network interface of the DHCP client
+(e.g.,
+.Li em0 ) ,
+one for each interface.
+On startup, after reading the
+.Xr dhclient.conf 5
+file,
+.Nm
+reads the leases file to refresh its memory about what leases it has been
+assigned.
+.Pp
+Old leases are kept around in case the DHCP server is unavailable when
+.Nm
+is first invoked (generally during the initial system boot
+process).
+In that event, old leases from the
+.Pa dhclient.leases. Ns Ar IFNAME
+file which have not yet expired are tested, and if they are determined to
+be valid, they are used until either they expire or the DHCP server
+becomes available.
+.Pp
+A mobile host which may sometimes need to access a network on which no
+DHCP server exists may be preloaded with a lease for a fixed
+address on that network.
+When all attempts to contact a DHCP server have failed,
+.Nm
+will try to validate the static lease, and if it
+succeeds, it will use that lease until it is restarted.
+.Pp
+A mobile host may also travel to some networks on which DHCP is not
+available but BOOTP is.
+In that case, it may be advantageous to
+arrange with the network administrator for an entry on the BOOTP
+database, so that the host can boot quickly on that network rather
+than cycling through the list of old leases.
+.Sh NOTES
+You must have the Berkeley Packet Filter (BPF) configured in your kernel.
+The
+.Nm
+utility
+requires at least one
+.Pa /dev/bpf*
+device for each broadcast network interface that is attached to your system.
+See
+.Xr bpf 4
+for more information.
+.Sh FILES
+.Bl -tag -width ".Pa /var/db/dhclient.leases. Ns Ar IFNAME" -compact
+.It Pa /etc/dhclient.conf
+DHCP client configuration file
+.It Pa /var/db/dhclient.leases. Ns Ar IFNAME
+database of acquired leases
+.El
+.Sh SEE ALSO
+.Xr dhclient.conf 5 ,
+.Xr dhclient.leases 5 ,
+.Xr dhclient-script 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility
+was written by
+.An Ted Lemon Aq Mt mellon@fugue.com
+and
+.An Elliot Poger Aq Mt elliot@poger.com .
+.Pp
+The current implementation was reworked by
+.An Henning Brauer Aq Mt henning@openbsd.org .
+.Sh BUGS
+The
+.Nm
+utility uses
+.Xr capsicum 4
+to sandbox the main process.
+If the requisite kernel support is not available, the main process will
+attempt to run in a
+.Xr chroot 2
+sandbox instead.
+This will fail if the process is jailed or the
+.Va kern.chroot_allow_open_directories
+sysctl is set to 0.

@@ -1,0 +1,52 @@
+IMPORTANT NOTE:
+
+As of Feb. 11, 2002 (and indeed, for quite some time before that),
+the /etc/rc.diskless{1,2} scripts support a slightly different
+diskless boot process than the one documented in the rest of
+this file (which is 3 years old).
+
+I am not deleting the information below because it contains some
+useful background information on diskless operation, but for the
+actual details you should look at /etc/rc.diskless1, /etc/rc.diskless2,
+and the /usr/share/examples/diskless/clone_root script which can
+be useful to set up clients and server for diskless boot.
+
+--- $FreeBSD$ ---
+------------------------------------------------------------------------
+
+When templating, /conf/ME is typically a softlink to
+/conf/<appropriate-machine>.  When doing a diskless boot, /conf/ME is
+retargeted by /etc/rc.diskless1 from pointing to the server to pointing
+to the client's directory, /conf/<ip-address-of-client>.  The retargeting
+is accomplished through an MFS -o union mount.
+
+When templating, this softlink should be different for each machine.
+When doing a diskless boot, this softlink is typically part of the / NFS
+mount from the server and points to the server's conf directory, but gets
+retargeted during the /etc/rc.diskless1 phase.
+
+System-wide configuration files must generally be targeted through /conf/ME.
+For example, your /etc/rc.conf.local should become a softlink to
+/conf/ME/rc.conf.local and your real rc.conf.local should go into the 
+appropriate /conf/<appropriate-machine> directory.  This is also true of
+/etc/rc.local, /etc/fstab, /etc/syslog.conf, /etc/ccd.conf, /etc/ipfw.conf,
+/etc/motd, /etc/resolv.conf, and possibly even /etc/ttys ( if you want
+to start an X session up on boot on certain of your machines ).
+
+When templating, you duplicate your / and /usr partitions on each machine's
+local disk from a single master ( assuming /var and /home reside elsewhere ),
+EXCEPT for the /conf/ME softlink.  The /conf/ME softlink is the only thing
+on / that should be different for each machine.
+
+There are often categories of configuration files.  For example, all of your
+shell machines may use one resolv.conf while all of your mail proxies may
+use another.  Configuration files can be categorized fairly easily through
+/conf/HT.<category> directories.  You put the actual configuration file in
+/conf/HT.<category> and make a softlink from
+/conf/ME/<appropriate-machines>/config-file to "../HT.<category/config-file".
+This means that access to these files tends to run through more then one
+softlink.  The advantage is that for all the complexity of your /conf
+directory hierarchy, most of your common config files exist in only one place
+in reality.
+
+

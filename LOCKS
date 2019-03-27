@@ -1,0 +1,14 @@
+$FreeBSD$
+
+This file documents formal review/approval requirements that have been
+approved by core.
+
+subsystem       login   expires  notes
+--------------------------------------
+
+Special cases:
+releng/*				Requires Security Officer approval.
+head/sys/dev/random			Requires Security Officer approval.
+head/sys/libkern/arc4random.c		Requires Security Officer approval.
+stable/*/sys/dev/random			Requires Security Officer approval.
+stable/*/sys/libkern/arc4random.c	Requires Security Officer approval.

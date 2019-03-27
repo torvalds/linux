@@ -1,0 +1,2 @@
+block drop in on lo0 inet proto tcp from 192.168.0.0/24 to any port = ssh tag ssh
+block drop in quick on lo0 all ! tagged ssh

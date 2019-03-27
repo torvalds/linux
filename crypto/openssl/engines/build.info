@@ -1,0 +1,43 @@
+IF[{- !$disabled{"engine"} -}]
+
+  IF[{- $disabled{"dynamic-engine"} -}]
+    LIBS=../libcrypto
+    SOURCE[../libcrypto]=\
+            e_padlock.c {- $target{padlock_asm_src} -}
+    IF[{- !$disabled{capieng} -}]
+      SOURCE[../libcrypto]=e_capi.c
+    ENDIF
+    IF[{- !$disabled{afalgeng} -}]
+      SOURCE[../libcrypto]=e_afalg.c
+    ENDIF
+  ELSE
+    ENGINES=padlock
+    SOURCE[padlock]=e_padlock.c {- $target{padlock_asm_src} -}
+    DEPEND[padlock]=../libcrypto
+    INCLUDE[padlock]=../include
+    IF[{- !$disabled{capieng} -}]
+      ENGINES=capi
+      SOURCE[capi]=e_capi.c
+      DEPEND[capi]=../libcrypto
+      INCLUDE[capi]=../include
+    ENDIF
+    IF[{- !$disabled{afalgeng} -}]
+      ENGINES=afalg
+      SOURCE[afalg]=e_afalg.c
+      DEPEND[afalg]=../libcrypto
+      INCLUDE[afalg]= ../include
+    ENDIF
+
+    ENGINES_NO_INST=ossltest dasync
+    SOURCE[dasync]=e_dasync.c
+    DEPEND[dasync]=../libcrypto
+    INCLUDE[dasync]=../include
+    SOURCE[ossltest]=e_ossltest.c
+    DEPEND[ossltest]=../libcrypto
+    INCLUDE[ossltest]=../include
+  ENDIF
+
+  GENERATE[e_padlock-x86.s]=asm/e_padlock-x86.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+  GENERATE[e_padlock-x86_64.s]=asm/e_padlock-x86_64.pl $(PERLASM_SCHEME)
+ENDIF

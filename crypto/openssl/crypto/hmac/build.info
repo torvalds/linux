@@ -1,0 +1,3 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        hmac.c hm_ameth.c hm_pmeth.c

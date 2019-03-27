@@ -1,0 +1,125 @@
+.\" Copyright (c) 2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 9, 2009
+.Dt REDZONE 9
+.Os
+.Sh NAME
+.Nm RedZone
+.Nd "buffer corruptions detector"
+.Sh SYNOPSIS
+.Cd "options KDB"
+.Cd "options DDB"
+.Cd "options DEBUG_REDZONE"
+.Sh DESCRIPTION
+.Nm
+detects buffer underflow and buffer overflow bugs at runtime.
+Currently
+.Nm
+only detects buffer corruptions for memory allocated with
+.Xr malloc 9 .
+When such corruption is detected two backtraces are printed on the console.
+The first one shows from where memory was allocated, the second one shows from
+where memory was freed.
+By default the system will not panic when buffer corruption is detected.
+This can be changed by setting the
+.Va vm.redzone.panic
+.Xr sysctl 8
+variable to 1.
+The amount of extra memory allocated for
+.Nm Ns 's
+needs is stored in the
+.Va vm.redzone.extra_mem
+.Xr sysctl 8
+variable.
+.Sh EXAMPLE
+The example below shows the logs from the detection of a buffer underflow and a
+buffer overflow.
+.Bd -literal -offset indent
+REDZONE: Buffer underflow detected. 2 bytes corrupted before 0xc8688580 (16 bytes allocated).
+Allocation backtrace:
+#0 0xc0583e4e at redzone_setup+0x3c
+#1 0xc04a23fa at malloc+0x19e
+#2 0xcdeb69ca at redzone_modevent+0x60
+#3 0xc04a3f3c at module_register_init+0x82
+#4 0xc049d96a at linker_file_sysinit+0x8e
+#5 0xc049dc7c at linker_load_file+0xed
+#6 0xc04a041f at linker_load_module+0xc4
+#7 0xc049e883 at kldload+0x116
+#8 0xc05d9b3d at syscall+0x325
+#9 0xc05c944f at Xint0x80_syscall+0x1f
+Free backtrace:
+#0 0xc0583f92 at redzone_check+0xd4
+#1 0xc04a2422 at free+0x1c
+#2 0xcdeb69a6 at redzone_modevent+0x3c
+#3 0xc04a438d at module_unload+0x61
+#4 0xc049e0b3 at linker_file_unload+0x89
+#5 0xc049e979 at kern_kldunload+0x96
+#6 0xc049ea00 at kldunloadf+0x2c
+#7 0xc05d9b3d at syscall+0x325
+#8 0xc05c944f at Xint0x80_syscall+0x1f
+
+REDZONE: Buffer overflow detected. 4 bytes corrupted after 0xc8688590 (16 bytes allocated).
+Allocation backtrace:
+#0 0xc0583e4e at redzone_setup+0x3c
+#1 0xc04a23fa at malloc+0x19e
+#2 0xcdeb69ca at redzone_modevent+0x60
+#3 0xc04a3f3c at module_register_init+0x82
+#4 0xc049d96a at linker_file_sysinit+0x8e
+#5 0xc049dc7c at linker_load_file+0xed
+#6 0xc04a041f at linker_load_module+0xc4
+#7 0xc049e883 at kldload+0x116
+#8 0xc05d9b3d at syscall+0x325
+#9 0xc05c944f at Xint0x80_syscall+0x1f
+Free backtrace:
+#0 0xc0584020 at redzone_check+0x162
+#1 0xc04a2422 at free+0x1c
+#2 0xcdeb69a6 at redzone_modevent+0x3c
+#3 0xc04a438d at module_unload+0x61
+#4 0xc049e0b3 at linker_file_unload+0x89
+#5 0xc049e979 at kern_kldunload+0x96
+#6 0xc049ea00 at kldunloadf+0x2c
+#7 0xc05d9b3d at syscall+0x325
+#8 0xc05c944f at Xint0x80_syscall+0x1f
+.Ed
+.Sh SEE ALSO
+.Xr sysctl 8 ,
+.Xr malloc 9 ,
+.Xr memguard 9
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org
+.Sh BUGS
+Currently,
+.Nm
+does not cooperate with
+.Xr memguard 9 .
+Allocations from a memory type controlled by
+.Xr memguard 9
+are simply skipped, so buffer corruptions will not be detected there.

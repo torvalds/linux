@@ -1,0 +1,53 @@
+.\" Generated from pam_getenv.c by gendoc.pl
+.\" $OpenPAM: pam_getenv.c 944 2019-02-22 09:49:12Z des $
+.Dd February 24, 2019
+.Dt PAM_GETENV 3
+.Os
+.Sh NAME
+.Nm pam_getenv
+.Nd retrieve the value of a PAM environment variable
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.Ft "const char *"
+.Fn pam_getenv "pam_handle_t *pamh" "const char *name"
+.Sh DESCRIPTION
+The
+.Fn pam_getenv
+function returns the value of an environment variable.
+Its semantics are similar to those of
+.Xr getenv 3 ,
+but it accesses the PAM
+context's environment list instead of the application's.
+.Pp
+.Sh RETURN VALUES
+The
+.Fn pam_getenv
+function returns
+.Dv NULL
+on failure.
+.Sh SEE ALSO
+.Xr getenv 3 ,
+.Xr pam 3 ,
+.Xr pam_getenvlist 3 ,
+.Xr pam_putenv 3 ,
+.Xr pam_setenv 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The
+.Fn pam_getenv
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

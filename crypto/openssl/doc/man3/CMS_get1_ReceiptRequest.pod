@@ -1,0 +1,78 @@
+=pod
+
+=head1 NAME
+
+CMS_ReceiptRequest_create0, CMS_add1_ReceiptRequest, CMS_get1_ReceiptRequest, CMS_ReceiptRequest_get0_values - CMS signed receipt request functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/cms.h>
+
+ CMS_ReceiptRequest *CMS_ReceiptRequest_create0(unsigned char *id, int idlen,
+                                                int allorfirst,
+                                                STACK_OF(GENERAL_NAMES) *receiptList,
+                                                STACK_OF(GENERAL_NAMES) *receiptsTo);
+ int CMS_add1_ReceiptRequest(CMS_SignerInfo *si, CMS_ReceiptRequest *rr);
+ int CMS_get1_ReceiptRequest(CMS_SignerInfo *si, CMS_ReceiptRequest **prr);
+ void CMS_ReceiptRequest_get0_values(CMS_ReceiptRequest *rr, ASN1_STRING **pcid,
+                                     int *pallorfirst,
+                                     STACK_OF(GENERAL_NAMES) **plist,
+                                     STACK_OF(GENERAL_NAMES) **prto);
+
+=head1 DESCRIPTION
+
+CMS_ReceiptRequest_create0() creates a signed receipt request structure. The
+B<signedContentIdentifier> field is set using B<id> and B<idlen>, or it is set
+to 32 bytes of pseudo random data if B<id> is NULL. If B<receiptList> is NULL
+the allOrFirstTier option in B<receiptsFrom> is used and set to the value of
+the B<allorfirst> parameter. If B<receiptList> is not NULL the B<receiptList>
+option in B<receiptsFrom> is used. The B<receiptsTo> parameter specifies the
+B<receiptsTo> field value.
+
+The CMS_add1_ReceiptRequest() function adds a signed receipt request B<rr>
+to SignerInfo structure B<si>.
+
+int CMS_get1_ReceiptRequest() looks for a signed receipt request in B<si>, if
+any is found it is decoded and written to B<prr>.
+
+CMS_ReceiptRequest_get0_values() retrieves the values of a receipt request.
+The signedContentIdentifier is copied to B<pcid>. If the B<allOrFirstTier>
+option of B<receiptsFrom> is used its value is copied to B<pallorfirst>
+otherwise the B<receiptList> field is copied to B<plist>. The B<receiptsTo>
+parameter is copied to B<prto>.
+
+=head1 NOTES
+
+For more details of the meaning of the fields see RFC2634.
+
+The contents of a signed receipt should only be considered meaningful if the
+corresponding CMS_ContentInfo structure can be successfully verified using
+CMS_verify().
+
+=head1 RETURN VALUES
+
+CMS_ReceiptRequest_create0() returns a signed receipt request structure or
+NULL if an error occurred.
+
+CMS_add1_ReceiptRequest() returns 1 for success or 0 if an error occurred.
+
+CMS_get1_ReceiptRequest() returns 1 is a signed receipt request is found and
+decoded. It returns 0 if a signed receipt request is not present and -1 if
+it is present but malformed.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<CMS_sign(3)>,
+L<CMS_sign_receipt(3)>, L<CMS_verify(3)>
+L<CMS_verify_receipt(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2008-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

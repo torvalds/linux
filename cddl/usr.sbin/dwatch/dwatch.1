@@ -1,0 +1,766 @@
+.\" Copyright (c) 2014-2018 Devin Teske
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 9, 2018
+.Dt DWATCH 1
+.Os
+.Sh NAME
+.Nm dwatch
+.Nd watch processes as they trigger a particular DTrace probe
+.Sh SYNOPSIS
+.Nm
+.Op Fl 1defFmnPqRvVwxy
+.Op Fl B Ar num
+.Op Fl E Ar code
+.Op Fl g Ar group
+.Op Fl j Ar jail
+.Op Fl k Ar name
+.Op Fl K Ar num
+.Op Fl N Ar count
+.Op Fl o Ar file
+.Op Fl O Ar cmd
+.Op Fl p Ar pid
+.Op Fl r Ar regex
+.Op Fl t Ar test
+.Op Fl T Ar time
+.Op Fl u Ar user
+.Op Fl X Ar profile
+.Op Fl z Ar regex
+.Op Fl -
+.Op probe[,...]
+.Op args ...
+.Nm
+.Fl l
+.Op Fl fmnPqy
+.Op Fl r Ar regex
+.Op probe ...
+.Nm
+.Fl Q
+.Op Fl 1qy
+.Op Fl r Ar regex
+.Sh DESCRIPTION
+The
+.Nm
+utility uses
+.Xr dtrace 1
+to display process info when a given DTrace probe point is triggered.
+Only the root user or users with
+.Xr sudo 8
+access can run this command.
+.Pp
+.Nm
+automates the process of generating DTrace scripts to coalesce trace output by
+date/time,
+process info,
+and
+.Op optionally
+probe-specific data.
+.Pp
+Output format without options is:
+.Pp
+.Dl date/time uid.gid execname[pid]: psargs
+.Pp
+For example,
+the command
+.Ql dwatch BEGIN
+produces:
+.Pp
+.Dl INFO Watching 'dtrace:::BEGIN' ...
+.Dl 2017 May 29 08:23:20 0.0 dtrace[60671]: dtrace -s /dev/stdin
+.Pp
+The
+.Fl F
+option causes
+.Nm
+to instead coalesce trace output by date/time,
+process info,
+and probe traversal.
+.Pp
+Output format with the
+.Ql Fl F
+option is:
+.Pp
+.Dl date/time uid.gid execname[pid]: {->,<-, |} prov:mod:func:name ...
+.Pp
+For example,
+the command
+.Ql dwatch -F BEGIN
+produces:
+.Pp
+.Dl INFO Watching 'dtrace:::BEGIN' ...
+.Dl 2017 May 29 21:34:41 0.0 dtrace[86593]:  | dtrace:::BEGIN ...
+.Pp
+The
+.Fl R
+option causes
+.Nm
+to display a process tree containing the parent,
+grandparent,
+and ancestor process info.
+.Pp
+Output format with the
+.Ql Fl R
+option is:
+.Pp
+.Dl date/time uid0.gid0 execname[pid0]: psargs0
+.Dl " -+= pid3 uid3.gid3 psargs3"
+.Dl "  \e\\-+= pid2 uid2.gid2 psargs2"
+.Dl "    \e\\-+= pid1 uid1.gid1 psargs1"
+.Dl "      \e\\-+= pid0 uid0.guid0 psargs0"
+.Pp
+For example,
+the command
+.Ql dwatch -R BEGIN
+produces:
+.Pp
+.Dl INFO Watching 'dtrace:::BEGIN' ...
+.Dl 2017 May 29 21:38:54 0.0 dtrace[86899]: dtrace -s /dev/stdin
+.Dl " -+= 86855 604.604 -bash"
+.Dl "  \e\\-+= 86857 604.604 /bin/sh /usr/sbin/dwatch -R BEGIN"
+.Dl "    \e\\-+= 86897 0.0 sudo dtrace -s /dev/stdin"
+.Dl "      \e\\-+= 86899 0.0 dtrace -s /dev/stdin"
+.Pp
+Of particular interest is the ability to filter using regular expressions.
+The
+.Ql Fl g Ar group ,
+.Ql Fl p Ar pid ,
+.Ql Fl r Ar regex ,
+.Ql Fl u Ar user ,
+and
+.Ql Fl z Ar regex
+options can be combined with
+.Ql Fl R
+to match on parent process criteria as well as current process info.
+.Pp
+In contrast,
+the
+.Ql Fl j Ar jail ,
+and
+.Ql Fl k Ar name
+options apply only to the current process even if
+.Ql Fl R
+is given.
+.Pp
+The
+.Ql Fl E Ar code
+option gives the ability to customize probe-specific data.
+For example,
+the command:
+.Pp
+.Dl dwatch -E 'printf("%s", copyinstr(arg0))' chdir
+.Pp
+displays the path argument sent to
+.Xr chdir 2
+calls.
+.Pp
+Profiles can be written for more complex routines and/or convenience.
+To list available profiles use the
+.Ql Fl Q
+option.
+Use the
+.Ql Fl X Ar profile
+option to use a particular profile.
+.Pp
+For example,
+the command
+.Ql dwatch -X kill
+displays arguments sent to
+.Xr kill 2 .
+.Sh OPTIONS
+If a
+.Ar probe
+argument does not contain colon
+.Pq Qo Li ":" Qc
+and none of
+.Ql Fl P ,
+.Ql Fl m ,
+.Ql Fl f ,
+or
+.Ql Fl n
+are given,
+the probe argument is intelligently mapped to its most-likely value.
+Use
+.Ql Nm Fl l Ar name
+to see what probes will match a given name.
+.Pp
+Multiple probes must be given as a single
+.Pq quoted
+argument,
+separated by comma and/or whitespace.
+Any/all arguments following said probes will be passed to
+.Xr dtrace 1
+unmodified.
+.Bl -tag -width "-c count"
+.It Fl 1
+Print one line per process/profile
+.Pq Default; disables Ql Fl R .
+.It Fl B Ar num
+Maximum number of arguments to display
+.Pq Default 64 .
+.It Fl d
+Debug.
+Send
+.Xr dtrace 1
+script to stdout instead of executing.
+.It Fl e
+Exit after compiling request but prior to enabling probes.
+.It Fl E Ar code
+DTrace
+.Ar code
+for event details.
+If `-',
+read from stdin.
+This allows customization of what is printed after date/time and process info.
+By default,
+the name and arguments of the program triggering the probe are shown.
+Can be specified multiple times.
+.It Fl f
+Enable probes matching the specified function names.
+.It Fl F
+Coalesce trace output by probe.
+.It Fl g Ar group
+Group filter.
+Only show processes matching
+.Ar group
+name/gid.
+This can be an
+.Xr awk 1
+regular expression to match a numerical gid.
+.It Fl j Ar jail
+Jail filter.
+Only show processes matching
+.Ar jail
+name/jid.
+.It Fl k Ar name
+Only show processes matching
+.Ar name .
+Can also be of the format
+.Ql Li name*
+to indicate
+.Dq Li begins with ,
+.Ql Li *name
+to indicate
+.Dq Li ends with ,
+or
+.Ql Li *name*
+to indicate
+.Dq Li contains .
+Can be specified multiple times.
+.It Fl K Ar num
+Maximum directory depth to display
+.Pq Default 64 .
+.It Fl l
+List available probes on standard output and exit.
+.It Fl m
+Enable probes matching the specified module names.
+.It Fl X Ar profile
+Load profile from DWATCH_PROFILES_PATH.
+.It Fl n
+Enable probes matching the specified probe names.
+.It Fl N Ar count
+Exit after
+.Ar count
+matching entries
+.Pq Default 0 for disabled .
+.It Fl o Ar file
+Set output file.
+If
+.Ql Li - ,
+the path
+.Ql Li /dev/stdout
+is used.
+.It Fl O Ar cmd
+Execute
+.Ar cmd
+for each event.
+This can be any valid
+.Xr sh 1
+command.
+The environment variables
+.Ql Li $TAG
+and
+.Ql Li $DETAILS
+are set for the given
+.Ar cmd .
+.It Fl p Ar pid
+Process id filter.
+Only show processes with matching
+.Ar pid .
+This can be an
+.Xr awk 1
+regular expression.
+.It Fl P
+Enable probe matching the specified provider name.
+.It Fl q
+Quiet.
+Hide informational messages and all dtrace(1) errors.
+.It Fl Q
+List available profiles in DWATCH_PROFILES_PATH and exit.
+.It Fl r Ar regex
+Filter.
+Only show blocks matching
+.Xr awk 1
+regular expression.
+.It Fl R
+Show parent,
+grandparent,
+and ancestor of process.
+.It Fl t Ar test
+Test clause
+.Pq predicate
+to limit events
+.Pq Default none .
+Can be specified multiple times.
+.It Fl T Ar time
+Timeout.
+The format is
+.Ql Li #[smhd]
+or just
+.Ql Li #
+for seconds.
+.It Fl u Ar user
+User filter.
+Only show processes matching
+.Ar user
+name/uid.
+This can be an
+.Xr awk 1
+regular expression to match a numerical UID.
+.It Fl v
+Verbose.
+Show all errors from
+.Xr dtrace 1 .
+.It Fl V
+Report
+.Nm
+version on standard output and exit.
+.It Fl w
+Permit destructive actions
+.Pq copyout*, stop, panic, etc. .
+.It Fl x
+Trace.
+Print
+.Ql Li <probe-id>
+when a probe is triggered.
+.It Fl y
+Always treat stdout as console
+.Pq enable colors/columns/etc. .
+.It Fl z Ar regex
+Only show processes matching
+.Xr awk 1
+regular expression.
+.El
+.Sh PROFILES
+Profiles customize the data printed during events.
+Profiles are loaded from a colon-separated list of directories in
+.Ev DWATCH_PROFILES_PATH .
+This is an incomplete list of profiles with basic descriptions:
+.Bl -tag -width "vop_readdir"
+.It chmod
+Print mode and path from
+.Xr chmod 2 ,
+.Xr lchmod 2 ,
+.Xr fchmodat 2
+.It errno
+Print non-zero errno results from system calls
+.It io
+Print disk I/O details provided by
+.Xr dtrace_io 4
+.It ip
+Print IPv4 and IPv6 details provided by
+.Xr dtrace_ip 4
+.It kill
+Print signal and pid from
+.Xr kill 2
+.It nanosleep
+Print requested time from
+.Xr nanosleep 2
+.It open
+Print path from
+.Xr open 2 ,
+.Xr openat 2
+.It proc
+Print process execution details provided by
+.Xr dtrace_proc 4
+.It proc-signal
+Print process signal details provided by
+.Xr dtrace_proc 4
+.It rw
+Print buffer contents from
+.Xr read 2 ,
+.Xr write 2
+.It sched
+Print CPU scheduling details provided by
+.Xr dtrace_sched 4
+.It tcp
+Print TCP address/port details provided by
+.Xr dtrace_tcp 4
+.It tcp-io
+Print TCP I/O details provided by
+.Xr dtrace_tcp 4
+.It udp
+Print UDP I/O details provided by
+.Xr dtrace_udp 4
+.It vop_create
+Print filesystem paths being created by
+.Xr VOP_CREATE 9
+.It vop_lookup
+Print filesystem paths being looked-up by
+.Xr VOP_LOOKUP 9
+.It vop_mkdir
+Print directory paths being created by
+.Xr VOP_MKDIR 9
+.It vop_mknod
+Print device node paths being created by
+.Xr VOP_MKNOD 9
+.It vop_readdir
+Print directory paths being read by
+.Xr VOP_READDIR 9
+.It vop_remove
+Print filesystem paths being removed by
+.Xr VOP_REMOVE 9
+.It vop_rename
+Print filesystem paths being renamed by
+.Xr VOP_RENAME 9
+.It vop_rmdir
+Print directory paths being removed by
+.Xr VOP_RMDIR 9
+.It vop_symlink
+Print symlink paths being created by
+.Xr VOP_SYMLINK 9
+.El
+.Sh ENVIRONMENT
+These environment variables affect the execution of
+.Nm :
+.Bl -tag -width "DWATCH_PROFILES_PATH"
+.It Ev DWATCH_PROFILES_PATH
+If
+.Ev DWATCH_PROFILES_PATH
+is set,
+.Nm
+searches for profiles in the colon-separated list of directories in that
+variable instead of the default
+.Ql Li /usr/libexec/dwatch:/usr/local/libexec/dwatch .
+If set to NULL,
+profiles are not loaded.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Watch processes entering system CPU scheduler.
+.Bd -literal -offset indent
+dwatch on-cpu
+.Ed
+.Pp
+List available profiles,
+one line per profile.
+.Bd -literal -offset indent
+dwatch -1 -Q
+.Ed
+.Pp
+Do not execute
+.Xr dtrace 1
+but display script on stdout and exit.
+.Bd -literal -offset indent
+dwatch -d fsync
+.Ed
+.Pp
+Compile and test but do not execute code generated with given probe.
+.Bd -literal -offset indent
+dwatch -e test_probe
+.Ed
+.Pp
+Print argument one being passed to each call of zfs_sync().
+.Bd -literal -offset indent
+dwatch -E 'printf("%i", arg1)' zfs_sync
+.Ed
+.Pp
+Watch all functions named
+.Ql Li read .
+.Bd -literal -offset indent
+dwatch -f read
+.Ed
+.Pp
+Watch all probe traversal.
+.Bd -literal -offset indent
+dwatch -F :
+.Ed
+.Pp
+Watch syscall probe traversal.
+.Bd -literal -offset indent
+dwatch -F syscall
+.Ed
+.Pp
+Display only processes belonging to wheel super-group.
+.Bd -literal -offset indent
+dwatch -g wheel execve
+.Ed
+.Pp
+Display only processes belonging to groups
+.Ql Li daemon
+or
+.Ql Li nobody .
+.Bd -literal -offset indent
+dwatch -g '1|65534' execve
+.Ed
+.Pp
+Ignore jails,
+displaying only base system processes.
+.Bd -literal -offset indent
+dwatch -j 0 execve
+.Ed
+.Pp
+Display only processes running inside the jail named
+.Ql Li myjail .
+.Bd -literal -offset indent
+dwatch -j myjail execve
+.Ed
+.Pp
+Watch syscall traversal by ruby processes.
+.Bd -literal -offset indent
+dwatch -k 'ruby*' -F syscall
+.Ed
+.Pp
+Watch syscall traversal by processes containing
+.Ql Li daemon
+in their name.
+.Bd -literal -offset indent
+dwatch -k '*daemon*' -F syscall
+.Ed
+.Pp
+Watch signals being passed to
+.Xr kill 2 .
+.Bd -literal -offset indent
+dwatch -X kill
+.Ed
+.Pp
+Watch signals being passed between
+.Xr bash 1
+and
+.Xr vi 1 .
+.Bd -literal -offset indent
+dwatch -k bash -k vi -X kill
+.Ed
+.Pp
+Display a list of unique functions available.
+.Bd -literal -offset indent
+dwatch -l -f
+.Ed
+.Pp
+List available probes for functions ending in
+.Ql Li read .
+.Bd -literal -offset indent
+dwatch -l -f '*read'
+.Ed
+.Pp
+List available probes ending in
+.Dq Li read .
+.Bd -literal -offset indent
+dwatch -l -r 'read$'
+.Ed
+.Pp
+Display a list of unique providers.
+.Bd -literal -offset indent
+dwatch -l -P
+.Ed
+.Pp
+Watch paths being removed by
+.Xr VOP_REMOVE 9 .
+.Bd -literal -offset indent
+dwatch -X vop_remove
+.Ed
+.Pp
+Watch the name
+.Ql Li read
+instead of the function
+.Ql Li read .
+The
+.Nm
+selection algorithm will commonly favor the function named
+.Ql Li read
+when not given a type
+.Pq using So Fl P Sc , So Fl m Sc , So Fl f Sc , or So Fl n Sc
+because there are more probes matching the function named
+.Ql Li read
+than probes matching
+.Ql Li read
+for any other type.
+.Bd -literal -offset indent
+dwatch -n read
+.Ed
+.Pp
+Display the first process to call
+.Xr kill 2
+and then exit.
+.Bd -literal -offset indent
+dwatch -N 1 kill
+.Ed
+.Pp
+Watch processes forked by pid 1234.
+.Bd -literal -offset indent
+dwatch -p 1234 execve
+.Ed
+.Pp
+Watch processes forked by either pid 1234 or pid 5678.
+.Bd -literal -offset indent
+dwatch -p '1234|5678' execve
+.Ed
+.Pp
+Watch the provider
+.Ql Li random
+instead of the function
+.Ql Li random .
+The
+.Nm
+selection algorithm will commonly favor the function named
+.Ql Li random
+when not given a type
+.Pq using So Fl P Sc , So Fl m Sc , So Fl f Sc , or So Fl n Sc
+because there are more probes matching the function named
+.Ql Li random
+than probes matching the provider named
+.Ql Li random .
+.Bd -literal -offset indent
+dwatch -P random
+.Ed
+.Pp
+Display available profiles matching
+.Ql Li vop .
+.Bd -literal -offset indent
+dwatch -Q -r vop
+.Ed
+.Pp
+Watch
+.Xr VOP_LOOKUP 9
+paths containing
+.Ql Li /lib/ .
+.Bd -literal -offset indent
+dwatch -r /lib/ -X vop_lookup
+.Ed
+.Pp
+Show process tree for each command as it is executed.
+.Bd -literal -offset indent
+dwatch -R execve
+.Ed
+.Pp
+Watch processes forked by pid 1234 or children thereof.
+.Bd -literal -offset indent
+dwatch -R -p 1234 execve
+.Ed
+.Pp
+Display processes calling
+.Xr write 2
+with
+.Dq nbytes
+less than 10.
+.Bd -literal -offset indent
+dwatch -t 'arg2<10' -E 'printf("%d",arg2)' write
+.Ed
+.Pp
+Display
+.Xr write 2
+buffer when
+.Dq execname
+is not
+.Ql Li dtrace
+and
+.Dq nbytes
+is less than 10.
+.Bd -literal -offset indent
+dwatch -X write -t 'execname != "dtrace" && this->nbytes < 10'
+.Ed
+.Pp
+Watch
+.Ql Li statfs
+for 5 minutes and exit.
+.Bd -literal -offset indent
+dwatch -T 5m statfs
+.Ed
+.Pp
+Display only processes belonging to the root super-user.
+.Bd -literal -offset indent
+dwatch -u root execve
+.Ed
+.Pp
+Display only processes belonging to users
+.Ql Li daemon
+or
+.Ql Li nobody .
+.Bd -literal -offset indent
+dwatch -u '1|65534' execve
+.Ed
+.Pp
+Print version and exit.
+.Bd -literal -offset indent
+dwatch -V
+.Ed
+.Pp
+View the first 100 scheduler preemptions.
+.Bd -literal -offset indent
+dwatch -y -N 100 preempt | less -R
+.Ed
+.Pp
+Display processes matching either
+.Dq Li mkdir
+or
+.Dq Li rmdir .
+.Bd -literal -offset indent
+dwatch -z '(mk|rm)dir' execve
+.Ed
+.Pp
+Run a command and watch network activity only while that command runs.
+.Bd -literal -offset indent
+dwatch -X tcp -- -c "nc -zvw10 google.com 22"
+.Ed
+.Pp
+Watch
+.Xr open 2
+and
+.Xr openat 2
+calls only while pid 1234 is active.
+.Bd -literal -offset indent
+dwatch -X open -- -p 1234
+.Ed
+.Pp
+Watch probe traversal for a given command.
+Note that
+.Dq Li -c true
+is passed to
+.Xr dtrace 1
+since it appears after the
+.Nm
+probe argument.
+.Bd -literal -offset indent
+dwatch -F 'pid$target:::entry' -c true
+.Ed
+.Sh SEE ALSO
+.Xr dtrace 1
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 11.2 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org

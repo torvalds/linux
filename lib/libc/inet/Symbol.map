@@ -1,0 +1,38 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	__inet_addr;
+	__inet_aton;
+	inet_addr;
+	inet_aton;
+	__inet_cidr_ntop;
+	__inet_cidr_pton;
+	__inet_lnaof;
+	inet_lnaof;
+	__inet_makeaddr;
+	inet_makeaddr;
+	__inet_net_ntop;
+	inet_net_ntop;
+	__inet_net_pton;
+	inet_net_pton;
+	__inet_neta;
+	inet_neta;
+	__inet_netof;
+	inet_netof;
+	__inet_network;
+	inet_network;
+	__inet_ntoa;
+	inet_ntoa;
+	__inet_ntoa_r;
+	inet_ntoa_r;
+	__inet_ntop;
+	inet_ntop;
+	__inet_pton;
+	inet_pton;
+	__inet_nsap_addr;
+	__inet_nsap_ntoa;
+	inet_nsap_addr;
+	inet_nsap_ntoa;
+};

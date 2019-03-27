@@ -1,0 +1,85 @@
+.\" $OpenBSD: dirname.3,v 1.17 2007/05/31 19:19:28 jmc Exp $
+.\"
+.\" Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 5, 2016
+.Dt DIRNAME 3
+.Os
+.Sh NAME
+.Nm dirname
+.Nd extract the directory part of a pathname
+.Sh SYNOPSIS
+.In libgen.h
+.Ft char *
+.Fn dirname "char *path"
+.Sh DESCRIPTION
+The
+.Fn dirname
+function is the converse of
+.Xr basename 3 ;
+it returns a pointer to the parent directory of the pathname pointed to by
+.Fa path .
+Any trailing
+.Sq \&/
+characters are not counted as part of the directory
+name.
+.Sh IMPLEMENTATION NOTES
+This implementation of
+.Fn dirname
+uses the buffer provided by the caller to store the resulting parent
+directory.
+Other vendor implementations may return a pointer to internal storage
+space instead.
+The advantage of the former approach is that it ensures thread-safety,
+while also placing no upper limit on the supported length of the
+pathname.
+.Sh RETURN VALUES
+If
+.Fa path
+is a null pointer, the empty string, or contains no
+.Sq \&/
+characters,
+.Fn dirname
+returns a pointer to the string
+.Qq \&. ,
+signifying the current directory.
+Otherwise,
+it returns a pointer to the parent directory of
+.Fa path .
+.Sh SEE ALSO
+.Xr basename 1 ,
+.Xr dirname 1 ,
+.Xr basename 3
+.Sh STANDARDS
+The
+.Fn dirname
+function conforms to
+.St -xpg4.2 .
+.Sh HISTORY
+The
+.Fn dirname
+function first appeared in
+.Ox 2.2
+and
+.Fx 4.2 .
+.Pp
+In
+.Fx 12.0 ,
+this function was reimplemented to store its result in the provided
+input buffer.
+.Sh AUTHORS
+.An Nuxi, the Netherlands

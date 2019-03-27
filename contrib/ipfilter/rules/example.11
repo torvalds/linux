@@ -1,0 +1,26 @@
+#
+# allow any TCP packets from the same subnet as foo is on through to host
+# 10.1.1.2 if they are destined for port 6667.
+#
+pass in proto tcp from 10.2.2.2/24 to 10.1.1.2/32 port = 6667
+#
+# allow in UDP packets which are NOT from port 53 and are destined for
+# localhost
+#
+pass in proto udp from 10.2.2.2 port != 53 to localhost
+#
+# block anything trying to get to X terminal ports, X:0 to X:9
+#
+block in proto tcp from any to any port 5999 >< 6010
+#
+# allow any connections to be made, except to BSD print/r-services
+# this will also protect syslog.
+#
+block in proto tcp/udp all
+pass in proto tcp/udp from any to any port 512 <> 515
+#
+# allow any connections to be made, except to BSD print/r-services
+# this will also protect syslog.
+#
+pass in proto tcp/udp all
+block in proto tcp/udp from any to any port 511 >< 516

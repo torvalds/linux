@@ -1,0 +1,165 @@
+.\"***************************************************************************
+.\" Copyright (c) 2002-2010,2012 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_get_wch.3x,v 1.8 2012/11/03 23:03:59 tom Exp $
+.TH curs_get_wch 3X ""
+.SH NAME
+\fBget_wch\fR,
+\fBwget_wch\fR,
+\fBmvget_wch\fR,
+\fBmvwget_wch\fR,
+\fBunget_wch\fR \- get (or push back) a wide character from curses terminal keyboard
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint get_wch(wint_t *\fR\fIwch\fR\fB);\fR
+.br
+\fBint wget_wch(WINDOW *\fR\fIwin\fR\fB, wint_t *\fR\fIwch\fR\fB);\fR
+.br
+\fBint mvget_wch(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, wint_t *\fR\fIwch\fR\fB);\fR
+.br
+\fBint mvwget_wch(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, wint_t *\fR\fIwch\fR\fB);\fR
+.br
+\fBint unget_wch(const wchar_t \fR\fIwch\fR\fB);\fR
+.SH DESCRIPTION
+The
+\fBget_wch\fR,
+\fBwget_wch\fR,
+\fBmvget_wch\fR, and
+\fBmvwget_wch\fR
+functions read a character
+from the terminal associated with the current or specified window.
+In no-delay mode,
+if no input is waiting, the value \fBERR\fR is returned.
+In delay mode,
+the program waits until the system passes text through to the program.
+Depending on the setting of \fBcbreak\fR,
+this is after one character (cbreak mode),
+or after the first newline (nocbreak mode).
+In half-delay mode,
+the program waits until the user types a character or the specified
+timeout interval has elapsed.
+.PP
+Unless \fBnoecho\fR has been set,
+these routines echo the character into the designated window.
+.PP
+If the window is not a pad and has been moved or modified since the
+last call to \fBwrefresh\fR,
+\fBwrefresh\fR will be called before another character is read.
+.PP
+If \fBkeypad\fR is enabled,
+these functions respond to
+the pressing of a function key by setting the object pointed to by
+\fIwch\fR
+to the corresponding
+\fBKEY_\fR
+value defined
+in
+\fB<curses.h>\fR
+and returning
+\fBKEY_CODE_YES\fR.
+If a character (such as escape) that could be the
+beginning of a function key is received, curses sets a timer.
+If the remainder
+of the sequence does arrive within the designated time, curses passes through
+the character; otherwise, curses returns the function key value.
+For this
+reason, many terminals experience a delay between the time a user presses
+the escape key and the time the escape is returned to the program.
+.PP
+The
+\fBunget_wch\fR
+function pushes the wide character
+\fIwch\fR
+back onto the head of the input queue, so the wide character
+is returned by the next call to
+\fBget_wch\fR.
+The pushback of
+one character is guaranteed.
+If the program calls
+\fBunget_wch\fR
+too many times without an intervening call to
+\fBget_wch\fR,
+the operation may fail.
+.SH NOTES
+The header file
+\fB<curses.h>\fR
+automatically
+includes the header file
+\fB<stdio.h>\fR.
+.PP
+Applications should not define the escape key by itself as a single-character
+function.
+.PP
+When using
+\fBget_wch\fR,
+\fBwget_wch\fR,
+\fBmvget_wch\fR, or
+\fBmvwget_wch\fR, applications should
+not use
+\fBnocbreak\fR
+mode and
+\fBecho\fR
+mode
+at the same time.
+Depending on the state of the tty driver when each character
+is typed, the program may produce undesirable results.
+.PP
+All functions except \fBwget_wch\fR and \fBunget_wch\fR
+may be macros.
+.SH RETURN VALUE
+When
+\fBget_wch\fR,
+\fBwget_wch\fR,
+\fBmvget_wch\fR, and
+\fBmvwget_wch\fR
+functions successfully
+report the pressing of a function key, they return
+\fBKEY_CODE_YES\fR.
+When they successfully report a wide character, they return
+\fBOK\fR.
+Otherwise, they return
+\fBERR\fR.
+.PP
+Upon successful completion,
+\fBunget_wch\fR
+returns
+\fBOK\fR.
+Otherwise, the function returns
+\fBERR\fR.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_getch\fR(3X),
+\fBcurs_ins_wch\fR(3X),
+\fBcurs_inopts\fR(3X),
+\fBcurs_move\fR(3X),
+\fBcurs_refresh\fR(3X)

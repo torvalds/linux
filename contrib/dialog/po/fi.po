@@ -1,0 +1,114 @@
+# Finnish translation for dialog.
+# Copyright © 2010 Free Software Foundation, Inc.
+# Copyright © 2005 Lauri Nurmi <lanurmi@iki.fi>
+# This file is distributed under the same license as the dialog package.
+# Lauri Nurmi <lanurmi@iki.fi>, 2005.
+# Jorma Karvonen <karvonen.jorma@gmail.com>, 2010.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2011-01-16 17:57-0500\n"
+"PO-Revision-Date: 2010-09-06 21:24+0200\n"
+"Last-Translator: Jorma Karvonen <karvonen.jorma@gmail.com>\n"
+"Language-Team: Finnish <translation-team-fi@lists.sourceforge.net>\n"
+"Language: fi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: buttons.c:387
+msgid "Yes"
+msgstr "Kyllä"
+
+#: buttons.c:395
+msgid "No"
+msgstr "Ei"
+
+#: buttons.c:403
+msgid "OK"
+msgstr "Valmis"
+
+#: buttons.c:411
+msgid "Cancel"
+msgstr "Peru"
+
+#: buttons.c:419
+msgid "EXIT"
+msgstr "Poistu"
+
+#: buttons.c:427
+msgid "Extra"
+msgstr "Painike"
+
+#: buttons.c:435
+msgid "Help"
+msgstr "Opaste"
+
+#. Headline "Month"
+#: calendar.c:298
+msgid "Month"
+msgstr "Kuukausi"
+
+#. Headline "Year"
+#: calendar.c:318
+msgid "Year"
+msgstr "Vuosi"
+
+#: dialog.c:756
+msgid "Rename"
+msgstr "Nimeä"
+
+#: fselect.c:571
+msgid "Directories"
+msgstr "Kansiot"
+
+#: fselect.c:572
+msgid "Files"
+msgstr "Tiedostot"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Onnistui"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Epäonnistui"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Hyväksytty"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Valmis"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Valittu"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Valmis"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Ohitettiin"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "Edistyminen"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "N/A"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Kokonaisedistyminen"
+
+#: textbox.c:468
+msgid "Search"
+msgstr "Etsi"

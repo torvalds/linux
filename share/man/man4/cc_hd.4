@@ -1,0 +1,120 @@
+.\"
+.\" Copyright (c) 2010-2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written at the Centre for Advanced Internet
+.\" Architectures, Swinburne University of Technology, Melbourne, Australia by
+.\" David Hayes under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 15, 2011
+.Dt CC_HD 4
+.Os
+.Sh NAME
+.Nm cc_hd
+.Nd HD Congestion Control Algorithm
+.Sh DESCRIPTION
+The HD congestion control algorithm is an implementation of the Hamilton
+Institute's delay-based congestion control which aims to keep network queuing
+delays below a particular threshold (queue_threshold).
+.Pp
+HD probabilistically reduces the congestion window (cwnd) based on its estimate
+of the network queuing delay.
+The probability of reducing cwnd is zero at hd_qmin or less, rising to a maximum
+at queue_threshold, and then back to zero at the maximum queuing delay.
+.Pp
+Loss-based congestion control algorithms such as NewReno probe for network
+capacity by filling queues until there is a packet loss.
+HD competes with loss-based congestion control algorithms by allowing its
+probability of reducing cwnd to drop from a maximum at queue_threshold to be
+zero at the maximum queuing delay.
+This has been shown to work well when the bottleneck link is highly multiplexed.
+.Sh MIB Variables
+The algorithm exposes the following tunable variables in the
+.Va net.inet.tcp.cc.hd
+branch of the
+.Xr sysctl 3
+MIB:
+.Bl -tag -width ".Va queue_threshold"
+.It Va queue_threshold
+Queueing congestion threshold (qth) in ticks.
+Default is 20.
+.It Va pmax
+Per packet maximum backoff probability as a percentage.
+Default is 5.
+.It Va qmin
+Minimum queuing delay threshold (qmin) in ticks.
+Default is 5.
+.El
+.Sh SEE ALSO
+.Xr cc_chd 4 ,
+.Xr cc_cubic 4 ,
+.Xr cc_htcp 4 ,
+.Xr cc_newreno 4 ,
+.Xr cc_vegas 4 ,
+.Xr h_ertt 4 ,
+.Xr mod_cc 4 ,
+.Xr tcp 4 ,
+.Xr khelp 9 ,
+.Xr mod_cc 9
+.Rs
+.%A "L. Budzisz"
+.%A "R. Stanojevic"
+.%A "R. Shorten"
+.%A "F. Baker"
+.%T "A strategy for fair coexistence of loss and delay-based congestion control algorithms"
+.%J "IEEE Commun. Lett."
+.%D "Jul 2009"
+.%V "13"
+.%N "7"
+.%P "555-557"
+.Re
+.Sh ACKNOWLEDGEMENTS
+Development and testing of this software were made possible in part by grants
+from the FreeBSD Foundation and Cisco University Research Program Fund at
+Community Foundation Silicon Valley.
+.Sh FUTURE WORK
+The Hamilton Institute have recently made some improvements to the algorithm
+implemented by this module and have called it Coexistent-TCP (C-TCP).
+The improvements should be evaluated and potentially incorporated into this
+module.
+.Sh HISTORY
+The
+.Nm
+congestion control module first appeared in
+.Fx 9.0 .
+.Pp
+The module was first released in 2010 by David Hayes whilst working on the
+NewTCP research project at Swinburne University of Technology's Centre for
+Advanced Internet Architectures, Melbourne, Australia.
+More details are available at:
+.Pp
+http://caia.swin.edu.au/urp/newtcp/
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+congestion control module and this manual page were written by
+.An David Hayes Aq Mt david.hayes@ieee.org .

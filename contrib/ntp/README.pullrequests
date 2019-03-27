@@ -1,0 +1,90 @@
+See README.hackers for notes on coding styles.
+
+The NTP project's github repository is at https://github.com/ntp-project/ntp.
+
+There are two branches, master and stable.
+
+The stable branch is the current supported production code branch, the
+ntp-stable code (even 2nd number).
+
+The master branch is for new development, also known as ntp-dev (which
+has an odd 2nd number).
+
+If you have some work you'd like to add, then if there is any interest
+in seeing that work in the current production release then base your work
+on the stable branch, and pull your work into a master copy to allow for
+publishing your changes in the ntp-dev or master branch.
+
+If there is no expectation that your work will be included in the
+current stable release (the ntp-stable code) then it's better to do your
+work on a copy of the master branch.
+
+Make sure that any changes you make to stable pull cleanly into master.
+
+It's possible that after pulling your changes from stable to master that
+some additional cleanup will be required in master.  Please do this.
+
+If you follow this method, then if you submit a pull request for either
+master or for master+stable, it will be easy for us to evaluate and
+incorporate your work.
+
+Please also note that your submissions will be able to be evaluated and
+handled sooner if the repo that contains your pull requests also includes
+test cases.
+
+The general workflow is as follows:
+
+1) If you haven't, create a fork of ntp-project/ntp with your github account.
+   i) Log on to github.com with your github account.
+       - If you don't have one, create one first. (read: https://help.github.com/articles/signing-up-for-a-new-github-account)
+       - Make sure you also have a SSH key associated with your github account.
+         (read: https://help.github.com/articles/generating-ssh-keys/)
+   ii) Go to https://github.com/ntp-project/ntp
+   iii) On the top right corner, right below the header bar, there is
+        a button labeled "Fork".  Click on it.  This will fork the current
+	ntp master to your own account. Once done, it will go to your account's
+	version of the ntp repository. (Your fork of ntp source)
+   iv) Clone a local version of your fork. 
+        - git clone git@github.com:<your_username>/ntp
+
+2) Look through the bugs listed in the bug tracker: http://bugs.ntp.org/
+
+3) Once you've found a bug to work on:
+
+   i) Create a branch off your own master branch of your local fork.
+      (the <branchname> can be any valid short string that will tell you
+       what you're working on)
+      - git checkout -b <branchname>
+        
+   ii) Start working on the bug.
+   iii) When you create changes in the source, it would help you to 
+        keep track of your changes by committing to your local repo.
+	(This way, every small change is tracked and when you've
+	 made a mistake, you can always go back.)
+	 - git commit -a -m "description of change"
+   iv) Once you are satisfied, you can push to your github account's
+       repository.
+         - git push origin <branchname>
+    v) (go to step iii).
+
+4) Once you feel you've fixed the bug (and tested it), you need to 
+   create a pull request on your branch on github.  (Read up on
+   pull requests @ https://help.github.com/articles/using-pull-requests)
+
+    i) Create your pullrequest by following the instructions @
+       https://help.github.com/articles/creating-a-pull-request/
+
+5) Your pull request will be reviewed by committers and when it
+   passes review, it will be merged by the reviewer/allowed committer.
+
+6) You have fixed a bug.  Goto step #2.
+
+If these patches are for a bugzilla issue, mark the issue as Resolved/READY
+with a comment of "Please pick up the patches from XXX" where XXX is
+something like:
+
+ hostname:~user/path	if it's a machine the reviewers have access to, or
+ github-pull-request-URI
+
+---
+

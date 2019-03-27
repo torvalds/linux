@@ -1,0 +1,368 @@
+.\"
+.\" Copyright (c) 1998, 1999 Eivind Eklund
+.\" Copyright (c) 2003 Hiten M. Pandya
+.\" Copyright (c) 2005 Robert N. M. Watson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.\" If you integrate this manpage in another OS, I'd appreciate a note
+.\"	- eivind@FreeBSD.org
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 23, 2015
+.Dt NAMEI 9
+.Os
+.Sh NAME
+.Nm namei ,
+.Nm NDINIT ,
+.Nm NDFREE ,
+.Nd pathname translation and lookup operations
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/fcntl.h
+.In sys/namei.h
+.Ft int
+.Fn namei "struct nameidata *ndp"
+.Ft void
+.Fo NDINIT
+.Fa "struct nameidata *ndp" "u_long op" "u_long flags"
+.Fa "enum uio_seg segflg" "const char *namep" "struct thread *td"
+.Fc
+.Ft void
+.Fn NDFREE "struct nameidata *ndp" "const uint flags"
+.Sh DESCRIPTION
+The
+.Nm
+facility allows the client to perform pathname translation and lookup
+operations.
+The
+.Nm
+functions will increment the reference count for the vnode in question.
+The reference count has to be decremented after use of the vnode, by
+using either
+.Xr vrele 9
+or
+.Xr vput 9 ,
+depending on whether the
+.Dv LOCKLEAF
+flag was specified or not.
+.Pp
+The
+.Fn NDINIT
+function is used to initialize
+.Nm
+components.
+It takes the following arguments:
+.Bl -tag -width ".Fa segflg"
+.It Fa ndp
+The
+.Vt "struct nameidata"
+to initialize.
+.It Fa op
+The operation which
+.Fn namei
+will perform.
+The following operations are valid:
+.Dv LOOKUP , CREATE , DELETE ,
+and
+.Dv RENAME .
+The latter three are just setup for those
+effects; just calling
+.Fn namei
+will not result in
+.Fn VOP_RENAME
+being called.
+.It Fa flags
+Operation flags.
+Several of these can be effective at the same time.
+.It Fa segflg
+UIO segment indicator.
+This indicates if the name of the object is in userspace
+.Pq Dv UIO_USERSPACE
+or in the kernel address space
+.Pq Dv UIO_SYSSPACE .
+.It Fa namep
+Pointer to the component's pathname buffer
+(the file or directory name that will be looked up).
+.It Fa td
+The thread context to use for
+.Nm
+operations and locks.
+.El
+.Sh NAMEI OPERATION FLAGS
+The
+.Fn namei
+function takes the following set of
+.Dq "operation flags"
+that influence its operation:
+.Bl -tag -width ".Dv WANTPARENT"
+.It Dv LOCKLEAF
+Lock vnode on return with
+.Dv LK_EXCLUSIVE
+unless
+.Dv LOCKSHARED
+is also set.
+The
+.Xr VOP_UNLOCK 9
+should be used
+to release the lock (or
+.Xr vput 9
+which is equivalent to calling
+.Xr VOP_UNLOCK 9
+followed by
+.Xr vrele 9 ,
+all in one).
+.It Dv LOCKPARENT
+This flag lets the
+.Fn namei
+function return the parent (directory) vnode,
+.Va ni_dvp
+in locked state, unless it is identical to
+.Va ni_vp ,
+in which case
+.Va ni_dvp
+is not locked per se (but may be locked due to
+.Dv LOCKLEAF ) .
+If a lock is enforced, it should be released using
+.Xr vput 9
+or
+.Xr VOP_UNLOCK 9
+and
+.Xr vrele 9 .
+.It Dv LOCKSHARED
+Lock vnode on return with
+.Dv LK_SHARED .
+The
+.Xr VOP_UNLOCK 9
+should be used
+to release the lock (or
+.Xr vput 9
+which is equivalent to calling
+.Xr VOP_UNLOCK 9
+followed by
+.Xr vrele 9 ,
+all in one).
+.It Dv WANTPARENT
+This flag allows the
+.Fn namei
+function to return the parent (directory) vnode in an unlocked state.
+The parent vnode must be released separately by using
+.Xr vrele 9 .
+.It Dv NOCACHE
+Avoid
+.Fn namei
+creating this entry in the namecache if it is not
+already present.
+Normally,
+.Fn namei
+will add entries to the name cache
+if they are not already there.
+.It Dv FOLLOW
+With this flag,
+.Fn namei
+will follow the symbolic link if the last part
+of the path supplied is a symbolic link (i.e., it will return a vnode
+for whatever the link points at, instead for the link itself).
+.It Dv NOFOLLOW
+Do not follow symbolic links (pseudo).
+This flag is not looked for by the actual code, which looks for
+.Dv FOLLOW .
+.Dv NOFOLLOW
+is used to indicate to the source code reader that symlinks
+are intentionally not followed.
+.It Dv SAVENAME
+Do not free the pathname buffer at the end of the
+.Fn namei
+invocation; instead, free it later in
+.Fn NDFREE
+so that the caller may access the pathname buffer.
+See below for details.
+.It Dv SAVESTART
+Retain an additional reference to the parent directory; do not free
+the pathname buffer.
+See below for details.
+.El
+.Sh ALLOCATED ELEMENTS
+The
+.Vt nameidata
+structure is composed of the following fields:
+.Bl -tag -width ".Va ni_cnd.cn_pnbuf"
+.It Va ni_startdir
+In the normal case, this is either the current directory or the root.
+It is the current directory if the name passed in does not start with
+.Ql /
+and we have not gone through any symlinks with an absolute path, and
+the root otherwise.
+.Pp
+In this case, it is only used by
+.Fn lookup ,
+and should not be
+considered valid after a call to
+.Fn namei .
+If
+.Dv SAVESTART
+is set, this is set to the same as
+.Va ni_dvp ,
+with an extra
+.Xr vref 9 .
+To block
+.Fn NDFREE
+from releasing
+.Va ni_startdir ,
+the
+.Dv NDF_NO_STARTDIR_RELE
+can be set.
+.It Va ni_dvp
+Vnode pointer to directory of the object on which lookup is performed.
+This is available on successful return if
+.Dv LOCKPARENT
+or
+.Dv WANTPARENT
+is set.
+It is locked if
+.Dv LOCKPARENT
+is set.
+Freeing this in
+.Fn NDFREE
+can be inhibited by
+.Dv NDF_NO_DVP_RELE , NDF_NO_DVP_PUT ,
+or
+.Dv NDF_NO_DVP_UNLOCK
+(with the obvious effects).
+.It Va ni_vp
+Vnode pointer to the resulting object,
+.Dv NULL
+otherwise.
+The
+.Va v_usecount
+field of this vnode is incremented.
+If
+.Dv LOCKLEAF
+is set, it is also locked.
+.Pp
+Freeing this in
+.Fn NDFREE
+can be inhibited by
+.Dv NDF_NO_VP_RELE , NDF_NO_VP_PUT ,
+or
+.Dv NDF_NO_VP_UNLOCK
+(with the obvious effects).
+.It Va ni_cnd.cn_pnbuf
+The pathname buffer contains the location of the file or directory
+that will be used by the
+.Nm
+operations.
+It is managed by the
+.Xr uma 9
+zone allocation interface.
+If the
+.Dv SAVESTART
+or
+.Dv SAVENAME
+flag is set, then the pathname buffer is available
+after calling the
+.Fn namei
+function.
+.Pp
+To only deallocate resources used by the pathname buffer,
+.Va ni_cnd.cn_pnbuf ,
+then
+.Dv NDF_ONLY_PNBUF
+flag can be passed to the
+.Fn NDFREE
+function.
+To keep the pathname buffer intact,
+the
+.Dv NDF_NO_FREE_PNBUF
+flag can be passed to the
+.Fn NDFREE
+function.
+.El
+.Sh RETURN VALUES
+If successful,
+.Fn namei
+will return 0, otherwise it will return an error.
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa src/sys/kern/vfs_lookup.c
+.El
+.Sh ERRORS
+Errors which
+.Fn namei
+may return:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the specified pathname is not a directory when a directory is
+expected.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded 255 characters,
+or an entire pathname exceeded 1023 characters.
+.It Bq Er ENOENT
+A component of the specified pathname does not exist,
+or the pathname is an empty string.
+.It Bq Er EACCES
+An attempt is made to access a file in a way forbidden by its file access
+permissions.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EISDIR
+An attempt is made to open a directory with write mode specified.
+.It Bq Er EINVAL
+The last component of the pathname specified for a
+.Dv DELETE
+or
+.Dv RENAME
+operation is
+.Ql \&. .
+.It Bq Er EROFS
+An attempt is made to modify a file or directory on a read-only file system.
+.El
+.Sh SEE ALSO
+.Xr uio 9 ,
+.Xr uma 9 ,
+.Xr VFS 9 ,
+.Xr vnode 9 ,
+.Xr vput 9 ,
+.Xr vref 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Eivind Eklund Aq Mt eivind@FreeBSD.org
+and later significantly revised by
+.An Hiten M. Pandya Aq Mt hmp@FreeBSD.org .
+.Sh BUGS
+The
+.Dv LOCKPARENT
+flag does not always result in the parent vnode being locked.
+This results in complications when the
+.Dv LOCKPARENT
+is used.
+In order to solve this for the cases where both
+.Dv LOCKPARENT
+and
+.Dv LOCKLEAF
+are used, it is necessary to resort to recursive locking.

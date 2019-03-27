@@ -1,0 +1,81 @@
+.\" Copyright (c) 2011,2012 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elftc_version.3 3645 2018-10-15 20:17:14Z jkoshy $
+.\"
+.Dd December 30, 2012
+.Dt ELFTC_VERSION 3
+.Os
+.Sh NAME
+.Nm elftc_version
+.Nd return a project-wide version identifier string
+.Sh LIBRARY
+.Lb libelftc
+.Sh SYNOPSIS
+.In libelftc.h
+.Ft const char *
+.Fn elftc_version void
+.Sh DESCRIPTION
+Function
+.Fn elftc_version
+returns a project-wide identifier string that encodes the source
+revision of the project source tree.
+.Pp
+The returned identifier has four space-separated fields:
+.Bl -tag -width ".Em Project Branch"
+.It Em "Project-Name"
+This is always
+.Dq elftoolchain .
+.It Em "Project-Branch"
+The branch name for the project source tree.
+.It Em "Build-OS"
+The operating system that the tool chain was compiled for.
+.It Em "Version-Number"
+A tree-wide version number extracted from the version control
+system in use.
+.El
+.Sh RETURN VALUES
+Function
+.Fn elftc_program_version
+returns a pointer to an internal character buffer.
+.Sh EXAMPLES
+To retrieve and print the current toolchain version identifier, use:
+.Bd -literal -offset indent
+#include <sys/types.h>
+#include <libelftc.h>
+
+(void) printf("%s\en", elftc_version());
+.Ed
+.Pp
+On the HEAD branch of the project's sources, when checked out using
+Subversion and compiled on a
+.Nx
+host, this would print:
+.D1 Dq elftoolchain HEAD NetBSD svn: Ns Em REVINFO
+where
+.Em REVINFO
+would be the current revision information for the project source tree.
+.Sh ERRORS
+Function
+.Fn elftc_program_version
+always succeeds.

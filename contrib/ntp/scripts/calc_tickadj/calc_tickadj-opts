@@ -1,0 +1,60 @@
+# EDIT THIS FILE WITH CAUTION  (calc_tickadj-opts)
+#
+# It has been AutoGen-ed  August 31, 2014 at 04:52:46 AM by AutoGen 5.18.4
+# From the definitions    calc_tickadj-opts.def
+# and the template file   perlopt
+
+use Getopt::Long qw(GetOptionsFromArray);
+Getopt::Long::Configure(qw(no_auto_abbrev no_ignore_case_always));
+
+my $usage;
+
+sub usage {
+    my ($ret) = @_;
+    print STDERR $usage;
+    exit $ret;
+}
+
+sub paged_usage {
+    my ($ret) = @_;
+    my $pager = $ENV{PAGER} || '(less || more)';
+
+    open STDOUT, "| $pager" or die "Can't fork a pager: $!";
+    print $usage;
+
+    exit $ret;
+}
+
+sub processOptions {
+    my $args = shift;
+
+    my $opts = {
+        'drift-file' => '/etc/ntp/drift',
+        'tick' => '',
+        'help' => '', 'more-help' => ''
+    };
+    my $argument = '';
+    my $ret = GetOptionsFromArray($args, $opts, (
+        'drift-file|d=s', 'tick|t=i',
+        'help|?', 'more-help'));
+
+    $usage = <<'USAGE';
+calc_tickadj - Calculates "optimal" value for tick given ntp drift file. - Ver. 4.2.7p467
+USAGE: calc_tickadj [ -<flag> [<val>] | --<name>[{=| }<val>] ]... 
+
+    -d, --drift-file=str         Ntp drift file to use
+    -t, --tick=num               Tick value of this host
+    -?, --help                   Display usage information and exit
+        --more-help              Pass the extended usage text through a pager
+
+Options are specified by doubled hyphens and their name or by a single
+hyphen and the flag character.
+USAGE
+
+    usage(0)       if $opts->{'help'};
+    paged_usage(0) if $opts->{'more-help'};
+    $_[0] = $opts;
+    return $ret;
+}
+
+END { close STDOUT };

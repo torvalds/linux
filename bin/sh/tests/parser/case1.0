@@ -1,0 +1,14 @@
+# $FreeBSD$
+
+keywords='if then else elif fi while until for do done { } case esac ! in'
+
+# Keywords can be used unquoted in case statements, except the keyword
+# esac as the first pattern of a '|' alternation without a starting '('.
+# (POSIX doesn't seem to require (esac) to work.)
+for k in $keywords; do
+	eval "case $k in (foo|$k) ;; *) echo bad ;; esac"
+	eval "case $k in ($k) ;; *) echo bad ;; esac"
+	eval "case $k in foo|$k) ;; *) echo bad ;; esac"
+	[ "$k" = esac ] && continue
+	eval "case $k in $k) ;; *) echo bad ;; esac"
+done

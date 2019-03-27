@@ -1,0 +1,165 @@
+.\" Copyright (c) 2001, 2003 Networks Associates Technology, Inc.
+.\" Copyright (c) 2009 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and Network Associates
+.\" Laboratories, the Security Research Division of Network Associates,
+.\" Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part
+.\" of the DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 25, 2015
+.Dt MAC 3
+.Os
+.Sh NAME
+.Nm mac
+.Nd introduction to the MAC security API
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mac.h
+.Pp
+In the kernel configuration file:
+.Cd "options MAC"
+.Sh DESCRIPTION
+Mandatory Access Control labels describe confidentiality, integrity, and
+other security attributes of operating system objects, overriding
+discretionary access control.
+Not all system objects support MAC labeling, and MAC policies must be
+explicitly enabled by the administrator.
+This API, based on POSIX.1e, includes routines to retrieve, manipulate, set,
+and convert to and from text the MAC labels on files and processes.
+.Pp
+MAC labels consist of a set of (name, value) tuples, representing security
+attributes from MAC policies.
+For example, this label contains security labels defined by two policies,
+.Xr mac_biba 4
+and
+.Xr mac_mls 4 :
+.Bd -literal -offset indent
+biba/low,mls/low
+.Ed
+.Pp
+Further syntax and semantics of MAC labels may be found in
+.Xr maclabel 7 .
+.Pp
+Applications operate on labels stored in
+.Vt mac_t ,
+but can convert between this internal format and a text format for the
+purposes of presentation to uses or external storage.
+When querying a label on an object, a
+.Vt mac_t
+must first be prepared using the interfaces described in
+.Xr mac_prepare 3 ,
+allowing the application to declare which policies it wishes to interrogate.
+The application writer can also rely on default label names declared in
+.Xr mac.conf 5 .
+.Pp
+When finished with a
+.Vt mac_t ,
+the application must call
+.Xr mac_free 3
+to release its storage.
+.Pp
+The following functions are defined:
+.Bl -tag -width indent
+.It Fn mac_is_present
+This function, described in
+.Xr mac_is_present 3 ,
+allows applications to test whether MAC is configured, as well as whether
+specific policies are configured.
+.It Fn mac_get_fd , Fn mac_get_file , Fn mac_get_link , Fn mac_get_peer
+These functions, described in
+.Xr mac_get 3 ,
+retrieve the MAC labels associated with file descriptors, files, and socket
+peers.
+.It Fn mac_get_pid , Fn mac_get_proc
+These functions, described in
+.Xr mac_get 3 ,
+retrieve the MAC labels associated with processes.
+.It Fn mac_set_fd , Fn mac_set_file , Fn mac_set_link
+These functions, described in
+.Xr mac_set 3 ,
+set the MAC labels associated with file descriptors and files.
+.It Fn mac_set_proc
+This function, described in
+.Xr mac_set 3 ,
+sets the MAC label associated with the current process.
+.It Fn mac_free
+This function, described in
+.Xr mac_free 3 ,
+frees working MAC label storage.
+.It Fn mac_from_text
+This function, described in
+.Xr mac_text 3 ,
+converts a text-form MAC label into working MAC label storage,
+.Vt mac_t .
+.It Fn mac_prepare , Fn mac_prepare_file_label , Fn mac_prepare_ifnet_label , Fn mac_prepare_process_label , Fn mac_prepare_type
+These functions,  described in
+.Xr mac_prepare 3 ,
+allocate working storage for MAC label operations.
+.Xr mac_prepare 3
+prepares a label based on caller-specified label names; the other calls
+rely on the default configuration specified in
+.Xr mac.conf 5 .
+.It Fn mac_to_text
+This function is described in
+.Xr mac_text 3 ,
+and may be used to convert a
+.Vt mac_t
+into a text-form MAC label.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/mac.conf" -compact
+.It Pa /etc/mac.conf
+MAC library configuration file, documented in
+.Xr mac.conf 5 .
+Provides default behavior for applications aware of MAC labels on
+system objects, but without policy-specific knowledge.
+.El
+.Sh SEE ALSO
+.Xr mac_free 3 ,
+.Xr mac_get 3 ,
+.Xr mac_is_present 3 ,
+.Xr mac_prepare 3 ,
+.Xr mac_set 3 ,
+.Xr mac_text 3 ,
+.Xr posix1e 3 ,
+.Xr mac 4 ,
+.Xr mac.conf 5 ,
+.Xr mac 9
+.Sh STANDARDS
+These APIs are loosely based on the APIs described in POSIX.1e, as described
+in IEEE POSIX.1e draft 17.
+However, the resemblance of these APIs to the POSIX APIs is loose, as the
+POSIX APIs were unable to express some notions required for flexible and
+extensible access control.
+.Sh HISTORY
+Support for Mandatory Access Control was introduced in
+.Fx 5.0
+as part of the
+.Tn TrustedBSD
+Project.

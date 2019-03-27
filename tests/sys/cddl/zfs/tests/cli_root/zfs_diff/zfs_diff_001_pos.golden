@@ -1,0 +1,13 @@
++	/testdir1526/dirs/create
++	/testdir1526/files/create
+-	/testdir1526/dirs/delete
+-	/testdir1526/files/delete
+M	/testdir1526/dirs
+M	/testdir1526/dirs/modify
+M	/testdir1526/files
+M	/testdir1526/files/dstdir
+M	/testdir1526/files/modify
+M	/testdir1526/files/srcdir
+R	/testdir1526/dirs/rename -> /testdir1526/dirs/rename.new
+R	/testdir1526/files/rename -> /testdir1526/files/rename.new
+R	/testdir1526/files/srcdir/move -> /testdir1526/files/dstdir/move

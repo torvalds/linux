@@ -1,0 +1,35 @@
+ TODO list for libpcap
+=======================
+
+Important stuff (to be done before the next release)
+---------------
+
+General
+
+- configure should not be in Git. Most open source projects have an
+  autogen.sh script to run autoconf etc. after checkout. I think we
+  should stick to the standard.
+
+- The source files should be better documented. There is no official
+  design guideline for what is done where. There should be a common coding
+  style (okay, you can guess that by looking at the code) and a guide for
+  what needs to be documented.
+
+Less urgent items
+-----------------
+
+- Better documentation and cleanup of the interface. I am seeing a few
+  problems at the first glance which needs fixing:
+  + pcap_lookupnet makes little to no sense with protocols != IPv4
+  + not very well suited for interactive programs (think ethereal). There
+    should be a way for the application to get a file descriptor which it
+    has to monitor and a callback in pcap which has to be called on
+    activity (XXX - "pcap_fileno()" handles the first part, although
+    "select()" and "poll()" don't work on BPF devices on most BSDs, and
+    you can call "pcap_dispatch()" as the dispatch routine after putting
+    the descriptor into non-blocking mode)
+  + too many functions. There are a lot of functions for everything which
+    violates the KISS principle. Why do we need pcap_strerror, pcap_perror
+    and pcap_geterr?
+  + the manpage has a brief description of each function but where is the
+    big picture? Seems like you need to buy UNP for that...

@@ -1,0 +1,135 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)atol.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd May 14, 2013
+.Dt ATOL 3
+.Os
+.Sh NAME
+.Nm atol , atoll
+.Nd convert
+.Tn ASCII
+string to
+.Vt long
+or
+.Vt "long long"
+integer
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft long
+.Fn atol "const char *nptr"
+.Ft "long long"
+.Fn atoll "const char *nptr"
+.Sh DESCRIPTION
+The
+.Fn atol
+function converts the initial portion of the string pointed to by
+.Fa nptr
+to
+.Vt long
+integer
+representation.
+.Pp
+It is equivalent to:
+.Pp
+.Dl "strtol(nptr, (char **)NULL, 10);"
+.Pp
+The
+.Fn atoll
+function converts the initial portion of the string pointed to by
+.Fa nptr
+to
+.Vt "long long"
+integer
+representation.
+.Pp
+It is equivalent to:
+.Pp
+.Dl "strtoll(nptr, (char **)NULL, 10);"
+.Sh COMPATIBILITY
+The
+.Fx
+implementations of the
+.Fn atol
+and
+.Fn atoll
+functions are thin wrappers around
+.Fn strtol
+and
+.Fn strtoll
+respectively, so these functions will affect the value of
+.Va errno
+in the same way that the
+.Fn strtol
+and
+.Fn strtoll
+functions are able to.
+This behavior of
+.Fn atol
+and
+.Fn atoll
+is not required by
+.St -isoC
+or
+.St -isoC-99 ,
+but it is allowed by all of
+.St -isoC , St -isoC-99
+and
+.St -p1003.1-2001 .
+.Sh ERRORS
+The functions
+.Fn atol
+and
+.Fn atoll
+may affect the value of
+.Va errno
+on an error.
+.Sh SEE ALSO
+.Xr atof 3 ,
+.Xr atoi 3 ,
+.Xr strtod 3 ,
+.Xr strtol 3 ,
+.Xr strtoul 3
+.Sh STANDARDS
+The
+.Fn atol
+function
+conforms to
+.St -isoC .
+The
+.Fn atoll
+function
+conforms to
+.St -isoC-99 .

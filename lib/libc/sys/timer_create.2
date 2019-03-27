@@ -1,0 +1,200 @@
+.\" Copyright (c) 2005 David Xu <davidxu@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 15, 2016
+.Dt TIMER_CREATE 2
+.Os
+.Sh NAME
+.Nm timer_create
+.Nd "create a per-process timer (REALTIME)"
+.Sh LIBRARY
+.Lb librt
+.Sh SYNOPSIS
+.In time.h
+.In signal.h
+.Ft int
+.Fo timer_create
+.Fa "clockid_t clockid" "struct sigevent *restrict evp"
+.Fa "timer_t *restrict timerid"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn timer_create
+system call creates a per-process timer using the specified clock,
+.Fa clock_id ,
+as the timing base.
+The
+.Fn timer_create
+system call returns, in the location referenced by
+.Fa timerid ,
+a timer ID of type
+.Vt timer_t
+used to identify the timer in timer requests.
+This timer ID is unique within the calling process until the timer is deleted.
+The particular clock,
+.Fa clock_id ,
+is defined in
+.In time.h .
+The timer whose ID is returned is in a disarmed state upon return from
+.Fn timer_create .
+.Pp
+The
+.Fa evp
+argument, if
+.Pf non- Dv NULL ,
+points to a
+.Vt sigevent
+structure.
+This structure,
+allocated by the application, defines the asynchronous notification to occur
+when the timer expires.
+.Pp
+If
+.Fa evp->sigev_notify
+is
+.Dv SIGEV_SIGNO
+or
+.Dv SIGEV_THREAD_ID ,
+the signal specified in
+.Fa evp->sigev_signo
+will be sent to the calling process
+.Pq Dv SIGEV_SIGNO
+or to the thread whose LWP ID is
+.Fa evp->sigev_notify_thread_id
+.Pq Dv SIGEV_THREAD_ID .
+The information for the queued signal will include:
+.Bl -column ".Va si_value"
+.It Sy Member Ta Sy Value
+.It Va si_code Ta Dv SI_TIMER
+.It Va si_value Ta
+the value stored in
+.Fa evp->sigev_value
+.It Va si_timerid Ta timer ID
+.It Va si_overrun Ta timer overrun count
+.It Va si_errno Ta
+If timer overrun is
+.Brq Dv DELAYTIMER_MAX ,
+an error code defined in
+.In errno.h
+.El
+.Pp
+If the
+.Fa evp
+argument is
+.Dv NULL ,
+the effect is as if the
+.Fa evp
+argument pointed to a
+.Vt sigevent
+structure with the
+.Va sigev_notify
+member having the value
+.Dv SIGEV_SIGNAL ,
+the
+.Va sigev_signo
+having a default signal number
+.Pq Dv SIGALRM ,
+and the
+.Va sigev_value
+member having
+the value of the timer ID.
+.Pp
+This implementation supports a
+.Fa clock_id
+of
+.Dv CLOCK_REALTIME
+or
+.Dv CLOCK_MONOTONIC .
+.Pp
+If
+.Fa evp->sigev_notify
+is
+.Dv SIGEV_THREAD
+and
+.Fa sev->sigev_notify_attributes
+is not
+.Dv NULL ,
+if the attribute pointed to by
+.Fa sev->sigev_notify_attributes
+has
+a thread stack address specified by a call to
+.Fn pthread_attr_setstack
+or
+.Fn pthread_attr_setstackaddr ,
+the results are unspecified if the signal is generated more than once.
+.Sh RETURN VALUES
+If the call succeeds,
+.Fn timer_create
+returns zero and updates the location referenced by
+.Fa timerid
+to a
+.Vt timer_t ,
+which can be passed to the per-process timer calls.
+If an error
+occurs, the system call returns a value of \-1
+and the global variable
+.Va errno
+is set to indicate the
+error.
+The value of
+.Fa timerid
+is undefined if an error occurs.
+.Sh ERRORS
+The
+.Fn timer_create
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The calling process has already created all of the timers it is allowed by
+this implementation.
+.It Bq Er EINVAL
+The specified clock ID is not supported.
+.It Bq Er EINVAL
+The specified asynchronous notification method is not supported.
+.It Bq Er EFAULT
+Any arguments point outside the allocated address space or there is a
+memory protection fault.
+.El
+.Sh SEE ALSO
+.Xr clock_getres 2 ,
+.Xr timer_delete 2 ,
+.Xr timer_getoverrun 2 ,
+.Xr sigevent 3 ,
+.Xr siginfo 3
+.Sh STANDARDS
+The
+.Fn timer_create
+system call conforms to
+.St -p1003.1-2004 .
+.Sh HISTORY
+Support for
+.Tn POSIX
+per-process timer first appeared in
+.Fx 7.0 .

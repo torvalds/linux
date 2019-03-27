@@ -1,0 +1,149 @@
+.\"
+.\" Copyright (c) 2008 AnyWi Technologies
+.\" All rights reserved.
+.\"
+.\" This code is derived from uark.c
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 11, 2018
+.Dt U3G 4
+.Os
+.Sh NAME
+.Nm u3g
+.Nd USB support for 3G datacards
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device ucom"
+.Cd "device u3g"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+u3g_load="YES"
+.Ed
+.Pp
+If neither of the above is done, the driver will automatically be loaded
+by devd(8) when the device is connected.
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the multiple USB-to-serial interfaces exposed by
+many 3G USB/PCCard modems.
+.Pp
+The device is accessed through the
+.Xr ucom 4
+driver which makes it behave like a
+.Xr tty 4 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the following adapters:
+.Pp
+.Bl -bullet -compact
+.It
+Option GT 3G Fusion, GT Fusion Quad, etc. (only 3G part, not WLAN)
+.It
+Option GT 3G, GT 3G Quad, etc.
+.It
+Vodafone Mobile Connect Card 3G
+.It
+Vodafone Mobile Broadband K3772-Z
+.It
+Qualcomm Inc. CDMA MSM
+.It
+Huawei B190, E180v, E220 ('<Huawei Mobile>')
+.It
+Novatel U740, MC950D, X950D, etc.
+.It
+Sierra MC875U, MC8775U, etc.
+.El
+.Pp
+(See
+.Pa /sys/dev/usb/serial/u3g.c
+for the complete list of supported cards for each vendor
+mentioned above.)
+.Pp
+The supported 3G cards provide the necessary modem port for ppp, or mpd
+connections as well as extra ports (depending on the specific device) to
+provide other functions (additional command port, diagnostic port, SIM toolkit
+port).
+.Pp
+In some of these devices a mass storage device supported by the
+.Xr umass 4
+driver is present which contains Windows and Mac OS X drivers.
+The device starts up in disk mode (TruInstall, ZeroCD, etc.) and requires
+additional commands to switch it to modem mode.
+If your device is not switching automatically, please try to add quirks.
+See
+.Xr usbconfig 8
+and
+.Xr usb_quirk 4 .
+.Sh FILES
+.Bl -tag -width "/dev/ttyU*.*.init" -compact
+.It Pa /dev/ttyU*.*
+for callin ports
+.It Pa /dev/ttyU*.*.init
+.It Pa /dev/ttyU*.*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*.*
+for callout ports
+.It Pa /dev/cuaU*.*.init
+.It Pa /dev/cuaU*.*.lock
+corresponding callout initial-state and lock-state devices
+.El
+.Sh EXAMPLES
+Connect to the Internet using the default configuration:
+.Bd -literal -offset indent
+ppp -background u3g
+.Ed
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr usb 4 ,
+.Xr usb_quirk 4 ,
+.Xr devd 8 ,
+.Xr ppp 8 ,
+.Xr usbconfig 8
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Fx 7.2 ,
+is based on the
+.Xr uark 4
+driver, and written by
+.An Andrea Guzzo Aq Mt aguzzo@anywi.com
+in September 2008.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Andrea Guzzo Aq Mt aguzzo@anywi.com
+and
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org .
+Hardware for testing was provided by AnyWi Technologies, Leiden, NL.
+.Sh BUGS
+The automatic mode switch from disk mode to modem mode does not work unless
+the driver is either built into the kernel or loaded before the device is
+connected.

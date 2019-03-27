@@ -1,0 +1,103 @@
+.\"	$NetBSD: ypwhich.1,v 1.3 1996/05/13 02:43:46 thorpej Exp $
+.\"
+.\" Copyright (c) 1994 Christopher G. Demetriou
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christopher G. Demetriou.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 3, 2015
+.Dt YPWHICH 1
+.Os
+.Sh NAME
+.Nm ypwhich
+.Nd return hostname of NIS server of map master
+.Sh SYNOPSIS
+.Nm
+.Op Fl d Ar domain
+.Oo
+.Op Fl t
+.Fl m Oo Ar mname Oc | Ar host
+.Oc
+.Nm
+.Fl x
+.Sh DESCRIPTION
+The
+.Nm
+utility tells which
+.Tn NIS
+server supplies
+.Tn NIS
+services to a client, or which is the master for a map.
+If invoked without arguments, it gives the
+.Tn NIS
+server for the local machine.
+If
+.Ar host
+is specified, that machine is queried to find out
+which
+.Tn NIS
+server it is using.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl d Ar domain
+Specify a domain other than the default domain.
+.It Fl t
+Inhibit translation of map nicknames
+to their corresponding map names.
+.It Fl m Op Ar mname
+Find the master
+.Tn NIS
+server for the named map.
+No
+.Ar host
+may be specified with the
+.Fl m
+option.
+The
+.Ar mname
+argument
+can be a map name or nickname.
+If
+.Ar mname
+is omitted,
+.Nm
+will produce a list of available maps.
+.It Fl x
+Display the map nickname table.
+.El
+.Sh SEE ALSO
+.Xr domainname 1 ,
+.Xr ypcat 1 ,
+.Xr ypmatch 1 ,
+.Xr yp 8 ,
+.Xr ypbind 8 ,
+.Xr yppoll 8 ,
+.Xr ypset 8
+.Sh AUTHORS
+.An Theo De Raadt

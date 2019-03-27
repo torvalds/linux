@@ -1,0 +1,103 @@
+.\" Generated from openpam_straddch.c by gendoc.pl
+.\" $OpenPAM: openpam_straddch.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt OPENPAM_STRADDCH 3
+.Os
+.Sh NAME
+.Nm openpam_straddch
+.Nd add a character to a string, expanding the buffer if needed
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.In security/openpam.h
+.Ft "int"
+.Fn openpam_straddch "char **str" "size_t *size" "size_t *len" "int ch"
+.Sh DESCRIPTION
+The
+.Fn openpam_straddch
+function appends a character to a dynamically
+allocated NUL-terminated buffer, reallocating the buffer as needed.
+.Pp
+The
+.Fa str
+argument points to a variable containing either a pointer to
+an existing buffer or
+.Dv NULL .
+If the value of the variable pointed to by
+.Fa str
+is
+.Dv NULL ,
+a new buffer
+is allocated.
+.Pp
+The
+.Fa size
+and
+.Fa len
+argument point to variables used to hold the size
+of the buffer and the length of the string it contains, respectively.
+.Pp
+The final argument,
+.Fa ch ,
+is the character that should be appended to
+the string.  If
+.Fa ch
+is 0, nothing is appended, but a new buffer is
+still allocated if
+.Fa str
+is NULL.  This can be used to
+.Do
+bootstrap
+.Dc
+the
+string.
+.Pp
+If a new buffer is allocated or an existing buffer is reallocated to
+make room for the additional character,
+.Fa str
+and
+.Fa size
+are updated
+accordingly.
+.Pp
+The
+.Fn openpam_straddch
+function ensures that the buffer is always
+NUL-terminated.
+.Pp
+If the
+.Fn openpam_straddch
+function is successful, it increments the
+integer variable pointed to by
+.Fa len
+(unless
+.Fa ch
+was 0) and returns 0.
+Otherwise, it leaves the variables pointed to by
+.Fa str ,
+.Fa size
+and
+.Fa len
+unmodified, sets
+.Va errno
+to
+.Dv ENOMEM
+and returns -1.
+.Pp
+.Sh RETURN VALUES
+The
+.Fn openpam_straddch
+function returns 0 on success and -1 on failure.
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+The
+.Fn openpam_straddch
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn openpam_straddch
+function and this manual page were
+developed by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

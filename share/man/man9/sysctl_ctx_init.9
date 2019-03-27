@@ -1,0 +1,247 @@
+.\"
+.\" Copyright (c) 2000, Andrzej Bialecki <abial@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 31, 2014
+.Dt SYSCTL_CTX_INIT 9
+.Os
+.Sh NAME
+.Nm sysctl_ctx_init ,
+.Nm sysctl_ctx_free ,
+.Nm sysctl_ctx_entry_add ,
+.Nm sysctl_ctx_entry_find ,
+.Nm sysctl_ctx_entry_del
+.Nd "sysctl context for managing dynamically created sysctl OIDs"
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/sysctl.h
+.Ft int
+.Fo sysctl_ctx_init
+.Fa "struct sysctl_ctx_list *clist"
+.Fc
+.Ft int
+.Fo sysctl_ctx_free
+.Fa "struct sysctl_ctx_list *clist"
+.Fc
+.Ft struct sysctl_ctx_entry *
+.Fo sysctl_ctx_entry_add
+.Fa "struct sysctl_ctx_list *clist"
+.Fa "struct sysctl_oid *oidp"
+.Fc
+.Ft struct sysctl_ctx_entry *
+.Fo sysctl_ctx_entry_find
+.Fa "struct sysctl_ctx_list *clist"
+.Fa "struct sysctl_oid *oidp"
+.Fc
+.Ft int
+.Fo sysctl_ctx_entry_del
+.Fa "struct sysctl_ctx_list *clist"
+.Fa "struct sysctl_oid *oidp"
+.Fc
+.Sh DESCRIPTION
+These functions provide an interface
+for managing dynamically created OIDs.
+The sysctl context is responsible for keeping track of created OIDs,
+as well as their proper removal when needed.
+It adds a simple transactional aspect to OID removal operations;
+i.e., if a removal operation fails part way,
+it is possible to roll back the sysctl tree
+to its previous state.
+.Pp
+The
+.Fn sysctl_ctx_init
+function initializes a sysctl context.
+The
+.Fa clist
+argument must point to an already allocated variable.
+A context
+.Em must
+be initialized before use.
+Once it is initialized,
+a pointer to the context can be passed as an argument to all the
+.Fa SYSCTL_ADD_*
+macros (see
+.Xr sysctl_add_oid 9 ) ,
+and it will be updated with entries pointing to newly created OIDS.
+.Pp
+Internally, the context is represented as a
+.Xr queue 3
+TAILQ linked list.
+The list consists of
+.Li struct sysctl_ctx_entry
+entries:
+.Bd -literal -offset indent
+struct sysctl_ctx_entry {
+	struct sysctl_oid *entry;
+	TAILQ_ENTRY(sysctl_ctx_entry) link;
+};
+
+TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
+.Ed
+.Pp
+Each context entry points to one dynamic OID that it manages.
+Newly created OIDs are always inserted in the front of the list.
+.Pp
+The
+.Fn sysctl_ctx_free
+function removes the context and associated OIDs it manages.
+If the function completes successfully,
+all managed OIDs have been unregistered
+(removed from the tree)
+and freed,
+together with all their allocated memory,
+and the entries of the context have been freed as well.
+.Pp
+The removal operation is performed in two steps.
+First, for each context entry, the function
+.Xr sysctl_remove_oid 9
+is executed, with parameter
+.Fa del
+set to 0, which inhibits the freeing of resources.
+If there are no errors during this step,
+.Fn sysctl_ctx_free
+proceeds to the next step.
+If the first step fails,
+all unregistered OIDs associated with the context are registered again.
+.Pp
+.Em Note :
+in most cases, the programmer specifies
+.Dv OID_AUTO
+as the OID number when creating an OID.
+However, during registration of the OID in the tree,
+this number is changed to the first available number
+greater than or equal to
+.Dv CTL_AUTO_START .
+If the first step of context deletion fails,
+re-registration of the OID does not change the already assigned OID number
+(which is different from OID_AUTO).
+This ensures that re-registered entries
+maintain their original positions in the tree.
+.Pp
+The second step actually performs the deletion of the dynamic OIDs.
+.Xr sysctl_remove_oid 9
+iterates through the context list,
+starting from beginning (i.e., the newest entries).
+.Em Important :
+this time, the function not only deletes the OIDs from the tree,
+but also frees their memory (provided that oid_refcnt == 0),
+as well as the memory of all context entries.
+.Pp
+The
+.Fn sysctl_ctx_entry_add
+function allows the addition of an existing dynamic OID to a context.
+.Pp
+The
+.Fn sysctl_ctx_entry_del
+function removes an entry from the context.
+.Em Important :
+in this case, only the corresponding
+.Li struct sysctl_ctx_entry
+is freed, but the
+.Fa oidp
+pointer remains intact.
+Thereafter, the programmer is responsible for managing the resources
+allocated to this OID.
+.Pp
+The
+.Fn sysctl_ctx_entry_find
+function searches for a given
+.Fa oidp
+within a context list,
+either returning a pointer to the
+.Fa struct sysctl_ctx_entry
+found,
+or
+.Dv NULL .
+.Sh EXAMPLES
+The following is an example of how to create a new top-level category
+and how to hook up another subtree to an existing static node.
+This example uses contexts to keep track of the OIDs.
+.Bd -literal
+#include <sys/sysctl.h>
+ ...
+static struct sysctl_ctx_list clist;
+static struct sysctl_oid *oidp;
+static int a_int;
+static const char *string = "dynamic sysctl";
+ ...
+
+sysctl_ctx_init(&clist);
+oidp = SYSCTL_ADD_ROOT_NODE(&clist,
+	OID_AUTO, "newtree", CTLFLAG_RW, 0, "new top level tree");
+oidp = SYSCTL_ADD_INT(&clist, SYSCTL_CHILDREN(oidp),
+	OID_AUTO, "newint", CTLFLAG_RW, &a_int, 0, "new int leaf");
+ ...
+oidp = SYSCTL_ADD_NODE(&clist, SYSCTL_STATIC_CHILDREN(_debug),
+	OID_AUTO, "newtree", CTLFLAG_RW, 0, "new tree under debug");
+oidp = SYSCTL_ADD_STRING(&clist, SYSCTL_CHILDREN(oidp),
+	OID_AUTO, "newstring", CTLFLAG_RD, string, 0, "new string leaf");
+ ...
+/* Now we can free up the OIDs */
+if (sysctl_ctx_free(&clist)) {
+	printf("can't free this context - other OIDs depend on it");
+	return (ENOTEMPTY);
+} else {
+	printf("Success!\\n");
+	return (0);
+}
+.Ed
+.Pp
+This example creates the following subtrees:
+.Bd -literal -offset indent
+debug.newtree.newstring
+newtree.newint
+.Ed
+.Pp
+Note that both trees are removed, and their resources freed,
+through one
+.Fn sysctl_ctx_free
+call, which starts by freeing the newest entries (leaves)
+and then proceeds to free the older entries (in this case the nodes).
+.Sh SEE ALSO
+.Xr queue 3 ,
+.Xr sysctl 8 ,
+.Xr sysctl 9 ,
+.Xr sysctl_add_oid 9 ,
+.Xr sysctl_remove_oid 9
+.Sh HISTORY
+These functions first appeared in
+.Fx 4.2 .
+.Sh AUTHORS
+.An Andrzej Bialecki Aq Mt abial@FreeBSD.org
+.Sh BUGS
+The current removal algorithm is somewhat heavy.
+In the worst case,
+all OIDs need to be unregistered, registered again,
+and then unregistered and deleted.
+However, the algorithm does guarantee transactional properties
+for removal operations.
+.Pp
+All operations on contexts involve linked list traversal.
+For this reason,
+creation and removal of entries is relatively costly.

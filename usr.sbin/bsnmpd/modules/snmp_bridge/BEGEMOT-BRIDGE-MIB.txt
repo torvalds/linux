@@ -1,0 +1,1169 @@
+--
+-- Copyright (C) 2006 Shteryana Shopova <syrinx@FreeBSD.org>
+-- All rights reserved.
+--
+-- Redistribution and use in source and binary forms, with or without
+-- modification, are permitted provided that the following conditions
+-- are met:
+-- 1. Redistributions of source code must retain the above copyright
+--    notice, this list of conditions and the following disclaimer.
+-- 2. Redistributions in binary form must reproduce the above copyright
+--    notice, this list of conditions and the following disclaimer in the
+--    documentation and/or other materials provided with the distribution.
+--
+-- THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+-- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-- ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+-- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+-- OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+-- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+-- LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+-- OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+-- SUCH DAMAGE.
+--
+-- $FreeBSD$
+--
+
+BEGEMOT-BRIDGE-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE,
+    Counter32, Integer32, TimeTicks, mib-2
+	FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION, MacAddress, TruthValue, RowStatus
+	FROM SNMPv2-TC
+    BridgeId, Timeout
+	FROM BRIDGE-MIB
+    InterfaceIndex FROM IF-MIB
+    begemot
+	FROM BEGEMOT-MIB;
+
+begemotBridge MODULE-IDENTITY
+    LAST-UPDATED "201612170000Z"
+    ORGANIZATION "Sofia University St. Kliment Ohridski"
+    CONTACT-INFO
+	    "		Shteryana Shopova
+
+	     Postal:	Faculty of Mathematics and Informatics
+			5 James Bourchier Blvd.
+			1164 Sofia
+			Bulgaria
+
+	     Fax:	+359 2 687 180
+
+	     E-Mail:	syrinx@FreeBSD.org"
+    DESCRIPTION
+	    "The Begemot MIB for managing bridge interfaces."
+    REVISION     "201612170000Z"
+    DESCRIPTION
+    	     "Address some minor typos and grammar mistakes."
+    REVISION     "200708060000Z"
+    DESCRIPTION
+	     "Third revision adds begemotBridgeBasePortPrivate
+	     object."
+    REVISION     "200611210000Z"
+    DESCRIPTION
+	     "Second revision adds support for monitoring RSTP
+	     specific variables."
+    REVISION     "200607270000Z"
+    DESCRIPTION
+	    "Initial revision."
+    ::= { begemot 205 }
+
+-- ---------------------------------------------------------- --
+BridgeIfName ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "16a"
+    STATUS	current
+    DESCRIPTION
+	"Name of a bridge interface."
+    SYNTAX	OCTET STRING (SIZE(1..16))
+
+BridgeIfNameOrEmpty ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "16a"
+    STATUS	current
+    DESCRIPTION
+	"Name of a bridge interface."
+    SYNTAX	OCTET STRING (SIZE(0..16))
+
+BridgePortId ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "1x.1x"
+    STATUS	current
+    DESCRIPTION
+	"A port identifier that contains a bridge port's STP priority
+	in the first octet and the port number in the second octet."
+    SYNTAX	OCTET STRING (SIZE(2))
+
+-- ---------------------------------------------------------- --
+-- subtrees in the Begemot Bridge MIB
+-- ---------------------------------------------------------- --
+begemotBridgeNotifications	OBJECT IDENTIFIER ::= { begemotBridge 0 }
+
+begemotBridgeBase		OBJECT IDENTIFIER ::= { begemotBridge 1 }
+
+begemotBridgeStp		OBJECT IDENTIFIER ::= { begemotBridge 2 }
+
+begemotBridgeTp			OBJECT IDENTIFIER ::= { begemotBridge 3 }
+
+begemotBridgePf			OBJECT IDENTIFIER ::= { begemotBridge 4 }
+
+begemotBridgeConfigObjects	OBJECT IDENTIFIER ::= { begemotBridge 5 }
+
+-- ---------------------------------------------------------- --
+-- the base Bridge interface table
+-- ---------------------------------------------------------- --
+
+begemotBridgeBaseTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotBridgeBaseEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains generic information for each
+	bridge interface on the managed device."
+    ::= { begemotBridgeBase 1 }
+
+begemotBridgeBaseEntry OBJECT-TYPE
+    SYNTAX	BegemotBridgeBaseEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A list of information for the bridge interfaces on
+	the managed device."
+    INDEX  { begemotBridgeBaseName }
+    ::= { begemotBridgeBaseTable 1 }
+
+BegemotBridgeBaseEntry ::= SEQUENCE {
+    begemotBridgeBaseName			BridgeIfName,
+    begemotBridgeBaseAddress			MacAddress,
+    begemotBridgeBaseNumPorts			Integer32,
+    begemotBridgeBaseType			INTEGER,
+    begemotBridgeBaseStatus			RowStatus
+}
+
+begemotBridgeBaseName OBJECT-TYPE
+    SYNTAX	BridgeIfName
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The name of the bridge interface for which this
+	entry contains management information."
+    ::= { begemotBridgeBaseEntry 1 }
+
+begemotBridgeBaseAddress OBJECT-TYPE
+    SYNTAX	MacAddress
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The MAC address of the bridge interface."
+    ::= { begemotBridgeBaseEntry 2 }
+
+begemotBridgeBaseNumPorts OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of ports, members of this bridge."
+    ::= { begemotBridgeBaseEntry 3 }
+
+begemotBridgeBaseType OBJECT-TYPE
+    SYNTAX	INTEGER {
+		    unknown(1),
+		    transparent-only(2),
+		    sourceroute-only(3),
+		    srt(4)
+		}
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Indicates what type of bridging this bridge can
+	perform."
+    ::= { begemotBridgeBaseEntry 4 }
+
+begemotBridgeBaseStatus OBJECT-TYPE
+    SYNTAX	RowStatus
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	"Used to create/destroy bridge interfaces on the
+	managed device."
+    ::= { begemotBridgeBaseEntry 5 }
+
+-- ---------------------------------------------------------- --
+-- the base Bridge ports table
+-- ---------------------------------------------------------- --
+
+begemotBridgeBasePortTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotBridgeBasePortEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table containing generic information about ports,
+	members of each bridge interface."
+    ::= { begemotBridgeBase 2 }
+
+begemotBridgeBasePortEntry OBJECT-TYPE
+    SYNTAX	BegemotBridgeBasePortEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A list of information about a specific port, member of
+	a bridge interface."
+    INDEX { begemotBridgeBaseName, begemotBridgeBasePortIfIndex }
+    ::= { begemotBridgeBasePortTable 1 }
+
+BegemotBridgeBasePortEntry  ::= SEQUENCE {
+    begemotBridgeBasePort			Integer32,
+    begemotBridgeBasePortIfIndex		InterfaceIndex,
+    begemotBridgeBaseSpanEnabled		INTEGER,
+    begemotBridgeBasePortDelayExceededDiscards	Counter32,
+    begemotBridgeBasePortMtuExceededDiscards	Counter32,
+    begemotBridgeBasePortStatus			RowStatus,
+    begemotBridgeBasePortPrivate		TruthValue
+}
+
+begemotBridgeBasePort OBJECT-TYPE
+    SYNTAX	Integer32 (1..65535)
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The system interface index of the interface corresponding
+	to this port."
+    ::= { begemotBridgeBasePortEntry 1 }
+
+begemotBridgeBasePortIfIndex OBJECT-TYPE
+    SYNTAX	InterfaceIndex
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The value of the instance of the ifIndex object,
+	defined in IF-MIB, for the interface corresponding
+	to this port."
+    ::= { begemotBridgeBasePortEntry 2 }
+
+begemotBridgeBaseSpanEnabled OBJECT-TYPE
+    SYNTAX	INTEGER {
+		    enabled(1),
+		    disabled(2)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this objects reflects whether the port
+	is a span port on the specified bridge interface."
+    ::= { begemotBridgeBasePortEntry 3 }
+
+begemotBridgeBasePortDelayExceededDiscards OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames discarded by this port due
+	to excessive transit delay through the bridge."
+    ::= { begemotBridgeBasePortEntry 4 }
+
+begemotBridgeBasePortMtuExceededDiscards OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames discarded by this port due
+	to an excessive size."
+    ::= { begemotBridgeBasePortEntry 5 }
+
+begemotBridgeBasePortStatus OBJECT-TYPE
+    SYNTAX	RowStatus
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	"Used to control addition of member ports to or
+	removal of member ports from a specified bridge."
+    ::= { begemotBridgeBasePortEntry 6 }
+
+begemotBridgeBasePortPrivate OBJECT-TYPE
+    SYNTAX		TruthValue
+    MAX-ACCESS		read-write
+    STATUS		current
+    DESCRIPTION
+	"The value of this objects reflects whether the port
+	has a PRIVATE flag set. A port with this flags set
+	can only communicate with ports not having the
+	PRIVATE flag set."
+    ::= { begemotBridgeBasePortEntry 7 }
+
+-- ---------------------------------------------------------- --
+-- the Bridge interface STP table
+-- ---------------------------------------------------------- --
+
+begemotBridgeStpTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotBridgeStpEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains Spanning Tree Protocol information
+	for each bridge interface on the managed device."
+    ::= { begemotBridgeStp 1 }
+
+begemotBridgeStpEntry OBJECT-TYPE
+    SYNTAX	BegemotBridgeStpEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A list of information about the Spanning Tree Protocol
+	operation on a bridge interface."
+    AUGMENTS { begemotBridgeBaseEntry }
+    ::= { begemotBridgeStpTable 1 }
+
+BegemotBridgeStpEntry ::= SEQUENCE {
+    begemotBridgeStpProtocolSpecification		INTEGER,
+    begemotBridgeStpPriority				Integer32,
+    begemotBridgeStpTimeSinceTopologyChange		TimeTicks,
+    begemotBridgeStpTopChanges				Counter32,
+    begemotBridgeStpDesignatedRoot			BridgeId,
+    begemotBridgeStpRootCost				Integer32,
+    begemotBridgeStpRootPort				Integer32,
+    begemotBridgeStpMaxAge				Timeout,
+    begemotBridgeStpHelloTime				Timeout,
+    begemotBridgeStpHoldTime				Integer32,
+    begemotBridgeStpForwardDelay			Timeout,
+    begemotBridgeStpBridgeMaxAge			Timeout,
+    begemotBridgeStpBridgeHelloTime			Timeout,
+    begemotBridgeStpBridgeForwardDelay			Timeout,
+    begemotBridgeStpVersion				INTEGER,
+    begemotBridgeStpTxHoldCount				Integer32
+}
+
+begemotBridgeStpProtocolSpecification OBJECT-TYPE
+    SYNTAX	INTEGER {
+		    unknown(1),
+		    decLb100(2),
+		    ieee8021d(3)
+		}
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The Spanning Tree Protocol version being run on the
+	bridge interface. The value 'decLb100(2)' indicates the
+	DEC LANbridge 100 Spanning Tree protocol, 'ieee8021d(3)'
+	indicates the bridge is running IEEE 802.1D STP
+	implementation."
+    ::= { begemotBridgeStpEntry 1 }
+
+begemotBridgeStpPriority OBJECT-TYPE
+    SYNTAX	Integer32 (0..65535)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The priority value of the bridge interface forming the
+	first two octets of the bridge identifier. Acceptable
+	values are 0-61440, in steps of 4096."
+    ::= { begemotBridgeStpEntry 2 }
+
+begemotBridgeStpTimeSinceTopologyChange OBJECT-TYPE
+    SYNTAX	TimeTicks
+    UNITS	"centi-seconds"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The time (in hundreds of a second) since a topology change
+	was last detected by this bridge."
+    ::= { begemotBridgeStpEntry 3 }
+
+begemotBridgeStpTopChanges OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times a topology change was detected by the
+	bridge interface since the management entity was initialized
+	or reset."
+    ::= { begemotBridgeStpEntry 4 }
+
+begemotBridgeStpDesignatedRoot OBJECT-TYPE
+    SYNTAX	BridgeId
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The bridge identifier of the root of the spanning tree as
+	calculated by the Spanning Tree Protocol."
+    ::= { begemotBridgeStpEntry 5 }
+
+begemotBridgeStpRootCost OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The cost of the path from this bridge to the root bridge."
+    ::= { begemotBridgeStpEntry 6 }
+
+begemotBridgeStpRootPort OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The port number of the port that offers the lowest
+	cost path from this bridge to the root bridge of
+	the spanning tree. If this bridge is the root bridge,
+	this object shall have a value of zero."
+    ::= { begemotBridgeStpEntry 7 }
+
+begemotBridgeStpMaxAge OBJECT-TYPE
+    SYNTAX	Timeout
+    UNITS	"centi-seconds"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The maximum age of Spanning Tree Protocol information
+	received from the network on any port, before that
+	information is discarded. This is the actual value that
+	the bridge is currently using."
+    ::= { begemotBridgeStpEntry 8 }
+
+begemotBridgeStpHelloTime OBJECT-TYPE
+    SYNTAX	Timeout
+    UNITS	"centi-seconds"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The amount of time between transmission of
+	Configuration BPDUs by this bridge on any port,
+	when it is the root of the spanning tree or is
+	trying to become so. This is the actual value that
+	this bridge is currently using."
+    ::= { begemotBridgeStpEntry 9 }
+
+begemotBridgeStpHoldTime OBJECT-TYPE
+    SYNTAX	Integer32
+    UNITS	"centi-seconds"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"This time value determines the interval length
+	during which no more than two Configuration BPDUs
+	shall be transmitted by this node, in units of
+	hundredths of a second."
+    ::= { begemotBridgeStpEntry 10 }
+
+begemotBridgeStpForwardDelay OBJECT-TYPE
+    SYNTAX	Timeout
+    UNITS	"centi-seconds"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"This value, measured in units of hundredths of a second
+	determines how long a port will stay consecutively in the
+	Listening and Learning states before transitioning to
+	Forwarding state.
+	This is the actual value currently used by the bridge
+	as opposed to begemotBridgeStpBridgeForwardDelay, which
+	is the value this and all bridges participating in the
+	spanning tree were to use, if this was the root bridge."
+    ::= { begemotBridgeStpEntry 11 }
+
+begemotBridgeStpBridgeMaxAge OBJECT-TYPE
+    SYNTAX	Timeout (600..4000)
+    UNITS	"centi-seconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value that all bridges participating in the
+	spanning tree would use for MaxAge if this bridge
+	was the root of the spanning tree."
+    ::= { begemotBridgeStpEntry 12 }
+
+begemotBridgeStpBridgeHelloTime OBJECT-TYPE
+    SYNTAX	Timeout (100..1000)
+    UNITS	"centi-seconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value that all bridges participating in the
+	spanning tree would use for HelloTime if this
+	bridge was the root of the spanning tree."
+    ::= { begemotBridgeStpEntry 13 }
+
+begemotBridgeStpBridgeForwardDelay OBJECT-TYPE
+    SYNTAX	Timeout (400..3000)
+    UNITS	"centi-seconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value that all bridges participating in the
+	spanning tree would use for ForwardDelay if this
+	bridge was the root of the spanning tree."
+    ::= { begemotBridgeStpEntry 14 }
+
+begemotBridgeStpVersion OBJECT-TYPE
+    SYNTAX	INTEGER {
+		    stpCompatible(0),
+		    rstp(2)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The version of Spanning Tree Protocol the bridge is
+	currently running.  The value 'stpCompatible(0)'
+	indicates the Spanning Tree Protocol specified in
+	IEEE 802.1D-1998 and 'rstp(2)' indicates the Rapid
+	Spanning Tree Protocol specified in IEEE 802.1w and
+	clause 17 of 802.1D-2004.  The values are directly from
+	the IEEE standard.  New values may be defined as future
+	versions of the protocol become available.
+
+	The value of this object MUST be retained across
+	reinitializations of the management system."
+    DEFVAL	{ rstp }
+    ::= { begemotBridgeStpEntry 15 }
+
+begemotBridgeStpTxHoldCount OBJECT-TYPE
+    SYNTAX	Integer32 (1..10)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value used by the Port Transmit state machine to limit
+	the maximum transmission rate of BPDUs on the bridge interface.
+
+	The value of this object MUST be retained across
+	reinitializations of the management system."
+    DEFVAL	{ 3 }
+    ::= { begemotBridgeStpEntry 16 }
+
+-- ---------------------------------------------------------- --
+-- the Bridge STP ports table
+-- ---------------------------------------------------------- --
+
+begemotBridgeStpPortTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotBridgeStpPortEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table containing Spanning Tree Protocol information
+	about the members of each bridge interface."
+    ::= { begemotBridgeStp 2 }
+
+begemotBridgeStpPortEntry OBJECT-TYPE
+    SYNTAX	BegemotBridgeStpPortEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A list of Spanning Tree Protocol information about
+	a specific member of a bridge interface."
+    INDEX  { begemotBridgeBaseName,  begemotBridgeBasePortIfIndex }
+    ::= { begemotBridgeStpPortTable 1 }
+
+BegemotBridgeStpPortEntry  ::= SEQUENCE {
+    begemotBridgeStpPort			Integer32,
+    begemotBridgeStpPortPriority		Integer32,
+    begemotBridgeStpPortState			INTEGER,
+    begemotBridgeStpPortEnable			INTEGER,
+    begemotBridgeStpPortPathCost		Integer32,
+    begemotBridgeStpPortDesignatedRoot		BridgeId,
+    begemotBridgeStpPortDesignatedCost		Integer32,
+    begemotBridgeStpPortDesignatedBridge	BridgeId,
+    begemotBridgeStpPortDesignatedPort		BridgePortId,
+    begemotBridgeStpPortForwardTransitions	Counter32
+}
+
+begemotBridgeStpPort OBJECT-TYPE
+    SYNTAX	Integer32 (1..65535)
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The system interface index of the interface corresponding
+	to this port, for which the management entity has Spanning
+	Tree Protocol information."
+    ::= { begemotBridgeStpPortEntry 1 }
+
+begemotBridgeStpPortPriority OBJECT-TYPE
+    SYNTAX	Integer32 (0..255)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The STP priority of this port that is contained in the first
+	octet of its Port Identifier. The second octet contains the
+	value of begemotBridgeStpPort."
+    ::= { begemotBridgeStpPortEntry 2 }
+
+begemotBridgeStpPortState OBJECT-TYPE
+    SYNTAX	INTEGER {
+		    disabled(1),
+		    blocking(2),
+		    listening(3),
+		    learning(4),
+		    forwarding(5),
+		    broken(6)
+		}
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The current state of the port as defined by the operation
+	of the Spanning Tree Protocol. If the Spanning Tree Protocol
+	is administratively disabled on the port, this object shall
+	have value disabled(1). A value of broken(6) does not correspond
+	to any legal state of a port, and if present should indicate
+	error in the operation of either the Spanning Tree Protocol
+	implementation running on the device or the management entity."
+    ::= { begemotBridgeStpPortEntry 3 }
+
+begemotBridgeStpPortEnable OBJECT-TYPE
+    SYNTAX	INTEGER {
+		    enabled(1),
+		    disabled(2)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The administrative Spanning Tree Protocol state of the
+	port - value of enabled(1) indicates that the port is
+	participating in the Spanning Tree Protocol operation."
+    ::= { begemotBridgeStpPortEntry 4 }
+
+begemotBridgeStpPortPathCost OBJECT-TYPE
+    SYNTAX	Integer32 (1..65535)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The contribution of the path through this port, when the port
+	is the Root Port, to the total cost of the path to the root
+	bridge for this bridge."
+    ::= { begemotBridgeStpPortEntry 5 }
+
+begemotBridgeStpPortDesignatedRoot OBJECT-TYPE
+    SYNTAX	BridgeId
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The unique Bridge Identifier of the bridge recorded as the
+	root in the Root Identifier parameter of Configuration BPDUs
+	transmitted by the Designated Bridge for the LAN to which
+	the port is attached."
+    ::= { begemotBridgeStpPortEntry 6 }
+
+begemotBridgeStpPortDesignatedCost OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"For a Designated port, the path cost (equal to the Root
+	Path Cost of the bridge) offered to the LAN to which the
+	port is attached otherwise the cost of the path to the Root
+	offered by the Designated Port on the LAN to which this
+	Port is attached."
+    ::= { begemotBridgeStpPortEntry 7 }
+
+begemotBridgeStpPortDesignatedBridge OBJECT-TYPE
+    SYNTAX	BridgeId
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The unique Bridge Identifier of the bridge to which the
+	port belongs, in the case when the port is a designated
+	port, otherwise the bridge believed to be the Designated
+	Bridge for the LAN to which this port is attached."
+    ::= { begemotBridgeStpPortEntry 8 }
+
+begemotBridgeStpPortDesignatedPort OBJECT-TYPE
+    SYNTAX	BridgePortId
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The Port Identifier of the Bridge port, on the Designated
+	Bridge, through which the Designated Bridge transmits the
+	Configuration Message information stored by this port."
+    ::= { begemotBridgeStpPortEntry 9 }
+
+begemotBridgeStpPortForwardTransitions OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times this port has transitioned
+	from the Learning state to the Forwarding state."
+    ::= { begemotBridgeStpPortEntry 10 }
+
+-- ---------------------------------------------------------- --
+-- the Bridge STP extended ports table
+-- ---------------------------------------------------------- --
+
+begemotBridgeStpExtPortTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotBridgeStpExtPortEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains port-specific Rapid Spanning Tree
+	information for the bridge interface members."
+    ::= { begemotBridgeStp 3 }
+
+begemotBridgeStpExtPortEntry OBJECT-TYPE
+    SYNTAX	BegemotBridgeStpExtPortEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A list of Rapid Spanning Tree information maintained by
+	each bridge interface member."
+    AUGMENTS    { begemotBridgeStpPortEntry }
+    ::= { begemotBridgeStpExtPortTable 1 }
+
+BegemotBridgeStpExtPortEntry ::= SEQUENCE {
+    begemotBridgeStpPortProtocolMigration	TruthValue,
+    begemotBridgeStpPortAdminEdgePort		TruthValue,
+    begemotBridgeStpPortOperEdgePort		TruthValue,
+    begemotBridgeStpPortAdminPointToPoint	INTEGER,
+    begemotBridgeStpPortOperPointToPoint	TruthValue,
+    begemotBridgeStpPortAdminPathCost		Integer32
+}
+
+begemotBridgeStpPortProtocolMigration OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"When operating in RSTP (version 2) mode, writing true(1)
+	to this object forces this port to transmit RSTP BPDUs.
+	Any other operation on this object has no effect and
+	it always returns false(2) when read."
+    ::= { begemotBridgeStpExtPortEntry 1 }
+
+begemotBridgeStpPortAdminEdgePort OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The administrative value of the Edge Port parameter. A
+	value of true(1) indicates that this port should be
+	assumed as an edge-port, and a value of false(2) indicates
+	that this port should be assumed as a non-edge-port.
+	Setting this object will also cause the corresponding
+	instance of begemotBridgeStpPortOperEdgePort to change to
+	the same value.  Note that even when this object's value
+	is true, the value of the corresponding instance of
+	begemotBridgeStpPortOperEdgePort can be false if a BPDU
+	has been received.
+
+	The value of this object MUST be retained across
+	reinitializations of the management system."
+    ::= { begemotBridgeStpExtPortEntry 2 }
+
+begemotBridgeStpPortOperEdgePort OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The operational value of the Edge Port parameter. The
+	object is initialized to the value of the corresponding
+	instance of begemotBridgeStpPortAdminEdgePort. When the
+	corresponding instance of begemotBridgeStpPortAdminEdgePort
+	is set, this object will be changed as well. This object
+	will also be changed to false on reception of a BPDU."
+    ::= { begemotBridgeStpExtPortEntry 3 }
+
+begemotBridgeStpPortAdminPointToPoint OBJECT-TYPE
+    SYNTAX	INTEGER {
+		    forceTrue(0),
+		    forceFalse(1),
+		    auto(2)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The administrative point-to-point status of the LAN segment
+	attached to this port, using the enumeration values of the
+	IEEE 802.1w clause.  A value of forceTrue(0) indicates
+	that this port should always be treated as if it is
+	connected to a point-to-point link. A value of
+	forceFalse(1) indicates that this port should be treated as
+	having a shared media connection.  A value of auto(2)
+	indicates that this port is considered to have a
+	point-to-point link if it is an Aggregator and all of its
+	members are aggregatable, or if the MAC entity
+	is configured for full duplex operation, either through
+	auto-negotiation or by management means.  Manipulating this
+	object changes the underlying adminPortToPortMAC.
+
+	The value of this object MUST be retained across
+	reinitializations of the management system."
+    ::= { begemotBridgeStpExtPortEntry 4 }
+
+begemotBridgeStpPortOperPointToPoint OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The operational point-to-point status of the LAN segment
+	attached to this port. It indicates whether a port is
+	considered to have a point-to-point connection.
+	If adminPointToPointMAC is set to auto(2), then the value
+	of operPointToPointMAC is determined in accordance with the
+	specific procedures defined for the MAC entity concerned,
+	as defined in IEEE 802.1w, clause 6.5. The value is
+	determined dynamically; that is, it is re-evaluated whenever
+	the value of adminPointToPointMAC changes, and whenever
+	the specific procedures defined for the MAC entity evaluates
+	a change in its point-to-point status."
+    ::= { begemotBridgeStpExtPortEntry 5 }
+
+begemotBridgeStpPortAdminPathCost OBJECT-TYPE
+    SYNTAX	Integer32 (0..200000000)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The administratively assigned value for the contribution
+	of this port to the path cost of paths toward the spanning
+	tree root.
+
+	Writing a value of '0' assigns the automatically calculated
+	default Path Cost value to the port. If the default Path
+	Cost is being used, this object returns '0' when read.
+
+	This complements the object begemotBridgeStpPortPathCost or
+	begemotBridgeStpPortPathCost32, which returns the operational
+	value of the path cost.
+
+	The value of this object MUST be retained across
+	reinitializations of the management system."
+    ::= { begemotBridgeStpExtPortEntry 6 }
+
+-- ---------------------------------------------------------- --
+-- the Bridge interface Transparent bridging table
+-- ---------------------------------------------------------- --
+
+begemotBridgeTpTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotBridgeTpEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains information regarding transparent
+	bridging for each bridge interface on the managed device."
+    ::= { begemotBridgeTp 1 }
+
+begemotBridgeTpEntry OBJECT-TYPE
+    SYNTAX	BegemotBridgeTpEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A list of information regarding transparent bridging
+	on a bridge interface."
+    AUGMENTS { begemotBridgeBaseEntry }
+    ::= { begemotBridgeTpTable 1 }
+
+BegemotBridgeTpEntry ::= SEQUENCE {
+    begemotBridgeTpLearnedEntryDiscards		Counter32,
+    begemotBridgeTpAgingTime			Integer32,
+    begemotBridgeTpMaxAddresses			Integer32
+}
+
+begemotBridgeTpLearnedEntryDiscards OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The total number of Forwarding Database entries that would
+	have been learnt, but have been discarded due to Forwarding
+	Address Table having reached its maximum entries limit."
+    ::= { begemotBridgeTpEntry 1 }
+
+begemotBridgeTpAgingTime OBJECT-TYPE
+    SYNTAX	Integer32 (10..1000000)
+    UNITS	"seconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The timeout period in seconds before aging out
+        dynamically learnt forwarding entries."
+    ::= { begemotBridgeTpEntry 2 }
+
+begemotBridgeTpMaxAddresses OBJECT-TYPE
+    SYNTAX	Integer32 (1..10000)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The maximum number of entries that this bridge can
+	learn in its Forwarding Address Table and use for
+	making forwarding decisions."
+    ::= { begemotBridgeTpEntry 3 }
+
+-- ---------------------------------------------------------- --
+--  The Forwarding Database for Transparent Bridging interfaces
+-- ---------------------------------------------------------- --
+
+begemotBridgeTpFdbTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotBridgeTpFdbEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains information about unicast entries
+	for which the bridge interfaces have forwarding and/or
+	filtering information. This information is used by the
+	bridge interfaces to make forwarding decisions."
+    ::= { begemotBridgeTp 2 }
+
+begemotBridgeTpFdbEntry OBJECT-TYPE
+    SYNTAX	BegemotBridgeTpFdbEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Information about a specific unicast MAC address
+	for which the bridge interface has some forwarding
+	and/or filtering information."
+    INDEX   { begemotBridgeBaseName, begemotBridgeTpFdbAddress }
+    ::= { begemotBridgeTpFdbTable 1 }
+
+BegemotBridgeTpFdbEntry ::= SEQUENCE {
+    begemotBridgeTpFdbAddress			MacAddress,
+    begemotBridgeTpFdbPort			Integer32,
+    begemotBridgeTpFdbStatus			INTEGER
+}
+
+begemotBridgeTpFdbAddress OBJECT-TYPE
+    SYNTAX	MacAddress
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"A unicast MAC address for which the bridge has which the
+	bridge interface has some forwarding and/or filtering
+	information."
+    ::= { begemotBridgeTpFdbEntry 1 }
+
+begemotBridgeTpFdbPort OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The port number of the bridge port on which a frame having
+	a source address equal to the value of the corresponding
+	instance of begemotBridgeTpFdbAddress has been seen."
+    ::= { begemotBridgeTpFdbEntry 2 }
+
+begemotBridgeTpFdbStatus OBJECT-TYPE
+    SYNTAX	INTEGER {
+		    other(1),
+		    invalid(2),
+		    learned(3),
+		    self(4),
+		    mgmt(5)
+		}
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The status of this entry.  The meanings of the
+	values are:
+	    other(1) - none of the following.
+	    invalid(2) - this entry is no longer valid (e.g.,
+		it was learned but has since aged out), but has
+		not yet been flushed from the table.
+	    learned(3) - the value of the corresponding instance
+		of begemotBridgeTpFdbPort was learned, and is being
+		used.
+	    self(4) - the value of the corresponding instance of
+		begemotBridgeTpFdbAddress represents one of the
+		bridge's addresses.  The corresponding instance of
+		begemotBridgeTpFdbPort indicates which of the bridge's
+		ports has this address.
+	    mgmt(5) - the value of the corresponding instance of
+		begemotBridgeTpFdbAddress has been added to the
+		bridge's Forwarding Database by some management
+		means."
+    ::= { begemotBridgeTpFdbEntry 3 }
+
+-- ---------------------------------------------------------- --
+--  Ports table for Transparent Bridging interfaces
+-- ---------------------------------------------------------- --
+
+begemotBridgeTpPortTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotBridgeTpPortEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains information about every bridge port,
+	member of a bridge interface, associated with the transparent
+	bridging function of the bridge."
+    ::= { begemotBridgeTp 3 }
+
+begemotBridgeTpPortEntry OBJECT-TYPE
+    SYNTAX	BegemotBridgeTpPortEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A list of information about every bridge port, member of a
+	bridge interface, associated with the bridge's transparent
+	bridging function."
+    INDEX  { begemotBridgeBaseName,  begemotBridgeBasePortIfIndex }
+    ::= { begemotBridgeTpPortTable 1 }
+
+BegemotBridgeTpPortEntry  ::= SEQUENCE {
+    begemotBridgeTpPort				Integer32,
+    begemotBridgeTpPortMaxInfo			Integer32,
+    begemotBridgeTpPortInFrames			Counter32,
+    begemotBridgeTpPortOutFrames		Counter32,
+    begemotBridgeTpPortInDiscards		Counter32
+}
+
+begemotBridgeTpPort OBJECT-TYPE
+    SYNTAX	Integer32 (1..65535)
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The system interface index of the port for which this entry
+	contains Transparent bridging management information."
+    ::= { begemotBridgeTpPortEntry 1 }
+
+begemotBridgeTpPortMaxInfo OBJECT-TYPE
+    SYNTAX	Integer32
+    UNITS	"bytes"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The maximum size of the INFO (non-MAC) field that this port
+	will receive or transmit."
+    ::= { begemotBridgeTpPortEntry 2 }
+
+begemotBridgeTpPortInFrames OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that have been received by this
+	port from its segment.  Note that a frame received on the
+	interface corresponding to this port is only counted by
+	this object if and only if it is for a protocol being
+	processed by the local bridging function, including
+	bridge management frames."
+    ::= { begemotBridgeTpPortEntry 3 }
+
+begemotBridgeTpPortOutFrames OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that have been transmitted by this
+	port to its segment.  Note that a frame transmitted on
+	the interface corresponding to this port is only counted
+	by this object if and only if it is for a protocol being
+	processed by the local bridging function, including
+	bridge management frames."
+    ::= { begemotBridgeTpPortEntry 4 }
+
+begemotBridgeTpPortInDiscards OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Count of received valid frames that were discarded
+	(i.e., filtered) by the Forwarding Process."
+    ::= { begemotBridgeTpPortEntry  5 }
+
+-- ---------------------------------------------------------- --
+-- the begemotBridgePf objects
+-- ---------------------------------------------------------- --
+
+begemotBridgePfilStatus OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"Indicates whether packet filtering by some firewall
+	package is enabled on the bridge interface."
+    ::= { begemotBridgePf 1 }
+
+begemotBridgePfilMembers OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"A value of true(1) indicates that packet filtering is
+	enabled on both incoming and outgoing bridge member
+	interfaces."
+    ::= { begemotBridgePf 2 }
+
+begemotBridgePfilIpOnly OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"This value controls the handling of non-IP packets which
+	are not passed on for further processing to a firewall
+	package. A value of false(0) indicates that all non-IP
+	Ethernet frames are passed unconditionally."
+    ::= { begemotBridgePf 3 }
+
+begemotBridgeLayer2PfStatus OBJECT-TYPE
+    SYNTAX	INTEGER {
+		    enabled(1),
+		    disabled(2)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"This value indicates whether layer2 filtering by a
+	firewall package is enabled for bridge interfaces."
+    ::= { begemotBridgePf 4 }
+
+-- ---------------------------------------------------------- --
+-- the begemotBridgeConfigObjects objects
+-- ---------------------------------------------------------- --
+
+begemotBridgeDefaultBridgeIf OBJECT-TYPE
+
+    SYNTAX	BridgeIfNameOrEmpty
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The name of the bridge interface that will be managed
+	via objects in IETF BRIDGE-MIB (RFC4188). If the
+	object's value is set to an empty string, bridge interfaces
+	will only be managed via objects in this MIB module."
+    DEFVAL	{ "bridge0" }
+    ::= { begemotBridgeConfigObjects 1 }
+
+begemotBridgeDataUpdate OBJECT-TYPE
+
+    SYNTAX	Timeout (1..300)
+    UNITS       "seconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The maximum age in seconds of the cached data."
+    DEFVAL	{ 10 }
+    ::= { begemotBridgeConfigObjects 2 }
+
+begemotBridgeDataPoll OBJECT-TYPE
+
+    SYNTAX	Timeout (1..3600)
+    UNITS       "seconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The polling rate of data when the module is idle."
+    DEFVAL	{ 300 }
+    ::= { begemotBridgeConfigObjects 3 }
+
+-- ---------------------------------------------------------- --
+-- Notifications for the Spanning Tree Protocol
+-- ---------------------------------------------------------- --
+
+begemotBridgeNewRoot NOTIFICATION-TYPE
+    OBJECTS	{ begemotBridgeBaseName }
+    STATUS	current
+    DESCRIPTION
+	"The begemotBridgeNewRoot trap indicates that one of the
+	bridge interfaces on the sending agent's device has
+	become the new root of the spanning tree topology it is
+	participating in."
+    ::= { begemotBridgeNotifications 1 }
+
+begemotBridgeTopologyChange NOTIFICATION-TYPE
+    OBJECTS	{ begemotBridgeBaseName }
+    STATUS	current
+    DESCRIPTION
+	"A begemotBridgeTopologyChange trap is send when a member
+	port on one of the bridge interfaces, monitored by the agent,
+	transitions from the Learning state to the Forwarding state,
+	or from the Forwarding state to the Blocking state. The trap
+	is not sent if a begemotBridgeNewRoot trap is sent for the
+	same transition."
+    ::= { begemotBridgeNotifications 2 }
+
+END

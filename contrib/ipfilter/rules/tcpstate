@@ -1,0 +1,13 @@
+#
+# Only allow TCP packets in/out of le0 if there is an outgoing connection setup
+# somewhere, waiting for it.
+#
+pass out quick on le0 proto tcp from any to any flags S/SAFR keep state
+block out on le0 proto tcp all
+block in on le0 proto tcp all
+#
+# allow nameserver queries and replies to pass through, but no other UDP
+#
+pass out quick on le0 proto udp from any to any port = 53 keep state
+block out on le0 proto udp all
+block in on le0 proto udp all

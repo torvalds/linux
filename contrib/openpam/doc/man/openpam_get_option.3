@@ -1,0 +1,49 @@
+.\" Generated from openpam_get_option.c by gendoc.pl
+.\" $OpenPAM: openpam_get_option.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt OPENPAM_GET_OPTION 3
+.Os
+.Sh NAME
+.Nm openpam_get_option
+.Nd returns the value of a module option
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.In security/openpam.h
+.Ft "const char *"
+.Fn openpam_get_option "pam_handle_t *pamh" "const char *option"
+.Sh DESCRIPTION
+The
+.Fn openpam_get_option
+function returns the value of the specified
+option in the context of the currently executing service module, or
+.Dv NULL
+if the option is not set or no module is currently executing.
+.Pp
+.Sh RETURN VALUES
+The
+.Fn openpam_get_option
+function returns
+.Dv NULL
+on failure.
+.Sh SEE ALSO
+.Xr openpam_set_option 3 ,
+.Xr pam 3
+.Sh STANDARDS
+The
+.Fn openpam_get_option
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn openpam_get_option
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

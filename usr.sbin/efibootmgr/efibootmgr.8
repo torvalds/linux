@@ -1,0 +1,154 @@
+.\"
+.\" Copyright (c) 2017-2018 Netflix, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 28, 2018
+.Dt EFIBOOTMGR 8
+.Os
+.Sh NAME
+.Nm efibootmgr 
+.Nd manipulate the EFI Boot Manager
+.Sh SYNOPSIS
+.Op Fl aAnNB
+.Op Fl b Ar bootnum
+.Op Fl t Ar timeout
+.Op Fl T
+.Op Fl o Ar bootorder
+.Op Fl v
+.Op Fl c l Ar loader [ Fl k Ar kernel ] [ Fl L Ar label ] [ Fl -dry-run ]
+.Sh "DESCRIPTION"
+.Nm
+manipulates how UEFI Boot Managers boot the system.
+Methods of booting can be created and destroyed.
+Boot methods can be activated or deactivated.
+The order of boot methods tried can be changed.
+Temporary boot methods can override the usual booting methods.
+.Pp
+The UEFI standard defines how hosts may control what is used to
+bootstrap the system.
+Each method is encapsulated within a persistent UEFI variable, stored
+by the UEFI BIOS of the form
+.Va BootXXXX .
+These variables are numbered, describe where to load the bootstrap
+program from, and whether or not the method is active.
+The boot order of these methods is controlled by another variable
+.Va BootOrder .
+The currently booting method is communicated using 
+.Va BootCurrent .
+A global timeout can also be set.
+.Pp
+.Nm
+requires that the kernel efirt module be loaded to get and set these
+non-volatile variables.
+.Pp
+The following options are available:
+.Bl -tag -width 28m
+.It Fl c Fl -create
+Create a new Boot Variable
+.It Fl l -loader Ar loader
+The path to and name of the loader.
+.It Fl k -kernel Ar kernel
+The path to and name of the kernel.
+.It Fl b -bootnum Ar bootnum
+When creating or modifying an entry, use bootnum as the index.
+When creating a new entry, fail if it already exists.
+.It Fl L -label Ar label
+An optional description for the entry.
+.It Fl D -dry-run
+Process but do not change any variables.
+.It Fl B -delete
+Delete the given bootnum boot entry.
+.It Fl a -activate
+Activate the given bootnum boot entry, or the new entry when used with -c.
+.It Fl A -deactivate
+Deactivate the given bootnum boot entry.
+.It Fl n -bootnext
+Set bootnum boot entry as the BootNext variable.
+.It Fl N -delete-bootnext 
+Delete the BootNext optional variable.
+.It Fl o -bootorder Ar bootorder
+Set BootOrder variable to the given comma delimited set of bootnums.
+The numbers are in hex to match BootXXXX, but may omit leading zeros.
+.It Fl t -set-timeout Ar timeout
+Set the bootmenu timeout value.
+.It Fl T -del-timeout
+Delete the BootTimeout variable.
+.It Fl v -verbose
+Display the device path of boot entries in the output.
+.El
+.Pp
+.Sh Examples
+.Pp
+To display the current Boot related variables in the system:
+.Pp
+.Dl efibootmgr [-v]
+.Pp
+This will display the optional BootNext bootnum, BootCurrent,
+or currently booted bootnum, followed by the optional Timeout value, any
+BootOrder that may be set, followed finally by all currently defined Boot
+variables, active or not. The verbose flag will augment this output with
+the disk partition uuids, size/offset and device-path of the
+variable.
+.Pp
+The
+.Nm
+program can be used to create new EFI boot variables. To create a new
+boot var pointing to an installation with its EFI partition mounted
+under /mnt, the given loader and a label "FreeBSD-11":
+.Pp
+.Dl efibootmgr -c -l /mnt/EFI/freebsd/loader.efi -L FreeBSD-11
+.Pp
+This will result in the next available bootnum being assigned to a
+new UEFI boot variable, and given the label "FreeBSD-11" such as:
+.Pp
+.Dl Boot0009 FreeBSD-11
+.Pp
+Note newly created boot entries are created inactive. The active state is denoted
+by an '*' following the BootXXXX name in the output.  They are also inserted
+into the first position of current BootOrder variable if it exists. They
+must first be set to active before being considered available to attempt booting from, else they
+are ignored.
+.Pp
+.Dl efibootmgr -B -b 0009
+.Pp
+Will delete the given boot entry Boot0009
+.Pp
+To set a given newly created boot entry active use:
+.Pp
+.Dl efibootmgr -a -b 0009
+.Pp
+To set a given boot entry to be used as the BootNext variable, irrespective
+of its active state, use:
+.Pp
+.Dl efibootmgr -n -b 0009
+.Pp
+To set the BootOrder for the next reboot  use:
+.Pp
+.Dl efibootmgr -o 0009,0003,...
+.Pp
+.Sh SEE ALSO
+.Xr efivar 8 ,
+.Xr uefi 8 ,
+.Xr gpart 8

@@ -1,0 +1,15 @@
+.TH sqlite3 n 4.1 "Tcl-Extensions"
+.HS sqlite3 tcl
+.BS
+.SH NAME
+sqlite3 \- an interface to the SQLite3 database engine
+.SH SYNOPSIS
+\fBsqlite3\fI command_name ?filename?\fR
+.br
+.SH DESCRIPTION
+SQLite3 is a self-contains, zero-configuration, transactional SQL database
+engine.  This extension provides an easy to use interface for accessing
+SQLite database files from Tcl.
+.PP
+For full documentation see \fIhttp://www.sqlite.org/\fR and
+in particular \fIhttp://www.sqlite.org/tclsqlite.html\fR.

@@ -1,0 +1,35 @@
+cxx_test(
+    name='buffer_test',
+    srcs=['BufferTest.cpp'],
+    deps=['//contrib/pzstd/utils:buffer'],
+)
+
+cxx_test(
+    name='range_test',
+    srcs=['RangeTest.cpp'],
+    deps=['//contrib/pzstd/utils:range'],
+)
+
+cxx_test(
+    name='resource_pool_test',
+    srcs=['ResourcePoolTest.cpp'],
+    deps=['//contrib/pzstd/utils:resource_pool'],
+)
+
+cxx_test(
+    name='scope_guard_test',
+    srcs=['ScopeGuardTest.cpp'],
+    deps=['//contrib/pzstd/utils:scope_guard'],
+)
+
+cxx_test(
+    name='thread_pool_test',
+    srcs=['ThreadPoolTest.cpp'],
+    deps=['//contrib/pzstd/utils:thread_pool'],
+)
+
+cxx_test(
+    name='work_queue_test',
+    srcs=['RangeTest.cpp'],
+    deps=['//contrib/pzstd/utils:work_queue'],
+)

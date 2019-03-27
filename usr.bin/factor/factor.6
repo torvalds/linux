@@ -1,0 +1,121 @@
+.\" Copyright (c) 1989, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Landon Curt Noll.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)factor.6	8.1 (Berkeley) 5/31/93
+.\"
+.\" $FreeBSD$
+.\"
+.\" By: Landon Curt Noll   chongo@toad.com,   ...!{sun,tolsoft}!hoptoad!chongo
+.\"
+.\"   chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
+.\"
+.Dd October 10, 2002
+.Dt FACTOR 6
+.Os
+.Sh NAME
+.Nm factor , primes
+.Nd factor a number, generate primes
+.Sh SYNOPSIS
+.Nm
+.Op Fl h
+.Op Ar number ...
+.Nm primes
+.Op Fl h
+.Op Ar start Op Ar stop
+.Sh DESCRIPTION
+The
+.Nm
+utility will factor positive integers.
+When a number is factored, it is printed, followed by a
+.Ql \&: ,
+and the list of factors on a single line.
+Factors are listed in ascending order, and are preceded by a space.
+If a factor divides a value more than once, it will be printed more than once.
+.Pp
+When
+.Nm
+is invoked with one or more arguments, each argument will be factored.
+.Pp
+When
+.Nm
+is invoked with no arguments,
+.Nm
+reads numbers, one per line, from standard input, until end of file or error.
+Leading white-space and empty lines are ignored.
+Numbers may be preceded by a single
+.Ql + .
+Numbers are terminated by a non-digit character (such as a newline).
+After a number is read, it is factored.
+.Pp
+The
+.Nm primes
+utility prints primes in ascending order, one per line, starting at or above
+.Ar start
+and continuing until, but not including
+.Ar stop .
+The
+.Ar start
+value must be at least 0 and not greater than
+.Ar stop .
+The
+.Ar stop
+value must not be greater than the maximum.
+The default and maximum value of
+.Ar stop
+is 3825123056546413050.
+.Pp
+When the
+.Nm primes
+utility is invoked with no arguments,
+.Ar start
+is read from standard input and
+.Ar stop
+is taken to be the maximum.
+The
+.Ar start
+value may be preceded by a single
+.Ql + .
+The
+.Ar start
+value is terminated by a non-digit character (such as a newline).
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "negative numbers aren't permitted"
+.It "illegal numeric format"
+.It "start value must be less than stop value"
+.It "Result too large"
+.El
+.Sh BUGS
+.Nm
+cannot handle the
+.Dq "10 most wanted"
+factor list,
+.Nm primes
+will not get you a world record.

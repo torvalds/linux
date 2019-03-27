@@ -1,0 +1,165 @@
+.\" Copyright (c) 1999 Kelly Yancey <kbyanc@posi.net>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 30, 2018
+.Dt TIMERADD 3
+.Os
+.Sh NAME
+.Nm timeradd ,
+.Nm timersub ,
+.Nm timerclear ,
+.Nm timerisset ,
+.Nm timercmp ,
+.Nm timespecadd ,
+.Nm timespecsub ,
+.Nm timespecclear ,
+.Nm timespecisset ,
+.Nm timespeccmp
+.Nd operations on timevals and timespecs
+.Sh SYNOPSIS
+.In sys/time.h
+.Ft void
+.Fn timeradd "struct timeval *a" "struct timeval *b" "struct timeval *res"
+.Ft void
+.Fn timersub "struct timeval *a" "struct timeval *b" "struct timeval *res"
+.Ft void
+.Fn timerclear "struct timeval *tvp"
+.Ft int
+.Fn timerisset "struct timeval *tvp"
+.Ft int
+.Fn timercmp "struct timeval *a" "struct timeval *b" CMP
+.Ft void
+.Fn timespecadd "struct timespec *a" "struct timespec *b" "struct timespec *res"
+.Ft void
+.Fn timespecsub "struct timespec *a" "struct timespec *b" "struct timespec *res"
+.Ft void
+.Fn timespecclear "struct timespec *ts"
+.Ft int
+.Fn timespecisset "struct timespec *ts"
+.Ft int
+.Fn timespeccmp "struct timespec *a" "struct timespec *b" CMP
+.Sh DESCRIPTION
+These macros are provided for manipulating
+.Fa timeval
+and
+.Fa timespec
+structures for use with the
+.Xr clock_gettime 2 ,
+.Xr clock_settime 2 ,
+.Xr gettimeofday 2
+and
+.Xr settimeofday 2
+calls.
+The
+.Fa timeval
+structure is defined in
+.In sys/time.h
+as:
+.Bd -literal
+struct timeval {
+	long	tv_sec;		/* seconds since Jan. 1, 1970 */
+	long	tv_usec;	/* and microseconds */
+};
+.Ed
+And the
+.Fa timespec
+structure is defined in
+.In time.h
+as:
+.Bd -literal
+struct timespec {
+	time_t tv_sec;		/* seconds */
+	long   tv_nsec;		/* and nanoseconds */
+};
+.Ed
+.Pp
+.Fn timeradd
+and
+.Fn timespecadd
+add the time information stored in
+.Fa a
+to
+.Fa b
+and store the result in
+.Fa res .
+The results are simplified such that the value of
+.Fa res->tv_usec
+or
+.Fa res->tv_nsec
+is always less than 1 second.
+.Pp
+.Fn timersub
+and
+.Fn timespecsub
+subtract the time information stored in
+.Fa b
+from
+.Fa a
+and store the result
+in
+.Fa res .
+.Pp
+.Fn timerclear
+and
+.Fn timespecclear
+initialize their argument to midnight (0 hour) January 1st, 1970 (the Epoch).
+.Pp
+.Fn timerisset
+and
+.Fn timespecisset
+return true if their argument is set to any time value other than the Epoch.
+.Pp
+.Fn timercmp
+and
+.Fn timespeccmp
+compare
+.Fa a
+to
+.Fa b
+using the comparison operator given in
+.Fa CMP ,
+and return the result of that comparison.
+.Sh SEE ALSO
+.Xr gettimeofday 2 ,
+.Xr clock_gettime 2
+.Sh HISTORY
+The
+.Fn timeradd
+family of macros were imported from
+.Nx 1.1 ,
+and appeared in
+.Fx 2.2.6 .
+The
+.Fn timespecadd
+family of macros were imported from
+.Nx 1.3
+into
+.Fx 3.0 ,
+though they were not exposed to userland until
+.Fx 12.0 .

@@ -1,0 +1,461 @@
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)resolver.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd May 29, 2009
+.Dt RESOLVER 3
+.Os
+.Sh NAME
+.Nm res_query ,
+.Nm res_search ,
+.Nm res_mkquery ,
+.Nm res_send ,
+.Nm res_init ,
+.Nm dn_comp ,
+.Nm dn_expand ,
+.Nm dn_skipname ,
+.Nm ns_get16 ,
+.Nm ns_get32 ,
+.Nm ns_put16 ,
+.Nm ns_put32
+.Nd resolver routines
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In netinet/in.h
+.In arpa/nameser.h
+.In resolv.h
+.Ft int
+.Fo res_query
+.Fa "const char *dname"
+.Fa "int class"
+.Fa "int type"
+.Fa "u_char *answer"
+.Fa "int anslen"
+.Fc
+.Ft int
+.Fo res_search
+.Fa "const char *dname"
+.Fa "int class"
+.Fa "int type"
+.Fa "u_char *answer"
+.Fa "int anslen"
+.Fc
+.Ft int
+.Fo res_mkquery
+.Fa "int op"
+.Fa "const char *dname"
+.Fa "int class"
+.Fa "int type"
+.Fa "const u_char *data"
+.Fa "int datalen"
+.Fa "const u_char *newrr_in"
+.Fa "u_char *buf"
+.Fa "int buflen"
+.Fc
+.Ft int
+.Fo res_send
+.Fa "const u_char *msg"
+.Fa "int msglen"
+.Fa "u_char *answer"
+.Fa "int anslen"
+.Fc
+.Ft int
+.Fn res_init void
+.Ft int
+.Fo dn_comp
+.Fa "const char *exp_dn"
+.Fa "u_char *comp_dn"
+.Fa "int length"
+.Fa "u_char **dnptrs"
+.Fa "u_char **lastdnptr"
+.Fc
+.Ft int
+.Fo dn_expand
+.Fa "const u_char *msg"
+.Fa "const u_char *eomorig"
+.Fa "const u_char *comp_dn"
+.Fa "char *exp_dn"
+.Fa "int length"
+.Fc
+.Ft int
+.Fn dn_skipname "const u_char *comp_dn" "const u_char *eom"
+.Ft u_int
+.Fn ns_get16 "const u_char *src"
+.Ft u_long
+.Fn ns_get32 "const u_char *src"
+.Ft void
+.Fn ns_put16 "u_int src" "u_char *dst"
+.Ft void
+.Fn ns_put32 "u_long src" "u_char *dst"
+.Sh DESCRIPTION
+These routines are used for making, sending and interpreting
+query and reply messages with Internet domain name servers.
+.Pp
+Global configuration and state information that is used by the
+resolver routines is kept in the structure
+.Va _res .
+Most of the values have reasonable defaults and can be ignored.
+Options
+stored in
+.Va _res.options
+are defined in
+.In resolv.h
+and are as follows.
+Options are stored as a simple bit mask containing the bitwise ``or''
+of the options enabled.
+.Bl -tag -width RES_USE_INET6
+.It Dv RES_INIT
+True if the initial name server address and default domain name are
+initialized (i.e.,
+.Fn res_init
+has been called).
+.It Dv RES_DEBUG
+Print debugging messages.
+.It Dv RES_AAONLY
+Accept authoritative answers only.
+With this option,
+.Fn res_send
+should continue until it finds an authoritative answer or finds an error.
+Currently this is not implemented.
+.It Dv RES_USEVC
+Use
+.Tn TCP
+connections for queries instead of
+.Tn UDP
+datagrams.
+.It Dv RES_STAYOPEN
+Used with
+.Dv RES_USEVC
+to keep the
+.Tn TCP
+connection open between
+queries.
+This is useful only in programs that regularly do many queries.
+.Tn UDP
+should be the normal mode used.
+.It Dv RES_IGNTC
+Unused currently (ignore truncation errors, i.e., do not retry with
+.Tn TCP ) .
+.It Dv RES_RECURSE
+Set the recursion-desired bit in queries.
+This is the default.
+.Pf ( Fn res_send
+does not do iterative queries and expects the name server
+to handle recursion.)
+.It Dv RES_DEFNAMES
+If set,
+.Fn res_search
+will append the default domain name to single-component names
+(those that do not contain a dot).
+This option is enabled by default.
+.It Dv RES_DNSRCH
+If this option is set,
+.Fn res_search
+will search for host names in the current domain and in parent domains; see
+.Xr hostname 7 .
+This is used by the standard host lookup routine
+.Xr gethostbyname 3 .
+This option is enabled by default.
+.It Dv RES_NOALIASES
+This option turns off the user level aliasing feature controlled by the
+.Dq Ev HOSTALIASES
+environment variable.
+Network daemons should set this option.
+.It Dv RES_USE_INET6
+Enables support for IPv6-only applications.
+This causes IPv4 addresses to be returned as an IPv4 mapped address.
+For example,
+.Li 10.1.1.1
+will be returned as
+.Li ::ffff:10.1.1.1 .
+The option is meaningful with certain kernel configuration only.
+.It Dv RES_USE_EDNS0
+Enables support for OPT pseudo-RR for EDNS0 extension.
+With the option, resolver code will attach OPT pseudo-RR into DNS queries,
+to inform of our receive buffer size.
+The option will allow DNS servers to take advantage of non-default receive
+buffer size, and to send larger replies.
+DNS query packets with EDNS0 extension is not compatible with
+non-EDNS0 DNS servers.
+.El
+.Pp
+The
+.Fn res_init
+routine
+reads the configuration file (if any; see
+.Xr resolver 5 )
+to get the default domain name,
+search list and
+the Internet address of the local name server(s).
+If no server is configured, the host running
+the resolver is tried.
+The current domain name is defined by the hostname
+if not specified in the configuration file;
+it can be overridden by the environment variable
+.Ev LOCALDOMAIN .
+This environment variable may contain several blank-separated
+tokens if you wish to override the
+.Em "search list"
+on a per-process basis.
+This is similar to the
+.Ic search
+command in the configuration file.
+Another environment variable
+.Dq Ev RES_OPTIONS
+can be set to
+override certain internal resolver options which are otherwise
+set by changing fields in the
+.Va _res
+structure or are inherited from the configuration file's
+.Ic options
+command.
+The syntax of the
+.Dq Ev RES_OPTIONS
+environment variable is explained in
+.Xr resolver 5 .
+Initialization normally occurs on the first call
+to one of the following routines.
+.Pp
+The
+.Fn res_query
+function provides an interface to the server query mechanism.
+It constructs a query, sends it to the local server,
+awaits a response, and makes preliminary checks on the reply.
+The query requests information of the specified
+.Fa type
+and
+.Fa class
+for the specified fully-qualified domain name
+.Fa dname .
+The reply message is left in the
+.Fa answer
+buffer with length
+.Fa anslen
+supplied by the caller.
+.Pp
+The
+.Fn res_search
+routine makes a query and awaits a response like
+.Fn res_query ,
+but in addition, it implements the default and search rules
+controlled by the
+.Dv RES_DEFNAMES
+and
+.Dv RES_DNSRCH
+options.
+It returns the first successful reply.
+.Pp
+The remaining routines are lower-level routines used by
+.Fn res_query .
+The
+.Fn res_mkquery
+function
+constructs a standard query message and places it in
+.Fa buf .
+It returns the size of the query, or \-1 if the query is
+larger than
+.Fa buflen .
+The query type
+.Fa op
+is usually
+.Dv QUERY ,
+but can be any of the query types defined in
+.In arpa/nameser.h .
+The domain name for the query is given by
+.Fa dname .
+The
+.Fa newrr_in
+argument
+is currently unused but is intended for making update messages.
+.Pp
+The
+.Fn res_send
+routine
+sends a pre-formatted query and returns an answer.
+It will call
+.Fn res_init
+if
+.Dv RES_INIT
+is not set, send the query to the local name server, and
+handle timeouts and retries.
+The length of the reply message is returned, or
+\-1 if there were errors.
+.Pp
+The
+.Fn dn_comp
+function
+compresses the domain name
+.Fa exp_dn
+and stores it in
+.Fa comp_dn .
+The size of the compressed name is returned or \-1 if there were errors.
+The size of the array pointed to by
+.Fa comp_dn
+is given by
+.Fa length .
+The compression uses
+an array of pointers
+.Fa dnptrs
+to previously-compressed names in the current message.
+The first pointer points to
+the beginning of the message and the list ends with
+.Dv NULL .
+The limit to the array is specified by
+.Fa lastdnptr .
+A side effect of
+.Fn dn_comp
+is to update the list of pointers for
+labels inserted into the message
+as the name is compressed.
+If
+.Fa dnptr
+is
+.Dv NULL ,
+names are not compressed.
+If
+.Fa lastdnptr
+is
+.Dv NULL ,
+the list of labels is not updated.
+.Pp
+The
+.Fn dn_expand
+entry
+expands the compressed domain name
+.Fa comp_dn
+to a full domain name
+The compressed name is contained in a query or reply message;
+.Fa msg
+is a pointer to the beginning of the message.
+The uncompressed name is placed in the buffer indicated by
+.Fa exp_dn
+which is of size
+.Fa length .
+The size of compressed name is returned or \-1 if there was an error.
+.Pp
+The
+.Fn dn_skipname
+function skips over a compressed domain name, which starts at a location
+pointed to by
+.Fa comp_dn .
+The compressed name is contained in a query or reply message;
+.Fa eom
+is a pointer to the end of the message.
+The size of compressed name is returned or \-1 if there was
+an error.
+.Pp
+The
+.Fn ns_get16
+function gets a 16-bit quantity from a buffer pointed to by
+.Fa src .
+.Pp
+The
+.Fn ns_get32
+function gets a 32-bit quantity from a buffer pointed to by
+.Fa src .
+.Pp
+The
+.Fn ns_put16
+function puts a 16-bit quantity
+.Fa src
+to a buffer pointed to by
+.Fa dst .
+.Pp
+The
+.Fn ns_put32
+function puts a 32-bit quantity
+.Fa src
+to a buffer pointed to by
+.Fa dst .
+.Sh IMPLEMENTATION NOTES
+This implementation of the resolver is thread-safe, but it will not
+function properly if the programmer attempts to declare his or her own
+.Va _res
+structure in an attempt to replace the per-thread version referred to
+by that macro.
+.Pp
+The following compile-time option can be specified to change the default
+behavior of resolver routines when necessary.
+.Bl -tag -width RES_ENFORCE_RFC1034
+.It Dv RES_ENFORCE_RFC1034
+If this symbol is defined during compile-time,
+.Fn res_search
+will enforce RFC 1034 check, namely, disallow using of underscore character
+within host names.
+This is used by the standard host lookup routines like
+.Xr gethostbyname 3 .
+For compatibility reasons this option is not enabled by default.
+.El
+.Sh RETURN VALUES
+The
+.Fn res_init
+function will return 0 on success, or \-1 in a threaded program if
+per-thread storage could not be allocated.
+.Pp
+The
+.Fn res_mkquery ,
+.Fn res_search ,
+and
+.Fn res_query
+functions return the size of the response on success, or \-1 if an
+error occurs.
+The integer
+.Vt h_errno
+may be checked to determine the reason for error.
+See
+.Xr gethostbyname 3
+for more information.
+.Sh FILES
+.Bl -tag -width /etc/resolv.conf
+.It Pa /etc/resolv.conf
+The configuration file,
+see
+.Xr resolver 5 .
+.El
+.Sh SEE ALSO
+.Xr gethostbyname 3 ,
+.Xr resolver 5 ,
+.Xr hostname 7 ,
+.Xr named 8
+.Pp
+.%T RFC1032 ,
+.%T RFC1033 ,
+.%T RFC1034 ,
+.%T RFC1035 ,
+.%T RFC974
+.Rs
+.%T "Name Server Operations Guide for BIND"
+.Re
+.Sh HISTORY
+The
+.Nm
+function appeared in
+.Bx 4.3 .

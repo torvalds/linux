@@ -1,0 +1,290 @@
+.\"-
+.\" Copyright (c) 2009 Dag-Erling Coïdan Smørgrav and
+.\" Marshall Kirk McKusick. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 28, 2009
+.Dt QUOTAFILE 3
+.Os
+.Sh NAME
+.Nm quota_open
+.Nm quota_close
+.Nm quota_on
+.Nm quota_off
+.Nm quota_read
+.Nm quota_write_limits
+.Nm quota_write_usage
+.Nm quota_fsname
+.Nm quota_qfname
+.Nm quota_maxid
+.Nm quota_check_path
+.Nm quota_convert
+.Nd "Manipulate quotas"
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.In ufs/ufs/quota.h
+.In fcntl.h
+.In fstab.h
+.In libutil.h
+.Ft "struct quotafile *"
+.Fn quota_open "struct fstab *fs" "int quotatype" "int openflags"
+.Ft int
+.Fn quota_close "struct quotafile *qf"
+.Ft int
+.Fn quota_on "const struct quotafile *qf"
+.Ft int
+.Fn quota_off "const struct quotafile *qf"
+.Ft int
+.Fn quota_read "struct quotafile *qf" "struct dqblk *dqb" "int id"
+.Ft int
+.Fn quota_write_limits "struct quotafile *qf" "struct dqblk *dqb" "int id"
+.Ft int
+.Fn quota_write_usage "struct quotafile *qf" "struct dqblk *dqb" "int id"
+.Ft "const char *"
+.Fn quota_fsname "const struct quotafile *qf"
+.Ft "const char *"
+.Fn quota_qfname "const struct quotafile *qf"
+.Ft int
+.Fn quota_maxid "const struct quotafile *qf"
+.Ft int
+.Fn quota_check_path "const struct quotafile *qf" "const char *path"
+.Ft int
+.Fn quota_convert "struct quotafile *qf" "int wordsize"
+.Sh DESCRIPTION
+These functions are designed to simplify access to filesystem quotas.
+If quotas are active on a filesystem,
+these functions will access them directly from the kernel using the
+.Fn quotactl
+system call.
+If quotas are not active,
+these functions will access them by reading and writing
+the quota files directly.
+.Pp
+The
+.Fn quota_open
+function takes a pointer to an
+.Vt fstab
+entry corresponding to the filesystem on which quotas
+are to be accessed.
+The
+.Va quotatype
+field indicates the type of quotas being sought, either
+.Dv USRQUOTA
+or
+.Dv GRPQUOTA .
+The
+.Va openflags
+are those used by the
+.Fn open
+system call, usually either
+.Dv O_RDONLY
+if the quotas are just to be read, or
+.Dv O_RDWR
+if the quotas are to be updated.
+The
+.Dv O_CREAT
+flag should be specified if a new quota file of the requested type
+should be created if it does not already exist.
+.Pp
+The
+.Fn quota_close
+function closes any open file descriptors and frees any storage
+associated with the filesystem and quota type referenced by
+.Va qf .
+.Pp
+The
+.Fn quota_on
+function enables quotas for the filesystem associated with its
+.Va qf
+argument which may have been opened with
+.Dv O_RDONLY
+or
+.Dv O_RDWR .
+The
+.Fn quota_on
+function returns 0 if successful;
+otherwise the value\~-1 is returned and the global variable
+.Va errno
+is set to indicate the error, see
+.Xr quotactl 2
+for the possible errors.
+.Pp
+The
+.Fn quota_off
+function disables quotas for the filesystem associated with its
+.Va qf
+argument which may have been opened with
+.Dv O_RDONLY
+or
+.Dv O_RDWR .
+The
+.Fn quota_off
+function returns 0 if successful;
+otherwise the value\~-1 is returned and the global variable
+.Va errno
+is set to indicate the error, see
+.Xr quotactl 2
+for the possible errors.
+.Pp
+The
+.Fn quota_read
+function reads the quota from the filesystem and quota type referenced by
+.Va qf
+for the user (or group) specified by
+.Va id
+into the
+.Vt dqblk
+quota structure pointed to by
+.Va dqb .
+.Pp
+The
+.Fn quota_write_limits
+function updates the limit fields (but not the usage fields)
+for the filesystem and quota type referenced by
+.Va qf
+for the user (or group) specified by
+.Va id
+from the
+.Vt dqblk
+quota structure pointed to by
+.Va dqb .
+.Pp
+The
+.Fn quota_write_usage
+function updates the usage fields (but not the limit fields)
+for the filesystem and quota type referenced by
+.Va qf
+for the user (or group) specified by
+.Va id
+from the
+.Vt dqblk
+quota structure pointed to by
+.Va dqb .
+.Pp
+The
+.Fn quota_fsname
+function returns a pointer to a buffer containing the path to the root
+of the file system that corresponds to its
+.Va qf
+argument, as listed in
+.Pa /etc/fstab .
+Note that this may be a symbolic link to the actual directory.
+.Pp
+The
+.Fn quota_qfname
+function returns a pointer to a buffer containing the name of the
+quota file that corresponds to its
+.Va qf
+argument.
+Note that this may be a symbolic link to the actual file.
+.Pp
+The
+.Fn quota_maxid
+function returns the maximum user (or group)
+.Va id
+contained in the quota file associated with its
+.Va qf
+argument.
+.Pp
+The
+.Fn quota_check_path
+function checks if the specified path is within the filesystem that
+corresponds to its
+.Va qf
+argument.
+If the
+.Va path
+argument refers to a symbolic link,
+.Fn quota_check_path
+will follow it.
+.Pp
+The
+.Fn quota_convert
+function converts the quota file associated with its
+.Va qf
+argument to the data size specified by its
+.Va wordsize
+argument.
+The supported wordsize arguments are 32 for the old 32-bit
+quota file format and 64 for the new 64-bit quota file format.
+The
+.Fn quota_convert
+function may only be called to operate on quota files that
+are not currently active.
+.Sh IMPLEMENTATION NOTES
+If the underlying quota file is in or converted to the old 32-bit format,
+limit and usage values written to the quota file will be clipped to 32 bits.
+.Sh RETURN VALUES
+If the filesystem has quotas associated with it,
+.Fn quota_open
+returns a pointer to a
+.Vt quotafile
+structure used in subsequent quota access calls.
+If the filesystem has no quotas, or access permission is denied
+.Dv NULL
+is returned and
+.Va errno
+is set to indicate the error.
+.Pp
+The
+.Fn quota_check_path
+function returns\~1 for a positive result and\~0 for a negative
+result.
+If an error occurs, it returns\~-1 and sets
+.Va errno
+to indicate the error.
+.Pp
+The
+.Fn quota_read ,
+.Fn quota_write_limits ,
+.Fn quota_write_usage ,
+.Fn quota_convert ,
+and
+.Fn quota_close
+functions return zero on success.
+On error they return\~-1
+and set
+.Va errno
+to indicate the error.
+.Sh SEE ALSO
+.Xr quotactl 2 ,
+.Xr quota.group 5 ,
+.Xr quota.user 5
+.Sh HISTORY
+The
+.Nm quotafile
+functions first appeared in
+.Fx 8.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm quotafile
+functions and this manual page were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org
+and
+.An Marshall Kirk McKusick Aq Mt mckusick@mckusick.com .

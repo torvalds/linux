@@ -1,0 +1,4753 @@
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from cmll-x86.pl. */
+#ifdef PIC
+.text
+.globl	Camellia_EncryptBlock_Rounds
+.type	Camellia_EncryptBlock_Rounds,@function
+.align	16
+Camellia_EncryptBlock_Rounds:
+.L_Camellia_EncryptBlock_Rounds_begin:
+	pushl	%ebp
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+	movl	20(%esp),%eax
+	movl	24(%esp),%esi
+	movl	28(%esp),%edi
+	movl	%esp,%ebx
+	subl	$28,%esp
+	andl	$-64,%esp
+	leal	-127(%edi),%ecx
+	subl	%esp,%ecx
+	negl	%ecx
+	andl	$960,%ecx
+	subl	%ecx,%esp
+	addl	$4,%esp
+	shll	$6,%eax
+	leal	(%edi,%eax,1),%eax
+	movl	%ebx,20(%esp)
+	movl	%eax,16(%esp)
+	call	.L000pic_point
+.L000pic_point:
+	popl	%ebp
+	leal	.LCamellia_SBOX-.L000pic_point(%ebp),%ebp
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	bswap	%eax
+	movl	12(%esi),%edx
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	call	_x86_Camellia_encrypt
+	movl	20(%esp),%esp
+	bswap	%eax
+	movl	32(%esp),%esi
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	movl	%eax,(%esi)
+	movl	%ebx,4(%esi)
+	movl	%ecx,8(%esi)
+	movl	%edx,12(%esi)
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+.size	Camellia_EncryptBlock_Rounds,.-.L_Camellia_EncryptBlock_Rounds_begin
+.globl	Camellia_EncryptBlock
+.type	Camellia_EncryptBlock,@function
+.align	16
+Camellia_EncryptBlock:
+.L_Camellia_EncryptBlock_begin:
+	movl	$128,%eax
+	subl	4(%esp),%eax
+	movl	$3,%eax
+	adcl	$0,%eax
+	movl	%eax,4(%esp)
+	jmp	.L_Camellia_EncryptBlock_Rounds_begin
+.size	Camellia_EncryptBlock,.-.L_Camellia_EncryptBlock_begin
+.globl	Camellia_encrypt
+.type	Camellia_encrypt,@function
+.align	16
+Camellia_encrypt:
+.L_Camellia_encrypt_begin:
+	pushl	%ebp
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+	movl	20(%esp),%esi
+	movl	28(%esp),%edi
+	movl	%esp,%ebx
+	subl	$28,%esp
+	andl	$-64,%esp
+	movl	272(%edi),%eax
+	leal	-127(%edi),%ecx
+	subl	%esp,%ecx
+	negl	%ecx
+	andl	$960,%ecx
+	subl	%ecx,%esp
+	addl	$4,%esp
+	shll	$6,%eax
+	leal	(%edi,%eax,1),%eax
+	movl	%ebx,20(%esp)
+	movl	%eax,16(%esp)
+	call	.L001pic_point
+.L001pic_point:
+	popl	%ebp
+	leal	.LCamellia_SBOX-.L001pic_point(%ebp),%ebp
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	bswap	%eax
+	movl	12(%esi),%edx
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	call	_x86_Camellia_encrypt
+	movl	20(%esp),%esp
+	bswap	%eax
+	movl	24(%esp),%esi
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	movl	%eax,(%esi)
+	movl	%ebx,4(%esi)
+	movl	%ecx,8(%esi)
+	movl	%edx,12(%esi)
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+.size	Camellia_encrypt,.-.L_Camellia_encrypt_begin
+.type	_x86_Camellia_encrypt,@function
+.align	16
+_x86_Camellia_encrypt:
+	xorl	(%edi),%eax
+	xorl	4(%edi),%ebx
+	xorl	8(%edi),%ecx
+	xorl	12(%edi),%edx
+	movl	16(%edi),%esi
+	movl	%eax,4(%esp)
+	movl	%ebx,8(%esp)
+	movl	%ecx,12(%esp)
+	movl	%edx,16(%esp)
+.align	16
+.L002loop:
+	xorl	%esi,%eax
+	xorl	20(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	16(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	12(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	24(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,16(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,12(%esp)
+	xorl	%esi,%ecx
+	xorl	28(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	8(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	4(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	32(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,8(%esp)
+	xorl	%edx,%eax
+	movl	%eax,4(%esp)
+	xorl	%esi,%eax
+	xorl	36(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	16(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	12(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	40(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,16(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,12(%esp)
+	xorl	%esi,%ecx
+	xorl	44(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	8(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	4(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	48(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,8(%esp)
+	xorl	%edx,%eax
+	movl	%eax,4(%esp)
+	xorl	%esi,%eax
+	xorl	52(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	16(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	12(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	56(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,16(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,12(%esp)
+	xorl	%esi,%ecx
+	xorl	60(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	8(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	4(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	64(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,8(%esp)
+	xorl	%edx,%eax
+	movl	%eax,4(%esp)
+	addl	$64,%edi
+	cmpl	20(%esp),%edi
+	je	.L003done
+	andl	%eax,%esi
+	movl	16(%esp),%edx
+	roll	$1,%esi
+	movl	%edx,%ecx
+	xorl	%esi,%ebx
+	orl	12(%edi),%ecx
+	movl	%ebx,8(%esp)
+	xorl	12(%esp),%ecx
+	movl	4(%edi),%esi
+	movl	%ecx,12(%esp)
+	orl	%ebx,%esi
+	andl	8(%edi),%ecx
+	xorl	%esi,%eax
+	roll	$1,%ecx
+	movl	%eax,4(%esp)
+	xorl	%ecx,%edx
+	movl	16(%edi),%esi
+	movl	%edx,16(%esp)
+	jmp	.L002loop
+.align	8
+.L003done:
+	movl	%eax,%ecx
+	movl	%ebx,%edx
+	movl	12(%esp),%eax
+	movl	16(%esp),%ebx
+	xorl	%esi,%eax
+	xorl	4(%edi),%ebx
+	xorl	8(%edi),%ecx
+	xorl	12(%edi),%edx
+	ret
+.size	_x86_Camellia_encrypt,.-_x86_Camellia_encrypt
+.globl	Camellia_DecryptBlock_Rounds
+.type	Camellia_DecryptBlock_Rounds,@function
+.align	16
+Camellia_DecryptBlock_Rounds:
+.L_Camellia_DecryptBlock_Rounds_begin:
+	pushl	%ebp
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+	movl	20(%esp),%eax
+	movl	24(%esp),%esi
+	movl	28(%esp),%edi
+	movl	%esp,%ebx
+	subl	$28,%esp
+	andl	$-64,%esp
+	leal	-127(%edi),%ecx
+	subl	%esp,%ecx
+	negl	%ecx
+	andl	$960,%ecx
+	subl	%ecx,%esp
+	addl	$4,%esp
+	shll	$6,%eax
+	movl	%edi,16(%esp)
+	leal	(%edi,%eax,1),%edi
+	movl	%ebx,20(%esp)
+	call	.L004pic_point
+.L004pic_point:
+	popl	%ebp
+	leal	.LCamellia_SBOX-.L004pic_point(%ebp),%ebp
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	bswap	%eax
+	movl	12(%esi),%edx
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	call	_x86_Camellia_decrypt
+	movl	20(%esp),%esp
+	bswap	%eax
+	movl	32(%esp),%esi
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	movl	%eax,(%esi)
+	movl	%ebx,4(%esi)
+	movl	%ecx,8(%esi)
+	movl	%edx,12(%esi)
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+.size	Camellia_DecryptBlock_Rounds,.-.L_Camellia_DecryptBlock_Rounds_begin
+.globl	Camellia_DecryptBlock
+.type	Camellia_DecryptBlock,@function
+.align	16
+Camellia_DecryptBlock:
+.L_Camellia_DecryptBlock_begin:
+	movl	$128,%eax
+	subl	4(%esp),%eax
+	movl	$3,%eax
+	adcl	$0,%eax
+	movl	%eax,4(%esp)
+	jmp	.L_Camellia_DecryptBlock_Rounds_begin
+.size	Camellia_DecryptBlock,.-.L_Camellia_DecryptBlock_begin
+.globl	Camellia_decrypt
+.type	Camellia_decrypt,@function
+.align	16
+Camellia_decrypt:
+.L_Camellia_decrypt_begin:
+	pushl	%ebp
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+	movl	20(%esp),%esi
+	movl	28(%esp),%edi
+	movl	%esp,%ebx
+	subl	$28,%esp
+	andl	$-64,%esp
+	movl	272(%edi),%eax
+	leal	-127(%edi),%ecx
+	subl	%esp,%ecx
+	negl	%ecx
+	andl	$960,%ecx
+	subl	%ecx,%esp
+	addl	$4,%esp
+	shll	$6,%eax
+	movl	%edi,16(%esp)
+	leal	(%edi,%eax,1),%edi
+	movl	%ebx,20(%esp)
+	call	.L005pic_point
+.L005pic_point:
+	popl	%ebp
+	leal	.LCamellia_SBOX-.L005pic_point(%ebp),%ebp
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	bswap	%eax
+	movl	12(%esi),%edx
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	call	_x86_Camellia_decrypt
+	movl	20(%esp),%esp
+	bswap	%eax
+	movl	24(%esp),%esi
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	movl	%eax,(%esi)
+	movl	%ebx,4(%esi)
+	movl	%ecx,8(%esi)
+	movl	%edx,12(%esi)
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+.size	Camellia_decrypt,.-.L_Camellia_decrypt_begin
+.type	_x86_Camellia_decrypt,@function
+.align	16
+_x86_Camellia_decrypt:
+	xorl	(%edi),%eax
+	xorl	4(%edi),%ebx
+	xorl	8(%edi),%ecx
+	xorl	12(%edi),%edx
+	movl	-8(%edi),%esi
+	movl	%eax,4(%esp)
+	movl	%ebx,8(%esp)
+	movl	%ecx,12(%esp)
+	movl	%edx,16(%esp)
+.align	16
+.L006loop:
+	xorl	%esi,%eax
+	xorl	-4(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	16(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	12(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	-16(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,16(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,12(%esp)
+	xorl	%esi,%ecx
+	xorl	-12(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	8(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	4(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	-24(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,8(%esp)
+	xorl	%edx,%eax
+	movl	%eax,4(%esp)
+	xorl	%esi,%eax
+	xorl	-20(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	16(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	12(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	-32(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,16(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,12(%esp)
+	xorl	%esi,%ecx
+	xorl	-28(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	8(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	4(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	-40(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,8(%esp)
+	xorl	%edx,%eax
+	movl	%eax,4(%esp)
+	xorl	%esi,%eax
+	xorl	-36(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	16(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	12(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	-48(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,16(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,12(%esp)
+	xorl	%esi,%ecx
+	xorl	-44(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	8(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	4(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	-56(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,8(%esp)
+	xorl	%edx,%eax
+	movl	%eax,4(%esp)
+	subl	$64,%edi
+	cmpl	20(%esp),%edi
+	je	.L007done
+	andl	%eax,%esi
+	movl	16(%esp),%edx
+	roll	$1,%esi
+	movl	%edx,%ecx
+	xorl	%esi,%ebx
+	orl	4(%edi),%ecx
+	movl	%ebx,8(%esp)
+	xorl	12(%esp),%ecx
+	movl	12(%edi),%esi
+	movl	%ecx,12(%esp)
+	orl	%ebx,%esi
+	andl	(%edi),%ecx
+	xorl	%esi,%eax
+	roll	$1,%ecx
+	movl	%eax,4(%esp)
+	xorl	%ecx,%edx
+	movl	-8(%edi),%esi
+	movl	%edx,16(%esp)
+	jmp	.L006loop
+.align	8
+.L007done:
+	movl	%eax,%ecx
+	movl	%ebx,%edx
+	movl	12(%esp),%eax
+	movl	16(%esp),%ebx
+	xorl	%esi,%ecx
+	xorl	12(%edi),%edx
+	xorl	(%edi),%eax
+	xorl	4(%edi),%ebx
+	ret
+.size	_x86_Camellia_decrypt,.-_x86_Camellia_decrypt
+.globl	Camellia_Ekeygen
+.type	Camellia_Ekeygen,@function
+.align	16
+Camellia_Ekeygen:
+.L_Camellia_Ekeygen_begin:
+	pushl	%ebp
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+	subl	$16,%esp
+	movl	36(%esp),%ebp
+	movl	40(%esp),%esi
+	movl	44(%esp),%edi
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	movl	12(%esi),%edx
+	bswap	%eax
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	movl	%eax,(%edi)
+	movl	%ebx,4(%edi)
+	movl	%ecx,8(%edi)
+	movl	%edx,12(%edi)
+	cmpl	$128,%ebp
+	je	.L0081st128
+	movl	16(%esi),%eax
+	movl	20(%esi),%ebx
+	cmpl	$192,%ebp
+	je	.L0091st192
+	movl	24(%esi),%ecx
+	movl	28(%esi),%edx
+	jmp	.L0101st256
+.align	4
+.L0091st192:
+	movl	%eax,%ecx
+	movl	%ebx,%edx
+	notl	%ecx
+	notl	%edx
+.align	4
+.L0101st256:
+	bswap	%eax
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	movl	%eax,32(%edi)
+	movl	%ebx,36(%edi)
+	movl	%ecx,40(%edi)
+	movl	%edx,44(%edi)
+	xorl	(%edi),%eax
+	xorl	4(%edi),%ebx
+	xorl	8(%edi),%ecx
+	xorl	12(%edi),%edx
+.align	4
+.L0081st128:
+	call	.L011pic_point
+.L011pic_point:
+	popl	%ebp
+	leal	.LCamellia_SBOX-.L011pic_point(%ebp),%ebp
+	leal	.LCamellia_SIGMA-.LCamellia_SBOX(%ebp),%edi
+	movl	(%edi),%esi
+	movl	%eax,(%esp)
+	movl	%ebx,4(%esp)
+	movl	%ecx,8(%esp)
+	movl	%edx,12(%esp)
+	xorl	%esi,%eax
+	xorl	4(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	12(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	8(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	8(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,12(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,8(%esp)
+	xorl	%esi,%ecx
+	xorl	12(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	4(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	16(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,4(%esp)
+	xorl	%edx,%eax
+	movl	%eax,(%esp)
+	movl	8(%esp),%ecx
+	movl	12(%esp),%edx
+	movl	44(%esp),%esi
+	xorl	(%esi),%eax
+	xorl	4(%esi),%ebx
+	xorl	8(%esi),%ecx
+	xorl	12(%esi),%edx
+	movl	16(%edi),%esi
+	movl	%eax,(%esp)
+	movl	%ebx,4(%esp)
+	movl	%ecx,8(%esp)
+	movl	%edx,12(%esp)
+	xorl	%esi,%eax
+	xorl	20(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	12(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	8(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	24(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,12(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,8(%esp)
+	xorl	%esi,%ecx
+	xorl	28(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	4(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	32(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,4(%esp)
+	xorl	%edx,%eax
+	movl	%eax,(%esp)
+	movl	8(%esp),%ecx
+	movl	12(%esp),%edx
+	movl	36(%esp),%esi
+	cmpl	$128,%esi
+	jne	.L0122nd256
+	movl	44(%esp),%edi
+	leal	128(%edi),%edi
+	movl	%eax,-112(%edi)
+	movl	%ebx,-108(%edi)
+	movl	%ecx,-104(%edi)
+	movl	%edx,-100(%edi)
+	movl	%eax,%ebp
+	shll	$15,%eax
+	movl	%ebx,%esi
+	shrl	$17,%esi
+	shll	$15,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$15,%ecx
+	movl	%eax,-80(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ebx
+	shrl	$17,%ebp
+	movl	%edx,%esi
+	shrl	$17,%esi
+	movl	%ebx,-76(%edi)
+	shll	$15,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,-72(%edi)
+	movl	%edx,-68(%edi)
+	movl	%eax,%ebp
+	shll	$15,%eax
+	movl	%ebx,%esi
+	shrl	$17,%esi
+	shll	$15,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$15,%ecx
+	movl	%eax,-64(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ebx
+	shrl	$17,%ebp
+	movl	%edx,%esi
+	shrl	$17,%esi
+	movl	%ebx,-60(%edi)
+	shll	$15,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,-56(%edi)
+	movl	%edx,-52(%edi)
+	movl	%eax,%ebp
+	shll	$15,%eax
+	movl	%ebx,%esi
+	shrl	$17,%esi
+	shll	$15,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$15,%ecx
+	movl	%eax,-32(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ebx
+	shrl	$17,%ebp
+	movl	%edx,%esi
+	shrl	$17,%esi
+	movl	%ebx,-28(%edi)
+	shll	$15,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%eax,%ebp
+	shll	$15,%eax
+	movl	%ebx,%esi
+	shrl	$17,%esi
+	shll	$15,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$15,%ecx
+	movl	%eax,-16(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ebx
+	shrl	$17,%ebp
+	movl	%edx,%esi
+	shrl	$17,%esi
+	movl	%ebx,-12(%edi)
+	shll	$15,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,-8(%edi)
+	movl	%edx,-4(%edi)
+	movl	%ebx,%ebp
+	shll	$2,%ebx
+	movl	%ecx,%esi
+	shrl	$30,%esi
+	shll	$2,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$2,%edx
+	movl	%ebx,32(%edi)
+	shrl	$30,%esi
+	orl	%esi,%ecx
+	shrl	$30,%ebp
+	movl	%eax,%esi
+	shrl	$30,%esi
+	movl	%ecx,36(%edi)
+	shll	$2,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,40(%edi)
+	movl	%eax,44(%edi)
+	movl	%ebx,%ebp
+	shll	$17,%ebx
+	movl	%ecx,%esi
+	shrl	$15,%esi
+	shll	$17,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$17,%edx
+	movl	%ebx,64(%edi)
+	shrl	$15,%esi
+	orl	%esi,%ecx
+	shrl	$15,%ebp
+	movl	%eax,%esi
+	shrl	$15,%esi
+	movl	%ecx,68(%edi)
+	shll	$17,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,72(%edi)
+	movl	%eax,76(%edi)
+	movl	-128(%edi),%ebx
+	movl	-124(%edi),%ecx
+	movl	-120(%edi),%edx
+	movl	-116(%edi),%eax
+	movl	%ebx,%ebp
+	shll	$15,%ebx
+	movl	%ecx,%esi
+	shrl	$17,%esi
+	shll	$15,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$15,%edx
+	movl	%ebx,-96(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ecx
+	shrl	$17,%ebp
+	movl	%eax,%esi
+	shrl	$17,%esi
+	movl	%ecx,-92(%edi)
+	shll	$15,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,-88(%edi)
+	movl	%eax,-84(%edi)
+	movl	%ebx,%ebp
+	shll	$30,%ebx
+	movl	%ecx,%esi
+	shrl	$2,%esi
+	shll	$30,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$30,%edx
+	movl	%ebx,-48(%edi)
+	shrl	$2,%esi
+	orl	%esi,%ecx
+	shrl	$2,%ebp
+	movl	%eax,%esi
+	shrl	$2,%esi
+	movl	%ecx,-44(%edi)
+	shll	$30,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,-40(%edi)
+	movl	%eax,-36(%edi)
+	movl	%ebx,%ebp
+	shll	$15,%ebx
+	movl	%ecx,%esi
+	shrl	$17,%esi
+	shll	$15,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$15,%edx
+	shrl	$17,%esi
+	orl	%esi,%ecx
+	shrl	$17,%ebp
+	movl	%eax,%esi
+	shrl	$17,%esi
+	shll	$15,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,-24(%edi)
+	movl	%eax,-20(%edi)
+	movl	%ebx,%ebp
+	shll	$17,%ebx
+	movl	%ecx,%esi
+	shrl	$15,%esi
+	shll	$17,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$17,%edx
+	movl	%ebx,(%edi)
+	shrl	$15,%esi
+	orl	%esi,%ecx
+	shrl	$15,%ebp
+	movl	%eax,%esi
+	shrl	$15,%esi
+	movl	%ecx,4(%edi)
+	shll	$17,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,8(%edi)
+	movl	%eax,12(%edi)
+	movl	%ebx,%ebp
+	shll	$17,%ebx
+	movl	%ecx,%esi
+	shrl	$15,%esi
+	shll	$17,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$17,%edx
+	movl	%ebx,16(%edi)
+	shrl	$15,%esi
+	orl	%esi,%ecx
+	shrl	$15,%ebp
+	movl	%eax,%esi
+	shrl	$15,%esi
+	movl	%ecx,20(%edi)
+	shll	$17,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,24(%edi)
+	movl	%eax,28(%edi)
+	movl	%ebx,%ebp
+	shll	$17,%ebx
+	movl	%ecx,%esi
+	shrl	$15,%esi
+	shll	$17,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$17,%edx
+	movl	%ebx,48(%edi)
+	shrl	$15,%esi
+	orl	%esi,%ecx
+	shrl	$15,%ebp
+	movl	%eax,%esi
+	shrl	$15,%esi
+	movl	%ecx,52(%edi)
+	shll	$17,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,56(%edi)
+	movl	%eax,60(%edi)
+	movl	$3,%eax
+	jmp	.L013done
+.align	16
+.L0122nd256:
+	movl	44(%esp),%esi
+	movl	%eax,48(%esi)
+	movl	%ebx,52(%esi)
+	movl	%ecx,56(%esi)
+	movl	%edx,60(%esi)
+	xorl	32(%esi),%eax
+	xorl	36(%esi),%ebx
+	xorl	40(%esi),%ecx
+	xorl	44(%esi),%edx
+	movl	32(%edi),%esi
+	movl	%eax,(%esp)
+	movl	%ebx,4(%esp)
+	movl	%ecx,8(%esp)
+	movl	%edx,12(%esp)
+	xorl	%esi,%eax
+	xorl	36(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	12(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	8(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	40(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,12(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,8(%esp)
+	xorl	%esi,%ecx
+	xorl	44(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	4(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	48(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,4(%esp)
+	xorl	%edx,%eax
+	movl	%eax,(%esp)
+	movl	8(%esp),%ecx
+	movl	12(%esp),%edx
+	movl	44(%esp),%edi
+	leal	128(%edi),%edi
+	movl	%eax,-112(%edi)
+	movl	%ebx,-108(%edi)
+	movl	%ecx,-104(%edi)
+	movl	%edx,-100(%edi)
+	movl	%eax,%ebp
+	shll	$30,%eax
+	movl	%ebx,%esi
+	shrl	$2,%esi
+	shll	$30,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$30,%ecx
+	movl	%eax,-48(%edi)
+	shrl	$2,%esi
+	orl	%esi,%ebx
+	shrl	$2,%ebp
+	movl	%edx,%esi
+	shrl	$2,%esi
+	movl	%ebx,-44(%edi)
+	shll	$30,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,-40(%edi)
+	movl	%edx,-36(%edi)
+	movl	%eax,%ebp
+	shll	$30,%eax
+	movl	%ebx,%esi
+	shrl	$2,%esi
+	shll	$30,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$30,%ecx
+	movl	%eax,32(%edi)
+	shrl	$2,%esi
+	orl	%esi,%ebx
+	shrl	$2,%ebp
+	movl	%edx,%esi
+	shrl	$2,%esi
+	movl	%ebx,36(%edi)
+	shll	$30,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,40(%edi)
+	movl	%edx,44(%edi)
+	movl	%ebx,%ebp
+	shll	$19,%ebx
+	movl	%ecx,%esi
+	shrl	$13,%esi
+	shll	$19,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$19,%edx
+	movl	%ebx,128(%edi)
+	shrl	$13,%esi
+	orl	%esi,%ecx
+	shrl	$13,%ebp
+	movl	%eax,%esi
+	shrl	$13,%esi
+	movl	%ecx,132(%edi)
+	shll	$19,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,136(%edi)
+	movl	%eax,140(%edi)
+	movl	-96(%edi),%ebx
+	movl	-92(%edi),%ecx
+	movl	-88(%edi),%edx
+	movl	-84(%edi),%eax
+	movl	%ebx,%ebp
+	shll	$15,%ebx
+	movl	%ecx,%esi
+	shrl	$17,%esi
+	shll	$15,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$15,%edx
+	movl	%ebx,-96(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ecx
+	shrl	$17,%ebp
+	movl	%eax,%esi
+	shrl	$17,%esi
+	movl	%ecx,-92(%edi)
+	shll	$15,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,-88(%edi)
+	movl	%eax,-84(%edi)
+	movl	%ebx,%ebp
+	shll	$15,%ebx
+	movl	%ecx,%esi
+	shrl	$17,%esi
+	shll	$15,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$15,%edx
+	movl	%ebx,-64(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ecx
+	shrl	$17,%ebp
+	movl	%eax,%esi
+	shrl	$17,%esi
+	movl	%ecx,-60(%edi)
+	shll	$15,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,-56(%edi)
+	movl	%eax,-52(%edi)
+	movl	%ebx,%ebp
+	shll	$30,%ebx
+	movl	%ecx,%esi
+	shrl	$2,%esi
+	shll	$30,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$30,%edx
+	movl	%ebx,16(%edi)
+	shrl	$2,%esi
+	orl	%esi,%ecx
+	shrl	$2,%ebp
+	movl	%eax,%esi
+	shrl	$2,%esi
+	movl	%ecx,20(%edi)
+	shll	$30,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,24(%edi)
+	movl	%eax,28(%edi)
+	movl	%ecx,%ebp
+	shll	$2,%ecx
+	movl	%edx,%esi
+	shrl	$30,%esi
+	shll	$2,%edx
+	orl	%esi,%ecx
+	movl	%eax,%esi
+	shll	$2,%eax
+	movl	%ecx,80(%edi)
+	shrl	$30,%esi
+	orl	%esi,%edx
+	shrl	$30,%ebp
+	movl	%ebx,%esi
+	shrl	$30,%esi
+	movl	%edx,84(%edi)
+	shll	$2,%ebx
+	orl	%esi,%eax
+	orl	%ebp,%ebx
+	movl	%eax,88(%edi)
+	movl	%ebx,92(%edi)
+	movl	-80(%edi),%ecx
+	movl	-76(%edi),%edx
+	movl	-72(%edi),%eax
+	movl	-68(%edi),%ebx
+	movl	%ecx,%ebp
+	shll	$15,%ecx
+	movl	%edx,%esi
+	shrl	$17,%esi
+	shll	$15,%edx
+	orl	%esi,%ecx
+	movl	%eax,%esi
+	shll	$15,%eax
+	movl	%ecx,-80(%edi)
+	shrl	$17,%esi
+	orl	%esi,%edx
+	shrl	$17,%ebp
+	movl	%ebx,%esi
+	shrl	$17,%esi
+	movl	%edx,-76(%edi)
+	shll	$15,%ebx
+	orl	%esi,%eax
+	orl	%ebp,%ebx
+	movl	%eax,-72(%edi)
+	movl	%ebx,-68(%edi)
+	movl	%ecx,%ebp
+	shll	$30,%ecx
+	movl	%edx,%esi
+	shrl	$2,%esi
+	shll	$30,%edx
+	orl	%esi,%ecx
+	movl	%eax,%esi
+	shll	$30,%eax
+	movl	%ecx,-16(%edi)
+	shrl	$2,%esi
+	orl	%esi,%edx
+	shrl	$2,%ebp
+	movl	%ebx,%esi
+	shrl	$2,%esi
+	movl	%edx,-12(%edi)
+	shll	$30,%ebx
+	orl	%esi,%eax
+	orl	%ebp,%ebx
+	movl	%eax,-8(%edi)
+	movl	%ebx,-4(%edi)
+	movl	%edx,64(%edi)
+	movl	%eax,68(%edi)
+	movl	%ebx,72(%edi)
+	movl	%ecx,76(%edi)
+	movl	%edx,%ebp
+	shll	$17,%edx
+	movl	%eax,%esi
+	shrl	$15,%esi
+	shll	$17,%eax
+	orl	%esi,%edx
+	movl	%ebx,%esi
+	shll	$17,%ebx
+	movl	%edx,96(%edi)
+	shrl	$15,%esi
+	orl	%esi,%eax
+	shrl	$15,%ebp
+	movl	%ecx,%esi
+	shrl	$15,%esi
+	movl	%eax,100(%edi)
+	shll	$17,%ecx
+	orl	%esi,%ebx
+	orl	%ebp,%ecx
+	movl	%ebx,104(%edi)
+	movl	%ecx,108(%edi)
+	movl	-128(%edi),%edx
+	movl	-124(%edi),%eax
+	movl	-120(%edi),%ebx
+	movl	-116(%edi),%ecx
+	movl	%eax,%ebp
+	shll	$13,%eax
+	movl	%ebx,%esi
+	shrl	$19,%esi
+	shll	$13,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$13,%ecx
+	movl	%eax,-32(%edi)
+	shrl	$19,%esi
+	orl	%esi,%ebx
+	shrl	$19,%ebp
+	movl	%edx,%esi
+	shrl	$19,%esi
+	movl	%ebx,-28(%edi)
+	shll	$13,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,-24(%edi)
+	movl	%edx,-20(%edi)
+	movl	%eax,%ebp
+	shll	$15,%eax
+	movl	%ebx,%esi
+	shrl	$17,%esi
+	shll	$15,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$15,%ecx
+	movl	%eax,(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ebx
+	shrl	$17,%ebp
+	movl	%edx,%esi
+	shrl	$17,%esi
+	movl	%ebx,4(%edi)
+	shll	$15,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,8(%edi)
+	movl	%edx,12(%edi)
+	movl	%eax,%ebp
+	shll	$17,%eax
+	movl	%ebx,%esi
+	shrl	$15,%esi
+	shll	$17,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$17,%ecx
+	movl	%eax,48(%edi)
+	shrl	$15,%esi
+	orl	%esi,%ebx
+	shrl	$15,%ebp
+	movl	%edx,%esi
+	shrl	$15,%esi
+	movl	%ebx,52(%edi)
+	shll	$17,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,56(%edi)
+	movl	%edx,60(%edi)
+	movl	%ebx,%ebp
+	shll	$2,%ebx
+	movl	%ecx,%esi
+	shrl	$30,%esi
+	shll	$2,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$2,%edx
+	movl	%ebx,112(%edi)
+	shrl	$30,%esi
+	orl	%esi,%ecx
+	shrl	$30,%ebp
+	movl	%eax,%esi
+	shrl	$30,%esi
+	movl	%ecx,116(%edi)
+	shll	$2,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,120(%edi)
+	movl	%eax,124(%edi)
+	movl	$4,%eax
+.L013done:
+	leal	144(%edi),%edx
+	addl	$16,%esp
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+.size	Camellia_Ekeygen,.-.L_Camellia_Ekeygen_begin
+.globl	Camellia_set_key
+.type	Camellia_set_key,@function
+.align	16
+Camellia_set_key:
+.L_Camellia_set_key_begin:
+	pushl	%ebx
+	movl	8(%esp),%ecx
+	movl	12(%esp),%ebx
+	movl	16(%esp),%edx
+	movl	$-1,%eax
+	testl	%ecx,%ecx
+	jz	.L014done
+	testl	%edx,%edx
+	jz	.L014done
+	movl	$-2,%eax
+	cmpl	$256,%ebx
+	je	.L015arg_ok
+	cmpl	$192,%ebx
+	je	.L015arg_ok
+	cmpl	$128,%ebx
+	jne	.L014done
+.align	4
+.L015arg_ok:
+	pushl	%edx
+	pushl	%ecx
+	pushl	%ebx
+	call	.L_Camellia_Ekeygen_begin
+	addl	$12,%esp
+	movl	%eax,(%edx)
+	xorl	%eax,%eax
+.align	4
+.L014done:
+	popl	%ebx
+	ret
+.size	Camellia_set_key,.-.L_Camellia_set_key_begin
+.align	64
+.LCamellia_SIGMA:
+.long	2694735487,1003262091,3061508184,1286239154,3337565999,3914302142,1426019237,4057165596,283453434,3731369245,2958461122,3018244605,0,0,0,0
+.align	64
+.LCamellia_SBOX:
+.long	1886416896,1886388336
+.long	2189591040,741081132
+.long	741092352,3014852787
+.long	3974949888,3233808576
+.long	3014898432,3840147684
+.long	656877312,1465319511
+.long	3233857536,3941204202
+.long	3857048832,2930639022
+.long	3840205824,589496355
+.long	2240120064,1802174571
+.long	1465341696,1162149957
+.long	892679424,2779054245
+.long	3941263872,3991732461
+.long	202116096,1330577487
+.long	2930683392,488439837
+.long	1094795520,2459041938
+.long	589505280,2256928902
+.long	4025478912,2947481775
+.long	1802201856,2088501372
+.long	2475922176,522125343
+.long	1162167552,1044250686
+.long	421075200,3705405660
+.long	2779096320,1583218782
+.long	555819264,185270283
+.long	3991792896,2795896998
+.long	235802112,960036921
+.long	1330597632,3587506389
+.long	1313754624,1566376029
+.long	488447232,3654877401
+.long	1701143808,1515847770
+.long	2459079168,1364262993
+.long	3183328512,1819017324
+.long	2256963072,2341142667
+.long	3099113472,2593783962
+.long	2947526400,4227531003
+.long	2408550144,2964324528
+.long	2088532992,1953759348
+.long	3958106880,724238379
+.long	522133248,4042260720
+.long	3469659648,2223243396
+.long	1044266496,3755933919
+.long	808464384,3419078859
+.long	3705461760,875823156
+.long	1600085760,1987444854
+.long	1583242752,1835860077
+.long	3318072576,2846425257
+.long	185273088,3520135377
+.long	437918208,67371012
+.long	2795939328,336855060
+.long	3789676800,976879674
+.long	960051456,3739091166
+.long	3402287616,286326801
+.long	3587560704,842137650
+.long	1195853568,2627469468
+.long	1566399744,1397948499
+.long	1027423488,4075946226
+.long	3654932736,4278059262
+.long	16843008,3486449871
+.long	1515870720,3284336835
+.long	3604403712,2054815866
+.long	1364283648,606339108
+.long	1448498688,3907518696
+.long	1819044864,1616904288
+.long	1296911616,1768489065
+.long	2341178112,2863268010
+.long	218959104,2694840480
+.long	2593823232,2711683233
+.long	1717986816,1650589794
+.long	4227595008,1414791252
+.long	3435973632,505282590
+.long	2964369408,3772776672
+.long	757935360,1684275300
+.long	1953788928,269484048
+.long	303174144,0
+.long	724249344,2745368739
+.long	538976256,1970602101
+.long	4042321920,2324299914
+.long	2981212416,3873833190
+.long	2223277056,151584777
+.long	2576980224,3722248413
+.long	3755990784,2273771655
+.long	1280068608,2206400643
+.long	3419130624,3452764365
+.long	3267543552,2425356432
+.long	875836416,1936916595
+.long	2122219008,4143317238
+.long	1987474944,2644312221
+.long	84215040,3216965823
+.long	1835887872,1381105746
+.long	3082270464,3638034648
+.long	2846468352,3368550600
+.long	825307392,3334865094
+.long	3520188672,2172715137
+.long	387389184,1869545583
+.long	67372032,320012307
+.long	3621246720,1667432547
+.long	336860160,3924361449
+.long	1482184704,2812739751
+.long	976894464,2677997727
+.long	1633771776,3166437564
+.long	3739147776,690552873
+.long	454761216,4193845497
+.long	286331136,791609391
+.long	471604224,3031695540
+.long	842150400,2021130360
+.long	252645120,101056518
+.long	2627509248,3890675943
+.long	370546176,1903231089
+.long	1397969664,3570663636
+.long	404232192,2880110763
+.long	4076007936,2290614408
+.long	572662272,2374828173
+.long	4278124032,1920073842
+.long	1145324544,3115909305
+.long	3486502656,4177002744
+.long	2998055424,2896953516
+.long	3284386560,909508662
+.long	3048584448,707395626
+.long	2054846976,1010565180
+.long	2442236160,4059103473
+.long	606348288,1077936192
+.long	134744064,3553820883
+.long	3907577856,3149594811
+.long	2829625344,1128464451
+.long	1616928768,353697813
+.long	4244438016,2913796269
+.long	1768515840,2004287607
+.long	1347440640,2155872384
+.long	2863311360,2189557890
+.long	3503345664,3974889708
+.long	2694881280,656867367
+.long	2105376000,3856990437
+.long	2711724288,2240086149
+.long	2307492096,892665909
+.long	1650614784,202113036
+.long	2543294208,1094778945
+.long	1414812672,4025417967
+.long	1532713728,2475884691
+.long	505290240,421068825
+.long	2509608192,555810849
+.long	3772833792,235798542
+.long	4294967040,1313734734
+.long	1684300800,1701118053
+.long	3537031680,3183280317
+.long	269488128,3099066552
+.long	3301229568,2408513679
+.long	0,3958046955
+.long	1212696576,3469607118
+.long	2745410304,808452144
+.long	4160222976,1600061535
+.long	1970631936,3318022341
+.long	3688618752,437911578
+.long	2324335104,3789619425
+.long	50529024,3402236106
+.long	3873891840,1195835463
+.long	3671775744,1027407933
+.long	151587072,16842753
+.long	1061109504,3604349142
+.long	3722304768,1448476758
+.long	2492765184,1296891981
+.long	2273806080,218955789
+.long	1549556736,1717960806
+.long	2206434048,3435921612
+.long	33686016,757923885
+.long	3452816640,303169554
+.long	1246382592,538968096
+.long	2425393152,2981167281
+.long	858993408,2576941209
+.long	1936945920,1280049228
+.long	1734829824,3267494082
+.long	4143379968,2122186878
+.long	4092850944,84213765
+.long	2644352256,3082223799
+.long	2139062016,825294897
+.long	3217014528,387383319
+.long	3806519808,3621191895
+.long	1381126656,1482162264
+.long	2610666240,1633747041
+.long	3638089728,454754331
+.long	640034304,471597084
+.long	3368601600,252641295
+.long	926365440,370540566
+.long	3334915584,404226072
+.long	993737472,572653602
+.long	2172748032,1145307204
+.long	2526451200,2998010034
+.long	1869573888,3048538293
+.long	1263225600,2442199185
+.long	320017152,134742024
+.long	3200171520,2829582504
+.long	1667457792,4244373756
+.long	774778368,1347420240
+.long	3924420864,3503292624
+.long	2038003968,2105344125
+.long	2812782336,2307457161
+.long	2358021120,2543255703
+.long	2678038272,1532690523
+.long	1852730880,2509570197
+.long	3166485504,4294902015
+.long	2391707136,3536978130
+.long	690563328,3301179588
+.long	4126536960,1212678216
+.long	4193908992,4160159991
+.long	3065427456,3688562907
+.long	791621376,50528259
+.long	4261281024,3671720154
+.long	3031741440,1061093439
+.long	1499027712,2492727444
+.long	2021160960,1549533276
+.long	2560137216,33685506
+.long	101058048,1246363722
+.long	1785358848,858980403
+.long	3890734848,1734803559
+.long	1179010560,4092788979
+.long	1903259904,2139029631
+.long	3132799488,3806462178
+.long	3570717696,2610626715
+.long	623191296,640024614
+.long	2880154368,926351415
+.long	1111638528,993722427
+.long	2290649088,2526412950
+.long	2728567296,1263206475
+.long	2374864128,3200123070
+.long	4210752000,774766638
+.long	1920102912,2037973113
+.long	117901056,2357985420
+.long	3115956480,1852702830
+.long	1431655680,2391670926
+.long	4177065984,4126474485
+.long	4008635904,3065381046
+.long	2896997376,4261216509
+.long	168430080,1499005017
+.long	909522432,2560098456
+.long	1229539584,1785331818
+.long	707406336,1178992710
+.long	1751672832,3132752058
+.long	1010580480,623181861
+.long	943208448,1111621698
+.long	4059164928,2728525986
+.long	2762253312,4210688250
+.long	1077952512,117899271
+.long	673720320,1431634005
+.long	3553874688,4008575214
+.long	2071689984,168427530
+.long	3149642496,1229520969
+.long	3385444608,1751646312
+.long	1128481536,943194168
+.long	3250700544,2762211492
+.long	353703168,673710120
+.long	3823362816,2071658619
+.long	2913840384,3385393353
+.long	4109693952,3250651329
+.long	2004317952,3823304931
+.long	3351758592,4109631732
+.long	2155905024,3351707847
+.long	2661195264,2661154974
+.long	14737632,939538488
+.long	328965,1090535745
+.long	5789784,369104406
+.long	14277081,1979741814
+.long	6776679,3640711641
+.long	5131854,2466288531
+.long	8487297,1610637408
+.long	13355979,4060148466
+.long	13224393,1912631922
+.long	723723,3254829762
+.long	11447982,2868947883
+.long	6974058,2583730842
+.long	14013909,1962964341
+.long	1579032,100664838
+.long	6118749,1459640151
+.long	8553090,2684395680
+.long	4605510,2432733585
+.long	14671839,4144035831
+.long	14079702,3036722613
+.long	2565927,3372272073
+.long	9079434,2717950626
+.long	3289650,2348846220
+.long	4934475,3523269330
+.long	4342338,2415956112
+.long	14408667,4127258358
+.long	1842204,117442311
+.long	10395294,2801837991
+.long	10263708,654321447
+.long	3815994,2382401166
+.long	13290186,2986390194
+.long	2434341,1224755529
+.long	8092539,3724599006
+.long	855309,1124090691
+.long	7434609,1543527516
+.long	6250335,3607156695
+.long	2039583,3338717127
+.long	16316664,1040203326
+.long	14145495,4110480885
+.long	4079166,2399178639
+.long	10329501,1728079719
+.long	8158332,520101663
+.long	6316128,402659352
+.long	12171705,1845522030
+.long	12500670,2936057775
+.long	12369084,788541231
+.long	9145227,3791708898
+.long	1447446,2231403909
+.long	3421236,218107149
+.long	5066061,1392530259
+.long	12829635,4026593520
+.long	7500402,2617285788
+.long	9803157,1694524773
+.long	11250603,3925928682
+.long	9342606,2734728099
+.long	12237498,2919280302
+.long	8026746,2650840734
+.long	11776947,3959483628
+.long	131586,2147516544
+.long	11842740,754986285
+.long	11382189,1795189611
+.long	10658466,2818615464
+.long	11316396,721431339
+.long	14211288,905983542
+.long	10132122,2785060518
+.long	1513239,3305162181
+.long	1710618,2248181382
+.long	3487029,1291865421
+.long	13421772,855651123
+.long	16250871,4244700669
+.long	10066329,1711302246
+.long	6381921,1476417624
+.long	5921370,2516620950
+.long	15263976,973093434
+.long	2368548,150997257
+.long	5658198,2499843477
+.long	4210752,268439568
+.long	14803425,2013296760
+.long	6513507,3623934168
+.long	592137,1107313218
+.long	3355443,3422604492
+.long	12566463,4009816047
+.long	10000536,637543974
+.long	9934743,3842041317
+.long	8750469,1627414881
+.long	6842472,436214298
+.long	16579836,1056980799
+.long	15527148,989870907
+.long	657930,2181071490
+.long	14342874,3053500086
+.long	7303023,3674266587
+.long	5460819,3556824276
+.long	6447714,2550175896
+.long	10724259,3892373736
+.long	3026478,2332068747
+.long	526344,33554946
+.long	11513775,3942706155
+.long	2631720,167774730
+.long	11579568,738208812
+.long	7631988,486546717
+.long	12763842,2952835248
+.long	12434877,1862299503
+.long	3552822,2365623693
+.long	2236962,2281736328
+.long	3684408,234884622
+.long	6579300,419436825
+.long	1973790,2264958855
+.long	3750201,1308642894
+.long	2894892,184552203
+.long	10921638,2835392937
+.long	3158064,201329676
+.long	15066597,2030074233
+.long	4473924,285217041
+.long	16645629,2130739071
+.long	8947848,570434082
+.long	10461087,3875596263
+.long	6645093,1493195097
+.long	8882055,3774931425
+.long	7039851,3657489114
+.long	16053492,1023425853
+.long	2302755,3355494600
+.long	4737096,301994514
+.long	1052688,67109892
+.long	13750737,1946186868
+.long	5329233,1409307732
+.long	12632256,805318704
+.long	16382457,2113961598
+.long	13816530,3019945140
+.long	10526880,671098920
+.long	5592405,1426085205
+.long	10592673,1744857192
+.long	4276545,1342197840
+.long	16448250,3187719870
+.long	4408131,3489714384
+.long	1250067,3288384708
+.long	12895428,822096177
+.long	3092271,3405827019
+.long	11053224,704653866
+.long	11974326,2902502829
+.long	3947580,251662095
+.long	2829099,3389049546
+.long	12698049,1879076976
+.long	16777215,4278255615
+.long	13158600,838873650
+.long	10855845,1761634665
+.long	2105376,134219784
+.long	9013641,1644192354
+.long	0,0
+.long	9474192,603989028
+.long	4671303,3506491857
+.long	15724527,4211145723
+.long	15395562,3120609978
+.long	12040119,3976261101
+.long	1381653,1157645637
+.long	394758,2164294017
+.long	13487565,1929409395
+.long	11908533,1828744557
+.long	1184274,2214626436
+.long	8289918,2667618207
+.long	12303291,3993038574
+.long	2697513,1241533002
+.long	986895,3271607235
+.long	12105912,771763758
+.long	460551,3238052289
+.long	263172,16777473
+.long	10197915,3858818790
+.long	9737364,620766501
+.long	2171169,1207978056
+.long	6710886,2566953369
+.long	15132390,3103832505
+.long	13553358,3003167667
+.long	15592941,2063629179
+.long	15198183,4177590777
+.long	3881787,3456159438
+.long	16711422,3204497343
+.long	8355711,3741376479
+.long	12961221,1895854449
+.long	10790052,687876393
+.long	3618615,3439381965
+.long	11645361,1811967084
+.long	5000268,318771987
+.long	9539985,1677747300
+.long	7237230,2600508315
+.long	9276813,1660969827
+.long	7763574,2634063261
+.long	197379,3221274816
+.long	2960685,1258310475
+.long	14606046,3070277559
+.long	9868950,2768283045
+.long	2500134,2298513801
+.long	8224125,1593859935
+.long	13027014,2969612721
+.long	6052956,385881879
+.long	13882323,4093703412
+.long	15921906,3154164924
+.long	5197647,3540046803
+.long	1644825,1174423110
+.long	4144959,3472936911
+.long	14474460,922761015
+.long	7960953,1577082462
+.long	1907997,1191200583
+.long	5395026,2483066004
+.long	15461355,4194368250
+.long	15987699,4227923196
+.long	7171437,1526750043
+.long	6184542,2533398423
+.long	16514043,4261478142
+.long	6908265,1509972570
+.long	11711154,2885725356
+.long	15790320,1006648380
+.long	3223857,1275087948
+.long	789516,50332419
+.long	13948116,889206069
+.long	13619151,4076925939
+.long	9211020,587211555
+.long	14869218,3087055032
+.long	7697781,1560304989
+.long	11119017,1778412138
+.long	4868682,2449511058
+.long	5723991,3573601749
+.long	8684676,553656609
+.long	1118481,1140868164
+.long	4539717,1358975313
+.long	1776411,3321939654
+.long	16119285,2097184125
+.long	15000804,956315961
+.long	921102,2197848963
+.long	7566195,3691044060
+.long	11184810,2852170410
+.long	15856113,2080406652
+.long	14540253,1996519287
+.long	5855577,1442862678
+.long	1315860,83887365
+.long	7105644,452991771
+.long	9605778,2751505572
+.long	5526612,352326933
+.long	13684944,872428596
+.long	7895160,503324190
+.long	7368816,469769244
+.long	14935011,4160813304
+.long	4802889,1375752786
+.long	8421504,536879136
+.long	5263440,335549460
+.long	10987431,3909151209
+.long	16185078,3170942397
+.long	7829367,3707821533
+.long	9671571,3825263844
+.long	8816262,2701173153
+.long	8618883,3758153952
+.long	2763306,2315291274
+.long	13092807,4043370993
+.long	5987163,3590379222
+.long	15329769,2046851706
+.long	15658734,3137387451
+.long	9408399,3808486371
+.long	65793,1073758272
+.long	4013373,1325420367
+.globl	Camellia_cbc_encrypt
+.type	Camellia_cbc_encrypt,@function
+.align	16
+Camellia_cbc_encrypt:
+.L_Camellia_cbc_encrypt_begin:
+	pushl	%ebp
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+	movl	28(%esp),%ecx
+	cmpl	$0,%ecx
+	je	.L016enc_out
+	pushfl
+	cld
+	movl	24(%esp),%eax
+	movl	28(%esp),%ebx
+	movl	36(%esp),%edx
+	movl	40(%esp),%ebp
+	leal	-64(%esp),%esi
+	andl	$-64,%esi
+	leal	-127(%edx),%edi
+	subl	%esi,%edi
+	negl	%edi
+	andl	$960,%edi
+	subl	%edi,%esi
+	movl	44(%esp),%edi
+	xchgl	%esi,%esp
+	addl	$4,%esp
+	movl	%esi,20(%esp)
+	movl	%eax,24(%esp)
+	movl	%ebx,28(%esp)
+	movl	%ecx,32(%esp)
+	movl	%edx,36(%esp)
+	movl	%ebp,40(%esp)
+	call	.L017pic_point
+.L017pic_point:
+	popl	%ebp
+	leal	.LCamellia_SBOX-.L017pic_point(%ebp),%ebp
+	movl	$32,%esi
+.align	4
+.L018prefetch_sbox:
+	movl	(%ebp),%eax
+	movl	32(%ebp),%ebx
+	movl	64(%ebp),%ecx
+	movl	96(%ebp),%edx
+	leal	128(%ebp),%ebp
+	decl	%esi
+	jnz	.L018prefetch_sbox
+	movl	36(%esp),%eax
+	subl	$4096,%ebp
+	movl	24(%esp),%esi
+	movl	272(%eax),%edx
+	cmpl	$0,%edi
+	je	.L019DECRYPT
+	movl	32(%esp),%ecx
+	movl	40(%esp),%edi
+	shll	$6,%edx
+	leal	(%eax,%edx,1),%edx
+	movl	%edx,16(%esp)
+	testl	$4294967280,%ecx
+	jz	.L020enc_tail
+	movl	(%edi),%eax
+	movl	4(%edi),%ebx
+.align	4
+.L021enc_loop:
+	movl	8(%edi),%ecx
+	movl	12(%edi),%edx
+	xorl	(%esi),%eax
+	xorl	4(%esi),%ebx
+	xorl	8(%esi),%ecx
+	bswap	%eax
+	xorl	12(%esi),%edx
+	bswap	%ebx
+	movl	36(%esp),%edi
+	bswap	%ecx
+	bswap	%edx
+	call	_x86_Camellia_encrypt
+	movl	24(%esp),%esi
+	movl	28(%esp),%edi
+	bswap	%eax
+	bswap	%ebx
+	bswap	%ecx
+	movl	%eax,(%edi)
+	bswap	%edx
+	movl	%ebx,4(%edi)
+	movl	%ecx,8(%edi)
+	movl	%edx,12(%edi)
+	movl	32(%esp),%ecx
+	leal	16(%esi),%esi
+	movl	%esi,24(%esp)
+	leal	16(%edi),%edx
+	movl	%edx,28(%esp)
+	subl	$16,%ecx
+	testl	$4294967280,%ecx
+	movl	%ecx,32(%esp)
+	jnz	.L021enc_loop
+	testl	$15,%ecx
+	jnz	.L020enc_tail
+	movl	40(%esp),%esi
+	movl	8(%edi),%ecx
+	movl	12(%edi),%edx
+	movl	%eax,(%esi)
+	movl	%ebx,4(%esi)
+	movl	%ecx,8(%esi)
+	movl	%edx,12(%esi)
+	movl	20(%esp),%esp
+	popfl
+.L016enc_out:
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+	pushfl
+.align	4
+.L020enc_tail:
+	movl	%edi,%eax
+	movl	28(%esp),%edi
+	pushl	%eax
+	movl	$16,%ebx
+	subl	%ecx,%ebx
+	cmpl	%esi,%edi
+	je	.L022enc_in_place
+.align	4
+.long	2767451785
+	jmp	.L023enc_skip_in_place
+.L022enc_in_place:
+	leal	(%edi,%ecx,1),%edi
+.L023enc_skip_in_place:
+	movl	%ebx,%ecx
+	xorl	%eax,%eax
+.align	4
+.long	2868115081
+	popl	%edi
+	movl	28(%esp),%esi
+	movl	(%edi),%eax
+	movl	4(%edi),%ebx
+	movl	$16,32(%esp)
+	jmp	.L021enc_loop
+.align	16
+.L019DECRYPT:
+	shll	$6,%edx
+	leal	(%eax,%edx,1),%edx
+	movl	%eax,16(%esp)
+	movl	%edx,36(%esp)
+	cmpl	28(%esp),%esi
+	je	.L024dec_in_place
+	movl	40(%esp),%edi
+	movl	%edi,44(%esp)
+.align	4
+.L025dec_loop:
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	bswap	%eax
+	movl	12(%esi),%edx
+	bswap	%ebx
+	movl	36(%esp),%edi
+	bswap	%ecx
+	bswap	%edx
+	call	_x86_Camellia_decrypt
+	movl	44(%esp),%edi
+	movl	32(%esp),%esi
+	bswap	%eax
+	bswap	%ebx
+	bswap	%ecx
+	xorl	(%edi),%eax
+	bswap	%edx
+	xorl	4(%edi),%ebx
+	xorl	8(%edi),%ecx
+	xorl	12(%edi),%edx
+	subl	$16,%esi
+	jc	.L026dec_partial
+	movl	%esi,32(%esp)
+	movl	24(%esp),%esi
+	movl	28(%esp),%edi
+	movl	%eax,(%edi)
+	movl	%ebx,4(%edi)
+	movl	%ecx,8(%edi)
+	movl	%edx,12(%edi)
+	movl	%esi,44(%esp)
+	leal	16(%esi),%esi
+	movl	%esi,24(%esp)
+	leal	16(%edi),%edi
+	movl	%edi,28(%esp)
+	jnz	.L025dec_loop
+	movl	44(%esp),%edi
+.L027dec_end:
+	movl	40(%esp),%esi
+	movl	(%edi),%eax
+	movl	4(%edi),%ebx
+	movl	8(%edi),%ecx
+	movl	12(%edi),%edx
+	movl	%eax,(%esi)
+	movl	%ebx,4(%esi)
+	movl	%ecx,8(%esi)
+	movl	%edx,12(%esi)
+	jmp	.L028dec_out
+.align	4
+.L026dec_partial:
+	leal	44(%esp),%edi
+	movl	%eax,(%edi)
+	movl	%ebx,4(%edi)
+	movl	%ecx,8(%edi)
+	movl	%edx,12(%edi)
+	leal	16(%esi),%ecx
+	movl	%edi,%esi
+	movl	28(%esp),%edi
+.long	2767451785
+	movl	24(%esp),%edi
+	jmp	.L027dec_end
+.align	4
+.L024dec_in_place:
+.L029dec_in_place_loop:
+	leal	44(%esp),%edi
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	movl	12(%esi),%edx
+	movl	%eax,(%edi)
+	movl	%ebx,4(%edi)
+	movl	%ecx,8(%edi)
+	bswap	%eax
+	movl	%edx,12(%edi)
+	bswap	%ebx
+	movl	36(%esp),%edi
+	bswap	%ecx
+	bswap	%edx
+	call	_x86_Camellia_decrypt
+	movl	40(%esp),%edi
+	movl	28(%esp),%esi
+	bswap	%eax
+	bswap	%ebx
+	bswap	%ecx
+	xorl	(%edi),%eax
+	bswap	%edx
+	xorl	4(%edi),%ebx
+	xorl	8(%edi),%ecx
+	xorl	12(%edi),%edx
+	movl	%eax,(%esi)
+	movl	%ebx,4(%esi)
+	movl	%ecx,8(%esi)
+	movl	%edx,12(%esi)
+	leal	16(%esi),%esi
+	movl	%esi,28(%esp)
+	leal	44(%esp),%esi
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	movl	12(%esi),%edx
+	movl	%eax,(%edi)
+	movl	%ebx,4(%edi)
+	movl	%ecx,8(%edi)
+	movl	%edx,12(%edi)
+	movl	24(%esp),%esi
+	leal	16(%esi),%esi
+	movl	%esi,24(%esp)
+	movl	32(%esp),%ecx
+	subl	$16,%ecx
+	jc	.L030dec_in_place_partial
+	movl	%ecx,32(%esp)
+	jnz	.L029dec_in_place_loop
+	jmp	.L028dec_out
+.align	4
+.L030dec_in_place_partial:
+	movl	28(%esp),%edi
+	leal	44(%esp),%esi
+	leal	(%edi,%ecx,1),%edi
+	leal	16(%esi,%ecx,1),%esi
+	negl	%ecx
+.long	2767451785
+.align	4
+.L028dec_out:
+	movl	20(%esp),%esp
+	popfl
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+.size	Camellia_cbc_encrypt,.-.L_Camellia_cbc_encrypt_begin
+.byte	67,97,109,101,108,108,105,97,32,102,111,114,32,120,56,54
+.byte	32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115
+.byte	115,108,46,111,114,103,62,0
+#else
+.text
+.globl	Camellia_EncryptBlock_Rounds
+.type	Camellia_EncryptBlock_Rounds,@function
+.align	16
+Camellia_EncryptBlock_Rounds:
+.L_Camellia_EncryptBlock_Rounds_begin:
+	pushl	%ebp
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+	movl	20(%esp),%eax
+	movl	24(%esp),%esi
+	movl	28(%esp),%edi
+	movl	%esp,%ebx
+	subl	$28,%esp
+	andl	$-64,%esp
+	leal	-127(%edi),%ecx
+	subl	%esp,%ecx
+	negl	%ecx
+	andl	$960,%ecx
+	subl	%ecx,%esp
+	addl	$4,%esp
+	shll	$6,%eax
+	leal	(%edi,%eax,1),%eax
+	movl	%ebx,20(%esp)
+	movl	%eax,16(%esp)
+	call	.L000pic_point
+.L000pic_point:
+	popl	%ebp
+	leal	.LCamellia_SBOX-.L000pic_point(%ebp),%ebp
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	bswap	%eax
+	movl	12(%esi),%edx
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	call	_x86_Camellia_encrypt
+	movl	20(%esp),%esp
+	bswap	%eax
+	movl	32(%esp),%esi
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	movl	%eax,(%esi)
+	movl	%ebx,4(%esi)
+	movl	%ecx,8(%esi)
+	movl	%edx,12(%esi)
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+.size	Camellia_EncryptBlock_Rounds,.-.L_Camellia_EncryptBlock_Rounds_begin
+.globl	Camellia_EncryptBlock
+.type	Camellia_EncryptBlock,@function
+.align	16
+Camellia_EncryptBlock:
+.L_Camellia_EncryptBlock_begin:
+	movl	$128,%eax
+	subl	4(%esp),%eax
+	movl	$3,%eax
+	adcl	$0,%eax
+	movl	%eax,4(%esp)
+	jmp	.L_Camellia_EncryptBlock_Rounds_begin
+.size	Camellia_EncryptBlock,.-.L_Camellia_EncryptBlock_begin
+.globl	Camellia_encrypt
+.type	Camellia_encrypt,@function
+.align	16
+Camellia_encrypt:
+.L_Camellia_encrypt_begin:
+	pushl	%ebp
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+	movl	20(%esp),%esi
+	movl	28(%esp),%edi
+	movl	%esp,%ebx
+	subl	$28,%esp
+	andl	$-64,%esp
+	movl	272(%edi),%eax
+	leal	-127(%edi),%ecx
+	subl	%esp,%ecx
+	negl	%ecx
+	andl	$960,%ecx
+	subl	%ecx,%esp
+	addl	$4,%esp
+	shll	$6,%eax
+	leal	(%edi,%eax,1),%eax
+	movl	%ebx,20(%esp)
+	movl	%eax,16(%esp)
+	call	.L001pic_point
+.L001pic_point:
+	popl	%ebp
+	leal	.LCamellia_SBOX-.L001pic_point(%ebp),%ebp
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	bswap	%eax
+	movl	12(%esi),%edx
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	call	_x86_Camellia_encrypt
+	movl	20(%esp),%esp
+	bswap	%eax
+	movl	24(%esp),%esi
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	movl	%eax,(%esi)
+	movl	%ebx,4(%esi)
+	movl	%ecx,8(%esi)
+	movl	%edx,12(%esi)
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+.size	Camellia_encrypt,.-.L_Camellia_encrypt_begin
+.type	_x86_Camellia_encrypt,@function
+.align	16
+_x86_Camellia_encrypt:
+	xorl	(%edi),%eax
+	xorl	4(%edi),%ebx
+	xorl	8(%edi),%ecx
+	xorl	12(%edi),%edx
+	movl	16(%edi),%esi
+	movl	%eax,4(%esp)
+	movl	%ebx,8(%esp)
+	movl	%ecx,12(%esp)
+	movl	%edx,16(%esp)
+.align	16
+.L002loop:
+	xorl	%esi,%eax
+	xorl	20(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	16(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	12(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	24(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,16(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,12(%esp)
+	xorl	%esi,%ecx
+	xorl	28(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	8(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	4(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	32(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,8(%esp)
+	xorl	%edx,%eax
+	movl	%eax,4(%esp)
+	xorl	%esi,%eax
+	xorl	36(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	16(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	12(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	40(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,16(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,12(%esp)
+	xorl	%esi,%ecx
+	xorl	44(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	8(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	4(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	48(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,8(%esp)
+	xorl	%edx,%eax
+	movl	%eax,4(%esp)
+	xorl	%esi,%eax
+	xorl	52(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	16(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	12(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	56(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,16(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,12(%esp)
+	xorl	%esi,%ecx
+	xorl	60(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	8(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	4(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	64(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,8(%esp)
+	xorl	%edx,%eax
+	movl	%eax,4(%esp)
+	addl	$64,%edi
+	cmpl	20(%esp),%edi
+	je	.L003done
+	andl	%eax,%esi
+	movl	16(%esp),%edx
+	roll	$1,%esi
+	movl	%edx,%ecx
+	xorl	%esi,%ebx
+	orl	12(%edi),%ecx
+	movl	%ebx,8(%esp)
+	xorl	12(%esp),%ecx
+	movl	4(%edi),%esi
+	movl	%ecx,12(%esp)
+	orl	%ebx,%esi
+	andl	8(%edi),%ecx
+	xorl	%esi,%eax
+	roll	$1,%ecx
+	movl	%eax,4(%esp)
+	xorl	%ecx,%edx
+	movl	16(%edi),%esi
+	movl	%edx,16(%esp)
+	jmp	.L002loop
+.align	8
+.L003done:
+	movl	%eax,%ecx
+	movl	%ebx,%edx
+	movl	12(%esp),%eax
+	movl	16(%esp),%ebx
+	xorl	%esi,%eax
+	xorl	4(%edi),%ebx
+	xorl	8(%edi),%ecx
+	xorl	12(%edi),%edx
+	ret
+.size	_x86_Camellia_encrypt,.-_x86_Camellia_encrypt
+.globl	Camellia_DecryptBlock_Rounds
+.type	Camellia_DecryptBlock_Rounds,@function
+.align	16
+Camellia_DecryptBlock_Rounds:
+.L_Camellia_DecryptBlock_Rounds_begin:
+	pushl	%ebp
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+	movl	20(%esp),%eax
+	movl	24(%esp),%esi
+	movl	28(%esp),%edi
+	movl	%esp,%ebx
+	subl	$28,%esp
+	andl	$-64,%esp
+	leal	-127(%edi),%ecx
+	subl	%esp,%ecx
+	negl	%ecx
+	andl	$960,%ecx
+	subl	%ecx,%esp
+	addl	$4,%esp
+	shll	$6,%eax
+	movl	%edi,16(%esp)
+	leal	(%edi,%eax,1),%edi
+	movl	%ebx,20(%esp)
+	call	.L004pic_point
+.L004pic_point:
+	popl	%ebp
+	leal	.LCamellia_SBOX-.L004pic_point(%ebp),%ebp
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	bswap	%eax
+	movl	12(%esi),%edx
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	call	_x86_Camellia_decrypt
+	movl	20(%esp),%esp
+	bswap	%eax
+	movl	32(%esp),%esi
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	movl	%eax,(%esi)
+	movl	%ebx,4(%esi)
+	movl	%ecx,8(%esi)
+	movl	%edx,12(%esi)
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+.size	Camellia_DecryptBlock_Rounds,.-.L_Camellia_DecryptBlock_Rounds_begin
+.globl	Camellia_DecryptBlock
+.type	Camellia_DecryptBlock,@function
+.align	16
+Camellia_DecryptBlock:
+.L_Camellia_DecryptBlock_begin:
+	movl	$128,%eax
+	subl	4(%esp),%eax
+	movl	$3,%eax
+	adcl	$0,%eax
+	movl	%eax,4(%esp)
+	jmp	.L_Camellia_DecryptBlock_Rounds_begin
+.size	Camellia_DecryptBlock,.-.L_Camellia_DecryptBlock_begin
+.globl	Camellia_decrypt
+.type	Camellia_decrypt,@function
+.align	16
+Camellia_decrypt:
+.L_Camellia_decrypt_begin:
+	pushl	%ebp
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+	movl	20(%esp),%esi
+	movl	28(%esp),%edi
+	movl	%esp,%ebx
+	subl	$28,%esp
+	andl	$-64,%esp
+	movl	272(%edi),%eax
+	leal	-127(%edi),%ecx
+	subl	%esp,%ecx
+	negl	%ecx
+	andl	$960,%ecx
+	subl	%ecx,%esp
+	addl	$4,%esp
+	shll	$6,%eax
+	movl	%edi,16(%esp)
+	leal	(%edi,%eax,1),%edi
+	movl	%ebx,20(%esp)
+	call	.L005pic_point
+.L005pic_point:
+	popl	%ebp
+	leal	.LCamellia_SBOX-.L005pic_point(%ebp),%ebp
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	bswap	%eax
+	movl	12(%esi),%edx
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	call	_x86_Camellia_decrypt
+	movl	20(%esp),%esp
+	bswap	%eax
+	movl	24(%esp),%esi
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	movl	%eax,(%esi)
+	movl	%ebx,4(%esi)
+	movl	%ecx,8(%esi)
+	movl	%edx,12(%esi)
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+.size	Camellia_decrypt,.-.L_Camellia_decrypt_begin
+.type	_x86_Camellia_decrypt,@function
+.align	16
+_x86_Camellia_decrypt:
+	xorl	(%edi),%eax
+	xorl	4(%edi),%ebx
+	xorl	8(%edi),%ecx
+	xorl	12(%edi),%edx
+	movl	-8(%edi),%esi
+	movl	%eax,4(%esp)
+	movl	%ebx,8(%esp)
+	movl	%ecx,12(%esp)
+	movl	%edx,16(%esp)
+.align	16
+.L006loop:
+	xorl	%esi,%eax
+	xorl	-4(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	16(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	12(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	-16(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,16(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,12(%esp)
+	xorl	%esi,%ecx
+	xorl	-12(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	8(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	4(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	-24(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,8(%esp)
+	xorl	%edx,%eax
+	movl	%eax,4(%esp)
+	xorl	%esi,%eax
+	xorl	-20(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	16(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	12(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	-32(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,16(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,12(%esp)
+	xorl	%esi,%ecx
+	xorl	-28(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	8(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	4(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	-40(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,8(%esp)
+	xorl	%edx,%eax
+	movl	%eax,4(%esp)
+	xorl	%esi,%eax
+	xorl	-36(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	16(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	12(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	-48(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,16(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,12(%esp)
+	xorl	%esi,%ecx
+	xorl	-44(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	8(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	4(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	-56(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,8(%esp)
+	xorl	%edx,%eax
+	movl	%eax,4(%esp)
+	subl	$64,%edi
+	cmpl	20(%esp),%edi
+	je	.L007done
+	andl	%eax,%esi
+	movl	16(%esp),%edx
+	roll	$1,%esi
+	movl	%edx,%ecx
+	xorl	%esi,%ebx
+	orl	4(%edi),%ecx
+	movl	%ebx,8(%esp)
+	xorl	12(%esp),%ecx
+	movl	12(%edi),%esi
+	movl	%ecx,12(%esp)
+	orl	%ebx,%esi
+	andl	(%edi),%ecx
+	xorl	%esi,%eax
+	roll	$1,%ecx
+	movl	%eax,4(%esp)
+	xorl	%ecx,%edx
+	movl	-8(%edi),%esi
+	movl	%edx,16(%esp)
+	jmp	.L006loop
+.align	8
+.L007done:
+	movl	%eax,%ecx
+	movl	%ebx,%edx
+	movl	12(%esp),%eax
+	movl	16(%esp),%ebx
+	xorl	%esi,%ecx
+	xorl	12(%edi),%edx
+	xorl	(%edi),%eax
+	xorl	4(%edi),%ebx
+	ret
+.size	_x86_Camellia_decrypt,.-_x86_Camellia_decrypt
+.globl	Camellia_Ekeygen
+.type	Camellia_Ekeygen,@function
+.align	16
+Camellia_Ekeygen:
+.L_Camellia_Ekeygen_begin:
+	pushl	%ebp
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+	subl	$16,%esp
+	movl	36(%esp),%ebp
+	movl	40(%esp),%esi
+	movl	44(%esp),%edi
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	movl	12(%esi),%edx
+	bswap	%eax
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	movl	%eax,(%edi)
+	movl	%ebx,4(%edi)
+	movl	%ecx,8(%edi)
+	movl	%edx,12(%edi)
+	cmpl	$128,%ebp
+	je	.L0081st128
+	movl	16(%esi),%eax
+	movl	20(%esi),%ebx
+	cmpl	$192,%ebp
+	je	.L0091st192
+	movl	24(%esi),%ecx
+	movl	28(%esi),%edx
+	jmp	.L0101st256
+.align	4
+.L0091st192:
+	movl	%eax,%ecx
+	movl	%ebx,%edx
+	notl	%ecx
+	notl	%edx
+.align	4
+.L0101st256:
+	bswap	%eax
+	bswap	%ebx
+	bswap	%ecx
+	bswap	%edx
+	movl	%eax,32(%edi)
+	movl	%ebx,36(%edi)
+	movl	%ecx,40(%edi)
+	movl	%edx,44(%edi)
+	xorl	(%edi),%eax
+	xorl	4(%edi),%ebx
+	xorl	8(%edi),%ecx
+	xorl	12(%edi),%edx
+.align	4
+.L0081st128:
+	call	.L011pic_point
+.L011pic_point:
+	popl	%ebp
+	leal	.LCamellia_SBOX-.L011pic_point(%ebp),%ebp
+	leal	.LCamellia_SIGMA-.LCamellia_SBOX(%ebp),%edi
+	movl	(%edi),%esi
+	movl	%eax,(%esp)
+	movl	%ebx,4(%esp)
+	movl	%ecx,8(%esp)
+	movl	%edx,12(%esp)
+	xorl	%esi,%eax
+	xorl	4(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	12(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	8(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	8(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,12(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,8(%esp)
+	xorl	%esi,%ecx
+	xorl	12(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	4(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	16(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,4(%esp)
+	xorl	%edx,%eax
+	movl	%eax,(%esp)
+	movl	8(%esp),%ecx
+	movl	12(%esp),%edx
+	movl	44(%esp),%esi
+	xorl	(%esi),%eax
+	xorl	4(%esi),%ebx
+	xorl	8(%esi),%ecx
+	xorl	12(%esi),%edx
+	movl	16(%edi),%esi
+	movl	%eax,(%esp)
+	movl	%ebx,4(%esp)
+	movl	%ecx,8(%esp)
+	movl	%edx,12(%esp)
+	xorl	%esi,%eax
+	xorl	20(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	12(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	8(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	24(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,12(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,8(%esp)
+	xorl	%esi,%ecx
+	xorl	28(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	4(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	32(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,4(%esp)
+	xorl	%edx,%eax
+	movl	%eax,(%esp)
+	movl	8(%esp),%ecx
+	movl	12(%esp),%edx
+	movl	36(%esp),%esi
+	cmpl	$128,%esi
+	jne	.L0122nd256
+	movl	44(%esp),%edi
+	leal	128(%edi),%edi
+	movl	%eax,-112(%edi)
+	movl	%ebx,-108(%edi)
+	movl	%ecx,-104(%edi)
+	movl	%edx,-100(%edi)
+	movl	%eax,%ebp
+	shll	$15,%eax
+	movl	%ebx,%esi
+	shrl	$17,%esi
+	shll	$15,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$15,%ecx
+	movl	%eax,-80(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ebx
+	shrl	$17,%ebp
+	movl	%edx,%esi
+	shrl	$17,%esi
+	movl	%ebx,-76(%edi)
+	shll	$15,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,-72(%edi)
+	movl	%edx,-68(%edi)
+	movl	%eax,%ebp
+	shll	$15,%eax
+	movl	%ebx,%esi
+	shrl	$17,%esi
+	shll	$15,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$15,%ecx
+	movl	%eax,-64(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ebx
+	shrl	$17,%ebp
+	movl	%edx,%esi
+	shrl	$17,%esi
+	movl	%ebx,-60(%edi)
+	shll	$15,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,-56(%edi)
+	movl	%edx,-52(%edi)
+	movl	%eax,%ebp
+	shll	$15,%eax
+	movl	%ebx,%esi
+	shrl	$17,%esi
+	shll	$15,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$15,%ecx
+	movl	%eax,-32(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ebx
+	shrl	$17,%ebp
+	movl	%edx,%esi
+	shrl	$17,%esi
+	movl	%ebx,-28(%edi)
+	shll	$15,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%eax,%ebp
+	shll	$15,%eax
+	movl	%ebx,%esi
+	shrl	$17,%esi
+	shll	$15,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$15,%ecx
+	movl	%eax,-16(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ebx
+	shrl	$17,%ebp
+	movl	%edx,%esi
+	shrl	$17,%esi
+	movl	%ebx,-12(%edi)
+	shll	$15,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,-8(%edi)
+	movl	%edx,-4(%edi)
+	movl	%ebx,%ebp
+	shll	$2,%ebx
+	movl	%ecx,%esi
+	shrl	$30,%esi
+	shll	$2,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$2,%edx
+	movl	%ebx,32(%edi)
+	shrl	$30,%esi
+	orl	%esi,%ecx
+	shrl	$30,%ebp
+	movl	%eax,%esi
+	shrl	$30,%esi
+	movl	%ecx,36(%edi)
+	shll	$2,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,40(%edi)
+	movl	%eax,44(%edi)
+	movl	%ebx,%ebp
+	shll	$17,%ebx
+	movl	%ecx,%esi
+	shrl	$15,%esi
+	shll	$17,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$17,%edx
+	movl	%ebx,64(%edi)
+	shrl	$15,%esi
+	orl	%esi,%ecx
+	shrl	$15,%ebp
+	movl	%eax,%esi
+	shrl	$15,%esi
+	movl	%ecx,68(%edi)
+	shll	$17,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,72(%edi)
+	movl	%eax,76(%edi)
+	movl	-128(%edi),%ebx
+	movl	-124(%edi),%ecx
+	movl	-120(%edi),%edx
+	movl	-116(%edi),%eax
+	movl	%ebx,%ebp
+	shll	$15,%ebx
+	movl	%ecx,%esi
+	shrl	$17,%esi
+	shll	$15,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$15,%edx
+	movl	%ebx,-96(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ecx
+	shrl	$17,%ebp
+	movl	%eax,%esi
+	shrl	$17,%esi
+	movl	%ecx,-92(%edi)
+	shll	$15,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,-88(%edi)
+	movl	%eax,-84(%edi)
+	movl	%ebx,%ebp
+	shll	$30,%ebx
+	movl	%ecx,%esi
+	shrl	$2,%esi
+	shll	$30,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$30,%edx
+	movl	%ebx,-48(%edi)
+	shrl	$2,%esi
+	orl	%esi,%ecx
+	shrl	$2,%ebp
+	movl	%eax,%esi
+	shrl	$2,%esi
+	movl	%ecx,-44(%edi)
+	shll	$30,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,-40(%edi)
+	movl	%eax,-36(%edi)
+	movl	%ebx,%ebp
+	shll	$15,%ebx
+	movl	%ecx,%esi
+	shrl	$17,%esi
+	shll	$15,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$15,%edx
+	shrl	$17,%esi
+	orl	%esi,%ecx
+	shrl	$17,%ebp
+	movl	%eax,%esi
+	shrl	$17,%esi
+	shll	$15,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,-24(%edi)
+	movl	%eax,-20(%edi)
+	movl	%ebx,%ebp
+	shll	$17,%ebx
+	movl	%ecx,%esi
+	shrl	$15,%esi
+	shll	$17,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$17,%edx
+	movl	%ebx,(%edi)
+	shrl	$15,%esi
+	orl	%esi,%ecx
+	shrl	$15,%ebp
+	movl	%eax,%esi
+	shrl	$15,%esi
+	movl	%ecx,4(%edi)
+	shll	$17,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,8(%edi)
+	movl	%eax,12(%edi)
+	movl	%ebx,%ebp
+	shll	$17,%ebx
+	movl	%ecx,%esi
+	shrl	$15,%esi
+	shll	$17,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$17,%edx
+	movl	%ebx,16(%edi)
+	shrl	$15,%esi
+	orl	%esi,%ecx
+	shrl	$15,%ebp
+	movl	%eax,%esi
+	shrl	$15,%esi
+	movl	%ecx,20(%edi)
+	shll	$17,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,24(%edi)
+	movl	%eax,28(%edi)
+	movl	%ebx,%ebp
+	shll	$17,%ebx
+	movl	%ecx,%esi
+	shrl	$15,%esi
+	shll	$17,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$17,%edx
+	movl	%ebx,48(%edi)
+	shrl	$15,%esi
+	orl	%esi,%ecx
+	shrl	$15,%ebp
+	movl	%eax,%esi
+	shrl	$15,%esi
+	movl	%ecx,52(%edi)
+	shll	$17,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,56(%edi)
+	movl	%eax,60(%edi)
+	movl	$3,%eax
+	jmp	.L013done
+.align	16
+.L0122nd256:
+	movl	44(%esp),%esi
+	movl	%eax,48(%esi)
+	movl	%ebx,52(%esi)
+	movl	%ecx,56(%esi)
+	movl	%edx,60(%esi)
+	xorl	32(%esi),%eax
+	xorl	36(%esi),%ebx
+	xorl	40(%esi),%ecx
+	xorl	44(%esi),%edx
+	movl	32(%edi),%esi
+	movl	%eax,(%esp)
+	movl	%ebx,4(%esp)
+	movl	%ecx,8(%esp)
+	movl	%edx,12(%esp)
+	xorl	%esi,%eax
+	xorl	36(%edi),%ebx
+	movzbl	%ah,%esi
+	movl	2052(%ebp,%esi,8),%edx
+	movzbl	%al,%esi
+	xorl	4(%ebp,%esi,8),%edx
+	shrl	$16,%eax
+	movzbl	%bl,%esi
+	movl	(%ebp,%esi,8),%ecx
+	movzbl	%ah,%esi
+	xorl	(%ebp,%esi,8),%edx
+	movzbl	%bh,%esi
+	xorl	4(%ebp,%esi,8),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%eax
+	xorl	2048(%ebp,%eax,8),%edx
+	movzbl	%bh,%esi
+	movl	12(%esp),%eax
+	xorl	%edx,%ecx
+	rorl	$8,%edx
+	xorl	2048(%ebp,%esi,8),%ecx
+	movzbl	%bl,%esi
+	movl	8(%esp),%ebx
+	xorl	%eax,%edx
+	xorl	2052(%ebp,%esi,8),%ecx
+	movl	40(%edi),%esi
+	xorl	%ecx,%edx
+	movl	%edx,12(%esp)
+	xorl	%ebx,%ecx
+	movl	%ecx,8(%esp)
+	xorl	%esi,%ecx
+	xorl	44(%edi),%edx
+	movzbl	%ch,%esi
+	movl	2052(%ebp,%esi,8),%ebx
+	movzbl	%cl,%esi
+	xorl	4(%ebp,%esi,8),%ebx
+	shrl	$16,%ecx
+	movzbl	%dl,%esi
+	movl	(%ebp,%esi,8),%eax
+	movzbl	%ch,%esi
+	xorl	(%ebp,%esi,8),%ebx
+	movzbl	%dh,%esi
+	xorl	4(%ebp,%esi,8),%eax
+	shrl	$16,%edx
+	movzbl	%cl,%ecx
+	xorl	2048(%ebp,%ecx,8),%ebx
+	movzbl	%dh,%esi
+	movl	4(%esp),%ecx
+	xorl	%ebx,%eax
+	rorl	$8,%ebx
+	xorl	2048(%ebp,%esi,8),%eax
+	movzbl	%dl,%esi
+	movl	(%esp),%edx
+	xorl	%ecx,%ebx
+	xorl	2052(%ebp,%esi,8),%eax
+	movl	48(%edi),%esi
+	xorl	%eax,%ebx
+	movl	%ebx,4(%esp)
+	xorl	%edx,%eax
+	movl	%eax,(%esp)
+	movl	8(%esp),%ecx
+	movl	12(%esp),%edx
+	movl	44(%esp),%edi
+	leal	128(%edi),%edi
+	movl	%eax,-112(%edi)
+	movl	%ebx,-108(%edi)
+	movl	%ecx,-104(%edi)
+	movl	%edx,-100(%edi)
+	movl	%eax,%ebp
+	shll	$30,%eax
+	movl	%ebx,%esi
+	shrl	$2,%esi
+	shll	$30,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$30,%ecx
+	movl	%eax,-48(%edi)
+	shrl	$2,%esi
+	orl	%esi,%ebx
+	shrl	$2,%ebp
+	movl	%edx,%esi
+	shrl	$2,%esi
+	movl	%ebx,-44(%edi)
+	shll	$30,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,-40(%edi)
+	movl	%edx,-36(%edi)
+	movl	%eax,%ebp
+	shll	$30,%eax
+	movl	%ebx,%esi
+	shrl	$2,%esi
+	shll	$30,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$30,%ecx
+	movl	%eax,32(%edi)
+	shrl	$2,%esi
+	orl	%esi,%ebx
+	shrl	$2,%ebp
+	movl	%edx,%esi
+	shrl	$2,%esi
+	movl	%ebx,36(%edi)
+	shll	$30,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,40(%edi)
+	movl	%edx,44(%edi)
+	movl	%ebx,%ebp
+	shll	$19,%ebx
+	movl	%ecx,%esi
+	shrl	$13,%esi
+	shll	$19,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$19,%edx
+	movl	%ebx,128(%edi)
+	shrl	$13,%esi
+	orl	%esi,%ecx
+	shrl	$13,%ebp
+	movl	%eax,%esi
+	shrl	$13,%esi
+	movl	%ecx,132(%edi)
+	shll	$19,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,136(%edi)
+	movl	%eax,140(%edi)
+	movl	-96(%edi),%ebx
+	movl	-92(%edi),%ecx
+	movl	-88(%edi),%edx
+	movl	-84(%edi),%eax
+	movl	%ebx,%ebp
+	shll	$15,%ebx
+	movl	%ecx,%esi
+	shrl	$17,%esi
+	shll	$15,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$15,%edx
+	movl	%ebx,-96(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ecx
+	shrl	$17,%ebp
+	movl	%eax,%esi
+	shrl	$17,%esi
+	movl	%ecx,-92(%edi)
+	shll	$15,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,-88(%edi)
+	movl	%eax,-84(%edi)
+	movl	%ebx,%ebp
+	shll	$15,%ebx
+	movl	%ecx,%esi
+	shrl	$17,%esi
+	shll	$15,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$15,%edx
+	movl	%ebx,-64(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ecx
+	shrl	$17,%ebp
+	movl	%eax,%esi
+	shrl	$17,%esi
+	movl	%ecx,-60(%edi)
+	shll	$15,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,-56(%edi)
+	movl	%eax,-52(%edi)
+	movl	%ebx,%ebp
+	shll	$30,%ebx
+	movl	%ecx,%esi
+	shrl	$2,%esi
+	shll	$30,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$30,%edx
+	movl	%ebx,16(%edi)
+	shrl	$2,%esi
+	orl	%esi,%ecx
+	shrl	$2,%ebp
+	movl	%eax,%esi
+	shrl	$2,%esi
+	movl	%ecx,20(%edi)
+	shll	$30,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,24(%edi)
+	movl	%eax,28(%edi)
+	movl	%ecx,%ebp
+	shll	$2,%ecx
+	movl	%edx,%esi
+	shrl	$30,%esi
+	shll	$2,%edx
+	orl	%esi,%ecx
+	movl	%eax,%esi
+	shll	$2,%eax
+	movl	%ecx,80(%edi)
+	shrl	$30,%esi
+	orl	%esi,%edx
+	shrl	$30,%ebp
+	movl	%ebx,%esi
+	shrl	$30,%esi
+	movl	%edx,84(%edi)
+	shll	$2,%ebx
+	orl	%esi,%eax
+	orl	%ebp,%ebx
+	movl	%eax,88(%edi)
+	movl	%ebx,92(%edi)
+	movl	-80(%edi),%ecx
+	movl	-76(%edi),%edx
+	movl	-72(%edi),%eax
+	movl	-68(%edi),%ebx
+	movl	%ecx,%ebp
+	shll	$15,%ecx
+	movl	%edx,%esi
+	shrl	$17,%esi
+	shll	$15,%edx
+	orl	%esi,%ecx
+	movl	%eax,%esi
+	shll	$15,%eax
+	movl	%ecx,-80(%edi)
+	shrl	$17,%esi
+	orl	%esi,%edx
+	shrl	$17,%ebp
+	movl	%ebx,%esi
+	shrl	$17,%esi
+	movl	%edx,-76(%edi)
+	shll	$15,%ebx
+	orl	%esi,%eax
+	orl	%ebp,%ebx
+	movl	%eax,-72(%edi)
+	movl	%ebx,-68(%edi)
+	movl	%ecx,%ebp
+	shll	$30,%ecx
+	movl	%edx,%esi
+	shrl	$2,%esi
+	shll	$30,%edx
+	orl	%esi,%ecx
+	movl	%eax,%esi
+	shll	$30,%eax
+	movl	%ecx,-16(%edi)
+	shrl	$2,%esi
+	orl	%esi,%edx
+	shrl	$2,%ebp
+	movl	%ebx,%esi
+	shrl	$2,%esi
+	movl	%edx,-12(%edi)
+	shll	$30,%ebx
+	orl	%esi,%eax
+	orl	%ebp,%ebx
+	movl	%eax,-8(%edi)
+	movl	%ebx,-4(%edi)
+	movl	%edx,64(%edi)
+	movl	%eax,68(%edi)
+	movl	%ebx,72(%edi)
+	movl	%ecx,76(%edi)
+	movl	%edx,%ebp
+	shll	$17,%edx
+	movl	%eax,%esi
+	shrl	$15,%esi
+	shll	$17,%eax
+	orl	%esi,%edx
+	movl	%ebx,%esi
+	shll	$17,%ebx
+	movl	%edx,96(%edi)
+	shrl	$15,%esi
+	orl	%esi,%eax
+	shrl	$15,%ebp
+	movl	%ecx,%esi
+	shrl	$15,%esi
+	movl	%eax,100(%edi)
+	shll	$17,%ecx
+	orl	%esi,%ebx
+	orl	%ebp,%ecx
+	movl	%ebx,104(%edi)
+	movl	%ecx,108(%edi)
+	movl	-128(%edi),%edx
+	movl	-124(%edi),%eax
+	movl	-120(%edi),%ebx
+	movl	-116(%edi),%ecx
+	movl	%eax,%ebp
+	shll	$13,%eax
+	movl	%ebx,%esi
+	shrl	$19,%esi
+	shll	$13,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$13,%ecx
+	movl	%eax,-32(%edi)
+	shrl	$19,%esi
+	orl	%esi,%ebx
+	shrl	$19,%ebp
+	movl	%edx,%esi
+	shrl	$19,%esi
+	movl	%ebx,-28(%edi)
+	shll	$13,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,-24(%edi)
+	movl	%edx,-20(%edi)
+	movl	%eax,%ebp
+	shll	$15,%eax
+	movl	%ebx,%esi
+	shrl	$17,%esi
+	shll	$15,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$15,%ecx
+	movl	%eax,(%edi)
+	shrl	$17,%esi
+	orl	%esi,%ebx
+	shrl	$17,%ebp
+	movl	%edx,%esi
+	shrl	$17,%esi
+	movl	%ebx,4(%edi)
+	shll	$15,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,8(%edi)
+	movl	%edx,12(%edi)
+	movl	%eax,%ebp
+	shll	$17,%eax
+	movl	%ebx,%esi
+	shrl	$15,%esi
+	shll	$17,%ebx
+	orl	%esi,%eax
+	movl	%ecx,%esi
+	shll	$17,%ecx
+	movl	%eax,48(%edi)
+	shrl	$15,%esi
+	orl	%esi,%ebx
+	shrl	$15,%ebp
+	movl	%edx,%esi
+	shrl	$15,%esi
+	movl	%ebx,52(%edi)
+	shll	$17,%edx
+	orl	%esi,%ecx
+	orl	%ebp,%edx
+	movl	%ecx,56(%edi)
+	movl	%edx,60(%edi)
+	movl	%ebx,%ebp
+	shll	$2,%ebx
+	movl	%ecx,%esi
+	shrl	$30,%esi
+	shll	$2,%ecx
+	orl	%esi,%ebx
+	movl	%edx,%esi
+	shll	$2,%edx
+	movl	%ebx,112(%edi)
+	shrl	$30,%esi
+	orl	%esi,%ecx
+	shrl	$30,%ebp
+	movl	%eax,%esi
+	shrl	$30,%esi
+	movl	%ecx,116(%edi)
+	shll	$2,%eax
+	orl	%esi,%edx
+	orl	%ebp,%eax
+	movl	%edx,120(%edi)
+	movl	%eax,124(%edi)
+	movl	$4,%eax
+.L013done:
+	leal	144(%edi),%edx
+	addl	$16,%esp
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+.size	Camellia_Ekeygen,.-.L_Camellia_Ekeygen_begin
+.globl	Camellia_set_key
+.type	Camellia_set_key,@function
+.align	16
+Camellia_set_key:
+.L_Camellia_set_key_begin:
+	pushl	%ebx
+	movl	8(%esp),%ecx
+	movl	12(%esp),%ebx
+	movl	16(%esp),%edx
+	movl	$-1,%eax
+	testl	%ecx,%ecx
+	jz	.L014done
+	testl	%edx,%edx
+	jz	.L014done
+	movl	$-2,%eax
+	cmpl	$256,%ebx
+	je	.L015arg_ok
+	cmpl	$192,%ebx
+	je	.L015arg_ok
+	cmpl	$128,%ebx
+	jne	.L014done
+.align	4
+.L015arg_ok:
+	pushl	%edx
+	pushl	%ecx
+	pushl	%ebx
+	call	.L_Camellia_Ekeygen_begin
+	addl	$12,%esp
+	movl	%eax,(%edx)
+	xorl	%eax,%eax
+.align	4
+.L014done:
+	popl	%ebx
+	ret
+.size	Camellia_set_key,.-.L_Camellia_set_key_begin
+.align	64
+.LCamellia_SIGMA:
+.long	2694735487,1003262091,3061508184,1286239154,3337565999,3914302142,1426019237,4057165596,283453434,3731369245,2958461122,3018244605,0,0,0,0
+.align	64
+.LCamellia_SBOX:
+.long	1886416896,1886388336
+.long	2189591040,741081132
+.long	741092352,3014852787
+.long	3974949888,3233808576
+.long	3014898432,3840147684
+.long	656877312,1465319511
+.long	3233857536,3941204202
+.long	3857048832,2930639022
+.long	3840205824,589496355
+.long	2240120064,1802174571
+.long	1465341696,1162149957
+.long	892679424,2779054245
+.long	3941263872,3991732461
+.long	202116096,1330577487
+.long	2930683392,488439837
+.long	1094795520,2459041938
+.long	589505280,2256928902
+.long	4025478912,2947481775
+.long	1802201856,2088501372
+.long	2475922176,522125343
+.long	1162167552,1044250686
+.long	421075200,3705405660
+.long	2779096320,1583218782
+.long	555819264,185270283
+.long	3991792896,2795896998
+.long	235802112,960036921
+.long	1330597632,3587506389
+.long	1313754624,1566376029
+.long	488447232,3654877401
+.long	1701143808,1515847770
+.long	2459079168,1364262993
+.long	3183328512,1819017324
+.long	2256963072,2341142667
+.long	3099113472,2593783962
+.long	2947526400,4227531003
+.long	2408550144,2964324528
+.long	2088532992,1953759348
+.long	3958106880,724238379
+.long	522133248,4042260720
+.long	3469659648,2223243396
+.long	1044266496,3755933919
+.long	808464384,3419078859
+.long	3705461760,875823156
+.long	1600085760,1987444854
+.long	1583242752,1835860077
+.long	3318072576,2846425257
+.long	185273088,3520135377
+.long	437918208,67371012
+.long	2795939328,336855060
+.long	3789676800,976879674
+.long	960051456,3739091166
+.long	3402287616,286326801
+.long	3587560704,842137650
+.long	1195853568,2627469468
+.long	1566399744,1397948499
+.long	1027423488,4075946226
+.long	3654932736,4278059262
+.long	16843008,3486449871
+.long	1515870720,3284336835
+.long	3604403712,2054815866
+.long	1364283648,606339108
+.long	1448498688,3907518696
+.long	1819044864,1616904288
+.long	1296911616,1768489065
+.long	2341178112,2863268010
+.long	218959104,2694840480
+.long	2593823232,2711683233
+.long	1717986816,1650589794
+.long	4227595008,1414791252
+.long	3435973632,505282590
+.long	2964369408,3772776672
+.long	757935360,1684275300
+.long	1953788928,269484048
+.long	303174144,0
+.long	724249344,2745368739
+.long	538976256,1970602101
+.long	4042321920,2324299914
+.long	2981212416,3873833190
+.long	2223277056,151584777
+.long	2576980224,3722248413
+.long	3755990784,2273771655
+.long	1280068608,2206400643
+.long	3419130624,3452764365
+.long	3267543552,2425356432
+.long	875836416,1936916595
+.long	2122219008,4143317238
+.long	1987474944,2644312221
+.long	84215040,3216965823
+.long	1835887872,1381105746
+.long	3082270464,3638034648
+.long	2846468352,3368550600
+.long	825307392,3334865094
+.long	3520188672,2172715137
+.long	387389184,1869545583
+.long	67372032,320012307
+.long	3621246720,1667432547
+.long	336860160,3924361449
+.long	1482184704,2812739751
+.long	976894464,2677997727
+.long	1633771776,3166437564
+.long	3739147776,690552873
+.long	454761216,4193845497
+.long	286331136,791609391
+.long	471604224,3031695540
+.long	842150400,2021130360
+.long	252645120,101056518
+.long	2627509248,3890675943
+.long	370546176,1903231089
+.long	1397969664,3570663636
+.long	404232192,2880110763
+.long	4076007936,2290614408
+.long	572662272,2374828173
+.long	4278124032,1920073842
+.long	1145324544,3115909305
+.long	3486502656,4177002744
+.long	2998055424,2896953516
+.long	3284386560,909508662
+.long	3048584448,707395626
+.long	2054846976,1010565180
+.long	2442236160,4059103473
+.long	606348288,1077936192
+.long	134744064,3553820883
+.long	3907577856,3149594811
+.long	2829625344,1128464451
+.long	1616928768,353697813
+.long	4244438016,2913796269
+.long	1768515840,2004287607
+.long	1347440640,2155872384
+.long	2863311360,2189557890
+.long	3503345664,3974889708
+.long	2694881280,656867367
+.long	2105376000,3856990437
+.long	2711724288,2240086149
+.long	2307492096,892665909
+.long	1650614784,202113036
+.long	2543294208,1094778945
+.long	1414812672,4025417967
+.long	1532713728,2475884691
+.long	505290240,421068825
+.long	2509608192,555810849
+.long	3772833792,235798542
+.long	4294967040,1313734734
+.long	1684300800,1701118053
+.long	3537031680,3183280317
+.long	269488128,3099066552
+.long	3301229568,2408513679
+.long	0,3958046955
+.long	1212696576,3469607118
+.long	2745410304,808452144
+.long	4160222976,1600061535
+.long	1970631936,3318022341
+.long	3688618752,437911578
+.long	2324335104,3789619425
+.long	50529024,3402236106
+.long	3873891840,1195835463
+.long	3671775744,1027407933
+.long	151587072,16842753
+.long	1061109504,3604349142
+.long	3722304768,1448476758
+.long	2492765184,1296891981
+.long	2273806080,218955789
+.long	1549556736,1717960806
+.long	2206434048,3435921612
+.long	33686016,757923885
+.long	3452816640,303169554
+.long	1246382592,538968096
+.long	2425393152,2981167281
+.long	858993408,2576941209
+.long	1936945920,1280049228
+.long	1734829824,3267494082
+.long	4143379968,2122186878
+.long	4092850944,84213765
+.long	2644352256,3082223799
+.long	2139062016,825294897
+.long	3217014528,387383319
+.long	3806519808,3621191895
+.long	1381126656,1482162264
+.long	2610666240,1633747041
+.long	3638089728,454754331
+.long	640034304,471597084
+.long	3368601600,252641295
+.long	926365440,370540566
+.long	3334915584,404226072
+.long	993737472,572653602
+.long	2172748032,1145307204
+.long	2526451200,2998010034
+.long	1869573888,3048538293
+.long	1263225600,2442199185
+.long	320017152,134742024
+.long	3200171520,2829582504
+.long	1667457792,4244373756
+.long	774778368,1347420240
+.long	3924420864,3503292624
+.long	2038003968,2105344125
+.long	2812782336,2307457161
+.long	2358021120,2543255703
+.long	2678038272,1532690523
+.long	1852730880,2509570197
+.long	3166485504,4294902015
+.long	2391707136,3536978130
+.long	690563328,3301179588
+.long	4126536960,1212678216
+.long	4193908992,4160159991
+.long	3065427456,3688562907
+.long	791621376,50528259
+.long	4261281024,3671720154
+.long	3031741440,1061093439
+.long	1499027712,2492727444
+.long	2021160960,1549533276
+.long	2560137216,33685506
+.long	101058048,1246363722
+.long	1785358848,858980403
+.long	3890734848,1734803559
+.long	1179010560,4092788979
+.long	1903259904,2139029631
+.long	3132799488,3806462178
+.long	3570717696,2610626715
+.long	623191296,640024614
+.long	2880154368,926351415
+.long	1111638528,993722427
+.long	2290649088,2526412950
+.long	2728567296,1263206475
+.long	2374864128,3200123070
+.long	4210752000,774766638
+.long	1920102912,2037973113
+.long	117901056,2357985420
+.long	3115956480,1852702830
+.long	1431655680,2391670926
+.long	4177065984,4126474485
+.long	4008635904,3065381046
+.long	2896997376,4261216509
+.long	168430080,1499005017
+.long	909522432,2560098456
+.long	1229539584,1785331818
+.long	707406336,1178992710
+.long	1751672832,3132752058
+.long	1010580480,623181861
+.long	943208448,1111621698
+.long	4059164928,2728525986
+.long	2762253312,4210688250
+.long	1077952512,117899271
+.long	673720320,1431634005
+.long	3553874688,4008575214
+.long	2071689984,168427530
+.long	3149642496,1229520969
+.long	3385444608,1751646312
+.long	1128481536,943194168
+.long	3250700544,2762211492
+.long	353703168,673710120
+.long	3823362816,2071658619
+.long	2913840384,3385393353
+.long	4109693952,3250651329
+.long	2004317952,3823304931
+.long	3351758592,4109631732
+.long	2155905024,3351707847
+.long	2661195264,2661154974
+.long	14737632,939538488
+.long	328965,1090535745
+.long	5789784,369104406
+.long	14277081,1979741814
+.long	6776679,3640711641
+.long	5131854,2466288531
+.long	8487297,1610637408
+.long	13355979,4060148466
+.long	13224393,1912631922
+.long	723723,3254829762
+.long	11447982,2868947883
+.long	6974058,2583730842
+.long	14013909,1962964341
+.long	1579032,100664838
+.long	6118749,1459640151
+.long	8553090,2684395680
+.long	4605510,2432733585
+.long	14671839,4144035831
+.long	14079702,3036722613
+.long	2565927,3372272073
+.long	9079434,2717950626
+.long	3289650,2348846220
+.long	4934475,3523269330
+.long	4342338,2415956112
+.long	14408667,4127258358
+.long	1842204,117442311
+.long	10395294,2801837991
+.long	10263708,654321447
+.long	3815994,2382401166
+.long	13290186,2986390194
+.long	2434341,1224755529
+.long	8092539,3724599006
+.long	855309,1124090691
+.long	7434609,1543527516
+.long	6250335,3607156695
+.long	2039583,3338717127
+.long	16316664,1040203326
+.long	14145495,4110480885
+.long	4079166,2399178639
+.long	10329501,1728079719
+.long	8158332,520101663
+.long	6316128,402659352
+.long	12171705,1845522030
+.long	12500670,2936057775
+.long	12369084,788541231
+.long	9145227,3791708898
+.long	1447446,2231403909
+.long	3421236,218107149
+.long	5066061,1392530259
+.long	12829635,4026593520
+.long	7500402,2617285788
+.long	9803157,1694524773
+.long	11250603,3925928682
+.long	9342606,2734728099
+.long	12237498,2919280302
+.long	8026746,2650840734
+.long	11776947,3959483628
+.long	131586,2147516544
+.long	11842740,754986285
+.long	11382189,1795189611
+.long	10658466,2818615464
+.long	11316396,721431339
+.long	14211288,905983542
+.long	10132122,2785060518
+.long	1513239,3305162181
+.long	1710618,2248181382
+.long	3487029,1291865421
+.long	13421772,855651123
+.long	16250871,4244700669
+.long	10066329,1711302246
+.long	6381921,1476417624
+.long	5921370,2516620950
+.long	15263976,973093434
+.long	2368548,150997257
+.long	5658198,2499843477
+.long	4210752,268439568
+.long	14803425,2013296760
+.long	6513507,3623934168
+.long	592137,1107313218
+.long	3355443,3422604492
+.long	12566463,4009816047
+.long	10000536,637543974
+.long	9934743,3842041317
+.long	8750469,1627414881
+.long	6842472,436214298
+.long	16579836,1056980799
+.long	15527148,989870907
+.long	657930,2181071490
+.long	14342874,3053500086
+.long	7303023,3674266587
+.long	5460819,3556824276
+.long	6447714,2550175896
+.long	10724259,3892373736
+.long	3026478,2332068747
+.long	526344,33554946
+.long	11513775,3942706155
+.long	2631720,167774730
+.long	11579568,738208812
+.long	7631988,486546717
+.long	12763842,2952835248
+.long	12434877,1862299503
+.long	3552822,2365623693
+.long	2236962,2281736328
+.long	3684408,234884622
+.long	6579300,419436825
+.long	1973790,2264958855
+.long	3750201,1308642894
+.long	2894892,184552203
+.long	10921638,2835392937
+.long	3158064,201329676
+.long	15066597,2030074233
+.long	4473924,285217041
+.long	16645629,2130739071
+.long	8947848,570434082
+.long	10461087,3875596263
+.long	6645093,1493195097
+.long	8882055,3774931425
+.long	7039851,3657489114
+.long	16053492,1023425853
+.long	2302755,3355494600
+.long	4737096,301994514
+.long	1052688,67109892
+.long	13750737,1946186868
+.long	5329233,1409307732
+.long	12632256,805318704
+.long	16382457,2113961598
+.long	13816530,3019945140
+.long	10526880,671098920
+.long	5592405,1426085205
+.long	10592673,1744857192
+.long	4276545,1342197840
+.long	16448250,3187719870
+.long	4408131,3489714384
+.long	1250067,3288384708
+.long	12895428,822096177
+.long	3092271,3405827019
+.long	11053224,704653866
+.long	11974326,2902502829
+.long	3947580,251662095
+.long	2829099,3389049546
+.long	12698049,1879076976
+.long	16777215,4278255615
+.long	13158600,838873650
+.long	10855845,1761634665
+.long	2105376,134219784
+.long	9013641,1644192354
+.long	0,0
+.long	9474192,603989028
+.long	4671303,3506491857
+.long	15724527,4211145723
+.long	15395562,3120609978
+.long	12040119,3976261101
+.long	1381653,1157645637
+.long	394758,2164294017
+.long	13487565,1929409395
+.long	11908533,1828744557
+.long	1184274,2214626436
+.long	8289918,2667618207
+.long	12303291,3993038574
+.long	2697513,1241533002
+.long	986895,3271607235
+.long	12105912,771763758
+.long	460551,3238052289
+.long	263172,16777473
+.long	10197915,3858818790
+.long	9737364,620766501
+.long	2171169,1207978056
+.long	6710886,2566953369
+.long	15132390,3103832505
+.long	13553358,3003167667
+.long	15592941,2063629179
+.long	15198183,4177590777
+.long	3881787,3456159438
+.long	16711422,3204497343
+.long	8355711,3741376479
+.long	12961221,1895854449
+.long	10790052,687876393
+.long	3618615,3439381965
+.long	11645361,1811967084
+.long	5000268,318771987
+.long	9539985,1677747300
+.long	7237230,2600508315
+.long	9276813,1660969827
+.long	7763574,2634063261
+.long	197379,3221274816
+.long	2960685,1258310475
+.long	14606046,3070277559
+.long	9868950,2768283045
+.long	2500134,2298513801
+.long	8224125,1593859935
+.long	13027014,2969612721
+.long	6052956,385881879
+.long	13882323,4093703412
+.long	15921906,3154164924
+.long	5197647,3540046803
+.long	1644825,1174423110
+.long	4144959,3472936911
+.long	14474460,922761015
+.long	7960953,1577082462
+.long	1907997,1191200583
+.long	5395026,2483066004
+.long	15461355,4194368250
+.long	15987699,4227923196
+.long	7171437,1526750043
+.long	6184542,2533398423
+.long	16514043,4261478142
+.long	6908265,1509972570
+.long	11711154,2885725356
+.long	15790320,1006648380
+.long	3223857,1275087948
+.long	789516,50332419
+.long	13948116,889206069
+.long	13619151,4076925939
+.long	9211020,587211555
+.long	14869218,3087055032
+.long	7697781,1560304989
+.long	11119017,1778412138
+.long	4868682,2449511058
+.long	5723991,3573601749
+.long	8684676,553656609
+.long	1118481,1140868164
+.long	4539717,1358975313
+.long	1776411,3321939654
+.long	16119285,2097184125
+.long	15000804,956315961
+.long	921102,2197848963
+.long	7566195,3691044060
+.long	11184810,2852170410
+.long	15856113,2080406652
+.long	14540253,1996519287
+.long	5855577,1442862678
+.long	1315860,83887365
+.long	7105644,452991771
+.long	9605778,2751505572
+.long	5526612,352326933
+.long	13684944,872428596
+.long	7895160,503324190
+.long	7368816,469769244
+.long	14935011,4160813304
+.long	4802889,1375752786
+.long	8421504,536879136
+.long	5263440,335549460
+.long	10987431,3909151209
+.long	16185078,3170942397
+.long	7829367,3707821533
+.long	9671571,3825263844
+.long	8816262,2701173153
+.long	8618883,3758153952
+.long	2763306,2315291274
+.long	13092807,4043370993
+.long	5987163,3590379222
+.long	15329769,2046851706
+.long	15658734,3137387451
+.long	9408399,3808486371
+.long	65793,1073758272
+.long	4013373,1325420367
+.globl	Camellia_cbc_encrypt
+.type	Camellia_cbc_encrypt,@function
+.align	16
+Camellia_cbc_encrypt:
+.L_Camellia_cbc_encrypt_begin:
+	pushl	%ebp
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+	movl	28(%esp),%ecx
+	cmpl	$0,%ecx
+	je	.L016enc_out
+	pushfl
+	cld
+	movl	24(%esp),%eax
+	movl	28(%esp),%ebx
+	movl	36(%esp),%edx
+	movl	40(%esp),%ebp
+	leal	-64(%esp),%esi
+	andl	$-64,%esi
+	leal	-127(%edx),%edi
+	subl	%esi,%edi
+	negl	%edi
+	andl	$960,%edi
+	subl	%edi,%esi
+	movl	44(%esp),%edi
+	xchgl	%esi,%esp
+	addl	$4,%esp
+	movl	%esi,20(%esp)
+	movl	%eax,24(%esp)
+	movl	%ebx,28(%esp)
+	movl	%ecx,32(%esp)
+	movl	%edx,36(%esp)
+	movl	%ebp,40(%esp)
+	call	.L017pic_point
+.L017pic_point:
+	popl	%ebp
+	leal	.LCamellia_SBOX-.L017pic_point(%ebp),%ebp
+	movl	$32,%esi
+.align	4
+.L018prefetch_sbox:
+	movl	(%ebp),%eax
+	movl	32(%ebp),%ebx
+	movl	64(%ebp),%ecx
+	movl	96(%ebp),%edx
+	leal	128(%ebp),%ebp
+	decl	%esi
+	jnz	.L018prefetch_sbox
+	movl	36(%esp),%eax
+	subl	$4096,%ebp
+	movl	24(%esp),%esi
+	movl	272(%eax),%edx
+	cmpl	$0,%edi
+	je	.L019DECRYPT
+	movl	32(%esp),%ecx
+	movl	40(%esp),%edi
+	shll	$6,%edx
+	leal	(%eax,%edx,1),%edx
+	movl	%edx,16(%esp)
+	testl	$4294967280,%ecx
+	jz	.L020enc_tail
+	movl	(%edi),%eax
+	movl	4(%edi),%ebx
+.align	4
+.L021enc_loop:
+	movl	8(%edi),%ecx
+	movl	12(%edi),%edx
+	xorl	(%esi),%eax
+	xorl	4(%esi),%ebx
+	xorl	8(%esi),%ecx
+	bswap	%eax
+	xorl	12(%esi),%edx
+	bswap	%ebx
+	movl	36(%esp),%edi
+	bswap	%ecx
+	bswap	%edx
+	call	_x86_Camellia_encrypt
+	movl	24(%esp),%esi
+	movl	28(%esp),%edi
+	bswap	%eax
+	bswap	%ebx
+	bswap	%ecx
+	movl	%eax,(%edi)
+	bswap	%edx
+	movl	%ebx,4(%edi)
+	movl	%ecx,8(%edi)
+	movl	%edx,12(%edi)
+	movl	32(%esp),%ecx
+	leal	16(%esi),%esi
+	movl	%esi,24(%esp)
+	leal	16(%edi),%edx
+	movl	%edx,28(%esp)
+	subl	$16,%ecx
+	testl	$4294967280,%ecx
+	movl	%ecx,32(%esp)
+	jnz	.L021enc_loop
+	testl	$15,%ecx
+	jnz	.L020enc_tail
+	movl	40(%esp),%esi
+	movl	8(%edi),%ecx
+	movl	12(%edi),%edx
+	movl	%eax,(%esi)
+	movl	%ebx,4(%esi)
+	movl	%ecx,8(%esi)
+	movl	%edx,12(%esi)
+	movl	20(%esp),%esp
+	popfl
+.L016enc_out:
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+	pushfl
+.align	4
+.L020enc_tail:
+	movl	%edi,%eax
+	movl	28(%esp),%edi
+	pushl	%eax
+	movl	$16,%ebx
+	subl	%ecx,%ebx
+	cmpl	%esi,%edi
+	je	.L022enc_in_place
+.align	4
+.long	2767451785
+	jmp	.L023enc_skip_in_place
+.L022enc_in_place:
+	leal	(%edi,%ecx,1),%edi
+.L023enc_skip_in_place:
+	movl	%ebx,%ecx
+	xorl	%eax,%eax
+.align	4
+.long	2868115081
+	popl	%edi
+	movl	28(%esp),%esi
+	movl	(%edi),%eax
+	movl	4(%edi),%ebx
+	movl	$16,32(%esp)
+	jmp	.L021enc_loop
+.align	16
+.L019DECRYPT:
+	shll	$6,%edx
+	leal	(%eax,%edx,1),%edx
+	movl	%eax,16(%esp)
+	movl	%edx,36(%esp)
+	cmpl	28(%esp),%esi
+	je	.L024dec_in_place
+	movl	40(%esp),%edi
+	movl	%edi,44(%esp)
+.align	4
+.L025dec_loop:
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	bswap	%eax
+	movl	12(%esi),%edx
+	bswap	%ebx
+	movl	36(%esp),%edi
+	bswap	%ecx
+	bswap	%edx
+	call	_x86_Camellia_decrypt
+	movl	44(%esp),%edi
+	movl	32(%esp),%esi
+	bswap	%eax
+	bswap	%ebx
+	bswap	%ecx
+	xorl	(%edi),%eax
+	bswap	%edx
+	xorl	4(%edi),%ebx
+	xorl	8(%edi),%ecx
+	xorl	12(%edi),%edx
+	subl	$16,%esi
+	jc	.L026dec_partial
+	movl	%esi,32(%esp)
+	movl	24(%esp),%esi
+	movl	28(%esp),%edi
+	movl	%eax,(%edi)
+	movl	%ebx,4(%edi)
+	movl	%ecx,8(%edi)
+	movl	%edx,12(%edi)
+	movl	%esi,44(%esp)
+	leal	16(%esi),%esi
+	movl	%esi,24(%esp)
+	leal	16(%edi),%edi
+	movl	%edi,28(%esp)
+	jnz	.L025dec_loop
+	movl	44(%esp),%edi
+.L027dec_end:
+	movl	40(%esp),%esi
+	movl	(%edi),%eax
+	movl	4(%edi),%ebx
+	movl	8(%edi),%ecx
+	movl	12(%edi),%edx
+	movl	%eax,(%esi)
+	movl	%ebx,4(%esi)
+	movl	%ecx,8(%esi)
+	movl	%edx,12(%esi)
+	jmp	.L028dec_out
+.align	4
+.L026dec_partial:
+	leal	44(%esp),%edi
+	movl	%eax,(%edi)
+	movl	%ebx,4(%edi)
+	movl	%ecx,8(%edi)
+	movl	%edx,12(%edi)
+	leal	16(%esi),%ecx
+	movl	%edi,%esi
+	movl	28(%esp),%edi
+.long	2767451785
+	movl	24(%esp),%edi
+	jmp	.L027dec_end
+.align	4
+.L024dec_in_place:
+.L029dec_in_place_loop:
+	leal	44(%esp),%edi
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	movl	12(%esi),%edx
+	movl	%eax,(%edi)
+	movl	%ebx,4(%edi)
+	movl	%ecx,8(%edi)
+	bswap	%eax
+	movl	%edx,12(%edi)
+	bswap	%ebx
+	movl	36(%esp),%edi
+	bswap	%ecx
+	bswap	%edx
+	call	_x86_Camellia_decrypt
+	movl	40(%esp),%edi
+	movl	28(%esp),%esi
+	bswap	%eax
+	bswap	%ebx
+	bswap	%ecx
+	xorl	(%edi),%eax
+	bswap	%edx
+	xorl	4(%edi),%ebx
+	xorl	8(%edi),%ecx
+	xorl	12(%edi),%edx
+	movl	%eax,(%esi)
+	movl	%ebx,4(%esi)
+	movl	%ecx,8(%esi)
+	movl	%edx,12(%esi)
+	leal	16(%esi),%esi
+	movl	%esi,28(%esp)
+	leal	44(%esp),%esi
+	movl	(%esi),%eax
+	movl	4(%esi),%ebx
+	movl	8(%esi),%ecx
+	movl	12(%esi),%edx
+	movl	%eax,(%edi)
+	movl	%ebx,4(%edi)
+	movl	%ecx,8(%edi)
+	movl	%edx,12(%edi)
+	movl	24(%esp),%esi
+	leal	16(%esi),%esi
+	movl	%esi,24(%esp)
+	movl	32(%esp),%ecx
+	subl	$16,%ecx
+	jc	.L030dec_in_place_partial
+	movl	%ecx,32(%esp)
+	jnz	.L029dec_in_place_loop
+	jmp	.L028dec_out
+.align	4
+.L030dec_in_place_partial:
+	movl	28(%esp),%edi
+	leal	44(%esp),%esi
+	leal	(%edi,%ecx,1),%edi
+	leal	16(%esi,%ecx,1),%esi
+	negl	%ecx
+.long	2767451785
+.align	4
+.L028dec_out:
+	movl	20(%esp),%esp
+	popfl
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+	ret
+.size	Camellia_cbc_encrypt,.-.L_Camellia_cbc_encrypt_begin
+.byte	67,97,109,101,108,108,105,97,32,102,111,114,32,120,56,54
+.byte	32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115
+.byte	115,108,46,111,114,103,62,0
+#endif

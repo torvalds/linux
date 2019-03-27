@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libsvn_auth_kwallet
+Description: Subversion KWallet Library
+Version: @PACKAGE_VERSION@
+Requires:  apr-@SVN_APR_MAJOR_VERSION@
+Requires.private:  libsvn_subr
+Libs: -L${libdir}  -lsvn_auth_kwallet @SVN_KWALLET_LIBS@
+Cflags: -I${includedir}

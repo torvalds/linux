@@ -1,0 +1,492 @@
+This documents OpenSSH's deviations and extensions to the published SSH
+protocol.
+
+Note that OpenSSH's sftp and sftp-server implement revision 3 of the SSH
+filexfer protocol described in:
+
+https://www.openssh.com/txt/draft-ietf-secsh-filexfer-02.txt
+
+Newer versions of the draft will not be supported, though some features
+are individually implemented as extensions described below.
+
+The protocol used by OpenSSH's ssh-agent is described in the file
+PROTOCOL.agent
+
+1. Transport protocol changes
+
+1.1. transport: Protocol 2 MAC algorithm "umac-64@openssh.com"
+
+This is a new transport-layer MAC method using the UMAC algorithm
+(rfc4418). This method is identical to the "umac-64" method documented
+in:
+
+https://www.openssh.com/txt/draft-miller-secsh-umac-01.txt
+
+1.2. transport: Protocol 2 compression algorithm "zlib@openssh.com"
+
+This transport-layer compression method uses the zlib compression
+algorithm (identical to the "zlib" method in rfc4253), but delays the
+start of compression until after authentication has completed. This
+avoids exposing compression code to attacks from unauthenticated users.
+
+The method is documented in:
+
+https://www.openssh.com/txt/draft-miller-secsh-compression-delayed-00.txt
+
+1.3. transport: New public key algorithms "ssh-rsa-cert-v01@openssh.com",
+     "ssh-dsa-cert-v01@openssh.com",
+     "ecdsa-sha2-nistp256-cert-v01@openssh.com",
+     "ecdsa-sha2-nistp384-cert-v01@openssh.com" and
+     "ecdsa-sha2-nistp521-cert-v01@openssh.com"
+
+OpenSSH introduces new public key algorithms to support certificate
+authentication for users and host keys. These methods are documented
+in the file PROTOCOL.certkeys
+
+1.4. transport: Elliptic Curve cryptography
+
+OpenSSH supports ECC key exchange and public key authentication as
+specified in RFC5656. Only the ecdsa-sha2-nistp256, ecdsa-sha2-nistp384
+and ecdsa-sha2-nistp521 curves over GF(p) are supported. Elliptic
+curve points encoded using point compression are NOT accepted or
+generated.
+
+1.5 transport: Protocol 2 Encrypt-then-MAC MAC algorithms
+
+OpenSSH supports MAC algorithms, whose names contain "-etm", that
+perform the calculations in a different order to that defined in RFC
+4253. These variants use the so-called "encrypt then MAC" ordering,
+calculating the MAC over the packet ciphertext rather than the
+plaintext. This ordering closes a security flaw in the SSH transport
+protocol, where decryption of unauthenticated ciphertext provided a
+"decryption oracle" that could, in conjunction with cipher flaws, reveal
+session plaintext.
+
+Specifically, the "-etm" MAC algorithms modify the transport protocol
+to calculate the MAC over the packet ciphertext and to send the packet
+length unencrypted. This is necessary for the transport to obtain the
+length of the packet and location of the MAC tag so that it may be
+verified without decrypting unauthenticated data.
+
+As such, the MAC covers:
+
+      mac = MAC(key, sequence_number || packet_length || encrypted_packet)
+
+where "packet_length" is encoded as a uint32 and "encrypted_packet"
+contains:
+
+      byte      padding_length
+      byte[n1]  payload; n1 = packet_length - padding_length - 1
+      byte[n2]  random padding; n2 = padding_length
+
+1.6 transport: AES-GCM
+
+OpenSSH supports the AES-GCM algorithm as specified in RFC 5647.
+Because of problems with the specification of the key exchange
+the behaviour of OpenSSH differs from the RFC as follows:
+
+AES-GCM is only negotiated as the cipher algorithms
+"aes128-gcm@openssh.com" or "aes256-gcm@openssh.com" and never as
+an MAC algorithm. Additionally, if AES-GCM is selected as the cipher
+the exchanged MAC algorithms are ignored and there doesn't have to be
+a matching MAC.
+
+1.7 transport: chacha20-poly1305@openssh.com authenticated encryption
+
+OpenSSH supports authenticated encryption using ChaCha20 and Poly1305
+as described in PROTOCOL.chacha20poly1305.
+
+1.8 transport: curve25519-sha256@libssh.org key exchange algorithm
+
+OpenSSH supports the use of ECDH in Curve25519 for key exchange as
+described at:
+http://git.libssh.org/users/aris/libssh.git/plain/doc/curve25519-sha256@libssh.org.txt?h=curve25519
+
+2. Connection protocol changes
+
+2.1. connection: Channel write close extension "eow@openssh.com"
+
+The SSH connection protocol (rfc4254) provides the SSH_MSG_CHANNEL_EOF
+message to allow an endpoint to signal its peer that it will send no
+more data over a channel. Unfortunately, there is no symmetric way for
+an endpoint to request that its peer should cease sending data to it
+while still keeping the channel open for the endpoint to send data to
+the peer.
+
+This is desirable, since it saves the transmission of data that would
+otherwise need to be discarded and it allows an endpoint to signal local
+processes of the condition, e.g. by closing the corresponding file
+descriptor.
+
+OpenSSH implements a channel extension message to perform this
+signalling: "eow@openssh.com" (End Of Write). This message is sent by
+an endpoint when the local output of a session channel is closed or
+experiences a write error. The message is formatted as follows:
+
+	byte		SSH_MSG_CHANNEL_REQUEST
+	uint32		recipient channel
+	string		"eow@openssh.com"
+	boolean		FALSE
+
+On receiving this message, the peer SHOULD cease sending data of
+the channel and MAY signal the process from which the channel data
+originates (e.g. by closing its read file descriptor).
+
+As with the symmetric SSH_MSG_CHANNEL_EOF message, the channel does
+remain open after a "eow@openssh.com" has been sent and more data may
+still be sent in the other direction. This message does not consume
+window space and may be sent even if no window space is available.
+
+NB. due to certain broken SSH implementations aborting upon receipt
+of this message (in contravention of RFC4254 section 5.4), this
+message is only sent to OpenSSH peers (identified by banner).
+Other SSH implementations may be whitelisted to receive this message
+upon request.
+
+2.2. connection: disallow additional sessions extension
+     "no-more-sessions@openssh.com"
+
+Most SSH connections will only ever request a single session, but a
+attacker may abuse a running ssh client to surreptitiously open
+additional sessions under their control. OpenSSH provides a global
+request "no-more-sessions@openssh.com" to mitigate this attack.
+
+When an OpenSSH client expects that it will never open another session
+(i.e. it has been started with connection multiplexing disabled), it
+will send the following global request:
+
+	byte		SSH_MSG_GLOBAL_REQUEST
+	string		"no-more-sessions@openssh.com"
+	char		want-reply
+
+On receipt of such a message, an OpenSSH server will refuse to open
+future channels of type "session" and instead immediately abort the
+connection.
+
+Note that this is not a general defence against compromised clients
+(that is impossible), but it thwarts a simple attack.
+
+NB. due to certain broken SSH implementations aborting upon receipt
+of this message, the no-more-sessions request is only sent to OpenSSH
+servers (identified by banner). Other SSH implementations may be
+whitelisted to receive this message upon request.
+
+2.3. connection: Tunnel forward extension "tun@openssh.com"
+
+OpenSSH supports layer 2 and layer 3 tunnelling via the "tun@openssh.com"
+channel type. This channel type supports forwarding of network packets
+with datagram boundaries intact between endpoints equipped with
+interfaces like the BSD tun(4) device. Tunnel forwarding channels are
+requested by the client with the following packet:
+
+	byte		SSH_MSG_CHANNEL_OPEN
+	string		"tun@openssh.com"
+	uint32		sender channel
+	uint32		initial window size
+	uint32		maximum packet size
+	uint32		tunnel mode
+	uint32		remote unit number
+
+The "tunnel mode" parameter specifies whether the tunnel should forward
+layer 2 frames or layer 3 packets. It may take one of the following values:
+
+	SSH_TUNMODE_POINTOPOINT  1		/* layer 3 packets */
+	SSH_TUNMODE_ETHERNET     2		/* layer 2 frames */
+
+The "tunnel unit number" specifies the remote interface number, or may
+be 0x7fffffff to allow the server to automatically chose an interface. A
+server that is not willing to open a client-specified unit should refuse
+the request with a SSH_MSG_CHANNEL_OPEN_FAILURE error. On successful
+open, the server should reply with SSH_MSG_CHANNEL_OPEN_SUCCESS.
+
+Once established the client and server may exchange packet or frames
+over the tunnel channel by encapsulating them in SSH protocol strings
+and sending them as channel data. This ensures that packet boundaries
+are kept intact. Specifically, packets are transmitted using normal
+SSH_MSG_CHANNEL_DATA packets:
+
+	byte		SSH_MSG_CHANNEL_DATA
+	uint32		recipient channel
+	string		data
+
+The contents of the "data" field for layer 3 packets is:
+
+	uint32			packet length
+	uint32			address family
+	byte[packet length - 4]	packet data
+
+The "address family" field identifies the type of packet in the message.
+It may be one of:
+
+	SSH_TUN_AF_INET		2		/* IPv4 */
+	SSH_TUN_AF_INET6	24		/* IPv6 */
+
+The "packet data" field consists of the IPv4/IPv6 datagram itself
+without any link layer header.
+
+The contents of the "data" field for layer 2 packets is:
+
+	uint32			packet length
+	byte[packet length]	frame
+
+The "frame" field contains an IEEE 802.3 Ethernet frame, including
+header.
+
+2.4. connection: Unix domain socket forwarding
+
+OpenSSH supports local and remote Unix domain socket forwarding
+using the "streamlocal" extension.  Forwarding is initiated as per
+TCP sockets but with a single path instead of a host and port.
+
+Similar to direct-tcpip, direct-streamlocal is sent by the client
+to request that the server make a connection to a Unix domain socket.
+
+	byte		SSH_MSG_CHANNEL_OPEN
+	string		"direct-streamlocal@openssh.com"
+	uint32		sender channel
+	uint32		initial window size
+	uint32		maximum packet size
+	string		socket path
+	string		reserved
+	uint32		reserved
+
+Similar to forwarded-tcpip, forwarded-streamlocal is sent by the
+server when the client has previously send the server a streamlocal-forward
+GLOBAL_REQUEST.
+
+	byte		SSH_MSG_CHANNEL_OPEN
+	string		"forwarded-streamlocal@openssh.com"
+	uint32		sender channel
+	uint32		initial window size
+	uint32		maximum packet size
+	string		socket path
+	string		reserved for future use
+
+The reserved field is not currently defined and is ignored on the
+remote end.  It is intended to be used in the future to pass
+information about the socket file, such as ownership and mode.
+The client currently sends the empty string for this field.
+
+Similar to tcpip-forward, streamlocal-forward is sent by the client
+to request remote forwarding of a Unix domain socket.
+
+	byte		SSH2_MSG_GLOBAL_REQUEST
+	string		"streamlocal-forward@openssh.com"
+	boolean		TRUE
+	string		socket path
+
+Similar to cancel-tcpip-forward, cancel-streamlocal-forward is sent
+by the client cancel the forwarding of a Unix domain socket.
+
+	byte		SSH2_MSG_GLOBAL_REQUEST
+	string		"cancel-streamlocal-forward@openssh.com"
+	boolean		FALSE
+	string		socket path
+
+2.5. connection: hostkey update and rotation "hostkeys-00@openssh.com"
+and "hostkeys-prove-00@openssh.com"
+
+OpenSSH supports a protocol extension allowing a server to inform
+a client of all its protocol v.2 host keys after user-authentication
+has completed.
+
+	byte		SSH_MSG_GLOBAL_REQUEST
+	string		"hostkeys-00@openssh.com"
+	string[]	hostkeys
+
+Upon receiving this message, a client should check which of the
+supplied host keys are present in known_hosts.
+
+Note that the server may send key types that the client does not
+support. The client should disgregard such keys if they are received.
+
+If the client identifies any keys that are not present for the host,
+it should send a "hostkeys-prove@openssh.com" message to request the
+server prove ownership of the private half of the key.
+
+	byte		SSH_MSG_GLOBAL_REQUEST
+	string		"hostkeys-prove-00@openssh.com"
+	char		1 /* want-reply */
+	string[]	hostkeys
+
+When a server receives this message, it should generate a signature
+using each requested key over the following:
+
+	string		"hostkeys-prove-00@openssh.com"
+	string		session identifier
+	string		hostkey
+
+These signatures should be included in the reply, in the order matching
+the hostkeys in the request:
+
+	byte		SSH_MSG_REQUEST_SUCCESS
+	string[]	signatures
+
+When the client receives this reply (and not a failure), it should
+validate the signatures and may update its known_hosts file, adding keys
+that it has not seen before and deleting keys for the server host that
+are no longer offered.
+
+These extensions let a client learn key types that it had not previously
+encountered, thereby allowing it to potentially upgrade from weaker
+key algorithms to better ones. It also supports graceful key rotation:
+a server may offer multiple keys of the same type for a period (to
+give clients an opportunity to learn them using this extension) before
+removing the deprecated key from those offered.
+
+3. SFTP protocol changes
+
+3.1. sftp: Reversal of arguments to SSH_FXP_SYMLINK
+
+When OpenSSH's sftp-server was implemented, the order of the arguments
+to the SSH_FXP_SYMLINK method was inadvertently reversed. Unfortunately,
+the reversal was not noticed until the server was widely deployed. Since
+fixing this to follow the specification would cause incompatibility, the
+current order was retained. For correct operation, clients should send
+SSH_FXP_SYMLINK as follows:
+
+	uint32		id
+	string		targetpath
+	string		linkpath
+
+3.2. sftp: Server extension announcement in SSH_FXP_VERSION
+
+OpenSSH's sftp-server lists the extensions it supports using the
+standard extension announcement mechanism in the SSH_FXP_VERSION server
+hello packet:
+
+	uint32		3		/* protocol version */
+	string		ext1-name
+	string		ext1-version
+	string		ext2-name
+	string		ext2-version
+	...
+	string		extN-name
+	string		extN-version
+
+Each extension reports its integer version number as an ASCII encoded
+string, e.g. "1". The version will be incremented if the extension is
+ever changed in an incompatible way. The server MAY advertise the same
+extension with multiple versions (though this is unlikely). Clients MUST
+check the version number before attempting to use the extension.
+
+3.3. sftp: Extension request "posix-rename@openssh.com"
+
+This operation provides a rename operation with POSIX semantics, which
+are different to those provided by the standard SSH_FXP_RENAME in
+draft-ietf-secsh-filexfer-02.txt. This request is implemented as a
+SSH_FXP_EXTENDED request with the following format:
+
+	uint32		id
+	string		"posix-rename@openssh.com"
+	string		oldpath
+	string		newpath
+
+On receiving this request the server will perform the POSIX operation
+rename(oldpath, newpath) and will respond with a SSH_FXP_STATUS message.
+This extension is advertised in the SSH_FXP_VERSION hello with version
+"1".
+
+3.4. sftp: Extension requests "statvfs@openssh.com" and
+         "fstatvfs@openssh.com"
+
+These requests correspond to the statvfs and fstatvfs POSIX system
+interfaces. The "statvfs@openssh.com" request operates on an explicit
+pathname, and is formatted as follows:
+
+	uint32		id
+	string		"statvfs@openssh.com"
+	string		path
+
+The "fstatvfs@openssh.com" operates on an open file handle:
+
+	uint32		id
+	string		"fstatvfs@openssh.com"
+	string		handle
+
+These requests return a SSH_FXP_STATUS reply on failure. On success they
+return the following SSH_FXP_EXTENDED_REPLY reply:
+
+	uint32		id
+	uint64		f_bsize		/* file system block size */
+	uint64		f_frsize	/* fundamental fs block size */
+	uint64		f_blocks	/* number of blocks (unit f_frsize) */
+	uint64		f_bfree		/* free blocks in file system */
+	uint64		f_bavail	/* free blocks for non-root */
+	uint64		f_files		/* total file inodes */
+	uint64		f_ffree		/* free file inodes */
+	uint64		f_favail	/* free file inodes for to non-root */
+	uint64		f_fsid		/* file system id */
+	uint64		f_flag		/* bit mask of f_flag values */
+	uint64		f_namemax	/* maximum filename length */
+
+The values of the f_flag bitmask are as follows:
+
+	#define SSH_FXE_STATVFS_ST_RDONLY	0x1	/* read-only */
+	#define SSH_FXE_STATVFS_ST_NOSUID	0x2	/* no setuid */
+
+Both the "statvfs@openssh.com" and "fstatvfs@openssh.com" extensions are
+advertised in the SSH_FXP_VERSION hello with version "2".
+
+3.5. sftp: Extension request "hardlink@openssh.com"
+
+This request is for creating a hard link to a regular file. This
+request is implemented as a SSH_FXP_EXTENDED request with the
+following format:
+
+	uint32		id
+	string		"hardlink@openssh.com"
+	string		oldpath
+	string		newpath
+
+On receiving this request the server will perform the operation
+link(oldpath, newpath) and will respond with a SSH_FXP_STATUS message.
+This extension is advertised in the SSH_FXP_VERSION hello with version
+"1".
+
+3.6. sftp: Extension request "fsync@openssh.com"
+
+This request asks the server to call fsync(2) on an open file handle.
+
+	uint32		id
+	string		"fsync@openssh.com"
+	string		handle
+
+One receiving this request, a server will call fsync(handle_fd) and will
+respond with a SSH_FXP_STATUS message.
+
+This extension is advertised in the SSH_FXP_VERSION hello with version
+"1".
+
+4. Miscellaneous changes
+
+4.1 Public key format
+
+OpenSSH public keys, as generated by ssh-keygen(1) and appearing in
+authorized_keys files, are formatted as a single line of text consisting
+of the public key algorithm name followed by a base64-encoded key blob.
+The public key blob (before base64 encoding) is the same format used for
+the encoding of public keys sent on the wire: as described in RFC4253
+section 6.6 for RSA and DSA keys, RFC5656 section 3.1 for ECDSA keys
+and the "New public key formats" section of PROTOCOL.certkeys for the
+OpenSSH certificate formats.
+
+4.2 Private key format
+
+OpenSSH private keys, as generated by ssh-keygen(1) use the format
+described in PROTOCOL.key by default. As a legacy option, PEM format
+(RFC7468) private keys are also supported for RSA, DSA and ECDSA keys
+and were the default format before OpenSSH 7.8.
+
+4.3 KRL format
+
+OpenSSH supports a compact format for Key Revocation Lists (KRLs). This
+format is described in the PROTOCOL.krl file.
+
+4.4 Connection multiplexing
+
+OpenSSH's connection multiplexing uses messages as described in
+PROTOCOL.mux over a Unix domain socket for communications between a
+master instance and later clients.
+
+$OpenBSD: PROTOCOL,v 1.35 2018/08/10 00:44:01 djm Exp $

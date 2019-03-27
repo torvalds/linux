@@ -1,0 +1,15 @@
+	${SITE} ${BATCHFILE}
+
+    echo "${PROGNAME}: [$$] end ${SITE}"
+done
+
+case ${HAVE_UUSTAT} in
+DONT)
+    rm -f ${TEMP}
+    ;;
+esac
+
+##  Remove the lock file.
+rm -f ${LOCK}
+
+echo "${PROGNAME}: [$$] end `date`"

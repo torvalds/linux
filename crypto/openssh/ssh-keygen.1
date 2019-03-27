@@ -1,0 +1,891 @@
+.\"	$OpenBSD: ssh-keygen.1,v 1.148 2018/08/08 01:16:01 djm Exp $
+.\"
+.\" Author: Tatu Ylonen <ylo@cs.hut.fi>
+.\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
+.\"                    All rights reserved
+.\"
+.\" As far as I am concerned, the code I have written for this software
+.\" can be used freely for any purpose.  Any derived versions of this
+.\" software must be clearly marked as such, and if the derived work is
+.\" incompatible with the protocol description in the RFC file, it must be
+.\" called by a name other than "ssh" or "Secure Shell".
+.\"
+.\"
+.\" Copyright (c) 1999,2000 Markus Friedl.  All rights reserved.
+.\" Copyright (c) 1999 Aaron Campbell.  All rights reserved.
+.\" Copyright (c) 1999 Theo de Raadt.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 8 2018 $
+.Dt SSH-KEYGEN 1
+.Os
+.Sh NAME
+.Nm ssh-keygen
+.Nd authentication key generation, management and conversion
+.Sh SYNOPSIS
+.Bk -words
+.Nm ssh-keygen
+.Op Fl q
+.Op Fl b Ar bits
+.Op Fl t Cm dsa | ecdsa | ed25519 | rsa
+.Op Fl N Ar new_passphrase
+.Op Fl C Ar comment
+.Op Fl f Ar output_keyfile
+.Nm ssh-keygen
+.Fl p
+.Op Fl P Ar old_passphrase
+.Op Fl N Ar new_passphrase
+.Op Fl f Ar keyfile
+.Nm ssh-keygen
+.Fl i
+.Op Fl m Ar key_format
+.Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl e
+.Op Fl m Ar key_format
+.Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl y
+.Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl c
+.Op Fl P Ar passphrase
+.Op Fl C Ar comment
+.Op Fl f Ar keyfile
+.Nm ssh-keygen
+.Fl l
+.Op Fl v
+.Op Fl E Ar fingerprint_hash
+.Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl B
+.Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl D Ar pkcs11
+.Nm ssh-keygen
+.Fl F Ar hostname
+.Op Fl f Ar known_hosts_file
+.Op Fl l
+.Nm ssh-keygen
+.Fl H
+.Op Fl f Ar known_hosts_file
+.Nm ssh-keygen
+.Fl R Ar hostname
+.Op Fl f Ar known_hosts_file
+.Nm ssh-keygen
+.Fl r Ar hostname
+.Op Fl f Ar input_keyfile
+.Op Fl g
+.Nm ssh-keygen
+.Fl G Ar output_file
+.Op Fl v
+.Op Fl b Ar bits
+.Op Fl M Ar memory
+.Op Fl S Ar start_point
+.Nm ssh-keygen
+.Fl T Ar output_file
+.Fl f Ar input_file
+.Op Fl v
+.Op Fl a Ar rounds
+.Op Fl J Ar num_lines
+.Op Fl j Ar start_line
+.Op Fl K Ar checkpt
+.Op Fl W Ar generator
+.Nm ssh-keygen
+.Fl s Ar ca_key
+.Fl I Ar certificate_identity
+.Op Fl h
+.Op Fl U
+.Op Fl D Ar pkcs11_provider
+.Op Fl n Ar principals
+.Op Fl O Ar option
+.Op Fl V Ar validity_interval
+.Op Fl z Ar serial_number
+.Ar
+.Nm ssh-keygen
+.Fl L
+.Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl A
+.Op Fl f Ar prefix_path
+.Nm ssh-keygen
+.Fl k
+.Fl f Ar krl_file
+.Op Fl u
+.Op Fl s Ar ca_public
+.Op Fl z Ar version_number
+.Ar
+.Nm ssh-keygen
+.Fl Q
+.Fl f Ar krl_file
+.Ar
+.Ek
+.Sh DESCRIPTION
+.Nm
+generates, manages and converts authentication keys for
+.Xr ssh 1 .
+.Nm
+can create keys for use by SSH protocol version 2.
+.Pp
+The type of key to be generated is specified with the
+.Fl t
+option.
+If invoked without any arguments,
+.Nm
+will generate an RSA key.
+.Pp
+.Nm
+is also used to generate groups for use in Diffie-Hellman group
+exchange (DH-GEX).
+See the
+.Sx MODULI GENERATION
+section for details.
+.Pp
+Finally,
+.Nm
+can be used to generate and update Key Revocation Lists, and to test whether
+given keys have been revoked by one.
+See the
+.Sx KEY REVOCATION LISTS
+section for details.
+.Pp
+Normally each user wishing to use SSH
+with public key authentication runs this once to create the authentication
+key in
+.Pa ~/.ssh/id_dsa ,
+.Pa ~/.ssh/id_ecdsa ,
+.Pa ~/.ssh/id_ed25519
+or
+.Pa ~/.ssh/id_rsa .
+Additionally, the system administrator may use this to generate host keys,
+as seen in
+.Pa /etc/rc .
+.Pp
+Normally this program generates the key and asks for a file in which
+to store the private key.
+The public key is stored in a file with the same name but
+.Dq .pub
+appended.
+The program also asks for a passphrase.
+The passphrase may be empty to indicate no passphrase
+(host keys must have an empty passphrase), or it may be a string of
+arbitrary length.
+A passphrase is similar to a password, except it can be a phrase with a
+series of words, punctuation, numbers, whitespace, or any string of
+characters you want.
+Good passphrases are 10-30 characters long, are
+not simple sentences or otherwise easily guessable (English
+prose has only 1-2 bits of entropy per character, and provides very bad
+passphrases), and contain a mix of upper and lowercase letters,
+numbers, and non-alphanumeric characters.
+The passphrase can be changed later by using the
+.Fl p
+option.
+.Pp
+There is no way to recover a lost passphrase.
+If the passphrase is lost or forgotten, a new key must be generated
+and the corresponding public key copied to other machines.
+.Pp
+For keys stored in the newer OpenSSH format,
+there is also a comment field in the key file that is only for
+convenience to the user to help identify the key.
+The comment can tell what the key is for, or whatever is useful.
+The comment is initialized to
+.Dq user@host
+when the key is created, but can be changed using the
+.Fl c
+option.
+.Pp
+After a key is generated, instructions below detail where the keys
+should be placed to be activated.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl A
+For each of the key types (rsa, dsa, ecdsa and ed25519)
+for which host keys
+do not exist, generate the host keys with the default key file path,
+an empty passphrase, default bits for the key type, and default comment.
+If
+.Fl f
+has also been specified, its argument is used as a prefix to the
+default path for the resulting host key files.
+This is used by
+.Pa /etc/rc
+to generate new host keys.
+.It Fl a Ar rounds
+When saving a private key this option specifies the number of KDF
+(key derivation function) rounds used.
+Higher numbers result in slower passphrase verification and increased
+resistance to brute-force password cracking (should the keys be stolen).
+.Pp
+When screening DH-GEX candidates (using the
+.Fl T
+command).
+This option specifies the number of primality tests to perform.
+.It Fl B
+Show the bubblebabble digest of specified private or public key file.
+.It Fl b Ar bits
+Specifies the number of bits in the key to create.
+For RSA keys, the minimum size is 1024 bits and the default is 2048 bits.
+Generally, 2048 bits is considered sufficient.
+DSA keys must be exactly 1024 bits as specified by FIPS 186-2.
+For ECDSA keys, the
+.Fl b
+flag determines the key length by selecting from one of three elliptic
+curve sizes: 256, 384 or 521 bits.
+Attempting to use bit lengths other than these three values for ECDSA keys
+will fail.
+Ed25519 keys have a fixed length and the
+.Fl b
+flag will be ignored.
+.It Fl C Ar comment
+Provides a new comment.
+.It Fl c
+Requests changing the comment in the private and public key files.
+The program will prompt for the file containing the private keys, for
+the passphrase if the key has one, and for the new comment.
+.It Fl D Ar pkcs11
+Download the RSA public keys provided by the PKCS#11 shared library
+.Ar pkcs11 .
+When used in combination with
+.Fl s ,
+this option indicates that a CA key resides in a PKCS#11 token (see the
+.Sx CERTIFICATES
+section for details).
+.It Fl E Ar fingerprint_hash
+Specifies the hash algorithm used when displaying key fingerprints.
+Valid options are:
+.Dq md5
+and
+.Dq sha256 .
+The default is
+.Dq sha256 .
+.It Fl e
+This option will read a private or public OpenSSH key file and
+print to stdout the key in one of the formats specified by the
+.Fl m
+option.
+The default export format is
+.Dq RFC4716 .
+This option allows exporting OpenSSH keys for use by other programs, including
+several commercial SSH implementations.
+.It Fl F Ar hostname
+Search for the specified
+.Ar hostname
+in a
+.Pa known_hosts
+file, listing any occurrences found.
+This option is useful to find hashed host names or addresses and may also be
+used in conjunction with the
+.Fl H
+option to print found keys in a hashed format.
+.It Fl f Ar filename
+Specifies the filename of the key file.
+.It Fl G Ar output_file
+Generate candidate primes for DH-GEX.
+These primes must be screened for
+safety (using the
+.Fl T
+option) before use.
+.It Fl g
+Use generic DNS format when printing fingerprint resource records using the
+.Fl r
+command.
+.It Fl H
+Hash a
+.Pa known_hosts
+file.
+This replaces all hostnames and addresses with hashed representations
+within the specified file; the original content is moved to a file with
+a .old suffix.
+These hashes may be used normally by
+.Nm ssh
+and
+.Nm sshd ,
+but they do not reveal identifying information should the file's contents
+be disclosed.
+This option will not modify existing hashed hostnames and is therefore safe
+to use on files that mix hashed and non-hashed names.
+.It Fl h
+When signing a key, create a host certificate instead of a user
+certificate.
+Please see the
+.Sx CERTIFICATES
+section for details.
+.It Fl I Ar certificate_identity
+Specify the key identity when signing a public key.
+Please see the
+.Sx CERTIFICATES
+section for details.
+.It Fl i
+This option will read an unencrypted private (or public) key file
+in the format specified by the
+.Fl m
+option and print an OpenSSH compatible private
+(or public) key to stdout.
+This option allows importing keys from other software, including several
+commercial SSH implementations.
+The default import format is
+.Dq RFC4716 .
+.It Fl J Ar num_lines
+Exit after screening the specified number of lines
+while performing DH candidate screening using the
+.Fl T
+option.
+.It Fl j Ar start_line
+Start screening at the specified line number
+while performing DH candidate screening using the
+.Fl T
+option.
+.It Fl K Ar checkpt
+Write the last line processed to the file
+.Ar checkpt
+while performing DH candidate screening using the
+.Fl T
+option.
+This will be used to skip lines in the input file that have already been
+processed if the job is restarted.
+.It Fl k
+Generate a KRL file.
+In this mode,
+.Nm
+will generate a KRL file at the location specified via the
+.Fl f
+flag that revokes every key or certificate presented on the command line.
+Keys/certificates to be revoked may be specified by public key file or
+using the format described in the
+.Sx KEY REVOCATION LISTS
+section.
+.It Fl L
+Prints the contents of one or more certificates.
+.It Fl l
+Show fingerprint of specified public key file.
+For RSA and DSA keys
+.Nm
+tries to find the matching public key file and prints its fingerprint.
+If combined with
+.Fl v ,
+a visual ASCII art representation of the key is supplied with the
+fingerprint.
+.It Fl M Ar memory
+Specify the amount of memory to use (in megabytes) when generating
+candidate moduli for DH-GEX.
+.It Fl m Ar key_format
+Specify a key format for the
+.Fl i
+(import) or
+.Fl e
+(export) conversion options.
+The supported key formats are:
+.Dq RFC4716
+(RFC 4716/SSH2 public or private key),
+.Dq PKCS8
+(PEM PKCS8 public key)
+or
+.Dq PEM
+(PEM public key).
+The default conversion format is
+.Dq RFC4716 .
+Setting a format of
+.Dq PEM
+when generating or updating a supported private key type will cause the
+key to be stored in the legacy PEM private key format.
+.It Fl N Ar new_passphrase
+Provides the new passphrase.
+.It Fl n Ar principals
+Specify one or more principals (user or host names) to be included in
+a certificate when signing a key.
+Multiple principals may be specified, separated by commas.
+Please see the
+.Sx CERTIFICATES
+section for details.
+.It Fl O Ar option
+Specify a certificate option when signing a key.
+This option may be specified multiple times.
+See also the
+.Sx CERTIFICATES
+section for further details.
+.Pp
+At present, no standard options are valid for host keys.
+The options that are valid for user certificates are:
+.Pp
+.Bl -tag -width Ds -compact
+.It Ic clear
+Clear all enabled permissions.
+This is useful for clearing the default set of permissions so permissions may
+be added individually.
+.Pp
+.It Ic critical : Ns Ar name Ns Op Ns = Ns Ar contents
+.It Ic extension : Ns Ar name Ns Op Ns = Ns Ar contents
+Includes an arbitrary certificate critical option or extension.
+The specified
+.Ar name
+should include a domain suffix, e.g.\&
+.Dq name@example.com .
+If
+.Ar contents
+is specified then it is included as the contents of the extension/option
+encoded as a string, otherwise the extension/option is created with no
+contents (usually indicating a flag).
+Extensions may be ignored by a client or server that does not recognise them,
+whereas unknown critical options will cause the certificate to be refused.
+.Pp
+.It Ic force-command Ns = Ns Ar command
+Forces the execution of
+.Ar command
+instead of any shell or command specified by the user when
+the certificate is used for authentication.
+.Pp
+.It Ic no-agent-forwarding
+Disable
+.Xr ssh-agent 1
+forwarding (permitted by default).
+.Pp
+.It Ic no-port-forwarding
+Disable port forwarding (permitted by default).
+.Pp
+.It Ic no-pty
+Disable PTY allocation (permitted by default).
+.Pp
+.It Ic no-user-rc
+Disable execution of
+.Pa ~/.ssh/rc
+by
+.Xr sshd 8
+(permitted by default).
+.Pp
+.It Ic no-x11-forwarding
+Disable X11 forwarding (permitted by default).
+.Pp
+.It Ic permit-agent-forwarding
+Allows
+.Xr ssh-agent 1
+forwarding.
+.Pp
+.It Ic permit-port-forwarding
+Allows port forwarding.
+.Pp
+.It Ic permit-pty
+Allows PTY allocation.
+.Pp
+.It Ic permit-user-rc
+Allows execution of
+.Pa ~/.ssh/rc
+by
+.Xr sshd 8 .
+.Pp
+.It Ic permit-X11-forwarding
+Allows X11 forwarding.
+.Pp
+.It Ic source-address Ns = Ns Ar address_list
+Restrict the source addresses from which the certificate is considered valid.
+The
+.Ar address_list
+is a comma-separated list of one or more address/netmask pairs in CIDR
+format.
+.El
+.It Fl P Ar passphrase
+Provides the (old) passphrase.
+.It Fl p
+Requests changing the passphrase of a private key file instead of
+creating a new private key.
+The program will prompt for the file
+containing the private key, for the old passphrase, and twice for the
+new passphrase.
+.It Fl Q
+Test whether keys have been revoked in a KRL.
+.It Fl q
+Silence
+.Nm ssh-keygen .
+.It Fl R Ar hostname
+Removes all keys belonging to
+.Ar hostname
+from a
+.Pa known_hosts
+file.
+This option is useful to delete hashed hosts (see the
+.Fl H
+option above).
+.It Fl r Ar hostname
+Print the SSHFP fingerprint resource record named
+.Ar hostname
+for the specified public key file.
+.It Fl S Ar start
+Specify start point (in hex) when generating candidate moduli for DH-GEX.
+.It Fl s Ar ca_key
+Certify (sign) a public key using the specified CA key.
+Please see the
+.Sx CERTIFICATES
+section for details.
+.Pp
+When generating a KRL,
+.Fl s
+specifies a path to a CA public key file used to revoke certificates directly
+by key ID or serial number.
+See the
+.Sx KEY REVOCATION LISTS
+section for details.
+.It Fl T Ar output_file
+Test DH group exchange candidate primes (generated using the
+.Fl G
+option) for safety.
+.It Fl t Cm dsa | ecdsa | ed25519 | rsa
+Specifies the type of key to create.
+The possible values are
+.Dq dsa ,
+.Dq ecdsa ,
+.Dq ed25519 ,
+or
+.Dq rsa .
+.It Fl U
+When used in combination with
+.Fl s ,
+this option indicates that a CA key resides in a
+.Xr ssh-agent 1 .
+See the
+.Sx CERTIFICATES
+section for more information.
+.It Fl u
+Update a KRL.
+When specified with
+.Fl k ,
+keys listed via the command line are added to the existing KRL rather than
+a new KRL being created.
+.It Fl V Ar validity_interval
+Specify a validity interval when signing a certificate.
+A validity interval may consist of a single time, indicating that the
+certificate is valid beginning now and expiring at that time, or may consist
+of two times separated by a colon to indicate an explicit time interval.
+.Pp
+The start time may be specified as the string
+.Dq always
+to indicate the certificate has no specified start time,
+a date in YYYYMMDD format, a time in YYYYMMDDHHMM[SS] format,
+a relative time (to the current time) consisting of a minus sign followed by
+an interval in the format described in the
+TIME FORMATS section of
+.Xr sshd_config 5 .
+.Pp
+The end time may be specified as a YYYYMMDD date, a YYYYMMDDHHMM[SS] time,
+a relative time starting with a plus character or the string
+.Dq forever
+to indicate that the certificate has no expirty date.
+.Pp
+For example:
+.Dq +52w1d
+(valid from now to 52 weeks and one day from now),
+.Dq -4w:+4w
+(valid from four weeks ago to four weeks from now),
+.Dq 20100101123000:20110101123000
+(valid from 12:30 PM, January 1st, 2010 to 12:30 PM, January 1st, 2011),
+.Dq -1d:20110101
+(valid from yesterday to midnight, January 1st, 2011).
+.Dq -1m:forever
+(valid from one minute ago and never expiring).
+.It Fl v
+Verbose mode.
+Causes
+.Nm
+to print debugging messages about its progress.
+This is helpful for debugging moduli generation.
+Multiple
+.Fl v
+options increase the verbosity.
+The maximum is 3.
+.It Fl W Ar generator
+Specify desired generator when testing candidate moduli for DH-GEX.
+.It Fl y
+This option will read a private
+OpenSSH format file and print an OpenSSH public key to stdout.
+.It Fl z Ar serial_number
+Specifies a serial number to be embedded in the certificate to distinguish
+this certificate from others from the same CA.
+The default serial number is zero.
+.Pp
+When generating a KRL, the
+.Fl z
+flag is used to specify a KRL version number.
+.El
+.Sh MODULI GENERATION
+.Nm
+may be used to generate groups for the Diffie-Hellman Group Exchange
+(DH-GEX) protocol.
+Generating these groups is a two-step process: first, candidate
+primes are generated using a fast, but memory intensive process.
+These candidate primes are then tested for suitability (a CPU-intensive
+process).
+.Pp
+Generation of primes is performed using the
+.Fl G
+option.
+The desired length of the primes may be specified by the
+.Fl b
+option.
+For example:
+.Pp
+.Dl # ssh-keygen -G moduli-2048.candidates -b 2048
+.Pp
+By default, the search for primes begins at a random point in the
+desired length range.
+This may be overridden using the
+.Fl S
+option, which specifies a different start point (in hex).
+.Pp
+Once a set of candidates have been generated, they must be screened for
+suitability.
+This may be performed using the
+.Fl T
+option.
+In this mode
+.Nm
+will read candidates from standard input (or a file specified using the
+.Fl f
+option).
+For example:
+.Pp
+.Dl # ssh-keygen -T moduli-2048 -f moduli-2048.candidates
+.Pp
+By default, each candidate will be subjected to 100 primality tests.
+This may be overridden using the
+.Fl a
+option.
+The DH generator value will be chosen automatically for the
+prime under consideration.
+If a specific generator is desired, it may be requested using the
+.Fl W
+option.
+Valid generator values are 2, 3, and 5.
+.Pp
+Screened DH groups may be installed in
+.Pa /etc/moduli .
+It is important that this file contains moduli of a range of bit lengths and
+that both ends of a connection share common moduli.
+.Sh CERTIFICATES
+.Nm
+supports signing of keys to produce certificates that may be used for
+user or host authentication.
+Certificates consist of a public key, some identity information, zero or
+more principal (user or host) names and a set of options that
+are signed by a Certification Authority (CA) key.
+Clients or servers may then trust only the CA key and verify its signature
+on a certificate rather than trusting many user/host keys.
+Note that OpenSSH certificates are a different, and much simpler, format to
+the X.509 certificates used in
+.Xr ssl 8 .
+.Pp
+.Nm
+supports two types of certificates: user and host.
+User certificates authenticate users to servers, whereas host certificates
+authenticate server hosts to users.
+To generate a user certificate:
+.Pp
+.Dl $ ssh-keygen -s /path/to/ca_key -I key_id /path/to/user_key.pub
+.Pp
+The resultant certificate will be placed in
+.Pa /path/to/user_key-cert.pub .
+A host certificate requires the
+.Fl h
+option:
+.Pp
+.Dl $ ssh-keygen -s /path/to/ca_key -I key_id -h /path/to/host_key.pub
+.Pp
+The host certificate will be output to
+.Pa /path/to/host_key-cert.pub .
+.Pp
+It is possible to sign using a CA key stored in a PKCS#11 token by
+providing the token library using
+.Fl D
+and identifying the CA key by providing its public half as an argument
+to
+.Fl s :
+.Pp
+.Dl $ ssh-keygen -s ca_key.pub -D libpkcs11.so -I key_id user_key.pub
+.Pp
+Similarly, it is possible for the CA key to be hosted in a
+.Xr ssh-agent 1 .
+This is indicated by the
+.Fl U
+flag and, again, the CA key must be identified by its public half.
+.Pp
+.Dl $ ssh-keygen -Us ca_key.pub -I key_id user_key.pub
+.Pp
+In all cases,
+.Ar key_id
+is a "key identifier" that is logged by the server when the certificate
+is used for authentication.
+.Pp
+Certificates may be limited to be valid for a set of principal (user/host)
+names.
+By default, generated certificates are valid for all users or hosts.
+To generate a certificate for a specified set of principals:
+.Pp
+.Dl $ ssh-keygen -s ca_key -I key_id -n user1,user2 user_key.pub
+.Dl "$ ssh-keygen -s ca_key -I key_id -h -n host.domain host_key.pub"
+.Pp
+Additional limitations on the validity and use of user certificates may
+be specified through certificate options.
+A certificate option may disable features of the SSH session, may be
+valid only when presented from particular source addresses or may
+force the use of a specific command.
+For a list of valid certificate options, see the documentation for the
+.Fl O
+option above.
+.Pp
+Finally, certificates may be defined with a validity lifetime.
+The
+.Fl V
+option allows specification of certificate start and end times.
+A certificate that is presented at a time outside this range will not be
+considered valid.
+By default, certificates are valid from
+.Ux
+Epoch to the distant future.
+.Pp
+For certificates to be used for user or host authentication, the CA
+public key must be trusted by
+.Xr sshd 8
+or
+.Xr ssh 1 .
+Please refer to those manual pages for details.
+.Sh KEY REVOCATION LISTS
+.Nm
+is able to manage OpenSSH format Key Revocation Lists (KRLs).
+These binary files specify keys or certificates to be revoked using a
+compact format, taking as little as one bit per certificate if they are being
+revoked by serial number.
+.Pp
+KRLs may be generated using the
+.Fl k
+flag.
+This option reads one or more files from the command line and generates a new
+KRL.
+The files may either contain a KRL specification (see below) or public keys,
+listed one per line.
+Plain public keys are revoked by listing their hash or contents in the KRL and
+certificates revoked by serial number or key ID (if the serial is zero or
+not available).
+.Pp
+Revoking keys using a KRL specification offers explicit control over the
+types of record used to revoke keys and may be used to directly revoke
+certificates by serial number or key ID without having the complete original
+certificate on hand.
+A KRL specification consists of lines containing one of the following directives
+followed by a colon and some directive-specific information.
+.Bl -tag -width Ds
+.It Cm serial : Ar serial_number Ns Op - Ns Ar serial_number
+Revokes a certificate with the specified serial number.
+Serial numbers are 64-bit values, not including zero and may be expressed
+in decimal, hex or octal.
+If two serial numbers are specified separated by a hyphen, then the range
+of serial numbers including and between each is revoked.
+The CA key must have been specified on the
+.Nm
+command line using the
+.Fl s
+option.
+.It Cm id : Ar key_id
+Revokes a certificate with the specified key ID string.
+The CA key must have been specified on the
+.Nm
+command line using the
+.Fl s
+option.
+.It Cm key : Ar public_key
+Revokes the specified key.
+If a certificate is listed, then it is revoked as a plain public key.
+.It Cm sha1 : Ar public_key
+Revokes the specified key by its SHA1 hash.
+.El
+.Pp
+KRLs may be updated using the
+.Fl u
+flag in addition to
+.Fl k .
+When this option is specified, keys listed via the command line are merged into
+the KRL, adding to those already there.
+.Pp
+It is also possible, given a KRL, to test whether it revokes a particular key
+(or keys).
+The
+.Fl Q
+flag will query an existing KRL, testing each key specified on the command line.
+If any key listed on the command line has been revoked (or an error encountered)
+then
+.Nm
+will exit with a non-zero exit status.
+A zero exit status will only be returned if no key was revoked.
+.Sh FILES
+.Bl -tag -width Ds -compact
+.It Pa ~/.ssh/id_dsa
+.It Pa ~/.ssh/id_ecdsa
+.It Pa ~/.ssh/id_ed25519
+.It Pa ~/.ssh/id_rsa
+Contains the DSA, ECDSA, Ed25519 or RSA
+authentication identity of the user.
+This file should not be readable by anyone but the user.
+It is possible to
+specify a passphrase when generating the key; that passphrase will be
+used to encrypt the private part of this file using 128-bit AES.
+This file is not automatically accessed by
+.Nm
+but it is offered as the default file for the private key.
+.Xr ssh 1
+will read this file when a login attempt is made.
+.Pp
+.It Pa ~/.ssh/id_dsa.pub
+.It Pa ~/.ssh/id_ecdsa.pub
+.It Pa ~/.ssh/id_ed25519.pub
+.It Pa ~/.ssh/id_rsa.pub
+Contains the DSA, ECDSA, Ed25519 or RSA
+public key for authentication.
+The contents of this file should be added to
+.Pa ~/.ssh/authorized_keys
+on all machines
+where the user wishes to log in using public key authentication.
+There is no need to keep the contents of this file secret.
+.Pp
+.It Pa /etc/moduli
+Contains Diffie-Hellman groups used for DH-GEX.
+The file format is described in
+.Xr moduli 5 .
+.El
+.Sh SEE ALSO
+.Xr ssh 1 ,
+.Xr ssh-add 1 ,
+.Xr ssh-agent 1 ,
+.Xr moduli 5 ,
+.Xr sshd 8
+.Rs
+.%R RFC 4716
+.%T "The Secure Shell (SSH) Public Key File Format"
+.%D 2006
+.Re
+.Sh AUTHORS
+OpenSSH is a derivative of the original and free
+ssh 1.2.12 release by Tatu Ylonen.
+Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
+Theo de Raadt and Dug Song
+removed many bugs, re-added newer features and
+created OpenSSH.
+Markus Friedl contributed the support for SSH
+protocol versions 1.5 and 2.0.

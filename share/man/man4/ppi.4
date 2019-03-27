@@ -1,0 +1,107 @@
+.\" Copyright (c) 1997
+.\"      Michael Smith
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS''
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 2, 1998
+.Dt PPI 4
+.Os
+.Sh NAME
+.Nm ppi
+.Nd "user-space interface to ppbus parallel 'geek' port"
+.Sh SYNOPSIS
+.Cd "device ppi"
+.Pp
+Minor numbering: unit numbers correspond directly to ppbus numbers.
+.Pp
+.In dev/ppbus/ppi.h
+.In dev/ppbus/ppbconf.h
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a convenient means for user applications to manipulate the
+state of the parallel port, enabling easy low-speed I/O operations without
+the security problems inherent with the use of the
+.Pa /dev/io
+interface.
+.Sh PROGRAMMING INTERFACE
+All I/O on the
+.Nm
+interface is performed using
+.Fn ioctl
+calls.
+Each command takes a single
+.Ft uint8_t
+argument, transferring one byte of data.
+The following commands are available:
+.Bl -tag -width indent
+.It Dv PPIGDATA , PPISDATA
+Get and set the contents of the data register.
+.It Dv PPIGSTATUS , PPISSTATUS
+Get and set the contents of the status register.
+.It Dv PPIGCTRL , PPISCTRL
+Get and set the contents of the control register.
+The following defines correspond to bits in this register.
+Setting a bit in the control register drives the corresponding output low.
+.Bl -tag -width indent -compact
+.It Dv STROBE
+.It Dv AUTOFEED
+.It Dv nINIT
+.It Dv SELECTIN
+.It Dv PCD
+.El
+.It Dv PPIGEPP , PPISEPP
+Get and set the contents of the EPP control register.
+.It Dv PPIGECR , PPISECR
+Get and set the contents of the ECP control register.
+.It Dv PPIGFIFO , PPISFIFO
+Read and write the ECP FIFO (8-bit operations only).
+.El
+.Sh EXAMPLES
+To present the value 0x5a to the data port, drive STROBE low and then high
+again, the following code fragment can be used:
+.Bd -literal -compact
+
+	int		fd;
+	uint8_t		val;
+
+	val = 0x5a;
+	ioctl(fd, PPISDATA, &val);
+	ioctl(fd, PPIGCTRL, &val);
+	val |= STROBE;
+	ioctl(fd, PPISCTRL, &val);
+	val &= ~STROBE;
+	ioctl(fd, PPISCTRL, &val);
+
+.Ed
+.Sh BUGS
+The inverse sense of signals is confusing.
+.Pp
+The
+.Fn ioctl
+interface is slow, and there is no way (yet) to chain multiple operations together.
+.Pp
+The headers required for user applications are not installed as part of the
+standard system.

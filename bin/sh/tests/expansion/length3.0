@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+set -- 1 2 3 4 5 6 7 8 9 10 11 12 13
+[ "$#" = 13 ] || echo '$# wrong'
+[ "${#}" = 13 ] || echo '${#} wrong'
+[ "${##}" = 2 ] || echo '${##} wrong'
+set --
+[ "$#" = 0 ] || echo '$# wrong'
+[ "${#}" = 0 ] || echo '${#} wrong'
+[ "${##}" = 1 ] || echo '${##} wrong'

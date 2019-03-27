@@ -1,0 +1,91 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)cifs.kshlib	1.4	09/05/19 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+function cifs_supported
+{
+     	if check_version "5.11" ; then
+		fs_prop_exist "sharesmb"
+		return $?
+	fi
+	return 1
+}
+
+#
+# Create a file or direcotry
+#
+# $1: The type specified, "file" or "dir"
+# $2: The given node name
+# $3: Owner of the node
+#
+function create_object
+{
+	typeset type=$1
+	typeset object=$2
+	typeset owner=$3
+
+	destroy_object $object
+
+	case $type in
+		dir)
+			$MKDIR -p $object
+			;;
+		file)
+			$ECHO "ZFS test suites" > $object
+			;;
+	esac
+
+	if [[ -n $owner ]]; then
+		$CHOWN $owner $object
+	fi
+	return 0
+}
+
+#
+# Destroy the given node(s)
+#
+# $@: The node(s) need to be destroyed
+#
+function destroy_object
+{
+	for object in $@ ; do
+		if [[ -e $object ]]; then
+
+			# clear_attribute is a common function name,
+			# but each case should have their own implement.
+			log_must clear_attribute $object
+			log_must $RM -rf $object
+		fi
+	done
+	return 0
+}
+

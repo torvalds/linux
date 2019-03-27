@@ -1,0 +1,590 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.5, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>ntpdc: NTPD Control User&rsquo;s Manual</title>
+
+<meta name="description" content="ntpdc: NTPD Control User&rsquo;s Manual">
+<meta name="keywords" content="ntpdc: NTPD Control User&rsquo;s Manual">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="#Top" rel="start" title="Top">
+<link href="dir.html#Top" rel="up" title="(dir)">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<h1 class="settitle" align="center">ntpdc: NTPD Control User&rsquo;s Manual</h1>
+
+
+
+
+
+<a name="Top"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-Description" accesskey="n" rel="next">ntpdc Description</a>, Previous: <a href="dir.html#Top" accesskey="p" rel="prev">(dir)</a>, Up: <a href="dir.html#Top" accesskey="u" rel="up">(dir)</a> &nbsp; </p>
+</div>
+<a name="ntpdc_003a-NTPD-Control-User-Manual"></a>
+<h1 class="top">ntpdc: NTPD Control User Manual</h1>
+
+<p>This document describes the use of the NTP Project&rsquo;s <code>ntpdc</code> program,
+that can be used to query a Network Time Protocol (NTP) server and
+display the time offset of the system clock relative to the server
+clock.  Run as root, it can correct the system clock to this offset as
+well.  It can be run as an interactive command or from a cron job.
+</p>
+<p>This document applies to version 4.2.8p13 of <code>ntpdc</code>.
+</p>
+<p>The program implements the SNTP protocol as defined by RFC 5905, the NTPv4
+IETF specification.
+</p>
+<a name="SEC_Overview"></a>
+<h2 class="shortcontents-heading">Short Table of Contents</h2>
+
+<div class="shortcontents">
+<ul class="no-bullet">
+<li><a name="stoc-Description" href="#toc-Description">1 Description</a></li>
+</ul>
+</div>
+
+
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-Description" accesskey="1">ntpdc Description</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Description
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-Invocation" accesskey="2">ntpdc Invocation</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Invoking ntpdc
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Usage" accesskey="3">Usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Usage
+</td></tr>
+</table>
+
+<hr>
+<a name="ntpdc-Description"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-Invocation" accesskey="n" rel="next">ntpdc Invocation</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="Description"></a>
+<h2 class="chapter">1 Description</h2>
+
+<p>By default, <code>ntpdc</code> writes the local data and time (i.e., not UTC) to the
+standard output in the format:
+</p>
+<div class="example">
+<pre class="example">1996-10-15 20:17:25.123 (+0800) +4.567 +/- 0.089 secs
+</pre></div>
+
+<p>where
+YYYY-MM-DD HH:MM:SS.SUBSEC is the local date and time,
+(+0800) is the local timezone adjustment (so we would add 8 hours and 0 minutes to convert the reported local time to UTC),
+and
+the +4.567 +/- 0.089 secs indicates the time offset and
+error bound of the system clock relative to the server clock.
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-Invocation" accesskey="1">ntpdc Invocation</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Usage" accesskey="2">Usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+</table>
+
+<hr>
+<a name="ntpdc-Invocation"></a>
+<div class="header">
+<p>
+Next: <a href="#Usage" accesskey="n" rel="next">Usage</a>, Previous: <a href="#ntpdc-Description" accesskey="p" rel="prev">ntpdc Description</a>, Up: <a href="#ntpdc-Description" accesskey="u" rel="up">ntpdc Description</a> &nbsp; </p>
+</div>
+<a name="Invoking-ntpdc"></a>
+<h3 class="section">1.1 Invoking ntpdc</h3>
+<a name="index-ntpdc"></a>
+<a name="index-vendor_002dspecific-NTPD-control-program"></a>
+
+
+
+<p><code>ntpdc</code>
+is deprecated.
+Please use
+<code>ntpq(1ntpqmdoc)</code> instead - it can do everything
+<code>ntpdc</code>
+used to do, and it does so using a much more sane interface.
+</p>
+<p><code>ntpdc</code>
+is a utility program used to query
+<code>ntpd(1ntpdmdoc)</code>
+about its
+current state and to request changes in that state.
+It uses NTP mode 7 control message formats described in the source code.
+The program may
+be run either in interactive mode or controlled using command line
+arguments.
+Extensive state and statistics information is available
+through the
+<code>ntpdc</code>
+interface.
+In addition, nearly all the
+configuration options which can be specified at startup using
+ntpd&rsquo;s configuration file may also be specified at run time using
+<code>ntpdc</code>
+</p>
+<p>This section was generated by <strong>AutoGen</strong>,
+using the <code>agtexi-cmd</code> template and the option descriptions for the <code>ntpdc</code> program.
+This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-usage" accesskey="1">ntpdc usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ntpdc help/usage (<samp>--help</samp>)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-ipv4" accesskey="2">ntpdc ipv4</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ipv4 option (-4)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-ipv6" accesskey="3">ntpdc ipv6</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ipv6 option (-6)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-command" accesskey="4">ntpdc command</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">command option (-c)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-interactive" accesskey="5">ntpdc interactive</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">interactive option (-i)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-listpeers" accesskey="6">ntpdc listpeers</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">listpeers option (-l)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-numeric" accesskey="7">ntpdc numeric</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">numeric option (-n)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-peers" accesskey="8">ntpdc peers</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">peers option (-p)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-showpeers" accesskey="9">ntpdc showpeers</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">showpeers option (-s)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-config">ntpdc config</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">presetting/configuring ntpdc
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-exit-status">ntpdc exit status</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">exit status
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-Usage">ntpdc Usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Usage
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-See-Also">ntpdc See Also</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">See Also
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-Authors">ntpdc Authors</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Authors
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpdc-Bugs">ntpdc Bugs</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Bugs
+</td></tr>
+</table>
+
+<hr>
+<a name="ntpdc-usage"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-ipv4" accesskey="n" rel="next">ntpdc ipv4</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="ntpdc-help_002fusage-_0028_002d_002dhelp_0029"></a>
+<h4 class="subsection">1.1.1 ntpdc help/usage (<samp>--help</samp>)</h4>
+<a name="index-ntpdc-help"></a>
+
+<p>This is the automatically generated usage text for ntpdc.
+</p>
+<p>The text printed is the same whether selected with the <code>help</code> option
+(<samp>--help</samp>) or the <code>more-help</code> option (<samp>--more-help</samp>).  <code>more-help</code> will print
+the usage text by passing it through a pager program.
+<code>more-help</code> is disabled on platforms without a working
+<code>fork(2)</code> function.  The <code>PAGER</code> environment variable is
+used to select the program, defaulting to <samp>more</samp>.  Both will exit
+with a status code of 0.
+</p>
+<div class="example">
+<pre class="example">ntpdc - vendor-specific NTPD control program - Ver. 4.2.8p13
+Usage:  ntpdc [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]... [ host ...]
+  Flg Arg Option-Name    Description
+   -4 no  ipv4           Force IPv4 DNS name resolution
+                                - prohibits the option 'ipv6'
+   -6 no  ipv6           Force IPv6 DNS name resolution
+                                - prohibits the option 'ipv4'
+   -c Str command        run a command and exit
+                                - may appear multiple times
+   -d no  debug-level    Increase debug verbosity level
+                                - may appear multiple times
+   -D Num set-debug-level Set the debug verbosity level
+                                - may appear multiple times
+   -i no  interactive    Force ntpq to operate in interactive mode
+                                - prohibits these options:
+                                command
+                                listpeers
+                                peers
+                                showpeers
+   -l no  listpeers      Print a list of the peers
+                                - prohibits the option 'command'
+   -n no  numeric        numeric host addresses
+   -p no  peers          Print a list of the peers
+                                - prohibits the option 'command'
+   -s no  showpeers      Show a list of the peers
+                                - prohibits the option 'command'
+      opt version        output version information and exit
+   -? no  help           display extended usage information and exit
+   -! no  more-help      extended usage information passed thru pager
+   -&gt; opt save-opts      save the option state to a config file
+   -&lt; Str load-opts      load options from a config file
+                                - disabled as '--no-load-opts'
+                                - may appear multiple times
+
+Options are specified by doubled hyphens and their name or by a single
+hyphen and the flag character.
+
+
+The following option preset mechanisms are supported:
+ - reading file $HOME/.ntprc
+ - reading file ./.ntprc
+ - examining environment variables named NTPDC_*
+
+Please send bug reports to:  &lt;http://bugs.ntp.org, bugs@ntp.org&gt;
+</pre></div>
+
+<hr>
+<a name="ntpdc-ipv4"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-ipv6" accesskey="n" rel="next">ntpdc ipv6</a>, Previous: <a href="#ntpdc-usage" accesskey="p" rel="prev">ntpdc usage</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="ipv4-option-_0028_002d4_0029"></a>
+<h4 class="subsection">1.1.2 ipv4 option (-4)</h4>
+<a name="index-ntpdc_002dipv4"></a>
+
+<p>This is the &ldquo;force ipv4 dns name resolution&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+ipv6.
+</li></ul>
+
+<p>Force DNS resolution of following host names on the command line
+to the IPv4 namespace.
+</p><hr>
+<a name="ntpdc-ipv6"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-command" accesskey="n" rel="next">ntpdc command</a>, Previous: <a href="#ntpdc-ipv4" accesskey="p" rel="prev">ntpdc ipv4</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="ipv6-option-_0028_002d6_0029"></a>
+<h4 class="subsection">1.1.3 ipv6 option (-6)</h4>
+<a name="index-ntpdc_002dipv6"></a>
+
+<p>This is the &ldquo;force ipv6 dns name resolution&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+ipv4.
+</li></ul>
+
+<p>Force DNS resolution of following host names on the command line
+to the IPv6 namespace.
+</p><hr>
+<a name="ntpdc-command"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-interactive" accesskey="n" rel="next">ntpdc interactive</a>, Previous: <a href="#ntpdc-ipv6" accesskey="p" rel="prev">ntpdc ipv6</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="command-option-_0028_002dc_0029"></a>
+<h4 class="subsection">1.1.4 command option (-c)</h4>
+<a name="index-ntpdc_002dcommand"></a>
+
+<p>This is the &ldquo;run a command and exit&rdquo; option.
+This option takes a string argument <samp>cmd</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> may appear an unlimited number of times.
+</li></ul>
+
+<p>The following argument is interpreted as an interactive format command
+and is added to the list of commands to be executed on the specified
+host(s).
+</p><hr>
+<a name="ntpdc-interactive"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-listpeers" accesskey="n" rel="next">ntpdc listpeers</a>, Previous: <a href="#ntpdc-command" accesskey="p" rel="prev">ntpdc command</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="interactive-option-_0028_002di_0029"></a>
+<h4 class="subsection">1.1.5 interactive option (-i)</h4>
+<a name="index-ntpdc_002dinteractive"></a>
+
+<p>This is the &ldquo;force ntpq to operate in interactive mode&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+command, listpeers, peers, showpeers.
+</li></ul>
+
+<p>Force ntpq to operate in interactive mode.  Prompts will be written
+to the standard output and commands read from the standard input.
+</p><hr>
+<a name="ntpdc-listpeers"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-numeric" accesskey="n" rel="next">ntpdc numeric</a>, Previous: <a href="#ntpdc-interactive" accesskey="p" rel="prev">ntpdc interactive</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="listpeers-option-_0028_002dl_0029"></a>
+<h4 class="subsection">1.1.6 listpeers option (-l)</h4>
+<a name="index-ntpdc_002dlistpeers"></a>
+
+<p>This is the &ldquo;print a list of the peers&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+command.
+</li></ul>
+
+<p>Print a list of the peers known to the server as well as a summary of
+their state. This is equivalent to the &rsquo;listpeers&rsquo; interactive command.
+</p><hr>
+<a name="ntpdc-numeric"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-peers" accesskey="n" rel="next">ntpdc peers</a>, Previous: <a href="#ntpdc-listpeers" accesskey="p" rel="prev">ntpdc listpeers</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="numeric-option-_0028_002dn_0029"></a>
+<h4 class="subsection">1.1.7 numeric option (-n)</h4>
+<a name="index-ntpdc_002dnumeric"></a>
+
+<p>This is the &ldquo;numeric host addresses&rdquo; option.
+Output all host addresses in dotted-quad numeric format rather than
+converting to the canonical host names. 
+</p><hr>
+<a name="ntpdc-peers"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-showpeers" accesskey="n" rel="next">ntpdc showpeers</a>, Previous: <a href="#ntpdc-numeric" accesskey="p" rel="prev">ntpdc numeric</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="peers-option-_0028_002dp_0029"></a>
+<h4 class="subsection">1.1.8 peers option (-p)</h4>
+<a name="index-ntpdc_002dpeers"></a>
+
+<p>This is the &ldquo;print a list of the peers&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+command.
+</li></ul>
+
+<p>Print a list of the peers known to the server as well as a summary
+of their state. This is equivalent to the &rsquo;peers&rsquo; interactive command.
+</p><hr>
+<a name="ntpdc-showpeers"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-config" accesskey="n" rel="next">ntpdc config</a>, Previous: <a href="#ntpdc-peers" accesskey="p" rel="prev">ntpdc peers</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="showpeers-option-_0028_002ds_0029"></a>
+<h4 class="subsection">1.1.9 showpeers option (-s)</h4>
+<a name="index-ntpdc_002dshowpeers"></a>
+
+<p>This is the &ldquo;show a list of the peers&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+command.
+</li></ul>
+
+<p>Print a list of the peers known to the server as well as a summary
+of their state. This is equivalent to the &rsquo;dmpeers&rsquo; interactive command.
+</p>
+
+<hr>
+<a name="ntpdc-config"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-exit-status" accesskey="n" rel="next">ntpdc exit status</a>, Previous: <a href="#ntpdc-showpeers" accesskey="p" rel="prev">ntpdc showpeers</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="presetting_002fconfiguring-ntpdc"></a>
+<h4 class="subsection">1.1.10 presetting/configuring ntpdc</h4>
+
+<p>Any option that is not marked as <i>not presettable</i> may be preset by
+loading values from configuration (&quot;rc&quot; or &quot;ini&quot;) files, and values from environment variables named <code>NTPDC</code> and <code>NTPDC_&lt;OPTION_NAME&gt;</code>.  <code>&lt;OPTION_NAME&gt;</code> must be one of
+the options listed above in upper case and segmented with underscores.
+The <code>NTPDC</code> variable will be tokenized and parsed like
+the command line.  The remaining variables are tested for existence and their
+values are treated like option arguments.
+</p>
+
+<p><code>libopts</code> will search in 2 places for configuration files:
+</p><ul>
+<li> $HOME
+</li><li> $PWD
+</li></ul>
+<p>The environment variables <code>HOME</code>, and <code>PWD</code>
+are expanded and replaced when <samp>ntpdc</samp> runs.
+For any of these that are plain files, they are simply processed.
+For any that are directories, then a file named <samp>.ntprc</samp> is searched for
+within that directory and processed.
+</p>
+<p>Configuration files may be in a wide variety of formats.
+The basic format is an option name followed by a value (argument) on the
+same line.  Values may be separated from the option name with a colon,
+equal sign or simply white space.  Values may be continued across multiple
+lines by escaping the newline with a backslash.
+</p>
+<p>Multiple programs may also share the same initialization file.
+Common options are collected at the top, followed by program specific
+segments.  The segments are separated by lines like:
+</p><div class="example">
+<pre class="example">[NTPDC]
+</pre></div>
+<p>or by
+</p><div class="example">
+<pre class="example">&lt;?program ntpdc&gt;
+</pre></div>
+<p>Do not mix these styles within one configuration file.
+</p>
+<p>Compound values and carefully constructed string values may also be
+specified using XML syntax:
+</p><div class="example">
+<pre class="example">&lt;option-name&gt;
+   &lt;sub-opt&gt;...&amp;lt;...&amp;gt;...&lt;/sub-opt&gt;
+&lt;/option-name&gt;
+</pre></div>
+<p>yielding an <code>option-name.sub-opt</code> string value of
+</p><div class="example">
+<pre class="example">&quot;...&lt;...&gt;...&quot;
+</pre></div>
+<p><code>AutoOpts</code> does not track suboptions.  You simply note that it is a
+hierarchicly valued option.  <code>AutoOpts</code> does provide a means for searching
+the associated name/value pair list (see: optionFindValue).
+</p>
+<p>The command line options relating to configuration and/or usage help are:
+</p>
+<a name="version-_0028_002d_0029"></a>
+<h4 class="subsubheading">version (-)</h4>
+
+<p>Print the program version to standard out, optionally with licensing
+information, then exit 0.  The optional argument specifies how much licensing
+detail to provide.  The default is to print just the version.  The licensing infomation may be selected with an option argument.
+Only the first letter of the argument is examined:
+</p>
+<dl compact="compact">
+<dt>&lsquo;<samp>version</samp>&rsquo;</dt>
+<dd><p>Only print the version.  This is the default.
+</p></dd>
+<dt>&lsquo;<samp>copyright</samp>&rsquo;</dt>
+<dd><p>Name the copyright usage licensing terms.
+</p></dd>
+<dt>&lsquo;<samp>verbose</samp>&rsquo;</dt>
+<dd><p>Print the full copyright usage licensing terms.
+</p></dd>
+</dl>
+
+<hr>
+<a name="ntpdc-exit-status"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-Usage" accesskey="n" rel="next">ntpdc Usage</a>, Previous: <a href="#ntpdc-config" accesskey="p" rel="prev">ntpdc config</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="ntpdc-exit-status-1"></a>
+<h4 class="subsection">1.1.11 ntpdc exit status</h4>
+
+<p>One of the following exit values will be returned:
+</p><dl compact="compact">
+<dt>&lsquo;<samp>0 (EXIT_SUCCESS)</samp>&rsquo;</dt>
+<dd><p>Successful program execution.
+</p></dd>
+<dt>&lsquo;<samp>1 (EXIT_FAILURE)</samp>&rsquo;</dt>
+<dd><p>The operation failed or the command syntax was not valid.
+</p></dd>
+<dt>&lsquo;<samp>66 (EX_NOINPUT)</samp>&rsquo;</dt>
+<dd><p>A specified configuration file could not be loaded.
+</p></dd>
+<dt>&lsquo;<samp>70 (EX_SOFTWARE)</samp>&rsquo;</dt>
+<dd><p>libopts had an internal operational error.  Please report
+it to autogen-users@lists.sourceforge.net.  Thank you.
+</p></dd>
+</dl>
+<hr>
+<a name="ntpdc-Usage"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-See-Also" accesskey="n" rel="next">ntpdc See Also</a>, Previous: <a href="#ntpdc-exit-status" accesskey="p" rel="prev">ntpdc exit status</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="ntpdc-Usage-1"></a>
+<h4 class="subsection">1.1.12 ntpdc Usage</h4>
+<hr>
+<a name="ntpdc-See-Also"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-Authors" accesskey="n" rel="next">ntpdc Authors</a>, Previous: <a href="#ntpdc-Usage" accesskey="p" rel="prev">ntpdc Usage</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="ntpdc-See-Also-1"></a>
+<h4 class="subsection">1.1.13 ntpdc See Also</h4>
+<hr>
+<a name="ntpdc-Authors"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpdc-Bugs" accesskey="n" rel="next">ntpdc Bugs</a>, Previous: <a href="#ntpdc-See-Also" accesskey="p" rel="prev">ntpdc See Also</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="ntpdc-Authors-1"></a>
+<h4 class="subsection">1.1.14 ntpdc Authors</h4>
+<hr>
+<a name="ntpdc-Bugs"></a>
+<div class="header">
+<p>
+Previous: <a href="#ntpdc-Authors" accesskey="p" rel="prev">ntpdc Authors</a>, Up: <a href="#ntpdc-Invocation" accesskey="u" rel="up">ntpdc Invocation</a> &nbsp; </p>
+</div>
+<a name="ntpdc-Bugs-1"></a>
+<h4 class="subsection">1.1.15 ntpdc Bugs</h4>
+
+<hr>
+<a name="Usage"></a>
+<div class="header">
+<p>
+Previous: <a href="#ntpdc-Invocation" accesskey="p" rel="prev">ntpdc Invocation</a>, Up: <a href="#ntpdc-Description" accesskey="u" rel="up">ntpdc Description</a> &nbsp; </p>
+</div>
+<a name="Usage-1"></a>
+<h3 class="section">1.2 Usage</h3>
+
+<p>The simplest use of this program is as an unprivileged command to
+check the current time, offset, and error in the local clock.
+For example:
+</p>
+<div class="example">
+<pre class="example">ntpdc ntpserver.somewhere
+</pre></div>
+
+<p>With suitable privilege, it can be run as a command or in a
+<code>cron</code> job to reset the local clock from a reliable server, like
+the <code>ntpdate</code> and <code>rdate</code> commands.
+For example:
+</p>
+<div class="example">
+<pre class="example">ntpdc -a ntpserver.somewhere
+</pre></div>
+<hr>
+
+
+
+</body>
+</html>

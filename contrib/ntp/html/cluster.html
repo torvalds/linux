@@ -1,0 +1,32 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Clock Cluster Algorithm</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<em></em>
+<h3>Clock Cluster Algorithm</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->15-Nov-2012  06:02<!-- #EndDate -->
+  UTC</p>
+<hr>
+<p>The clock cluster algorithm processes the truechimers produced by the clock select algorithm to produce a list of <em>survivors</em>. These survivors are used by the mitigation algorithms to discipline the system clock. The cluster algorithm operates in a series of rounds, where at each round the truechimer  furthest from the offset centroid is pruned from the population. The rounds are continued until a specified termination condition is met. This page discusses the algorithm in detail.</p>
+<p>First, the truechimer  associations are saved on an unordered list  with each candidate entry identified with index <em>i</em> (<em>i </em>= 1, ..., <em>n)</em>, where <em>n</em> is the number of candidates. Let  &theta;(<em>i</em>), be the offset and   &lambda;(<em>i</em>) be the root distance of the <em>i</em>th entry. Recall that the root distance is equal to the root dispersion plus half the root delay. For the <em>i</em>th candidate on the list, a statistic called the <em>select jitter</em> relative to the <em>i</em>th candidate is calculated as follows. Let</p>
+<div align="center">
+  <p><em>d<sub>i</sub></em>(<em>j</em>) = |&theta;(<em>j</em>) &minus; &theta;(<em>i</em>)| &lambda;(<em>i</em>),</p>
+</div>
+<p> where &theta;(<em>i)</em> is the peer offset of the <em>i</em>th entry and &theta;(<em>j</em>) is the peer offset of the <em>j</em>th entry, both produced by the clock filter algorithm. The metric used by the cluster algorithm is the select jitter &phi;<sub>S</sub>(<em>i</em>) computed as the  root mean square (RMS) of the <em>d<sub>i</sub></em>(<em>j</em>)  as <em>j</em> ranges from 1 to <em>n</em>. <em> </em>For the purpose of notation in the example to follow, let &phi;<sub>R</sub>(<em>i</em>) be the peer jitter computed by the clock filter algorithm for the <em>i</em>th candidate.</p>
+<p>The object at each round is to prune the entry with the largest metric until the termination condition is met. Note that the select jitter must be recomputed at each round, but the peer jitter does not change. At each round the remaining entries on the list represent the survivors of that round. If the candidate to be pruned is  preemptable and the number of candidates is greater than    the <em>maxclock threshold</em>, the association is demobilized.   This is useful in the  schemes described on the <a href="discover.html">Automatic Server Discovery Schemes</a> page. The maxclock threshold  default is 10, but it can be changed using the <tt>maxclock</tt> option of the <a href="miscopt.html#tos"><tt>tos</tt></a> command. Further pruning is subject to the following termination conditions, but no associations will be automatically demobilized.</p>
+<p>The termination condition has two parts. First, if the number of survivors is not greater than the<em> </em><em>minclock threshold</em> set by the <tt>minclock</tt> option of the <a href="miscopt.html#tos"><tt>tos</tt></a> command, the pruning process terminates. The<tt> minclock</tt> default is 3, but can be changed  to fit special conditions, as described on the <a href="prefer.html">Mitigation Rules and the prefer Keyword</a> page.</p>
+<div align="center"><img src="pic/flt7.gif" alt="gif">
+  <p>Figure 1. Cluster Algorithm</p>
+</div>
+<p>The second termination condition is more intricate. Figure 1 shows a round where a candidate of (a) is pruned to yield the candidates of (b). Let &phi;<sub><em>max</em></sub> be the maximum select jitter and &phi;<sub><em>min</em></sub> be the minimum peer jitter over all candidates on the list. In (a), candidate 1 has the highest select jitter, so &phi;<sub><em>max</em></sub> = &phi;<sub>S</sub>(1). Candidate 4 has the lowest peer jitter, so &phi;<sub><em>min</em></sub> = &phi;<sub>R</sub>(4). Since &phi;<sub><em>max</em></sub> &gt; &phi;<sub><em>min</em></sub>, select jitter dominates  peer jitter,the algorithm prunes candidate 1.&#13; In (b), &phi;<sub><em>max</em></sub> = &phi;<sub>S</sub>(3) and &phi;<sub><em>min </em></sub>=&phi;<sub>R</sub>(4). Since &phi;<sub><em>max</em></sub> &lt; &phi;<sub><em>min</em></sub>, pruning additional candidates does not  reduce select jitter, the algorithm terminates with candidates 2, 3 and 4 as  survivors.</p>
+<p>The survivor list is passed on to the the mitigation algorithms, which combine the survivors, select a system peer, and compute the system statistics passed on to dependent clients. Note the use of root distance &lambda;  as a weight factor at each round in the clock cluster algorithm. This is to favor the survivors with the lowest root distance and thus the smallest maximum error.</p>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

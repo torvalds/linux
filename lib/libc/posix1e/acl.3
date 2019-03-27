@@ -1,0 +1,307 @@
+.\"-
+.\" Copyright (c) 2000, 2001, 2002 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed by Robert Watson for the TrustedBSD Project.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 30, 2014
+.Dt ACL 3
+.Os
+.Sh NAME
+.Nm acl
+.Nd introduction to the POSIX.1e/NFSv4 ACL security API
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/acl.h
+.Sh DESCRIPTION
+.Fx
+permits file systems to export Access Control Lists via the VFS, and
+provides a library for userland access to and manipulation of these ACLs.
+.Fx
+supports POSIX.1e and NFSv4 ACLs, but
+not all file systems provide support for ACLs, and some may require that
+ACL support be explicitly enabled by the administrator.
+The library calls include routines to allocate, duplicate, retrieve, set,
+and validate ACLs associated with file objects.
+As well as the POSIX.1e routines, there are a number of non-portable
+extensions defined that allow for ACL semantics alternative to
+POSIX.1e, such as NFSv4.
+Where routines are non-standard, they are suffixed with _np to indicate that
+they are not portable.
+.Pp
+POSIX.1e describes a set of ACL manipulation routines to manage the
+contents of ACLs, as well as their relationships with files; almost
+all of these support routines are implemented in
+.Fx .
+.Pp
+Available functions, sorted by behavior, include:
+.Bl -tag -width indent
+.It Fn acl_add_flag_np
+This function is described in
+.Xr acl_add_flag_np 3 ,
+and may be used to add flags to a flagset.
+.It Fn acl_add_perm
+This function is described in
+.Xr acl_add_perm 3 ,
+and may be used to add permissions to a permission set.
+.It Fn acl_calc_mask
+This function is described in
+.Xr acl_calc_mask 3 ,
+and may be used to calculate and set the permissions associated with
+the
+.Dv ACL_MASK
+entry.
+.It Fn acl_clear_flags_np
+This function is described in
+.Xr acl_clear_flags_np 3 ,
+and may be used to clear all flags from a flagset.
+.It Fn acl_clear_perms
+This function is described in
+.Xr acl_clear_perms 3 ,
+and may be used to clear all permissions from a permission set.
+.It Fn acl_copy_entry
+This function is described in
+.Xr acl_copy_entry 3 ,
+and may be used to copy the contents of an ACL entry.
+.It Xo
+.Fn acl_create_entry ,
+.Fn acl_create_entry_np
+.Xc
+These functions are described in
+.Xr acl_create_entry 3 ,
+and may be used to create an empty entry in an ACL.
+.It Xo
+.Fn acl_delete_def_file ,
+.Fn acl_delete_def_link_np ,
+.Fn acl_delete_fd_np ,
+.Fn acl_delete_file_np ,
+.Fn acl_delete_link_np
+.Xc
+These functions are described in
+.Xr acl_delete 3 ,
+and may be used to delete ACLs from file system objects.
+.It Xo
+.Fn acl_delete_entry ,
+.Fn acl_delete_entry_np ,
+.Xc
+This functions are described in
+.Xr acl_delete_entry 3 ,
+and may be used to delete an entry from an ACL.
+.It Fn acl_delete_flag_np
+This function is described in
+.Xr acl_delete_flag_np 3 ,
+and may be used to delete flags from a flagset.
+.It Fn acl_delete_perm
+This function is described in
+.Xr acl_delete_perm 3 ,
+and may be used to delete permissions from a permset.
+.It Fn acl_dup
+This function is described in
+.Xr acl_dup 3 ,
+and may be used to duplicate an ACL structure.
+.It Fn acl_free
+This function is described in
+.Xr acl_free 3 ,
+and may be used to free userland working ACL storage.
+.It Fn acl_from_text
+This function is described in
+.Xr acl_from_text 3 ,
+and may be used to convert a text-form ACL into working ACL state, if
+the ACL has POSIX.1e or NFSv4 semantics.
+.It Fn acl_get_brand_np
+This function is described in
+.Xr acl_get_brand_np 3
+and may be used to determine whether the ACL has POSIX.1e or NFSv4 semantics.
+.It Fn acl_get_entry
+This function is described in
+.Xr acl_get_entry 3 ,
+and may be used to retrieve a designated ACL entry from an ACL.
+.It Xo
+.Fn acl_get_fd ,
+.Fn acl_get_fd_np ,
+.Fn acl_get_file ,
+.Fn acl_get_link_np
+.Xc
+These functions are described in
+.Xr acl_get 3 ,
+and may be used to retrieve ACLs from file system objects.
+.It Fn acl_get_entry_type_np
+This function is described in
+.Xr acl_get_entry_type_np 3 ,
+and may be used to retrieve an ACL type from an ACL entry.
+.It Fn acl_get_flagset_np
+This function is described in
+.Xr acl_get_flagset_np 3 ,
+and may be used to retrieve a flagset from an ACL entry.
+.It Fn acl_get_permset
+This function is described in
+.Xr acl_get_permset 3 ,
+and may be used to retrieve a permset from an ACL entry.
+.It Fn acl_get_qualifier
+This function is described in
+.Xr acl_get_qualifier 3 ,
+and may be used to retrieve the qualifier from an ACL entry.
+.It Fn acl_get_tag_type
+This function is described in
+.Xr acl_get_tag_type 3 ,
+and may be used to retrieve the tag type from an ACL entry.
+.It Fn acl_init
+This function is described in
+.Xr acl_init 3 ,
+and may be used to allocate a fresh (empty) ACL structure.
+.It Fn acl_is_trivial_np
+This function is described in
+.Xr acl_is_trivial_np 3 ,
+and may be used to find out whether ACL is trivial.
+.It Xo
+.Fn acl_set_fd ,
+.Fn acl_set_fd_np ,
+.Fn acl_set_file ,
+.Fn acl_set_link_np
+.Xc
+These functions are described in
+.Xr acl_set 3 ,
+and may be used to assign an ACL to a file system object.
+.It Fn acl_set_entry_type_np
+This function is described in
+.Xr acl_set_entry_type_np 3 ,
+and may be used to set the ACL type of an ACL entry.
+.It Fn acl_set_flagset_np
+This function is described in
+.Xr acl_set_flagset_np 3 ,
+and may be used to set the flags of an ACL entry from a flagset.
+.It Fn acl_set_permset
+This function is described in
+.Xr acl_set_permset 3 ,
+and may be used to set the permissions of an ACL entry from a permset.
+.It Fn acl_set_qualifier
+This function is described in
+.Xr acl_set_qualifier 3 ,
+and may be used to set the qualifier of an ACL.
+.It Fn acl_set_tag_type
+This function is described in
+.Xr acl_set_tag_type 3 ,
+and may be used to set the tag type of an ACL.
+.It Fn acl_strip_np
+This function is described in
+.Xr acl_strip_np 3 ,
+and may be used to remove extended entries from an ACL.
+.It Xo
+.Fn acl_to_text ,
+.Fn acl_to_text_np
+.Xc
+These functions are described in
+.Xr acl_to_text 3 ,
+and may be used to generate a text-form of a POSIX.1e or NFSv4 semantics ACL.
+.It Xo
+.Fn acl_valid ,
+.Fn acl_valid_fd_np ,
+.Fn acl_valid_file_np ,
+.Fn acl_valid_link_np
+.Xc
+These functions are described in
+.Xr acl_valid 3 ,
+and may be used to validate an ACL as correct POSIX.1e-semantics, or
+as appropriate for a particular file system object regardless of semantics.
+.El
+.Pp
+Documentation of the internal kernel interfaces backing these calls may
+be found in
+.Xr acl 9 .
+The syscalls between the internal interfaces and the public library
+routines may change over time, and as such are not documented.
+They are not intended to be called directly without going through the
+library.
+.Sh SEE ALSO
+.Xr getfacl 1 ,
+.Xr setfacl 1 ,
+.Xr acl_add_flag_np 3 ,
+.Xr acl_add_perm 3 ,
+.Xr acl_calc_mask 3 ,
+.Xr acl_clear_flags_np 3 ,
+.Xr acl_clear_perms 3 ,
+.Xr acl_copy_entry 3 ,
+.Xr acl_create_entry 3 ,
+.Xr acl_delete_entry 3 ,
+.Xr acl_delete_flag_np 3 ,
+.Xr acl_delete_perm 3 ,
+.Xr acl_dup 3 ,
+.Xr acl_free 3 ,
+.Xr acl_from_text 3 ,
+.Xr acl_get 3 ,
+.Xr acl_get_brand_np 3 ,
+.Xr acl_get_entry_type_np 3 ,
+.Xr acl_get_flagset_np 3 ,
+.Xr acl_get_permset 3 ,
+.Xr acl_get_qualifier 3 ,
+.Xr acl_get_tag_type 3 ,
+.Xr acl_init 3 ,
+.Xr acl_is_trivial_np 3 ,
+.Xr acl_set 3 ,
+.Xr acl_set_entry_type_np 3 ,
+.Xr acl_set_flagset_np 3 ,
+.Xr acl_set_permset 3 ,
+.Xr acl_set_qualifier 3 ,
+.Xr acl_set_tag_type 3 ,
+.Xr acl_strip_np 3 ,
+.Xr acl_to_text 3 ,
+.Xr acl_valid 3 ,
+.Xr posix1e 3 ,
+.Xr acl 9
+.Sh STANDARDS
+POSIX.1e assigns security labels to all objects, extending the security
+functionality described in POSIX.1.
+These additional labels provide fine-grained discretionary access control,
+fine-grained capabilities, and labels necessary for mandatory access
+control.
+POSIX.2c describes a set of userland utilities for manipulating these
+labels.
+.Pp
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+Discussion of the draft continues on the cross-platform POSIX.1e
+implementation mailing list.
+To join this list, see the
+.Fx
+POSIX.1e implementation page for more information.
+.Sh HISTORY
+POSIX.1e support was introduced in
+.Fx 4.0 ;
+.Fx 5.0
+was the first version to include a complete ACL implementation based
+on extended attributes for the UFS and UFS2 file systems.
+NFSv4 ACL support was introduced in
+.Fx 8.0 .
+.Pp
+The
+.Xr getfacl 1
+and
+.Xr setfacl 1
+utilities describe the user tools that permit direct manipulation of complete
+file ACLs.
+.Sh AUTHORS
+.An Robert N M Watson

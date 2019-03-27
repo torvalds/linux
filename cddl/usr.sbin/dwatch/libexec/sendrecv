@@ -1,0 +1,229 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for send(2)/recv(2) $
+# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $FreeBSD$
+#
+############################################################ DESCRIPTION
+#
+# Print details from send(2)/recv(2)
+#
+############################################################ PROBE
+
+case "$PROFILE" in
+sendrecv)
+	: ${PROBE:=$( echo \
+		syscall::recvfrom:return, \
+		syscall::recvmsg:return, \
+		syscall::sendmsg:entry, \
+		syscall::sendto:entry )} ;;
+send)
+	: ${PROBE:=$( echo \
+		syscall::sendmsg:entry, \
+		syscall::sendto:entry )} ;;
+recv)
+	: ${PROBE:=$( echo \
+		syscall::recvfrom:return, \
+		syscall::recvmsg:return )} ;;
+recv*)
+	: ${PROBE:=syscall::$PROFILE:return} ;;
+*)
+	: ${PROBE:=syscall::$PROFILE:entry}
+esac
+
+############################################################ EVENT ACTION
+
+#[ "$CUSTOM_TEST" ] || EVENT_TEST="this->from != NULL"
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+typedef struct sainfo {
+	sa_family_t sa_family;
+	uint16_t port;
+	string addr;
+	string family;
+} sainfo_t;
+
+/*
+ * Address families from <sys/socket.h>
+ */
+#pragma D binding "1.13" address_family_string
+inline string address_family_string[sa_family_t af] =
+	af == AF_UNSPEC ?		"AF_UNSPEC" :
+	af == AF_LOCAL ?		"AF_UNIX" :
+	af == AF_UNIX ?			"AF_UNIX" :
+	af == AF_INET ?			"AF_INET" :
+	af == AF_IMPLINK ?		"AF_IMPLINK" :
+	af == AF_PUP ?			"AF_PUP" :
+	af == AF_CHAOS ?		"AF_CHAOS" :
+	af == AF_NETBIOS ?		"AF_NETBIOS" :
+	af == AF_ISO ?			"AF_ISO" :
+	af == AF_OSI ?			"AF_ISO" :
+	af == AF_ECMA ?			"AF_ECMA" :
+	af == AF_DATAKIT ?		"AF_DATAKIT" :
+	af == AF_CCITT ?		"AF_CCITT" :
+	af == AF_SNA ?			"AF_SNA" :
+	af == AF_DECnet ?		"AF_DECnet" :
+	af == AF_DLI ?			"AF_DLI" :
+	af == AF_LAT ?			"AF_LAT" :
+	af == AF_HYLINK ?		"AF_HYLINK" :
+	af == AF_APPLETALK ?		"AF_APPLETALK" :
+	af == AF_ROUTE ?		"AF_ROUTE" :
+	af == AF_LINK ?			"AF_LINK" :
+	af == pseudo_AF_XTP ?		"pseudo_AF_XTP" :
+	af == AF_COIP ?			"AF_COIP" :
+	af == AF_CNT ?			"AF_CNT" :
+	af == pseudo_AF_RTIP ?		"pseudo_AF_RTIP" :
+	af == AF_IPX ?			"AF_IPX" :
+	af == AF_SIP ?			"AF_SIP" :
+	af == pseudo_AF_PIP ?		"pseudo_AF_PIP" :
+	af == AF_ISDN ?			"AF_ISDN" :
+	af == AF_E164 ?			"AF_ISDN" :
+	af == pseudo_AF_KEY ?		"pseudo_AF_KEY" :
+	af == AF_INET6 ?		"AF_INET6" :
+	af == AF_NATM ?			"AF_NATM" :
+	af == AF_ATM ?			"AF_ATM" :
+	af == pseudo_AF_HDRCMPLT ?	"pseudo_AF_HDRCMPLT" :
+	af == AF_NETGRAPH ?		"AF_NETGRAPH" :
+	af == AF_SLOW ?			"AF_SLOW" :
+	af == AF_SCLUSTER ?		"AF_SCLUSTER" :
+	af == AF_ARP ?			"AF_ARP" :
+	af == AF_BLUETOOTH ?		"AF_BLUETOOTH" :
+	af == AF_IEEE80211 ?		"AF_IEEE80211" :
+	af == AF_INET_SDP ?		"AF_INET_SDP" :
+	af == AF_INET6_SDP ?		"AF_INET6_SDP" :
+	af == AF_MAX ?			"AF_MAX" :
+	strjoin("AF_UNKNOWN(", strjoin(lltostr(af), ")"));
+
+#pragma D binding "1.13" sa_data_size
+inline int sa_data_size = 14;
+#pragma D binding "1.13" sa_dummy_data
+inline char *sa_dummy_data = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+
+#pragma D binding "1.13" sa_data_addr
+inline string sa_data_addr[sa_family_t af, char data[sa_data_size]] =
+	af == AF_INET ? strjoin(
+		strjoin(strjoin(lltostr(data[2] & 0xFF), "."),
+			strjoin(lltostr(data[3] & 0xFF), ".")
+		),
+		strjoin(strjoin(lltostr(data[4] & 0xFF), "."),
+			lltostr(data[5] & 0xFF))
+	) :
+	"";
+
+#pragma D binding "1.13" sa_data_port
+inline uint16_t sa_data_port[sa_family_t af, char data[sa_data_size]] =
+	af == AF_INET ? (data[0] << 8) + data[1] :
+	0;
+
+#pragma D binding "1.13" translator
+translator sainfo_t < struct sockaddr *SA > {
+	sa_family =	SA == NULL ? 0 : SA->sa_family;
+	family =	address_family_string[SA == NULL ? 0 : SA->sa_family];
+	addr =		SA == NULL ?
+	    sa_data_addr[0, sa_dummy_data] :
+	    sa_data_addr[SA->sa_family, SA->sa_data];
+	port =		SA == NULL ?
+	    sa_data_port[0, sa_dummy_data] :
+	    sa_data_port[SA->sa_family, SA->sa_data];
+};
+
+this sainfo_t		sainfo;
+this ssize_t		nbytes;
+this string		details;
+this string		flow;
+this struct msghdr *	msghdr;
+this struct sockaddr *	sa;
+
+inline string probeflow[string func] =
+	func == "recvfrom" ?	"<-" :
+	func == "recvmsg" ?	"<-" :
+	func == "recvmmsg" ?	"<-" :
+	"->";
+
+inline string af_details[sa_family_t af, string addr, uint16_t port] =
+	af == AF_INET ? strjoin(addr, strjoin(":", lltostr(port))) :
+	"";
+
+$PROBE /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");}
+	this->details = "";
+	this->flow = probeflow[probefunc];
+}
+
+syscall::recvfrom:entry /* probe ID $(( $ID + 1 )) */
+{${TRACE:+
+	printf("<$(( $ID + 1 ))>");}
+	this->sainfo = xlate <sainfo_t> ((struct sockaddr *)(args[4] == NULL ?
+		NULL : copyin(arg4, sizeof(struct sockaddr))));
+}
+
+syscall::recvfrom:return /* probe ID $(( $ID + 2 )) */
+{${TRACE:+
+	printf("<$(( $ID + 2 ))>");}
+	this->nbytes = arg0;
+	this->details = strjoin("from ", strjoin(
+		strjoin(this->sainfo.family, " "),
+		af_details[this->sainfo.sa_family,
+			this->sainfo.addr, this->sainfo.port]));
+}
+
+syscall::recvmsg:entry /* probe ID $(( $ID + 3 )) */
+{${TRACE:+
+	printf("<$(( $ID + 3 ))>");}
+	this->sockaddr = (struct sockaddr *)arg1;
+}
+
+syscall::recvmsg:return /this->sockaddr != NULL/ /* probe ID $(( $ID + 4 )) */
+{${TRACE:+
+	printf("<$(( $ID + 4 ))>");}
+	this->nbytes = arg0;
+	this->sainfo = xlate <sainfo_t> ((struct sockaddr *)this->sockaddr);
+	this->details = strjoin("sainfo=[", "]");
+}
+
+syscall::sendmsg:entry /* probe ID $(( $ID + 5 )) */
+{${TRACE:+
+	printf("<$(( $ID + 5 ))>");}
+	this->nbytes = arg2;
+}
+
+syscall::sendto:entry /* probe ID $(( $ID + 6 )) */
+{${TRACE:+
+	printf("<$(( $ID + 6 ))>");}
+	this->nbytes = arg2;
+	this->sainfo = xlate <sainfo_t> ((struct sockaddr *)(arg4 == NULL ?
+		NULL : copyin(arg4, sizeof(struct sockaddr))));
+	this->details = strjoin("to ", strjoin(
+		strjoin(this->sainfo.family, " "),
+		af_details[this->sainfo.sa_family,
+			this->sainfo.addr, this->sainfo.port]));
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 7 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print socket details
+	 */
+	printf("%s %d byte%s%s%s",
+		this->flow,
+		this->nbytes,
+		this->nbytes != 1 ? "s" : "",
+		this->details != "" ? " " : "",
+		this->details);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

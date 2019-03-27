@@ -1,0 +1,7 @@
+$ $tcsh: set31,v 1.2 2006/03/02 18:46:46 christos Exp $
+$ vms.termcap.c
+$set 31 
+1 Can't open TERMCAP: [%s]\n
+2 Can't open %s.\n
+3 Found %s in %s.\n
+4 No match found for %s in file %s\n

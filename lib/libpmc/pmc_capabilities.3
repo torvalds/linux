@@ -1,0 +1,230 @@
+.\" Copyright (c) 2007-2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 22, 2008
+.Dt PMC_CAPABILITIES 3
+.Os
+.Sh NAME
+.Nm pmc_capabilities ,
+.Nm pmc_cpuinfo ,
+.Nm pmc_ncpu ,
+.Nm pmc_npmc ,
+.Nm pmc_pmcinfo ,
+.Nm pmc_width
+.Nd retrieve information about performance monitoring counters
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Ft int
+.Fn pmc_capabilities "pmc_id_t pmc" "uint32_t *caps"
+.Ft int
+.Fn pmc_cpuinfo "const struct pmc_cpuinfo **cpu_info"
+.Ft int
+.Fn pmc_ncpu void
+.Ft int
+.Fn pmc_npmc "int cpu"
+.Ft int
+.Fn pmc_pmcinfo "int cpu" "struct pmc_pmcinfo **pmc_info"
+.Ft int
+.Fn pmc_width "pmc_id_t pmc" "uint32_t *width"
+.Sh DESCRIPTION
+These functions retrieve information about performance monitoring
+hardware.
+.Pp
+Function
+.Fn pmc_capabilities
+retrieves the hardware capabilities of a PMC.
+Argument
+.Fa pmc
+is a PMC handle obtained by a prior call to
+.Fn pmc_allocate .
+The function sets argument
+.Fa caps
+to a bit mask of capabilities supported by the PMC denoted by
+argument
+.Fa pmc .
+PMC capabilities are described in
+.Xr pmc 3 .
+.Pp
+Function
+.Fn pmc_cpuinfo
+retrieves information about the CPUs in the system.
+Argument
+.Fa cpu_info
+will be set to point to an internal structure with information about
+the system's CPUs.
+The caller should not free this pointer value.
+This structure has the following fields:
+.Bl -tag -width "pm_classes" -offset indent -compact
+.It pm_cputype
+Specifies the CPU type.
+.It pm_ncpu
+Specifies the number of CPUs in the system.
+.It pm_npmc
+Specifies the number of PMC rows per CPU.
+.It pm_nclass
+Specifies the number of distinct classes of PMCs in the system.
+.It pm_classes
+Contains an array of
+.Vt "struct pmc_classinfo"
+descriptors describing the properties of each class of PMCs
+in the system.
+.El
+.Pp
+Function
+.Fn pmc_ncpu
+is a convenience function that returns the maximum CPU number in
+the system.
+On systems that support sparsely numbered CPUs, not all CPUs may
+be physically present.
+Applications need to be prepared to deal with nonexistent CPUs.
+.Pp
+Function
+.Fn pmc_npmc
+is a convenience function that returns the number of PMCs available
+in the CPU specified by argument
+.Fa cpu .
+.Pp
+Function
+.Fn pmc_pmcinfo
+returns information about the current state of the PMC hardware
+in the CPU specified by argument
+.Fa cpu .
+The location specified by argument
+.Fa pmc_info
+is set to point an array of
+.Vt "struct pmc_info"
+structures each describing the state of one PMC in the CPU.
+These structure contain the following fields:
+.Bl -tag -width pm_ownerpid -offset indent -compact
+.It pm_name
+A human readable name for the PMC.
+.It pm_class
+The PMC class for the PMC.
+.It pm_enabled
+Non-zero if the PMC is enabled.
+.It pm_rowdisp
+The disposition of the PMC row for this PMC.
+Row dispositions are documented in
+.Xr hwpmc 4 .
+.It pm_ownerpid
+If the hardware is in use, the process id of the owner of the PMC.
+.It pm_mode
+The PMC mode as described in
+.Xr pmc 3 .
+.It pm_event
+If the hardware is in use, the PMC event being measured.
+.It pm_flags
+If the hardware is in use, the flags associated with the PMC.
+.It pm_reloadcount
+For sampling PMCs, the reload count associated with the PMC.
+.El
+.Pp
+Function
+.Fn pmc_width
+is used to retrieve the width in bits of the hardware counters
+associated with a PMC.
+Argument
+.Fa pmc
+is a PMC handle obtained by a prior call to
+.Fn pmc_allocate .
+The function sets the location pointed to by argument
+.Fa width
+to the width of the physical counters associated with PMC
+.Fa pmc .
+.Sh RETURN VALUES
+Functions
+.Fn pmc_ncpu
+and
+.Fn pmc_npmc
+returns a positive integer if successful; otherwise the value -1 is
+returned and the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+Functions
+.Fn pmc_capabilities ,
+.Fn pmc_cpuinfo ,
+.Fn pmc_pmcinfo
+and
+.Fn pmc_width
+return 0 if successful; otherwise the value -1 is returned and the
+global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+A call to function
+.Fn pmc_capabilities
+may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The argument to the function was invalid.
+.El
+.Pp
+Calls to functions
+.Fn pmc_cpuinfo ,
+.Fn pmc_ncpu
+and
+.Fn pmc_npmc
+may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er ENXIO
+A prior call to
+.Fn pmc_init
+to initialize the PMC library had failed.
+.El
+.Pp
+A call to function
+.Fn pmc_pmcinfo
+may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The argument
+.Fa cpu
+was invalid.
+.It Bq Er ENXIO
+The argument
+.Fa cpu
+specified a disabled or absent CPU.
+.El
+.Pp
+A call to function
+.Fn pmc_width
+may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The argument to the function was invalid.
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc_allocate 3 ,
+.Xr pmc_get_driver_stats 3 ,
+.Xr pmc_name_of_capability 3 ,
+.Xr pmc_name_of_class 3 ,
+.Xr pmc_name_of_cputype 3 ,
+.Xr pmc_name_of_event 3 ,
+.Xr pmc_name_of_mode 3 ,
+.Xr hwpmc 4

@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Build and install GNU
+.Xr diff 1
+and
+.Xr diff3 1 .

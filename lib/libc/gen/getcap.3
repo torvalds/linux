@@ -1,0 +1,569 @@
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Casey Leedom of Lawrence Livermore National Laboratory.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)getcap.3	8.4 (Berkeley) 5/13/94
+.\" $FreeBSD$
+.\"
+.Dd March 22, 2002
+.Dt GETCAP 3
+.Os
+.Sh NAME
+.Nm cgetent ,
+.Nm cgetset ,
+.Nm cgetmatch ,
+.Nm cgetcap ,
+.Nm cgetnum ,
+.Nm cgetstr ,
+.Nm cgetustr ,
+.Nm cgetfirst ,
+.Nm cgetnext ,
+.Nm cgetclose
+.Nd capability database access routines
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft int
+.Fn cgetent "char **buf" "char **db_array" "const char *name"
+.Ft int
+.Fn cgetset "const char *ent"
+.Ft int
+.Fn cgetmatch "const char *buf" "const char *name"
+.Ft char *
+.Fn cgetcap "char *buf" "const char *cap" "int type"
+.Ft int
+.Fn cgetnum "char *buf" "const char *cap" "long *num"
+.Ft int
+.Fn cgetstr "char *buf" "const char *cap" "char **str"
+.Ft int
+.Fn cgetustr "char *buf" "const char *cap" "char **str"
+.Ft int
+.Fn cgetfirst "char **buf" "char **db_array"
+.Ft int
+.Fn cgetnext "char **buf" "char **db_array"
+.Ft int
+.Fn cgetclose "void"
+.Sh DESCRIPTION
+The
+.Fn cgetent
+function extracts the capability
+.Fa name
+from the database specified by the
+.Dv NULL
+terminated file array
+.Fa db_array
+and returns a pointer to a
+.Xr malloc 3 Ns \&'d
+copy of it in
+.Fa buf .
+The
+.Fn cgetent
+function will first look for files ending in
+.Pa .db
+(see
+.Xr cap_mkdb 1 )
+before accessing the ASCII file.
+The
+.Fa buf
+argument
+must be retained through all subsequent calls to
+.Fn cgetmatch ,
+.Fn cgetcap ,
+.Fn cgetnum ,
+.Fn cgetstr ,
+and
+.Fn cgetustr ,
+but may then be
+.Xr free 3 Ns \&'d .
+On success 0 is returned, 1 if the returned
+record contains an unresolved
+.Ic tc
+expansion,
+\-1 if the requested record could not be found,
+\-2 if a system error was encountered (could not open/read a file, etc.) also
+setting
+.Va errno ,
+and \-3 if a potential reference loop is detected (see
+.Ic tc=
+comments below).
+.Pp
+The
+.Fn cgetset
+function enables the addition of a character buffer containing a single capability
+record entry
+to the capability database.
+Conceptually, the entry is added as the first ``file'' in the database, and
+is therefore searched first on the call to
+.Fn cgetent .
+The entry is passed in
+.Fa ent .
+If
+.Fa ent
+is
+.Dv NULL ,
+the current entry is removed from the database.
+A call to
+.Fn cgetset
+must precede the database traversal.
+It must be called before the
+.Fn cgetent
+call.
+If a sequential access is being performed (see below), it must be called
+before the first sequential access call
+.Po Fn cgetfirst
+or
+.Fn cgetnext
+.Pc ,
+or be directly preceded by a
+.Fn cgetclose
+call.
+On success 0 is returned and \-1 on failure.
+.Pp
+The
+.Fn cgetmatch
+function will return 0 if
+.Fa name
+is one of the names of the capability record
+.Fa buf ,
+\-1 if
+not.
+.Pp
+The
+.Fn cgetcap
+function searches the capability record
+.Fa buf
+for the capability
+.Fa cap
+with type
+.Fa type .
+A
+.Fa type
+is specified using any single character.
+If a colon (`:') is used, an
+untyped capability will be searched for (see below for explanation of
+types).
+A pointer to the value of
+.Fa cap
+in
+.Fa buf
+is returned on success,
+.Dv NULL
+if the requested capability could not be
+found.
+The end of the capability value is signaled by a `:' or
+.Tn ASCII
+.Dv NUL
+(see below for capability database syntax).
+.Pp
+The
+.Fn cgetnum
+function retrieves the value of the numeric capability
+.Fa cap
+from the capability record pointed to by
+.Fa buf .
+The numeric value is returned in the
+.Ft long
+pointed to by
+.Fa num .
+0 is returned on success, \-1 if the requested numeric capability could not
+be found.
+.Pp
+The
+.Fn cgetstr
+function retrieves the value of the string capability
+.Fa cap
+from the capability record pointed to by
+.Fa buf .
+A pointer to a decoded,
+.Dv NUL
+terminated,
+.Xr malloc 3 Ns \&'d
+copy of the string is returned in the
+.Ft char *
+pointed to by
+.Fa str .
+The number of characters in the decoded string not including the trailing
+.Dv NUL
+is returned on success, \-1 if the requested string capability could not
+be found, \-2 if a system error was encountered (storage allocation
+failure).
+.Pp
+The
+.Fn cgetustr
+function is identical to
+.Fn cgetstr
+except that it does not expand special characters, but rather returns each
+character of the capability string literally.
+.Pp
+The
+.Fn cgetfirst
+and
+.Fn cgetnext
+functions comprise a function group that provides for sequential
+access of the
+.Dv NULL
+pointer terminated array of file names,
+.Fa db_array .
+The
+.Fn cgetfirst
+function returns the first record in the database and resets the access
+to the first record.
+The
+.Fn cgetnext
+function returns the next record in the database with respect to the
+record returned by the previous
+.Fn cgetfirst
+or
+.Fn cgetnext
+call.
+If there is no such previous call, the first record in the database is
+returned.
+Each record is returned in a
+.Xr malloc 3 Ns \&'d
+copy pointed to by
+.Fa buf .
+.Ic Tc
+expansion is done (see
+.Ic tc=
+comments below).
+Upon completion of the database 0 is returned, 1 is returned upon successful
+return of record with possibly more remaining (we have not reached the end of
+the database yet), 2 is returned if the record contains an unresolved
+.Ic tc
+expansion, \-1 is returned if a system error occurred, and \-2
+is returned if a potential reference loop is detected (see
+.Ic tc=
+comments below).
+Upon completion of database (0 return) the database is closed.
+.Pp
+The
+.Fn cgetclose
+function closes the sequential access and frees any memory and file descriptors
+being used.
+Note that it does not erase the buffer pushed by a call to
+.Fn cgetset .
+.Sh CAPABILITY DATABASE SYNTAX
+Capability databases are normally
+.Tn ASCII
+and may be edited with standard
+text editors.
+Blank lines and lines beginning with a `#' are comments
+and are ignored.
+Lines ending with a `\|\e' indicate that the next line
+is a continuation of the current line; the `\|\e' and following newline
+are ignored.
+Long lines are usually continued onto several physical
+lines by ending each line except the last with a `\|\e'.
+.Pp
+Capability databases consist of a series of records, one per logical
+line.
+Each record contains a variable number of `:'-separated fields
+(capabilities).
+Empty fields consisting entirely of white space
+characters (spaces and tabs) are ignored.
+.Pp
+The first capability of each record specifies its names, separated by `|'
+characters.
+These names are used to reference records in the database.
+By convention, the last name is usually a comment and is not intended as
+a lookup tag.
+For example, the
+.Em vt100
+record from the
+.Xr termcap 5
+database begins:
+.Pp
+.Dl "d0\||\|vt100\||\|vt100-am\||\|vt100am\||\|dec vt100:"
+.Pp
+giving four names that can be used to access the record.
+.Pp
+The remaining non-empty capabilities describe a set of (name, value)
+bindings, consisting of a names optionally followed by a typed value:
+.Pp
+.Bl -tag -width "nameTvalue" -compact
+.It name
+typeless [boolean] capability
+.Em name No "is present [true]"
+.It name Ns Em \&T Ns value
+capability
+.Pq Em name , \&T
+has value
+.Em value
+.It name@
+no capability
+.Em name No exists
+.It name Ns Em T Ns \&@
+capability
+.Pq Em name , T
+does not exist
+.El
+.Pp
+Names consist of one or more characters.
+Names may contain any character
+except `:', but it is usually best to restrict them to the printable
+characters and avoid use of graphics like `#', `=', `%', `@', etc.
+Types
+are single characters used to separate capability names from their
+associated typed values.
+Types may be any character except a `:'.
+Typically, graphics like `#', `=', `%', etc.\& are used.
+Values may be any
+number of characters and may contain any character except `:'.
+.Sh CAPABILITY DATABASE SEMANTICS
+Capability records describe a set of (name, value) bindings.
+Names may
+have multiple values bound to them.
+Different values for a name are
+distinguished by their
+.Fa types .
+The
+.Fn cgetcap
+function will return a pointer to a value of a name given the capability
+name and the type of the value.
+.Pp
+The types `#' and `=' are conventionally used to denote numeric and
+string typed values, but no restriction on those types is enforced.
+The
+functions
+.Fn cgetnum
+and
+.Fn cgetstr
+can be used to implement the traditional syntax and semantics of `#'
+and `='.
+Typeless capabilities are typically used to denote boolean objects with
+presence or absence indicating truth and false values respectively.
+This interpretation is conveniently represented by:
+.Pp
+.Dl "(getcap(buf, name, ':') != NULL)"
+.Pp
+A special capability,
+.Ic tc= name ,
+is used to indicate that the record specified by
+.Fa name
+should be substituted for the
+.Ic tc
+capability.
+.Ic Tc
+capabilities may interpolate records which also contain
+.Ic tc
+capabilities and more than one
+.Ic tc
+capability may be used in a record.
+A
+.Ic tc
+expansion scope (i.e., where the argument is searched for) contains the
+file in which the
+.Ic tc
+is declared and all subsequent files in the file array.
+.Pp
+When a database is searched for a capability record, the first matching
+record in the search is returned.
+When a record is scanned for a
+capability, the first matching capability is returned; the capability
+.Ic :nameT@:
+will hide any following definition of a value of type
+.Em T
+for
+.Fa name ;
+and the capability
+.Ic :name@:
+will prevent any following values of
+.Fa name
+from being seen.
+.Pp
+These features combined with
+.Ic tc
+capabilities can be used to generate variations of other databases and
+records by either adding new capabilities, overriding definitions with new
+definitions, or hiding following definitions via `@' capabilities.
+.Sh EXAMPLES
+.Bd -unfilled -offset indent
+example\||\|an example of binding multiple values to names:\e
+	:foo%bar:foo^blah:foo@:\e
+	:abc%xyz:abc^frap:abc$@:\e
+	:tc=more:
+.Ed
+.Pp
+The capability foo has two values bound to it (bar of type `%' and blah of
+type `^') and any other value bindings are hidden.
+The capability abc
+also has two values bound but only a value of type `$' is prevented from
+being defined in the capability record more.
+.Bd -unfilled -offset indent
+file1:
+ 	new\||\|new_record\||\|a modification of "old":\e
+		:fript=bar:who-cares@:tc=old:blah:tc=extensions:
+file2:
+	old\||\|old_record\||\|an old database record:\e
+		:fript=foo:who-cares:glork#200:
+.Ed
+.Pp
+The records are extracted by calling
+.Fn cgetent
+with file1 preceding file2.
+In the capability record new in file1, fript=bar overrides the definition
+of fript=foo interpolated from the capability record old in file2,
+who-cares@ prevents the definition of any who-cares definitions in old
+from being seen, glork#200 is inherited from old, and blah and anything
+defined by the record extensions is added to those definitions in old.
+Note that the position of the fript=bar and who-cares@ definitions before
+tc=old is important here.
+If they were after, the definitions in old
+would take precedence.
+.Sh CGETNUM AND CGETSTR SYNTAX AND SEMANTICS
+Two types are predefined by
+.Fn cgetnum
+and
+.Fn cgetstr :
+.Pp
+.Bl -tag -width "nameXnumber" -compact
+.It Em name Ns \&# Ns Em number
+numeric capability
+.Em name
+has value
+.Em number
+.It Em name Ns = Ns Em string
+string capability
+.Em name
+has value
+.Em string
+.It Em name Ns \&#@
+the numeric capability
+.Em name
+does not exist
+.It Em name Ns \&=@
+the string capability
+.Em name
+does not exist
+.El
+.Pp
+Numeric capability values may be given in one of three numeric bases.
+If the number starts with either
+.Ql 0x
+or
+.Ql 0X
+it is interpreted as a hexadecimal number (both upper and lower case a-f
+may be used to denote the extended hexadecimal digits).
+Otherwise, if the number starts with a
+.Ql 0
+it is interpreted as an octal number.
+Otherwise the number is interpreted as a decimal number.
+.Pp
+String capability values may contain any character.
+Non-printable
+.Dv ASCII
+codes, new lines, and colons may be conveniently represented by the use
+of escape sequences:
+.Bl -column "\e\|X,X\e\|X" "(ASCII octal nnn)"
+^X	('X' & 037)	control-X
+\e\|b, \e\|B	(ASCII 010)	backspace
+\e\|t, \e\|T	(ASCII 011)	tab
+\e\|n, \e\|N	(ASCII 012)	line feed (newline)
+\e\|f, \e\|F	(ASCII 014)	form feed
+\e\|r, \e\|R	(ASCII 015)	carriage return
+\e\|e, \e\|E	(ASCII 027)	escape
+\e\|c, \e\|C	(:)	colon
+\e\|\e	(\e\|)	back slash
+\e\|^	(^)	caret
+\e\|nnn	(ASCII octal nnn)
+.El
+.Pp
+A `\|\e' may be followed by up to three octal digits directly specifies
+the numeric code for a character.
+The use of
+.Tn ASCII
+.Dv NUL Ns s ,
+while easily
+encoded, causes all sorts of problems and must be used with care since
+.Dv NUL Ns s
+are typically used to denote the end of strings; many applications
+use `\e\|200' to represent a
+.Dv NUL .
+.Sh DIAGNOSTICS
+The
+.Fn cgetent ,
+.Fn cgetset ,
+.Fn cgetmatch ,
+.Fn cgetnum ,
+.Fn cgetstr ,
+.Fn cgetustr ,
+.Fn cgetfirst ,
+and
+.Fn cgetnext
+functions
+return a value greater than or equal to 0 on success and a value less
+than 0 on failure.
+The
+.Fn cgetcap
+function returns a character pointer on success and a
+.Dv NULL
+on failure.
+.Pp
+The
+.Fn cgetent ,
+and
+.Fn cgetset
+functions may fail and set
+.Va errno
+for any of the errors specified for the library functions:
+.Xr fopen 3 ,
+.Xr fclose 3 ,
+.Xr open 2 ,
+and
+.Xr close 2 .
+.Pp
+The
+.Fn cgetent ,
+.Fn cgetset ,
+.Fn cgetstr ,
+and
+.Fn cgetustr
+functions
+may fail and set
+.Va errno
+as follows:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+No memory to allocate.
+.El
+.Sh SEE ALSO
+.Xr cap_mkdb 1 ,
+.Xr malloc 3
+.Sh BUGS
+Colons (`:') cannot be used in names, types, or values.
+.Pp
+There are no checks for
+.Ic tc Ns = Ns Ic name
+loops in
+.Fn cgetent .
+.Pp
+The buffer added to the database by a call to
+.Fn cgetset
+is not unique to the database but is rather prepended to any database used.

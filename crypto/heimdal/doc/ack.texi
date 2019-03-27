@@ -1,0 +1,124 @@
+@c $Id$
+
+@node  Acknowledgments, Copyrights and Licenses, Migration, Top
+@comment  node-name,  next,  previous,  up
+@appendix Acknowledgments
+
+Eric Young wrote ``libdes''. Heimdal used to use libdes, without it
+kth-krb would never have existed. Since there are no longer any Eric
+Young code left in the library, we renamed it to libhcrypto.
+
+All functions in libhcrypto have been re-implemented or used available
+public domain code. The core AES function where written by Vincent
+Rijmen, Antoon Bosselaers and Paulo Barreto.  The core DES SBOX
+transformation was written by Richard Outerbridge. @code{imath} that
+is used for public key crypto support is written by Michael
+J. Fromberger.
+
+The University of California at Berkeley initially wrote @code{telnet},
+and @code{telnetd}.  The authentication and encryption code of
+@code{telnet} and @code{telnetd} was added by David Borman (then of Cray
+Research, Inc).  The encryption code was removed when this was exported
+and then added back by Juha Eskelinen.
+
+The @code{popper} was also a Berkeley program initially.
+
+Some of the functions in @file{libroken} also come from Berkeley by way
+of NetBSD/FreeBSD.
+
+@code{editline} was written by Simmule Turner and Rich Salz. Heimdal
+contains a modifed copy.
+
+The @code{getifaddrs} implementation for Linux was written by Hideaki
+YOSHIFUJI for the Usagi project.
+
+The @code{pkcs11.h} headerfile was written by the Scute project.
+
+Bugfixes, documentation, encouragement, and code has been contributed by:
+@table @asis
+@item Alexander Boström
+@item Allan McRae
+@item Andrew Bartlett
+@item Andrew Cobaugh
+@item Andrew Tridge
+@item Anton Lundin
+@item Asanka Herath
+@item Björn Grönvall
+@item Björn Sandell
+@item Björn Schlögl
+@item Brandon S. Allbery KF8NH
+@item Brian A May
+@item Buck Huppmann
+@item Cacdric Schieli
+@item Chaskiel M Grundman
+@item Christos Zoulas
+@item Cizzi Storm
+@item Daniel Kouril
+@item David Love
+@item David Markey
+@item David R Boldt
+@item Derrick J Brashear
+@item Donald Norwood
+@item Douglas E Engert
+@item Frank van der Linden
+@item Gabor Gombas
+@item Guido Günther
+@item Guillaume Rousse
+@item Harald Barth
+@item Ingo Schwarze
+@item Jacques A. Vidrine
+@item Jaideep Padhye
+@item Jan Rekorajski
+@item Jason McIntyre
+@item Jeffrey Altman
+@item Jelmer Vernooij
+@item Joerg Pulz
+@item Johan Danielsson
+@item Johan Gadsjö
+@item Johan Ihrén
+@item John Center
+@item Jun-ichiro itojun Hagino
+@item KAMADA Ken'ichi
+@item Kamen Mazdrashki
+@item Karolin Seeger
+@item Ken Hornstein
+@item Love Hörnquist Åstrand
+@item Luke Howard
+@item Magnus Ahltorp
+@item Magnus Holmberg
+@item Marc Horowitz
+@item Mario Strasser
+@item Mark Eichin
+@item Martin von Gagern
+@item Matthias Dieter Wallnöfer
+@item Matthieu Patou
+@item Mattias Amnefelt
+@item Michael B Allen
+@item Michael Fromberger
+@item Michal Vocu
+@item Milosz Kmieciak
+@item Miroslav Ruda
+@item Mustafa A. Hashmi
+@item Nicolas Williams
+@item Patrik Lundin
+@item Petr Holub
+@item Phil Fisher
+@item Rafal Malinowski
+@item Ragnar Sundblad
+@item Rainer Toebbicke
+@item Richard Nyberg
+@item Roland C. Dowdeswell
+@item Roman Divacky
+@item Russ Allbery
+@item Sho Hosoda, 細田 将
+@item Simon Wilkinson
+@item Stefan Metzmacher
+@item Ted Percival
+@item Tom Payerle
+@item Victor Guerra
+@item Zeqing Xia
+@item Åke Sandgren 
+@item and we hope that those not mentioned here will forgive us.
+@end table
+
+All bugs were introduced by ourselves.

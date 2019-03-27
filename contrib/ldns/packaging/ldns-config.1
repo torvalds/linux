@@ -1,0 +1,47 @@
+.TH ldns-config 1 "22 Sep 2011"
+.SH NAME
+ldns-config \- show compiler and linker flags for ldns usage.
+.SH SYNOPSIS
+.B ldns-config
+[
+.IR OPTIONS
+]
+
+.SH DESCRIPTION
+When writing programs using ldns, you have to tell the compiler
+where to look for include files and what libraries from which location
+to link to. \fBldns-config\fR can be used to find out what flags to use
+with the C compiler and the linker.
+
+.SH OPTIONS
+.TP
+\fB--cflags\fR
+Show the C compiler flags needed to compile with ldns
+
+.TP
+\fB--libs\fR
+Show the flags to be used to link with ldns
+
+.TP
+\fB--version\fR
+Shows the ldns version of the installed ldns library
+
+.TP
+\fB--libversion\fR
+Shows version of the binary api of the installed ldns library
+
+.TP
+\fB--help\fR
+Show \fBldns-config\fR usage description
+
+.SH AUTHOR
+Written by the ldns team.
+
+.SH REPORTING BUGS
+Report bugs to <ldns-team@nlnetlabs.nl>. 
+
+.SH COPYRIGHT
+Copyright (C) 2011 NLnet Labs. This is free software. There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+

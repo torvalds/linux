@@ -1,0 +1,206 @@
+.\"
+.\" Copyright (c) 2004 Max Laier <mlaier@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 20, 2018
+.Dt ALTQ 4
+.Os
+.Sh NAME
+.Nm ALTQ
+.Nd "alternate queuing of network packets"
+.Sh SYNOPSIS
+.Cd options ALTQ
+.Pp
+.Cd options ALTQ_CBQ
+.Cd options ALTQ_CODEL
+.Cd options ALTQ_RED
+.Cd options ALTQ_RIO
+.Cd options ALTQ_HFSC
+.Cd options ALTQ_CDNR
+.Cd options ALTQ_PRIQ
+.Cd options ALTQ_FAIRQ
+.Sh DESCRIPTION
+The
+.Nm
+system is a framework which provides several disciplines for queuing outgoing
+network packets.
+This is done by modifications to the interface packet queues.
+See
+.Xr altq 9
+for details.
+.Pp
+The user interface for
+.Nm
+is implemented by the
+.Xr pfctl 8
+utility, so please refer to the
+.Xr pfctl 8
+and the
+.Xr pf.conf 5
+man pages for a complete description of the
+.Nm
+capabilities and how to use it.
+.Ss Kernel Options
+The following options in the kernel configuration file are related to
+.Nm
+operation:
+.Pp
+.Bl -tag -width ".Dv ALTQ_DEBUG" -compact
+.It Dv ALTQ
+Enable
+.Nm .
+.It Dv ALTQ_CBQ
+Build the
+.Dq "Class Based Queuing"
+discipline.
+.It Dv ALTQ_CODEL
+Build the
+.Dq "Controlled Delay"
+discipline.
+.It Dv ALTQ_RED
+Build the
+.Dq "Random Early Detection"
+extension.
+.It Dv ALTQ_RIO
+Build
+.Dq "Random Early Drop"
+for input and output.
+.It Dv ALTQ_HFSC
+Build the
+.Dq "Hierarchical Packet Scheduler"
+discipline.
+.It Dv ALTQ_CDNR
+Build the traffic conditioner.
+This option is meaningless at the moment as the conditioner is not used by
+any of the available disciplines or consumers.
+.It Dv ALTQ_PRIQ
+Build the
+.Dq "Priority Queuing"
+discipline.
+.It Dv ALTQ_FAIRQ
+Build the
+.Dq "Fair Queuing"
+discipline.
+.It Dv ALTQ_NOPCC
+Required if the TSC is unusable.
+.It Dv ALTQ_DEBUG
+Enable additional debugging facilities.
+.El
+.Pp
+Note that
+.Nm Ns -disciplines
+cannot be loaded as kernel modules.
+In order to use a certain discipline you have to build it into a custom
+kernel.
+The
+.Xr pf 4
+interface, that is required for the configuration process of
+.Nm
+can be loaded as a module.
+.Sh SUPPORTED DEVICES
+The driver modifications described in
+.Xr altq 9
+are required to use a certain network card with
+.Nm .
+They have been applied to the following hardware drivers:
+.Xr ae 4 ,
+.Xr age 4 ,
+.Xr alc 4 ,
+.Xr ale 4 ,
+.Xr an 4 ,
+.Xr aue 4 ,
+.Xr axe 4 ,
+.Xr bce 4 ,
+.Xr bfe 4 ,
+.Xr bge 4 ,
+.Xr bxe 4 ,
+.Xr cas 4 ,
+.Xr cxgbe 4 ,
+.Xr dc 4 ,
+.Xr de 4 ,
+.Xr ed 4 ,
+.Xr em 4 ,
+.Xr ep 4 ,
+.Xr epair 4 ,
+.Xr et 4 ,
+.Xr fxp 4 ,
+.Xr gem 4 ,
+.Xr hme 4 ,
+.Xr igb 4 ,
+.Xr ixgbe 4 ,
+.Xr jme 4 ,
+.Xr le 4 ,
+.Xr liquidio 4 ,
+.Xr msk 4 ,
+.Xr mxge 4 ,
+.Xr my 4 ,
+.Xr nfe 4 ,
+.Xr nge 4 ,
+.Xr npe 4 ,
+.Xr qlxgb 4 ,
+.Xr re 4 ,
+.Xr rl 4 ,
+.Xr sf 4 ,
+.Xr sge 4 ,
+.Xr sis 4 ,
+.Xr sk 4 ,
+.Xr ste 4 ,
+.Xr stge 4 ,
+.Xr ti 4 ,
+.Xr txp 4 ,
+.Xr udav 4 ,
+.Xr vge 4 ,
+.Xr vr 4 ,
+.Xr vte 4 ,
+and
+.Xr xl 4 .
+.Pp
+The
+.Xr ndis 4
+framework also has support for
+.Nm
+and thus all encapsulated drivers.
+.Pp
+The
+.Xr tun 4
+and
+.Xr ng_iface 4
+pseudo drivers also do support
+.Nm .
+.Sh SEE ALSO
+.Xr pf 4 ,
+.Xr pf.conf 5 ,
+.Xr ipfw 8 ,
+.Xr pfctl 8 ,
+.Xr altq 9
+.Sh HISTORY
+The
+.Nm
+system first appeared in March 1997 and found home in the KAME project
+(http://www.kame.net).
+It was imported to
+.Fx
+in 5.3 .

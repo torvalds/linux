@@ -1,0 +1,161 @@
+.\" Copyright (c) 2001 - 2006 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd November 22, 2002
+.Dt RSHD 8
+.Os HEIMDAL
+.Sh NAME
+.Nm rshd
+.Nd remote shell server
+.Sh SYNOPSIS
+.Nm
+.Op Fl aiklnvxPL
+.Op Fl p Ar port
+.Sh DESCRIPTION
+.Nm
+is the server for
+the
+.Xr rsh 1
+program. It provides an authenticated remote command execution
+service.  Supported options are:
+.Bl -tag -width Ds
+.It Xo
+.Fl n ,
+.Fl Fl no-keepalive
+.Xc
+Disables keep-alive messages.
+Keep-alives are packets sent at certain intervals to make sure that the
+client is still there, even when it doesn't send any data.
+.It Xo
+.Fl k ,
+.Fl Fl kerberos
+.Xc
+Assume that clients connecting to this server will use some form of
+Kerberos authentication. See the
+.Sx EXAMPLES
+section for a sample
+.Xr inetd.conf 5
+configuration.
+.It Xo
+.Fl x ,
+.Fl Fl encrypt
+.Xc
+For Kerberos 4 this means that the connections are encrypted. Kerberos
+5 can negotiate encryption even without this option, but if it's
+present
+.Nm
+will deny unencrypted connections. This option implies
+.Fl k .
+.\".It Xo
+.\".Fl l ,
+.\".Fl Fl no-rhosts
+.\".Xc
+.\"When using old port-based authentication, the user's
+.\".Pa .rhosts
+.\"files are normally checked. This option disables this.
+.It Xo
+.Fl v ,
+.Fl Fl vacuous
+.Xc
+If the connecting client does not use any Kerberised authentication,
+print a message that complains about this fact, and exit. This is
+helpful if you want to move away from old port-based authentication.
+.It Xo
+.Fl P
+.Xc
+When using the AFS filesystem, users' authentication tokens are put in
+something called a PAG (Process Authentication Group). Multiple
+processes can share a PAG, but normally each login session has its own
+PAG. This option disables the
+.Fn setpag
+call, so all tokens will be put in the default (uid-based) PAG, making
+it possible to share tokens between sessions. This is only useful in
+peculiar environments, such as some batch systems.
+.It Xo
+.Fl i ,
+.Fl Fl no-inetd
+.Xc
+The
+.Fl i
+option will cause
+.Nm
+to create a socket, instead of assuming that its stdin came from
+.Xr inetd 8 .
+This is mostly useful for debugging.
+.It Xo
+.Fl p Ar port ,
+.Fl Fl port= Ns Ar port
+.Xc
+Port to use with
+.Fl i .
+.It Xo
+.Fl a
+.Xc
+This flag is for backwards compatibility only.
+.It Xo
+.Fl L
+.Xc
+This flag enables logging of connections to
+.Xr syslogd 8 .
+This option is always on in this implementation.
+.El
+.\".Sh ENVIRONMENT
+.Sh FILES
+.Bl -tag -width /etc/hosts.equiv -compact
+.It Pa /etc/hosts.equiv
+.It Pa ~/.rhosts
+.El
+.Sh EXAMPLES
+The following can be used to enable Kerberised rsh in
+.Xr inetd.cond 5 ,
+while disabling non-Kerberised connections:
+.Bd -literal
+shell   stream  tcp  nowait  root  /usr/libexec/rshd  rshd -v
+kshell  stream  tcp  nowait  root  /usr/libexec/rshd  rshd -k
+ekshell stream  tcp  nowait  root  /usr/libexec/rshd  rshd -kx
+.Ed
+.\".Sh DIAGNOSTICS
+.Sh SEE ALSO
+.Xr rsh 1 ,
+.Xr iruserok 3
+.\".Sh STANDARDS
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .
+.Sh AUTHORS
+This implementation of
+.Nm
+was written as part of the Heimdal Kerberos 5 implementation.
+.\".Sh BUGS

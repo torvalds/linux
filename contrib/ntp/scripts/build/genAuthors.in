@@ -1,0 +1,84 @@
+#! @PATH_PERL@
+
+# DESCRIPTION
+#
+# Make sure we have the list of authors for git imports.
+# Call with the path to the Authors/ subdirectory.
+#
+# AUTHOR
+#
+#  Harlan Stenn
+#
+# LICENSE
+#
+#  This file is Copyright (c) 2016 Network Time Foundation
+#
+#  Copying and distribution of this file, with or without modification, are
+#  permitted in any medium without royalty provided the copyright notice,
+#  author attribution and this notice are preserved.  This file is offered
+#  as-is, without any warranty.
+
+use strict;
+use warnings;
+
+# Read in the list of known authors.
+# run:
+#  bk changes -and:USER: | sort -u
+# to get the list of users who have made commits.
+# Make sure that each of these users is in the set of known authors.
+# Make sure the format of that file is 1 or more lines of the form:
+#  user = User Name <user@place>
+#
+# If all of the above is true, exit 0.
+# If there are any problems, squawk and exit 1. 
+
+my $bk_u = "bk changes -and:USER: | sort -u |";
+chomp(my $bk_root = `bk root`);
+my $A_dir = "$bk_root/BitKeeper/etc/Authors";
+my $A_file = "$bk_root/BitKeeper/etc/authors.txt";
+my %authors;
+my $problem = 0;
+
+die "bkroot: <$bk_root>, A_dir: <$A_dir>\n" if (! -r $A_dir);
+die "bkroot: <$bk_root>, A_file: <$A_file>\n" if (! -r $A_file);
+
+# Process the authors.txt file
+open(my $FILE, '<', $A_file) or die "Could not open <$A_file>: $!\n";
+while (<$FILE>) {
+  chomp;
+  if (/^([\S]+) = ([\V]+) <([\w.-]+\@[\w.-]+)>$/) {
+    # print "Got '$1 = $2 <$3>'\n";
+    $authors{$1} = "";
+  } else {
+    print "In $A_file: unrecognized line: '$_'\n";
+    $problem = 1;
+  }
+}
+close($FILE);
+
+#print "\%authors = ", join(' ', sort keys %authors), "\n";
+
+die "Fix the problem(s) noted above!\n" if $problem;
+
+# Process "bk changes ..."
+
+open(BKU, $bk_u) || die "$0: <$bk_u> failed: $!\n";
+while (<BKU>) {
+  chomp;
+  my $Name = $_;
+  my $name = lc;
+  # print "Got Name <$Name>, name <$name>\n";
+  if (!defined($authors{$Name})) {
+    $problem = 1;
+    print "<$Name> is not a defined author!\n";
+    open(my $FILE, '>>', "$A_dir/$name.txt") || die "Cannot create '$A_dir/$name.txt': $!\n";
+    print $FILE "$Name = \n";
+    close($FILE);
+  }
+}
+
+die "Fix the problem(s) noted above!\n" if $problem;
+
+# Local Variables:	**
+# mode:cperl		**
+# End:			**

@@ -1,0 +1,117 @@
+.\" Copyright (c) 2005 Gleb Smirnoff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 2, 2010
+.Dt NG_IPFW 4
+.Os
+.Sh NAME
+.Nm ng_ipfw
+.Nd interface between netgraph and IP firewall
+.Sh SYNOPSIS
+.In netinet/ip_var.h
+.In netgraph/ng_ipfw.h
+.Sh DESCRIPTION
+The
+.Nm ipfw
+node implements interface between
+.Xr ipfw 4
+and
+.Xr netgraph 4
+subsystems.
+.Sh HOOKS
+The
+.Nm ipfw
+node supports an arbitrary number of hooks,
+which must be named using only numeric characters.
+.Sh OPERATION
+Once the
+.Nm
+module is loaded into the kernel, a single node named
+.Va ipfw
+is automatically created.
+No more
+.Nm ipfw
+nodes can be created.
+Once destroyed, the only way to recreate the node is to reload the
+.Nm
+module.
+.Pp
+Packets can be injected into
+.Xr netgraph 4
+using either the
+.Cm netgraph
+or
+.Cm ngtee
+commands of the
+.Xr ipfw 8
+utility.
+These commands require a numeric cookie to be supplied as an argument.
+Packets are sent out of the hook whose name equals the cookie value.
+If no hook matches, packets are discarded.
+Packets injected via the
+.Cm netgraph
+command are tagged with
+.Vt "struct ipfw_rule_ref" .
+This tag contains information that helps the packet to re-enter
+.Xr ipfw 4
+processing, should the packet come back from
+.Xr netgraph 4
+to
+.Xr ipfw 4 .
+.Pp
+Packets received by a node from
+.Xr netgraph 4
+subsystem must be tagged with
+.Vt "struct ipfw_rule_ref"
+tag.
+Packets re-enter IP firewall processing at the next rule.
+If no tag is supplied, packets are discarded.
+.Sh CONTROL MESSAGES
+This node type supports only the generic control messages.
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message.
+Do not do this, since the new
+.Nm ipfw
+node can only be created by reloading the
+.Nm
+module.
+.Sh SEE ALSO
+.Xr ipfw 4 ,
+.Xr netgraph 4 ,
+.Xr ipfw 8 ,
+.Xr mbuf_tags 9
+.Sh HISTORY
+The
+.Nm ipfw
+node type was implemented in
+.Fx 6.0 .
+.Sh AUTHORS
+The
+.Nm ipfw
+node was written by
+.An Gleb Smirnoff Aq Mt glebius@FreeBSD.org .

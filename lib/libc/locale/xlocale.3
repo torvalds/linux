@@ -1,0 +1,280 @@
+.\" Copyright (c) 2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by David Chisnall under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 17, 2011
+.Dt XLOCALE 3
+.Os
+.Sh NAME
+.Nm xlocale
+.Nd Thread-safe extended locale support
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In xlocale.h
+.Sh DESCRIPTION
+The extended locale support includes a set of functions for setting
+thread-local locales,
+as well convenience functions for performing locale-aware
+calls with a specified locale.
+.Pp
+The core of the xlocale API is the
+.Fa locale_t
+type.
+This is an opaque type encapsulating a locale.
+Instances of this can be either set as the locale for a specific thread or
+passed directly to the
+.Fa _l
+suffixed variants of various standard C functions.
+Two special
+.Fa locale_t
+values are available:
+.Bl -bullet -offset indent
+.It
+NULL refers to the current locale for the thread,
+or to the global locale if no locale has been set for this thread.
+.It
+LC_GLOBAL_LOCALE refers to the global locale.
+.El
+.Pp
+The global locale is the locale set with the
+.Xr setlocale 3
+function.
+.Sh SEE ALSO
+.Xr duplocale 3 ,
+.Xr freelocale 3 ,
+.Xr localeconv 3 ,
+.Xr newlocale 3 ,
+.Xr querylocale 3 ,
+.Xr uselocale 3
+.Sh CONVENIENCE FUNCTIONS
+The xlocale API includes a number of
+.Fa _l
+suffixed convenience functions.
+These are variants of standard C functions
+that have been modified to take an explicit
+.Fa locale_t
+parameter as the final argument or, in the case of variadic functions,
+as an additional argument directly before the format string.
+Each of these functions accepts either NULL or LC_GLOBAL_LOCALE.
+In these functions, NULL refers to the C locale,
+rather than the thread's current locale.
+If you wish to use the thread's current locale,
+then use the unsuffixed version of the function.
+.Pp
+These functions are exposed by including
+.In xlocale.h
+.Em after
+including the relevant headers for the standard variant.
+For example, the
+.Xr strtol_l 3
+function is exposed by including
+.In xlocale.h
+after
+.In stdlib.h ,
+which defines
+.Xr strtol 3 .
+.Pp
+For reference,
+a complete list of the locale-aware functions that are available in this form,
+along with the headers that expose them, is provided here:
+.Bl -tag -width "<monetary.h> "
+.It In wctype.h
+.Xr iswalnum_l 3 ,
+.Xr iswalpha_l 3 ,
+.Xr iswcntrl_l 3 ,
+.Xr iswctype_l 3 ,
+.Xr iswdigit_l 3 ,
+.Xr iswgraph_l 3 ,
+.Xr iswlower_l 3 ,
+.Xr iswprint_l 3 ,
+.Xr iswpunct_l 3 ,
+.Xr iswspace_l 3 ,
+.Xr iswupper_l 3 ,
+.Xr iswxdigit_l 3 ,
+.Xr towlower_l 3 ,
+.Xr towupper_l 3 ,
+.Xr wctype_l 3 ,
+.It In ctype.h
+.Xr digittoint_l 3 ,
+.Xr isalnum_l 3 ,
+.Xr isalpha_l 3 ,
+.Xr isblank_l 3 ,
+.Xr iscntrl_l 3 ,
+.Xr isdigit_l 3 ,
+.Xr isgraph_l 3 ,
+.Xr ishexnumber_l 3 ,
+.Xr isideogram_l 3 ,
+.Xr islower_l 3 ,
+.Xr isnumber_l 3 ,
+.Xr isphonogram_l 3 ,
+.Xr isprint_l 3 ,
+.Xr ispunct_l 3 ,
+.Xr isrune_l 3 ,
+.Xr isspace_l 3 ,
+.Xr isspecial_l 3 ,
+.Xr isupper_l 3 ,
+.Xr isxdigit_l 3 ,
+.Xr tolower_l 3 ,
+.Xr toupper_l 3
+.It In inttypes.h
+.Xr strtoimax_l 3 ,
+.Xr strtoumax_l 3 ,
+.Xr wcstoimax_l 3 ,
+.Xr wcstoumax_l 3
+.It In langinfo.h
+.Xr nl_langinfo_l 3
+.It In monetary.h
+.Xr strfmon_l 3
+.It In stdio.h
+.Xr asprintf_l 3 ,
+.Xr fprintf_l 3 ,
+.Xr fscanf_l 3 ,
+.Xr printf_l 3 ,
+.Xr scanf_l 3 ,
+.Xr snprintf_l 3 ,
+.Xr sprintf_l 3 ,
+.Xr sscanf_l 3 ,
+.Xr vasprintf_l 3 ,
+.Xr vfprintf_l 3 ,
+.Xr vfscanf_l 3 ,
+.Xr vprintf_l 3 ,
+.Xr vscanf_l 3 ,
+.Xr vsnprintf_l 3 ,
+.Xr vsprintf_l 3 ,
+.Xr vsscanf_l 3
+.It In stdlib.h
+.Xr atof_l 3 ,
+.Xr atoi_l 3 ,
+.Xr atol_l 3 ,
+.Xr atoll_l 3 ,
+.Xr mblen_l 3 ,
+.Xr mbstowcs_l 3 ,
+.Xr mbtowc_l 3 ,
+.Xr strtod_l 3 ,
+.Xr strtof_l 3 ,
+.Xr strtol_l 3 ,
+.Xr strtold_l 3 ,
+.Xr strtoll_l 3 ,
+.Xr strtoq_l 3 ,
+.Xr strtoul_l 3 ,
+.Xr strtoull_l 3 ,
+.Xr strtouq_l 3 ,
+.Xr wcstombs_l 3 ,
+.Xr wctomb_l 3
+.It In string.h
+.Xr strcoll_l 3 ,
+.Xr strxfrm_l 3 ,
+.Xr strcasecmp_l 3 ,
+.Xr strcasestr_l 3 ,
+.Xr strncasecmp_l 3
+.It In time.h
+.Xr strftime_l 3
+.Xr strptime_l 3
+.It In wchar.h
+.Xr btowc_l 3 ,
+.Xr fgetwc_l 3 ,
+.Xr fgetws_l 3 ,
+.Xr fputwc_l 3 ,
+.Xr fputws_l 3 ,
+.Xr fwprintf_l 3 ,
+.Xr fwscanf_l 3 ,
+.Xr getwc_l 3 ,
+.Xr getwchar_l 3 ,
+.Xr mbrlen_l 3 ,
+.Xr mbrtowc_l 3 ,
+.Xr mbsinit_l 3 ,
+.Xr mbsnrtowcs_l 3 ,
+.Xr mbsrtowcs_l 3 ,
+.Xr putwc_l 3 ,
+.Xr putwchar_l 3 ,
+.Xr swprintf_l 3 ,
+.Xr swscanf_l 3 ,
+.Xr ungetwc_l 3 ,
+.Xr vfwprintf_l 3 ,
+.Xr vfwscanf_l 3 ,
+.Xr vswprintf_l 3 ,
+.Xr vswscanf_l 3 ,
+.Xr vwprintf_l 3 ,
+.Xr vwscanf_l 3 ,
+.Xr wcrtomb_l 3 ,
+.Xr wcscoll_l 3 ,
+.Xr wcsftime_l 3 ,
+.Xr wcsnrtombs_l 3 ,
+.Xr wcsrtombs_l 3 ,
+.Xr wcstod_l 3 ,
+.Xr wcstof_l 3 ,
+.Xr wcstol_l 3 ,
+.Xr wcstold_l 3 ,
+.Xr wcstoll_l 3 ,
+.Xr wcstoul_l 3 ,
+.Xr wcstoull_l 3 ,
+.Xr wcswidth_l 3 ,
+.Xr wcsxfrm_l 3 ,
+.Xr wctob_l 3 ,
+.Xr wcwidth_l 3 ,
+.Xr wprintf_l 3 ,
+.Xr wscanf_l 3
+.It In wctype.h
+.Xr iswblank_l 3 ,
+.Xr iswhexnumber_l 3 ,
+.Xr iswideogram_l 3 ,
+.Xr iswnumber_l 3 ,
+.Xr iswphonogram_l 3 ,
+.Xr iswrune_l 3 ,
+.Xr iswspecial_l 3 ,
+.Xr nextwctype_l 3 ,
+.Xr towctrans_l 3 ,
+.Xr wctrans_l 3
+.It In xlocale.h
+.Xr localeconv_l 3
+.El
+.Sh STANDARDS
+The functions
+conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The xlocale APIs first appeared in Darwin 8.0.
+This implementation was written by David Chisnall,
+under sponsorship from the FreeBSD Foundation and first appeared in
+.Fx 9.1 .
+.Sh CAVEATS
+The
+.Xr setlocale 3
+function, and others in the family, refer to the global locale.
+Other functions that depend on the locale, however,
+will take the thread-local locale if one has been set.
+This means that the idiom of setting the locale using
+.Xr setlocale 3 ,
+calling a locale-dependent function,
+and then restoring the locale will not
+have the expected behavior if the current thread has had a locale set using
+.Xr uselocale 3 .
+You should avoid this idiom and prefer to use the
+.Fa _l
+suffixed versions instead.

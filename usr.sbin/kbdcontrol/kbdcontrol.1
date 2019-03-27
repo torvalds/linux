@@ -1,0 +1,298 @@
+.\"
+.\" kbdcontrol - a utility for manipulating the syscons or vt keyboard driver section
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\"     @(#)kbdcontrol.1
+.\" $FreeBSD$
+.\"
+.Dd March 16, 2016
+.Dt KBDCONTROL 1
+.Os
+.Sh NAME
+.Nm kbdcontrol
+.Nd keyboard control and configuration utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl dFKix
+.Op Fl A Ar name
+.Op Fl a Ar name
+.Oo
+.Fl b
+.Ar duration . Ns Ar pitch | Ar belltype
+.Oc
+.Oo
+.Fl r
+.Ar delay . Ns Ar repeat | Ar speed
+.Oc
+.Op Fl l Ar keymap_file
+.Op Fl f Ar # Ar string
+.Op Fl k Ar keyboard_device
+.Op Fl L Ar keymap_file
+.Op Fl P Ar path
+.Sh DESCRIPTION
+The
+.Nm
+command is used to set various keyboard related options for the
+.Xr syscons 4
+or
+.Xr vt 4
+console driver and the keyboard drivers,
+such as key map, keyboard repeat and delay rates, bell
+characteristics etc.
+.Pp
+Keyboard options may be automatically configured at system boot time by
+setting variables in
+.Pa /etc/rc.conf .
+See
+.Sx Boot Time Configuration
+below.
+.Pp
+The following command line options are supported:
+.Bl -tag -width indent
+.It Fl A Ar name
+Detach the keyboard, specified by the keyboard device name, from the keyboard
+multiplexer.
+When using this option, the standard input of the
+.Nm
+process should be redirected from the keyboard multiplexer keyboard device
+(if the keyboard multiplexer is not the active keyboard) or
+.Pa /dev/console
+(if the keyboard multiplexer is the active keyboard and
+you are not working on the system console).
+.It Fl a Ar name
+Attach the keyboard, specified by the keyboard device name, to the keyboard
+multiplexer.
+When using this option, the standard input of the
+.Nm
+process should be redirected from the keyboard multiplexer keyboard device
+(if the keyboard multiplexer is not the active keyboard) or
+.Pa /dev/console
+(if the keyboard multiplexer is the active keyboard and
+you are not working on the system console).
+.It Fl b Xo
+.Ar duration . Ns Ar pitch | Ar belltype
+.Xc
+Set the bell duration in milliseconds and pitch in hertz.
+If a
+.Ar belltype
+argument is specified, it may be one of
+.Cm normal
+which sets sound parameters back to normal values,
+.Cm off
+which disables the bell entirely, or
+.Cm visual
+which sets the bell to visual mode, i.e., flashes the screen instead.
+If
+.Ar belltype
+is preceded by the word
+.Cm quiet. ,
+the bell will not be rung when the ringing process is in the background vty.
+The
+.Cm visual
+bell, when chosen, applies to all vtys; other bell types
+can be set individually for each vty.
+.It Fl r Xo
+.Ar delay . Ns Ar repeat | Ar speed
+.Xc
+Set keyboard
+.Ar delay
+(250, 500, 750, 1000)
+and
+.Ar repeat
+(34, 38, 42, 46, 50, 55, 59, 63, 68, 76, 84, 92, 100, 110, 118, 126,
+136, 152, 168, 184, 200, 220, 236, 252, 272, 304, 336, 368, 400, 440,
+472, 504)
+rates, or if a
+.Ar speed
+argument is specified, it may be one of
+.Cm slow
+(1000.504),
+.Cm fast
+(250.34)
+or
+.Cm normal
+(500.126).
+.It Fl l Ar keymap_file
+Install keyboard map file from
+.Ar keymap_file .
+You may load the keyboard map file from a menu-driven command,
+.Xr kbdmap 1 .
+The format of keyboard map files is documented in the
+.Xr kbdmap 5
+manual page.
+.It Fl d
+Dump the current keyboard map onto stdout.
+The output may be redirected to a file and can be loaded
+back to the kernel later by the
+.Fl l
+option above.
+.It Fl f Ar # Ar string
+Set function key number
+.Ar #
+to send
+.Ar string .
+Refer to the man page for the keyboard driver
+(e.g.\&
+.Xr atkbd 4 )
+for available function keys and their numbers.
+.It Fl F
+Set function keys back to the standard definitions.
+.It Fl x
+Use hexadecimal numbers in keyboard map dump.
+.It Fl i
+Print brief information about the keyboard.
+.It Fl K
+Disconnect the keyboard from the console.
+You need to use the
+.Fl k
+option below to associate a keyboard with the console again.
+.It Fl k Ar keyboard_device
+Use the specified device as the console keyboard.
+When using this option, the standard input of the
+.Nm
+process should be redirected from
+.Pa /dev/console
+if you are not working on the system console
+(see the
+.Sx EXAMPLES
+section).
+.It Fl L Ar keymap_file
+Load keyboard map file from
+.Ar keymap_file
+and write the
+.Ft "struct keymap"
+compiled from it to stdout.
+This option is primarily intended for programmers and is probably
+of little use under normal circumstances.
+.It Fl P Ar path
+Search for the keymap file in
+.Ar path .
+The
+.Fl P
+option may be specified multiple times.
+.El
+.Sh ENVIRONMENT
+The environment variable
+.Ev KEYMAP_PATH
+can hold an alternative path to the keyboard map files.
+.Sh KEYBOARD CONFIGURATION
+.Ss Boot Time Configuration
+You may set variables in
+.Pa /etc/rc.conf
+or
+.Pa /etc/rc.conf.local
+in order to configure the keyboard at boot time.
+The following is the list of relevant variables.
+.Pp
+.Bl -tag -width foo_bar_var -compact
+.It Ar keymap
+Specifies a keyboard map file for the
+.Fl l
+option.
+.It Ar keyrate
+Sets the keyboard repeat rate for the
+.Fl r
+option.
+.It Ar keychange
+Lists function key strings for the
+.Fl f
+option.
+.El
+.Pp
+See
+.Xr rc.conf 5
+for details.
+.Ss Driver Configuration
+The keyboard device driver may let you change default configuration
+options, such as the default keyboard map, so that you do not need to set up
+the options at boot time.
+See keyboard driver manuals
+(e.g.\&
+.Xr atkbd 4 ,
+.Xr ukbd 4 )
+for details.
+.Sh FILES
+.Bl -tag -width /usr/share/syscons/keymaps/foo_bar -compact
+.It Pa /usr/share/syscons/keymaps/*
+keyboard map files for syscons
+.It Pa /usr/share/vt/keymaps/*
+keyboard map files for vt
+.El
+.Sh EXAMPLES
+The following command will load the keyboard map file
+.Pa /usr/share/syscons/keymaps/ru.koi8-r.kbd .
+.Pp
+.Dl kbdcontrol -l /usr/share/syscons/keymaps/ru.koi8-r.kbd
+.Pp
+So long as the keyboard map file resides in
+.Pa /usr/share/syscons/keymaps
+(if using
+.Xr syscons 4 ) or
+.Pa /usr/share/vt/keymaps
+(if using
+.Xr vt 4 ) ,
+you may abbreviate the file name as
+.Pa ru.koi8-r .
+Since
+.Xr vt 4
+uses Unicode, the corresponding keyboard file names omit the encoding
+and typically are just a country code, e.g.\&
+.Pa ru .
+.Pp
+.Dl kbdcontrol -l ru.koi8-r
+.Pp
+The following command will make the function key 10 emit "telnet myhost".
+.Pp
+.Dl kbdcontrol -f 10 \&"telnet myhost\&"
+.Pp
+In order to get the visual effect for bell, but prevent the screen
+from flashing if the bell is to ring in the background screen,
+run the following command.
+.Pp
+.Dl kbdcontrol -b quiet.visual
+.Pp
+To change the default console keyboard to another keyboard,
+for example the first USB keyboard (see
+.Xr ukbd 4 ) ,
+use the following command.
+.Pp
+.Dl kbdcontrol -k /dev/ukbd0 < /dev/console
+.Pp
+To switch back to the default keyboard, use this command.
+.Pp
+.Dl kbdcontrol -k /dev/kbd0
+.Pp
+To allow using both the second USB keyboard and the first AT keyboard
+at the same time on console via the
+.Xr kbdmux 4
+driver, use the following sequence of commands.
+.Bd -literal -offset indent
+kbdcontrol -K < /dev/console
+kbdcontrol -a atkbd0 < /dev/kbdmux0
+kbdcontrol -a ukbd1 < /dev/kbdmux0
+kbdcontrol -k /dev/kbdmux0 < /dev/console
+.Ed
+.Sh SEE ALSO
+.Xr kbdmap 1 ,
+.Xr vidcontrol 1 ,
+.Xr atkbd 4 ,
+.Xr kbdmux 4 ,
+.Xr keyboard 4 ,
+.Xr screen 4 ,
+.Xr syscons 4 ,
+.Xr ukbd 4 ,
+.Xr vt 4 ,
+.Xr kbdmap 5 ,
+.Xr rc.conf 5
+.Sh AUTHORS
+.An S\(/oren Schmidt Aq Mt sos@FreeBSD.org
+.Sh BUGS
+Report when found.

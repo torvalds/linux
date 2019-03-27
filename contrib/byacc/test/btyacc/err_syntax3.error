@@ -1,0 +1,3 @@
+YACC: e - line 6 of "./err_syntax3.y", unterminated string
+%token <text> '(' '*' '&
+                      ^

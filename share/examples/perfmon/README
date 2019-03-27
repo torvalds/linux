@@ -1,0 +1,25 @@
+`perfmon' is a sample program to access the performance-monitoring
+counters on Pentium and Pentium Pro CPUs.  See perfmon(4) for a
+description of this facility.
+
+The program takes the following options:
+
+	-u	count events in user mode
+	-o	count events in kernel mode
+		(these two can be combined)
+
+	-e	count events, not duration
+	-l n	run `n' loops (default 50)
+	-s n	sleep `n' seconds between loop iterations (default 0)
+
+The following options are not implemented on Pentium CPUs:
+
+	-m n	use count mask `n'
+	-i	invert sense of count mask comparison
+	-U n	use unit mask `n'
+
+There is one mandatory argument, which is the event number to be
+monitored, defined in <machine/perfmon.h>.  All numbers can be
+specified in any format acceptable to strtol(3).
+
+$FreeBSD$

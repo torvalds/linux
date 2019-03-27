@@ -1,0 +1,171 @@
+# PROGRAMS
+#   test programs invoked via standard user interface, run on all platforms
+# ALL_TESTS
+#   test modules invoked through the abts suite (./testall)
+# OTHER_PROGRAMS
+#   programs such as sendfile, that have to be invoked in a special sequence
+#   or with special parameters
+
+# Windows Specific;
+# MODEL
+#   dynamic or static - refers to which set of bindings are desired
+#   and controls which libraries (apr-1 or libapr-1) will be linked.
+# OUTDIR
+#   the library path of the libraries, and also the path within test/
+#   where all of the tests for that library will be built
+# APROUTDIR
+#   The library path of apr (if different from OUTDIR)
+# APR_PATH
+#   relative or absolute path to locate apr libs and includes
+# API_PATH
+#   relative or absolute path to locate apr-iconv libs and includes
+
+!IFNDEF MODEL
+MODEL=dynamic
+!ENDIF
+
+!IFNDEF OUTDIR
+!IF "$(MODEL)" == "static"
+OUTDIR=LibR
+!ELSE
+OUTDIR=Release
+!ENDIF
+
+!IF [$(COMSPEC) /c cl /nologo /? \
+	| $(SystemRoot)\System32\find.exe "x64" >NUL ] == 0
+OUTDIR=x64\$(OUTDIR)
+!ENDIF
+!ENDIF
+
+!IF !EXIST("$(OUTDIR)\.")
+!IF ([$(COMSPEC) /C mkdir $(OUTDIR)] == 0)
+!ENDIF
+!ENDIF
+
+!IFNDEF INTDIR
+INTDIR=$(OUTDIR)
+!ELSE
+!IF !EXIST("$(INTDIR)\.")
+!IF ([$(COMSPEC) /C mkdir $(INTDIR)] == 0)
+!ENDIF
+!ENDIF
+!ENDIF
+
+!MESSAGE Building tests into $(OUTDIR) for $(MODEL)
+
+ALL_TESTS = $(INTDIR)\teststrmatch.obj $(INTDIR)\testuri.obj \
+	$(INTDIR)\testuuid.obj $(INTDIR)\testutil.obj \
+	$(INTDIR)\testbuckets.obj $(INTDIR)\testpass.obj \
+	$(INTDIR)\testmd4.obj $(INTDIR)\testmd5.obj \
+	$(INTDIR)\testldap.obj $(INTDIR)\testdbd.obj \
+	$(INTDIR)\testdbm.obj $(INTDIR)\testreslist.obj \
+	$(INTDIR)\testxml.obj $(INTDIR)\testqueue.obj \
+	$(INTDIR)\testrmm.obj $(INTDIR)\testxlate.obj \
+	$(INTDIR)\testdate.obj $(INTDIR)\testmemcache.obj \
+	$(INTDIR)\testcrypto.obj
+
+CLEAN_DATA = manyfile.bin testfile.txt data\sqlite*.db
+
+CLEAN_BUILDDIRS = Debug Release LibD LibR 9x x64
+
+PROGRAMS = \
+	$(OUTDIR)\testall.exe
+
+OTHER_PROGRAMS = \
+	$(OUTDIR)\dbd.exe
+
+# bring in rules.mk for standard functionality
+ALL: $(PROGRAMS) $(OTHER_PROGRAMS)
+
+CL = cl.exe
+LD = link.exe 
+
+APR_PATH = ..\..\apr
+API_PATH = ..\..\apr-iconv
+
+APROUTDIR=$(OUTDIR)
+
+!IF "$(MODEL)" == "static"
+PROGRAM_DEPENDENCIES = \
+	$(APR_PATH)\$(APROUTDIR)\apr-1.lib \
+	$(API_PATH)\$(OUTDIR)\apriconv-1.lib \
+	..\xml\expat\lib\$(OUTDIR)\xml.lib \
+	..\$(OUTDIR)\aprutil-1.lib 
+STATIC_CFLAGS = /D APR_DECLARE_STATIC /D APU_DECLARE_STATIC
+STATIC_LIBS = odbc32.lib odbccp32.lib wldap32.lib 
+!ELSE
+PROGRAM_DEPENDENCIES = \
+	$(APR_PATH)\$(APROUTDIR)\libapr-1.lib \
+	..\$(OUTDIR)\libaprutil-1.lib 
+STATIC_CFLAGS =
+# APR 1.3 doesn't fully abstract ldap_ calls to permit switching providers;
+STATIC_LIBS = wldap32.lib 
+!ENDIF
+
+!IFDEF _DEBUG
+DEBUG_CFLAGS = /MDd
+!ELSE
+DEBUG_CFLAGS = /MD 
+!ENDIF
+
+INCLUDES=/I "../include" /I "$(API_PATH)/include" /I "$(APR_PATH)/include"
+
+CFLAGS = /nologo /c /W3 /Gm /EHsc /Zi /Od $(INCLUDES) \
+	 $(STATIC_CFLAGS) $(DEBUG_CFLAGS) /D "BINPATH=$(OUTDIR:\=/)" \
+	 /D _DEBUG /D WIN32 /Fo"$(INTDIR)/" /FD
+
+LD_LIBS = kernel32.lib advapi32.lib ws2_32.lib wsock32.lib \
+	  ole32.lib shell32.lib rpcrt4.lib $(STATIC_LIBS)
+
+LDFLAGS = /nologo /debug /subsystem:console /incremental:no 
+SHLDFLAGS = /nologo /dll /debug /subsystem:windows /incremental:no
+
+.c{$(INTDIR)}.obj::
+	$(CL) $(CFLAGS) -c $< -Fd$(INTDIR)\ $(INCLUDES)
+
+# PROGRAMS;
+
+abts.c: abts.h abts_tests.h testutil.h
+
+testutil.c: abts.h abts_tests.h testutil.h
+
+$(OUTDIR)\testall.exe: $(ALL_TESTS) $(INTDIR)\abts.obj $(PROGRAM_DEPENDENCIES)
+	$(LD) $(LDFLAGS) /out:"$@" $** $(LD_LIBS)
+	@if exist "$@.manifest" \
+	    mt.exe -manifest "$@.manifest" -outputresource:$@;1
+
+# OTHER_PROGRAMS;
+
+$(OUTDIR)\dbd.exe: $(INTDIR)\dbd.obj $(PROGRAM_DEPENDENCIES)
+	$(LD) $(LDFLAGS) /out:"$@" $** $(LD_LIBS)
+	@if exist "$@.manifest" \
+	    mt.exe -manifest "$@.manifest" -outputresource:$@;1
+
+
+cleandata:
+	@for %f in ($(CLEAN_DATA)) do @if EXIST %f del /f %f
+
+clean: cleandata
+	@if EXIST $(INTDIR)\. rmdir /s /q $(INTDIR)
+	@if EXIST $(OUTDIR)\. rmdir /s /q $(OUTDIR)
+
+cleanall: 
+	@for %d in ($(CLEAN_BUILDDIRS) $(INTDIR) $(OUTDIR)) do \
+	    @if EXIST %d\. rmdir /s /q %d
+
+
+!IF "$(MODEL)" != "static"
+PATH=$(OUTDIR);..\$(OUTDIR);..\ldap\$(OUTDIR);..\dbd\$(OUTDIR);$(API_PATH)\$(OUTDIR);$(APR_PATH)\$(APROUTDIR);$(PATH)
+!ENDIF
+APR_ICONV1_PATH=$(API_PATH)\$(OUTDIR)\iconv
+
+check: $(PROGRAMS) $(OTHER_PROGRAMS)
+	echo Testing dbd sqlite2 && $(OUTDIR)\dbd.exe sqlite2 || echo Failed
+	echo Testing dbd sqlite3 && $(OUTDIR)\dbd.exe sqlite3 || echo Failed
+	@for %p in ($(PROGRAMS)) do @( \
+	    echo Testing %p && %p -v || echo %p failed \
+	)
+
+checkall: check
+
+# DO NOT REMOVE

@@ -1,0 +1,127 @@
+.\" Copyright (c) 2003,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 9, 2008
+.Dt PMCCONTROL 8
+.Os
+.Sh NAME
+.Nm pmccontrol
+.Nd "control hardware performance monitoring counters"
+.Sh SYNOPSIS
+.Nm
+.Oo Fl c Ar cpu | Fl d Ar pmc | Fl e Ar pmc Oc ...
+.Nm
+.Fl l
+.Nm
+.Fl L
+.Nm
+.Fl s
+.Sh DESCRIPTION
+The
+.Nm
+utility controls the operation of the system's hardware performance
+monitoring counters.
+.Sh OPTIONS
+The
+.Nm
+utility processes options in command line order, so later options modify
+the effect of earlier ones.
+The following options are available:
+.Bl -tag -width indent
+.It Fl c Ar cpu
+Subsequent enable and disable options affect the CPU
+denoted by argument
+.Ar cpu .
+The argument
+.Ar cpu
+is a number denoting a CPU in the system, or
+.Dq Li * ,
+denoting all unhalted CPUs in the system.
+.It Fl d Ar pmc
+Disable PMC number
+.Ar pmc
+on the CPU specified by
+.Fl c ,
+preventing it from being used till subsequently re-enabled.
+The argument
+.Ar pmc
+is a number denoting a specific PMC, or
+.Dq Li *
+denoting all the PMCs on the specified CPU.
+.Pp
+Only idle PMCs may be disabled.
+.\" XXX this probably needs to be fixed.
+.It Fl e Ar pmc
+Enable PMC number
+.Ar pmc ,
+on the CPU specified by
+.Fl c ,
+allowing it to be used in the future.
+The argument
+.Ar pmc
+is a number denoting a specific PMC, or
+.Dq Li *
+denoting all the PMCs on the specified CPU.
+If PMC
+.Ar pmc
+is already enabled, this option has no effect.
+.It Fl l
+List available hardware performance counters and their current
+disposition.
+.It Fl L
+List available hardware performance counter classes and their
+supported event names.
+.It Fl s
+Print driver statistics maintained by
+.Xr hwpmc 4 .
+.El
+.Sh EXAMPLES
+To disable all PMCs on all CPUs, use the command:
+.Dl "pmccontrol -d*"
+.Pp
+To enable all PMCs on all CPUs, use:
+.Dl "pmccontrol -e*"
+.Pp
+To disable PMCs 0 and 1 on CPU 2, use:
+.Dl "pmccontrol -c2 -d0 -d1"
+.Pp
+To disable PMC 0 of CPU 0 only, and enable all other PMCS on all other
+CPUs, use:
+.Dl "pmccontrol -c* -e* -c0 -d0"
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4 ,
+.Xr pmcstat 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org

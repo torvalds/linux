@@ -1,0 +1,113 @@
+/dts-v1/;
+
+#include "mt7620n.dtsi"
+
+/ {
+	compatible = "cf-wr800n", "ralink,mt7620n-soc";
+	model = "Comfast CF-WR800N";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		ethernet {
+			label = "cf-wr800n:white:ethernet";
+			gpios = <&gpio2 4 1>;
+		};
+
+		wifi {
+			label = "cf-wr800n:white:wifi";
+			gpios = <&gpio3 0 1>;
+		};
+
+		wps {
+			label = "cf-wr800n:white:wps";
+			gpios = <&gpio1 15 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 2 1>;
+			linux,code = <0x198>;
+		};
+	};
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+&gpio3 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "w25q64";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x7b0000>;
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x4>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		default {
+			ralink,group = "ephy", "wled", "spi refclk", "i2c";
+			ralink,function = "gpio";
+		};
+	};
+};

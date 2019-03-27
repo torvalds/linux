@@ -1,0 +1,503 @@
+mk-files
+********
+
+The term ``mk-files`` refers to a collection of ``*.mk`` files.
+
+You need bmake_ or a *recent* NetBSD_ make.
+If in doubt use bmake_.
+
+Introduction
+============
+
+Many years ago, when building large software projects, I used GNU make
+(or my own patched version of it), and had developed a set of macros
+to simplify developing complex build trees.
+
+Since the early 90's my main development machines, run BSD
+(NetBSD_ to be precise), and the BSD source tree is good example of a
+large software project.   It quickly became clear that
+``/usr/share/mk/*.mk`` were a great model, but were quite tightly
+linked to building the BSD tree.
+
+Much as I liked using NetBSD, my customers were more likely to be
+using SunOS, HP-UX etc, so I started on bmake_ and a portable collection
+of mk-files (mk.tar.gz_).  NetBSD provided much of the original structure.
+
+Since then I've added a lot of features to NetBSD's make and hence to
+bmake which is kept closely in sync.  The mk-files however have 
+diverged quite a bit, though ideas are still picked up from NetBSD
+and FreeBSD.
+
+Basics
+------
+
+The BSD build model is very simple.  A directory produces one
+component, which is generally either a library or a program.
+Library makefiles include ``lib.mk`` and programs include ``prog.mk``
+and they *do the right thing*.
+
+A simple library makefile might look like::
+
+	LIB = sig
+
+	SRCS = \
+		sigaction.c \
+		sigcompat.c \
+		sighdl.c
+
+	.include <lib.mk>
+
+a simple program makefile::
+
+	PROG = cat
+
+	SRCS = cat.c
+
+	.include <prog.mk>
+
+in such cases even the ``SRCS`` line is unnecessary as ``prog.mk``
+will default it to ``${PROG}.c``.
+
+It is the sensible use of defaults and the plethora of macro modifiers
+provided by bmake_ that allow simple makefiles such as the above
+*just work* on many different systems.
+
+
+mk-files
+========
+
+This section provides a brief description of some of the ``*.mk``
+files. 
+
+sys.mk
+------
+
+When bmake starts, it looks for ``sys.mk`` and reads it before doing
+anything else.  Thus, this is the place to setup the environment for
+everyone else.
+
+In this distribution, sys.mk avoids doing anything platform dependent.
+It is quite short, and includes a number of other files (which may or
+may not exists)
+
+sys.env.mk
+	If it exists, is expected to do things like conditioning the
+	environment.  Since it will only be included by the initial
+	instance of bmake, it should ``.export`` anything that
+	sub-makes might need.
+
+examples/sys.clean-env.mk
+	An example of how to clean the environment.
+	See the file for all the details::
+
+		.if ${MAKE_VERSION} >= 20100606 && ${.MAKE.LEVEL} == 0
+		# we save any env var that starts with these
+		MAKE_SAVE_ENV_PREFIX += SB MK MAKE MACHINE NEED_ CCACHE DISTCC USE_ SSH
+		MAKE_SAVE_ENV_VARS += \
+			PATH HOME USER LOGNAME \
+			SRCTOP OBJTOP OBJROOT \
+			${_env_vars}
+		
+		_env_vars != env | egrep '^(${MAKE_SAVE_ENV_PREFIX:ts|})' | sed 's,=.*,,'; echo
+		_export_list =
+		.for v in ${MAKE_SAVE_ENV_VARS:O:u}
+		.if !empty($v)
+		_export_list += $v
+		$v := ${$v}
+		.endif
+		.endfor
+		# now clobber the environment
+		.unexport-env
+
+		# list of vars that we handle specially below
+		_tricky_env_vars = MAKEOBJDIR
+		# export our selection - sans tricky ones
+		.export ${_export_list:${_tricky_env_vars:${M_ListToSkip}}}
+
+		# this next bit may need tweaking
+		.if defined(MAKEOBJDIR)
+		srctop := ${SRCTOP:U${SB_SRC:U${SB}/src}}
+		objroot := ${OBJROOT:U${SB_OBJROOT:U${SB}/${SB_OBJPREFIX}}}
+		# we'll take care of MACHINE below
+		objtop := ${OBJTOP:U${objroot}${MACHINE}}
+		.if !empty(objtop)
+		# we would normally want something like (/bin/sh):
+		# MAKEOBJDIR="\${.CURDIR:S,${SRCTOP},${OBJROOT}\${MACHINE},}"
+		# the $$ below is how we achieve the same result here.
+		# since everything saved from the environment above
+		# has run through := we need to compensate for ${MACHINE}
+		MAKEOBJDIR = $${.CURDIR:S,${srctop},${objtop:S,${MACHINE},\${MACHINE},},}
+
+		# export these as-is, and do not track...
+		.export-env ${_tricky_env_vars}
+		# now evaluate for ourselves
+		.for v in ${_tricky_env_vars}
+		$v := ${$v}
+		.endfor
+
+		.endif
+		.endif
+		.endif
+
+
+host-target.mk
+	Is used to set macros like ``HOST_TARGET``, ``HOST_OS`` and
+	``host_os`` which are used to find the next step.
+
+sys/\*.mk
+	Platform specific additions, such as ``Darwin.mk`` or ``SunOS.mk``
+	set things like ``HOST_LIBEXT = .dylib`` for Darwin or
+	``SHLIB_FULLVERSION = ${SHLIB_MAJOR}`` for SunOS 5.
+	If there is no OS specific file, ``sys/Generic.mk`` is used.
+
+local.sys.mk
+	Any ``local.*.mk`` file is not part of the distribution.
+	This provides a hook for sites to do extra setup without
+	having to edit the distributed files.
+
+
+The above arrangement makes it easy for the mk files to be part of a
+src tree on an NFS volume and to allow building on multiple platforms.
+
+lib.mk
+------
+
+This file is used to build a number of different libraries from the
+same SRCS.
+
+lib${LIB}.a
+	An archive lib of ``.o`` files, this is the default
+
+lib${LIB}_p.a
+	A profiled lib of ``.po`` files.  
+	Still an archive lib, but all the objects are built with
+	profiling in mind - hence the different extension.
+	It is skipped if ``MKPROFILE`` is "no".
+
+lib${LIB}_pic.a
+	An archive of ``.so`` objects compiled for relocation.
+	On NetBSD this is the input to ``lib${LIB}.${LD_so}``, it is
+	skipped if ``MKPICLIB`` is "no".
+
+lib${LIB}.${LD_so}
+	A shared library.  The value of ``LD_so`` is very platform
+	specific.  For example::
+
+		# SunOS 5 and most other ELF systems
+		libsslfd.so.1
+
+		# Darwin
+		libsslfd.1.dylib
+
+	This library will only be built if ``SHLIB_MAJOR`` has
+	a value, and ``MKPIC`` is not set to "no".
+
+There is a lot of platform specific tweaking in ``lib.mk``, largely the
+result of the original distributions trying to avoid interfering with
+the system's ``sys.mk``. 
+
+libnames.mk
+-----------
+
+This is included by both ``prog.mk`` and ``lib.mk`` and tries to
+include ``*.libnames.mk`` of which:
+
+local.libnames.mk
+	does not exist unless you create it.  It is a handy way for you
+	to customize without touching the distributed files. 
+	For example, on a test machine I needed to build openssl but
+	not install it, so put the following in ``local.libnames.mk``:: 
+
+		.if ${host_os} == "sunos"
+		LIBCRYPTO = ${OBJTOP}/openssl/lib/crypto/libcrypto${DLIBEXT}
+		LIBSSL = ${OBJTOP}/openssl/lib/ssl/libssl${DLIBEXT}
+		INCLUDES_libcrypto = -I${OBJ_libcrypto}
+		.endif
+		
+	The makefile created an openssl dir in ``${OBJ_libcrypto}`` to
+	gather all the headers. dpadd.mk_ did the rest.
+
+sjg.libnames.mk
+	not part of the mk-files distribution.
+
+host.libnames.mk
+	contains logic to find any libs named in ``HOST_LIBS`` in
+	``HOST_LIBDIRS``.
+
+Each file above gets an opportunity to define things like::
+
+	LIBSSLFD	?= ${OBJTOP}/ssl/lib/sslfd/libsslfd${DLIBEXT}
+	INCLUDES_libsslfd = -I${SRC_libsslfd}/h -I${OBJ_libslfd}
+
+these are used by dpadd.mk_ and will be explained below.
+
+dpadd.mk
+--------
+
+This file looks like line noise, and is best considered read-only.
+However it provides some very useful functionality, which simplifies the build.
+
+Makefiles can use the LIB* macros defined via libnames.mk_ or anywhere
+else in various ways::
+
+	# indicate that we need to include headers from LIBCRYPTO
+	# this would result in ${INCLUDES_libcrypto} being added to CFLAGS.
+	SRC_LIBS += ${LIBCRYPTO}
+
+	# indicate that libsslfd must be built already.
+	# it also has the same effect as SRC_LIBS
+	DPADD += ${LIBSSLFD}
+
+	# indicate that not only must libsslfd be built, 
+	# but that we need to link with it.
+	# this is almost exactly equivalent to
+	# DPADD += ${LIBSSLFD}
+	# LDADD += -L${LIBSSLFD:H} -lsslfd
+	# and mostly serves to ensure that DPADD and LDADD are in sync.
+	DPLIBS += ${LIBSSLFD}
+
+Any library (referenced by its full path) in any of the above, is
+added to ``DPMAGIC_LIBS`` with the following results, for each lib *foo*.
+
+SRC_libfoo
+	Is set to indicate where the src for libfoo is.
+	By default it is derived from ``LIBFOO`` by replacing
+	``${OBJTOP}`` with ``${SRCTOP}``.
+
+OBJ_libfoo
+	Not very exciting, is just the dir where libfoo lives.
+
+INCLUDES_libfoo
+	What to add to ``CFLAGS`` to find the public headers.
+	The default varies.  If ``${SRC_libfoo}/h`` exists, it is assumed
+	to be the home of all public headers and thus the default is
+	``-I${SRC_libfoo}/h``
+
+	Otherwise we make no assumptions and the default is
+	``-I${SRC_libfoo} -I${OBJ_libfoo}``
+
+LDADD_libfoo
+	This only applies to libs reference via ``DPLIBS``.
+	The default is ``-lfoo``, ``LDADD_*`` provides a hook to
+	instantiate other linker flags at the appropriate point
+	without losing the benfits of ``DPLIBS``.
+
+prog.mk
+-------
+
+Compiles the specified SRCS and links them and the nominated libraries
+into a program.  Prog makefiles usually need to list the libraries
+that need to be linked.   We prefer use of ``DPLIBS`` but the more
+traditional ``DPADD`` and ``LDADD`` work just as well.
+That is::
+
+	DPLIBS += ${LIBCRYPTO}
+
+is equivalent to::
+
+	DPADD += ${LIBCRYPTO}
+	LDADD += -lcrypto
+
+obj.mk
+------
+
+One of the cool aspects of BSD make, is its support for separating
+object files from the src tree.  This is also the source of much
+confusion to some.
+
+Traditionally one had to do a separate ``make obj`` pass through the
+tree.  If ``MKOBJDIRS`` is "auto", we include auto.obj.mk_.
+
+auto.obj.mk
+-----------
+
+This leverages the ``.OBJDIR`` target introduced some years ago to
+NetBSD make, to automatically create the desired object dir.
+
+subdir.mk
+---------
+
+This is the traditional means of walking the tree.  A makefile sets
+``SUBDIR`` to the list of sub-dirs to visit.
+
+If ``SUBDIR_MUST_EXIST`` is set, missing directories cause an error,
+otherwise a warning is issued.  If you don't even want the warning,
+set ``MISSING_DIR=continue``.
+
+Traditionally, ``subdir.mk`` prints clue as it visits each subdir::
+
+	===> ssl
+	===> ssl/lib
+	===> ssl/lib/sslfd
+
+you can suppress that - or enhance it by setting ``ECHO_DIR``::
+
+	# suppress subdir noise
+	ECHO_DIR=:
+	# print time stamps
+	ECHO_DIR=echo @ `date "+%s [%Y-%m-%d %T] "`
+
+links.mk
+--------
+
+Provides rules for processing lists of ``LINKS`` and ``SYMLINKS``.
+Each is expected to be a list of ``link`` and ``target`` pairs
+(``link`` -> ``target``). 
+
+The logic is generally in a ``_*_SCRIPT`` which is referenced in a
+``_*_USE`` (``.USE``) target.
+
+The ``_BUILD_*`` forms are identical, but do not use ``${DESTDIR}``
+and so are useful for creating symlinks during the build phase.
+For example::
+
+	SYMLINKS += ${.CURDIR}/${MACHINE_ARCH}/include machine
+	header_links: _BUILD_SYMLINKS_USE
+	
+	md.o: header_links
+
+would create a symlink called ``machine`` in ``${.OBJDIR}`` pointing to
+``${.CURDIR}/${MACHINE_ARCH}/include`` before compiling ``md.o``
+
+
+autoconf.mk
+-----------
+
+Deals with running (or generating) GNU autoconf ``configure`` scripts.
+
+dep.mk
+------
+
+Deals with collecting dependencies.  Another useful feature of BSD
+make is the separation of this sort of information into a ``.depend``
+file.  ``MKDEP`` needs to point to a suitable tool (like mkdeps.sh_)
+
+If ``USE_AUTODEP_MK`` is "yes" includes autodep.mk_
+
+autodep.mk
+----------
+
+Leverages the ``-MD`` feature of recent GCC to collect dependency
+information as a side effect of compilation.  With this GCC puts
+dependency info into a ``.d`` file.
+
+Unfortunately GCC bases the name of the ``.d`` file on the name of the
+input rather than the output file, which causes problems when the same
+source is compiled different ways.  The latest GCC supports ``-MF`` to
+name the ``.d`` file and ``-MT`` to control the name to put as the
+dependent.
+
+Recent bmake allows dependencies for the ``.END`` target (run at the
+end if everything was successful), and ``autodep.mk`` uses this to
+post process the ``.d`` files into ``.depend``.
+
+auto.dep.mk
+-----------
+
+A much simpler implementation than autodep.mk_ it uses 
+``-MF ${.TARGET:T}.d``
+to avoid possible conflicts during parallel builds.  
+This precludes the use of suffix rules to drive ``make depend``, so 
+dep.mk_ handles that if specifically requested.
+
+options.mk
+----------
+
+Inspired by FreeBSD's ``bsd.own.mk`` more flexible.
+FreeBSD now have similar functionality in ``bsd.mkopt.mk``.
+
+It allows users to express their intent with respect to options
+``MK_*`` by setting ``WITH_*`` or ``WITHOUT_*``.
+
+Note: ``WITHOUT_*`` wins if both are set, and makefiles can set
+``NO_*`` to say they cannot handle that option, or even ``MK_*`` if
+they really need to.
+
+
+own.mk
+------
+
+Normally included by ``init.mk`` (included by ``lib.mk`` and
+``prog.mk`` etc), sets macros for default ownership  etc.
+
+It includes ``${MAKECONF}`` if it is defined and exists.
+
+ldorder.mk
+----------
+
+Leverages ``bmake`` to compute optimal link order for libraries.
+This works nicely and makes refactoring a breeze - so long as you
+have not (or few) cicular dependencies between libraries.
+
+man.mk
+------
+
+Deals with man pages.
+
+warnings.mk
+-----------
+
+This provides a means of fine grained control over warnings on a per
+``${MACHINE}`` or even file basis.
+
+A makefile sets ``WARNINGS_SET`` to name a list of warnings
+and individual ``W_*`` macros can be used to tweak them.
+For example::
+
+	WARNINGS_SET = HIGH
+	W_unused_sparc = -Wno-unused
+
+would add all the warnings in ``${HIGH_WARNINGS}`` to CFLAGS, but
+on sparc, ``-Wno-unused`` would replace ``-Wunused``.
+
+You should never need to edit ``warnings.mk``, it will include
+``warnings-sets.mk`` if it exists and you use that to make any local
+customizations. 
+
+rst2htm.mk
+----------
+
+Logic to simplify generating HTML (and PDF) documents from ReStructuredText.
+
+cython.mk
+---------
+
+Logic to build Python C interface modules using Cython_
+
+.. _Cython: http://www.cython.org/
+
+Meta mode
+=========
+
+The 20110505 and later versions of ``mk-files`` include a number of
+makefiles contributed by Juniper Networks, Inc.  
+These allow the latest version of bmake_ to run in `meta mode`_
+see `dirdeps.mk`_
+
+.. _`dirdeps.mk`: /help/sjg/dirdeps.htm
+.. _`meta mode`: bmake-meta-mode.htm
+
+Install
+=======
+
+You can use the content of mk.tar.gz_ without installing at all.
+
+The script ``install-mk`` takes care of copying ``*.mk`` into a
+destination directory, and unless told not to, create ``bsd.*.mk`` links
+for ``lib.mk`` etc.
+
+If you just want to create the ``bsd.*.mk`` links in the directory
+where you unpacked the tar file, you can::
+
+	./mk/install-mk ./mk
+
+------
+
+.. _bmake: bmake.htm
+.. _NetBSD: http://www.netbsd.org/
+.. _mkdeps.sh: http://www.crufty.net/ftp/pub/sjg/mkdeps.sh
+.. _mk.tar.gz: http://www.crufty.net/ftp/pub/sjg/mk.tar.gz
+
+:Author: sjg@crufty.net
+:Revision: $Id: mk-files.txt,v 1.18 2018/12/08 07:27:15 sjg Exp $
+:Copyright: Crufty.NET

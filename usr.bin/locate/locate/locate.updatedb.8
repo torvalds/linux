@@ -1,0 +1,75 @@
+.\" Copyright (c) 1996
+.\"	Mike Pritchard <mpp@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Mike Pritchard.
+.\" 4. Neither the name of the author nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 11, 1996
+.Dt LOCATE.UPDATEDB 8
+.Os
+.Sh NAME
+.Nm locate.updatedb
+.Nd update locate database
+.Sh SYNOPSIS
+.Nm /usr/libexec/locate.updatedb
+.Sh DESCRIPTION
+The
+.Nm
+utility updates the database used by
+.Xr locate 1 .
+It is typically run once a week by the
+.Pa /etc/periodic/weekly/310.locate
+script.
+.Pp
+The contents of the newly built database can be controlled by the
+.Pa /etc/locate.rc
+file.
+.Sh ENVIRONMENT
+.Bl -tag -width /var/db/locate.database -compact
+.It Pa LOCATE_CONFIG
+path to the configuration file
+.El
+.Sh FILES
+.Bl -tag -width /var/db/locate.database -compact
+.It Pa /var/db/locate.database
+the default database
+.It Pa /etc/locate.rc
+the configuration file
+.El
+.Sh SEE ALSO
+.Xr locate 1 ,
+.Xr periodic 8
+.Rs
+.%A Woods, James A.
+.%D 1983
+.%T "Finding Files Fast"
+.%J ";login"
+.%V 8:1
+.%P pp. 8-10
+.Re

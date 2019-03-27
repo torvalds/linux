@@ -1,0 +1,133 @@
+.\"
+.\" Copyright (c) 1999 Chris Costello
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 28, 2012
+.Dt KLDSTAT 2
+.Os
+.Sh NAME
+.Nm kldstat
+.Nd get status of kld file
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/linker.h
+.Ft int
+.Fn kldstat "int fileid" "struct kld_file_stat *stat"
+.Sh DESCRIPTION
+The
+.Fn kldstat
+system call writes the info for the file referred to by
+.Fa fileid
+into
+.Fa stat .
+.Bd -literal
+struct kld_file_stat {
+	int         version;    /* set to sizeof(struct kld_file_stat) */
+	char        name[MAXPATHLEN];
+	int         refs;
+	int         id;
+	caddr_t     address;
+	size_t      size;
+	char        pathname[MAXPATHLEN];
+};
+.Ed
+.Bl -tag -width XXXaddress
+.It version
+This field is set to the size of the structure mentioned above by the code
+calling
+.Fn kldstat ,
+and not
+.Fn kldstat
+itself.
+.It name
+The name of the file referred to by
+.Fa fileid .
+.It refs
+The number of modules referenced by
+.Fa fileid .
+.It id
+The id of the file specified in
+.Fa fileid .
+.It address
+The load address of the kld file.
+.It size
+The amount of memory in bytes allocated by the file.
+.It pathname
+The full name of the file referred to by
+.Fa fileid ,
+including the path.
+.El
+.Sh RETURN VALUES
+.Rv -std kldstat
+.Sh ERRORS
+The information for the file referred to by
+.Fa fileid
+is filled into the structure pointed to by
+.Fa stat
+unless:
+.Bl -tag -width Er
+.It Bq Er ENOENT
+The file was not found (probably not loaded).
+.It Bq Er EINVAL
+The version specified in the
+.Fa version
+field of stat is not the proper version.
+You would need to rebuild world, the
+kernel, or your application, if this error occurs, given that you did properly
+fill in the
+.Fa version
+field.
+.It Bq Er EFAULT
+There was a problem copying one, some, or all of the fields into
+.Fa stat
+in the
+.Xr copyout 9
+function.
+.El
+.Sh SEE ALSO
+.Xr kldfind 2 ,
+.Xr kldfirstmod 2 ,
+.Xr kldload 2 ,
+.Xr kldnext 2 ,
+.Xr kldsym 2 ,
+.Xr kldunload 2 ,
+.Xr modfind 2 ,
+.Xr modfnext 2 ,
+.Xr modnext 2 ,
+.Xr modstat 2 ,
+.Xr kld 4 ,
+.Xr kldstat 8
+.Sh HISTORY
+The
+.Nm kld
+interface first appeared in
+.Fx 3.0 .
+.Sh BUGS
+The pathname may not be accurate if the file system mounts have
+changed since the module was loaded, or if this function is called
+within a chrooted environment.

@@ -1,0 +1,2243 @@
+2018-12-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: 20181221
+	  Merge with NetBSD make, pick up
+	  o parse.c: ParseVErrorInternal use .PARSEDIR
+	    and apply if relative, and then use .PARSEFILE
+	    for consistent result.
+
+2018-12-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: 20181220
+	  Merge with NetBSD make, pick up
+	  o parse.c: ParseVErrorInternal use .CURDIR if .PARSEDIR
+	    is relative
+	  o var.c: avoid SEGFAULT in .unexport-env
+	    when MAKELEVEL is not set
+
+2018-12-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: 20181216
+	  Merge with NetBSD make, pick up
+	  o fix for unit-tests/varquote.mk on Debian
+
+2018-09-21  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180919
+	  Merge with NetBSD make, pick up
+	  o var.c: add :q
+	  o dir.c: cleanup caching of stats
+
+2018-09-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* Makefile.config.in: use += where it makes sense.
+
+2018-05-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180512
+	  Merge with NetBSD make, pick up
+	  o job.c: skip polling job token pipe
+
+2018-04-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180405
+	  Merge with NetBSD make, pick up
+	  o parse.c: be more cautious about detecting depenency line
+	    rather than sysV style include.
+
+2018-02-22  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180222
+	  Merge with NetBSD make, pick up
+	  o parse.c: avoid calling sysconf for every call to loadfile
+
+2018-02-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180218
+	  Merge with NetBSD make, pick up
+	  o var.c: Var_Set handle NULL value anytime.
+
+2018-02-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180212
+	  Merge with NetBSD make, pick up
+	  o parse.c: do not treat .info as warning with -W
+
+2017-12-07  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20171207
+	  Merge with NetBSD make, pick up
+	  o var.c: Var_Append use Var_Set if var not previously set
+	    so that VAR_CMD is handled correctly.
+	    Add a suitable unit-test.
+
+2017-11-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20171126
+
+	* aclocal.m4: use AC_LINK_IFELSE for AC_C___ATTRIBUTE__
+	  since AC_TRY_COMPILE puts input inside main()
+	  which upsets modern compilers.
+
+2017-11-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20171118
+	  Merge with NetBSD make, pick up
+	  o var.c: do not append to variable set on command line
+	    add unit-test to catch this.
+
+2017-10-28  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20171028
+	  Merge with NetBSD make, pick up
+	  o main.c: ignore empty MAKEOBJDIR
+
+	* Makefile.config.in:
+	  make @prefix@ @machine*@ and @default_sys_path@ defaults.
+
+2017-10-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20171005
+
+	* unit-tests/dotwait.mk: redirect stderr through pipe for more
+	  consistent result on some platforms.
+
+2017-08-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* machine.sh: entry for AIX
+
+2017-08-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION (_MAKE_VERSION): Move the setting of _MAKE_VERSION
+	  to a file that can be included by configure as well as make.
+	  This allows configure to set set _MAKE_VERSION in make-bootstrap.sh
+
+2017-08-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170810
+	  Merge with NetBSD make, pick up
+	  o meta.c: if target is in subdir we only need subdir name in
+	    meta_name.
+
+2017-07-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170720
+	  Merge with NetBSD make, pick up
+	  o compat.c: pass SIGINT etc onto child and wait for it to exit
+	    before we self-terminate.
+
+2017-07-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170711
+	  forgot to update after merge on 20170708 ;-)
+	  o main.c: refactor to reduce size of main function.
+	    add -v option to always fully expand values.
+	  o meta.c: ensure command output in meta file has ending newline
+	    even when filemon not being used.
+	    When matching ${.MAKE.META.IGNORE_PATTERNS} do not use
+	    pathname via ':L' since any ':' in pathname breaks that.
+	    Instead set a '${.p.}' to pathname in the target context and
+	    use that.
+
+2017-05-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170510
+	  Merge with NetBSD make, pick up
+	  o main.c: Main_SetObjdir: ensure buf2 is in scope
+
+2017-05-08  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170505
+	  see mk/ChangeLog
+
+2017-05-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* parse.c: not everyone has stdint.h
+
+2017-05-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170501
+	  see mk/ChangeLog
+
+2017-04-21  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170421
+	  Merge with NetBSD make, pick up
+	  o str.c: Str_Match: fix closure tests for [^] and add unit-test.
+
+2017-04-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170420
+	  Merge with NetBSD make, pick up
+	  o main.c: only use -C arg "as is" if it contains no 
+	    relative component.
+
+2017-04-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170418
+	  Merge with NetBSD make, pick up
+	  o main.c: fix Main_SetObjdir() for relative paths (eg obj).
+
+2017-04-17  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170417
+	  Merge with NetBSD make, pick up
+	  o fixes a number of coverity complaints
+	    - check return value of fseek, fcntl
+	    - plug memory leak in Dir_FindFile, Var_LoopExpand,
+	      JobPrintCommand, ParseTraditionalInclude
+	    - use bmake_malloc() where NULL is not tollerated
+	    - use MAKE_ATTR_UNUSED rather that kludges like 
+	      return(unused ? 0 : 0)
+	    - use purge_cached_realpaths() rather than abuse cached_realpath()
+
+2017-04-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170413
+	  Merge with NetBSD make, pick up
+	  o main.c: when setting .OBJDIR ignore '$' in paths.
+
+	* job.c: use MALLOC_OPTIONS to set malloc_options.
+
+2017-04-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170411
+	  Merge with NetBSD make, pick up
+	  o str.c: Str_Match: allow [^a-z] to behave as expected.
+
+2017-03-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170326
+	  Merge with NetBSD make, pick up
+	  o main.c: purge relative paths from realpath cache when .OBJDIR
+	    is changed.
+
+2017-03-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170311
+	  Merge with NetBSD make, pick up
+          o main.c: only use -C arg "as is" if it starts with '/'.
+
+2017-03-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170301
+	  Merge with NetBSD make, pick up
+	  o main.c: use -C arg "as is" rather than getcwd()
+	    if they identify the same directory.
+	  o parse.c: ensure loadfile buffer is \n terminated in non-mmap case
+
+2017-02-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170201
+	  Merge with NetBSD make, pick up
+	  o var.c: allow :_=var and avoid use of special context.
+
+2017-01-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170130
+	  Merge with NetBSD make, pick up
+	  o var.c: add :range and :_
+	  o main.c: partially initialize Dir_* before MainParseArgs()
+	    can be called.
+	    If -V, skip Main_ExportMAKEFLAGS()
+
+2017-01-14  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170114
+	  Merge with NetBSD make, pick up
+	  o var.c: allow specifying the utc value used by :{gm,local}time
+
+2016-12-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20161212
+	  Merge with NetBSD make, pick up
+          o main.c: look for obj.${MACHINE}-${MACHINE_ARCH} too.
+
+2016-12-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20161209
+	  Merge with NetBSD make, pick up
+	  o main.c: cleanup setting of .OBJDIR
+	  o parse.c: avoid coredump from (var)=val
+
+2016-11-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20161126
+	  Merge with NetBSD make, pick up
+	  o make.c: Make_OODate: report src node name if path not set
+
+2016-09-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160926
+	  Merge with NetBSD make, pick up
+	  o support for .DELETE_ON_ERROR: (remove targets that fail)
+	
+2016-09-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile MAN: tweak .Dt to match ${PROG}
+
+2016-08-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160818
+	  its a neater number; pick up whitespace fixes to man page.
+
+2016-08-17  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160817
+	  Merge with NetBSD make, pick up
+	  o meta.c: move handling of .MAKE.META.IGNORE_* to meta_ignore()
+	    so we can call it before adding entries to missingFiles.
+	    Thus we do not track files we have been told to ignore.
+
+2016-08-15  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160815
+	  Merge with NetBSD make, pick up
+	  o meta_oodate: apply .MAKE.META.IGNORE_FILTER (if defined) to
+	    pathnames, and skip if the expansion is empty.
+	    Useful for dirdeps.mk when checking DIRDEPS_CACHE.
+
+2016-08-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160812
+	  Merge with NetBSD make, pick up
+	  o meta.c: remove all missingFiles entries that match a deleted
+	    dir.
+	  o main.c: set .ERROR_CMD if possible.
+	  
+2016-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160606
+	  Merge with NetBSD make, pick up
+	  o dir.c: extend mtimes cache to others via cached_stat()
+
+2016-06-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160604
+	  Merge with NetBSD make, pick up
+	  o meta.c: missing filemon data is only relevant if we read a
+	    meta file.
+	    Also do not return oodate for a missing metafile if gn->path
+	    points to .CURDIR
+	
+2016-06-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160602
+	  Merge with NetBSD make, pick up
+	  o cached_realpath(): avoid hitting filesystem more than necessary.
+	  o meta.c: refactor need_meta decision, add knobs for 
+	    missing meta file and filemon data wrt out-of-datedness.
+
+2016-05-28  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160528
+
+	* boot-strap, make-bootstrap.sh.in: Makefile now uses _MAKE_VERSION 
+
+2016-05-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160512
+	  Merge with NetBSD make, pick up
+	  o meta.c: ignore paths that match .MAKE.META.IGNORE_PATTERNS
+	    this is useful for gcov builds.
+	  o propagate errors from filemon(4).
+	
+2016-05-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160509
+	  Merge with NetBSD make, pick up
+	  o remove use of non-standard types u_int etc.
+	  o meta.c: apply realpath() before matching against metaIgnorePaths
+
+2016-04-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160404
+	  Merge with NetBSD make, pick up
+	  o allow makefile to set .MAKE.JOBS
+
+	* Makefile (PROG_NAME): use ${_MAKE_VERSION}
+
+2016-03-15  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160315
+	  Merge with NetBSD make, pick up
+	  o fix handling of archive members
+
+2016-03-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): rename variable to avoid interference
+	  with checks for ${MAKE_VERSION}
+
+2016-03-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160310
+	  Merge with NetBSD make, pick up
+	  o meta.c: treat missing Read file same as Write, incase we Delete it.
+
+2016-03-07  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160307
+	  Merge with NetBSD make, pick up
+	  o var.c: fix :ts\nnn to be octal by default.
+	  o meta.c: meta_finish() to cleanup memory.
+
+2016-02-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160226
+	  Merge with NetBSD make, pick up
+	  o meta.c: allow meta file for makeDepend if makefiles want it.
+
+2016-02-19  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* var.c: default .MAKE.SAVE_DOLLARS to FALSE
+	  for backwards compatability.
+
+	* Makefile (MAKE_VERSION): 20160220
+	  Merge with NetBSD make, pick up
+	  o var.c: add knob to control handling of '$$' in :=
+
+2016-02-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160218
+	  Merge with NetBSD make, pick up
+	  o var.c: add .export-literal allows us to fix sys.clean-env.mk
+	    post the changes to Var_Subst.
+	    Var_Subst now takes flags, and does not consume '$$' in :=
+
+2016-02-17  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160217
+	  Merge with NetBSD make, pick up
+	  o var.c: preserve '$$' in :=
+	  o parse.c: add .dinclude for handling included 
+	    makefile like .depend
+
+2015-12-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20151220
+	  Merge with NetBSD make, pick up
+	  o suff.c: re-initialize suffNull when clearing suffixes.
+
+2015-12-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20151201
+	  Merge with NetBSD make, pick up
+	  o cond.c: CondCvtArg: avoid access beyond end of empty buffer.
+	  o meta.c: meta_oodate: use lstat(2) for checking link target
+	    in case it is a symlink.
+	  o var.c: avoid calling brk_string and Var_Export1 with empty
+	    strings.
+	
+2015-11-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20151126
+	  Merge with NetBSD make, pick up
+	  o parse.c: ParseTrackInput don't access beyond 
+	    end of old value.
+	
+2015-10-22  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20151022
+
+	* Add support for BSD/OS which lacks inttypes.h
+	  and really needs sys/param.h for sys/sysctl.h
+	  also 'type' is not a shell builtin.
+
+	* var.c: eliminate uint32_t and need for inttypes.h
+	
+	* main.c: PrintOnError flush stdout before run .ERROR
+
+	* parse.c: cope with _SC_PAGESIZE not being defined.
+
+	
+2015-10-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20151020
+	  Merge with NetBSD make, pick up
+	  o var.c: fix uninitialized var 
+
+2015-10-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* var.c: the conditional expressions used with ':?' can be
+	expensive, if already discarding do not evaluate or expand
+	anything. 
+
+2015-10-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20151010
+	  Merge with NetBSD make, pick up
+	  o Add Boolean wantit flag to Var_Subst and Var_Parse
+	    when FALSE we know we are discarding the result and can
+	    skip operations like Cmd_Exec.
+
+2015-10-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20151009
+	  Merge with NetBSD make, pick up
+	  o var.c: don't check for NULL before free()
+	  o meta.c: meta_oodate, do not hard code ignore of makeDependfile
+
+2015-09-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20150910
+	  Merge with NetBSD make, pick up
+	  o main.c: with -w print Enter/Leaving messages for objdir too
+	    if necessary.
+	  o centralize shell metachar handling
+	
+	* FILES: add metachar.[ch]
+
+2015-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20150606
+	  Merge with NetBSD make, pick up
+	  o make.1: document .OBJDIR target
+
+2015-05-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20150505
+	  Merge with NetBSD make, pick up
+	  o cond.c: be strict about lhs of comparison when evaluating .if
+	    but less so when called from variable expansion.
+	  o unit-tests/cond2.mk: test various error conditions
+
+2015-05-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* machine.sh (MACHINE): Add Bitrig 
+	  patch from joerg@netbsd.org
+
+2015-04-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20150418
+	  Merge with NetBSD make, pick up
+	  o job.c: use memmove() rather than memcpy()
+
+	* unit-tests/varshell.mk: SunOS cannot handle the TERMINATED_BY_SIGNAL
+	  case, so skip it.
+
+2015-04-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20150411
+	  bump version - only mk/ changes.
+	
+2015-04-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20150410
+	  Merge with NetBSD make, pick up
+	  o document different handling of '-' in jobs mode vs compat
+	  o fix jobs mode so that '-' only applies to whole job
+	    when shell lacks hasErrCtl
+	  o meta.c: use separate vars to track lcwd and latestdir (read)
+	    per process
+	
+2015-04-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20150401
+	  Merge with NetBSD make, pick up
+	  o meta.c: close meta file in child
+	
+	* Makefile: use BINDIR.bmake if set.
+	  Same for MANDIR and SHAREDIR
+	  Handy for testing release candidates
+	  in various environments.
+	
+2015-03-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* move initialization of savederr to block where it is used
+	  to avoid spurious warning from gcc5
+
+2014-11-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20141111
+	  just a cooler number
+
+2014-11-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20141105
+	  Merge with NetBSD make, pick up
+	  o revert major overhaul of suffix handling
+	    and POSIX compliance - too much breakage
+	    and impossible to make backwards compatible.
+	  o we still have the new unit test structure which is ok.
+	  o meta.c ensure "-- filemon" is at start of line.
+
+2014-09-17  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* configure.in: test that result of getconf PATH_MAX is numeric
+	  and discard if not.  Apparently needed for Hurd.
+
+2014-08-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20140830
+	  Merge with NetBSD make, pick up
+	  o major overhaul of suffix handling
+	  o improved POSIX compliance
+	  o overhauled unit-tests
+
+2014-06-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20140620
+	  Merge with NetBSD make, pick up
+	  o var.c return varNoError rather than var_Error for ::= modifiers.
+
+2014-05-22  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20140522
+	  Merge with NetBSD make, pick up
+	  o var.c detect some parse errors.
+
+2014-04-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Fix spelling errors - patch from Pedro Giffuni
+
+2014-02-14  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20140214
+	  Merge with NetBSD make, pick up
+	  o .INCLUDEFROM*
+	  o use Var_Value to get MAKEOBJDIR[PREFIX]
+	  o reduced realloc'ign in brk_string.
+	* configure.in: add a check for compiler supporting __func__
+
+2014-01-03  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* boot-strap: ignore mksrc=none
+
+2014-01-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (DEFAULT_SYS_PATH?): use just ${prefix}/share/mk
+
+2014-01-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+	
+	* Makefile (MAKE_VERSION): 20140101
+	* configure.in: set bmake_path_max to min(_SC_PATH_MAX,1024)
+	* Makefile.config: defined BMAKE_PATH_MAX to bmake_path_max
+	* make.h: use BMAKE_PATH_MAX if MAXPATHLEN not defined (needed for
+	  Hurd) 
+	* configure.in: Add AC_PREREQ and check for
+	  sysctl; patch from Andrew Shadura andrewsh at debian.org
+
+2013-10-16  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20131010
+	* lose the const from arg to systcl to avoid problems on older BSDs.
+
+2013-10-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20131001
+	  Merge with NetBSD make, pick up
+	  o main.c: for NATIVE build sysctl to get MACHINE_ARCH from
+	    hw.machine_arch if necessary.
+	  o meta.c: meta_oodate - need to look at src of Link and target
+	    of Move as well.
+	* main.c: check that CTL_HW and HW_MACHINE_ARCH exist.
+	  provide __arraycount() if needed.
+
+2013-09-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130904
+	  Merge with NetBSD make, pick up
+	  o Add VAR_INTERNAL context, so that internal setting of
+	    MAKEFILE does not override value set by makefiles.
+
+2013-09-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130902
+	  Merge with NetBSD make, pick up
+	  o CompatRunCommand: only apply shellErrFlag when errCheck is true
+
+2013-08-28  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130828
+	  Merge with NetBSD make, pick up
+	  o Fix VAR :sh = syntax from Will Andrews at freebsd.org
+	  o Call Job_SetPrefix() from Job_Init() so makefiles have
+	    opportunity to set .MAKE.JOB.PREFIX
+
+2013-07-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130730
+	  Merge with NetBSD make, pick up
+	  o Allow suppression of --- job -- tokens by setting
+	    .MAKE.JOB.PREFIX empty.
+
+2013-07-16  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130716
+	  Merge with NetBSD make, pick up
+	  o number of gmake compatibility tweaks
+	    -w for gmake style entering/leaving messages
+	    if .MAKE.LEVEL > 0 indicate it in progname "make[1]" etc.
+	    handle MAKEFLAGS containing only letters.
+	  o when overriding a GLOBAL variable on the command line,
+	    delete it from GLOBAL context so -V doesn't show the wrong
+	    value.
+	
+2013-07-06  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* configure.in: We don't need MAKE_LEVEL_SAFE anymore.
+
+	* Makefile (MAKE_VERSION): 20130706
+	  Merge with NetBSD make, pick up
+	  o Shell_Init(): export shellErrFlag if commandShell hasErrCtl is
+	    true so that CompatRunCommand() can use it, to ensure
+	    consistent behavior with jobs mode.
+	  o use MAKE_LEVEL_ENV to define the variable to propagate
+	    .MAKE.LEVEL - currently set to MAKELEVEL (same as gmake).
+	  o meta.c: use .MAKE.META.IGNORE_PATHS to allow customization of
+	    paths to ignore.
+
+2013-06-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130604
+	  Merge with NetBSD make, pick up
+	  o job.c: JobCreatePipe: do fcntl() after any tweaking of fd's
+	    to avoid leaking descriptors.
+
+2013-05-28  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130528
+	  Merge with NetBSD make, pick up
+	  o var.c: cleanup some left-overs in VarHash()
+
+2013-05-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130520
+	  generate manifest from component FILES rather than have to
+	  update FILES when mk/FILES changes.
+
+2013-05-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130518
+	  Merge with NetBSD make, pick up
+	  o suff.c: don't skip all processsing for .PHONY targets
+	    else wildcard srcs do not get expanded.
+	  o var.c: expand name of variable to delete if necessary.
+
+2013-03-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130330
+	  Merge with NetBSD make, pick up
+	  o meta.c: refine the handling of .OODATE in commands.
+	    Rather than suppress command comparison for the entire script
+	    as though .NOMETA_CMP had been used, only suppress it for the
+	    one command line.
+	    This allows something like ${.OODATE:M.NOMETA_CMP} to be used to 
+	    suppress comparison of a command without otherwise affecting it.
+	  o make.1: document that
+
+2013-03-22  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130321
+	  yes, not quite right but its a cooler number.
+	  Merge with NetBSD make, pick up
+	  o parse.c: fix ParseGmakeExport to be portable 
+	    and add a unit-test.
+	* meta.c: call meta_init() before makefiles are read and if built
+	  with filemon support set .MAKE.PATH_FILEMON to _PATH_FILEMON
+	  this let's makefiles test for support.
+	  Call meta_mode_init() to process .MAKE.MODE.
+
+2013-03-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130305
+	  Merge with NetBSD make, pick up
+	  o run .STALE: target when a dependency from .depend is missing.
+	  o job.c: add Job_RunTarget() for the above and .BEGIN
+
+2013-03-03  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130303
+	  Merge with NetBSD make, pick up
+	  o main.c: set .MAKE.OS to utsname.sysname
+	  o job.c: more checks for read and poll errors
+	  o var.c: lose VarChangeCase() saves 4% time
+
+2013-03-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* boot-strap: remove MAKEOBJDIRPREFIX from environment since we
+	  want to use MAKEOBJDIR
+
+2013-01-27  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Merge with NetBSD make, pick up
+	  o make.1: more info on how shell commands are handled.
+	  o job.c,main.c: detect write errors to job pipes.
+
+2013-01-25  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130123
+	  Merge with NetBSD make, pick up
+	  o meta.c: if script uses .OODATE and meta_oodate() decides
+	    rebuild is needed, .OODATE will be empty - set it to .ALLSRC.
+	  o var.c: in debug output indicate which variabale modifiers
+	    apply to.
+	  o remove Check_Cwd logic the makefiles have been fixed.
+	
+2012-12-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* makefile.in: add a simple makefile for folk who insist on
+	  ./configure; make; make install
+	  it just runs boot-strap
+	* include mk/* to accommodate the above
+	* boot-strap:  re-work to accommodate the above
+	  mksrc defaults to $Mydir/mk
+	  allow op={configure,build,install,clean,all}
+	  add options to facilitate install
+	* Makefile.config.in: just the bits set by configure
+	* Makefile: bump version to 20121212
+	  abandon Makefile.in (NetBSD Makefile)
+	  leverage mk/* instead
+	* configure.in: ensure srcdir is absolute
+
+2012-11-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): 20121111
+	  fix generation of bmake.cat1
+
+2012-11-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): 20121109
+	  Merge with NetBSD make, pick up
+	  o make.c: MakeBuildChild: return 0 so search continues if a
+	    .ORDER dependency is detected.
+	  o unit-tests/order: test the above
+	
+2012-11-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): 20121102
+	  Merge with NetBSD make, pick up
+	  o cond.c: allow cond_state[] to grow.
+	    In meta mode with a very large tree, we can hit the limit
+	    while processing dirdeps.
+	
+2012-10-25  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in: we need to use ${srcdir} not ${.CURDIR}
+
+2012-10-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): 20121010
+	  o protect syntax that only bmake parses correctly.
+	  o remove auto setting of FORCE_MACHINE, use configure's
+	    --with-force-machine=whatever if that is desired.
+	
+2012-10-08  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in: do not lose history from make.1 when generating bmake.1
+
+2012-10-07  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): 20121007
+	  Merge with NetBSD make, pick up
+	  o compat.c: ignore empty commands - same as jobs mode.
+	  o make.1: document meta chars that cause use of shell
+
+2012-09-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120911
+	* bsd.after-import.mk: include Makefile.inc early and allow it to
+	  override PROG
+
+2012-08-31  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120831
+	  Merge with NetBSD make, pick up
+	  o cast sizeof() to int for comparison
+	  o minor make.1 tweak
+
+2012-08-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120830
+	  Merge with NetBSD make, pick up
+	  o .MAKE.EXPAND_VARIABLES knob can control default behavior of -V
+	  o debug flag -dV causes -V to show raw value regardless.
+	
+2012-07-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* bsd.after-import.mk (after-import): ensure unit-tests/Makefile
+	  gets SRCTOP set.
+
+2012-07-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120704
+	  Merge with NetBSD make, pick up
+	  o Job_ParseShell should call Shell_Init if it has been
+	    previously called.
+	* Makefile.in: set USE_META based on configure result.
+	  also .PARSEDIR is safer indicator of bmake.
+
+2012-06-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in: bump version to 20120626
+	  ensure CPPFLAGS is in CFLAGS
+	* meta.c: avoid nested externs
+	* bsd.after-import.mk: avoid ${.CURDIR}/Makefile as target
+	
+2012-06-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120620
+	  Merge with NetBSD make, pick up
+	  o make_malloc.c: avoid including make_malloc.h again
+
+	* Makefile.in: avoid bmake only syntax or protect with
+	  .if defined(.MAKE.LEVEL)
+	* bsd.after-import.mk: replace .-include with .sinclude
+	  ensure? SRCTOP gets a value
+	* configure.in: look for filemon.h in /usr/include/dev/filemon first.
+
+2012-06-19  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120612
+	  Merge with NetBSD make, pick up
+	  o use MAKE_ATTR_* rather than those defined by cdefs.h or compiler
+	    for greater portability.
+	  o unit-tests/forloop: check that .for works as expected wrt
+	    number of times and with "quoted strings".
+	
+2012-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120606
+	  Merge with NetBSD make, pick up
+	  o compat.c: use kill(2) rather than raise(3).
+	* configure.in: look for sys/dev/filemon
+	* bsd.after-import.mk: add a .-include "Makefile.inc" to Makefile
+	  and pass BOOTSTRAP_XTRAS to boot-strap.
+
+2012-06-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120604
+	  Merge with NetBSD make, pick up
+	  o util.c and var.c share same var for tracking if environ
+	    has been reallocated.
+	  o util.c provide getenv with setenv.
+	* Add MAKE_LEVEL_SAFE as an alternate means of passing MAKE_LEVEL
+	  when the shell actively strips .MAKE.* from the environment.
+	  We still refer to the variable always as .MAKE.LEVEL
+	* util.c fix bug in findenv() was finding prefix of name.
+	* compat.c: re-raising SIGINT etc after running .INTERRUPT
+	  results in more reliable termination of all activity on many
+	  platforms.
+
+2012-06-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120602
+	  Merge with NetBSD make, pick up
+	  o for.c: handle quoted items in .for list
+
+2012-05-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120530
+	  Merge with NetBSD make, pick up
+	  o compat.c: ignore empty command.
+
+2012-05-24  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120524
+	* FILES: add bsd.after-import.mk:
+	  A simple means of integrating bmake into a BSD build system.
+
+2012-05-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120520
+	  Merge with NetBSD make, pick up
+	  o increased limit for nested conditionals.
+	
+2012-05-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120518
+	  Merge with NetBSD make, pick up
+	  o use _exit(2) in signal hanlder
+	  o Don't use the [dir] cache when building nodes that might have
+	    changed since the last exec.
+	  o Avoid nested extern declaration warnings.
+
+2012-04-27  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* meta.c (fgetLine): avoid %z - not portable.
+	* parse.c: Since we moved include of sys/mman.h
+	  and def's of MAP_COPY etc. we got dups from a merge.
+
+2012-04-24  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120420
+	  Merge with NetBSD make, pick up
+	  o restore duplicate supression in .MAKE.MAKEFILES
+	    runtime saving can be significant.
+	  o Var_Subst() uses Buf_DestroyCompact() to reduce memory
+	    consumption up to 20%. 
+
+2012-04-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120420
+          Merge with NetBSD make, pick up
+	  o remove duplicate supression in .MAKE.MAKEFILES
+	  o improved dir cache behavior
+	  o gmake'ish export command
+	
+2012-03-25  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120325
+	  Merge with NetBSD make, pick up
+	  o fix parsing of :[#] in conditionals.
+
+2012-02-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in: replace use of .Nx in bmake.1 with NetBSD
+	  since some systems cannot cope with .Nx <version>
+
+2011-11-14  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20111111
+	  Merge with NetBSD make, pick up
+	  o debug output for .PARSEDIR and .PARSEFILE
+
+2011-10-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION):  bump version to 20111010
+
+2011-10-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* boot-strap: check for an expected file in the dirs we look for.
+	* make-bootstrap.sh: pass on LDSTATIC
+
+2011-10-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20111001
+	  Merge with NetBSD make, pick up
+	  o ensure .PREFIX is set for .PHONY
+	    and .TARGET set for .PHONY run via .END
+	  o __dead used consistently
+	
+2011-09-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): 20110909 is a better number ;-)
+
+2011-09-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110905
+	  Merge with NetBSD make, pick up
+	  o meta_oodate: ignore makeDependfile
+	
+2011-08-28  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110828
+	  Merge with NetBSD make, pick up
+	  o silent=yes in .MAKE.MODE causes meta mode to mark targets 
+	    as SILENT if a .meta file is created
+
+2011-08-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110818
+	  Merge with NetBSD make, pick up
+	  o in meta mode, if target flagged .META a missing .meta file
+	    means target is out-of-date
+	  o fixes for gcc 4.5 warnings
+	  o simplify job printing code
+	
+2011-08-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110808
+	  Merge with NetBSD make, pick up
+	  o do not touch OP_SPECIAL targets when doing make -t
+	
+2011-06-22  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110622
+	  Merge with NetBSD make, pick up
+	  o meta_oodate detect corrupted .meta file and declare oodate.
+	* configure.in: add check for setsid
+	
+2011-06-07  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Merge with NetBSD make, pick up
+	  o unit-tests/modts now works on MirBSD
+
+2011-06-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110606
+	  Merge with NetBSD make, pick up
+	  o ApplyModifiers: when we parse a variable which is not
+	    the entire modifier string, or not followed by ':', do not
+	    consider it as containing modifiers.
+	  o loadfile: ensure newline at end of mapped file.
+
+2011-05-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110505
+	  Merge with NetBSD make, pick up
+	  o .MAKE.META.BAILIWICK - list of prefixes which define the scope
+	    of make's control.  In meta mode, any generated file within
+	    said bailiwick, which  is found to be missing, causes current
+	    target to be out-of-date. 
+	
+2011-04-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110411
+	  Merge with NetBSD make, pick up
+	  o when long modifiers fail to match, check sysV style.
+	    - add a test case
+	
+2011-04-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110410
+	  Merge with NetBSD make, pick up
+	  o :hash - cheap 32bit hash of value
+	  o :localtime, :gmtime - use value as format string for strftime.
+	
+2011-03-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110330
+	  mostly because its a cooler version.
+	  Merge with NetBSD make, pick up
+	  o NetBSD tags for meta.[ch]
+	  o job.c call meta_job_finish() after meta_job_error().
+	  o meta_job_error() should call meta_job_finish() to ensure
+	    .meta file is closed, and safe to copy - if .ERROR target wants.
+	   meta_job_finish() is safe to call repeatedly.
+	
+2011-03-29  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* unit-tests/modts: use printf if it is a builtin, 
+	  to save us from MirBSD
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110329
+	  Merge with NetBSD make, pick up
+	  o fix for use after free() in CondDoExists().
+	  o meta_oodate() report extra commands and return earlier.
+	
+2011-03-27  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110327
+	  Merge with NetBSD make, pick up
+	  o meta.c, if .MAKE.MODE contains curdirOk=yes
+	    allow creating .meta files in .CURDIR
+	* boot-strap (TOOL_DIFF): aparently at least on linux distro
+	  formats the output of 'type' differently - so eat any "()"
+
+2011-03-06  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110306
+	  Merge with NetBSD make, pick up
+	  o meta.c, only do getcwd() once
+	
+2011-03-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110305
+	  Merge with NetBSD make, pick up
+	  o correct sysV substitution handling of empty lhs and variable
+	  o correct exists() check for dir with trailing /
+	  o correct handling of modifiers for non-existant variables
+	    during evaluation of conditionals.
+	  o ensure MAP_FILE is defined.
+	  o meta.c use curdir[] now exported by main.c
+	
+2011-02-25  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110225
+	  Merge with NetBSD make, pick up
+	  o fix for incorrect .PARSEDIR when .OBJDIR is re-computed after
+	    makefiles have been read.
+	  o fix example of :? modifier in man page.
+	
+2011-02-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110214
+	  Merge with NetBSD make, pick up
+	  o meta.c handle realpath() failing when generating meta file
+	    name.
+
+	* sigcompat.c: convert to ansi so we can use higher warning levels.
+
+
+2011-02-07  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110207
+	  Merge with NetBSD make, pick up
+	  o fix for bug in meta mode.
+	
+2011-01-03  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* parse.c: SunOS 5.8 at least does not have MAP_FILE
+
+2011-01-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20110101
+	  Merge with NetBSD make, pick up
+	  o use mmap(2) if available, for reading makefiles
+
+2010-12-15  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20101215
+	  Merge with NetBSD make, pick up
+	  o ensure meta_job_error() does not report a previous .meta file
+	    as being culprit.
+
+2010-12-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20101210
+	  Merge with NetBSD make, pick up
+	  o meta_oodate: track cwd per process, and only consider target
+	    out-of-date if missing file is outside make's CWD.
+	    Ignore files in /tmp/ etc.
+	  o to ensure unit-tests results match, need to control LC_ALL
+	    as well as LANG.
+	  o fix for parsing bug in var.c
+
+2010-11-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20101126
+	  Merge with NetBSD make, pick up
+	  o if stale dependency is an IMPSRC, search via .PATH
+	  o meta_oodate: if a referenced file is missing, target is
+	    out-of-date.
+	  o meta_oodate: if a target uses .OODATE in its commands,
+	    it (.OODATE) needs to be recomputed.
+	  o keep a pointer to youngest child node, rather than just its
+	    mtime.
+	
+2010-11-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20101101
+
+2010-10-16  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* machine.sh: like os.sh, 
+	allow for uname -p producing useless drivel
+
+2010-09-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* boot-strap: document configure knobs for meta and filemon.
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100911
+	  Merge with NetBSD make, pick up
+	  o meta.c - meta mode
+
+	* make-bootstrap.sh.in: handle meta.c
+	* configure.in: add knobs for use_meta and filemon_h
+	  also, look for dirname, str[e]sep and strlcpy
+	* util.c: add simple err[x] and warn[x]
+
+2010-08-08  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* boot-strap (TOOL_DIFF): set this to ensure tests use
+	  the same version of diff that configure tested
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100808
+	  Merge with NetBSD make, pick up
+	  o in jobs mode, when we discover we cannot make something,
+	    call PrintOnError before exit.
+	
+2010-08-06  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100806
+	  Merge with NetBSD make, pick up
+	  o formatting fixes for ignored errors
+	  o ensure jobs are cleaned up regardless of where wait() was called.
+
+2010-06-28  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100618
+	* os.sh (MACHINE_ARCH): watch out for drivel from uname -p
+
+2010-06-16  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100616
+	  Merge with NetBSD make, pick up
+	  o man page update
+	  o call PrintOnError from JobFinish when we detect an error we
+	    are not ignoring. 
+	
+2010-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100606
+	  Merge with NetBSD make, pick up
+	  o man page update
+
+2010-06-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100605
+	  Merge with NetBSD make, pick up
+	  o use bmake_signal() which is a wrapper around sigaction() 
+	    in place of signal()
+	  o add .export-env to allow exporting variables to environment
+	    without tracking (so no re-export when the internal value is
+	    changed).
+	
+2010-05-24  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100524
+	  Merge with NetBSD make, pick up
+	  o fix for .info et al being greedy.
+
+2010-05-23  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100520
+	  Merge with NetBSD make, pick up
+	  o back to using realpath on argv[0] 
+	    but only if contains '/' and does not start with '/'.
+
+2010-05-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* boot-strap: use absolute path for bmake when running tests.
+
+	* Makefile.in (MAKE_VERSION):  bump version to 20100510
+	  Merge with NetBSD make, pick up
+	  o revert use of realpath on argv[0]
+	    too many corner cases.
+	  o print MAKE_PRINT_VAR_ON_ERROR before running .ERROR target.
+
+2010-05-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100505
+	  Merge with NetBSD make, pick up
+	  o fix for missed SIGCHLD when compiled with SunPRO
+	    actually for bmake, defining FORCE_POSIX_SIGNALS would have
+	    done the job.
+
+2010-04-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100430
+	  Merge with NetBSD make, pick up
+	  o fflush stdout before writing to stdout
+	
+2010-04-23  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100423
+	  Merge with NetBSD make, pick up
+	  o updated unit tests for Haiku (this time for sure).
+	* boot-strap: based on patch from joerg 
+	  honor --with-default-sys-path better.
+	* boot-strap: remove mention of --with-prefix-sys-path
+	
+2010-04-22  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100422
+	* Merge with NetBSD make, pick up
+	  o fix for vfork() on Darwin.
+	  o fix for bogus $TMPDIR.
+	  o set .MAKE.MODE=compat for -B
+	  o set .MAKE.JOBS=max_jobs for -j max_jobs
+	  o allow unit-tests to run without any *.mk
+	  o unit-tests/modmisc be more conservative in dirs presumed to exist.
+	* boot-strap: ignore /usr/share/mk except on NetBSD.
+	* unit-tests/Makefile.in: set LANG=C when running unit-tests to
+	  ensure sort(1) behaves as expected. 
+	
+2010-04-21  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* boot-strap: add FindHereOrAbove so we can use -m .../mk
+
+2010-04-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100420
+	* Merge with NetBSD make, pick up
+	  o fix for variable realpath() behavior.
+	    we have to stat(2) the result to be sure.
+	  o fix for .export (all) when nested vars use :sh
+	
+2010-04-14  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100414
+	* Merge with NetBSD make, pick up
+	  o use realpath to resolve argv[0] (for .MAKE) if needed.
+	  o add realpath from libc.
+	  o add :tA to resolve variable via realpath(3) if possible.
+
+2010-04-08  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100408
+	* Merge with NetBSD make, pick up
+	  o unit tests for .ERROR, .error
+	  o fix for .ERROR to ensure it cannot be default target.
+
+2010-04-06  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100406
+	* Merge with NetBSD make, pick up
+	  o fix for compat mode "Error code" going to debug_file.
+	  o fix for .ALLSRC being populated twice.
+	  o support for .info, .warning and .error directives
+	  o .MAKE.MODE to control make's operational mode
+	  o .MAKE.MAKEFILE_PREFERENCE to control the preferred makefile
+	    name(s).
+	  o .MAKE.DEPENDFILE to control the name of the depend file
+	  o .ERROR target - run on failure.
+	
+2010-03-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* make-bootstrap.sh.in: extract MAKE_VERSION from Makefile
+
+	* os.sh,arch.c: patch for Haiku from joerg at netbsd
+
+2010-03-17  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100222
+	* Merge with NetBSD make, pick up
+	  o better error msg for .for with mutiple inter vars
+	
+	* boot-strap: 
+	  o use make-bootstrap.sh from joerg at netbsd
+	    to avoid the need for a native make when bootstrapping.
+	  o add "" everywhere ;-)
+	  o if /usr/share/tmac/andoc.tmac exists install nroff bmake.1
+	    otherwise the pre-formated version.
+
+2010-01-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20100102
+	* Merge with NetBSD make, pick up:
+	  o fix for -m .../
+
+2009-11-18  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20091118
+	* Merge with NetBSD make, pick up:
+	  o .unexport
+	  o report lines that start with '.' and should have ':'
+	    (catch typo's of .el*if).
+	
+2009-10-30  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* configure.in: Ensure that srcdir and mksrc are absolute paths.
+
+2009-10-09  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): fix version to 20091007
+
+2009-10-07  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 200910007
+	* Merge with NetBSD make, pick up:
+	  o fix for parsing of :S;...;...; applied to .for loop iterator
+	    appearing in a dependency line. 
+	
+2009-09-09  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20090909
+	* Merge with NetBSD make, pick up:
+	  o fix for -C, .CURDIR and .OBJDIR
+	* boot-strap: 
+	  o allow share_dir to be set independent of prefix.
+	  o select default share_dir better when prefix ends in $HOST_TARGET
+	  o if FORCE_BSD_MK etc were set, include them in the suggested
+	    install-mk command.
+
+2009-09-08  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20090908
+	* Merge with NetBSD make, pick up:
+	  o .MAKE.LEVEL for recursion tracking
+	  o fix for :M scanning \:
+
+2009-09-03  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* configure.in: Don't -D__EXTENSIONS__ if
+	AC_USE_SYSTEM_EXTENSIONS says "no".
+
+2009-08-26  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20090826
+	Simplify MAKE_VERSION to just the bare date.
+	* Merge with NetBSD make, pick up:
+	  o -C directory support.
+	  o support for SIGINFO
+	  o use $TMPDIR for temp files.
+	  o child of vfork should be careful about modifying parent's state.
+	
+
+2009-03-26  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Appy some patches for MiNT from David Brownlee
+
+2009-02-26  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20090222
+	* Merge with NetBSD make, pick up:
+	  o Possible null pointer de-ref in Var_Set.
+
+2009-02-08  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20090204
+	* Merge with NetBSD make, pick up:
+	  o bmake_malloc et al moved to their own .c
+	  o Count both () and {} when looking for the end of a :M pattern
+	  o Change 'Buffer' so that it is the actual struct, not a pointer to it.
+	  o strlist.c - functions for processing extendable arrays of pointers to strings.
+	  o ClientData replaced with void *, so const void * can be used.
+	  o New debug flag C for DEBUG_CWD
+
+2008-11-11  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20081111
+	  Apply patch from Joerg Sonnenberge to
+	  configure.in:
+	  o remove some redundant checks
+	  o check for emlloc etc only in libutil and require the whole family.
+	  util.c:
+	  o remove [v]asprintf which is no longer used.
+	
+2008-11-04  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20081101
+	* Merge with NetBSD make, pick up:
+	  o util.c: avoid use of putenv() - christos
+
+2008-10-30  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20081030
+	  pick up man page tweaks.
+
+2008-10-29  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in: move processing of LIBOBJS to after is definition!
+	  thus we'll have getenv.c in SRCS only if needed.
+
+	* make.1: add examples of how to use :?
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20081029
+	* Merge with NetBSD make, pick up:
+	  o fix for .END processing with -j
+	  o segfault from Parse_Error when no makefile is open
+	  o handle numeric expressions in any variable expansion
+	  o debug output now defaults to stderr, -dF to change it - apb
+	  o make now uses bmake_malloc etc so that it can build natively 
+	    on A/UX - wasn't an issue for bmake, but we want to keep in sync.
+
+2008-09-27  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20080808
+	* Merge with NetBSD make, pick up:
+	  o fix for PR/38840: Pierre Pronchery: make crashes while parsing
+	    long lines in Makefiles 
+	  o optimizations for VarQuote by joerg
+	  o fix for PR/38756: dominik: make dumps core on invalid makefile
+	
+2008-05-15  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20080515
+	* Merge with NetBSD make, pick up:
+	  o fix skip setting vars in VAR_GLOBAL context, to handle
+	    cases where VAR_CMD is used for other than command line vars.
+
+2008-05-14  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* boot-strap (make_version): we may need to look in
+	$prefix/share/mk for sys.mk 
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20080514
+	* Merge with NetBSD make, pick up:
+	  o skip setting vars in VAR_GLOBAL context, when already set in
+	  VAR_CMD which takes precedence.
+
+2008-03-30  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION):  bump version to 20080330
+	* Merge with NetBSD make, pick up:
+	  o fix for ?= when LHS contains variable reference.
+
+2008-02-15  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* merge some patches from NetBSD pkgsrc.
+	
+	* makefile.boot.in (BOOTSTRAP_SYS_PATH): Allow better control of
+	the MAKSYSPATH used during bootstrap. 
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20080215
+	* Merge with NetBSD make, pick up:
+	  o warn if non-space chars follow 'empty' in a conditional.
+
+2008-01-18  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20080118
+	* Merge with NetBSD make, pick up:
+	  o consider dependencies read from .depend as optional - dsl
+	  o remember when buffer for reading makefile grows - dsl
+	  o add -dl (aka LOUD) - David O'Brien
+
+2007-10-22  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20071022
+	* Merge with NetBSD make, pick up:
+	  o Allow .PATH<suffix> to be used for .include ""
+
+	* boot-strap: source default settings from .bmake-boot-strap.rc
+
+2007-10-16  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in: fix maninstall on various systems 
+	  provided that our man.mk is used.
+	  For non-BSD systems we install the preformatted page
+	  into $MANDIR/cat1
+
+2007-10-15  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* boot-strap: make bmake.1 too, so maninstall works.
+
+2007-10-14  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20071014
+	* Merge with NetBSD make, pick up:
+	  o revamped handling of defshell - configure no longer needs to
+	    know the content of the shells array - apb
+	  o stop Var_Subst modifying its input - apb
+	  o avoid calling ParseTrackInput too often - dsl
+
+2007-10-11  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20071011
+	* Merge with NetBSD make, pick up:
+	  o fix Shell_Init for case that _BASENAME_DEFSHELL is absolute path.
+
+	* sigcompat.c: some tweaks for HP-UX 11.x based on 
+	  patch from Tobias Nygren
+
+	* configure.in: update handling of --with-defshell to match
+	  new make behavior.  --with-defshell=/usr/xpg4/bin/sh
+	  will now do what one might hope - provided the chosen shell
+	  behaves enough like sh.
+
+2007-10-08  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20071008
+	* Merge with NetBSD make, pick up:
+	  o .MAKE.JOB.PREFIX - control the token output before jobs - sjg
+	  o .export/.MAKE.EXPORTED - export of variables - sjg
+	  o .MAKE.MAKEFILES - track all makefiles read - sjg
+	  o performance improvements - dsl
+	  o revamp parallel job scheduling - dsl
+	
+2006-07-28  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20060728
+	* Merge with NetBSD make, pick up:
+	  o extra debug info during variable and cond processing - sjg
+	  o shell definition now covers newline - rillig
+	  o minor mem leak in PrintOnError - sjg
+
+2006-05-11  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION):  bump to 20060511
+	* Merge with NetBSD make, pick up:
+	  o more memory leaks - coverity
+	  o possible overflow in ArchFindMember - coverity
+	  o extract variable modifier code out of Var_Parse()
+	    so it can be called recursively - sjg
+	  o unit-tests/moderrs - sjg
+
+2006-04-12  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20060412
+	* Merge with NetBSD make, pick up:
+	  o fixes for some memory leaks - coverity
+	  o only read first sys.mk etc when searching sysIncPath - sjg
+
+	* main.c (ReadMakefile): remove hack for __INTERIX that prevented
+	setting ${MAKEFILE} - OBATA Akio
+
+2006-03-18  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20060318
+	* Merge with NetBSD make, pick up:
+	  o cleanup of job.c to remove remote handling, distcc is more
+	    useful and this code was likely bit-rotting - dsl
+	  o fix for :P modifier - sjg
+	* boot-strap: set default prefix to something reasonable 
+	  (for me anyway). 
+
+2006-03-01  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20060301
+	* Merge with NetBSD make, pick up:
+	  o make .WAIT apply recursively, document and test case - apb
+	  o allow variable modifiers in a variable appear anywhere in
+	    modifier list, document and test case - sjg
+
+2006-02-22  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20060222
+	* Merge with NetBSD make, pick up:
+	  o improved job token handling - dsl
+	  o SIG_DFL the correct signal before exec - dsl
+	  o more debug info during parsing - dsl
+	  o allow variable modifiers to be specified via variable - sjg
+	* boot-strap: explain why we died if no mksrc
+
+2005-11-05  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20051105
+	* configure.in: always set default_sys_path 
+	  default is ${prefix}/share/mk
+	  - remove prefix_sys_path, anyone wanting more than above
+	    needs to set it manually.
+
+2005-11-04  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* boot-strap: make this a bit easier for pkgsrc folk.
+	  bootstrap still fails on IRIX64 since MACHINE_ARCH gets set to
+	  'mips' while pkgsrc wants 'mipseb' or 'mipsel'
+
+2005-11-02  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20051102
+	* job.c (JobFinish): fix likely ancient merge lossage
+	fix from Todd Vierling.
+	* boot-strap (srcdir): allow setting mksrc=none
+
+2005-10-31  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20051031
+	* ranlib.h: skip on OSF too.
+	  (NetBSD PR 31864)
+
+2005-10-10  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20051002
+	  fix a silly typo
+
+2005-10-09  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20051001
+	  support for UnixWare and some other systems,
+	  based on patches from pkgsrc/bootstrap
+
+2005-09-03  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20050901
+	* Merge with NetBSD make, pick up:
+	  o possible parse error causing us to wander off.
+
+2005-06-06  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20050606
+	* Merge with NetBSD make, pick up:
+	  o :0x modifier for randomizing a list
+	  o fixes for a number of -Wuninitialized issues.
+
+2005-05-30  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20050530
+	* Merge with NetBSD make, pick up:
+	  o Handle dependencies for .BEGIN, .END and .INTERRUPT
+
+	* README: was seriously out of date.
+	
+2005-03-22  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Important to use .MAKE rather than MAKE.
+
+2005-03-15  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20050315
+	* Merge with NetBSD make, pick up:
+	  o don't mistake .elsefoo for .else
+	  o use suffix-specific search path correctly
+	  o bunch of style nits
+
+2004-05-11  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* boot-strap: 
+	o ensure that args to --src and --with-mksrc
+	  are resolved before giving them to configure.
+	o add -o "objdir" so that builder can control it,
+	  default is $OS as determined by os.sh
+	o add -q to suppress all the install instructions.
+
+2004-05-08  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Remove __IDSTRING()
+
+	* Makefile.in (BMAKE_VERSION): bump to 20040508
+	* Merge with NetBSD make, pick up:
+	  o posix fixes
+	    - remove '-e' from compat mode
+	    - add support for '+' command-line prefix.
+	  o fix for handling '--' on command-line.
+	  o fix include in lst.lib/lstInt.h to simplify '-I's
+	  o we also picked up replacement of MAKE_BOOTSTRAP 
+	    with !MAKE_NATIVE which is a noop, but possibly confusing.
+
+2004-04-14  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20040414
+	* Merge with NetBSD make, pick up:
+	  o allow quoted strings on lhs of conditionals
+	  o issue warning when extra .else is seen
+	  o print line numer when errors encountered during parsing from
+	  string.
+
+2004-02-20  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION):  bump to 20040220
+	* Merge with NetBSD make, pick up:
+	  o fix for old :M parsing bug.
+	  o re-jigged unit-tests
+
+2004-02-15  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (accept test): use ${.MAKE:S,^./,${.CURDIR}/,}
+	so that './bmake -f Makefile test' works.
+	
+2004-02-14  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in: (BMAKE_VERSION): bump to 20040214
+	* Merge with NetBSD make, pick up:
+	  o search upwards for *.mk
+	  o fix for double free of var substitution buffers
+	  o use of getopt replaced with custom code, since the usage
+	  (re-scanning) isn't posix compatible.
+
+2004-02-12  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* arch.c: don't include ranlib.h on ELF systems
+	(thanks to Chuck Cranor <chuck@ece.cmu.edu>).
+
+2004-01-18  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump to 20040118
+
+	* boot-strap (while): export vars we assign to on cmdline
+	* unit-test/Makefile.in: ternary is .PHONY
+
+2004-01-08  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20040108
+	* Merge with NetBSD make, pick up:
+	  o fix for ternary modifier
+
+2004-01-06  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20040105
+	* Merge with NetBSD make, pick up:
+	  o fix for cond.c to handle compound expressions better
+	  o variable expansion within sysV style replacements
+	  
+2003-12-22  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Make portable snprintf safer - output to /dev/null first to
+	check space needed.
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20031222
+	* Merge with NetBSD make, pick up:
+	  o -dg3 to show input graph when things go wrong.
+	  o explicitly look for makefiles in objdir if not found in curdir so
+	    that errors in .depend etc will be reported accurarely. 
+	  o avoid use of -e in shell scripts in jobs mode, use '|| exit $?'
+	    instead as it more accurately reflects the expected behavior and
+	    is more consistently implemented.
+	  o avoid use of asprintf.
+
+2003-09-28  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* util.c: Add asprintf and vasprintf.
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20030928
+	* Merge with NetBSD make, pick up:
+	:[] modifier - allows picking words from a variable.
+	:tW modifier - allows treating value as one big word.
+	W flag for :C and :S - allows treating value as one big word.
+	
+2003-09-12  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Merge with NetBSD make
+	pick up -de flag to enable printing failed command.
+	don't skip 1st two dir entries (normally . and ..) since
+	coda does not have them.
+
+2003-09-09  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20030909
+	* Merge with NetBSD make, pick up:
+	- changes for -V '${VAR}' to print fully expanded value
+	  cf. -V VAR
+	- CompatRunCommand now prints the command that failed.
+	- several files got updated 3 clause Berkeley license.
+	
+2003-08-02  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* boot-strap: Allow setting configure args on command line.
+
+2003-07-31  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* configure.in: add --with-defshell to allow sh or ksh
+	to be selected as default shell.
+
+	* Makefile.in: bump version to 20030731
+
+	* Merge with NetBSD make 
+	Pick up .SHELL spec for ksh and associate man page changes.
+	Also compat mode now uses the same shell specs.
+
+2003-07-29  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* var.c (Var_Parse): ensure delim is initialized.
+
+	* unit-tests/Makefile.in: use single quotes to avoid problems from
+	some shells.
+
+	* makefile.boot.in:
+	Run the unit-tests as part of the bootstrap procedure.
+
+2003-07-28  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* unit-tests/Makefile.in: always force complaints from
+	${TEST_MAKE} to be from 'make'.
+
+	* configure.in: add check for 'diff -u'
+	also fix some old autoconf'isms
+	
+	* Makefile.in (BMAKE_VERSION): bump version to 20030728.
+	if using GCC add -Wno-cast-qual to CFLAGS for var.o
+
+	* Merge with NetBSD make
+	Pick up fix for :ts parsing error in some cases.
+	Pick unit-tests.
+
+2003-07-23  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in (BMAKE_VERSION): bump version to 20030723.
+
+	* var.c (Var_Parse): fix bug in :ts modifier, after const
+	correctness fixes, must pass nstr to VarModify.
+
+2003-07-14  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Makefile.in: BMAKE_VERSION switch to a date based version.
+	We'll generally use the date of last import from NetBSD.
+
+	* Merge with NetBSD make
+	Pick up fixes for const-correctness, now passes WARNS=3 on
+	NetBSD.
+	Pick up :ts modifier, allows controlling the separator used
+	between words in variable expansion.
+
+2003-07-11  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* FILES: include boot-strap and os.sh
+
+	* Makefile.in: only set WARNS if we are NetBSD, the effect on
+	FreeBSD is known to be bad.
+
+	* makefile.boot.in (bootstrap): make this the default target.
+
+	* Makefile.in: bump version to 3.1.19
+
+	* machine.sh: avoid A-Z with tr as it is bound to lose.
+
+2003-07-10  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Merge with NetBSD make
+	Pick up fix for PR/19781 - unhelpful error msg on unclosed ${var:foo
+	Plus some doc fixes.
+	
+2003-04-27  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Merge with NetBSD make
+	Pick up fix for PR/1523 - don't count a library as built, if there
+	is no way to build it 
+
+	* Bump version to 3.1.18
+
+2003-03-23  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Merge with NetBSD make
+	Pick up fix for ParseDoSpecialSrc - we only use it if .WAIT
+	appears in src list.
+
+2003-03-21  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Merge with NetBSD make (mmm 10th anniversary!)
+	pick up fix for .WAIT in srcs that refer to $@ or $* (PR#20828)
+	pick up -X which tells us to not export VAR=val via setenv if
+	we are already doing so via MAKEFLAGS.  This saves valuable env
+	space on systems like Darwin.
+	set MAKE_VERSION to 3.1.17
+
+	* parse.c: pix up fix for suffix rules
+
+2003-03-06  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Merge with NetBSD make.
+	pick up fix for propagating -B via MAKEFLAGS.
+	set MAKE_VERSION to 3.1.16
+
+	* Apply some patches from pkgsrc-bootstrap/bmake
+	Originally by Grant Beattie <grant@netbsd.org>
+	I may have missed some - since they are based on bmake-3.1.12
+	
+2002-12-03  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* makefile.boot.in (bmake): update install targets for those that
+	use them, also clear MAKEFLAGS when invoking bmake.boot to avoid
+	havoc from gmake -w.  Thanks to Harlan Stenn <hstenn@cisco.com>.
+
+	* bmake.cat1: update the pre-formatted man page!
+
+2002-11-30  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Merge with NetBSD make.
+	pick up fix for premature free of pointer used in call
+	to Dir_InitCur().
+	set MAKE_VERSION to 3.1.15
+
+2002-11-26  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* configure.in: determine suitable value for MKSRC.
+	override using --with-mksrc=PATH.
+
+	* machine.sh: use `uname -p` for MACHINE_ARCH on modern SunOS systems.
+	configs(8) will use 'sun4' as an alias for 'sparc'.
+
+2002-11-25  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* Merge with NetBSD make.
+	pick up ${.PATH}
+	pick up fix for finding ../cat.c via .PATH when .CURDIR=..
+	set MAKE_VERSION to 3.1.14
+	add configure checks for killpg and sys/socket.h
+
+2002-09-16  Simon J. Gerraty  <sjg@void.crufty.net>
+
+	* tag bmake-3-1-13
+	
+	* makefile.boot.in (bmake): use install-mk
+	Also setup ./mk before trying to invoke bmake.boot incase we
+	needed install-mk to create a sys.mk for us. 
+
+	* configure.in: If we need to add -I${srcdir}/missing, make it an
+	absolute path so that it works for lst.lib too.
+
+	* make.h: always include sys/cdefs.h since we provide one if the
+	host does not.
+	
+	* Makefile.in (install-mk): 
+	use MKSRC/install-mk which will do the right thing.
+	use uname -p for ARCH if possible.
+	since install-mk will setup links bsd.prog.mk -> prog.mk if
+	needed, just .include bsd.prog.mk
+
+	* Merge with NetBSD make (NetBSD-1.6)
+	Code is ansi-C only now.
+	Bug in handling of dotLast is fixed.
+	Can now assign .OBJDIR and make will reset its notions of life.
+	New modifiers :tu :tl for toUpper and toLower.
+
+Tue Oct 16 12:18:42 2001  Simon J. Gerraty  <sjg@zen.crufty.net>
+
+	* Merge with NetBSD make
+	pick up fix for .END failure in compat mode.
+	pick up fix for extra va_end() in ParseVErrorInternal.
+
+Thu Oct 11 13:20:06 2001  Simon J. Gerraty  <sjg@zen.crufty.net>
+
+	* configure.in: for systems that have sys/cdefs.h check if it is
+	compatible.  If not, include the one under missing, but tell it to
+	include the native one too - necessary on Linux.
+
+	* missing/sys/cdefs.h: if NEED_HOST_CDEFS_H is defined, use
+	include_next (for gcc) to get the native sys/cdefs.h
+
+Tue Aug 21 02:29:34 2001  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* job.c (JobFinish): Fix an earlier merge bug that resulted in
+	leaking descriptors when using -jN.
+	
+	* job.c (JobPrintCommand): See if "curdir" exists before
+	attempting to chdir().  Doing the chdir directly in make (when in
+	compat mode) fails silently, so let the -jN version do the same.
+	This can happen when building kernels in an object tree and
+	playing clever games to reset .CURDIR.
+
+	* Merged with NetBSD make
+	pick up .USEBEFORE
+
+Tue Jun 26 23:45:11 2001  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* makefile.boot.in: Give bmake.boot a MAKESYSPATH that might work.
+
+Tue Jun 12 16:48:57 2001  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* var.c (Var_Set): Add 4th (flags) arg so VarLoopExpand can tell
+	us not to export the iterator variable when using VAR_CMD context.
+
+Sun Jun 10 21:55:21 2001  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* job.c (Job_CatchChildren): don't call Job_CatchOutput() here,
+	its the wrong "fix".
+
+Sat Jun  9 00:11:24 2001  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* Redesigned export of VAR_CMD's via MAKEFLAGS.
+	We now simply append the variable names to .MAKEOVERRIDES, and
+	handle duplicate suppression and quoting in ExportMAKEFLAGS using:
+	${.MAKEOVERRIDES:O:u:@v@$v=${$v:Q}@}
+	Apart from fixing quoting bugs in previous version, this allows us
+	to export vars to the environment by simply doing:
+	.MAKEOVERRIDES+= PATH 
+	Merged again with NetBSD make, but the above is the only change.
+
+	* configure.in: added
+	--disable-pwd-override		disable $PWD overriding getcwd()
+	--disable-check-make-chdir	disable make trying to guess 
+		when it should automatically cd ${.CURDIR}
+
+	* Merge with NetBSD make, changes include:
+	parse.c (ParseDoDependency): Spot that the syntax error is
+	caused by an unresolved cvs/rcs conflict and say so.
+	var.c: most of Var* functions now take a ctxt as 1st arg.
+	now does variable substituion on rhs of sysv style modifiers.
+	
+	* var.c (Var_Set): exporting of command line variables (VAR_CMD)
+	is now done here.  We append the name='value' to .MAKEOVERRIDES
+	rather than directly into MAKEFLAGS as this allows a Makefile to
+	use .MAKEOVERRIDES= to disable this behaviour.  GNU make uses a
+	very similar mechanism.  Note that in adding name='value' to
+	.MAKEOVERRIDES we do the moral equivalent of:
+	.MAKEOVERRIDES:= ${.MAKEOVERRIDES:Nname=*} name='val'
+
+Fri Jun  1 14:08:02 2001  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* make-conf.h (USE_IOVEC): make it conditional on HAVE_SYS_UIO_H
+
+	* Merged with NetBSD make
+	make -dx can now be used to run commands via sh -x
+	better error messages on exec failures.
+
+Thu May 31 01:44:54 2001  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* Makefile.in (main.o): depends on ${SRCS} ${MAKEFILE} so that
+	MAKE_VERSION gets updated.  Also don't use ?= for MAKE_VERSION,
+	MACHINE etc otherwise they propagate from the previous bmake.
+
+	* configure.in (machine): allow --with-machine=generic to make
+	configure use machine.sh to set MACHINE. 
+
+	* job.c (JobInterrupt): convert to using WAIT_T and friends.
+
+	* Makefile.in: mention in bmake.1 that we use autoconf.
+
+	* make.1: mention MAKE_PRINT_VAR_ON_ERROR.
+
+Wed May 30 23:17:18 2001  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* main.c (ReadMakefile): don't set MAKEFILE if reading ".depend"
+	as that rather defeats the usefulness of ${MAKEFILE}.
+
+	* main.c (MainParseArgs): append command line variable assignments
+	to MAKEFLAGS so that they get propagated to child make's.
+	Apparently this is required POSIX behaviour?  Its useful anyway.
+
+Tue May 29 02:20:07 2001  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* compat.c (CompatRunCommand): don't use perror() since stdio may
+	cause problems in child of vfork().
+
+	* compat.c, main.c: Call PrintOnError() when we are going to bail.
+	This routine prints out the .curdir where we stopped and will also
+	display any vars listed in ${MAKE_PRINT_VAR_ON_ERROR}.
+
+	* main.c: add ${.newline} to hold a "\n" - sometimes handy in
+	:@ expansion.
+
+	* var.c: VarLoopExpand: ignore addSpace if a \n is present.
+
+	* Added RCSid's for the files we've touched.
+	
+Thu May 24 15:41:37 2001  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* configure.in:	Thanks to some clues from mdb@juniper.net,
+	added autoconf magic to control setting of MACHINE, MACHINE_ARCH
+	as well as what ends up in _PATH_DEFSYSPATH.  We now have:
+
+  --with-machine=MACHINE  explicitly set MACHINE
+  --with-force-machine=MACHINE  set FORCE_MACHINE
+  --with-machine_arch=MACHINE_ARCH  explicitly set MACHINE_ARCH
+  --with-default-sys-path=PATH:DIR:LIST  use an explicit _PATH_DEFSYSPATH
+  --with-prefix-sys-path=PATH:DIR:LIST  prefix _PATH_PREFIX_SYSPATH
+  --with-path-objdirprefix=PATH  override _PATH_OBJDIRPREFIX
+ 	
+	If _PATH_OBJDIRPREFIX is set to "no" we won't define it.
+
+	* makefile: added a pathetically simple makefile to drive
+	bootstrapping.  Running configure by hand is more useful.
+
+	* Makefile.in: added MAKE_VERSION, and reworked things to be less
+	dependent on NetBSD bsd.*.mk
+	
+	* pathnames.h: allow NO_PATH_OBJDIRPREFIX to stop us defining
+	_PATH_OBJDIRPREFIX for those that don't want a default.
+	construct _PATH_DEFSYSPATH from the info we get from configure.
+
+	* main.c: allow for no _PATH_OBJDIRPREFIX, set ${MAKE_VERSION}
+	if MAKE_VERSION is defined.
+	
+	* compat.c: when we bail, print out the .CURDIR we were in.
+	
+Sat May 12 00:34:12 2001  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* Merged with NetBSD make
+
+	* var.c: fixed a bug in the handling of the modifier :P
+	if the node as found but the path was null, we segfault trying to
+	duplicate it.
+
+Mon Mar  5 16:20:33 2001  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* Merged with NetBSD make
+	
+	* make.c: Make_OODate's test for a library out of date was using
+	cmtime where it should have used mtime (my bug).
+
+	* compat.c: Use perror() to tell us what really went wrong when we
+	cannot exec a command.
+	
+Fri Dec 15 10:11:08  2000  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* Merged with NetBSD make
+	
+Sat Jun 10 10:11:08  2000  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* Merged with NetBSD make
+	
+Thu Jun  1 10:11:08  2000  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* Merged with NetBSD make
+	
+Tue May 30 10:11:08  2000  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* Merged with NetBSD make
+	
+Thu Apr 27 00:07:47 2000  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* util.c: don't provide signal() since we use sigcompat.c
+
+	* Makefile.in: added a build target.
+
+	* var.c (Var_Parse): added ODE modifiers :U, :D, :L, :P, :@ and :!
+	These allow some quite clever magic.
+
+	* main.c (main): added support for getenv(MAKESYSPATH).
+
+Mon Apr  2 16:25:13 2000  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* Disable $PWD overriding getcwd() if MAKEOBJDIRPREFIX is set.
+	This avoids objdir having a different value depending on how a
+	directory was reached (via command line, or subdir.mk).
+
+	* If FORCE_MACHINE is defined, ignore getenv("MACHINE").
+	
+Mon Apr  2 23:15:31 2000  Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* Do a chdir(${.CURDIR}) before invoking ${.MAKE} or ${.MAKE:T} if
+	MAKEOBJDIRPREFIX is set and NOCHECKMAKECHDIR is not.
+	I've been testing this in NetBSD's make for some weeks.
+
+	* Turn Makefile into Makefile.in and make it useful.
+	
+Tue Feb 29 22:08:00 2000 Simon J. Gerraty  <sjg@zen.quick.com.au>
+
+	* Imported NetBSD's -current make(1) and resolve conflicts.
+	
+	* Applied autoconf patches from bmake v2
+
+	* Imported clean code base from NetBSD-1.0

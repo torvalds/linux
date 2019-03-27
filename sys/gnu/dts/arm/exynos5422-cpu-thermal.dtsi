@@ -1,0 +1,103 @@
+/*
+ * Device tree sources for Exynos5422 thermal zone
+ *
+ * Copyright (c) 2015 Lukasz Majewski <l.majewski@samsung.com>
+ *			Anand Moon <linux.amoon@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ */
+
+#include <dt-bindings/thermal/thermal.h>
+
+/ {
+	thermal-zones {
+		cpu0_thermal: cpu0-thermal {
+			thermal-sensors = <&tmu_cpu0 0>;
+			polling-delay-passive = <250>;
+			polling-delay = <0>;
+			trips {
+				cpu_alert0: cpu-alert-0 {
+					temperature = <50000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				cpu_alert1: cpu-alert-1 {
+					temperature = <60000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				cpu_alert2: cpu-alert-2 {
+					temperature = <70000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				cpu_crit0: cpu-crit-0 {
+					temperature = <120000>; /* millicelsius */
+					hysteresis = <0>; /* millicelsius */
+					type = "critical";
+				};
+				/*
+				 * Exyunos542x support only 4 trip-points
+				 * so for these polling mode is required.
+				 * Start polling at temperature level of last
+				 * interrupt-driven trip: cpu_alert2
+				 */
+				cpu_alert3: cpu-alert-3 {
+					temperature = <70000>; /* millicelsius */
+					hysteresis = <10000>; /* millicelsius */
+					type = "passive";
+				};
+				cpu_alert4: cpu-alert-4 {
+					temperature = <85000>; /* millicelsius */
+					hysteresis = <10000>; /* millicelsius */
+					type = "passive";
+				};
+
+			};
+			cooling-maps {
+				map0 {
+				     trip = <&cpu_alert0>;
+				     cooling-device = <&fan0 0 1>;
+				};
+				map1 {
+				     trip = <&cpu_alert1>;
+				     cooling-device = <&fan0 1 2>;
+				};
+				map2 {
+				     trip = <&cpu_alert2>;
+				     cooling-device = <&fan0 2 3>;
+				};
+				/*
+				 * When reaching cpu_alert3, reduce CPU
+				 * by 2 steps. On Exynos5422/5800 that would
+				 * be: 1500 MHz and 1100 MHz.
+				 */
+				map3 {
+				     trip = <&cpu_alert3>;
+				     cooling-device = <&cpu0 0 2>;
+				};
+				map4 {
+				     trip = <&cpu_alert3>;
+				     cooling-device = <&cpu4 0 2>;
+				};
+
+				/*
+				 * When reaching cpu_alert4, reduce CPU
+				 * further, down to 600 MHz (11 steps for big,
+				 * 7 steps for LITTLE).
+				 */
+				map5 {
+				     trip = <&cpu_alert4>;
+				     cooling-device = <&cpu0 3 7>;
+				};
+				map6 {
+				     trip = <&cpu_alert4>;
+				     cooling-device = <&cpu4 3 11>;
+				};
+			};
+		};
+	};
+};

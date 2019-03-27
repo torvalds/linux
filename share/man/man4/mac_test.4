@@ -1,0 +1,109 @@
+.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris Costello
+.\" at Safeport Network Services and Network Associates Laboratories, the
+.\" Security Research Division of Network Associates, Inc. under
+.\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 25, 2015
+.Dt MAC_TEST 4
+.Os
+.Sh NAME
+.Nm mac_test
+.Nd MAC framework testing policy
+.Sh SYNOPSIS
+To compile the testing policy
+into your kernel, place the following lines in your kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Cd "options MAC_TEST"
+.Ed
+.Pp
+Alternately, to load the testing module at boot time, place the following line
+in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Ed
+.Pp
+and in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mac_test_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+policy module implements a testing facility for the MAC framework.
+Among other things,
+.Nm
+will try to catch corrupt labels the system is attempting to destroy and
+drop to the debugger.
+Additionally, a set of statistics regarding the number of times various
+MAC framework entry points have been called is stored in the
+.Va security.mac.test
+.Xr sysctl 8
+tree.
+.Ss Label Format
+No labels are defined for
+.Nm .
+.Sh SEE ALSO
+.Xr mac 4 ,
+.Xr mac_biba 4 ,
+.Xr mac_bsdextended 4 ,
+.Xr mac_ifoff 4 ,
+.Xr mac_lomac 4 ,
+.Xr mac_mls 4 ,
+.Xr mac_none 4 ,
+.Xr mac_partition 4 ,
+.Xr mac_portacl 4 ,
+.Xr mac_seeotheruids 4 ,
+.Xr mac 9
+.Sh HISTORY
+The
+.Nm
+policy module first appeared in
+.Fx 5.0
+and was developed by the
+.Tn TrustedBSD
+Project.
+.Sh AUTHORS
+This software was contributed to the
+.Fx
+Project by Network Associates Labs,
+the Security Research Division of Network Associates
+Inc.
+under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Sh BUGS
+While the MAC Framework design is intended to support the containment of
+the root user, not all attack channels are currently protected by entry
+point checks.
+As such, MAC Framework policies should not be relied on, in isolation,
+to protect against a malicious privileged user.

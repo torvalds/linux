@@ -1,0 +1,42 @@
+OpenBSM Credits
+
+The following organizations and individuals have contributed substantially to
+the development of OpenBSM:
+
+    Apple Inc.
+    McAfee Research, McAfee, Inc.
+    SPARTA, Inc.
+    Robert Watson
+    Wayne Salamon
+    Suresh Krishnaswamy
+    Kevin Van Vechten
+    Tom Rhodes
+    Wojciech Koszek
+    Chunyang Yuan
+    Poul-Henning Kamp
+    Christian Brueffer
+    Olivier Houchard
+    Christian Peron
+    Martin Fong
+    Pawel Worach
+    Martin Englund
+    Ruslan Ermilov
+    Martin Voros
+    Diego Giagio
+    Alex Samorukov
+    Eric Hall
+    Xin LI
+    Stacey Son
+    Todd Heberlein
+    Gary Hoo
+    Dave Bertouille
+    Jonathan Anderson
+    Pawel Jakub Dawidek
+    Joel Dahl
+    Ryan Steinmetz
+    The FreeBSD Foundation
+    Brooks Davis
+
+In addition, Coverity, Inc.'s Prevent(tm) static analysis tool and Gimpel
+Software's FlexeLint tool were used to identify a number of bugs in the
+OpenBSM implementation.

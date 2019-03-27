@@ -1,0 +1,218 @@
+
+tst |empty array|
+in  |[]|
+sel |0|
+out |<NULL>|
+
+tst |one-element array: integer|
+in  |[1]|
+sel |0|
+out |1|
+sel |1|
+out |<NULL>|
+sel |100|
+out |<NULL>|
+sel |-1|
+out |<NULL>|
+
+tst |one-element array: hex integer (not in spec, not supported)|
+in  |[0x1000]|
+sel |0|
+out |<NULL>|
+
+tst |one-element array: float|
+in  |[1.5001]|
+sel |0|
+out |1.5001|
+
+tst |one-element array: float + exponent|
+in  |[16.3e10]|
+sel |0|
+out |16.3e10|
+
+tst |one-element array: integer + whitespace|
+in  |[ 	   5	]|
+sel |0|
+out |5|
+
+tst |one-element array: integer + exponent + whitespace|
+in  |[ 	    	 16E10  	 ]|
+sel |0|
+out |16E10|
+
+tst |one-element array: string|
+in  |["alpha"]|
+sel |0|
+out |alpha|
+
+tst |alternative first-element indexing|
+in  |[1,5,10,15,20]|
+sel |[0]|
+out |1|
+sel |[3]|
+out |15|
+sel |[4]|
+out |20|
+sel |[5]|
+out |<NULL>|
+
+tst |one-element array: object|
+in  |[ { "first": true, "second": false }]|
+sel |0.first|
+out |true|
+sel |0.second|
+out |false|
+sel |0.third|
+out |<NULL>|
+
+tst |many-element array: integers|
+in  |[0,1,1,2,3,5,8,13,21,34,55,89,144,233,377]|
+sel |10|
+out |55|
+sel |14|
+out |377|
+sel |19|
+out |<NULL>|
+
+tst |many-element array: multiple types|
+in  |["string",32,true,{"a":9,"b":false},100.3e10,false,200.5,{"key":"val"},null]|
+sel |0|
+out |string|
+sel |0.notobject|
+out |<NULL>|
+sel |1|
+out |32|
+sel |2|
+out |true|
+sel |3|
+out |{"a":9,"b":false}|
+sel |3.a|
+out |9|
+sel |3.b|
+out |false|
+sel |3.c|
+out |<NULL>|
+sel |4|
+out |100.3e10|
+sel |5|
+out |false|
+sel |6|
+out |200.5|
+sel |7|
+out |{"key":"val"}|
+sel |7.key|
+out |val|
+sel |7.key.notobject|
+out |<NULL>|
+sel |7.nonexist|
+out |<NULL>|
+sel |8|
+out |null|
+sel |9|
+out |<NULL>|
+
+tst |many-element array: multiple types + whitespace|
+in  |
+[	"string" ,	32 , true	,	 {"a":  9,	"b": false},		100.3e10, false, 200.5,{"key" 	:
+ "val"},		 null ]		|
+sel |0|
+out |string|
+sel |0.notobject|
+out |<NULL>|
+sel |1|
+out |32|
+sel |2|
+out |true|
+sel |3|
+out |{"a":  9,	"b": false}|
+sel |3.a|
+out |9|
+sel |3.b|
+out |false|
+sel |3.c|
+out |<NULL>|
+sel |4|
+out |100.3e10|
+sel |5|
+out |false|
+sel |6|
+out |200.5|
+sel |7|
+out |{"key" 	:
+ "val"}|
+sel |7.key|
+out |val|
+sel |7.key.notobject|
+out |<NULL>|
+sel |7.nonexist|
+out |<NULL>|
+sel |8|
+out |null|
+sel |9|
+out |<NULL>|
+
+tst |two-element array: various string escape codes|
+in  |["abcd \" \\ \/ \b \f \n \r \t \u0000 \uf00F ", "final"]|
+sel |0|
+out |abcd \" \\ \/ \b \f \n \r \t \u0000 \uf00F |
+sel |1|
+out |final|
+
+tst |three-element array: broken escape code|
+in  |["fine here", "dodgey \u00AZ", "wont get here"]|
+sel |0|
+out |fine here|
+sel |1|
+out |<NULL>|
+sel |2|
+out |<NULL>|
+
+tst |nested objects|
+in  |{ "top": { "mid"  : { "legs": "feet" }, "number": 9, "array":[0,1,{"a":true,"bb":[1,2,false,{"x":"yz"}]}]}}|
+sel |top|
+out |{ "mid"  : { "legs": "feet" }, "number": 9, "array":[0,1,{"a":true,"bb":[1,2,false,{"x":"yz"}]}]}|
+sel |fargo|
+out |<NULL>|
+sel |top.mid|
+out |{ "legs": "feet" }|
+sel |top.centre|
+out |<NULL>|
+sel |top.mid.legs|
+out |feet|
+sel |top.mid.number|
+out |<NULL>|
+sel |top.mid.array|
+out |<NULL>|
+sel |top.number|
+out |9|
+sel |top.array|
+out |[0,1,{"a":true,"bb":[1,2,false,{"x":"yz"}]}]|
+sel |top.array[0]|
+out |0|
+sel |top.array[1]|
+out |1|
+sel |top.array[2]|
+out |{"a":true,"bb":[1,2,false,{"x":"yz"}]}|
+sel |top.array[2].a|
+out |true|
+sel |top.array[2].b|
+out |<NULL>|
+sel |top.array[2].bb|
+out |[1,2,false,{"x":"yz"}]|
+sel |top.array[2].bb[0]|
+out |1|
+sel |top.array[2].bb[1]|
+out |2|
+sel |top.array[2].bb[2]|
+out |false|
+sel |top.array[2].bb[3]|
+out |{"x":"yz"}|
+sel |top.array[2].bb[3].x|
+out |yz|
+sel |top.array[2].bb[3].x.nofurther|
+out |<NULL>|
+sel |top.array[2].bb[4]|
+out |<NULL>|
+sel |top.array[3]|
+out |<NULL>|
+

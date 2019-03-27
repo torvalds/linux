@@ -1,0 +1,111 @@
+.\" Copyright (c) 1982, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)profiling.me	8.1 (Berkeley) 6/8/93
+.\"
+.sh 1 "Types of Profiling"
+.pp
+There are several different uses for program profiles,
+and each may require different information from the profiles,
+or different presentation of the information.
+We distinguish two broad categories of profiles:
+those that present counts of statement or routine invocations,
+and those that display timing information about statements
+or routines.
+Counts are typically presented in tabular form,
+often in parallel with a listing of the source code.
+Timing information could be similarly presented;
+but more than one measure of time might be associated with each
+statement or routine.
+For example,
+in the framework used by \fBgprof\fP
+each profiled segment would display two times:
+one for the time used by the segment itself, and another for the
+time inherited from code segments it invokes.
+.pp
+Execution counts are used in many different contexts.
+The exact number of times a routine or statement is activated
+can be used to determine if an algorithm is performing as 
+expected.
+Cursory inspection of such counters may show algorithms whose
+complexity is unsuited to the task at hand.
+Careful interpretation of counters can often suggest
+improvements to acceptable algorithms.
+Precise examination can uncover subtle errors in an
+algorithm.
+At this level, profiling counters are similar to
+debugging statements whose purpose is to show the number of times
+a piece of code is executed.
+Another view of such counters is as boolean values.
+One may be interested that a portion of code has executed at
+all, for exhaustive testing, or to check that one implementation
+of an abstraction completely replaces a previous one.
+.pp
+Execution counts are not necessarily proportional to the amount
+of time required to execute the routine or statement.
+Further, the execution time of a routine will not be the same for
+all calls on the routine.
+The criteria for establishing execution time
+must be decided.
+If a routine implements an abstraction by invoking other abstractions,
+the time spent in the routine will not accurately reflect the
+time required by the abstraction it implements.
+Similarly, if an abstraction is implemented by several
+routines the time required by the abstraction will be distributed
+across those routines.
+.pp
+Given the execution time of individual routines,
+\fBgprof\fP accounts to each routine the time spent
+for it by the routines it invokes.
+This accounting is done by assembling a \fIcall graph\fP with nodes that
+are the routines of the program and directed arcs that represent
+calls from call sites to routines.
+We distinguish among three different call graphs for a program.
+The \fIcomplete call graph\fP incorporates all routines and all
+potential arcs,
+including arcs that represent calls to functional parameters
+or functional variables.
+This graph contains the other two graphs as subgraphs.
+The \fIstatic call graph\fP includes all routines and all possible arcs
+that are not calls to functional parameters or variables.
+The \fIdynamic call graph\fP includes only those routines and
+arcs traversed by the profiled execution of the program.
+This graph need not include all routines, nor need it include all
+potential arcs between the routines it covers.
+It may, however, include arcs to functional parameters or
+variables that the static call graph may omit.
+The static call graph can be determined from the (static) program text.
+The dynamic call graph is determined only by profiling an
+execution of the program.
+The complete call graph for a monolithic program could be determined
+by data flow analysis techniques.
+The complete call graph for programs that change
+during execution, by modifying themselves or dynamically loading
+or overlaying code, may never be determinable.
+Both the static call graph and the dynamic call graph are used
+by \fBgprof\fP, but it does not search for the complete call
+graph.

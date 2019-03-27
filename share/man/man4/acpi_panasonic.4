@@ -1,0 +1,178 @@
+.\"
+.\" Copyright (c) 2004 OGAWA Takaya <t-ogawa@triaez.kaisei.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 19, 2015
+.Dt ACPI_PANASONIC 4
+.Os
+.Sh NAME
+.Nm acpi_panasonic
+.Nd "ACPI hotkey driver for Panasonic laptops"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device acpi_panasonic"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+acpi_panasonic_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver enables such hotkey facilities of various Panasonic laptops as
+changing LCD brightness, controlling mixer volumes, entering sleep or
+suspended state and so on.
+On the following models it is reported to work: Let's note (or
+Toughbook, outside Japan) CF-R1N, CF-R2A and CF-R3.
+It may also work on other models as well.
+.Pp
+The driver consists of three functionalities.
+The first is to detect hotkey events and take corresponding actions,
+which include changing LCD luminance and speaker mute state.
+The second role is to notify occurrences of the event by way of
+.Xr devctl 4
+and eventually to
+.Xr devd 8 .
+The third and last is to provide a way to adjust LCD brightness and
+sound mute state via
+.Xr sysctl 8 .
+.Ss Hotkeys
+There are 9 hotkeys available on the supported hardware:
+.Pp
+.Bl -tag -width 10n -compact -offset indent
+.It Sy Fn+F1
+Make LCD backlight darker.
+.It Sy Fn+F2
+Make LCD backlight brighter.
+.It Sy Fn+F3
+Switch video output between LCD and CRT.
+Not supported by the
+.Nm
+driver.
+.It Sy Fn+F4
+Toggle muting the speaker.
+.It Sy Fn+F5
+Turn the mixer volume down.
+.It Sy Fn+F6
+Turn the mixer volume up.
+.It Sy Fn+F7
+Enter suspend-to-RAM state.
+.It Sy Fn+F9
+Show battery status.
+.It Sy Fn+F10
+Enter suspend-to-disk state.
+.El
+.Pp
+Actions are automatically taken within the driver for
+.Sy Fn+F1 , Fn+F2
+and
+.Sy Fn+F4 .
+For the other events such as
+mixer control and showing battery status,
+.Xr devd 8
+should take the role as described below.
+.Ss Xr devd 8 Events
+When notified to
+.Xr devd 8 ,
+the hotkey event provides the following information:
+.Pp
+.Bl -tag -width 10n -compact -offset indent
+.It system
+.Qq Li ACPI
+.It subsystem
+.Qq Li Panasonic
+.It type
+The source of the event in ACPI namespace.
+The value depends on the model but typically
+.Qq Li \e_SB_.HKEY .
+.It notify
+Event code (see below).
+.El
+.Pp
+Event codes to be generated are assigned as follows:
+.Bl -tag -width 10n -offset indent
+.It 0x81-0x86, 0x89
+.Sy Fn+F<n>
+pressed.
+0x81 corresponds to
+.Sy Fn+F1 ,
+0x82 corresponds to
+.Sy Fn+F2 ,
+and so on.
+.It 0x01-0x07, 0x09, 0x1a
+.Sy Fn+F<n>
+released.
+0x01 corresponds to
+.Sy Fn+F1 ,
+0x02 corresponds to
+.Sy Fn+F2 ,
+and so on.
+.El
+.Sh SYSCTL VARIABLES
+The following MIBs are available:
+.Bl -tag -width indent
+.It Va hw.acpi.panasonic.lcd_brightness_max
+The maximum level of brightness.
+This read-only value is
+automatically set according to hardware model.
+.It Va hw.acpi.panasonic.lcd_brightness_min
+The minimum level of brightness.
+This read-only value is
+automatically set according to hardware model.
+.It Va hw.acpi.panasonic.lcd_brightness
+Current brightness level of the LCD (read-write).
+The value ranges from
+.Va hw.acpi.panasonic.lcd_brightness_min
+to
+.Va hw.acpi.panasonic.lcd_brightness_max .
+.It Va hw.acpi.panasonic.sound_mute
+A read-write boolean flag to control whether to mute the speaker.
+The value 1 means to mute and 0 not.
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr devd.conf 5 ,
+.Xr devd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver and this manual page were written by
+.An OGAWA Takaya Aq Mt t-ogawa@triaez.kaisei.org
+and
+.An TAKAHASHI Yoshihiro Aq Mt nyan@FreeBSD.org .

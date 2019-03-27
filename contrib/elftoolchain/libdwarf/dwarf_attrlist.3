@@ -1,0 +1,147 @@
+.\" Copyright (c) 2010 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_attrlist.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd November 9, 2011
+.Dt DWARF_ATTRLIST 3
+.Os
+.Sh NAME
+.Nm dwarf_attrlist
+.Nd retrieve DWARF attribute descriptors
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_attrlist
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Attribute **attrbuf"
+.Fa "Dwarf_Signed *attrcount"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_attrlist
+retrieves the DWARF attribute descriptors associated with a
+debugging information entry descriptor in argument
+.Ar die .
+The descriptors are returned as an array of values of the opaque type
+.Vt Dwarf_Attribute .
+The data associated with each returned attribute descriptor may be
+queried using the form query functions in the
+.Xr dwarf 3
+API set.
+.Pp
+Argument
+.Ar attrbuf
+points to a location that will hold a pointer to the returned
+array of DWARF attribute descriptors.
+Argument
+.Ar attrcount
+points to a location that will hold the number of descriptors in
+the returned array.
+.Pp
+If argument
+.Ar err
+is non-NULL, it is used to return an error descriptor in case of an
+error.
+.Ss Memory Management
+In the current implementation, the memory allocated for each DWARF
+attribute descriptor and for the returned array of descriptors is
+managed by the library and the application does not need to explicitly
+free the returned pointers.
+However, for compatibility with other implementations of the
+.Xr dwarf 3
+API, the application is permitted to pass the pointers returned by to
+the
+.Fn dwarf_dealloc
+function.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_attrlist
+returns
+.Dv DW_DLV_OK
+on success.
+.Pp
+If the debugging information entry descriptor denoted by argument
+.Ar die
+does not contain any attribute, the function returns
+.Dv DW_DLV_NO_ENTRY
+and sets argument
+.Ar err .
+For other errors, it returns
+.Dv DW_DLV_ERROR
+and sets argument
+.Ar err .
+.Sh EXAMPLES
+To retrieve the attribute list for a DWARF debugging information
+entry use:
+.Bd -literal -offset indent
+Dwarf_Die dw_die;
+Dwarf_Error dw_e;
+Dwarf_Unsigned dw_count;
+Dwarf_Attribute *dw_attributes;
+int error, i;
+
+\&... variable dw_die contains a reference to the DIE of interest ...
+
+/* Retrieve the attribute list from the DIE. */
+if ((error = dwarf_attrlist(dw_die, &dw_attributes, &dw_count,
+	&dw_e)) != DW_DLV_OK)
+	errx(EXIT_FAILURE, "dwarf_attrlist: %s", dwarf_errmsg(dw_e));
+
+/* Process the attribute list. */
+for (i = 0; i < dw_count; ++i) {
+	/* Use the returned pointers in dw_attributes[i] here. */
+}
+.Ed
+.Sh ERRORS
+Function
+.Fn dwarf_diename
+can fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Arguments
+.Ar die ,
+.Ar attrbuf ,
+or
+.Ar attrcount
+were NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+Argument
+.Ar die
+had no attributes.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of the
+function.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_attr 3 ,
+.Xr dwarf_dealloc 3 ,
+.Xr dwarf_hasattr 3 ,
+.Xr dwarf_hasform 3 ,
+.Xr dwarf_whatattr 3 ,
+.Xr dwarf_whatform 3

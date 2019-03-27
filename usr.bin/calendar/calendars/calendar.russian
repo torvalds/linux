@@ -1,0 +1,12 @@
+/*
+ * Russian calendar files
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _calendar_russian_
+#define _calendar_russian_
+
+#include <ru_RU.KOI8-R/calendar.all>
+
+#endif /* !_calendar_russian_ */

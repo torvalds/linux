@@ -1,0 +1,64 @@
+The following instructions apply if you have a Linux platform and want
+libpcap to support the 'ACN' WAN/LAN router product from SITA
+(http://www.sita.aero)
+
+This might also work on non-Linux Unix-compatible platforms, but that
+has not been tested.
+
+See also the libpcap INSTALL.txt file for further libpcap configuration
+options.
+
+These additions/extensions have been made to PCAP to allow it to
+capture packets from a SITA ACN device (and potentially others).
+
+To enable its support you need to ensure that the distribution has
+a correct configure.ac file; that can be created if neccessay by
+using the normal autoconf procedure of:
+
+aclocal
+autoconf
+autoheader
+automake
+
+Then run configure with the 'sita' option:
+
+./configure --with-sita
+
+Applications built with libpcap configured in this way will only detect SITA
+ACN interfaces and will not capture from the native OS packet stream.
+
+The SITA extension provides a remote datascope operation for capturing
+both WAN and LAN protocols.  It effectively splits the operation of
+PCAP into two halves.  The top layer performs the majority of the
+work, but interfaces via a TCP session to remote agents that
+provide the lower layer functionality of actual sniffing and
+filtering. More detailed information regarding the functions and
+inter-device protocol and naming conventions are described in detail
+in 'pcap-sita.html'.
+
+pcap_findalldevs() reads the local system's /etc/hosts file looking
+for host names that match the format of IOP type devices.  ie.  aaa_I_x_y
+and then queries each associated IP address for a list of its WAN and
+LAN devices.  The local system the aggregates the lists obtained from
+each IOP, sorts it, and provides it (to Wireshark et.al) as the
+list of monitorable interfaces.
+
+Once a valid interface has been selected, pcap_open() is called
+which opens a TCP session (to a well known port) on the target IOP
+and tells it to start monitoring.
+
+All captured packets are then forwarded across that TCP session
+back to the local 'top layer' for forwarding to the actual
+sniffing program (wireshark...)
+
+Note that the DLT_SITA link-layer type includes a proprietary header
+that is documented as part of the SITA dissector of Wireshark and is
+also described in 'pcap-sita.html' for posterity sake.
+
+That header provides:
+- Packet direction (in/out) (1 octet)
+- Link layer hardware signal status (1 octet)
+- Transmit/Receive error status (2 octets)
+- Encapsulated WAN protocol ID (1 octet)
+
+

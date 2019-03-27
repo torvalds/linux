@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set not to build
+.Xr efivar 3
+and
+.Xr efivar 8 .

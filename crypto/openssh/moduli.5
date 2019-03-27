@@ -1,0 +1,127 @@
+.\"	$OpenBSD: moduli.5,v 1.17 2012/09/26 17:34:38 jmc Exp $
+.\"
+.\" Copyright (c) 2008 Damien Miller <djm@mindrot.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd $Mdocdate: September 26 2012 $
+.Dt MODULI 5
+.Os
+.Sh NAME
+.Nm moduli
+.Nd Diffie-Hellman moduli
+.Sh DESCRIPTION
+The
+.Pa /etc/moduli
+file contains prime numbers and generators for use by
+.Xr sshd 8
+in the Diffie-Hellman Group Exchange key exchange method.
+.Pp
+New moduli may be generated with
+.Xr ssh-keygen 1
+using a two-step process.
+An initial
+.Em candidate generation
+pass, using
+.Ic ssh-keygen -G ,
+calculates numbers that are likely to be useful.
+A second
+.Em primality testing
+pass, using
+.Ic ssh-keygen -T ,
+provides a high degree of assurance that the numbers are prime and are
+safe for use in Diffie-Hellman operations by
+.Xr sshd 8 .
+This
+.Nm
+format is used as the output from each pass.
+.Pp
+The file consists of newline-separated records, one per modulus,
+containing seven space-separated fields.
+These fields are as follows:
+.Bl -tag -width Description -offset indent
+.It timestamp
+The time that the modulus was last processed as YYYYMMDDHHMMSS.
+.It type
+Decimal number specifying the internal structure of the prime modulus.
+Supported types are:
+.Pp
+.Bl -tag -width 0x00 -compact
+.It 0
+Unknown, not tested.
+.It 2
+"Safe" prime; (p-1)/2 is also prime.
+.It 4
+Sophie Germain; 2p+1 is also prime.
+.El
+.Pp
+Moduli candidates initially produced by
+.Xr ssh-keygen 1
+are Sophie Germain primes (type 4).
+Further primality testing with
+.Xr ssh-keygen 1
+produces safe prime moduli (type 2) that are ready for use in
+.Xr sshd 8 .
+Other types are not used by OpenSSH.
+.It tests
+Decimal number indicating the type of primality tests that the number
+has been subjected to represented as a bitmask of the following values:
+.Pp
+.Bl -tag -width 0x00 -compact
+.It 0x00
+Not tested.
+.It 0x01
+Composite number \(en not prime.
+.It 0x02
+Sieve of Eratosthenes.
+.It 0x04
+Probabilistic Miller-Rabin primality tests.
+.El
+.Pp
+The
+.Xr ssh-keygen 1
+moduli candidate generation uses the Sieve of Eratosthenes (flag 0x02).
+Subsequent
+.Xr ssh-keygen 1
+primality tests are Miller-Rabin tests (flag 0x04).
+.It trials
+Decimal number indicating the number of primality trials
+that have been performed on the modulus.
+.It size
+Decimal number indicating the size of the prime in bits.
+.It generator
+The recommended generator for use with this modulus (hexadecimal).
+.It modulus
+The modulus itself in hexadecimal.
+.El
+.Pp
+When performing Diffie-Hellman Group Exchange,
+.Xr sshd 8
+first estimates the size of the modulus required to produce enough
+Diffie-Hellman output to sufficiently key the selected symmetric cipher.
+.Xr sshd 8
+then randomly selects a modulus from
+.Fa /etc/moduli
+that best meets the size requirement.
+.Sh SEE ALSO
+.Xr ssh-keygen 1 ,
+.Xr sshd 8
+.Sh STANDARDS
+.Rs
+.%A M. Friedl
+.%A N. Provos
+.%A W. Simpson
+.%D March 2006
+.%R RFC 4419
+.%T Diffie-Hellman Group Exchange for the Secure Shell (SSH) Transport Layer Protocol
+.%D 2006
+.Re

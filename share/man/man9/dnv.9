@@ -1,0 +1,116 @@
+.\"
+.\" Copyright (c) 2016 Adam Starak <starak.adam@gmail.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 26, 2016
+.Dt DNV 9
+.Os
+.Sh NAME
+.Nm dnvlist_get ,
+.Nm dnvlist_take
+.Nd "API for getting name/value pairs. Nonexistent pairs do not raise an error."
+.Sh LIBRARY
+.Lb libnv
+.Sh SYNOPSIS
+.In sys/dnv.h
+.Ft bool
+.Fn dnvlist_get_bool "const nvlist_t *nvl" "const char *name" "bool defval"
+.Ft uint64_t
+.Fn dnvlist_get_number "const nvlist_t *nvl" "const char *name" "uint64_t defval"
+.Ft char *
+.Fn dnvlist_get_string "const nvlist_t *nvl" "const char *name" "const char *defval"
+.Ft nvlist_t *
+.Fn dnvlist_get_nvlist "const nvlist_t *nvl" "const char *name" "nvlist_t *defval"
+.Ft int
+.Fn dnvlist_get_descriptor "const nvlist_t *nvl" "const char *name" "int defval"
+.Ft void *
+.Fn dnvlist_get_binary "const nvlist_t *nvl" "const char *name" "size_t *sizep" "void *defval" "size_t defsize"
+.Ft bool
+.Fn dnvlist_take_bool "const nvlist_t *nvl" "const char *name" "bool defval"
+.Ft uint64_t
+.Fn dnvlist_take_number "const nvlist_t *nvl" "const char *name" "uint64_t defval"
+.Ft char *
+.Fn dnvlist_take_string "const nvlist_t *nvl" "const char *name" "const char *defval"
+.Ft nvlist_t *
+.Fn dnvlist_take_nvlist "const nvlist_t *nvl" "const char *name" "nvlist_t *defval"
+.Ft int
+.Fn dnvlist_take_descriptor "const nvlist_t *nvl" "const char *name" "int defval"
+.Ft void *
+.Fn dnvlist_take_binary "const nvlist_t *nvl" "const char *name" "size_t *sizep" "void *defval" "size_t defsize"
+.Sh DESCRIPTION
+The
+.Nm libnv
+library permits easy management of name/value pairs and can send and receive
+them over sockets.
+For more information, also see
+.Xr nv 9 .
+.Pp
+The
+.Nm dnvlist_get
+family of functions returns the value associated with the specified name.
+If an element of the specified name does not exist, the function returns the
+value provided in
+.Fa defval .
+Returned strings, nvlists, descriptors, binaries, or arrays must not be modified
+by the user.
+They still belong to the nvlist.
+If the nvlist is in an error state, attempts to use any of these functions will
+cause the program to abort.
+.Pp
+The
+.Nm dnvlist_take
+family of functions returns the value associated with the specified name and
+removes the element from the nvlist.
+If an element of the supplied name does not exist, the value provided in
+.Nm defval
+is returned.
+When the value is a string, binary, or array value, the caller is
+responsible for freeing returned memory with
+.Fn free 3 .
+When the value is an nvlist, the caller is responsible for destroying the
+returned nvlist with
+.Fn nvlist_destroy .
+When the value is a descriptor, the caller is responsible for closing the
+returned descriptor with
+.Fn close 2 .
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr free 3 ,
+.Xr nv 9
+.Sh HISTORY
+The
+.Nm dnv
+API appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm dnv
+API was implemented by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship from the FreeBSD Foundation.
+This manual page was written by
+.An Adam Starak Aq Mt starak.adam@gmail.com

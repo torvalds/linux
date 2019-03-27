@@ -1,0 +1,138 @@
+
+#------------------------------------------------------------------------------
+# $File: sgi,v 1.23 2018/05/29 02:26:56 christos Exp $
+# sgi:  file(1) magic for Silicon Graphics operating systems and applications
+#
+# Executable images are handled either in aout (for old-style a.out
+# files for 68K; they are indistinguishable from other big-endian 32-bit
+# a.out files) or in mips (for MIPS ECOFF and Ucode files)
+#
+
+# kbd file definitions
+0	string	kbd!map		kbd map file
+>8	byte	>0		Ver %d:
+>10	short	>0		with %d table(s)
+
+0	beshort	0x8765		disk quotas file
+
+0	beshort	0x0506		IRIS Showcase file
+>2	byte	0x49		-
+>3	byte	x		- version %d
+0	beshort	0x0226		IRIS Showcase template
+>2	byte	0x63		-
+>3	byte	x		- version %d
+0	belong	0x5343464d	IRIS Showcase file
+>4	byte	x		- version %d
+0	belong	0x5443464d	IRIS Showcase template
+>4	byte	x		- version %d
+0	belong	0xdeadbabe	IRIX Parallel Arena
+>8	belong	>0		- version %d
+
+# core files
+#
+# 32bit core file
+0	belong	0xdeadadb0	IRIX core dump
+>4	belong	1		of
+>16	string	>\0		'%s'
+# 64bit core file
+0	belong	0xdeadad40	IRIX 64-bit core dump
+>4	belong	1		of
+>16	string	>\0		'%s'
+# N32bit core file
+0       belong	0xbabec0bb	IRIX N32 core dump
+>4      belong	1               of
+>16     string	>\0             '%s'
+# New style crash dump file
+0	string	\x43\x72\x73\x68\x44\x75\x6d\x70	IRIX vmcore dump of
+>36	string	>\0					'%s'
+
+# Trusted IRIX info
+0	string	SGIAUDIT	SGI Audit file
+>8	byte	x		- version %d
+>9	byte	x		\b.%d
+#
+0	string	WNGZWZSC	Wingz compiled script
+0	string	WNGZWZSS	Wingz spreadsheet
+0	string	WNGZWZHP	Wingz help file
+#
+0	string	#Inventor\040V	IRIS Inventor 1.0 file
+0	string	#Inventor\040V2	Open Inventor 2.0 file
+# GLF is OpenGL stream encoding
+0	string	glfHeadMagic();		GLF_TEXT
+4	belong	0x7d000000		GLF_BINARY_LSB_FIRST
+!:strength -30
+4	belong	0x0000007d		GLF_BINARY_MSB_FIRST
+!:strength -30
+# GLS is OpenGL stream encoding; GLS is the successor of GLF
+0	string	glsBeginGLS(		GLS_TEXT
+4	belong	0x10000000		GLS_BINARY_LSB_FIRST
+!:strength -30
+4	belong	0x00000010		GLS_BINARY_MSB_FIRST
+!:strength -30
+
+# Performance Co-Pilot file types
+0	string	PmNs				PCP compiled namespace (V.0)
+0	string	PmN				PCP compiled namespace
+>3	string	>\0				(V.%1.1s)
+#3	lelong	0x84500526			PCP archive
+3	belong	0x84500526			PCP archive
+>7	byte	x				(V.%d)
+#>20	lelong	-2				temporal index
+#>20	lelong	-1				metadata
+#>20	lelong	0				log volume #0
+#>20	lelong	>0				log volume #%d
+>20	belong	-2				temporal index
+>20	belong	-1				metadata
+>20	belong	0				log volume #0
+>20	belong	>0				log volume #%d
+>24	string	>\0				host: %s
+0	string	PCPFolio			PCP
+>9	string	Version:			Archive Folio
+>18	string	>\0				(V.%s)
+0	string	#pmchart			PCP pmchart view
+>9	string	Version
+>17	string	>\0				(V%-3.3s)
+0	string	#kmchart			PCP kmchart view
+>9	string	Version
+>17	string	>\0				(V.%s)
+0	string	pmview				PCP pmview config
+>7	string	Version
+>15	string	>\0				(V%-3.3s)
+0	string	#pmlogger			PCP pmlogger config
+>10	string	Version
+>18	string	>\0				(V%1.1s)
+0	string	#pmdahotproc			PCP pmdahotproc config
+>13	string	Version
+>21	string	>\0				(V%-3.3s)
+0	string	PcPh				PCP Help
+>4	string	1				Index
+>4	string	2				Text
+>5	string	>\0				(V.%1.1s)
+0	string	#pmieconf-rules			PCP pmieconf rules
+>16	string	>\0				(V.%1.1s)
+3	string	pmieconf-pmie			PCP pmie config
+>17	string	>\0				(V.%1.1s)
+0	string	MMV				PCP memory mapped values
+>4	long	x				(V.%d)
+
+# SpeedShop data files
+0	lelong	0x13130303			SpeedShop data file
+
+# mdbm files
+0	lelong	0x01023962			mdbm file, version 0 (obsolete)
+0	string	mdbm				mdbm file,
+>5	byte	x				version %d,
+>6	byte	x				2^%d pages,
+>7	byte	x				pagesize 2^%d,
+>17	byte	x				hash %d,
+>11	byte	x				dataformat %d
+
+# Alias Maya files
+0	string/t	//Maya\040ASCII	Alias Maya Ascii File,
+>13	string	>\0	version %s
+8	string	MAYAFOR4	Alias Maya Binary File,
+>32	string	>\0	version %s scene
+8	string	MayaFOR4	Alias Maya Binary File,
+>32	string	>\0	version %s scene
+8	string	CIMG		Alias Maya Image File
+8	string	DEEP		Alias Maya Image File

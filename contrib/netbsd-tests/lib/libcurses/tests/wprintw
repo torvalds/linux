@@ -1,0 +1,6 @@
+include start
+call win1 newwin 2 5 2 5
+check win1 NON_NULL
+call OK wprintw $win1 "%s" "hello"
+call OK wrefresh $win1
+compare wprintw_refresh.chk

@@ -1,0 +1,120 @@
+.\" Copyright (c) 2010
+.\"     iXsystems, Inc.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Jordan Hubbard OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 24, 2010
+.Dt PC-SYSINSTALL 8
+.Os
+.Sh NAME
+.Nm pc-sysinstall
+.Nd System installer backend
+.Sh SYNOPSIS
+.Nm
+.Op Fl c Ar file
+.Op Ar command
+.Sh DESCRIPTION
+The
+.Nm
+utility is a hybrid backend for installing FreeBSD.  When run in install mode
+it takes a configuration file and performs an installation according to the
+parameters specified in the configuration file.  When called with one of
+the system query commands it provides information about the system to aid a
+front end in building an appropriate configuration file.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl c Ar file
+Perform an installation as directed by
+.Ar file.
+.El
+.Sh COMMANDS
+The
+.Cm command
+can be any one of the following:
+.Bl -tag -width indent
+.It help
+Display a list of all commands.
+.It help Ar command
+Display the help data for the specified command.
+.It disk-list
+Provide a listing of the storage devices detected on this system.
+.It disk-part Ar disk
+Queries the specified storage device and returns information about its
+partitions.
+.It disk-info Ar disk
+Returns information about a storage device's size, cylinders, heads, and
+sectors.
+.It detect-laptop
+Tests to see if this system is a laptop or desktop.
+.It detect-emulation
+Tests to see if this system is running in an emulator
+.It detect-nics
+Returns a listing of the detected network cards on this system.
+.It list-components
+Returns a listing of the available components which can be installed.
+.It list-rsync-backups Ar user Ar host Ar port
+Returns a listing of available rsync-backups on the target server in the
+life-preserver/ directory.
+.It list-tzones
+Returns a listing of available timezones.
+.It query-langs
+Returns a list of languages that the installer supports.
+.It sys-mem
+Returns the size of installed system RAM in MegaBytes.
+.It test-netup
+test if an internet connection is available.
+.It update-part-list
+Returns a list of PC-BSD and FreeBSD installs on this system for updates.
+.It xkeyboard-layouts
+Returns a list of keyboard layouts that xorg supports.
+.It xkeyboard-models
+Returns a list of keyboard models that xorg supports.
+.It xkeyboard-variants
+Returns a list of keyboard variants that xorg supports.
+.It create-part Ar disk Ar size
+Create a new MBR primary slice on the target disk using size MB.
+.It delete-part Ar partition
+Delete the disk partition specified.  If this is the last partition, the
+disk partition layout will also be scrubbed, leaving a clean disk ready
+for MBR or GPT file system layouts.
+.It start-autoinstall Ar file
+Start an automated installation with the specified file.  Normally only
+used by automated install scripts.
+.It setup-ssh-keys Ar user Ar host Ar port
+Setup SSH without a password for the target host, user, and port.  Used to
+prompt the user to log into a server before doing a rsync + ssh restore.
+.El
+.Sh HISTORY
+This version of
+.Nm
+first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An Kris Moore Aq Mt kmoore@FreeBSD.org
+.Sh BUGS
+This utility was written to install PC-BSD and has seen limited use as an
+installer for FreeBSD.  It's likely that usage to install FreeBSD will expose
+edge cases that PC-BSD doesn't, as well as generate feature requests based
+on unforeseen needs.

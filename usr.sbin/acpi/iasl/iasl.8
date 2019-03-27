@@ -1,0 +1,179 @@
+.\"-
+.\" Copyright (c) 2003 Nate Lawson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 20, 2008
+.Dt IASL 8
+.Os
+.Sh NAME
+.Nm iasl
+.Nd Intel ACPI compiler/decompiler
+.Sh SYNOPSIS
+.Nm
+.Op Fl 2cefghl
+.Op Fl b Ar type
+.Op Fl d Ar file
+.Op Fl dc Ar file
+.Op Fl hc
+.Op Fl hr
+.Op Fl i Ar type
+.Op Fl ln
+.Op Fl ls
+.Op Fl oa
+.Op Fl of
+.Op Fl oi
+.Op Fl on
+.Op Fl ot
+.Op Fl p Ar prefix
+.Op Fl s Ar type
+.Op Fl t Ar type
+.Op Fl vi
+.Op Fl vo
+.Op Fl vr
+.Op Fl vs
+.Op Fl x Ar level
+.Op Fl w Ar level
+.Ar input-file
+.Sh DESCRIPTION
+The
+.Nm
+utility is a compiler/decompiler for ACPI Source Language (ASL)
+and ACPI Machine Language (AML).
+Major features of
+.Nm
+include:
+.Bl -bullet -offset indent
+.It
+Full support for the ACPI 3.0b Specification including ASL grammar
+elements and operators.
+.It
+Extensive compiler syntax and semantic error checking, especially in
+the area of control methods.
+This reduces the number of errors that are
+not discovered until the AML code is actually interpreted (i.e., the
+compile-time error checking reduces the number of run-time errors).
+.It
+Multiple types of output files, including formatted listing files with
+intermixed source, several types of AML files, and error messages.
+.El
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl 2
+Emit ACPI 2.0 compatible ASL code.
+.It Fl b Sm Cm p | t | b Sm
+Create compiler debug/trace file
+.Pq Pa *.txt .
+Types: Parse/Tree/Both.
+.It Fl c
+Parse only, no output generation.
+.It Fl d Ar file
+Disassemble AML to ASL source code file
+.Pq Pa *.dsl .
+.It Fl dc Ar file
+Disassemble AML and immediately compile it.
+(Obtain DSDT from current system if no input file.)
+.It Fl e
+Generate
+.Fn External
+statements for unresolved symbols.
+.It Fl f
+Ignore errors, force creation of AML output file(s).
+.It Fl g
+Get ACPI tables and write to files
+.Pq Pa *.dat .
+.It Fl h
+Additional help and compiler debug options.
+.It Fl hc
+Display operators allowed in constant expressions.
+.It Fl hr
+Display ACPI reserved method names.
+.It Fl i Sm Cm a | c Sm
+Create assembler or C include file
+.Pa ( *.inc
+or
+.Pa *.h ) .
+.It Fl l
+Create mixed listing file (ASL source and AML)
+.Pq Pa *.lst .
+.It Fl ln
+Create namespace file
+.Pq Pa *.nsp .
+.It Fl ls
+Create combined source file (expanded includes)
+.Pq Pa *.src .
+.It Fl oa
+Disable all optimizations (compatibility mode).
+.It Fl of
+Disable constant folding.
+.It Fl oi
+Disable integer optimization to Zero/One/Ones.
+.It Fl on
+Disable named reference string optimization.
+.It Fl ot
+Display compile times.
+.It Fl p Ar prefix
+Specify filename prefix for all output files (including
+.Pa .aml ) .
+.It Fl s Sm Cm a | c Sm
+Create AML in assembler or C source file
+.Pa ( *.asm
+or
+.Pa *.c ) .
+.It Fl t Ar a|c
+Create AML in assembler or C hex table
+.Pq Pa *.hex .
+.It Fl vi
+Less verbose errors and warnings for use with IDEs.
+.It Fl vo
+Enable optimization comments.
+.It Fl vr
+Disable remarks.
+.It Fl vs
+Disable signon.
+.It Fl x Ar level
+Set debug level for trace output.
+.It Fl w Ar level
+Set warning level.
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr acpidump 8
+.Sh HISTORY
+The
+.Nm
+utility is provided with Intel ACPI-CA.
+It first appeared in
+.Fx 5.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An Intel .
+This manual page was written by
+.An Nate Lawson .

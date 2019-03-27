@@ -1,0 +1,79 @@
+/*-
+ * Copyright (c) 2013-2014 Ruslan Bukin <br@bsdpad.com>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/include/ "exynos5.dtsi"
+
+/ {
+	compatible = "samsung,exynos5250", "samsung,exynos5";
+
+	SOC: Exynos5@0 {
+
+		pmu_system_controller: system-controller@10040000 {
+			compatible = "samsung,exynos5250-pmu";
+			status = "okay";
+		};
+
+		pad0: pad@11400000 {
+			compatible = "samsung,exynos5250-padctrl";
+			reg = <0x11400000 0x1000>,
+			      <0x13400000 0x1000>,
+			      <0x10D10000 0x1000>,
+			      <0x03860000 0x1000>;
+			interrupts = < 78 77 82 79 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		serial0: serial@12C00000 {
+			clock-frequency = < 100000000 >;
+		};
+
+		serial1: serial@12C10000 {
+			clock-frequency = < 100000000 >;
+		};
+
+		serial2: serial@12C20000 {
+			clock-frequency = < 100000000 >;
+		};
+
+		serial3: serial@12C30000 {
+			clock-frequency = < 100000000 >;
+		};
+
+		usb@12110000 {
+			status = "okay";
+		};
+
+		usbdrd_phy0: phy@12100000 {
+			status = "okay";
+		};
+
+		xhci@12000000 {
+			status = "okay";
+		};
+	};
+};

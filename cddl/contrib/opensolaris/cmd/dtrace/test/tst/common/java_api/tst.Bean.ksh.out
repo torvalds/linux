@@ -1,0 +1,722 @@
+ExitRecord:
+  serialized: 1
+  deserialized: 1
+ExitRecord:
+  encoded: 1
+  decoded: 1
+AggregationRecord:
+  serialized: org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]
+  deserialized: org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]
+AggregationRecord:
+  encoded: org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]
+  decoded: org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]
+Aggregation:
+  serialized: org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]]
+  deserialized: org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]]
+Aggregation:
+  encoded: org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]]
+  decoded: org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]]
+Tuple:
+  serialized: [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]
+  deserialized: [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]
+Tuple:
+  encoded: [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]
+  decoded: [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]
+ScalarRecord:
+  serialized: [1, 2, 3]
+  deserialized: [1, 2, 3]
+ScalarRecord:
+  encoded: [1, 2, 3]
+  decoded: [1, 2, 3]
+KernelStackRecord:
+  serialized: 
+              Frame 1
+              Frame 2
+              Frame 3
+
+  deserialized: 
+              Frame 1
+              Frame 2
+              Frame 3
+
+KernelStackRecord:
+  encoded: 
+              Frame 1
+              Frame 2
+              Frame 3
+
+  decoded: 
+              Frame 1
+              Frame 2
+              Frame 3
+
+LogDistribution:
+  serialized: org.opensolaris.os.dtrace.Distribution[buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = -4611686018427387904, max = -2305843009213693953, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2305843009213693952, max = -1152921504606846977, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1152921504606846976, max = -576460752303423489, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = -576460752303423488, max = -288230376151711745, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = -288230376151711744, max = -144115188075855873, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = -144115188075855872, max = -72057594037927937, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = -72057594037927936, max = -36028797018963969, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = -36028797018963968, max = -18014398509481985, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = -18014398509481984, max = -9007199254740993, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = -9007199254740992, max = -4503599627370497, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4503599627370496, max = -2251799813685249, frequency = 10], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2251799813685248, max = -1125899906842625, frequency = 11], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1125899906842624, max = -562949953421313, frequency = 12], org.opensolaris.os.dtrace.Distribution$Bucket[min = -562949953421312, max = -281474976710657, frequency = 13], org.opensolaris.os.dtrace.Distribution$Bucket[min = -281474976710656, max = -140737488355329, frequency = 14], org.opensolaris.os.dtrace.Distribution$Bucket[min = -140737488355328, max = -70368744177665, frequency = 15], org.opensolaris.os.dtrace.Distribution$Bucket[min = -70368744177664, max = -35184372088833, frequency = 16], org.opensolaris.os.dtrace.Distribution$Bucket[min = -35184372088832, max = -17592186044417, frequency = 17], org.opensolaris.os.dtrace.Distribution$Bucket[min = -17592186044416, max = -8796093022209, frequency = 18], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8796093022208, max = -4398046511105, frequency = 19], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4398046511104, max = -2199023255553, frequency = 20], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2199023255552, max = -1099511627777, frequency = 21], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1099511627776, max = -549755813889, frequency = 22], org.opensolaris.os.dtrace.Distribution$Bucket[min = -549755813888, max = -274877906945, frequency = 23], org.opensolaris.os.dtrace.Distribution$Bucket[min = -274877906944, max = -137438953473, frequency = 24], org.opensolaris.os.dtrace.Distribution$Bucket[min = -137438953472, max = -68719476737, frequency = 25], org.opensolaris.os.dtrace.Distribution$Bucket[min = -68719476736, max = -34359738369, frequency = 26], org.opensolaris.os.dtrace.Distribution$Bucket[min = -34359738368, max = -17179869185, frequency = 27], org.opensolaris.os.dtrace.Distribution$Bucket[min = -17179869184, max = -8589934593, frequency = 28], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8589934592, max = -4294967297, frequency = 29], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4294967296, max = -2147483649, frequency = 30], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2147483648, max = -1073741825, frequency = 31], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1073741824, max = -536870913, frequency = 32], org.opensolaris.os.dtrace.Distribution$Bucket[min = -536870912, max = -268435457, frequency = 33], org.opensolaris.os.dtrace.Distribution$Bucket[min = -268435456, max = -134217729, frequency = 34], org.opensolaris.os.dtrace.Distribution$Bucket[min = -134217728, max = -67108865, frequency = 35], org.opensolaris.os.dtrace.Distribution$Bucket[min = -67108864, max = -33554433, frequency = 36], org.opensolaris.os.dtrace.Distribution$Bucket[min = -33554432, max = -16777217, frequency = 37], org.opensolaris.os.dtrace.Distribution$Bucket[min = -16777216, max = -8388609, frequency = 38], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8388608, max = -4194305, frequency = 39], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4194304, max = -2097153, frequency = 40], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2097152, max = -1048577, frequency = 41], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1048576, max = -524289, frequency = 42], org.opensolaris.os.dtrace.Distribution$Bucket[min = -524288, max = -262145, frequency = 43], org.opensolaris.os.dtrace.Distribution$Bucket[min = -262144, max = -131073, frequency = 44], org.opensolaris.os.dtrace.Distribution$Bucket[min = -131072, max = -65537, frequency = 45], org.opensolaris.os.dtrace.Distribution$Bucket[min = -65536, max = -32769, frequency = 46], org.opensolaris.os.dtrace.Distribution$Bucket[min = -32768, max = -16385, frequency = 47], org.opensolaris.os.dtrace.Distribution$Bucket[min = -16384, max = -8193, frequency = 48], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8192, max = -4097, frequency = 49], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4096, max = -2049, frequency = 50], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2048, max = -1025, frequency = 51], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1024, max = -513, frequency = 52], org.opensolaris.os.dtrace.Distribution$Bucket[min = -512, max = -257, frequency = 53], org.opensolaris.os.dtrace.Distribution$Bucket[min = -256, max = -129, frequency = 54], org.opensolaris.os.dtrace.Distribution$Bucket[min = -128, max = -65, frequency = 55], org.opensolaris.os.dtrace.Distribution$Bucket[min = -64, max = -33, frequency = 56], org.opensolaris.os.dtrace.Distribution$Bucket[min = -32, max = -17, frequency = 57], org.opensolaris.os.dtrace.Distribution$Bucket[min = -16, max = -9, frequency = 58], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8, max = -5, frequency = 59], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4, max = -3, frequency = 60], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2, max = -2, frequency = 61], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1, max = -1, frequency = 62], org.opensolaris.os.dtrace.Distribution$Bucket[min = 0, max = 0, frequency = 63], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 1, frequency = 64], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2, max = 3, frequency = 65], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4, max = 7, frequency = 66], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8, max = 15, frequency = 67], org.opensolaris.os.dtrace.Distribution$Bucket[min = 16, max = 31, frequency = 68], org.opensolaris.os.dtrace.Distribution$Bucket[min = 32, max = 63, frequency = 69], org.opensolaris.os.dtrace.Distribution$Bucket[min = 64, max = 127, frequency = 70], org.opensolaris.os.dtrace.Distribution$Bucket[min = 128, max = 255, frequency = 71], org.opensolaris.os.dtrace.Distribution$Bucket[min = 256, max = 511, frequency = 72], org.opensolaris.os.dtrace.Distribution$Bucket[min = 512, max = 1023, frequency = 73], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1024, max = 2047, frequency = 74], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2048, max = 4095, frequency = 75], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4096, max = 8191, frequency = 76], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8192, max = 16383, frequency = 77], org.opensolaris.os.dtrace.Distribution$Bucket[min = 16384, max = 32767, frequency = 78], org.opensolaris.os.dtrace.Distribution$Bucket[min = 32768, max = 65535, frequency = 79], org.opensolaris.os.dtrace.Distribution$Bucket[min = 65536, max = 131071, frequency = 80], org.opensolaris.os.dtrace.Distribution$Bucket[min = 131072, max = 262143, frequency = 81], org.opensolaris.os.dtrace.Distribution$Bucket[min = 262144, max = 524287, frequency = 82], org.opensolaris.os.dtrace.Distribution$Bucket[min = 524288, max = 1048575, frequency = 83], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1048576, max = 2097151, frequency = 84], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2097152, max = 4194303, frequency = 85], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4194304, max = 8388607, frequency = 86], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8388608, max = 16777215, frequency = 87], org.opensolaris.os.dtrace.Distribution$Bucket[min = 16777216, max = 33554431, frequency = 88], org.opensolaris.os.dtrace.Distribution$Bucket[min = 33554432, max = 67108863, frequency = 89], org.opensolaris.os.dtrace.Distribution$Bucket[min = 67108864, max = 134217727, frequency = 90], org.opensolaris.os.dtrace.Distribution$Bucket[min = 134217728, max = 268435455, frequency = 91], org.opensolaris.os.dtrace.Distribution$Bucket[min = 268435456, max = 536870911, frequency = 92], org.opensolaris.os.dtrace.Distribution$Bucket[min = 536870912, max = 1073741823, frequency = 93], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1073741824, max = 2147483647, frequency = 94], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2147483648, max = 4294967295, frequency = 95], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4294967296, max = 8589934591, frequency = 96], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8589934592, max = 17179869183, frequency = 97], org.opensolaris.os.dtrace.Distribution$Bucket[min = 17179869184, max = 34359738367, frequency = 98], org.opensolaris.os.dtrace.Distribution$Bucket[min = 34359738368, max = 68719476735, frequency = 99], org.opensolaris.os.dtrace.Distribution$Bucket[min = 68719476736, max = 137438953471, frequency = 100], org.opensolaris.os.dtrace.Distribution$Bucket[min = 137438953472, max = 274877906943, frequency = 101], org.opensolaris.os.dtrace.Distribution$Bucket[min = 274877906944, max = 549755813887, frequency = 102], org.opensolaris.os.dtrace.Distribution$Bucket[min = 549755813888, max = 1099511627775, frequency = 103], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1099511627776, max = 2199023255551, frequency = 104], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2199023255552, max = 4398046511103, frequency = 105], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4398046511104, max = 8796093022207, frequency = 106], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8796093022208, max = 17592186044415, frequency = 107], org.opensolaris.os.dtrace.Distribution$Bucket[min = 17592186044416, max = 35184372088831, frequency = 108], org.opensolaris.os.dtrace.Distribution$Bucket[min = 35184372088832, max = 70368744177663, frequency = 109], org.opensolaris.os.dtrace.Distribution$Bucket[min = 70368744177664, max = 140737488355327, frequency = 110], org.opensolaris.os.dtrace.Distribution$Bucket[min = 140737488355328, max = 281474976710655, frequency = 111], org.opensolaris.os.dtrace.Distribution$Bucket[min = 281474976710656, max = 562949953421311, frequency = 112], org.opensolaris.os.dtrace.Distribution$Bucket[min = 562949953421312, max = 1125899906842623, frequency = 113], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1125899906842624, max = 2251799813685247, frequency = 114], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2251799813685248, max = 4503599627370495, frequency = 115], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4503599627370496, max = 9007199254740991, frequency = 116], org.opensolaris.os.dtrace.Distribution$Bucket[min = 9007199254740992, max = 18014398509481983, frequency = 117], org.opensolaris.os.dtrace.Distribution$Bucket[min = 18014398509481984, max = 36028797018963967, frequency = 118], org.opensolaris.os.dtrace.Distribution$Bucket[min = 36028797018963968, max = 72057594037927935, frequency = 119], org.opensolaris.os.dtrace.Distribution$Bucket[min = 72057594037927936, max = 144115188075855871, frequency = 120], org.opensolaris.os.dtrace.Distribution$Bucket[min = 144115188075855872, max = 288230376151711743, frequency = 121], org.opensolaris.os.dtrace.Distribution$Bucket[min = 288230376151711744, max = 576460752303423487, frequency = 122], org.opensolaris.os.dtrace.Distribution$Bucket[min = 576460752303423488, max = 1152921504606846975, frequency = 123], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1152921504606846976, max = 2305843009213693951, frequency = 124], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2305843009213693952, max = 4611686018427387903, frequency = 125], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4611686018427387904, max = 9223372036854775807, frequency = 126]], total = 8001.0]
+  deserialized: org.opensolaris.os.dtrace.Distribution[buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = -4611686018427387904, max = -2305843009213693953, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2305843009213693952, max = -1152921504606846977, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1152921504606846976, max = -576460752303423489, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = -576460752303423488, max = -288230376151711745, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = -288230376151711744, max = -144115188075855873, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = -144115188075855872, max = -72057594037927937, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = -72057594037927936, max = -36028797018963969, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = -36028797018963968, max = -18014398509481985, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = -18014398509481984, max = -9007199254740993, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = -9007199254740992, max = -4503599627370497, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4503599627370496, max = -2251799813685249, frequency = 10], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2251799813685248, max = -1125899906842625, frequency = 11], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1125899906842624, max = -562949953421313, frequency = 12], org.opensolaris.os.dtrace.Distribution$Bucket[min = -562949953421312, max = -281474976710657, frequency = 13], org.opensolaris.os.dtrace.Distribution$Bucket[min = -281474976710656, max = -140737488355329, frequency = 14], org.opensolaris.os.dtrace.Distribution$Bucket[min = -140737488355328, max = -70368744177665, frequency = 15], org.opensolaris.os.dtrace.Distribution$Bucket[min = -70368744177664, max = -35184372088833, frequency = 16], org.opensolaris.os.dtrace.Distribution$Bucket[min = -35184372088832, max = -17592186044417, frequency = 17], org.opensolaris.os.dtrace.Distribution$Bucket[min = -17592186044416, max = -8796093022209, frequency = 18], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8796093022208, max = -4398046511105, frequency = 19], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4398046511104, max = -2199023255553, frequency = 20], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2199023255552, max = -1099511627777, frequency = 21], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1099511627776, max = -549755813889, frequency = 22], org.opensolaris.os.dtrace.Distribution$Bucket[min = -549755813888, max = -274877906945, frequency = 23], org.opensolaris.os.dtrace.Distribution$Bucket[min = -274877906944, max = -137438953473, frequency = 24], org.opensolaris.os.dtrace.Distribution$Bucket[min = -137438953472, max = -68719476737, frequency = 25], org.opensolaris.os.dtrace.Distribution$Bucket[min = -68719476736, max = -34359738369, frequency = 26], org.opensolaris.os.dtrace.Distribution$Bucket[min = -34359738368, max = -17179869185, frequency = 27], org.opensolaris.os.dtrace.Distribution$Bucket[min = -17179869184, max = -8589934593, frequency = 28], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8589934592, max = -4294967297, frequency = 29], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4294967296, max = -2147483649, frequency = 30], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2147483648, max = -1073741825, frequency = 31], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1073741824, max = -536870913, frequency = 32], org.opensolaris.os.dtrace.Distribution$Bucket[min = -536870912, max = -268435457, frequency = 33], org.opensolaris.os.dtrace.Distribution$Bucket[min = -268435456, max = -134217729, frequency = 34], org.opensolaris.os.dtrace.Distribution$Bucket[min = -134217728, max = -67108865, frequency = 35], org.opensolaris.os.dtrace.Distribution$Bucket[min = -67108864, max = -33554433, frequency = 36], org.opensolaris.os.dtrace.Distribution$Bucket[min = -33554432, max = -16777217, frequency = 37], org.opensolaris.os.dtrace.Distribution$Bucket[min = -16777216, max = -8388609, frequency = 38], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8388608, max = -4194305, frequency = 39], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4194304, max = -2097153, frequency = 40], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2097152, max = -1048577, frequency = 41], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1048576, max = -524289, frequency = 42], org.opensolaris.os.dtrace.Distribution$Bucket[min = -524288, max = -262145, frequency = 43], org.opensolaris.os.dtrace.Distribution$Bucket[min = -262144, max = -131073, frequency = 44], org.opensolaris.os.dtrace.Distribution$Bucket[min = -131072, max = -65537, frequency = 45], org.opensolaris.os.dtrace.Distribution$Bucket[min = -65536, max = -32769, frequency = 46], org.opensolaris.os.dtrace.Distribution$Bucket[min = -32768, max = -16385, frequency = 47], org.opensolaris.os.dtrace.Distribution$Bucket[min = -16384, max = -8193, frequency = 48], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8192, max = -4097, frequency = 49], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4096, max = -2049, frequency = 50], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2048, max = -1025, frequency = 51], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1024, max = -513, frequency = 52], org.opensolaris.os.dtrace.Distribution$Bucket[min = -512, max = -257, frequency = 53], org.opensolaris.os.dtrace.Distribution$Bucket[min = -256, max = -129, frequency = 54], org.opensolaris.os.dtrace.Distribution$Bucket[min = -128, max = -65, frequency = 55], org.opensolaris.os.dtrace.Distribution$Bucket[min = -64, max = -33, frequency = 56], org.opensolaris.os.dtrace.Distribution$Bucket[min = -32, max = -17, frequency = 57], org.opensolaris.os.dtrace.Distribution$Bucket[min = -16, max = -9, frequency = 58], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8, max = -5, frequency = 59], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4, max = -3, frequency = 60], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2, max = -2, frequency = 61], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1, max = -1, frequency = 62], org.opensolaris.os.dtrace.Distribution$Bucket[min = 0, max = 0, frequency = 63], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 1, frequency = 64], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2, max = 3, frequency = 65], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4, max = 7, frequency = 66], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8, max = 15, frequency = 67], org.opensolaris.os.dtrace.Distribution$Bucket[min = 16, max = 31, frequency = 68], org.opensolaris.os.dtrace.Distribution$Bucket[min = 32, max = 63, frequency = 69], org.opensolaris.os.dtrace.Distribution$Bucket[min = 64, max = 127, frequency = 70], org.opensolaris.os.dtrace.Distribution$Bucket[min = 128, max = 255, frequency = 71], org.opensolaris.os.dtrace.Distribution$Bucket[min = 256, max = 511, frequency = 72], org.opensolaris.os.dtrace.Distribution$Bucket[min = 512, max = 1023, frequency = 73], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1024, max = 2047, frequency = 74], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2048, max = 4095, frequency = 75], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4096, max = 8191, frequency = 76], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8192, max = 16383, frequency = 77], org.opensolaris.os.dtrace.Distribution$Bucket[min = 16384, max = 32767, frequency = 78], org.opensolaris.os.dtrace.Distribution$Bucket[min = 32768, max = 65535, frequency = 79], org.opensolaris.os.dtrace.Distribution$Bucket[min = 65536, max = 131071, frequency = 80], org.opensolaris.os.dtrace.Distribution$Bucket[min = 131072, max = 262143, frequency = 81], org.opensolaris.os.dtrace.Distribution$Bucket[min = 262144, max = 524287, frequency = 82], org.opensolaris.os.dtrace.Distribution$Bucket[min = 524288, max = 1048575, frequency = 83], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1048576, max = 2097151, frequency = 84], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2097152, max = 4194303, frequency = 85], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4194304, max = 8388607, frequency = 86], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8388608, max = 16777215, frequency = 87], org.opensolaris.os.dtrace.Distribution$Bucket[min = 16777216, max = 33554431, frequency = 88], org.opensolaris.os.dtrace.Distribution$Bucket[min = 33554432, max = 67108863, frequency = 89], org.opensolaris.os.dtrace.Distribution$Bucket[min = 67108864, max = 134217727, frequency = 90], org.opensolaris.os.dtrace.Distribution$Bucket[min = 134217728, max = 268435455, frequency = 91], org.opensolaris.os.dtrace.Distribution$Bucket[min = 268435456, max = 536870911, frequency = 92], org.opensolaris.os.dtrace.Distribution$Bucket[min = 536870912, max = 1073741823, frequency = 93], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1073741824, max = 2147483647, frequency = 94], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2147483648, max = 4294967295, frequency = 95], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4294967296, max = 8589934591, frequency = 96], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8589934592, max = 17179869183, frequency = 97], org.opensolaris.os.dtrace.Distribution$Bucket[min = 17179869184, max = 34359738367, frequency = 98], org.opensolaris.os.dtrace.Distribution$Bucket[min = 34359738368, max = 68719476735, frequency = 99], org.opensolaris.os.dtrace.Distribution$Bucket[min = 68719476736, max = 137438953471, frequency = 100], org.opensolaris.os.dtrace.Distribution$Bucket[min = 137438953472, max = 274877906943, frequency = 101], org.opensolaris.os.dtrace.Distribution$Bucket[min = 274877906944, max = 549755813887, frequency = 102], org.opensolaris.os.dtrace.Distribution$Bucket[min = 549755813888, max = 1099511627775, frequency = 103], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1099511627776, max = 2199023255551, frequency = 104], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2199023255552, max = 4398046511103, frequency = 105], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4398046511104, max = 8796093022207, frequency = 106], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8796093022208, max = 17592186044415, frequency = 107], org.opensolaris.os.dtrace.Distribution$Bucket[min = 17592186044416, max = 35184372088831, frequency = 108], org.opensolaris.os.dtrace.Distribution$Bucket[min = 35184372088832, max = 70368744177663, frequency = 109], org.opensolaris.os.dtrace.Distribution$Bucket[min = 70368744177664, max = 140737488355327, frequency = 110], org.opensolaris.os.dtrace.Distribution$Bucket[min = 140737488355328, max = 281474976710655, frequency = 111], org.opensolaris.os.dtrace.Distribution$Bucket[min = 281474976710656, max = 562949953421311, frequency = 112], org.opensolaris.os.dtrace.Distribution$Bucket[min = 562949953421312, max = 1125899906842623, frequency = 113], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1125899906842624, max = 2251799813685247, frequency = 114], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2251799813685248, max = 4503599627370495, frequency = 115], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4503599627370496, max = 9007199254740991, frequency = 116], org.opensolaris.os.dtrace.Distribution$Bucket[min = 9007199254740992, max = 18014398509481983, frequency = 117], org.opensolaris.os.dtrace.Distribution$Bucket[min = 18014398509481984, max = 36028797018963967, frequency = 118], org.opensolaris.os.dtrace.Distribution$Bucket[min = 36028797018963968, max = 72057594037927935, frequency = 119], org.opensolaris.os.dtrace.Distribution$Bucket[min = 72057594037927936, max = 144115188075855871, frequency = 120], org.opensolaris.os.dtrace.Distribution$Bucket[min = 144115188075855872, max = 288230376151711743, frequency = 121], org.opensolaris.os.dtrace.Distribution$Bucket[min = 288230376151711744, max = 576460752303423487, frequency = 122], org.opensolaris.os.dtrace.Distribution$Bucket[min = 576460752303423488, max = 1152921504606846975, frequency = 123], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1152921504606846976, max = 2305843009213693951, frequency = 124], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2305843009213693952, max = 4611686018427387903, frequency = 125], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4611686018427387904, max = 9223372036854775807, frequency = 126]], total = 8001.0]
+LogDistribution:
+  encoded: org.opensolaris.os.dtrace.Distribution[buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = -4611686018427387904, max = -2305843009213693953, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2305843009213693952, max = -1152921504606846977, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1152921504606846976, max = -576460752303423489, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = -576460752303423488, max = -288230376151711745, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = -288230376151711744, max = -144115188075855873, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = -144115188075855872, max = -72057594037927937, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = -72057594037927936, max = -36028797018963969, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = -36028797018963968, max = -18014398509481985, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = -18014398509481984, max = -9007199254740993, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = -9007199254740992, max = -4503599627370497, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4503599627370496, max = -2251799813685249, frequency = 10], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2251799813685248, max = -1125899906842625, frequency = 11], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1125899906842624, max = -562949953421313, frequency = 12], org.opensolaris.os.dtrace.Distribution$Bucket[min = -562949953421312, max = -281474976710657, frequency = 13], org.opensolaris.os.dtrace.Distribution$Bucket[min = -281474976710656, max = -140737488355329, frequency = 14], org.opensolaris.os.dtrace.Distribution$Bucket[min = -140737488355328, max = -70368744177665, frequency = 15], org.opensolaris.os.dtrace.Distribution$Bucket[min = -70368744177664, max = -35184372088833, frequency = 16], org.opensolaris.os.dtrace.Distribution$Bucket[min = -35184372088832, max = -17592186044417, frequency = 17], org.opensolaris.os.dtrace.Distribution$Bucket[min = -17592186044416, max = -8796093022209, frequency = 18], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8796093022208, max = -4398046511105, frequency = 19], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4398046511104, max = -2199023255553, frequency = 20], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2199023255552, max = -1099511627777, frequency = 21], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1099511627776, max = -549755813889, frequency = 22], org.opensolaris.os.dtrace.Distribution$Bucket[min = -549755813888, max = -274877906945, frequency = 23], org.opensolaris.os.dtrace.Distribution$Bucket[min = -274877906944, max = -137438953473, frequency = 24], org.opensolaris.os.dtrace.Distribution$Bucket[min = -137438953472, max = -68719476737, frequency = 25], org.opensolaris.os.dtrace.Distribution$Bucket[min = -68719476736, max = -34359738369, frequency = 26], org.opensolaris.os.dtrace.Distribution$Bucket[min = -34359738368, max = -17179869185, frequency = 27], org.opensolaris.os.dtrace.Distribution$Bucket[min = -17179869184, max = -8589934593, frequency = 28], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8589934592, max = -4294967297, frequency = 29], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4294967296, max = -2147483649, frequency = 30], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2147483648, max = -1073741825, frequency = 31], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1073741824, max = -536870913, frequency = 32], org.opensolaris.os.dtrace.Distribution$Bucket[min = -536870912, max = -268435457, frequency = 33], org.opensolaris.os.dtrace.Distribution$Bucket[min = -268435456, max = -134217729, frequency = 34], org.opensolaris.os.dtrace.Distribution$Bucket[min = -134217728, max = -67108865, frequency = 35], org.opensolaris.os.dtrace.Distribution$Bucket[min = -67108864, max = -33554433, frequency = 36], org.opensolaris.os.dtrace.Distribution$Bucket[min = -33554432, max = -16777217, frequency = 37], org.opensolaris.os.dtrace.Distribution$Bucket[min = -16777216, max = -8388609, frequency = 38], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8388608, max = -4194305, frequency = 39], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4194304, max = -2097153, frequency = 40], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2097152, max = -1048577, frequency = 41], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1048576, max = -524289, frequency = 42], org.opensolaris.os.dtrace.Distribution$Bucket[min = -524288, max = -262145, frequency = 43], org.opensolaris.os.dtrace.Distribution$Bucket[min = -262144, max = -131073, frequency = 44], org.opensolaris.os.dtrace.Distribution$Bucket[min = -131072, max = -65537, frequency = 45], org.opensolaris.os.dtrace.Distribution$Bucket[min = -65536, max = -32769, frequency = 46], org.opensolaris.os.dtrace.Distribution$Bucket[min = -32768, max = -16385, frequency = 47], org.opensolaris.os.dtrace.Distribution$Bucket[min = -16384, max = -8193, frequency = 48], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8192, max = -4097, frequency = 49], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4096, max = -2049, frequency = 50], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2048, max = -1025, frequency = 51], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1024, max = -513, frequency = 52], org.opensolaris.os.dtrace.Distribution$Bucket[min = -512, max = -257, frequency = 53], org.opensolaris.os.dtrace.Distribution$Bucket[min = -256, max = -129, frequency = 54], org.opensolaris.os.dtrace.Distribution$Bucket[min = -128, max = -65, frequency = 55], org.opensolaris.os.dtrace.Distribution$Bucket[min = -64, max = -33, frequency = 56], org.opensolaris.os.dtrace.Distribution$Bucket[min = -32, max = -17, frequency = 57], org.opensolaris.os.dtrace.Distribution$Bucket[min = -16, max = -9, frequency = 58], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8, max = -5, frequency = 59], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4, max = -3, frequency = 60], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2, max = -2, frequency = 61], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1, max = -1, frequency = 62], org.opensolaris.os.dtrace.Distribution$Bucket[min = 0, max = 0, frequency = 63], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 1, frequency = 64], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2, max = 3, frequency = 65], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4, max = 7, frequency = 66], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8, max = 15, frequency = 67], org.opensolaris.os.dtrace.Distribution$Bucket[min = 16, max = 31, frequency = 68], org.opensolaris.os.dtrace.Distribution$Bucket[min = 32, max = 63, frequency = 69], org.opensolaris.os.dtrace.Distribution$Bucket[min = 64, max = 127, frequency = 70], org.opensolaris.os.dtrace.Distribution$Bucket[min = 128, max = 255, frequency = 71], org.opensolaris.os.dtrace.Distribution$Bucket[min = 256, max = 511, frequency = 72], org.opensolaris.os.dtrace.Distribution$Bucket[min = 512, max = 1023, frequency = 73], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1024, max = 2047, frequency = 74], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2048, max = 4095, frequency = 75], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4096, max = 8191, frequency = 76], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8192, max = 16383, frequency = 77], org.opensolaris.os.dtrace.Distribution$Bucket[min = 16384, max = 32767, frequency = 78], org.opensolaris.os.dtrace.Distribution$Bucket[min = 32768, max = 65535, frequency = 79], org.opensolaris.os.dtrace.Distribution$Bucket[min = 65536, max = 131071, frequency = 80], org.opensolaris.os.dtrace.Distribution$Bucket[min = 131072, max = 262143, frequency = 81], org.opensolaris.os.dtrace.Distribution$Bucket[min = 262144, max = 524287, frequency = 82], org.opensolaris.os.dtrace.Distribution$Bucket[min = 524288, max = 1048575, frequency = 83], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1048576, max = 2097151, frequency = 84], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2097152, max = 4194303, frequency = 85], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4194304, max = 8388607, frequency = 86], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8388608, max = 16777215, frequency = 87], org.opensolaris.os.dtrace.Distribution$Bucket[min = 16777216, max = 33554431, frequency = 88], org.opensolaris.os.dtrace.Distribution$Bucket[min = 33554432, max = 67108863, frequency = 89], org.opensolaris.os.dtrace.Distribution$Bucket[min = 67108864, max = 134217727, frequency = 90], org.opensolaris.os.dtrace.Distribution$Bucket[min = 134217728, max = 268435455, frequency = 91], org.opensolaris.os.dtrace.Distribution$Bucket[min = 268435456, max = 536870911, frequency = 92], org.opensolaris.os.dtrace.Distribution$Bucket[min = 536870912, max = 1073741823, frequency = 93], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1073741824, max = 2147483647, frequency = 94], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2147483648, max = 4294967295, frequency = 95], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4294967296, max = 8589934591, frequency = 96], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8589934592, max = 17179869183, frequency = 97], org.opensolaris.os.dtrace.Distribution$Bucket[min = 17179869184, max = 34359738367, frequency = 98], org.opensolaris.os.dtrace.Distribution$Bucket[min = 34359738368, max = 68719476735, frequency = 99], org.opensolaris.os.dtrace.Distribution$Bucket[min = 68719476736, max = 137438953471, frequency = 100], org.opensolaris.os.dtrace.Distribution$Bucket[min = 137438953472, max = 274877906943, frequency = 101], org.opensolaris.os.dtrace.Distribution$Bucket[min = 274877906944, max = 549755813887, frequency = 102], org.opensolaris.os.dtrace.Distribution$Bucket[min = 549755813888, max = 1099511627775, frequency = 103], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1099511627776, max = 2199023255551, frequency = 104], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2199023255552, max = 4398046511103, frequency = 105], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4398046511104, max = 8796093022207, frequency = 106], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8796093022208, max = 17592186044415, frequency = 107], org.opensolaris.os.dtrace.Distribution$Bucket[min = 17592186044416, max = 35184372088831, frequency = 108], org.opensolaris.os.dtrace.Distribution$Bucket[min = 35184372088832, max = 70368744177663, frequency = 109], org.opensolaris.os.dtrace.Distribution$Bucket[min = 70368744177664, max = 140737488355327, frequency = 110], org.opensolaris.os.dtrace.Distribution$Bucket[min = 140737488355328, max = 281474976710655, frequency = 111], org.opensolaris.os.dtrace.Distribution$Bucket[min = 281474976710656, max = 562949953421311, frequency = 112], org.opensolaris.os.dtrace.Distribution$Bucket[min = 562949953421312, max = 1125899906842623, frequency = 113], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1125899906842624, max = 2251799813685247, frequency = 114], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2251799813685248, max = 4503599627370495, frequency = 115], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4503599627370496, max = 9007199254740991, frequency = 116], org.opensolaris.os.dtrace.Distribution$Bucket[min = 9007199254740992, max = 18014398509481983, frequency = 117], org.opensolaris.os.dtrace.Distribution$Bucket[min = 18014398509481984, max = 36028797018963967, frequency = 118], org.opensolaris.os.dtrace.Distribution$Bucket[min = 36028797018963968, max = 72057594037927935, frequency = 119], org.opensolaris.os.dtrace.Distribution$Bucket[min = 72057594037927936, max = 144115188075855871, frequency = 120], org.opensolaris.os.dtrace.Distribution$Bucket[min = 144115188075855872, max = 288230376151711743, frequency = 121], org.opensolaris.os.dtrace.Distribution$Bucket[min = 288230376151711744, max = 576460752303423487, frequency = 122], org.opensolaris.os.dtrace.Distribution$Bucket[min = 576460752303423488, max = 1152921504606846975, frequency = 123], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1152921504606846976, max = 2305843009213693951, frequency = 124], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2305843009213693952, max = 4611686018427387903, frequency = 125], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4611686018427387904, max = 9223372036854775807, frequency = 126]], total = 8001.0]
+  decoded: org.opensolaris.os.dtrace.Distribution[buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = -4611686018427387904, max = -2305843009213693953, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2305843009213693952, max = -1152921504606846977, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1152921504606846976, max = -576460752303423489, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = -576460752303423488, max = -288230376151711745, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = -288230376151711744, max = -144115188075855873, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = -144115188075855872, max = -72057594037927937, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = -72057594037927936, max = -36028797018963969, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = -36028797018963968, max = -18014398509481985, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = -18014398509481984, max = -9007199254740993, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = -9007199254740992, max = -4503599627370497, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4503599627370496, max = -2251799813685249, frequency = 10], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2251799813685248, max = -1125899906842625, frequency = 11], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1125899906842624, max = -562949953421313, frequency = 12], org.opensolaris.os.dtrace.Distribution$Bucket[min = -562949953421312, max = -281474976710657, frequency = 13], org.opensolaris.os.dtrace.Distribution$Bucket[min = -281474976710656, max = -140737488355329, frequency = 14], org.opensolaris.os.dtrace.Distribution$Bucket[min = -140737488355328, max = -70368744177665, frequency = 15], org.opensolaris.os.dtrace.Distribution$Bucket[min = -70368744177664, max = -35184372088833, frequency = 16], org.opensolaris.os.dtrace.Distribution$Bucket[min = -35184372088832, max = -17592186044417, frequency = 17], org.opensolaris.os.dtrace.Distribution$Bucket[min = -17592186044416, max = -8796093022209, frequency = 18], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8796093022208, max = -4398046511105, frequency = 19], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4398046511104, max = -2199023255553, frequency = 20], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2199023255552, max = -1099511627777, frequency = 21], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1099511627776, max = -549755813889, frequency = 22], org.opensolaris.os.dtrace.Distribution$Bucket[min = -549755813888, max = -274877906945, frequency = 23], org.opensolaris.os.dtrace.Distribution$Bucket[min = -274877906944, max = -137438953473, frequency = 24], org.opensolaris.os.dtrace.Distribution$Bucket[min = -137438953472, max = -68719476737, frequency = 25], org.opensolaris.os.dtrace.Distribution$Bucket[min = -68719476736, max = -34359738369, frequency = 26], org.opensolaris.os.dtrace.Distribution$Bucket[min = -34359738368, max = -17179869185, frequency = 27], org.opensolaris.os.dtrace.Distribution$Bucket[min = -17179869184, max = -8589934593, frequency = 28], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8589934592, max = -4294967297, frequency = 29], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4294967296, max = -2147483649, frequency = 30], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2147483648, max = -1073741825, frequency = 31], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1073741824, max = -536870913, frequency = 32], org.opensolaris.os.dtrace.Distribution$Bucket[min = -536870912, max = -268435457, frequency = 33], org.opensolaris.os.dtrace.Distribution$Bucket[min = -268435456, max = -134217729, frequency = 34], org.opensolaris.os.dtrace.Distribution$Bucket[min = -134217728, max = -67108865, frequency = 35], org.opensolaris.os.dtrace.Distribution$Bucket[min = -67108864, max = -33554433, frequency = 36], org.opensolaris.os.dtrace.Distribution$Bucket[min = -33554432, max = -16777217, frequency = 37], org.opensolaris.os.dtrace.Distribution$Bucket[min = -16777216, max = -8388609, frequency = 38], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8388608, max = -4194305, frequency = 39], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4194304, max = -2097153, frequency = 40], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2097152, max = -1048577, frequency = 41], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1048576, max = -524289, frequency = 42], org.opensolaris.os.dtrace.Distribution$Bucket[min = -524288, max = -262145, frequency = 43], org.opensolaris.os.dtrace.Distribution$Bucket[min = -262144, max = -131073, frequency = 44], org.opensolaris.os.dtrace.Distribution$Bucket[min = -131072, max = -65537, frequency = 45], org.opensolaris.os.dtrace.Distribution$Bucket[min = -65536, max = -32769, frequency = 46], org.opensolaris.os.dtrace.Distribution$Bucket[min = -32768, max = -16385, frequency = 47], org.opensolaris.os.dtrace.Distribution$Bucket[min = -16384, max = -8193, frequency = 48], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8192, max = -4097, frequency = 49], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4096, max = -2049, frequency = 50], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2048, max = -1025, frequency = 51], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1024, max = -513, frequency = 52], org.opensolaris.os.dtrace.Distribution$Bucket[min = -512, max = -257, frequency = 53], org.opensolaris.os.dtrace.Distribution$Bucket[min = -256, max = -129, frequency = 54], org.opensolaris.os.dtrace.Distribution$Bucket[min = -128, max = -65, frequency = 55], org.opensolaris.os.dtrace.Distribution$Bucket[min = -64, max = -33, frequency = 56], org.opensolaris.os.dtrace.Distribution$Bucket[min = -32, max = -17, frequency = 57], org.opensolaris.os.dtrace.Distribution$Bucket[min = -16, max = -9, frequency = 58], org.opensolaris.os.dtrace.Distribution$Bucket[min = -8, max = -5, frequency = 59], org.opensolaris.os.dtrace.Distribution$Bucket[min = -4, max = -3, frequency = 60], org.opensolaris.os.dtrace.Distribution$Bucket[min = -2, max = -2, frequency = 61], org.opensolaris.os.dtrace.Distribution$Bucket[min = -1, max = -1, frequency = 62], org.opensolaris.os.dtrace.Distribution$Bucket[min = 0, max = 0, frequency = 63], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 1, frequency = 64], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2, max = 3, frequency = 65], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4, max = 7, frequency = 66], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8, max = 15, frequency = 67], org.opensolaris.os.dtrace.Distribution$Bucket[min = 16, max = 31, frequency = 68], org.opensolaris.os.dtrace.Distribution$Bucket[min = 32, max = 63, frequency = 69], org.opensolaris.os.dtrace.Distribution$Bucket[min = 64, max = 127, frequency = 70], org.opensolaris.os.dtrace.Distribution$Bucket[min = 128, max = 255, frequency = 71], org.opensolaris.os.dtrace.Distribution$Bucket[min = 256, max = 511, frequency = 72], org.opensolaris.os.dtrace.Distribution$Bucket[min = 512, max = 1023, frequency = 73], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1024, max = 2047, frequency = 74], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2048, max = 4095, frequency = 75], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4096, max = 8191, frequency = 76], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8192, max = 16383, frequency = 77], org.opensolaris.os.dtrace.Distribution$Bucket[min = 16384, max = 32767, frequency = 78], org.opensolaris.os.dtrace.Distribution$Bucket[min = 32768, max = 65535, frequency = 79], org.opensolaris.os.dtrace.Distribution$Bucket[min = 65536, max = 131071, frequency = 80], org.opensolaris.os.dtrace.Distribution$Bucket[min = 131072, max = 262143, frequency = 81], org.opensolaris.os.dtrace.Distribution$Bucket[min = 262144, max = 524287, frequency = 82], org.opensolaris.os.dtrace.Distribution$Bucket[min = 524288, max = 1048575, frequency = 83], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1048576, max = 2097151, frequency = 84], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2097152, max = 4194303, frequency = 85], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4194304, max = 8388607, frequency = 86], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8388608, max = 16777215, frequency = 87], org.opensolaris.os.dtrace.Distribution$Bucket[min = 16777216, max = 33554431, frequency = 88], org.opensolaris.os.dtrace.Distribution$Bucket[min = 33554432, max = 67108863, frequency = 89], org.opensolaris.os.dtrace.Distribution$Bucket[min = 67108864, max = 134217727, frequency = 90], org.opensolaris.os.dtrace.Distribution$Bucket[min = 134217728, max = 268435455, frequency = 91], org.opensolaris.os.dtrace.Distribution$Bucket[min = 268435456, max = 536870911, frequency = 92], org.opensolaris.os.dtrace.Distribution$Bucket[min = 536870912, max = 1073741823, frequency = 93], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1073741824, max = 2147483647, frequency = 94], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2147483648, max = 4294967295, frequency = 95], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4294967296, max = 8589934591, frequency = 96], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8589934592, max = 17179869183, frequency = 97], org.opensolaris.os.dtrace.Distribution$Bucket[min = 17179869184, max = 34359738367, frequency = 98], org.opensolaris.os.dtrace.Distribution$Bucket[min = 34359738368, max = 68719476735, frequency = 99], org.opensolaris.os.dtrace.Distribution$Bucket[min = 68719476736, max = 137438953471, frequency = 100], org.opensolaris.os.dtrace.Distribution$Bucket[min = 137438953472, max = 274877906943, frequency = 101], org.opensolaris.os.dtrace.Distribution$Bucket[min = 274877906944, max = 549755813887, frequency = 102], org.opensolaris.os.dtrace.Distribution$Bucket[min = 549755813888, max = 1099511627775, frequency = 103], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1099511627776, max = 2199023255551, frequency = 104], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2199023255552, max = 4398046511103, frequency = 105], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4398046511104, max = 8796093022207, frequency = 106], org.opensolaris.os.dtrace.Distribution$Bucket[min = 8796093022208, max = 17592186044415, frequency = 107], org.opensolaris.os.dtrace.Distribution$Bucket[min = 17592186044416, max = 35184372088831, frequency = 108], org.opensolaris.os.dtrace.Distribution$Bucket[min = 35184372088832, max = 70368744177663, frequency = 109], org.opensolaris.os.dtrace.Distribution$Bucket[min = 70368744177664, max = 140737488355327, frequency = 110], org.opensolaris.os.dtrace.Distribution$Bucket[min = 140737488355328, max = 281474976710655, frequency = 111], org.opensolaris.os.dtrace.Distribution$Bucket[min = 281474976710656, max = 562949953421311, frequency = 112], org.opensolaris.os.dtrace.Distribution$Bucket[min = 562949953421312, max = 1125899906842623, frequency = 113], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1125899906842624, max = 2251799813685247, frequency = 114], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2251799813685248, max = 4503599627370495, frequency = 115], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4503599627370496, max = 9007199254740991, frequency = 116], org.opensolaris.os.dtrace.Distribution$Bucket[min = 9007199254740992, max = 18014398509481983, frequency = 117], org.opensolaris.os.dtrace.Distribution$Bucket[min = 18014398509481984, max = 36028797018963967, frequency = 118], org.opensolaris.os.dtrace.Distribution$Bucket[min = 36028797018963968, max = 72057594037927935, frequency = 119], org.opensolaris.os.dtrace.Distribution$Bucket[min = 72057594037927936, max = 144115188075855871, frequency = 120], org.opensolaris.os.dtrace.Distribution$Bucket[min = 144115188075855872, max = 288230376151711743, frequency = 121], org.opensolaris.os.dtrace.Distribution$Bucket[min = 288230376151711744, max = 576460752303423487, frequency = 122], org.opensolaris.os.dtrace.Distribution$Bucket[min = 576460752303423488, max = 1152921504606846975, frequency = 123], org.opensolaris.os.dtrace.Distribution$Bucket[min = 1152921504606846976, max = 2305843009213693951, frequency = 124], org.opensolaris.os.dtrace.Distribution$Bucket[min = 2305843009213693952, max = 4611686018427387903, frequency = 125], org.opensolaris.os.dtrace.Distribution$Bucket[min = 4611686018427387904, max = 9223372036854775807, frequency = 126]], total = 8001.0]
+LinearDistribution:
+  serialized: class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]
+  deserialized: class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]
+LinearDistribution:
+  encoded: class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]
+  decoded: class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]
+Option:
+  serialized: org.opensolaris.os.dtrace.Option[name = aggrate, value = 1s]
+  deserialized: org.opensolaris.os.dtrace.Option[name = aggrate, value = 1s]
+Option:
+  encoded: org.opensolaris.os.dtrace.Option[name = aggrate, value = 1s]
+  decoded: org.opensolaris.os.dtrace.Option[name = aggrate, value = 1s]
+ProcessState:
+  serialized: org.opensolaris.os.dtrace.ProcessState[pid = 123456, state = UNDEAD, terminationSignal = 3, terminationSignalName = SIGSTOP, exitStatus = -2, message = Process stopped on dime]
+  deserialized: org.opensolaris.os.dtrace.ProcessState[pid = 123456, state = UNDEAD, terminationSignal = 3, terminationSignalName = SIGSTOP, exitStatus = -2, message = Process stopped on dime]
+ProcessState:
+  encoded: org.opensolaris.os.dtrace.ProcessState[pid = 123456, state = UNDEAD, terminationSignal = 3, terminationSignalName = SIGSTOP, exitStatus = -2, message = Process stopped on dime]
+  decoded: org.opensolaris.os.dtrace.ProcessState[pid = 123456, state = UNDEAD, terminationSignal = 3, terminationSignalName = SIGSTOP, exitStatus = -2, message = Process stopped on dime]
+ProbeDescription:
+  serialized: syscall::malloc:entry
+  deserialized: syscall::malloc:entry
+ProbeDescription:
+  encoded: syscall::malloc:entry
+  decoded: syscall::malloc:entry
+PrintaRecord:
+  serialized: org.opensolaris.os.dtrace.PrintaRecord[snaptime = 1234567890, aggregations = [org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]], org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]]], formattedStrings = {[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!]=cat, [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]=cat}, tuples = [[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]], output = Yes, this is the formatted printa() output]
+  deserialized: org.opensolaris.os.dtrace.PrintaRecord[snaptime = 1234567890, aggregations = [org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]], org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]]], formattedStrings = {[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!]=cat, [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]=cat}, tuples = [[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]], output = Yes, this is the formatted printa() output]
+PrintaRecord:
+  encoded: org.opensolaris.os.dtrace.PrintaRecord[snaptime = 1234567890, aggregations = [org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]], org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]]], formattedStrings = {[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!]=cat, [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]=cat}, tuples = [[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]], output = Yes, this is the formatted printa() output]
+  decoded: org.opensolaris.os.dtrace.PrintaRecord[snaptime = 1234567890, aggregations = [org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]], org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]]], formattedStrings = {[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!]=cat, [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]=cat}, tuples = [[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]], output = Yes, this is the formatted printa() output]
+PrintfRecord:
+  serialized: long formatted string
+  deserialized: long formatted string
+PrintfRecord:
+  encoded: long formatted string
+  decoded: long formatted string
+ProbeData:
+  serialized: org.opensolaris.os.dtrace.ProbeData[epid = 7, cpu = 1, enabledProbeDescription = syscall::malloc:entry, flow = org.opensolaris.os.dtrace.Flow[kind = RETURN, depth = 3], records = [org.opensolaris.os.dtrace.PrintaRecord[snaptime = 1234567890, aggregations = [org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]], org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]]], formattedStrings = {[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!]=cat, [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]=cat}, tuples = [[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]], output = Yes, this is the formatted printa() output], long formatted string, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, mod`func+0x4, 
+              process ID: 123456
+              User Stack Frame 1
+              User Stack Frame 2
+              User Stack Frame 3
+, 1]]
+  deserialized: org.opensolaris.os.dtrace.ProbeData[epid = 7, cpu = 1, enabledProbeDescription = syscall::malloc:entry, flow = org.opensolaris.os.dtrace.Flow[kind = RETURN, depth = 3], records = [org.opensolaris.os.dtrace.PrintaRecord[snaptime = 1234567890, aggregations = [org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]], org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]]], formattedStrings = {[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!]=cat, [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]=cat}, tuples = [[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]], output = Yes, this is the formatted printa() output], long formatted string, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, mod`func+0x4, 
+              process ID: 123456
+              User Stack Frame 1
+              User Stack Frame 2
+              User Stack Frame 3
+, 1]]
+ProbeData:
+  encoded: org.opensolaris.os.dtrace.ProbeData[epid = 7, cpu = 1, enabledProbeDescription = syscall::malloc:entry, flow = org.opensolaris.os.dtrace.Flow[kind = RETURN, depth = 3], records = [org.opensolaris.os.dtrace.PrintaRecord[snaptime = 1234567890, aggregations = [org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]], org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]]], formattedStrings = {[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!]=cat, [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]=cat}, tuples = [[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]], output = Yes, this is the formatted printa() output], long formatted string, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, mod`func+0x4, 
+              process ID: 123456
+              User Stack Frame 1
+              User Stack Frame 2
+              User Stack Frame 3
+, 1]]
+  decoded: org.opensolaris.os.dtrace.ProbeData[epid = 7, cpu = 1, enabledProbeDescription = syscall::malloc:entry, flow = org.opensolaris.os.dtrace.Flow[kind = RETURN, depth = 3], records = [org.opensolaris.os.dtrace.PrintaRecord[snaptime = 1234567890, aggregations = [org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]], org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]]], formattedStrings = {[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!]=cat, [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]=cat}, tuples = [[
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+]], output = Yes, this is the formatted printa() output], long formatted string, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, mod`func+0x4, 
+              process ID: 123456
+              User Stack Frame 1
+              User Stack Frame 2
+              User Stack Frame 3
+, 1]]
+Aggregate:
+  serialized: org.opensolaris.os.dtrace.Aggregate[snaptime = 1234567890, aggregations = [org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]], org.opensolaris.os.dtrace.Aggregation[name = times, id = 1, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, dog, mouse, mouse, 67, 7], value = 9]]]]
+  deserialized: org.opensolaris.os.dtrace.Aggregate[snaptime = 1234567890, aggregations = [org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]], org.opensolaris.os.dtrace.Aggregation[name = times, id = 1, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, dog, mouse, mouse, 67, 7], value = 9]]]]
+Aggregate:
+  encoded: org.opensolaris.os.dtrace.Aggregate[snaptime = 1234567890, aggregations = [org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]], org.opensolaris.os.dtrace.Aggregation[name = times, id = 1, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, dog, mouse, mouse, 67, 7], value = 9]]]]
+  decoded: org.opensolaris.os.dtrace.Aggregate[snaptime = 1234567890, aggregations = [org.opensolaris.os.dtrace.Aggregation[name = counts, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+, shebang!], value = class org.opensolaris.os.dtrace.LinearDistribution[base = 1, step = 10, buckets = [org.opensolaris.os.dtrace.Distribution$Bucket[min = 1, max = 10, frequency = 0], org.opensolaris.os.dtrace.Distribution$Bucket[min = 11, max = 20, frequency = 1], org.opensolaris.os.dtrace.Distribution$Bucket[min = 21, max = 30, frequency = 2], org.opensolaris.os.dtrace.Distribution$Bucket[min = 31, max = 40, frequency = 3], org.opensolaris.os.dtrace.Distribution$Bucket[min = 41, max = 50, frequency = 4], org.opensolaris.os.dtrace.Distribution$Bucket[min = 51, max = 60, frequency = 5], org.opensolaris.os.dtrace.Distribution$Bucket[min = 61, max = 70, frequency = 6], org.opensolaris.os.dtrace.Distribution$Bucket[min = 71, max = 80, frequency = 7], org.opensolaris.os.dtrace.Distribution$Bucket[min = 81, max = 90, frequency = 8], org.opensolaris.os.dtrace.Distribution$Bucket[min = 91, max = 100, frequency = 9], org.opensolaris.os.dtrace.Distribution$Bucket[min = 101, max = 9223372036854775807, frequency = 0]], total = 45.0]], org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, 9, 
+              has
+              nine
+              lives
+, 
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0:  1  2  3                                         ...
+], value = 7]], org.opensolaris.os.dtrace.Aggregation[name = times, id = 1, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [cat, dog, mouse, mouse, 67, 7], value = 9]]]]
+UserStackRecord:
+  serialized: 
+              process ID: 123456
+              User Stack Frame 1
+              User Stack Frame 2
+              User Stack Frame 3
+
+  deserialized: 
+              process ID: 123456
+              User Stack Frame 1
+              User Stack Frame 2
+              User Stack Frame 3
+
+UserStackRecord:
+  encoded: 
+              process ID: 123456
+              User Stack Frame 1
+              User Stack Frame 2
+              User Stack Frame 3
+
+  decoded: 
+              process ID: 123456
+              User Stack Frame 1
+              User Stack Frame 2
+              User Stack Frame 3
+
+AvgValue:
+  serialized: 5
+  deserialized: 5
+AvgValue:
+  encoded: 5
+  decoded: 5
+CountValue:
+  serialized: 9
+  deserialized: 9
+CountValue:
+  encoded: 9
+  decoded: 9
+SumValue:
+  serialized: 25
+  deserialized: 25
+SumValue:
+  encoded: 25
+  decoded: 25
+MinValue:
+  serialized: 101
+  deserialized: 101
+MinValue:
+  encoded: 101
+  decoded: 101
+MaxValue:
+  serialized: 101
+  deserialized: 101
+MaxValue:
+  encoded: 101
+  decoded: 101
+Error:
+  serialized: org.opensolaris.os.dtrace.Error[probeDescription = syscall::malloc:entry, epid = 8, cpu = 3, action = 1, offset = 20, fault = DTRACEFLT_BADALIGN, address = -1, defaultMessage = error on enabled probe ID 8 (ID 256: syscall::malloc:entry): Bad alignment (0x33ef) in action #1 at DIF offset 20]
+  deserialized: org.opensolaris.os.dtrace.Error[probeDescription = syscall::malloc:entry, epid = 8, cpu = 3, action = 1, offset = 20, fault = DTRACEFLT_BADALIGN, address = -1, defaultMessage = error on enabled probe ID 8 (ID 256: syscall::malloc:entry): Bad alignment (0x33ef) in action #1 at DIF offset 20]
+Error:
+  encoded: org.opensolaris.os.dtrace.Error[probeDescription = syscall::malloc:entry, epid = 8, cpu = 3, action = 1, offset = 20, fault = DTRACEFLT_BADALIGN, address = -1, defaultMessage = error on enabled probe ID 8 (ID 256: syscall::malloc:entry): Bad alignment (0x33ef) in action #1 at DIF offset 20]
+  decoded: org.opensolaris.os.dtrace.Error[probeDescription = syscall::malloc:entry, epid = 8, cpu = 3, action = 1, offset = 20, fault = DTRACEFLT_BADALIGN, address = -1, defaultMessage = error on enabled probe ID 8 (ID 256: syscall::malloc:entry): Bad alignment (0x33ef) in action #1 at DIF offset 20]
+Drop:
+  serialized: org.opensolaris.os.dtrace.Drop[cpu = 2, kind = Speculation (busy), count = 72, total = 1041, defaultMessage = Guess we dropped stuff all over the place.]
+  deserialized: org.opensolaris.os.dtrace.Drop[cpu = 2, kind = Speculation (busy), count = 72, total = 1041, defaultMessage = Guess we dropped stuff all over the place.]
+Drop:
+  encoded: org.opensolaris.os.dtrace.Drop[cpu = 2, kind = Speculation (busy), count = 72, total = 1041, defaultMessage = Guess we dropped stuff all over the place.]
+  decoded: org.opensolaris.os.dtrace.Drop[cpu = 2, kind = Speculation (busy), count = 72, total = 1041, defaultMessage = Guess we dropped stuff all over the place.]
+InterfaceAttributes:
+  serialized: Unstable / Evolving / ISA
+  deserialized: Unstable / Evolving / ISA
+InterfaceAttributes:
+  encoded: Unstable / Evolving / ISA
+  decoded: Unstable / Evolving / ISA
+ProgramInfo:
+  serialized: org.opensolaris.os.dtrace.ProgramInfo[minimumProbeAttributes = Unstable / Evolving / ISA, minimumStatementAttributes = Unstable / Evolving / ISA, matchingProbeCount = 256]
+  deserialized: org.opensolaris.os.dtrace.ProgramInfo[minimumProbeAttributes = Unstable / Evolving / ISA, minimumStatementAttributes = Unstable / Evolving / ISA, matchingProbeCount = 256]
+ProgramInfo:
+  encoded: org.opensolaris.os.dtrace.ProgramInfo[minimumProbeAttributes = Unstable / Evolving / ISA, minimumStatementAttributes = Unstable / Evolving / ISA, matchingProbeCount = 256]
+  decoded: org.opensolaris.os.dtrace.ProgramInfo[minimumProbeAttributes = Unstable / Evolving / ISA, minimumStatementAttributes = Unstable / Evolving / ISA, matchingProbeCount = 256]
+ProbeInfo:
+  serialized: org.opensolaris.os.dtrace.ProbeInfo[probeAttributes = Unstable / Evolving / ISA, argumentAttributes = Unstable / Evolving / ISA]
+  deserialized: org.opensolaris.os.dtrace.ProbeInfo[probeAttributes = Unstable / Evolving / ISA, argumentAttributes = Unstable / Evolving / ISA]
+ProbeInfo:
+  encoded: org.opensolaris.os.dtrace.ProbeInfo[probeAttributes = Unstable / Evolving / ISA, argumentAttributes = Unstable / Evolving / ISA]
+  decoded: org.opensolaris.os.dtrace.ProbeInfo[probeAttributes = Unstable / Evolving / ISA, argumentAttributes = Unstable / Evolving / ISA]
+Probe:
+  serialized: org.opensolaris.os.dtrace.Probe[description = syscall::malloc:entry, info = org.opensolaris.os.dtrace.ProbeInfo[probeAttributes = Unstable / Evolving / ISA, argumentAttributes = Unstable / Evolving / ISA]]
+  deserialized: org.opensolaris.os.dtrace.Probe[description = syscall::malloc:entry, info = org.opensolaris.os.dtrace.ProbeInfo[probeAttributes = Unstable / Evolving / ISA, argumentAttributes = Unstable / Evolving / ISA]]
+Probe:
+  encoded: org.opensolaris.os.dtrace.Probe[description = syscall::malloc:entry, info = org.opensolaris.os.dtrace.ProbeInfo[probeAttributes = Unstable / Evolving / ISA, argumentAttributes = Unstable / Evolving / ISA]]
+  decoded: org.opensolaris.os.dtrace.Probe[description = syscall::malloc:entry, info = org.opensolaris.os.dtrace.ProbeInfo[probeAttributes = Unstable / Evolving / ISA, argumentAttributes = Unstable / Evolving / ISA]]
+Flow:
+  serialized: org.opensolaris.os.dtrace.Flow[kind = RETURN, depth = 3]
+  deserialized: org.opensolaris.os.dtrace.Flow[kind = RETURN, depth = 3]
+Flow:
+  encoded: org.opensolaris.os.dtrace.Flow[kind = RETURN, depth = 3]
+  decoded: org.opensolaris.os.dtrace.Flow[kind = RETURN, depth = 3]
+KernelSymbolRecord:
+  serialized: mod`func+0x4
+  deserialized: mod`func+0x4
+KernelSymbolRecord:
+  encoded: mod`func+0x4
+  decoded: mod`func+0x4
+UserSymbolRecord:
+  serialized: mod`func+0x4
+  deserialized: mod`func+0x4
+UserSymbolRecord:
+  encoded: mod`func+0x4
+  decoded: mod`func+0x4
+UserSymbolRecord$Value:
+  serialized: org.opensolaris.os.dtrace.UserSymbolRecord$Value[processID = 7, address = -1]
+  deserialized: org.opensolaris.os.dtrace.UserSymbolRecord$Value[processID = 7, address = -1]
+UserSymbolRecord$Value:
+  encoded: org.opensolaris.os.dtrace.UserSymbolRecord$Value[processID = 7, address = -1]
+  decoded: org.opensolaris.os.dtrace.UserSymbolRecord$Value[processID = 7, address = -1]
+Program:
+  serialized: org.opensolaris.os.dtrace.Program[contents = syscall:::entry { @[execname] = count(); }, info = null]
+  deserialized: org.opensolaris.os.dtrace.Program[contents = syscall:::entry { @[execname] = count(); }, info = null]
+Program$File:
+  serialized: org.opensolaris.os.dtrace.Program$File[super = org.opensolaris.os.dtrace.Program[contents = syscall:::entry { @[execname] = count(); }, info = null], file = TestBean.out]
+  deserialized: org.opensolaris.os.dtrace.Program$File[super = org.opensolaris.os.dtrace.Program[contents = syscall:::entry { @[execname] = count(); }, info = null], file = TestBean.out]
+StddevValue:
+  serialized: 37
+  deserialized: 37
+StddevValue:
+  encoded: 37
+  decoded: 37

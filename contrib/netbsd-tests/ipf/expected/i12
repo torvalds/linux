@@ -1,0 +1,39 @@
+pass in inet from 1.1.1.1/32 to 2.2.2.2/32
+pass in inet from 2.2.2.0/24 to 4.4.4.4/32
+pass in inet from 3.3.3.3/32 to 4.4.4.4/32
+pass in inet from 2.2.2.0/24 to 5.5.5.5/32
+pass in inet from 3.3.3.3/32 to 5.5.5.5/32
+pass in inet from 2.2.2.0/24 to 6.6.6.6/32
+pass in inet from 3.3.3.3/32 to 6.6.6.6/32
+pass in inet from 2.2.2.0/24 to 5.5.5.5/32 port = 22
+pass in inet from 3.3.3.3/32 to 5.5.5.5/32 port = 22
+pass in inet from 2.2.2.0/24 to 6.6.6.6/32 port = 22
+pass in inet from 3.3.3.3/32 to 6.6.6.6/32 port = 22
+pass in inet from 2.2.2.0/24 to 5.5.5.5/32 port = 25
+pass in inet from 3.3.3.3/32 to 5.5.5.5/32 port = 25
+pass in inet from 2.2.2.0/24 to 6.6.6.6/32 port = 25
+pass in inet from 3.3.3.3/32 to 6.6.6.6/32 port = 25
+pass in inet proto tcp from 2.2.2.0/24 port = 53 to 5.5.5.5/32
+pass in inet proto tcp from 3.3.3.3/32 port = 53 to 5.5.5.5/32
+pass in inet proto tcp from 2.2.2.0/24 port = 9 to 5.5.5.5/32
+pass in inet proto tcp from 3.3.3.3/32 port = 9 to 5.5.5.5/32
+pass in inet proto tcp from 2.2.2.0/24 port = 53 to 6.6.6.6/32
+pass in inet proto tcp from 3.3.3.3/32 port = 53 to 6.6.6.6/32
+pass in inet proto tcp from 2.2.2.0/24 port = 9 to 6.6.6.6/32
+pass in inet proto tcp from 3.3.3.3/32 port = 9 to 6.6.6.6/32
+pass in inet proto udp from 2.2.2.0/24 to 5.5.5.5/32 port = 53
+pass in inet proto udp from 3.3.3.3/32 to 5.5.5.5/32 port = 53
+pass in inet proto udp from 2.2.2.0/24 to 6.6.6.6/32 port = 53
+pass in inet proto udp from 3.3.3.3/32 to 6.6.6.6/32 port = 53
+pass in inet proto udp from 2.2.2.0/24 to 5.5.5.5/32 port = 9
+pass in inet proto udp from 3.3.3.3/32 to 5.5.5.5/32 port = 9
+pass in inet proto udp from 2.2.2.0/24 to 6.6.6.6/32 port = 9
+pass in inet proto udp from 3.3.3.3/32 to 6.6.6.6/32 port = 9
+pass in inet from 10.10.10.10/32 to 11.11.11.11/32
+pass in from pool/101 to hash/202
+pass in from hash/303 to pool/404
+table role=ipf type=tree number=
+	{ ! 2.2.0.0/16; 2.2.2.2/32; ! 1.1.1.1/32; };
+table role=ipf type=tree number=
+	{ 1.1.0.0/16; };
+pass in from pool/0 to pool/0

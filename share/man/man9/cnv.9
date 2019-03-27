@@ -1,0 +1,214 @@
+.\"
+.\" Copyright (c) 2016 Adam Starak <starak.adam@gmail.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 18, 2018
+.Dt CNV 9
+.Os
+.Sh NAME
+.Nm cnvlist_get ,
+.Nm cnvlist_take ,
+.Nm cnvlist_free
+.Nd "API for managing name/value pairs by cookie."
+.Sh LIBRARY
+.Lb libnv
+.Sh SYNOPSIS
+.In sys/cnv.h
+.Ft const char *
+.Fn cnvlist_name "const void *cookie"
+.Ft int
+.Fn cnvlist_type "const void *cookie"
+.\"
+.Ft bool
+.Fn cnvlist_get_bool "const void *cookie"
+.Ft uint64_t
+.Fn cnvlist_get_number "const void *cookie"
+.Ft "const char *"
+.Fn cnvlist_get_string "const void *cookie"
+.Ft "const nvlist_t *"
+.Fn cnvlist_get_nvlist "const void *cookie"
+.Ft "const void *"
+.Fn cnvlist_get_binary "const void *cookie" "size_t *sizep"
+.Ft "const bool *"
+.Fn cnvlist_get_bool_array "const void *cookie" "size_t *nitemsp"
+.Ft "const uint64_t *"
+.Fn cnvlist_get_number_array "const void *cookie" "size_t *nitemsp"
+.Ft "const char * const *"
+.Fn cnvlist_get_string_array "const void *cookie" "size_t *nitemsp"
+.Ft "const nvlist_t * const *"
+.Fn cnvlist_get_nvlist_array "const void *cookie" "size_t *nitemsp"
+.Ft int
+.Fn cnvlist_get_descriptor "const void *cookie"
+.Ft "const int *"
+.Fn cnvlist_get_descriptor_array "const void *cookie" "size_t *nitemsp"
+.\"
+.Ft bool
+.Fn cnvlist_take_bool "void *cookie"
+.Ft uint64_t
+.Fn cnvlist_take_number "void *cookie"
+.Ft "const char *"
+.Fn cnvlist_take_string "void *cookie"
+.Ft "const nvlist_t *"
+.Fn cnvlist_take_nvlist "void *cookie"
+.Ft "const void *"
+.Fn cnvlist_take_binary "void *cookie" "size_t *sizep"
+.Ft "const bool *"
+.Fn cnvlist_take_bool_array "void *cookie" "size_t *nitemsp"
+.Ft "const uint64_t *"
+.Fn cnvlist_take_number_array "void *cookie" "size_t *nitemsp"
+.Ft "const char * const *"
+.Fn cnvlist_take_string_array "void *cookie" "size_t *nitemsp"
+.Ft "const nvlist_t * const *"
+.Fn cnvlist_take_nvlist_array "void *cookie" "size_t *nitemsp"
+.Ft int
+.Fn cnvlist_take_descriptor "void *cookie"
+.Ft "const int *"
+.Fn cnvlist_take_descriptor_array "void *cookie" "size_t *nitemsp"
+.\"
+.Ft void
+.Fn cnvlist_free_null "void *cookie"
+.Ft void
+.Fn cnvlist_free_bool "void *cookie"
+.Ft void
+.Fn cnvlist_free_number "void *cookie"
+.Ft void
+.Fn cnvlist_free_string "void *cookie"
+.Ft void
+.Fn cnvlist_free_nvlist "void *cookie"
+.Ft void
+.Fn cnvlist_free_descriptor "void *cookie"
+.Ft void
+.Fn cnvlist_free_binary "void *cookie"
+.Ft void
+.Fn cnvlist_free_bool_array "void *cookie"
+.Ft void
+.Fn cnvlist_free_number_array "void *cookie"
+.Ft void
+.Fn cnvlist_free_string_array "void *cookie"
+.Ft void
+.Fn cnvlist_free_nvlist_array "void *cookie"
+.Ft void
+.Fn cnvlist_free_descriptor_array "void *cookie"
+.Sh DESCRIPTION
+The
+.Nm libnv
+library permits easy management of name/value pairs and can send and receive
+them over sockets.
+For more information, also see
+.Xr nv 9 .
+.Pp
+The concept of cookies is explained in
+.Fn nvlist_next ,
+.Fn nvlist_get_parent ,
+and
+.Fn nvlist_get_pararr
+from
+.Xr nv 9 .
+.Pp
+The
+.Fn cnvlist_name
+function returns the name of an element associated with the given cookie.
+.Pp
+The
+.Fn cnvlist_type
+function returns the type of an element associated with the given cookie.
+Types which can be returned are described in
+.Xr nv 9 .
+.Pp
+The
+.Nm cnvlist_get
+family of functions obtains the value associated with the given cookie.
+Returned strings, nvlists, descriptors, binaries, or arrays must not be modified
+by the user, since they still belong to the nvlist.
+The nvlist must not be in an error state.
+.Pp
+The
+.Nm cnvlist_take
+family of functions returns the value associated with the given cookie and
+removes the element from the nvlist.
+When the value is a string, binary, or array value, the caller is responsible
+for freeing the returned memory with
+.Fn free 3 .
+When the value is an nvlist, the caller is responsible for destroying the
+returned nvlist with
+.Fn nvlist_destroy .
+When the value is a descriptor, the caller is responsible for closing the
+returned descriptor with the
+.Fn close 2 .
+.Pp
+The
+.Nm cnvlist_free
+family of functions removes an element of the supplied cookie and frees all
+resources.
+If an element of the given cookie has the wrong type or does not exist, the
+program
+is aborted.
+.Sh EXAMPLE
+The following example demonstrates how to deal with cnvlist API.
+.Bd -literal
+int type;
+void *cookie, *scookie, *bcookie;
+nvlist_t *nvl;
+char *name;
+
+nvl = nvlist_create(0);
+nvlist_add_bool(nvl, "test", 1 == 2);
+nvlist_add_string(nvl, "test2", "cnvlist");
+cookie = NULL;
+
+while (nvlist_next(nvl, &type, &cookie) != NULL) {
+        switch (type) {
+        case NV_TYPE_BOOL:
+                printf("test: %d\\n", cnvlist_get_bool(cookie));
+                bcookie = cookie;
+                break;
+        case NV_TYPE_STRING:
+                printf("test2: %s\\n", cnvlist_get_string(cookie));
+                scookie = cookie;
+                break;
+        }
+}
+
+name = cnvlist_take_string(scookie);
+cnvlist_free_bool(bcookie);
+
+printf("test2: %s\\n", name);
+free(name);
+
+printf("nvlist_empty = %d\\n", nvlist_empty(nvl));
+nvlist_destroy(nvl);
+
+return (0);
+.Ed
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr free 3 ,
+.Xr nv 9
+.Sh AUTHORS
+The
+.Nm cnv
+API was created during the Google Summer Of Code 2016 by
+.An Adam Starak .

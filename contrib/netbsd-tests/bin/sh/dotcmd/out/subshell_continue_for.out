@@ -1,0 +1,8 @@
+subshell start
+before dotcmd
+before for
+before continue
+before continue
+after for
+after dotcmd, return value: 0
+subshell end

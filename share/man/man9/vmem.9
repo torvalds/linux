@@ -1,0 +1,315 @@
+.\"	$NetBSD: vmem.9,v 1.15 2013/01/29 22:02:17 wiz Exp $
+.\"
+.\" Copyright (c)2006 YAMAMOTO Takashi,
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" ------------------------------------------------------------
+.Dd July 12, 2013
+.Dt VMEM 9
+.Os
+.\" ------------------------------------------------------------
+.Sh NAME
+.Nm vmem
+.Nd general purpose resource allocator
+.\" ------------------------------------------------------------
+.Sh SYNOPSIS
+.In sys/vmem.h
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.Ft vmem_t *
+.Fn vmem_create \
+"const char *name" "vmem_addr_t base" "vmem_size_t size" "vmem_size_t quantum" \
+"vmem_size_t qcache_max" "int flags"
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.Ft int
+.Fn vmem_add \
+"vmem_t *vm" "vmem_addr_t addr" "vmem_size_t size" "int flags"
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.Ft int
+.Fn vmem_xalloc \
+"vmem_t *vm" "const vmem_size_t size" "vmem_size_t align" \
+"const vmem_size_t phase" "const vmem_size_t nocross" \
+"const vmem_addr_t minaddr" "const vmem_addr_t maxaddr" "int flags" \
+"vmem_addr_t *addrp"
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.Ft void
+.Fn vmem_xfree "vmem_t *vm" "vmem_addr_t addr" "vmem_size_t size"
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.Ft int
+.Fn vmem_alloc "vmem_t *vm" "vmem_size_t size" "int flags" "vmem_addr_t *addrp"
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.Ft void
+.Fn vmem_free "vmem_t *vm" "vmem_addr_t addr" "vmem_size_t size"
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.Ft void
+.Fn vmem_destroy "vmem_t *vm"
+.\" ------------------------------------------------------------
+.Sh DESCRIPTION
+The
+.Nm
+is a general purpose resource allocator.
+Despite its name, it can be used for arbitrary resources
+other than virtual memory.
+.Pp
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.Fn vmem_create
+creates a new vmem arena.
+.Bl -tag -width qcache_max
+.It Fa name
+The string to describe the vmem.
+.It Fa base
+The start address of the initial span.
+Pass
+.Dv 0
+if no initial span is required.
+.It Fa size
+The size of the initial span.
+Pass
+.Dv 0
+if no initial span is required.
+.It Fa quantum
+The smallest unit of allocation.
+.It Fa qcache_max
+The largest size of allocations which can be served by quantum cache.
+It is merely a hint and can be ignored.
+.It Fa flags
+Combination of
+.Xr malloc 9
+wait flag and
+.Nm
+allocation strategy flag:
+.Bl -tag -width M_FIRSTFIT
+.It Dv M_FIRSTFIT
+Prefer allocation performance.
+.It Dv M_BESTFIT
+Prefer space efficiency.
+.El
+.El
+.Pp
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.Fn vmem_add
+adds a span of size
+.Fa size
+starting at
+.Fa addr
+to the arena.
+Returns
+0
+on success,
+.Dv ENOMEM
+on failure.
+.Fa flags
+is
+.Xr malloc 9
+wait flag.
+.Pp
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.Fn vmem_xalloc
+allocates a resource from the arena.
+.Bl -tag -width nocross
+.It Fa vm
+The arena which we allocate from.
+.It Fa size
+Specify the size of the allocation.
+.It Fa align
+If zero, don't care about the alignment of the allocation.
+Otherwise, request a resource segment starting at
+offset
+.Fa phase
+from an
+.Fa align
+aligned boundary.
+.It Fa phase
+See the above description of
+.Fa align .
+If
+.Fa align
+is zero,
+.Fa phase
+should be zero.
+Otherwise,
+.Fa phase
+should be smaller than
+.Fa align .
+.It Fa nocross
+Request a resource which doesn't cross
+.Fa nocross
+aligned boundary.
+.It Fa minaddr
+Specify the minimum address which can be allocated, or
+.Dv VMEM_ADDR_MIN
+if the caller does not care.
+.It Fa maxaddr
+Specify the maximum address which can be allocated, or
+.Dv VMEM_ADDR_MAX
+if the caller does not care.
+.It Fa flags
+A bitwise OR of an allocation strategy and a
+.Xr malloc 9
+wait flag.
+The allocation strategy is one of
+.Dv M_FIRSTFIT
+and
+.Dv M_BESTFIT .
+.It Fa addrp
+On success, if
+.Fa addrp
+is not
+.Dv NULL ,
+.Fn vmem_xalloc
+overwrites it with the start address of the allocated span.
+.El
+.Pp
+.\" ------------------------------------------------------------
+.Fn vmem_xfree
+frees resource allocated by
+.Fn vmem_xalloc
+to the arena.
+.Bl -tag -width addr
+.It Fa vm
+The arena which we free to.
+.It Fa addr
+The resource being freed.
+It must be the one returned by
+.Fn vmem_xalloc .
+Notably, it must not be the one from
+.Fn vmem_alloc .
+Otherwise, the behaviour is undefined.
+.It Fa size
+The size of the resource being freed.
+It must be the same as the
+.Fa size
+argument used for
+.Fn vmem_xalloc .
+.El
+.Pp
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.Fn vmem_alloc
+allocates a resource from the arena.
+.Bl -tag -width flags
+.It Fa vm
+The arena which we allocate from.
+.It Fa size
+Specify the size of the allocation.
+.It Fa flags
+A bitwise OR of an
+.Nm
+allocation strategy flag (see above) and a
+.Xr malloc 9
+sleep flag.
+.It Fa addrp
+On success, if
+.Fa addrp
+is not
+.Dv NULL ,
+.Fn vmem_alloc
+overwrites it with the start address of the allocated span.
+.El
+.Pp
+.\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+.Fn vmem_free
+frees resource allocated by
+.Fn vmem_alloc
+to the arena.
+.Bl -tag -width addr
+.It Fa vm
+The arena which we free to.
+.It Fa addr
+The resource being freed.
+It must be the one returned by
+.Fn vmem_alloc .
+Notably, it must not be the one from
+.Fn vmem_xalloc .
+Otherwise, the behaviour is undefined.
+.It Fa size
+The size of the resource being freed.
+It must be the same as the
+.Fa size
+argument used for
+.Fn vmem_alloc .
+.El
+.Pp
+.\" ------------------------------------------------------------
+.Fn vmem_destroy
+destroys a vmem arena.
+.Bl -tag -width vm
+.It Fa vm
+The vmem arena being destroyed.
+The caller should ensure that no one will use it anymore.
+.El
+.\" ------------------------------------------------------------
+.Sh RETURN VALUES
+.Fn vmem_create
+returns a pointer to the newly allocated vmem_t.
+Otherwise, it returns
+.Dv NULL .
+.Pp
+On success,
+.Fn vmem_xalloc
+and
+.Fn vmem_alloc
+return 0.
+Otherwise,
+.Dv ENOMEM
+is returned.
+.\" ------------------------------------------------------------
+.Sh CODE REFERENCES
+The
+.Nm
+subsystem is implemented within the file
+.Pa sys/kern/subr_vmem.c .
+.\" ------------------------------------------------------------
+.Sh SEE ALSO
+.Xr malloc 9
+.Rs
+.%A Jeff Bonwick
+.%A Jonathan Adams
+.%T "Magazines and Vmem: Extending the Slab Allocator to Many CPUs and Arbitrary Resources"
+.%J "2001 USENIX Annual Technical Conference"
+.%D 2001
+.Re
+.\" ------------------------------------------------------------
+.Sh HISTORY
+The
+.Nm
+allocator was originally implemented in
+.Nx .
+It was introduced in
+.Fx 10.0 .
+.Sh AUTHORS
+.An -nosplit
+Original implementation of
+.Nm
+was written by
+.An "YAMAMOTO Takashi" .
+The
+.Fx
+port was made by
+.An "Jeff Roberson" .
+.Sh BUGS
+.Nm
+relies on
+.Xr malloc 9 ,
+so it cannot be used as early during system bootstrap.

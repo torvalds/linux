@@ -1,0 +1,172 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)setjmp.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 4, 1993
+.Dt SETJMP 3
+.Os
+.Sh NAME
+.Nm sigsetjmp ,
+.Nm siglongjmp ,
+.Nm setjmp ,
+.Nm longjmp ,
+.Nm _setjmp ,
+.Nm _longjmp ,
+.Nm longjmperror
+.Nd non-local jumps
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In setjmp.h
+.Ft int
+.Fn sigsetjmp "sigjmp_buf env" "int savemask"
+.Ft void
+.Fn siglongjmp "sigjmp_buf env" "int val"
+.Ft int
+.Fn setjmp "jmp_buf env"
+.Ft void
+.Fn longjmp "jmp_buf env" "int val"
+.Ft int
+.Fn _setjmp "jmp_buf env"
+.Ft void
+.Fn _longjmp "jmp_buf env" "int val"
+.Ft void
+.Fn longjmperror void
+.Sh DESCRIPTION
+The
+.Fn sigsetjmp ,
+.Fn setjmp ,
+and
+.Fn _setjmp
+functions save their calling environment in
+.Fa env .
+Each of these functions returns 0.
+.Pp
+The corresponding
+.Fn longjmp
+functions restore the environment saved by their most recent respective
+invocations
+of the
+.Fn setjmp
+function.
+They then return so that program execution continues as if the corresponding
+invocation of the
+.Fn setjmp
+call had just returned the value specified by
+.Fa val ,
+instead of 0.
+.Pp
+Pairs of calls may be intermixed, i.e., both
+.Fn sigsetjmp
+and
+.Fn siglongjmp
+and
+.Fn setjmp
+and
+.Fn longjmp
+combinations may be used in the same program, however, individual
+calls may not, e.g.\& the
+.Fa env
+argument to
+.Fn setjmp
+may not be passed to
+.Fn siglongjmp .
+.Pp
+The
+.Fn longjmp
+routines may not be called after the routine which called the
+.Fn setjmp
+routines returns.
+.Pp
+All accessible objects have values as of the time
+.Fn longjmp
+routine was called, except that the values of objects of automatic storage
+invocation duration that do not have the
+.Vt volatile
+type and have been changed between the
+.Fn setjmp
+invocation and
+.Fn longjmp
+call are indeterminate.
+.Pp
+The
+.Fn setjmp Ns / Ns Fn longjmp
+pairs save and restore the signal mask while
+.Fn _setjmp Ns / Ns Fn _longjmp
+pairs save and restore only the register set and the stack.
+(See
+.Fn sigprocmask 2 . )
+.Pp
+The
+.Fn sigsetjmp Ns / Ns Fn siglongjmp
+function
+pairs save and restore the signal mask if the argument
+.Fa savemask
+is non-zero, otherwise only the register set and the stack are saved.
+.Sh ERRORS
+If the contents of the
+.Fa env
+are corrupted, or correspond to an environment that has already returned,
+the
+.Fn longjmp
+routine calls the routine
+.Fn longjmperror 3 .
+If
+.Fn longjmperror
+returns the program is aborted (see
+.Xr abort 3 ) .
+The default version of
+.Fn longjmperror
+prints the message
+.Dq Li longjmp botch
+to standard error and returns.
+User programs wishing to exit more gracefully should write their own
+versions of
+.Fn longjmperror .
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr sigaltstack 2 ,
+.Xr signal 3
+.Sh STANDARDS
+The
+.Fn setjmp
+and
+.Fn longjmp
+functions conform to
+.St -isoC .
+The
+.Fn sigsetjmp
+and
+.Fn siglongjmp
+functions conform to
+.St -p1003.1-88 .

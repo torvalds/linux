@@ -1,0 +1,4 @@
+#! /dev/null
+# $FreeBSD$
+
+echo succeeded

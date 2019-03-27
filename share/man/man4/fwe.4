@@ -1,0 +1,96 @@
+.\" Copyright (c) 2002 Hidetoshi Shimokawa
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\"
+.Dd July 16, 2005
+.Dt FWE 4
+.Os
+.Sh NAME
+.Nm fwe
+.Nd "Ethernet emulation driver for FireWire"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device firewire"
+.Cd "device fwe"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_fwe_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides non-standard Ethernet emulation over FireWire (IEEE 1394).
+.Pp
+.Xr firewire 4
+and
+.Xr fwohci 4
+must be configured in the kernel as well.
+.Pp
+This driver exploits asynchronous stream over IEEE 1394 to carry Ethernet
+frames.
+The stream channel can be specified by
+the
+.Va hw.firewire.fwe.stream_ch
+.Xr sysctl 8 .
+.Pp
+This driver supports
+.Xr polling 4
+as well if it is compiled with the
+.Dv DEVICE_POLLING
+option.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr firewire 4 ,
+.Xr fwip 4 ,
+.Xr fwohci 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr polling 4 ,
+.Xr ifconfig 8 ,
+.Xr kldload 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Nm
+driver and this manual page were written by
+.An Hidetoshi Shimokawa .
+.Sh BUGS
+This driver emulates Ethernet in a very adhoc way and it does not reserve a
+stream channel using an isochronous manager.
+Note that this driver uses a protocol which is very different from RFC 2734
+(IPv4 over IEEE 1394).

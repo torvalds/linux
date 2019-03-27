@@ -1,0 +1,420 @@
+#include <dt-bindings/clock/jz4780-cgu.h>
+#include <dt-bindings/dma/jz4780-dma.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "ingenic,x1000";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			compatible = "ingenic,xburst";
+			reg = <0>;
+		};
+	};
+
+	cpuintc: cpuintc@0 {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
+	intc: intc@10001000 {
+		compatible = "ingenic,jz4780-intc";
+		reg = <0x10001000 0x50>;
+
+		interrupt-controller;
+		#interrupt-cells = <1>;
+
+		interrupt-parent = <&cpuintc>;
+		interrupts = <2>;
+	};
+
+	ext: ext {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+	};
+
+	rtc: rtc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+	};
+
+	cgu: jz4780-cgu@10000000 {
+		compatible = "ingenic,jz4780-cgu";
+		reg = <0x10000000 0x100>;
+
+		clocks = <&ext>, <&rtc>;
+		clock-names = "ext", "rtc";
+
+		#clock-cells = <1>;
+	};
+
+	apb {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <>;
+
+		tcu@0x10002000 {
+			compatible = "ingenic,jz4780-tcu";
+			reg = <0x10002000 0x140>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <27 26 25>;
+		};
+
+		watchdog: jz47xx-watchdog@0x10002000 {
+			compatible = "ingenic,jz4780-watchdog";
+			reg = <0x10002000 0x100>;
+
+			clocks = <&rtc>;
+			clock-names = "rtc";
+		};
+
+		rtcdev: rtcdev@10003000 {
+			compatible = "ingenic,jz4780-rtc";
+			reg = <0x10003000 0x4c>;
+			interrupt-parent = <&intc>;
+			interrupts = <32>;
+		};
+
+		i2s: i2s@10020000 {
+			compatible = "ingenic,jz4780-i2s";
+			reg = <0x10020000 0x94>;
+
+			clocks = <&cgu JZ4780_CLK_AIC>, <&cgu JZ4780_CLK_I2SPLL>;
+			clock-names = "aic", "i2s";
+
+			dmas = <&dma 0 JZ4780_DMA_I2S0_RX 0xffffffff>, <&dma JZ4780_DMA_I2S0_TX 0 0xffffffff>;
+			dma-names = "rx" , "tx";
+
+		};
+
+		codec: codec@100200a4 {
+			compatible = "ingenic,jz4780-codec";
+			reg = <0x100200a4 0x8>;
+
+			clocks = <&cgu JZ4780_CLK_I2SPLL>;
+			clock-names = "i2s";
+
+		};
+
+		pinctrl@0x10010000 {
+			compatible = "ingenic,jz4780-pinctrl";
+			reg = <0x10010000 0x600>;
+
+			gpa: gpa {
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				interrupt-parent = <&intc>;
+				interrupts = <17>;
+
+				ingenic,pull-ups = <0x3fffffff>;
+			};
+
+			gpb: gpb {
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				interrupt-parent = <&intc>;
+				interrupts = <16>;
+
+				ingenic,pull-downs = <0x000f0c03>;
+				ingenic,pull-ups   = <0xfff0030c>;
+			};
+
+			gpc: gpc {
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				interrupt-parent = <&intc>;
+				interrupts = <15>;
+
+				ingenic,pull-ups = <0xffffffff>;
+			};
+
+			gpd: gpd {
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				interrupt-parent = <&intc>;
+				interrupts = <14>;
+
+				ingenic,pull-downs = <0x0000b000>;
+				ingenic,pull-ups   = <0xffff4fff>;
+			};
+
+			pincfg_nobias: nobias {
+				bias-disable;
+			};
+
+			pincfg_pull_up: pull_up {
+				bias-pull-up;
+			};
+
+			pincfg_pull_down: pull_down {
+				bias-pull-down;
+			};
+
+			pinfunc_uart2: uart2 {
+				pins_uart2_data: uart2-data {
+					ingenic,pins = <&gpd  6 1 &pincfg_nobias  /* rxd */
+							&gpd  7 1 &pincfg_nobias>; /* txd */
+				};
+
+				pins_uart2_dataplusflow: uart2-dataplusflow {
+					ingenic,pins = <&gpd  6 1 &pincfg_nobias  /* rxd */
+							&gpd  5 1 &pincfg_nobias   /* cts */
+							&gpd  4 1 &pincfg_nobias   /* rts */
+							&gpd  7 1 &pincfg_nobias>; /* txd */
+				};
+			};
+
+			pinfunc_msc0: msc0 {
+				pins_msc0_pa: msc0-pa {
+					ingenic,pins = <&gpa 16 1 &pincfg_nobias   /* d7 */
+							&gpa 17 1 &pincfg_nobias   /* d6 */
+							&gpa 18 1 &pincfg_nobias   /* d5 */
+							&gpa 19 1 &pincfg_nobias   /* d4 */
+							&gpa 20 1 &pincfg_nobias   /* d3 */
+							&gpa 21 1 &pincfg_nobias   /* d2 */
+							&gpa 22 1 &pincfg_nobias   /* d1 */
+							&gpa 23 1 &pincfg_nobias   /* d0 */
+							&gpa 24 1 &pincfg_nobias   /* clk */
+							&gpa 25 1 &pincfg_nobias>; /* cmd */
+				};
+			};
+
+			pinfunc_cim: cim {
+				pins_cim: cim-pb {
+					ingenic,pins = < /* Fill me. */ >;
+				};
+			};
+		};
+
+		uart0: serial@10030000 {
+			compatible = "ingenic,jz4780-uart";
+			reg = <0x10030000 0x100>;
+			reg-shift = <2>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <51>;
+			status = "disabled";
+
+			clocks = <&ext>, <&cgu JZ4780_CLK_UART0>;
+			clock-names = "baud", "module";
+		};
+
+		uart1: serial@10031000 {
+			compatible = "ingenic,jz4780-uart";
+			reg = <0x10031000 0x100>;
+			reg-shift = <2>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <50>;
+			status = "disabled";
+
+			clocks = <&ext>, <&cgu JZ4780_CLK_UART1>;
+			clock-names = "baud", "module";
+		};
+
+		uart2: serial@10032000 {
+			compatible = "ingenic,jz4780-uart";
+			reg = <0x10032000 0x100>;
+			reg-shift = <2>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <49>;
+
+			clocks = <&ext>, <&cgu JZ4780_CLK_UART2>;
+			clock-names = "baud", "module";
+		};
+
+		uart3: serial@10033000 {
+			compatible = "ingenic,jz4780-uart";
+			reg = <0x10033000 0x100>;
+			reg-shift = <2>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <48>;
+			status = "disabled";
+
+			clocks = <&ext>, <&cgu JZ4780_CLK_UART3>;
+			clock-names = "baud", "module";
+		};
+
+		i2c0: i2c0@0x10050000 {
+			compatible = "ingenic,jz4780-i2c";
+			reg = <0x10050000 0x1000>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <60>;
+
+			clocks = <&cgu JZ4780_CLK_SMB0>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		i2c1: i2c1@0x10051000 {
+			compatible = "ingenic,jz4780-i2c";
+			reg = <0x10051000 0x1000>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <59>;
+
+			clocks = <&cgu JZ4780_CLK_SMB1>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		i2c2: i2c2@0x10052000 {
+			compatible = "ingenic,jz4780-i2c";
+			reg = <0x10052000 0x1000>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <58>;
+
+			clocks = <&cgu JZ4780_CLK_SMB2>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		lpcr: lcr@0x10000004 {
+			compatible = "ingenic,jz4780-lcr";
+			reg = <0x10000004 0x4>;
+
+			regulators {
+				vpu_power: VPU {
+				};
+				gpu_power: GPU {
+				};
+				gps_power: GPS {
+				};
+			};
+		};
+	};
+
+	ahb2 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <>;
+
+		lcd: jz4780-lcdk@0x13050000 {
+			compatible = "ingenic,jz4780-lcd";
+			reg = <0x13050000 0x1800>;
+
+			clocks = <&cgu JZ4780_CLK_TVE>, <&cgu JZ4780_CLK_LCD0PIXCLK>;
+			clock-names = "lcd_clk", "lcd_pixclk";
+
+			interrupt-parent = <&intc>;
+			interrupts = <31>;
+		};
+
+		cim: jz4780-cim@0x13060000 {
+			compatible = "ingenic,jz4780-cim";
+			reg = <0x13060000 0x68>;
+			reg-shift = <2>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <30>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pins_cim>;
+
+			clocks = <&cgu JZ4780_CLK_CIM>, <&cgu JZ4780_CLK_CIMMCLK>;
+			clock-names = "cim", "module";
+		};
+
+		efuse: efuse@13540000 {
+			compatible = "ingenic,jz4780-efuse";
+			reg = <0x13540000 0xFF>;
+
+			clocks = <&cgu JZ4780_CLK_AHB2>;
+			clock-names = "bus_clk";
+		};
+
+		dma: dma@13420000 {
+			compatible = "ingenic,jz4780-dma";
+			reg = <0x13420000 0x10000>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <10>;
+
+			clocks = <&cgu JZ4780_CLK_PDMA>;
+
+			#dma-cells = <3>;
+		};
+
+		msc0: msc@13450000 {
+			compatible = "ingenic,jz4780-mmc";
+			reg = <0x13450000 0x1000>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <37>;
+
+			clocks = <&cgu JZ4780_CLK_MSC0>;
+			clock-names = "mmc";
+
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
+			cap-sdio-irq;
+
+			dmas = <&dma JZ4780_DMA_MSC0_TX JZ4780_DMA_MSC0_RX 0xffffffff>;
+			dma-names = "rx-tx";
+		};
+
+		msc1: msc@13460000 {
+			compatible = "ingenic,jz4780-mmc";
+			reg = <0x13460000 0x1000>;
+
+			status = "disabled";
+
+			interrupt-parent = <&intc>;
+			interrupts = <36>;
+
+			clocks = <&cgu JZ4780_CLK_MSC1>;
+			clock-names = "mmc";
+
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
+			cap-sdio-irq;
+
+			dmas = <&dma JZ4780_DMA_MSC1_TX JZ4780_DMA_MSC1_RX 0xffffffff>;
+			dma-names = "rx-tx";
+		};
+
+		otg: jz4780-otg@0x13500000 {
+			compatible = "ingenic,jz4780-otg";
+			reg = <0x13500000 0x40000>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <21>;
+
+			clocks = <&cgu JZ4780_CLK_OTGPHY>, <&cgu JZ4780_CLK_OTG1>;
+			clock-names = "otg_phy", "otg1";
+		};
+	};
+};

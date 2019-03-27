@@ -1,0 +1,9 @@
+.\" $FreeBSD$
+Set to make install targets succeed for non-root users by installing
+files with owner and group attributes set to that of the user running
+the
+.Xr make 1
+command.
+The user still must set the
+.Va DESTDIR
+variable to point to a directory where the user has write permissions.

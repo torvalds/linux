@@ -1,0 +1,76 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)talkd.8	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd December 11, 1993
+.Dt TALKD 8
+.Os
+.Sh NAME
+.Nm talkd
+.Nd remote user communication server
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is the server that notifies a user that someone else wants to
+initiate a conversation.
+It acts as a repository of invitations, responding to requests
+by clients wishing to rendezvous to hold a conversation.
+In normal operation, a client, the caller,
+initiates a rendezvous by sending a
+.Tn CTL_MSG
+to the server of
+type
+.Tn LOOK_UP
+(see
+.In protocols/talkd.h ) .
+This causes the server to search its invitation
+tables to check if an invitation currently exists for the caller
+(to speak to the callee specified in the message).
+.Pp
+If the lookup fails,
+the caller then sends an
+.Tn ANNOUNCE
+message causing the server to
+broadcast an announcement on the callee's login ports requesting contact.
+.Pp
+When the callee responds, the local server uses the
+recorded invitation to respond with the appropriate rendezvous
+address and the caller and callee client programs establish a
+stream connection through which the conversation takes place.
+.Sh SEE ALSO
+.Xr talk 1 ,
+.Xr write 1
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.3 .

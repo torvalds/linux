@@ -1,0 +1,98 @@
+.\"	$NetBSD: asa.1,v 1.11 2002/02/08 01:36:18 ross Exp $
+.\"
+.\" Copyright (c) 1993 Winning Strategies, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Winning Strategies, Inc.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 9, 2002
+.Dt ASA 1
+.Os
+.Sh NAME
+.Nm asa
+.Nd interpret carriage-control characters
+.Sh SYNOPSIS
+.Nm
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility reads files sequentially, mapping
+.Tn FORTRAN
+carriage-control characters to line-printer control sequences,
+and writes them to the standard output.
+.Pp
+The first character of each line is interpreted as a carriage-control
+character.
+The following characters are interpreted as follows:
+.Bl -tag -width ".Aq space"
+.It Aq space
+Output the rest of the line without change.
+.It 0
+Output a
+.Aq newline
+character before printing the rest of the line.
+.It 1
+Output a
+.Aq formfeed
+character before printing the rest of the line.
+.It \&+
+The trailing
+.Aq newline
+of the previous line is replaced by a
+.Aq carriage-return
+before printing the rest of the line.
+.El
+.Pp
+Lines beginning with characters other than the above are treated as if they
+begin with
+.Aq space .
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+To view a file containing the output of a
+.Tn FORTRAN
+program:
+.Pp
+.Dl "asa file"
+.Pp
+To format the output of a
+.Tn FORTRAN
+program and redirect it to a line-printer:
+.Pp
+.Dl "a.out | asa | lpr"
+.Sh SEE ALSO
+.Xr f77 1
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
+.Sh AUTHORS
+.An J.T. Conklin ,
+Winning Strategies, Inc.

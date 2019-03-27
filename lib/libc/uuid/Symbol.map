@@ -1,0 +1,21 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	uuid_to_string;
+	uuid_is_nil;
+	uuid_hash;
+	uuid_from_string;
+	uuid_equal;
+	uuid_create_nil;
+	uuid_create;
+	uuid_compare;
+};
+
+FBSD_1.1 {
+	uuid_enc_le;
+	uuid_dec_le;
+	uuid_enc_be;
+	uuid_dec_be;
+};

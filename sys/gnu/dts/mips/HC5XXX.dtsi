@@ -1,0 +1,139 @@
+#include "mt7620a.dtsi"
+
+/ {
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 12 1>;
+			linux,code = <0x198>;
+		};
+	};
+
+	gpio_export {
+		compatible = "gpio-export";
+		#size-cells = <0>;
+
+		usbpower {
+			gpio-export,name = "usbpower";
+			gpio-export,output = <1>;
+			gpios = <&gpio0 13 0>;
+		};
+	};
+};
+
+&sysc {
+	ralink,gpiomux = "i2c", "jtag";
+	ralink,uartmux = "gpio";
+	ralink,wdtmux = <1>;
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+&gpio3 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "w25q128";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0xf80000>;
+		};
+
+		partition@fd0000 {
+			label = "hwf_config";
+			reg = <0xfd0000 0x10000>;
+		};
+
+		bdinfo: partition@fe0000 {
+			label = "bdinfo";
+			reg = <0xfe0000 0x10000>;
+		};
+
+		partition@ff0000 {
+			label = "backup";
+			reg = <0xff0000 0x10000>;
+		};
+	};
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};
+
+&ethernet {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ephy_pins>;
+	mtd-mac-address = <&factory 0x4>;
+	mediatek,portmap = "wllll";
+};
+
+&sdhci {
+	status = "okay";
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&pcie {
+	status = "okay";
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "uartf", "wled", "nd_sd";
+			ralink,function = "gpio";
+		};
+
+		pa {
+			ralink,group = "pa";
+			ralink,function = "pa";
+		};
+	};
+};

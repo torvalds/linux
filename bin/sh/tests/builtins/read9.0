@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+empty=''
+read a b c <<EOF
+\ \ A B\ \ B C\ \ $empty
+EOF
+read d e <<EOF
+D\ $empty
+EOF
+[ "$a.$b.$c.$d.$e" = "  A.B  B.C  .D ." ]

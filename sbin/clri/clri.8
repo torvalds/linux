@@ -1,0 +1,81 @@
+.\" Copyright (c) 1980, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)clri.8	8.2 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\"
+.Dd October 5, 2016
+.Dt CLRI 8
+.Os
+.Sh NAME
+.Nm clri
+.Nd clear an inode
+.Sh SYNOPSIS
+.Nm
+.Ar special_device inode_number ...
+.Sh DESCRIPTION
+.Bf -symbolic
+The
+.Nm
+utility is obsoleted for normal file system repair work by
+.Xr fsck 8 .
+.Ef
+.Pp
+The
+.Nm
+utility zeroes out the inodes with the specified inode number(s)
+on the file system residing on the given
+.Ar special_device .
+The
+.Xr fsck 8
+utility is usually run after
+.Nm
+to reclaim the zeroed inode(s) and the
+blocks previously claimed by those inode(s).
+Both read and write permission are required on the specified
+.Ar special_device .
+.Pp
+The primary purpose of this routine
+is to remove a file which
+for some reason is not being properly handled by
+.Xr fsck 8 .
+Once removed,
+it is anticipated that
+.Xr fsck 8
+will be able to clean up the resulting mess.
+.Sh SEE ALSO
+.Xr fsck 8 ,
+.Xr fsdb 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.At v6 .
+.Sh BUGS
+If the file is open, the work of
+.Nm
+will be lost when the inode is written back to disk from the inode cache.

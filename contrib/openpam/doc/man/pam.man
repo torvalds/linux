@@ -1,0 +1,99 @@
+.\"
+.\" $OpenPAM: pam.man 938 2017-04-30 21:34:42Z des $
+.\"
+.Sh DESCRIPTION
+The Pluggable Authentication Modules (PAM) library abstracts a number
+of common authentication-related operations and provides a framework
+for dynamically loaded modules that implement these operations in
+various ways.
+.Ss Terminology
+In PAM parlance, the application that uses PAM to authenticate a user
+is the server, and is identified for configuration purposes by a
+service name, which is often (but not necessarily) the program name.
+.Pp
+The user requesting authentication is called the applicant, while the
+user (usually, root) charged with verifying his identity and granting
+him the requested credentials is called the arbitrator.
+.Pp
+The sequence of operations the server goes through to authenticate a
+user and perform whatever task he requested is a PAM transaction; the
+context within which the server performs the requested task is called
+a session.
+.Pp
+The functionality embodied by PAM is divided into six primitives
+grouped into four facilities: authentication, account management,
+session management and password management.
+.Ss Conversation
+The PAM library expects the application to provide a conversation
+callback which it can use to communicate with the user.
+Some modules may use specialized conversation functions to communicate
+with special hardware such as cryptographic dongles or biometric
+devices.
+See
+.Xr pam_conv 3
+for details.
+.Ss Initialization and Cleanup
+The
+.Fn pam_start
+function initializes the PAM library and returns a handle which must
+be provided in all subsequent function calls.
+The transaction state is contained entirely within the structure
+identified by this handle, so it is possible to conduct multiple
+transactions in parallel.
+.Pp
+The
+.Fn pam_end
+function releases all resources associated with the specified context,
+and can be called at any time to terminate a PAM transaction.
+.Ss Storage
+The
+.Fn pam_set_item
+and
+.Fn pam_get_item
+functions set and retrieve a number of predefined items, including the
+service name, the names of the requesting and target users, the
+conversation function, and prompts.
+.Pp
+The
+.Fn pam_set_data
+and
+.Fn pam_get_data
+functions manage named chunks of free-form data, generally used by
+modules to store state from one invocation to another.
+.Ss Authentication
+There are two authentication primitives:
+.Fn pam_authenticate
+and
+.Fn pam_setcred .
+The former authenticates the user, while the latter manages his
+credentials.
+.Ss Account Management
+The
+.Fn pam_acct_mgmt
+function enforces policies such as password expiry, account expiry,
+time-of-day restrictions, and so forth.
+.Ss Session Management
+The
+.Fn pam_open_session
+and
+.Fn pam_close_session
+functions handle session setup and teardown.
+.Ss Password Management
+The
+.Fn pam_chauthtok
+function allows the server to change the user's password, either at
+the user's request or because the password has expired.
+.Ss Miscellaneous
+The
+.Fn pam_putenv ,
+.Fn pam_getenv
+and
+.Fn pam_getenvlist
+functions manage a private environment list in which modules can set
+environment variables they want the server to export during the
+session.
+.Pp
+The
+.Fn pam_strerror
+function returns a pointer to a string describing the specified PAM
+error code.

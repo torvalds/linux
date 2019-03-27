@@ -1,0 +1,82 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_set_reloc_application.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd February 11, 2015
+.Dt DWARF_SET_RELOC_APPLICATION 3
+.Os
+.Sh NAME
+.Nm dwarf_set_reloc_application
+.Nd set a library-wide relocation flag
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_set_reloc_application
+.Fa "int apply"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_set_reloc_application
+allows applications to specify how relocation information is to be
+handled by the DWARF(3) library.
+.Pp
+If the argument
+.Ar apply
+holds a non-zero value, the library will process all the relevant
+.Dq ".rel"
+and
+.Dq ".rela"
+relocation sections and will apply the relocation records found to
+their corresponding DWARF sections.
+.Pp
+If the argument
+.Ar apply
+is zero, the library will not attempt to apply any relocations.
+.Pp
+The default behaviour of the library is to process relocation records.
+.Sh NOTES
+Function
+.Fn dwarf_set_reloc_application
+should be called before initialising a dwarf debugging context, i.e,
+it should be called by the application before calling either of the
+functions
+.Xr dwarf_init 3
+or
+.Xr dwarf_elf_init 3 .
+.Sh RETURN VALUES
+Function
+.Fn dwarf_set_reloc_application
+returns the previous value of the library-wide relocation application
+flag.
+.Sh ERRORS
+Function
+.Fn dwarf_set_reloc_application
+does not return an error.
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_elf_init 3 ,
+.Xr dwarf_init 3

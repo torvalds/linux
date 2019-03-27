@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to not enable
+.Fl fformat-extensions
+when compiling the kernel.
+Also disables all format checking.

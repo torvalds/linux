@@ -1,0 +1,74 @@
+.\" $FreeBSD$
+.\" Written by Tom Rhodes
+.\" This file is in the public domain.
+.\"
+.Dd September 27, 2018
+.Dt MSDOSFS 5
+.Os
+.Sh NAME
+.Nm msdosfs
+.Nd MS-DOS file system
+.Sh SYNOPSIS
+.Cd "options MSDOSFS"
+.Sh DESCRIPTION
+The
+.Nm
+driver will permit the
+.Fx
+kernel to read and write MS-DOS based file systems.
+.Pp
+The most common usage follows:
+.Pp
+.Dl "mount -t msdosfs /dev/ada0sN /mnt"
+.Pp
+where
+.Ar N
+is the partition number and
+.Pa /mnt
+is a mount point.
+Some users tend to create a
+.Pa /dos
+directory for
+.Nm
+mount points.
+This helps to keep better track of the file system,
+and make it more easily accessible.
+.Pp
+It is possible to define an entry in
+.Pa /etc/fstab
+that looks similar to:
+.Bd -literal
+/dev/ada0sN		/dos	msdosfs		rw	0	0
+.Ed
+.Pp
+This will mount an MS-DOS based partition at the
+.Pa /dos
+mount point during system boot.
+Using
+.Pa /mnt
+as a permanent mount point is not advised as its intention
+has always been to be a temporary mount point for floppy and
+ZIP disks.
+See
+.Xr hier 7
+for more information on
+.Fx
+directory layout.
+.Sh EXAMPLES
+Determine which FAT file system version (e.g, FAT16, FAT32)
+is a partition formatted with:
+.Bd -literal -offset indent
+file -s /dev/da0s1
+.Ed
+.Pp
+.Xr gpart 8
+may also be used to extract this information.
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr unmount 2 ,
+.Xr mount 8 ,
+.Xr mount_msdosfs 8 ,
+.Xr umount 8
+.Sh AUTHORS
+This manual page was written by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org .

@@ -1,0 +1,46 @@
+#!/bin/sh
+#
+# Copyright (c) March 1998 Wolfram Schneider <wosch@FreeBSD.org>
+#
+# create a Message-ID, In-Reply-To look(1) index database
+#
+# $FreeBSD$
+
+
+TMPDIR=/var/tmp; export TMPDIR
+home=/g/www/mid
+
+dbout=$home/index
+archive=$home/archive
+
+PATH=$home/bin:/bin:/usr/bin:/usr/local/bin; export PATH
+
+
+all ()
+{
+    ( cd $archive || exit 1
+      find text/* -type f | mid-master-index 4 mid-index $dbout/mid
+    )
+}
+
+current ()
+{
+    ( cd $archive || exit 1
+    find current/freebsd-* current/cvs-* -type f |
+	mid-master-index 1 mid-index $dbout/mid-current
+    )
+}
+
+if [ $# -le 0 ]; then
+	echo "usage mid-build {current|all}"
+	exit 1
+fi
+
+for db
+do
+	case $db in
+		current) current;;
+		all) all;;
+		*) echo "Huh? $db";;
+	esac
+done

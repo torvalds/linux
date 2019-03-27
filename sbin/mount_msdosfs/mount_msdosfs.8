@@ -1,0 +1,222 @@
+.\"	$NetBSD: mount_msdos.8,v 1.13 1998/02/06 05:57:00 perry Exp $
+.\"
+.\" Copyright (c) 1993,1994 Christopher G. Demetriou
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"      This product includes software developed by Christopher G. Demetriou.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 28, 2017
+.Dt MOUNT_MSDOSFS 8
+.Os
+.Sh NAME
+.Nm mount_msdosfs
+.Nd mount an MS-DOS file system
+.Sh SYNOPSIS
+.Nm
+.Op Fl 9ls
+.Op Fl D Ar DOS_codepage
+.Op Fl g Ar gid
+.Op Fl L Ar locale
+.Op Fl M Ar mask
+.Op Fl m Ar mask
+.Op Fl o Ar options
+.Op Fl u Ar uid
+.Op Fl W Ar table
+.Ar special node
+.Sh DESCRIPTION
+The
+.Nm
+utility attaches the MS-DOS file system residing on
+the device
+.Pa special
+to the global file system namespace at the location
+indicated by
+.Pa node .
+This command is normally executed by
+.Xr mount 8
+at boot time, but can be used by any user to mount an
+MS-DOS file system on any directory that they own (provided,
+of course, that they have appropriate access to the device that
+contains the file system).
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl o Ar options
+Use the specified mount
+.Ar options ,
+as described in
+.Xr mount 8 .
+The following MSDOS file system-specific options are available:
+.Bl -tag -width indent
+.It Cm longnames
+Force Windows 95 long filenames to be visible.
+.It Cm shortnames
+Force only the old MS-DOS 8.3 style filenames to be visible.
+.It Cm nowin95
+Completely ignore Windows 95 extended file information.
+.El
+.It Fl u Ar uid
+Set the owner of the files in the file system to
+.Ar uid .
+The default owner is the owner of the directory
+on which the file system is being mounted.
+.It Fl g Ar gid
+Set the group of the files in the file system to
+.Ar gid .
+The default group is the group of the directory
+on which the file system is being mounted.
+.It Fl m Ar mask
+Specify the maximum file permissions for files
+in the file system.
+(For example, a
+.Ar mask
+of
+.Li 755
+specifies that, by default, the owner should have
+read, write, and execute permissions for files, but
+others should only have read and execute permissions.
+See
+.Xr chmod 1
+for more information about octal file modes.
+Only the nine low-order bits of
+.Ar mask
+are used.
+The value of
+.Ar -M
+is used if it is supplied and
+.Ar -m
+is omitted.
+The default
+.Ar mask
+is taken from the
+directory on which the file system is being mounted.
+.It Fl M Ar mask
+Specify the maximum file permissions for directories
+in the file system.
+The value of
+.Ar -m
+is used if it is supplied and
+.Ar -M
+is omitted.
+See the previous option's description for details.
+.It Fl s
+Force behaviour to
+ignore and not generate Win'95 long filenames.
+.It Fl l
+Force listing and generation of
+Win'95 long filenames
+and separate creation/modification/access dates.
+.Pp
+If neither
+.Fl s
+nor
+.Fl l
+are given,
+.Fl l
+is the default.
+.It Fl 9
+Ignore the special Win'95 directory entries even
+if deleting or renaming a file.
+This forces
+.Fl s .
+.\".It Fl G
+.\"This option causes the file system to be interpreted as an Atari-Gemdos
+.\"file system.
+.\"The differences to the MS-DOS file system are minimal and
+.\"limited to the boot block.
+.\"This option enforces
+.\".Fl s .
+.It Fl L Ar locale
+Specify locale name used for file name conversions
+for DOS and Win'95 names.
+By default ISO 8859-1 assumed as local character set.
+.It Fl D Ar DOS_codepage
+Specify the MS-DOS code page (aka IBM/OEM code page) name used for
+file name conversions for DOS names.
+.It Fl W Ar table
+.Bf Em
+This option is preserved for backward compatibility purpose only,
+and will be removed in the future.
+Please avoid using this option.
+.Ef
+.Pp
+Specify text file name with conversion table:
+.Pa iso22dos , iso72dos , koi2dos , koi8u2dos .
+.El
+.Sh EXAMPLES
+To mount a Russian MS-DOS file system located in
+.Pa /dev/ada1s1 :
+.Pp
+.Dl "mount_msdosfs -L ru_RU.KOI8-R -D CP866 /dev/ada1s1 /mnt"
+.Pp
+To mount a Japanese MS-DOS file system located in
+.Pa /dev/ada1s1 :
+.Pp
+.Dl "mount_msdosfs -L ja_JP.eucJP -D CP932 /dev/ada1s1 /mnt"
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr unmount 2 ,
+.Xr fstab 5 ,
+.Xr msdosfs 5 ,
+.Xr mount 8
+.Pp
+List of Localized MS Operating Systems:
+.Pa http://www.microsoft.com/globaldev/reference/oslocversion.mspx .
+.Sh HISTORY
+The predecessor to
+.Nm mount_msdos
+utility named
+.Nm mount_pcfs
+appeared in
+.Nx 0.8 .
+It was rewritten in
+.Nx 1.0
+and first appeared in
+.Fx 2.0 .
+.Nm mount_msdos
+was renamed to the more aptly-named
+.Nm
+in
+.Fx 5.0.
+The character code conversion routine was added in 2003.
+.Sh AUTHORS
+Initial implementation as
+.Nm mount_pcfs
+was written by
+.An -nosplit
+.An Paul Popelka Aq Mt paulp@uts.amdahl.com .
+It was rewritten by
+.An Christopher G. Demetriou Aq Mt cgd@NetBSD.org .
+The character code conversion routine was added by
+.An Ryuichiro Imura Aq Mt imura@ryu16.org .
+.Sh CAVEATS
+The use of the
+.Fl 9
+flag could result in damaged file systems,
+albeit the damage is in part taken care of by
+procedures similar to the ones used in Win'95.

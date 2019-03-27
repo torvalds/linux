@@ -1,0 +1,132 @@
+#
+# This file adds to the values in AR933X_BASE.hints.
+#
+# $FreeBSD$
+
+# mdiobus on arge1
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x1a000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
+
+# Embedded Atheros Switch
+hint.arswitch.0.at="mdio0"
+
+# XXX this should really say it's an AR933x switch, as there
+# are some vlan specific differences here!
+hint.arswitch.0.is_7240=1
+hint.arswitch.0.numphys=4
+hint.arswitch.0.phy4cpu=1	# phy 4 is a "CPU" separate PHY
+hint.arswitch.0.is_rgmii=0
+hint.arswitch.0.is_gmii=1	# arge1 <-> switch PHY is GMII
+
+# arge0 - MII, autoneg, phy(4)
+hint.arge.0.phymask=0x10	# PHY4
+hint.arge.0.mdio=mdioproxy1	# .. off of the switch mdiobus
+hint.arge.0.eeprommac=0x1fff0000
+
+# arge1 - GMII, 1000/full
+hint.arge.1.phymask=0x0		# No directly mapped PHYs
+hint.arge.1.media=1000
+hint.arge.1.fduplex=1
+hint.arge.1.eeprommac=0x1fff0006
+
+# ath0
+hint.ath.0.eepromaddr=0x1fff0000
+hint.ath.0.eepromsize=16384
+
+# 16MB flash layout:
+# [    0.510000] 5 tp-link partitions found on MTD device spi0.0
+# [    0.510000] Creating 5 MTD partitions on "spi0.0":
+# [    0.520000] 0x000000000000-0x000000020000 : "u-boot"
+# [    0.520000] 0x000000020000-0x000000136468 : "kernel"
+# [    0.530000] 0x000000136468-0x000000ff0000 : "rootfs"
+# [    0.530000] mtd: device 2 (rootfs) set to be root filesystem
+# [    0.540000] 1 squashfs-split partitions found on MTD device rootfs
+# [    0.540000] 0x000000730000-0x000000fe0000 : "rootfs_data"
+# [    0.540000] 0x000000fe0000-0x000000ff0000 : "nvram"
+# [    0.550000] 0x000000ff0000-0x000001000000 : "art"
+# [    0.560000] 0x000000020000-0x000000fe0000 : "firmware"
+
+# 64KiB uboot
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x00010000
+hint.map.0.name="u-boot"
+hint.map.0.readonly=1
+
+# 64KiB uboot
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00010000
+hint.map.1.end=0x00020000
+hint.map.1.name="uboot-env"
+hint.map.1.readonly=1
+
+# kernel
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00020000
+hint.map.2.end="search:0x00020000:0x10000:.!/bin/sh"
+hint.map.2.name="kernel"
+hint.map.2.readonly=1
+
+# rootfs ulzma
+hint.map.3.at="flash/spi0"
+hint.map.3.start="search:0x00020000:0x10000:.!/bin/sh"
+hint.map.3.end=0x00fe0000
+hint.map.3.name="rootfs"
+hint.map.3.readonly=1
+
+# 64KiB cfg
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x00fe0000
+hint.map.4.end=0x00ff0000
+hint.map.4.name="cfg"
+hint.map.4.readonly=0
+
+# all firmware 16000KiB
+hint.map.5.at="flash/spi0"
+hint.map.5.start=0x00020000
+hint.map.5.end=0x00ff0000
+hint.map.5.name="firmware"
+hint.map.5.readonly=0
+
+# 64KiB ART
+hint.map.6.at="flash/spi0"
+hint.map.6.start=0x00ff0000
+hint.map.6.end=0x01000000
+hint.map.6.name="ART"
+hint.map.6.readonly=1
+
+# GPIO
+hint.gpio.0.pinmask=0x0c8ff1c3
+
+hint.gpioled.0.at="gpiobus0"
+hint.gpioled.0.pins=0x08000000
+hint.gpioled.0.name="board"
+hint.gpioled.0.invert=0
+
+#Red
+hint.gpioled.1.at="gpiobus0"
+hint.gpioled.1.pins=0x00020000
+hint.gpioled.1.name="red"
+hint.gpioled.1.invert=0
+
+#Green
+hint.gpioled.2.at="gpiobus0"
+hint.gpioled.2.pins=0x00010000
+hint.gpioled.2.name="green"
+hint.gpioled.2.invert=0
+
+#Blue
+hint.gpioled.3.at="gpiobus0"
+hint.gpioled.3.pins=0x00008000
+hint.gpioled.3.name="blue"
+hint.gpioled.3.invert=0
+
+# I2C
+# 0x20 - 0x27 = Relay Controllers (0x27 is default)
+# 0x5a = PWM/Servo Controller
+hint.gpioiic.0.at="gpiobus0"
+hint.gpioiic.0.pins=0x300000 # pins 20 and 21
+hint.gpioiic.0.scl=0 # pin 20
+hint.gpioiic.0.sda=1 # pin 21

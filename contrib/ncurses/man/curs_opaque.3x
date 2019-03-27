@@ -1,0 +1,146 @@
+.\"***************************************************************************
+.\" Copyright (c) 2007-2010,2013 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_opaque.3x,v 1.10 2013/07/20 19:42:29 tom Exp $
+.TH curs_opaque 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.na
+.hy 0
+.SH NAME
+\fBis_cleared\fR,
+\fBis_idlok\fR,
+\fBis_idcok\fR,
+\fBis_immedok\fR,
+\fBis_keypad\fR,
+\fBis_leaveok\fR,
+\fBis_nodelay\fR,
+\fBis_notimeout\fR,
+\fBis_pad\fR,
+\fBis_scrollok\fR,
+\fBis_subwin\fR,
+\fBis_syncok\fR \- \fBcurses\fR window properties
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBbool is_cleared(const WINDOW *win);\fR
+.br
+\fBbool is_idcok(const WINDOW *win);\fR
+.br
+\fBbool is_idlok(const WINDOW *win);\fR
+.br
+\fBbool is_immedok(const WINDOW *win);\fR
+.br
+\fBbool is_keypad(const WINDOW *win);\fR
+.br
+\fBbool is_leaveok(const WINDOW *win);\fR
+.br
+\fBbool is_nodelay(const WINDOW *win);\fR
+.br
+\fBbool is_notimeout(const WINDOW *win);\fR
+.br
+\fBbool is_pad(const WINDOW *win);\fR
+.br
+\fBbool is_scrollok(const WINDOW *win);\fR
+.br
+\fBbool is_subwin(const WINDOW *win);\fR
+.br
+\fBbool is_syncok(const WINDOW *win);\fR
+.br
+\fBWINDOW * wgetparent(const WINDOW *win);\fR
+.br
+\fBint wgetscrreg(const WINDOW *win, int *top, int *bottom);\fR
+.br
+.SH DESCRIPTION
+This implementation provides functions which return properties
+set in the WINDOW structure, allowing it to be \*(``opaque\*('' if
+the symbol \fBNCURSES_OPAQUE\fR is defined:
+.TP 5
+\fBis_cleared\fR
+returns the value set in \fBclearok\fR
+.TP 5
+\fBis_idcok\fR
+returns the value set in \fBidcok\fR
+.TP 5
+\fBis_idlok\fR
+returns the value set in \fBidlok\fR
+.TP 5
+\fBis_immedok\fR
+returns the value set in \fBimmedok\fR
+.TP 5
+\fBis_keypad\fR
+returns the value set in \fBkeypad\fR
+.TP 5
+\fBis_leaveok\fR
+returns the value set in \fBleaveok\fR
+.TP 5
+\fBis_nodelay\fR
+returns the value set in \fBnodelay\fR
+.TP 5
+\fBis_notimeout\fR
+returns the value set in \fBnotimeout\fR
+.TP 5
+\fBis_pad\fR
+returns TRUE if the window is a pad
+i.e., created by \fBnewpad\fP
+.TP 5
+\fBis_scrollok\fR
+returns the value set in \fBscrollok\fR
+.TP 5
+\fBis_subwin\fR
+returns TRUE if the window is a subwindow,
+i.e., created by \fBsubwin\fP or \fBderwin\fP
+.TP 5
+\fBis_syncok\fR
+returns the value set in \fBsyncok\fR
+.TP 5
+\fBwgetparent\fR
+returns the parent WINDOW pointer for subwindows,
+or NULL for windows having no parent.
+.TP 5
+\fBwgetscrreg\fR
+returns the top and bottom rows for the scrolling margin
+as set in \fBwsetscrreg\fP.
+.SH RETURN VALUE
+These functions all return TRUE or FALSE, except as noted.
+.SH NOTES
+Both a macro and a function are provided for each name.
+.SH PORTABILITY
+These routines are specific to ncurses.
+They were not supported on Version 7, BSD or System V implementations.
+It is recommended that any code depending on ncurses extensions
+be conditioned using NCURSES_VERSION.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_inopts\fR(3X),
+\fBcurs_outopts\fR(3X),
+\fBcurs_window\fR(3X)

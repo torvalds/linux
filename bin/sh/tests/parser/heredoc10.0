@@ -1,0 +1,49 @@
+# $FreeBSD$
+
+# It may be argued that
+#   x=$(cat <<EOF
+#   foo
+#   EOF)
+# is a valid complete command that sets x to foo, because
+#   cat <<EOF
+#   foo
+#   EOF
+# is a valid script even without the final newline.
+# However, if the here-document is not within a new-style command substitution
+# or there are other constructs nested inside the command substitution that
+# need terminators, the delimiter at the start of a line followed by a close
+# parenthesis is clearly a literal part of the here-document.
+
+# This file contains tests that may not work with simplistic $(...) parsers.
+# The open parentheses in comments help mksh, but not zsh.
+
+failures=0
+
+check() {
+	if ! eval "[ $* ]"; then
+		echo "Failed: $*"
+		: $((failures += 1))
+	fi
+}
+
+check '"$(cat <<EOF # (
+EOF )
+EOF
+)" = "EOF )"'
+
+check '"$({ cat <<EOF # (
+EOF)
+EOF
+})" = "EOF)"'
+
+check '"$(if :; then cat <<EOF # (
+EOF)
+EOF
+fi)" = "EOF)"'
+
+check '"$( (cat <<EOF # (
+EOF)
+EOF
+))" = "EOF)"'
+
+exit $((failures != 0))

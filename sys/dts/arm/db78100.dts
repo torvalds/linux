@@ -1,0 +1,332 @@
+/*
+ * Copyright (c) 2010 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * This software was developed by Semihalf under sponsorship from
+ * the FreeBSD Foundation.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * Marvell DB-78100 Device Tree Source.
+ *
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+
+/ {
+	model = "mrvl,DB-78100";
+	compatible = "DB-78100-BP", "DB-78100-BP-A";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		ethernet0 = &enet0;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		mpp = &MPP;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "ARM,88FR571";
+			reg = <0x0>;
+			d-cache-line-size = <32>;	// 32 bytes
+			i-cache-line-size = <32>;	// 32 bytes
+			d-cache-size = <0x4000>;	// L1, 16K
+			i-cache-size = <0x4000>;	// L1, 16K
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x20000000>;		// 512M at 0x0
+	};
+
+	localbus@0 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "mrvl,lbc";
+		bank-count = <5>;
+
+		/* This reflects CPU decode windows setup. */
+		ranges = <0x0 0x2f 0xf9300000 0x00100000
+			  0x1 0x3e 0xf9400000 0x00100000
+			  0x2 0x3d 0xf9500000 0x02000000
+			  0x3 0x3b 0xfb500000 0x00100000>;
+
+		nor@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x0 0x0 0x00100000>;
+		};
+
+		led@1,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "led";
+			reg = <0x1 0x0 0x00100000>;
+		};
+
+		nor@2,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x2 0x0 0x02000000>;
+		};
+
+		nand@3,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "mrvl,nfc";
+			reg = <0x3 0x0 0x00100000>;
+		};
+	};
+
+	soc78100@f1000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x0 0xf1000000 0x00100000>;
+		bus-frequency = <0>;
+
+		PIC: pic@20200 {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg = <0x20200 0x3c>;
+			compatible = "mrvl,pic";
+		};
+
+		timer@20300 {
+			compatible = "mrvl,timer";
+			reg = <0x20300 0x30>;
+			interrupts = <8>;
+			interrupt-parent = <&PIC>;
+			mrvl,has-wdt;
+		};
+
+		MPP: mpp@10000 {
+			#pin-cells = <2>;
+			compatible = "mrvl,mpp";
+			reg = <0x10000 0x34>;
+			pin-count = <50>;
+			pin-map = <
+				0  2		/* MPP[0]:  GE1_TXCLK */
+				1  2		/* MPP[1]:  GE1_TXCTL */
+				2  2		/* MPP[2]:  GE1_RXCTL */
+				3  2		/* MPP[3]:  GE1_RXCLK */
+				4  2		/* MPP[4]:  GE1_TXD[0] */
+				5  2		/* MPP[5]:  GE1_TXD[1] */
+				6  2		/* MPP[6]:  GE1_TXD[2] */
+				7  2		/* MPP[7]:  GE1_TXD[3] */
+				8  2		/* MPP[8]:  GE1_RXD[0] */
+				9  2		/* MPP[9]:  GE1_RXD[1] */
+				10 2		/* MPP[10]: GE1_RXD[2] */
+				11 2		/* MPP[11]: GE1_RXD[3] */
+				13 3		/* MPP[13]: SYSRST_OUTn */
+				14 3		/* MPP[14]: SATA1_ACTn */
+				15 3		/* MPP[15]: SATA0_ACTn */
+				16 4		/* MPP[16]: UA2_TXD */
+				17 4		/* MPP[17]: UA2_RXD */
+				18 3		/* MPP[18]: <UNKNOWN> */
+				19 3		/* MPP[19]: <UNKNOWN> */
+				20 3		/* MPP[20]: <UNKNOWN> */
+				21 3		/* MPP[21]: <UNKNOWN> */
+				22 4		/* MPP[22]: UA3_TXD */
+				23 4 >;		/* MPP[21]: UA3_RXD */
+		};
+
+		GPIO: gpio@10100 {
+			#gpio-cells = <2>;
+			compatible = "mrvl,gpio";
+			reg = <0x10100 0x20>;
+			gpio-controller;
+			interrupts = <56 57 58 59>;
+			interrupt-parent = <&PIC>;
+		};
+
+		rtc@10300 {
+			compatible = "mrvl,rtc";
+			reg = <0x10300 0x08>;
+		};
+
+		twsi@11000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "mrvl,twsi";
+			reg = <0x11000 0x20>;
+			interrupts = <2>;
+			interrupt-parent = <&PIC>;
+		};
+
+		twsi@11100 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "mrvl,twsi";
+			reg = <0x11100 0x20>;
+			interrupts = <3>;
+			interrupt-parent = <&PIC>;
+		};
+
+		enet0: ethernet@72000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			model = "V2";
+			compatible = "mrvl,ge";
+			reg = <0x72000 0x2000>;
+			ranges = <0x0 0x72000 0x2000>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <41 42 43 40 70>;
+			interrupt-parent = <&PIC>;
+			phy-handle = <&phy0>;
+
+			mdio@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "mrvl,mdio";
+
+				phy0: ethernet-phy@0 {
+					reg = <0x8>;
+				};
+				phy1: ethernet-phy@1 {
+					reg = <0x9>;
+				};
+			};
+		};
+
+		enet1: ethernet@76000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			model = "V2";
+			compatible = "mrvl,ge";
+			reg = <0x76000 0x2000>;
+			ranges = <0x0 0x76000 0x2000>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <45 46 47 44 70>;
+			interrupt-parent = <&PIC>;
+			phy-handle = <&phy1>;
+		};
+
+		serial0: serial@12000 {
+			compatible = "ns16550";
+			reg = <0x12000 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <0>;
+			interrupts = <12>;
+			interrupt-parent = <&PIC>;
+		};
+
+		serial1: serial@12100 {
+			compatible = "ns16550";
+			reg = <0x12100 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <0>;
+			interrupts = <13>;
+			interrupt-parent = <&PIC>;
+		};
+
+		usb@50000 {
+			compatible = "mrvl,usb-ehci", "usb-ehci";
+			reg = <0x50000 0x1000>;
+			interrupts = <72 16>;
+			interrupt-parent = <&PIC>;
+		};
+
+		usb@51000 {
+			compatible = "mrvl,usb-ehci", "usb-ehci";
+			reg = <0x51000 0x1000>;
+			interrupts = <72 17>;
+			interrupt-parent = <&PIC>;
+		};
+
+		usb@52000 {
+			compatible = "mrvl,usb-ehci", "usb-ehci";
+			reg = <0x52000 0x1000>;
+			interrupts = <72 18>;
+			interrupt-parent = <&PIC>;
+		};
+
+		xor@60000 {
+			compatible = "mrvl,xor";
+			reg = <0x60000 0x1000>;
+			interrupts = <22 23>;
+			interrupt-parent = <&PIC>;
+		};
+
+		crypto@90000 {
+			compatible = "mrvl,cesa";
+			reg = <0x90000 0x1000	/* tdma base reg chan 0 */
+			       0x9D000 0x1000>;	/* cesa base reg chan 0 */
+			interrupts = <19>;
+			interrupt-parent = <&PIC>;
+		};
+
+		sata@a0000 {
+			compatible = "mrvl,sata";
+			reg = <0xa0000 0x6000>;
+			interrupts = <26>;
+			interrupt-parent = <&PIC>;
+		};
+	};
+
+	pci0: pcie@f1040000 {
+		compatible = "mrvl,pcie";
+		device_type = "pci";
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <0xf1040000 0x2000>;
+		bus-range = <0 255>;
+		ranges = <0x02000000 0x0 0xf2000000 0xf2000000 0x0 0x04000000
+			  0x01000000 0x0 0x00000000 0xf1100000 0x0 0x00100000>;
+		clock-frequency = <33333333>;
+		interrupt-parent = <&PIC>;
+		interrupts = <68>;
+		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+		interrupt-map = <
+			/* IDSEL 0x1 */
+			0x0800 0x0 0x0 0x1 &PIC 0x20
+			0x0800 0x0 0x0 0x2 &PIC 0x21
+			0x0800 0x0 0x0 0x3 &PIC 0x22
+			0x0800 0x0 0x0 0x4 &PIC 0x23
+			>;
+	};
+
+	sram@fd000000 {
+		compatible = "mrvl,cesa-sram";
+		reg = <0xfd000000 0x00100000>;
+	};
+
+	chosen {
+		stdin = "serial0";
+		stdout = "serial0";
+	};
+};

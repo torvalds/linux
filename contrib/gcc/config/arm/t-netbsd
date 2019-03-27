@@ -1,0 +1,28 @@
+# Just for these, we omit the frame pointer since it makes such a big
+# difference.  It is then pointless adding debugging.
+TARGET_LIBGCC2_CFLAGS = -fomit-frame-pointer -fpic
+LIBGCC2_DEBUG_CFLAGS = -g0
+LIB2FUNCS_EXTRA = $(srcdir)/config/floatunsidf.c $(srcdir)/config/floatunsisf.c
+
+# Build a shared libgcc library.
+SHLIB_EXT = .so
+SHLIB_NAME = @shlib_base_name@.so
+SHLIB_SONAME = @shlib_base_name@.so.1
+SHLIB_OBJS = @shlib_objs@
+
+SHLIB_LINK = $(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) -shared -nodefaultlibs \
+	-Wl,-soname,$(SHLIB_SONAME) \
+	-o $(SHLIB_NAME).tmp @multilib_flags@ $(SHLIB_OBJS) -lc && \
+	rm -f $(SHLIB_SONAME) && \
+	if [ -f $(SHLIB_NAME) ]; then \
+	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).backup; \
+	else true; fi && \
+	mv $(SHLIB_NAME).tmp $(SHLIB_NAME) && \
+	$(LN_S) $(SHLIB_NAME) $(SHLIB_SONAME)
+# $(slibdir) double quoted to protect it from expansion while building
+# libgcc.mk.  We want this delayed until actual install time.
+SHLIB_INSTALL = \
+	$$(mkinstalldirs) $$(DESTDIR)$$(slibdir); \
+	$(INSTALL_DATA) $(SHLIB_NAME) $$(DESTDIR)$$(slibdir)/$(SHLIB_SONAME); \
+	rm -f $$(DESTDIR)$$(slibdir)/$(SHLIB_NAME); \
+	$(LN_S) $(SHLIB_SONAME) $$(DESTDIR)$$(slibdir)/$(SHLIB_NAME)

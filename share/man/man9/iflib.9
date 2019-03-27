@@ -1,0 +1,42 @@
+.\" $FreeBSD$
+.Dd September 20, 2018
+.Dt IFLIB 9
+.Os
+.Sh NAME
+.Nm iflib
+.Nd Network Interface Driver Framework
+.Sh DESCRIPTION
+.Nm
+is a framework for writing network interface drivers for FreeBSD.
+It is designed to remove a large amount of the boilerplate that is often
+needed for modern network interface devices, allowing driver authors to
+focus on the specific code needed for their hardware.
+.Pp
+There are three logical components to
+.Nm
+each of which is described in its own manual page.
+These are:
+.Bl -tag -width ".Xr iflibtxrx 9"
+.It Xr iflibdi 9
+Device-independent functions, used to integrate
+.Nm
+into the rest of the
+.Fx
+networking stack.
+.It Xr iflibdd 9
+Device-dependent functions, used when writing new
+.Nm
+based drivers.
+.It Xr iflibtxrx 9
+Device-dependent transmit and receive functions, used when writing new
+.Nm
+based drivers.
+.Sh SEE ALSO
+.Xr iflib 4 ,
+.Xr iflibdd 9 ,
+.Xr iflibdi 9 ,
+.Xr iflibtxrx 9 ,
+.Xr ifnet 9
+.Sh AUTHORS
+.An Benno Rice Aq Mt benno@FreeBSD.org
+

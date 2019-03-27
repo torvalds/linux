@@ -1,0 +1,85 @@
+=pod
+
+=head1 NAME
+
+OPENSSL_config, OPENSSL_no_config - simple OpenSSL configuration functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/conf.h>
+
+ #if OPENSSL_API_COMPAT < 0x10100000L
+ void OPENSSL_config(const char *appname);
+ void OPENSSL_no_config(void);
+ #endif
+
+=head1 DESCRIPTION
+
+OPENSSL_config() configures OpenSSL using the standard B<openssl.cnf> and
+reads from the application section B<appname>. If B<appname> is NULL then
+the default section, B<openssl_conf>, will be used.
+Errors are silently ignored.
+Multiple calls have no effect.
+
+OPENSSL_no_config() disables configuration. If called before OPENSSL_config()
+no configuration takes place.
+
+If the application is built with B<OPENSSL_LOAD_CONF> defined, then a
+call to OpenSSL_add_all_algorithms() will implicitly call OPENSSL_config()
+first.
+
+=head1 NOTES
+
+The OPENSSL_config() function is designed to be a very simple "call it and
+forget it" function.
+It is however B<much> better than nothing. Applications which need finer
+control over their configuration functionality should use the configuration
+functions such as CONF_modules_load() directly. This function is deprecated
+and its use should be avoided.
+Applications should instead call CONF_modules_load() during
+initialization (that is before starting any threads).
+
+There are several reasons why calling the OpenSSL configuration routines is
+advisable. For example, to load dynamic ENGINEs from shared libraries (DSOs).
+However very few applications currently support the control interface and so
+very few can load and use dynamic ENGINEs. Equally in future more sophisticated
+ENGINEs will require certain control operations to customize them. If an
+application calls OPENSSL_config() it doesn't need to know or care about
+ENGINE control operations because they can be performed by editing a
+configuration file.
+
+=head1 ENVIRONMENT
+
+=over 4
+
+=item B<OPENSSL_CONF>
+
+The path to the config file.
+Ignored in set-user-ID and set-group-ID programs.
+
+=back
+
+=head1 RETURN VALUES
+
+Neither OPENSSL_config() nor OPENSSL_no_config() return a value.
+
+=head1 SEE ALSO
+
+L<config(5)>,
+L<CONF_modules_load_file(3)>
+
+=head1 HISTORY
+
+The OPENSSL_no_config() and OPENSSL_config() functions were
+deprecated in OpenSSL 1.1.0 by OPENSSL_init_crypto().
+
+=head1 COPYRIGHT
+
+Copyright 2004-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

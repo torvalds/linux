@@ -1,0 +1,12 @@
+
+#------------------------------------------------------------------------------
+# $File: lex,v 1.6 2009/09/19 16:28:10 christos Exp $
+# lex:  file(1) magic for lex
+#
+#	derived empirically, your offsets may vary!
+0	search/100	yyprevious	C program text (from lex)
+>3	search/1	>\0		 for %s
+# C program text from GNU flex, from Daniel Quinlan <quinlan@yggdrasil.com>
+0	search/100	generated\ by\ flex	C program text (from flex)
+# lex description file, from Daniel Quinlan <quinlan@yggdrasil.com>
+0	search/1	%{		lex description text

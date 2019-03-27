@@ -1,0 +1,13 @@
+$Id: TODO,v 1.2 2004/08/23 18:08:15 max Exp $
+$FreeBSD$
+
+FIXME/TODO list
+
+This is a list of open issues for H4 node
+
+1) Locking/SMP
+
+	External code now uses ng_send_fn to inject data into Netgraph, but
+	i still use splXXX to lock tty level. this is wrong and should be
+	fixed!
+

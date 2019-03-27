@@ -1,0 +1,17 @@
+#! /bin/sh
+#
+# Script for testing fixed xmit rate handling.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+WLAN=`ifconfig wlan create wlanmode hostap wlandev $WIRELESS`
+ifconfig $WLAN ssid $SSID channel $CHANNEL mtu 1500
+ifconfig $WLAN ucastrate 24:a ucastrate 7
+BRIDGE=`ifconfig bridge create`
+ifconfig $BRIDGE addm $WLAN addm $WIRED up
+ifconfig $WIRED up
+wlandebug -i $WLAN state+scan+assoc
+ifconfig $WLAN up

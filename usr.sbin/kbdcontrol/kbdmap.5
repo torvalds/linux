@@ -1,0 +1,335 @@
+.\" Copyright (c) 2000
+.\"	David Malone
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 2, 2016
+.Dt KBDMAP 5
+.Os
+.Sh NAME
+.Nm kbdmap
+.Nd keyboard map file format for kbdcontrol
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+A
+.Nm
+file describes how the keys on a keyboard should behave.
+These files can be loaded
+using
+.Xr kbdcontrol 1 ,
+or
+.Xr kbdmap 1
+can be used to select one of the default
+.Nm
+files interactively.
+A
+.Nm
+file can be specified in
+.Xr rc.conf 5 ,
+to be loaded
+at boot time.
+The current keymap may also be printed using
+.Xr kbdcontrol 1 .
+.Pp
+Each line in the file
+can describe a key or an accent.
+A
+.Ql #
+character begins a comment,
+which extends to the end of the line.
+.Pp
+The description of a key
+begins with the scancode for that key.
+Then the effect of the key
+under combinations of
+shift,
+control
+and alt
+are listed in the following order:
+no modifier,
+shift,
+control,
+control and shift,
+alt,
+alt and shift,
+alt and control,
+alt and control and shift.
+The action of the key
+under each modifier can be:
+.Bl -tag -width Ar
+.It ' Ns Ar symbol Ns No '
+The symbol the key should produce,
+in single quotes.
+.It Ar decnum
+The
+.Tn Unicode
+value to produce
+as a decimal number
+(see
+.Xr ascii 7 ) .
+For example, 32 for space.
+.It 0x Ns Ar hexnum
+The
+.Tn Unicode
+value to produce
+as a hexadecimal number.
+For example, 0x20 for space.
+.It Ar ctrlname
+One of the standard names
+for the
+.Tn ASCII
+control characters:
+nul,
+soh,
+stx,
+etx,
+eot,
+enq,
+ack,
+bel,
+bs,
+ht,
+lf,
+vt,
+ff,
+cr,
+so,
+si,
+dle,
+dc1,
+dc2,
+dc3,
+dc4,
+nak,
+syn,
+etb,
+can,
+em,
+sub,
+esc,
+fs,
+gs,
+rs,
+us,
+sp,
+del.
+.It Ar control-alias
+One of the historical aliases for certain
+.Tn ASCII
+control characters:
+nl,
+np,
+ns.
+.It Ar accentname
+By giving one of the accent names,
+the next key pressed will produce
+an accented character
+in accordance with that accent.
+See the description of accents below.
+The accent names are:
+dgra,
+dacu,
+dcir,
+dtil,
+dmac,
+dbre,
+ddot,
+duml,
+ddia,
+dsla,
+drin,
+dced,
+dapo,
+ddac,
+dogo,
+dcar.
+.It fkey Ns Ar N
+Act as the
+.Ar N Ns No th
+function key,
+where
+.Ar N
+is a decimal number in the range from 1 to 96.
+Refer to the
+.Xr atkbd 4
+manual page for a list of predefined function keys.
+You can use the
+.Fl f
+option of the
+.Xr kbdcontrol 1
+utility to assign arbitrary strings to function keys.
+.It lshift
+Act as left shift key.
+.It rshift
+Act as right shift key.
+.It clock
+Act as caps lock key.
+.It nlock
+Act as num lock key.
+.It slock
+Act as scroll lock key.
+.It lalt|alt
+Act as left alt key.
+.It btab
+Act as backwards tab.
+.It lctrl|ctrl
+Act as left control key.
+.It rctrl
+Act as right control key.
+.It ralt
+Act as right alt (altgr) key.
+.It alock
+Act as alt lock key.
+.It ashift
+Act as alt shift key.
+.It meta
+Act as meta key.
+.It lshifta|shifta
+Act as left shift key / alt lock.
+.It rshifta
+Act as right shift key / alt lock.
+.It lctrla|ctrla
+Act as left ctrl key / alt lock.
+.It rctrla
+Act as right ctrl key / alt lock.
+.It lalta|alta
+Act as left alt key / alt lock.
+.It ralta
+Act as right alt key / alt lock.
+.It nscr
+Act as switch to next screen.
+.It pscr
+Act as switch to previous screen.
+.It scr Ns Ar N
+Switch to screen
+.Ar N ,
+where
+.Ar N
+is a decimal number.
+.It boot
+Reboot the machine.
+.It halt
+Halt the machine.
+.It pdwn
+Halt the machine
+and attempt to power it down.
+.It debug
+Call the debugger.
+.It susp
+Use APM to suspend power.
+.It saver
+Activate screen saver
+by toggling between splash/text screen.
+.It panic
+Panic the system.
+The
+.Xr sysctl 8
+variable
+.Va machdep.enable_panic_key
+must be set to 1 to enable this feature.
+.It paste
+Act as mouse buffer paste.
+.El
+.Pp
+Finally,
+to complete the description of a key,
+a flag which describes
+the effect of caps lock and num lock
+on that key is given.
+The flag can be
+.Ql C
+to indicate that caps lock affects the key,
+.Ql N
+to indicate that num lock affects the key,
+.Ql B
+to indicate that both
+caps lock and num lock affects the key,
+or
+.Ql O
+to indicate that neither affects the key.
+.Pp
+An accent key works
+by modifying the behavior
+of the next key pressed.
+The description of an accent begins
+with one of the accent names
+given above.
+This is followed
+by the symbol for the accent,
+given in single quotes or
+as a decimal or hexadecimal
+.Tn Unicode
+value.
+This symbol will be produced
+if the accent key is pressed and
+then the space key is pressed.
+.Pp
+The description of the accent key
+continues with a list showing
+how it modifies various symbols,
+by giving pairs made up of the normal symbol and
+the modified symbol
+enclosed in parentheses.
+Both symbols in a pair can be given
+in either single quotes or
+as decimal or
+hexadecimal
+.Tn Unicode
+values.
+.Pp
+For example,
+consider the following extract from a
+.Nm :
+.Bd -literal -offset indent
+  041   dgra   172    nop    nop    '|'    '|'    nop    nop     O
+  dgra  '`'  ( 'a' 224 ) ( 'A' 192 ) ( 'e' 232 ) ( 'E' 200 )
+             ( 'i' 236 ) ( 'I' 204 ) ( 'o' 242 ) ( 'O' 210 )
+             ( 'u' 249 ) ( 'U' 217 )
+.Ed
+This extract
+configures the backtick key on a UK keyboard
+to act as a grave accent key.
+Pressing backtick followed by space
+produces a backtick, and
+pressing a backtick followed by a vowel
+produces the ISO-8859-1 symbol
+for that vowel with a grave accent.
+.Sh FILES
+.Bl -tag -width /usr/share/syscons/keymaps/* -compact
+.It Pa /usr/share/syscons/keymaps/*
+standard keyboard map files for syscons
+.It Pa /usr/share/vt/keymaps/*
+standard keyboard map files for vt
+.El
+.Sh SEE ALSO
+.Xr kbdcontrol 1 ,
+.Xr kbdmap 1 ,
+.Xr keyboard 4 ,
+.Xr syscons 4 ,
+.Xr vt 4 ,
+.Xr ascii 7
+.Sh HISTORY
+This manual page first appeared in
+.Fx 4.2 .

@@ -1,0 +1,291 @@
+.\" Man page generated from reStructuredText.
+.
+.TH PERFQUERY 8 "" "" "Open IB Diagnostics"
+.SH NAME
+PERFQUERY \- 
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH QUERY INFINIBAND PORT COUNTERS ON A SINGLE PORT
+.SS SYNOPSIS
+.sp
+perfquery [options] [<lid|guid> [[port(s)] [reset_mask]]]
+.SS DESCRIPTION
+.sp
+perfquery uses PerfMgt GMPs to obtain the PortCounters (basic performance and
+error counters), PortExtendedCounters, PortXmitDataSL, PortRcvDataSL,
+PortRcvErrorDetails, PortXmitDiscardDetails, PortExtendedSpeedsCounters, or
+PortSamplesControl from the PMA at the node/port specified. Optionally shows
+aggregated counters for all ports of node.  Finally it can, reset after read,
+or just reset the counters.
+.sp
+Note: In PortCounters, PortCountersExtended, PortXmitDataSL, and PortRcvDataSL,
+components that represent Data (e.g. PortXmitData and PortRcvData) indicate
+octets divided by 4 rather than just octets.
+.sp
+Note: Inputting a port of 255 indicates an operation be performed on all ports.
+.sp
+Note: For PortCounters, ExtendedCounters, and resets, multiple ports can be
+specified by either a comma separated list or a port range.  See examples below.
+.SS OPTIONS
+.INDENT 0.0
+.TP
+.B \fB\-x, \-\-extended\fP
+show extended port counters rather than (basic) port counters.
+Note that extended port counters attribute is optional.
+.TP
+.B \fB\-X, \-\-xmtsl\fP
+show transmit data SL counter. This is an optional counter for QoS.
+.TP
+.B \fB\-S, \-\-rcvsl\fP
+show receive data SL counter. This is an optional counter for QoS.
+.TP
+.B \fB\-D, \-\-xmtdisc\fP
+show transmit discard details. This is an optional counter.
+.TP
+.B \fB\-E, \-\-rcverr\fP
+show receive error details. This is an optional counter.
+.TP
+.B \fB\-D, \-\-xmtdisc\fP
+show transmit discard details. This is an optional counter.
+.TP
+.B \fB\-T, \-\-extended_speeds\fP
+show extended speeds port counters. This is an optional counter.
+.TP
+.B \fB\-\-oprcvcounters\fP
+show Rcv Counters per Op code. This is an optional counter.
+.TP
+.B \fB\-\-flowctlcounters\fP
+show flow control counters. This is an optional counter.
+.TP
+.B \fB\-\-vloppackets\fP
+show packets received per Op code per VL. This is an optional counter.
+.TP
+.B \fB\-\-vlopdata\fP
+show data received per Op code per VL. This is an optional counter.
+.TP
+.B \fB\-\-vlxmitflowctlerrors\fP
+show flow control update errors per VL. This is an optional counter.
+.TP
+.B \fB\-\-vlxmitcounters\fP
+show ticks waiting to transmit counters per VL. This is an optional counter.
+.TP
+.B \fB\-\-swportvlcong\fP
+show sw port VL congestion. This is an optional counter.
+.TP
+.B \fB\-\-rcvcc\fP
+show Rcv congestion control counters. This is an optional counter.
+.TP
+.B \fB\-\-slrcvfecn\fP
+show SL Rcv FECN counters. This is an optional counter.
+.TP
+.B \fB\-\-slrcvbecn\fP
+show SL Rcv BECN counters. This is an optional counter.
+.TP
+.B \fB\-\-xmitcc\fP
+show Xmit congestion control counters. This is an optional counter.
+.TP
+.B \fB\-\-vlxmittimecc\fP
+show VL Xmit Time congestion control counters. This is an optional counter.
+.TP
+.B \fB\-c, \-\-smplctl\fP
+show port samples control.
+.TP
+.B \fB\-a, \-\-all_ports\fP
+show aggregated counters for all ports of the destination lid, reset
+all counters for all ports, or if multiple ports are specified, aggregate
+the counters of the specified ports.  If the destination lid does not support
+the AllPortSelect flag, all ports will be iterated through to emulate
+AllPortSelect behavior.
+.TP
+.B \fB\-l, \-\-loop_ports\fP
+If all ports are selected by the user (either through the \fB\-a\fP option
+or port 255) or multiple ports are specified iterate through each port rather
+than doing than aggregate operation.
+.TP
+.B \fB\-r, \-\-reset_after_read\fP
+reset counters after read
+.TP
+.B \fB\-R, \-\-Reset_only\fP
+only reset counters
+.TP
+.B \fB\-\-dgid <gid>\fP
+destination GID: use when GRH is required in packets (IPv6 format)
+.UNINDENT
+.SS Addressing Flags
+.\" Define the common option -G
+.
+.sp
+\fB\-G, \-\-Guid\fP     The address specified is a Port GUID
+.\" Define the common option -L
+.
+.sp
+\fB\-L, \-\-Lid\fP   The address specified is a LID
+.\" Define the common option -s
+.
+.sp
+\fB\-s, \-\-sm_port <smlid>\fP     use \(aqsmlid\(aq as the target lid for SA queries.
+.SS Port Selection flags
+.\" Define the common option -C
+.
+.sp
+\fB\-C, \-\-Ca <ca_name>\fP    use the specified ca_name.
+.\" Define the common option -P
+.
+.sp
+\fB\-P, \-\-Port <ca_port>\fP    use the specified ca_port.
+.\" Explanation of local port selection
+.
+.SS Local port Selection
+.sp
+Multiple port/Multiple CA support: when no IB device or port is specified
+(see the "local umad parameters" below), the libibumad library
+selects the port to use by the following criteria:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP 1. 3
+the first port that is ACTIVE.
+.IP 2. 3
+if not found, the first port that is UP (physical link up).
+.UNINDENT
+.sp
+If a port and/or CA name is specified, the libibumad library attempts
+to fulfill the user request, and will fail if it is not possible.
+.sp
+For example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+ibaddr                 # use the first port (criteria #1 above)
+ibaddr \-C mthca1       # pick the best port from "mthca1" only.
+ibaddr \-P 2            # use the second (active/up) port from the first available IB device.
+ibaddr \-C mthca0 \-P 2  # use the specified port only.
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Debugging flags
+.\" Define the common option -d
+.
+.INDENT 0.0
+.TP
+.B \-d
+raise the IB debugging level.
+May be used several times (\-ddd or \-d \-d \-d).
+.UNINDENT
+.\" Define the common option -e
+.
+.INDENT 0.0
+.TP
+.B \-e
+show send and receive errors (timeouts and others)
+.UNINDENT
+.\" Define the common option -h
+.
+.sp
+\fB\-h, \-\-help\fP      show the usage message
+.\" Define the common option -v
+.
+.INDENT 0.0
+.TP
+.B \fB\-v, \-\-verbose\fP
+increase the application verbosity level.
+May be used several times (\-vv or \-v \-v \-v)
+.UNINDENT
+.\" Define the common option -V
+.
+.sp
+\fB\-V, \-\-version\fP     show the version info.
+.SS Configuration flags
+.\" Define the common option -t
+.
+.sp
+\fB\-t, \-\-timeout <timeout_ms>\fP override the default timeout for the solicited mads.
+.\" Define the common option -y
+.
+.INDENT 0.0
+.TP
+.B \fB\-y, \-\-m_key <key>\fP
+use the specified M_key for requests. If non\-numeric value (like \(aqx\(aq)
+is specified then a value will be prompted for.
+.UNINDENT
+.\" Define the common option -z
+.
+.sp
+\fB\-\-config, \-z  <config_file>\fP Specify alternate config file.
+.INDENT 0.0
+.INDENT 3.5
+Default: /etc/infiniband-diags/ibdiag.conf
+.UNINDENT
+.UNINDENT
+.SS FILES
+.\" Common text for the config file
+.
+.SS CONFIG FILE
+.sp
+/etc/infiniband-diags/ibdiag.conf
+.sp
+A global config file is provided to set some of the common options for all
+tools.  See supplied config file for details.
+.SS EXAMPLES
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+perfquery                # read local port performance counters
+perfquery 32 1           # read performance counters from lid 32, port 1
+perfquery \-x 32 1        # read extended performance counters from lid 32, port 1
+perfquery \-a 32          # read perf counters from lid 32, all ports
+perfquery \-r 32 1        # read performance counters and reset
+perfquery \-x \-r 32 1     # read extended performance counters and reset
+perfquery \-R 0x20 1      # reset performance counters of port 1 only
+perfquery \-x \-R 0x20 1   # reset extended performance counters of port 1 only
+perfquery \-R \-a 32       # reset performance counters of all ports
+perfquery \-R 32 2 0x0fff # reset only error counters of port 2
+perfquery \-R 32 2 0xf000 # reset only non\-error counters of port 2
+perfquery \-a 32 1\-10     # read performance counters from lid 32, port 1\-10, aggregate output
+perfquery \-l 32 1\-10     # read performance counters from lid 32, port 1\-10, output each port
+perfquery \-a 32 1,4,8    # read performance counters from lid 32, port 1, 4, and 8, aggregate output
+perfquery \-l 32 1,4,8    # read performance counters from lid 32, port 1, 4, and 8, output each port
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS AUTHOR
+.INDENT 0.0
+.TP
+.B Hal Rosenstock
+< \fI\%hal.rosenstock@gmail.com\fP >
+.UNINDENT
+.\" Generated by docutils manpage writer.
+.

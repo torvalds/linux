@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to not build the timezone database.

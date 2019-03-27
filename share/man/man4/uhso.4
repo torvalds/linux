@@ -1,0 +1,142 @@
+.\" Copyright (c) 2009 Fredrik Lindberg
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 20, 2010
+.Dt UHSO 4
+.Os
+.Sh NAME
+.Nm uhso
+.Nd support for several HSxPA devices from Option N.V.
+.Sh SYNOPSIS
+The module can be loaded at boot time by placing the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+uhso_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for several HSxPA devices from Option N.V. that are
+based on their packet interface.
+Each device has a set of serial ports and a raw IP packet interface.
+The serial ports of the device are accessed through the
+.Xr ucom 4
+driver which makes them behave like
+.Xr tty 4
+devices.
+The packet interface is exposed as a network interface.
+.Pp
+Establishing a connection on the packet interface is achieved by using the
+proprietary AT commands
+.Dq Li AT_OWANCALL
+and
+.Dq Li AT_OWANDATA
+on any of the available serial ports.
+.Pp
+The network interface must be configured manually using the data obtain from
+these calls.
+.Pp
+Each device usually have at least two or more serial ports, their individual purpose
+can be identified through
+.Xr sysctl 8 .
+Ports identified as
+.Dq Modem
+features a normal modem interface that can be used with PPP.
+Ports identified as
+.Dq Diagnostic
+uses a proprietary binary interface used for firmware upgrades, this port does not
+have a AT command interface and can not be used to control the device.
+Other ports features an AT command interface that can be used for normal device control.
+.Sh HARDWARE
+The
+.Nm
+driver should work with most devices from Option.
+The following devices have been verified to work
+.Pp
+.Bl -bullet -compact
+.It
+Option GlobeSurfer iCON 7.2 (new firmware)
+.It
+Option GlobeTrotter Max 7.2 (new firmware)
+.It
+Option iCON 225
+.It
+Option iCON 452
+.It
+Option iCON 505
+.El
+.Pp
+The device features a mass storage device referred to as
+.Dq Zero-CD
+which contains drivers for Microsoft Windows; this is the default
+mode for the device.
+The
+.Nm
+driver automatically switches the device from
+.Dq Zero-CD
+mode to modem mode.
+This behavior can be disabled by setting
+.Va hw.usb.uhso.auto_switch
+to 0 using
+.Xr sysctl 8 .
+.Sh FILES
+.Bl -tag -width "XXXXXX"
+.It Pa /dev/cuaU?.?
+.El
+.Sh EXAMPLES
+Establishing a packet interface connection using the AT command interface available
+at one of the serial ports
+.Bd -literal -offset indent
+AT+CGDCONT=1,,"apn.provider"
+AT_OWANCALL=1,1,1
+OK
+_OWANCALL=1,1
+
+AT_OWANDATA=1
+_OWANDATA: 1, 10.11.12.13, 0.0.0.0, 10.2.3.4, 10.2.3.5, \e
+	0.0.0.0, 0.0.0.0, 72000
+.Ed
+.Pp
+Configuring the interface
+.Bd -literal -offset indent
+ifconfig uhso0 10.11.12.13 up
+route add default -interface uhso0
+echo "nameserver 10.2.3.4" > /etc/resolv.conf
+echo "nameserver 10.2.3.5" >> /etc/resolv.conf
+.Ed
+.Pp
+The connection can be terminated with
+.Bd -literal -offset indent
+AT_OWANCALL=1,0,1
+.Ed
+.Sh SEE ALSO
+.Xr uhsoctl 1 ,
+.Xr ucom 4 ,
+.Xr usb 4
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Fredrik Lindberg Aq Mt fli@shapeshifter.se .

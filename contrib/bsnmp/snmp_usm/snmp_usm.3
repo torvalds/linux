@@ -1,0 +1,132 @@
+.\"-
+.\" Copyright (C) 2010 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Shteryana Sotirova Shopova under
+.\" sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 9, 2010
+.Dt SNMP_USM 3
+.Os
+.Sh NAME
+.Nm snmp_usm
+.Nd "user-based security module for"
+.Xr bsnmpd 1
+.Sh LIBRARY
+.Pq begemotSnmpdModulePath."usm" = "/usr/lib/snmp_usm.so"
+.Sh DESCRIPTION
+The
+.Nm snmp_usm
+module implements SNMPv3 User-Based Security Model MIB as defined in RFC 3414.
+The module is used to manage the internal list of SNMPv3 USM active users in
+.Nm bsnmpd .
+The module must be loaded for
+.Nm bsnmpd
+to receive and process SNMPv3 USM PDUs correctly.
+.Sh IMPLEMENTATION NOTES
+A short description of the objects in the MIB follows.
+.Bl -tag -width "XXXXXXXXX"
+.It Va usmStats
+The subtree contains statistics for the User-based Security Model PDU processing.
+The statistics are reset each time the module is loaded.
+.It Va usmUserSpinLock
+An advisory lock used to coordinate several Command Generator Applications when
+altering the SNMP USM users.
+.It Va usmUserTable
+The table contains all SNMP USM users configured in
+.Nm bsnmpd .
+The table contains the following objects
+.Bl -tag -width ".It Va usmUserEngineID"
+.It Va usmUserEngineID
+An SNMP engine's administratively-unique identifier. Must be set to the same
+Engine ID as
+.Nm bsnmpd
+so that the user will actually be allowed to communicate with the daemon.
+The column is used as entry key and is not accessible for GET or SET operations.
+.It Va usmUserName
+The USM user name. The second entry key, again not accessible for GET or SET
+operations.
+.It Va usmUserSecurityName
+The column has the exact same value as the
+.Va usmUserName
+column, however is accessible for GET operations.
+.It Va usmUserCloneFrom
+A GET on this column will return an empty OID. SET operations are currently not
+supported.
+.It Va usmUserAuthProtocol
+The value of this column contains the OID corresponding to the authentication
+protocol used by the USM user. The following protocols and their OIDs are known to
+.Nm
+module
+.Bl -tag -width ".It Va NoAuthProtocol"
+.It NoAuthProtocol 1.3.6.1.6.3.10.1.1.1
+.It HMACMD5AuthProtocol 1.3.6.1.6.3.10.1.1.2
+.It HMACSHAAuthProtocol 1.3.6.1.6.3.10.1.1.3
+.El
+.It Va usmUserAuthKeyChange , Va usmUserOwnAuthKeyChange
+These columns may be used to change the user's authentication key.
+.It Va usmUserPrivProtocol
+The value of this column contains the OID corresponding to the privacy
+protocol used by the USM user. The following protocols and their OIDs are known to
+.Nm
+module
+.Bl -tag -width ".It Va NoPrivProtocol"
+.It NoPrivProtocol 1.3.6.1.6.3.10.1.2.1
+.It DESPrivProtoco 1.3.6.1.6.3.10.1.2.2
+.It AesCfb128Protocol 1.3.6.1.6.3.10.1.2.4
+.El
+.It Va usmUserPrivKeyChange , Va usmUserOwnPrivKeyChange
+These columns may be used to change the user's privacy key.
+.It Va usmUserPublic
+An arbitrary octet string that may be modified to confirm a SET operation on any
+of the columns was successful.
+.It Va usmUserStorageType
+This column always has either of two values. Entries created via
+.Nm bsnmpd's
+configuration file always have this column set to readOnly (5) and
+it is not possible to modify those entries. Entries created by Command Generator
+Applications always have this column set to volatile(2) and such entries are
+lost when the module is restarted. A SET operation on this column is not
+allowed.
+.It Va usmUserStatus
+This column is used to create new USM user entries or delete existing ones from
+the table.
+.El
+.El
+.Sh FILES
+.Bl -tag -width "XXXXXXXXX"
+.It Pa /usr/share/snmp/defs/usm_tree.def
+The description of the MIB tree implemented by
+.Nm .
+.El
+.Sh SEE ALSO
+.Xr bsnmpd 1 ,
+.Xr gensnmptree 1 ,
+.Xr snmpmod 3
+.Sh STANDARDS
+IETF RFC 3414
+.Sh AUTHORS
+.An Shteryana Shopova Aq syrinx@FreeBSD.org

@@ -1,0 +1,119 @@
+# $tcsh: Makefile.in,v 1.16 2014/07/23 18:18:07 christos Exp $
+
+CATALOGS=	C.cat et.cat finnish.cat french.cat german.cat greek.cat \
+		italian.cat ja.cat pl.cat russian.cat spanish.cat ukrainian.cat
+LOCALES=	${CATALOGS:.cat=}
+GENCAT=		@GENCAT@
+INSTALL=	@INSTALL@
+RM?=		rm -f
+VPATH=@srcdir@
+srcdir=@srcdir@
+
+prefix=@prefix@
+datarootdir=@datarootdir@
+localedir=${DESTDIR}@localedir@
+CATGEN=		${srcdir}/catgen
+
+all: ${CATALOGS}
+
+INSTALLED+=${localedir}/C/LC_MESSAGES/tcsh.cat
+${localedir}/C/LC_MESSAGES/tcsh.cat:	C.cat
+	mkdir -p $(@D)
+	$(INSTALL) $> $^ $@
+
+C.cat: ${srcdir}/C/charset ${srcdir}/C/*set[0-9]*
+	@${CATGEN} $(GENCAT) $@ $^ $>
+
+INSTALLED+=${localedir}/et/LC_MESSAGES/tcsh.cat
+${localedir}/et/LC_MESSAGES/tcsh.cat:	et.cat
+	mkdir -p $(@D)
+	$(INSTALL) $> $^ $@
+
+et.cat: ${srcdir}/et/charset ${srcdir}/et/*set[0-9]*
+	@${CATGEN} $(GENCAT) $@ $^ $>
+
+INSTALLED+=${localedir}/fi/LC_MESSAGES/tcsh.cat
+${localedir}/fi/LC_MESSAGES/tcsh.cat:	finnish.cat
+	mkdir -p $(@D)
+	$(INSTALL) $> $^ $@
+
+finnish.cat: ${srcdir}/finnish/charset ${srcdir}/finnish/*set[0-9]*
+	@${CATGEN} $(GENCAT) $@ $^ $>
+
+INSTALLED+=${localedir}/fr/LC_MESSAGES/tcsh.cat
+${localedir}/fr/LC_MESSAGES/tcsh.cat:	french.cat
+	mkdir -p $(@D)
+	$(INSTALL) $> $^ $@
+
+french.cat: ${srcdir}/french/charset ${srcdir}/french/*set[0-9]*
+	@${CATGEN} $(GENCAT) $@ $^ $>
+
+INSTALLED+=${localedir}/de/LC_MESSAGES/tcsh.cat
+${localedir}/de/LC_MESSAGES/tcsh.cat:	german.cat
+	mkdir -p $(@D)
+	$(INSTALL) $> $^ $@
+
+german.cat: ${srcdir}/german/charset ${srcdir}/german/*set[0-9]*
+	@${CATGEN} $(GENCAT) $@ $^ $>
+
+INSTALLED+=${localedir}/gr/LC_MESSAGES/tcsh.cat
+${localedir}/gr/LC_MESSAGES/tcsh.cat:	greek.cat
+	mkdir -p $(@D)
+	$(INSTALL) $> $^ $@
+
+greek.cat: ${srcdir}/greek/charset ${srcdir}/greek/*set[0-9]*
+	@${CATGEN} $(GENCAT) $@ $^ $>
+
+INSTALLED+=${localedir}/it/LC_MESSAGES/tcsh.cat
+${localedir}/it/LC_MESSAGES/tcsh.cat:	italian.cat
+	mkdir -p $(@D)
+	$(INSTALL) $> $^ $@
+
+italian.cat: ${srcdir}/italian/charset ${srcdir}/italian/*set[0-9]*
+	@${CATGEN} $(GENCAT) $@ $^ $>
+
+INSTALLED+=${localedir}/ja/LC_MESSAGES/tcsh.cat
+${localedir}/ja/LC_MESSAGES/tcsh.cat:	ja.cat
+	mkdir -p $(@D)
+	$(INSTALL) $> $^ $@
+
+ja.cat: ${srcdir}/ja/charset ${srcdir}/ja/*set[0-9]*
+	@${CATGEN} $(GENCAT) $@ $^ $>
+
+INSTALLED+=${localedir}/pl/LC_MESSAGES/tcsh.cat
+${localedir}/pl/LC_MESSAGES/tcsh.cat:	pl.cat
+	mkdir -p $(@D)
+	$(INSTALL) $> $^ $@
+
+pl.cat: ${srcdir}/pl/charset ${srcdir}/pl/*set[0-9]*
+	@${CATGEN} $(GENCAT) $@ $^ $>
+
+INSTALLED+=${localedir}/ru/LC_MESSAGES/tcsh.cat
+${localedir}/ru/LC_MESSAGES/tcsh.cat:	russian.cat
+	mkdir -p $(@D)
+	$(INSTALL) $> $^ $@
+
+russian.cat: ${srcdir}/russian/charset ${srcdir}/russian/*set[0-9]*
+	@${CATGEN} $(GENCAT) $@ $^ $>
+
+INSTALLED+=${localedir}/es/LC_MESSAGES/tcsh.cat
+${localedir}/es/LC_MESSAGES/tcsh.cat:	spanish.cat
+	mkdir -p $(@D)
+	$(INSTALL) $> $^ $@
+
+spanish.cat: ${srcdir}/spanish/charset ${srcdir}/spanish/*set[0-9]*
+	@${CATGEN} $(GENCAT) $@ $^ $>
+
+INSTALLED+=${localedir}/ru_UA/LC_MESSAGES/tcsh.cat
+${localedir}/ru_UA/LC_MESSAGES/tcsh.cat:	ukrainian.cat
+	mkdir -p $(@D)
+	$(INSTALL) $> $^ $@
+
+ukrainian.cat: ${srcdir}/ukrainian/charset ${srcdir}/ukrainian/*set[0-9]*
+	@${CATGEN} $(GENCAT) $@ $^ $>
+
+install:	$(INSTALLED)
+
+catalogs: all
+clean:
+	$(RM) $(CATALOGS)

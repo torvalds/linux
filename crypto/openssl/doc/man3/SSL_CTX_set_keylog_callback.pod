@@ -1,0 +1,52 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_set_keylog_callback, SSL_CTX_get_keylog_callback,
+SSL_CTX_keylog_cb_func - logging TLS key material
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ typedef void (*SSL_CTX_keylog_cb_func)(const SSL *ssl, const char *line);
+
+ void SSL_CTX_set_keylog_callback(SSL_CTX *ctx, SSL_CTX_keylog_cb_func cb);
+ SSL_CTX_keylog_cb_func SSL_CTX_get_keylog_callback(const SSL_CTX *ctx);
+
+=head1 DESCRIPTION
+
+SSL_CTX_set_keylog_callback() sets the TLS key logging callback. This callback
+is called whenever TLS key material is generated or received, in order to allow
+applications to store this keying material for debugging purposes.
+
+SSL_CTX_get_keylog_callback() retrieves the previously set TLS key logging
+callback. If no callback has been set, this will return NULL. When there is no
+key logging callback, or if SSL_CTX_set_keylog_callback is called with NULL as
+the value of cb, no logging of key material will be done.
+
+The key logging callback is called with two items: the B<ssl> object associated
+with the connection, and B<line>, a string containing the key material in the
+format used by NSS for its B<SSLKEYLOGFILE> debugging output. To recreate that
+file, the key logging callback should log B<line>, followed by a newline.
+B<line> will always be a NULL-terminated string.
+
+=head1 RETURN VALUES
+
+SSL_CTX_get_keylog_callback() returns a pointer to B<SSL_CTX_keylog_cb_func> or
+NULL if the callback is not set.
+
+=head1 SEE ALSO
+
+L<ssl(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

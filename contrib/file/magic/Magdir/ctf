@@ -1,0 +1,23 @@
+
+#--------------------------------------------------------------
+# ctf:  file(1) magic for CTF (Common Trace Format) trace files
+#
+# Specs. available here: <http://www.efficios.com/ctf>
+#--------------------------------------------------------------
+
+# CTF trace data
+0	lelong	0xc1fc1fc1	Common Trace Format (CTF) trace data (LE)
+0	belong	0xc1fc1fc1	Common Trace Format (CTF) trace data (BE)
+
+# CTF metadata (packetized)
+0	lelong	0x75d11d57	Common Trace Format (CTF) packetized metadata (LE)
+>35	byte	x		\b, v%d
+>36	byte	x		\b.%d
+0	belong	0x75d11d57	Common Trace Format (CTF) packetized metadata (BE)
+>35	byte	x		\b, v%d
+>36	byte	x		\b.%d
+
+# CTF metadata (plain text)
+0	string	/*\x20CTF\x20   Common Trace Format (CTF) plain text metadata
+!:strength + 5			# this is to make sure we beat C
+>&0	regex	[0-9]+\.[0-9]+	\b, v%s

@@ -1,0 +1,224 @@
+.\" Copyright (C) 2000 Jason Evans <jasone@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 9, 2010
+.Dt SEM_OPEN 3
+.Os
+.Sh NAME
+.Nm sem_open ,
+.Nm sem_close ,
+.Nm sem_unlink
+.Nd named semaphore operations
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In semaphore.h
+.Ft "sem_t *"
+.Fn sem_open "const char *name" "int oflag" ...
+.Ft int
+.Fn sem_close "sem_t *sem"
+.Ft int
+.Fn sem_unlink "const char *name"
+.Sh DESCRIPTION
+The
+.Fn sem_open
+function creates or opens the named semaphore specified by
+.Fa name .
+The returned semaphore may be used in subsequent calls to
+.Xr sem_getvalue 3 ,
+.Xr sem_wait 3 ,
+.Xr sem_trywait 3 ,
+.Xr sem_post 3 ,
+and
+.Fn sem_close .
+.Pp
+This implementation places strict requirements on the value of
+.Fa name :
+it must begin with a slash
+.Pq Ql /
+and contain no other slash characters.
+.Pp
+The following bits may be set in the
+.Fa oflag
+argument:
+.Bl -tag -width ".Dv O_CREAT"
+.It Dv O_CREAT
+Create the semaphore if it does not already exist.
+.Pp
+The third argument to the call to
+.Fn sem_open
+must be of type
+.Vt mode_t
+and specifies the mode for the semaphore.
+Only the
+.Dv S_IWUSR , S_IWGRP ,
+and
+.Dv S_IWOTH
+bits are examined;
+it is not possible to grant only
+.Dq read
+permission on a semaphore.
+The mode is modified according to the process's file creation
+mask; see
+.Xr umask 2 .
+.Pp
+The fourth argument must be an
+.Vt "unsigned int"
+and specifies the initial value for the semaphore,
+and must be no greater than
+.Dv SEM_VALUE_MAX .
+.It Dv O_EXCL
+Create the semaphore if it does not exist.
+If the semaphore already exists,
+.Fn sem_open
+will fail.
+This flag is ignored unless
+.Dv O_CREAT
+is also specified.
+.El
+.Pp
+The
+.Fn sem_close
+function closes a named semaphore that was opened by a call to
+.Fn sem_open .
+.Pp
+The
+.Fn sem_unlink
+function removes the semaphore named
+.Fa name .
+Resources allocated to the semaphore are only deallocated when all
+processes that have the semaphore open close it.
+.Sh RETURN VALUES
+If successful,
+the
+.Fn sem_open
+function returns the address of the opened semaphore.
+If the same
+.Fa name
+argument is given to multiple calls to
+.Fn sem_open
+by the same process without an intervening call to
+.Fn sem_close ,
+the same address is returned each time.
+If the semaphore cannot be opened,
+.Fn sem_open
+returns
+.Dv SEM_FAILED
+and the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+.Rv -std sem_close sem_unlink
+.Sh ERRORS
+The
+.Fn sem_open
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EACCES
+The semaphore exists and the permissions specified by
+.Fa oflag
+at the time it was created deny access to this process.
+.It Bq Er EACCES
+The semaphore does not exist, but permission to create it is denied.
+.It Bq Er EEXIST
+.Dv O_CREAT
+and
+.Dv O_EXCL
+are set but the semaphore already exists.
+.It Bq Er EINTR
+The call was interrupted by a signal.
+.It Bq Er EINVAL
+The
+.Fn sem_open
+operation is not supported for the given
+.Fa name .
+.It Bq Er EINVAL
+The
+.Fa value
+argument is greater than
+.Dv SEM_VALUE_MAX .
+.\"FreeBSD never returns EMFILE
+.\".It Bq Er EMFILE
+.\"Too many semaphores are in use by this process.
+.It Bq Er ENAMETOOLONG
+The
+.Fa name
+argument is too long.
+.It Bq Er ENFILE
+The system limit on semaphores has been reached.
+.It Bq Er ENOENT
+.Dv O_CREAT
+is not set but the named semaphore does not exist.
+.It Bq Er ENOSPC
+There is not enough space to create the semaphore.
+.El
+.Pp
+The
+.Fn sem_close
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa sem
+argument is not a valid semaphore.
+.El
+.Pp
+The
+.Fn sem_unlink
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EACCES
+Permission is denied to unlink the semaphore.
+.It Bq Er ENAMETOOLONG
+The specified
+.Fa name
+is too long.
+.It Bq Er ENOENT
+The named semaphore does not exist.
+.El
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr open 2 ,
+.Xr umask 2 ,
+.Xr unlink 2 ,
+.Xr sem_getvalue 3 ,
+.Xr sem_post 3 ,
+.Xr sem_trywait 3 ,
+.Xr sem_wait 3
+.Sh STANDARDS
+The
+.Fn sem_open ,
+.Fn sem_close ,
+and
+.Fn sem_unlink
+functions conform to
+.St -p1003.1-96 .
+.Sh HISTORY
+Support for named semaphores first appeared in
+.Fx 5.0 .

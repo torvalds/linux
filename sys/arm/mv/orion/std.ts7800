@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+include	"../mv/std.mv"
+files	"../mv/orion/files.ts7800"
+
+makeoptions	KERNPHYSADDR=0x00900000
+makeoptions	KERNVIRTADDR=0xc0900000
+options 	KERNVIRTADDR=0xc0900000
+options		PHYSADDR=0x00000000
+options   LOADERRAMADDR=0x00000000
+options   FLASHADDR=0x00008000
+

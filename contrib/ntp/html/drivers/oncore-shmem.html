@@ -1,0 +1,164 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+	<head>
+		<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+		<title>ONCORE - SHMEM</title>
+		<link href="scripts/style.css" type="text/css" rel="stylesheet">
+	</head>
+
+	<body>
+		<h3>Motorola ONCORE - The Shared Memory Interface</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->21-Oct-2010  23:44<!-- #EndDate -->
+  UTC</p>
+		<hr>
+		<h4>Introduction</h4>
+		<p>In NMEA mode, the Oncore GPS receiver provides the user with the same information as other GPS receivers. In BINARY mode, it can provide a lot of additional information.</p>
+		<p>In particular, you can ask for satellite positions, satellite health, signal levels, the ephemeris and the almanac, and you can set many operational parameters. In the case of the VP, you can get the pseudorange corrections necessary to act as a DGPS base station, and you can see the raw satellite data messages themselves.</p>
+		<p>When using the Oncore GPS receiver with NTP, this additional information is usually not available since the receiver is only talking to the oncore driver in NTPD. To make this information available for use in other programs, (say graphic displays of satellites positions, plots of SA, etc.), a shared memory interface (SHMEM) has been added to the refclock_oncore driver on those operating systems that support shared memory.</p>
+		<p>To make use of this information you will need an Oncore Reference Manual for the Oncore GPS receiver that you have. The Manual for the VP only exists as a paper document, the UT+/GT+/M12 manuals are available as a pdf documents at <a href="http://www.synergy-gps.com/Mot_Manuals.html">Synergy</a> .</p>
+		<p>This interface was written by Poul-Henning Kamp (phk@FreeBSD.org), and modified by Reg Clemens (reg@dwf.com). The interface is known to work in FreeBSD, Linux, and Solaris.</p>
+		<h4>Activating the Interface</h4>
+		<p>Although the Shared Memory Interface will be compiled into the Oncore driver on those systems where Shared Memory is supported, to activate this interface you must include a <b>STATUS</b> or <b>SHMEM</b> line in the <tt>/etc/ntp.oncore</tt> data file that looks like</p>
+		<pre>
+        STATUS &lt; file_name &gt;<br>
+			
+        or<br>
+			
+        SHMEM &lt; file_name &gt;
+</pre>
+		Thus a line like
+		<pre>
+        SHMEM /var/adm/ntpstats/ONCORE
+</pre>
+		<p>would be acceptable. This file name will be used to access the Shared Memory.</p>
+		<p>In addition, one the two keywords <b>Posn2D</b> and <b>Posn3D</b> can be added to see @@Ea records containing the 2D or 3D position of the station (see below). Thus to activate the interface, and see 3D positions, something like</p>
+		<pre>
+        SHMEM /var/adm/ntpstats/ONCORE
+        Posn3D
+</pre>
+		<p>would be required.</p>
+		<h4>Storage of Messages in Shared Memory</h4>
+		<p>With the shared memory interface, the oncore driver (refclock_oncore) allocates space for all of the messages that it is configured to receive, and then puts each message in the appropriate slot in shared memory as it arrives from the receiver. Since there is no easy way for a client program to know when the shared memory has been updated, a sequence number is associated with each message, and is incremented when a new message arrives. With the sequence number it is easy to check through the shared memory segment for messages that have changed.</p>
+		<p>The Oncore binary messages are kept in their full length, as described in the Reference manual, that is everything from the @@ prefix thru the &lt;checksum&gt;&lt;CR&gt;&lt;LF&gt;.</p>
+		<p>The data starts at location ONE of SHMEM (NOT location ZERO).</p>
+		<p>The messages are stacked in a series of variable length structures, that look like</p>
+		<pre>
+        struct message {
+                u_int   length;
+                u_char  sequence;
+                u_char  message[length];
+        }
+</pre>
+		<p>if something like that were legal. That is, there are two bytes (caution, these may NOT be aligned with word boundaries, so the field needs to be treated as a pair of u_char), that contains the length of the next message. This is followed by a u_char sequence number, that is incremented whenever a new message of this type is received. This is followed by 'length' characters of the actual message.</p>
+		<p>The next structure starts immediately following the last char of the previous message (no alignment). Thus, each structure starts a distance of 'length+3' from the previous structure.</p>
+		<p>Following the last structure, is a u_int containing a zero length to indicate the end of the data.</p>
+		<p>The messages are recognized by reading the headers in the data itself, viz @@Ea or whatever.</p>
+		<p>There are two special cases.</p>
+		<p>(1) The almanac takes a total of 34 submessages all starting with @@Cb.<br>
+			35 slots are allocated in shared memory. Each @@Cb message is initially placed in the first of these locations, and then later it is moved to the appropriate location for that submessage. The submessages can be distinguished by the first two characters following the @@Cb header, and new data is received only when the almanac changes.</p>
+		<p>(2) The @@Ea message contains the calculated location of the antenna, and is received once per second. However, when in timekeeping mode, the receiver is normally put in 0D mode, with the position fixed, to get better accuracy. In 0D mode no position is calculated.</p>
+		<p>When the SHMEM option is active, and if one of <b>Posn2D</b> or <b>Posn3D</b> is specified, one @@Ea record is hijacked each 15s, and the receiver is put back in 2D/3D mode so the the current location can be determined (for position determination, or for tracking SA). The timekeeping code is careful NOT to use the time associated with this (less accurate) 2D/3D tick in its timekeeping functions.</p>
+		<p>Following the initial @@Ea message are 3 additional slots for a total of four. As with the almanac, the first gets filled each time a new record becomes available, later in the code, the message is distributed to the appropriate slot. The additional slots are for messages containing 0D, 2D and 3D positions. These messages can be distinguished by different bit patterns in the last data byte of the record.</p>
+		<h4>Opening the Shared Memory File</h4>
+		<p>The shared memory segment is accessed through a file name given on a <b>SHMEM</b> card in the <tt>/etc/ntp.oncore</tt> input file. The following code could be used to open the Shared Memory Segment:</p>
+		<pre>
+        char *Buf, *file;
+        int size, fd;
+        struct stat statbuf;
+
+        file = &quot;/var/adm/ntpstats/ONCORE&quot;;  /* the file name on my ACCESS card */
+        if ((fd=open(file, O_RDONLY)) &lt; 0) {
+                fprintf(stderr, &quot;Cant open %s\n&quot;, file);
+                exit(1);
+        }
+
+        if (stat(file, &amp;statbuf) &lt; 0) {
+                fprintf(stderr, &quot;Cant stat %s\n&quot;, file);
+                exit(1);
+        }
+
+        size = statbuf.st_size;
+        if ((Buf=mmap(0, size, PROT_READ, MAP_SHARED, fd, (off_t) 0)) &lt; 0) {
+                fprintf(stderr, &quot;MMAP failed\n&quot;);
+                exit(1);
+        }
+</pre>
+		<h4>Accessing the data</h4>
+		<p>The following code shows how to get to the individual records.</p>
+		<pre>
+        void    oncore_msg_Ea(), oncore_msg_As(), oncore_msg_Bb();
+
+        struct Msg {
+            char         c[5];
+            unsigned int seq;
+            void         (*go_to)(uchar *);
+        };
+
+        struct Msg Hdr[] = { {&quot;@@Bb&quot;, 0, &amp;oncore_msg_Bb},
+                             {&quot;@@Ea&quot;, 0, &amp;oncore_msg_Ea},
+                             {&quot;@@As&quot;, 0, &amp;oncore_msg_As}};
+
+        void
+        read_data()
+        {
+            int     i, j, k, n, iseq, jseq;
+            uchar   *cp, *cp1;
+
+
+            for(cp=Buf+1; (n = 256*(*cp) + *(cp+1)) != 0;  cp+=(n+3)) {
+                for (k=0; k &lt; sizeof(Hdr)/sizeof(Hdr[0]);  k++) {
+                    if (!strncmp(cp+3, Hdr[k].c, 4)) {      /* am I interested? */
+                        iseq = *(cp+2);
+                        jseq = Hdr[k].seq;
+                        Hdr[k].seq = iseq;
+                        if (iseq &gt; jseq) {              /* has it changed? */
+                            /* verify checksum */
+                            j = 0;
+                            cp1 = cp+3;             /* points to start of oncore response */
+                            for (i=2; i &lt; n-3; i++)
+                                j ^= cp1[i];
+                            if (j == cp1[n-3]) {    /* good checksum */
+                                    Hdr[k].go_to(cp1);
+                            } else {
+                                fprintf(stderr, &quot;Bad Checksum for %s\n&quot;, Hdr[k].c);
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (!strncmp(cp+3, &quot;@@Ea&quot;, 4))
+                    cp += 3*(n+3);
+                if (!strncmp(cp+3, &quot;@@Cb&quot;, 4))
+                    cp += 34*(n+3);
+            }
+        }
+
+        oncore_msg_Bb(uchar *buf)
+        {
+                /* process Bb messages */
+        }
+
+        oncore_msg_Ea(uchar *buf)
+        {
+                /* process Ea messages */
+        }
+
+        oncore_msg_As(uchar *buf)
+        {
+                /* process As messages */
+        }
+</pre>
+		<p>The structure Hdr contains the Identifying string for each of the messages that we want to examine, and the name of a program to call when a new message of that type is arrives. The loop can be run every few seconds to check for new data.</p>
+		<h4>Examples</h4>
+		<p>There are two complete examples available. The first plots satellite positions and the station position as affected by SA, and keeps track of the mean station position, so you can run it for periods of days to get a better station position. The second shows the effective horizon by watching satellite tracks. The examples will be found in the GNU-zipped tar file <a href="ftp://ftp.udel.edu/pub/ntp/software/OncorePlot.tar.gz">ftp://ftp.udel.edu/pub/ntp/software/OncorePlot.tar.gz</a>.</p>
+		<p>Try the new interface, enjoy.</p>
+		<hr>
+		<address>Reg.Clemens (reg@dwf.com), Poul-Henning Kamp (phk@FreeBSD.org)</address>
+		<hr>
+		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+	</body>
+
+</html>

@@ -1,0 +1,252 @@
+.\"
+.\" Copyright 1996 Massachusetts Institute of Technology
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby
+.\" granted, provided that both the above copyright notice and this
+.\" permission notice appear in all copies, that both the above
+.\" copyright notice and this permission notice appear in all
+.\" supporting documentation, and that the name of M.I.T. not be used
+.\" in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.  M.I.T. makes
+.\" no representations about the suitability of this software for any
+.\" purpose.  It is provided "as is" without express or implied
+.\" warranty.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+.\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+.\" SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 5, 2014
+.Dt RTENTRY 9
+.Os
+.Sh NAME
+.Nm rtentry
+.Nd structure of an entry in the kernel routing table
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In net/route.h
+.Sh DESCRIPTION
+The kernel provides a common mechanism by which all protocols can store
+and retrieve entries from a central table of routes.
+Parts of this
+mechanism are also used to interact with user-level processes by means
+of a socket in the
+.Xr route 4
+pseudo-protocol family.
+The
+.In net/route.h
+header file defines the structures and manifest constants used in this
+facility.
+.Pp
+The basic structure of a route is defined by
+.Vt "struct rtentry" ,
+which includes the following fields:
+.Bl -tag -offset indent -width 6n
+.It Vt "struct radix_node rt_nodes[2]" ;
+Glue used by the radix-tree routines.
+These members also include in
+their substructure the key (i.e., destination address) and mask used
+when the route was created.
+The
+.Fn rt_key rt
+and
+.Fn rt_mask rt
+macros can be used to extract this information (in the form of a
+.Vt "struct sockaddr *" )
+given a
+.Vt "struct rtentry *" .
+.It Vt "struct sockaddr *rt_gateway" ;
+The
+.Dq target
+of the route, which can either represent a destination in its own
+right (some protocols will put a link-layer address here), or some
+intermediate stop on the way to that destination (if the
+.Dv RTF_GATEWAY
+flag is set).
+.It Vt "int rt_flags" ;
+See below.
+If the
+.Dv RTF_UP
+flag is not present, the
+.Fn rtfree
+function will delete the route from the radix tree when the last
+reference drops.
+.It Vt "int rt_refcnt" ;
+Route entries are reference-counted; this field indicates the number
+of external (to the radix tree) references.
+.It Vt "struct ifnet *rt_ifp" ;
+.It Vt "struct ifaddr *rt_ifa" ;
+These two fields represent the
+.Dq answer ,
+as it were, to the question posed by a route lookup; that is, they
+name the interface and interface address to be used in sending a
+packet to the destination or set of destinations which this route
+represents.
+.It Vt "u_long rt_mtu";
+See description of rmx_mtu below.
+.It Vt "u_long rt_weight";
+See description of rmx_weight below.
+.It Vt "u_long rt_expire";
+See description of rmx_expire below.
+.It Vt "counter64_t rt_pksent";
+See description of rmx_pksent below.
+.It Vt "struct rtentry *rt_gwroute" ;
+This member is a reference to a route whose destination is
+.Va rt_gateway .
+It is only used for
+.Dv RTF_GATEWAY
+routes.
+.It Vt "struct mtx rt_mtx" ;
+Mutex to lock this routing entry.
+.El
+.Pp
+The following flag bits are defined:
+.Bl -tag -offset indent -width ".Dv RTF_BLACKHOLE" -compact
+.It Dv RTF_UP
+The route is not deleted.
+.It Dv RTF_GATEWAY
+The route points to an intermediate destination and not the ultimate
+recipient; the
+.Va rt_gateway
+and
+.Va rt_gwroute
+fields name that destination.
+.It Dv RTF_HOST
+This is a host route.
+.It Dv RTF_REJECT
+The destination is presently unreachable.
+This should result in an
+.Er EHOSTUNREACH
+error from output routines.
+.It Dv RTF_DYNAMIC
+This route was created dynamically by
+.Fn rtredirect .
+.It Dv RTF_MODIFIED
+This route was modified by
+.Fn rtredirect .
+.It Dv RTF_DONE
+Used only in the
+.Xr route 4
+protocol, indicating that the request was executed.
+.It Dv RTF_XRESOLVE
+When this route is returned as a result of a lookup, send a report on
+the
+.Xr route 4
+interface requesting that an external process perform resolution for
+this route.
+.It Dv RTF_STATIC
+Indicates that this route was manually added by means of the
+.Xr route 8
+command.
+.It Dv RTF_BLACKHOLE
+Requests that output sent via this route be discarded.
+.It Dv RTF_PROTO1
+.It Dv RTF_PROTO2
+.It Dv RTF_PROTO3
+Protocol-specific.
+.It Dv RTF_PINNED
+Indicates that this route is immutable to a routing protocol.
+.It Dv RTF_LOCAL
+Indicates that the destination of this route is an address configured
+as belonging to this system.
+.It Dv RTF_BROADCAST
+Indicates that the destination is a broadcast address.
+.It Dv RTF_MULTICAST
+Indicates that the destination is a multicast address.
+.El
+.Pp
+Several metrics are supplied in
+.Vt "struct rt_metrics"
+passed with routing control messages via
+.Xr route 4
+API.
+Currently only
+.Vt rmx_mtu , rmx_expire ,
+and
+.Vt rmx_pksent
+metrics are supplied.
+All others are ignored.
+.Pp
+The following metrics are defined by
+.Vt "struct rt_metrics" :
+.Bl -tag -offset indent -width 6n
+.It Vt "u_long rmx_locks" ;
+Flag bits indicating which metrics the kernel is not permitted to
+dynamically modify.
+.It Vt "u_long rmx_mtu" ;
+MTU for this path.
+.It Vt "u_long rmx_hopcount" ;
+Number of intermediate systems on the path to this destination.
+.It Vt "u_long rmx_expire" ;
+The time
+(a la
+.Xr time 3 )
+at which this route should expire, or zero if it should never expire.
+It is the responsibility of individual protocol suites to ensure that routes
+are actually deleted once they expire.
+.It Vt "u_long rmx_recvpipe" ;
+Nominally, the bandwidth-delay product for the path
+.Em from
+the destination
+.Em to
+this system.
+In practice, this value is used to set the size of the
+receive buffer (and thus the window in sliding-window protocols like
+.Tn TCP ) .
+.It Vt "u_long rmx_sendpipe" ;
+As before, but in the opposite direction.
+.It Vt "u_long rmx_ssthresh" ;
+The slow-start threshold used in
+.Tn TCP
+congestion-avoidance.
+.It Vt "u_long rmx_rtt" ;
+The round-trip time to this destination, in units of
+.Dv RMX_RTTUNIT
+per second.
+.It Vt "u_long rmx_rttvar" ;
+The average deviation of the round-trip time to this destination, in
+units of
+.Dv RMX_RTTUNIT
+per second.
+.It Vt "u_long rmx_pksent" ;
+A count of packets successfully sent via this route.
+.It Vt "u_long rmx_filler[4]" ;
+.\" XXX badly named
+Empty space available for protocol-specific information.
+.El
+.Sh SEE ALSO
+.Xr route 4 ,
+.Xr route 8 ,
+.Xr rtalloc 9
+.Sh HISTORY
+The
+.Vt rtentry
+structure first appeared in
+.Bx 4.2 .
+The radix-tree representation of the routing table and the
+.Vt rt_metrics
+structure first appeared in
+.Bx 4.3 reno .
+.Sh AUTHORS
+This manual page was written by
+.An Garrett Wollman .
+.Sh BUGS
+There are a number of historical relics remaining in this interface.
+The
+.Va rt_gateway
+and
+.Va rmx_filler
+fields could be named better.

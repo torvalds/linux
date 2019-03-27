@@ -1,0 +1,7 @@
+<DevInfo xmlns="urn:oma:mo:oma-dm-devinfo:1.0">
+	<DevId>urn:Example:HS20-station:123456</DevId>
+	<Man>Manufacturer</Man>
+	<Mod>HS20-station</Mod>
+	<DmV>1.2</DmV>
+	<Lang>en</Lang>
+</DevInfo>

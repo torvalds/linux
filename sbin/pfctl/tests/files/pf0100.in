@@ -1,0 +1,20 @@
+pass
+anchor "a/b"
+anchor "1/2/3"		# test anchors with multiple path components
+anchor "relative" {
+	pass in on lo0 label TEST1
+}
+anchor "camield/*"      # empty wildcard anchor
+
+anchor "relayd/*"
+
+anchor "foo" in on lo0 {
+	anchor "bar" in {		# nested named inlined anchor
+		anchor "/1/2/3"		# absolute multicomponent path
+		anchor "/relative"	# absolute path
+		pass in on lo0 label FOO
+	}
+	anchor in {			# nested unnamed inlined anchor
+		pass in on lo0 label BAR
+	}
+}

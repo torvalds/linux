@@ -1,0 +1,1038 @@
+2008-05-29  Love Hörnquist Åstrand  <lha@kth.se>
+
+	* ftp/ftp.c: use the correct length to munmap and use msync.
+
+2008-05-28  Love Hörnquist Åstrand  <lha@kth.se>
+
+	* ftp/ftp.c: Rewrite sliding window code so it doesn't have a
+	integer overrun.
+
+	* ftp/ftp.c: Try sliding mmap window over memory file (10MB
+	window), works better with larger files (ie doesn't fail).
+	
+2008-04-10  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* ftpd/logwtmp.c: Use asl for logging ftpd wtmp messages.
+
+2007-07-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/gssapi.c: Fix pointer vs strict alias rules.
+
+2007-06-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/security.c: if no mech have no session, its ok, just don't
+	call it.
+
+	* ftp/security.h: provide prototype for sec_userok().
+
+	* move ksetpag after initgroups to make it work on Linux when its
+	without syscall hooks to change sys_setgroups preserve the
+	pag. From Alexsander Boström.
+	
+2007-06-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/Makefile.am: don't clean yacc/lex files in CLEANFILES,
+	maintainers clean will do that for us.
+	
+2006-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/Makefile.am: Add man_MANS to EXTRA_DIST
+
+	* ftp/Makefile.am: Add man_MANS to EXTRA_DIST
+	
+2006-08-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/ftpd.c: Add comment by seteuid call isn't not needed.
+
+	* ftpd/ftpd.c: Check return values from seteuid, prompted by MIT
+	advisory.  Thanks to Tom Yu at MIT, and Michael Calmer and Marcus
+	Meissner at SUSE.  Either of CVE-2006-3083 or CVE-2006-3084.
+	
+2006-06-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/gss_userok.c (gss_userok): create a local krb5_context and
+	use that instead of the libgssapi context (that might not exist).
+	
+2006-05-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Rename u_intXX_t to uintXX_t
+
+2006-03-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/ftp.1: Add undocument flags and spelling, from Ted Percival
+	<Ted.Percival@quest.com>
+	
+2006-02-27  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.8: fix grammar in --no-insecure-oob option (partly
+	from Thomas Klausner)
+	
+2006-01-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/ftp.c: Indent.
+	
+2006-01-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c (pass): remove unused variable in the !OTP case
+	
+2005-10-22  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* ftpd/ls.c: Check return value from asprintf instead of string !=
+	NULL since it undefined behavior on Linux. From Björn Sandell
+
+	* ftpd/gss_userok.c: Check return value from asprintf instead of
+	string != NULL since it undefined behavior on Linux. From Björn
+	Sandell
+
+	* ftpd/ftpd.c: Check return value from asprintf instead of string
+	!= NULL since it undefined behavior on Linux. From Björn Sandell
+
+	* ftp/gssapi.c: Check return value from asprintf instead of string
+	!= NULL since it undefined behavior on Linux. From Björn Sandell
+	
+2005-10-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/ftp.1: document -x
+	
+	* ftp/security.h: implement cprotect (from MIT)
+	
+	* ftp/security.c: add -x (encrypt) option; implement cprotect
+	(from MIT); make sure we CCC if switching to clear-text command
+	channel
+
+	* ftp/cmdtab.c: implement cprotect (from MIT)
+	
+	* ftp/ruserpass.c: if doing command line encryption (-x), ignore
+	prot commands in .netrc
+
+	* ftp/ftp_var.h: add -x (encrypt) option
+	
+	* ftp/globals.c: add -x (encrypt) option
+	
+	* ftp/main.c: add -x (encrypt) option
+	
+2005-07-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/ftpcmd.y: Fix shadow warning.
+
+	* ftp/security.c: Fix shadow warning.
+	* ftp/security.c: Fix shadow warnings.
+	
+	* ftp/ruserpass.c: Fix shadow warnings.
+
+	* ftp/ftp.c: Fix shadow warnings.
+	
+	* ftp/cmds.c: fix shadow warnings
+
+	* Add Kerberos 5 klist, old patch from Tomas Nyström (remove krb4
+	support). Support klist in client for kerberos 5 clase.
+	Clean up delegation of gss tokens and do afslog.
+
+2005-07-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/gssapi.c (gss_adat): avoid leaking memory
+	(gss_auth): always try next kname if there is one, independant of
+	min_stat
+
+	* ftp/gssapi.c: avoid const warning, use sin4 instead of sin to
+	avoid shadow warning, free target_name
+
+2005-07-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/security.c: keep track of if CCC was passed
+
+	* ftpd/extern.h: variable to keep track of if CCC was passed
+
+	* ftpd/ftpcmd.y: sprinkel check_secure, check if CCC was passed in
+	check_secure
+
+2005-06-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/ftpd.c (filename_check): change signednes of p to avoid
+	warning, move typecasts
+
+2005-05-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/ftpd.c: avoid 'unused variable' warnings
+
+2005-05-10  David Love  <fx@gnu.org>
+
+	* ftpd/pathnames.h: #ifdef protect _PATH_ISSUE
+
+2005-04-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/domacro.c: handle string trunctions
+
+2005-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/security.c: use strlcat
+	
+	* ftp/domacro.c: use strlcpy
+	
+2005-04-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/security.c: cast size_t to unsigned long
+
+2005-04-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/ftpd.c (statcmd): cast argument to isdigit to unsigned char
+
+	* ftp/cmds.c (mget): cast char to unsigned char to make sure its
+	not negative when passing it to tolower
+
+2005-04-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/ftp.c: fix 3 'var' might be used uninitialized warnings
+
+2005-04-04 Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/cmds.c: MacOS is also a unix that doesn't define
+	__unix__/unix While here, rewrite this part of the function to not
+	modify that string, but rather take a copy of it and them modify
+	is, all this just to pacify gcc
+	
+2005-01-09 Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/domacro.c: cast argument to is* to unsigned char
+
+	* ftp/ftp.c: cast argument to tolower to unsigned char
+
+2004-08-20 Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/ftp.c: send ABOR protect with security layer if its there
+
+	* ftpd/{ftpd_locl.h, extern.h, ftpcmd.y, ftpd.8, ftpd.c}:
+	Remove all traces of setjmp/longjmp.
+	Handle those command that is needed in oobhandler,
+	those are ABOR, STAT, ENC, CONF, MIC.
+	add options to turn off insecure OOB handling and document the option
+
+	Changes inspired by openbsd and netbsd changes but quite diffrent is
+	most places since the code no longer look and is structured the same
+	way.
+
+2004-08-16  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/main.c: reverse help strings for --no-gss-bindings and
+	--no-gss-delegate
+
+2004-06-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/ftpcmd.y: make cbuf 64k to handle lager tickets From:
+	MAAAAA MOOOR <huaraz@btinternet.com>
+	
+2004-03-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/ftpd.c (main): setpag if there is krb4 OR krb5 support
+	
+2003-12-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/security.h: add ftp_do_gss_delegate
+	
+	* ftp/main.c (getargs): negative flag for delegating gss creds
+	
+	* ftp/gssapi.c (ftp_do_gss_delegate): delegate creds (default on)
+	
+2003-09-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/ftp.c: s/des_read_pw_string/UI_UTIL_read_pw_string/
+	
+	* ftp/cmds.c: s/des_read_pw_string/UI_UTIL_read_pw_string/
+	
+2003-07-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/security.h: add ftp_do_gss_bindings
+	
+	* ftp/ftp.1: fix mdoc bug
+	
+	* ftp/ftp.1: document --no-gss-bindings
+
+	* ftp/gssapi.c: Optionally support gss bindings, client does it by
+	default, server not.  This is to make it work for clients behind
+	NAT.
+
+	* ftp/main.c (args): add gss-bindings
+	(main): set ftp_do_gss_bindings to 1 to make client use them
+
+	* ftpd/ftpd.c (args): add gss-bindings
+	
+	* ftpd/ftpd.8: document --gss-bindings
+	
+2003-06-13  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/gssapi.c (gss_adat): fix name allocation bug
+
+2003-05-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/gss_userok.c (gss_userok): release delegated cred handle
+	
+	* ftp/gssapi.c (gss_adat): remove poking inside the delegated
+	handle, also fixes problem where to much memory was allocated
+	
+	* ftpd/gss_userok.c (gss_userok): remove poking inside the
+	delegated handle
+
+2003-05-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/ftpcmd.y: support afslog <cell> and afslog when compiled
+	with krb5
+
+2003-05-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/cmdtab.c: include afslog in both the krb4 and krb5 case
+	
+	* ftp/kauth.c: include afslog in both the krb4 and krb5 case
+	
+	* ftp/Makefile.am: always include auth.c
+	
+2003-05-07  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* ftpd/Makefile.am: always include auth.c
+
+	* ftpd/kauth.c: do afslog in the krb5 case too
+	
+2003-04-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/ftp.1: replace > with \*[Gt]
+	
+2003-04-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/ftpd.c: make sure argument to is* functions are unsigned
+	
+2003-04-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/ftpd.8: s/kerberos/Kerberos/
+	
+2003-03-23  Assar Westerlund  <assar@kth.se>
+
+	* ftpd/pathnames.h (_PATH_FTPUSERS): conditionalize
+
+2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/ftpd.c (krb5_verify): always do krb5_afslog, remove setpag
+	(its done in main)
+
+	* ftpd/gss_userok.c: drop setpag
+	
+	* ftpd/ftpd.c (main): set afs PAG
+
+	* ftpd/gss_userok.c: always try krb5_afslog, and while here do a
+	setpag too
+
+	* ftpd/ftpd_locl.h: always include kafs
+	
+2003-03-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/gssapi.c (gss_adat): now that gss_export_name exports a
+	principal, bandaid with gss_display_name, and check that oid is
+	GSS_KRB5_NT_PRINCIPAL_NAME, also free memory
+	
+2003-02-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftp/gssapi.c (gss_auth): print out the name we authenticated too
+	
+2003-02-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ftpd/ls.c: use readlink with bufsize - 1, From NetBSD
+
+	* ftp/ftp.1: s/utilizes/uses/ from NetBSD
+	
+	* ftpd/ftpd.8: s/utilize/use/ from NetBSD
+	
+2003-02-10  Assar Westerlund  <assar@kth.se>
+
+	* ftpd/ftpd.c (accept_with_timeout): use socklen_t
+
+2002-10-29  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/main.c: reinstate -n flag (from Torbjörn Granlund)
+
+2002-10-16  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/ftp.c: fix parsing of epsv ports (from Love)
+
+2002-09-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/security.c (sec_vfprintf): free encoded data
+
+	* ftp/gssapi.c (gss_decode): release buffer
+
+	* ftp/ftp.c (active_mode): no need to allocate buffer for EPRT
+
+2002-08-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/ftp.c (command): clean up va_{start,end}ing (from NetBSD)
+
+2002-08-23  Assar Westerlund  <assar@kth.se>
+
+	* ftp/main.c: start using getarg
+
+2002-08-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ls.c: uxp/v lacks _S_IFMT, but has S_IFMT
+
+2002-08-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/gssapi.c: remove unused variable
+
+2002-04-24  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/ftp.c: fix buffer overrun when receiving long replies
+
+2002-04-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/popen.c: make sure gl_pathc != 0 before referencing
+	gl_pathv
+
+2002-03-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/gssapi.c (gss_adat): if accept_sec_context fails, syslog a
+	reason and give a temporary error message
+
+2002-02-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c: if builtin_ls failes, return error
+
+	* ftpd/ls.c (builtin_ls): return status; also don't print fatal
+	error messages to the output stream, instead use syslog
+
+2001-09-14  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ls.c: make sure we don't include . in recursive listings
+
+2001-09-13  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c (dataconn): don't wait forever on accept
+
+2001-09-04  Assar Westerlund  <assar@sics.se>
+
+	* ftp/gssapi.c (gss_adat): leak less memory and check return value
+	from asprintf
+
+2001-08-28  Jacques Vidrine <n@nectar.com>
+
+	* ftpd/ftpd.c, ftpd/ftpd.8: On systems with IP_PORTRANGE, have
+	  ftpd use `high-numbered' ports by default.  Add a -U option
+	  to get the old behavior.
+
+2001-08-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/gssapi.c: try using "host" if there's no "ftp" principal
+
+2001-08-26  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ls.c: implement -R
+
+2001-08-08  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ls.c: make -a and -A do the same as in ls(1)
+
+2001-08-05  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpcmd.y: add some (unsigned char) casts to is*
+	* ftp/cmds.c: add some (unsigned char) casts to is*
+	* ftpd/gss_userok.c (gss_userok): make argument to printf type
+	correct
+
+2001-08-05  Assar Westerlund  <assar@sics.se>
+
+	* ftp/cmds.c (setpeer): __NetBSD__ is also a unix-like OS
+
+2001-06-19  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/popen.c, ftpd/ftpd.c: try to handle GLOB_MAXPATH (FreeBSD)
+
+2001-04-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c (do_store): call closefunc before claiming that
+	everything went ok, if the close fails the file might not have
+	been stored properly
+
+2001-03-26  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c, ftpd/popen.c: always use GLOB_LIMIT
+	* ftpd/popen.c (ftpd_popen): use GLOB_LIMIT if defined
+	* ftpd/ftpd.c (send_file_list): use GLOB_LIMIT if defined
+
+2001-02-15  Assar Westerlund  <assar@sics.se>
+
+	* ftp/cmds.c (setpeer): handle both service names and port numbers
+	for the second optional argument.  also make parsing more robust
+
+2001-02-07  Assar Westerlund  <assar@sics.se>
+
+	* ftp/security.c (sec_end): only clean app_data if there is any
+	(*): do realloc consistently
+
+2001-02-05  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/popen.c (ftpd_popen): avoid overwriting the bounds of argv
+	and gargv
+
+2001-01-30  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/gss_userok.c: use gss_krb5_copy_ccache
+
+2001-01-29  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/Makefile.am: move up LIB_otp so we do not end up picking
+ 	one from /usr/athena
+
+2001-01-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ls.c: fix bug in previous; make it easier to build test
+	version
+
+2001-01-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ls.c (lstat_file): handle case where file lives in `/'
+
+2001-01-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c (pasv): close already open passive port
+
+2000-12-14  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ls.c: reverse time and size sort order (pointed out by
+	tege)
+
+2000-12-11  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c: make it possible to set list of good filename
+	characters from command line
+
+2000-12-10  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c: some spec-violating mirror software assumes that
+	you can do things like `LIST -CF'; don't pass `--' to ls so this
+	actually works
+
+	* ftpd/ls.c: implement -1CFx flags
+
+2000-12-08  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/gss_userok.c (gss_userok): handle getpwnam failing
+	* ftp/gssapi.c (gss_auth): be more explicit in error message
+
+2000-11-29  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.8: close list
+
+2000-11-15  Assar Westerlund  <assar@sics.se>
+
+	* ftp/main.c: add `-l' for no line-editing
+	* ftp/globals.c (readline): add
+	* ftp/ftp_var.h (lineedit): add variable indicated if we should
+	use readline
+
+2000-11-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/security.c (sec_read): fix bug in previous (from Jacques A.
+	Vidrine <n@nectar.com>)
+
+2000-11-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpcmd.y: only allow pasv if logged in
+
+2000-10-23  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c: change bad filename message slightly
+
+	* common/buffer.c: HAVE_ST_BLKSIZE -> HAVE_STRUCT_STAT_ST_BLKSIZE
+
+2000-10-08  Assar Westerlund  <assar@sics.se>
+
+	* ftp/ftp.c (*): check that fds are not too large to select on
+	* ftp/main.c (cmdscanner): print a newline upon EOF
+
+2000-09-19  Assar Westerlund  <assar@sics.se>
+
+	* ftp/security.h: add some attributes to prototypes of sec*
+	* ftp/extern.h (command): add attributes
+
+2000-08-31  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c: change redundant password message to something
+	people can understand
+
+2000-07-27  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/gss_userok.c (gss_userok): only do AFS iff KRB4
+	* ftpd/ftpd.c (krb5_verify): only do AFS stuff if KRB4
+
+2000-07-07  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c: do not call setproctitle with a variable as the
+	format string
+
+2000-07-01  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd_locl.h: krb5.h before kafs.h
+	* ftpd/ftpd.c (krb5_verify): static-ize
+	* ftpd/ftpd.c (krb5_verify): conditionalize on KRB5
+
+2000-06-21  Assar Westerlund  <assar@sics.se>
+
+	* ftpd: support for authenticating passwords with krb5, by Daniel
+	Kouril <kouril@ics.muni.cz>
+
+2000-06-06  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpcmd.y: change unix test to be negative
+	
+2000-05-18  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c (args): should use `debug'.  From Onno van der
+	Linden <onno@simplex.nl>.
+
+2000-04-25  Assar Westerlund  <assar@sics.se>
+
+	* ftp/ftp.c (login): re-structure code so that we prompt for
+	password for ftp/anonymous
+
+2000-04-11  Assar Westerlund  <assar@sics.se>
+
+	* ftp/ftp.c (login): initialize tmp before calling fgets
+
+2000-04-02  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ls.c: rename all st_mtime variables to avoid conflict with
+	#define.
+	* ftpd/ftpcmd.y: rename all st_mtime variables to avoid conflict
+	with #define.
+	* ftp/cmds.c: rename all st_mtime variables to avoid conflict with
+	#define.
+
+2000-03-26  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ls.c, ftpd/ftpcmd.y, ftp/cmds.c: make sure to always call
+	time, ctime, and gmtime with `time_t's.  there were some types
+	(like in lastlog) that we believed to always be time_t.  this has
+	proven wrong on Solaris 8 in 64-bit mode, where they are stored as
+	32-bit quantities but time_t has gone up to 64 bits
+
+2000-03-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* call list_file for broken usages of nlst too
+
+	* ftpd/ftpd.c: call list_file for broken usages of nlst too
+
+2000-02-07  Assar Westerlund  <assar@sics.se>
+
+	* ftp/security.c (sec_read): more paranoia with return value from
+	sec_get_data
+
+2000-01-08  Assar Westerlund  <assar@sics.se>
+
+	* ftp/ftp.c (hookup): handle ai_canonname being set in any of the
+	addresses returnedby getaddrinfo.  glibc apparently returns the
+	reverse lookup of every address in ai_canonname.
+	* ftp/ruserpass.c (guess_domain): dito
+
+1999-12-21  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c: don't use sa_len as a parameter, it's defined on
+ 	Irix
+
+1999-12-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c (dataconn): make sure from points to actual data
+
+1999-12-16  Assar Westerlund  <assar@sics.se>
+
+	* ftp/ruserpass.c (guess_domain): handle ai_canonname not being
+	set
+	* ftp/ftp.c (hookup): handle ai_canonname not being set
+
+1999-12-06  Assar Westerlund  <assar@sics.se>
+
+	* ftp/krb4.c (krb4_auth): the nat-IP address might not be realm
+	bounded.
+
+1999-12-05  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c (dolog): update prototype
+	* ftpd/ftpd.c (dolog): use getnameinfo_verified
+	* ftpd/ftpd.c: replace inaddr2str by getnameinfo
+
+1999-12-04  Assar Westerlund  <assar@sics.se>
+
+	* ftp/ruserpass.c (guess_domain): re-write to use getaddrinfo
+	* ftp/ftp.c (hookup): re-write to use getaddrinfo
+	
+1999-11-30  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c (getdatasock): make sure to keep the port-number of
+ 	the outgoing connections.  It has to be `ftp-data' or some people
+ 	might get upset.
+
+	* ftpd/ftpd.c (args): set correct variable when `-l' so that
+ 	logging actually works
+
+1999-11-29  Assar Westerlund  <assar@sics.se>
+
+	* ftp/security.c (sec_login): check return value from realloc
+	(sec_end): set app_data to NULL
+
+1999-11-25  Assar Westerlund  <assar@sics.se>
+
+	* ftp/krb4.c (krb4_auth): obtain the `local' address when doing
+	NAT.  also turn on passive mode.  From <thn@stacken.kth.se>
+
+1999-11-20  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ls.c (make_fileinfo): cast to allow for non-const
+ 	prototypes of readlink
+
+1999-11-12  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c (args): use arg_counter for `l'
+	
+1999-11-04  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ls.c (S_ISSOCK, S_ISLNK): fallback definitions for systems
+ 	that don't have them (such as ultrix)
+
+1999-10-29  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ls.c (make_fileinfo): cast uid's and gid's to unsigned in
+ 	printf, we don't know what types they might be.
+	(lstat_file): conditionalize the kafs part on KRB4
+
+	* ftpd/ftpd_locl.h: <sys/ioccom.h> is needed for kafs.h
+
+1999-10-28  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ls.c (lstat_file): don't set st_mode, it should already be
+ 	correct
+
+	* ftpd/ls.c: don't use warnx to print errors
+
+	* ftpd/ls.c (builtin_ls): fix typo, 'd' shouldn't imply 'f'
+
+	* ftpd/ls.c (lstat_file): new function for avoiding stating AFS
+ 	mount points.  From Love <lha@s3.kth.se>
+	(list_files): use `lstat_file'
+
+	* ftpd/ftpd.c: some const-poisoning
+
+	* ftpd/ftpd.c (args): add `-B' as an alias for `--builtin-ls' to
+ 	allow for stupid inetds that only support two arguments.  From
+ 	Love <lha@s3.kth.se>
+
+1999-10-26  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpcmd.y (help): it's unnecessary to interpret help strings
+ 	as printf commands
+
+	* ftpd/ftpd.c (show_issue): don't interpret contents of
+ 	/etc/issue* as printf commands.  From Brian A May
+ 	<bmay@dgs.monash.edu.au>
+
+1999-10-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/kauth.c (kauth): complain if protection level isn't
+	`private'
+
+	* ftp/krb4.c (krb4_decode): syslog failure reason
+
+	* ftp/kauth.c (kauth): set private level earlier
+
+	* ftp/security.c: get_command_prot; (sec_prot): partially match
+	`command' and `data'
+
+1999-10-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c: change `-l' flag to use arg_collect (this makes
+	`-ll' work again)
+
+	* ftpd/ftpd.c (list_file): pass filename to ls
+
+1999-10-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpcmd.y: FEAT
+
+1999-10-03  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ls.c: fall-back definitions for constans and casts for
+ 	printfs
+
+1999-10-03  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c (main): make this use getarg; add `list_file'
+
+	* ftpd/ftpcmd.y (LIST): call list_file
+
+	* ftpd/ls.c: add simple built-in ls
+
+	* ftp/security.c: add `sec_vfprintf2' and `sec_fprintf2' that
+	prints to the data stream
+
+	* ftp/kauth.c (kauth): make sure we're using private protection
+	level
+
+	* ftp/security.c (set_command_prot): set command protection level
+
+	* ftp/security.c: make it possible to set the command protection
+	level with `prot'
+
+1999-09-30  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd_locl.h: add prototype for fclose to make sunos happy
+
+1999-08-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c (do_login): show issue-file
+	(send_data): change handling of zero-byte files
+
+1999-08-18  Assar Westerlund  <assar@sics.se>
+
+	* ftp/cmds.c (getit): be more suspicious when parsing the result
+ 	of MDTM.  Do the comparison of timestamps correctly.
+
+1999-08-13  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c (send_data): avoid calling mmap with `len == 0'.
+  	Some mmap:s rather dislike that (Solaris) and some munmap (Linux)
+ 	get grumpy later.
+
+	* ftp/ftp.c (copy_stream): avoid calling mmap with `len == 0'.
+  	Some mmap:s rather dislike that (Solaris) and some munmap (Linux)
+ 	get grumpy later.
+
+1999-08-03  Assar Westerlund  <assar@sics.se>
+
+	* ftp/ftp.c (active_mode): hide failure of EPRT by setting verbose
+
+	* ftp/gssapi.c (gss_auth): initialize application_data in bindings
+
+1999-08-02  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpcmd.y: save file names when doing commands that might
+ 	get aborted (and longjmp:ed out of) to avoid overwriting them also
+ 	remove extra closing brace
+
+1999-08-01  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpcmd.y: change `site find' to `site locate' (to match
+	what it does, and other implementations) keep find as an alias
+
+1999-07-28  Assar Westerlund  <assar@sics.se>
+
+	* common/socket.c: moved to roken
+
+	* common/socket.c: new file with generic socket functions
+
+	* ftpd/ftpd.c: make it more AF-neutral and v6-capable
+
+	* ftpd/ftpcmd.y: add EPRT and EPSV
+
+	* ftpd/extern.h: update prototypes and variables
+
+	* ftp/krb4.c: update to new types of addresses
+
+	* ftp/gssapi.c: add support for both AF_INET and AF_INET6
+ 	addresses
+
+	* ftp/ftp.c: make it more AF-neutral and v6-capable
+
+	* ftp/extern.h (hookup): change prototype
+
+	* common/common.h: add prototypes for functions in socket.c
+
+	* common/Makefile.am (libcommon_a_SOURCES): add socket.c
+
+	* ftp/gssapi.c (gss_auth): check return value from
+ 	`gss_import_name' and print error messages if it fails
+
+1999-06-15  Assar Westerlund  <assar@sics.se>
+
+	* ftp/krb4.c (krb4_auth): type correctness
+
+1999-06-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/ftp.c (sendrequest): lmode != rmode
+	
+1999-05-21  Assar Westerlund  <assar@sics.se>
+
+	* ftp/extern.h (sendrequest): update prototype
+
+	* ftp/cmds.c: update calls to sendrequest and recvrequest to send
+ 	"b" when appropriate
+
+	* ftp/ftp.c (sendrequest): add argument for mode to open file in.
+
+1999-05-08  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpcmd.y: rename getline -> ftpd_getline
+
+	* ftp/main.c (makeargv): fill in unused slots with NULL
+
+Thu Apr  8 15:06:40 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftpd/ftpd.c: remove definition of KRB_VERIFY_USER (moved to
+ 	config.h)
+
+Wed Apr  7 16:15:21 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftp/gssapi.c (gss_auth): call gss_display_status to get a sane
+ 	error message; return AUTH_{CONTINUE,ERROR}, where appropriate
+
+	* ftp/krb4.c: return AUTH_{CONTINUE,ERROR}, where appropriate
+
+	* ftp/security.c (sec_login): if mechanism returns AUTH_CONTINUE,
+ 	just continue with the next mechanism, this fixes the case of
+ 	having GSSAPI fail because of non-existant of expired tickets
+
+	* ftp/security.h: add AUTH_{OK,CONTINUE,ERROR}
+
+Thu Apr  1 16:59:04 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftpd/Makefile.am: don't run check-local
+
+	* ftp/Makefile.am: don't run check-local
+
+Mon Mar 22 22:15:18 1999  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c (pass): fall-back for KRB_VERIFY_SECURE
+
+	* ftpd/ftpd.c (pass): 1 -> KRB_VERIFY_SECURE
+
+Thu Mar 18 12:07:09 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftpd/Makefile.am: clean ftpcmd.c
+
+	* ftpd/ftpd_locl.h: remove krb5.h (breaks in ftpcmd.y)
+
+	* ftpd/ftpd.c: move include of krb5.h here
+
+	* ftpd/Makefile.am: include Makefile.am.common
+
+	* Makefile.am: include Makefile.am.common
+
+	* ftp/Makefile.am: include Makefile.am.common
+
+	* common/Makefile.am: include Makefile.am.common
+
+Tue Mar 16 22:28:37 1999  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd_locl.h: add krb5.h to get heimdal_version
+
+	* ftpd/ftpd.c: krb_verify_user_multiple -> krb_verify_user
+
+Thu Mar 11 14:54:59 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftp/Makefile.in: WFLAGS
+
+	* ftp/ruserpass.c: add some if-braces
+
+Wed Mar 10 20:02:55 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftpd/ftpd_locl.h: remove ifdef HAVE_FNMATCH
+
+Mon Mar  8 21:29:24 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftpd/ftpd.c: re-add version in greeting message
+
+Mon Mar  1 10:49:38 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftpd/logwtmp.c: HAVE_UT_* -> HAVE_STRUCT_UTMP*_UT_*
+
+Mon Feb 22 19:20:51 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* common/Makefile.in: remove glob
+
+Sat Feb 13 17:19:35 1999  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c (match): remove #ifdef HAVE_FNMATCH.  We have a
+ 	fnmatch implementation in roken and therefore always have it.
+
+	* ftp/ftp.c (copy_stream): initialize `werr'
+
+Wed Jan 13 23:52:57 1999  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpcmd.y: moved all check_login and check_login_no_guest to
+ 	the end of the rules to ensure we don't generate several
+ 	(independent) error messages.  once again, having a yacc-grammar
+ 	for FTP with embedded actions doesn't strike me as the most
+ 	optimal way of doing it.
+
+Tue Dec  1 14:44:29 1998  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* ftpd/Makefile.am: link with extra libs for aix
+
+Sun Nov 22 10:28:20 1998  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c (retrying): support on-the-fly decompression
+
+	* ftpd/Makefile.in (WFLAGS): set
+
+	* ftp/ruserpass.c (guess_domain): new function
+	(ruserpass): use it
+
+	* common/Makefile.in (WFLAGS): set
+
+	* Makefile.in (WFLAGS): set
+
+Sat Nov 21 23:13:03 1998  Assar Westerlund  <assar@sics.se>
+
+	* ftp/security.c: some more type correctness.
+
+	* ftp/gssapi.c (gss_adat): more braces to shut up warnings
+
+Wed Nov 18 21:47:55 1998  Assar Westerlund  <assar@sics.se>
+
+	* ftp/main.c (main): new option `-p' for enable passive mode.
+
+Mon Nov  2 01:57:49 1998  Assar Westerlund  <assar@sics.se>
+
+	* ftp/ftp.c (getreply): remove extra `break'
+
+	* ftp/gssapi.c (gss_auth): fixo typo(copyo?)
+
+	* ftp/security.c (sec_login): fix loop and return value
+
+Tue Sep  1 16:56:42 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* ftp/cmds.c (quote1): fix % quoting bug
+
+Fri Aug 14 17:10:06 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* ftp/krb4.c: krb_put_int -> KRB_PUT_INT
+
+Tue Jun 30 18:07:15 1998  Assar Westerlund  <assar@sics.se>
+
+	* ftp/security.c (auth): free `app_data'
+	(sec_end): only destroy if it was initialized
+
+Tue Jun  9 21:01:59 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* ftp/krb4.c: pass client address to krb_rd_req
+
+Sat May 16 00:02:07 1998  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/Makefile.am: link with DBLIB
+
+Tue May 12 14:15:32 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* ftp/gssapi.c: Save client name for userok().
+
+	* ftpd/gss_userok.c: Userok for gssapi.
+
+Fri May  1 07:15:01 1998  Assar Westerlund  <assar@sics.se>
+
+	* ftp/ftp.c: unifdef -DHAVE_H_ERRNO
+
+Fri Mar 27 00:46:07 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* Make compile w/o krb4.
+
+Thu Mar 26 03:49:12 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* ftp/*, ftpd/*: Changes for new framework.
+
+	* ftp/gssapi.c: GSS-API backend for the new security framework.
+
+	* ftp/krb4.c: Updated for new framework.
+
+	* ftp/security.{c,h}: New unified security framework.

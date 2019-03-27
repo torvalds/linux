@@ -1,0 +1,124 @@
+.\" Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd April 14, 2005
+.Dt KTUTIL 8
+.Os HEIMDAL
+.Sh NAME
+.Nm ktutil
+.Nd manage Kerberos keytabs
+.Sh SYNOPSIS
+.Nm
+.Oo Fl k Ar keytab \*(Ba Xo
+.Fl Fl keytab= Ns Ar keytab
+.Xc
+.Oc
+.Op Fl v | Fl Fl verbose
+.Op Fl Fl version
+.Op Fl h | Fl Fl help
+.Ar command
+.Op Ar args
+.Sh DESCRIPTION
+.Nm
+is a program for managing keytabs.
+Supported options:
+.Bl -tag -width Ds
+.It Fl v , Fl Fl verbose
+Verbose output.
+.El
+.Pp
+.Ar command
+can be one of the following:
+.Bl -tag -width srvconvert
+.It add Oo Fl p Ar principal Oc Oo Fl Fl principal= Ns Ar principal Oc \
+Oo Fl V Ar kvno Oc Oo Fl Fl kvno= Ns Ar kvno Oc Oo Fl e Ar enctype Oc \
+Oo Fl Fl enctype= Ns Ar enctype Oc Oo Fl w Ar password Oc \
+Oo Fl Fl password= Ns Ar password Oc Oo Fl r Oc Oo Fl Fl random Oc \
+Oo Fl s Oc Oo Fl Fl no-salt Oc Oo Fl H Oc Op Fl Fl hex
+Adds a key to the keytab. Options that are not specified will be
+prompted for. This requires that you know the password or the hex key of the
+principal to add; if what you really want is to add a new principal to
+the keytab, you should consider the
+.Ar get
+command, which talks to the kadmin server.
+.It change Oo Fl r Ar realm Oc Oo Fl Fl realm= Ns Ar realm Oc \
+Oo Fl Fl a Ar host Oc Oo Fl Fl admin-server= Ns Ar host Oc \
+Oo Fl Fl s Ar port Oc Op Fl Fl server-port= Ns Ar port
+Update one or several keys to new versions.  By default, use the admin
+server for the realm of a keytab entry.  Otherwise it will use the
+values specified by the options.
+.Pp
+If no principals are given, all the ones in the keytab are updated.
+.It copy Ar keytab-src Ar keytab-dest
+Copies all the entries from
+.Ar keytab-src
+to
+.Ar keytab-dest .
+.It get Oo Fl p Ar admin principal Oc \
+Oo Fl Fl principal= Ns Ar admin principal Oc Oo Fl e Ar enctype Oc \
+Oo Fl Fl enctypes= Ns Ar enctype Oc Oo Fl r Ar realm Oc \
+Oo Fl Fl realm= Ns Ar realm Oc Oo Fl a Ar admin server Oc \
+Oo Fl Fl admin-server= Ns Ar admin server Oc Oo Fl s Ar server port Oc \
+Oo Fl Fl server-port= Ns Ar server port Oc Ar principal ...
+For each
+.Ar principal ,
+generate a new key for it (creating it if it doesn't already exist),
+and put that key in the keytab.
+.Pp
+If no
+.Ar realm
+is specified, the realm to operate on is taken from the first
+principal.
+.It list Oo Fl Fl keys Oc Op Fl Fl timestamp
+List the keys stored in the keytab.
+.It remove Oo Fl p Ar principal Oc Oo Fl Fl principal= Ns Ar principal Oc \
+Oo Fl V kvno Oc Oo Fl Fl kvno= Ns Ar kvno Oc Oo Fl e enctype Oc \
+Oo Fl Fl enctype= Ns Ar enctype Oc
+Removes the specified key or keys. Not specifying a
+.Ar kvno
+removes keys with any version number. Not specifying an
+.Ar enctype
+removes keys of any type.
+.It rename Ar from-principal Ar to-principal
+Renames all entries in the keytab that match the
+.Ar from-principal
+to
+.Ar to-principal .
+.It purge Op Fl Fl age= Ns Ar age
+Removes all old versions of a key for which there is a newer version
+that is at least
+.Ar age
+(default one week) old.
+.El
+.Sh SEE ALSO
+.Xr kadmin 8

@@ -1,0 +1,53 @@
+/*
+ * Ünnepnapok
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _hu_HU_ISO8859_2_unnepek_
+#define _hu_HU_ISO8859_2_unnepek_
+
+LANG=hu_HU.ISO8859-2
+
+/* Munkaszüneti napok */
+01/01	Újév
+03/15	1848-as szabadságharc és forradalom ünnepe
+05/01	Munka ünnepe
+10/23	1956-os forradalom ünnepe
+
+/* Vallási munkaszüneti napok */
+Easter		Húsvét
+Easter+1 	Húsvét hétfõ
+Easter+42	Virágvasárnap
+Easter+49	Pünkösd
+Easter+50	Pünkösd hétfõ
+08/20		Szent István nap, Államalapítás ünnepe
+11/01		Halottak napja
+12/25		Karácsony elsõ napja
+12/26		Karácsony második napja
+
+/* Az itt következõ dátumok nem munkaszüneti napok csak ünnepnapok */
+
+/* Csillagászati évszakok */
+03/21*	Tavaszi napéjegyenlõség
+06/21*	Nyári napforduló
+09/21*	Õszi napéjegyenlõség
+12/21*	Téli napforduló
+
+/* Téli és nyári idõszámítás közötti váltás */
+03/SundayLast	Váltás a nyári idõszámításra
+10/SundayLast	Váltás a téli idõszámításra
+
+/* Egyéb vallási ünnepek amelyek nem munkaszüneti napok */
+Easter-2	Nagy péntek ("a harangok Romába mennek")
+
+/* Egyéb ünnepnapok és emléknapok*/
+02/14		Valentin nap - a szerelmesek ünnepe
+03/08		Nõ nap - egy-egy szál virág a nõknek
+May Sun+2 	Anyák napja
+10/06		Az 1848-as aradi vértanuk napja 
+12/06		Mikulás napja - gyerekek csokit kapnak
+12/24		Karácsony elõestéje
+12/31		Szilveszter napja
+
+#endif /*! _hu_HU_ISO8859_2_unnepek_ */

@@ -1,0 +1,72 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>NTP Version 4 Release Notes</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>NTP Version 4 Release Notes</h3>
+<img src="pic/hornraba.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html">from <i>Alice's Adventures in Wonderland</i>, Lewis Carroll</a>
+<p>The rabbit toots to make sure you read this.</p>
+<p>Last update:
+  <!-- #BeginDate format:En1m -->3-Oct-2011  21:51<!-- #EndDate -->
+  UTC</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/hand.txt"></script>
+<h4>Table of Contents</h4>
+<ul>
+  <li class="inline"><a href="#new">New Features Modes</a></li>
+  <li class="inline"><a href="#change">Changes and Upgrades Since the NTPv3 Version (xntp3-5)</a></li>
+  <li class="inline"><a href="#nasty">Nasty Surprises</a></li>
+</ul>
+<hr>
+<p>NTP has been under development for almost 30 years, but the paint ain't dry even now. This release of the NTP Version 4 (NTPv4) distribution for Unix, VMS and Windows incorporates new features and refinements, but retaining backwards compatibility with older versions, including NTPv3 and NTPv2, but not NTPv1. Support for NTPv1 has been discontinued because of certain security vulnerabilities.</p>
+<h4 id="new">New Features</h4>
+<ul>
+  <li>The behavior of the daemon at startup has been considerably improved. The time to measure the frequency and correct an initial offset error when started for the first time is now no more than ten minutes. Upon restart, it takes no more than five minutes to reduce the initial offset to less than one millisecond without adversely affecting the frequency. This avoids a subsequent frequency correction which could take up to several hours.</li>
+  <li>A new  feature called interleaved mode can be used  in NTP
+    symmetric and broadcast modes. It is designed to improve accuracy
+    by minimizing errors due to queuing and transmission delays. It is described on the <a href="xleave.html">NTP
+    Interleaved Modes</a> page.</li>
+  <li>The huff-n'-puff filter is designed to avoid large errors with DSL circuits and highly asymmetrical traffic, as when downloading large files. Details are on the <a href="huffpuff.html">The Huff-n'-Puff Filter</a> page.</li>
+  <li>A new feature called  orphan mode provides an automatic, subnet-wide synchronization feature with multiple sources. It provides reliable backup in isolated networks or in pr when  Internet sources have become unavailable. See the <a href="orphan.html">Orphan Mode</a> page for further information.</li>
+  <li>This release includes comprehensive packet rate management tools to help reduce the level of spurious network traffic and protect the busiest servers from overload. There is  support for the optional Kiss-o'-Death (KoD) packet intended to slow down an abusive client. See the <a href="rate.html">Rate Management and the Kiss-o'-Death Packet</a> page for further information.</li>
+  <li>There are two new burst mode features available where special conditions apply. One of these is enabled by the <tt>iburst</tt> keyword in the <tt>server</tt> configuration command. It is intended for cases where it is important to set the clock quickly when an association is first mobilized. The other is enabled by the <tt>burst</tt> keyword in the <tt>server</tt> configuration command. It is intended for cases where the network attachment requires an initial calling or training procedure. See the <a href="assoc.html">Association Management</a> page for further information.</li>
+  <li>The OpenSSL cryptographic library has replaced the library formerly available from RSA Laboratories. All cryptographic routines except a version of the MD5 message digest algorithm have been removed from the base distribution. All 128-bit and 160-bit message digests algorithms are now supported for both symmetric key and public key cryptosystems. See the <a href="authentic.html">Authentication Support</a> page for further information and the <a href="authopt.html">Authentication Options</a> page for a list of supported digest algorithms.</li>
+  <li>This release includes  support for  Autokey public-key cryptography for authenticating public servers to clients, as described in RFC 5906. This support requires the --enable-autokey option when building the distribution, which is the default is OpenSSL is available. The deployment of Autokey subnets is now considerably simpler than in earlier versions. A subnet naming scheme is now available to filter manycast and pool configurations. Additional information about Autokey  is on the <a href="autokey.html">Autokey Public Key Authentication</a> page and links from there.</li>
+  <li>The NTP descrete even simulator has been substantially upgraded, now including scenarios with multiple servers and time-sensitive scripts. This allows  the NTP&nbsp;algorithms to be tested in an embedded environment with systematic and pseudo-random network delay and oscillator wander distributions. This has been used to verify correct operation under conditions of extreme error and misconfiguration. See the <a href="ntpdsim.html"><tt>ntpdsim</tt> - Network Time Protocol (NTP) simulator</a> page. A technical description and performance analysis is given in the white papers at the <a href="http://www.eecis.udel.edu/~mills/ntp.html">NTP Project Page</a>.</li>
+  <li>NTPv4 includes three new server discovery schemes, which in most applications can avoid per-host configuration altogether. Two of these are based on IP multicast technology, while the remaining one is based on crafted DNS lookups. See the <a href="discover.html">Automatic NTP Configuration Schemes</a> page for further information.</li>
+  <li>The status display and event report monitoring functions have been considerably expanded, including new statistics files and  event reporting to files and the system log. See the <a href="decode.html">Event Messages and Status Words</a> page for further information.</li>
+  <li>Several new options have been added for the <tt>ntpd</tt> command line. For the inveterate knob twiddlers several of the more important performance variables can be changed to fit actual or perceived special conditions. In particular, the <tt>tinker</tt> and <tt>tos</tt> commands can be used to adjust thresholds, throw switches and change limits.</li>
+  <li>The <tt>ntpd</tt> daemon can be operated in a one-time mode similar to <tt>ntpdate</tt>, which program is headed for retirement. See the <a href="ntpd.html"><tt>ntpd</tt> - Network Time Protocol (NTP) daemon</a> page for the new features.</li>
+  <li>A number of white papers have been added to the library on the NTP Reseatch Project Page, including:</li>
+</ul>
+<script type="text/javascript" language="javascript" src="scripts/external.txt"></script>
+<h4 id="change">Changes and Upgrades Since the NTPv3 Version (xntp3-5) </h4>
+<p>This section summarizes general changes since the publication of RFC-1305. Specific changes made during the code upgrade of 2007-2008 are summarized in  <a href="history.html">Historical Notes</a>.</p>
+<ul>
+  <li>If the Basic Socket Interface Extensions for IPv6 (RFC-2553) is detected, support for the IPv6 address family is supported  in addition to the default support for the IPv4 address family. In contexts where a host name is expected, a <tt>-4</tt> qualifier preceding the host name forces DNS resolution to the IPv4 namespace, while a <tt>-6</tt> qualifier forces DNS resolution to the IPv6 namespace.</li>
+  <li>Many changes have been made in the NTP algorithms to improve performance and reliability A clock state machine has been incorporated to improve behavior under transient conditions. The clock discipline algorithm has been redesigned to improve accuracy, reduce the impact of network disruptions and allow increased  poll intervals to 36 hours with only moderate sacrifice in accuracy. The clock select, cluster and combine algorithms have been overhauled as the result of a thorough statistical analysis.</li>
+  <li>In all except a very few cases, all timing intervals are randomized, so that the tendency for NTPv3 to self-synchronize and bunch messages, especially with a large number of configured associations, is minimized.</li>
+  <li>Support for the precision time kernel modifications, which are now in stock FreeBSD and optional in Linux kernels, is included. With this support the system clock can be disciplined to the order of one nanosecond. The older microtime kernel modifications in Digital/Compaq/HP Tru64, Digital Ultrix and Sun Microsystems SunOS and Solaris, continue to be supported. In either case the support eliminates sawtooth error, which can be in the hundreds of microseconds. Further information is on the <a href="kern.html">Kernel Model for Precision Timekeeping</a> page.</li>
+  <li>New reference clock drivers have been added for several GPS receivers now on the market for a total of 44 drivers. The reference clock driver interface is smaller, more rational, more flexible and more accurate.  Most of the drivers in NTPv3 have been converted to the NTPv4 interface and continue to operate as before. A summary of the supported drivers is on the <a href="refclock.html">Reference Clock Support</a> page. Audio drivers for the Canadian standard time and frequency station CHU, the US standard time and frequency stations WWV/H and for IRIG signals have been updated and capabilities added to allow direct connection of these signals to an audio port. See the <a href="audio.html">Reference Clock Audio Drivers</a> page for further information.</li>
+  <li>Support for pulse-per-second (PPS) signals has been extended to all drivers as an intrinsic function. Further information is on the <a href="pps.html">Pulse-Per-Second (PPS) Signal Interfacing</a> page. Typical performance with the PPS interface and a fast machine are in the low microseconds.</li>
+  <li>Several small changes have been made to make administration and maintenance more convenience. The entire distribution has been converted to gnu <tt>automake</tt>, which  greatly ease the task of porting to new and different programming environments, as well as reduce the incidence of bugs due to improper handling of idiosyncratic kernel functions. Version control is provided by Bitkeeper using an online repository at www.ntp.org. Trouble ticket reporting is provided using Bugzilla. If <tt>ntpd</tt>, is configured with NetInfo support, it will attempt to read its configuration from the NetInfo service if the default <tt>ntp.conf</tt> file cannot be read and no file is specified by the <tt>-c</tt> option. When <tt>ntpd</tt> starts it looks at the value of <tt>umask</tt>, and if zero <tt>ntpd</tt> will set the <tt>umask</tt> to <tt>022</tt>.</li>
+</ul>
+<h4 id="nasty">Nasty Surprises</h4>
+<p>There are a few things different about this release that have changed since the latest NTP Version 3 release. Following are a few things to worry about:</p>
+<ul>
+  <li>Some configuration commands have been removed, others added and some changed in minor ways. See the Commands and Options collection on the <a href="sitemap.html">Site Map</a> page.</li>
+  <li>When both IPv4 and IPv6 address families are in use, the host's resolver library may not choose the intended address family if a server has an IPv4 and IPv6 address associated with the same DNS name. The solution is to use the IPv4 or IPv6 address directly in such cases or use another DNS name that resolves to the intended address family. Older versions of <tt>ntpdc</tt> will show only the IPv4 associations with the <tt>peers</tt> and some other commands. Older versions of <tt>ntpq</tt> will show 0.0.0.0 for IPv6 associations with the <tt>peers</tt> and some other commands.</li>
+  <li>There is a minor change to the reference ID field of the NTP packet header when operating with IPv6 associations. In IPv4 associations this field contains the 32-bit IPv4 address of the server, in order to detect and avoid loops. In IPv6 associations this field contains the first 32-bits of a MD5 hash formed from the IPv6 address. All programs in the distribution have been modified to work with both address families.</li>
+  <li>The <tt>tty_clk</tt> and <tt>ppsclock</tt> pulse-per-second (PPS) line discipline/streams modules are no longer supported. The PPS function is now handled by the <a href="drivers/driver22.html">PPS Clock Discipline</a> driver, which uses the new PPSAPI application program interface adopted by the IETF. Note that the <tt>pps</tt> configuration file command has been obsoleted by the driver. See the <a href="pps.html">Pulse-Per-Second (PPS) Signal Interfacing</a> page for further information.</li>
+  <li>Support for the NTPv1 symmetric mode has been discontinued, since it hasn't worked for years. Support continues for the NTPv1 client mode, which is used by some SNTP clients.</li>
+  <li>The <tt>authstuff</tt> directory, intended as a development and testing aid for porting cryptographic routines to exotic architectures, has been removed. Testing and conformance validation tools are available in the OpenSSL software distribution.</li>
+</ul>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

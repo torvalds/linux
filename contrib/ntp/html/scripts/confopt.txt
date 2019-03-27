@@ -1,0 +1,12 @@
+document.write("<p>Server Commands and Options</p><ul>\
+<li class='inline'><a href='confopt.html#server'>server - configure client association</a></li>\
+<li class='inline'><a href='confopt.html#peer'>peer - configure symmetric peer association</a></li>\
+<li class='inline'><a href='confopt.html#broadcast'>broadcast - configure broadcast server association</a></li>\
+<li class='inline'><a href='confopt.html#manycastclient'>manycastclient - configure manycast client  association</a></li>\
+<li class='inline'><a href='confopt.html#pool'>pool - configure pool association</a></li>\
+<li class='inline'><a href='confopt.html#unpeer'>unpeer - remove association</a></li>\
+<li class='inline'><a href='confopt.html#broadcastclient'>broadcastclient - enable broadcast client</a></li>\
+<li class='inline'><a href='confopt.html#manycastserver'>manycastserver - enable manycast server</a></li>\
+<li class='inline'><a href='confopt.html#multicastclient'>multicastclient - enable multicast client</a></li>\
+<li class='inline'><a href='comdex.html'>Command Index</a></li>\
+</ul>")

@@ -1,0 +1,323 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 8, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm libxo
+.Nd library for emitting text, XML, JSON, or HTML output
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Sh DESCRIPTION
+The functions defined in
+.Nm
+are used to generate a choice of
+.Em TEXT ,
+.Em XML ,
+.Em JSON ,
+or
+.Em HTML
+output.
+A common set of functions are used, with
+command line switches passed to the library to control the details of
+the output.
+.Pp
+Most commands emit text output aimed at humans.
+It is designed
+to be parsed and understood by a user.
+Humans are gifted at extracting
+details and pattern matching.
+Often programmers need to extract
+information from this human-oriented output.
+Programmers use tools
+like
+.Xr grep 1 ,
+.Xr awk 1 ,
+and regular expressions to ferret out the pieces of
+information they need.
+Such solutions are fragile and require
+updates when output contents change or evolve, requiring testing and
+validation.
+.Pp
+Modern tool developers favor encoding schemes like XML and JSON,
+which allow trivial parsing and extraction of data.
+Such formats are
+simple, well understood, hierarchical, easily parsed, and often
+integrate easier with common tools and environments.
+.Pp
+In addition, modern reality means that more output ends up in web
+browsers than in terminals, making HTML output valuable.
+.Pp
+.Nm
+allows a single set of function calls in source code to generate
+traditional text output, as well as XML and JSON formatted data.
+HTML
+can also be generated; "<div>" elements surround the traditional text
+output, with attributes that detail how to render the data.
+.Pp
+There are four encoding styles supported by
+.Nm :
+.Bl -bullet
+.It
+TEXT output can be display on a terminal session, allowing
+compatibility with traditional command line usage.
+.It
+XML output is suitable for tools like XPath and protocols like
+NETCONF.
+.It
+JSON output can be used for RESTful APIs and integration with
+languages like Javascript and Python.
+.It
+HTML can be matched with a small CSS file to permit rendering in any
+HTML5 browser.
+.El
+.Pp
+In general, XML and JSON are suitable for encoding data, while TEXT is
+suited for terminal output and HTML is suited for display in a web
+browser (see
+.Xr xohtml 1 ).
+.Pp
+The
+.Nm
+library allows an application to generate text, XML, JSON,
+and HTML output using a common set of function calls.
+The application
+decides at run time which output style should be produced.
+The
+application calls a function
+.Xr xo_emit 3
+to product output that is
+described in a format string.
+A
+.Dq field descriptor
+tells
+.Nm
+what the field is and what it means.
+Each field descriptor is placed in
+braces with a printf-like format string:
+.Bd -literal -offset indent
+    xo_emit(" {:lines/%7ju} {:words/%7ju} "
+            "{:characters/%7ju}{d:filename/%s}\\n",
+            linect, wordct, charct, file);
+.Ed
+.Pp
+Each field can have a role, with the 'value' role being the default,
+and the role tells
+.Nm
+how and when to render that field, as well as
+a
+.Xr printf 3 Ns -like
+format string.
+.Pp
+Output
+can then be generated in various style, using the "--libxo" option.
+.Sh DEFAULT HANDLE
+Handles give an abstraction for
+.Nm
+that encapsulates the state of a
+stream of output.
+Handles have the data type "xo_handle_t" and are
+opaque to the caller.
+.Pp
+The library has a default handle that is automatically initialized.
+By default, this handle will send text style output to standard output.
+The
+.Xr xo_set_style 3
+and
+.Xr xo_set_flags 3
+functions can be used to change this
+behavior.
+.Pp
+Many
+.Nm
+functions take a handle as their first parameter; most that
+do not use the default handle.
+Any function taking a handle can
+be passed
+.Dv NULL
+to access the default handle.
+.Pp
+For the typical command that is generating output on standard output,
+there is no need to create an explicit handle, but they are available
+when needed, e.g., for daemons that generate multiple streams of
+output.
+.Sh FUNCTION OVERVIEW
+The
+.Nm
+library includes the following functions:
+.Bl -tag -width "xo_close_container_hd"
+.It Sy "Function               Description"
+.It Fn xo_attr
+.It Fn xo_attr_h
+.It Fn xo_attr_hv
+Allows the caller to emit XML attributes with the next open element.
+.It Fn xo_create
+.It Fn xo_create_to_file
+Allow the caller to create a new handle.
+Note that
+.Nm
+has a default handle that allows the caller to avoid use of an
+explicitly created handle.
+Only callers writing to files other than
+.Dv stdout
+would need to call
+.Fn xo_create .
+.It Fn xo_destroy
+Frees any resources associated with the handle, including the handle
+itself.
+.It Fn xo_emit
+.It Fn xo_emit_h
+.It Fn xo_emit_hv
+Emit formatted output.
+The
+.Fa fmt
+string controls the conversion of the remaining arguments into
+formatted output.
+See
+.Xr xo_format 5
+for details.
+.It Fn xo_emit_warn
+.It Fn xo_emit_warnx
+.It Fn xo_emit_warn_c
+.It Fn xo_emit_warn_hc
+.It Fn xo_emit_err
+.It Fn xo_emit_errc
+.It Fn xo_emit_errx
+These functions are mildly compatible with their standard libc
+namesakes, but use the format string defined in
+.Xr xo_format 5 .
+While there is an increased cost for converting the strings, the
+output provided can be richer and more useful.   See also
+.Xr xo_err 3
+.It Fn xo_warn
+.It Fn xo_warnx
+.It Fn xo_warn_c
+.It Fn xo_warn_hc
+.It Fn xo_err
+.It Fn xo_errc
+.It Fn xo_errx
+.It Fn xo_message
+.It Fn xo_message_c
+.It Fn xo_message_hc
+.It Fn xo_message_hcv
+These functions are meant to be compatible with their standard libc namesakes.
+.It Fn xo_finish
+.It Fn xo_finish_h
+Flush output, close open construct, and complete any pending
+operations.
+.It Fn xo_flush
+.It Fn xo_flush_h
+Allow the caller to flush any pending output for a handle.
+.It Fn xo_no_setlocale
+Direct
+.Nm
+to avoid initializing the locale.
+This function should be called before any other
+.Nm
+function is called.
+.It Fn xo_open_container
+.It Fn xo_open_container_h
+.It Fn xo_open_container_hd
+.It Fn xo_open_container_d
+.It Fn xo_close_container
+.It Fn xo_close_container_h
+.It Fn xo_close_container_hd
+.It Fn xo_close_container_d
+Containers a singleton levels of hierarchy, typically used to organize
+related content.
+.It Fn xo_open_list_h
+.It Fn xo_open_list
+.It Fn xo_open_list_hd
+.It Fn xo_open_list_d
+.It Fn xo_open_instance_h
+.It Fn xo_open_instance
+.It Fn xo_open_instance_hd
+.It Fn xo_open_instance_d
+.It Fn xo_close_instance_h
+.It Fn xo_close_instance
+.It Fn xo_close_instance_hd
+.It Fn xo_close_instance_d
+.It Fn xo_close_list_h
+.It Fn xo_close_list
+.It Fn xo_close_list_hd
+.It Fn xo_close_list_d
+Lists are levels of hierarchy that can appear multiple times within
+the same parent.
+Two calls are needed to encapsulate them, one for
+the list and one for each instance of that list.
+Typically
+.Fn xo_open_list
+and
+.Fn xo_close_list
+are called outside a
+for-loop, where
+.Fn xo_open_instance
+it called at the top of the loop, and
+.Fn xo_close_instance
+is called at the bottom of the loop.
+.It Fn xo_parse_args
+Inspects command line arguments for directions to
+.Nm .
+This function should be called before
+.Va argv
+is inspected by the application.
+.It Fn xo_set_allocator
+Instructs
+.Nm
+to use an alternative memory allocator and deallocator.
+.It Fn xo_set_flags
+.It Fn xo_clear_flags
+Change the flags set for a handle.
+.It Fn xo_set_info
+Provides additional information about elements for use with HTML
+rendering.
+.It Fn xo_set_options
+Changes formatting options used by handle.
+.It Fn xo_set_style
+.It Fn xo_set_style_name
+Changes the output style used by a handle.
+.It Fn xo_set_writer
+Instructs
+.Nm
+to use an alternative set of low-level output functions.
+.El
+.Sh SEE ALSO
+.Xr xo 1 ,
+.Xr xolint 1 ,
+.Xr xo_attr 3 ,
+.Xr xo_create 3 ,
+.Xr xo_emit 3 ,
+.Xr xo_emit_err 3 ,
+.Xr xo_err 3 ,
+.Xr xo_finish 3 ,
+.Xr xo_flush 3 ,
+.Xr xo_no_setlocale 3 ,
+.Xr xo_open_container 3 ,
+.Xr xo_open_list 3 ,
+.Xr xo_parse_args 3 ,
+.Xr xo_set_allocator 3 ,
+.Xr xo_set_flags 3 ,
+.Xr xo_set_info 3 ,
+.Xr xo_set_options 3 ,
+.Xr xo_set_style 3 ,
+.Xr xo_set_writer 3 ,
+.Xr xo_format 5
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

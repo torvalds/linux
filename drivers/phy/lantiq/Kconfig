@@ -1,9 +1,0 @@
-#
-# Phy drivers for Lantiq / Intel platforms
-#
-config PHY_LANTIQ_RCU_USB2
-	tristate "Lantiq XWAY SoC RCU based USB PHY"
-	depends on OF && (SOC_TYPE_XWAY || COMPILE_TEST)
-	select GENERIC_PHY
-	help
-	  Support for the USB PHY(s) on the Lantiq / Intel XWAY family SoCs.

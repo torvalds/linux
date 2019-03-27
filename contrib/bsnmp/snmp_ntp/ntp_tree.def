@@ -1,0 +1,122 @@
+#
+# Copyright (c) 2005
+#	Hartmut Brandt.
+#	All rights reserved.
+#
+# Author: Harti Brandt <harti@freebsd.org>
+#
+# Redistribution of this software and documentation and use in source and
+# binary forms, with or without modification, are permitted provided that
+# the following conditions are met:
+#
+# 1. Redistributions of source code or documentation must retain the above
+#    copyright notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE AND DOCUMENTATION IS PROVIDED BY FRAUNHOFER FOKUS
+# AND ITS CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+# INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+# FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+# FRAUNHOFER FOKUS OR ITS CONTRIBUTORS  BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+# OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+# EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# $Begemot: bsnmp/snmp_ntp/ntp_tree.def,v 1.2 2005/04/26 13:38:01 brandt_h Exp $
+#
+# Definition of the tree implemented by snmp_ntp.
+#
+(1 internet
+  (4 private
+    (1 enterprises
+      (1277 udel
+        (3 ntpMIB
+          (1 ntpSystem
+            (1 ntpSysLeap INTEGER op_ntpSystem GET)
+            (2 ntpSysStratum INTEGER op_ntpSystem GET)
+            (3 ntpSysPrecision INTEGER32 op_ntpSystem GET)
+            (4 ntpSysRootDelay OCTETSTRING op_ntpSystem GET)
+            (5 ntpSysRootDispersion OCTETSTRING op_ntpSystem GET)
+            (6 ntpSysRefId OCTETSTRING op_ntpSystem GET)
+            (7 ntpSysRefTime OCTETSTRING op_ntpSystem GET)
+            (8 ntpSysPoll INTEGER32 op_ntpSystem GET)
+            (9 ntpSysPeer UNSIGNED32 op_ntpSystem GET)
+# No idea what these should be
+#            (10 ntpSysPhase OCTETSTRING op_ntpSystem GET)
+#            (11 ntpSysFreq OCTETSTRING op_ntpSystem GET)
+#            (12 ntpSysError OCTETSTRING op_ntpSystem GET)
+            (13 ntpSysClock OCTETSTRING op_ntpSystem GET)
+            (14 ntpSysSystem OCTETSTRING op_ntpSystem GET)
+            (15 ntpSysProcessor OCTETSTRING op_ntpSystem GET)
+          )
+          (2 ntpPeers
+            (1 ntpPeersVarTable
+              (1 ntpPeersVarEntry : UNSIGNED32 op_ntpPeersVarTable
+                (1 ntpPeersAssocId UNSIGNED32)
+                (2 ntpPeersConfigured INTEGER GET)
+                (3 ntpPeersPeerAddress IPADDRESS GET)
+                (4 ntpPeersPeerPort UNSIGNED32 GET)
+                (5 ntpPeersHostAddress IPADDRESS GET)
+                (6 ntpPeersHostPort UNSIGNED32 GET)
+                (7 ntpPeersLeap INTEGER GET)
+                (8 ntpPeersMode INTEGER GET)
+                (9 ntpPeersStratum INTEGER GET)
+                (10 ntpPeersPeerPoll INTEGER32 GET)
+                (11 ntpPeersHostPoll INTEGER32 GET)
+                (12 ntpPeersPrecision INTEGER32 GET)
+                (13 ntpPeersRootDelay OCTETSTRING GET)
+                (14 ntpPeersRootDispersion OCTETSTRING GET)
+                (15 ntpPeersRefId OCTETSTRING GET)
+                (16 ntpPeersRefTime OCTETSTRING GET)
+                (17 ntpPeersOrgTime OCTETSTRING GET)
+                (18 ntpPeersReceiveTime OCTETSTRING GET)
+                (19 ntpPeersTransmitTime OCTETSTRING GET)
+# No idea what these should be
+#                (20 ntpPeersUpdateTime OCTETSTRING GET)
+                (21 ntpPeersReach UNSIGNED32 GET)
+                (22 ntpPeersTimer INTEGER32 GET)
+                (23 ntpPeersOffset OCTETSTRING GET)
+                (24 ntpPeersDelay OCTETSTRING GET)
+                (25 ntpPeersDispersion OCTETSTRING GET)
+              )
+            )
+          )
+          (3 ntpFilter
+            (1 ntpFilterPeersVarTable
+              (1 ntpFilterPeersVarEntry : UNSIGNED32 op_ntpFilterPeersVarTable
+                (1 ntpFilterValidEntries INTEGER32 GET)
+              )
+            )
+            (2 ntpFilterRegisterTable
+              (1 ntpFilterRegisterEntry : UNSIGNED32 UNSIGNED32 op_ntpFilterRegisterTable
+                (1 ntpFilterIndex UNSIGNED32)
+                (2 ntpFilterPeersOffset OCTETSTRING GET)
+                (3 ntpFilterPeersDelay OCTETSTRING GET)
+                (4 ntpFilterPeersDispersion OCTETSTRING GET)
+              )
+            )
+          )
+        )
+      )
+      (12325 fokus
+        (1 begemot
+          (201 begemotNtp
+            (1 begemotNtpObjects
+              (1 begemotNtpHost OCTETSTRING op_begemot_ntp GET)
+              (2 begemotNtpPort OCTETSTRING op_begemot_ntp GET)
+              (3 begemotNtpTimeout TIMETICKS op_begemot_ntp GET SET)
+              (4 begemotNtpDebug UNSIGNED32 op_begemot_ntp GET SET)
+              (5 begemotNtpJitter COUNTER64 op_begemot_ntp GET)
+              (6 begemotNtpStability COUNTER64 op_begemot_ntp GET)
+            )
+          )
+        )
+      )
+    )
+  )
+)

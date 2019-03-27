@@ -1,0 +1,25 @@
+#------------------------------------------------------------------------------
+# x68000:  file(1) magic for the Sharp Home Computer
+# v1.0
+# Fabio R. Schmidlin <sd-snatcher@users.sourceforge.net>
+
+# Yanagisawa PIC picture
+0	string		PIC
+>3	search/0x200	\x1A
+>>&0	search/0x200	\x0
+>>>&0	ubyte		0		Yanagisawa PIC image file,
+>>>>&0	ubyte&15	0		model: X68000,
+>>>>&0	ubyte&15	1		model: PC-88VA,
+>>>>&0	ubyte&15	2		model: FM-TOWNS,
+>>>>&0	ubyte&15	3		model: MAC,
+>>>>&0	ubyte&15	15		model: Generic,
+>>>>&3	ubeshort	x		%dx
+>>>>&5	ubeshort	x		\b%d,
+>>>>&1	ubeshort	4		colors: 16
+>>>>&1	ubeshort	8		colors: 256
+>>>>&1	ubeshort	12		colors: 4096
+>>>>&1	ubeshort	15		colors: 32768
+>>>>&1	ubeshort	16		colors: 65536
+>>>>&1	ubeshort	>16		colors: %d-bit
+
+

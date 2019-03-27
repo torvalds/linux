@@ -1,0 +1,2668 @@
+[
+ {
+  "EventName": "df_ccm_reqa.Node0.anydram",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Any DRAM transaction",
+  "UMask": "0x0F"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.anydram",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Any DRAM transaction",
+  "UMask": "0x2F"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.anydram",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Any DRAM transaction",
+  "UMask": "0x4F"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.anydram",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Any DRAM transaction",
+  "UMask": "0x6F"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.anydram",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Any DRAM transaction",
+  "UMask": "0x8F"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.anydram",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Any DRAM transaction",
+  "UMask": "0xAF"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.anydram",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Any DRAM transaction",
+  "UMask": "0xCF"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.anydram",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Any DRAM transaction",
+  "UMask": "0xEF"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node0.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered WrSizedFullZero",
+  "UMask": "0x0E"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered WrSizedFullZero",
+  "UMask": "0x2E"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered WrSizedFullZero",
+  "UMask": "0x4E"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.wrsizedfullzero",
+  "EventCode": "0x8E",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered WrSizedFullZero",
+  "UMask": "0x6E"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered WrSizedFullZero",
+  "UMask": "0x8E"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered WrSizedFullZero",
+  "UMask": "0xAE"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered WrSizedFullZero",
+  "UMask": "0xCE"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered WrSizedFullZero",
+  "UMask": "0xEE"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node0.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x0D"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.wrsizedfullnc",
+  "EventCode": "0x8A",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x2D"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x4D"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x6D"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x8D"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0xAD"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0xCD"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0xED"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node0.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0x0C"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0x2C"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0x4C"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0x6C"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0x8C"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0xAC"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0xCC"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0xEC"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node0.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullzero",
+  "UMask": "0x0B"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullzero",
+  "UMask": "0x2B"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullzero",
+  "UMask": "0x4B"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullzero",
+  "UMask": "0x6B"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullzero",
+  "UMask": "0x8B"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullzero",
+  "UMask": "0xAB"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullzero",
+  "UMask": "0xCB"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.wrsizedfullzero",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullzero",
+  "UMask": "0xEB"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node0.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x0A"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x2A"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x4A"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x6A"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x8A"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0xAA"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0xCA"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.wrsizedfullnc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0xEA"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node0.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0x09"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0x29"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0x49"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0x69"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0x89"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0xA9"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0xC9"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.wrsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsized",
+  "UMask": "0xE9"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node0.rdsizednc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsizednc",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.rdsizednc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsizednc",
+  "UMask": "0x28"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.rdsizednc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsizednc",
+  "UMask": "0x48"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.rdsizednc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsizednc",
+  "UMask": "0x68"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.rdsizednc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsizednc",
+  "UMask": "0x88"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.rdsizednc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsizednc",
+  "UMask": "0xA8"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.rdsizednc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsizednc",
+  "UMask": "0xC8"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.rdsizednc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsizednc",
+  "UMask": "0xE8"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node0.rdsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0x07"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.rdsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0x27"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.rdsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0x47"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.rdsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0x67"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.rdsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0x87"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.rdsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0xA7"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.rdsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0xC7"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.rdsized",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0xE7"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node0.specdramrd",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered specdramrd",
+  "UMask": "0x06"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.specdramrd",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered specdramrd",
+  "UMask": "0x26"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.specdramrd",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered specdramrd",
+  "UMask": "0x46"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.specdramrd",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered specdramrd",
+  "UMask": "0x66"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.specdramrd",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered specdramrd",
+  "UMask": "0x86"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.specdramrd",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered specdramrd",
+  "UMask": "0xA6"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.specdramrd",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered specdramrd",
+  "UMask": "0xC6"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.specdramrd",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered specdramrd",
+  "UMask": "0xE6"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node0.anyrdblk",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyrdblk",
+  "UMask": "0x05"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.anyrdblk",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyrdblk",
+  "UMask": "0x25"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.anyrdblk",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyrdblk",
+  "UMask": "0x45"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.anyrdblk",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyrdblk",
+  "UMask": "0x65"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.anyrdblk",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyrdblk",
+  "UMask": "0x85"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.anyrdblk",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyrdblk",
+  "UMask": "0xA5"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.anyrdblk",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyrdblk",
+  "UMask": "0xC5"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.anyrdblk",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyrdblk",
+  "UMask": "0xE5"
+ }, 
+ {
+  "EventName": "df_ccm_reqa.Node0.rdvlkc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkc",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.rdvlkc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkc",
+  "UMask": "0x24"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.rdvlkc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkc",
+  "UMask": "0x44"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.rdvlkc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkc",
+  "UMask": "0x64"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.rdvlkc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkc",
+  "UMask": "0x84"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.rdvlkc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkc",
+  "UMask": "0xA4"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.rdvlkc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkc",
+  "UMask": "0xC4"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.rdvlkc",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkc",
+  "UMask": "0xE4"
+ }, 
+ {
+  "EventName": "df_ccm_reqa.Node0.rdvlkx",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkx",
+  "UMask": "0x03"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.rdvlkx",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkx",
+  "UMask": "0x23"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.rdvlkx",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkx",
+  "UMask": "0x43"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.rdvlkx",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkx",
+  "UMask": "0x63"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.rdvlkx",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkx",
+  "UMask": "0x83"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.rdvlkx",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkx",
+  "UMask": "0xA3"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.rdvlkx",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkx",
+  "UMask": "0xC3"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.rdvlkx",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkx",
+  "UMask": "0xE3"
+ }, 
+ {
+  "EventName": "df_ccm_reqa.Node0.rdvlks",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlks",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.rdvlks",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlks",
+  "UMask": "0x22"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.rdvlks",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlks",
+  "UMask": "0x42"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.rdvlks",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlks",
+  "UMask": "0x62"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.rdvlks",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlks",
+  "UMask": "0x82"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.rdvlks",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlks",
+  "UMask": "0xA2"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.rdvlks",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlks",
+  "UMask": "0xC2"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.rdvlks",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlks",
+  "UMask": "0xE2"
+ }, 
+ {
+  "EventName": "df_ccm_reqa.Node0.rdvlkl",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkl",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node1.rdvlkl",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkl",
+  "UMask": "0x21"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node2.rdvlkl",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkl",
+  "UMask": "0x41"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node3.rdvlkl",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkl",
+  "UMask": "0x61"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node4.rdvlkl",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkl",
+  "UMask": "0x81"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node5.rdvlkl",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkl",
+  "UMask": "0xA1"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node6.rdvlkl",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkl",
+  "UMask": "0xC1"
+ },
+ {
+  "EventName": "df_ccm_reqa.Node7.rdvlkl",
+  "EventCode": "0x8B",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdvlkl",
+  "UMask": "0xE1"
+ }, 
+ {
+  "EventName": "df_ccm_reqb.Node0.chgtox",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered chgtox",
+  "UMask": "0x0E"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node1.chgtox",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered chgtox",
+  "UMask": "0x2E"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node2.chgtox",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered chgtox",
+  "UMask": "0x4E"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node3.chgtox",
+  "EventCode": "0x8E",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered chgtox",
+  "UMask": "0x6E"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node4.chgtox",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered chgtox",
+  "UMask": "0x8E"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node5.chgtox",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered chgtox",
+  "UMask": "0xAE"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node6.chgtox",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered chgtox",
+  "UMask": "0xCE"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node7.chgtox",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered chgtox",
+  "UMask": "0xEE"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node0.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0x0D"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node1.vicblkfull.",
+  "EventCode": "0x8A",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0x2D"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node2.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0x4D"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node3.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0x6D"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node4.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0x8D"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node5.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0xAD"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node6.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0xCD"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node7.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0xED"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node0.wbinvblkall",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wbinvblkall",
+  "UMask": "0x0C"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node1.wbinvblkall",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wbinvblkall",
+  "UMask": "0x2C"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node2.wbinvblkall",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wbinvblkall",
+  "UMask": "0x4C"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node3.wbinvblkall",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wbinvblkall",
+  "UMask": "0x6C"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node4.wbinvblkall",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wbinvblkall",
+  "UMask": "0x8C"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node5.wbinvblkall",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wbinvblkall",
+  "UMask": "0xAC"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node6.wbinvblkall",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wbinvblkall",
+  "UMask": "0xCC"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node7.wbinvblkall",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wbinvblkall",
+  "UMask": "0xEC"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node0.vicblkfullzero",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfullzero",
+  "UMask": "0x0B"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node1.vicblkfullzero",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfullzero",
+  "UMask": "0x2B"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node2.vicblkfullzero",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfullzero",
+  "UMask": "0x4B"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node3.vicblkfullzero",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfullzero",
+  "UMask": "0x6B"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node4.vicblkfullzero",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfullzero",
+  "UMask": "0x8B"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node5.vicblkfullzero",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfullzero",
+  "UMask": "0xAB"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node6.vicblkfullzero",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfullzero",
+  "UMask": "0xCB"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node7.vicblkfullzero",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfullzero",
+  "UMask": "0xEB"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node0.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0x0A"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node1.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0x2A"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node2.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0x4A"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node3.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0x6A"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node4.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0x8A"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node5.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0xAA"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node6.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0xCA"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node7.vicblkfull.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkfull.",
+  "UMask": "0xEA"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node0.vicblkcln",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkcln",
+  "UMask": "0x09"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node1.vicblkcln",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkcln",
+  "UMask": "0x29"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node2.vicblkcln",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkcln",
+  "UMask": "0x49"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node3.vicblkcln",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkcln",
+  "UMask": "0x69"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node4.vicblkcln",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkcln",
+  "UMask": "0x89"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node5.vicblkcln",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkcln",
+  "UMask": "0xA9"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node6.vicblkcln",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkcln",
+  "UMask": "0xC9"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node7.vicblkcln",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered vicblkcln",
+  "UMask": "0xE9"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node0.anyiorequest.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyiorequest.",
+  "UMask": "0x07"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node1.anyiorequest.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyiorequest.",
+  "UMask": "0x27"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node2.anyiorequest.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyiorequest.",
+  "UMask": "0x47"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node3.anyiorequest.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyiorequest.",
+  "UMask": "0x67"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node4.anyiorequest.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyiorequest.",
+  "UMask": "0x87"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node5.anyiorequest.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyiorequest.",
+  "UMask": "0xA7"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node6.anyiorequest.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyiorequest.",
+  "UMask": "0xC7"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node7.anyiorequest.",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anyiorequest.",
+  "UMask": "0xE7"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node0.anywrsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anywrsized",
+  "UMask": "0x06"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node1.anywrsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anywrsized",
+  "UMask": "0x26"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node2.anywrsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anywrsized",
+  "UMask": "0x46"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node3.anywrsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anywrsized",
+  "UMask": "0x66"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node4.anywrsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anywrsized",
+  "UMask": "0x86"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node5.anywrsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anywrsized",
+  "UMask": "0xA6"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node6.anywrsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anywrsized",
+  "UMask": "0xC6"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node7.anywrsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered anywrsized",
+  "UMask": "0xE6"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node0.wrsizedfullnc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x05"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node1.wrsizedfullnc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x25"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node2.wrsizedfullnc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x45"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node3.wrsizedfullnc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x65"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node4.wrsizedfullnc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0x85"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node5.wrsizedfullnc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0xA5"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node6.wrsizedfullnc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0xC5"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node7.wrsizedfullnc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullnc",
+  "UMask": "0xE5"
+ }, 
+ {
+  "EventName": "df_ccm_reqb.Node0.wrsizednc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizednc",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node1.wrsizednc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizednc",
+  "UMask": "0x24"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node2.wrsizednc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizednc",
+  "UMask": "0x44"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node3.wrsizednc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizednc",
+  "UMask": "0x64"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node4.wrsizednc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizednc",
+  "UMask": "0x84"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node5.wrsizednc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizednc",
+  "UMask": "0xA4"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node6.wrsizednc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizednc",
+  "UMask": "0xC4"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node7.wrsizednc",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizednc",
+  "UMask": "0xE4"
+ }, 
+ {
+  "EventName": "df_ccm_reqb.Node0.wrsizedfullncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullncposted",
+  "UMask": "0x03"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node1.wrsizedfullncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullncposted",
+  "UMask": "0x23"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node2.wrsizedfullncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullncposted",
+  "UMask": "0x43"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node3.wrsizedfullncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullncposted",
+  "UMask": "0x63"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node4.wrsizedfullncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullncposted",
+  "UMask": "0x83"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node5.wrsizedfullncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullncposted",
+  "UMask": "0xA3"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node6.wrsizedfullncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullncposted",
+  "UMask": "0xC3"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node7.wrsizedfullncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedfullncposted",
+  "UMask": "0xE3"
+ }, 
+ {
+  "EventName": "df_ccm_reqb.Node0.wrsizedncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedncposted",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node1.wrsizedncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedncposted",
+  "UMask": "0x22"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node2.wrsizedncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedncposted",
+  "UMask": "0x42"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node3.wrsizedncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedncposted",
+  "UMask": "0x62"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node4.wrsizedncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedncposted",
+  "UMask": "0x82"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node5.wrsizedncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedncposted",
+  "UMask": "0xA2"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node6.wrsizedncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedncposted",
+  "UMask": "0xC2"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node7.wrsizedncposted",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered wrsizedncposted",
+  "UMask": "0xE2"
+ }, 
+ {
+  "EventName": "df_ccm_reqb.Node0.rdsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node1.rdsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0x21"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node2.rdsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0x41"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node3.rdsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0x61"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node4.rdsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0x81"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node5.rdsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0xA1"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node6.rdsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0xC1"
+ },
+ {
+  "EventName": "df_ccm_reqb.Node7.rdsized",
+  "EventCode": "0x8c",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Ordered rdsized",
+  "UMask": "0xE1"
+ }, 
+ {
+  "EventName": "df_ccm_reqc.apicaccess",
+  "EventCode": "0x08D",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Type C (PIE Requests)APIC access",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "df_ccm_reqc.apicucodeaccess",
+  "EventCode": "0x08D",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Type C (PIE Requests)APIC ucode access",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "df_ccm_reqc.fasttprwrite",
+  "EventCode": "0x08D",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Type C (PIE Requests)Fast TPR write",
+  "UMask": "0x03"
+ },
+ {
+  "EventName": "df_ccm_reqc.anybuslockrequest",
+  "EventCode": "0x08D",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF CCM Request Type C (PIE Requests)APIC access Any Bus Lock request",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node0.masterabort",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) masterabort",
+  "UMask": "0x0C"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node1.masterabort",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) masterabort",
+  "UMask": "0x2C"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node2.masterabort",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) masterabort",
+  "UMask": "0x4C"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node3.masterabort",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) masterabort",
+  "UMask": "0x6C"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node4.masterabort",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) masterabort",
+  "UMask": "0x8C"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node5.masterabort",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) masterabort",
+  "UMask": "0xAC"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node6.masterabort",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) masterabort",
+  "UMask": "0xCC"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node7.masterabort",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) masterabort",
+  "UMask": "0xEC"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node0.ios_resp",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) ios_resp",
+  "UMask": "0x0B"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node1.ios_resp",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) ios_resp",
+  "UMask": "0x2B"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node2.ios_resp",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) ios_resp",
+  "UMask": "0x4B"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node3.ios_resp",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) ios_resp",
+  "UMask": "0x6B"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node4.ios_resp",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) ios_resp",
+  "UMask": "0x8B"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node5.ios_resp",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) ios_resp",
+  "UMask": "0xAB"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node6.ios_resp",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) ios_resp",
+  "UMask": "0xCB"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node7.ios_resp",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) ios_resp",
+  "UMask": "0xEB"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node0.flush",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) flush",
+  "UMask": "0x0A"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node1.flush",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) flush",
+  "UMask": "0x2A"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node2.flush",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) flush",
+  "UMask": "0x4A"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node3.flush",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) flush",
+  "UMask": "0x6A"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node4.flush",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) flush",
+  "UMask": "0x8A"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node5.flush",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) flush",
+  "UMask": "0xAA"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node6.flush",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) flush",
+  "UMask": "0xCA"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node7.flush",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) flush",
+  "UMask": "0xEA"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node0.fence",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) fence",
+  "UMask": "0x09"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node1.fence",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) fence",
+  "UMask": "0x29"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node2.fence",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) fence",
+  "UMask": "0x49"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node3.fence",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) fence",
+  "UMask": "0x69"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node4.fence",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) fence",
+  "UMask": "0x89"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node5.fence",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) fence",
+  "UMask": "0xA9"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node6.fence",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) fence",
+  "UMask": "0xC9"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node7.fence",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) fence",
+  "UMask": "0xE9"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node0.anydramtransaction",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anydramtransaction",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node1.anydramtransaction",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anydramtransaction",
+  "UMask": "0x28"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node2.anydramtransaction",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anydramtransaction",
+  "UMask": "0x48"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node3.anydramtransaction",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anydramtransaction",
+  "UMask": "0x68"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node4.anydramtransaction",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anydramtransaction",
+  "UMask": "0x88"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node5.anydramtransaction",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anydramtransaction",
+  "UMask": "0xA8"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node6.anydramtransaction",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anydramtransaction",
+  "UMask": "0xC8"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node7.anydramtransaction",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anydramtransaction",
+  "UMask": "0xE8"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node0.anyatomic",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyatomic",
+  "UMask": "0x07"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node1.anyatomic",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyatomic",
+  "UMask": "0x27"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node2.anyatomic",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyatomic",
+  "UMask": "0x47"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node3.anyatomic",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyatomic",
+  "UMask": "0x67"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node4.anyatomic",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyatomic",
+  "UMask": "0x87"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node5.anyatomic",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyatomic",
+  "UMask": "0xA7"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node6.anyatomic",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyatomic",
+  "UMask": "0xC7"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node7.anyatomic",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyatomic",
+  "UMask": "0xE7"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node0.anywrsized=64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=64b",
+  "UMask": "0x06"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node1.anywrsized=64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=64b",
+  "UMask": "0x26"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node2.anywrsized=64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=64b",
+  "UMask": "0x46"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node3.anywrsized=64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=64b",
+  "UMask": "0x66"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node4.anywrsized=64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=64b",
+  "UMask": "0x86"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node5.anywrsized=64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=64b",
+  "UMask": "0xA6"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node6.anywrsized=64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=64b",
+  "UMask": "0xC6"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node7.anywrsized=64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=64b",
+  "UMask": "0xE6"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node0.anywrsized>32band<64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized>32band<64b",
+  "UMask": "0x05"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node1.anywrsized>32band<64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized>32band<64b",
+  "UMask": "0x25"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node2.anywrsized>32band<64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized>32band<64b",
+  "UMask": "0x45"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node3.anywrsized>32band<64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized>32band<64b",
+  "UMask": "0x65"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node4.anywrsized>32band<64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized>32band<64b",
+  "UMask": "0x85"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node5.anywrsized>32band<64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized>32band<64b",
+  "UMask": "0xA5"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node6.anywrsized>32band<64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized>32band<64b",
+  "UMask": "0xC5"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node7.anywrsized>32band<64b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized>32band<64b",
+  "UMask": "0xE5"
+ }, 
+ {
+  "EventName": "df_ioms_reqa.Node0.anywrsized=32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=32b",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node1.anywrsized=32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=32b",
+  "UMask": "0x24"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node2.anywrsized=32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=32b",
+  "UMask": "0x44"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node3.anywrsized=32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=32b",
+  "UMask": "0x64"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node4.anywrsized=32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=32b",
+  "UMask": "0x84"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node5.anywrsized=32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=32b",
+  "UMask": "0xA4"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node6.anywrsized=32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=32b",
+  "UMask": "0xC4"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node7.anywrsized=32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized=32b",
+  "UMask": "0xE4"
+ }, 
+ {
+  "EventName": "df_ioms_reqa.Node0.anywrsized<32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized<32b",
+  "UMask": "0x03"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node1.anywrsized<32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized<32b",
+  "UMask": "0x23"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node2.anywrsized<32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized<32b",
+  "UMask": "0x43"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node3.anywrsized<32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized<32b",
+  "UMask": "0x63"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node4.anywrsized<32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized<32b",
+  "UMask": "0x83"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node5.anywrsized<32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized<32b",
+  "UMask": "0xA3"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node6.anywrsized<32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized<32b",
+  "UMask": "0xC3"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node7.anywrsized<32b",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anywrsized<32b",
+  "UMask": "0xE3"
+ }, 
+ {
+  "EventName": "df_ioms_reqa.Node0.anyrdsized",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyrdsized",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node1.anyrdsized",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyrdsized",
+  "UMask": "0x22"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node2.anyrdsized",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyrdsized",
+  "UMask": "0x42"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node3.anyrdsized",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyrdsized",
+  "UMask": "0x62"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node4.anyrdsized",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyrdsized",
+  "UMask": "0x82"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node5.anyrdsized",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyrdsized",
+  "UMask": "0xA2"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node6.anyrdsized",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyrdsized",
+  "UMask": "0xC2"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node7.anyrdsized",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) anyrdsized",
+  "UMask": "0xE2"
+ }, 
+ {
+  "EventName": "df_ioms_reqa.Node0.largeread",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) largeread",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node1.largeread",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) largeread",
+  "UMask": "0x21"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node2.largeread",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) largeread",
+  "UMask": "0x41"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node3.largeread",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) largeread",
+  "UMask": "0x61"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node4.largeread",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) largeread",
+  "UMask": "0x81"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node5.largeread",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) largeread",
+  "UMask": "0xA1"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node6.largeread",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) largeread",
+  "UMask": "0xC1"
+ },
+ {
+  "EventName": "df_ioms_reqa.Node7.largeread",
+  "EventCode": "0x108",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type A (DRAM) largeread",
+  "UMask": "0xE1"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node0.pieiorequest",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Any DRAM transaction",
+  "UMask": "0x0F"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.pieiorequest",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Any DRAM transaction",
+  "UMask": "0x2F"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.pieiorequest",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Any DRAM transaction",
+  "UMask": "0x4F"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.pieiorequest",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Any DRAM transaction",
+  "UMask": "0x6F"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.pieiorequest",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Any DRAM transaction",
+  "UMask": "0x8F"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.pieiorequest",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Any DRAM transaction",
+  "UMask": "0xAF"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.pieiorequest",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Any DRAM transaction",
+  "UMask": "0xCF"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.pieiorequest",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Any DRAM transaction",
+  "UMask": "0xEF"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node0.piesystemmanagement",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered piesystemmanagement",
+  "UMask": "0x0E"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.piesystemmanagement",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered piesystemmanagement",
+  "UMask": "0x2E"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.piesystemmanagement",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered piesystemmanagement",
+  "UMask": "0x4E"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.piesystemmanagement",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered piesystemmanagement",
+  "UMask": "0x6E"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.piesystemmanagement",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered piesystemmanagement",
+  "UMask": "0x8E"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.piesystemmanagement",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered piesystemmanagement",
+  "UMask": "0xAE"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.piesystemmanagement",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered piesystemmanagement",
+  "UMask": "0xCE"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.piesystemmanagement",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered piesystemmanagement",
+  "UMask": "0xEE"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node0.pieinterrupt",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered pieinterrupt",
+  "UMask": "0x0D"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.pieinterrupt",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered pieinterrupt",
+  "UMask": "0x2D"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.pieinterrupt",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered pieinterrupt",
+  "UMask": "0x4D"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.pieinterrupt",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered pieinterrupt",
+  "UMask": "0x6D"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.pieinterrupt",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered pieinterrupt",
+  "UMask": "0x8D"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.pieinterrupt",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered pieinterrupt",
+  "UMask": "0xAD"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.pieinterrupt",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered pieinterrupt",
+  "UMask": "0xCD"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.pieinterrupt",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered pieinterrupt",
+  "UMask": "0xED"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node0.anyiotransaction",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered anyiotransaction",
+  "UMask": "0x0C"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.anyiotransaction",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered anyiotransaction",
+  "UMask": "0x2C"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.anyiotransaction",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered anyiotransaction",
+  "UMask": "0x4C"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.anyiotransaction",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered anyiotransaction",
+  "UMask": "0x6C"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.anyiotransaction",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered anyiotransaction",
+  "UMask": "0x8C"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.anyiotransaction",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered anyiotransaction",
+  "UMask": "0xAC"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.anyiotransaction",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered anyiotransaction",
+  "UMask": "0xCC"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.anyiotransaction",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered anyiotransaction",
+  "UMask": "0xEC"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node0.ioanyatomic",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyatomic",
+  "UMask": "0x0B"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.ioanyatomic",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyatomic",
+  "UMask": "0x2B"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.ioanyatomic",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyatomic",
+  "UMask": "0x4B"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.ioanyatomic",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyatomic",
+  "UMask": "0x6B"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.ioanyatomic",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyatomic",
+  "UMask": "0x8B"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.ioanyatomic",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyatomic",
+  "UMask": "0xAB"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.ioanyatomic",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyatomic",
+  "UMask": "0xCB"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.ioanyatomic",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyatomic",
+  "UMask": "0xEB"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node0.ioanynon-postedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=64b",
+  "UMask": "0x0A"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.ioanynon-postedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=64b",
+  "UMask": "0x2A"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.ioanynon-postedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=64b",
+  "UMask": "0x4A"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.ioanynon-postedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=64b",
+  "UMask": "0x6A"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.ioanynon-postedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=64b",
+  "UMask": "0x8A"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.ioanynon-postedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=64b",
+  "UMask": "0xAA"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.ioanynon-postedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=64b",
+  "UMask": "0xCA"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.ioanynon-postedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=64b",
+  "UMask": "0xEA"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node0.ioanynon-postedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized>32band<64b",
+  "UMask": "0x09"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.ioanynon-postedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized>32band<64b",
+  "UMask": "0x29"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.ioanynon-postedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized>32band<64b",
+  "UMask": "0x49"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.ioanynon-postedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized>32band<64b",
+  "UMask": "0x69"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.ioanynon-postedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized>32band<64b",
+  "UMask": "0x89"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.ioanynon-postedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized>32band<64b",
+  "UMask": "0xA9"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.ioanynon-postedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized>32band<64b",
+  "UMask": "0xC9"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.ioanynon-postedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized>32band<64b",
+  "UMask": "0xE9"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node0.ioanynon-postedwrsized=32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=32b",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.ioanynon-postedwrsized=32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=32b",
+  "UMask": "0x28"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.ioanynon-postedwrsized=32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=32b",
+  "UMask": "0x48"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.ioanynon-postedwrsized=32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=32b",
+  "UMask": "0x68"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.ioanynon-postedwrsized=32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=32b",
+  "UMask": "0x88"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.ioanynon-postedwrsized=32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=32b",
+  "UMask": "0xA8"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.ioanynon-postedwrsized=32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=32b",
+  "UMask": "0xC8"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.ioanynon-postedwrsized=32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized=32b",
+  "UMask": "0xE8"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node0.ioanynon-postedwrsized<32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized<32b",
+  "UMask": "0x07"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.ioanynon-postedwrsized<32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized<32b",
+  "UMask": "0x27"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.ioanynon-postedwrsized<32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized<32b",
+  "UMask": "0x47"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.ioanynon-postedwrsized<32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized<32b",
+  "UMask": "0x67"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.ioanynon-postedwrsized<32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized<32b",
+  "UMask": "0x87"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.ioanynon-postedwrsized<32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized<32b",
+  "UMask": "0xA7"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.ioanynon-postedwrsized<32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized<32b",
+  "UMask": "0xC7"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.ioanynon-postedwrsized<32b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanynon-postedwrsized<32b",
+  "UMask": "0xE7"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node0.ioanypostedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=64b",
+  "UMask": "0x06"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.ioanypostedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=64b",
+  "UMask": "0x26"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.ioanypostedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=64b",
+  "UMask": "0x46"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.ioanypostedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=64b",
+  "UMask": "0x66"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.ioanypostedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=64b",
+  "UMask": "0x86"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.ioanypostedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=64b",
+  "UMask": "0xA6"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.ioanypostedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=64b",
+  "UMask": "0xC6"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.ioanypostedwrsized=64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=64b",
+  "UMask": "0xE6"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node0.ioanypostedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized>32band<64b",
+  "UMask": "0x05"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.ioanypostedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized>32band<64b",
+  "UMask": "0x25"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.ioanypostedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized>32band<64b",
+  "UMask": "0x45"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.ioanypostedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized>32band<64b",
+  "UMask": "0x65"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.ioanypostedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized>32band<64b",
+  "UMask": "0x85"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.ioanypostedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized>32band<64b",
+  "UMask": "0xA5"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.ioanypostedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized>32band<64b",
+  "UMask": "0xC5"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.ioanypostedwrsized>32band<64b",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized>32band<64b",
+  "UMask": "0xE5"
+ }, 
+ {
+  "EventName": "df_ioms_reqb.Node0.ioanypostedwrsized=32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=32",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.ioanypostedwrsized=32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=32",
+  "UMask": "0x24"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.ioanypostedwrsized=32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=32",
+  "UMask": "0x44"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.ioanypostedwrsized=32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=32",
+  "UMask": "0x64"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.ioanypostedwrsized=32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=32",
+  "UMask": "0x84"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.ioanypostedwrsized=32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=32",
+  "UMask": "0xA4"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.ioanypostedwrsized=32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=32",
+  "UMask": "0xC4"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.ioanypostedwrsized=32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized=32",
+  "UMask": "0xE4"
+ }, 
+ {
+  "EventName": "df_ioms_reqb.Node0.ioanypostedwrsized<32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized<32",
+  "UMask": "0x03"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.ioanypostedwrsized<32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized<32",
+  "UMask": "0x23"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.ioanypostedwrsized<32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized<32",
+  "UMask": "0x43"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.ioanypostedwrsized<32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized<32",
+  "UMask": "0x63"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.ioanypostedwrsized<32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized<32",
+  "UMask": "0x83"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.ioanypostedwrsized<32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized<32",
+  "UMask": "0xA3"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.ioanypostedwrsized<32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized<32",
+  "UMask": "0xC3"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.ioanypostedwrsized<32",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanypostedwrsized<32",
+  "UMask": "0xE3"
+ }, 
+ {
+  "EventName": "df_ioms_reqb.Node0.ioanyrdsized",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyrdsized",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.ioanyrdsized",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyrdsized",
+  "UMask": "0x22"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.ioanyrdsized",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyrdsized",
+  "UMask": "0x42"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.ioanyrdsized",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyrdsized",
+  "UMask": "0x62"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.ioanyrdsized",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyrdsized",
+  "UMask": "0x82"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.ioanyrdsized",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyrdsized",
+  "UMask": "0xA2"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.ioanyrdsized",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyrdsized",
+  "UMask": "0xC2"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.ioanyrdsized",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered ioanyrdsized",
+  "UMask": "0xE2"
+ }, 
+ {
+  "EventName": "df_ioms_reqb.Node0.iolargeread",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered iolargeread",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node1.iolargeread",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered iolargeread",
+  "UMask": "0x21"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node2.iolargeread",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered iolargeread",
+  "UMask": "0x41"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node3.iolargeread",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered iolargeread",
+  "UMask": "0x61"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node4.iolargeread",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered iolargeread",
+  "UMask": "0x81"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node5.iolargeread",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered iolargeread",
+  "UMask": "0xA1"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node6.iolargeread",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered iolargeread",
+  "UMask": "0xC1"
+ },
+ {
+  "EventName": "df_ioms_reqb.Node7.iolargeread",
+  "EventCode": "0x109",
+  "BriefDescription": "Data Fabric CCM Performance Monitor Event DF IOMS Request Type B (IO and PIE Requests) Ordered iolargeread",
+  "UMask": "0xE1"
+ } 
+]
+
+

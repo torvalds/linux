@@ -1,0 +1,100 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 2, 2018
+.Dt VOP_CREATE 9
+.Os
+.Sh NAME
+.Nm VOP_CREATE ,
+.Nm VOP_MKNOD ,
+.Nm VOP_MKDIR ,
+.Nm VOP_SYMLINK
+.Nd create a file, socket, fifo, device, directory or symlink
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.In sys/namei.h
+.Ft int
+.Fn VOP_CREATE "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp" "struct vattr *vap"
+.Ft int
+.Fn VOP_MKNOD "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp" "struct vattr *vap"
+.Ft int
+.Fn VOP_MKDIR "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp" "struct vattr *vap"
+.Ft int
+.Fn VOP_SYMLINK "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp" "struct vattr *vap" "const char *target"
+.Sh DESCRIPTION
+These entry points create a new file, socket, fifo, device, directory or symlink
+in a given directory.
+.Pp
+The arguments are:
+.Bl -tag -width target
+.It Fa dvp
+The locked vnode of the directory.
+.It Fa vpp
+The address of a variable where the resulting locked vnode should be stored.
+.It Fa cnp
+The pathname component created.
+.It Fa vap
+The attributes that the new object should be created with.
+.It Fa target
+The pathname of the target of the symlink.
+.El
+.Pp
+These entry points are called after
+.Xr VOP_LOOKUP 9
+when an object is being created.
+.Sh LOCKS
+The directory,
+.Fa dvp
+will be locked on entry and must remain locked on return.
+If the call is successful, the new object will be returned locked.
+.Sh RETURN VALUES
+If successful, the vnode for the new object is placed in
+.Fa *vpp
+and zero is returned.
+Otherwise, an appropriate error is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ENOSPC
+The file system is full.
+.It Bq Er EDQUOT
+The user's file system space or inode quota would be exceeded.
+.El
+.Sh SEE ALSO
+.Xr vnode 9 ,
+.Xr VOP_LOOKUP 9
+.Sh HISTORY
+The function
+.Nm
+appeared in
+.Bx 4.3 .
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

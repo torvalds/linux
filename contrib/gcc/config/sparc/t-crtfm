@@ -1,0 +1,4 @@
+EXTRA_PARTS += crtfastmath.o
+
+$(T)crtfastmath.o: $(srcdir)/config/sparc/crtfastmath.c $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) $(LIBGCC2_CFLAGS) -c -o $(T)crtfastmath.o $(srcdir)/config/sparc/crtfastmath.c

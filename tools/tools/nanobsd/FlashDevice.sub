@@ -1,0 +1,254 @@
+#!/bin/sh
+#
+# Copyright (c) 2005 Poul-Henning Kamp.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+# Convenience function for commonly used Flash devices.
+#
+# There is a hook over in nanobsd.sh which allows you to call into
+# this function simply with a line like:
+#
+#	FlashDevice Sandisk 256
+#
+# This file will then set NANO_MEDIASIZE, NANO_HEADS and NANO_SECTS for you.
+#
+
+sub_FlashDevice () {
+
+	a1=`echo $1 | tr '[:upper:]' '[:lower:]'`
+	a2=`echo $2 | tr '[:upper:]' '[:lower:]'`
+	case $a1 in
+	hitachi)
+		case $a2 in
+		256|256mb)
+			NANO_MEDIASIZE=`expr 256204800 / 512`
+			NANO_HEADS=15
+			NANO_SECTS=48
+			;;
+		*)
+			echo "Unknown Hitachi Flash capacity"
+			exit 2
+			;;
+		esac
+		;;
+	integral)
+		# Source: mich@FreeBSD.org
+		case $a2 in
+		256|256mb)
+			NANO_MEDIASIZE=`expr 259596288 / 512`
+			NANO_HEADS=16
+			NANO_SECTS=63
+			;;
+		*)
+			echo "Unknown Integral i-Pro Flash capacity"
+			exit 2
+			;;
+		esac
+		;;
+	kodak)
+		# Source: mwlucas@FreeBSD.org
+		case $a2 in
+		64|64mb)
+			NANO_MEDIASIZE=`expr 64487424 / 512`
+			NANO_HEADS=4
+			NANO_SECTS=32
+			;;
+		*)
+			echo "Unknown Kodak Flash capacity"
+			exit 2
+			;;
+		esac
+		;;
+	memorycorp)
+		# Source: simon@FreeBSD.org
+		case $a2 in
+		512|512mb)
+			# MC512CFLS2
+			NANO_MEDIASIZE=`expr 519192576 / 512`
+			NANO_HEADS=16
+			NANO_SECTS=63
+			;;
+		*)
+			echo "Unknown Memory Corp Flash capacity"
+			exit 2
+			;;
+		esac
+		;;
+	sandisk)
+		# Source:
+		#	SanDisk CompactFlash Memory Card
+		#	Product Manual
+		#	Version 10.9
+		#	Document No. 20-10-00038
+		#	April 2005
+		# Table 2-7 
+		# NB: notice math error in SDCFJ-4096-388 line.
+		#
+		case $a2 in
+		32|32mb)
+			NANO_MEDIASIZE=`expr 32112640 / 512`
+			NANO_HEADS=4
+			NANO_SECTS=32
+			;;
+		64|64mb)
+			NANO_MEDIASIZE=`expr 64225280 / 512`
+			NANO_HEADS=8
+			NANO_SECTS=32
+			;;
+		128|128mb)
+			NANO_MEDIASIZE=`expr 128450560 / 512`
+			NANO_HEADS=8
+			NANO_SECTS=32
+			;;
+		256|256mb)
+			NANO_MEDIASIZE=`expr 256901120 / 512`
+			NANO_HEADS=16
+			NANO_SECTS=32
+			;;
+		512|512mb)
+			NANO_MEDIASIZE=`expr 512483328 / 512`
+			NANO_HEADS=16
+			NANO_SECTS=63
+			;;
+		1024|1024mb|1g)
+			NANO_MEDIASIZE=`expr 1024966656 / 512`
+			NANO_HEADS=16
+			NANO_SECTS=63
+			;;
+		2048|2048mb|2g)
+			NANO_MEDIASIZE=`expr 2048901120 / 512`
+			NANO_HEADS=16
+			NANO_SECTS=63
+			;;
+		4096|4096mb|4g)
+			NANO_MEDIASIZE=`expr -e 4097802240 / 512`
+			NANO_HEADS=16
+			NANO_SECTS=63
+			;;
+		*)
+			echo "Unknown Sandisk Flash capacity"
+			exit 2
+			;;
+		esac
+		;;
+	siliconsystems)
+		case $a2 in
+ 		256|256mb)
+ 			NANO_MEDIASIZE=`expr 260571136 / 512`
+ 			NANO_HEADS=16
+ 			NANO_SECTS=32
+ 			;;
+		4096|4g)
+			NANO_MEDIASIZE=`expr -e 4224761856 / 512`
+			NANO_HEADS=16
+			NANO_SECTS=63
+			;;
+		*)
+			echo "Unknown SiliconSystems Flash capacity"
+			exit 2
+			;;
+		esac
+		;;
+	soekris)
+		case $a2 in
+		net4526 | 4526 | net4826 | 4826 | 64 | 64mb)
+			NANO_MEDIASIZE=125056
+			NANO_HEADS=4
+			NANO_SECTS=32
+			;;
+		*)
+			echo "Unknown Soekris Flash capacity"
+			exit 2
+			;;
+		esac
+		;;
+	transcend)
+		case $a2 in
+		dom064m)
+			NANO_MEDIASIZE=125184
+			NANO_HEADS=4
+			NANO_SECTS=32
+			;;
+		2048|2g)
+			NANO_MEDIASIZE=4061232
+			NANO_HEADS=16
+			NANO_SECTS=32
+			;;
+		*)
+			echo "Unknown Transcend Flash capacity"
+			exit 2
+			;;
+		esac
+		;;
+	# Generic flash media.  It assumes that we're booting using packet
+	# mode so the HEADS and SECTS don't matter.  The truncation of the
+	# size to a slightly lower number is intentional to be conservative
+	# (eg, 1 sector smaller than N GB is always smaller than any flash
+	# claiming to be N GB, but wastes a little space sometimes when 1GB
+	# really means 1GiB).  This is intended to be used when producing
+	# generic images for anybody to boot.  Media sizes are specified 'Xg'
+	# for X GB (10^9 bytes) flash or Xm for X MB (10^6 bytes) flash.
+	# Power of 2 variants can be specified with gi or mi for GiB and MiB
+	# sizeed flash and don't try to be conservative (use with caution).
+	generic)
+		case $a2 in
+		*.*)	# Catch unsupported 1.5g case, since expr can't
+			# cope with floats.
+			echo "Unsupported generic size $a2"
+			exit 2
+			;;
+		*m)
+			NANO_HEADS=16
+			NANO_SECTS=63
+			NANO_MEDIASIZE=`expr -e ${a2%m} \* 1000000 / 512`
+			;;
+		*g)
+			NANO_HEADS=16
+			NANO_SECTS=63
+			NANO_MEDIASIZE=`expr -e ${a2%g} \* 1000000000 / 512`
+			;;
+		*mi)
+			NANO_HEADS=16
+			NANO_SECTS=63
+			NANO_MEDIASIZE=`expr -e ${a2%mi} \* 1024 \* 1024 / 512`
+			;;
+		*gi)
+			NANO_HEADS=16
+			NANO_SECTS=63
+			NANO_MEDIASIZE=`expr -e ${a2%gi} \* 1024 \* 1024 \* 1024 / 512`
+			;;
+		*)
+			echo "Unsupported generic size $a2"
+			exit 2
+			;;
+		esac
+		;;
+	*)
+		echo "Unknown Flash manufacturer"
+		exit 2
+		;;
+	esac
+}

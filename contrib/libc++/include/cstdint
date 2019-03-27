@@ -1,0 +1,191 @@
+// -*- C++ -*-
+//===--------------------------- cstdint ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CSTDINT
+#define _LIBCPP_CSTDINT
+
+/*
+    cstdint synopsis
+
+Macros:
+
+    INT8_MIN
+    INT16_MIN
+    INT32_MIN
+    INT64_MIN
+
+    INT8_MAX
+    INT16_MAX
+    INT32_MAX
+    INT64_MAX
+
+    UINT8_MAX
+    UINT16_MAX
+    UINT32_MAX
+    UINT64_MAX
+
+    INT_LEAST8_MIN
+    INT_LEAST16_MIN
+    INT_LEAST32_MIN
+    INT_LEAST64_MIN
+
+    INT_LEAST8_MAX
+    INT_LEAST16_MAX
+    INT_LEAST32_MAX
+    INT_LEAST64_MAX
+
+    UINT_LEAST8_MAX
+    UINT_LEAST16_MAX
+    UINT_LEAST32_MAX
+    UINT_LEAST64_MAX
+
+    INT_FAST8_MIN
+    INT_FAST16_MIN
+    INT_FAST32_MIN
+    INT_FAST64_MIN
+
+    INT_FAST8_MAX
+    INT_FAST16_MAX
+    INT_FAST32_MAX
+    INT_FAST64_MAX
+
+    UINT_FAST8_MAX
+    UINT_FAST16_MAX
+    UINT_FAST32_MAX
+    UINT_FAST64_MAX
+
+    INTPTR_MIN
+    INTPTR_MAX
+    UINTPTR_MAX
+
+    INTMAX_MIN
+    INTMAX_MAX
+
+    UINTMAX_MAX
+
+    PTRDIFF_MIN
+    PTRDIFF_MAX
+
+    SIG_ATOMIC_MIN
+    SIG_ATOMIC_MAX
+
+    SIZE_MAX
+
+    WCHAR_MIN
+    WCHAR_MAX
+
+    WINT_MIN
+    WINT_MAX
+
+    INT8_C(value)
+    INT16_C(value)
+    INT32_C(value)
+    INT64_C(value)
+
+    UINT8_C(value)
+    UINT16_C(value)
+    UINT32_C(value)
+    UINT64_C(value)
+
+    INTMAX_C(value)
+    UINTMAX_C(value)
+
+namespace std
+{
+
+Types:
+
+    int8_t
+    int16_t
+    int32_t
+    int64_t
+
+    uint8_t
+    uint16_t
+    uint32_t
+    uint64_t
+
+    int_least8_t
+    int_least16_t
+    int_least32_t
+    int_least64_t
+
+    uint_least8_t
+    uint_least16_t
+    uint_least32_t
+    uint_least64_t
+
+    int_fast8_t
+    int_fast16_t
+    int_fast32_t
+    int_fast64_t
+
+    uint_fast8_t
+    uint_fast16_t
+    uint_fast32_t
+    uint_fast64_t
+
+    intptr_t
+    uintptr_t
+
+    intmax_t
+    uintmax_t
+
+}  // std
+*/
+
+#include <__config>
+#include <stdint.h>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using::int8_t;
+using::int16_t;
+using::int32_t;
+using::int64_t;
+
+using::uint8_t;
+using::uint16_t;
+using::uint32_t;
+using::uint64_t;
+
+using::int_least8_t;
+using::int_least16_t;
+using::int_least32_t;
+using::int_least64_t;
+
+using::uint_least8_t;
+using::uint_least16_t;
+using::uint_least32_t;
+using::uint_least64_t;
+
+using::int_fast8_t;
+using::int_fast16_t;
+using::int_fast32_t;
+using::int_fast64_t;
+
+using::uint_fast8_t;
+using::uint_fast16_t;
+using::uint_fast32_t;
+using::uint_fast64_t;
+
+using::intptr_t;
+using::uintptr_t;
+
+using::intmax_t;
+using::uintmax_t;
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_CSTDINT

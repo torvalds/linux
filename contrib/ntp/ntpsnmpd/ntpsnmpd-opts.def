@@ -1,0 +1,146 @@
+/* -*- Mode: Text -*- */
+
+autogen definitions options;
+
+#include copyright.def
+#include homerc.def
+#include autogen-version.def
+
+prog-name      = "ntpsnmpd";
+prog-title     = "NTP SNMP MIB agent";
+
+flag = {
+    name      = nofork;
+    value     = n;
+    descrip   = "Do not fork";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = syslog;
+    value     = p;
+    descrip   = "Log to syslog()";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = agentXSocket;
+/*  value     = x; */
+    arg-type  = string;
+    arg-default = "unix:/var/agentx/master";
+    descrip   = "The socket address ntpsnmpd uses to connect to net-snmpd";
+    doc = <<-  _EndOfDoc_
+	[<transport-specifier>:]<transport-address>
+	The default "agent X socket" is the Unix Domain socket
+	@file{unix:/var/agentx/master}.
+	Another common alternative is @file{tcp:localhost:705}.
+	_EndOfDoc_;
+};
+
+/* explain: Additional information whenever the usage routine is invoked */
+explain = <<- _END_EXPLAIN
+	_END_EXPLAIN;
+
+doc-section	= {
+  ds-type	= 'DESCRIPTION';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_PROG_MDOC_DESCRIP
+	.Nm
+	is an SNMP MIB agent designed to interface with
+	.Xr ntpd 1ntpdmdoc .
+	_END_PROG_MDOC_DESCRIP;
+};
+
+/*
+prog-info-descrip = <<- _END_PROG_INFO_DESCRIP
+	_END_PROG_INFO_DESCRIP;
+*/
+
+doc-section	= {
+  ds-type	= 'USAGE';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_USAGE
+	.Nm
+	currently uses a private MIB OID,
+	.Ql enterprises.5597 ,
+	which is the Meinberg top level OEM OID, and
+	.Ql 99
+	is the temporary working space for this project. 
+	The final OID has to be registered with IANA
+	and this is done by the RFC Editor
+	when the NTPv4 MIB RFC is standardized. 
+	.Pp
+	If you have
+	.Xr snmpwalk 1
+	installed you can run
+	.Dl % snmpwalk -v2c -c public localhost enterprises.5597.99
+	to see a list of all currently supported NTP MIB objects
+	and their current values.
+	_END_MDOC_USAGE;
+};
+
+doc-section	= {
+  ds-type	= 'NOTES';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_NOTES
+The following objects are currently supported:
+.Pp
+.Bl -tag -width ".Li ntpEntSoftwareVersionVal" -compact -offset indent
+.It Li ntpEntSoftwareName
+please fill me in...
+.It Li ntpEntSoftwareVersion
+please fill me in...
+.It Li ntpEntSoftwareVersionVal
+please fill me in...
+.It Li ntpEntSoftwareVendor
+please fill me in...
+.It Li ntpEntSystemType
+please fill me in...
+.It Li ntpEntTimeResolution
+please fill me in...
+.It Li ntpEntTimeResolutionVal
+please fill me in...
+.It Li ntpEntTimePrecision
+please fill me in...
+.It Li ntpEntTimePrecisionVal
+please fill me in...
+.It Li ntpEntTimeDistance
+please fill me in...
+.El
+	_END_MDOC_NOTES;
+};
+
+doc-section	= {
+  ds-type	= 'AUTHORS';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_AUTHORS
+.An "Heiko Gerstung"
+	_END_MDOC_AUTHORS;
+};
+
+/*
+doc-section     = {
+  ds-type       = 'SEE ALSO';
+  ds-format     = 'mdoc';
+  ds-text       = <<- _END_MDOC_SEE_ALSO
+.Rs
+.%A H. Gerstung
+.%A C. Elliott
+.%A B. Haberman, Ed.
+.%T Definitions of Managed Objects for Network Time Protocol Version 4: (NTPv4)
+.%O RFC5907
+.Re
+        _END_MDOC_SEE_ALSO;
+};
+*/
+
+/*
+doc-section	= {
+  ds-type	= 'BUGS';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_BUGS
+	_END_MDOC_BUGS;
+};
+*/

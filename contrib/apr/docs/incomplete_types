@@ -1,0 +1,84 @@
+The question has been asked multiple times, "Why is APR using Incomplete
+types?"  This document will try to explain that.
+
+Incomplete types are used in APR because they can enforce portability, and
+they make the APR developers job easier, as well as allowing APR to use native
+types on all platforms.  Imagine a scenario where APR wasn't using incomplete
+types.  The ap_file_t type would have to be defined as:
+
+typedef struct ap_file_t {
+    ap_pool_t *pool
+    char *fname;
+    int eof_hit;
+    int pipe;
+    ap_interval_time_t timeout;
+#ifdef WIN32
+    HANDLE file_handle;
+    DWORD dwFileAttributes;
+#elif defined(OS2)
+    HFILE filedes;
+    HEV PipeSem
+#else
+    int filedes;
+    int ungetchar;
+#endif
+
+#ifndef WIN32
+    int buffered;
+    ap_int32_flags
+    int isopen;
+   
+    /* Stuff for buffered mode */
+    char *buffer;
+    int bufpos;
+    unsigned long dataRead;
+    int direction;
+    unsigned long filePtr;
+    ap_lock_t *mutex; 
+#endif
+} ap_file_t;
+
+This captures the essense of what is currently being defined for ap_file_t
+using incomplete types.  However, using this structure leads developers to
+believe that they are safe accessing any of the fields in this structure.
+This is not true.  On some platforms, such as Windows, about half of the
+structure disappears.  We could combine some of these definitions with
+macros, for example:
+
+#ifdef WIN32
+#define filetype HANDLE
+#elif OS2
+#define filetype HFILE
+#else
+#define filetype int
+#endif
+
+And then in the defintion for ap_file_t, we could say:
+    filetype filedes;
+
+This gets rid of some of the complexity, by moving it off to the side, but
+it is still not safe for a programmers to access the filedes field directly 
+outside of APR, because the programmer has no way of knowing what the actual 
+type is.  So for example printing the filedes using printf would yield wildly 
+varying results on Windows and OS2 when compared to Unix.
+
+Another option also presents itself.  Stick strictly to POSIX.  This means
+that all code can be shared on any POSIX compliant platform.  The problem
+with this is performance.  One of the benefits to APR, is that it allows
+developers to easily use native types on all platforms with the same code.
+This has proven to provide a substantial performance boost on most non-Unix
+platforms.
+
+Having said all of that, sometimes incomplete types just don't make sense.
+For example, the first implementation of time functions used incomplete types,
+which added a layer of complexity that turned out to be unnecessary.  If
+a platform cannot provide a simple number that represents the number of seconds
+elapsed since a specifed date and time, then APR doesn't really want to 
+provide support for that platform.
+
+APR is trying hard to provide a balance of incomplete and complete types, 
+but like all things, sometimes the developers make mistakes.  If you are
+using APR and find that there is an incomplete type that doesn't need to be
+an incomplete type, please let us know, we are more than willing to listen
+and design parts of APR that do not use incomplete types.
+

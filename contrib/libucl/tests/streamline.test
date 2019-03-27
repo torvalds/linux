@@ -1,0 +1,12 @@
+#!/bin/sh
+
+PROG=${TEST_BINARY_DIR}/test_streamline
+
+$PROG ${TEST_OUT_DIR}/streamline.out
+diff -s ${TEST_OUT_DIR}/streamline.out ${TEST_DIR}/streamline.res -u 2>/dev/null
+if [ $? -ne 0 ] ; then
+	rm ${TEST_OUT_DIR}/streamline.out
+	echo "Test: streamline.res output missmatch"
+	exit 1
+fi
+rm ${TEST_OUT_DIR}/streamline.out

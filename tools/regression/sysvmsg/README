@@ -1,0 +1,13 @@
+$FreeBSD$
+
+SysV IPC Message Queue Regression Utility.
+
+This regression utility will test the SysV Message Queue facility
+in FreeBSD.  You can start the test by running ``make regress'', after
+running ``make''.
+
+Obtained from: The NetBSD Foundation.
+Date of port: 13 August 2002
+
+  -- Hiten Pandya
+  -- hiten@uk.FreeBSD.org

@@ -1,0 +1,48 @@
+// -*- C++ -*-
+//===--------------------------- csetjmp ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CSETJMP
+#define _LIBCPP_CSETJMP
+
+/*
+    csetjmp synopsis
+
+Macros:
+
+    setjmp
+
+namespace std
+{
+
+Types:
+
+    jmp_buf
+
+void longjmp(jmp_buf env, int val);
+
+}  // std
+
+*/
+
+#include <__config>
+#include <setjmp.h>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::jmp_buf;
+using ::longjmp;
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_CSETJMP

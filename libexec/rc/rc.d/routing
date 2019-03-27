@@ -1,0 +1,373 @@
+#!/bin/sh
+#
+# Configure routing and miscellaneous network tunables
+#
+# $FreeBSD$
+#
+
+# PROVIDE: routing
+# REQUIRE: netif ppp stf
+# KEYWORD: nojailvnet
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="routing"
+desc="Routing setup"
+start_cmd="routing_start doall"
+stop_cmd="routing_stop"
+extra_commands="options static"
+static_cmd="routing_start static"
+options_cmd="routing_start options"
+
+ROUTE_CMD="/sbin/route"
+
+routing_start()
+{
+	local _cmd _af _if _a _ret
+	_cmd=$1
+	_af=$2
+	_if=$3
+	_ret=0
+
+	case $_if in
+	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])	_if="" ;;
+	esac
+
+	case $_af in
+	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])
+		for _a in inet inet6; do
+			afexists $_a || continue
+			setroutes $_cmd $_a $_if || _ret=1
+		done
+	;;
+	*)
+		if afexists $_af; then
+			setroutes $_cmd $_af $_if || _ret=1
+		else
+			err 1 "Unsupported address family: $_af."
+		fi
+	;;
+	esac
+
+	return $_ret
+}
+
+routing_stop()
+{
+	local _af _if _a
+	_af=$1
+	_if=$2
+
+	case $_if in
+	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])	_if="" ;;
+	esac
+
+	case $_af in
+	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])
+		for _a in inet inet6; do
+			afexists $_a || continue
+			eval static_${_a} delete $_if
+			# When $_if is specified, do not flush routes.
+			if ! [ -n "$_if" ]; then
+				eval routing_stop_${_a}
+			fi
+		done
+	;;
+	*)
+		if afexists $_af; then
+			eval static_${_af} delete $_if 
+			# When $_if is specified, do not flush routes.
+			if ! [ -n "$_if" ]; then
+				eval routing_stop_${_af}
+			fi
+		else
+			err 1 "Unsupported address family: $_af."
+		fi
+	;;
+	esac
+}
+
+setroutes()
+{
+	local _ret
+	_ret=0
+	case $1 in
+	static)
+		static_$2 add $3
+		_ret=$?
+		;;
+	options)
+		options_$2
+		;;
+	doall)
+		static_$2 add $3
+		_ret=$?
+		options_$2
+		;;
+	esac
+	return $_ret
+}
+
+routing_stop_inet()
+{
+	${ROUTE_CMD} -n flush -inet
+}
+
+routing_stop_inet6()
+{
+	local i
+
+	${ROUTE_CMD} -n flush -inet6
+	for i in `list_net_interfaces`; do
+		if ipv6if $i; then
+			ifconfig $i inet6 -defaultif
+		fi
+	done
+}
+
+get_fibmod()
+{
+	local _fibs
+
+	_fibs=$((`${SYSCTL_N} net.fibs` - 1))
+	if [ ${_fibs} -gt 0 ]; then
+		echo "-fib 0-${_fibs}"
+	else
+		echo
+	fi
+}
+
+static_inet()
+{
+	local _action _if _skip _fibmod
+	_action=$1
+	_if=$2
+
+	_fibmod=`get_fibmod`
+
+	# Provide loopback route in all routing tables.  This has to come
+	# first so that any following routes can be added.
+	static_routes="_loopback ${static_routes}"
+	route__loopback="-inet 127.0.0.1 -iface lo0 ${_fibmod}"
+
+	# Add default route.
+	case ${defaultrouter} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		static_routes="${static_routes} _default"
+		route__default="default ${defaultrouter}"
+		;;
+	esac
+
+	# Install configured routes.
+	if [ -n "${static_routes}" ]; then
+		for i in ${static_routes}; do
+			_skip=0
+			if [ -n "$_if" ]; then
+				case $i in
+				*:$_if)	;;
+				*)	_skip=1 ;;
+				esac
+			fi
+			if [ $_skip = 0 ]; then
+				route_args=`get_if_var ${i%:*} route_IF`
+				if [ -n "$route_args" ]; then
+					${ROUTE_CMD} ${_action} ${route_args}
+				else
+					warn "route_${i%:*} not found."
+				fi
+			fi
+		done
+	fi
+}
+
+static_inet6()
+{
+	local _action _if _skip fibmod allfibs
+	_action=$1
+	_if=$2
+
+	fibmod=`get_fibmod`
+
+	# Add pre-defined static routes first.
+	ipv6_static_routes="_v4mapped _v4compat ${ipv6_static_routes}"
+	ipv6_static_routes="_lla _llma ${ipv6_static_routes}"
+	ipv6_static_routes="_loopback ${ipv6_static_routes}"
+
+	# disallow "internal" addresses to appear on the wire
+	ipv6_route__v4mapped="::ffff:0.0.0.0 -prefixlen 96 ::1 -reject ${fibmod}"
+	ipv6_route__v4compat="::0.0.0.0 -prefixlen 96 ::1 -reject ${fibmod}"
+
+	# Create a loopback route in every fib
+	ipv6_route__loopback="::1 -prefixlen 128 -iface lo0 ${fibmod}"
+
+	# Disallow link-local unicast packets without outgoing scope
+	# identifiers.  However, if you set "ipv6_default_interface",
+	# for the host case, you will allow to omit the identifiers.
+	# Under this configuration, the packets will go to the default
+	# interface.
+	ipv6_route__lla="fe80:: -prefixlen 10 ::1 -reject ${fibmod}"
+	ipv6_route__llma="ff02:: -prefixlen 16 ::1 -reject ${fibmod}"
+
+	# Add default route.
+	case ${ipv6_defaultrouter} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		ipv6_static_routes="${ipv6_static_routes} _default"
+		ipv6_route__default="default ${ipv6_defaultrouter}"
+		;;
+	esac
+
+	# Install configured routes.
+	if [ -n "${ipv6_static_routes}" ]; then
+		for i in ${ipv6_static_routes}; do
+			_skip=0
+			if [ -n "$_if" ]; then
+				case $i in
+				*:$_if)	;;
+				*)	_skip=1 ;;
+				esac
+			fi
+			if [ $_skip = 0 ]; then
+				ipv6_route_args=`get_if_var ${i%:*} ipv6_route_IF`
+				if [ -n "$ipv6_route_args" ]; then
+					${ROUTE_CMD} ${_action} \
+						-inet6 ${ipv6_route_args}
+				else
+					warn "route_${i%:*} not found"
+				fi
+			fi
+		done
+	fi
+
+	# Install the "default interface" to kernel, which will be used
+	# as the default route when there's no router.
+
+	# Disable installing the default interface when we act
+	# as router to avoid conflict between the default
+	# router list and the manual configured default route.
+	if checkyesno ipv6_gateway_enable; then
+		return
+	fi
+
+	case "${ipv6_default_interface}" in
+	[Nn][Oo] | [Nn][Oo][Nn][Ee])
+		return
+		;;
+	[Aa][Uu][Tt][Oo] | "")
+		for i in ${ipv6_network_interfaces}; do
+			case $i in
+			[Nn][Oo][Nn][Ee])
+				return
+				;;
+			lo0)
+				continue
+				;;
+			esac
+			laddr=`network6_getladdr $i exclude_tentative`
+			case ${laddr} in
+			'')
+				;;
+			*)
+				ipv6_default_interface=$i
+				break
+				;;
+			esac
+		done
+		;;
+	esac
+
+	ifconfig ${ipv6_default_interface} inet6 defaultif
+	${SYSCTL} net.inet6.ip6.use_defaultzone=1 > /dev/null
+}
+
+ropts_init()
+{
+	if [ -z "${_ropts_initdone}" ]; then
+		echo -n "Additional $1 routing options:"
+		_ropts_initdone=yes
+	fi
+}
+
+options_inet()
+{
+	_ropts_initdone=
+	if checkyesno icmp_bmcastecho; then
+		ropts_init inet
+		echo -n ' broadcast ping responses=YES'
+		${SYSCTL} net.inet.icmp.bmcastecho=1 > /dev/null
+	else
+		${SYSCTL} net.inet.icmp.bmcastecho=0 > /dev/null
+	fi
+
+	if checkyesno icmp_drop_redirect; then
+		ropts_init inet
+		echo -n ' ignore ICMP redirect=YES'
+		${SYSCTL} net.inet.icmp.drop_redirect=1 > /dev/null
+	else
+		${SYSCTL} net.inet.icmp.drop_redirect=0 > /dev/null
+	fi
+
+	if checkyesno icmp_log_redirect; then
+		ropts_init inet
+		echo -n ' log ICMP redirect=YES'
+		${SYSCTL} net.inet.icmp.log_redirect=1 > /dev/null
+	else
+		${SYSCTL} net.inet.icmp.log_redirect=0 > /dev/null
+	fi
+
+	if checkyesno gateway_enable; then
+		ropts_init inet
+		echo -n ' gateway=YES'
+		${SYSCTL} net.inet.ip.forwarding=1 > /dev/null
+	else
+		${SYSCTL} net.inet.ip.forwarding=0 > /dev/null
+	fi
+
+	if checkyesno forward_sourceroute; then
+		ropts_init inet
+		echo -n ' do source routing=YES'
+		${SYSCTL} net.inet.ip.sourceroute=1 > /dev/null
+	else
+		${SYSCTL} net.inet.ip.sourceroute=0 > /dev/null
+	fi
+
+	if checkyesno accept_sourceroute; then
+		ropts_init inet
+		echo -n ' accept source routing=YES'
+		${SYSCTL} net.inet.ip.accept_sourceroute=1 > /dev/null
+	else
+		${SYSCTL} net.inet.ip.accept_sourceroute=0 > /dev/null
+	fi
+
+	if checkyesno arpproxy_all; then
+		ropts_init inet
+		echo -n ' ARP proxyall=YES'
+		${SYSCTL} net.link.ether.inet.proxyall=1 > /dev/null
+	else
+		${SYSCTL} net.link.ether.inet.proxyall=0 > /dev/null
+	fi
+
+	[ -n "${_ropts_initdone}" ] && echo '.'
+}
+
+options_inet6()
+{
+	_ropts_initdone=
+
+	if checkyesno ipv6_gateway_enable; then
+		ropts_init inet6
+		echo -n ' gateway=YES'
+		${SYSCTL} net.inet6.ip6.forwarding=1 > /dev/null
+	else
+		${SYSCTL} net.inet6.ip6.forwarding=0 > /dev/null
+	fi
+
+	[ -n "${_ropts_initdone}" ] && echo '.'
+}
+
+load_rc_config $name
+run_rc_command "$@"

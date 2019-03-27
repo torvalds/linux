@@ -1,0 +1,152 @@
+.\"	$KAME: if_indextoname.3,v 1.10 2000/11/24 08:13:51 itojun Exp $
+.\"	BSDI	Id: if_indextoname.3,v 2.2 2000/04/17 22:38:05 dab Exp
+.\"
+.\" Copyright (c) 1997, 2000
+.\"	Berkeley Software Design, Inc.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Berkeley Software Design, Inc. ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Berkeley Software Design, Inc. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 23, 2005
+.Dt IF_NAMETOINDEX 3
+.Os
+.Sh NAME
+.Nm if_nametoindex ,
+.Nm if_indextoname ,
+.Nm if_nameindex ,
+.Nm if_freenameindex
+.Nd provide mappings between interface names and indexes
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In net/if.h
+.Ft "unsigned int"
+.Fn if_nametoindex "const char *ifname"
+.Ft "char *"
+.Fn if_indextoname "unsigned int ifindex" "char *ifname"
+.Ft "struct if_nameindex *"
+.Fn if_nameindex "void"
+.Ft void
+.Fn if_freenameindex "struct if_nameindex *ptr"
+.Sh DESCRIPTION
+The
+.Fn if_nametoindex
+function maps the interface name specified in
+.Fa ifname
+to its corresponding index.
+If the specified interface does not exist, it returns 0.
+.Pp
+The
+.Fn if_indextoname
+function maps the interface index specified in
+.Fa ifindex
+to it corresponding name, which is copied into the
+buffer pointed to by
+.Fa ifname ,
+which must be of at least
+.Dv IFNAMSIZ
+bytes.
+This pointer is also the return value of the function.
+If there is no interface corresponding to the specified
+index,
+.Dv NULL
+is returned.
+.Pp
+The
+.Fn if_nameindex
+function returns an array of
+.Vt if_nameindex
+structures, one structure per interface, as
+defined in the include file
+.In net/if.h .
+The
+.Vt if_nameindex
+structure contains at least the following entries:
+.Bd -literal
+    unsigned int   if_index;  /* 1, 2, ... */
+    char          *if_name;   /* null terminated name: "le0", ... */
+.Ed
+.Pp
+The end of the array of structures is indicated by a structure with an
+.Va if_index
+of 0 and an
+.Va if_name
+of
+.Dv NULL .
+A
+.Dv NULL
+pointer is returned upon an error.
+.Pp
+The
+.Fn if_freenameindex
+function frees the dynamic memory that was
+allocated by
+.Fn if_nameindex .
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn if_nametoindex
+returns the index number of the interface.
+If the interface is not found, a value of 0 is returned and
+.Va errno
+is set to
+.Er ENXIO .
+A value of 0 is also returned if an error
+occurs while retrieving the list of interfaces via
+.Xr getifaddrs 3 .
+.Pp
+Upon successful completion,
+.Fn if_indextoname
+returns
+.Fa ifname .
+If the interface is not found, a
+.Dv NULL
+pointer is returned and
+.Va errno
+is set to
+.Er ENXIO .
+A
+.Dv NULL
+pointer is also returned if an error
+occurs while retrieving the list of interfaces via
+.Xr getifaddrs 3 .
+.Pp
+The
+.Fn if_nameindex
+returns a
+.Dv NULL
+pointer if an error
+occurs while retrieving the list of interfaces via
+.Xr getifaddrs 3 ,
+or if sufficient memory cannot be allocated.
+.Sh SEE ALSO
+.Xr getifaddrs 3 ,
+.Xr networking 4
+.Sh STANDARDS
+The
+.Fn if_nametoindex ,
+.Fn if_indextoname ,
+.Fn if_nameindex ,
+and
+.Fn if_freenameindex
+functions conform to
+.%T "RFC 2553" .
+.Sh HISTORY
+The implementation first appeared in BSDi
+.Bsx .

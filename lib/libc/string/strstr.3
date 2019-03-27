@@ -1,0 +1,155 @@
+.\" Copyright (c) 2001 Mike Barcroft <mike@FreeBSD.org>
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strstr.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd October 11, 2001
+.Dt STRSTR 3
+.Os
+.Sh NAME
+.Nm strstr , strcasestr , strnstr
+.Nd locate a substring in a string
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In string.h
+.Ft char *
+.Fn strstr "const char *big" "const char *little"
+.Ft char *
+.Fn strcasestr "const char *big" "const char *little"
+.Ft char *
+.Fn strnstr "const char *big" "const char *little" "size_t len"
+.In string.h
+.In xlocale.h
+.Ft char *
+.Fn strcasestr_l "const char *big" "const char *little" "locale_t loc"
+.Sh DESCRIPTION
+The
+.Fn strstr
+function
+locates the first occurrence of the null-terminated string
+.Fa little
+in the null-terminated string
+.Fa big .
+.Pp
+The
+.Fn strcasestr
+function is similar to
+.Fn strstr ,
+but ignores the case of both strings.
+.Pp
+The
+.Fn strcasestr_l
+function does the same as
+.Fn strcasestr
+but takes an explicit locale rather than using the current locale.
+.Pp
+The
+.Fn strnstr
+function
+locates the first occurrence of the null-terminated string
+.Fa little
+in the string
+.Fa big ,
+where not more than
+.Fa len
+characters are searched.
+Characters that appear after a
+.Ql \e0
+character are not searched.
+Since the
+.Fn strnstr
+function is a
+.Fx
+specific API, it should only be used when portability is not a concern.
+.Sh RETURN VALUES
+If
+.Fa little
+is an empty string,
+.Fa big
+is returned;
+if
+.Fa little
+occurs nowhere in
+.Fa big ,
+.Dv NULL
+is returned;
+otherwise a pointer to the first character of the first occurrence of
+.Fa little
+is returned.
+.Sh EXAMPLES
+The following sets the pointer
+.Va ptr
+to the
+.Qq Li Bar Baz
+portion of
+.Va largestring :
+.Bd -literal -offset indent
+const char *largestring = "Foo Bar Baz";
+const char *smallstring = "Bar";
+char *ptr;
+
+ptr = strstr(largestring, smallstring);
+.Ed
+.Pp
+The following sets the pointer
+.Va ptr
+to
+.Dv NULL ,
+because only the first 4 characters of
+.Va largestring
+are searched:
+.Bd -literal -offset indent
+const char *largestring = "Foo Bar Baz";
+const char *smallstring = "Bar";
+char *ptr;
+
+ptr = strnstr(largestring, smallstring, 4);
+.Ed
+.Sh SEE ALSO
+.Xr memchr 3 ,
+.Xr memmem 3 ,
+.Xr strchr 3 ,
+.Xr strcspn 3 ,
+.Xr strpbrk 3 ,
+.Xr strrchr 3 ,
+.Xr strsep 3 ,
+.Xr strspn 3 ,
+.Xr strtok 3 ,
+.Xr wcsstr 3
+.Sh STANDARDS
+The
+.Fn strstr
+function
+conforms to
+.St -isoC .

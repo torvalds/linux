@@ -1,0 +1,68 @@
+#
+# $FreeBSD$
+# rpc 88/08/01 4.0 RPCSRC; from 1.12   99/07/25 SMI
+#
+rpcbind		100000  portmap sunrpc rpcbind
+rstatd		100001	rstat rstat_svc rup perfmeter
+rusersd		100002	rusers
+nfs		100003	nfsprog
+ypserv		100004	ypprog
+mountd		100005	mount showmount
+ypbind		100007
+walld		100008	rwall shutdown
+yppasswdd	100009	yppasswd
+etherstatd	100010	etherstat
+rquotad		100011	rquotaprog quota rquota
+sprayd		100012	spray
+3270_mapper	100013
+rje_mapper	100014
+selection_svc	100015	selnsvc
+database_svc	100016
+rexd		100017	rex
+alis		100018
+sched		100019
+llockmgr	100020
+nlockmgr	100021
+x25.inr		100022
+statmon		100023
+status		100024
+bootparamd	100026	bootparam
+ypupdated	100028	ypupdate
+keyserv		100029	keyserver
+sunlink_mapper	100033
+tfsd		100037
+nsed		100038
+nsemntd		100039
+showfhd		100043	showfh
+ioadmd		100055	rpc.ioadmd
+NETlicense	100062
+sunisamd	100065
+debug_svc	100066	dbsrv
+cmsd		100068
+bugtraqd	100071
+kerbd		100078
+ttdbserver	100083	tooltalk
+event		100101	na.event        # SunNet Manager
+logger		100102	na.logger       # SunNet Manager
+sync		100104	na.sync
+hostperf	100107	na.hostperf
+activity	100109	na.activity     # SunNet Manager
+hostmem		100112	na.hostmem
+sample		100113	na.sample
+x25		100114	na.x25
+ping		100115	na.ping
+rpcnfs		100116	na.rpcnfs
+hostif		100117	na.hostif
+etherif		100118	na.etherif
+iproutes	100120	na.iproutes
+layers		100121	na.layers
+snmp		100122	na.snmp snmp-cmc snmp-synoptics snmp-unisys snmp-utk
+traffic		100123	na.traffic
+nfs_acl		100227
+sadmind		100232
+nisd		100300	rpc.nisd
+nispasswd	100303	rpc.nispasswdd
+ufsd		100233
+pcnfsd		150001	pcnfs
+amd		300019
+sgi_fam		391002		# file alteration monitor

@@ -1,0 +1,3 @@
+rewrite in on bge0 from 1.1.1.1/32 to 2.2.2.2/32 -> src 3.3.3.3/32 dst 4.4.4.4/32;
+rewrite out on bge0 from 1.1.1.1/32 to 2.2.2.2/32 -> src 3.3.3.0/24 dst 4.4.4.4/32;
+rewrite in on bge0 from 1.1.1.1/32 to 2.2.2.2/32 -> src 3.3.3.0/24 dst 4.4.4.0/24;

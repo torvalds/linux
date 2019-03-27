@@ -1,0 +1,160 @@
+.\"-
+.\" Copyright (C) 2010 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Shteryana Sotirova Shopova under
+.\" sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 28, 2010
+.Dt SNMP_WLAN 3
+.Os
+.Sh NAME
+.Nm snmp_wlan
+.Nd "wireless networking module for"
+.Xr bsnmpd 1
+.Sh LIBRARY
+.Pq begemotSnmpdModulePath."wlan" = "/usr/lib/snmp_wlan.so"
+.Sh DESCRIPTION
+The
+.Nm snmp_wlan
+module implements a private BEGEMOT-WIRELESS-MIB, which allows
+management of virtual wireless interfaces. The MIB defines objects similar to the
+state data and configuration capabilities of
+.Xr ifconfig 8
+for configuring virtual wireless interfaces.
+Therefore one should consider adding write communities or loading the
+.Nm
+module on systems where security is crucial.
+.Sh IMPLEMENTATION NOTES
+A short description of the Tables and interesting objects in the MIB follows.
+.Bl -tag -width "XXXXXXXXX"
+.It Va wlanInterfaceTable
+The table is used for creation and deletion of virtual wireless interfaces. To
+add a new interface, a SET should be executed on the
+.Va wlanIfaceName
+column with
+value the desired name of the interface. Next the parent interface must be set
+via
+.Va wlanParentIfName
+column. Any optional parameters may be set
+via the
+.Va wlanIfaceOperatingMode ,
+.Va wlanIfaceFlags ,
+.Va wlanIfaceBssid
+and
+.Va wlanIfaceLocalAddress
+columns.
+To finally create the interface in the system, a SET with value of active(1) to
+.Va wlanIfaceStatus
+column should be executed.
+To destroy a wireless interface a SET with value of destroy(6) to the relevant
+.Va wlanIfaceStatus
+column should be executed.
+.It Va wlanIfParentTable
+The table contains information about the hardware capabilities of the parent of
+a wireless interface.
+.It Va wlanIfaceConfigTable
+The table is used to get or set various configuration parameters for a virtual
+wireless interface. Depending on the operating mode of the interface and the
+hardware capabilities of the underlying hardware interface, not all parameters
+and values may be supported.
+.It Va wlanIfacePeerTable
+The table contains information about the associated stations for interfaces
+operating as access points, or the stations identified as neighbors in the IBSS
+for interfaces operating in adhoc mode.
+.It Va wlanIfaceChannelTable
+Information about the active channels for the wireless interfaces in the system.
+.It Va wlanIfRoamParamsTable
+The parameters that govern the roaming operation on the wireless interfaces.
+.It Va wlanIfTxParamsTable
+The parameters that govern the transmit operation on the wireless interfaces.
+.It Va wlanScanConfigTable
+The table that contains a configuration for channel scanning initiated via SNMP.
+.It Va wlanScanResultsTable
+The table contains the scan results from the last scan for each wireless
+interface on the system.
+.It Va wlanIfaceStatisticsTable
+Summary statistics for each wireless interface on the system.
+.It Va wlanWepInterfaceTable
+WEP configuration for the wireless interfaces on the system.
+.It Va wlanMACAccessControlTable
+Access Control configuration for wireless interfaces operating as access points.
+.It Va wlanMACAccessControlMACTable
+The table with Access Control MAC entries for which the configured Access
+Control Policy on wireless interfaces operating in Host AP mode is applied.
+.Va wlanMACAccessControlMACStatus
+column is used to add or delete MAC ACL entries. A set with value createAndGo(4)
+will add new entry, while with value destroy(6) will delete an existing one.
+.It Va wlanMeshRoutingConfig
+The subtree contains system configuration related to Wireless Mesh Routing.
+.It Va wlanMeshInterfaceTable
+The table contains information for wireless interfaces operating as wireless
+mesh points.
+.It Va wlanMeshNeighborTable
+The table contains information for the neighbors of wireless interfaces
+operating in mesh mode.
+.It Va wlanMeshRouteTable
+The mesh routing table for interfaces operating as mesh points, used for
+forwarding packets on a mesh network.
+.Va wlanMeshRouteStatus
+column is used to add or delete entries in the mesh routing table for an
+interface. A set with value createAndGo(4) will add new entry, while with value
+destroy(6) will delete an existing one.
+.It Va wlanMeshStatsTable
+Summary statistics for each virtual wireless interface operating as mesh point.
+.It Va wlanMeshHWMPConfig
+The subtree contains system configuration related to Hybrid Wireless Mesh
+Protocol.
+.It Va wlanHWMPInterfaceTable
+The table contains HWMP information for wireless interfaces operating in mesh
+mode.
+.It Va wlanMeshHWMPStatsTable
+Summary statistics for HWMP operation on interfaces operating as mesh points.
+.El
+.Sh RESTRICTIONS
+Not all information or configuration in the MIBs is currently available in FreeBSD.
+The values of the following variables carry no information:
+.Bl -tag -width "XXXXXXXXX"
+.It Va wlanStatsReset
+.El
+.Sh FILES
+.Bl -tag -width "XXXXXXXXX"
+.It Pa /usr/share/snmp/defs/wlan_tree.def
+The description of the MIB tree implemented by
+.Nm .
+.It Pa /usr/share/snmp/mibs/BEGEMOT-WIRELESS-MIB.txt
+The private BEGEMOT-WIRELESS-MIB that is implemented by this module.
+.El
+.Sh SEE ALSO
+.Xr bsnmpd 1 ,
+.Xr gensnmptree 1 ,
+.Xr snmpmod 3 ,
+.Xr wlan 4 ,
+.Xr wlan_acl 4 ,
+.Xr wlan_wep 4 ,
+.Xr ifconfig 8
+.Sh AUTHORS
+.An Shteryana Shopova Aq Mt syrinx@FreeBSD.org

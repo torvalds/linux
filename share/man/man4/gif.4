@@ -1,0 +1,231 @@
+.\"	$KAME: gif.4,v 1.28 2001/05/18 13:15:56 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 21, 2018
+.Dt GIF 4
+.Os
+.Sh NAME
+.Nm gif
+.Nd generic tunnel interface
+.Sh SYNOPSIS
+.Cd "device gif"
+.Sh DESCRIPTION
+The
+.Nm
+interface is a generic tunnelling device for IPv4 and IPv6.
+It can tunnel IPv[46] traffic over IPv[46].
+Therefore, there can be four possible configurations.
+The behavior of
+.Nm
+is mainly based on RFC2893 IPv6-over-IPv4 configured tunnel.
+On
+.Nx ,
+.Nm
+can also tunnel ISO traffic over IPv[46] using EON encapsulation.
+Note that
+.Nm
+does not perform GRE encapsulation; use
+.Xr gre 4
+for GRE encapsulation.
+.Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is
+most easily done with the
+.Dq Nm ifconfig Cm create
+command or using the
+.Va ifconfig_ Ns Aq Ar interface
+variable in
+.Xr rc.conf 5 .
+.Pp
+To use
+.Nm ,
+the administrator needs to configure the protocol and addresses used for the outer
+header.
+This can be done by using
+.Xr ifconfig 8
+.Cm tunnel ,
+or
+.Dv SIOCSIFPHYADDR
+ioctl.
+The administrator also needs to configure the protocol and addresses for the
+inner header, with
+.Xr ifconfig 8 .
+Note that IPv6 link-local addresses
+(those that start with
+.Li fe80:: )
+will be automatically configured whenever possible.
+You may need to remove IPv6 link-local addresses manually using
+.Xr ifconfig 8 ,
+if you want to disable the use of IPv6 as the inner header
+(for example, if you need a pure IPv4-over-IPv6 tunnel).
+Finally, you must modify the routing table to route the packets through the
+.Nm
+interface.
+.Pp
+The
+.Nm
+device can be configured to be ECN friendly.
+This can be configured by
+.Dv IFF_LINK1 .
+.Ss ECN friendly behavior
+The
+.Nm
+device can be configured to be ECN friendly, as described in
+.Dv draft-ietf-ipsec-ecn-02.txt .
+This is turned off by default, and can be turned on by the
+.Dv IFF_LINK1
+interface flag.
+.Pp
+Without
+.Dv IFF_LINK1 ,
+.Nm
+will show normal behavior, as described in RFC2893.
+This can be summarized as follows:
+.Bl -tag -width "Ingress" -offset indent
+.It Ingress
+Set outer TOS bit to
+.Dv 0 .
+.It Egress
+Drop outer TOS bit.
+.El
+.Pp
+With
+.Dv IFF_LINK1 ,
+.Nm
+will copy ECN bits
+.Dv ( 0x02
+and
+.Dv 0x01
+on IPv4 TOS byte or IPv6 traffic class byte)
+on egress and ingress, as follows:
+.Bl -tag -width "Ingress" -offset indent
+.It Ingress
+Copy TOS bits except for ECN CE
+(masked with
+.Dv 0xfe )
+from
+inner to outer.
+Set ECN CE bit to
+.Dv 0 .
+.It Egress
+Use inner TOS bits with some change.
+If outer ECN CE bit is
+.Dv 1 ,
+enable ECN CE bit on the inner.
+.El
+.Pp
+Note that the ECN friendly behavior violates RFC2893.
+This should be used in mutual agreement with the peer.
+.Ss Security
+A malicious party may try to circumvent security filters by using
+tunnelled packets.
+For better protection,
+.Nm
+performs both martian and ingress filtering against the outer source address
+on egress.
+Note that martian/ingress filters are in no way complete.
+You may want to secure your node by using packet filters.
+Ingress filtering can break tunnel operation in an asymmetrically
+routed network.
+It can be turned off by
+.Dv IFF_LINK2
+bit.
+.Ss Miscellaneous
+By default,
+.Nm
+tunnels may not be nested.
+This behavior may be modified at runtime by setting the
+.Xr sysctl 8
+variable
+.Va net.link.gif.max_nesting
+to the desired level of nesting.
+.Sh SEE ALSO
+.Xr gre 4 ,
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.Xr ifconfig 8
+.Rs
+.%A R. Gilligan
+.%A E. Nordmark
+.%B RFC2893
+.%T Transition Mechanisms for IPv6 Hosts and Routers
+.%D August 2000
+.%U http://tools.ietf.org/html/rfc2893
+.Re
+.Rs
+.%A Sally Floyd
+.%A David L. Black
+.%A K. K. Ramakrishnan
+.%T "IPsec Interactions with ECN"
+.%D December 1999
+.%O draft-ietf-ipsec-ecn-02.txt
+.Re
+.\"
+.Sh HISTORY
+The
+.Nm
+device first appeared in the WIDE hydrangea IPv6 kit.
+.\"
+.Sh BUGS
+There are many tunnelling protocol specifications, all
+defined differently from each other.
+The
+.Nm
+device may not interoperate with peers which are based on different specifications,
+and are picky about outer header fields.
+For example, you cannot usually use
+.Nm
+to talk with IPsec devices that use IPsec tunnel mode.
+.Pp
+If the outer protocol is IPv4,
+.Nm
+does not try to perform path MTU discovery for the encapsulated packet
+(DF bit is set to 0).
+.Pp
+If the outer protocol is IPv6, path MTU discovery for encapsulated packets
+may affect communication over the interface.
+The first bigger-than-pmtu packet may be lost.
+To avoid the problem, you may want to set the interface MTU for
+.Nm
+to 1240 or smaller, when the outer header is IPv6 and the inner header is IPv4.
+.Pp
+The
+.Nm
+device does not translate ICMP messages for the outer header into the inner header.
+.Pp
+In the past,
+.Nm
+had a multi-destination behavior, configurable via
+.Dv IFF_LINK0
+flag.
+The behavior is obsolete and is no longer supported.

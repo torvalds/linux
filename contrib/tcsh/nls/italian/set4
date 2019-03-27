@@ -1,0 +1,45 @@
+$ $tcsh: set4,v 1.3 2011/02/04 18:19:39 christos Exp $
+$ Termcap strings
+$set 4
+1 aggiunge una linea vuota
+2 segnale acustico
+3 cancella fino al margine inferiore
+4 cancella fino alla fine della linea
+5 cursore alla posizione orizzontale
+6 cancella lo schermo
+7 cancella un carattere
+8 cancella una riga
+9 mette in modalità di cancellazione
+10 fine della modalità di cancellazione
+11 fine della modalità di inserimento
+12 cursore dalla linea di stato
+13 cursore nella posizione iniziale
+14 inserisce un carattere
+15 mette in modalità di inserimento
+16 inserisce un carattere di riallineamento
+17 muove il cursore verso il basso
+18 muove il cursore verso sinistra
+19 muove il cursore verso destra
+20 muove il cursore verso l'alto
+21 inizio del grassetto
+22 fine degli attributi
+23 spazio non coprente
+24 fine dell'evidenziazione
+25 inizio dell'evidenziazione
+26 cursore nella linea di stato
+27 cursore su di uno
+28 inizio sottolineatura
+29 fine sottolineatura
+30 segnale ottico
+31 cancella più caratteri
+32 cursore verso il basso più volte
+33 inserisce più caratteri
+34 cursore verso sinistra più volte
+35 cursore verso destra più volte
+36 cursore verso l'alto più volte
+37 Ha margini automatizzati
+38 Può usare tabulatori fisici
+39 Numero di linee
+40 Numero di colonne
+41 Ha il tasto meta
+42 Ritorno a capo ignorato sul margine destro

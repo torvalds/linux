@@ -1,0 +1,748 @@
+/*
+ * Copyright 2012 Shawn Guo <shawn.guo@linaro.org>
+ * Copyright 2013-2017 Lothar Waßmann <LW@KARO-electronics.de>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+#include "imx28.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	model = "Ka-Ro electronics TX28 module";
+	compatible = "karo,tx28", "fsl,imx28";
+
+	aliases {
+		can0 = &can0;
+		can1 = &can1;
+		display = &display0;
+		ds1339 = &ds1339;
+		gpio5 = &gpio5;
+		lcdif = &lcdif;
+		lcdif_23bit_pins = &tx28_lcdif_23bit_pins;
+		lcdif_24bit_pins = &lcdif_24bit_pins_a;
+		reg_can_xcvr = &reg_can_xcvr;
+		spi_gpio = &spi_gpio;
+		spi_mxs = &ssp3;
+		stk5led = &user_led;
+		usbotg = &usb0;
+	};
+
+	memory@40000000 {
+		reg = <0x40000000 0>; /* will be filled in by U-Boot */
+	};
+
+	onewire {
+		compatible = "w1-gpio";
+		gpios = <&gpio2 7 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
+
+	reg_usb0_vbus: regulator-usb0-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb0_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio0 18 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_usb1_vbus: regulator-usb1-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb1_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio3 27 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_2p5v: regulator-2p5v {
+		compatible = "regulator-fixed";
+		regulator-name = "2P5V";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		regulator-always-on;
+	};
+
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "3P3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	reg_can_xcvr: regulator-can-xcvr {
+		compatible = "regulator-fixed";
+		regulator-name = "CAN XCVR";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tx28_flexcan_xcvr_pins>;
+	};
+
+	reg_lcd: regulator-lcd-power {
+		compatible = "regulator-fixed";
+		regulator-name = "LCD POWER";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio1 31 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_lcd_reset: regulator-lcd-reset {
+		compatible = "regulator-fixed";
+		regulator-name = "LCD RESET";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio3 30 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <300000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	mclk: clock-mclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	sound {
+		compatible = "fsl,imx28-tx28-sgtl5000",
+			     "fsl,mxs-audio-sgtl5000";
+		model = "imx28-tx28-sgtl5000";
+		saif-controllers = <&saif0 &saif1>;
+		audio-codec = <&sgtl5000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		user_led: user {
+			label = "Heartbeat";
+			gpios = <&gpio4 10 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 0 500000>;
+		/*
+		 * a silly way to create a 1:1 relationship between the
+		 * PWM value and the actual duty cycle
+		 */
+		brightness-levels = < 0  1  2  3  4  5  6  7  8  9
+				     10 11 12 13 14 15 16 17 18 19
+				     20 21 22 23 24 25 26 27 28 29
+				     30 31 32 33 34 35 36 37 38 39
+				     40 41 42 43 44 45 46 47 48 49
+				     50 51 52 53 54 55 56 57 58 59
+				     60 61 62 63 64 65 66 67 68 69
+				     70 71 72 73 74 75 76 77 78 79
+				     80 81 82 83 84 85 86 87 88 89
+				     90 91 92 93 94 95 96 97 98 99
+				    100>;
+		default-brightness-level = <50>;
+	};
+
+	matrix_keypad: matrix-keypad {
+		compatible = "gpio-matrix-keypad";
+		col-gpios = <
+			&gpio5 0 GPIO_ACTIVE_HIGH
+			&gpio5 1 GPIO_ACTIVE_HIGH
+			&gpio5 2 GPIO_ACTIVE_HIGH
+			&gpio5 3 GPIO_ACTIVE_HIGH
+		>;
+		row-gpios = <
+			&gpio5 4 GPIO_ACTIVE_HIGH
+			&gpio5 5 GPIO_ACTIVE_HIGH
+			&gpio5 6 GPIO_ACTIVE_HIGH
+			&gpio5 7 GPIO_ACTIVE_HIGH
+		>;
+		/* sample keymap */
+		linux,keymap = <
+			0x00000074 /* row 0, col 0, KEY_POWER */
+			0x00010052 /* row 0, col 1, KEY_KP0 */
+			0x0002004f /* row 0, col 2, KEY_KP1 */
+			0x00030050 /* row 0, col 3, KEY_KP2 */
+			0x01000051 /* row 1, col 0, KEY_KP3 */
+			0x0101004b /* row 1, col 1, KEY_KP4 */
+			0x0102004c /* row 1, col 2, KEY_KP5 */
+			0x0103004d /* row 1, col 3, KEY_KP6 */
+			0x02000047 /* row 2, col 0, KEY_KP7 */
+			0x02010048 /* row 2, col 1, KEY_KP8 */
+			0x02020049 /* row 2, col 2, KEY_KP9 */
+		>;
+		gpio-activelow;
+		wakeup-source;
+		debounce-delay-ms = <100>;
+		col-scan-delay-us = <5000>;
+		linux,no-autorepeat;
+	};
+
+	spi_gpio: spi-gpio {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tx28_spi_gpio_pins>;
+
+		gpio-sck = <&gpio2 24 GPIO_ACTIVE_HIGH>;
+		gpio-mosi = <&gpio2 25 GPIO_ACTIVE_HIGH>;
+		gpio-miso = <&gpio2 26 GPIO_ACTIVE_HIGH>;
+		num-chipselects = <3>;
+		cs-gpios = <
+			&gpio2 27 GPIO_ACTIVE_LOW
+			&gpio3 8 GPIO_ACTIVE_LOW
+			&gpio3 9 GPIO_ACTIVE_LOW
+		>;
+		/* enable this and disable ssp3 below, if you need full duplex SPI transfer */
+		status = "disabled";
+
+		spi@0 {
+			compatible = "spidev";
+			reg = <0>;
+			spi-max-frequency = <57600000>;
+		};
+
+		spi@1 {
+			compatible = "spidev";
+			reg = <1>;
+			spi-max-frequency = <57600000>;
+		};
+
+		spi@2 {
+			compatible = "spidev";
+			reg = <2>;
+			spi-max-frequency = <57600000>;
+		};
+	};
+};
+
+/* 2nd TX-Std UART - (A)UART1  */
+&auart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&auart1_pins_a>;
+	status = "okay";
+};
+
+/* 3rd TX-Std UART - (A)UART3  */
+&auart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&auart3_pins_a>;
+	status = "okay";
+};
+
+&can0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&can0_pins_a>;
+	xceiver-supply = <&reg_can_xcvr>;
+	status = "okay";
+};
+
+&can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&can1_pins_a>;
+	xceiver-supply = <&reg_can_xcvr>;
+	status = "okay";
+};
+
+&digctl {
+	status = "okay";
+};
+
+/* 1st TX-Std UART - (D)UART */
+&duart {
+	pinctrl-names = "default";
+	pinctrl-0 = <&duart_4pins_a>;
+	status = "okay";
+};
+
+&gpmi {
+	pinctrl-0 = <&gpmi_pins_a &gpmi_status_cfg>;
+	nand-on-flash-bbt;
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins_a>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	sgtl5000: sgtl5000@a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		VDDA-supply = <&reg_2p5v>;
+		VDDIO-supply = <&reg_3p3v>;
+		clocks = <&mclk>;
+	};
+
+	gpio5: pca953x@20 {
+		compatible = "nxp,pca9554";
+		reg = <0x20>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tx28_pca9554_pins>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <28 IRQ_TYPE_NONE>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
+	polytouch: edt-ft5x06@38 {
+		compatible = "edt,edt-ft5x06";
+		reg = <0x38>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tx28_edt_ft5x06_pins>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
+		wake-gpios = <&gpio4 9 GPIO_ACTIVE_HIGH>;
+		wakeup-source;
+	};
+
+	touchscreen: tsc2007@48 {
+		compatible = "ti,tsc2007";
+		reg = <0x48>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tx28_tsc2007_pins>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <20 IRQ_TYPE_EDGE_FALLING>;
+		pendown-gpio = <&gpio3 20 GPIO_ACTIVE_LOW>;
+		ti,x-plate-ohms = /bits/ 16 <660>;
+	};
+
+	ds1339: rtc@68 {
+		compatible = "mxim,ds1339";
+		reg = <0x68>;
+		trickle-resistor-ohms = <250>;
+		trickle-diode-disable;
+	};
+};
+
+&lcdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcdif_24bit_pins_a &lcdif_sync_pins_a &tx28_lcdif_ctrl_pins>;
+	lcd-supply = <&reg_lcd>;
+	display = <&display0>;
+	status = "okay";
+
+	display0: display0 {
+		bits-per-pixel = <32>;
+		bus-width = <24>;
+		display-timings {
+			native-mode = <&timing5>;
+			timing0: timing0 {
+				panel-name = "VGA";
+				clock-frequency = <25175000>;
+				hactive = <640>;
+				vactive = <480>;
+				hback-porch = <48>;
+				hsync-len = <96>;
+				hfront-porch = <16>;
+				vback-porch = <33>;
+				vsync-len = <2>;
+				vfront-porch = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <1>;
+			};
+
+			timing1: timing1 {
+				panel-name = "ETV570";
+				clock-frequency = <25175000>;
+				hactive = <640>;
+				vactive = <480>;
+				hback-porch = <114>;
+				hsync-len = <30>;
+				hfront-porch = <16>;
+				vback-porch = <32>;
+				vsync-len = <3>;
+				vfront-porch = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <1>;
+			};
+
+			timing2: timing2 {
+				panel-name = "ET0350";
+				clock-frequency = <6500000>;
+				hactive = <320>;
+				vactive = <240>;
+				hback-porch = <34>;
+				hsync-len = <34>;
+				hfront-porch = <20>;
+				vback-porch = <15>;
+				vsync-len = <3>;
+				vfront-porch = <4>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <1>;
+			};
+
+			timing3: timing3 {
+				panel-name = "ET0430";
+				clock-frequency = <9000000>;
+				hactive = <480>;
+				vactive = <272>;
+				hback-porch = <2>;
+				hsync-len = <41>;
+				hfront-porch = <2>;
+				vback-porch = <2>;
+				vsync-len = <10>;
+				vfront-porch = <2>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <1>;
+			};
+
+			timing4: timing4 {
+				panel-name = "ET0500", "ET0700";
+				clock-frequency = <33260000>;
+				hactive = <800>;
+				vactive = <480>;
+				hback-porch = <88>;
+				hsync-len = <128>;
+				hfront-porch = <40>;
+				vback-porch = <33>;
+				vsync-len = <2>;
+				vfront-porch = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <1>;
+			};
+
+			timing5: timing5 {
+				panel-name = "ETQ570";
+				clock-frequency = <6400000>;
+				hactive = <320>;
+				vactive = <240>;
+				hback-porch = <38>;
+				hsync-len = <30>;
+				hfront-porch = <30>;
+				vback-porch = <16>;
+				vsync-len = <3>;
+				vfront-porch = <4>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <1>;
+			};
+		};
+	};
+};
+
+&lradc {
+	fsl,lradc-touchscreen-wires = <4>;
+	status = "okay";
+};
+
+&mac0 {
+	phy-mode = "rmii";
+	pinctrl-names = "default", "gpio_mode";
+	pinctrl-0 = <&mac0_pins_a>;
+	pinctrl-1 = <&tx28_mac0_pins_gpio>;
+	status = "okay";
+};
+
+&mac1 {
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mac1_pins_a>;
+	/* not enabled by default */
+};
+
+&mxs_rtc {
+	status = "okay";
+};
+
+&ocotp {
+	status = "okay";
+};
+
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm0_pins_a>;
+	status = "okay";
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hog_pins_a>;
+
+	hog_pins_a: hog@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_ENET0_RXD3__GPIO_4_10 /* module LED */
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	tx28_edt_ft5x06_pins: tx28-edt-ft5x06-pins@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_SSP0_DATA6__GPIO_2_6 /* RESET */
+			MX28_PAD_SSP0_DATA5__GPIO_2_5 /* IRQ */
+			MX28_PAD_ENET0_RXD2__GPIO_4_9 /* WAKE */
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	tx28_flexcan_xcvr_pins: tx28-flexcan-xcvr-pins@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_LCD_D00__GPIO_1_0
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	tx28_lcdif_23bit_pins: tx28-lcdif-23bit@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			/* LCD_D00 may be used as Flexcan Transceiver Enable on STK5-V5 */
+			MX28_PAD_LCD_D01__LCD_D1
+			MX28_PAD_LCD_D02__LCD_D2
+			MX28_PAD_LCD_D03__LCD_D3
+			MX28_PAD_LCD_D04__LCD_D4
+			MX28_PAD_LCD_D05__LCD_D5
+			MX28_PAD_LCD_D06__LCD_D6
+			MX28_PAD_LCD_D07__LCD_D7
+			MX28_PAD_LCD_D08__LCD_D8
+			MX28_PAD_LCD_D09__LCD_D9
+			MX28_PAD_LCD_D10__LCD_D10
+			MX28_PAD_LCD_D11__LCD_D11
+			MX28_PAD_LCD_D12__LCD_D12
+			MX28_PAD_LCD_D13__LCD_D13
+			MX28_PAD_LCD_D14__LCD_D14
+			MX28_PAD_LCD_D15__LCD_D15
+			MX28_PAD_LCD_D16__LCD_D16
+			MX28_PAD_LCD_D17__LCD_D17
+			MX28_PAD_LCD_D18__LCD_D18
+			MX28_PAD_LCD_D19__LCD_D19
+			MX28_PAD_LCD_D20__LCD_D20
+			MX28_PAD_LCD_D21__LCD_D21
+			MX28_PAD_LCD_D22__LCD_D22
+			MX28_PAD_LCD_D23__LCD_D23
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	tx28_lcdif_ctrl_pins: tx28-lcdif-ctrl@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_LCD_ENABLE__GPIO_1_31 /* Enable */
+			MX28_PAD_LCD_RESET__GPIO_3_30  /* Reset */
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	tx28_mac0_pins_gpio: tx28-mac0-gpio-pins@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_ENET0_MDC__GPIO_4_0
+			MX28_PAD_ENET0_MDIO__GPIO_4_1
+			MX28_PAD_ENET0_RX_EN__GPIO_4_2
+			MX28_PAD_ENET0_RXD0__GPIO_4_3
+			MX28_PAD_ENET0_RXD1__GPIO_4_4
+			MX28_PAD_ENET0_TX_EN__GPIO_4_6
+			MX28_PAD_ENET0_TXD0__GPIO_4_7
+			MX28_PAD_ENET0_TXD1__GPIO_4_8
+			MX28_PAD_ENET_CLK__GPIO_4_16
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	tx28_pca9554_pins: tx28-pca9554-pins@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_PWM3__GPIO_3_28
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	tx28_spi_gpio_pins: spi-gpiogrp@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_AUART2_RX__GPIO_3_8
+			MX28_PAD_AUART2_TX__GPIO_3_9
+			MX28_PAD_SSP3_SCK__GPIO_2_24
+			MX28_PAD_SSP3_MOSI__GPIO_2_25
+			MX28_PAD_SSP3_MISO__GPIO_2_26
+			MX28_PAD_SSP3_SS0__GPIO_2_27
+		>;
+		fsl,drive-strength = <MXS_DRIVE_8mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	tx28_tsc2007_pins: tx28-tsc2007-pins@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_SAIF0_MCLK__GPIO_3_20 /* TSC2007 IRQ */
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+
+	tx28_usbphy0_pins: tx28-usbphy0-pins@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_GPMI_CE2N__GPIO_0_18 /* USBOTG_VBUSEN */
+			MX28_PAD_GPMI_CE3N__GPIO_0_19 /* USBOTH_OC */
+		>;
+		fsl,drive-strength = <MXS_DRIVE_12mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	tx28_usbphy1_pins: tx28-usbphy1-pins@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_SPDIF__GPIO_3_27 /* USBH_VBUSEN */
+			MX28_PAD_JTAG_RTCK__GPIO_4_20 /* USBH_OC */
+		>;
+		fsl,drive-strength = <MXS_DRIVE_12mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+};
+
+&saif0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&saif0_pins_b>;
+	fsl,saif-master;
+	status = "okay";
+};
+
+&saif1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&saif1_pins_a>;
+	status = "okay";
+};
+
+&ssp0 {
+	compatible = "fsl,imx28-mmc";
+	pinctrl-names = "default", "special";
+	pinctrl-0 = <&mmc0_4bit_pins_a
+		     &mmc0_cd_cfg
+		     &mmc0_sck_cfg>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+&ssp3 {
+	compatible = "fsl,imx28-spi";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi3_pins_a>;
+	clock-frequency = <57600000>;
+	status = "okay";
+
+	spi@0 {
+		compatible = "spidev";
+		reg = <0>;
+		spi-max-frequency = <57600000>;
+	};
+
+	spi@1 {
+		compatible = "spidev";
+		reg = <1>;
+		spi-max-frequency = <57600000>;
+	};
+
+	spi@2 {
+		compatible = "spidev";
+		reg = <2>;
+		spi-max-frequency = <57600000>;
+	};
+};
+
+&usb0 {
+	vbus-supply = <&reg_usb0_vbus>;
+	disable-over-current;
+	dr_mode = "peripheral";
+	status = "okay";
+};
+
+&usb1 {
+	vbus-supply = <&reg_usb1_vbus>;
+	disable-over-current;
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usbphy0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&tx28_usbphy0_pins>;
+	phy_type = "utmi";
+	status = "okay";
+};
+
+&usbphy1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&tx28_usbphy1_pins>;
+	phy_type = "utmi";
+	status = "okay";
+};

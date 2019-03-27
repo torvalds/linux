@@ -1,0 +1,207 @@
+@(#) README.NIS 1.2 96/02/11 17:24:52
+
+> Problem: I have several [machines] with multiple IP addresses, and
+> when they try to connect to a daemon with tcp wrapper, they are often
+> rejected.  I assume this is due to the -DPARANOID option, and depends
+> on which IP address is returned first from the nameserver for a given
+> name.   This behavior seems to be random, may depend on ordering in
+> the YP host map?
+
+[Note: the situation described below no longer exists. Presently, my
+internet gateway uses the same IP address on all interfaces.  To avoid
+confusion I have removed the old name wzv-gw.win.tue.nl from the DNS. I
+have kept the discussion below for educational reasons].
+
+NIS was not designed to handle multi-homed hosts.  With NIS, each
+address should have its own hostname. For example, wzv-gw is my
+gateway. It has two interfaces: one connected to the local ethernet,
+the other to a serial link. In the NIS it is registered as:
+
+        131.155.210.23  wzv-gw-ether
+        131.155.12.78   wzv-gw-slip
+
+In principle, wzv-gw could be the official name of one of these
+interfaces, or it could be an alias for both.
+
+The DNS was designed to handle multi-homed hosts. In the DNS my gateway
+is registered in zone win.tue.nl, with one name that has two A records:
+
+        wzv-gw  IN      A       131.155.210.23
+                IN      A       131.155.12.78
+
+And of course there are PTR records in zones 210.155.131.in-addr.arpa
+and 12.155.131.in-addr.arpa that point to wzv-gw.win.tue.nl.
+
+This setup does not cause any problems. You can test your name service
+with the two programs below. This is what they say on a local NIS client
+(both client and server running SunOS 4.1.3_U1):
+
+        % gethostbyname wzv-gw
+        Hostname:       wzv-gw.win.tue.nl
+        Aliases:        
+        Addresses:      131.155.210.23 131.155.12.78 
+
+        % gethostbyaddr 131.155.210.23
+        Hostname:       wzv-gw-ether
+        Aliases:        
+        Addresses:      131.155.210.23 
+
+        % gethostbyaddr 131.155.12.78
+        Hostname:       wzv-gw-slip
+        Aliases:        
+        Addresses:      131.155.12.78 
+
+Things seem less confusing when seen by a NIS client in a different
+domain (both client and server running SunOS 4.1.3_U1):
+
+        % gethostbyname wzv-gw.win.tue.nl
+        Hostname:       wzv-gw.win.tue.nl
+        Aliases:        
+        Addresses:      131.155.210.23 131.155.12.78 
+
+        % gethostbyaddr 131.155.210.23
+        Hostname:       wzv-gw.win.tue.nl
+        Aliases:        
+        Addresses:      131.155.12.78 131.155.210.23
+
+        % gethostbyaddr 131.155.12.78
+        Hostname:       wzv-gw.win.tue.nl
+        Aliases:        
+        Addresses:      131.155.210.23 131.155.12.78
+
+Alas, Solaris 2.4 still has problems. This is what I get on a Solaris
+2.4 NIS client, with a SunOS 4.1.3_U1 NIS server:
+
+	% gethostbyname wzv-gw.win.tue.nl
+	Hostname:       wzv-gw.win.tue.nl
+	Aliases:        131.155.210.23 wzv-gw.win.tue.nl 
+	Addresses:      131.155.12.78 
+
+The tcpd source comes with a workaround for this problem. The
+workaround is ugly and is not part of the programs attached below.
+
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  gethostbyaddr.c gethostbyname.c
+# Wrapped by wietse@wzv on Sun Jan  8 17:08:48 1995
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f gethostbyaddr.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"gethostbyaddr.c\"
+else
+echo shar: Extracting \"gethostbyaddr.c\" \(1073 characters\)
+sed "s/^X//" >gethostbyaddr.c <<'END_OF_gethostbyaddr.c'
+X /*
+X  * gethostbyaddr tester. compile with:
+X  * 
+X  * cc -o gethostbyaddr gethostbyaddr.c (SunOS 4.x)
+X  * 
+X  * cc -o gethostbyaddr gethostbyaddr.c -lnsl (SunOS 5.x)
+X  * 
+X  * run as: gethostbyaddr address
+X  * 
+X  * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+X  */
+X
+X#include <sys/types.h>
+X#include <sys/socket.h>
+X#include <netinet/in.h>
+X#include <arpa/inet.h>
+X#include <netdb.h>
+X#include <stdio.h>
+X
+Xmain(argc, argv)
+Xint     argc;
+Xchar  **argv;
+X{
+X    struct hostent *hp;
+X    long    addr;
+X
+X    if (argc != 2) {
+X	fprintf(stderr, "usage: %s i.p.addres\n", argv[0]);
+X	exit(1);
+X    }
+X    addr = inet_addr(argv[1]);
+X    if (hp = gethostbyaddr((char *) &addr, sizeof(addr), AF_INET)) {
+X	printf("Hostname:\t%s\n", hp->h_name);
+X	printf("Aliases:\t");
+X	while (hp->h_aliases[0])
+X	    printf("%s ", *hp->h_aliases++);
+X	printf("\n");
+X	printf("Addresses:\t");
+X	while (hp->h_addr_list[0])
+X	    printf("%s ", inet_ntoa(*(struct in_addr *) * hp->h_addr_list++));
+X	printf("\n");
+X	exit(0);
+X    }
+X    fprintf(stderr, "host %s not found\n", argv[1]);
+X    exit(1);
+X}
+END_OF_gethostbyaddr.c
+if test 1073 -ne `wc -c <gethostbyaddr.c`; then
+    echo shar: \"gethostbyaddr.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f gethostbyname.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"gethostbyname.c\"
+else
+echo shar: Extracting \"gethostbyname.c\" \(999 characters\)
+sed "s/^X//" >gethostbyname.c <<'END_OF_gethostbyname.c'
+X /*
+X  * gethostbyname tester. compile with:
+X  * 
+X  * cc -o gethostbyname gethostbyname.c (SunOS 4.x)
+X  * 
+X  * cc -o gethostbyname gethostbyname.c -lnsl (SunOS 5.x)
+X  * 
+X  * run as: gethostbyname hostname
+X  * 
+X  * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+X  */
+X#include <sys/types.h>
+X#include <sys/socket.h>
+X#include <netinet/in.h>
+X#include <arpa/inet.h>
+X#include <netdb.h>
+X#include <stdio.h>
+X
+Xmain(argc, argv)
+Xint     argc;
+Xchar  **argv;
+X{
+X    struct hostent *hp;
+X
+X    if (argc != 2) {
+X	fprintf(stderr, "usage: %s hostname\n", argv[0]);
+X	exit(1);
+X    }
+X    if (hp = gethostbyname(argv[1])) {
+X	printf("Hostname:\t%s\n", hp->h_name);
+X	printf("Aliases:\t");
+X	while (hp->h_aliases[0])
+X	    printf("%s ", *hp->h_aliases++);
+X	printf("\n");
+X	printf("Addresses:\t");
+X	while (hp->h_addr_list[0])
+X	    printf("%s ", inet_ntoa(*(struct in_addr *) * hp->h_addr_list++));
+X	printf("\n");
+X	exit(0);
+X    } else {
+X	fprintf(stderr, "host %s not found\n", argv[1]);
+X	exit(1);
+X    }
+X}
+END_OF_gethostbyname.c
+if test 999 -ne `wc -c <gethostbyname.c`; then
+    echo shar: \"gethostbyname.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+echo shar: End of shell archive.
+exit 0

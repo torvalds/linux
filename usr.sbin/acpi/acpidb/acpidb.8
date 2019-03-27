@@ -1,0 +1,167 @@
+.\"-
+.\" Copyright (c) 2003 Nate Lawson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 7, 2003
+.Dt ACPIDB 8
+.Os
+.Sh NAME
+.Nm acpidb
+.Nd ACPI DSDT debugger
+.Sh SYNOPSIS
+.Nm
+.Ar input-file
+.Sh DESCRIPTION
+The
+.Nm
+utility is a debugger for the ACPI DSDT.
+It can parse and execute various
+AML methods and display the result.
+.Sh COMMANDS
+.Ss General-Purpose Commands
+.Bl -tag -width indent
+.It Ic Allocations
+Display list of current memory allocations
+.It Ic Dump Ar Address | Namepath Op Cm Byte | Word | Dword | Qword
+Display ACPI objects or memory
+.It Ic EnableAcpi
+Enable ACPI (hardware) mode
+.It Ic Help
+Show various help screens
+.It Ic History
+Display command history buffer
+.It Ic Level Ar DebugLevel Op Cm console
+Get/Set debug level for file or console
+.It Ic Locks
+Current status of internal mutexes
+.It Ic Quit No or Ic Exit
+Exit the debugger
+.It Ic Stats Op Cm Allocations | Memory | Misc | Objects | Tables
+Display namespace and memory statistics
+.It Ic Tables
+Display info about loaded ACPI tables
+.It Ic Unload Ar TableSig Op Ar Instance
+Unload an ACPI table
+.It Ic !\& Ar CommandNumber
+Execute command from history buffer
+.It Ic !!
+Execute last command again
+.El
+.Ss Namespace Access Commands
+.Bl -tag -width indent
+.It Ic Event Cm F | G Ar Value
+Generate AcpiEvent (Fixed/GPE)
+.It Ic Find Ar Name
+Find ACPI name(s) with wildcards
+.Ql ( ?\&
+is wildcard)
+.It Ic Method
+Display list of loaded control methods
+.It Ic Namespace Oo Ar Addr | Path Oc Op Ar Depth
+Display loaded namespace tree/subtree
+.It Ic Notify Ar NamePath Value
+Send a notification
+.It Ic Objects Ar ObjectType
+Display all objects of the given type
+.It Ic Owner Ar OwnerId Op Ar Depth
+Display loaded namespace by object owner
+.It Ic Prefix Op Ar NamePath
+Set or Get current execution prefix
+.It Ic References Ar Addr
+Find all references to object at addr
+.It Ic Resources
+Get and display resources
+.It Ic Terminate
+Delete namespace and all internal objects
+.It Ic Thread Ar Threads Loops NamePath
+Spawn threads to execute method(s)
+.El
+.Ss Control Method Execution Commands
+.Bl -tag -width indent
+.It Ic Arguments
+.Pq Ic Args
+Display method arguments
+.It Ic Breakpoint Ar AmlOffset
+Set an AML execution breakpoint
+.It Ic Call
+Run to next control method invocation
+.It Ic Debug Ar Namepath Op Ar Arguments
+Single Step a control method
+.It Ic Execute Ar Namepath Op Arguments
+Execute control method
+.It Ic Go
+Allow method to run to completion
+.It Ic Information
+Display info about the current method
+.It Ic Into
+Step into (not over) a method call
+.It Ic List Op OpcodeCount
+Display method ASL statements
+.It Ic Locals
+Display method local variables
+.It Ic Results
+Display method result stack
+.It Ic Set Cm A | L Ar # Value
+Set method data (Arguments/Locals)
+.It Ic Stop
+Terminate control method
+.It Ic Tree
+Display control method calling tree
+.It Ic <Enter>
+Single step next AML opcode (over calls)
+.El
+.Ss File I/O Commands
+.Bl -tag -width indent
+.It Ic Close
+Close debug output file
+.It Ic Open Ar Filename
+Open a file for debug output
+.It Ic Load Ar Filename
+Load ACPI table from a file
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr acpidump 8 ,
+.Xr iasl 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in the
+.Nm acpicatools
+port.
+It was imported for
+.Fx 5.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An Mitsuru Iwasaki Aq Mt iwasaki@FreeBSD.org
+and uses Intel ACPI-CA for the backend.
+This manual page was written by
+.An Nate Lawson .

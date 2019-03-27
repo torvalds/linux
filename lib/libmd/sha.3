@@ -1,0 +1,188 @@
+.\"
+.\" ----------------------------------------------------------------------------
+.\" "THE BEER-WARE LICENSE" (Revision 42):
+.\" <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you
+.\" can do whatever you want with this stuff. If we meet some day, and you think
+.\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+.\" ----------------------------------------------------------------------------
+.\"
+.\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
+.\" $FreeBSD$
+.\"
+.Dd July 20, 2018
+.Dt SHA 3
+.Os
+.Sh NAME
+.Nm SHA_Init ,
+.Nm SHA_Update ,
+.Nm SHA_Final ,
+.Nm SHA_End ,
+.Nm SHA_File ,
+.Nm SHA_FileChunk ,
+.Nm SHA_Data ,
+.Nm SHA1_Init ,
+.Nm SHA1_Update ,
+.Nm SHA1_Final ,
+.Nm SHA1_End ,
+.Nm SHA1_File ,
+.Nm SHA1_FileChunk ,
+.Nm SHA1_Data
+.Nd calculate the FIPS 160 and 160-1 ``SHA'' message digests
+.Sh LIBRARY
+.Lb libmd
+.Sh SYNOPSIS
+.In sys/types.h
+.In sha.h
+.Ft void
+.Fn SHA_Init "SHA_CTX *context"
+.Ft void
+.Fn SHA_Update "SHA_CTX *context" "const unsigned char *data" "size_t len"
+.Ft void
+.Fn SHA_Final "unsigned char digest[20]" "SHA_CTX *context"
+.Ft "char *"
+.Fn SHA_End "SHA_CTX *context" "char *buf"
+.Ft "char *"
+.Fn SHA_File "const char *filename" "char *buf"
+.Ft "char *"
+.Fn SHA_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
+.Fn SHA_Data "const unsigned char *data" "unsigned int len" "char *buf"
+.Ft void
+.Fn SHA1_Init "SHA_CTX *context"
+.Ft void
+.Fn SHA1_Update "SHA_CTX *context" "const unsigned char *data" "size_t len"
+.Ft void
+.Fn SHA1_Final "unsigned char digest[20]" "SHA_CTX *context"
+.Ft "char *"
+.Fn SHA1_End "SHA_CTX *context" "char *buf"
+.Ft "char *"
+.Fn SHA1_File "const char *filename" "char *buf"
+.Ft "char *"
+.Fn SHA1_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
+.Fn SHA1_Data "const unsigned char *data" "unsigned int len" "char *buf"
+.Sh DESCRIPTION
+The
+.Li SHA_
+and
+.Li SHA1_
+functions calculate a 160-bit cryptographic checksum (digest)
+for any number of input bytes.
+A cryptographic checksum is a one-way
+hash function; that is, it is computationally impractical to find
+the input corresponding to a particular output.
+This net result is
+a
+.Dq fingerprint
+of the input-data, which does not disclose the actual input.
+.Pp
+.Tn SHA
+(or
+.Tn SHA-0 )
+is the original Secure Hash Algorithm specified in
+.Tn FIPS
+160.
+It was quickly proven insecure, and has been superseded by
+.Tn SHA-1 .
+.Tn SHA-0
+is included for compatibility purposes only.
+.Pp
+The
+.Fn SHA1_Init ,
+.Fn SHA1_Update ,
+and
+.Fn SHA1_Final
+functions are the core functions.
+Allocate an
+.Vt SHA_CTX ,
+initialize it with
+.Fn SHA1_Init ,
+run over the data with
+.Fn SHA1_Update ,
+and finally extract the result using
+.Fn SHA1_Final ,
+which will also erase the
+.Vt SHA_CTX .
+.Pp
+.Fn SHA1_End
+is a wrapper for
+.Fn SHA1_Final
+which converts the return value to a 41-character
+(including the terminating '\e0')
+.Tn ASCII
+string which represents the 160 bits in hexadecimal.
+.Pp
+.Fn SHA1_File
+calculates the digest of a file, and uses
+.Fn SHA1_End
+to return the result.
+If the file cannot be opened, a null pointer is returned.
+.Fn SHA1_FileChunk
+is similar to
+.Fn SHA1_File ,
+but it only calculates the digest over a byte-range of the file specified,
+starting at
+.Fa offset
+and spanning
+.Fa length
+bytes.
+If the
+.Fa length
+parameter is specified as 0, or more than the length of the remaining part
+of the file,
+.Fn SHA1_FileChunk
+calculates the digest from
+.Fa offset
+to the end of file.
+.Fn SHA1_Data
+calculates the digest of a chunk of data in memory, and uses
+.Fn SHA1_End
+to return the result.
+.Pp
+When using
+.Fn SHA1_End ,
+.Fn SHA1_File ,
+or
+.Fn SHA1_Data ,
+the
+.Fa buf
+argument can be a null pointer, in which case the returned string
+is allocated with
+.Xr malloc 3
+and subsequently must be explicitly deallocated using
+.Xr free 3
+after use.
+If the
+.Fa buf
+argument is non-null it must point to at least 41 characters of buffer space.
+.Sh SEE ALSO
+.Xr md4 3 ,
+.Xr md5 3 ,
+.Xr ripemd 3 ,
+.Xr sha256 3 ,
+.Xr sha512 3 ,
+.Xr skein 3
+.Sh HISTORY
+These functions appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+The core hash routines were implemented by Eric Young based on the
+published
+.Tn FIPS
+standards.
+.Sh BUGS
+No method is known to exist which finds two files having the same hash value,
+nor to find a file with a specific hash value.
+There is on the other hand no guarantee that such a method does not exist.
+.Pp
+The
+.Tn IA32
+(Intel) implementation of
+.Tn SHA-1
+makes heavy use of the
+.Ql bswapl
+instruction, which is not present on the original 80386.
+Attempts to use
+.Tn SHA-1
+on those processors will cause an illegal instruction trap.
+(Arguably, the kernel should simply emulate this instruction.)

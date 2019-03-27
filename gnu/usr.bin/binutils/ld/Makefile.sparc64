@@ -1,0 +1,32 @@
+# $FreeBSD$
+
+NATIVE_EMULATION= elf64_sparc_fbsd
+
+SRCS+=		e${NATIVE_EMULATION}.c
+CLEANFILES+=	e${NATIVE_EMULATION}.c
+e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em \
+    scripttempl/elf.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSEARCHPATH} \
+	    ${TOOLS_PREFIX}/usr \
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    ${NATIVE_EMULATION} "" no ${NATIVE_EMULATION} ${TARGET_TUPLE}
+
+
+.for BITS in 64 32
+
+EMS+=		elf${BITS}_sparc
+.for ext in ${ELF_SCR_EXT}
+LDSCRIPTS+=	elf${BITS}_sparc.${ext}
+ldscripts/elf${BITS}_sparc.${ext}: eelf${BITS}_sparc.c
+.endfor
+
+SRCS+=		eelf${BITS}_sparc.c
+CLEANFILES+=	eelf${BITS}_sparc.c
+eelf${BITS}_sparc.c: emulparams/elf${BITS}_sparc.sh emultempl/elf32.em \
+    scripttempl/elf.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSEARCHPATH} \
+	    ${TOOLS_PREFIX}/usr \
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    elf${BITS}_sparc "" no elf${BITS}_sparc ${TARGET_TUPLE}
+
+.endfor	# BITS

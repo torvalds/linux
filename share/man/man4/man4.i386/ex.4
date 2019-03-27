@@ -1,0 +1,127 @@
+.\"
+.\" Copyright (c) 1997 David E. O'Brien
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 24, 2018
+.Dt EX 4 i386
+.Os
+.Sh NAME
+.Nm ex
+.Nd "Ethernet device driver for the Intel EtherExpress Pro/10 and Pro/10+"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ex"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ex_load="YES"
+.Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Ethernet adapters based on the Intel
+i82595 chip.
+.Pp
+On the ISA bus, the card will be searched for in the
+I/O address range 0x200 - 0x3a0.
+The IRQ will be read from the EEPROM on the card.
+For correct operation Plug-N-Play support should be disabled.
+.Pp
+On the PC Card bus, the card will be automatically recognized and
+configured.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following Ethernet adapters:
+.Pp
+.Bl -bullet -compact
+.It
+Intel EtherExpress Pro/10 ISA
+.It
+Intel EtherExpress Pro/10+ ISA
+.It
+Olicom OC2220 Ethernet PC Card
+.It
+Olicom OC2232 Ethernet/Modem PC Card
+.It
+Silicom Ethernet LAN PC Card
+.It
+Silicom EtherSerial LAN PC Card
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ex%d: Intel EtherExpress Pro/10, address %6D, connector %s"
+The device probe found an installed card, and was able to correctly install
+the device driver.
+.It "ex%d: WARNING: board's EEPROM is configured for IRQ %d, using %d"
+The device probe detected that the board is configured for a different
+interrupt than the one specified in the kernel configuration file.
+.It "ex%d: invalid IRQ."
+The device probe detected an invalid IRQ setting.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An Javier Mart\('in Rueda .
+The PC Card attachment was written by
+.An Mitsuru ISAWAKI
+and
+.An Warner Losh .
+This manual page was written by
+.An David E. O'Brien .
+.Sh BUGS
+Currently the driver does not support multicast.
+.Pp
+The Silicom EtherSerial card's serial port does not currently work.
+The Olicom OC2232 PC Card should work with the
+.Nm
+driver, but is currently completely broken.

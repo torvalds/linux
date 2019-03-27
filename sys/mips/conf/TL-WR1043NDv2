@@ -1,0 +1,53 @@
+#
+# TP-Link TL-WR1043nd v2 - based on the AP135 reference design.
+#
+# This contains a QCA9558 MIPS74k SoC with on-board 3x3 2GHz wifi,
+# 64MiB RAM and an AR8327 5-port gigabit ethernet switch.
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+# Include the default QCA955x parameters
+include         "std.QCA955X"
+
+ident           TL-WR1043NDv2
+
+# Override hints with board values
+hints           "TL-WR1043NDv2.hints"
+
+options         AR71XX_REALMEM=(64*1024*1024)
+
+# Options required for miiproxy and mdiobus
+options 	ARGE_MDIO	# Export an MDIO bus separate from arge
+device		miiproxy	# MDIO bus <-> MII PHY rendezvous
+
+device		etherswitch
+device		arswitch
+
+# read MSDOS formatted disks - USB
+options 	MSDOSFS
+
+# Enable the uboot environment stuff rather then the
+# redboot stuff.
+options 	AR71XX_ENV_UBOOT
+
+# uzip - to boot natively from flash
+device		xz
+options 	GEOM_UZIP
+
+# Used for the static uboot partition map
+device          geom_map
+
+# yes, this board has a PCI connected atheros device
+#device		ath_pci
+#options 	AR71XX_ATH_EEPROM
+#device		firmware		# Used by the above
+#options 	ATH_EEPROM_FIRMWARE
+
+# Boot off of the rootfs, as defined in the geom_map setup.
+options 	ROOTDEVNAME=\"ufs:map/rootfs.uzip\"
+
+# Default to accept
+options		IPFIREWALL_DEFAULT_TO_ACCEPT

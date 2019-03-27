@@ -1,0 +1,17 @@
+
+#------------------------------------------------------------------------------
+# $File: vicar,v 1.4 2009/09/19 16:28:13 christos Exp $
+# vicar:  file(1) magic for VICAR files.
+#
+# From: Ossama Othman <othman@astrosun.tn.cornell.edu
+# VICAR is JPL's in-house spacecraft image processing program
+# VICAR image
+0	string	LBLSIZE=	VICAR image data
+>32	string	BYTE		\b, 8 bits  = VAX byte
+>32	string	HALF		\b, 16 bits = VAX word     = Fortran INTEGER*2
+>32	string	FULL		\b, 32 bits = VAX longword = Fortran INTEGER*4
+>32	string	REAL		\b, 32 bits = VAX longword = Fortran REAL*4
+>32	string	DOUB		\b, 64 bits = VAX quadword = Fortran REAL*8
+>32	string	COMPLEX		\b, 64 bits = VAX quadword = Fortran COMPLEX*8
+# VICAR label file
+43	string	SFDU_LABEL	VICAR label file

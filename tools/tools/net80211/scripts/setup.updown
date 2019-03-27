@@ -1,0 +1,26 @@
+#! /bin/sh
+#
+# Script for test vap create+destroy.  Also used to verify
+# resources are reclaimed properly on destroy.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+$WLANWATCH&
+
+#mwldebug state+node+reset+xmit+recv+beacon+hal+hal2
+while true
+do
+    WLAN=`ifconfig wlan create wlanmode hostap wlandev $WIRELESS`
+    ifconfig $WLAN ssid $SSID channel $CHANNEL mtu 1500
+    BRIDGE=`ifconfig bridge create`
+    ifconfig $BRIDGE addm $WLAN addm $WIRED up
+    ifconfig $WIRED up
+    wlandebug -i $WLAN state+scan+assoc
+    ifconfig $WLAN up
+    read x
+    ifconfig $WLAN destroy
+    ifconfig $BRIDGE destroy
+done

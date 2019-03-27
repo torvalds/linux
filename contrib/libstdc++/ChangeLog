@@ -1,0 +1,479 @@
+2008-05-19  Release Manager
+
+	* GCC 4.2.4 released.
+
+2008-03-13  David Edelsohn  <edelsohn@gnu.org>
+
+	Backport from mainline:
+	2008-01-26  David Edelsohn  <edelsohn@gnu.org>
+
+        PR target/34794
+        * config/os/aix/os_defines.h: Define __COMPATMATH__.
+
+2008-02-14  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* testsuite/27_io/fpos/14320-1.cc: Check for "long long" and
+	remove XFAIL.
+
+2008-02-01  Release Manager
+
+	* GCC 4.2.3 released.
+
+2008-01-06  Ted Phelps  <phelps@gnusto.com>
+
+	PR c++/34152
+	* libsupc++/eh_personality.cc (PERSONALITY_FUNCTION): Check
+	_GLIBCXX_HAVE_GETIPINFO instead of HAVE_GETIPINFO.
+
+2008-01-05  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/34680
+
+	Revert:
+	2007-12-17  Jonathan Wakely  <jwakely.gcc@gmail.com>
+	* include/bits/locale_facets.tcc (has_facet, use_facet): Simplify
+	RTTI checks.
+
+	2007-12-14  Benjamin Kosnik  <bkoz@redhat.com>
+
+        PR libstdc++/30127
+        PR libstdc++/34449
+        * include/bits/locale_facets.tcc (use_facet): Check facet hierarchy.
+        (has_facet): Same.
+        * testsuite/22_locale/global_templates/user_facet_hierarchies.cc: New.
+        * testsuite/22_locale/global_templates/
+        standard_facet_hierarchies.cc: New.
+
+2007-12-17  Jonathan Wakely  <jwakely.gcc@gmail.com>
+
+	* include/bits/locale_facets.tcc (has_facet, use_facet): Simplify
+	RTTI checks.
+
+2007-12-17  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* testsuite/22_locale/global_templates/
+	standard_facet_hierarchies.cc: Fix for generic locale model.
+
+2007-12-14  Benjamin Kosnik  <bkoz@redhat.com>
+
+        PR libstdc++/30127
+        PR libstdc++/34449
+        * include/bits/locale_facets.tcc (use_facet): Check facet hierarchy.
+        (has_facet): Same.
+        * testsuite/22_locale/global_templates/user_facet_hierarchies.cc: New.
+        * testsuite/22_locale/global_templates/
+        standard_facet_hierarchies.cc: New.
+
+2007-11-26  Paolo Carlini  <pcarlini@suse.de>
+
+	* include/bits/locale_facets.tcc (num_put<>::_M_insert_int): When
+	ios_base::showpos and the type is signed and the value is zero,
+	prepend +.
+	* testsuite/22_locale/num_put/put/char/12.cc: New.
+	* testsuite/22_locale/num_put/put/wchar_t/12.cc: Likewise.
+
+2007-10-20  Paolo Carlini  <pcarlini@suse.de>
+
+	* include/tr1/random
+	(uniform_int<>::_M_call(_UniformRandomNumberGenerator&, result_type,
+	result_type, true_type)): Fix small thinko.
+
+2007-10-19  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/33815
+	* include/tr1/random
+	(uniform_int<>::_M_call(_UniformRandomNumberGenerator&, result_type,
+	result_type, true_type)): Avoid the modulo (which uses the low-order
+	bits).
+
+2007-10-18  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/33807
+	* include/bits/allocator.h (operator==(const allocator<_Tp>&,
+	const allocator<_Tp>&), operator!=(const allocator<_Tp>&,
+	const allocator<_Tp>&)): Add.
+	* testsuite/20_util/memory/allocator/33807.cc: New.
+	
+2007-10-14  Jonathan Wakely  <jwakely.gcc@gmail.com>
+
+	* docs/html/Makefile: Follow up to libstdc++/14991, remove target.
+
+2007-10-14  Jonathan Wakely  <jwakely.gcc@gmail.com>
+
+	* src/valarray-inst.cc, include/ext/atomicity.h,
+	include/ext/concurrence.h, include/bits/basic_string.h,
+	include/bits/fstream.tcc, include/ext/vstring.h: Fix comment typos.
+
+2007-10-14  Jonathan Wakely  <jwakely.gcc@gmail.com>
+
+	* include/tr1_impl/boost_shared_ptr.h: (__weak_ptr::lock()): Add
+	missing template argument.
+	* testsuite/tr1/2_general_utilities/memory/shared_ptr/
+	explicit_instantiation/2.cc: New.
+	* testsuite/tr1/2_general_utilities/memory/weak_ptr/
+	explicit_instantiation/2.cc: New.
+
+2007-10-11  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/33734
+	* include/ext/codecvt_specializations.h (encoding_state::good,
+	init, destroy): Use cast notation instead of reinterpret_cast.
+
+2007-10-07  Release Manager
+
+	* GCC 4.2.2 released.
+
+2007-10-06  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/33678	
+	* libsupc++/typeinfo (typeinfo): Revert ordering of virtual components.
+
+2007-08-28  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/33128
+	* include/tr1/random (uniform_int<>::_M_call): Deal with
+	__urng() returning negative values.
+	* testsuite/tr1/5_numerical_facilities/random/uniform_int/33128.cc:
+	New.
+
+2007-08-17  Johannes Willkomm  <willkomm@sc.rwth-aachen.de>
+
+	PR libstdc++/33084
+	* include/std/valarray (operator _Op(const _Tp&,
+	const valarray<>&)): Fix typo.
+	* testsuite/26_numerics/numeric_arrays/valarray/33084.cc: New.
+
+2007-07-19  Release Manager
+
+	* GCC 4.2.1 released.
+
+2007-07-05  Joerg Richter  <joerg.richter@pdv-fs.de>
+
+	PR libstdc++/31957
+	* include/Makefile.am: Work around an AIX sed oddity.
+	* include/Makefile.in: Regenerate.
+
+2007-06-28  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/32509
+	* acinclude.m4 (GLIBCXX_ENABLE_CLOCALE): Carry out the checks
+	involving the de_DE locale only if an auto locale config is
+	used for a target suitable for the gnu locale model.
+	* docs/html/install.html: Update.
+	* configure: Regenerated.
+
+2007-06-26  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/ext/throw_allocator.h: Fixes for -fno-exceptions.
+	* testsuite/util/testsuite_shared.cc: Same.
+	* testsuite/util/io/illegal_input_error.hpp: Same.
+	* testsuite/util/io/verified_cmd_line_input.cc: Same.
+
+	* libsupc++/typeinfo (type_info): Correct comment formatting,
+	clarify member access and public interface.
+	* libsupc++/exception: Less compressed comments.
+	* libsupc++/new: Same.
+
+2007-06-08  Paolo Carlini  <pcarlini@suse.de>
+
+	* docs/html/install.html: Adjust consistently with libstdc++/31717.
+
+2007-06-08  Francesco Palagi  <palagi@arcetri.astro.it>
+
+	* include/std/std_fstream.h: Add Table 92 in comment.
+
+2007-06-06  Benjamin Kosnik  <bkoz@redhat.com>
+	    Frank Mori Hess  <frank.hess@nist.gov>
+	
+	* docs/html/debug.html: Correct link.
+
+2007-05-28  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/31717 
+	* acinclude.m4 (GLIBCXX_ENABLE_CLOCALE): Re-organize. Sanity check
+	gnu locale model requests to make sure it will work for the requested
+	target. Add checks for strxfrm_l, strerror_l when in gnu locale,
+	and strerror_r everywhere.
+	* aclocal.m4: Regenerated.
+	* configure: Regenerated.
+	* config.h.in: Regenerated.
+
+2007-05-24  Paolo Carlini  <pcarlini@suse.de>
+
+	* include/bits/ostream.tcc: Do not inhibit implicit instantiation
+	of __ostream_insert here...
+	* include/bits/ostream_insert.h: ... do it here.
+
+2007-05-21  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/31621
+	* acinclude.m4 ([GLIBCXX_CHECK_LINKER_FEATURES]): Use the C compiler.
+	* configure: Regenerate.
+
+2007-05-13  Release Manager
+
+	* GCC 4.2.0 released.
+
+2007-04-12  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/28277 (partial: vstring bits)
+	* include/bits/ostream_insert.h: New.
+	* include/Makefile.am: Add.
+	* include/ext/vstring.h (operator<<(basic_ostream<>&,
+	const __versa_string<>&): Forward to __ostream_insert.
+	* include/bits/basic_string.h (operator<<(basic_ostream<>&,
+	const string<>&)): Likewise.
+	* include/std/std_ostream.h (operator<<(basic_ostream<>&, _CharT),
+	operator<<(basic_ostream<char,>&, char), operator<<(basic_ostream<>&,
+	const _CharT*), operator<<(basic_ostream<char,>&, const char*)):
+	Likewise.
+	* include/ext/vstring.tcc (operator<<(basic_ostream<>&,
+	const __versa_string<>&)): Remove.
+	(class basic_ostream): Remove friend declarations.
+	(basic_ostream<>::_M_write(char_type, streamsize),
+	_M_insert(const char_type*, streamsize)): Remove.
+	* include/bits/ostream.tcc (_M_insert(const char_type*, streamsize)):
+	Remove definition.
+	(operator<<(basic_ostream<>&, const char*)): Use __ostream_insert.
+	* include/ext/vstring_util.h: Include <bits/ostream_insert.h>.
+	* include/std/std_string.h: Likewise.
+	* config/abi/pre/gnu.ver: Adjust.
+	* src/ostream-inst.cc: Add __ostream_insert instantiations.
+	* include/Makefile.in: Rebuild.
+	* testsuite/ext/vstring/inserters_extractors/char/28277.cc: New.
+	* testsuite/ext/vstring/inserters_extractors/wchar_t/28277.cc: New.
+
+2007-04-07  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/31481
+	* include/ext/type_traits.h (__numeric_traits): Move...
+	* include/ext/numeric_traits.h: ... here; fix type of
+	__max_digits10.
+	* include/Makefile.am: Add.
+	* include/ext/pb_ds/detail/type_utils.hpp: Include 
+	<ext/numeric_traits.h> too.
+	* include/tr1/random: Likewise.
+	* testsuite/ext/type_traits/numeric_traits.cc: Move...
+	* testsuite/ext/numeric_traits/numeric_traits.cc: ... here.
+	* include/Makefile.in: Regenerate.
+	* testsuite/ext/type_traits/remove_unsigned_integer_neg.cc:
+	Adjust dg-error line number.
+	* testsuite/ext/type_traits/add_unsigned_floating_neg.cc:
+	Likewise.
+	* testsuite/ext/type_traits/remove_unsigned_floating_neg.cc:
+	Likewise.
+	* testsuite/ext/type_traits/add_unsigned_integer_neg.cc:
+	Likewise.
+
+2007-04-03  Paolo Carlini  <pcarlini@suse.de>
+
+	* include/bits/stl_map.h (map<>::insert(iterator, const value_type&):
+	Uglify parameter.
+
+2007-04-02  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/31401 (vstring bits)
+	* include/ext/vstring.tcc (find(const _CharT*, size_type,
+	size_type)): Avoid unsigned overflow.
+
+2007-03-30  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/31401
+	* include/bits/basic_string.tcc (find(const _CharT*, size_type,
+	size_type)): Avoid unsigned overflow.
+	* testsuite/21_strings/basic_string/find/char/4.cc: New.
+	* testsuite/21_strings/basic_string/find/wchar_t/4.cc: Likewise.
+
+2007-03-06  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/28080 (partial)
+	* include/tr1/random (class random_device): Rework to use simple
+	<cstdio> input, do not include <fstream>.
+	* include/tr1/random.tcc (all inserters and extractors): Refer
+	to ios_base as base class of basic_istream or basic_ostream.
+
+2007-03-05  Joseph Myers  <joseph@codesourcery.com>
+
+	PR libstdc++/30675
+	* testsuite/lib/libstdc++.exp (v3-build_support): Use [transform
+	"ar"] and [transform "ranlib"].
+
+2007-03-05  Richard Guenther  <rguenther@suse.de>
+
+	Backport from mainline:
+	2007-02-27  Richard Guenther  <rguenther@suse.de>
+
+	* acinclude.m4: Adjust regular expression for ld version extraction.
+	* configure: Regenerate.
+
+2007-03-05  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/31031
+	* include/bits/istream.tcc: Inhibit implicit instantiation of
+	the _M_insert helpers.
+	* include/bits/ostream.tcc: Likewise for _M_extract.
+	* testsuite/27_io/basic_ostream/inserters_arithmetic/char/
+	31031.cc: New.
+	* testsuite/27_io/basic_ostream/inserters_arithmetic/wchar_t/
+	31031.cc: Likewise.
+
+2007-03-03  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/28080 (partial)
+	* include/tr1/functional: Split out hash bits to...
+	* include/tr1/functional_hash.h: ...here.
+	* include/Makefile.am: Add.
+	* include/tr1/unordered_set: Include the latter instead.
+	* include/tr1/unordered_map: Likewise.
+	* include/Makefile.in: Regenerate.
+
+	* include/tr1/utility (get(std::pair<>&), get(const std::pair<>&)):
+	Mark inline.
+
+2007-02-21  Mark Mitchell  <mark@codesourcery.com>
+
+	* testsuite/lib/libstdc++.exp (libstdc++_init): Compile testglue
+	with -fexceptions.
+
+2007-02-07  Hans-Peter Nilsson  <hp@axis.com>
+
+	PR testsuite/28870
+	* testsuite/27_io/basic_stringbuf/overflow/char/1.cc: Use only
+	10000 iterations for simulator targets.
+	* testsuite/ext/pb_ds/regression/tree_data_map_rand.cc: Use only 5
+	iterations for simulator targets.
+	* testsuite/ext/pb_ds/regression/tree_no_data_map_rand.cc: Ditto.
+	* testsuite/ext/pb_ds/regression/trie_data_map_rand.cc: Ditto.
+	* testsuite/ext/pb_ds/regression/trie_no_data_map_rand.cc: Ditto.
+	* testsuite/ext/pb_ds/regression/hash_no_data_map_rand.cc: Ditto.
+	* testsuite/ext/pb_ds/regression/hash_data_map_rand.cc: Ditto.
+	* testsuite/ext/pb_ds/regression/priority_queue_rand.cc: Ditto.
+	* testsuite/23_containers/set/modifiers/16728.cc: Use only 10
+	iterations for simulator targets.
+
+2007-02-05  Paolo Carlini  <pcarlini@suse.de>
+
+	* include/bits/stl_deque.h (operator<): Qualify call.
+
+2007-02-01  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/14493
+	* libsupc++/typeinfo (bad_cast::what, bad_typeid::what): Declare.
+	* libsupc++/tinfo.cc: Define.	
+	* libsupc++/exception (bad_exception::what): Declare.
+	* libsupc++/eh_exception.cc: Define.
+	(exception::what): Adjust, don't use typeid.
+	* libsupc++/new (bad_alloc::what): Declare.
+	* libsupc++/new_handler.cc: Define.
+	* config/abi/pre/gnu.ver: Export the new methods @3.4.9.
+	* testsuite/18_support/14493.cc: New.
+
+2007-02-01  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/29496
+	* include/debug/safe_base.h (_Safe_sequence_base::_M_get_mutex,
+	_Safe_iterator_base::_M_get_mutex, _M_attach_single, _M_detach_single):
+	New.
+	* src/debug.cc: Define the latter.
+	(_Safe_sequence_base::_M_detach_all, _M_detach_singular,
+	_M_revalidate_singular, _M_swap): Use the mutex.
+	(_Safe_iterator_base::_M_attach, _M_detach): Adjust, forward to the
+	*_single version.
+	* include/debug/safe_iterator.h (_Safe_iterator<>::_M_attach_single,
+	_M_invalidate_single): New.
+ 	* include/debug/safe_iterator.tcc: Define.
+	(_Safe_iterator<>::_M_invalidate): Adjust, forward to
+	_M_invalidate_single.
+	* include/debug/safe_sequence.h (_Safe_sequence<>::_M_invalidate_if,
+	_M_transfer_iter): Use the mutex, adjust, forward to the *_single
+	versions of _M_invalidate and _M_attach.
+	* config/abi/pre/gnu.ver (_Safe_sequence_base::_M_get_mutex,
+	_Safe_iterator_base::_M_get_mutex, _M_attach_single, _M_detach_single):
+	Add @GLIBCXX_3.4.9; adjust.
+
+2007-01-27   Steve LoBasso <slobasso@yahoo.com>
+	     Paolo Carlini  <pcarlini@suse.de>
+
+	* include/bits/deque.tcc (deque<>::erase(iterator, iterator)):
+	Fix condition.
+	* testsuite/23_containers/deque/modifiers/erase/3.cc: New.
+
+2007-01-26  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/30586
+	* config/cpu/ia64/atomic_word.h: Just include <bits/cxxabi_tweaks.h>.
+	* testsuite/abi/30586.cc: New.
+
+2007-01-26  Benjamin Kosnik  <bkoz@redhat.com>
+
+	Revert.
+      	2006-12-11  Benjamin Kosnik  <bkoz@redhat.com>
+	PR libstdc++/28125
+	* acinclude.m4 (GLIBCXX_CHECK_ICONV_SUPPORT): Remove link test, ie
+	AC_CHECK_LIB for libiconv. Instead, use bits of AM_ICONV.
+        * configure: Regenerate.
+        * scripts/testsuite_flags.in (cxxflags): Add LIBICONV bits.
+
+2007-01-24  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/29722 continued
+	* testsuite/lib/libstdc++.exp (v3_target_compile_as_c): Add
+	libsupc++ library directory.
+	* testsuite/abi/cxx_runtime_only_linkage.cc: Remove hard-coded
+	path specification.
+
+2007-01-21  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/29989
+	* include/bits/c++config: #undef min and max.
+	* include/bits/stl_algobase.h: Remove min and max #undefs.
+	* testsuite/18_support/numeric_limits/29989.cc: New.
+
+2007-01-15  Paolo Carlini  <pcarlini@suse.de>
+
+	* include/std/std_valarray.h (valarray<>::cshift): Fix typo.
+
+2007-01-14  Paolo Carlini  <pcarlini@suse.de>
+
+	* include/bits/stl_algobase.h (fill_n(char*, _Size,
+	const signed char&)): Fix signature.
+	* testsuite/25_algorithms/fill/3.cc: New.
+
+2007-01-13  John David Anglin  <dave.anglin@nrc-cnrc.gc>
+
+	* config/cpu/hppa/atomicity.h (__exchange_and_add): Don't use ordered
+	store.
+	(__atomic_add): Likewise.
+
+2007-01-13  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/14991
+	* docs/html/17_intro/porting-howto.html ([3]): Mention stdio_filebuf.
+	* docs/html/17_intro/porting-howto.xml: Remove.
+
+	* docs/html/17_intro/porting-howto.html: Remove spurious end tags
+	pointed out by validator.w3.org.
+
+2007-01-12  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/30416 (continued)
+	* include/std/std_valarray.h (valarray<>::shift, valarray<>::cshift):
+	Allways return the same variable, thus facilitating NRVO.
+
+2007-01-12  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/30416
+	* include/std/std_valarray.h (valarray<>::shift, valarray<>::cshift):
+	Do not segfault when |n| > size.
+	* testsuite/26_numerics/valarray/30416.cc: New.
+
+2007-01-06  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/30365
+	* crossconfig.m4 (case *-linux*): Run GLIBCXX_CHECK_LFS.
+	* configure: Regenerate.
+
+2007-01-06  Matthias Klose  <doko@debian.org>
+
+	* include/tr1/random (gamma_distribution): Fix typo in formula.
+	* docs/doxygen/user.cfg.in: Use package amsmath.

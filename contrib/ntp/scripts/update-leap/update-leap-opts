@@ -1,0 +1,72 @@
+# EDIT THIS FILE WITH CAUTION  (update-leap-opts)
+#
+# It has been AutoGen-ed  February 20, 2019 at 05:04:25 PM by AutoGen 5.18.5
+# From the definitions    update-leap-opts.def
+# and the template file   perlopt
+
+use Getopt::Long qw(GetOptionsFromArray);
+Getopt::Long::Configure(qw(no_auto_abbrev no_ignore_case_always));
+
+my $usage;
+
+sub usage {
+    my ($ret) = @_;
+    print STDERR $usage;
+    exit $ret;
+}
+
+sub paged_usage {
+    my ($ret) = @_;
+    my $pager = $ENV{PAGER} || '(less || more)';
+
+    open STDOUT, "| $pager" or die "Can't fork a pager: $!";
+    print $usage;
+
+    exit $ret;
+}
+
+sub processOptions {
+    my $args = shift;
+
+    my $opts = {
+        'source-url' => '',
+        'ipv4' => '',
+        'destination' => '',
+        'expiration' => '',
+        'ntp-conf-file' => '',
+        'force-update' => '',
+        'dont-wait' => '',
+        'help' => '', 'more-help' => ''
+    };
+    my $argument = '';
+    my $ret = GetOptionsFromArray($args, $opts, (
+        'source-url|s=s', 'ipv4|4', 'destination|d=f',
+        'expiration|e=s', 'ntp-conf-file|f=s', 'force-update|F',
+        'dont-wait',
+        'help|?', 'more-help'));
+
+    $usage = <<'USAGE';
+update-leap - leap-seconds file manager/updater - Ver. 4.2.8p13
+USAGE: update-leap [ -<flag> [<val>] | --<name>[{=| }<val>] ]... 
+
+    -s, --source-url=str         The URL of the master copy of the leapseconds file
+    -4, --ipv4                   Use only IPv4 addresses for DNS name resolution
+    -d, --destination=float      Filename on the local system
+    -e, --expiration=str         Refresh the leapfile this long before it expires
+    -f, --ntp-conf-file=str      Location of the ntp.conf file
+    -F, --force-update           Force update of the leapfile
+        --dont-wait              Don't wait for keystroke between plots
+    -?, --help                   Display usage information and exit
+        --more-help              Pass the extended usage text through a pager
+
+Options are specified by doubled hyphens and their name or by a single
+hyphen and the flag character.
+USAGE
+
+    usage(0)       if $opts->{'help'};
+    paged_usage(0) if $opts->{'more-help'};
+    $_[0] = $opts;
+    return $ret;
+}
+
+END { close STDOUT };

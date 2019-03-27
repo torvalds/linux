@@ -1,0 +1,225 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_attrval_signed.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd December 26, 2016
+.Dt DWARF_ATTRVAL_SIGNED 3
+.Os
+.Sh NAME
+.Nm dwarf_attrval_flag ,
+.Nm dwarf_attrval_signed ,
+.Nm dwarf_attrval_string ,
+.Nm dwarf_attrval_unsigned
+.Nd retrieve the value of an attribute within a DWARF debugging information entry
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_attrval_flag
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Half attr"
+.Fa "Dwarf_Bool *ret"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_attrval_signed
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Half attr"
+.Fa "Dwarf_Signed *ret"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_attrval_string
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Half attr"
+.Fa "const char **ret"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_attrval_unsigned
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Half attr"
+.Fa "Dwarf_Unsigned *ret"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+These functions search the debugging information entry referenced
+by argument
+.Ar die
+for the attribute named by argument
+.Ar attr .
+If the named attribute is found, the functions set the location
+pointed to by argument
+.Ar ret
+to the value of the attribute.
+The argument
+.Ar err ,
+if non NULL,
+will be used to return an error descriptor in case of an error.
+.Pp
+Function
+.Fn dwarf_attrval_flag
+sets the location pointed to by argument
+.Ar ret
+to either 0 or 1. If the form of the attribute named by argument
+.Ar attr
+is
+.Dv DW_FORM_flag ,
+function
+.Fn dwarf_attrval_flag
+sets the location pointed to by argument
+.Ar ret
+to 1 if the attribute has a non-zero value, or to 0 otherwise.
+If the form of the attribute named by argument
+.Ar attr
+is
+.Dv DW_FORM_flag_present ,
+function
+.Fn dwarf_attrval_flag
+unconditionally sets the location pointed to by argument
+.Ar ret
+to 1.
+The form of the attribute must be one of
+.Dv DW_FORM_flag
+or
+.Dv DW_FORM_flag_present .
+.Pp
+Function
+.Fn dwarf_attrval_signed
+stores the value for the attribute named by argument
+.Ar attr ,
+into the location pointed to by argument
+.Ar ret .
+The attribute's value is treated as a signed integral quantity and is
+sign-extended as needed.
+The attribute named by the argument
+.Ar attr
+must belong to the
+.Dv CONSTANT
+class and must have one of the following forms:
+.Dv DW_FORM_data1 ,
+.Dv DW_FORM_data2 ,
+.Dv DW_FORM_data4 ,
+.Dv DW_FORM_data8
+or
+.Dv DW_FORM_sdata .
+.Pp
+Function
+.Fn dwarf_attrval_string
+sets the location pointed to by argument
+.Ar ret
+to a pointer to a NUL-terminated string that is the value of the
+attribute named by argument
+.Ar attr .
+The form of the attribute must be one of
+.Dv DW_FORM_string
+or
+.Dv DW_FORM_strp .
+.Pp
+Function
+.Fn dwarf_attrval_unsigned
+stores the value for the attribute named by argument
+.Ar attr
+into the location pointed to by argument
+.Ar ret .
+The attribute's value is treated as an unsigned integral quantity, and
+is zero-extended as needed.
+The named attribute must belong to one of the
+.Dv CONSTANT ,
+.Dv ADDRESS
+or
+.Dv REFERENCE
+classes and must have one of the following forms:
+.Dv DW_FORM_addr ,
+.Dv DW_FORM_data1 ,
+.Dv DW_FORM_data2 ,
+.Dv DW_FORM_data4 ,
+.Dv DW_FORM_data8 ,
+.Dv DW_FORM_udata ,
+.Dv DW_FORM_ref1 ,
+.Dv DW_FORM_ref2 ,
+.Dv DW_FORM_ref4 ,
+.Dv DW_FORM_ref8 ,
+or
+.Dv DW_FORM_ref_udata .
+.Pp
+If the attribute named by argument
+.Ar attr
+is
+.Dv DW_AT_type
+and is not present in the debugging information entry referenced by argument
+.Ar die ,
+and if a
+.Dv DW_AT_abstract_origin
+or
+.Dv DW_AT_specification
+attribute is present in the debugging information entry,
+function
+.Fn dwarf_attrval_unsigned
+will search for the named attribute in the debugging information entry
+referenced by the
+.Dv DW_AT_abstract_origin
+or
+.Dv DW_AT_specification
+attribute.
+.Sh RETURN VALUES
+On success, these functions returns
+.Dv DW_DLV_OK .
+If the named attribute was not found in the specified debugging
+information entry descriptor these functions return
+.Dv DW_DLV_NO_ENTRY
+and set argument
+.Ar err .
+For other errors, these functions return
+.Dv DW_DLV_ERROR
+and set argument
+.Ar err .
+.Sh COMPATIBILITY
+These functions are extensions added by this implementation of the
+DWARF(3) API.
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ATTR_FORM_BAD"
+.It Bq Er DW_DLE_ARGUMENT
+Either of the arguments
+.Va die
+or
+.Va ret
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+Argument
+.Ar die
+did not contain an attribute corresponding to the value in argument
+.Ar attr .
+.It Bq Er DW_DLE_ATTR_FORM_BAD
+The attribute named by argument
+.Ar attr
+was not of a permitted form.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_attr 3 ,
+.Xr dwarf_hasattr 3

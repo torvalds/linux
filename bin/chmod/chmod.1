@@ -1,0 +1,364 @@
+.\"-
+.\" Copyright (c) 1989, 1990, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)chmod.1	8.4 (Berkeley) 3/31/94
+.\" $FreeBSD$
+.\"
+.Dd January 7, 2017
+.Dt CHMOD 1
+.Os
+.Sh NAME
+.Nm chmod
+.Nd change file modes
+.Sh SYNOPSIS
+.Nm
+.Op Fl fhv
+.Op Fl R Op Fl H | L | P
+.Ar mode
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility modifies the file mode bits of the listed files
+as specified by the
+.Ar mode
+operand.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl f
+Do not display a diagnostic message if
+.Nm
+could not modify the mode for
+.Va file ,
+nor modify the exit status to reflect such failures.
+.It Fl H
+If the
+.Fl R
+option is specified, symbolic links on the command line are followed
+and hence unaffected by the command.
+(Symbolic links encountered during tree traversal are not followed.)
+.It Fl h
+If the file is a symbolic link, change the mode of the link itself
+rather than the file that the link points to.
+.It Fl L
+If the
+.Fl R
+option is specified, all symbolic links are followed.
+.It Fl P
+If the
+.Fl R
+option is specified, no symbolic links are followed.
+This is the default.
+.It Fl R
+Change the modes of the file hierarchies rooted in the files,
+instead of just the files themselves.
+Beware of unintentionally matching the
+.Dq Pa ".."
+hard link to the parent directory when using wildcards like
+.Dq Li ".*" .
+.It Fl v
+Cause
+.Nm
+to be verbose, showing filenames as the mode is modified.
+If the
+.Fl v
+flag is specified more than once, the old and new modes of the file
+will also be printed, in both octal and symbolic notation.
+.El
+.Pp
+The
+.Fl H ,
+.Fl L
+and
+.Fl P
+options are ignored unless the
+.Fl R
+option is specified.
+In addition, these options override each other and the
+command's actions are determined by the last one specified.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+signal (see the
+.Cm status
+argument for
+.Xr stty 1 ) ,
+then the current filename as well as the old and new modes are displayed.
+.Pp
+Only the owner of a file or the super-user is permitted to change
+the mode of a file.
+.Sh EXIT STATUS
+.Ex -std
+.Sh MODES
+Modes may be absolute or symbolic.
+An absolute mode is an octal number constructed from the sum of
+one or more of the following values:
+.Pp
+.Bl -tag -width 6n -compact -offset indent
+.It Li 4000
+(the setuid bit).
+Executable files with this bit set
+will run with effective uid set to the uid of the file owner.
+Directories with this bit set will force all files and
+sub-directories created in them to be owned by the directory owner
+and not by the uid of the creating process, if the underlying file
+system supports this feature: see
+.Xr chmod 2
+and the
+.Cm suiddir
+option to
+.Xr mount 8 .
+.It Li 2000
+(the setgid bit).
+Executable files with this bit set
+will run with effective gid set to the gid of the file owner.
+.It Li 1000
+(the sticky bit).
+See
+.Xr chmod 2
+and
+.Xr sticky 7 .
+.It Li 0400
+Allow read by owner.
+.It Li 0200
+Allow write by owner.
+.It Li 0100
+For files, allow execution by owner.
+For directories, allow the owner to
+search in the directory.
+.It Li 0040
+Allow read by group members.
+.It Li 0020
+Allow write by group members.
+.It Li 0010
+For files, allow execution by group members.
+For directories, allow
+group members to search in the directory.
+.It Li 0004
+Allow read by others.
+.It Li 0002
+Allow write by others.
+.It Li 0001
+For files, allow execution by others.
+For directories allow others to
+search in the directory.
+.El
+.Pp
+For example, the absolute mode that permits read, write and execute by
+the owner, read and execute by group members, read and execute by
+others, and no set-uid or set-gid behaviour is 755
+(400+200+100+040+010+004+001).
+.Pp
+The symbolic mode is described by the following grammar:
+.Bd -literal -offset indent
+mode         ::= clause [, clause ...]
+clause       ::= [who ...] [action ...] action
+action       ::= op [perm ...]
+who          ::= a | u | g | o
+op           ::= + | \- | =
+perm         ::= r | s | t | w | x | X | u | g | o
+.Ed
+.Pp
+The
+.Ar who
+symbols ``u'', ``g'', and ``o'' specify the user, group, and other parts
+of the mode bits, respectively.
+The
+.Ar who
+symbol ``a'' is equivalent to ``ugo''.
+.Pp
+The
+.Ar perm
+symbols represent the portions of the mode bits as follows:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It r
+The read bits.
+.It s
+The set-user-ID-on-execution and set-group-ID-on-execution bits.
+.It t
+The sticky bit.
+.It w
+The write bits.
+.It x
+The execute/search bits.
+.It X
+The execute/search bits if the file is a directory or any of the
+execute/search bits are set in the original (unmodified) mode.
+Operations with the
+.Ar perm
+symbol ``X'' are only meaningful in conjunction with the
+.Ar op
+symbol ``+'', and are ignored in all other cases.
+.It u
+The user permission bits in the original mode of the file.
+.It g
+The group permission bits in the original mode of the file.
+.It o
+The other permission bits in the original mode of the file.
+.El
+.Pp
+The
+.Ar op
+symbols represent the operation performed, as follows:
+.Bl -tag -width 4n
+.It +
+If no value is supplied for
+.Ar perm ,
+the ``+'' operation has no effect.
+If no value is supplied for
+.Ar who ,
+each permission bit specified in
+.Ar perm ,
+for which the corresponding bit in the file mode creation mask
+(see
+.Xr umask 2 )
+is clear, is set.
+Otherwise, the mode bits represented by the specified
+.Ar who
+and
+.Ar perm
+values are set.
+.It \&\-
+If no value is supplied for
+.Ar perm ,
+the ``\-'' operation has no effect.
+If no value is supplied for
+.Ar who ,
+each permission bit specified in
+.Ar perm ,
+for which the corresponding bit in the file mode creation mask
+is set, is cleared.
+Otherwise, the mode bits represented by the specified
+.Ar who
+and
+.Ar perm
+values are cleared.
+.It =
+The mode bits specified by the
+.Ar who
+value are cleared, or, if no
+.Ar who
+value is specified, the owner, group
+and other mode bits are cleared.
+Then, if no value is supplied for
+.Ar who ,
+each permission bit specified in
+.Ar perm ,
+for which the corresponding bit in the file mode creation mask
+is clear, is set.
+Otherwise, the mode bits represented by the specified
+.Ar who
+and
+.Ar perm
+values are set.
+.El
+.Pp
+Each
+.Ar clause
+specifies one or more operations to be performed on the mode
+bits, and each operation is applied to the mode bits in the
+order specified.
+.Pp
+Operations upon the other permissions only (specified by the symbol
+``o'' by itself), in combination with the
+.Ar perm
+symbols ``s'' or ``t'', are ignored.
+.Pp
+The ``w'' permission on directories will permit file creation, relocation,
+and copy into that directory.
+Files created within the directory itself will inherit its group ID.
+.Sh EXAMPLES
+.Bl -tag -width "u=rwx,go=u-w" -compact
+.It Li 644
+make a file readable by anyone and writable by the owner only.
+.Pp
+.It Li go-w
+deny write permission to group and others.
+.Pp
+.It Li =rw,+X
+set the read and write permissions to the usual defaults, but
+retain any execute permissions that are currently set.
+.Pp
+.It Li +X
+make a directory or file searchable/executable by everyone if it is
+already searchable/executable by anyone.
+.Pp
+.It Li 755
+.It Li u=rwx,go=rx
+.It Li u=rwx,go=u-w
+make a file readable/executable by everyone and writable by the owner only.
+.Pp
+.It Li go=
+clear all mode bits for group and others.
+.Pp
+.It Li g=u-w
+set the group bits equal to the user bits, but clear the group write bit.
+.El
+.Sh COMPATIBILITY
+The
+.Fl v
+option is non-standard and its use in scripts is not recommended.
+.Sh SEE ALSO
+.Xr chflags 1 ,
+.Xr install 1 ,
+.Xr setfacl 1 ,
+.Xr chmod 2 ,
+.Xr stat 2 ,
+.Xr umask 2 ,
+.Xr fts 3 ,
+.Xr setmode 3 ,
+.Xr sticky 7 ,
+.Xr symlink 7 ,
+.Xr chown 8 ,
+.Xr mount 8
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be
+.St -p1003.2
+compatible with the exception of the
+.Ar perm
+symbol
+.Dq t
+which is not included in that standard.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .
+.Sh BUGS
+There is no
+.Ar perm
+option for the naughty bits of a horse.

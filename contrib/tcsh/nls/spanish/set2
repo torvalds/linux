@@ -1,0 +1,92 @@
+$ $tcsh: set2,v 1.3 2011/02/04 18:19:43 christos Exp $
+$ Nombres de señales
+$set 2 
+1 Señal nula
+2 Colgar
+3 Interrumpir
+4 Salir
+5 Instrucción ilegal
+6 trap Trace/BPT
+7 Abortar
+8 trap IOT
+9 Caída del sistema inminente
+10 Salida con error
+11 trap EMT
+12 Excepción de punto flotante
+13 Terminado
+14 Señal de usuario 1
+15 Señal de usuario 2
+16 Error de segmentación
+17 Error de bus
+18 Error de rango de programa
+19 Error de rango de operando
+20 Llamada del sistema errónea
+21 Tubería rota
+22 Despertador
+23 Terminado
+24 Cambio de estado en el hijo
+25 Muerte del hijo
+26 Fallo específico de Apollo
+27 El hijo ha parado o terminado
+28 Hijo ha terminado
+29 Fallo de alimentación
+30 Recurso perdido
+31 Break (Ctrl-Break)
+32 Posible señal de entrada/salida
+33 E/S asíncrona (select)
+34 Condición urgente en el canal de E/S
+35 Despertar mutiltarea
+36 Finalización multitarea
+37 Final de E/S asíncrona Fortran
+38 Recuperación
+39 Error incorregible de memoria
+40 Excedido el tiempo de CPU
+41 Bajada del sistema inminente
+42 Grupo micro-tarea-no se ha activado la bandera de despertar
+43 Error de hilo de ejecución - (use cord -T para información detallada)
+44 Error de paridad de registro CRAY Y-MP
+45 Petición de información
+46 Suspendido (señal)
+47 Parado (señal)
+48 Suspendido
+49 Parado
+50 Continúa
+51 Suspendido (entrada tty)
+52 Parado (entrada tty)
+53 Suspendido (salida tty)
+54 Parado (salida tty)
+55 Modificado el estado de la ventana
+56 Modificado el tamaño de la ventana
+57 Modificado el estado del teléfono
+58 Excedido el tiempo de CPU
+59 Excedido el límite del tamaño de archivo
+60 Señal de temporizador virtual
+61 Perfilando la alarma de temporizador
+62 Señal DIL
+63 Ha tenido lugar un evento interrogable
+64 Los lwps del proceso están bloqueados
+65 Señal LWP especial
+66 Señal CPR especial
+67 Señal CPR especial
+68 Primera señal de tiempo real
+69 Segunda señal de tiempo real
+70 Tercera señal de tiempo real
+71 Cuarta señal de tiempo real
+72 Cuarta señal por la cola de tiempo real
+73 Antepenúltima señal de tiempo real
+74 Penúltima señal de tiempo real
+75 Última señal de tiempo real
+76 E/S asíncrona LAN
+77 Lectura/escritura PTY disponible
+78 Intervención E/S requerida
+79 Otorgado modo monitor HFT
+80 Se debería abandonar el modo monitor HFT
+81 Se ha completado el control de sonido HFT
+82 Hay datos en el buffer circular HFT
+83 Migrar proceso
+84 Tecla de atención asegurada
+85 Reprogramación
+86 Señalar SS$_DEBUG
+87 Prioridad cambiada
+88 Bloqueo real detectado
+89 Nuevo carácter de entrada

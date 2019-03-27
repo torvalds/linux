@@ -1,0 +1,167 @@
+#!/bin/sh
+##############################################################################
+# Copyright (c) 1998,2000 Free Software Foundation, Inc.                     #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Author: Thomas E. Dickey 1996,1997,2000
+#
+# $Id: makellib,v 1.8 2000/10/28 21:37:10 tom Exp $
+# System-dependent wrapper for 'lint' that creates a lint-library via the
+# following method (XXX is the name of the library):
+#	a.  If the file llib-lXXX doesn't exist, create it using the make-rule
+#	b.  Process llib-lXXX with the system's lint utility, making
+#	    llib-lXXX.ln
+#	c.  Install llib-lXXX.ln in the lib directory.
+#
+# Using the intermediate file llib-lXXX bypasses a weakness of lint (passing
+# through warning messages from the original source-files).
+#
+# There are two drawbacks to this approach:
+#	a.  On a few systems, you'll have to manually-edit the llib-lXXX file
+#	    to get a usable lint-library (not all C-preprocessors work well).
+#	b.  The system's lint utility won't recognize -lXXX as a lint-library
+#	    (Use tdlint as a wrapper; it's designed for this).
+#
+# Parameters:
+#	$1 = library name
+#	$* = C-preprocessor options
+#
+ARCH=`uname -s`
+if test "x$ARCH" = "xSunOS" ; then
+	case `uname -r` in
+	5.*)	ARCH=Solaris
+		;;
+	esac
+fi
+#
+DST="$HOME/lib/$ARCH/lint"
+OPT=""
+LLIB=""
+llib=""
+#
+while test $# != 0
+do
+	case $1 in
+	-L*)
+		DST="$DST `echo $1|sed -e 's/^-L//'`"
+		;;
+	-*)
+		OPT="$OPT $1"
+		;;
+	*)
+		if test -z "$LLIB"
+		then
+			LLIB=$1
+		else
+			llib=llib-l$1
+		fi
+		;;
+	esac
+	shift
+done
+
+if test -z "$LLIB"
+then
+	echo '? no library name specified'
+	exit 1
+elif test -z "$llib"
+then
+	llib="llib-l$LLIB"
+fi
+
+if test ! -f $llib ; then
+	if ( make $llib )
+	then
+		:
+	else
+		exit 1
+	fi
+fi
+
+rm -f $llib.ln $llib.c
+TARGET=$LLIB
+
+case "$ARCH" in
+AIX)
+	CREATE="-uvxo$LLIB -Nn4000"
+	TARGET=$llib.c
+	ln $llib $TARGET
+	;;
+Solaris)
+	CREATE="-C$llib"
+	TARGET=$llib.c
+	ln $llib $TARGET
+	;;
+FreeBSD)
+	CREATE="-g -z -C$LLIB"
+	TARGET=$llib.c
+	ln $llib $TARGET
+	;;
+CLIX)
+	CREATE="-DLINTLIBRARY -vxo$LLIB"
+	TARGET=$llib.c
+	ln $llib $TARGET
+	;;
+IRIX*)
+	CREATE="-DLINTLIBRARY -vxyo$LLIB"
+	TARGET=$llib.c
+	ln $llib $TARGET
+	;;
+UNIX_SV)
+	CREATE="-DLINTLIBRARY -vxyo$LLIB"
+	TARGET=$llib.c
+	ln $llib $TARGET
+	;;
+*)
+	echo "Sorry.  I do not know how to build a lint-library for $ARCH"
+	exit 1
+esac
+
+echo OPT    "$OPT"
+echo TARGET "$TARGET"
+echo LIBNAME "$llib"
+if ( lint $CREATE $OPT $TARGET )
+then
+	if test -f $llib.ln
+	then
+		for p in $HOME/lib $HOME/lib/$ARCH $HOME/lib/$ARCH/lint
+		do
+			if test ! -d $p
+			then
+				mkdir $p
+			fi
+		done
+		for p in $DST
+		do
+			cp $llib.ln $p/
+		done
+		rm -f $llib.ln
+	fi
+fi
+if test "x$TARGET" = "x$llib.c" ; then
+	rm -f $TARGET
+fi

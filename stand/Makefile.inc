@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+.include "defs.mk"

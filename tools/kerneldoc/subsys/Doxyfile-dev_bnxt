@@ -1,0 +1,21 @@
+# Doxyfile 1.5.2
+
+# $FreeBSD$
+
+#---------------------------------------------------------------------------
+# Project related configuration options
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "FreeBSD kernel bnxt device code"
+OUTPUT_DIRECTORY       = $(DOXYGEN_DEST_PATH)/dev_bnxt/
+EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
+#---------------------------------------------------------------------------
+# configuration options related to the input files
+#---------------------------------------------------------------------------
+INPUT                  = $(DOXYGEN_SRC_PATH)/dev/bnxt/ \
+                         $(NOTREVIEWED)
+
+GENERATE_TAGFILE       = dev_bnxt/dev_bnxt.tag
+
+@INCLUDE_PATH          = $(DOXYGEN_INCLUDE_PATH)
+@INCLUDE               = common-Doxyfile
+

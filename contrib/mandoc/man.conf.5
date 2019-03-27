@@ -1,0 +1,135 @@
+.\"	$Id: man.conf.5,v 1.5 2017/08/22 18:17:52 schwarze Exp $
+.\"
+.\" Copyright (c) 2015 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: August 22 2017 $
+.Dt MAN.CONF 5
+.Os
+.Sh NAME
+.Nm man.conf
+.Nd configuration file for man
+.Sh DESCRIPTION
+This is the configuration file
+for the
+.Xr man 1 ,
+.Xr apropos 1 ,
+and
+.Xr makewhatis 8
+utilities.
+Its presence, and all directives, are optional.
+.Pp
+This file is an ASCII text file.
+Leading whitespace on lines, lines starting with
+.Sq # ,
+and blank lines are ignored.
+Words are separated by whitespace.
+The first word on each line is the name of a configuration directive.
+.Pp
+The following directives are supported:
+.Bl -tag -width Ds
+.It Ic manpath Ar path
+Override the default search
+.Ar path
+for
+.Xr man 1 ,
+.Xr apropos 1 ,
+and
+.Xr makewhatis 8 .
+It can be used multiple times to specify multiple paths,
+with the order determining the manual page search order.
+.Pp
+Each path is a tree containing subdirectories
+whose names consist of the strings
+.Sq man
+and/or
+.Sq cat
+followed by the names of sections, usually single digits.
+The former are supposed to contain unformatted manual pages in
+.Xr mdoc 7
+and/or
+.Xr man 7
+format; file names should end with the name of the section
+preceded by a dot.
+The latter should contain preformatted manual pages;
+file names should end with
+.Ql .0 .
+.Pp
+Creating a
+.Xr mandoc.db 5
+database with
+.Xr makewhatis 8
+in each directory configured with
+.Ic manpath
+is recommended and necessary for
+.Xr apropos 1
+to work, and also for
+.Xr man 1
+on operating systems like
+.Ox
+that install each manual page with only one file name in the file system,
+even if it documents multiple utilities or functions.
+.It Ic output Ar option Op Ar value
+Configure the default value of an output option.
+These directives are overridden by the
+.Fl O
+command line options of the same names.
+For details, see the
+.Xr mandoc 1
+manual.
+.Pp
+.Bl -column fragment integer "ascii, utf8" -compact
+.It Ar option   Ta Ar value Ta used by Fl T Ta purpose
+.It Ta Ta Ta
+.It Ic fragment Ta none     Ta Cm html Ta print only body
+.It Ic includes Ta string   Ta Cm html Ta path to header files
+.It Ic indent   Ta integer  Ta Cm ascii , utf8 Ta left margin
+.It Ic man      Ta string   Ta Cm html Ta path for \&Xr links
+.It Ic paper    Ta string   Ta Cm ps , pdf Ta paper size
+.It Ic style    Ta string   Ta Cm html Ta CSS file
+.It Ic width    Ta integer  Ta Cm ascii , utf8 Ta right margin
+.El
+.It Ic _whatdb Ar path Ns Cm /whatis.db
+This directive provides the same functionality as
+.Ic manpath ,
+but using a historic and misleading syntax.
+It is kept for backward compatibility for now,
+but will eventually be removed.
+.El
+.Sh FILES
+.Pa /etc/man.conf
+.Sh EXAMPLES
+The following configuration file reproduces the defaults:
+installing it is equivalent to not having a
+.Nm
+file at all.
+.Bd -literal -offset indent
+manpath /usr/share/man
+manpath /usr/X11R6/man
+manpath /usr/local/man
+.Ed
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr man 1 ,
+.Xr makewhatis 8
+.Sh HISTORY
+A relatively complicated
+.Nm
+file format first appeared in
+.Bx 4.3 Reno .
+For
+.Ox 5.8 ,
+it was redesigned from scratch, aiming for simplicity.
+.Sh AUTHORS
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org

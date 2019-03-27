@@ -1,0 +1,178 @@
+/*
+ * Copyright (C) 2014 Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ * Copyright (C) Sylver Bruneau <sylver.bruneau@googlemail.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2. This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "orion5x-mv88f5182.dtsi"
+
+/ {
+	model = "Maxtor Shared Storage II";
+	compatible = "maxtor,shared-storage-2", "marvell,orion5x-88f5182", "marvell,orion5x";
+
+	memory {
+		reg = <0x00000000 0x4000000>; /* 64 MB */
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>,
+			 <MBUS_ID(0x09, 0x00) 0 0xf2200000 0x800>,
+			 <MBUS_ID(0x01, 0x0f) 0 0xff800000 0x40000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&pmx_buttons>;
+		pinctrl-names = "default";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		power {
+			label = "Power";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio0 11 GPIO_ACTIVE_LOW>;
+		};
+
+		reset {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&devbus_bootcs {
+	status = "okay";
+
+	devbus,keep-config;
+
+	/*
+	 * Currently the MTD code does not recognize the MX29LV400CBCT
+	 * as a bottom-type device. This could cause risks of
+	 * accidentally erasing critical flash sectors. We thus define
+	 * a single, write-protected partition covering the whole
+	 * flash.  TODO: once the flash part TOP/BOTTOM detection
+	 * issue is sorted out in the MTD code, break this into at
+	 * least three partitions: 'u-boot code', 'u-boot environment'
+	 * and 'whatever is left'.
+	 */
+	flash@0 {
+		compatible = "cfi-flash";
+		reg = <0 0x40000>;
+		bank-width = <1>;
+                #address-cells = <1>;
+		#size-cells = <1>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy: ethernet-phy {
+		reg = <8>;
+	};
+};
+
+&ehci0 {
+	status = "okay";
+};
+
+&eth {
+	status = "okay";
+
+	ethernet-port@0 {
+		phy-handle = <&ethphy>;
+	};
+};
+
+&i2c {
+	status = "okay";
+	clock-frequency = <100000>;
+	#address-cells = <1>;
+
+	rtc@68 {
+		compatible = "st,m41t81";
+		reg = <0x68>;
+		pinctrl-0 = <&pmx_rtc>;
+		pinctrl-names = "default";
+		interrupt-parent = <&gpio0>;
+		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
+
+&pinctrl {
+	pinctrl-0 = <&pmx_leds &pmx_misc>;
+	pinctrl-names = "default";
+
+	pmx_buttons: pmx-buttons {
+		marvell,pins = "mpp11", "mpp12";
+		marvell,function = "gpio";
+	};
+
+	/*
+	 * MPP0: Power LED
+	 * MPP1: Error LED
+	 */
+	pmx_leds: pmx-leds {
+		marvell,pins = "mpp0", "mpp1";
+		marvell,function = "gpio";
+	};
+
+	/*
+	 * MPP4: HDD ind. (Single/Dual)
+	 * MPP5: HD0 5V control
+	 * MPP6: HD0 12V control
+	 * MPP7: HD1 5V control
+	 * MPP8: HD1 12V control
+	 */
+	pmx_misc: pmx-misc {
+		marvell,pins = "mpp4", "mpp5", "mpp6", "mpp7", "mpp8", "mpp10";
+		marvell,function = "gpio";
+	};
+
+	pmx_rtc: pmx-rtc {
+		marvell,pins = "mpp3";
+		marvell,function = "gpio";
+	};
+
+	pmx_sata0_led_active: pmx-sata0-led-active {
+		marvell,pins = "mpp14";
+		marvell,function = "sata0";
+	};
+
+	pmx_sata1_led_active: pmx-sata1-led-active {
+		marvell,pins = "mpp15";
+		marvell,function = "sata1";
+	};
+
+	/*
+	 * Non MPP GPIOs:
+	 *  GPIO 22: USB port 1 fuse (0 = Fail, 1 = Ok)
+	 *  GPIO 23: Blue front LED off
+	 *  GPIO 24: Inhibit board power off (0 = Disabled, 1 = Enabled)
+	 */
+};
+
+&sata {
+	pinctrl-0 = <&pmx_sata0_led_active
+		     &pmx_sata1_led_active>;
+	pinctrl-names = "default";
+	status = "okay";
+	nr-ports = <2>;
+};
+
+&uart0 {
+	status = "okay";
+};

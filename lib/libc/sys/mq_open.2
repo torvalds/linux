@@ -1,0 +1,329 @@
+.\" Copyright (c) 2005 David Xu <davidxu@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Portions of this text are reprinted and reproduced in electronic form
+.\" from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --
+.\" Portable Operating System Interface (POSIX), The Open Group Base
+.\" Specifications Issue 6, Copyright (C) 2001-2004 by the Institute of
+.\" Electrical and Electronics Engineers, Inc and The Open Group.  In the
+.\" event of any discrepancy between this version and the original IEEE and
+.\" The Open Group Standard, the original IEEE and The Open Group Standard is
+.\" the referee document.  The original Standard can be obtained online at
+.\"	http://www.opengroup.org/unix/online.html.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 15, 2014
+.Dt MQ_OPEN 2
+.Os
+.Sh NAME
+.Nm mq_open
+.Nd "open a message queue (REALTIME)"
+.Sh LIBRARY
+.Lb librt
+.Sh SYNOPSIS
+.In mqueue.h
+.Ft mqd_t
+.Fn mq_open "const char *name" "int oflag" "..."
+.Sh DESCRIPTION
+The
+.Fn mq_open
+system call establishes the connection between a process and a message queue
+with a message queue descriptor.
+It creates an open message queue
+description that refers to the message queue, and a message queue descriptor
+that refers to that open message queue description.
+The message queue
+descriptor is used by other functions to refer to that message queue.
+The
+.Fa name
+argument points to a string naming a message queue.
+The
+.Fa name
+argument should conform to the construction rules for a pathname.
+The
+.Fa name
+should begin with a slash character.
+Processes calling
+.Fn mq_open
+with the same value of
+.Fa name
+refers to the same message queue object, as long as that name has not been
+removed.
+If the
+.Fa name
+argument is not the name of an existing message queue and creation is not
+requested,
+.Fn mq_open
+will fail and return an error.
+.Pp
+The
+.Fa oflag
+argument requests the desired receive and/or send access to the message
+queue.
+The requested access permission to receive messages or send messages
+would be granted if the calling process would be granted read or write access,
+respectively, to an equivalently protected file.
+.Pp
+The value of
+.Fa oflag
+is the bitwise-inclusive OR of values from the following list.
+Applications should specify exactly one of the first three values (access
+modes) below in the value of
+.Fa oflag :
+.Bl -tag -width ".Dv O_NONBLOCK"
+.It Dv O_RDONLY
+Open the message queue for receiving messages.
+The process can use the
+returned message queue descriptor with
+.Fn mq_receive ,
+but not
+.Fn mq_send .
+A message queue may be open multiple times in the same or different processes
+for receiving messages.
+.It Dv O_WRONLY
+Open the queue for sending messages.
+The process can use the returned
+message queue descriptor with
+.Fn mq_send
+but not
+.Fn mq_receive .
+A message queue may be open multiple times in the same or different processes
+for sending messages.
+.It Dv O_RDWR
+Open the queue for both receiving and sending messages.
+The process can use
+any of the functions allowed for
+.Dv O_RDONLY
+and
+.Dv O_WRONLY .
+A message queue may be open multiple times in the same or different processes
+for sending messages.
+.El
+.Pp
+Any combination of the remaining flags may be specified in the value of
+.Fa oflag :
+.Bl -tag -width ".Dv O_NONBLOCK"
+.It Dv O_CREAT
+Create a message queue.
+It requires two additional arguments:
+.Fa mode ,
+which is of type
+.Vt mode_t ,
+and
+.Fa attr ,
+which is a pointer to an
+.Vt mq_attr
+structure.
+If the pathname
+.Fa name
+has already been used to create a message queue that still exists, then
+this flag has no effect, except as noted under
+.Dv O_EXCL .
+Otherwise, a message queue will be created without any messages
+in it.
+The user ID of the message queue will be set to the effective user ID
+of the process, and the group ID of the message queue will be set to the
+effective group ID of the process.
+The permission bits of the message queue
+will be set to the value of the
+.Fa mode
+argument, except those set in the file mode creation mask of the process.
+When bits in
+.Fa mode
+other than the file permission bits are specified, the effect is
+unspecified.
+If
+.Fa attr
+is
+.Dv NULL ,
+the message queue is created with implementation-defined default message
+queue attributes.
+If attr is
+.Pf non- Dv NULL
+and the calling process has the
+appropriate privilege on name, the message queue
+.Va mq_maxmsg
+and
+.Va mq_msgsize
+attributes will be set to the values of the corresponding members in the
+.Vt mq_attr
+structure referred to by
+.Fa attr .
+If
+.Fa attr
+is
+.Pf non- Dv NULL ,
+but the calling process does not have the appropriate privilege
+on name, the
+.Fn mq_open
+function will fail and return an error without creating the message queue.
+.It Dv O_EXCL
+If
+.Dv O_EXCL
+and
+.Dv O_CREAT
+are set,
+.Fn mq_open
+will fail if the message queue name exists.
+.It Dv O_NONBLOCK
+Determines whether an
+.Fn mq_send
+or
+.Fn mq_receive
+waits for resources or messages that are not currently available, or fails
+with
+.Va errno
+set to
+.Er EAGAIN ;
+see
+.Xr mq_send 2
+and
+.Xr mq_receive 2
+for details.
+.El
+.Pp
+The
+.Fn mq_open
+system call does not add or remove messages from the queue.
+.Sh NOTES
+.Fx
+implements message queue based on file descriptor.
+The descriptor
+is inherited by child after
+.Xr fork 2 .
+The descriptor is closed in a new image after
+.Xr exec 3 .
+The
+.Xr select 2
+and
+.Xr kevent 2
+system calls are supported for message queue descriptor.
+.Pp
+Please see the
+.Xr mqueuefs 5
+man page for instructions on loading the module or compiling the service into
+the kernel.
+.Sh RETURN VALUES
+Upon successful completion, the function returns a message queue
+descriptor; otherwise, the function returns
+.Po Vt mqd_t Pc Ns \-1
+and sets the global variable
+.Va errno
+to indicate the error.
+.Sh ERRORS
+The
+.Fn mq_open
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EACCES
+The message queue exists and the permissions specified by
+.Fa oflag
+are denied, or the message queue does not exist and permission to create the
+message queue is denied.
+.It Bq Er EEXIST
+.Dv O_CREAT
+and
+.Dv O_EXCL
+are set and the named message queue already exists.
+.It Bq Er EINTR
+The
+.Fn mq_open
+function was interrupted by a signal.
+.It Bq Er EINVAL
+The
+.Fn mq_open
+function is not supported for the given name.
+.It Bq Er EINVAL
+.Dv O_CREAT
+was specified in
+.Fa oflag ,
+the value of
+.Fa attr
+is not
+.Dv NULL ,
+and either
+.Va mq_maxmsg
+or
+.Va mq_msgsize
+was less than or equal to zero.
+.It Bq Er EMFILE
+Too many message queue descriptors or file descriptors are currently in use
+by this process.
+.It Bq Er ENAMETOOLONG
+The length of the
+.Fa name
+argument exceeds
+.Brq Dv PATH_MAX
+or a pathname component
+is longer than
+.Brq Dv NAME_MAX .
+.It Bq Er ENFILE
+Too many message queues are currently open in the system.
+.It Bq Er ENOENT
+.Dv O_CREAT
+is not set and the named message queue does not exist.
+.It Bq Er ENOSPC
+There is insufficient space for the creation of the new message queue.
+.El
+.Sh SEE ALSO
+.Xr mq_close 2 ,
+.Xr mq_getattr 2 ,
+.Xr mq_receive 2 ,
+.Xr mq_send 2 ,
+.Xr mq_setattr 2 ,
+.Xr mq_timedreceive 3 ,
+.Xr mq_timedsend 3 ,
+.Xr mq_unlink 3 ,
+.Xr mqueuefs 5
+.Sh STANDARDS
+The
+.Fn mq_open
+system call conforms to
+.St -p1003.1-2004 .
+.Sh HISTORY
+Support for
+.Tn POSIX
+message queues first appeared in
+.Fx 7.0 .
+.Sh BUGS
+This implementation places strict requirements on the value of
+.Fa name :
+it must begin with a slash
+.Pq Ql /
+and contain no other slash characters.
+.Sh COPYRIGHT
+Portions of this text are reprinted and reproduced in electronic form
+from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --
+Portable Operating System Interface (POSIX), The Open Group Base
+Specifications Issue 6, Copyright (C) 2001-2004 by the Institute of
+Electrical and Electronics Engineers, Inc and The Open Group.  In the
+event of any discrepancy between this version and the original IEEE and
+The Open Group Standard, the original IEEE and The Open Group Standard is
+the referee document.  The original Standard can be obtained online at
+http://www.opengroup.org/unix/online.html.

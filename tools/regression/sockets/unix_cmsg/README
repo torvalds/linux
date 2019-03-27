@@ -1,0 +1,160 @@
+$FreeBSD$
+
+About unix_cmsg
+===============
+
+This program is a collection of regression tests for ancillary data
+(control information) for PF_LOCAL sockets (local domain or Unix domain
+sockets).  There are tests for stream and datagram sockets.
+
+Usually each test does following steps: creates Server, forks Client,
+Client sends something to Server, Server verifies whether everything is
+correct in received message(s).
+
+It is better to change the owner of unix_cmsg to some safe user
+(eg. nobody:nogroup) and set SUID and SGID bits, else some tests that
+check credentials can give correct results for wrong implementation.
+
+It is better to run this program by a user that belongs to more
+than 16 groups.
+
+Available options
+=================
+
+usage: unix_cmsg [-dh] [-n num] [-s size] [-t type] [-z value] [testno]
+
+ Options are:
+  -d            Output debugging information
+  -h            Output the help message and exit
+  -n num        Number of messages to send
+  -s size       Specify size of data for IPC
+  -t type       Specify socket type (stream, dgram) for tests
+  -z value      Do not send data in a message (bit 0x1), do not send
+                data array associated with a cmsghdr structure (bit 0x2)
+  testno        Run one test by its number (require the -t option)
+
+Description
+===========
+
+If Client sends something to Server, then it sends 5 messages by default.
+Number of messages can be changed in the -n command line option.  Number
+of messages will be given as N in the following descriptions.
+
+If Client sends something to Server, then it sends some data (few bytes)
+in each message by default.  The size of this data can be changed by the -s
+command line option.  The "-s 0" command line option means, that Client will
+send zero bytes represented by { NULL, 0 } value of struct iovec{}, referenced
+by the msg_iov field from struct msghdr{}.  The "-z 1" or "-z 3" command line
+option means, that Client will send zero bytes represented by the NULL value
+in the msg_iov field from struct msghdr{}.
+
+If Client sends some ancillary data object, then this ancillary data object
+always has associated data array by default.  The "-z 2" or "-z 3" option
+means, that Client will not send associated data array if possible.
+
+For SOCK_STREAM sockets:
+-----------------------
+
+ 1: Sending, receiving cmsgcred
+
+    Client connects to Server and sends N messages with SCM_CREDS ancillary
+    data object.  Server should receive N messages, each message should
+    have SCM_CREDS ancillary data object followed by struct cmsgcred{}.
+
+ 2: Receiving sockcred (listening socket)
+
+    Server creates a listening stream socket and sets the LOCAL_CREDS
+    socket option for it.  Client connects to Server two times, each time
+    it sends N messages.  Server accepts two connections and receives N
+    messages from each connection.  The first message from each connection
+    should have SCM_CREDS ancillary data object followed by struct sockcred{},
+    next messages from the same connection should not have ancillary data.
+
+ 3: Receiving sockcred (accepted socket)
+
+    Client connects to Server.  Server accepts connection and sets the
+    LOCAL_CREDS socket option for just accepted socket.  Client sends N
+    messages to Server.  Server should receive N messages, the first
+    message should have SCM_CREDS ancillary data object followed by
+    struct sockcred{}, next messages should not have ancillary data.
+
+ 4: Sending cmsgcred, receiving sockcred
+
+    Server creates a listening stream socket and sets the LOCAL_CREDS
+    socket  option for it.  Client connects to Server and sends N messages
+    with SCM_CREDS ancillary data object.  Server should receive N messages,
+    the first message should have SCM_CREDS ancillary data object followed
+    by struct sockcred{}, each of next messages should have SCM_CREDS
+    ancillary data object followed by struct cmsgcred{}.
+
+ 5: Sending, receiving timeval
+
+    Client connects to Server and sends message with SCM_TIMESTAMP ancillary
+    data object.  Server should receive one message with SCM_TIMESTAMP
+    ancillary data object followed by struct timeval{}.
+
+ 6: Sending, receiving bintime
+
+    Client connects to Server and sends message with SCM_BINTIME ancillary
+    data object.  Server should receive one message with SCM_BINTIME
+    ancillary data object followed by struct bintime{}.
+
+ 7: Checking cmsghdr.cmsg_len
+
+    Client connects to Server and tries to send several messages with
+    SCM_CREDS ancillary data object that has wrong cmsg_len field in its
+    struct cmsghdr{}.  All these attempts should fail, since cmsg_len
+    in all requests is less than CMSG_LEN(0).
+
+ 8: Check LOCAL_PEERCRED socket option
+
+    This test does not use ancillary data, but can be implemented here.
+    Client connects to Server.  Both Client and Server verify that
+    credentials of the peer are correct using LOCAL_PEERCRED socket option.
+
+For SOCK_DGRAM sockets:
+----------------------
+
+ 1: Sending, receiving cmsgcred
+
+    Client connects to Server and sends N messages with SCM_CREDS ancillary
+    data object.  Server should receive N messages, each message should
+    have SCM_CREDS ancillary data object followed by struct cmsgcred{}.
+
+ 2: Receiving sockcred
+
+    Server creates datagram socket and sets the LOCAL_CREDS socket option
+    for it.  Client sends N messages to Server.  Server should receive N
+    messages, each message should have SCM_CREDS ancillary data object
+    followed by struct sockcred{}.
+
+ 3: Sending cmsgcred, receiving sockcred
+
+    Server creates datagram socket and sets the LOCAL_CREDS socket option
+    for it.  Client sends N messages with SCM_CREDS ancillary data object
+    to Server.  Server should receive N messages, the first message should
+    have SCM_CREDS ancillary data object followed by struct sockcred{},
+    each of next messages should have SCM_CREDS ancillary data object
+    followed by struct cmsgcred{}.
+
+ 4: Sending, receiving timeval
+
+    Client sends one message with SCM_TIMESTAMP ancillary data object
+    to Server.  Server should receive one message with SCM_TIMESTAMP
+    ancillary data object followed by struct timeval{}.
+
+ 5: Sending, receiving bintime
+
+    Client sends one message with SCM_BINTIME ancillary data object
+    to Server.  Server should receive one message with SCM_BINTIME
+    ancillary data object followed by struct bintime{}.
+
+ 6: Checking cmsghdr.cmsg_len
+
+    Client tries to send Server several messages with SCM_CREDS ancillary
+    data object that has wrong cmsg_len field in its struct cmsghdr{}.
+    All these attempts should fail, since cmsg_len in all requests is less
+    than CMSG_LEN(0).
+
+- Andrey Simonenko
+andreysimonenko@users.sourceforge.net

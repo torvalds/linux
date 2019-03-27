@@ -1,0 +1,15 @@
+
+#------------------------------------------------------------------------------
+# $File: isz,v 1.4 2017/03/17 21:35:28 christos Exp $
+# ISO Zipped file format
+# http://www.ezbsystems.com/isz/iszspec.txt
+0	string	IsZ!	ISO Zipped file
+>4	byte	x	\b, header size %u
+>5	byte	x	\b, version %u
+>8	lelong	x	\b, serial %u
+#12	leshort	x	\b, sector size %u
+#>16	lelong	x	\b, total sectors %u
+>17	byte	>0	\b, password protected
+#>24	lequad	x	\b, segment size %llu
+#>32	lelong	x	\b, blocks %u
+#>36	lelong	x	\b, block size %u

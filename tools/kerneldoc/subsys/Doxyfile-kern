@@ -1,0 +1,20 @@
+# Doxyfile 1.5.2
+
+# $FreeBSD$
+
+#---------------------------------------------------------------------------
+# Project related configuration options
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "FreeBSD kernel kern code"
+OUTPUT_DIRECTORY       = $(DOXYGEN_DEST_PATH)/kern/
+EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
+#--------------------------------------------------------------------------
+# configuration options related to the input files
+#---------------------------------------------------------------------------
+INPUT                  = $(DOXYGEN_SRC_PATH)/kern/ $(NOTREVIEWED)
+
+GENERATE_TAGFILE       = kern/kern.tag
+
+@INCLUDE_PATH          = $(DOXYGEN_INCLUDE_PATH)
+@INCLUDE               = common-Doxyfile
+

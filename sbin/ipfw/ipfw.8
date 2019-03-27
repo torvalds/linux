@@ -1,0 +1,4803 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 19, 2019
+.Dt IPFW 8
+.Os
+.Sh NAME
+.Nm ipfw
+.Nd User interface for firewall, traffic shaper, packet scheduler,
+in-kernel NAT.
+.Sh SYNOPSIS
+.Ss FIREWALL CONFIGURATION
+.Nm
+.Op Fl cq
+.Cm add
+.Ar rule
+.Nm
+.Op Fl acdefnNStT
+.Op Cm set Ar N
+.Brq Cm list | show
+.Op Ar rule | first-last ...
+.Nm
+.Op Fl f | q
+.Op Cm set Ar N
+.Cm flush
+.Nm
+.Op Fl q
+.Op Cm set Ar N
+.Brq Cm delete | zero | resetlog
+.Op Ar number ...
+.Pp
+.Nm
+.Cm set Oo Cm disable Ar number ... Oc Op Cm enable Ar number ...
+.Nm
+.Cm set move
+.Op Cm rule
+.Ar number Cm to Ar number
+.Nm
+.Cm set swap Ar number number
+.Nm
+.Cm set show
+.Ss SYSCTL SHORTCUTS
+.Nm
+.Cm enable
+.Brq Cm firewall | altq | one_pass | debug | verbose | dyn_keepalive
+.Nm
+.Cm disable
+.Brq Cm firewall | altq | one_pass | debug | verbose | dyn_keepalive
+.Ss LOOKUP TABLES
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm create Ar create-options
+.Nm
+.Oo Cm set Ar N Oc Cm table
+.Brq Ar name | all
+.Cm destroy
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm modify Ar modify-options
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm swap Ar name
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm add Ar table-key Op Ar value
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm add Op Ar table-key Ar value ...
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm atomic add Op Ar table-key Ar value ...
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm delete Op Ar table-key ...
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm lookup Ar addr
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm lock
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm unlock
+.Nm
+.Oo Cm set Ar N Oc Cm table
+.Brq Ar name | all
+.Cm list
+.Nm
+.Oo Cm set Ar N Oc Cm table
+.Brq Ar name | all
+.Cm info
+.Nm
+.Oo Cm set Ar N Oc Cm table
+.Brq Ar name | all
+.Cm detail
+.Nm
+.Oo Cm set Ar N Oc Cm table
+.Brq Ar name | all
+.Cm flush
+.Ss DUMMYNET CONFIGURATION (TRAFFIC SHAPER AND PACKET SCHEDULER)
+.Nm
+.Brq Cm pipe | queue | sched
+.Ar number
+.Cm config
+.Ar config-options
+.Nm
+.Op Fl s Op Ar field
+.Brq Cm pipe | queue | sched
+.Brq Cm delete | list | show
+.Op Ar number ...
+.Ss IN-KERNEL NAT
+.Nm
+.Op Fl q
+.Cm nat
+.Ar number
+.Cm config
+.Ar config-options
+.Ss STATEFUL IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
+.Nm
+.Oo Cm set Ar N Oc Cm nat64lsn Ar name Cm create Ar create-options
+.Nm
+.Oo Cm set Ar N Oc Cm nat64lsn Ar name Cm config Ar config-options
+.Nm
+.Oo Cm set Ar N Oc Cm nat64lsn
+.Brq Ar name | all
+.Brq Cm list | show
+.Op Cm states
+.Nm
+.Oo Cm set Ar N Oc Cm nat64lsn
+.Brq Ar name | all
+.Cm destroy
+.Nm
+.Oo Cm set Ar N Oc Cm nat64lsn Ar name Cm stats Op Cm reset
+.Ss STATELESS IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
+.Nm
+.Oo Cm set Ar N Oc Cm nat64stl Ar name Cm create Ar create-options
+.Nm
+.Oo Cm set Ar N Oc Cm nat64stl Ar name Cm config Ar config-options
+.Nm
+.Oo Cm set Ar N Oc Cm nat64stl
+.Brq Ar name | all
+.Brq Cm list | show
+.Nm
+.Oo Cm set Ar N Oc Cm nat64stl
+.Brq Ar name | all
+.Cm destroy
+.Nm
+.Oo Cm set Ar N Oc Cm nat64stl Ar name Cm stats Op Cm reset
+.Ss XLAT464 CLAT IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
+.Nm
+.Oo Cm set Ar N Oc Cm nat64clat Ar name Cm create Ar create-options
+.Nm
+.Oo Cm set Ar N Oc Cm nat64clat Ar name Cm config Ar config-options
+.Nm
+.Oo Cm set Ar N Oc Cm nat64clat
+.Brq Ar name | all
+.Brq Cm list | show
+.Nm
+.Oo Cm set Ar N Oc Cm nat64clat
+.Brq Ar name | all
+.Cm destroy
+.Nm
+.Oo Cm set Ar N Oc Cm nat64clat Ar name Cm stats Op Cm reset
+.Ss IPv6-to-IPv6 NETWORK PREFIX TRANSLATION
+.Nm
+.Oo Cm set Ar N Oc Cm nptv6 Ar name Cm create Ar create-options
+.Nm
+.Oo Cm set Ar N Oc Cm nptv6
+.Brq Ar name | all
+.Brq Cm list | show
+.Nm
+.Oo Cm set Ar N Oc Cm nptv6
+.Brq Ar name | all
+.Cm destroy
+.Nm
+.Oo Cm set Ar N Oc Cm nptv6 Ar name Cm stats Op Cm reset
+.Ss INTERNAL DIAGNOSTICS
+.Nm
+.Cm internal iflist
+.Nm
+.Cm internal talist
+.Nm
+.Cm internal vlist
+.Ss LIST OF RULES AND PREPROCESSING
+.Nm
+.Op Fl cfnNqS
+.Oo
+.Fl p Ar preproc
+.Oo
+.Ar preproc-flags
+.Oc
+.Oc
+.Ar pathname
+.Sh DESCRIPTION
+The
+.Nm
+utility is the user interface for controlling the
+.Xr ipfw 4
+firewall, the
+.Xr dummynet 4
+traffic shaper/packet scheduler, and the
+in-kernel NAT services.
+.Pp
+A firewall configuration, or
+.Em ruleset ,
+is made of a list of
+.Em rules
+numbered from 1 to 65535.
+Packets are passed to the firewall
+from a number of different places in the protocol stack
+(depending on the source and destination of the packet,
+it is possible for the firewall to be
+invoked multiple times on the same packet).
+The packet passed to the firewall is compared
+against each of the rules in the
+.Em ruleset ,
+in rule-number order
+(multiple rules with the same number are permitted, in which case
+they are processed in order of insertion).
+When a match is found, the action corresponding to the
+matching rule is performed.
+.Pp
+Depending on the action and certain system settings, packets
+can be reinjected into the firewall at some rule after the
+matching one for further processing.
+.Pp
+A ruleset always includes a
+.Em default
+rule (numbered 65535) which cannot be modified or deleted,
+and matches all packets.
+The action associated with the
+.Em default
+rule can be either
+.Cm deny
+or
+.Cm allow
+depending on how the kernel is configured.
+.Pp
+If the ruleset includes one or more rules with the
+.Cm keep-state ,
+.Cm record-state ,
+.Cm limit
+or
+.Cm set-limit
+option,
+the firewall will have a
+.Em stateful
+behaviour, i.e., upon a match it will create
+.Em dynamic rules ,
+i.e., rules that match packets with the same 5-tuple
+(protocol, source and destination addresses and ports)
+as the packet which caused their creation.
+Dynamic rules, which have a limited lifetime, are checked
+at the first occurrence of a
+.Cm check-state ,
+.Cm keep-state
+or
+.Cm limit
+rule, and are typically used to open the firewall on-demand to
+legitimate traffic only.
+Please note, that
+.Cm keep-state
+amd
+.Cm limit
+imply implicit
+.Cm check-state
+for all packets (not only these matched by the rule) but
+.Cm record-state
+and
+.Cm set-limit
+have no implicit
+.Cm check-state .
+See the
+.Sx STATEFUL FIREWALL
+and
+.Sx EXAMPLES
+Sections below for more information on the stateful behaviour of
+.Nm .
+.Pp
+All rules (including dynamic ones) have a few associated counters:
+a packet count, a byte count, a log count and a timestamp
+indicating the time of the last match.
+Counters can be displayed or reset with
+.Nm
+commands.
+.Pp
+Each rule belongs to one of 32 different
+.Em sets
+, and there are
+.Nm
+commands to atomically manipulate sets, such as enable,
+disable, swap sets, move all rules in a set to another
+one, delete all rules in a set.
+These can be useful to
+install temporary configurations, or to test them.
+See Section
+.Sx SETS OF RULES
+for more information on
+.Em sets .
+.Pp
+Rules can be added with the
+.Cm add
+command; deleted individually or in groups with the
+.Cm delete
+command, and globally (except those in set 31) with the
+.Cm flush
+command; displayed, optionally with the content of the
+counters, using the
+.Cm show
+and
+.Cm list
+commands.
+Finally, counters can be reset with the
+.Cm zero
+and
+.Cm resetlog
+commands.
+.Pp
+.Ss COMMAND OPTIONS
+The following general options are available when invoking
+.Nm :
+.Bl -tag -width indent
+.It Fl a
+Show counter values when listing rules.
+The
+.Cm show
+command implies this option.
+.It Fl b
+Only show the action and the comment, not the body of a rule.
+Implies
+.Fl c .
+.It Fl c
+When entering or showing rules, print them in compact form,
+i.e., omitting the "ip from any to any" string
+when this does not carry any additional information.
+.It Fl d
+When listing, show dynamic rules in addition to static ones.
+.It Fl D
+When listing, show only dynamic states.
+When deleting, delete only dynamic states.
+.It Fl f
+Run without prompting for confirmation for commands that can cause problems if misused,
+i.e.,
+.Cm flush .
+If there is no tty associated with the process, this is implied.
+The
+.Cm delete
+command with this flag ignores possible errors,
+i.e., nonexistent rule number.
+And for batched commands execution continues with the next command.
+.It Fl i
+When listing a table (see the
+.Sx LOOKUP TABLES
+section below for more information on lookup tables), format values
+as IP addresses.
+By default, values are shown as integers.
+.It Fl n
+Only check syntax of the command strings, without actually passing
+them to the kernel.
+.It Fl N
+Try to resolve addresses and service names in output.
+.It Fl q
+Be quiet when executing the
+.Cm add ,
+.Cm nat ,
+.Cm zero ,
+.Cm resetlog
+or
+.Cm flush
+commands;
+(implies
+.Fl f ) .
+This is useful when updating rulesets by executing multiple
+.Nm
+commands in a script
+(e.g.,
+.Ql sh\ /etc/rc.firewall ) ,
+or by processing a file with many
+.Nm
+rules across a remote login session.
+It also stops a table add or delete
+from failing if the entry already exists or is not present.
+.Pp
+The reason why this option may be important is that
+for some of these actions,
+.Nm
+may print a message; if the action results in blocking the
+traffic to the remote client,
+the remote login session will be closed
+and the rest of the ruleset will not be processed.
+Access to the console would then be required to recover.
+.It Fl S
+When listing rules, show the
+.Em set
+each rule belongs to.
+If this flag is not specified, disabled rules will not be
+listed.
+.It Fl s Op Ar field
+When listing pipes, sort according to one of the four
+counters (total or current packets or bytes).
+.It Fl t
+When listing, show last match timestamp converted with ctime().
+.It Fl T
+When listing, show last match timestamp as seconds from the epoch.
+This form can be more convenient for postprocessing by scripts.
+.El
+.Ss LIST OF RULES AND PREPROCESSING
+To ease configuration, rules can be put into a file which is
+processed using
+.Nm
+as shown in the last synopsis line.
+An absolute
+.Ar pathname
+must be used.
+The file will be read line by line and applied as arguments to the
+.Nm
+utility.
+.Pp
+Optionally, a preprocessor can be specified using
+.Fl p Ar preproc
+where
+.Ar pathname
+is to be piped through.
+Useful preprocessors include
+.Xr cpp 1
+and
+.Xr m4 1 .
+If
+.Ar preproc
+does not start with a slash
+.Pq Ql /
+as its first character, the usual
+.Ev PATH
+name search is performed.
+Care should be taken with this in environments where not all
+file systems are mounted (yet) by the time
+.Nm
+is being run (e.g.\& when they are mounted over NFS).
+Once
+.Fl p
+has been specified, any additional arguments are passed on to the preprocessor
+for interpretation.
+This allows for flexible configuration files (like conditionalizing
+them on the local hostname) and the use of macros to centralize
+frequently required arguments like IP addresses.
+.Ss TRAFFIC SHAPER CONFIGURATION
+The
+.Nm
+.Cm pipe , queue
+and
+.Cm sched
+commands are used to configure the traffic shaper and packet scheduler.
+See the
+.Sx TRAFFIC SHAPER (DUMMYNET) CONFIGURATION
+Section below for details.
+.Pp
+If the world and the kernel get out of sync the
+.Nm
+ABI may break, preventing you from being able to add any rules.
+This can adversely affect the booting process.
+You can use
+.Nm
+.Cm disable
+.Cm firewall
+to temporarily disable the firewall to regain access to the network,
+allowing you to fix the problem.
+.Sh PACKET FLOW
+A packet is checked against the active ruleset in multiple places
+in the protocol stack, under control of several sysctl variables.
+These places and variables are shown below, and it is important to
+have this picture in mind in order to design a correct ruleset.
+.Bd -literal -offset indent
+       ^    to upper layers    V
+       |                       |
+       +----------->-----------+
+       ^                       V
+ [ip(6)_input]           [ip(6)_output]     net.inet(6).ip(6).fw.enable=1
+       |                       |
+       ^                       V
+ [ether_demux]        [ether_output_frame]  net.link.ether.ipfw=1
+       |                       |
+       +-->--[bdg_forward]-->--+            net.link.bridge.ipfw=1
+       ^                       V
+       |      to devices       |
+.Ed
+.Pp
+The number of
+times the same packet goes through the firewall can
+vary between 0 and 4 depending on packet source and
+destination, and system configuration.
+.Pp
+Note that as packets flow through the stack, headers can be
+stripped or added to it, and so they may or may not be available
+for inspection.
+E.g., incoming packets will include the MAC header when
+.Nm
+is invoked from
+.Cm ether_demux() ,
+but the same packets will have the MAC header stripped off when
+.Nm
+is invoked from
+.Cm ip_input()
+or
+.Cm ip6_input() .
+.Pp
+Also note that each packet is always checked against the complete ruleset,
+irrespective of the place where the check occurs, or the source of the packet.
+If a rule contains some match patterns or actions which are not valid
+for the place of invocation (e.g.\& trying to match a MAC header within
+.Cm ip_input
+or
+.Cm ip6_input ),
+the match pattern will not match, but a
+.Cm not
+operator in front of such patterns
+.Em will
+cause the pattern to
+.Em always
+match on those packets.
+It is thus the responsibility of
+the programmer, if necessary, to write a suitable ruleset to
+differentiate among the possible places.
+.Cm skipto
+rules can be useful here, as an example:
+.Bd -literal -offset indent
+# packets from ether_demux or bdg_forward
+ipfw add 10 skipto 1000 all from any to any layer2 in
+# packets from ip_input
+ipfw add 10 skipto 2000 all from any to any not layer2 in
+# packets from ip_output
+ipfw add 10 skipto 3000 all from any to any not layer2 out
+# packets from ether_output_frame
+ipfw add 10 skipto 4000 all from any to any layer2 out
+.Ed
+.Pp
+(yes, at the moment there is no way to differentiate between
+ether_demux and bdg_forward).
+.Pp
+Also note that only actions
+.Cm allow,
+.Cm deny,
+.Cm netgraph,
+.Cm ngtee
+and related to
+.Cm dummynet
+are processed for
+.Cm layer2
+frames and all other actions act as if they were
+.Cm allow
+for such frames.
+Full set of actions is supported for IP packets without
+.Cm layer2
+headers only.
+For example,
+.Cm divert
+action does not divert
+.Cm layer2
+frames.
+.Sh SYNTAX
+In general, each keyword or argument must be provided as
+a separate command line argument, with no leading or trailing
+spaces.
+Keywords are case-sensitive, whereas arguments may
+or may not be case-sensitive depending on their nature
+(e.g.\& uid's are, hostnames are not).
+.Pp
+Some arguments (e.g., port or address lists) are comma-separated
+lists of values.
+In this case, spaces after commas ',' are allowed to make
+the line more readable.
+You can also put the entire
+command (including flags) into a single argument.
+E.g., the following forms are equivalent:
+.Bd -literal -offset indent
+ipfw -q add deny src-ip 10.0.0.0/24,127.0.0.1/8
+ipfw -q add deny src-ip 10.0.0.0/24, 127.0.0.1/8
+ipfw "-q add deny src-ip 10.0.0.0/24, 127.0.0.1/8"
+.Ed
+.Sh RULE FORMAT
+The format of firewall rules is the following:
+.Bd -ragged -offset indent
+.Bk -words
+.Op Ar rule_number
+.Op Cm set Ar set_number
+.Op Cm prob Ar match_probability
+.Ar action
+.Op Cm log Op Cm logamount Ar number
+.Op Cm altq Ar queue
+.Oo
+.Bro Cm tag | untag
+.Brc Ar number
+.Oc
+.Ar body
+.Ek
+.Ed
+.Pp
+where the body of the rule specifies which information is used
+for filtering packets, among the following:
+.Pp
+.Bl -tag -width "Source and dest. addresses and ports" -offset XXX -compact
+.It Layer-2 header fields
+When available
+.It IPv4 and IPv6 Protocol
+SCTP, TCP, UDP, ICMP, etc.
+.It Source and dest. addresses and ports
+.It Direction
+See Section
+.Sx PACKET FLOW
+.It Transmit and receive interface
+By name or address
+.It Misc. IP header fields
+Version, type of service, datagram length, identification,
+fragment flag (non-zero IP offset),
+Time To Live
+.It IP options
+.It IPv6 Extension headers
+Fragmentation, Hop-by-Hop options,
+Routing Headers, Source routing rthdr0, Mobile IPv6 rthdr2, IPSec options.
+.It IPv6 Flow-ID
+.It Misc. TCP header fields
+TCP flags (SYN, FIN, ACK, RST, etc.),
+sequence number, acknowledgment number,
+window
+.It TCP options
+.It ICMP types
+for ICMP packets
+.It ICMP6 types
+for ICMP6 packets
+.It User/group ID
+When the packet can be associated with a local socket.
+.It Divert status
+Whether a packet came from a divert socket (e.g.,
+.Xr natd 8 ) .
+.It Fib annotation state
+Whether a packet has been tagged for using a specific FIB (routing table)
+in future forwarding decisions.
+.El
+.Pp
+Note that some of the above information, e.g.\& source MAC or IP addresses and
+TCP/UDP ports, can be easily spoofed, so filtering on those fields
+alone might not guarantee the desired results.
+.Bl -tag -width indent
+.It Ar rule_number
+Each rule is associated with a
+.Ar rule_number
+in the range 1..65535, with the latter reserved for the
+.Em default
+rule.
+Rules are checked sequentially by rule number.
+Multiple rules can have the same number, in which case they are
+checked (and listed) according to the order in which they have
+been added.
+If a rule is entered without specifying a number, the kernel will
+assign one in such a way that the rule becomes the last one
+before the
+.Em default
+rule.
+Automatic rule numbers are assigned by incrementing the last
+non-default rule number by the value of the sysctl variable
+.Ar net.inet.ip.fw.autoinc_step
+which defaults to 100.
+If this is not possible (e.g.\& because we would go beyond the
+maximum allowed rule number), the number of the last
+non-default value is used instead.
+.It Cm set Ar set_number
+Each rule is associated with a
+.Ar set_number
+in the range 0..31.
+Sets can be individually disabled and enabled, so this parameter
+is of fundamental importance for atomic ruleset manipulation.
+It can be also used to simplify deletion of groups of rules.
+If a rule is entered without specifying a set number,
+set 0 will be used.
+.br
+Set 31 is special in that it cannot be disabled,
+and rules in set 31 are not deleted by the
+.Nm ipfw flush
+command (but you can delete them with the
+.Nm ipfw delete set 31
+command).
+Set 31 is also used for the
+.Em default
+rule.
+.It Cm prob Ar match_probability
+A match is only declared with the specified probability
+(floating point number between 0 and 1).
+This can be useful for a number of applications such as
+random packet drop or
+(in conjunction with
+.Nm dummynet )
+to simulate the effect of multiple paths leading to out-of-order
+packet delivery.
+.Pp
+Note: this condition is checked before any other condition, including
+ones such as 
+.Cm keep-state
+or
+.Cm check-state
+which might have
+side effects.
+.It Cm log Op Cm logamount Ar number
+Packets matching a rule with the
+.Cm log
+keyword will be made available for logging in two ways:
+if the sysctl variable
+.Va net.inet.ip.fw.verbose
+is set to 0 (default), one can use
+.Xr bpf 4
+attached to the
+.Li ipfw0
+pseudo interface.
+This pseudo interface can be created manually after a system
+boot by using the following command:
+.Bd -literal -offset indent
+# ifconfig ipfw0 create
+.Ed
+.Pp
+Or, automatically at boot time by adding the following
+line to the
+.Xr rc.conf 5
+file:
+.Bd -literal -offset indent
+firewall_logif="YES"
+.Ed
+.Pp
+There is zero overhead when no
+.Xr bpf 4
+is attached to the pseudo interface.
+.Pp
+If
+.Va net.inet.ip.fw.verbose
+is set to 1, packets will be logged to
+.Xr syslogd 8
+with a
+.Dv LOG_SECURITY
+facility up to a maximum of
+.Cm logamount
+packets.
+If no
+.Cm logamount
+is specified, the limit is taken from the sysctl variable
+.Va net.inet.ip.fw.verbose_limit .
+In both cases, a value of 0 means unlimited logging.
+.Pp
+Once the limit is reached, logging can be re-enabled by
+clearing the logging counter or the packet counter for that entry, see the
+.Cm resetlog
+command.
+.Pp
+Note: logging is done after all other packet matching conditions
+have been successfully verified, and before performing the final
+action (accept, deny, etc.) on the packet.
+.It Cm tag Ar number
+When a packet matches a rule with the
+.Cm tag
+keyword, the numeric tag for the given
+.Ar number
+in the range 1..65534 will be attached to the packet.
+The tag acts as an internal marker (it is not sent out over
+the wire) that can be used to identify these packets later on.
+This can be used, for example, to provide trust between interfaces
+and to start doing policy-based filtering.
+A packet can have multiple tags at the same time.
+Tags are "sticky", meaning once a tag is applied to a packet by a
+matching rule it exists until explicit removal.
+Tags are kept with the packet everywhere within the kernel, but are
+lost when packet leaves the kernel, for example, on transmitting
+packet out to the network or sending packet to a
+.Xr divert 4
+socket.
+.Pp
+To check for previously applied tags, use the
+.Cm tagged
+rule option.
+To delete previously applied tag, use the
+.Cm untag
+keyword.
+.Pp
+Note: since tags are kept with the packet everywhere in kernelspace,
+they can be set and unset anywhere in the kernel network subsystem
+(using the
+.Xr mbuf_tags 9
+facility), not only by means of the
+.Xr ipfw 4
+.Cm tag
+and
+.Cm untag
+keywords.
+For example, there can be a specialized
+.Xr netgraph 4
+node doing traffic analyzing and tagging for later inspecting
+in firewall.
+.It Cm untag Ar number
+When a packet matches a rule with the
+.Cm untag
+keyword, the tag with the number
+.Ar number
+is searched among the tags attached to this packet and,
+if found, removed from it.
+Other tags bound to packet, if present, are left untouched.
+.It Cm altq Ar queue
+When a packet matches a rule with the
+.Cm altq
+keyword, the ALTQ identifier for the given
+.Ar queue
+(see
+.Xr altq 4 )
+will be attached.
+Note that this ALTQ tag is only meaningful for packets going "out" of IPFW,
+and not being rejected or going to divert sockets.
+Note that if there is insufficient memory at the time the packet is
+processed, it will not be tagged, so it is wise to make your ALTQ
+"default" queue policy account for this.
+If multiple
+.Cm altq
+rules match a single packet, only the first one adds the ALTQ classification
+tag.
+In doing so, traffic may be shaped by using
+.Cm count Cm altq Ar queue
+rules for classification early in the ruleset, then later applying
+the filtering decision.
+For example,
+.Cm check-state
+and
+.Cm keep-state
+rules may come later and provide the actual filtering decisions in
+addition to the fallback ALTQ tag.
+.Pp
+You must run
+.Xr pfctl 8
+to set up the queues before IPFW will be able to look them up by name,
+and if the ALTQ disciplines are rearranged, the rules in containing the
+queue identifiers in the kernel will likely have gone stale and need
+to be reloaded.
+Stale queue identifiers will probably result in misclassification.
+.Pp
+All system ALTQ processing can be turned on or off via
+.Nm
+.Cm enable Ar altq
+and
+.Nm
+.Cm disable Ar altq .
+The usage of
+.Va net.inet.ip.fw.one_pass
+is irrelevant to ALTQ traffic shaping, as the actual rule action is followed
+always after adding an ALTQ tag.
+.El
+.Ss RULE ACTIONS
+A rule can be associated with one of the following actions, which
+will be executed when the packet matches the body of the rule.
+.Bl -tag -width indent
+.It Cm allow | accept | pass | permit
+Allow packets that match rule.
+The search terminates.
+.It Cm check-state Op Ar :flowname | Cm :any
+Checks the packet against the dynamic ruleset.
+If a match is found, execute the action associated with
+the rule which generated this dynamic rule, otherwise
+move to the next rule.
+.br
+.Cm Check-state
+rules do not have a body.
+If no
+.Cm check-state
+rule is found, the dynamic ruleset is checked at the first
+.Cm keep-state
+or
+.Cm limit
+rule.
+The
+.Ar :flowname
+is symbolic name assigned to dynamic rule by
+.Cm keep-state
+opcode.
+The special flowname
+.Cm :any
+can be used to ignore states flowname when matching.
+The
+.Cm :default
+keyword is special name used for compatibility with old rulesets.
+.It Cm count
+Update counters for all packets that match rule.
+The search continues with the next rule.
+.It Cm deny | drop
+Discard packets that match this rule.
+The search terminates.
+.It Cm divert Ar port
+Divert packets that match this rule to the
+.Xr divert 4
+socket bound to port
+.Ar port .
+The search terminates.
+.It Cm fwd | forward Ar ipaddr | tablearg Ns Op , Ns Ar port
+Change the next-hop on matching packets to
+.Ar ipaddr ,
+which can be an IP address or a host name.
+The next hop can also be supplied by the last table
+looked up for the packet by using the
+.Cm tablearg
+keyword instead of an explicit address.
+The search terminates if this rule matches.
+.Pp
+If
+.Ar ipaddr
+is a local address, then matching packets will be forwarded to
+.Ar port
+(or the port number in the packet if one is not specified in the rule)
+on the local machine.
+.br
+If
+.Ar ipaddr
+is not a local address, then the port number
+(if specified) is ignored, and the packet will be
+forwarded to the remote address, using the route as found in
+the local routing table for that IP.
+.br
+A
+.Ar fwd
+rule will not match layer-2 packets (those received
+on ether_input, ether_output, or bridged).
+.br
+The
+.Cm fwd
+action does not change the contents of the packet at all.
+In particular, the destination address remains unmodified, so
+packets forwarded to another system will usually be rejected by that system
+unless there is a matching rule on that system to capture them.
+For packets forwarded locally,
+the local address of the socket will be
+set to the original destination address of the packet.
+This makes the
+.Xr netstat 1
+entry look rather weird but is intended for
+use with transparent proxy servers.
+.It Cm nat Ar nat_nr | tablearg
+Pass packet to a
+nat instance
+(for network address translation, address redirect, etc.):
+see the
+.Sx NETWORK ADDRESS TRANSLATION (NAT)
+Section for further information.
+.It Cm nat64lsn Ar name
+Pass packet to a stateful NAT64 instance (for IPv6/IPv4 network address and
+protocol translation): see the
+.Sx IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
+Section for further information.
+.It Cm nat64stl Ar name
+Pass packet to a stateless NAT64 instance (for IPv6/IPv4 network address and
+protocol translation): see the
+.Sx IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
+Section for further information.
+.It Cm nat64clat Ar name
+Pass packet to a CLAT NAT64 instance (for client-side IPv6/IPv4 network address and
+protocol translation): see the
+.Sx IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
+Section for further information.
+.It Cm nptv6 Ar name
+Pass packet to a NPTv6 instance (for IPv6-to-IPv6 network prefix translation):
+see the
+.Sx IPv6-to-IPv6 NETWORK PREFIX TRANSLATION (NPTv6)
+Section for further information.
+.It Cm pipe Ar pipe_nr
+Pass packet to a
+.Nm dummynet
+.Dq pipe
+(for bandwidth limitation, delay, etc.).
+See the
+.Sx TRAFFIC SHAPER (DUMMYNET) CONFIGURATION
+Section for further information.
+The search terminates; however, on exit from the pipe and if
+the
+.Xr sysctl 8
+variable
+.Va net.inet.ip.fw.one_pass
+is not set, the packet is passed again to the firewall code
+starting from the next rule.
+.It Cm queue Ar queue_nr
+Pass packet to a
+.Nm dummynet
+.Dq queue
+(for bandwidth limitation using WF2Q+).
+.It Cm reject
+(Deprecated).
+Synonym for
+.Cm unreach host .
+.It Cm reset
+Discard packets that match this rule, and if the
+packet is a TCP packet, try to send a TCP reset (RST) notice.
+The search terminates.
+.It Cm reset6
+Discard packets that match this rule, and if the
+packet is a TCP packet, try to send a TCP reset (RST) notice.
+The search terminates.
+.It Cm skipto Ar number | tablearg
+Skip all subsequent rules numbered less than
+.Ar number .
+The search continues with the first rule numbered
+.Ar number
+or higher.
+It is possible to use the
+.Cm tablearg
+keyword with a skipto for a
+.Em computed
+skipto. Skipto may work either in O(log(N)) or in O(1) depending
+on amount of memory and/or sysctl variables.
+See the
+.Sx SYSCTL VARIABLES
+section for more details.
+.It Cm call Ar number | tablearg
+The current rule number is saved in the internal stack and
+ruleset processing continues with the first rule numbered
+.Ar number
+or higher.
+If later a rule with the
+.Cm return
+action is encountered, the processing returns to the first rule
+with number of this
+.Cm call
+rule plus one or higher
+(the same behaviour as with packets returning from
+.Xr divert 4
+socket after a
+.Cm divert
+action).
+This could be used to make somewhat like an assembly language
+.Dq subroutine
+calls to rules with common checks for different interfaces, etc.
+.Pp
+Rule with any number could be called, not just forward jumps as with
+.Cm skipto .
+So, to prevent endless loops in case of mistakes, both
+.Cm call
+and
+.Cm return
+actions don't do any jumps and simply go to the next rule if memory
+cannot be allocated or stack overflowed/underflowed.
+.Pp
+Internally stack for rule numbers is implemented using
+.Xr mbuf_tags 9
+facility and currently has size of 16 entries.
+As mbuf tags are lost when packet leaves the kernel,
+.Cm divert
+should not be used in subroutines to avoid endless loops
+and other undesired effects.
+.It Cm return
+Takes rule number saved to internal stack by the last
+.Cm call
+action and returns ruleset processing to the first rule
+with number greater than number of corresponding
+.Cm call
+rule.
+See description of the
+.Cm call
+action for more details.
+.Pp
+Note that
+.Cm return
+rules usually end a
+.Dq subroutine
+and thus are unconditional, but
+.Nm
+command-line utility currently requires every action except
+.Cm check-state
+to have body.
+While it is sometimes useful to return only on some packets,
+usually you want to print just
+.Dq return
+for readability.
+A workaround for this is to use new syntax and
+.Fl c
+switch:
+.Bd -literal -offset indent
+# Add a rule without actual body
+ipfw add 2999 return via any
+
+# List rules without "from any to any" part
+ipfw -c list
+.Ed
+.Pp
+This cosmetic annoyance may be fixed in future releases.
+.It Cm tee Ar port
+Send a copy of packets matching this rule to the
+.Xr divert 4
+socket bound to port
+.Ar port .
+The search continues with the next rule.
+.It Cm unreach Ar code
+Discard packets that match this rule, and try to send an ICMP
+unreachable notice with code
+.Ar code ,
+where
+.Ar code
+is a number from 0 to 255, or one of these aliases:
+.Cm net , host , protocol , port ,
+.Cm needfrag , srcfail , net-unknown , host-unknown ,
+.Cm isolated , net-prohib , host-prohib , tosnet ,
+.Cm toshost , filter-prohib , host-precedence
+or
+.Cm precedence-cutoff .
+The search terminates.
+.It Cm unreach6 Ar code
+Discard packets that match this rule, and try to send an ICMPv6
+unreachable notice with code
+.Ar code ,
+where
+.Ar code
+is a number from 0, 1, 3 or 4, or one of these aliases:
+.Cm no-route, admin-prohib, address
+or
+.Cm port .
+The search terminates.
+.It Cm netgraph Ar cookie
+Divert packet into netgraph with given
+.Ar cookie .
+The search terminates.
+If packet is later returned from netgraph it is either
+accepted or continues with the next rule, depending on
+.Va net.inet.ip.fw.one_pass
+sysctl variable.
+.It Cm ngtee Ar cookie
+A copy of packet is diverted into netgraph, original
+packet continues with the next rule.
+See
+.Xr ng_ipfw 4
+for more information on
+.Cm netgraph
+and
+.Cm ngtee
+actions.
+.It Cm setfib Ar fibnum | tablearg
+The packet is tagged so as to use the FIB (routing table)
+.Ar fibnum
+in any subsequent forwarding decisions.
+In the current implementation, this is limited to the values 0 through 15, see
+.Xr setfib 2 .
+Processing continues at the next rule.
+It is possible to use the
+.Cm tablearg
+keyword with setfib.
+If the tablearg value is not within the compiled range of fibs,
+the packet's fib is set to 0.
+.It Cm setdscp Ar DSCP | number | tablearg
+Set specified DiffServ codepoint for an IPv4/IPv6 packet.
+Processing continues at the next rule.
+Supported values are:
+.Pp
+.Cm cs0
+.Pq Dv 000000 ,
+.Cm cs1
+.Pq Dv 001000 ,
+.Cm cs2
+.Pq Dv 010000 ,
+.Cm cs3
+.Pq Dv 011000 ,
+.Cm cs4
+.Pq Dv 100000 ,
+.Cm cs5
+.Pq Dv 101000 ,
+.Cm cs6
+.Pq Dv 110000 ,
+.Cm cs7
+.Pq Dv 111000 ,
+.Cm af11
+.Pq Dv 001010 ,
+.Cm af12
+.Pq Dv 001100 ,
+.Cm af13
+.Pq Dv 001110 ,
+.Cm af21
+.Pq Dv 010010 ,
+.Cm af22
+.Pq Dv 010100 ,
+.Cm af23
+.Pq Dv 010110 ,
+.Cm af31
+.Pq Dv 011010 ,
+.Cm af32
+.Pq Dv 011100 ,
+.Cm af33
+.Pq Dv 011110 ,
+.Cm af41
+.Pq Dv 100010 ,
+.Cm af42
+.Pq Dv 100100 ,
+.Cm af43
+.Pq Dv 100110 ,
+.Cm ef
+.Pq Dv 101110 ,
+.Cm be
+.Pq Dv 000000 .
+Additionally, DSCP value can be specified by number (0..63).
+It is also possible to use the
+.Cm tablearg
+keyword with setdscp.
+If the tablearg value is not within the 0..63 range, lower 6 bits of supplied
+value are used.
+.It Cm tcp-setmss Ar mss
+Set the Maximum Segment Size (MSS) in the TCP segment to value
+.Ar mss .
+The kernel module
+.Cm ipfw_pmod
+should be loaded or kernel should have
+.Cm options IPFIREWALL_PMOD
+to be able use this action.
+This command does not change a packet if original MSS value is lower than
+specified value.
+Both TCP over IPv4 and over IPv6 are supported.
+Regardless of matched a packet or not by the
+.Cm tcp-setmss
+rule, the search continues with the next rule.
+.It Cm reass
+Queue and reassemble IPv4 fragments.
+If the packet is not fragmented, counters are updated and
+processing continues with the next rule.
+If the packet is the last logical fragment, the packet is reassembled and, if
+.Va net.inet.ip.fw.one_pass
+is set to 0, processing continues with the next rule.
+Otherwise, the packet is allowed to pass and the search terminates.
+If the packet is a fragment in the middle of a logical group of fragments,
+it is consumed and
+processing stops immediately.
+.Pp
+Fragment handling can be tuned via
+.Va net.inet.ip.maxfragpackets
+and
+.Va net.inet.ip.maxfragsperpacket
+which limit, respectively, the maximum number of processable
+fragments (default: 800) and
+the maximum number of fragments per packet (default: 16).
+.Pp
+NOTA BENE: since fragments do not contain port numbers,
+they should be avoided with the
+.Nm reass
+rule.
+Alternatively, direction-based (like
+.Nm in
+/
+.Nm out
+) and source-based (like
+.Nm via
+) match patterns can be used to select fragments.
+.Pp
+Usually a simple rule like:
+.Bd -literal -offset indent
+# reassemble incoming fragments
+ipfw add reass all from any to any in
+.Ed
+.Pp
+is all you need at the beginning of your ruleset.
+.It Cm abort
+Discard packets that match this rule, and if the packet is an SCTP packet,
+try to send an SCTP packet containing an ABORT chunk.
+The search terminates.
+.It Cm abort6
+Discard packets that match this rule, and if the packet is an SCTP packet,
+try to send an SCTP packet containing an ABORT chunk.
+The search terminates.
+.El
+.Ss RULE BODY
+The body of a rule contains zero or more patterns (such as
+specific source and destination addresses or ports,
+protocol options, incoming or outgoing interfaces, etc.)
+that the packet must match in order to be recognised.
+In general, the patterns are connected by (implicit)
+.Cm and
+operators -- i.e., all must match in order for the
+rule to match.
+Individual patterns can be prefixed by the
+.Cm not
+operator to reverse the result of the match, as in
+.Pp
+.Dl "ipfw add 100 allow ip from not 1.2.3.4 to any"
+.Pp
+Additionally, sets of alternative match patterns
+.Pq Em or-blocks
+can be constructed by putting the patterns in
+lists enclosed between parentheses ( ) or braces { }, and
+using the
+.Cm or
+operator as follows:
+.Pp
+.Dl "ipfw add 100 allow ip from { x or not y or z } to any"
+.Pp
+Only one level of parentheses is allowed.
+Beware that most shells have special meanings for parentheses
+or braces, so it is advisable to put a backslash \\ in front of them
+to prevent such interpretations.
+.Pp
+The body of a rule must in general include a source and destination
+address specifier.
+The keyword
+.Ar any
+can be used in various places to specify that the content of
+a required field is irrelevant.
+.Pp
+The rule body has the following format:
+.Bd -ragged -offset indent
+.Op Ar proto Cm from Ar src Cm to Ar dst
+.Op Ar options
+.Ed
+.Pp
+The first part (proto from src to dst) is for backward
+compatibility with earlier versions of
+.Fx .
+In modern
+.Fx
+any match pattern (including MAC headers, IP protocols,
+addresses and ports) can be specified in the
+.Ar options
+section.
+.Pp
+Rule fields have the following meaning:
+.Bl -tag -width indent
+.It Ar proto : protocol | Cm { Ar protocol Cm or ... }
+.It Ar protocol : Oo Cm not Oc Ar protocol-name | protocol-number
+An IP protocol specified by number or name
+(for a complete list see
+.Pa /etc/protocols ) ,
+or one of the following keywords:
+.Bl -tag -width indent
+.It Cm ip4 | ipv4
+Matches IPv4 packets.
+.It Cm ip6 | ipv6
+Matches IPv6 packets.
+.It Cm ip | all
+Matches any packet.
+.El
+.Pp
+The
+.Cm ipv6
+in
+.Cm proto
+option will be treated as inner protocol.
+And, the
+.Cm ipv4
+is not available in
+.Cm proto
+option.
+.Pp
+The
+.Cm { Ar protocol Cm or ... }
+format (an
+.Em or-block )
+is provided for convenience only but its use is deprecated.
+.It Ar src No and Ar dst : Bro Cm addr | Cm { Ar addr Cm or ... } Brc Op Oo Cm not Oc Ar ports
+An address (or a list, see below)
+optionally followed by
+.Ar ports
+specifiers.
+.Pp
+The second format
+.Em ( or-block
+with multiple addresses) is provided for convenience only and
+its use is discouraged.
+.It Ar addr : Oo Cm not Oc Bro
+.Cm any | me | me6 |
+.Cm table Ns Pq Ar name Ns Op , Ns Ar value
+.Ar | addr-list | addr-set
+.Brc
+.Bl -tag -width indent
+.It Cm any
+Matches any IP address.
+.It Cm me
+Matches any IP address configured on an interface in the system.
+.It Cm me6
+Matches any IPv6 address configured on an interface in the system.
+The address list is evaluated at the time the packet is
+analysed.
+.It Cm table Ns Pq Ar name Ns Op , Ns Ar value
+Matches any IPv4 or IPv6 address for which an entry exists in the lookup table
+.Ar number .
+If an optional 32-bit unsigned
+.Ar value
+is also specified, an entry will match only if it has this value.
+See the
+.Sx LOOKUP TABLES
+section below for more information on lookup tables.
+.El
+.It Ar addr-list : ip-addr Ns Op Ns , Ns Ar addr-list
+.It Ar ip-addr :
+A host or subnet address specified in one of the following ways:
+.Bl -tag -width indent
+.It Ar numeric-ip | hostname
+Matches a single IPv4 address, specified as dotted-quad or a hostname.
+Hostnames are resolved at the time the rule is added to the firewall list.
+.It Ar addr Ns / Ns Ar masklen
+Matches all addresses with base
+.Ar addr
+(specified as an IP address, a network number, or a hostname)
+and mask width of
+.Cm masklen
+bits.
+As an example, 1.2.3.4/25 or 1.2.3.0/25 will match
+all IP numbers from 1.2.3.0 to 1.2.3.127 .
+.It Ar addr Ns : Ns Ar mask
+Matches all addresses with base
+.Ar addr
+(specified as an IP address, a network number, or a hostname)
+and the mask of
+.Ar mask ,
+specified as a dotted quad.
+As an example, 1.2.3.4:255.0.255.0 or 1.0.3.0:255.0.255.0 will match
+1.*.3.*.
+This form is advised only for non-contiguous
+masks.
+It is better to resort to the
+.Ar addr Ns / Ns Ar masklen
+format for contiguous masks, which is more compact and less
+error-prone.
+.El
+.It Ar addr-set : addr Ns Oo Ns / Ns Ar masklen Oc Ns Cm { Ns Ar list Ns Cm }
+.It Ar list : Bro Ar num | num-num Brc Ns Op Ns , Ns Ar list
+Matches all addresses with base address
+.Ar addr
+(specified as an IP address, a network number, or a hostname)
+and whose last byte is in the list between braces { } .
+Note that there must be no spaces between braces and
+numbers (spaces after commas are allowed).
+Elements of the list can be specified as single entries
+or ranges.
+The
+.Ar masklen
+field is used to limit the size of the set of addresses,
+and can have any value between 24 and 32.
+If not specified,
+it will be assumed as 24.
+.br
+This format is particularly useful to handle sparse address sets
+within a single rule.
+Because the matching occurs using a
+bitmask, it takes constant time and dramatically reduces
+the complexity of rulesets.
+.br
+As an example, an address specified as 1.2.3.4/24{128,35-55,89}
+or 1.2.3.0/24{128,35-55,89}
+will match the following IP addresses:
+.br
+1.2.3.128, 1.2.3.35 to 1.2.3.55, 1.2.3.89 .
+.It Ar addr6-list : ip6-addr Ns Op Ns , Ns Ar addr6-list
+.It Ar ip6-addr :
+A host or subnet specified one of the following ways:
+.Bl -tag -width indent
+.It Ar numeric-ip | hostname
+Matches a single IPv6 address as allowed by
+.Xr inet_pton 3
+or a hostname.
+Hostnames are resolved at the time the rule is added to the firewall
+list.
+.It Ar addr Ns / Ns Ar masklen
+Matches all IPv6 addresses with base
+.Ar addr
+(specified as allowed by
+.Xr inet_pton
+or a hostname)
+and mask width of
+.Cm masklen
+bits.
+.It Ar addr Ns / Ns Ar mask
+Matches all IPv6 addresses with base
+.Ar addr
+(specified as allowed by
+.Xr inet_pton
+or a hostname)
+and the mask of
+.Ar mask ,
+specified as allowed by
+.Xr inet_pton.
+As an example, fe::640:0:0/ffff::ffff:ffff:0:0 will match
+fe:*:*:*:0:640:*:*.
+This form is advised only for non-contiguous
+masks.
+It is better to resort to the
+.Ar addr Ns / Ns Ar masklen
+format for contiguous masks, which is more compact and less
+error-prone.
+.El
+.Pp
+No support for sets of IPv6 addresses is provided because IPv6 addresses
+are typically random past the initial prefix.
+.It Ar ports : Bro Ar port | port Ns \&- Ns Ar port Ns Brc Ns Op , Ns Ar ports
+For protocols which support port numbers (such as SCTP, TCP and UDP), optional
+.Cm ports
+may be specified as one or more ports or port ranges, separated
+by commas but no spaces, and an optional
+.Cm not
+operator.
+The
+.Ql \&-
+notation specifies a range of ports (including boundaries).
+.Pp
+Service names (from
+.Pa /etc/services )
+may be used instead of numeric port values.
+The length of the port list is limited to 30 ports or ranges,
+though one can specify larger ranges by using an
+.Em or-block
+in the
+.Cm options
+section of the rule.
+.Pp
+A backslash
+.Pq Ql \e
+can be used to escape the dash
+.Pq Ql -
+character in a service name (from a shell, the backslash must be
+typed twice to avoid the shell itself interpreting it as an escape
+character).
+.Pp
+.Dl "ipfw add count tcp from any ftp\e\e-data-ftp to any"
+.Pp
+Fragmented packets which have a non-zero offset (i.e., not the first
+fragment) will never match a rule which has one or more port
+specifications.
+See the
+.Cm frag
+option for details on matching fragmented packets.
+.El
+.Ss RULE OPTIONS (MATCH PATTERNS)
+Additional match patterns can be used within
+rules.
+Zero or more of these so-called
+.Em options
+can be present in a rule, optionally prefixed by the
+.Cm not
+operand, and possibly grouped into
+.Em or-blocks .
+.Pp
+The following match patterns can be used (listed in alphabetical order):
+.Bl -tag -width indent
+.It Cm // this is a comment.
+Inserts the specified text as a comment in the rule.
+Everything following // is considered as a comment and stored in the rule.
+You can have comment-only rules, which are listed as having a
+.Cm count
+action followed by the comment.
+.It Cm bridged
+Alias for
+.Cm layer2 .
+.It Cm defer-immediate-action | defer-action
+A rule with this option will not perform normal action
+upon a match. This option is intended to be used with
+.Cm record-state
+or
+.Cm keep-state
+as the dynamic rule, created but ignored on match, will work
+as intended.
+Rules with both
+.Cm record-state
+and
+.Cm defer-immediate-action
+create a dynamic rule and continue with the next rule without actually
+performing the action part of this rule. When the rule is later activated
+via the state table, the action is performed as usual.
+.It Cm diverted
+Matches only packets generated by a divert socket.
+.It Cm diverted-loopback
+Matches only packets coming from a divert socket back into the IP stack
+input for delivery.
+.It Cm diverted-output
+Matches only packets going from a divert socket back outward to the IP
+stack output for delivery.
+.It Cm dst-ip Ar ip-address
+Matches IPv4 packets whose destination IP is one of the address(es)
+specified as argument.
+.It Bro Cm dst-ip6 | dst-ipv6 Brc Ar ip6-address
+Matches IPv6 packets whose destination IP is one of the address(es)
+specified as argument.
+.It Cm dst-port Ar ports
+Matches IP packets whose destination port is one of the port(s)
+specified as argument.
+.It Cm established
+Matches TCP packets that have the RST or ACK bits set.
+.It Cm ext6hdr Ar header
+Matches IPv6 packets containing the extended header given by
+.Ar header .
+Supported headers are:
+.Pp
+Fragment,
+.Pq Cm frag ,
+Hop-to-hop options
+.Pq Cm hopopt ,
+any type of Routing Header
+.Pq Cm route ,
+Source routing Routing Header Type 0
+.Pq Cm rthdr0 ,
+Mobile IPv6 Routing Header Type 2
+.Pq Cm rthdr2 ,
+Destination options
+.Pq Cm dstopt ,
+IPSec authentication headers
+.Pq Cm ah ,
+and IPsec encapsulated security payload headers
+.Pq Cm esp .
+.It Cm fib Ar fibnum
+Matches a packet that has been tagged to use
+the given FIB (routing table) number.
+.It Cm flow Ar table Ns Pq Ar name Ns Op , Ns Ar value
+Search for the flow entry in lookup table
+.Ar name .
+If not found, the match fails.
+Otherwise, the match succeeds and
+.Cm tablearg
+is set to the value extracted from the table.
+.Pp
+This option can be useful to quickly dispatch traffic based on
+certain packet fields.
+See the
+.Sx LOOKUP TABLES
+section below for more information on lookup tables.
+.It Cm flow-id Ar labels
+Matches IPv6 packets containing any of the flow labels given in
+.Ar labels .
+.Ar labels
+is a comma separated list of numeric flow labels.
+.It Cm frag
+Matches packets that are fragments and not the first
+fragment of an IP datagram.
+Note that these packets will not have
+the next protocol header (e.g.\& TCP, UDP) so options that look into
+these headers cannot match.
+.It Cm gid Ar group
+Matches all TCP or UDP packets sent by or received for a
+.Ar group .
+A
+.Ar group
+may be specified by name or number.
+.It Cm jail Ar jail
+Matches all TCP or UDP packets sent by or received for the
+jail whose ID or name is
+.Ar jail .
+.It Cm icmptypes Ar types
+Matches ICMP packets whose ICMP type is in the list
+.Ar types .
+The list may be specified as any combination of
+individual types (numeric) separated by commas.
+.Em Ranges are not allowed .
+The supported ICMP types are:
+.Pp
+echo reply
+.Pq Cm 0 ,
+destination unreachable
+.Pq Cm 3 ,
+source quench
+.Pq Cm 4 ,
+redirect
+.Pq Cm 5 ,
+echo request
+.Pq Cm 8 ,
+router advertisement
+.Pq Cm 9 ,
+router solicitation
+.Pq Cm 10 ,
+time-to-live exceeded
+.Pq Cm 11 ,
+IP header bad
+.Pq Cm 12 ,
+timestamp request
+.Pq Cm 13 ,
+timestamp reply
+.Pq Cm 14 ,
+information request
+.Pq Cm 15 ,
+information reply
+.Pq Cm 16 ,
+address mask request
+.Pq Cm 17
+and address mask reply
+.Pq Cm 18 .
+.It Cm icmp6types Ar types
+Matches ICMP6 packets whose ICMP6 type is in the list of
+.Ar types .
+The list may be specified as any combination of
+individual types (numeric) separated by commas.
+.Em Ranges are not allowed .
+.It Cm in | out
+Matches incoming or outgoing packets, respectively.
+.Cm in
+and
+.Cm out
+are mutually exclusive (in fact,
+.Cm out
+is implemented as
+.Cm not in Ns No ).
+.It Cm ipid Ar id-list
+Matches IPv4 packets whose
+.Cm ip_id
+field has value included in
+.Ar id-list ,
+which is either a single value or a list of values or ranges
+specified in the same way as
+.Ar ports .
+.It Cm iplen Ar len-list
+Matches IP packets whose total length, including header and data, is
+in the set
+.Ar len-list ,
+which is either a single value or a list of values or ranges
+specified in the same way as
+.Ar ports .
+.It Cm ipoptions Ar spec
+Matches packets whose IPv4 header contains the comma separated list of
+options specified in
+.Ar spec .
+The supported IP options are:
+.Pp
+.Cm ssrr
+(strict source route),
+.Cm lsrr
+(loose source route),
+.Cm rr
+(record packet route) and
+.Cm ts
+(timestamp).
+The absence of a particular option may be denoted
+with a
+.Ql \&! .
+.It Cm ipprecedence Ar precedence
+Matches IPv4 packets whose precedence field is equal to
+.Ar precedence .
+.It Cm ipsec
+Matches packets that have IPSEC history associated with them
+(i.e., the packet comes encapsulated in IPSEC, the kernel
+has IPSEC support, and can correctly decapsulate it).
+.Pp
+Note that specifying
+.Cm ipsec
+is different from specifying
+.Cm proto Ar ipsec
+as the latter will only look at the specific IP protocol field,
+irrespective of IPSEC kernel support and the validity of the IPSEC data.
+.Pp
+Further note that this flag is silently ignored in kernels without
+IPSEC support.
+It does not affect rule processing when given and the
+rules are handled as if with no
+.Cm ipsec
+flag.
+.It Cm iptos Ar spec
+Matches IPv4 packets whose
+.Cm tos
+field contains the comma separated list of
+service types specified in
+.Ar spec .
+The supported IP types of service are:
+.Pp
+.Cm lowdelay
+.Pq Dv IPTOS_LOWDELAY ,
+.Cm throughput
+.Pq Dv IPTOS_THROUGHPUT ,
+.Cm reliability
+.Pq Dv IPTOS_RELIABILITY ,
+.Cm mincost
+.Pq Dv IPTOS_MINCOST ,
+.Cm congestion
+.Pq Dv IPTOS_ECN_CE .
+The absence of a particular type may be denoted
+with a
+.Ql \&! .
+.It Cm dscp spec Ns Op , Ns Ar spec
+Matches IPv4/IPv6 packets whose
+.Cm DS
+field value is contained in
+.Ar spec
+mask.
+Multiple values can be specified via
+the comma separated list.
+Value can be one of keywords used in
+.Cm setdscp
+action or exact number.
+.It Cm ipttl Ar ttl-list
+Matches IPv4 packets whose time to live is included in
+.Ar ttl-list ,
+which is either a single value or a list of values or ranges
+specified in the same way as
+.Ar ports .
+.It Cm ipversion Ar ver
+Matches IP packets whose IP version field is
+.Ar ver .
+.It Cm keep-state Op Ar :flowname
+Upon a match, the firewall will create a dynamic rule, whose
+default behaviour is to match bidirectional traffic between
+source and destination IP/port using the same protocol.
+The rule has a limited lifetime (controlled by a set of
+.Xr sysctl 8
+variables), and the lifetime is refreshed every time a matching
+packet is found.
+The
+.Ar :flowname
+is used to assign additional to addresses, ports and protocol parameter
+to dynamic rule. It can be used for more accurate matching by
+.Cm check-state
+rule.
+The
+.Cm :default
+keyword is special name used for compatibility with old rulesets.
+.It Cm layer2
+Matches only layer2 packets, i.e., those passed to
+.Nm
+from ether_demux() and ether_output_frame().
+.It Cm limit Bro Cm src-addr | src-port | dst-addr | dst-port Brc Ar N Op Ar :flowname
+The firewall will only allow
+.Ar N
+connections with the same
+set of parameters as specified in the rule.
+One or more
+of source and destination addresses and ports can be
+specified.
+.It Cm lookup Bro Cm dst-ip | dst-port | src-ip | src-port | uid | jail Brc Ar name
+Search an entry in lookup table
+.Ar name
+that matches the field specified as argument.
+If not found, the match fails.
+Otherwise, the match succeeds and
+.Cm tablearg
+is set to the value extracted from the table.
+.Pp
+This option can be useful to quickly dispatch traffic based on
+certain packet fields.
+See the
+.Sx LOOKUP TABLES
+section below for more information on lookup tables.
+.It Cm { MAC | mac } Ar dst-mac src-mac
+Match packets with a given
+.Ar dst-mac
+and
+.Ar src-mac
+addresses, specified as the
+.Cm any
+keyword (matching any MAC address), or six groups of hex digits
+separated by colons,
+and optionally followed by a mask indicating the significant bits.
+The mask may be specified using either of the following methods:
+.Bl -enum -width indent
+.It
+A slash
+.Pq /
+followed by the number of significant bits.
+For example, an address with 33 significant bits could be specified as:
+.Pp
+.Dl "MAC 10:20:30:40:50:60/33 any"
+.It
+An ampersand
+.Pq &
+followed by a bitmask specified as six groups of hex digits separated
+by colons.
+For example, an address in which the last 16 bits are significant could
+be specified as:
+.Pp
+.Dl "MAC 10:20:30:40:50:60&00:00:00:00:ff:ff any"
+.Pp
+Note that the ampersand character has a special meaning in many shells
+and should generally be escaped.
+.El
+Note that the order of MAC addresses (destination first,
+source second) is
+the same as on the wire, but the opposite of the one used for
+IP addresses.
+.It Cm mac-type Ar mac-type
+Matches packets whose Ethernet Type field
+corresponds to one of those specified as argument.
+.Ar mac-type
+is specified in the same way as
+.Cm port numbers
+(i.e., one or more comma-separated single values or ranges).
+You can use symbolic names for known values such as
+.Em vlan , ipv4, ipv6 .
+Values can be entered as decimal or hexadecimal (if prefixed by 0x),
+and they are always printed as hexadecimal (unless the
+.Cm -N
+option is used, in which case symbolic resolution will be attempted).
+.It Cm proto Ar protocol
+Matches packets with the corresponding IP protocol.
+.It Cm record-state
+Upon a match, the firewall will create a dynamic rule as if
+.Cm keep-state
+was specified.
+However, this option doesn't imply an implicit
+.Cm check-state
+in contrast to
+.Cm keep-state .
+.It Cm recv | xmit | via Brq Ar ifX | Ar if Ns Cm * | Ar table Ns Po Ar name Ns Oo , Ns Ar value Oc Pc | Ar ipno | Ar any
+Matches packets received, transmitted or going through,
+respectively, the interface specified by exact name
+.Po Ar ifX Pc ,
+by device name
+.Po Ar if* Pc ,
+by IP address, or through some interface.
+Table
+.Ar name
+may be used to match interface by its kernel ifindex.
+See the
+.Sx LOOKUP TABLES
+section below for more information on lookup tables.
+.Pp
+The
+.Cm via
+keyword causes the interface to always be checked.
+If
+.Cm recv
+or
+.Cm xmit
+is used instead of
+.Cm via ,
+then only the receive or transmit interface (respectively)
+is checked.
+By specifying both, it is possible to match packets based on
+both receive and transmit interface, e.g.:
+.Pp
+.Dl "ipfw add deny ip from any to any out recv ed0 xmit ed1"
+.Pp
+The
+.Cm recv
+interface can be tested on either incoming or outgoing packets,
+while the
+.Cm xmit
+interface can only be tested on outgoing packets.
+So
+.Cm out
+is required (and
+.Cm in
+is invalid) whenever
+.Cm xmit
+is used.
+.Pp
+A packet might not have a receive or transmit interface: packets
+originating from the local host have no receive interface,
+while packets destined for the local host have no transmit
+interface.
+.It Cm set-limit Bro Cm src-addr | src-port | dst-addr | dst-port Brc Ar N
+Works like
+.Cm limit
+but does not have an implicit
+.Cm check-state
+attached to it.
+.It Cm setup
+Matches TCP packets that have the SYN bit set but no ACK bit.
+This is the short form of
+.Dq Li tcpflags\ syn,!ack .
+.It Cm sockarg
+Matches packets that are associated to a local socket and
+for which the SO_USER_COOKIE socket option has been set
+to a non-zero value.
+As a side effect, the value of the
+option is made available as
+.Cm tablearg
+value, which in turn can be used as
+.Cm skipto
+or
+.Cm pipe
+number.
+.It Cm src-ip Ar ip-address
+Matches IPv4 packets whose source IP is one of the address(es)
+specified as an argument.
+.It Cm src-ip6 Ar ip6-address
+Matches IPv6 packets whose source IP is one of the address(es)
+specified as an argument.
+.It Cm src-port Ar ports
+Matches IP packets whose source port is one of the port(s)
+specified as argument.
+.It Cm tagged Ar tag-list
+Matches packets whose tags are included in
+.Ar tag-list ,
+which is either a single value or a list of values or ranges
+specified in the same way as
+.Ar ports .
+Tags can be applied to the packet using
+.Cm tag
+rule action parameter (see it's description for details on tags).
+.It Cm tcpack Ar ack
+TCP packets only.
+Match if the TCP header acknowledgment number field is set to
+.Ar ack .
+.It Cm tcpdatalen Ar tcpdatalen-list
+Matches TCP packets whose length of TCP data is
+.Ar tcpdatalen-list ,
+which is either a single value or a list of values or ranges
+specified in the same way as
+.Ar ports .
+.It Cm tcpflags Ar spec
+TCP packets only.
+Match if the TCP header contains the comma separated list of
+flags specified in
+.Ar spec .
+The supported TCP flags are:
+.Pp
+.Cm fin ,
+.Cm syn ,
+.Cm rst ,
+.Cm psh ,
+.Cm ack
+and
+.Cm urg .
+The absence of a particular flag may be denoted
+with a
+.Ql \&! .
+A rule which contains a
+.Cm tcpflags
+specification can never match a fragmented packet which has
+a non-zero offset.
+See the
+.Cm frag
+option for details on matching fragmented packets.
+.It Cm tcpseq Ar seq
+TCP packets only.
+Match if the TCP header sequence number field is set to
+.Ar seq .
+.It Cm tcpwin Ar tcpwin-list
+Matches TCP packets whose  header window field is set to
+.Ar tcpwin-list ,
+which is either a single value or a list of values or ranges
+specified in the same way as
+.Ar ports .
+.It Cm tcpoptions Ar spec
+TCP packets only.
+Match if the TCP header contains the comma separated list of
+options specified in
+.Ar spec .
+The supported TCP options are:
+.Pp
+.Cm mss
+(maximum segment size),
+.Cm window
+(tcp window advertisement),
+.Cm sack
+(selective ack),
+.Cm ts
+(rfc1323 timestamp) and
+.Cm cc
+(rfc1644 t/tcp connection count).
+The absence of a particular option may be denoted
+with a
+.Ql \&! .
+.It Cm uid Ar user
+Match all TCP or UDP packets sent by or received for a
+.Ar user .
+A
+.Ar user
+may be matched by name or identification number.
+.It Cm verrevpath
+For incoming packets,
+a routing table lookup is done on the packet's source address.
+If the interface on which the packet entered the system matches the
+outgoing interface for the route,
+the packet matches.
+If the interfaces do not match up,
+the packet does not match.
+All outgoing packets or packets with no incoming interface match.
+.Pp
+The name and functionality of the option is intentionally similar to
+the Cisco IOS command:
+.Pp
+.Dl ip verify unicast reverse-path
+.Pp
+This option can be used to make anti-spoofing rules to reject all
+packets with source addresses not from this interface.
+See also the option
+.Cm antispoof .
+.It Cm versrcreach
+For incoming packets,
+a routing table lookup is done on the packet's source address.
+If a route to the source address exists, but not the default route
+or a blackhole/reject route, the packet matches.
+Otherwise, the packet does not match.
+All outgoing packets match.
+.Pp
+The name and functionality of the option is intentionally similar to
+the Cisco IOS command:
+.Pp
+.Dl ip verify unicast source reachable-via any
+.Pp
+This option can be used to make anti-spoofing rules to reject all
+packets whose source address is unreachable.
+.It Cm antispoof
+For incoming packets, the packet's source address is checked if it
+belongs to a directly connected network.
+If the network is directly connected, then the interface the packet
+came on in is compared to the interface the network is connected to.
+When incoming interface and directly connected interface are not the
+same, the packet does not match.
+Otherwise, the packet does match.
+All outgoing packets match.
+.Pp
+This option can be used to make anti-spoofing rules to reject all
+packets that pretend to be from a directly connected network but do
+not come in through that interface.
+This option is similar to but more restricted than
+.Cm verrevpath
+because it engages only on packets with source addresses of directly
+connected networks instead of all source addresses.
+.El
+.Sh LOOKUP TABLES
+Lookup tables are useful to handle large sparse sets of
+addresses or other search keys (e.g., ports, jail IDs, interface names).
+In the rest of this section we will use the term ``key''.
+Table name needs to match the following spec:
+.Ar table-name .
+Tables with the same name can be created in different
+.Ar sets .
+However, rule links to the tables in
+.Ar set 0
+by default.
+This behavior can be controlled by
+.Va net.inet.ip.fw.tables_sets
+variable.
+See the
+.Sx SETS OF RULES
+section for more information.
+There may be up to 65535 different lookup tables.
+.Pp
+The following table types are supported:
+.Bl -tag -width indent
+.It Ar table-type : Ar addr | iface | number | flow
+.It Ar table-key : Ar addr Ns Oo / Ns Ar masklen Oc | iface-name | number | flow-spec
+.It Ar flow-spec : Ar flow-field Ns Op , Ns Ar flow-spec
+.It Ar flow-field : src-ip | proto | src-port | dst-ip | dst-port
+.It Cm addr
+Matches IPv4 or IPv6 address.
+Each entry is represented by an
+.Ar addr Ns Op / Ns Ar masklen
+and will match all addresses with base
+.Ar addr
+(specified as an IPv4/IPv6 address, or a hostname) and mask width of
+.Ar masklen
+bits.
+If
+.Ar masklen
+is not specified, it defaults to 32 for IPv4 and 128 for IPv6.
+When looking up an IP address in a table, the most specific
+entry will match.
+.It Cm iface
+Matches interface names.
+Each entry is represented by string treated as interface name.
+Wildcards are not supported.
+.It Cm number
+Matches protocol ports, uids/gids or jail IDs.
+Each entry is represented by 32-bit unsigned integer.
+Ranges are not supported.
+.It Cm flow
+Matches packet fields specified by
+.Ar flow
+type suboptions with table entries.
+.El
+.Pp
+Tables require explicit creation via
+.Cm create
+before use.
+.Pp
+The following creation options are supported:
+.Bl -tag -width indent
+.It Ar create-options : Ar create-option | create-options
+.It Ar create-option : Cm type Ar table-type | Cm valtype Ar value-mask | Cm algo Ar algo-desc |
+.Cm limit Ar number | Cm locked
+.It Cm type
+Table key type.
+.It Cm valtype
+Table value mask.
+.It Cm algo
+Table algorithm to use (see below).
+.It Cm limit
+Maximum number of items that may be inserted into table.
+.It Cm locked
+Restrict any table modifications.
+.El
+.Pp
+Some of these options may be modified later via
+.Cm modify
+keyword.
+The following options can be changed:
+.Bl -tag -width indent
+.It Ar modify-options : Ar modify-option | modify-options
+.It Ar modify-option : Cm limit Ar number
+.It Cm limit
+Alter maximum number of items that may be inserted into table.
+.El
+.Pp
+Additionally, table can be locked or unlocked using
+.Cm lock
+or
+.Cm unlock
+commands.
+.Pp
+Tables of the same
+.Ar type
+can be swapped with each other using
+.Cm swap Ar name
+command.
+Swap may fail if tables limits are set and data exchange
+would result in limits hit.
+Operation is performed atomically.
+.Pp
+One or more entries can be added to a table at once using
+.Cm add
+command.
+Addition of all items are performed atomically.
+By default, error in addition of one entry does not influence
+addition of other entries. However, non-zero error code is returned
+in that case.
+Special
+.Cm atomic
+keyword may be specified before
+.Cm add
+to indicate all-or-none add request.
+.Pp
+One or more entries can be removed from a table at once using
+.Cm delete
+command.
+By default, error in removal of one entry does not influence
+removing of other entries. However, non-zero error code is returned
+in that case.
+.Pp
+It may be possible to check what entry will be found on particular
+.Ar table-key
+using
+.Cm lookup
+.Ar table-key
+command.
+This functionality is optional and may be unsupported in some algorithms.
+.Pp
+The following operations can be performed on
+.Ar one
+or
+.Cm all
+tables:
+.Bl -tag -width indent
+.It Cm list
+List all entries.
+.It Cm flush
+Removes all entries.
+.It Cm info
+Shows generic table information.
+.It Cm detail
+Shows generic table information and algo-specific data.
+.El
+.Pp
+The following lookup algorithms are supported:
+.Bl -tag -width indent
+.It Ar algo-desc : algo-name | "algo-name algo-data"
+.It Ar algo-name: Ar addr:radix | addr:hash | iface:array | number:array | flow:hash
+.It Cm addr:radix
+Separate Radix trees for IPv4 and IPv6, the same way as the routing table (see
+.Xr route 4 ) .
+Default choice for
+.Ar addr
+type.
+.It Cm addr:hash
+Separate auto-growing hashes for IPv4 and IPv6.
+Accepts entries with the same mask length specified initially via
+.Cm "addr:hash masks=/v4,/v6"
+algorithm creation options.
+Assume /32 and /128 masks by default.
+Search removes host bits (according to mask) from supplied address and checks
+resulting key in appropriate hash.
+Mostly optimized for /64 and byte-ranged IPv6 masks.
+.It Cm iface:array
+Array storing sorted indexes for entries which are presented in the system.
+Optimized for very fast lookup.
+.It Cm number:array
+Array storing sorted u32 numbers.
+.It Cm flow:hash
+Auto-growing hash storing flow entries.
+Search calculates hash on required packet fields and searches for matching
+entries in selected bucket.
+.El
+.Pp
+The
+.Cm tablearg
+feature provides the ability to use a value, looked up in the table, as
+the argument for a rule action, action parameter or rule option.
+This can significantly reduce number of rules in some configurations.
+If two tables are used in a rule, the result of the second (destination)
+is used.
+.Pp
+Each record may hold one or more values according to
+.Ar value-mask .
+This mask is set on table creation via
+.Cm valtype
+option.
+The following value types are supported:
+.Bl -tag -width indent
+.It Ar value-mask : Ar value-type Ns Op , Ns Ar value-mask
+.It Ar value-type : Ar skipto | pipe | fib | nat | dscp | tag | divert |
+.Ar netgraph | limit | ipv4
+.It Cm skipto
+rule number to jump to.
+.It Cm pipe
+Pipe number to use.
+.It Cm fib
+fib number to match/set.
+.It Cm nat
+nat number to jump to.
+.It Cm dscp
+dscp value to match/set.
+.It Cm tag
+tag number to match/set.
+.It Cm divert
+port number to divert traffic to.
+.It Cm netgraph
+hook number to move packet to.
+.It Cm limit
+maximum number of connections.
+.It Cm ipv4
+IPv4 nexthop to fwd packets to.
+.It Cm ipv6
+IPv6 nexthop to fwd packets to.
+.El
+.Pp
+The
+.Cm tablearg
+argument can be used with the following actions:
+.Cm nat, pipe , queue, divert, tee, netgraph, ngtee, fwd, skipto, setfib,
+action parameters:
+.Cm tag, untag,
+rule options:
+.Cm limit, tagged.
+.Pp
+When used with the
+.Cm skipto
+action, the user should be aware that the code will walk the ruleset
+up to a rule equal to, or past, the given number.
+.Pp
+See the
+.Sx EXAMPLES
+Section for example usage of tables and the tablearg keyword.
+.Sh SETS OF RULES
+Each rule or table belongs to one of 32 different
+.Em sets
+, numbered 0 to 31.
+Set 31 is reserved for the default rule.
+.Pp
+By default, rules or tables are put in set 0, unless you use the
+.Cm set N
+attribute when adding a new rule or table.
+Sets can be individually and atomically enabled or disabled,
+so this mechanism permits an easy way to store multiple configurations
+of the firewall and quickly (and atomically) switch between them.
+.Pp
+By default, tables from set 0 are referenced when adding rule with
+table opcodes regardless of rule set.
+This behavior can be changed by setting
+.Va net.inet.ip.fw.tables_sets
+variable to 1.
+Rule's set will then be used for table references.
+.Pp
+The command to enable/disable sets is
+.Bd -ragged -offset indent
+.Nm
+.Cm set Oo Cm disable Ar number ... Oc Op Cm enable Ar number ...
+.Ed
+.Pp
+where multiple
+.Cm enable
+or
+.Cm disable
+sections can be specified.
+Command execution is atomic on all the sets specified in the command.
+By default, all sets are enabled.
+.Pp
+When you disable a set, its rules behave as if they do not exist
+in the firewall configuration, with only one exception:
+.Bd -ragged -offset indent
+dynamic rules created from a rule before it had been disabled
+will still be active until they expire.
+In order to delete
+dynamic rules you have to explicitly delete the parent rule
+which generated them.
+.Ed
+.Pp
+The set number of rules can be changed with the command
+.Bd -ragged -offset indent
+.Nm
+.Cm set move
+.Brq Cm rule Ar rule-number | old-set
+.Cm to Ar new-set
+.Ed
+.Pp
+Also, you can atomically swap two rulesets with the command
+.Bd -ragged -offset indent
+.Nm
+.Cm set swap Ar first-set second-set
+.Ed
+.Pp
+See the
+.Sx EXAMPLES
+Section on some possible uses of sets of rules.
+.Sh STATEFUL FIREWALL
+Stateful operation is a way for the firewall to dynamically
+create rules for specific flows when packets that
+match a given pattern are detected.
+Support for stateful
+operation comes through the
+.Cm check-state , keep-state , record-state , limit
+and
+.Cm set-limit
+options of
+.Nm rules .
+.Pp
+Dynamic rules are created when a packet matches a
+.Cm keep-state ,
+.Cm record-state ,
+.Cm limit
+or
+.Cm set-limit
+rule, causing the creation of a
+.Em dynamic
+rule which will match all and only packets with
+a given
+.Em protocol
+between a
+.Em src-ip/src-port dst-ip/dst-port
+pair of addresses
+.Em ( src
+and
+.Em dst
+are used here only to denote the initial match addresses, but they
+are completely equivalent afterwards).
+Rules created by
+.Cm keep-state
+option also have a
+.Ar :flowname
+taken from it.
+This name is used in matching together with addresses, ports and protocol.
+Dynamic rules will be checked at the first
+.Cm check-state, keep-state
+or
+.Cm limit
+occurrence, and the action performed upon a match will be the same
+as in the parent rule.
+.Pp
+Note that no additional attributes other than protocol and IP addresses
+and ports and :flowname are checked on dynamic rules.
+.Pp
+The typical use of dynamic rules is to keep a closed firewall configuration,
+but let the first TCP SYN packet from the inside network install a
+dynamic rule for the flow so that packets belonging to that session
+will be allowed through the firewall:
+.Pp
+.Dl "ipfw add check-state :OUTBOUND"
+.Dl "ipfw add allow tcp from my-subnet to any setup keep-state :OUTBOUND"
+.Dl "ipfw add deny tcp from any to any"
+.Pp
+A similar approach can be used for UDP, where an UDP packet coming
+from the inside will install a dynamic rule to let the response through
+the firewall:
+.Pp
+.Dl "ipfw add check-state :OUTBOUND"
+.Dl "ipfw add allow udp from my-subnet to any keep-state :OUTBOUND"
+.Dl "ipfw add deny udp from any to any"
+.Pp
+Dynamic rules expire after some time, which depends on the status
+of the flow and the setting of some
+.Cm sysctl
+variables.
+See Section
+.Sx SYSCTL VARIABLES
+for more details.
+For TCP sessions, dynamic rules can be instructed to periodically
+send keepalive packets to refresh the state of the rule when it is
+about to expire.
+.Pp
+See Section
+.Sx EXAMPLES
+for more examples on how to use dynamic rules.
+.Sh TRAFFIC SHAPER (DUMMYNET) CONFIGURATION
+.Nm
+is also the user interface for the
+.Nm dummynet
+traffic shaper, packet scheduler and network emulator, a subsystem that
+can artificially queue, delay or drop packets
+emulating the behaviour of certain network links
+or queueing systems.
+.Pp
+.Nm dummynet
+operates by first using the firewall to select packets
+using any match pattern that can be used in
+.Nm
+rules.
+Matching packets are then passed to either of two
+different objects, which implement the traffic regulation:
+.Bl -hang -offset XXXX
+.It Em pipe
+A
+.Em pipe
+emulates a
+.Em link
+with given bandwidth and propagation delay,
+driven by a FIFO scheduler and a single queue with programmable
+queue size and packet loss rate.
+Packets are appended to the queue as they come out from
+.Nm ipfw ,
+and then transferred in FIFO order to the link at the desired rate.
+.It Em queue
+A
+.Em queue
+is an abstraction used to implement packet scheduling
+using one of several packet scheduling algorithms.
+Packets sent to a
+.Em queue
+are first grouped into flows according to a mask on the 5-tuple.
+Flows are then passed to the scheduler associated to the
+.Em queue ,
+and each flow uses scheduling parameters (weight and others)
+as configured in the
+.Em queue
+itself.
+A scheduler in turn is connected to an emulated link,
+and arbitrates the link's bandwidth among backlogged flows according to
+weights and to the features of the scheduling algorithm in use.
+.El
+.Pp
+In practice,
+.Em pipes
+can be used to set hard limits to the bandwidth that a flow can use, whereas
+.Em queues
+can be used to determine how different flows share the available bandwidth.
+.Pp
+A graphical representation of the binding of queues,
+flows, schedulers and links is below.
+.Bd -literal -offset indent
+                 (flow_mask|sched_mask)  sched_mask
+         +---------+   weight Wx  +-------------+
+         |         |->-[flow]-->--|             |-+
+    -->--| QUEUE x |   ...        |             | |
+         |         |->-[flow]-->--| SCHEDuler N | |
+         +---------+              |             | |
+             ...                  |             +--[LINK N]-->--
+         +---------+   weight Wy  |             | +--[LINK N]-->--
+         |         |->-[flow]-->--|             | |
+    -->--| QUEUE y |   ...        |             | |
+         |         |->-[flow]-->--|             | |
+         +---------+              +-------------+ |
+                                    +-------------+
+.Ed
+It is important to understand the role of the SCHED_MASK
+and FLOW_MASK, which are configured through the commands
+.Dl "ipfw sched N config mask SCHED_MASK ..."
+and
+.Dl "ipfw queue X config mask FLOW_MASK ..." .
+.Pp
+The SCHED_MASK is used to assign flows to one or more
+scheduler instances, one for each
+value of the packet's 5-tuple after applying SCHED_MASK.
+As an example, using ``src-ip 0xffffff00'' creates one instance
+for each /24 destination subnet.
+.Pp
+The FLOW_MASK, together with the SCHED_MASK, is used to split
+packets into flows.
+As an example, using
+``src-ip 0x000000ff''
+together with the previous SCHED_MASK makes a flow for
+each individual source address.
+In turn, flows for each /24
+subnet will be sent to the same scheduler instance.
+.Pp
+The above diagram holds even for the
+.Em pipe
+case, with the only restriction that a
+.Em pipe
+only supports a SCHED_MASK, and forces the use of a FIFO
+scheduler (these are for backward compatibility reasons;
+in fact, internally, a
+.Nm dummynet's
+pipe is implemented exactly as above).
+.Pp
+There are two modes of
+.Nm dummynet
+operation:
+.Dq normal
+and
+.Dq fast .
+The
+.Dq normal
+mode tries to emulate a real link: the
+.Nm dummynet
+scheduler ensures that the packet will not leave the pipe faster than it
+would on the real link with a given bandwidth.
+The
+.Dq fast
+mode allows certain packets to bypass the
+.Nm dummynet
+scheduler (if packet flow does not exceed pipe's bandwidth).
+This is the reason why the
+.Dq fast
+mode requires less CPU cycles per packet (on average) and packet latency
+can be significantly lower in comparison to a real link with the same
+bandwidth.
+The default mode is
+.Dq normal .
+The
+.Dq fast
+mode can be enabled by setting the
+.Va net.inet.ip.dummynet.io_fast
+.Xr sysctl 8
+variable to a non-zero value.
+.Pp
+.Ss PIPE, QUEUE AND SCHEDULER CONFIGURATION
+The
+.Em pipe ,
+.Em queue
+and
+.Em scheduler
+configuration commands are the following:
+.Bd -ragged -offset indent
+.Cm pipe Ar number Cm config Ar pipe-configuration
+.Pp
+.Cm queue Ar number Cm config Ar queue-configuration
+.Pp
+.Cm sched Ar number Cm config Ar sched-configuration
+.Ed
+.Pp
+The following parameters can be configured for a pipe:
+.Pp
+.Bl -tag -width indent -compact
+.It Cm bw Ar bandwidth | device
+Bandwidth, measured in
+.Sm off
+.Op Cm K | M | G
+.Brq Cm bit/s | Byte/s .
+.Sm on
+.Pp
+A value of 0 (default) means unlimited bandwidth.
+The unit must immediately follow the number, as in
+.Pp
+.Dl "ipfw pipe 1 config bw 300Kbit/s"
+.Pp
+If a device name is specified instead of a numeric value, as in
+.Pp
+.Dl "ipfw pipe 1 config bw tun0"
+.Pp
+then the transmit clock is supplied by the specified device.
+At the moment only the
+.Xr tun 4
+device supports this
+functionality, for use in conjunction with
+.Xr ppp 8 .
+.Pp
+.It Cm delay Ar ms-delay
+Propagation delay, measured in milliseconds.
+The value is rounded to the next multiple of the clock tick
+(typically 10ms, but it is a good practice to run kernels
+with
+.Dq "options HZ=1000"
+to reduce
+the granularity to 1ms or less).
+The default value is 0, meaning no delay.
+.Pp
+.It Cm burst Ar size
+If the data to be sent exceeds the pipe's bandwidth limit
+(and the pipe was previously idle), up to
+.Ar size
+bytes of data are allowed to bypass the
+.Nm dummynet
+scheduler, and will be sent as fast as the physical link allows.
+Any additional data will be transmitted at the rate specified
+by the
+.Nm pipe
+bandwidth.
+The burst size depends on how long the pipe has been idle;
+the effective burst size is calculated as follows:
+MAX(
+.Ar size
+,
+.Nm bw
+* pipe_idle_time).
+.Pp
+.It Cm profile Ar filename
+A file specifying the additional overhead incurred in the transmission
+of a packet on the link.
+.Pp
+Some link types introduce extra delays in the transmission
+of a packet, e.g., because of MAC level framing, contention on
+the use of the channel, MAC level retransmissions and so on.
+From our point of view, the channel is effectively unavailable
+for this extra time, which is constant or variable depending
+on the link type.
+Additionally, packets may be dropped after this
+time (e.g., on a wireless link after too many retransmissions).
+We can model the additional delay with an empirical curve
+that represents its distribution.
+.Bd -literal -offset indent
+      cumulative probability
+      1.0 ^
+          |
+      L   +-- loss-level          x
+          |                 ******
+          |                *
+          |           *****
+          |          *
+          |        **
+          |       *
+          +-------*------------------->
+                      delay
+.Ed
+The empirical curve may have both vertical and horizontal lines.
+Vertical lines represent constant delay for a range of
+probabilities.
+Horizontal lines correspond to a discontinuity in the delay
+distribution: the pipe will use the largest delay for a
+given probability.
+.Pp
+The file format is the following, with whitespace acting as
+a separator and '#' indicating the beginning a comment:
+.Bl -tag -width indent
+.It Cm name Ar identifier
+optional name (listed by "ipfw pipe show")
+to identify the delay distribution;
+.It Cm bw Ar value
+the bandwidth used for the pipe.
+If not specified here, it must be present
+explicitly as a configuration parameter for the pipe;
+.It Cm loss-level Ar L
+the probability above which packets are lost.
+(0.0 <= L <= 1.0, default 1.0 i.e., no loss);
+.It Cm samples Ar N
+the number of samples used in the internal
+representation of the curve (2..1024; default 100);
+.It Cm "delay prob" | "prob delay"
+One of these two lines is mandatory and defines
+the format of the following lines with data points.
+.It Ar XXX Ar YYY
+2 or more lines representing points in the curve,
+with either delay or probability first, according
+to the chosen format.
+The unit for delay is milliseconds.
+Data points do not need to be sorted.
+Also, the number of actual lines can be different
+from the value of the "samples" parameter:
+.Nm
+utility will sort and interpolate
+the curve as needed.
+.El
+.Pp
+Example of a profile file:
+.Bd -literal -offset indent
+name    bla_bla_bla
+samples 100
+loss-level    0.86
+prob    delay
+0       200	# minimum overhead is 200ms
+0.5     200
+0.5     300
+0.8     1000
+0.9     1300
+1       1300
+#configuration file end
+.Ed
+.El
+.Pp
+The following parameters can be configured for a queue:
+.Pp
+.Bl -tag -width indent -compact
+.It Cm pipe Ar pipe_nr
+Connects a queue to the specified pipe.
+Multiple queues (with the same or different weights) can be connected to
+the same pipe, which specifies the aggregate rate for the set of queues.
+.Pp
+.It Cm weight Ar weight
+Specifies the weight to be used for flows matching this queue.
+The weight must be in the range 1..100, and defaults to 1.
+.El
+.Pp
+The following case-insensitive parameters can be configured for a
+scheduler:
+.Pp
+.Bl -tag -width indent -compact
+.It Cm type Ar {fifo | wf2q+ | rr | qfq | fq_codel | fq_pie}
+specifies the scheduling algorithm to use.
+.Bl -tag -width indent -compact
+.It Cm fifo
+is just a FIFO scheduler (which means that all packets
+are stored in the same queue as they arrive to the scheduler).
+FIFO has O(1) per-packet time complexity, with very low
+constants (estimate 60-80ns on a 2GHz desktop machine)
+but gives no service guarantees.
+.It Cm wf2q+
+implements the WF2Q+ algorithm, which is a Weighted Fair Queueing
+algorithm which permits flows to share bandwidth according to
+their weights.
+Note that weights are not priorities; even a flow
+with a minuscule weight will never starve.
+WF2Q+ has O(log N) per-packet processing cost, where N is the number
+of flows, and is the default algorithm used by previous versions
+dummynet's queues.
+.It Cm rr
+implements the Deficit Round Robin algorithm, which has O(1) processing
+costs (roughly, 100-150ns per packet)
+and permits bandwidth allocation according to weights, but
+with poor service guarantees.
+.It Cm qfq
+implements the QFQ algorithm, which is a very fast variant of
+WF2Q+, with similar service guarantees and O(1) processing
+costs (roughly, 200-250ns per packet).
+.It Cm fq_codel
+implements the FQ-CoDel (FlowQueue-CoDel) scheduler/AQM algorithm, which
+uses a modified Deficit Round Robin scheduler to manage two lists of sub-queues
+(old sub-queues and new sub-queues) for providing brief periods of priority to
+lightweight or short burst flows.
+By default, the total number of sub-queues is 1024.
+FQ-CoDel's internal, dynamically
+created sub-queues are controlled by separate instances of CoDel AQM.
+.It Cm fq_pie
+implements the FQ-PIE (FlowQueue-PIE) scheduler/AQM algorithm, which similar to
+.Cm fq_codel
+but uses per sub-queue PIE AQM instance to control the queue delay.
+.El
+.Pp
+.Cm fq_codel
+inherits AQM parameters and options from
+.Cm codel
+(see below), and
+.Cm fq_pie
+inherits AQM parameters and options from
+.Cm pie
+(see below).
+Additionally, both of
+.Cm fq_codel
+and
+.Cm fq_pie
+have shared scheduler parameters which are:
+.Bl -tag -width indent
+.It Cm quantum
+.Ar m
+specifies the quantum (credit) of the scheduler.
+.Ar m
+is the number of bytes a queue can serve before being moved to the tail
+of old queues list.
+The default is 1514 bytes, and the maximum acceptable value
+is 9000 bytes.
+.It Cm limit
+.Ar m
+specifies the hard size limit (in unit of packets) of all queues managed by an
+instance of the scheduler.
+The default value of
+.Ar m
+is 10240 packets, and the maximum acceptable value is 20480 packets.
+.It Cm flows
+.Ar m
+specifies the total number of flow queues (sub-queues) that fq_*
+creates and manages.
+By default, 1024 sub-queues are created when an instance
+of the fq_{codel/pie} scheduler is created.
+The maximum acceptable value is
+65536.
+.El
+.Pp
+Note that any token after
+.Cm fq_codel
+or
+.Cm fq_pie
+is considered a parameter for fq_{codel/pie}.
+So, ensure all scheduler
+configuration options not related to fq_{codel/pie} are written before
+.Cm fq_codel/fq_pie
+tokens.
+.El
+.Pp
+In addition to the type, all parameters allowed for a pipe can also
+be specified for a scheduler.
+.Pp
+Finally, the following parameters can be configured for both
+pipes and queues:
+.Pp
+.Bl -tag -width XXXX -compact
+.It Cm buckets Ar hash-table-size
+Specifies the size of the hash table used for storing the
+various queues.
+Default value is 64 controlled by the
+.Xr sysctl 8
+variable
+.Va net.inet.ip.dummynet.hash_size ,
+allowed range is 16 to 65536.
+.Pp
+.It Cm mask Ar mask-specifier
+Packets sent to a given pipe or queue by an
+.Nm
+rule can be further classified into multiple flows, each of which is then
+sent to a different
+.Em dynamic
+pipe or queue.
+A flow identifier is constructed by masking the IP addresses,
+ports and protocol types as specified with the
+.Cm mask
+options in the configuration of the pipe or queue.
+For each different flow identifier, a new pipe or queue is created
+with the same parameters as the original object, and matching packets
+are sent to it.
+.Pp
+Thus, when
+.Em dynamic pipes
+are used, each flow will get the same bandwidth as defined by the pipe,
+whereas when
+.Em dynamic queues
+are used, each flow will share the parent's pipe bandwidth evenly
+with other flows generated by the same queue (note that other queues
+with different weights might be connected to the same pipe).
+.br
+Available mask specifiers are a combination of one or more of the following:
+.Pp
+.Cm dst-ip Ar mask ,
+.Cm dst-ip6 Ar mask ,
+.Cm src-ip Ar mask ,
+.Cm src-ip6 Ar mask ,
+.Cm dst-port Ar mask ,
+.Cm src-port Ar mask ,
+.Cm flow-id Ar mask ,
+.Cm proto Ar mask
+or
+.Cm all ,
+.Pp
+where the latter means all bits in all fields are significant.
+.Pp
+.It Cm noerror
+When a packet is dropped by a
+.Nm dummynet
+queue or pipe, the error
+is normally reported to the caller routine in the kernel, in the
+same way as it happens when a device queue fills up.
+Setting this
+option reports the packet as successfully delivered, which can be
+needed for some experimental setups where you want to simulate
+loss or congestion at a remote router.
+.Pp
+.It Cm plr Ar packet-loss-rate
+Packet loss rate.
+Argument
+.Ar packet-loss-rate
+is a floating-point number between 0 and 1, with 0 meaning no
+loss, 1 meaning 100% loss.
+The loss rate is internally represented on 31 bits.
+.Pp
+.It Cm queue Brq Ar slots | size Ns Cm Kbytes
+Queue size, in
+.Ar slots
+or
+.Cm KBytes .
+Default value is 50 slots, which
+is the typical queue size for Ethernet devices.
+Note that for slow speed links you should keep the queue
+size short or your traffic might be affected by a significant
+queueing delay.
+E.g., 50 max-sized Ethernet packets (1500 bytes) mean 600Kbit
+or 20s of queue on a 30Kbit/s pipe.
+Even worse effects can result if you get packets from an
+interface with a much larger MTU, e.g.\& the loopback interface
+with its 16KB packets.
+The
+.Xr sysctl 8
+variables
+.Em net.inet.ip.dummynet.pipe_byte_limit
+and
+.Em net.inet.ip.dummynet.pipe_slot_limit
+control the maximum lengths that can be specified.
+.Pp
+.It Cm red | gred Ar w_q Ns / Ns Ar min_th Ns / Ns Ar max_th Ns / Ns Ar max_p
+[ecn]
+Make use of the RED (Random Early Detection) queue management algorithm.
+.Ar w_q
+and
+.Ar max_p
+are floating
+point numbers between 0 and 1 (inclusive), while
+.Ar min_th
+and
+.Ar max_th
+are integer numbers specifying thresholds for queue management
+(thresholds are computed in bytes if the queue has been defined
+in bytes, in slots otherwise).
+The two parameters can also be of the same value if needed. The
+.Nm dummynet
+also supports the gentle RED variant (gred) and ECN (Explicit Congestion
+Notification) as optional. Three
+.Xr sysctl 8
+variables can be used to control the RED behaviour:
+.Bl -tag -width indent
+.It Va net.inet.ip.dummynet.red_lookup_depth
+specifies the accuracy in computing the average queue
+when the link is idle (defaults to 256, must be greater than zero)
+.It Va net.inet.ip.dummynet.red_avg_pkt_size
+specifies the expected average packet size (defaults to 512, must be
+greater than zero)
+.It Va net.inet.ip.dummynet.red_max_pkt_size
+specifies the expected maximum packet size, only used when queue
+thresholds are in bytes (defaults to 1500, must be greater than zero).
+.El
+.Pp
+.It Cm codel Oo Cm target Ar time Oc Oo Cm interval Ar time Oc Oo Cm ecn |
+.Cm noecn Oc
+Make use of the CoDel (Controlled-Delay) queue management algorithm.
+.Ar time
+is interpreted as milliseconds by default but seconds (s), milliseconds (ms) or
+microseconds (us) can be specified instead.
+CoDel drops or marks (ECN) packets
+depending on packet sojourn time in the queue.
+.Cm target
+.Ar time
+(5ms by default) is the minimum acceptable persistent queue delay that CoDel
+allows.
+CoDel does not drop packets directly after packets sojourn time becomes
+higher than
+.Cm target
+.Ar time
+but waits for
+.Cm interval
+.Ar time
+(100ms default) before dropping.
+.Cm interval
+.Ar time
+should be set to maximum RTT for all expected connections.
+.Cm ecn
+enables (disabled by default) packet marking (instead of dropping) for
+ECN-enabled TCP flows when queue delay becomes high.
+.Pp
+Note that any token after
+.Cm codel
+is considered a parameter for CoDel.
+So, ensure all pipe/queue
+configuration options are written before
+.Cm codel
+token.
+.Pp
+The
+.Xr sysctl 8
+variables
+.Va net.inet.ip.dummynet.codel.target
+and
+.Va net.inet.ip.dummynet.codel.interval
+can be used to set CoDel default parameters.
+.Pp
+.It Cm pie Oo Cm target Ar time Oc Oo Cm tupdate Ar time Oc Oo
+.Cm alpha Ar n Oc Oo Cm beta Ar n Oc Oo Cm max_burst Ar time Oc Oo
+.Cm max_ecnth Ar n Oc Oo Cm ecn | Cm noecn Oc Oo Cm capdrop |
+.Cm nocapdrop Oc Oo Cm drand | Cm nodrand Oc Oo Cm onoff
+.Oc Oo Cm dre | Cm ts Oc
+Make use of the PIE (Proportional Integral controller Enhanced) queue management
+algorithm.
+PIE drops or marks packets depending on a calculated drop probability during
+en-queue process, with the aim of achieving high throughput while keeping queue
+delay low.
+At regular time intervals of
+.Cm tupdate
+.Ar time
+(15ms by default) a background process (re)calculates the probability based on queue delay
+deviations from
+.Cm target
+.Ar time
+(15ms by default) and queue delay trends.
+PIE approximates current queue
+delay by using a departure rate estimation method, or (optionally) by using a
+packet timestamp method similar to CoDel.
+.Ar time
+is interpreted as milliseconds by default but seconds (s), milliseconds (ms) or
+microseconds (us) can be specified instead.
+The other PIE parameters and options are as follows:
+.Bl -tag -width indent
+.It Cm alpha Ar n
+.Ar n
+is a floating point number between 0 and 7 which specifies the weight of queue
+delay deviations that is used in drop probability calculation.
+0.125 is the default.
+.It Cm beta Ar n
+.Ar n
+is a floating point number between 0 and 7 which specifies is the weight of queue
+delay trend that is used in drop probability calculation.
+1.25 is the default.
+.It Cm max_burst Ar time
+The maximum period of time that PIE does not drop/mark packets.
+150ms is the
+default and 10s is the maximum value.
+.It Cm max_ecnth Ar n
+Even when ECN is enabled, PIE drops packets instead of marking them when drop
+probability becomes higher than ECN probability threshold
+.Cm max_ecnth Ar n
+, the default is 0.1 (i.e 10%) and 1 is the maximum value.
+.It Cm ecn | noecn
+enable or disable ECN marking for ECN-enabled TCP flows.
+Disabled by default.
+.It Cm capdrop | nocapdrop
+enable or disable cap drop adjustment.
+Cap drop adjustment is enabled by default.
+.It Cm drand | nodrand
+enable or disable drop probability de-randomisation.
+De-randomisation eliminates
+the problem of dropping packets too close or too far.
+De-randomisation is enabled by default.
+.It Cm onoff
+enable turning PIE on and off depending on queue load.
+If this option is enabled,
+PIE turns on when over 1/3 of queue becomes full.
+This option is disabled by
+default.
+.It Cm dre | ts
+Calculate queue delay using departure rate estimation
+.Cm dre
+or timestamps
+.Cm ts .
+.Cm dre
+is used by default.
+.El
+.Pp
+Note that any token after
+.Cm pie
+is considered a parameter for PIE.
+So ensure all pipe/queue
+the configuration options are written before
+.Cm pie
+token.
+.Xr sysctl 8
+variables can be used to control the
+.Cm pie
+default parameters.
+See the
+.Sx SYSCTL VARIABLES
+section for more details.
+.El
+.Pp
+When used with IPv6 data,
+.Nm dummynet
+currently has several limitations.
+Information necessary to route link-local packets to an
+interface is not available after processing by
+.Nm dummynet
+so those packets are dropped in the output path.
+Care should be taken to ensure that link-local packets are not passed to
+.Nm dummynet .
+.Sh CHECKLIST
+Here are some important points to consider when designing your
+rules:
+.Bl -bullet
+.It
+Remember that you filter both packets going
+.Cm in
+and
+.Cm out .
+Most connections need packets going in both directions.
+.It
+Remember to test very carefully.
+It is a good idea to be near the console when doing this.
+If you cannot be near the console,
+use an auto-recovery script such as the one in
+.Pa /usr/share/examples/ipfw/change_rules.sh .
+.It
+Do not forget the loopback interface.
+.El
+.Sh FINE POINTS
+.Bl -bullet
+.It
+There are circumstances where fragmented datagrams are unconditionally
+dropped.
+TCP packets are dropped if they do not contain at least 20 bytes of
+TCP header, UDP packets are dropped if they do not contain a full 8
+byte UDP header, and ICMP packets are dropped if they do not contain
+4 bytes of ICMP header, enough to specify the ICMP type, code, and
+checksum.
+These packets are simply logged as
+.Dq pullup failed
+since there may not be enough good data in the packet to produce a
+meaningful log entry.
+.It
+Another type of packet is unconditionally dropped, a TCP packet with a
+fragment offset of one.
+This is a valid packet, but it only has one use, to try
+to circumvent firewalls.
+When logging is enabled, these packets are
+reported as being dropped by rule -1.
+.It
+If you are logged in over a network, loading the
+.Xr kld 4
+version of
+.Nm
+is probably not as straightforward as you would think.
+The following command line is recommended:
+.Bd -literal -offset indent
+kldload ipfw && \e
+ipfw add 32000 allow ip from any to any
+.Ed
+.Pp
+Along the same lines, doing an
+.Bd -literal -offset indent
+ipfw flush
+.Ed
+.Pp
+in similar surroundings is also a bad idea.
+.It
+The
+.Nm
+filter list may not be modified if the system security level
+is set to 3 or higher
+(see
+.Xr init 8
+for information on system security levels).
+.El
+.Sh PACKET DIVERSION
+A
+.Xr divert 4
+socket bound to the specified port will receive all packets
+diverted to that port.
+If no socket is bound to the destination port, or if the divert module is
+not loaded, or if the kernel was not compiled with divert socket support,
+the packets are dropped.
+.Sh NETWORK ADDRESS TRANSLATION (NAT)
+.Nm
+support in-kernel NAT using the kernel version of
+.Xr libalias 3 .
+The kernel module
+.Cm ipfw_nat
+should be loaded or kernel should have
+.Cm options IPFIREWALL_NAT
+to be able use NAT.
+.Pp
+The nat configuration command is the following:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nat
+.Ar nat_number
+.Cm config
+.Ar nat-configuration
+.Ek
+.Ed
+.Pp
+The following parameters can be configured:
+.Bl -tag -width indent
+.It Cm ip Ar ip_address
+Define an ip address to use for aliasing.
+.It Cm if Ar nic
+Use ip address of NIC for aliasing, dynamically changing
+it if NIC's ip address changes.
+.It Cm log
+Enable logging on this nat instance.
+.It Cm deny_in
+Deny any incoming connection from outside world.
+.It Cm same_ports
+Try to leave the alias port numbers unchanged from
+the actual local port numbers.
+.It Cm unreg_only
+Traffic on the local network not originating from an
+unregistered address spaces will be ignored.
+.It Cm reset
+Reset table of the packet aliasing engine on address change.
+.It Cm reverse
+Reverse the way libalias handles aliasing.
+.It Cm proxy_only
+Obey transparent proxy rules only, packet aliasing is not performed.
+.It Cm skip_global
+Skip instance in case of global state lookup (see below).
+.El
+.Pp
+Some specials value can be supplied instead of
+.Va nat_number:
+.Bl -tag -width indent
+.It Cm global
+Looks up translation state in all configured nat instances.
+If an entry is found, packet is aliased according to that entry.
+If no entry was found in any of the instances, packet is passed unchanged,
+and no new entry will be created.
+See section
+.Sx MULTIPLE INSTANCES
+in
+.Xr natd 8
+for more information.
+.It Cm tablearg
+Uses argument supplied in lookup table.
+See
+.Sx LOOKUP TABLES
+section below for more information on lookup tables.
+.El
+.Pp
+To let the packet continue after being (de)aliased, set the sysctl variable
+.Va net.inet.ip.fw.one_pass
+to 0.
+For more information about aliasing modes, refer to
+.Xr libalias 3 .
+See Section
+.Sx EXAMPLES
+for some examples about nat usage.
+.Ss REDIRECT AND LSNAT SUPPORT IN IPFW
+Redirect and LSNAT support follow closely the syntax used in
+.Xr natd 8 .
+See Section
+.Sx EXAMPLES
+for some examples on how to do redirect and lsnat.
+.Ss SCTP NAT SUPPORT
+SCTP nat can be configured in a similar manner to TCP through the
+.Nm
+command line tool.
+The main difference is that
+.Nm sctp nat
+does not do port translation.
+Since the local and global side ports will be the same,
+there is no need to specify both.
+Ports are redirected as follows:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nat
+.Ar nat_number
+.Cm config if
+.Ar nic
+.Cm redirect_port sctp
+.Ar ip_address [,addr_list] {[port | port-port] [,ports]}
+.Ek
+.Ed
+.Pp
+Most
+.Nm sctp nat
+configuration can be done in real-time through the
+.Xr sysctl 8
+interface.
+All may be changed dynamically, though the hash_table size will only
+change for new
+.Nm nat
+instances.
+See
+.Sx SYSCTL VARIABLES
+for more info.
+.Sh IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
+.Ss Stateful translation
+.Nm
+supports in-kernel IPv6/IPv4 network address and protocol translation.
+Stateful NAT64 translation allows IPv6-only clients to contact IPv4 servers
+using unicast TCP, UDP or ICMP protocols.
+One or more IPv4 addresses assigned to a stateful NAT64 translator are shared
+among several IPv6-only clients.
+When stateful NAT64 is used in conjunction with DNS64, no changes are usually
+required in the IPv6 client or the IPv4 server.
+The kernel module
+.Cm ipfw_nat64
+should be loaded or kernel should have
+.Cm options IPFIREWALL_NAT64
+to be able use stateful NAT64 translator.
+.Pp
+Stateful NAT64 uses a bunch of memory for several types of objects.
+When IPv6 client initiates connection, NAT64 translator creates a host entry
+in the states table.
+Each host entry uses preallocated IPv4 alias entry.
+Each alias entry has a number of ports group entries allocated on demand.
+Ports group entries contains connection state entries.
+There are several options to control limits and lifetime for these objects.
+.Pp
+NAT64 translator follows RFC7915 when does ICMPv6/ICMP translation,
+unsupported message types will be silently dropped.
+IPv6 needs several ICMPv6 message types to be explicitly allowed for correct
+operation.
+Make sure that ND6 neighbor solicitation (ICMPv6 type 135) and neighbor
+advertisement (ICMPv6 type 136) messages will not be handled by translation
+rules.
+.Pp
+After translation NAT64 translator by default sends packets through
+corresponding netisr queue.
+Thus translator host should be configured as IPv4 and IPv6 router.
+Also this means, that a packet is handled by firewall twice.
+First time an original packet is handled and consumed by translator,
+and then it is handled again as translated packet.
+This behavior can be changed by sysctl variable 
+.Va net.inet.ip.fw.nat64_direct_output .
+Also translated packet can be tagged using
+.Cm tag
+rule action, and then matched by
+.Cm tagged
+opcode to avoid loops and extra overhead.
+.Pp
+The stateful NAT64 configuration command is the following:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nat64lsn
+.Ar name
+.Cm create
+.Ar create-options
+.Ek
+.Ed
+.Pp
+The following parameters can be configured:
+.Bl -tag -width indent
+.It Cm prefix4 Ar ipv4_prefix/plen
+The IPv4 prefix with mask defines the pool of IPv4 addresses used as
+source address after translation.
+Stateful NAT64 module translates IPv6 source address of client to one
+IPv4 address from this pool.
+Note that incoming IPv4 packets that don't have corresponding state entry
+in the states table will be dropped by translator.
+Make sure that translation rules handle packets, destined to configured prefix.
+.It Cm prefix6 Ar ipv6_prefix/length
+The IPv6 prefix defines IPv4-embedded IPv6 addresses used by translator
+to represent IPv4 addresses. This IPv6 prefix should be configured in DNS64.
+The translator implementation follows RFC6052, that restricts the length of
+prefixes to one of following: 32, 40, 48, 56, 64, or 96.
+The Well-Known IPv6 Prefix 64:ff9b:: must be 96 bits long.
+The special
+.Ar ::/length
+prefix can be used to handle several IPv6 prefixes with one NAT64 instance.
+The NAT64 instance will determine a destination IPv4 address from prefix
+.Ar length .
+.It Cm states_chunks Ar number
+The number of states chunks in single ports group.
+Each ports group by default can keep 64 state entries in single chunk.
+The above value affects the maximum number of states that can be associated with single IPv4 alias address and port.
+The value must be power of 2, and up to 128.
+.It Cm host_del_age Ar seconds
+The number of seconds until the host entry for a IPv6 client will be deleted
+and all its resources will be released due to inactivity.
+Default value is
+.Ar 3600 .
+.It Cm pg_del_age Ar seconds
+The number of seconds until a ports group with unused state entries will
+be released.
+Default value is
+.Ar 900 .
+.It Cm tcp_syn_age Ar seconds
+The number of seconds while a state entry for TCP connection with only SYN
+sent will be kept.
+If TCP connection establishing will not be finished,
+state entry will be deleted.
+Default value is
+.Ar 10 .
+.It Cm tcp_est_age Ar seconds
+The number of seconds while a state entry for established TCP connection
+will be kept.
+Default value is
+.Ar 7200 .
+.It Cm tcp_close_age Ar seconds
+The number of seconds while a state entry for closed TCP connection
+will be kept.
+Keeping state entries for closed connections is needed, because IPv4 servers
+typically keep closed connections in a TIME_WAIT state for a several minutes.
+Since translator's IPv4 addresses are shared among all IPv6 clients,
+new connections from the same addresses and ports may be rejected by server,
+because these connections are still in a TIME_WAIT state.
+Keeping them in translator's state table protects from such rejects.
+Default value is
+.Ar 180 .
+.It Cm udp_age Ar seconds
+The number of seconds while translator keeps state entry in a waiting for
+reply to the sent UDP datagram.
+Default value is
+.Ar 120 .
+.It Cm icmp_age Ar seconds
+The number of seconds while translator keeps state entry in a waiting for
+reply to the sent ICMP message.
+Default value is
+.Ar 60 .
+.It Cm log
+Turn on logging of all handled packets via BPF through
+.Ar ipfwlog0
+interface.
+.Ar ipfwlog0
+is a pseudo interface and can be created after a boot manually with
+.Cm ifconfig
+command.
+Note that it has different purpose than
+.Ar ipfw0
+interface.
+Translators sends to BPF an additional information with each packet.
+With
+.Cm tcpdump
+you are able to see each handled packet before and after translation.
+.It Cm -log
+Turn off logging of all handled packets via BPF.
+.It Cm allow_private
+Turn on processing private IPv4 addresses. By default IPv6 packets with
+destinations mapped to private address ranges defined by RFC1918 are not
+processed.
+.It Cm -allow_private
+Turn off private address handling in
+.Nm nat64
+instance.
+.El
+.Pp
+To inspect a states table of stateful NAT64 the following command can be used:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nat64lsn
+.Ar name
+.Cm show Cm states
+.Ek
+.Ed
+.Pp
+.Pp
+Stateless NAT64 translator doesn't use a states table for translation
+and converts IPv4 addresses to IPv6 and vice versa solely based on the
+mappings taken from configured lookup tables.
+Since a states table doesn't used by stateless translator,
+it can be configured to pass IPv4 clients to IPv6-only servers.
+.Pp
+The stateless NAT64 configuration command is the following:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nat64stl
+.Ar name
+.Cm create
+.Ar create-options
+.Ek
+.Ed
+.Pp
+The following parameters can be configured:
+.Bl -tag -width indent
+.It Cm prefix6 Ar ipv6_prefix/length
+The IPv6 prefix defines IPv4-embedded IPv6 addresses used by translator
+to represent IPv4 addresses. This IPv6 prefix should be configured in DNS64.
+.It Cm table4 Ar table46
+The lookup table
+.Ar table46
+contains mapping how IPv4 addresses should be translated to IPv6 addresses.
+.It Cm table6 Ar table64
+The lookup table
+.Ar table64
+contains mapping how IPv6 addresses should be translated to IPv4 addresses.
+.It Cm log
+Turn on logging of all handled packets via BPF through
+.Ar ipfwlog0
+interface.
+.It Cm -log
+Turn off logging of all handled packets via BPF.
+.It Cm allow_private
+Turn on processing private IPv4 addresses. By default IPv6 packets with
+destinations mapped to private address ranges defined by RFC1918 are not
+processed.
+.It Cm -allow_private
+Turn off private address handling in
+.Nm nat64
+instance.
+.El
+.Pp
+Note that the behavior of stateless translator with respect to not matched
+packets differs from stateful translator.
+If corresponding addresses was not found in the lookup tables, the packet
+will not be dropped and the search continues.
+.Pp
+.Pp
+.Ss XLAT464 CLAT translation
+XLAT464 CLAT NAT64 translator implements client-side stateless translation as
+defined in RFC6877 and is very similar to statless NAT64 translator
+explained above. Instead of lookup tables it uses one-to-one mapping
+between IPv4 and IPv6 addresses using configured prefixes.
+This mode can be used as a replacement of DNS64 service for applications
+that are not using it (e.g. VoIP) allowing them to access IPv4-only Internet
+over IPv6-only networks with help of remote NAT64 translator.
+.Pp
+The CLAT NAT64 configuration command is the following:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nat64clat
+.Ar name
+.Cm create
+.Ar create-options
+.Ek
+.Ed
+.Pp
+The following parameters can be configured:
+.Bl -tag -width indent
+.It Cm clat_prefix Ar ipv6_prefix/length
+The IPv6 prefix defines IPv4-embedded IPv6 addresses used by translator
+to represent source IPv4 addresses.
+.It Cm plat_prefix Ar ipv6_prefix/length
+The IPv6 prefix defines IPv4-embedded IPv6 addresses used by translator
+to represent destination IPv4 addresses. This IPv6 prefix should be configured
+on a remote NAT64 translator.
+.It Cm log
+Turn on logging of all handled packets via BPF through
+.Ar ipfwlog0
+interface.
+.It Cm -log
+Turn off logging of all handled packets via BPF.
+.It Cm allow_private
+Turn on processing private IPv4 addresses. By default
+.Nm nat64clat
+instance will not process IPv4 packets with destination address from private
+ranges as defined in RFC1918.
+.It Cm -allow_private
+Turn off private address handling in
+.Nm nat64clat
+instance.
+.El
+.Pp
+Note that the behavior of CLAT translator with respect to not matched
+packets differs from stateful translator.
+If corresponding addresses were not matched against prefixes configured,
+the packet will not be dropped and the search continues.
+.Sh IPv6-to-IPv6 NETWORK PREFIX TRANSLATION (NPTv6)
+.Nm
+supports in-kernel IPv6-to-IPv6 network prefix translation as described
+in RFC6296.
+The kernel module
+.Cm ipfw_nptv6
+should be loaded or kernel should has
+.Cm options IPFIREWALL_NPTV6
+to be able use NPTv6 translator.
+.Pp
+The NPTv6 configuration command is the following:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nptv6
+.Ar name
+.Cm create
+.Ar create-options
+.Ek
+.Ed
+.Pp
+The following parameters can be configured:
+.Bl -tag -width indent
+.It Cm int_prefix Ar ipv6_prefix
+IPv6 prefix used in internal network.
+NPTv6 module translates source address when it matches this prefix.
+.It Cm ext_prefix Ar ipv6_prefix
+IPv6 prefix used in external network.
+NPTv6 module translates destination address when it matches this prefix.
+.It Cm ext_if Ar nic
+The NPTv6 module will use first global IPv6 address from interface
+.Ar nic
+as external prefix.
+It can be useful when IPv6 prefix of external network is dynamically obtained.
+.Cm ext_prefix
+and
+.Cm ext_if
+options are mutually exclusive.
+.It Cm prefixlen Ar length
+The length of specified IPv6 prefixes. It must be in range from 8 to 64.
+.El
+.Pp
+Note that the prefix translation rules are silently ignored when IPv6 packet
+forwarding is disabled.
+To enable the packet forwarding, set the sysctl variable
+.Va net.inet6.ip6.forwarding
+to 1.
+.Pp
+To let the packet continue after being translated, set the sysctl variable
+.Va net.inet.ip.fw.one_pass
+to 0.
+.Sh LOADER TUNABLES
+Tunables can be set in
+.Xr loader 8
+prompt,
+.Xr loader.conf 5
+or
+.Xr kenv 1
+before ipfw module gets loaded.
+.Bl -tag -width indent
+.It Va net.inet.ip.fw.default_to_accept: No 0
+Defines ipfw last rule behavior.
+This value overrides
+.Cd "options IPFW_DEFAULT_TO_(ACCEPT|DENY)"
+from kernel configuration file.
+.It Va net.inet.ip.fw.tables_max: No 128
+Defines number of tables available in ipfw.
+Number cannot exceed 65534.
+.El
+.Sh SYSCTL VARIABLES
+A set of
+.Xr sysctl 8
+variables controls the behaviour of the firewall and
+associated modules
+.Pq Nm dummynet , bridge , sctp nat .
+These are shown below together with their default value
+(but always check with the
+.Xr sysctl 8
+command what value is actually in use) and meaning:
+.Bl -tag -width indent
+.It Va net.inet.ip.alias.sctp.accept_global_ootb_addip: No 0
+Defines how the
+.Nm nat
+responds to receipt of global OOTB ASCONF-AddIP:
+.Bl -tag -width indent
+.It Cm 0
+No response (unless a partially matching association exists -
+ports and vtags match but global address does not)
+.It Cm 1
+.Nm nat
+will accept and process all OOTB global AddIP messages.
+.El
+.Pp
+Option 1 should never be selected as this forms a security risk.
+An attacker can
+establish multiple fake associations by sending AddIP messages.
+.It Va net.inet.ip.alias.sctp.chunk_proc_limit: No 5
+Defines the maximum number of chunks in an SCTP packet that will be
+parsed for a
+packet that matches an existing association.
+This value is enforced to be greater or equal than
+.Cm net.inet.ip.alias.sctp.initialising_chunk_proc_limit .
+A high value is
+a DoS risk yet setting too low a value may result in
+important control chunks in
+the packet not being located and parsed.
+.It Va net.inet.ip.alias.sctp.error_on_ootb: No 1
+Defines when the
+.Nm nat
+responds to any Out-of-the-Blue (OOTB) packets with ErrorM packets.
+An OOTB packet is a packet that arrives with no existing association
+registered in the
+.Nm nat
+and is not an INIT or ASCONF-AddIP packet:
+.Bl -tag -width indent
+.It Cm 0
+ErrorM is never sent in response to OOTB packets.
+.It Cm 1
+ErrorM is only sent to OOTB packets received on the local side.
+.It Cm 2
+ErrorM is sent to the local side and on the global side ONLY if there is a
+partial match (ports and vtags match but the source global IP does not).
+This value is only useful if the
+.Nm nat
+is tracking global IP addresses.
+.It Cm 3
+ErrorM is sent in response to all OOTB packets on both
+the local and global side
+(DoS risk).
+.El
+.Pp
+At the moment the default is 0, since the ErrorM packet is not yet
+supported by most SCTP stacks.
+When it is supported, and if not tracking
+global addresses, we recommend setting this value to 1 to allow
+multi-homed local hosts to function with the
+.Nm nat .
+To track global addresses, we recommend setting this value to 2 to
+allow global hosts to be informed when they need to (re)send an
+ASCONF-AddIP.
+Value 3 should never be chosen (except for debugging) as the
+.Nm nat
+will respond to all OOTB global packets (a DoS risk).
+.It Va net.inet.ip.alias.sctp.hashtable_size: No 2003
+Size of hash tables used for
+.Nm nat
+lookups (100 < prime_number > 1000001).
+This value sets the
+.Nm hash table
+size for any future created
+.Nm nat
+instance and therefore must be set prior to creating a
+.Nm nat
+instance.
+The table sizes may be changed to suit specific needs.
+If there will be few
+concurrent associations, and memory is scarce, you may make these smaller.
+If there will be many thousands (or millions) of concurrent associations, you
+should make these larger.
+A prime number is best for the table size.
+The sysctl
+update function will adjust your input value to the next highest prime number.
+.It Va net.inet.ip.alias.sctp.holddown_time:  No 0
+Hold association in table for this many seconds after receiving a
+SHUTDOWN-COMPLETE.
+This allows endpoints to correct shutdown gracefully if a
+shutdown_complete is lost and retransmissions are required.
+.It Va net.inet.ip.alias.sctp.init_timer: No 15
+Timeout value while waiting for (INIT-ACK|AddIP-ACK).
+This value cannot be 0.
+.It Va net.inet.ip.alias.sctp.initialising_chunk_proc_limit: No 2
+Defines the maximum number of chunks in an SCTP packet that will be parsed when
+no existing association exists that matches that packet.
+Ideally this packet
+will only be an INIT or ASCONF-AddIP packet.
+A higher value may become a DoS
+risk as malformed packets can consume processing resources.
+.It Va net.inet.ip.alias.sctp.param_proc_limit: No 25
+Defines the maximum number of parameters within a chunk that will be
+parsed in a
+packet.
+As for other similar sysctl variables, larger values pose a DoS risk.
+.It Va net.inet.ip.alias.sctp.log_level: No 0
+Level of detail in the system log messages (0 \- minimal, 1 \- event,
+2 \- info, 3 \- detail, 4 \- debug, 5 \- max debug).
+May be a good
+option in high loss environments.
+.It Va net.inet.ip.alias.sctp.shutdown_time: No 15
+Timeout value while waiting for SHUTDOWN-COMPLETE.
+This value cannot be 0.
+.It Va net.inet.ip.alias.sctp.track_global_addresses: No 0
+Enables/disables global IP address tracking within the
+.Nm nat
+and places an
+upper limit on the number of addresses tracked for each association:
+.Bl -tag -width indent
+.It Cm 0
+Global tracking is disabled
+.It Cm >1
+Enables tracking, the maximum number of addresses tracked for each
+association is limited to this value
+.El
+.Pp
+This variable is fully dynamic, the new value will be adopted for all newly
+arriving associations, existing associations are treated
+as they were previously.
+Global tracking will decrease the number of collisions within the
+.Nm nat
+at a cost
+of increased processing load, memory usage, complexity, and possible
+.Nm nat
+state
+problems in complex networks with multiple
+.Nm nats .
+We recommend not tracking
+global IP addresses, this will still result in a fully functional
+.Nm nat .
+.It Va net.inet.ip.alias.sctp.up_timer: No 300
+Timeout value to keep an association up with no traffic.
+This value cannot be 0.
+.It Va net.inet.ip.dummynet.codel.interval : No 100000
+Default
+.Cm codel
+AQM interval in microseconds.
+The value must be in the range 1..5000000.
+.It Va net.inet.ip.dummynet.codel.target : No 5000
+Default
+.Cm codel
+AQM target delay time in microseconds (the minimum acceptable persistent queue
+delay).
+The value must be in the range 1..5000000.
+.It Va net.inet.ip.dummynet.expire : No 1
+Lazily delete dynamic pipes/queue once they have no pending traffic.
+You can disable this by setting the variable to 0, in which case
+the pipes/queues will only be deleted when the threshold is reached.
+.It Va net.inet.ip.dummynet.fqcodel.flows : No 1024
+Defines the default total number of flow queues (sub-queues) that
+.Cm fq_codel
+creates and manages.
+The value must be in the range 1..65536.
+.It Va net.inet.ip.dummynet.fqcodel.interval : No 100000
+Default
+.Cm fq_codel
+scheduler/AQM interval in microseconds.
+The value must be in the range 1..5000000.
+.It Va net.inet.ip.dummynet.fqcodel.limit : No 10240
+The default hard size limit (in unit of packet) of all queues managed by an
+instance of the
+.Cm fq_codel
+scheduler.
+The value must be in the range 1..20480.
+.It Va net.inet.ip.dummynet.fqcodel.quantum : No 1514
+The default quantum (credit) of the
+.Cm fq_codel
+in unit of byte.
+The value must be in the range 1..9000.
+.It Va net.inet.ip.dummynet.fqcodel.target : No 5000
+Default
+.Cm fq_codel
+scheduler/AQM target delay time in microseconds (the minimum acceptable
+persistent queue delay).
+The value must be in the range 1..5000000.
+.It Va net.inet.ip.dummynet.fqpie.alpha : No 125
+The default
+.Ar alpha
+parameter (scaled by 1000) for
+.Cm fq_pie
+scheduler/AQM.
+The value must be in the range 1..7000.
+.It Va net.inet.ip.dummynet.fqpie.beta : No 1250
+The default
+.Ar beta
+parameter (scaled by 1000) for
+.Cm fq_pie
+scheduler/AQM.
+The value must be in the range 1..7000.
+.It Va net.inet.ip.dummynet.fqpie.flows : No 1024
+Defines the default total number of flow queues (sub-queues) that
+.Cm fq_pie
+creates and manages.
+The value must be in the range 1..65536.
+.It Va net.inet.ip.dummynet.fqpie.limit : No 10240
+The default hard size limit (in unit of packet) of all queues managed by an
+instance of the
+.Cm fq_pie
+scheduler.
+The value must be in the range 1..20480.
+.It Va net.inet.ip.dummynet.fqpie.max_burst : No 150000
+The default maximum period of microseconds that
+.Cm fq_pie
+scheduler/AQM does not drop/mark packets.
+The value must be in the range 1..10000000.
+.It Va net.inet.ip.dummynet.fqpie.max_ecnth : No 99
+The default maximum ECN probability threshold (scaled by 1000) for
+.Cm fq_pie
+scheduler/AQM.
+The value must be in the range 1..7000.
+.It Va net.inet.ip.dummynet.fqpie.quantum : No 1514
+The default quantum (credit) of the
+.Cm fq_pie
+in unit of byte.
+The value must be in the range 1..9000.
+.It Va net.inet.ip.dummynet.fqpie.target : No 15000
+The default
+.Cm target
+delay of the
+.Cm fq_pie
+in unit of microsecond.
+The value must be in the range 1..5000000.
+.It Va net.inet.ip.dummynet.fqpie.tupdate : No 15000
+The default
+.Cm tupdate
+of the
+.Cm fq_pie
+in unit of microsecond.
+The value must be in the range 1..5000000.
+.It Va net.inet.ip.dummynet.hash_size : No 64
+Default size of the hash table used for dynamic pipes/queues.
+This value is used when no
+.Cm buckets
+option is specified when configuring a pipe/queue.
+.It Va net.inet.ip.dummynet.io_fast : No 0
+If set to a non-zero value,
+the
+.Dq fast
+mode of
+.Nm dummynet
+operation (see above) is enabled.
+.It Va net.inet.ip.dummynet.io_pkt
+Number of packets passed to
+.Nm dummynet .
+.It Va net.inet.ip.dummynet.io_pkt_drop
+Number of packets dropped by
+.Nm dummynet .
+.It Va net.inet.ip.dummynet.io_pkt_fast
+Number of packets bypassed by the
+.Nm dummynet
+scheduler.
+.It Va net.inet.ip.dummynet.max_chain_len : No 16
+Target value for the maximum number of pipes/queues in a hash bucket.
+The product
+.Cm max_chain_len*hash_size
+is used to determine the threshold over which empty pipes/queues
+will be expired even when
+.Cm net.inet.ip.dummynet.expire=0 .
+.It Va net.inet.ip.dummynet.red_lookup_depth : No 256
+.It Va net.inet.ip.dummynet.red_avg_pkt_size : No 512
+.It Va net.inet.ip.dummynet.red_max_pkt_size : No 1500
+Parameters used in the computations of the drop probability
+for the RED algorithm.
+.It Va net.inet.ip.dummynet.pie.alpha : No 125
+The default
+.Ar alpha
+parameter (scaled by 1000) for
+.Cm pie
+AQM.
+The value must be in the range 1..7000.
+.It Va net.inet.ip.dummynet.pie.beta : No 1250
+The default
+.Ar beta
+parameter (scaled by 1000) for
+.Cm pie
+AQM.
+The value must be in the range 1..7000.
+.It Va net.inet.ip.dummynet.pie.max_burst : No 150000
+The default maximum period of microseconds that
+.Cm pie
+AQM does not drop/mark packets.
+The value must be in the range 1..10000000.
+.It Va net.inet.ip.dummynet.pie.max_ecnth : No 99
+The default maximum ECN probability threshold (scaled by 1000) for
+.Cm pie
+AQM.
+The value must be in the range 1..7000.
+.It Va net.inet.ip.dummynet.pie.target : No 15000
+The default
+.Cm target
+delay of
+.Cm pie
+AQM in unit of microsecond.
+The value must be in the range 1..5000000.
+.It Va net.inet.ip.dummynet.pie.tupdate : No 15000
+The default
+.Cm tupdate
+of
+.Cm pie
+AQM in unit of microsecond.
+The value must be in the range 1..5000000.
+.It Va net.inet.ip.dummynet.pipe_byte_limit : No 1048576
+.It Va net.inet.ip.dummynet.pipe_slot_limit : No 100
+The maximum queue size that can be specified in bytes or packets.
+These limits prevent accidental exhaustion of resources such as mbufs.
+If you raise these limits,
+you should make sure the system is configured so that sufficient resources
+are available.
+.It Va net.inet.ip.fw.autoinc_step : No 100
+Delta between rule numbers when auto-generating them.
+The value must be in the range 1..1000.
+.It Va net.inet.ip.fw.curr_dyn_buckets : Va net.inet.ip.fw.dyn_buckets
+The current number of buckets in the hash table for dynamic rules
+(readonly).
+.It Va net.inet.ip.fw.debug : No 1
+Controls debugging messages produced by
+.Nm .
+.It Va net.inet.ip.fw.default_rule : No 65535
+The default rule number (read-only).
+By the design of
+.Nm , the default rule is the last one, so its number
+can also serve as the highest number allowed for a rule.
+.It Va net.inet.ip.fw.dyn_buckets : No 256
+The number of buckets in the hash table for dynamic rules.
+Must be a power of 2, up to 65536.
+It only takes effect when all dynamic rules have expired, so you
+are advised to use a
+.Cm flush
+command to make sure that the hash table is resized.
+.It Va net.inet.ip.fw.dyn_count : No 3
+Current number of dynamic rules
+(read-only).
+.It Va net.inet.ip.fw.dyn_keepalive : No 1
+Enables generation of keepalive packets for
+.Cm keep-state
+rules on TCP sessions.
+A keepalive is generated to both
+sides of the connection every 5 seconds for the last 20
+seconds of the lifetime of the rule.
+.It Va net.inet.ip.fw.dyn_max : No 8192
+Maximum number of dynamic rules.
+When you hit this limit, no more dynamic rules can be
+installed until old ones expire.
+.It Va net.inet.ip.fw.dyn_ack_lifetime : No 300
+.It Va net.inet.ip.fw.dyn_syn_lifetime : No 20
+.It Va net.inet.ip.fw.dyn_fin_lifetime : No 1
+.It Va net.inet.ip.fw.dyn_rst_lifetime : No 1
+.It Va net.inet.ip.fw.dyn_udp_lifetime : No 5
+.It Va net.inet.ip.fw.dyn_short_lifetime : No 30
+These variables control the lifetime, in seconds, of dynamic
+rules.
+Upon the initial SYN exchange the lifetime is kept short,
+then increased after both SYN have been seen, then decreased
+again during the final FIN exchange or when a RST is received.
+Both
+.Em dyn_fin_lifetime
+and
+.Em dyn_rst_lifetime
+must be strictly lower than 5 seconds, the period of
+repetition of keepalives.
+The firewall enforces that.
+.It Va net.inet.ip.fw.dyn_keep_states: No 0
+Keep dynamic states on rule/set deletion.
+States are relinked to default rule (65535).
+This can be handly for ruleset reload.
+Turned off by default.
+.It Va net.inet.ip.fw.enable : No 1
+Enables the firewall.
+Setting this variable to 0 lets you run your machine without
+firewall even if compiled in.
+.It Va net.inet6.ip6.fw.enable : No 1
+provides the same functionality as above for the IPv6 case.
+.It Va net.inet.ip.fw.one_pass : No 1
+When set, the packet exiting from the
+.Nm dummynet
+pipe or from
+.Xr ng_ipfw 4
+node is not passed though the firewall again.
+Otherwise, after an action, the packet is
+reinjected into the firewall at the next rule.
+.It Va net.inet.ip.fw.tables_max : No 128
+Maximum number of tables.
+.It Va net.inet.ip.fw.verbose : No 1
+Enables verbose messages.
+.It Va net.inet.ip.fw.verbose_limit : No 0
+Limits the number of messages produced by a verbose firewall.
+.It Va net.inet6.ip6.fw.deny_unknown_exthdrs : No 1
+If enabled packets with unknown IPv6 Extension Headers will be denied.
+.It Va net.link.ether.ipfw : No 0
+Controls whether layer-2 packets are passed to
+.Nm .
+Default is no.
+.It Va net.link.bridge.ipfw : No 0
+Controls whether bridged packets are passed to
+.Nm .
+Default is no.
+.It Va net.inet.ip.fw.nat64_debug : No 0
+Controls debugging messages produced by
+.Nm ipfw_nat64
+module.
+.It Va net.inet.ip.fw.nat64_direct_output : No 0
+Controls the output method used by
+.Nm ipfw_nat64
+module:
+.Bl -tag -width indent
+.It Cm 0
+A packet is handled by 
+.Nm ipfw
+twice.
+First time an original packet is handled by
+.Nm ipfw
+and consumed by
+.Nm ipfw_nat64
+translator.
+Then translated packet is queued via netisr to input processing again.
+.It Cm 1
+A packet is handled by
+.Nm ipfw
+only once, and after translation it will be pushed directly to outgoing
+interface.
+.El
+.El
+.Sh INTERNAL DIAGNOSTICS
+There are some commands that may be useful to understand current state
+of certain subsystems inside kernel module.
+These commands provide debugging output which may change without notice.
+.Pp
+Currently the following commands are available as
+.Cm internal
+sub-options:
+.Bl -tag -width indent
+.It Cm iflist
+Lists all interface which are currently tracked by
+.Nm
+with their in-kernel status.
+.It Cm talist
+List all table lookup algorithms currently available.
+.El
+.Sh EXAMPLES
+There are far too many possible uses of
+.Nm
+so this Section will only give a small set of examples.
+.Pp
+.Ss BASIC PACKET FILTERING
+This command adds an entry which denies all tcp packets from
+.Em cracker.evil.org
+to the telnet port of
+.Em wolf.tambov.su
+from being forwarded by the host:
+.Pp
+.Dl "ipfw add deny tcp from cracker.evil.org to wolf.tambov.su telnet"
+.Pp
+This one disallows any connection from the entire cracker's
+network to my host:
+.Pp
+.Dl "ipfw add deny ip from 123.45.67.0/24 to my.host.org"
+.Pp
+A first and efficient way to limit access (not using dynamic rules)
+is the use of the following rules:
+.Pp
+.Dl "ipfw add allow tcp from any to any established"
+.Dl "ipfw add allow tcp from net1 portlist1 to net2 portlist2 setup"
+.Dl "ipfw add allow tcp from net3 portlist3 to net3 portlist3 setup"
+.Dl "..."
+.Dl "ipfw add deny tcp from any to any"
+.Pp
+The first rule will be a quick match for normal TCP packets,
+but it will not match the initial SYN packet, which will be
+matched by the
+.Cm setup
+rules only for selected source/destination pairs.
+All other SYN packets will be rejected by the final
+.Cm deny
+rule.
+.Pp
+If you administer one or more subnets, you can take advantage
+of the address sets and or-blocks and write extremely
+compact rulesets which selectively enable services to blocks
+of clients, as below:
+.Pp
+.Dl "goodguys=\*q{ 10.1.2.0/24{20,35,66,18} or 10.2.3.0/28{6,3,11} }\*q"
+.Dl "badguys=\*q10.1.2.0/24{8,38,60}\*q"
+.Dl ""
+.Dl "ipfw add allow ip from ${goodguys} to any"
+.Dl "ipfw add deny ip from ${badguys} to any"
+.Dl "... normal policies ..."
+.Pp
+The
+.Cm verrevpath
+option could be used to do automated anti-spoofing by adding the
+following to the top of a ruleset:
+.Pp
+.Dl "ipfw add deny ip from any to any not verrevpath in"
+.Pp
+This rule drops all incoming packets that appear to be coming to the
+system on the wrong interface.
+For example, a packet with a source
+address belonging to a host on a protected internal network would be
+dropped if it tried to enter the system from an external interface.
+.Pp
+The
+.Cm antispoof
+option could be used to do similar but more restricted anti-spoofing
+by adding the following to the top of a ruleset:
+.Pp
+.Dl "ipfw add deny ip from any to any not antispoof in"
+.Pp
+This rule drops all incoming packets that appear to be coming from another
+directly connected system but on the wrong interface.
+For example, a packet with a source address of
+.Li 192.168.0.0/24 ,
+configured on
+.Li fxp0 ,
+but coming in on
+.Li fxp1
+would be dropped.
+.Pp
+The
+.Cm setdscp
+option could be used to (re)mark user traffic,
+by adding the following to the appropriate place in ruleset:
+.Pp
+.Dl "ipfw add setdscp be ip from any to any dscp af11,af21"
+.Ss SELECTIVE MIRRORING
+If your network has network traffic analyzer
+connected to your host directly via dedicated interface
+or remotely via RSPAN vlan, you can selectively mirror
+some Ethernet layer2 frames to the analyzer.
+.Pp
+First, make sure your firewall is already configured and runs.
+Then, enable layer2 processing if not already enabled:
+.Pp
+.Dl "sysctl net.link.ether.ipfw=1"
+.Pp
+Next, load needed additional kernel modules:
+.Pp
+.Dl "kldload ng_ether ng_ipfw"
+.Pp
+Optionally, make system load these modules automatically
+at startup:
+.Pp
+.Dl sysrc kld_list+="ng_ether ng_ipfw"
+.Pp
+Next, configure
+.Xr ng_ipfw 4
+kernel module to transmit mirrored copies of layer2 frames
+out via vlan900 interface:
+.Pp
+.Dl "ngctl connect ipfw: vlan900: 1 lower"
+.Pp
+Think of "1" here as of "mirroring instance index" and vlan900 is its
+destination.
+You can have arbitrary number of instances.
+Refer to
+.Xr ng_ipfw 4
+for details.
+.Pp
+At last, actually start mirroring of selected frames using "instance 1".
+For frames incoming from em0 interface:
+.Pp
+.Dl "ipfw add ngtee 1 ip from any to 192.168.0.1 layer2 in recv em0"
+.Pp
+For frames outgoing to em0 interface:
+.Pp
+.Dl "ipfw add ngtee 1 ip from any to 192.168.0.1 layer2 out xmit em0"
+.Pp
+For both incoming and outgoing frames while flowing through em0:
+.Pp
+.Dl "ipfw add ngtee 1 ip from any to 192.168.0.1 layer2 via em0"
+.Pp
+Make sure you do not perform mirroring for already duplicated frames
+or kernel may hang as there is no safety net.
+.Ss DYNAMIC RULES
+In order to protect a site from flood attacks involving fake
+TCP packets, it is safer to use dynamic rules:
+.Pp
+.Dl "ipfw add check-state"
+.Dl "ipfw add deny tcp from any to any established"
+.Dl "ipfw add allow tcp from my-net to any setup keep-state"
+.Pp
+This will let the firewall install dynamic rules only for
+those connection which start with a regular SYN packet coming
+from the inside of our network.
+Dynamic rules are checked when encountering the first
+occurrence of a
+.Cm check-state ,
+.Cm keep-state
+or
+.Cm limit
+rule.
+A
+.Cm check-state
+rule should usually be placed near the beginning of the
+ruleset to minimize the amount of work scanning the ruleset.
+Your mileage may vary.
+.Pp
+For more complex scenarios with dynamic rules
+.Cm record-state 
+and
+.Cm defer-action
+can be used to precisely control creation and checking of dynamic rules.
+Example of usage of these options are provided in 
+.Sx NETWORK ADDRESS TRANSLATION (NAT)
+Section.
+.Pp
+To limit the number of connections a user can open
+you can use the following type of rules:
+.Pp
+.Dl "ipfw add allow tcp from my-net/24 to any setup limit src-addr 10"
+.Dl "ipfw add allow tcp from any to me setup limit src-addr 4"
+.Pp
+The former (assuming it runs on a gateway) will allow each host
+on a /24 network to open at most 10 TCP connections.
+The latter can be placed on a server to make sure that a single
+client does not use more than 4 simultaneous connections.
+.Pp
+.Em BEWARE :
+stateful rules can be subject to denial-of-service attacks
+by a SYN-flood which opens a huge number of dynamic rules.
+The effects of such attacks can be partially limited by
+acting on a set of
+.Xr sysctl 8
+variables which control the operation of the firewall.
+.Pp
+Here is a good usage of the
+.Cm list
+command to see accounting records and timestamp information:
+.Pp
+.Dl ipfw -at list
+.Pp
+or in short form without timestamps:
+.Pp
+.Dl ipfw -a list
+.Pp
+which is equivalent to:
+.Pp
+.Dl ipfw show
+.Pp
+Next rule diverts all incoming packets from 192.168.2.0/24
+to divert port 5000:
+.Pp
+.Dl ipfw divert 5000 ip from 192.168.2.0/24 to any in
+.Ss TRAFFIC SHAPING
+The following rules show some of the applications of
+.Nm
+and
+.Nm dummynet
+for simulations and the like.
+.Pp
+This rule drops random incoming packets with a probability
+of 5%:
+.Pp
+.Dl "ipfw add prob 0.05 deny ip from any to any in"
+.Pp
+A similar effect can be achieved making use of
+.Nm dummynet
+pipes:
+.Pp
+.Dl "ipfw add pipe 10 ip from any to any"
+.Dl "ipfw pipe 10 config plr 0.05"
+.Pp
+We can use pipes to artificially limit bandwidth, e.g.\& on a
+machine acting as a router, if we want to limit traffic from
+local clients on 192.168.2.0/24 we do:
+.Pp
+.Dl "ipfw add pipe 1 ip from 192.168.2.0/24 to any out"
+.Dl "ipfw pipe 1 config bw 300Kbit/s queue 50KBytes"
+.Pp
+note that we use the
+.Cm out
+modifier so that the rule is not used twice.
+Remember in fact that
+.Nm
+rules are checked both on incoming and outgoing packets.
+.Pp
+Should we want to simulate a bidirectional link with bandwidth
+limitations, the correct way is the following:
+.Pp
+.Dl "ipfw add pipe 1 ip from any to any out"
+.Dl "ipfw add pipe 2 ip from any to any in"
+.Dl "ipfw pipe 1 config bw 64Kbit/s queue 10Kbytes"
+.Dl "ipfw pipe 2 config bw 64Kbit/s queue 10Kbytes"
+.Pp
+The above can be very useful, e.g.\& if you want to see how
+your fancy Web page will look for a residential user who
+is connected only through a slow link.
+You should not use only one pipe for both directions, unless
+you want to simulate a half-duplex medium (e.g.\& AppleTalk,
+Ethernet, IRDA).
+It is not necessary that both pipes have the same configuration,
+so we can also simulate asymmetric links.
+.Pp
+Should we want to verify network performance with the RED queue
+management algorithm:
+.Pp
+.Dl "ipfw add pipe 1 ip from any to any"
+.Dl "ipfw pipe 1 config bw 500Kbit/s queue 100 red 0.002/30/80/0.1"
+.Pp
+Another typical application of the traffic shaper is to
+introduce some delay in the communication.
+This can significantly affect applications which do a lot of Remote
+Procedure Calls, and where the round-trip-time of the
+connection often becomes a limiting factor much more than
+bandwidth:
+.Pp
+.Dl "ipfw add pipe 1 ip from any to any out"
+.Dl "ipfw add pipe 2 ip from any to any in"
+.Dl "ipfw pipe 1 config delay 250ms bw 1Mbit/s"
+.Dl "ipfw pipe 2 config delay 250ms bw 1Mbit/s"
+.Pp
+Per-flow queueing can be useful for a variety of purposes.
+A very simple one is counting traffic:
+.Pp
+.Dl "ipfw add pipe 1 tcp from any to any"
+.Dl "ipfw add pipe 1 udp from any to any"
+.Dl "ipfw add pipe 1 ip from any to any"
+.Dl "ipfw pipe 1 config mask all"
+.Pp
+The above set of rules will create queues (and collect
+statistics) for all traffic.
+Because the pipes have no limitations, the only effect is
+collecting statistics.
+Note that we need 3 rules, not just the last one, because
+when
+.Nm
+tries to match IP packets it will not consider ports, so we
+would not see connections on separate ports as different
+ones.
+.Pp
+A more sophisticated example is limiting the outbound traffic
+on a net with per-host limits, rather than per-network limits:
+.Pp
+.Dl "ipfw add pipe 1 ip from 192.168.2.0/24 to any out"
+.Dl "ipfw add pipe 2 ip from any to 192.168.2.0/24 in"
+.Dl "ipfw pipe 1 config mask src-ip 0x000000ff bw 200Kbit/s queue 20Kbytes"
+.Dl "ipfw pipe 2 config mask dst-ip 0x000000ff bw 200Kbit/s queue 20Kbytes"
+.Ss LOOKUP TABLES
+In the following example, we need to create several traffic bandwidth
+classes and we need different hosts/networks to fall into different classes.
+We create one pipe for each class and configure them accordingly.
+Then we create a single table and fill it with IP subnets and addresses.
+For each subnet/host we set the argument equal to the number of the pipe
+that it should use.
+Then we classify traffic using a single rule:
+.Pp
+.Dl "ipfw pipe 1 config bw 1000Kbyte/s"
+.Dl "ipfw pipe 4 config bw 4000Kbyte/s"
+.Dl "..."
+.Dl "ipfw table T1 create type addr"
+.Dl "ipfw table T1 add 192.168.2.0/24 1"
+.Dl "ipfw table T1 add 192.168.0.0/27 4"
+.Dl "ipfw table T1 add 192.168.0.2 1"
+.Dl "..."
+.Dl "ipfw add pipe tablearg ip from 'table(T1)' to any"
+.Pp
+Using the
+.Cm fwd
+action, the table entries may include hostnames and IP addresses.
+.Pp
+.Dl "ipfw table T2 create type addr ftype ip"
+.Dl "ipfw table T2 add 192.168.2.0/24 10.23.2.1"
+.Dl "ipfw table T21 add 192.168.0.0/27 router1.dmz"
+.Dl "..."
+.Dl "ipfw add 100 fwd tablearg ip from any to table(1)"
+.Pp
+In the following example per-interface firewall is created:
+.Pp
+.Dl "ipfw table IN create type iface valtype skipto,fib"
+.Dl "ipfw table IN add vlan20 12000,12"
+.Dl "ipfw table IN add vlan30 13000,13"
+.Dl "ipfw table OUT create type iface valtype skipto"
+.Dl "ipfw table OUT add vlan20 22000"
+.Dl "ipfw table OUT add vlan30 23000"
+.Dl ".."
+.Dl "ipfw add 100 setfib tablearg ip from any to any recv 'table(IN)' in"
+.Dl "ipfw add 200 skipto tablearg ip from any to any recv 'table(IN)' in"
+.Dl "ipfw add 300 skipto tablearg ip from any to any xmit 'table(OUT)' out"
+.Pp
+The following example illustrate usage of flow tables:
+.Pp
+.Dl "ipfw table fl create type flow:src-ip,proto,dst-ip,dst-port"
+.Dl "ipfw table fl add 2a02:6b8:77::88,tcp,2a02:6b8:77::99,80 11"
+.Dl "ipfw table fl add 10.0.0.1,udp,10.0.0.2,53 12"
+.Dl ".."
+.Dl "ipfw add 100 allow ip from any to any flow 'table(fl,11)' recv ix0"
+.Ss SETS OF RULES
+To add a set of rules atomically, e.g.\& set 18:
+.Pp
+.Dl "ipfw set disable 18"
+.Dl "ipfw add NN set 18 ...         # repeat as needed"
+.Dl "ipfw set enable 18"
+.Pp
+To delete a set of rules atomically the command is simply:
+.Pp
+.Dl "ipfw delete set 18"
+.Pp
+To test a ruleset and disable it and regain control if something goes wrong:
+.Pp
+.Dl "ipfw set disable 18"
+.Dl "ipfw add NN set 18 ...         # repeat as needed"
+.Dl "ipfw set enable 18; echo done; sleep 30 && ipfw set disable 18"
+.Pp
+Here if everything goes well, you press control-C before the "sleep"
+terminates, and your ruleset will be left active.
+Otherwise, e.g.\& if
+you cannot access your box, the ruleset will be disabled after
+the sleep terminates thus restoring the previous situation.
+.Pp
+To show rules of the specific set:
+.Pp
+.Dl "ipfw set 18 show"
+.Pp
+To show rules of the disabled set:
+.Pp
+.Dl "ipfw -S set 18 show"
+.Pp
+To clear a specific rule counters of the specific set:
+.Pp
+.Dl "ipfw set 18 zero NN"
+.Pp
+To delete a specific rule of the specific set:
+.Pp
+.Dl "ipfw set 18 delete NN"
+.Ss NAT, REDIRECT AND LSNAT
+First redirect all the traffic to nat instance 123:
+.Pp
+.Dl "ipfw add nat 123 all from any to any"
+.Pp
+Then to configure nat instance 123 to alias all the outgoing traffic with ip
+192.168.0.123, blocking all incoming connections, trying to keep
+same ports on both sides, clearing aliasing table on address change
+and keeping a log of traffic/link statistics:
+.Pp
+.Dl "ipfw nat 123 config ip 192.168.0.123 log deny_in reset same_ports"
+.Pp
+Or to change address of instance 123, aliasing table will be cleared (see
+reset option):
+.Pp
+.Dl "ipfw nat 123 config ip 10.0.0.1"
+.Pp
+To see configuration of nat instance 123:
+.Pp
+.Dl "ipfw nat 123 show config"
+.Pp
+To show logs of all the instances in range 111-999:
+.Pp
+.Dl "ipfw nat 111-999 show"
+.Pp
+To see configurations of all instances:
+.Pp
+.Dl "ipfw nat show config"
+.Pp
+Or a redirect rule with mixed modes could looks like:
+.Pp
+.Dl "ipfw nat 123 config redirect_addr 10.0.0.1 10.0.0.66"
+.Dl "			 redirect_port tcp 192.168.0.1:80 500"
+.Dl "			 redirect_proto udp 192.168.1.43 192.168.1.1"
+.Dl "			 redirect_addr 192.168.0.10,192.168.0.11"
+.Dl "			 	    10.0.0.100	# LSNAT"
+.Dl "			 redirect_port tcp 192.168.0.1:80,192.168.0.10:22"
+.Dl "			 	    500		# LSNAT"
+.Pp
+or it could be split in:
+.Pp
+.Dl "ipfw nat 1 config redirect_addr 10.0.0.1 10.0.0.66"
+.Dl "ipfw nat 2 config redirect_port tcp 192.168.0.1:80 500"
+.Dl "ipfw nat 3 config redirect_proto udp 192.168.1.43 192.168.1.1"
+.Dl "ipfw nat 4 config redirect_addr 192.168.0.10,192.168.0.11,192.168.0.12"
+.Dl "				         10.0.0.100"
+.Dl "ipfw nat 5 config redirect_port tcp"
+.Dl "			192.168.0.1:80,192.168.0.10:22,192.168.0.20:25 500"
+.Pp
+Sometimes you may want to mix NAT and dynamic rules. It could be achieved with
+.Cm record-state
+and
+.Cm defer-action
+options. Problem is, you need to create dynamic rule before NAT and check it
+after NAT actions (or vice versa) to have consistent addresses and ports.
+Rule with
+.Cm keep-state
+option will trigger activation of existing dynamic state, and action of such
+rule will be performed as soon as rule is matched. In case of NAT and
+.Cm allow
+rule packet need to be passed to NAT, not allowed as soon is possible.
+.Pp
+There is example of set of rules to achieve this. Bear in mind that this
+is exmaple only and it is not very useful by itself.
+.Pp
+On way out, after all checks place this rules:
+.Pp
+.Dl "ipfw add allow record-state skip-action"
+.Dl "ipfw add nat 1"
+.Pp
+And on way in there should be something like this:
+.Pp
+.Dl "ipfw add nat 1"
+.Dl "ipfw add check-state"
+.Pp
+Please note, that first rule on way out doesn't allow packet and doesn't
+execute existing dynamic rules. All it does, create new dynamic rule with
+.Cm allow
+action, if it is not created yet. Later, this dynamic rule is used on way
+in by
+.Cm check-state
+rule.
+.Ss CONFIGURING CODEL, PIE, FQ-CODEL and FQ-PIE AQM
+.Cm codel
+and
+.Cm pie
+AQM can be configured for
+.Nm dummynet
+.Cm pipe
+or
+.Cm queue.
+.Pp
+To configure a
+.Cm pipe
+with
+.Cm codel
+AQM using default configuration for traffic from 192.168.0.0/24 and 1Mbits/s
+rate limit, we do:
+.Pp
+.Dl "ipfw pipe 1 config bw 1mbits/s codel"
+.Dl "ipfw add 100 pipe 1 ip from 192.168.0.0/24 to any"
+.Pp
+To configure a
+.Cm queue
+with
+.Cm codel
+AQM using different configurations parameters for traffic from
+192.168.0.0/24 and 1Mbits/s rate limit, we do:
+.Pp
+.Dl "ipfw pipe 1 config bw 1mbits/s"
+.Dl "ipfw queue 1 config pipe 1 codel target 8ms interval 160ms ecn"
+.Dl "ipfw add 100 queue 1 ip from 192.168.0.0/24 to any"
+.Pp
+To configure a
+.Cm pipe
+with
+.Cm pie
+AQM using default configuration for traffic from 192.168.0.0/24 and 1Mbits/s
+rate limit, we do:
+.Pp
+.Dl "ipfw pipe 1 config bw 1mbits/s pie"
+.Dl "ipfw add 100 pipe 1 ip from 192.168.0.0/24 to any"
+.Pp
+To configure a
+.Cm queue
+with
+.Cm pie
+AQM using different configuration parameters for traffic from
+192.168.0.0/24 and 1Mbits/s rate limit, we do:
+.Pp
+.Dl "ipfw pipe 1 config bw 1mbits/s"
+.Dl "ipfw queue 1 config pipe 1 pie target 20ms tupdate 30ms ecn"
+.Dl "ipfw add 100 queue 1 ip from 192.168.0.0/24 to any"
+.Pp
+.Cm fq_codel
+and
+.Cm fq_pie
+AQM can be configured for
+.Nm dummynet
+schedulers.
+.Pp
+To configure
+.Cm fq_codel
+scheduler using different configurations parameters for traffic from
+192.168.0.0/24 and 1Mbits/s rate limit, we do:
+.Pp
+.Dl "ipfw pipe 1 config bw 1mbits/s"
+.Dl "ipfw sched 1 config pipe 1 type fq_codel"
+.Dl "ipfw queue 1 config sched 1"
+.Dl "ipfw add 100 queue 1 ip from 192.168.0.0/24 to any"
+.Pp
+To change
+.Cm fq_codel
+default configuration for a
+.Cm sched
+such as disable ECN and change the
+.Ar target
+to 10ms, we do:
+.Pp
+.Dl "ipfw sched 1 config pipe 1 type fq_codel target 10ms noecn"
+.Pp
+Similar to
+.Cm fq_codel,
+to configure
+.Cm fq_pie
+scheduler using different configurations parameters for traffic from
+192.168.0.0/24 and 1Mbits/s rate limit, we do:
+.Pp
+.Dl "ipfw pipe 1 config bw 1mbits/s"
+.Dl "ipfw sched 1 config pipe 1 type fq_pie"
+.Dl "ipfw queue 1 config sched 1"
+.Dl "ipfw add 100 queue 1 ip from 192.168.0.0/24 to any"
+.Pp
+The configurations of
+.Cm fq_pie
+.Cm sched
+can be changed in a similar way as for
+.Cm fq_codel
+.Sh SEE ALSO
+.Xr cpp 1 ,
+.Xr m4 1 ,
+.Xr altq 4 ,
+.Xr divert 4 ,
+.Xr dummynet 4 ,
+.Xr if_bridge 4 ,
+.Xr ip 4 ,
+.Xr ipfirewall 4 ,
+.Xr ng_ether 4 ,
+.Xr ng_ipfw 4 ,
+.Xr protocols 5 ,
+.Xr services 5 ,
+.Xr init 8 ,
+.Xr kldload 8 ,
+.Xr reboot 8 ,
+.Xr sysctl 8 ,
+.Xr sysrc 8 ,
+.Xr syslogd 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 2.0 .
+.Nm dummynet
+was introduced in
+.Fx 2.2.8 .
+Stateful extensions were introduced in
+.Fx 4.0 .
+.Nm ipfw2
+was introduced in Summer 2002.
+.Sh AUTHORS
+.An Ugen J. S. Antsilevich ,
+.An Poul-Henning Kamp ,
+.An Alex Nash ,
+.An Archie Cobbs ,
+.An Luigi Rizzo ,
+.An Rasool Al-Saadi .
+.Pp
+.An -nosplit
+API based upon code written by
+.An Daniel Boulet
+for BSDI.
+.Pp
+Dummynet has been introduced by Luigi Rizzo in 1997-1998.
+.Pp
+Some early work (1999-2000) on the
+.Nm dummynet
+traffic shaper supported by Akamba Corp.
+.Pp
+The ipfw core (ipfw2) has been completely redesigned and
+reimplemented by Luigi Rizzo in summer 2002.
+Further
+actions and
+options have been added by various developers over the years.
+.Pp
+.An -nosplit
+In-kernel NAT support written by
+.An Paolo Pisati Aq Mt piso@FreeBSD.org
+as part of a Summer of Code 2005 project.
+.Pp
+SCTP
+.Nm nat
+support has been developed by
+.An The Centre for Advanced Internet Architectures (CAIA) Aq http://www.caia.swin.edu.au .
+The primary developers and maintainers are David Hayes and Jason But.
+For further information visit:
+.Aq http://www.caia.swin.edu.au/urp/SONATA
+.Pp
+Delay profiles have been developed by Alessandro Cerri and
+Luigi Rizzo, supported by the
+European Commission within Projects Onelab and Onelab2.
+.Pp
+CoDel, PIE, FQ-CoDel and FQ-PIE AQM for Dummynet have been implemented by
+.An The Centre for Advanced Internet Architectures (CAIA)
+in 2016, supported by The Comcast Innovation Fund.
+The primary developer is
+Rasool Al-Saadi.
+.Sh BUGS
+The syntax has grown over the years and sometimes it might be confusing.
+Unfortunately, backward compatibility prevents cleaning up mistakes
+made in the definition of the syntax.
+.Pp
+.Em !!! WARNING !!!
+.Pp
+Misconfiguring the firewall can put your computer in an unusable state,
+possibly shutting down network services and requiring console access to
+regain control of it.
+.Pp
+Incoming packet fragments diverted by
+.Cm divert
+are reassembled before delivery to the socket.
+The action used on those packet is the one from the
+rule which matches the first fragment of the packet.
+.Pp
+Packets diverted to userland, and then reinserted by a userland process
+may lose various packet attributes.
+The packet source interface name
+will be preserved if it is shorter than 8 bytes and the userland process
+saves and reuses the sockaddr_in
+(as does
+.Xr natd 8 ) ;
+otherwise, it may be lost.
+If a packet is reinserted in this manner, later rules may be incorrectly
+applied, making the order of
+.Cm divert
+rules in the rule sequence very important.
+.Pp
+Dummynet drops all packets with IPv6 link-local addresses.
+.Pp
+Rules using
+.Cm uid
+or
+.Cm gid
+may not behave as expected.
+In particular, incoming SYN packets may
+have no uid or gid associated with them since they do not yet belong
+to a TCP connection, and the uid/gid associated with a packet may not
+be as expected if the associated process calls
+.Xr setuid 2
+or similar system calls.
+.Pp
+Rule syntax is subject to the command line environment and some patterns
+may need to be escaped with the backslash character
+or quoted appropriately.
+.Pp
+Due to the architecture of
+.Xr libalias 3 ,
+ipfw nat is not compatible with the TCP segmentation offloading (TSO).
+Thus, to reliably nat your network traffic, please disable TSO
+on your NICs using
+.Xr ifconfig 8 .
+.Pp
+ICMP error messages are not implicitly matched by dynamic rules
+for the respective conversations.
+To avoid failures of network error detection and path MTU discovery,
+ICMP error messages may need to be allowed explicitly through static
+rules.
+.Pp
+Rules using
+.Cm call
+and
+.Cm return
+actions may lead to confusing behaviour if ruleset has mistakes,
+and/or interaction with other subsystems (netgraph, dummynet, etc.) is used.
+One possible case for this is packet leaving
+.Nm
+in subroutine on the input pass, while later on output encountering unpaired
+.Cm return
+first.
+As the call stack is kept intact after input pass, packet will suddenly
+return to the rule number used on input pass, not on output one.
+Order of processing should be checked carefully to avoid such mistakes.

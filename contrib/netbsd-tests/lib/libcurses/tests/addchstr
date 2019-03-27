@@ -1,0 +1,4 @@
+include start
+call OK addchstr `\004a\004b\004c\004d\004e`
+call OK refresh
+compare addchstr.chk

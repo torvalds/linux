@@ -1,0 +1,124 @@
+--- Make.rules.in.orig	2015-05-27 20:25:54.000000000 -0400
++++ Make.rules.in	2016-01-25 21:48:47.000000000 -0500
+@@ -110,3 +110,8 @@
+ 
+ FTPWHO_OBJS=ftpwho.o scoreboard.o misc.o
+ BUILD_FTPWHO_OBJS=utils/ftpwho.o utils/scoreboard.o utils/misc.o
++
++CPPFLAGS+=-DHAVE_BLACKLIST
++LIBS+=-lblacklist
++OBJS+= pfilter.o
++BUILD_OBJS+= src/pfilter.o
+--- /dev/null	2016-01-22 17:30:55.000000000 -0500
++++ include/pfilter.h	2016-01-22 16:18:33.000000000 -0500
+@@ -0,0 +1,3 @@
++
++void pfilter_notify(int);
++void pfilter_init(void);
+--- modules/mod_auth.c.orig	2015-05-27 20:25:54.000000000 -0400
++++ modules/mod_auth.c	2016-01-22 16:21:06.000000000 -0500
+@@ -30,6 +30,7 @@
+ 
+ #include "conf.h"
+ #include "privs.h"
++#include "pfilter.h"
+ 
+ extern pid_t mpid;
+ 
+@@ -84,6 +85,8 @@
+     _("Login timeout (%d %s): closing control connection"), TimeoutLogin,
+     TimeoutLogin != 1 ? "seconds" : "second");
+ 
++  pfilter_notify(1);
++
+   /* It's possible that any listeners of this event might terminate the
+    * session process themselves (e.g. mod_ban).  So write out that the
+    * TimeoutLogin has been exceeded to the log here, in addition to the
+@@ -913,6 +916,7 @@
+         pr_memscrub(pass, strlen(pass));
+       }
+ 
++      pfilter_notify(1);
+       pr_log_auth(PR_LOG_NOTICE, "SECURITY VIOLATION: Root login attempted");
+       return 0;
+     }
+@@ -1726,6 +1730,7 @@
+   return 1;
+ 
+ auth_failure:
++  pfilter_notify(1);
+   if (pass)
+     pr_memscrub(pass, strlen(pass));
+   session.user = session.group = NULL;
+--- src/main.c.orig	2016-01-22 17:36:43.000000000 -0500
++++ src/main.c	2016-01-22 17:37:58.000000000 -0500
+@@ -49,6 +49,7 @@
+ #endif
+ 
+ #include "privs.h"
++#include "pfilter.h"
+ 
+ int (*cmd_auth_chk)(cmd_rec *);
+ void (*cmd_handler)(server_rec *, conn_t *);
+@@ -1050,6 +1051,7 @@
+   pid_t pid;
+   sigset_t sig_set;
+ 
++  pfilter_init();
+   if (!nofork) {
+ 
+     /* A race condition exists on heavily loaded servers where the parent
+@@ -1169,7 +1171,8 @@
+ 
+   /* Reseed pseudo-randoms */
+   srand((unsigned int) (time(NULL) * getpid()));
+-
++#else
++  pfilter_init();
+ #endif /* PR_DEVEL_NO_FORK */
+ 
+   /* Child is running here */
+--- /dev/null	2016-01-22 17:30:55.000000000 -0500
++++ src/pfilter.c	2016-01-22 16:37:55.000000000 -0500
+@@ -0,0 +1,41 @@
++#include "pfilter.h"
++#include "conf.h"
++#include "privs.h"
++#ifdef HAVE_BLACKLIST
++#include <blacklist.h>
++#endif
++
++static struct blacklist *blstate;
++
++void
++pfilter_init(void)
++{
++#ifdef HAVE_BLACKLIST
++	if (blstate == NULL)
++		blstate = blacklist_open();
++#endif
++}
++
++void
++pfilter_notify(int a)
++{
++#ifdef HAVE_BLACKLIST
++	conn_t *c = session.c;
++	int fd;
++
++	if (c == NULL)
++		return;
++	if (c->rfd != -1)
++		fd = c->rfd;
++	else if (c->wfd != -1)
++		fd = c->wfd;
++	else
++		return;
++
++	if (blstate == NULL)
++		pfilter_init();
++	if (blstate == NULL)
++		return;
++	(void)blacklist_r(blstate, a, fd, "proftpd");
++#endif
++}

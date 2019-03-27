@@ -1,0 +1,108 @@
+2007-07-09  Geoffrey Keating  <geoffk@apple.com> (r126529)
+
+	PR 32617
+	* decl.c (cxx_init_decl_processing): Don't set
+	force_align_functions_log.
+	(grokfndecl): Honour ptrmemfunc_vbit_in_pfn.
+	* typeck.c (cxx_alignof_expr): When alignof is used on a plain
+	FUNCTION_DECL, return its alignment.
+
+2007-07-01  Ollie Wild  <aaw@google.com> (r126177)
+
+	* name-lookup.c (ambiguous_decl): Fix case when new->value is hidden.
+	(select_decl): Remove function.
+	(unqualified_namespace_lookup): Populate binding by calling
+	ambiguous_decl.  Remove select_decl call.
+	(lookup_qualified_name): Remove select_decl call.
+	* decl.c (lookup_and_check_tag): Check for ambiguous references.
+	* parser.c (cp_parser_elaborated_type_specifier): Skip redundant error
+	generation when name lookup is ambiguous.
+
+2007-06-28  Geoffrey Keating  <geoffk@apple.com> (r126088)
+
+	* decl2.c (determine_visibility): Implement
+	flag_visibility_ms_compat effect on type info.
+	* decl.c (cxx_init_decl_processing): Implement
+	global effect of flag_visibility_ms_compat.
+
+2007-06-28  Geoffrey Keating  <geoffk@apple.com> (r126080)
+
+	* decl2.c (start_objects): Mark constructor-runnning function
+	as artificial.
+
+2007-06-14  Geoff Keating  <geoffk@apple.com> (r125721)
+
+	PR 31093
+	* decl2.c (determine_visibility): Remove duplicate code for
+	handling type info.
+
+2007-05-31  Daniel Berlin  <dberlin@dberlin.org> (r125239)
+
+	* typeck.c (build_binary_op): Include types in error.
+
+2007-05-22  Ollie Wild  <aaw@google.com> (r124963)
+ 
+	* name-lookup.c (ambiguous_decl): Adds check for hidden types.
+	(unqualified_namespace_lookup): Adds check for hidden types.
+
+2007-05-18  Geoffrey Keating  <geoffk@apple.com> (r124839)
+
+	* mangle.c (write_real_cst): Use 'unsigned long' for %lx.
+
+2007-05-14  Paolo Carlini  <pcarlini@suse.de> (r124724)
+
+	PR c++/29928
+	* rtti.c (get_tinfo_decl_dynamic, get_typeid): Try to complete the
+	type only if is a class type (5.2.8/4).
+
+2007-05-05  Geoffrey Keating  <geoffk@apple.com> (r124467)
+
+	PR 31775
+	* mangle.c (write_mangled_name): Mangle static variable names.
+	(write_unqualified_name): Use local-source-name for
+	namespace-scope static variables.
+
+2007-03-12  Seongbae Park <seongbae.park@gmail.com> (r122851)
+
+	* decl.c (compute_array_index_type): New warning flag warn_vla.
+
+2007-01-08  Mark Shinwell  <shinwell@codesourcery.com> (r120572)
+
+	* call.c (standard_conversion): Pass flag to
+	vector_types_convertible_p to disallow emission of note.
+	* typeck.c (convert_for_assignment): Pass flag to
+	vector_types_convertible_p to allow emission of note.
+	(ptr_reasonably_similar): Pass flag to vector_types_convertible_p
+	to disallow emission of note.
+
+2007-01-07  Manuel Lopez-Ibanez  <manu@gcc.gnu.org> (r120558)
+
+	PR c++/28986
+	* typeck.c (build_binary_op): Call overflow_warning if
+	TREE_OVERFLOW_P is true for the result and not for any of the
+	operands.
+	
+2007-01-05  Manuel Lopez-Ibanez  <manu@gcc.gnu.org> (r120505)
+
+	PR c/19978
+	* semantics.c (finish_unary_op_expr): Warn only if result
+	overflowed and operands did not.
+
+2006-12-01  Geoffrey Keating  <geoffk@apple.com> (r119427)
+
+	* decl.c (poplevel): Check DECL_INITIAL invariant.
+	(duplicate_decls): Preserve DECL_INITIAL when eliminating
+	a new definition in favour of an old declaration.
+	(start_preparsed_function): Define and document value of
+	DECL_INITIAL before and after routine.
+	(finish_function): Check DECL_INITIAL invariant.
+	* parser.c 
+	(cp_parser_function_definition_from_specifiers_and_declarator): 
+	Skip duplicate function definitions.
+
+2006-10-31  Geoffrey Keating  <geoffk@apple.com> (r118360)
+
+	* name-lookup.c (get_anonymous_namespace_name): New.
+	(push_namespace_with_attribs): Use get_anonymous_namespace_name.
+	* decl2.c (start_objects): Update for rename of
+	get_file_function_name_long.

@@ -1,0 +1,436 @@
+.\" Copyright (c) 2003-2007 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 16, 2014
+.Dt CPIO 1
+.Os
+.Sh NAME
+.Nm cpio
+.Nd copy files to and from archives
+.Sh SYNOPSIS
+.Nm
+.Fl i
+.Op Ar options
+.Op Ar pattern ...
+.Op Ar < archive
+.Nm
+.Fl o
+.Op Ar options
+.Ar < name-list
+.Op Ar > archive
+.Nm
+.Fl p
+.Op Ar options
+.Ar dest-dir
+.Ar < name-list
+.Sh DESCRIPTION
+.Nm
+copies files between archives and directories.
+This implementation can extract from tar, pax, cpio, zip, jar, ar,
+and ISO 9660 cdrom images and can create tar, pax, cpio, ar,
+and shar archives.
+.Pp
+The first option to
+.Nm
+is a mode indicator from the following list:
+.Bl -tag -compact -width indent
+.It Fl i
+Input.
+Read an archive from standard input (unless overridden) and extract the
+contents to disk or (if the
+.Fl t
+option is specified)
+list the contents to standard output.
+If one or more file patterns are specified, only files matching
+one of the patterns will be extracted.
+.It Fl o
+Output.
+Read a list of filenames from standard input and produce a new archive
+on standard output (unless overridden) containing the specified items.
+.It Fl p
+Pass-through.
+Read a list of filenames from standard input and copy the files to the
+specified directory.
+.El
+.Pp
+.Sh OPTIONS
+Unless specifically stated otherwise, options are applicable in
+all operating modes.
+.Bl -tag -width indent
+.It Fl 0 , Fl Fl null
+Read filenames separated by NUL characters instead of newlines.
+This is necessary if any of the filenames being read might contain newlines.
+.It Fl A
+(o mode only)
+Append to the specified archive.
+(Not yet implemented.)
+.It Fl a
+(o and p modes)
+Reset access times on files after they are read.
+.It Fl B
+(o mode only)
+Block output to records of 5120 bytes.
+.It Fl C Ar size
+(o mode only)
+Block output to records of
+.Ar size
+bytes.
+.It Fl c
+(o mode only)
+Use the old POSIX portable character format.
+Equivalent to
+.Fl Fl format Ar odc .
+.It Fl d , Fl Fl make-directories
+(i and p modes)
+Create directories as necessary.
+.It Fl E Ar file
+(i mode only)
+Read list of file name patterns from
+.Ar file
+to list and extract.
+.It Fl F Ar file , Fl Fl file Ar file
+Read archive from or write archive to
+.Ar file .
+.It Fl f Ar pattern
+(i mode only)
+Ignore files that match
+.Ar pattern .
+.It Fl H Ar format , Fl Fl format Ar format
+(o mode only)
+Produce the output archive in the specified format.
+Supported formats include:
+.Pp
+.Bl -tag -width "iso9660" -compact
+.It Ar cpio
+Synonym for
+.Ar odc .
+.It Ar newc
+The SVR4 portable cpio format.
+.It Ar odc
+The old POSIX.1 portable octet-oriented cpio format.
+.It Ar pax
+The POSIX.1 pax format, an extension of the ustar format.
+.It Ar ustar
+The POSIX.1 tar format.
+.El
+.Pp
+The default format is
+.Ar odc .
+See
+.Xr libarchive-formats 5
+for more complete information about the
+formats currently supported by the underlying
+.Xr libarchive 3
+library.
+.It Fl h , Fl Fl help
+Print usage information.
+.It Fl I Ar file
+Read archive from
+.Ar file .
+.It Fl i , Fl Fl extract
+Input mode.
+See above for description.
+.It Fl Fl insecure
+(i and p mode only)
+Disable security checks during extraction or copying.
+This allows extraction via symbolic links, absolute paths,
+and path names containing
+.Sq ..
+in the name.
+.It Fl J , Fl Fl xz
+(o mode only)
+Compress the file with xz-compatible compression before writing it.
+In input mode, this option is ignored; xz compression is recognized
+automatically on input.
+.It Fl j
+Synonym for
+.Fl y .
+.It Fl L
+(o and p modes)
+All symbolic links will be followed.
+Normally, symbolic links are archived and copied as symbolic links.
+With this option, the target of the link will be archived or copied instead.
+.It Fl l , Fl Fl link
+(p mode only)
+Create links from the target directory to the original files,
+instead of copying.
+.It Fl Fl lrzip
+(o mode only)
+Compress the resulting archive with
+.Xr lrzip 1 .
+In input mode, this option is ignored.
+.It Fl Fl lz4
+(o mode only)
+Compress the archive with lz4-compatible compression before writing it.
+In input mode, this option is ignored; lz4 compression is recognized
+automatically on input.
+.It Fl Fl zstd
+(o mode only)
+Compress the archive with zstd-compatible compression before writing it.
+In input mode, this option is ignored; zstd compression is recognized
+automatically on input.
+.It Fl Fl lzma
+(o mode only)
+Compress the file with lzma-compatible compression before writing it.
+In input mode, this option is ignored; lzma compression is recognized
+automatically on input.
+.It Fl Fl lzop
+(o mode only)
+Compress the resulting archive with
+.Xr lzop 1 .
+In input mode, this option is ignored.
+.It Fl Fl passphrase Ar passphrase
+The
+.Pa passphrase
+is used to extract or create an encrypted archive.
+Currently, zip is only a format that
+.Nm
+can handle encrypted archives.
+You shouldn't use this option unless you realize how insecure
+use of this option is.
+.It Fl m , Fl Fl preserve-modification-time
+(i and p modes)
+Set file modification time on created files to match
+those in the source.
+.It Fl n , Fl Fl numeric-uid-gid
+(i mode, only with
+.Fl t )
+Display numeric uid and gid.
+By default,
+.Nm
+displays the user and group names when they are provided in the
+archive, or looks up the user and group names in the system
+password database.
+.It Fl Fl no-preserve-owner
+(i mode only)
+Do not attempt to restore file ownership.
+This is the default when run by non-root users.
+.It Fl O Ar file
+Write archive to
+.Ar file .
+.It Fl o , Fl Fl create
+Output mode.
+See above for description.
+.It Fl p , Fl Fl pass-through
+Pass-through mode.
+See above for description.
+.It Fl Fl preserve-owner
+(i mode only)
+Restore file ownership.
+This is the default when run by the root user.
+.It Fl Fl quiet
+Suppress unnecessary messages.
+.It Fl R Oo user Oc Ns Oo : Oc Ns Oo group Oc , Fl Fl owner Oo user Oc Ns Oo : Oc Ns Oo group Oc
+Set the owner and/or group on files in the output.
+If group is specified with no user
+(for example,
+.Fl R Ar :wheel )
+then the group will be set but not the user.
+If the user is specified with a trailing colon and no group
+(for example,
+.Fl R Ar root: )
+then the group will be set to the user's default group.
+If the user is specified with no trailing colon, then
+the user will be set but not the group.
+In
+.Fl i
+and
+.Fl p
+modes, this option can only be used by the super-user.
+(For compatibility, a period can be used in place of the colon.)
+.It Fl r
+(All modes.)
+Rename files interactively.
+For each file, a prompt is written to
+.Pa /dev/tty
+containing the name of the file and a line is read from
+.Pa /dev/tty .
+If the line read is blank, the file is skipped.
+If the line contains a single period, the file is processed normally.
+Otherwise, the line is taken to be the new name of the file.
+.It Fl t , Fl Fl list
+(i mode only)
+List the contents of the archive to stdout;
+do not restore the contents to disk.
+.It Fl u , Fl Fl unconditional
+(i and p modes)
+Unconditionally overwrite existing files.
+Ordinarily, an older file will not overwrite a newer file on disk.
+.It Fl V , Fl Fl dot
+Print a dot to stderr for each file as it is processed.
+Superseded by
+.Fl v .
+.It Fl v , Fl Fl verbose
+Print the name of each file to stderr as it is processed.
+With
+.Fl t ,
+provide a detailed listing of each file.
+.It Fl Fl version
+Print the program version information and exit.
+.It Fl y
+(o mode only)
+Compress the archive with bzip2-compatible compression before writing it.
+In input mode, this option is ignored;
+bzip2 compression is recognized automatically on input.
+.It Fl Z
+(o mode only)
+Compress the archive with compress-compatible compression before writing it.
+In input mode, this option is ignored;
+compression is recognized automatically on input.
+.It Fl z
+(o mode only)
+Compress the archive with gzip-compatible compression before writing it.
+In input mode, this option is ignored;
+gzip compression is recognized automatically on input.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev BLOCKSIZE"
+.It Ev LANG
+The locale to use.
+See
+.Xr environ 7
+for more information.
+.It Ev TZ
+The timezone to use when displaying dates.
+See
+.Xr environ 7
+for more information.
+.El
+.Sh EXAMPLES
+The
+.Nm
+command is traditionally used to copy file hierarchies in conjunction
+with the
+.Xr find 1
+command.
+The first example here simply copies all files from
+.Pa src
+to
+.Pa dest :
+.Dl Nm find Pa src | Nm Fl pmud Pa dest
+.Pp
+By carefully selecting options to the
+.Xr find 1
+command and combining it with other standard utilities,
+it is possible to exercise very fine control over which files are copied.
+This next example copies files from
+.Pa src
+to
+.Pa dest
+that are more than 2 days old and whose names match a particular pattern:
+.Dl Nm find Pa src Fl mtime Ar +2 | Nm grep foo[bar] | Nm Fl pdmu Pa dest
+.Pp
+This example copies files from
+.Pa src
+to
+.Pa dest
+that are more than 2 days old and which contain the word
+.Do foobar Dc :
+.Dl Nm find Pa src Fl mtime Ar +2 | Nm xargs Nm grep -l foobar | Nm Fl pdmu Pa dest
+.Sh COMPATIBILITY
+The mode options i, o, and p and the options
+a, B, c, d, f, l, m, r, t, u, and v comply with SUSv2.
+.Pp
+The old POSIX.1 standard specified that only
+.Fl i ,
+.Fl o ,
+and
+.Fl p
+were interpreted as command-line options.
+Each took a single argument of a list of modifier
+characters.
+For example, the standard syntax allows
+.Fl imu
+but does not support
+.Fl miu
+or
+.Fl i Fl m Fl u ,
+since
+.Ar m
+and
+.Ar u
+are only modifiers to
+.Fl i ,
+they are not command-line options in their own right.
+The syntax supported by this implementation is backwards-compatible
+with the standard.
+For best compatibility, scripts should limit themselves to the
+standard syntax.
+.Sh SEE ALSO
+.Xr bzip2 1 ,
+.Xr tar 1 ,
+.Xr gzip 1 ,
+.Xr mt 1 ,
+.Xr pax 1 ,
+.Xr libarchive 3 ,
+.Xr cpio 5 ,
+.Xr libarchive-formats 5 ,
+.Xr tar 5
+.Sh STANDARDS
+There is no current POSIX standard for the cpio command; it appeared
+in
+.St -p1003.1-96
+but was dropped from
+.St -p1003.1-2001 .
+.Pp
+The cpio, ustar, and pax interchange file formats are defined by
+.St -p1003.1-2001
+for the pax command.
+.Sh HISTORY
+The original
+.Nm cpio
+and
+.Nm find
+utilities were written by Dick Haight
+while working in AT&T's Unix Support Group.
+They first appeared in 1977 in PWB/UNIX 1.0, the
+.Dq Programmer's Work Bench
+system developed for use within AT&T.
+They were first released outside of AT&T as part of System III Unix in 1981.
+As a result,
+.Nm cpio
+actually predates
+.Nm tar ,
+even though it was not well-known outside of AT&T until some time later.
+.Pp
+This is a complete re-implementation based on the
+.Xr libarchive 3
+library.
+.Sh BUGS
+The cpio archive format has several basic limitations:
+It does not store user and group names, only numbers.
+As a result, it cannot be reliably used to transfer
+files between systems with dissimilar user and group numbering.
+Older cpio formats limit the user and group numbers to
+16 or 18 bits, which is insufficient for modern systems.
+The cpio archive formats cannot support files over 4 gigabytes,
+except for the
+.Dq odc
+variant, which can support files up to 8 gigabytes.

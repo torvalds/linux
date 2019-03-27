@@ -1,0 +1,6 @@
+in 1.1.1.1 2.1.1.1 opt lsrr
+in 1.1.1.1 2.1.1.1
+in 1.1.1.1 2.1.1.1 opt ts
+in 1.1.1.1 2.1.1.1 opt sec-class=topsecret
+in 1.1.1.1 2.1.1.1 opt ssrr,sec-class=topsecret
+in 1.1.1.1 2.1.1.1 opt sec

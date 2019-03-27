@@ -1,0 +1,337 @@
+/* -*- Mode: Text -*- */
+
+autogen definitions options;
+
+#include autogen-version.def
+#include copyright.def
+
+prog-name      = "sntp";
+prog-title	= "standard Simple Network Time Protocol client program";
+argument	= '[ hostname-or-IP ...]';
+
+#include homerc.def
+
+long-opts;
+
+config-header	= "config.h";
+
+environrc;
+
+#include version.def
+
+flag = {
+  name		= ipv4;
+  value		= 4;
+  flags-cant	= ipv6;
+  descrip	= "Force IPv4 DNS name resolution";
+  doc		= <<- _EndOfDoc_
+	Force DNS resolution of the following host names on the command line
+	to the IPv4 namespace.
+	_EndOfDoc_;
+};
+
+flag = {
+  name		= ipv6;
+  value		= 6;
+  flags-cant	= ipv4;
+  descrip	= "Force IPv6 DNS name resolution";
+  doc		= <<- _EndOfDoc_
+	Force DNS resolution of the following host names on the command line
+	to the IPv6 namespace.
+	_EndOfDoc_;
+};
+
+flag = {
+  name		= authentication;
+  value		= a;
+  descrip	= "Enable authentication with the key @var{auth-keynumber}";
+  arg-type	= number;
+  arg-name	= "auth-keynumber";
+  doc		= <<- _EndOfDoc_
+	Enable authentication using the key specified in this option's
+	argument.  The argument of this option is the @option{keyid}, a
+	number specified in the @option{keyfile} as this key's identifier.
+	See the @option{keyfile} option (@option{-k}) for more details.
+	_EndOfDoc_;
+};
+
+flag = {
+  name		= broadcast;
+  value		= b;
+  descrip	= "Listen to the address specified for broadcast time sync";
+  arg-type	= string;
+  arg-name	= "broadcast-address";
+  max		 = NOLIMIT;
+  stack-arg;
+  doc		= <<- _EndOfDoc_
+	If specified @code{sntp} will listen to the specified address
+	for NTP broadcasts.  The default maximum wait time
+	can (and probably should) be modified with @option{-t}.
+	_EndOfDoc_;
+};
+
+flag = {
+  name	 	= concurrent;
+  value		= c;
+  descrip	= "Concurrently query all IPs returned for host-name";
+  arg-type	= string;
+  arg-name	= "host-name";
+  max		= NOLIMIT;
+  stack-arg;
+  doc		= <<- _EndOfDoc_
+	Requests from an NTP "client" to a "server" should never be sent
+	more rapidly than one every 2 seconds.  By default, any IPs returned
+	as part of a DNS lookup are assumed to be for a single instance of
+	@code{ntpd}, and therefore @code{sntp} will send queries to these IPs
+	one after another, with a 2-second gap in between each query.
+
+	The @option{-c} or @option{--concurrent} flag says that any IPs
+	returned for the DNS lookup of the supplied host-name are on
+	different machines, so we can send concurrent queries.
+	_EndOfDoc_;
+};
+
+#include debug-opt.def
+
+flag = {
+  name		= gap;
+  value		= g;
+  descrip	= "The gap (in milliseconds) between time requests";
+  arg-type	= number;
+  arg-name	= "milliseconds";
+  arg-default	= 50;
+  doc		= <<- _EndOfDoc_
+	Since we're only going to use the first valid response we get and
+	there is benefit to specifying a good number of servers to query,
+	separate the queries we send out by the specified number of
+	milliseconds.
+	_EndOfDoc_;
+};
+
+flag = {
+  name		= kod;
+  value		= K;
+  arg-type	= file;
+  arg-name	= "file-name";
+  arg-default	= "/var/db/ntp-kod";
+  descrip	= "KoD history filename";
+  doc		= <<- _EndOfDoc_
+	Specifies the filename to be used for the persistent history of KoD
+	responses received from servers.  If the file does not exist, a
+	warning message will be displayed.  The file will not be created.
+	_EndOfDoc_;
+};
+
+flag = {
+  name		= keyfile;
+  value		= k;
+  descrip	= "Look in this file for the key specified with @option{-a}";
+  arg-type	= file;
+  arg-name	= "file-name";
+  arg-default	= "/etc/ntp.keys";
+  doc		= <<- _EndOfDoc_
+	This option specifies the keyfile.
+	@code{sntp} will search for the key specified with @option{-a}
+	@file{keyno} in this file.  See @command{ntp.keys(5)} for more
+	information.
+	_EndOfDoc_;
+};
+
+flag = {
+  name		= logfile;
+  value		= l;
+  arg-type	= file;
+  arg-name	= "file-name";
+  descrip	= "Log to specified logfile";
+  doc		= <<- _EndOfDoc_
+	This option causes the client to write log messages to the specified
+	@file{logfile}.
+	_EndOfDoc_;
+};
+
+flag = {
+  name		= steplimit;
+  value		= M;
+  arg-type	= number;
+  arg-range	= "0->";
+  descrip	= "Adjustments less than @var{steplimit} msec will be slewed";
+  doc		= <<- _EndOfDoc_
+	If the time adjustment is less than @file{steplimit} milliseconds,
+	slew the amount using @command{adjtime(2)}.  Otherwise, step the
+	correction using @command{settimeofday(2)}.  The default value is 0,
+	which means all adjustments will be stepped.  This is a feature, as
+	different situations demand different values.
+	_EndOfDoc_;
+};
+
+flag = {
+  name		= ntpversion;
+  value		= o;
+  descrip	= "Send @var{int} as our NTP protocol version";
+  arg-type	= number;
+  arg-default	= 4;
+  arg-range	= "0->7";
+  doc		= <<- _EndOfDoc_
+	When sending requests to a remote server, tell them we are running
+	NTP protocol version @file{ntpversion} .
+	_EndOfDoc_;
+};
+
+flag = {
+  name		= usereservedport;
+  value		= r;
+  descrip	= "Use the NTP Reserved Port (port 123)";
+  doc		= <<- _EndOfDoc_
+	Use port 123, which is reserved for NTP, for our network
+	communications.
+	_EndOfDoc_;
+};
+
+flag = {
+  name		= step;
+  value		= S;
+  descrip	= "OK to 'step' the time with @command{settimeofday(2)}";
+  doc		= <<- _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+  name		= slew;
+  value		= s;
+  descrip	= "OK to 'slew' the time with @command{adjtime(2)}";
+  doc		= <<- _EndOfDoc_
+	_EndOfDoc_;
+};
+
+
+flag = {
+  name		= timeout;
+  value		= t;
+  descrip	= "The number of seconds to wait for responses";
+  arg-type	= number;
+  arg-name	= "seconds";
+  arg-default	= 5;
+  doc		= <<- _EndOfDoc_
+	When waiting for a reply, @code{sntp} will wait the number
+	of seconds specified before giving up.  The default should be
+	more than enough for a unicast response.  If @code{sntp} is
+	only waiting for a broadcast response a longer timeout is
+	likely needed.
+	_EndOfDoc_;
+};
+
+flag = {
+  name		= "wait";
+  descrip	= "Wait for pending replies (if not setting the time)";
+  disable	= no;
+  enabled;
+  settable;
+  doc		= <<- _EndOfDoc_
+	If we are not setting the time, wait for all pending responses.
+	_EndOfDoc_;
+};
+
+/* explain: Additional information whenever the usage routine is invoked */
+explain = <<- _END_EXPLAIN
+	_END_EXPLAIN;
+
+doc-section	= {
+  ds-type	= 'DESCRIPTION';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_PROG_MDOC_DESCRIP
+.Nm
+can be used as an SNTP client to query a NTP or SNTP server and either display
+the time or set the local system's time (given suitable privilege).  It can be
+run as an interactive command or from a
+.Ic cron
+job.
+
+NTP (the Network Time Protocol) and SNTP (the Simple Network Time Protocol)
+are defined and described by RFC 5905.
+
+.Pp
+The default is to write the estimated correct local date and time (i.e. not
+UTC) to the standard output in a format like:
+
+.Ic "'1996-10-15 20:17:25.123 (+0800) +4.567 +/- 0.089 [host] IP sN'"
+
+where the
+.Ic "'(+0800)'"
+means that to get to UTC from the reported local time one must
+add 8 hours and 0 minutes,
+the
+.Ic "'+4.567'"
+indicates the local clock is 4.567 seconds behind the correct time
+(so 4.567 seconds must be added to the local clock to get it to be correct).
+Note that the number of decimals printed for this value will change
+based on the reported precision of the server.
+.Ic "'+/- 0.089'"
+is the reported
+.Em synchronization distance
+(in seconds), which represents the maximum error due to all causes.
+If the server does not report valid data needed to calculate the
+synchronization distance, this will be reported as
+.Ic "'+/- ?'" .
+If the
+.Em host
+is different from the
+.Em IP ,
+both will be displayed.
+Otherwise, only the 
+.Em IP
+is displayed.
+Finally, the
+.Em stratum
+of the host is reported
+and the leap indicator is decoded and displayed.
+	_END_PROG_MDOC_DESCRIP;
+};
+
+doc-section	= {
+  ds-type	= 'USAGE';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_USAGE
+.Bl -tag -width indent
+.It Li "sntp ntpserver.somewhere"
+is the simplest use of this program
+and can be run as an unprivileged command
+to check the current time and error in the local clock.
+.It Li "sntp -Ss -M 128 ntpserver.somewhere"
+With suitable privilege,
+run as a command
+or from a
+.Xr cron 8
+job,
+.Ic "sntp -Ss -M 128 ntpserver.somewhere"
+will request the time from the server,
+and if that server reports that it is synchronized
+then if the offset adjustment is less than 128 milliseconds
+the correction will be slewed,
+and if the correction is more than 128 milliseconds
+the correction  will be stepped.
+.It Li "sntp -S ntpserver.somewhere"
+With suitable privilege,
+run as a command
+or from a
+.Xr cron 8
+job,
+.Ic "sntp -S ntpserver.somewhere"
+will set (step) the local clock from a synchronized specified server,
+like the (deprecated)
+.Xr ntpdate 1ntpdatemdoc ,
+or
+.Xr rdate 8
+commands.
+.El
+	_END_MDOC_USAGE;
+};
+
+doc-section	= {
+  ds-type	= 'AUTHORS';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_AUTHORS
+.An "Johannes Maximilian Kuehn"
+.An "Harlan Stenn"
+.An "Dave Hart"
+	_END_MDOC_AUTHORS;
+};

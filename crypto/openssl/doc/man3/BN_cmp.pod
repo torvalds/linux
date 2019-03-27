@@ -1,0 +1,47 @@
+=pod
+
+=head1 NAME
+
+BN_cmp, BN_ucmp, BN_is_zero, BN_is_one, BN_is_word, BN_is_odd - BIGNUM comparison and test functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/bn.h>
+
+ int BN_cmp(BIGNUM *a, BIGNUM *b);
+ int BN_ucmp(BIGNUM *a, BIGNUM *b);
+
+ int BN_is_zero(BIGNUM *a);
+ int BN_is_one(BIGNUM *a);
+ int BN_is_word(BIGNUM *a, BN_ULONG w);
+ int BN_is_odd(BIGNUM *a);
+
+=head1 DESCRIPTION
+
+BN_cmp() compares the numbers B<a> and B<b>. BN_ucmp() compares their
+absolute values.
+
+BN_is_zero(), BN_is_one() and BN_is_word() test if B<a> equals 0, 1,
+or B<w> respectively. BN_is_odd() tests if a is odd.
+
+BN_is_zero(), BN_is_one(), BN_is_word() and BN_is_odd() are macros.
+
+=head1 RETURN VALUES
+
+BN_cmp() returns -1 if B<a> E<lt> B<b>, 0 if B<a> == B<b> and 1 if
+B<a> E<gt> B<b>. BN_ucmp() is the same using the absolute values
+of B<a> and B<b>.
+
+BN_is_zero(), BN_is_one() BN_is_word() and BN_is_odd() return 1 if
+the condition is true, 0 otherwise.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

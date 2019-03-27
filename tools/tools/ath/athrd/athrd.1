@@ -1,0 +1,170 @@
+.\"-
+.\" Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\""
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
+.\"    redistribution must be conditioned upon including a substantially
+.\"    similar Disclaimer requirement for further binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF NONINFRINGEMENT, MERCHANTIBILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+.\" THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY,
+.\" OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" $FreeBSD$
+.\"/
+.Dd January 27, 2009
+.Dt ATHRD 1
+.Os
+.Sh NAME
+.Nm athrd
+.Nd list channels and transmit power for a country/regulatory domain
+.Sh SYNOPSIS
+.Nm
+.Op Fl aedlpcfr4ABGT
+.Op Fl m Ar mode
+.Bk
+.Op Ar country
+.Ek
+.Sh DESCRIPTION
+.Nm
+displays the list of frequencies and the associated maximum transmit
+power permitted within a regulatory domain and/or country.
+.Pp
+If no command line options are given, a default country (\c
+.Ql US )
+is used.
+Country and regulatory names are case insensitive.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
+By default
+.Nm
+will display B channels only if they are not also marked as available for
+use as G channels and similary for A and T channels.
+With this option
+.Nm
+will list all channels.
+.It Fl e
+Calculate channels not assuming extended channel mode.
+.It Fl d
+Enabling debugging in the HAL code that calculates the available channels
+and transmit power values.
+.It Fl l
+Provide a list of all known country and regulatory domain names.
+.It Fl m Ar mode
+Calculate channels and transmit power for operation in
+.Ql mode ;
+one of
+.Ql station ,
+.Ql ibss ,
+.Ql monitor ,
+and
+.Ql ap
+(or the first two letters).
+.It Fl p
+Mark passive scan channels with lower case letters and active
+scan channels with upper case letters.
+.It Fl r
+Mark channels that require DFS with a
+.Ql * .
+.It Fl 4
+Mark channels that have a 4ms packet limit with a
+.Ql 4 .
+.It Fl c
+Display IEEE channel numbers instead of frequencies.
+.It Fl f
+Display frequencies (default).
+.It Fl A
+Display only 11A channels.
+.It Fl B
+Display only 11B channels.
+.It Fl G
+Display only 11G channels.
+.It Fl T
+Display only Turbo channels.
+.El
+.Sh EXAMPLES
+The following demonstrates how to list the permissible frequencies
+and maximum transport power per channel for use in Spain:
+.Bd -literal -offset 2n
+.Li # Ic athrd es
+SPAIN (ES, 0x2d4, 724) NULL1_WORLD (0x3, 3)
+2412G 14.0 2417G 14.0 2422G 14.0 2427G 17.0 2432G 14.0 2437G 17.0
+2442G 14.0 2447G 17.0 2452G 17.0 2457G 14.0 2462G 17.0
+.Ed
+.Pp
+Each frequency has a suffix that is one of:
+.Ql G ,
+.Ql B ,
+.Ql A ,
+or
+.Ql T
+according to whether the channel is usable with 802.11g, 802.11b,
+802.11a, or Atheros Turbo mode.
+All channels listed as
+.Ql G
+are also usable in
+.Ql B .
+Likewise, all channels listed as
+.Ql A
+are usable in
+.Ql T .
+Channels listed as
+.Ql B
+or
+.Ql T
+are only usable in those modes.
+(Note that when the
+.Fl p
+option is specified passive scan channels are marked with a lower case
+.Ql g ,
+.Ql b ,
+.Ql a ,
+or
+.Ql t .)
+The transmit power is given in units of dbM.
+.Sh DIAGNOSTICS
+Various diagnostics about unknown regulatory domains and/or country
+codes may be encountered.
+Use the
+.Fl l
+option for a list of valid names.
+.Sh SEE ALSO
+.Xr ath 4 ,
+.Xr ath_hal 4
+.Sh STANDARDS
+Lots belong here.
+.Sh NOTES
+.Nm
+use the HAL to calculate the set of channels.
+The transmit power calculations are done by emulating
+how the HAL works.
+Because
+.Nm
+does not
+read the actual EEPROM contents from a device this emulation may lag
+behind current practice.
+.Sh BUGS
+The HAL reset logic should be used to calculate the transmit power
+for each channel instead of using a separate copy of the code.
+The data presented by
+.Nm
+are the expected values; for compliance testing one must measure the actual
+operation of the driver and the HAL.

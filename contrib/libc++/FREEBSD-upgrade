@@ -1,0 +1,8 @@
+$FreeBSD$
+
+The FreeBSD copy of libc++.  This contains everything from the include and 
+source directories upstream, with the exception of the support/win32 directory, 
+which is only required for building on Windows (FreeBSD is not Windows).
+
+To update, bring in anything new in source or include that is not
+platform-dependent (unless the platform in question is FreeBSD, obviously).

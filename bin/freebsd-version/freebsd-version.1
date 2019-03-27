@@ -1,0 +1,124 @@
+.\"-
+.\" Copyright (c) 2013 Dag-Erling Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 14, 2017
+.Dt FREEBSD-VERSION 1
+.Os
+.Sh NAME
+.Nm freebsd-version
+.Nd print the version and patch level of the installed system
+.Sh SYNOPSIS
+.Nm
+.Op Fl kru
+.Sh DESCRIPTION
+The
+.Nm
+utility makes a best effort to determine the version and patch level
+of the installed kernel and / or userland.
+.Pp
+The following options are available:
+.Bl -tag -width Fl
+.It Fl k
+Print the version and patch level of the installed kernel.
+Unlike
+.Xr uname 1 ,
+if a new kernel has been installed but the system has not yet
+rebooted,
+.Nm
+will print the version and patch level of the new kernel.
+.It Fl r
+Print the version and patch level of the running kernel.
+Unlike
+.Xr uname 1 ,
+this is unaffected by environment variables.
+.It Fl u
+Print the version and patch level of the installed userland.
+These are hardcoded into
+.Nm
+during the build.
+.El
+.Pp
+If several of the above options are specified,
+.Nm
+will print the installed kernel version first, then the running kernel
+version, and finally the userland version, on separate lines.
+If neither is specified, it will print the userland version only.
+.Sh IMPLEMENTATION NOTES
+The
+.Nm
+utility should provide the correct answer in the vast majority of
+cases, including on systems kept up-to-date using
+.Xr freebsd-update 8 ,
+which does not update the kernel version unless the kernel itself was
+affected by the latest patch.
+.Pp
+To determine the name (and hence the location) of a custom kernel, the
+.Nm
+utility will attempt to parse
+.Pa /boot/defaults/loader.conf
+and
+.Pa /boot/loader.conf ,
+looking for definitions of the
+.Va kernel
+and
+.Va bootfile
+variables, both with a default value of
+.Dq kernel .
+It may however fail to locate the correct kernel if either or both of
+these variables are defined in a non-standard location, such as in
+.Pa /boot/loader.rc .
+.Sh ENVIRONMENT
+.Bl -tag -width ROOT
+.It Ev ROOT
+Path to the root of the filesystem in which to look for
+.Pa loader.conf
+and the kernel.
+.El
+.Sh EXAMPLES
+To determine the version of the currently running userland:
+.Bd -literal -offset indent
+/bin/freebsd-version -u
+.Ed
+.Pp
+To inspect a system being repaired using a live CD:
+.Bd -literal -offset indent
+mount -rt ufs /dev/ada0p2 /mnt
+env ROOT=/mnt /mnt/bin/freebsd-version -ku
+.Ed
+.Sh SEE ALSO
+.Xr uname 1 ,
+.Xr loader.conf 5
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+utility and this manual page were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

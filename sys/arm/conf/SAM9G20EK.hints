@@ -1,0 +1,10 @@
+# $FreeBSD$
+#
+
+# EEPROM
+hint.icee.0.at="iicbus0"
+hint.icee.0.addr=0xa0
+hint.icee.0.type=16
+hint.icee.0.size=65536
+hint.icee.0.rd_sz=256
+hint.icee.0.wr_sz=256

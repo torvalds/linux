@@ -1,0 +1,186 @@
+.\" Copyright (c) 1982, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)postp.me	8.1 (Berkeley) 6/8/93
+.\"
+.EQ
+delim $$
+gsize 11
+.EN
+.sh 1 "Post Processing"
+.pp
+Having gathered the arcs of the call graph and timing information
+for an execution of the program,
+we are interested in attributing the time for each routine to the
+routines that call it.
+We build a dynamic call graph with arcs from caller to callee,
+and propagate time from descendants to ancestors
+by topologically sorting the call graph.
+Time propagation is performed from the leaves of the
+call graph toward the roots, according to the order
+assigned by a topological numbering algorithm.
+The topological numbering ensures that
+all edges in the graph go from higher numbered nodes to lower
+numbered nodes.
+An example is given in Figure 1.
+If we propagate time from nodes in the
+order assigned by the algorithm,
+execution time can be propagated from descendants to ancestors
+after a single traversal of each arc in the call graph.
+Each parent receives some fraction of a child's time.
+Thus time is charged to the
+caller in addition to being charged to the callee.
+.(z
+.so postp1.pic
+.ce 2
+Topological ordering
+Figure 1.
+.ce 0
+.)z
+.pp
+Let $C sub e$ be the number of calls to some routine,
+$e$, and $C sub e sup r$ be the number of
+calls from a caller $r$ to a callee $e$.
+Since we are assuming each call to a routine takes the
+average amount of time for all calls to that routine,
+the caller is accountable for
+$C sub e sup r / C sub e$
+of the time spent by the callee.
+Let the $S sub e$ be the $selftime$ of a routine, $e$.
+The selftime of a routine can be determined from the
+timing information gathered during profiled program execution.
+The total time, $T sub r$, we wish to account to a routine
+$r$, is then given by the recurrence equation:
+.EQ
+T sub r ~ = ~ {S sub r} ~ + ~
+                   sum from {r ~ roman CALLS ~ e}
+                   {T sub e times {{C sub e sup r} over {C sub e}}}
+.EN
+where $r ~ roman CALLS ~ e$ is a relation showing all routines
+$e$ called by a routine $r$.
+This relation is easily available from the call graph.
+.pp
+However, if the execution contains recursive calls,
+the call graph has cycles that
+cannot be topologically sorted.
+In these cases, we discover strongly-connected
+components in the call graph,
+treat each such component as a single node,
+and then sort the resulting graph.
+We use a variation of Tarjan's strongly-connected
+components algorithm
+that discovers strongly-connected components as it is assigning
+topological order numbers [Tarjan72].
+.pp
+Time propagation within strongly connected
+components is a problem.
+For example, a self-recursive routine
+(a trivial cycle in the call graph)
+is accountable for all the time it
+uses in all its recursive instantiations.
+In our scheme, this time should be
+shared among its call graph parents.
+The arcs from a routine to itself are of interest,
+but do not participate in time propagation.
+Thus the simple equation for time propagation
+does not work within strongly connected components.
+Time is not propagated from one member of a cycle to another,
+since, by definition, this involves propagating time from a routine
+to itself.
+In addition, children of one member of a cycle
+must be considered children of all members of the cycle.
+Similarly, parents of one member of the cycle must inherit
+all members of the cycle as descendants.
+It is for these reasons that we collapse connected components.
+Our solution collects all members of a cycle together,
+summing the time and call counts for all members.
+All calls into the cycle are made to share the total 
+time of the cycle, and all descendants of the cycle
+propagate time into the cycle as a whole.
+Calls among the members of the cycle 
+do not propagate any time,
+though they are listed in the call graph profile.
+.pp
+Figure 2 shows a modified version of the call graph of Figure 1,
+in which the nodes labelled 3 and 7 in Figure 1 are mutually
+recursive.
+The topologically sorted graph after the cycle is collapsed is
+given in Figure 3.
+.(z
+.so postp2.pic
+.ce 2
+Cycle to be collapsed.
+Figure 2.
+.ce 0
+.)z
+.(z
+.so postp3.pic
+.ce 2
+Topological numbering after cycle collapsing.
+Figure 3.
+.ce 0
+.)z
+.pp
+Since the technique described above only collects the
+dynamic call graph,
+and the program typically does not call every routine
+on each execution,
+different executions can introduce different cycles in the
+dynamic call graph.
+Since cycles often have a significant effect on time propagation,
+it is desirable to incorporate the static call graph so that cycles
+will have the same members regardless of how the program runs.
+.pp
+The static call graph can be constructed from the source text
+of the program.
+However, discovering the static call graph from the source text
+would require two moderately difficult steps:
+finding the source text for the program
+(which may not be available),
+and scanning and parsing that text,
+which may be in any one of several languages.
+.pp
+In our programming system,
+the static calling information is also contained in the 
+executable version of the program,
+which we already have available,
+and which is in language-independent form.
+One can examine the instructions
+in the object program,
+looking for calls to routines, and note which
+routines can be called.
+This technique allows us to add arcs to those already in the
+dynamic call graph.
+If a statically discovered arc already exists in the dynamic call
+graph, no action is required.
+Statically discovered arcs that do not exist in the dynamic call
+graph are added to the graph with a traversal count of zero.
+Thus they are never responsible for any time propagation.
+However, they may affect the structure of the graph.
+Since they may complete strongly connected components,
+the static call graph construction is
+done before topological ordering.

@@ -1,0 +1,133 @@
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getnetgrent.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 5, 2016
+.Dt GETNETGRENT 3
+.Os
+.Sh NAME
+.Nm getnetgrent ,
+.Nm innetgr ,
+.Nm setnetgrent ,
+.Nm endnetgrent
+.Nd netgroup database operations
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In netdb.h
+.Ft int
+.Fn getnetgrent "char **host" "char **user" "char **domain"
+.Ft int
+.Fn getnetgrent_r "char **host" "char **user" "char **domain" "char *buf" "size_t bufsize"
+.Ft int
+.Fn innetgr "const char *netgroup" "const char *host" "const char *user" "const char *domain"
+.Ft void
+.Fn setnetgrent "const char *netgroup"
+.Ft void
+.Fn endnetgrent void
+.Sh DESCRIPTION
+These functions operate on the netgroup database file
+.Pa /etc/netgroup
+which is described
+in
+.Xr netgroup 5 .
+The database defines a set of netgroups, each made up of one or more triples:
+.Bd -literal -offset indent
+(host, user, domain)
+.Ed
+that defines a combination of host, user and domain.
+Any of the three fields may be specified as ``wildcards'' that match any
+string.
+.Pp
+The function
+.Fn getnetgrent
+sets the three pointer arguments to the strings of the next member of the
+current netgroup.
+If any of the string pointers are
+.Dv NULL
+that field is considered a wildcard.
+.Pp
+The functions
+.Fn setnetgrent
+and
+.Fn endnetgrent
+set the current netgroup and terminate the current netgroup respectively.
+If
+.Fn setnetgrent
+is called with a different netgroup than the previous call, an implicit
+.Fn endnetgrent
+is implied.
+The
+.Fn setnetgrent
+function
+also sets the offset to the first member of the netgroup.
+.Pp
+The function
+.Fn innetgr
+searches for a match of all fields within the specified group.
+If any of the
+.Sy host ,
+.Sy user ,
+or
+.Sy domain
+arguments are
+.Dv NULL
+those fields will match any string value in the netgroup member.
+.Sh RETURN VALUES
+The function
+.Fn getnetgrent
+returns 0 for ``no more netgroup members'' and 1 otherwise.
+The function
+.Fn innetgr
+returns 1 for a successful match and 0 otherwise.
+The functions
+.Fn setnetgrent
+and
+.Fn endnetgrent
+have no return value.
+.Sh FILES
+.Bl -tag -width /etc/netgroup -compact
+.It Pa /etc/netgroup
+netgroup database file
+.El
+.Sh COMPATIBILITY
+The netgroup members have three string fields to maintain compatibility
+with other vendor implementations, however it is not obvious what use the
+.Sy domain
+string has within
+.Bx .
+.Sh SEE ALSO
+.Xr netgroup 5
+.Sh BUGS
+The function
+.Fn getnetgrent
+returns pointers to dynamically allocated data areas that are freed when
+the function
+.Fn endnetgrent
+is called.

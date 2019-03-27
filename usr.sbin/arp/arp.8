@@ -1,0 +1,203 @@
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)arp.8	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd April 6, 2017
+.Dt ARP 8
+.Os
+.Sh NAME
+.Nm arp
+.Nd address resolution display and control
+.Sh SYNOPSIS
+.Nm
+.Op Fl -libxo Ar options
+.Op Fl n
+.Op Fl i Ar interface
+.Ar hostname
+.Nm
+.Op Fl -libxo Ar options
+.Op Fl n
+.Op Fl i Ar interface
+.Fl a
+.Nm
+.Fl d Ar hostname
+.Op Cm pub
+.Nm
+.Fl d
+.Op Fl i Ar interface
+.Fl a
+.Nm
+.Fl s Ar hostname ether_addr
+.Op Cm temp
+.Op Cm blackhole No \&| Cm reject
+.Op Cm pub
+.Nm
+.Fl S Ar hostname ether_addr
+.Op Cm temp
+.Op Cm blackhole No \&| Cm reject
+.Op Cm pub
+.Nm
+.Fl f Ar filename
+.Sh DESCRIPTION
+The
+.Nm
+utility displays and modifies the Internet-to-Ethernet address translation
+tables used by the address resolution protocol
+.Pq Xr arp 4 .
+With no flags, the program displays the current
+.Tn ARP
+entry for
+.Ar hostname .
+The host may be specified by name or by number,
+using Internet dot notation.
+.Pp
+Available options:
+.Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
+.It Fl a
+The program displays or deletes all of the current
+.Tn ARP
+entries.
+.It Fl d
+A super-user may delete an entry for the host called
+.Ar hostname
+with the
+.Fl d
+flag.
+If the
+.Cm pub
+keyword is specified, only the
+.Dq published
+.Tn ARP
+entry
+for this host will be deleted.
+.Pp
+Alternatively, the
+.Fl d
+flag may be combined with the
+.Fl a
+flag to delete all entries.
+.It Fl i Ar interface
+Limit the operation scope to the
+.Tn ARP
+entries on
+.Ar interface .
+Applicable only to the following operations:
+display one, display all, delete all.
+.It Fl n
+Show network addresses as numbers (normally
+.Nm
+attempts to display addresses symbolically).
+.It Fl s Ar hostname ether_addr
+Create an
+.Tn ARP
+entry for the host called
+.Ar hostname
+with the Ethernet address
+.Ar ether_addr .
+The Ethernet address is given as six hex bytes separated by colons.
+The entry will be permanent unless the word
+.Cm temp
+is given in the command.
+If the word
+.Cm pub
+is given, the entry will be
+.Dq published ;
+i.e., this system will
+act as an
+.Tn ARP
+server,
+responding to requests for
+.Ar hostname
+even though the host address is not its own.
+In this case the
+.Ar ether_addr
+can be given as
+.Cm auto
+in which case the interfaces on this host will be examined,
+and if one of them is found to occupy the same subnet, its
+Ethernet address will be used.
+.Pp
+If the
+.Cm reject
+keyword is specified the entry will be marked so that traffic to
+the host will be discarded and the sender will be notified the
+host is unreachable.
+The
+.Cm blackhole
+keyword is similar in that traffic is discarded but the sender is
+not notified.
+These can be used to block external traffic to a host without
+using a firewall.
+.It Fl S Ar hostname ether_addr
+Is just like
+.Fl s
+except any existing
+.Tn ARP
+entry for this host will be deleted first.
+.It Fl f Ar filename
+Cause the file
+.Ar filename
+to be read and multiple entries to be set in the
+.Tn ARP
+tables.
+Entries
+in the file should be of the form
+.Pp
+.Bd -ragged -offset indent -compact
+.Ar hostname ether_addr
+.Op Cm temp
+.Op Cm blackhole No \&| Cm reject
+.Op Cm pub
+.Ed
+.Pp
+with argument meanings as given above.
+Leading whitespace and empty lines are ignored.
+A
+.Ql #
+character will mark the rest of the line as a comment.
+.El
+.Sh SEE ALSO
+.Xr inet 3 ,
+.Xr libxo 3 ,
+.Xr xo_parse_args 3 ,
+.Xr arp 4 ,
+.Xr ifconfig 8 ,
+.Xr ndp 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.3 .

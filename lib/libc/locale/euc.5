@@ -1,0 +1,134 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Paul Borman at Krystal Technologies.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)euc.4	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd November 8, 2003
+.Dt EUC 5
+.Os
+.Sh NAME
+.Nm euc
+.Nd EUC encoding of wide characters
+.Sh SYNOPSIS
+.Nm ENCODING
+.Qq EUC
+.Pp
+.Nm VARIABLE
+.Ar len1
+.Ar mask1
+.Ar len2
+.Ar mask2
+.Ar len3
+.Ar mask3
+.Ar len4
+.Ar mask4
+.Ar mask
+.Sh DESCRIPTION
+.\"The
+.\".Nm EUC
+.\"encoding is provided for compatibility with
+.\".Ux
+.\"based systems.
+.\"See
+.\".Xr mklocale 1
+.\"for a complete description of the
+.\".Ev LC_CTYPE
+.\"source file format.
+.\".Pp
+.Nm EUC
+implements a system of 4 multibyte codesets.
+A multibyte character in the first codeset consists of
+.Ar len1
+bytes starting with a byte in the range of 0x00 to 0x7f.
+To allow use of
+.Tn ASCII ,
+.Ar len1
+is always 1.
+A multibyte character in the second codeset consists of
+.Ar len2
+bytes starting with a byte in the range of 0x80-0xff excluding 0x8e and 0x8f.
+A multibyte character in the third codeset consists of
+.Ar len3
+bytes starting with the byte 0x8e.
+A multibyte character in the fourth codeset consists of
+.Ar len4
+bytes starting with the byte 0x8f.
+.Pp
+The
+.Vt wchar_t
+encoding of
+.Nm EUC
+multibyte characters is dependent on the
+.Ar len
+and
+.Ar mask
+arguments.
+First, the bytes are moved into a
+.Vt wchar_t
+as follows:
+.Bd -literal
+byte0 << ((\fIlen\fPN-1) * 8) | byte1 << ((\fIlen\fPN-2) * 8) | ... | byte\fIlen\fPN-1
+.Ed
+.Pp
+The result is then ANDed with
+.Ar ~mask
+and ORed with
+.Ar maskN .
+Codesets 2 and 3 are special in that the leading byte (0x8e or 0x8f) is
+first removed and the
+.Ar lenN
+argument is reduced by 1.
+.Pp
+For example, the
+.Li ja_JP.eucJP
+locale has the following
+.Va VARIABLE
+line:
+.Bd -literal
+VARIABLE	1 0x0000 2 0x8080 2 0x0080 3 0x8000 0x8080
+.Ed
+.Pp
+Codeset 1 consists of the values 0x0000 - 0x007f.
+.Pp
+Codeset 2 consists of the values who have the bits 0x8080 set.
+.Pp
+Codeset 3 consists of the values 0x0080 - 0x00ff.
+.Pp
+Codeset 4 consists of the values 0x8000 - 0xff7f excluding the values
+which have the 0x0080 bit set.
+.Pp
+Notice that the global
+.Ar mask
+is set to 0x8080, this implies that from those 2 bits the codeset can
+be determined.
+.Sh SEE ALSO
+.Xr mklocale 1 ,
+.Xr setlocale 3

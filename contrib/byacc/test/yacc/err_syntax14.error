@@ -1,0 +1,2 @@
+YACC: w - line 7 of "./err_syntax14.y", the start symbol has been redeclared
+YACC: e - the start symbol text2 is undefined

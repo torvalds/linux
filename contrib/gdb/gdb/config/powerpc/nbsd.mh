@@ -1,0 +1,3 @@
+# Host: PowerPC, running NetBSD
+NATDEPFILES= fork-child.o infptrace.o inftarg.o ppcnbsd-nat.o
+NAT_FILE= nm-nbsd.h

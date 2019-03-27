@@ -1,0 +1,108 @@
+.\"	$Id: demandoc.1,v 1.8 2014/09/12 00:10:26 schwarze Exp $
+.\"
+.\" Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 12 2014 $
+.Dt DEMANDOC 1
+.Os
+.Sh NAME
+.Nm demandoc
+.Nd emit only text of UNIX manuals
+.Sh SYNOPSIS
+.Nm demandoc
+.Op Fl w
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility emits only the text portions of well-formed
+.Xr mdoc 7
+and
+.Xr man 7
+.Ux
+manual files.
+.Pp
+By default,
+.Nm
+parses standard input and outputs only text nodes, preserving line
+and column position.
+Escape sequences are omitted from the output.
+.Pp
+Its arguments are as follows:
+.Bl -tag -width Ds
+.It Fl w
+Output a word list.
+This outputs each word of text on its own line.
+A
+.Qq word ,
+in this case, refers to whitespace-delimited terms beginning with at
+least two letters and not consisting of any escape sequences.
+Words have their leading and trailing punctuation
+.Pq double-quotes, sentence punctuation, etc.
+stripped.
+.It Ar
+The input files.
+.El
+.Pp
+If a document is not well-formed, it is skipped.
+.Pp
+The
+.Fl i ,
+.Fl k ,
+.Fl m ,
+and
+.Fl p
+flags are silently discarded for calling compatibility with the
+historical deroff.
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Pp
+.Bl -tag -width Ds -compact
+.It 0
+No errors occurred.
+.It 6
+An operating system error occurred, for example memory exhaustion or an
+error accessing input files.
+Such errors cause
+.Nm
+to exit at once, possibly in the middle of parsing or formatting a file.
+The output databases are corrupt and should be removed .
+.El
+.Sh EXAMPLES
+The traditional usage of
+.Nm
+is for spell-checking manuals on
+.Bx .
+This is accomplished as follows (assuming British spelling):
+.Pp
+.Dl $ demandoc -w file.1 | spell -b
+.Sh SEE ALSO
+.Xr mandoc 1 ,
+.Xr man 7 ,
+.Xr mdoc 7
+.Sh HISTORY
+.Nm
+replaces the historical deroff utility for handling modern
+.Xr man 7
+and
+.Xr mdoc 7
+documents.
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv .

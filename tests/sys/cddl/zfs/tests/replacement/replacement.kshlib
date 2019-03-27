@@ -1,0 +1,51 @@
+# vim: filetype=sh
+# Common routines for replacement tests.
+
+# $FreeBSD$
+
+function check_vdev_action # <action> <expect> <opt> <disk1> [disk2]
+{
+	typeset action=$1
+	typeset expect=$2
+	typeset opt=$3
+	typeset disk1="$4"
+	typeset disk2="$5"
+
+	busy_path $TESTDIR
+	$expect $ZPOOL $action $opt $TESTPOOL $disk1 $disk2
+	reap_children
+	log_must $ZPOOL export $TESTPOOL
+	log_must $ZPOOL import $TESTPOOL
+	log_must $ZFS umount $TESTPOOL/$TESTFS
+	log_must $ZDB -cdui $TESTPOOL/$TESTFS
+	log_must $ZFS mount $TESTPOOL/$TESTFS
+}
+
+function pool_action # <tvd_type> <action> <actionexpect> <existexpect>
+{
+	typeset tvd_type=$1
+	typeset action=$2
+	typeset actionexpect=$3
+	typeset existexpect=$4
+
+	typeset disk=${disk_array[3]}
+	typeset short=${disk##/dev/}
+
+	for opt in "" "-f"; do
+		[ "$action" = "detach" -a "$opt" = "-f" ] && continue
+		create_pool $TESTPOOL $tvd_type ${disk_array[@]:0:3}
+		log_must $ZFS create $TESTPOOL/$TESTFS
+		log_must $ZFS set mountpoint=$TESTDIR $TESTPOOL/$TESTFS
+		check_vdev_action $action $actionexpect "$opt" \
+			${disk_array[0]} $disk
+
+		$existexpect eval "$ZPOOL iostat -v $TESTPOOL | $GREP -q $short"
+		destroy_pool $TESTPOOL
+	done
+}
+
+function replacement_cleanup
+{
+	poolexists $TESTPOOL && log_must $ZPOOL status $TESTPOOL
+	reap_children
+}

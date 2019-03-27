@@ -1,0 +1,18 @@
+$FreeBSD$
+
+This is a simple example of the firmware(9) system.  It consists of two
+parts:
+
+1) fwimage
+	This is the firmware image (the ascii art of beastie from the boot
+	menu).  The Makefile lists the firmware file "firmware.img" and the
+	short handle for this firmware image "beastie".
+	Note that the module is called "beastie" as well so that it can be
+	loaded automatically if requested.
+
+2) fwconsumer
+	This module tries to get the a firmware image called "beastie",
+	checks if the data is '\0'-terminated and prints it to the console.
+	It keeps a reference to the firmware until it is unloaded.
+
+This is mainly to demonstrate how to construct firmware image modules.

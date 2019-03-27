@@ -1,0 +1,1997 @@
+ Updating Information for FreeBSD current users.
+
+This file is maintained and copyrighted by M. Warner Losh <imp@freebsd.org>.
+See end of file for further details.  For commonly done items, please see the
+COMMON ITEMS: section later in the file.  These instructions assume that you
+basically know what you are doing.  If not, then please consult the FreeBSD
+handbook:
+
+    https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
+
+Items affecting the ports and packages system can be found in
+/usr/ports/UPDATING.  Please read that file before running portupgrade.
+
+NOTE: FreeBSD has switched from gcc to clang. If you have trouble bootstrapping
+from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
+the tip of head, and then rebuild without this option. The bootstrap process
+from older version of current across the gcc/clang cutover is a bit fragile.
+
+NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
+	FreeBSD 13.x has many debugging features turned on, in both the kernel
+	and userland.  These features attempt to detect incorrect use of
+	system primitives, and encourage loud failure through extra sanity
+	checking and fail stop semantics.  They also substantially impact
+	system performance.  If you want to do performance measurement,
+	benchmarking, and optimization, you'll want to turn them off.  This
+	includes various WITNESS- related kernel options, INVARIANTS, malloc
+	debugging flags in userland, and various verbose features in the
+	kernel.  Many developers choose to disable these features on build
+	machines to maximize performance.  (To completely disable malloc
+	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
+	disable the most expensive debugging functionality run
+	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20190320:
+	The fuse(4) module has been renamed to fusefs(4) for consistency with
+	other filesystems.  You should update any kld_load="fuse" entries in
+	/etc/rc.conf, fuse_load="YES" entries in /boot/loader.conf, and
+	"options FUSE" enties in kernel config files.
+
+20190304:
+	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
+	8.0.0.  Please see the 20141231 entry below for information about
+	prerequisites and upgrading, if you are not already using clang 3.5.0
+	or higher.
+
+20190226:
+	geom_uzip(4) depends on the new module xz.  If geom_uzip is statically
+	compiled into your custom kernel, add 'device xz' statement to the
+	kernel config.
+
+20190219:
+	drm and drm2 have been removed from the tree. Please see
+	https://wiki.freebsd.org/Graphics for the latest information on
+	migrating to the drm ports.
+
+20190131:
+	Iflib is no longer unconditionally compiled into the kernel.  Drivers
+	using iflib and statically compiled into the kernel, now require
+	the 'device iflib' config option.  For the same drivers loaded as
+	modules on kernels not having 'device iflib', the iflib.ko module
+	is loaded automatically.
+
+20190125:
+	The IEEE80211_AMPDU_AGE and AH_SUPPORT_AR5416 kernel configuration
+	options no longer exist since r343219 and r343427 respectively;
+	nothing uses them, so they should be just removed from custom
+	kernel config files.
+
+20181230:
+	r342635 changes the way efibootmgr(8) works by requiring users to add
+	the -b (bootnum) parameter for commands where the bootnum was previously
+	specified with each option. For example 'efibootmgr -B 0001' is now
+	'efibootmgr -B -b 0001'.
+
+20181220:
+	r342286 modifies the NFSv4 server so that it obeys vfs.nfsd.nfs_privport
+	in the same as it is applied to NFSv2 and 3.  This implies that NFSv4
+	servers that have vfs.nfsd.nfs_privport set will only allow mounts
+	from clients using a reserved port#. Since both the FreeBSD and Linux
+	NFSv4 clients use reserved port#s by default, this should not affect
+	most NFSv4 mounts.
+
+20181219:
+	The XLP config has been removed. We can't support 64-bit atomics in this
+	kernel because it is running in 32-bit mode. XLP users must transition
+	to running a 64-bit kernel (XLP64 or XLPN32).
+
+	The mips GXEMUL support has been removed from FreeBSD. MALTA* + qemu is
+	the preferred emulator today and we don't need two different ones.
+
+	The old sibyte / swarm / Broadcom BCM1250 support has been
+	removed from the mips port.
+
+20181211:
+	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
+	7.0.1.  Please see the 20141231 entry below for information about
+	prerequisites and upgrading, if you are not already using clang 3.5.0
+	or higher.
+
+20181211:
+	Remove the timed and netdate programs from the base tree.  Setting
+	the time with these deamons has been obsolete for over a decade.
+
+20181126:
+	On amd64, arm64 and armv7 (architectures that install LLVM's ld.lld
+	linker as /usr/bin/ld) GNU ld is no longer installed as ld.bfd, as
+	it produces broken binaries when ifuncs are in use.  Users needing
+	GNU ld should install the binutils port or package.
+
+20181123:
+	The BSD crtbegin and crtend code has been enabled by default. It has
+	had extensive testing on amd64, arm64, and i386. It can be disabled
+	by building a world with -DWITHOUT_BSD_CRTBEGIN.
+
+20181115:
+	The set of CTM commands (ctm, ctm_smail, ctm_rmail, ctm_dequeue)
+	has been converted to a port (misc/ctm) and will be removed from
+	FreeBSD-13.  It is available as a package (ctm) for all supported
+	FreeBSD versions.
+
+20181110:
+	The default newsyslog.conf(5) file has been changed to only include
+	files in /etc/newsyslog.conf.d/ and /usr/local/etc/newsyslog.conf.d/ if
+	the filenames end in '.conf' and do not begin with a '.'.
+
+	You should check the configuration files in these two directories match
+	this naming convention. You can verify which configuration files are
+	being included using the command:
+		$ newsyslog -Nrv
+
+20181015:
+	Ports for the DRM modules have been simplified. Now, amd64 users should
+	just install the drm-kmod port. All others should install
+	drm-legacy-kmod.
+
+	Graphics hardware that's newer than about 2010 usually works with
+	drm-kmod.  For hardware older than 2013, however, some users will need
+	to use drm-legacy-kmod if drm-kmod doesn't work for them. Hardware older
+	than 2008 usually only works in drm-legacy-kmod. The graphics team can
+	only commit to hardware made since 2013 due to the complexity of the
+	market and difficulty to test all the older cards effectively. If you
+	have hardware supported by drm-kmod, you are strongly encouraged to use
+	that as you will get better support.
+
+	Other than KPI chasing, drm-legacy-kmod will not be updated. As outlined
+	elsewhere, the drm and drm2 modules will be eliminated from the src base
+	soon (with a limited exception for arm). Please update to the package
+	asap and report any issues to x11@freebsd.org.
+
+	Generally, anybody using the drm*-kmod packages should add
+	WITHOUT_DRM_MODULE=t and WITHOUT_DRM2_MODULE=t to avoid nasty
+	cross-threading surprises, especially with automatic driver
+	loading from X11 startup. These will become the defaults in 13-current
+	shortly.
+
+20181012:
+	The ixlv(4) driver has been renamed to iavf(4).  As a consequence,
+	custom kernel and module loading configuration files must be updated
+	accordingly.  Moreover, interfaces previous presented as ixlvN to the
+	system are now exposed as iavfN and network configuration files must
+	be adjusted as necessary.
+
+20181009:
+	OpenSSL has been updated to version 1.1.1.  This update included
+	additional various API changes througout the base system.  It is
+	important to rebuild third-party software after upgrading.  The value
+	of __FreeBSD_version has been bumped accordingly.
+
+20181006:
+	The legacy DRM modules and drivers have now been added to the loader's
+	module blacklist, in favor of loading them with kld_list in rc.conf(5).
+	The module blacklist may be overridden with the loader.conf(5)
+	'module_blacklist' variable, but loading them via rc.conf(5) is strongly
+	encouraged.
+
+20181002:
+	The cam(4) based nda(4) driver will be used over nvd(4) by default on
+	powerpc64. You may set 'options NVME_USE_NVD=1' in your kernel conf or
+	loader tunable 'hw.nvme.use_nvd=1' if you wish to use the existing
+	driver.  Make sure to edit /boot/etc/kboot.conf and fstab to use the
+	nda device name.
+
+20180913:
+	Reproducible build mode is now on by default, in preparation for
+	FreeBSD 12.0.  This eliminates build metadata such as the user,
+	host, and time from the kernel (and uname), unless the working tree
+	corresponds to a modified checkout from a version control system.
+	The previous behavior can be obtained by setting the /etc/src.conf
+	knob WITHOUT_REPRODUCIBLE_BUILD.
+
+20180826:
+	The Yarrow CSPRNG has been removed from the kernel as it has not been
+	supported by its designers since at least 2003. Fortuna has been the
+	default since FreeBSD-11.
+
+20180822:
+	devctl freeze/thaw have gone into the tree, the rc scripts have been
+	updated to use them and devmatch has been changed.  You should update
+	kernel, userland and rc scripts all at the same time.
+
+20180818:
+	The default interpreter has been switched from 4th to Lua.
+	LOADER_DEFAULT_INTERP, documented in build(7), will override the default
+	interpreter.  If you have custom FORTH code you will need to set
+	LOADER_DEFAULT_INTERP=4th (valid values are 4th, lua or simp) in
+	src.conf for the build.  This will create default hard links between
+	loader and loader_4th instead of loader and loader_lua, the new default.
+	If you are using UEFI it will create the proper hard link to loader.efi.
+
+	bhyve uses userboot.so. It remains 4th-only until some issues are solved
+	regarding coexisting with multiple versions of FreeBSD are resolved.
+
+20180815:
+	ls(1) now respects the COLORTERM environment variable used in other
+	systems and software to indicate that a colored terminal is both
+	supported and desired.  If ls(1) is suddenly emitting colors, they may
+	be disabled again by either removing the unwanted COLORTERM from your
+	environment, or using `ls --color=never`.  The ls(1) specific CLICOLOR
+	may not be observed in a future release.
+
+20180808:
+	The default pager for most commands has been changed to "less".  To
+	restore the old behavior, set PAGER="more" and MANPAGER="more -s" in
+	your environment.
+
+20180731:
+	The jedec_ts(4) driver has been removed. A superset of its functionality
+	is available in the jedec_dimm(4) driver, and the manpage for that
+	driver includes migration instructions. If you have "device jedec_ts"
+	in your kernel configuration file, it must be removed.
+
+20180730:
+	amd64/GENERIC now has EFI runtime services, EFIRT, enabled by default.
+	This should have no effect if the kernel is booted via BIOS/legacy boot.
+	EFIRT may be disabled via a loader tunable, efi.rt.disabled, if a system
+	has a buggy firmware that prevents a successful boot due to use of
+	runtime services.
+
+20180727:
+	Atmel AT91RM9200 and AT91SAM9, Cavium CNS 11xx and XScale
+	support has been removed from the tree. These ports were
+	obsolete and/or known to be broken for many years.
+
+20180723:
+	loader.efi has been augmented to participate more fully in the
+	UEFI boot manager protocol. loader.efi will now look at the
+	BootXXXX environment variable to determine if a specific kernel
+	or root partition was specified. XXXX is derived from BootCurrent.
+	efibootmgr(8) manages these standard UEFI variables.
+
+20180720:
+	zfsloader's functionality has now been folded into loader.
+	zfsloader is no longer necessary once you've updated your
+	boot blocks. For a transition period, we will install a
+	hardlink for zfsloader to loader to allow a smooth transition
+	until the boot blocks can be updated (hard link because old
+	zfs boot blocks don't understand symlinks).
+
+20180719:
+	ARM64 now have efifb support, if you want to have serial console
+	on your arm64 board when an screen is connected and the bootloader
+	setup a framebuffer for us to use, just add :
+	boot_serial=YES
+	boot_multicons=YES
+	in /boot/loader.conf
+	For Raspberry Pi 3 (RPI) users, this is needed even if you don't have
+	an screen connected as the firmware will setup a framebuffer are that
+	u-boot will expose as an EFI framebuffer.
+
+20180719:
+	New uid:gid added, ntpd:ntpd (123:123).  Be sure to run mergemaster
+	or take steps to update /etc/passwd before doing installworld on
+	existing systems.  Do not skip the "mergemaster -Fp" step before
+	installworld, as described in the update procedures near the bottom
+	of this document.  Also, rc.d/ntpd now starts ntpd(8) as user ntpd
+	if the new mac_ntpd(4) policy is available, unless ntpd_flags or
+	the ntp config file contain options that change file/dir locations.
+	When such options (e.g., "statsdir" or "crypto") are used, ntpd can
+	still be run as non-root by setting ntpd_user=ntpd in rc.conf, after
+	taking steps to ensure that all required files/dirs are accessible
+	by the ntpd user.
+
+20180717:
+	Big endian arm support has been removed.
+
+20180711:
+	The static environment setup in kernel configs is no longer mutually
+	exclusive with the loader(8) environment by default.  In order to
+	restore the previous default behavior of disabling the loader(8)
+	environment if a static environment is present, you must specify
+	loader_env.disabled=1 in the static environment.
+
+20180705:
+	The ABI of syscalls used by management tools like sockstat and
+	netstat has been broken to allow 32-bit binaries to work on
+	64-bit kernels without modification.  These programs will need
+	to match the kernel in order to function.  External programs may
+	require minor modifications to accommodate a change of type in
+	structures from pointers to 64-bit virtual addresses.
+
+20180702:
+	On i386 and amd64 atomics are now inlined. Out of tree modules using
+	atomics will need to be rebuilt.
+
+20180701:
+	The '%I' format in the kern.corefile sysctl limits the number of
+	core files that a process can generate to the number stored in the
+	debug.ncores sysctl. The '%I' format is replaced by the single digit
+	index. Previously, if all indexes were taken the kernel would overwrite
+	only a core file with the highest index in a filename.
+	Currently the system will create a new core file if there is a free
+	index or if all slots are taken it will overwrite the oldest one.
+
+20180630:
+	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
+	6.0.1.  Please see the 20141231 entry below for information about
+	prerequisites and upgrading, if you are not already using clang 3.5.0
+	or higher.
+
+20180628:
+	r335753 introduced a new quoting method. However, etc/devd/devmatch.conf
+	needed to be changed to work with it. This change was made with r335763
+	and requires a mergemaster / etcupdate / etc to update the installed
+	file.
+
+20180612:
+	r334930 changed the interface between the NFS modules, so they all
+	need to be rebuilt.  r335018 did a __FreeBSD_version bump for this.
+
+20180530:
+	As of r334391 lld is the default amd64 system linker; it is installed
+	as /usr/bin/ld.  Kernel build workarounds (see 20180510 entry) are no
+	longer necessary.
+
+20180530:
+	The kernel / userland interface for devinfo changed, so you'll
+	need a new kernel and userland as a pair for it to work (rebuilding
+	lib/libdevinfo is all that's required). devinfo and devmatch will
+	not work, but everything else will when there's a mismatch.
+
+20180523:
+	The on-disk format for hwpmc callchain records has changed to include
+	threadid corresponding to a given record. This changes the field offsets
+	and thus requires that libpmcstat be rebuilt before using a kernel
+	later than r334108.
+
+20180517:
+	The vxge(4) driver has been removed.  This driver was introduced into
+	HEAD one week before the Exar left the Ethernet market and is not
+	known to be used.  If you have device vxge in your kernel config file
+	it must be removed.
+
+20180510:
+	The amd64 kernel now requires a ld that supports ifunc to produce a
+	working kernel, either lld or a newer binutils. lld is built by default
+	on amd64, and the 'buildkernel' target uses it automatically. However,
+	it is not the default linker, so building the kernel the traditional
+	way requires LD=ld.lld on the command line (or LD=/usr/local/bin/ld for
+	binutils port/package). lld will soon be default, and this requirement
+	will go away.
+
+	NOTE: As of r334391 lld is the default system linker on amd64, and no
+	workaround is necessary.
+
+20180508:
+	The nxge(4) driver has been removed.  This driver was for PCI-X 10g
+	cards made by s2io/Neterion.  The company was aquired by Exar and
+	no longer sells or supports Ethernet products.  If you have device
+	nxge in your kernel config file it must be removed.
+
+20180504:
+	The tz database (tzdb) has been updated to 2018e.  This version more
+	correctly models time stamps in time zones with negative DST such as
+	Europe/Dublin (from 1971 on), Europe/Prague (1946/7), and
+	Africa/Windhoek (1994/2017).  This does not affect the UT offsets, only
+	time zone abbreviations and the tm_isdst flag.
+
+20180502:
+	The ixgb(4) driver has been removed.  This driver was for an early and
+	uncommon legacy PCI 10GbE for a single ASIC, Intel 82597EX. Intel
+	quickly shifted to the long lived ixgbe family.  If you have device
+	ixgb in your kernel config file it must be removed.
+
+20180501:
+	The lmc(4) driver has been removed.  This was a WAN interface
+	card that was already reportedly rare in 2003, and had an ambiguous
+	license.  If you have device lmc in your kernel config file it must
+	be removed.
+
+20180413:
+	Support for Arcnet networks has been removed.  If you have device
+	arcnet or device cm in your kernel config file they must be
+	removed.
+
+20180411:
+	Support for FDDI networks has been removed.  If you have device
+	fddi or device fpa in your kernel config file they must be
+	removed.
+
+20180406:
+	In addition to supporting RFC 3164 formatted messages, the
+	syslogd(8) service is now capable of parsing RFC 5424 formatted
+	log messages. The main benefit of using RFC 5424 is that clients
+	may now send log messages with timestamps containing year numbers,
+	microseconds and time zone offsets.
+
+	Similarly, the syslog(3) C library function has been altered to
+	send RFC 5424 formatted messages to the local system logging
+	daemon. On systems using syslogd(8), this change should have no
+	negative impact, as long as syslogd(8) and the C library are
+	updated at the same time. On systems using a different system
+	logging daemon, it may be necessary to make configuration
+	adjustments, depending on the software used.
+
+	When using syslog-ng, add the 'syslog-protocol' flag to local
+	input sources to enable parsing of RFC 5424 formatted messages:
+
+		source src {
+			unix-dgram("/var/run/log" flags(syslog-protocol));
+		}
+
+	When using rsyslog, disable the 'SysSock.UseSpecialParser' option
+	of the 'imuxsock' module to let messages be processed by the
+	regular RFC 3164/5424 parsing pipeline:
+
+		module(load="imuxsock" SysSock.UseSpecialParser="off")
+
+	Do note that these changes only affect communication between local
+	applications and syslogd(8). The format that syslogd(8) uses to
+	store messages on disk or forward messages to other systems
+	remains unchanged. syslogd(8) still uses RFC 3164 for these
+	purposes. Options to customize this behaviour will be added in the
+	future. Utilities that process log files stored in /var/log are
+	thus expected to continue to function as before.
+
+	__FreeBSD_version has been incremented to 1200061 to denote this
+	change.
+
+20180328:
+	Support for token ring networks has been removed. If you
+	have "device token" in your kernel config you should remove
+	it. No device drivers supported token ring.
+
+20180323:
+	makefs was modified to be able to tag ISO9660 El Torito boot catalog
+	entries as EFI instead of overloading the i386 tag as done previously.
+	The amd64 mkisoimages.sh script used to build amd64 ISO images for
+	release was updated to use this. This may mean that makefs must be
+	updated before "make cdrom" can be run in the release directory. This
+	should be as simple as:
+
+		$ cd $SRCDIR/usr.sbin/makefs
+		$ make depend all install
+
+20180212:
+	FreeBSD boot loader enhanced with Lua scripting. It's purely opt-in for
+	now by building WITH_LOADER_LUA and WITHOUT_FORTH in /etc/src.conf.
+	Co-existance for the transition period will come shortly. Booting is a
+	complex environment and test coverage for Lua-enabled loaders has been
+	thin, so it would be prudent to assume it might not work and make
+	provisions for backup boot methods.
+
+20180211:
+	devmatch functionality has been turned on in devd. It will automatically
+	load drivers for unattached devices. This may cause unexpected drivers
+	to be loaded. Please report any problems to current@ and
+	imp@freebsd.org.
+
+20180114:
+	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
+	6.0.0.  Please see the 20141231 entry below for information about
+	prerequisites and upgrading, if you are not already using clang 3.5.0
+	or higher.
+
+20180110:
+	LLVM's lld linker is now used as the FreeBSD/amd64 bootstrap linker.
+	This means it is used to link the kernel and userland libraries and
+	executables, but is not yet installed as /usr/bin/ld by default.
+
+	To revert to ld.bfd as the bootstrap linker, in /etc/src.conf set
+        WITHOUT_LLD_BOOTSTRAP=yes
+
+20180110:
+	On i386, pmtimer has been removed. Its functionality has been folded
+	into apm. It was a no-op on ACPI in current for a while now (but was
+	still needed on i386 in FreeBSD 11 and earlier). Users may need to
+	remove it from kernel config files.
+
+20180104:
+	The use of RSS hash from the network card aka flowid has been
+	disabled by default for lagg(4) as it's currently incompatible with
+	the lacp and loadbalance protocols.
+
+	This can be re-enabled by setting the following in loader.conf:
+	net.link.lagg.default_use_flowid="1"
+
+20180102:
+	The SW_WATCHDOG option is no longer necessary to enable the
+	hardclock-based software watchdog if no hardware watchdog is
+	configured. As before, SW_WATCHDOG will cause the software
+	watchdog to be enabled even if a hardware watchdog is configured.
+
+20171215:
+	r326887 fixes the issue described in the 20171214 UPDATING entry.
+	r326888 flips the switch back to building GELI support always.
+
+20171214:
+	r362593 broke ZFS + GELI support for reasons unknown. However,
+	it also broke ZFS support generally, so GELI has been turned off
+	by default as the lesser evil in r326857. If you boot off ZFS and/or
+	GELI, it might not be a good time to update.
+
+20171125:
+	PowerPC users must update loader(8) by rebuilding world before
+	installing a new kernel, as the protocol connecting them has
+	changed. Without the update, loader metadata will not be passed
+	successfully to the kernel and users will have to enter their
+	root partition at the kernel mountroot prompt to continue booting.
+	Newer versions of loader can boot old kernels without issue.
+
+20171110:
+	The LOADER_FIREWIRE_SUPPORT build variable as been renamed to
+	WITH/OUT_LOADER_FIREWIRE. LOADER_{NO_,}GELI_SUPPORT has been renamed
+	to WITH/OUT_LOADER_GELI.
+
+20171106:
+	The naive and non-compliant support of posix_fallocate(2) in ZFS
+	has been removed as of r325320.  The system call now returns EINVAL
+	when used on a ZFS file.  Although the new behavior complies with the
+	standard, some consumers are not prepared to cope with it.
+	One known victim is lld prior to r325420.
+
+20171102:
+	Building in a FreeBSD src checkout will automatically create object
+	directories now rather than store files in the current directory if
+	'make obj' was not ran.  Calling 'make obj' is no longer necessary.
+	This feature can be disabled by setting WITHOUT_AUTO_OBJ=yes in
+	/etc/src-env.conf (not /etc/src.conf), or passing the option in the
+	environment.
+
+20171101:
+	The default MAKEOBJDIR has changed from /usr/obj/<srcdir> for native
+	builds, and /usr/obj/<arch>/<srcdir> for cross-builds, to a unified
+	/usr/obj/<srcdir>/<arch>.  This behavior can be changed to the old
+	format by setting WITHOUT_UNIFIED_OBJDIR=yes in /etc/src-env.conf,
+	the environment, or with -DWITHOUT_UNIFIED_OBJDIR when building.
+	The UNIFIED_OBJDIR option is a transitional feature that will be
+	removed for 12.0 release; please migrate to the new format for any
+	tools by looking up the OBJDIR used by 'make -V .OBJDIR' means rather
+	than hardcoding paths.
+
+20171028:
+	The native-xtools target no longer installs the files by default to the
+	OBJDIR.  Use the native-xtools-install target with a DESTDIR to install
+	to ${DESTDIR}/${NXTP} where NXTP defaults to /nxb-bin.
+
+20171021:
+	As part of the boot loader infrastructure cleanup, LOADER_*_SUPPORT
+	options are changing from controlling the build if defined / undefined
+	to controlling the build with explicit 'yes' or 'no' values. They will
+	shift to WITH/WITHOUT options to match other options in the system.
+
+20171010:
+	libstand has turned into a private library for sys/boot use only.
+	It is no longer supported as a public interface outside of sys/boot.
+
+20171005:
+	The arm port has split armv6 into armv6 and armv7. armv7 is now
+	a valid TARGET_ARCH/MACHINE_ARCH setting. If you have an armv7 system
+	and are running a kernel from before r324363, you will need to add
+	MACHINE_ARCH=armv7 to 'make buildworld' to do a native build.
+
+20171003:
+	When building multiple kernels using KERNCONF, non-existent KERNCONF
+	files will produce an error and buildkernel will fail. Previously
+	missing KERNCONF files silently failed giving no indication as to
+	why, only to subsequently discover during installkernel that the
+	desired kernel was never built in the first place.
+
+20170912:
+	The default serial number format for CTL LUNs has changed.  This will
+	affect users who use /dev/diskid/* device nodes, or whose FibreChannel
+	or iSCSI clients care about their LUNs' serial numbers.  Users who
+	require serial number stability should hardcode serial numbers in
+	/etc/ctl.conf .
+
+20170912:
+	For 32-bit arm compiled for hard-float support, soft-floating point
+	binaries now always get their shared libraries from
+	LD_SOFT_LIBRARY_PATH (in the past, this was only used if
+	/usr/libsoft also existed). Only users with a hard-float ld.so, but
+	soft-float everything else should be affected.
+
+20170826:
+	The geli password typed at boot is now hidden.  To restore the previous
+	behavior, see geli(8) for configuration options.
+
+20170825:
+	Move PMTUD blackhole counters to TCPSTATS and remove them from bare
+	sysctl values.  Minor nit, but requires a rebuild of both world/kernel
+	to complete.
+
+20170814:
+	"make check" behavior (made in ^/head@r295380) has been changed to
+	execute from a limited sandbox, as opposed to executing from
+	${TESTSDIR}.
+
+	Behavioral changes:
+	- The "beforecheck" and "aftercheck" targets are now specified.
+	- ${CHECKDIR} (added in commit noted above) has been removed.
+	- Legacy behavior can be enabled by setting
+	  WITHOUT_MAKE_CHECK_USE_SANDBOX in src.conf(5) or the environment.
+
+	If the limited sandbox mode is enabled, "make check" will execute
+	"make distribution", then install, execute the tests, and clean up the
+	sandbox if successful.
+
+	The "make distribution" and "make install" targets are typically run as
+	root to set appropriate permissions and ownership at installation time.
+	The end-user should set "WITH_INSTALL_AS_USER" in src.conf(5) or the
+	environment if executing "make check" with limited sandbox mode using
+	an unprivileged user.
+
+20170808:
+	Since the switch to GPT disk labels, fsck for UFS/FFS has been
+	unable to automatically find alternate superblocks. As of r322297,
+	the information needed to find alternate superblocks has been
+	moved to the end of the area reserved for the boot block.
+	Filesystems created with a newfs of this vintage or later
+	will create the recovery information. If you have a filesystem
+	created prior to this change and wish to have a recovery block
+	created for your filesystem, you can do so by running fsck in
+	foreground mode (i.e., do not use the -p or -y options). As it
+	starts, fsck will ask ``SAVE DATA TO FIND ALTERNATE SUPERBLOCKS''
+	to which you should answer yes.
+
+20170728:
+	As of r321665, an NFSv4 server configuration that services
+	Kerberos mounts or clients that do not support the uid/gid in
+	owner/owner_group string capability, must explicitly enable
+	the nfsuserd daemon by adding nfsuserd_enable="YES" to the
+	machine's /etc/rc.conf file.
+
+20170722:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 5.0.0.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20170701:
+	WITHOUT_RCMDS is now the default. Set WITH_RCMDS if you need the
+	r-commands (rlogin, rsh, etc.) to be built with the base system.
+
+20170625:
+	The FreeBSD/powerpc platform now uses a 64-bit type for time_t.  This is
+	a very major ABI incompatible change, so users of FreeBSD/powerpc must
+	be careful when performing source upgrades.  It is best to run
+	'make installworld' from an alternate root system, either a live
+	CD/memory stick, or a temporary root partition.  Additionally, all ports
+	must be recompiled.  powerpc64 is largely unaffected, except in the case
+	of 32-bit compatibility.  All 32-bit binaries will be affected.
+
+20170623:
+	Forward compatibility for the "ino64" project have been committed. This
+	will allow most new binaries to run on older kernels in a limited
+	fashion.  This prevents many of the common foot-shooting actions in the
+	upgrade as well as the limited ability to roll back the kernel across
+	the ino64 upgrade. Complicated use cases may not work properly, though
+	enough simpler ones work to allow recovery in most situations.
+
+20170620:
+	Switch back to the BSDL dtc (Device Tree Compiler). Set WITH_GPL_DTC
+	if you require the GPL compiler.
+
+20170618:
+	The internal ABI used for communication between the NFS kernel modules
+	was changed by r320085, so __FreeBSD_version was bumped to
+	ensure all the NFS related modules are updated together.
+
+20170617:
+	The ABI of struct event was changed by extending the data
+	member to 64bit and adding ext fields.  For upgrade, same
+	precautions as for the entry 20170523 "ino64" must be
+	followed.
+
+20170531:
+	The GNU roff toolchain has been removed from base. To render manpages
+	which are not supported by mandoc(1), man(1) can fallback on GNU roff
+	from ports (and recommends to install it).
+	To render roff(7) documents, consider using GNU roff from ports or the
+	heirloom doctools roff toolchain from ports via pkg install groff or
+	via pkg install heirloom-doctools.
+
+20170524:
+	The ath(4) and ath_hal(4) modules now build piecemeal to allow for
+	smaller runtime footprint builds.  This is useful for embedded systems
+	which only require one chipset support.
+
+	If you load it as a module, make sure this is in /boot/loader.conf:
+
+	if_ath_load="YES"
+
+	This will load the HAL, all chip/RF backends and if_ath_pci.
+	If you have if_ath_pci in /boot/loader.conf, ensure it is after
+	if_ath or it will not load any HAL chipset support.
+
+	If you want to selectively load things (eg on ye cheape ARM/MIPS
+	platforms where RAM is at a premium) you should:
+
+	* load ath_hal
+	* load the chip modules in question
+	* load ath_rate, ath_dfs
+	* load ath_main
+	* load if_ath_pci and/or if_ath_ahb depending upon your particular
+	  bus bind type - this is where probe/attach is done.
+
+	For further comments/feedback, poke adrian@ .
+
+20170523:
+	The "ino64" 64-bit inode project has been committed, which extends
+	a number of types to 64 bits.  Upgrading in place requires care and
+	adherence to the documented upgrade procedure.
+
+	If using a custom kernel configuration ensure that the
+	COMPAT_FREEBSD11 option is included (as during the upgrade the
+	system will be running the ino64 kernel with the existing world).
+
+	For the safest in-place upgrade begin by removing previous build
+	artifacts via "rm -rf /usr/obj/*".  Then, carefully follow the full
+	procedure documented below under the heading "To rebuild everything and
+	install it on the current system."  Specifically, a reboot is required
+	after installing the new kernel before installing world. While an
+	installworld normally works by accident from multiuser after rebooting
+	the proper kernel, there are many cases where this will fail across this
+	upgrade and installworld from single user is required.
+
+20170424:
+	The NATM framework including the en(4), fatm(4), hatm(4), and
+	patm(4) devices has been removed.  Consumers should plan a
+	migration before the end-of-life date for FreeBSD 11.
+
+20170420:
+	GNU diff has been replaced by a BSD licensed diff. Some features of GNU
+	diff has not been implemented, if those are needed a newer version of
+	GNU diff is available via the diffutils package under the gdiff name.
+
+20170413:
+	As of r316810 for ipfilter, keep frags is no longer assumed when
+	keep state is specified in a rule. r316810 aligns ipfilter with
+	documentation in man pages separating keep frags from keep state.
+	This allows keep state to be specified without forcing keep frags
+	and allows keep frags to be specified independently of keep state.
+	To maintain previous behaviour, also specify keep frags with
+	keep state (as documented in ipf.conf.5).
+
+20170407:
+	arm64 builds now use the base system LLD 4.0.0 linker by default,
+	instead of requiring that the aarch64-binutils port or package be
+	installed. To continue using aarch64-binutils, set
+	CROSS_BINUTILS_PREFIX=/usr/local/aarch64-freebsd/bin .
+
+20170405:
+	The UDP optimization in entry 20160818 that added the sysctl
+	net.inet.udp.require_l2_bcast has been reverted.  L2 broadcast
+	packets will no longer be treated as L3 broadcast packets.
+
+20170331:
+	Binds and sends to the loopback addresses, IPv6 and IPv4, will now
+	use any explicitly assigned loopback address available in the jail
+	instead of using the first assigned address of the jail.
+
+20170329:
+	The ctl.ko module no longer implements the iSCSI target frontend:
+	cfiscsi.ko does instead.
+
+	If building cfiscsi.ko as a kernel module, the module can be loaded
+	via one of the following methods:
+	- `cfiscsi_load="YES"` in loader.conf(5).
+	- Add `cfiscsi` to `$kld_list` in rc.conf(5).
+	- ctladm(8)/ctld(8), when compiled with iSCSI support
+	  (`WITH_ISCSI=yes` in src.conf(5))
+
+	Please see cfiscsi(4) for more details.
+
+20170316:
+	The mmcsd.ko module now additionally depends on geom_flashmap.ko.
+	Also, mmc.ko and mmcsd.ko need to be a matching pair built from the
+	same source (previously, the dependency of mmcsd.ko on mmc.ko was
+	missing, but mmcsd.ko now will refuse to load if it is incompatible
+	with mmc.ko).
+
+20170315:
+	The syntax of ipfw(8) named states was changed to avoid ambiguity.
+	If you have used named states in the firewall rules, you need to modify
+	them after installworld and before rebooting. Now named states must
+	be prefixed with colon.
+
+20170311:
+	The old drm (sys/dev/drm/) drivers for i915 and radeon have been
+	removed as the userland we provide cannot use them. The KMS version
+	(sys/dev/drm2) supports the same hardware.
+
+20170302:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 4.0.0.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20170221:
+	The code that provides support for ZFS .zfs/ directory functionality
+	has been reimplemented.  It's not possible now to create a snapshot
+	by mkdir under .zfs/snapshot/.  That should be the only user visible
+	change.
+
+20170216:
+	EISA bus support has been removed. The WITH_EISA option is no longer
+	valid.
+
+20170215:
+	MCA bus support has been removed.
+
+20170127:
+	The WITH_LLD_AS_LD / WITHOUT_LLD_AS_LD build knobs have been renamed
+	WITH_LLD_IS_LD / WITHOUT_LLD_IS_LD, for consistency with CLANG_IS_CC.
+
+20170112:
+	The EM_MULTIQUEUE kernel configuration option is deprecated now that
+	the em(4) driver conforms to iflib specifications.
+
+20170109:
+	The igb(4), em(4) and lem(4) ethernet drivers are now implemented via
+	IFLIB.  If you have a custom kernel configuration that excludes em(4)
+	but you use igb(4), you need to re-add em(4) to your custom
+	configuration.
+
+20161217:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 3.9.1.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20161124:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 3.9.0.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20161119:
+	The layout of the pmap structure has changed for powerpc to put the pmap
+	statistics at the front for all CPU variations.  libkvm(3) and all tools
+	that link against it need to be recompiled.
+
+20161030:
+	isl(4) and cyapa(4) drivers now require a new driver,
+	chromebook_platform(4), to work properly on Chromebook-class hardware.
+	On other types of hardware the drivers may need to be configured using
+	device hints.  Please see the corresponding manual pages for details.
+
+20161017:
+	The urtwn(4) driver was merged into rtwn(4) and now consists of
+	rtwn(4) main module + rtwn_usb(4) and rtwn_pci(4) bus-specific
+	parts.
+	Also, firmware for RTL8188CE was renamed due to possible name
+	conflict (rtwnrtl8192cU(B) -> rtwnrtl8192cE(B))
+
+20161015:
+	GNU rcs has been removed from base.  It is available as packages:
+	- rcs: Latest GPLv3 GNU rcs version.
+	- rcs57: Copy of the latest version of GNU rcs (GPLv2) before it was
+	removed from base.
+
+20161008:
+	Use of the cc_cdg, cc_chd, cc_hd, or cc_vegas congestion control
+	modules now requires that the kernel configuration contain the
+	TCP_HHOOK option. (This option is included in the GENERIC kernel.)
+
+20161003:
+	The WITHOUT_ELFCOPY_AS_OBJCOPY src.conf(5) knob has been retired.
+	ELF Tool Chain's elfcopy is always installed as /usr/bin/objcopy.
+
+20160924:
+	Relocatable object files with the extension of .So have been renamed
+	to use an extension of .pico instead.  The purpose of this change is
+	to avoid a name clash with shared libraries on case-insensitive file
+	systems.  On those file systems, foo.So is the same file as foo.so.
+
+20160918:
+	GNU rcs has been turned off by default.  It can (temporarily) be built
+	again by adding WITH_RCS knob in src.conf.
+	Otherwise, GNU rcs is available from packages:
+	- rcs: Latest GPLv3 GNU rcs version.
+	- rcs57: Copy of the latest version of GNU rcs (GPLv2) from base.
+
+20160918:
+	The backup_uses_rcs functionality has been removed from rc.subr.
+
+20160908:
+	The queue(3) debugging macro, QUEUE_MACRO_DEBUG, has been split into
+	two separate components, QUEUE_MACRO_DEBUG_TRACE and
+	QUEUE_MACRO_DEBUG_TRASH.  Define both for the original
+	QUEUE_MACRO_DEBUG behavior.
+
+20160824:
+	r304787 changed some ioctl interfaces between the iSCSI userspace
+	programs and the kernel.  ctladm, ctld, iscsictl, and iscsid must be
+	rebuilt to work with new kernels.  __FreeBSD_version has been bumped
+	to 1200005.
+
+20160818:
+	The UDP receive code has been updated to only treat incoming UDP
+	packets that were addressed to an L2 broadcast address as L3
+	broadcast packets.  It is not expected that this will affect any
+	standards-conforming UDP application.  The new behaviour can be
+	disabled by setting the sysctl net.inet.udp.require_l2_bcast to
+	0.
+
+20160818:
+	Remove the openbsd_poll system call.
+	__FreeBSD_version has been bumped because of this.
+
+20160708:
+	The stable/11 branch has been created from head@r302406.
+
+20160622:
+	The libc stub for the pipe(2) system call has been replaced with
+	a wrapper that calls the pipe2(2) system call and the pipe(2)
+	system call is now only implemented by the kernels that include
+	"options COMPAT_FREEBSD10" in their config file (this is the
+	default).  Users should ensure that this option is enabled in
+	their kernel or upgrade userspace to r302092 before upgrading their
+	kernel.
+
+20160527:
+	CAM will now strip leading spaces from SCSI disks' serial numbers.
+	This will affect users who create UFS filesystems on SCSI disks using
+	those disk's diskid device nodes.  For example, if /etc/fstab
+	previously contained a line like
+	"/dev/diskid/DISK-%20%20%20%20%20%20%20ABCDEFG0123456", you should
+	change it to "/dev/diskid/DISK-ABCDEFG0123456".  Users of geom
+	transforms like gmirror may also be affected.  ZFS users should
+	generally be fine.
+
+20160523:
+	The bitstring(3) API has been updated with new functionality and
+	improved performance.  But it is binary-incompatible with the old API.
+	Objects built with the new headers may not be linked against objects
+	built with the old headers.
+
+20160520:
+	The brk and sbrk functions have been removed from libc on arm64.
+	Binutils from ports has been updated to not link to these
+	functions and should be updated to the latest version before
+	installing a new libc.
+
+20160517:
+	The armv6 port now defaults to hard float ABI. Limited support
+	for running both hardfloat and soft float on the same system
+	is available using the libraries installed with -DWITH_LIBSOFT.
+	This has only been tested as an upgrade path for installworld
+	and packages may fail or need manual intervention to run. New
+	packages will be needed.
+
+	To update an existing self-hosted armv6hf system, you must add
+	TARGET_ARCH=armv6 on the make command line for both the build
+	and the install steps.
+
+20160510:
+	Kernel modules compiled outside of a kernel build now default to
+	installing to /boot/modules instead of /boot/kernel.  Many kernel
+	modules built this way (such as those in ports) already overrode
+	KMODDIR explicitly to install into /boot/modules.  However,
+	manually building and installing a module from /sys/modules will
+	now install to /boot/modules instead of /boot/kernel.
+
+20160414:
+	The CAM I/O scheduler has been committed to the kernel. There should be
+	no user visible impact. This does enable NCQ Trim on ada SSDs. While the
+	list of known rogues that claim support for this but actually corrupt
+	data is believed to be complete, be on the lookout for data
+	corruption. The known rogue list is believed to be complete:
+
+		o Crucial MX100, M550 drives with MU01 firmware.
+		o Micron M510 and M550 drives with MU01 firmware.
+		o Micron M500 prior to MU07 firmware
+		o Samsung 830, 840, and 850 all firmwares
+		o FCCT M500 all firmwares
+
+	Crucial has firmware http://www.crucial.com/usa/en/support-ssd-firmware
+	with working NCQ TRIM. For Micron branded drives, see your sales rep for
+	updated firmware. Black listed drives will work correctly because these
+	drives work correctly so long as no NCQ TRIMs are sent to them. Given
+	this list is the same as found in Linux, it's believed there are no
+	other rogues in the market place. All other models from the above
+	vendors work.
+
+	To be safe, if you are at all concerned, you can quirk each of your
+	drives to prevent NCQ from being sent by setting:
+		kern.cam.ada.X.quirks="0x2"
+	in loader.conf. If the drive requires the 4k sector quirk, set the
+	quirks entry to 0x3.
+
+20160330:
+	The FAST_DEPEND build option has been removed and its functionality is
+	now the one true way.  The old mkdep(1) style of 'make depend' has
+	been removed.  See 20160311 for further details.
+
+20160317:
+	Resource range types have grown from unsigned long to uintmax_t.  All
+	drivers, and anything using libdevinfo, need to be recompiled.
+
+20160311:
+	WITH_FAST_DEPEND is now enabled by default for in-tree and out-of-tree
+	builds.  It no longer runs mkdep(1) during 'make depend', and the
+	'make depend' stage can safely be skipped now as it is auto ran
+	when building 'make all' and will generate all SRCS and DPSRCS before
+	building anything else.  Dependencies are gathered at compile time with
+	-MF flags kept in separate .depend files per object file.  Users should
+	run 'make cleandepend' once if using -DNO_CLEAN to clean out older
+	stale .depend files.
+
+20160306:
+	On amd64, clang 3.8.0 can now insert sections of type AMD64_UNWIND into
+	kernel modules.  Therefore, if you load any kernel modules at boot time,
+	please install the boot loaders after you install the kernel, but before
+	rebooting, e.g.:
+
+	make buildworld
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
+	make -C sys/boot install
+	<reboot in single user>
+
+	Then follow the usual steps, described in the General Notes section,
+	below.
+
+20160305:
+	Clang, llvm, lldb and compiler-rt have been upgraded to 3.8.0.  Please
+	see the 20141231 entry below for information about prerequisites and
+	upgrading, if you are not already using clang 3.5.0 or higher.
+
+20160301:
+	The AIO subsystem is now a standard part of the kernel.  The
+	VFS_AIO kernel option and aio.ko kernel module have been removed.
+	Due to stability concerns, asynchronous I/O requests are only
+	permitted on sockets and raw disks by default.  To enable
+	asynchronous I/O requests on all file types, set the
+	vfs.aio.enable_unsafe sysctl to a non-zero value.
+
+20160226:
+	The ELF object manipulation tool objcopy is now provided by the
+	ELF Tool Chain project rather than by GNU binutils. It should be a
+	drop-in replacement, with the addition of arm64 support. The
+	(temporary) src.conf knob WITHOUT_ELFCOPY_AS_OBJCOPY knob may be set
+	to obtain the GNU version if necessary.
+
+20160129:
+	Building ZFS pools on top of zvols is prohibited by default.  That
+	feature has never worked safely; it's always been prone to deadlocks.
+	Using a zvol as the backing store for a VM guest's virtual disk will
+	still work, even if the guest is using ZFS.  Legacy behavior can be
+	restored by setting vfs.zfs.vol.recursive=1.
+
+20160119:
+	The NONE and HPN patches has been removed from OpenSSH.  They are
+	still available in the security/openssh-portable port.
+
+20160113:
+	With the addition of ypldap(8), a new _ypldap user is now required
+	during installworld. "mergemaster -p" can be used to add the user
+	prior to installworld, as documented in the handbook.
+
+20151216:
+	The tftp loader (pxeboot) now uses the option root-path directive. As a
+	consequence it no longer looks for a pxeboot.4th file on the tftp
+	server. Instead it uses the regular /boot infrastructure as with the
+	other loaders.
+
+20151211:
+	The code to start recording plug and play data into the modules has
+	been committed. While the old tools will properly build a new kernel,
+	a number of warnings about "unknown metadata record 4" will be produced
+	for an older kldxref. To avoid such warnings, make sure to rebuild
+	the kernel toolchain (or world). Make sure that you have r292078 or
+	later when trying to build 292077 or later before rebuilding.
+
+20151207:
+	Debug data files are now built by default with 'make buildworld' and
+	installed with 'make installworld'. This facilitates debugging but
+	requires more disk space both during the build and for the installed
+	world. Debug files may be disabled by setting WITHOUT_DEBUG_FILES=yes
+	in src.conf(5).
+
+20151130:
+	r291527 changed the internal interface between the nfsd.ko and
+	nfscommon.ko modules. As such, they must both be upgraded to-gether.
+	__FreeBSD_version has been bumped because of this.
+
+20151108:
+	Add support for unicode collation strings leads to a change of
+	order of files listed by ls(1) for example. To get back to the old
+	behaviour, set LC_COLLATE environment variable to "C".
+
+	Databases administrators will need to reindex their databases given
+	collation results will be different.
+
+	Due to a bug in install(1) it is recommended to remove the ancient
+	locales before running make installworld.
+
+	rm -rf /usr/share/locale/*
+
+20151030:
+	The OpenSSL has been upgraded to 1.0.2d.  Any binaries requiring
+	libcrypto.so.7 or libssl.so.7 must be recompiled.
+
+20151020:
+	Qlogic 24xx/25xx firmware images were updated from 5.5.0 to 7.3.0.
+	Kernel modules isp_2400_multi and isp_2500_multi were removed and
+	should be replaced with isp_2400 and isp_2500 modules respectively.
+
+20151017:
+	The build previously allowed using 'make -n' to not recurse into
+	sub-directories while showing what commands would be executed, and
+	'make -n -n' to recursively show commands.  Now 'make -n' will recurse
+	and 'make -N' will not.
+
+20151012:
+	If you specify SENDMAIL_MC or SENDMAIL_CF in make.conf, mergemaster
+	and etcupdate will now use this file. A custom sendmail.cf is now
+	updated via this mechanism rather than via installworld.  If you had
+	excluded sendmail.cf in mergemaster.rc or etcupdate.conf, you may
+	want to remove the exclusion or change it to "always install".
+	/etc/mail/sendmail.cf is now managed the same way regardless of
+	whether SENDMAIL_MC/SENDMAIL_CF is used.  If you are not using
+	SENDMAIL_MC/SENDMAIL_CF there should be no change in behavior.
+
+20151011:
+	Compatibility shims for legacy ATA device names have been removed.
+	It includes ATA_STATIC_ID kernel option, kern.cam.ada.legacy_aliases
+	and kern.geom.raid.legacy_aliases loader tunables, kern.devalias.*
+	environment variables, /dev/ad* and /dev/ar* symbolic links.
+
+20151006:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 3.7.0.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20150924:
+	Kernel debug files have been moved to /usr/lib/debug/boot/kernel/,
+	and renamed from .symbols to .debug. This reduces the size requirements
+	on the boot partition or file system and provides consistency with
+	userland debug files.
+
+	When using the supported kernel installation method the
+	/usr/lib/debug/boot/kernel directory will be renamed (to kernel.old)
+	as is done with /boot/kernel.
+
+	Developers wishing to maintain the historical behavior of installing
+	debug files in /boot/kernel/ can set KERN_DEBUGDIR="" in src.conf(5).
+
+20150827:
+	The wireless drivers had undergone changes that remove the 'parent
+	interface' from the ifconfig -l output. The rc.d network scripts
+	used to check presence of a parent interface in the list, so old
+	scripts would fail to start wireless networking. Thus, etcupdate(3)
+	or mergemaster(8) run is required after kernel update, to update your
+	rc.d scripts in /etc.
+
+20150827:
+	pf no longer supports 'scrub fragment crop' or 'scrub fragment drop-ovl'
+	These configurations are now automatically interpreted as
+	'scrub fragment reassemble'.
+
+20150817:
+	Kernel-loadable modules for the random(4) device are back. To use
+	them, the kernel must have
+
+	device	random
+	options	RANDOM_LOADABLE
+
+	kldload(8) can then be used to load random_fortuna.ko
+	or random_yarrow.ko. Please note that due to the indirect
+	function calls that the loadable modules need to provide,
+	the build-in variants will be slightly more efficient.
+
+	The random(4) kernel option RANDOM_DUMMY has been retired due to
+	unpopularity. It was not all that useful anyway.
+
+20150813:
+	The WITHOUT_ELFTOOLCHAIN_TOOLS src.conf(5) knob has been retired.
+	Control over building the ELF Tool Chain tools is now provided by
+	the WITHOUT_TOOLCHAIN knob.
+
+20150810:
+	The polarity of Pulse Per Second (PPS) capture events with the
+	uart(4) driver has been corrected.  Prior to this change the PPS
+	"assert" event corresponded to the trailing edge of a positive PPS
+	pulse and the "clear" event was the leading edge of the next pulse.
+
+	As the width of a PPS pulse in a typical GPS receiver is on the
+	order of 1 millisecond, most users will not notice any significant
+	difference with this change.
+
+	Anyone who has compensated for the historical polarity reversal by
+	configuring a negative offset equal to the pulse width will need to
+	remove that workaround.
+
+20150809:
+	The default group assigned to /dev/dri entries has been changed
+	from 'wheel' to 'video' with the id of '44'. If you want to have
+	access to the dri devices please add yourself to the video group
+	with:
+
+	# pw groupmod video -m $USER
+
+20150806:
+	The menu.rc and loader.rc files will now be replaced during
+	upgrades. Please migrate local changes to menu.rc.local and
+	loader.rc.local instead.
+
+20150805:
+	GNU Binutils versions of addr2line, c++filt, nm, readelf, size,
+	strings and strip have been removed. The src.conf(5) knob
+	WITHOUT_ELFTOOLCHAIN_TOOLS no longer provides the binutils tools.
+
+20150728:
+	As ZFS requires more kernel stack pages than is the default on some
+	architectures e.g. i386, it now warns if KSTACK_PAGES is less than
+	ZFS_MIN_KSTACK_PAGES (which is 4 at the time of writing).
+
+	Please consider using 'options KSTACK_PAGES=X' where X is greater
+	than or equal to ZFS_MIN_KSTACK_PAGES i.e. 4 in such configurations.
+
+20150706:
+	sendmail has been updated to 8.15.2.  Starting with FreeBSD 11.0
+	and sendmail 8.15, sendmail uses uncompressed IPv6 addresses by
+	default, i.e., they will not contain "::".  For example, instead
+	of ::1, it will be 0:0:0:0:0:0:0:1.  This permits a zero subnet
+	to have a more specific match, such as different map entries for
+	IPv6:0:0 vs IPv6:0.  This change requires that configuration
+	data (including maps, files, classes, custom ruleset, etc.) must
+	use the same format, so make certain such configuration data is
+	upgrading.  As a very simple check search for patterns like
+	'IPv6:[0-9a-fA-F:]*::' and 'IPv6::'.  To return to the old
+	behavior, set the m4 option confUSE_COMPRESSED_IPV6_ADDRESSES or
+	the cf option UseCompressedIPv6Addresses.
+
+20150630:
+	The default kernel entropy-processing algorithm is now
+	Fortuna, replacing Yarrow.
+
+	Assuming you have 'device random' in your kernel config
+	file, the configurations allow a kernel option to override
+	this default. You may choose *ONE* of:
+
+	options	RANDOM_YARROW	# Legacy /dev/random algorithm.
+	options	RANDOM_DUMMY	# Blocking-only driver.
+
+	If you have neither, you get Fortuna.  For most people,
+	read no further, Fortuna will give a /dev/random that works
+	like it always used to, and the difference will be irrelevant.
+
+	If you remove 'device random', you get *NO* kernel-processed
+	entropy at all. This may be acceptable to folks building
+	embedded systems, but has complications. Carry on reading,
+	and it is assumed you know what you need.
+
+	*PLEASE* read random(4) and random(9) if you are in the
+	habit of tweaking kernel configs, and/or if you are a member
+	of the embedded community, wanting specific and not-usual
+	behaviour from your security subsystems.
+
+	NOTE!! If you use RANDOM_DUMMY and/or have no 'device
+	random', you will NOT have a functioning /dev/random, and
+	many cryptographic features will not work, including SSH.
+	You may also find strange behaviour from the random(3) set
+	of library functions, in particular sranddev(3), srandomdev(3)
+	and arc4random(3). The reason for this is that the KERN_ARND
+	sysctl only returns entropy if it thinks it has some to
+	share, and with RANDOM_DUMMY or no 'device random' this
+	will never happen.
+
+20150623:
+	An additional fix for the issue described in the 20150614 sendmail
+	entry below has been committed in revision 284717.
+
+20150616:
+	FreeBSD's old make (fmake) has been removed from the system. It is
+	available as the devel/fmake port or via pkg install fmake.
+
+20150615:
+	The fix for the issue described in the 20150614 sendmail entry
+	below has been committed in revision 284436.  The work
+	around described in that entry is no longer needed unless the
+	default setting is overridden by a confDH_PARAMETERS configuration
+	setting of '5' or pointing to a 512 bit DH parameter file.
+
+20150614:
+	ALLOW_DEPRECATED_ATF_TOOLS/ATFFILE support has been removed from
+	atf.test.mk (included from bsd.test.mk). Please upgrade devel/atf
+	and devel/kyua to version 0.20+ and adjust any calling code to work
+	with Kyuafile and kyua.
+
+20150614:
+	The import of openssl to address the FreeBSD-SA-15:10.openssl
+	security advisory includes a change which rejects handshakes
+	with DH parameters below 768 bits.  sendmail releases prior
+	to 8.15.2 (not yet released), defaulted to a 512 bit
+	DH parameter setting for client connections.  To work around
+	this interoperability, sendmail can be configured to use a
+	2048 bit DH parameter by:
+
+	1. Edit /etc/mail/`hostname`.mc
+	2. If a setting for confDH_PARAMETERS does not exist or
+	   exists and is set to a string beginning with '5',
+	   replace it with '2'.
+	3. If a setting for confDH_PARAMETERS exists and is set to
+	   a file path, create a new file with:
+		openssl dhparam -out /path/to/file 2048
+	4. Rebuild the .cf file:
+		cd /etc/mail/; make; make install
+	5. Restart sendmail:
+		cd /etc/mail/; make restart
+
+	A sendmail patch is coming, at which time this file will be
+	updated.
+
+20150604:
+	Generation of legacy formatted entries have been disabled by default
+	in pwd_mkdb(8), as all base system consumers of the legacy formatted
+	entries were converted to use the new format by default when the new,
+	machine independent format have been added and supported since FreeBSD
+	5.x.
+
+	Please see the pwd_mkdb(8) manual page for further details.
+
+20150525:
+	Clang and llvm have been upgraded to 3.6.1 release.  Please see the
+	20141231 entry below for information about prerequisites and upgrading,
+	if you are not already using 3.5.0 or higher.
+
+20150521:
+	TI platform code switched to using vendor DTS files and this update
+	may break existing systems running on Beaglebone, Beaglebone Black,
+	and Pandaboard:
+
+	- dtb files should be regenerated/reinstalled. Filenames are the
+	  same but content is different now
+	- GPIO addressing was changed, now each GPIO bank (32 pins per bank)
+	  has its own /dev/gpiocX device, e.g. pin 121 on /dev/gpioc0 in old
+	  addressing scheme is now pin 25 on /dev/gpioc3.
+	- Pandaboard: /etc/ttys should be updated, serial console device is
+	  now /dev/ttyu2, not /dev/ttyu0
+
+20150501:
+	soelim(1) from gnu/usr.bin/groff has been replaced by usr.bin/soelim.
+	If you need the GNU extension from groff soelim(1), install groff
+	from package: pkg install groff, or via ports: textproc/groff.
+
+20150423:
+	chmod, chflags, chown and chgrp now affect symlinks in -R mode as
+	defined in symlink(7); previously symlinks were silently ignored.
+
+20150415:
+	The const qualifier has been removed from iconv(3) to comply with
+	POSIX.  The ports tree is aware of this from r384038 onwards.
+
+20150416:
+	Libraries specified by LIBADD in Makefiles must have a corresponding
+	DPADD_<lib> variable to ensure correct dependencies.  This is now
+	enforced in src.libnames.mk.
+
+20150324:
+	From legacy ata(4) driver was removed support for SATA controllers
+	supported by more functional drivers ahci(4), siis(4) and mvs(4).
+	Kernel modules ataahci and ataadaptec were removed completely,
+	replaced by ahci and mvs modules respectively.
+
+20150315:
+	Clang, llvm and lldb have been upgraded to 3.6.0 release.  Please see
+	the 20141231 entry below for information about prerequisites and
+	upgrading, if you are not already using 3.5.0 or higher.
+
+20150307:
+	The 32-bit PowerPC kernel has been changed to a position-independent
+	executable. This can only be booted with a version of loader(8)
+	newer than January 31, 2015, so make sure to update both world and
+	kernel before rebooting.
+
+20150217:
+	If you are running a -CURRENT kernel since r273872 (Oct 30th, 2014),
+	but before r278950, the RNG was not seeded properly.  Immediately
+	upgrade the kernel to r278950 or later and regenerate any keys (e.g.
+	ssh keys or openssl keys) that were generated w/ a kernel from that
+	range.  This does not affect programs that directly used /dev/random
+	or /dev/urandom.  All userland uses of arc4random(3) are affected.
+
+20150210:
+	The autofs(4) ABI was changed in order to restore binary compatibility
+	with 10.1-RELEASE.  The automountd(8) daemon needs to be rebuilt to work
+	with the new kernel.
+
+20150131:
+	The powerpc64 kernel has been changed to a position-independent
+	executable. This can only be booted with a new version of loader(8),
+	so make sure to update both world and kernel before rebooting.
+
+20150118:
+	Clang and llvm have been upgraded to 3.5.1 release.  This is a bugfix
+	only release, no new features have been added.  Please see the 20141231
+	entry below for information about prerequisites and upgrading, if you
+	are not already using 3.5.0.
+
+20150107:
+	ELF tools addr2line, elfcopy (strip), nm, size, and strings are now
+	taken from the ELF Tool Chain project rather than GNU binutils. They
+	should be drop-in replacements, with the addition of arm64 support.
+	The WITHOUT_ELFTOOLCHAIN_TOOLS= knob may be used to obtain the
+	binutils tools, if necessary. See 20150805 for updated information.
+
+20150105:
+	The default Unbound configuration now enables remote control
+	using a local socket.  Users who have already enabled the
+	local_unbound service should regenerate their configuration
+	by running "service local_unbound setup" as root.
+
+20150102:
+	The GNU texinfo and GNU info pages have been removed.
+	To be able to view GNU info pages please install texinfo from ports.
+
+20141231:
+	Clang, llvm and lldb have been upgraded to 3.5.0 release.
+
+	As of this release, a prerequisite for building clang, llvm and lldb is
+	a C++11 capable compiler and C++11 standard library.  This means that to
+	be able to successfully build the cross-tools stage of buildworld, with
+	clang as the bootstrap compiler, your system compiler or cross compiler
+	should either be clang 3.3 or later, or gcc 4.8 or later, and your
+	system C++ library should be libc++, or libdstdc++ from gcc 4.8 or
+	later.
+
+	On any standard FreeBSD 10.x or 11.x installation, where clang and
+	libc++ are on by default (that is, on x86 or arm), this should work out
+	of the box.
+
+	On 9.x installations where clang is enabled by default, e.g. on x86 and
+	powerpc, libc++ will not be enabled by default, so libc++ should be
+	built (with clang) and installed first.  If both clang and libc++ are
+	missing, build clang first, then use it to build libc++.
+
+	On 8.x and earlier installations, upgrade to 9.x first, and then follow
+	the instructions for 9.x above.
+
+	Sparc64 and mips users are unaffected, as they still use gcc 4.2.1 by
+	default, and do not build clang.
+
+	Many embedded systems are resource constrained, and will not be able to
+	build clang in a reasonable time, or in some cases at all.  In those
+	cases, cross building bootable systems on amd64 is a workaround.
+
+	This new version of clang introduces a number of new warnings, of which
+	the following are most likely to appear:
+
+	-Wabsolute-value
+
+	This warns in two cases, for both C and C++:
+	* When the code is trying to take the absolute value of an unsigned
+	  quantity, which is effectively a no-op, and almost never what was
+	  intended.  The code should be fixed, if at all possible.  If you are
+	  sure that the unsigned quantity can be safely cast to signed, without
+	  loss of information or undefined behavior, you can add an explicit
+	  cast, or disable the warning.
+
+	* When the code is trying to take an absolute value, but the called
+	  abs() variant is for the wrong type, which can lead to truncation.
+	  If you want to disable the warning instead of fixing the code, please
+	  make sure that truncation will not occur, or it might lead to unwanted
+	  side-effects.
+
+	-Wtautological-undefined-compare and
+	-Wundefined-bool-conversion
+
+	These warn when C++ code is trying to compare 'this' against NULL, while
+	'this' should never be NULL in well-defined C++ code.  However, there is
+	some legacy (pre C++11) code out there, which actively abuses this
+	feature, which was less strictly defined in previous C++ versions.
+
+	Squid and openjdk do this, for example.  The warning can be turned off
+	for C++98 and earlier, but compiling the code in C++11 mode might result
+	in unexpected behavior; for example, the parts of the program that are
+	unreachable could be optimized away.
+
+20141222:
+	The old NFS client and server (kernel options NFSCLIENT, NFSSERVER)
+	kernel sources have been removed. The .h files remain, since some
+	utilities include them. This will need to be fixed later.
+	If "mount -t oldnfs ..." is attempted, it will fail.
+	If the "-o" option on mountd(8), nfsd(8) or nfsstat(1) is used,
+	the utilities will report errors.
+
+20141121:
+	The handling of LOCAL_LIB_DIRS has been altered to skip addition of
+	directories to top level SUBDIR variable when their parent
+	directory is included in LOCAL_DIRS.  Users with build systems with
+	such hierarchies and without SUBDIR entries in the parent
+	directory Makefiles should add them or add the directories to
+	LOCAL_DIRS.
+
+20141109:
+	faith(4) and faithd(8) have been removed from the base system. Faith
+	has been obsolete for a very long time.
+
+20141104:
+	vt(4), the new console driver, is enabled by default. It brings
+	support for Unicode and double-width characters, as well as
+	support for UEFI and integration with the KMS kernel video
+	drivers.
+
+	You may need to update your console settings in /etc/rc.conf,
+	most probably the keymap. During boot, /etc/rc.d/syscons will
+	indicate what you need to do.
+
+	vt(4) still has issues and lacks some features compared to
+	syscons(4). See the wiki for up-to-date information:
+	  https://wiki.freebsd.org/Newcons
+
+	If you want to keep using syscons(4), you can do so by adding
+	the following line to /boot/loader.conf:
+	  kern.vty=sc
+
+20141102:
+	pjdfstest has been integrated into kyua as an opt-in test suite.
+	Please see share/doc/pjdfstest/README for more details on how to
+	execute it.
+
+20141009:
+	gperf has been removed from the base system for architectures
+	that use clang. Ports that require gperf will obtain it from the
+	devel/gperf port.
+
+20140923:
+	pjdfstest has been moved from tools/regression/pjdfstest to
+	contrib/pjdfstest .
+
+20140922:
+	At svn r271982, The default linux compat kernel ABI has been adjusted
+	to 2.6.18 in support of the linux-c6 compat ports infrastructure
+	update.  If you wish to continue using the linux-f10 compat ports,
+	add compat.linux.osrelease=2.6.16 to your local sysctl.conf.  Users are
+	encouraged to update their linux-compat packages to linux-c6 during
+	their next update cycle.
+
+20140729:
+	The ofwfb driver, used to provide a graphics console on PowerPC when
+	using vt(4), no longer allows mmap() of all physical memory. This
+	will prevent Xorg on PowerPC with some ATI graphics cards from
+	initializing properly unless x11-servers/xorg-server is updated to
+	1.12.4_8 or newer.
+
+20140723:
+	The xdev targets have been converted to using TARGET and
+	TARGET_ARCH instead of XDEV and XDEV_ARCH.
+
+20140719:
+	The default unbound configuration has been modified to address
+	issues with reverse lookups on networks that use private
+	address ranges.  If you use the local_unbound service, run
+	"service local_unbound setup" as root to regenerate your
+	configuration, then "service local_unbound reload" to load the
+	new configuration.
+
+20140709:
+	The GNU texinfo and GNU info pages are not built and installed
+	anymore, WITH_INFO knob has been added to allow to built and install
+	them again.
+	UPDATE: see 20150102 entry on texinfo's removal
+
+20140708:
+	The GNU readline library is now an INTERNALLIB - that is, it is
+	statically linked into consumers (GDB and variants) in the base
+	system, and the shared library is no longer installed.  The
+	devel/readline port is available for third party software that
+	requires readline.
+
+20140702:
+	The Itanium architecture (ia64) has been removed from the list of
+	known architectures. This is the first step in the removal of the
+	architecture.
+
+20140701:
+	Commit r268115 has added NFSv4.1 server support, merged from
+	projects/nfsv4.1-server.  Since this includes changes to the
+	internal interfaces between the NFS related modules, a full
+	build of the kernel and modules will be necessary.
+	__FreeBSD_version has been bumped.
+
+20140629:
+	The WITHOUT_VT_SUPPORT kernel config knob has been renamed
+	WITHOUT_VT.  (The other _SUPPORT knobs have a consistent meaning
+	which differs from the behaviour controlled by this knob.)
+
+20140619:
+	Maximal length of the serial number in CTL was increased from 16 to
+	64 chars, that breaks ABI.  All CTL-related tools, such as ctladm
+	and ctld, need to be rebuilt to work with a new kernel.
+
+20140606:
+	The libatf-c and libatf-c++ major versions were downgraded to 0 and
+	1 respectively to match the upstream numbers.  They were out of
+	sync because, when they were originally added to FreeBSD, the
+	upstream versions were not respected.  These libraries are private
+	and not yet built by default, so renumbering them should be a
+	non-issue.  However, unclean source trees will yield broken test
+	programs once the operator executes "make delete-old-libs" after a
+	"make installworld".
+
+	Additionally, the atf-sh binary was made private by moving it into
+	/usr/libexec/.  Already-built shell test programs will keep the
+	path to the old binary so they will break after "make delete-old"
+	is run.
+
+	If you are using WITH_TESTS=yes (not the default), wipe the object
+	tree and rebuild from scratch to prevent spurious test failures.
+	This is only needed once: the misnumbered libraries and misplaced
+	binaries have been added to OptionalObsoleteFiles.inc so they will
+	be removed during a clean upgrade.
+
+20140512:
+	Clang and llvm have been upgraded to 3.4.1 release.
+
+20140508:
+	We bogusly installed src.opts.mk in /usr/share/mk. This file should
+	be removed to avoid issues in the future (and has been added to
+	ObsoleteFiles.inc).
+
+20140505:
+	/etc/src.conf now affects only builds of the FreeBSD src tree. In the
+	past, it affected all builds that used the bsd.*.mk files. The old
+	behavior was a bug, but people may have relied upon it. To get this
+	behavior back, you can .include /etc/src.conf from /etc/make.conf
+	(which is still global and isn't changed). This also changes the
+	behavior of incremental builds inside the tree of individual
+	directories. Set MAKESYSPATH to ".../share/mk" to do that.
+	Although this has survived make universe and some upgrade scenarios,
+	other upgrade scenarios may have broken. At least one form of
+	temporary breakage was fixed with MAKESYSPATH settings for buildworld
+	as well... In cases where MAKESYSPATH isn't working with this
+	setting, you'll need to set it to the full path to your tree.
+
+	One side effect of all this cleaning up is that bsd.compiler.mk
+	is no longer implicitly included by bsd.own.mk. If you wish to
+	use COMPILER_TYPE, you must now explicitly include bsd.compiler.mk
+	as well.
+
+20140430:
+	The lindev device has been removed since /dev/full has been made a
+	standard device.  __FreeBSD_version has been bumped.
+
+20140424:
+	The knob WITHOUT_VI was added to the base system, which controls
+	building ex(1), vi(1), etc. Older releases of FreeBSD required ex(1)
+	in order to reorder files share/termcap and didn't build ex(1) as a
+	build tool, so building/installing with WITH_VI is highly advised for
+	build hosts for older releases.
+
+	This issue has been fixed in stable/9 and stable/10 in r277022 and
+	r276991, respectively.
+
+20140418:
+	The YES_HESIOD knob has been removed. It has been obsolete for
+	a decade. Please move to using WITH_HESIOD instead or your builds
+	will silently lack HESIOD.
+
+20140405:
+	The uart(4) driver has been changed with respect to its handling
+	of the low-level console. Previously the uart(4) driver prevented
+	any process from changing the baudrate or the CLOCAL and HUPCL
+	control flags. By removing the restrictions, operators can make
+	changes to the serial console port without having to reboot.
+	However, when getty(8) is started on the serial device that is
+	associated with the low-level console, a misconfigured terminal
+	line in /etc/ttys will now have a real impact.
+	Before upgrading the kernel, make sure that /etc/ttys has the
+	serial console device configured as 3wire without baudrate to
+	preserve the previous behaviour. E.g:
+	    ttyu0  "/usr/libexec/getty 3wire"  vt100  on  secure
+
+20140306:
+	Support for libwrap (TCP wrappers) in rpcbind was disabled by default
+	to improve performance.  To re-enable it, if needed, run rpcbind
+	with command line option -W.
+
+20140226:
+	Switched back to the GPL dtc compiler due to updates in the upstream
+	dts files not being supported by the BSDL dtc compiler. You will need
+	to rebuild your kernel toolchain to pick up the new compiler. Core dumps
+	may result while building dtb files during a kernel build if you fail
+	to do so. Set WITHOUT_GPL_DTC if you require the BSDL compiler.
+
+20140216:
+	Clang and llvm have been upgraded to 3.4 release.
+
+20140216:
+	The nve(4) driver has been removed.  Please use the nfe(4) driver
+	for NVIDIA nForce MCP Ethernet adapters instead.
+
+20140212:
+	An ABI incompatibility crept into the libc++ 3.4 import in r261283.
+	This could cause certain C++ applications using shared libraries built
+	against the previous version of libc++ to crash.  The incompatibility
+	has now been fixed, but any C++ applications or shared libraries built
+	between r261283 and r261801 should be recompiled.
+
+20140204:
+	OpenSSH will now ignore errors caused by kernel lacking of Capsicum
+	capability mode support.  Please note that enabling the feature in
+	kernel is still highly recommended.
+
+20140131:
+	OpenSSH is now built with sandbox support, and will use sandbox as
+	the default privilege separation method.  This requires Capsicum
+	capability mode support in kernel.
+
+20140128:
+	The libelf and libdwarf libraries have been updated to newer
+	versions from upstream. Shared library version numbers for
+	these two libraries were bumped. Any ports or binaries
+	requiring these two libraries should be recompiled.
+	__FreeBSD_version is bumped to 1100006.
+
+20140110:
+	If a Makefile in a tests/ directory was auto-generating a Kyuafile
+	instead of providing an explicit one, this would prevent such
+	Makefile from providing its own Kyuafile in the future during
+	NO_CLEAN builds.  This has been fixed in the Makefiles but manual
+	intervention is needed to clean an objdir if you use NO_CLEAN:
+	  # find /usr/obj -name Kyuafile | xargs rm -f
+
+20131213:
+	The behavior of gss_pseudo_random() for the krb5 mechanism
+	has changed, for applications requesting a longer random string
+	than produced by the underlying enctype's pseudo-random() function.
+	In particular, the random string produced from a session key of
+	enctype aes256-cts-hmac-sha1-96 or aes256-cts-hmac-sha1-96 will
+	be different at the 17th octet and later, after this change.
+	The counter used in the PRF+ construction is now encoded as a
+	big-endian integer in accordance with RFC 4402.
+	__FreeBSD_version is bumped to 1100004.
+
+20131108:
+	The WITHOUT_ATF build knob has been removed and its functionality
+	has been subsumed into the more generic WITHOUT_TESTS.  If you were
+	using the former to disable the build of the ATF libraries, you
+	should change your settings to use the latter.
+
+20131025:
+	The default version of mtree is nmtree which is obtained from
+	NetBSD.  The output is generally the same, but may vary
+	slightly.  If you found you need identical output adding
+	"-F freebsd9" to the command line should do the trick.  For the
+	time being, the old mtree is available as fmtree.
+
+20131014:
+	libbsdyml has been renamed to libyaml and moved to /usr/lib/private.
+	This will break ports-mgmt/pkg. Rebuild the port, or upgrade to pkg
+	1.1.4_8 and verify bsdyml not linked in, before running "make
+	delete-old-libs":
+	  # make -C /usr/ports/ports-mgmt/pkg build deinstall install clean
+	  or
+	  # pkg install pkg; ldd /usr/local/sbin/pkg | grep bsdyml
+
+20131010:
+	The stable/10 branch has been created in subversion from head
+	revision r256279.
+
+COMMON ITEMS:
+
+	General Notes
+	-------------
+	Avoid using make -j when upgrading.  While generally safe, there are
+	sometimes problems using -j to upgrade.  If your upgrade fails with
+	-j, please try again without -j.  From time to time in the past there
+	have been problems using -j with buildworld and/or installworld.  This
+	is especially true when upgrading between "distant" versions (eg one
+	that cross a major release boundary or several minor releases, or when
+	several months have passed on the -current branch).
+
+	Sometimes, obscure build problems are the result of environment
+	poisoning.  This can happen because the make utility reads its
+	environment when searching for values for global variables.  To run
+	your build attempts in an "environmental clean room", prefix all make
+	commands with 'env -i '.  See the env(1) manual page for more details.
+
+	When upgrading from one major version to another it is generally best to
+	upgrade to the latest code in the currently installed branch first, then
+	do an upgrade to the new branch. This is the best-tested upgrade path,
+	and has the highest probability of being successful.  Please try this
+	approach if you encounter problems with a major version upgrade.  Since
+	the stable 4.x branch point, one has generally been able to upgrade from
+	anywhere in the most recent stable branch to head / current (or even the
+	last couple of stable branches). See the top of this file when there's
+	an exception.
+
+	When upgrading a live system, having a root shell around before
+	installing anything can help undo problems. Not having a root shell
+	around can lead to problems if pam has changed too much from your
+	starting point to allow continued authentication after the upgrade.
+
+	This file should be read as a log of events. When a later event changes
+	information of a prior event, the prior event should not be deleted.
+	Instead, a pointer to the entry with the new information should be
+	placed in the old entry. Readers of this file should also sanity check
+	older entries before relying on them blindly. Authors of new entries
+	should write them with this in mind.
+
+	ZFS notes
+	---------
+	When upgrading the boot ZFS pool to a new version, always follow
+	these two steps:
+
+	1.) recompile and reinstall the ZFS boot loader and boot block
+	(this is part of "make buildworld" and "make installworld")
+
+	2.) update the ZFS boot block on your boot drive
+
+	The following example updates the ZFS boot block on the first
+	partition (freebsd-boot) of a GPT partitioned drive ada0:
+	"gpart bootcode -p /boot/gptzfsboot -i 1 ada0"
+
+	Non-boot pools do not need these updates.
+
+	To build a kernel
+	-----------------
+	If you are updating from a prior version of FreeBSD (even one just
+	a few days old), you should follow this procedure.  It is the most
+	failsafe as it uses a /usr/obj tree with a fresh mini-buildworld,
+
+	make kernel-toolchain
+	make -DALWAYS_CHECK_MAKE buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make -DALWAYS_CHECK_MAKE installkernel KERNCONF=YOUR_KERNEL_HERE
+
+	To test a kernel once
+	---------------------
+	If you just want to boot a kernel once (because you are not sure
+	if it works, or if you want to boot a known bad kernel to provide
+	debugging information) run
+	make installkernel KERNCONF=YOUR_KERNEL_HERE KODIR=/boot/testkernel
+	nextboot -k testkernel
+
+	To rebuild everything and install it on the current system.
+	-----------------------------------------------------------
+	# Note: sometimes if you are running current you gotta do more than
+	# is listed here if you are upgrading from a really old current.
+
+	<make sure you have good level 0 dumps>
+	make buildworld
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
+							[1]
+	<reboot in single user>				[3]
+	mergemaster -Fp					[5]
+	make installworld
+	mergemaster -Fi					[4]
+	make delete-old					[6]
+	<reboot>
+
+	To cross-install current onto a separate partition
+	--------------------------------------------------
+	# In this approach we use a separate partition to hold
+	# current's root, 'usr', and 'var' directories.   A partition
+	# holding "/", "/usr" and "/var" should be about 2GB in
+	# size.
+
+	<make sure you have good level 0 dumps>
+	<boot into -stable>
+	make buildworld
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	<maybe newfs current's root partition>
+	<mount current's root partition on directory ${CURRENT_ROOT}>
+	make installworld DESTDIR=${CURRENT_ROOT} -DDB_FROM_SRC
+	make distribution DESTDIR=${CURRENT_ROOT} # if newfs'd
+	make installkernel KERNCONF=YOUR_KERNEL_HERE DESTDIR=${CURRENT_ROOT}
+	cp /etc/fstab ${CURRENT_ROOT}/etc/fstab 		   # if newfs'd
+	<edit ${CURRENT_ROOT}/etc/fstab to mount "/" from the correct partition>
+	<reboot into current>
+	<do a "native" rebuild/install as described in the previous section>
+	<maybe install compatibility libraries from ports/misc/compat*>
+	<reboot>
+
+
+	To upgrade in-place from stable to current
+	----------------------------------------------
+	<make sure you have good level 0 dumps>
+	make buildworld					[9]
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[8]
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
+							[1]
+	<reboot in single user>				[3]
+	mergemaster -Fp					[5]
+	make installworld
+	mergemaster -Fi					[4]
+	make delete-old					[6]
+	<reboot>
+
+	Make sure that you've read the UPDATING file to understand the
+	tweaks to various things you need.  At this point in the life
+	cycle of current, things change often and you are on your own
+	to cope.  The defaults can also change, so please read ALL of
+	the UPDATING entries.
+
+	Also, if you are tracking -current, you must be subscribed to
+	freebsd-current@freebsd.org.  Make sure that before you update
+	your sources that you have read and understood all the recent
+	messages there.  If in doubt, please track -stable which has
+	much fewer pitfalls.
+
+	[1] If you have third party modules, such as vmware, you
+	should disable them at this point so they don't crash your
+	system on reboot.
+
+	[3] From the bootblocks, boot -s, and then do
+		fsck -p
+		mount -u /
+		mount -a
+		sh /etc/rc.d/zfs start	# mount zfs filesystem, if needed
+		cd src			# full path to source
+		adjkerntz -i		# if CMOS is wall time
+	Also, when doing a major release upgrade, it is required that
+	you boot into single user mode to do the installworld.
+
+	[4] Note: This step is non-optional.  Failure to do this step
+	can result in a significant reduction in the functionality of the
+	system.  Attempting to do it by hand is not recommended and those
+	that pursue this avenue should read this file carefully, as well
+	as the archives of freebsd-current and freebsd-hackers mailing lists
+	for potential gotchas.  The -U option is also useful to consider.
+	See mergemaster(8) for more information.
+
+	[5] Usually this step is a no-op.  However, from time to time
+	you may need to do this if you get unknown user in the following
+	step.  It never hurts to do it all the time.  You may need to
+	install a new mergemaster (cd src/usr.sbin/mergemaster && make
+	install) after the buildworld before this step if you last updated
+	from current before 20130425 or from -stable before 20130430.
+
+	[6] This only deletes old files and directories. Old libraries
+	can be deleted by "make delete-old-libs", but you have to make
+	sure that no program is using those libraries anymore.
+
+	[8] The new kernel must be able to run existing binaries used by an
+	installworld.  When upgrading across major versions, the new kernel's
+	configuration must include the correct COMPAT_FREEBSD<n> option for
+	existing binaries (e.g. COMPAT_FREEBSD11 to run 11.x binaries).  Failure
+	to do so may leave you with a system that is hard to boot to recover. A
+	GENERIC kernel will include suitable compatibility options to run
+	binaries from older branches.  Note that the ability to run binaries
+	from unsupported branches is not guaranteed.
+
+	Make sure that you merge any new devices from GENERIC since the
+	last time you updated your kernel config file. Options also
+	change over time, so you may need to adjust your custom kernels
+	for these as well.
+
+	[9] If CPUTYPE is defined in your /etc/make.conf, make sure to use the
+	"?=" instead of the "=" assignment operator, so that buildworld can
+	override the CPUTYPE if it needs to.
+
+	MAKEOBJDIRPREFIX must be defined in an environment variable, and
+	not on the command line, or in /etc/make.conf.  buildworld will
+	warn if it is improperly defined.
+FORMAT:
+
+This file contains a list, in reverse chronological order, of major
+breakages in tracking -current.  It is not guaranteed to be a complete
+list of such breakages, and only contains entries since September 23, 2011.
+If you need to see UPDATING entries from before that date, you will need
+to fetch an UPDATING file from an older FreeBSD release.
+
+Copyright information:
+
+Copyright 1998-2009 M. Warner Losh.
+
+Redistribution, publication, translation and use, with or without
+modification, in full or in part, in any form or format of this
+document are permitted without further permission from the author.
+
+THIS DOCUMENT IS PROVIDED BY WARNER LOSH ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED.  IN NO EVENT SHALL WARNER LOSH BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+Contact Warner Losh if you have any questions about your use of
+this document.
+
+$FreeBSD$

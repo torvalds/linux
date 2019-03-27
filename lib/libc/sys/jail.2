@@ -1,0 +1,411 @@
+.\" Copyright (c) 1999 Poul-Henning Kamp.
+.\" Copyright (c) 2009 James Gritton.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 2012
+.Dt JAIL 2
+.Os
+.Sh NAME
+.Nm jail ,
+.Nm jail_get ,
+.Nm jail_set ,
+.Nm jail_remove ,
+.Nm jail_attach
+.Nd create and manage system jails
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/jail.h
+.Ft int
+.Fn jail "struct jail *jail"
+.Ft int
+.Fn jail_attach "int jid"
+.Ft int
+.Fn jail_remove "int jid"
+.In sys/uio.h
+.Ft int
+.Fn jail_get "struct iovec *iov" "u_int niov" "int flags"
+.Ft int
+.Fn jail_set "struct iovec *iov" "u_int niov" "int flags"
+.Sh DESCRIPTION
+The
+.Fn jail
+system call sets up a jail and locks the current process in it.
+.Pp
+The argument is a pointer to a structure describing the prison:
+.Bd -literal -offset indent
+struct jail {
+	uint32_t	version;
+	char		*path;
+	char		*hostname;
+	char		*jailname;
+	unsigned int	ip4s;
+	unsigned int	ip6s;
+	struct in_addr	*ip4;
+	struct in6_addr	*ip6;
+};
+.Ed
+.Pp
+.Dq Li version
+defines the version of the API in use.
+.Dv JAIL_API_VERSION
+is defined for the current version.
+.Pp
+The
+.Dq Li path
+pointer should be set to the directory which is to be the root of the
+prison.
+.Pp
+The
+.Dq Li hostname
+pointer can be set to the hostname of the prison.
+This can be changed
+from the inside of the prison.
+.Pp
+The
+.Dq Li jailname
+pointer is an optional name that can be assigned to the jail
+for example for management purposes.
+.Pp
+The
+.Dq Li ip4s
+and
+.Dq Li ip6s
+give the numbers of IPv4 and IPv6 addresses that will be passed
+via their respective pointers.
+.Pp
+The
+.Dq Li ip4
+and
+.Dq Li ip6
+pointers can be set to an arrays of IPv4 and IPv6 addresses to be assigned to
+the prison, or NULL if none.
+IPv4 addresses must be in network byte order.
+.Pp
+This is equivalent to, and deprecated in favor of, the
+.Fn jail_set
+system call (see below), with the parameters
+.Va path ,
+.Va host.hostname ,
+.Va name ,
+.Va ip4.addr ,
+and
+.Va ip6.addr ,
+and with the
+.Dv JAIL_ATTACH
+flag.
+.Pp
+The
+.Fn jail_set
+system call creates a new jail, or modifies an existing one, and optionally
+locks the current process in it.
+Jail parameters are passed as an array of name-value pairs in the array
+.Fa iov ,
+containing
+.Fa niov
+elements.
+Parameter names are a null-terminated string, and values may be strings,
+integers, or other arbitrary data.
+Some parameters are boolean, and do not have a value (their length is zero)
+but are set by the name alone with or without a
+.Dq no
+prefix, e.g.
+.Va persist
+or
+.Va nopersist .
+Any parameters not set will be given default values, generally based on
+the current environment.
+.Pp
+Jails have a set of core parameters, and modules can add their own jail
+parameters.
+The current set of available parameters, and their formats, can be
+retrieved via the
+.Va security.jail.param
+sysctl MIB entry.
+Notable parameters include those mentioned in the
+.Fn jail
+description above, as well as
+.Va jid
+and
+.Va name ,
+which identify the jail being created or modified.
+See
+.Xr jail 8
+for more information on the core jail parameters.
+.Pp
+The
+.Fa flags
+arguments consists of one or more of the following flags:
+.Bl -tag -width indent
+.It Dv JAIL_CREATE
+Create a new jail.
+If a
+.Va jid
+or
+.Va name
+parameters exists, they must not refer to an existing jail.
+.It Dv JAIL_UPDATE
+Modify an existing jail.
+One of the
+.Va jid
+or
+.Va name
+parameters must exist, and must refer to an existing jail.
+If both
+.Dv JAIL_CREATE
+and
+.Dv JAIL_UPDATE
+are set, a jail will be created if it does not yet exist, and modified if it
+does exist.
+.It Dv JAIL_ATTACH
+In addition to creating or modifying the jail, attach the current process to
+it, as with the
+.Fn jail_attach
+system call.
+.It Dv JAIL_DYING
+Allow setting a jail that is in the process of being removed.
+.El
+.Pp
+The
+.Fn jail_get
+system call retrieves jail parameters, using the same name-value list as
+.Fn jail_set
+in the
+.Fa iov
+and
+.Fa niov
+arguments.
+The jail to read can be specified by either
+.Va jid
+or
+.Va name
+by including those parameters in the list.
+If they are included but are not intended to be the search key, they
+should be cleared (zero and the empty string respectively).
+.Pp
+The special parameter
+.Va lastjid
+can be used to retrieve a list of all jails.
+It will fetch the jail with the jid above and closest to the passed value.
+The first jail (usually but not always jid 1) can be found by passing a
+.Va lastjid
+of zero.
+.Pp
+The
+.Fa flags
+arguments consists of one or more following flags:
+.Bl -tag -width indent
+.It Dv JAIL_DYING
+Allow getting a jail that is in the process of being removed.
+.El
+.Pp
+The
+.Fn jail_attach
+system call attaches the current process to an existing jail,
+identified by
+.Fa jid .
+.Pp
+The
+.Fn jail_remove
+system call removes the jail identified by
+.Fa jid .
+It will kill all processes belonging to the jail, and remove any children
+of that jail.
+.Sh RETURN VALUES
+If successful,
+.Fn jail ,
+.Fn jail_set ,
+and
+.Fn jail_get
+return a non-negative integer, termed the jail identifier (JID).
+They return \-1 on failure, and set
+.Va errno
+to indicate the error.
+.Pp
+.Rv -std jail_attach jail_remove
+.Sh ERRORS
+The
+.Fn jail
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+This process is not allowed to create a jail, either because it is not
+the super-user, or because it would exceed the jail's
+.Va children.max
+limit.
+.It Bq Er EFAULT
+.Fa jail
+points to an address outside the allocated address space of the process.
+.It Bq Er EINVAL
+The version number of the argument is not correct.
+.It Bq Er EAGAIN
+No free JID could be found.
+.El
+.Pp
+The
+.Fn jail_set
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+This process is not allowed to create a jail, either because it is not
+the super-user, or because it would exceed the jail's
+.Va children.max
+limit.
+.It Bq Er EPERM
+A jail parameter was set to a less restrictive value then the current
+environment.
+.It Bq Er EFAULT
+.Fa Iov ,
+or one of the addresses contained within it,
+points to an address outside the allocated address space of the process.
+.It Bq Er ENOENT
+The jail referred to by a
+.Va jid
+or
+.Va name
+parameter does not exist, and the
+.Dv JAIL_CREATE
+flag is not set.
+.It Bq Er ENOENT
+The jail referred to by a
+.Va jid
+is not accessible by the process, because the process is in a different
+jail.
+.It Bq Er EEXIST
+The jail referred to by a
+.Va jid
+or
+.Va name
+parameter exists, and the
+.Dv JAIL_UPDATE
+flag is not set.
+.It Bq Er EINVAL
+A supplied parameter is the wrong size.
+.It Bq Er EINVAL
+A supplied parameter is out of range.
+.It Bq Er EINVAL
+A supplied string parameter is not null-terminated.
+.It Bq Er EINVAL
+A supplied parameter name does not match any known parameters.
+.It Bq Er EINVAL
+One of the
+.Dv JAIL_CREATE
+or
+.Dv JAIL_UPDATE
+flags is not set.
+.It Bq Er ENAMETOOLONG
+A supplied string parameter is longer than allowed.
+.It Bq Er EAGAIN
+There are no jail IDs left.
+.El
+.Pp
+The
+.Fn jail_get
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+.Fa Iov ,
+or one of the addresses contained within it,
+points to an address outside the allocated address space of the process.
+.It Bq Er ENOENT
+The jail referred to by a
+.Va jid
+or
+.Va name
+parameter does not exist.
+.It Bq Er ENOENT
+The jail referred to by a
+.Va jid
+is not accessible by the process, because the process is in a different
+jail.
+.It Bq Er ENOENT
+The
+.Va lastjid
+parameter is greater than the highest current jail ID.
+.It Bq Er EINVAL
+A supplied parameter is the wrong size.
+.It Bq Er EINVAL
+A supplied parameter name does not match any known parameters.
+.El
+.Pp
+The
+.Fn jail_attach
+and
+.Fn jail_remove
+system calls
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+A user other than the super-user attempted to attach to or remove a jail.
+.It Bq Er EINVAL
+The jail specified by
+.Fa jid
+does not exist.
+.El
+.Pp
+Further
+.Fn jail ,
+.Fn jail_set ,
+and
+.Fn jail_attach
+call
+.Xr chroot 2
+internally, so they can fail for all the same reasons.
+Please consult the
+.Xr chroot 2
+manual page for details.
+.Sh SEE ALSO
+.Xr chdir 2 ,
+.Xr chroot 2 ,
+.Xr jail 8
+.Sh HISTORY
+The
+.Fn jail
+system call appeared in
+.Fx 4.0 .
+The
+.Fn jail_attach
+system call appeared in
+.Fx 5.1 .
+The
+.Fn jail_set ,
+.Fn jail_get ,
+and
+.Fn jail_remove
+system calls appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+The jail feature was written by
+.An Poul-Henning Kamp
+for R&D Associates
+who contributed it to
+.Fx .
+.An James Gritton
+added the extensible jail parameters and hierarchical jails.

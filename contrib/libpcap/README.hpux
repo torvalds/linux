@@ -1,0 +1,254 @@
+For HP-UX 11i (11.11) and later, there are no known issues with
+promiscuous mode under HP-UX.  If you are using a earlier version of
+HP-UX and cannot upgrade, please continue reading.
+
+HP-UX patches to fix packet capture problems
+
+Note that packet-capture programs such as tcpdump may, on HP-UX, not be
+able to see packets sent from the machine on which they're running.
+Some articles on groups.google.com discussing this are:
+
+	http://groups.google.com/groups?selm=82ld3v%2480i%241%40mamenchi.zrz.TU-Berlin.DE
+
+which says:
+
+  Newsgroups: comp.sys.hp.hpux
+  Subject:  Re: Did someone made tcpdump working on 10.20 ?
+  Date: 12/08/1999
+  From: Lutz Jaenicke <jaenicke@emserv1.ee.TU-Berlin.DE>
+
+  In article <82ks5i$5vc$1@news1.dti.ne.jp>, mtsat <mtsat@iris.dti.ne.jp>
+  wrote:
+   >Hello,
+   >
+   >I downloaded and compiled tcpdump3.4 a couple of week ago. I tried to use
+   >it, but I can only see incoming data, never outgoing.
+   >Someone (raj) explained me that a patch was missing, and that this patch
+   >must me "patched" (poked) in order to see outbound data in promiscuous mode.
+   >Many things to do .... So the question is : did someone has already this
+   >"ready to use" PHNE_**** patch ?
+
+   Two things:
+   1. You do need a late "LAN products cumulative patch" (e.g.  PHNE_18173
+  for   s700/10.20).
+   2. You must use
+echo 'lanc_outbound_promisc_flag/W1' | /usr/bin/adb -w /stand/vmunix /dev/kmem
+     You can insert this e.g. into /sbin/init.d/lan
+
+   Best regards,
+   Lutz
+
+and
+
+	http://groups.google.com/groups?selm=88cf4t%24p03%241%40web1.cup.hp.com
+
+which says:
+
+  Newsgroups: comp.sys.hp.hpux
+  Subject: Re: tcpdump only shows incoming packets
+  Date: 02/15/2000
+  From: Rick Jones <foo@bar.baz.invalid>
+
+  Harald Skotnes <harald@cc.uit.no> wrote:
+  > I am running HPUX 11.0 on a C200 hanging on a 100Mb switch. I have
+  > compiled libpcap-0.4 an tcpdump-3.4 and it seems to work. But at a
+  > closer look I only get to see the incoming packets not the
+  > outgoing. I have tried tcpflow-0.12 which also uses libpcap and the
+  > same thing happens.  Could someone please give me a hint on how to
+  > get this right?
+
+  Search/Read the archives ?-)
+
+  What you are seeing is expected, un-patched, behaviour for an HP-UX
+  system.  On 11.00, you need to install the latest lancommon/DLPI
+  patches, and then the latest driver patch for the interface(s) in use.
+  At that point, a miracle happens and you should start seeing outbound
+  traffic.
+
+[That article also mentions the patch that appears below.]
+
+and
+
+	http://groups.google.com/groups?selm=38AA973E.96BE7DF7%40cc.uit.no
+
+which says:
+
+  Newsgroups: comp.sys.hp.hpux
+  Subject: Re: tcpdump only shows incoming packets
+  Date: 02/16/2000
+  From: Harald Skotnes <harald@cc.uit.no>
+
+  Rick Jones wrote:
+
+	...
+
+  > What you are seeing is expected, un-patched, behaviour for an HP-UX
+  > system. On 11.00, you need to install the latest lancommon/DLPI
+  > patches, and then the latest driver patch for the interface(s) in
+  > use. At that point, a miracle happens and you should start seeing
+  > outbound traffic.
+
+  Thanks a lot.  I have this problem on several machines running HPUX
+  10.20 and 11.00.  The machines where patched up before y2k so did not
+  know what to think.  Anyway I have now installed PHNE_19766,
+  PHNE_19826, PHNE_20008, PHNE_20735 on the C200 and now I can see the
+  outbound traffic too.  Thanks again.
+
+(although those patches may not be the ones to install - there may be
+later patches).
+
+And another message to tcpdump-workers@tcpdump.org, from Rick Jones:
+
+  Date: Mon, 29 Apr 2002 15:59:55 -0700
+  From: Rick Jones
+  To: tcpdump-workers@tcpdump.org
+  Subject: Re: [tcpdump-workers] I Can't Capture the Outbound Traffic
+
+	...
+
+  http://itrc.hp.com/ would be one place to start in a search for the most
+  up-to-date patches for DLPI and the lan driver(s) used on your system (I
+  cannot guess because 9000/800 is too generic - one hs to use the "model"
+  command these days and/or an ioscan command (see manpage) to guess what
+  the drivers (btlan[3456], gelan, etc) might be involved in addition to
+  DLPI.
+
+  Another option is to upgrade to 11i as outbound promiscuous mode support
+  is there in the base OS, no patches required.
+
+Another posting:
+
+	http://groups.google.com/groups?selm=7d6gvn%24b3%241%40ocean.cup.hp.com
+
+indicates that you need to install the optional STREAMS product to do
+captures on HP-UX 9.x:
+
+  Newsgroups: comp.sys.hp.hpux
+  Subject:  Re: tcpdump HP/UX 9.x
+  Date: 03/22/1999
+  From: Rick Jones <foo@bar.baz>
+
+  Dave Barr (barr@cis.ohio-state.edu) wrote:
+  : Has anyone ported tcpdump (or something similar) to HP/UX 9.x?
+
+  I'm reasonably confident that any port of tcpdump to 9.X would require
+  the (then optional) STREAMS product.  This would bring DLPI, which is
+  what one uses to access interfaces in promiscuous mode.
+
+  I'm not sure that HP even sells the 9.X STREAMS product any longer,
+  since HP-UX 9.X is off the pricelist (well, maybe 9.10 for the old 68K
+  devices).
+
+  Your best bet is to be up on 10.20 or better if that is at all
+  possible.  If your hardware is supported by it, I'd go with HP-UX 11.
+  If you want to see the system's own outbound traffic, you'll never get
+  that functionality on 9.X, but it might happen at some point for 10.20
+  and 11.X.
+
+  rick jones
+
+(as per other messages cited here, the ability to see the system's own
+outbound traffic did happen).
+
+Rick Jones reports that HP-UX 11i needs no patches for outbound
+promiscuous mode support.
+
+An additional note, from Jost Martin, for HP-UX 10.20:
+
+	Q: How do I get ethereral on HPUX to capture the _outgoing_ packets
+	   of an interface
+	A: You need to get PHNE_20892,PHNE_20725 and PHCO_10947 (or
+	   newer, this is as of 4.4.00) and its dependencies.  Then you can
+	   enable the feature as descibed below:
+
+	Patch Name: PHNE_20892
+	Patch Description: s700 10.20 PCI 100Base-T cumulative patch
+		To trace the outbound packets, please do the following
+		to turn on a global promiscuous switch before running
+		the promiscuous applications like snoop or tcpdump:
+
+		adb -w /stand/vmunix /dev/mem
+		lanc_outbound_promisc_flag/W 1
+		(adb will echo the result showing that the flag has
+		been changed)
+		$quit
+	(Thanks for this part to HP-support, Ratingen)
+
+		The attached hack does this and some security-related stuff
+	(thanks to hildeb@www.stahl.bau.tu-bs.de (Ralf Hildebrandt) who
+	posted the security-part some time ago)
+
+		 <<hack_ip_stack>>
+
+		(Don't switch IP-forwarding off, if you need it !)
+		Install the hack as /sbin/init.d/hacl_ip_stack (adjust
+	permissions !) and make a sequencing-symlink
+	/sbin/rc2.d/S350hack_ip_stack pointing to this script.
+		Now all this is done on every reboot.
+
+According to Rick Jones, the global promiscuous switch also has to be
+turned on for HP-UX 11.00, but not for 11i - and, in fact, the switch
+doesn't even exist on 11i.
+
+Here's the "hack_ip_stack" script:
+
+-----------------------------------Cut Here-------------------------------------
+#!/sbin/sh
+#
+# nettune:  hack kernel parms for safety
+
+OKAY=0
+ERROR=-1
+
+# /usr/contrib/bin fuer nettune auf Pfad
+PATH=/sbin:/usr/sbin:/usr/bin:/usr/contrib/bin
+export PATH
+
+
+##########
+#  main  #
+##########
+
+case $1 in
+   start_msg)
+      print "Tune IP-Stack for security"
+      exit $OKAY
+      ;;
+
+   stop_msg)
+      print "This action is not applicable"
+      exit $OKAY
+      ;;
+
+   stop)
+      exit $OKAY
+      ;;
+
+   start)
+      ;;  # fall through
+
+   *)
+      print "USAGE: $0 {start_msg | stop_msg | start | stop}" >&2
+      exit $ERROR
+      ;;
+   esac
+
+###########
+#  start  #
+###########
+
+#
+# tcp-Sequence-Numbers nicht mehr inkrementieren sondern random
+# Syn-Flood-Protection an
+# ip_forwarding aus
+# Source-Routing aus
+# Ausgehende Packets an ethereal/tcpdump etc.
+
+/usr/contrib/bin/nettune -s tcp_random_seq 2 || exit $ERROR
+/usr/contrib/bin/nettune -s hp_syn_protect 1 || exit $ERROR
+/usr/contrib/bin/nettune -s ip_forwarding 0 || exit $ERROR
+echo 'ip_block_source_routed/W1' | /usr/bin/adb -w /stand/vmunix /dev/kmem || exit $ERROR
+echo 'lanc_outbound_promisc_flag/W 1' | adb -w /stand/vmunix /dev/mem  || exit $ERROR
+
+exit $OKAY
+-----------------------------------Cut Here-------------------------------------

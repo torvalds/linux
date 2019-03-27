@@ -1,0 +1,147 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2018 Oleksandr Tymoshenko
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 8, 2018
+.Dt ofw_bus_is_compatible 9
+.Os
+.Sh NAME
+.Nm ofw_bus_is_compatible
+.Nm ofw_bus_is_compatible_strict
+.Nm ofw_bus_node_is_compatible
+.Nm ofw_bus_search_compatible
+.Nd check device tree nodes for compatibility with drivers
+.Sh SYNOPSIS
+.In dev/ofw/openfirm.h
+.In dev/ofw/ofw_bus.h
+.In dev/ofw/ofw_bus_subr.h
+.Ft int
+.Fn ofw_bus_is_compatible "device_t dev" "const char *compatstr"
+.Ft int
+.Fn ofw_bus_is_compatible_strict "device_t dev" "const char *compatstr"
+.Ft int
+.Fn ofw_bus_node_is_compatible "phandle_t node" "const char *compatstr"
+.Ft const struct ofw_compat_data *
+.Fn ofw_bus_search_compatible "device_t dev" "const struct ofw_compat_data *compat"
+.Sh DESCRIPTION
+.Pp
+The "compatible" property of the device tree node is used to
+identify the type of the device the node represents.
+The property is a list of one or more strings that represent
+hardware types the device is compatible with.
+The common format for such strings is "vendor,hardware"
+where "vendor" is an abbreviated name of the manufacturer
+and "hardware" is a device identifier, for instance, "fsl"
+for "Freescale" and "imx6ul-i2c" for the I2C controller.
+More than one string is required for compatibility with
+older revisions of the driver.
+If hardware revision B is backward compatible with revision
+A device tree node can signal this compatibility by
+providing both "vndr,hrdwrA" and "vndr,hrdwrB" strings in
+the "compatibile" property value.
+This way older driver can use features available only in
+revision A, and the new version of the driver can take
+advantage of revision B feature set.
+.Pp
+.Fn ofw_bus_is_compatible
+returns 1 if the
+.Fa compatstr
+value occurs in the "compatible" property list of the device
+tree node associated with the device
+.Fa dev ,
+and 0 otherwise.
+.Pp
+.Fn ofw_bus_is_compatible_strict
+return 1 if the "compatible"
+property of the device tree node associated with the device
+.Fa dev
+consists of only one string and this string is equal to
+.Fa compatstr ,
+and 0 otherwise.
+.Pp
+.Fn ofw_bus_node_is_compatible
+returns 1 if the
+.Fa compatstr
+value occurs in the "compatible" property list of the device
+tree node
+.Fa node ,
+and 0 otherwise.
+.Pp
+.Fn ofw_bus_search_compatible
+returns pointer to the first entry of the
+.Fa compat
+table whose ocd_str field occurs in "compatible" property of
+the device tree node associated with the device
+.Fa dev .
+The
+.Fa compat
+table is an array of struct ofw_compat_data elements defined as follows:
+.Bd -literal -offset indent
+struct ofw_compat_data {
+	const char *ocd_str;
+	uintptr_t  ocd_data;
+};
+.Ed
+The
+.Fa compat
+table must be terminated by the entry with ocd_str set to NULL.
+If the device tree node is not compatible with any of
+the entries, the function returns the pointer to the
+terminating entry.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+static struct ofw_compat_data compat_data[] = {
+	{"arm,hrdwrA",		FEATURE_A},
+	{"arm,hrdwrB",		FEATURE_A | FEATURE_B},
+	{NULL,			0}
+};
+
+static int
+hrdwr_probe(device_t dev)
+{
+	...
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
+		return (ENXIO);
+	...
+}
+
+static int
+hrdwr_attach(device_t dev)
+{
+	...
+	sc = device_get_softc(dev);
+	sc->sc_features = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	...
+}
+.Ed
+.Sh SEE ALSO
+.Xr ofw_bus_find_compatible 9
+.Sh AUTHORS
+This manual page was written by
+.An Oleksandr Tymoshenko .

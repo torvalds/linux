@@ -1,0 +1,78 @@
+#
+# Copyright (c) 2001-2003
+#	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+#	All rights reserved.
+#
+# Author: Harti Brandt <harti@freebsd.org>
+#
+# Redistribution of this software and documentation and use in source and
+# binary forms, with or without modification, are permitted provided that
+# the following conditions are met:
+#
+# 1. Redistributions of source code or documentation must retain the above
+#    copyright notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE AND DOCUMENTATION IS PROVIDED BY FRAUNHOFER FOKUS
+# AND ITS CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+# INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+# FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+# FRAUNHOFER FOKUS OR ITS CONTRIBUTORS  BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+# OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+# EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+# Definition of the tree implemented by snmp_netgraph.
+#
+(1 internet
+  (4 private
+    (1 enterprises
+      (12325 fokus
+        (1 begemot
+          (2 begemotNg
+            (1 begemotNgObjects
+              (1 begemotNgConfig
+                (1 begemotNgControlNodeName OCTETSTRING op_ng_config GET SET)
+                (2 begemotNgResBufSiz INTEGER op_ng_config GET SET)
+                (3 begemotNgTimeout INTEGER op_ng_config GET SET)
+                (4 begemotNgDebugLevel UNSIGNED32 op_ng_config GET SET)
+              )
+# Change definition of stats array if you change StatsGroup
+              (2 begemotNgStats
+                (1 begemotNgNoMems COUNTER op_ng_stats GET)
+                (2 begemotNgMsgReadErrs COUNTER op_ng_stats GET)
+                (3 begemotNgTooLargeMsgs COUNTER op_ng_stats GET)
+                (4 begemotNgDataReadErrs COUNTER op_ng_stats GET)
+                (5 begemotNgTooLargeDatas COUNTER op_ng_stats GET)
+              )
+              (3 begemotNgTypeTable
+                (1 begemotNgTypeEntry : OCTETSTRING op_ng_type
+                  (1 begemotNgTypeName OCTETSTRING)
+                  (2 begemotNgTypeStatus INTEGER GET SET)
+              ))
+              (4 begemotNgNodeTable
+                (1 begemotNgNodeEntry : INTEGER op_ng_node
+                  (1 begemotNgNodeId UNSIGNED32)
+                  (2 begemotNgNodeStatus INTEGER GET)
+                  (3 begemotNgNodeName OCTETSTRING GET)
+                  (4 begemotNgNodeType OCTETSTRING GET)
+                  (5 begemotNgNodeHooks UNSIGNED32 GET)
+              ))
+              (5 begemotNgHookTable
+                (1 begemotNgHookEntry : UNSIGNED32 OCTETSTRING op_ng_hook
+                  (1 begemotNgHookNodeId UNSIGNED32)
+                  (2 begemotNgHookHook OCTETSTRING)
+                  (3 begemotNgHookStatus INTEGER GET)
+                  (4 begemotNgHookPeerNodeId UNSIGNED32 GET)
+                  (5 begemotNgHookPeerHook OCTETSTRING GET)
+                  (6 begemotNgHookPeerType OCTETSTRING GET)
+              ))
+          ))
+)))))

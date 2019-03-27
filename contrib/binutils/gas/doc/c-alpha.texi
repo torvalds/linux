@@ -1,0 +1,472 @@
+@c Copyright 2002, 2003
+@c Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+
+@ifset GENERIC
+@page
+@node Alpha-Dependent
+@chapter Alpha Dependent Features
+@end ifset
+
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter Alpha Dependent Features
+@end ifclear
+
+@cindex Alpha support
+@menu
+* Alpha Notes::                Notes
+* Alpha Options::              Options
+* Alpha Syntax::               Syntax
+* Alpha Floating Point::       Floating Point
+* Alpha Directives::           Alpha Machine Directives
+* Alpha Opcodes::              Opcodes
+@end menu
+
+@node Alpha Notes
+@section Notes
+@cindex Alpha notes
+@cindex notes for Alpha
+
+The documentation here is primarily for the ELF object format.
+@code{@value{AS}} also supports the ECOFF and EVAX formats, but
+features specific to these formats are not yet documented.
+
+@node Alpha Options
+@section Options
+@cindex Alpha options
+@cindex options for Alpha
+
+@table @option
+@cindex @code{-m@var{cpu}} command line option, Alpha
+@item -m@var{cpu}
+This option specifies the target processor.  If an attempt is made to
+assemble an instruction which will not execute on the target processor,
+the assembler may either expand the instruction as a macro or issue an
+error message.  This option is equivalent to the @code{.arch} directive.
+
+The following processor names are recognized: 
+@code{21064},
+@code{21064a},
+@code{21066},
+@code{21068},
+@code{21164},
+@code{21164a},
+@code{21164pc},
+@code{21264},
+@code{21264a},
+@code{21264b},
+@code{ev4},
+@code{ev5},
+@code{lca45},
+@code{ev5},
+@code{ev56},
+@code{pca56},
+@code{ev6},
+@code{ev67},
+@code{ev68}.
+The special name @code{all} may be used to allow the assembler to accept
+instructions valid for any Alpha processor.
+
+In order to support existing practice in OSF/1 with respect to @code{.arch},
+and existing practice within @command{MILO} (the Linux ARC bootloader), the
+numbered processor names (e.g.@: 21064) enable the processor-specific PALcode
+instructions, while the ``electro-vlasic'' names (e.g.@: @code{ev4}) do not.
+
+@cindex @code{-mdebug} command line option, Alpha
+@cindex @code{-no-mdebug} command line option, Alpha
+@item -mdebug
+@itemx -no-mdebug
+Enables or disables the generation of @code{.mdebug} encapsulation for
+stabs directives and procedure descriptors.  The default is to automatically
+enable @code{.mdebug} when the first stabs directive is seen.
+
+@cindex @code{-relax} command line option, Alpha
+@item -relax
+This option forces all relocations to be put into the object file, instead
+of saving space and resolving some relocations at assembly time.  Note that
+this option does not propagate all symbol arithmetic into the object file,
+because not all symbol arithmetic can be represented.  However, the option
+can still be useful in specific applications.
+
+@cindex @code{-g} command line option, Alpha
+@item -g
+This option is used when the compiler generates debug information.  When
+@command{gcc} is using @command{mips-tfile} to generate debug
+information for ECOFF, local labels must be passed through to the object
+file.  Otherwise this option has no effect.
+
+@cindex @code{-G} command line option, Alpha
+@item -G@var{size}
+A local common symbol larger than @var{size} is placed in @code{.bss},
+while smaller symbols are placed in @code{.sbss}.
+
+@cindex @code{-F} command line option, Alpha
+@cindex @code{-32addr} command line option, Alpha
+@item -F
+@itemx -32addr
+These options are ignored for backward compatibility.
+@end table
+
+@cindex Alpha Syntax
+@node Alpha Syntax
+@section Syntax
+The assembler syntax closely follow the Alpha Reference Manual;
+assembler directives and general syntax closely follow the OSF/1 and
+OpenVMS syntax, with a few differences for ELF.
+
+@menu
+* Alpha-Chars::                Special Characters
+* Alpha-Regs::                 Register Names
+* Alpha-Relocs::               Relocations
+@end menu
+
+@node Alpha-Chars
+@subsection Special Characters
+
+@cindex line comment character, Alpha
+@cindex Alpha line comment character
+@samp{#} is the line comment character.
+
+@cindex line separator, Alpha
+@cindex statement separator, Alpha
+@cindex Alpha line separator
+@samp{;} can be used instead of a newline to separate statements.
+
+@node Alpha-Regs
+@subsection Register Names
+@cindex Alpha registers
+@cindex register names, Alpha
+
+The 32 integer registers are referred to as @samp{$@var{n}} or
+@samp{$r@var{n}}.  In addition, registers 15, 28, 29, and 30 may
+be referred to by the symbols @samp{$fp}, @samp{$at}, @samp{$gp},
+and @samp{$sp} respectively.
+
+The 32 floating-point registers are referred to as @samp{$f@var{n}}.
+
+@node Alpha-Relocs
+@subsection Relocations
+@cindex Alpha relocations
+@cindex relocations, Alpha
+
+Some of these relocations are available for ECOFF, but mostly
+only for ELF.  They are modeled after the relocation format 
+introduced in Digital Unix 4.0, but there are additions.
+
+The format is @samp{!@var{tag}} or @samp{!@var{tag}!@var{number}}
+where @var{tag} is the name of the relocation.  In some cases
+@var{number} is used to relate specific instructions.
+
+The relocation is placed at the end of the instruction like so:
+
+@example
+ldah  $0,a($29)    !gprelhigh
+lda   $0,a($0)     !gprellow
+ldq   $1,b($29)    !literal!100
+ldl   $2,0($1)     !lituse_base!100
+@end example
+
+@table @code
+@item !literal
+@itemx !literal!@var{N}
+Used with an @code{ldq} instruction to load the address of a symbol
+from the GOT.
+
+A sequence number @var{N} is optional, and if present is used to pair
+@code{lituse} relocations with this @code{literal} relocation.  The
+@code{lituse} relocations are used by the linker to optimize the code
+based on the final location of the symbol.
+
+Note that these optimizations are dependent on the data flow of the
+program.  Therefore, if @emph{any} @code{lituse} is paired with a
+@code{literal} relocation, then @emph{all} uses of the register set by
+the @code{literal} instruction must also be marked with @code{lituse}
+relocations.  This is because the original @code{literal} instruction
+may be deleted or transformed into another instruction.
+
+Also note that there may be a one-to-many relationship between
+@code{literal} and @code{lituse}, but not a many-to-one.  That is, if
+there are two code paths that load up the same address and feed the
+value to a single use, then the use may not use a @code{lituse}
+relocation.
+
+@item !lituse_base!@var{N}
+Used with any memory format instruction (e.g.@: @code{ldl}) to indicate
+that the literal is used for an address load.  The offset field of the
+instruction must be zero.  During relaxation, the code may be altered
+to use a gp-relative load.
+
+@item !lituse_jsr!@var{N}
+Used with a register branch format instruction (e.g.@: @code{jsr}) to
+indicate that the literal is used for a call.  During relaxation, the
+code may be altered to use a direct branch (e.g.@: @code{bsr}).
+
+@item !lituse_jsrdirect!@var{N}
+Similar to @code{lituse_jsr}, but also that this call cannot be vectored
+through a PLT entry.  This is useful for functions with special calling
+conventions which do not allow the normal call-clobbered registers to be
+clobbered.
+
+@item !lituse_bytoff!@var{N}
+Used with a byte mask instruction (e.g.@: @code{extbl}) to indicate
+that only the low 3 bits of the address are relevant.  During relaxation,
+the code may be altered to use an immediate instead of a register shift.
+
+@item !lituse_addr!@var{N}
+Used with any other instruction to indicate that the original address
+is in fact used, and the original @code{ldq} instruction may not be
+altered or deleted.  This is useful in conjunction with @code{lituse_jsr}
+to test whether a weak symbol is defined.
+
+@example
+ldq  $27,foo($29)   !literal!1
+beq  $27,is_undef   !lituse_addr!1
+jsr  $26,($27),foo  !lituse_jsr!1
+@end example
+
+@item !lituse_tlsgd!@var{N}
+Used with a register branch format instruction to indicate that the
+literal is the call to @code{__tls_get_addr} used to compute the 
+address of the thread-local storage variable whose descriptor was
+loaded with @code{!tlsgd!@var{N}}.
+
+@item !lituse_tlsldm!@var{N}
+Used with a register branch format instruction to indicate that the
+literal is the call to @code{__tls_get_addr} used to compute the 
+address of the base of the thread-local storage block for the current
+module.  The descriptor for the module must have been loaded with
+@code{!tlsldm!@var{N}}.
+
+@item !gpdisp!@var{N}
+Used with @code{ldah} and @code{lda} to load the GP from the current
+address, a-la the @code{ldgp} macro.  The source register for the
+@code{ldah} instruction must contain the address of the @code{ldah}
+instruction.  There must be exactly one @code{lda} instruction paired
+with the @code{ldah} instruction, though it may appear anywhere in 
+the instruction stream.  The immediate operands must be zero.
+
+@example
+bsr  $26,foo
+ldah $29,0($26)     !gpdisp!1
+lda  $29,0($29)     !gpdisp!1
+@end example
+
+@item !gprelhigh
+Used with an @code{ldah} instruction to add the high 16 bits of a
+32-bit displacement from the GP.
+
+@item !gprellow
+Used with any memory format instruction to add the low 16 bits of a
+32-bit displacement from the GP.
+
+@item !gprel
+Used with any memory format instruction to add a 16-bit displacement
+from the GP.
+
+@item !samegp
+Used with any branch format instruction to skip the GP load at the
+target address.  The referenced symbol must have the same GP as the
+source object file, and it must be declared to either not use @code{$27}
+or perform a standard GP load in the first two instructions via the
+@code{.prologue} directive.
+
+@item !tlsgd
+@itemx !tlsgd!@var{N}
+Used with an @code{lda} instruction to load the address of a TLS
+descriptor for a symbol in the GOT.
+
+The sequence number @var{N} is optional, and if present it used to
+pair the descriptor load with both the @code{literal} loading the
+address of the @code{__tls_get_addr} function and the @code{lituse_tlsgd}
+marking the call to that function.
+
+For proper relaxation, both the @code{tlsgd}, @code{literal} and
+@code{lituse} relocations must be in the same extended basic block.
+That is, the relocation with the lowest address must be executed
+first at runtime.
+
+@item !tlsldm
+@itemx !tlsldm!@var{N}
+Used with an @code{lda} instruction to load the address of a TLS
+descriptor for the current module in the GOT.
+
+Similar in other respects to @code{tlsgd}.
+
+@item !gotdtprel
+Used with an @code{ldq} instruction to load the offset of the TLS
+symbol within its module's thread-local storage block.  Also known
+as the dynamic thread pointer offset or dtp-relative offset.
+
+@item !dtprelhi
+@itemx !dtprello
+@itemx !dtprel
+Like @code{gprel} relocations except they compute dtp-relative offsets.
+
+@item !gottprel
+Used with an @code{ldq} instruction to load the offset of the TLS
+symbol from the thread pointer.  Also known as the tp-relative offset.
+
+@item !tprelhi
+@itemx !tprello
+@itemx !tprel
+Like @code{gprel} relocations except they compute tp-relative offsets.
+@end table
+
+@node Alpha Floating Point
+@section Floating Point
+@cindex floating point, Alpha (@sc{ieee})
+@cindex Alpha floating point (@sc{ieee})
+The Alpha family uses both @sc{ieee} and VAX floating-point numbers.
+
+@node Alpha Directives
+@section Alpha Assembler Directives
+
+@command{@value{AS}} for the Alpha supports many additional directives for
+compatibility with the native assembler.  This section describes them only
+briefly.
+
+@cindex Alpha-only directives
+These are the additional directives in @code{@value{AS}} for the Alpha:
+
+@table @code
+@item .arch @var{cpu}
+Specifies the target processor.  This is equivalent to the
+@option{-m@var{cpu}} command-line option.  @xref{Alpha Options, Options},
+for a list of values for @var{cpu}.
+
+@item .ent @var{function}[, @var{n}]
+Mark the beginning of @var{function}.  An optional number may follow for
+compatibility with the OSF/1 assembler, but is ignored.  When generating
+@code{.mdebug} information, this will create a procedure descriptor for
+the function.  In ELF, it will mark the symbol as a function a-la the
+generic @code{.type} directive.
+
+@item .end @var{function}
+Mark the end of @var{function}.  In ELF, it will set the size of the symbol
+a-la the generic @code{.size} directive.
+
+@item .mask @var{mask}, @var{offset}
+Indicate which of the integer registers are saved in the current
+function's stack frame.  @var{mask} is interpreted a bit mask in which
+bit @var{n} set indicates that register @var{n} is saved.  The registers
+are saved in a block located @var{offset} bytes from the @dfn{canonical
+frame address} (CFA) which is the value of the stack pointer on entry to
+the function.  The registers are saved sequentially, except that the
+return address register (normally @code{$26}) is saved first.
+
+This and the other directives that describe the stack frame are
+currently only used when generating @code{.mdebug} information.  They
+may in the future be used to generate DWARF2 @code{.debug_frame} unwind
+information for hand written assembly.
+
+@item .fmask @var{mask}, @var{offset}
+Indicate which of the floating-point registers are saved in the current
+stack frame.  The @var{mask} and @var{offset} parameters are interpreted
+as with @code{.mask}.
+
+@item .frame @var{framereg}, @var{frameoffset}, @var{retreg}[, @var{argoffset}]
+Describes the shape of the stack frame.  The frame pointer in use is
+@var{framereg}; normally this is either @code{$fp} or @code{$sp}.  The
+frame pointer is @var{frameoffset} bytes below the CFA.  The return
+address is initially located in @var{retreg} until it is saved as
+indicated in @code{.mask}.  For compatibility with OSF/1 an optional
+@var{argoffset} parameter is accepted and ignored.  It is believed to
+indicate the offset from the CFA to the saved argument registers.
+
+@item .prologue @var{n}
+Indicate that the stack frame is set up and all registers have been
+spilled.  The argument @var{n} indicates whether and how the function
+uses the incoming @dfn{procedure vector} (the address of the called
+function) in @code{$27}.  0 indicates that @code{$27} is not used; 1
+indicates that the first two instructions of the function use @code{$27}
+to perform a load of the GP register; 2 indicates that @code{$27} is
+used in some non-standard way and so the linker cannot elide the load of
+the procedure vector during relaxation.
+
+@item .usepv @var{function}, @var{which}
+Used to indicate the use of the @code{$27} register, similar to 
+@code{.prologue}, but without the other semantics of needing to 
+be inside an open @code{.ent}/@code{.end} block.
+
+The @var{which} argument should be either @code{no}, indicating that
+@code{$27} is not used, or @code{std}, indicating that the first two
+instructions of the function perform a GP load.
+
+One might use this directive instead of @code{.prologue} if you are
+also using dwarf2 CFI directives.
+
+@item .gprel32 @var{expression}
+Computes the difference between the address in @var{expression} and the
+GP for the current object file, and stores it in 4 bytes.  In addition
+to being smaller than a full 8 byte address, this also does not require
+a dynamic relocation when used in a shared library.
+
+@item .t_floating @var{expression}
+Stores @var{expression} as an @sc{ieee} double precision value.
+
+@item .s_floating @var{expression}
+Stores @var{expression} as an @sc{ieee} single precision value.
+
+@item .f_floating @var{expression}
+Stores @var{expression} as a VAX F format value.
+
+@item .g_floating @var{expression}
+Stores @var{expression} as a VAX G format value.
+
+@item .d_floating @var{expression}
+Stores @var{expression} as a VAX D format value.
+
+@item .set @var{feature}
+Enables or disables various assembler features.  Using the positive
+name of the feature enables while using @samp{no@var{feature}} disables.
+
+@table @code
+@item at
+Indicates that macro expansions may clobber the @dfn{assembler
+temporary} (@code{$at} or @code{$28}) register.  Some macros may not be
+expanded without this and will generate an error message if @code{noat}
+is in effect.  When @code{at} is in effect, a warning will be generated
+if @code{$at} is used by the programmer.
+
+@item macro
+Enables the expansion of macro instructions.  Note that variants of real
+instructions, such as @code{br label} vs @code{br $31,label} are
+considered alternate forms and not macros.
+
+@item move
+@itemx reorder
+@itemx volatile
+These control whether and how the assembler may re-order instructions.
+Accepted for compatibility with the OSF/1 assembler, but @command{@value{AS}}
+does not do instruction scheduling, so these features are ignored.
+@end table
+@end table
+
+The following directives are recognized for compatibility with the OSF/1
+assembler but are ignored.
+
+@example
+.proc           .aproc
+.reguse         .livereg
+.option         .aent
+.ugen           .eflag
+.alias          .noalias
+@end example
+
+@node Alpha Opcodes
+@section Opcodes
+For detailed information on the Alpha machine instruction set, see the
+@c Attempt to work around a very overfull hbox.
+@iftex
+Alpha Architecture Handbook located at
+@smallfonts
+@example
+ftp://ftp.digital.com/pub/Digital/info/semiconductor/literature/alphaahb.pdf
+@end example
+@textfonts
+@end iftex
+@ifnottex
+@uref{ftp://ftp.digital.com/pub/Digital/info/semiconductor/literature/alphaahb.pdf,Alpha Architecture Handbook}.
+@end ifnottex

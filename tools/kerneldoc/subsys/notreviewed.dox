@@ -1,0 +1,14 @@
+/* $FreeBSD$ */
+
+/** @mainpage
+ * <b>IMPORTANT:</b> This API documentation may contain both functions which
+ * are public and functions that are for internal use only. Since we have not
+ * reviewed every part of the documentation yet, <i>some internal functions
+ * are not marked as such</i>. Until we finish reviewing the API documentation
+ * and add appropriate comments to functions which are only for internal use,
+ * you should take this into account. In case you want to use a function of
+ * this kernel subsystem in another kernel subsystem you should search for
+ * precedence of use outside this subsystem. If the function is not used
+ * outside this subsystem you should ask on the mailinglists about it, else
+ * you risk breaking something.
+ */

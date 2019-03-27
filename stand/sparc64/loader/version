@@ -1,0 +1,6 @@
+$FreeBSD$
+
+NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
+file is important.  Make sure the current version number is on line 6.
+
+1.0:	I hate the loader.

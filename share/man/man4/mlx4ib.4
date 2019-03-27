@@ -1,0 +1,95 @@
+.\" Copyright (c) 2016 Mellanox Technologies
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS `AS IS' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 1, 2017
+.Dt MLX4IB 4
+.Os
+.Sh NAME
+.Nm mlx4ib
+.Nd "Mellanox ConnectX-3 10GbE/40GbE network adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place these lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options COMPAT_LINUXKPI"
+.Cd "device mlx4"
+.Cd "device mlx4ib"
+.Ed
+.Pp
+To load the driver as a module at run-time,
+run this command as root:
+.Bd -literal -offset indent
+kldload mlx4ib
+.Ed
+.Pp
+To load the driver as a
+module at boot time, place this line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mlx4ib_load="YES"
+.Ed
+.Sh DESCRIPTION
+Mellanox ConnectX adapter cards with Virtual Protocol Interconnect
+(VPI) provide the highest performing and most flexible interconnect
+solution for Enterprise Data Centers, High-Performance Computing, and
+Embedded environments.
+Clustered data bases, parallelized applications, transactional
+services and high-performance embedded I/O applications will achieve
+significant performance improvements resulting in reduced completion
+time and lower cost per operation.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following network adapters:
+.Pp
+.Bl -bullet -compact
+.It
+Mellanox ConnectX-2 (IB)
+.It
+Mellanox ConnectX-3 (IB)
+.El
+.Sh SUPPORT
+For general information and support,
+go to the Mellanox support website at:
+.Lk http://www.mellanox.com/ .
+.Pp
+If an issue is identified with this driver and a supported network adapter,
+please email the specific information to
+.Aq Mt freebsd-drivers@mellanox.com .
+.Sh SEE ALSO
+.Xr mlx4en 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 9.x .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mellanox Technologies <freebsd-drivers@mellanox.com> .

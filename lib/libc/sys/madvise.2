@@ -1,0 +1,186 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)madvise.2	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd July 12, 2015
+.Dt MADVISE 2
+.Os
+.Sh NAME
+.Nm madvise , posix_madvise
+.Nd give advice about use of memory
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft int
+.Fn madvise "void *addr" "size_t len" "int behav"
+.Ft int
+.Fn posix_madvise "void *addr" "size_t len" "int behav"
+.Sh DESCRIPTION
+The
+.Fn madvise
+system call
+allows a process that has knowledge of its memory behavior
+to describe it to the system.
+The
+.Fn posix_madvise
+interface is identical, except it returns an error number on error and does
+not modify
+.Va errno ,
+and is provided for standards conformance.
+.Pp
+The known behaviors are:
+.Bl -tag -width MADV_SEQUENTIAL
+.It Dv MADV_NORMAL
+Tells the system to revert to the default paging
+behavior.
+.It Dv MADV_RANDOM
+Is a hint that pages will be accessed randomly, and prefetching
+is likely not advantageous.
+.It Dv MADV_SEQUENTIAL
+Causes the VM system to depress the priority of
+pages immediately preceding a given page when it is faulted in.
+.It Dv MADV_WILLNEED
+Causes pages that are in a given virtual address range
+to temporarily have higher priority, and if they are in
+memory, decrease the likelihood of them being freed.
+Additionally,
+the pages that are already in memory will be immediately mapped into
+the process, thereby eliminating unnecessary overhead of going through
+the entire process of faulting the pages in.
+This WILL NOT fault
+pages in from backing store, but quickly map the pages already in memory
+into the calling process.
+.It Dv MADV_DONTNEED
+Allows the VM system to decrease the in-memory priority
+of pages in the specified address range.
+Consequently, future references to this address range are more likely
+to incur a page fault.
+.It Dv MADV_FREE
+Gives the VM system the freedom to free pages,
+and tells the system that information in the specified page range
+is no longer important.
+This is an efficient way of allowing
+.Xr malloc 3
+to free pages anywhere in the address space, while keeping the address space
+valid.
+The next time that the page is referenced, the page might be demand
+zeroed, or might contain the data that was there before the
+.Dv MADV_FREE
+call.
+References made to that address space range will not make the VM system
+page the information back in from backing store until the page is
+modified again.
+.It Dv MADV_NOSYNC
+Request that the system not flush the data associated with this map to
+physical backing store unless it needs to.
+Typically this prevents the
+file system update daemon from gratuitously writing pages dirtied
+by the VM system to physical disk.
+Note that VM/file system coherency is
+always maintained, this feature simply ensures that the mapped data is
+only flush when it needs to be, usually by the system pager.
+.Pp
+This feature is typically used when you want to use a file-backed shared
+memory area to communicate between processes (IPC) and do not particularly
+need the data being stored in that area to be physically written to disk.
+With this feature you get the equivalent performance with mmap that you
+would expect to get with SysV shared memory calls, but in a more controllable
+and less restrictive manner.
+However, note that this feature is not portable
+across UNIX platforms (though some may do the right thing by default).
+For more information see the MAP_NOSYNC section of
+.Xr mmap 2
+.It Dv MADV_AUTOSYNC
+Undoes the effects of MADV_NOSYNC for any future pages dirtied within the
+address range.
+The effect on pages already dirtied is indeterminate - they
+may or may not be reverted.
+You can guarantee reversion by using the
+.Xr msync 2
+or
+.Xr fsync 2
+system calls.
+.It Dv MADV_NOCORE
+Region is not included in a core file.
+.It Dv MADV_CORE
+Include region in a core file.
+.It Dv MADV_PROTECT
+Informs the VM system this process should not be killed when the
+swap space is exhausted.
+The process must have superuser privileges.
+This should be used judiciously in processes that must remain running
+for the system to properly function.
+.El
+.Pp
+Portable programs that call the
+.Fn posix_madvise
+interface should use the aliases
+.Dv POSIX_MADV_NORMAL , POSIX_MADV_SEQUENTIAL ,
+.Dv POSIX_MADV_RANDOM , POSIX_MADV_WILLNEED ,
+and
+.Dv POSIX_MADV_DONTNEED
+rather than the flags described above.
+.Sh RETURN VALUES
+.Rv -std madvise
+.Sh ERRORS
+The
+.Fn madvise
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa behav
+argument is not valid.
+.It Bq Er ENOMEM
+The virtual address range specified by the
+.Fa addr
+and
+.Fa len
+arguments is not valid.
+.It Bq Er EPERM
+.Dv MADV_PROTECT
+was specified and the process does not have superuser privileges.
+.El
+.Sh SEE ALSO
+.Xr mincore 2 ,
+.Xr mprotect 2 ,
+.Xr msync 2 ,
+.Xr munmap 2 ,
+.Xr posix_fadvise 2
+.Sh STANDARDS
+The
+.Fn posix_madvise
+interface conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn madvise
+system call first appeared in
+.Bx 4.4 .

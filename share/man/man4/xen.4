@@ -1,0 +1,149 @@
+.\" Copyright (c) 2010 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
+.\" ("CTSRD"), as part of the DARPA CRASH research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 30, 2015
+.Dt XEN 4
+.Os
+.Sh NAME
+.Nm xen
+.Nd Xen Hypervisor Guest (DomU) Support
+.Sh SYNOPSIS
+To compile hardware-assisted virtualization (HVM) Xen guest support with
+para-virtualized drivers into an amd64 or i386 kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options XENHVM"
+.Cd "device xenpci"
+.Ed
+.Sh DESCRIPTION
+The Xen Hypervisor allows multiple virtual machines to be run on a single
+computer system.
+When first released, Xen required that i386 kernels be compiled
+"para-virtualized" as the x86 instruction set was not fully virtualizable.
+Primarily, para-virtualization modifies the virtual memory system to use
+hypervisor calls (hypercalls) rather than direct hardware instructions to
+modify the TLB, although para-virtualized device drivers were also required
+to access resources such as virtual network interfaces and disk devices.
+.Pp
+With later instruction set extensions from AMD and Intel to support fully
+virtualizable instructions, unmodified virtual memory systems can also be
+supported; this is referred to as hardware-assisted virtualization (HVM).
+HVM configurations may either rely on transparently emulated hardware
+peripherals, or para-virtualized drivers, which are aware of virtualization,
+and hence able to optimize certain behaviors to improve performance or
+semantics.
+.Pp
+.Fx
+supports hardware-assisted virtualization (HVM) on both i386 and amd64
+kernels.
+.Pp
+Para-virtualized device drivers are required in order to support certain
+functionality, such as processing management requests, returning idle
+physical memory pages to the hypervisor, etc.
+.Ss Xen DomU device drivers
+These para-virtualized drivers are supported:
+.Bl -hang -offset indent -width blkfront
+.It Nm balloon
+Allow physical memory pages to be returned to the hypervisor as a result of
+manual tuning or automatic policy.
+.It Nm blkback
+Exports local block devices or files to other Xen domains where they can
+then be imported via
+.Nm blkfront .
+.It Nm blkfront
+Import block devices from other Xen domains as local block devices, to be
+used for file systems, swap, etc.
+.It Nm console
+Export the low-level system console via the Xen console service.
+.It Nm control
+Process management operations from Domain 0, including power off, reboot,
+suspend, crash, and halt requests.
+.It Nm evtchn
+Expose Xen events via the
+.Pa /dev/xen/evtchn
+special device.
+.It Nm netback
+Export local network interfaces to other Xen domains where they can be
+imported via
+.Nm netfront .
+.It Nm netfront
+Import network interfaces from other Xen domains as local network interfaces,
+which may be used for IPv4, IPv6, etc.
+.It Nm pcifront
+Allow physical PCI devices to be passed through into a PV domain.
+.It Nm xenpci
+Represents the Xen PCI device, an emulated PCI device that is exposed to
+HVM domains.
+This device allows detection of the Xen hypervisor, and provides interrupt
+and shared memory services required to interact with the hypervisor.
+.El
+.Ss Performance considerations
+In general, PV drivers will perform better than emulated hardware, and are
+the recommended configuration for HVM installations.
+.Pp
+Using a hypervisor introduces a second layer of scheduling that may limit the
+effectiveness of certain
+.Fx
+scheduling optimisations.
+Among these is adaptive locking, which is no longer able to determine whether
+a thread holding a lock is in execution.
+It is recommended that adaptive locking be disabled when using Xen:
+.Bd -unfilled -offset indent
+.Cd "options NO_ADAPTIVE_MUTEXES"
+.Cd "options NO_ADAPTIVE_RWLOCKS"
+.Cd "options NO_ADAPTIVE_SX"
+.Ed
+.Sh HISTORY
+Support for
+.Nm
+first appeared in
+.Fx 8.1 .
+.Sh AUTHORS
+.An -nosplit
+.Fx
+support for Xen was first added by
+.An Kip Macy Aq Mt kmacy@FreeBSD.org
+and
+.An Doug Rabson Aq Mt dfr@FreeBSD.org .
+Further refinements were made by
+.An Justin Gibbs Aq Mt gibbs@FreeBSD.org ,
+.An Adrian Chadd Aq Mt adrian@FreeBSD.org ,
+and
+.An Colin Percival Aq Mt cperciva@FreeBSD.org .
+This manual page was written by
+.An Robert Watson Aq Mt rwatson@FreeBSD.org .
+.Sh BUGS
+.Fx
+is only able to run as a Xen guest (DomU) and not as a Xen host (Dom0).
+.Pp
+As of this release, Xen PV DomU support is not heavily tested; instability
+has been reported during VM migration of PV kernels.
+.Pp
+Certain PV driver features, such as the balloon driver, are under-exercised.

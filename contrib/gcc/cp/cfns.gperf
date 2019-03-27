@@ -1,0 +1,230 @@
+%{
+#ifdef __GNUC__
+__inline
+#endif
+static unsigned int hash (const char *, unsigned int);
+#ifdef __GNUC__
+__inline
+#endif
+const char * libc_name_p (const char *, unsigned int);
+%}
+%%
+# The standard C library functions, for feeding to gperf; the result is used
+# by nothrow_libfn_p.
+#
+#   [lib.res.on.exception.handling]: None of the functions from the
+#   Standard C library shall report an error by throwing an
+#   exception, unless it calls a program-supplied function that
+#   throws an exception.
+#
+# Specific functions are commented out for the reason noted in each case.
+#
+# abort			-- synchronous exception from SIGABRT handler
+abs
+acos
+asctime
+asin
+atan
+atan2
+atexit
+atof
+atoi
+atol
+#bsearch		-- calls user function which may throw exception
+btowc
+calloc
+ceil
+clearerr
+clock
+cos
+cosh
+ctime
+difftime
+div
+exit
+exp
+fabs
+#fclose			-- POSIX thread cancellation point
+feof
+ferror
+#fflush			-- POSIX thread cancellation point
+#fgetc			-- POSIX thread cancellation point
+#fgetpos		-- POSIX thread cancellation point
+#fgets			-- POSIX thread cancellation point
+#fgetwc			-- POSIX thread cancellation point
+#fgetws			-- POSIX thread cancellation point
+floor
+fmod
+#fopen			-- POSIX thread cancellation point
+#fprintf		-- POSIX thread cancellation point
+#fputc			-- POSIX thread cancellation point
+#fputs			-- POSIX thread cancellation point
+#fputwc			-- POSIX thread cancellation point
+#fputws			-- POSIX thread cancellation point
+#fread			-- POSIX thread cancellation point
+free
+#freopen		-- POSIX thread cancellation point
+frexp
+#fscanf			-- POSIX thread cancellation point
+fseek
+#fsetpos		-- POSIX thread cancellation point
+#ftell			-- POSIX thread cancellation point
+fwide
+#fwprintf		-- POSIX thread cancellation point
+#fwrite			-- POSIX thread cancellation point
+#fwscanf		-- POSIX thread cancellation point
+#getc			-- POSIX thread cancellation point
+#getchar		-- POSIX thread cancellation point
+getenv
+#gets			-- POSIX thread cancellation point
+#getwc			-- POSIX thread cancellation point
+#getwchar		-- POSIX thread cancellation point
+gmtime
+isalnum
+isalpha
+iscntrl
+isdigit
+isgraph
+islower
+isprint
+ispunct
+isspace
+isupper
+iswalnum
+iswalpha
+iswcntrl
+iswctype
+iswdigit
+iswgraph
+iswlower
+iswprint
+iswpunct
+iswspace
+iswupper
+iswxdigit
+isxdigit
+labs
+ldexp
+ldiv
+localeconv
+localtime
+log
+log10
+longjmp
+malloc
+mblen
+mbrlen
+mbrtowc
+mbsinit
+mbsrtowcs
+mbstowcs
+mbtowc
+memchr
+memcmp
+memcpy
+memmove
+memset
+mktime
+modf
+#perror			-- POSIX thread cancellation point
+pow
+#printf			-- POSIX thread cancellation point
+#putc			-- POSIX thread cancellation point
+#putchar		-- POSIX thread cancellation point
+#puts			-- POSIX thread cancellation point
+#putwc			-- POSIX thread cancellation point
+#putwchar		-- POSIX thread cancellation point
+#qsort			-- calls user function which may throw exception
+#raise			-- synchronous exception from signal handler
+rand
+realloc
+#remove			-- POSIX thread cancellation point
+#rename			-- POSIX thread cancellation point
+#rewind			-- POSIX thread cancellation point
+#scanf			-- POSIX thread cancellation point
+setbuf
+setlocale
+setvbuf
+signal
+sin
+sinh
+sprintf
+sqrt
+srand
+sscanf
+strcat
+strchr
+strcmp
+strcoll
+strcpy
+strcspn
+#strerror		-- POSIX thread cancellation point
+strftime
+strlen
+strncat
+strncmp
+strncpy
+strpbrk
+strrchr
+strspn
+strstr
+strtod
+strtok
+strtol
+strtoul
+strxfrm
+swprintf
+swscanf
+#system			-- POSIX thread cancellation point
+tan
+tanh
+time
+#tmpfile		-- POSIX thread cancellation point
+#tmpnam			-- POSIX thread cancellation point
+tolower
+toupper
+towctrans
+towlower
+towupper
+#ungetc			-- POSIX thread cancellation point
+#ungetwc		-- POSIX thread cancellation point
+#vfprintf		-- POSIX thread cancellation point
+#vfwprintf		-- POSIX thread cancellation point
+#vprintf		-- POSIX thread cancellation point
+vsprintf
+vswprintf
+#vwprintf		-- POSIX thread cancellation point
+wcrtomb
+wcscat
+wcschr
+wcscmp
+wcscoll
+wcscpy
+wcscspn
+wcsftime
+wcslen
+wcsncat
+wcsncmp
+wcsncpy
+wcspbrk
+wcsrchr
+wcsrtombs
+wcsspn
+wcsstr
+wcstod
+wcstok
+wcstol
+wcstombs
+wcstoul
+wcsxfrm
+wctob
+wctomb
+wctrans
+wctype
+wmemchr
+wmemcmp
+wmemcpy
+wmemmove
+wmemset
+#wprintf		-- POSIX thread cancellation point
+#wscanf			-- POSIX thread cancellation point

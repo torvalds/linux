@@ -1,0 +1,36 @@
+.\" $FreeBSD$
+This is an experimental build system.
+For details see
+http://www.crufty.net/sjg/docs/freebsd-meta-mode.htm.
+Build commands can be seen from the top-level with:
+.Dl make show-valid-targets
+The build is driven by dirdeps.mk using
+.Va DIRDEPS
+stored in
+Makefile.depend files found in each directory.
+.Pp
+The build can be started from anywhere, and behaves the same.
+The initial instance of
+.Xr make 1
+recursively reads
+.Va DIRDEPS
+from
+.Pa Makefile.depend ,
+computing a graph of tree dependencies from the current origin.
+Setting
+.Va NO_DIRDEPS
+skips checking dirdep dependencies and will only build in the current
+and child directories.
+.Va NO_DIRDEPS_BELOW
+skips building any dirdeps and only build the current directory.
+.Pp
+This also utilizes the
+.Va WITH_META_MODE
+logic for incremental builds.
+.Pp
+The build hides commands executed unless
+.Va NO_SILENT
+is defined.
+.Pp
+Note that there is currently no mass install feature for this.
+.Pp

@@ -1,0 +1,354 @@
+This file describes the design, data model, and storage formats of FSFS
+index data.
+
+
+Design
+======
+
+Each pack and each rev file using logical addressing contains exactly
+two index sections.  One, the log-to-phys index, maps the (rev, item_index)
+pairs to absolute file offsets.  The other, phys-to-log, is a reverse
+index that gives basic information on any file location.  This is enough
+to read and cache any data without traversing DAGs.
+
+Rev and pack files are immutable, so the same is true for index data.
+During a transaction or while packing a file, a proto index file gets
+written (actually, one log-to-phys and one phys-to-log).  They use a
+simpler, less compact format with fixed record lengths.  A proto index
+basically aggregates all the information that must later be transformed
+into the final index.
+
+
+General design concerns
+-----------------------
+
+In Subversion, there is no limit to the size of a revision; even practical
+limits are in the order of millions of changes at least.  Index data for
+these would be multiple megabytes in size with pack file indexes possibly
+approaching 1 GB.  To ensure we still get roughly O(1) access time, we
+need a hierarchical data structure.
+
+Therefore, the indexes will start with a header containing an array of
+references to sub-sections or pages.  The length of these pages varies
+but is limited to a size configurable in fsfs.conf.
+
+Finally, it is assumed that whole pages can be cached efficiently and
+with a high cache hit rate.  So, although a page may have a thousand or
+more entries, the access time is still amortized O(1) in many scenarios.
+
+
+Items and item types
+--------------------
+
+The index implementation treats item_index and item type as simple ints,
+except for SVN_FS_FS__ITEM_INDEX_UNUSED and SVN_FS_FS__ITEM_TYPE_UNUSED.
+Since they have been defined as 0, the code may test for "used" etc.
+by simply comparing with 0.
+
+See section "addressing modes" in structure to a list of item types
+and pre-defined item_index values.
+
+
+Encoding
+--------
+
+The final index data format is tuned for space and decoding efficiency.
+Indexes are stored as a sequence of variable integers.  The encoding is
+as follows:
+
+* Unsigned integers are stored in little endian order with a variable
+  length 7b/8b encoding.  If most significant bit a byte has been set,
+  the next byte has also belongs to the same value.
+
+  0x00 .. 0x7f    -> 0x00 .. 0x7f               ( 7 bits stored in  8 bits)
+  0x80 .. 0xff    -> 0x80 0x01 .. 0xff 0x01     (14 bits stored in 16 bits)
+  0x100 .. 0x3fff -> 0x80 0x02 .. 0xff 0x7f     (14 bits stored in 16 bits)
+  0x100000000     -> 0x80 0x80 0x80 0x80 0x10   (35 bits stored in 40 bits)
+
+  Technically, we can represent integers of arbitrary lengths.  Currently,
+  we only generate and parse up to 64 bits.
+
+* Signed integers are mapped onto the unsigned value space as follows:
+
+  x >= 0 ->  2 * x
+  x < 0  -> -2 * x - 1
+
+  Again, we can represent arbitrary length numbers that way but the code
+  is currently restricted to 64 bits.
+
+Most data is unsigned by nature but will be stored differentially using
+signed integers.
+
+
+Encoding in proto-index files
+-----------------------------
+
+These have a much simpler encoding.  Throughout the files, all records have
+the same length (but different between L2P and P2L).  All records contain
+unsigned 64 bit integers only, stored in little endian byte order.
+
+
+Log-to-phys index
+=================
+
+This index has to map (rev, item_index) -> offset.  It assumes that the
+item_index values per revision are dense and start at 0.  There may be
+unused item_index values, though; the data structure simply gets less
+space-efficient when the more sparse the value space gets.
+
+
+Index data model
+----------------
+
+hierarchy:
+
+  header -> per-revision info -> page -> offset
+
+  There is one entry per revision in the header.  Per revision there are
+  one or more pages (exclusive to that revision) containing up to a known,
+  fixed limit of entries (= page size).  The total access path is:
+
+  pages = header->pages[revision];
+  offsets = page = pages[item_index / page_size];
+  offset = offsets[item_index % page_size];
+
+  Different log-to-phys indexes in the same repository may have different
+  page sizes but within any given index, the page size is the same and
+  immutable.
+
+header:
+
+  <first revision>   ... first revision covered by this index
+  <revision count>   ... number of revision covered by this index
+  <page size>        ... maximum number of entries per page
+  <page table index> ... array, for each revision containing the index in
+                         <page table> of the first page that belongs to
+                         this revision.  This has <revision count>+1
+                         entries to terminate the last revision.
+  <page table>       ... array of page headers.  It has
+                         <page table index>[<revision count>] entries.
+
+page table:
+
+  <offset>           ... absolute position of the page contents within the
+                         index
+  <entry count>      ... number of offset entries in the page.
+                         Must match <header>.<page size> unless this is
+                         the last page for the respective revision.
+  <size>             ... length in bytes of the on-disk page description.
+                         Note that this is redundant with the <offset>.
+
+page:
+
+  <entry count>      ... number of offset entries in the page.
+                         Must match <header>.<page size> unless this is
+                         the last page for the respective revision.
+                         Redundant with <page table>.<entry count>
+  <offsets>          ... array of absolute file positions within the rev /
+                         pack file.  This has <entry count> entries.
+
+                         
+Index on-disk format
+--------------------
+
+  index := "L2P-INDEX\n" header revisions pages offsets
+
+  header := u(<header>.<first revision>) \
+            u(<header>.<page size>) \
+            u(<header>.<revision count>) \
+            u(s(<header>.<page table>))
+
+  revisions := u(  <header>.<page table index>[k+1]
+                 - <header>.<page table index>[k]),
+               for k in 0 .. <header>.<revision count>-1
+
+  pages := u(<header>.<page table>[k].<size>) \
+           u(<header>.<page table>[k].<entry count>),
+           for k in 0 .. s(<header>.<page table>)-1
+
+  offsets := page(k),
+             for k in 0 .. s(<header>.<page table>)-1
+
+  page(k) := i(<header>.<page table>[k].<offsets>[0]) \
+             i(  <header>.<page table>[k].<offsets>[l] \
+               - <header>.<page table>[k].<offsets>[l - 1]),
+             for l in 1 .. s(<header>.<page table>[k].<entry count>)-1
+
+  u(x) ... unsigned int x in 7b/8b encoding
+  i(x) ... signed int x in 7b/8b encoding
+  s(x) ... number of entries in array x
+
+
+Proto index file format
+-----------------------
+
+The index will be created from a "revision-less" proto index file
+containing (<offset><item_index>) pairs only.
+
+All mappings belonging to the same revision must be written in one go but
+there is no restriction on the order of those entries.  To signify that
+a new revision begins, a (0, 0) mapping must be written.  A (0, 0) entry
+at the beginning of the file is optional and will be ignored.
+
+  <bof>         /* begin of proto index file for revision r and following */
+  (0, 0)        /* mark start of revision r, optional for first rev */
+  (off, item)*  /* zero or more mappings in random order */
+  (0, 0)        /* mark start of revision r + 1 */
+  (off, item)*  /* zero or more mappings in random order */
+  (0, 0)        /* mark start of revision r + 2 */
+  (off, item)*  /* zero or more mappings in random order */
+  ...
+  <eof>         /* end of file. */
+
+All entries are pairs of 64 bit unsigned integers in little endian order.
+
+
+Phys-to-log index
+=================
+
+This index has to map offset -> (rev, item_index, type, len, checksum).
+
+
+Index data model
+----------------
+
+hierarchy:
+
+  header -> page -> item info
+
+  Logically, the index splits up index rev / pack file into pages of a
+  fixed size.  That page size may differ from the FS's block size.  The
+  index will describe each rev / pack file page with one index page.
+
+  page = header->pages[offset % page_size];
+  item info = binary_search(page.data, offset)
+
+  Note that the current implementation will not return any data if the
+  offset is does not match any actual item start.  To simplify the lookup,
+  the last index page will have an "unused item" entry for the section
+  behind EOF.  Holes aren't allowed as well, i.e. every byte of the rev /
+  pack is expected to be covered by the index.
+
+  Also, there may be items stretching across page borders or even over
+  multiple pages.  The data model solves this issue by storing the item
+  descriptions as a "primary array" and then representing the pages as
+  ranges within that array.  Thus multiple pages may reference the same
+  item description.
+
+header:
+
+  <first revision>   ... first revision covered by this index
+  <file size>        ... size of the rev / pack file in bytes
+  <page size>        ... number of bytes in the rev / pack file covered by
+                         each index page
+  <page count>       ... number of pages
+  <offsets>          ... array of page offsets, i.e. locations the page
+                         data within the index.
+                         This array has <page count> + 1 entries.
+
+page:
+
+  <entries>          ... array of item descriptions, ordered by offset.
+                         First and last entry may cross page boundaries.
+
+entry:
+
+  <offset>           ... absolute position in the pack / rev file
+  <size>             ... on-disk size of the item in the pack / rev file
+  <type>             ... item type
+  <FNV checksum>     ... modified 32 bit FNV-1a checksum of that section
+                         of the pack / rev file (see below). 0 for empty
+                         or zero-length items
+  <revision>         ... revision that this item belongs to
+  <item_index>       ... item_index within that revision
+
+
+Index on-disk format
+--------------------
+
+  index := "P2L-INDEX\n" header pages items
+
+  header := u(<header>.<first revision>) \
+            u(<header>.<file size>) \
+            u(<header>.<page size>) \
+            u(<header>.<page count>)
+
+  pages := u(<header>.<offsets>[k+1] - <header>.<offsets>[k]),
+           for k in 0 .. <header>.<page count> -1
+
+  items := u(<items in page k>[0].<offset>) \
+           u(<items in page k>[l].<size>) \
+           i(c(<items in page k>[l]) - c(<items of page k>[l-1])) \
+           i(  <items in page k>[l].<revision>
+             - <items in page k>[l-1].<revision>), \
+           u(FNV checksum)
+           for l in 0 .. s(<items in page k>)-1,
+           for k in 0 .. <header>.<page count>-1
+
+  u(x) ... unsigned int x in 7b/8b encoding
+  i(x) ... signed int x in 7b/8b encoding
+  s(x) ... number of entries in collection x
+  c(x) ... compound function := x.<item_index> * 8 + x.<type>
+
+  Access to negative indexes gives a 0 value.
+
+  <Items in page k> are in strict ascending offset order.  Items that
+  started after the begin of a given page and overlap with the next page
+  will not be stored in the start page.  The runtime representation will
+  duplicate items overlapping page boundaries; the on-disk representation
+  will not.  Thus, pages inside large items will have zero entries on disk.
+
+
+Proto index file format
+-----------------------
+
+The index will be created from a proto index file containing simple
+instances of svn_fs_fs__p2l_entry_t with the following element order:
+
+  item offset               as uint64
+  item size                 as uint64
+  item type                 as uint64
+  modified FNV1a checksum   as uint64
+  revision                  as uint64, with SVN_INVALID_REVNUM mapped to 0
+                                       and revisions >= 0 stored as rev+1
+  item index                as uint64
+
+All values are stored in little endian order.
+
+Page table and header information, except start revision and page size,
+can easily be derived from that information.
+
+All entries must be written in strict offset order.  Overlapping entries
+are not allowed; zero-length items are.
+
+In transactions, the final revision number may not be known when writing
+the proto index file (e.g. while still writing the proto rev file).  Items
+with revision set to SVN_INVALID_REVNUM will therefore be automatically
+updated when creating the final index.  This is possible in conjunction
+with rev files but not for pack files.
+
+
+FNV checksum
+------------
+
+FNV-1a can be found here: http://www.isthe.com/chongo/tech/comp/fnv/
+For performance reasons we use a modified version:
+
+* split the input byte stream [b0 .. bN] into 4 sub-streams of equal
+  length and up to 3 remnants:
+
+  [b0 b4 b8 ..], [b1 b5 b9 ..], [b2 b6 b10 ..], [b3 b7 b11 ..], [remnant]
+
+* calculate 32 bit FNV-1a checksums for the 4 substreams:
+
+  h0 = fnv_1a([b0 b4 b8 ..]), ..., h3 = fnv_1a([b3 b7 b11 ..])
+
+* concatenate the big endian representation of these checksums (4 bytes
+  each) plus the remnant of the original stream into a 16 to 19 byte long
+  intermediate:
+
+  [i0 .. iK] = [big-endian(h0) ... big-endian(h3) remnant ], 16 <= K+1 <= 19
+
+* fold the variable-length intermediate into a compact 32 bit checksum:
+
+  FNV checksum = fnv_1a([i0 .. iK])

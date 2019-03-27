@@ -1,0 +1,55 @@
+// $FreeBSD$
+// FlexeLint file for fifolog tools
+//
+//
+//-passes=3
+//-ffc
+//
+//// GCC
+//-cgnu
+//+d__FreeBSD__=7
+//+d__GNUC__=4
+//+d__GNUC_MINOR__=2
+//+d__FreeBSD_cc_version=700003
+//+d__attribute__()=
+//-d__builtin_va_list=void*   // used by stdarg.h
+//// -d__builtin_stdarg_start()=_to_semi  // ditto
+//// -d__builtin_va_start(a,b)=((void)(b),(a)=0)  // ditto
+//// -d__builtin_va_end()=_to_semi        // ditto
+//+rw(__inline)   // enable the (non-standard) __inline keyword
+//+rw(__inline__)   // enable the (non-standard) __inline__ keyword
+//
+//+d"__unused=/*lint -e{715} -e{818} */"
+//
+//-e537			// Repeated include file
+//-elib(652)		// #define of symbol '...' declared previously 
+//-function(exit,__assert)
+//-function(exit,err)
+//-function(exit,errx)
+//-e716			// while(1) ...
+//-e717			// do ... while(0)
+//
+//// Ignore return values
+-esym(534, memset)
+-esym(534, memcpy)
+-esym(534, strcpy)
+//-esym(534, printf)
+-esym(534, time)
+-esym(534, fprintf)
+//-esym(534, vfprintf)
+//
+//+libh(fifolog.h)
+//+libh(miniobj.h)
+//+libh(libfifolog.h)
+//
+//-e713			// loss of precision sign/unsigned
+//-e732			// loss of sign
+//-e734			// loss of precision assignment
+//-e737			// loss of sign in promotion int->unsigned
+//-e573			// sign/unsign mix in divide
+
+-e712			// Loss of precision (___) (___ to ___)
+-e713			// Loss of precision (___) (___ to ___)
+-e716			// while(1) ...
+-e732			// Loss of sign (___) (___ to ___)
+-e747			// Significant prototype coercion (___) ___ to ___

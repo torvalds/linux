@@ -1,0 +1,374 @@
+#!/bin/sh -
+#
+# Copyright (c) 2000  The FreeBSD Project
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# PROVIDE: syscons
+# REQUIRE: LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="syscons"
+desc="Configure the system console"
+extra_commands="setkeyboard"
+setkeyboard_cmd="syscons_setkeyboard"
+start_precmd="syscons_precmd"
+start_cmd="syscons_start"
+stop_cmd=":"
+
+# stdin must be redirected because it might be for a serial console
+#
+kbddev=/dev/ttyv0
+viddev=/dev/ttyv0
+
+_sc_config=
+_sc_console=
+_sc_initdone=
+_sc_keymap_msg=
+sc_init()
+{
+	if [ -z "${_sc_initdone}" ]; then
+		if [ -z "${_sc_console}" ]; then
+			if [ x`sysctl -n kern.vty` = x"vt" ]; then
+				_sc_console="vt"
+			else
+				_sc_console="syscons"
+			fi
+			_sc_config="${_sc_console}"
+		fi
+		echo -n "Configuring ${_sc_config}:"
+		_sc_initdone=yes
+	fi
+}
+
+# syscons to vt migration helper
+lookup_keymap_for_vt()
+{
+	keymap=`basename $1 .kbd`
+	case $keymap in
+hy.armscii-8)			echo am;;
+be.iso.acc)			echo be.acc;;
+be.iso)				echo be;;
+bg.bds.ctrlcaps)		echo bg.bds;;
+bg.phonetic.ctrlcaps)		echo bg.phonetic;;
+br275.iso.acc)			echo br;;
+br275.*)			echo br.noacc;;
+by.*)				echo by;;
+fr_CA.iso.acc)			echo ca-fr;;
+swissgerman.macbook.acc)	echo ch.macbook.acc;;
+swissgerman.iso.acc)		echo ch.acc;;
+swissgerman.*)			echo ch;;
+swissfrench.iso.acc)		echo ch-fr.acc;;
+swissfrench.*)			echo ch-fr;;
+ce.iso2)			echo centraleuropean.qwerty;;
+colemak.iso15.acc)		echo colemak.acc;;
+cs.*|cz.*)			echo cz;;
+german.iso.acc)			echo de.acc;;
+german.*)			echo de;;
+danish.iso.acc)			echo dk.acc;;
+danish.iso.macbook)		echo dk.macbook;;
+danish.*)			echo dk;;
+estonian.*)			echo ee;;
+spanish.dvorak)			echo es.dvorak;;
+spanish.iso*.acc)		echo es.acc;;
+spanish.iso)			echo es;;
+finnish.*)			echo fi;;
+fr.macbook.acc)			echo fr.macbook;;
+fr.iso.acc)			echo fr.acc;;
+fr.iso)				echo fr;;
+el.iso07)			echo gr;;
+gr.us101.acc)			echo gr.101.acc;;
+hr.iso)				echo hr;;
+hu.iso2.101keys)		echo hu.101;;
+hu.iso2.102keys)		echo hu.102;;
+iw.iso8)			echo il;;
+icelandic.iso.acc)		echo is.acc;;
+icelandic.iso)			echo is;;
+it.iso)				echo it;;
+jp.106x)			echo jp.capsctrl;;
+jp.106)				echo jp;;
+kk.pt154.io)			echo kz.io;;
+kk.pt154.kst)			echo kz.kst;;
+latinamerican.iso.acc)		echo latinamerican.acc;;
+lt.iso4)			echo lt;;
+norwegian.iso)			echo no;;
+norwegian.dvorak)		echo no.dvorak;;
+dutch.iso.acc)			echo nl;;
+eee_nordic)			echo nordic.asus-eee;;
+pl_PL.dvorak)			echo pl.dvorak;;
+pl_PL.ISO8859-2)		echo pl;;
+pt.iso.acc)			echo pt.acc;;
+pt.iso)				echo pt;;
+ru.koi8-r.shift)		echo ru.shift;;
+ru.koi8-r.win)			echo ru.win;;
+ru.*)				echo ru;;
+swedish.*)			echo se;;
+si.iso)				echo si;;
+sk.iso2)			echo sk;;
+tr.iso9.q)			echo tr;;
+ua.koi8-u.shift.alt)		echo ua.shift.alt;;
+ua.*)				echo ua;;
+uk.*-ctrl)			echo uk.capsctrl;;
+uk.dvorak)			echo uk.dvorak;;
+uk.*)				echo uk;;
+us.iso.acc)			echo us.acc;;
+us.pc-ctrl)			echo us.ctrl;;
+us.iso)				echo us;;
+	esac
+}
+
+kbdcontrol_load_keymap()
+{
+	errmsg=`kbdcontrol < ${kbddev} -l ${keymap} 2>&1`
+	if [ -n "${errmsg}" -a "${_sc_console}" = "vt" ]; then
+		_sc_keymap_msg="${errmsg}"
+		keymap_vt=`lookup_keymap_for_vt ${keymap}`
+		if [ -n "${keymap_vt}" ]; then
+			errmsg=`kbdcontrol < ${kbddev} -l ${keymap_vt} 2>&1`
+			if [ -z "${errmsg}" ]; then
+		    		_sc_keymap_msg="New keymap: In /etc/rc.conf replace 'keymap=${keymap}' by 'keymap=${keymap_vt}'"
+			fi
+		else
+			_sc_keymap_msg="No replacement found for keymap '${keymap}'.
+You may try to convert your keymap file using 'convert-keymap.pl', which is
+part of the system sources and located in /usr/src/tools/tools/vt/keymaps/"
+		fi
+	fi
+}
+
+# helper
+syscons_configure_keyboard()
+{
+	# keymap
+	#
+	case ${keymap} in
+	NO | '')
+		;;
+	*)
+		sc_init
+		echo -n ' keymap';	kbdcontrol_load_keymap
+		;;
+	esac
+
+	# keyrate
+	#
+	case ${keyrate} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		sc_init
+		echo -n ' keyrate';	kbdcontrol < ${kbddev} -r ${keyrate}
+		;;
+	esac
+
+	# keybell
+	#
+	case ${keybell} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		sc_init
+		echo -n ' keybell';	kbdcontrol < ${kbddev} -b ${keybell}
+		;;
+	esac
+
+	# change function keys
+	#
+	case ${keychange} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		sc_init
+		echo -n ' keychange'
+		set -- ${keychange}
+		while [ $# -gt 0 ]; do
+			kbdcontrol <${kbddev} -f "$1" "$2"
+			shift; shift
+		done
+		;;
+	esac
+
+	# set this keyboard mode for all virtual terminals
+	#
+	if [ -n "${allscreens_kbdflags}" ]; then
+		sc_init
+		echo -n ' allscreens_kbd'
+		for ttyv in /dev/ttyv*; do
+			kbdcontrol ${allscreens_kbdflags} < ${ttyv} > ${ttyv} 2>&1
+		done
+	fi
+}
+
+syscons_setkeyboard()
+{
+	kbd=$1
+
+	if [ -z "${kbd}" ]; then
+		return 1
+	fi
+
+	# Check if the kbdmux(4) is the current active keyboard
+	kbdcontrol -i < ${kbddev} | grep kbdmux > /dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		kbdcontrol -k ${kbd} < ${kbddev} > /dev/null 2>&1
+	fi
+
+	_sc_config="keyboard"
+	syscons_configure_keyboard
+
+	# Terminate keyboard configuration line and reset global variables.
+	#
+	if [ -n "${_sc_initdone}" ]; then
+		echo '.'
+		_sc_config="${_sc_console}"
+		_sc_initdone=
+	fi
+}
+
+syscons_precmd()
+{
+	if [ ! -c $kbddev ]
+	then
+		return 1
+	fi
+	return 0
+}
+
+syscons_start()
+{
+	# keyboard
+	#
+	if [ -n "${keyboard}" ]; then
+		syscons_setkeyboard ${keyboard}
+	fi
+
+	syscons_configure_keyboard
+
+	# cursor type
+	#
+	case ${cursor} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		sc_init
+		echo -n ' cursor';	vidcontrol < ${viddev} -c ${cursor}
+		;;
+	esac
+
+	# screen mapping
+	#
+	case ${scrnmap} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		sc_init
+		echo -n ' scrnmap';	vidcontrol < ${viddev} -l ${scrnmap}
+		;;
+	esac
+
+	# font 8x16
+	#
+	case ${font8x16} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		sc_init
+		echo -n ' font8x16';	vidcontrol < ${viddev} -f 8x16 ${font8x16}
+		;;
+	esac
+
+	# font 8x14
+	#
+	case ${font8x14} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		sc_init
+		echo -n ' font8x14';	vidcontrol < ${viddev} -f 8x14 ${font8x14}
+		;;
+	esac
+
+	# font 8x8
+	#
+	case ${font8x8} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		sc_init
+		echo -n ' font8x8';	vidcontrol < ${viddev} -f 8x8 ${font8x8}
+		;;
+	esac
+
+	# blank time
+	#
+	case ${blanktime} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		sc_init
+		echo -n ' blanktime';	vidcontrol < ${viddev} -t ${blanktime}
+		;;
+	esac
+
+	# screen saver
+	#
+	case ${saver} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		sc_init
+		echo -n ' screensaver'
+		for i in `kldstat | awk '$5 ~ "_saver\.ko$" { print $5 }'`; do
+			kldunload ${i}
+		done
+		load_kld -e _saver ${saver}_saver
+		;;
+	esac
+
+	# set this mode for all virtual screens
+	#
+	if [ -n "${allscreens_flags}" ]; then
+		sc_init
+		echo -n ' allscreens'
+		for ttyv in /dev/ttyv*; do
+			vidcontrol ${allscreens_flags} < ${ttyv} > ${ttyv} 2>&1
+		done
+	fi
+
+	[ -n "${_sc_initdone}" ] && echo '.'
+	if [ -n "${_sc_keymap_msg}" ]; then
+		echo
+		echo "WARNING:"
+		echo "${_sc_keymap_msg}."
+		echo
+	fi
+}
+
+load_rc_config $name
+run_rc_command $*
+

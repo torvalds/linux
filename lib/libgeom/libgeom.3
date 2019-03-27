@@ -1,0 +1,448 @@
+.\" Copyright (c) 2003 Poul-Henning Kamp
+.\" Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 16, 2017
+.Dt LIBGEOM 3
+.Os
+.Sh NAME
+.Nm geom_stats_open ,
+.Nm geom_stats_close ,
+.Nm geom_stats_resync ,
+.Nm geom_stats_snapshot_get ,
+.Nm geom_stats_snapshot_free ,
+.Nm geom_stats_snapshot_timestamp ,
+.Nm geom_stats_snapshot_reset ,
+.Nm geom_stats_snapshot_next ,
+.Nm gctl_get_handle ,
+.Nm gctl_ro_param ,
+.Nm gctl_rw_param ,
+.Nm gctl_issue ,
+.Nm gctl_free ,
+.Nm gctl_dump ,
+.Nm geom_getxml ,
+.Nm geom_xml2tree ,
+.Nm geom_gettree ,
+.Nm geom_deletetree ,
+.Nm g_open ,
+.Nm g_close ,
+.Nm g_mediasize ,
+.Nm g_sectorsize ,
+.Nm g_stripeoffset ,
+.Nm g_stripesize ,
+.Nm g_flush ,
+.Nm g_delete ,
+.Nm g_device_path ,
+.Nm g_get_ident ,
+.Nm g_get_name ,
+.Nm g_open_by_ident ,
+.Nm g_providername
+.Nd userland API library for kernel GEOM subsystem
+.Sh LIBRARY
+.Lb libgeom
+.Sh SYNOPSIS
+.Bd -literal
+/* stdio.h is only required for `gctl_dump` */
+.Ed
+.In stdio.h
+.In libgeom.h
+.Ss "Statistics Functions"
+.Ft void
+.Fn geom_stats_close void
+.Ft int
+.Fn geom_stats_open void
+.Ft void
+.Fn geom_stats_resync void
+.Ft "void *"
+.Fn geom_stats_snapshot_get void
+.Ft void
+.Fn geom_stats_snapshot_free "void *arg"
+.Ft void
+.Fn geom_stats_snapshot_timestamp "void *arg" "struct timespec *tp"
+.Ft void
+.Fn geom_stats_snapshot_reset "void *arg"
+.Ft "struct devstat *"
+.Fn geom_stats_snapshot_next "void *arg"
+.Ss "Control Functions"
+.Ft "struct gctl_req *"
+.Fn gctl_get_handle "void"
+.Ft void
+.Fn gctl_ro_param "struct gctl_req *req" "const char *name" "int len" "const void *value"
+.Ft void
+.Fn gctl_rw_param "struct gctl_req *req" "const char *name" "int len" "void *value"
+.Ft "const char *"
+.Fn gctl_issue "struct gctl_req *req"
+.Ft void
+.Fn gctl_free "struct gctl_req *req"
+.Ft void
+.Fn gctl_dump "struct gctl_req *req" "FILE *f"
+.Ss "Utility Functions"
+.Ft "char *"
+.Fn geom_getxml void
+.Ft int
+.Fn geom_xml2tree "struct gmesh *gmp" "char *p"
+.Ft int
+.Fn geom_gettree "struct gmesh *gmp"
+.Ft void
+.Fn geom_deletetree "struct gmesh *gmp"
+.Ft int
+.Fn g_open "const char *name" "int dowrite"
+.Ft int
+.Fn g_close "int fd"
+.Ft off_t
+.Fn g_mediasize "int fd"
+.Ft ssize_t
+.Fn g_sectorsize "int fd"
+.Ft ssize_t
+.Fn g_stripeoffset "int fd"
+.Ft ssize_t
+.Fn g_stripesize "int fd"
+.Ft int
+.Fn g_flush "int fd"
+.Ft int
+.Fn g_delete "int fd" "off_t offset" "off_t length"
+.Ft "char *"
+.Fn g_device_path "const char *devpath"
+.Ft int
+.Fn g_get_ident "int fd" "char *ident" "size_t size"
+.Ft int
+.Fn g_get_name "const char *ident" "char *name" "size_t size"
+.Ft int
+.Fn g_open_by_ident "const char *ident" "int dowrite" "char *name" "size_t size"
+.Ft "char *"
+.Fn g_providername "int fd"
+.Sh DESCRIPTION
+The
+.Nm geom
+library contains the official and publicized API for
+interacting with the GEOM subsystem in the kernel.
+.Ss "Statistics Functions"
+GEOM collects statistics data for all consumers and providers, but does
+not perform any normalization or presentation on the raw data, this is
+left as an exercise for user-land presentation utilities.
+.Pp
+The
+.Fn geom_stats_open
+and
+.Fn geom_stats_close
+functions open and close the necessary pathways to access the raw
+statistics information in the kernel.
+These functions are likely to
+open one or more files and cache the file descriptors locally.
+The
+.Fn geom_stats_open
+function returns zero on success, and sets
+.Va errno
+if not.
+.Pp
+The
+.Fn geom_stats_resync
+function will check if more statistics collection points have been
+added in the kernel since
+.Fn geom_stats_open
+or the previous call to
+.Fn geom_stats_resync .
+.Pp
+The
+.Fn geom_stats_snapshot_get
+function
+will acquire a snapshot of the raw data from the kernel, and while a
+reasonable effort is made to make this snapshot as atomic and consistent
+as possible, no guarantee is given that it will actually be so.
+The snapshot must be freed again using the
+.Fn geom_stats_snapshot_free
+function.
+The
+.Fn geom_stats_snapshot_get
+function returns
+.Dv NULL
+on failure.
+.Pp
+The
+.Fn geom_stats_snapshot_timestamp
+function
+provides access to the timestamp acquired in the snapshot.
+.Pp
+The
+.Fn geom_stats_snapshot_reset
+and
+.Fn geom_stats_snapshot_next
+functions
+provide an iterator over the statistics slots in the snapshot.
+The
+.Fn geom_stats_snapshot_reset
+function
+forces the internal pointer in the snapshot back to before the first item.
+The
+.Fn geom_stats_snapshot_next
+function
+returns the next item, and
+.Dv NULL
+if there are no more items in the snapshot.
+.Ss "Control Functions"
+The
+.Fn gctl_*
+functions are used to send requests to GEOM classes.
+In order for a GEOM
+class to actually be able to receive these requests, it must have defined a
+"ctlreq" method.
+.Pp
+A
+.Vt "struct gctl_req *" ,
+obtained with
+.Fn gctl_get_handle ,
+can hold any number of parameters, which must be added to it with
+.Fn gctl_ro_param
+(for read-only parameters) or
+.Fn gctl_rw_param
+(for read/write parameters).
+.Pp
+Both
+.Fn gctl_ro_param
+and
+.Fn gctl_rw_param
+take a string
+.Fa name ,
+which is used to identify the parameter, and a
+.Fa value ,
+which contains, in the read-only case, the data to be passed to the
+GEOM class, or, in the read/write case, a pointer to preallocated memory
+that the GEOM class should fill with the desired data.
+If
+.Fa len
+is negative, it is assumed that
+.Fa value
+is an
+.Tn ASCII
+string and the actual length is taken from the string length of
+.Fa value ;
+otherwise it must hold the size of
+.Fa value .
+.Pp
+A parameter with a
+.Fa name
+containing the string
+.Qq Li class
+is mandatory for each request, and the
+corresponding
+.Fa value
+must hold the name of the GEOM class where the request should be sent to.
+.Pp
+Also mandatory for each request is a parameter with a
+.Fa name
+called
+.Qq Li verb ,
+and the corresponding
+.Fa value
+needs to hold the command string that the GEOM class should react upon.
+.Pp
+Once all desired parameters are filled in, the request must be sent to
+the GEOM subsystem with
+.Fn gctl_issue ,
+which returns
+.Dv NULL
+on success, or a string containing the error message
+on failure.
+.Pp
+After the request is finished, the allocated memory should be released with
+.Fn gctl_free .
+.Pp
+The
+.Fn gctl_dump
+function
+can be used to format the contents of
+.Fa req
+to the open file handle pointed to by
+.Fa f ,
+for debugging purposes.
+.Pp
+Error handling for the control functions is postponed until the call
+to
+.Fn gctl_issue ,
+which returns
+.Dv NULL
+on success, or an error message corresponding to the
+first error which happened.
+.Ss "Utility Functions"
+The
+.Fn geom_getxml
+function is a wrapper around
+.Xr sysctl 3
+that fetches the
+.Ar kern.geom.confxml
+OID, and returns it's value.
+The allocated memory should be released with
+.Xr free 2
+after use.
+.Pp
+The
+.Fn geom_xml2tree
+function parses the XML representation of a GEOM topology passed as
+.Ar p ,
+allocates the needed data structures to access this information and fills in
+the passed
+.Ar gmp
+data structure.
+Memory allocated during this transformation should be released
+using
+.Fn geom_deletetree
+after use.
+.Pp
+The
+.Fn geom_gettree
+function is a wrapper around the
+.Fn geom_getxml
+and
+.Fn geom_xml2tree
+functions.
+Memory allocated during this operation should be released using
+.Fn geom_deletetree
+after use.
+.Pp
+The
+.Fn geom_deletetree
+function releases memory allocated for storing the data-structures referenced by
+.Ar gmp .
+.Pp
+The
+.Fn g_*
+functions are used to communicate with GEOM providers.
+.Pp
+The
+.Fn g_open
+function opens the given provider and returns file descriptor number, which can
+be used with other functions.
+The
+.Fa dowrite
+argument indicates if operations that modify the provider (like
+.Fn g_flush
+or
+.Fn g_delete )
+are going to be called.
+.Pp
+The
+.Fn g_close
+function closes the provider.
+.Pp
+The
+.Fn g_mediasize
+function returns size of the given provider.
+.Pp
+The
+.Fn g_sectorsize
+function returns sector size of the given provider.
+.Pp
+The
+.Fn g_stripeoffset
+function returns stripe offset of the given provider.
+.Pp
+The
+.Fn g_stripesize
+function returns stripe size of the given provider.
+.Pp
+The
+.Fn g_flush
+function sends
+.Dv BIO_FLUSH
+request to flush write cache of the provider.
+.Pp
+The
+.Fn g_delete
+function tells the provider that the given data range is no longer used.
+.Pp
+The
+.Fn g_device_path
+function returns the full path to a provider given a partial or full path to the
+device node.
+.Dv NULL
+is returned if the device cannot be found or is not a valid geom provider.
+.Pp
+The
+.Fn g_get_ident
+function returns provider's fixed and unique identifier.
+The
+.Fa ident
+argument should be at least
+.Dv DISK_IDENT_SIZE
+big.
+.Pp
+The
+.Fn g_get_name
+function returns name of the provider, which identifier is equal to the
+.Fa ident
+string.
+.Pp
+The
+.Fn g_open_by_ident
+function opens provider using its identification, unlike
+.Fn g_open
+which uses the provider's name.
+The function will store the provider's name in the
+.Fa name
+parameter if it is not
+.Dv NULL .
+.Pp
+The
+.Fn g_providername
+function returns the provider name of an open file descriptor.
+.Dv NULL
+is returned the file descriptor does not point to a valid geom provider.
+.Pp
+All functions except
+.Fn g_providername
+and
+.Fn g_device_path
+return a value greater than or equal to
+.Va 0
+on success or
+.Va -1
+on failure.
+.Sh EXAMPLES
+Create a request that is to be sent to the CCD class, and tell
+it to destroy a specific geom:
+.Bd -literal -offset indent
+H = gctl_get_handle();
+gctl_ro_param(H, "verb", -1, "destroy geom");
+gctl_ro_param(H, "class", -1, "CCD");
+sprintf(buf, "ccd%d", ccd);
+gctl_ro_param(H, "geom", -1, buf);
+errstr = gctl_issue(H);
+if (errstr != NULL)
+    err(1, "could not destroy ccd: %s", errstr);
+gctl_free(H);
+.Ed
+.Sh HISTORY
+The
+.Nm geom
+library appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org
+.An Lukas Ertl Aq Mt le@FreeBSD.org
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org

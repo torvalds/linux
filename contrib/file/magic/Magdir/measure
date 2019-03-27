@@ -1,0 +1,39 @@
+
+#------------------------------------------------------------------------------
+# $File: measure,v 1.2 2018/06/23 16:13:15 christos Exp $
+# measure: file(1) magic for measurement data
+
+# DIY-Thermocam raw data
+0	name	diy-thermocam-parser
+>0	beshort	x	scale %d-
+>2	beshort x	\b%d,
+>4	lefloat	x	spot sensor temperature %f,
+>9	ubyte	0	unit celsius,
+>9	ubyte	1	unit fahrenheit,
+>8	ubyte	x	color scheme %d
+>10	ubyte	1	\b, show spot sensor
+>11	ubyte	1	\b, show scale bar
+>12	ubyte	&1	\b, minimum point enabled
+>12	ubyte	&2	\b, maximum point enabled
+>13	lefloat	x	\b, calibration: offset %f,
+>17	lefloat x	slope %f
+
+0	name	diy-thermocam-checker
+>9	ubyte	<2
+>>10	ubyte	<2
+>>>11	ubyte	<2
+>>>>12	ubyte	<4
+>>>>>17	lefloat	>0.0001	DIY-Thermocam raw data
+
+# V2 and Leption 3.x:
+38408	ubyte	<19
+>38400	use	diy-thermocam-checker
+>>38400	default x	(Lepton 3.x),
+>>>38400	use	diy-thermocam-parser
+
+# V1 or Lepton 2.x
+9608	ubyte	<19
+>9600	use	diy-thermocam-checker
+>>9600	default	x	(Lepton 2.x),
+>>>9600	use	diy-thermocam-parser
+

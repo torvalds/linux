@@ -1,0 +1,37 @@
+#
+# GENERIC64-NODEBUG -- WITNESS and INVARIANTS free kernel configuration file 
+#		     for FreeBSD/powerpc
+#
+# This configuration file removes several debugging options, including
+# WITNESS and INVARIANTS checking, which are known to have significant
+# performance impact on running systems.  When benchmarking new features
+# this kernel should be used instead of the standard GENERIC64.
+# This kernel configuration should never appear outside of the HEAD
+# of the FreeBSD tree.
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+include GENERIC64
+
+ident   GENERIC64-NODEBUG
+
+nooptions       INVARIANTS
+nooptions       INVARIANT_SUPPORT
+nooptions       WITNESS
+nooptions       WITNESS_SKIPSPIN
+nooptions       DEADLKRES

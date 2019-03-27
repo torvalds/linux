@@ -1,0 +1,178 @@
+
+#------------------------------------------------------------------------------
+# $File: gnu,v 1.20 2018/02/24 16:11:23 christos Exp $
+# gnu:  file(1) magic for various GNU tools
+#
+# GNU nlsutils message catalog file format
+#
+# GNU message catalog (.mo and .gmo files)
+
+# Update: Joerg Jenderek
+# URL: https://www.gnu.org/software/gettext/manual/html_node/MO-Files.html
+# Reference: ftp://ftp.gnu.org/pub/gnu/gettext/gettext-0.19.8.tar.gz/
+#	gettext-0.19.8.1/gettext-runtime/intl/gmo.h
+# Note: maybe call it like "GNU translation gettext machine object"
+0	string		\336\22\4\225	GNU message catalog (little endian),
+#0	ulelong	0x950412DE		GNU-format message catalog data
+# TODO: write lines in such a way that code can also be called for big endian variant
+#>0	use		gettext-object
+#0	name		gettext-object
+>4	ulelong		x		revision
+!:mime	application/x-gettext-translation
+# mo extension is also used for Easeus Partition Master PE32 executable module
+# like ConvertFatToNTFS.mo
+!:ext	gmo/mo
+# only found three revision combinations 0.0 0.1 1.1 as unsigned 32-bit
+# major revision
+>4	ulelong/0xFFff	x		%u.
+# minor revision
+>4	ulelong&0x0000FFff	x	\b%u
+>>8	ulelong		x		\b, %u message
+# plural s
+>>8	ulelong		>1		\bs
+# size of hashing table
+#>20	ulelong		x		\b, %u hash
+#>20	ulelong		>1		\bes
+#>24	ulelong		x		at 0x%x
+# for revsion x.0 offset of table with originals is 1Ch if directly after header
+>4	ulelong&0x0000FFff	=0
+>>12	ulelong		!0x1C		\b, at 0x%x string table
+# but for x.1 table offset i found is 30h. That means directly after bigger header
+>4	ulelong&0x0000FFff	>0
+>>12	ulelong		!0x30		\b, at 0x%x string table
+# The following variables are only used in .mo files with minor revision >= 1
+# number of system dependent segments
+#>>28	ulelong		x		\b, %u segment
+#>>28	ulelong		>1		\bs
+# offset of table describing system dependent segments
+#>>32	ulelong		x		at 0x%x
+# number of system dependent strings pairs
+>>36	ulelong		x		\b, %u sysdep message
+>>36	ulelong		>1		\bs
+# offset of table with start offsets of original sysdep strings
+#>>40	ulelong		x		\b, at 0x%x sysdep strings
+# offset of table with start offsets of translated sysdep strings
+#>>44	ulelong		x		\b, at 0x%x sysdep translations
+# >>(44.l)	ulelong	x		0x%x chars
+# >>>&0		ulelong	x		at 0x%x
+# >>>>(&-4)	string	x		"%s"
+# string table after big header
+#>>48	ubequad		x		\b, string table 0x%llx
+#
+# 0th string length seems to be always 0
+#>(12.l)	ulelong	x		\b, %u chars
+#>>&0		ulelong	x		at 0x%x
+# if 1st string length positiv inspect offset and string
+#>(12.l+8)	ulelong	>0		\b, %u chars
+#>>&0		ulelong	x		at 0x%x
+# if 2nd string length positiv inspect offset and string
+# >(12.l+16)	ulelong	>0		\b, %u chars
+# >>&0		ulelong	x		at 0x%x
+# skip newline byte
+#>>>(&-4)	ubyte	=0x0A
+#>>>>&0		string	x		"%s"
+#>>>(&-4)	ubyte	!0x0A
+#>>>>&-1		string	x		'%s'
+# offset of table with translation strings
+#>16	ulelong		x		\b, at 0x%x translation table
+# check translation 0 length and offset
+>(16.l)		ulelong	>0
+>>&0		ulelong	x
+# translation 0 seems to be often Project-Id with name and version
+>>>(&-4)	string	x		\b, %s
+# trans. 1 with bytes >= 1 unlike icoutils-0.31.0\po\en@boldquot.gmo with 1 NL
+>(16.l+8)	ulelong	>1
+>>&0		ulelong	x
+>>>(&-4)	ubyte	!0x0A
+>>>>&-1		string	x		'%s'
+# 1 New Line like in tar-1.29\po\de.gmo
+>>>(&-4)	ubyte	=0x0A
+>>>>&0		ubyte	!0x0A
+>>>>>&-1	string	x		'%s'
+# 2nd New Line like in parted-3.1\po\de.gmo
+>>>>&0		ubyte	=0x0A
+>>>>>&0		string	x		'%s'
+
+0	string		\225\4\22\336	GNU message catalog (big endian),
+#0	ubelong	0x950412DE		GNU-format message catalog data
+!:mime	application/x-gettext-translation
+!:ext	gmo/mo
+# TODO: for big endian use same code as for little endian
+#>0	use		\^gettext-object
+# DEBUG code
+#>16	ubelong		x		\b, at 0x%x translation table
+#>(16.L)		ubelong	x		0x%x chars
+#>>&0		ubelong	x		at 0x%x
+# unexpected value HERE!
+#>>>(&-4)	ubequad	x		0x%llx
+#
+>4	beshort		x		revision %d.
+>6	beshort		>0		\b%d,
+>>8	belong		x		%d messages,
+>>36	belong		x		%d sysdep messages
+>6	beshort		=0		\b%d,
+>>8	belong		x		%d messages
+
+
+# GnuPG
+# The format is very similar to pgp
+0	string          \001gpg                 GPG key trust database
+>4	byte            x                       version %d
+# Note: magic.mime had 0x8501 for the next line instead of 0x8502
+0	beshort		0x8502			GPG encrypted data
+!:mime	text/PGP # encoding: data
+
+# Update: Joerg Jenderek
+# Note:	PGP and GPG use same data structure.
+#	So recognition is now done by ./pgp with start test for byte 0x99
+# This magic is not particularly good, as the keyrings don't have true
+# magic. Nevertheless, it covers many keyrings.
+# 0	ubeshort-0x9901	<2
+# >3	byte		4
+# >>4	bedate		x		GPG key public ring, created %s
+# !:mime application/x-gnupg-keyring
+
+# Symmetric encryption
+0	leshort		0x0d8c
+>4	leshort		0x0203
+>>2	leshort		0x0204		GPG symmetrically encrypted data (3DES cipher)
+>>2	leshort		0x0304		GPG symmetrically encrypted data (CAST5 cipher)
+>>2	leshort		0x0404		GPG symmetrically encrypted data (BLOWFISH cipher)
+>>2	leshort		0x0704		GPG symmetrically encrypted data (AES cipher)
+>>2	leshort		0x0804		GPG symmetrically encrypted data (AES192 cipher)
+>>2	leshort		0x0904		GPG symmetrically encrypted data (AES256 cipher)
+>>2	leshort		0x0a04		GPG symmetrically encrypted data (TWOFISH cipher)
+>>2	leshort		0x0b04		GPG symmetrically encrypted data (CAMELLIA128 cipher)
+>>2	leshort		0x0c04		GPG symmetrically encrypted data (CAMELLIA192 cipher)
+>>2	leshort		0x0d04		GPG symmetrically encrypted data (CAMELLIA256 cipher)
+
+
+# GnuPG Keybox file
+# <http://git.gnupg.org/cgi-bin/gitweb.cgi?p=gnupg.git;a=blob;f=kbx/keybox-blob.c;hb=HEAD>
+# From: Philipp Hahn <hahn@univention.de>
+0	belong	32
+>4	byte	1
+>>8	string	KBXf	GPG keybox database
+>>>5	byte	1	version %d
+>>>16	bedate	x	\b, created-at %s
+>>>20	bedate	x	\b, last-maintained %s
+
+
+# Gnumeric spreadsheet
+# This entry is only semi-helpful, as Gnumeric compresses its files, so
+# they will ordinarily reported as "compressed", but at least -z helps
+39      string          =<gmr:Workbook           Gnumeric spreadsheet
+
+# From: James Youngman <jay@gnu.org>
+# gnu find magic
+0	string	\0LOCATE	GNU findutils locate database data
+>7	string	>\0		\b, format %s
+>7	string	02		\b (frcode)
+
+# Files produced by GNU gettext
+
+# gettext message catalogue
+0	search/1024	\nmsgid
+>&0	search/1024	\nmsgstr	GNU gettext message catalogue text
+!:strength +100
+!:mime text/x-po

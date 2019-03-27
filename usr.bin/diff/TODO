@@ -1,0 +1,17 @@
+-y:
+  * soc implemented it via calling sdiff directly, but some options are
+  incompatible so it is fragile
+  * just recommend the user to run sdiff directly and do not implement it
+  * make a libsdiff and use that directly to avoid duplicating the code
+
+to be implemented:
+--horizon-lines
+--ignore-tab-expansion
+--line-format
+
+Will probably be not implemented:
+--GTYPE-group-format (partially implement - minimal)
+--LTYPE-line-format
+--help (We have a manpage already)
+--suppress-common-lines: depends on -y (won't be implemented, as it conflicts
+the way sdiff expects it and in any case we have sdiff for that feature)

@@ -1,0 +1,144 @@
+.\"	$OpenBSD: enc.4,v 1.22 2006/05/26 08:51:29 jmc Exp $
+.\"
+.\" Copyright (c) 1999 Angelos D. Keromytis
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Angelos D. Keromytis.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 9, 2017
+.Dt ENC 4
+.Os
+.Sh NAME
+.Nm enc
+.Nd Encapsulating Interface
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device enc"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_enc_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+interface is a software loopback mechanism that allows hosts or
+firewalls to filter
+.Xr ipsec 4
+traffic using any firewall package that hooks in via the
+.Xr pfil 9
+framework.
+.Pp
+The
+.Nm
+interface allows an administrator to see incoming and outgoing packets
+before and after they will be or have been processed by
+.Xr ipsec 4
+via
+.Xr tcpdump 1 .
+.Pp
+The
+.Dq Li enc0
+interface inherits all IPsec traffic.
+Thus all IPsec traffic can be filtered based on
+.Dq Li enc0 ,
+and all IPsec traffic could be seen by invoking
+.Xr tcpdump 1
+on the
+.Dq Li enc0
+interface.
+.Pp
+What can be seen with
+.Xr tcpdump 1
+and what will be passed on to the firewalls via the
+.Xr pfil 9
+framework can be independently controlled using the following
+.Xr sysctl 8
+variables:
+.Bl -column net.enc.out.ipsec_filter_mask 0x00000000 0x00000000
+.It Sy "Name	Defaults	Suggested"
+.It "net.enc.out.ipsec_bpf_mask	0x00000003	0x00000001"
+.It "net.enc.out.ipsec_filter_mask	0x00000001	0x00000001"
+.It "net.enc.in.ipsec_bpf_mask	0x00000001	0x00000002"
+.It "net.enc.in.ipsec_filter_mask	0x00000001	0x00000002"
+.El
+.Pp
+For the incoming path a value of
+.Li 0x1
+means
+.Dq Li before stripping off the outer header
+and
+.Li 0x2
+means
+.Dq Li after stripping off the outer header .
+For the outgoing path
+.Li 0x1
+means
+.Dq Li with only the inner header
+and
+.Li 0x2
+means
+.Dq Li with outer and inner headers .
+.Bd -literal
+incoming path                                          |------|
+---- IPsec processing ---- (before) ---- (after) ----> |      |
+                                                       | Host |
+<--- IPsec processing ---- (after) ----- (before) ---- |      |
+outgoing path                                          |------|
+.Ed
+.Pp
+Most people will want to run with the suggested defaults for
+.Cm ipsec_filter_mask
+and rely on the security policy database for the outer headers.
+.Pp
+Note that packets are captured by BPF before firewall processing.
+The special value 0x4 can be configured in the
+.Ar ipsec_bpf_mask
+and packets will be also captured after firewall processing.
+.Sh EXAMPLES
+To see the packets the processed via
+.Xr ipsec 4 ,
+adjust the
+.Xr sysctl 8
+variables according to your need and run:
+.Pp
+.Dl "tcpdump -i enc0"
+.Sh SEE ALSO
+.Xr tcpdump 1 ,
+.Xr bpf 4 ,
+.Xr ipf 4 ,
+.Xr ipfw 4 ,
+.Xr ipsec 4 ,
+.Xr pf 4

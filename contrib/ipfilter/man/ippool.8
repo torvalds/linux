@@ -1,0 +1,133 @@
+.\"	$FreeBSD$
+.\"
+.TH IPPOOL 8
+.SH NAME
+ippool \- user interface to the IPFilter pools
+.SH SYNOPSIS
+.br
+.B ippool
+-a [-dnv] [-m <name>] [-o <role>] [-t <type>] [-T ttl] -i <ipaddr>[/<netmask>]
+.br
+.B ippool
+-A [-dnv] [-m <name>] [-o <role>] [-S <seed>] [-t <type>]
+.br
+.B ippool
+-f <file> [-dnuv]
+.br
+.B ippool
+-F [-dv] [-o <role>] [-t <type>]
+.br
+.B ippool
+-l [-dv] [-m <name>] [-t <type>] [-o <role>] [-M <core>] [-N <namelist>]
+.br
+.B ippool
+-r [-dnv] [-m <name>] [-o <role>] [-t <type>] -i <ipaddr>[/<netmask>]
+.br
+.B ippool
+-R [-dnv] [-m <name>] [-o <role>] [-t <type>]
+.br
+.B ippool
+-s [-dtv] [-M <core>] [-N <namelist>]
+.SH DESCRIPTION
+.PP
+.B Ippool
+is used to manage information stored in the IP pools subsystem of IPFilter.
+Configuration file information may be parsed and loaded into the kernel,
+currently configured pools removed or changed as well as inspected.
+.PP
+The command line options used are broken into two sections: the global
+options and the instance specific options.
+.SH GLOBAL OPTIONS
+.TP
+.B \-d
+Toggle debugging of processing the configuration file.
+.TP
+.B \-n
+This flag (no-change) prevents
+.B ippool
+from actually making any ioctl
+calls or doing anything which would alter the currently running kernel.
+.TP
+.B \-v
+Turn verbose mode on.
+.SH COMMAND OPTIONS
+.TP
+.B -a
+Add a new data node to an existing pool in the kernel.
+.TP
+.B -A
+Add a new (empty) pool to the kernel.
+.TP
+.B -f <file>
+Read in IP pool configuration information from the file and load it into
+the kernel.
+.TP
+.B -F
+Flush loaded pools from the kernel.
+.TP
+.B -l
+Display a list of pools currently loaded into the kernel.
+.TP
+.B -r
+Remove an existing data node from a pool in the kernel.
+.TP
+.B -R
+Remove an existing pool from within the kernel.
+.TP
+.B -s
+Display IP pool statistical information.
+.SH OPTIONS
+.TP
+.B -i <ipaddr>[/<netmask>]
+Sets the IP address for the operation being undertaken with an
+all-one's mask or, optionally, a specific netmask given in either
+the dotted-quad notation or a single integer.
+.TP
+.B -m <name>
+Sets the pool name for the current operation.
+.TP
+.B -M <core>
+Specify an alternative path to /dev/kmem to retrieve statistical information
+from.
+.TP
+.B -N <namelist>
+Specify an alternative path to lookup symbol name information from when
+retrieving statistical information.
+.TP
+.B -o <role>
+Sets the role with which this pool is to be used.  Currently only
+.B ipf,
+.B auth
+and
+.B count
+are accepted as arguments to this option.
+.TP
+.B -S <seed>
+Sets the hashing seed to the number specified.  Only for use with
+.B hash
+type pools.
+.TP
+.B -t <type>
+Sets the type of pool being defined.  Myst be one of
+.B tree,
+.B hash,
+.B group-map.
+.TP
+.B -T <ttl>
+Sets the expiration of the node being added. The timeout is expressed
+as a number of seconds.
+.B tree,
+.B hash,
+.B group-map.
+.TP
+.B -u
+When parsing a configuration file, rather than load new pool data into the
+kernel, unload it.
+.DT
+.SH FILES
+.br
+/dev/iplookup
+.br
+/etc/ippool.conf
+.SH SEE ALSO
+ippool(5), ipf(8), ipfstat(8)

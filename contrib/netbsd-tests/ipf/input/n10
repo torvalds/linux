@@ -1,0 +1,6 @@
+# TCP SYN packet with an MSS option
+[out,ppp0]
+4500 002c 10c9 4000 ff06 3289 c0a8 0103 96cb e002
+8032 0015 bd6b c9c8 0000 0000
+6002 2238 35f9 0000 0204 05b4
+

@@ -1,0 +1,409 @@
+.\" Copyright (c) 1996
+.\"	Julian Elischer <julian@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 5, 2017
+.Dt SA 4
+.Os
+.Sh NAME
+.Nm sa
+.Nd SCSI Sequential Access device driver
+.Sh SYNOPSIS
+.Cd device sa
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for all
+.Tn SCSI
+devices of the sequential access class that are attached to the system
+through a supported
+.Tn SCSI
+Host Adapter.
+The sequential access class includes tape and other linear access devices.
+.Pp
+A
+.Tn SCSI
+Host
+adapter must also be separately configured into the system
+before a
+.Tn SCSI
+sequential access device can be configured.
+.Sh MOUNT SESSIONS
+The
+.Nm
+driver is based around the concept of a
+.Dq Em mount session ,
+which is defined as the period between the time that a tape is
+mounted, and the time when it is unmounted.
+Any parameters set during
+a mount session remain in effect for the remainder of the session or
+until replaced.
+The tape can be unmounted, bringing the session to a
+close in several ways.
+These include:
+.Bl -enum
+.It
+Closing a `rewind device',
+referred to as sub-mode 00 below.
+An example is
+.Pa /dev/sa0 .
+.It
+Using the MTOFFL
+.Xr ioctl 2
+command, reachable through the
+.Sq Cm offline
+command of
+.Xr mt 1 .
+.El
+.Pp
+It should be noted that tape devices are exclusive open devices, except in
+the case where a control mode device is opened.
+In the latter case, exclusive
+access is only sought when needed (e.g., to set parameters).
+.Sh SUB-MODES
+Bits 0 and 1 of the minor number are interpreted as
+.Sq sub-modes .
+The sub-modes differ in the action taken when the device is closed:
+.Bl -tag -width XXXX
+.It 00
+A close will rewind the device; if the tape has been
+written, then a file mark will be written before the rewind is requested.
+The device is unmounted.
+.It 01
+A close will leave the tape mounted.
+If the tape was written to, a file mark will be written.
+No other head positioning takes place.
+Any further reads or writes will occur directly after the
+last read, or the written file mark.
+.It 10
+A close will rewind the device.
+If the tape has been
+written, then a file mark will be written before the rewind is requested.
+On completion of the rewind an unload command will be issued.
+The device is unmounted.
+.El
+.Sh BLOCKING MODES
+.Tn SCSI
+tapes may run in either
+.Sq Em variable
+or
+.Sq Em fixed
+block-size modes.
+Most
+.Tn QIC Ns -type
+devices run in fixed block-size mode, where most nine-track tapes and
+many new cartridge formats allow variable block-size.
+The difference between the two is as follows:
+.Bl -inset
+.It Variable block-size:
+Each write made to the device results in a single logical record
+written to the tape.
+One can never read or write
+.Em part
+of a record from tape (though you may request a larger block and read
+a smaller record); nor can one read multiple blocks.
+Data from a single write is therefore read by a single read.
+The block size used
+may be any value supported by the device, the
+.Tn SCSI
+adapter and the system (usually between 1 byte and 64 Kbytes,
+sometimes more).
+.Pp
+When reading a variable record/block from the tape, the head is
+logically considered to be immediately after the last item read,
+and before the next item after that.
+If the next item is a file mark,
+but it was never read, then the next
+process to read will immediately hit the file mark and receive an end-of-file notification.
+.It Fixed block-size:
+Data written by the user is passed to the tape as a succession of
+fixed size blocks.
+It may be contiguous in memory, but it is
+considered to be a series of independent blocks.
+One may never write
+an amount of data that is not an exact multiple of the blocksize.
+One may read and write the same data as a different set of records.
+In other words, blocks that were written together may be read separately,
+and vice-versa.
+.Pp
+If one requests more blocks than remain in the file, the drive will
+encounter the file mark.
+As there is some data to return (unless
+there were no records before the file mark), the read will succeed,
+returning that data.
+The next read will return immediately with a value
+of 0.
+(As above, if the file mark is never read, it remains for the next
+process to read if in no-rewind mode.)
+.El
+.Sh BLOCK SIZES
+By default, the driver will NOT accept reads or writes to a tape device that
+are larger than may be written to or read from the mounted tape using a single
+write or read request.
+Because of this, the application author may have confidence that his wishes
+are respected in terms of the block size written to tape.
+For example, if the user tries to write a 256KB block to the tape, but the
+controller can handle no more than 128KB, the write will fail.
+The previous
+.Fx
+behavior, prior to
+.Fx
+10.0,
+was to break up large reads or writes into smaller blocks when going to the
+tape.
+The problem with that behavior, though, is that it hides the actual on-tape
+block size from the application writer, at least in variable block mode.
+.Pp
+If the user would like his large reads and writes broken up into separate
+pieces, he may set the following loader tunables.
+Note that these tunables WILL GO AWAY in
+.Fx 11.0 .
+They are provided for transition purposes only.
+.Bl -tag -width 12
+.It kern.cam.sa.allow_io_split
+.Pp
+This variable, when set to 1, will configure all
+.Nm
+devices to split large buffers into smaller pieces when needed.
+.It kern.cam.sa.%d.allow_io_split
+.Pp
+This variable, when set to 1, will configure the given
+.Nm
+unit to split large buffers into multiple pieces.
+This will override the global setting, if it exists.
+.El
+.Pp
+There are several
+.Xr sysctl 8
+variables available to view block handling parameters:
+.Bl -tag -width 12
+.It kern.cam.sa.%d.allow_io_split
+.Pp
+This variable allows the user to see, but not modify, the current I/O split
+setting.
+The user is not permitted to modify this setting so that there is no chance
+of behavior changing for the application while a tape is mounted.
+.It kern.cam.sa.%d.maxio
+.Pp
+This variable shows the maximum I/O size in bytes that is allowed by the
+combination of kernel tuning parameters (MAXPHYS, DFLTPHYS) and the
+capabilities of the controller that is attached to the tape drive.
+Applications may look at this value for a guide on how large an I/O may be
+permitted, but should keep in mind that the actual maximum may be
+restricted further by the tape drive via the
+.Tn SCSI
+READ BLOCK LIMITS command.
+.It kern.cam.sa.%d.cpi_maxio
+.Pp
+This variable shows the maximum I/O size supported by the controller, in
+bytes, that is reported via the CAM Path Inquiry CCB (XPT_PATH_INQ).
+If this is 0, that means that the controller has not reported a maximum I/O
+size.
+.El
+.Sh FILE MARK HANDLING
+The handling of file marks on write is automatic.
+If the user has
+written to the tape, and has not done a read since the last write,
+then a file mark will be written to the tape when the device is
+closed.
+If a rewind is requested after a write, then the driver
+assumes that the last file on the tape has been written, and ensures
+that there are two file marks written to the tape.
+The exception to
+this is that there seems to be a standard (which we follow, but do not
+understand why) that certain types of tape do not actually write two
+file marks to tape, but when read, report a `phantom' file mark when the
+last file is read.
+These devices include the QIC family of devices.
+(It might be that this set of devices is the same set as that of fixed
+block devices.
+This has not been determined yet, and they are treated
+as separate behaviors by the driver at this time.)
+.Sh PARAMETERS
+The
+.Nm
+driver supports a number of parameters.
+The user can query parameters using
+.Dq mt param -l
+(which uses the
+.Dv MTIOCPARAMGET
+ioctl) and the user can set parameters using
+.Dq mt param -s 
+(which uses the
+.Dv MTIOCPARAMSET
+ioctl).
+See
+.Xr mt 1
+and
+.Xr mtio 4
+for more details on the interface.
+.Pp
+Supported parameters:
+.Bl -tag -width 5n
+.It sili
+The default is 0.
+When set to 1, it sets the Suppress Incorrect Length Indicator (SILI) bit
+on tape reads.
+Tape drives normally return sense data (which contains the residual) when the
+application reads a block that is not the same length as the amount of data
+requested.
+The SILI bit suppresses that notification in most cases.
+See the SSC-5 spec (available at t10.org), specifically the section on the
+READ(6) command, for more information.
+.It eot_warn
+The default is 0.
+By default, the
+.Nm
+driver reports entering Programmable Early Warning, Early Warning and End
+of Media conditions by returning a write with 0 bytes written, and
+.Dv errno
+set to 0.
+If 
+.Va eot_warn
+is set to 1, the
+.Nm
+driver will set
+.Dv errno
+to 
+.Dv ENOSPC
+when it enters any of the out of space conditions.
+.It protection.protection_supported
+This is a read-only parameter, and is set to 1 if the tape drive supports
+protection information.
+.It protection.prot_method
+If protection is supported, set this to the desired protection method
+supported by the tape drive.
+As of SSC-5r03 (available at t10.org), the protection method values are:
+.Bl -tag -width 3n
+.It 0
+No protection.
+.It 1
+Reed-Solomon CRC, 4 bytes in length.
+.It 2
+CRC32C, 4 bytes in length.
+.El
+.It protection.pi_length
+Length of the protection information, see above for lengths.
+.It protection.lbp_w
+If set to 1, enable logical block protection on writes.
+The CRC must be appended to the end of the block written to the tape driver.
+The tape drive will verify the CRC when it receives the block.
+.It protection.lbp_r
+If set to 1, enable logical block protection on reads.
+The CRC will be appended to the end of the block read from the tape driver.
+The application should verify the CRC when it receives the block.
+.It protection.rdbp
+If set to 1, enable logical block protection on the RECOVER BUFFERED DATA
+command.
+The
+.Nm
+driver does not currently use the
+RECOVER BUFFERED DATA command.
+.El
+.Sh IOCTLS
+The
+.Nm
+driver supports all of the ioctls of
+.Xr mtio 4 .
+.Sh FILES
+.Bl -tag -width /dev/[n][e]sa[0-9] -compact
+.It Pa /dev/[n][e]sa[0-9]
+general form:
+.It Pa /dev/sa0
+Rewind on close
+.It Pa /dev/nsa0
+No rewind on close
+.It Pa /dev/esa0
+Eject on close (if capable)
+.It Pa /dev/sa0.ctl
+Control mode device (to examine state while another program is
+accessing the device, e.g.).
+.El
+.Sh DIAGNOSTICS
+The
+.Nm
+driver supports injecting End Of Media (EOM) notification to aid
+application development and testing.
+EOM is indicated to the application by returning the read or write with 0
+bytes written.
+In addition, when EOM is injected, the tape position status will be updated
+to temporarily show Beyond of the Programmable Early Warning (BPEW) status.
+To see BPEW status, use the
+.Dv MTIOCEXTGET
+ioctl, which is used by the 
+.Dq mt status 
+command.
+To inject an EOM notification, set the 
+.Pp
+.Va kern.cam.sa.%d.inject_eom
+.Pp
+sysctl variable to 1.
+One EOM notification will be sent, BPEW status will be set for one position
+query, and then the driver state will be reset to normal.
+.Sh SEE ALSO
+.Xr mt 1 ,
+.Xr cam 4
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written for the
+.Tn CAM
+.Tn SCSI
+subsystem by
+.An Justin T. Gibbs
+and
+.An Kenneth Merry .
+Many ideas were gleaned from the
+.Nm st
+device driver written and ported from
+.Tn Mach
+2.5
+by
+.An Julian Elischer .
+.Pp
+The owner of record for many years was
+.An Matthew Jacob .
+The current maintainer is
+.An Kenneth Merry
+.Sh BUGS
+This driver lacks many of the hacks required to deal with older devices.
+Many older
+.Tn SCSI-1
+devices may not work properly with this driver yet.
+.Pp
+Additionally, certain
+tapes (QIC tapes mostly) that were written under
+.Fx
+2.X
+are not automatically read correctly with this driver: you may need to
+explicitly set variable block mode or set to the blocksize that works best
+for your device in order to read tapes written under
+.Fx
+2.X.
+.Pp
+Partitions are only supported for status information and location.
+It would be nice to add support for creating and editing tape partitions.

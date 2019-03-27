@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+result=$(${SH} -c '(/bin/sleep 1)& sleep 0.1; ps -p $! -o comm=; kill $!')
+test "$result" = sleep || exit 1
+
+result=$(${SH} -c '{ trap "echo trapped" EXIT; (/usr/bin/true); } & wait')
+test "$result" = trapped || exit 1
+
+exit 0

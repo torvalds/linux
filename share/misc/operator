@@ -1,0 +1,21 @@
+Operator					Associativity
+-------------------------------------------------------------
+() [] -> .					left to right
+! ~ ++ -- - (type) * & sizeof new delete	right to left
+->* .*						left to right
+* / %						left to right
++ -						left to right
+<< >>						left to right
+< <= > >=					left to right
+== !=						left to right
+&						left to right
+^						left to right
+|						left to right
+&&						left to right
+||						left to right
+?:						right to left
+= += -= *= /= %= <<= >>= &= ^= |= throw		right to left
+?: (C++, third operand)				right to left
+,						left to right
+
+$FreeBSD$

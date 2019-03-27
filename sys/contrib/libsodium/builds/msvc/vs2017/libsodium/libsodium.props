@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup Label="Globals">
+    <_PropertySheetDisplayName>Libsodium Common Settings</_PropertySheetDisplayName>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+  </PropertyGroup>
+
+  <!-- User Interface -->
+
+  <ItemGroup Label="BuildOptionsExtension">
+    <PropertyPageSchema Include="$(MSBuildThisFileDirectory)$(ProjectName).xml" />
+  </ItemGroup>
+
+  <!-- Configuration -->
+
+  <ItemDefinitionGroup>
+    <PreBuildEvent>
+      <Command>copy "$(BuildRoot)version.h" "$(RepoRoot)src\libsodium\include\sodium\"</Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(RepoRoot)src\libsodium\include;$(RepoRoot)src\libsodium\include\sodium\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4146;4244;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <EnablePREfast>false</EnablePREfast>
+      <PreprocessorDefinitions>inline=__inline;NATIVE_LITTLE_ENDIAN;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(ConfigurationType)' == 'StaticLibrary'">SODIUM_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(ConfigurationType)' == 'DynamicLibrary'">SODIUM_DLL_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Option-amd64asm)' == 'true'">HAVE_AMD64_ASM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <!-- Messages -->
+
+  <Target Name="CustomInfo" BeforeTargets="PrepareForBuild">
+    <Message Text="Will copy $(BuildRoot)version.h -&gt; $(RepoRoot)src\libsodium\include\sodium\version.h" Importance="high"/>
+  </Target>
+
+  <Target Name="OptionInfo" BeforeTargets="PrepareForBuild">
+    <Message Text="Option-amd64asm   : $(Option-amd64asm)" Importance="high"/>
+  </Target>
+
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>advapi32.lib</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+</Project>

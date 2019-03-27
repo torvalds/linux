@@ -1,0 +1,38 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	/*
+	 * These symbols really shouldn't be exported since they should
+	 * be pulled from libgcc, but the build of some applications is
+	 * broken and they expect to see them in libc.  glibc exports
+	 * them, but they do not appear to be exported in Solaris.
+	 */
+	__adddi3;
+	__anddi3;
+	__ashldi3;
+	__ashrdi3;
+	__cmpdi2;
+	__divdi3;
+	__fixdfdi;
+	__fixsfdi;
+	__fixunsdfdi;
+	__fixunssfdi;
+	__floatdidf;
+	__floatdisf;
+	__floatunsdidf;
+	__iordi3;
+	__lshldi3;
+	__lshrdi3;
+	__moddi3;
+	__muldi3;
+	__negdi2;
+	__one_cmpldi2;
+	__qdivrem;
+	__subdi3;
+	__ucmpdi2;
+	__udivdi3;
+	__umoddi3;
+	__xordi3;
+};

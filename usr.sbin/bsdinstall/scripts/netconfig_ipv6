@@ -1,0 +1,160 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2011 The FreeBSD Foundation
+# Copyright (c) 2013-2015 Devin Teske
+# All rights reserved.
+#
+# Portions of this software were developed by Bjoern Zeeb
+# under sponsorship from the FreeBSD Foundation.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+
+############################################################ MAIN
+
+#
+# TODO:
+# - Add DHCPv6 support once FreeBSD ships with it.
+#
+
+INTERFACE=$1
+case "${INTERFACE}" in
+"")	dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
+	    --msgbox 'No interface specified for IPv6 configuration.' 0 0
+	exit 1
+	;;
+esac
+
+AGAIN=""
+while : ; do
+	MSG="Would you like to try stateless address autoconfiguration (SLAAC)${AGAIN}?"
+	dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
+	    --yesno "${MSG}" 0 0
+	if [ $? -eq $DIALOG_OK ]; then
+		if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
+			dialog --backtitle 'FreeBSD Installer' \
+			    --infobox "Sending Router Solicitation ..." 0 0
+			ifconfig ${INTERFACE} inet6 -ifdisabled accept_rtadv up
+			err=$( rtsol -F $INTERFACE 2>&1 )
+			if [ $? -ne 0 ]; then
+				f_dprintf "%s" "$err"
+				dialog --backtitle 'FreeBSD Installer' --msgbox "SLAAC failed." 0 0
+				AGAIN=" again"
+				continue
+			fi
+		fi
+		echo ifconfig_${INTERFACE}_ipv6=\"inet6 accept_rtadv\" >> $BSDINSTALL_TMPETC/._rc.conf.net
+		exit 0
+	else
+		break
+	fi
+done
+
+ROUTER6=`netstat -Wrn -f inet6 | awk '/default/ {printf("%s\n", $2);}'`
+ADDRS=`ifconfig ${INTERFACE} inet6 | \
+awk  -v dfr="${ROUTER6}" '
+BEGIN {
+	n=0;
+}
+{
+	if (/inet6/) {
+		if (match($2, "^fe80:")) { next; };
+		# For the moment ignore all but the first address; it might confuse the user.
+		if (n > 0) { next; };
+		n++;
+		printf "\"IPv6 Address\" %d 0 \"%s/%s\" %d 16 50 0 0 ", n, $2, $4, n;
+	}
+}
+END {
+	if (n == 0) {
+		n++;
+		printf "\"IPv6 Address\" %d 0 \"\" %d 16 50 0 0 ", n, n;
+	}
+	n++;
+	# Nasty trick adding a (hidden, same y) read-only field as a marker
+	# to separate interface address(es) from the default router.
+	printf "\"Default Router\" %d 0 \"%s\" %d 16 50 0 2 ", n, "DefaultRouter", n;
+	printf "\"Default Router\" %d 0 \"%s\" %d 16 50 0 0 ", n, dfr, n;
+}'`
+
+exec 3>&1
+IF_CONFIG=$(echo ${ADDRS} | xargs dialog --backtitle 'FreeBSD Installer' \
+	--title 'Network Configuration' \
+	--mixedform 'Static IPv6 Network Interface Configuration' 0 0 0 \
+2>&1 1>&3)
+if [ $? -eq $DIALOG_CANCEL ]; then exit 1; fi
+exec 3>&-
+
+echo ${IF_CONFIG} | tr ' ' '\n' | \
+awk -v iface="${INTERFACE}" '
+BEGIN {
+	dfr=0;
+	count=0;
+}
+{
+	if (/^[[:space:]]+$/) {
+		next;
+	}
+	if (/DefaultRouter/) {
+		dfr=1;
+		next;
+	}
+	if (dfr == 1) {
+		printf("ipv6_defaultrouter=\"%s\"\n", $1);
+		next;
+	}
+	if (count > 0) {
+		# Ignore all but the first IP address for now.
+		next;
+	}
+	count++;
+	if (!match($1, "/")) {
+		sub("$", "/64", $1);
+	}
+	printf("ifconfig_%s_ipv6=\"inet6 %s\"\n", iface, $1);
+}' >> $BSDINSTALL_TMPETC/._rc.conf.net
+retval=$?
+
+if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
+	. $BSDINSTALL_TMPETC/._rc.conf.net
+	ifconfig ${INTERFACE} `eval echo \\\$ifconfig_${INTERFACE}_ipv6`
+	if [ "$ipv6_defaultrouter" ]; then
+		route delete -inet6 default
+		route add -inet6 default ${ipv6_defaultrouter}
+		retval=$?
+	fi
+fi
+
+exit $retval
+
+################################################################################
+# END
+################################################################################

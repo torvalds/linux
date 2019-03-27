@@ -1,0 +1,238 @@
+.\"
+.\" Copyright (c) 1997, 2001 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 25, 2008
+.Dt SPPP 4
+.Os
+.Sh NAME
+.Nm sppp
+.Nd point to point protocol network layer for synchronous lines
+.Sh SYNOPSIS
+.Cd "device sppp"
+.Sh DESCRIPTION
+The
+.Nm
+network layer implements the state machine and the Link Control
+Protocol (LCP) of the
+.Em point to point protocol (PPP)
+as described in RFC 1661.
+Note that this layer does not provide
+network interfaces of its own, it is rather intended to be layered on
+top of drivers providing a synchronous point-to-point connection that
+wish to run a PPP stack over it.
+The corresponding network interfaces
+have to be provided by these hardware drivers.
+.Pp
+The
+.Nm
+layer provides three basic modes of operation.
+The default mode,
+with no special flags to be set, is to create the PPP connection
+(administrative
+.Em Open
+event to the LCP layer) as soon as the interface is taken up with the
+.Xr ifconfig 8
+command.
+Taking the interface down again will terminate the LCP layer
+and thus all other layers on top.
+The link will also terminate itself as
+soon as no Network Control Protocol (NCP) is open anymore, indicating
+that the lower layers are no longer needed.
+.Pp
+Setting the link-level flag
+.Em link0
+with
+.Xr ifconfig 8
+will cause the respective network interface to go into
+.Em passive
+mode.
+This means, the administrative
+.Em Open
+event to the LCP layer will be delayed until after the lower layers
+signals an
+.Em Up
+event (rise of
+.Dq carrier ) .
+This can be used by lower layers to support
+a dialin connection where the physical layer is not available
+immediately at startup, but only after some external event arrives.
+Receipt of a
+.Em Down
+event from the lower layer will not take the interface completely down
+in this case.
+.Pp
+Finally, setting the flag
+.Em link1
+will cause the interface to operate in
+.Em dial-on-demand
+mode.
+This is also only useful if the lower layer supports the notion
+of a carrier.
+Upon configuring the
+respective interface, it will delay the administrative
+.Em Open
+event to the LCP layer until either an outbound network packet
+arrives, or until the lower layer signals an
+.Em Up
+event, indicating an inbound connection.
+As with passive mode, receipt
+of a
+.Em Down
+event (loss of carrier) will not automatically take the interface down,
+thus it remains available for further connections.
+.Pp
+The
+.Nm
+layer supports the
+.Em debug
+interface flag that can be set with
+.Xr ifconfig 8 .
+If this flag is set, the various control protocol packets being
+exchanged as well as the option negotiation between both ends of the
+link will be logged at level
+.Dv LOG_DEBUG .
+This can be helpful to examine configuration problems during the first
+attempts to set up a new configuration.
+Without this flag being set,
+only the major phase transitions will be logged at level
+.Dv LOG_INFO .
+.Pp
+It is possible to leave the local interface IP address open for
+negotiation by setting it to 0.0.0.0.
+This requires that the remote
+peer can correctly supply a value for it based on the identity of the
+caller, or on the remote address supplied by this side.
+Due to the
+way the IPCP option negotiation works, this address is being supplied
+late during the negotiation, which might cause the remote peer to make
+wrong assumptions.
+.Pp
+In a similar spirit the remote address can be set to the magical
+value
+.Li 0.0.0. Ns Em *
+which means that we do not care what address the remote
+side will use, as long as it is not 0.0.0.0.
+This is useful if your ISP has several dial-in
+servers.
+You can of course
+.Nm route Cm add Ar something_or_other 0.0.0. Ns Em *
+and it will do exactly what you would want it to.
+.Pp
+The PAP and CHAP authentication protocols as described in RFC 1334,
+and RFC 1994 resp., are also implemented.
+Their parameters are being
+controlled by the
+.Xr spppcontrol 8
+utility.
+.Pp
+VJ header compression is implemented, and enabled by default.
+It can be
+disabled using
+.Xr spppcontrol 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It <ifname><ifnum>: <proto> illegal <event> in state <statename>
+An event happened that should not happen for the current state
+the respective control protocol is in.
+See RFC 1661 for a description
+of the state automaton.
+.It <ifname><ifnum>: loopback
+The state automaton detected a line loopback (that is, it was talking
+with itself).
+The interface will be temporarily disabled.
+.It <ifname><ifnum>: up
+The LCP layer is running again, after a line loopback had previously
+been detected.
+.It <ifname><ifnum>: down
+The keepalive facility detected the line being unresponsive.
+Keepalive must be explicitly requested by the lower layers in order to
+take place.
+.El
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr ifconfig 8 ,
+.Xr spppcontrol 8
+.Rs
+.%A W. Simpson, Editor
+.%T "The Point-to-Point Protocol (PPP)"
+.%O RFC 1661
+.Re
+.Rs
+.%A G. McGregor
+.%T "The PPP Internet Protocol Control Protocol (IPCP)"
+.%O RFC 1332
+.Re
+.Rs
+.%A B. Lloyd
+.%A W. Simpson
+.%T "PPP Authentication Protocols"
+.%O RFC 1334
+.Re
+.Rs
+.%A W. Simpson
+.%T "PPP Challenge Handshake Authentication Protocol (CHAP)"
+.%O RFC 1994
+.Re
+.Sh AUTHORS
+.An -nosplit
+The original implementation of
+.Nm
+was written in 1994 at Cronyx Ltd., Moscow by
+.An Serge Vakulenko Aq Mt vak@cronyx.ru .
+.An J\(:org Wunsch Aq Mt joerg_wunsch@uriah.heep.sax.de
+rewrote a large part in 1997 in order
+to fully implement the state machine as described in RFC 1661, so it
+could also be used for dialup lines.
+He also wrote this man page.
+Serge later on wrote a basic implementation for PAP and CHAP, which
+served as the base for the current implementation, done again by
+.An J\(:org Wunsch .
+.Sh BUGS
+Many.
+.Pp
+Currently, only the
+.Em IPCP
+control protocol and
+.Xr ip 4
+network protocol is supported.
+More NCPs should be implemented, as well as other control protocols
+for authentication and link quality reporting.
+.Pp
+Negotiation loop avoidance is not fully implemented.
+If the negotiation
+does not converge, this can cause an endless loop.
+.Pp
+The various parameters that should be adjustable per RFC 1661 are
+currently hard-coded into the kernel, and should be made accessible
+through
+.Xr spppcontrol 8 .
+.Pp
+.Em Passive
+mode has not been tested extensively.
+.Pp
+Link-level compression protocols should be supported.

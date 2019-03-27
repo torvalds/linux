@@ -1,0 +1,98 @@
+.\" Copyright (c) 2004 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd July 26, 2004
+.Dt KRB5_RD_ERROR 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_rd_error ,
+.Nm krb5_free_error ,
+.Nm krb5_free_error_contents ,
+.Nm krb5_error_from_rd_error
+.Nd parse, free and read error from KRB-ERROR message
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Ft krb5_error_code
+.Fo krb5_rd_error
+.Fa "krb5_context context"
+.Fa "const krb5_data *msg"
+.Fa "KRB_ERROR *result"
+.Fc
+.Ft void
+.Fo krb5_free_error
+.Fa "krb5_context context"
+.Fa "krb5_error *error"
+.Fc
+.Ft void
+.Fo krb5_free_error_contents
+.Fa "krb5_context context"
+.Fa "krb5_error *error"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_error_from_rd_error
+.Fa "krb5_context context"
+.Fa "const krb5_error *error"
+.Fa "const krb5_creds *creds"
+.Fc
+.Sh DESCRIPTION
+Usually applications never needs to parse and understand Kerberos
+error messages since higher level functions will parse and push up the
+error in the krb5_context.
+These functions are described for completeness.
+.Pp
+.Fn krb5_rd_error
+parses and returns the kerboeros error message, the structure should be freed with
+.Fn krb5_free_error_contents
+when the caller is done with the structure.
+.Pp
+.Fn krb5_free_error
+frees the content and the memory region holding the structure iself.
+.Pp
+.Fn krb5_free_error_contents
+free the content of the KRB-ERROR message.
+.Pp
+.Fn krb5_error_from_rd_error
+will parse the error message and set the error buffer in krb5_context
+to the error string passed back or the matching error code in the
+KRB-ERROR message.
+Caller should pick up the message with
+.Fn krb5_get_error_string 3
+(don't forget to free the returned string with
+.Fn krb5_free_error_string ) .
+.Sh SEE ALSO
+.Xr krb5 3 ,
+.Xr krb5_set_error_string 3 ,
+.Xr krb5_get_error_string 3 ,
+.Xr krb5.conf 5

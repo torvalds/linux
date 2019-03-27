@@ -1,0 +1,127 @@
+.\"
+.\" Copyright (c) 2003 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Jake Burkholder,
+.\" Safeport Network Services, and Network Associates Laboratories, the
+.\" Security Research Division of Network Associates, Inc. under
+.\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
+.\" CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 8, 2003
+.Dt PAE 4 i386
+.Os
+.Sh NAME
+.Nm PAE
+.Nd Physical Address Extensions
+.Sh SYNOPSIS
+.Cd "options PAE"
+.Sh DESCRIPTION
+The
+.Dv PAE
+option provides support for the physical address extensions capability
+of the
+.Tn Intel
+.Tn Pentium Pro
+and above CPUs,
+and allows for up to 64 gigabytes of memory to be used in systems capable
+of supporting it.
+With the
+.Dv PAE
+option, memory above 4 gigabytes is simply added to the general page pool.
+The system makes no distinction between memory above or below 4 gigabytes,
+and no specific facility is provided for a process or the kernel to access
+more memory than they would otherwise be able to access, through a sliding
+window or otherwise.
+.Sh SEE ALSO
+.Xr smp 4 ,
+.Xr tuning 7 ,
+.Xr config 8 ,
+.Xr bus_dma 9
+.Sh HISTORY
+The
+.Dv PAE
+option first appeared in
+.Fx 4.9
+and
+.Fx 5.1 .
+.Sh AUTHORS
+.An Jake Burkholder Aq Mt jake@FreeBSD.org
+.Sh BUGS
+Since KLD modules are not compiled with the same options headers that
+the kernel is compiled with,
+they must not be loaded into a kernel compiled with the
+.Dv PAE
+option.
+.Pp
+Many devices or their device drivers are not capable of direct memory access
+to physical addresses above 4 gigabytes.
+In order to make use of direct memory access IO in a system with more than
+4 gigabytes of memory when the
+.Dv PAE
+option is used,
+these drivers must use a facility for remapping or substituting physical
+memory which is not accessible to the device.
+One such facility is provided by the
+.Nm busdma
+interface.
+Device drivers which do not account for such devices will not work reliably
+in a system with more than 4 gigabytes of memory when the
+.Dv PAE
+option is used,
+and may cause data corruption.
+The
+.Pa PAE
+kernel configuration file includes the
+.Dv PAE
+option, and explicitly excludes all device drivers which are known to not work
+or have not been tested in a system with the
+.Dv PAE
+option and more than 4 gigabytes of memory.
+.Pp
+Many parameters which determine how memory is used in the kernel are based on
+the amount of physical memory.
+The formulas used to determine the values of these parameters for specific
+memory configurations may not take into account the fact there may be more
+than 4 gigabytes of memory, and may not scale well to these memory
+configurations.
+In particular,
+it may be necessary to increase the amount of virtual address space available
+to the kernel,
+or to reduce the amount of a specific resource that is heavily used,
+in order to avoid running out of virtual address space.
+The
+.Dv KVA_PAGES
+option may be used to increase the kernel virtual address space,
+and the
+.Va kern.maxvnodes
+.Xr sysctl 8
+may be used to decrease the number of vnodes allowed,
+an example of a resource that the kernel is likely to overallocate in
+large memory configurations.
+For optimal performance and stability it may be necessary to consult the
+.Xr tuning 7
+manual page, and make adjustments to the parameters documented there.

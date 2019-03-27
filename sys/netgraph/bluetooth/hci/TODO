@@ -1,0 +1,29 @@
+$Id: TODO,v 1.2 2003/04/26 22:36:29 max Exp $
+$FreeBSD$
+
+FIXME/TODO list
+
+This is a list of open issues for HCI node
+
+1) Locking/SMP
+
+	External code now uses ng_send_fn to inject data into Netgraph, so
+	it should be fine as long as Netgraph is SMP safe. Just need to 
+	verify it.
+
+2) HCI QoS handling
+
+	Some code exists, but i have no idea how it should work. Will 
+	understand and fix later. I only have CSR based hardware and
+	it does not support QoS.
+
+3) Add proper handling for some HCI commands
+
+	HCI testing commands is one example. Also might implement Host to 
+	Host Controller flow control (not sure if it is required).
+
+4) Code cleanup
+
+	Verify return codes from functions
+	Remove some waringns/errors
+

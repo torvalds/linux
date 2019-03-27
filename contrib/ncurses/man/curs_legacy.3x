@@ -1,0 +1,82 @@
+.\"***************************************************************************
+.\" Copyright (c) 2007,2010 Free Software Foundation, Inc.                   *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_legacy.3x,v 1.5 2010/12/04 18:38:55 tom Exp $
+.TH curs_legacy 3X ""
+.SH NAME
+getattrs \- get \fBcurses\fR cursor and window coordinates, attributes
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint getattrs(WINDOW *win);\fR
+.br
+\fBint getbegx(WINDOW *win);\fR
+.br
+\fBint getbegy(WINDOW *win);\fR
+.br
+\fBint getcurx(WINDOW *win);\fR
+.br
+\fBint getcury(WINDOW *win);\fR
+.br
+\fBint getmaxx(WINDOW *win);\fR
+.br
+\fBint getmaxy(WINDOW *win);\fR
+.br
+\fBint getparx(WINDOW *win);\fR
+.br
+\fBint getpary(WINDOW *win);\fR
+.br
+.SH DESCRIPTION
+The \fBgetbegy\fR and \fBgetbegx\fR functions return the same
+data as \fBgetbegyx\fR.
+.PP
+The \fBgetcury\fR and \fBgetcurx\fR functions return the same
+data as \fBgetyx\fR.
+.PP
+The \fBgetmaxy\fR and \fBgetmaxx\fR functions return the same
+data as \fBgetmaxyx\fR.
+.PP
+The \fBgetpary\fR and \fBgetparx\fR functions return the same
+data as \fBgetparyx\fR.
+.SH RETURN VALUE
+These functions return an integer,
+or ERR if the window parameter is null.
+.SH NOTES
+All of these interfaces are provided as macros and functions.
+The macros are suppressed (and only the functions provided)
+when \fBNCURSES_OPAQUE\fR is defined.
+The standard forms such as \fBgetyx\fP must be implemented as macros,
+and (in this implementation) are defined in terms of the functions
+described here,
+to avoid reliance on internal details of the WINDOW structure.
+.SH PORTABILITY
+These functions were supported on Version 7, BSD or System V implementations.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_getyx\fR(3X),
+\fBcurs_opaque\fR(3X)

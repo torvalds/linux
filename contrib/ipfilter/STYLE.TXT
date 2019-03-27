@@ -1,0 +1,57 @@
+
+Over time, I am moving all of the IPFilter code to what I consider a better
+coding style than it had before.  If you submit patches, I expect them to
+conform as appropriate.
+
+Function Comments
+=================
+Preceeding each and every function, a comment block like this should
+be present:
+
+/* ------------------------------------------------------------------------ */
+/* Function:    function-name                                               */
+/* Returns:     return-type                                                 */
+/* Parameters:  param1(I) - param1 is an input parameter                    */
+/*              p2(O)     - p2 is an output parameter passed as an arg      */
+/*              par3(IO)  - par3 is a parameter which is both input and     */
+/*                          output.  Pointers to things which are used and  */
+/*                          then get a result stored in them qualify here.  */
+/*                                                                          */
+/* Description about what the function does.  This comment should explain   */
+/* any gotchas or algorithms that are used which aren't obvious to the      */
+/* casual reader.  It should not be an excuse to not use comments inside    */
+/* the function.                                                            */
+/* ------------------------------------------------------------------------ */
+
+
+Tab spacing
+===========
+Tabs are to be at 8 characters.
+
+
+Conditions
+==========
+All expressions which evaluate to a boolean for a test condition, such as
+in an if()/while() statement must involve a boolean operation.  Since C
+has no native boolean type, this means that one of <,>,<=,>=,==,!= must
+be present.  Implied boolean evaluations are out.
+
+In code, the following is banned:
+
+if (x)
+if (!x)
+while ((a = b))
+
+and should be replaced by:
+
+if (x != 0)
+if (x == 0)
+while ((a = b) != 0)
+
+If pointers are involved, always compare with NULL, ie.:
+
+if (x != NULL)
+if (x == NULL)
+while ((a = b) != NULL)
+
+

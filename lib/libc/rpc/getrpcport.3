@@ -1,0 +1,36 @@
+.\" @(#)getrpcport.3r	2.2 88/08/02 4.0 RPCSRC; from 1.12 88/02/26 SMI
+.\" $FreeBSD$
+.\"
+.Dd October 6, 1987
+.Dt GETRPCPORT 3
+.Os
+.Sh NAME
+.Nm getrpcport
+.Nd get RPC port number
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Ft int
+.Fn getrpcport "char *host" "int prognum" "int versnum" "int proto"
+.Sh DESCRIPTION
+The
+.Fn getrpcport
+function
+returns the port number for version
+.Fa versnum
+of the RPC program
+.Fa prognum
+running on
+.Fa host
+and using protocol
+.Fa proto .
+It returns 0 if it cannot contact the portmapper, or if
+.Fa prognum
+is not registered.
+If
+.Fa prognum
+is registered but not with version
+.Fa versnum ,
+it will still return a port number (for some version of the program)
+indicating that the program is indeed registered.
+The version mismatch will be detected upon the first call to the service.

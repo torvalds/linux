@@ -1,0 +1,3 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        tls1_prf.c kdf_err.c hkdf.c scrypt.c

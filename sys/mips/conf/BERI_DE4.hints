@@ -1,0 +1,26 @@
+# $FreeBSD$
+
+# Hardwired location of bitfile
+hint.map.0.at="cfid0s.fpga0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x00c00000
+hint.map.0.name="fpga"
+
+# Kernel on the second chip
+hint.map.1.at="cfid0s.os"
+hint.map.1.start=0x007e0000
+hint.map.1.end=0x01fe0000
+hint.map.1.name="kernel"
+
+# Altera Triple-Speed Ethernet Mac, present in tPad and DE-4 configurations
+# configured from fdt(4) but PHYs are still described in here.
+# Currently configured for individual tse_mac cores.
+hint.e1000phy.0.at="miibus0"
+hint.e1000phy.0.phyno=0
+hint.e1000phy.1.at="miibus0"
+hint.e1000phy.1.phyno=0
+hint.e1000phy.2.at="miibus0"
+hint.e1000phy.2.phyno=0
+hint.e1000phy.3.at="miibus0"
+hint.e1000phy.3.phyno=0
+

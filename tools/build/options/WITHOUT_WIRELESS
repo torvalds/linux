@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to not build programs used for 802.11 wireless networks; especially
+.Xr wpa_supplicant 8
+and
+.Xr hostapd 8 .

@@ -1,0 +1,13 @@
+# $FreeBSD$
+#
+# .mail_aliases - private mail aliases
+#
+# see also mail(1)
+#
+
+# FreeBSD Mailing lists aliases
+# alias freebsd-bugs freebsd-bugs@FreeBSD.org
+# alias freebsd-questions freebsd-questions@FreeBSD.org
+
+# an alias for your good friends
+# alias bicycle  christoph gerhardt velophil zentralrad

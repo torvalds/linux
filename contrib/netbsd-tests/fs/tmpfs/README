@@ -1,0 +1,17 @@
+The tests in this directory where written at the same time tmpfs was
+developed.  This is why, if you follow the order of tests in the Atffile,
+you will notice that they start checking the most basic things and end
+checking the less common ones.  Furthermore, tests try not to use features
+tested by further tests in the lists.
+
+However, the above is not the most appropriate testing procedure when you
+have a working file system because some separation in test programs does
+not make sense afterwards.
+
+Many of the tests here are applicable to any file system.  They should be
+refactored to be reusable on any mounted file system, which could also
+remove the need to do the mount/unmount steps in each and every test case.
+
+Possibly take a look at the file system tests in FreeBSD.  They seem to be
+much more complete, even though they are written in Perl and therefore not
+directly usable.

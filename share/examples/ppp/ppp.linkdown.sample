@@ -1,0 +1,34 @@
+#########################################################################
+#
+#          Example of ppp.linkdown file
+#
+#  This file is checked when ppp closes a connection.
+#  ppp searches the labels in this file as follows:
+#
+#  1) The label that matches the IP number assigned to our side.
+#
+#  2) The label specified on the command line to ppp.
+#
+#  3) If no label has been found, use MYADDR if it exists.
+#
+#
+# $FreeBSD$
+#
+#########################################################################
+
+# We don't really need to do much here.  If we have notified a DNS
+# of our temporary IP number, we may want to ``un-notify'' them.
+#
+# If you're into sound effects when the link goes down, you can run
+# ``auplay'' (assuming NAS is installed and configured).
+#
+MYADDR:
+ !bg /usr/local/bin/auplay /etc/ppp/linkdown.au
+
+# If you're running ``ppp -auto -nat dynamic-nat-auto'', and are
+# assigned a dynamic IP number by the peer, this may be worth while
+# to keep the interface aliases to a minimum (see ``enable iface-alias''
+# in the man page):
+#
+dynamic-nat-auto:
+ iface clear

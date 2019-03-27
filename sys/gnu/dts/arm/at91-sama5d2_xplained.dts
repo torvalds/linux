@@ -1,0 +1,624 @@
+/*
+ * at91-sama5d2_xplained.dts - Device Tree file for SAMA5D2 Xplained board
+ *
+ *  Copyright (C) 2015 Atmel,
+ *                2015 Nicolas Ferre <nicolas.ferre@atmel.com>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+/dts-v1/;
+#include "sama5d2.dtsi"
+#include "sama5d2-pinfunc.h"
+#include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Atmel SAMA5D2 Xplained";
+	compatible = "atmel,sama5d2-xplained", "atmel,sama5d2", "atmel,sama5";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <12000000>;
+		};
+	};
+
+	ahb {
+		usb0: gadget@300000 {
+			atmel,vbus-gpio = <&pioA PIN_PA31 GPIO_ACTIVE_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usba_vbus>;
+			status = "okay";
+		};
+
+		usb1: ohci@400000 {
+			num-ports = <3>;
+			atmel,vbus-gpio = <0 /* &pioA PIN_PB9 GPIO_ACTIVE_HIGH */
+					   &pioA PIN_PB10 GPIO_ACTIVE_HIGH
+					   0
+					  >;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb_default>;
+			status = "okay";
+		};
+
+		usb2: ehci@500000 {
+			status = "okay";
+		};
+
+		sdmmc0: sdio-host@a0000000 {
+			bus-width = <8>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_sdmmc0_default>;
+			non-removable;
+			mmc-ddr-1_8v;
+			status = "okay";
+		};
+
+		sdmmc1: sdio-host@b0000000 {
+			bus-width = <4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_sdmmc1_default>;
+			status = "okay"; /* conflict with qspi0 */
+			vqmmc-supply = <&vdd_3v3_reg>;
+			vmmc-supply = <&vdd_3v3_reg>;
+		};
+
+		apb {
+			spi0: spi@f8000000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_spi0_default>;
+				status = "okay";
+
+				m25p80@0 {
+					compatible = "atmel,at25df321a";
+					reg = <0>;
+					spi-max-frequency = <50000000>;
+				};
+			};
+
+			macb0: ethernet@f8008000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_macb0_default &pinctrl_macb0_phy_irq>;
+				phy-mode = "rmii";
+				status = "okay";
+
+				ethernet-phy@1 {
+					reg = <0x1>;
+					interrupt-parent = <&pioA>;
+					interrupts = <PIN_PC9 IRQ_TYPE_LEVEL_LOW>;
+				};
+			};
+
+			tcb0: timer@f800c000 {
+				timer0: timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>;
+				};
+
+				timer1: timer@1 {
+					compatible = "atmel,tcb-timer";
+					reg = <1>;
+				};
+			};
+
+			pdmic@f8018000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_pdmic_default>;
+				atmel,model = "PDMIC @ sama5d2_xplained";
+				atmel,mic-min-freq = <1000000>;
+				atmel,mic-max-freq = <3246000>;
+				atmel,mic-offset = <0x0>;
+				status = "okay";
+			};
+
+			uart1: serial@f8020000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart1_default>;
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
+				status = "okay";
+			};
+
+			i2c0: i2c@f8028000 {
+				dmas = <0>, <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c0_default>;
+				i2c-sda-hold-time-ns = <350>;
+				status = "okay";
+
+				pmic@5b {
+					compatible = "active-semi,act8945a";
+					reg = <0x5b>;
+					active-semi,vsel-high;
+					status = "okay";
+
+					regulators {
+						vdd_1v35_reg: REG_DCDC1 {
+							regulator-name = "VDD_1V35";
+							regulator-min-microvolt = <1350000>;
+							regulator-max-microvolt = <1350000>;
+							regulator-always-on;
+						};
+
+						vdd_1v2_reg: REG_DCDC2 {
+							regulator-name = "VDD_1V2";
+							regulator-min-microvolt = <1100000>;
+							regulator-max-microvolt = <1300000>;
+							regulator-always-on;
+						};
+
+						vdd_3v3_reg: REG_DCDC3 {
+							regulator-name = "VDD_3V3";
+							regulator-min-microvolt = <3300000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-always-on;
+						};
+
+						vdd_fuse_reg: REG_LDO1 {
+							regulator-name = "VDD_FUSE";
+							regulator-min-microvolt = <2500000>;
+							regulator-max-microvolt = <2500000>;
+							regulator-always-on;
+						};
+
+						vdd_3v3_lp_reg: REG_LDO2 {
+							regulator-name = "VDD_3V3_LP";
+							regulator-min-microvolt = <3300000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-always-on;
+						};
+
+						vdd_led_reg: REG_LDO3 {
+							regulator-name = "VDD_LED";
+							regulator-min-microvolt = <3300000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-always-on;
+						};
+
+						vdd_sdhc_1v8_reg: REG_LDO4 {
+							regulator-name = "VDD_SDHC_1V8";
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <1800000>;
+							regulator-always-on;
+						};
+					};
+
+					charger {
+						compatible = "active-semi,act8945a-charger";
+						pinctrl-names = "default";
+						pinctrl-0 = <&pinctrl_charger_chglev &pinctrl_charger_lbo &pinctrl_charger_irq>;
+						interrupt-parent = <&pioA>;
+						interrupts = <PIN_PB13 IRQ_TYPE_EDGE_RISING>;
+
+						active-semi,chglev-gpios = <&pioA PIN_PA12 GPIO_ACTIVE_HIGH>;
+						active-semi,lbo-gpios = <&pioA PIN_PC8 GPIO_ACTIVE_LOW>;
+						active-semi,input-voltage-threshold-microvolt = <6600>;
+						active-semi,precondition-timeout = <40>;
+						active-semi,total-timeout = <3>;
+						status = "okay";
+					};
+				};
+			};
+
+			pwm0: pwm@f802c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_pwm0_pwm2_default>;
+				status = "disabled"; /* conflict with leds */
+			};
+
+			flx0: flexcom@f8034000 {
+				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
+				status = "disabled"; /* conflict with ISC_D2 & ISC_D3 data pins */
+
+				uart5: serial@200 {
+					compatible = "atmel,at91sam9260-usart";
+					reg = <0x200 0x200>;
+					interrupts = <19 IRQ_TYPE_LEVEL_HIGH 7>;
+					clocks = <&flx0_clk>;
+					clock-names = "usart";
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_flx0_default>;
+					atmel,fifo-size = <32>;
+					status = "okay";
+				};
+			};
+
+			shdwc@f8048010 {
+				atmel,shdwc-debouncer = <976>;
+				atmel,wakeup-rtc-timer;
+
+				input@0 {
+					reg = <0>;
+					atmel,wakeup-type = "low";
+				};
+			};
+
+			watchdog@f8048040 {
+				status = "okay";
+			};
+
+			i2s0: i2s@f8050000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2s0_default>;
+				status = "disabled"; /* conflict with can0 */
+			};
+
+			can0: can@f8054000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_can0_default>;
+				status = "okay";
+			};
+
+			uart3: serial@fc008000 {
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart3_default>;
+				status = "okay";
+			};
+
+			flx4: flexcom@fc018000 {
+				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_TWI>;
+				status = "okay";
+
+				i2c2: i2c@600 {
+					compatible = "atmel,sama5d2-i2c";
+					reg = <0x600 0x200>;
+					interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;
+					dmas = <0>, <0>;
+					dma-names = "tx", "rx";
+					#address-cells = <1>;
+					#size-cells = <0>;
+					clocks = <&flx4_clk>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_flx4_default>;
+					atmel,fifo-size = <16>;
+					status = "okay";
+				};
+			};
+
+			i2c1: i2c@fc028000 {
+				dmas = <0>, <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c1_default>;
+				status = "okay";
+
+				at24@54 {
+					compatible = "atmel,24c02";
+					reg = <0x54>;
+					pagesize = <16>;
+				};
+			};
+
+			adc: adc@fc030000 {
+				vddana-supply = <&vdd_3v3_lp_reg>;
+				vref-supply = <&vdd_3v3_lp_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_adc_default &pinctrl_adtrg_default>;
+				status = "okay";
+			};
+
+			pinctrl@fc038000 {
+				/*
+				 * There is no real pinmux for ADC, if the pin
+				 * is not requested by another peripheral then
+				 * the muxing is done when channel is enabled.
+				 * Requesting pins for ADC is GPIO is
+				 * encouraged to prevent conflicts and to
+				 * disable bias in order to be in the same
+				 * state when the pin is not muxed to the adc.
+				 */
+				pinctrl_adc_default: adc_default {
+					pinmux = <PIN_PD23__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_can0_default: can0_default {
+					pinmux = <PIN_PC10__CANTX0>,
+						 <PIN_PC11__CANRX0>;
+					bias-disable;
+				};
+
+				pinctrl_can1_default: can1_default {
+					pinmux = <PIN_PC26__CANTX1>,
+						 <PIN_PC27__CANRX1>;
+					bias-disable;
+				};
+
+				/*
+				 * The ADTRG pin can work on any edge type.
+				 * In here it's being pulled up, so need to
+				 * connect it to ground to get an edge e.g.
+				 * Trigger can be configured on falling, rise
+				 * or any edge, and the pull-up can be changed
+				 * to pull-down or left floating according to
+				 * needs.
+				 */
+				pinctrl_adtrg_default: adtrg_default {
+					pinmux = <PIN_PD31__ADTRG>;
+					bias-pull-up;
+				};
+
+				pinctrl_charger_chglev: charger_chglev {
+					pinmux = <PIN_PA12__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_charger_irq: charger_irq {
+					pinmux = <PIN_PB13__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_charger_lbo: charger_lbo {
+					pinmux = <PIN_PC8__GPIO>;
+					bias-pull-up;
+				};
+
+				pinctrl_classd_default: classd_default {
+					pinmux = <PIN_PB1__CLASSD_R0>,
+						 <PIN_PB2__CLASSD_R1>,
+						 <PIN_PB3__CLASSD_R2>,
+						 <PIN_PB4__CLASSD_R3>;
+					bias-pull-up;
+				};
+
+				pinctrl_flx0_default: flx0_default {
+					pinmux = <PIN_PB28__FLEXCOM0_IO0>,
+						 <PIN_PB29__FLEXCOM0_IO1>;
+					bias-disable;
+				};
+
+				pinctrl_flx4_default: flx4_default {
+					pinmux = <PIN_PD12__FLEXCOM4_IO0>,
+						 <PIN_PD13__FLEXCOM4_IO1>;
+					bias-disable;
+				};
+
+				pinctrl_i2c0_default: i2c0_default {
+					pinmux = <PIN_PD21__TWD0>,
+						 <PIN_PD22__TWCK0>;
+					bias-disable;
+				};
+
+				pinctrl_i2c1_default: i2c1_default {
+					pinmux = <PIN_PD4__TWD1>,
+						 <PIN_PD5__TWCK1>;
+					bias-disable;
+				};
+
+				pinctrl_i2s0_default: i2s0_default {
+					pinmux = <PIN_PC1__I2SC0_CK>,
+						 <PIN_PC2__I2SC0_MCK>,
+						 <PIN_PC3__I2SC0_WS>,
+						 <PIN_PC4__I2SC0_DI0>,
+						 <PIN_PC5__I2SC0_DO0>;
+					bias-disable;
+				};
+
+				pinctrl_i2s1_default: i2s1_default {
+					pinmux = <PIN_PA15__I2SC1_CK>,
+						 <PIN_PA14__I2SC1_MCK>,
+						 <PIN_PA16__I2SC1_WS>,
+						 <PIN_PA17__I2SC1_DI0>,
+						 <PIN_PA18__I2SC1_DO0>;
+					bias-disable;
+				};
+
+				pinctrl_key_gpio_default: key_gpio_default {
+					pinmux = <PIN_PB9__GPIO>;
+					bias-pull-up;
+				};
+
+				pinctrl_led_gpio_default: led_gpio_default {
+					pinmux = <PIN_PB0__GPIO>,
+						 <PIN_PB5__GPIO>,
+						 <PIN_PB6__GPIO>;
+					bias-pull-up;
+				};
+
+				pinctrl_macb0_default: macb0_default {
+					pinmux = <PIN_PB14__GTXCK>,
+						 <PIN_PB15__GTXEN>,
+						 <PIN_PB16__GRXDV>,
+						 <PIN_PB17__GRXER>,
+						 <PIN_PB18__GRX0>,
+						 <PIN_PB19__GRX1>,
+						 <PIN_PB20__GTX0>,
+						 <PIN_PB21__GTX1>,
+						 <PIN_PB22__GMDC>,
+						 <PIN_PB23__GMDIO>;
+					bias-disable;
+				};
+
+				pinctrl_macb0_phy_irq: macb0_phy_irq {
+					pinmux = <PIN_PC9__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_pdmic_default: pdmic_default {
+					pinmux = <PIN_PB26__PDMIC_DAT>,
+						<PIN_PB27__PDMIC_CLK>;
+					bias-disable;
+				};
+
+				pinctrl_sdmmc0_default: sdmmc0_default {
+					cmd_data {
+						pinmux = <PIN_PA1__SDMMC0_CMD>,
+							 <PIN_PA2__SDMMC0_DAT0>,
+							 <PIN_PA3__SDMMC0_DAT1>,
+							 <PIN_PA4__SDMMC0_DAT2>,
+							 <PIN_PA5__SDMMC0_DAT3>,
+							 <PIN_PA6__SDMMC0_DAT4>,
+							 <PIN_PA7__SDMMC0_DAT5>,
+							 <PIN_PA8__SDMMC0_DAT6>,
+							 <PIN_PA9__SDMMC0_DAT7>;
+						bias-disable;
+					};
+
+					ck_cd_rstn_vddsel {
+						pinmux = <PIN_PA0__SDMMC0_CK>,
+							 <PIN_PA10__SDMMC0_RSTN>,
+							 <PIN_PA11__SDMMC0_VDDSEL>,
+							 <PIN_PA13__SDMMC0_CD>;
+						bias-disable;
+					};
+				};
+
+				pinctrl_sdmmc1_default: sdmmc1_default {
+					cmd_data {
+						pinmux = <PIN_PA28__SDMMC1_CMD>,
+							 <PIN_PA18__SDMMC1_DAT0>,
+							 <PIN_PA19__SDMMC1_DAT1>,
+							 <PIN_PA20__SDMMC1_DAT2>,
+							 <PIN_PA21__SDMMC1_DAT3>;
+						bias-disable;
+					};
+
+					conf-ck_cd {
+						pinmux = <PIN_PA22__SDMMC1_CK>,
+							 <PIN_PA30__SDMMC1_CD>;
+						bias-disable;
+					};
+				};
+
+				pinctrl_spi0_default: spi0_default {
+					pinmux = <PIN_PA14__SPI0_SPCK>,
+						 <PIN_PA15__SPI0_MOSI>,
+						 <PIN_PA16__SPI0_MISO>,
+						 <PIN_PA17__SPI0_NPCS0>;
+					bias-disable;
+				};
+
+				pinctrl_uart1_default: uart1_default {
+					pinmux = <PIN_PD2__URXD1>,
+						 <PIN_PD3__UTXD1>;
+					bias-disable;
+				};
+
+				pinctrl_uart3_default: uart3_default {
+					pinmux = <PIN_PB11__URXD3>,
+						 <PIN_PB12__UTXD3>;
+					bias-disable;
+				};
+
+				pinctrl_usb_default: usb_default {
+					pinmux = <PIN_PB10__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_usba_vbus: usba_vbus {
+					pinmux = <PIN_PA31__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_pwm0_pwm2_default: pwm0_pwm2_default {
+					pinmux = <PIN_PB5__PWMH2>,
+						 <PIN_PB6__PWML2>;
+					bias-pull-up;
+				};
+			};
+
+			classd: classd@fc048000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_classd_default>;
+				atmel,pwm-type = "diff";
+				atmel,non-overlap-time = <10>;
+				status = "okay";
+			};
+
+			i2s1: i2s@fc04c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2s1_default>;
+				status = "disabled"; /* conflict with spi0, sdmmc1 */
+			};
+
+			can1: can@fc050000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_can1_default>;
+				status = "okay";
+			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_key_gpio_default>;
+
+		bp1 {
+			label = "PB_USER";
+			gpios = <&pioA PIN_PB9 GPIO_ACTIVE_LOW>;
+			linux,code = <0x104>;
+			wakeup-source;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_led_gpio_default>;
+		status = "okay"; /* conflict with pwm0 */
+
+		red {
+			label = "red";
+			gpios = <&pioA PIN_PB6 GPIO_ACTIVE_LOW>;
+		};
+
+
+		green {
+			label = "green";
+			gpios = <&pioA PIN_PB5 GPIO_ACTIVE_LOW>;
+		};
+
+		blue {
+			label = "blue";
+			gpios = <&pioA PIN_PB0 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};

@@ -1,0 +1,10 @@
+# $FreeBSD$
+files		"../ralink/files.ralink"
+cpu		CPU_ARM9E
+machine 	arm
+makeoptions	CONF_CFLAGS="-march=armv5te"
+options		INTRNG
+
+makeoptions	KERNPHYSADDR=0x40000000
+makeoptions	KERNVIRTADDR=0xc0000000
+options		KERNVIRTADDR=0xc0000000

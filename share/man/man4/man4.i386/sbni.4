@@ -1,0 +1,132 @@
+.\" Written by Denis I. Timofeev, 2002.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 8, 2002
+.Dt SBNI 4 i386
+.Os
+.Sh NAME
+.Nm sbni
+.Nd Granch SBNI12 leased line modem driver
+.Sh SYNOPSIS
+.Cd "device sbni"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for leased line modems of following models:
+.Pp
+.Bl -bullet -compact
+.It
+SBNI12-02, SBNI12D-02
+.It
+SBNI12-04, SBNI12D-04
+.It
+SBNI12-05, SBNI12D-05, ISA and PCI
+.It
+SBNI12-10, SBNI12D-10, ISA and PCI
+.El
+.Pp
+and a kit for data link over a voice band:
+.Bl -bullet
+.It
+SBNI12-11, SBNI12D-11, ISA and PCI.
+.El
+.Pp
+In addition to the standard port and IRQ specifications, the
+.Nm
+driver also supports a number of
+.Va flags
+which can set baud rate, receive level, and low three bytes of Ethernet
+MAC-address (high three are always
+.Li 00:ff:01 ) ,
+because Granch modems are
+presented to the system as Ethernet-like network cards.
+.Pp
+The high byte of the
+.Va flags
+is a bit field, it is used to specify SBNI adapter receive level/baud rate:
+.Bl -tag -width "Bits 0-3:" -offset indent
+.It "Bits 0-3:"
+receive level (0x00..0x0f)
+.It "Bits 4-5:"
+baud rate number:
+.Pp
+.Bl -inset -compact
+.It "00 -"
+0 baud rate (2Mb in fast mode/500kb in slow)
+.It "01 -"
+1 baud rate (1Mb/250kb)
+.It "10 -"
+2 baud rate (500kb/125kb)
+.It "11 -"
+3 baud rate (250kb/62.5kb)
+.El
+.It "Bit 6:"
+use fixed receive level
+.Pp
+if bit 6 is set then receive level will be set according
+to bits 0-3 value, otherwise receive level will be
+autodetected
+.It "Bit 7:"
+use fixed baud rate
+.Pp
+if bit 7 is set then baud rate will be set according to
+bits 4-5 value, otherwise baud rate is set to 2Mb
+.El
+.Sh FILES
+The sources for the driver reside in:
+.Pp
+.Bl -tag -width ".Pa /sys/dev/sbni/if_sbni.c" -compact
+.It Pa /sys/dev/sbni/if_sbni.c
+.It Pa /sys/dev/sbni/if_sbnireg.h
+.It Pa /sys/dev/sbni/if_sbnivar.h
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver for
+.Fx
+4.x was written by
+.An Denis I. Timofeev ,
+partially based on
+.An David Greenman Ns 's
+.Xr ed 4
+driver.
+Earlier versions (available on
+.Pa ftp.granch.com )
+were written by
+.An Alexey V. Zverev .
+.Pp
+SBNI12 hardware was designed by
+.An Alexey V. Chirkov .

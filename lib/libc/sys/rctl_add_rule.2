@@ -1,0 +1,220 @@
+.\" Copyright (c) 2016 Eric Badger
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 14, 2016
+.Dt RCTL_ADD_RULE 2
+.Os
+.Sh NAME
+.Nm rctl_add_rule ,
+.Nm rctl_get_limits ,
+.Nm rctl_get_racct ,
+.Nm rctl_get_rules ,
+.Nm rctl_remove_rule
+.Nd manipulate and query the resource limits database
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/rctl.h
+.Ft int
+.Fo rctl_add_rule
+.Fa "const char *inbufp" "size_t inbuflen" "char *outbufp" "size_t outbuflen"
+.Fc
+.Ft int
+.Fo rctl_get_limits
+.Fa "const char *inbufp" "size_t inbuflen" "char *outbufp" "size_t outbuflen"
+.Fc
+.Ft int
+.Fo rctl_get_racct
+.Fa "const char *inbufp" "size_t inbuflen" "char *outbufp" "size_t outbuflen"
+.Fc
+.Ft int
+.Fo rctl_get_rules
+.Fa "const char *inbufp" "size_t inbuflen" "char *outbufp" "size_t outbuflen"
+.Fc
+.Ft int
+.Fo rctl_remove_rule
+.Fa "const char *inbufp" "size_t inbuflen" "char *outbufp" "size_t outbuflen"
+.Fc
+.Sh DESCRIPTION
+These system calls are used to manipulate and query the resource limits
+database.
+For all functions,
+.Fa inbuflen
+refers to the length of the buffer pointed to by
+.Fa inbufp
+and
+.Fa outbuflen
+refers to the length of the buffer pointed to by
+.Fa outbufp .
+.Pp
+The
+.Fn rctl_add_rule
+function adds the rule pointed to by
+.Fa inbufp
+to the resource limits database.
+The
+.Fa outbufp
+and
+.Fa outbuflen
+arguments are unused.
+Rule format is as described in
+.Xr rctl 8 ,
+with exceptions noted in the
+.Sx RULES AND FILTERS
+section.
+.Pp
+The
+.Fn rctl_get_limits
+function returns in
+.Fa outbufp
+a comma-separated list of rules that apply to the process that
+matches the filter specified in
+.Fa inbufp .
+This includes rules with a subject of the process itself as well as rules
+with a different subject (such as user or loginclass) that apply to the
+process.
+.Pp
+The
+.Fn rctl_get_racct
+function returns resource usage information for a given subject.
+The subject is specified by passing a filter in
+.Fa inbufp .
+Filter syntax is as described in
+.Xr rctl 8 ,
+with exceptions noted in the
+.Sx RULES AND FILTERS
+section.
+A comma-separated list of resources and the amount used of each by the
+specified subject is returned in
+.Fa outbufp .
+The resource and amount is formatted as
+.Qq resource=amount .
+.Pp
+The
+.Fn rctl_get_rules
+function returns in
+.Fa outbufp
+a comma-separated list of rules from the resource limits database that
+match the filter passed in
+.Fa inbufp .
+Filter syntax is as described in
+.Xr rctl 8 ,
+with exceptions noted in the
+.Sx RULES AND FILTERS
+section.
+A filter of
+.Va ::
+may be passed to return all rules.
+.Pp
+The
+.Fn rctl_remove_rule
+function removes all rules matching the filter passed in
+.Fa inbufp
+from the resource limits database.
+Filter syntax is as described in
+.Xr rctl 8 ,
+with exceptions noted in the
+.Sx RULES AND FILTERS
+section.
+.Fa outbufp
+and
+.Fa outbuflen
+are unused.
+.Sh RULES AND FILTERS
+This section explains how the rule and filter format described in
+.Xr rctl 8
+differs from the format passed to the system calls themselves.
+The rctl tool provides several conveniences that the system calls do not.
+When using the system call:
+.Bl -dash -offset indent
+.It
+The subject must be fully specified.
+For example, abbreviating
+.Ql user
+to
+.Ql u
+is not acceptable.
+.It
+User and group IDs must be numeric.
+For example,
+.Ql root
+must be expressed as
+.Ql 0 .
+.It
+Units are not permitted on resource amounts.
+For example, a quantity of 1024 bytes must be expressed as
+.Ql 1024
+and not
+.Ql 1k .
+.El
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The rctl system calls may fail if:
+.Bl -tag -width Er
+.It Bq Er ENOSYS
+RACCT/RCTL support is not present in the kernel or the
+.Va kern.racct.enable
+sysctl is 0.
+.It Bq Er EINVAL
+The rule or filter passed in
+.Fa inbufp
+is invalid.
+.It Bq Er EPERM
+User has insufficient privileges to carry out the requested operation.
+.It Bq Er E2BIG
+.Fa inbufp
+or
+.Fa outbufp
+are too large.
+.It Bq Er ESRCH
+No process matched the provided rule or filter.
+.It Bq Er ENAMETOOLONG
+The loginclass or jail name specified is too long.
+.It Bq Er ERANGE
+The rule amount is outside of the allowable range or
+.Fa outbufp
+is too small.
+.It Bq Er EOPNOTSUPP
+The requested operation is not supported for the given rule or filter.
+.It Bq Er EFAULT
+.Fa inbufp
+or
+.Fa outbufp
+refer to invalid addresses.
+.El
+.Sh SEE ALSO
+.Xr rctl 8
+.Sh HISTORY
+The rctl family of system calls appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An -nosplit
+The rctl system calls were developed by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.
+This manual page was written by
+.An Eric Badger Aq Mt badger@FreeBSD.org .

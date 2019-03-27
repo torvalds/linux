@@ -1,0 +1,438 @@
+.\"
+.\" Copyright (c) 2010-2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written at the Centre for Advanced Internet
+.\" Architectures, Swinburne University of Technology, Melbourne, Australia by
+.\" David Hayes and Lawrence Stewart under sponsorship from the FreeBSD
+.\" Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 15, 2011
+.Dt KHELP 9
+.Os
+.Sh NAME
+.Nm khelp ,
+.Nm khelp_init_osd ,
+.Nm khelp_destroy_osd ,
+.Nm khelp_get_id ,
+.Nm khelp_get_osd ,
+.Nm khelp_add_hhook ,
+.Nm khelp_remove_hhook ,
+.Nm KHELP_DECLARE_MOD ,
+.Nm KHELP_DECLARE_MOD_UMA
+.Nd Kernel Helper Framework
+.Sh SYNOPSIS
+.In sys/khelp.h
+.In sys/module_khelp.h
+.Fn "int khelp_init_osd" "uint32_t classes" "struct osd *hosd"
+.Fn "int khelp_destroy_osd" "struct osd *hosd"
+.Fn "int32_t khelp_get_id" "char *hname"
+.Fn "void * khelp_get_osd" "struct osd *hosd" "int32_t id"
+.Fn "int khelp_add_hhook" "struct hookinfo *hki" "uint32_t flags"
+.Fn "int khelp_remove_hhook" "struct hookinfo *hki"
+.Fn KHELP_DECLARE_MOD "hname" "hdata" "hhooks" "version"
+.Fn KHELP_DECLARE_MOD_UMA "hname" "hdata" "hhooks" "version" "ctor" "dtor"
+.Sh DESCRIPTION
+.Nm
+provides a framework for managing
+.Nm
+modules, which indirectly use the
+.Xr hhook 9
+KPI to register their hook functions with hook points of interest within the
+kernel.
+Khelp modules aim to provide a structured way to dynamically extend the kernel
+at runtime in an ABI preserving manner.
+Depending on the subsystem providing hook points, a
+.Nm
+module may be able to associate per-object data for maintaining relevant state
+between hook calls.
+The
+.Xr hhook 9
+and
+.Nm
+frameworks are tightly integrated and anyone interested in
+.Nm
+should also read the
+.Xr hhook 9
+manual page thoroughly.
+.Ss Information for Khelp Module Implementors
+.Nm
+modules are represented within the
+.Nm
+framework by a
+.Vt struct helper
+which has the following members:
+.Bd -literal -offset indent
+struct helper {
+	int (*mod_init) (void);
+	int (*mod_destroy) (void);
+#define	HELPER_NAME_MAXLEN 16
+	char			h_name[HELPER_NAME_MAXLEN];
+	uma_zone_t		h_zone;
+	struct hookinfo		*h_hooks;
+	uint32_t		h_nhooks;
+	uint32_t		h_classes;
+	int32_t			h_id;
+	volatile uint32_t	h_refcount;
+	uint16_t		h_flags;
+	TAILQ_ENTRY(helper)	h_next;
+};
+.Ed
+.Pp
+Modules must instantiate a
+.Vt struct helper ,
+but are only required to set the
+.Va h_classes
+field, and may optionally set the
+.Va h_flags ,
+.Va mod_init
+and
+.Va mod_destroy
+fields where required.
+The framework takes care of all other fields and modules should refrain from
+manipulating them.
+Using the C99 designated initialiser feature to set fields is encouraged.
+.Pp
+If specified, the
+.Va mod_init
+function will be run by the
+.Nm
+framework prior to completing the registration process.
+Returning a non-zero value from the
+.Va mod_init
+function will abort the registration process and fail to load the module.
+If specified, the
+.Va mod_destroy
+function will be run by the
+.Nm
+framework during the deregistration process, after the module has been
+deregistered by the
+.Nm
+framework.
+The return value is currently ignored.
+Valid
+.Nm
+classes are defined in
+.In sys/khelp.h .
+Valid flags are defined in
+.In sys/module_khelp.h .
+The HELPER_NEEDS_OSD flag should be set in the
+.Va h_flags
+field if the
+.Nm
+module requires persistent per-object data storage.
+There is no programmatic way (yet) to check if a
+.Nm
+class provides the ability for
+.Nm
+modules to associate persistent per-object data, so a manual check is required.
+.Pp
+The
+.Fn KHELP_DECLARE_MOD
+and
+.Fn KHELP_DECLARE_MOD_UMA
+macros provide convenient wrappers around the
+.Xr DECLARE_MODULE 9
+macro, and are used to register a
+.Nm
+module with the
+.Nm
+framework.
+.Fn KHELP_DECLARE_MOD_UMA
+should only be used by modules which require the use of persistent per-object
+storage i.e. modules which set the HELPER_NEEDS_OSD flag in their
+.Vt struct helper Ns 's
+.Va h_flags
+field.
+.Pp
+The first four arguments common to both macros are as follows.
+The
+.Fa hname
+argument specifies the unique
+.Xr ascii 7
+name for the
+.Nm
+module.
+It should be no longer than HELPER_NAME_MAXLEN-1 characters in length.
+The
+.Fa hdata
+argument is a pointer to the module's
+.Vt struct helper .
+The
+.Fa hhooks
+argument points to a static array of
+.Vt struct hookinfo
+structures.
+The array should contain a
+.Vt struct hookinfo
+for each
+.Xr hhook 9
+point the module wishes to hook, even when using the same hook function multiple
+times for different
+.Xr hhook 9
+points.
+The
+.Fa version
+argument specifies a version number for the module which will be passed to
+.Xr MODULE_VERSION 9 .
+The
+.Fn KHELP_DECLARE_MOD_UMA
+macro takes the additional
+.Fa ctor
+and
+.Fa dtor
+arguments, which specify optional
+.Xr uma 9
+constructor and destructor functions.
+NULL should be passed where the functionality is not required.
+.Pp
+The
+.Fn khelp_get_id
+function returns the numeric identifier for the
+.Nm
+module with name
+.Fa hname .
+.Pp
+The
+.Fn khelp_get_osd
+function is used to obtain the per-object data pointer for a specified
+.Nm
+module.
+The
+.Fa hosd
+argument is a pointer to the underlying subsystem object's
+.Vt struct osd .
+This is provided by the
+.Xr hhook 9
+framework when calling into a
+.Nm
+module's hook function.
+The
+.Fa id
+argument specifies the numeric identifier for the
+.Nm
+module to extract the data pointer from
+.Fa hosd
+for.
+The
+.Fa id
+is obtained using the
+.Fn khelp_get_id
+function.
+.Pp
+The
+.Fn khelp_add_hhook
+and
+.Fn khelp_remove_hhook
+functions allow a
+.Nm
+module to dynamically hook/unhook
+.Xr hhook 9
+points at run time.
+The
+.Fa hki
+argument specifies a pointer to a
+.Vt struct hookinfo
+which encapsulates the required information about the
+.Xr hhook 9
+point and hook function being manipulated.
+The HHOOK_WAITOK flag may be passed in via the
+.Fa flags
+argument of
+.Fn khelp_add_hhook
+if
+.Xr malloc 9
+is allowed to sleep waiting for memory to become available.
+.Ss Integrating Khelp Into a Kernel Subsystem
+Most of the work required to allow
+.Nm
+modules to do useful things relates to defining and instantiating suitable
+.Xr hhook 9
+points for
+.Nm
+modules to hook into.
+The only additional decision a subsystem needs to make is whether it wants to
+allow
+.Nm
+modules to associate persistent per-object data.
+Providing support for persistent data storage can allow
+.Nm
+modules to perform more complex functionality which may be desirable.
+Subsystems which want to allow Khelp modules to associate
+persistent per-object data with one of the subsystem's data structures need to
+make the following two key changes:
+.Bl -bullet
+.It
+Embed a
+.Vt struct osd
+pointer in the structure definition for the object.
+.It
+Add calls to
+.Fn khelp_init_osd
+and
+.Fn khelp_destroy_osd
+to the subsystem code paths which are responsible for respectively initialising
+and destroying the object.
+.El
+.Pp
+The
+.Fn khelp_init_osd
+function initialises the per-object data storage for all currently loaded
+.Nm
+modules of appropriate classes which have set the HELPER_NEEDS_OSD flag in their
+.Va h_flags
+field.
+The
+.Fa classes
+argument specifies a bitmask of
+.Nm
+classes which this subsystem associates with.
+If a
+.Nm
+module matches any of the classes in the bitmask, that module will be associated
+with the object.
+The
+.Fa hosd
+argument specifies the pointer to the object's
+.Vt struct osd
+which will be used to provide the persistent storage for use by
+.Nm
+modules.
+.Pp
+The
+.Fn khelp_destroy_osd
+function frees all memory that was associated with an object's
+.Vt struct osd
+by a previous call to
+.Fn khelp_init_osd .
+The
+.Fa hosd
+argument specifies the pointer to the object's
+.Vt struct osd
+which will be purged in preparation for destruction.
+.Sh IMPLEMENTATION NOTES
+.Nm
+modules are protected from being prematurely unloaded by a reference count.
+The count is incremented each time a subsystem calls
+.Fn khelp_init_osd
+causing persistent storage to be allocated for the module, and decremented for
+each corresponding call to
+.Fn khelp_destroy_osd .
+Only when a module's reference count has dropped to zero can the module be
+unloaded.
+.Sh RETURN VALUES
+The
+.Fn khelp_init_osd
+function returns zero if no errors occurred.
+It returns ENOMEM if a
+.Nm
+module which requires per-object storage fails to allocate the necessary memory.
+.Pp
+The
+.Fn khelp_destroy_osd
+function only returns zero to indicate that no errors occurred.
+.Pp
+The
+.Fn khelp_get_id
+function returns the unique numeric identifier for the registered
+.Nm
+module with name
+.Fa hname .
+It return -1 if no module with the specified name is currently registered.
+.Pp
+The
+.Fn khelp_get_osd
+function returns the pointer to the
+.Nm
+module's persistent object storage memory.
+If the module identified by
+.Fa id
+does not have persistent object storage registered with the object's
+.Fa hosd
+.Vt struct osd ,
+NULL is returned.
+.Pp
+The
+.Fn khelp_add_hhook
+function returns zero if no errors occurred.
+It returns ENOENT if it could not find the requested
+.Xr hhook 9
+point.
+It returns ENOMEM if
+.Xr malloc 9
+failed to allocate memory.
+It returns EEXIST if attempting to register the same hook function more than
+once for the same
+.Xr hhook 9
+point.
+.Pp
+The
+.Fn khelp_remove_hhook
+function returns zero if no errors occurred.
+It returns ENOENT if it could not find the requested
+.Xr hhook 9
+point.
+.Sh EXAMPLES
+A well commented example Khelp module can be found at:
+.Pa /usr/share/examples/kld/khelp/h_example.c
+.Pp
+The Enhanced Round Trip Time (ERTT)
+.Xr h_ertt 4
+.Nm
+module provides a more complex example of what is possible.
+.Sh SEE ALSO
+.Xr h_ertt 4 ,
+.Xr hhook 9 ,
+.Xr osd 9
+.Sh ACKNOWLEDGEMENTS
+Development and testing of this software were made possible in part by grants
+from the FreeBSD Foundation and Cisco University Research Program Fund at
+Community Foundation Silicon Valley.
+.Sh HISTORY
+The
+.Nm
+kernel helper framework first appeared in
+.Fx 9.0 .
+.Pp
+The
+.Nm
+framework was first released in 2010 by Lawrence Stewart whilst studying at
+Swinburne University of Technology's Centre for Advanced Internet Architectures,
+Melbourne, Australia.
+More details are available at:
+.Pp
+http://caia.swin.edu.au/urp/newtcp/
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+framework was written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org .
+.Pp
+This manual page was written by
+.An David Hayes Aq Mt david.hayes@ieee.org
+and
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org .

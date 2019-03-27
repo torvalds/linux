@@ -1,0 +1,632 @@
+.\"
+.\" Copyright (c) 2005 Ian Dowse <iedowse@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.Dd November 14, 2016
+.Dt USBDI 9
+.Os
+.Sh NAME
+.Nm usb_fifo_alloc_buffer ,
+.Nm usb_fifo_attach ,
+.Nm usb_fifo_detach ,
+.Nm usb_fifo_free_buffer ,
+.Nm usb_fifo_get_data ,
+.Nm usb_fifo_get_data_buffer ,
+.Nm usb_fifo_get_data_error ,
+.Nm usb_fifo_get_data_linear ,
+.Nm usb_fifo_put_bytes_max ,
+.Nm usb_fifo_put_data ,
+.Nm usb_fifo_put_data_buffer ,
+.Nm usb_fifo_put_data_error ,
+.Nm usb_fifo_put_data_linear ,
+.Nm usb_fifo_reset ,
+.Nm usb_fifo_softc ,
+.Nm usb_fifo_wakeup ,
+.Nm usbd_do_request ,
+.Nm usbd_do_request_flags ,
+.Nm usbd_errstr ,
+.Nm usbd_lookup_id_by_info ,
+.Nm usbd_lookup_id_by_uaa ,
+.Nm usbd_transfer_clear_stall ,
+.Nm usbd_transfer_drain ,
+.Nm usbd_transfer_pending ,
+.Nm usbd_transfer_poll ,
+.Nm usbd_transfer_setup ,
+.Nm usbd_transfer_start ,
+.Nm usbd_transfer_stop ,
+.Nm usbd_transfer_submit ,
+.Nm usbd_transfer_unsetup ,
+.Nm usbd_xfer_clr_flag ,
+.Nm usbd_xfer_frame_data ,
+.Nm usbd_xfer_frame_len ,
+.Nm usbd_xfer_get_frame ,
+.Nm usbd_xfer_get_priv ,
+.Nm usbd_xfer_is_stalled ,
+.Nm usbd_xfer_max_framelen ,
+.Nm usbd_xfer_max_frames ,
+.Nm usbd_xfer_max_len ,
+.Nm usbd_xfer_set_flag ,
+.Nm usbd_xfer_set_frame_data ,
+.Nm usbd_xfer_set_frame_len ,
+.Nm usbd_xfer_set_frame_offset ,
+.Nm usbd_xfer_set_frames ,
+.Nm usbd_xfer_set_interval ,
+.Nm usbd_xfer_set_priv ,
+.Nm usbd_xfer_set_stall ,
+.Nm usbd_xfer_set_timeout ,
+.Nm usbd_xfer_softc ,
+.Nm usbd_xfer_state ,
+.Nm usbd_xfer_status
+.Nd Universal Serial Bus driver programming interface
+.Sh SYNOPSIS
+.In dev/usb/usb.h
+.In dev/usb/usbdi.h
+.In dev/usb/usbdi_util.h
+.Ft "usb_error_t"
+.Fo "usbd_transfer_setup"
+.Fa "struct usb_device *udev"
+.Fa "const uint8_t *ifaces"
+.Fa "struct usb_xfer **pxfer"
+.Fa "const struct usb_config *setup_start"
+.Fa "uint16_t n_setup"
+.Fa "void *priv_sc"
+.Fa "struct mtx *priv_mtx"
+.Fc
+.Ft "void"
+.Fo "usbd_transfer_unsetup"
+.Fa "struct usb_xfer **pxfer"
+.Fa "uint16_t n_setup"
+.Fc
+.Ft "void"
+.Fo "usbd_transfer_start"
+.Fa "struct usb_xfer *xfer"
+.Fc
+.Ft "void"
+.Fo "usbd_transfer_stop"
+.Fa "struct usb_xfer *xfer"
+.Fc
+.Ft "void"
+.Fo "usbd_transfer_drain"
+.Fa "struct usb_xfer *xfer"
+.Fc
+.Sh DESCRIPTION
+The Universal Serial Bus (USB) driver programming interface provides
+USB peripheral drivers with a host controller independent API for
+controlling and communicating with USB peripherals.
+The
+.Nm usb
+module supports both USB Host and USB Device side mode.
+.Sh USB TRANSFER MANAGEMENT FUNCTIONS
+The USB standard defines four types of USB transfers.
+.
+Control transfers, Bulk transfers, Interrupt transfers and Isochronous
+transfers.
+.
+All the transfer types are managed using the following five functions:
+.
+.Pp
+.
+.Fn usbd_transfer_setup
+This function will allocate memory for and initialise an array of USB
+transfers and all required DMA memory.
+.
+This function can sleep or block waiting for resources to become
+available.
+.Fa udev
+is a pointer to "struct usb_device".
+.Fa ifaces
+is an array of interface index numbers to use.
+See "if_index".
+.Fa pxfer
+is a pointer to an array of USB transfer pointers that are initialized
+to NULL, and then pointed to allocated USB transfers.
+.Fa setup_start
+is a pointer to an array of USB config structures.
+.Fa n_setup
+is a number telling the USB system how many USB transfers should be
+setup.
+.Fa priv_sc
+is the private softc pointer, which will be used to initialize
+"xfer->priv_sc".
+.Fa priv_mtx
+is the private mutex protecting the transfer structure and the
+softc.
+This pointer is used to initialize "xfer->priv_mtx".
+This function returns zero upon success.
+A non-zero return value indicates failure.
+.
+.Pp
+.
+.Fn usbd_transfer_unsetup
+This function will release the given USB transfers and all allocated
+resources associated with these USB transfers.
+.Fa pxfer
+is a pointer to an array of USB transfer pointers, that may be NULL,
+that should be freed by the USB system.
+.Fa n_setup
+is a number telling the USB system how many USB transfers should be
+unsetup.
+.
+This function can sleep waiting for USB transfers to complete.
+.
+This function is NULL safe with regard to the USB transfer structure
+pointer.
+.
+It is not allowed to call this function from the USB transfer
+callback.
+.
+.Pp
+.
+.Fn usbd_transfer_start
+This function will start the USB transfer pointed to by
+.Fa xfer ,
+if not already started.
+.
+This function is always non-blocking and must be called with the
+so-called private USB mutex locked.
+.
+This function is NULL safe with regard to the USB transfer structure
+pointer.
+.
+.Pp
+.
+.Fn usbd_transfer_stop
+This function will stop the USB transfer pointed to by
+.Fa xfer ,
+if not already stopped.
+.
+This function is always non-blocking and must be called with the
+so-called private USB mutex locked.
+.
+This function can return before the USB callback has been called.
+.
+This function is NULL safe with regard to the USB transfer structure
+pointer.
+.
+If the transfer was in progress, the callback will called with
+"USB_ST_ERROR" and "error = USB_ERR_CANCELLED".
+.
+.Pp
+.
+.Fn usbd_transfer_drain
+This function will stop an USB transfer, if not already stopped and
+wait for any additional USB hardware operations to complete.
+.
+Buffers that are loaded into DMA using "usbd_xfer_set_frame_data()" can
+safely be freed after that this function has returned.
+.
+This function can block the caller and will not return before the USB
+callback has been called.
+.
+This function is NULL safe with regard to the USB transfer structure
+pointer.
+.
+.Sh USB TRANSFER CALLBACK
+.
+The USB callback has three states.
+.
+USB_ST_SETUP, USB_ST_TRANSFERRED and USB_ST_ERROR.
+USB_ST_SETUP is the initial state.
+.
+After the callback has been called with this state it will always be
+called back at a later stage in one of the other two states.
+.
+The USB callback should not restart the USB transfer in case the error
+cause is USB_ERR_CANCELLED.
+.
+The USB callback is protected from recursion.
+.
+That means one can start and stop whatever transfer from the callback
+of another transfer one desires.
+.
+Also the transfer that is currently called back.
+.
+Recursion is handled like this that when the callback that wants to
+recurse returns it is called one more time.
+.
+.
+.Pp
+.
+.Fn usbd_transfer_submit
+This function should only be called from within the USB callback and
+is used to start the USB hardware.
+.
+An USB transfer can have multiple frames consisting of one or more USB
+packets making up an I/O vector for all USB transfer types.
+.
+.Bd -literal -offset indent
+void
+usb_default_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_SETUP:
+		/*
+		 * Setup xfer frame lengths/count and data
+		 */
+		usbd_transfer_submit(xfer);
+		break;
+
+	case USB_ST_TRANSFERRED:
+		/*
+		 * Read	usb frame data, if any.
+		 * "actlen" has the total length for all frames
+		 * transferred.
+		 */
+		break;
+
+	default: /* Error */
+		/*
+		 * Print error message and clear stall
+		 * for example.
+		 */
+		break;
+	}
+	/*
+	 * Here it is safe to do something without the private
+	 * USB mutex locked.
+	 */
+	return;
+}
+.Ed
+.
+.Sh USB CONTROL TRANSFERS
+An USB control transfer has three parts.
+.
+First the SETUP packet, then DATA packet(s) and then a STATUS
+packet.
+.
+The SETUP packet is always pointed to by frame 0 and the
+length is set by
+.Fn usbd_xfer_frame_len
+also if there should not be
+sent any SETUP packet!
+If an USB control transfer has no DATA stage,
+then the number of frames should be set to 1.
+.
+Else the default number of frames is 2.
+.
+.Bd -literal -offset indent
+
+Example1: SETUP + STATUS
+ usbd_xfer_set_frames(xfer, 1);
+ usbd_xfer_set_frame_len(xfer, 0, 8);
+ usbd_transfer_submit(xfer);
+
+Example2: SETUP + DATA + STATUS
+ usbd_xfer_set_frames(xfer, 2);
+ usbd_xfer_set_frame_len(xfer, 0, 8);
+ usbd_xfer_set_frame_len(xfer, 1, 1);
+ usbd_transfer_submit(xfer);
+
+Example3: SETUP + DATA + STATUS - split
+1st callback:
+ usbd_xfer_set_frames(xfer, 1);
+ usbd_xfer_set_frame_len(xfer, 0, 8);
+ usbd_transfer_submit(xfer);
+
+2nd callback:
+ /* IMPORTANT: frbuffers[0] must still point at the setup packet! */
+ usbd_xfer_set_frames(xfer, 2);
+ usbd_xfer_set_frame_len(xfer, 0, 0);
+ usbd_xfer_set_frame_len(xfer, 1, 1);
+ usbd_transfer_submit(xfer);
+
+Example4: SETUP + STATUS - split
+1st callback:
+ usbd_xfer_set_frames(xfer, 1);
+ usbd_xfer_set_frame_len(xfer, 0, 8);
+ usbd_xfer_set_flag(xfer, USB_MANUAL_STATUS);
+ usbd_transfer_submit(xfer);
+
+2nd callback:
+ usbd_xfer_set_frames(xfer, 1);
+ usbd_xfer_set_frame_len(xfer, 0, 0);
+ usbd_xfer_clr_flag(xfer, USB_MANUAL_STATUS);
+ usbd_transfer_submit(xfer);
+
+.Ed
+.Sh USB TRANSFER CONFIG
+To simply the search for endpoints the
+.Nm usb
+module defines a USB config structure where it is possible to specify
+the characteristics of the wanted endpoint.
+.Bd -literal -offset indent
+
+struct usb_config {
+	bufsize,
+	callback
+	direction,
+	endpoint,
+	frames,
+	index flags,
+	interval,
+	timeout,
+	type,
+};
+
+.Ed
+.
+.Pp
+.Fa type
+field selects the USB pipe type.
+.
+Valid values are: UE_INTERRUPT, UE_CONTROL, UE_BULK,
+UE_ISOCHRONOUS.
+.
+The special value UE_BULK_INTR will select BULK and INTERRUPT pipes.
+.
+This field is mandatory.
+.
+.Pp
+.Fa endpoint
+field selects the USB endpoint number.
+.
+A value of 0xFF, "-1" or "UE_ADDR_ANY" will select the first matching
+endpoint.
+.
+This field is mandatory.
+.
+.Pp
+.Fa direction
+field selects the USB endpoint direction.
+.
+A value of "UE_DIR_ANY" will select the first matching endpoint.
+.
+Else valid values are: "UE_DIR_IN" and "UE_DIR_OUT".
+.
+"UE_DIR_IN" and "UE_DIR_OUT" can be binary OR'ed by "UE_DIR_SID" which
+means that the direction will be swapped in case of
+USB_MODE_DEVICE.
+.
+Note that "UE_DIR_IN" refers to the data transfer direction of the
+"IN" tokens and "UE_DIR_OUT" refers to the data transfer direction of
+the "OUT" tokens.
+.
+This field is mandatory.
+.
+.Pp
+.Fa interval
+field selects the interrupt interval.
+.
+The value of this field is given in milliseconds and is independent of
+device speed.
+.
+Depending on the endpoint type, this field has different meaning:
+.Bl -tag -width "UE_ISOCHRONOUS"
+.It UE_INTERRUPT
+"0" use the default interrupt interval based on endpoint descriptor.
+"Else" use the given value for polling rate.
+.It UE_ISOCHRONOUS
+"0" use default.
+"Else" the value is ignored.
+.It UE_BULK
+.It UE_CONTROL
+"0" no transfer pre-delay.
+"Else" a delay as given by this field in
+milliseconds is inserted before the hardware is started when
+"usbd_transfer_submit()" is called.
+.Pp
+NOTE: The transfer timeout, if any, is started after that the
+pre-delay has elapsed!
+.El
+.
+.Pp
+.Fa timeout
+field, if non-zero, will set the transfer timeout in milliseconds.
+If the "timeout" field is zero and the transfer type is ISOCHRONOUS a
+timeout of 250ms will be used.
+.
+.Pp
+.Fa frames
+field sets the maximum number of frames.
+If zero is specified it will yield the following results:
+.Bl -tag -width "UE_INTERRUPT"
+.It UE_BULK
+xfer->nframes = 1;
+.It UE_INTERRUPT
+xfer->nframes = 1;
+.It UE_CONTROL
+xfer->nframes = 2;
+.It UE_ISOCHRONOUS
+Not allowed.
+Will cause an error.
+.El
+.
+.Pp
+.Fa ep_index
+field allows you to give a number, in case more endpoints match the
+description, that selects which matching "ep_index" should be used.
+.
+.Pp
+.Fa if_index
+field allows you to select which of the interface numbers in the
+"ifaces" array parameter passed to "usbd_transfer_setup" that should
+be used when setting up the given USB transfer.
+.
+.Pp
+.Fa flags
+field has type "struct usb_xfer_flags" and allows one to set initial
+flags an USB transfer.
+Valid flags are:
+.Bl -tag -width "force_short_xfer"
+.It force_short_xfer
+This flag forces the last transmitted USB packet to be short.
+A short packet has a length of less than "xfer->max_packet_size", which
+derives from "wMaxPacketSize".
+This flag can be changed during operation.
+.It short_xfer_ok
+This flag allows the received transfer length, "xfer->actlen" to be
+less than "xfer->sumlen" upon completion of a transfer.
+This flag can be changed during operation.
+.It short_frames_ok
+This flag allows the reception of multiple short USB frames.
+This flag
+only has effect for BULK and INTERRUPT endpoints and if the number of
+frames received is greater than 1.
+This flag can be changed during operation.
+.It pipe_bof
+This flag causes a failing USB transfer to remain first in the PIPE
+queue except in the case of "xfer->error" equal to
+"USB_ERR_CANCELLED".
+No other USB transfers in the affected PIPE queue
+will be started until either:
+.Bl -tag -width "X"
+.It 1
+The failing USB transfer is stopped using "usbd_transfer_stop()".
+.It 2
+The failing USB transfer performs a successful transfer.
+.El
+The purpose of this flag is to avoid races when multiple transfers are
+queued for execution on an USB endpoint, and the first executing
+transfer fails leading to the need for clearing of stall for
+example.
+.
+In this case this flag is used to prevent the following USB transfers
+from being executed at the same time the clear-stall command is
+executed on the USB control endpoint.
+.
+This flag can be changed during operation.
+.Pp
+"BOF" is short for "Block On Failure".
+.Pp
+NOTE: This flag should be set on all BULK and INTERRUPT USB transfers
+which use an endpoint that can be shared between userland and kernel.
+.
+.
+.It proxy_buffer
+Setting this flag will cause that the total buffer size will be
+rounded up to the nearest atomic hardware transfer size.
+.
+The maximum data length of any USB transfer is always stored in the
+"xfer->max_data_length".
+.
+For control transfers the USB kernel will allocate additional space
+for the 8-bytes of SETUP header.
+.
+These 8-bytes are not counted by the "xfer->max_data_length"
+variable.
+.
+This flag cannot be changed during operation.
+.
+.
+.It ext_buffer
+Setting this flag will cause that no data buffer will be
+allocated.
+.
+Instead the USB client must supply a data buffer.
+.
+This flag cannot be changed during operation.
+.
+.
+.It manual_status
+Setting this flag prevents an USB STATUS stage to be appended to the
+end of the USB control transfer.
+.
+If no control data is transferred this flag must be cleared.
+.
+Else an error will be returned to the USB callback.
+.
+This flag is mostly useful for the USB device side.
+.
+This flag can be changed during operation.
+.
+.
+.It no_pipe_ok
+Setting this flag causes the USB_ERR_NO_PIPE error to be ignored.
+This flag cannot be changed during operation.
+.
+.
+.It stall_pipe
+.Bl -tag -width "Device Side Mode"
+.It Device Side Mode
+Setting this flag will cause STALL pids to be sent to the endpoint
+belonging to this transfer before the transfer is started.
+.
+The transfer is started at the moment the host issues a clear-stall
+command on the STALL'ed endpoint.
+.
+This flag can be changed during operation.
+.It Host Side Mode
+Setting this flag will cause a clear-stall control request to be
+executed on the endpoint before the USB transfer is started.
+.El
+.Pp
+If this flag is changed outside the USB callback function you have to
+use the "usbd_xfer_set_stall()" and "usbd_transfer_clear_stall()"
+functions! This flag is automatically cleared after that the stall or
+clear stall has been executed.
+.
+.It pre_scale_frames
+If this flag is set the number of frames specified is assumed to give the buffering time in milliseconds instead of frames.
+During transfer setup the frames field is pre scaled with the corresponding value for the endpoint and rounded to the nearest number of frames greater than zero.
+This option only has effect for ISOCHRONOUS transfers.
+.El
+.Pp
+.Fa bufsize
+field sets the total buffer size in bytes.
+.
+If this field is zero, "wMaxPacketSize" will be used, multiplied by
+the "frames" field if the transfer type is ISOCHRONOUS.
+.
+This is useful for setting up interrupt pipes.
+.
+This field is mandatory.
+.Pp
+NOTE: For control transfers "bufsize" includes the length of the
+request structure.
+.
+.Pp
+.Fa callback
+pointer sets the USB callback.
+This field is mandatory.
+.
+.
+.Sh USB LINUX COMPAT LAYER
+The
+.Nm usb
+module supports the Linux USB API.
+.
+.
+.Sh SEE ALSO
+.Xr libusb 3 ,
+.Xr usb 4 ,
+.Xr usbconfig 8
+.Sh STANDARDS
+The
+.Nm usb
+module complies with the USB 2.0 standard.
+.Sh HISTORY
+The
+.Nm usb
+module has been inspired by the NetBSD USB stack initially written by
+Lennart Augustsson.
+The
+.Nm usb
+module was written by
+.An Hans Petter Selasky Aq Mt hselasky@FreeBSD.org .

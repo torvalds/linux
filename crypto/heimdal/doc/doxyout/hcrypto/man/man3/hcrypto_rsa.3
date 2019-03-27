@@ -1,0 +1,152 @@
+.TH "RSA functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdal crypto library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+RSA functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "RSA * \fBRSA_new\fP (void)"
+.br
+.ti -1c
+.RI "RSA * \fBRSA_new_method\fP (ENGINE *engine)"
+.br
+.ti -1c
+.RI "void \fBRSA_free\fP (RSA *rsa)"
+.br
+.ti -1c
+.RI "int \fBRSA_up_ref\fP (RSA *rsa)"
+.br
+.ti -1c
+.RI "const RSA_METHOD * \fBRSA_get_method\fP (const RSA *rsa)"
+.br
+.ti -1c
+.RI "int \fBRSA_set_method\fP (RSA *rsa, const RSA_METHOD *method)"
+.br
+.ti -1c
+.RI "int \fBRSA_set_app_data\fP (RSA *rsa, void *arg)"
+.br
+.ti -1c
+.RI "void * \fBRSA_get_app_data\fP (const RSA *rsa)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+See the \fBRSA - public-key cryptography\fP for description and examples. 
+.SH "Function Documentation"
+.PP 
+.SS "void RSA_free (RSA * rsa)"
+.PP
+Free an allocation RSA object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIrsa\fP the RSA object to free. 
+.RE
+.PP
+
+.SS "void* RSA_get_app_data (const RSA * rsa)"
+.PP
+Get the application data for the RSA object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIrsa\fP the rsa object to get the parameter for
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the data object 
+.RE
+.PP
+
+.SS "const RSA_METHOD* RSA_get_method (const RSA * rsa)"
+.PP
+Return the RSA_METHOD used for this RSA object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIrsa\fP the object to get the method from.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the method used for this RSA object. 
+.RE
+.PP
+
+.SS "RSA* RSA_new (void)"
+.PP
+Same as \fBRSA_new_method()\fP using NULL as engine.
+.PP
+\fBReturns:\fP
+.RS 4
+a newly allocated RSA object. Free with \fBRSA_free()\fP. 
+.RE
+.PP
+
+.SS "RSA* RSA_new_method (ENGINE * engine)"
+.PP
+Allocate a new RSA object using the engine, if NULL is specified as the engine, use the default RSA engine as returned by ENGINE_get_default_RSA().
+.PP
+\fBParameters:\fP
+.RS 4
+\fIengine\fP Specific what ENGINE RSA provider should be used.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+a newly allocated RSA object. Free with \fBRSA_free()\fP. 
+.RE
+.PP
+
+.SS "int RSA_set_app_data (RSA * rsa, void * arg)"
+.PP
+Set the application data for the RSA object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIrsa\fP the rsa object to set the parameter for 
+.br
+\fIarg\fP the data object to store
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success. 
+.RE
+.PP
+
+.SS "int RSA_set_method (RSA * rsa, const RSA_METHOD * method)"
+.PP
+Set a new method for the RSA keypair.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIrsa\fP rsa parameter. 
+.br
+\fImethod\fP the new method for the RSA parameter.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success. 
+.RE
+.PP
+
+.SS "int RSA_up_ref (RSA * rsa)"
+.PP
+Add an extra reference to the RSA object. The object should be free with \fBRSA_free()\fP to drop the reference.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIrsa\fP the object to add reference counting too.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the current reference count, can't safely be used except for debug printing. 
+.RE
+.PP
+

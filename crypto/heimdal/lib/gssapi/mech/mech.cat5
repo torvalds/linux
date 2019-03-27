@@ -1,0 +1,61 @@
+
+MECH(5)                     BSD File Formats Manual                    MECH(5)
+
+NNAAMMEE
+     mmeecchh, qqoopp -- GSS-API Mechanism and QOP files
+
+SSYYNNOOPPSSIISS
+     _/_e_t_c_/_g_s_s_/_m_e_c_h _/_e_t_c_/_g_s_s_/_q_o_p
+
+DDEESSCCRRIIPPTTIIOONN
+     The _/_e_t_c_/_g_s_s_/_m_e_c_h file contains a list of installed GSS-API security
+     mechanisms.  Each line of the file either contains a comment if the first
+     character is '#' or it contains five fields with the following meanings:
+
+     Name          The name of this GSS-API mechanism.
+
+     Object identifier
+                   The OID for this mechanism.
+
+     Library       A shared library containing the implementation of this
+                   mechanism.
+
+     Kernel module (optional)
+                   A kernel module containing the implementation of this mech-
+                   anism (not yet supported in FreeBSD).
+
+     Library options (optional)
+                   Optionsal parameters interpreted by the mechanism. Library
+                   options must be enclosed in brackets ([ ]) to differentiate
+                   them from the optional kernel module entry.
+
+     The _/_e_t_c_/_g_s_s_/_q_o_p file contains a list of Quality of Protection values for
+     use with GSS-API.  Each line of the file either contains a comment if the
+     first character is '#' or it contains three fields with the following
+     meanings:
+
+     QOP string    The name of this Quality of Protection algorithm.
+
+     QOP value     The numeric value used to select this algorithm for use
+                   with GSS-API functions such as gss_get_mic(3).
+
+     Mechanism name
+                   The GSS-API mechanism name that corresponds to this algo-
+                   rithm.
+
+EEXXAAMMPPLLEESS
+     This is a typical entry from _/_e_t_c_/_g_s_s_/_m_e_c_h:
+
+     kerberosv5      1.2.840.113554.1.2.2    /usr/lib/libgssapi_krb5.so.8    -
+
+     This is a typical entry from _/_e_t_c_/_g_s_s_/_q_o_p:
+
+     GSS_KRB5_CONF_C_QOP_DES         0x0100  kerberosv5
+
+HHIISSTTOORRYY
+     The mmeecchh manual page example first appeared in FreeBSD 7.0.
+
+AAUUTTHHOORRSS
+     This manual page was written by Doug Rabson <dfr@FreeBSD.org>.
+
+BSD                            November 14, 2005                           BSD

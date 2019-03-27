@@ -1,0 +1,160 @@
+/*-
+ * Copyright (c) 2012-2013 Robert N. M. Watson
+ * Copyright (c) 2013 SRI International
+ * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+
+/*
+ * Device names here have been largely made up on the spot, especially for the
+ * "compatible" strings, and might want to be revised.
+ *
+ * For now, use 32-bit addressing as our Avalon bus is 32-bit.  However, in
+ * the future, we should likely change to 64-bit.
+ */
+
+/ {
+	model = "SRI/Cambridge BERI simulation";
+	compatible = "sri-cambridge,beri-sim";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/*
+		 * Secondary CPUs all start disabled and use the
+		 * spin-table enable method.  cpu-release-addr must be
+		 * specified for each cpu other than cpu@0.  Values of
+		 * cpu-release-addr grow down from 0x100000 (kernel).
+		 */
+		status = "disabled";
+		enable-method = "spin-table";
+
+		cpu@0 {
+			device-type = "cpu";
+			compatible = "sri-cambridge,beri";
+
+			reg = <0 1>;
+			status = "okay";
+		};
+
+/*
+		cpu@1 {
+			device-type = "cpu";
+			compatible = "sri-cambridge,beri";
+
+			reg = <1 1>;
+			// XXX: should we need cached prefix?
+			cpu-release-addr = <0xffffffff 0x800fffe0>;
+		};
+*/
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x4000000>;		// 64M at 0x0
+	};
+
+	cpuintc: cpuintc@0 {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
+	beripic0: beripic@7f804000 {
+		compatible = "sri-cambridge,beri-pic";
+		interrupt-controller;
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x7f804000 0x400
+		       0x7f806000 0x10
+		       0x7f806080 0x10
+		       0x7f806100 0x10>;
+		interrupts = < 2 3 4 5 6 >;
+		hard-interrupt-sources = <64>;
+		soft-interrupt-sources = <64>;
+		interrupt-parent = <&cpuintc>;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <1>;
+
+		compatible = "simple-bus", "mips,mips4k";
+		ranges;
+
+		serial@7f000000 {
+			compatible = "altera,jtag_uart-11_0";
+			reg = <0x7f000000 0x40>;
+			interrupts = <0>;
+			interrupt-parent = <&beripic0>;
+		};
+
+		serial@7f001000 {
+			compatible = "altera,jtag_uart-11_0";
+			reg = <0x7f001000 0x40>;
+		};
+
+		serial@7f002000 {
+			compatible = "altera,jtag_uart-11_0";
+			reg = <0x7f002000 0x40>;
+		};
+
+		virtio_mmio_platform0: virtio_mmio_platform@0 {
+			compatible = "beri,virtio_mmio_platform";
+			interrupts = <1>;
+			interrupt-parent = <&beripic0>;
+		};
+
+		virtio_block@7f020000 {
+			compatible = "virtio,mmio";
+			reg = <0x7f020000 0x1000>;
+			platform = <&virtio_mmio_platform0>;
+		};
+
+		sdcard@7f008000 {
+			compatible = "altera,sdcard_11_2011";
+			reg = <0x7f008000 0x400>;
+		};
+
+		avgen@0x7f00a000 {
+			compatible = "sri-cambridge,avgen";
+			reg = <0x7f00a000 0x14>;
+			sri-cambridge,width = <4>;
+			sri-cambridge,fileio = "rw";
+			sri-cambridge,devname = "berirom";
+		};
+	};
+};

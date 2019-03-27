@@ -1,0 +1,21 @@
+// -*- C++ -*-
+//===--------------------------- numeric ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+#ifndef _LIBCPP_EXPERIMENTAL_NUMERIC
+#define _LIBCPP_EXPERIMENTAL_NUMERIC
+
+#include <__config>
+
+#ifdef _LIBCPP_WARNING
+_LIBCPP_WARNING("<experimental/numeric> has been removed. Use <numeric> instead.")
+#else
+# warning "<experimental/numeric> has been removed. Use <numeric> instead."
+#endif
+
+#endif // _LIBCPP_EXPERIMENTAL_NUMERIC

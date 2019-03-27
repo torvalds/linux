@@ -1,0 +1,41 @@
+$FreeBSD$
+Index: arm.md
+===================================================================
+RCS file: /cognet/ncvs/src/contrib/gcc/config/arm/arm.md,v
+retrieving revision 1.1.1.7
+diff -u -p -r1.1.1.7 arm.md
+--- arm.md	3 Jun 2005 03:28:42 -0000	1.1.1.7
++++ arm.md	6 Nov 2006 02:44:36 -0000
+@@ -8840,7 +8840,7 @@
+       val2 = INTVAL (XEXP (XEXP (operands[3], 0), 1));
+     arith[0] = operands[0];
+     arith[3] = operands[1];
+-    if (val1 < val2)
++    if (val1 <= val2)
+       {
+ 	arith[1] = ldm[1];
+ 	arith[2] = ldm[2];
+@@ -8870,7 +8870,7 @@
+ 	else
+ 	  output_asm_insn (\"ldm%?ia\\t%0, {%1, %2}\", ldm);
+       }
+-    else
++    else if (val2)
+       {
+ 	ldm[0] = XEXP (operands[2], 0);
+ 	if (val1 < val2)
+@@ -8878,6 +8878,14 @@
+ 	else
+ 	  output_asm_insn (\"ldm%?da\\t%0, {%1, %2}\", ldm);
+       }
++   else {
++	ldm[0] = operands[0];
++	ldm[1] = XEXP(operands[2], 0);
++	output_asm_insn(\"ldr\\t%0, [%1]\", ldm);
++	ldm[0] = operands[4];
++	ldm[1] = XEXP(operands[3], 0);
++	output_asm_insn(\"ldr\\t%0, [%1]\", ldm);
++   }
+     output_asm_insn (\"%I3%?\\t%0, %1, %2\", arith);
+     return \"\";
+   }"

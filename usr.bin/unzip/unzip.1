@@ -1,0 +1,191 @@
+.\"-
+.\" Copyright (c) 2007-2008 Dag-Erling Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 12, 2015
+.Dt UNZIP 1
+.Os
+.Sh NAME
+.Nm unzip
+.Nd extract files from a ZIP archive
+.Sh SYNOPSIS
+.Nm
+.Op Fl aCcfjLlnopqtuvy
+.Op Fl d Ar dir
+.Ar zipfile
+.Sh DESCRIPTION
+.\" ...
+The following options are available:
+.Bl -tag -width Fl
+.It Fl a
+When extracting a text file, convert DOS-style line endings to
+Unix-style line endings.
+.It Fl C
+Match file names case-insensitively.
+.It Fl c
+Extract to stdout/screen.
+When extracting files from the zipfile, they are written to stdout.
+This is similar to
+.Fl p ,
+but does not suppress normal output.
+.It Fl d Ar dir
+Extract files into the specified directory rather than the current
+directory.
+.It Fl f
+Update existing.
+Extract only files from the zipfile if a file with the same name
+already exists on disk and is older than the former.
+Otherwise, the file is silently skipped.
+.It Fl j
+Ignore directories stored in the zipfile; instead, extract all files
+directly into the extraction directory.
+.It Fl L
+Convert the names of the extracted files and directories to lowercase.
+.It Fl l
+List, rather than extract, the contents of the zipfile.
+.It Fl n
+No overwrite.
+When extracting a file from the zipfile, if a file with the same name
+already exists on disk, the file is silently skipped.
+.It Fl o
+Overwrite.
+When extracting a file from the zipfile, if a file with the same name
+already exists on disk, the existing file is replaced with the file
+from the zipfile.
+.It Fl p
+Extract to stdout.
+When extracting files from the zipfile, they are written to stdout.
+The normal output is suppressed as if
+.Fl q
+was specified.
+.It Fl q
+Quiet: print less information while extracting.
+.It Fl t
+Test: do not extract anything, but verify the checksum of every file
+in the archive.
+.It Fl u
+Update.
+When extracting a file from the zipfile, if a file with the same name
+already exists on disk, the existing file is replaced with the file
+from the zipfile if and only if the latter is newer than the former.
+Otherwise, the file is silently skipped.
+.It Fl v
+List verbosely, rather than extract, the contents of the zipfile.
+This differs from
+.Fl l
+by using the long listing.
+Note that most of the data is currently fake and does not reflect the
+content of the archive.
+.It Fl x Ar pattern
+Exclude files matching the pattern
+.Ar pattern .
+.It Fl y
+Print four digit years in listings instead of two.
+.It Fl Z Ar mode
+Emulate
+.Xr zipinfo 1L
+mode.
+Enabling
+.Xr zipinfo 1L
+mode changes the way in which additional arguments are parsed.
+Currently only
+.Xr zipinfo 1L
+mode 1 is supported, which lists the file names one per line.
+.El
+.Pp
+Note that only one of
+.Fl n ,
+.Fl o ,
+and
+.Fl u
+may be specified.
+If specified filename is
+.Qq - ,
+then data is read from
+.Va stdin .
+.Sh ENVIRONMENT
+If the
+.Ev UNZIP_DEBUG
+environment variable is defined, the
+.Fl q
+command-line option has no effect, and additional debugging
+information will be printed to
+.Va stderr .
+.Sh COMPATIBILITY
+The
+.Nm
+utility aims to be sufficiently compatible with other implementations
+to serve as a drop-in replacement in the context of the
+.Xr ports 7
+system.
+No attempt has been made to replicate functionality which is not
+required for that purpose.
+.Pp
+For compatibility reasons, command-line options will be recognized if
+they are listed not only before but also after the name of the
+zipfile.
+.Pp
+Normally, the
+.Fl a
+option should only affect files which are marked as text files in the
+zipfile's central directory.
+Since the
+.Xr archive 3
+library does not provide access to that information, it is not available
+to the
+.Nm
+utility.
+Instead, the
+.Nm
+utility will assume that a file is a text file if no non-ASCII
+characters are present within the first block of data decompressed for
+that file.
+If non-ASCII characters appear in subsequent blocks of data, a warning
+will be issued.
+.Pp
+The
+.Nm
+utility is only able to process ZIP archives handled by
+.Xr libarchive 3 .
+Depending on the installed version of
+.Xr libarchive 3 ,
+this may or may not include self-extracting archives.
+.Sh SEE ALSO
+.Xr libarchive 3
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+The
+.Nm
+utility and this manual page were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .
+It uses the
+.Xr archive 3
+library developed by
+.An Tim Kientzle Aq Mt kientzle@FreeBSD.org .

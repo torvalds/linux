@@ -1,0 +1,4 @@
+CRTSTUFF_T_CFLAGS = -fno-omit-frame-pointer -fPIC
+TARGET_LIBGCC2_CFLAGS = -fPIC -fexceptions
+
+EXTRA_PARTS = crtbegin.o

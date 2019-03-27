@@ -1,0 +1,36 @@
+#
+#	@(#)ttys	5.1 (Berkeley) 4/17/89
+#
+# $FreeBSD$
+#
+# name	getty				type	status		comments
+#
+# This entry needed for asking password when init goes to single-user mode
+# If you want to be asked for password, change "secure" to "insecure" here
+#console	none				unknown	off secure
+vga	none				xterm	off secure
+#
+ttyv0	"/usr/libexec/getty Pc"		xterm	on  secure
+# Virtual terminals
+ttyv1	"/usr/libexec/getty Pc"		xterm	on  secure
+ttyv2	"/usr/libexec/getty Pc"		xterm	on  secure
+ttyv3	"/usr/libexec/getty Pc"		xterm	on  secure
+ttyv4	"/usr/libexec/getty Pc"		xterm	on  secure
+ttyv5	"/usr/libexec/getty Pc"		xterm	on  secure
+ttyv6	"/usr/libexec/getty Pc"		xterm	on  secure
+ttyv7	"/usr/libexec/getty Pc"		xterm	on  secure
+#ttyv8	"/usr/libexec/getty Pc"		xterm	on  secure
+#ttyv9	"/usr/libexec/getty Pc"		xterm	on  secure
+# Pseudo terminals
+ttyp0	none			network secure
+ttyp1	none			network secure
+ttyp2	none			network secure
+ttyp3	none			network secure
+ttyp4	none			network secure
+ttyp5	none			network secure
+ttyp6	none			network secure
+ttyp7	none			network secure
+ttyp8	none			network secure
+ttyp9	none			network secure
+ttyu0   "/usr/libexec/getty 3wire"   dialup  on secure
+ttyu1   "/usr/libexec/getty 3wire"   dialup  on secure

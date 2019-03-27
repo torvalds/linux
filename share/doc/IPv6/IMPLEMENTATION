@@ -1,0 +1,2392 @@
+	Implementation Note
+
+	KAME Project
+	http://www.kame.net/
+	$KAME: IMPLEMENTATION,v 1.216 2001/05/25 07:43:01 jinmei Exp $
+	$FreeBSD$
+
+NOTE: The document tries to describe behaviors/implementation choices
+of the latest KAME/*BSD stack.  The description here may not be
+applicable to KAME-integrated *BSD releases, as we have certain amount
+of changes between them.  Still, some of the content can be useful for
+KAME-integrated *BSD releases.
+
+Table of Contents
+
+	1. IPv6
+	1.1 Conformance
+	1.2 Neighbor Discovery
+	1.3 Scope Zone Index
+	1.3.1 Kernel internal
+	1.3.2 Interaction with API
+	1.3.3 Interaction with users (command line)
+	1.4 Plug and Play
+	1.4.1 Assignment of link-local, and special addresses
+	1.4.2 Stateless address autoconfiguration on hosts
+	1.4.3 DHCPv6
+	1.5 Generic tunnel interface
+	1.6 Address Selection
+	1.6.1 Source Address Selection
+	1.6.2 Destination Address Ordering
+	1.7 Jumbo Payload
+	1.8 Loop prevention in header processing
+	1.9 ICMPv6
+	1.10 Applications
+	1.11 Kernel Internals
+	1.12 IPv4 mapped address and IPv6 wildcard socket
+	1.12.1 KAME/BSDI3 and KAME/FreeBSD228
+	1.12.2 KAME/FreeBSD[34]x
+	1.12.2.1 KAME/FreeBSD[34]x, listening side
+	1.12.2.2 KAME/FreeBSD[34]x, initiating side
+	1.12.3 KAME/NetBSD
+	1.12.3.1 KAME/NetBSD, listening side
+	1.12.3.2 KAME/NetBSD, initiating side
+	1.12.4 KAME/BSDI4
+	1.12.4.1 KAME/BSDI4, listening side
+	1.12.4.2 KAME/BSDI4, initiating side
+	1.12.5 KAME/OpenBSD
+	1.12.5.1 KAME/OpenBSD, listening side
+	1.12.5.2 KAME/OpenBSD, initiating side
+	1.12.6 More issues
+	1.12.7 Interaction with SIIT translator
+	1.13 sockaddr_storage
+	1.14 Invalid addresses on the wire
+	1.15 Node's required addresses
+	1.15.1 Host case
+	1.15.2 Router case
+	1.16 Advanced API
+	1.17 DNS resolver
+	2. Network Drivers
+	2.1 FreeBSD 2.2.x-RELEASE
+	2.2 BSD/OS 3.x
+	2.3 NetBSD
+	2.4 FreeBSD 3.x-RELEASE
+	2.5 FreeBSD 4.x-RELEASE
+	2.6 OpenBSD 2.x
+	2.7 BSD/OS 4.x
+	3. Translator
+	3.1 FAITH TCP relay translator
+	3.2 IPv6-to-IPv4 header translator
+	4. IPsec
+	4.1 Policy Management
+	4.2 Key Management
+	4.3 AH and ESP handling
+	4.4 IPComp handling
+	4.5 Conformance to RFCs and IDs
+	4.6 ECN consideration on IPsec tunnels
+	4.7 Interoperability
+	4.8 Operations with IPsec tunnel mode
+	4.8.1 RFC2401 IPsec tunnel mode approach
+	4.8.2 draft-touch-ipsec-vpn approach
+	5. ALTQ
+	6. Mobile IPv6
+	6.1 KAME node as correspondent node
+	6.2 KAME node as home agent/mobile node
+	6.3 Old Mobile IPv6 code
+	7. Coding style
+	8. Policy on technology with intellectual property right restriction
+
+1. IPv6
+
+1.1 Conformance
+
+The KAME kit conforms, or tries to conform, to the latest set of IPv6
+specifications.  For future reference we list some of the relevant documents
+below (NOTE: this is not a complete list - this is too hard to maintain...).
+For details please refer to specific chapter in the document, RFCs, manpages
+come with KAME, or comments in the source code.
+
+Conformance tests have been performed on past and latest KAME STABLE kit,
+at TAHI project.  Results can be viewed at http://www.tahi.org/report/KAME/.
+We also attended Univ. of New Hampshire IOL tests (http://www.iol.unh.edu/)
+in the past, with our past snapshots.
+
+RFC1639: FTP Operation Over Big Address Records (FOOBAR)
+    * RFC2428 is preferred over RFC1639.  ftp clients will first try RFC2428,
+      then RFC1639 if failed.
+RFC1886: DNS Extensions to support IPv6
+RFC1933: (see RFC2893)
+RFC1981: Path MTU Discovery for IPv6
+RFC2080: RIPng for IPv6
+    * KAME-supplied route6d, bgpd and hroute6d support this.
+RFC2283: Multiprotocol Extensions for BGP-4
+    * so-called "BGP4+".
+    * KAME-supplied bgpd supports this.
+RFC2292: Advanced Sockets API for IPv6
+    * see RFC3542
+RFC2362: Protocol Independent Multicast-Sparse Mode (PIM-SM)
+    * RFC2362 defines the packet formats and the protcol of PIM-SM.
+RFC2373: IPv6 Addressing Architecture
+    * KAME supports node required addresses, and conforms to the scope
+      requirement.
+RFC2374: An IPv6 Aggregatable Global Unicast Address Format
+    * KAME supports 64-bit length of Interface ID.
+RFC2375: IPv6 Multicast Address Assignments
+    * Userland applications use the well-known addresses assigned in the RFC.
+RFC2428: FTP Extensions for IPv6 and NATs
+    * RFC2428 is preferred over RFC1639.  ftp clients will first try RFC2428,
+      then RFC1639 if failed.
+RFC2460: IPv6 specification
+RFC2461: Neighbor discovery for IPv6
+    * See 1.2 in this document for details.
+RFC2462: IPv6 Stateless Address Autoconfiguration
+    * See 1.4 in this document for details.
+RFC2463: ICMPv6 for IPv6 specification
+    * See 1.9 in this document for details.
+RFC2464: Transmission of IPv6 Packets over Ethernet Networks
+RFC2465: MIB for IPv6: Textual Conventions and General Group
+    * Necessary statistics are gathered by the kernel.  Actual IPv6 MIB
+      support is provided as patchkit for ucd-snmp.
+RFC2466: MIB for IPv6: ICMPv6 group
+    * Necessary statistics are gathered by the kernel.  Actual IPv6 MIB
+      support is provided as patchkit for ucd-snmp.
+RFC2467: Transmission of IPv6 Packets over FDDI Networks
+RFC2472: IPv6 over PPP
+RFC2492: IPv6 over ATM Networks
+    * only PVC is supported.
+RFC2497: Transmission of IPv6 packet over ARCnet Networks
+RFC2545: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing
+RFC2553: (see RFC3493)
+RFC2671: Extension Mechanisms for DNS (EDNS0)
+    * see USAGE for how to use it.
+    * not supported on kame/freebsd4 and kame/bsdi4.
+RFC2673: Binary Labels in the Domain Name System
+    * KAME/bsdi4 supports A6, DNAME and binary label to some extent.
+    * KAME apps/bind8 repository has resolver library with partial A6, DNAME
+      and binary label support.
+RFC2675: IPv6 Jumbograms
+    * See 1.7 in this document for details.
+RFC2710: Multicast Listener Discovery for IPv6
+RFC2711: IPv6 router alert option
+RFC2732: Format for Literal IPv6 Addresses in URL's
+    * The spec is implemented in programs that handle URLs
+      (like freebsd ftpio(3) and fetch(1), or netbsd ftp(1))
+RFC2874: DNS Extensions to Support IPv6 Address Aggregation and Renumbering
+    * KAME/bsdi4 supports A6, DNAME and binary label to some extent.
+    * KAME apps/bind8 repository has resolver library with partial A6, DNAME
+      and binary label support.
+RFC2893: Transition Mechanisms for IPv6 Hosts and Routers
+    * IPv4 compatible address is not supported.
+    * automatic tunneling (4.3) is not supported.
+    * "gif" interface implements IPv[46]-over-IPv[46] tunnel in a generic way,
+      and it covers "configured tunnel" described in the spec.
+      See 1.5 in this document for details.
+RFC2894: Router renumbering for IPv6
+RFC3041: Privacy Extensions for Stateless Address Autoconfiguration in IPv6
+RFC3056: Connection of IPv6 Domains via IPv4 Clouds
+    * So-called "6to4".
+    * "stf" interface implements it.  Be sure to read
+      draft-itojun-ipv6-transition-abuse-01.txt
+      below before configuring it, there can be security issues.
+RFC3142: An IPv6-to-IPv4 transport relay translator
+    * FAITH tcp relay translator (faithd) implements this.  See 3.1 for more
+      details.
+RFC3152: Delegation of IP6.ARPA
+    * libinet6 resolvers contained in the KAME snaps support to use
+      the ip6.arpa domain (with the nibble format) for IPv6 reverse
+      lookups.
+RFC3484: Default Address Selection for IPv6
+    * the selection algorithm for both source and destination addresses
+      is implemented based on the RFC, though some rules are still omitted.
+RFC3493: Basic Socket Interface Extensions for IPv6
+    * IPv4 mapped address (3.7) and special behavior of IPv6 wildcard bind
+      socket (3.8) are,
+	- supported and turned on by default on KAME/FreeBSD[34]
+	  and KAME/BSDI4,
+	- supported but turned off by default on KAME/NetBSD and KAME/FreeBSD5,
+	- not supported on KAME/FreeBSD228, KAME/OpenBSD and KAME/BSDI3.
+      see 1.12 in this document for details.
+    * The AI_ALL and AI_V4MAPPED flags are not supported.
+RFC3542: Advanced Sockets API for IPv6 (revised)
+    * For supported library functions/kernel APIs, see sys/netinet6/ADVAPI.
+    * Some of the updates in the draft are not implemented yet.  See
+      TODO.2292bis for more details.
+RFC4007: IPv6 Scoped Address Architecture
+    * some part of the documentation (especially about the routing
+      model) is not supported yet.
+    * zone indices that contain scope types have not been supported yet.
+
+draft-ietf-ipngwg-icmp-name-lookups-09: IPv6 Name Lookups Through ICMP
+draft-ietf-ipv6-router-selection-07.txt:
+	Default Router Preferences and More-Specific Routes
+    * router-side: both router preference and specific routes are supported.
+    * host-side: only router preference is supported.
+draft-ietf-pim-sm-v2-new-02.txt
+	A revised version of RFC2362, which includes the IPv6 specific
+	packet format and protocol descriptions.
+draft-ietf-dnsext-mdns-00.txt: Multicast DNS
+    * kame/mdnsd has test implementation, which will not be built in
+      default compilation.  The draft will experience a major change in the
+      near future, so don't rely upon it.
+draft-ietf-ipngwg-icmp-v3-02.txt: ICMPv6 for IPv6 specification (revised)
+    * See 1.9 in this document for details.
+draft-itojun-ipv6-tcp-to-anycast-01.txt:
+	Disconnecting TCP connection toward IPv6 anycast address
+draft-ietf-ipv6-rfc2462bis-06.txt: IPv6 Stateless Address
+	Autoconfiguration (revised)
+draft-itojun-ipv6-transition-abuse-01.txt:
+	Possible abuse against IPv6 transition technologies (expired)
+    * KAME does not implement RFC1933/2893 automatic tunnel.
+    * "stf" interface implements some address filters.  Refer to stf(4)
+      for details.  Since there's no way to make 6to4 interface 100% secure,
+      we do not include "stf" interface into GENERIC.v6 compilation.
+    * kame/openbsd completely disables IPv4 mapped address support.
+    * kame/netbsd makes IPv4 mapped address support off by default.
+    * See section 1.12.6 and 1.14 for more details.
+draft-itojun-ipv6-flowlabel-api-01.txt: Socket API for IPv6 flow label field
+    * no consideration is made against the use of routing headers and such.
+
+1.2 Neighbor Discovery
+
+Our implementation of Neighbor Discovery is fairly stable.  Currently
+Address Resolution, Duplicated Address Detection, and Neighbor
+Unreachability Detection are supported.  In the near future we will be
+adding an Unsolicited Neighbor Advertisement transmission command as
+an administration tool.
+
+Duplicated Address Detection (DAD) will be performed when an IPv6 address
+is assigned to a network interface, or the network interface is enabled
+(ifconfig up).  It is documented in RFC2462 5.4.
+If DAD fails, the address will be marked "duplicated" and message will be
+generated to syslog (and usually to console).  The "duplicated" mark
+can be checked with ifconfig.  It is administrators' responsibility to check
+for and recover from DAD failures.  We may try to improve failure recovery
+in future KAME code.
+
+A successor version of RFC2462 (called rfc2462bis) clarifies the
+behavior when DAD fails (i.e., duplicate is detected): if the
+duplicate address is a link-local address formed from an interface
+identifier based on the hardware address which is supposed to be
+uniquely assigned (e.g., EUI-64 for an Ethernet interface), IPv6
+operation on the interface should be disabled.  The KAME
+implementation supports this as follows: if this type of duplicate is
+detected, the kernel marks "disabled" in the ND specific data
+structure for the interface.  Every IPv6 I/O operation in the kernel
+checks this mark, and the kernel will drop packets received on or
+being sent to the "disabled" interface.  Whether the IPv6 operation is
+disabled or not can be confirmed by the ndp(8) command.  See the man
+page for more details.
+
+DAD procedure may not be effective on certain network interfaces/drivers.
+If a network driver needs long initialization time (with wireless network
+interfaces this situation is popular), and the driver mistakingly raises
+IFF_RUNNING before the driver becomes ready, DAD code will try to transmit
+DAD probes to not-really-ready network driver and the packet will not go out
+from the interface.  In such cases, network drivers should be corrected.
+
+Some of network drivers loop multicast packets back to themselves,
+even if instructed not to do so (especially in promiscuous mode).  In
+such cases DAD may fail, because the DAD engine sees inbound NS packet
+(actually from the node itself) and considers it as a sign of
+duplicate.  In this case, drivers should be corrected to honor
+IFF_SIMPLEX behavior.  For example, you may need to check source MAC
+address on an inbound packet, and reject it if it is from the node
+itself.
+
+Neighbor Discovery specification (RFC2461) does not talk about neighbor
+cache handling in the following cases:
+(1) when there was no neighbor cache entry, node received unsolicited
+    RS/NS/NA/redirect packet without link-layer address
+(2) neighbor cache handling on medium without link-layer address
+    (we need a neighbor cache entry for IsRouter bit)
+For (1), we implemented workaround based on discussions on IETF ipngwg mailing
+list.  For more details, see the comments in the source code and email
+thread started from (IPng 7155), dated Feb 6 1999.
+
+IPv6 on-link determination rule (RFC2461) is quite different from
+assumptions in BSD IPv4 network code.  To implement the behavior in
+RFC2461 section 6.3.6 (3), the kernel needs to know the default
+outgoing interface.  To configure the default outgoing interface, use
+commands like "ndp -I de0" as root.  Then the kernel will have a
+"default" route to the interface with the cloning "C" bit being on.
+This default route will cause to make a neighbor cache entry for every
+destination that does not match an explicit route entry.
+
+Note that we intentionally disable configuring the default interface
+by default.  This is because we found it sometimes caused inconvenient
+situation while it was rarely useful in practical usage.  For example,
+consider a destination that has both IPv4 and IPv6 addresses but is
+only reachable via IPv4.  Since our getaddrinfo(3) prefers IPv6 by
+default, an (TCP) application using the library with PF_UNSPEC first
+tries to connect to the IPv6 address.  If we turn on RFC 2461 6.3.6
+(3), we have to wait for quite a long period before the first attempt
+to make a connection fails.  If we turn it off, the first attempt will
+immediately fail with EHOSTUNREACH, and then the application can try
+the next, reachable address.
+
+The notion of the default interface is also disabled when the node is
+acting as a router.  The reason is that routers tend to control all
+routes stored in the kernel and the default route automatically
+installed would rather confuse the routers.  Note that the spec misuse
+the word "host" and "node" in several places in Section 5.2 of RFC
+2461.  We basically read the word "node" in this section as "host,"
+and thus believe the implementation policy does not break the
+specification.
+
+To avoid possible DoS attacks and infinite loops, KAME stack will accept
+only 10 options on ND packet.  Therefore, if you have 20 prefix options
+attached to RA, only the first 10 prefixes will be recognized.
+If this troubles you, please contact the KAME team and/or modify
+nd6_maxndopt in sys/netinet6/nd6.c.  If there are high demands we may
+provide a sysctl knob for the variable.
+
+Proxy Neighbor Advertisement support is implemented in the kernel.
+For instance, you can configure it by using the following command:
+	# ndp -s fe80::1234%ne0 0:1:2:3:4:5 proxy
+where ne0 is the interface which attaches to the same link as the
+proxy target.
+There are certain limitations, though:
+- It does not send unsolicited multicast NA on configuration.  This is MAY
+  behavior in RFC2461.
+- It does not add random delay before transmission of solicited NA.  This is
+  SHOULD behavior in RFC2461.
+- We cannot configure proxy NDP for off-link address.  The target address for
+  proxying must be link-local address, or must be in prefixes configured to
+  node which does proxy NDP.
+- RFC2461 is unclear about if it is legal for a host to perform proxy ND.
+  We do not prohibit hosts from doing proxy ND, but there will be very limited
+  use in it.
+
+Starting mid March 2000, we support Neighbor Unreachability Detection
+(NUD) on p2p interfaces, including tunnel interfaces (gif).  NUD is
+turned on by default.  Before March 2000 the KAME stack did not
+perform NUD on p2p interfaces.  If the change raises any
+interoperability issues, you can turn off/on NUD by per-interface
+basis.  Use "ndp -i interface -nud" to turn it off.  Consult ndp(8)
+for details.
+
+RFC2461 specifies upper-layer reachability confirmation hint.  Whenever
+upper-layer reachability confirmation hint comes, ND process can use it
+to optimize neighbor discovery process - ND process can omit real ND exchange
+and keep the neighbor cache state in REACHABLE.
+We currently have two sources for hints: (1) setsockopt(IPV6_REACHCONF)
+defined by the RFC3542 API, and (2) hints from tcp(6)_input.
+
+It is questionable if they are really trustworthy.  For example, a
+rogue userland program can use IPV6_REACHCONF to confuse the ND
+process.  Neighbor cache is a system-wide information pool, and it is
+bad to allow a single process to affect others.  Also, tcp(6)_input
+can be hosed by hijack attempts.  It is wrong to allow hijack attempts
+to affect the ND process.
+
+Starting June 2000, the ND code has a protection mechanism against
+incorrect upper-layer reachability confirmation.  The ND code counts
+subsequent upper-layer hints.  If the number of hints reaches the
+maximum, the ND code will ignore further upper-layer hints and run
+real ND process to confirm reachability to the peer.  sysctl
+net.inet6.icmp6.nd6_maxnudhint defines the maximum # of subsequent
+upper-layer hints to be accepted.
+(from April 2000 to June 2000, we rejected setsockopt(IPV6_REACHCONF) from
+non-root process - after a local discussion, it looks that hints are not
+that trustworthy even if they are from privileged processes)
+
+If inbound ND packets carry invalid values, the KAME kernel will
+drop these packet and increment statistics variable.  See
+"netstat -sn", icmp6 section.  For detailed debugging session, you can
+turn on syslog output from the kernel on errors, by turning on sysctl MIB
+net.inet6.icmp6.nd6_debug.  nd6_debug can be turned on at bootstrap
+time, by defining ND6_DEBUG kernel compilation option (so you can
+debug behavior during bootstrap).  nd6_debug configuration should
+only be used for test/debug purposes - for a production environment,
+nd6_debug must be set to 0.  If you leave it to 1, malicious parties
+can inject broken packet and fill up /var/log partition.
+
+1.3 Scope Zone Index
+
+IPv6 uses scoped addresses.  It is therefore very important to
+specify the scope zone index (link index for a link-local address, or
+site index for a site-local address) with an IPv6 address.  Without a
+zone index, a scoped IPv6 address is ambiguous to the kernel, and
+the kernel would not be able to determine the outbound zone for a
+packet to the scoped address.  KAME code tries to address the issue in
+several ways.
+
+The entire architecture of scoped addresses is documented in RFC4007.
+One non-trivial point of the architecture is that the link scope is
+(theoretically) larger than the interface scope.  That is, two
+different interfaces can belong to a same single link.  However, in a
+normal operation, we can assume that there is 1-to-1 relationship
+between links and interfaces.  In other words, we can usually put
+links and interfaces in the same scope type.  The current KAME
+implementation assumes the 1-to-1 relationship.  In particular, we use
+interface names such as "ne1" as unique link identifiers.  This would
+be much more human-readable and intuitive than numeric identifiers,
+but please keep your mind on the theoretical difference between links
+and interfaces.
+
+Site-local addresses are very vaguely defined in the specs, and both
+the specification and the KAME code need tons of improvements to
+enable its actual use.  For example, it is still very unclear how we
+define a site, or how we resolve host names in a site.  There is work
+underway to define behavior of routers at site border, but, we have
+almost no code for site boundary node support (neither forwarding nor
+routing) and we bet almost noone has.  We recommend, at this moment,
+you to use global addresses for experiments - there are way too many
+pitfalls if you use site-local addresses.
+
+1.3.1 Kernel internal
+
+In the kernel, the link index for a link-local scope address is
+embedded into the 2nd 16bit-word (the 3rd and 4th bytes) in the IPv6
+address.
+For example, you may see something like:
+	fe80:1::200:f8ff:fe01:6317
+in the routing table and the interface address structure (struct
+in6_ifaddr).  The address above is a link-local unicast address which
+belongs to a network link whose link identifier is 1 (note that it
+eqauls to the interface index by the assumption of our
+implementation).  The embedded index enables us to identify IPv6
+link-local addresses over multiple links effectively and with only a
+little code change.
+
+The use of the internal format must be limited inside the kernel.  In
+particular, addresses sent by an application should not contain the
+embedded index (except via some very special APIs such as routing
+sockets).  Instead, the index should be specified in the sin6_scope_id
+field of a sockaddr_in6 structure.  Obviously, packets sent to or
+received from must not contain the embedded index either, since the
+index is meaningful only within the sending/receiving node.
+
+In order to deal with the differences, several kernel routines are
+provided.  These are available by including <netinet6/scope_var.h>.
+Typically, the following functions will be most generally used:
+
+- int sa6_embedscope(struct sockaddr_in6 *sa6, int defaultok);
+  Embed sa6->sin6_scope_id into sa6->sin6_addr.  If sin6_scope_id is
+  0, defaultok is non-0, and the default zone ID (see RFC4007) is
+  configured, the default ID will be used instead of the value of the
+  sin6_scope_id field.  On success, sa6->sin6_scope_id will be reset
+  to 0.
+
+  This function returns 0 on success, or a non-0 error code otherwise.
+ 
+- int sa6_recoverscope(struct sockaddr_in6 *sa6);
+  Extract embedded zone ID in sa6->sin6_addr and set
+  sa6->sin6_scope_id to that ID.  The embedded ID will be cleared with
+  0.
+
+  This function returns 0 on success, or a non-0 error code otherwise.
+
+- int in6_clearscope(struct in6_addr *in6);
+  Reset the embedded zone ID in 'in6' to 0.  This function never fails, and
+  returns 0 if the original address is intact or non 0 if the address is
+  modified.  The return value doesn't matter in most cases; currently, the
+  only point where we care about the return value is ip6_input() for checking
+  whether the source or destination addresses of the incoming packet is in
+  the embedded form.
+
+- int in6_setscope(struct in6_addr *in6, struct ifnet *ifp,
+                   u_int32_t *zoneidp);
+  Embed zone ID determined by the address scope type for 'in6' and the
+  interface 'ifp' into 'in6'.  If zoneidp is non NULL, *zoneidp will
+  also have the zone ID.
+
+  This function returns 0 on success, or a non-0 error code otherwise.
+
+The typical usage of these functions is as follows:
+
+sa6_embedscope() will be used at the socket or transport layer to
+convert a sockaddr_in6 structure passed by an application into the
+kernel-internal form.  In this usage, the second argument is often the
+'ip6_use_defzone' global variable.
+
+sa6_recoverscope() will also be used at the socket or transport layer
+to convert an in6_addr structure with the embedded zone ID into a
+sockaddr_in6 structure with the corresponding ID in the sin6_scope_id
+field (and without the embedded ID in sin6_addr).
+
+in6_clearscope() will be used just before sending a packet to the wire
+to remove the embedded ID.  In general, this must be done at the last
+stage of an output path, since otherwise the address would lose the ID
+and could be ambiguous with regard to scope.
+
+in6_setscope() will be used when the kernel receives a packet from the
+wire to construct the kernel internal form for each address field in
+the packet (typical examples are the source and destination addresses
+of the packet).  In the typical usage, the third argument 'zoneidp'
+will be NULL.  A non-NULL value will be used when the validity of the
+zone ID must be checked, e.g., when forwarding a packet to another
+link (see ip6_forward() for this usage).
+
+An application, when sending a packet, is basically assumed to specify
+the appropriate scope zone of the destination address by the
+sin6_scope_id field (this might be done transparently from the
+application with getaddrinfo() and the extended textual format - see
+below), or at least the default scope zone(s) must be configured as a
+last resort.  In some cases, however, an application could specify an
+ambiguous address with regard to scope, expecting it is disambiguated
+in the kernel by some other means.  A typical usage is to specify the
+outgoing interface through another API, which can disambiguate the
+unspecified scope zone.  Such a usage is not recommended, but the
+kernel implements some trick to deal with even this case.
+
+A rough sketch of the trick can be summarized as the following
+sequence.
+
+   sa6_embedscope(dst, ip6_use_defzone);
+   in6_selectsrc(dst, ..., &ifp, ...);
+   in6_setscope(&dst->sin6_addr, ifp, NULL);
+
+sa6_embedscope() first tries to convert sin6_scope_id (or the default
+zone ID) into the kernel-internal form.  This can fail with an
+ambiguous destination, but it still tries to get the outgoing
+interface (ifp) in the attempt of determining the source address of
+the outgoing packet using in6_selectsrc().  If the interface is
+detected, and the scope zone was originally ambiguous, in6_setscope()
+can finally determine the appropriate ID with the address itself and
+the interface, and construct the kernel-internal form.  See, for
+example, comments in udp6_output() for more concrete example.
+
+In any case, kernel routines except ones in netinet6/scope6.c MUST NOT
+directly refer to the embedded form.  They MUST use the above
+interface functions.  In particular, kernel routines MUST NOT have the
+following code fragment:
+
+	/* This is a bad practice.  Don't do this */
+	if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr))
+		sin6->sin6_addr.s6_addr16[1] = htons(ifp->if_index);
+
+This is bad for several reasons.  First, address ambiguity is not
+specific to link-local addresses (any non-global multicast addresses
+are inherently ambiguous, and this is particularly true for
+interface-local addresses).  Secondly, this is vulnerable to future
+changes of the embedded form (the embedded position may change, or the
+zone ID may not actually be the interface index).  Only scope6.c
+routines should know the details.
+
+The above code fragment should thus actually be as follows:
+
+	/* This is correct. */
+	in6_setscope(&sin6->sin6_addr, ifp, NULL);
+	(and catch errors if possible and necessary)
+
+1.3.2 Interaction with API
+
+There are several candidates of API to deal with scoped addresses
+without ambiguity.
+
+The IPV6_PKTINFO ancillary data type or socket option defined in the
+advanced API (RFC2292 or RFC3542) can specify
+the outgoing interface of a packet.  Similarly, the IPV6_PKTINFO or
+IPV6_RECVPKTINFO socket options tell kernel to pass the incoming
+interface to user applications.
+
+These options are enough to disambiguate scoped addresses of an
+incoming packet, because we can uniquely identify the corresponding
+zone of the scoped address(es) by the incoming interface.  However,
+they are too strong for outgoing packets.  For example, consider a
+multi-sited node and suppose that more than one interface of the node
+belongs to a same site.  When we want to send a packet to the site,
+we can only specify one of the interfaces for the outgoing packet with
+these options; we cannot just say "send the packet to (one of the
+interfaces of) the site."
+
+Another kind of candidates is to use the sin6_scope_id member in the
+sockaddr_in6 structure, defined in RFC2553.  The KAME kernel
+interprets the sin6_scope_id field properly in order to disambiguate scoped
+addresses.  For example, if an application passes a sockaddr_in6
+structure that has a non-zero sin6_scope_id value to the sendto(2)
+system call, the kernel should send the packet to the appropriate zone
+according to the sin6_scope_id field.  Similarly, when the source or
+the destination address of an incoming packet is a scoped one, the
+kernel should detect the correct zone identifier based on the address
+and the receiving interface, fill the identifier in the sin6_scope_id
+field of a sockaddr_in6 structure, and then pass the packet to an
+application via the recvfrom(2) system call, etc.
+
+However, the semantics of the sin6_scope_id is still vague and on the
+way to standardization.  Additionally, not so many operating systems
+support the behavior above at this moment.
+
+In summary,
+- If your target system is limited to KAME based ones (i.e. BSD
+  variants and KAME snaps), use the sin6_scope_id field assuming the
+  kernel behavior described above.
+- Otherwise, (i.e. if your program should be portable on other systems
+  than BSDs)
+  + Use the advanced API to disambiguate scoped addresses of incoming
+    packets.
+  + To disambiguate scoped addresses of outgoing packets,
+    * if it is okay to just specify the outgoing interface, use the
+      advanced API.  This would be the case, for example, when you
+      should only consider link-local addresses and your system
+      assumes 1-to-1 relationship between links and interfaces.
+    * otherwise, sorry but you lose.  Please rush the IETF IPv6
+      community into standardizing the semantics of the sin6_scope_id
+      field.
+
+Routing daemons and configuration programs, like route6d and ifconfig,
+will need to manipulate the "embedded" zone index.  These programs use
+routing sockets and ioctls (like SIOCGIFADDR_IN6) and the kernel API
+will return IPv6 addresses with the 2nd 16bit-word filled in.  The
+APIs are for manipulating kernel internal structure.  Programs that
+use these APIs have to be prepared about differences in kernels
+anyway.
+
+getaddrinfo(3) and getnameinfo(3) support an extended numeric IPv6
+syntax, as documented in RFC4007.  You can specify the outgoing link,
+by using the name of the outgoing interface as the link, like
+"fe80::1%ne0" (again, note that we assume there is 1-to-1 relationship
+between links and interfaces.)  This way you will be able to specify a
+link-local scoped address without much trouble.
+
+Other APIs like inet_pton(3) and inet_ntop(3) are inherently
+unfriendly with scoped addresses, since they are unable to annotate
+addresses with zone identifier.
+
+1.3.3 Interaction with users (command line)
+
+Most of user applications now support the extended numeric IPv6
+syntax.  In this case, you can specify outgoing link, by using the name
+of the outgoing interface like "fe80::1%ne0" (sorry for the duplicated
+notice, but please recall again that we assume 1-to-1 relationship
+between links and interfaces).  This is even the case for some
+management tools such as route(8) or ndp(8).  For example, to install
+the IPv6 default route by hand, you can type like
+	# route add -inet6 default fe80::9876:5432:1234:abcd%ne0
+(Although we suggest you to run dynamic routing instead of static
+routes, in order to avoid configuration mistakes.)
+
+Some applications have command line options for specifying an
+appropriate zone of a scoped address (like "ping6 -I ne0 ff02::1" to
+specify the outgoing interface).  However, you can't always expect such
+options.  Additionally, specifying the outgoing "interface" is in
+theory an overspecification as a way to specify the outgoing "link"
+(see above).  Thus, we recommend you to use the extended format
+described above.  This should apply to the case where the outgoing
+interface is specified.
+
+In any case, when you specify a scoped address to the command line,
+NEVER write the embedded form (such as ff02:1::1 or fe80:2::fedc),
+which should only be used inside the kernel (see Section 1.3.1), and 
+is not supposed to work.
+
+1.4 Plug and Play
+
+The KAME kit implements most of the IPv6 stateless address
+autoconfiguration in the kernel.
+Neighbor Discovery functions are implemented in the kernel as a whole.
+Router Advertisement (RA) input for hosts is implemented in the
+kernel.  Router Solicitation (RS) output for endhosts, RS input
+for routers, and RA output for routers are implemented in the
+userland.
+
+1.4.1 Assignment of link-local, and special addresses
+
+IPv6 link-local address is generated from IEEE802 address (ethernet MAC
+address).  Each of interface is assigned an IPv6 link-local address
+automatically, when the interface becomes up (IFF_UP).  Also, direct route
+for the link-local address is added to routing table.
+
+Here is an output of netstat command:
+
+Internet6:
+Destination                   Gateway                   Flags      Netif Expire
+fe80::%ed0/64                 link#1                    UC           ed0
+fe80::%ep0/64                 link#2                    UC           ep0
+
+Interfaces that has no IEEE802 address (pseudo interfaces like tunnel
+interfaces, or ppp interfaces) will borrow IEEE802 address from other
+interfaces, such as ethernet interfaces, whenever possible.
+If there is no IEEE802 hardware attached, last-resort pseudorandom value,
+which is from MD5(hostname), will be used as source of link-local address.
+If it is not suitable for your usage, you will need to configure the
+link-local address manually.
+
+If an interface is not capable of handling IPv6 (such as lack of multicast
+support), link-local address will not be assigned to that interface.
+See section 2 for details.
+
+Each interface joins the solicited multicast address and the
+link-local all-nodes multicast addresses (e.g.  fe80::1:ff01:6317
+and ff02::1, respectively, on the link the interface is attached).
+In addition to a link-local address, the loopback address (::1) will be
+assigned to the loopback interface.  Also, ::1/128 and ff01::/32 are
+automatically added to routing table, and loopback interface joins
+node-local multicast group ff01::1.
+
+1.4.2 Stateless address autoconfiguration on hosts
+
+In IPv6 specification, nodes are separated into two categories:
+routers and hosts.  Routers forward packets addressed to others, hosts does
+not forward the packets.  net.inet6.ip6.forwarding defines whether this
+node is a router or a host (router if it is 1, host if it is 0).
+
+It is NOT recommended to change net.inet6.ip6.forwarding while the node
+is in operation.  IPv6 specification defines behavior for "host" and "router"
+quite differently, and switching from one to another can cause serious
+troubles.  It is recommended to configure the variable at bootstrap time only.
+
+The first step in stateless address configuration is Duplicated Address
+Detection (DAD).  See 1.2 for more detail on DAD.
+
+When a host hears Router Advertisement from the router, a host may
+autoconfigure itself by stateless address autoconfiguration.  This
+behavior can be controlled by the net.inet6.ip6.accept_rtadv sysctl
+variable and a per-interface flag managed in the kernel.  The latter,
+which we call "if_accept_rtadv" here, can be changed by the ndp(8)
+command (see the manpage for more details).  When the sysctl variable
+is set to 1, and the flag is set, the host autoconfigures itself.  By
+autoconfiguration, network address prefixes for the receiving
+interface (usually global address prefix) are added.  The default
+route is also configured.
+
+Routers periodically generate Router Advertisement packets.  To
+request an adjacent router to generate RA packet, a host can transmit
+Router Solicitation.  To generate an RS packet at any time, use the
+"rtsol" command.  The "rtsold" daemon is also available. "rtsold"
+generates Router Solicitation whenever necessary, and it works greatly
+for nomadic usage (notebooks/laptops).  If one wishes to ignore Router
+Advertisements, use sysctl to set net.inet6.ip6.accept_rtadv to 0.
+Additionally, ndp(8) command can be used to control the behavior
+per-interface basis.
+
+To generate Router Advertisement from a router, use the "rtadvd" daemon.
+
+Note that the IPv6 specification assumes the following items and that
+nonconforming cases are left unspecified:
+- Only hosts will listen to router advertisements
+- Hosts have a single network interface (except loopback)
+This is therefore unwise to enable net.inet6.ip6.accept_rtadv on routers,
+or multi-interface hosts.  A misconfigured node can behave strange
+(KAME code allows nonconforming configuration, for those who would like
+to do some experiments).
+
+To summarize the sysctl knob:
+	accept_rtadv	forwarding	role of the node
+	---		---		---
+	0		0		host (to be manually configured)
+	0		1		router
+	1		0		autoconfigured host
+					(spec assumes that hosts have a single
+					interface only, autoconfigred hosts
+					with multiple interfaces are
+					out-of-scope)
+	1		1		invalid, or experimental
+					(out-of-scope of spec)
+
+The if_accept_rtadv flag is referred only when accept_rtadv is 1 (the
+latter two cases).  The flag does not have any effects when the sysctl
+variable is 0.
+
+See 1.2 in the document for relationship between DAD and autoconfiguration.
+
+1.4.3 DHCPv6
+
+We supply a tiny DHCPv6 server/client in kame/dhcp6. However, the
+implementation is premature (for example, this does NOT implement
+address lease/release), and it is not in default compilation tree on
+some platforms. If you want to do some experiment, compile it on your
+own.
+
+DHCPv6 and autoconfiguration also needs more work.  "Managed" and "Other"
+bits in RA have no special effect to stateful autoconfiguration procedure
+in DHCPv6 client program ("Managed" bit actually prevents stateless
+autoconfiguration, but no special action will be taken for DHCPv6 client).
+
+1.5 Generic tunnel interface
+
+GIF (Generic InterFace) is a pseudo interface for configured tunnel.
+Details are described in gif(4) manpage.
+Currently
+	v6 in v6
+	v6 in v4
+	v4 in v6
+	v4 in v4
+are available.  Use "gifconfig" to assign physical (outer) source
+and destination address to gif interfaces.
+Configuration that uses same address family for inner and outer IP
+header (v4 in v4, or v6 in v6) is dangerous.  It is very easy to
+configure interfaces and routing tables to perform infinite level
+of tunneling.  Please be warned.
+
+gif can be configured to be ECN-friendly.  See 4.5 for ECN-friendliness
+of tunnels, and gif(4) manpage for how to configure.
+
+If you would like to configure an IPv4-in-IPv6 tunnel with gif interface,
+read gif(4) carefully.  You may need to remove IPv6 link-local address
+automatically assigned to the gif interface.
+
+1.6 Address Selection
+
+1.6.1 Source Address Selection
+
+The KAME kernel chooses the source address for an outgoing packet
+sent from a user application as follows:
+
+1. if the source address is explicitly specified via an IPV6_PKTINFO
+   ancillary data item or the socket option of that name, just use it.
+   Note that this item/option overrides the bound address of the
+   corresponding (datagram) socket.
+
+2. if the corresponding socket is bound, use the bound address.
+
+3. otherwise, the kernel first tries to find the outgoing interface of
+   the packet.  If it fails, the source address selection also fails.
+   If the kernel can find an interface, choose the most appropriate
+   address based on the algorithm described in RFC3484.
+
+   The policy table used in this algorithm is stored in the kernel.
+   To install or view the policy, use the ip6addrctl(8) command.  The
+   kernel does not have pre-installed policy.  It is expected that the
+   default policy described in the draft should be installed at the
+   bootstrap time using this command.
+
+   This draft allows an implementation to add implementation-specific
+   rules with higher precedence than the rule "Use longest matching
+   prefix."  KAME's implementation has the following additional rules
+   (that apply in the appeared order):
+
+   - prefer addresses on alive interfaces, that is, interfaces with
+     the UP flag being on.  This rule is particularly useful for
+     routers, since some routing daemons stop advertising prefixes
+    (addresses) on interfaces that have become down.
+
+   - prefer addresses on "preferred" interfaces.  "Preferred"
+     interfaces can be specified by the ndp(8) command.  By default,
+     no interface is preferred, that is, this rule does not apply.
+     Again, this rule is particularly useful for routers, since there
+     is a convention, among router administrators, of assigning
+     "stable" addresses on a particular interface (typically a
+     loopback interface).
+
+   In any case, addresses that break the scope zone of the
+   destination, or addresses whose zone do not contain the outgoing
+   interface are never chosen.
+
+When the procedure above fails, the kernel usually returns
+EADDRNOTAVAIL to the application.
+
+In some cases, the specification explicitly requires the
+implementation to choose a particular source address.  The source
+address for a Neighbor Advertisement (NA) message is an example.
+Under the spec (RFC2461 7.2.2) NA's source should be the target
+address of the corresponding NS's target.  In this case we follow the
+spec rather than the above rule.
+
+If you would like to prohibit the use of deprecated address for some
+reason, configure net.inet6.ip6.use_deprecated to 0.  The issue
+related to deprecated address is described in RFC2462 5.5.4 (NOTE:
+there is some debate underway in IETF ipngwg on how to use
+"deprecated" address).
+
+As documented in the source address selection document, temporary
+addresses for privacy extension are less preferred to public addresses
+by default.  However, for administrators who are particularly aware of
+the privacy, there is a system-wide sysctl(3) variable
+"net.inet6.ip6.prefer_tempaddr".  When the variable is set to
+non-zero, the kernel will rather prefer temporary addresses.  The
+default value of this variable is 0.
+
+1.6.2 Destination Address Ordering
+
+KAME's getaddrinfo(3) supports the destination address ordering
+algorithm described in RFC3484.  Getaddrinfo(3) needs to know the
+source address for each destination address and policy entries
+(described in the previous section) for the source and destination
+addresses.  To get the source address, the library function opens a
+UDP socket and tries to connect(2) for the destination.  To get the
+policy entry, the function issues sysctl(3).
+
+1.7 Jumbo Payload
+
+KAME supports the Jumbo Payload hop-by-hop option used to send IPv6
+packets with payloads longer than 65,535 octets.  But since currently
+KAME does not support any physical interface whose MTU is more than
+65,535, such payloads can be seen only on the loopback interface(i.e.
+lo0).
+
+If you want to try jumbo payloads, you first have to reconfigure the
+kernel so that the MTU of the loopback interface is more than 65,535
+bytes; add the following to the kernel configuration file:
+	options		"LARGE_LOMTU"		#To test jumbo payload
+and recompile the new kernel.
+
+Then you can test jumbo payloads by the ping6 command with -b and -s
+options.  The -b option must be specified to enlarge the size of the
+socket buffer and the -s option specifies the length of the packet,
+which should be more than 65,535.  For example, type as follows; 
+	% ping6 -b 70000 -s 68000 ::1
+
+The IPv6 specification requires that the Jumbo Payload option must not
+be used in a packet that carries a fragment header.  If this condition
+is broken, an ICMPv6 Parameter Problem message must be sent to the
+sender.  KAME kernel follows the specification, but you cannot usually
+see an ICMPv6 error caused by this requirement.
+
+If KAME kernel receives an IPv6 packet, it checks the frame length of
+the packet and compares it to the length specified in the payload
+length field of the IPv6 header or in the value of the Jumbo Payload
+option, if any.  If the former is shorter than the latter, KAME kernel
+discards the packet and increments the statistics.  You can see the
+statistics as output of netstat command with `-s -p ip6' option:
+	% netstat -s -p ip6
+	ip6:
+		(snip)
+		1 with data size < data length
+
+So, KAME kernel does not send an ICMPv6 error unless the erroneous
+packet is an actual Jumbo Payload, that is, its packet size is more
+than 65,535 bytes.  As described above, KAME kernel currently does not
+support physical interface with such a huge MTU, so it rarely returns an
+ICMPv6 error.
+
+TCP/UDP over jumbogram is not supported at this moment.  This is because
+we have no medium (other than loopback) to test this.  Contact us if you
+need this.
+
+IPsec does not work on jumbograms.  This is due to some specification twists
+in supporting AH with jumbograms (AH header size influences payload length,
+and this makes it real hard to authenticate inbound packet with jumbo payload
+option as well as AH).
+
+There are fundamental issues in *BSD support for jumbograms.  We would like to
+address those, but we need more time to finalize the task.  To name a few:
+- mbuf pkthdr.len field is typed as "int" in 4.4BSD, so it cannot hold
+  jumbogram with len > 2G on 32bit architecture CPUs.  If we would like to
+  support jumbogram properly, the field must be expanded to hold 4G +
+  IPv6 header + link-layer header.  Therefore, it must be expanded to at least
+  int64_t (u_int32_t is NOT enough).
+- We mistakingly use "int" to hold packet length in many places.  We need
+  to convert them into larger numeric type.  It needs a great care, as we may
+  experience overflow during packet length computation.
+- We mistakingly check for ip6_plen field of IPv6 header for packet payload
+  length in various places.  We should be checking mbuf pkthdr.len instead.
+  ip6_input() will perform sanity check on jumbo payload option on input,
+  and we can safely use mbuf pkthdr.len afterwards.
+- TCP code needs careful updates in bunch of places, of course.
+
+1.8 Loop prevention in header processing
+
+IPv6 specification allows arbitrary number of extension headers to
+be placed onto packets.  If we implement IPv6 packet processing
+code in the way BSD IPv4 code is implemented, kernel stack may
+overflow due to long function call chain.  KAME sys/netinet6 code
+is carefully designed to avoid kernel stack overflow.  Because of
+this, KAME sys/netinet6 code defines its own protocol switch
+structure, as "struct ip6protosw" (see netinet6/ip6protosw.h).
+
+In addition to this, we restrict the number of extension headers
+(including the IPv6 header) in each incoming packet, in order to
+prevent a DoS attack that tries to send packets with a massive number
+of extension headers.  The upper limit can be configured by the sysctl
+value net.inet6.ip6.hdrnestlimit.  In particular, if the value is 0,
+the node will allow an arbitrary number of headers. As of writing this
+document, the default value is 50.
+
+IPv4 part (sys/netinet) remains untouched for compatibility.
+Because of this, if you receive IPsec-over-IPv4 packet with massive
+number of IPsec headers, kernel stack may blow up.  IPsec-over-IPv6 is okay.
+
+1.9 ICMPv6
+
+After RFC2463 was published, IETF ipngwg has decided to disallow ICMPv6 error
+packet against ICMPv6 redirect, to prevent ICMPv6 storm on a network medium.
+KAME already implements this into the kernel.
+
+RFC2463 requires rate limitation for ICMPv6 error packets generated by a
+node, to avoid possible DoS attacks.  KAME kernel implements two rate-
+limitation mechanisms, tunable via sysctl:
+- Minimum time interval between ICMPv6 error packets
+	KAME kernel will generate no more than one ICMPv6 error packet,
+	during configured time interval.  net.inet6.icmp6.errratelimit
+	controls the interval (default: disabled).
+- Maximum ICMPv6 error packet-per-second
+	KAME kernel will generate no more than the configured number of
+	packets in one second.  net.inet6.icmp6.errppslimit controls the
+	maximum packet-per-second value (default: 200pps)
+Basically, we need to pick values that are suitable against the bandwidth
+of link layer devices directly attached to the node.  In some cases the
+default values may not fit well.  We are still unsure if the default value
+is sane or not.  Comments are welcome.
+
+1.10 Applications
+
+For userland programming, we support IPv6 socket API as specified in
+RFC2553/3493, RFC3542 and upcoming internet drafts.
+
+TCP/UDP over IPv6 is available and quite stable.  You can enjoy "telnet",
+"ftp", "rlogin", "rsh", "ssh", etc.  These applications are protocol
+independent.  That is, they automatically chooses IPv4 or IPv6
+according to DNS.
+
+1.11 Kernel Internals
+
+ (*) TCP/UDP part is handled differently between operating system platforms.
+     See 1.12 for details.
+
+The current KAME has escaped from the IPv4 netinet logic.  While
+ip_forward() calls ip_output(), ip6_forward() directly calls
+if_output() since routers must not divide IPv6 packets into fragments.
+
+ICMPv6 should contain the original packet as long as possible up to
+1280.  UDP6/IP6 port unreach, for instance, should contain all
+extension headers and the *unchanged* UDP6 and IP6 headers.
+So, all IP6 functions except TCP6 never convert network byte
+order into host byte order, to save the original packet.
+
+tcp6_input(), udp6_input() and icmp6_input() can't assume that IP6
+header is preceding the transport headers due to extension
+headers.  So, in6_cksum() was implemented to handle packets whose IP6
+header and transport header is not continuous.  TCP/IP6 nor UDP/IP6
+header structure don't exist for checksum calculation.
+
+To process IP6 header, extension headers and transport headers easily,
+KAME requires network drivers to store packets in one internal mbuf or
+one or more external mbufs.  A typical old driver prepares two
+internal mbufs for 100 - 208 bytes data, however, KAME's reference
+implementation stores it in one external mbuf.
+
+"netstat -s -p ip6" tells you whether or not your driver conforms
+KAME's requirement.  In the following example, "cce0" violates the
+requirement. (For more information, refer to Section 2.)
+
+        Mbuf statistics:
+                317 one mbuf
+                two or more mbuf::
+                        lo0 = 8
+			cce0 = 10
+                3282 one ext mbuf
+                0 two or more ext mbuf
+
+Each input function calls IP6_EXTHDR_CHECK in the beginning to check
+if the region between IP6 and its header is
+continuous.  IP6_EXTHDR_CHECK calls m_pullup() only if the mbuf has
+M_LOOP flag, that is, the packet comes from the loopback
+interface.  m_pullup() is never called for packets coming from physical
+network interfaces.
+
+TCP6 reassembly makes use of IP6 header to store reassemble
+information.  IP6 is not supposed to be just before TCP6, so
+ip6tcpreass structure has a pointer to TCP6 header.  Of course, it has
+also a pointer back to mbuf to avoid m_pullup().
+
+Like TCP6, both IP and IP6 reassemble functions never call m_pullup().
+
+xxx_ctlinput() calls in_mrejoin() on PRC_IFNEWADDR.  We think this is
+one of 4.4BSD implementation flaws.  Since 4.4BSD keeps ia_multiaddrs
+in in_ifaddr{}, it can't use multicast feature if the interface has no
+unicast address.  So, if an application joins to an interface and then
+all unicast addresses are removed from the interface, the application
+can't send/receive any multicast packets.  Moreover, if a new unicast
+address is assigned to the interface, in_mrejoin() must be called.
+KAME's interfaces, however, have ALWAYS one link-local unicast
+address.  These extensions have thus not been implemented in KAME.
+
+1.12 IPv4 mapped address and IPv6 wildcard socket
+
+RFC2553/3493 describes IPv4 mapped address (3.7) and special behavior
+of IPv6 wildcard bind socket (3.8).  The spec allows you to:
+- Accept IPv4 connections by AF_INET6 wildcard bind socket.
+- Transmit IPv4 packet over AF_INET6 socket by using special form of
+  the address like ::ffff:10.1.1.1.
+but the spec itself is very complicated and does not specify how the
+socket layer should behave.
+Here we call the former one "listening side" and the latter one "initiating
+side", for reference purposes.
+
+Almost all KAME implementations treat tcp/udp port number space separately
+between IPv4 and IPv6.  You can perform wildcard bind on both of the address
+families, on the same port.
+
+There are some OS-platform differences in KAME code, as we use tcp/udp
+code from different origin.  The following table summarizes the behavior.
+
+		listening side		initiating side
+		(AF_INET6 wildcard	(connection to ::ffff:10.1.1.1)
+		socket gets IPv4 conn.)
+		---			---
+KAME/BSDI3	not supported		not supported
+KAME/FreeBSD228	not supported		not supported
+KAME/FreeBSD3x	configurable		supported
+		default: enabled
+KAME/FreeBSD4x	configurable		supported
+		default: enabled
+KAME/NetBSD	configurable		supported
+		default: disabled
+KAME/BSDI4	enabled			supported
+KAME/OpenBSD	not supported		not supported
+
+The following sections will give you more details, and how you can
+configure the behavior.
+
+Comments on listening side:
+
+It looks that RFC2553/3493 talks too little on wildcard bind issue,
+specifically on (1) port space issue, (2) failure mode, (3) relationship
+between AF_INET/INET6 wildcard bind like ordering constraint, and (4) behavior
+when conflicting socket is opened/closed.  There can be several separate
+interpretation for this RFC which conform to it but behaves differently.
+So, to implement portable application you should assume nothing
+about the behavior in the kernel.  Using getaddrinfo() is the safest way.
+Port number space and wildcard bind issues were discussed in detail
+on ipv6imp mailing list, in mid March 1999 and it looks that there's
+no concrete consensus (means, up to implementers).  You may want to
+check the mailing list archives.
+We supply a tool called "bindtest" that explores the behavior of
+kernel bind(2).  The tool will not be compiled by default.
+
+If a server application would like to accept IPv4 and IPv6 connections,
+it should use AF_INET and AF_INET6 socket (you'll need two sockets).
+Use getaddrinfo() with AI_PASSIVE into ai_flags, and socket(2) and bind(2)
+to all the addresses returned.
+By opening multiple sockets, you can accept connections onto the socket with
+proper address family.  IPv4 connections will be accepted by AF_INET socket,
+and IPv6 connections will be accepted by AF_INET6 socket (NOTE: KAME/BSDI4
+kernel sometimes violate this - we will fix it).
+
+If you try to support IPv6 traffic only and would like to reject IPv4
+traffic, always check the peer address when a connection is made toward
+AF_INET6 listening socket.  If the address is IPv4 mapped address, you may
+want to reject the connection.  You can check the condition by using
+IN6_IS_ADDR_V4MAPPED() macro.  This is one of the reasons the author of
+the section (itojun) dislikes special behavior of AF_INET6 wildcard bind.
+
+Comments on initiating side:
+
+Advise to application implementers: to implement a portable IPv6 application
+(which works on multiple IPv6 kernels), we believe that the following
+is the key to the success:
+- NEVER hardcode AF_INET nor AF_INET6.
+- Use getaddrinfo() and getnameinfo() throughout the system.
+  Never use gethostby*(), getaddrby*(), inet_*() or getipnodeby*().
+- If you would like to connect to destination, use getaddrinfo() and try
+  all the destination returned, like telnet does.
+- Some of the IPv6 stack is shipped with buggy getaddrinfo().  Ship a minimal
+  working version with your application and use that as last resort.
+
+If you would like to use AF_INET6 socket for both IPv4 and IPv6 outgoing
+connection, you will need tweaked implementation in DNS support libraries,
+as documented in RFC2553/3493 6.1.  KAME libinet6 includes the tweak in
+getipnodebyname().  Note that getipnodebyname() itself is not recommended as
+it does not handle scoped IPv6 addresses at all.  For IPv6 name resolution
+getaddrinfo() is the preferred API.  getaddrinfo() does not implement the
+tweak.
+
+When writing applications that make outgoing connections, story goes much
+simpler if you treat AF_INET and AF_INET6 as totally separate address family.
+{set,get}sockopt issue goes simpler, DNS issue will be made simpler.  We do
+not recommend you to rely upon IPv4 mapped address.
+
+1.12.1 KAME/BSDI3 and KAME/FreeBSD228
+
+The platforms do not support IPv4 mapped address at all (both listening side
+and initiating side).  AF_INET6 and AF_INET sockets are totally separated.
+
+Port number space is totally separate between AF_INET and AF_INET6 sockets. 
+
+It should be noted that KAME/BSDI3 and KAME/FreeBSD228 are not conformant
+to RFC2553/3493 section 3.7 and 3.8.  It is due to code sharing reasons.
+
+1.12.2 KAME/FreeBSD[34]x
+
+KAME/FreeBSD3x and KAME/FreeBSD4x use shared tcp4/6 code (from
+sys/netinet/tcp*) and shared udp4/6 code (from sys/netinet/udp*).
+They use unified inpcb/in6pcb structure.
+
+1.12.2.1 KAME/FreeBSD[34]x, listening side
+
+The platform can be configured to support IPv4 mapped address/special
+AF_INET6 wildcard bind (enabled by default).  There is no kernel compilation
+option to disable it.  You can enable/disable the behavior with sysctl
+(per-node), or setsockopt (per-socket).
+
+Wildcard AF_INET6 socket grabs IPv4 connection if and only if the following 
+conditions are satisfied:
+- there's no AF_INET socket that matches the IPv4 connection
+- the AF_INET6 socket is configured to accept IPv4 traffic, i.e.
+  getsockopt(IPV6_V6ONLY) returns 0.
+
+(XXX need checking)
+
+1.12.2.2 KAME/FreeBSD[34]x, initiating side
+
+KAME/FreeBSD3x supports outgoing connection to IPv4 mapped address
+(::ffff:10.1.1.1), if the node is configured to accept IPv4 connections
+by AF_INET6 socket.
+
+(XXX need checking)
+
+1.12.3 KAME/NetBSD
+
+KAME/NetBSD uses shared tcp4/6 code (from sys/netinet/tcp*) and shared
+udp4/6 code (from sys/netinet/udp*).  The implementation is made differently
+from KAME/FreeBSD[34]x.  KAME/NetBSD uses separate inpcb/in6pcb structures,
+while KAME/FreeBSD[34]x uses merged inpcb structure.
+
+It should be noted that the default configuration of KAME/NetBSD is not
+conformant to RFC2553/3493 section 3.8.  It is intentionally turned off by
+default for security reasons.
+
+The platform can be configured to support IPv4 mapped address/special AF_INET6
+wildcard bind (disabled by default).  Kernel behavior can be summarized as
+follows:
+- default: special support code will be compiled in, but is disabled by
+  default.  It can be controlled by sysctl (net.inet6.ip6.v6only),
+  or setsockopt(IPV6_V6ONLY).
+- add "INET6_BINDV6ONLY": No special support code for AF_INET6 wildcard socket
+  will be compiled in.  AF_INET6 sockets and AF_INET sockets are totally
+  separate.  The behavior is similar to what described in 1.12.1.
+
+sysctl setting will affect per-socket configuration at in6pcb creation time
+only.  In other words, per-socket configuration will be copied from sysctl
+configuration at in6pcb creation time.  To change per-socket behavior, you
+must perform setsockopt or reopen the socket.  Change in sysctl configuration
+will not change the behavior or sockets that are already opened.
+
+1.12.3.1 KAME/NetBSD, listening side
+
+Wildcard AF_INET6 socket grabs IPv4 connection if and only if the following 
+conditions are satisfied:
+- there's no AF_INET socket that matches the IPv4 connection
+- the AF_INET6 socket is configured to accept IPv4 traffic, i.e.
+  getsockopt(IPV6_V6ONLY) returns 0.
+
+You cannot bind(2) with IPv4 mapped address.  This is a workaround for port
+number duplicate and other twists.
+
+1.12.3.2 KAME/NetBSD, initiating side
+
+When getsockopt(IPV6_V6ONLY) is 0 for a socket, you can make an outgoing
+traffic to IPv4 destination over AF_INET6 socket, using IPv4 mapped
+address destination (::ffff:10.1.1.1).
+
+When getsockopt(IPV6_V6ONLY) is 1 for a socket, you cannot use IPv4 mapped
+address for outgoing traffic.
+
+1.12.4 KAME/BSDI4
+
+KAME/BSDI4 uses NRL-based TCP/UDP stack and inpcb source code,
+which was derived from NRL IPv6/IPsec stack.  We guess it supports IPv4 mapped
+address and speical AF_INET6 wildcard bind.  The implementation is, again,
+different from other KAME/*BSDs.
+
+1.12.4.1 KAME/BSDI4, listening side
+
+NRL inpcb layer supports special behavior of AF_INET6 wildcard socket.
+There is no way to disable the behavior.
+
+Wildcard AF_INET6 socket grabs IPv4 connection if and only if the following 
+condition is satisfied:
+- there's no AF_INET socket that matches the IPv4 connection
+
+1.12.4.2 KAME/BSDI4, initiating side
+
+KAME/BSDi4 supports connection initiation to IPv4 mapped address
+(like ::ffff:10.1.1.1).
+
+1.12.5 KAME/OpenBSD
+
+KAME/OpenBSD uses NRL-based TCP/UDP stack and inpcb source code,
+which was derived from NRL IPv6/IPsec stack.
+
+It should be noted that KAME/OpenBSD is not conformant to RFC2553/3493 section
+3.7 and 3.8.  It is intentionally omitted for security reasons.
+
+1.12.5.1 KAME/OpenBSD, listening side
+
+KAME/OpenBSD disables special behavior on AF_INET6 wildcard bind for
+security reasons (if IPv4 traffic toward AF_INET6 wildcard bind is allowed,
+access control will become much harder).  KAME/BSDI4 uses NRL-based TCP/UDP
+stack as well, however, the behavior is different due to OpenBSD's security
+policy.
+
+As a result the behavior of KAME/OpenBSD is similar to KAME/BSDI3 and
+KAME/FreeBSD228 (see 1.12.1 for more detail).
+
+1.12.5.2 KAME/OpenBSD, initiating side
+
+KAME/OpenBSD does not support connection initiation to IPv4 mapped address
+(like ::ffff:10.1.1.1).
+
+1.12.6 More issues
+
+IPv4 mapped address support adds a big requirement to EVERY userland codebase.
+Every userland code should check if an AF_INET6 sockaddr contains IPv4
+mapped address or not.  This adds many twists:
+
+- Access controls code becomes harder to write.
+  For example, if you would like to reject packets from 10.0.0.0/8,
+  you need to reject packets to AF_INET socket from 10.0.0.0/8,
+  and to AF_INET6 socket from ::ffff:10.0.0.0/104.
+- If a protocol on top of IPv4 is defined differently with IPv6, we need to be
+  really careful when we determine which protocol to use.
+  For example, with FTP protocol, we can not simply use sa_family to determine
+  FTP command sets.  The following example is incorrect:
+	if (sa_family == AF_INET)
+		use EPSV/EPRT or PASV/PORT;	/*IPv4*/
+	else if (sa_family == AF_INET6)
+		use EPSV/EPRT or LPSV/LPRT;	/*IPv6*/
+	else
+		error;
+  The correct code, with consideration to IPv4 mapped address, would be:
+	if (sa_family == AF_INET)
+		use EPSV/EPRT or PASV/PORT;	/*IPv4*/
+	else if (sa_family == AF_INET6 && IPv4 mapped address)
+		use EPSV/EPRT or PASV/PORT;	/*IPv4 command set on AF_INET6*/
+	else if (sa_family == AF_INET6 && !IPv4 mapped address)
+		use EPSV/EPRT or LPSV/LPRT;	/*IPv6*/
+	else
+		error;
+  It is too much to ask for every body to be careful like this.
+  The problem is, we are not sure if the above code fragment is perfect for
+  all situations.
+- By enabling kernel support for IPv4 mapped address (outgoing direction),
+  servers on the kernel can be hosed by IPv6 native packet that has IPv4
+  mapped address in IPv6 header source, and can generate unwanted IPv4 packets.
+  draft-itojun-ipv6-transition-abuse-01.txt, draft-cmetz-v6ops-v4mapped-api-
+  harmful-00.txt, and draft-itojun-v6ops-v4mapped-harmful-01.txt
+  has more on this scenario.
+
+Due to the above twists, some of KAME userland programs has restrictions on
+the use of IPv4 mapped addresses:
+- rshd/rlogind do not accept connections from IPv4 mapped address.
+  This is to avoid malicious use of IPv4 mapped address in IPv6 native
+  packet, to bypass source-address based authentication.
+- ftp/ftpd assume that you are on dual stack network.  IPv4 mapped address
+  will be decoded in userland, and will be passed to AF_INET sockets
+  (in other words, ftp/ftpd do not support SIIT environment).
+
+1.12.7 Interaction with SIIT translator
+
+SIIT translator is specified in RFC2765.  KAME node cannot become a SIIT
+translator box, nor SIIT end node (a node in SIIT cloud).
+
+To become a SIIT translator box, we need to put additional code for that.
+We do not have the code in our tree at this moment.
+
+There are multiple reasons that we are unable to become SIIT end node.
+(1) SIIT translators require end nodes in the SIIT cloud to be IPv6-only.
+Since we are unable to compile INET-less kernel, we are unable to become
+SIIT end node.  (2) As presented in 1.12.6, some of our userland code assumes
+dual stack network.  (3) KAME stack filters out IPv6 packets with IPv4
+mapped address in the header, to secure non-SIIT case (which is much more
+common).  Effectively KAME node will reject any packets via SIIT translator
+box.  See section 1.14 for more detail about the last item.
+
+There are documentation issues too - SIIT document requires very strange
+things.  For example, SIIT document asks IPv6-only (meaning no IPv4 code)
+node to be able to construct IPv4 IPsec headers.  If a node knows how to
+construct IPv4 IPsec headers, that is not an IPv6-only node, it is a dual-stack
+node.  The requirements imposed in SIIT document contradict with the other
+part of the document itself.
+
+1.13 sockaddr_storage
+
+When RFC2553 was about to be finalized, there was discussion on how struct
+sockaddr_storage members are named.  One proposal is to prepend "__" to the
+members (like "__ss_len") as they should not be touched.  The other proposal
+was that don't prepend it (like "ss_len") as we need to touch those members
+directly.  There was no clear consensus on it.
+
+As a result, RFC2553 defines struct sockaddr_storage as follows:
+	struct sockaddr_storage {
+		u_char	__ss_len;	/* address length */
+		u_char	__ss_family;	/* address family */
+		/* and bunch of padding */
+	};
+On the contrary, XNET draft defines as follows:
+	struct sockaddr_storage {
+		u_char	ss_len;		/* address length */
+		u_char	ss_family;	/* address family */
+		/* and bunch of padding */
+	};
+
+In December 1999, it was agreed that RFC2553bis (RFC3493) should pick the
+latter (XNET) definition.
+
+KAME kit prior to December 1999 used RFC2553 definition.  KAME kit after
+December 1999 (including December) will conform to XNET definition,
+based on RFC3493 discussion.
+
+If you look at multiple IPv6 implementations, you will be able to see
+both definitions.  As an userland programmer, the most portable way of
+dealing with it is to:
+(1) ensure ss_family and/or ss_len are available on the platform, by using
+    GNU autoconf,
+(2) have -Dss_family=__ss_family to unify all occurrences (including header
+    file) into __ss_family, or
+(3) never touch __ss_family.  cast to sockaddr * and use sa_family like:
+	struct sockaddr_storage ss;
+	family = ((struct sockaddr *)&ss)->sa_family
+
+1.14 Invalid addresses on the wire
+
+Some of IPv6 transition technologies embed IPv4 address into IPv6 address.
+These specifications themselves are fine, however, there can be certain
+set of attacks enabled by these specifications.  Recent specification
+documents covers up those issues, however, there are already-published RFCs
+that does not have protection against those (like using source address of
+::ffff:127.0.0.1 to bypass "reject packet from remote" filter).
+
+To name a few, these address ranges can be used to hose an IPv6 implementation,
+or bypass security controls:
+- IPv4 mapped address that embeds unspecified/multicast/loopback/broadcast
+  IPv4 address (if they are in IPv6 native packet header, they are malicious)
+	::ffff:0.0.0.0/104	::ffff:127.0.0.0/104
+	::ffff:224.0.0.0/100	::ffff:255.0.0.0/104 
+- 6to4 (RFC3056) prefix generated from unspecified/multicast/loopback/
+  broadcast/private IPv4 address
+	2002:0000::/24		2002:7f00::/24		2002:e000::/24
+	2002:ff00::/24		2002:0a00::/24		2002:ac10::/28	
+	2002:c0a8::/32
+- IPv4 compatible address that embeds unspecified/multicast/loopback/broadcast
+  IPv4 address (if they are in IPv6 native packet header, they are malicious).
+  Note that, since KAME doe snot support RFC1933/2893 auto tunnels, KAME nodes
+  are not vulnerable to these packets.
+	::0.0.0.0/104	::127.0.0.0/104	::224.0.0.0/100	::255.0.0.0/104 
+
+Also, since KAME does not support RFC1933/2893 auto tunnels, seeing IPv4
+compatible is very rare.  You should take caution if you see those on the wire.
+
+If we see IPv6 packets with IPv4 mapped address (::ffff:0.0.0.0/96) in the
+header in dual-stack environment (not in SIIT environment), they indicate
+that someone is trying to impersonate IPv4 peer.  The packet should be dropped.
+
+IPv6 specifications do not talk very much about IPv6 unspecified address (::)
+in the IPv6 source address field.  Clarification is in progress.
+Here are couple of comments:
+- IPv6 unspecified address can be used in IPv6 source address field, if and
+  only if we have no legal source address for the node.  The legal situations
+  include, but may not be limited to, (1) MLD while no IPv6 address is assigned
+  to the node and (2) DAD.
+- If IPv6 TCP packet has IPv6 unspecified address, it is an attack attempt.
+  The form can be used as a trigger for TCP DoS attack.  KAME code already
+  filters them out.
+- The following examples are seemingly illegal.  It seems that there's general
+  consensus among ipngwg for those.  (1) Mobile IPv6 home address option,
+  (2) offlink packets (so routers should not forward them).
+  KAME implements (2) already.
+
+KAME code is carefully written to avoid such incidents.  More specifically,
+KAME kernel will reject packets with certain source/destination address in IPv6
+base header, or IPv6 routing header.  Also, KAME default configuration file
+is written carefully, to avoid those attacks.
+
+draft-itojun-ipv6-transition-abuse-01.txt, draft-cmetz-v6ops-v4mapped-api-
+harmful-00.txt and draft-itojun-v6ops-v4mapped-harmful-01.txt has more on
+this issue.
+
+1.15 Node's required addresses
+
+RFC2373 section 2.8 talks about required addresses for an IPv6
+node.  The section talks about how KAME stack manages those required
+addresses.
+
+1.15.1 Host case
+
+The following items are automatically assigned to the node (or the node will
+automatically joins the group), at bootstrap time:
+- Loopback address
+- All-nodes multicast addresses (ff01::1)
+
+The following items will be automatically handled when the interface becomes
+IFF_UP:
+- Its link-local address for each interface
+- Solicited-node multicast address for link-local addresses
+- Link-local allnodes multicast address (ff02::1)
+
+The following items need to be configured manually by ifconfig(8) or prefix(8).
+Alternatively, these can be autoconfigured by using stateless address
+autoconfiguration.
+- Assigned unicast/anycast addresses
+- Solicited-Node multicast address for assigned unicast address
+
+Users can join groups by using appropriate system calls like setsockopt(2).
+
+1.15.2 Router case
+
+In addition to the above, routers needs to handle the following items.
+
+The following items need to be configured manually by using ifconfig(8).
+o The subnet-router anycast addresses for the interfaces it is configured
+  to act as a router on (prefix::/64)
+o All other anycast addresses with which the router has been configured
+
+The router will join the following multicast group when rtadvd(8) is available
+for the interface.
+o All-Routers Multicast Addresses (ff02::2)
+
+Routing daemons will join appropriate multicast groups, as necessary,
+like ff02::9 for RIPng.
+
+Users can join groups by using appropriate system calls like setsockopt(2).
+
+1.16 Advanced API
+
+Current KAME kernel implements RFC3542 API.  It also implements RFC2292 API,
+for backward compatibility purposes with *BSD-integrated codebase.
+KAME tree ships with RFC3542 headers.
+*BSD-integrated codebase implements either RFC2292, or RFC3542, API.
+see "COVERAGE" document for detailed implementation status.
+
+Here are couple of issues to mention:
+- *BSD-integrated binaries, compiled for RFC2292, will work on KAME kernel.
+  For example, OpenBSD 2.7 /sbin/rtsol will work on KAME/openbsd kernel.
+- KAME binaries, compiled using RFC3542, will not work on *BSD-integrated
+  kenrel.  For example, KAME /usr/local/v6/sbin/rtsol will not work on
+  OpenBSD 2.7 kernel.
+- RFC3542 API is not compatible with RFC2292 API.  RFC3542 #define symbols
+  conflict with RFC2292 symbols.  Therefore, if you compile programs that
+  assume RFC2292 API, the compilation itself goes fine, however, the compiled
+  binary will not work correctly.  The problem is not KAME issue, but API
+  issue.  For example, Solaris 8 implements RFC3542 API.  If you compile
+  RFC2292-based code on Solaris 8, the binary can behave strange.
+
+There are few (or couple of) incompatible behavior in RFC2292 binary backward
+compatibility support in KAME tree.  To enumerate:
+- Type 0 routing header lacks support for strict/loose bitmap.
+  Even if we see packets with "strict" bit set, those bits will not be made
+  visible to the userland.
+  Background: RFC2292 document is based on RFC1883 IPv6, and it uses
+  strict/loose bitmap.  RFC3542 document is based on RFC2460 IPv6, and it has
+  no strict/loose bitmap (it was removed from RFC2460).  KAME tree obeys
+  RFC2460 IPv6, and lacks support for strict/loose bitmap.
+
+The RFC3542 documents leave some particular cases unspecified.  The
+KAME implementation treats them as follows:
+- The IPV6_DONTFRAG and IPV6_RECVPATHMTU socket options for TCP
+  sockets are ignored.  That is, the setsocktopt() call will succeed
+  but the specified value will have no effect.
+
+1.17 DNS resolver
+
+KAME ships with modified DNS resolver, in libinet6.a.
+libinet6.a has a couple of extensions against libc DNS resolver:
+- Can take "options insecure1" and "options insecure2" in /etc/resolv.conf,
+  which toggles RES_INSECURE[12] option flag bit.
+- EDNS0 receive buffer size notification support.  It can be enabled by
+  "options edns0" in /etc/resolv.conf.  See USAGE for details.
+- IPv6 transport support (queries/responses over IPv6).  Most of BSD official
+  releases now has it already.
+- Partial A6 chain chasing/DNAME/bit string label support (KAME/BSDI4).
+
+
+2. Network Drivers
+
+KAME requires three items to be added into the standard drivers:
+
+(1) (freebsd[234] and bsdi[34] only) mbuf clustering requirement.
+    In this stable release, we changed MINCLSIZE into MHLEN+1 for all the
+    operating systems in order to make all the drivers behave as we expect.  
+
+(2) multicast.  If "ifmcstat" yields no multicast group for a
+    interface, that interface has to be patched.
+
+To avoid troubles, we suggest you to comment out the device drivers
+for unsupported/unnecessary cards, from the kernel configuration file.
+If you accidentally enable unsupported drivers, some of the userland
+tools may not work correctly (routing daemons are typical example).
+
+In the following sections, "official support" means that KAME developers
+are using that ethernet card/driver frequently.
+
+(NOTE: In the past we required all pcmcia drivers to have a call to
+in6_ifattach().  We have no such requirement any more)
+
+2.1 FreeBSD 2.2.x-RELEASE
+
+Here is a list of FreeBSD 2.2.x-RELEASE drivers and its conditions:
+
+	driver	mbuf(1)		multicast(2)	official support?
+	---	---		---		---
+	(Ethernet)
+	ar	looks ok	-		-
+	cnw	ok		ok		yes (*)
+	ed	ok		ok		yes
+	ep	ok		ok		yes
+	fe	ok		ok		yes
+	sn	looks ok	-		-   (*)
+	vx	looks ok	-		-
+	wlp	ok		ok		-   (*)
+	xl	ok		ok		yes
+	zp	ok		ok		-
+	(FDDI)
+	fpa	looks ok	?		-
+	(ATM)
+	en	ok		ok		yes
+	(Serial)
+	lp	?		-		not work
+	sl	?		-		not work
+	sr	looks ok	ok		-   (**)
+
+You may want to add an invocation of "rtsol" in "/etc/pccard_ether",
+if you are using notebook computers and PCMCIA ethernet card.
+
+(*) These drivers are distributed with PAO (http://www.jp.freebsd.org/PAO/).
+
+(**) There was some report says that, if you make sr driver up and down and
+then up, the kernel may hang up.  We have disabled frame-relay support from
+sr driver and after that this looks to be working fine.  If you need
+frame-relay support to come back, please contact KAME developers.
+
+2.2 BSD/OS 3.x
+
+The following lists BSD/OS 3.x device drivers and its conditions:
+
+	driver	mbuf(1)		multicast(2)	official support?
+	---	---		---		---
+	(Ethernet)
+	cnw	ok		ok		yes
+	de	ok		ok		-
+	df	ok		ok		-
+	eb	ok		ok		-
+	ef	ok		ok		yes
+	exp	ok		ok		-
+	mz	ok		ok		yes
+	ne	ok		ok		yes
+	we	ok		ok		-
+	(FDDI)
+	fpa	ok		ok		-
+	(ATM)
+	en	maybe		ok		-
+	(Serial)
+	ntwo	ok		ok		yes
+	sl	?		-		not work
+	appp	?		-		not work
+
+You may want to use "@insert" directive in /etc/pccard.conf to invoke
+"rtsol" command right after dynamic insertion of PCMCIA ethernet cards.
+
+2.3 NetBSD
+
+The following table lists the network drivers we have tried so far.
+
+	driver		mbuf(1)	multicast(2)	official support?
+	---		---	---		---
+	(Ethernet)
+	awi pcmcia/i386	ok	ok		-
+	bah zbus/amiga	NG(*)
+	cnw pcmcia/i386	ok	ok		yes
+	ep pcmcia/i386	ok	ok		-
+	fxp pci/i386	ok(*2)	ok		-
+	tlp pci/i386	ok	ok		-
+	le sbus/sparc	ok	ok		yes
+	ne pci/i386	ok	ok		yes
+	ne pcmcia/i386	ok	ok		yes
+	rtk pci/i386	ok	ok		-
+	wi pcmcia/i386	ok	ok		yes
+	(ATM)
+	en pci/i386	ok	ok		-
+
+(*) This may need some fix, but I'm not sure what arcnet interfaces assume...
+
+2.4 FreeBSD 3.x-RELEASE
+
+Here is a list of FreeBSD 3.x-RELEASE drivers and its conditions:
+
+	driver	mbuf(1)		multicast(2)	official support?
+	---	---		---		---
+	(Ethernet)
+	cnw	ok		ok		-(*)
+	ed	?		ok		-
+	ep	ok		ok		-
+	fe	ok		ok		yes
+	fxp	?(**)
+	lnc	?		ok		-
+	sn	?		?		-(*)
+	wi	ok		ok		yes
+	xl	?		ok		-
+
+(*) These drivers are distributed with PAO as PAO3
+    (http://www.jp.freebsd.org/PAO/).
+(**) there were trouble reports with multicast filter initialization.
+
+More drivers will just simply work on KAME FreeBSD 3.x-RELEASE but have not
+been checked yet.
+
+2.5 FreeBSD 4.x-RELEASE
+
+Here is a list of FreeBSD 4.x-RELEASE drivers and its conditions:
+
+	driver		multicast
+	---		---
+	(Ethernet)
+	lnc/vmware	ok
+
+2.6 OpenBSD 2.x
+
+Here is a list of OpenBSD 2.x drivers and its conditions:
+
+	driver		mbuf(1)		multicast(2)	official support?
+	---		---		---		---
+	(Ethernet)
+	de pci/i386	ok		ok		yes
+	fxp pci/i386	?(*)
+	le sbus/sparc	ok		ok		yes
+	ne pci/i386	ok		ok		yes
+	ne pcmcia/i386	ok		ok		yes
+	wi pcmcia/i386	ok		ok		yes
+
+(*) There seem to be some problem in driver, with multicast filter
+configuration.  This happens with certain revision of chipset on the card.
+Should be fixed by now by workaround in sys/net/if.c, but still not sure.
+
+2.7 BSD/OS 4.x
+
+The following lists BSD/OS 4.x device drivers and its conditions:
+
+	driver	mbuf(1)		multicast(2)	official support?
+	---	---		---		---
+	(Ethernet)
+	de	ok		ok		yes
+	exp	(*)
+
+You may want to use "@insert" directive in /etc/pccard.conf to invoke
+"rtsol" command right after dynamic insertion of PCMCIA ethernet cards.
+
+(*) exp driver has serious conflict with KAME initialization sequence.
+A workaround is committed into sys/i386/pci/if_exp.c, and should be okay by now.
+
+
+3. Translator
+
+We categorize IPv4/IPv6 translator into 4 types.
+
+Translator A --- It is used in the early stage of transition to make
+it possible to establish a connection from an IPv6 host in an IPv6
+island to an IPv4 host in the IPv4 ocean.
+
+Translator B --- It is used in the early stage of transition to make
+it possible to establish a connection from an IPv4 host in the IPv4
+ocean to an IPv6 host in an IPv6 island.
+
+Translator C --- It is used in the late stage of transition to make it
+possible to establish a connection from an IPv4 host in an IPv4 island
+to an IPv6 host in the IPv6 ocean.
+
+Translator D --- It is used in the late stage of transition to make it
+possible to establish a connection from an IPv6 host in the IPv6 ocean
+to an IPv4 host in an IPv4 island.
+
+KAME provides an TCP relay translator for category A.  This is called
+"FAITH".  We also provide IP header translator for category A.
+
+3.1 FAITH TCP relay translator
+
+FAITH system uses TCP relay daemon called "faithd" helped by the KAME kernel.
+FAITH will reserve an IPv6 address prefix, and relay TCP connection
+toward that prefix to IPv4 destination.
+
+For example, if the reserved IPv6 prefix is 3ffe:0501:0200:ffff::, and
+the IPv6 destination for TCP connection is 3ffe:0501:0200:ffff::163.221.202.12,
+the connection will be relayed toward IPv4 destination 163.221.202.12.
+
+	destination IPv4 node (163.221.202.12)
+	  ^
+	  | IPv4 tcp toward 163.221.202.12
+	FAITH-relay dual stack node
+	  ^
+	  | IPv6 TCP toward 3ffe:0501:0200:ffff::163.221.202.12
+	source IPv6 node
+
+faithd must be invoked on FAITH-relay dual stack node.
+
+For more details, consult kame/kame/faithd/README and RFC3142.
+
+3.2 IPv6-to-IPv4 header translator
+
+(to be written)
+
+
+4. IPsec
+
+IPsec is implemented as the following three components.
+
+(1) Policy Management
+(2) Key Management
+(3) AH, ESP and IPComp handling in kernel
+
+Note that KAME/OpenBSD does NOT include support for KAME IPsec code,
+as OpenBSD team has their home-brew IPsec stack and they have no plan
+to replace it.  IPv6 support for IPsec is, therefore, lacking on KAME/OpenBSD.
+
+http://www.netbsd.org/Documentation/network/ipsec/ has more information
+including usage examples.
+
+4.1 Policy Management
+
+The kernel implements experimental policy management code.  There are two ways
+to manage security policy.  One is to configure per-socket policy using
+setsockopt(3).  In this cases, policy configuration is described in
+ipsec_set_policy(3).  The other is to configure kernel packet filter-based
+policy using PF_KEY interface, via setkey(8).
+
+The policy entry will be matched in order.  The order of entries makes
+difference in behavior.
+
+4.2 Key Management
+
+The key management code implemented in this kit (sys/netkey) is a
+home-brew PFKEY v2 implementation.  This conforms to RFC2367.
+
+The home-brew IKE daemon, "racoon" is included in the kit (kame/kame/racoon,
+or usr.sbin/racoon).
+Basically you'll need to run racoon as daemon, then setup a policy
+to require keys (like ping -P 'out ipsec esp/transport//use').
+The kernel will contact racoon daemon as necessary to exchange keys.
+
+In IKE spec, there's ambiguity about interpretation of "tunnel" proposal.
+For example, if we would like to propose the use of following packet:
+	IP AH ESP IP payload
+some implementation proposes it as "AH transport and ESP tunnel", since
+this is more logical from packet construction point of view.  Some
+implementation proposes it as "AH tunnel and ESP tunnel".
+Racoon follows the latter route (previously it followed the former, and
+the latter interpretation seems to be popular/consensus).
+This raises real interoperability issue.  We hope this to be resolved quickly.
+
+racoon does not implement byte lifetime for both phase 1 and phase 2
+(RFC2409 page 35, Life Type = kilobytes).
+
+4.3 AH and ESP handling
+
+IPsec module is implemented as "hooks" to the standard IPv4/IPv6
+processing.  When sending a packet, ip{,6}_output() checks if ESP/AH
+processing is required by checking if a matching SPD (Security
+Policy Database) is found.  If ESP/AH is needed,
+{esp,ah}{4,6}_output() will be called and mbuf will be updated
+accordingly.  When a packet is received, {esp,ah}4_input() will be
+called based on protocol number, i.e. (*inetsw[proto])().
+{esp,ah}4_input() will decrypt/check authenticity of the packet,
+and strips off daisy-chained header and padding for ESP/AH.  It is
+safe to strip off the ESP/AH header on packet reception, since we
+will never use the received packet in "as is" form.
+
+By using ESP/AH, TCP4/6 effective data segment size will be affected by
+extra daisy-chained headers inserted by ESP/AH.  Our code takes care of
+the case.
+
+Basic crypto functions can be found in directory "sys/crypto".  ESP/AH
+transform are listed in {esp,ah}_core.c with wrapper functions.  If you
+wish to add some algorithm, add wrapper function in {esp,ah}_core.c, and
+add your crypto algorithm code into sys/crypto.
+
+Tunnel mode works basically fine, but comes with the following restrictions:
+- You cannot run routing daemon across IPsec tunnel, since we do not model
+  IPsec tunnel as pseudo interfaces.
+- Authentication model for AH tunnel must be revisited.  We'll need to
+  improve the policy management engine, eventually.
+- Path MTU discovery does not work across IPv6 IPsec tunnel gateway due to
+  insufficient code.
+
+AH specification does not talk much about "multiple AH on a packet" case.
+We incrementally compute AH checksum, from inside to outside.  Also, we
+treat inner AH to be immutable.
+For example, if we are to create the following packet:
+	IP AH1 AH2 AH3 payload
+we do it incrementally.  As a result, we get crypto checksums like below:
+	AH3 has checksum against "IP AH3' payload".
+		where AH3' = AH3 with checksum field filled with 0.
+	AH2 has checksum against "IP AH2' AH3 payload".
+	AH1 has checksum against "IP AH1' AH2 AH3 payload",
+Also note that AH3 has the smallest sequence number, and AH1 has the largest
+sequence number.
+
+To avoid traffic analysis on shorter packets, ESP output logic supports
+random length padding.  By setting net.inet.ipsec.esp_randpad (or
+net.inet6.ipsec6.esp_randpad) to positive value N, you can ask the kernel
+to randomly pad packets shorter than N bytes, to random length smaller than
+or equal to N.  Note that N does not include ESP authentication data length.
+Also note that the random padding is not included in TCP segment
+size computation.  Negative value will turn off the functionality.
+Recommended value for N is like 128, or 256.  If you use a too big number
+as N, you may experience inefficiency due to fragmented packets.
+
+4.4 IPComp handling
+
+IPComp stands for IP payload compression protocol.  This is aimed for
+payload compression, not the header compression like PPP VJ compression.
+This may be useful when you are using slow serial link (say, cell phone)
+with powerful CPU (well, recent notebook PCs are really powerful...).
+The protocol design of IPComp is very similar to IPsec, though it was
+defined separately from IPsec itself.
+
+Here are some points to be noted:
+- IPComp is treated as part of IPsec protocol suite, and SPI and
+  CPI space is unified.  Spec says that there's no relationship
+  between two so they are assumed to be separate in specs.
+- IPComp association (IPCA) is kept in SAD.
+- It is possible to use well-known CPI (CPI=2 for DEFLATE for example),
+  for outbound/inbound packet, but for indexing purposes one element from
+  SPI/CPI space will be occupied anyway.
+- pfkey is modified to support IPComp.  However, there's no official
+  SA type number assignment yet.  Portability with other IPComp
+  stack is questionable (anyway, who else implement IPComp on UN*X?).
+- Spec says that IPComp output processing must be performed before AH/ESP
+  output processing, to achieve better compression ratio and "stir" data
+  stream before encryption.  The most meaningful processing order is:
+  (1) compress payload by IPComp, (2) encrypt payload by ESP, then (3) attach
+  authentication data by AH.
+  However, with manual SPD setting, you are able to violate the ordering
+  (KAME code is too generic, maybe).  Also, it is just okay to use IPComp
+  alone, without AH/ESP.
+- Though the packet size can be significantly decreased by using IPComp, no
+  special consideration is made about path MTU (spec talks nothing about MTU
+  consideration).  IPComp is designed for serial links, not ethernet-like
+  medium, it seems.
+- You can change compression ratio on outbound packet, by changing
+  deflate_policy in sys/netinet6/ipcomp_core.c.  You can also change outbound
+  history buffer size by changing deflate_window_out in the same source code.
+  (should it be sysctl accessible, or per-SAD configurable?)
+- Tunnel mode IPComp is not working right.  KAME box can generate tunnelled
+  IPComp packet, however, cannot accept tunneled IPComp packet.
+- You can negotiate IPComp association with racoon IKE daemon.
+- KAME code does not attach Adler32 checksum to compressed data.
+  see ipsec wg mailing list discussion in Jan 2000 for details.
+
+4.5 Conformance to RFCs and IDs
+
+The IPsec code in the kernel conforms (or, tries to conform) to the
+following standards:
+    "old IPsec" specification documented in rfc182[5-9].txt
+    "new IPsec" specification documented in:
+	rfc240[1-6].txt rfc241[01].txt rfc2451.txt rfc3602.txt
+    IPComp:
+	RFC2393: IP Payload Compression Protocol (IPComp)
+IKE specifications (rfc240[7-9].txt) are implemented in userland
+as "racoon" IKE daemon.
+
+Currently supported algorithms are:
+    old IPsec AH
+	null crypto checksum (no document, just for debugging)
+	keyed MD5 with 128bit crypto checksum (rfc1828.txt)
+	keyed SHA1 with 128bit crypto checksum (no document)
+	HMAC MD5 with 128bit crypto checksum (rfc2085.txt)
+	HMAC SHA1 with 128bit crypto checksum (no document)
+	HMAC RIPEMD160 with 128bit crypto checksum (no document)
+    old IPsec ESP
+	null encryption (no document, similar to rfc2410.txt)
+	DES-CBC mode (rfc1829.txt)
+    new IPsec AH
+	null crypto checksum (no document, just for debugging)
+	keyed MD5 with 96bit crypto checksum (no document)
+	keyed SHA1 with 96bit crypto checksum (no document)
+	HMAC MD5 with 96bit crypto checksum (rfc2403.txt
+	HMAC SHA1 with 96bit crypto checksum (rfc2404.txt)
+	HMAC SHA2-256 with 96bit crypto checksum (draft-ietf-ipsec-ciph-sha-256-00.txt)
+	HMAC SHA2-384 with 96bit crypto checksum (no document)
+	HMAC SHA2-512 with 96bit crypto checksum (no document)
+	HMAC RIPEMD160 with 96bit crypto checksum (RFC2857)
+	AES XCBC MAC with 96bit crypto checksum (RFC3566)
+    new IPsec ESP
+	null encryption (rfc2410.txt)
+	DES-CBC with derived IV
+		(draft-ietf-ipsec-ciph-des-derived-01.txt, draft expired)
+	DES-CBC with explicit IV (rfc2405.txt)
+	3DES-CBC with explicit IV (rfc2451.txt)
+	BLOWFISH CBC (rfc2451.txt)
+	CAST128 CBC (rfc2451.txt)
+	RIJNDAEL/AES CBC (rfc3602.txt)
+	AES counter mode (rfc3686.txt)
+
+	each of the above can be combined with new IPsec AH schemes for
+	ESP authentication.
+    IPComp
+	RFC2394: IP Payload Compression Using DEFLATE
+
+The following algorithms are NOT supported:
+    old IPsec AH
+	HMAC MD5 with 128bit crypto checksum + 64bit replay prevention
+		(rfc2085.txt)
+	keyed SHA1 with 160bit crypto checksum + 32bit padding (rfc1852.txt)
+
+The key/policy management API is based on the following document, with fair
+amount of extensions:
+	RFC2367: PF_KEY key management API
+
+4.6 ECN consideration on IPsec tunnels
+
+KAME IPsec implements ECN-friendly IPsec tunnel, described in
+draft-ietf-ipsec-ecn-02.txt.
+Normal IPsec tunnel is described in RFC2401.  On encapsulation,
+IPv4 TOS field (or, IPv6 traffic class field) will be copied from inner
+IP header to outer IP header.  On decapsulation outer IP header
+will be simply dropped.  The decapsulation rule is not compatible
+with ECN, since ECN bit on the outer IP TOS/traffic class field will be
+lost.
+To make IPsec tunnel ECN-friendly, we should modify encapsulation
+and decapsulation procedure.  This is described in
+draft-ietf-ipsec-ecn-02.txt, chapter 3.3.
+
+KAME IPsec tunnel implementation can give you three behaviors, by setting
+net.inet.ipsec.ecn (or net.inet6.ipsec6.ecn) to some value:
+- RFC2401: no consideration for ECN (sysctl value -1)
+- ECN forbidden (sysctl value 0)
+- ECN allowed (sysctl value 1)
+Note that the behavior is configurable in per-node manner, not per-SA manner
+(draft-ietf-ipsec-ecn-02 wants per-SA configuration, but it looks too much
+for me).
+
+The behavior is summarized as follows (see source code for more detail):
+
+		encapsulate			decapsulate
+		---				---
+RFC2401		copy all TOS bits		drop TOS bits on outer
+		from inner to outer.		(use inner TOS bits as is)
+
+ECN forbidden	copy TOS bits except for ECN	drop TOS bits on outer
+		(masked with 0xfc) from inner	(use inner TOS bits as is)
+		to outer.  set ECN bits to 0.
+
+ECN allowed	copy TOS bits except for ECN	use inner TOS bits with some
+		CE (masked with 0xfe) from	change.  if outer ECN CE bit
+		inner to outer.			is 1, enable ECN CE bit on
+		set ECN CE bit to 0.		the inner.
+
+General strategy for configuration is as follows:
+- if both IPsec tunnel endpoint are capable of ECN-friendly behavior,
+  you'd better configure both end to "ECN allowed" (sysctl value 1).
+- if the other end is very strict about TOS bit, use "RFC2401"
+  (sysctl value -1).
+- in other cases, use "ECN forbidden" (sysctl value 0).
+The default behavior is "ECN forbidden" (sysctl value 0).
+
+For more information, please refer to:
+	draft-ietf-ipsec-ecn-02.txt
+	RFC2481 (Explicit Congestion Notification)
+	KAME sys/netinet6/{ah,esp}_input.c
+
+(Thanks goes to Kenjiro Cho <kjc@csl.sony.co.jp> for detailed analysis)
+
+4.7 Interoperability
+
+IPsec, IPComp (in kernel) and IKE (in userland as "racoon") has been tested
+at several interoperability test events, and it is known to interoperate
+with many other implementations well.  Also, KAME IPsec has quite wide
+coverage for IPsec crypto algorithms documented in RFC (we do not cover
+algorithms with intellectual property issues, though).
+
+Here are (some of) platforms we have tested IPsec/IKE interoperability
+in the past, no particular order.  Note that both ends (KAME and
+others) may have modified their implementation, so use the following
+list just for reference purposes.
+	6WIND, ACC, Allied-telesis, Altiga, Ashley-laurent (vpcom.com),
+	BlueSteel, CISCO IOS, Checkpoint FW-1, Compaq Tru54 UNIX
+	X5.1B-BL4, Cryptek, Data Fellows (F-Secure), Ericsson,
+	F-Secure VPN+ 5.40, Fitec, Fitel, FreeS/WAN, HITACHI, HiFn,
+	IBM AIX 5.1, III, IIJ (fujie stack), Intel Canada, Intel
+	Packet Protect, MEW NetCocoon, MGCS, Microsoft WinNT/2000/XP,
+	NAI PGPnet, NEC IX5000, NIST (linux IPsec + plutoplus),
+	NetLock, Netoctave, Netopia, Netscreen, Nokia EPOC, Nortel
+	GatewayController/CallServer 2000 (not released yet),
+	NxNetworks, OpenBSD isakmpd on OpenBSD, Oullim information
+	technologies SECUREWORKS VPN gateway 3.0, Pivotal, RSA,
+	Radguard, RapidStream, RedCreek, Routerware, SSH, SecGo
+	CryptoIP v3, Secure Computing, Soliton, Sun Solaris 8,
+	TIS/NAI Gauntret, Toshiba, Trilogy AdmitOne 2.6, Trustworks
+	TrustedClient v3.2, USAGI linux, VPNet, Yamaha RT series,
+	ZyXEL
+
+Here are (some of) platforms we have tested IPComp/IKE interoperability
+in the past, in no particular order.
+	Compaq, IRE, SSH, NetLock, FreeS/WAN, F-Secure VPN+ 5.40
+
+VPNC (vpnc.org) provides IPsec conformance tests, using KAME and OpenBSD
+IPsec/IKE implementations.  Their test results are available at
+http://www.vpnc.org/conformance.html, and it may give you more idea
+about which implementation interoperates with KAME IPsec/IKE implementation.
+
+4.8 Operations with IPsec tunnel mode
+
+First of all, IPsec tunnel is a very hairy thing.  It seems to do a neat thing
+like VPN configuration or secure remote accesses, however, it comes with lots
+of architectural twists.
+
+RFC2401 defines IPsec tunnel mode, within the context of IPsec.  RFC2401
+defines tunnel mode packet encapsulation/decapsulation on its own, and
+does not refer other tunnelling specifications.  Since RFC2401 advocates
+filter-based SPD database matches, it would be natural for us to implement
+IPsec tunnel mode as filters - not as pseudo interfaces.
+
+There are some people who are trying to separate IPsec "tunnel mode" from
+the IPsec itself.  They would like to implement IPsec transport mode only,
+and combine it with tunneling pseudo devices.  The prime example is found
+in draft-touch-ipsec-vpn-01.txt.  However, if you really define pseudo
+interfaces separately from IPsec, IKE daemons would need to negotiate
+transport mode SAs, instead of tunnel mode SAs.  Therefore, we cannot
+really mix RFC2401-based interpretation and draft-touch-ipsec-vpn-01.txt
+interpretation.
+
+The KAME stack implements can be configured in two ways.  You may need
+to recompile your kernel to switch the behavior.
+- RFC2401 IPsec tunnel mode approach (4.8.1)
+- draft-touch-ipsec-vpn approach (4.8.2)
+	Works in all kernel configuration, but racoon(8) may not interoperate.
+
+There are pros and cons on these approaches:
+
+RFC2401 IPsec tunnel mode (filter-like) approach
+	PRO: SPD lookup fits nicely with packet filters (if you integrate them)
+	CON: cannot run routing daemons across IPsec tunnels
+	CON: it is very hard to control source address selection on originating
+		cases
+	???: IPv6 scope zone is kept the same
+draft-touch-ipsec-vpn (transportmode + Pseudo-interface) approach
+	PRO: run routing daemons across IPsec tunnels
+	PRO: source address selection can be done normally, by looking at
+		IPsec tunnel pseudo devices
+	CON: on outbound, possibility of infinite loops if routing setup
+		is wrong
+	CON: due to differences in encap/decap logic from RFC2401, it may not
+		interoperate with very picky RFC2401 implementations
+		(those who check TOS bits, for example)
+	CON: cannot negotiate IKE with other IPsec tunnel-mode devices
+		(the other end has to implement 
+	???: IPv6 scope zone is likely to be different from the real ethernet
+		interface
+
+The recommendation is different depending on the situation you have:
+- use draft-touch-ipsec-vpn if you have the control over the other end.
+  this one is the best in terms of simplicity.
+- if the other end is normal IPsec device with RFC2401 implementation,
+  you need to use RFC2401, otherwise you won't be able to run IKE.
+- use RFC2401 approach if you just want to forward packets back and forth
+  and there's no plan to use IPsec gateway itself as an originating device.
+
+4.8.1 RFC2401 IPsec tunnel mode approach
+
+To configure your device as RFC2401 IPsec tunnel mode endpoint, you will
+use "tunnel" keyword in setkey(8) "spdadd" directives.  Let us assume the
+following topology (A and B could be a network, like prefix/length):
+
+	((((((((((((The internet))))))))))))
+	  |			  |
+	  |C (global)		  |D
+	your device		peer's device
+	  |A (private)		  |B
+	==+===== VPN net	==+===== VPN net
+
+The policy configuration directive is like this.  You will need manual
+SAs, or IKE daemon, for actual encryption:
+
+	# setkey -c <<EOF
+	spdadd A B any -P out ipsec esp/tunnel/C-D/use;
+	spdadd B A any -P in ipsec esp/tunnel/D-C/use;
+	^D
+
+The inbound/outbound traffic is monitored/captured by SPD engine, which works
+just like packet filters.
+
+With this, forwarding case should work flawlessly.  However, troubles arise
+when you have one of the following requirements:
+- When you originate traffic from your VPN gateway device to VPN net on the
+  other end (like B), you want your source address to be A (private side)
+  so that the traffic would be protected by the policy.
+  With this approach, however, the source address selection logic follows
+  normal routing table, and C (global side) will be picked for any outgoing
+  traffic, even if the destination is B.  The resulting packet will be like
+  this:
+	IP[C -> B] payload
+  and will not match the policy (= sent in clear).
+- When you want to run routing protocols on top of the IPsec tunnel, it is
+  not possible.  As there is no pseudo device that identifies the IPsec tunnel,
+  you cannot identify where the routing information came from.  As a result,
+  you can't run routing daemons.
+
+4.8.2 draft-touch-ipsec-vpn approach
+
+With this approach, you will configure gif(4) tunnel interfaces, as well as
+IPsec transport mode SAs.
+
+	# gifconfig gif0 C D
+	# ifconfig gif0 A B
+	# setkey -c <<EOF
+	spdadd C D any -P out ipsec esp/transport//use;
+	spdadd D C any -P in ipsec esp/transport//use;
+	^D
+
+Since we have a pseudo-interface "gif0", and it affects the routes and
+the source address selection logic, we can have source address A, for
+packets originated by the VPN gateway to B (and the VPN cloud).
+We can also exchange routing information over the tunnel (gif0), as the tunnel
+is represented as a pseudo interface (dynamic routes points to the
+pseudo interface).
+
+There is a big drawbacks, however; with this, you can use IKE if and only if
+the other end is using draft-touch-ipsec-vpn approach too.  Since racoon(8)
+grabs phase 2 IKE proposals from the kernel SPD database, you will be
+negotiating IPsec transport-mode SAs with the other end, not tunnel-mode SAs.
+Also, since the encapsulation mechanism is different from RFC2401, you may not
+be able to interoperate with a picky RFC2401 implementations - if the other
+end checks certain outer IP header fields (like TOS), you will not be able to
+interoperate.
+
+
+5. ALTQ
+
+KAME kit includes ALTQ, which supports FreeBSD3, FreeBSD4, FreeBSD5
+NetBSD.  OpenBSD has ALTQ merged into pf and its ALTQ code is not
+compatible with other platforms so that KAME's ALTQ is not used for
+OpenBSD.  For BSD/OS, ALTQ does not work.
+ALTQ in KAME supports IPv6.
+(actually, ALTQ is developed on KAME repository since ALTQ 2.1 - Jan 2000)
+
+ALTQ occupies single character device number.  For FreeBSD, it is officially
+allocated.  For OpenBSD and NetBSD, we use the number which is not
+currently allocated (will eventually get an official number).
+The character device is enabled for i386 architecture only.  To enable and
+compile ALTQ-ready kernel for other architectures, take the following steps:
+- assume that your architecture is FOOBAA.
+- modify sys/arch/FOOBAA/FOOBAA/conf.c (or somewhere that defines cdevsw),
+  to include a line for ALTQ.  look at sys/arch/i386/i386/conf.c for
+  example.  The major number must be same as i386 case.
+- copy kernel configuration file (like ALTQ.v6 or GENERIC.v6) from i386,
+  and modify accordingly.
+- build a kernel.
+- before building userland, change netbsd/{lib,usr.sbin,usr.bin}/Makefile
+  (or openbsd/foobaa) so that it will visit altq-related sub directories.
+
+
+6. Mobile IPv6
+
+6.1 KAME node as correspondent node
+
+Default installation recognizes home address option (in destination
+options header).  No sub-options are supported.  Interaction with
+IPsec, and/or 2292bis API, needs further study.
+
+6.2 KAME node as home agent/mobile node
+
+KAME kit includes Ericsson mobile-ip6 code.  The integration is just started
+(in Feb 2000), and we will need some more time to integrate it better.
+
+See kame/mip6config/{QUICKSTART,README_MIP6.txt} for more details.
+
+The Ericsson code implements revision 09 of the mobile-ip6 draft.  There
+are other implementations available:
+	NEC: http://www.6bone.nec.co.jp/mipv6/internal-dist/ (-13 draft)
+	SFC: http://neo.sfc.wide.ad.jp/~mip6/ (-13 draft)
+
+7. Coding style
+
+The KAME developers basically do not make a bother about coding
+style.  However, there is still some agreement on the style, in order
+to make the distributed development smooth.
+
+- follow *BSD KNF where possible.  note: there are multiple KNF standards.
+- the tab character should be 8 columns wide (tabstops are at 8, 16, 24, ...
+  column).  With vi, use ":set ts=8 sw=8".
+  With GNU Emacs 20 and later, the easiest way is to use the "bsd" style of
+  cc-mode with the variable "c-basic-offset" being 8;
+  (add-hook 'c-mode-common-hook
+	    (function
+	     (lambda ()
+	       (c-set-style "bsd")
+	       (setq c-basic-offset 8)  ; XXX for Emacs 20 only
+	       )))
+  The "bsd" style in GNU Emacs 21 sets the variable to 8 by default,
+  so the line marked by "XXX" is not necessary if you only use GNU
+  Emacs 21.
+- each line should be within 80 characters.
+- keep a single open/close bracket in a comment such as in the following
+  line:
+	putchar('(');	/* ) */
+  without this, some vi users would have a hard time to match a pair of
+  brackets.  Although this type of bracket seems clumsy and is even
+  harmful for some other type of vi users and Emacs users, the
+  agreement in the KAME developers is to allow it.
+- add the following line to the head of every KAME-derived file:
+  /*	(dollar)KAME(dollar)	*/
+  where "(dollar)" is the dollar character ($), and around "$" are tabs.
+  (this is for C.  For other language, you should use its own comment
+  line.)
+  Once committed to the CVS repository, this line will contain its
+  version number (see, for example, at the top of this file).  This
+  would make it easy to report a bug.
+- when creating a new file with the WIDE copyright, tap "make copyright.c" at
+  the top-level, and use copyright.c as a template.  KAME RCS tag will be
+  included automatically.
+- when editing a third-party package, keep its own coding style as
+  much as possible, even if the style does not follow the items above.
+- it is recommended to always wrap an expression containing
+  bitwise operators by parentheses, especially when the expression is
+  combined with relational operators, in order to avoid unintentional
+  mismatch of operators.  Thus, we should write
+	if ((a & b) == 0)	/* (A) */
+  or
+	if (a & (b == 0))	/* (B) */
+  instead of
+	if (a & b == 0)		/* (C) */
+  even if the programmer's intention was (C), which is equivalent to
+  (B) according to the grammar of the language C.
+  Thus, we should write a code to test if a bit-flag is set for a
+  given variable as follows:
+	if ((flag & FLAG_A) == 0)	/* (D) the FLAG_A is NOT set */
+	if ((flag & FLAG_A) != 0)	/* (E) the FLAG_A is set */
+  Some developers in the KAME project rather prefer the following style:
+	if (!(flag & FLAG_A))	/* (F) the FLAG_A is NOT set */
+	if ((flag & FLAG_A))	/* (G) the FLAG_A is set */
+  because it would be more intuitive in terms of the relationship
+  between the negation operator (!) and the semantics of the
+  condition.  The KAME developers have discussed the style, and have
+  agreed that all the styles from (D) to (G) are valid.  So, when you
+  see styles like (D) and (E) in the KAME code and feel a bit strange,
+  please just keep them.  They are intentional.
+- When inserting a separate block just to define some intra-block
+  variables, add the level of indentation as if the block was in a
+  control statement such as if-else, for, or while.  For example,
+	foo ()
+	{
+		int a;
+
+		{
+			int internal_a;
+			...
+		}
+	}
+  should be used, instead of
+	foo ()
+	{
+		int a;
+
+	    {
+		int internal_a;
+		...
+	     }
+	}
+- Do not use printf() or log() in the packet input path of the kernel code.
+  They can make the system vulnerable to packet flooding attacks (results in
+  /var overflow).
+- (not a style issue)
+  To disable a module that is mistakenly imported (by CVS), just
+  remove the source tree in the repository.  Note, however, that the
+  removal might annoy other developers who have already checked the
+  module out, so you should announce the removal as soon as possible.
+  Also, be 100% sure not to remove other modules.
+
+When you want to contribute something to the KAME project, and if *you
+do not mind* the agreement, it would be helpful for the project to
+keep these rules.  Note, however, that we would never intend to force
+you to adopt our rules.  We would rather regard your own style,
+especially when you have a policy about the style.
+
+
+8. Policy on technology with intellectual property right restriction
+
+There are quite a few IETF documents/whatever which has intellectual property
+right (IPR) restriction.  KAME's stance is stated below.
+
+    The goal of KAME is to provide freely redistributable, BSD-licensed,
+    implementation of Internet protocol technologies.
+    For this purpose, we implement protocols that (1) do not need license
+    contract with IPR holder, and (2) are royalty-free.
+    The reason for (1) is, even if KAME contracts with the IPR holder in
+    question, the users of KAME stack (usually implementers of some other
+    codebase) would need to make a license contract with the IPR holder.
+    It would damage the "freely redistributable" status of KAME codebase.
+
+    By doing so KAME is (implicitly) trying to advocate no-license-contract,
+    royalty-free, release of IPRs.
+
+Note however, as documented in README, we do not guarantee that KAME code
+is free of IPR infringement, you MUST check it if you are to integrate
+KAME into your product (or whatever):
+    READ CAREFULLY: Several countries have legal enforcement for
+    export/import/use of cryptographic software.  Check it before playing
+    with the kit.  We do not intend to be your legalese clearing house
+    (NO WARRANTY).  If you intend to include KAME stack into your product,
+    you'll need to check if the licenses on each file fit your situations,
+    and/or possible intellectual property right issues.
+
+						 <end of IMPLEMENTATION>

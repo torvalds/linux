@@ -1,0 +1,7 @@
+# $FreeBSD$ 
+# $NetBSD: GEORGIAN.src,v 1.1 2006/06/15 15:34:20 tnozaki Exp $
+
+NAME		"GEORGIANx"
+ENCODING	"NONE"
+DEFCSID		"GEORGIANy"	0
+INVALID		0x3F # '?'

@@ -1,0 +1,108 @@
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+hline_alnum_punc_tab_enter="Use alpha-numeric, punctuation, TAB or ENTER"
+hline_arrows_tab_enter="Press arrows, TAB or ENTER"
+msg_accounting="Accounting"
+msg_accounting_desc="This host wishes to run process accounting."
+msg_add_custom="Add Custom"
+msg_add_from_list="Add From List"
+msg_add_new="Add New"
+msg_add_new_desc="Add new directive"
+msg_add_new_help="Add new rc.conf(5) configuration directive"
+msg_add_startup_directive="Add Startup Directive"
+msg_all="All"
+msg_all_desc="Select all directives"
+msg_all_help="Select all displayed rc.conf(5) configuration directives"
+msg_apm="APM"
+msg_apm_desc="Auto-power management services (typically laptops)"
+msg_are_you_sure_you_want_delete_the_following="Are you sure you want to delete the following directives\nfrom the rc.conf(5) collection of system configuration files?"
+msg_are_you_sure_you_want_to_delete="Are you sure you want to delete the \`%s' directive\nfrom the rc.conf(5) collection of system configuration files?"
+msg_cancel="Cancel"
+msg_choose_view_details="Choose View Details"
+msg_creating_menu_list="Creating menu list...\nThis may take a while."
+msg_creating_rcconf_map="Creating rc.conf(5) map...\nThis may take a while."
+msg_creating_rcvar_map="Creating rcvar map...\nThis may take a while."
+msg_default_value="Default: %s"
+msg_delete="Delete"
+msg_delete_desc="Delete directive(s)"
+msg_delete_help="Select one or more directives from a list to delete"
+msg_delete_selected="Delete Selected"
+msg_delete_selected_desc="Delete selected directive(s)"
+msg_delete_selected_help="Delete each of the selected rc.conf(5) configuration directives"
+msg_delete_startup_directives="Delete Startup Directive(s)"
+msg_deleting_selected_directives="Deleting selected directive(s)..."
+msg_desc="Description"
+msg_desc_desc="Toggle display of system description"
+msg_details="Details"
+msg_exit="Exit"
+msg_exit_cancel="Exit/Cancel"
+msg_exit_cancel_desc="Return to previous menu"
+msg_exit_cancel_help="Return to the previous menu (selected items are untouched)"
+msg_exit_desc="Return to previous menu"
+msg_exit_this_menu="Exit this menu"
+msg_info="Info"
+msg_lpd="lpd"
+msg_lpd_desc="This host has a printer and wants to run lpd."
+msg_miscellaneous_menu_text="This menu allows you to configure various aspects of your system's\nstartup configuration.  Use [SPACE] or [ENTER] to select items, and\n[TAB] to move to the buttons.  Select Exit to leave this menu."
+msg_miscellaneous_startup_services="Miscellaneous Startup Services"
+msg_named="named"
+msg_named_desc="Run a local name server on this host"
+msg_named_flags="named flags"
+msg_named_flags_desc="Set default flags to named (if enabled)"
+msg_nis_client="NIS client"
+msg_nis_client_desc="This host wishes to be an NIS client."
+msg_nis_domainname="NIS domainname"
+msg_nis_domainname_desc="Set NIS domainname (if enabled)"
+msg_nis_server="NIS Server"
+msg_nis_server_desc="This host wishes to be an NIS server."
+msg_none="None"
+msg_none_desc="Un-Select all directives"
+msg_none_help="Un-Select all rc.conf(5) configuration directives"
+msg_ok="OK"
+msg_please_enter_a_new_value="Please enter a new value for \`%s' (Default: %s):"
+msg_please_enter_rcvar_name="Please enter rc.conf(5) variable name:"
+msg_please_select_an_rcconf_directive="Please select an rc.conf(5) directive:"
+msg_rcvar_contains_invalid_chars="ERROR! rc.conf(5) variable name contains invalid characters.\n Name may only consist of letters [a-zA-Z], numbers [0-9],\n or underscore [_] and must not start with a number."
+msg_rcvar_must_start_with="ERROR! rc.conf(5) variable name must start with\n a letter [a-zA-Z] or underscore [_]."
+msg_reset="Reset"
+msg_reset_desc="Reset to default view settings"
+msg_show_configured="Show Configured"
+msg_show_configured_desc="Calculate rc.conf(5) locations (slowest)"
+msg_show_default_value="Show Default/Value"
+msg_show_default_value_desc="Show default/configured values (slow)"
+msg_show_value="Show Value"
+msg_show_value_desc="Show configured startup value (fast)"
+msg_startup="Startup"
+msg_startup_dirs="Startup dirs"
+msg_startup_dirs_desc="Set the list of dirs to look for startup scripts"
+msg_toggle_startup_services="Toggle Startup Services"
+msg_unknown_startup_menu_selection="Unknown startup menu selection"
+msg_value_required="Value Required"
+msg_view_details="View Details"
+msg_view_details_desc="Choose view details"
+msg_view_details_help="Choose which details are shown in the current view"
+msg_view_edit_startup_configuration="View/Edit Startup Configuration"

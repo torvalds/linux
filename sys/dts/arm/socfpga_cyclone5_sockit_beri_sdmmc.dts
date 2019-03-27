@@ -1,0 +1,153 @@
+/*-
+ * Copyright (c) 2017 Ruslan Bukin <br@bsdpad.com>
+ * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/* /dts-v1/; */
+#include "socfpga_cyclone5_sockit.dts"
+
+/ {
+	model = "Terasic SoCkit";
+	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+
+	memreserve = < 0x00000000 0x1000 >, /* SMP trampoline */
+		     < 0x00001000 0x1000 >, /* virtio block */
+		     < 0x00002000 0x1000 >; /* virtio net */
+
+	soc {
+		/* Local timer */
+		timer@fffec600 {
+			clock-frequency = <200000000>;
+		};
+
+		/* Global timer */
+		global_timer: timer@fffec200 {
+			compatible = "arm,cortex-a9-global-timer";
+			reg = <0xfffec200 0x20>;
+			interrupts = <1 11 0xf04>;
+			clock-frequency = <200000000>;
+		};
+
+		beri_mem0: mem@d0000000 {
+			compatible = "sri-cambridge,beri-mem";
+			reg = <0xd0000000 0x10000000>; /* 256mb */
+			status = "okay";
+		};
+
+		pio0: pio@c0020000 {
+			compatible = "altr,pio";
+			reg = <0xc0020000 0x1000>; /* recv */
+			interrupts = < 76 >;
+			status = "okay";
+		};
+
+		pio1: pio@c0021000 {
+			compatible = "altr,pio";
+			reg = <0xc0021000 0x1000>; /* send */
+			interrupts = < 82 >; /* not in use on arm side */
+			status = "okay";
+		};
+
+		pio2: pio@c0022000 {
+			compatible = "altr,pio";
+			reg = <0xc0022000 0x1000>; /* recv */
+			interrupts = < 77 >;
+			status = "okay";
+		};
+
+		pio3: pio@c0023000 {
+			compatible = "altr,pio";
+			reg = <0xc0023000 0x1000>; /* send */
+			interrupts = < 83 >; /* not in use on arm side */
+			status = "okay";
+		};
+
+		beri_vtblk: vtblk@00001000 {
+			compatible = "sri-cambridge,beri-vtblk";
+			reg = <0x00001000 0x1000>;
+			pio-recv = <&pio0>;
+			pio-send = <&pio1>;
+			beri-mem = <&beri_mem0>;
+			status = "okay";
+		};
+
+		beri_vtnet: vtnet@00002000 {
+			compatible = "sri-cambridge,beri-vtnet";
+			reg = <0x00002000 0x1000>;
+			pio-recv = <&pio2>;
+			pio-send = <&pio3>;
+			beri-mem = <&beri_mem0>;
+			status = "okay";
+		};
+
+		beri_debug: ring@c0000000 {
+			compatible = "sri-cambridge,beri-ring";
+			reg = <0xc0000000 0x3000>;
+			interrupts = < 72 73 >;
+			device_name = "beri_debug";
+			data_size = <0x1000>;
+			data_read = <0x0>;
+			data_write = <0x1000>;
+			control_read = <0x2000>;
+			control_write = <0x2010>;
+			status = "okay";
+		};
+
+		beri_console: ring@c0004000 {
+			compatible = "sri-cambridge,beri-ring";
+			reg = <0xc0004000 0x3000>;
+			interrupts = < 74 75 >;
+			device_name = "beri_console";
+			data_size = <0x1000>;
+			data_read = <0x0>;
+			data_write = <0x1000>;
+			control_read = <0x2000>;
+			control_write = <0x2010>;
+			status = "okay";
+		};
+	};
+
+	chosen {
+		stdin = "serial0";
+		stdout = "serial0";
+	};
+};
+
+&mmc0 {
+	bus-frequency = <25000000>;
+};
+
+&uart0 {
+	clock-frequency = <100000000>;
+};
+
+&uart1 {
+	status = "disabled";
+};

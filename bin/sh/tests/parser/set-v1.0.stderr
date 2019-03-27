@@ -1,0 +1,5 @@
+one
+echo two >&2
+two
+echo three >&2
+three

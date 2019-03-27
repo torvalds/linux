@@ -1,0 +1,96 @@
+.\" Copyright (c) 2004 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd April 24, 2004
+.Dt COPY_CRED_CACHE 1
+.Os HEIMDAL
+.Sh NAME
+.Nm copy_cred_cache
+.Nd copy credentials from one cache to another
+.Sh SYNOPSIS
+.Nm
+.Op Fl Fl krbtgt-only
+.Op Fl Fl service= Ns Ar principal
+.Op Fl Fl enctype= Ns Ar enctype
+.Op Fl Fl flags= Ns Ar ticketflags
+.Op Fl Fl valid-for= Ns Ar time
+.Op Fl Fl fcache-version= Ns Ar integer
+.Op Aq Ar from-cache
+.Aq Ar to-cache
+.Sh DESCRIPTION
+.Nm
+copies credentials from
+.Aq Ar from-cache
+(or the default cache) to
+.Aq Ar to-cache .
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Fl Fl krbtgt-only
+Copies only krbtgt credentials for the client's realm. This is
+equivalent to
+.Fl Fl service= Ns Li krbtgt/ Ns Ao Ar CLIENTREALM Ac Ns Li @ Ns Ao Ar CLIENTREALM Ac .
+.It Fl Fl service= Ns Ar principal
+Copies only credentials matching this service principal.
+.It Fl Fl enctype= Ns Ar enctype
+Copies only credentials a matching enctype.
+.It Fl Fl flags= Ns Ar ticketflags
+Copies only credentials with these ticket flags set.
+.It Fl Fl valid-for= Ns Ar time
+Copies only credentials that are valid for at least this long. This
+does not take renewable creds into account.
+.It Fl Fl fcache-version= Ns Ar integer
+The created cache, If a standard
+.Li FILE
+cache is created, it will have this file format version.
+.El
+.\".Sh ENVIRONMENT
+.\".Sh FILES
+.Sh EXAMPLES
+To copy only credentials that are valid for at least one day and with
+the
+.Li initial
+flag set, try something like:
+.Bd -literal -offset indent
+$ copy_cred_cache --valid-for=1d --flags=initial FILE:/some/cache
+.Ed
+.Sh DIAGNOSTICS
+The
+.Nm
+utility exits 0 on success, and \*[Gt]0 if an error occurs, or if no
+credentials where actually copied.
+.\".Sh SEE ALSO
+.\".Sh STANDARDS
+.\".Sh HISTORY
+.\".Sh AUTHORS
+.\".Sh BUGS

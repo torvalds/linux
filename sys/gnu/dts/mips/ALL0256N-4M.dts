@@ -1,0 +1,101 @@
+/dts-v1/;
+
+#include "rt3050.dtsi"
+
+/ {
+	compatible = "ALL0256N", "ralink,rt3050-soc";
+	model = "Allnet ALL0256N";
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		rssilow {
+			label = "all0256n:green:rssilow";
+			gpios = <&gpio0 14 1>;
+		};
+
+		rssimed {
+			label = "all0256n:green:rssimed";
+			gpios = <&gpio0 12 1>;
+		};
+
+		rssihigh {
+			label = "all0256n:green:rssihigh";
+			gpios = <&gpio0 13 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 0 1>;
+			linux,code = <0x198>;
+		};
+	};
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "mx25l3205d";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x3c8000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "jtag", "rgmii", "mdio", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x28>;
+};
+
+&esw {
+	mediatek,portmap = <0x3f>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};

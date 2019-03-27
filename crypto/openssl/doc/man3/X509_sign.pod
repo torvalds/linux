@@ -1,0 +1,99 @@
+=pod
+
+=head1 NAME
+
+X509_sign, X509_sign_ctx, X509_verify, X509_REQ_sign, X509_REQ_sign_ctx,
+X509_REQ_verify, X509_CRL_sign, X509_CRL_sign_ctx, X509_CRL_verify -
+sign or verify certificate, certificate request or CRL signature
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509.h>
+
+ int X509_sign(X509 *x, EVP_PKEY *pkey, const EVP_MD *md);
+ int X509_sign_ctx(X509 *x, EVP_MD_CTX *ctx);
+ int X509_verify(X509 *a, EVP_PKEY *r);
+
+ int X509_REQ_sign(X509_REQ *x, EVP_PKEY *pkey, const EVP_MD *md);
+ int X509_REQ_sign_ctx(X509_REQ *x, EVP_MD_CTX *ctx);
+ int X509_REQ_verify(X509_REQ *a, EVP_PKEY *r);
+
+ int X509_CRL_sign(X509_CRL *x, EVP_PKEY *pkey, const EVP_MD *md);
+ int X509_CRL_sign_ctx(X509_CRL *x, EVP_MD_CTX *ctx);
+ int X509_CRL_verify(X509_CRL *a, EVP_PKEY *r);
+
+=head1 DESCRIPTION
+
+X509_sign() signs certificate B<x> using private key B<pkey> and message
+digest B<md> and sets the signature in B<x>. X509_sign_ctx() also signs
+certificate B<x> but uses the parameters contained in digest context B<ctx>.
+
+X509_verify() verifies the signature of certificate B<x> using public key
+B<pkey>. Only the signature is checked: no other checks (such as certificate
+chain validity) are performed.
+
+X509_REQ_sign(), X509_REQ_sign_ctx(), X509_REQ_verify(),
+X509_CRL_sign(), X509_CRL_sign_ctx() and X509_CRL_verify() sign and verify
+certificate requests and CRLs respectively.
+
+=head1 NOTES
+
+X509_sign_ctx() is used where the default parameters for the corresponding
+public key and digest are not suitable. It can be used to sign keys using
+RSA-PSS for example.
+
+For efficiency reasons and to work around ASN.1 encoding issues the encoding
+of the signed portion of a certificate, certificate request and CRL is cached
+internally. If the signed portion of the structure is modified the encoding
+is not always updated meaning a stale version is sometimes used. This is not
+normally a problem because modifying the signed portion will invalidate the
+signature and signing will always update the encoding.
+
+=head1 RETURN VALUES
+
+X509_sign(), X509_sign_ctx(), X509_REQ_sign(), X509_REQ_sign_ctx(),
+X509_CRL_sign() and X509_CRL_sign_ctx() return the size of the signature
+in bytes for success and zero for failure.
+
+X509_verify(), X509_REQ_verify() and X509_CRL_verify() return 1 if the
+signature is valid and 0 if the signature check fails. If the signature
+could not be checked at all because it was invalid or some other error
+occurred then -1 is returned.
+
+=head1 SEE ALSO
+
+L<d2i_X509(3)>,
+L<ERR_get_error(3)>,
+L<X509_CRL_get0_by_serial(3)>,
+L<X509_get0_signature(3)>,
+L<X509_get_ext_d2i(3)>,
+L<X509_get_extension_flags(3)>,
+L<X509_get_pubkey(3)>,
+L<X509_get_subject_name(3)>,
+L<X509_get_version(3)>,
+L<X509_NAME_add_entry_by_txt(3)>,
+L<X509_NAME_ENTRY_get_object(3)>,
+L<X509_NAME_get_index_by_NID(3)>,
+L<X509_NAME_print_ex(3)>,
+L<X509_new(3)>,
+L<X509V3_get_d2i(3)>,
+L<X509_verify_cert(3)>
+
+=head1 HISTORY
+
+The X509_sign(), X509_REQ_sign() and X509_CRL_sign() functions are
+available in all versions of OpenSSL.
+
+The X509_sign_ctx(), X509_REQ_sign_ctx()
+and X509_CRL_sign_ctx() functions were added OpenSSL 1.0.1.
+
+=head1 COPYRIGHT
+
+Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

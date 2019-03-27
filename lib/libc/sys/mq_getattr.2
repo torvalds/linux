@@ -1,0 +1,127 @@
+.\" Copyright (c) 2005 David Xu <davidxu@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Portions of this text are reprinted and reproduced in electronic form
+.\" from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --
+.\" Portable Operating System Interface (POSIX), The Open Group Base
+.\" Specifications Issue 6, Copyright (C) 2001-2004 by the Institute of
+.\" Electrical and Electronics Engineers, Inc and The Open Group.  In the
+.\" event of any discrepancy between this version and the original IEEE and
+.\" The Open Group Standard, the original IEEE and The Open Group Standard is
+.\" the referee document.  The original Standard can be obtained online at
+.\"	http://www.opengroup.org/unix/online.html.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 21, 2014
+.Dt MQ_GETATTR 2
+.Os
+.Sh NAME
+.Nm mq_getattr
+.Nd "get message queue attributes (REALTIME)"
+.Sh LIBRARY
+.Lb librt
+.Sh SYNOPSIS
+.In mqueue.h
+.Ft int
+.Fn mq_getattr "mqd_t mqdes" "struct mq_attr *mqstat"
+.Sh DESCRIPTION
+The
+.Fn mq_getattr
+system call obtains status information and attributes of the message queue and
+the open message queue description associated with the message queue
+descriptor.
+.Pp
+The
+.Fa mqdes
+argument specifies a message queue descriptor.
+.Pp
+The results are returned in the
+.Vt mq_attr
+structure referenced by the
+.Fa mqstat
+argument.
+.Pp
+Upon return, the following members will have the values associated with the
+open message queue description as set when the message queue was opened and
+as modified by subsequent
+.Fn mq_setattr
+calls:
+.Va mq_flags .
+.Pp
+The following attributes of the message queue will be returned as set at
+message queue creation:
+.Va mq_maxmsg , mq_msgsize .
+.Pp
+Upon return, the following members within the
+.Vt mq_attr
+structure referenced by the
+.Fa mqstat
+argument will be set to the current state
+of the message queue:
+.Bl -tag -width ".Va mq_curmsgs"
+.It Va mq_curmsgs
+The number of messages currently on the queue.
+.El
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn mq_getattr
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa mqdes
+argument is not a valid message queue descriptor.
+.El
+.Sh SEE ALSO
+.Xr mq_open 2 ,
+.Xr mq_send 2 ,
+.Xr mq_setattr 2 ,
+.Xr mq_timedsend 2
+.Sh STANDARDS
+The
+.Fn mq_getattr
+system call conforms to
+.St -p1003.1-2004 .
+.Sh HISTORY
+Support for
+.Tn POSIX
+message queues first appeared in
+.Fx 7.0 .
+.Sh COPYRIGHT
+Portions of this text are reprinted and reproduced in electronic form
+from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --
+Portable Operating System Interface (POSIX), The Open Group Base
+Specifications Issue 6, Copyright (C) 2001-2004 by the Institute of
+Electrical and Electronics Engineers, Inc and The Open Group.  In the
+event of any discrepancy between this version and the original IEEE and
+The Open Group Standard, the original IEEE and The Open Group Standard is
+the referee document.  The original Standard can be obtained online at
+http://www.opengroup.org/unix/online.html.

@@ -1,0 +1,78 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_message , xo_message_c , xo_message_hc , xo_message_hcv
+.Nd emit messages in multiple output styles
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Fn xo_message "const char *fmt" "..."
+.Ft void
+.Fn xo_message_e "const char *fmt" "..."
+.Ft void
+.Fn xo_message_c "int code" "const char *fmt" "..."
+.Ft void
+.Fn xo_message_hc "xo_handle_t *xop" "int code, const char *fmt" "..."
+.Ft void
+.Fn xo_message_hcv "xo_handle_t *xop" "int code" "const char *fmt" "va_list vap"
+.Sh DESCRIPTION
+.Nm xo_message
+generates text message which lack any sort of structure.
+These functions should not be used under normal conditions, since
+they completely defeat the value of using libxo.  They are provided
+for scenarios when the output's content is genuinely unknown and
+unusable.
+It is used in converting programs where err/warn where not used,
+and error messages went to
+.Nm stdout ,
+not
+.Nm stderr .
+Use of
+.Nm xo_message
+allows backwards compatibility with that output, but does not put
+the error in a useful form.
+.Pp
+The
+.Nm xo_message
+function generates output strings using the printf-style format string
+and arguments provided.
+If the format string does not end in a newline,
+.Nm xo_message_e
+will appear a colon, a space, and the error associated with the current
+.Nm errno
+value.
+.Nm xo_message_c behaves similarly for the value passed in the
+.Fa code
+parameter.
+.Nm xo_message_hc
+accepts a
+.Fa handle
+as opened by
+.Xr xo_create 3
+and
+.Nm xo_message_hcv accepts a va_list parameter of arguments.
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

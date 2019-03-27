@@ -1,0 +1,173 @@
+.\" @(#)rpcbind.1m 1.19 92/09/14 SMI; from SVr4
+.\" Copyright 1989 AT&T
+.\" Copyright 1991 Sun Microsystems, Inc.
+.\" $FreeBSD$
+.Dd April 19, 2017
+.Dt RPCBIND 8
+.Os
+.Sh NAME
+.Nm rpcbind
+.Nd universal addresses to RPC program number mapper
+.Sh SYNOPSIS
+.Nm
+.Op Fl 6adiLlswW
+.Op Fl h Ar bindip
+.Sh DESCRIPTION
+The
+.Nm
+utility is a server that converts
+.Tn RPC
+program numbers into
+universal addresses.
+It must be running on the host to be able to make
+.Tn RPC
+calls
+on a server on that machine.
+.Pp
+When an
+.Tn RPC
+service is started,
+it tells
+.Nm
+the address at which it is listening,
+and the
+.Tn RPC
+program numbers it is prepared to serve.
+When a client wishes to make an
+.Tn RPC
+call to a given program number,
+it first contacts
+.Nm
+on the server machine to determine
+the address where
+.Tn RPC
+requests should be sent.
+.Pp
+The
+.Nm
+utility should be started before any other RPC service.
+Normally, standard
+.Tn RPC
+servers are started by port monitors, so
+.Nm
+must be started before port monitors are invoked.
+.Pp
+When
+.Nm
+is started, it checks that certain name-to-address
+translation-calls function correctly.
+If they fail, the network configuration databases may be corrupt.
+Since
+.Tn RPC
+services cannot function correctly in this situation,
+.Nm
+reports the condition and terminates.
+.Pp
+The
+.Nm
+utility can only be started by the super-user.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl 6
+Bind to AF_INET6 (IPv6) addresses only.
+.It Fl a
+When debugging
+.Pq Fl d ,
+do an abort on errors.
+.It Fl d
+Run in debug mode.
+In this mode,
+.Nm
+will not fork when it starts, will print additional information
+during operation, and will abort on certain errors if
+.Fl a
+is also specified.
+With this option, the name-to-address translation consistency
+checks are shown in detail.
+.It Fl h Ar bindip
+IP addresses to bind to when servicing TCP and UDP requests.
+This option
+may be specified multiple times and is typically necessary when running
+on a multi-homed host.
+If no
+.Fl h
+option is specified,
+.Nm
+will bind to
+.Dv INADDR_ANY ,
+which could lead to problems on a multi-homed host due to
+.Nm
+returning a UDP packet from a different IP address than it was
+sent to.
+Note that when specifying IP addresses with
+.Fl h ,
+.Nm
+will automatically add
+.Li 127.0.0.1
+and if IPv6 is enabled,
+.Li ::1
+to the list.
+.It Fl i
+.Dq Insecure
+mode.
+Allow calls to SET and UNSET from any host.
+Normally
+.Nm
+accepts these requests only from the loopback interface for security reasons.
+This change is necessary for programs that were compiled with earlier
+versions of the rpc library and do not make those requests using the
+loopback interface.
+.It Fl L
+Allow old-style local connections over the loopback interface.
+Without this flag, local connections are only allowed over a local socket,
+.Pa /var/run/rpcbind.sock .
+.It Fl l
+Turn on libwrap connection logging.
+.It Fl s
+Cause
+.Nm
+to change to the user daemon as soon as possible.
+This causes
+.Nm
+to use non-privileged ports for outgoing connections, preventing non-privileged
+clients from using
+.Nm
+to connect to services from a privileged port.
+.It Fl W
+Enable libwrap (TCP wrappers) support.
+.It Fl w
+Enable the warmstart feature.
+.Pp
+The warmstart feature saves RPC registrations on termination.
+Any saved RPC registrations are restored on restart if
+.Fl w
+is specified.
+This feature helps avoid RPC service interruption when restarting
+.Nm .
+warmstart support must be compiled in to
+.Nm .
+Portmap registrations are stored in
+.Pa /tmp/portmap.file .
+.Nm
+registrations are stored in
+.Pa /tmp/rpcbind.file .
+.El
+.Sh NOTES
+All RPC servers must be restarted if
+.Nm
+is restarted.
+.Sh FILES
+.Bl -tag -width /var/run/rpcbind.sock -compact
+.It Pa /tmp/portmap.file
+saved portmap registrations file.
+.It Pa /tmp/rpcbind.file
+saved
+.Nm
+registrations file.
+.It Pa /var/run/rpcbind.sock
+socket used for local connections.
+.El
+.Sh SEE ALSO
+.Xr rpcbind 3 ,
+.Xr netconfig 5 ,
+.Xr rpcinfo 8

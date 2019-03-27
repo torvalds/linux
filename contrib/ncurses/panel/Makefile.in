@@ -1,0 +1,169 @@
+# $Id: Makefile.in,v 1.62 2013/08/04 20:23:32 tom Exp $
+##############################################################################
+# Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Author: Thomas E. Dickey 1996-on
+#
+# Makefile for panels source code.
+#
+# This makes the following:
+#	libraries (normal/debug/profile/shared)
+#
+# The variable 'srcdir' refers to the source-distribution, and can be set with
+# the configure script by "--srcdir=DIR".
+#
+# The rules are organized to produce the libraries for the configured models,
+
+# turn off _all_ suffix rules; we'll generate our own
+.SUFFIXES:
+
+SHELL		= /bin/sh
+VPATH		= @srcdir@
+THIS		= Makefile
+
+x		= @EXEEXT@
+o		= .@OBJEXT@
+
+MODEL		= @DFT_LWR_MODEL@
+DESTDIR		= @DESTDIR@
+srcdir		= @srcdir@
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+bindir		= @bindir@
+libdir		= @libdir@
+includedir	= @includedir@
+datarootdir	= @datarootdir@
+datadir		= @datadir@
+includesubdir	= @includesubdir@
+
+INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
+
+LIBTOOL		= @LIBTOOL@
+LIBTOOL_CLEAN	= @LIB_CLEAN@
+LIBTOOL_COMPILE	= @LIB_COMPILE@
+LIBTOOL_LINK	= @LIB_LINK@
+LIBTOOL_INSTALL	= @LIB_INSTALL@
+LIBTOOL_UNINSTALL = @LIB_UNINSTALL@
+LT_UNDEF	= @LT_UNDEF@
+
+INSTALL		= @INSTALL@
+INSTALL_LIB	= @INSTALL@ @INSTALL_LIB@
+INSTALL_PROG	= @INSTALL_PROGRAM@
+INSTALL_DATA	= @INSTALL_DATA@
+
+AR		= @AR@
+ARFLAGS		= @ARFLAGS@
+AWK		= @AWK@
+LD		= @LD@
+LN_S		= @LN_S@
+
+CTAGS		= @CTAGS@
+ETAGS		= @ETAGS@
+
+CC		= @CC@
+CPP		= @CPP@
+CFLAGS		= @CFLAGS@
+
+CPPFLAGS	= -I@top_srcdir@/ncurses -DHAVE_CONFIG_H @CPPFLAGS@
+
+CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
+
+CFLAGS_LIBTOOL	= $(CCFLAGS)
+CFLAGS_NORMAL	= $(CCFLAGS)
+CFLAGS_DEBUG	= $(CCFLAGS) @CC_G_OPT@ -DTRACE
+CFLAGS_PROFILE	= $(CCFLAGS) -pg
+CFLAGS_SHARED	= $(CCFLAGS) @CC_SHARED_OPTS@
+
+CFLAGS_DEFAULT	= $(CFLAGS_@DFT_UPR_MODEL@)
+
+LINK		= $(LIBTOOL_LINK)
+LDFLAGS		= @LDFLAGS@ @LD_MODEL@ @LIBS@
+
+SHLIB_DIRS	= -L../lib
+SHLIB_LIST	= $(SHLIB_DIRS) -lncurses@LIB_SUFFIX@ @SHLIB_LIST@
+
+RPATH_LIST	= @RPATH_LIST@
+MK_SHARED_LIB	= @MK_SHARED_LIB@
+
+NCURSES_MAJOR	= @NCURSES_MAJOR@
+NCURSES_MINOR	= @NCURSES_MINOR@
+REL_VERSION	= @cf_cv_rel_version@
+ABI_VERSION	= @cf_cv_abi_version@
+
+RANLIB		= @LIB_PREP@
+
+LIBRARIES	= @Libs_To_Make@
+
+LINT		= @LINT@
+LINT_OPTS	= @LINT_OPTS@
+LINT_LIBS	= -lpanel -lncurses @LIBS@
+
+AUTO_SRC	= \
+		../include/panel.h
+
+################################################################################
+all \
+libs \
+install ::	$(AUTO_SRC) $(LIBRARIES)
+
+sources:	$(AUTO_SRC)
+
+$(DESTDIR)$(bindir) \
+$(DESTDIR)$(libdir) :
+	mkdir -p $@
+
+# make a copy to simplify include-paths while still keeping panel's include
+# file in this directory.
+../include/panel.h : $(srcdir)/panel.h
+	-rm -f $@
+	cp $(srcdir)/panel.h $@
+
+HEADER_DEPS = \
+	$(srcdir)/panel.priv.h \
+	$(srcdir)/panel.h
+
+tags:
+	$(CTAGS) *.[ch]
+
+@MAKE_UPPER_TAGS@TAGS:
+@MAKE_UPPER_TAGS@	$(ETAGS) *.[ch]
+
+mostlyclean ::
+	-rm -f core tags TAGS *~ *.bak *.i *.ln *.atac trace
+
+clean :: mostlyclean
+	-rm -f $(AUTO_SRC)
+
+distclean :: clean
+	-rm -f Makefile
+
+realclean :: distclean
+
+###############################################################################
+# The remainder of this file is automatically generated during configuration
+###############################################################################

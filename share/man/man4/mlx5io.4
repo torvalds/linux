@@ -1,0 +1,142 @@
+.\"
+.\" Copyright (c) 2018 Mellanox Technologies
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 20, 2018
+.Dt mlx5io 4
+.Os
+.Sh NAME
+.Nm mlx5io
+.Nd IOCTL interface to manage Connect-X 4/5 Mellanox network adapters
+.Sh SYNOPSIS
+.In dev/mlx5/mlx5io.h
+.Sh DESCRIPTION
+The
+.Nm
+interface is provided for management of the Connect-X 4 and 5 network adapters
+in the aspects not covered by the generic network configuration,
+mostly related to the PCIe attachment and internal card working.
+Interface consists of the commands, which are passed by means of
+.Xr ioctl 2
+on the file descriptor, opened from the
+.Pa /dev/mlx5ctl
+device node.
+.Pp
+The following commands are implemented:
+.Bl -tag -width indent
+.It Dv MLX5_FWDUMP_FORCE
+Take the snapshot of the firmware registers state and store it in the
+kernel buffer.
+The buffer must be empty, in other words, no dumps should be written so
+far, or existing dump cleared with the
+.Dv MLX5_FWDUMP_RESET
+command for the specified device.
+The argument for the command should point to the
+.Vt struct mlx5_fwdump_addr
+structure, containing the PCIe bus address of the device.
+.Bd -literal
+struct mlx5_fwdump_addr {
+	uint32_t domain;
+	uint8_t bus;
+	uint8_t slot;
+	uint8_t func;
+};
+.Ed
+.It Dv MLX5_FWDUMP_RESET
+Clear the stored firmware dump, preparing the kernel buffer for
+the next dump.
+The argument for the command should point to the
+.Vt struct mlx5_fwdump_addr
+structure, containing the PCIe bus address of the device.
+.It Dv MLX5_FWDUMP_GET
+Fetch the stored firmware dump into the user memory.
+The argument to the command should point to the input/output
+.Vt struct mlx5_fwdump_get
+structure.
+Its
+.Dv devaddr
+field specifies the address of the device, the
+.Dv buf
+fields points to the array of
+.Vt struct mlx5_fwdump_reg
+of records of the registers values, the size of the array is specified
+in the
+.Dv reg_cnt
+field.
+.Bd -literal
+struct mlx5_fwdump_get {
+	struct mlx5_fwdump_addr devaddr;
+	struct mlx5_fwdump_reg *buf;
+	size_t reg_cnt;
+	size_t reg_filled; /* out */
+};
+.Ed
+.Pp
+On successfull return, the
+.Dv reg_filled
+field reports the number of the
+.Dv buf
+array elements actually filled with the registers values.
+If
+.Dv buf
+contains the
+.Dv NULL
+pointer, no registers are filled, but
+.Dv reg_filled
+still contains the number of registers that should be passed for
+the complete dump.
+.Pp
+The
+.Vt struct mlx5_fwdump_reg
+element contains the address of the register in the field
+.Dv addr ,
+and its value in the field
+.Dv val .
+.Bd -literal
+struct mlx5_fwdump_reg {
+	uint32_t addr;
+	uint32_t val;
+};
+.Ed
+.El
+.Sh FILES
+The
+.Pa /dev/mlx5ctl
+.Xr devfs 5
+node is used to pass commands to the driver.
+.Sh RETURN VALUES
+If successful, the IOCTL returns zero.
+Otherwise, -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr ioctl 2 ,
+.Xr mlx5en 4 ,
+.Xr mlx5ib 4 ,
+.Xr mlx5tool 8
+and
+.Xr pci 9 .

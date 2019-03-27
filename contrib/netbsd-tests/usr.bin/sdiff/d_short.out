@@ -1,0 +1,15 @@
+Policy: /usr/bin/lynx, Emulation: native
+    native-issetugid: permit
+    native-mprotect: permit
+    native-mmap: permit
+    native-__sysctl: permit
+    native-close: permit
+    native-fsread: filename match "/usr/lib/libssl.so.*" then permit
+    native-read: permit
+    native-fsread: filename match "/usr/lib/libcrypto.so.*" then permit
+    native-fsread: filename match "/usr/lib/libncurses.so.*" then permit
+    native-fsread: filename match "/usr/lib/libc.so.*" then permit
+    native-munmap: permit
+    native-sigprocmask: permit
+    native-fsread: filename eq "/etc/malloc.conf" then permit
+    native-fsread: filename eq "/etc/resolv.conf" then permit

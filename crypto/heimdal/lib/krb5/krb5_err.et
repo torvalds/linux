@@ -1,0 +1,274 @@
+#
+# Error messages for the krb5 library
+#
+# This might look like a com_err file, but is not
+#
+id "$Id$"
+
+error_table krb5
+
+prefix KRB5KDC_ERR
+error_code NONE,		"No error"
+error_code NAME_EXP,		"Client's entry in database has expired"
+error_code SERVICE_EXP,		"Server's entry in database has expired"
+error_code BAD_PVNO,		"Requested protocol version not supported"
+error_code C_OLD_MAST_KVNO,	"Client's key is encrypted in an old master key"
+error_code S_OLD_MAST_KVNO,	"Server's key is encrypted in an old master key"
+error_code C_PRINCIPAL_UNKNOWN,	"Client not found in Kerberos database"
+error_code S_PRINCIPAL_UNKNOWN,	"Server not found in Kerberos database"
+error_code PRINCIPAL_NOT_UNIQUE,"Principal has multiple entries in Kerberos database"
+error_code NULL_KEY,		"Client or server has a null key"
+error_code CANNOT_POSTDATE,	"Ticket is ineligible for postdating"
+error_code NEVER_VALID,		"Requested effective lifetime is negative or too short"
+error_code POLICY,		"KDC policy rejects request"
+error_code BADOPTION,		"KDC can't fulfill requested option"
+error_code ETYPE_NOSUPP,	"KDC has no support for encryption type"
+error_code SUMTYPE_NOSUPP,	"KDC has no support for checksum type"
+error_code PADATA_TYPE_NOSUPP,	"KDC has no support for padata type"
+error_code TRTYPE_NOSUPP,	"KDC has no support for transited type"
+error_code CLIENT_REVOKED,	"Clients credentials have been revoked"
+error_code SERVICE_REVOKED,	"Credentials for server have been revoked"
+error_code TGT_REVOKED,		"TGT has been revoked"
+error_code CLIENT_NOTYET,	"Client not yet valid - try again later"
+error_code SERVICE_NOTYET,	"Server not yet valid - try again later"
+error_code KEY_EXPIRED,		"Password has expired"
+error_code PREAUTH_FAILED,	"Preauthentication failed"
+error_code PREAUTH_REQUIRED,	"Additional pre-authentication required"
+error_code SERVER_NOMATCH,	"Requested server and ticket don't match"
+error_code KDC_ERR_MUST_USE_USER2USER, "Server principal valid for user2user only"
+error_code PATH_NOT_ACCEPTED,   "KDC Policy rejects transited path"
+error_code SVC_UNAVAILABLE, 	"A service is not available"
+
+index 31
+prefix KRB5KRB_AP
+error_code ERR_BAD_INTEGRITY,	"Decrypt integrity check failed"
+error_code ERR_TKT_EXPIRED,	"Ticket expired"
+error_code ERR_TKT_NYV,		"Ticket not yet valid"
+error_code ERR_REPEAT,		"Request is a replay"
+error_code ERR_NOT_US,		"The ticket isn't for us"
+error_code ERR_BADMATCH,	"Ticket/authenticator don't match"
+error_code ERR_SKEW,		"Clock skew too great"
+error_code ERR_BADADDR,		"Incorrect net address"
+error_code ERR_BADVERSION,	"Protocol version mismatch"
+error_code ERR_MSG_TYPE,	"Invalid message type"
+error_code ERR_MODIFIED,	"Message stream modified"
+error_code ERR_BADORDER,	"Message out of order"
+error_code ERR_ILL_CR_TKT,	"Invalid cross-realm ticket"
+error_code ERR_BADKEYVER,	"Key version is not available"
+error_code ERR_NOKEY,		"Service key not available"
+error_code ERR_MUT_FAIL,	"Mutual authentication failed"
+error_code ERR_BADDIRECTION,	"Incorrect message direction"
+error_code ERR_METHOD,		"Alternative authentication method required"
+error_code ERR_BADSEQ,		"Incorrect sequence number in message"
+error_code ERR_INAPP_CKSUM,	"Inappropriate type of checksum in message"
+error_code PATH_NOT_ACCEPTED,	"Policy rejects transited path"
+
+prefix KRB5KRB_ERR
+error_code RESPONSE_TOO_BIG,	"Response too big for UDP, retry with TCP"
+# 53-59 are reserved
+index 60
+error_code GENERIC,		"Generic error (see e-text)"
+error_code FIELD_TOOLONG,	"Field is too long for this implementation"
+
+# pkinit
+index 62
+prefix KRB5_KDC_ERR
+error_code CLIENT_NOT_TRUSTED,	"Client not trusted"
+error_code KDC_NOT_TRUSTED,	"KDC not trusted"
+error_code INVALID_SIG,		"Invalid signature"
+error_code DH_KEY_PARAMETERS_NOT_ACCEPTED, "DH parameters not accepted"
+
+index 68
+prefix KRB5_KDC_ERR
+error_code WRONG_REALM,		"Wrong realm"
+
+index 69
+prefix KRB5_AP_ERR
+error_code USER_TO_USER_REQUIRED, "User to user required"
+
+index 70
+prefix KRB5_KDC_ERR
+error_code CANT_VERIFY_CERTIFICATE, "Cannot verify certificate"
+error_code INVALID_CERTIFICATE, "Certificate invalid"
+error_code REVOKED_CERTIFICATE, "Certificate revoked"
+error_code REVOCATION_STATUS_UNKNOWN, "Revocation status unknown"
+error_code REVOCATION_STATUS_UNAVAILABLE, "Revocation status unavaible"
+error_code CLIENT_NAME_MISMATCH, "Client name mismatch in certificate"
+error_code INCONSISTENT_KEY_PURPOSE, "Inconsistent key purpose"
+error_code DIGEST_IN_CERT_NOT_ACCEPTED, "Digest in certificate not accepted"
+error_code PA_CHECKSUM_MUST_BE_INCLUDED, "paChecksum must be included"
+error_code DIGEST_IN_SIGNED_DATA_NOT_ACCEPTED, "Digest in signedData not accepted"
+error_code PUBLIC_KEY_ENCRYPTION_NOT_SUPPORTED, "Public key encryption not supported"
+
+## these are never used
+#index 80
+#prefix KRB5_IAKERB
+#error_code ERR_KDC_NOT_FOUND,	"IAKERB proxy could not find a KDC"
+#error_code ERR_KDC_NO_RESPONSE,	"IAKERB proxy never reeived a response from a KDC"
+
+# 82-93 are reserved
+
+index 94
+error_code INVALID_HASH_ALG, "Invalid OTP digest algorithm"
+error_code INVALID_ITERATION_COUNT, "Invalid OTP iteration count"
+
+# 97-127 are reserved
+
+index 128
+prefix
+error_code KRB5_ERR_RCSID,	"$Id$"
+
+error_code KRB5_LIBOS_BADLOCKFLAG,	"Invalid flag for file lock mode"
+error_code KRB5_LIBOS_CANTREADPWD,	"Cannot read password"
+error_code KRB5_LIBOS_BADPWDMATCH,	"Password mismatch"
+error_code KRB5_LIBOS_PWDINTR,		"Password read interrupted"
+
+error_code KRB5_PARSE_ILLCHAR,		"Invalid character in component name"
+error_code KRB5_PARSE_MALFORMED,	"Malformed representation of principal"
+
+error_code KRB5_CONFIG_CANTOPEN,	"Can't open/find configuration file"
+error_code KRB5_CONFIG_BADFORMAT,	"Improper format of configuration file"
+error_code KRB5_CONFIG_NOTENUFSPACE,	"Insufficient space to return complete information"
+
+error_code KRB5_BADMSGTYPE,		"Invalid message type specified for encoding"
+
+error_code KRB5_CC_BADNAME,		"Credential cache name malformed"
+error_code KRB5_CC_UNKNOWN_TYPE,	"Unknown credential cache type" 
+error_code KRB5_CC_NOTFOUND,		"Matching credential not found"
+error_code KRB5_CC_END,			"End of credential cache reached"
+
+error_code KRB5_NO_TKT_SUPPLIED,	"Request did not supply a ticket"
+
+error_code KRB5KRB_AP_WRONG_PRINC,		"Wrong principal in request"
+error_code KRB5KRB_AP_ERR_TKT_INVALID,	"Ticket has invalid flag set"
+
+error_code KRB5_PRINC_NOMATCH,		"Requested principal and ticket don't match"
+error_code KRB5_KDCREP_MODIFIED,	"KDC reply did not match expectations"
+error_code KRB5_KDCREP_SKEW,		"Clock skew too great in KDC reply"
+error_code KRB5_IN_TKT_REALM_MISMATCH,	"Client/server realm mismatch in initial ticket request"
+
+error_code KRB5_PROG_ETYPE_NOSUPP,	"Program lacks support for encryption type"
+error_code KRB5_PROG_KEYTYPE_NOSUPP,	"Program lacks support for key type"
+error_code KRB5_WRONG_ETYPE,		"Requested encryption type not used in message"
+error_code KRB5_PROG_SUMTYPE_NOSUPP,	"Program lacks support for checksum type"
+
+error_code KRB5_REALM_UNKNOWN,		"Cannot find KDC for requested realm"
+error_code KRB5_SERVICE_UNKNOWN,	"Kerberos service unknown"
+error_code KRB5_KDC_UNREACH,		"Cannot contact any KDC for requested realm"
+error_code KRB5_NO_LOCALNAME,		"No local name found for principal name"
+
+error_code KRB5_MUTUAL_FAILED,		"Mutual authentication failed"
+
+# some of these should be combined/supplanted by system codes
+
+error_code KRB5_RC_TYPE_EXISTS,		"Replay cache type is already registered"
+error_code KRB5_RC_MALLOC,		"No more memory to allocate (in replay cache code)"
+error_code KRB5_RC_TYPE_NOTFOUND,	"Replay cache type is unknown"
+error_code KRB5_RC_UNKNOWN,		"Generic unknown RC error"
+error_code KRB5_RC_REPLAY,		"Message is a replay"
+error_code KRB5_RC_IO,			"Replay I/O operation failed XXX"
+error_code KRB5_RC_NOIO,		"Replay cache type does not support non-volatile storage"
+error_code KRB5_RC_PARSE,		"Replay cache name parse/format error"
+
+error_code KRB5_RC_IO_EOF,		"End-of-file on replay cache I/O"
+error_code KRB5_RC_IO_MALLOC,		"No more memory to allocate (in replay cache I/O code)"
+error_code KRB5_RC_IO_PERM,		"Permission denied in replay cache code"
+error_code KRB5_RC_IO_IO,		"I/O error in replay cache i/o code"
+error_code KRB5_RC_IO_UNKNOWN,		"Generic unknown RC/IO error"
+error_code KRB5_RC_IO_SPACE,		"Insufficient system space to store replay information"
+
+error_code KRB5_TRANS_CANTOPEN,		"Can't open/find realm translation file"
+error_code KRB5_TRANS_BADFORMAT,	"Improper format of realm translation file"
+
+error_code KRB5_LNAME_CANTOPEN,		"Can't open/find lname translation database"
+error_code KRB5_LNAME_NOTRANS,		"No translation available for requested principal"
+error_code KRB5_LNAME_BADFORMAT,	"Improper format of translation database entry"
+
+error_code KRB5_CRYPTO_INTERNAL,	"Cryptosystem internal error"
+
+error_code KRB5_KT_BADNAME,		"Key table name malformed"
+error_code KRB5_KT_UNKNOWN_TYPE,	"Unknown Key table type" 
+error_code KRB5_KT_NOTFOUND,		"Key table entry not found"
+error_code KRB5_KT_END,			"End of key table reached"
+error_code KRB5_KT_NOWRITE,		"Cannot write to specified key table"
+error_code KRB5_KT_IOERR,		"Error writing to key table"
+
+error_code KRB5_NO_TKT_IN_RLM,		"Cannot find ticket for requested realm"
+error_code KRB5DES_BAD_KEYPAR,		"DES key has bad parity"
+error_code KRB5DES_WEAK_KEY,		"DES key is a weak key"
+
+error_code KRB5_BAD_ENCTYPE,		"Bad encryption type"
+error_code KRB5_BAD_KEYSIZE,		"Key size is incompatible with encryption type"
+error_code KRB5_BAD_MSIZE,		"Message size is incompatible with encryption type"
+
+error_code KRB5_CC_TYPE_EXISTS,		"Credentials cache type is already registered."
+error_code KRB5_KT_TYPE_EXISTS,		"Key table type is already registered."
+
+error_code KRB5_CC_IO,			"Credentials cache I/O operation failed XXX"
+error_code KRB5_FCC_PERM,		"Credentials cache file permissions incorrect"
+error_code KRB5_FCC_NOFILE,		"No credentials cache file found"
+error_code KRB5_FCC_INTERNAL,		"Internal file credentials cache error"
+error_code KRB5_CC_WRITE,		"Error writing to credentials cache file"
+error_code KRB5_CC_NOMEM,		"No more memory to allocate (in credentials cache code)"
+error_code KRB5_CC_FORMAT,		"Bad format in credentials cache"
+error_code KRB5_CC_NOT_KTYPE,		"No credentials found with supported encryption types"
+
+# errors for dual tgt library calls
+error_code KRB5_INVALID_FLAGS,		"Invalid KDC option combination (library internal error)"
+error_code KRB5_NO_2ND_TKT,		"Request missing second ticket"
+
+error_code KRB5_NOCREDS_SUPPLIED,	"No credentials supplied to library routine"
+
+# errors for sendauth (and recvauth)
+
+error_code KRB5_SENDAUTH_BADAUTHVERS,	"Bad sendauth version was sent"
+error_code KRB5_SENDAUTH_BADAPPLVERS,	"Bad application version was sent (via sendauth)"
+error_code KRB5_SENDAUTH_BADRESPONSE,	"Bad response (during sendauth exchange)"
+error_code KRB5_SENDAUTH_REJECTED,	"Server rejected authentication (during sendauth exchange)"
+
+# errors for preauthentication
+
+error_code KRB5_PREAUTH_BAD_TYPE,	"Unsupported preauthentication type"
+error_code KRB5_PREAUTH_NO_KEY,		"Required preauthentication key not supplied"
+error_code KRB5_PREAUTH_FAILED,		"Generic preauthentication failure"
+
+# version number errors
+
+error_code KRB5_RCACHE_BADVNO,	"Unsupported replay cache format version number"
+error_code KRB5_CCACHE_BADVNO,	"Unsupported credentials cache format version number"
+error_code KRB5_KEYTAB_BADVNO,	"Unsupported key table format version number"
+
+#
+#
+
+error_code KRB5_PROG_ATYPE_NOSUPP,	"Program lacks support for address type"
+error_code KRB5_RC_REQUIRED,	"Message replay detection requires rcache parameter"
+error_code KRB5_ERR_BAD_HOSTNAME,	"Hostname cannot be canonicalized"
+error_code KRB5_ERR_HOST_REALM_UNKNOWN,	"Cannot determine realm for host"
+error_code KRB5_SNAME_UNSUPP_NAMETYPE,	"Conversion to service principal undefined for name type"
+
+error_code KRB5KRB_AP_ERR_V4_REPLY, "Initial Ticket response appears to be Version 4"
+error_code KRB5_REALM_CANT_RESOLVE,	"Cannot resolve KDC for requested realm"
+error_code KRB5_TKT_NOT_FORWARDABLE,	"Requesting ticket can't get forwardable tickets"
+error_code KRB5_FWD_BAD_PRINCIPAL, "Bad principal name while trying to forward credentials"
+
+error_code KRB5_GET_IN_TKT_LOOP,  "Looping detected inside krb5_get_in_tkt"
+error_code KRB5_CONFIG_NODEFREALM,	"Configuration file does not specify default realm"
+
+error_code KRB5_SAM_UNSUPPORTED,  "Bad SAM flags in obtain_sam_padata"
+error_code KRB5_SAM_INVALID_ETYPE,  "Invalid encryption type in SAM challenge"
+error_code KRB5_SAM_NO_CHECKSUM,  "Missing checksum in SAM challenge"
+error_code KRB5_SAM_BAD_CHECKSUM,  "Bad checksum in SAM challenge"
+
+index 238
+error_code KRB5_OBSOLETE_FN,	"Program called an obsolete, deleted function"
+
+index 245
+error_code KRB5_ERR_BAD_S2K_PARAMS, "Invalid key generation parameters from KDC"
+error_code KRB5_ERR_NO_SERVICE,	"Service not available"
+error_code KRB5_CC_NOSUPP,      "Credential cache function not supported"
+error_code KRB5_DELTAT_BADFORMAT,	"Invalid format of Kerberos lifetime or clock skew string"
+error_code KRB5_PLUGIN_NO_HANDLE,	"Supplied data not handled by this plugin"
+error_code KRB5_PLUGIN_OP_NOTSUPP,	"Plugin does not support the operaton"
+
+end

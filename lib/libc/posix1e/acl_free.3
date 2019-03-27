@@ -1,0 +1,89 @@
+.\"-
+.\" Copyright (c) 2000, 2002 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed by Robert Watson for the TrustedBSD Project.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 28, 2000
+.Dt ACL_FREE 3
+.Os
+.Sh NAME
+.Nm acl_free
+.Nd free ACL working state
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/acl.h
+.Ft int
+.Fn acl_free "void *obj_p"
+.Sh DESCRIPTION
+The
+.Fn acl_free
+call allows the freeing of ACL working space, such as is allocated by
+.Xr acl_dup 3 ,
+or
+.Xr acl_from_text 3 .
+.Sh IMPLEMENTATION NOTES
+.Fx Ns 's
+support for POSIX.1e interfaces and features is still under
+development at this time.
+.Sh RETURN VALUES
+.Rv -std acl_free
+.Sh ERRORS
+If any of the following conditions occur, the
+.Fn acl_free
+function shall return -1 and set
+.Va errno
+to the corresponding value:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of the
+.Va obj_p
+argument is invalid.
+.El
+.Sh SEE ALSO
+.Xr acl 3 ,
+.Xr acl_dup 3 ,
+.Xr acl_from_text 3 ,
+.Xr acl_get 3 ,
+.Xr acl_init 3 ,
+.Xr posix1e 3
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+Discussion
+of the draft continues on the cross-platform POSIX.1e implementation
+mailing list.
+To join this list, see the
+.Fx
+POSIX.1e implementation
+page for more information.
+.Sh HISTORY
+POSIX.1e support was introduced in
+.Fx 4.0 ,
+and development continues.
+.Sh AUTHORS
+.An Robert N M Watson

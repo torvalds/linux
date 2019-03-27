@@ -1,0 +1,14 @@
+## check-libntp.mf - automake fragment
+##
+## tests/libntp/Makefile.am
+## sntp/tests/Makefile.am
+## The above files have adaptations of this for deeper nesting.
+
+BUILT_SOURCES	+= check-libntp
+CLEANFILES	+= check-libntp
+
+check-libntp: ../libntp/libntp.a
+
+../libntp/libntp.a:
+	cd ../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+

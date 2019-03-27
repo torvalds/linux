@@ -1,0 +1,15 @@
+/*
+ * A comment 
+ *
+ * And another  bla
+ *
+ * And yet another
+ */
+
+int
+main(void)
+{
+	printf("something");
+
+	return (0);
+}

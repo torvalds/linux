@@ -1,0 +1,530 @@
+.\"	$KAME: rtadvd.conf.5,v 1.50 2005/01/14 05:30:59 jinmei Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 4, 2011
+.Dt RTADVD.CONF 5
+.Os
+.Sh NAME
+.Nm rtadvd.conf
+.Nd config file for router advertisement daemon
+.Sh DESCRIPTION
+This file describes how the router advertisement packets must be constructed
+for each of the interfaces.
+.Pp
+As described in
+.Xr rtadvd 8 ,
+you do not have to set this configuration file up at all,
+unless you need some special configurations.
+You may even omit the file as a whole.
+In such cases, the
+.Nm rtadvd
+daemon will automatically configure itself using default values
+specified in the specification.
+.Pp
+It obeys the famous
+.Xr termcap 5
+file format.
+Each line in the file describes a network interface.
+Fields are separated by a colon
+.Pq Sq \&: ,
+and each field contains one capability description.
+Lines may be concatenated by the
+.Sq \e
+character.
+The comment marker is the
+.Sq \&#
+character.
+.Sh CAPABILITIES
+Capabilities describe the value to be filled into ICMPv6 router
+advertisement messages and to control
+.Xr rtadvd 8
+behavior.
+Therefore, you are encouraged to read IETF neighbor discovery documents
+if you would like to modify the sample configuration file.
+.Pp
+Note that almost all items have default values.
+If you omit an item, the default value of the item will be used.
+.Pp
+There are two items which control the interval of sending router advertisements.
+These items can be omitted, then
+.Nm rtadvd
+will use the default values.
+.Bl -tag -width indent
+.It Cm \&maxinterval
+(num) The maximum time allowed between sending unsolicited
+multicast router advertisements
+.Pq unit: seconds .
+The default value is 600.
+Its value must be no less than 4 seconds
+and no greater than 1800 seconds.
+.It Cm \&mininterval
+(num) The minimum time allowed between sending unsolicited multicast
+router advertisements
+.Pq unit: seconds .
+The default value is the one third of value of
+.Cm maxinterval .
+Its value must be no less than 3 seconds and no greater than .75 *
+the value of
+.Cm maxinterval .
+.El
+.Pp
+The following items are for ICMPv6 router advertisement message
+header.
+These items can be omitted, then
+.Nm rtadvd
+will use the default values.
+.Bl -tag -width indent
+.It Cm \&chlim
+(num) The value for Cur Hop Limit field.
+The default value is 64.
+.It Cm \&raflags
+(str or num) A 8-bit flags field in router advertisement message header.
+This field can be specified either as a case-sensitive string or as an
+integer.
+A string consists of characters each of which corresponds to a
+particular flag bit(s).
+An integer should be the logical OR of all enabled bits.
+Bit 7
+.Po
+.Li 'm' or 0x80
+.Pc
+means Managed address configuration flag bit,
+and Bit 6
+.Po
+.Li 'o' or 0x40
+.Pc
+means Other stateful configuration flag bit.
+Bit 4
+.Po
+.Li 0x10
+.Pc
+and Bit 3
+.Po
+.Li 0x08
+.Pc
+are used to encode router preference.
+Bits 01
+.Po
+or 'h'
+.Pc
+means high, 00 means medium, and 11
+.Po
+or 'l'
+.Pc
+means low.
+Bits 10 is reserved, and must not be specified.
+There is no character to specify the medium preference explicitly.
+The default value of the entire flag is 0
+.Po
+or a null string,
+.Pc
+which means no additional
+configuration methods, and the medium router preference.
+.It Cm \&rltime
+(num) Router lifetime field
+.Pq unit: seconds .
+The value must be either zero or between
+the value of
+.Cm maxinterval
+and 9000.
+When
+.Nm rtadvd
+runs on a host, this value must explicitly set 0 on all the
+advertising interfaces as described in
+.Xr rtadvd 8 .
+The default value is 1800.
+.It Cm \&rtime
+(num) Reachable time field
+.Pq unit: milliseconds .
+The default value is 0, which means unspecified by this router.
+.It Cm \&retrans
+(num) Retrans Timer field
+.Pq unit: milliseconds .
+The default value is 0, which means unspecified by this router.
+.El
+.Pp
+The following items are for ICMPv6 prefix information option,
+which will be attached to router advertisement header.
+These items can be omitted, then
+.Nm rtadvd
+will automatically get appropriate prefixes from the kernel's routing table,
+and advertise the prefixes with the default parameters.
+Keywords other than
+.Cm clockskew
+and
+.Cm noifprefix
+can be augmented with a number, like
+.Dq Li prefix2 ,
+to specify multiple prefixes.
+.Bl -tag -width indent
+.It Cm \&noifprefix
+(bool) Specifies no prefix on the network interfaces will be advertised.
+By default
+.Nm rtadvd
+automatically gathers on-link prefixes from all of the network interfaces
+and advertise them.
+The
+.Cm noifprefix
+disables that behavior.
+If this is specified and no
+.Cm addr
+keyword is specified, no prefix information option will be included in the
+message.
+.It Cm \&clockskew
+(num) Time skew to adjust link propagation delays and clock skews
+between routers on the link
+.Pq unit: seconds .
+This value is used in consistency check for locally-configured and
+advertised prefix lifetimes, and has its meaning when the local router
+configures a prefix on the link with a lifetime that decrements in
+real time.
+If the value is 0, it means the consistency check will be skipped
+for such prefixes.
+The default value is 0.
+.It Cm \&prefixlen
+(num) Prefix length field.
+The default value is 64.
+.It Cm \&pinfoflags
+(str or num) A 8-bit flags field in prefix information option.
+This field can be specified either as a case-sensitive string or as an
+integer.
+A string consists of characters each of which corresponds to a
+particular flag bit(s).
+An integer should be the logical OR of all enabled bits.
+Bit 7
+.Po
+.Li 'l' or 0x80
+.Pc
+means On-link flag bit,
+and Bit 6
+.Po
+.Li 'a' or 0x40
+.Pc
+means Autonomous address-configuration flag bit.
+The default value is "la" or 0xc0, i.e., both bits are set.
+.It Cm \&addr
+(str) The address filled into Prefix field.
+Since
+.Dq \&:
+is used for
+.Xr termcap 5
+file format as well as IPv6 numeric address, the field MUST be quoted by
+doublequote character.
+.It Cm \&vltime
+(num) Valid lifetime field
+.Pq unit: seconds .
+The default value is 2592000 (30 days).
+.It Cm \&vltimedecr
+(bool) This item means the advertised valid lifetime will decrement
+in real time, which is disabled by default.
+.It Cm \&pltime
+(num) Preferred lifetime field
+.Pq unit: seconds .
+The default value is 604800 (7 days).
+.It Cm \&pltimedecr
+(bool) This item means the advertised preferred lifetime will decrement
+in real time, which is disabled by default.
+.El
+.Pp
+The following item is for ICMPv6 MTU option,
+which will be attached to router advertisement header.
+This item can be omitted, then
+.Nm rtadvd
+will use the default value.
+.Bl -tag -width indent
+.It Cm \&mtu
+(num or str) MTU (maximum transmission unit) field.
+If 0 is specified, it means that the option will not be included.
+The default value is 0.
+If the special string
+.Dq auto
+is specified for this item, MTU option will be included and its value
+will be set to the interface MTU automatically.
+.El
+.Pp
+The following item controls ICMPv6 source link-layer address option,
+which will be attached to router advertisement header.
+As noted above, you can just omit the item, then
+.Nm rtadvd
+will use the default value.
+.Bl -tag -width indent
+.It Cm \&nolladdr
+(bool) By default
+.Po
+if
+.Cm \&nolladdr
+is not specified
+.Pc ,
+.Xr rtadvd 8
+will try to get link-layer address for the interface from the kernel,
+and attach that in source link-layer address option.
+If this capability exists,
+.Xr rtadvd 8
+will not attach source link-layer address option to
+router advertisement packets.
+.El
+.Pp
+The following item controls ICMPv6 home agent information option,
+which was defined with mobile IPv6 support.
+It will be attached to router advertisement header just like other options do.
+.Bl -tag -width indent
+.It Cm \&hapref
+(num) Specifies home agent preference.
+If set to non-zero,
+.Cm \&hatime
+must be present as well.
+.It Cm \&hatime
+(num) Specifies home agent lifetime.
+.El
+.Pp
+When mobile IPv6 support is turned on for
+.Xr rtadvd 8 ,
+advertisement interval option will be attached to router advertisement
+packet, by configuring
+.Cm \&maxinterval
+explicitly.
+.Pp
+The following items are for ICMPv6 route information option,
+which will be attached to router advertisement header.
+These items are optional.
+Each items can be augmented with number, like
+.Dq Li rtplen2 ,
+to specify multiple routes.
+.Bl -tag -width indent
+.It Cm \&rtprefix
+(str) The prefix filled into the Prefix field of route information option.
+Since
+.Dq \&:
+is used for
+.Xr termcap 5
+file format as well as IPv6 numeric address, the field MUST be quoted by
+doublequote character.
+.It Cm \&rtplen
+(num) Prefix length field in route information option.
+The default value is 64.
+.It Cm \&rtflags
+(str or num) A 8-bit flags field in route information option.
+Currently only the preference values are defined.
+The notation is same as that of the raflags field.
+Bit 4
+.Po
+.Li 0x10
+.Pc
+and
+Bit 3
+.Po
+.Li 0x08
+.Pc
+are used to encode the route preference for the route.
+The default value is 0x00, i.e., medium preference.
+.It Cm \&rtltime
+(num) route lifetime field in route information option.
+.Pq unit: seconds .
+Since the specification does not define the default value of this
+item, the value for this item should be specified by hand.
+However,
+.Nm rtadvd
+allows this item to be unspecified, and uses the router lifetime
+as the default value in such a case, just for compatibility with an
+old version of the program.
+.El
+.Pp
+In the above list, each keyword beginning with
+.Dq Li rt
+could be replaced with the one beginning with
+.Dq Li rtr
+for backward compatibility reason.
+For example,
+.Cm rtrplen
+is accepted instead of
+.Cm rtplen .
+However, keywords that start with
+.Dq Li rtr
+have basically been obsoleted, and should not be used any more.
+.Pp
+The following items are for ICMPv6 Recursive DNS Server Option and
+DNS Search List Option
+.Pq RFC 6106 ,
+which will be attached to router advertisement header.
+These items are optional.
+.Bl -tag -width indent
+.It Cm \&rdnss
+(str) The IPv6 address of one or more recursive DNS servers.
+The argument must be inside double quotes.
+Multiple DNS servers can be specified in a comma-separated string.
+If different lifetimes are needed for different servers,
+separate entries can be given by using
+.Cm rdnss ,
+.Cm rdnss0 ,
+.Cm rdnss1 ,
+.Cm rdnss2 ...
+options with corresponding
+.Cm rdnssltime ,
+.Cm rdnssltime0 ,
+.Cm rdnssltime1 ,
+.Cm rdnssltime2 ...
+entries.
+Note that the maximum number of servers depends on the receiver side.
+See also
+.Xr resolver 5
+manual page for resolver implementation in
+.Fx .
+.It Cm \&rdnssltime
+The lifetime of the
+.Cm rdnss
+DNS server entries.
+The default value is 3/2 of the interval time.
+.It Cm \&dnssl
+(str) One or more domain names in a comma-separated string.
+These domain names will be used when making DNS queries on a
+non-fully-qualified domain name.
+If different lifetimes are needed for different domains, separate entries
+can be given by using
+.Cm dnssl ,
+.Cm dnssl0 ,
+.Cm dnssl1 ,
+.Cm dnssl2 ...
+options with corresponding
+.Cm dnsslltime ,
+.Cm dnsslltime0 ,
+.Cm dnsslltime1 ,
+.Cm dnsslltime2 ...
+entries.
+Note that the maximum number of names depends on the receiver side.
+See also
+.Xr resolver 5
+manual page for resolver implementation in
+.Fx .
+.It Cm \&dnsslltime
+The lifetime of the
+.Cm dnssl
+DNS search list entries.
+The default value is 3/2 of the interval time.
+.El
+.Pp
+You can also refer one line from another by using
+.Cm tc
+capability.
+See
+.Xr termcap 5
+for details on the capability.
+.Sh EXAMPLES
+As presented above, all of the advertised parameters have default values
+defined in specifications, and hence you usually do not have to set them
+by hand, unless you need special non-default values.
+It can cause interoperability problem if you use an ill-configured
+parameter.
+.Pp
+To override a configuration parameter, you can specify the parameter alone.
+With the following configuration,
+.Xr rtadvd 8
+overrides the router lifetime parameter for the
+.Li ne0
+interface.
+.Bd -literal -offset indent
+ne0:\\
+	:rltime#0:
+.Ed
+.Pp
+The following example manually configures prefixes advertised from the
+.Li ef0
+interface.
+The configuration must be used with the
+.Fl s
+option to
+.Xr rtadvd 8 .
+.Bd -literal -offset indent
+ef0:\\
+	:addr="2001:db8:ffff:1000::":prefixlen#64:
+.Ed
+.Pp
+The following example configures the
+.Li wlan0
+interface and adds two DNS servers and a DNS domain search options
+using the default option lifetime values.
+.Bd -literal -offset indent
+wlan0:\\
+	:addr="2001:db8:ffff:1000::":prefixlen#64:\\
+	:rdnss="2001:db8:ffff::10,2001:db8:ffff::2:43":\\
+	:dnssl="example.com":
+.Ed
+.Pp
+The following example presents the default values in an explicit manner.
+The configuration is provided just for reference purposes;
+YOU DO NOT NEED TO HAVE IT AT ALL.
+.Bd -literal -offset indent
+default:\\
+	:chlim#64:raflags#0:rltime#1800:rtime#0:retrans#0:\\
+	:pinfoflags="la":vltime#2592000:pltime#604800:mtu#0:
+ef0:\\
+	:addr="2001:db8:ffff:1000::":prefixlen#64:tc=default:
+.Ed
+.Sh SEE ALSO
+.Xr resolver 5 ,
+.Xr termcap 5 ,
+.Xr rtadvd 8 ,
+.Xr rtsol 8
+.Rs
+.%A Thomas Narten
+.%A Erik Nordmark
+.%A W. A. Simpson
+.%A Hesham Soliman
+.%T Neighbor Discovery for IP version 6 (IPv6)
+.%R RFC 4861
+.Re
+.Rs
+.%A Thomas Narten
+.%A Erik Nordmark
+.%A W. A. Simpson
+.%T Neighbor Discovery for IP version 6 (IPv6)
+.%R RFC 2461 (obsoleted by RFC 4861)
+.Re
+.Rs
+.%A Richard Draves
+.%T Default Router Preferences and More-Specific Routes
+.%R draft-ietf-ipngwg-router-selection-xx.txt
+.Re
+.Rs
+.%A J. Jeong
+.%A S. Park
+.%A L. Beloeil
+.%A S. Madanapalli
+.%T IPv6 Router Advertisement Options for DNS Configuration
+.%R RFC 6106
+.Re
+.Sh HISTORY
+The
+.Xr rtadvd 8
+and the configuration file
+.Nm
+first appeared in WIDE Hydrangea IPv6 protocol stack kit.
+.\" .Sh BUGS
+.\" (to be written)

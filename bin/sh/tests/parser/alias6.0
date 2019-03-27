@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+alias alias0='| cat >/dev/null'
+
+eval '{ echo bad; } alias0'
+eval '(echo bad)alias0'

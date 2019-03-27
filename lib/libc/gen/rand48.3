@@ -1,0 +1,190 @@
+.\" Copyright (c) 1993 Martin Birgmeier
+.\" All rights reserved.
+.\"
+.\" You may redistribute unmodified or modified versions of this source
+.\" code provided that the above copyright notice and this and the
+.\" following conditions are retained.
+.\"
+.\" This software is provided ``as is'', and comes with no warranties
+.\" of any kind. I shall in no event be liable for anything that happens
+.\" to anyone/anything when using this software.
+.\"
+.\"     @(#)rand48.3 V1.0 MB 8 Oct 1993
+.\" $FreeBSD$
+.\"
+.Dd September 4, 2012
+.Dt RAND48 3
+.Os
+.Sh NAME
+.Nm drand48 ,
+.Nm erand48 ,
+.Nm lrand48 ,
+.Nm nrand48 ,
+.Nm mrand48 ,
+.Nm jrand48 ,
+.Nm srand48 ,
+.Nm seed48 ,
+.Nm lcong48
+.Nd pseudo random number generators and initialization routines
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft double
+.Fn drand48 void
+.Ft double
+.Fn erand48 "unsigned short xseed[3]"
+.Ft long
+.Fn lrand48 void
+.Ft long
+.Fn nrand48 "unsigned short xseed[3]"
+.Ft long
+.Fn mrand48 void
+.Ft long
+.Fn jrand48 "unsigned short xseed[3]"
+.Ft void
+.Fn srand48 "long seed"
+.Ft "unsigned short *"
+.Fn seed48 "unsigned short xseed[3]"
+.Ft void
+.Fn lcong48 "unsigned short p[7]"
+.Sh DESCRIPTION
+.Bf -symbolic
+The functions described in this manual page are not cryptographically
+secure.
+Cryptographic applications should use
+.Xr arc4random 3
+instead.
+.Ef
+.Pp
+The
+.Fn rand48
+family of functions generates pseudo-random numbers using a linear
+congruential algorithm working on integers 48 bits in size.
+The
+particular formula employed is
+r(n+1) = (a * r(n) + c) mod m
+where the default values are
+for the multiplicand a = 0x5deece66d = 25214903917 and
+the addend c = 0xb = 11.
+The modulo is always fixed at m = 2 ** 48.
+r(n) is called the seed of the random number generator.
+.Pp
+For all the six generator routines described next, the first
+computational step is to perform a single iteration of the algorithm.
+.Pp
+The
+.Fn drand48
+and
+.Fn erand48
+functions
+return values of type double.
+The full 48 bits of r(n+1) are
+loaded into the mantissa of the returned value, with the exponent set
+such that the values produced lie in the interval [0.0, 1.0).
+.Pp
+The
+.Fn lrand48
+and
+.Fn nrand48
+functions
+return values of type long in the range
+[0, 2**31-1].
+The high-order (31) bits of
+r(n+1) are loaded into the lower bits of the returned value, with
+the topmost (sign) bit set to zero.
+.Pp
+The
+.Fn mrand48
+and
+.Fn jrand48
+functions
+return values of type long in the range
+[-2**31, 2**31-1].
+The high-order (32) bits of
+r(n+1) are loaded into the returned value.
+.Pp
+The
+.Fn drand48 ,
+.Fn lrand48 ,
+and
+.Fn mrand48
+functions
+use an internal buffer to store r(n).
+For these functions
+the initial value of r(0) = 0x1234abcd330e = 20017429951246.
+.Pp
+On the other hand,
+.Fn erand48 ,
+.Fn nrand48 ,
+and
+.Fn jrand48
+use a user-supplied buffer to store the seed r(n),
+which consists of an array of 3 shorts, where the zeroth member
+holds the least significant bits.
+.Pp
+All functions share the same multiplicand and addend.
+.Pp
+The
+.Fn srand48
+function
+is used to initialize the internal buffer r(n) of
+.Fn drand48 ,
+.Fn lrand48 ,
+and
+.Fn mrand48
+such that the 32 bits of the seed value are copied into the upper 32 bits
+of r(n), with the lower 16 bits of r(n) arbitrarily being set to 0x330e.
+Additionally, the constant multiplicand and addend of the algorithm are
+reset to the default values given above.
+.Pp
+The
+.Fn seed48
+function
+also initializes the internal buffer r(n) of
+.Fn drand48 ,
+.Fn lrand48 ,
+and
+.Fn mrand48 ,
+but here all 48 bits of the seed can be specified in an array of 3 shorts,
+where the zeroth member specifies the lowest bits.
+Again,
+the constant multiplicand and addend of the algorithm are
+reset to the default values given above.
+The
+.Fn seed48
+function
+returns a pointer to an array of 3 shorts which contains the old seed.
+This array is statically allocated, thus its contents are lost after
+each new call to
+.Fn seed48 .
+.Pp
+Finally,
+.Fn lcong48
+allows full control over the multiplicand and addend used in
+.Fn drand48 ,
+.Fn erand48 ,
+.Fn lrand48 ,
+.Fn nrand48 ,
+.Fn mrand48 ,
+and
+.Fn jrand48 ,
+and the seed used in
+.Fn drand48 ,
+.Fn lrand48 ,
+and
+.Fn mrand48 .
+An array of 7 shorts is passed as argument; the first three shorts are
+used to initialize the seed; the second three are used to initialize the
+multiplicand; and the last short is used to initialize the addend.
+It is thus not possible to use values greater than 0xffff as the addend.
+.Pp
+Note that all three methods of seeding the random number generator
+always also set the multiplicand and addend for any of the six
+generator calls.
+.Sh SEE ALSO
+.Xr arc4random 3 ,
+.Xr rand 3 ,
+.Xr random 3
+.Sh AUTHORS
+.An Martin Birgmeier

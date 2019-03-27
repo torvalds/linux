@@ -1,0 +1,106 @@
+.\" Copyright (c) 2000-2001, 2003 Proofpoint, Inc. and its suppliers.
+.\"	 All rights reserved.
+.\"
+.\" By using this file, you agree to the terms and conditions set
+.\" forth in the LICENSE file which can be found at the top level of
+.\" the sendmail distribution.
+.\"
+.\"
+.\"     $Id: editmap.8,v 1.10 2013-11-22 20:51:26 ca Exp $
+.\"
+.TH EDITMAP 8 "$Date: 2013-11-22 20:51:26 $"
+.SH NAME
+.B editmap
+\- query and edit single records in database maps for sendmail
+.SH SYNOPSIS
+.B editmap
+.RB [ \-C
+.IR file ]
+.RB [ \-N ]
+.RB [ \-f ]
+.RB [ \-q|\-u|\-x ]
+maptype mapname
+key [ "value ..." ]
+.SH DESCRIPTION
+.B Editmap
+queries or edits one record in database maps used by the keyed map lookups in
+sendmail(8).
+Arguments are passed on the command line and output (for queries) is
+directed to standard output.
+.PP
+Depending on how it is compiled,
+.B editmap
+handles up to three different database formats,
+selected using the
+.I maptype
+parameter.
+They may be
+.TP
+dbm
+DBM format maps.
+This requires the
+ndbm(3)
+library.
+.TP
+btree
+B-Tree format maps.
+This requires the new Berkeley DB
+library.
+.TP
+hash
+Hash format maps.
+This also requires the Berkeley DB
+library.
+.PP
+If the
+.I TrustedUser
+option is set in the sendmail configuration file and
+.B editmap
+is invoked as root, the generated files will be owned by
+the specified
+.IR TrustedUser.
+.SS Flags
+.TP
+.B \-C
+Use the specified
+.B sendmail
+configuration file for looking up the TrustedUser option.
+.TP
+.B \-N
+Include the null byte that terminates strings
+in the map (for alias maps).
+.TP
+.B \-f
+Normally all upper case letters in the key
+are folded to lower case.
+This flag disables that behaviour.
+This is intended to mesh with the
+\-f flag in the
+.B K
+line in sendmail.cf.
+The value is never case folded.
+.TP
+.B \-q
+Query the map for the specified key.  If found, print value to standard
+output and exit with 0.  If not found then print an error
+message to stdout and exit with EX_UNAVAILABLE.
+.TP
+.B \-u
+Update the record for
+.I key
+with
+.I value
+or inserts a new record if one doesn't exist.  Exits with 0 on success
+or EX_IOERR on failure.
+.TP
+.B \-x
+Deletes the specific key from the map.  Exits with 0 on success or
+EX_IOERR on failure.
+.TP
+.SH SEE ALSO
+sendmail(8),
+makemap(8)
+.SH HISTORY
+The
+.B editmap
+command has no history.

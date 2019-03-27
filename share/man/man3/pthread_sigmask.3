@@ -1,0 +1,99 @@
+.\" Copyright (C) 2000 Jason Evans <jasone@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd February 19, 2011
+.Dt PTHREAD_SIGMASK 3
+.Os
+.Sh NAME
+.Nm pthread_sigmask
+.Nd examine and/or change a thread's signal mask
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.In signal.h
+.Ft int
+.Fn pthread_sigmask "int how" "const sigset_t * restrict set" \
+    "sigset_t * restrict oset"
+.Sh DESCRIPTION
+The
+.Fn pthread_sigmask
+function examines and/or changes the calling thread's signal mask.
+.Pp
+If
+.Fa set
+is not
+.Dv NULL ,
+it specifies a set of signals to be modified, and
+.Fa how
+specifies what to set the signal mask to:
+.Bl -tag -width SIG_UNBLOCK
+.It Dv SIG_BLOCK
+Union of the current mask and
+.Fa set .
+.It Dv SIG_UNBLOCK
+Intersection of the current mask and the complement of
+.Fa set .
+.It Dv SIG_SETMASK
+.Fa set .
+.El
+.Pp
+If
+.Fa oset
+is not NULL, the previous signal mask is stored in the location pointed to by
+.Fa oset .
+.Pp
+.Dv SIGKILL
+and
+.Dv SIGSTOP
+cannot be blocked, and will be silently ignored if included in the signal mask.
+.Sh RETURN VALUES
+If successful,
+.Fn pthread_sigmask
+returns 0.
+Otherwise, an error is returned.
+.Sh ERRORS
+The
+.Fn pthread_sigmask
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa how
+is not one of the defined values.
+.El
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr sigpending 2 ,
+.Xr sigprocmask 2 ,
+.Xr sigsuspend 2 ,
+.Xr sigsetops 3
+.Sh STANDARDS
+The
+.Fn pthread_sigmask
+function conforms to
+.St -p1003.1-96

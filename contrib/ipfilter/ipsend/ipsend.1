@@ -1,0 +1,111 @@
+.\"	$FreeBSD$
+.\"
+.TH IPSEND 1
+.SH NAME
+ipsend \- sends IP packets
+.SH SYNOPSIS
+.B ipsend
+[
+.B \-dITUv
+] [
+.B \-i
+<interface>
+] [
+.B \-f
+<\fIoffset\fP>
+] [
+.B \-g
+<\fIgateway\fP>
+] [
+.B \-m
+<\fIMTU\fP>
+] [
+.B \-o
+<\fIoption\fP>
+] [
+.B \-P
+<protocol>
+] [
+.B \-s
+<\fIsource\fP>
+] [
+.B \-t
+<\fIdest. port\fP>
+] [
+.B \-w
+<\fIwindow\fP>
+] <destination> [TCP-flags]
+.SH DESCRIPTION
+.PP
+\fBipsend\fP can be compiled in two ways.  The first is used to send one-off
+packets to a destination host, using command line options to specify various
+attributes present in the headers.  The \fIdestination\fP must be given as
+the last command line option, except for when TCP flags are specified as
+a combination of A, S, F, U, P and R, last.
+.PP
+The other way it may be compiled, with DOSOCKET defined, is to allow an
+attempt at making a TCP connection using a with ipsend resending the SYN
+packet as per the command line options.
+.SH OPTIONS
+.TP
+.BR \-d
+enable debugging mode.
+.TP
+.BR \-f \0<offset>
+The \fI-f\fP allows the IP offset field in the IP header to be set to an
+arbitrary value, which can be specified in decimal or hexadecimal.
+.TP
+.BR \-g \0<gateway>
+Specify the hostname of the gateway through which to route packets.  This
+is required whenever the destination host isn't directly attached to the
+same network as the host from which you're sending.
+.TP
+.BR \-i \0<interface>
+Set the interface name to be the name supplied.
+.TP
+.TP
+.BR \-m \0<MTU>
+Specify the MTU to be used when sending out packets.  This option allows you
+to set a fake MTU, allowing the simulation of network interfaces with small
+MTU's without setting them so.
+.TP
+.BR \-o \0<option>
+Specify options to be included at the end of the IP header.  An EOL option
+is automatically appended and need not be given.  If an option would also
+have data associated with it (source as an IP# for a lsrr option), then
+this will not be initialised.
+.TP
+.BR \-s \0<source>
+Set the source address in the packet to that provided - maybe either a
+hostname or IP#.
+.TP
+.BR \-t \0<dest. port>
+Set the destination port for TCP/UDP packets.
+.TP
+.BR \-w \0<window>
+Set the window size for TCP packets.
+.TP
+.B \-I
+Set the protocol to ICMP.
+.TP
+.B \-P <protocol>
+Set the protocol to the value given.  If the parameter is a name, the name
+is looked up in the \fI/etc/protocols\fP file.
+.TP
+.B \-T
+Set the protocol to TCP.
+.TP
+.B \-U
+Set the protocol to UDP.
+.TP
+.BR \-v
+enable verbose mode.
+.DT
+.SH SEE ALSO
+ipsend(1), ipresend(1), iptest(1), protocols(4), bpf(4), dlpi(7p)
+.SH DIAGNOSTICS
+.PP
+Needs to be run as root.
+.SH BUGS
+.PP
+If you find any, please send email to me at darrenr@pobox.com

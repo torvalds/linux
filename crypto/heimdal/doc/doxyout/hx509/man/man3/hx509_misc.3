@@ -1,0 +1,40 @@
+.TH "hx509 misc functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hx509 misc functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "void \fBhx509_free_octet_string_list\fP (hx509_octet_string_list *list)"
+.br
+.ti -1c
+.RI "void \fBhx509_xfree\fP (void *ptr)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "void hx509_free_octet_string_list (hx509_octet_string_list * list)"
+.PP
+Free a list of octet strings returned by another hx509 library function.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIlist\fP list to be freed. 
+.RE
+.PP
+
+.SS "void hx509_xfree (void * ptr)"
+.PP
+Free a data element allocated in the library.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIptr\fP data to be freed. 
+.RE
+.PP
+

@@ -1,0 +1,129 @@
+.\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\" 	All rights reserved.
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\" 	All rights reserved.
+.\"
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Begemot: libunimsg/man/uniaddr.3,v 1.6 2005/06/15 11:37:08 brandt_h Exp $
+.\"
+.Dd June 14, 2005
+.Dt UNIADDR 3
+.Os
+.Sh NAME
+.Nm unimsg ,
+.Nm uni_str2nsap ,
+.Nm uni_nsap2str ,
+.Nm uni_prefix2str ,
+.Nm uni_e1642nsap ,
+.Nm uni_nsap2e164
+.Nd "ATM signalling library - address handling"
+.Sh LIBRARY
+Begemot ATM signalling library
+.Pq libunimsg, -lunimsg
+.Sh SYNOPSIS
+.In netnatm/addr.h
+.Ft int
+.Fn uni_str2nsap "u_char *nsap" "const char *str"
+.Ft void
+.Fn uni_nsap2str "char *str" "const u_char *nsap" "int dots"
+.Ft void
+.Fn uni_prefix2str "char *str" "const u_char *prefix" "u_int len" "int dots"
+.Ft int
+.Fn uni_e1642nsap "u_char *nsap" "const char *e164"
+.Ft int
+.Fn uni_nsap2e164 "char *e164" "const u_char *nsap" "int check"
+.Sh DESCRIPTION
+The UNI message library contains a number of utility functions to handle
+NSAP and E.164 addresses.
+.Pp
+The function
+.Fn uni_str2nsap
+parses a string and interprets it as an NSAP address.
+The string should consist of exact 40 hexadecimal digits
+(upper and lower case are allowed) and any
+number of dots at any position.
+Any other character is illegal.
+The resulting NSAP address is written to the buffer pointed to by
+.Fa nsap .
+This buffer should be at least 20 bytes.
+On success the funtion returns 0.
+If an parsing error happens -1 is returned.
+.Pp
+The function
+.Fn uni_nsap2str
+converts the NSAP address pointed to by
+.Fa nsap
+into a string.
+For some commonly used NSAP formats (those with leading
+octets 0x39, 0x45 or 0x47) dots may be inserted to make the address more
+readable by passing a non-0 value in
+.Fa dots .
+The buffer pointed to by
+.Fa str
+should be large enough to hold the resulting string plus the terminating NUL.
+A size of 80 byte is large enough for all cases.
+.Pp
+The function
+.Fn uni_prefix2str
+converts an NSAP prefix to a string.
+The length of the NSAP prefix in bytes is passed in
+.Fa len .
+.Li "uni_nsap2str(str, nsap, dots)"
+is equivalent to
+.Li "uni_prefix2str(str, nsap, 20, dots)" .
+.Pp
+The function
+.Fn uni_e1642nsap
+converts an E.164 address given as an ASCII string to an embedded E.164 NSAP
+address.
+The string pointed to by
+.Fa e164
+must consist of at least 1 and not more than 15 ASCII digits.
+The function returns 0 on success and -1 if the E.164 address was malformed.
+.Pp
+The function
+.Fn uni_nsap2e164
+extracts the E.164 address from an embedded E.164 NSAP address.
+The argument
+.Fa check
+specifies whether the NSAP address should be checked for correct syntax.
+If
+.Fa check
+is 0 the last 11 bytes of the address are ignored.
+If
+.Fa check
+is 1 the last 11 bytes except the selector byte must be zero.
+If
+.Fa check
+is 2 the last 11 bytes must be zero.
+The function returns 0 on success and -1 when the NSAP address was not an
+embedded E.164 NSAP or one of the additional checks failed.
+.Sh SEE ALSO
+.Xr libngatm 3
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@FreeBSD.org

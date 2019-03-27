@@ -1,0 +1,86 @@
+.\" Copyright (c) 2009 Rick Macklem, University of Guelph
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 25, 2009
+.Dt NFSCBD 8
+.Os
+.Sh NAME
+.Nm nfscbd
+.Nd
+.Tn NFSv4
+client side callback daemon
+.Sh SYNOPSIS
+.Nm nfscbd
+.Op Fl p Ar port_number
+.Op Fl P Ar client_principal
+.Sh DESCRIPTION
+.Nm
+runs on a client using
+.Tn NFSv4
+to handle callback requests from the NFSv4 server.
+If no
+.Nm
+is running, NFSv4 mounts will still work, but the server will never issue
+Open Delegations to the client.
+.Pp
+One callback server and one master server
+are always started.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl p Ar port_number
+Specifies what port# the callback server should use.
+.It Fl P Ar client_principal
+Specifies the host based principal name to be used as the target for
+callbacks over RPCSEC_GSS. For KerberosV, it must be in the client's
+default keytab file.
+This client_principal should be the same one specified by the
+.Cm gssname
+argument being used by nfsv4 mounts.
+If you do not specify this argument, callbacks will still work over AUTH_SYS,
+which is what many extant servers use even for RPCSEC_GSS mounts, as of 2009.
+.El
+.Pp
+For example,
+.Dq Li "nfscbd -p 7654 -P root"
+starts the daemon to handle callbacks on port# 7654 and is using the host based
+principal root@<client-host>.<dns-domain> as the callback target.
+.Pp
+.Nm
+listens for service requests at the port
+defined by NFSV4_CBPORT in /usr/include/fs/nfs/nfs.h, unless
+.Fl p
+has been specified.
+For more information on what callbacks and Open Delegations do, see
+.%T "Network File System (NFS) Version 4 Protocol" ,
+RFC3530.
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr nfsv4 4 ,
+.Xr mount_nfs 8
+.Sh HISTORY
+First introduced with the experimental nfs client for NFSv4 support in 2009.

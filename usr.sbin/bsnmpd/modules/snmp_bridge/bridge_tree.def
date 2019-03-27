@@ -1,0 +1,283 @@
+#-
+# Copyright (c) 2006 Shteryana Shopova <syrinx@FreeBSD.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#include "tc.def"
+
+typedef RowStatus ENUM (
+	1 active
+	2 notInService
+	3 notReady
+	4 createAndGo
+	5 createAndWait
+	6 destroy
+)
+
+typedef TruthValue ENUM (
+	1 true
+	2 false
+)
+
+typedef StpPortState ENUM (
+	1 disabled
+	2 blocking
+	3 listening
+	4 learning
+	5 forwarding
+	6 broken
+)
+
+typedef StpPortAdminPointToPointType ENUM (
+	0 forceTrue
+	1 forceFalse
+	2 auto
+)
+
+typedef BaseType ENUM (
+	1 unknown
+	2 transparent-only
+	3 sourceroute-only
+	4 srt
+)
+
+typedef TpFdbStatus ENUM (
+	1 other
+	2 invalid
+	3 learned
+	4 self
+	5 mgmt
+)
+
+(1 internet
+  (2 mgmt
+    (1 mib_2
+      (17 dot1dBridge
+        (0 dot1dNotifications
+          (1 newRoot OID op_snmp_trap)
+          (2 topologyChange OID op_snmp_trap)
+        )
+        (1 dot1dBase
+          (1 dot1dBaseBridgeAddress OCTETSTRING | MacAddress op_dot1d_base GET)
+          (2 dot1dBaseNumPorts INTEGER32 op_dot1d_base GET)
+          (3 dot1dBaseType BaseType op_dot1d_base GET)
+          (4 dot1dBasePortTable
+            (1 dot1dBasePortEntry : INTEGER op_dot1d_base_port
+              (1 dot1dBasePort INTEGER GET)
+              (2 dot1dBasePortIfIndex INTEGER GET)
+              (3 dot1dBasePortCircuit OID GET)
+              (4 dot1dBasePortDelayExceededDiscards COUNTER GET)
+              (5 dot1dBasePortMtuExceededDiscards COUNTER GET)
+          ))
+        )
+        (2 dot1dStp
+          (1 dot1dStpProtocolSpecification ENUM ( 1 unknown 2 decLb100 3 ieee8021d ) op_dot1d_stp GET)
+          (2 dot1dStpPriority INTEGER op_dot1d_stp GET SET)
+          (3 dot1dStpTimeSinceTopologyChange TIMETICKS op_dot1d_stp GET)
+          (4 dot1dStpTopChanges COUNTER op_dot1d_stp GET)
+          (5 dot1dStpDesignatedRoot OCTETSTRING | BridgeId op_dot1d_stp GET)
+          (6 dot1dStpRootCost INTEGER32 op_dot1d_stp GET)
+          (7 dot1dStpRootPort INTEGER32 op_dot1d_stp GET)
+          (8 dot1dStpMaxAge INTEGER op_dot1d_stp GET)
+          (9 dot1dStpHelloTime INTEGER op_dot1d_stp GET)
+          (10 dot1dStpHoldTime INTEGER32 op_dot1d_stp GET)
+          (11 dot1dStpForwardDelay INTEGER op_dot1d_stp GET)
+          (12 dot1dStpBridgeMaxAge INTEGER op_dot1d_stp GET SET)
+          (13 dot1dStpBridgeHelloTime INTEGER op_dot1d_stp GET SET)
+          (14 dot1dStpBridgeForwardDelay INTEGER op_dot1d_stp GET SET)
+          (15 dot1dStpPortTable
+            (1 dot1dStpPortEntry : INTEGER op_dot1d_stp_port
+              (1 dot1dStpPort INTEGER GET)
+              (2 dot1dStpPortPriority INTEGER GET SET)
+              (3 dot1dStpPortState StpPortState GET)
+              (4 dot1dStpPortEnable ENUM ( 1 enabled 2 disabled ) GET SET)
+              (5 dot1dStpPortPathCost INTEGER GET SET)
+              (6 dot1dStpPortDesignatedRoot OCTETSTRING | BridgeId GET)
+              (7 dot1dStpPortDesignatedCost INTEGER32 GET)
+              (8 dot1dStpPortDesignatedBridge OCTETSTRING | BridgeId GET)
+              (9 dot1dStpPortDesignatedPort OCTETSTRING | BridgePortId GET)
+              (10 dot1dStpPortForwardTransitions COUNTER GET)
+          ))
+          (16 dot1dStpVersion ENUM ( 0 stpCompatible 2 rstp ) op_dot1d_stp GET SET)
+          (17 dot1dStpTxHoldCount INTEGER op_dot1d_stp GET SET)
+          (19 dot1dStpExtPortTable
+            (1 dot1dStpExtPortEntry : INTEGER op_dot1d_stp_ext_port
+              (1 dot1dStpPortProtocolMigration TruthValue GET)	# SET
+              (2 dot1dStpPortAdminEdgePort TruthValue GET SET)
+              (3 dot1dStpPortOperEdgePort TruthValue GET)
+              (4 dot1dStpPortAdminPointToPoint StpPortAdminPointToPointType GET SET)
+              (5 dot1dStpPortOperPointToPoint TruthValue GET)
+              (6 dot1dStpPortAdminPathCost INTEGER GET SET)
+          ))
+        )
+        (3 dot1dSr
+        )
+        (4 dot1dTp
+          (1 dot1dTpLearnedEntryDiscards COUNTER op_dot1d_tp GET)
+          (2 dot1dTpAgingTime INTEGER op_dot1d_tp GET SET)
+          (3 dot1dTpFdbTable
+            (1 dot1dTpFdbEntry : OCTETSTRING | MacAddress op_dot1d_tp_fdb
+              (1 dot1dTpFdbAddress OCTETSTRING | MacAddress GET)
+              (2 dot1dTpFdbPort INTEGER32 GET)
+              (3 dot1dTpFdbStatus TpFdbStatus GET)
+          ))
+          (4 dot1dTpPortTable
+            (1 dot1dTpPortEntry : INTEGER op_dot1d_tp_port
+              (1 dot1dTpPort INTEGER GET)
+              (2 dot1dTpPortMaxInfo INTEGER32 GET)
+              (3 dot1dTpPortInFrames COUNTER GET)
+              (4 dot1dTpPortOutFrames COUNTER GET)
+              (5 dot1dTpPortInDiscards COUNTER GET)
+          ))
+        )
+        (5 dot1dStatic
+        )
+        (8 dot1dConformance
+          (1 dot1dGroups
+          )
+          (2 dot1dCompliances
+          )
+        )
+      )
+      (134 rstpMIB
+        (0 rstpNotifications
+        )
+        (1 rstpObjects
+        )
+        (2 rstpConformance
+          (1 rstpGroups
+          )
+          (2 rstpCompliances
+          )
+        )
+  )))
+  (4 private
+    (1 enterprises
+      (12325 fokus
+        (1 begemot
+          (205 begemotBridge
+            (0 begemotBridgeNotifications
+              (1 begemotBridgeNewRoot OID op_snmp_trap)
+              (2 begemotBridgeTopologyChange OID op_snmp_trap)
+            )
+            (1 begemotBridgeBase
+              (1 begemotBridgeBaseTable
+                (1 begemotBridgeBaseEntry : OCTETSTRING | BridgeIfName op_begemot_base_bridge
+                  (1 begemotBridgeBaseName OCTETSTRING | BridgeIfName GET)
+                  (2 begemotBridgeBaseAddress OCTETSTRING | MacAddress GET)
+                  (3 begemotBridgeBaseNumPorts INTEGER32 GET)
+                  (4 begemotBridgeBaseType BaseType GET)
+                  (5 begemotBridgeBaseStatus RowStatus GET SET)
+              ))
+              (2 begemotBridgeBasePortTable
+                (1 begemotBridgeBasePortEntry : OCTETSTRING | BridgeIfName INTEGER op_begemot_base_port
+                  (1 begemotBridgeBasePort INTEGER GET)
+                  (2 begemotBridgeBasePortIfIndex INTEGER GET)
+                  (3 begemotBridgeBaseSpanEnabled ENUM ( 1 enabled 2 disabled ) GET SET)
+                  (4 begemotBridgeBasePortDelayExceededDiscards COUNTER GET)
+                  (5 begemotBridgeBasePortMtuExceededDiscards COUNTER GET)
+                  (6 begemotBridgeBasePortStatus RowStatus GET SET)
+                  (7 begemotBridgeBasePortPrivate TruthValue GET SET)
+              ))
+            )
+            (2 begemotBridgeStp
+              (1 begemotBridgeStpTable
+                (1 begemotBridgeStpEntry : OCTETSTRING | BridgeIfName op_begemot_stp
+                  (1 begemotBridgeStpProtocolSpecification ENUM ( 1 unknown 2 decLb100 3 ieee8021d ) GET)
+                  (2 begemotBridgeStpPriority INTEGER GET SET)
+                  (3 begemotBridgeStpTimeSinceTopologyChange TIMETICKS GET)
+                  (4 begemotBridgeStpTopChanges COUNTER GET)
+                  (5 begemotBridgeStpDesignatedRoot OCTETSTRING | BridgeId GET)
+                  (6 begemotBridgeStpRootCost INTEGER32 GET)
+                  (7 begemotBridgeStpRootPort INTEGER32 GET)
+                  (8 begemotBridgeStpMaxAge INTEGER GET)
+                  (9 begemotBridgeStpHelloTime INTEGER GET)
+                  (10 begemotBridgeStpHoldTime INTEGER32 GET)
+                  (11 begemotBridgeStpForwardDelay INTEGER GET)
+                  (12 begemotBridgeStpBridgeMaxAge INTEGER GET SET)
+                  (13 begemotBridgeStpBridgeHelloTime INTEGER GET SET)
+                  (14 begemotBridgeStpBridgeForwardDelay INTEGER GET SET)
+                  (15 begemotBridgeStpVersion ENUM ( 0 stpCompatible 2 rstp ) GET SET)
+                  (16 begemotBridgeStpTxHoldCount INTEGER GET SET)
+              ))
+              (2 begemotBridgeStpPortTable
+                (1 begemotBridgeStpPortEntry : OCTETSTRING | BridgeIfName INTEGER op_begemot_stp_port
+                  (1 begemotBridgeStpPort INTEGER GET)
+                  (2 begemotBridgeStpPortPriority INTEGER GET SET)
+                  (3 begemotBridgeStpPortState StpPortState GET)
+                  (4 begemotBridgeStpPortEnable ENUM ( 1 enabled 2 disabled ) GET SET)
+                  (5 begemotBridgeStpPortPathCost INTEGER GET SET)
+                  (6 begemotBridgeStpPortDesignatedRoot OCTETSTRING | BridgeId GET)
+                  (7 begemotBridgeStpPortDesignatedCost INTEGER32 GET)
+                  (8 begemotBridgeStpPortDesignatedBridge OCTETSTRING | BridgeId GET)
+                  (9 begemotBridgeStpPortDesignatedPort OCTETSTRING | BridgePortId GET)
+                  (10 begemotBridgeStpPortForwardTransitions COUNTER GET)
+              ))
+              (3 begemotBridgeStpExtPortTable
+                (1 begemotBridgeStpExtPortEntry : OCTETSTRING | BridgeIfName INTEGER op_begemot_stp_ext_port
+                  (1 begemotBridgeStpPortProtocolMigration TruthValue GET)	# SET
+                  (2 begemotBridgeStpPortAdminEdgePort TruthValue GET SET)
+                  (3 begemotBridgeStpPortOperEdgePort TruthValue GET)
+                  (4 begemotBridgeStpPortAdminPointToPoint StpPortAdminPointToPointType GET SET)
+                  (5 begemotBridgeStpPortOperPointToPoint TruthValue GET)
+                  (6 begemotBridgeStpPortAdminPathCost INTEGER GET SET)
+              ))
+            )
+            (3 begemotBridgeTp
+              (1 begemotBridgeTpTable
+                (1 begemotBridgeTpEntry : OCTETSTRING | BridgeIfName op_begemot_tp
+                  (1 begemotBridgeTpLearnedEntryDiscards COUNTER GET)
+                  (2 begemotBridgeTpAgingTime INTEGER GET SET)
+                  (3 begemotBridgeTpMaxAddresses INTEGER GET SET)
+              ))
+              (2 begemotBridgeTpFdbTable
+                (1 begemotBridgeTpFdbEntry : OCTETSTRING | BridgeIfName OCTETSTRING | MacAddress op_begemot_tp_fdb
+                  (1 begemotBridgeTpFdbAddress OCTETSTRING | MacAddress GET)
+                  (2 begemotBridgeTpFdbPort INTEGER32 GET)
+                  (3 begemotBridgeTpFdbStatus TpFdbStatus GET)
+              ))
+              (3 begemotBridgeTpPortTable
+                (1 begemotBridgeTpPortEntry : OCTETSTRING | BridgeIfName INTEGER op_begemot_tp_port
+                  (1 begemotBridgeTpPort INTEGER GET)
+                  (2 begemotBridgeTpPortMaxInfo INTEGER32 GET)
+                  (3 begemotBridgeTpPortInFrames COUNTER GET)
+                  (4 begemotBridgeTpPortOutFrames COUNTER GET)
+                  (5 begemotBridgeTpPortInDiscards COUNTER GET)
+              ))
+            )
+            (4 begemotBridgePf
+              (1 begemotBridgePfilStatus TruthValue op_begemot_bridge_pf GET SET)
+              (2 begemotBridgePfilMembers TruthValue op_begemot_bridge_pf GET SET)
+              (3 begemotBridgePfilIpOnly TruthValue op_begemot_bridge_pf GET SET)
+              (4 begemotBridgeLayer2PfStatus ENUM ( 1 enabled 2 disabled ) op_begemot_bridge_pf GET SET)
+            )
+            (5 begemotBridgeConfigObjects
+              (1 begemotBridgeDefaultBridgeIf OCTETSTRING | BridgeIfNameOrEmpty op_begemot_bridge_config GET SET)
+              (2 begemotBridgeDataUpdate INTEGER op_begemot_bridge_config GET SET)
+              (3 begemotBridgeDataPoll INTEGER op_begemot_bridge_config GET SET)
+	    )
+  )))))
+)

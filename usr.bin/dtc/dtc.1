@@ -1,0 +1,425 @@
+.\"-
+.\" Copyright (c) 2013 David Chisnall
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"/
+.Dd April 7, 2018
+.Dt DTC 1
+.Os
+.Sh NAME
+.Nm dtc
+.Nd device tree compiler
+.Sh SYNOPSIS
+.Nm
+.Op Fl @fhsv
+.Op Fl b Ar boot_cpu_id
+.Op Fl d Ar dependency_file
+.Op Fl E Ar [no-]checker_name
+.Op Fl H Ar phandle_format
+.Op Fl I Ar input_format
+.Op Fl O Ar output_format
+.Op Fl o Ar output_file
+.Op Fl R Ar entries
+.Op Fl S Ar bytes
+.Op Fl p Ar bytes
+.Op Fl V Ar blob_version
+.Op Fl W Ar [no-]checker_name
+.Op Fl P Ar predefined_properties
+.Ar input_file
+.Sh DESCRIPTION
+The
+.Nm
+utility converts between flattened device tree (FDT) representations.
+It is most commonly used to generate device tree blobs (DTB), the binary
+representation of an FDT, from device tree sources (DTS), the ASCII text source
+representation.
+.Pp
+The binary can be written in two formats, binary and assembly.
+The binary is identical to the in-memory representation and can be used
+directly by firmware, loaders, and so on.
+The assembly format, documented in
+.Sx "ASM FORMAT" ,
+will produce the same binary format when assembled, but also includes some
+global variables that refer to parts of the table.
+This format is most commonly used to produce a kernel specific to a device,
+with the device tree blob compiled in.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl d Ar dependency_file
+Writes a dependency file understandable by make to the specified file.
+This file can be included in a Makefile and will ensure that the output file
+depends on the input file and any files that it includes.
+This argument is only useful when the input is DTS, as only the source format
+has a notion of inclusions.
+.It Fl E Ar [no-]checker_name
+Enable or disable a specified checker.
+The argument is the name of the checker.
+The full list of checkers is given in
+.Sx CHECKERS .
+.It Fl @
+Emit a __symbols__ node to allow plugins to be loaded.
+.It Fl f
+Force the tool to attempt to generate the output, even if the input had errors.
+.It Fl h
+Display the help text and exit.
+.It Fl H Ar phandle_format
+Specifies the type of phandle nodes to generate in the output.
+Valid values are:
+.Pp
+.Bl -tag -width indent -compact
+.It Ar linux
+Generate the legacy linux,phandle nodes expected by older systems.
+.It Ar epapr
+Generate the phandle nodes, as described in the ePAPR specification.
+This is the most sensible option for device trees being used with
+.Fx .
+.It Ar both
+Generate both, for maximum compatibility.
+.El
+.It Fl I Ar input_format
+Specifies the input format.
+Valid values are:
+.Pp
+.Bl -tag -width indent -compact
+.It Ar dtb
+Device tree blob.
+The binary representation of the FDT.
+.It Ar dts
+Device tree source.
+The ASCII representation of the FDT.
+This is the default if the input format is not explicitly stated.
+.El
+.It Fl O Ar output_format
+Specifies the output format.
+Valid values are:
+.Pp
+.Bl -tag -width indent -compact
+.It Ar asm
+Assembler source for generating a device tree blob, as described in
+.Sx "ASM FORMAT" .
+.It Ar dtb
+Device tree blob.
+The binary representation of the FDT.
+This is the default if the output format is not explicitly stated.
+.It Ar dts
+Device tree source.
+The ASCII representation of the FDT.
+.El
+.It Fl o Ar output_file
+The file to which to write the output.
+.It Fl P Ar predefined_macro
+Defines a macro, in the form
+.Ar name=value
+or
+.Ar name
+to be used for device tree source files that contain conditional components.
+This tool supports two extensions to the standard to support conditional
+compilation of device trees.
+The first is an
+.Ar /include/if [property]/ "file.dts"
+directive that is allowed at the start of a file and which will only include
+the specified file if it the specified property is passed with this flag.
+The second is the
+.Ar $NAME
+format for property values.
+These allow property value to be specified on the command line.
+.It Fl R Ar entries
+The number of empty reservation table entries to pad the table with.
+This is useful if you are generating a device tree blob for bootloader or
+similar that needs to reserve some memory before passing control to the
+operating system.
+.It Fl S Ar bytes
+The minimum size in bytes of the blob.
+The blob will be padded after the strings table to ensure that it is the
+correct size.
+This is useful for environments where the device tree blob must be modified in
+place.
+.It Fl p Ar bytes
+The number of bytes of padding to add to the blob.
+The blob will be padded after the strings table to ensure that it is the
+correct size.
+This is useful for environments where the device tree blob must be modified in
+place.
+.It Fl W Ar [no-]checker_name
+Enable or disable a specified checker.
+This is an alias for
+.Fl E .
+.It Fl s
+Sorts the properties and nodes in the tree.
+This is mainly useful when using tools like
+.Xr diff 1
+to compare two device tree sources.
+.It Fl V Ar output_version
+The version of the format to output.
+This is only relevant for binary outputs, and only a value of 17 is currently
+supported.
+.It Fl v
+Display the tool version and exit.
+.It Ar input_file
+The source file.
+.El
+.Sh "ASM FORMAT"
+The assembly format defines several globals that can be referred to from other
+compilation units, in addition to any labels specified in the source.
+These are:
+.Pp
+.Bl -tag -width "dt_strings_start" -compact -offset indent
+.It dt_blob_start
+start of the device tree blob.
+.It dt_header
+start of the header, usually identical to the start of the blob.
+.It dt_reserve_map
+start of the reservation map.
+.It dt_struct_start
+start of the structure table.
+.It dt_struct_end
+end of the structure table.
+.It dt_strings_start
+start of the strings table.
+.It dt_strings_end
+end of the strings table.
+.It dt_blob_end
+end of the device tree blob.
+.El
+.Sh CHECKERS
+The utility provides a number of semantic checks on the correctness of the
+tree.
+These can be disabled with the
+.Fl W
+flag.
+For example,
+.Fl W Ar no-type-phandle
+will disable the phandle type check.
+The supported checks are:
+.Pp
+.Bl -tag -width "no-type-phandle" -compact -offset indent
+.It type-compatible
+Checks the type of the
+.Va compatible
+property.
+.It type-model
+Checks the type of the
+.Va model
+property.
+.It type-compatible
+Checks the type of the
+.Va compatible
+property.
+.It cells-attributes
+Checks that all nodes with children have both
+.Va #address-cells
+and
+.Va #size-cells
+properties.
+.It deleted-nodes
+Checks that all
+.Va /delete-node/
+statements refer to nodes that are merged.
+.El
+.Sh OVERLAYS
+The utility provides support for generating overlays, also known as plugins.
+Overlays are a method of patching a base device tree that has been compiled with
+the
+.Fl @
+flag, with some limited support for patching device trees that were not compiled
+with the
+.Fl @
+flag.
+.Pp
+To denote that a DTS is intended to be used as an overlay,
+.Va /plugin/;
+should be included in the header, following any applicable
+.Va /dts-v1/;
+tag.
+.Pp
+Conventional overlays are crafted by creating
+.Va fragment
+nodes in a root.
+Each fragment node must have either a
+.Va target
+property set to a label reference, or a
+.Va target-path
+string property set to a path.
+It must then have an
+.Va __overlay__
+child node, whose properties and child nodes are merged into the base device
+tree when the overlay is applied.
+.Pp
+Much simpler syntactic sugar was later invented to simplify generating overlays.
+Instead of creating targetted fragments manually, one can instead create a root
+node that targets a label in the base FDT using the
+.Va &label
+syntax supported in conventional DTS.
+This will indicate that a fragment should be generated for the node, with the
+given
+.Va label
+being the target, and the properties and child nodes will be used as the
+__overlay__.
+.Pp
+Additionally, a path-based version of this syntactic sugar is supported.
+A root node may target a path in the base FDT using a name of the form
+.Va &{/path} .
+A fragment will be generated for the node as it is in the
+.Va &label
+case, except the
+.Va target-path
+property will be set to
+.Va /path
+and no
+.Va target
+will be set.
+.Pp
+Both conventional overlays and the later-added syntactic sugar are supported.
+.Pp
+Overlay blobs can be applied at boot time by setting
+.Va fdt_overlays
+in
+.Xr loader.conf 5 .
+Multiple overlays may be specified, and they will be applied in the order given.
+.El
+.Sh EXAMPLES
+The command:
+.Pp
+.Dl "dtc -o blob.S -O asm device.dts"
+.Pp
+will generate a
+.Pa blob.S
+file from the device tree source
+.Pa device.dts
+and print errors if any occur during parsing or property checking.
+The resulting file can be assembled and linked into a binary.
+.Pp
+The command:
+.Pp
+.Dl "dtc -o - -O dts -I dtb device.dtb"
+.Pp
+will write the device tree source for the device tree blob
+.Pa device.dtb
+to the standard output.
+This is useful when debugging device trees.
+.Pp
+The command:
+.Pp
+.Dl "dtc -@ -O dtb -I dts -o device.dtb device.dts"
+.Pp
+will generate a
+.Pa device.dtb
+file from the device tree source
+.Pa device.dts
+with a __symbols__ node included so that overlays may be applied to it.
+.Pp
+The command:
+.Pp
+.Dl "dtc -@ -O dtb -I dts -o device_overlay.dtbo device_overlay.dts"
+.Pp
+will generate a
+.Pa device_overlay.dtbo
+file, using the standard extension for a device tree overlay, from the device
+tree source
+.Pa device_overlay.dts .
+A __symbols__ node will be included so that overlays may be applied to it.
+The presence of a
+.Va /plugin/;
+directive in
+.Pa device_overlay.dts
+will indicate to the utility that it should also generate the underlying
+metadata required in overlays.
+.Sh COMPATIBILITY
+This utility is intended to be compatible with the device tree compiler
+provided by elinux.org.
+Currently, it implements the subset of features
+required to build FreeBSD and others that have been requested by FreeBSD
+developers.
+.Pp
+The
+.Ar fs
+input format is not supported.
+This builds a tree from a Linux
+.Pa  /proc/device-tree ,
+a file system hierarchy not found in FreeBSD, which instead exposes the DTB
+directly via a sysctl.
+.Pp
+The warnings and errors supported by the elinux.org tool are not documented.
+This tool supports the warnings described in the
+.Sx CHECKERS
+section.
+.Sh SEE ALSO
+.Xr fdt 4
+.Sh STANDARDS
+The device tree formats understood by this tool conform to the Power.org
+Standard for Embedded Power Architecture Platform Requirements
+.Pq Vt ePAPR ,
+except as noted in the
+.Sx BUGS
+section and with the following exceptions for compatibility with the elinux.org
+tool:
+.Pp
+.Bl -bullet -compact
+.It
+The target of cross references is defined to be a node name in the
+specification, but is in fact a label.
+.El
+.Pp
+The /include/ directive is not part of the standard, however it is implemented
+with the semantics compatible with the elinux.org tool.
+It must appear in the top level of a file, and imports a new root definition.
+If a file, plus all of its inclusions, contains multiple roots then they are
+merged.
+All nodes that are present in the second but not the first are imported.
+Any that appear in both are recursively merged, with properties from the second
+replacing those from the first and properties child nodes being recursively
+merged.
+.Sh HISTORY
+A dtc tool first appeared in
+.Fx 9.0 .
+This version of the tool first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An David T. Chisnall
+.Pp
+Note: The fact that the tool and the author share the same initials is entirely
+coincidental.
+.Sh BUGS
+The device tree compiler does not yet support the following features:
+.Pp
+.Bl -bullet -compact
+.It
+Labels in the middle of property values.
+This is only useful in the assembly output, and only vaguely useful there, so
+is unlikely to be added soon.
+.It
+Full paths, rather than labels, as the targets for phandles.
+This is not very hard to add, but will probably not be added until something
+actually needs it.
+.El
+.Pp
+The current version performs a very limited set of semantic checks on the tree.
+This will be improved in future versions.

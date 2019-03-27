@@ -1,0 +1,113 @@
+-- From rfc2560
+-- $Id$
+OCSP DEFINITIONS EXPLICIT TAGS::=
+
+BEGIN
+
+IMPORTS
+	Certificate, AlgorithmIdentifier, CRLReason,
+	Name, GeneralName, CertificateSerialNumber, Extensions
+	FROM rfc2459;
+
+OCSPVersion  ::=  INTEGER {  ocsp-v1(0) }
+
+OCSPCertStatus ::= CHOICE {
+    good                [0]     IMPLICIT NULL,
+    revoked             [1]     IMPLICIT -- OCSPRevokedInfo -- SEQUENCE {
+    			revocationTime		GeneralizedTime,
+			revocationReason[0]	EXPLICIT CRLReason OPTIONAL
+    },
+    unknown             [2]     IMPLICIT NULL }
+
+OCSPCertID ::= SEQUENCE {
+    hashAlgorithm            AlgorithmIdentifier,
+    issuerNameHash     OCTET STRING, -- Hash of Issuer's DN
+    issuerKeyHash      OCTET STRING, -- Hash of Issuers public key
+    serialNumber       CertificateSerialNumber }
+
+OCSPSingleResponse ::= SEQUENCE {
+   certID                       OCSPCertID,
+   certStatus                   OCSPCertStatus,
+   thisUpdate                   GeneralizedTime,
+   nextUpdate           [0]     EXPLICIT GeneralizedTime OPTIONAL,
+   singleExtensions     [1]     EXPLICIT Extensions OPTIONAL }
+
+OCSPInnerRequest ::=     SEQUENCE {
+    reqCert                    OCSPCertID,
+    singleRequestExtensions    [0] EXPLICIT Extensions OPTIONAL }
+
+OCSPTBSRequest      ::=     SEQUENCE {
+    version             [0] EXPLICIT OCSPVersion -- DEFAULT v1 -- OPTIONAL,
+    requestorName       [1] EXPLICIT GeneralName OPTIONAL,
+    requestList             SEQUENCE OF OCSPInnerRequest,
+    requestExtensions   [2] EXPLICIT Extensions OPTIONAL }
+
+OCSPSignature       ::=     SEQUENCE {
+    signatureAlgorithm   AlgorithmIdentifier,
+    signature            BIT STRING,
+    certs                [0] EXPLICIT SEQUENCE OF Certificate OPTIONAL }
+
+OCSPRequest     ::=     SEQUENCE {
+    tbsRequest                  OCSPTBSRequest,
+    optionalSignature   [0]     EXPLICIT OCSPSignature OPTIONAL }
+
+OCSPResponseBytes ::=       SEQUENCE {
+    responseType   OBJECT IDENTIFIER,
+    response       OCTET STRING }
+
+OCSPResponseStatus ::= ENUMERATED {
+    successful            (0),      --Response has valid confirmations
+    malformedRequest      (1),      --Illegal confirmation request
+    internalError         (2),      --Internal error in issuer
+    tryLater              (3),      --Try again later
+                                    --(4) is not used
+    sigRequired           (5),      --Must sign the request
+    unauthorized          (6)       --Request unauthorized
+}
+
+OCSPResponse ::= SEQUENCE {
+   responseStatus         OCSPResponseStatus,
+   responseBytes          [0] EXPLICIT OCSPResponseBytes OPTIONAL }
+
+OCSPKeyHash ::= OCTET STRING --SHA-1 hash of responder's public key
+                         --(excluding the tag and length fields)
+
+OCSPResponderID ::= CHOICE {
+   byName   [1] Name,
+   byKey    [2] OCSPKeyHash }
+
+OCSPResponseData ::= SEQUENCE {
+   version              [0] EXPLICIT OCSPVersion -- DEFAULT v1 -- OPTIONAL,
+   responderID              OCSPResponderID,
+   producedAt               GeneralizedTime,
+   responses                SEQUENCE OF OCSPSingleResponse,
+   responseExtensions   [1] EXPLICIT Extensions OPTIONAL }
+
+OCSPBasicOCSPResponse       ::= SEQUENCE {
+   tbsResponseData      OCSPResponseData,
+   signatureAlgorithm   AlgorithmIdentifier,
+   signature            BIT STRING,
+   certs                [0] EXPLICIT SEQUENCE OF Certificate OPTIONAL }
+
+-- ArchiveCutoff ::= GeneralizedTime
+
+-- AcceptableResponses ::= SEQUENCE OF OBJECT IDENTIFIER
+
+-- Object Identifiers
+
+id-pkix-ocsp         OBJECT IDENTIFIER ::= {
+ 	 iso(1) identified-organization(3) dod(6) internet(1)
+	 security(5) mechanisms(5) pkix(7) pkix-ad(48) 1
+}
+
+id-pkix-ocsp-basic		OBJECT IDENTIFIER ::= { id-pkix-ocsp 1 }
+id-pkix-ocsp-nonce		OBJECT IDENTIFIER ::= { id-pkix-ocsp 2 }
+-- id-pkix-ocsp-crl             OBJECT IDENTIFIER ::= { id-pkix-ocsp 3 }
+-- id-pkix-ocsp-response        OBJECT IDENTIFIER ::= { id-pkix-ocsp 4 }
+-- id-pkix-ocsp-nocheck         OBJECT IDENTIFIER ::= { id-pkix-ocsp 5 }
+-- id-pkix-ocsp-archive-cutoff  OBJECT IDENTIFIER ::= { id-pkix-ocsp 6 }
+-- id-pkix-ocsp-service-locator OBJECT IDENTIFIER ::= { id-pkix-ocsp 7 }
+
+
+END
+

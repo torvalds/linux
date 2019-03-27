@@ -1,0 +1,1450 @@
+.\" Copyright (c) 2007, 2008 Marcel Moolenaar
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 17, 2018
+.Dt GPART 8
+.Os
+.Sh NAME
+.Nm gpart
+.Nd "control utility for the disk partitioning GEOM class"
+.Sh SYNOPSIS
+.\" ==== ADD ====
+.Nm
+.Cm add
+.Fl t Ar type
+.Op Fl a Ar alignment
+.Op Fl b Ar start
+.Op Fl s Ar size
+.Op Fl i Ar index
+.Op Fl l Ar label
+.Op Fl f Ar flags
+.Ar geom
+.\" ==== BACKUP ====
+.Nm
+.Cm backup
+.Ar geom
+.\" ==== BOOTCODE ====
+.Nm
+.Cm bootcode
+.Op Fl N
+.Op Fl b Ar bootcode
+.Op Fl p Ar partcode Fl i Ar index
+.Op Fl f Ar flags
+.Ar geom
+.\" ==== COMMIT ====
+.Nm
+.Cm commit
+.Ar geom
+.\" ==== CREATE ====
+.Nm
+.Cm create
+.Fl s Ar scheme
+.Op Fl n Ar entries
+.Op Fl f Ar flags
+.Ar provider
+.\" ==== DELETE ====
+.Nm
+.Cm delete
+.Fl i Ar index
+.Op Fl f Ar flags
+.Ar geom
+.\" ==== DESTROY ====
+.Nm
+.Cm destroy
+.Op Fl F
+.Op Fl f Ar flags
+.Ar geom
+.\" ==== MODIFY ====
+.Nm
+.Cm modify
+.Fl i Ar index
+.Op Fl l Ar label
+.Op Fl t Ar type
+.Op Fl f Ar flags
+.Ar geom
+.\" ==== RECOVER ====
+.Nm
+.Cm recover
+.Op Fl f Ar flags
+.Ar geom
+.\" ==== RESIZE ====
+.Nm
+.Cm resize
+.Fl i Ar index
+.Op Fl a Ar alignment
+.Op Fl s Ar size
+.Op Fl f Ar flags
+.Ar geom
+.\" ==== RESTORE ====
+.Nm
+.Cm restore
+.Op Fl lF
+.Op Fl f Ar flags
+.Ar provider
+.Op Ar ...
+.\" ==== SET ====
+.Nm
+.Cm set
+.Fl a Ar attrib
+.Fl i Ar index
+.Op Fl f Ar flags
+.Ar geom
+.\" ==== SHOW ====
+.Nm
+.Cm show
+.Op Fl l | r
+.Op Fl p
+.Op Ar geom ...
+.\" ==== UNDO ====
+.Nm
+.Cm undo
+.Ar geom
+.\" ==== UNSET ====
+.Nm
+.Cm unset
+.Fl a Ar attrib
+.Fl i Ar index
+.Op Fl f Ar flags
+.Ar geom
+.\"
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to partition GEOM providers, normally disks.
+The first argument is the action to be taken:
+.Bl -tag -width ".Cm bootcode"
+.\" ==== ADD ====
+.It Cm add
+Add a new partition to the partitioning scheme given by
+.Ar geom .
+The partition type must be specified with
+.Fl t Ar type .
+The partition's location, size, and other attributes will be calculated
+automatically if the corresponding options are not specified.
+.Pp
+The
+.Cm add
+command accepts these options:
+.Bl -tag -width 12n
+.It Fl a Ar alignment
+If specified, then
+.Nm
+utility tries to align
+.Ar start
+offset and partition
+.Ar size
+to be multiple of
+.Ar alignment
+value.
+.It Fl b Ar start
+The logical block address where the partition will begin.
+A SI unit suffix is allowed.
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
+.It Fl i Ar index
+The index in the partition table at which the new partition is to be
+placed.
+The index determines the name of the device special file used
+to represent the partition.
+.It Fl l Ar label
+The label attached to the partition.
+This option is only valid when used on partitioning schemes that support
+partition labels.
+.It Fl s Ar size
+Create a partition of size
+.Ar size .
+A SI unit suffix is allowed.
+.It Fl t Ar type
+Create a partition of type
+.Ar type .
+Partition types are discussed below in the section entitled
+.Sx "PARTITION TYPES" .
+.El
+.\" ==== BACKUP ====
+.It Cm backup
+Dump a partition table to standard output in a special format used by the
+.Cm restore
+action.
+.\" ==== BOOTCODE ====
+.It Cm bootcode
+Embed bootstrap code into the partitioning scheme's metadata on the
+.Ar geom
+(using
+.Fl b Ar bootcode )
+or write bootstrap code into a partition (using
+.Fl p Ar partcode
+and
+.Fl i Ar index ) .
+.Pp
+The
+.Cm bootcode
+command accepts these options:
+.Bl -tag -width 10n
+.It Fl N
+Don't preserve the Volume Serial Number for MBR.
+MBR bootcode contains Volume Serial Number by default, and
+.Nm
+tries to preserve it when installing new bootstrap code.
+This option allows to skip the preservation to help with some versions of
+.Xr boot0 8
+that don't support Volume Serial Number.
+.It Fl b Ar bootcode
+Embed bootstrap code from the file
+.Ar bootcode
+into the partitioning scheme's metadata for
+.Ar geom .
+Not all partitioning schemes have embedded bootstrap code, so the
+.Fl b Ar bootcode
+option is scheme-specific in nature (see the section entitled
+.Sx BOOTSTRAPPING
+below).
+The
+.Ar bootcode
+file must match the partitioning scheme's requirements for file content
+and size.
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
+.It Fl i Ar index
+Specify the target partition for
+.Fl p Ar partcode .
+.It Fl p Ar partcode
+Write the bootstrap code from the file
+.Ar partcode
+into the
+.Ar geom
+partition specified by
+.Fl i Ar index .
+The size of the file must be smaller than the size of the partition.
+.El
+.\" ==== COMMIT ====
+.It Cm commit
+Commit any pending changes for geom
+.Ar geom .
+All actions are committed by default and will not result in
+pending changes.
+Actions can be modified with the
+.Fl f Ar flags
+option so that they are not committed, but become pending.
+Pending changes are reflected by the geom and the
+.Nm
+utility, but they are not actually written to disk.
+The
+.Cm commit
+action will write all pending changes to disk.
+.\" ==== CREATE ====
+.It Cm create
+Create a new partitioning scheme on a provider given by
+.Ar provider .
+The scheme to use must be specified with the
+.Fl s Ar scheme
+option.
+.Pp
+The
+.Cm create
+command accepts these options:
+.Bl -tag -width 10n
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
+.It Fl n Ar entries
+The number of entries in the partition table.
+Every partitioning scheme has a minimum and maximum number of entries.
+This option allows tables to be created with a number of entries
+that is within the limits.
+Some schemes have a maximum equal to the minimum and some schemes have
+a maximum large enough to be considered unlimited.
+By default, partition tables are created with the minimum number of
+entries.
+.It Fl s Ar scheme
+Specify the partitioning scheme to use.
+The kernel must have support for a particular scheme before
+that scheme can be used to partition a disk.
+.El
+.\" ==== DELETE ====
+.It Cm delete
+Delete a partition from geom
+.Ar geom
+and further identified by the
+.Fl i Ar index
+option.
+The partition cannot be actively used by the kernel.
+.Pp
+The
+.cm delete
+command accepts these options:
+.Bl -tag -width 10n
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
+.It Fl i Ar index
+Specifies the index of the partition to be deleted.
+.El
+.\" ==== DESTROY ====
+.It Cm destroy
+Destroy the partitioning scheme as implemented by geom
+.Ar geom .
+.Pp
+The
+.Cm destroy
+command accepts these options:
+.Bl -tag -width 10n
+.It Fl F
+Forced destroying of the partition table even if it is not empty.
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
+.El
+.\" ==== MODIFY ====
+.It Cm modify
+Modify a partition from geom
+.Ar geom
+and further identified by the
+.Fl i Ar index
+option.
+Only the type and/or label of the partition can be modified.
+Not all partitioning schemes support labels and it is invalid to
+try to change a partition label in such cases.
+.Pp
+The
+.Cm modify
+command accepts these options:
+.Bl -tag -width 10n
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
+.It Fl i Ar index
+Specifies the index of the partition to be modified.
+.It Fl l Ar label
+Change the partition label to
+.Ar label .
+.It Fl t Ar type
+Change the partition type to
+.Ar type .
+.El
+.\" ==== RECOVER ====
+.It Cm recover
+Recover a corrupt partition's scheme metadata on the geom
+.Ar geom .
+See the section entitled
+.Sx RECOVERING
+below for the additional information.
+.Pp
+The
+.Cm recover
+command accepts these options:
+.Bl -tag -width 10n
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
+.El
+.\" ==== RESIZE ====
+.It Cm resize
+Resize a partition from geom
+.Ar geom
+and further identified by the
+.Fl i Ar index
+option.
+If the new size is not specified it is automatically calculated
+to be the maximum available from
+.Ar geom .
+.Pp
+The
+.Cm resize
+command accepts these options:
+.Bl -tag -width 12n
+.It Fl a Ar alignment
+If specified, then
+.Nm
+utility tries to align partition
+.Ar size
+to be a multiple of the
+.Ar alignment
+value.
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
+.It Fl i Ar index
+Specifies the index of the partition to be resized.
+.It Fl s Ar size
+Specifies the new size of the partition, in logical blocks.
+A SI unit suffix is allowed.
+.El
+.\" ==== RESTORE ====
+.It Cm restore
+Restore the partition table from a backup previously created by the
+.Cm backup
+action and read from standard input.
+Only the partition table is restored.
+This action does not affect the content of partitions.
+After restoring the partition table and writing bootcode if needed,
+user data must be restored from backup.
+.Pp
+The
+.Cm restore
+command accepts these options:
+.Bl -tag -width 10n
+.It Fl F
+Destroy partition table on the given
+.Ar provider
+before doing restore.
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
+.It Fl l
+Restore partition labels for partitioning schemes that support them.
+.El
+.\" ==== SET ====
+.It Cm set
+Set the named attribute on the partition entry.
+See the section entitled
+.Sx ATTRIBUTES
+below for a list of available attributes.
+.Pp
+The
+.Cm set
+command accepts these options:
+.Bl -tag -width 10n
+.It Fl a Ar attrib
+Specifies the attribute to set.
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
+.It Fl i Ar index
+Specifies the index of the partition on which the attribute will be set.
+.El
+.\" ==== SHOW ====
+.It Cm show
+Show current partition information for the specified geoms, or all
+geoms if none are specified.
+The default output includes the logical starting block of each
+partition, the partition size in blocks, the partition index number,
+the partition type, and a human readable partition size.
+Block sizes and locations are based on the device's Sectorsize
+as shown by
+.Cm gpart list .
+.Pp
+The
+.Cm show
+command accepts these options:
+.Bl -tag -width 10n
+.It Fl l
+For partitioning schemes that support partition labels, print them
+instead of partition type.
+.It Fl p
+Show provider names instead of partition indexes.
+.It Fl r
+Show raw partition type instead of symbolic name.
+.El
+.\" ==== UNDO ====
+.It Cm undo
+Revert any pending changes for geom
+.Ar geom .
+This action is the opposite of the
+.Cm commit
+action and can be used to undo any changes that have not been committed.
+.\" ==== UNSET ====
+.It Cm unset
+Clear the named attribute on the partition entry.
+See the section entitled
+.Sx ATTRIBUTES
+below for a list of available attributes.
+.Pp
+The
+.Cm unset
+command accepts these options:
+.Bl -tag -width 10n
+.It Fl a Ar attrib
+Specifies the attribute to clear.
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
+.It Fl i Ar index
+Specifies the index of the partition on which the attribute will be cleared.
+.El
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Sh PARTITIONING SCHEMES
+Several partitioning schemes are supported by the
+.Nm
+utility:
+.Bl -tag -width ".Cm VTOC8"
+.It Cm APM
+Apple Partition Map, used by PowerPC(R) Macintosh(R) computers.
+Requires the
+.Cd GEOM_PART_APM
+kernel option.
+.It Cm BSD
+Traditional BSD disklabel, usually used to subdivide MBR partitions.
+.Po
+This scheme can also be used as the sole partitioning method, without
+an MBR.
+Partition editing tools from other operating systems often do not
+understand the bare disklabel partition layout, so this is sometimes
+called
+.Dq dangerously dedicated .
+.Pc
+Requires the
+.Cm GEOM_PART_BSD
+kernel option.
+.It Cm BSD64
+64-bit implementation of BSD disklabel used in DragonFlyBSD to subdivide MBR
+or GPT partitions.
+Requires the
+.Cm GEOM_PART_BSD64
+kernel option.
+.It Cm LDM
+The Logical Disk Manager is an implementation of volume manager for
+Microsoft Windows NT.
+Requires the
+.Cd GEOM_PART_LDM
+kernel option.
+.It Cm GPT
+GUID Partition Table is used on Intel-based Macintosh computers and
+gradually replacing MBR on most PCs and other systems.
+Requires the
+.Cm GEOM_PART_GPT
+kernel option.
+.It Cm MBR
+Master Boot Record is used on PCs and removable media.
+Requires the
+.Cm GEOM_PART_MBR
+kernel option.
+The
+.Cm GEOM_PART_EBR
+option adds support for the Extended Boot Record (EBR),
+which is used to define a logical partition.
+The
+.Cm GEOM_PART_EBR_COMPAT
+option enables backward compatibility for partition names
+in the EBR scheme.
+It also prevents any type of actions on such partitions.
+.It Cm VTOC8
+Sun's SMI Volume Table Of Contents, used by
+.Tn SPARC64
+and
+.Tn UltraSPARC
+computers.
+Requires the
+.Cm GEOM_PART_VTOC8
+kernel option.
+.El
+.Sh PARTITION TYPES
+Partition types are identified on disk by particular strings or magic
+values.
+The
+.Nm
+utility uses symbolic names for common partition types so the user
+does not need to know these values or other details of the partitioning
+scheme in question.
+The
+.Nm
+utility also allows the user to specify scheme-specific partition types
+for partition types that do not have symbolic names.
+Symbolic names currently understood and used by
+.Fx
+are:
+.Bl -tag -width ".Cm dragonfly-disklabel64"
+.It Cm apple-boot
+The system partition dedicated to storing boot loaders on some Apple
+systems.
+The scheme-specific types are
+.Qq Li "!171"
+for MBR,
+.Qq Li "!Apple_Bootstrap"
+for APM, and
+.Qq Li "!426f6f74-0000-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm bios-boot
+The system partition dedicated to second stage of the boot loader program.
+Usually it is used by the GRUB 2 loader for GPT partitioning schemes.
+The scheme-specific type is
+.Qq Li "!21686148-6449-6E6F-744E-656564454649" .
+.It Cm efi
+The system partition for computers that use the Extensible Firmware
+Interface (EFI).
+The scheme-specific types are
+.Qq Li "!239"
+for MBR, and
+.Qq Li "!c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
+for GPT.
+.It Cm freebsd
+A
+.Fx
+partition subdivided into filesystems with a
+.Bx
+disklabel.
+This is a legacy partition type and should not be used for the APM
+or GPT schemes.
+The scheme-specific types are
+.Qq Li "!165"
+for MBR,
+.Qq Li "!FreeBSD"
+for APM, and
+.Qq Li "!516e7cb4-6ecf-11d6-8ff8-00022d09712b"
+for GPT.
+.It Cm freebsd-boot
+A
+.Fx
+partition dedicated to bootstrap code.
+The scheme-specific type is
+.Qq Li "!83bd6b9d-7f41-11dc-be0b-001560b84f0f"
+for GPT.
+.It Cm freebsd-swap
+A
+.Fx
+partition dedicated to swap space.
+The scheme-specific types are
+.Qq Li "!FreeBSD-swap"
+for APM,
+.Qq Li "!516e7cb5-6ecf-11d6-8ff8-00022d09712b"
+for GPT, and tag 0x0901 for VTOC8.
+.It Cm freebsd-ufs
+A
+.Fx
+partition that contains a UFS or UFS2 filesystem.
+The scheme-specific types are
+.Qq Li "!FreeBSD-UFS"
+for APM,
+.Qq Li "!516e7cb6-6ecf-11d6-8ff8-00022d09712b"
+for GPT, and tag 0x0902 for VTOC8.
+.It Cm freebsd-vinum
+A
+.Fx
+partition that contains a Vinum volume.
+The scheme-specific types are
+.Qq Li "!FreeBSD-Vinum"
+for APM,
+.Qq Li "!516e7cb8-6ecf-11d6-8ff8-00022d09712b"
+for GPT, and tag 0x0903 for VTOC8.
+.It Cm freebsd-zfs
+A
+.Fx
+partition that contains a ZFS volume.
+The scheme-specific types are
+.Qq Li "!FreeBSD-ZFS"
+for APM,
+.Qq Li "!516e7cba-6ecf-11d6-8ff8-00022d09712b"
+for GPT, and 0x0904 for VTOC8.
+.El
+.Pp
+Another symbolic names that can be used with
+.Cm gpart
+utility are:
+.Bl -tag -width ".Cm dragonfly-disklabel64"
+.It Cm apple-apfs
+An Apple macOS partition used for the Apple file system, APFS.
+.It Cm apple-core-storage
+An Apple Mac OS X partition used by logical volume manager known as
+Core Storage.
+The scheme-specific type is
+.Qq Li "!53746f72-6167-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm apple-hfs
+An Apple Mac OS X partition that contains a HFS or HFS+ filesystem.
+The scheme-specific types are
+.Qq Li "!175"
+for MBR,
+.Qq Li "!Apple_HFS"
+for APM and
+.Qq Li "!48465300-0000-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm apple-label
+An Apple Mac OS X partition dedicated to partition metadata that descibes
+disk device.
+The scheme-specific type is
+.Qq Li "!4c616265-6c00-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm apple-raid
+An Apple Mac OS X partition used in a software RAID configuration.
+The scheme-specific type is
+.Qq Li "!52414944-0000-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm apple-raid-offline
+An Apple Mac OS X partition used in a software RAID configuration.
+The scheme-specific type is
+.Qq Li "!52414944-5f4f-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm apple-tv-recovery
+An Apple Mac OS X partition used by Apple TV.
+The scheme-specific type is
+.Qq Li "!5265636f-7665-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm apple-ufs
+An Apple Mac OS X partition that contains a UFS filesystem.
+The scheme-specific types are
+.Qq Li "!168"
+for MBR,
+.Qq Li "!Apple_UNIX_SVR2"
+for APM and
+.Qq Li "!55465300-0000-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm dragonfly-label32
+A DragonFlyBSD partition subdivided into filesystems with a
+.Bx
+disklabel.
+The scheme-specific type is
+.Qq Li "!9d087404-1ca5-11dc-8817-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-label64
+A DragonFlyBSD partition subdivided into filesystems with a
+disklabel64.
+The scheme-specific type is
+.Qq Li "!3d48ce54-1d16-11dc-8696-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-legacy
+A legacy partition type used in DragonFlyBSD.
+The scheme-specific type is
+.Qq Li "!bd215ab2-1d16-11dc-8696-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-ccd
+A DragonFlyBSD partition used with Concatenated Disk driver.
+The scheme-specific type is
+.Qq Li "!dbd5211b-1ca5-11dc-8817-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-hammer
+A DragonFlyBSD partition that contains a Hammer filesystem.
+The scheme-specific type is
+.Qq Li "!61dc63ac-6e38-11dc-8513-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-hammer2
+A DragonFlyBSD partition that contains a Hammer2 filesystem.
+The scheme-specific type is
+.Qq Li "!5cbb9ad1-862d-11dc-a94d-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-swap
+A DragonFlyBSD partition dedicated to swap space.
+The scheme-specific type is
+.Qq Li "!9d58fdbd-1ca5-11dc-8817-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-ufs
+A DragonFlyBSD partition that contains an UFS1 filesystem.
+The scheme-specific type is
+.Qq Li "!9d94ce7c-1ca5-11dc-8817-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-vinum
+A DragonFlyBSD partition used with Logical Volume Manager.
+The scheme-specific type is
+.Qq Li "!9dd4478f-1ca5-11dc-8817-01301bb8a9f5"
+for GPT.
+.It Cm ebr
+A partition subdivided into filesystems with a EBR.
+The scheme-specific type is
+.Qq Li "!5"
+for MBR.
+.It Cm fat16
+A partition that contains a FAT16 filesystem.
+The scheme-specific type is
+.Qq Li "!6"
+for MBR.
+.It Cm fat32
+A partition that contains a FAT32 filesystem.
+The scheme-specific type is
+.Qq Li "!11"
+for MBR.
+.It Cm fat32lba
+A partition that contains a FAT32 (LBA) filesystem.
+The scheme-specific type is
+.Qq Li "!12"
+for MBR.
+.It Cm linux-data
+A Linux partition that contains some filesystem with data.
+The scheme-specific types are
+.Qq Li "!131"
+for MBR and
+.Qq Li "!0fc63daf-8483-4772-8e79-3d69d8477de4"
+for GPT.
+.It Cm linux-lvm
+A Linux partition dedicated to Logical Volume Manager.
+The scheme-specific types are
+.Qq Li "!142"
+for MBR and
+.Qq Li "!e6d6d379-f507-44c2-a23c-238f2a3df928"
+for GPT.
+.It Cm linux-raid
+A Linux partition used in a software RAID configuration.
+The scheme-specific types are
+.Qq Li "!253"
+for MBR and
+.Qq Li "!a19d880f-05fc-4d3b-a006-743f0f84911e"
+for GPT.
+.It Cm linux-swap
+A Linux partition dedicated to swap space.
+The scheme-specific types are
+.Qq Li "!130"
+for MBR and
+.Qq Li "!0657fd6d-a4ab-43c4-84e5-0933c84b4f4f"
+for GPT.
+.It Cm mbr
+A partition that is sub-partitioned by a Master Boot Record (MBR).
+This type is known as
+.Qq Li "!024dee41-33e7-11d3-9d69-0008c781f39f"
+by GPT.
+.It Cm ms-basic-data
+A basic data partition (BDP) for Microsoft operating systems.
+In the GPT this type is the equivalent to partition types
+.Cm fat16 , fat32
+and
+.Cm ntfs
+in MBR.
+The scheme-specific type is
+.Qq Li "!ebd0a0a2-b9e5-4433-87c0-68b6b72699c7"
+for GPT.
+.It Cm ms-ldm-data
+A partition that contains Logical Disk Manager (LDM) volumes.
+The scheme-specific types are
+.Qq Li "!66"
+for MBR,
+.Qq Li "!af9b60a0-1431-4f62-bc68-3311714a69ad"
+for GPT.
+.It Cm ms-ldm-metadata
+A partition that contains Logical Disk Manager (LDM) database.
+The scheme-specific type is
+.Qq Li "!5808c8aa-7e8f-42e0-85d2-e1e90434cfb3"
+for GPT.
+.It Cm netbsd-ccd
+A NetBSD partition used with Concatenated Disk driver.
+The scheme-specific type is
+.Qq Li "!2db519c4-b10f-11dc-b99b-0019d1879648"
+for GPT.
+.It Cm netbsd-cgd
+An encrypted NetBSD partition.
+The scheme-specific type is
+.Qq Li "!2db519ec-b10f-11dc-b99b-0019d1879648"
+for GPT.
+.It Cm netbsd-ffs
+A NetBSD partition that contains an UFS filesystem.
+The scheme-specific type is
+.Qq Li "!49f48d5a-b10e-11dc-b99b-0019d1879648"
+for GPT.
+.It Cm netbsd-lfs
+A NetBSD partition that contains an LFS filesystem.
+The scheme-specific type is
+.Qq Li "!49f48d82-b10e-11dc-b99b-0019d1879648"
+for GPT.
+.It Cm netbsd-raid
+A NetBSD partition used in a software RAID configuration.
+The scheme-specific type is
+.Qq Li "!49f48daa-b10e-11dc-b99b-0019d1879648"
+for GPT.
+.It Cm netbsd-swap
+A NetBSD partition dedicated to swap space.
+The scheme-specific type is
+.Qq Li "!49f48d32-b10e-11dc-b99b-0019d1879648"
+for GPT.
+.It Cm ntfs
+A partition that contains a NTFS or exFAT filesystem.
+The scheme-specific type is
+.Qq Li "!7"
+for MBR.
+.It Cm prep-boot
+The system partition dedicated to storing boot loaders on some PowerPC systems,
+notably those made by IBM.
+The scheme-specific types are
+.Qq Li "!65"
+for MBR and
+.Qq Li "!0x9e1a2d38-c612-4316-aa26-8b49521e5a8b"
+for GPT.
+.It Cm vmware-vmfs
+A partition that contains a VMware File System (VMFS).
+The scheme-specific types are
+.Qq Li "!251"
+for MBR and
+.Qq Li "!aa31e02a-400f-11db-9590-000c2911d1b8"
+for GPT.
+.It Cm vmware-vmkdiag
+A partition that contains a VMware diagostic filesystem.
+The scheme-specific types are
+.Qq Li "!252"
+for MBR and
+.Qq Li "!9d275380-40ad-11db-bf97-000c2911d1b8"
+for GPT.
+.It Cm vmware-reserved
+A VMware reserved partition.
+The scheme-specific type is
+.Qq Li "!9198effc-31c0-11db-8f-78-000c2911d1b8"
+for GPT.
+.It Cm vmware-vsanhdr
+A partition claimed by VMware VSAN.
+The scheme-specific type is
+.Qq Li "!381cfccc-7288-11e0-92ee-000c2911d0b2"
+for GPT.
+.El
+.Sh ATTRIBUTES
+The scheme-specific attributes for EBR:
+.Bl -tag -width ".Cm active"
+.It Cm active
+.El
+.Pp
+The scheme-specific attributes for GPT:
+.Bl -tag -width ".Cm bootfailed"
+.It Cm bootme
+When set, the
+.Nm gptboot
+stage 1 boot loader will try to boot the system from this partition.
+Multiple partitions can be marked with the
+.Cm bootme
+attribute.
+See
+.Xr gptboot 8
+for more details.
+.It Cm bootonce
+Setting this attribute automatically sets the
+.Cm bootme
+attribute.
+When set, the
+.Nm gptboot
+stage 1 boot loader will try to boot the system from this partition only once.
+Multiple partitions can be marked with the
+.Cm bootonce
+and
+.Cm bootme
+attribute pairs.
+See
+.Xr gptboot 8
+for more details.
+.It Cm bootfailed
+This attribute should not be manually managed.
+It is managed by the
+.Nm gptboot
+stage 1 boot loader and the
+.Pa /etc/rc.d/gptboot
+start-up script.
+See
+.Xr gptboot 8
+for more details.
+.It Cm lenovofix
+Setting this attribute overwrites the Protective MBR with a new one where
+the 0xee partition is the second, rather than the first record.
+This resolves a BIOS compatibility issue with some Lenovo models including the
+X220, T420, and T520, allowing them to boot from GPT partitioned disks
+without using EFI.
+.El
+.Pp
+The scheme-specific attributes for MBR:
+.Bl -tag -width ".Cm active"
+.It Cm active
+.El
+.Sh BOOTSTRAPPING
+.Fx
+supports several partitioning schemes and each scheme uses different
+bootstrap code.
+The bootstrap code is located in a specific disk area for each partitioning
+scheme, and may vary in size for different schemes.
+.Pp
+Bootstrap code can be separated into two types.
+The first type is embedded in the partitioning scheme's metadata, while the
+second type is located on a specific partition.
+Embedding bootstrap code should only be done with the
+.Cm gpart bootcode
+command with the
+.Fl b Ar bootcode
+option.
+The GEOM PART class knows how to safely embed bootstrap code into
+specific partitioning scheme metadata without causing any damage.
+.Pp
+The Master Boot Record (MBR) uses a 512-byte bootstrap code image, embedded
+into the partition table's metadata area.
+There are two variants of this bootstrap code:
+.Pa /boot/mbr
+and
+.Pa /boot/boot0 .
+.Pa /boot/mbr
+searches for a partition with the
+.Cm active
+attribute (see the
+.Sx ATTRIBUTES
+section) in the partition table.
+Then it runs next bootstrap stage.
+The
+.Pa /boot/boot0
+image contains a boot manager with some additional interactive functions
+for multi-booting from a user-selected partition.
+.Pp
+A BSD disklabel is usually created inside an MBR partition (slice)
+with type
+.Cm freebsd
+(see the
+.Sx "PARTITION TYPES"
+section).
+It uses 8 KB size bootstrap code image
+.Pa /boot/boot ,
+embedded into the partition table's metadata area.
+.Pp
+Both types of bootstrap code are used to boot from the GUID Partition Table.
+First, a protective MBR is embedded into the first disk sector from the
+.Pa /boot/pmbr
+image.
+It searches through the GPT for a
+.Cm freebsd-boot
+partition (see the
+.Sx "PARTITION TYPES"
+section) and runs the next bootstrap stage from it.
+The
+.Cm freebsd-boot
+partition should be smaller than 545 KB.
+It can be located either before or after other
+.Fx
+partitions on the disk.
+There are two variants of bootstrap code to write to this partition:
+.Pa /boot/gptboot
+and
+.Pa /boot/gptzfsboot .
+.Pp
+.Pa /boot/gptboot
+is used to boot from UFS partitions.
+.Cm gptboot
+searches through
+.Cm freebsd-ufs
+partitions in the GPT and selects one to boot based on the
+.Cm bootonce
+and
+.Cm bootme
+attributes.
+If neither attribute is found,
+.Pa /boot/gptboot
+boots from the first
+.Cm freebsd-ufs
+partition.
+.Pa /boot/loader
+.Pq the third bootstrap stage
+is loaded from the first partition that matches these conditions.
+See
+.Xr gptboot 8
+for more information.
+.Pp
+.Pa /boot/gptzfsboot
+is used to boot from ZFS.
+It searches through the GPT for
+.Cm freebsd-zfs
+partitions, trying to detect ZFS pools.
+After all pools are detected,
+.Pa /boot/loader
+is started from the first one found set as bootable.
+.Pp
+The VTOC8 scheme does not support embedding bootstrap code.
+Instead, the 8 KBytes bootstrap code image
+.Pa /boot/boot1
+should be written with the
+.Cm gpart bootcode
+command with the
+.Fl p Ar bootcode
+option to all sufficiently large VTOC8 partitions.
+To do this the
+.Fl i Ar index
+option could be omitted.
+.Pp
+The APM scheme also does not support embedding bootstrap code.
+Instead, the 800 KBytes bootstrap code image
+.Pa /boot/boot1.hfs
+should be written with the
+.Cm gpart bootcode
+command to a partition of type
+.Cm apple-boot ,
+which should also be 800 KB in size.
+.Sh OPERATIONAL FLAGS
+Actions other than the
+.Cm commit
+and
+.Cm undo
+actions take an optional
+.Fl f Ar flags
+option.
+This option is used to specify action-specific operational flags.
+By default, the
+.Nm
+utility defines the
+.Ql C
+flag so that the action is immediately
+committed.
+The user can specify
+.Dq Fl f Cm x
+to have the action result in a pending change that can later, with
+other pending changes, be committed as a single compound change with
+the
+.Cm commit
+action or reverted with the
+.Cm undo
+action.
+.Sh RECOVERING
+The GEOM PART class supports recovering of partition tables only for GPT.
+The GPT primary metadata is stored at the beginning of the device.
+For redundancy, a secondary
+.Pq backup
+copy of the metadata is stored at the end of the device.
+As a result of having two copies, some corruption of metadata is not
+fatal to the working of GPT.
+When the kernel detects corrupt metadata, it marks this table as corrupt
+and reports the problem.
+.Cm destroy
+and
+.Cm recover
+are the only operations allowed on corrupt tables.
+.Pp
+If one GPT header appears to be corrupt but the other copy remains intact,
+the kernel will log the following:
+.Bd -literal -offset indent
+GEOM: provider: the primary GPT table is corrupt or invalid.
+GEOM: provider: using the secondary instead -- recovery strongly advised.
+.Ed
+.Pp
+or
+.Bd -literal -offset indent
+GEOM: provider: the secondary GPT table is corrupt or invalid.
+GEOM: provider: using the primary only -- recovery suggested.
+.Ed
+.Pp
+Also
+.Nm
+commands such as
+.Cm show , status
+and
+.Cm list
+will report about corrupt tables.
+.Pp
+If the size of the device has changed (e.g.,\& volume expansion) the
+secondary GPT header will no longer be located in the last sector.
+This is not a metadata corruption, but it is dangerous because any
+corruption of the primary GPT will lead to loss of the partition table.
+This problem is reported by the kernel with the message:
+.Bd -literal -offset indent
+GEOM: provider: the secondary GPT header is not in the last LBA.
+.Ed
+.Pp
+This situation can be recovered with the
+.Cm recover
+command.
+This command reconstructs the corrupt metadata using known valid
+metadata and relocates the secondary GPT to the end of the device.
+.Pp
+.Em NOTE :
+The GEOM PART class can detect the same partition table visible through
+different GEOM providers, and some of them will be marked as corrupt.
+Be careful when choosing a provider for recovery.
+If you choose incorrectly you can destroy the metadata of another GEOM class,
+e.g.,\& GEOM MIRROR or GEOM LABEL.
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to control the behavior of the
+.Nm PART
+GEOM class.
+The default value is shown next to each variable.
+.Bl -tag -width indent
+.It Va kern.geom.part.auto_resize: No 1
+This variable controls automatic resize behavior of
+.Nm
+GEOM class.
+When this variable is enable and new size of provider is detected, the schema
+metadata is resized but all changes are not saved to disk, until
+.Cm gpart commit
+is run to confirm changes.
+This behavior is also reported with diagnostic message:
+.Sy "GEOM_PART: (provider) was automatically resized."
+.Sy "Use `gpart commit (provider)` to save changes or `gpart undo (provider)`"
+.Sy "to revert them."
+.It Va kern.geom.part.check_integrity : No 1
+This variable controls the behaviour of metadata integrity checks.
+When integrity checks are enabled, the
+.Nm PART
+GEOM class verifies all generic partition parameters obtained from the
+disk metadata.
+If some inconsistency is detected, the partition table will be
+rejected with a diagnostic message:
+.Sy "GEOM_PART: Integrity check failed (provider, scheme)" .
+.It Va kern.geom.part.ldm.debug : No 0
+Debug level of the Logical Disk Manager (LDM) module.
+This can be set to a number between 0 and 2 inclusive.
+If set to 0 minimal debug information is printed,
+and if set to 2 the maximum amount of debug information is printed.
+.It Va kern.geom.part.ldm.show_mirrors : No 0
+This variable controls how the Logical Disk Manager (LDM) module handles
+mirrored volumes.
+By default mirrored volumes are shown as partitions with type
+.Cm ms-ldm-data
+(see the
+.Sx "PARTITION TYPES"
+section).
+If this variable set to 1 each component of the mirrored volume will be
+present as independent partition.
+.Em NOTE :
+This may break a mirrored volume and lead to data damage.
+.It Va kern.geom.part.mbr.enforce_chs : No 0
+Specify how the Master Boot Record (MBR) module does alignment.
+If this variable is set to a non-zero value, the module will automatically
+recalculate the user-specified offset and size for alignment with the CHS
+geometry.
+Otherwise the values will be left unchanged.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
+.Sh EXAMPLES
+The examples below assume that the disk's logical block size is 512
+bytes, regardless of its physical block size.
+.Ss GPT
+In this example, we will format
+.Pa ada0
+with the GPT scheme and create boot, swap and root partitions.
+First, we need to create the partition table:
+.Bd -literal -offset indent
+/sbin/gpart create -s GPT ada0
+.Ed
+.Pp
+Next, we install a protective MBR with the first-stage bootstrap code.
+The protective MBR lists a single, bootable partition spanning the
+entire disk, thus allowing non-GPT-aware BIOSes to boot from the disk
+and preventing tools which do not understand the GPT scheme from
+considering the disk to be unformatted.
+.Bd -literal -offset indent
+/sbin/gpart bootcode -b /boot/pmbr ada0
+.Ed
+.Pp
+We then create a dedicated
+.Cm freebsd-boot
+partition to hold the second-stage boot loader, which will load the
+.Fx
+kernel and modules from a UFS or ZFS filesystem.
+This partition must be larger than the bootstrap code
+.Po
+either
+.Pa /boot/gptboot
+for UFS or
+.Pa /boot/gptzfsboot
+for ZFS
+.Pc ,
+but smaller than 545 kB since the first-stage loader will load the
+entire partition into memory during boot, regardless of how much data
+it actually contains.
+We create a 472-block (236 kB) boot partition at offset 40, which is
+the size of the partition table (34 blocks or 17 kB) rounded up to the
+nearest 4 kB boundary.
+.Bd -literal -offset indent
+/sbin/gpart add -b 40 -s 472 -t freebsd-boot ada0
+/sbin/gpart bootcode -p /boot/gptboot -i 1 ada0
+.Ed
+.Pp
+We now create a 4 GB swap partition at the first available offset,
+which is 40 + 472 = 512 blocks (256 kB).
+.Bd -literal -offset indent
+/sbin/gpart add -s 4G -t freebsd-swap ada0
+.Ed
+.Pp
+Aligning the swap partition and all subsequent partitions on a 256 kB
+boundary ensures optimal performance on a wide range of media, from
+plain old disks with 512-byte blocks, through modern
+.Dq advanced format
+disks with 4096-byte physical blocks, to RAID volumes with stripe
+sizes of up to 256 kB.
+.Pp
+Finally, we create and format an 8 GB
+.Cm freebsd-ufs
+partition for the root filesystem, leaving the rest of the slice free
+for additional filesystems:
+.Bd -literal -offset indent
+/sbin/gpart add -s 8G -t freebsd-ufs ada0
+/sbin/newfs -Uj /dev/ada0p3
+.Ed
+.Ss MBR
+In this example, we will format
+.Pa ada0
+with the MBR scheme and create a single partition which we subdivide
+using a traditional
+.Bx
+disklabel.
+.Pp
+First, we create the partition table and a single 64 GB partition,
+then we mark that partition active (bootable) and install the
+first-stage boot loader:
+.Bd -literal -offset indent
+/sbin/gpart create -s MBR ada0
+/sbin/gpart add -t freebsd -s 64G ada0
+/sbin/gpart set -a active -i 1 ada0
+/sbin/gpart bootcode -b /boot/boot0 ada0
+.Ed
+.Pp
+Next, we create a disklabel in that partition
+.Po
+.Dq slice
+in disklabel terminology
+.Pc
+with room for up to 20 partitions:
+.Bd -literal -offset indent
+/sbin/gpart create -s BSD -n 20 ada0s1
+.Ed
+.Pp
+We then create an 8 GB root partition and a 4 GB swap partition:
+.Bd -literal -offset indent
+/sbin/gpart add -t freebsd-ufs -s 8G ada0s1
+/sbin/gpart add -t freebsd-swap -s 4G ada0s1
+.Ed
+.Pp
+Finally, we install the appropriate boot loader for the
+.Bx
+label:
+.Bd -literal -offset indent
+/sbin/gpart bootcode -b /boot/boot ada0s1
+.Ed
+.Ss VTOC8
+.Pp
+Create a VTOC8 scheme on
+.Pa da0 :
+.Bd -literal -offset indent
+/sbin/gpart create -s VTOC8 da0
+.Ed
+.Pp
+Create a 512MB-sized
+.Cm freebsd-ufs
+partition to contain a UFS filesystem from which the system can boot.
+.Bd -literal -offset indent
+/sbin/gpart add -s 512M -t freebsd-ufs da0
+.Ed
+.Pp
+Create a 15GB-sized
+.Cm freebsd-ufs
+partition to contain a UFS filesystem and aligned on 4KB boundaries:
+.Bd -literal -offset indent
+/sbin/gpart add -s 15G -t freebsd-ufs -a 4k da0
+.Ed
+.Pp
+After creating all required partitions, embed bootstrap code into them:
+.Bd -literal -offset indent
+/sbin/gpart bootcode -p /boot/boot1 da0
+.Ed
+.Ss Deleting Partitions and Destroying the Partitioning Scheme
+If a
+.Em "Device busy"
+error is shown when trying to destroy a partition table, remember that
+all of the partitions must be deleted first with the
+.Cm delete
+action.
+In this example,
+.Pa da0
+has three partitions:
+.Bd -literal -offset indent
+/sbin/gpart delete -i 3 da0
+/sbin/gpart delete -i 2 da0
+/sbin/gpart delete -i 1 da0
+/sbin/gpart destroy da0
+.Ed
+.Pp
+Rather than deleting each partition and then destroying the partitioning
+scheme, the
+.Fl F
+option can be given with
+.Cm destroy
+to delete all of the partitions before destroying the partitioning scheme.
+This is equivalent to the previous example:
+.Bd -literal -offset indent
+/sbin/gpart destroy -F da0
+.Ed
+.Ss Backup and Restore
+.Pp
+Create a backup of the partition table from
+.Pa da0 :
+.Bd -literal -offset indent
+/sbin/gpart backup da0 > da0.backup
+.Ed
+.Pp
+Restore the partition table from the backup to
+.Pa da0 :
+.Bd -literal -offset indent
+/sbin/gpart restore -l da0 < /mnt/da0.backup
+.Ed
+.Pp
+Clone the partition table from
+.Pa ada0
+to
+.Pa ada1
+and
+.Pa ada2 :
+.Bd -literal -offset indent
+/sbin/gpart backup ada0 | /sbin/gpart restore -F ada1 ada2
+.Ed
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr boot0cfg 8 ,
+.Xr geom 8 ,
+.Xr gptboot 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An Marcel Moolenaar Aq Mt marcel@FreeBSD.org

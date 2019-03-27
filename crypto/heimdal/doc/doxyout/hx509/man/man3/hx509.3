@@ -1,0 +1,45 @@
+.TH "hx509 library" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hx509 library \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "int \fBhx509_context_init\fP (hx509_context *context)"
+.br
+.ti -1c
+.RI "void \fBhx509_context_free\fP (hx509_context *context)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "void hx509_context_free (hx509_context * context)"
+.PP
+Free the context allocated by \fBhx509_context_init()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP context to be freed. 
+.RE
+.PP
+
+.SS "int hx509_context_init (hx509_context * context)"
+.PP
+Creates a hx509 context that most functions in the library uses. The context is only allowed to be used by one thread at each moment. Free the context with \fBhx509_context_free()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Returns a pointer to new hx509 context.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. 
+.RE
+.PP
+

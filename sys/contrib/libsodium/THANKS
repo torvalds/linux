@@ -1,0 +1,91 @@
+Special thanks to people, companies and organizations having written
+libsodium bindings for their favorite programming languages:
+
+@alethia7
+@artemisc
+@carblue
+@dnaq
+@ektrah
+@graxrabble
+@harleqin
+@joshjdevl
+@jrmarino
+@jshahbazi
+@lvh
+@neheb
+
+Adam Caudill (@adamcaudill)
+Alexander Morris (@alexpmorris)
+Amit Murthy (@amitmurthy)
+Andrew Bennett (@potatosalad)
+Andrew Lambert (@charonn0)
+Bruce Mitchener (@waywardmonkeys)
+Bruno Oliveira (@abstractj)
+Caolan McMahon (@caolan)
+Chris Rebert (@cvrebert)
+Christian Hermann (@bitbeans)
+Christian Wiese (@morfoh)
+Christian Wiese (@morfoh)
+Colm MacCárthaigh (@colmmacc)
+David Parrish (@dmp1ce)
+Donald Stufft (@dstufft)
+Douglas Campos (@qmx)
+Drew Crawford (@drewcrawford)
+Emil Bay (@emilbayes)
+Eric Dong (@quantum1423)
+Eric Voskuil (@evoskuil)
+Farid Hajji (@fhajji)
+Frank Siebenlist (@franks42)
+Gabriel Handford (@gabriel)
+Geo Carncross (@geocar)
+Henrik Gassmann (BurningEnlightenment)
+Jachym Holecek (@freza)
+Jack Wink (@jackwink)
+James Ruan (@jamesruan)
+Jan de Muijnck-Hughes (@jfdm)
+Jason McCampbell (@jasonmccampbell)
+Jeroen Habraken (@VeXocide)
+Jeroen Ooms (@jeroen)
+Jesper Louis Andersen (@jlouis)
+Joe Eli McIlvain (@jemc)
+Jonathan Stowe (@jonathanstowe)
+Joseph Abrahamson (@tel)
+Julien Kauffmann (@ereOn)
+Kenneth Ballenegger (@kballenegger)
+Loic Maury (@loicmaury)
+Michael Gorlick (@mgorlick)
+Michael Gregorowicz (@mgregoro)
+Michał Zieliński (@zielmicha)
+Omar Ayub (@electricFeel)
+Pedro Paixao (@paixaop)
+Project ArteMisc (@artemisc)
+Rich FitzJohn (@richfitz)
+Ruben De Visscher (@rubendv)
+Rudolf Von Krugstein (@rudolfvonkrugstein)
+Samuel Neves (@sneves)
+Scott Arciszewski (@paragonie-scott)
+Stanislav Ovsiannikov (@naphaso)
+Stefan Marsiske (@stef)
+Stephan Touset (@stouset)
+Stephen Chavez (@redragonx)
+Steve Gibson (@sggrc)
+Tony Arcieri (@bascule)
+Tony Garnock-Jones (@tonyg)
+Y. T. Chung (@zonyitoo)
+
+Bytecurry Software
+Cryptotronix
+Facebook
+FSF France
+MaidSafe
+Paragonie Initiative Enterprises
+Python Cryptographic Authority
+
+(this list may not be complete, if you don't see your name, please
+submit a pull request!)
+
+Also thanks to:
+
+- Coverity, Inc. to provide static analysis.
+- FSF France for providing access to their compilation servers.
+- Private Internet Access for having sponsored a complete security audit.

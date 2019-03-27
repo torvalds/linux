@@ -1,0 +1,53 @@
+@c $Id$
+
+@node Migration, Acknowledgments, Programming with Kerberos, Top
+@chapter Migration
+
+@section Migration from MIT Kerberos to Heimdal
+
+hpropd can read MIT Kerberos dump, the format is the same as used in
+mit-kerberos 1.0b7, and to dump that format use the following command:
+@samp{kdb5_util dump -b7}.
+
+To load the MIT Kerberos dump file, use the following command:
+
+@samp{/usr/heimdal/libexec/hprop --database=dump-file --master-key=/var/db/krb5kdc/mit_stash --source=mit-dump --decrypt --stdout | /usr/heimdal/libexec/hpropd --stdin}
+
+@section General issues
+
+When migrating from a Kerberos 4 KDC.
+
+@section Order in what to do things:
+
+@itemize @bullet
+
+@item Convert the database, check all principals that hprop complains
+about.
+
+@samp{hprop -n --source=<NNN>| hpropd -n}
+
+Replace <NNN> with whatever source you have, like krb4-db or krb4-dump.
+
+@item Run a Kerberos 5 slave for a while.
+
+@c XXX Add you slave first to your kdc list in you kdc.
+
+@item Figure out if it does everything you want it to.
+
+Make sure that all things that you use works for you.
+
+@item Let a small number of controlled users use Kerberos 5 tools.
+
+Find a sample population of your users and check what programs they use,
+you can also check the kdc-log to check what ticket are checked out.
+
+@item Burn the bridge and change the master.
+@item Let all users use the Kerberos 5 tools by default.
+@item Turn off services that do not need Kerberos 4 authentication.
+
+Things that might be hard to get away is old programs with support for
+Kerberos 4. Example applications are old Eudora installations using
+KPOP, and Zephyr. Eudora can use the Kerberos 4 kerberos in the Heimdal
+kdc.
+
+@end itemize

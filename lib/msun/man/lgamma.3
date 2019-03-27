@@ -1,0 +1,217 @@
+.\" Copyright (c) 1985, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)lgamma.3	6.6 (Berkeley) 12/3/92
+.\" $FreeBSD$
+.\"
+.Dd December 8, 2017
+.Dt LGAMMA 3
+.Os
+.Sh NAME
+.Nm lgamma ,
+.Nm lgamma_r ,
+.Nm lgammaf ,
+.Nm lgammaf_r ,
+.Nm lgammal ,
+.Nm lgammal_r ,
+.Nm gamma ,
+.Nm gamma_r ,
+.Nm gammaf ,
+.Nm gammaf_r ,
+.Nm tgamma ,
+.Nm tgammaf ,
+.Nm tgammal ,
+.Nd log gamma functions, gamma function
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft extern int
+.Fa signgam ;
+.sp
+.Ft double
+.Fn lgamma "double x"
+.Ft double
+.Fn lgamma_r "double x" "int *signgamp"
+.Ft float
+.Fn lgammaf "float x"
+.Ft float
+.Fn lgammaf_r "float x" "int *signgamp"
+.Ft "long double"
+.Fn lgammal "long double x"
+.Ft "long double"
+.Fn lgammal_r "long double x" "int *signgamp"
+.Ft double
+.Fn gamma "double x"
+.Ft double
+.Fn gamma_r "double x" "int *signgamp"
+.Ft float
+.Fn gammaf "float x"
+.Ft float
+.Fn gammaf_r "float x" "int *signgamp"
+.Ft "long double"
+.Fn tgamma "double x"
+.Ft float
+.Fn tgammaf "float x"
+.Ft "long double"
+.Fn tgammal "long double x"
+.Sh DESCRIPTION
+.Fn lgamma x ,
+.Fn lgammaf x ,
+and
+.Fn lgammal x
+.if t \{\
+return ln\||\(*G(x)| where
+.Bd -unfilled -offset indent
+\(*G(x) = \(is\d\s8\z0\s10\u\u\s8\(if\s10\d t\u\s8x\-1\s10\d e\u\s8\-t\s10\d dt	for x > 0 and
+\(*G(x) = \(*p/(\(*G(1\-x)\|sin(\(*px))	for x < 1.
+.Ed
+.\}
+.if n \
+return ln\||\(*G(x)|.
+The external integer
+.Fa signgam
+returns the sign of \(*G(x).
+.Pp
+.Fn lgamma_r x signgamp ,
+.Fn lgammaf_r x signgamp ,
+and
+.Fn lgammal_r x signgamp
+provide the same functionality as
+.Fn lgamma x ,
+.Fn lgammaf x ,
+and
+.Fn lgammal x ,
+but the caller must provide an integer to store the sign of \(*G(x).
+.Pp
+The
+.Fn tgamma x ,
+.Fn tgammaf x ,
+and
+.Fn tgammal x
+functions return \(*G(x), with no effect on
+.Fa signgam .
+.Pp
+.Fn gamma ,
+.Fn gammaf ,
+.Fn gamma_r ,
+and
+.Fn gammaf_r
+are deprecated aliases for
+.Fn lgamma ,
+.Fn lgammaf ,
+.Fn lgamma_r ,
+and
+.Fn lgammaf_r ,
+respectively.
+.Sh IDIOSYNCRASIES
+Do not use the expression
+.Dq Li signgam\(**exp(lgamma(x))
+to compute g := \(*G(x).
+Instead use a program like this (in C):
+.Bd -literal -offset indent
+lg = lgamma(x); g = signgam\(**exp(lg);
+.Ed
+.Pp
+Only after
+.Fn lgamma
+or
+.Fn lgammaf
+has returned can signgam be correct.
+.Pp
+For arguments in its range,
+.Fn tgamma
+is preferred, as for positive arguments
+it is accurate to within one unit in the last place.
+Exponentiation of
+.Fn lgamma
+will lose up to 10 significant bits.
+.Sh RETURN VALUES
+.Fn gamma ,
+.Fn gammaf ,
+.Fn gammal ,
+.Fn gamma_r ,
+.Fn gammaf_r ,
+.Fn gammal_r ,
+.Fn lgamma ,
+.Fn lgammaf ,
+.Fn lgammal ,
+.Fn lgamma_r ,
+.Fn lgammaf_r ,
+and
+.Fn lgammal_r
+return appropriate values unless an argument is out of range.
+Overflow will occur for sufficiently large positive values, and
+non-positive integers.
+For large non-integer negative values,
+.Fn tgamma
+will underflow.
+.Sh BUGS
+To conform with newer C/C++ standards, a stub implementation for
+.Nm tgammal
+was committed to the math library, where
+.Nm tgammal
+is mapped to
+.Nm tgamma .
+Thus, the numerical accuracy is at most that of the 53-bit double
+precision implementation.
+.Sh SEE ALSO
+.Xr math 3
+.Sh STANDARDS
+The
+.Fn lgamma ,
+.Fn lgammaf ,
+.Fn lgammal ,
+.Fn tgamma ,
+.Fn tgammaf ,
+and
+.Fn tgammal
+functions are expected to conform to
+.St -isoC-99 .
+.Sh HISTORY
+The
+.Fn lgamma
+function appeared in
+.Bx 4.3 .
+The
+.Fn gamma
+function appeared in
+.Bx 4.4
+as a function which computed \(*G(x).
+This version was used in
+.Fx 1.1 .
+The name
+.Fn gamma
+was originally dedicated to the
+.Fn lgamma
+function,
+and that usage was restored by switching to Sun's fdlibm in
+.Fx 1.1.5 .
+The
+.Fn tgamma
+function appeared in
+.Fx 5.0 .

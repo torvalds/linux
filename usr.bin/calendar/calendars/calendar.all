@@ -1,0 +1,24 @@
+/*
+ * International and national calendar files
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _calendar_all_
+#define _calendar_all_
+
+#include <calendar.world>
+#include <calendar.australia>
+#include <calendar.brazilian>
+#include <calendar.croatian>
+#include <calendar.dutch>
+#include <calendar.french>
+#include <calendar.german>
+#include <calendar.hungarian>
+#include <calendar.newzealand>
+#include <calendar.russian>
+#include <calendar.southafrica>
+#include <calendar.ukrainian>
+#include <calendar.usholiday>
+
+#endif /* !_calendar_all_ */

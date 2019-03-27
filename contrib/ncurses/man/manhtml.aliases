@@ -1,0 +1,16 @@
+# $Id: manhtml.aliases,v 1.1 2013/12/21 21:44:52 tom Exp $
+# Items in this list will be linked to the corresponding manpages by man2html
+addch(3X)		curs_addch(3X)
+delscreen(3X)		curs_initscr(3X)
+filter(3X)		curs_util(3X)
+form_fieldtype(3X)	form_fieldtype(3X)
+getch(3X)		curs_getch(3X)
+infocmp(1)		infocmp(1M)
+initscr(3X)		curs_initscr(3X)
+newterm(3X)		curs_initscr(3X)
+set_fieldtype(3X)	form_fieldtype(3X)
+set_term(3X)		curs_initscr(3X)
+setupterm(3X)		curs_terminfo(3X)
+tic(1)			tic(1M)
+use_env(3X)		curs_util(3X)
+vidputs(3X)		curs_terminfo(3X)

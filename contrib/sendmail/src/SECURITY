@@ -1,0 +1,203 @@
+# Copyright (c) 2000-2002 Proofpoint, Inc. and its suppliers.
+#	All rights reserved.
+#
+# By using this file, you agree to the terms and conditions set
+# forth in the LICENSE file which can be found at the top level of
+# the sendmail distribution.
+#
+#	$Id: SECURITY,v 1.52 2013-11-22 20:51:54 ca Exp $
+#
+
+This file gives some hints how to configure and run sendmail for
+people who are very security conscious (you should be...).
+
+Even though sendmail goes through great lengths to assure that it
+can't be compromised even if the system it is running on is
+incorrectly or insecurely configured, it can't work around everything.
+This has been demonstrated by recent OS problems which have
+subsequently been used to compromise the root account using sendmail
+as a vector.  One way to minimize the possibility of such problems
+is to install sendmail without set-user-ID root, which avoids local
+exploits.  This configuration, which is the default starting with
+8.12, is described in the first section of this security guide.
+
+
+*****************************************************
+** sendmail configuration without set-user-ID root **
+*****************************************************
+
+sendmail needs to run as root for several purposes:
+
+- bind to port 25
+- call the local delivery agent (LDA) as root (or other user) if the LDA
+  isn't set-user-ID root (unless some other method of storing e-mail in
+  local mailboxes is used).
+- read .forward files
+- write e-mail submitted via the command line to the queue directory.
+
+Only the last item requires a set-user-ID/set-group-ID program to
+avoid problems with a world-writable directory.  It is however
+sufficient to have a set-group-ID program and a group-writable
+queue directory.  The other requirements listed above can be
+fulfilled by a sendmail daemon that is started by root.  Hence this
+section explains how to use two sendmail configurations to accomplish
+the goal to have a sendmail binary that is not set-user-ID root,
+and hence is not open to system configuration/OS problems or at
+least less problematic in presence of those.
+
+The default configuration starting with sendmail 8.12 uses one
+sendmail binary which acts differently based on operation mode and
+supplied options.
+
+sendmail must be a set-group-ID (default group: smmsp, recommended
+gid: 25) program to allow for queueing mail in a group-writable
+directory.  Two .cf files are required:  sendmail.cf for the daemon
+and submit.cf for the submission program.  The following permissions
+should be used:
+
+-r-xr-sr-x	root   smmsp	... /PATH/TO/sendmail
+drwxrwx---	smmsp  smmsp	... /var/spool/clientmqueue
+drwx------	root   wheel	... /var/spool/mqueue
+-r--r--r--	root   wheel	... /etc/mail/sendmail.cf
+-r--r--r--	root   wheel	... /etc/mail/submit.cf
+
+[Notice: On some OS "wheel" is not used but "bin" or "root" instead,
+however, this is not important here.]
+
+That is, the owner of sendmail is root, the group is smmsp, and
+the binary is set-group-ID.  The client mail queue is owned by
+smmsp with group smmsp and is group writable.  The client mail
+queue directory must be writable by smmsp, but it must not be
+accessible for others. That is, do not use world read or execute
+permissions.  In submit.cf the option UseMSP must be set, and
+QueueFileMode must be set to 0660.  submit.cf is available in
+cf/cf/, which has been built from cf/cf/submit.mc.  The file can
+be used as-is, if you want to add more options, use cf/cf/submit.mc
+as starting point and read cf/README:  MESSAGE SUBMISSION PROGRAM
+carefully.
+
+The .cf file is chosen based on the operation mode.  For -bm (default),
+-bs, and -t it is submit.cf (if it exists) for all others it is
+sendmail.cf.  This selection can be changed by -Ac or -Am (alternative
+.cf file: client or mta).
+
+The daemon must be started by root as usual, e.g.,
+
+/PATH/TO/sendmail -L sm-mta -bd -q1h
+
+(replace /PATH/TO with the right path for your OS, e.g.,
+/usr/sbin or /usr/lib).
+
+Notice: if you run sendmail from inetd (which in general is not a
+good idea), you must specify -Am in addition to -bs.
+
+Mail will end up in the client queue if the daemon doesn't accept
+connections or if an address is temporarily not resolvable.  The
+latter problem can be minimized by using
+
+	FEATURE(`nocanonify', `canonify_hosts')
+	define(`confDIRECT_SUBMISSION_MODIFIERS', `C')
+
+which, however, may have undesired side effects.  See cf/README for
+a discussion.  In general it is necessary to clean the queue either
+via a cronjob or by running a daemon, e.g.,
+
+/PATH/TO/sendmail -L sm-msp-queue -Ac -q30m
+
+If the option UseMSP is not set, sendmail will complain during
+queue runs about bogus file permission.  If you want a queue runner
+for the client queue, you probably have to change OS specific
+scripts to accomplish this (check the man pages of your OS for more
+information.)  You can start this program as root, it will change
+its user id to RunAsUser (smmsp by default, recommended uid: 25).
+This way smmsp does not need a valid shell.
+
+Summary
+-------
+
+This is a brief summary how the two configuration files are used:
+
+sendmail.cf	For the MTA (mail transmission agent)
+	The MTA is started by root as daemon:
+
+		/PATH/TO/sendmail -L sm-mta -bd -q1h
+
+	it accepts SMTP connections (on ports 25 and 587 by default);
+	it runs the main queue (/var/spool/mqueue by default).
+
+submit.cf	For the MSP (mail submission program)
+	The MSP is used to submit e-mails, hence it is invoked
+	by programs (and maybe users); it does not run as SMTP
+	daemon; it uses /var/spool/clientmqueue by default; it
+	can be started to run that queue periodically:
+
+		/PATH/TO/sendmail -L sm-msp-queue -Ac -q30m
+
+
+Hints and Troubleshooting
+-------------------------
+
+RunAsUser: FEATURE(`msp') sets the option RunAsUser to smmsp.
+This user must have the group smmsp, i.e., the same group as the
+clientmqueue directory.  If you specify a user whose primary group
+is not the same as that of the clientmqueue directory, then you
+should explicitly set the group, e.g.,
+
+	FEATURE(`msp')
+	define(`confRUN_AS_USER', `mailmsp:smmsp')
+
+STARTTLS: If sendmail is compiled with STARTTLS support on a platform
+that does not have HASURANDOMDEV defined, you either need to specify
+the RandFile option (as for the MTA), or you have to turn off
+STARTTLS in the MSP, e.g.,
+
+	DAEMON_OPTIONS(`Name=NoMTA, Addr=127.0.0.1, M=S')
+	FEATURE(`msp')
+	CLIENT_OPTIONS(`Family=inet, Address=0.0.0.0, M=S')
+
+The first option is used to turn off STARTTLS when the MSP is
+invoked with -bs as some MUAs do.
+
+
+What doesn't work anymore
+-------------------------
+
+Normal users can't use mailq anymore to see the MTA mail queue.
+There are several ways around it, e.g., changing QueueFileMode
+or giving users access via a program like sudo.
+
+sendmail -bv may give misleading output for normal users since it
+may not be able to access certain files, e.g., .forward files of
+other users.
+
+
+Alternative
+-----------
+
+Instead of having one set-group-ID binary, it is possible to use
+two with different permissions: one for message submission
+(set-group-ID), one acting as daemon etc, which is only executable
+by root.  In that case it is possible to remove features from
+the message submission program to have a smaller binary.
+You can use
+
+	sh ./Build install-sm-mta
+
+to install a sendmail program to act as daemon etc under the name
+sm-mta.
+
+Set-User-Id
+-----------
+
+If you really have to install sendmail set-user-ID root, first build
+the sendmail package normally using
+
+	sh ./Build
+
+Then you can use
+
+	sh ./Build install-set-user-id
+
+to install the package in the old (pre-8.12) way.  Make sure that
+no submit.cf file is installed.  See devtools/README about
+confSETUSERID_INSTALL which you need to define.

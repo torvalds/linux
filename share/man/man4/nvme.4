@@ -1,0 +1,189 @@
+.\"
+.\" Copyright (c) 2012-2016 Intel Corporation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    substantially similar to the "NO WARRANTY" disclaimer below
+.\"    ("Disclaimer") and any redistribution must be conditioned upon
+.\"    including a substantially similar Disclaimer requirement for further
+.\"    binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" nvme driver man page.
+.\"
+.\" Author: Jim Harris <jimharris@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 7, 2018
+.Dt NVME 4
+.Os
+.Sh NAME
+.Nm nvme
+.Nd NVM Express core driver
+.Sh SYNOPSIS
+To compile this driver into your kernel,
+place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device nvme"
+.Ed
+.Pp
+Or, to load the driver as a module at boot, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+nvme_load="YES"
+.Ed
+.Pp
+Most users will also want to enable
+.Xr nvd 4
+to expose NVM Express namespaces as disk devices which can be
+partitioned.
+Note that in NVM Express terms, a namespace is roughly equivalent to a
+SCSI LUN.
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for NVM Express (NVMe) controllers, such as:
+.Bl -bullet
+.It
+Hardware initialization
+.It
+Per-CPU IO queue pairs
+.It
+API for registering NVMe namespace consumers such as
+.Xr nvd 4
+or
+.Xr nda 4
+.It
+API for submitting NVM commands to namespaces
+.It
+Ioctls for controller and namespace configuration and management
+.El
+.Pp
+The
+.Nm
+driver creates controller device nodes in the format
+.Pa /dev/nvmeX
+and namespace device nodes in
+the format
+.Pa /dev/nvmeXnsY .
+Note that the NVM Express specification starts numbering namespaces at 1,
+not 0, and this driver follows that convention.
+.Sh CONFIGURATION
+By default,
+.Nm
+will create an I/O queue pair for each CPU, provided enough MSI-X vectors
+and NVMe queue pairs can be allocated.
+If not enough vectors or queue
+pairs are available, nvme(4) will use a smaller number of queue pairs and
+assign multiple CPUs per queue pair.
+.Pp
+To force a single I/O queue pair shared by all CPUs, set the following
+tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.nvme.per_cpu_io_queues=0
+.Ed
+.Pp
+To assign more than one CPU per I/O queue pair, thereby reducing the number
+of MSI-X vectors consumed by the device, set the following tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.nvme.min_cpus_per_ioq=X
+.Ed
+.Pp
+To force legacy interrupts for all
+.Nm
+driver instances, set the following tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.nvme.force_intx=1
+.Ed
+.Pp
+Note that use of INTx implies disabling of per-CPU I/O queue pairs.
+.Sh SYSCTL VARIABLES
+The following controller-level sysctls are currently implemented:
+.Bl -tag -width indent
+.It Va dev.nvme.0.num_cpus_per_ioq
+(R) Number of CPUs associated with each I/O queue pair.
+.It Va dev.nvme.0.int_coal_time
+(R/W) Interrupt coalescing timer period in microseconds.
+Set to 0 to disable.
+.It Va dev.nvme.0.int_coal_threshold
+(R/W) Interrupt coalescing threshold in number of command completions.
+Set to 0 to disable.
+.El
+.Pp
+The following queue pair-level sysctls are currently implemented.
+Admin queue sysctls take the format of dev.nvme.0.adminq and I/O queue sysctls
+take the format of dev.nvme.0.ioq0.
+.Bl -tag -width indent
+.It Va dev.nvme.0.ioq0.num_entries
+(R) Number of entries in this queue pair's command and completion queue.
+.It Va dev.nvme.0.ioq0.num_tr
+(R) Number of nvme_tracker structures currently allocated for this queue pair.
+.It Va dev.nvme.0.ioq0.num_prp_list
+(R) Number of nvme_prp_list structures currently allocated for this queue pair.
+.It Va dev.nvme.0.ioq0.sq_head
+(R) Current location of the submission queue head pointer as observed by
+the driver.
+The head pointer is incremented by the controller as it takes commands off
+of the submission queue.
+.It Va dev.nvme.0.ioq0.sq_tail
+(R) Current location of the submission queue tail pointer as observed by
+the driver.
+The driver increments the tail pointer after writing a command
+into the submission queue to signal that a new command is ready to be
+processed.
+.It Va dev.nvme.0.ioq0.cq_head
+(R) Current location of the completion queue head pointer as observed by
+the driver.
+The driver increments the head pointer after finishing
+with a completion entry that was posted by the controller.
+.It Va dev.nvme.0.ioq0.num_cmds
+(R) Number of commands that have been submitted on this queue pair.
+.It Va dev.nvme.0.ioq0.dump_debug
+(W) Writing 1 to this sysctl will dump the full contents of the submission
+and completion queues to the console.
+.El
+.Sh SEE ALSO
+.Xr nda 4 ,
+.Xr nvd 4 ,
+.Xr pci 4 ,
+.Xr nvmecontrol 8 ,
+.Xr disk 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 9.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was developed by Intel and originally written by
+.An Jim Harris Aq Mt jimharris@FreeBSD.org ,
+with contributions from
+.An Joe Golio
+at EMC.
+.Pp
+This man page was written by
+.An Jim Harris Aq Mt jimharris@FreeBSD.org .

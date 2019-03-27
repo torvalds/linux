@@ -1,0 +1,4 @@
+__esan_init
+__esan_exit
+__esan_aligned*
+__esan_unaligned*

@@ -1,0 +1,17 @@
+MULTILIB_OPTIONS = mabi=n32/mabi=32/mabi=64
+MULTILIB_DIRNAMES = n32 32 64
+MULTILIB_OSDIRNAMES = ../lib32 ../lib ../lib64
+
+EXTRA_MULTILIB_PARTS=crtbegin.o crtend.o crtbeginS.o crtendS.o crtbeginT.o
+
+TPBIT = tp-bit.c
+
+tp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#ifdef __MIPSEL__' > tp-bit.c
+	echo '# define FLOAT_BIT_ORDER_MISMATCH' >> tp-bit.c
+	echo '#endif' >> tp-bit.c
+	echo '#if __LDBL_MANT_DIG__ == 113' >> tp-bit.c
+	echo '#define QUIET_NAN_NEGATED' >> tp-bit.c
+	echo '# define TFLOAT' >> tp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> tp-bit.c
+	echo '#endif' >> tp-bit.c

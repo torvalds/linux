@@ -1,0 +1,128 @@
+=pod
+
+=head1 NAME
+
+SSL_write_ex, SSL_write - write bytes to a TLS/SSL connection
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_write_ex(SSL *s, const void *buf, size_t num, size_t *written);
+ int SSL_write(SSL *ssl, const void *buf, int num);
+
+=head1 DESCRIPTION
+
+SSL_write_ex() and SSL_write() write B<num> bytes from the buffer B<buf> into
+the specified B<ssl> connection. On success SSL_write_ex() will store the number
+of bytes written in B<*written>.
+
+=head1 NOTES
+
+In the paragraphs below a "write function" is defined as one of either
+SSL_write_ex(), or SSL_write().
+
+If necessary, a write function will negotiate a TLS/SSL session, if not already
+explicitly performed by L<SSL_connect(3)> or L<SSL_accept(3)>. If the peer
+requests a re-negotiation, it will be performed transparently during
+the write function operation. The behaviour of the write functions depends on the
+underlying BIO.
+
+For the transparent negotiation to succeed, the B<ssl> must have been
+initialized to client or server mode. This is being done by calling
+L<SSL_set_connect_state(3)> or SSL_set_accept_state()
+before the first call to a write function.
+
+If the underlying BIO is B<blocking>, the write functions will only return, once
+the write operation has been finished or an error occurred.
+
+If the underlying BIO is B<non-blocking> the write functions will also return
+when the underlying BIO could not satisfy the needs of the function to continue
+the operation. In this case a call to L<SSL_get_error(3)> with the
+return value of the write function will yield B<SSL_ERROR_WANT_READ>
+or B<SSL_ERROR_WANT_WRITE>. As at any time a re-negotiation is possible, a
+call to a write function can also cause read operations! The calling process
+then must repeat the call after taking appropriate action to satisfy the needs
+of the write function. The action depends on the underlying BIO. When using a
+non-blocking socket, nothing is to be done, but select() can be used to check
+for the required condition. When using a buffering BIO, like a BIO pair, data
+must be written into or retrieved out of the BIO before being able to continue.
+
+The write functions will only return with success when the complete contents of
+B<buf> of length B<num> has been written. This default behaviour can be changed
+with the SSL_MODE_ENABLE_PARTIAL_WRITE option of L<SSL_CTX_set_mode(3)>. When
+this flag is set the write functions will also return with success when a
+partial write has been successfully completed. In this case the write function
+operation is considered completed. The bytes are sent and a new write call with
+a new buffer (with the already sent bytes removed) must be started. A partial
+write is performed with the size of a message block, which is 16kB.
+
+=head1 WARNING
+
+When a write function call has to be repeated because L<SSL_get_error(3)>
+returned B<SSL_ERROR_WANT_READ> or B<SSL_ERROR_WANT_WRITE>, it must be repeated
+with the same arguments.
+The data that was passed might have been partially processed.
+When B<SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER> was set using L<SSL_CTX_set_mode(3)>
+the pointer can be different, but the data and length should still be the same.
+
+You should not call SSL_write() with num=0, it will return an error.
+SSL_write_ex() can be called with num=0, but will not send application data to
+the peer.
+
+=head1 RETURN VALUES
+
+SSL_write_ex() will return 1 for success or 0 for failure. Success means that
+all requested application data bytes have been written to the SSL connection or,
+if SSL_MODE_ENABLE_PARTIAL_WRITE is in use, at least 1 application data byte has
+been written to the SSL connection. Failure means that not all the requested
+bytes have been written yet (if SSL_MODE_ENABLE_PARTIAL_WRITE is not in use) or
+no bytes could be written to the SSL connection (if
+SSL_MODE_ENABLE_PARTIAL_WRITE is in use). Failures can be retryable (e.g. the
+network write buffer has temporarily filled up) or non-retryable (e.g. a fatal
+network error). In the event of a failure call L<SSL_get_error(3)> to find out
+the reason which indicates whether the call is retryable or not.
+
+For SSL_write() the following return values can occur:
+
+=over 4
+
+=item E<gt> 0
+
+The write operation was successful, the return value is the number of
+bytes actually written to the TLS/SSL connection.
+
+=item Z<><= 0
+
+The write operation was not successful, because either the connection was
+closed, an error occurred or action must be taken by the calling process.
+Call SSL_get_error() with the return value B<ret> to find out the reason.
+
+Old documentation indicated a difference between 0 and -1, and that -1 was
+retryable.
+You should instead call SSL_get_error() to find out if it's retryable.
+
+=back
+
+=head1 HISTORY
+
+The SSL_write_ex() function was added in OpenSSL 1.1.1.
+
+=head1 SEE ALSO
+
+L<SSL_get_error(3)>, L<SSL_read_ex(3)>, L<SSL_read(3)>
+L<SSL_CTX_set_mode(3)>, L<SSL_CTX_new(3)>,
+L<SSL_connect(3)>, L<SSL_accept(3)>
+L<SSL_set_connect_state(3)>,
+L<ssl(7)>, L<bio(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

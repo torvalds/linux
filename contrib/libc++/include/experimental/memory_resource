@@ -1,0 +1,427 @@
+// -*- C++ -*-
+//===------------------------ memory_resource -----------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXPERIMENTAL_MEMORY_RESOURCE
+#define _LIBCPP_EXPERIMENTAL_MEMORY_RESOURCE
+
+/**
+    experimental/memory_resource synopsis
+
+// C++1y
+
+namespace std {
+namespace experimental {
+inline namespace fundamentals_v1 {
+namespace pmr {
+
+  class memory_resource;
+
+  bool operator==(const memory_resource& a,
+                  const memory_resource& b) noexcept;
+  bool operator!=(const memory_resource& a,
+                  const memory_resource& b) noexcept;
+
+  template <class Tp> class polymorphic_allocator;
+
+  template <class T1, class T2>
+  bool operator==(const polymorphic_allocator<T1>& a,
+                  const polymorphic_allocator<T2>& b) noexcept;
+  template <class T1, class T2>
+  bool operator!=(const polymorphic_allocator<T1>& a,
+                  const polymorphic_allocator<T2>& b) noexcept;
+
+  // The name resource_adaptor_imp is for exposition only.
+  template <class Allocator> class resource_adaptor_imp;
+
+  template <class Allocator>
+    using resource_adaptor = resource_adaptor_imp<
+      allocator_traits<Allocator>::rebind_alloc<char>>;
+
+  // Global memory resources
+  memory_resource* new_delete_resource() noexcept;
+  memory_resource* null_memory_resource() noexcept;
+
+  // The default memory resource
+  memory_resource* set_default_resource(memory_resource* r) noexcept;
+  memory_resource* get_default_resource() noexcept;
+
+  // Standard memory resources
+  struct pool_options;
+  class synchronized_pool_resource;
+  class unsynchronized_pool_resource;
+  class monotonic_buffer_resource;
+
+} // namespace pmr
+} // namespace fundamentals_v1
+} // namespace experimental
+} // namespace std
+
+ */
+
+#include <experimental/__config>
+#include <experimental/__memory>
+#include <limits>
+#include <memory>
+#include <new>
+#include <stdexcept>
+#include <__tuple>
+#include <type_traits>
+#include <utility>
+#include <cstddef>
+#include <cstdlib>
+#include <__debug>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+_LIBCPP_BEGIN_NAMESPACE_LFTS_PMR
+
+// Round __s up to next multiple of __a.
+inline _LIBCPP_INLINE_VISIBILITY
+size_t __aligned_allocation_size(size_t __s, size_t __a) _NOEXCEPT
+{
+    _LIBCPP_ASSERT(__s + __a > __s, "aligned allocation size overflows");
+    return (__s + __a - 1) & ~(__a - 1);
+}
+
+// 8.5, memory.resource
+class _LIBCPP_TYPE_VIS memory_resource
+{
+    static const size_t __max_align = _LIBCPP_ALIGNOF(max_align_t);
+
+// 8.5.2, memory.resource.public
+public:
+    virtual ~memory_resource() = default;
+
+    _LIBCPP_INLINE_VISIBILITY
+    void* allocate(size_t __bytes, size_t __align = __max_align)
+        { return do_allocate(__bytes, __align); }
+
+    _LIBCPP_INLINE_VISIBILITY
+    void deallocate(void * __p, size_t __bytes, size_t __align = __max_align)
+        { do_deallocate(__p, __bytes, __align); }
+
+    _LIBCPP_INLINE_VISIBILITY
+    bool is_equal(memory_resource const & __other) const _NOEXCEPT
+        { return do_is_equal(__other); }
+
+// 8.5.3, memory.resource.priv
+protected:
+    virtual void* do_allocate(size_t, size_t) = 0;
+    virtual void do_deallocate(void*, size_t, size_t) = 0;
+    virtual bool do_is_equal(memory_resource const &) const _NOEXCEPT = 0;
+};
+
+// 8.5.4, memory.resource.eq
+inline _LIBCPP_INLINE_VISIBILITY
+bool operator==(memory_resource const & __lhs,
+                memory_resource const & __rhs) _NOEXCEPT
+{
+    return &__lhs == &__rhs || __lhs.is_equal(__rhs);
+}
+
+inline _LIBCPP_INLINE_VISIBILITY
+bool operator!=(memory_resource const & __lhs,
+                memory_resource const & __rhs) _NOEXCEPT
+{
+    return !(__lhs == __rhs);
+}
+
+_LIBCPP_FUNC_VIS
+memory_resource * new_delete_resource() _NOEXCEPT;
+
+_LIBCPP_FUNC_VIS
+memory_resource * null_memory_resource() _NOEXCEPT;
+
+_LIBCPP_FUNC_VIS
+memory_resource * get_default_resource() _NOEXCEPT;
+
+_LIBCPP_FUNC_VIS
+memory_resource * set_default_resource(memory_resource * __new_res) _NOEXCEPT;
+
+// 8.6, memory.polymorphic.allocator.class
+
+// 8.6.1, memory.polymorphic.allocator.overview
+template <class _ValueType>
+class _LIBCPP_TEMPLATE_VIS polymorphic_allocator
+{
+public:
+    typedef _ValueType value_type;
+
+    // 8.6.2, memory.polymorphic.allocator.ctor
+    _LIBCPP_INLINE_VISIBILITY
+    polymorphic_allocator() _NOEXCEPT
+      : __res_(_VSTD_LFTS_PMR::get_default_resource())
+    {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    polymorphic_allocator(memory_resource * __r) _NOEXCEPT
+      : __res_(__r)
+    {}
+
+    polymorphic_allocator(polymorphic_allocator const &) = default;
+
+    template <class _Tp>
+    _LIBCPP_INLINE_VISIBILITY
+    polymorphic_allocator(polymorphic_allocator<_Tp> const & __other) _NOEXCEPT
+      : __res_(__other.resource())
+    {}
+
+    polymorphic_allocator &
+    operator=(polymorphic_allocator const &) = delete;
+
+    // 8.6.3, memory.polymorphic.allocator.mem
+    _LIBCPP_INLINE_VISIBILITY
+    _ValueType* allocate(size_t __n) {
+        if (__n > __max_size()) {
+            __throw_length_error(
+                "std::experimental::pmr::polymorphic_allocator<T>::allocate(size_t n)"
+                " 'n' exceeds maximum supported size");
+        }
+        return static_cast<_ValueType*>(
+            __res_->allocate(__n * sizeof(_ValueType), _LIBCPP_ALIGNOF(_ValueType))
+        );
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    void deallocate(_ValueType * __p, size_t __n) _NOEXCEPT {
+        _LIBCPP_ASSERT(__n <= __max_size(),
+                       "deallocate called for size which exceeds max_size()");
+        __res_->deallocate(__p, __n * sizeof(_ValueType), _LIBCPP_ALIGNOF(_ValueType));
+    }
+
+    template <class _Tp, class ..._Ts>
+    _LIBCPP_INLINE_VISIBILITY
+    void construct(_Tp* __p, _Ts &&... __args)
+    {
+        _VSTD_LFTS::__lfts_user_alloc_construct(
+            __p, *this, _VSTD::forward<_Ts>(__args)...
+          );
+    }
+
+    template <class _T1, class _T2, class ..._Args1, class ..._Args2>
+    _LIBCPP_INLINE_VISIBILITY
+    void construct(pair<_T1, _T2>* __p, piecewise_construct_t,
+                   tuple<_Args1...> __x, tuple<_Args2...> __y)
+    {
+        ::new ((void*)__p) pair<_T1, _T2>(piecewise_construct
+          , __transform_tuple(
+              typename __lfts_uses_alloc_ctor<
+                  _T1, polymorphic_allocator&, _Args1...
+              >::type()
+            , _VSTD::move(__x)
+            , typename __make_tuple_indices<sizeof...(_Args1)>::type{}
+          )
+          , __transform_tuple(
+              typename __lfts_uses_alloc_ctor<
+                  _T2, polymorphic_allocator&, _Args2...
+              >::type()
+            , _VSTD::move(__y)
+            , typename __make_tuple_indices<sizeof...(_Args2)>::type{}
+          )
+        );
+    }
+
+    template <class _T1, class _T2>
+    _LIBCPP_INLINE_VISIBILITY
+    void construct(pair<_T1, _T2>* __p) {
+        construct(__p, piecewise_construct, tuple<>(), tuple<>());
+    }
+
+    template <class _T1, class _T2, class _Up, class _Vp>
+    _LIBCPP_INLINE_VISIBILITY
+    void construct(pair<_T1, _T2> * __p, _Up && __u, _Vp && __v) {
+        construct(__p, piecewise_construct
+          , _VSTD::forward_as_tuple(_VSTD::forward<_Up>(__u))
+          , _VSTD::forward_as_tuple(_VSTD::forward<_Vp>(__v)));
+    }
+
+    template <class _T1, class _T2, class _U1, class _U2>
+    _LIBCPP_INLINE_VISIBILITY
+    void construct(pair<_T1, _T2> * __p, pair<_U1, _U2> const & __pr) {
+        construct(__p, piecewise_construct
+            , _VSTD::forward_as_tuple(__pr.first)
+            , _VSTD::forward_as_tuple(__pr.second));
+    }
+
+    template <class _T1, class _T2, class _U1, class _U2>
+    _LIBCPP_INLINE_VISIBILITY
+    void construct(pair<_T1, _T2> * __p, pair<_U1, _U2> && __pr){
+        construct(__p, piecewise_construct
+            , _VSTD::forward_as_tuple(_VSTD::forward<_U1>(__pr.first))
+            , _VSTD::forward_as_tuple(_VSTD::forward<_U2>(__pr.second)));
+    }
+
+    template <class _Tp>
+    _LIBCPP_INLINE_VISIBILITY
+    void destroy(_Tp * __p) _NOEXCEPT
+        { __p->~_Tp(); }
+
+    _LIBCPP_INLINE_VISIBILITY
+    polymorphic_allocator
+    select_on_container_copy_construction() const _NOEXCEPT
+        { return polymorphic_allocator(); }
+
+    _LIBCPP_INLINE_VISIBILITY
+    memory_resource * resource() const _NOEXCEPT
+        { return __res_; }
+
+private:
+    template <class ..._Args, size_t ..._Idx>
+    _LIBCPP_INLINE_VISIBILITY
+    tuple<_Args&&...>
+    __transform_tuple(integral_constant<int, 0>, tuple<_Args...>&& __t,
+                      __tuple_indices<_Idx...>) const
+    {
+        return _VSTD::forward_as_tuple(_VSTD::get<_Idx>(_VSTD::move(__t))...);
+    }
+
+    template <class ..._Args, size_t ..._Idx>
+    _LIBCPP_INLINE_VISIBILITY
+    tuple<allocator_arg_t const&, polymorphic_allocator&, _Args&&...>
+    __transform_tuple(integral_constant<int, 1>, tuple<_Args...> && __t,
+                      __tuple_indices<_Idx...>)
+    {
+        using _Tup = tuple<allocator_arg_t const&, polymorphic_allocator&, _Args&&...>;
+        return _Tup(allocator_arg, *this,
+                    _VSTD::get<_Idx>(_VSTD::move(__t))...);
+    }
+
+    template <class ..._Args, size_t ..._Idx>
+    _LIBCPP_INLINE_VISIBILITY
+    tuple<_Args&&..., polymorphic_allocator&>
+    __transform_tuple(integral_constant<int, 2>, tuple<_Args...> && __t,
+                      __tuple_indices<_Idx...>)
+    {
+        using _Tup = tuple<_Args&&..., polymorphic_allocator&>;
+        return _Tup(_VSTD::get<_Idx>(_VSTD::move(__t))..., *this);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    size_t __max_size() const _NOEXCEPT
+        { return numeric_limits<size_t>::max() / sizeof(value_type); }
+
+    memory_resource * __res_;
+};
+
+// 8.6.4, memory.polymorphic.allocator.eq
+
+template <class _Tp, class _Up>
+inline _LIBCPP_INLINE_VISIBILITY
+bool operator==(polymorphic_allocator<_Tp> const & __lhs,
+                polymorphic_allocator<_Up> const & __rhs) _NOEXCEPT
+{
+    return *__lhs.resource() == *__rhs.resource();
+}
+
+template <class _Tp, class _Up>
+inline _LIBCPP_INLINE_VISIBILITY
+bool operator!=(polymorphic_allocator<_Tp> const & __lhs,
+                polymorphic_allocator<_Up> const & __rhs) _NOEXCEPT
+{
+    return !(__lhs == __rhs);
+}
+
+// 8.7, memory.resource.adaptor
+
+// 8.7.1, memory.resource.adaptor.overview
+template <class _CharAlloc>
+class _LIBCPP_TEMPLATE_VIS __resource_adaptor_imp
+  : public memory_resource
+{
+    using _CTraits = allocator_traits<_CharAlloc>;
+    static_assert(is_same<typename _CTraits::value_type, char>::value
+               && is_same<typename _CTraits::pointer, char*>::value
+               && is_same<typename _CTraits::void_pointer, void*>::value, "");
+
+    static const size_t _MaxAlign = _LIBCPP_ALIGNOF(max_align_t);
+
+    using _Alloc = typename _CTraits::template rebind_alloc<
+            typename aligned_storage<_MaxAlign, _MaxAlign>::type
+        >;
+
+    using _ValueType = typename _Alloc::value_type;
+
+    _Alloc __alloc_;
+
+public:
+    typedef _CharAlloc allocator_type;
+
+    __resource_adaptor_imp() = default;
+    __resource_adaptor_imp(__resource_adaptor_imp const &) = default;
+    __resource_adaptor_imp(__resource_adaptor_imp &&) = default;
+
+    // 8.7.2, memory.resource.adaptor.ctor
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __resource_adaptor_imp(allocator_type const & __a)
+      : __alloc_(__a)
+    {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __resource_adaptor_imp(allocator_type && __a)
+      : __alloc_(_VSTD::move(__a))
+    {}
+
+    __resource_adaptor_imp &
+    operator=(__resource_adaptor_imp const &) = default;
+
+    _LIBCPP_INLINE_VISIBILITY
+    allocator_type get_allocator() const
+    { return __alloc_; }
+
+// 8.7.3, memory.resource.adaptor.mem
+protected:
+    virtual void * do_allocate(size_t __bytes, size_t)
+    {
+        if (__bytes > __max_size()) {
+            __throw_length_error(
+                "std::experimental::pmr::resource_adaptor<T>::do_allocate(size_t bytes, size_t align)"
+                " 'bytes' exceeds maximum supported size");
+        }
+        size_t __s = __aligned_allocation_size(__bytes, _MaxAlign) / _MaxAlign;
+        return __alloc_.allocate(__s);
+    }
+
+    virtual void do_deallocate(void * __p, size_t __bytes, size_t)
+    {
+        _LIBCPP_ASSERT(__bytes <= __max_size(),
+            "do_deallocate called for size which exceeds the maximum allocation size");
+        size_t __s = __aligned_allocation_size(__bytes, _MaxAlign) / _MaxAlign;
+        __alloc_.deallocate((_ValueType*)__p, __s);
+    }
+
+    virtual bool do_is_equal(memory_resource const & __other) const _NOEXCEPT {
+        __resource_adaptor_imp const * __p
+          = dynamic_cast<__resource_adaptor_imp const *>(&__other);
+        return __p  ? __alloc_ == __p->__alloc_ : false;
+    }
+
+private:
+    _LIBCPP_INLINE_VISIBILITY
+    size_t __max_size() const _NOEXCEPT {
+        return numeric_limits<size_t>::max() - _MaxAlign;
+    }
+};
+
+template <class _Alloc>
+using resource_adaptor = __resource_adaptor_imp<
+    typename allocator_traits<_Alloc>::template rebind_alloc<char>
+  >;
+
+_LIBCPP_END_NAMESPACE_LFTS_PMR
+
+_LIBCPP_POP_MACROS
+
+#endif /* _LIBCPP_EXPERIMENTAL_MEMORY_RESOURCE */

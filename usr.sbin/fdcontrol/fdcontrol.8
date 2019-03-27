@@ -1,0 +1,310 @@
+.\" Copyright (C) 1994, 2001 by Joerg Wunsch, Dresden
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+.\" OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+.\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 7, 2017
+.Dt FDCONTROL 8
+.Os
+.Sh NAME
+.Nm fdcontrol
+.Nd display and modify floppy disk parameters
+.Sh SYNOPSIS
+.Nm
+.Op Fl F
+.Op Fl d Ar dbg
+.Op Fl f Ar fmt
+.Op Fl s Ar fmtstr
+.Op Fl v
+.Ar device
+.Sh DESCRIPTION
+The
+.Nm
+utility allows the modification of the run-time behavior of the
+.Xr fdc 4
+driver for the device specified by
+.Ar device .
+.Pp
+Commands are implemented to query the current device density settings
+as well as the underlying device hardware as registered with the
+driver, to manipulate debugging levels, and to adjust the device
+density settings.
+All the operations that manipulate the kernel
+settings are restricted to the superuser (by the device driver), while
+all inquiry requests only require read access to
+.Ar device .
+.Pp
+The
+.Ar device
+argument should always be given as a full path name, e.g.\&
+.Pa /dev/fd0 .
+.Ss Inquiry Commands
+Running the
+.Nm
+utility without any of the optional flags will report the drive type
+that is registered with the device driver.
+In the shortest form, a single string describing the drive type will
+be returned.
+Possible values are:
+.Dq Li 360K ,
+.Dq Li 1.2M ,
+.Dq Li 720K ,
+.Dq Li 1.44M ,
+.Dq Li 2.88M ,
+or
+.Dq Li unknown .
+This information is primarily intended to be easily parsable by
+scripts.
+.Pp
+In order to add some descriptive text that makes the output better
+human readable, the flag
+.Fl v
+can be added.
+.Pp
+Specifying flag
+.Fl F
+will report the device's density settings in a form that is suitable
+as input to the
+.Fl s Ar fmtstr
+option (see below).
+Again, together with
+.Fl v ,
+some more text will be returned, including the total capacity of the
+density settings in kilobytes.
+.Ss Debug Control
+The
+.Xr fdc 4
+control utilities support two different options how to specify device
+density settings.
+The first form uses
+.Fl f Ar fmt
+to specify the format of the medium in kilobytes.
+Depending on the
+underlying drive type, the value is compared against a table of known
+commonly used device density settings for that drive, and if a match
+is found, those settings will be used.
+Currently, the following
+values for the respective drive types are acceptable:
+.Bl -item
+.It
+2.88M and 1.44M drives:
+.Bd -ragged -offset indent -compact
+.TS
+lB lB lB lB lB lB lB
+r l l l l l l.
+KB	sectrac	secsize	ncyls	speed	heads	flags
+1721	21	2 (512)	82	500	2	MFM
+1476	18	2 (512)	82	500	2	MFM
+1440	18	2 (512)	80	500	2	MFM
+1200	15	2 (512)	80	500	2	MFM
+820	10	2 (512)	82	250	2	MFM
+800	10	2 (512)	80	250	2	MFM
+720	9	2 (512)	80	250	2	MFM
+.TE
+.Ed
+.It
+1.2M drives:
+.Bd -ragged -offset indent -compact
+.TS
+lB lB lB lB lB lB lB
+r l l l l l l.
+KB	sectrac	secsize	ncyls	speed	heads	flags
+1200	15	2 (512)	80	500	2	MFM
+1232	8	3 (1024)	77	500	2	MFM
+1476	18	2 (512)	82	500	2	MFM
+1440	18	2 (512)	80	500	2	MFM
+1200	15	2 (512)	80	500	2	MFM
+820	10	2 (512)	82	300	2	MFM
+800	10	2 (512)	80	300	2	MFM
+720	9	2 (512)	80	300	2	MFM
+360	9	2 (512)	40	300	2	MFM,2STEP
+640	8	2 (512)	80	300	2	MFM
+.TE
+.Ed
+.It
+720K drives:
+.Bd -ragged -offset indent -compact
+.TS
+lB lB lB lB lB lB lB
+r l l l l l l.
+KB	sectrac	secsize	ncyls	speed	heads	flags
+720	9	2 (512)	80	250	2	MFM
+.TE
+.Ed
+.It
+360K drives:
+.Bd -ragged -offset indent -compact
+.TS
+lB lB lB lB lB lB lB
+r l l l l l l.
+KB	sectrac	secsize	ncyls	speed	heads	flags
+360	9	2 (512)	40	250	2	MFM
+.TE
+.Ed
+.El
+.Pp
+The second form to specify a device density uses
+.Fl s Ar fmtstr
+to explicitly specify each parameter in detail.
+The argument
+.Ar fmtstr
+is a comma-separated list of values of the form:
+.Pp
+.Sm off
+.Ar sectrac , secsize , datalen , gap , ncyls , speed ,
+.Ar heads , f_gap , f_inter , offs2 , flags
+.Sm on
+.Pp
+The meaning of the parameters is:
+.Bl -tag -width ".Ar secsize"
+.It Ar sectrac
+The number of sectors per track.
+.It Ar secsize
+The sector size code, 0 = 128 bytes (or less), 1 = 256 bytes, 2 = 512
+bytes, 3 = 1024 bytes.
+.It Ar datalen
+The actual sector size if the size code is 0, or the (ignored) value
+0xFF for larger size codes.
+.It Ar gap
+The length of the gap 3 parameter for read/write operations.
+.It Ar ncyls
+The number of cylinders.
+.It Ar speed
+The transfer speed in kilobytes per second.
+Can be 250, 300, 500, or
+1000, but each drive type only supports a subset of these values.
+.It Ar heads
+The number of heads.
+.It Ar f_gap
+The length of the gap 3 when formatting media.
+.It Ar f_inter
+The sector interleave to be applied when formatting.
+0 means no
+interleave, 1 means 1:1 etc.
+.It Ar offs2
+The offset of the sector numbers on side 2 (i.e., head number 1).
+Normally, sector numbering on both sides starts with 1.
+.It Ar flags
+A list from one of the following flag values:
+.Pp
+.Bl -tag -width ".Cm +perpend" -compact
+.It Cm +mfm
+Use MFM encoding.
+.It Cm -mfm
+Use FM (single-density) encoding.
+.It Cm +2step
+Use 2 steps per each cylinder (for accessing 40-cylinder media in
+80-cylinder drives).
+.It Cm -2step
+Do not use 2 steps per cylinder, i.e., access each physical cylinder
+of the drive.
+.It Cm +perpend
+Use perpendicular recording (for 2.88 MB media, currently not
+supported).
+.It Cm -perpend
+Use longitudinal recording.
+.El
+.El
+.Pp
+For any missing parameter, the current value will be used, so only
+actual changes need to be specified.
+Thus to turn off a flag bit
+(like
+.Cm +mfm
+which is the default for all drive types), the form with a leading
+minus sign must explicitly be used.
+.Sh EXAMPLES
+A simple inquiry about the drive type:
+.Bd -literal -offset indent
+$ fdcontrol /dev/fd0
+1.44M
+.Ed
+.Pp
+Same as above, but with verbose output.
+Note that the result is about
+the
+.Em "drive type" ,
+as opposed to a
+.Em "device density" ,
+so it is independent from the actual subdevice being used for
+.Ar device .
+.Bd -literal -offset indent
+$ fdcontrol -v /dev/fd0
+/dev/fd0: 1.44M drive (3.5" high-density)
+.Ed
+.Pp
+Inquiry about the density settings:
+.Bd -literal -offset indent
+$ fdcontrol -F /dev/fd0
+18,512,0xff,0x1b,80,500,2,0x6c,1,0,+mfm
+.Ed
+.Pp
+The verbose flag makes this human readable:
+.Bd -literal -offset indent
+/dev/fd0: 1440 KB media type
+        Format:         18,512,0xff,0x1b,80,500,2,0x6c,1,0,+mfm
+        Sector size:    512
+        Sectors/track:  18
+        Heads/cylinder: 2
+        Cylinders/disk: 80
+        Transfer rate:  500 kbps
+        Sector gap:     27
+        Format gap:     108
+        Interleave:     1
+        Side offset:    0
+        Flags           <MFM>
+.Ed
+.Pp
+As indicated, trailing commas in the parameter list may be omitted.
+.Pp
+In order to access archaic 160 KB single-density (FM encoded) 5.25
+media in a modern 1.2M drive, something like the following definition
+would be needed.
+(Note that not all controller hardware is actually
+capable of handling FM encoding at all.)
+.Bd -literal
+# fdcontrol -s 16,128,0x80,0x2,40,300,,0x10,,,-mfm,+2step /dev/fd1.1
+.Ed
+.Pp
+It is still possible to hook up 8" drives to most modern floppy
+controllers, given the right cable magic.
+(On PC hardware, tell the BIOS that it is a 5.25" drive.)
+The classical 128/26/2/77 format can be read with this entry
+.Bd -literal -offset indent
+fdcontrol -s  26,128,0x80,0x2,77,500,2,0x10,,,-mfm /dev/fd0
+.Ed
+.Sh SEE ALSO
+.Xr fdc 4
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 2.0 ,
+and was vastly overhauled in
+.Fx 5.0 .
+.Sh AUTHORS
+The program and this man page was contributed by
+.An J\(:org Wunsch ,
+Dresden.

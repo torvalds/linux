@@ -1,0 +1,97 @@
+//===- llvm/IR/DebugInfoFlags.def - Debug info flag definitions -*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// Macros for running through debug info flags.
+//
+//===----------------------------------------------------------------------===//
+
+#if !(defined HANDLE_DI_FLAG || defined HANDLE_DISP_FLAG)
+#error "Missing macro definition of HANDLE_DI*"
+#endif
+
+#ifndef HANDLE_DI_FLAG
+#define HANDLE_DI_FLAG(ID, NAME)
+#endif
+
+#ifndef HANDLE_DISP_FLAG
+#define HANDLE_DISP_FLAG(ID, NAME)
+#endif
+
+// General flags kept in DINode.
+
+HANDLE_DI_FLAG(0, Zero) // Use it as zero value.
+                        // For example: void foo(DIFlags Flags = FlagZero).
+HANDLE_DI_FLAG(1, Private)
+HANDLE_DI_FLAG(2, Protected)
+HANDLE_DI_FLAG(3, Public)
+HANDLE_DI_FLAG((1 << 2), FwdDecl)
+HANDLE_DI_FLAG((1 << 3), AppleBlock)
+HANDLE_DI_FLAG((1 << 4), BlockByrefStruct)
+HANDLE_DI_FLAG((1 << 5), Virtual)
+HANDLE_DI_FLAG((1 << 6), Artificial)
+HANDLE_DI_FLAG((1 << 7), Explicit)
+HANDLE_DI_FLAG((1 << 8), Prototyped)
+HANDLE_DI_FLAG((1 << 9), ObjcClassComplete)
+HANDLE_DI_FLAG((1 << 10), ObjectPointer)
+HANDLE_DI_FLAG((1 << 11), Vector)
+HANDLE_DI_FLAG((1 << 12), StaticMember)
+HANDLE_DI_FLAG((1 << 13), LValueReference)
+HANDLE_DI_FLAG((1 << 14), RValueReference)
+// 15 was formerly ExternalTypeRef, but this was never used.
+HANDLE_DI_FLAG((1 << 15), Reserved)
+HANDLE_DI_FLAG((1 << 16), SingleInheritance)
+HANDLE_DI_FLAG((2 << 16), MultipleInheritance)
+HANDLE_DI_FLAG((3 << 16), VirtualInheritance)
+HANDLE_DI_FLAG((1 << 18), IntroducedVirtual)
+HANDLE_DI_FLAG((1 << 19), BitField)
+HANDLE_DI_FLAG((1 << 20), NoReturn)
+HANDLE_DI_FLAG((1 << 21), MainSubprogram)
+HANDLE_DI_FLAG((1 << 22), TypePassByValue)
+HANDLE_DI_FLAG((1 << 23), TypePassByReference)
+HANDLE_DI_FLAG((1 << 24), EnumClass)
+HANDLE_DI_FLAG((1 << 25), Thunk)
+HANDLE_DI_FLAG((1 << 26), Trivial)
+HANDLE_DI_FLAG((1 << 27), BigEndian)
+HANDLE_DI_FLAG((1 << 28), LittleEndian)
+HANDLE_DI_FLAG((1 << 29), AllCallsDescribed)
+
+// To avoid needing a dedicated value for IndirectVirtualBase, we use
+// the bitwise or of Virtual and FwdDecl, which does not otherwise
+// make sense for inheritance.
+HANDLE_DI_FLAG((1 << 2) | (1 << 5), IndirectVirtualBase)
+
+#ifdef DI_FLAG_LARGEST_NEEDED
+// intended to be used with ADT/BitmaskEnum.h
+// NOTE: always must be equal to largest flag, check this when adding new flag
+HANDLE_DI_FLAG((1 << 29), Largest)
+#undef DI_FLAG_LARGEST_NEEDED
+#endif
+
+// Subprogram-specific flags kept in DISubprogram.
+
+// Use this as a zero/initialization value.
+// For example: void foo(DISPFlags Flags = SPFlagZero).
+HANDLE_DISP_FLAG(0, Zero)
+// Virtuality is a two-bit enum field in the LSB of the word.
+// Values should match DW_VIRTUALITY_*.
+HANDLE_DISP_FLAG(1u, Virtual)
+HANDLE_DISP_FLAG(2u, PureVirtual)
+HANDLE_DISP_FLAG((1u << 2), LocalToUnit)
+HANDLE_DISP_FLAG((1u << 3), Definition)
+HANDLE_DISP_FLAG((1u << 4), Optimized)
+
+#ifdef DISP_FLAG_LARGEST_NEEDED
+// Intended to be used with ADT/BitmaskEnum.h.
+// NOTE: Always must be equal to largest flag, check this when adding new flags.
+HANDLE_DISP_FLAG((1 << 4), Largest)
+#undef DISP_FLAG_LARGEST_NEEDED
+#endif
+
+#undef HANDLE_DI_FLAG
+#undef HANDLE_DISP_FLAG

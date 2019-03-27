@@ -1,0 +1,15 @@
+# Doxyfile 1.5.3
+
+PROJECT_NAME           = Heimdal wind library
+PROJECT_NUMBER         = @PACKAGE_VERSION@
+OUTPUT_DIRECTORY       = @srcdir@/doxyout/wind
+INPUT                  = @srcdir@/../lib/wind
+
+WARN_IF_UNDOCUMENTED   = YES
+
+PERL_PATH              = /usr/bin/perl
+
+HTML_HEADER = "@srcdir@/header.html"
+HTML_FOOTER = "@srcdir@/footer.html"
+
+@INCLUDE = "@srcdir@/doxytmpl.dxy"

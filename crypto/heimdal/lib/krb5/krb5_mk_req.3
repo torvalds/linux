@@ -1,0 +1,187 @@
+.\" Copyright (c) 2005 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd August 27, 2005
+.Dt KRB5_MK_REQ 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_mk_req ,
+.Nm krb5_mk_req_exact ,
+.Nm krb5_mk_req_extended ,
+.Nm krb5_rd_req ,
+.Nm krb5_rd_req_with_keyblock ,
+.Nm krb5_mk_rep ,
+.Nm krb5_mk_rep_exact ,
+.Nm krb5_mk_rep_extended ,
+.Nm krb5_rd_rep ,
+.Nm krb5_build_ap_req ,
+.Nm krb5_verify_ap_req
+.Nd create and read application authentication request
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Ft krb5_error_code
+.Fo krb5_mk_req
+.Fa "krb5_context context"
+.Fa "krb5_auth_context *auth_context"
+.Fa "const krb5_flags ap_req_options"
+.Fa "const char *service"
+.Fa "const char *hostname"
+.Fa "krb5_data *in_data"
+.Fa "krb5_ccache ccache"
+.Fa "krb5_data *outbuf"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_mk_req_extended
+.Fa "krb5_context context"
+.Fa "krb5_auth_context *auth_context"
+.Fa "const krb5_flags ap_req_options"
+.Fa "krb5_data *in_data"
+.Fa "krb5_creds *in_creds"
+.Fa "krb5_data *outbuf"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_rd_req
+.Fa "krb5_context context"
+.Fa "krb5_auth_context *auth_context"
+.Fa "const krb5_data *inbuf"
+.Fa "krb5_const_principal server"
+.Fa "krb5_keytab keytab"
+.Fa "krb5_flags *ap_req_options"
+.Fa "krb5_ticket **ticket"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_build_ap_req
+.Fa "krb5_context context"
+.Fa "krb5_enctype enctype"
+.Fa "krb5_creds *cred"
+.Fa "krb5_flags ap_options"
+.Fa "krb5_data authenticator"
+.Fa "krb5_data *retdata"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_verify_ap_req
+.Fa "krb5_context context"
+.Fa "krb5_auth_context *auth_context"
+.Fa "krb5_ap_req *ap_req"
+.Fa "krb5_const_principal server"
+.Fa "krb5_keyblock *keyblock"
+.Fa "krb5_flags flags"
+.Fa "krb5_flags *ap_req_options"
+.Fa "krb5_ticket **ticket"
+.Fc
+.Sh DESCRIPTION
+The functions documented in this manual page document the functions
+that facilitates the exchange between a Kerberos client and server.
+They are the core functions used in the authentication exchange
+between the client and the server.
+.Pp
+The
+.Nm krb5_mk_req
+and
+.Nm krb5_mk_req_extended
+creates the Kerberos message
+.Dv KRB_AP_REQ
+that is sent from the client to the server as the first packet in a client/server exchange.  The result that should be sent to server is stored in
+.Fa outbuf .
+.Pp
+.Fa auth_context
+should be allocated with
+.Fn krb5_auth_con_init
+or
+.Dv NULL
+passed in, in that case, it will be allocated and freed internally.
+.Pp
+The input data
+.Fa in_data
+will have a checksum calculated over it and checksum will be
+transported in the message to the server.
+.Pp
+.Fa ap_req_options
+can be set to one or more of the following flags:
+.Pp
+.Bl -tag -width indent
+.It Dv AP_OPTS_USE_SESSION_KEY
+Use the session key when creating the request, used for user to user
+authentication.
+.It Dv AP_OPTS_MUTUAL_REQUIRED
+Mark the request as mutual authenticate required so that the receiver
+returns a mutual authentication packet.
+.El
+.Pp
+The
+.Nm krb5_rd_req
+read the AP_REQ in
+.Fa inbuf
+and verify and extract the content.
+If
+.Fa server
+is specified, that server will be fetched from the
+.Fa keytab
+and used unconditionally.
+If
+.Fa server
+is
+.Dv NULL ,
+the
+.Fa keytab
+will be search for a matching principal.
+.Pp
+The
+.Fa keytab
+argument specifies what keytab to search for receiving principals.
+The arguments
+.Fa ap_req_options
+and
+.Fa ticket
+returns the content.
+.Pp
+When the AS-REQ is a user to user request, neither of
+.Fa keytab
+or
+.Fa principal
+are used, instead
+.Fn krb5_rd_req
+expects the session key to be set in
+.Fa auth_context .
+.Pp
+The
+.Nm krb5_verify_ap_req
+and
+.Nm krb5_build_ap_req
+both constructs and verify the AP_REQ message, should not be used by
+external code.
+.Sh SEE ALSO
+.Xr krb5 3 ,
+.Xr krb5.conf 5

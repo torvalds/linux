@@ -1,0 +1,161 @@
+.\"
+.\" Copyright (c) 2002 The FreeBSD Project, Inc.
+.\" All rights reserved.
+.\"
+.\" This software includes code contributed to the FreeBSD Project
+.\" by Ryan Younce of North Carolina State University.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the FreeBSD Project nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE FREEBSD PROJECT AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+.\" PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FREEBSD PROJECT
+.\" OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+.\" TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+.\" PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+.\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 20, 2008
+.Dt PTSNAME 3
+.Os
+.Sh NAME
+.Nm grantpt ,
+.Nm ptsname ,
+.Nm unlockpt
+.Nd pseudo-terminal access functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft int
+.Fn grantpt "int fildes"
+.Ft "char *"
+.Fn ptsname "int fildes"
+.Ft int
+.Fn unlockpt "int fildes"
+.Sh DESCRIPTION
+The
+.Fn grantpt ,
+.Fn ptsname ,
+and
+.Fn unlockpt
+functions allow access to pseudo-terminal devices.
+These three functions accept a file descriptor that references the
+master half of a pseudo-terminal pair.
+This file descriptor is created with
+.Xr posix_openpt 2 .
+.Pp
+The
+.Fn grantpt
+function is used to establish ownership and permissions
+of the slave device counterpart to the master device
+specified with
+.Fa fildes .
+The slave device's ownership is set to the real user ID
+of the calling process, and the permissions are set to
+user readable-writable and group writable.
+The group owner of the slave device is also set to the
+group
+.Dq Li tty .
+.Pp
+The
+.Fn ptsname
+function returns the full pathname of the slave device
+counterpart to the master device specified with
+.Fa fildes .
+This value can be used
+to subsequently open the appropriate slave after
+.Xr posix_openpt 2
+and
+.Fn grantpt
+have been called.
+.Pp
+The
+.Fn unlockpt
+function clears the lock held on the pseudo-terminal pair
+for the master device specified with
+.Fa fildes .
+.Sh RETURN VALUES
+.Rv -std grantpt unlockpt
+.Pp
+The
+.Fn ptsname
+function returns a pointer to the name
+of the slave device on success; otherwise a
+.Dv NULL
+pointer is returned.
+.Sh ERRORS
+The
+.Fn grantpt ,
+.Fn ptsname
+and
+.Fn unlockpt
+functions may fail and set
+.Va errno
+to:
+.Bl -tag -width Er
+.It Bq Er EBADF
+.Fa fildes
+is not a valid open file descriptor.
+.It Bq Er EINVAL
+.Fa fildes
+is not a master pseudo-terminal device.
+.El
+.Pp
+In addition, the
+.Fn grantpt
+function may set
+.Va errno
+to:
+.Bl -tag -width Er
+.It Bq Er EACCES
+The slave pseudo-terminal device could not be accessed.
+.El
+.Sh SEE ALSO
+.Xr posix_openpt 2 ,
+.Xr pts 4 ,
+.Xr tty 4
+.Sh STANDARDS
+The
+.Fn ptsname
+function conforms to
+.St -p1003.1-2008 .
+.Pp
+This implementation of
+.Fn grantpt
+and
+.Fn unlockpt
+does not conform to
+.St -p1003.1-2008 ,
+because it depends on
+.Xr posix_openpt 2
+to create the pseudo-terminal device with proper permissions in place.
+It only validates whether
+.Fa fildes
+is a valid pseudo-terminal master device.
+Future revisions of the specification will likely allow this behaviour,
+as stated by the Austin Group.
+.Sh HISTORY
+The
+.Fn grantpt ,
+.Fn ptsname
+and
+.Fn unlockpt
+functions appeared in
+.Fx 5.0 .

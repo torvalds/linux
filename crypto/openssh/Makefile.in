@@ -1,0 +1,658 @@
+# uncomment if you run a non bourne compatible shell. Ie. csh
+#SHELL = @SH@
+
+AUTORECONF=autoreconf
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+bindir=@bindir@
+sbindir=@sbindir@
+libexecdir=@libexecdir@
+datadir=@datadir@
+datarootdir=@datarootdir@
+mandir=@mandir@
+mansubdir=@mansubdir@
+sysconfdir=@sysconfdir@
+piddir=@piddir@
+srcdir=@srcdir@
+top_srcdir=@top_srcdir@
+
+DESTDIR=
+VPATH=@srcdir@
+SSH_PROGRAM=@bindir@/ssh
+ASKPASS_PROGRAM=$(libexecdir)/ssh-askpass
+SFTP_SERVER=$(libexecdir)/sftp-server
+SSH_KEYSIGN=$(libexecdir)/ssh-keysign
+SSH_PKCS11_HELPER=$(libexecdir)/ssh-pkcs11-helper
+PRIVSEP_PATH=@PRIVSEP_PATH@
+SSH_PRIVSEP_USER=@SSH_PRIVSEP_USER@
+STRIP_OPT=@STRIP_OPT@
+TEST_SHELL=@TEST_SHELL@
+
+PATHS= -DSSHDIR=\"$(sysconfdir)\" \
+	-D_PATH_SSH_PROGRAM=\"$(SSH_PROGRAM)\" \
+	-D_PATH_SSH_ASKPASS_DEFAULT=\"$(ASKPASS_PROGRAM)\" \
+	-D_PATH_SFTP_SERVER=\"$(SFTP_SERVER)\" \
+	-D_PATH_SSH_KEY_SIGN=\"$(SSH_KEYSIGN)\" \
+	-D_PATH_SSH_PKCS11_HELPER=\"$(SSH_PKCS11_HELPER)\" \
+	-D_PATH_SSH_PIDDIR=\"$(piddir)\" \
+	-D_PATH_PRIVSEP_CHROOT_DIR=\"$(PRIVSEP_PATH)\"
+
+CC=@CC@
+LD=@LD@
+CFLAGS=@CFLAGS@
+CPPFLAGS=-I. -I$(srcdir) @CPPFLAGS@ $(PATHS) @DEFS@
+LIBS=@LIBS@
+K5LIBS=@K5LIBS@
+GSSLIBS=@GSSLIBS@
+SSHLIBS=@SSHLIBS@
+SSHDLIBS=@SSHDLIBS@
+LIBEDIT=@LIBEDIT@
+AR=@AR@
+AWK=@AWK@
+RANLIB=@RANLIB@
+INSTALL=@INSTALL@
+SED=@SED@
+ENT=@ENT@
+XAUTH_PATH=@XAUTH_PATH@
+LDFLAGS=-L. -Lopenbsd-compat/ @LDFLAGS@
+EXEEXT=@EXEEXT@
+MANFMT=@MANFMT@
+MKDIR_P=@MKDIR_P@
+
+TARGETS=ssh$(EXEEXT) sshd$(EXEEXT) ssh-add$(EXEEXT) ssh-keygen$(EXEEXT) ssh-keyscan${EXEEXT} ssh-keysign${EXEEXT} ssh-pkcs11-helper$(EXEEXT) ssh-agent$(EXEEXT) scp$(EXEEXT) sftp-server$(EXEEXT) sftp$(EXEEXT)
+
+XMSS_OBJS=\
+	ssh-xmss.o \
+	sshkey-xmss.o \
+	xmss_commons.o \
+	xmss_fast.o \
+	xmss_hash.o \
+	xmss_hash_address.o \
+	xmss_wots.o
+
+LIBOPENSSH_OBJS=\
+	ssh_api.o \
+	ssherr.o \
+	sshbuf.o \
+	sshkey.o \
+	sshbuf-getput-basic.o \
+	sshbuf-misc.o \
+	sshbuf-getput-crypto.o \
+	krl.o \
+	bitmap.o \
+	${XMSS_OBJS}
+
+LIBSSH_OBJS=${LIBOPENSSH_OBJS} \
+	authfd.o authfile.o \
+	canohost.o channels.o cipher.o cipher-aes.o cipher-aesctr.o \
+	cipher-ctr.o cleanup.o \
+	compat.o crc32.o fatal.o hostfile.o \
+	log.o match.o moduli.o nchan.o packet.o opacket.o \
+	readpass.o ttymodes.o xmalloc.o addrmatch.o \
+	atomicio.o dispatch.o mac.o uuencode.o misc.o utf8.o \
+	monitor_fdpass.o rijndael.o ssh-dss.o ssh-ecdsa.o ssh-rsa.o dh.o \
+	msg.o progressmeter.o dns.o entropy.o gss-genr.o umac.o umac128.o \
+	ssh-pkcs11.o smult_curve25519_ref.o \
+	poly1305.o chacha.o cipher-chachapoly.o \
+	ssh-ed25519.o digest-openssl.o digest-libc.o hmac.o \
+	sc25519.o ge25519.o fe25519.o ed25519.o verify.o hash.o \
+	kex.o kexdh.o kexgex.o kexecdh.o kexc25519.o \
+	kexdhc.o kexgexc.o kexecdhc.o kexc25519c.o \
+	kexdhs.o kexgexs.o kexecdhs.o kexc25519s.o \
+	platform-pledge.o platform-tracing.o platform-misc.o
+
+SSHOBJS= ssh.o readconf.o clientloop.o sshtty.o \
+	sshconnect.o sshconnect2.o mux.o
+
+SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o \
+	audit.o audit-bsm.o audit-linux.o platform.o \
+	sshpty.o sshlogin.o servconf.o serverloop.o \
+	auth.o auth2.o auth-options.o session.o \
+	auth2-chall.o groupaccess.o \
+	auth-bsdauth.o auth2-hostbased.o auth2-kbdint.o \
+	auth2-none.o auth2-passwd.o auth2-pubkey.o \
+	monitor.o monitor_wrap.o auth-krb5.o \
+	auth2-gss.o gss-serv.o gss-serv-krb5.o \
+	loginrec.o auth-pam.o auth-shadow.o auth-sia.o md5crypt.o \
+	sftp-server.o sftp-common.o \
+	sandbox-null.o sandbox-rlimit.o sandbox-systrace.o sandbox-darwin.o \
+	sandbox-seccomp-filter.o sandbox-capsicum.o sandbox-pledge.o \
+	sandbox-solaris.o uidswap.o
+
+MANPAGES	= moduli.5.out scp.1.out ssh-add.1.out ssh-agent.1.out ssh-keygen.1.out ssh-keyscan.1.out ssh.1.out sshd.8.out sftp-server.8.out sftp.1.out ssh-keysign.8.out ssh-pkcs11-helper.8.out sshd_config.5.out ssh_config.5.out
+MANPAGES_IN	= moduli.5 scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh-keyscan.1 ssh.1 sshd.8 sftp-server.8 sftp.1 ssh-keysign.8 ssh-pkcs11-helper.8 sshd_config.5 ssh_config.5
+MANTYPE		= @MANTYPE@
+
+CONFIGFILES=sshd_config.out ssh_config.out moduli.out
+CONFIGFILES_IN=sshd_config ssh_config moduli
+
+PATHSUBS	= \
+	-e 's|/etc/ssh/ssh_config|$(sysconfdir)/ssh_config|g' \
+	-e 's|/etc/ssh/ssh_known_hosts|$(sysconfdir)/ssh_known_hosts|g' \
+	-e 's|/etc/ssh/sshd_config|$(sysconfdir)/sshd_config|g' \
+	-e 's|/usr/libexec|$(libexecdir)|g' \
+	-e 's|/etc/shosts.equiv|$(sysconfdir)/shosts.equiv|g' \
+	-e 's|/etc/ssh/ssh_host_key|$(sysconfdir)/ssh_host_key|g' \
+	-e 's|/etc/ssh/ssh_host_ecdsa_key|$(sysconfdir)/ssh_host_ecdsa_key|g' \
+	-e 's|/etc/ssh/ssh_host_dsa_key|$(sysconfdir)/ssh_host_dsa_key|g' \
+	-e 's|/etc/ssh/ssh_host_rsa_key|$(sysconfdir)/ssh_host_rsa_key|g' \
+	-e 's|/etc/ssh/ssh_host_ed25519_key|$(sysconfdir)/ssh_host_ed25519_key|g' \
+	-e 's|/var/run/sshd.pid|$(piddir)/sshd.pid|g' \
+	-e 's|/etc/moduli|$(sysconfdir)/moduli|g' \
+	-e 's|/etc/ssh/moduli|$(sysconfdir)/moduli|g' \
+	-e 's|/etc/ssh/sshrc|$(sysconfdir)/sshrc|g' \
+	-e 's|/usr/X11R6/bin/xauth|$(XAUTH_PATH)|g' \
+	-e 's|/var/empty|$(PRIVSEP_PATH)|g' \
+	-e 's|/usr/bin:/bin:/usr/sbin:/sbin|@user_path@|g'
+
+FIXPATHSCMD	= $(SED) $(PATHSUBS)
+FIXALGORITHMSCMD= $(SHELL) $(srcdir)/fixalgorithms $(SED) \
+		     @UNSUPPORTED_ALGORITHMS@
+
+all: $(CONFIGFILES) $(MANPAGES) $(TARGETS)
+
+$(LIBSSH_OBJS): Makefile.in config.h
+$(SSHOBJS): Makefile.in config.h
+$(SSHDOBJS): Makefile.in config.h
+
+.c.o:
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
+LIBCOMPAT=openbsd-compat/libopenbsd-compat.a
+$(LIBCOMPAT): always
+	(cd openbsd-compat && $(MAKE))
+always:
+
+libssh.a: $(LIBSSH_OBJS)
+	$(AR) rv $@ $(LIBSSH_OBJS)
+	$(RANLIB) $@
+
+ssh$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHOBJS)
+	$(LD) -o $@ $(SSHOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHLIBS) $(LIBS) $(GSSLIBS)
+
+sshd$(EXEEXT): libssh.a	$(LIBCOMPAT) $(SSHDOBJS)
+	$(LD) -o $@ $(SSHDOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHDLIBS) $(LIBS) $(GSSLIBS) $(K5LIBS)
+
+scp$(EXEEXT): $(LIBCOMPAT) libssh.a scp.o progressmeter.o
+	$(LD) -o $@ scp.o progressmeter.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+
+ssh-add$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-add.o
+	$(LD) -o $@ ssh-add.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+
+ssh-agent$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-agent.o ssh-pkcs11-client.o
+	$(LD) -o $@ ssh-agent.o ssh-pkcs11-client.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+
+ssh-keygen$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keygen.o
+	$(LD) -o $@ ssh-keygen.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+
+ssh-keysign$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keysign.o readconf.o uidswap.o
+	$(LD) -o $@ ssh-keysign.o readconf.o uidswap.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+
+ssh-pkcs11-helper$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-pkcs11-helper.o ssh-pkcs11.o
+	$(LD) -o $@ ssh-pkcs11-helper.o ssh-pkcs11.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+ssh-keyscan$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keyscan.o
+	$(LD) -o $@ ssh-keyscan.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)
+
+sftp-server$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-common.o sftp-server.o sftp-server-main.o
+	$(LD) -o $@ sftp-server.o sftp-common.o sftp-server-main.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+
+sftp$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-client.o sftp-common.o sftp-glob.o progressmeter.o
+	$(LD) -o $@ progressmeter.o sftp.o sftp-client.o sftp-common.o sftp-glob.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(LIBEDIT)
+
+# test driver for the loginrec code - not built by default
+logintest: logintest.o $(LIBCOMPAT) libssh.a loginrec.o
+	$(LD) -o $@ logintest.o $(LDFLAGS) loginrec.o -lopenbsd-compat -lssh $(LIBS)
+
+$(MANPAGES): $(MANPAGES_IN)
+	if test "$(MANTYPE)" = "cat"; then \
+		manpage=$(srcdir)/`echo $@ | sed 's/\.[1-9]\.out$$/\.0/'`; \
+	else \
+		manpage=$(srcdir)/`echo $@ | sed 's/\.out$$//'`; \
+	fi; \
+	if test "$(MANTYPE)" = "man"; then \
+		$(FIXPATHSCMD) $${manpage} | $(FIXALGORITHMSCMD) | \
+		    $(AWK) -f $(srcdir)/mdoc2man.awk > $@; \
+	else \
+		$(FIXPATHSCMD) $${manpage} | $(FIXALGORITHMSCMD) > $@; \
+	fi
+
+$(CONFIGFILES): $(CONFIGFILES_IN)
+	conffile=`echo $@ | sed 's/.out$$//'`; \
+	$(FIXPATHSCMD) $(srcdir)/$${conffile} > $@
+
+# fake rule to stop make trying to compile moduli.o into a binary "moduli.o"
+moduli:
+	echo
+
+clean:	regressclean
+	rm -f *.o *.a $(TARGETS) logintest config.cache config.log
+	rm -f *.out core survey
+	rm -f regress/check-perm$(EXEEXT)
+	rm -f regress/mkdtemp$(EXEEXT)
+	rm -f regress/unittests/test_helper/*.a
+	rm -f regress/unittests/test_helper/*.o
+	rm -f regress/unittests/sshbuf/*.o
+	rm -f regress/unittests/sshbuf/test_sshbuf$(EXEEXT)
+	rm -f regress/unittests/sshkey/*.o
+	rm -f regress/unittests/sshkey/test_sshkey$(EXEEXT)
+	rm -f regress/unittests/bitmap/*.o
+	rm -f regress/unittests/bitmap/test_bitmap$(EXEEXT)
+	rm -f regress/unittests/conversion/*.o
+	rm -f regress/unittests/conversion/test_conversion$(EXEEXT)
+	rm -f regress/unittests/hostkeys/*.o
+	rm -f regress/unittests/hostkeys/test_hostkeys$(EXEEXT)
+	rm -f regress/unittests/kex/*.o
+	rm -f regress/unittests/kex/test_kex$(EXEEXT)
+	rm -f regress/unittests/match/*.o
+	rm -f regress/unittests/match/test_match$(EXEEXT)
+	rm -f regress/unittests/utf8/*.o
+	rm -f regress/unittests/utf8/test_utf8$(EXEEXT)
+	rm -f regress/misc/kexfuzz/*.o
+	rm -f regress/misc/kexfuzz/kexfuzz$(EXEEXT)
+	(cd openbsd-compat && $(MAKE) clean)
+
+distclean:	regressclean
+	rm -f *.o *.a $(TARGETS) logintest config.cache config.log
+	rm -f *.out core opensshd.init openssh.xml
+	rm -f Makefile buildpkg.sh config.h config.status
+	rm -f survey.sh openbsd-compat/regress/Makefile *~ 
+	rm -rf autom4te.cache
+	rm -f regress/check-perm
+	rm -f regress/mkdtemp
+	rm -f regress/unittests/test_helper/*.a
+	rm -f regress/unittests/test_helper/*.o
+	rm -f regress/unittests/sshbuf/*.o
+	rm -f regress/unittests/sshbuf/test_sshbuf
+	rm -f regress/unittests/sshkey/*.o
+	rm -f regress/unittests/sshkey/test_sshkey
+	rm -f regress/unittests/bitmap/*.o
+	rm -f regress/unittests/bitmap/test_bitmap
+	rm -f regress/unittests/conversion/*.o
+	rm -f regress/unittests/conversion/test_conversion
+	rm -f regress/unittests/hostkeys/*.o
+	rm -f regress/unittests/hostkeys/test_hostkeys
+	rm -f regress/unittests/kex/*.o
+	rm -f regress/unittests/kex/test_kex
+	rm -f regress/unittests/match/*.o
+	rm -f regress/unittests/match/test_match
+	rm -f regress/unittests/utf8/*.o
+	rm -f regress/unittests/utf8/test_utf8
+	rm -f regress/misc/kexfuzz/*.o
+	rm -f regress/misc/kexfuzz
+	(cd openbsd-compat && $(MAKE) distclean)
+	if test -d pkg ; then \
+		rm -fr pkg ; \
+	fi
+
+veryclean: distclean
+	rm -f configure config.h.in *.0
+
+cleandir: veryclean
+
+mrproper: veryclean
+
+realclean: veryclean
+
+catman-do:
+	@for f in $(MANPAGES_IN) ; do \
+		base=`echo $$f | sed 's/\..*$$//'` ; \
+		echo "$$f -> $$base.0" ; \
+		$(MANFMT) $$f | cat -v | sed -e 's/.\^H//g' \
+			>$$base.0 ; \
+	done
+
+depend: depend-rebuild
+	rm -f .depend.bak
+
+depend-rebuild:
+	rm -f config.h
+	touch config.h
+	makedepend -w1000 -Y. -f .depend *.c 2>/dev/null
+	rm -f config.h
+
+depend-check: depend-rebuild
+	cmp .depend .depend.bak || (echo .depend stale && exit 1)
+
+distprep: catman-do depend-check
+	$(AUTORECONF)
+	-rm -rf autom4te.cache .depend.bak
+
+install: $(CONFIGFILES) $(MANPAGES) $(TARGETS) install-files install-sysconf host-key check-config
+install-nokeys: $(CONFIGFILES) $(MANPAGES) $(TARGETS) install-files install-sysconf
+install-nosysconf: $(CONFIGFILES) $(MANPAGES) $(TARGETS) install-files
+
+check-config:
+	-$(DESTDIR)$(sbindir)/sshd -t -f $(DESTDIR)$(sysconfdir)/sshd_config
+
+install-files:
+	$(MKDIR_P) $(DESTDIR)$(bindir)
+	$(MKDIR_P) $(DESTDIR)$(sbindir)
+	$(MKDIR_P) $(DESTDIR)$(mandir)/$(mansubdir)1
+	$(MKDIR_P) $(DESTDIR)$(mandir)/$(mansubdir)5
+	$(MKDIR_P) $(DESTDIR)$(mandir)/$(mansubdir)8
+	$(MKDIR_P) $(DESTDIR)$(libexecdir)
+	$(MKDIR_P) -m 0755 $(DESTDIR)$(PRIVSEP_PATH)
+	$(INSTALL) -m 0755 $(STRIP_OPT) ssh$(EXEEXT) $(DESTDIR)$(bindir)/ssh$(EXEEXT)
+	$(INSTALL) -m 0755 $(STRIP_OPT) scp$(EXEEXT) $(DESTDIR)$(bindir)/scp$(EXEEXT)
+	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-add$(EXEEXT) $(DESTDIR)$(bindir)/ssh-add$(EXEEXT)
+	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-agent$(EXEEXT) $(DESTDIR)$(bindir)/ssh-agent$(EXEEXT)
+	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-keygen$(EXEEXT) $(DESTDIR)$(bindir)/ssh-keygen$(EXEEXT)
+	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-keyscan$(EXEEXT) $(DESTDIR)$(bindir)/ssh-keyscan$(EXEEXT)
+	$(INSTALL) -m 0755 $(STRIP_OPT) sshd$(EXEEXT) $(DESTDIR)$(sbindir)/sshd$(EXEEXT)
+	$(INSTALL) -m 4711 $(STRIP_OPT) ssh-keysign$(EXEEXT) $(DESTDIR)$(SSH_KEYSIGN)$(EXEEXT)
+	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-pkcs11-helper$(EXEEXT) $(DESTDIR)$(SSH_PKCS11_HELPER)$(EXEEXT)
+	$(INSTALL) -m 0755 $(STRIP_OPT) sftp$(EXEEXT) $(DESTDIR)$(bindir)/sftp$(EXEEXT)
+	$(INSTALL) -m 0755 $(STRIP_OPT) sftp-server$(EXEEXT) $(DESTDIR)$(SFTP_SERVER)$(EXEEXT)
+	$(INSTALL) -m 644 ssh.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/ssh.1
+	$(INSTALL) -m 644 scp.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/scp.1
+	$(INSTALL) -m 644 ssh-add.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/ssh-add.1
+	$(INSTALL) -m 644 ssh-agent.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/ssh-agent.1
+	$(INSTALL) -m 644 ssh-keygen.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/ssh-keygen.1
+	$(INSTALL) -m 644 ssh-keyscan.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/ssh-keyscan.1
+	$(INSTALL) -m 644 moduli.5.out $(DESTDIR)$(mandir)/$(mansubdir)5/moduli.5
+	$(INSTALL) -m 644 sshd_config.5.out $(DESTDIR)$(mandir)/$(mansubdir)5/sshd_config.5
+	$(INSTALL) -m 644 ssh_config.5.out $(DESTDIR)$(mandir)/$(mansubdir)5/ssh_config.5
+	$(INSTALL) -m 644 sshd.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/sshd.8
+	$(INSTALL) -m 644 sftp.1.out $(DESTDIR)$(mandir)/$(mansubdir)1/sftp.1
+	$(INSTALL) -m 644 sftp-server.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/sftp-server.8
+	$(INSTALL) -m 644 ssh-keysign.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-keysign.8
+	$(INSTALL) -m 644 ssh-pkcs11-helper.8.out $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-pkcs11-helper.8
+
+install-sysconf:
+	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
+	@if [ ! -f $(DESTDIR)$(sysconfdir)/ssh_config ]; then \
+		$(INSTALL) -m 644 ssh_config.out $(DESTDIR)$(sysconfdir)/ssh_config; \
+	else \
+		echo "$(DESTDIR)$(sysconfdir)/ssh_config already exists, install will not overwrite"; \
+	fi
+	@if [ ! -f $(DESTDIR)$(sysconfdir)/sshd_config ]; then \
+		$(INSTALL) -m 644 sshd_config.out $(DESTDIR)$(sysconfdir)/sshd_config; \
+	else \
+		echo "$(DESTDIR)$(sysconfdir)/sshd_config already exists, install will not overwrite"; \
+	fi
+	@if [ ! -f $(DESTDIR)$(sysconfdir)/moduli ]; then \
+		if [ -f $(DESTDIR)$(sysconfdir)/primes ]; then \
+			echo "moving $(DESTDIR)$(sysconfdir)/primes to $(DESTDIR)$(sysconfdir)/moduli"; \
+			mv "$(DESTDIR)$(sysconfdir)/primes" "$(DESTDIR)$(sysconfdir)/moduli"; \
+		else \
+			$(INSTALL) -m 644 moduli.out $(DESTDIR)$(sysconfdir)/moduli; \
+		fi ; \
+	else \
+		echo "$(DESTDIR)$(sysconfdir)/moduli already exists, install will not overwrite"; \
+	fi
+
+host-key: ssh-keygen$(EXEEXT)
+	@if [ -z "$(DESTDIR)" ] ; then \
+		./ssh-keygen -A; \
+	fi
+
+host-key-force: ssh-keygen$(EXEEXT) ssh$(EXEEXT)
+	./ssh-keygen -t dsa -f $(DESTDIR)$(sysconfdir)/ssh_host_dsa_key -N ""
+	./ssh-keygen -t rsa -f $(DESTDIR)$(sysconfdir)/ssh_host_rsa_key -N ""
+	./ssh-keygen -t ed25519 -f $(DESTDIR)$(sysconfdir)/ssh_host_ed25519_key -N ""
+	if ./ssh -Q key | grep ecdsa >/dev/null ; then \
+		./ssh-keygen -t ecdsa -f $(DESTDIR)$(sysconfdir)/ssh_host_ecdsa_key -N ""; \
+	fi
+
+uninstallall:	uninstall
+	-rm -f $(DESTDIR)$(sysconfdir)/ssh_config
+	-rm -f $(DESTDIR)$(sysconfdir)/sshd_config
+	-rmdir $(DESTDIR)$(sysconfdir)
+	-rmdir $(DESTDIR)$(bindir)
+	-rmdir $(DESTDIR)$(sbindir)
+	-rmdir $(DESTDIR)$(mandir)/$(mansubdir)1
+	-rmdir $(DESTDIR)$(mandir)/$(mansubdir)8
+	-rmdir $(DESTDIR)$(mandir)
+	-rmdir $(DESTDIR)$(libexecdir)
+
+uninstall:
+	-rm -f $(DESTDIR)$(bindir)/ssh$(EXEEXT)
+	-rm -f $(DESTDIR)$(bindir)/scp$(EXEEXT)
+	-rm -f $(DESTDIR)$(bindir)/ssh-add$(EXEEXT)
+	-rm -f $(DESTDIR)$(bindir)/ssh-agent$(EXEEXT)
+	-rm -f $(DESTDIR)$(bindir)/ssh-keygen$(EXEEXT)
+	-rm -f $(DESTDIR)$(bindir)/ssh-keyscan$(EXEEXT)
+	-rm -f $(DESTDIR)$(bindir)/sftp$(EXEEXT)
+	-rm -f $(DESTDIR)$(sbindir)/sshd$(EXEEXT)
+	-rm -r $(DESTDIR)$(SFTP_SERVER)$(EXEEXT)
+	-rm -f $(DESTDIR)$(SSH_KEYSIGN)$(EXEEXT)
+	-rm -f $(DESTDIR)$(SSH_PKCS11_HELPER)$(EXEEXT)
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/ssh.1
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/scp.1
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/ssh-add.1
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/ssh-agent.1
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/ssh-keygen.1
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/sftp.1
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/ssh-keyscan.1
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/sshd.8
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/sftp-server.8
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-keysign.8
+	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-pkcs11-helper.8
+
+regress-prep:
+	$(MKDIR_P) `pwd`/regress/unittests/test_helper
+	$(MKDIR_P) `pwd`/regress/unittests/sshbuf
+	$(MKDIR_P) `pwd`/regress/unittests/sshkey
+	$(MKDIR_P) `pwd`/regress/unittests/bitmap
+	$(MKDIR_P) `pwd`/regress/unittests/conversion
+	$(MKDIR_P) `pwd`/regress/unittests/hostkeys
+	$(MKDIR_P) `pwd`/regress/unittests/kex
+	$(MKDIR_P) `pwd`/regress/unittests/match
+	$(MKDIR_P) `pwd`/regress/unittests/utf8
+	$(MKDIR_P) `pwd`/regress/misc/kexfuzz
+	[ -f `pwd`/regress/Makefile ] || \
+	    ln -s `cd $(srcdir) && pwd`/regress/Makefile `pwd`/regress/Makefile
+
+REGRESSLIBS=libssh.a $(LIBCOMPAT)
+
+regress/modpipe$(EXEEXT): $(srcdir)/regress/modpipe.c $(REGRESSLIBS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(srcdir)/regress/modpipe.c \
+	$(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+regress/setuid-allowed$(EXEEXT): $(srcdir)/regress/setuid-allowed.c $(REGRESSLIBS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(srcdir)/regress/setuid-allowed.c \
+	$(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+regress/netcat$(EXEEXT): $(srcdir)/regress/netcat.c $(REGRESSLIBS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(srcdir)/regress/netcat.c \
+	$(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+regress/check-perm$(EXEEXT): $(srcdir)/regress/check-perm.c $(REGRESSLIBS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(srcdir)/regress/check-perm.c \
+	$(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+regress/mkdtemp$(EXEEXT): $(srcdir)/regress/mkdtemp.c $(REGRESSLIBS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $(srcdir)/regress/mkdtemp.c \
+	$(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+UNITTESTS_TEST_HELPER_OBJS=\
+	regress/unittests/test_helper/test_helper.o \
+	regress/unittests/test_helper/fuzz.o
+
+regress/unittests/test_helper/libtest_helper.a: ${UNITTESTS_TEST_HELPER_OBJS}
+	$(AR) rv $@ $(UNITTESTS_TEST_HELPER_OBJS)
+	$(RANLIB) $@
+
+UNITTESTS_TEST_SSHBUF_OBJS=\
+	regress/unittests/sshbuf/tests.o \
+	regress/unittests/sshbuf/test_sshbuf.o \
+	regress/unittests/sshbuf/test_sshbuf_getput_basic.o \
+	regress/unittests/sshbuf/test_sshbuf_getput_crypto.o \
+	regress/unittests/sshbuf/test_sshbuf_misc.o \
+	regress/unittests/sshbuf/test_sshbuf_fuzz.o \
+	regress/unittests/sshbuf/test_sshbuf_getput_fuzz.o \
+	regress/unittests/sshbuf/test_sshbuf_fixed.o
+
+regress/unittests/sshbuf/test_sshbuf$(EXEEXT): ${UNITTESTS_TEST_SSHBUF_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_SSHBUF_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+UNITTESTS_TEST_SSHKEY_OBJS=\
+	regress/unittests/sshkey/test_fuzz.o \
+	regress/unittests/sshkey/tests.o \
+	regress/unittests/sshkey/common.o \
+	regress/unittests/sshkey/test_file.o \
+	regress/unittests/sshkey/test_sshkey.o
+
+regress/unittests/sshkey/test_sshkey$(EXEEXT): ${UNITTESTS_TEST_SSHKEY_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_SSHKEY_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+UNITTESTS_TEST_BITMAP_OBJS=\
+	regress/unittests/bitmap/tests.o
+
+regress/unittests/bitmap/test_bitmap$(EXEEXT): ${UNITTESTS_TEST_BITMAP_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_BITMAP_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+UNITTESTS_TEST_CONVERSION_OBJS=\
+	regress/unittests/conversion/tests.o
+
+regress/unittests/conversion/test_conversion$(EXEEXT): \
+    ${UNITTESTS_TEST_CONVERSION_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_CONVERSION_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+UNITTESTS_TEST_KEX_OBJS=\
+	regress/unittests/kex/tests.o \
+	regress/unittests/kex/test_kex.o
+
+regress/unittests/kex/test_kex$(EXEEXT): ${UNITTESTS_TEST_KEX_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_KEX_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+UNITTESTS_TEST_HOSTKEYS_OBJS=\
+	regress/unittests/hostkeys/tests.o \
+	regress/unittests/hostkeys/test_iterate.o
+
+regress/unittests/hostkeys/test_hostkeys$(EXEEXT): \
+    ${UNITTESTS_TEST_HOSTKEYS_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_HOSTKEYS_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+UNITTESTS_TEST_MATCH_OBJS=\
+	regress/unittests/match/tests.o
+
+regress/unittests/match/test_match$(EXEEXT): \
+    ${UNITTESTS_TEST_MATCH_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_MATCH_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+UNITTESTS_TEST_UTF8_OBJS=\
+	regress/unittests/utf8/tests.o
+
+regress/unittests/utf8/test_utf8$(EXEEXT): \
+    ${UNITTESTS_TEST_UTF8_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_UTF8_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+MISC_KEX_FUZZ_OBJS=\
+	regress/misc/kexfuzz/kexfuzz.o
+
+regress/misc/kexfuzz/kexfuzz$(EXEEXT): ${MISC_KEX_FUZZ_OBJS} libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(MISC_KEX_FUZZ_OBJS) \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+regress-binaries: regress/modpipe$(EXEEXT) \
+	regress/setuid-allowed$(EXEEXT) \
+	regress/netcat$(EXEEXT) \
+	regress/check-perm$(EXEEXT) \
+	regress/mkdtemp$(EXEEXT) \
+	regress/unittests/sshbuf/test_sshbuf$(EXEEXT) \
+	regress/unittests/sshkey/test_sshkey$(EXEEXT) \
+	regress/unittests/bitmap/test_bitmap$(EXEEXT) \
+	regress/unittests/conversion/test_conversion$(EXEEXT) \
+	regress/unittests/hostkeys/test_hostkeys$(EXEEXT) \
+	regress/unittests/kex/test_kex$(EXEEXT) \
+	regress/unittests/match/test_match$(EXEEXT) \
+	regress/unittests/utf8/test_utf8$(EXEEXT) \
+	regress/misc/kexfuzz/kexfuzz$(EXEEXT)
+
+tests interop-tests t-exec unit: regress-prep regress-binaries $(TARGETS)
+	BUILDDIR=`pwd`; \
+	TEST_SSH_SCP="$${BUILDDIR}/scp"; \
+	TEST_SSH_SSH="$${BUILDDIR}/ssh"; \
+	TEST_SSH_SSHD="$${BUILDDIR}/sshd"; \
+	TEST_SSH_SSHAGENT="$${BUILDDIR}/ssh-agent"; \
+	TEST_SSH_SSHADD="$${BUILDDIR}/ssh-add"; \
+	TEST_SSH_SSHKEYGEN="$${BUILDDIR}/ssh-keygen"; \
+	TEST_SSH_SSHPKCS11HELPER="$${BUILDDIR}/ssh-pkcs11-helper"; \
+	TEST_SSH_SSHKEYSCAN="$${BUILDDIR}/ssh-keyscan"; \
+	TEST_SSH_SFTP="$${BUILDDIR}/sftp"; \
+	TEST_SSH_SFTPSERVER="$${BUILDDIR}/sftp-server"; \
+	TEST_SSH_PLINK="plink"; \
+	TEST_SSH_PUTTYGEN="puttygen"; \
+	TEST_SSH_CONCH="conch"; \
+	TEST_SSH_IPV6="@TEST_SSH_IPV6@" ; \
+	TEST_SSH_UTF8="@TEST_SSH_UTF8@" ; \
+	TEST_SSH_ECC="@TEST_SSH_ECC@" ; \
+	cd $(srcdir)/regress || exit $$?; \
+	$(MAKE) \
+		.OBJDIR="$${BUILDDIR}/regress" \
+		.CURDIR="`pwd`" \
+		BUILDDIR="$${BUILDDIR}" \
+		OBJ="$${BUILDDIR}/regress/" \
+		PATH="$${BUILDDIR}:$${PATH}" \
+		TEST_ENV=MALLOC_OPTIONS="@TEST_MALLOC_OPTIONS@" \
+		TEST_MALLOC_OPTIONS="@TEST_MALLOC_OPTIONS@" \
+		TEST_SSH_SCP="$${TEST_SSH_SCP}" \
+		TEST_SSH_SSH="$${TEST_SSH_SSH}" \
+		TEST_SSH_SSHD="$${TEST_SSH_SSHD}" \
+		TEST_SSH_SSHAGENT="$${TEST_SSH_SSHAGENT}" \
+		TEST_SSH_SSHADD="$${TEST_SSH_SSHADD}" \
+		TEST_SSH_SSHKEYGEN="$${TEST_SSH_SSHKEYGEN}" \
+		TEST_SSH_SSHPKCS11HELPER="$${TEST_SSH_SSHPKCS11HELPER}" \
+		TEST_SSH_SSHKEYSCAN="$${TEST_SSH_SSHKEYSCAN}" \
+		TEST_SSH_SFTP="$${TEST_SSH_SFTP}" \
+		TEST_SSH_SFTPSERVER="$${TEST_SSH_SFTPSERVER}" \
+		TEST_SSH_PLINK="$${TEST_SSH_PLINK}" \
+		TEST_SSH_PUTTYGEN="$${TEST_SSH_PUTTYGEN}" \
+		TEST_SSH_CONCH="$${TEST_SSH_CONCH}" \
+		TEST_SSH_IPV6="$${TEST_SSH_IPV6}" \
+		TEST_SSH_UTF8="$${TEST_SSH_UTF8}" \
+		TEST_SSH_ECC="$${TEST_SSH_ECC}" \
+		TEST_SHELL="${TEST_SHELL}" \
+		EXEEXT="$(EXEEXT)" \
+		$@ && echo all tests passed
+
+compat-tests: $(LIBCOMPAT)
+	(cd openbsd-compat/regress && $(MAKE))
+
+regressclean:
+	if [ -f regress/Makefile ] && [ -r regress/Makefile ]; then \
+		(cd regress && $(MAKE) clean) \
+	fi
+
+survey: survey.sh ssh
+	@$(SHELL) ./survey.sh > survey
+	@echo 'The survey results have been placed in the file "survey" in the'
+	@echo 'current directory.  Please review the file then send with'
+	@echo '"make send-survey".'
+
+send-survey:	survey
+	mail portable-survey@mindrot.org <survey
+
+package: $(CONFIGFILES) $(MANPAGES) $(TARGETS)
+	if [ "@MAKE_PACKAGE_SUPPORTED@" = yes ]; then \
+		sh buildpkg.sh; \
+	fi
+
+# @DEPEND@

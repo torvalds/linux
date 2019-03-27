@@ -1,0 +1,562 @@
+-- $Id$ --
+-- Definitions from rfc2459/rfc3280
+
+RFC2459 DEFINITIONS ::= BEGIN
+
+IMPORTS heim_any FROM heim;
+
+Version ::=  INTEGER {
+	rfc3280_version_1(0),
+	rfc3280_version_2(1),
+	rfc3280_version_3(2)
+}
+
+id-pkcs-1 OBJECT IDENTIFIER ::= { iso(1) member-body(2) us(840)
+	rsadsi(113549) pkcs(1) 1 }
+id-pkcs1-rsaEncryption OBJECT IDENTIFIER ::=		{ id-pkcs-1 1 }
+id-pkcs1-md2WithRSAEncryption OBJECT IDENTIFIER ::=	{ id-pkcs-1 2 }
+id-pkcs1-md5WithRSAEncryption OBJECT IDENTIFIER ::=	{ id-pkcs-1 4 }
+id-pkcs1-sha1WithRSAEncryption OBJECT IDENTIFIER ::=	{ id-pkcs-1 5 }
+id-pkcs1-sha256WithRSAEncryption OBJECT IDENTIFIER ::=	{ id-pkcs-1 11 }
+id-pkcs1-sha384WithRSAEncryption OBJECT IDENTIFIER ::=	{ id-pkcs-1 12 }
+id-pkcs1-sha512WithRSAEncryption OBJECT IDENTIFIER ::=	{ id-pkcs-1 13 }
+
+id-heim-rsa-pkcs1-x509 OBJECT IDENTIFIER ::= { 1  2 752 43 16 1 }
+
+id-pkcs-2 OBJECT IDENTIFIER ::= { iso(1) member-body(2) us(840)
+	rsadsi(113549) pkcs(1) 2 }
+id-pkcs2-md2 OBJECT IDENTIFIER ::=		{ id-pkcs-2 2 }
+id-pkcs2-md4 OBJECT IDENTIFIER ::=		{ id-pkcs-2 4 }
+id-pkcs2-md5 OBJECT IDENTIFIER ::=		{ id-pkcs-2 5 }
+
+id-rsa-digestAlgorithm OBJECT IDENTIFIER ::=
+{ iso(1) member-body(2) us(840) rsadsi(113549) 2 }
+
+id-rsa-digest-md2 OBJECT IDENTIFIER ::= { id-rsa-digestAlgorithm 2 }
+id-rsa-digest-md4 OBJECT IDENTIFIER ::= { id-rsa-digestAlgorithm 4 }
+id-rsa-digest-md5 OBJECT IDENTIFIER ::= { id-rsa-digestAlgorithm 5 }
+
+id-pkcs-3 OBJECT IDENTIFIER ::= { iso(1) member-body(2) us(840)
+	rsadsi(113549) pkcs(1) 3 }
+
+id-pkcs3-rc2-cbc OBJECT IDENTIFIER ::=		{ id-pkcs-3 2 }
+id-pkcs3-rc4     OBJECT IDENTIFIER ::=		{ id-pkcs-3 4 }
+id-pkcs3-des-ede3-cbc OBJECT IDENTIFIER ::=	{ id-pkcs-3 7 }
+
+id-rsadsi-encalg OBJECT IDENTIFIER ::= { iso(1) member-body(2) us(840)
+	rsadsi(113549) 3 }
+
+id-rsadsi-rc2-cbc OBJECT IDENTIFIER ::=		{ id-rsadsi-encalg 2 }
+id-rsadsi-des-ede3-cbc OBJECT IDENTIFIER ::=	{ id-rsadsi-encalg 7 }
+
+id-secsig-sha-1 OBJECT IDENTIFIER ::= { iso(1) identified-organization(3)
+	oiw(14) secsig(3) algorithm(2) 26 }
+
+id-secsig-sha-1WithRSAEncryption OBJECT IDENTIFIER ::= { iso(1) identified-organization(3)
+	oiw(14) secsig(3) algorithm(2) 29 }
+
+id-nistAlgorithm OBJECT IDENTIFIER ::= {
+   joint-iso-itu-t(2) country(16) us(840) organization(1) gov(101) csor(3) 4 }
+  
+id-nist-aes-algs OBJECT IDENTIFIER ::= { id-nistAlgorithm 1 }
+
+id-aes-128-cbc OBJECT IDENTIFIER ::=		{ id-nist-aes-algs 2 }
+id-aes-192-cbc OBJECT IDENTIFIER ::=		{ id-nist-aes-algs 22 }
+id-aes-256-cbc OBJECT IDENTIFIER ::=		{ id-nist-aes-algs 42 }
+
+id-nist-sha-algs OBJECT IDENTIFIER ::=		{ id-nistAlgorithm 2 }
+
+id-sha256 OBJECT IDENTIFIER ::=			{ id-nist-sha-algs 1 }
+id-sha224 OBJECT IDENTIFIER ::=			{ id-nist-sha-algs 4 }
+id-sha384 OBJECT IDENTIFIER ::=			{ id-nist-sha-algs 2 }
+id-sha512 OBJECT IDENTIFIER ::=			{ id-nist-sha-algs 3 }
+
+id-dhpublicnumber OBJECT IDENTIFIER ::= {
+        iso(1) member-body(2) us(840) ansi-x942(10046)
+        number-type(2) 1 }
+
+-- ECC
+
+id-ecPublicKey OBJECT IDENTIFIER ::= {
+       iso(1) member-body(2) us(840) ansi-X9-62(10045) keyType(2) 1 }
+
+id-ecDH OBJECT IDENTIFIER ::= {
+       iso(1) identified-organization(3) certicom(132) schemes(1)
+       ecdh(12) }
+
+id-ecMQV OBJECT IDENTIFIER ::= {
+       iso(1) identified-organization(3) certicom(132) schemes(1)
+       ecmqv(13) }
+
+id-ecdsa-with-SHA256 OBJECT IDENTIFIER ::= {
+     iso(1) member-body(2) us(840) ansi-X9-62(10045) signatures(4)
+     ecdsa-with-SHA2(3) 2 }
+
+id-ecdsa-with-SHA1 OBJECT IDENTIFIER ::= {
+     iso(1) member-body(2) us(840) ansi-X9-62(10045) signatures(4) 1 }
+
+-- some EC group ids
+
+id-ec-group-secp256r1 OBJECT IDENTIFIER ::= {
+       iso(1) member-body(2) us(840) ansi-X9-62(10045) curves(3)
+       prime(1) 7 }
+
+id-ec-group-secp160r1 OBJECT IDENTIFIER ::= {
+       iso(1) identified-organization(3) certicom(132) 0 8 }
+
+id-ec-group-secp160r2 OBJECT IDENTIFIER ::= {
+       iso(1) identified-organization(3) certicom(132) 0 30 }
+
+-- DSA
+
+id-x9-57 OBJECT IDENTIFIER ::= {
+        iso(1) member-body(2) us(840) ansi-x942(10046) 4 }
+
+id-dsa OBJECT IDENTIFIER ::=		{ id-x9-57 1 }
+id-dsa-with-sha1 OBJECT IDENTIFIER ::=		{ id-x9-57 3 }
+
+-- x.520 names types
+
+id-x520-at 	OBJECT IDENTIFIER ::= { joint-iso-ccitt(2) ds(5) 4 }
+
+id-at-commonName		OBJECT IDENTIFIER ::= { id-x520-at 3 }
+id-at-surname			OBJECT IDENTIFIER ::= { id-x520-at 4 }
+id-at-serialNumber		OBJECT IDENTIFIER ::= { id-x520-at 5 }
+id-at-countryName		OBJECT IDENTIFIER ::= { id-x520-at 6 }
+id-at-localityName		OBJECT IDENTIFIER ::= { id-x520-at 7 }
+id-at-stateOrProvinceName	OBJECT IDENTIFIER ::= { id-x520-at 8 }
+id-at-streetAddress		OBJECT IDENTIFIER ::= { id-x520-at 9 }
+id-at-organizationName		OBJECT IDENTIFIER ::= { id-x520-at 10 }
+id-at-organizationalUnitName	OBJECT IDENTIFIER ::= { id-x520-at 11 }
+id-at-name			OBJECT IDENTIFIER ::= { id-x520-at 41 }
+id-at-givenName			OBJECT IDENTIFIER ::= { id-x520-at 42 }
+id-at-initials			OBJECT IDENTIFIER ::= { id-x520-at 43 }
+id-at-generationQualifier	OBJECT IDENTIFIER ::= { id-x520-at 44 }
+id-at-pseudonym			OBJECT IDENTIFIER ::= { id-x520-at 65 }
+-- RFC 2247
+id-Userid		      	OBJECT IDENTIFIER ::=
+                          { 0 9 2342 19200300 100 1 1 }
+id-domainComponent      	OBJECT IDENTIFIER ::=
+                          { 0 9 2342 19200300 100 1 25 }
+
+
+-- rfc3280
+
+id-x509-ce OBJECT IDENTIFIER ::= {joint-iso-ccitt(2) ds(5) 29}
+
+AlgorithmIdentifier ::= SEQUENCE {
+	algorithm	OBJECT IDENTIFIER,
+	parameters	heim_any OPTIONAL
+}
+
+AttributeType ::=   OBJECT IDENTIFIER
+
+AttributeValue ::=   heim_any
+
+DirectoryString ::= CHOICE {
+	ia5String	IA5String,
+	teletexString	TeletexString,
+	printableString	PrintableString,
+	universalString UniversalString,
+	utf8String	UTF8String,
+	bmpString	BMPString
+}
+
+Attribute ::= SEQUENCE {
+        type    AttributeType,
+        value   SET OF -- AttributeValue -- heim_any
+}
+
+AttributeTypeAndValue ::= SEQUENCE {
+        type    AttributeType,
+        value   DirectoryString
+}
+
+RelativeDistinguishedName ::= SET OF AttributeTypeAndValue
+
+RDNSequence ::= SEQUENCE OF RelativeDistinguishedName
+
+Name ::= CHOICE {
+	rdnSequence  RDNSequence
+}
+
+CertificateSerialNumber ::= INTEGER
+
+Time ::= CHOICE {
+     utcTime        UTCTime,
+     generalTime    GeneralizedTime
+}
+
+Validity ::= SEQUENCE {
+     notBefore      Time,
+     notAfter       Time
+}
+
+UniqueIdentifier  ::=  BIT STRING
+
+SubjectPublicKeyInfo  ::=  SEQUENCE  {
+     algorithm            AlgorithmIdentifier,
+     subjectPublicKey     BIT STRING
+}
+
+Extension  ::=  SEQUENCE  {
+     extnID      OBJECT IDENTIFIER,
+     critical    BOOLEAN OPTIONAL, -- DEFAULT FALSE XXX
+     extnValue   OCTET STRING
+}
+
+Extensions  ::=  SEQUENCE SIZE (1..MAX) OF Extension
+
+TBSCertificate  ::=  SEQUENCE  {
+     version         [0]  Version OPTIONAL, -- EXPLICIT nnn DEFAULT 1,
+     serialNumber         CertificateSerialNumber,
+     signature            AlgorithmIdentifier,
+     issuer               Name,
+     validity             Validity,
+     subject              Name,
+     subjectPublicKeyInfo SubjectPublicKeyInfo,
+     issuerUniqueID  [1]  IMPLICIT BIT STRING -- UniqueIdentifier -- OPTIONAL,
+                          -- If present, version shall be v2 or v3
+     subjectUniqueID [2]  IMPLICIT BIT STRING -- UniqueIdentifier -- OPTIONAL,
+                          -- If present, version shall be v2 or v3
+     extensions      [3]  EXPLICIT Extensions OPTIONAL
+                          -- If present, version shall be v3
+}
+
+Certificate  ::=  SEQUENCE  {
+     tbsCertificate       TBSCertificate,
+     signatureAlgorithm   AlgorithmIdentifier,
+     signatureValue       BIT STRING
+}
+
+Certificates ::= SEQUENCE OF Certificate
+
+ValidationParms ::= SEQUENCE {
+	seed		BIT STRING,
+	pgenCounter	INTEGER
+}
+
+DomainParameters ::= SEQUENCE {
+	p		INTEGER, -- odd prime, p=jq +1
+	g		INTEGER, -- generator, g
+	q		INTEGER, -- factor of p-1
+	j		INTEGER OPTIONAL, -- subgroup factor
+	validationParms	ValidationParms OPTIONAL -- ValidationParms
+}
+
+-- As defined by PKCS3
+DHParameter ::= SEQUENCE {
+	prime		INTEGER, -- odd prime, p=jq +1
+	base		INTEGER, -- generator, g
+	privateValueLength INTEGER OPTIONAL
+}
+
+DHPublicKey ::= INTEGER
+
+OtherName ::= SEQUENCE {
+	type-id    OBJECT IDENTIFIER,
+	value      [0] EXPLICIT heim_any
+}
+
+GeneralName ::= CHOICE {
+	otherName			[0]     IMPLICIT -- OtherName -- SEQUENCE {
+		type-id    OBJECT IDENTIFIER,
+		value      [0] EXPLICIT heim_any
+	},
+	rfc822Name			[1]     IMPLICIT IA5String,
+	dNSName				[2]     IMPLICIT IA5String,
+--	x400Address			[3]     IMPLICIT ORAddress,--
+	directoryName			[4]     IMPLICIT -- Name -- CHOICE {
+		rdnSequence  RDNSequence
+	},
+--	ediPartyName			[5]     IMPLICIT EDIPartyName, --
+	uniformResourceIdentifier	[6]     IMPLICIT IA5String,
+	iPAddress			[7]     IMPLICIT OCTET STRING,
+	registeredID			[8]     IMPLICIT OBJECT IDENTIFIER
+}
+
+GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName
+
+id-x509-ce-keyUsage OBJECT IDENTIFIER ::=  { id-x509-ce 15 }
+
+KeyUsage ::= BIT STRING {
+	digitalSignature	(0),
+	nonRepudiation		(1),
+	keyEncipherment		(2),
+	dataEncipherment	(3),
+	keyAgreement		(4),
+	keyCertSign		(5),
+	cRLSign			(6),
+	encipherOnly		(7),
+	decipherOnly		(8)
+}
+
+id-x509-ce-authorityKeyIdentifier OBJECT IDENTIFIER ::=  { id-x509-ce 35 }
+
+KeyIdentifier ::= OCTET STRING
+
+AuthorityKeyIdentifier ::= SEQUENCE {
+	keyIdentifier             [0] IMPLICIT OCTET STRING OPTIONAL,
+	authorityCertIssuer       [1] IMPLICIT -- GeneralName --
+		SEQUENCE -- SIZE (1..MAX) -- OF GeneralName OPTIONAL,
+	authorityCertSerialNumber [2] IMPLICIT INTEGER OPTIONAL
+}
+
+id-x509-ce-subjectKeyIdentifier OBJECT IDENTIFIER ::=  { id-x509-ce 14 }
+
+SubjectKeyIdentifier ::= KeyIdentifier
+
+id-x509-ce-basicConstraints OBJECT IDENTIFIER ::=  { id-x509-ce 19 }
+
+BasicConstraints ::= SEQUENCE {
+	cA                      BOOLEAN OPTIONAL -- DEFAULT FALSE --,
+	pathLenConstraint	INTEGER (0..4294967295) OPTIONAL
+}
+
+id-x509-ce-nameConstraints OBJECT IDENTIFIER ::=  { id-x509-ce 30 }
+
+BaseDistance ::= INTEGER -- (0..MAX) --
+
+GeneralSubtree ::= SEQUENCE {
+	base			GeneralName,
+	minimum		[0]	IMPLICIT -- BaseDistance -- INTEGER OPTIONAL -- DEFAULT 0 --,
+	maximum		[1]	IMPLICIT -- BaseDistance -- INTEGER OPTIONAL
+}
+
+GeneralSubtrees ::= SEQUENCE -- SIZE (1..MAX) -- OF GeneralSubtree
+
+NameConstraints ::= SEQUENCE {
+	permittedSubtrees       [0]     IMPLICIT -- GeneralSubtrees -- SEQUENCE OF GeneralSubtree OPTIONAL,
+	excludedSubtrees        [1]     IMPLICIT -- GeneralSubtrees -- SEQUENCE OF GeneralSubtree OPTIONAL
+}
+
+id-x509-ce-privateKeyUsagePeriod OBJECT IDENTIFIER ::=  { id-x509-ce 16 }
+id-x509-ce-certificatePolicies OBJECT IDENTIFIER ::=  { id-x509-ce 32 }
+id-x509-ce-policyMappings OBJECT IDENTIFIER ::=  { id-x509-ce 33 }
+id-x509-ce-subjectAltName OBJECT IDENTIFIER ::=  { id-x509-ce 17 }
+id-x509-ce-issuerAltName OBJECT IDENTIFIER ::=  { id-x509-ce 18 }
+id-x509-ce-subjectDirectoryAttributes OBJECT IDENTIFIER ::=  { id-x509-ce 9 }
+id-x509-ce-policyConstraints OBJECT IDENTIFIER ::=  { id-x509-ce 36 }
+
+id-x509-ce-extKeyUsage OBJECT IDENTIFIER ::= { id-x509-ce 37}
+
+ExtKeyUsage ::= SEQUENCE OF OBJECT IDENTIFIER
+
+id-x509-ce-cRLDistributionPoints OBJECT IDENTIFIER ::=  { id-x509-ce 31 }
+id-x509-ce-deltaCRLIndicator OBJECT IDENTIFIER ::= { id-x509-ce 27 }
+id-x509-ce-issuingDistributionPoint OBJECT IDENTIFIER ::= { id-x509-ce 28 }
+id-x509-ce-holdInstructionCode OBJECT IDENTIFIER ::= { id-x509-ce 23 }
+id-x509-ce-invalidityDate OBJECT IDENTIFIER ::= { id-x509-ce 24 }
+id-x509-ce-certificateIssuer   OBJECT IDENTIFIER ::= { id-x509-ce 29 }
+id-x509-ce-inhibitAnyPolicy OBJECT IDENTIFIER ::=  { id-x509-ce 54 }
+
+DistributionPointReasonFlags ::= BIT STRING {
+	unused                  (0),
+	keyCompromise           (1),
+	cACompromise            (2),
+	affiliationChanged      (3),
+	superseded              (4),
+	cessationOfOperation    (5),
+	certificateHold         (6),
+	privilegeWithdrawn      (7),
+	aACompromise            (8)
+}
+
+DistributionPointName ::= CHOICE {
+	fullName                [0]     IMPLICIT -- GeneralNames --  SEQUENCE SIZE (1..MAX) OF GeneralName,
+	nameRelativeToCRLIssuer [1]     RelativeDistinguishedName
+}
+
+DistributionPoint ::= SEQUENCE {
+	distributionPoint       [0]     IMPLICIT heim_any -- DistributionPointName -- OPTIONAL,
+	reasons                 [1]     IMPLICIT heim_any -- DistributionPointReasonFlags -- OPTIONAL,
+	cRLIssuer               [2]     IMPLICIT heim_any -- GeneralNames -- OPTIONAL
+}
+
+CRLDistributionPoints ::= SEQUENCE SIZE (1..MAX) OF DistributionPoint
+
+
+-- rfc3279
+
+DSASigValue  ::=  SEQUENCE {
+	r	INTEGER,
+	s	INTEGER
+}
+
+DSAPublicKey ::= INTEGER
+
+DSAParams  ::=  SEQUENCE {
+	p	INTEGER,
+	q	INTEGER,
+	g	INTEGER
+}
+
+-- draft-ietf-pkix-ecc-subpubkeyinfo-11
+
+ECPoint ::= OCTET STRING
+
+ECParameters ::= CHOICE {
+	namedCurve         OBJECT IDENTIFIER
+	-- implicitCurve   NULL
+	-- specifiedCurve  SpecifiedECDomain
+}
+
+ECDSA-Sig-Value ::= SEQUENCE {
+     r  INTEGER,
+     s  INTEGER
+}
+
+-- really pkcs1
+
+RSAPublicKey ::= SEQUENCE {
+	modulus INTEGER, -- n
+	publicExponent INTEGER -- e
+}
+
+RSAPrivateKey ::= SEQUENCE {
+	version INTEGER (0..4294967295),
+	modulus INTEGER, -- n
+	publicExponent INTEGER, -- e
+	privateExponent INTEGER, -- d
+	prime1 INTEGER, -- p
+	prime2 INTEGER, -- q
+	exponent1 INTEGER, -- d mod (p-1)
+	exponent2 INTEGER, -- d mod (q-1)
+	coefficient INTEGER -- (inverse of q) mod p
+}
+
+DigestInfo ::= SEQUENCE {
+	digestAlgorithm AlgorithmIdentifier,
+	digest OCTET STRING
+}
+
+-- some ms ext
+
+-- szOID_ENROLL_CERTTYPE_EXTENSION "1.3.6.1.4.1.311.20.2" is Encoded as a
+
+-- UNICODESTRING (0x1E tag)
+
+-- szOID_CERTIFICATE_TEMPLATE "1.3.6.1.4.1.311.21.7" is Encoded as:
+
+-- TemplateVersion ::= INTEGER (0..4294967295)
+
+-- CertificateTemplate ::= SEQUENCE {
+--	templateID OBJECT IDENTIFIER,
+--	templateMajorVersion TemplateVersion,
+--	templateMinorVersion TemplateVersion OPTIONAL
+-- }
+
+
+--
+-- CRL
+--
+
+TBSCRLCertList ::=  SEQUENCE  {
+	version			Version OPTIONAL, -- if present, MUST be v2
+	signature		AlgorithmIdentifier,
+	issuer			Name,
+	thisUpdate		Time,
+	nextUpdate		Time OPTIONAL,
+	revokedCertificates     SEQUENCE OF SEQUENCE  {
+		userCertificate         CertificateSerialNumber,
+		revocationDate          Time,
+		crlEntryExtensions      Extensions OPTIONAL
+						-- if present, MUST be v2
+	} OPTIONAL,
+	crlExtensions		[0] EXPLICIT Extensions OPTIONAL
+						-- if present, MUST be v2
+}
+
+
+CRLCertificateList ::=  SEQUENCE  {
+	tbsCertList          TBSCRLCertList,
+	signatureAlgorithm   AlgorithmIdentifier,
+	signatureValue       BIT STRING
+}
+
+id-x509-ce-cRLNumber OBJECT IDENTIFIER ::= { id-x509-ce 20 }
+id-x509-ce-freshestCRL OBJECT IDENTIFIER ::=  { id-x509-ce 46 }
+id-x509-ce-cRLReason OBJECT IDENTIFIER ::= { id-x509-ce 21 }
+
+CRLReason ::= ENUMERATED {
+	unspecified             (0),
+	keyCompromise           (1),
+	cACompromise            (2),
+	affiliationChanged      (3),
+	superseded              (4),
+	cessationOfOperation    (5),
+	certificateHold         (6),
+	removeFromCRL           (8),
+	privilegeWithdrawn      (9),
+	aACompromise           (10)
+}
+
+PKIXXmppAddr ::= UTF8String
+
+id-pkix OBJECT IDENTIFIER ::= { iso(1) identified-organization(3)
+            dod(6) internet(1) security(5) mechanisms(5) pkix(7) }
+
+id-pkix-on OBJECT IDENTIFIER ::= { id-pkix 8 }
+id-pkix-on-xmppAddr OBJECT IDENTIFIER ::= { id-pkix-on 5 }
+id-pkix-on-dnsSRV OBJECT IDENTIFIER ::= { id-pkix-on 7 }
+
+id-pkix-kp OBJECT IDENTIFIER ::= { id-pkix 3 }
+id-pkix-kp-serverAuth OBJECT IDENTIFIER ::= { id-pkix-kp 1 }
+id-pkix-kp-clientAuth OBJECT IDENTIFIER ::= { id-pkix-kp 2 }
+id-pkix-kp-emailProtection OBJECT IDENTIFIER ::= { id-pkix-kp 4 }
+id-pkix-kp-timeStamping OBJECT IDENTIFIER ::= { id-pkix-kp 8 }
+id-pkix-kp-OCSPSigning OBJECT IDENTIFIER ::= { id-pkix-kp 9 }
+
+id-pkix-pe OBJECT IDENTIFIER ::= { id-pkix 1 }
+
+id-pkix-pe-authorityInfoAccess OBJECT IDENTIFIER ::= { id-pkix-pe 1 }
+
+AccessDescription  ::=  SEQUENCE {
+	accessMethod          OBJECT IDENTIFIER,
+	accessLocation        GeneralName
+}
+
+AuthorityInfoAccessSyntax ::= SEQUENCE SIZE (1..MAX) OF AccessDescription
+
+-- RFC 3820 Proxy Certificate Profile
+
+id-pkix-pe-proxyCertInfo OBJECT IDENTIFIER ::= { id-pkix-pe 14 }
+
+id-pkix-ppl  OBJECT IDENTIFIER ::= { id-pkix 21 }
+
+id-pkix-ppl-anyLanguage     OBJECT IDENTIFIER ::= { id-pkix-ppl 0 }
+id-pkix-ppl-inheritAll      OBJECT IDENTIFIER ::= { id-pkix-ppl 1 }
+id-pkix-ppl-independent     OBJECT IDENTIFIER ::= { id-pkix-ppl 2 }
+
+ProxyPolicy ::= SEQUENCE {
+	policyLanguage		OBJECT IDENTIFIER,
+	policy			OCTET STRING OPTIONAL
+}
+
+ProxyCertInfo ::= SEQUENCE {
+	pCPathLenConstraint	INTEGER (0..4294967295) OPTIONAL, -- really MAX
+	proxyPolicy		ProxyPolicy
+}
+
+--- U.S. Federal PKI Common Policy Framework
+-- Card Authentication key
+id-uspkicommon-card-id OBJECT IDENTIFIER ::= { 2 16 840 1 101 3 6 6 }
+id-uspkicommon-piv-interim OBJECT IDENTIFIER ::= { 2 16 840 1 101 3 6 9 1 }
+
+--- Netscape extentions
+
+id-netscape OBJECT IDENTIFIER ::=
+    { joint-iso-itu-t(2) country(16) us(840) organization(1) netscape(113730) }
+id-netscape-cert-comment OBJECT IDENTIFIER ::= { id-netscape 1 13 }
+
+--- MS extentions
+
+id-ms-cert-enroll-domaincontroller OBJECT IDENTIFIER ::=
+    { 1 3 6 1 4 1 311 20 2 }
+
+id-ms-client-authentication OBJECT IDENTIFIER ::=
+ { 1 3 6 1 5 5 7 3 2 }
+
+-- DER:1e:20:00:44:00:6f:00:6d:00:61:00:69:00:6e:00:43:00:6f:00:6e:00:74:00:72:00:6f:00:6c:00:6c:00:65:00:72
+
+END

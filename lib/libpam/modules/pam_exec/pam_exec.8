@@ -1,0 +1,164 @@
+.\" Copyright (c) 2001,2003 Networks Associates Technology, Inc.
+.\" Copyright (c) 2017 Dag-Erling Smørgrav
+.\" Copyright (c) 2018 Thomas Munro
+.\" All rights reserved.
+.\"
+.\" Portions of this software were developed for the FreeBSD Project by
+.\" ThinkSec AS and NAI Labs, the Security Research Division of Network
+.\" Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+.\" ("CBOSS"), as part of the DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 14, 2018
+.Dt PAM_EXEC 8
+.Os
+.Sh NAME
+.Nm pam_exec
+.Nd Exec PAM module
+.Sh SYNOPSIS
+.Op Ar service-name
+.Ar module-type
+.Ar control-flag
+.Pa pam_exec
+.Op Ar arguments
+.Sh DESCRIPTION
+The exec service module for PAM executes the program designated by
+its first argument if no options are specified, with its remaining
+arguments as command-line arguments.
+If options are specified, the program and its arguments follow the last
+option or
+.Cm --
+if the program name conflicts with an option name.
+.Pp
+The following options may be passed before the program and its
+arguments:
+.Bl -tag -width indent
+.It Cm capture_stderr
+Capture text printed by the program to its standard error stream and
+pass it to the conversation function as error messages.
+No attempt is made at buffering the text, so results may vary.
+.It Cm capture_stdout
+Capture text printed by the program to its standard output stream and
+pass it to the conversation function as informational messages.
+No attempt is made at buffering the text, so results may vary.
+.It Cm debug
+Ignored for compatibility reasons.
+.It Cm no_warn
+Ignored for compatibility reasons.
+.It Cm return_prog_exit_status
+Use the program exit status as the return code of the pam_sm_* function.
+It must be a valid return value for this function.
+.It Cm expose_authtok
+Write the authentication token to the program's standard input stream,
+followed by a NUL character.
+.It Cm --
+Stop options parsing;
+program and its arguments follow.
+.El
+.Pp
+The child's environment is set to the current PAM environment list,
+as returned by
+.Xr pam_getenvlist 3 .
+In addition, the following PAM items are exported as environment
+variables:
+.Ev PAM_RHOST ,
+.Ev PAM_RUSER ,
+.Ev PAM_SERVICE ,
+.Ev PAM_SM_FUNC ,
+.Ev PAM_TTY
+and
+.Ev PAM_USER .
+.Pp
+The
+.Ev PAM_SM_FUNC
+variable contains the name of the PAM service module function being
+called.
+It may be:
+.Bl -dash -offset indent -compact
+.It
+pam_sm_acct_mgmt
+.It
+pam_sm_authenticate
+.It
+pam_sm_chauthtok
+.It
+pam_sm_close_session
+.It
+pam_sm_open_session
+.It
+pam_sm_setcred
+.El
+.Pp
+If
+.Cm return_prog_exit_status
+is not set (default), the
+.Ev PAM_SM_FUNC
+function returns
+.Er PAM_SUCCESS
+if the program exit status is 0,
+.Er PAM_PERM_DENIED
+otherwise.
+.Pp
+If
+.Cm return_prog_exit_status
+is set, the program exit status is used.
+It should be
+.Er PAM_SUCCESS
+or one of the error codes allowed by the calling
+.Ev PAM_SM_FUNC
+function.
+The valid codes are documented in each function man page.
+If the exit status is not a valid return code,
+.Er PAM_SERVICE_ERR
+is returned.
+Each valid codes numerical value is available as an environment variable
+(eg.\&
+.Ev PAM_SUCESS ,
+.Ev PAM_USER_UNKNOWN ,
+etc).
+This is useful in shell scripts for instance.
+.Sh SEE ALSO
+.Xr pam_get_item 3 ,
+.Xr pam.conf 5 ,
+.Xr pam 8 ,
+.Xr pam_sm_acct_mgmt 8 ,
+.Xr pam_sm_authenticate 8 ,
+.Xr pam_sm_chauthtok 8 ,
+.Xr pam_sm_close_session 8 ,
+.Xr pam_sm_open_session 8 ,
+.Xr pam_sm_setcred 8
+.Sh AUTHORS
+The
+.Nm
+module and this manual page were developed for the
+.Fx
+Project by
+ThinkSec AS and NAI Labs, the Security Research Division of Network
+Associates, Inc.\& under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.

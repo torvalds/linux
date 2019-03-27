@@ -1,0 +1,11 @@
+
+char 'a'
+int 0xffffffff
+unsigned int 0x17
+short 0x1c8
+unsigned short 0x315
+long 0x4d2
+ulong_t 0xddd5
+void * 0x1234
+string "hello"
+

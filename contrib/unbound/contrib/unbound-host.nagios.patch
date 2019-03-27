@@ -1,0 +1,134 @@
+Index: smallapp/unbound-host.c
+===================================================================
+--- smallapp/unbound-host.c	(revision 2115)
++++ smallapp/unbound-host.c	(working copy)
+@@ -62,9 +62,18 @@
+ #include "libunbound/unbound.h"
+ #include <ldns/ldns.h>
+ 
++/** status variable ala nagios */
++#define FINAL_STATUS_OK		0
++#define FINAL_STATUS_WARNING	1
++#define FINAL_STATUS_CRITICAL	2
++#define FINAL_STATUS_UNKNOWN	3
++
+ /** verbosity for unbound-host app */
+ static int verb = 0;
+ 
++/** variable to determine final output */
++static int final_status = FINAL_STATUS_UNKNOWN;
++
+ /** Give unbound-host usage, and exit (1). */
+ static void
+ usage()
+@@ -93,7 +102,7 @@
+ 	printf("Version %s\n", PACKAGE_VERSION);
+ 	printf("BSD licensed, see LICENSE in source package for details.\n");
+ 	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
+-	exit(1);
++	exit(FINAL_STATUS_UNKNOWN);
+ }
+ 
+ /** determine if str is ip4 and put into reverse lookup format */
+@@ -138,7 +147,7 @@
+ 	*res = strdup(buf);
+ 	if(!*res) {
+ 		fprintf(stderr, "error: out of memory\n");
+-		exit(1);
++		exit(FINAL_STATUS_UNKNOWN);
+ 	}
+ 	return 1;
+ }
+@@ -158,7 +167,7 @@
+ 	}
+ 	if(!res) {
+ 		fprintf(stderr, "error: out of memory\n");
+-		exit(1);
++		exit(FINAL_STATUS_UNKNOWN);
+ 	}
+ 	return res;
+ }
+@@ -172,7 +181,7 @@
+ 		if(r == 0 && strcasecmp(t, "TYPE0") != 0 && 
+ 			strcmp(t, "") != 0) {
+ 			fprintf(stderr, "error unknown type %s\n", t);
+-			exit(1);
++			exit(FINAL_STATUS_UNKNOWN);
+ 		}
+ 		return r;
+ 	}
+@@ -191,7 +200,7 @@
+ 		if(r == 0 && strcasecmp(c, "CLASS0") != 0 && 
+ 			strcmp(c, "") != 0) {
+ 			fprintf(stderr, "error unknown class %s\n", c);
+-			exit(1);
++			exit(FINAL_STATUS_UNKNOWN);
+ 		}
+ 		return r;
+ 	}
+@@ -207,6 +216,19 @@
+ 	return "(insecure)";
+ }
+ 
++/** update the final status for the exit code */
++void
++update_final_status(struct ub_result* result)
++{
++	if (final_status == FINAL_STATUS_UNKNOWN || final_status == FINAL_STATUS_OK) {
++		if (result->secure) final_status = FINAL_STATUS_OK;
++		else if (result->bogus) final_status = FINAL_STATUS_CRITICAL;
++		else final_status = FINAL_STATUS_WARNING;
++	}
++	else if (final_status == FINAL_STATUS_WARNING && result->bogus)
++		final_status = FINAL_STATUS_CRITICAL;
++}
++
+ /** nice string for type */
+ static void
+ pretty_type(char* s, size_t len, int t)
+@@ -353,7 +375,7 @@
+ 				} else {
+ 					fprintf(stderr, "could not parse "
+ 						"reply packet to ANY query\n");
+-					exit(1);
++					exit(FINAL_STATUS_UNKNOWN);
+ 				}
+ 				ldns_pkt_free(p);
+ 
+@@ -388,9 +410,10 @@
+ 	ret = ub_resolve(ctx, q, t, c, &result);
+ 	if(ret != 0) {
+ 		fprintf(stderr, "resolve error: %s\n", ub_strerror(ret));
+-		exit(1);
++		exit(FINAL_STATUS_UNKNOWN);
+ 	}
+ 	pretty_output(q, t, c, result, docname);
++	update_final_status(result);
+ 	ret = result->nxdomain;
+ 	ub_resolve_free(result);
+ 	return ret;
+@@ -427,7 +450,7 @@
+ {
+ 	if(r != 0) {
+ 		fprintf(stderr, "error: %s\n", ub_strerror(r));
+-		exit(1);
++		exit(FINAL_STATUS_UNKNOWN);
+ 	}
+ }
+ 
+@@ -448,7 +471,7 @@
+ 	ctx = ub_ctx_create();
+ 	if(!ctx) {
+ 		fprintf(stderr, "error: out of memory\n");
+-		exit(1);
++		exit(FINAL_STATUS_UNKNOWN);
+ 	}
+ 
+ 	/* parse the options */
+@@ -509,5 +532,5 @@
+ 		usage();
+ 
+ 	lookup(ctx, argv[0], qtype, qclass);
+-	return 0;
++	return final_status;
+ }

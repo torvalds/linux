@@ -1,0 +1,159 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Ken Arnold.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strfile.8	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd February 17, 2005
+.Dt STRFILE 8
+.Os
+.Sh NAME
+.Nm strfile ,
+.Nm unstr
+.Nd "create a random access file for storing strings"
+.Sh SYNOPSIS
+.Nm
+.Op Fl Ciorsx
+.Op Fl c Ar char
+.Ar source_file
+.Op Ar output_file
+.Nm unstr
+.Ar source_file
+.Sh DESCRIPTION
+The
+.Nm
+utility
+reads a file containing groups of lines separated by a line containing
+a single percent
+.Ql %
+sign and creates a data file which contains
+a header structure and a table of file offsets for each group of lines.
+This allows random access of the strings.
+.Pp
+The output file, if not specified on the command line, is named
+.Ar source_file Ns Pa .dat .
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl c Ar char"
+.It Fl C
+Flag the file as containing comments.
+This option cases the
+.Dv STR_COMMENTS
+bit in the header
+.Va str_flags
+field to be set.
+Comments are designated by two delimiter characters at the
+beginning of the line, though
+.Nm
+does not give any special
+treatment to comment lines.
+.It Fl c Ar char
+Change the delimiting character from the percent sign to
+.Ar char .
+.It Fl i
+Ignore case when ordering the strings.
+.It Fl o
+Order the strings in alphabetical order.
+The offset table will be sorted in the alphabetical order of the
+groups of lines referenced.
+Any initial non-alphanumeric characters are ignored.
+This option causes the
+.Dv STR_ORDERED
+bit in the header
+.Va str_flags
+field to be set.
+.It Fl r
+Randomize access to the strings.
+Entries in the offset table will be randomly ordered.
+This option causes the
+.Dv STR_RANDOM
+bit in the header
+.Va str_flags
+field to be set.
+.It Fl s
+Run silently; do not give a summary message when finished.
+.It Fl x
+Note that each alphabetic character in the groups of lines is rotated
+13 positions in a simple caesar cypher.
+This option causes the
+.Dv STR_ROTATED
+bit in the header
+.Va str_flags
+field to be set.
+.El
+.Pp
+The format of the header is:
+.Bd -literal
+#define	VERSION	1
+uint32_t	str_version;	/* version number */
+uint32_t	str_numstr;	/* # of strings in the file */
+uint32_t	str_longlen;	/* length of longest string */
+uint32_t	str_shortlen;	/* length of shortest string */
+#define	STR_RANDOM	0x1	/* randomized pointers */
+#define	STR_ORDERED	0x2	/* ordered pointers */
+#define	STR_ROTATED	0x4	/* rot-13'd text */
+#define	STR_COMMENTS	0x8	/* embedded comments */
+uint32_t	str_flags;	/* bit field for flags */
+char		str_delim;	/* delimiting character */
+.Ed
+.Pp
+All fields are written in network byte order.
+.Pp
+The purpose of
+.Nm unstr
+is to undo the work of
+.Nm .
+It prints out the strings contained in the file
+.Ar source_file
+in the order that they are listed in
+the header file
+.Ar source_file Ns Pa .dat
+to standard output.
+It is possible to create sorted versions of input files by using
+.Fl o
+when
+.Nm
+is run and then using
+.Nm unstr
+to dump them out in the table order.
+.Sh FILES
+.Bl -tag -width ".Pa strfile.dat" -compact
+.It Pa strfile.dat
+default output file.
+.El
+.Sh SEE ALSO
+.Xr byteorder 3 ,
+.Xr fortune 6
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.4 .

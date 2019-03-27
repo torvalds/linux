@@ -1,0 +1,97 @@
+.\"
+.\" Copyright (c) 2003 Poul-Henning Kamp
+.\" Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 4, 2017
+.Dt DISKINFO 8
+.Os
+.Sh NAME
+.Nm diskinfo
+.Nd get information about disk device
+.Sh SYNOPSIS
+.Nm
+.Op Fl citSvw
+.Ar disk ...
+.Nm
+.Op Fl p
+.Ar disk ...
+.Nm
+.Op Fl s
+.Ar disk ...
+.Sh DESCRIPTION
+The
+.Nm
+utility prints out information about a disk device,
+and optionally runs a naive performance test on the device.
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl v"
+.It Fl v
+Print fields one per line with a descriptive comment.
+.It Fl c
+Perform a simple measurement of the I/O read command overhead.
+.It Fl i
+Perform a simple IOPS benchmark.
+.It Fl p
+Return the physical path of the disk.
+This is a string that identifies the physical path to the disk in the
+storage enclosure.
+.It Fl s
+Return the disk ident, usually the serial number.
+.It Fl S
+Perform synchronous random write test (ZFS SLOG test),
+measuring time required to write data blocks of different size and
+flush disk cache.
+Blocks of more then 128KB are written with multiple parallel operations.
+.It Fl t
+Perform a simple and rather naive benchmark of the disks seek
+and transfer performance.
+.It Fl w
+Allow disruptive write tests.
+.El
+.Pp
+If given no arguments, the output will be a single line per specified device
+with the following fields: device name, sectorsize, media size in bytes,
+media size in sectors, stripe size, stripe offset, firmware cylinders,
+firmware heads, and firmware sectors.
+The last three fields are only present if the information is available.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .
+.Sh BUGS
+There are in order of increasing severity: lies,
+damn lies, statistics, and computer benchmarks.

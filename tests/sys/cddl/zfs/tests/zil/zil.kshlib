@@ -1,0 +1,55 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2012 Spectra Logic Corporation.  All rights reserved.
+# Use is subject to license terms.
+#
+
+# Every test must restart the frozen pool state.
+function zil_setup
+{
+	log_must $ZPOOL list $TESTPOOL
+
+	# In order for a frozen zpool to have a ZIL, it is necessary to
+	# sync it first.  If a sync is not done first, no ZIL will exist,
+	# and consequently no post-freeze log records will be created.
+	log_must $TOUCH $TESTDIR/initial_data
+	log_must $FSYNC $TESTDIR/initial_data
+	log_must $ZPOOL freeze $TESTPOOL
+	log_must filesys_has_zil $TESTPOOL
+	return 0
+}
+
+function zil_reimport_pool
+{
+	typeset pool="$1"
+	log_must filesys_has_zil $pool
+	log_must pool_maps_intact $pool
+	log_must $ZPOOL export $pool
+	log_must $ZPOOL import $pool
+	log_must pool_maps_intact $pool
+	log_mustnot filesys_has_zil $pool
+	return 0
+}

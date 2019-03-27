@@ -1,0 +1,184 @@
+.\" Copyright (c) 2007-2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 22, 2008
+.Dt PMC_ALLOCATE 3
+.Os
+.Sh NAME
+.Nm pmc_allocate ,
+.Nm pmc_release
+.Nd allocate and free performance monitoring counters
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Ft int
+.Fo pmc_allocate
+.Fa "const char *eventspecifier"
+.Fa "enum pmc_mode mode"
+.Fa "uint32_t flags"
+.Fa "int cpu"
+.Fa "pmc_id_t *pmcid"
+.Fc
+.Ft int
+.Fn pmc_release "pmc_id_t pmc"
+.Sh DESCRIPTION
+Function
+.Fn pmc_allocate
+allocates a performance monitoring counter that measures the events
+named by argument
+.Fa eventspecifier ,
+and writes the allocated handle to the location pointed to by argument
+.Fa pmcid .
+.Pp
+Argument
+.Fa eventspecifier
+comprises an PMC event name followed by an optional comma separated
+list of keywords and qualifiers.
+The allowed syntax for argument
+.Fa eventspecifier
+is processor specific and is listed in section
+.Sx "EVENT SPECIFIERS"
+in the
+.Xr pmc 3
+manual page.
+.Pp
+The desired PMC mode is specified by argument
+.Fa mode .
+Legal values for the
+.Fa mode
+argument are:
+.Bl -tag -width ".Dv PMC_MODE_SS" -compact
+.It Dv PMC_MODE_SC
+Allocate a system-scope counting PMC.
+.It Dv PMC_MODE_SS
+Allocate a system-scope sampling PMC.
+.It Dv PMC_MODE_TC
+Allocate a process-scope counting PMC.
+.It Dv PMC_MODE_TS
+Allocate a process-scope sampling PMC.
+.El
+.Pp
+Mode specific modifiers may be specified using argument
+.Fa flags .
+The flags supported at PMC allocation time are:
+.Bl -tag -width ".Dv PMC_F_LOG_PROCEXIT" -compact
+.It Dv PMC_F_DESCENDANTS
+For process-scope PMCs, automatically track descendants of attached
+processes.
+.It Dv PMC_F_LOG_PROCCSW
+For process-scope counting PMCs, generate a log event at every context
+switch containing the incremental number of hardware events seen
+by the process during the time it was executing on the CPU.
+.It Dv PMC_F_LOG_PROCEXIT
+For process-scope counting PMCs, accumulate hardware events seen
+when the process was executing on a CPU and generate a log event
+when an attached process exits.
+.El
+PMCs allocated with flags
+.Dv PMC_F_LOG_PROCCSW
+and
+.Dv PMC_F_LOG_PROCEXIT
+need a log file to be configured before they are started.
+.Pp
+For system scope PMCs, the argument
+.Fa cpu
+is a non-negative value that specifies the CPU number
+that the PMC is to be allocated on.
+Process scope PMC allocations should specify the constant
+.Dv PMC_CPU_ANY
+for this argument.
+.Pp
+Function
+.Fn pmc_release
+releases the PMC denoted by argument
+.Fa pmcid .
+.Sh RETURN VALUES
+If successful, function
+.Fn pmc_allocate
+sets the location specified by argument
+.Fa pmcid
+to the handle of the allocated PMC and returns 0.
+In case of an error, the function returns -1 and sets the global
+variable
+.Va errno
+to indicate the error.
+.Pp
+.Rv -std pmc_release
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The argument
+.Fa mode
+to function
+.Fn pmc_allocate
+had an invalid value.
+.It Bq Er EINVAL
+Argument
+.Fa cpu
+to function
+.Fn pmc_allocate
+had an invalid CPU number.
+.It Bq Er EINVAL
+Argument
+.Fa flags
+contained flags that were unsupported or otherwise incompatible with
+the requested PMC mode.
+.It Bq Er EINVAL
+Argument
+.Fa eventspecifier
+to function
+.Fn pmc_allocate
+specified an event not supported by hardware or contained a syntax
+error.
+.It Bq Er ENXIO
+Function
+.Fn pmc_allocate
+requested the use of a hardware resource that was absent or
+administratively disabled.
+.It Bq Er EOPNOTSUPP
+The underlying hardware does not support the capabilities needed for
+a PMC being allocated by a call to
+.Fn pmc_allocate .
+.It Bq Er EPERM
+A system scope PMC allocation was attempted without adequate process
+privilege.
+.It Bq Er ESRCH
+Function
+.Fn pmc_release
+was called without first having allocated a PMC.
+.It Bq Er EINVAL
+Argument
+.Fa pmcid
+to function
+.Fn pmc_release
+did not specify a PMC previously allocated by this process.
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc_attach 3 ,
+.Xr pmc_configure_logfile 3 ,
+.Xr pmc_start 3 ,
+.Xr hwpmc 4

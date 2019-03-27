@@ -1,0 +1,1132 @@
+.\"
+.\" Copyright (c) 2005 Bruce M Simpson <bms@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 15, 2017
+.Dt PCI 9
+.Os
+.Sh NAME
+.Nm pci ,
+.Nm pci_alloc_msi ,
+.Nm pci_alloc_msix ,
+.Nm pci_disable_busmaster ,
+.Nm pci_disable_io ,
+.Nm pci_enable_busmaster ,
+.Nm pci_enable_io ,
+.Nm pci_find_bsf ,
+.Nm pci_find_cap ,
+.Nm pci_find_dbsf ,
+.Nm pci_find_device ,
+.Nm pci_find_extcap ,
+.Nm pci_find_htcap ,
+.Nm pci_find_next_cap ,
+.Nm pci_find_next_extcap ,
+.Nm pci_find_next_htcap ,
+.Nm pci_find_pcie_root_port ,
+.Nm pci_get_id ,
+.Nm pci_get_max_payload ,
+.Nm pci_get_max_read_req ,
+.Nm pci_get_powerstate ,
+.Nm pci_get_vpd_ident ,
+.Nm pci_get_vpd_readonly ,
+.Nm pci_iov_attach ,
+.Nm pci_iov_attach_name ,
+.Nm pci_iov_detach ,
+.Nm pci_msi_count ,
+.Nm pci_msix_count ,
+.Nm pci_msix_pba_bar ,
+.Nm pci_msix_table_bar ,
+.Nm pci_pending_msix ,
+.Nm pci_read_config ,
+.Nm pci_release_msi ,
+.Nm pci_remap_msix ,
+.Nm pci_restore_state ,
+.Nm pci_save_state ,
+.Nm pci_set_max_read_req ,
+.Nm pci_set_powerstate ,
+.Nm pci_write_config ,
+.Nm pcie_adjust_config ,
+.Nm pcie_flr ,
+.Nm pcie_get_max_completion_timeout ,
+.Nm pcie_read_config ,
+.Nm pcie_wait_for_pending_transactions ,
+.Nm pcie_write_config
+.Nd PCI bus interface
+.Sh SYNOPSIS
+.In sys/bus.h
+.In dev/pci/pcireg.h
+.In dev/pci/pcivar.h
+.Ft int
+.Fn pci_alloc_msi "device_t dev" "int *count"
+.Ft int
+.Fn pci_alloc_msix "device_t dev" "int *count"
+.Ft int
+.Fn pci_disable_busmaster "device_t dev"
+.Ft int
+.Fn pci_disable_io "device_t dev" "int space"
+.Ft int
+.Fn pci_enable_busmaster "device_t dev"
+.Ft int
+.Fn pci_enable_io "device_t dev" "int space"
+.Ft device_t
+.Fn pci_find_bsf "uint8_t bus" "uint8_t slot" "uint8_t func"
+.Ft int
+.Fn pci_find_cap "device_t dev" "int capability" "int *capreg"
+.Ft device_t
+.Fn pci_find_dbsf "uint32_t domain" "uint8_t bus" "uint8_t slot" "uint8_t func"
+.Ft device_t
+.Fn pci_find_device "uint16_t vendor" "uint16_t device"
+.Ft int
+.Fn pci_find_extcap "device_t dev" "int capability" "int *capreg"
+.Ft int
+.Fn pci_find_htcap "device_t dev" "int capability" "int *capreg"
+.Ft int
+.Fn pci_find_next_cap "device_t dev" "int capability" "int start" "int *capreg"
+.Ft int
+.Fn pci_find_next_extcap "device_t dev" "int capability" "int start" "int *capreg"
+.Ft int
+.Fn pci_find_next_htcap "device_t dev" "int capability" "int start" "int *capreg"
+.Ft device_t
+.Fn pci_find_pcie_root_port "device_t dev"
+.Ft int
+.Fn pci_get_id "device_t dev" "enum pci_id_type type" "uintptr_t *id"
+.Ft int
+.Fn pci_get_max_payload "device_t dev"
+.Ft int
+.Fn pci_get_max_read_req "device_t dev"
+.Ft int
+.Fn pci_get_powerstate "device_t dev"
+.Ft int
+.Fn pci_get_vpd_ident "device_t dev" "const char **identptr"
+.Ft int
+.Fn pci_get_vpd_readonly "device_t dev" "const char *kw" "const char **vptr"
+.Ft int
+.Fn pci_msi_count "device_t dev"
+.Ft int
+.Fn pci_msix_count "device_t dev"
+.Ft int
+.Fn pci_msix_pba_bar "device_t dev"
+.Ft int
+.Fn pci_msix_table_bar "device_t dev"
+.Ft int
+.Fn pci_pending_msix "device_t dev" "u_int index"
+.Ft uint32_t
+.Fn pci_read_config "device_t dev" "int reg" "int width"
+.Ft int
+.Fn pci_release_msi "device_t dev"
+.Ft int
+.Fn pci_remap_msix "device_t dev" "int count" "const u_int *vectors"
+.Ft void
+.Fn pci_restore_state "device_t dev"
+.Ft void
+.Fn pci_save_state "device_t dev"
+.Ft int
+.Fn pci_set_max_read_req "device_t dev" "int size"
+.Ft int
+.Fn pci_set_powerstate "device_t dev" "int state"
+.Ft void
+.Fn pci_write_config "device_t dev" "int reg" "uint32_t val" "int width"
+.Ft uint32_t
+.Fo pcie_adjust_config
+.Fa "device_t dev"
+.Fa "int reg"
+.Fa "uint32_t mask"
+.Fa "uint32_t val"
+.Fa "int width"
+.Fc
+.Ft bool
+.Fn pcie_flr "device_t dev" "u_int max_delay" "bool force"
+.Ft int
+.Fn pcie_get_max_completion_timeout "device_t dev"
+.Ft uint32_t
+.Fn pcie_read_config "device_t dev" "int reg" "int width"
+.Ft bool
+.Fn pcie_wait_for_pending_transactions "device_t dev" "u_int max_delay"
+.Ft void
+.Fn pcie_write_config "device_t dev" "int reg" "uint32_t val" "int width"
+.Ft void
+.Fn pci_event_fn "void *arg" "device_t dev"
+.Fn EVENTHANDLER_REGISTER "pci_add_device" "pci_event_fn"
+.Fn EVENTHANDLER_DEREGISTER "pci_delete_resource" "pci_event_fn"
+.In dev/pci/pci_iov.h
+.Ft int
+.Fn pci_iov_attach "device_t dev" "nvlist_t *pf_schema" "nvlist_t *vf_schema"
+.Ft int
+.Fo pci_iov_attach_name
+.Fa "device_t dev"
+.Fa "nvlist_t *pf_schema"
+.Fa "nvlist_t *vf_schema"
+.Fa "const char *fmt"
+.Fa "..."
+.Fc
+.Ft int
+.Fn pci_iov_detach "device_t dev"
+.Sh DESCRIPTION
+The
+.Nm
+set of functions are used for managing PCI devices.
+The functions are split into several groups:
+raw configuration access,
+locating devices,
+device information,
+device configuration,
+and
+message signaled interrupts.
+.Ss Raw Configuration Access
+The
+.Fn pci_read_config
+function is used to read data from the PCI configuration
+space of the device
+.Fa dev ,
+at offset
+.Fa reg ,
+with
+.Fa width
+specifying the size of the access.
+.Pp
+The
+.Fn pci_write_config
+function is used to write the value
+.Fa val
+to the PCI configuration
+space of the device
+.Fa dev ,
+at offset
+.Fa reg ,
+with
+.Fa width
+specifying the size of the access.
+.Pp
+The
+.Fn pcie_adjust_config
+function is used to modify the value of a register in the PCI-express
+capability register set of device
+.Fa dev .
+The offset
+.Fa reg
+specifies a relative offset in the register set with
+.Fa width
+specifying the size of the access.
+The new value of the register is computed by modifying bits set in
+.Fa mask
+to the value in
+.Fa val .
+Any bits not specified in
+.Fa mask
+are preserved.
+The previous value of the register is returned.
+.Pp
+The
+.Fn pcie_read_config
+function is used to read the value of a register in the PCI-express
+capability register set of device
+.Fa dev .
+The offset
+.Fa reg
+specifies a relative offset in the register set with
+.Fa width
+specifying the size of the access.
+.Pp
+The
+.Fn pcie_write_config
+function is used to write the value
+.Fa val
+to a register in the PCI-express capability register set of device
+.Fa dev .
+The offset
+.Fa reg
+specifies a relative offset in the register set with
+.Fa width
+specifying the size of the access.
+.Pp
+.Em NOTE :
+Device drivers should only use these functions for functionality that
+is not available via another
+.Fn pci
+function.
+.Ss Locating Devices
+The
+.Fn pci_find_bsf
+function looks up the
+.Vt device_t
+of a PCI device, given its
+.Fa bus ,
+.Fa slot ,
+and
+.Fa func .
+The
+.Fa slot
+number actually refers to the number of the device on the bus,
+which does not necessarily indicate its geographic location
+in terms of a physical slot.
+Note that in case the system has multiple PCI domains,
+the
+.Fn pci_find_bsf
+function only searches the first one.
+Actually, it is equivalent to:
+.Bd -literal -offset indent
+pci_find_dbsf(0, bus, slot, func);
+.Ed
+.Pp
+The
+.Fn pci_find_dbsf
+function looks up the
+.Vt device_t
+of a PCI device, given its
+.Fa domain ,
+.Fa bus ,
+.Fa slot ,
+and
+.Fa func .
+The
+.Fa slot
+number actually refers to the number of the device on the bus,
+which does not necessarily indicate its geographic location
+in terms of a physical slot.
+.Pp
+The
+.Fn pci_find_device
+function looks up the
+.Vt device_t
+of a PCI device, given its
+.Fa vendor
+and
+.Fa device
+IDs.
+Note that there can be multiple matches for this search; this function
+only returns the first matching device.
+.Ss Device Information
+The
+.Fn pci_find_cap
+function is used to locate the first instance of a PCI capability
+register set for the device
+.Fa dev .
+The capability to locate is specified by ID via
+.Fa capability .
+Constant macros of the form
+.Dv PCIY_xxx
+for standard capability IDs are defined in
+.In dev/pci/pcireg.h .
+If the capability is found, then
+.Fa *capreg
+is set to the offset in configuration space of the capability register set,
+and
+.Fn pci_find_cap
+returns zero.
+If the capability is not found or the device does not support capabilities,
+.Fn pci_find_cap
+returns an error.
+The
+.Fn pci_find_next_cap
+function is used to locate the next instance of a PCI capability
+register set for the device
+.Fa dev .
+The
+.Fa start
+should be the
+.Fa *capreg
+returned by a prior
+.Fn pci_find_cap
+or
+.Fn pci_find_next_cap .
+When no more instances are located
+.Fn pci_find_next_cap
+returns an error.
+.Pp
+The
+.Fn pci_find_extcap
+function is used to locate the first instance of a PCI-express
+extended capability register set for the device
+.Fa dev .
+The extended capability to locate is specified by ID via
+.Fa capability .
+Constant macros of the form
+.Dv PCIZ_xxx
+for standard extended capability IDs are defined in
+.In dev/pci/pcireg.h .
+If the extended capability is found, then
+.Fa *capreg
+is set to the offset in configuration space of the extended capability
+register set, and
+.Fn pci_find_extcap
+returns zero.
+If the extended capability is not found or the device is not a
+PCI-express device,
+.Fn pci_find_extcap
+returns an error.
+The
+.Fn pci_find_next_extcap
+function is used to locate the next instance of a PCI-express
+extended capability register set for the device
+.Fa dev .
+The
+.Fa start
+should be the
+.Fa *capreg
+returned by a prior
+.Fn pci_find_extcap
+or
+.Fn pci_find_next_extcap .
+When no more instances are located
+.Fn pci_find_next_extcap
+returns an error.
+.Pp
+The
+.Fn pci_find_htcap
+function is used to locate the first instance of a HyperTransport capability
+register set for the device
+.Fa dev .
+The capability to locate is specified by type via
+.Fa capability .
+Constant macros of the form
+.Dv PCIM_HTCAP_xxx
+for standard HyperTransport capability types are defined in
+.In dev/pci/pcireg.h .
+If the capability is found, then
+.Fa *capreg
+is set to the offset in configuration space of the capability register set,
+and
+.Fn pci_find_htcap
+returns zero.
+If the capability is not found or the device is not a HyperTransport device,
+.Fn pci_find_htcap
+returns an error.
+The
+.Fn pci_find_next_htcap
+function is used to locate the next instance of a HyperTransport capability
+register set for the device
+.Fa dev .
+The
+.Fa start
+should be the
+.Fa *capreg
+returned by a prior
+.Fn pci_find_htcap
+or
+.Fn pci_find_next_htcap .
+When no more instances are located
+.Fn pci_find_next_htcap
+returns an error.
+.Pp
+The
+.Fn pci_find_pcie_root_port
+function walks up the PCI device hierarchy to locate the PCI-express root
+port upstream of
+.Fa dev .
+If a root port is not found,
+.Fn pci_find_pcie_root_port
+returns
+.Dv NULL .
+.Pp
+The
+.Fn pci_get_id
+function is used to read an identifier from a device.
+The
+.Fa type
+flag is used to specify which identifier to read.
+The following flags are supported:
+.Bl -hang -width ".Dv PCI_ID_RID"
+.It Dv PCI_ID_RID
+Read the routing identifier for the device.
+.It Dv PCI_ID_MSI
+Read the MSI routing ID.
+This is needed by some interrupt controllers to route MSI and MSI-X interrupts.
+.El
+.Pp
+The
+.Fn pci_get_vpd_ident
+function is used to fetch a device's Vital Product Data
+.Pq VPD
+identifier string.
+If the device
+.Fa dev
+supports VPD and provides an identifier string,
+then
+.Fa *identptr
+is set to point at a read-only, null-terminated copy of the identifier
+string,
+and
+.Fn pci_get_vpd_ident
+returns zero.
+If the device does not support VPD or does not provide an identifier
+string,
+then
+.Fn pci_get_vpd_ident
+returns an error.
+.Pp
+The
+.Fn pci_get_vpd_readonly
+function is used to fetch the value of a single VPD read-only keyword
+for the device
+.Fa dev .
+The keyword to fetch is identified by the two character string
+.Fa kw .
+If the device supports VPD and provides a read-only value for the
+requested keyword,
+then
+.Fa *vptr
+is set to point at a read-only, null-terminated copy of the value,
+and
+.Fn pci_get_vpd_readonly
+returns zero.
+If the device does not support VPD or does not provide the requested
+keyword,
+then
+.Fn pci_get_vpd_readonly
+returns an error.
+.Pp
+The
+.Fn pcie_get_max_completion_timeout
+function returns the maximum completion timeout configured for the device
+.Fa dev
+in microseconds.
+If the
+.Fa dev
+device is not a PCI-express device,
+.Fn pcie_get_max_completion_timeout
+returns zero.
+When completion timeouts are disabled for
+.Fa dev ,
+this function returns the maxmimum timeout that would be used if timeouts
+were enabled.
+.Pp
+The
+.Fn pcie_wait_for_pending_transactions
+function waits for any pending transactions initiated by the
+.Fa dev
+device to complete.
+The function checks for pending transactions by polling the transactions
+pending flag in the PCI-express device status register.
+It returns
+.Dv true
+once the transaction pending flag is clear.
+If transactions are still pending after
+.Fa max_delay
+milliseconds,
+.Fn pcie_wait_for_pending_transactions
+returns
+.Dv false .
+If
+.Fa max_delay
+is set to zero,
+.Fn pcie_wait_for_pending_transactions
+performs a single check;
+otherwise,
+this function may sleep while polling the transactions pending flag.
+.Nm pcie_wait_for_pending_transactions
+returns
+.Dv true
+if
+.Fa dev
+is not a PCI-express device.
+.Ss Device Configuration
+The
+.Fn pci_enable_busmaster
+function enables PCI bus mastering for the device
+.Fa dev ,
+by setting the
+.Dv PCIM_CMD_BUSMASTEREN
+bit in the
+.Dv PCIR_COMMAND
+register.
+The
+.Fn pci_disable_busmaster
+function clears this bit.
+.Pp
+The
+.Fn pci_enable_io
+function enables memory or I/O port address decoding for the device
+.Fa dev ,
+by setting the
+.Dv PCIM_CMD_MEMEN
+or
+.Dv PCIM_CMD_PORTEN
+bit in the
+.Dv PCIR_COMMAND
+register appropriately.
+The
+.Fn pci_disable_io
+function clears the appropriate bit.
+The
+.Fa space
+argument specifies which resource is affected; this can be either
+.Dv SYS_RES_MEMORY
+or
+.Dv SYS_RES_IOPORT
+as appropriate.
+Device drivers should generally not use these routines directly.
+The PCI bus will enable decoding automatically when a
+.Dv SYS_RES_MEMORY
+or
+.Dv SYS_RES_IOPORT
+resource is activated via
+.Xr bus_alloc_resource 9
+or
+.Xr bus_activate_resource 9 .
+.Pp
+The
+.Fn pci_get_max_payload
+function returns the current maximum TLP payload size in bytes for a
+PCI-express device.
+If the
+.Fa dev
+device is not a PCI-express device,
+.Fn pci_get_max_payload
+returns zero.
+.Pp
+The
+.Fn pci_get_max_read_req
+function returns the current maximum read request size in bytes for a
+PCI-express device.
+If the
+.Fa dev
+device is not a PCI-express device,
+.Fn pci_get_max_read_req
+returns zero.
+.Pp
+The
+.Fn pci_set_max_read_req
+sets the PCI-express maximum read request size for
+.Fa dev .
+The requested
+.Fa size
+may be adjusted,
+and
+.Fn pci_set_max_read_req
+returns the actual size set in bytes.
+If the
+.Fa dev
+device is not a PCI-express device,
+.Fn pci_set_max_read_req
+returns zero.
+.Pp
+The
+.Fn pci_get_powerstate
+function returns the current power state of the device
+.Fa dev .
+If the device does not support power management capabilities, then the default
+state of
+.Dv PCI_POWERSTATE_D0
+is returned.
+The following power states are defined by PCI:
+.Bl -hang -width ".Dv PCI_POWERSTATE_UNKNOWN"
+.It Dv PCI_POWERSTATE_D0
+State in which device is on and running.
+It is receiving full power from the system and delivering
+full functionality to the user.
+.It Dv PCI_POWERSTATE_D1
+Class-specific low-power state in which device context may or
+may not be lost.
+Buses in this state cannot do anything to the bus, to
+force devices to lose context.
+.It Dv PCI_POWERSTATE_D2
+Class-specific low-power state in which device context may or
+may not be lost.
+Attains greater power savings than
+.Dv PCI_POWERSTATE_D1 .
+Buses in this state can cause devices to lose some context.
+Devices
+.Em must
+be prepared for the bus to be in this state or higher.
+.It Dv PCI_POWERSTATE_D3
+State in which the device is off and not running.
+Device context is lost, and power from the device can
+be removed.
+.It Dv PCI_POWERSTATE_UNKNOWN
+State of the device is unknown.
+.El
+.Pp
+The
+.Fn pci_set_powerstate
+function is used to transition the device
+.Fa dev
+to the PCI power state
+.Fa state .
+If the device does not support power management capabilities or
+it does not support the specific power state
+.Fa state ,
+then the function will fail with
+.Er EOPNOTSUPP .
+.Pp
+The
+.Fn pci_iov_attach
+function is used to advertise that the given device
+.Pq and associated device driver
+supports PCI Single-Root I/O Virtualization
+.Pq SR-IOV .
+A driver that supports SR-IOV must implement the
+.Xr PCI_IOV_INIT 9 ,
+.Xr PCI_IOV_ADD_VF 9
+and
+.Xr PCI_IOV_UNINIT 9
+methods.
+This function should be called during the
+.Xr DEVICE_ATTACH 9
+method.
+If this function returns an error, it is recommended that the device driver
+still successfully attaches, but runs with SR-IOV disabled.
+The
+.Fa pf_schema
+and
+.Fa vf_schema
+parameters are used to define what device-specific configuration parameters the
+device driver accepts when SR-IOV is enabled for the Physical Function
+.Pq PF
+and for individual Virtual Functions
+.Pq VFs
+respectively.
+See
+.Xr pci_iov_schema 9
+for details on how to construct the schema.
+If either the
+.Pa pf_schema
+or
+.Pa vf_schema
+is invalid or specifies parameter names that conflict with parameter names that
+are already in use,
+.Fn pci_iov_attach
+will return an error and SR-IOV will not be available on the PF device.
+If a driver does not accept configuration parameters for either the PF device
+or the VF devices, the driver must pass an empty schema for that device.
+The SR-IOV infrastructure takes ownership of the
+.Fa pf_schema
+and
+.Fa vf_schema
+and is responsible for freeing them.
+The driver must never free the schemas itself.
+.Pp
+The
+.Fn pci_iov_attach_name
+function is a variant of
+.Fn pci_iov_attach
+that allows the name of the associated character device in
+.Pa /dev/iov
+to be specified by
+.Fa fmt .
+The
+.Fn pci_iov_attach
+function uses the name of
+.Fa dev
+as the device name.
+.Pp
+The
+.Fn pci_iov_detach
+function is used to advise the SR-IOV infrastructure that the driver for the
+given device is attempting to detach and that all SR-IOV resources for the
+device must be released.
+This function must be called during the
+.Xr DEVICE_DETACH 9
+method if
+.Fn pci_iov_attach
+was successfully called on the device and
+.Fn pci_iov_detach
+has not subsequently been called on the device and returned no error.
+If this function returns an error, the
+.Xr DEVICE_DETACH 9
+method must fail and return an error, as detaching the PF driver while VF
+devices are active would cause system instability.
+This function is safe to call and will always succeed if
+.Fn pci_iov_attach
+previously failed with an error on the given device, or if
+.Fn pci_iov_attach
+was never called on the device.
+.Pp
+The
+.Fn pci_save_state
+and
+.Fn pci_restore_state
+functions can be used by a device driver to save and restore standard PCI
+config registers.
+The
+.Fn pci_save_state
+function must be invoked while the device has valid state before
+.Fn pci_restore_state
+can be used.
+If the device is not in the fully-powered state
+.Pq Dv PCI_POWERSTATE_D0
+when
+.Fn pci_restore_state
+is invoked,
+then the device will be transitioned to
+.Dv PCI_POWERSTATE_D0
+before any config registers are restored.
+.Pp
+The
+.Fn pcie_flr
+function requests a Function Level Reset
+.Pq FLR
+of
+.Fa dev .
+If
+.Fa dev
+is not a PCI-express device or does not support Function Level Resets via
+the PCI-express device control register,
+.Dv false
+is returned.
+Pending transactions are drained by disabling busmastering and calling
+.Fn pcie_wait_for_pending_transactions
+before resetting the device.
+The
+.Fa max_delay
+argument specifies the maximum timeout to wait for pending transactions as
+described for
+.Fn pcie_wait_for_pending_transactions .
+If
+.Fn pcie_wait_for_pending_transactions
+fails with a timeout and
+.Fa force
+is
+.Dv false ,
+busmastering is re-enabled and
+.Dv false
+is returned.
+If
+.Fn pcie_wait_for_pending_transactions
+fails with a timeout and
+.Fa force
+is
+.Dv true ,
+the device is reset despite the timeout.
+After the reset has been requested,
+.Nm pcie_flr
+sleeps for at least 100 milliseconds before returning
+.Dv true .
+Note that
+.Nm pcie_flr
+does not save and restore any state around the reset.
+The caller should save and restore state as needed.
+.Ss Message Signaled Interrupts
+Message Signaled Interrupts
+.Pq MSI
+and
+Enhanced Message Signaled Interrupts
+.Pq MSI-X
+are PCI capabilities that provide an alternate method for PCI
+devices to signal interrupts.
+The legacy INTx interrupt is available to PCI devices as a
+.Dv SYS_RES_IRQ
+resource with a resource ID of zero.
+MSI and MSI-X interrupts are available to PCI devices as one or more
+.Dv SYS_RES_IRQ
+resources with resource IDs greater than zero.
+A driver must ask the PCI bus to allocate MSI or MSI-X interrupts
+using
+.Fn pci_alloc_msi
+or
+.Fn pci_alloc_msix
+before it can use MSI or MSI-X
+.Dv SYS_RES_IRQ
+resources.
+A driver is not allowed to use the legacy INTx
+.Dv SYS_RES_IRQ
+resource if MSI or MSI-X interrupts have been allocated,
+and attempts to allocate MSI or MSI-X interrupts will fail if the
+driver is currently using the legacy INTx
+.Dv SYS_RES_IRQ
+resource.
+A driver is only allowed to use either MSI or MSI-X,
+but not both.
+.Pp
+The
+.Fn pci_msi_count
+function returns the maximum number of MSI messages supported by the
+device
+.Fa dev .
+If the device does not support MSI,
+then
+.Fn pci_msi_count
+returns zero.
+.Pp
+The
+.Fn pci_alloc_msi
+function attempts to allocate
+.Fa *count
+MSI messages for the device
+.Fa dev .
+The
+.Fn pci_alloc_msi
+function may allocate fewer messages than requested for various
+reasons including requests for more messages than the device
+.Fa dev
+supports,
+or if the system has a shortage of available MSI messages.
+On success,
+.Fa *count
+is set to the number of messages allocated and
+.Fn pci_alloc_msi
+returns zero.
+The
+.Dv SYS_RES_IRQ
+resources for the allocated messages will be available at consecutive
+resource IDs beginning with one.
+If
+.Fn pci_alloc_msi
+is not able to allocate any messages,
+it returns an error.
+Note that MSI only supports message counts that are powers of two;
+requests to allocate a non-power of two count of messages will fail.
+.Pp
+The
+.Fn pci_release_msi
+function is used to release any allocated MSI or MSI-X messages back
+to the system.
+If any MSI or MSI-X
+.Dv SYS_RES_IRQ
+resources are allocated by the driver or have a configured interrupt
+handler,
+this function will fail with
+.Er EBUSY .
+The
+.Fn pci_release_msi
+function returns zero on success and an error on failure.
+.Pp
+The
+.Fn pci_msix_count
+function returns the maximum number of MSI-X messages supported by the
+device
+.Fa dev .
+If the device does not support MSI-X,
+then
+.Fn pci_msix_count
+returns zero.
+.Pp
+The
+.Fn pci_msix_pba_bar
+function returns the offset in configuration space of the Base Address Register
+.Pq BAR
+containing the MSI-X Pending Bit Array (PBA) for device
+.Fa dev .
+The returned value can be used as the resource ID with
+.Xr bus_alloc_resource 9
+and
+.Xr bus_release_resource 9
+to allocate the BAR.
+If the device does not support MSI-X,
+then
+.Fn pci_msix_pba_bar
+returns -1.
+.Pp
+The
+.Fn pci_msix_table_bar
+function returns the offset in configuration space of the BAR
+containing the MSI-X vector table for device
+.Fa dev .
+The returned value can be used as the resource ID with
+.Xr bus_alloc_resource 9
+and
+.Xr bus_release_resource 9
+to allocate the BAR.
+If the device does not support MSI-X,
+then
+.Fn pci_msix_table_bar
+returns -1.
+.Pp
+The
+.Fn pci_alloc_msix
+function attempts to allocate
+.Fa *count
+MSI-X messages for the device
+.Fa dev .
+The
+.Fn pci_alloc_msix
+function may allocate fewer messages than requested for various
+reasons including requests for more messages than the device
+.Fa dev
+supports,
+or if the system has a shortage of available MSI-X messages.
+On success,
+.Fa *count
+is set to the number of messages allocated and
+.Fn pci_alloc_msix
+returns zero.
+For MSI-X messages,
+the resource ID for each
+.Dv SYS_RES_IRQ
+resource identifies the index in the MSI-X table of the
+corresponding message.
+A resource ID of one maps to the first index of the MSI-X table;
+a resource ID two identifies the second index in the table, etc.
+The
+.Fn pci_alloc_msix
+function assigns the
+.Fa *count
+messages allocated to the first
+.Fa *count
+table indices.
+If
+.Fn pci_alloc_msix
+is not able to allocate any messages,
+it returns an error.
+Unlike MSI,
+MSI-X does not require message counts that are powers of two.
+.Pp
+The BARs containing the MSI-X vector table and PBA must be
+allocated via
+.Xr bus_alloc_resource 9
+before calling
+.Fn pci_alloc_msix
+and must not be released until after calling
+.Fn pci_release_msi .
+Note that the vector table and PBA may be stored in the same BAR or in
+different BARs.
+.Pp
+The
+.Fn pci_pending_msix
+function examines the
+.Fa dev
+device's PBA
+to determine the pending status of the MSI-X message at table index
+.Fa index .
+If the indicated message is pending,
+this function returns a non-zero value;
+otherwise,
+it returns zero.
+Passing an invalid
+.Fa index
+to this function will result in undefined behavior.
+.Pp
+As mentioned in the description of
+.Fn pci_alloc_msix ,
+MSI-X messages are initially assigned to the first N table entries.
+A driver may use a different distribution of available messages to
+table entries via the
+.Fn pci_remap_msix
+function.
+Note that this function must be called after a successful call to
+.Fn pci_alloc_msix
+but before any of the
+.Dv SYS_RES_IRQ
+resources are allocated.
+The
+.Fn pci_remap_msix
+function returns zero on success,
+or an error on failure.
+.Pp
+The
+.Fa vectors
+array should contain
+.Fa count
+message vectors.
+The array maps directly to the MSI-X table in that the first entry in
+the array specifies the message used for the first entry in the MSI-X
+table,
+the second entry in the array corresponds to the second entry in the
+MSI-X table,
+etc.
+The vector value in each array index can either be zero to indicate
+that no message should be assigned to the corresponding MSI-X table entry,
+or it can be a number from one to N
+.Po
+where N is the count returned from the previous call to
+.Fn pci_alloc_msix
+.Pc
+to indicate which of the allocated messages should be assigned to the
+corresponding MSI-X table entry.
+.Pp
+If
+.Fn pci_remap_msix
+succeeds,
+each MSI-X table entry with a non-zero vector will have an associated
+.Dv SYS_RES_IRQ
+resource whose resource ID corresponds to the table index as described
+above for
+.Fn pci_alloc_msix .
+MSI-X table entries that with a vector of zero will not have an
+associated
+.Dv SYS_RES_IRQ
+resource.
+Additionally,
+if any of the original messages allocated by
+.Fn pci_alloc_msix
+are not used in the new distribution of messages in the MSI-X table,
+they will be released automatically.
+Note that if a driver wishes to use fewer messages than were allocated by
+.Fn pci_alloc_msix ,
+the driver must use a single, contiguous range of messages beginning
+with one in the new distribution.
+The
+.Fn pci_remap_msix
+function will fail if this condition is not met.
+.Ss Device Events
+The
+.Va pci_add_device
+event handler is invoked every time a new PCI device is added to the system.
+This includes the creation of Virtual Functions via SR-IOV.
+.Pp
+The
+.Va pci_delete_device
+event handler is invoked every time a PCI device is removed from the system.
+.Pp
+Both event handlers pass the
+.Vt device_t
+object of the relevant PCI device as
+.Fa dev
+to each callback function.
+Both event handlers are invoked while
+.Fa dev
+is unattached but with valid instance variables.
+.Sh SEE ALSO
+.Xr pci 4 ,
+.Xr pciconf 8 ,
+.Xr bus_alloc_resource 9 ,
+.Xr bus_dma 9 ,
+.Xr bus_release_resource 9 ,
+.Xr bus_setup_intr 9 ,
+.Xr bus_teardown_intr 9 ,
+.Xr devclass 9 ,
+.Xr device 9 ,
+.Xr driver 9 ,
+.Xr eventhandler 9 ,
+.Xr rman 9
+.Rs
+.%B FreeBSD Developers' Handbook
+.%T NewBus
+.%U https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/developers-handbook/
+.Re
+.Rs
+.%A Shanley
+.%A Anderson
+.%B PCI System Architecture
+.%N 2nd Edition
+.%I Addison-Wesley
+.%O ISBN 0-201-30974-2
+.Re
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Bruce M Simpson Aq Mt bms@FreeBSD.org
+and
+.An John Baldwin Aq Mt jhb@FreeBSD.org .
+.Sh BUGS
+The kernel PCI code has a number of references to
+.Dq "slot numbers" .
+These do not refer to the geographic location of PCI devices,
+but to the device number assigned by the combination of the PCI IDSEL
+mechanism and the platform firmware.
+This should be taken note of when working with the kernel PCI code.
+.Pp
+The PCI bus driver should allocate the MSI-X vector table and PBA internally
+as necessary rather than requiring the caller to do so.

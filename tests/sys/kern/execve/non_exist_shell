@@ -1,0 +1,4 @@
+#! /foo/bar/baz
+# $FreeBSD$
+
+echo foo

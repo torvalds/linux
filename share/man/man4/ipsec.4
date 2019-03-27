@@ -1,0 +1,446 @@
+.\"	$KAME: ipsec.4,v 1.17 2001/06/27 15:25:10 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 6, 2017
+.Dt IPSEC 4
+.Os
+.Sh NAME
+.Nm ipsec
+.Nd Internet Protocol Security protocol
+.Sh SYNOPSIS
+.Cd "options IPSEC"
+.Cd "options IPSEC_SUPPORT"
+.Cd "device crypto"
+.Pp
+.In sys/types.h
+.In netinet/in.h
+.In netipsec/ipsec.h
+.In netipsec/ipsec6.h
+.Sh DESCRIPTION
+.Nm
+is a security protocol implemented within the Internet Protocol layer
+of the networking stack.
+.Nm
+is defined for both IPv4 and IPv6
+.Xr ( inet 4
+and
+.Xr inet6 4 ) .
+.Nm
+is a set of protocols,
+.Tn ESP
+(for Encapsulating Security Payload)
+.Tn AH
+(for Authentication Header),
+and
+.Tn IPComp
+(for IP Payload Compression Protocol)
+that provide security services for IP datagrams.
+AH both authenticates and guarantees the integrity of an IP packet
+by attaching a cryptographic checksum computed using one-way hash functions.
+ESP, in addition, prevents unauthorized parties from reading the payload of
+an IP packet by also encrypting it.
+IPComp tries to increase communication performance by compressing IP payload,
+thus reducing the amount of data sent.
+This will help nodes on slow links but with enough computing power.
+.Nm
+operates in one of two modes: transport mode or tunnel mode.
+Transport mode is used to protect peer-to-peer communication between end nodes.
+Tunnel mode encapsulates IP packets within other IP packets
+and is designed for security gateways such as VPN endpoints.
+.Pp
+System configuration requires the
+.Xr crypto 4
+subsystem.
+.Pp
+The packets can be passed to a virtual
+.Xr enc 4
+interface,
+to perform packet filtering before outbound encryption and after decapsulation
+inbound.
+.Pp
+To properly filter on the inner packets of an
+.Nm
+tunnel with firewalls, you can change the values of the following sysctls
+.Bl -column net.inet6.ipsec6.filtertunnel default enable
+.It Sy "Name	Default	Enable"
+.It "net.inet.ipsec.filtertunnel	0	1"
+.It "net.inet6.ipsec6.filtertunnel	0	1"
+.El
+.\"
+.Ss Kernel interface
+.Nm
+is controlled by a key management and policy engine,
+that reside in the operating system kernel.
+Key management
+is the process of associating keys with security associations, also
+know as SAs.
+Policy management dictates when new security
+associations created or destroyed.
+.Pp
+The key management engine can be accessed from userland by using
+.Dv PF_KEY
+sockets.
+The
+.Dv PF_KEY
+socket API is defined in RFC2367.
+.Pp
+The policy engine is controlled by an extension to the
+.Dv PF_KEY
+API,
+.Xr setsockopt 2
+operations, and
+.Xr sysctl 3
+interface.
+The kernel implements
+an extended version of the
+.Dv PF_KEY
+interface and allows the programmer to define IPsec policies
+which are similar to the per-packet filters.
+The
+.Xr setsockopt 2
+interface is used to define per-socket behavior, and
+.Xr sysctl 3
+interface is used to define host-wide default behavior.
+.Pp
+The kernel code does not implement a dynamic encryption key exchange protocol
+such as IKE
+(Internet Key Exchange).
+Key exchange protocols are beyond what is necessary in the kernel and
+should be implemented as daemon processes which call the
+.Nm APIs.
+.\"
+.Ss Policy management
+IPsec policies can be managed in one of two ways, either by
+configuring per-socket policies using the
+.Xr setsockopt 2
+system calls, or by configuring kernel level packet filter-based
+policies using the
+.Dv PF_KEY
+interface, via the
+.Xr setkey 8
+you can define IPsec policies against packets using rules similar to packet
+filtering rules.
+Refer to
+.Xr setkey 8
+on how to use it.
+.Pp
+Depending on the socket's address family, IPPROTO_IP or IPPROTO_IPV6
+transport level and IP_IPSEC_POLICY or IPV6_IPSEC_POLICY socket options
+may be used to configure per-socket security policies.
+A properly-formed IPsec policy specification structure can be
+created using
+.Xr ipsec_set_policy 3
+function and used as socket option value for the
+.Xr setsockopt 2
+call.
+.Pp
+When setting policies using the
+.Xr setkey 8
+command, the
+.Dq Li default
+option instructs the system to use its default policy, as
+explained below, for processing packets.
+The following sysctl variables are available for configuring the
+system's IPsec behavior.
+The variables can have one of two values.
+A
+.Li 1
+means
+.Dq Li use ,
+which means that if there is a security association then use it but if
+there is not then the packets are not processed by IPsec.
+The value
+.Li 2
+is synonymous with
+.Dq Li require ,
+which requires that a security association must exist for the packets
+to move, and not be dropped.
+These terms are defined in
+.Xr ipsec_set_policy 8 .
+.Bl -column net.inet6.ipsec6.esp_trans_deflev integerxxx
+.It Sy "Name	Type	Changeable"
+.It "net.inet.ipsec.esp_trans_deflev	integer	yes"
+.It "net.inet.ipsec.esp_net_deflev	integer	yes"
+.It "net.inet.ipsec.ah_trans_deflev	integer	yes"
+.It "net.inet.ipsec.ah_net_deflev	integer	yes"
+.It "net.inet6.ipsec6.esp_trans_deflev	integer	yes"
+.It "net.inet6.ipsec6.esp_net_deflev	integer	yes"
+.It "net.inet6.ipsec6.ah_trans_deflev	integer	yes"
+.It "net.inet6.ipsec6.ah_net_deflev	integer	yes"
+.El
+.Pp
+If the kernel does not find a matching, system wide, policy then the
+default value is applied.
+The system wide default policy is specified
+by the following
+.Xr sysctl 8
+variables.
+.Li 0
+means
+.Dq Li discard
+which asks the kernel to drop the packet.
+.Li 1
+means
+.Dq Li none .
+.Bl -column net.inet6.ipsec6.def_policy integerxxx
+.It Sy "Name	Type	Changeable"
+.It "net.inet.ipsec.def_policy	integer	yes"
+.It "net.inet6.ipsec6.def_policy	integer	yes"
+.El
+.\"
+.Ss Miscellaneous sysctl variables
+When the
+.Nm
+protocols are configured for use, all protocols are included in the system.
+To selectively enable/disable protocols, use
+.Xr sysctl 8 .
+.Bl -column net.inet.ipcomp.ipcomp_enable
+.It Sy "Name	Default"
+.It "net.inet.esp.esp_enable	On"
+.It "net.inet.ah.ah_enable	On"
+.It "net.inet.ipcomp.ipcomp_enable	On"
+.El
+.Pp
+In addition the following variables are accessible via
+.Xr sysctl 8 ,
+for tweaking the kernel's IPsec behavior:
+.Bl -column net.inet6.ipsec6.inbonud_call_ike integerxxx
+.It Sy "Name	Type	Changeable"
+.It "net.inet.ipsec.ah_cleartos	integer	yes"
+.It "net.inet.ipsec.ah_offsetmask	integer	yes"
+.It "net.inet.ipsec.dfbit	integer	yes"
+.It "net.inet.ipsec.ecn	integer	yes"
+.It "net.inet.ipsec.debug	integer	yes"
+.It "net.inet.ipsec.natt_cksum_policy	integer	yes"
+.It "net.inet.ipsec.check_policy_history	integer	yes"
+.It "net.inet6.ipsec6.ecn	integer	yes"
+.It "net.inet6.ipsec6.debug	integer	yes"
+.El
+.Pp
+The variables are interpreted as follows:
+.Bl -tag -width 6n
+.It Li ipsec.ah_cleartos
+If set to non-zero, the kernel clears the type-of-service field in the IPv4 header
+during AH authentication data computation.
+This variable is used to get current systems to inter-operate with devices that
+implement RFC1826 AH.
+It should be set to non-zero
+(clear the type-of-service field)
+for RFC2402 conformance.
+.It Li ipsec.ah_offsetmask
+During AH authentication data computation, the kernel will include a
+16bit fragment offset field
+(including flag bits)
+in the IPv4 header, after computing logical AND with the variable.
+The variable is used for inter-operating with devices that
+implement RFC1826 AH.
+It should be set to zero
+(clear the fragment offset field during computation)
+for RFC2402 conformance.
+.It Li ipsec.dfbit
+This variable configures the kernel behavior on IPv4 IPsec tunnel encapsulation.
+If set to 0, the DF bit on the outer IPv4 header will be cleared while
+1 means that the outer DF bit is set regardless from the inner DF bit and
+2 indicates that the DF bit is copied from the inner header to the
+outer one.
+The variable is supplied to conform to RFC2401 chapter 6.1.
+.It Li ipsec.ecn
+If set to non-zero, IPv4 IPsec tunnel encapsulation/decapsulation behavior will
+be friendly to ECN
+(explicit congestion notification),
+as documented in
+.Li draft-ietf-ipsec-ecn-02.txt .
+.Xr gif 4
+talks more about the behavior.
+.It Li ipsec.debug
+If set to non-zero, debug messages will be generated via
+.Xr syslog 3 .
+.It Li ipsec.natt_cksum_policy
+Controls how the kernel handles TCP and UDP checksums when ESP in UDP
+encapsulation is used for IPsec transport mode.
+If set to a non-zero value, the kernel fully recomputes checksums for
+inbound TCP segments and UDP datagrams after they are decapsulated and
+decrypted.
+If set to 0 and original addresses were configured for corresponding SA
+by the IKE daemon, the kernel incrementally recomputes checksums for
+inbound TCP segments and UDP datagrams.
+If addresses were not configured, the checksums are ignored.
+.It Li ipsec.check_policy_history
+Enables strict policy checking for inbound packets.
+By default, inbound security policies check that packets handled by IPsec
+have been decrypted and authenticated.
+If this variable is set to a non-zero value, each packet handled by IPsec
+is checked against the history of IPsec security associations.
+The IPsec security protocol, mode, and SA addresses must match.
+.El
+.Pp
+Variables under the
+.Li net.inet6.ipsec6
+tree have similar meanings to those described above.
+.\"
+.Sh PROTOCOLS
+The
+.Nm
+protocol acts as a plug-in to the
+.Xr inet 4
+and
+.Xr inet6 4
+protocols and therefore supports most of the protocols defined upon
+those IP-layer protocols.
+The
+.Xr icmp 4
+and
+.Xr icmp6 4
+protocols may behave differently with
+.Nm
+because
+.Nm
+can prevent
+.Xr icmp 4
+or
+.Xr icmp6 4
+routines from looking into the IP payload.
+.\"
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr socket 2 ,
+.Xr ipsec_set_policy 3 ,
+.Xr crypto 4 ,
+.Xr enc 4 ,
+.Xr if_ipsec 4 ,
+.Xr icmp6 4 ,
+.Xr intro 4 ,
+.Xr ip6 4 ,
+.Xr setkey 8 ,
+.Xr sysctl 8
+.\".Xr racoon 8
+.Rs
+.%A "S. Kent"
+.%A "R. Atkinson"
+.%T "IP Authentication Header"
+.%O "RFC 2404"
+.Re
+.Rs
+.%A "S. Kent"
+.%A "R. Atkinson"
+.%T "IP Encapsulating Security Payload (ESP)"
+.%O "RFC 2406"
+.Re
+.Sh STANDARDS
+.Rs
+.%A Daniel L. McDonald
+.%A Craig Metz
+.%A Bao G. Phan
+.%T "PF_KEY Key Management API, Version 2"
+.%R RFC
+.%N 2367
+.Re
+.Pp
+.Rs
+.%A "D. L. McDonald"
+.%T "A Simple IP Security API Extension to BSD Sockets"
+.%R internet draft
+.%N "draft-mcdonald-simple-ipsec-api-03.txt"
+.%O work in progress material
+.Re
+.Sh HISTORY
+The original
+.Nm
+implementation appeared in the WIDE/KAME IPv6/IPsec stack.
+.Pp
+For
+.Fx 5.0
+a fully locked IPsec implementation called fast_ipsec was brought in.
+The protocols drew heavily on the
+.Ox
+implementation of the
+.Tn IPsec
+protocols.
+The policy management code was derived from the
+.Tn KAME
+implementation found
+in their
+.Tn IPsec
+protocols.
+The fast_ipsec implementation lacked
+.Xr ip6 4
+support but made use of the
+.Xr crypto 4
+subsystem.
+.Pp
+For
+.Fx 7.0
+.Xr ip6 4
+support was added to fast_ipsec.
+After this the old KAME IPsec implementation was dropped and fast_ipsec
+became what now is the only
+.Nm
+implementation in
+.Fx .
+.Sh BUGS
+There is no single standard for the policy engine API,
+so the policy engine API described herein is just for this implementation.
+.Pp
+AH and tunnel mode encapsulation may not work as you might expect.
+If you configure inbound
+.Dq require
+policy with an AH tunnel or any IPsec encapsulating policy with AH
+(like
+.Dq Li esp/tunnel/A-B/use ah/transport/A-B/require ) ,
+tunnelled packets will be rejected.
+This is because the policy check is enforced on the inner packet on reception,
+and AH authenticates encapsulating
+(outer)
+packet, not the encapsulated
+(inner)
+packet
+(so for the receiving kernel there is no sign of authenticity).
+The issue will be solved when we revamp our policy engine to keep all the
+packet decapsulation history.
+.Pp
+When a large database of security associations or policies is present
+in the kernel the
+.Dv SADB_DUMP
+and
+.Dv SADB_SPDDUMP
+operations on
+.Dv PF_KEY
+sockets may fail due to lack of space.
+Increasing the socket buffer
+size may alleviate this problem.
+.Pp
+The
+.Tn IPcomp
+protocol may occasionally error because of
+.Xr zlib 3
+problems.
+.Pp
+This documentation needs more review.

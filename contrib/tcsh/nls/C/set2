@@ -1,0 +1,111 @@
+$ $tcsh: set2,v 1.5 2006/03/02 18:46:45 christos Exp $
+$ Signal names
+$set 2 
+1 Null signal
+2 Hangup
+3 Interrupt
+4 Quit
+5 Illegal instruction
+6 Trace/BPT trap
+7 Abort
+8 IOT trap
+9 System Crash Imminent
+10 Error exit
+11 EMT trap
+12 Floating exception
+13 Killed
+14 User signal 1
+15 User signal 2
+16 Segmentation fault
+17 Bus error
+18 Program range error
+19 Operand range error
+20 Bad system call
+21 Broken pipe
+22 Alarm clock
+23 Terminated
+24 Child status change
+25 Death of child
+26 Apollo-specific fault
+27 Child stopped or exited
+28 Child exited
+29 Power failure
+30 Resource Lost
+31 Break (Ctrl-Break)
+32 Input/output possible signal
+33 Asynchronous I/O (select)
+34 Urgent condition on I/O channel
+35 Multitasking wake-up
+36 Multitasking kill
+37 Fortran asynchronous I/O completion
+38 Recovery
+39 Uncorrectable memory error
+40 CPU time limit exceeded
+41 System shutdown imminent
+42 micro-tasking group-no wakeup flag set
+43 Thread error - (use cord -T for detailed info)
+44 CRAY Y-MP register parity error
+45 Information request
+46 Suspended (signal)
+47 Stopped (signal)
+48 Suspended
+49 Stopped
+50 Continued
+51 Suspended (tty input)
+52 Stopped (tty input)
+53 Suspended (tty output)
+54 Stopped (tty output)
+55 Window status changed
+56 Window size changed
+57 Phone status changed
+58 Cputime limit exceeded
+59 Filesize limit exceeded
+60 Virtual time alarm
+61 Profiling time alarm
+62 DIL signal
+63 Pollable event occured
+64 Process's lwps are blocked
+65 Special LWP signal
+66 Special CPR Signal
+67 Special CPR Signal
+68 First Realtime Signal
+69 Second Realtime Signal
+70 Third Realtime Signal
+71 Fourth Realtime Signal
+72 Fourth Last Realtime Signal
+73 Third Last Realtime Signal
+74 Second Last Realtime Signal
+75 Last Realtime Signal
+76 LAN Asyncronous I/O
+77 PTY read/write availability
+78 I/O intervention required
+79 HFT monitor mode granted
+80 HFT monitor mode should be relinguished
+81 HFT sound control has completed
+82 Data in HFT ring buffer
+83 Migrate process
+84 Secure attention key
+85 Reschedule
+86 Signaling SS$_DEBUG
+87 Priority changed
+88 True deadlock detected
+89 New input character
+90 Stack limit exceeded
+91 Unused signal
+92 LM overlay
+93 system freeze
+94 system defreeze
+95 dead lock
+96 exceeded memory size limit
+97 exceeded data size limit
+98 exceeded memory size limit of 32KB
+99 exce error for no memory
+100 check point start
+101 check point start of kernel
+102 restart start
+103 restart of kernel
+104 exeeded XMU size limit
+105 exeeded RLG0 limit
+106 exeeded RLG1 limit
+107 exeeded RLG2 limit
+108 exeeded RLG3 limit

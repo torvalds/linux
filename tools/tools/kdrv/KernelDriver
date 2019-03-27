@@ -1,0 +1,1081 @@
+#!/bin/sh
+# Tcl magic -*- tcl -*- \
+exec tclsh $0 $*
+################################################################################
+#
+# KernelDriver - FreeBSD driver source installer
+#
+################################################################################
+#
+# Copyright (C) 1997
+#      Michael Smith.  All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the author nor the names of any co-contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY Michael Smith AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL Michael Smith OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+################################################################################
+#
+# KernelDriver provides a means for installing source-form drivers into FreeBSD 
+# kernel source trees in an automated fashion.  It can also remove drivers it 
+# has installed.
+#
+# Driver information is read from a control file, with the following syntax :
+#
+# description {<text>}		Driver description; used in comments inserted into
+#				files.
+# driver <name>			The name of the driver. (Note that this can't end in .drvinfo :)
+# filei386 <path> <name>	The file <name> in the driver package is installed into
+#				<path> in the kernel source tree.  Files whose names
+#				end in '.c' have an entry added to i386/conf/files.i386.
+# fileconf <path> <name>	The file <name> in the driver package is installed into
+#				<path> in the kernel source tree.  Files whose names
+#				end in '.c' have an entry added to conf/files.
+# optioni386 <name> <hdr>	Adds an entry to i386/conf/options.i386, such that
+#				the option <name> will be placed in the header <hdr>.
+# optionconf <name> <hdr>	Adds an entry to conf/options, such that
+#				the option <name> will be placed in the header <hdr>.
+# linttext			Lines between this and a subsequent 'end' line are added
+#				to the LINT file to provide configuration examples,
+#				comments, etc.
+# end				Ends a text region.
+# 
+# Possible additions :
+#
+# patch <name>		Applies the patch contained in <name>; patch is invoked
+#			at the top level of the kernel source tree, and the 
+#			patch must apply cleanly (this is checked).
+#
+# option <name> <file>	Adds an entry to i386/conf/options.i386
+#
+# Lines beginning with '#' or blanks are considered comments, except in
+# 'linttext' regions.
+#
+################################################################################
+#
+# $FreeBSD$
+#
+################################################################################
+
+################################################################################
+# findDrvFile
+#
+# Given (hint), use it to locate a driver information file.
+# (Possible extension; support drivers in gzipped tarballs...)
+#
+proc findDrvFile_try {hint} {
+
+    # points to something already
+    if {[file exists $hint]} {
+	# unwind symbolic links
+	while {[file type $hint] == "link"} {
+	    set hint [file readlink $hint];
+	}
+	switch [file type $hint] {
+	    file {
+		# run with it as it is
+		return $hint;
+	    }
+	    directory {
+		# look for a drvinfo file in the directory
+		set candidate [glob -nocomplain "$hint/*.drvinfo"];
+		switch [llength $candidate] {
+		    0 {
+			# nothing there
+		    }
+		    1 {
+			return $candidate;
+		    }
+		    default {
+			error "multiple driver info files in directory : $hint";
+		    }
+		}
+	    }
+	    default {
+		error "driver info file may be a typewriter : $hint";
+	    }
+	}
+    }
+    # maybe we need an extension
+    if {[file exists $hint.drvinfo]} {
+	return $hint.drvinfo;
+    }
+    error "can't find a driver info file using '$hint'";
+}
+
+proc findDrvFile {hint} {
+
+    set result [findDrvFile_try $hint];
+    if {$result != ""} {
+	return $result;
+    }
+    set result [findDrvFile_try ${hint}.drvinfo];
+    if {$result != ""} {
+	return $result;
+    }
+    error "can't find driver information file using : $hint";
+}
+
+################################################################################
+# readDrvFile
+#
+# Reads the contents of (fname), which are expected to be in the format 
+# described above, and fill in the global Drv array.
+#
+proc readDrvFile {fname} {
+
+    global Drv Options;
+
+    if {$Options(verbose)} {puts "+ read options from '$fname'";}
+    set fh [open $fname r];
+    
+    # set defaults
+    set Drv(description) "";
+    set Drv(driver) "";
+    set Drv(filesi386) "";
+    set Drv(filesconf) "";
+    set Drv(optionsi386) "";
+    set Drv(optionsconf) "";
+    set Drv(patches) "";
+    set Drv(linttext) "";
+
+    while {[gets $fh line] >= 0} {
+	
+	# blank lines/comments
+	if {([llength $line] == 0) ||
+	    ([string index $line 0] == "\#")} {
+	    continue ;
+	}
+
+	# get keyword, process
+	switch -- [lindex $line 0] {
+	    description {
+		set Drv(description) [lindex $line 1];
+	    }
+	    driver {
+		set Drv(driver) [lindex $line 1];
+	    }
+	    filei386 {
+		set path [lindex $line 1];
+		set plast [expr [string length $path] -1];
+		if {[string index $path $plast] != "/"} {
+		    append path "/";
+		}
+		set name [lindex $line 2];
+		set Drv(filei386:$name) $path;
+		lappend Drv(filesi386) $name;
+	    }
+	    fileconf {
+		set path [lindex $line 1];
+		set plast [expr [string length $path] -1];
+		if {[string index $path $plast] != "/"} {
+		    append path "/";
+		}
+		set name [lindex $line 2];
+		set Drv(fileconf:$name) $path;
+		lappend Drv(filesconf) $name;
+	    }
+	    optioni386 {
+		set opt [lindex $line 1];
+		set hdr [lindex $line 2];
+		lappend Drv(optionsi386) $opt;
+		set Drv(optioni386:$opt) $hdr;
+	    }
+	    optionconf {
+		set opt [lindex $line 1];
+		set hdr [lindex $line 2];
+		lappend Drv(optionsconf) $opt;
+		set Drv(optionconf:$opt) $hdr;
+	    }
+	    patch {
+		lappend Drv(patches) [lindex $line 1];
+	    }
+	    linttext {
+		while {[gets $fh line] >= 0} {
+		    if {$line == "end"} {
+			break ;
+		    }
+		    lappend Drv(linttext) $line;
+		}
+	    }
+	}
+    }
+    close $fh;
+    if {$Options(verbose)} {
+	printDrv;
+    }
+}
+		
+################################################################################
+# validateDrvPackage
+#
+# With the global Drv filled in, check that the files required are all in
+# (dir), and that the kernel config at (kpath) can be written.
+#
+proc validateDrvPackage {dir kpath} {
+
+    global Drv Options;
+
+    if {$Options(verbose)} {puts "+ checking driver package...";}
+    set missing "";
+    set unwritable "";
+
+    # check files, patches
+    foreach f $Drv(filesi386) {
+	if {![file readable $dir$f]} {
+	    lappend missing $f;
+	}
+    }
+    foreach f $Drv(filesconf) {
+	if {![file readable $dir$f]} {
+	    lappend missing $f;
+	}
+    }
+    foreach f $Drv(patches) {
+	if {![file readable $dir$f]} {
+	    lappend missing $f;
+	}
+    }
+    if {$missing != ""} {
+	error "missing files : $missing";
+    }
+
+    # check writability
+    if {$Options(verbose)} {puts "+ checking kernel source writability...";}
+    foreach f $Drv(filesi386) {
+	set p $Drv(filei386:$f);
+	if {![file isdirectory $kpath$p]} {
+	    lappend missing $p;
+	} else {
+	    if {![file writable $kpath$p]} {
+		if {[lsearch -exact $unwritable $p] == -1} {
+		    lappend unwritable $p;
+		}
+	    }
+	}
+    }
+    foreach f $Drv(filesconf) {
+	set p $Drv(fileconf:$f);
+	if {![file isdirectory $kpath$p]} {
+	    lappend missing $p;
+	} else {
+	    if {![file writable $kpath$p]} {
+		if {[lsearch -exact $unwritable $p] == -1} {
+		    lappend unwritable $p;
+		}
+	    }
+	}
+    }
+    foreach f [list \
+		   "conf/files" \
+		   "i386/conf/files.i386" \
+		   "i386/conf/options.i386" \
+		   "i386/conf/LINT"] {
+	if {![file writable $kpath$f]} {
+	    lappend unwritable $f;
+	}
+    }
+    if {$missing != ""} {
+	error "missing directories : $missing";
+    }
+    if {$unwritable != ""} {
+	error "can't write to : $unwritable";
+    }
+}
+
+################################################################################
+# installDrvFiles
+#
+# Install the files listed in the global Drv into (kpath) from (dir)
+#
+proc installDrvFiles {dir kpath} {
+
+    global Drv Options;
+
+    # clear 'installed' record
+    set Drv(installedi386) "";
+    set Drv(installedconf) "";
+    set failed "";
+
+    if {$Options(verbose)} {puts "+ installing driver files...";}
+    foreach f $Drv(filesi386) {
+	if {$Options(verbose)} {puts "$f -> $kpath$Drv(filei386:$f)";}
+	if {$Options(real)} {
+	    if {[catch {exec cp $dir$f $kpath$Drv(filei386:$f)} msg]} {
+		lappend failed $f;
+	    } else {
+		lappend Drv(installedi386) $f;
+	    }
+	}
+    }
+    foreach f $Drv(filesconf) {
+	if {$Options(verbose)} {puts "$f -> $kpath$Drv(fileconf:$f)";}
+	if {$Options(real)} {
+	    if {[catch {exec cp $dir$f $kpath$Drv(fileconf:$f)} msg]} {
+		lappend failed $f;
+	    } else {
+		lappend Drv(installedconf) $f;
+	    }
+	}
+    }
+    if {$failed != ""} {
+	error "failed to install files : $failed";
+    }
+}
+
+################################################################################
+# backoutDrvChanges
+#
+# Remove files from a failed installation in (kpath)
+#
+proc backoutDrvChanges {kpath} {
+
+    global Drv Options;
+
+    if {$Options(verbose)} {puts "+ backing out installed files...";}
+    # delete installed files
+    foreach f $Drv(installedi386) {
+	exec rm -f $kpath$Drv(filei386:$f)$f;
+    }
+    foreach f $Drv(installedconf) {
+	exec rm -f $kpath$Drv(fileconf:$f)$f;
+    }
+}
+
+################################################################################
+# registerDrvFiles
+#
+# Adds an entry to i386/conf/files.i386 and conf/files for the .c files in the driver.  
+# (kpath) points to the kernel.
+#
+# A comment is added to the file preceding the new entries :
+#
+#  ## driver: <drivername>
+#  # <description>
+#  # filei386: <path><file>
+#  <file spec (.c files only)>
+#  ## enddriver
+#
+# We only append to the end of the file.
+#
+# Add linttext to the LINT file.
+# Add options to i386/conf/options.i386 if any are specified
+#
+proc registerDrvFiles {kpath} {
+
+    global Drv Options;
+
+    if {$Options(verbose)} {puts "+ registering installed files...";}
+
+# Add stuff to LINT
+    if {$Drv(linttext) != ""} {
+
+	if {$Options(verbose)} {puts "+ updating LINT...";}
+	if {$Options(real)} {
+	    set fname [format "%si386/conf/LINT" $kpath];
+	    set fh [open $fname a];
+
+	    # header
+	    puts $fh "\#\# driver: $Drv(driver)";
+	    puts $fh "\# $Drv(description)";
+	    foreach l $Drv(linttext) {
+		puts $fh $l;
+	    }
+	    puts $fh "\#\# enddriver";
+	    close $fh;
+	}
+    }
+
+# Do filesi386 stuff
+    if {$Options(real)} {
+	set fname [format "%si386/conf/files.i386" $kpath];
+	set fh [open $fname a];
+
+	# header
+	puts $fh "\#\# driver: $Drv(driver)";
+	puts $fh "\# $Drv(description)";
+	# file information
+	foreach f $Drv(filesi386) {
+	    puts $fh "\# file: $Drv(filei386:$f)$f";
+	    # is it a compilable object?
+	    if {[string match "*.c" $f]} {
+		puts $fh "$Drv(filei386:$f)$f\t\toptional\t$Drv(driver)\tdevice-driver";
+	    }
+	}
+	puts $fh "\#\# enddriver";
+	close $fh;
+    }
+    if {$Drv(optionsi386) != ""} {
+	if {$Options(verbose)} {puts "+ adding options...";}
+	if {$Options(real)} {
+	    set fname [format "%si386/conf/options.i386" $kpath];
+	    set fh [open $fname a];
+
+	    # header
+	    puts $fh "\#\# driver: $Drv(driver)";
+	    puts $fh "\# $Drv(description)";
+	    # options
+	    foreach opt $Drv(optionsi386) {
+		puts $fh "$opt\t$Drv(optioni386:$opt)";
+	    }
+	    puts $fh "\#\# enddriver";
+	    close $fh;
+	}
+    }
+
+# Do filesconf stuff
+    if {$Options(real)} {
+	set fname [format "%sconf/files" $kpath];
+	set fh [open $fname a];
+
+	# header
+	puts $fh "\#\# driver: $Drv(driver)";
+	puts $fh "\# $Drv(description)";
+	# file information
+	foreach f $Drv(filesconf) {
+	    puts $fh "\# file: $Drv(fileconf:$f)$f";
+	    # is it a compilable object?
+	    if {[string match "*.c" $f]} {
+		puts $fh "$Drv(fileconf:$f)$f\t\toptional\t$Drv(driver)\tdevice-driver";
+	    }
+	}
+	puts $fh "\#\# enddriver";
+	close $fh;
+    }
+     if {$Drv(optionsconf) != ""} {
+ 	if {$Options(verbose)} {puts "+ adding options...";}
+ 	if {$Options(real)} {
+ 	    set fname [format "%sconf/options" $kpath];
+ 	    set fh [open $fname a];
+
+ 	    # header
+ 	    puts $fh "\#\# driver: $Drv(driver)";
+ 	    puts $fh "\# $Drv(description)";
+ 	    # options
+ 	    foreach opt $Drv(optionsconf) {
+ 		puts $fh "$opt\t$Drv(optionconf:$opt)";
+ 	    }
+ 	    puts $fh "\#\# enddriver";
+ 	    close $fh;
+ 	}
+     }
+
+}
+
+################################################################################
+# listInstalledDrv
+#
+# List all drivers recorded as installed, in the kernel at (kpath)
+#
+# XXX : fix me so I understand conf/{options,files} stuff!
+proc listInstalledDrv {kpath} {
+
+    global Drv;
+
+    # pick up all the i386 options information first
+    set fname [format "%si386/conf/options.i386" $kpath];
+    if {![file readable $fname]} {
+	error "not a kernel directory";
+    }
+    set fh [open $fname r];
+
+    while {[gets $fh line] >= 0} {
+    
+	# got a driver?
+	if {[scan $line "\#\# driver: %s" driver] == 1} {
+	    # read driver details, ignore
+	    gets $fh line;
+	    # loop reading option details
+	    while {[gets $fh line] >= 0} {
+		# end of driver info
+		if {$line == "\#\# enddriver"} {
+		    break ;
+		}
+		# parse option/header tuple
+		if {[scan $line "%s %s" opt hdr] == 2} {
+		    # remember that this driver uses this option
+		    lappend drivers($driver:optionsi386) $opt;
+		    # remember that this option goes in this header
+		    set optionsi386($opt) $hdr;
+		}
+	    }
+	}
+    }
+    close $fh;
+
+    # pick up all the conf options information first
+    set fname [format "%sconf/options" $kpath];
+    if {![file readable $fname]} {
+	error "not a kernel directory";
+    }
+    set fh [open $fname r];
+
+    while {[gets $fh line] >= 0} {
+    
+	# got a driver?
+	if {[scan $line "\#\# driver: %s" driver] == 1} {
+	    # read driver details, ignore
+	    gets $fh line;
+	    # loop reading option details
+	    while {[gets $fh line] >= 0} {
+		# end of driver info
+		if {$line == "\#\# enddriver"} {
+		    break ;
+		}
+		# parse option/header tuple
+		if {[scan $line "%s %s" opt hdr] == 2} {
+		    # remember that this driver uses this option
+		    lappend drivers($driver:optionsconf) $opt;
+		    # remember that this option goes in this header
+		    set optionsconf($opt) $hdr;
+		}
+	    }
+	}
+    }
+    close $fh;
+
+    set fname [format "%si386/conf/files.i386" $kpath];
+    set fh [open $fname r];
+    
+    while {[gets $fh line] >= 0} {
+
+	# got a driver? 
+	if {[scan $line "\#\# driver: %s" driver] == 1} {
+	    # clear global and reset
+	    catch {unset Drv};
+	    set Drv(driver) $driver;
+	    # read driver details
+	    gets $fh line;
+	    set Drv(description) [string range $line 2 end];
+	    set Drv(filesi386) "";
+	    # options?
+	    if {[info exists drivers($Drv(driver):optionsi386)]} {
+		set Drv(optionsi386) $drivers($Drv(driver):optionsi386);
+		# get pathnames
+		foreach opt $Drv(optionsi386) {
+		    set Drv(optioni386:$opt) $optionsi386($opt);
+		}
+	    }
+	    # loop reading file details
+	    while {[gets $fh line] >= 0} {
+		if {$line == "\#\# enddriver"} {
+		    # print this driver and loop
+		    printDrv;
+		    break ;
+		}
+		if {[scan $line "\# filei386: %s" fpath] == 1} {
+		    set f [file tail $fpath];	
+		    set Drv(filei386:$f) "[file dirname $fpath]/";
+		    lappend Drv(filesi386) $f;
+		}
+	    }
+	}
+    }
+    close $fh;
+
+    set fname [format "%sconf/files" $kpath];
+    set fh [open $fname r];
+    
+    while {[gets $fh line] >= 0} {
+
+	# got a driver? 
+	if {[scan $line "\#\# driver: %s" driver] == 1} {
+	    # clear global and reset
+	    catch {unset Drv};
+	    set Drv(driver) $driver;
+	    # read driver details
+	    gets $fh line;
+	    set Drv(description) [string range $line 2 end];
+	    set Drv(filesconf) "";
+	    # options?
+	    if {[info exists drivers($Drv(driver):optionsconf)]} {
+		set Drv(optionsconf) $drivers($Drv(driver):optionsconf);
+		# get pathnames
+		foreach opt $Drv(optionsconf) {
+		    set Drv(optionconf:$opt) $optionsconf($opt);
+		}
+	    }
+	    # loop reading file details
+	    while {[gets $fh line] >= 0} {
+		if {$line == "\#\# enddriver"} {
+		    # print this driver and loop
+		    printDrv;
+		    break ;
+		}
+		if {[scan $line "\# fileconf: %s" fpath] == 1} {
+		    set f [file tail $fpath];	
+		    set Drv(fileconf:$f) "[file dirname $fpath]/";
+		    lappend Drv(filesconf) $f;
+		}
+	    }
+	}
+    }
+    close $fh;
+}
+
+################################################################################
+# printDrv
+#
+# Print the contents of the global Drv.
+#
+proc printDrv {} {
+
+    global Drv Options;
+
+    puts "$Drv(driver) : $Drv(description)";
+    if {$Options(verbose)} {
+	foreach f $Drv(filesi386) {
+	    puts " $Drv(filei386:$f)$f"
+	}
+	foreach f $Drv(filesconf) {
+	    puts " $Drv(fileconf:$f)$f"
+	}
+	if {[info exists Drv(optionsi386)]} {
+	    foreach opt $Drv(optionsi386) {
+		puts " $opt in $Drv(optioni386:$opt)";
+	    }
+	}
+	if {[info exists Drv(optionsconf)]} {
+	    foreach opt $Drv(optionsconf) {
+		puts " $opt in $Drv(optionconf:$opt)";
+	    }
+	}
+    }
+}
+
+################################################################################
+# findInstalledDrv
+#
+# Given a kernel tree at (kpath), get driver details about an installed
+# driver (drvname)
+#
+
+proc findInstalledDrvi386 {drvname kpath} {
+
+    global Drv;
+
+    set fname [format "%si386/conf/files.i386" $kpath];
+    set fh [open $fname r];
+    
+    puts "checking i386/conf/files.i386";
+
+    while {[gets $fh line] >= 0} {
+	if {[scan $line "\#\# driver: %s" name] == 1} {
+	    if {$name != $drvname} {
+		continue ;		# not us
+	    }
+	    # read information
+	    set Drv(driver) $drvname;
+	    set line [gets $fh];
+	    set Drv(description) [string range $line 2 end];
+	    set Drv(filesi386) "";
+	    # loop reading file details
+	    while {[gets $fh line] >= 0} {
+		if {$line == "\#\# enddriver"} {
+		    close $fh;
+		    return 1;		# all done
+		}
+		if {[scan $line "\# file: %s" fpath] == 1} {
+		    set f [file tail $fpath];	
+		    set Drv(filei386:$f) "[file dirname $fpath]/";
+		    lappend Drv(filesi386) $f;
+		}
+	    }
+	    close $fh;
+	    error "unexpected EOF reading '$fname'";
+	}
+    }
+    close $fh
+
+    return 0;
+}
+
+proc findInstalledDrvconf {drvname kpath} {
+
+    global Drv;
+
+    set fname [format "%sconf/files" $kpath];
+    set fh [open $fname r];
+
+    puts "checking conf/files";
+    
+    while {[gets $fh line] >= 0} {
+	if {[scan $line "\#\# driver: %s" name] == 1} {
+	    if {$name != $drvname} {
+		continue ;		# not us
+	    }
+	    # read information
+	    set Drv(driver) $drvname;
+	    set line [gets $fh];
+	    set Drv(description) [string range $line 2 end];
+	    set Drv(filesconf) "";
+	    # loop reading file details
+	    while {[gets $fh line] >= 0} {
+		if {$line == "\#\# enddriver"} {
+		    close $fh;
+		    return 1;		# all done
+		}
+		if {[scan $line "\# file: %s" fpath] == 1} {
+		    set f [file tail $fpath];	
+		    set Drv(fileconf:$f) "[file dirname $fpath]/";
+		    lappend Drv(filesconf) $f;
+		}
+	    }
+	    close $fh;
+	    error "unexpected EOF reading '$fname'";
+	}
+    }
+    close $fh
+
+    return 0;
+}
+
+proc findInstalledDrv {drvname kpath} {
+
+    global Drv Options;
+
+    if {$Options(verbose)} {puts "+ look for driver '$drvname' in '$kpath'";}
+
+# Whoops... won't work in a single if statement due to expression shortcircuiting
+    set a [findInstalledDrvi386 $drvname $kpath];
+    set b [findInstalledDrvconf $drvname $kpath];
+    if {$a || $b} {
+	return;
+    }
+
+    error "driver '$drvname' not recorded as installed";
+}
+
+################################################################################
+# validateDrvRemoval
+#
+# Verify that we can remove the driver described in the global Drv installed
+# at (kpath).
+#
+proc validateDrvRemoval {kpath} {
+
+    global Drv Options;
+
+    set missing "";
+    set unwritable "";
+
+    if {$Options(verbose)} {puts "+ checking for removabilty...";}
+
+    # admin files?
+    foreach f [list \
+		   "i386/conf/files.i386" \
+		   "i386/conf/options.i386" \
+		   "i386/conf/LINT" \
+		   "conf/files" \
+		   "conf/options" ] { 
+	if {![file exists $kpath$f]} {
+	    lappend missing $kpath$f;
+	} else {
+	    if {![file writable $kpath$f]} {
+		lappend unwritable $f;
+	    }
+	}
+    }
+    # driver components?
+    foreach f $Drv(filesi386) {
+	set p $Drv(filei386:$f);
+	if {![file isdirectory $kpath$p]} {
+	    lappend missing $p;
+	} else {
+	    if {![file writable $kpath$p]} {
+		if {[lsearch -exact $unwritable $p] == -1} {
+		    lappend unwritable $p;
+		}
+	    }
+	}
+    }
+    foreach f $Drv(filesconf) {
+	set p $Drv(fileconf:$f);
+	if {![file isdirectory $kpath$p]} {
+	    lappend missing $p;
+	} else {
+	    if {![file writable $kpath$p]} {
+		if {[lsearch -exact $unwritable $p] == -1} {
+		    lappend unwritable $p;
+		}
+	    }
+	}
+    }
+    if {$missing != ""} {
+	error "files/directories missing : $missing";
+    }
+    if {$unwritable != ""} {
+	error "can't write to : $unwritable";
+    }
+}
+
+################################################################################
+# deleteDrvFiles
+#
+# Delete the files belonging to the driver devfined in the global Drv in
+# the kernel tree at (kpath)
+#
+proc deleteDrvFiles {kpath} {
+
+    global Drv Options;
+
+    if {$Options(verbose)} {puts "+ delete driver files...";}
+
+    # loop deleting files
+    foreach f $Drv(filesi386) {
+	if {$Options(verbose)} {puts "- $Drv(filei386:$f)$f";}
+	if {$Options(real)} {
+	    exec rm $kpath$Drv(filei386:$f)$f;
+	}
+    }
+    foreach f $Drv(filesconf) {
+	if {$Options(verbose)} {puts "- $Drv(fileconf:$f)$f";}
+	if {$Options(real)} {
+	    exec rm $kpath$Drv(fileconf:$f)$f;
+	}
+    }
+}    
+
+################################################################################
+# unregisterDrvFiles
+#
+# Remove any mention of the current driver from the files.i386 and LINT
+# files in (ksrc)
+#
+proc unregisterDrvFiles {ksrc} {
+
+    global Drv Options;
+
+    if {$Options(verbose)} {puts "+ deregister driver files...";}
+
+    # don't really do it?
+    if {!$Options(real)} { return ; }
+
+    foreach f [list \
+		   "i386/conf/files.i386" \
+		   "i386/conf/options.i386" \
+		   "i386/conf/LINT" \
+		   "conf/files" \
+		   "conf/options" ] {
+	set ifh [open $ksrc$f r];
+	set ofh [open $ksrc$f.new w];
+	set copying 1;
+
+	while {[gets $ifh line] >= 0} {
+
+	    if {[scan $line "\#\# driver: %s" name] == 1} {
+		if {$name == $Drv(driver)} {
+		    set copying 0;			# don't copy this one
+		}
+	    }
+	    if {$copying} {
+		puts $ofh $line;		# copy through
+	    }
+	    if {$line == "\#\# enddriver"} {	# end of driver detail
+		set copying 1;
+	    }
+	}
+	close $ifh;
+	close $ofh;
+	exec mv $ksrc$f.new $ksrc$f;		# move new over old
+    }
+}
+
+################################################################################
+# usage
+#
+# Remind the user what goes where
+#
+proc usage {} {
+
+    global argv0;
+
+    set progname [file tail $argv0];
+
+    puts stderr "Usage is :";
+    puts stderr "  $progname \[-v -n\] add <drvinfo> \[<kpath>\]";
+    puts stderr "  $progname \[-v -n\] delete <drvname> \[<kpath>\]";
+    puts stderr "  $progname \[-v\] list \[<kpath>\]";
+    puts stderr "  <drvinfo> is a driver info file";
+    puts stderr "  <drvname> is a driver name";
+    puts stderr "  <kpath> is the path to the kernel source (default /sys/)";
+    puts stderr "  -v  be verbose";
+    puts stderr "  -n  don't actually do anything";
+    exit ;
+}
+
+################################################################################
+# getOptions
+#
+# Parse commandline options, return anything that doesn't look like an option
+#
+proc getOptions {} {
+
+    global argv Options;
+
+    set Options(real) 1;
+    set Options(verbose) 0;
+    set ret "";
+    
+    for {set index 0} {$index < [llength $argv]} {incr index} {
+	
+	switch -- [lindex $argv $index] {
+
+	    -n {
+		set Options(real) 0;		# 'do-nothing' mode
+	    }
+	    -v {
+		set Options(verbose) 1;		# brag
+	    }
+	    default {
+		lappend ret [lindex $argv $index];
+	    }
+	}
+    }
+    return $ret;
+}
+
+################################################################################
+# getKpath
+#
+# Given (hint), return the kernel path.  If (hint) is empty, return /sys.
+# If the kernel path is not a directory, complain and dump the usage.
+#
+proc getKpath {hint} {
+
+    set kpath "";
+
+    # check the kernel path
+    if {$hint == ""} {
+	set kpath "/sys/";
+    } else {
+	set kpath $hint;
+    }
+    if {![file isdirectory $kpath]} {
+	puts "not a directory : $kpath";
+	usage ;
+    }
+    set plast [expr [string length $kpath] -1];
+    if {[string index $kpath $plast] != "/"} {
+	append kpath "/";
+    }
+    return $kpath;
+}
+
+################################################################################
+# main
+#
+# Start somewhere here.
+#
+proc main {} {
+
+    global Options;
+
+    # Work out what we're trying to do
+    set cmdline [getOptions];
+    set mode [lindex $cmdline 0];
+
+    # do stuff
+    switch -- $mode {
+	add {
+	    set hint [lindex $cmdline 1];
+	    set kpath [getKpath [lindex $cmdline 2]];
+
+	    # check driver file argument
+	    if {[catch {set drv [findDrvFile $hint]} msg]} {
+		puts stderr $msg;
+		usage ;
+	    }
+	    if {([file type $drv] != "file") ||
+		![file readable $drv]} {
+		puts "can't read driver file : $drv";
+		usage ; 
+	    }
+	    set drvdir "[file dirname $drv]/";
+
+	    # read driver file
+	    if {[catch {readDrvFile $drv} msg]} {
+		puts stderr $msg;
+		exit ;
+	    }
+	    # validate driver
+	    if {[catch {validateDrvPackage $drvdir $kpath} msg]} {
+		puts stderr $msg;
+		exit ;
+	    }
+	    # install new files
+	    if {[catch {installDrvFiles $drvdir $kpath} msg]} {
+		backoutDrvChanges $kpath;		# oops, unwind
+		puts stderr $msg;
+		exit ;
+	    }
+	    # register files in config
+	    if {[catch {registerDrvFiles $kpath} msg]} {
+		backoutDrvChanges $kpath;		# oops, unwind
+		puts stderr $msg;
+		exit ;
+	    }
+	}
+	delete {
+	    set drv [lindex $cmdline 1];
+	    set kpath [getKpath [lindex $cmdline 2]];
+
+	    if {[string last ".drvinfo" $drv] != -1} {
+		set drv [string range $drv 0 [expr [string length $drv] - 9]];
+		puts "Driver name ends in .drvinfo, removing, is now $drv";
+	    }
+
+	    if {[catch {findInstalledDrv $drv $kpath} msg]} {
+		puts stderr $msg;
+		exit ;
+	    }
+	    if {[catch {validateDrvRemoval $kpath} msg]} {
+		puts stderr $msg;
+		exit ;
+	    }
+	    if {[catch {unregisterDrvFiles $kpath} msg]} {
+		puts stderr $msg;
+		exit ;
+	    }
+	    if {[catch {deleteDrvFiles $kpath} msg]} {
+		puts stderr $msg;
+		exit ;
+	    }
+	}
+	list { 
+	    set kpath [getKpath [lindex $cmdline 1]];
+	    if {[catch {listInstalledDrv $kpath} msg]} {
+		puts stderr "can't list drivers in '$kpath' : $msg";
+	    }
+	}
+	default {
+	    puts stderr "unknown command '$mode'";
+	    usage ;
+	}
+    }
+}
+
+
+
+################################################################################
+main;

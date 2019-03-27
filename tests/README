@@ -1,0 +1,64 @@
+src/tests: The FreeBSD test suite
+=================================
+
+To run the FreeBSD test suite:
+(1)  Make sure that kyua is installed:
+       pkg install kyua
+(2)  To run the tests:
+       kyua test -k /usr/tests/Kyuafile
+(3)  To see the test results:
+       kyua report  
+
+For further information on using the test suite, read tests(7):
+       man tests
+
+Description of FreeBSD test suite
+=================================
+The build of the test suite is organized in the following manner:
+
+* The build of all test artifacts is protected by the MK_TESTS knob.
+  The user can disable these with the WITHOUT_TESTS setting in
+  src.conf(5).
+
+* The goal for /usr/tests/ (the installed test programs) is to follow
+  the same hierarchy as /usr/src/ wherever possible, which in turn drives
+  several of the design decisions described below.  This simplifies the
+  discoverability of tests.  We want a mapping such as:
+
+    /usr/src/bin/cp/      -> /usr/tests/bin/cp/
+    /usr/src/lib/libc/    -> /usr/tests/lib/libc/
+    /usr/src/usr.bin/cut/ -> /usr/tests/usr.bin/cut/
+    ... and many more ...
+
+* Test programs for specific utilities and libraries are located next
+  to the source code of such programs.  For example, the tests for the
+  src/lib/libcrypt/ library live in src/lib/libcrypt/tests/.  The tests/
+  subdirectory is optional and should, in general, be avoided.
+
+* The src/tests/ hierarchy (this directory) provides generic test
+  infrastructure and glue code to join all test programs together into
+  a single test suite definition.
+
+* The src/tests/ hierarchy also includes cross-functional test programs:
+  i.e. test programs that cover more than a single utility or library
+  and thus don't fit anywhere else in the tree.  Consider this to follow
+  the same rationale as src/share/man/: this directory contains generic
+  manual pages while the manual pages that are specific to individual
+  tools or libraries live next to the source code.
+
+In order to keep the src/tests/ hierarchy decoupled from the actual test
+programs being installed --which is a worthy goal because it simplifies
+the addition of new test programs and simplifies the maintenance of the
+tree-- the top-level Kyuafile does not know which subdirectories may
+exist upfront.  Instead, such Kyuafile automatically detects, at
+run-time, which */Kyuafile files exist and uses those directly.
+
+Similarly, every directory in src/ that wants to install a Kyuafile to
+just recurse into other subdirectories reuses this Kyuafile with
+auto-discovery features.  As an example, take a look at src/lib/tests/
+whose sole purpose is to install a Kyuafile into /usr/tests/lib/.
+The goal in this specific case is for /usr/tests/lib/ to be generated
+entirely from src/lib/.
+
+-- 
+$FreeBSD$

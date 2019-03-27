@@ -1,0 +1,7 @@
+# plain strings, with the NOSPEC flag
+abc		m	abc	abc
+abc		m	xabcy	abc
+abc		m	xyz
+a*b		m	aba*b	a*b
+a*b		m	ab
+""		mC	EMPTY

@@ -1,0 +1,26 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: powerd
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="powerd"
+desc="Modify the power profile based on AC line state"
+rcvar="powerd_enable"
+command="/usr/sbin/${name}"
+stop_postcmd=powerd_poststop
+
+powerd_poststop()
+{
+	sysctl dev.cpu.0.freq=`sysctl -n dev.cpu.0.freq_levels |
+	    sed -e 's:/.*::'` > /dev/null
+}
+
+load_rc_config $name
+run_rc_command "$1"

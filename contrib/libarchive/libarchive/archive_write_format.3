@@ -1,0 +1,175 @@
+.\" Copyright (c) 2003-2011 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 14, 2013
+.Dt ARCHIVE_WRITE_FORMAT 3
+.Os
+.Sh NAME
+.Nm archive_write_set_format ,
+.Nm archive_write_set_format_7zip ,
+.Nm archive_write_set_format_ar ,
+.Nm archive_write_set_format_ar_bsd ,
+.Nm archive_write_set_format_ar_svr4 ,
+.Nm archive_write_set_format_by_name ,
+.Nm archive_write_set_format_cpio ,
+.Nm archive_write_set_format_cpio_newc ,
+.Nm archive_write_set_format_filter_by_ext ,
+.Nm archive_write_set_format_filter_by_ext_def ,
+.Nm archive_write_set_format_gnutar ,
+.Nm archive_write_set_format_iso9660 ,
+.Nm archive_write_set_format_mtree ,
+.Nm archive_write_set_format_mtree_classic ,
+.Nm archive_write_set_format_mtree_default ,
+.Nm archive_write_set_format_pax ,
+.Nm archive_write_set_format_pax_restricted ,
+.Nm archive_write_set_format_raw ,
+.Nm archive_write_set_format_shar ,
+.Nm archive_write_set_format_shar_dump ,
+.Nm archive_write_set_format_ustar ,
+.Nm archive_write_set_format_v7tar ,
+.Nm archive_write_set_format_warc ,
+.Nm archive_write_set_format_xar ,
+.Nm archive_write_set_format_zip ,
+.Nd functions for creating archives
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive.h
+.Ft int
+.Fn archive_write_set_format "struct archive *" "int code"
+.Ft int
+.Fn archive_write_set_format_7zip "struct archive *"
+.Ft int
+.Fn archive_write_set_format_ar "struct archive *"
+.Ft int
+.Fn archive_write_set_format_ar_bsd "struct archive *"
+.Ft int
+.Fn archive_write_set_format_ar_svr4 "struct archive *"
+.Ft int
+.Fn archive_write_set_format_by_name "struct archive *" "const char *name"
+.Ft int
+.Fn archive_write_set_format_cpio "struct archive *"
+.Ft int
+.Fn archive_write_set_format_cpio_newc "struct archive *"
+.Ft int
+.Fn archive_write_set_format_filter_by_ext "struct archive *" "const char *filename"
+.Ft int
+.Fn archive_write_set_format_filter_by_ext_def "struct archive *" "const char *filename" "const char *def_ext"
+.Ft int
+.Fn archive_write_set_format_gnutar "struct archive *"
+.Ft int
+.Fn archive_write_set_format_iso9660 "struct archive *"
+.Ft int
+.Fn archive_write_set_format_mtree "struct archive *"
+.Ft int
+.Fn archive_write_set_format_pax "struct archive *"
+.Ft int
+.Fn archive_write_set_format_pax_restricted "struct archive *"
+.Ft int
+.Fn archive_write_set_format_raw "struct archive *"
+.Ft int
+.Fn archive_write_set_format_shar "struct archive *"
+.Ft int
+.Fn archive_write_set_format_shar_dump "struct archive *"
+.Ft int
+.Fn archive_write_set_format_ustar "struct archive *"
+.Ft int
+.Fn archive_write_set_format_v7tar "struct archive *"
+.Ft int
+.Fn archive_write_set_format_warc "struct archive *"
+.Ft int
+.Fn archive_write_set_format_xar "struct archive *"
+.Ft int
+.Fn archive_write_set_format_zip "struct archive *"
+.Sh DESCRIPTION
+These functions set the format that will be used for the archive.
+.Pp
+The library can write a variety of common archive formats.
+.Bl -tag -width indent
+.It Fn archive_write_set_format
+Sets the format based on the format code (see
+.Pa archive.h
+for the full list of format codes).
+In particular, this can be used in conjunction with
+.Fn archive_format
+to create a new archive with the same format as an existing archive.
+.It Fn archive_write_set_format_by_name
+Sets the corresponding format based on the common name.
+.It Xo
+.Fn archive_write_set_format_filter_by_ext ,
+.Fn archive_write_set_format_filter_by_ext_def
+.Xc
+Sets both filters and format based on the output filename.
+Supported extensions: .7z, .zip, .jar, .cpio, .iso, .a, .ar, .tar, .tgz, .tar.gz, .tar.bz2, .tar.xz
+.It Xo
+.Fn archive_write_set_format_7zip
+.Fn archive_write_set_format_ar_bsd ,
+.Fn archive_write_set_format_ar_svr4 ,
+.Fn archive_write_set_format_cpio
+.Fn archive_write_set_format_cpio_newc
+.Fn archive_write_set_format_gnutar
+.Fn archive_write_set_format_iso9660
+.Fn archive_write_set_format_mtree
+.Fn archive_write_set_format_mtree_classic
+.Fn archive_write_set_format_pax
+.Fn archive_write_set_format_pax_restricted
+.Fn archive_write_set_format_raw
+.Fn archive_write_set_format_shar
+.Fn archive_write_set_format_shar_dump
+.Fn archive_write_set_format_ustar
+.Fn archive_write_set_format_v7tar
+.Fn archive_write_set_format_warc
+.Fn archive_write_set_format_xar
+.Fn archive_write_set_format_zip
+.Xc
+Set the format as specified.
+More details on the formats supported by libarchive can be found in the
+.Xr libarchive-formats 5
+manual page.
+.El
+.\"
+.Sh RETURN VALUES
+These functions return
+.Cm ARCHIVE_OK
+on success, or
+.Cm ARCHIVE_FATAL .
+.\"
+.Sh ERRORS
+Detailed error codes and textual descriptions are available from the
+.Fn archive_errno
+and
+.Fn archive_error_string
+functions.
+.\"
+.Sh SEE ALSO
+.Xr tar 1 ,
+.Xr libarchive 3 ,
+.Xr archive_write 3 ,
+.Xr archive_write_set_options 3 ,
+.Xr cpio 5 ,
+.Xr libarchive-formats 5 ,
+.Xr mtree 5 ,
+.Xr tar 5

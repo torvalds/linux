@@ -1,0 +1,7 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        c_skey.c c_ecb.c {- $target{cast_asm_src} -} c_cfb64.c c_ofb64.c
+
+GENERATE[cast-586.s]=asm/cast-586.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+DEPEND[cast-586.s]=../perlasm/x86asm.pl ../perlasm/cbc.pl

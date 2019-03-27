@@ -1,0 +1,25 @@
+REGRESSIONS
+
+This version of drill is based on ldns and as such some things
+are slightly changed. This file documents the changes.
+
+o When tracing (-T option) we use the local resolver (as specified
+  in /etc/resolv.conf) to lookup names. This increases the speed
+  dramatically, but you obviously need to be able to reach a recursive
+  server/cache.
+  Previously drill would try to resolve the names by itself.
+
+o Printing of DSs after DNSKEY records. Because we don't parse our
+  own packets anymore, we cannot print the DS directly after the DNSKEY 
+  record. The DSs are now printed AFTER the packet.
+
+o The long options are removed.
+
+o The chase function has a different output, and will be subject to change
+  in the near future.
+ 
+o The useless (for jokes only) -I option was dropped.
+
+FIXED:
+o the argument parsing is much smarter, the order doesn't matter (much)
+  anymore

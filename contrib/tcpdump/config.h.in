@@ -1,0 +1,397 @@
+/* config.h.in.  Generated from configure.in by autoheader.  */
+
+/* define if you want to build the possibly-buggy SMB printer */
+#undef ENABLE_SMB
+
+/* Define to 1 if you have the `alarm' function. */
+#undef HAVE_ALARM
+
+/* Define to 1 if you have the `bpf_dump' function. */
+#undef HAVE_BPF_DUMP
+
+/* capsicum support available */
+#undef HAVE_CAPSICUM
+
+/* Define to 1 if you have the `cap_enter' function. */
+#undef HAVE_CAP_ENTER
+
+/* Define to 1 if you have the `cap_ioctls_limit' function. */
+#undef HAVE_CAP_IOCTLS_LIMIT
+
+/* Define to 1 if you have the <cap-ng.h> header file. */
+#undef HAVE_CAP_NG_H
+
+/* Define to 1 if you have the `cap_rights_limit' function. */
+#undef HAVE_CAP_RIGHTS_LIMIT
+
+/* Define to 1 if you have the declaration of `ether_ntohost', and to 0 if you
+   don't. */
+#undef HAVE_DECL_ETHER_NTOHOST
+
+/* define if you have the dnet_htoa function */
+#undef HAVE_DNET_HTOA
+
+/* Define to 1 if you have the `ether_ntohost' function. */
+#undef HAVE_ETHER_NTOHOST
+
+/* Define to 1 if you have the `EVP_CipherInit_ex' function. */
+#undef HAVE_EVP_CIPHERINIT_EX
+
+/* Define to 1 if you have the `EVP_CIPHER_CTX_new' function. */
+#undef HAVE_EVP_CIPHER_CTX_NEW
+
+/* Define to 1 if you have the <fcntl.h> header file. */
+#undef HAVE_FCNTL_H
+
+/* Define to 1 if you have the `fork' function. */
+#undef HAVE_FORK
+
+/* Define to 1 if you have the `getopt_long' function. */
+#undef HAVE_GETOPT_LONG
+
+/* define if you have getrpcbynumber() */
+#undef HAVE_GETRPCBYNUMBER
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the `cap-ng' library (-lcap-ng). */
+#undef HAVE_LIBCAP_NG
+
+/* Define to 1 if you have the `crypto' library (-lcrypto). */
+#undef HAVE_LIBCRYPTO
+
+/* Define to 1 if you have the `rpc' library (-lrpc). */
+#undef HAVE_LIBRPC
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the <netdnet/dnetdb.h> header file. */
+#undef HAVE_NETDNET_DNETDB_H
+
+/* define if you have a dnet_htoa declaration in <netdnet/dnetdb.h> */
+#undef HAVE_NETDNET_DNETDB_H_DNET_HTOA
+
+/* Define to 1 if you have the <netinet/ether.h> header file. */
+#undef HAVE_NETINET_ETHER_H
+
+/* Define to 1 if you have the <netinet/if_ether.h> header file. */
+#undef HAVE_NETINET_IF_ETHER_H
+
+/* Define to 1 if you have the <net/if_pflog.h> header file. */
+#undef HAVE_NET_IF_PFLOG_H
+
+/* Define to 1 if you have the <net/pfvar.h> header file. */
+#undef HAVE_NET_PFVAR_H
+
+/* Define to 1 if you have the `openat' function. */
+#undef HAVE_OPENAT
+
+/* Define to 1 if you have the <openssl/evp.h> header file. */
+#undef HAVE_OPENSSL_EVP_H
+
+/* define if the OS provides AF_INET6 and struct in6_addr */
+#undef HAVE_OS_IPV6_SUPPORT
+
+/* if there's an os_proto.h for this platform, to use additional prototypes */
+#undef HAVE_OS_PROTO_H
+
+/* Define to 1 if you have the <pcap/bluetooth.h> header file. */
+#undef HAVE_PCAP_BLUETOOTH_H
+
+/* Define to 1 if you have the `pcap_breakloop' function. */
+#undef HAVE_PCAP_BREAKLOOP
+
+/* Define to 1 if you have the `pcap_create' function. */
+#undef HAVE_PCAP_CREATE
+
+/* define if libpcap has pcap_datalink_name_to_val() */
+#undef HAVE_PCAP_DATALINK_NAME_TO_VAL
+
+/* define if libpcap has pcap_datalink_val_to_description() */
+#undef HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION
+
+/* define if libpcap has pcap_debug */
+#undef HAVE_PCAP_DEBUG
+
+/* Define to 1 if you have the `pcap_dump_flush' function. */
+#undef HAVE_PCAP_DUMP_FLUSH
+
+/* define if libpcap has pcap_dump_ftell() */
+#undef HAVE_PCAP_DUMP_FTELL
+
+/* Define to 1 if you have the `pcap_findalldevs' function. */
+#undef HAVE_PCAP_FINDALLDEVS
+
+/* Define to 1 if you have the `pcap_free_datalinks' function. */
+#undef HAVE_PCAP_FREE_DATALINKS
+
+/* Define to 1 if the system has the type `pcap_if_t'. */
+#undef HAVE_PCAP_IF_T
+
+/* Define to 1 if you have the `pcap_lib_version' function. */
+#undef HAVE_PCAP_LIB_VERSION
+
+/* define if libpcap has pcap_list_datalinks() */
+#undef HAVE_PCAP_LIST_DATALINKS
+
+/* Define to 1 if you have the <pcap/nflog.h> header file. */
+#undef HAVE_PCAP_NFLOG_H
+
+/* Define to 1 if you have the `pcap_setdirection' function. */
+#undef HAVE_PCAP_SETDIRECTION
+
+/* Define to 1 if you have the `pcap_set_datalink' function. */
+#undef HAVE_PCAP_SET_DATALINK
+
+/* Define to 1 if you have the `pcap_set_immediate_mode' function. */
+#undef HAVE_PCAP_SET_IMMEDIATE_MODE
+
+/* Define to 1 if you have the `pcap_set_optimizer_debug' function. */
+#undef HAVE_PCAP_SET_OPTIMIZER_DEBUG
+
+/* Define to 1 if you have the `pcap_set_parser_debug' function. */
+#undef HAVE_PCAP_SET_PARSER_DEBUG
+
+/* Define to 1 if you have the `pcap_set_tstamp_precision' function. */
+#undef HAVE_PCAP_SET_TSTAMP_PRECISION
+
+/* Define to 1 if you have the `pcap_set_tstamp_type' function. */
+#undef HAVE_PCAP_SET_TSTAMP_TYPE
+
+/* Define to 1 if you have the <pcap/usb.h> header file. */
+#undef HAVE_PCAP_USB_H
+
+/* define if libpcap has pcap_version */
+#undef HAVE_PCAP_VERSION
+
+/* Define to 1 if you have the `pfopen' function. */
+#undef HAVE_PFOPEN
+
+/* Define to 1 if you have the <rpc/rpcent.h> header file. */
+#undef HAVE_RPC_RPCENT_H
+
+/* Define to 1 if you have the <rpc/rpc.h> header file. */
+#undef HAVE_RPC_RPC_H
+
+/* Define to 1 if you have the `setlinebuf' function. */
+#undef HAVE_SETLINEBUF
+
+/* Define to 1 if you have the `sigaction' function. */
+#undef HAVE_SIGACTION
+
+/* Define to 1 if you have the `sigset' function. */
+#undef HAVE_SIGSET
+
+/* Define to 1 if you have the `snprintf' function. */
+#undef HAVE_SNPRINTF
+
+/* if struct sockaddr has the sa_len member */
+#undef HAVE_SOCKADDR_SA_LEN
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the `strdup' function. */
+#undef HAVE_STRDUP
+
+/* Define to 1 if you have the `strftime' function. */
+#undef HAVE_STRFTIME
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the `strlcat' function. */
+#undef HAVE_STRLCAT
+
+/* Define to 1 if you have the `strlcpy' function. */
+#undef HAVE_STRLCPY
+
+/* Define to 1 if you have the `strsep' function. */
+#undef HAVE_STRSEP
+
+/* Define to 1 if the system has the type `struct ether_addr'. */
+#undef HAVE_STRUCT_ETHER_ADDR
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if the system has the type `uintptr_t'. */
+#undef HAVE_UINTPTR_T
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define to 1 if you have the `vfork' function. */
+#undef HAVE_VFORK
+
+/* Define to 1 if you have the `vfprintf' function. */
+#undef HAVE_VFPRINTF
+
+/* Define to 1 if you have the `vsnprintf' function. */
+#undef HAVE_VSNPRINTF
+
+/* define if libpcap has yydebug */
+#undef HAVE_YYDEBUG
+
+/* define if your compiler has __attribute__ */
+#undef HAVE___ATTRIBUTE__
+
+/* if unaligned access fails */
+#undef LBL_ALIGN
+
+/* Define to 1 if netinet/ether.h declares `ether_ntohost' */
+#undef NETINET_ETHER_H_DECLARES_ETHER_NTOHOST
+
+/* Define to 1 if netinet/if_ether.h declares `ether_ntohost' */
+#undef NETINET_IF_ETHER_H_DECLARES_ETHER_NTOHOST
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* define if the platform doesn't define PRId64 */
+#undef PRId64
+
+/* define if the platform doesn't define PRIo64 */
+#undef PRIo64
+
+/* define if the platform doesn't define PRIx64 */
+#undef PRIu64
+
+/* define if the platform doesn't define PRIu64 */
+#undef PRIx64
+
+/* Define as the return type of signal handlers (`int' or `void'). */
+#undef RETSIGTYPE
+
+/* return value of signal handlers */
+#undef RETSIGVAL
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
+#undef TIME_WITH_SYS_TIME
+
+/* define if you have ether_ntohost() and it works */
+#undef USE_ETHER_NTOHOST
+
+/* Define if you enable support for libsmi */
+#undef USE_LIBSMI
+
+/* define if should chroot when dropping privileges */
+#undef WITH_CHROOT
+
+/* define if should drop privileges by default */
+#undef WITH_USER
+
+/* get BSD semantics on Irix */
+#undef _BSD_SIGNALS
+
+/* define on AIX to get certain functions */
+#undef _SUN
+
+/* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
+   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
+   #define below would cause a syntax error. */
+#undef _UINT32_T
+
+/* Define for Solaris 2.5.1 so the uint64_t typedef from <sys/synch.h>,
+   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
+   #define below would cause a syntax error. */
+#undef _UINT64_T
+
+/* Define for Solaris 2.5.1 so the uint8_t typedef from <sys/synch.h>,
+   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
+   #define below would cause a syntax error. */
+#undef _UINT8_T
+
+/* define if your compiler allows __attribute__((format)) without a warning */
+#undef __ATTRIBUTE___FORMAT_OK
+
+/* define if your compiler allows __attribute__((format)) to be applied to
+   function pointers */
+#undef __ATTRIBUTE___FORMAT_OK_FOR_FUNCTION_POINTERS
+
+/* define if your compiler allows __attribute__((noreturn)) to be applied to
+   function pointers */
+#undef __ATTRIBUTE___NORETURN_OK_FOR_FUNCTION_POINTERS
+
+/* to handle Ultrix compilers that don't support const in prototypes */
+#undef const
+
+/* Define as token for inline if inlining supported */
+#undef inline
+
+/* Define to the type of a signed integer type of width exactly 16 bits if
+   such a type exists and the standard includes do not define it. */
+#undef int16_t
+
+/* Define to the type of a signed integer type of width exactly 32 bits if
+   such a type exists and the standard includes do not define it. */
+#undef int32_t
+
+/* Define to the type of a signed integer type of width exactly 64 bits if
+   such a type exists and the standard includes do not define it. */
+#undef int64_t
+
+/* Define to the type of a signed integer type of width exactly 8 bits if such
+   a type exists and the standard includes do not define it. */
+#undef int8_t
+
+/* Define to `uint16_t' if u_int16_t not defined. */
+#undef u_int16_t
+
+/* Define to `uint32_t' if u_int32_t not defined. */
+#undef u_int32_t
+
+/* Define to `uint64_t' if u_int64_t not defined. */
+#undef u_int64_t
+
+/* Define to `uint8_t' if u_int8_t not defined. */
+#undef u_int8_t
+
+/* Define to the type of an unsigned integer type of width exactly 16 bits if
+   such a type exists and the standard includes do not define it. */
+#undef uint16_t
+
+/* Define to the type of an unsigned integer type of width exactly 32 bits if
+   such a type exists and the standard includes do not define it. */
+#undef uint32_t
+
+/* Define to the type of an unsigned integer type of width exactly 64 bits if
+   such a type exists and the standard includes do not define it. */
+#undef uint64_t
+
+/* Define to the type of an unsigned integer type of width exactly 8 bits if
+   such a type exists and the standard includes do not define it. */
+#undef uint8_t
+
+/* Define to the type of an unsigned integer type wide enough to hold a
+   pointer, if such a type exists, and if the system does not define it. */
+#undef uintptr_t

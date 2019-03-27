@@ -1,0 +1,241 @@
+.\"
+.\" Copyright (c) 2000 Jeroen Ruigrok van der Werven
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 29, 2006
+.Dt AMR 4
+.Os
+.Sh NAME
+.Nm amr
+.Nd MegaRAID SCSI/ATA/SATA RAID driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device amr"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+amr_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for LSI Logic MegaRAID SCSI, ATA and SATA
+RAID controllers and legacy American Megatrends MegaRAID
+SCSI RAID controllers, including models relabeled
+and sold by Dell and Hewlett-Packard.
+.Pp
+LSI MegaRAID SAS controllers are supported by
+.Xr mfi 4
+and will not work with this driver.
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+MegaRAID SATA 150-4
+.It
+MegaRAID SATA 150-6
+.It
+MegaRAID SATA 300-4X
+.It
+MegaRAID SATA 300-8X
+.It
+MegaRAID SCSI 320-1E
+.It
+MegaRAID SCSI 320-2E
+.It
+MegaRAID SCSI 320-4E
+.It
+MegaRAID SCSI 320-0X
+.It
+MegaRAID SCSI 320-2X
+.It
+MegaRAID SCSI 320-4X
+.It
+MegaRAID SCSI 320-0
+.It
+MegaRAID SCSI 320-1
+.It
+MegaRAID SCSI 320-2
+.It
+MegaRAID SCSI 320-4
+.It
+MegaRAID Series 418
+.It
+MegaRAID i4 133 RAID
+.It
+MegaRAID Elite 1500 (Series 467)
+.It
+MegaRAID Elite 1600 (Series 493)
+.It
+MegaRAID Elite 1650 (Series 4xx)
+.It
+MegaRAID Enterprise 1200 (Series 428)
+.It
+MegaRAID Enterprise 1300 (Series 434)
+.It
+MegaRAID Enterprise 1400 (Series 438)
+.It
+MegaRAID Enterprise 1500 (Series 467)
+.It
+MegaRAID Enterprise 1600 (Series 471)
+.It
+MegaRAID Express 100 (Series 466WS)
+.It
+MegaRAID Express 200 (Series 466)
+.It
+MegaRAID Express 300 (Series 490)
+.It
+MegaRAID Express 500 (Series 475)
+.It
+Dell PERC
+.It
+Dell PERC 2/SC
+.It
+Dell PERC 2/DC
+.It
+Dell PERC 3/DCL
+.It
+Dell PERC 3/QC
+.It
+Dell PERC 4/DC
+.It
+Dell PERC 4/IM
+.It
+Dell PERC 4/SC
+.It
+Dell PERC 4/Di
+.It
+Dell PERC 4e/DC
+.It
+Dell PERC 4e/Di
+.It
+Dell PERC 4e/Si
+.It
+Dell PERC 4ei
+.It
+HP NetRAID-1/Si
+.It
+HP NetRAID-3/Si (D4943A)
+.It
+HP Embedded NetRAID
+.It
+Intel RAID Controller SRCS16
+.It
+Intel RAID Controller SRCU42X
+.El
+.Sh DIAGNOSTICS
+.Ss Driver initialisation/shutdown phase
+.Bl -diag
+.It amr%d: memory window not available
+.It amr%d: I/O window not available
+.Pp
+The PCI BIOS did not allocate resources necessary for the correct operation of
+the controller.
+The driver cannot attach to this controller.
+.It amr%d: busmaster bit not set, enabling
+.Pp
+The PCI BIOS did not enable busmaster DMA,
+which is required for the correct operation of the controller.
+The driver has enabled this bit and initialisation will proceed.
+.It amr%d: can't allocate register window
+.It amr%d: can't allocate interrupt
+.It amr%d: can't set up interrupt
+.It amr%d: can't allocate parent DMA tag
+.It amr%d: can't allocate buffer DMA tag
+.It amr%d: can't allocate scatter/gather DMA tag
+.It amr%d: can't allocate s/g table
+.It amr%d: can't allocate mailbox tag
+.It amr%d: can't allocate mailbox memory
+.Pp
+A resource allocation error occurred while initialising the driver;
+initialisation has failed and the driver will not attach to this controller.
+.It amr%d: can't obtain configuration data from controller
+.It amr%d: can't obtain product data from controller
+.Pp
+The driver was unable to obtain vital configuration data from the controller.
+Initialisation has failed and the driver will not attach to this controller.
+.It amr%d: can't establish configuration hook
+.It amr%d: can't scan controller for drives
+.Pp
+The scan for logical drives managed by the controller failed.
+No drives will be attached.
+.It amr%d: device_add_child failed
+.It amr%d: bus_generic_attach returned %d
+.Pp
+Creation of the logical drive instances failed;
+attachment of one or more logical drives may have been aborted.
+.It amr%d: flushing cache...
+.Pp
+The controller cache is being flushed prior to shutdown or detach.
+.El
+.Ss Operational diagnostics
+.Bl -diag
+.It amr%d: I/O beyond end of unit (%u,%d > %u)
+.Pp
+A partitioning error or disk corruption has caused an I/O request
+beyond the end of the logical drive.
+This may also occur if FlexRAID Virtual Sizing is enabled and
+an I/O operation is attempted on a portion of the virtual drive
+beyond the actual capacity available.
+.It amr%d: polled command timeout
+.Pp
+An initialisation command timed out.
+The initialisation process may fail as a result.
+.It amr%d: bad slot %d completed
+.Pp
+The controller reported completion of a command that the driver did not issue.
+This may result in data corruption,
+and suggests a hardware or firmware problem with the system or controller.
+.It amr%d: I/O error - %x
+.Pp
+An I/O error has occurred.
+.El
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr mfi 4 ,
+.Xr sa 4 ,
+.Xr scsi 4
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mike Smith Aq Mt msmith@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Mike Smith Aq Mt msmith@FreeBSD.org
+and
+.An Jeroen Ruigrok van der Werven Aq Mt asmodai@FreeBSD.org .

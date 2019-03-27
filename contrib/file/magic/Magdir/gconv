@@ -1,0 +1,10 @@
+
+#------------------------------------------------------------------------------
+# $File: gconv
+# gconv: file(1) magic for iconv/gconv module configuration cache
+#
+# Magic number defined in glibc/iconv/iconvconfig.h as GCONVCACHE_MAGIC
+#
+# From: Marek Cermak <macermak@redhat.com>
+#
+0		lelong		0x20010324 	gconv module configuration cache data

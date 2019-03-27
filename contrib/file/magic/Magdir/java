@@ -1,0 +1,27 @@
+
+#------------------------------------------------------------
+# $File: java,v 1.18 2015/11/29 22:08:14 christos Exp $
+# Java ByteCode and Mach-O binaries (e.g., Mac OS X) use the
+# same magic number, 0xcafebabe, so they are both handled
+# in the entry called "cafebabe".
+#------------------------------------------------------------
+# Java serialization
+# From Martin Pool (m.pool@pharos.com.au)
+0	beshort		0xaced		Java serialization data
+>2	beshort		>0x0004		\b, version %d
+
+0	belong		0xfeedfeed	Java KeyStore
+!:mime	application/x-java-keystore
+0	belong		0xcececece	Java JCE KeyStore
+!:mime	application/x-java-jce-keystore
+
+# Java source
+0	regex	\^import.*;$	Java source
+!:mime	text/x-java
+
+# Java HPROF dumps
+# https://java.net/downloads/heap-snapshot/hprof-binary-format.html
+0	string		JAVA\x20PROFILE\x201.0.
+>0x12	short		0
+>>0x11	ushort-0x31	<2      Java HPROF dump,
+>>0x17	beqdate/1000	x       created %s

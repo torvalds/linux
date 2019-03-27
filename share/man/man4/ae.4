@@ -1,0 +1,159 @@
+.\" Copyright (c) 2008 Stanislav Sedov <stas@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 24, 2018
+.Dt AE 4
+.Os
+.Sh NAME
+.Nm ae
+.Nd "Attansic/Atheros L2 FastEthernet controller driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device ae"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ae_load="YES"
+.Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides support for Attansic/Atheros L2 PCIe FastEthernet
+controllers.
+.Pp
+The controller supports hardware Ethernet checksum processing, hardware
+VLAN tag stripping/insertion and an interrupt moderation mechanism.
+Attansic L2 also features a 64-bit multicast hash filter.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override the autoselected mode by
+adding media options to
+.Xr rc.conf 5 .
+.It Cm 10baseT/UTP
+Select 10Mbps operation.
+.It Cm 100baseTX
+Set 100Mbps (FastEthernet) operation.
+.El
+.Pp
+The
+.Nm
+driver provides support for the following media options:
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Attansic/Atheros L2 PCIe FastEthernet controllers, and
+is known to support the following hardware:
+.Pp
+.Bl -bullet -compact
+.It
+ASUS EeePC 701
+.It
+ASUS EeePC 900
+.El
+.Pp
+Other hardware may or may not work with this driver.
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "xxxxxx"
+.It Va hw.ae.msi_disable
+This tunable disables MSI support on the Ethernet hardware.
+The default value is 0.
+.El
+.Sh SYSCTL VARIABLES
+The
+.Nm
+driver collects a number of useful MAC counter during the work.
+The statistics is available via the
+.Va dev.ae.%d.stats
+.Xr sysctl 8
+tree, where %d corresponds to the controller number.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ae%d: watchdog timeout."
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.It "ae%d: reset timeout."
+The card reset operation has been timed out.
+.It "ae%d: Generating random ethernet address."
+No valid Ethernet address was found in the controller NVRAM and registers.
+Random locally administered address with ASUS OUI identifier will be used
+instead.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver and this manual page was written by
+.An Stanislav Sedov Aq Mt stas@FreeBSD.org .
+It first appeared in
+.Fx 7.1 .
+.Sh BUGS
+The Attansic L2 FastEthernet controller supports DMA but does not use a
+descriptor based transfer mechanism via scatter-gather DMA.
+Thus the data should be copied to/from the controller memory on each
+transmit/receive.
+Furthermore, a lot of data alignment restrictions apply.
+This may introduce a high CPU load on systems with heavy network activity.
+Luckily enough this should not be a problem on modern hardware as L2 does
+not support speeds faster than 100Mbps.

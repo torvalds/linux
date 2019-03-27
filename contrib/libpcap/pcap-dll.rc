@@ -1,0 +1,36 @@
+#include "config.h"
+#include <winver.h>
+
+  VS_VERSION_INFO VERSIONINFO
+    FILEVERSION    PACKAGE_VERSION_DLL
+    PRODUCTVERSION PACKAGE_VERSION_DLL
+    FILEFLAGSMASK  0x3fL
+    FILEOS         VOS__WINDOWS32
+    FILETYPE       VFT_DLL
+#ifdef _DEBUG
+    FILEFLAGS 0x1L
+#else
+    FILEFLAGS 0x0L
+#endif
+  BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+      BLOCK "040904b0"
+      BEGIN
+        VALUE "Comments",         "https://github.com/the-tcpdump-group/libpcap/"
+        VALUE "CompanyName",      "The TCPdump Group"
+        VALUE "FileDescription",  "System-Independent Interface for User-Level Packet Capture"
+        VALUE "FileVersion",      "PACKAGE_VERSION_DLL"
+        VALUE "InternalName",     PACKAGE_NAME
+        VALUE "LegalCopyright",   "Copyright (c) The TCPdump Group"
+        VALUE "LegalTrademarks",  ""
+        VALUE "OriginalFilename", "wpcap.dll"
+        VALUE "ProductName",      PACKAGE_NAME
+        VALUE "ProductVersion",   PACKAGE_VERSION
+      END
+    END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0, 1200
+  END
+  END

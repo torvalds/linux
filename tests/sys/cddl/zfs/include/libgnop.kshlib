@@ -1,0 +1,98 @@
+# vim: filetype=sh
+#
+# Copyright (c) 2017 Spectra Logic Corporation
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions, and the following disclaimer,
+#    without modification.
+# 2. Redistributions in binary form must reproduce at minimum a disclaimer
+#    substantially similar to the "NO WARRANTY" disclaimer below
+#    ("Disclaimer") and any redistribution must be conditioned upon
+#    including a substantially similar Disclaimer requirement for further
+#    binary redistribution.
+#
+# NO WARRANTY
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGES.
+#
+# $FreeBSD$
+#
+
+#
+# Routines that use gnop(8) to simulate devices that can disappear at any time
+#
+
+# Create a gnop device on top of a real device.  Don't use the full extent; use
+# a portion in the middle so that any ZFS label present on the real device
+# won't be present on the gnop device and vice versa.
+function create_gnop
+{
+	# Name of disk to use, with or without /dev/
+	typeset disk=$1
+	# Optional physical path to use
+	typeset physpath=$2
+	# size of disk in bytes
+	typeset -li disk_size
+	# disk size, rounded down to multiple of 16384
+	typeset -li disk_size_rounded
+	# size of the nop device in bytes
+	typeset -li nop_size
+	# offset of the beginning of the nop device in bytes
+	typeset -li nop_offset
+	typeset args
+
+	disk_size=`diskinfo $disk | cut -f 3`
+	# Round it down so the nop device will be 4k-aligned
+	disk_size_rounded=$(( ${disk_size} / 16384 * 16384 ))
+	nop_size=$(( ${disk_size_rounded} / 4 ))
+	nop_offset=${nop_size}
+	args="-s ${nop_size} -o ${nop_offset}"
+	if [ -n "$physpath" ]; then
+		args="$args -z $physpath"
+	fi
+
+	gnop create ${args} ${disk}
+}
+
+# Create multiple gnop devices
+function create_gnops
+{
+	typeset disk
+	for disk in $@; do
+		create_gnop "$disk" || return 1
+	done
+	return 0
+}
+
+# Destroy a gnop device.  
+function destroy_gnop
+{
+	# Name of the underlying (non-gnop) device
+	typeset disk=$1
+
+	# Use "-f" so we can destroy a gnop with a consumer (like ZFS)
+	gnop destroy -f ${disk}.nop
+}
+
+# Destroy multiple gnop devices.  Attempt to destroy them all, ignoring errors
+function destroy_gnops
+{
+	typeset disk
+	for disk in $@; do
+		destroy_gnop "$disk"
+	done
+	return 0
+}

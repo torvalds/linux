@@ -1,0 +1,12 @@
+# $FreeBSD$
+# Checking for binary "scripts" without magic number is permitted but not
+# required by POSIX. However, it is preferable to getting errors like
+# Syntax error: word unexpected (expecting ")")
+# from trying to execute ELF binaries for the wrong architecture.
+
+T=`mktemp -d "${TMPDIR:-/tmp}/sh-test.XXXXXXXX"` || exit
+trap 'rm -rf "${T}"' 0
+printf '\0echo bad\n' >"$T/testshellproc"
+chmod 755 "$T/testshellproc"
+PATH=$T:$PATH
+testshellproc 2>/dev/null

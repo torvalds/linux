@@ -1,0 +1,194 @@
+1.12a
+	Support for ENUM and BITS in gensnmp{tree,def}. Include directives
+	and typedefs.
+
+1.12
+	A couple of man page fixes from various submitters.
+
+	Make default communities NULL for security.
+
+	Fix a core dump when -d tracing suboption has no argument (thanks
+	to Shteryana Shopova).
+
+	Fix bug in parsing the include path in the daemon.
+
+	Fix an uninitialize structure field in gensnmptree (thanks to
+	jasone@freebsdorg)
+
+	64bit HC counters in the IF-MIB by polling the OS periodically.
+
+	Fix link traps to be more RFC conform (thanks to glebius@freebsd.org)
+
+	Add fallback definition for SA_SIZE() to support.h.
+
+	Move the porting definitions for U?INT32_{MIN,MAX} into support.h.
+
+	Include a sys/tree.h from FreeBSD-current and add autoconf
+	check for it.
+
+1.11a	Fix build of modules when stdint.h is included after asn1.h
+
+1.11	Make the Mib2 routing table use red-black tree. This vastly
+	reduces loading and access time. Load the table only every 10
+	minutes. In the meantime process message from the routing socket
+	to update the table.
+
+	Lot of man-page fixes from ru@freebsd.org.
+
+	Fixes to command line macros and macro redefinition.
+
+	Trap variables for ntp (still need trap definition and code).
+
+	Periodic timers from Victor Cruceru.
+
+	Man-page fixes from Christian Brueffer.
+
+	Lots of spelling fixes from Giorgios Keramidas.
+
+	A number of changes to facilitate building on FreeBSD-4 from
+	Andrey Elsukov.
+
+	Add repeatable timers.
+
+1.10
+	Change all the tick handling in the daemon from 32-bit to 64-bit.
+	Bump the modules' major version number to 3.
+
+	snmp_dialog: make the syntax of the variable bindings in the outgoing
+	message SNMP_SYNTAX_NULL regardless of the syntax given by the user.
+
+	Fix an error in timer handling in the LIBBEGEMOT case.
+
+	snmpd/main.c: Fix a 64-bit warning.
+
+	lib/snmpclient: Add snmp_parse_server().
+
+1.9
+	tcpwrapper support from glebius@freebsd.org.
+
+	crude interface to NTP: snmp_ntp
+
+1.8
+	many man page fixes from ru@freebsd.org and tobez@freebsd.org
+
+	snmpd/main.c: fix a problem which resulted in the daemon exiting
+	when a local socket was closed.
+
+	snmpd/trans_lsock.c: include stdio.h to get a prototype for remove.
+
+	gensnmptree/gensnmptree.c: fix a compile error
+
+	snmp_mibII: add new field spec_oid to ifmib. This allows ifType
+	specific modules to insert the value to be returned for ifSpecific.
+
+1.7a
+	fix core dump when config file cannot be opened (submitted by
+	Maxim Konovalov)
+
+1.7
+	snmpd: Move event library initialization before reading of
+	config file (thanks to phk).
+
+	gensnmptree: can now read more than one tree and merge them.
+
+	some support for compilation on older systems
+
+	use standard C fixed width integer types [u]intNN_t
+
+1.6
+	New gensnmpdef tool. Needs libsmi.
+
+	Make build infrastructure more intelligent.
+
+	Fix a typo in the mibII counter retrival code.
+
+	Add a new field to struct snmp_node for snmp agents: tree_data.
+	This field can be used by the application.
+
+	Fix a syntax error in the example configuration file (thanks to
+	David J Duchscher).
+
+	Fix a long standing problem with the module loading code
+	and a memory leak. When a module could not be loaded usually
+	a core dump was generated. This was caused by wrong handling
+	of malloced memory in the module table dependency. While
+	fixing this problem it became obvious that dynamic allocated
+	data which was held in a dependency could be lost, because
+	there was no guarantee that the dependency handler ever was
+	call (in case of an error in a SET handler or an earlier
+	dependency in the same PDU) thus causing this memory to leak.
+	To fix this a third dependency operation is introduced
+	SNMP_DEPOP_FINISH which is invoked just before a dependency
+	is freed at the very end of the SET PDU handling. This
+	means also that finalizers (set_atfinish) can be converted
+	to DEPOP_FINISH handler in almost all cases. The only case
+	where this is not so easy is when a finializer was registered
+	for a simple SET operation. In this case an artifical dependency
+	would be needed. Because this seems to occure very seldom the
+	snmp_set_atfinish() call is removed. Thanks to Paul-Henning Kamp
+	for an initial fix for the core dump.
+
+09-Dec-2003
+	First step on factoring out the transport mapping stuff into
+	loadable modules.
+
+	Local stream sockets that check the clients privileges.
+
+03-Dec-2003
+	Bump version to 1.5 but leave library version intact.
+
+03-Dec-2003
+	Now works with libbegemot polling stuff instead of libisc.
+	Use --with-libbegemot[=path] to configure.
+
+03-Dec-2003
+	Fix parsing of non-minimal ASN.1 integers. They are now disallowed.
+	Non-minimal lengths are allowed.
+
+	Remove copyright clause 3 everywhere.
+
+	Make an autoconf build infrastructure.
+
+08-Nov-2003
+	WARNS=6 fixed.
+
+28-Jan-2003
+	WARNS=5 fixes.
+
+09-Jan-2003
+	snmpd: remove local socket in case of an error to fully initialize it.
+	Use chmod instead of fchmod. The latter seems not really to change
+	the mode of the socket.
+
+	lib: at program exit remove the local socket in the library.
+
+11-Dec-2002
+	Implement listening on unix domain sockets. The client must bind
+	its socket, or the server cannot send back its response. These
+	sockets are considered to be more secure, because it is much
+	harder for an intruder to listen on them.
+
+	This requires changes in snmpmod.h and snmpclient.h.
+
+04-Dec-2002
+	Sparc fixes.
+
+15-Aug-2002
+	Use inttypes.h instead of limits.h to get integer limits. This
+	seems to be the Posix way.
+
+	First drafts of an snmpd, gensnmptree, asn1, bsnmplib,
+	bsnmpclient, bsnmpagent, snmpmod, snmp_mibII, snmp_netgraph man pages.
+
+	snmpd/main.c: reorder getopt options according to style(9). Implement
+	a -h option to print a short help.
+
+25-Jun-2002
+	Makefiles rewritten to not use bsnmpmod.mk. The BSD makefiles are
+	really hard to use, because a) they are not documented and b) they
+	change much too often.
+
+	Make the patch a context diff instead of a unified one.
+
+28-Feb-2002
+	Library code for SNMP clients.

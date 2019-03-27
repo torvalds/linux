@@ -1,0 +1,92 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2003,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_bkgd.3x,v 1.22 2010/12/04 18:36:44 tom Exp $
+.TH curs_bkgd 3X ""
+.SH NAME
+\fBbkgdset\fR, \fBwbkgdset\fR,
+\fBbkgd\fR, \fBwbkgd\fR,
+\fBgetbkgd\fR \- \fBcurses\fR window background manipulation routines
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.PP
+\fBvoid bkgdset(chtype ch);\fR
+.br
+\fBvoid wbkgdset(WINDOW *win, chtype ch);\fR
+.br
+\fBint bkgd(chtype ch);\fR
+.br
+\fBint wbkgd(WINDOW *win, chtype ch);\fR
+.br
+\fBchtype getbkgd(WINDOW *win);\fR
+.br
+.SH DESCRIPTION
+The \fBbkgdset\fR and \fBwbkgdset\fR routines manipulate the
+background of the named window.
+The window background is a \fBchtype\fR consisting of
+any combination of attributes (i.e., rendition) and a character.
+The attribute part of the background is combined (OR'ed) with all non-blank
+characters that are written into the window with \fBwaddch\fR.  Both
+the character and attribute parts of the background are combined with
+the blank characters.  The background becomes a property of the
+character and moves with the character through any scrolling and
+insert/delete line/character operations.
+.PP
+To the extent possible on a particular terminal,
+the attribute part of the background is displayed
+as the graphic rendition of the character put on the screen.
+.PP
+The \fBbkgd\fR and \fBwbkgd\fR functions
+set the background property of the current or specified window
+and then apply this setting to every character position in that window:
+.PP
+.RS
+The rendition of every character on the screen is changed to
+the new background rendition.
+.PP
+Wherever the former background character
+appears, it is changed to the new background character.
+.RE
+.PP
+The \fBgetbkgd\fR function returns the given window's current background
+character/attribute pair.
+.SH RETURN VALUE
+The routines \fBbkgd\fR and \fBwbkgd\fR return the integer \fBOK\fR.
+The SVr4.0 manual says "or a non-negative integer if \fBimmedok\fR is set",
+but this appears to be an error.
+.SH NOTES
+Note that \fBbkgdset\fR and \fBbkgd\fR may be macros.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.
+It specifies that \fBbkgd\fR and \fBwbkgd\fR return \fBERR\fR on failure,
+but gives no failure conditions.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_addch\fR(3X),
+\fBcurs_attr\fR(3X),
+\fBcurs_outopts\fR(3X)

@@ -1,0 +1,187 @@
+.\"	$NetBSD: mpt.4,v 1.1 2003/04/16 22:32:15 thorpej Exp $
+.\"
+.\" Copyright (c) 2003 Wasabi Systems, Inc.
+.\" All rights reserved.
+.\"
+.\" Written by Jason R. Thorpe for Wasabi Systems, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed for the NetBSD Project by
+.\"	Wasabi Systems, Inc.
+.\" 4. The name of Wasabi Systems, Inc. may not be used to endorse
+.\"    or promote products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY WASABI SYSTEMS, INC. ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL WASABI SYSTEMS, INC
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 23, 2011
+.Dt MPT 4
+.Os
+.Sh NAME
+.Nm mpt
+.Nd LSI Fusion-MPT SCSI/Fibre Channel driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device mpt"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mpt_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support
+for the LSI Logic Fusion-MPT family of
+.Tn SCSI ,
+.Tn Fibre Channel
+and
+.Tn SAS
+controllers.
+.Sh HARDWARE
+The following controllers are supported by the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+LSI Logic 53c1030,
+LSI Logic LSI2x320-X
+(Single and Dual Ultra320
+.Tn SCSI )
+.It
+LSI Logic AS1064,
+LSI Logic AS1068
+.Pq Tn SAS/SATA
+.It
+LSI Logic FC909
+(1Gb/s
+.Tn Fibre Channel )
+.It
+LSI Logic FC909A
+(Dual 1Gb/s
+.Tn Fibre Channel )
+.It
+LSI Logic FC919,
+LSI Logic 7102XP-LC
+(Single 2Gb/s
+.Tn Fibre Channel )
+.It
+LSI Logic FC929,
+LSI Logic FC929X,
+LSI Logic 7202XP-LC
+(Dual 2Gb/s
+.Tn Fibre Channel )
+.It
+LSI Logic FC949X
+(Dual 4Gb/s
+.Tn Fibre Channel )
+.It
+LSI Logic FC949E,
+LSI Logic FC949ES
+(Dual 4Gb/s
+.Tn Fibre Channel PCI-Express)
+.El
+.Pp
+The
+.Tn Ultra 320 SCSI
+controller chips supported by the
+.Nm
+driver can be found onboard on many systems including:
+.Pp
+.Bl -bullet -compact
+.It
+Dell PowerEdge 1750 thru 2850
+.It
+IBM eServer xSeries 335
+.El
+.Pp
+These systems also contain Integrated RAID Mirroring and Integrated
+RAID Mirroring Enhanced which this driver also supports.
+.Pp
+The
+.Tn SAS
+controller chips are also present on many new AMD/Opteron based systems,
+like the Sun 4100.
+Note that this controller can drive both SAS and SATA
+drives or a mix of them at the same time.
+The Integrated RAID Mirroring
+available for these controllers is poorly supported at best.
+.Pp
+The
+.Tn Fibre Channel
+controller chipset are supported by a broad variety of speeds and systems.
+The
+.Tn Apple
+Fibre Channel HBA is in fact the
+.Tn FC949ES
+card.
+.Pp
+This driver also supports target mode for Fibre Channel cards.
+This support may be enabled by setting the desired role of the core via
+the LSI Logic firmware utility that establishes what roles the card
+can take on - no separate compilation is required.
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr da 4 ,
+.Xr mps 4 ,
+.Xr pci 4 ,
+.Xr sa 4 ,
+.Xr scsi 4 ,
+.Xr targ 4 ,
+.Xr gmultipath 8 ,
+.Xr mptutil 8
+.Rs
+.%T "LSI Logic Website"
+.%U http://www.lsi.com/
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was originally written for
+.Fx
+by
+.An Greg Ansley
+and marginally improved upon
+by
+.An Matt Jacob Aq Mt mjacob@FreeBSD.org .
+.Pp
+.An Justin Gibbs Aq Mt gibbs@FreeBSD.org
+and
+.An Scott Long Aq Mt scottl@FreeBSD.org
+have made more substantial improvements.

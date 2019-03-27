@@ -1,0 +1,372 @@
+.\" Copyright (c) 2012 Devin Teske
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 5, 2012
+.Dt MENUSETS.4TH 8
+.Os
+.Sh NAME
+.Nm menusets.4th
+.Nd FreeBSD dynamic submenu boot module
+.Sh DESCRIPTION
+The file that goes by the name of
+.Nm
+is a set of commands designed to add submenu functionality to the dynamic menu
+system provided by
+.Xr menu.4th 8 .
+Submenus are managed through a system of carefully named environment variables.
+The commands of
+.Nm
+by themselves are not enough for most uses.
+Please refer to the examples below for the most common situations, and to
+.Xr menu.4th 8
+for additional commands.
+.Pp
+Before using any of the commands provided in
+.Nm ,
+it must be included
+through the command:
+.Pp
+.Dl include menusets.4th
+.Pp
+This line is present in the default
+.Pa /boot/menu-commands.4th
+file, so it is not needed (and should not be re-issued) in a normal setup.
+.Pp
+The commands provided by it are:
+.Pp
+.Bl -tag -width menuset-loadinitial -compact -offset indent
+.It Ic menuset-loadsetnum
+Takes a single integer on the stack to identify the menuset environment
+variables to be activated (see environment variables below).
+.It Ic menuset-loadinitial
+If $menuset_initial is set, passes the value to menuset-loadsetnum.
+The value must be a number.
+.It Ic menusets-unset
+Unsets the environment variables associated with all menusets.
+Increments starting at 1 and stops at the first unconfigured menuset.
+A menuset is considered configured if the caption for item 1 is set.
+.El
+.Pp
+The environment variables that effect its behavior are:
+.Bl -tag -width bootfile -offset indent
+.It Va menuset_initial
+Number to pass to menuset-loadsetnum when menuset-loadinitial is called.
+.It Va menuset_nameN
+Used to give a name to a menuset.
+.El
+.Pp
+When a menuset is NOT given a name (the default),
+menuset N is comprised of the following environment variables:
+.Pp
+.Bl -tag -width menusetN_caption[x][y] -compact -offset indent
+.It Va ansisetN_caption[x]
+-> ansi_caption[x]
+.It Va ansisetN_caption[x][y]
+-> ansi_caption[x][y]
+.It Va menusetN_acpi
+-> menu_acpi
+.It Va menusetN_caption[x]
+-> menu_caption[x]
+.It Va menusetN_caption[x][y]
+-> menu_caption[x][y]
+.It Va menusetN_command[x]
+-> menu_command[x]
+.It Va menusetN_init
+->
+.Dq Li evaluated
+.It Va menusetN_init[x]
+-> menu_init[x]
+.It Va menusetN_keycode[x]
+-> menu_keycode[x]
+.It Va menusetN_options
+-> menu_options
+.It Va menusetN_optionstext
+-> menu_optionstext
+.It Va menusetN_reboot
+-> menu_reboot
+.It Va toggledsetN_ansi[x]
+-> toggled_ansi[x]
+.It Va toggledsetN_text[x]
+-> toggled_text[x]
+.El
+.Pp
+When you choose to give a menuset a name (by setting $menuset_nameN),
+menuset N is instead comprised of the following environment variables:
+.Pp
+.Bl -tag -width NAMEmenu_caption[x][y] -compact -offset indent
+.It Va NAMEansi_caption[x]
+-> ansi_caption[x]
+.It Va NAMEansi_caption[x][y]
+-> ansi_caption[x][y]
+.It Va NAMEmenu_acpi
+-> menu_acpi
+.It Va NAMEmenu_caption[x]
+-> menu_caption[x]
+.It Va NAMEmenu_caption[x][y]
+-> menu_caption[x][y]
+.It Va NAMEmenu_command[x]
+-> menu_command[x]
+.It Va NAMEmenu_init
+->
+.Dq Li evaluated
+.It Va NAMEmenu_init[x]
+-> menu_init[x]
+.It Va NAMEmenu_keycode[x]
+-> menu_keycode[x]
+.It Va NAMEmenu_options
+-> menu_options
+.It Va NAMEmenu_optionstext
+-> menu_optionstext
+.It Va NAMEmenu_reboot
+-> menu_reboot
+.It Va NAMEtoggled_ansi[x]
+-> toggled_ansi[x]
+.It Va NAMEtoggled_text[x]
+-> toggled_text[x]
+.El
+.Pp
+where
+.Dq Li NAME
+is the value of $menuset_nameN.
+In the case of $NAMEmenu_init ($menusetN_init when $menuset_nameN is unset),
+the value is evaluated as an FICL statement.
+This can be used to dynamically adjust the menuset variables right before the
+menu is activated.
+.Pp
+In addition,
+.Nm
+provides the following FICL words:
+.Pp
+.Bl -tag -width menuset -compact -offset indent
+.It Ic menuset-checksetnum ( N -- )
+Given a single integer on the stack, sets a global variable
+.Va menuset_use_name
+to a boolean based on whether $menuset_nameN is set (true) or not (false).
+Also sets $affix temporary variable (prefix or infix depending on
+menuset_use_name).
+Automatically called by menuset-loadsetnum and menusets-unset.
+.It Ic menuset-loadvar ( -- )
+Used indirectly to shorten syntax and mitigate dictionary size.
+Requires the following temporary environment variables:
+.Pp
+.Bl -tag -width affix -compact -offset indent
+.It Va type
+should be set to one of: menu toggled ansi
+.It Va var
+should be set to one of: caption command keycode text ...
+.It Va affix
+either a prefix (menuset_use_name is true) or infix (menuset_use_name is false)
+.El
+.Pp
+If the global
+.Va menuset_use_name
+is true, the variable ${type}_${var} is made to
+equal the value of the variable ${affix}${type}_${var}
+(note: in this case menuset-checksetnum has set $affix to $menuset_nameN).
+Otherwise (when
+.Va menuset_use_name
+is false), the variable ${type}_${var} is made to
+equal the value of the variable ${type}set${affix}_${var}
+(note: in this case menuset-checksetnum has set $affix to N).
+.Pp
+Both the global variable
+.Va menuset_use_name
+and the environment variable $affix are automatically handled by
+menuset-checksetnum above (which is automatically called by
+menuset-loadsetnum).
+.It Ic menuset-unloadvar ( -- )
+Used indirectly to shorten syntax and mitigate dictionary size.
+Like menuset-loadvar except it unsets the menuset variable.
+If global
+.Va menuset_use_name
+is true ($affix is $menuset_nameN),
+variable ${affix}${type}_${var} is unset.
+Otherwise, $affix is N and variable ${type}set${affix}_${var} is unset.
+.It Ic menuset-loadmenuvar ( -- )
+Sets $type to
+.Dq menu
+and calls menuset-loadvar.
+.It Ic menuset-unloadmenuvar ( -- )
+Sets $type to
+.Dq menu
+and calls menuset-unloadvar.
+.It Ic menuset-loadxvar ( -- )
+Like menuset-loadvar except it takes an additional temporary variable $x.
+If the global
+.Va menuset_use_name
+is true (making $affix equal $menuset_nameN),
+sets variable ${type}_${var}[${x}] to variable ${affix}${type}_${var}[${x}].
+Otherwise ($affix being N), sets the same variable to instead
+${type}set{affix}_${var}[${x}].
+.It Ic menuset-unloadxvar ( -- )
+Like menuset-loadxvar except it unsets the menuset variable.
+If global
+.Va menuset_use_name
+is true, unsets ${affix}${type}_${var}[${x}].
+Otherwise, unsets ${type}set${affix}_${var}[${x}].
+.It Ic menuset-loadansixvar ( -- )
+Sets $type to
+.Dq ansi
+and calls menuset-loadxvar
+.It Ic menuset-unloadansixvar ( -- )
+Sets $type to
+.Dq ansi
+and calls menuset-unloadxvar
+.It Ic menuset-loadmenuxvar ( -- )
+Sets $type to
+.Dq ansi
+and calls menuset-loadxvar
+.It Ic menuset-unloadmenuxvar ( -- )
+Sets $type to
+.Dq ansi
+and calls menuset-unloadxvar
+.It Ic menuset-loadtoggledxvar ( -- )
+Sets $type to
+.Dq toggled
+and calls menuset-loadxvar
+.It Ic menuset-unloadtoggledxvar ( -- )
+Sets $type to
+.Dq toggled
+and calls menuset-unloadxvar
+.It Ic menuset-loadxyvar ( -- )
+Like menuset-loadxvar except it takes an additional temporary variable $y.
+If the global
+.Va menuset_use_name
+is true ($affix is $menuset_nameN),
+sets variable ${type}_${var}[${x}][${y}] to ${affix}${type}_${var}[${x}][${y}].
+Otherwise ($affix is N) sets the same variable to instead
+${type}set${affix}_${var}[${x}][${y}].
+.It Ic menuset-unloadxyvar ( -- )
+Like menuset-loadxyvar except it unsets the menuset variable.
+If the global
+.Va menuset_use_name
+is true, unsets ${affix}${type}_${var}[${x}][${y}].
+Otherwise, unsets ${type}set${affix}_${var}[${x}][${y}].
+.It Ic menuset-loadansixyvar ( -- )
+Sets $type to
+.Dq ansi
+and calls menuset-loadxyvar.
+.It Ic menuset-unloadansixyvar ( -- )
+Sets $type to
+.Dq ansi
+and calls menuset-unloadxyvar.
+.It Ic menuset-loadmenuxyvar ( -- )
+Sets $type to
+.Dq menu
+and calls menuset-loadxyvar.
+.It Ic menuset-unloadmenuxyvar ( -- )
+Sets $type to
+.Dq menu
+and calls menuset-unloadxyvar.
+.It Ic menuset-setnum-namevar ( N -- C-Addr/U )
+Takes a single integer on the stack and replaces it with a string (in c-addr/u
+format) whose value is
+.Dq menuset_nameN .
+For example, if given 1 returns
+.Dq menuset_name1 .
+.It Ic menuset-cleanup ( N -- )
+Unsets all the various temporary variables, currently
+.Va type ,
+.Va var ,
+.Va x ,
+.Va y ,
+and
+.Va affix .
+.El
+.Pp
+For all values of
+.Dq Li x
+above, use any number between 1 through 9. Sorry, double-digits are not
+currently supported.
+For all values of
+.Dq Li N
+above, use any number between 1 and 65535.
+.Sh FILES
+.Bl -tag -width /boot/menu-commands.4th -compact
+.It Pa /boot/loader
+The
+.Xr loader 8 .
+.It Pa /boot/menu.4th
+Dynamic menu module.
+.It Pa /boot/menu-commands.4th
+Contains the goto_menu command.
+.It Pa /boot/menusets.4th
+.Nm
+itself.
+.It Pa /boot/loader.rc
+.Xr loader 8
+bootstrapping script.
+.El
+.Sh EXAMPLES
+A simple boot menu with a submenu:
+.Pp
+.Bd -literal -offset indent -compact
+include /boot/menu.4th
+include /boot/menu-commands.4th
+menu-init
+set menuset1_caption[1]="Boot"
+set menuset1_command[1]="boot"
+set menuset1_caption[2]="Submenu..."
+set menuset1_command[2]="2 goto_menu"
+set menuset2_caption[1]="Back"
+set menuset2_command[1]="1 goto_menu"
+set menuset_initial=2
+menuset-loadinitial
+menu-display
+.Ed
+.Pp
+The same boot menu with named menusets:
+.Pp
+.Bd -literal -offset indent -compact
+include /boot/menu.4th
+include /boot/menu-commands.4th
+menu-init
+set menuset_name1=main
+set mainmenu_caption[1]="Boot"
+set mainmenu_command[1]="boot"
+set mainmenu_caption[2]="Submenu..."
+set mainmenu_command[2]="2 goto_menu"
+set menuset_name2=sub
+set submenu_caption[1]="Back"
+set submenu_command[1]="1 goto_menu"
+.Ed
+.Sh SEE ALSO
+.Xr loader.conf 5 ,
+.Xr beastie.4th 8 ,
+.Xr loader 8 ,
+.Xr loader.4th 8 ,
+.Xr menu.4th 8
+.Sh HISTORY
+The
+.Nm
+set of commands first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+set of commands was written by
+.An -nosplit
+.An Devin Teske Aq dteske@FreeBSD.org .

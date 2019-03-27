@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+f() {
+	: ${LINENO+${x?}}
+}
+
+unset -v x
+command eval f 2>/dev/null && exit 3
+x=1
+f

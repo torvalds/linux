@@ -1,0 +1,55 @@
+// -*- C++ -*-
+//===--------------------------- clocale ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CLOCALE
+#define _LIBCPP_CLOCALE
+
+/*
+    clocale synopsis
+
+Macros:
+
+    LC_ALL
+    LC_COLLATE
+    LC_CTYPE
+    LC_MONETARY
+    LC_NUMERIC
+    LC_TIME
+    NULL
+
+namespace std
+{
+
+struct lconv;
+char* setlocale(int category, const char* locale);
+lconv* localeconv();
+
+}  // std
+
+*/
+
+#include <__config>
+#include <locale.h>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::lconv;
+#ifndef _LIBCPP_HAS_NO_THREAD_UNSAFE_C_FUNCTIONS
+using ::setlocale;
+#endif
+using ::localeconv;
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_CLOCALE

@@ -1,0 +1,19 @@
+# $FreeBSD$
+
+# Some of these created malformed parse trees with null pointers for here
+# documents, causing the here document writing process to segfault.
+eval ': <<EOF'
+eval ': <<EOF;'
+eval '`: <<EOF`'
+eval '`: <<EOF;`'
+eval '`: <<EOF`;'
+eval '`: <<EOF;`;'
+
+# Some of these created malformed parse trees with null pointers for here
+# documents, causing sh to segfault.
+eval ': <<\EOF'
+eval ': <<\EOF;'
+eval '`: <<\EOF`'
+eval '`: <<\EOF;`'
+eval '`: <<\EOF`;'
+eval '`: <<\EOF;`;'

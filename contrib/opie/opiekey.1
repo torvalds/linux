@@ -1,0 +1,173 @@
+.\" opiekey.1: Manual page for the opiekey(1) program.
+.\"
+.\" %%% portions-copyright-cmetz-96
+.\" Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
+.\" Reserved. The Inner Net License Version 2 applies to these portions of
+.\" the software.
+.\" You should have received a copy of the license with this software. If
+.\" you didn't get a copy, you may request one from <license@inner.net>.
+.\"
+.\" Portions of this software are Copyright 1995 by Randall Atkinson and Dan
+.\" McDonald, All Rights Reserved. All Rights under this copyright are assigned
+.\" to the U.S. Naval Research Laboratory (NRL). The NRL Copyright Notice and
+.\" License Agreement applies to this software.
+.\"
+.\"	History:
+.\"
+.\"	Modified by cmetz for OPIE 2.3. Added -t documentation. Removed
+.\"	   opie-bugs pointer. Removed opie-md5 and opie-md4 names. Fixed
+.\"	   a bolding bug. Added -f flag. Added escapes on flags. Minor
+.\"        editorial changes. Updated example.
+.\"     Modified by cmetz for OPIE 2.2. Removed MJR DES documentation.
+.\"        Re-worded retype documentation. Added opiegen reference.
+.\"        Added -x documentation.
+.\"	Modified at NRL for OPIE 2.0.
+.\"	Written at Bellcore for the S/Key Version 1 software distribution
+.\"		(key.1).
+.\"
+.\"	$FreeBSD$
+.ll 6i
+.pl 10.5i
+.lt 6.0i
+.TH OPIEKEY 1 "February 20, 1996"
+.AT 3
+.SH NAME
+opiekey, otp-md4, otp-md5 \- Programs for computing responses to OTP challenges.
+
+.SH SYNOPSIS
+.B opiekey
+|
+.B otp-md4
+|
+.B otp-md5
+[\-v] [\-h] [\-f] [\-x]
+.sp 0
+[\-t
+.I
+type
+] [\-4|\-5]
+[\-a] [\-n 
+.I count
+] 
+.I sequence_number seed
+.sp 0
+
+.SH DESCRIPTION
+.I opiekey
+takes the optional count of the number of responses to
+print along with a (maximum) sequence number and seed as command line
+args. It prompts for the user's secret pass phrase and produces an OPIE
+response as six words. If compiled to do so, it can prompt for the user's
+secret pass phrase twice to help reduce errors due to mistypes. The second
+password entry can be circumvented by entering only an end of line.
+.I opiekey
+is downward compatible with the 
+.IR key (1)
+program from the Bellcore S/Key Version 1 distribution and several of its
+variants.
+
+.SH OPTIONS
+.TP
+.B \-v
+Display the version number and compile-time options, then exit.
+.TP
+.B \-h
+Display a brief help message and exit.
+.TP
+.B \-4, \-5
+Selects MD4 or MD5, respectively, as the response generation algorithm. The
+default for otp-md4 is MD4 and the default for opie-md5 is MD5. The default
+for opiekey depends on compile-time configuration, but should be MD5. MD4 is
+compatible with the Bellcore S/Key Version 1 distribution.
+.TP
+.B \-f
+Force
+.I opiekey
+to continue, even where it normally shouldn't. This is currently used to
+force opiekey to operate in even from terminals it believes to be insecure.
+It can also allow users to disclose their secret pass phrases to attackers.
+Use of the -f flag may be disabled by compile-time option in your particular
+build of OPIE.
+.TP
+.B \-a
+Allows you to input an arbitrary secret pass phrase, instead of running checks
+against it. Arbitrary currently does not include '\\0' or '\\n' characters. This
+can be used for backwards compatibility with key generators that do not check
+passwords.
+.TP
+.B \-n <count>
+the number of one time access passwords to print.
+The default is one.
+.TP
+.B \-x
+Output the OTPs as hexadecimal numbers instead of six words.
+.TP
+.B \-t <type>
+Generate an extended response of the specified type. Supported types are:
+.sp 1
+word			six-word
+.sp 0
+hex			hexadecimal
+.sp 0
+init			hexadecimal re-initialization
+.sp 0
+init-word		six-word re-initialization
+.sp 1
+The re-initialization responses
+.I always
+generate the simple active attack protection.
+.TP
+.SH EXAMPLE
+.sp 0
+wintermute$ opiekey \-5 \-n 5 495 wi01309
+.sp 0
+Using MD5 algorithm to compute response.
+.sp 0
+Reminder: Don't use opiekey from telnet or dial-in sessions.
+.sp 0
+Enter secret pass phrase:
+.sp 0
+491: HOST VET FOWL SEEK IOWA YAP  
+.sp 0
+492: JOB ARTS WERE FEAT TILE IBIS 
+.sp 0
+493: TRUE BRED JOEL USER HALT EBEN
+.sp 0
+494: HOOD WED MOLT PAN FED RUBY   
+.sp 0
+495: SUB YAW BILE GLEE OWE NOR    
+.sp 0
+wintermute$
+.LP
+
+.SH BUGS
+.BR opiekey(1)
+can lull a user into revealing his/her password when remotely logged in, thus
+defeating the purpose of OPIE. This is especially a problem with xterm. 
+.BR opiekey(1)
+implements simple checks to reduce the risk of a user making
+this mistake. Better checks are needed.
+.LP
+
+.SH SEE ALSO
+.BR ftpd (8),
+.BR login (1),
+.BR opie (4),
+.BR opiepasswd (1),
+.BR opieinfo (1),
+.BR opiekeys (5),
+.BR opieaccess (5),
+.BR su (1)
+
+.SH AUTHOR
+Bellcore's S/Key was written by Phil Karn, Neil M. Haller, and John S. Walden
+of Bellcore. OPIE was created at NRL by Randall Atkinson, Dan McDonald, and
+Craig Metz.
+
+S/Key is a trademark of Bell Communications Research (Bellcore).
+
+.SH CONTACT
+OPIE is discussed on the Bellcore "S/Key Users" mailing list. To join,
+send an email request to:
+.sp
+skey-users-request@thumper.bellcore.com

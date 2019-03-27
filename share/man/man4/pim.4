@@ -1,0 +1,201 @@
+.\" Copyright (c) 2001-2003 International Computer Science Institute
+.\"
+.\" Permission is hereby granted, free of charge, to any person obtaining a
+.\" copy of this software and associated documentation files (the "Software"),
+.\" to deal in the Software without restriction, including without limitation
+.\" the rights to use, copy, modify, merge, publish, distribute, sublicense,
+.\" and/or sell copies of the Software, and to permit persons to whom the
+.\" Software is furnished to do so, subject to the following conditions:
+.\"
+.\" The above copyright notice and this permission notice shall be included in
+.\" all copies or substantial portions of the Software.
+.\"
+.\" The names and trademarks of copyright holders may not be used in
+.\" advertising or publicity pertaining to the software without specific
+.\" prior permission. Title to copyright in this software and any associated
+.\" documentation will at all times remain with the copyright holders.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+.\" IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+.\" FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+.\" AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+.\" LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+.\" FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+.\" DEALINGS IN THE SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 12, 2007
+.Dt PIM 4
+.Os
+.\"
+.Sh NAME
+.Nm pim
+.Nd Protocol Independent Multicast
+.\"
+.Sh SYNOPSIS
+.Cd "options MROUTING"
+.Pp
+.In sys/types.h
+.In sys/socket.h
+.In netinet/in.h
+.In netinet/ip_mroute.h
+.In netinet/pim.h
+.Ft int
+.Fn getsockopt "int s" IPPROTO_IP MRT_PIM "void *optval" "socklen_t *optlen"
+.Ft int
+.Fn setsockopt "int s" IPPROTO_IP MRT_PIM "const void *optval" "socklen_t optlen"
+.Ft int
+.Fn getsockopt "int s" IPPROTO_IPV6 MRT6_PIM "void *optval" "socklen_t *optlen"
+.Ft int
+.Fn setsockopt "int s" IPPROTO_IPV6 MRT6_PIM "const void *optval" "socklen_t optlen"
+.Sh DESCRIPTION
+.Tn PIM
+is the common name for two multicast routing protocols:
+Protocol Independent Multicast - Sparse Mode (PIM-SM) and
+Protocol Independent Multicast - Dense Mode (PIM-DM).
+.Pp
+PIM-SM is a multicast routing protocol that can use the underlying
+unicast routing information base or a separate multicast-capable
+routing information base.
+It builds unidirectional shared trees rooted at a Rendezvous
+Point (RP) per group,
+and optionally creates shortest-path trees per source.
+.Pp
+PIM-DM is a multicast routing protocol that uses the underlying
+unicast routing information base to flood multicast datagrams
+to all multicast routers.
+Prune messages are used to prevent future datagrams from propagating
+to routers with no group membership information.
+.Pp
+Both PIM-SM and PIM-DM are fairly complex protocols,
+though PIM-SM is much more complex.
+To enable PIM-SM or PIM-DM multicast routing in a router,
+the user must enable multicast routing and PIM processing in the kernel
+(see
+.Sx SYNOPSIS
+about the kernel configuration options),
+and must run a PIM-SM or PIM-DM capable user-level process.
+From developer's point of view,
+the programming guide described in the
+.Sx "Programming Guide"
+section should be used to control the PIM processing in the kernel.
+.\"
+.Ss Programming Guide
+After a multicast routing socket is open and multicast forwarding
+is enabled in the kernel
+(see
+.Xr multicast 4 ) ,
+one of the following socket options should be used to enable or disable
+PIM processing in the kernel.
+Note that those options require certain privilege
+(i.e., root privilege):
+.Bd -literal
+/* IPv4 */
+int v = 1;        /* 1 to enable, or 0 to disable */
+setsockopt(mrouter_s4, IPPROTO_IP, MRT_PIM, (void *)&v, sizeof(v));
+.Ed
+.Bd -literal
+/* IPv6 */
+int v = 1;        /* 1 to enable, or 0 to disable */
+setsockopt(mrouter_s6, IPPROTO_IPV6, MRT6_PIM, (void *)&v, sizeof(v));
+.Ed
+.Pp
+After PIM processing is enabled, the multicast-capable interfaces
+should be added
+(see
+.Xr multicast 4 ) .
+In case of PIM-SM, the PIM-Register virtual interface must be added
+as well.
+This can be accomplished by using the following options:
+.Bd -literal
+/* IPv4 */
+struct vifctl vc;
+memset(&vc, 0, sizeof(vc));
+/* Assign all vifctl fields as appropriate */
+\&...
+if (is_pim_register_vif)
+    vc.vifc_flags |= VIFF_REGISTER;
+setsockopt(mrouter_s4, IPPROTO_IP, MRT_ADD_VIF, (void *)&vc,
+           sizeof(vc));
+.Ed
+.Bd -literal
+/* IPv6 */
+struct mif6ctl mc;
+memset(&mc, 0, sizeof(mc));
+/* Assign all mif6ctl fields as appropriate */
+\&...
+if (is_pim_register_vif)
+    mc.mif6c_flags |= MIFF_REGISTER;
+setsockopt(mrouter_s6, IPPROTO_IPV6, MRT6_ADD_MIF, (void *)&mc,
+           sizeof(mc));
+.Ed
+.Pp
+Sending or receiving of PIM packets can be accomplished by
+opening first a
+.Dq raw socket
+(see
+.Xr socket 2 ) ,
+with protocol value of
+.Dv IPPROTO_PIM :
+.Bd -literal
+/* IPv4 */
+int pim_s4;
+pim_s4 = socket(AF_INET, SOCK_RAW, IPPROTO_PIM);
+.Ed
+.Bd -literal
+/* IPv6 */
+int pim_s6;
+pim_s6 = socket(AF_INET6, SOCK_RAW, IPPROTO_PIM);
+.Ed
+.Pp
+Then, the following system calls can be used to send or receive PIM
+packets:
+.Xr sendto 2 ,
+.Xr sendmsg 2 ,
+.Xr recvfrom 2 ,
+.Xr recvmsg 2 .
+.\"
+.Sh SEE ALSO
+.Xr getsockopt 2 ,
+.Xr recvfrom 2 ,
+.Xr recvmsg 2 ,
+.Xr sendmsg 2 ,
+.Xr sendto 2 ,
+.Xr setsockopt 2 ,
+.Xr socket 2 ,
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr ip 4 ,
+.Xr multicast 4
+.\"
+.Sh STANDARDS
+.\" XXX the PIM-SM number must be updated after RFC 2362 is
+.\" replaced by a new RFC by the end of year 2003 or so.
+The PIM-SM protocol is specified in RFC 2362 (to be replaced by
+.%T draft-ietf-pim-sm-v2-new-* ) .
+The PIM-DM protocol is specified in
+.%T draft-ietf-pim-dm-new-v2-* ) .
+.\"
+.Sh AUTHORS
+.An -nosplit
+The original IPv4 PIM kernel support for IRIX and SunOS-4.x was
+implemented by
+.An Ahmed Helmy
+(USC and SGI).
+Later the code was ported to various
+.Bx
+flavors and modified by
+.An George Edmond Eddy
+(Rusty) (ISI),
+.An Hitoshi Asaeda
+(WIDE Project), and
+.An Pavlin Radoslavov
+(USC/ISI and ICSI).
+The IPv6 PIM kernel support was implemented by the KAME project
+.Pq Pa http://www.kame.net ,
+and was based on the IPv4 PIM kernel support.
+.Pp
+This manual page was written by
+.An Pavlin Radoslavov
+(ICSI).

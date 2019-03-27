@@ -1,0 +1,270 @@
+=pod
+
+=head1 NAME
+
+ASN1_generate_nconf, ASN1_generate_v3 - ASN1 generation functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/asn1.h>
+
+ ASN1_TYPE *ASN1_generate_nconf(const char *str, CONF *nconf);
+ ASN1_TYPE *ASN1_generate_v3(const char *str, X509V3_CTX *cnf);
+
+=head1 DESCRIPTION
+
+These functions generate the ASN1 encoding of a string
+in an B<ASN1_TYPE> structure.
+
+B<str> contains the string to encode B<nconf> or B<cnf> contains
+the optional configuration information where additional strings
+will be read from. B<nconf> will typically come from a config
+file whereas B<cnf> is obtained from an B<X509V3_CTX> structure
+which will typically be used by X509 v3 certificate extension
+functions. B<cnf> or B<nconf> can be set to B<NULL> if no additional
+configuration will be used.
+
+=head1 GENERATION STRING FORMAT
+
+The actual data encoded is determined by the string B<str> and
+the configuration information. The general format of the string
+is:
+
+=over 4
+
+=item B<[modifier,]type[:value]>
+
+=back
+
+That is zero or more comma separated modifiers followed by a type
+followed by an optional colon and a value. The formats of B<type>,
+B<value> and B<modifier> are explained below.
+
+=head2 Supported Types
+
+The supported types are listed below. Unless otherwise specified
+only the B<ASCII> format is permissible.
+
+=over 4
+
+=item B<BOOLEAN>, B<BOOL>
+
+This encodes a boolean type. The B<value> string is mandatory and
+should be B<TRUE> or B<FALSE>. Additionally B<TRUE>, B<true>, B<Y>,
+B<y>, B<YES>, B<yes>, B<FALSE>, B<false>, B<N>, B<n>, B<NO> and B<no>
+are acceptable.
+
+=item B<NULL>
+
+Encode the B<NULL> type, the B<value> string must not be present.
+
+=item B<INTEGER>, B<INT>
+
+Encodes an ASN1 B<INTEGER> type. The B<value> string represents
+the value of the integer, it can be prefaced by a minus sign and
+is normally interpreted as a decimal value unless the prefix B<0x>
+is included.
+
+=item B<ENUMERATED>, B<ENUM>
+
+Encodes the ASN1 B<ENUMERATED> type, it is otherwise identical to
+B<INTEGER>.
+
+=item B<OBJECT>, B<OID>
+
+Encodes an ASN1 B<OBJECT IDENTIFIER>, the B<value> string can be
+a short name, a long name or numerical format.
+
+=item B<UTCTIME>, B<UTC>
+
+Encodes an ASN1 B<UTCTime> structure, the value should be in
+the format B<YYMMDDHHMMSSZ>.
+
+=item B<GENERALIZEDTIME>, B<GENTIME>
+
+Encodes an ASN1 B<GeneralizedTime> structure, the value should be in
+the format B<YYYYMMDDHHMMSSZ>.
+
+=item B<OCTETSTRING>, B<OCT>
+
+Encodes an ASN1 B<OCTET STRING>. B<value> represents the contents
+of this structure, the format strings B<ASCII> and B<HEX> can be
+used to specify the format of B<value>.
+
+=item B<BITSTRING>, B<BITSTR>
+
+Encodes an ASN1 B<BIT STRING>. B<value> represents the contents
+of this structure, the format strings B<ASCII>, B<HEX> and B<BITLIST>
+can be used to specify the format of B<value>.
+
+If the format is anything other than B<BITLIST> the number of unused
+bits is set to zero.
+
+=item B<UNIVERSALSTRING>, B<UNIV>, B<IA5>, B<IA5STRING>, B<UTF8>,
+B<UTF8String>, B<BMP>, B<BMPSTRING>, B<VISIBLESTRING>,
+B<VISIBLE>, B<PRINTABLESTRING>, B<PRINTABLE>, B<T61>,
+B<T61STRING>, B<TELETEXSTRING>, B<GeneralString>, B<NUMERICSTRING>,
+B<NUMERIC>
+
+These encode the corresponding string types. B<value> represents the
+contents of this structure. The format can be B<ASCII> or B<UTF8>.
+
+=item B<SEQUENCE>, B<SEQ>, B<SET>
+
+Formats the result as an ASN1 B<SEQUENCE> or B<SET> type. B<value>
+should be a section name which will contain the contents. The
+field names in the section are ignored and the values are in the
+generated string format. If B<value> is absent then an empty SEQUENCE
+will be encoded.
+
+=back
+
+=head2 Modifiers
+
+Modifiers affect the following structure, they can be used to
+add EXPLICIT or IMPLICIT tagging, add wrappers or to change
+the string format of the final type and value. The supported
+formats are documented below.
+
+=over 4
+
+=item B<EXPLICIT>, B<EXP>
+
+Add an explicit tag to the following structure. This string
+should be followed by a colon and the tag value to use as a
+decimal value.
+
+By following the number with B<U>, B<A>, B<P> or B<C> UNIVERSAL,
+APPLICATION, PRIVATE or CONTEXT SPECIFIC tagging can be used,
+the default is CONTEXT SPECIFIC.
+
+=item B<IMPLICIT>, B<IMP>
+
+This is the same as B<EXPLICIT> except IMPLICIT tagging is used
+instead.
+
+=item B<OCTWRAP>, B<SEQWRAP>, B<SETWRAP>, B<BITWRAP>
+
+The following structure is surrounded by an OCTET STRING, a SEQUENCE,
+a SET or a BIT STRING respectively. For a BIT STRING the number of unused
+bits is set to zero.
+
+=item B<FORMAT>
+
+This specifies the format of the ultimate value. It should be followed
+by a colon and one of the strings B<ASCII>, B<UTF8>, B<HEX> or B<BITLIST>.
+
+If no format specifier is included then B<ASCII> is used. If B<UTF8> is
+specified then the value string must be a valid B<UTF8> string. For B<HEX> the
+output must be a set of hex digits. B<BITLIST> (which is only valid for a BIT
+STRING) is a comma separated list of the indices of the set bits, all other
+bits are zero.
+
+=back
+
+=head1 EXAMPLES
+
+A simple IA5String:
+
+ IA5STRING:Hello World
+
+An IA5String explicitly tagged:
+
+ EXPLICIT:0,IA5STRING:Hello World
+
+An IA5String explicitly tagged using APPLICATION tagging:
+
+ EXPLICIT:0A,IA5STRING:Hello World
+
+A BITSTRING with bits 1 and 5 set and all others zero:
+
+ FORMAT:BITLIST,BITSTRING:1,5
+
+A more complex example using a config file to produce a
+SEQUENCE consisting of a BOOL an OID and a UTF8String:
+
+ asn1 = SEQUENCE:seq_section
+
+ [seq_section]
+
+ field1 = BOOLEAN:TRUE
+ field2 = OID:commonName
+ field3 = UTF8:Third field
+
+This example produces an RSAPrivateKey structure, this is the
+key contained in the file client.pem in all OpenSSL distributions
+(note: the field names such as 'coeff' are ignored and are present just
+for clarity):
+
+ asn1=SEQUENCE:private_key
+ [private_key]
+ version=INTEGER:0
+
+ n=INTEGER:0xBB6FE79432CC6EA2D8F970675A5A87BFBE1AFF0BE63E879F2AFFB93644\
+ D4D2C6D000430DEC66ABF47829E74B8C5108623A1C0EE8BE217B3AD8D36D5EB4FCA1D9
+
+ e=INTEGER:0x010001
+
+ d=INTEGER:0x6F05EAD2F27FFAEC84BEC360C4B928FD5F3A9865D0FCAAD291E2A52F4A\
+ F810DC6373278C006A0ABBA27DC8C63BF97F7E666E27C5284D7D3B1FFFE16B7A87B51D
+
+ p=INTEGER:0xF3929B9435608F8A22C208D86795271D54EBDFB09DDEF539AB083DA912\
+ D4BD57
+
+ q=INTEGER:0xC50016F89DFF2561347ED1186A46E150E28BF2D0F539A1594BBD7FE467\
+ 46EC4F
+
+ exp1=INTEGER:0x9E7D4326C924AFC1DEA40B45650134966D6F9DFA3A7F9D698CD4ABEA\
+ 9C0A39B9
+
+ exp2=INTEGER:0xBA84003BB95355AFB7C50DF140C60513D0BA51D637272E355E397779\
+ E7B2458F
+
+ coeff=INTEGER:0x30B9E4F2AFA5AC679F920FC83F1F2DF1BAF1779CF989447FABC2F5\
+ 628657053A
+
+This example is the corresponding public key in a SubjectPublicKeyInfo
+structure:
+
+ # Start with a SEQUENCE
+ asn1=SEQUENCE:pubkeyinfo
+
+ # pubkeyinfo contains an algorithm identifier and the public key wrapped
+ # in a BIT STRING
+ [pubkeyinfo]
+ algorithm=SEQUENCE:rsa_alg
+ pubkey=BITWRAP,SEQUENCE:rsapubkey
+
+ # algorithm ID for RSA is just an OID and a NULL
+ [rsa_alg]
+ algorithm=OID:rsaEncryption
+ parameter=NULL
+
+ # Actual public key: modulus and exponent
+ [rsapubkey]
+ n=INTEGER:0xBB6FE79432CC6EA2D8F970675A5A87BFBE1AFF0BE63E879F2AFFB93644\
+ D4D2C6D000430DEC66ABF47829E74B8C5108623A1C0EE8BE217B3AD8D36D5EB4FCA1D9
+
+ e=INTEGER:0x010001
+
+=head1 RETURN VALUES
+
+ASN1_generate_nconf() and ASN1_generate_v3() return the encoded
+data as an B<ASN1_TYPE> structure or B<NULL> if an error occurred.
+
+The error codes that can be obtained by L<ERR_get_error(3)>.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

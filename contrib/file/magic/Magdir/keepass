@@ -1,0 +1,20 @@
+
+#------------------------------------------------------------------------------
+# $File: keepass,v 1.1 2012/12/24 22:14:56 christos Exp $
+# keepass: file(1) magic for KeePass file
+#
+# Keepass Password Safe:
+#  * original one: http://keepass.info/
+#  * *nix port:    http://www.keepassx.org/
+#  * android port: http://code.google.com/p/keepassdroid/
+
+0	lelong		0x9AA2D903	Keepass password database
+>4	lelong		0xB54BFB65	1.x KDB
+>>48	lelong		>0		\b, %d groups
+>>52	lelong		>0		\b, %d entries
+>>8	lelong&0x0f	1		\b, SHA-256
+>>8	lelong&0x0f	2		\b, AES
+>>8	lelong&0x0f	4		\b, RC4
+>>8	lelong&0x0f	8		\b, Twofish
+>>120	lelong		>0		\b, %d key transformation rounds
+>4	lelong		0xB54BFB67	2.x KDBX

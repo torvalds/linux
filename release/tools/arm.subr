@@ -1,0 +1,245 @@
+#!/bin/sh
+#-
+# Copyright (c) 2015-2017 The FreeBSD Foundation
+# All rights reserved.
+#
+# Portions of this software were developed by Glen Barber
+# under sponsorship from the FreeBSD Foundation.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# Common subroutines used to build arm SD card images.
+#
+# $FreeBSD$
+#
+
+cleanup() {
+	if [ -c "${DESTDIR}/dev/null" ]; then
+		umount_loop ${DESTDIR}/dev 2>/dev/null
+	fi
+	umount_loop ${DESTDIR}
+	if [ ! -z "${mddev}" ]; then
+		mdconfig -d -u ${mddev}
+	fi
+
+	return 0
+}
+
+umount_loop() {
+	DIR=$1
+	i=0
+	sync
+	while ! umount ${DIR}; do
+		i=$(( $i + 1 ))
+		if [ $i -ge 10 ]; then
+			# This should never happen.  But, it has happened.
+			echo "Cannot umount(8) ${DIR}"
+			echo "Something has gone horribly wrong."
+			return 1
+		fi
+		sleep 1
+	done
+
+	return 0
+}
+
+arm_create_disk() {
+	# Create the target raw file and temporary work directory.
+	chroot ${CHROOTDIR} gpart create -s ${PART_SCHEME} ${mddev}
+	chroot ${CHROOTDIR} gpart add -t '!12' -a 512k -s ${FAT_SIZE} ${mddev}
+	chroot ${CHROOTDIR} gpart set -a active -i 1 ${mddev}
+	chroot ${CHROOTDIR} newfs_msdos -L msdosboot -F ${FAT_TYPE} /dev/${mddev}s1
+	chroot ${CHROOTDIR} gpart add -t freebsd ${mddev}
+	chroot ${CHROOTDIR} gpart create -s bsd ${mddev}s2
+	chroot ${CHROOTDIR} gpart add -t freebsd-ufs -a 64k /dev/${mddev}s2
+	chroot ${CHROOTDIR} newfs -U -L rootfs /dev/${mddev}s2a
+
+	return 0
+}
+
+arm_create_user() {
+	# Create a default user account 'freebsd' with the password 'freebsd',
+	# and set the default password for the 'root' user to 'root'.
+	chroot ${CHROOTDIR} /usr/sbin/pw -R ${DESTDIR} \
+		groupadd freebsd -g 1001
+	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}/home/freebsd
+	chroot ${CHROOTDIR} /usr/sbin/pw -R ${DESTDIR} \
+		useradd freebsd \
+		-m -M 0755 -w yes -n freebsd -u 1001 -g 1001 -G 0 \
+		-c 'FreeBSD User' -d '/home/freebsd' -s '/bin/csh'
+	chroot ${CHROOTDIR} /usr/sbin/pw -R ${DESTDIR} \
+		usermod root -w yes
+
+	return 0
+}
+
+arm_setup_usb_otg() {
+	# Set up virtual serial port over USB OTG / device mode.
+	echo >> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo '# Required for USB OTG virtual serial port.' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo 'notify 100 {' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo '	match "system"		"DEVFS";' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo '	match "subsystem"	"CDEV";' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo '	match "type"		"CREATE";' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo '	match "cdev"		"ttyU[0-9]+";' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo '	action "/sbin/init q";' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+	echo '};' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/devd.conf
+
+	echo '# USB OTG virtual serial port' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/ttys
+	echo 'ttyU0	"/usr/libexec/getty 3wire"	vt100	onifconsole  secure' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/ttys
+	echo 'ttyU1	"/usr/libexec/getty 3wire"	vt100	onifconsole  secure' \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/ttys
+
+	echo '# Configure USB OTG; see usb_template(4).' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo 'hw.usb.template=3' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo 'umodem_load="YES"' \
+	     >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+}
+
+arm64_setup_multicons() {
+	if [ "${EMBEDDED_TARGET_ARCH}" != "aarch64" ]; then
+		return
+	fi
+
+	echo '# Multiple console (serial+efi gop) enabled.' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo 'boot_multicons="YES"' \
+	     >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo 'boot_serial="YES"' \
+	     >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+}
+
+arm_setup_fdt_overlays() {
+	if [ -z "${FDT_OVERLAYS}" ]; then
+		return
+	fi
+
+	echo '# DTB OVERLAYS' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo "fdt_overlays=\"${FDT_OVERLAYS}\"" \
+	     >> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+}
+
+arm_setup_minimal_loader() {
+	echo '# Disable the beastie menu and color' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo 'beastie_disable="YES"' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+	echo 'loader_color="NO"' \
+		>> ${CHROOTDIR}/${DESTDIR}/boot/loader.conf
+}
+
+arm_install_base() {
+	chroot ${CHROOTDIR} mount /dev/${mddev}s2a ${DESTDIR}
+	eval chroot ${CHROOTDIR} make -C ${WORLDDIR} \
+		TARGET=${EMBEDDED_TARGET} \
+		TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
+		DESTDIR=${DESTDIR} KERNCONF=${KERNEL} \
+		installworld installkernel distribution
+	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}/boot/msdos
+
+	arm_create_user
+	arm_setup_usb_otg
+	arm64_setup_multicons
+	arm_setup_fdt_overlays
+	arm_setup_minimal_loader
+	arm_do_quirk
+
+	echo '# Custom /etc/fstab for FreeBSD embedded images' \
+		> ${CHROOTDIR}/${DESTDIR}/etc/fstab
+	echo "/dev/ufs/rootfs   /       ufs     rw      1       1" \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
+	echo "/dev/msdosfs/MSDOSBOOT /boot/msdos msdosfs rw,noatime 0 0" \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
+	echo "tmpfs /tmp tmpfs rw,mode=1777,size=50m 0 0" \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
+
+	local hostname
+	hostname="$(echo ${KERNEL} | tr '[:upper:]' '[:lower:]')"
+	echo "hostname=\"${hostname}\"" > ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'ifconfig_DEFAULT="DHCP"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'sshd_enable="YES"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'sendmail_enable="NONE"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'sendmail_submit_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'sendmail_outbound_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'sendmail_msp_queue_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'growfs_enable="YES"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+
+	sync
+	umount_loop ${CHROOTDIR}/${DESTDIR}
+
+	return 0
+}
+
+arm_install_boot() {
+	FATMOUNT="${DESTDIR%${KERNEL}}/fat"
+	UFSMOUNT="${DESTDIR%${KERNEL}}/ufs"
+	chroot ${CHROOTDIR} mkdir -p "${FATMOUNT}" "${UFSMOUNT}"
+	chroot ${CHROOTDIR} mount_msdosfs /dev/${mddev}s1 ${FATMOUNT}
+	chroot ${CHROOTDIR} mount /dev/${mddev}s2a ${UFSMOUNT}
+
+	if [ "${EMBEDDED_TARGET}" == "arm" ]; then
+	chroot ${CHROOTDIR} cp -p ${UFSMOUNT}/boot/ubldr.bin \
+		${FATMOUNT}/ubldr.bin
+	fi
+
+	BOOTFILES="$(chroot ${CHROOTDIR} \
+		env TARGET=${EMBEDDED_TARGET} TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
+		WITH_UNIFIED_OBJDIR=yes \
+		make -C ${WORLDDIR}/stand -V .OBJDIR)"
+	BOOTFILES="$(chroot ${CHROOTDIR} realpath ${BOOTFILES})"
+
+	chroot ${CHROOTDIR} mkdir -p ${FATMOUNT}/EFI/BOOT
+	chroot ${CHROOTDIR} cp -p ${BOOTFILES}/efi/loader_lua/loader_lua.efi \
+		${FATMOUNT}/EFI/BOOT/$(efi_boot_name ${EMBEDDED_TARGET})
+
+	chroot ${CHROOTDIR} cp -R ${UFSMOUNT}/boot/dtb ${FATMOUNT}
+
+	chroot ${CHROOTDIR} touch ${UFSMOUNT}/firstboot
+	sync
+	umount_loop ${CHROOTDIR}/${FATMOUNT}
+	umount_loop ${CHROOTDIR}/${UFSMOUNT}
+	chroot ${CHROOTDIR} rmdir ${FATMOUNT}
+	chroot ${CHROOTDIR} rmdir ${UFSMOUNT}
+}
+
+arm_install_uboot() {
+	# Override in the arm/KERNEL.conf file.
+
+	return 0
+}
+
+arm_do_quirk() {
+	# Override in the arm{,64}/BOARD.conf file.
+}

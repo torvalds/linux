@@ -1,0 +1,938 @@
+#!/bin/sh
+# Copyright (c) 2007-2016 Roy Marples
+# All rights reserved
+
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+RESOLVCONF="$0"
+OPENRESOLV_VERSION="3.9.0"
+SYSCONFDIR=@SYSCONFDIR@
+LIBEXECDIR=@LIBEXECDIR@
+VARDIR=@VARDIR@
+RCDIR=@RCDIR@
+RESTARTCMD=@RESTARTCMD@
+
+if [ "$1" = "--version" ]; then
+	echo "openresolv $OPENRESOLV_VERSION"
+	echo "Copyright (c) 2007-2016 Roy Marples"
+	exit 0
+fi
+
+# Disregard dhcpcd setting
+unset interface_order state_dir
+
+# If you change this, change the test in VFLAG and libc.in as well
+local_nameservers="127.* 0.0.0.0 255.255.255.255 ::1"
+
+dynamic_order="tap[0-9]* tun[0-9]* vpn vpn[0-9]* ppp[0-9]* ippp[0-9]*"
+interface_order="lo lo[0-9]*"
+name_server_blacklist="0.0.0.0"
+
+# Support original resolvconf configuration layout
+# as well as the openresolv config file
+if [ -f "$SYSCONFDIR"/resolvconf.conf ]; then
+	. "$SYSCONFDIR"/resolvconf.conf
+	[ -n "$state_dir" ] && VARDIR="$state_dir"
+elif [ -d "$SYSCONFDIR/resolvconf" ]; then
+	SYSCONFDIR="$SYSCONFDIR/resolvconf"
+	if [ -f "$SYSCONFDIR"/interface-order ]; then
+		interface_order="$(cat "$SYSCONFDIR"/interface-order)"
+	fi
+fi
+IFACEDIR="$VARDIR/interfaces"
+METRICDIR="$VARDIR/metrics"
+PRIVATEDIR="$VARDIR/private"
+EXCLUSIVEDIR="$VARDIR/exclusive"
+LOCKDIR="$VARDIR/lock"
+_PWD="$PWD"
+
+warn()
+{
+	echo "$*" >&2
+}
+
+error_exit()
+{
+	echo "$*" >&2
+	exit 1
+}
+
+usage()
+{
+	cat <<-EOF
+	Usage: ${RESOLVCONF##*/} [options] command [argument]
+
+	Inform the system about any DNS updates.
+
+	Commands:
+	  -a \$INTERFACE    Add DNS information to the specified interface
+	                   (DNS supplied via stdin in resolv.conf format)
+	  -d \$INTERFACE    Delete DNS information from the specified interface
+	  -h               Show this help cruft
+	  -i [\$PATTERN]    Show interfaces that have supplied DNS information
+                   optionally from interfaces that match the specified
+                   pattern
+	  -l [\$PATTERN]    Show DNS information, optionally from interfaces
+	                   that match the specified pattern
+
+	  -u               Run updates from our current DNS information
+	  --version        Echo the ${RESOLVCONF##*/} version
+
+	Options:
+	  -f               Ignore non existent interfaces
+	  -m metric        Give the added DNS information a metric
+	  -p               Mark the interface as private
+	  -x               Mark the interface as exclusive
+
+	Subscriber and System Init Commands:
+	  -I               Init the state dir
+	  -r \$SERVICE      Restart the system service
+	                   (restarting a non-existent or non-running service
+	                    should have no output and return 0)
+	  -R               Show the system service restart command
+	  -v [\$PATTERN]    echo NEWDOMAIN, NEWSEARCH and NEWNS variables to
+	  		   the console
+	  -V [\$PATTERN]    Same as -v, but only uses configuration in
+	                   $SYSCONFDIR/resolvconf.conf
+	EOF
+	[ -z "$1" ] && exit 0
+	echo
+	error_exit "$*"
+}
+
+# Strip any trailing dot from each name as a FQDN does not belong
+# in resolv.conf(5)
+# If you think otherwise, capture a DNS trace and you'll see libc
+# will strip it regardless.
+# This also solves setting up duplicate zones in our subscribers.
+strip_trailing_dots()
+{
+	local n= d=
+
+	for n; do
+		printf "$d%s" "${n%.}"
+		d=" "
+	done
+	printf "\n"
+}
+
+private_iface()
+{
+	local p
+
+	# Allow expansion
+	cd "$IFACEDIR"
+
+	# Public interfaces override private ones.
+	for p in $public_interfaces; do
+		case "$iface" in
+		"$p"|"$p":*) return 1;;
+		esac
+	done
+
+	if [ -e "$PRIVATEDIR/$iface" ]; then
+		return 0
+	fi
+	
+	for p in $private_interfaces; do
+		case "$iface" in
+		"$p"|"$p":*) return 0;;
+		esac
+	done
+
+	# Not a private interface
+	return 1
+}
+
+# Parse resolv.conf's and make variables
+# for domain name servers, search name servers and global nameservers
+parse_resolv()
+{
+	local line= ns= ds= search= d= n= newns=
+	local new=true iface= private=false p= domain= l= islocal=
+
+	newns=
+
+	while read -r line; do
+		case "$line" in
+		"# resolv.conf from "*)
+			if ${new}; then
+				iface="${line#\# resolv.conf from *}"
+				new=false
+				if private_iface "$iface"; then
+					private=true
+				else
+					private=false
+				fi
+			fi
+			;;
+		"nameserver "*)
+			islocal=false
+			for l in $local_nameservers; do
+				case "${line#* }" in
+				$l)
+					islocal=true
+					echo "LOCALNAMESERVERS=\"\$LOCALNAMESERVERS ${line#* }\""
+					break
+					;;
+				esac
+			done
+			$islocal || ns="$ns${line#* } "
+			;;
+		"domain "*)
+			search="$(strip_trailing_dots ${line#* })"
+			if [ -z "$domain" ]; then
+				domain="$search"
+				echo "DOMAIN=\"$domain\""
+			fi
+			;;
+		"search "*)
+			search="$(strip_trailing_dots ${line#* })"
+			;;
+		*)
+			[ -n "$line" ] && continue
+			if [ -n "$ns" -a -n "$search" ]; then
+				newns=
+				for n in $ns; do
+					newns="$newns${newns:+,}$n"
+				done
+				ds=
+				for d in $search; do
+					ds="$ds${ds:+ }$d:$newns"
+				done
+				echo "DOMAINS=\"\$DOMAINS $ds\""
+			fi
+			echo "SEARCH=\"\$SEARCH $search\""
+			if ! $private; then
+				echo "NAMESERVERS=\"\$NAMESERVERS $ns\""
+			fi
+			ns=
+			search=
+			new=true
+			;;
+		esac
+	done
+}
+
+uniqify()
+{
+	local result=
+	while [ -n "$1" ]; do
+		case " $result " in
+		*" $1 "*);;
+		*) result="$result $1";;
+		esac
+		shift
+	done
+	echo "${result# *}"
+}
+
+dirname()
+{
+	local dir= OIFS="$IFS"
+	local IFS=/
+	set -- $@
+	IFS="$OIFS"
+	if [ -n "$1" ]; then
+		printf %s .
+	else
+		shift
+	fi
+	while [ -n "$2" ]; do
+		printf "/%s" "$1"
+		shift
+	done
+	printf "\n"
+}
+
+config_mkdirs()
+{
+	local e=0 f d
+	for f; do
+		[ -n "$f" ] || continue
+		d="$(dirname "$f")"
+		if [ ! -d "$d" ]; then
+			if type install >/dev/null 2>&1; then
+				install -d "$d" || e=$?
+			else
+				mkdir "$d" || e=$?
+			fi
+		fi
+	done
+	return $e
+}
+
+# With the advent of alternative init systems, it's possible to have
+# more than one installed. So we need to try and guess what one we're
+# using unless overriden by configure.
+# Note that restarting a service is a last resort - the subscribers
+# should make a reasonable attempt to reconfigre the service via some
+# method, normally SIGHUP.
+detect_init()
+{
+	[ -n "$RESTARTCMD" ] && return 0
+
+	# Detect the running init system.
+	# As systemd and OpenRC can be installed on top of legacy init
+	# systems we try to detect them first.
+	local status="@STATUSARG@"
+	: ${status:=status}
+	if [ -x /bin/systemctl -a -S /run/systemd/private ]; then
+		RESTARTCMD="if /bin/systemctl --quiet is-active \$1.service; then
+	/bin/systemctl restart \$1.service;
+fi"
+	elif [ -x /usr/bin/systemctl -a -S /run/systemd/private ]; then
+		RESTARTCMD="if /usr/bin/systemctl --quiet is-active \$1.service; then
+	/usr/bin/systemctl restart \$1.service;
+fi"
+	elif [ -x /sbin/rc-service -a \
+	    -s /libexec/rc/init.d/softlevel -o -s /run/openrc/softlevel ]
+	then
+		RESTARTCMD="/sbin/rc-service -i \$1 -- -Ds restart"
+	elif [ -x /usr/sbin/invoke-rc.d ]; then
+		RCDIR=/etc/init.d
+		RESTARTCMD="if /usr/sbin/invoke-rc.d --quiet \$1 status 1>/dev/null 2>&1; then
+	/usr/sbin/invoke-rc.d \$1 restart;
+fi"
+	elif [ -x /sbin/service ]; then
+		# Old RedHat
+		RCDIR=/etc/init.d
+		RESTARTCMD="if /sbin/service \$1; then
+	/sbin/service \$1 restart;
+fi"
+	elif [ -x /usr/sbin/service ]; then
+		# Could be FreeBSD
+		RESTARTCMD="if /usr/sbin/service \$1 $status 1>/dev/null 2>&1; then
+	/usr/sbin/service \$1 restart;
+fi"
+	elif [ -x /bin/sv ]; then
+		RESTARTCMD="/bin/sv status \$1 >/dev/null 2>&1 && /bin/sv try-restart \$1"
+	elif [ -x /usr/bin/sv ]; then
+		RESTARTCMD="/usr/bin/sv status \$1 >/dev/null 2>&1 && /usr/bin/sv try-restart \$1"
+	elif [ -e /etc/arch-release -a -d /etc/rc.d ]; then
+		RCDIR=/etc/rc.d
+		RESTARTCMD="if [ -e /var/run/daemons/\$1 ]; then
+	/etc/rc.d/\$1 restart;
+fi"
+	elif [ -e /etc/slackware-version -a -d /etc/rc.d ]; then
+		RESTARTCMD="if /etc/rc.d/rc.\$1 status 1>/dev/null 2>&1; then
+	/etc/rc.d/rc.\$1 restart;
+fi"
+	elif [ -e /etc/rc.d/rc.subr -a -d /etc/rc.d ]; then
+		# OpenBSD
+		RESTARTCMD="if /etc/rc.d/\$1 check 1>/dev/null 2>&1; then
+	/etc/rc.d/\$1 restart;
+fi"
+	else
+		for x in /etc/init.d/rc.d /etc/rc.d /etc/init.d; do
+			[ -d $x ] || continue
+			RESTARTCMD="if $x/\$1 $status 1>/dev/null 2>&1; then
+	$x/\$1 restart;
+fi"
+			break
+		done
+	fi
+
+	if [ -z "$RESTARTCMD" ]; then
+		if [ "$NOINIT_WARNED" != true ]; then
+			warn "could not detect a useable init system"
+			_NOINIT_WARNED=true
+		fi
+		return 1
+	fi
+	_NOINIT_WARNED=
+	return 0
+}
+
+echo_resolv()
+{
+	local line= OIFS="$IFS"
+
+	[ -n "$1" -a -f "$IFACEDIR/$1" ] || return 1
+	echo "# resolv.conf from $1"
+	# Our variable maker works of the fact each resolv.conf per interface
+	# is separated by blank lines.
+	# So we remove them when echoing them.
+	while read -r line; do
+		IFS="$OIFS"
+		if [ -n "$line" ]; then
+			# We need to set IFS here to preserve any whitespace
+			IFS=''
+			printf "%s\n" "$line"
+		fi
+	done < "$IFACEDIR/$1"
+	IFS="$OIFS"
+}
+
+list_resolv()
+{
+	[ -d "$IFACEDIR" ] || return 0
+
+	local report=false list= retval=0 cmd="$1" excl=
+	shift
+
+	case "$IF_EXCLUSIVE" in
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		if [ -d "$EXCLUSIVEDIR" ]; then
+			cd "$EXCLUSIVEDIR"
+			for i in *; do
+				if [ -f "$i" ]; then
+					list="${i#* }"
+					break
+				fi
+			done
+		fi
+		excl=true
+		cd "$IFACEDIR"
+		for i in $inclusive_interfaces; do
+			if [ -f "$i" -a "$list" = "$i" ]; then
+				list=
+				excl=false
+				break
+			fi
+		done
+		;;
+	*)
+		excl=false
+		;;
+	esac
+
+	# If we have an interface ordering list, then use that.
+	# It works by just using pathname expansion in the interface directory.
+	if [ -n "$1" ]; then
+		list="$*"
+		$force || report=true
+	elif ! $excl; then
+		cd "$IFACEDIR"
+		for i in $interface_order; do
+			[ -f "$i" ] && list="$list $i"
+			for ii in "$i":* "$i".*; do
+				[ -f "$ii" ] && list="$list $ii"
+			done
+		done
+		for i in $dynamic_order; do
+			if [ -e "$i" -a ! -e "$METRICDIR/"*" $i" ]; then
+				list="$list $i"
+			fi
+			for ii in "$i":* "$i".*; do
+				if [ -f "$ii" -a ! -e "$METRICDIR/"*" $ii" ]; then
+					list="$list $ii"
+				fi
+			done
+		done
+		if [ -d "$METRICDIR" ]; then
+			cd "$METRICDIR"
+			for i in *; do
+				[ -f "$i" ] && list="$list ${i#* }"
+			done
+		fi
+		list="$list *"
+	fi
+
+	cd "$IFACEDIR"
+	retval=1
+	for i in $(uniqify $list); do
+		# Only list interfaces which we really have
+		if ! [ -f "$i" ]; then
+			if $report; then
+				echo "No resolv.conf for interface $i" >&2
+				retval=2
+			fi
+			continue
+		fi
+		
+		if [ "$cmd" = i -o "$cmd" = "-i" ]; then
+			printf %s "$i "
+		else
+			echo_resolv "$i" && echo
+		fi
+		[ $? = 0 -a "$retval" = 1 ] && retval=0
+	done
+	[ "$cmd" = i -o "$cmd" = "-i" ] && echo
+	return $retval
+}
+
+list_remove() {
+	local list= e= l= result= found= retval=0
+
+	[ -z "$2" ] && return 0
+	eval list=\"\$$1\"
+	shift
+
+	set -f
+	for e; do
+		found=false
+		for l in $list; do
+			case "$e" in
+			$l) found=true;;
+			esac
+			$found && break
+		done
+		if $found; then
+			retval=$(($retval + 1))
+		else
+			result="$result $e"
+		fi
+	done
+	set +f
+	echo "${result# *}"
+	return $retval
+}
+
+echo_prepend()
+{
+	echo "# Generated by resolvconf"
+	if [ -n "$search_domains" ]; then
+		echo "search $search_domains"
+	fi
+	for n in $name_servers; do
+		echo "nameserver $n"
+	done
+	echo
+}
+
+echo_append()
+{
+	echo "# Generated by resolvconf"
+	if [ -n "$search_domains_append" ]; then
+		echo "search $search_domains_append"
+	fi
+	for n in $name_servers_append; do
+		echo "nameserver $n"
+	done
+	echo
+}
+
+replace()
+{
+	local r= k= f= v= val= sub=
+
+	while read -r keyword value; do
+		for r in $replace; do
+			k="${r%%/*}"
+			r="${r#*/}"
+			f="${r%%/*}"
+			r="${r#*/}"
+			v="${r%%/*}"
+			case "$keyword" in
+			$k)
+				case "$value" in
+				$f) value="$v";;
+				esac
+				;;
+			esac
+		done
+		val=
+		for sub in $value; do
+			for r in $replace_sub; do
+				k="${r%%/*}"
+				r="${r#*/}"
+				f="${r%%/*}"
+				r="${r#*/}"
+				v="${r%%/*}"
+				case "$keyword" in
+				$k)
+					case "$sub" in
+					$f) sub="$v";;
+					esac
+					;;
+				esac
+			done
+			val="$val${val:+ }$sub"
+		done
+		printf "%s %s\n" "$keyword" "$val"
+	done
+}
+
+make_vars()
+{
+	local newdomains= d= dn= newns= ns=
+
+	# Clear variables
+	DOMAIN=
+	DOMAINS=
+	SEARCH=
+	NAMESERVERS=
+	LOCALNAMESERVERS=
+	
+	if [ -n "$name_servers" -o -n "$search_domains" ]; then
+		eval "$(echo_prepend | parse_resolv)"
+	fi
+	if [ -z "$VFLAG" ]; then
+		IF_EXCLUSIVE=1
+		list_resolv -i "$@" >/dev/null || IF_EXCLUSIVE=0
+		eval "$(list_resolv -l "$@" | replace | parse_resolv)"
+	fi
+	if [ -n "$name_servers_append" -o -n "$search_domains_append" ]; then
+		eval "$(echo_append | parse_resolv)"
+	fi
+
+	# Ensure that we only list each domain once
+	for d in $DOMAINS; do
+		dn="${d%%:*}"
+		list_remove domain_blacklist "$dn" >/dev/null || continue
+		case " $newdomains" in
+		*" ${dn}:"*) continue;;
+		esac
+		newns=
+		for nd in $DOMAINS; do
+			if [ "$dn" = "${nd%%:*}" ]; then
+				ns="${nd#*:}"
+				while [ -n "$ns" ]; do
+					case ",$newns," in
+					*,${ns%%,*},*) ;;
+					*) list_remove name_server_blacklist \
+						"${ns%%,*}" >/dev/null \
+					&& newns="$newns${newns:+,}${ns%%,*}";;
+					esac
+					[ "$ns" = "${ns#*,}" ] && break
+					ns="${ns#*,}"
+				done
+			fi
+		done
+		if [ -n "$newns" ]; then
+			newdomains="$newdomains${newdomains:+ }$dn:$newns"
+		fi
+	done
+	DOMAIN="$(list_remove domain_blacklist $DOMAIN)"
+	SEARCH="$(uniqify $SEARCH)"
+	SEARCH="$(list_remove domain_blacklist $SEARCH)"
+	NAMESERVERS="$(uniqify $NAMESERVERS)"
+	NAMESERVERS="$(list_remove name_server_blacklist $NAMESERVERS)"
+	LOCALNAMESERVERS="$(uniqify $LOCALNAMESERVERS)"
+	LOCALNAMESERVERS="$(list_remove name_server_blacklist $LOCALNAMESERVERS)"
+	echo "DOMAIN='$DOMAIN'"
+	echo "SEARCH='$SEARCH'"
+	echo "NAMESERVERS='$NAMESERVERS'"
+	echo "LOCALNAMESERVERS='$LOCALNAMESERVERS'"
+	echo "DOMAINS='$newdomains'"
+}
+
+force=false
+VFLAG=
+while getopts a:Dd:fhIilm:pRruvVx OPT; do
+	case "$OPT" in
+	f) force=true;;
+	h) usage;;
+	m) IF_METRIC="$OPTARG";;
+	p) IF_PRIVATE=1;;
+	V)
+		VFLAG=1
+		if [ "$local_nameservers" = \
+		    "127.* 0.0.0.0 255.255.255.255 ::1" ]
+		then
+			local_nameservers=
+		fi
+		;;
+	x) IF_EXCLUSIVE=1;;
+	'?') ;;
+	*) cmd="$OPT"; iface="$OPTARG";;
+	esac
+done
+shift $(($OPTIND - 1))
+args="$iface${iface:+ }$*"
+
+# -I inits the state dir
+if [ "$cmd" = I ]; then
+	if [ -d "$VARDIR" ]; then
+		rm -rf "$VARDIR"/*
+	fi
+	exit $?
+fi
+
+# -D ensures that the listed config file base dirs exist
+if [ "$cmd" = D ]; then
+	config_mkdirs "$@"
+	exit $?
+fi
+
+# -l lists our resolv files, optionally for a specific interface
+if [ "$cmd" = l -o "$cmd" = i ]; then
+	list_resolv "$cmd" "$args"
+	exit $?
+fi
+
+# Restart a service or echo the command to restart a service
+if [ "$cmd" = r -o "$cmd" = R ]; then
+	detect_init || exit 1
+	if [ "$cmd" = r ]; then
+		set -- $args
+		eval $RESTARTCMD
+	else
+		echo "$RESTARTCMD"
+	fi
+	exit $?
+fi
+
+# Not normally needed, but subscribers should be able to run independently
+if [ "$cmd" = v -o -n "$VFLAG" ]; then
+	make_vars "$iface"
+	exit $?
+fi
+
+# Test that we have valid options
+if [ "$cmd" = a -o "$cmd" = d ]; then
+	if [ -z "$iface" ]; then
+		usage "Interface not specified"
+	fi
+elif [ "$cmd" != u ]; then
+	[ -n "$cmd" -a "$cmd" != h ] && usage "Unknown option $cmd"
+	usage
+fi
+
+if [ "$cmd" = a ]; then
+	for x in '/' \\ ' ' '*'; do
+		case "$iface" in
+		*[$x]*) error_exit "$x not allowed in interface name";;
+		esac
+	done
+	for x in '.' '-' '~'; do
+		case "$iface" in
+		[$x]*) error_exit \
+			"$x not allowed at start of interface name";;
+		esac
+	done
+	[ "$cmd" = a -a -t 0 ] && error_exit "No file given via stdin"
+fi
+
+if [ ! -d "$VARDIR" ]; then
+	if [ -L "$VARDIR" ]; then
+		dir="$(readlink "$VARDIR")"
+		# link maybe relative
+		cd "${VARDIR%/*}"
+		if ! mkdir -m 0755 -p "$dir"; then
+			error_exit "Failed to create needed" \
+				"directory $dir"
+		fi
+	else
+		if ! mkdir -m 0755 -p "$VARDIR"; then
+			error_exit "Failed to create needed" \
+				"directory $VARDIR"
+		fi
+	fi
+fi
+
+if [ ! -d "$IFACEDIR" ]; then
+	mkdir -m 0755 -p "$IFACEDIR" || \
+		error_exit "Failed to create needed directory $IFACEDIR"
+	if [ "$cmd" = d ]; then
+		# Provide the same error messages as below
+		if ! ${force}; then
+			cd "$IFACEDIR"
+			for i in $args; do
+				warn "No resolv.conf for interface $i"
+			done
+		fi
+		${force}
+		exit $?
+	fi
+fi
+
+# An interface was added, changed, deleted or a general update was called.
+# Due to exclusivity we need to ensure that this is an atomic operation.
+# Our subscribers *may* need this as well if the init system is sub par.
+# As such we spinlock at this point as best we can.
+# We don't use flock(1) because it's not widely available and normally resides
+# in /usr which we do our very best to operate without.
+[ -w "$VARDIR" ] || error_exit "Cannot write to $LOCKDIR"
+: ${lock_timeout:=10}
+while true; do
+	if mkdir "$LOCKDIR" 2>/dev/null; then
+		trap 'rm -rf "$LOCKDIR";' EXIT
+		trap 'rm -rf "$LOCKDIR"; exit 1' INT QUIT ABRT SEGV ALRM TERM
+		echo $$ >"$LOCKDIR/pid"
+		break
+	fi
+	pid=$(cat "$LOCKDIR/pid")
+	if ! kill -0 "$pid"; then
+		warn "clearing stale lock pid $pid"
+		rm -rf "$LOCKDIR"
+		continue
+	fi
+	lock_timeout=$(($lock_timeout - 1))
+	if [ "$lock_timeout" -le 0 ]; then
+		error_exit "timed out waiting for lock from pid $pid"
+	fi
+	sleep 1
+done
+
+case "$cmd" in
+a)
+	# Read resolv.conf from stdin
+	resolv="$(cat)"
+	changed=false
+	changedfile=false
+	# If what we are given matches what we have, then do nothing
+	if [ -e "$IFACEDIR/$iface" ]; then
+		if [ "$(echo "$resolv")" != \
+			"$(cat "$IFACEDIR/$iface")" ]
+		then
+			changed=true
+			changedfile=true
+		fi
+	else
+		changed=true
+		changedfile=true
+	fi
+
+	# Set metric and private before creating the interface resolv.conf file
+	# to ensure that it will have the correct flags
+	[ ! -d "$METRICDIR" ] && mkdir "$METRICDIR"
+	oldmetric="$METRICDIR/"*" $iface"
+	newmetric=
+	if [ -n "$IF_METRIC" ]; then
+		# Pad metric to 6 characters, so 5 is less than 10
+		while [ ${#IF_METRIC} -le 6 ]; do
+			IF_METRIC="0$IF_METRIC"
+		done
+		newmetric="$METRICDIR/$IF_METRIC $iface"
+	fi
+	rm -f "$METRICDIR/"*" $iface"
+	[ "$oldmetric" != "$newmetric" -a \
+	    "$oldmetric" != "$METRICDIR/* $iface" ] &&
+		changed=true
+	[ -n "$newmetric" ] && echo " " >"$newmetric"
+
+	case "$IF_PRIVATE" in
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		if [ ! -d "$PRIVATEDIR" ]; then
+			[ -e "$PRIVATEDIR" ] && rm "$PRIVATEDIR"
+			mkdir "$PRIVATEDIR"
+		fi
+		[ -e "$PRIVATEDIR/$iface" ] || changed=true
+		[ -d "$PRIVATEDIR" ] && echo " " >"$PRIVATEDIR/$iface"
+		;;
+	*)
+		if [ -e "$PRIVATEDIR/$iface" ]; then
+			rm -f "$PRIVATEDIR/$iface"
+			changed=true
+		fi
+		;;
+	esac
+
+	oldexcl=
+	for x in "$EXCLUSIVEDIR/"*" $iface"; do
+		if [ -f "$x" ]; then
+			oldexcl="$x"
+			break
+		fi
+	done
+	case "$IF_EXCLUSIVE" in
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		if [ ! -d "$EXCLUSIVEDIR" ]; then
+			[ -e "$EXCLUSIVEDIR" ] && rm "$EXCLUSIVEDIR"
+			mkdir "$EXCLUSIVEDIR"
+		fi
+		cd "$EXCLUSIVEDIR"
+		for x in *; do
+			[ -f "$x" ] && break
+		done
+		if [ "${x#* }" != "$iface" ]; then
+			if [ "$x" = "${x% *}" ]; then
+				x=10000000
+			else
+				x="${x% *}"
+			fi
+			if [ "$x" = "0000000" ]; then
+				warn "exclusive underflow"
+			else
+				x=$(($x - 1))
+			fi
+			if [ -d "$EXCLUSIVEDIR" ]; then
+				echo " " >"$EXCLUSIVEDIR/$x $iface"
+			fi
+			changed=true
+		fi
+		;;
+	*)
+		if [ -f "$oldexcl" ]; then
+			rm -f "$oldexcl"
+			changed=true
+		fi
+		;;
+	esac
+
+	if $changedfile; then
+		printf "%s\n" "$resolv" >"$IFACEDIR/$iface" || exit $?
+	elif ! $changed; then
+		exit 0
+	fi
+	unset changed changedfile oldmetric newmetric x oldexcl
+	;;
+
+d)
+	# Delete any existing information about the interface
+	cd "$IFACEDIR"
+	changed=false
+	for i in $args; do
+		if [ -e "$i" ]; then
+			changed=true
+		elif ! ${force}; then
+			warn "No resolv.conf for interface $i"
+		fi
+		rm -f "$i" "$METRICDIR/"*" $i" \
+			"$PRIVATEDIR/$i" \
+			"$EXCLUSIVEDIR/"*" $i" || exit $?
+	done
+	if ! ${changed}; then
+		# Set the return code based on the forced flag
+		${force}
+		exit $?
+	fi
+	unset changed i
+	;;
+esac
+
+case "${resolvconf:-YES}" in
+[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1) ;;
+*) exit 0;;
+esac
+
+# Try and detect a suitable init system for our scripts
+detect_init
+export RESTARTCMD RCDIR _NOINIT_WARNED
+
+eval "$(make_vars)"
+export RESOLVCONF DOMAINS SEARCH NAMESERVERS LOCALNAMESERVERS
+: ${list_resolv:=list_resolv -l}
+retval=0
+
+# Run scripts in the same directory resolvconf is run from
+# in case any scripts accidentally dump files in the wrong place.
+cd "$_PWD"
+for script in "$LIBEXECDIR"/*; do
+	if [ -f "$script" ]; then
+		eval script_enabled="\$${script##*/}"
+		case "${script_enabled:-YES}" in
+		[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1) ;;
+		*) continue;;
+		esac
+		if [ -x "$script" ]; then
+			"$script" "$cmd" "$iface"
+		else
+			(set -- "$cmd" "$iface"; . "$script")
+		fi
+		retval=$(($retval + $?))
+	fi
+done
+exit $retval

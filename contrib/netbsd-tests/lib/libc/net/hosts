@@ -1,0 +1,11 @@
+#	$NetBSD: hosts,v 1.1 2013/08/16 15:29:45 christos Exp $
+#
+# Host Database
+# This file should contain the addresses and aliases
+# for local hosts that share this file.
+# It is used only for "ifconfig" and other operations
+# before the nameserver is started.
+#
+#
+::1			localhost localhost. localhost.localdomain.
+127.0.0.1		localhost localhost. localhost.localdomain.

@@ -1,0 +1,5 @@
+#mixed af, probability
+pass in from any to { 127.0.0.1, 2000::1 }
+pass in probability 0.5
+pass in probability 50%
+pass in inet6 proto tcp from ::1 probability 0.8%

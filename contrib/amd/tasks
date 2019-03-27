@@ -1,0 +1,111 @@
+			  AM-UTILS-6.1 TASKS TODO
+
+Please volunteer to do any of the following:
+
+- autofs support: see README.autofs for details.
+
+- deal with everything that has XXX on it in the sources
+- documentation update ("XXX: FILL IN" sections).
+
+- compatibility with Sun's automount maps?
+	should be easier via the amd.conf file to specify type of map
+
+- convert to using my own rpcgen .x files for amq/amq/nfs (v2 and v3)
+
+- use packaging info for various OSs (such as RPM, Redhat Package Manager)
+
+- $mindelay and $maxdelay in milliseconds
+
+- multiple nfsl should be matched if one matched and nfs mount failed.  fall
+  through.
+- support multiple "fail-over read-only" NFS mounts in Solaris 2.6+.
+
+- random nfs rhost:={srv1, srv2, srv3}
+
+- nfslx, same as nfsl, but using linkx
+
+- loadable info_*, amfs_*, and ops_* modules (lazy evaluation).
+
+- hlfsd should daemonize even if -DDEBUG, then use -D nofork
+
+- fixmount should use generic code from transp/transp_{tli,sockets}.c
+
+- reverse notion of -F and other cmd-line options, so they override the
+  amd.conf file (right now amd.conf overrides cmd-line options).
+
+- add am-utils URL and COPYRIGHT to all distributed scripts and sources and
+  programs etc. also to amq -v output.
+
+- ion: browsable_dirs only works for nis if in [global] broken if it is file
+  maps.
+
+- browsable 'auto' style maps.
+
+- mention signals in amd man page
+
+- ALLOWED_MOUNT_TIME of 40 seconds is way too long!
+- detecting down'ed hosts faster: use default portmap TTL variables?
+- push get_nfs_version() down into a child process
+
+- type:=program should not require umount command. can use default
+  umount(). it works for smbmount/umount.
+
+- document var[0-7] variables/selectors
+
+- need a way to export a nfs-mount point after it is being mounted (jukebox
+  mounts).  can do this with type:=program.
+
+- support port=n, for machines that use NFS on a different port
+
+- nfsl may be buggy when fs:= is specified explicitly (lockup?)
+
+- y2k: amq /home (mounted time uses YY instead of YYYY)
+
+- new amd.conf option to disable amq listener altogether (security)
+	Should be available even if DEBUG is off.
+
+- new amd.conf option dynamic_system_params to recompute osver, karch,
+  etc. from uname() dynamically.
+
+- solaris 8 doesn't pick up hsfs/pcfs/etc *_args structures and mount flags
+
+- avoid having to compile ops_nfs3.o
+
+- linux support for ext3
+
+- be able to pass generic mount options to systems w/ a mount(2) that
+  supports it (Linux).  Perhaps genopt="foo,bar" syntax.
+
+- support several different nfs servers inside one nfsx entry
+
+- reimplement the "parallel mounting" for multiple matching sub-entries
+
+- fix amd.conf parser so it can parse key=value without spaces around the
+  "=" sign.  Note this isn't so trivial because 'value' may include "="
+  signs.
+
+- NFSv4 support (such a short "tasks" entry given how much work it is :-)
+
+
+* documentation
+- document what can and what can't be a top-level mount type (i.e. a
+  map-backed or map-holding type). Currently that's toplvl, auto, and
+  direct.
+- document how to add a direct map to amd.conf.
+
+* autofs stuff
+Linux:
+- host mounts broken with autofs v3
+- nfsx status unknown
+- local filesystems (ufs, etc) status unknown
+
+Solaris:
+- host mounts status unknown
+- nfsx status unknown
+- local filesystems (ufs, etc) status unknown
+
+FreeBSD:
+- just do it
+
+All:
+- mntfs->mf_fo->opt_fs can contain garbage sometimes??

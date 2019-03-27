@@ -1,0 +1,150 @@
+.\"	$NetBSD: hme.4,v 1.4 2003/02/14 15:20:18 grant Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Klaus Klein.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 14, 2009
+.Dt HME 4
+.Os
+.Sh NAME
+.Nm hme
+.Nd "Sun Microelectronics STP2002-STQ Ethernet interfaces device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device hme"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_hme_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Sun Microelectronics STP2002-STQ
+.Dq Happy Meal Ethernet
+Fast Ethernet interfaces.
+.Pp
+All controllers supported by the
+.Nm
+driver have TCP checksum offload capability for both receive and transmit,
+support for the reception and transmission of extended frames for
+.Xr vlan 4
+and a 128-bit multicast hash filter.
+.Sh HARDWARE
+The
+.Nm
+driver supports the on-board Ethernet interfaces of many
+Sun
+.Tn UltraSPARC
+workstation and server models.
+.Pp
+Cards supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Sun PCI SunSwift Adapter
+.Pq Dq SUNW,hme
+.It
+Sun SBus SunSwift Adapter
+.Dq ( hme
+and
+.Dq SUNW,hme )
+.It
+Sun PCI Sun100BaseT Adapter 2.0
+.Pq Dq SUNW,hme
+.It
+Sun SBus Sun100BaseT 2.0
+.Pq Dq SUNW,hme
+.It
+Sun PCI Quad FastEthernet Controller
+.Pq Dq SUNW,qfe
+.It
+Sun SBus Quad FastEthernet Controller
+.Pq Dq SUNW,qfe
+.El
+.Sh NOTES
+On sparc64 the
+.Nm
+driver respects the
+.Va local-mac-address?
+system configuration variable which can be set in the Open Firmware boot
+monitor using the
+.Ic setenv
+command or by
+.Xr eeprom 8 .
+If set to
+.Dq Li false
+(the default), the
+.Nm
+driver will use the system's default MAC address for all of its devices.
+If set to
+.Dq Li true ,
+the unique MAC address of each interface is used if present rather than
+the system's default MAC address.
+.Pp
+Supported interfaces having their own MAC address include on-board versions
+on boards equipped with more than one Ethernet interface and all add-on cards
+except the single-port SBus versions.
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr intro 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr vlan 4 ,
+.Xr eeprom 8 ,
+.Xr ifconfig 8
+.Rs
+.%T "STP2002QFP Fast Ethernet, Parallel Port, SCSI (FEPS) User's Guide"
+.%D April 1996
+.%A Sun Microelectronics
+.%U http://mediacast.sun.com/users/Barton808/media/STP2002QFP-FEPs_UG.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Nx 1.5 .
+The first
+.Fx
+version to include it was
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Paul Kranenburg Aq Mt pk@NetBSD.org .

@@ -1,0 +1,35 @@
+# $FreeBSD$
+# device.hints
+hint.obio.0.at="nexus0"
+hint.obio.0.maddr=0x10000000
+hint.obio.0.msize=0x10000000
+
+hint.mx25l.0.at="spibus0"
+
+#hint.nvram.0.sig=0xe5e60a74
+#hint.nvram.0.base=0x1f030000
+#hint.nvram.0.maxsize=0x2000
+#hint.nvram.0.flags=3 # 1 = No check, 2 = Format Generic
+#hint.nvram.1.sig=0x5a045e94
+#hint.nvram.1.base=0x1f032000
+#hint.nvram.1.maxsize=0x4000
+#hint.nvram.1.flags=3 # 1 = No check, 2 = Format Generic
+
+# on-board Ralink Frame Engine
+hint.rt.0.at="nexus0"
+hint.rt.0.maddr=0x10100000
+hint.rt.0.msize=0x10000
+hint.rt.0.irq=3
+# macaddr can be statically set
+#hint.rt.0.macaddr="xx:xx:xx:xx:xx:xx"
+
+# on-board Ralink 2872 802.11n core
+hint.rt2860.0.at="nexus0"
+hint.rt2860.0.maddr=0x10180000
+hint.rt2860.0.msize=0x40000
+hint.rt2860.0.irq=4
+
+hint.rt.0.phymask=0x1f
+hint.rt.0.media=100
+hint.rt.0.fduplex=1
+

@@ -1,0 +1,20 @@
+# $FreeBSD$
+# $OpenBSD: queue4,v 1.2 2003/08/22 21:50:34 david Exp $
+#
+# Hierarchical queueing for a university.
+# Three faculties; engineering, law and art are defined.
+# Departments under the engineering faculty are defined as child queues.
+# The total bandwidth for engineering faculty is shared between three
+# departments. CS department gets the half of the bandwidth, EE and IE
+# departments get the thirty percent and twenty percent of bandwidth
+# respectively. These sibling departments can use more than their linkshare
+# whenever there is no backlogged sibling queue but when a queue gets
+# backlogged, it is guaranteed that the queue gets its linkshare.
+
+altq on dc0 bandwidth 16Mb hfsc queue { eng law art }
+queue eng bandwidth 10Mb { cs ee ie }
+queue  cs hfsc( default linkshare 50% ) 
+queue  ee hfsc( linkshare 30% ) 
+queue  ie hfsc( linkshare 20% )
+queue law bandwidth 3Mb
+queue art bandwidth 3Mb

@@ -1,0 +1,74 @@
+.\" Copyright (c) 2017 Edward Tomasz Napierala
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd May 28, 2017
+.Dt RCTL 4
+.Os
+.Sh NAME
+.Nm rctl
+.Nd resource limits
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options RACCT"
+.Cd "options RCTL"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+subsystem provides a flexible resource limits mechanism,
+controlled by a set of rules that can be added or removed at runtime
+using the
+.Xr rctl 8
+management utility.
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt, or
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va kern.racct.enable: No 1
+Enable
+.Nm .
+This defaults to 1, unless
+.Cd "options RACCT_DEFAULT_TO_DISABLED"
+is set in the kernel configuration file.
+.El
+.Sh SEE ALSO
+.Xr rctl.conf 5 ,
+.Xr rctl 8
+.Sh HISTORY
+The
+.Nm
+subsystem first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+The
+.Nm
+subsystem was developed by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.

@@ -1,0 +1,117 @@
+/*
+ * CDDL HEADER START
+ *
+ * The contents of this file are subject to the terms of the
+ * Common Development and Distribution License, Version 1.0 only
+ * (the "License").  You may not use this file except in compliance
+ * with the License.
+ *
+ * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+ * or http://www.opensolaris.org/os/licensing.
+ * See the License for the specific language governing permissions
+ * and limitations under the License.
+ *
+ * When distributing Covered Code, include this CDDL HEADER in each
+ * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+ * If applicable, add the following below this CDDL HEADER, with the
+ * fields enclosed by brackets "[]" replaced with your own identifying
+ * information: Portions Copyright [yyyy] [name of copyright owner]
+ *
+ * CDDL HEADER END
+ */
+/*
+ * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.
+ * Use is subject to license terms.
+ */
+
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
+
+inline int R_GS = @GS@;
+#pragma D binding "1.0" R_GS
+inline int R_FS = @FS@;
+#pragma D binding "1.0" R_FS
+inline int R_ES = @ES@;
+#pragma D binding "1.0" R_ES
+inline int R_DS = @DS@;
+#pragma D binding "1.0" R_DS
+
+inline int R_EDI = @EDI@;
+#pragma D binding "1.0" R_EDI
+inline int R_ESI = @ESI@;
+#pragma D binding "1.0" R_ESI
+inline int R_EBP = @EBP@;
+#pragma D binding "1.0" R_EBP
+inline int R_ESP = @ESP@;
+#pragma D binding "1.0" R_ESP
+inline int R_EBX = @EBX@;
+#pragma D binding "1.0" R_EBX
+inline int R_EDX = @EDX@;
+#pragma D binding "1.0" R_EDX
+inline int R_ECX = @ECX@;
+#pragma D binding "1.0" R_ECX
+inline int R_EAX = @EAX@;
+#pragma D binding "1.0" R_EAX
+
+inline int R_TRAPNO = @TRAPNO@;
+#pragma D binding "1.0" R_TRAPNO
+inline int R_ERR = @ERR@;
+#pragma D binding "1.0" R_ERR
+inline int R_EIP = @EIP@;
+#pragma D binding "1.0" R_EIP
+inline int R_CS = @CS@;
+#pragma D binding "1.0" R_CS
+inline int R_EFL = @EFL@;
+#pragma D binding "1.0" R_EFL
+inline int R_UESP = @UESP@;
+#pragma D binding "1.0" R_UESP
+inline int R_SS = @SS@;
+#pragma D binding "1.0" R_SS
+
+inline int R_PC = R_EIP;
+#pragma D binding "1.0" R_PC
+inline int R_SP = R_UESP;
+#pragma D binding "1.0" R_SP
+inline int R_PS = R_EFL;
+#pragma D binding "1.0" R_PS
+inline int R_R0 = R_EAX;
+#pragma D binding "1.0" R_R0
+inline int R_R1 = R_EBX;
+#pragma D binding "1.0" R_R1
+
+inline int R_RSP = @REG_RSP@;
+#pragma D binding "1.0" R_RSP
+inline int R_RFL = @REG_RFL@;
+#pragma D binding "1.0" R_RFL
+inline int R_RIP = @REG_RIP@;
+#pragma D binding "1.0" R_RIP
+inline int R_RAX = @REG_RAX@;
+#pragma D binding "1.0" R_RAX
+inline int R_RCX = @REG_RCX@;
+#pragma D binding "1.0" R_RCX
+inline int R_RDX = @REG_RDX@;
+#pragma D binding "1.0" R_RDX
+inline int R_RBX = @REG_RBX@;
+#pragma D binding "1.0" R_RBX
+inline int R_RBP = @REG_RBP@;
+#pragma D binding "1.0" R_RBP
+inline int R_RSI = @REG_RSI@;
+#pragma D binding "1.0" R_RSI
+inline int R_RDI = @REG_RDI@;
+#pragma D binding "1.0" R_RDI
+inline int R_R8 = @REG_R8@;
+#pragma D binding "1.0" R_R8
+inline int R_R9 = @REG_R9@;
+#pragma D binding "1.0" R_R9
+inline int R_R10 = @REG_R10@;
+#pragma D binding "1.0" R_R10
+inline int R_R11 = @REG_R11@;
+#pragma D binding "1.0" R_R11
+inline int R_R12 = @REG_R12@;
+#pragma D binding "1.0" R_R12
+inline int R_R13 = @REG_R13@;
+#pragma D binding "1.0" R_R13
+inline int R_R14 = @REG_R14@;
+#pragma D binding "1.0" R_R14
+inline int R_R15 = @REG_R15@;
+#pragma D binding "1.0" R_R15
+

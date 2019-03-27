@@ -1,0 +1,13 @@
+
+#------------------------------------------------------------------------------
+# $File: guile,v 1.1 2011/12/16 17:44:33 christos Exp $
+# Guile file magic from <dalepsmith@gmail.com>
+# http://www.gnu.org/s/guile/
+# http://git.savannah.gnu.org/gitweb/?p=guile.git;f=libguile/_scm.h;hb=HEAD#l250
+
+0	string	GOOF----	Guile Object
+>8	string	LE		\b, little endian
+>8	string	BE		\b, big endian
+>11	string	4		\b, 32bit
+>11	string	8		\b, 64bit
+>13	regex	.\..		\b, bytecode v%s

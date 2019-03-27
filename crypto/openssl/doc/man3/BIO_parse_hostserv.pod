@@ -1,0 +1,78 @@
+=pod
+
+=head1 NAME
+
+BIO_hostserv_priorities,
+BIO_parse_hostserv
+- utility routines to parse a standard host and service string
+
+=head1 SYNOPSIS
+
+ #include <openssl/bio.h>
+
+ enum BIO_hostserv_priorities {
+     BIO_PARSE_PRIO_HOST, BIO_PARSE_PRIO_SERV
+ };
+ int BIO_parse_hostserv(const char *hostserv, char **host, char **service,
+                        enum BIO_hostserv_priorities hostserv_prio);
+
+=head1 DESCRIPTION
+
+BIO_parse_hostserv() will parse the information given in B<hostserv>,
+create strings with the host name and service name and give those
+back via B<host> and B<service>.  Those will need to be freed after
+they are used.  B<hostserv_prio> helps determine if B<hostserv> shall
+be interpreted primarily as a host name or a service name in ambiguous
+cases.
+
+The syntax the BIO_parse_hostserv() recognises is:
+
+ host + ':' + service
+ host + ':' + '*'
+ host + ':'
+        ':' + service
+ '*'  + ':' + service
+ host
+ service
+
+The host part can be a name or an IP address.  If it's a IPv6
+address, it MUST be enclosed in brackets, such as '[::1]'.
+
+The service part can  be a service name or its port number.
+
+The returned values will depend on the given B<hostserv> string
+and B<hostserv_prio>, as follows:
+
+ host + ':' + service  => *host = "host", *service = "service"
+ host + ':' + '*'      => *host = "host", *service = NULL
+ host + ':'            => *host = "host", *service = NULL
+        ':' + service  => *host = NULL, *service = "service"
+  '*' + ':' + service  => *host = NULL, *service = "service"
+
+ in case no ':' is present in the string, the result depends on
+ hostserv_prio, as follows:
+
+ when hostserv_prio == BIO_PARSE_PRIO_HOST
+ host                 => *host = "host", *service untouched
+
+ when hostserv_prio == BIO_PARSE_PRIO_SERV
+ service              => *host untouched, *service = "service"
+
+=head1 RETURN VALUES
+
+BIO_parse_hostserv() returns 1 on success or 0 on error.
+
+=head1 SEE ALSO
+
+L<BIO_ADDRINFO(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

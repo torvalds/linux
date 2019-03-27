@@ -1,5 +1,0 @@
-Altera JTAG UART
-
-Required properties:
-- compatible : should be "ALTR,juart-1.0" <DEPRECATED>
-- compatible : should be "altr,juart-1.0"

@@ -1,0 +1,10 @@
+#
+# std.zynq7		- Generic configuration for Xilinx Zynq-7000 PS.
+#
+# $FreeBSD$
+
+cpu		CPU_CORTEXA
+machine		arm	armv7
+makeoptions	CONF_CFLAGS="-march=armv7a"
+
+files		"../xilinx/files.zynq7"

@@ -1,0 +1,76 @@
+.\" Copyright (c) 1988 Massachusetts Institute of Technology,
+.\" Student Information Processing Board.  All rights reserved.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 22, 1988
+.Dt COMPILE_ET 1
+.Os
+.Sh NAME
+.Nm compile_et
+.Nd error table compiler
+.Sh SYNOPSIS
+.Nm compile_et
+.Ar file
+.Sh DESCRIPTION
+.Nm Compile_et
+converts a table listing error-code names and associated messages into
+a C source file suitable for use with the
+.Xr com_err 3
+library.
+.Pp
+The source file name must end with a suffix of ``.et''; the file
+consists of a declaration supplying the name (up to four characters
+long) of the error-code table:
+.Pp
+.Em error_table name
+.Pp
+followed by up to 256 entries of the form:
+.Pp
+.Em error_code name ,
+.No \(dq Ns Em string Ns \(dq
+.Pp
+and a final
+.Pp
+.Em end
+.Pp
+to indicate the end of the table.
+.Pp
+The name of the table is used to construct the name of a subroutine
+.Em initialize_XXXX_error_table
+which must be called in order for the
+.Xr com_err 3
+library to recognize the error table.
+.Pp
+The various error codes defined are assigned sequentially increasing
+numbers (starting with a large number computed as a hash function of
+the name of the table); thus for compatibility it is suggested that
+new codes be added only to the end of an existing table, and that no
+codes be removed from tables.
+.Pp
+The names defined in the table are placed into a C header file with
+preprocessor directives defining them as integer constants of up to
+32 bits in magnitude.
+.Pp
+A C source file is also generated which should be compiled and linked
+with the object files which reference these error codes; it contains
+the text of the messages and the initialization subroutine.
+Both C
+files have names derived from that of the original source file, with
+the ``.et'' suffix replaced by ``.c'' and ``.h''.
+.Pp
+A ``#'' in the source file is treated as a comment character, and all
+remaining text to the end of the source line will be ignored.
+.Sh SEE ALSO
+.Xr yacc 1 ,
+.Xr com_err 3
+.Rs
+.%A Ken Raeburn
+.%T "A Common Error Description Library for UNIX"
+.Re
+.Sh BUGS
+Since
+.Nm compile_et
+uses a very simple parser based on
+.Xr yacc 1 ,
+its error recovery leaves much to be desired.

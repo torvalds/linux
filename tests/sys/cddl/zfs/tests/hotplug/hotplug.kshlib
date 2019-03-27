@@ -1,0 +1,463 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)hotplug.kshlib	1.4	08/11/03 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/include/libgnop.kshlib
+. $STF_SUITE/tests/hotplug/hotplug.cfg
+
+#
+# create lofi devices 
+#
+# $1-n files
+#
+function create_lofi_device
+{
+	typeset lofi_files="$@"
+
+	typeset file
+	for file in $lofi_files ; do
+		if ! $LOFIADM $file > /dev/null 2>&1 ; then
+			insert_device $file
+			if (($? != 0)); then
+				return 1
+			fi
+		fi
+
+		shift
+	done
+
+	return 0
+}
+
+#
+# Check and destroy lofi devices
+#
+# $1-n lofi files or deviece
+#
+function destroy_lofi_device
+{
+	typeset -i ret=0
+	typeset dev_file="$@"
+
+	typeset file
+	for file in $dev_file ; do
+		if $LOFIADM $file > /dev/null 2>&1; then
+			$LOFIADM -d $file -f
+			if (($? != 0)); then
+				((ret += 1))
+			fi
+		fi
+	done
+
+	return $ret
+}
+
+#
+# Setup test environment using DISKS[1-4]
+#
+# $1 pool type
+#
+function setup_testenv
+{
+	typeset type=$1
+
+	if [[ -z $type ]]; then
+		log_fail "Usage: setup_testenv <type>"
+	fi
+
+	log_must $ZPOOL create -f \
+		$TESTPOOL $type ${DISK0}.nop ${DISK1}.nop ${DISK2}.nop ${DISK3}.nop
+}
+
+#
+# Cleanup test envirnment according to pool name
+#
+# $1 pool
+#
+function cleanup_testenv
+{
+	destroy_pool $TESTPOOL
+}
+
+
+#
+# Start a background process to write file on given pool.
+#
+# $1 pool
+#
+function start_bg_write 
+{
+	typeset pool=$1
+
+	if datasetnonexists $pool; then
+		return 1
+	fi
+
+	typeset mntpnt=$(get_prop mountpoint $pool)
+
+	while true; do
+		$DD if=/dev/random of=$mntpnt/foo count=10
+		$SYNC
+		$SLEEP 1
+	done &
+	BG_PID=$!
+
+	return 0
+}
+
+#
+# Kill the background write process.
+#
+function kill_bg_write
+{
+	typeset -i ret=0
+
+	if [[ -n $BG_PID ]]; then
+		kill -9 $BG_PID
+		ret=$?
+
+		if ((ret == 0)); then
+			BG_PID=''
+		fi
+	fi
+	
+	$SLEEP 10
+	return $ret
+}
+
+#
+# Insert a given file into a given device slot
+#
+# $1 file
+# $2 device
+#
+function insert_device
+{
+	typeset file=$1
+	typeset device=$2
+
+	if [[ -z $file ]]; then
+		return 1
+	fi
+
+	#
+	# Make sure insert device succeed within 60 seconds
+	#
+	typeset -i i=0
+	while ((i < 6)); do
+		$SLEEP 10
+
+		$LOFIADM -a $file $device -f > /dev/null 2>&1
+		if (($? == 0)); then
+			return 0
+		fi
+
+		((i += 1))
+	done
+
+	return 1
+}
+
+#
+# Remove the given lofi device
+#
+# $1 device or file
+#
+function remove_device
+{
+	typeset devfile=$1
+
+	if [[ -z $devfile ]]; then
+		return 1
+	fi
+
+	#
+	# Make sure remove device succeed within 60 seconds
+	#
+	typeset -i i=0
+	while ((i < 6)); do
+		$SLEEP 10 
+		$LOFIADM -d $devfile -f
+		if (($? == 0)); then
+			return 0
+		fi
+
+		((i += 1))
+	done
+
+	return 1
+}
+
+#
+# Verify the given devices have expected status in pool
+#
+# $1 pool
+# $2 device
+# $3 expected status
+#
+function verify_device_status
+{
+	typeset pool=$1
+	typeset device=$2
+	typeset expect_stat=$3
+
+	if [[ -z $pool || -z $expect_stat || -z $device ]]; then
+		log_note "Usage: verify_device_status <pool> <device> <status>"
+		return 1
+	fi
+
+	#
+	# 1.5 minute disk status checking, make sure zpool sync disk status.
+	#
+	typeset -i i=0
+	while ((i < 9)); do
+		$SLEEP 10 
+
+		typeset str=$($ZPOOL status $pool | $GREP "lofi" | \
+			$AWK '{print $1 " " $2}')
+		typeset real_stat=${str##*$device }
+		real_stat=$($ECHO $real_stat | $AWK '{print $1}')
+
+		if [[ "$expect_stat" == "$real_stat" ]]; then
+			return 0
+		fi
+		
+		((i += 1))
+	done
+
+	log_note "Expected status($expect_stat), " \
+		 "see status($real_stat) for $device"
+	$ZPOOL status -v $pool
+
+	return 1
+}
+
+#
+# Output fma event id to given file, the default output file is $FILE_EVENT_ID
+#
+function getfmri
+{
+	eval typeset output_file=${1:-$FILE_EVENT_ID}
+#
+# fmadm faulty output include several sections below
+#
+
+# --------------- ------------------------------------  -------------- ---------
+# TIME            EVENT-ID                              MSG-ID         SEVERITY
+# --------------- ------------------------------------  -------------- ---------
+# Aug 31 22:34:19 ec648a9e-0c9f-c495-e176-e38ba212e278  ZFS-8000-D3    Major    
+# Aug 31 19:44:59 d69cdd12-b0cf-62ea-d0a3-8d2e9ebfeb50  ZFS-8000-D3
+# Aug 31 19:35:16 7213f0d5-00d4-ea32-ddfc-98cdd683c27e  ZFS-8000-D3
+# Aug 31 19:29:11 33424bef-a973-4dae-94ef-cb97f2cb0759  ZFS-8000-D3
+# Aug 31 17:07:26 74219b66-ead4-6d2b-bbad-bc40547ca02e  ZFS-8000-GH
+#
+# Fault class : fault.fs.zfs.device
+# 
+# Description : A ZFS device failed.  Refer to http://sun.com/msg/ZFS-8000-D3 for
+#               more information.
+# 
+# Response    : No automated response will occur.
+# 
+# Impact      : Fault tolerance of the pool may be compromised.
+# 
+# Action      : Run 'zpool status -x' and replace the bad device.
+#	
+	$FMADM faulty | $NAWK '
+		BEGIN {
+			start = 0
+		}
+		/^---/ && /---$/ {
+			if (start == 0) {
+				start = 1
+			}
+		}
+		/^TIME/ && /SEVERITY$/ {
+			if (start == 1) {
+				start = 2
+			}
+		}
+		/^---/ && /---$/ {
+			if (start == 2) {
+				start = 3
+				continue
+			}
+		}
+		/^$/ {
+			start = 0
+		}
+		(start == 3) {print $4}' > $output_file
+}
+
+#
+# Verify if ZFS FMA faulty error message are generated.
+#
+# $1 TRUE or FALSE
+#
+function fma_faulty
+{
+	#
+	# 1.5 minute for FMA faulty checking, make sure FMA sync with ZFS status
+	#
+	typeset expect=${1:-TRUE}
+
+	typeset -i fsize
+	typeset -i i=0
+	while ((i < 9)); do
+		$SLEEP 10
+
+		#
+		# try to get fma faulty
+		#
+		getfmri $FILE_EVENT_ID
+		fsize=$($LS -ld $FILE_EVENT_ID | $AWK '{print $5}')
+
+		case $expect in
+			TRUE)
+				if (( fsize != 0 )); then
+					return 0
+				fi
+				;;
+			FALSE)
+				if (( fsize == 0 )); then
+					return 0
+				fi
+				;;
+			*)
+				return 1
+		esac
+
+		((i += 1))
+	done
+
+	return 1
+}
+
+#
+# Create fresh file
+#
+# $1 file size
+# $2 file name
+#
+function create_file
+{
+	typeset size=$1
+	typeset file=$2
+
+	if [[ -z $size || -z $file ]]; then
+		log_note "Usage: create_file <size> <file>"
+		return 1
+	fi
+	if [[ -f $file ]]; then
+		$RM -f $file
+	fi
+	$MKFILE $size $file
+	return $?
+}
+
+#
+# Unmount all filesystem, and disable syseventd and fmd piror to
+# unloading ZFS module
+#
+function unload_zfs
+{
+	# destroy /dev/zvol link
+	log_must $ZFS volfini
+
+	log_must $ZFS unmount -f -a
+	log_must $SVCADM disable -t sysevent fmd
+	$SLEEP 10
+
+	#
+	# 1 minute for ZFS module unload checking
+	# 
+	# For example:
+	#
+	# 192 fffffffff7c92000  99858 182   1  zfs (ZFS storage pool version 6)
+	#
+	typeset -i i=0
+	while ((i < 10)); do
+		typeset id=$($MODINFO | $GREP "ZFS storage" | $AWK '{print $1}')
+
+		if [[ -n $id ]]; then
+			$MODUNLOAD -i $id
+			if (($? == 0)) ; then
+				return 0
+			fi
+		else
+			return 0
+		fi
+
+		$SLEEP 6
+		((i += 1))
+	done
+
+	return 1
+}
+
+#
+#  Load ZFS module and remount all filesystem
+#
+function load_zfs
+{
+	typeset -i ret=0
+	$SVCADM enable sysevent fmd
+	((ret |= $?))
+
+	$SLEEP 10
+
+	$ZFS mount -a
+	((ret |= $?))
+
+	# create /dev/zvol link
+	$ZFS volinit
+	((ret |= $?))
+
+	return $ret
+}
+
+#
+# Convert file name to device name or reverse.
+#
+# $1-n lofi files or devices
+#
+function convert_lofi
+{
+	typeset n list
+
+	for n in "$@"; do
+		typeset item=$($LOFIADM $n)
+		list="$list $item"
+
+		shift
+	done
+
+	$ECHO $list
+}

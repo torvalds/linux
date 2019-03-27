@@ -1,0 +1,5 @@
+# Host: FreeBSD/i386
+NATDEPFILES= fork-child.o infptrace.o inftarg.o \
+	i386-nat.o i386bsd-nat.o i386fbsd-nat.o gcore.o fbsd-proc.o
+NAT_FILE= nm-fbsd.h
+XM_FILE= xm-i386.h

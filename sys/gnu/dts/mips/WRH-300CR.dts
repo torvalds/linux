@@ -1,0 +1,125 @@
+/dts-v1/;
+
+#include "mt7620n.dtsi"
+
+/ {
+	compatible = "elecom,wrh-300cr", "ralink,mt7620n-soc";
+	model = "ELECOM WRH-300CR";
+
+		gpio-leds {
+		compatible = "gpio-leds";
+
+		wps {
+			label = "wrh-300cr:green:wps";
+			gpios = <&gpio2 0 1>;
+		};
+
+		ethernet {
+			label = "wrh-300cr:green:ethernet";
+			gpios = <&gpio2 3 1>;
+		};
+
+		wlan {
+			label = "wrh-300cr:green:wlan";
+			gpios = <&gpio3 0 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 1 1>;
+			linux,code = <0x198>;
+		};
+
+		wps {
+			label = "wps";
+			gpios = <&gpio0 2 1>;
+			linux,code = <0x211>;
+		};
+	};
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+&gpio3 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "mx25l12805d";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "recover";
+			reg = <0x50000 0x1c0000>;
+			read-only;
+		};
+
+		partition@210000 {
+			label = "firmware";
+			reg = <0x210000 0xdf0000>;
+		};
+	};
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x2e>;
+	mediatek,portmap = "llllw";
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		default {
+			ralink,group = "i2c", "ephy", "wled";
+			ralink,function = "gpio";
+		};
+	};
+};

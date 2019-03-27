@@ -1,0 +1,165 @@
+.\" Copyright (c) 2007 S.Sam Arun Raj
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: strings.1 3360 2016-01-24 18:34:06Z jkoshy $
+.\"
+.Dd January 24, 2016
+.Dt STRINGS 1
+.Os
+.Sh NAME
+.Nm strings
+.Nd "print the strings of printable characters in files"
+.Sh SYNOPSIS
+.Nm
+.Op Fl a | Fl -all
+.Op Fl e Ar encoding | Fl -encoding= Ns Ar encoding
+.Op Fl f | Fl -print-file-name
+.Op Fl h | Fl -help
+.Op Fl n Ar number | Fl -bytes= Ns Ar number | Fl Ar number
+.Op Fl o
+.Op Fl t Ar radix | Fl -radix= Ns Ar radix
+.Op Fl v | Fl -version
+.Op Ar
+.Sh DESCRIPTION
+For each
+.Ar file
+specified, the
+.Nm
+utility prints contiguous sequences of printable
+characters that are at least
+.Va n
+characters long and are followed by an unprintable character.
+The default value of
+.Va n
+is 4.
+By default, the
+.Nm
+utility only scans the initialized and loaded sections of ELF objects;
+for other file types, the entire file is scanned.
+The
+.Nm
+utility is mainly used for determining the contents of non-text files.
+.Pp
+If no file name is specified as an argument, standard input is read.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a | Fl -all
+For ELF objects, scan the entire file for printable strings.
+.It Fl e Ar encoding | Fl -encoding= Ns Ar encoding
+Select the character encoding to be used while searching for strings.
+Valid values for argument
+.Ar encoding
+are:
+.Bl -tag -width indent -compact
+.It Ar s
+for single 7-bit-byte characters (ASCII, ISO 8859).
+.It Ar S
+for single 8-bit-byte characters.
+.It Ar l
+for 16-bit little-endian.
+.It Ar b
+for 16-bit big-endian.
+.It Ar L
+for 32-bit little-endian.
+.It Ar B
+for 32-bit big-endian.
+.El
+The default is to assume that characters are encoded using a single
+7-bit byte.
+.It Fl f | Fl -print-file-name
+Print the name of the file before each string.
+.It Fl h | Fl -help
+Print a usage summary and exit.
+.It Xo
+.Fl n Ar number |
+.Fl -bytes= Ns Ar number |
+.Fl Ar number
+.Xc
+Print the contiguous character sequence of at least
+.Ar number
+characters long, instead of the default of 4 characters.
+Argument
+.Ar number
+should specify a positive decimal integer.
+.It Fl o
+Equivalent to specifying
+.Fl t Ar o .
+.It Fl t Ar radix | Fl -radix= Ns Ar radix
+Print the offset from the start of the file before each string
+using the specified radix.
+Valid values for argument
+.Ar radix
+are:
+.Bl -tag -width indent -compact
+.It Ar d
+for decimal
+.It Ar o
+for octal
+.It Ar x
+for hexadecimal
+.El
+.It Fl v | Fl -version
+Display a version identifier and exit.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+To display strings in
+.Pa /bin/ls
+use:
+.Dl "$ strings /bin/ls"
+.Pp
+To display strings in all sections of
+.Pa /bin/ln
+use:
+.Dl "$ strings -a /bin/ln"
+.Pp
+To display strings in all sections of
+.Pa /bin/cat
+prefixed with the filename and the offset within the file use:
+.Dl "$ strings -a -f -t x /bin/cat"
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr nm 1 ,
+.Xr objdump 1 ,
+.Xr ranlib ,
+.Xr readelf 1 ,
+.Xr size 1
+.Sh HISTORY
+The first FreeBSD
+.Nm
+utility appeared in
+.Fx v3.
+It was later discontinued in
+.Fx v5 ,
+when i386-only a.out format was dropped in favor of ELF.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was re-written by
+.An S.Sam Arun Raj Aq Mt samarunraj@gmail.com .
+This manual page was written by
+.An S.Sam Arun Raj Aq Mt samarunraj@gmail.com .

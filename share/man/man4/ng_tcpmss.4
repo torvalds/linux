@@ -1,0 +1,125 @@
+.\" Copyright (c) 2005 Gleb Smirnoff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 9, 2005
+.Dt NG_TCPMSS 4
+.Os
+.Sh NAME
+.Nm ng_tcpmss
+.Nd "netgraph node to adjust TCP MSS option"
+.Sh SYNOPSIS
+.In netgraph.h
+.In netgraph/ng_tcpmss.h
+.Sh DESCRIPTION
+The
+.Nm tcpmss
+node type is designed to alter the Maximum Segment Size option
+of TCP packets.
+This node accepts an arbitrary number of hooks.
+Initially a new hook is considered unconfigured.
+The
+.Dv NG_TCPMSS_CONFIG
+control message is used to configure a hook.
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following.
+.Bl -tag -width foo
+.It Dv NGM_TCPMSS_CONFIG Pq Ic config
+This control message configures node to do given MSS adjusting on
+a particular hook.
+It requires the
+.Vt "struct ng_tcpmss_config"
+to be supplied as an argument:
+.Bd -literal
+struct ng_tcpmss_config {
+	char		inHook[NG_HOOKSIZ];
+	char		outHook[NG_HOOKSIZ];
+	uint16_t	maxMSS;
+}
+.Ed
+.Pp
+This means: packets received on
+.Va inHook
+would be checked for TCP MSS option and the latter would be
+reduced down to
+.Va maxMSS
+if it exceeds
+.Va maxMSS .
+After that, packets would be sent to hook
+.Va outHook .
+.It Dv NGM_TCPMSS_GET_STATS Pq Ic getstats
+This control message obtains statistics for a given hook.
+The statistics are returned in
+.Vt "struct ng_tcpmss_hookstat" :
+.Bd -literal
+struct ng_tcpmss_hookstat {
+	uint64_t	Octets;		/* total bytes */
+	uint64_t	Packets;	/* total packets */
+	uint16_t	maxMSS;		/* maximum MSS */
+	uint64_t	SYNPkts;	/* TCP SYN packets */
+	uint64_t	FixedPkts;	/* changed packets */
+};
+.Ed
+.It Dv NGM_TCPMSS_CLR_STATS Pq Ic clrstats
+This control message clears statistics for a given hook.
+.It Dv NGM_TCPMSS_GETCLR_STATS Pq Ic getclrstats
+This control message obtains and clears statistics for a given hook.
+.El
+.Sh EXAMPLES
+In the following example, packets are injected into the
+.Nm tcpmss
+node using the
+.Xr ng_ipfw 4
+node.
+.Bd -literal -offset indent
+# Create tcpmss node and connect it to ng_ipfw node
+ngctl mkpeer ipfw: tcpmss 100 qqq
+
+# Adjust MSS to 1452
+ngctl msg ipfw:100 config '{ inHook="qqq" outHook="qqq" maxMSS=1452 }'
+
+# Divert traffic into tcpmss node
+ipfw add 300 netgraph 100 tcp from any to any tcpflags syn out via fxp0
+
+# Let packets continue with ipfw after being hacked
+sysctl net.inet.ip.fw.one_pass=0
+.Ed
+.Sh SHUTDOWN
+This node shuts down upon receipt of an
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_ipfw 4
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 6.0 .
+.Sh AUTHORS
+.An Alexey Popov Aq Mt lollypop@flexuser.ru
+.An Gleb Smirnoff Aq Mt glebius@FreeBSD.org
+.Sh BUGS
+When running on SMP, system statistics may be broken.

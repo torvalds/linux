@@ -1,0 +1,67 @@
+<HTML>
+<HEAD><TITLE>smfi_setdbg</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_setdbg.html,v 1.4 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_setdbg</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_setdbg(
+	int level;
+);
+</PRE>
+Set the debugging (tracing) level for the milter library.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>Called from any any routine at any time.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>smfi_setdbg sets the milter library's internal debugging level
+to a new level so that code details may be traced.
+A level of zero turns off debugging. The greater
+(more positive) the level the more detailed the debugging. Six is
+the current, highest, useful value.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>level</TD>
+	<TD>The new debugging level
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>smfi_setdbg returns MI_SUCCESS by default.
+</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2003 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

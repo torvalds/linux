@@ -1,0 +1,52 @@
+# A schema for the Berkeley automounter (AMD)
+# Authored by Erez Zadok and/or source maintainers
+# Definition by Tim Colles <timc at dai.ed.ac.uk>
+# Revised by Adam Morley <adam at gmi.com>
+
+# OID Base is 1.3.6.1.4.1.10180
+#
+# Syntaxes are under 1.3.6.1.4.1.10180.3.175-199
+# Attribute types are under 1.3.6.1.4.1.10180.2.175-199
+# Object classes are under 1.3.6.1.4.1.10180.1.175-199
+
+# Attribute Type Definitions
+
+attributetype	( 1.3.6.1.4.1.10180.2.175
+	NAME	'amdmapTimestamp'
+	DESC	'Probably the time the map was last modified'
+	EQUALITY	integerMatch
+	SYNTAX	1.3.6.1.4.1.1466.115.121.1.27
+	SINGLE-VALUE )
+
+attributetype	( 1.3.6.1.4.1.10180.2.176
+	NAME	'amdmapName'
+	DESC	'The symbolic name of the map, ie. map_name'
+	EQUALITY	caseIgnoreMatch
+	SYNTAX	1.3.6.1.4.1.1466.115.121.1.15
+	SINGLE-VALUE )
+
+attributetype	( 1.3.6.1.4.1.10180.2.177
+	NAME	'amdmapKey'
+	DESC	'The key value for this entry'
+	EQUALITY	caseIgnoreMatch
+	SYNTAX	1.3.6.1.4.1.1466.115.121.1.15
+	SINGLE-VALUE )
+
+attributetype	( 1.3.6.1.4.1.10180.2.178
+	NAME	'amdmapValue'
+	DESC	'The mount information for this entry'
+	EQUALITY	caseIgnoreMatch
+	SYNTAX	1.3.6.1.4.1.1466.115.121.1.15
+	SINGLE-VALUE )
+
+# Object Class Definitions
+
+objectclass	( 1.3.6.1.4.1.10180.1.175 NAME 'amdmapTimestamp'
+	SUP	top STRUCTURAL
+	DESC	'Timestamp for an AMD map'
+	MUST	( cn $ amdmapName $ amdmapTimestamp ) )
+
+objectclass	( 1.3.6.1.4.1.10180.1.176 NAME 'amdmap'
+	SUP	top STRUCTURAL
+	DESC	'Defines an AMD map entry'
+	MUST	( cn $ amdmapName $ amdmapKey $ amdmapValue ) )

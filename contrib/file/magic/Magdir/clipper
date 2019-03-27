@@ -1,0 +1,65 @@
+
+#------------------------------------------------------------------------------
+# $File: clipper,v 1.8 2017/03/17 21:35:28 christos Exp $
+# clipper:  file(1) magic for Intergraph (formerly Fairchild) Clipper.
+#
+# XXX - what byte order does the Clipper use?
+#
+# XXX - what's the "!" stuff:
+#
+# >18	short		!074000,000000	C1 R1
+# >18	short		!074000,004000	C2 R1
+# >18	short		!074000,010000	C3 R1
+# >18	short		!074000,074000	TEST
+#
+# I shall assume it's ANDing the field with the first value and
+# comparing it with the second, and rewrite it as:
+#
+# >18	short&074000	000000		C1 R1
+# >18	short&074000	004000		C2 R1
+# >18	short&074000	010000		C3 R1
+# >18	short&074000	074000		TEST
+#
+# as SVR3.1's "file" doesn't support anything of the "!074000,000000"
+# sort, nor does SunOS 4.x, so either it's something Intergraph added
+# in CLIX, or something AT&T added in SVR3.2 or later, or something
+# somebody else thought was a good idea; it's not documented in the
+# man page for this version of "magic", nor does it appear to be
+# implemented (at least not after I blew off the bogus code to turn
+# old-style "&"s into new-style "&"s, which just didn't work at all).
+#
+0	short		0575		CLIPPER COFF executable (VAX #)
+>20	short		0407		(impure)
+>20	short		0410		(5.2 compatible)
+>20	short		0411		(pure)
+>20	short		0413		(demand paged)
+>20	short		0443		(target shared library)
+>12	long		>0		not stripped
+>22	short		>0		- version %d
+0	short		0577		CLIPPER COFF executable
+>18	short&074000	000000		C1 R1
+>18	short&074000	004000		C2 R1
+>18	short&074000	010000		C3 R1
+>18	short&074000	074000		TEST
+>20	short		0407		(impure)
+>20	short		0410		(pure)
+>20	short		0411		(separate I&D)
+>20	short		0413		(paged)
+>20	short		0443		(target shared library)
+>12	long		>0		not stripped
+>22	short		>0		- version %d
+>48	long&01		01		alignment trap enabled
+>52	byte		1		-Ctnc
+>52	byte		2		-Ctsw
+>52	byte		3		-Ctpw
+>52	byte		4		-Ctcb
+>53	byte		1		-Cdnc
+>53	byte		2		-Cdsw
+>53	byte		3		-Cdpw
+>53	byte		4		-Cdcb
+>54	byte		1		-Csnc
+>54	byte		2		-Cssw
+>54	byte		3		-Cspw
+>54	byte		4		-Cscb
+4	string		pipe		CLIPPER instruction trace
+4	string		prof		CLIPPER instruction profile

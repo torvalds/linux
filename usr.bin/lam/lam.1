@@ -1,0 +1,158 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)lam.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd April 7, 2015
+.Dt LAM 1
+.Os
+.Sh NAME
+.Nm lam
+.Nd laminate files
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar min . Ns Ar max
+.Op Fl s Ar sepstring
+.Op Fl t Ar c
+.Ar
+.Nm
+.Op Fl p Ar min . Ns Ar max
+.Op Fl s Ar sepstring
+.Op Fl t Ar c
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility copies the named files side by side onto the standard output.
+The
+.Em n-th
+input lines from the input
+.Ar files
+are considered fragments of the single long
+.Em n-th
+output line into which they are assembled.
+The name `\fB\-\fP' means the standard input, and may be repeated.
+.Pp
+.Bl -tag -width indent
+.It Fl f Ar min . Ns Ar max , Fl F Ar min . Ns Ar max
+Print line fragments according to the format string
+.Ar min . Ns Ar max ,
+where
+.Ar min
+is the minimum field width and
+.Ar max
+the maximum field width.
+If
+.Ar min
+begins with a zero, zeros will be added to make up the field width,
+and if it begins with a `\-', the fragment will be left-adjusted
+within the field.
+Using
+.Fl f
+applies only to the next file while
+.Fl F
+applies to all subsequent files until it appears again uncapitalized.
+.It Fl p Ar min . Ns Ar max , Fl P Ar min . Ns Ar max
+Like
+.Fl f ,
+but pad this file's field when end-of-file is reached
+and other files are still active.
+Using
+.Fl p
+applies only to the next file while
+.Fl P
+applies to all subsequent files until it appears again uncapitalized.
+.It Fl s Ar sepstring , Fl S Ar sepstring
+Print
+.Ar sepstring
+before printing line fragments from the next file.
+This option may appear after the last file.
+Using
+.Fl s
+applies only to the next file while
+.Fl S
+applies to all subsequent files until it appears again uncapitalized.
+.It Fl t Ar c , Fl T Ar c
+The input line terminator is
+.Ar c
+instead of a newline.
+The newline normally appended to each output line is omitted.
+Using
+.Fl t
+applies only to the next file while
+.Fl T
+applies to all subsequent files until it appears again uncapitalized.
+.El
+.Pp
+To print files simultaneously for easy viewing use
+.Xr pr 1 .
+.Sh EXAMPLES
+The command
+.Bd -literal
+lam file1 file2 file3 file4
+.Ed
+.Pp
+joins 4 files together along each line.
+To merge the lines from four different files use
+.Bd -literal
+lam file1 \-S "\\
+" file2 file3 file4
+.Ed
+.Pp
+Every 2 lines of a file may be joined on one line with
+.Bd -literal
+lam \- \- < file
+.Ed
+.Pp
+and a form letter with substitutions keyed by `@' can be done with
+.Bd -literal
+lam \-t @ letter changes
+.Ed
+.Sh SEE ALSO
+.Xr join 1 ,
+.Xr paste 1 ,
+.Xr pr 1 ,
+.Xr printf 3
+.Sh STANDARDS
+Some of the functionality of
+.Nm
+is standardized as the
+.Xr paste 1
+utility by
+.St -p1003.2 .
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.2 .
+.Sh AUTHORS
+.An John A. Kunze
+.Sh BUGS
+The
+.Nm
+utility does not recognize multibyte characters.

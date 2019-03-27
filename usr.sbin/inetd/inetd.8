@@ -1,0 +1,955 @@
+.\" Copyright (c) 1985, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
+.\" $FreeBSD$
+.\"
+.Dd January 12, 2008
+.Dt INETD 8
+.Os
+.Sh NAME
+.Nm inetd
+.Nd internet
+.Dq super-server
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl l
+.Op Fl w
+.Op Fl W
+.Op Fl c Ar maximum
+.Op Fl C Ar rate
+.Op Fl a Ar address | hostname
+.Op Fl p Ar filename
+.Op Fl R Ar rate
+.Op Fl s Ar maximum
+.Op Ar configuration file
+.Sh DESCRIPTION
+The
+.Nm
+utility should be run at boot time by
+.Pa /etc/rc
+(see
+.Xr rc 8 ) .
+It then listens for connections on certain
+internet sockets.
+When a connection is found on one
+of its sockets, it decides what service the socket
+corresponds to, and invokes a program to service the request.
+The server program is invoked with the service socket
+as its standard input, output and error descriptors.
+After the program is
+finished,
+.Nm
+continues to listen on the socket (except in some cases which
+will be described below).
+Essentially,
+.Nm
+allows running one daemon to invoke several others,
+reducing load on the system.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d
+Turn on debugging.
+.It Fl l
+Turn on logging of successful connections.
+.It Fl w
+Turn on TCP Wrapping for external services.
+See the
+.Sx "IMPLEMENTATION NOTES"
+section for more information on TCP Wrappers support.
+.It Fl W
+Turn on TCP Wrapping for internal services which are built in to
+.Nm .
+.It Fl c Ar maximum
+Specify the default maximum number of
+simultaneous invocations of each service;
+the default is unlimited.
+May be overridden on a per-service basis with the "max-child"
+parameter.
+.It Fl C Ar rate
+Specify the default maximum number of times a service can be invoked
+from a single IP address in one minute; the default is unlimited.
+May be overridden on a per-service basis with the
+"max-connections-per-ip-per-minute" parameter.
+.It Fl R Ar rate
+Specify the maximum number of times a service can be invoked
+in one minute; the default is 256.
+A rate of 0 allows an unlimited number of invocations.
+.It Fl s Ar maximum
+Specify the default maximum number of
+simultaneous invocations of each service from a single IP address;
+the default is unlimited.
+May be overridden on a per-service basis with the "max-child-per-ip"
+parameter.
+.It Fl a
+Specify one specific IP address to bind to.
+Alternatively, a hostname can be specified,
+in which case the IPv4 or IPv6 address
+which corresponds to that hostname is used.
+Usually a hostname is specified when
+.Nm
+is run inside a
+.Xr jail 8 ,
+in which case the hostname corresponds to that of the
+.Xr jail 8
+environment.
+.Pp
+When the hostname specification is used
+and both IPv4 and IPv6 bindings are desired,
+one entry with the appropriate
+.Em protocol
+type for each binding
+is required for each service in
+.Pa /etc/inetd.conf .
+For example,
+a TCP-based service would need two entries,
+one using
+.Dq tcp4
+for the
+.Em protocol
+and the other using
+.Dq tcp6 .
+See the explanation of the
+.Pa /etc/inetd.conf
+.Em protocol
+field below.
+.It Fl p
+Specify an alternate file in which to store the process ID.
+.El
+.Pp
+Upon execution,
+.Nm
+reads its configuration information from a configuration
+file which, by default, is
+.Pa /etc/inetd.conf .
+There must be an entry for each field of the configuration
+file, with entries for each field separated by a tab or
+a space.
+Comments are denoted by a
+.Dq #
+at the beginning
+of a line.
+There must be an entry for each field.
+The
+fields of the configuration file are as follows:
+.Pp
+.Bd -unfilled -offset indent -compact
+service-name
+socket-type
+protocol
+{wait|nowait}[/max-child[/max-connections-per-ip-per-minute[/max-child-per-ip]]]
+user[:group][/login-class]
+server-program
+server-program-arguments
+.Ed
+.Pp
+To specify an
+.Tn "ONC RPC" Ns -based
+service, the entry would contain these fields:
+.Pp
+.Bd -unfilled -offset indent -compact
+service-name/version
+socket-type
+rpc/protocol
+{wait|nowait}[/max-child[/max-connections-per-ip-per-minute[/max-child-per-ip]]]
+user[:group][/login-class]
+server-program
+server-program-arguments
+.Ed
+.Pp
+There are two types of services that
+.Nm
+can start: standard and TCPMUX.
+A standard service has a well-known port assigned to it;
+it may be a service that implements an official Internet standard or is a
+.Bx Ns -specific
+service.
+As described in
+.Tn RFC 1078 ,
+TCPMUX services are nonstandard services that do not have a
+well-known port assigned to them.
+They are invoked from
+.Nm
+when a program connects to the
+.Dq tcpmux
+well-known port and specifies
+the service name.
+This feature is useful for adding locally-developed servers.
+TCPMUX requests are only accepted when the multiplexor service itself
+is enabled, above and beyond and specific TCPMUX-based servers; see the
+discussion of internal services below.
+.Pp
+The
+.Em service-name
+entry is the name of a valid service in
+the file
+.Pa /etc/services ,
+or the specification of a
+.Ux
+domain socket (see below).
+For
+.Dq internal
+services (discussed below), the service
+name
+should
+be the official name of the service (that is, the first entry in
+.Pa /etc/services ) .
+When used to specify an
+.Tn "ONC RPC" Ns -based
+service, this field is a valid RPC service name listed in
+the file
+.Pa /etc/rpc .
+The part on the right of the
+.Dq /
+is the RPC version number.
+This
+can simply be a single numeric argument or a range of versions.
+A range is bounded by the low version to the high version -
+.Dq rusers/1-3 .
+For TCPMUX services, the value of the
+.Em service-name
+field consists of the string
+.Dq tcpmux
+followed by a slash and the
+locally-chosen service name.
+The service names listed in
+.Pa /etc/services
+and the name
+.Dq help
+are reserved.
+Try to choose unique names for your TCPMUX services by prefixing them with
+your organization's name and suffixing them with a version number.
+.Pp
+The
+.Em socket-type
+should be one of
+.Dq stream ,
+.Dq dgram ,
+.Dq raw ,
+.Dq rdm ,
+or
+.Dq seqpacket ,
+depending on whether the socket is a stream, datagram, raw,
+reliably delivered message, or sequenced packet socket.
+TCPMUX services must use
+.Dq stream .
+.Pp
+The
+.Em protocol
+must be a valid protocol or
+.Dq unix .
+Examples are
+.Dq tcp
+or
+.Dq udp ,
+both of which imply IPv4 for backward compatibility.
+The names
+.Dq tcp4
+and
+.Dq udp4
+specify IPv4 only.
+The names
+.Dq tcp6
+and
+.Dq udp6
+specify IPv6 only.
+The names
+.Dq tcp46
+and
+.Dq udp46
+specify that the entry accepts both IPv4 and IPv6 connections
+via a wildcard
+.Dv AF_INET6
+socket.
+Rpc based services
+are specified with the
+.Dq rpc/tcp
+or
+.Dq rpc/udp
+service type.
+One can use specify IPv4 and/or IPv6 with the 4, 6 or 46 suffix, for example
+.Dq rpc/tcp6
+or
+.Dq rpc/udp46 .
+TCPMUX services must use
+.Dq tcp ,
+.Dq tcp4 ,
+.Dq tcp6
+or
+.Dq tcp46 .
+.Pp
+The
+.Em wait/nowait
+entry specifies whether the server that is invoked by
+.Nm
+will take over
+the socket associated with the service access point, and thus whether
+.Nm
+should wait for the server to exit before listening for new service
+requests.
+Datagram servers must use
+.Dq wait ,
+as they are always invoked with the original datagram socket bound
+to the specified service address.
+These servers must read at least one datagram from the socket
+before exiting.
+If a datagram server connects
+to its peer, freeing the socket so
+.Nm
+can receive further messages on the socket, it is said to be
+a
+.Dq multi-threaded
+server;
+it should read one datagram from the socket and create a new socket
+connected to the peer.
+It should fork, and the parent should then exit
+to allow
+.Nm
+to check for new service requests to spawn new servers.
+Datagram servers which process all incoming datagrams
+on a socket and eventually time out are said to be
+.Dq single-threaded .
+The
+.Xr comsat 8
+and
+.Xr talkd 8
+utilities are examples of the latter type of
+datagram server.
+The
+.Xr tftpd 8
+utility is an example of a multi-threaded datagram server.
+.Pp
+Servers using stream sockets generally are multi-threaded and
+use the
+.Dq nowait
+entry.
+Connection requests for these services are accepted by
+.Nm ,
+and the server is given only the newly-accepted socket connected
+to a client of the service.
+Most stream-based services operate in this manner.
+Stream-based servers that use
+.Dq wait
+are started with the listening service socket, and must accept
+at least one connection request before exiting.
+Such a server would normally accept and process incoming connection
+requests until a timeout.
+TCPMUX services must use
+.Dq nowait .
+.Pp
+The maximum number of outstanding child processes (or
+.Dq threads )
+for a
+.Dq nowait
+service may be explicitly specified by appending a
+.Dq /
+followed by the number to the
+.Dq nowait
+keyword.
+Normally
+(or if a value of zero is specified) there is no maximum.
+Otherwise,
+once the maximum is reached, further connection attempts will be
+queued up until an existing child process exits.
+This also works
+in the case of
+.Dq wait
+mode, although a value other than one (the
+default) might not make sense in some cases.
+You can also specify the maximum number of connections per minute
+for a given IP address by appending
+a
+.Dq /
+followed by the number to the maximum number of
+outstanding child processes.
+Once the maximum is reached, further
+connections from this IP address will be dropped until the end of the
+minute.
+In addition, you can specify the maximum number of simultaneous
+invocations of each service from a single IP address by appending a
+.Dq /
+followed by the number to the maximum number of outstanding child
+processes.
+Once the maximum is reached, further connections from this
+IP address will be dropped.
+.Pp
+The
+.Em user
+entry should contain the user name of the user as whom the server
+should run.
+This allows for servers to be given less permission
+than root.
+The optional
+.Em group
+part separated by
+.Dq \&:
+allows a group name other
+than the default group for this user to be specified.
+The optional
+.Em login-class
+part separated by
+.Dq /
+allows specification of a login class other
+than the default
+.Dq daemon
+login class.
+.Pp
+The
+.Em server-program
+entry should contain the pathname of the program which is to be
+executed by
+.Nm
+when a request is found on its socket.
+If
+.Nm
+provides this service internally, this entry should
+be
+.Dq internal .
+.Pp
+The
+.Em server-program-arguments
+entry lists the arguments to be passed to the
+.Em server-program ,
+starting with argv[0], which usually is the name of
+the program.
+If the service is provided internally, the
+.Em service-name
+of the service (and any arguments to it) or the word
+.Dq internal
+should take the place of this entry.
+.Pp
+Currently, the only internal service to take arguments is
+.Dq auth .
+Without options, the service will always return
+.Dq ERROR\ : HIDDEN-USER .
+The available arguments to this service that alter its behavior are:
+.Bl -tag -width indent
+.It Fl d Ar fallback
+Provide a
+.Ar fallback
+username.
+If the real
+.Dq auth
+service is enabled
+(with the
+.Fl r
+option discussed below),
+return this username instead of an error
+when lookups fail
+for either socket credentials or the username.
+If the real
+.Dq auth
+service is disabled,
+return this username for every request.
+This is primarily useful when running this service on a NAT machine.
+.It Fl g
+Instead of returning
+the user's name to the ident requester,
+report a
+username made up of random alphanumeric characters,
+e.g.\&
+.Dq c0c993 .
+The
+.Fl g
+flag overrides not only the user names,
+but also any fallback name,
+.Pa .fakeid
+or
+.Pa .noident
+files.
+.It Fl t Xo
+.Ar sec Ns Op . Ns Ar usec
+.Xc
+Specify a timeout for the service.
+The default timeout is 10.0 seconds.
+.It Fl r
+Offer a real
+.Dq auth
+service, as per RFC 1413.
+All the remaining flags apply only in this case.
+.It Fl i
+Return numeric user IDs instead of usernames.
+.It Fl f
+If the file
+.Pa .fakeid
+exists in the home directory of the identified user, report the username
+found in that file instead of the real username.
+If the username found in
+.Pa .fakeid
+is that of an existing user,
+then the real username is reported.
+If the
+.Fl i
+flag is also given then the username in
+.Pa .fakeid
+is checked against existing user IDs instead.
+.It Fl F
+same as
+.Fl f
+but without the restriction that the username in
+.Pa .fakeid
+must not match an existing user.
+.It Fl n
+If the file
+.Pa .noident
+exists in the home directory of the identified user, return
+.Dq ERROR\ : HIDDEN-USER .
+This overrides any
+.Pa fakeid
+file which might exist.
+.It Fl o Ar osname
+Use
+.Ar osname
+instead of the name of the system as reported by
+.Xr uname 3 .
+.El
+.Pp
+The
+.Nm
+utility also provides several other
+.Dq trivial
+services internally by use of
+routines within itself.
+These services are
+.Dq echo ,
+.Dq discard ,
+.Dq chargen
+(character generator),
+.Dq daytime
+(human readable time), and
+.Dq time
+(machine readable time, in the form of the number of seconds since
+midnight, January 1, 1900).
+All of these services are available in
+both TCP and UDP versions; the UDP versions will refuse service if the
+request specifies a reply port corresponding to any internal service.
+(This is done as a defense against looping attacks; the remote IP address
+is logged.)
+For details of these services, consult the
+appropriate
+.Tn RFC
+document.
+.Pp
+The TCPMUX-demultiplexing service is also implemented as an internal service.
+For any TCPMUX-based service to function, the following line must be included
+in
+.Pa inetd.conf :
+.Bd -literal -offset indent
+tcpmux	stream	tcp	nowait	root	internal
+.Ed
+.Pp
+When given the
+.Fl l
+option
+.Nm
+will log an entry to syslog each time a connection is accepted, noting the
+service selected and the IP-number of the remote requester if available.
+Unless otherwise specified in the configuration file,
+and in the absence of the
+.Fl W
+and
+.Fl w
+options,
+.Nm
+will log to the
+.Dq daemon
+facility.
+.Pp
+The
+.Nm
+utility rereads its configuration file when it receives a hangup signal,
+.Dv SIGHUP .
+Services may be added, deleted or modified when the configuration file
+is reread.
+Except when started in debugging mode,
+or configured otherwise with the
+.Fl p
+option,
+.Nm
+records its process ID in the file
+.Pa /var/run/inetd.pid
+to assist in reconfiguration.
+.Sh IMPLEMENTATION NOTES
+.Ss TCP Wrappers
+When given the
+.Fl w
+option,
+.Nm
+will wrap all services specified as
+.Dq stream nowait
+or
+.Dq dgram
+except for
+.Dq internal
+services.
+If the
+.Fl W
+option is given, such
+.Dq internal
+services will be wrapped.
+If both options are given, wrapping for both
+internal and external services will be enabled.
+Either wrapping option
+will cause failed connections to be logged to the
+.Dq auth
+syslog facility.
+Adding the
+.Fl l
+flag to the wrapping options will include successful connections in the
+logging to the
+.Dq auth
+facility.
+.Pp
+Note that
+.Nm
+only wraps requests for a
+.Dq wait
+service while no servers are available to service requests.
+Once a
+connection to such a service has been allowed,
+.Nm
+has no control
+over subsequent connections to the service until no more servers
+are left listening for connection requests.
+.Pp
+When wrapping is enabled, the
+.Pa tcpd
+daemon is not required, as that functionality is builtin.
+For more information on TCP Wrappers, see the relevant documentation
+.Pq Xr hosts_access 5 .
+When reading that document, keep in mind that
+.Dq internal
+services have no associated daemon name.
+Therefore, the service name
+as specified in
+.Pa inetd.conf
+should be used as the daemon name for
+.Dq internal
+services.
+.Ss TCPMUX
+.Tn RFC 1078
+describes the TCPMUX protocol:
+``A TCP client connects to a foreign host on TCP port 1.
+It sends the
+service name followed by a carriage-return line-feed <CRLF>.
+The
+service name is never case sensitive.
+The server replies with a
+single character indicating positive (+) or negative (\-)
+acknowledgment, immediately followed by an optional message of
+explanation, terminated with a <CRLF>.
+If the reply was positive,
+the selected protocol begins; otherwise the connection is closed.''
+The program is passed the TCP connection as file descriptors 0 and 1.
+.Pp
+If the TCPMUX service name begins with a
+.Dq + ,
+.Nm
+returns the positive reply for the program.
+This allows you to invoke programs that use stdin/stdout
+without putting any special server code in them.
+.Pp
+The special service name
+.Dq help
+causes
+.Nm
+to list the TCPMUX services which are enabled in
+.Pa inetd.conf .
+.Ss IPsec
+The implementation includes a tiny hack
+to support IPsec policy settings for each socket.
+A special form of comment line, starting with
+.Dq Li #@ ,
+is interpreted as a policy specifier.
+Everything after the
+.Dq Li #@
+will be used as an IPsec policy string,
+as described in
+.Xr ipsec_set_policy 3 .
+Each
+policy specifier is applied to all the following lines in
+.Pa inetd.conf
+until the next policy specifier.
+An empty policy specifier resets the IPsec policy.
+.Pp
+If an invalid IPsec policy specifier appears in
+.Pa inetd.conf ,
+.Nm
+will provide an error message via the
+.Xr syslog 3
+interface and abort execution.
+.Ss Ux Domain Sockets
+In addition to running services on IP sockets,
+.Nm
+can also manage
+.Ux
+domain sockets.
+To do this you specify a
+.Em protocol
+of
+.Dq unix
+and specify the
+.Ux
+domain socket as the
+.Em service-name .
+The
+.Em service-type
+may be
+.Dq stream
+or
+.Dq dgram .
+The specification of the socket must be
+an absolute path name,
+optionally prefixed by an owner and mode
+of the form
+.Em :user:group:mode: .
+The specification:
+.Pp
+.Dl ":news:daemon:220:/var/run/sock"
+.Pp
+creates a socket owned
+by user
+.Dq news
+in group
+.Dq daemon
+with permissions allowing only that user and group to connect.
+The default owner is the user that
+.Nm
+is running as.
+The default mode only allows the socket's owner to connect.
+.Pp
+.Sy WARNING :
+while creating a
+.Ux
+domain socket,
+.Nm
+must change the ownership and permissions on the socket.
+This can only be done securely if
+the directory in which the socket is created
+is writable only by root.
+Do
+.Em NOT
+use
+.Nm
+to create sockets in world writable directories
+such as
+.Pa /tmp ;
+use
+.Pa /var/run
+or a similar directory instead.
+.Pp
+Internal services may be run on
+.Ux
+domain sockets, in the usual way.
+In this case
+the name of the internal service
+is determined using
+the last component of the socket's pathname.
+For example, specifying a socket named
+.Pa /var/run/chargen
+would invoke the
+.Dq chargen
+service when a connection is received on that socket.
+.Sh "FILES"
+.Bl -tag -width /var/run/inetd.pid -compact
+.It Pa /etc/inetd.conf
+configuration file
+.It Pa /etc/netconfig
+network configuration data base
+.It Pa /etc/rpc
+translation of service names to RPC program numbers
+.It Pa /etc/services
+translation of service names to port numbers
+.It Pa /var/run/inetd.pid
+the pid of the currently running
+.Nm
+.El
+.Sh "EXAMPLES"
+Here are several example service entries for the various types of services:
+.Bd -literal
+ftp          stream  tcp   nowait root  /usr/libexec/ftpd        ftpd -l
+ntalk        dgram   udp   wait   root  /usr/libexec/ntalkd      ntalkd
+telnet       stream  tcp6  nowait root  /usr/libexec/telnetd  telnetd
+shell        stream  tcp46  nowait root  /usr/libexec/rshd rshd
+tcpmux/+date stream  tcp   nowait guest /bin/date                date
+tcpmux/phonebook stream tcp nowait guest /usr/local/bin/phonebook phonebook
+rstatd/1-3   dgram   rpc/udp wait root  /usr/libexec/rpc.rstatd  rpc.rstatd
+/var/run/echo stream unix  nowait root	internal
+#@ ipsec ah/require
+chargen      stream  tcp   nowait root  internal
+#@
+.Ed
+.Sh "ERROR MESSAGES"
+The
+.Nm
+server
+logs error messages using
+.Xr syslog 3 .
+Important error messages and their explanations are:
+.Pp
+.Bl -ohang -compact
+.It Xo
+.Ar service Ns / Ns Ar protocol
+.No "server failing (looping), service terminated."
+.Xc
+The number of requests for the specified service in the past minute
+exceeded the limit.
+The limit exists to prevent a broken program
+or a malicious user from swamping the system.
+This message may occur for several reasons:
+.Bl -enum -offset indent
+.It
+There are many hosts requesting the service within a short time period.
+.It
+A broken client program is requesting the service too frequently.
+.It
+A malicious user is running a program to invoke the service in
+a denial-of-service attack.
+.It
+The invoked service program has an error that causes clients
+to retry quickly.
+.El
+.Pp
+Use the
+.Fl R Ar rate
+option,
+as described above, to change the rate limit.
+Once the limit is reached, the service will be
+reenabled automatically in 10 minutes.
+.Pp
+.It Xo
+.Ar service Ns / Ns Ar protocol :
+.No \&No such user
+.Ar user ,
+.No service ignored
+.Xc
+.It Xo
+.Ar service Ns / Ns Ar protocol :
+.No getpwnam :
+.Ar user :
+.No \&No such user
+.Xc
+No entry for
+.Ar user
+exists in the
+.Xr passwd 5
+database.
+The first message
+occurs when
+.Nm
+(re)reads the configuration file.
+The second message occurs when the
+service is invoked.
+.Pp
+.It Xo
+.Ar service :
+.No can't set uid
+.Ar uid
+.Xc
+.It Xo
+.Ar service :
+.No can't set gid
+.Ar gid
+.Xc
+The user or group ID for the entry's
+.Ar user
+field is invalid.
+.Pp
+.It "setsockopt(SO_PRIVSTATE): Operation not supported"
+The
+.Nm
+utility attempted to renounce the privileged state associated with a
+socket but was unable to.
+.Pp
+.It Xo unknown
+.Ar rpc/udp
+or
+.Ar rpc/tcp
+.Xc
+No entry was found for either
+.Ar udp
+or
+.Ar tcp
+in the
+.Xr netconfig 5
+database.
+.Pp
+.It Xo unknown
+.Ar rpc/udp6
+or
+.Ar rpc/tcp6
+.Xc
+No entry was found for either
+.Ar udp6
+or
+.Ar tcp6
+in the
+.Xr netconfig 5
+database.
+.El
+.Sh SEE ALSO
+.Xr ipsec_set_policy 3 ,
+.Xr hosts_access 5 ,
+.Xr hosts_options 5 ,
+.Xr login.conf 5 ,
+.Xr netconfig 5 ,
+.Xr passwd 5 ,
+.Xr rpc 5 ,
+.Xr services 5 ,
+.Xr comsat 8 ,
+.Xr fingerd 8 ,
+.Xr ftpd 8 ,
+.Xr rlogind 8 ,
+.Xr rpcbind 8 ,
+.Xr rshd 8 ,
+.Xr talkd 8 ,
+.Xr telnetd 8 ,
+.Xr tftpd 8
+.Rs
+.%A Michael C. St. Johns
+.%T Identification Protocol
+.%O RFC1413
+.Re
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.3 .
+TCPMUX is based on code and documentation by Mark Lottor.
+Support for
+.Tn "ONC RPC"
+based services is modeled after that
+provided by
+.Tn SunOS
+4.1.
+The IPsec hack was contributed by the KAME project in 1999.
+The
+.Fx
+TCP Wrappers support first appeared in
+.Fx 3.2 .

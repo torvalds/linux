@@ -1,0 +1,28 @@
+okey_append = {
+	key = value;
+}
+
+akey_append = ["value"];
+
+skey_append = "value";
+
+okey_merge = {
+	key = value;
+	source = original;
+}
+
+akey_merge = ["value"];
+
+skey_merge = "value";
+
+okey_rewrite = {
+	key = value;
+}
+
+akey_rewrite = ["value"];
+
+skey_rewrite = "value";
+
+.include(duplicate="append") "${CURDIR}/19-append.inc" 
+.include(duplicate="merge") "${CURDIR}/19-merge.inc" 
+.include(duplicate="rewrite") "${CURDIR}/19-rewrite.inc" 

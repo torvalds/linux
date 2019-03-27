@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+# Common extensions to the 'for' syntax.
+
+nl='
+'
+list=' a b c'
+set -- $list
+for s2 in ";" ";$nl"; do
+	for s3 in "$nl" " "; do
+		r=''
+		eval "for i${s2}do${s3}r=\"\$r \$i\"; done"
+		[ "$r" = "$list" ] || exit 1
+	done
+done

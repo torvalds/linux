@@ -1,0 +1,15 @@
+.\" $FreeBSD$
+Set to use the historical object directory format for
+.Xr build 7
+targets.
+For native-builds and builds done directly in sub-directories the format of
+.Pa ${MAKEOBJDIRPREFIX}/${.CURDIR}
+is used,
+while for cross-builds
+.Pa ${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}/${.CURDIR}
+is used.
+.Pp
+This option is transitional and will be removed before the 12.0 release,
+at which time
+.va WITH_UNIFIED_OBJDIR
+will be enabled permanently.

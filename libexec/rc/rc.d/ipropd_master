@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ipropd_master
+# REQUIRE: kdc
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name=ipropd_master
+rcvar=${name}_enable
+required_files="$ipropd_master_keytab"
+start_precmd=${name}_start_precmd
+start_postcmd=${name}_start_postcmd
+
+ipropd_master_start_precmd()
+{
+
+	if [ -z "$ipropd_master_slaves" ]; then
+		warn "\$ipropd_master_slaves is empty."
+		return 1
+	fi
+	for _slave in $ipropd_master_slaves; do
+		echo $_slave
+	done > /var/heimdal/slaves || return 1
+	command_args="$command_args \
+	    --keytab=\"$ipropd_master_keytab\" \
+	    --detach \
+	"
+}
+ipropd_master_start_postcmd()
+{
+
+	echo "${name}: slave nodes: $ipropd_master_slaves"
+}
+
+load_rc_config $name
+run_rc_command "$1"

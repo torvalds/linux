@@ -1,0 +1,162 @@
+/*-
+ * Copyright (c) 2012-2013 Robert N. M. Watson
+ * Copyright (c) 2013 SRI International
+ * Copyright (c) 2013-2014 Bjoern A. Zeeb
+ * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-11-C-0249)
+ * ("MRC2"), as part of the DARPA MRC research programme.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+
+/*
+ * Device names here have been largely made up on the spot, especially for the
+ * "compatible" strings, and might want to be revised.
+ */
+
+/ {
+	model = "SRI/Cambridge Beri (NetFPGA)";
+	compatible = "sri-cambridge,beri-netfpga";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/*
+		 * Secondary CPUs all start disabled and use the
+		 * spin-table enable method.  cpu-release-addr must be
+		 * specified for each cpu other than cpu@0.  Values of
+		 * cpu-release-addr grow down from 0x100000 (kernel).
+		 */
+		status = "disabled";
+		enable-method = "spin-table";
+
+		cpu@0 {
+			device-type = "cpu";
+			compatible = "sri-cambridge,beri";
+
+			reg = <0 1>;
+			status = "okay";
+		};
+
+/*
+		cpu@1 {
+			device-type = "cpu";
+			compatible = "sri-cambridge,beri";
+
+			reg = <1 1>;
+			// XXX: should we need cached prefix?
+			cpu-release-addr = <0xffffffff 0x800fffe0>;
+		};
+*/
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0FFFFFFF>;		// ~256M at 0x0
+	};
+
+	cpuintc: cpuintc@0 {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
+	beripic: beripic@7f804000 {
+		compatible = "sri-cambridge,beri-pic";
+		interrupt-controller;
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x7f804000 0x400
+		       0x7f806000 0x10
+		       0x7f806080 0x10
+		       0x7f806100 0x10>;
+		interrupts = < 2 3 4 5 6 >;
+		hard-interrupt-sources = <64>;
+		soft-interrupt-sources = <64>;
+		interrupt-parent = <&cpuintc>;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <1>;
+
+		compatible = "simple-bus", "mips,mips4k";
+		ranges;
+
+		serial0: serial@7f000000 {
+			compatible = "altera,jtag_uart-11_0";
+			reg = <0x7f000000 0x40>;
+/*
+			interrupts = <0>;
+			interrupt-parent = <&beripic>;
+*/
+		};
+
+/*
+		serial0: serial@7f002100 {
+			compatible = "ns16550";
+			reg = <0x7f002100 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <100000000>;
+			interrupts = <8>;
+			interrupt-parent = <&beripic>;
+		};
+*/
+
+		ethernet@7f005000 {
+			compatible = "netfpag10g,nf10bmac";
+			// LOOP, TX, RX, INTR
+			reg = <0x7f005000 0x20
+			       0x7f005020 0x30
+			       0x7f005050 0x30
+			       0x7f005100 0x10>;
+			// RX
+			interrupts = <1>;
+			interrupt-parent = <&beripic>;
+		};
+	};
+
+	aliases { 
+		serial0 = &serial0;
+	};
+
+	chosen {
+		stdin = "serial0";
+		stdout = "serial0";
+		bootargs = "-v";
+	};
+};

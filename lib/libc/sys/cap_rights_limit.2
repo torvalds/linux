@@ -1,0 +1,157 @@
+.\"
+.\" Copyright (c) 2008-2010 Robert N. M. Watson
+.\" Copyright (c) 2012-2013 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed at the University of Cambridge Computer
+.\" Laboratory with support from a grant from Google, Inc.
+.\"
+.\" Portions of this documentation were written by Pawel Jakub Dawidek
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 27, 2014
+.Dt CAP_RIGHTS_LIMIT 2
+.Os
+.Sh NAME
+.Nm cap_rights_limit
+.Nd limit capability rights
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/capsicum.h
+.Ft int
+.Fn cap_rights_limit "int fd" "const cap_rights_t *rights"
+.Sh DESCRIPTION
+When a file descriptor is created by a function such as
+.Xr accept 2 ,
+.Xr accept4 2 ,
+.Xr fhopen 2 ,
+.Xr kqueue 2 ,
+.Xr mq_open 2 ,
+.Xr open 2 ,
+.Xr openat 2 ,
+.Xr pdfork 2 ,
+.Xr pipe 2 ,
+.Xr shm_open 2 ,
+.Xr socket 2
+or
+.Xr socketpair 2 ,
+it is assigned all capability rights.
+Those rights can be reduced (but never expanded) by using the
+.Fn cap_rights_limit
+system call.
+Once capability rights are reduced, operations on the file descriptor will be
+limited to those permitted by
+.Fa rights .
+.Pp
+The
+.Fa rights
+argument should be prepared using
+.Xr cap_rights_init 3
+family of functions.
+.Pp
+Capability rights assigned to a file descriptor can be obtained with the
+.Xr cap_rights_get 3
+function.
+.Pp
+The complete list of the capability rights can be found in the
+.Xr rights 4
+manual page.
+.Sh RETURN VALUES
+.Rv -std
+.Sh EXAMPLES
+The following example demonstrates how to limit file descriptor capability
+rights to allow reading only.
+.Bd -literal
+cap_rights_t setrights;
+char buf[1];
+int fd;
+
+fd = open("/tmp/foo", O_RDWR);
+if (fd < 0)
+	err(1, "open() failed");
+
+if (cap_enter() < 0)
+	err(1, "cap_enter() failed");
+
+cap_rights_init(&setrights, CAP_READ);
+if (cap_rights_limit(fd, &setrights) < 0)
+	err(1, "cap_rights_limit() failed");
+
+buf[0] = 'X';
+
+if (write(fd, buf, sizeof(buf)) > 0)
+	errx(1, "write() succeeded!");
+
+if (read(fd, buf, sizeof(buf)) < 0)
+	err(1, "read() failed");
+.Ed
+.Sh ERRORS
+.Fn cap_rights_limit
+succeeds unless:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid active descriptor.
+.It Bq Er EINVAL
+An invalid right has been requested in
+.Fa rights .
+.It Bq Er ENOTCAPABLE
+The
+.Fa rights
+argument contains capability rights not present for the given file descriptor.
+Capability rights list can only be reduced, never expanded.
+.El
+.Sh SEE ALSO
+.Xr accept 2 ,
+.Xr accept4 2 ,
+.Xr cap_enter 2 ,
+.Xr fhopen 2 ,
+.Xr kqueue 2 ,
+.Xr mq_open 2 ,
+.Xr open 2 ,
+.Xr openat 2 ,
+.Xr pdfork 2 ,
+.Xr pipe 2 ,
+.Xr read 2 ,
+.Xr shm_open 2 ,
+.Xr socket 2 ,
+.Xr socketpair 2 ,
+.Xr write 2 ,
+.Xr cap_rights_get 3 ,
+.Xr cap_rights_init 3 ,
+.Xr err 3 ,
+.Xr capsicum 4 ,
+.Xr rights 4
+.Sh HISTORY
+Support for capabilities and capabilities mode was developed as part of the
+.Tn TrustedBSD
+Project.
+.Sh AUTHORS
+This function was created by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship of the FreeBSD Foundation.

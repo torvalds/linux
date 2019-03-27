@@ -1,0 +1,91 @@
+.\"
+.\" Copyright (c) 2009 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 4, 2009
+.Dt IEEE80211_BMISS 9
+.Os
+.Sh NAME
+.Nm ieee80211_bmiss
+.Nd 802.11 beacon miss support
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.Pp
+.Ft void
+.Fn ieee80211_beacon_miss "struct ieee80211com *"
+.Sh DESCRIPTION
+The
+.Nm net80211
+software layer provides a support framework for drivers that includes
+handling beacon miss events in station mode.
+Drivers can dispatch beacon miss events that are recognized in hardware or
+.Nm net80211
+can detect beacon miss if the driver dispatches received beacon frames
+through the normal receive path.
+Software beacon miss support is especially useful when multiple vaps
+are operating and any hardware beacon miss support is not available
+(e.g. operating as an access point together with one or more station
+mode vaps).
+.Pp
+Drivers should dispatch beacon miss events recognized in the driver with
+.Fn ieee80211_beacon_miss .
+This causes some number of ProbeRequest frames to be sent to the
+access point to check if the association is still alive.
+If no response is received and roaming mode is set to
+.Dv IEEE80211_ROAMING_AUTO
+then
+.Nm net80211
+will try to re-associate and if that fails
+trigger a scan to look for the access point or another suitable AP.
+When the
+.Nm net80211
+state machine is being operated manually, e.g. by
+.Xr wpa_supplicant 8 ,
+then applications are notified of the state change and are responsible
+for handling the work of scanning for a new access point.
+The number of beacon miss events (without a ProbeResponse) is user
+settable with the
+.Dv IEEE80211_IOC_BMISSTHRESHOLD
+request.
+.Pp
+Software beacon miss detection is enabled per-vap by setting the
+.Dv IEEE80211_FEXT_SWBMISS
+flag.
+Typically this is done when a vap is setup
+when the
+.Dv IEEE80211_CLONE_NOBEACONS
+option is supplied to the clone operation.
+But drivers may also force this when they know they need help detecting
+beacon miss.
+When beacon miss is detected in software the event is dispatched without
+driver involvement.
+Note that software beacon miss handling is not limited to station mode;
+it can be used in any operating mode where beacons from a peer station
+are received.
+.Sh SEE ALSO
+.Xr wpa_supplicant 8 ,
+.Xr ieee80211 9 ,
+.Xr ieee80211_vap 9

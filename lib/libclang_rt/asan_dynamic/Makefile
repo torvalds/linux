@@ -1,0 +1,97 @@
+# $FreeBSD$
+
+.include <bsd.init.mk>
+
+SHLIB_NAME=	libclang_rt.asan-${CRTARCH}.so
+.undef NO_PIC # sorry...
+
+CFLAGS+=	-DASAN_DYNAMIC=1
+
+SRCS+=		asan/asan_activation.cc
+SRCS+=		asan/asan_allocator.cc
+SRCS+=		asan/asan_debugging.cc
+SRCS+=		asan/asan_descriptions.cc
+SRCS+=		asan/asan_errors.cc
+SRCS+=		asan/asan_fake_stack.cc
+SRCS+=		asan/asan_flags.cc
+SRCS+=		asan/asan_globals.cc
+SRCS+=		asan/asan_interceptors.cc
+SRCS+=		asan/asan_interceptors_memintrinsics.cc
+SRCS+=		asan/asan_linux.cc
+SRCS+=		asan/asan_malloc_linux.cc
+SRCS+=		asan/asan_memory_profile.cc
+SRCS+=		asan/asan_new_delete.cc
+SRCS+=		asan/asan_poisoning.cc
+SRCS+=		asan/asan_posix.cc
+SRCS+=		asan/asan_premap_shadow.cc
+SRCS+=		asan/asan_report.cc
+SRCS+=		asan/asan_rtl.cc
+SRCS+=		asan/asan_shadow_setup.cc
+SRCS+=		asan/asan_stack.cc
+SRCS+=		asan/asan_stats.cc
+SRCS+=		asan/asan_suppressions.cc
+SRCS+=		asan/asan_thread.cc
+SRCS+=		interception/interception_linux.cc
+SRCS+=		interception/interception_type_test.cc
+SRCS+=		sanitizer_common/sancov_flags.cc
+SRCS+=		sanitizer_common/sanitizer_allocator.cc
+SRCS+=		sanitizer_common/sanitizer_allocator_checks.cc
+SRCS+=		sanitizer_common/sanitizer_allocator_report.cc
+SRCS+=		sanitizer_common/sanitizer_common.cc
+SRCS+=		sanitizer_common/sanitizer_common_libcdep.cc
+SRCS+=		sanitizer_common/sanitizer_coverage_libcdep_new.cc
+SRCS+=		sanitizer_common/sanitizer_deadlock_detector1.cc
+SRCS+=		sanitizer_common/sanitizer_deadlock_detector2.cc
+SRCS+=		sanitizer_common/sanitizer_errno.cc
+SRCS+=		sanitizer_common/sanitizer_file.cc
+SRCS+=		sanitizer_common/sanitizer_flag_parser.cc
+SRCS+=		sanitizer_common/sanitizer_flags.cc
+SRCS+=		sanitizer_common/sanitizer_libc.cc
+SRCS+=		sanitizer_common/sanitizer_libignore.cc
+SRCS+=		sanitizer_common/sanitizer_linux.cc
+SRCS+=		sanitizer_common/sanitizer_linux_libcdep.cc
+SRCS+=		sanitizer_common/sanitizer_persistent_allocator.cc
+SRCS+=		sanitizer_common/sanitizer_platform_limits_freebsd.cc
+SRCS+=		sanitizer_common/sanitizer_platform_limits_linux.cc
+SRCS+=		sanitizer_common/sanitizer_platform_limits_posix.cc
+SRCS+=		sanitizer_common/sanitizer_posix.cc
+SRCS+=		sanitizer_common/sanitizer_posix_libcdep.cc
+SRCS+=		sanitizer_common/sanitizer_printf.cc
+SRCS+=		sanitizer_common/sanitizer_procmaps_bsd.cc
+SRCS+=		sanitizer_common/sanitizer_procmaps_common.cc
+SRCS+=		sanitizer_common/sanitizer_stackdepot.cc
+SRCS+=		sanitizer_common/sanitizer_stacktrace.cc
+SRCS+=		sanitizer_common/sanitizer_stacktrace_libcdep.cc
+SRCS+=		sanitizer_common/sanitizer_stacktrace_printer.cc
+SRCS+=		sanitizer_common/sanitizer_suppressions.cc
+SRCS+=		sanitizer_common/sanitizer_symbolizer.cc
+SRCS+=		sanitizer_common/sanitizer_symbolizer_libbacktrace.cc
+SRCS+=		sanitizer_common/sanitizer_symbolizer_libcdep.cc
+SRCS+=		sanitizer_common/sanitizer_symbolizer_posix_libcdep.cc
+SRCS+=		sanitizer_common/sanitizer_symbolizer_report.cc
+SRCS+=		sanitizer_common/sanitizer_termination.cc
+SRCS+=		sanitizer_common/sanitizer_thread_registry.cc
+SRCS+=		sanitizer_common/sanitizer_tls_get_addr.cc
+SRCS+=		sanitizer_common/sanitizer_type_traits.cc
+SRCS+=		sanitizer_common/sanitizer_unwind_linux_libcdep.cc
+SRCS+=		ubsan/ubsan_diag.cc
+SRCS+=		ubsan/ubsan_flags.cc
+SRCS+=		ubsan/ubsan_handlers.cc
+SRCS+=		ubsan/ubsan_handlers_cxx.cc
+SRCS+=		ubsan/ubsan_init.cc
+SRCS+=		ubsan/ubsan_monitor.cc
+SRCS+=		ubsan/ubsan_type_hash.cc
+SRCS+=		ubsan/ubsan_type_hash_itanium.cc
+SRCS+=		ubsan/ubsan_value.cc
+
+# Kludge around a bsd.lib.mk shortcoming: when SHLIB_NAME is defined, but LIB
+# and LIB_CXX are undefined (which forces building only a shared library),
+# there is no way to tell it to use ${CXX} for linking.  Since the files for
+# this library are all C++ anyway, simply set CC to CXX.
+CC=		${CXX}
+
+.include <bsd.lib.mk>
+
+CXXFLAGS.ubsan_handlers_cxx.cc=		-frtti
+CXXFLAGS.ubsan_type_hash.cc=		-frtti
+CXXFLAGS.ubsan_type_hash_itanium.cc=	-frtti

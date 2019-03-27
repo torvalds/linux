@@ -1,0 +1,45 @@
+$ $tcsh: set4,v 1.4 2011/02/04 18:19:42 christos Exp $
+$ Termcap strings
+$set 4
+1 добавить новую пустую строку
+2 звуковой звонок
+3 очистить до конца
+4 очистить до конца строки
+5 курсор на горизонтальную позицию
+6 очистить экран
+7 удалить символ
+8 удалить строку
+9 перейти в режим удаления
+10 выйти из режима удаления
+11 выйти из режима вставки
+12 cursor from status line
+13 home cursor
+14 вставить символ
+15 перейти в режим вставки
+16 insert padding
+17 переместить курсор вниз
+18 переместить курсор влево
+19 переместить курсор вправо
+20 переместить курсор вверх
+21 begin bold
+22 end attributes
+23 non destructive space
+24 end standout
+25 begin standout
+26 cursor to status line
+27 cursor up one
+28 begin underline
+29 end underline
+30 визуальный звонок
+31 удалить несколько символов
+32 cursor down multiple
+33 вставить несколько символов
+34 cursor left multiple
+35 cursor right multiple
+36 cursor up multiple
+37 Has automatic margins
+38 Can use physical tabs
+39 Число строк
+40 Чисто столбцов
+41 Has meta key
+42 Newline ignored at right margin

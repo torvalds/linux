@@ -1,0 +1,1110 @@
+// -*- C++ -*-
+//===---------------------------- bitset ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_BITSET
+#define _LIBCPP_BITSET
+
+/*
+    bitset synopsis
+
+namespace std
+{
+
+namespace std {
+
+template <size_t N>
+class bitset
+{
+public:
+    // bit reference:
+    class reference
+    {
+        friend class bitset;
+        reference() noexcept;
+    public:
+        ~reference() noexcept;
+        reference& operator=(bool x) noexcept;           // for b[i] = x;
+        reference& operator=(const reference&) noexcept; // for b[i] = b[j];
+        bool operator~() const noexcept;                 // flips the bit
+        operator bool() const noexcept;                  // for x = b[i];
+        reference& flip() noexcept;                      // for b[i].flip();
+    };
+
+    // 23.3.5.1 constructors:
+    constexpr bitset() noexcept;
+    constexpr bitset(unsigned long long val) noexcept;
+    template <class charT>
+        explicit bitset(const charT* str,
+                        typename basic_string<charT>::size_type n = basic_string<charT>::npos,
+                        charT zero = charT('0'), charT one = charT('1'));
+    template<class charT, class traits, class Allocator>
+        explicit bitset(const basic_string<charT,traits,Allocator>& str,
+                        typename basic_string<charT,traits,Allocator>::size_type pos = 0,
+                        typename basic_string<charT,traits,Allocator>::size_type n =
+                                 basic_string<charT,traits,Allocator>::npos,
+                        charT zero = charT('0'), charT one = charT('1'));
+
+    // 23.3.5.2 bitset operations:
+    bitset& operator&=(const bitset& rhs) noexcept;
+    bitset& operator|=(const bitset& rhs) noexcept;
+    bitset& operator^=(const bitset& rhs) noexcept;
+    bitset& operator<<=(size_t pos) noexcept;
+    bitset& operator>>=(size_t pos) noexcept;
+    bitset& set() noexcept;
+    bitset& set(size_t pos, bool val = true);
+    bitset& reset() noexcept;
+    bitset& reset(size_t pos);
+    bitset operator~() const noexcept;
+    bitset& flip() noexcept;
+    bitset& flip(size_t pos);
+
+    // element access:
+    constexpr bool operator[](size_t pos) const; // for b[i];
+    reference operator[](size_t pos);            // for b[i];
+    unsigned long to_ulong() const;
+    unsigned long long to_ullong() const;
+    template <class charT, class traits, class Allocator>
+        basic_string<charT, traits, Allocator> to_string(charT zero = charT('0'), charT one = charT('1')) const;
+    template <class charT, class traits>
+        basic_string<charT, traits, allocator<charT> > to_string(charT zero = charT('0'), charT one = charT('1')) const;
+    template <class charT>
+        basic_string<charT, char_traits<charT>, allocator<charT> > to_string(charT zero = charT('0'), charT one = charT('1')) const;
+    basic_string<char, char_traits<char>, allocator<char> > to_string(char zero = '0', char one = '1') const;
+    size_t count() const noexcept;
+    constexpr size_t size() const noexcept;
+    bool operator==(const bitset& rhs) const noexcept;
+    bool operator!=(const bitset& rhs) const noexcept;
+    bool test(size_t pos) const;
+    bool all() const noexcept;
+    bool any() const noexcept;
+    bool none() const noexcept;
+    bitset operator<<(size_t pos) const noexcept;
+    bitset operator>>(size_t pos) const noexcept;
+};
+
+// 23.3.5.3 bitset operators:
+template <size_t N>
+bitset<N> operator&(const bitset<N>&, const bitset<N>&) noexcept;
+
+template <size_t N>
+bitset<N> operator|(const bitset<N>&, const bitset<N>&) noexcept;
+
+template <size_t N>
+bitset<N> operator^(const bitset<N>&, const bitset<N>&) noexcept;
+
+template <class charT, class traits, size_t N>
+basic_istream<charT, traits>&
+operator>>(basic_istream<charT, traits>& is, bitset<N>& x);
+
+template <class charT, class traits, size_t N>
+basic_ostream<charT, traits>&
+operator<<(basic_ostream<charT, traits>& os, const bitset<N>& x);
+
+template <size_t N> struct hash<std::bitset<N>>;
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__bit_reference>
+#include <cstddef>
+#include <climits>
+#include <string>
+#include <stdexcept>
+#include <iosfwd>
+#include <__functional_base>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+template <size_t _N_words, size_t _Size>
+class __bitset;
+
+template <size_t _N_words, size_t _Size>
+struct __has_storage_type<__bitset<_N_words, _Size> >
+{
+    static const bool value = true;
+};
+
+template <size_t _N_words, size_t _Size>
+class __bitset
+{
+public:
+    typedef ptrdiff_t              difference_type;
+    typedef size_t                 size_type;
+    typedef size_type              __storage_type;
+protected:
+    typedef __bitset __self;
+    typedef       __storage_type*  __storage_pointer;
+    typedef const __storage_type*  __const_storage_pointer;
+    static const unsigned __bits_per_word = static_cast<unsigned>(sizeof(__storage_type) * CHAR_BIT);
+
+    friend class __bit_reference<__bitset>;
+    friend class __bit_const_reference<__bitset>;
+    friend class __bit_iterator<__bitset, false>;
+    friend class __bit_iterator<__bitset, true>;
+    friend struct __bit_array<__bitset>;
+
+    __storage_type __first_[_N_words];
+
+    typedef __bit_reference<__bitset>                  reference;
+    typedef __bit_const_reference<__bitset>            const_reference;
+    typedef __bit_iterator<__bitset, false>            iterator;
+    typedef __bit_iterator<__bitset, true>             const_iterator;
+
+    _LIBCPP_INLINE_VISIBILITY
+    _LIBCPP_CONSTEXPR __bitset() _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    explicit _LIBCPP_CONSTEXPR __bitset(unsigned long long __v) _NOEXCEPT;
+
+    _LIBCPP_INLINE_VISIBILITY reference __make_ref(size_t __pos) _NOEXCEPT
+        {return reference(__first_ + __pos / __bits_per_word, __storage_type(1) << __pos % __bits_per_word);}
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR const_reference __make_ref(size_t __pos) const _NOEXCEPT
+        {return const_reference(__first_ + __pos / __bits_per_word, __storage_type(1) << __pos % __bits_per_word);}
+    _LIBCPP_INLINE_VISIBILITY iterator __make_iter(size_t __pos) _NOEXCEPT
+        {return iterator(__first_ + __pos / __bits_per_word, __pos % __bits_per_word);}
+    _LIBCPP_INLINE_VISIBILITY const_iterator __make_iter(size_t __pos) const _NOEXCEPT
+        {return const_iterator(__first_ + __pos / __bits_per_word, __pos % __bits_per_word);}
+
+    _LIBCPP_INLINE_VISIBILITY
+    void operator&=(const __bitset& __v) _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    void operator|=(const __bitset& __v) _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    void operator^=(const __bitset& __v) _NOEXCEPT;
+
+    void flip() _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY unsigned long to_ulong() const
+        {return to_ulong(integral_constant<bool, _Size < sizeof(unsigned long) * CHAR_BIT>());}
+    _LIBCPP_INLINE_VISIBILITY unsigned long long to_ullong() const
+        {return to_ullong(integral_constant<bool, _Size < sizeof(unsigned long long) * CHAR_BIT>());}
+
+    bool all() const _NOEXCEPT;
+    bool any() const _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    size_t __hash_code() const _NOEXCEPT;
+private:
+#ifdef _LIBCPP_CXX03_LANG
+    void __init(unsigned long long __v, false_type) _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    void __init(unsigned long long __v, true_type) _NOEXCEPT;
+#endif  // _LIBCPP_CXX03_LANG
+    unsigned long to_ulong(false_type) const;
+    _LIBCPP_INLINE_VISIBILITY
+    unsigned long to_ulong(true_type) const;
+    unsigned long long to_ullong(false_type) const;
+    _LIBCPP_INLINE_VISIBILITY
+    unsigned long long to_ullong(true_type) const;
+    _LIBCPP_INLINE_VISIBILITY
+    unsigned long long to_ullong(true_type, false_type) const;
+    unsigned long long to_ullong(true_type, true_type) const;
+};
+
+template <size_t _N_words, size_t _Size>
+inline
+_LIBCPP_CONSTEXPR
+__bitset<_N_words, _Size>::__bitset() _NOEXCEPT
+#ifndef _LIBCPP_CXX03_LANG
+    : __first_{0}
+#endif
+{
+#ifdef _LIBCPP_CXX03_LANG
+    _VSTD::fill_n(__first_, _N_words, __storage_type(0));
+#endif
+}
+
+#ifdef _LIBCPP_CXX03_LANG
+
+template <size_t _N_words, size_t _Size>
+void
+__bitset<_N_words, _Size>::__init(unsigned long long __v, false_type) _NOEXCEPT
+{
+    __storage_type __t[sizeof(unsigned long long) / sizeof(__storage_type)];
+    size_t __sz = _Size;
+    for (size_t __i = 0; __i < sizeof(__t)/sizeof(__t[0]); ++__i, __v >>= __bits_per_word, __sz -= __bits_per_word )
+        if ( __sz < __bits_per_word)
+            __t[__i] = static_cast<__storage_type>(__v) & ( 1ULL << __sz ) - 1;
+        else
+            __t[__i] = static_cast<__storage_type>(__v);
+
+    _VSTD::copy(__t, __t + sizeof(__t)/sizeof(__t[0]), __first_);
+    _VSTD::fill(__first_ + sizeof(__t)/sizeof(__t[0]), __first_ + sizeof(__first_)/sizeof(__first_[0]),
+               __storage_type(0));
+}
+
+template <size_t _N_words, size_t _Size>
+inline _LIBCPP_INLINE_VISIBILITY
+void
+__bitset<_N_words, _Size>::__init(unsigned long long __v, true_type) _NOEXCEPT
+{
+    __first_[0] = __v;
+    if (_Size < __bits_per_word)
+        __first_[0] &= ( 1ULL << _Size ) - 1;
+
+    _VSTD::fill(__first_ + 1, __first_ + sizeof(__first_)/sizeof(__first_[0]), __storage_type(0));
+}
+
+#endif  // _LIBCPP_CXX03_LANG
+
+template <size_t _N_words, size_t _Size>
+inline
+_LIBCPP_CONSTEXPR
+__bitset<_N_words, _Size>::__bitset(unsigned long long __v) _NOEXCEPT
+#ifndef _LIBCPP_CXX03_LANG
+#if __SIZEOF_SIZE_T__ == 8
+    : __first_{__v}
+#elif __SIZEOF_SIZE_T__ == 4
+    : __first_{static_cast<__storage_type>(__v),
+                _Size >= 2 * __bits_per_word ? static_cast<__storage_type>(__v >> __bits_per_word)
+                : static_cast<__storage_type>((__v >> __bits_per_word) & (__storage_type(1) << (_Size - __bits_per_word)) - 1)}
+#else
+#error This constructor has not been ported to this platform
+#endif
+#endif
+{
+#ifdef _LIBCPP_CXX03_LANG
+    __init(__v, integral_constant<bool, sizeof(unsigned long long) == sizeof(__storage_type)>());
+#endif
+}
+
+template <size_t _N_words, size_t _Size>
+inline
+void
+__bitset<_N_words, _Size>::operator&=(const __bitset& __v) _NOEXCEPT
+{
+    for (size_type __i = 0; __i < _N_words; ++__i)
+        __first_[__i] &= __v.__first_[__i];
+}
+
+template <size_t _N_words, size_t _Size>
+inline
+void
+__bitset<_N_words, _Size>::operator|=(const __bitset& __v) _NOEXCEPT
+{
+    for (size_type __i = 0; __i < _N_words; ++__i)
+        __first_[__i] |= __v.__first_[__i];
+}
+
+template <size_t _N_words, size_t _Size>
+inline
+void
+__bitset<_N_words, _Size>::operator^=(const __bitset& __v) _NOEXCEPT
+{
+    for (size_type __i = 0; __i < _N_words; ++__i)
+        __first_[__i] ^= __v.__first_[__i];
+}
+
+template <size_t _N_words, size_t _Size>
+void
+__bitset<_N_words, _Size>::flip() _NOEXCEPT
+{
+    // do middle whole words
+    size_type __n = _Size;
+    __storage_pointer __p = __first_;
+    for (; __n >= __bits_per_word; ++__p, __n -= __bits_per_word)
+        *__p = ~*__p;
+    // do last partial word
+    if (__n > 0)
+    {
+        __storage_type __m = ~__storage_type(0) >> (__bits_per_word - __n);
+        __storage_type __b = *__p & __m;
+        *__p &= ~__m;
+        *__p |= ~__b & __m;
+    }
+}
+
+template <size_t _N_words, size_t _Size>
+unsigned long
+__bitset<_N_words, _Size>::to_ulong(false_type) const
+{
+    const_iterator __e = __make_iter(_Size);
+    const_iterator __i = _VSTD::find(__make_iter(sizeof(unsigned long) * CHAR_BIT), __e, true);
+    if (__i != __e)
+        __throw_overflow_error("bitset to_ulong overflow error");
+
+    return __first_[0];
+}
+
+template <size_t _N_words, size_t _Size>
+inline
+unsigned long
+__bitset<_N_words, _Size>::to_ulong(true_type) const
+{
+    return __first_[0];
+}
+
+template <size_t _N_words, size_t _Size>
+unsigned long long
+__bitset<_N_words, _Size>::to_ullong(false_type) const
+{
+    const_iterator __e = __make_iter(_Size);
+    const_iterator __i = _VSTD::find(__make_iter(sizeof(unsigned long long) * CHAR_BIT), __e, true);
+    if (__i != __e)
+        __throw_overflow_error("bitset to_ullong overflow error");
+
+    return to_ullong(true_type());
+}
+
+template <size_t _N_words, size_t _Size>
+inline
+unsigned long long
+__bitset<_N_words, _Size>::to_ullong(true_type) const
+{
+    return to_ullong(true_type(), integral_constant<bool, sizeof(__storage_type) < sizeof(unsigned long long)>());
+}
+
+template <size_t _N_words, size_t _Size>
+inline
+unsigned long long
+__bitset<_N_words, _Size>::to_ullong(true_type, false_type) const
+{
+    return __first_[0];
+}
+
+template <size_t _N_words, size_t _Size>
+unsigned long long
+__bitset<_N_words, _Size>::to_ullong(true_type, true_type) const
+{
+    unsigned long long __r = __first_[0];
+    for (std::size_t __i = 1; __i < sizeof(unsigned long long) / sizeof(__storage_type); ++__i)
+        __r |= static_cast<unsigned long long>(__first_[__i]) << (sizeof(__storage_type) * CHAR_BIT);
+    return __r;
+}
+
+template <size_t _N_words, size_t _Size>
+bool
+__bitset<_N_words, _Size>::all() const _NOEXCEPT
+{
+    // do middle whole words
+    size_type __n = _Size;
+    __const_storage_pointer __p = __first_;
+    for (; __n >= __bits_per_word; ++__p, __n -= __bits_per_word)
+        if (~*__p)
+            return false;
+    // do last partial word
+    if (__n > 0)
+    {
+        __storage_type __m = ~__storage_type(0) >> (__bits_per_word - __n);
+        if (~*__p & __m)
+            return false;
+    }
+    return true;
+}
+
+template <size_t _N_words, size_t _Size>
+bool
+__bitset<_N_words, _Size>::any() const _NOEXCEPT
+{
+    // do middle whole words
+    size_type __n = _Size;
+    __const_storage_pointer __p = __first_;
+    for (; __n >= __bits_per_word; ++__p, __n -= __bits_per_word)
+        if (*__p)
+            return true;
+    // do last partial word
+    if (__n > 0)
+    {
+        __storage_type __m = ~__storage_type(0) >> (__bits_per_word - __n);
+        if (*__p & __m)
+            return true;
+    }
+    return false;
+}
+
+template <size_t _N_words, size_t _Size>
+inline
+size_t
+__bitset<_N_words, _Size>::__hash_code() const _NOEXCEPT
+{
+    size_t __h = 0;
+    for (size_type __i = 0; __i < _N_words; ++__i)
+        __h ^= __first_[__i];
+    return __h;
+}
+
+template <size_t _Size>
+class __bitset<1, _Size>
+{
+public:
+    typedef ptrdiff_t              difference_type;
+    typedef size_t                 size_type;
+    typedef size_type              __storage_type;
+protected:
+    typedef __bitset __self;
+    typedef       __storage_type*  __storage_pointer;
+    typedef const __storage_type*  __const_storage_pointer;
+    static const unsigned __bits_per_word = static_cast<unsigned>(sizeof(__storage_type) * CHAR_BIT);
+
+    friend class __bit_reference<__bitset>;
+    friend class __bit_const_reference<__bitset>;
+    friend class __bit_iterator<__bitset, false>;
+    friend class __bit_iterator<__bitset, true>;
+    friend struct __bit_array<__bitset>;
+
+    __storage_type __first_;
+
+    typedef __bit_reference<__bitset>                  reference;
+    typedef __bit_const_reference<__bitset>            const_reference;
+    typedef __bit_iterator<__bitset, false>            iterator;
+    typedef __bit_iterator<__bitset, true>             const_iterator;
+
+    _LIBCPP_INLINE_VISIBILITY
+    _LIBCPP_CONSTEXPR __bitset() _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    explicit _LIBCPP_CONSTEXPR __bitset(unsigned long long __v) _NOEXCEPT;
+
+    _LIBCPP_INLINE_VISIBILITY reference __make_ref(size_t __pos) _NOEXCEPT
+        {return reference(&__first_, __storage_type(1) << __pos);}
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR const_reference __make_ref(size_t __pos) const _NOEXCEPT
+        {return const_reference(&__first_, __storage_type(1) << __pos);}
+    _LIBCPP_INLINE_VISIBILITY iterator __make_iter(size_t __pos) _NOEXCEPT
+        {return iterator(&__first_ + __pos / __bits_per_word, __pos % __bits_per_word);}
+    _LIBCPP_INLINE_VISIBILITY const_iterator __make_iter(size_t __pos) const _NOEXCEPT
+        {return const_iterator(&__first_ + __pos / __bits_per_word, __pos % __bits_per_word);}
+
+    _LIBCPP_INLINE_VISIBILITY
+    void operator&=(const __bitset& __v) _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    void operator|=(const __bitset& __v) _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    void operator^=(const __bitset& __v) _NOEXCEPT;
+
+    _LIBCPP_INLINE_VISIBILITY
+    void flip() _NOEXCEPT;
+
+    _LIBCPP_INLINE_VISIBILITY
+    unsigned long to_ulong() const;
+    _LIBCPP_INLINE_VISIBILITY
+    unsigned long long to_ullong() const;
+
+    _LIBCPP_INLINE_VISIBILITY
+    bool all() const _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    bool any() const _NOEXCEPT;
+
+    _LIBCPP_INLINE_VISIBILITY
+    size_t __hash_code() const _NOEXCEPT;
+};
+
+template <size_t _Size>
+inline
+_LIBCPP_CONSTEXPR
+__bitset<1, _Size>::__bitset() _NOEXCEPT
+    : __first_(0)
+{
+}
+
+template <size_t _Size>
+inline
+_LIBCPP_CONSTEXPR
+__bitset<1, _Size>::__bitset(unsigned long long __v) _NOEXCEPT
+    : __first_(
+        _Size == __bits_per_word ? static_cast<__storage_type>(__v)
+                                 : static_cast<__storage_type>(__v) & ((__storage_type(1) << _Size) - 1)
+    )
+{
+}
+
+template <size_t _Size>
+inline
+void
+__bitset<1, _Size>::operator&=(const __bitset& __v) _NOEXCEPT
+{
+    __first_ &= __v.__first_;
+}
+
+template <size_t _Size>
+inline
+void
+__bitset<1, _Size>::operator|=(const __bitset& __v) _NOEXCEPT
+{
+    __first_ |= __v.__first_;
+}
+
+template <size_t _Size>
+inline
+void
+__bitset<1, _Size>::operator^=(const __bitset& __v) _NOEXCEPT
+{
+    __first_ ^= __v.__first_;
+}
+
+template <size_t _Size>
+inline
+void
+__bitset<1, _Size>::flip() _NOEXCEPT
+{
+    __storage_type __m = ~__storage_type(0) >> (__bits_per_word - _Size);
+    __first_ = ~__first_;
+    __first_ &= __m;
+}
+
+template <size_t _Size>
+inline
+unsigned long
+__bitset<1, _Size>::to_ulong() const
+{
+    return __first_;
+}
+
+template <size_t _Size>
+inline
+unsigned long long
+__bitset<1, _Size>::to_ullong() const
+{
+    return __first_;
+}
+
+template <size_t _Size>
+inline
+bool
+__bitset<1, _Size>::all() const _NOEXCEPT
+{
+    __storage_type __m = ~__storage_type(0) >> (__bits_per_word - _Size);
+    return !(~__first_ & __m);
+}
+
+template <size_t _Size>
+inline
+bool
+__bitset<1, _Size>::any() const _NOEXCEPT
+{
+    __storage_type __m = ~__storage_type(0) >> (__bits_per_word - _Size);
+    return __first_ & __m;
+}
+
+template <size_t _Size>
+inline
+size_t
+__bitset<1, _Size>::__hash_code() const _NOEXCEPT
+{
+    return __first_;
+}
+
+template <>
+class __bitset<0, 0>
+{
+public:
+    typedef ptrdiff_t              difference_type;
+    typedef size_t                 size_type;
+    typedef size_type              __storage_type;
+protected:
+    typedef __bitset __self;
+    typedef       __storage_type*  __storage_pointer;
+    typedef const __storage_type*  __const_storage_pointer;
+    static const unsigned __bits_per_word = static_cast<unsigned>(sizeof(__storage_type) * CHAR_BIT);
+
+    friend class __bit_reference<__bitset>;
+    friend class __bit_const_reference<__bitset>;
+    friend class __bit_iterator<__bitset, false>;
+    friend class __bit_iterator<__bitset, true>;
+    friend struct __bit_array<__bitset>;
+
+    typedef __bit_reference<__bitset>                  reference;
+    typedef __bit_const_reference<__bitset>            const_reference;
+    typedef __bit_iterator<__bitset, false>            iterator;
+    typedef __bit_iterator<__bitset, true>             const_iterator;
+
+    _LIBCPP_INLINE_VISIBILITY
+    _LIBCPP_CONSTEXPR __bitset() _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    explicit _LIBCPP_CONSTEXPR __bitset(unsigned long long) _NOEXCEPT;
+
+    _LIBCPP_INLINE_VISIBILITY reference __make_ref(size_t) _NOEXCEPT
+        {return reference(0, 1);}
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR const_reference __make_ref(size_t) const _NOEXCEPT
+        {return const_reference(0, 1);}
+    _LIBCPP_INLINE_VISIBILITY iterator __make_iter(size_t) _NOEXCEPT
+        {return iterator(0, 0);}
+    _LIBCPP_INLINE_VISIBILITY const_iterator __make_iter(size_t) const _NOEXCEPT
+        {return const_iterator(0, 0);}
+
+    _LIBCPP_INLINE_VISIBILITY void operator&=(const __bitset&) _NOEXCEPT {}
+    _LIBCPP_INLINE_VISIBILITY void operator|=(const __bitset&) _NOEXCEPT {}
+    _LIBCPP_INLINE_VISIBILITY void operator^=(const __bitset&) _NOEXCEPT {}
+
+    _LIBCPP_INLINE_VISIBILITY void flip() _NOEXCEPT {}
+
+    _LIBCPP_INLINE_VISIBILITY unsigned long to_ulong() const {return 0;}
+    _LIBCPP_INLINE_VISIBILITY unsigned long long to_ullong() const {return 0;}
+
+    _LIBCPP_INLINE_VISIBILITY bool all() const _NOEXCEPT {return true;}
+    _LIBCPP_INLINE_VISIBILITY bool any() const _NOEXCEPT {return false;}
+
+    _LIBCPP_INLINE_VISIBILITY size_t __hash_code() const _NOEXCEPT {return 0;}
+};
+
+inline
+_LIBCPP_CONSTEXPR
+__bitset<0, 0>::__bitset() _NOEXCEPT
+{
+}
+
+inline
+_LIBCPP_CONSTEXPR
+__bitset<0, 0>::__bitset(unsigned long long) _NOEXCEPT
+{
+}
+
+template <size_t _Size> class _LIBCPP_TEMPLATE_VIS bitset;
+template <size_t _Size> struct hash<bitset<_Size> >;
+
+template <size_t _Size>
+class _LIBCPP_TEMPLATE_VIS bitset
+    : private __bitset<_Size == 0 ? 0 : (_Size - 1) / (sizeof(size_t) * CHAR_BIT) + 1, _Size>
+{
+public:
+    static const unsigned __n_words = _Size == 0 ? 0 : (_Size - 1) / (sizeof(size_t) * CHAR_BIT) + 1;
+    typedef __bitset<__n_words, _Size> base;
+
+public:
+    typedef typename base::reference       reference;
+    typedef typename base::const_reference const_reference;
+
+    // 23.3.5.1 constructors:
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR bitset() _NOEXCEPT {}
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR
+        bitset(unsigned long long __v) _NOEXCEPT : base(__v) {}
+    template<class _CharT>
+        explicit bitset(const _CharT* __str,
+                        typename basic_string<_CharT>::size_type __n = basic_string<_CharT>::npos,
+                        _CharT __zero = _CharT('0'), _CharT __one = _CharT('1'));
+    template<class _CharT, class _Traits, class _Allocator>
+        explicit bitset(const basic_string<_CharT,_Traits,_Allocator>& __str,
+                        typename basic_string<_CharT,_Traits,_Allocator>::size_type __pos = 0,
+                        typename basic_string<_CharT,_Traits,_Allocator>::size_type __n =
+                                (basic_string<_CharT,_Traits,_Allocator>::npos),
+                        _CharT __zero = _CharT('0'), _CharT __one = _CharT('1'));
+
+    // 23.3.5.2 bitset operations:
+    _LIBCPP_INLINE_VISIBILITY
+    bitset& operator&=(const bitset& __rhs) _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    bitset& operator|=(const bitset& __rhs) _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    bitset& operator^=(const bitset& __rhs) _NOEXCEPT;
+    bitset& operator<<=(size_t __pos) _NOEXCEPT;
+    bitset& operator>>=(size_t __pos) _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    bitset& set() _NOEXCEPT;
+    bitset& set(size_t __pos, bool __val = true);
+    _LIBCPP_INLINE_VISIBILITY
+    bitset& reset() _NOEXCEPT;
+    bitset& reset(size_t __pos);
+    _LIBCPP_INLINE_VISIBILITY
+    bitset  operator~() const _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    bitset& flip() _NOEXCEPT;
+    bitset& flip(size_t __pos);
+
+    // element access:
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR
+                              const_reference operator[](size_t __p) const {return base::__make_ref(__p);}
+    _LIBCPP_INLINE_VISIBILITY       reference operator[](size_t __p)       {return base::__make_ref(__p);}
+    _LIBCPP_INLINE_VISIBILITY
+    unsigned long to_ulong() const;
+    _LIBCPP_INLINE_VISIBILITY
+    unsigned long long to_ullong() const;
+    template <class _CharT, class _Traits, class _Allocator>
+        basic_string<_CharT, _Traits, _Allocator> to_string(_CharT __zero = _CharT('0'),
+                                                            _CharT __one = _CharT('1')) const;
+    template <class _CharT, class _Traits>
+        _LIBCPP_INLINE_VISIBILITY
+        basic_string<_CharT, _Traits, allocator<_CharT> > to_string(_CharT __zero = _CharT('0'),
+                                                                    _CharT __one = _CharT('1')) const;
+    template <class _CharT>
+        _LIBCPP_INLINE_VISIBILITY
+        basic_string<_CharT, char_traits<_CharT>, allocator<_CharT> > to_string(_CharT __zero = _CharT('0'),
+                                                                                _CharT __one = _CharT('1')) const;
+    _LIBCPP_INLINE_VISIBILITY
+    basic_string<char, char_traits<char>, allocator<char> > to_string(char __zero = '0',
+                                                                      char __one = '1') const;
+    _LIBCPP_INLINE_VISIBILITY
+    size_t count() const _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR size_t size() const _NOEXCEPT {return _Size;}
+    _LIBCPP_INLINE_VISIBILITY
+    bool operator==(const bitset& __rhs) const _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    bool operator!=(const bitset& __rhs) const _NOEXCEPT;
+    bool test(size_t __pos) const;
+    _LIBCPP_INLINE_VISIBILITY
+    bool all() const _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    bool any() const _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY bool none() const _NOEXCEPT {return !any();}
+    _LIBCPP_INLINE_VISIBILITY
+    bitset operator<<(size_t __pos) const _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    bitset operator>>(size_t __pos) const _NOEXCEPT;
+
+private:
+
+    _LIBCPP_INLINE_VISIBILITY
+    size_t __hash_code() const _NOEXCEPT {return base::__hash_code();}
+
+    friend struct hash<bitset>;
+};
+
+template <size_t _Size>
+template<class _CharT>
+bitset<_Size>::bitset(const _CharT* __str,
+                      typename basic_string<_CharT>::size_type __n,
+                      _CharT __zero, _CharT __one)
+{
+    size_t __rlen = _VSTD::min(__n, char_traits<_CharT>::length(__str));
+    for (size_t __i = 0; __i < __rlen; ++__i)
+        if (__str[__i] != __zero && __str[__i] != __one)
+            __throw_invalid_argument("bitset string ctor has invalid argument");
+
+    size_t _Mp = _VSTD::min(__rlen, _Size);
+    size_t __i = 0;
+    for (; __i < _Mp; ++__i)
+    {
+        _CharT __c = __str[_Mp - 1 - __i];
+        if (__c == __zero)
+            (*this)[__i] = false;
+        else
+            (*this)[__i] = true;
+    }
+    _VSTD::fill(base::__make_iter(__i), base::__make_iter(_Size), false);
+}
+
+template <size_t _Size>
+template<class _CharT, class _Traits, class _Allocator>
+bitset<_Size>::bitset(const basic_string<_CharT,_Traits,_Allocator>& __str,
+       typename basic_string<_CharT,_Traits,_Allocator>::size_type __pos,
+       typename basic_string<_CharT,_Traits,_Allocator>::size_type __n,
+       _CharT __zero, _CharT __one)
+{
+    if (__pos > __str.size())
+        __throw_out_of_range("bitset string pos out of range");
+
+    size_t __rlen = _VSTD::min(__n, __str.size() - __pos);
+    for (size_t __i = __pos; __i < __pos + __rlen; ++__i)
+        if (!_Traits::eq(__str[__i], __zero) && !_Traits::eq(__str[__i], __one))
+            __throw_invalid_argument("bitset string ctor has invalid argument");
+
+    size_t _Mp = _VSTD::min(__rlen, _Size);
+    size_t __i = 0;
+    for (; __i < _Mp; ++__i)
+    {
+        _CharT __c = __str[__pos + _Mp - 1 - __i];
+        if (_Traits::eq(__c, __zero))
+            (*this)[__i] = false;
+        else
+            (*this)[__i] = true;
+    }
+    _VSTD::fill(base::__make_iter(__i), base::__make_iter(_Size), false);
+}
+
+template <size_t _Size>
+inline
+bitset<_Size>&
+bitset<_Size>::operator&=(const bitset& __rhs) _NOEXCEPT
+{
+    base::operator&=(__rhs);
+    return *this;
+}
+
+template <size_t _Size>
+inline
+bitset<_Size>&
+bitset<_Size>::operator|=(const bitset& __rhs) _NOEXCEPT
+{
+    base::operator|=(__rhs);
+    return *this;
+}
+
+template <size_t _Size>
+inline
+bitset<_Size>&
+bitset<_Size>::operator^=(const bitset& __rhs) _NOEXCEPT
+{
+    base::operator^=(__rhs);
+    return *this;
+}
+
+template <size_t _Size>
+bitset<_Size>&
+bitset<_Size>::operator<<=(size_t __pos) _NOEXCEPT
+{
+    __pos = _VSTD::min(__pos, _Size);
+    _VSTD::copy_backward(base::__make_iter(0), base::__make_iter(_Size - __pos), base::__make_iter(_Size));
+    _VSTD::fill_n(base::__make_iter(0), __pos, false);
+    return *this;
+}
+
+template <size_t _Size>
+bitset<_Size>&
+bitset<_Size>::operator>>=(size_t __pos) _NOEXCEPT
+{
+    __pos = _VSTD::min(__pos, _Size);
+    _VSTD::copy(base::__make_iter(__pos), base::__make_iter(_Size), base::__make_iter(0));
+    _VSTD::fill_n(base::__make_iter(_Size - __pos), __pos, false);
+    return *this;
+}
+
+template <size_t _Size>
+inline
+bitset<_Size>&
+bitset<_Size>::set() _NOEXCEPT
+{
+    _VSTD::fill_n(base::__make_iter(0), _Size, true);
+    return *this;
+}
+
+template <size_t _Size>
+bitset<_Size>&
+bitset<_Size>::set(size_t __pos, bool __val)
+{
+    if (__pos >= _Size)
+        __throw_out_of_range("bitset set argument out of range");
+
+    (*this)[__pos] = __val;
+    return *this;
+}
+
+template <size_t _Size>
+inline
+bitset<_Size>&
+bitset<_Size>::reset() _NOEXCEPT
+{
+    _VSTD::fill_n(base::__make_iter(0), _Size, false);
+    return *this;
+}
+
+template <size_t _Size>
+bitset<_Size>&
+bitset<_Size>::reset(size_t __pos)
+{
+    if (__pos >= _Size)
+        __throw_out_of_range("bitset reset argument out of range");
+
+    (*this)[__pos] = false;
+    return *this;
+}
+
+template <size_t _Size>
+inline
+bitset<_Size>
+bitset<_Size>::operator~() const _NOEXCEPT
+{
+    bitset __x(*this);
+    __x.flip();
+    return __x;
+}
+
+template <size_t _Size>
+inline
+bitset<_Size>&
+bitset<_Size>::flip() _NOEXCEPT
+{
+    base::flip();
+    return *this;
+}
+
+template <size_t _Size>
+bitset<_Size>&
+bitset<_Size>::flip(size_t __pos)
+{
+    if (__pos >= _Size)
+        __throw_out_of_range("bitset flip argument out of range");
+
+    reference r = base::__make_ref(__pos);
+    r = ~r;
+    return *this;
+}
+
+template <size_t _Size>
+inline
+unsigned long
+bitset<_Size>::to_ulong() const
+{
+    return base::to_ulong();
+}
+
+template <size_t _Size>
+inline
+unsigned long long
+bitset<_Size>::to_ullong() const
+{
+    return base::to_ullong();
+}
+
+template <size_t _Size>
+template <class _CharT, class _Traits, class _Allocator>
+basic_string<_CharT, _Traits, _Allocator>
+bitset<_Size>::to_string(_CharT __zero, _CharT __one) const
+{
+    basic_string<_CharT, _Traits, _Allocator> __r(_Size, __zero);
+    for (size_t __i = 0; __i < _Size; ++__i)
+    {
+        if ((*this)[__i])
+            __r[_Size - 1 - __i] = __one;
+    }
+    return __r;
+}
+
+template <size_t _Size>
+template <class _CharT, class _Traits>
+inline
+basic_string<_CharT, _Traits, allocator<_CharT> >
+bitset<_Size>::to_string(_CharT __zero, _CharT __one) const
+{
+    return to_string<_CharT, _Traits, allocator<_CharT> >(__zero, __one);
+}
+
+template <size_t _Size>
+template <class _CharT>
+inline
+basic_string<_CharT, char_traits<_CharT>, allocator<_CharT> >
+bitset<_Size>::to_string(_CharT __zero, _CharT __one) const
+{
+    return to_string<_CharT, char_traits<_CharT>, allocator<_CharT> >(__zero, __one);
+}
+
+template <size_t _Size>
+inline
+basic_string<char, char_traits<char>, allocator<char> >
+bitset<_Size>::to_string(char __zero, char __one) const
+{
+    return to_string<char, char_traits<char>, allocator<char> >(__zero, __one);
+}
+
+template <size_t _Size>
+inline
+size_t
+bitset<_Size>::count() const _NOEXCEPT
+{
+    return static_cast<size_t>(__count_bool_true(base::__make_iter(0), _Size));
+}
+
+template <size_t _Size>
+inline
+bool
+bitset<_Size>::operator==(const bitset& __rhs) const _NOEXCEPT
+{
+    return _VSTD::equal(base::__make_iter(0), base::__make_iter(_Size), __rhs.__make_iter(0));
+}
+
+template <size_t _Size>
+inline
+bool
+bitset<_Size>::operator!=(const bitset& __rhs) const _NOEXCEPT
+{
+    return !(*this == __rhs);
+}
+
+template <size_t _Size>
+bool
+bitset<_Size>::test(size_t __pos) const
+{
+    if (__pos >= _Size)
+        __throw_out_of_range("bitset test argument out of range");
+
+    return (*this)[__pos];
+}
+
+template <size_t _Size>
+inline
+bool
+bitset<_Size>::all() const _NOEXCEPT
+{
+    return base::all();
+}
+
+template <size_t _Size>
+inline
+bool
+bitset<_Size>::any() const _NOEXCEPT
+{
+    return base::any();
+}
+
+template <size_t _Size>
+inline
+bitset<_Size>
+bitset<_Size>::operator<<(size_t __pos) const _NOEXCEPT
+{
+    bitset __r = *this;
+    __r <<= __pos;
+    return __r;
+}
+
+template <size_t _Size>
+inline
+bitset<_Size>
+bitset<_Size>::operator>>(size_t __pos) const _NOEXCEPT
+{
+    bitset __r = *this;
+    __r >>= __pos;
+    return __r;
+}
+
+template <size_t _Size>
+inline _LIBCPP_INLINE_VISIBILITY
+bitset<_Size>
+operator&(const bitset<_Size>& __x, const bitset<_Size>& __y) _NOEXCEPT
+{
+    bitset<_Size> __r = __x;
+    __r &= __y;
+    return __r;
+}
+
+template <size_t _Size>
+inline _LIBCPP_INLINE_VISIBILITY
+bitset<_Size>
+operator|(const bitset<_Size>& __x, const bitset<_Size>& __y) _NOEXCEPT
+{
+    bitset<_Size> __r = __x;
+    __r |= __y;
+    return __r;
+}
+
+template <size_t _Size>
+inline _LIBCPP_INLINE_VISIBILITY
+bitset<_Size>
+operator^(const bitset<_Size>& __x, const bitset<_Size>& __y) _NOEXCEPT
+{
+    bitset<_Size> __r = __x;
+    __r ^= __y;
+    return __r;
+}
+
+template <size_t _Size>
+struct _LIBCPP_TEMPLATE_VIS hash<bitset<_Size> >
+    : public unary_function<bitset<_Size>, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(const bitset<_Size>& __bs) const _NOEXCEPT
+        {return __bs.__hash_code();}
+};
+
+template <class _CharT, class _Traits, size_t _Size>
+basic_istream<_CharT, _Traits>&
+operator>>(basic_istream<_CharT, _Traits>& __is, bitset<_Size>& __x);
+
+template <class _CharT, class _Traits, size_t _Size>
+basic_ostream<_CharT, _Traits>&
+operator<<(basic_ostream<_CharT, _Traits>& __os, const bitset<_Size>& __x);
+
+_LIBCPP_END_NAMESPACE_STD
+
+_LIBCPP_POP_MACROS
+
+#endif  // _LIBCPP_BITSET

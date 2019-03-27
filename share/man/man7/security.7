@@ -1,0 +1,968 @@
+.\" Copyright (C) 1998 Matthew Dillon. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 25, 2013
+.Dt SECURITY 7
+.Os
+.Sh NAME
+.Nm security
+.Nd introduction to security under FreeBSD
+.Sh DESCRIPTION
+Security is a function that begins and ends with the system administrator.
+While all
+.Bx
+multi-user systems have some inherent security, the job of building and
+maintaining additional security mechanisms to keep users
+.Dq honest
+is probably
+one of the single largest undertakings of the sysadmin.
+Machines are
+only as secure as you make them, and security concerns are ever competing
+with the human necessity for convenience.
+.Ux
+systems,
+in general, are capable of running a huge number of simultaneous processes
+and many of these processes operate as servers \(em meaning that external
+entities can connect and talk to them.
+As yesterday's mini-computers and mainframes
+become today's desktops, and as computers become networked and internetworked,
+security becomes an ever bigger issue.
+.Pp
+Security is best implemented through a layered onion approach.
+In a nutshell,
+what you want to do is to create as many layers of security as are convenient
+and then carefully monitor the system for intrusions.
+.Pp
+System security also pertains to dealing with various forms of attacks,
+including attacks that attempt to crash or otherwise make a system unusable
+but do not attempt to break root.
+Security concerns can be split up into
+several categories:
+.Bl -enum -offset indent
+.It
+Denial of Service attacks (DoS)
+.It
+User account compromises
+.It
+Root compromise through accessible servers
+.It
+Root compromise via user accounts
+.It
+Backdoor creation
+.El
+.Pp
+A denial of service attack is an action that deprives the machine of needed
+resources.
+Typically, DoS attacks are brute-force mechanisms that attempt
+to crash or otherwise make a machine unusable by overwhelming its servers or
+network stack.
+Some DoS attacks try to take advantages of bugs in the
+networking stack to crash a machine with a single packet.
+The latter can
+only be fixed by applying a bug fix to the kernel.
+Attacks on servers can
+often be fixed by properly specifying options to limit the load the servers
+incur on the system under adverse conditions.
+Brute-force network attacks are harder to deal with.
+A spoofed-packet attack, for example, is
+nearly impossible to stop short of cutting your system off from the Internet.
+It may not be able to take your machine down, but it can fill up your Internet
+pipe.
+.Pp
+A user account compromise is even more common than a DoS attack.
+Many
+sysadmins still run standard
+.Xr telnetd 8 ,
+.Xr rlogind 8 ,
+.Xr rshd 8 ,
+and
+.Xr ftpd 8
+servers on their machines.
+These servers, by default, do not operate over encrypted
+connections.
+The result is that if you have any moderate-sized user base,
+one or more of your users logging into your system from a remote location
+(which is the most common and convenient way to log in to a system)
+will have his or her password sniffed.
+The attentive system administrator will analyze
+his remote access logs looking for suspicious source addresses
+even for successful logins.
+.Pp
+One must always assume that once an attacker has access to a user account,
+the attacker can break root.
+However, the reality is that in a well secured
+and maintained system, access to a user account does not necessarily give the
+attacker access to root.
+The distinction is important because without access
+to root the attacker cannot generally hide his tracks and may, at best, be
+able to do nothing more than mess with the user's files or crash the machine.
+User account compromises are very common because users tend not to take the
+precautions that sysadmins take.
+.Pp
+System administrators must keep in mind that there are potentially many ways
+to break root on a machine.
+The attacker may know the root password,
+the attacker
+may find a bug in a root-run server and be able to break root over a network
+connection to that server, or the attacker may know of a bug in an SUID-root
+program that allows the attacker to break root once he has broken into a
+user's account.
+If an attacker has found a way to break root on a machine,
+the attacker may not have a need to install a backdoor.
+Many of the root holes found and closed to date involve a considerable amount
+of work by the attacker to clean up after himself, so most attackers do install
+backdoors.
+This gives you a convenient way to detect the attacker.
+Making
+it impossible for an attacker to install a backdoor may actually be detrimental
+to your security because it will not close off the hole the attacker used to
+break in originally.
+.Pp
+Security remedies should always be implemented with a multi-layered
+.Dq onion peel
+approach and can be categorized as follows:
+.Bl -enum -offset indent
+.It
+Securing root and staff accounts
+.It
+Securing root \(em root-run servers and SUID/SGID binaries
+.It
+Securing user accounts
+.It
+Securing the password file
+.It
+Securing the kernel core, raw devices, and file systems
+.It
+Quick detection of inappropriate changes made to the system
+.It
+Paranoia
+.El
+.Sh SECURING THE ROOT ACCOUNT AND SECURING STAFF ACCOUNTS
+Do not bother securing staff accounts if you have not secured the root
+account.
+Most systems have a password assigned to the root account.
+The
+first thing you do is assume that the password is
+.Em always
+compromised.
+This does not mean that you should remove the password.
+The
+password is almost always necessary for console access to the machine.
+What it does mean is that you should not make it possible to use the password
+outside of the console or possibly even with a
+.Xr su 1
+utility.
+For example, make sure that your PTYs are specified as being
+.Dq Li insecure
+in the
+.Pa /etc/ttys
+file
+so that direct root logins via
+.Xr telnet 1
+or
+.Xr rlogin 1
+are disallowed.
+If using
+other login services such as
+.Xr sshd 8 ,
+make sure that direct root logins are
+disabled there as well.
+Consider every access method \(em services such as
+.Xr ftp 1
+often fall through the cracks.
+Direct root logins should only be allowed
+via the system console.
+.Pp
+Of course, as a sysadmin you have to be able to get to root, so we open up
+a few holes.
+But we make sure these holes require additional password
+verification to operate.
+One way to make root accessible is to add appropriate
+staff accounts to the
+.Dq Li wheel
+group (in
+.Pa /etc/group ) .
+The staff members placed in the
+.Li wheel
+group are allowed to
+.Xr su 1
+to root.
+You should never give staff
+members native
+.Li wheel
+access by putting them in the
+.Li wheel
+group in their password entry.
+Staff accounts should be placed in a
+.Dq Li staff
+group, and then added to the
+.Li wheel
+group via the
+.Pa /etc/group
+file.
+Only those staff members who actually need to have root access
+should be placed in the
+.Li wheel
+group.
+It is also possible, when using an
+authentication method such as Kerberos, to use Kerberos's
+.Pa .k5login
+file in the root account to allow a
+.Xr ksu 1
+to root without having to place anyone at all in the
+.Li wheel
+group.
+This
+may be the better solution since the
+.Li wheel
+mechanism still allows an
+intruder to break root if the intruder has gotten hold of your password
+file and can break into a staff account.
+While having the
+.Li wheel
+mechanism
+is better than having nothing at all, it is not necessarily the safest
+option.
+.Pp
+An indirect way to secure the root account is to secure your staff accounts
+by using an alternative login access method and *'ing out the crypted password
+for the staff accounts.
+This way an intruder may be able to steal the password
+file but will not be able to break into any staff accounts or root, even if
+root has a crypted password associated with it (assuming, of course, that
+you have limited root access to the console).
+Staff members
+get into their staff accounts through a secure login mechanism such as
+.Xr kerberos 8
+or
+.Xr ssh 1
+using a private/public
+key pair.
+When you use something like Kerberos you generally must secure
+the machines which run the Kerberos servers and your desktop workstation.
+When you use a public/private key pair with SSH, you must generally secure
+the machine you are logging in
+.Em from
+(typically your workstation),
+but you can
+also add an additional layer of protection to the key pair by password
+protecting the keypair when you create it with
+.Xr ssh-keygen 1 .
+Being able
+to *-out the passwords for staff accounts also guarantees that staff members
+can only log in through secure access methods that you have set up.
+You can
+thus force all staff members to use secure, encrypted connections for
+all their sessions which closes an important hole used by many intruders: that
+of sniffing the network from an unrelated, less secure machine.
+.Pp
+The more indirect security mechanisms also assume that you are logging in
+from a more restrictive server to a less restrictive server.
+For example,
+if your main box is running all sorts of servers, your workstation should not
+be running any.
+In order for your workstation to be reasonably secure
+you should run as few servers as possible, up to and including no servers
+at all, and you should run a password-protected screen blanker.
+Of course, given physical access to
+a workstation, an attacker can break any sort of security you put on it.
+This is definitely a problem that you should consider but you should also
+consider the fact that the vast majority of break-ins occur remotely, over
+a network, from people who do not have physical access to your workstation or
+servers.
+.Pp
+Using something like Kerberos also gives you the ability to disable or
+change the password for a staff account in one place and have it immediately
+affect all the machines the staff member may have an account on.
+If a staff
+member's account gets compromised, the ability to instantly change his
+password on all machines should not be underrated.
+With discrete passwords, changing a password on N machines can be a mess.
+You can also impose
+re-passwording restrictions with Kerberos: not only can a Kerberos ticket
+be made to timeout after a while, but the Kerberos system can require that
+the user choose a new password after a certain period of time
+(say, once a month).
+.Sh SECURING ROOT \(em ROOT-RUN SERVERS AND SUID/SGID BINARIES
+The prudent sysadmin only runs the servers he needs to, no more, no less.
+Be aware that third party servers are often the most bug-prone.
+For example,
+running an old version of
+.Xr imapd 8
+or
+.Xr popper 8 Pq Pa ports/mail/popper
+is like giving a universal root
+ticket out to the entire world.
+Never run a server that you have not checked
+out carefully.
+Many servers do not need to be run as root.
+For example,
+the
+.Xr talkd 8 ,
+.Xr comsat 8 ,
+and
+.Xr fingerd 8
+daemons can be run in special user
+.Dq sandboxes .
+A sandbox is not perfect unless you go to a large amount of trouble, but the
+onion approach to security still stands: if someone is able to break in
+through a server running in a sandbox, they still have to break out of the
+sandbox.
+The more layers the attacker must break through, the lower the
+likelihood of his success.
+Root holes have historically been found in
+virtually every server ever run as root, including basic system servers.
+If you are running a machine through which people only log in via
+.Xr sshd 8
+and never log in via
+.Xr telnetd 8 ,
+.Xr rshd 8 ,
+or
+.Xr rlogind 8 ,
+then turn off those services!
+.Pp
+.Fx
+now defaults to running
+.Xr talkd 8 ,
+.Xr comsat 8 ,
+and
+.Xr fingerd 8
+in a sandbox.
+Depending on whether you
+are installing a new system or upgrading an existing system, the special
+user accounts used by these sandboxes may not be installed.
+The prudent
+sysadmin would research and implement sandboxes for servers whenever possible.
+.Pp
+There are a number of other servers that typically do not run in sandboxes:
+.Xr sendmail 8 ,
+.Xr popper 8 ,
+.Xr imapd 8 ,
+.Xr ftpd 8 ,
+and others.
+There are alternatives to
+some of these, but installing them may require more work than you are willing
+to put
+(the convenience factor strikes again).
+You may have to run these
+servers as root and rely on other mechanisms to detect break-ins that might
+occur through them.
+.Pp
+The other big potential root hole in a system are the SUID-root and SGID
+binaries installed on the system.
+Most of these binaries, such as
+.Xr rlogin 1 ,
+reside in
+.Pa /bin , /sbin , /usr/bin ,
+or
+.Pa /usr/sbin .
+While nothing is 100% safe,
+the system-default SUID and SGID binaries can be considered reasonably safe.
+Still, root holes are occasionally found in these binaries.
+A root hole
+was found in Xlib in 1998 that made
+.Xr xterm 1 Pq Pa ports/x11/xterm
+(which is typically SUID)
+vulnerable.
+It is better to be safe than sorry and the prudent sysadmin will restrict SUID
+binaries that only staff should run to a special group that only staff can
+access, and get rid of
+.Pq Dq Li "chmod 000"
+any SUID binaries that nobody uses.
+A server with no display generally does not need an
+.Xr xterm 1
+binary.
+SGID binaries can be almost as dangerous.
+If an intruder can break an SGID-kmem binary the
+intruder might be able to read
+.Pa /dev/kmem
+and thus read the crypted password
+file, potentially compromising any passworded account.
+Alternatively an
+intruder who breaks group
+.Dq Li kmem
+can monitor keystrokes sent through PTYs,
+including PTYs used by users who log in through secure methods.
+An intruder
+that breaks the
+.Dq Li tty
+group can write to almost any user's TTY.
+If a user
+is running a terminal
+program or emulator with a keyboard-simulation feature, the intruder can
+potentially
+generate a data stream that causes the user's terminal to echo a command, which
+is then run as that user.
+.Sh SECURING USER ACCOUNTS
+User accounts are usually the most difficult to secure.
+While you can impose
+draconian access restrictions on your staff and *-out their passwords, you
+may not be able to do so with any general user accounts you might have.
+If
+you do have sufficient control then you may win out and be able to secure the
+user accounts properly.
+If not, you simply have to be more vigilant in your
+monitoring of those accounts.
+Use of SSH and Kerberos for user accounts is
+more problematic due to the extra administration and technical support
+required, but still a very good solution compared to a crypted password
+file.
+.Sh SECURING THE PASSWORD FILE
+The only sure fire way is to *-out as many passwords as you can and
+use SSH or Kerberos for access to those accounts.
+Even though the
+crypted password file
+.Pq Pa /etc/spwd.db
+can only be read by root, it may
+be possible for an intruder to obtain read access to that file even if the
+attacker cannot obtain root-write access.
+.Pp
+Your security scripts should always check for and report changes to
+the password file
+(see
+.Sx CHECKING FILE INTEGRITY
+below).
+.Sh SECURING THE KERNEL CORE, RAW DEVICES, AND FILE SYSTEMS
+If an attacker breaks root he can do just about anything, but there
+are certain conveniences.
+For example, most modern kernels have a packet sniffing device driver built in.
+Under
+.Fx
+it is called
+the
+.Xr bpf 4
+device.
+An intruder will commonly attempt to run a packet sniffer
+on a compromised machine.
+You do not need to give the intruder the
+capability and most systems should not have the
+.Xr bpf 4
+device compiled in.
+.Pp
+But even if you turn off the
+.Xr bpf 4
+device, you still have
+.Pa /dev/mem
+and
+.Pa /dev/kmem
+to worry about.
+For that matter,
+the intruder can still write to raw disk devices.
+Also, there is another kernel feature called the module loader,
+.Xr kldload 8 .
+An enterprising intruder can use a KLD module to install
+his own
+.Xr bpf 4
+device or other sniffing device on a running kernel.
+To avoid these problems you have to run
+the kernel at a higher security level, at least level 1.
+The security level can be set with a
+.Xr sysctl 8
+on the
+.Va kern.securelevel
+variable.
+Once you have
+set the security level to 1, write access to raw devices will be denied and
+special
+.Xr chflags 1
+flags, such as
+.Cm schg ,
+will be enforced.
+You must also ensure
+that the
+.Cm schg
+flag is set on critical startup binaries, directories, and
+script files \(em everything that gets run
+up to the point where the security level is set.
+This might be overdoing it, and upgrading the system is much more
+difficult when you operate at a higher security level.
+You may compromise and
+run the system at a higher security level but not set the
+.Cm schg
+flag for every
+system file and directory under the sun.
+Another possibility is to simply
+mount
+.Pa /
+and
+.Pa /usr
+read-only.
+It should be noted that being too draconian in
+what you attempt to protect may prevent the all-important detection of an
+intrusion.
+.Pp
+The kernel runs with five different security levels.
+Any super-user process can raise the level, but no process
+can lower it.
+The security levels are:
+.Bl -tag -width flag
+.It Ic -1
+Permanently insecure mode \- always run the system in insecure mode.
+This is the default initial value.
+.It Ic 0
+Insecure mode \- immutable and append-only flags may be turned off.
+All devices may be read or written subject to their permissions.
+.It Ic 1
+Secure mode \- the system immutable and system append-only flags may not
+be turned off;
+disks for mounted file systems,
+.Pa /dev/mem
+and
+.Pa /dev/kmem
+may not be opened for writing;
+.Pa /dev/io
+(if your platform has it) may not be opened at all;
+kernel modules (see
+.Xr kld 4 )
+may not be loaded or unloaded.
+The kernel debugger may not be entered using the
+.Va debug.kdb.enter
+sysctl.
+A panic or trap cannot be forced using the
+.Va debug.kdb.panic
+and other sysctl's.
+.It Ic 2
+Highly secure mode \- same as secure mode, plus disks may not be
+opened for writing (except by
+.Xr mount 2 )
+whether mounted or not.
+This level precludes tampering with file systems by unmounting them,
+but also inhibits running
+.Xr newfs 8
+while the system is multi-user.
+.Pp
+In addition, kernel time changes are restricted to less than or equal to one
+second.
+Attempts to change the time by more than this will log the message
+.Dq Time adjustment clamped to +1 second .
+.It Ic 3
+Network secure mode \- same as highly secure mode, plus
+IP packet filter rules (see
+.Xr ipfw 8 ,
+.Xr ipfirewall 4
+and
+.Xr pfctl 8 )
+cannot be changed and
+.Xr dummynet 4
+or
+.Xr pf 4
+configuration cannot be adjusted.
+.El
+.Pp
+The security level can be configured with variables documented in
+.Xr rc.conf 5 .
+.Sh CHECKING FILE INTEGRITY: BINARIES, CONFIG FILES, ETC
+When it comes right down to it, you can only protect your core system
+configuration and control files so much before the convenience factor
+rears its ugly head.
+For example, using
+.Xr chflags 1
+to set the
+.Cm schg
+bit on most of the files in
+.Pa /
+and
+.Pa /usr
+is probably counterproductive because
+while it may protect the files, it also closes a detection window.
+The
+last layer of your security onion is perhaps the most important \(em detection.
+The rest of your security is pretty much useless (or, worse, presents you with
+a false sense of safety) if you cannot detect potential incursions.
+Half
+the job of the onion is to slow down the attacker rather than stop him
+in order to give the detection layer a chance to catch him in
+the act.
+.Pp
+The best way to detect an incursion is to look for modified, missing, or
+unexpected files.
+The best
+way to look for modified files is from another (often centralized)
+limited-access system.
+Writing your security scripts on the extra-secure limited-access system
+makes them mostly invisible to potential attackers, and this is important.
+In order to take maximum advantage you generally have to give the
+limited-access box significant access to the other machines in the business,
+usually either by doing a read-only NFS export of the other machines to the
+limited-access box, or by setting up SSH keypairs to allow the limit-access
+box to SSH to the other machines.
+Except for its network traffic, NFS is
+the least visible method \(em allowing you to monitor the file systems on each
+client box virtually undetected.
+If your
+limited-access server is connected to the client boxes through a switch,
+the NFS method is often the better choice.
+If your limited-access server
+is connected to the client boxes through a hub or through several layers
+of routing, the NFS method may be too insecure (network-wise) and using SSH
+may be the better choice even with the audit-trail tracks that SSH lays.
+.Pp
+Once you give a limit-access box at least read access to the client systems
+it is supposed to monitor, you must write scripts to do the actual
+monitoring.
+Given an NFS mount, you can write scripts out of simple system
+utilities such as
+.Xr find 1
+and
+.Xr md5 1 .
+It is best to physically
+.Xr md5 1
+the client-box files boxes at least once a
+day, and to test control files such as those found in
+.Pa /etc
+and
+.Pa /usr/local/etc
+even more often.
+When mismatches are found relative to the base MD5
+information the limited-access machine knows is valid, it should scream at
+a sysadmin to go check it out.
+A good security script will also check for
+inappropriate SUID binaries and for new or deleted files on system partitions
+such as
+.Pa /
+and
+.Pa /usr .
+.Pp
+When using SSH rather than NFS, writing the security script is much more
+difficult.
+You essentially have to
+.Xr scp 1
+the scripts to the client box in order to run them, making them visible, and
+for safety you also need to
+.Xr scp 1
+the binaries (such as
+.Xr find 1 )
+that those scripts use.
+The
+.Xr sshd 8
+daemon on the client box may already be compromised.
+All in all,
+using SSH may be necessary when running over unsecure links, but it is also a
+lot harder to deal with.
+.Pp
+A good security script will also check for changes to user and staff members
+access configuration files:
+.Pa .rhosts , .shosts , .ssh/authorized_keys
+and so forth, files that might fall outside the purview of the MD5 check.
+.Pp
+If you have a huge amount of user disk space it may take too long to run
+through every file on those partitions.
+In this case, setting mount
+flags to disallow SUID binaries on those partitions is a good
+idea.
+The
+.Cm nosuid
+option
+(see
+.Xr mount 8 )
+is what you want to look into.
+I would scan them anyway at least once a
+week, since the object of this layer is to detect a break-in whether or
+not the break-in is effective.
+.Pp
+Process accounting
+(see
+.Xr accton 8 )
+is a relatively low-overhead feature of
+the operating system which I recommend using as a post-break-in evaluation
+mechanism.
+It is especially useful in tracking down how an intruder has
+actually broken into a system, assuming the file is still intact after
+the break-in occurs.
+.Pp
+Finally, security scripts should process the log files and the logs themselves
+should be generated in as secure a manner as possible \(em remote syslog can be
+very useful.
+An intruder tries to cover his tracks, and log files are critical
+to the sysadmin trying to track down the time and method of the initial
+break-in.
+One way to keep a permanent record of the log files is to run
+the system console to a serial port and collect the information on a
+continuing basis through a secure machine monitoring the consoles.
+.Sh PARANOIA
+A little paranoia never hurts.
+As a rule, a sysadmin can add any number
+of security features as long as they do not affect convenience, and
+can add security features that do affect convenience with some added
+thought.
+Even more importantly, a security administrator should mix it up
+a bit \(em if you use recommendations such as those given by this manual
+page verbatim, you give away your methodologies to the prospective
+attacker who also has access to this manual page.
+.Sh SPECIAL SECTION ON DoS ATTACKS
+This section covers Denial of Service attacks.
+A DoS attack is typically a packet attack.
+While there is not much you can do about modern spoofed
+packet attacks that saturate your network, you can generally limit the damage
+by ensuring that the attacks cannot take down your servers.
+.Bl -enum -offset indent
+.It
+Limiting server forks
+.It
+Limiting springboard attacks (ICMP response attacks, ping broadcast, etc.)
+.It
+Kernel Route Cache
+.El
+.Pp
+A common DoS attack is against a forking server that attempts to cause the
+server to eat processes, file descriptors, and memory until the machine
+dies.
+The
+.Xr inetd 8
+server
+has several options to limit this sort of attack.
+It should be noted that while it is possible to prevent a machine from going
+down it is not generally possible to prevent a service from being disrupted
+by the attack.
+Read the
+.Xr inetd 8
+manual page carefully and pay specific attention
+to the
+.Fl c , C ,
+and
+.Fl R
+options.
+Note that spoofed-IP attacks will circumvent
+the
+.Fl C
+option to
+.Xr inetd 8 ,
+so typically a combination of options must be used.
+Some standalone servers have self-fork-limitation parameters.
+.Pp
+The
+.Xr sendmail 8
+daemon has its
+.Fl OMaxDaemonChildren
+option which tends to work much
+better than trying to use
+.Xr sendmail 8 Ns 's
+load limiting options due to the
+load lag.
+You should specify a
+.Va MaxDaemonChildren
+parameter when you start
+.Xr sendmail 8
+high enough to handle your expected load but not so high that the
+computer cannot handle that number of
+.Nm sendmail Ns 's
+without falling on its face.
+It is also prudent to run
+.Xr sendmail 8
+in
+.Dq queued
+mode
+.Pq Fl ODeliveryMode=queued
+and to run the daemon
+.Pq Dq Nm sendmail Fl bd
+separate from the queue-runs
+.Pq Dq Nm sendmail Fl q15m .
+If you still want real-time delivery you can run the queue
+at a much lower interval, such as
+.Fl q1m ,
+but be sure to specify a reasonable
+.Va MaxDaemonChildren
+option for that
+.Xr sendmail 8
+to prevent cascade failures.
+.Pp
+The
+.Xr syslogd 8
+daemon can be attacked directly and it is strongly recommended that you use
+the
+.Fl s
+option whenever possible, and the
+.Fl a
+option otherwise.
+.Pp
+You should also be fairly careful
+with connect-back services such as tcpwrapper's reverse-identd, which can
+be attacked directly.
+You generally do not want to use the reverse-ident
+feature of tcpwrappers for this reason.
+.Pp
+It is a very good idea to protect internal services from external access
+by firewalling them off at your border routers.
+The idea here is to prevent
+saturation attacks from outside your LAN, not so much to protect internal
+services from network-based root compromise.
+Always configure an exclusive
+firewall, i.e.,
+.So
+firewall everything
+.Em except
+ports A, B, C, D, and M-Z
+.Sc .
+This
+way you can firewall off all of your low ports except for certain specific
+services such as
+.Xr talkd 8 ,
+.Xr sendmail 8 ,
+and other internet-accessible services.
+If you try to configure the firewall the other
+way \(em as an inclusive or permissive firewall, there is a good chance that you
+will forget to
+.Dq close
+a couple of services or that you will add a new internal
+service and forget to update the firewall.
+You can still open up the
+high-numbered port range on the firewall to allow permissive-like operation
+without compromising your low ports.
+Also take note that
+.Fx
+allows you to
+control the range of port numbers used for dynamic binding via the various
+.Va net.inet.ip.portrange
+sysctl's
+.Pq Dq Li "sysctl net.inet.ip.portrange" ,
+which can also
+ease the complexity of your firewall's configuration.
+I usually use a normal
+first/last range of 4000 to 5000, and a hiport range of 49152 to 65535, then
+block everything under 4000 off in my firewall
+(except for certain specific
+internet-accessible ports, of course).
+.Pp
+Another common DoS attack is called a springboard attack \(em to attack a server
+in a manner that causes the server to generate responses which then overload
+the server, the local network, or some other machine.
+The most common attack
+of this nature is the ICMP PING BROADCAST attack.
+The attacker spoofs ping
+packets sent to your LAN's broadcast address with the source IP address set
+to the actual machine they wish to attack.
+If your border routers are not
+configured to stomp on ping's to broadcast addresses, your LAN winds up
+generating sufficient responses to the spoofed source address to saturate the
+victim, especially when the attacker uses the same trick on several dozen
+broadcast addresses over several dozen different networks at once.
+Broadcast attacks of over a hundred and twenty megabits have been measured.
+A second common springboard attack is against the ICMP error reporting system.
+By
+constructing packets that generate ICMP error responses, an attacker can
+saturate a server's incoming network and cause the server to saturate its
+outgoing network with ICMP responses.
+This type of attack can also crash the
+server by running it out of
+.Vt mbuf Ns 's ,
+especially if the server cannot drain the
+ICMP responses it generates fast enough.
+The
+.Fx
+kernel has a new kernel
+compile option called
+.Dv ICMP_BANDLIM
+which limits the effectiveness of these
+sorts of attacks.
+The last major class of springboard attacks is related to
+certain internal
+.Xr inetd 8
+services such as the UDP echo service.
+An attacker
+simply spoofs a UDP packet with the source address being server A's echo port,
+and the destination address being server B's echo port, where server A and B
+are both on your LAN.
+The two servers then bounce this one packet back and
+forth between each other.
+The attacker can overload both servers and their
+LANs simply by injecting a few packets in this manner.
+Similar problems
+exist with the internal chargen port.
+A competent sysadmin will turn off all
+of these
+.Xr inetd 8 Ns -internal
+test services.
+.Sh ACCESS ISSUES WITH KERBEROS AND SSH
+There are a few issues with both Kerberos and SSH that need to be addressed
+if you intend to use them.
+Kerberos5 is an excellent authentication
+protocol but the kerberized
+.Xr telnet 1
+and
+.Xr rlogin 1
+suck rocks.
+There are bugs that make them unsuitable for dealing with binary streams.
+Also, by default
+Kerberos does not encrypt a session unless you use the
+.Fl x
+option.
+SSH encrypts everything by default.
+.Pp
+SSH works quite well in every respect except when it is set up to
+forward encryption keys.
+What this means is that if you have a secure workstation holding
+keys that give you access to the rest of the system, and you
+.Xr ssh 1
+to an
+unsecure machine, your keys become exposed.
+The actual keys themselves are
+not exposed, but
+.Xr ssh 1
+installs a forwarding port for the duration of your
+login and if an attacker has broken root on the unsecure machine he can utilize
+that port to use your keys to gain access to any other machine that your
+keys unlock.
+.Pp
+We recommend that you use SSH in combination with Kerberos whenever possible
+for staff logins.
+SSH can be compiled with Kerberos support.
+This reduces
+your reliance on potentially exposable SSH keys while at the same time
+protecting passwords via Kerberos.
+SSH keys
+should only be used for automated tasks from secure machines (something
+that Kerberos is unsuited to).
+We also recommend that you either turn off
+key-forwarding in the SSH configuration, or that you make use of the
+.Va from Ns = Ns Ar IP/DOMAIN
+option that SSH allows in its
+.Pa authorized_keys
+file to make the key only usable to entities logging in from specific
+machines.
+.Sh SEE ALSO
+.Xr chflags 1 ,
+.Xr find 1 ,
+.Xr md5 1 ,
+.Xr netstat 1 ,
+.Xr openssl 1 ,
+.Xr ssh 1 ,
+.Xr xdm 1 Pq Pa ports/x11/xorg-clients ,
+.Xr group 5 ,
+.Xr ttys 5 ,
+.Xr accton 8 ,
+.Xr init 8 ,
+.Xr sshd 8 ,
+.Xr sysctl 8 ,
+.Xr syslogd 8 ,
+.Xr vipw 8
+.Sh HISTORY
+The
+.Nm
+manual page was originally written by
+.An Matthew Dillon
+and first appeared
+in
+.Fx 3.1 ,
+December 1998.

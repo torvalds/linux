@@ -1,0 +1,559 @@
+#!/bin/sh
+# Submit a problem report to a GNATS site.
+# Copyright (C) 1993, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+# Contributed by Brendan Kehoe (brendan@cygnus.com), based on a
+# version written by Heinz G. Seidl (hgs@cygnus.com).
+#
+# This file is part of GNU GNATS.
+#
+# GNU GNATS is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+#
+# GNU GNATS is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GNU GNATS; see the file COPYING.  If not, write to
+# the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+# Boston, MA 02110-1301, USA.
+
+# The version of this send-pr.
+VERSION=3.113
+
+# The submitter-id for your site.
+SUBMITTER=net
+
+# The default mail address for PR submissions. 
+GNATS_ADDR=gcc-gnats@gcc.gnu.org
+
+# The default release for this host.
+# We have to guess at what program_transform_name might have done.
+# "sed 1q" because neither "head -1" nor "head -n 1" is universal, argh.
+
+DEFAULT_GCC="`echo $0 | sed -e 's/bug//'`"
+DEFAULT_RELEASE="`$DEFAULT_GCC --version | sed 1q`"
+
+# The default organization.
+DEFAULT_ORGANIZATION=
+
+# What mailer to use.  This must come after the config file, since it is
+# host-dependent.
+# Copied from cvsbug
+if [ -f /usr/sbin/sendmail ]; then  
+    MAIL_AGENT="/usr/sbin/sendmail -oi -t"
+else  
+    MAIL_AGENT="/usr/lib/sendmail -oi -t"
+fi
+MAILER=`echo $MAIL_AGENT | sed -e 's, .*,,'`
+if [ ! -f "$MAILER" ] ; then
+    echo "$COMMAND: Cannot file mail program \"$MAILER\"."
+    echo "$COMMAND: Please fix the MAIL_AGENT entry in the $COMMAND file."
+    exit 1
+fi
+
+
+# How to read the passwd database.
+PASSWD="cat /etc/passwd"
+
+ECHON=bsd
+
+if [ $ECHON = bsd ] ; then
+  ECHON1="echo -n"
+  ECHON2=
+elif [ $ECHON = sysv ] ; then
+  ECHON1=echo
+  ECHON2='\c'
+else
+  ECHON1=echo
+  ECHON2=
+fi
+
+#
+
+if [ -z "$TMPDIR" ]; then
+  TMPDIR=/tmp
+else
+  if [ "`echo $TMPDIR | grep '/$'`" != "" ]; then
+    TMPDIR="`echo $TMPDIR | sed -e 's,/$,,'`"
+  fi
+fi
+
+if [ @have_mktemp_command@ = yes ]; then
+	TEMP0=`mktemp $TMPDIR/poXXXXXX` || exit 1
+	TEMP=`mktemp $TMPDIR/pXXXXXX` || exit 1
+	BAD=`mktemp $TMPDIR/pbadXXXXXX` || exit 1
+	REF=`mktemp $TMPDIR/pfXXXXXX` || exit 1
+	REMOVE_TEMP="rm -f $TEMP0 $TEMP $BAD $REF"
+else
+	TEMPD=$TMPDIR/pd$$
+	TEMP0=$TEMPD/po$$
+	TEMP=$TEMPD/p$$
+	BAD=$TEMPD/pbad$$
+	REF=$TEMPD/pf$$
+	mkdir $TEMPD || exit 1
+	REMOVE_TEMP="rm -rf $TEMPD"
+fi
+
+# find a user name
+if [ "$LOGNAME" = "" ]; then
+	if [ "$USER" != "" ]; then
+		LOGNAME="$USER"
+	else
+		LOGNAME="UNKNOWN"
+	fi
+fi
+
+FROM="$LOGNAME"
+REPLY_TO="${REPLY_TO:-${REPLYTO:-$LOGNAME}}"
+
+# Find out the name of the originator of this PR.
+if [ -n "$NAME" ]; then
+  ORIGINATOR="$NAME"
+elif [ -f $HOME/.fullname ]; then
+  ORIGINATOR="`sed -e '1q' $HOME/.fullname`"
+else
+  # Must use temp file due to incompatibilities in quoting behavior
+  # and to protect shell metacharacters in the expansion of $LOGNAME
+  $PASSWD | grep "^$LOGNAME:" | awk -F: '{print $5}' | sed -e 's/,.*//' > $TEMP0
+  ORIGINATOR="`cat $TEMP0`"
+  rm -f $TEMP0
+fi
+
+if [ -n "$ORGANIZATION" ]; then
+  if [ -f "$ORGANIZATION" ]; then
+    ORGANIZATION="`cat $ORGANIZATION`"
+  fi
+else
+  if [ -n "$DEFAULT_ORGANIZATION" ]; then
+    ORGANIZATION="$DEFAULT_ORGANIZATION"
+  elif [ -f $HOME/.organization ]; then
+    ORGANIZATION="`cat $HOME/.organization`"
+  fi
+fi
+
+# If they don't have a preferred editor set, then use
+if [ -z "$VISUAL" ]; then
+  if [ -z "$EDITOR" ]; then
+    EDIT=vi
+  else
+    EDIT="$EDITOR"
+  fi
+else
+  EDIT="$VISUAL"
+fi
+
+# Find out some information.
+SYSTEM=`( [ -f /bin/uname ] && /bin/uname -a ) || \
+        ( [ -f /usr/bin/uname ] && /usr/bin/uname -a ) || echo ""`
+ARCH=`[ -f /bin/arch ] && /bin/arch`
+MACHINE=`[ -f /bin/machine ] && /bin/machine`
+
+COMMAND=`echo $0 | sed -e 's,.*/,,'`
+USAGE="Usage: $COMMAND [-PVL] [-t address] [-f filename] [-s severity]
+       [-c address] [--request-id] [--version]"
+REMOVE=
+BATCH=
+CC=
+SEVERITY_C=
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -r) ;; 		# Ignore for backward compat.
+    -t | --to) if [ $# -eq 1 ]; then echo "$USAGE"; $REMOVE_TEMP; exit 1; fi
+	shift ; GNATS_ADDR="$1"
+	EXPLICIT_GNATS_ADDR=true
+        ;;
+    -f | --file) if [ $# -eq 1 ]; then echo "$USAGE"; $REMOVE_TEMP; exit 1; fi
+	shift ; IN_FILE="$1"
+	if [ "$IN_FILE" != "-" -a ! -r "$IN_FILE" ]; then
+	  echo "$COMMAND: cannot read $IN_FILE"
+	  $REMOVE_TEMP
+	  exit 1
+	fi
+	;;
+    -b | --batch) BATCH=true ;;
+    -c | --cc) if [ $# -eq 1 ]; then echo "$USAGE"; $REMOVE_TEMP; exit 1; fi
+	shift ; CC="$1"
+	;;
+    -s | --severity) if [ $# -eq 1 ]; then echo "$USAGE"; $REMOVE_TEMP; exit 1; fi
+	shift ; SEVERITY_C="$1"
+	;;
+    -p | -P | --print) PRINT=true ;;
+    -L | --list) FORMAT=norm ;;
+    -l | -CL | --lisp) FORMAT=lisp ;;
+    --request-id) REQUEST_ID=true ;;
+    -h | --help) echo "$USAGE"; $REMOVE_TEMP; exit 0 ;;
+    -V | --version) cat <<EOF
+gccbug (GCC) $DEFAULT_RELEASE
+Copyright (C) 2002 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+EOF
+	$REMOVE_TEMP; exit 0 ;;
+    -*) echo "$USAGE" ; $REMOVE_TEMP; exit 1 ;;
+    *) echo "$USAGE" ; $REMOVE_TEMP; exit 1
+ esac
+ shift
+done
+
+# spam does not need to be listed here
+CATEGORIES="ada bootstrap c++ c debug driver fortran inline-asm java libgcj libobjc libstdc++ middle-end objc other pch preprocessor rtl-optimization target tree-optimization web"
+
+case "$FORMAT" in
+  lisp) echo "$CATEGORIES" | \
+        awk 'BEGIN {printf "( "} {printf "(\"%s\") ",$0} END {printf ")\n"}'
+	$REMOVE_TEMP
+        exit 0
+        ;;
+  norm) l=`echo "$CATEGORIES" | \
+	awk 'BEGIN {max = 0; } { if (length($0) > max) { max = length($0); } }
+	     END {print max + 1;}'`
+	c=`expr 70 / $l`
+	if [ $c -eq 0 ]; then c=1; fi
+	echo "$CATEGORIES" | \
+        awk 'BEGIN {print "Known categories:"; i = 0 }
+          { printf ("%-'$l'.'$l's", $0); if ((++i % '$c') == 0) { print "" } }
+            END { print ""; }'
+	$REMOVE_TEMP
+        exit 0
+        ;;
+esac
+
+ORIGINATOR_C='<name of the PR author (one line)>'
+ORGANIZATION_C='<organization of PR author (multiple lines)>'
+SYNOPSIS_C='<synopsis of the problem (one line)>'
+if [ -z "$SEVERITY_C" ]; then
+  SEVERITY_C='<[ non-critical | serious | critical ] (one line)>'
+fi
+PRIORITY_C='<[ low | medium ] (one line)>'
+CATEGORY_C='<choose from the top of this file (one line)>'
+RELEASE_C='<release number or tag (one line)>'
+ENVIRONMENT_C='<machine, os, target, libraries (multiple lines)>'
+DESCRIPTION_C='<precise description of the problem (multiple lines)>'
+HOW_TO_REPEAT_C='<When reporting a compiler error, preprocessor output must be included>'
+FIX_C='<how to correct or work around the problem, if known (multiple lines)>'
+
+# Catch some signals. ($xs kludge needed by Sun /bin/sh)
+xs=0
+trap '$REMOVE_TEMP; exit $xs' 0
+trap 'echo "$COMMAND: Aborting ..."; $REMOVE_TEMP; xs=1; exit' 1 3 13 15
+
+# If they told us to use a specific file, then do so.
+if [ -n "$IN_FILE" ]; then
+  if [ "$IN_FILE" = "-" ]; then
+    # The PR is coming from the standard input.
+    if [ -n "$EXPLICIT_GNATS_ADDR" ]; then
+      sed -e "s;^[Tt][Oo]:.*;To: $GNATS_ADDR;" > $TEMP
+    else
+      cat > $TEMP
+    fi
+  else
+    # Use the file they named.
+    if [ -n "$EXPLICIT_GNATS_ADDR" ]; then
+      sed -e "s;^[Tt][Oo]:.*;To: $GNATS_ADDR;" $IN_FILE > $TEMP
+    else
+      cat $IN_FILE > $TEMP
+    fi
+  fi
+else
+
+  if [ -n "$PR_FORM" -a -z "$PRINT_INTERN" ]; then
+    # If their PR_FORM points to a bogus entry, then bail.
+    if [ ! -f "$PR_FORM" -o ! -r "$PR_FORM" -o ! -s "$PR_FORM" ]; then
+      echo "$COMMAND: can't seem to read your template file (\`$PR_FORM'), ignoring PR_FORM"
+      sleep 1
+      PRINT_INTERN=bad_prform
+    fi
+  fi
+
+  if [ -n "$PR_FORM" -a -z "$PRINT_INTERN" ]; then
+    cp $PR_FORM $TEMP || 
+      ( echo "$COMMAND: could not copy $PR_FORM" ; xs=1; exit )
+  else
+    for file in $TEMP $REF ; do
+      cat  > $file << '__EOF__'
+SEND-PR: -*- send-pr -*-
+SEND-PR: Lines starting with `SEND-PR' will be removed automatically, as
+SEND-PR: will all comments (text enclosed in `<' and `>').
+SEND-PR: 
+SEND-PR: Please consult the GCC manual if you are not sure how to
+SEND-PR: fill out a problem report.
+SEND-PR: Note that the Synopsis field is mandatory.  The Subject (for
+SEND-PR: the mail) will be made the same as Synopsis unless explicitly
+SEND-PR: changed.
+SEND-PR:
+SEND-PR: Choose from the following categories:
+SEND-PR:
+__EOF__
+
+      # Format the categories so they fit onto lines.
+	l=`echo "$CATEGORIES" | \
+	awk 'BEGIN {max = 0; } { if (length($0) > max) { max = length($0); } }
+	     END {print max + 1;}'`
+	c=`expr 61 / $l`
+	if [ $c -eq 0 ]; then c=1; fi
+	echo "$CATEGORIES" | \
+        awk 'BEGIN {printf "SEND-PR: "; i = 0 }
+          { printf ("%-'$l'.'$l's", $0);
+	    if ((++i % '$c') == 0) { printf "\nSEND-PR: " } }
+            END { printf "\nSEND-PR:\n"; }' >> $file
+
+      cat >> $file << __EOF__
+To: $GNATS_ADDR
+Subject: 
+From: $FROM
+Reply-To: $REPLYTO
+Cc: $CC
+X-send-pr-version: $VERSION
+X-GNATS-Notify: 
+
+
+>Submitter-Id:	$SUBMITTER
+>Originator:	$ORIGINATOR
+>Organization:	${ORGANIZATION-$ORGANIZATION_C}
+>Confidential:	no
+SEND-PR: Leave "Confidential" as "no"; all GCC PRs are public.
+>Synopsis:	$SYNOPSIS_C
+>Severity:	$SEVERITY_C
+SEND-PR: critical     GCC is completely not operational; no work-around known.
+SEND-PR: serious      GCC is not working properly; a work-around is possible.
+SEND-PR: non-critical Report indicates minor problem.
+>Priority:	$PRIORITY_C
+SEND-PR: medium       The problem should be solved in the next release.
+SEND-PR: low          The problem should be solve in a future release.
+>Category:	$CATEGORY_C
+>Class:		<[ doc-bug | accepts-illegal | rejects-legal | wrong-code | ice-on-legal-code| ice-on-illegal-code | pessimizes-code | sw-bug | change-request | support ] (one line)>
+SEND-PR: doc-bug          The documentation is incorrect.
+SEND-PR: accepts-illegal  GCC fails to reject erroneous code.
+SEND-PR: rejects-legal    GCC gives an error message for correct code.
+SEND-PR: wrong-code       The machine code generated by gcc is incorrect.
+SEND-PR: ice-on-legal-code   GCC gives an Internal Compiler Error (ICE)
+SEND-PR:                     for correct code
+SEND-PR: ice-on-illegal-code GCC gives an ICE instead of reporting an error
+SEND-PR: pessimizes-code     GCC misses an important optimization opportunity
+SEND-PR: sw-bug              Software bug of some other class than above
+SEND-PR: change-request      A feature in GCC is missing.
+SEND-PR: support             I need help with gcc.
+>Release:	${DEFAULT_RELEASE-$RELEASE_C}
+>Environment:
+`[ -n "$SYSTEM" ] && echo System: $SYSTEM`
+`[ -n "$ARCH" ] && echo Architecture: $ARCH`
+`[ -n "$MACHINE" ] && echo Machine: $MACHINE`
+	$ENVIRONMENT_C
+host: @host@
+build: @build@
+target: @target@
+__EOF__
+      cat >> $file << \__EOF__
+configured with: @gcc_config_arguments@
+__EOF__
+      cat >> $file << __EOF__
+>Description:
+	$DESCRIPTION_C
+>How-To-Repeat:
+	$HOW_TO_REPEAT_C
+>Fix:
+	$FIX_C
+__EOF__
+    done
+  fi
+
+  if [ "$PRINT" = true -o "$PRINT_INTERN" = true ]; then
+    cat $TEMP
+    xs=0; exit
+  fi
+
+  chmod u+w $TEMP
+  if [ -z "$REQUEST_ID" ]; then
+    eval $EDIT $TEMP
+  else
+    ed -s $TEMP << '__EOF__'
+/^Subject/s/^Subject:.*/Subject: request for a customer id/
+/^>Category/s/^>Category:.*/>Category: send-pr/
+w
+q
+__EOF__
+  fi
+
+  if cmp -s $REF $TEMP ; then
+    echo "$COMMAND: problem report not filled out, therefore not sent"
+    xs=1; exit
+  fi
+fi
+
+#
+#	Check the enumeration fields
+
+# This is a "sed-subroutine" with one keyword parameter 
+# (with workaround for Sun sed bug)
+#
+SED_CMD='
+/$PATTERN/{
+s|||
+s|<.*>||
+s|^[ 	]*||
+s|[ 	]*$||
+p
+q
+}'
+
+
+while [ -z "$REQUEST_ID" ]; do
+  CNT=0
+
+  # 1) Confidential
+  #
+  PATTERN=">Confidential:"
+  CONFIDENTIAL=`eval sed -n -e "\"$SED_CMD\"" $TEMP`
+  case "$CONFIDENTIAL" in
+    no) CNT=`expr $CNT + 1` ;;
+    *) echo "$COMMAND: \`$CONFIDENTIAL' is not a valid value for \`Confidential'." ;;
+  esac
+  #
+  # 2) Severity
+  #
+  PATTERN=">Severity:"
+  SEVERITY=`eval sed -n -e "\"$SED_CMD\"" $TEMP`
+  case "$SEVERITY" in
+    ""|non-critical|serious|critical) CNT=`expr $CNT + 1` ;;
+    *)  echo "$COMMAND: \`$SEVERITY' is not a valid value for \`Severity'."
+  esac
+  #
+  # 3) Priority
+  #
+  PATTERN=">Priority:"
+  PRIORITY=`eval sed -n -e "\"$SED_CMD\"" $TEMP`
+  case "$PRIORITY" in
+    ""|low|medium) CNT=`expr $CNT + 1` ;;
+    high) echo "$COMMAND: \`Priority: high' is reserved for GCC maintainers." ;;
+    *)  echo "$COMMAND: \`$PRIORITY' is not a valid value for \`Priority'."
+  esac
+  #
+  # 4) Category
+  #
+  PATTERN=">Category:"
+  CATEGORY=`eval sed -n -e "\"$SED_CMD\"" $TEMP`
+  FOUND=
+  for C in $CATEGORIES
+  do
+    if [ "$C" = "$CATEGORY" ]; then FOUND=true ; break ; fi
+  done
+  if [ -n "$FOUND" ]; then
+    CNT=`expr $CNT + 1`	
+  else
+    if [ -z "$CATEGORY" ]; then
+      echo "$COMMAND: you must include a Category: field in your report."
+    else
+      echo "$COMMAND: \`$CATEGORY' is not a known category."
+    fi
+  fi
+  #
+  # 5) Class
+  #
+  PATTERN=">Class:"
+  CLASS=`eval sed -n -e "\"$SED_CMD\"" $TEMP`
+  case "$CLASS" in
+    ""|doc-bug|accepts-illegal|rejects-legal|wrong-code|ice-on-legal-code|ice-on-illegal-code|pessimizes-code|sw-bug|change-request|support) CNT=`expr $CNT + 1` ;;
+    *)  echo "$COMMAND: \`$CLASS' is not a valid value for \`Class'."
+  esac
+  #
+  # 6) Check that synopsis is not empty
+  #
+  if grep "^>Synopsis:[ 	]*${SYNOPSIS_C}\$" $TEMP > /dev/null
+  then
+    echo "$COMMAND: Synopsis must not be empty."
+  else
+    CNT=`expr $CNT + 1`
+  fi
+
+  [ $CNT -lt 6 -a -z "$BATCH" ] && 
+    echo "Errors were found with the problem report."
+
+  while true; do
+    if [ -z "$BATCH" ]; then
+      $ECHON1 "a)bort, e)dit or s)end? $ECHON2"
+      read input
+    else
+      if [ $CNT -eq 6 ]; then
+        input=s
+      else
+        input=a
+      fi
+    fi
+    case "$input" in
+      a*)
+	if [ -z "$BATCH" ]; then
+	  echo "$COMMAND: the problem report remains in $BAD and is not sent."
+	  REMOVE_TEMP="rm -f $TEMP0 $TEMP $REF"
+	  mv $TEMP $BAD
+        else
+	  echo "$COMMAND: the problem report is not sent."
+	fi
+	xs=1; exit
+	;;
+      e*)
+        eval $EDIT $TEMP
+	continue 2
+	;;
+      s*)
+	break 2
+	;;
+    esac
+  done
+done
+
+#
+# Make sure the mail has got a Subject.  If not, use the same as
+# in Synopsis.
+#
+
+if grep '^Subject:[ 	]*$' $TEMP > /dev/null
+then
+  SYNOPSIS=`grep '^>Synopsis:' $TEMP | sed -e 's/^>Synopsis:[ 	]*//'`
+  ed -s $TEMP << __EOF__
+/^Subject:/s/:.*\$/: $SYNOPSIS/
+w
+q
+__EOF__
+fi
+
+#
+#	Remove comments and send the problem report
+#	(we have to use patterns, where the comment contains regex chars)
+#
+# /^>Originator:/s;$ORIGINATOR;;
+sed  -e "
+/^SEND-PR:/d
+/^>Organization:/,/^>[A-Za-z-]*:/s;$ORGANIZATION_C;;
+/^>Confidential:/s;<.*>;;
+/^>Synopsis:/s;$SYNOPSIS_C;;
+/^>Severity:/s;<.*>;;
+/^>Priority:/s;<.*>;;
+/^>Category:/s;$CATEGORY_C;;
+/^>Class:/s;<.*>;;
+/^>Release:/,/^>[A-Za-z-]*:/s;$RELEASE_C;;
+/^>Environment:/,/^>[A-Za-z-]*:/s;$ENVIRONMENT_C;;
+/^>Description:/,/^>[A-Za-z-]*:/s;$DESCRIPTION_C;;
+/^>How-To-Repeat:/,/^>[A-Za-z-]*:/s;$HOW_TO_REPEAT_C;;
+/^>Fix:/,/^>[A-Za-z-]*:/s;$FIX_C;;
+" $TEMP > $REF
+
+if $MAIL_AGENT < $REF; then
+  echo "$COMMAND: problem report sent"
+  xs=0; exit
+else
+  echo "$COMMAND: mysterious mail failure."
+  if [ -z "$BATCH" ]; then
+    echo "$COMMAND: the problem report remains in $BAD and is not sent."
+    REMOVE_TEMP="rm -f $TEMP0 $TEMP $REF"
+    mv $REF $BAD
+  else
+    echo "$COMMAND: the problem report is not sent."
+  fi
+  xs=1; exit
+fi

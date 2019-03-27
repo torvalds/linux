@@ -1,0 +1,257 @@
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Systems Programming Group of the University of Utah Computer
+.\" Science Department.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
+.\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
+.\"	from: sio.4,v 1.16 1995/06/26 06:05:30 bde Exp $
+.\" $FreeBSD$
+.\"
+.Dd May 24, 2004
+.Dt CY 4
+.Os
+.Sh NAME
+.Nm cy
+.Nd Cyclades Cyclom-Y serial driver
+.Sh SYNOPSIS
+For one ISA card:
+.Bd -ragged -offset indent -compact
+.Cd "device cy"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.cy.0.at="isa"
+.Cd hint.cy.0.irq="10"
+.Cd hint.cy.0.maddr="0xd4000"
+.Cd hint.cy.0.msize="0x2000"
+.Ed
+.Pp
+For two ISA cards:
+.Bd -ragged -offset indent -compact
+.Cd "device cy"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.cy.0.at="isa"
+.Cd hint.cy.0.irq="10"
+.Cd hint.cy.0.maddr="0xd4000"
+.Cd hint.cy.0.msize="0x2000"
+.Cd hint.cy.1.at="isa"
+.Cd hint.cy.1.irq="11"
+.Cd hint.cy.1.maddr="0xd6000"
+.Cd hint.cy.1.msize="0x2000"
+.Ed
+.Pp
+For PCI cards:
+.Bd -ragged -offset indent -compact
+.Cd "device cy"
+.Cd "options CY_PCI_FASTINTR"
+.Pp
+No lines are required in
+.Pa /boot/device.hints
+for PCI cards.
+.Ed
+.Pp
+Minor numbering:
+.Bd -literal -offset indent -compact
+0b\fIMMMMMMMMMMMMMMMMxxxxxxxxOLIMMMMM\fR
+                          call\fBO\fRut
+                           \fBL\fRock
+                            \fBI\fRnitial
+  \fBMMMMMMMMMMMMMMMM           MMMMMM\fRinor
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Cirrus Logic CD1400-based
+.Tn EIA
+.Tn RS-232C
+.Pf ( Tn CCITT
+.Tn V.24 )
+communications interfaces (ports) on Cyclades Cyclom-Y boards.
+Each CD1400 provides 4 ports.
+Cyclom-Y boards with various numbers of CD1400's are available.
+This driver supports up to 8 CD1400's (32 ports) per board.
+.Pp
+Input and output for each line may set independently
+to the following speeds:
+50, 75, 110, 134.5, 150, 300, 600, 1200, 1800, 2400, 4800, 9600,
+19200, 38400, 57600, or 115200 bps.
+Other speeds of up to 150000 are supported by the termios interface
+but not by the sgttyb compatibility interface.
+The CD1400 is not fast enough to handle speeds above 115200 bps
+effectively.
+It can transmit on a single line at slightly more than 115200 bps,
+but when 4 lines are active in both directions its limit is about
+90000 bps on each line.
+.\" XXX the following should be true for all serial drivers and
+.\" should not be repeated in the man pages for all serial drivers.
+.\" It was copied from sio.4.  The only change was s/sio/cy/g.
+.Pp
+Serial ports controlled by the
+.Nm
+driver can be used for both `callin' and `callout'.
+For each port there is a callin device and a callout device.
+The minor number of the callout device is 128 higher
+than that of the corresponding callin port.
+The callin device is general purpose.
+Processes opening it normally wait for carrier
+and for the callout device to become inactive.
+The callout device is used to steal the port from
+processes waiting for carrier on the callin device.
+Processes opening it do not wait for carrier
+and put any processes waiting for carrier on the callin device into
+a deeper sleep so that they do not conflict with the callout session.
+The callout device is abused for handling programs that are supposed
+to work on general ports and need to open the port without waiting
+but are too stupid to do so.
+.Pp
+The
+.Nm
+driver also supports an initial-state and a lock-state control
+device for each of the callin and the callout "data" devices.
+The minor number of the initial-state device is 32 higher
+than that of the corresponding data device.
+The minor number of the lock-state device is 64 higher
+than that of the corresponding data device.
+The termios settings of a data device are copied
+from those of the corresponding initial-state device
+on first opens and are not inherited from previous opens.
+Use
+.Xr stty 1
+in the normal way on the initial-state devices to program
+initial termios states suitable for your setup.
+.Pp
+The lock termios state acts as flags to disable changing
+the termios state.
+E.g., to lock a flag variable such as
+CRTSCTS, use
+.Em "stty crtscts"
+on the lock-state device.
+Speeds and special characters
+may be locked by setting the corresponding value in the lock-state
+device to any nonzero value.
+.Pp
+Correct programs talking to correctly wired external devices
+work with almost arbitrary initial states and almost no locking,
+but other setups may benefit from changing some of the default
+initial state and locking the state.
+In particular, the initial states for non (POSIX) standard flags
+should be set to suit the devices attached and may need to be
+locked to prevent buggy programs from changing them.
+E.g., CRTSCTS should be locked on for devices that support
+RTS/CTS handshaking at all times and off for devices that do not
+support it at all.
+CLOCAL should be locked on for devices
+that do not support carrier.
+HUPCL may be locked off if you do not
+want to hang up for some reason.
+In general, very bad things happen
+if something is locked to the wrong state, and things should not
+be locked for devices that support more than one setting.
+The
+CLOCAL flag on callin ports should be locked off for logins
+to avoid certain security holes, but this needs to be done by
+getty if the callin port is used for anything else.
+.Ss Kernel Configuration Options
+The
+.Em CY_PCI_FASTINTR
+option should be used to avoid suboptimal interrupt handling for
+PCI Cyclades boards.
+The PCI BIOS must be configured with the
+.Nm
+interrupt not shared with any other active device
+for this option to work.
+This option is not the default because it is currently harmful in
+certain cases where it does not work.
+.Sh FILES
+.\" XXX more cloning: s/d/c/g and add a ? for the card number.
+.Bl -tag -width /dev/ttyic?? -compact
+.It Pa /dev/ttyc??
+for callin ports
+.It Pa /dev/ttyic??
+.It Pa /dev/ttylc??
+corresponding callin initial-state and lock-state devices
+.Pp
+.\" XXX more cloning: s/a/c/g.  No consistency :-(.
+.It Pa /dev/cuac??
+for callout ports
+.It Pa /dev/cuaic??
+.It Pa /dev/cualc??
+corresponding callout initial-state and lock-state devices
+.El
+.Pp
+.Bl -tag -width /etc/rc.serial -compact
+.It Pa /etc/rc.serial
+examples of setting the initial-state and lock-state devices
+.El
+.Pp
+The first question mark in these device names is short for the
+card number
+(a decimal number between 0 and 65535 inclusive).
+The second question mark is short for the port number
+(a letter in the range [0-9a-v]).
+.Sh DIAGNOSTICS
+.Bl -diag
+.\" XXX back to s/sio/cy/g.
+.It cy%d: silo overflow.
+Problem in the interrupt handler.
+.El
+.Bl -diag
+.It cy%d: interrupt-level buffer overflow.
+Problem in the bottom half of the driver.
+.El
+.Bl -diag
+.It cy%d: tty-level buffer overflow.
+Problem in the application.
+Input has arrived faster than the given module could process it
+and some has been lost.
+.El
+.\" .Bl -diag
+.\" .It sio%d: reduced fifo trigger level to %d.
+.\" Attempting to avoid further silo overflows.
+.\" .El
+.Sh SEE ALSO
+.Xr stty 1 ,
+.Xr termios 4 ,
+.Xr tty 4 ,
+.Xr comcontrol 8 ,
+.Xr pstat 8
+.Sh HISTORY
+The
+.Nm
+driver is derived from the
+.Nm sio
+driver and the
+.Nx
+.Nm
+driver and is
+.Ud
+.Sh BUGS
+Serial consoles are not implemented.

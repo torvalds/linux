@@ -1,0 +1,40 @@
+
+#------------------------------------------------------------------------------
+# $File: xilinx,v 1.8 2017/03/17 21:35:28 christos Exp $
+# This is Aaron's attempt at a MAGIC file for Xilinx .bit files.
+# Xilinx-Magic@RevRagnarok.com
+# Got the info from FPGA-FAQ 0026
+#
+# Rewritten to use pstring/H instead of hardcoded lengths by O. Freyermuth,
+# fixes at least reading of bitfiles from Spartan 2, 3, 6.
+# http://www.fpga-faq.com/FAQ_Pages/0026_Tell_me_about_bit_files.htm
+#
+# First there is the sync header and its length
+0	beshort 0x0009
+>2 	belong	=0x0ff00ff0
+>>&0	belong  =0x0ff00ff0
+>>>&0	byte    =0x00
+>>>&1   beshort =0x0001
+>>>&3	string	a	Xilinx BIT data
+# Next is a Pascal-style string with the NCD name. We want to capture that.
+>>>>&0	   pstring/H	x	- from %s
+# And then 'b'
+>>>>>&1    string b
+# Then the model / part number:
+>>>>>>&0   pstring/H    x       - for %s
+# Then 'c'
+>>>>>>>&1 string c
+# Then the build-date
+>>>>>>>>&0 pstring/H    x       - built %s
+# Then 'd'
+>>>>>>>>>&1   string d
+# Then the build-time
+>>>>>>>>>>&0  pstring/H x        \b(%s)
+# Then 'e'
+>>>>>>>>>>>&1  string e
+# And length of data
+>>>>>>>>>>>>&0 belong x          - data length 0x%x
+
+# Raw bitstream files
+0      long    0xffffffff
+>&0    belong  0xaa995566      Xilinx RAW bitstream (.BIN)

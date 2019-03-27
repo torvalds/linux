@@ -1,0 +1,42 @@
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/net/rfkill-regulator.h>
+#include "x1000.dtsi"
+
+/ {
+	compatible = "ingenic,x1000";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+	};
+
+	chosen {
+		stdout-path = &uart2;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x2000000>;	/* 32 MiB at 0x0 */
+	};
+};
+
+&ext {
+	clock-frequency = <48000000>;
+};
+
+&msc0 {
+	bus-width = <4>;
+	max-frequency = <6000000>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_msc0_pa>;
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart2_dataplusflow>;
+};

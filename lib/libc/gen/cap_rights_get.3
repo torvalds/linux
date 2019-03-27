@@ -1,0 +1,119 @@
+.\"
+.\" Copyright (c) 2013 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Pawel Jakub Dawidek under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 27, 2014
+.Dt CAP_RIGHTS_GET 3
+.Os
+.Sh NAME
+.Nm cap_rights_get
+.Nd obtain capability rights
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/capsicum.h
+.Ft int
+.Fn cap_rights_get "int fd" "cap_rights_t *rights"
+.Sh DESCRIPTION
+The
+.Nm cap_rights_get
+function allows to obtain current capability rights for the given descriptor.
+The function will fill the
+.Fa rights
+argument with all capability rights if they were not limited or capability
+rights configured during the last successful call of
+.Xr cap_rights_limit 2
+on the given descriptor.
+.Pp
+The
+.Fa rights
+argument can be inspected using
+.Xr cap_rights_init 3
+family of functions.
+.Pp
+The complete list of the capability rights can be found in the
+.Xr rights 4
+manual page.
+.Sh RETURN VALUES
+.Rv -std
+.Sh EXAMPLES
+The following example demonstrates how to limit file descriptor capability
+rights and how to obtain them.
+.Bd -literal
+cap_rights_t setrights, getrights;
+int fd;
+
+memset(&setrights, 0, sizeof(setrights));
+memset(&getrights, 0, sizeof(getrights));
+
+fd = open("/tmp/foo", O_RDONLY);
+if (fd < 0)
+	err(1, "open() failed");
+
+cap_rights_init(&setrights, CAP_FSTAT, CAP_READ);
+if (cap_rights_limit(fd, &setrights) < 0 && errno != ENOSYS)
+	err(1, "cap_rights_limit() failed");
+
+if (cap_rights_get(fd, &getrights) < 0 && errno != ENOSYS)
+	err(1, "cap_rights_get() failed");
+
+assert(memcmp(&setrights, &getrights, sizeof(setrights)) == 0);
+.Ed
+.Sh ERRORS
+.Fn cap_rights_get
+succeeds unless:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid active descriptor.
+.It Bq Er EFAULT
+The
+.Fa rights
+argument points at an invalid address.
+.El
+.Sh SEE ALSO
+.Xr cap_rights_limit 2 ,
+.Xr errno 2 ,
+.Xr open 2 ,
+.Xr assert 3 ,
+.Xr cap_rights_init 3 ,
+.Xr err 3 ,
+.Xr memcmp 3 ,
+.Xr memset 3 ,
+.Xr capsicum 4 ,
+.Xr rights 4
+.Sh HISTORY
+Support for capabilities and capabilities mode was developed as part of the
+.Tn TrustedBSD
+Project.
+.Sh AUTHORS
+This function was created by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship of the FreeBSD Foundation.

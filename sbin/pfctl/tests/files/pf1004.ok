@@ -1,0 +1,6 @@
+altq on em0 cbq( codel default ) bandwidth 20Mb tbrsize 12000 queue { qmain }
+queue qmain { q1 q2 }
+queue q1 bandwidth 60% 
+queue q2 bandwidth 40% priority 2 
+pass on em0 all flags S/SA keep state queue q1
+block drop on em0 all queue q2

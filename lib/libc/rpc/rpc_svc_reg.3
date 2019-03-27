@@ -1,0 +1,183 @@
+.\" @(#)rpc_svc_reg.3n 1.32 93/08/31 SMI; from SVr4
+.\" Copyright 1989 AT&T
+.\" @(#)rpc_svc_call 1.6 89/07/20 SMI;
+.\" Copyright (c) 1988 Sun Microsystems, Inc. - All Rights Reserved.
+.\"	$NetBSD: rpc_svc_reg.3,v 1.1 2000/06/02 23:11:14 fvdl Exp $
+.\" $FreeBSD$
+.Dd May 3, 1993
+.Dt RPC_SVC_REG 3
+.Os
+.Sh NAME
+.Nm rpc_svc_reg ,
+.Nm rpc_reg ,
+.Nm svc_reg ,
+.Nm svc_unreg ,
+.Nm svc_auth_reg ,
+.Nm xprt_register ,
+.Nm xprt_unregister
+.Nd library routines for registering servers
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In rpc/rpc.h
+.Ft int
+.Fn rpc_reg "rpcprog_t prognum" "rpcvers_t versnum" "rpcproc_t procnum" "char *(*procname)()" "xdrproc_t inproc" "xdrproc_t outproc" "char *nettype"
+.Ft bool_t
+.Fn svc_reg "SVCXPRT *xprt" "const rpcprog_t prognum" "const rpcvers_t versnum" "void (*dispatch)(struct svc_req *, SVCXPRT *)" "const struct netconfig *netconf"
+.Ft void
+.Fn svc_unreg "const rpcprog_t prognum" "const rpcvers_t versnum"
+.Ft int
+.Fn svc_auth_reg "int cred_flavor" "enum auth_stat (*handler)(struct svc_req *, struct rpc_msg *)"
+.Ft void
+.Fn xprt_register "SVCXPRT *xprt"
+.Ft void
+.Fn xprt_unregister "SVCXPRT *xprt"
+.Sh DESCRIPTION
+These routines are a part of the RPC
+library which allows the RPC
+servers to register themselves with rpcbind
+(see
+.Xr rpcbind 8 ) ,
+and associate the given program and version
+number with the dispatch function.
+When the RPC server receives a RPC request, the library invokes the
+dispatch routine with the appropriate arguments.
+.Sh Routines
+See
+.Xr rpc 3
+for the definition of the
+.Vt SVCXPRT
+data structure.
+.Bl -tag -width XXXXX
+.It Fn rpc_reg
+Register program
+.Fa prognum ,
+procedure
+.Fa procname ,
+and version
+.Fa versnum
+with the RPC
+service package.
+If a request arrives for program
+.Fa prognum ,
+version
+.Fa versnum ,
+and procedure
+.Fa procnum ,
+.Fa procname
+is called with a pointer to its argument(s);
+.Fa procname
+should return a pointer to its static result(s);
+.Fa inproc
+is the XDR function used to decode the arguments while
+.Fa outproc
+is the XDR function used to encode the results.
+Procedures are registered on all available transports of the class
+.Fa nettype .
+See
+.Xr rpc 3 .
+This routine returns 0 if the registration succeeded,
+\-1 otherwise.
+.It Fn svc_reg
+Associates
+.Fa prognum
+and
+.Fa versnum
+with the service dispatch procedure,
+.Fa dispatch .
+If
+.Fa netconf
+is
+.Dv NULL ,
+the service is not registered with the
+.Xr rpcbind 8
+service.
+If
+.Fa netconf
+is non-zero,
+then a mapping of the triple
+.Bq Fa prognum , versnum , netconf->nc_netid
+to
+.Fa xprt->xp_ltaddr
+is established with the local rpcbind
+service.
+.Pp
+The
+.Fn svc_reg
+routine returns 1 if it succeeds,
+and 0 otherwise.
+.It Fn svc_unreg
+Remove from the rpcbind
+service, all mappings of the triple
+.Bq Fa prognum , versnum , No all-transports
+to network address
+and all mappings within the RPC service package
+of the double
+.Bq Fa prognum , versnum
+to dispatch routines.
+.It Fn svc_auth_reg
+Registers the service authentication routine
+.Fa handler
+with the dispatch mechanism so that it can be
+invoked to authenticate RPC requests received
+with authentication type
+.Fa cred_flavor .
+This interface allows developers to add new authentication
+types to their RPC applications without needing to modify
+the libraries.
+Service implementors usually do not need this routine.
+.Pp
+Typical service application would call
+.Fn svc_auth_reg
+after registering the service and prior to calling
+.Fn svc_run .
+When needed to process an RPC credential of type
+.Fa cred_flavor ,
+the
+.Fa handler
+procedure will be called with two arguments,
+.Fa "struct svc_req *rqst"
+and
+.Fa "struct rpc_msg *msg" ,
+and is expected to return a valid
+.Vt "enum auth_stat"
+value.
+There is no provision to change or delete an authentication handler
+once registered.
+.Pp
+The
+.Fn svc_auth_reg
+routine returns 0 if the registration is successful,
+1 if
+.Fa cred_flavor
+already has an authentication handler registered for it,
+and \-1 otherwise.
+.It Fn xprt_register
+After RPC service transport handle
+.Fa xprt
+is created, it is registered with the RPC
+service package.
+This routine modifies the global variable
+.Va svc_fdset
+(see
+.Xr rpc_svc_calls 3 ) .
+Service implementors usually do not need this routine.
+.It Fn xprt_unregister
+Before an RPC service transport handle
+.Fa xprt
+is destroyed, it unregisters itself with the
+RPC service package.
+This routine modifies the global variable
+.Va svc_fdset
+(see
+.Xr rpc_svc_calls 3 ) .
+Service implementors usually do not need this routine.
+.El
+.Sh SEE ALSO
+.Xr select 2 ,
+.Xr rpc 3 ,
+.Xr rpc_svc_calls 3 ,
+.Xr rpc_svc_create 3 ,
+.Xr rpc_svc_err 3 ,
+.Xr rpcbind 3 ,
+.Xr rpcbind 8

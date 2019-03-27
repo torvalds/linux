@@ -1,0 +1,260 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2005 Doug Rabson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.\"
+.Dd January 26, 2010
+.Dt GSSAPI 3
+.Os
+.Sh NAME
+.Nm gssapi
+.Nd "Generic Security Services API"
+.Sh LIBRARY
+GSS-API Library (libgssapi, -lgssapi)
+.Sh SYNOPSIS
+.In gssapi/gssapi.h
+.Sh DESCRIPTION
+The Generic Security Service Application Programming Interface
+provides security services to its callers,
+and is intended for implementation atop a variety of underlying
+cryptographic mechanisms.
+Typically, GSS-API callers will be application protocols into which
+security enhancements are integrated through invocation of services
+provided by the GSS-API.
+The GSS-API allows a caller application to authenticate a principal
+identity associated with a peer application, to delegate rights to a
+peer,
+and to apply security services such as confidentiality and integrity
+on a per-message basis.
+.Pp
+There are four stages to using the GSS-API:
+.Bl -tag -width "a)"
+.It a)
+The application acquires a set of credentials with which it may prove
+its identity to other processes.
+The application's credentials vouch for its global identity,
+which may or may not be related to any local username under which it
+may be running.
+.It b)
+A pair of communicating applications establish a joint security
+context using their credentials.
+The security context is a pair of GSS-API data structures that contain
+shared state information, which is required in order that per-message
+security services may be provided.
+Examples of state that might be shared between applications as part of
+a security context are cryptographic keys,
+and message sequence numbers.
+As part of the establishment of a security context,
+the context initiator is authenticated to the responder,
+and may require that the responder is authenticated in turn.
+The initiator may optionally give the responder the right to initiate
+further security contexts,
+acting as an agent or delegate of the initiator.
+This transfer of rights is termed delegation,
+and is achieved by creating a set of credentials,
+similar to those used by the initiating application,
+but which may be used by the responder.
+.Pp
+To establish and maintain the shared information that makes up the
+security context,
+certain GSS-API calls will return a token data structure,
+which is an opaque data type that may contain cryptographically
+protected data.
+The caller of such a GSS-API routine is responsible for transferring
+the token to the peer application,
+encapsulated if necessary in an application protocol.
+On receipt of such a token, the peer application should pass it to a
+corresponding GSS-API routine which will decode the token and extract
+the information,
+updating the security context state information accordingly.
+.It c)
+Per-message services are invoked to apply either:
+.Pp
+integrity and data origin authentication, or confidentiality,
+integrity and data origin authentication to application data,
+which are treated by GSS-API as arbitrary octet-strings.
+An application transmitting a message that it wishes to protect will
+call the appropriate GSS-API routine (gss_get_mic or gss_wrap) to
+apply protection,
+specifying the appropriate security context,
+and send the resulting token to the receiving application.
+The receiver will pass the received token (and, in the case of data
+protected by gss_get_mic, the accompanying message-data) to the
+corresponding decoding routine (gss_verify_mic or gss_unwrap) to
+remove the protection and validate the data.
+.It d)
+At the completion of a communications session (which may extend across
+several transport connections),
+each application calls a GSS-API routine to delete the security
+context.
+Multiple contexts may also be used (either successively or
+simultaneously) within a single communications association, at the
+option of the applications.
+.El
+.Sh GSS-API ROUTINES
+This section lists the routines that make up the GSS-API,
+and offers a brief description of the purpose of each routine.
+.Pp
+GSS-API Credential-management Routines:
+.Bl -tag -width "gss_inquire_cred_by_mech"
+.It gss_acquire_cred
+Assume a global identity; Obtain a GSS-API credential handle for
+pre-existing credentials.
+.It gss_add_cred
+Construct credentials incrementally
+.It gss_inquire_cred
+Obtain information about a credential
+.It gss_inquire_cred_by_mech
+Obtain per-mechanism information about a credential.
+.It gss_release_cred
+Discard a credential handle.
+.El
+.Pp
+GSS-API Context-Level Routines:
+.Bl -tag -width "gss_inquire_cred_by_mech"
+.It gss_init_sec_context
+Initiate a security context with a peer application
+.It gss_accept_sec_context
+Accept a security context initiated by a peer application
+.It gss_delete_sec_context
+Discard a security context
+.It gss_process_context_token
+Process a token on a security context from a peer application
+.It gss_context_time
+Determine for how long a context will remain valid
+.It gss_inquire_context
+Obtain information about a security context
+.It gss_wrap_size_limit
+Determine token-size limit for
+.Xr gss_wrap 3
+on a context
+.It gss_export_sec_context
+Transfer a security context to another process
+.It gss_import_sec_context
+Import a transferred context
+.El
+.Pp
+GSS-API Per-message Routines:
+.Bl -tag -width "gss_inquire_cred_by_mech"
+.It gss_get_mic
+Calculate a cryptographic message integrity code (MIC) for a message;
+integrity service
+.It gss_verify_mic
+Check a MIC against a message;
+verify integrity of a received message
+.It gss_wrap
+Attach a MIC to a message, and optionally encrypt the message content;
+confidentiality service
+.It gss_unwrap
+Verify a message with attached MIC, and decrypt message content if
+necessary.
+.El
+.Pp
+GSS-API Name manipulation Routines:
+.Bl -tag -width "gss_inquire_cred_by_mech"
+.It gss_import_name
+Convert a contiguous string name to internal-form
+.It gss_display_name
+Convert internal-form name to text
+.It gss_compare_name
+Compare two internal-form names
+.It gss_release_name
+Discard an internal-form name
+.It gss_inquire_names_for_mech
+List the name-types supported by the specified mechanism
+.It gss_inquire_mechs_for_name
+List mechanisms that support the specified name-type
+.It gss_canonicalize_name
+Convert an internal name to an MN
+.It gss_export_name
+Convert an MN to export form
+.It gss_duplicate_name
+Create a copy of an internal name
+.El
+.Pp
+GSS-API Miscellaneous Routines
+.Bl -tag -width "gss_inquire_cred_by_mech"
+.It gss_add_oid_set_member
+Add an object identifier to a set
+.It gss_display_status
+Convert a GSS-API status code to text
+.It gss_indicate_mechs
+Determine available underlying authentication mechanisms
+.It gss_release_buffer
+Discard a buffer
+.It gss_release_oid_set
+Discard a set of object identifiers
+.It gss_create_empty_oid_set
+Create a set containing no object identifiers
+.It gss_test_oid_set_member
+Determines whether an object identifier is a member of a set.
+.El
+.Pp
+Individual GSS-API implementations may augment these routines by
+providing additional mechanism-specific routines if required
+functionality is not available from the generic forms.
+Applications are encouraged to use the generic routines wherever
+possible on portability grounds.
+.Sh STANDARDS
+.Bl -tag -width ".It RFC 2743"
+.It RFC 2743
+Generic Security Service Application Program Interface Version 2, Update 1
+.It RFC 2744
+Generic Security Service API Version 2 : C-bindings
+.El
+.Sh HISTORY
+The
+.Nm
+library first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+John Wray, Iris Associates
+.Sh COPYRIGHT
+Copyright (C) The Internet Society (2000).  All Rights Reserved.
+.Pp
+This document and translations of it may be copied and furnished to
+others, and derivative works that comment on or otherwise explain it
+or assist in its implementation may be prepared, copied, published
+and distributed, in whole or in part, without restriction of any
+kind, provided that the above copyright notice and this paragraph are
+included on all such copies and derivative works.  However, this
+document itself may not be modified in any way, such as by removing
+the copyright notice or references to the Internet Society or other
+Internet organizations, except as needed for the purpose of
+developing Internet standards in which case the procedures for
+copyrights defined in the Internet Standards process must be
+followed, or as required to translate it into languages other than
+English.
+.Pp
+The limited permissions granted above are perpetual and will not be
+revoked by the Internet Society or its successors or assigns.
+.Pp
+This document and the information contained herein is provided on an
+"AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.

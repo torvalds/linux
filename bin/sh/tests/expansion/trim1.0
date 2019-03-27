@@ -1,0 +1,85 @@
+# $FreeBSD$
+
+e= q='?' a='*' t=texttext s='ast*que?non' p='/et[c]/' w='a b c' b='{{(#)}}'
+h='##'
+failures=''
+ok=''
+
+testcase() {
+	code="$1"
+	expected="$2"
+	oIFS="$IFS"
+	eval "$code"
+	IFS='|'
+	result="$#|$*"
+	IFS="$oIFS"
+	if [ "x$result" = "x$expected" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "For $code, expected $expected actual $result"
+	fi
+}
+
+testcase 'set -- ${t%t}'			'1|texttex'
+testcase 'set -- "${t%t}"'			'1|texttex'
+testcase 'set -- ${t%e*}'			'1|textt'
+testcase 'set -- "${t%e*}"'			'1|textt'
+testcase 'set -- ${t%%e*}'			'1|t'
+testcase 'set -- "${t%%e*}"'			'1|t'
+testcase 'set -- ${t%%*}'			'0|'
+testcase 'set -- "${t%%*}"'			'1|'
+testcase 'set -- ${t#t}'			'1|exttext'
+testcase 'set -- "${t#t}"'			'1|exttext'
+testcase 'set -- ${t#*x}'			'1|ttext'
+testcase 'set -- "${t#*x}"'			'1|ttext'
+testcase 'set -- ${t##*x}'			'1|t'
+testcase 'set -- "${t##*x}"'			'1|t'
+testcase 'set -- ${t##*}'			'0|'
+testcase 'set -- "${t##*}"'			'1|'
+testcase 'set -- ${t%e$a}'			'1|textt'
+
+set -f
+testcase 'set -- ${s%[?]*}'			'1|ast*que'
+testcase 'set -- "${s%[?]*}"'			'1|ast*que'
+testcase 'set -- ${s%[*]*}'			'1|ast'
+testcase 'set -- "${s%[*]*}"'			'1|ast'
+set +f
+
+testcase 'set -- $b'				'1|{{(#)}}'
+testcase 'set -- ${b%\}}'			'1|{{(#)}'
+testcase 'set -- ${b#{}'			'1|{(#)}}'
+testcase 'set -- "${b#{}"'			'1|{(#)}}'
+# Parentheses are special in ksh, check that they can be escaped
+testcase 'set -- ${b%\)*}'			'1|{{(#'
+testcase 'set -- ${b#{}'			'1|{(#)}}'
+testcase 'set -- $h'				'1|##'
+testcase 'set -- ${h#\#}'			'1|#'
+testcase 'set -- ${h###}'			'1|#'
+testcase 'set -- "${h###}"'			'1|#'
+testcase 'set -- ${h%#}'			'1|#'
+testcase 'set -- "${h%#}"'			'1|#'
+
+set -f
+testcase 'set -- ${s%"${s#?}"}'			'1|a'
+testcase 'set -- ${s%"${s#????}"}'		'1|ast*'
+testcase 'set -- ${s%"${s#????????}"}'		'1|ast*que?'
+testcase 'set -- ${s#"${s%?}"}'			'1|n'
+testcase 'set -- ${s#"${s%????}"}'		'1|?non'
+testcase 'set -- ${s#"${s%????????}"}'		'1|*que?non'
+set +f
+testcase 'set -- "${s%"${s#?}"}"'		'1|a'
+testcase 'set -- "${s%"${s#????}"}"'		'1|ast*'
+testcase 'set -- "${s%"${s#????????}"}"'	'1|ast*que?'
+testcase 'set -- "${s#"${s%?}"}"'		'1|n'
+testcase 'set -- "${s#"${s%????}"}"'		'1|?non'
+testcase 'set -- "${s#"${s%????????}"}"'	'1|*que?non'
+testcase 'set -- ${p#${p}}'			'1|/etc/'
+testcase 'set -- "${p#${p}}"'			'1|/et[c]/'
+testcase 'set -- ${p#*[[]}'			'1|c]/'
+testcase 'set -- "${p#*[[]}"'			'1|c]/'
+testcase 'set -- ${p#*\[}'			'1|c]/'
+testcase 'set -- ${p#*"["}'			'1|c]/'
+testcase 'set -- "${p#*"["}"'			'1|c]/'
+
+test "x$failures" = x

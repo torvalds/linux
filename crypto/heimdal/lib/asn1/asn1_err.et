@@ -1,0 +1,29 @@
+#
+# Error messages for the asn.1 library
+#
+# This might look like a com_err file, but is not
+#
+id "$Id$"
+
+error_table asn1
+prefix ASN1
+error_code BAD_TIMEFORMAT,	"ASN.1 failed call to system time library"
+error_code MISSING_FIELD,	"ASN.1 structure is missing a required field"
+error_code MISPLACED_FIELD,	"ASN.1 unexpected field number"
+error_code TYPE_MISMATCH,	"ASN.1 type numbers are inconsistent"
+error_code OVERFLOW,		"ASN.1 value too large"
+error_code OVERRUN,		"ASN.1 encoding ended unexpectedly"
+error_code BAD_ID,		"ASN.1 identifier doesn't match expected value"
+error_code BAD_LENGTH,		"ASN.1 length doesn't match expected value"
+error_code BAD_FORMAT,		"ASN.1 badly-formatted encoding"
+error_code PARSE_ERROR,		"ASN.1 parse error"
+error_code EXTRA_DATA,		"ASN.1 extra data past end of end structure"
+error_code BAD_CHARACTER,	"ASN.1 invalid character in string"
+error_code MIN_CONSTRAINT,	"ASN.1 too few elements"
+error_code MAX_CONSTRAINT,	"ASN.1 too many elements"
+error_code EXACT_CONSTRAINT,	"ASN.1 wrong number of elements"
+error_code INDEF_OVERRUN,   	"ASN.1 BER indefinte encoding overrun"
+error_code INDEF_UNDERRUN,   	"ASN.1 BER indefinte encoding underun"
+error_code GOT_BER,		"ASN.1 got BER encoded when expected DER"
+error_code INDEF_EXTRA_DATA,	"ASN.1 EoC tag contained data"
+end

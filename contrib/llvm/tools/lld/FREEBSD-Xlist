@@ -1,0 +1,7 @@
+# $FreeBSD$
+MinGW/
+cmake/
+test/
+unittests/
+utils/
+wasm/

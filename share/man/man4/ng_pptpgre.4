@@ -1,0 +1,200 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_pptpgre.8,v 1.2 1999/12/08 00:20:53 archie Exp $
+.\"
+.Dd November 4, 2018
+.Dt NG_PPTPGRE 4
+.Os
+.Sh NAME
+.Nm ng_pptpgre
+.Nd PPTP GRE protocol netgraph node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph/ng_pptpgre.h
+.Sh DESCRIPTION
+The
+.Nm pptpgre
+node type performs Generic Routing Encapsulation (GRE) over IP
+for the PPTP protocol as specified by RFC 2637.
+This involves packet
+encapsulation, sequencing, acknowledgement, and an adaptive timeout
+sliding window mechanism.
+This node type does not handle any of
+the TCP control protocol or call negotiation defined by PPTP.
+.Pp
+This node type expects to receive complete IP packets,
+including the IP header, on the
+.Dq Li lower
+hook, but it transmits outgoing frames without any IP header.
+The typical use for this node type would be to connect the
+.Dq Li upper
+hook to one of the link hooks of a
+.Xr ng_ppp 4
+node, and the
+.Dq Li lower
+hook to the
+.Dq Li "inet/raw/gre"
+hook of a
+.Xr ng_ksocket 4
+node.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va session_hhhh"
+.It Va session_hhhh
+Session 0xhhhh data packets to the upper protocol layers
+.It Va upper
+Same as session_hhhh, but for single session with configurable cid (legacy)
+.It Va lower
+Connection to the lower protocol layers
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_PPTPGRE_SET_CONFIG Pq Ic setconfig
+This command resets and configures hook for a session.
+If corresponding
+session_hhhh hook is not connected, upper hook will be configured.
+This command takes a
+.Vt "struct ng_pptpgre_conf"
+as an argument:
+.Bd -literal
+/* Configuration for a session */
+struct ng_pptpgre_conf {
+    u_char      enabled;          /* enables traffic flow */
+    u_char      enableDelayedAck; /* enables delayed acks */
+    u_char      enableAlwaysAck;  /* always include ack with data */
+    u_char      enableWindowing;  /* enable windowing algorithm */
+    uint16_t    cid;              /* my call id */
+    uint16_t    peerCid;          /* peer call id */
+    uint16_t    recvWin;          /* peer recv window size */
+    uint16_t    peerPpd;          /* peer packet processing delay
+                                     (in 1/10 of a second) */
+};
+.Ed
+.Pp
+The
+.Va enabled
+field enables traffic flow through the node.
+The
+.Va enableDelayedAck
+field enables delayed acknowledgement (maximum 250 milliseconds), which
+is a useful optimization and should generally be turned on.
+.Va enableAlwaysAck
+field enables sending acknowledgements with every data packet, which
+is probably helpful as well.
+.Pp
+.Va enableWindowing
+enables the PPTP packet windowing mechanism specified by the protocol.
+Disabling this will cause the node to violate the protocol, possibly
+confusing other PPTP peers, but often results in better performance.
+The windowing mechanism is a design error in the PPTP protocol;
+L2TP, the successor to PPTP, removes it.
+.Pp
+The remaining fields are as supplied by the PPTP virtual call setup process.
+.It Dv NGM_PPTPGRE_GET_CONFIG Pq Ic getconfig
+Takes two byte argument as cid and returns the current configuration as a
+.Vt "struct ng_pptpgre_conf" .
+.It Dv NGM_PPTPGRE_GET_STATS Pq Ic getstats
+This command returns a
+.Vt "struct ng_pptpgre_stats"
+containing various node statistics.
+.It Dv NGM_PPTPGRE_CLR_STATS Pq Ic clrstats
+This command resets the node statistics.
+.It Dv NGM_PPTPGRE_GETCLR_STATS Pq Ic getclrstats
+This command atomically gets and resets the node statistics, returning a
+.Vt "struct ng_pptpgre_stats" .
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when both hooks have been disconnected.
+.Sh SYSCTL VARIABLES
+A set of
+.Xr sysctl 8
+variables controls ability of this node to deal with some
+amount of packet reorder that sometimes happens in transit.
+Packet reorder results in packet drops (unless the order is restored)
+as PPP protocol can not deliver reordered data.
+These variables are shown below together
+with their default value and meaning:
+.Bl -tag -width indent
+.It Va net.graph.pptpgre.reorder_max: 1
+Defines maximum length of node's private reorder queue
+used to keep data waiting for late packets.
+Zero value disables reordering.
+Default value allows the node to restore the order for two packets swapped
+in transit.
+Greater values allow the node to deliver packets being late after more
+packets in sequence at cost of increased kernel memory usage.
+.It Va net.graph.pptpgre.reorder_timeout: 1
+Defines time value in miliseconds used to wait for late packets.
+.El
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_ksocket 4 ,
+.Xr ng_ppp 4 ,
+.Xr ngctl 8 ,
+.Xr sysctl 8
+.Rs
+.%A K. Hamzeh
+.%A G. Pall
+.%A W. Verthein
+.%A J. Taarud
+.%A W. Little
+.%A G. Zorn
+.%T "Point-to-Point Tunneling Protocol (PPTP)"
+.%O RFC 2637
+.Re
+.Rs
+.%A S. Hanks
+.%A T. \&Li
+.%A D. Farinacci
+.%A P. Traina
+.%T "Generic Routing Encapsulation over IPv4 networks"
+.%O RFC 1702
+.Re
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Archie Cobbs Aq Mt archie@FreeBSD.org
+.Sh BUGS
+The node should not expect incoming GRE packets to have an IP header.
+This behavior is inherited from the (converse) behavior of raw IP sockets.
+An intermediate node that strips IP headers in one direction
+should be used instead.

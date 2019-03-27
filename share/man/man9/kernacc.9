@@ -1,0 +1,83 @@
+.\"	$NetBSD: access.9,v 1.1 1996/06/16 10:38:35 pk Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 16, 1996
+.Dt KERNACC 9
+.Os
+.Sh NAME
+.Nm kernacc ,
+.Nm useracc
+.Nd check memory regions for accessibility
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
+.In vm/vm.h
+.In vm/vm_extern.h
+.Ft int
+.Fn kernacc "void *addr" "int len" "int rw"
+.Ft int
+.Fn useracc "void *addr" "int len" "int rw"
+.Sh DESCRIPTION
+The
+.Fn kernacc
+and
+.Fn useracc
+functions check whether operations of the type specified in
+.Fa rw
+are permitted in the range of virtual addresses given by
+.Fa addr
+and
+.Fa len .
+The possible values of
+.Fa rw
+are any bitwise combination of
+.Dv VM_PROT_READ ,
+.Dv VM_PROT_WRITE
+and
+.Dv VM_PROT_EXECUTE .
+.Fn kernacc
+checks addresses in the kernel address space, while
+.Fn useracc
+considers
+.Fa addr
+to represent an user space address.
+The process context to use for this
+operation is taken from the global variable
+.Va curproc .
+.Sh RETURN VALUES
+Both functions return boolean true if the type of access specified
+by
+.Fa rw
+is permitted.
+Otherwise boolean false is returned.
+.Sh BUGS
+The process pointer should be passed in as an argument to
+.Fn useracc .

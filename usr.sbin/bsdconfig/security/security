@@ -1,0 +1,179 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="130.security"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local prompt="$msg_menu_text"
+	local menu_list="
+		'X $msg_exit' '$msg_exit_this_menu'
+	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
+
+	# Obtain default-item (adjusted below for dynamic tags)
+	f_dialog_default_fetch defaultitem
+	local ditem="${defaultitem%%[$IFS]*}"
+
+	#
+	# Add dynamically tagged entry for kern_securelevels
+	#
+	local mark=" "
+	case "$( f_sysrc_get kern_securelevel_enable )" in
+	[Yy][Ee][Ss])
+		local kern_securelevel="$( f_sysrc_get kern_securelevel )"
+		if [ ${#kern_securelevel} -eq 1 ] &&
+		   f_isinteger "$kern_securelevel" &&
+		   [ $kern_securelevel -lt 9 ]
+		then
+			mark="$kern_securelevel"
+		else
+			mark="X"
+		fi ;;
+	*)
+		mark=" "
+	esac
+	menu_list="$menu_list
+		'2 [$mark] $msg_securelevel' '$msg_securelevel_desc'"
+
+	# Update default-item if appropriate
+	[ "$ditem" = 2 ] && defaultitem="2 [$mark] $msg_securelevel"
+
+	#
+	# Add dynamically tagged entry for nfs_reserved_port_only
+	#
+	case "$( f_sysrc_get nfs_reserved_port_only )" in
+	[Yy][Ee][Ss]) mark="X" ;;
+	           *) mark=" " ;;
+	esac
+	menu_list="$menu_list
+		'3 [$mark] $msg_nfs_port' '$msg_nfs_port_desc'"
+
+	# Update default-item if appropriate
+	[ "$ditem" = 3 ] && defaultitem="3 [$mark] $msg_nfs_port"
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+
+	# Only update default-item on success
+	[ $retval -eq $DIALOG_OK ] && f_dialog_default_store "$menu_choice"
+
+	return $retval
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts h$GETOPTS_STDARGS flag; do
+	case "$flag" in
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Initialize
+#
+f_dialog_title "$msg_system_security_options_menu"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+
+#
+# Launch application main menu (loop for menu update after selection)
+#
+while :; do
+	dialog_menu_main || f_die
+	f_dialog_menutag_fetch mtag
+
+	case "$mtag" in
+	"X $msg_exit") break ;;
+	"2 ["?"] $msg_securelevel") # Configure securelevels for the system
+		$BSDCFG_LIBE/$APP_DIR/kern_securelevel ${USE_XDIALOG:+-X} ;;
+	"3 [X] $msg_nfs_port") # Require that NFS clients use reserved ports
+		f_eval_catch "$0" f_sysrc_set \
+			'f_sysrc_set nfs_reserved_port_only NO' ;;
+	"3 [ ] $msg_nfs_port") # Same; Toggle value
+		f_eval_catch "$0" f_sysrc_set \
+			'f_sysrc_set nfs_reserved_port_only YES' ;;
+	*)
+		f_die 1 "$msg_unknown_security_menu_selection"
+	esac
+done
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

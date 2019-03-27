@@ -1,0 +1,84 @@
+.\"	$OpenBSD: ypldap.8,v 1.10 2015/07/27 17:28:40 sobrado Exp $
+.\"	$FreeBSD$
+.\"
+.\" Copyright (c) 2008 Pierre-Yves Ritschard <pyr@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: June 8 2016 $
+.Dt YPLDAP 8
+.Os
+.Sh NAME
+.Nm ypldap
+.Nd YP map server using LDAP backend
+.Sh SYNOPSIS
+.Nm
+.Op Fl dnv
+.Op Fl D Ar macro Ns = Ns Ar value
+.Op Fl f Ar file
+.Sh DESCRIPTION
+.Nm
+is a daemon providing YP maps using LDAP as a backend.
+RFC 2307 or similar LDAP schemas can be tied to the different YP maps.
+.Nm
+has the same role as
+.Xr ypserv 8
+and the two daemons are exclusive.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl D Ar macro Ns = Ns Ar value
+Define
+.Ar macro
+to be set to
+.Ar value
+on the command line.
+Overrides the definition of
+.Ar macro
+in the configuration file.
+.It Fl d
+Do not daemonize.
+If this option is specified,
+.Nm
+will run in the foreground and log to
+.Em stderr .
+.It Fl f Ar file
+Specify an alternative configuration file.
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl v
+Produce more verbose output.
+.El
+.Sh FILES
+.Bl -tag -width "/etc/ypldap.confXX" -compact
+.It Pa /etc/ypldap.conf
+Default
+.Nm
+configuration file.
+.El
+.Sh SEE ALSO
+.Xr ypldap.conf 5 ,
+.Xr ypbind 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 4.4
+and then
+.Fx 11.0 .
+.Sh AUTHORS
+The
+.Nm
+program was written by
+.An Pierre-Yves Ritschard .

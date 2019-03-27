@@ -1,0 +1,102 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)zfs_get_common.kshlib	1.3	07/03/14 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+#
+# According to $elements, $prefix and $separator, the function random produce 
+# the number of $counter combination. 
+#
+# $1 elements which is used to get the combination.
+# $2 prefix is appended to the combination
+# $3 separator between the combination, such as ' ' or ','
+# $4 counter is the number of combination which you want to get.
+#
+function gen_option_str # $elements $prefix $separator $counter
+{
+	typeset elements=""
+	typeset prefix=${2}
+	typeset separator=${3}
+	typeset -i counter=${4:-0}
+	typeset -i i=0
+	typeset comb_str=""
+
+	for e in $1; do
+		elements[i]="$e"
+		(( i += 1 ))
+	done
+	(( ${#elements[@]} == 0 )) && log_fail "The elements can't be empty."
+	
+	typeset -i item=0
+	typeset -i j=0
+	typeset -i numb_item=0
+
+	# Loop and get the specified number combination strings.
+	i=0
+	while (( i < counter )); do
+		j=0
+		numb_item=0
+		comb_str=""
+
+		# Get random number items for each combinations.
+		(( numb_item = ($RANDOM % ${#elements[@]}) + 1 ))
+
+		while (( j < numb_item )); do
+			# Random select elements from the array
+			(( item = $RANDOM % ${#elements[@]} ))
+
+			if (( ${#comb_str} == 0 )); then
+				comb_str=${elements[item]}
+			else
+				comb_str=$comb_str$separator${elements[item]}
+			fi
+			(( j += 1 ))
+		done
+		
+		print "$prefix$comb_str"
+
+		(( i += 1 ))
+	done
+}
+
+#
+# Cleanup the volume snapshot and filesystem snapshot were created for 
+# this test case.
+#
+function cleanup
+{
+	datasetexists $TESTPOOL/$TESTVOL@$TESTSNAP && \
+		destroy_snapshot $TESTPOOL/$TESTVOL@$TESTSNAP
+	datasetexists $TESTPOOL/$TESTFS@$TESTSNAP && \
+		destroy_snapshot $TESTPOOL/$TESTFS@$TESTSNAP
+
+	[[ -e $TESTFILE0 ]] && log_must $RM $TESTFILE0
+}

@@ -1,0 +1,16 @@
+
+#------------------------------------------------------------------------------
+# weak:  file(1) magic for very weak magic entries, disabled by default
+#
+# These entries are so weak that they might interfere identification of
+# other formats. Example include:
+# - Only identify for 1 or 2 bytes
+# - Match against very wide range of values
+# - Match against generic word in some spoken languages (e.g. English)
+
+# Summary: Computer Graphics Metafile
+# Extension: .cgm
+#0	beshort&0xffe0	0x0020		binary Computer Graphics Metafile
+#0	beshort		0x3020		character Computer Graphics Metafile
+
+#0	string		=!!		Bennet Yee's "face" format

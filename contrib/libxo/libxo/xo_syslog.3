@@ -1,0 +1,89 @@
+.\" #
+.\" # Copyright (c) 2015, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2015
+.\" 
+.Dd July 20, 2015
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_syslog , xo_vsyslog , xo_open_log , xo_close_log , xo_set_logmask
+.Nd create SYSLOG (RFC5424) log records using libxo formatting
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Fn xo_syslog "int pri" "const char *name" "const char *fmt" "..."
+.Ft void
+.Fn xo_vsyslog "int pri" "const char *name" "const char *fmt" "va_list vap"
+.Ft void
+.Fn xo_close_log "void"
+.Ft void
+.Fn xo_open_log "const char *ident" "int logstat" "int logfac"
+.Ft int
+.Fn xo_set_logmask "int pmask"
+.Sh DESCRIPTION
+The
+.Fn xo_syslog
+function creates log entries following the standard defined in
+RFC5424.
+These messages are sent to the log
+.Xr syslogd 8
+daemon, where they can be filtered, forwarded, and archived.
+.Nm libxo
+format strings are used to create both the message text and the
+.Nm SD-PARAMS
+content, containing name/value pairs that can be parsed by suitable
+automation software.
+.Pp
+Refer to
+.Xr xo_format 5
+for basic information about formatting strings.
+.Nm xo_syslog
+encodes all value fields at SD-PARAMS within the syslog message.
+An exception is made for fields with the "{d:}" modifier; such fields
+appear in the message text only, with fields with the "{e:}" modifier
+appear as SD-PARAMS, but not in the message text.
+.Pp
+.Fn xo_vsyslog
+accepts a
+.Fa va_list
+for additional flexibility.
+.Pp
+.Fn xo_open_log ,
+.Fn xo_close_log , and
+.Fn xo_set_logmask
+are all analogous to their libs counterparts,
+.Xr openlog 3 ,
+.Xr closelog 3 , and
+.Xr setlogmask 3 .
+The extra underscores in the names are unfortunate, but keep
+consistency in
+.Nm libxo
+function names.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+    xo_syslog(LOG_LOCAL4 | LOG_NOTICE, "ID47",
+              "{e:iut/%u}An {:event-source} {:event-id/%u} log entry",
+              iut, source, id);
+.Ed
+.Sh SEE ALSO
+.Xr xo_syslog 3 ,
+.Xr xo_set_syslog_enterprise_id 3 ,
+.Xr xo_format 5 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

@@ -1,0 +1,14 @@
+
+#------------------------------------------------------------------------------
+# $File: ocaml,v 1.5 2010/09/20 18:55:20 rrt Exp $
+# ocaml: file(1) magic for Objective Caml files.
+0	string	Caml1999	OCaml
+>8	string	X		exec file
+>8	string	I		interface file (.cmi)
+>8	string	O		object file (.cmo)
+>8	string	A		library file (.cma)
+>8	string	Y		native object file (.cmx)
+>8	string	Z		native library file (.cmxa)
+>8	string	M		abstract syntax tree implementation file
+>8	string	N		abstract syntax tree interface file
+>9	string	>\0		(Version %3.3s)

@@ -1,0 +1,11 @@
+# $FreeBSD$
+root:$1$xOOaGnKU$U9QdsCI40XXcCUMBN.7Az.:0:0::0:0:Charlie &:/root:/bin/sh
+toor:*:0:0::0:0:Bourne-again Superuser:/root:
+daemon:*:1:1::0:0:Owner of many system processes:/root:/nonexistent
+operator:*:2:20::0:0:System &:/usr/guest/operator:/bin/csh
+bin:*:3:7::0:0:Binaries Commands and Source,,,:/:/nonexistent
+tty:*:4:65533::0:0:Tty Sandbox:/:/nonexistent
+sshd:*:22:22::0:0:Secure Shell Daemon:/var/empty:/usr/sbin/nologin
+nobody:*:65534:65534::0:0:Unprivileged user:/nonexistent:/nonexistent
+_dhcp:*:65:65::0:0:dhcp programs:/var/empty:/usr/sbin/nologin
+user:*:1002:1002:Sample User:0:0:user:/home/user:/bin/sh

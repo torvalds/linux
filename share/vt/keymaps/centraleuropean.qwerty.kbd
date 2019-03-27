@@ -1,0 +1,242 @@
+# Keyboard map for Central European languages under FreeBSD.
+# Created by G. Adam Stanislav <adam@whizkidtech.net>
+#
+# Version 1.0 - 1999-03-18
+#
+# $FreeBSD$
+#
+# This map uses the US QWERTY keyboard for its basic layout.
+# It adds a "third row" to the top of the PC keyboard. To
+# access the third row, press and hold the Alt key, then
+# strike a key in the top row.
+#
+# Note that some of the third-row keys produce characters.
+# Others must be followed by another keystroke resulting
+# in accented characters. To print the accent mark alone,
+# press the space bar after pressing and releasing the
+# alt-accent mark key.
+#
+# In most cases I have mapped a key to a character or an
+# accent mark because the key on the US QWERTY keyboard
+# somewhat resembles the result.
+#
+# In addition to the top row, three keys on the numeric keypad
+# are mapped for the use with IS 8859-2 when combined with the
+# Alt key: The dot (del) key combined with alt will print a
+# comma instead of a dot; alt-/ will show the division mark,
+# and alt-* the multpilication sign.
+#
+# You can see the layout here:
+#
+# alt-` ˛ (ogonek) and alt-~ ¸ (cedilla)
+#   Examples: ęąţçş
+# alt-! ß (German double s)
+# alt-@ ° (degree)
+# alt-# ¤ (currency)
+# alt-$ § (section, called paragraf in most CE languages)
+# alt-% ¨ (umlaut, dve bodky)
+#   Examples: äüöë
+# alt-^ ^ (circumflex, vokáň)
+#   Examples: ôâî
+# alt-& ­ (hyphen, pomlčka, rozdeľovacie znamienko)
+# alt-* ° (ring)
+#   Examples: ůŮ
+# alt-( ˝ (Hungarian long umlaut)
+#   Examples: őű
+# alt-) ˙ (dot accent)
+#   Examples: żŻ
+# alt-- ´ (acute, dĺžeň, čárka)
+#   Examples: áśéíúńźŕĺ
+# alt-= ˇ (caron, mäkčeň, háček) and alt-+ ˘ (breve)
+#   Examples: ăčřľďťňž
+# alt-\ / (slash)
+#   Examples: đł
+# alt-/ [on numeric keypad] ÷
+# alt-* [on numeric keypad] ×
+# alt-. [on numeric keypad] ,
+#
+# This layout offers access to the entire character set of
+# ISO 8859-2, used by Slovak, Czech, German, Polish, Croatian,
+# Slovenian, Rumanian, Hungarian, and probably other languages,
+# while remaining fully compatible with the default US QWERTY
+# keyboard.
+#
+#                                                         alt
+# scan                       cntrl          alt    alt   cntrl lock
+# code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
+# ------------------------------------------------------------------
+  000   nop    nop    nop    nop    nop    nop    nop    nop     O
+  001   esc    esc    esc    esc    esc    esc    debug  esc     O
+  002   '1'    '!'    nop    nop    0xdf   0xdf   nop    nop     O
+  003   '2'    '@'    nul    nul    0xb0   0xb0   nul    nul     O
+  004   '3'    '#'    nop    nop    0xa4   0xa4   nop    nop     O
+  005   '4'    '$'    nop    nop    0xa7   0xa7   nop    nop     O
+  006   '5'    '%'    nop    nop    duml   duml   nop    nop     O
+  007   '6'    '^'    rs     rs     dcir   dcir   rs     rs      O
+  008   '7'    '&'    nop    nop    0xad   0xad   nop    nop     O
+  009   '8'    '*'    nop    nop    drin   drin   nop    nop     O
+  010   '9'    '('    nop    nop    ddac   ddac   nop    nop     O
+  011   '0'    ')'    nop    nop    ddot   ddot   nop    nop     O
+  012   '-'    '_'    us     us     dacu   dacu   us     us      O
+  013   '='    '+'    nop    nop    dcar   dbre   nop    nop     O
+  014   bs     bs     del    del    bs     bs     del    del     O
+  015   ht     btab   nop    nop    ht     btab   nop    nop     O
+  016   'q'    'Q'    dc1    dc1    'q'    'Q'    dc1    dc1     C
+  017   'w'    'W'    etb    etb    'w'    'W'    etb    etb     C
+  018   'e'    'E'    enq    enq    'e'    'E'    enq    enq     C
+  019   'r'    'R'    dc2    dc2    'r'    'R'    dc2    dc2     C
+  020   't'    'T'    dc4    dc4    't'    'T'    dc4    dc4     C
+  021   'y'    'Y'    em     em     'y'    'Y'    em     em      C
+  022   'u'    'U'    nak    nak    'u'    'U'    nak    nak     C
+  023   'i'    'I'    ht     ht     'i'    'I'    ht     ht      C
+  024   'o'    'O'    si     si     'o'    'O'    si     si      C
+  025   'p'    'P'    dle    dle    'p'    'P'    dle    dle     C
+  026   '['    '{'    esc    esc    '['    '{'    esc    esc     O
+  027   ']'    '}'    gs     gs     ']'    '}'    gs     gs      O
+  028   cr     cr     nl     nl     cr     cr     nl     nl      O
+  029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
+  030   'a'    'A'    soh    soh    'a'    'A'    soh    soh     C
+  031   's'    'S'    dc3    dc3    's'    'S'    dc3    dc3     C
+  032   'd'    'D'    eot    eot    'd'    'D'    eot    eot     C
+  033   'f'    'F'    ack    ack    'f'    'F'    ack    ack     C
+  034   'g'    'G'    bel    bel    'g'    'G'    bel    bel     C
+  035   'h'    'H'    bs     bs     'h'    'H'    bs     bs      C
+  036   'j'    'J'    nl     nl     'j'    'J'    nl     nl      C
+  037   'k'    'K'    vt     vt     'k'    'k'    vt     vt      C
+  038   'l'    'L'    ff     ff     'l'    'L'    ff     ff      C
+  039   ';'    ':'    nop    nop    ';'    ':'    nop    nop     O
+  040   '''    '"'    nop    nop    '''    '"'    nop    nop     O
+  041   '`'    '~'    nop    nop    dogo   dced   nop    nop     O
+  042   lshift lshift lshift lshift lshift lshift lshift lshift  O
+  043   '\'    '|'    fs     fs     dsla   dsla   fs     fs      O
+  044   'z'    'Z'    sub    sub    'z'    'Z'    sub    sub     C
+  045   'x'    'X'    can    can    'x'    'X'    can    can     C
+  046   'c'    'C'    etx    etx    'c'    'C'    etx    etx     C
+  047   'v'    'V'    syn    syn    'v'    'V'    syn    syn     C
+  048   'b'    'B'    stx    stx    'b'    'B'    stx    stx     C
+  049   'n'    'N'    so     so     'n'    'N'    so     so      C
+  050   'm'    'M'    cr     cr     'm'    'M'    cr     cr      C
+  051   ','    '<'    nop    nop    ','    '<'    nop    nop     O
+  052   '.'    '>'    nop    nop    '.'    '>'    nop    nop     O
+  053   '/'    '?'    nop    nop    '/'    '?'    nop    nop     O
+  054   rshift rshift rshift rshift rshift rshift rshift rshift  O
+  055   '*'    '*'    '*'    '*'    0xd7   0xd7   0xd7   0xd7    O
+  056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
+  057   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
+  058   clock  clock  clock  clock  clock  clock  clock  clock   O
+  059   fkey01 fkey13 fkey25 fkey37 scr01  scr11  scr01  scr11   O
+  060   fkey02 fkey14 fkey26 fkey38 scr02  scr12  scr02  scr12   O
+  061   fkey03 fkey15 fkey27 fkey39 scr03  scr13  scr03  scr13   O
+  062   fkey04 fkey16 fkey28 fkey40 scr04  scr14  scr04  scr14   O
+  063   fkey05 fkey17 fkey29 fkey41 scr05  scr15  scr05  scr15   O
+  064   fkey06 fkey18 fkey30 fkey42 scr06  scr16  scr06  scr16   O
+  065   fkey07 fkey19 fkey31 fkey43 scr07  scr07  scr07  scr07   O
+  066   fkey08 fkey20 fkey32 fkey44 scr08  scr08  scr08  scr08   O
+  067   fkey09 fkey21 fkey33 fkey45 scr09  scr09  scr09  scr09   O
+  068   fkey10 fkey22 fkey34 fkey46 scr10  scr10  scr10  scr10   O
+  069   nlock  nlock  nlock  nlock  nlock  nlock  nlock  nlock   O
+  070   slock  slock  slock  slock  slock  slock  slock  slock   O
+  071   fkey49 '7'    '7'    '7'    '7'    '7'    '7'    '7'     N
+  072   fkey50 '8'    '8'    '8'    '8'    '8'    '8'    '8'     N
+  073   fkey51 '9'    '9'    '9'    '9'    '9'    '9'    '9'     N
+  074   fkey52 '-'    '-'    '-'    '-'    '-'    '-'    '-'     N
+  075   fkey53 '4'    '4'    '4'    '4'    '4'    '4'    '4'     N
+  076   fkey54 '5'    '5'    '5'    '5'    '5'    '5'    '5'     N
+  077   fkey55 '6'    '6'    '6'    '6'    '6'    '6'    '6'     N
+  078   fkey56 '+'    '+'    '+'    '+'    '+'    '+'    '+'     N
+  079   fkey57 '1'    '1'    '1'    '1'    '1'    '1'    '1'     N
+  080   fkey58 '2'    '2'    '2'    '2'    '2'    '2'    '2'     N
+  081   fkey59 '3'    '3'    '3'    '3'    '3'    '3'    '3'     N
+  082   fkey60 '0'    '0'    '0'    '0'    '0'    '0'    '0'     N
+  083   del    '.'    '.'    '.'    ','    ','    boot   boot    N
+  084   nop    nop    nop    nop    nop    nop    nop    nop     O
+  085   nop    nop    nop    nop    nop    nop    nop    nop     O
+  086   nop    nop    nop    nop    nop    nop    nop    nop     O
+  087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
+  088   fkey12 fkey24 fkey36 fkey48 scr12  scr12  scr12  scr12   O
+  089   cr     cr     nl     nl     cr     cr     nl     nl      O
+  090   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
+  091   '/'    '/'    '/'    '/'    0xf7   0xf7   0xf7   0xf7    N
+  092   nscr   pscr   debug  debug  nop    nop    nop    nop     O
+  093   ralt   ralt   ralt   ralt   ralt   ralt   ralt   ralt    O
+  094   fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49  O
+  095   fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50  O
+  096   fkey51 fkey51 fkey51 fkey51 fkey51 fkey51 fkey51 fkey51  O
+  097   fkey53 fkey53 fkey53 fkey53 fkey53 fkey53 fkey53 fkey53  O
+  098   fkey55 fkey55 fkey55 fkey55 fkey55 fkey55 fkey55 fkey55  O
+  099   fkey57 fkey57 fkey57 fkey57 fkey57 fkey57 fkey57 fkey57  O
+  100   fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58  O
+  101   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
+  102   fkey60 paste  fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
+  103   fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
+  104   slock  saver  slock  saver  susp   nop    susp   nop     O
+  105   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
+  106   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
+  107   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
+  108   nop    nop    nop    nop    nop    nop    nop    nop     O
+
+  dacu 0xb4    ( 'a'    0xe1    ) ( 'A'    0xc1    )
+               ( 'c'    0x0107  ) ( 'C'    0x0106  )
+               ( 'e'    0xe9    ) ( 'E'    0xc9    )
+               ( 'i'    0xed    ) ( 'I'    0xcd    )
+               ( 'l'    0x013a  ) ( 'L'    0x0139  )
+               ( 'n'    0x0144  ) ( 'N'    0x0143  )
+               ( 'o'    0xf3    ) ( 'O'    0xd3    )
+               ( 'r'    0x0155  ) ( 'R'    0x0154  )
+               ( 's'    0x015b  ) ( 'S'    0x015a  )
+               ( 'u'    0xfa    ) ( 'U'    0xda    )
+               ( 'y'    0xfd    ) ( 'Y'    0xdd    )
+               ( 'z'    0x017a  ) ( 'Z'    0x0179  )
+
+  dcir '^'     ( 'a'    0xe2    ) ( 'A'    0xc2    )
+               ( 'i'    0xee    ) ( 'I'    0xce    )
+               ( 'o'    0xf4    ) ( 'O'    0xd4    )
+
+  dbre 0x02d8  ( 'a'    0x0103  ) ( 'A'    0x0102  )
+               ( 'c'    0x010d  ) ( 'C'    0x010c  )
+               ( 'd'    0x010f  ) ( 'D'    0x010e  )
+               ( 'e'    0x011b  ) ( 'E'    0x011a  )
+               ( 'l'    0x013e  ) ( 'L'    0x013d  )
+               ( 'n'    0x0148  ) ( 'N'    0x0147  )
+               ( 'r'    0x0159  ) ( 'R'    0x0158  )
+               ( 's'    0x0161  ) ( 'S'    0x0160  )
+               ( 't'    0x0165  ) ( 'T'    0x0164  )
+               ( 'z'    0x017e  ) ( 'Z'    0x017d  )
+
+  ddot 0x02d9  ( 'z'    0x017c  ) ( 'Z'    0x017b  )
+
+  duml 0xa8    ( 'a'    0xe4    ) ( 'A'    0xc4    )
+               ( 'e'    0xeb    ) ( 'E'    0xcb    )
+               ( 'o'    0xf6    ) ( 'O'    0xd6    )
+               ( 'u'    0xfc    ) ( 'U'    0xdc    )
+
+  dsla '/'     ( 'd'    0x0111  ) ( 'D'    0x0110  )
+               ( 'l'    0x0142  ) ( 'L'    0x0141  )
+
+  drin 0xb0    ( 'u'    0x016f  ) ( 'U'    0x016e  )
+
+  dced 0xb8    ( 'a'    0x0105  ) ( 'A'    0x0104  )
+               ( 'c'    0xe7    ) ( 'C'    0xc7    )
+               ( 'e'    0x0119  ) ( 'E'    0x0118  )
+               ( 's'    0x015f  ) ( 'S'    0x015e  )
+               ( 't'    0x0163  ) ( 'T'    0x0162  )
+
+  ddac 0x02dd  ( 'o'    0x0151  ) ( 'O'    0x0150  )
+               ( 'u'    0x0171  ) ( 'U'    0x0170  )
+
+  dogo 0x02db  ( 'a'    0x0105  ) ( 'A'    0x0104  )
+               ( 'c'    0xe7    ) ( 'C'    0xc7    )
+               ( 'e'    0x0119  ) ( 'E'    0x0118  )
+               ( 's'    0x015f  ) ( 'S'    0x015e  )
+               ( 't'    0x0163  ) ( 'T'    0x0162  )
+
+  dcar 0x02c7  ( 'a'    0x0103  ) ( 'A'    0x0102  )
+               ( 'c'    0x010d  ) ( 'C'    0x010c  )
+               ( 'd'    0x010f  ) ( 'D'    0x010e  )
+               ( 'e'    0x011b  ) ( 'E'    0x011a  )
+               ( 'l'    0x013e  ) ( 'L'    0x013d  )
+               ( 'n'    0x0148  ) ( 'N'    0x0147  )
+               ( 'r'    0x0159  ) ( 'R'    0x0158  )
+               ( 's'    0x0161  ) ( 'S'    0x0160  )
+               ( 't'    0x0165  ) ( 'T'    0x0164  )
+               ( 'z'    0x017e  ) ( 'Z'    0x017d  )

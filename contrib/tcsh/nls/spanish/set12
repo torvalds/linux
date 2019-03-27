@@ -1,0 +1,4 @@
+$ $tcsh: set12,v 1.2 2006/03/02 18:46:48 christos Exp $
+$ sh.dir.c
+$set 12 
+1 %s: Tratando de empezar desde "%s"\n

@@ -1,0 +1,60 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2013-2015 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ MAIN
+
+cat $BSDINSTALL_TMPETC/rc.conf.* >> $BSDINSTALL_TMPETC/rc.conf
+rm $BSDINSTALL_TMPETC/rc.conf.*
+
+cat $BSDINSTALL_CHROOT/etc/sysctl.conf $BSDINSTALL_TMPETC/sysctl.conf.* >> $BSDINSTALL_TMPETC/sysctl.conf
+rm $BSDINSTALL_TMPETC/sysctl.conf.*
+
+if [ -f $BSDINSTALL_TMPETC/ttys.hardening ]; then
+	cat $BSDINSTALL_TMPETC/ttys.hardening > $BSDINSTALL_TMPETC/ttys
+	rm $BSDINSTALL_TMPETC/ttys.hardening
+fi
+
+cp $BSDINSTALL_TMPETC/* $BSDINSTALL_CHROOT/etc
+
+cat $BSDINSTALL_TMPBOOT/loader.conf.* >> $BSDINSTALL_TMPBOOT/loader.conf
+rm $BSDINSTALL_TMPBOOT/loader.conf.*
+df -t zfs $BSDINSTALL_CHROOT > /dev/null && echo "zfs_load=\"YES\"" >> $BSDINSTALL_TMPBOOT/loader.conf
+
+cp $BSDINSTALL_TMPBOOT/* $BSDINSTALL_CHROOT/boot
+
+[ "${debugFile#+}" ] && cp "${debugFile#+}" $BSDINSTALL_CHROOT/var/log/
+
+# Set up other things from installed config
+chroot $BSDINSTALL_CHROOT /usr/bin/newaliases > /dev/null 2>&1
+
+exit 0
+
+################################################################################
+# END
+################################################################################

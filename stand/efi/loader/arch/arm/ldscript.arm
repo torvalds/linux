@@ -1,0 +1,67 @@
+/* $FreeBSD$ */
+OUTPUT_ARCH(arm)
+ENTRY(_start)
+SECTIONS
+{
+  /* Read-only sections, merged into text segment: */
+  . = 0;
+  ImageBase = .;
+  .text		: {
+    *(.peheader)
+    *(.text .stub .text.* .gnu.linkonce.t.*)
+    /* .gnu.warning sections are handled specially by elf32.em. */
+    *(.gnu.warning)
+    *(.gnu.linkonce.t*)
+  } =0
+  _etext = .;
+  PROVIDE (etext = .);
+  . = ALIGN(16);
+  .data    :
+  {
+    *(.data .data.*)
+    *(.gnu.linkonce.d*)
+    *(.rodata)
+    *(.rodata.*)
+    CONSTRUCTORS
+
+    . = ALIGN(4);
+    PROVIDE (__bss_start = .);
+    *(.sbss)
+    *(.scommon)
+    *(.dynsbss)
+    *(.dynbss)
+    *(.bss)
+    *(COMMON)
+    . = ALIGN(4);
+    PROVIDE (__bss_end = .);
+  }
+  .dynamic	: { *(.dynamic) }
+  /* We want the small data sections together, so single-instruction offsets
+     can access them all, and initialized data all before uninitialized, so
+     we can shorten the on-disk segment size.  */
+  .sdata     : {
+    *(.got.plt .got)
+    *(.sdata*.sdata.* .gnu.linkonce.s.*)
+  }
+  set_Xcommand_set	: {
+    __start_set_Xcommand_set = .;
+    *(set_Xcommand_set)
+    __stop_set_Xcommand_set = .;
+  }
+  set_Xficl_compile_set	: {
+    __start_set_Xficl_compile_set = .;
+    *(set_Xficl_compile_set)
+    __stop_set_Xficl_compile_set = .;
+  }
+  __gp = .;
+  .plt   : { *(.plt) }
+  .reloc	: { *(.reloc) }
+  .dynsym	: { *(.dynsym) }
+  .dynstr	: { *(.dynstr) }
+  .rel.dyn	: {
+    *(.rel.*)
+    *(.relset_*)
+  }
+  _edata = .;
+  .hash		: { *(.hash) }
+}

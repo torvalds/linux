@@ -1,0 +1,336 @@
+/*-
+ * Copyright (c) 2012-2013 Robert N. M. Watson
+ * Copyright (c) 2013 SRI International
+ * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+
+/*
+ * Device names here have been largely made up on the spot, especially for the
+ * "compatible" strings, and might want to be revised.
+ *
+ * For now, use 32-bit addressing as our Avalon bus is 32-bit.  However, in
+ * the future, we should likely change to 64-bit.
+ */
+
+/ {
+	model = "SRI/Cambridge BeriPad (DE4)";
+	compatible = "sri-cambridge,beripad-de4";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/*
+		 * Secondary CPUs all start disabled and use the
+		 * spin-table enable method.  cpu-release-addr must be
+		 * specified for each cpu other than cpu@0.  Values of
+		 * cpu-release-addr grow down from 0x100000 (kernel).
+		 */
+		status = "disabled";
+		enable-method = "spin-table";
+
+		cpu@0 {
+			device-type = "cpu";
+			compatible = "sri-cambridge,beri";
+
+			reg = <0 1>;
+			status = "okay";
+		};
+
+/*
+		cpu@1 {
+			device-type = "cpu";
+			compatible = "sri-cambridge,beri";
+
+			reg = <1 1>;
+			// XXX: should we need cached prefix?
+			cpu-release-addr = <0xffffffff 0x800fffe0>;
+		};
+*/
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x40000000>;		// 1G at 0x0
+	};
+
+	cpuintc: cpuintc@0 {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
+	beripic0: beripic@7f804000 {
+		compatible = "sri-cambridge,beri-pic";
+		interrupt-controller;
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x7f804000 0x400
+		       0x7f806000 0x10
+		       0x7f806080 0x10
+		       0x7f806100 0x10>;
+		interrupts = < 2 3 4 5 6 >;
+		hard-interrupt-sources = <64>;
+		soft-interrupt-sources = <64>;
+		interrupt-parent = <&cpuintc>;
+	};
+
+/*
+	beripic1: beripic@7f808000 {
+		compatible = "sri-cambridge,beri-pic";
+		interrupt-controller;
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x7f808000 0x400
+		       0x7f80a000 0x10
+		       0x7f80a080 0x10
+		       0x7f80a100 0x10>;
+		interrupts = < 2 3 4 5 6 >;
+		hard-interrupt-sources = <64>;
+		soft-interrupt-sources = <64>;
+		interrupt-parent = <&cpuintc>;
+	};
+*/
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <1>;
+
+		compatible = "simple-bus", "mips,mips4k";
+		ranges;
+
+		serial@7f002100 {
+			compatible = "ns16550";
+			reg = <0x7f002100 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <50000000>;
+			interrupts = <6>;
+			interrupt-parent = <&beripic0>;
+		};
+
+		serial@7f000000 {
+			compatible = "altera,jtag_uart-11_0";
+			reg = <0x7f000000 0x40>;
+			interrupts = <0>;
+			interrupt-parent = <&beripic0>;
+		};
+
+		serial@7f001000 {
+			compatible = "altera,jtag_uart-11_0";
+			reg = <0x7f001000 0x40>;
+		};
+
+		serial@7f002000 {
+			compatible = "altera,jtag_uart-11_0";
+			reg = <0x7f002000 0x40>;
+		};
+
+		sdcard@7f008000 {
+			compatible = "altera,sdcard_11_2011";
+			reg = <0x7f008000 0x400>;
+		};
+
+		led@7f006000 {
+			compatible = "sri-cambridge,de4led";
+			reg = <0x7f006000 0x1>;
+		};
+
+		/*
+		 * XXX-BZ keep flash before ethernet so that atse can read the
+		 * Ethernet addresses for now.
+		 */
+		flash@74000000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x74000000 0x4000000>;
+
+			/* Board configuration */
+			partition@0 {
+				reg = <0x0 0x20000>;
+				label = "config";
+			};
+
+			/* Power up FPGA image */
+			partition@20000 {
+				reg = <0x20000 0xc00000>;
+				label = "fpga0";
+			};
+
+			/* Secondary FPGA image (on RE_CONFIGn button) */
+			partition@C20000 {
+				reg = <0xc20000 0xc00000>;
+				label = "fpga1";
+			};
+
+			/* Space for operating system use */
+			partition@1820000 {
+				reg = <0x1820000 0x027c0000>;
+				label = "os";
+			};
+
+			/* Second stage bootloader */
+			parition@3fe0000 {
+				reg = <0x3fe0000 0x20000>;
+				label = "boot";
+			};
+		};
+
+		msgdma0: msgdma@80004080 { 
+			compatible = "altr,msgdma-16.0", "altr,msgdma-1.0"; 
+			reg = <0x80004080 0x00000020>,
+			      <0x800040a0 0x00000020>; 
+			reg-names = "csr", "descriptor_slave"; 
+			interrupts = <14>;
+			interrupt-parent = <&beripic0>;
+			#dma-cells = <3>;
+		}; 
+
+		msgdma1: msgdma@80004000 { 
+			compatible = "altr,msgdma-16.0", "altr,msgdma-1.0"; 
+			reg = <0x80004000 0x00000020>,
+			      <0x80004020 0x00000020>; 
+			reg-names = "csr", "descriptor_slave"; 
+			interrupts = <13>;
+			interrupt-parent = <&beripic0>;
+			#dma-cells = <3>;
+		}; 
+
+		softdma0: softdma@7f007400 {
+			compatible = "altr,softdma";
+			reg = < 0x7f007400 0x8		/* tx */
+				0x7f007420 0x20 >;	/* txc */
+			interrupts = <2>;
+			interrupt-parent = <&beripic0>;
+			#dma-cells = <3>;
+		};
+
+		softdma1: softdma@7f007500 {
+			compatible = "altr,softdma";
+			reg = < 0x7f007500 0x8		/* rx */
+				0x7f007520 0x20 >;	/* rxc */
+			interrupts = <1>;
+			interrupt-parent = <&beripic0>;
+			#dma-cells = <3>;
+		};
+
+		softdma2: softdma@7f005400 {
+			compatible = "altr,softdma";
+			reg = < 0x7f005400 0x8		/* tx */
+				0x7f005420 0x20 >;	/* txc */
+			interrupts = <12>;
+			interrupt-parent = <&beripic0>;
+			#dma-cells = <3>;
+		};
+
+		softdma3: softdma@7f005500 {
+			compatible = "altr,softdma";
+			reg = < 0x7f005500 0x8		/* rx */
+				0x7f005520 0x20 >;	/* rxc */
+			interrupts = <11>;
+			interrupt-parent = <&beripic0>;
+			#dma-cells = <3>;
+		};
+
+		ethernet@80007000 {
+			compatible = "altera,atse";
+			reg = <0x80007000 0x400>;		/* mac */
+			dmas = <&msgdma0 0 0 0xffffffff>,
+			       <&msgdma1 1 1 0xffffffff>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		ethernet@7f007000 {
+			compatible = "altera,atse";
+			reg = <0x7f007000 0x400>;		/* mac */
+			dmas = <&softdma0 0 0 0xffffffff>,
+			       <&softdma1 1 1 0xffffffff>;
+			dma-names = "tx", "rx";
+			status = "okay";
+		};
+
+		ethernet@7f005000 {
+			compatible = "altera,atse";
+			reg = <0x7f005000 0x400>;
+			dmas = <&softdma2 0 0 0xffffffff>,
+			       <&softdma3 1 1 0xffffffff>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		touchscreen@70400000 {
+			compatible = "sri-cambridge,mtl";
+			panel-size = < 800 480 >;
+			reg = <0x70400000 0x1000
+			       0x70000000 0x177000
+			       0x70177000 0x2000>;
+		};
+
+		usb@0x7f100000 {
+			compatible = "nxp,usb-isp1761";
+			reg = <0x7f100000 0x40000
+			       0x7f140000 0x4>;
+			// IRQ 4 is DC, IRQ 5 is HC.
+			interrupts = <4 5>;
+			interrupt-parent = <&beripic0>;
+		};
+
+		avgen@0x7f009000 {
+			compatible = "sri-cambridge,avgen";
+			reg = <0x7f009000 0x2>;	
+			sri-cambridge,width = <1>;
+			sri-cambridge,fileio = "r";
+			sri-cambridge,devname = "de4bsw";
+		};
+
+		avgen@0x7f00a000 {
+			compatible = "sri-cambridge,avgen";
+			reg = <0x7f00a000 0x14>;
+			sri-cambridge,width = <4>;
+			sri-cambridge,fileio = "rw";
+			sri-cambridge,devname = "berirom";
+		};
+
+		avgen@0x7f00c000 {
+			compatible = "sri-cambridge,avgen";
+			reg = <0x7f00c000 0x8>;
+			sri-cambridge,width = <4>;
+			sri-cambridge,fileio = "rw";
+			sri-cambridge,devname = "de4tempfan";
+		};
+	};
+};

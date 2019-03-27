@@ -1,0 +1,30 @@
+# Copyright 2004 Free Software Foundation, Inc.
+
+#This file is part of GCC.
+
+#GCC is free software; you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation; either version 2, or (at your option)
+#any later version.
+
+#GCC is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with GCC; see the file COPYING.  If not, write to
+#the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+#Boston MA 02110-1301, USA.
+
+# GCC's Makefile fragment for libada.
+# libada needs some information from the GCC configure file at the moment,
+# and this exists to transfer that information in as clean a way as possible.
+
+exeext=@host_exeext@
+libdir=@libdir@
+NOCOMMON_FLAG=@nocommon_flag@
+WARN_CFLAGS=@warn_cflags@
+gcc_tmake_file=@tmake_file@
+gcc_xmake_file=@xmake_file@
+host_cc_for_libada=@host_cc_for_libada@

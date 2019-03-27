@@ -1,0 +1,92 @@
+.\"	$OpenBSD: timingsafe_bcmp.3,v 1.2 2014/06/21 20:22:15 tedu Exp $
+.\"
+.\" Copyright (c) 2014 Google Inc.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.Dd August 15, 2016
+.Dt TIMINGSAFE_BCMP 3
+.Os
+.Sh NAME
+.Nm timingsafe_bcmp ,
+.Nm timingsafe_memcmp
+.Nd timing-safe byte sequence comparisons
+.Sh SYNOPSIS
+.In string.h
+.Ft int
+.Fn timingsafe_bcmp "const void *b1" "const void *b2" "size_t len"
+.Ft int
+.Fn timingsafe_memcmp "const void *b1" "const void *b2" "size_t len"
+.Sh DESCRIPTION
+The
+.Fn timingsafe_bcmp
+and
+.Fn timingsafe_memcmp
+functions lexicographically compare the first
+.Fa len
+bytes (each interpreted as an
+.Vt unsigned char )
+pointed to by
+.Fa b1
+and
+.Fa b2 .
+.Pp
+Additionally, their running times are independent of the byte sequences compared,
+making them safe to use for comparing secret values such as cryptographic MACs.
+In contrast,
+.Xr bcmp 3
+and
+.Xr memcmp 3
+may short-circuit after finding the first differing byte.
+.Sh RETURN VALUES
+The
+.Fn timingsafe_bcmp
+function returns 0 or not zero if the byte sequence pointed to by
+.Fa b1
+compares equal to or not equal to (respectively)
+the byte sequence pointed to by
+.Fa b2 .
+.Pp
+The
+.Fn timingsafe_memcmp
+function returns a negative value, 0, or positive value if the byte sequence
+pointed to by
+.Fa b1
+compares less than, equal to, or greater than (respectively)
+the byte sequence pointed to by
+.Fa b2 .
+.Sh SEE ALSO
+.Xr bcmp 3 ,
+.Xr memcmp 3
+.Sh STANDARDS
+The
+.Fn timingsafe_bcmp
+and
+.Fn timingsafe_memcmp
+functions are
+.Fx
+extensions.
+.Sh HISTORY
+The
+.Fn timingsafe_bcmp
+function first appeared in
+.Ox 4.9 .
+.Pp
+The
+.Fn timingsafe_memcmp
+function first appeared in
+.Ox 5.6 .
+.Pp
+Both functions first appeared in
+.Fx 12.0 .

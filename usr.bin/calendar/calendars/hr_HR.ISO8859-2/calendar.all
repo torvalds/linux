@@ -1,0 +1,12 @@
+/*
+ *  hrvatski calendar
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _hr_HR_ISO8859_2_all_
+#define _hr_HR_ISO8859_2_all_
+
+#include <hr_HR.ISO8859-2/calendar.praznici>
+
+#endif /* !_hr_HR_ISO8859_2_all_ */

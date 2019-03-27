@@ -1,0 +1,52 @@
+
+#------------------------------------------------------------------------------
+# $File: pgf,v 1.2 2017/03/17 21:35:28 christos Exp $
+# pgf: file(1) magic for Progressive Graphics File (PGF)
+#
+# <http://www.libpgf.org/uploads/media/PGF_Details_01.pdf>
+# 2013 by Philipp Hahn <pmhahn debian org>
+0 string PGF Progressive Graphics image data,
+!:mime image/x-pgf
+>3	string	2	version %s,
+>3	string	4	version %s,
+>3	string	5	version %s,
+>3	string	6	version %s,
+#	PGFPreHeader
+#>>4	lelong	x	header size %d,
+#	PGFHeader
+>>8	lelong	x	%d x
+>>12	lelong	x	%d,
+>>16	byte	x	%d levels,
+>>17	byte	x	compression level %d,
+>>18	byte	x	%d bpp,
+>>19	byte	x	%d channels,
+>>20	clear	x
+>>20	byte	0	bitmap,
+>>20	byte	1	gray scale,
+>>20	byte	2	indexed color,
+>>20	byte	3	RGB color,
+>>20	byte	4	CYMK color,
+>>20	byte	5	HSL color,
+>>20	byte	6	HSB color,
+>>20	byte	7	multi-channel,
+>>20	byte	8	duo tone,
+>>20	byte	9	LAB color,
+>>20	byte	10	gray scale 16,
+>>20	byte	11	RGB color 48,
+>>20	byte	12	LAB color 48,
+>>20	byte	13	CYMK color 64,
+>>20	byte	14	deep multi-channel,
+>>20	byte	15	duo tone 16,
+>>20	byte	17	RGBA color,
+>>20	byte	18	gray scale 32,
+>>20	byte	19	RGB color 12,
+>>20	byte	20	RGB color 16,
+>>20	byte	255	unknown format,
+>>20	default	x	format
+>>>20	byte	x	\b %d,
+>>21	byte	x	%d bpc
+#	PGFPostHeader
+#	Level-Sizes
+#>>(4.l+4)	lelong x level 0 size: %d
+#>>(4.l+8)	lelong x level 1 size: %d
+#>>(4.l+12)	lelong x level 2 size: %d

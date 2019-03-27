@@ -1,0 +1,337 @@
+/*-
+ * Copyright (c) 2013-2014 Ruslan Bukin <br@bsdpad.com>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/ {
+	compatible = "samsung,exynos5";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&GIC>;
+
+	aliases {
+		soc = &SOC;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		serial2 = &serial2;
+		serial3 = &serial3;
+		clk0 = &clk0;
+		dp0 = &dp0;
+		fimd0 = &fimd0;
+	};
+
+	SOC: Exynos5@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+		bus-frequency = <0>;
+
+		pmu_system_controller: system-controller@10040000 {
+			reg = <0x10040000 0x5000>;
+			status = "disabled";
+		};
+
+		GIC: interrupt-controller@10481000 {
+			compatible = "arm,gic";
+			reg =	< 0x10481000 0x1000 >,	/* Distributor Registers */
+				< 0x10482000 0x2000 >;	/* CPU Interface Registers */
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+		};
+
+		combiner: interrupt-controller@10440000 {
+			compatible = "exynos,combiner";
+			reg = <0x10440000 0x1000>;
+			interrupts = < 32 33 34 35 36 37 38 39
+				       40 41 42 43 44 45 46 47
+				       48 49 50 51 52 53 54 55
+				       56 57 58 59 60 61 62 63 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		clk0: clk@10010000 {
+			compatible = "exynos,clk";
+			reg = < 0x10020000 0x20000 >;
+		};
+
+		mct {
+			compatible = "exynos,mct";
+			reg = < 0x101C0000 0x1000 >;
+			clock-frequency = <24000000>;
+		};
+
+		generic_timer {
+			compatible = "arm,armv7-timer";
+			clock-frequency = <24000000>;
+			interrupts = < 29 30 27 26 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		pwm {
+			compatible = "samsung,s3c24x0-timer";
+			reg = <0x12DD0000 0x1000>;
+			interrupts = < 71 >;
+			interrupt-parent = <&GIC>;
+			clock-frequency = <24000000>;
+		};
+
+		pad0: pad@11400000 {
+			status = "disabled";
+		};
+
+		usbdrd_phy0: phy@12100000 {
+			compatible = "samsung,exynos5420-usbdrd-phy";
+			status = "disabled";
+			reg = <0x12100000 0x100>;
+			samsung,pmu-syscon = <&pmu_system_controller>;
+		};
+
+		usbdrd_phy1: phy@12500000 {
+			compatible = "samsung,exynos5420-usbdrd-phy";
+			status = "disabled";
+			reg = <0x12500000 0x100>;
+			samsung,pmu-syscon = <&pmu_system_controller>;
+		};
+
+		xhci@12000000 {
+			compatible = "samsung,exynos5250-dwusb3";
+			status = "disabled";
+			reg = <0x12000000 0x1000>,
+			      <0x1200c100 0x1000>;
+			interrupts = < 104 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		xhci@12400000 {
+			compatible = "samsung,exynos5250-dwusb3";
+			status = "disabled";
+			reg = <0x12400000 0x1000>,
+			      <0x1240c100 0x1000>;
+			interrupts = < 105 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		usb@12110000 {
+			compatible = "exynos,usb-ehci", "usb-ehci";
+			status = "disabled";
+			reg = <0x12110000 0x1000>, /* EHCI */
+			      <0x12130000 0x1000>, /* EHCI host ctrl */
+			      <0x10050230 0x10>; /* Sysreg */
+			interrupts = < 103 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		usb@12120000 {
+			compatible = "exynos,usb-ohci", "usb-ohci";
+			status = "disabled";
+			reg = <0x12120000 0x10000>;
+			interrupts = < 103 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		sdhci@12200000 {
+			compatible = "sdhci_generic";
+			status = "disabled";
+			reg = <0x12200000 0x1000>;
+			interrupts = <107>;
+			interrupt-parent = <&GIC>;
+			max-frequency = <24000000>; /* TODO: verify freq */
+		};
+
+		sdhci@12210000 {
+			compatible = "sdhci_generic";
+			status = "disabled";
+			reg = <0x12210000 0x1000>;
+			interrupts = <108>;
+			interrupt-parent = <&GIC>;
+			max-frequency = <24000000>;
+		};
+
+		sdhci@12220000 {
+			compatible = "sdhci_generic";
+			status = "disabled";
+			reg = <0x12220000 0x1000>;
+			interrupts = <109>;
+			interrupt-parent = <&GIC>;
+			max-frequency = <24000000>;
+		};
+
+		sdhci@12230000 {
+			compatible = "sdhci_generic";
+			status = "disabled";
+			reg = <0x12230000 0x1000>;
+			interrupts = <110>;
+			interrupt-parent = <&GIC>;
+			max-frequency = <24000000>;
+		};
+
+		serial0: serial@12C00000 {
+			compatible = "exynos";
+			status = "disabled";
+			reg = <0x12C00000 0x100>;
+			interrupts = < 83 >;
+			interrupt-parent = <&GIC>;
+			clock-frequency = < 100000000 >;
+			current-speed = <115200>;
+		};
+
+		serial1: serial@12C10000 {
+			compatible = "exynos";
+			status = "disabled";
+			reg = <0x12C10000 0x100>;
+			interrupts = < 84 >;
+			interrupt-parent = <&GIC>;
+			clock-frequency = < 100000000 >;
+			current-speed = <115200>;
+		};
+
+		serial2: serial@12C20000 {
+			compatible = "exynos";
+			status = "disabled";
+			reg = <0x12C20000 0x100>;
+			interrupts = < 85 >;
+			interrupt-parent = <&GIC>;
+			clock-frequency = < 100000000 >;
+			current-speed = <115200>;
+		};
+
+		serial3: serial@12C30000 {
+			compatible = "exynos";
+			status = "disabled";
+			reg = <0x12C30000 0x100>;
+			interrupts = < 86 >;
+			interrupt-parent = <&GIC>;
+			clock-frequency = < 100000000 >;
+			current-speed = <115200>;
+		};
+
+		spi0: spi@12d20000 {
+			compatible = "samsung,exynos5-spi";
+			status = "disabled";
+			reg = <0x12d20000 0x100>;
+			interrupts = < 100 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		spi1: spi@12d30000 {
+			compatible = "samsung,exynos5-spi";
+			status = "disabled";
+			reg = <0x12d30000 0x100>;
+			interrupts = < 101 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		spi2: spi@12d40000 {
+			compatible = "samsung,exynos5-spi";
+			status = "disabled";
+			reg = <0x12d40000 0x100>;
+			interrupts = < 102 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c0: i2c@12C60000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12C60000 0x10000>;
+			interrupts = < 88 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c1: i2c@12C70000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12C70000 0x10000>;
+			interrupts = < 89 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c2: i2c@12C80000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12C80000 0x10000>;
+			interrupts = < 90 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c3: i2c@12C90000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12C90000 0x10000>;
+			interrupts = < 91 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c4: i2c@12CA0000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12CA0000 0x10000>;
+			interrupts = < 92 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c5: i2c@12CB0000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12CB0000 0x10000>;
+			interrupts = < 93 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c6: i2c@12CC0000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12CC0000 0x10000>;
+			interrupts = < 94 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c7: i2c@12CD0000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12CD0000 0x10000>;
+			interrupts = < 95 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		fimd0: fimd@14400000 {
+			compatible = "exynos,fimd";
+			status = "disabled";
+			reg = < 0x14400000 0x10000 >, /* fimd */
+			      < 0x14420000 0x10000 >, /* disp */
+			      < 0x10050000 0x220 >; /* sysreg */
+			interrupt-parent = <&GIC>;
+		};
+
+		dp0: dp@145B0000 {
+			compatible = "exynos,dp";
+			status = "disabled";
+			reg = < 0x145B0000 0x10000 >;
+			interrupt-parent = <&GIC>;
+		};
+	};
+};

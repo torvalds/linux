@@ -1,0 +1,10 @@
+Output differs: ibm/valid/P02/ibm02v01.xml
+ibm49i02.dtd: No such file or directory
+Expected not well-formed: ibm/not-wf/misc/432gewf.xml
+Expected not well-formed: xmltest/not-wf/not-sa/005.xml
+Expected not well-formed: sun/not-wf/uri01.xml
+Expected not well-formed: oasis/p06fail1.xml
+Expected not well-formed: oasis/p08fail1.xml
+Expected not well-formed: oasis/p08fail2.xml
+Passed: 1801
+Failed: 8

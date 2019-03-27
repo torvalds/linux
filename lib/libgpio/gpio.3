@@ -1,0 +1,200 @@
+.\"
+.\" Copyright (c) 2014 Rui Paulo
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 1, 2015
+.Dt GPIO 3
+.Os
+.Sh NAME
+.Nm gpio_open ,
+.Nm gpio_close
+.Nd "library to handle GPIO pins"
+.Sh LIBRARY
+.Lb libgpio
+.Sh SYNOPSIS
+.In sys/types.h
+.In libgpio.h
+.Ft "gpio_handle_t"
+.Fn gpio_open "unsigned int unit"
+.Ft "gpio_handle_t"
+.Fn gpio_open_device "const char *device"
+.Ft void
+.Fn gpio_close "gpio_handle_t handle"
+.Ft int
+.Fn gpio_pin_list "gpio_handle_t handle" "gpio_config_t **pcfgs"
+.Ft int
+.Fn gpio_pin_config "gpio_handle_t handle" "gpio_config_t *cfg"
+.Ft int
+.Fn gpio_pin_set_name "gpio_handle_t handle" "gpio_pin_t pin" "char *name"
+.Ft int
+.Fn gpio_pin_set_flags "gpio_handle_t handle" "gpio_config_t *cfg"
+.Ft gpio_value_t
+.Fn gpio_pin_get "gpio_handle_t handle" "gpio_pin_t pin"
+.Ft int
+.Fn gpio_pin_set "gpio_handle_t handle" "gpio_pin_t pin" "gpio_value_t value"
+.Ft int
+.Fn gpio_pin_toggle "gpio_handle_t handle" "gpio_pin_t pin"
+.Ft int
+.Fn gpio_pin_low "gpio_handle_t handle" "gpio_pin_t pin"
+.Ft int
+.Fn gpio_pin_high "gpio_handle_t handle" "gpio_pin_t pin"
+.Ft int
+.Fn gpio_pin_input "gpio_handle_t handle" "gpio_pin_t pin"
+.Ft int
+.Fn gpio_pin_output "gpio_handle_t handle" "gpio_pin_t pin"
+.Ft int
+.Fn gpio_pin_opendrain "gpio_handle_t handle" "gpio_pin_t pin"
+.Ft int
+.Fn gpio_pin_pushpull "gpio_handle_t handle" "gpio_pin_t pin"
+.Ft int
+.Fn gpio_pin_tristate "gpio_handle_t handle" "gpio_pin_t pin"
+.Ft int
+.Fn gpio_pin_pullup "gpio_handle_t handle" "gpio_pin_t pin"
+.Ft int
+.Fn gpio_pin_pulldown "gpio_handle_t handle" "gpio_pin_t pin"
+.Ft int
+.Fn gpio_pin_invin "gpio_handle_t handle" "gpio_pin_t pin"
+.Ft int
+.Fn gpio_pin_invout "gpio_handle_t handle" "gpio_pin_t pin"
+.Ft int
+.Fn gpio_pin_pulsate "gpio_handle_t handle" "gpio_pin_t pin"
+.Sh DESCRIPTION
+The
+.Nm libgpio
+library provides an interface to configure GPIO pins.
+The library operates with a
+.Ft gpio_handle_t
+opaque type which can be created with
+.Fn gpio_open
+or
+.Fn gpio_open_device .
+When no more GPIO operations are needed, this handle can be destroyed
+with
+.Fn gpio_close .
+.Pp
+To get a list of all available pins, one can call
+.Fn gpio_pin_list .
+This function takes a pointer to a
+.Ft gpio_config_t
+which is dynamically allocated.
+This pointer should be freed with
+.Xr free 3
+when it is no longer necessary.
+.Pp
+The function
+.Fn gpio_pin_config
+retrieves the current configuration of a pin.
+The pin number should be passed in via the
+.Ft g_pin
+variable which is part of the
+.Ft gpio_config_t
+structure.
+.Pp
+The function
+.Fn gpio_pin_set_name
+sets the name used to describe a pin.
+.Pp
+The function
+.Fn gpio_pin_set_flags
+configures a pin with the flags passed in by the
+.Ft gpio_config_t
+structure.
+The pin number should also be passed in through the
+.Ft g_pin
+variable.
+All other structure members will be ignored by this function.
+The list of flags can be found in
+.Pa /usr/include/sys/gpio.h .
+.Pp
+The get or set the state of a GPIO pin, the functions
+.Fn gpio_pin_get
+and
+.Fn gpio_pin_set
+are available, respectively.
+To toggle the state, use
+.Fn gpio_pin_toggle .
+.Pp
+The functions
+.Fn gpio_pin_low
+and
+.Fn gpio_pin_high
+are wrappers around
+.Fn gpio_pin_set .
+.Pp
+The functions
+.Fn gpio_pin_input ,
+.Fn gpio_pin_output ,
+.Fn gpio_pin_opendrain ,
+.Fn gpio_pin_pushpull ,
+.Fn gpio_pin_tristate ,
+.Fn gpio_pin_pullup ,
+.Fn gpio_pin_pulldown ,
+.Fn gpio_pin_invin ,
+.Fn gpio_pin_invout
+and
+.Fn gpio_pin_pulsate
+are wrappers around
+.Fn gpio_pin_set_flags .
+.Sh EXAMPLES
+The following example shows how to configure pin 16 as output and then
+drive it high:
+.Bd -literal
+#include <sys/types.h>
+#include <err.h>
+#include <libgpio.h>
+
+gpio_handle_t handle;
+
+handle = gpio_open(0);
+if (handle == GPIO_INVALID_HANDLE)
+	err(1, "gpio_open failed");
+gpio_pin_output(handle, 16);
+gpio_pin_high(handle, 16);
+gpio_close(handle);
+.Ed
+.Pp
+The following example shows how to get a configuration of a pin:
+.Bd -literal
+gpio_config_t cfg;
+
+cfg.g_pin = 32;
+gpio_pin_config(handle, &cfg);
+.Ed
+.Pp
+The structure will contain the name of the pin and its flags.
+.Sh SEE ALSO
+.Xr gpiobus 4 ,
+.Xr gpioctl 8
+.Sh HISTORY
+The
+.Nm libgpio
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+The
+.Nm libgpio
+library was implemented by
+.An Rui Paulo Aq Mt rpaulo@FreeBSD.org .

@@ -1,0 +1,21 @@
+1..20
+ok 1      Pipe state 4: expected 0; got 0
+ok 2      Pipe state 5: expected POLLIN; got POLLIN
+ok 3      Pipe state 6: expected POLLIN | POLLHUP; got POLLIN | POLLHUP
+ok 4      Pipe state 6a: expected POLLHUP; got POLLHUP
+ok 5      Sock state 4: expected 0; got 0
+ok 6      Sock state 5: expected POLLIN; got POLLIN
+ok 7      Sock state 6: expected POLLIN | POLLHUP; got POLLIN | POLLHUP
+not ok 8  Sock state 6a: expected POLLHUP; got POLLIN | POLLHUP
+ok 9      FIFO state 0: expected 0; got 0
+ok 10     FIFO state 1: expected 0; got 0
+ok 11     FIFO state 2: expected POLLIN; got POLLIN
+ok 12     FIFO state 2a: expected 0; got 0
+ok 13     FIFO state 3: expected POLLHUP; got POLLHUP
+ok 14     FIFO state 4: expected 0; got 0
+ok 15     FIFO state 5: expected POLLIN; got POLLIN
+ok 16     FIFO state 6: expected POLLIN | POLLHUP; got POLLIN | POLLHUP
+ok 17     FIFO state 6a: expected POLLHUP; got POLLHUP
+not ok 18 FIFO state 6b: expected POLLHUP; got 0
+ok 19     FIFO state 6c: expected POLLHUP; got POLLHUP
+ok 20     FIFO state 6d: expected POLLHUP; got POLLHUP

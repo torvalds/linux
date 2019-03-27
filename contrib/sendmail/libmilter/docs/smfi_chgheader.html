@@ -1,0 +1,125 @@
+<HTML>
+<HEAD><TITLE>smfi_chgheader</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_chgheader.html,v 1.19 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_chgheader</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_chgheader(
+	SMFICTX *ctx,
+	char *headerf,
+	mi_int32 hdridx,
+	char *headerv
+);
+</PRE>
+Change or delete a message header.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>Called only from <A href="xxfi_eom.html">xxfi_eom</A>.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>Changes a header's value for the current message.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>ctx</TD>
+	<TD>Opaque context structure.
+	</TD></TR>
+    <TR valign="top"><TD>headerf</TD>
+	<TD>The header name, a non-NULL, null-terminated string.
+	</TD></TR>
+    <TR valign="top"><TD>hdridx</TD>
+	<TD>Header index value (1-based). A hdridx value of 1 will modify the first occurrence of a header named headerf.  If hdridx is greater than the number of times headerf appears, a new copy of headerf will be added.
+	</TD></TR>
+    <TR valign="top"><TD>headerv</TD>
+	<TD>The new value of the given header.  headerv == NULL implies that the header should be deleted.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>
+smfi_chgheader will return MI_FAILURE if
+<UL><LI>headerf is NULL
+    <LI>Modifying headers in the current connection state is invalid.
+    <LI>Memory allocation fails.
+    <LI>A network error occurs.
+    <LI>SMFIF_CHGHDRS was not set when <A href="smfi_register.html">smfi_register</A> was called.
+</UL>
+Otherwise, it returns MI_SUCCESS.
+</TR>
+
+<!----------- Notes ---------->
+<TR align="left" valign=top>
+<TH>NOTES</TH> 
+<TD>
+<UL><LI>While smfi_chgheader may be used to add new headers, it is more efficient and far safer to use <A href="smfi_addheader.html">smfi_addheader</A>.
+    <LI>A filter which calls smfi_chgheader must have set the SMFIF_CHGHDRS flag in the smfiDesc_str passed to <A href="smfi_register.html">smfi_register</A>.
+    <LI>For smfi_chgheader, filter order is important.  <B>Later filters will see the header changes made by earlier ones.</B>
+    <LI>Neither the name nor the value of the header is checked for
+    standards compliance.  However, each line of the header must be under
+    2048 characters and should be under 998 characters.  If longer headers
+    are needed, make them multi-line.  To make a multi-line header, insert
+    a line feed (ASCII 0x0a, or <TT>\n</TT> in C) followed by at least
+    one whitespace character such as a space (ASCII 0x20) or tab (ASCII 0x09,
+    or <TT>\t</TT> in C).  The line feed should NOT be preceded by a
+    carriage return (ASCII 0x0d); the MTA will add this automatically.
+    <B>It is the filter writer's responsibility to ensure that no standards
+    are violated.</B>
+    <LI>The MTA adds a leading space to a header value unless
+    the flag
+<A HREF="xxfi_negotiate.html#SMFIP_HDR_LEADSPC"><CODE>SMFIP_HDR_LEADSPC</CODE></A>
+    is set, in which case the milter
+    must include any desired leading spaces itself.
+</UL>
+</TD>
+</TR>
+
+<!----------- Example code ---------->
+<TR>
+<TH valign="top" align=left>EXAMPLE</TH> 
+
+<TD>
+ <PRE>
+  int ret;
+  SMFICTX *ctx;
+
+  ...
+
+  ret = smfi_chgheader(ctx, "Content-Type", 1,
+                       "multipart/mixed;\n\tboundary=\"foobar\"");
+ </PRE>
+</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000-2003, 2009 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

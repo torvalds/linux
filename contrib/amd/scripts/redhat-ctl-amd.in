@@ -1,0 +1,106 @@
+#!/bin/bash
+#
+# Version: 1.3
+#
+# chkconfig: - 72 28
+# description: Runs the automount daemon that mounts devices and NFS hosts \
+#	       on demand.
+# processname: amd
+# config: /etc/amd.conf
+#
+
+# we require the /etc/amd.conf file
+[ -f /etc/amd.conf ] || exit 0
+[ -f /etc/sysconfig/amd ] || exit 0
+
+# Source function library.
+. /etc/init.d/functions
+
+# Recover AMDOPTS from /etc/sysconfig/amd.
+if [ -f /etc/sysconfig/amd ] ; then
+	. /etc/sysconfig/amd
+fi
+
+RETVAL=0
+prog=amd
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+amd=@sbindir@/amd
+
+start() {
+	echo -n "Starting $prog: "
+	daemon $amd -F /etc/amd.conf $AMDOPTS $OPTIONS $MOUNTPTS
+	RETVAL=$?
+	echo
+	[ $RETVAL = 0 ] && touch /var/lock/subsys/amd
+	return $RETVAL
+}
+
+stop() {
+
+	echo -n "Stopping $prog: "
+        # modeled from /usr/sbin/ctl-amd
+	pid=`/usr/sbin/amq -p 2>/dev/null`
+	if [ "$pid" = "" ] ; then
+		# amq -p did not give pid, so try ps
+		pid=`ps acx 2>/dev/null | grep "amd" | sed -e 's/^  *//' -e 's/ .*//'`
+	fi
+	if [ "$pid" = "" ] ; then
+		failure "amd shutdown pid"
+		echo
+		return 1
+	fi
+	kill $pid
+        # and this part is from wait4amd2die
+	delay=5
+	count=6
+	i=1
+	maxcount=`expr $count + 1`
+	while [ $i != $maxcount ]; do
+		# run amq
+		/usr/sbin/amq > /dev/null 2>&1
+		if [ $? != 0 ]
+		then
+			# amq failed to run (because amd is dead)
+			success "amd shutdown"
+			rm -f /var/lock/subsys/amd
+			echo
+			return 0
+		fi
+		sleep $delay
+		i=`expr $i + 1`
+	done
+	failure "amd shutdown (still up)"
+	echo
+	return 1
+}
+# See how we were called.
+case "$1" in
+  start)
+        start
+	;;
+  stop)
+        stop
+	;;
+  status)
+	status $amd
+	;;
+  restart)
+	stop
+	start
+	;;
+  condrestart)
+        if [ -f /var/lock/subsys/amd ]; then
+	    stop
+	    start
+	fi
+	;;
+  reload)
+	action "Reloading $prog:" killall -HUP $amd
+	;;
+  *)
+ 	echo "Usage: $0 {start|stop|restart|reload|condrestart|status}"
+	exit 1
+esac
+
+exit 0

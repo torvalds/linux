@@ -1,0 +1,53 @@
+#! /usr/bin/env perl
+use warnings;
+use strict;
+
+# for each filename on the command line
+# get the modtime
+# make a backup of the file
+# - error if there is already a backup?
+# flush the  live version(?)
+# start a line-by-line copy of the backup to the new file,
+# doing the BeginDate/EndDate substitution
+
+# <!-- #BeginDate format:En1m -->3-oct-11  18:20<!-- #EndDate -->
+# <!-- #BeginDate format:En2m -->01-Aug-2011  17:56<!-- #EndDate -->
+# without the 'm' no minutes are included.
+
+my $i;
+my $mod_time;
+my $stamp;
+my @m_abbr = qw(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec);
+
+foreach ( @ARGV ) {
+    $i = $_;
+    $mod_time = (stat ($i))[9];
+    $stamp = localtime($mod_time);
+    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =
+                                                localtime($mod_time);
+    $year += 1900;
+
+    # print "<$i> at <$stamp>\n";
+
+    open(my $IFILE, "<", $i) or die "Cannot open < $i: $!";
+    open(my $OFILE, ">", $i.".new") or die "Cannot open > $i.new: $!";
+    while(<$IFILE>) {
+	if (/(.*<!--\s*#BeginDate\s*format:)(\S*)(\s*-->).*(<!--\s*#EndDate\s*-->.*)/) {
+	    # print "Got: $_";
+	    # print "as: <$1><$2><$3>...<$4>\n";
+	    print { $OFILE } $1,$2,$3;
+	    printf { $OFILE } "%s-%s-%s  %02d:%02d", $mday,$m_abbr[$mon],$year,$hour,$min;
+	    print { $OFILE } $4,"\n";
+	}
+	else {
+	    print { $OFILE } $_;
+	}
+    }
+    close($IFILE);
+    close($OFILE);
+    #
+    utime(time, $mod_time, "$i.new") || die "touch $i.new failed: $!";
+    #
+    rename $i,"$i.old" || die "rename $i,$i.old failed: $!";
+    rename "$i.new",$i || die "rename $i.new,$i failed: $!";
+}

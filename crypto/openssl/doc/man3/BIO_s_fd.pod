@@ -1,0 +1,98 @@
+=pod
+
+=head1 NAME
+
+BIO_s_fd, BIO_set_fd, BIO_get_fd, BIO_new_fd - file descriptor BIO
+
+=head1 SYNOPSIS
+
+ #include <openssl/bio.h>
+
+ const BIO_METHOD *BIO_s_fd(void);
+
+ int BIO_set_fd(BIO *b, int fd, int c);
+ int BIO_get_fd(BIO *b, int *c);
+
+ BIO *BIO_new_fd(int fd, int close_flag);
+
+=head1 DESCRIPTION
+
+BIO_s_fd() returns the file descriptor BIO method. This is a wrapper
+round the platforms file descriptor routines such as read() and write().
+
+BIO_read_ex() and BIO_write_ex() read or write the underlying descriptor.
+BIO_puts() is supported but BIO_gets() is not.
+
+If the close flag is set then close() is called on the underlying
+file descriptor when the BIO is freed.
+
+BIO_reset() attempts to change the file pointer to the start of file
+such as by using B<lseek(fd, 0, 0)>.
+
+BIO_seek() sets the file pointer to position B<ofs> from start of file
+such as by using B<lseek(fd, ofs, 0)>.
+
+BIO_tell() returns the current file position such as by calling
+B<lseek(fd, 0, 1)>.
+
+BIO_set_fd() sets the file descriptor of BIO B<b> to B<fd> and the close
+flag to B<c>.
+
+BIO_get_fd() places the file descriptor in B<c> if it is not NULL, it also
+returns the file descriptor.
+
+BIO_new_fd() returns a file descriptor BIO using B<fd> and B<close_flag>.
+
+=head1 NOTES
+
+The behaviour of BIO_read_ex() and BIO_write_ex() depends on the behavior of the
+platforms read() and write() calls on the descriptor. If the underlying
+file descriptor is in a non blocking mode then the BIO will behave in the
+manner described in the L<BIO_read_ex(3)> and L<BIO_should_retry(3)>
+manual pages.
+
+File descriptor BIOs should not be used for socket I/O. Use socket BIOs
+instead.
+
+BIO_set_fd() and BIO_get_fd() are implemented as macros.
+
+=head1 RETURN VALUES
+
+BIO_s_fd() returns the file descriptor BIO method.
+
+BIO_set_fd() always returns 1.
+
+BIO_get_fd() returns the file descriptor or -1 if the BIO has not
+been initialized.
+
+BIO_new_fd() returns the newly allocated BIO or NULL is an error
+occurred.
+
+=head1 EXAMPLE
+
+This is a file descriptor BIO version of "Hello World":
+
+ BIO *out;
+
+ out = BIO_new_fd(fileno(stdout), BIO_NOCLOSE);
+ BIO_printf(out, "Hello World\n");
+ BIO_free(out);
+
+=head1 SEE ALSO
+
+L<BIO_seek(3)>, L<BIO_tell(3)>,
+L<BIO_reset(3)>, L<BIO_read_ex(3)>,
+L<BIO_write_ex(3)>, L<BIO_puts(3)>,
+L<BIO_gets(3)>, L<BIO_printf(3)>,
+L<BIO_set_close(3)>, L<BIO_get_close(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

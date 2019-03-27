@@ -1,0 +1,21 @@
+
+#------------------------------------------------------------------------------
+# $File: microfocus,v 1.2 2017/03/17 21:35:28 christos Exp $
+# Micro Focus COBOL data files.
+
+# http://documentation.microfocus.com/help/index.jsp?topic=\
+# %2FGUID-0E0191D8-C39A-44D1-BA4C-D67107BAF784%2FHRFLRHFILE05.html
+# http://www.cobolproducts.com/datafile/data-viewer.html
+# https://github.com/miracle2k/mfcobol-export
+
+0 string \x30\x00\x00\x7C
+>36 string \x00\x3E Micro Focus File with Header (DAT)
+!:mime application/octet-stream
+
+0 string \x30\x7E\x00\x00
+>36 string \x00\x3E Micro Focus File with Header (DAT)
+!:mime application/octet-stream
+
+39 string \x02
+>136 string \x02\x02\x04\x04 Micro Focus Index File (IDX)
+!:mime application/octet-stream

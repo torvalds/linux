@@ -1,0 +1,299 @@
+.\" Copyright (c) 2006-2011 Ivan Voras <ivoras@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 1, 2013
+.Dt GVIRSTOR 8
+.Os
+.Sh NAME
+.Nm gvirstor
+.Nd "control utility for virtual data storage devices"
+.Sh SYNOPSIS
+.Nm
+.Cm label
+.Op Fl hv
+.Op Fl s Ar virsize
+.Op Fl m Ar chunksize
+.Ar name
+.Ar prov ...
+.Nm
+.Cm stop
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm destroy
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm add
+.Op Fl vh
+.Ar name prov ...
+.Nm
+.Cm remove
+.Op Fl v
+.Ar name prov ...
+.Nm
+.Cm clear
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm dump
+.Ar prov ...
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
+.Sh DESCRIPTION
+The
+.Nm
+utility is used for setting up a virtual storage device of arbitrary
+large size
+.Pq for example, several TB ,
+consisting of an arbitrary number of physical storage devices with the
+total size which is equal to or smaller than the virtual size.
+Data for the virtual devices will be allocated from physical devices on
+demand.
+The idea behind
+.Nm
+is similar to the concept of Virtual Memory in operating systems,
+effectively allowing users to overcommit on storage
+.Pq free file system space .
+The concept is also known as "thin provisioning" in virtualization
+environments, only here it is implemented on the level of physical storage
+devices.
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm remove"
+.It Cm label
+Set up a virtual device from the given components with the specified
+.Ar name .
+Metadata is stored in the last sector of every component.
+Argument
+.Fl s Ar virsize
+is the size of new virtual device, with default being set to 2 TiB
+.Pq 2097152 MiB .
+Argument
+.Fl m Ar chunksize
+is the chunk size, with default being set to 4 MiB
+.Pq 4096 KiB .
+The default arguments are thus
+.Qq Fl s Ar 2097152 Fl m Ar 4096 .
+.It Cm stop
+Turn off an existing virtual device with the given
+.Ar name .
+This command does not touch on-disk metadata.
+As with other GEOM classes, stopped geoms cannot be started manually.
+.It Cm destroy
+Same as
+.Cm stop.
+.It Cm add
+Adds new components to existing virtual device with the given
+.Ar name .
+The specified virstor device must exist and be active
+.Pq i.e. module loaded, device present in Pa /dev .
+This action can be safely performed while the virstor device is in use
+.Pq Qo hot Qc operation .
+.It Cm remove
+Removes components from existing virtual device with the given
+.Ar name .
+Only unallocated providers can be removed.
+.It Cm clear
+Clear metadata on the given providers.
+.It Cm dump
+Dump metadata stored on the given providers.
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+Additional options:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Force the removal of the specified virtual device.
+.It Fl h
+Hardcode providers' names in metadata.
+.It Fl v
+Be more verbose.
+.El
+.Sh EXAMPLES
+The following example shows how to create a virtual device of default size
+.Pq 2 TiB ,
+of default chunk
+.Pq extent
+size
+.Pq 4 MiB ,
+with two physical devices for backing storage.
+.Bd -literal -offset indent
+.No gvirstor label -v Ar mydata Ar /dev/ada4 Ar /dev/ada6
+.No newfs Ar /dev/virstor/mydata
+.Ed
+.Pp
+From now on, the virtual device will be available via the
+.Pa /dev/virstor/mydata
+device entry.
+To add a new physical device / component to an active virstor device:
+.Bd -literal -offset indent
+.No gvirstor add Ar mydata Ar ada8
+.Ed
+.Pp
+This will add physical storage of
+.Ar ada8
+to
+.Pa /dev/virstor/mydata
+device.
+.Pp
+To see the device status information
+.Pq including how much physical storage is still available for the virtual device ,
+use:
+.Bd -literal -offset indent
+gvirstor list
+.Ed
+.Pp
+All standard
+.Xr geom 8
+subcommands
+.Pq e.g. Cm status , Cm help
+are also supported.
+.Sh SYSCTL VARIABLES
+.Nm
+has several
+.Xr sysctl 8
+tunable variables.
+.Bd -literal -offset indent
+.Va int kern.geom.virstor.debug
+.Ed
+.Pp
+This sysctl controls verbosity of the kernel module, in the range
+1 to 15.
+Messages that are marked with higher verbosity levels than this are
+suppressed.
+Default value is 5 and it is not recommended to set this tunable to less
+than 2, because level 1 messages are error events, and level 2 messages
+are system warnings.
+.Bd -literal -offset indent
+.Va int kern.geom.virstor.chunk_watermark
+.Ed
+.Pp
+Value in this sysctl sets warning watermark level for physical chunk
+usage on a single component.
+The warning is issued when a virstor component has less than this many
+free chunks
+.Pq default 100 .
+.Bd -literal -offset indent
+.Va int kern.geom.virstor.component_watermark
+.Ed
+.Pp
+Value in this sysctl sets warning watermark level for component usage.
+The warning is issued when there are less than this many unallocated
+components
+.Pq default is 1 .
+.Pp
+All these sysctls are also available as
+.Xr loader 8
+tunables.
+.Sh DIAGNOSTICS
+.Ex -std
+.Pp
+.Nm
+kernel module issues log messages with prefixes in standardized format,
+which is useful for log message filtering and dispatching.
+Each message line begins with
+.Bd -literal -offset indent
+.Li GEOM_VIRSTOR[%d]:
+.Ed
+.Pp
+The number
+.Pq %d
+is message verbosity / importance level, in the range 1 to 15.
+If a message filtering, dispatching or operator alert system is used, it
+is recommended that messages with levels 1 and 2 be taken seriously
+.Pq for example, to catch out-of-space conditions as set by watermark
+sysctls.
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr fstab 5 ,
+.Xr geom 8 ,
+.Xr glabel 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An Ivan Voras Aq Mt ivoras@FreeBSD.org
+.Pp
+Sponsored by Google Summer of Code 2006.
+.Sh BUGS
+Commands
+.Cm add
+and
+.Cm remove
+contain unavoidable critical sections which may make the virstor
+device unusable if a power failure
+.Pq or other disruptive event
+happens during their execution.
+It is recommended to run them when the system is quiescent.
+.Sh ASSUMPTIONS AND INTERACTION WITH FILE SYSTEMS
+There are several assumptions that
+.Nm
+has in its operation: that the size of the virtual storage device will not
+change once it is set, and that the sizes of individual physical storage
+components will always remain constant during their existence.
+For alternative ways to implement virtual or resizable file systems see
+.Xr zfs 1M ,
+.Xr gconcat 8
+and
+.Xr growfs 8 .
+.Pp
+Note that
+.Nm
+has nontrivial interaction with file systems which initialize a large
+number of on-disk structures during newfs.
+If such file systems attempt to spread their structures across the drive
+media
+.Pq like UFS/UFS2 does ,
+their efforts will be effectively foiled by sequential allocation of
+chunks in
+.Nm
+and all their structures will be physically allocated at the start
+of the first virstor component.
+This could have a significant impact on file system performance
+.Pq which can in some rare cases be even positive .

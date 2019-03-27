@@ -1,0 +1,119 @@
+.\" Copyright (c) 2008 Isilon Inc http://www.isilon.com/
+.\" Authors: Doug Rabson <dfr@rabson.org>
+.\" Developed with Red Inc: Alfred Perlstein <alfred@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 7, 2013
+.Dt GSSD 8
+.Os
+.Sh NAME
+.Nm gssd
+.Nd "Generic Security Services Daemon"
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl h
+.Op Fl o
+.Op Fl v
+.Op Fl s Ar dir-list
+.Op Fl c Ar file-substring
+.Op Fl r Ar preferred-realm
+.Sh DESCRIPTION
+The
+.Nm
+program provides support for the kernel GSS-API implementation.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl d
+Run in debug mode.
+In this mode,
+.Nm
+will not fork when it starts.
+.It Fl h
+Enable support for host-based initiator credentials.
+This permits a kerberized NFS mount to use a service principal in
+the default Kerberos 5 keytab file for access.
+Such access is enabled via the
+gssname
+option for the
+.Xr mount_nfs 8
+command.
+.It Fl o
+Force use of DES and the associated old style GSS-API initialization token.
+This may be required to make kerberized NFS mounts work against some
+non-FreeBSD NFS servers.
+.It Fl v
+Run in verbose mode.
+In this mode,
+.Nm
+will log activity messages to syslog using LOG_INFO | LOG_DAEMON or to
+stderr, if the
+.Fl d
+option has also been specified.
+The minor status is logged as a decimal number, since it is actually a
+Kerberos return status, which is signed.
+.It Fl s Ar dir-list
+Look for an appropriate credential cache file in this list of directories.
+The list should be full pathnames from root, separated by ':' characters.
+Usually this list will simply be "/tmp".
+Without this option,
+.Nm
+assumes that the credential cache file is called /tmp/krb5cc_<uid>,
+where <uid> is the effective uid for the RPC caller.
+.It Fl c Ar file-substring
+Set a file-substring for the credential cache file names.
+Only files with this substring embedded in their names will be
+selected as candidates when
+.Fl s
+has been specified.
+If not specified, it defaults to "krb5cc_".
+.It Fl r Ar preferred-realm
+Use Kerberos credentials for this realm when searching for
+credentials in directories specified with
+.Fl s .
+If not specified, the default Kerberos realm will be used.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/krb5.keytab" -compact
+.It Pa /etc/krb5.keytab
+Contains Kerberos service principals which may be used as credentials
+by kernel GSS-API services.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr gssapi 3 ,
+.Xr syslog 3 ,
+.Xr mount_nfs 8
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Doug Rabson Aq Mt dfr@FreeBSD.org .

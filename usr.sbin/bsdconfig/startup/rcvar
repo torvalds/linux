@@ -1,0 +1,220 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+f_include $BSDCFG_SHARE/startup/rcvar.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
+
+############################################################ GLOBALS
+
+#
+# Global map/menu-list for the main menu
+#
+RCVAR_MAP=
+_RCVAR_MAP=
+
+#
+# Options
+#
+# Inherit SHOW_DESC value if set, otherwise default to 1
+[ "${SHOW_DESC+set}" ] || SHOW_DESC=1
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local prompt=
+	local menu_list="
+		'X $msg_exit' '$msg_exit_this_menu'
+		              ${SHOW_DESC:+'$msg_exit_this_menu'}
+	" # END-QUOTE
+	local hline="$hline_arrows_tab_enter"
+	local defaultitem= # Calculated below
+
+	if [ ! "$_RCVAR_MAP" ]; then
+		# Generate RCVAR_MAP of `rcvar dflt script desc ...' per-line
+		f_dialog_info "$msg_creating_rcvar_map"
+		RCVAR_MAP=$( f_startup_rcvar_map )
+		export RCVAR_MAP
+		export _RCVAR_MAP=1
+	fi
+
+	menu_list="$menu_list $(
+		. "$RC_DEFAULTS" > /dev/null
+		source_rc_confs > /dev/null
+		for rcvar in $( echo "$RCVAR_MAP" | awk '{print $1}' ); do
+			eval export $rcvar
+		done
+		export SHOW_DESC msg_default_value
+		echo "$RCVAR_MAP" | awk '
+		BEGIN {
+			prefix = ""
+			rword  = "^[[:space:]]*[^[:space:]]*[[:space:]]*"
+		}
+		{
+			cur_prefix = tolower(substr($1, 1, 1))
+			printf "'\''"
+			if ( prefix != cur_prefix )
+				prefix = cur_prefix
+			else
+				printf " "
+			rcvar   = $1
+			default = $2
+			script  = $3
+			printf "%s'\'' '\''", rcvar
+			if ( ENVIRON[rcvar] ~ /[Yy][Ee][Ss]/ )
+				printf "[X] "
+			else
+				printf "[ ] "
+			printf "%s; " ENVIRON["msg_default_value"],
+			       script, default
+			printf "'\''"
+			if ( ENVIRON["SHOW_DESC"] ) {
+				desc = $0
+				sub(rword, "", desc)
+				sub(rword, "", desc)
+				sub(rword, "", desc)
+				gsub(/'\''/, "'\''\\'\'\''", desc)
+				printf " '\''%s'\''", desc
+			}
+			printf "\n"
+		}'
+	)"
+
+	set -f # set noglob because descriptions in the $menu_list may
+	       # contain `*' and get expanded by dialog(1). This prevents
+	       # dialog(1) from expanding wildcards in the help line.
+
+	local height width rows
+	eval f_dialog_menu${SHOW_DESC:+_with_help}_size \
+		height width rows      \
+		\"\$DIALOG_TITLE\"     \
+		\"\$DIALOG_BACKTITLE\" \
+		\"\$prompt\"           \
+		\"\$hline\"            \
+		$menu_list
+
+	# Obtain default-item from previously stored selection
+	f_dialog_default_fetch defaultitem
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--keep-tite                        \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		${SHOW_DESC:+--item-help}          \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	f_dialog_default_store "$menu_choice"
+
+	if [ $retval -eq $DIALOG_OK ]; then
+		local item
+		item=$( eval f_dialog_menutag2item${SHOW_DESC:+_with_help} \
+		         	\"\$menu_choice\" $menu_list )
+		f_dialog_menuitem_store "$item"
+	fi
+
+	return $retval
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts h$GETOPTS_STDARGS flag; do
+	case "$flag" in
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Initialize
+#
+f_dialog_title "$msg_toggle_startup_services"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+
+#
+# Launch application main menu
+#
+while :; do
+	dialog_menu_main || f_die
+	f_dialog_menutag_fetch mtag
+
+	[ "$mtag" = "X $msg_exit" ] && break
+
+	# Anything else is an rcvar to toggle
+
+	rcvar="${mtag# }"
+	f_dialog_menuitem_fetch value
+
+	# Determine the new [toggled] value to use
+	case "$value" in
+	"[X]"*) value="NO" ;;
+	     *) value="YES"
+	esac
+
+	f_eval_catch "$0" f_sysrc_set 'f_sysrc_set "%s" "%s"' "$rcvar" "$value"
+done
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

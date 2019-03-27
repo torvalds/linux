@@ -1,0 +1,359 @@
+.\" Copyright (c) 1995, 1996
+.\"	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 1996
+.Dt RPC.YPPASSWDD 8
+.Os
+.Sh NAME
+.Nm rpc.yppasswdd
+.Nd "server for updating NIS passwords"
+.Sh SYNOPSIS
+.Nm
+.Op Fl t Ar master.passwd template file
+.Op Fl d Ar default domain
+.Op Fl p Ar path
+.Op Fl s
+.Op Fl f
+.Op Fl a
+.Op Fl m
+.Op Fl i
+.Op Fl v
+.Op Fl u
+.Op Fl h
+.Sh DESCRIPTION
+The
+.Nm
+utility allows users to change their NIS passwords and certain
+other information using the
+.Xr yppasswd 1
+and
+.Xr ypchpass 1
+commands.
+The
+.Nm
+utility
+is an RPC-based server that accepts incoming password change requests,
+authenticates them, places the updated information in the
+.Pa /var/yp/master.passwd
+template file and then updates the NIS
+.Pa master.passwd
+and
+.Pa passwd
+maps.
+.Pp
+The
+.Nm
+utility allows a normal NIS user to change
+his or her NIS password, full name (also
+known as 'GECOS' field) or shell.
+These updates are typically done using
+the
+.Xr yppasswd 1 ,
+.Xr ypchfn 1 ,
+.Xr ypchsh 1 ,
+or
+.Xr ypchpass 1
+commands.
+(Some administrators do not want users to be able to change their
+full name information or shells; the server can be invoked with option flags
+that disallow such changes.)
+When the server receives an update request,
+it compares the address of the client making the request against the
+.Pa securenets
+rules outlined in
+.Pa /var/yp/securenets .
+(See the
+.Xr ypserv 8
+manual page for more information on securenets; the
+.Nm
+utility uses the same access control mechanism as
+.Xr ypserv 8 . )
+.Pp
+The server then
+checks the 'old' password supplied by the user to make sure it is
+valid, then performs some sanity checks on the updated information (these
+include checking for embedded control characters, colons or invalid shells).
+Once it is satisfied that the update request is valid, the server modifies
+the template password file (the default is
+.Pa /var/yp/master.passwd )
+and then runs the
+.Pa /usr/libexec/yppwupdate
+script to rebuild the NIS maps.
+(This script has two arguments passed
+to it: the absolute pathname of the password template that was modified
+and the name of the domain that is to be updated.
+These in turn are
+passed to
+.Pa /var/yp/Makefile ) .
+.Pp
+The
+.Fx
+version of
+.Nm
+also allows the super-user on the NIS master server to perform more
+sophisticated updates on the NIS passwd maps.
+The super-user can modify
+any field in any user's master.passwd entry in any domain, and can
+do so without knowing the user's existing NIS password (when the server
+receives a request from the super-user, the password authentication
+check is bypassed).
+Furthermore, if the server is invoked with the
+.Fl a
+flag, the super-user can even add new entries to the maps using
+.Xr ypchpass 1 .
+Again, this only applies to the super-user on the NIS
+master server: none of these special functions can be performed over
+the network.
+.Pp
+The
+.Nm
+utility can only be run on a machine that is an NIS master server.
+.Sh OPTIONS
+The following options are available:
+.Bl -tag -width indent
+.It Fl t Ar master.passwd template file
+By default,
+.Nm
+assumes that the template file used to generates the
+.Pa master.passwd
+and
+.Pa passwd
+maps for the default domain is called
+.Pa /var/yp/master.passwd .
+This default can be overridden by specifying an alternate file name
+with the
+.Fl t
+flag.
+.Pp
+Note: if the template file specified with this flag is
+.Pa /etc/master.passwd ,
+.Nm
+will also automatically invoke
+.Xr pwd_mkdb 8
+to rebuild the local password databases in addition to the NIS
+maps.
+.It Fl d Ar domain
+The
+.Nm
+utility can support multiple domains, however it must
+choose one domain as a default.
+It will try to use the system default domain name as set by the
+.Xr domainname 1
+command for this default.
+However,
+if the system domain name is not
+set, a default domain must be specified on
+the command line.
+If the system default domain is set,
+then this option can be used to override it.
+.It Fl p Ar path
+This option can be used to override the default path to
+the location of the NIS
+map databases.
+The compiled-in default path is
+.Pa /var/yp .
+.It Fl s
+Disallow changing of shell information.
+.It Fl f
+Disallow changing of full name ('GECOS') information.
+.It Fl a
+Allow additions to be made to the NIS passwd databases.
+The super-user on the
+NIS master server is permitted to use the
+.Xr ypchpass 1
+command to perform unrestricted modifications to any field in a user's
+.Pa master.passwd
+map entry.
+When
+.Nm
+is started with this flag, it will also allow the super-user to add new
+records to the NIS passwd maps, just as is possible when using
+.Xr chpass 1
+to modify the local password database.
+.It Fl m
+Turn on multi-domain mode.
+Even though
+.Xr ypserv 8
+can handle several simultaneous domains, most implementations of
+.Nm
+can only operate on a single NIS domain, which is generally the same as
+the system default domain of the NIS master server.
+The
+.Fx
+.Nm
+attempts to overcome this problem in spite of the inherent limitations
+of the
+.Pa yppasswd
+protocol, which does not allow for a
+.Pa domain
+argument in client requests.
+In multi-domain mode,
+.Nm
+will search through all the passwd maps of all the domains it
+can find under
+.Pa /var/yp
+until it finds an entry that matches the user information specified in
+a given update request.
+(Matches are determined by checking the username,
+UID and GID fields.)
+The matched entry and corresponding domain are then
+used for the update.
+.Pp
+Note that in order for multi-domain mode to work, there have to be
+separate template files for each domain.
+For example, if a server
+supports three domains,
+.Pa foo ,
+.Pa bar ,
+and
+.Pa baz ,
+there should be three separate master.passwd template files called
+.Pa /var/yp/foo/master.passwd ,
+.Pa /var/yp/bar/master.passwd ,
+and
+.Pa /var/yp/baz/master.passwd .
+If
+.Pa foo
+happens to be the system default domain, then its template file can
+be either
+.Pa /var/yp/foo/master.passwd
+or
+.Pa /var/yp/master.passwd .
+The server will check for the latter file first and then use the former
+if it cannot find it.
+.Pp
+Multi-domain mode is off by default since it can fail if there are
+duplicate or near-duplicate user entries in different domains.
+The server
+will abort an update request if it finds more than one user entry that
+matches its search criteria.
+Even so, paranoid administrators
+may wish to leave multi-domain mode disabled.
+.It Fl i
+If
+.Nm
+is invoked with this flag, it will perform map updates in place.
+This
+means that instead of just modifying the password template file and
+starting a map update, the server will modify the map databases
+directly.
+This is useful when the password maps are large: if, for
+example, the password database has tens of thousands of entries, it
+can take several minutes for a map update to complete.
+Updating the
+maps in place reduces this time to a few seconds.
+.It Fl v
+Turn on verbose logging mode.
+The server normally only logs messages
+using the
+.Xr syslog 3
+facility when it encounters an error condition, or when processing
+updates for the super-user on the NIS master server.
+Running the server
+with the
+.Fl v
+flag will cause it to log informational messages for all updates.
+.It Fl u
+Many commercial
+.Xr yppasswd 1
+clients do not use a reserved port when sending requests to
+.Nm .
+This is either because the
+.Xr yppasswd 1
+program is not installed set-uid root, or because the RPC
+implementation does not place any emphasis on binding to reserved
+ports when establishing client connections for the super-user.
+By default,
+.Nm
+expects to receive requests from clients using reserved ports; requests
+received from non-privileged ports are rejected.
+Unfortunately, this
+behavior prevents any client systems that to not use privileged
+ports from successfully submitting password updates.
+Specifying
+the
+.Fl u
+flag to
+.Nm
+disables the privileged port check so that it will work with
+.Xr yppasswd 1
+clients that do not use privileged ports.
+This reduces security to
+a certain small degree, but it might be necessary in cases where it
+is not possible to change the client behavior.
+.It Fl h
+Display the list of flags and options understood by
+.Nm .
+.El
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /usr/libexec/yppwupdate
+The script invoked by
+.Nm
+to update and push the NIS maps after
+an update.
+.It Pa /var/yp/master.passwd
+The template password file for the default domain.
+.It Pa /var/yp/[domainname]/[maps]
+The NIS maps for a particular NIS domain.
+.It Pa /var/yp/[domainname]/master.passwd
+The template password file(s) for non-default domains
+(used only in multi-domain mode).
+.El
+.Sh SEE ALSO
+.Xr yp 8 ,
+.Xr yppush 8 ,
+.Xr ypserv 8 ,
+.Xr ypxfr 8
+.Sh AUTHORS
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu
+.Sh BUGS
+As listed in the yppasswd.x protocol definition, the YPPASSWDPROC_UPDATE
+procedure takes two arguments: a V7-style passwd structure containing
+updated user information and the user's existing unencrypted (cleartext)
+password.
+Since
+.Nm
+is supposed to handle update requests from remote NIS client machines,
+this means that
+.Xr yppasswd 1
+and similar client programs will in fact be transmitting users' cleartext
+passwords over the network.
+.Pp
+This is not a problem for password updates since the plaintext password
+sent with the update will no longer be valid once the new encrypted password
+is put into place, but if the user is only updating his or her 'GECOS'
+information or shell, then the cleartext password sent with the update
+will still be valid once the update is completed.
+If the network is
+insecure, this cleartext password could be intercepted and used to
+gain unauthorized access to the user's account.

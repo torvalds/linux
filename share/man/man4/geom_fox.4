@@ -1,0 +1,223 @@
+.\"
+.\" Copyright (c) 2006 Wilko Bulte
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 12, 2015
+.Dt GEOM_FOX 4
+.Os
+.Sh NAME
+.Nm geom_fox
+.Nd "GEOM based basic disk multipathing"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options GEOM_FOX"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+geom_fox_load="YES"
+.Ed
+.Sh DESCRIPTION
+.Bf -symbolic
+This driver is obsolete.
+Users are advised to use
+.Xr gmultipath 8
+instead.
+This driver will be removed in
+.Fx 12 .
+.Ef
+.Pp
+The intent of the
+.Nm
+framework is to provide basic multipathing support to access direct
+access devices.
+Basic in the above sentence should be read as:
+.Nm
+only provides path failover functionality, not load balancing over
+the available paths etc.
+Using suitable hardware like SCSI or FibreChannel disks it is
+possible to have multiple (typically 2) host bus adapters access
+the same physical disk drive.
+.Pp
+Without a multipathing driver the
+.Fx
+kernel would probe the disks multiple times, resulting in the creation of
+multiple
+.Pa /dev
+entries for the same underlying physical device.
+A unique label written in the GEOM label area allows
+.Nm
+to detect multiple paths.
+Using this information it creates a unique
+.Pa da#.fox
+device.
+.Pp
+The
+.Nm
+device is subsequently used by the
+.Fx
+kernel to access the disks.
+Multiple physical access paths ensure that even in case of a path failure the
+.Fx
+kernel can continue to access the data.
+.Pp
+The
+.Nm
+driver will disallow write operations to the underlying devices once the
+fox device has been opened for writing.
+.Sh EXAMPLES
+.Bl -bullet -compact
+.It
+.Nm
+needs a label on the disk as follows in order to work properly:
+.Bd -literal
+"0123456789abcdef0123456789abcdef"
+"GEOM::FOX       <--unique--id-->"
+.Ed
+.Pp
+For the unique ID 16 bytes are available.
+The
+.Dq Li GEOM::FOX
+is the magic to mark a
+.Nm
+device.
+.Pp
+The actual labelling is accomplished by
+.Bd -literal
+echo "GEOM::FOX       someid" | dd of=/dev/da2 conv=sync
+.Ed
+.Pp
+For FibreChannel devices it is suggested to use the Node World Wide
+Name (Node WWN) as this is guaranteed by the FibreChannel standard to
+be worldwide unique.
+The use of the Port WWN not recommended as each port of a given
+device has a different WWN, thereby confusing things.
+.Pp
+The Node WWN can be obtained from a verbose boot as in for example
+.Bd -literal
+isp1: Target 1 (Loop 0x1) Port ID 0xe8 (role Target) Arrived
+ Port WWN 0x21000004cfc8aca2
+ Node WWN 0x20000004cfc8aca2
+.Ed
+.Pp
+This Node WWN would then be used like so:
+.Bd -literal
+echo "GEOM::FOX       20000004cfc8aca2" | dd of=/dev/da2 conv=sync
+.Ed
+.Pp
+For non-FibreChannel devices you could for example use the serial
+number of the device.
+Regardless of what you use, make sure the label is unique.
+.Pp
+Once the labelling has been performed and assuming the
+.Nm
+module is loaded the kernel will inform you that it has found a new
+.Nm
+device with a message similar to
+.Bd -literal
+Creating new fox (da2)
+fox da2.fox lock 0xfffffc0000fdba20
+.Ed
+.Pp
+.It
+To check which physical devices match a given
+.Nm
+device:
+.Bd -literal -offset indent
+# geom fox list
+Geom name: da2.fox
+Providers:
+1. Name: da2.fox
+   Mediasize: 73407865344 (68G)
+   Sectorsize: 512
+   Mode: r0w0e0
+Consumers:
+1. Name: da2
+   Mediasize: 73407865856 (68G)
+   Sectorsize: 512
+   Mode: r0w0e0
+2. Name: da6
+   Mediasize: 73407865856 (68G)
+   Sectorsize: 512
+   Mode: r0w0e0
+.Ed
+.Pp
+.It
+To check the status of the
+.Nm
+components:
+.Bd -literal
+# geom fox status
+   Name  Status  Components
+da2.fox     N/A  da2
+                 da6
+.Ed
+.El
+.Sh SEE ALSO
+.Xr GEOM 4 ,
+.Xr geom 8 ,
+.Xr gmultipath 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .
+This manual page was written by
+.An Wilko Bulte Aq Mt wilko@FreeBSD.org .
+.Sh CAVEATS
+The
+.Nm
+driver depends on the underlying hardware drivers to do the right thing in case
+of a path failure.
+If for example a hardware driver continues to retry forever,
+.Nm
+is not able to re-initiate the I/O to an alternative physical path.
+.Pp
+You have to be very sure to provide a unique label for each of the
+.Nm
+devices.
+Safety belts are not provided.
+For FibreChannel devices it is suggested to use the Port WWN of the device.
+The World Wide Name is guaranteed to be worldwide unique per the
+FibreChannel standard.
+.Sh BUGS
+The
+.Nm
+framework has only seen light testing.
+There definitely might be dragons here.
+.Pp
+The name
+.Nm
+is completely obscure.
+Just remember that any sly fox has multiple exits from its hole.
+.Pp
+The examples provided are too FibreChannel-centric.

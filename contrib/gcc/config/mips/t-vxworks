@@ -1,0 +1,16 @@
+# Multilibs for VxWorks.
+
+# default is mips1 EB hard-float
+MULTILIB_OPTIONS = mips2/mips3 EL msoft-float
+MULTILIB_MATCHES = EL=mel mips2=mips32 mips3=mips4 mips3=mips64
+
+MULTILIB_EXCEPTIONS = EL EL/msoft-float mips3/msoft-float mips3/EL/msoft-float
+
+MUTLILIB_EXTRA_OPTS = -G 0 -mno-branch-likely
+
+MULTILIB_OSDIRNAMES = msoft-float=!MIPS32sfr3kgnu \
+		    mips2=!MIPS32gnu mips2/msoft-float=!MIPS32sfgnu \
+		    mips2/EL=!MIPS32gnule \
+		    mips2/EL/msoft-float=!MIPS32sfgnule \
+		    mips3=!MIPS64gnu mips3/EL=!MIPS64gnule 
+

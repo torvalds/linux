@@ -1,0 +1,26 @@
+#! /bin/sh
+#
+# Script for testing DFS; setup an AP vap on a DFS channel
+# then simulate a radar event and verify operation.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+COUNTRY=dk
+CHANNEL=64:a
+
+sysctl net.wlan.nol_timeout=60
+#mwldebug state+node+reset+xmit+recv+beacon+hal+hal2
+WLAN=`ifconfig wlan create wlanmode hostap wlandev $WIRELESS`
+ifconfig $WLAN country $COUNTRY
+ifconfig $WLAN ssid $SSID-$COUNTRY channel $CHANNEL mtu 1500
+BRIDGE=`ifconfig bridge create`
+ifconfig $BRIDGE addm $WLAN addm $WIRED up
+ifconfig $WIRED up
+wlandebug -i $WLAN state+scan+assoc+11n
+ifconfig $WLAN up
+
+unit=`echo $WLAN | sed 's/wlan//'`
+sleep 5; sysctl net.wlan.$unit.radar=1

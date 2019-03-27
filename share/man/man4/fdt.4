@@ -1,0 +1,192 @@
+.\"
+.\" Copyright (c) 2010 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Semihalf under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 12, 2010
+.Dt FDT 4
+.Os
+.Sh NAME
+.Nm fdt
+.Nd Flattened Device Tree support
+.Sh SYNOPSIS
+.Cd "options FDT"
+.Cd "makeoptions FDT_DTS_FILE=<board name>.dts"
+.Cd "options FDT_DTB_STATIC"
+.Sh DESCRIPTION
+.Em Flattened Device Tree
+is a mechanism for describing computer hardware resources, which cannot be
+probed or self enumerated, in a uniform and portable way.
+The primary consumers of this technology are
+.Em embedded systems,
+where a lot of designs are based on similar chips, but have different
+assignment of pins, memory layout, addresses bindings, interrupts routing and
+other resources.
+.Pp
+Configuration data, which cannot be self discovered in run-time, has to be
+supplied from external source.
+The concept of a flattened device tree is a
+platform and architecture independent approach for resolving such problems.
+The idea is inherited from Open Firmware IEEE 1275 device-tree notion, and has
+been successfully adopted by the embedded industry.
+The scheme works in the following way:
+.Bl -bullet
+.It
+Hardware platform resources are
+.Em manually
+described in a human readable text source format, where all non
+self-enumerating information is gathered.
+.It
+This source description is converted
+.Em (compiled)
+into a binary object i.e. a flattened device tree
+.Em blob
+which is passed to the kernel at boot time.
+.It
+The kernel (driver) learns about hardware resources details and dependencies
+from this [externally supplied] blob, which eliminates the need for embedding
+any information about the underlying platform hardware resources in the kernel.
+.It
+The flattened device tree mechanism in principle does not depend on any
+particular first-stage bootloader or firmware features.
+The only overall
+requirement for the environment is to provide a complete device tree
+description to the kernel.
+.El
+.Pp
+The
+.Nm
+layer allows any platform code in the kernel to retrieve information about
+hardware resources from a unified origin, which brings advantages to the
+embedded applications (eliminates hard-coded configuration approach, enforces
+code to be data driven and extensible) leading to easier porting and
+maintenance.
+.Sh DEFINITIONS
+.Bl -tag -width Ar
+.It Va Device tree source (DTS)
+The device tree source is a text file which describes hardware resources of a
+computer system in a human-readable form, with certain hierarchical structure
+(a tree).
+The default location for DTS files in the
+.Fx
+source repository is
+.Pa sys/dts
+directory.
+.It Va Device tree blob (DTB)
+The textual device tree description (DTS file) is first converted (compiled)
+into a binary object (the device tree blob) i.e. the DTB, which is handed over
+to the final consumer (typically kernel) for parsing and processing of its
+contents.
+.It Va Device tree compiler (DTC)
+A utility program executed on the host, which transforms (compiles) a textual
+description of a device tree (DTS) into a binary object (DTB).
+.It Va Device tree bindings
+While the device tree textual description and the binary object are media to
+convey the hardware configuration information, an actual meaning and
+interpretation of the contents are defined by the device tree
+.Pa bindings .
+They are certain conventions describing definitions (encoding) of particular
+nodes in a device tree and their properties, allowed values, ranges and so on.
+Such reference conventions were provided by the legacy Open Firmware bindings,
+further supplemented by the ePAPR specification.
+.El
+.Sh "BUILDING THE WORLD"
+In order for the system to support
+.Nm
+it is required that
+.Fx
+world be built with the
+.Pa WITH_FDT
+build knob supplied either via
+.Xr src.conf 5
+or command line defined with -D.
+.Pp
+This creates the user space
+.Pa dtc
+compiler and enables
+.Nm
+support in
+.Xr loader 8 .
+.Sh "BUILDING KERNEL"
+There is a couple of options for managing
+.Nm
+support at the
+.Fx
+kernel level.
+.Bl -tag -width Ar
+.It Va options FDT
+The primary option for enabling
+.Nm
+support in the kernel.
+It covers all low-level and infrastructure parts of
+.Nm
+kernel support, which primarily are the
+.Xr fdtbus 4
+and
+.Xr simplebus 4
+drivers, as well as helper routines and libraries.
+.It Va makeoptions FDT_DTS_FILE=<board name>.dts
+Specifies a preferred (default) device tree source (DTS) file for a given
+kernel.
+The indicated DTS file will be converted (compiled) into a binary form
+along with building the kernel itself.
+The DTS file name is relative to the default location of DTS sources i.e.
+.Pa sys/dts .
+This makeoption is not mandatory unless FDT_DTB_STATIC is also defined (see
+below).
+.It Va options FDT_DTB_STATIC
+Typically, the device tree blob (DTB) is a stand-alone file, physically
+separate from the kernel, but this option lets statically embed a
+DTB file into a kernel image.
+Note that when this is specified the
+FDT_DTS_FILE makeoption becomes mandatory (as there needs to be a DTS file
+specified in order to embed it into the kernel image).
+.El
+.Sh SEE ALSO
+.Xr fdtbus 4 ,
+.Xr openfirm 4 ,
+.Xr simplebus 4
+.Sh STANDARDS
+IEEE Std 1275: IEEE Standard for Boot (Initialization Configuration) Firmware:
+Core Requirements and Practices
+.Pq Vt Open Firmware .
+.Pp
+Power.org Standard for Embedded Power Architecture Platform Requirements
+.Pq Vt ePAPR .
+.Sh HISTORY
+The
+.Nm
+support first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+The
+.Nm
+support was developed by Semihalf under sponsorship from the FreeBSD
+Foundation.
+This manual page was written by
+.An Rafal Jaworowski .

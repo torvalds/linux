@@ -1,0 +1,110 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>ntpdsim - Network Time Protocol (NTP) Simulator</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3><tt>ntpdsim</tt> - Network Time Protocol (NTP) Simulator</h3>
+<img src="pic/oz2.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html">from <i>The Wizard of Oz</i>, L. Frank Baum</a>
+<p>All in a row.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->31-Jan-2014  06:54<!-- #EndDate -->
+    UTC</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/manual.txt"></script>
+<h4>Table of Contents</h4>
+<ul>
+  <li><a href="#description">Description</a></li>
+  <li><a href="#configuration">Configuration</a></li>
+  <li><a href="#sample">Sample Configuration File</a></li>
+</ul>
+<hr>
+<h4 id="description">Description</h4>
+<p>The ntpdsim program is used to simulate and study the behavior of an NTP daemon that derives its time from a number of different simulated time sources (servers). Each simulated server can be configured to have a different time offset, frequency offset, propagation delay, processing delay, network jitter and oscillator wander.</p>
+<p>The ntpdsim program runs all the same selection, mitigation, and discipline
+  algorithms as the actual ntpd daemon at the client. (It actually
+  uses the same code). However, the input/output routines and servers are simulated.
+  That is, instead of sending the client messages over the network
+  to the actual servers, the client messages are intercepted by the ntpdsim
+  program, which then generates the replies to those messages. The reply messages
+  are carefully &quot;inserted&quot; into the input queue of the client at the right time
+  according to the specified server properties (like propagation delay).</p>
+<p>Each simulated server runs according to a specified script that describes the server properties at a particular time. Each script consists of a series of consecutive acts. Each act runs for a particular duration and specifies the frequency offset, propagation delay, processing delay, network jitter and oscillator wander of the server for that duration. Once the duration of an act expires, the simulated server reconfigures itself according to the properties specified in the next act.</p>
+<h4 id="configuration">Configuration</h4>
+<p>The ntpdsim program is configured by providing a configuration file at startup. The crux of the simulator configuration is specified using a <tt>simulate</tt> command, the syntax of which is given below. Note that all time quantities are in seconds and all frequency quantities are in parts per million (PPM):</p>
+<p>&lt;<i>simulate_command</i>&gt; ::= <tt>simulate</tt> { &lt;<i>init_statement_list</i>&gt; &lt;<i>server_list</i>&gt; }<br>
+  &lt;<i>init_statement_list</i>&gt; ::= &lt;init_statement_list&gt; &lt;init_statement&gt; ; | &lt;init_statement&gt; ;<br>
+  &lt;<i>init_statement</i>&gt; ::= <tt>beep_delay</tt> = &lt;number&gt; | <tt>simulation_duration</tt> = &lt;number&gt;<br>
+  &lt;<i>server_list</i>&gt; ::= &lt;<i>server_list</i>&gt; &lt;server&gt; | &lt;server&gt;<br>
+  &lt;<i>server_list</i>&gt; ::= <tt>server</tt> = &lt;address&gt; { <tt>server_offset</tt> = &lt;number&gt; ; &lt;act_list&gt; }<br>
+  &lt;<i>act_list</i>&gt; ::= &lt;<i>act_list</i>&gt; &lt;<i>act</i>&gt; | &lt;<i>act</i>&gt;<br>
+  &lt;<i>act</i>&gt; ::= <tt>duration</tt> = &lt;number&gt; { &lt;<i>act_stmt_list</i>&gt; }<br>
+  &lt;<i>act_stmt_list</i>&gt; ::= &lt;<i>act_stmt_list</i>&gt; &lt;<i>act_stmt</i>&gt; ; | &lt;<i>act_stmt</i>&gt; ;<br>
+  &lt;<i>act_stmt</i>&gt; ::= <tt>freq_offset</tt> = &lt;number&gt; | <tt>wander</tt> = &lt;number&gt; | <tt>jitter</tt> = &lt;number&gt; | <tt>prop_delay</tt> = &lt;number&gt; | <tt>proc_delay</tt> = &lt;number&gt;</p>
+<p>In addition to the <tt>simulate</tt> command, other standard NTP configuration commands can be specified. These commands have the same meaning as in the ntpd configuration. Note that newlines are <b>not</b> significant within the <tt>simulate</tt> command even though they are used to mark the end of a normal NTP configuration command.  While a newline is an "end of command" terminator for other configuration commands, in the <tt>simulate</tt> stanza <tt>;</tt> (the semicolon) is the "end of command" terminator.</p>
+<h4 id="sample">Sample Configuration File</h4>
+<p>A sample ntpdsim configuration file is given below. It specifies two simulated servers, each of which has two acts.</p>
+<pre>
+    # Client configuration 
+    disable kernel
+    server pogo
+    driftfile ./ntp.drift
+    statsdir ./ntpstats/
+    filegen loopstats type day enable
+    filegen peerstats type day enable
+
+    # Simulation configuration
+    simulate {
+        simulation_duration = 86400;
+        beep_delay = 3600;
+
+        # Server 1
+	server = louie.udel.edu {
+	    server_offset = 0;
+            duration = 50000 {
+		freq_offset = 400;
+		wander = 1.0;
+		jitter = 0.001;
+		prop_delay = 0.001;
+		proc_delay = 0.001;
+	    }
+            duration = 6400 {
+		freq_offset = 200;
+		wander = 1.0;
+		jitter = 0.001;
+		prop_delay = 0.001;
+		proc_delay = 0.001;
+	    }
+	}
+
+        # Server 2
+	server = baldwin.udel.edu {
+	    server_offset = 0.02;
+	    duration = 10000 {
+		freq_offset = 400;
+		wander = 1.0;
+		jitter = 0.001;
+		prop_delay = 0.5;
+		proc_delay = 0.001;
+	    }
+	    duration = 60000 {
+		freq_offset = 200;
+		wander = 1.0;
+		jitter = 0.05;
+		prop_delay = 0.005;
+		proc_delay = 0.001;
+	    }
+	}
+ }
+  </pre>
+<hr>
+<address>
+<a href="mailto:skamboj@udel.edu">Sachin Kamboj</a>
+</address>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

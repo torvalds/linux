@@ -1,0 +1,89 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        sha1dgst.c sha1_one.c sha256.c sha512.c {- $target{sha1_asm_src} -} \
+        {- $target{keccak1600_asm_src} -}
+
+GENERATE[sha1-586.s]=asm/sha1-586.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+DEPEND[sha1-586.s]=../perlasm/x86asm.pl
+GENERATE[sha256-586.s]=asm/sha256-586.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+DEPEND[sha256-586.s]=../perlasm/x86asm.pl
+GENERATE[sha512-586.s]=asm/sha512-586.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+DEPEND[sha512-586.s]=../perlasm/x86asm.pl
+
+GENERATE[sha1-ia64.s]=asm/sha1-ia64.pl $(LIB_CFLAGS) $(LIB_CPPFLAGS)
+GENERATE[sha256-ia64.s]=asm/sha512-ia64.pl $(LIB_CFLAGS) $(LIB_CPPFLAGS)
+GENERATE[sha512-ia64.s]=asm/sha512-ia64.pl $(LIB_CFLAGS) $(LIB_CPPFLAGS)
+
+GENERATE[sha1-alpha.S]=asm/sha1-alpha.pl $(PERLASM_SCHEME)
+
+GENERATE[sha1-x86_64.s]=asm/sha1-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[sha1-mb-x86_64.s]=asm/sha1-mb-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[sha256-x86_64.s]=asm/sha512-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[sha256-mb-x86_64.s]=asm/sha256-mb-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[sha512-x86_64.s]=asm/sha512-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[keccak1600-x86_64.s]=asm/keccak1600-x86_64.pl $(PERLASM_SCHEME)
+
+GENERATE[sha1-sparcv9.S]=asm/sha1-sparcv9.pl $(PERLASM_SCHEME)
+INCLUDE[sha1-sparcv9.o]=..
+GENERATE[sha256-sparcv9.S]=asm/sha512-sparcv9.pl $(PERLASM_SCHEME)
+INCLUDE[sha256-sparcv9.o]=..
+GENERATE[sha512-sparcv9.S]=asm/sha512-sparcv9.pl $(PERLASM_SCHEME)
+INCLUDE[sha512-sparcv9.o]=..
+
+GENERATE[sha1-ppc.s]=asm/sha1-ppc.pl $(PERLASM_SCHEME)
+GENERATE[sha256-ppc.s]=asm/sha512-ppc.pl $(PERLASM_SCHEME)
+GENERATE[sha512-ppc.s]=asm/sha512-ppc.pl $(PERLASM_SCHEME)
+GENERATE[sha256p8-ppc.s]=asm/sha512p8-ppc.pl $(PERLASM_SCHEME)
+GENERATE[sha512p8-ppc.s]=asm/sha512p8-ppc.pl $(PERLASM_SCHEME)
+GENERATE[keccak1600-ppc64.s]=asm/keccak1600-ppc64.pl $(PERLASM_SCHEME)
+
+GENERATE[sha1-parisc.s]=asm/sha1-parisc.pl $(PERLASM_SCHEME)
+GENERATE[sha256-parisc.s]=asm/sha512-parisc.pl $(PERLASM_SCHEME)
+GENERATE[sha512-parisc.s]=asm/sha512-parisc.pl $(PERLASM_SCHEME)
+
+GENERATE[sha1-mips.S]=asm/sha1-mips.pl $(PERLASM_SCHEME)
+INCLUDE[sha1-mips.o]=..
+GENERATE[sha256-mips.S]=asm/sha512-mips.pl $(PERLASM_SCHEME)
+INCLUDE[sha256-mips.o]=..
+GENERATE[sha512-mips.S]=asm/sha512-mips.pl $(PERLASM_SCHEME)
+INCLUDE[sha512-mips.o]=..
+
+GENERATE[sha1-armv4-large.S]=asm/sha1-armv4-large.pl $(PERLASM_SCHEME)
+INCLUDE[sha1-armv4-large.o]=..
+GENERATE[sha256-armv4.S]=asm/sha256-armv4.pl $(PERLASM_SCHEME)
+INCLUDE[sha256-armv4.o]=..
+GENERATE[sha512-armv4.S]=asm/sha512-armv4.pl $(PERLASM_SCHEME)
+INCLUDE[sha512-armv4.o]=..
+GENERATE[keccak1600-armv4.S]=asm/keccak1600-armv4.pl $(PERLASM_SCHEME)
+INCLUDE[keccak1600-armv4.o]=..
+
+GENERATE[sha1-armv8.S]=asm/sha1-armv8.pl $(PERLASM_SCHEME)
+INCLUDE[sha1-armv8.o]=..
+GENERATE[sha256-armv8.S]=asm/sha512-armv8.pl $(PERLASM_SCHEME)
+INCLUDE[sha256-armv8.o]=..
+GENERATE[sha512-armv8.S]=asm/sha512-armv8.pl $(PERLASM_SCHEME)
+INCLUDE[sha512-armv8.o]=..
+GENERATE[keccak1600-armv8.S]=asm/keccak1600-armv8.pl $(PERLASM_SCHEME)
+
+GENERATE[sha1-s390x.S]=asm/sha1-s390x.pl $(PERLASM_SCHEME)
+INCLUDE[sha1-s390x.o]=..
+GENERATE[sha256-s390x.S]=asm/sha512-s390x.pl $(PERLASM_SCHEME)
+INCLUDE[sha256-s390x.o]=..
+GENERATE[sha512-s390x.S]=asm/sha512-s390x.pl $(PERLASM_SCHEME)
+INCLUDE[sha512-s390x.o]=..
+GENERATE[keccak1600-s390x.S]=asm/keccak1600-s390x.pl $(PERLASM_SCHEME)
+
+BEGINRAW[Makefile(unix)]
+##### SHA assembler implementations
+
+# GNU make "catch all"
+{- $builddir -}/sha1-%.S:	{- $sourcedir -}/asm/sha1-%.pl
+	CC="$(CC)" $(PERL) $< $(PERLASM_SCHEME) $@
+{- $builddir -}/sha256-%.S:	{- $sourcedir -}/asm/sha512-%.pl
+	CC="$(CC)" $(PERL) $< $(PERLASM_SCHEME) $@
+{- $builddir -}/sha512-%.S:	{- $sourcedir -}/asm/sha512-%.pl
+	CC="$(CC)" $(PERL) $< $(PERLASM_SCHEME) $@
+ENDRAW[Makefile(unix)]

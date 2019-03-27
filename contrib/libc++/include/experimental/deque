@@ -1,0 +1,47 @@
+// -*- C++ -*-
+//===--------------------------- deque ------------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXPERIMENTAL_DEQUE
+#define _LIBCPP_EXPERIMENTAL_DEQUE
+/*
+    experimental/deque synopsis
+
+// C++1z
+namespace std {
+namespace experimental {
+inline namespace fundamentals_v1 {
+namespace pmr {
+
+  template <class T>
+  using deque = std::deque<T,polymorphic_allocator<T>>;
+
+} // namespace pmr
+} // namespace fundamentals_v1
+} // namespace experimental
+} // namespace std
+
+ */
+
+#include <experimental/__config>
+#include <deque>
+#include <experimental/memory_resource>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_LFTS_PMR
+
+template <class _ValueT>
+using deque = _VSTD::deque<_ValueT, polymorphic_allocator<_ValueT>>;
+
+_LIBCPP_END_NAMESPACE_LFTS_PMR
+
+#endif /* _LIBCPP_EXPERIMENTAL_DEQUE */

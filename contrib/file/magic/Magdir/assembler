@@ -1,0 +1,18 @@
+#------------------------------------------------------------------------------
+# $File: assembler,v 1.6 2013/12/11 14:14:20 christos Exp $
+# make:  file(1) magic for assembler source
+#
+0	regex	\^[\040\t]{0,50}\\.asciiz		assembler source text
+!:mime	text/x-asm
+0	regex	\^[\040\t]{0,50}\\.byte		assembler source text
+!:mime	text/x-asm
+0	regex	\^[\040\t]{0,50}\\.even		assembler source text
+!:mime	text/x-asm
+0	regex	\^[\040\t]{0,50}\\.globl		assembler source text
+!:mime	text/x-asm
+0	regex	\^[\040\t]{0,50}\\.text		assembler source text
+!:mime	text/x-asm
+0	regex	\^[\040\t]{0,50}\\.file		assembler source text
+!:mime	text/x-asm
+0	regex	\^[\040\t]{0,50}\\.type		assembler source text
+!:mime	text/x-asm

@@ -1,0 +1,380 @@
+.\"
+.\" Copyright (c) 1997-2014 Erez Zadok
+.\" Copyright (c) 1989 Jan-Simon Pendry
+.\" Copyright (c) 1989 Imperial College of Science, Technology & Medicine
+.\" Copyright (c) 1989 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry at Imperial College, London.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" File: am-utils/hlfsd/hlfsd.8
+.\"
+.\" HLFSD was written at Columbia University Computer Science Department, by
+.\" Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@smarts.com>
+.\" It is distributed under the same terms and conditions as AMD.
+.\"
+.Dd February 26, 2016
+.Dt HLFSD 8
+.Os
+.Sh NAME
+.Nm hlfsd
+.Nd home-link file system daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl fhnpvC
+.Op Fl a Ar alt_dir
+.Op Fl c Ar cache-interval
+.Op Fl g Ar group
+.Op Fl i Ar reload-interval
+.Op Fl l Ar logfile
+.Op Fl o Ar mount-options
+.Op Fl x Ar log-options
+.Op Fl D Ar debug-options
+.Op Fl P Ar password-file
+.Op Ar linkname Op Ar subdir
+.Sh DESCRIPTION
+.Bf -symbolic
+This daemon is obsolete.
+Users are advised to use
+.Xr autofs 5
+instead.
+.Ef
+.Pp
+The
+.Nm
+utility
+is a daemon which implements a file system containing a symbolic link to
+subdirectory within a user's home directory, depending on the user
+which accessed that link.
+It was primarily designed to redirect
+incoming mail to users' home directories, so that it can read from
+anywhere.
+.Pp
+The
+.Nm
+utility
+operates by mounting itself as an NFS server for the directory containing
+.Ar linkname ,
+which defaults to
+.Pa /hlfs/home .
+Lookups within that directory are handled by
+.Nm ,
+which uses the password map to determine how to resolve the lookup.
+The directory will be created if it does not already exist.
+The symbolic link will be to the accessing user's home directory, with
+.Ar subdir
+appended to it.
+If not specified,
+.Ar subdir
+defaults to
+.Pa .hlfsdir .
+This directory will also be created if it does not already exist.
+.Pp
+A
+.Dv SIGTERM
+sent to
+.Nm
+will cause it to shutdown.
+A
+.Dv SIGHUP
+will flush the internal
+caches, and reload the password map.
+It will also close and
+reopen the log file, to enable the original log file to be
+removed or rotated.
+A
+.Dv SIGUSR1
+will cause it to dump its internal
+table of user IDs and home directories to the file
+.Pa /usr/tmp/hlfsd.dump.XXXXXX .
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl a Ar alt_dir
+Alternate directory.
+The name of the directory to which
+the symbolic link returned by
+.Nm
+will point, if it cannot access the home directory of the user.
+This
+defaults to
+.Pa /var/hlfs .
+This directory will be created if it does not exist.
+It is expected
+that either users will read these files, or the system administrators
+will run a script to resend this
+.Dq lost mail
+to its owner.
+.It Fl c Ar cache-interval
+Caching interval.
+The
+.Nm
+utility
+will cache the validity of home directories for this interval, in
+seconds.
+Entries which have been verified within the last
+.Ar cache-interval
+seconds will not be verified again, since the operation could
+be expensive, and the entries are most likely still valid.
+After the interval has expired,
+.Nm
+will re-verify the validity of the user's home directory, and
+reset the cache time-counter.
+The default value for
+.Ar cache-interval
+is 300 seconds (5 minutes).
+.It Fl f
+Force fast startup.
+This option tells
+.Nm
+to skip startup-time consistency checks such as existence of mount
+directory, alternate spool directory, symlink to be hidden under the
+mount directory, their permissions and validity.
+.It Fl g Ar group
+Set the special group
+.Dv HLFS_GID
+to
+.Ar group .
+Programs such as
+.Xr comsat 8 ,
+(which access the mailboxes of other users) must be setgid
+.Dv HLFS_GID
+to work properly.
+The default group is
+.Dq Li hlfs .
+If no group is provided,
+and there is no group
+.Dq Li hlfs ,
+this feature is disabled.
+.It Fl h
+Help.
+Print a brief help message, and exit.
+.It Fl i Ar reload-interval
+Map-reloading interval.
+Each
+.Ar reload-interval
+seconds,
+.Nm
+will reload the password map.
+The
+.Nm
+utility
+needs the password map for the UIDs and home directory pathnames.
+The
+.Nm
+utility schedules a
+.Dv SIGALRM
+to reload the password maps.
+A
+.Dv SIGHUP
+sent to
+.Nm
+will force it to reload the maps immediately.
+The default
+value for
+.Ar reload-interval
+is 900 seconds (15 minutes).
+.It Fl l Ar logfile
+Specify a log file to which
+.Nm
+will record events.
+If
+.Ar logfile
+is the string
+.Dq Li syslog
+then the log messages will be sent to the system log daemon by
+.Xr syslog 3 ,
+using the
+.Dv LOG_DAEMON
+facility.
+This is also the default.
+.It Fl n
+No verify.
+The
+.Nm
+utility
+will not verify the validity of the symbolic link it will be
+returning, or that the user's home directory contains
+sufficient disk-space for spooling.
+This can speed up
+.Nm
+at the cost of possibly returning symbolic links to home
+directories which are not currently accessible or are full.
+By default,
+.Nm
+validates the symbolic-link in the background.
+The
+.Fl n
+option overrides the meaning of the
+.Fl c
+option, since no caching is necessary.
+.It Fl o Ar mount-options
+Mount options.
+Mount options which
+.Nm
+will use to mount itself on top of
+.Ar dirname .
+By default,
+.Ar mount-options
+is set to
+.Dq Li ro .
+If the system supports symbolic-link caching, default
+options are set to
+.Dq Li ro,nocache .
+.It Fl p
+Print PID.
+Outputs the process ID of
+.Nm
+to standard output where it can be saved into a file.
+.It Fl v
+Version.
+Displays version information to standard error.
+.It Fl x Ar log-options
+Specify run-time logging options.
+The options are a comma separated
+list chosen from:
+.Li fatal , error , user , warn , info , map , stats , all .
+.It Fl C
+Force
+.Nm
+to run on systems that cannot turn off the NFS attribute-cache.
+Use of
+this option on those systems is discouraged, as it may result in loss
+or mis-delivery of mail.
+The option is ignored on systems that can turn
+off the attribute-cache.
+.It Fl D Ar log-options
+Select from a variety of debugging options.
+Prefixing an
+option with the string
+.Dq Li no
+reverses the effect of that option.
+Options are cumulative.
+The most useful option is
+.Dq Li all .
+Since this option is only used for debugging other options are not
+documented here.
+A fuller description is available in the program
+source.
+A
+.Dv SIGUSR1
+sent to
+.Nm
+will cause it to dump its internal password map to the file
+.Pa /usr/tmp/hlfsd.dump.XXXXXX .
+.It Fl P Ar password-file
+Read the user-name, user-id, and home directory information from the file
+.Ar password-file .
+Normally,
+.Nm
+will use
+.Xr getpwent 3
+to read the password database.
+This option allows you to override the
+default database, and is useful if you want to map users' mail files to a
+directory other than their home directory.
+Only the username, uid, and
+home-directory fields of the file
+.Ar password-file
+are read and checked.
+All other fields are ignored.
+The file
+.Ar password-file
+must otherwise be compliant with
+.Ux
+System 7 colon-delimited format
+.Xr passwd 5 .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /var/hlfs"
+.It Pa /hlfs
+directory under which
+.Nm
+mounts itself and manages the symbolic link
+.Pa home .
+.It Pa .hlfsdir
+default sub-directory in the user's home directory, to which the
+.Pa home
+symbolic link returned by
+.Nm
+points.
+.It Pa /var/hlfs
+directory to which
+.Pa home
+symbolic link returned by
+.Nm
+points if it is unable to verify the that
+user's home directory is accessible.
+.El
+.Sh "SEE ALSO"
+.Xr mail 1 ,
+.Xr getgrent 3 ,
+.Xr getpwent 3 ,
+.Xr mnttab 4 ,
+.Xr passwd 4 ,
+.Xr mtab 5 ,
+.Xr amd 8 ,
+.Xr automount 8 ,
+.Xr cron 8 ,
+.Xr mount 8 ,
+.Xr sendmail 8 ,
+.Xr umount 8
+.Rs
+.%T HLFSD: Delivering Email to Your $HOME
+.%B Proc. LISA-VII, The 7th Usenix System Administration Conference
+.%D November 1993
+.Re
+.Pp
+.Dq am-utils
+.Xr info 1
+entry.
+.Rs
+.%A Erez Zadok
+.%B "Linux NFS and Automounter Administration"
+.%O ISBN 0-7821-2739-8
+.%I Sybex
+.%D 2001
+.Re
+.Pp
+.Pa http://www.am-utils.org/
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An Erez Zadok Aq ezk@cs.sunysb.edu ,
+Computer Science Department, Stony Brook University, Stony Brook, New York, USA.
+.Pp
+.An Alexander Dupuy Aq dupuy@smarts.com ,
+System Management ARTS, White Plains, New York, USA.
+.Pp
+Other authors and contributors to am-utils are listed in the
+.Pa AUTHORS
+file distributed with am-utils.

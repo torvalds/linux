@@ -1,0 +1,51 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: nfsclient
+# REQUIRE: NETWORKING mountcritremote rpcbind
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="nfsclient"
+desc="NFS client setup"
+rcvar="nfs_client_enable"
+start_cmd="nfsclient_start"
+stop_cmd="unmount_all"
+required_modules="nfscl:nfs"
+
+nfsclient_start()
+{
+	#
+	# Set some nfs client related sysctls
+	#
+
+	if [ -n "${nfs_access_cache}" ]; then
+		check_startmsgs &&
+			echo "NFS access cache time=${nfs_access_cache}"
+		if ! sysctl vfs.nfs.access_cache_timeout=${nfs_access_cache} >/dev/null; then
+			warn "failed to set access cache timeout"
+		fi
+	fi
+	if [ -n "${nfs_bufpackets}" ]; then
+		if ! sysctl vfs.nfs.bufpackets=${nfs_bufpackets} > /dev/null; then
+			warn "failed to set vfs.nfs.bufpackets"
+		fi
+	fi
+
+	unmount_all
+}
+
+unmount_all()
+{
+	# If /var/db/mounttab exists, some nfs-server has not been
+	# successfully notified about a previous client shutdown.
+	# If there is no /var/db/mounttab, we do nothing.
+	if [ -f /var/db/mounttab ]; then
+		rpc.umntall -k
+	fi
+}
+load_rc_config $name
+run_rc_command "$1"

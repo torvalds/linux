@@ -1,0 +1,157 @@
+.\"
+.\" Copyright (c) 2009 Lawrence Stewart <lstewart@FreeBSD.org>
+.\" Copyright (c) 2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Portions of this documentation were written at the Centre for Advanced
+.\" Internet Architectures, Swinburne University of Technology, Melbourne,
+.\" Australia by Lawrence Stewart under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 19, 2018
+.Dt CC_NEWRENO 4
+.Os
+.Sh NAME
+.Nm cc_newreno
+.Nd NewReno Congestion Control Algorithm
+.Sh SYNOPSIS
+.In netinet/cc/cc_newreno.h
+.Sh DESCRIPTION
+The NewReno congestion control algorithm is the default for TCP.
+Details about the algorithm can be found in RFC5681.
+.Sh Socket Options
+The
+.Nm
+module supports a number of socket options under TCP_CCALGOOPT (refer to
+.Xr tcp 4
+and
+.Xr moc_cc 9 for details)
+which can
+be set with
+.Xr setsockopt 2
+and tested with
+.Xr getsockopt 2 .
+The 
+.Nm
+socket options use this structure defined in
+<sys/netinet/cc/cc_newreno.h>:
+.Bd -literal
+struct cc_newreno_opts {
+	int name;
+	uint32_t val;
+}
+.Ed
+.Bl -tag -width ".Va CC_NEWRENO_BETA_ECN"
+.It Va CC_NEWRENO_BETA
+Multiplicative window decrease factor, specified as a percentage, applied to
+the congestion window in response to a congestion signal per: cwnd = (cwnd *
+CC_NEWRENO_BETA) / 100.
+Default is 50.
+.It Va CC_NEWRENO_BETA_ECN
+Multiplicative window decrease factor, specified as a percentage, applied to
+the congestion window in response to an ECN congestion signal when
+.Va net.inet.tcp.cc.abe=1
+per: cwnd = (cwnd * CC_NEWRENO_BETA_ECN) / 100.
+Default is 80.
+.El
+.Sh MIB Variables
+The algorithm exposes these variables in the
+.Va net.inet.tcp.cc.newreno
+branch of the
+.Xr sysctl 3
+MIB:
+.Bl -tag -width ".Va beta_ecn"
+.It Va beta
+Multiplicative window decrease factor, specified as a percentage, applied to
+the congestion window in response to a congestion signal per: cwnd = (cwnd *
+beta) / 100.
+Default is 50.
+.It Va beta_ecn
+Multiplicative window decrease factor, specified as a percentage, applied to
+the congestion window in response to an ECN congestion signal when
+.Va net.inet.tcp.cc.abe=1
+per: cwnd = (cwnd * beta_ecn) / 100.
+Default is 80.
+.El
+.Sh SEE ALSO
+.Xr cc_chd 4 ,
+.Xr cc_cubic 4 ,
+.Xr cc_hd 4 ,
+.Xr cc_htcp 4 ,
+.Xr cc_vegas 4 ,
+.Xr mod_cc 4 ,
+.Xr tcp 4 ,
+.Xr mod_cc 9
+.Rs
+.%A "Mark Allman"
+.%A "Vern Paxson"
+.%A "Ethan Blanton"
+.%T "TCP Congestion Control"
+.%O "RFC 5681"
+.Re
+.Rs
+.%A "Naeem Khademi"
+.%A "Michael Welzl"
+.%A "Grenville Armitage"
+.%A "Gorry Fairhurst"
+.%T "TCP Alternative Backoff with ECN (ABE)"
+.%R "internet draft"
+.%D "February 2018"
+.%N "draft-ietf-tcpm-alternativebackoff-ecn"
+.%O "work in progress"
+.Re
+.Sh ACKNOWLEDGEMENTS
+Development and testing of this software were made possible in part by grants
+from the FreeBSD Foundation and Cisco University Research Program Fund at
+Community Foundation Silicon Valley.
+.Sh HISTORY
+The
+.Nm
+congestion control algorithm first appeared in its modular form in
+.Fx 9.0 .
+.Pp
+The module was first released in 2007 by James Healy and Lawrence Stewart whilst
+working on the NewTCP research project at Swinburne University of Technology's
+Centre for Advanced Internet Architectures, Melbourne, Australia, which was made
+possible in part by a grant from the Cisco University Research Program Fund at
+Community Foundation Silicon Valley.
+More details are available at:
+.Pp
+http://caia.swin.edu.au/urp/newtcp/
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+congestion control module was written by
+.An James Healy Aq Mt jimmy@deefa.com ,
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org
+and
+.An David Hayes Aq Mt david.hayes@ieee.org .
+.Pp
+Support for TCP ABE was added by
+.An Tom Jones Aq Mt tj@enoti.me .
+.Pp
+This manual page was written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org .

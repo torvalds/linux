@@ -1,0 +1,107 @@
+Name of the Application: xntp
+
+Version Number:  4.0.91
+
+Download Size: 4541953 bytes
+
+Downloaded from: http://www.eecis.udel.edu/~ntp/
+
+Operating Systems Supported: many
+
+Operating Systems Tested: unix
+
+Testing
+
+Dates tested (CPU clock set)
+
+	1999-12-31
+	2000-01-01
+	2000-02-29
+
+	Critical fragments of code tested with other dates by special
+	algorithms.
+
+Hardware Platform: Sun Sparc
+
+OS: Solaris 2.6
+
+Compiler: gcc
+
+Version: 2.8.1
+
+Repairs:  9
+
+No. of files Repaired: 13
+
+
+Compilation of Patches Required: yes
+
+Results Description:
+
+1)	Tested suspicious code.
+
+2)	Repaired problem code and added documentation to ntp.h.
+
+3)	Verified ntpd works on critical Y2K dates.
+
+
+Comments:
+
+1)	Errors were found in improper use of tm_year within struct tm,
+	calculations that did not support year 2000 as a leap year
+	(it truly is, despite any unchanged comments remaining in 
+	the NTP source), and some incorrect date calculations, while
+	not traditional Y2K errors, would break in the year 2000.
+
+2)	include/ntpd.h
+    	Added some definitions and documentation about the right way
+        of doing things.  Definitions used by most, if not all, of
+        the Y2K repairs.
+
+Cautions:
+
+1)	Some of the Y2K repairs were to reference clock drivers that
+	we did not have the local hardware to test.  While I believe
+	the changes are sound, they really need to be tested.
+	This includes:
+
+		refclock_arc.c
+		refclock_heath.c
+		refclock_hpgps.c
+
+	Also, parseutil/dcfd.c is another hardware dependent module that
+	was repaired without live testing.
+
+Non-Y2K Problems Observed:
+
+1)	Inconsistent casts of variables containing time values may
+	make expansion to 64 bit integer values in a portable manner
+	difficult.
+
+2)	libntp/caltontp.c:
+        Has logic I believe will fail starting in year 2100 or so.
+        Left unchanged/untested as it works well beyond basic NTP 2036 
+	limit checked by check_y2k.c.
+        If NTP is implemented on 64-bit machines, this should be fixed
+
+3)	ntpd/refclock_acts.c:
+	ACTS time format has changed somewhat since the code was written.
+	In particular the '*' '#' character switch no longer occurs...
+	only '*' is typed.
+
+      NOTE: Author (falsely) stated Y2K is NOT a leap year when it 
+      really is.
+
+      TRUTH: ACTS will go beyond Y2K: it uses FourDigitYear % 100 values
+      for year so year 2000 will revert to "00".
+
+
+4)     ntpd/refclock_oncore.c
+       Some very strange logic in manipulating year values:
+       1122         instance->pp->year = buf[6]*256+buf[7];
+       Multiply by 256????
+ 
+    Response from PHK:
+       The entire protocol is binary, the year is a 16 bit quantity 
+       which according to the manual can have the range 1998-2018. 
+ 

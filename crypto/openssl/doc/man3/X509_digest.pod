@@ -1,0 +1,67 @@
+=pod
+
+=head1 NAME
+
+X509_digest, X509_CRL_digest,
+X509_pubkey_digest,
+X509_NAME_digest,
+X509_REQ_digest,
+PKCS7_ISSUER_AND_SERIAL_digest
+- get digest of various objects
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509.h>
+
+ int X509_digest(const X509 *data, const EVP_MD *type, unsigned char *md,
+                 unsigned int *len);
+
+ int X509_CRL_digest(const X509_CRL *data, const EVP_MD *type, unsigned char *md,
+                     unsigned int *len);
+
+ int X509_pubkey_digest(const X509 *data, const EVP_MD *type,
+                        unsigned char *md, unsigned int *len);
+
+ int X509_REQ_digest(const X509_REQ *data, const EVP_MD *type,
+                     unsigned char *md, unsigned int *len);
+
+ int X509_NAME_digest(const X509_NAME *data, const EVP_MD *type,
+                      unsigned char *md, unsigned int *len);
+
+ #include <openssl/pkcs7.h>
+
+ int PKCS7_ISSUER_AND_SERIAL_digest(PKCS7_ISSUER_AND_SERIAL *data,
+                                    const EVP_MD *type, unsigned char *md,
+                                    unsigned int *len);
+
+=head1 DESCRIPTION
+
+X509_pubkey_digest() returns a digest of the DER representation of the public
+key in the specified X509 B<data> object.
+All other functions described here return a digest of the DER representation
+of their entire B<data> objects.
+
+The B<type> parameter specifies the digest to
+be used, such as EVP_sha1(). The B<md> is a pointer to the buffer where the
+digest will be copied and is assumed to be large enough; the constant
+B<EVP_MAX_MD_SIZE> is suggested. The B<len> parameter, if not NULL, points
+to a place where the digest size will be stored.
+
+=head1 RETURN VALUES
+
+All functions described here return 1 for success and 0 for failure.
+
+=head1 SEE ALSO
+
+L<EVP_sha1(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to not build the LLD linker during the bootstrap phase of
+the build.
+To be able to build the system, either Binutils or LLD bootstrap must be
+enabled unless an alternate linker is provided via XLD.

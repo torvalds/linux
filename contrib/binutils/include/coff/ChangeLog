@@ -1,0 +1,108 @@
+2007-04-27  Alan Modra  <amodra@bigpond.net.au>
+
+	* rs6000.h: Write Mimi's name in ASCII.
+
+2007-03-19  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* internal.h (internal_extra_pe_aouthdr): Add Magic,
+	MajorLinkerVersion, MinorLinkerVersion, SizeOfCode,
+	SizeOfInitializedData, SizeOfUninitializedData,
+	AddressOfEntryPoint, BaseOfCode and BaseOfData.
+
+2006-12-05  Michael Tautschnig  <tautschn@model.in.tum.de>
+	    Nick Clifton  <nickc@redhat.com>
+
+	* external.h (struct external_aouthdr): Add ATTRIBUTE_PACKED.
+	(struct external_syment): Likewise.
+	(union external_auxent): Likewise.
+
+2006-11-14  Phil Lello  <phil.lello@homecall.co.uk>
+
+	* pe.h: Added defines for IMAGE_SUBSYSTEM_EFI_ROM and
+	IMAGE_SUBSYSTEM_XBOX.
+	* internal.h: Added defines for PE directory entry types.
+	NB: in internal.h because IMAGE_NUMBEROF_DIRECTORY_ENTRYIES is in
+	pe.h
+
+2006-09-20  Kai Tietz  <Kai.Tietz@onevision.com>
+
+	* external.h: Add proper external_aouthdr64 structure (without
+	data_start member).
+	(AOUTHDRSZ64): Set according structure size.
+	(AOUTHDR64): As typedef of external_aouthdr64 structure.
+	* internal.h: Add relocation identifiers for coff.
+	* pe.h:	Add define IMAGE_FILE_MACHINE_AMD64 the coff signature.
+	(PEPAOUTHDR): Adjust structure to have proper size (using AOUTHDR64).
+	(PEPAOUTSZ): Calculated size of 240.
+	* x86_64.h: Coff information for x86_64 (AMD64).
+
+2006-02-05  Arnold Metselaar  <arnold.metselaar@planet.nl>
+
+	* internal.h: Add relocation number R_IMM24 for Z80.
+
+2005-10-25  Arnold Metselaar  <arnold.metselaar@planet.nl>
+
+	* internal.h: Add relocation number for Z80
+	* z80.h: New file.
+
+2005-08-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* a29k.h: Delete.
+
+2005-07-14  Daniel Marques  <marques@cs.cornell.edu>
+
+	* alpha.h (ALPHA_ECOFF_COMPRESSEDMAG): Define.
+	* ecoff.h (ALPHA_MAGIC_COMPRESSED): Define.
+
+2005-05-10  Nick Clifton  <nickc@redhat.com>
+
+	* Update the address and phone number of the FSF organization in
+	the GPL notices in the following files:
+	a29k.h,	alpha.h, apollo.h, arm.h, aux-coff.h, ecoff.h, external.h,
+	go32exe.h, h8300.h, h8500.h, i386.h, i860.h, i960.h, ia64.h,
+	internal.h, m68k.h, m88k.h, maxq.h, mcore.h, mips.h, mipspe.h,
+	or32.h, pe.h, powerpc.h, rs6k64.h, sh.h, sparc.h, ti.h, tic30.h,
+	tic4x.h, tic54x.h, tic80.h, w65.h, we32k.h, xcoff.h, z8k.h
+	
+2005-02-21  Alan Modra  <amodra@bigpond.net.au>
+
+	* xcoff.h (struct xcoff_loader_info): Warning fix.
+
+2005-01-10  Inderpreet Singh <inderpreetb@noida.hcltech.com>
+
+	* maxq.h (F_MAXQ10, F_MAXQ20): Define.
+
+2004-11-08  Inderpreet Singh   <inderpreetb@nioda.hcltech.com>
+	    Vineet Sharma      <vineets@noida.hcltech.com>
+
+	* maxq.h: New file: Defintions for the maxq port.
+
+2004-11-08  Aaron W. LaFramboise <aaron98wiridge9@aaronwl.com>
+
+	* pe.h (IMAGE_WEAK_EXTERN_SEARCH_NOLIBRARY): Define.
+	(IMAGE_WEAK_EXTERN_SEARCH_LIBRARY): Same.
+	(IMAGE_WEAK_EXTERN_SEARCH_ALIAS): Same.
+
+2004-08-13  Mark Kettenis  <kettenis@gnu.org>
+
+	* symconst.h (langMax): Fix typo in comment.
+
+2004-04-23  Chris Demetriou  <cgd@broadcom.com>
+
+	* mips.h (MIPS_R_RELHI, MIPS_R_RELLO, MIPS_R_SWITCH): Remove
+	(MIPS_R_PCREL16): Update comment.
+	* ecoff.h (struct ecoff_value_adjust): Remove structure.
+	(struct ecoff_debug_info): Remove 'adjust' member.
+
+2004-04-20  DJ Delorie  <dj@redhat.com>
+
+	* internal.h (R_SECREL32): Add.
+
+For older changes see ChangeLog-9103
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

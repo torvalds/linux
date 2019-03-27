@@ -1,0 +1,873 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 15, 1995
+.Dt METEOR 4
+.Os
+.Sh NAME
+.Nm meteor
+.Nd "video capture driver interface"
+.Sh DESCRIPTION
+The
+.Nm
+driver defined a video capture interface.
+The
+.Nm
+driver is no longer in the tree, but other devices support this interface
+so the interface portion is documented here.
+.Ss Meteor Capture Modes
+The
+.Nm
+capture driver has three modes of capture operation.
+.Bl -enum
+.It
+Conventional
+.Xr read 2
+interface.
+.Pp
+This mode is the easiest and slowest to use.
+This mode is great for
+capturing a single field at little programming cost.
+.Pp
+In this mode, the user opens the device, sets the capture mode
+and size (see:
+.Dv METEORSETGEO
+.Xr ioctl 2
+call), and uses the
+.Xr read 2
+system
+call to load the data into a buffer.
+.Pp
+.Pa meteor_read.c ;
+read 400x300 RGB24 into a viewable PPM file
+.Bd -literal
+#include <sys/fcntl.h>
+#include <machine/ioctl_meteor.h>
+
+extern int errno;
+#define ROWS 300
+#define COLS 400
+#define SIZE (ROWS * COLS * 4)
+main()
+{
+	struct meteor_geomet geo;
+	char buf[SIZE],b[4],header[16],*p;
+	int i,o,c;
+
+	if ((i = open("/dev/meteor0", O_RDONLY)) < 0) {
+		printf("open failed: %d\\n", errno);
+		exit(1);
+	}
+	/* set up the capture type and size */
+        geo.rows = ROWS;
+        geo.columns = COLS;
+        geo.frames = 1;
+        geo.oformat = METEOR_GEO_RGB24 ;
+
+        if (ioctl(i, METEORSETGEO, &geo) < 0) {
+		printf("ioctl failed: %d\\n", errno);
+		exit(1);
+	}
+
+	c = METEOR_FMT_NTSC;
+
+        if (ioctl(i, METEORSFMT, &c) < 0) {
+		printf("ioctl failed: %d\\n", errno);
+		exit(1);
+	}
+
+	c = METEOR_INPUT_DEV0;
+
+        if (ioctl(i, METEORSINPUT, &c) < 0) {
+		printf("ioctl failed: %d\\n", errno);
+		exit(1);
+	}
+
+	if ((c=read(i, &buf[0], SIZE)) < SIZE) {
+		printf("read failed %d %d %d\\n", c, i, errno);
+		close(i);
+		exit(1);
+	}
+	close(i);
+
+	if ((o = open("rgb24.ppm", O_WRONLY | O_CREAT, 0644)) < 0) {
+		printf("ppm open failed: %d\\n", errno);
+		exit(1);
+	}
+
+	/* make PPM header and save to file */
+	strcpy(&header[0], "P6 400 300 255 ");
+	header[2] = header[6]  = header[10] = header[14] = '\\n';
+	write (o, &header[0], 15);
+	/* save the RGB data to PPM file */
+	for (p = &buf[0]; p < &buf[SIZE]; ) {
+		b[2] = *p++;		/* blue */
+		b[1] = *p++;		/* green */
+		b[0] = *p++;		/* red */
+		*p++;			/* NULL byte */
+		write(o,&b[0], 3);	/* not very efficient */
+	}
+	close(o);
+	exit(0);
+}
+.Ed
+.It
+Memory mapped single capture or unsynchronized continuous capture.
+.Pp
+The single capture mode is designed for conferencing tools such as
+.Nm nv .
+These tools need to control the starting of the image capture and also
+need several frames a second.
+The continuous capture mode is designed
+for applications that want free-running data.
+.Pp
+In this mode, the user opens the device, sets the capture mode
+and size (see:
+.Dv METEORSETGEO
+.Xr ioctl 2
+call),
+.Xr mmap 2 Ns s
+the frame buffer
+memory into the user process space, and issues either the
+single-capture or the continuous capture call (see:
+.Dv METEORCAPTUR
+.Xr ioctl 2
+call) to load the data into the memory mapped buffer.
+.Pp
+As explained in the
+.Dv METEORCAPTUR
+.Xr ioctl 2
+call, the single frame capture
+.Xr ioctl 2
+will block until the capture is complete, the continuous capture
+will return immediately.
+.Pp
+.Pa meteor_mmap_single_continuous.c
+.Bd -literal
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/fcntl.h>
+#include <machine/ioctl_meteor.h>
+
+extern int errno;
+#define ROWS 480
+#define COLS 640
+#define SIZE (ROWS * COLS * 2)
+main()
+{
+	struct meteor_geomet geo;
+	char buf[SIZE];
+	char *mmbuf;
+	int i,c;
+
+	if ((i = open("/dev/meteor0", O_RDONLY)) < 0) {
+		printf("open failed\\n");
+		exit(1);
+	}
+
+        geo.rows = ROWS;
+        geo.columns = COLS;
+        geo.frames = 1;
+        geo.oformat = METEOR_GEO_RGB16 ;
+
+        if (ioctl(i, METEORSETGEO, &geo) < 0) {
+		printf("ioctl failed: %d\\n", errno);
+		exit(1);
+	}
+
+	c = METEOR_FMT_NTSC;
+
+        if (ioctl(i, METEORSFMT, &c) < 0) {
+		printf("ioctl failed: %d\\n", errno);
+		exit(1);
+	}
+
+	c = METEOR_INPUT_DEV0;
+
+        if (ioctl(i, METEORSINPUT, &c) < 0) {
+		printf("ioctl failed: %d\\n", errno);
+		exit(1);
+	}
+
+        mmbuf=(char *)mmap((caddr_t)0, SIZE, PROT_READ,
+		MAP_SHARED, i, (off_t)0);
+
+#ifdef SINGLE_MODE
+	/* single frame capture */
+	c = METEOR_CAP_SINGLE ;
+        ioctl(i, METEORCAPTUR, &c);	/* wait for the frame */
+
+	/* directly access the frame buffer array data in mmbuf */
+#else
+	/* continuous frame capture */
+	c = METEOR_CAP_CONTINOUS ;
+        ioctl(i, METEORCAPTUR, &c);	/* returns immediately */
+
+	/* directly access the frame buffer array data in mmbuf */
+
+	c = METEOR_CAP_STOP_CONT ;
+        ioctl(i, METEORCAPTUR, &c);	/* close will also stop capture */
+#endif
+
+	close(i);
+	exit(0);
+}
+.Ed
+.It
+Memory mapped, multi-frame ring buffer synchronize capture.
+.Pp
+This continuous capture mode is synchronized with the application that
+processes up to 32 frames.
+This gives the advantages of both single and
+continuous capture modes.
+.Pp
+The kernel notifies the application of a new data by raising an
+application defined signal.
+The driver also shares a structure with
+the application that allows them to communicate which frame has been
+written by the kernel and which frame has been read by the application.
+.Pp
+The shared structure starts on the first page after your data.
+The
+structure address can be found by calculation:
+.Pp
+.Dl "(number_rows * number_columns * pixel_depth + 4095) & 0xfffff000"
+or
+.Dl "((number_rows * number_columns * pixel_depth + 4095)/4096) * 4096"
+.Pp
+The shared structure is of type
+.Va struct meteor_mem .
+The two most
+important fields are called
+.Va active
+and
+.Va num_active_buf .
+.Va active
+is a bitmap of frames written by the kernel.
+.Va num_active_bufs
+is
+a count of frames marked in the
+.Va active
+field.
+When a frame is read
+in by the driver, the
+.Va num_active_bufs
+count is tested, if this
+count is below the threshold of number of active frames (value
+in
+.Va meteor_mem Ns 's
+.Va hiwat
+variable), the bit representing frame
+number in the buffer is stored in the
+.Va active
+variable, the
+.Va num_active_bufs
+is incremented, the kernel then raises the specified
+signal to activate the user application.
+The user application's
+responsibility when getting the signal is to check the active bitmap
+to determine the lowest active frame, use the data as the application
+desires, clear the bitmap entry for that frame, and decrement the
+.Va num_active_bufs .
+If the threshold of number of active frames
+.Pq Va hiwat
+has been exceeded, no new frames or signal from the kernel will occur
+until the
+.Va num_active_bufs
+is less than or equal to
+.Va lowat .
+.Pp
+The driver loads the frames in a round-robin fashion.
+It is expected
+that the user removes them in the same order.
+The driver does not
+check to see if the frame is already active.
+.Pp
+The
+.Va frame_size
+and number of frames in the buffer are also provided
+to the
+.Va meteor_mem
+structure, but changing these fields in the
+application will not change the operation of the driver.
+.Pp
+In programming for this mode, the user opens the device, sets the
+geometry,
+.Xr mmap 2 Ns s
+the data/common control structure, then starts the
+continuous capture mode.
+A special signal catcher is required to
+process the frames as they are read by the kernel.
+.Pp
+When specifying the geometry (see:
+.Dv METEORSETGEO
+.Xr ioctl 2
+call),
+it
+is important that the number of frames is set greater than 1.
+.Pp
+.Pa skeleton_capture_n.c
+.Bd -literal
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/fcntl.h>
+#include <sys/signal.h>
+#include <machine/ioctl_meteor.h>
+
+int video;  /* made global if you wish to stop capture in signal handler */
+caddr_t data_frames;
+struct meteor_mem *common_mem;
+extern int errno;
+
+#define FRAME_MAX
+
+void
+usr2_catcher()
+{
+#ifdef SIGNAL_STOP
+	struct meteor_capframe capframe;	/* for ioctl */
+#endif
+	char *frame;
+
+	/* find frame */
+	frame = (char *) (data_frames + sig_cnt * common_mem->frame_size) ;
+
+	/* add frame processing here */
+	/* deactivate frame */
+	common_mem->active &= ~(1 << (sig_cnt % 16));
+	common_mem->num_active_bufs--;
+
+	/* process next frame on next interrupt */
+	sig_cnt = ((sig_cnt+1) % FRAME_MAX);
+
+#ifdef SIGNAL_STOP
+	if (some_condition_requiring_stopping) {
+		capframe.command=METEOR_CAP_STOP_FRAMES;
+
+		if (ioctl(i, METEORCAPFRM, &capframe) < 0) {
+			printf("METEORCAPFRM failed %d\\n", errno);
+			exit(1);
+		}
+	}
+#endif
+}
+
+main()
+{
+	struct meteor_geomet geo;
+	int height, width, depth, frames, size;
+	struct meteor_capframe capframe;
+
+	if ((i = open("/dev/meteor0", O_RDONLY)) < 0) {
+		printf("open failed\\n");
+		exit(1);
+	}
+	printf("test %d %d\\n", errno, i);
+
+        height = geo.rows = 120;
+        width= geo.columns = 320;
+        frames = geo.frames = FRAME_MAX;
+	depth = 2;	/* 2 bytes per pixel for RGB*/
+
+
+        geo.oformat = METEOR_GEO_RGB16;
+
+        if (ioctl(i, METEORSETGEO, &geo) < 0) {
+		printf("METEORSETGEO failed %d\\n", errno);
+		exit(1);
+	}
+
+	c = METEOR_FMT_NTSC;
+
+        if (ioctl(i, METEORSFMT, &c) < 0) {
+		printf("ioctl failed: %d\\n", errno);
+		exit(1);
+	}
+
+	c = METEOR_INPUT_DEV0;
+
+        if (ioctl(i, METEORSINPUT, &c) < 0) {
+		printf("ioctl failed: %d\\n", errno);
+		exit(1);
+	}
+
+	size = ((width*height*depth*frames+4095)/4096)*4096;
+	/* add one page after data for meteor_mem */
+	data_frames = mmap((caddr_t)0, size + 4096, PROT_READ | PROT_WRITE,
+						MAP_SHARED, i, (off_t)0);
+
+	if (data_frames == (caddr_t) MAP_FAILED) return (0);
+
+	/* common_mem is located at page following data */
+	common_mem = (struct meteor_mem *) (y + size);
+
+	signal(SIGUSR2, usr2_catcher);	/* catch new frame message */
+
+	capframe.command=METEOR_CAP_N_FRAMES;
+	capframe.signal=SIGUSR2;
+	capframe.lowat=12;		/* must be < hiwat */
+	capframe.hiwat=14;		/* must be < FRAME_MAX */
+
+					/* start the sync capture */
+        if (ioctl(i, METEORCAPFRM, &capframe) < 0) {
+		printf("METEORCAPFRM failed %d\\n", errno);
+		exit(1);
+	}
+
+	/* this is the background working area, or you can sleep */
+
+
+	/* to stop capture */
+	capframe.command=METEOR_CAP_STOP_FRAMES;
+
+        if (ioctl(i, METEORCAPFRM, &capframe) < 0) {
+		printf("METEORCAPFRM failed %d\\n", errno);
+		exit(1);
+	}
+}
+.Ed
+.El
+.Ss Meteor IOCTL Call and Parameters
+The
+.Nm
+capture driver has
+.Xr ioctl 2
+requests for capturing, reading card
+status, for setting and reading the geometry, and for setting and reading the
+attributes.
+.Pp
+.Bf -symbolic
+IT IS VERY IMPORTANT TO CHECK FOR ERRORS ON THESE RETURNING IOCTLs.
+.Ef
+Errors indicate that something is very wrong with the
+.Xr ioctl 2
+and the
+application should not attempt to proceed further with capturing.
+The
+.Nm
+capture driver still makes attempts to stop the next capture step if
+an error occurred in a previous step but was ignored by the application
+programmer.
+.Bl -enum
+.It
+.Xr ioctl 2
+requests
+.Dv METEORSETGEO
+and
+.Dv METEORGETGEO
+.Pp
+.Dv METEORSETGEO
+and
+.Dv METEORGETGEO
+are used to set and read the input
+size, input device, and output format for frame capture.
+.Pp
+These
+.Xr ioctl 2
+routines use the
+.Va meteor_geomet
+structure that has the
+following entries:
+.Bl -tag -width columns
+.It Va rows
+number of rows (lines high) in output image
+.It Va columns
+number of pixels in a row (width) in output image
+.It Va frames
+number of frames in buffer.
+Should be 1, unless using
+the multi-framed synchronous capture mode
+.Pq Dv METEORCAPFRM
+which REQUIRES frames to be larger than 1.
+.Pp
+Note: if
+.Va rows , columns
+or
+.Va frames
+is not changed, then
+the existing values are used.
+The system defaults
+is 640x480x1.
+.It Va oformat
+you may choose one of the following output format:
+.Bl -tag -width METEOR_GEO_YUV_PACKED
+.It Dv METEOR_GEO_RGB16
+(RGB 16 bits xrrrrrgg gggbbbbb default)
+.It Dv METEOR_GEO_RGB24
+(RGB 24 bits packed in 32 bits:
+00000000 rrrrrrrr gggggggg bbbbbbbb)
+.It Dv METEOR_GEO_YUV_PACKED
+(4-2-2 YUV 16 bits packed byte format:
+u0 y0 v0 y1 u1 y2 v1 y3 ...)
+.It Dv METEOR_GEO_YUV_PLANER
+(4-2-2 YUV 16 bits planer format:
+rows * columns bytes of y
+rows * column / 4 bytes of even u
+rows * column / 4 bytes of even v
+rows * column / 4 bytes of odd u
+rows * column / 4 bytes of odd v)
+.El
+.El
+.Pp
+The
+.Dv METEORSETGEO
+.Xr ioctl 2
+will fail if more than one entry from a category
+is selected.
+It is highly recommended that a
+.Dv METEORSETGEO
+is done
+before capturing data because you cannot guarantee the initial mode
+the card.
+.Pp
+The
+.Dv METEORSETGEO
+will also attempt to reallocate a new contiguous
+kernel buffer if the new geometry exceeds the old geometry.
+On the
+other hand, if the new geometry will fit in the existing buffer,
+the existing buffer is used.
+.Pp
+If
+.Dv METEORSETGEO
+fails the
+.Xr ioctl 2
+will return a value of -1 and the
+external variable
+.Va errno
+will be set to:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+invalid
+.Va meteor_geomet
+structure pointer,
+.Va rows , columns , frames
+were invalid.
+.It Bq Er ENOMEM
+could not allocate the contiguous block.
+.El
+.It
+.Xr ioctl 2
+requests
+.Dv METEORSFMT
+and
+.Dv METEORGFMT
+.Pp
+.Dv METEORSFMT
+and
+.Dv METEORGFMT
+are used to set and read the camera input
+standard format.
+.Pp
+Possible formats are:
+.Pp
+.Bl -tag -width METEOR_FMT_AUTOMODE -compact
+.It Dv METEOR_FMT_NTSC
+NTSC (default mode)
+.It Dv METEOR_FMT_PAL
+PAL
+.It Dv METEOR_FMT_SECAM
+SECAM
+.It Dv METEOR_FMT_AUTOMODE
+Autodetect.
+.El
+.It
+.Xr ioctl 2
+requests
+.Dv METEORSINPUT
+and
+.Dv METEORGINPUT
+.Pp
+.Dv METEORSINPUT
+and
+.Dv METEORGINPUT
+are used to set and read the camera
+input device.
+Using the DB9 connector on the
+.Tn Meteor
+card, 4 input
+devices can be connected and an input camera can be selected with this
+.Xr ioctl 2 .
+.Pp
+Possible formats are:
+.Pp
+.Bl -tag -width METEOR_INPUT_DEV_SVIDEO -compact
+.It Dv METEOR_INPUT_DEV0
+(default if none specified)
+.It Dv METEOR_INPUT_DEV_RCA
+(same as METEOR_INPUT_DEV0)
+.It Dv METEOR_INPUT_DEV1
+.It Dv METEOR_INPUT_DEV2
+.It Dv METEOR_INPUT_DEV_SVIDEO
+(same as METEOR_INPUT_DEV2)
+.El
+.It
+.Xr ioctl 2
+request
+.Dv METEORSTATUS
+.Pp
+.Dv METEORSTATUS
+is used to read the status of the
+.Tn Meteor
+capture card
+and returns the following information:
+.Bl -column "METEOR_STATUS_ID_MASK" "\&"
+.It Dv METEOR_STATUS_ID_MASK "	4 bit ID of the SAA7196 scaler chip."
+.Pp
+.It Dv METEOR_STATUS_DIR "	0 =	scaler uses internal source."
+.It "	1 =	scaler uses external data of expansion bus."
+.Pp
+.It Dv METEOR_STATUS_OEF "	0 =	even field detected."
+.It "	1 =	odd field detected."
+.Pp
+.It Dv METEOR_STATUS_SVP "	VRAM Port state:"
+.It "	0 =	inputs HFL and INCADDR inactive."
+.It "	1 =	inputs HFL and INCADDR active."
+.Pp
+.It Dv METEOR_STATUS_STTC "	0 =	TV horizontal time constant (slow)."
+.It "	1 =	VCR horizontal time constant (fast)."
+.Pp
+.It Dv METEOR_STATUS_HCLK "	0 =	Horizontal Phase Lock Loop locked."
+.It "	1 =	Horizontal Phase Lock Loop unlocked."
+.Pp
+.It Dv METEOR_STATUS_FIDT "	0 =	50 Hz Field detected."
+.It "	1 =	60 Hz Field detected."
+.Pp
+.It Dv METEOR_STATUS_ALTD "	0 =	no line alternating color burst detected."
+.It "	1 =	line alternating color burst detected (PAL/SECAM)."
+.Pp
+.It Dv METEOR_STATUS_CODE "	0 =	no color information detected."
+.It "	1 =	color information detected."
+.El
+.It
+.Xr ioctl 2
+request
+.Dv METEORCAPTUR
+.Pp
+.Dv METEORCAPTUR
+is used to single frame capture or unsynchronized
+continuous capture.
+.Pp
+The single frame capture
+.Xr ioctl 2
+request will return only after a
+frame has been captured and transferred to the frame buffer.
+.Pp
+The unsynchronized continuous capture will return immediately and
+data is directly deposited into the buffer when it is available.
+Since this is unsynchronized, it is possible the data is being
+written by the kernel while being read by the application.
+.Pp
+These
+.Xr ioctl 2
+routines use the following settings:
+.Pp
+.Bl -tag -width METEOR_CAP_CONTINOUS -compact
+.It Dv METEOR_CAP_SINGLE
+capture one frame
+.It Dv METEOR_CAP_CONTINOUS
+unsynchronized continuous capture
+.It Dv METEOR_CAP_STOP_CONT
+stop the unsynchronized continuous
+capture
+.El
+.Pp
+If
+.Dv METEORCAPTUR
+fails the
+.Xr ioctl 2
+will return a value of -1 and the
+external variable
+.Va errno
+will be set to:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+invalid capture command value
+.It Bq Er ENXIO
+there is not internal buffer to hold the frame.
+This indicates the previous set geometry
+.Xr ioctl 2
+failed.
+.It Bq Er EIO
+card is already capturing.
+.El
+.It
+.Xr ioctl 2
+request
+.Dv METEORCAPFRM
+.Pp
+.Dv METEORCAPFRM
+is used for synchronous capture of multiple frames.
+.Pp
+This
+.Xr ioctl 2
+routine uses the
+.Va meteor_capture
+structure that has the
+following entries:
+.Bl -tag -width command
+.It Va command
+possible values for
+.Va command
+are:
+.Bl -tag -width METEOR_CAP_STOP_FRAMES
+.It Dv METEOR_CAP_STOP_FRAMES
+stop the capture; does not use the
+other variable in structure.
+.It Dv METEOR_CAP_N_FRAMES
+start the capture using the other
+variables in the structure as inputs
+.El
+.It Va signal
+signal to send to application when a new
+frame has been captured.
+This signal will
+only be raised if the captured frame is saved.
+.It Va lowat
+see below
+.It Va hiwat
+see below
+.El
+.Pp
+When a new frame is completed, the driver checks the current unread
+frame count stored in shared variable (the shared variable is stored
+in the
+.Va meteor_mem
+structure)
+.Va num_active_buf ;
+if the count is larger
+than
+.Va hiwat ,
+the driver will not store any new frames and will not
+send capture signal to the user application until the
+.Va num_active_buf
+is lower than
+.Va lowat .
+.Pp
+If
+.Dv METEORCAPFRM
+fails the
+.Xr ioctl 2
+will return a value of -1 and the
+external variable
+.Va errno
+will be set to:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+invalid meteor_geomet structure pointer or bad command.
+.It Bq Er ENXIO
+there is not internal buffer to hold the frame.
+This indicates the previous set geometry
+.Xr ioctl 2
+failed.
+.It Bq Er EIO
+card is already capturing.
+.El
+.It
+.Xr ioctl 2
+requests
+.Dv METEORSCHCV
+and
+.Dv METEORGCHCV
+.Pp
+.Dv METEORSCHCV
+and
+.Dv METEORGCHCV
+are used to set and get the chrominance
+gain control and effects the UV output amplitude.
+.Pp
+If
+.Dv METEORSCHCV
+or
+.Dv METEORGCHCV
+fails the
+.Xr ioctl 2
+will return a value
+of -1 and the external variable
+.Va errno
+will be set to:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+invalid unsigned char pointer.
+.El
+.It
+.Xr ioctl 2
+requests
+.Dv METEORGHUE
+and
+.Dv METEORSHUE
+.Pp
+.Dv METEORGHUE
+and
+.Dv METEORSHUE
+are used to get and set the hue.
+The
+signed character has legal values are from +127 which represent
++178.6 degrees to -128 which represents -180 degrees.
+.Pp
+If
+.Dv METEORGHUE
+or
+.Dv METEORSHUE
+fails the
+.Xr ioctl 2
+will return a value of
+-1 and the external variable
+.Va errno
+will be set to:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+invalid signed char pointer.
+.El
+.It
+.Xr ioctl 2
+requests
+.Dv METEORSCOUNT
+and
+.Dv METEORGCOUNT
+.Pp
+.Dv METEORGCOUNT
+is used to get the count of frame errors, DMA errors and
+count of the number of frames captured that have occurred since
+the device was opened.
+.Dv METEORSCOUNT
+can be used to reinitialize the
+counters.
+.Pp
+This
+.Xr ioctl 2
+routines use the
+.Va meteor_counts
+structure that has the
+following entries:
+.Bl -tag -width frame_count
+.It Va fifo_errors
+number of FIFO errors since device was opened.
+.It Va dma_errors
+number of DMA errors since device was opened.
+.It Va frame_count
+number of frames captured since device was opened.
+.El
+.Pp
+If
+.Dv METEORSCOUNT
+or
+.Dv METEORGCOUNT
+fails the
+.Xr ioctl 2
+will return a value
+of -1 and the external variable
+.Va errno
+will be set to:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+invalid meteor_counts structure pointer.
+.El
+.El
+.Sh AUTHORS
+.An Jim Lowe Aq Mt james@miller.cs.uwm.edu
+.An Mark Tinguely Aq Mt tinguely@plains.nodak.edu
+.Sh BUGS
+The
+.Nm
+driver no longer works at all.

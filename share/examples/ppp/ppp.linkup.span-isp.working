@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+# This is a working example of ppp.linkup.span-isp that uses ppp connections
+# to the same machine through 3 null-modem serial cables.
+
+# The ISP links start our MP version of ppp as they come up
+isp1:
+  !bg ppp -background vpn1 vpn
+
+isp2:
+  !bg ppp -background vpn2 vpn
+
+isp3:
+  !bg ppp -background vpn3 vpn
+
+vpn:
+  set server /var/run/ppp/vpn "" 0177

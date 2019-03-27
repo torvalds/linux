@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to avoid building libcxxrt and libc++.

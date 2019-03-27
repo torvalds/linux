@@ -1,0 +1,63 @@
+.\" Copyright (c) 2011 Martynas Venckus <martynas@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\" $FreeBSD$
+.\"
+.Dd $Mdocdate: June 5 2013 $
+.Dt CPOW 3
+.Os
+.Sh NAME
+.Nm cpow ,
+.Nm cpowf ,
+.Nm cpowl
+.Nd complex power functions
+.Sh SYNOPSIS
+.In complex.h
+.Ft double complex
+.Fn cpow "double complex x" "double complex z"
+.Ft float complex
+.Fn cpowf "float complex x" "float complex z"
+.Ft long double complex
+.Fn cpowl "long double complex x" "long double complex z"
+.Sh DESCRIPTION
+The
+.Fn cpow ,
+.Fn cpowf
+and
+.Fn cpowl
+functions compute the complex number
+.Fa x
+raised to the complex power
+.Fa z ,
+with a branch cut along the negative real axis for the first argument.
+.Sh RETURN VALUES
+The
+.Fn cpow ,
+.Fn cpowf
+and
+.Fn cpowl
+functions return the complex number
+.Fa x
+raised to the complex power
+.Fa z .
+.Sh SEE ALSO
+.Xr cexp 3 ,
+.Xr clog 3
+.Sh STANDARDS
+The
+.Fn cpow ,
+.Fn cpowf
+and
+.Fn cpowl
+functions conform to
+.St -isoC-99 .

@@ -1,0 +1,116 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_strptr.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd December 16, 2006
+.Dt ELF_STRPTR 3
+.Os
+.Sh NAME
+.Nm elf_strptr
+.Nd retrieve a string pointer in a string table
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft "char *"
+.Fn elf_strptr "Elf *elf" "size_t scndx" "size_t stroffset"
+.Sh DESCRIPTION
+Function
+.Fn elf_strptr
+allows an application to convert a string table offset to a string
+pointer, correctly translating the offset in the presence
+of multiple
+.Vt Elf_Data
+descriptors covering the contents of the section.
+.Pp
+Argument
+.Ar elf
+is a descriptor for an ELF object.
+Argument
+.Ar scndx
+is the section index for an ELF string table.
+Argument
+.Ar stroffset
+is the index of the desired string in the string
+table.
+.Sh RETURN VALUES
+Function
+.Fn elf_strptr
+returns a valid pointer on success or NULL in case an error was
+encountered.
+.Sh ERRORS
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was NULL
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was not a descriptor for an ELF object.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar scndx
+was not the section index for a string table.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar stroffset
+exceeded the size of the string table.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar stroffset
+index an unallocated region of the string table.
+.It Bq Er ELF_E_DATA
+Offset
+.Ar stroffset
+indexed a region that was not covered by any Elf_Data
+descriptor.
+.It Bq Er ELF_E_DATA
+An erroneous
+.Vt Elf_Data
+descriptor was part of the section specified by argument
+.Ar scndx .
+.It Bq Er ELF_E_HEADER
+ELF descriptor
+.Ar elf
+contained an invalid section header.
+.It Bq Er ELF_E_RESOURCE
+An out of memory condition was detected.
+.It Bq Er ELF_E_SECTION
+Section
+.Ar scndx
+contained a malformed section header.
+.It Bq Er ELF_E_SECTION
+The ELF descriptor in argument
+.Ar elf
+did not adhere to the conventions used for extended numbering.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf32_getshdr 3 ,
+.Xr elf64_getshdr 3 ,
+.Xr elf_getdata 3 ,
+.Xr elf_rawdata 3 ,
+.Xr gelf 3 ,
+.Xr gelf_getshdr 3

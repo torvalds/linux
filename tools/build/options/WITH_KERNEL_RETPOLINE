@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to enable the "retpoline" mitigation for CVE-2017-5715 in the kernel
+build.

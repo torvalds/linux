@@ -1,0 +1,16 @@
+This directory contains some DCF77 related programs.
+They have not yet fully been ported to architectures other than Sun with
+SunOS 4.x.  So if you want to try them you are on your own - a little
+porting may be necessary.
+
+parsetest:	simple parse streams module test
+		Works only under SunOS with parse Streams Module loaded
+		and Meinberg-Clocks
+
+testdcf:	simple DCF77 raw impulse test program via 50Baud RS232
+
+dcfd:		simple DCF77 raw impulse receiver with NTP loopfilter
+		mechanics for synchronisation (allows DCF77 synchronisation
+		without network code in a nutshell)
+
+Frank Kardel

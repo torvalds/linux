@@ -1,0 +1,135 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)zfs_mount.kshlib	1.3	09/06/22 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+function force_unmount #dev
+{
+	typeset dev=$1
+
+	ismounted $dev
+	if (( $? == 0 )); then
+		log_must $ZFS $unmountforce $dev
+	fi
+	return 0
+}
+
+# Create pool and  ( fs | container | vol ) with the given parameters,
+# it'll destroy prior exist one that has the same name.
+
+function setup_filesystem #disklist #pool #fs #mntpoint #type #vdev
+{
+	typeset disklist=$1
+	typeset pool=$2
+	typeset fs=${3##/}
+	typeset mntpoint=$4
+	typeset type=$5
+	typeset vdev=$6
+
+	if [[ -z $pool || -z $fs || -z $mntpoint ]]; then
+		log_note "Missing parameter: (\"$pool\", \"$fs\", \"$mntpoint\")"
+		return 1
+	fi
+
+	if is_global_zone && [[ -z $disklist ]] ; then
+		log_note "Missing disklist."
+		return 1
+	fi
+
+	if [[ $vdev != "" && \
+		$vdev != "mirror" && \
+		$vdev != "raidz" ]] ; then
+
+		log_note "Wrong vdev: (\"$vdev\")"
+		return 1
+	fi
+
+	poolexists $pool || \
+		create_pool $pool $vdev $disklist 
+
+	datasetexists $pool/$fs && \
+		log_must cleanup_filesystem $pool $fs
+
+	$RMDIR $mntpoint > /dev/null 2>&1
+	if [[ ! -d $mntpoint ]]; then
+		log_must $MKDIR -p $mntpoint
+	fi
+
+	case "$type" in
+		'ctr') 	log_must $ZFS create $pool/$fs 
+			log_must $ZFS set mountpoint=$mntpoint $pool/$fs
+			;;
+		'vol') 	log_must $ZFS create -V $VOLSIZE $pool/$fs 
+			;;
+		*) 	log_must $ZFS create $pool/$fs 
+			log_must $ZFS set mountpoint=$mntpoint $pool/$fs
+			;;
+	esac
+
+	return 0
+}
+
+# Destroy ( fs | container | vol ) with the given parameters.
+function cleanup_filesystem #pool #fs
+{
+	typeset pool=$1
+	typeset fs=${2##/}
+	typeset mtpt=""
+
+	if [[ -z $pool || -z $fs ]]; then
+		log_note "Missing parameter: (\"$pool\", \"$fs\")"
+		return 1
+	fi
+
+	if datasetexists "$pool/$fs" ; then
+		mtpt=$(get_prop mountpoint "$pool/$fs")
+		log_must $ZFS destroy -r $pool/$fs
+
+		[[ -d $mtpt ]] && \
+			log_must $RM -rf $mtpt
+	else
+		return 1
+	fi
+
+	return 0
+}
+
+# Make sure 'zfs mount' should display all ZFS filesystems currently mounted.
+# The results of 'zfs mount' and 'df -F zfs' should be identical. 
+function verify_mount_display
+{
+	typeset fs
+
+	for fs in $($ZFS $mountcmd | $AWK '{print $1}') ; do
+		log_must mounted $fs
+	done
+	return 0
+}

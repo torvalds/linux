@@ -1,0 +1,103 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)isprint.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd July 17, 2005
+.Dt ISPRINT 3
+.Os
+.Sh NAME
+.Nm isprint
+.Nd printing character test (space character inclusive)
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In ctype.h
+.Ft int
+.Fn isprint "int c"
+.Sh DESCRIPTION
+The
+.Fn isprint
+function tests for any printing character, including space
+.Pq Ql "\ " .
+The value of the argument must be representable as an
+.Vt "unsigned char"
+or the value of
+.Dv EOF .
+.Pp
+In the ASCII character set, this includes the following characters
+(with their numeric values shown in octal):
+.Bl -column \&000_``0''__ \&000_``0''__ \&000_``0''__ \&000_``0''__ \&000_``0''__
+.It "\&040\ sp" Ta "041\ ``!''" Ta "042\ ``""''" Ta "043\ ``#''" Ta "044\ ``$''"
+.It "\&045\ ``%''" Ta "046\ ``&''" Ta "047\ ``'''" Ta "050\ ``(''" Ta "051\ ``)''"
+.It "\&052\ ``*''" Ta "053\ ``+''" Ta "054\ ``,''" Ta "055\ ``-''" Ta "056\ ``.''"
+.It "\&057\ ``/''" Ta "060\ ``0''" Ta "061\ ``1''" Ta "062\ ``2''" Ta "063\ ``3''"
+.It "\&064\ ``4''" Ta "065\ ``5''" Ta "066\ ``6''" Ta "067\ ``7''" Ta "070\ ``8''"
+.It "\&071\ ``9''" Ta "072\ ``:''" Ta "073\ ``;''" Ta "074\ ``<''" Ta "075\ ``=''"
+.It "\&076\ ``>''" Ta "077\ ``?''" Ta "100\ ``@''" Ta "101\ ``A''" Ta "102\ ``B''"
+.It "\&103\ ``C''" Ta "104\ ``D''" Ta "105\ ``E''" Ta "106\ ``F''" Ta "107\ ``G''"
+.It "\&110\ ``H''" Ta "111\ ``I''" Ta "112\ ``J''" Ta "113\ ``K''" Ta "114\ ``L''"
+.It "\&115\ ``M''" Ta "116\ ``N''" Ta "117\ ``O''" Ta "120\ ``P''" Ta "121\ ``Q''"
+.It "\&122\ ``R''" Ta "123\ ``S''" Ta "124\ ``T''" Ta "125\ ``U''" Ta "126\ ``V''"
+.It "\&127\ ``W''" Ta "130\ ``X''" Ta "131\ ``Y''" Ta "132\ ``Z''" Ta "133\ ``[''"
+.It "\&134\ ``\e\|''" Ta "135\ ``]''" Ta "136\ ``^''" Ta "137\ ``_''" Ta "140\ ```''"
+.It "\&141\ ``a''" Ta "142\ ``b''" Ta "143\ ``c''" Ta "144\ ``d''" Ta "145\ ``e''"
+.It "\&146\ ``f''" Ta "147\ ``g''" Ta "150\ ``h''" Ta "151\ ``i''" Ta "152\ ``j''"
+.It "\&153\ ``k''" Ta "154\ ``l''" Ta "155\ ``m''" Ta "156\ ``n''" Ta "157\ ``o''"
+.It "\&160\ ``p''" Ta "161\ ``q''" Ta "162\ ``r''" Ta "163\ ``s''" Ta "164\ ``t''"
+.It "\&165\ ``u''" Ta "166\ ``v''" Ta "167\ ``w''" Ta "170\ ``x''" Ta "171\ ``y''"
+.It "\&172\ ``z''" Ta "173\ ``{''" Ta "174\ ``|''" Ta "175\ ``}''" Ta "176\ ``~''"
+.El
+.Sh RETURN VALUES
+The
+.Fn isprint
+function returns zero if the character tests false and
+returns non-zero if the character tests true.
+.Sh COMPATIBILITY
+The
+.Bx 4.4
+extension of accepting arguments outside of the range of the
+.Vt "unsigned char"
+type in locales with large character sets is considered obsolete
+and may not be supported in future releases.
+The
+.Fn iswprint
+function should be used instead.
+.Sh SEE ALSO
+.Xr ctype 3 ,
+.Xr iswprint 3 ,
+.Xr ascii 7
+.Sh STANDARDS
+The
+.Fn isprint
+function conforms to
+.St -isoC .

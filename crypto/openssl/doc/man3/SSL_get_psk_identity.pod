@@ -1,0 +1,41 @@
+=pod
+
+=head1 NAME
+
+SSL_get_psk_identity, SSL_get_psk_identity_hint - get PSK client identity and hint
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ const char *SSL_get_psk_identity_hint(const SSL *ssl);
+ const char *SSL_get_psk_identity(const SSL *ssl);
+
+=head1 DESCRIPTION
+
+SSL_get_psk_identity_hint() is used to retrieve the PSK identity hint
+used during the connection setup related to SSL object
+B<ssl>. Similarly, SSL_get_psk_identity() is used to retrieve the PSK
+identity used during the connection setup.
+
+
+=head1 RETURN VALUES
+
+If non-B<NULL>, SSL_get_psk_identity_hint() returns the PSK identity
+hint and SSL_get_psk_identity() returns the PSK identity. Both are
+B<NULL>-terminated. SSL_get_psk_identity_hint() may return B<NULL> if
+no PSK identity hint was used during the connection setup.
+
+Note that the return value is valid only during the lifetime of the
+SSL object B<ssl>.
+
+=head1 COPYRIGHT
+
+Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

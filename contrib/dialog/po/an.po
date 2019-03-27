@@ -1,0 +1,111 @@
+# Dialog
+# Copyright 2003-2007,2008 # Thomas Dickey
+# This file is distributed under the same license as the dialog package.
+# Daniel Martinez <entaltoaragon@gmail.com>, 2013.
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2013-02-19 17:50+0100\n"
+"Last-Translator: Daniel Martinez <entaltoaragon@gmail.com>\n"
+"Language-Team: Aragonese <softaragones@googlegroups.com>\n"
+"Language: an\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "Sí"
+
+#: buttons.c:393
+msgid "No"
+msgstr "No"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "Acceptar"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "Salir"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "Extra"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "Aduya"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "Mes"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "Anyo"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "Renombrar"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "Directorios"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "Fichers"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Finalizau con exito"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Falló"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Pasau"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Completau"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Comprebau"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Feito"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Blincau"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "En progreso"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "N/A"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Progreso total"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "Buscar"

@@ -1,0 +1,802 @@
+.\" Copyright (c) 2002 Murray Stokely <murray@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 28, 2018
+.Dt RELEASE 7
+.Os
+.Sh NAME
+.Nm release
+.Nd "release building infrastructure"
+.Sh DESCRIPTION
+.Fx
+provides a complete build environment suitable for users to make
+full releases of the
+.Fx
+operating system.
+All of the tools necessary to build a release are available from the
+.Fx
+source code repository in
+.Pa src/release .
+A complete release can actually be built with only a single command,
+including the creation of ISO images suitable for burning to CD-ROM,
+memory stick images, and an FTP install directory.
+This command is aptly named
+.Dq Li "make release" .
+.Pp
+For some users, it may be desirable to provide an absolutely clean
+build environment, with no local modifications to the source tree or to
+.Xr make.conf 5 ,
+and with clean checkouts of specific versions of the doc, src, and ports
+trees.
+For this purpose, a script
+.Pq Pa src/release/release.sh
+is provided to automate these checkouts and then execute
+.Dq Li "make release"
+in a clean
+.Xr chroot 8 .
+.Pp
+Before attempting to build a release, the user is expected to be
+familiar with the contents of
+.Xr build 7 ,
+and should have experience upgrading systems from source.
+.Pp
+The release build process requires that
+.Pa /usr/obj
+be populated with the output of
+.Dq Li "make buildworld"
+and
+.Dq Li "make buildkernel" .
+This is necessary to provide the object files for the release or, when
+using
+.Pa release.sh ,
+so that the object files for a complete system can be installed into a clean
+.Xr chroot 8
+environment.
+.Pp
+If the target release build is for a different architecture or machine type,
+the
+.Va TARGET
+and
+.Va TARGET_ARCH
+variables must be used.
+See the supported
+.Fa release.conf
+variables for more information.
+.Pp
+The release procedure on some architectures may also require that the
+.Xr md 4
+(memory disk) device driver be present in the kernel
+.Pq either by being compiled in or available as a module .
+.Pp
+This document does not cover source code management, quality
+assurance, or other aspects of the release engineering process.
+.Sh CLEAN RELEASE GENERATION
+Official releases of
+.Fx
+are produced in a totally clean environment to
+ensure consistency between the versions of the src, ports, and doc trees
+and to avoid contamination from the host system
+.Po such as local patches, changes
+to
+.Xr make.conf 5 ,
+etc.
+.Pc .
+This is accomplished using the wrapper script
+.Pa src/release/release.sh .
+.Pp
+.Ic release.sh
+.Op Fl c Ar release.conf
+.Pp
+.Ic release.sh
+checks out the
+.Li src/ ,
+.Li ports/ ,
+and
+.Li doc/
+trees to
+.Va CHROOTDIR ,
+then calls
+.Dq Li "make buildworld"
+and
+.Dq Li "make installworld"
+to generate a
+.Xr chroot 8
+environment.
+Next,
+.Dq Li "make release"
+is run within the
+.Xr chroot 8
+environment and places the result in
+.Pa $CHROOTDIR/R .
+.Pp
+The optional
+.Fa release.conf
+configuration file supports the following variables:
+.Bl -tag -width Ev
+.It Va CHROOTDIR
+The directory within which the release will be built.
+.It Va CHROOT_MAKEENV
+Additional
+.Xr make 1
+arguments to pass through, which directly affect the
+tuning of the build chroot.
+.It Va SVNROOT
+The
+.Xr svn 1
+host used to check out the various trees.
+Defaults to
+.Pa svn://svn.FreeeBSD.org .
+.It Va SRCBRANCH
+The
+.Li src/
+branch to use.
+Defaults to
+.Va head/@rHEAD .
+.It Va DOCBRANCH
+The
+.Li doc/
+branch to use.
+Defaults to
+.Va head/@rHEAD .
+.It Va PORTBRANCH
+The
+.Li ports/
+branch to use.
+Defaults to
+.Va head/@rHEAD .
+.It Va TARGET
+The target machine type for cross-building a release.
+.It Va TARGET_ARCH
+The target machine architecture for cross-building a release.
+.Pp
+For the supported list of
+.Va TARGET
+and
+.Va TARGET_ARCH
+combinations, consult the output of
+.Dq make targets
+as documented in
+.Xr build 7 .
+.It Va KERNEL
+The target kernel configuration to use.
+Defaults to
+.Va GENERIC .
+Multiple
+.Va KERNEL
+entries may be specified.
+.It Va MAKE_CONF
+The
+.Xr make.conf 5
+to use for the release build.
+Defaults to
+.Fa /dev/null
+to prevent polluting the release with local system changes.
+.It Va SRC_CONF
+The
+.Xr src.conf 5
+to use for the release build.
+Defaults to
+.Fa /dev/null
+to prevent polluting the release with local system changes.
+.It Va MAKE_FLAGS
+Additional flags to pass to
+.Xr make 1 .
+.It Va WORLD_FLAGS
+Additional flags to pass to
+.Xr make 1
+during the
+.Dq buildworld
+phase.
+Defaults to setting the number of
+.Xr make 1
+jobs
+.Pq Ar -j
+to the number of CPUs available on a SMP-capable system.
+.It Va KERNEL_FLAGS
+Additional flags to pass to
+.Xr make 1
+during the
+.Dq buildkernel
+phase.
+Defaults to setting the number of
+.Xr make 1
+jobs
+.Pq Ar -j
+to half the number of CPUs available on a SMP-capable system.
+.It Va NODOC
+Set to a non-empty value to skip the
+.Li doc/
+tree checkout.
+When set,
+.Va NODOC
+will prevent the
+.Fa doc.txz
+distribution package from being created.
+.It Va NOPORTS
+Set to a non-empty value to skip the
+.Li ports/
+tree checkout.
+When set,
+.Va NOPORTS
+will prevent the
+.Fa ports.txz
+distribution package from being created.
+Setting this also sets
+.Va NODOC .
+.It Va WITH_DVD
+Set to a non-empty value to include the
+.Cm dvdrom
+target.
+.It Va WITH_COMPRESSED_IMAGES
+Set to a non-empty value to compress the release images with
+.Xr xz 1 .
+The original
+.Pq uncompressed
+images are not removed.
+.It Va XZ_THREADS Pq Vt int
+Set to the number of threads
+.Xr xz 1
+should use when compressing images.
+By default,
+.Va XZ_THREADS
+is set to
+.Va 0 ,
+which uses all available cores on the system.
+.It Va VCSCMD
+The command run to obtain the source trees.
+Defaults to
+.Qq Cm svn checkout .
+.It Va CHROOTBUILD_SKIP
+If defined, the
+.Li buildworld ,
+.Li installworld ,
+and
+.Li distribution
+stages of the
+.Xr chroot 8
+build environment setup are skipped.
+This is intended solely for cases where the
+.Xr chroot 8
+userland are provided by alternate means.
+.It Va SRC_UPDATE_SKIP
+Set to a non-empty value to prevent checkout or update of
+.Fa /usr/src
+within the
+.Xr chroot 8 .
+This is intended for use only when
+.Fa /usr/src
+is expected to exist by alternative means.
+.It Va DOC_UPDATE_SKIP
+Set to a non-empty value to prevent checkout or update of
+.Fa /usr/doc
+within the
+.Xr chroot 8 .
+This is intended for use only when
+.Fa /usr/doc
+is expected to exist by alternative means.
+.It Va PORTS_UPDATE_SKIP
+Set to a non-empty value to prevent checkout or update of
+.Fa /usr/ports
+within the
+.Xr chroot 8 .
+This is intended for use only when
+.Fa /usr/ports
+is expected to exist by alternative means.
+.El
+.Sh EMBEDDED BUILDS
+The following
+.Fa release.conf
+variables are relevant only to release builds for embedded systems:
+.Bl -tag -width Ev
+.It Va EMBEDDEDBUILD
+Set to a non-null value to enable functionality for embedded device
+release builds.
+.Pp
+When set,
+.Va WITH_DVD
+is unset, and
+.Va NODOC
+is defined.
+Additionally,
+.Va EMBEDDED_TARGET
+and
+.Va EMBEDDED_TARGET_ARCH
+must also be defined.
+When the build environment is created,
+.Fa release.sh
+runs a separate build script located in an architecture-specific
+directory in
+.Pa src/release/${EMBEDDED_TARGET}/ .
+.It Va EMBEDDEDPORTS
+Set to the list of any ports that are required for the target device
+in the format of
+.Fa category/port .
+The
+.Fa devel/subversion
+port is built by default.
+.It Va EMBEDDED_TARGET
+When set, its value is passed to
+.Xr make 1
+to set the
+.Va TARGET
+.Pq value of Cm uname Fl m
+to cross build the target userland.
+.It Va EMBEDDED_TARGET_ARCH
+When set, its value is passed to
+.Xr make 1
+to set the
+.Va TARGET_ARCH
+.Pq value of Cm uname Fl p
+to cross build the target userland.
+.El
+.Sh VIRTUAL MACHINE DISK IMAGES
+The following
+.Fa release.conf
+variables are relevant only to virtual machine disk image builds:
+.Bl -tag -width Ev
+.It Va WITH_VMIMAGES
+Set to a non-null value to build virtual machine disk images as part
+of the release build.
+.Va WITH_VMIMAGES
+may also be specified as an environment variable passed to
+.Xr make 1 .
+.Pp
+The option requires
+.Xr mkimg 1
+version 20140927 or later.
+.It Va WITH_COMPRESSED_VMIMAGES
+Set to a non-null value to compress the virtual machine disk images with
+.Xr xz 1
+as part of the
+.Cm install
+.Xr make 1
+target.
+Note that compressing virtual machine disk images may take a very long
+time on some systems.
+.It Va VMBASE
+Set to change the name of the resulting virtual machine disk image file.
+The default value is
+.Va vm .
+.It Va VMSIZE
+Set to change the size of the virtual machine disk capacity.
+The default value is
+.Va 20G .
+See
+.Xr truncate 1
+for valid values.
+.Pp
+Virtual machine disk images are, by default, created as sparse images.
+When
+.Va WITH_COMPRESSED_VMIMAGES
+is used, the resulting files compressed with
+.Xr xz 1
+compress to roughly the same size, regardless of the specified disk image
+size.
+.It Va VMFORMATS
+Set to the target virtual disk image format(s) to create.
+By default, the
+.Va vhdf , Va vmdk , Va qcow2 ,
+and
+.Va raw
+formats are created.
+See
+.Xr mkimg 1
+for valid format values
+.Pq requires version 20140927 or later .
+.El
+.Pp
+For a list of supported
+.Va VMFORMATS
+values
+.Pq including cloud hosting provider formats
+along with a brief description, run:
+.Bd -literal -offset indent
+cd /usr/src
+make -C release list-vmtargets
+.Ed
+.Sh CLOUD HOSTING MACHINE IMAGES
+The
+.Fx
+release build tools support building virtual machine images for various
+cloud hosting providers, each with their own specific configuration to
+include support for each hosting provider by default.
+.Pp
+The following
+.Xr make 1
+environment variables are supported:
+.Bl -tag -width Ev
+.It Va CLOUDWARE
+Set to a list of one or more cloud hosting providers, enclosed in quotes.
+Requires
+.Va WITH_CLOUDWARE
+to also be set.
+.It Va WITH_CLOUDWARE
+Set to a non-empty value to enable building virtual machine images
+for various cloud hosting providers.
+Requires
+.Va CLOUDWARE
+to also be set.
+.El
+.Pp
+Additionally, the
+.Va CLOUDWARE
+and
+.Va WITH_CLOUDWARE
+variables can be added to
+.Pa release.conf ,
+and used in conjunction with
+.Pa release.sh .
+.Pp
+For a list of supported
+.Va CLOUDWARE
+values, run:
+.Bd -literal -offset indent
+cd /usr/src
+make -C release list-cloudware
+.Ed
+.Sh MAKEFILE TARGETS
+The release makefile
+.Pq Pa src/release/Makefile
+is fairly abstruse.
+Most developers will only be concerned with the
+.Cm release
+and
+.Cm install
+targets.
+.\" XXX: Some sort of introduction to this list?  All the others have one.
+.Bl -tag -width ".Cm packagesystem"
+.It Cm release
+Meta-target to build all release media and distributions applicable to this
+platform.
+.It Cm install
+Copy all produced release media to
+.Pa ${DESTDIR} .
+.It Cm cdrom
+Builds installation CD-ROM images.
+This may require the
+.Xr md 4
+(memory disk) device driver be present in the kernel
+(either by being compiled in or available as a module).
+This target produces files called
+.Pa disc1.iso
+and
+.Pa bootonly.iso
+as its output.
+.It Cm dvdrom
+Builds installation DVD-ROM images.
+This may require the
+.Xr md 4
+(memory disk) device driver be present in the kernel
+(either by being compiled in or available as a module).
+This target produces the
+.Pa dvd1.iso
+file as its output.
+.It Cm memstick
+Builds an installation memory stick image named
+.Pa memstick.img .
+Not applicable on all platforms.
+Requires that the
+.Xr md 4
+.Pq memory disk
+device driver be present in the kernel
+.Pq either by being compiled in or available as a module .
+.It Cm mini-memstick
+Similar to
+.Cm memstick ,
+with the exception that the installation distribution sets
+are not included.
+.It Cm ftp
+Creates a directory named
+.Pa ftp
+containing the distribution files used in network installations
+and suitable for upload to an FTP mirror.
+.It Cm vm-image
+Creates virtual machine disk images in various formats.
+The
+.Cm vm-image
+target requires the
+.Va WITH_VMIMAGES
+.Xr make 1
+environment variable to be set to a non-null value.
+.It Cm vm-cloudware
+Builds
+.Fx
+virtual machine images for various cloud hosting providers.
+See
+.Qq CLOUD HOSTING MACHINE IMAGES
+for implementation details.
+.It Cm list-cloudware
+Displays the list of valid
+.Va CLOUDWARE
+values.
+.It Cm list-vmtargets
+Displays the list of valid
+.Va VMFORMAT
+and
+.Va CLOUDWARE
+values.
+.El
+.Pp
+Major subtargets called by targets above:
+.Bl -tag -width ".Cm packagesystem"
+.It Cm packagesystem
+Generates all the distribution archives
+.Pq base, kernel, ports, doc
+applicable on this platform.
+.It Cm disc1
+Builds a bootable installation system containing all the distribution files
+packaged by the
+.Cm packagesystem
+target, and suitable for imaging by the
+.Cm cdrom ,
+.Cm dvdrom
+and
+.Cm memstick
+targets.
+.It Cm reldoc
+Builds the release documentation.
+This includes the release notes,
+hardware guide, and installation instructions.
+Other documentation, such as the Handbook,
+is built during the
+.Cm base.txz
+target invoked by
+.Cm packagesystem .
+.El
+.Sh ENVIRONMENT
+Optional variables:
+.Bl -tag -width ".Ev TARGET_ARCH"
+.It Ev OSRELEASE
+Optional base name for generated media images
+.Pq e.g., FreeBSD-9.0-RC2-amd64 .
+Defaults to the output of
+.Ic `uname -s`-`uname -r`-`uname -p`
+within the chroot.
+.It Ev WORLDDIR
+Location of a directory containing the src tree.
+By default, the directory
+above the one containing the makefile
+.Pq Pa src .
+.It Ev PORTSDIR
+Location of a directory containing the ports tree.
+By default,
+.Pa /usr/ports .
+If it is unset or cannot be found, ports will not be included in the release.
+.It Ev DOCDIR
+Location of a directory containing the doc tree.
+By default,
+.Pa /usr/doc .
+If it is unset or cannot be found, most documentation will not be included in
+the release; see
+.Ev NODOC
+below.
+.It Ev NOPORTS
+If defined, the Ports Collection will be omitted from the release.
+.It Ev NOSRC
+If set, do not include system source code in the release.
+.It Ev NODOC
+If defined, the XML-based documentation from the
+.Fx
+Documentation Project will not be built.
+However, the
+.Dq doc
+distribution will still be created with the minimal documentation set
+provided in
+.Pa src/share/doc .
+.It Ev TARGET
+The target hardware platform.
+This is analogous to the
+.Dq Nm uname Fl m
+output.
+This is necessary to cross-build some target architectures.
+For example, cross-building for ARM64 machines requires
+.Ev TARGET_ARCH Ns = Ns Li aarch64
+and
+.Ev TARGET Ns = Ns Li arm64 .
+If not set,
+.Ev TARGET
+defaults to the current hardware platform.
+.It Ev TARGET_ARCH
+The target machine processor architecture.
+This is analogous to the
+.Dq Nm uname Fl p
+output.
+Set this to cross-build for a different architecture.
+If not set,
+.Ev TARGET_ARCH
+defaults to the current machine architecture, unless
+.Ev TARGET
+is also set, in which case it defaults to the appropriate
+value for that platform.
+Typically, one only needs to set
+.Ev TARGET .
+.El
+.Sh FILES
+.Bl -tag -compact -width Pa
+.It Pa /usr/doc/Makefile
+.It Pa /usr/doc/share/mk/doc.project.mk
+.It Pa /usr/ports/Mk/bsd.port.mk
+.It Pa /usr/ports/Mk/bsd.sites.mk
+.It Pa /usr/share/examples/etc/make.conf
+.It Pa /usr/src/Makefile
+.It Pa /usr/src/Makefile.inc1
+.It Pa /usr/src/release/Makefile
+.It Pa /usr/src/release/Makefile.vm
+.It Pa /usr/src/release/release.sh
+.It Pa /usr/src/release/release.conf.sample
+.It Pa /usr/src/release/tools/*.conf
+.It Pa /usr/src/release/tools/vmimage.subr
+.El
+.Sh EXAMPLES
+The following sequence of commands can be used to build a
+.Dq "-CURRENT snapshot":
+.Bd -literal -offset indent
+cd /usr
+svn co svn://svn.freebsd.org/base/head src
+cd src
+make buildworld buildkernel
+cd release
+make release
+make install DESTDIR=/var/freebsd-snapshot
+.Ed
+.Pp
+After running these commands, all produced distribution files (tarballs
+for FTP, CD-ROM images, etc.) are available in the
+.Pa /var/freebsd-snapshot
+directory.
+.Pp
+The following sequence of commands can be used to build a
+.Dq "-CURRENT snapshot"
+in a clean environment, including ports and documentation:
+.Bd -literal -offset indent
+cd /usr/src/release
+sh release.sh
+.Ed
+.Pp
+Optionally, a configuration file can be used customize the release build,
+such as the subversion revision to use, the branch of the subversion tree for
+.Li src/ ,
+.Li ports/ ,
+and
+.Li doc/ .
+.Bd -literal -offset indent
+cd /usr/src/release
+sh release.sh -c $HOME/release.conf
+.Ed
+.Pp
+Configuration files specific to various supported embedded systems, such as
+the Raspberry Pi, exist in the directory corresponding to the
+.Va TARGET
+.Xr make 1
+variable.
+For example, to build an image for the Raspberry Pi:
+.Bd -literal -offset indent
+cd /usr/src/release
+sh release.sh -c arm/RPI-B.conf
+.Ed
+.Pp
+To build an image for the Raspberry Pi 3:
+.Bd -literal -offset indent
+cd /usr/src/release
+sh release.sh -c arm64/RPI3.conf
+.Ed
+.Pp
+After running these commands, all prepared release files are available in the
+.Pa /scratch
+directory.
+The target directory can be changed by specifying the
+.Va CHROOTDIR
+variable in
+.Li release.conf .
+.Sh SEE ALSO
+.Xr cc 1 ,
+.Xr install 1 ,
+.Xr make 1 ,
+.Xr svn 1 Pq Pa ports/devel/subversion ,
+.Xr uname 1 ,
+.Xr md 4 ,
+.Xr make.conf 5 ,
+.Xr build 7 ,
+.Xr ports 7 ,
+.Xr chroot 8 ,
+.Xr mtree 8 ,
+.Xr sysctl 8
+.Rs
+.%T "FreeBSD Release Engineering"
+.%U https://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/freebsd-releng/
+.Re
+.Rs
+.%T "FreeBSD Developers' Handbook"
+.%U https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/developers-handbook/
+.Re
+.Sh HISTORY
+.Fx
+1.x
+used a manual checklist, compiled by
+.An Rod Grimes ,
+to produce a release.
+Apart from being incomplete, the list put a lot of specific demands on
+available file systems and was quite torturous to execute.
+.Pp
+As part of the
+.Fx 2.0
+release engineering effort, significant
+effort was spent getting
+.Pa src/release/Makefile
+into a shape where it could at least automate most of the tediousness
+of building a release in a sterile environment.
+.Pp
+For the
+.Fx 9.0
+release,
+.Pa src/release/Makefile
+was overhauled and the wrapper script
+.Pa src/release/generate-release.sh
+introduced to support the introduction of a new installer.
+.Pp
+For the
+.Fx 9.2
+release,
+.Pa src/release/release.sh
+was introduced to support per-build configuration files.
+.Pa src/release/release.sh
+is heavily based on the
+.Pa src/release/generate-release.sh
+script.
+.Pp
+At near 1000 revisions spread over multiple branches, the
+.Xr svn 1
+log of
+.Pa src/release/Makefile
+contains a vivid historical record of some
+of the hardships release engineers go through.
+.Sh AUTHORS
+.Pa src/release/Makefile
+was originally written by
+.An -nosplit
+.An Rod Grimes ,
+.An Jordan Hubbard ,
+and
+.An Poul-Henning Kamp .
+.Pp
+This manual page was originally written by
+.An Murray Stokely Aq Mt murray@FreeBSD.org .
+.Pp
+It was updated by
+.An Nathan Whitehorn Aq Mt nwhitehorn@FreeBSD.org
+to include the
+.Fa generate-release.sh
+script used for the
+.Fx 9.0
+release cycle.
+.Pp
+It was later updated by
+.An Glen Barber Aq Mt gjb@FreeBSD.org
+to include the
+.Fa release.sh
+script used for the
+.Fx 9.2
+release cycle.

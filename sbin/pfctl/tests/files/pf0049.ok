@@ -1,0 +1,4 @@
+pass in on lo0 inet6 from ::1 to any flags S/SA keep state
+pass in on lo0 inet from 127.0.0.0/8 to any flags S/SA keep state
+pass out on lo0 inet from 127.0.0.0/8 to any flags S/SA keep state
+pass in on lo0 inet6 from ::1 to any flags S/SA keep state

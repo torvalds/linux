@@ -1,0 +1,85 @@
+# $Id: Makefile.in,v 1.47 2013/08/04 20:23:20 tom Exp $
+##############################################################################
+# Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Author: Thomas E. Dickey 1996,1997
+#
+# Makefile for ncurses manual pages.
+#
+# NOTE: When you add or rename a man page, make sure you update both
+# the top-level MANIFEST and any man/*.renames files!
+
+SHELL		= /bin/sh
+VPATH		= @srcdir@
+
+DESTDIR		= @DESTDIR@
+srcdir		= @srcdir@
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+datarootdir	= @datarootdir@
+datadir		= @datadir@
+mandir		= @mandir@
+includesubdir	= @includesubdir@
+
+INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
+
+INSTALL		= @INSTALL@
+INSTALL_DATA	= @INSTALL_DATA@
+
+all \
+sources :	terminfo.5
+depend :
+tags :
+
+$(DESTDIR)$(mandir) :
+	mkdir -p $@
+
+EDITARGS = $(DESTDIR)$(mandir) $(srcdir) terminfo.5 *-config.1 $(srcdir)/*.[0-9]*
+
+install install.man : terminfo.5 $(DESTDIR)$(mandir)
+	sh ../edit_man.sh normal installing $(EDITARGS)
+
+uninstall uninstall.man :
+	-sh ../edit_man.sh normal removing $(EDITARGS)
+
+# We compose terminfo.5 from the real sources...
+CAPLIST=$(srcdir)/../include/@TERMINFO_CAPS@
+terminfo.5: $(srcdir)/terminfo.head $(CAPLIST) $(srcdir)/terminfo.tail Makefile $(srcdir)/MKterminfo.sh
+	sh $(srcdir)/MKterminfo.sh $(srcdir)/terminfo.head $(CAPLIST) $(srcdir)/terminfo.tail >terminfo.5
+
+mostlyclean :
+	-rm -f core tags TAGS *~ *.bak *.ln *.atac trace
+
+clean:	mostlyclean
+	rm -f terminfo.5
+
+../edit_man.sed : make_sed.sh @MANPAGE_RENAMES@
+	sh $(srcdir)/make_sed.sh @MANPAGE_RENAMES@ >../edit_man.sed
+
+distclean realclean: clean
+	rm -f Makefile *-config.1 ../edit_man.* ../man_alias.*

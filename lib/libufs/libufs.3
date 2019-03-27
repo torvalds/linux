@@ -1,0 +1,86 @@
+.\" Author:	Juli Mallett <jmallett@FreeBSD.org>
+.\" Date:	June 04, 2003
+.\" Description:
+.\" 	Manual page for libufs.
+.\"
+.\" This file is in the public domain.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 26, 2018
+.Dt LIBUFS 3
+.Os
+.Sh NAME
+.Nm libufs
+.Nd operate on UFS file systems from userland
+.Sh LIBRARY
+.Lb libufs
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.In ufs/ufs/ufsmount.h
+.In ufs/ufs/dinode.h
+.In ufs/ffs/fs.h
+.In libufs.h
+.Sh DESCRIPTION
+The
+.Nm
+library and the functions it provides are used for implementing
+utilities which need to access a UFS file system at a low level from
+userland.
+Facilities provided are used to implement utilities such as
+.Xr newfs 8
+and
+.Xr dumpfs 8 .
+The
+.Nm
+library is designed to be simple, and to provide functions that are
+traditionally useful to have.
+.Pp
+A disk is represented as the type
+.Vt "struct uufsd"
+as defined in
+.In libufs.h .
+The structure is filled out, operations are performed, and the disk
+is closed.
+.Sh ERRORS
+Functions provided by
+.Nm
+return \-1 in every functional error situation.
+They also set the
+.Va d_error
+field of
+.Vt "struct uufsd"
+to a string describing the error.
+.Sh SEE ALSO
+.Xr berase 3 ,
+.Xr bread 3 ,
+.Xr bwrite 3 ,
+.Xr cgget 3 ,
+.Xr cgput 3 ,
+.Xr cgread 3 ,
+.Xr cgread1 3 ,
+.Xr cgwrite 3 ,
+.Xr cgwrite1 3 ,
+.Xr getinode 3 ,
+.Xr putinode 3 ,
+.Xr sbget 3 ,
+.Xr sbput 3 ,
+.Xr sbread 3 ,
+.Xr sbwrite 3 ,
+.Xr ufs_disk_close 3 ,
+.Xr ufs_disk_fillout 3 ,
+.Xr ufs_disk_fillout_blank 3 ,
+.Xr ufs_disk_write 3 ,
+.Xr ffs 7
+.Sh HISTORY
+The
+.Xr libufs 3
+library first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Juli Mallett Aq Mt jmallett@FreeBSD.org
+.Pp
+.An -nosplit
+Additional design, feedback, and ideas were provided by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .

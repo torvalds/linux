@@ -1,0 +1,7 @@
+
+#------------------------------------------------------------------------------
+# $File: wireless,v 1.2 2009/09/19 16:28:13 christos Exp $
+# wireless-regdb:        file(1) magic for CRDA wireless-regdb file format
+#
+0	string	RGDB	CRDA wireless regulatory database file
+>4	belong	19	(Version 1)

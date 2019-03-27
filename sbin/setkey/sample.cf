@@ -1,0 +1,219 @@
+# Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the project nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+# There are sample scripts for IPsec configuration by manual keying.
+# A security association is uniquely identified by a triple consisting
+# of a Security Parameter Index (SPI), an IP Destination Address, and a
+# security protocol (AH or ESP) identifier.  You must take care of these
+# parameters when you configure by manual keying.
+
+# ESP transport mode is recommended for TCP port number 110 between
+# Host-A and Host-B. Encryption algorithm is blowfish-cbc whose key
+# is "kamekame", and authentication algorithm is hmac-sha1 whose key
+# is "this is the test key".
+#
+#       ============ ESP ============
+#       |                           |
+#    Host-A                        Host-B
+#   fec0::10 -------------------- fec0::11
+#
+# At Host-A and Host-B,
+spdadd fec0::10[any] fec0::11[110] tcp -P out ipsec
+	esp/transport//use ;
+spdadd fec0::11[110] fec0::10[any] tcp -P in ipsec
+	esp/transport//use ;
+add fec0::10 fec0::11 esp 0x10001
+	-m transport
+	-E blowfish-cbc "kamekame"
+	-A hmac-sha1 "this is the test key" ;
+add fec0::11 fec0::10 esp 0x10002
+	-m transport
+	-E blowfish-cbc "kamekame"
+	-A hmac-sha1 "this is the test key" ;
+
+# "[any]" is wildcard of port number.  Note that "[0]" is the number of
+# zero in port number.
+
+# Security protocol is old AH tunnel mode, i.e. RFC1826, with keyed-md5
+# whose key is "this is the test" as authentication algorithm.
+# That protocol takes place between Gateway-A and Gateway-B.
+#
+#                        ======= AH =======
+#                        |                |
+#    Network-A       Gateway-A        Gateway-B        Network-B
+#   10.0.1.0/24 ---- 172.16.0.1 ----- 172.16.0.2 ---- 10.0.2.0/24
+#
+# At Gateway-A:
+spdadd 10.0.1.0/24 10.0.2.0/24 any -P out ipsec
+	ah/tunnel/172.16.0.1-172.16.0.2/require ;
+spdadd 10.0.2.0/24 10.0.1.0/24 any -P in ipsec
+	ah/tunnel/172.16.0.2-172.16.0.1/require ;
+add 172.16.0.1 172.16.0.2 ah-old 0x10003
+	-m any
+	-A keyed-md5 "this is the test" ;
+add 172.16.0.2 172.16.0.1 ah-old 0x10004
+	-m any
+	-A keyed-md5 "this is the test" ;
+
+# If port number field is omitted such above then "[any]" is employed.
+# -m specifies the mode of SA to be used.  "-m any" means wildcard of
+# mode of security protocol.  You can use this SAs for both tunnel and
+# transport mode.
+
+# At Gateway-B.  Attention to the selector and peer's IP address for tunnel.
+spdadd 10.0.2.0/24 10.0.1.0/24 any -P out ipsec
+	ah/tunnel/172.16.0.2-172.16.0.1/require ;
+spdadd 10.0.1.0/24 10.0.2.0/24 any -P in ipsec
+	ah/tunnel/172.16.0.1-172.16.0.2/require ;
+add 172.16.0.1 172.16.0.2 ah-old 0x10003
+	-m tunnel
+	-A keyed-md5 "this is the test" ;
+add 172.16.0.2 172.16.0.1 ah-old 0x10004
+	-m tunnel
+	-A keyed-md5 "this is the test" ;
+
+# AH transport mode followed by ESP tunnel mode is required between
+# Gateway-A and Gateway-B.
+# Encryption algorithm is 3des-cbc, and authentication algorithm for ESP
+# is hmac-sha1.  Authentication algorithm for AH is hmac-md5.
+#
+#                           ========== AH =========
+#                           |  ======= ESP =====  |
+#                           |  |               |  |
+#      Network-A          Gateway-A        Gateway-B           Network-B
+#   fec0:0:0:1::/64 --- fec0:0:0:1::1 ---- fec0:0:0:2::1 --- fec0:0:0:2::/64
+#
+# At Gateway-A:
+spdadd fec0:0:0:1::/64 fec0:0:0:2::/64 any -P out ipsec
+	esp/tunnel/fec0:0:0:1::1-fec0:0:0:2::1/require
+	ah/transport//require ;
+spdadd fec0:0:0:2::/64 fec0:0:0:1::/64 any -P in ipsec
+	esp/tunnel/fec0:0:0:2::1-fec0:0:0:1::1/require
+	ah/transport//require ;
+add fec0:0:0:1::1 fec0:0:0:2::1 esp 0x10001
+	-m tunnel
+	-E 3des-cbc "kamekame12341234kame1234"
+	-A hmac-sha1 "this is the test key" ;
+add fec0:0:0:1::1 fec0:0:0:2::1 ah 0x10001
+	-m transport
+	-A hmac-md5 "this is the test" ;
+add fec0:0:0:2::1 fec0:0:0:1::1 esp 0x10001
+	-m tunnel
+	-E 3des-cbc "kamekame12341234kame1234"
+	-A hmac-sha1 "this is the test key" ;
+add fec0:0:0:2::1 fec0:0:0:1::1 ah 0x10001
+	-m transport
+	-A hmac-md5 "this is the test" ;
+
+# ESP tunnel mode is required between Host-A and Gateway-A.
+# Encryption algorithm is cast128-cbc, and authentication algorithm
+# for ESP is hmac-sha1.
+# ESP transport mode is recommended between Host-A and Host-B.
+# Encryption algorithm is rc5-cbc,  and authentication algorithm
+# for ESP is hmac-md5.
+#
+#       ================== ESP =================
+#       |  ======= ESP =======                 |
+#       |  |                 |                 |
+#      Host-A            Gateway-A           Host-B
+#   fec0:0:0:1::1 ---- fec0:0:0:2::1 ---- fec0:0:0:2::2
+#
+# At Host-A:
+spdadd fec0:0:0:1::1[any] fec0:0:0:2::2[80] tcp -P out ipsec
+	esp/transport//use
+	esp/tunnel/fec0:0:0:1::1-fec0:0:0:2::1/require ;
+spdadd fec0:0:0:2::1[80] fec0:0:0:1::1[any] tcp -P in ipsec
+	esp/transport//use
+	esp/tunnel/fec0:0:0:2::1-fec0:0:0:1::1/require ;
+add fec0:0:0:1::1 fec0:0:0:2::2 esp 0x10001
+	-m transport
+	-E cast128-cbc "12341234"
+	-A hmac-sha1 "this is the test key" ;
+add fec0:0:0:1::1 fec0:0:0:2::1 esp 0x10002
+	-E rc5-cbc "kamekame"
+	-A hmac-md5 "this is the test" ;
+add fec0:0:0:2::2 fec0:0:0:1::1 esp 0x10003
+	-m transport
+	-E cast128-cbc "12341234"
+	-A hmac-sha1 "this is the test key" ;
+add fec0:0:0:2::1 fec0:0:0:1::1 esp 0x10004
+	-E rc5-cbc "kamekame"
+	-A hmac-md5 "this is the test" ;
+
+# By "get" command, you can get a entry of either SP or SA.
+get fec0:0:0:1::1 fec0:0:0:2::2 ah 0x10004 ;
+
+# Also delete command, you can delete a entry of either SP or SA.
+spddelete fec0:0:0:1::/64 fec0:0:0:2::/64 any -P out;
+delete fec0:0:0:1::1 fec0:0:0:2::2 ah 0x10004 ;
+
+# By dump command, you can dump all entry of either SP or SA.
+dump ;
+spddump ;
+dump esp ;
+flush esp ;
+
+# By flush command, you can flush all entry of either SP or SA.
+flush ;
+spdflush ;
+
+# "flush" and "dump" commands can specify a security protocol.
+dump esp ;
+flush ah ;
+
+# XXX
+add ::1 ::1 esp 10001 -m transport -E null ;
+add ::1 ::1 esp 10002 -m transport -E des-deriv "12341234" ;
+add ::1 ::1 esp-old 10003 -m transport -E des-32iv "12341234" ;
+add ::1 ::1 esp 10004 -m transport -E null -A null ;
+add ::1 ::1 esp 10005 -m transport -E null -A hmac-md5 "1234123412341234" ;
+add ::1 ::1 esp 10006 -m tunnel -E null -A hmac-sha1 "12341234123412341234" ;
+add ::1 ::1 esp 10007 -m transport -E null -A keyed-md5 "1234123412341234" ;
+add ::1 ::1 esp 10008 -m any -E null -A keyed-sha1 "12341234123412341234" ;
+add ::1 ::1 esp 10009 -m transport -E des-cbc "testtest" ;
+add ::1 ::1 esp 10010 -m transport -E 3des-cbc "testtest12341234testtest" ;
+add ::1 ::1 esp 10011 -m tunnel -E cast128-cbc "testtest1234" ;
+add ::1 ::1 esp 10012 -m tunnel -E blowfish-cbc "testtest1234" ;
+add ::1 ::1 esp 10013 -m tunnel -E rc5-cbc "testtest1234" ;
+add ::1 ::1 esp 10014 -m any -E rc5-cbc "testtest1234" ;
+add ::1 ::1 esp 10015 -m transport -f zero-pad -E null ;
+add ::1 ::1 esp 10016 -m tunnel -f random-pad -r 8 -lh 100 -ls 80 -E null ;
+add ::1 ::1 esp 10017 -m transport -f seq-pad -f nocyclic-seq -E null ;
+add ::1 ::1 esp 10018 -m transport -E null ;
+#add ::1 ::1 ah 20000 -m transport -A null ;
+add ::1 ::1 ah 20001 -m any -A hmac-md5 "1234123412341234";
+add ::1 ::1 ah 20002 -m tunnel -A hmac-sha1 "12341234123412341234";
+add ::1 ::1 ah 20003 -m transport -A keyed-md5 "1234123412341234";
+add ::1 ::1 ah-old 20004 -m transport -A keyed-md5 "1234123412341234";
+add ::1 ::1 ah 20005 -m transport -A keyed-sha1 "12341234123412341234";
+#add ::1 ::1 ipcomp 30000 -C oui ;
+add ::1 ::1 ipcomp 30001 -C deflate ;
+#add ::1 ::1 ipcomp 30002 -C lzs ;
+
+# enjoy.

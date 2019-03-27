@@ -1,0 +1,99 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_frame_relay.8,v 1.4 1999/01/25 23:46:26 archie Exp $
+.\"
+.Dd January 19, 1999
+.Dt NG_FRAME_RELAY 4
+.Os
+.Sh NAME
+.Nm ng_frame_relay
+.Nd frame relay netgraph node type
+.Sh SYNOPSIS
+.In netgraph/ng_frame_relay.h
+.Sh DESCRIPTION
+The
+.Nm frame_relay
+node type performs encapsulation, de-encapsulation, and multiplexing
+of packets using the frame relay protocol.
+It supports up to 1024 DLCI's.
+The LMI protocol is handled by a separate node type (see
+.Xr ng_lmi 4 ) .
+.Pp
+The
+.Dv downstream
+hook should be connected to the synchronous line, i.e., the switch.
+Then hooks
+.Dv dlci0 ,
+.Dv dlci1 ,
+through
+.Dv dlci1023
+are available to connect to each of the DLCI channels.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va downstream"
+.It Va downstream
+The connection to the synchronous line.
+.It Va dlciX
+Here X is a decimal number from 0 to 1023.
+This hook corresponds
+to the DLCI X frame relay virtual channel.
+.El
+.Sh CONTROL MESSAGES
+This node type supports only the generic control messages.
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_lmi 4 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq Mt julian@FreeBSD.org
+.Sh BUGS
+Technically, frames on DLCI X should not be transmitted to the switch
+until the LMI protocol entity on both ends has configured DLCI X as active.
+The
+.Nm
+node type ignores this restriction, and will always pass data received
+on a DLCI hook to
+.Dv downstream .
+Instead, it should query the LMI node first.

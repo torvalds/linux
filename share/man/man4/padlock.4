@@ -1,0 +1,97 @@
+.\" Copyright (c) 2005 Christian Brueffer
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 2010
+.Dt PADLOCK 4
+.Os
+.Sh NAME
+.Nm padlock
+.Nd "driver for the cryptographic functions and RNG in VIA C3, C7 and Eden processors"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device crypto"
+.Cd "device padlock"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+padlock_load="YES"
+.Ed
+.Sh DESCRIPTION
+The C3 and Eden processor series from VIA include hardware acceleration for
+AES.
+The C7 series includes hardware acceleration for AES, SHA1, SHA256 and RSA.
+All of the above processor series include a hardware random number generator.
+.Pp
+The
+.Nm
+driver registers itself to accelerate AES operations and, if available, HMAC/SHA1
+and HMAC/SHA256 for
+.Xr crypto 4 .
+It also registers itself to accelerate other HMAC algorithms, although
+there is no hardware acceleration for those algorithms.
+This is only needed so
+.Nm
+can work with
+.Xr ipsec 4 .
+.Pp
+The hardware random number generator supplies data for the kernel
+.Xr random 4
+subsystem.
+.Sh SEE ALSO
+.Xr crypt 3 ,
+.Xr crypto 4 ,
+.Xr intro 4 ,
+.Xr ipsec 4 ,
+.Xr random 4 ,
+.Xr crypto 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox .
+The first
+.Fx
+release to include it was
+.Fx 6.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver with AES encryption support was written by
+.An Jason Wright Aq Mt jason@OpenBSD.org .
+It was ported to
+.Fx
+and then extended to support SHA1 and SHA256
+by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .
+This manual page was written by
+.An Christian Brueffer Aq Mt brueffer@FreeBSD.org .

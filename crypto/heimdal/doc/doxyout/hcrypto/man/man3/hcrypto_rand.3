@@ -1,0 +1,200 @@
+.TH "RAND crypto functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdal crypto library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+RAND crypto functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "void \fBRAND_seed\fP (const void *indata, size_t size)"
+.br
+.ti -1c
+.RI "int \fBRAND_bytes\fP (void *outdata, size_t size)"
+.br
+.ti -1c
+.RI "void \fBRAND_cleanup\fP (void)"
+.br
+.ti -1c
+.RI "void \fBRAND_add\fP (const void *indata, size_t size, double entropi)"
+.br
+.ti -1c
+.RI "int \fBRAND_pseudo_bytes\fP (void *outdata, size_t size)"
+.br
+.ti -1c
+.RI "int \fBRAND_status\fP (void)"
+.br
+.ti -1c
+.RI "int \fBRAND_set_rand_method\fP (const RAND_METHOD *meth)"
+.br
+.ti -1c
+.RI "const RAND_METHOD * \fBRAND_get_rand_method\fP (void)"
+.br
+.ti -1c
+.RI "int \fBRAND_set_rand_engine\fP (ENGINE *engine)"
+.br
+.ti -1c
+.RI "int \fBRAND_load_file\fP (const char *filename, size_t size)"
+.br
+.ti -1c
+.RI "int \fBRAND_write_file\fP (const char *filename)"
+.br
+.ti -1c
+.RI "const char * \fBRAND_file_name\fP (char *filename, size_t size)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+See the \fBRAND - random number\fP for description and examples. 
+.SH "Function Documentation"
+.PP 
+.SS "void RAND_add (const void * indata, size_t size, double entropi)"
+.PP
+Seed that random number generator. Secret material can securely be feed into the function, they will never be returned.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIindata\fP the input data. 
+.br
+\fIsize\fP size of in data. 
+.br
+\fIentropi\fP entropi in data. 
+.RE
+.PP
+
+.SS "int RAND_bytes (void * outdata, size_t size)"
+.PP
+Get a random block from the random generator, can be used for key material.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIoutdata\fP random data 
+.br
+\fIsize\fP length random data
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success, 0 on failure. 
+.RE
+.PP
+
+.SS "void RAND_cleanup (void)"
+.PP
+Reset and free memory used by the random generator. 
+.SS "const char* RAND_file_name (char * filename, size_t size)"
+.PP
+Return the default random state filename for a user to use for \fBRAND_load_file()\fP, and \fBRAND_write_file()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIfilename\fP buffer to hold file name. 
+.br
+\fIsize\fP size of buffer filename.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the buffer filename or NULL on failure. 
+.RE
+.PP
+
+.SS "const RAND_METHOD* RAND_get_rand_method (void)"
+.PP
+Get the default random method. 
+.SS "int RAND_load_file (const char * filename, size_t size)"
+.PP
+Load a a file and feed it into \fBRAND_seed()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIfilename\fP name of file to read. 
+.br
+\fIsize\fP minimum size to read. 
+.RE
+.PP
+
+.SS "int RAND_pseudo_bytes (void * outdata, size_t size)"
+.PP
+Get a random block from the random generator, should NOT be used for key material.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIoutdata\fP random data 
+.br
+\fIsize\fP length random data
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success, 0 on failure. 
+.RE
+.PP
+
+.SS "void RAND_seed (const void * indata, size_t size)"
+.PP
+Seed that random number generator. Secret material can securely be feed into the function, they will never be returned.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIindata\fP seed data 
+.br
+\fIsize\fP length seed data 
+.RE
+.PP
+
+.SS "int RAND_set_rand_engine (ENGINE * engine)"
+.PP
+Set the default random method from engine.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIengine\fP use engine, if NULL is passed it, old method and engine is cleared.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success, 0 on failure. 
+.RE
+.PP
+
+.SS "int RAND_set_rand_method (const RAND_METHOD * meth)"
+.PP
+Set the default random method.
+.PP
+\fBParameters:\fP
+.RS 4
+\fImeth\fP set the new default method.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success. 
+.RE
+.PP
+
+.SS "int RAND_status (void)"
+.PP
+Return status of the random generator
+.PP
+\fBReturns:\fP
+.RS 4
+1 if the random generator can deliver random data. 
+.RE
+.PP
+
+.SS "int RAND_write_file (const char * filename)"
+.PP
+Write of random numbers to a file to store for later initiation with \fBRAND_load_file()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIfilename\fP name of file to write.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success and non-one on failure. 
+.RE
+.PP
+

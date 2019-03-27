@@ -1,0 +1,3 @@
+altq on em0 cbq(default) bandwidth 100Kb queue qmain
+queue qmain priority 4
+pass on em0 queue qmain

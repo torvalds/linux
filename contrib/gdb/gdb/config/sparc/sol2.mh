@@ -1,0 +1,6 @@
+# Host: Solaris SPARC & UltraSPARC
+NAT_FILE= nm-sol2.h
+NATDEPFILES= sparc-sol2-nat.o \
+	corelow.o core-regset.o fork-child.o gcore.o \
+	procfs.o proc-api.o proc-events.o proc-flags.o proc-why.o \
+	solib.o solib-svr4.o solib-legacy.o

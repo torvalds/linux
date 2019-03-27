@@ -1,0 +1,84 @@
+=pod
+
+=head1 NAME
+
+OPENSSL_init_ssl - OpenSSL (libssl and libcrypto) initialisation
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings);
+
+=head1 DESCRIPTION
+
+During normal operation OpenSSL (libssl and libcrypto) will allocate various
+resources at start up that must, subsequently, be freed on close down of the
+library. Additionally some resources are allocated on a per thread basis (if the
+application is multi-threaded), and these resources must be freed prior to the
+thread closing.
+
+As of version 1.1.0 OpenSSL will automatically allocate all resources that it
+needs so no explicit initialisation is required. Similarly it will also
+automatically deinitialise as required.
+
+However, there may be situations when explicit initialisation is desirable or
+needed, for example when some non-default initialisation is required. The
+function OPENSSL_init_ssl() can be used for this purpose. Calling
+this function will explicitly initialise BOTH libcrypto and libssl. To
+explicitly initialise ONLY libcrypto see the
+L<OPENSSL_init_crypto(3)> function.
+
+Numerous internal OpenSSL functions call OPENSSL_init_ssl().
+Therefore, in order to perform non-default initialisation,
+OPENSSL_init_ssl() MUST be called by application code prior to
+any other OpenSSL function calls.
+
+The B<opts> parameter specifies which aspects of libssl and libcrypto should be
+initialised. Valid options for libcrypto are described on the
+L<OPENSSL_init_crypto(3)> page. In addition to any libcrypto
+specific option the following libssl options can also be used:
+
+=over 4
+
+=item OPENSSL_INIT_NO_LOAD_SSL_STRINGS
+
+Suppress automatic loading of the libssl error strings. This option is
+not a default option. Once selected subsequent calls to
+OPENSSL_init_ssl() with the option
+B<OPENSSL_INIT_LOAD_SSL_STRINGS> will be ignored.
+
+=item OPENSSL_INIT_LOAD_SSL_STRINGS
+
+Automatic loading of the libssl error strings. This option is a
+default option. Once selected subsequent calls to
+OPENSSL_init_ssl() with the option
+B<OPENSSL_INIT_LOAD_SSL_STRINGS> will be ignored.
+
+=back
+
+OPENSSL_init_ssl() takes a B<settings> parameter which can be used to
+set parameter values.  See L<OPENSSL_init_crypto(3)> for details.
+
+=head1 RETURN VALUES
+
+The function OPENSSL_init_ssl() returns 1 on success or 0 on error.
+
+=head1 SEE ALSO
+
+L<OPENSSL_init_crypto(3)>
+
+=head1 HISTORY
+
+The OPENSSL_init_ssl() function was added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

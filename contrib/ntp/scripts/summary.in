@@ -1,0 +1,369 @@
+#! @PATH_PERL@ -w
+# $Id$
+# Perl version of (summary.sh, loop.awk, peer.awk):
+# Create summaries from xntpd's loop and peer statistics.
+#
+# Copyright (c) 1997, 1999 by Ulrich Windl <Ulrich.Windl@rz.uni-regensburg.de>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+package summary;
+use 5.006_000;
+use strict;
+
+my ($log_date_pattern, $statsdir, $outputdir, $skip_time_steps, $startdate,
+    $enddate, $peer_dist_limit);
+
+exit run(@ARGV) unless caller;
+
+sub run {
+    my $opts;
+    if (!processOptions(\@ARGV, $opts)) {
+        usage(1);
+    };
+
+    $log_date_pattern = '[12]\d{3}[01]\d[0-3]\d';
+    $statsdir         = $opts->{directory};
+    $outputdir        = $opts->{'output-directory'};
+    $skip_time_steps  = $opts->{'skip-time-steps'};
+    $startdate        = $opts->{'start-date'};
+    $enddate          = $opts->{'end-date'};
+    if (!$enddate){
+        $enddate = `date -u +%Y%m%d`; 
+        chomp $enddate;
+        --$enddate;
+    }
+    $peer_dist_limit = $opts->{'peer-dist-limit'};
+
+    # check possibly current values of options
+    die "$statsdir: no such directory" unless (-d $statsdir);
+    die "$outputdir: no such directory" unless (-d $outputdir);
+    die "$skip_time_steps: skip-time-steps must be positive"
+        unless ($skip_time_steps >= 0.0);
+    die "$startdate: invalid start date|$`|$&|$'"
+        unless ($startdate =~ m/.*$log_date_pattern$/);
+    die "$enddate: invalid end date"
+        unless ($enddate =~ m/.*$log_date_pattern$/);
+
+    $skip_time_steps = 0.128 if ($skip_time_steps == 0);
+
+    my $loop_summary="$outputdir/loop_summary";
+    my $peer_summary="$outputdir/peer_summary";
+    my $clock_summary="$outputdir/clock_summary";
+    my (@loopfiles, @peerfiles, @clockfiles);
+
+    print STDERR "Creating summaries from $statsdir ($startdate to $enddate)\n";
+
+    opendir SDIR, $statsdir or die "directory ${statsdir}: $!";
+    rewinddir SDIR;
+    @loopfiles=sort grep /loop.*$log_date_pattern/, readdir SDIR;
+    rewinddir SDIR;
+    @peerfiles=sort grep /peer.*$log_date_pattern/, readdir SDIR;
+    rewinddir SDIR;
+    @clockfiles=sort grep /clock.*$log_date_pattern/, readdir SDIR;
+    closedir SDIR;
+
+    # remove old summary files
+    for ($loop_summary, $peer_summary, $clock_summary) { unlink $_ if -f $_ };
+
+    my $date;
+    for (@loopfiles) {
+        $date = $_; $date =~ s/.*($log_date_pattern)$/$1/;
+        if ($date ge $startdate && $date le $enddate) {
+            do_loop($statsdir, $_, $loop_summary);
+        }
+    }
+
+    for (@peerfiles) {
+        $date = $_; $date =~ s/.*($log_date_pattern)$/$1/;
+        if ($date ge $startdate && $date le $enddate) {
+            do_peer($statsdir, $_, $peer_summary);
+        }
+    }
+
+    for (@clockfiles) {
+        $date = $_; $date =~ s/.*($log_date_pattern)$/$1/;
+        if ($date ge $startdate && $date le $enddate) {
+            do_clock($statsdir, $_, $clock_summary);
+        }
+    }
+
+    print STDERR "Creating peer summary with limit $peer_dist_limit\n";
+    peer_summary($peer_summary) if (-f $peer_summary);
+}
+
+sub min
+{
+    my ($result, @rest) = @_;
+    map { $result = $_ if ($_ < $result) } @rest;
+    return($result);
+}
+
+sub max
+{
+    my ($result, @rest) = @_;
+    map { $result = $_ if ($_ > $result) } @rest;
+    return($result);
+}
+
+# calculate mean, range, and standard deviation for offset and frequency
+sub do_loop
+{
+    my ($directory, $fname, $out_file) = @_;
+    print "$directory/$fname\n";
+    open INPUT, "$directory/$fname" or warn "can't open $directory/$fname: $!";
+    open OUTPUT, ">>$out_file" or die "can't open $out_file: $!";
+    print OUTPUT "$fname\n";
+    my ($loop_tmax, $loop_fmax) = (-1e9, -1e9);
+    my ($loop_tmin, $loop_fmin) = (1e9, 1e9);
+    my ($loop_time_rms, $loop_freq_rms) = (0, 0);
+    my $loop_count = 0;
+    my $loop_time = 0;
+    my $loop_freq = 0;
+    my ($freq, $offs);
+    my @Fld;
+    while (<INPUT>) {
+	chop;	# strip record separator
+	@Fld = split;
+	next if ($#Fld < 4);
+#NTPv3: 50529 74356.259 -0.000112 16.1230 8
+#NTPv3: day, sec.msec, offset, drift_comp, sys_poll
+#NTPv4: 51333 54734.582 0.000001648 16.981964 0.000001094 0.020938 6
+#NTPv4: day, sec.msec, offset, drift_comp, sys_error, clock_stabil, sys_poll
+	if ($Fld[2] > $skip_time_steps || $Fld[2] < -$skip_time_steps) {
+	    warn "ignoring loop offset $Fld[2] (file $fname, line $.)\n";
+	    next
+	}
+	$loop_count++;
+	($offs, $freq) = ($Fld[2], $Fld[3]);
+	$loop_tmax = max($loop_tmax, $offs);
+	$loop_tmin = min($loop_tmin, $offs);
+	$loop_fmax = max($loop_fmax, $freq);
+	$loop_fmin = min($loop_fmin, $freq);
+	$loop_time += $offs;
+	$loop_time_rms += $offs * $offs;
+	$loop_freq += $freq;
+	$loop_freq_rms += $freq * $freq;
+    }
+    close INPUT;
+    if ($loop_count > 1) {
+	$loop_time /= $loop_count;
+	$loop_time_rms = $loop_time_rms / $loop_count - $loop_time * $loop_time;
+	if ($loop_time_rms < 0) {
+	    warn "loop_time_rms: $loop_time_rms < 0";
+	    $loop_time_rms = 0;
+	}
+	$loop_time_rms = sqrt($loop_time_rms);
+	$loop_freq /= $loop_count;
+	$loop_freq_rms = $loop_freq_rms / $loop_count - $loop_freq * $loop_freq;
+	if ($loop_freq_rms < 0) {
+	    warn "loop_freq_rms: $loop_freq_rms < 0";
+	    $loop_freq_rms = 0;
+	}
+	$loop_freq_rms = sqrt($loop_freq_rms);
+	printf OUTPUT
+	    ("loop %d, %.0f+/-%.1f, rms %.1f, freq %.2f+/-%0.3f, var %.3f\n",
+	     $loop_count, ($loop_tmax + $loop_tmin) / 2 * 1e6,
+	     ($loop_tmax - $loop_tmin) / 2 * 1e6, $loop_time_rms * 1e6,
+	     ($loop_fmax + $loop_fmin) / 2, ($loop_fmax - $loop_fmin) / 2,
+	     $loop_freq_rms);
+    }
+    else {
+	warn "no valid lines in $directory/$fname";
+    }
+    close OUTPUT
+}
+
+# calculate mean, standard deviation, maximum offset, mean dispersion,
+# and maximum distance for each peer
+sub do_peer
+{
+    my ($directory, $fname, $out_file) = @_;
+    print "$directory/$fname\n";
+    open INPUT, "$directory/$fname" or warn "can't open $directory/$fname: $!";
+    open OUTPUT, ">>$out_file" or die "can't open $out_file: $!";
+    print OUTPUT "$fname\n";
+# we toss out all distances greater than one second on the assumption the
+# peer is in initial acquisition
+    my ($n, $MAXDISTANCE) = (0, 1.0);
+    my %peer_time;
+    my %peer_time_rms;
+    my %peer_count;
+    my %peer_delay;
+    my %peer_disp;
+    my %peer_dist;
+    my %peer_ident;
+    my %peer_tmin;
+    my %peer_tmax;
+    my @Fld;
+    my ($i, $j);
+    my ($dist, $offs);
+    while (<INPUT>) {
+	chop;	# strip record separator
+	@Fld = split;
+	next if ($#Fld < 6);
+#NTPv3: 50529 83316.249 127.127.8.1 9674 0.008628 0.00000 0.00700
+#NTPv3: day, sec.msec, addr, status, offset, delay, dispersion
+#NTPv4: 51333 56042.037 127.127.8.1 94f5 -0.000014657 0.000000000 0.000000000 0.000013214
+#NTPv4: day, sec.msec, addr, status, offset, delay, dispersion, skew
+
+	$dist = $Fld[6] + $Fld[5] / 2;
+	next if ($dist > $MAXDISTANCE);
+	$offs = $Fld[4];
+	if ($offs > $skip_time_steps || $offs < -$skip_time_steps) {
+	    warn "ignoring peer offset $offs (file $fname, line $.)\n";
+	    next
+	}
+	$i = $n;
+	for ($j = 0; $j < $n; $j++) {
+	    if ($Fld[2] eq $peer_ident{$j}) {
+		$i = $j;		# peer found
+		last;
+	    }
+	}
+	if ($i == $n) {		# add new peer
+	    $peer_ident{$i} = $Fld[2];
+	    $peer_tmax{$i} = $peer_dist{$i} = -1e9;
+	    $peer_tmin{$i} = 1e9;
+	    $peer_time{$i} = $peer_time_rms{$i} = 0;
+	    $peer_delay{$i} = $peer_disp{$i} = 0;
+	    $peer_count{$i} = 0;
+	    $n++;
+	}
+	$peer_count{$i}++;
+	$peer_tmax{$i} = max($peer_tmax{$i}, $offs);
+	$peer_tmin{$i} = min($peer_tmin{$i}, $offs);
+	$peer_dist{$i} = max($peer_dist{$i}, $dist);
+	$peer_time{$i} += $offs;
+	$peer_time_rms{$i} += $offs * $offs;
+	$peer_delay{$i} += $Fld[5];
+	$peer_disp{$i} += $Fld[6];
+    }
+    close INPUT;
+    print OUTPUT
+"       ident     cnt     mean     rms      max     delay     dist     disp\n";
+    print OUTPUT
+"==========================================================================\n";
+    my @lines = ();
+    for ($i = 0; $i < $n; $i++) {
+	next if $peer_count{$i} < 2;
+	$peer_time{$i} /= $peer_count{$i};
+	eval { $peer_time_rms{$i} = sqrt($peer_time_rms{$i} / $peer_count{$i} -
+					 $peer_time{$i} * $peer_time{$i}); };
+	$peer_time_rms{$i} = 0, warn $@ if $@;
+	$peer_delay{$i} /= $peer_count{$i};
+	$peer_disp{$i} /= $peer_count{$i};
+	$peer_tmax{$i} = $peer_tmax{$i} - $peer_time{$i};
+	$peer_tmin{$i} = $peer_time{$i} - $peer_tmin{$i};
+	if ($peer_tmin{$i} > $peer_tmax{$i}) {	# can this happen at all?
+	    $peer_tmax{$i} = $peer_tmin{$i};
+	}
+	push @lines, sprintf
+	    "%-15s %4d %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f\n",
+	    $peer_ident{$i}, $peer_count{$i}, $peer_time{$i} * 1e3,
+	    $peer_time_rms{$i} * 1e3, $peer_tmax{$i} * 1e3,
+	    $peer_delay{$i} * 1e3, $peer_dist{$i} * 1e3, $peer_disp{$i} * 1e3;
+    }
+    print OUTPUT sort @lines;
+    close OUTPUT;
+}
+
+sub do_clock
+{
+    my ($directory, $fname, $out_file) = @_;
+    print "$directory/$fname\n";
+    open INPUT, "$directory/$fname";
+    open OUTPUT, ">>$out_file" or die "can't open $out_file: $!";
+    print OUTPUT "$fname\n";
+    close INPUT;
+    close OUTPUT;
+}
+
+sub peer_summary
+{
+    my $in_file = shift;
+    my ($i, $j, $n);
+    my (%peer_ident, %peer_count, %peer_mean, %peer_var, %peer_max);
+    my (%peer_1, %peer_2, %peer_3, %peer_4);
+    my $dist;
+    my $max;
+    open INPUT, "<$in_file" or die "can't open $in_file: $!";
+    my @Fld;
+    $n = 0;
+    while (<INPUT>) {
+	chop;	# strip record separator
+	@Fld = split;
+	next if ($#Fld < 7 || $Fld[0] eq 'ident');
+	$i = $n;
+	for ($j = 0; $j < $n; $j++) {
+	    if ($Fld[0] eq $peer_ident{$j}) {
+		$i = $j;
+		last;			# peer found
+	    }
+	}
+	if ($i == $n) {			# add new peer
+	    $peer_count{$i} = $peer_mean{$i} = $peer_var{$i} = 0;
+	    $peer_max{$i} = 0;
+ 	    $peer_1{$i} = $peer_2{$i} = $peer_3{$i} = $peer_4{$i} = 0;
+	    $peer_ident{$i} = $Fld[0];
+	    ++$n;
+	}
+	$dist = $Fld[6] - $Fld[5] / 2;
+	if ($dist < $peer_dist_limit) {
+	    $peer_count{$i}++;
+	    $peer_mean{$i} += $Fld[2];
+	    $peer_var{$i} += $Fld[3] * $Fld[3];
+	    $max = $Fld[4];
+	    $peer_max{$i} = max($peer_max{$i}, $max);
+	    if ($max > 1) {
+		$peer_1{$i}++;
+		if ($max > 5) {
+		    $peer_2{$i}++;
+		    if ($max > 10) {
+			$peer_3{$i}++;
+			if ($max > 50) {
+			    $peer_4{$i}++;
+			}
+		    }
+		}
+	    }
+	}
+	else {
+	    warn "dist exceeds limit: $dist (file $in_file, line $.)\n";
+	}
+    }
+    close INPUT;
+    my @lines = ();
+    print
+	"       host     days    mean       rms       max   >1  >5 >10 >50\n";
+    print
+	"==================================================================\n";
+    for ($i = 0; $i < $n; $i++) {
+	next if ($peer_count{$i} < 2);
+	$peer_mean{$i} /= $peer_count{$i};
+	eval { $peer_var{$i} = sqrt($peer_var{$i} / $peer_count{$i} -
+				    $peer_mean{$i} * $peer_mean{$i}); };
+	$peer_var{$i} = 0, warn $@ if $@;
+	push @lines, sprintf
+	    "%-15s %3d %9.3f% 9.3f %9.3f %3d %3d %3d %3d\n",
+	    $peer_ident{$i}, $peer_count{$i}, $peer_mean{$i}, $peer_var{$i},
+	    $peer_max{$i}, $peer_1{$i}, $peer_2{$i}, $peer_3{$i}, $peer_4{$i};
+    }
+    print sort @lines;
+}
+
+@summary_opts@
+
+1;
+__END__

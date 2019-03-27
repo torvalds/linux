@@ -1,0 +1,786 @@
+.\"
+.\" Copyright (c) 2010 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Portions of this software were developed at the Centre for Advanced
+.\" Internet Architectures, Swinburne University of Technology, Melbourne,
+.\" Australia by Lawrence Stewart under sponsorship from the FreeBSD
+.\" Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 18, 2015
+.Dt SIFTR 4
+.Os
+.Sh NAME
+.Nm SIFTR
+.Nd Statistical Information For TCP Research
+.Sh SYNOPSIS
+To load
+the driver
+as a module at run-time, run the following command as root:
+.Bd -literal -offset indent
+kldload siftr
+.Ed
+.Pp
+Alternatively, to load
+the driver
+as a module at boot time, add the following line into the
+.Xr loader.conf 5
+file:
+.Bd -literal -offset indent
+siftr_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+.Po
+.Em S Ns tatistical
+.Em I Ns nformation
+.Em F Ns or
+.Em T Ns CP
+.Em R Ns esearch
+.Pc
+kernel module logs a range of statistics on active TCP connections to
+a log file.
+It provides the ability to make highly granular measurements of TCP connection
+state, aimed at system administrators, developers and researchers.
+.Ss Compile-time Configuration
+The default operation of
+.Nm
+is to capture IPv4 TCP/IP packets.
+.Nm
+can be configured to support IPv4 and IPv6 by uncommenting:
+.Bd -literal -offset indent
+CFLAGS+=-DSIFTR_IPV6
+.Ed
+.Pp
+in
+.Aq sys/modules/siftr/Makefile
+and recompiling.
+.Pp
+In the IPv4-only (default) mode, standard dotted decimal notation (e.g.
+"136.186.229.95") is used to format IPv4 addresses for logging.
+In IPv6 mode, standard dotted decimal notation is used to format IPv4 addresses,
+and standard colon-separated hex notation (see RFC 4291) is used to format IPv6
+addresses for logging.
+Note that SIFTR uses uncompressed notation to format IPv6 addresses.
+For example, the address "fe80::20f:feff:fea2:531b" would be logged as
+"fe80:0:0:0:20f:feff:fea2:531b".
+.Ss Run-time Configuration
+.Nm
+utilises the
+.Xr sysctl 8
+interface to export its configuration variables to user-space.
+The following variables are available:
+.Bl -tag -offset indent -width Va
+.It Va net.inet.siftr.enabled
+controls whether the module performs its
+measurements or not.
+By default, the value is set to 0, which means the module
+will not be taking any measurements.
+Having the module loaded with
+.Va net.inet.siftr.enabled
+set to 0 will have no impact on the performance of the network stack, as the
+packet filtering hooks are only inserted when
+.Va net.inet.siftr.enabled
+is set to 1.
+.El
+.Bl -tag -offset indent -width Va
+.It Va net.inet.siftr.ppl
+controls how many inbound/outbound packets for a given TCP connection will cause
+a log message to be generated for the connection.
+By default, the value is set to 1, which means the module will log a message for
+every packet of every TCP connection.
+The value can be set to any integer in the range [1,2^32], and can be changed at
+any time, even while the module is enabled.
+.El
+.Bl -tag -offset indent -width Va
+.It Va net.inet.siftr.logfile
+controls the path to the file that the module writes its log messages to.
+By default, the file /var/log/siftr.log is used.
+The path can be changed at any time, even while the module is enabled.
+.El
+.Bl -tag -offset indent -width Va
+.It Va net.inet.siftr.genhashes
+controls whether a hash is generated for each TCP packet seen by
+.Nm .
+By default, the value is set to 0, which means no hashes are generated.
+The hashes are useful to correlate which TCP packet triggered the generation of
+a particular log message, but calculating them adds additional computational
+overhead into the fast path.
+.El
+.Ss Log Format
+A typical
+.Nm
+log file will contain 3 different types of log message.
+All messages are written in plain ASCII text.
+.Pp
+Note: The
+.Qq \e
+present in the example log messages in this section indicates a
+line continuation and is not part of the actual log message.
+.Pp
+The first type of log message is written to the file when the module is
+enabled and starts collecting data from the running kernel.
+The text below shows an example module enable log.
+The fields are tab delimited key-value
+pairs which describe some basic information about the system.
+.Bd -literal -offset indent
+enable_time_secs=1238556193    enable_time_usecs=462104 \\
+siftrver=1.2.2    hz=1000    tcp_rtt_scale=32 \\
+sysname=FreeBSD    sysver=604000    ipmode=4
+.Ed
+.Pp
+Field descriptions are as follows:
+.Bl -tag -offset indent -width Va
+.It Va enable_time_secs
+time at which the module was enabled, in seconds since the UNIX epoch.
+.El
+.Bl -tag -offset indent -width Va
+.It Va enable_time_usecs
+time at which the module was enabled, in microseconds since enable_time_secs.
+.El
+.Bl -tag -offset indent -width Va
+.It Va siftrver
+version of
+.Nm .
+.El
+.Bl -tag -offset indent -width Va
+.It Va hz
+tick rate of the kernel in ticks per second.
+.El
+.Bl -tag -offset indent -width Va
+.It Va tcp_rtt_scale
+smoothed RTT estimate scaling factor.
+.El
+.Bl -tag -offset indent -width Va
+.It Va sysname
+operating system name.
+.El
+.Bl -tag -offset indent -width Va
+.It Va sysver
+operating system version.
+.El
+.Bl -tag -offset indent -width Va
+.It Va ipmode
+IP mode as defined at compile time.
+An ipmode of "4" means IPv6 is not supported and IP addresses are logged in
+regular dotted quad format.
+An ipmode of "6" means IPv6 is supported, and IP addresses are logged in dotted
+quad or hex format, as described in the
+.Qq Compile-time Configuration
+subsection.
+.El
+.Pp
+The second type of log message is written to the file when a data log message
+is generated.
+The text below shows an example data log triggered by an IPv4
+TCP/IP packet.
+The data is CSV formatted.
+.Bd -literal -offset indent
+o,0xbec491a5,1238556193.463551,172.16.7.28,22,172.16.2.5,55931, \\
+1073725440,172312,6144,66560,66608,8,1,4,1448,936,1,996,255, \\
+33304,208,66608,0,208,0
+.Ed
+.Pp
+Field descriptions are as follows:
+.Bl -tag -offset indent -width Va
+.It Va 1
+Direction of packet that triggered the log message.
+Either
+.Qq i
+for in, or
+.Qq o
+for out.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 2
+Hash of the packet that triggered the log message.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 3
+Time at which the packet that triggered the log message was processed by
+the
+.Xr pfil 9
+hook function, in seconds and microseconds since the UNIX epoch.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 4
+The IPv4 or IPv6 address of the local host, in dotted quad (IPv4 packet)
+or colon-separated hex (IPv6 packet) notation.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 5
+The TCP port that the local host is communicating via.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 6
+The IPv4 or IPv6 address of the foreign host, in dotted quad (IPv4 packet)
+or colon-separated hex (IPv6 packet) notation.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 7
+The TCP port that the foreign host is communicating via.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 8
+The slow start threshold for the flow, in bytes.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 9
+The current congestion window for the flow, in bytes.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 10
+The current bandwidth-controlled window for the flow, in bytes.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 11
+The current sending window for the flow, in bytes.
+The post scaled value is reported, except during the initial handshake (first
+few packets), during which time the unscaled value is reported.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 12
+The current receive window for the flow, in bytes.
+The post scaled value is always reported.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 13
+The current window scaling factor for the sending window.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 14
+The current window scaling factor for the receiving window.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 15
+The current state of the TCP finite state machine, as defined
+in
+.Aq Pa netinet/tcp_fsm.h .
+.El
+.Bl -tag -offset indent -width Va
+.It Va 16
+The maximum segment size for the flow, in bytes.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 17
+The current smoothed RTT estimate for the flow, in units of TCP_RTT_SCALE * HZ,
+where TCP_RTT_SCALE is a define found in tcp_var.h, and HZ is the kernel's tick
+timer.
+Divide by TCP_RTT_SCALE * HZ to get the RTT in secs.
+TCP_RTT_SCALE and HZ are reported in the enable log message.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 18
+SACK enabled indicator. 1 if SACK enabled, 0 otherwise.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 19
+The current state of the TCP flags for the flow.
+See
+.Aq Pa netinet/tcp_var.h
+for information about the various flags.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 20
+The current retransmission timeout length for the flow, in units of HZ, where HZ
+is the kernel's tick timer.
+Divide by HZ to get the timeout length in seconds.
+HZ is reported in the enable log message.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 21
+The current size of the socket send buffer in bytes.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 22
+The current number of bytes in the socket send buffer.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 23
+The current size of the socket receive buffer in bytes.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 24
+The current number of bytes in the socket receive buffer.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 25
+The current number of unacknowledged bytes in-flight.
+Bytes acknowledged via SACK are not excluded from this count.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 26
+The current number of segments in the reassembly queue.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 27
+Flowid for the connection.
+A caveat: Zero '0' either represents a valid flowid or a default value when it's
+not being set.
+There is no easy way to differentiate without looking at actual
+network interface card and drivers being used.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 28
+Flow type for the connection.
+Flowtype defines which protocol fields are hashed to produce the flowid.
+A complete listing is available in
+.Pa sys/mbuf.h
+under
+.Dv M_HASHTYPE_* .
+.El
+.Pp
+The third type of log message is written to the file when the module is disabled
+and ceases collecting data from the running kernel.
+The text below shows an example module disable log.
+The fields are tab delimited key-value pairs which provide statistics about
+operations since the module was most recently enabled.
+.Bd -literal -offset indent
+disable_time_secs=1238556197    disable_time_usecs=933607 \\
+num_inbound_tcp_pkts=356    num_outbound_tcp_pkts=627 \\
+total_tcp_pkts=983    num_inbound_skipped_pkts_malloc=0 \\
+num_outbound_skipped_pkts_malloc=0    num_inbound_skipped_pkts_mtx=0 \\
+num_outbound_skipped_pkts_mtx=0    num_inbound_skipped_pkts_tcb=0 \\
+num_outbound_skipped_pkts_tcb=0    num_inbound_skipped_pkts_icb=0 \\
+num_outbound_skipped_pkts_icb=0    total_skipped_tcp_pkts=0 \\
+flow_list=172.16.7.28;22-172.16.2.5;55931,
+.Ed
+.Pp
+Field descriptions are as follows:
+.Bl -tag -offset indent -width Va
+.It Va disable_time_secs
+Time at which the module was disabled, in seconds since the UNIX epoch.
+.El
+.Bl -tag -offset indent -width Va
+.It Va disable_time_usecs
+Time at which the module was disabled, in microseconds since disable_time_secs.
+.El
+.Bl -tag -offset indent -width Va
+.It Va num_inbound_tcp_pkts
+Number of TCP packets that traversed up the network stack.
+This only includes inbound TCP packets during the periods when
+.Nm
+was enabled.
+.El
+.Bl -tag -offset indent -width Va
+.It Va num_outbound_tcp_pkts
+Number of TCP packets that traversed down the network stack.
+This only includes outbound TCP packets during the periods when
+.Nm
+was enabled.
+.El
+.Bl -tag -offset indent -width Va
+.It Va total_tcp_pkts
+The summation of num_inbound_tcp_pkts and num_outbound_tcp_pkts.
+.El
+.Bl -tag -offset indent -width Va
+.It Va num_inbound_skipped_pkts_malloc
+Number of inbound packets that were not processed because of failed
+.Fn malloc
+calls.
+.El
+.Bl -tag -offset indent -width Va
+.It Va num_outbound_skipped_pkts_malloc
+Number of outbound packets that were not processed because of failed
+.Fn malloc
+calls.
+.El
+.Bl -tag -offset indent -width Va
+.It Va num_inbound_skipped_pkts_mtx
+Number of inbound packets that were not processed because of failure to add the
+packet to the packet processing queue.
+.El
+.Bl -tag -offset indent -width Va
+.It Va num_outbound_skipped_pkts_mtx
+Number of outbound packets that were not processed because of failure to add the
+packet to the packet processing queue.
+.El
+.Bl -tag -offset indent -width Va
+.It Va num_inbound_skipped_pkts_tcb
+Number of inbound packets that were not processed because of failure to find the
+TCP control block associated with the packet.
+.El
+.Bl -tag -offset indent -width Va
+.It Va num_outbound_skipped_pkts_tcb
+Number of outbound packets that were not processed because of failure to find
+the TCP control block associated with the packet.
+.El
+.Bl -tag -offset indent -width Va
+.It Va num_inbound_skipped_pkts_icb
+Number of inbound packets that were not processed because of failure to find the
+IP control block associated with the packet.
+.El
+.Bl -tag -offset indent -width Va
+.It Va num_outbound_skipped_pkts_icb
+Number of outbound packets that were not processed because of failure to find
+the IP control block associated with the packet.
+.El
+.Bl -tag -offset indent -width Va
+.It Va total_skipped_tcp_pkts
+The summation of all skipped packet counters.
+.El
+.Bl -tag -offset indent -width Va
+.It Va flow_list
+A CSV list of TCP flows that triggered data log messages to be generated since
+the module was loaded.
+Each flow entry in the CSV list is
+formatted as
+.Qq local_ip;local_port-foreign_ip;foreign_port .
+If there are no entries in the list (i.e., no data log messages were generated),
+the value will be blank.
+If there is at least one entry in the list, a trailing comma will always be
+present.
+.El
+.Pp
+The total number of data log messages found in the log file for a module
+enable/disable cycle should equate to total_tcp_pkts - total_skipped_tcp_pkts.
+.Sh IMPLEMENTATION NOTES
+.Nm
+hooks into the network stack using the
+.Xr pfil 9
+interface.
+In its current incarnation, it hooks into the AF_INET/AF_INET6 (IPv4/IPv6)
+.Xr pfil 9
+filtering points, which means it sees packets at the IP layer of the network
+stack.
+This means that TCP packets inbound to the stack are intercepted before
+they have been processed by the TCP layer.
+Packets outbound from the stack are intercepted after they have been processed
+by the TCP layer.
+.Pp
+The diagram below illustrates how
+.Nm
+inserts itself into the stack.
+.Bd -literal -offset indent
+----------------------------------
+           Upper Layers
+----------------------------------
+    ^                       |
+    |                       |
+    |                       |
+    |                       v
+ TCP in                  TCP out
+----------------------------------
+    ^                      |
+    |________     _________|
+            |     |
+            |     v
+           ---------
+           | SIFTR |
+           ---------
+            ^     |
+    ________|     |__________
+    |                       |
+    |                       v
+IPv{4/6} in            IPv{4/6} out
+----------------------------------
+    ^                       |
+    |                       |
+    |                       v
+Layer 2 in             Layer 2 out
+----------------------------------
+          Physical Layer
+----------------------------------
+.Ed
+.Pp
+.Nm
+uses the
+.Xr alq 9
+interface to manage writing data to disk.
+.Pp
+At first glance, you might mistakenly think that
+.Nm
+extracts information from
+individual TCP packets.
+This is not the case.
+.Nm
+uses TCP packet events (inbound and outbound) for each TCP flow originating from
+the system to trigger a dump of the state of the TCP control block for that
+flow.
+With the PPL set to 1, we are in effect sampling each TCP flow's control block
+state as frequently as flow packets enter/leave the system.
+For example, setting PPL to 2 halves the sampling rate i.e., every second flow
+packet (inbound OR outbound) causes a dump of the control block state.
+.Pp
+The distinction between interrogating individual packets versus interrogating the
+control block is important, because
+.Nm
+does not remove the need for packet capturing tools like
+.Xr tcpdump 1 .
+.Nm
+allows you to correlate and observe the cause-and-affect relationship between
+what you see on the wire (captured using a tool like
+.Xr tcpdump 1 Ns )
+and changes in the TCP control block corresponding to the flow of interest.
+It is therefore useful to use
+.Nm
+and a tool like
+.Xr tcpdump 1
+to gather the necessary data to piece together the complete picture.
+Use of either tool on its own will not be able to provide all of the necessary
+data.
+.Pp
+As a result of needing to interrogate the TCP control block, certain packets
+during the lifecycle of a connection are unable to trigger a
+.Nm
+log message.
+The initial handshake takes place without the existence of a control block and
+the final ACK is exchanged when the connection is in the TIMEWAIT state.
+.Pp
+.Nm
+was designed to minimise the delay introduced to packets traversing the network
+stack.
+This design called for a highly optimised and minimal hook function that
+extracted the minimal details necessary whilst holding the packet up, and
+passing these details to another thread for actual processing and logging.
+.Pp
+This multithreaded design does introduce some contention issues when accessing
+the data structure shared between the threads of operation.
+When the hook function tries to place details in the structure, it must first
+acquire an exclusive lock.
+Likewise, when the processing thread tries to read details from the structure,
+it must also acquire an exclusive lock to do so.
+If one thread holds the lock, the other must wait before it can obtain it.
+This does introduce some additional bounded delay into the kernel's packet
+processing code path.
+.Pp
+In some cases (e.g., low memory, connection termination), TCP packets that enter
+the
+.Nm
+.Xr pfil 9
+hook function will not trigger a log message to be generated.
+.Nm
+refers to this outcome as a
+.Qq skipped packet .
+Note that
+.Nm
+always ensures that packets are allowed to continue through the stack, even if
+they could not successfully trigger a data log message.
+.Nm
+will therefore not introduce any packet loss for TCP/IP packets traversing the
+network stack.
+.Ss Important Behaviours
+The behaviour of a log file path change whilst the module is enabled is as
+follows:
+.Bl -enum
+.It
+Attempt to open the new file path for writing.
+If this fails, the path change will fail and the existing path will continue to
+be used.
+.It
+Assuming the new path is valid and opened successfully:
+.Bl -dash
+.It
+Flush all pending log messages to the old file path.
+.It
+Close the old file path.
+.It
+Switch the active log file pointer to point at the new file path.
+.It
+Commence logging to the new file.
+.El
+.El
+.Pp
+During the time between the flush of pending log messages to the old file and
+commencing logging to the new file, new log messages will still be generated and
+buffered.
+As soon as the new file path is ready for writing, the accumulated log messages
+will be written out to the file.
+.Sh EXAMPLES
+To enable the module's operations, run the following command as root:
+sysctl net.inet.siftr.enabled=1
+.Pp
+To change the granularity of log messages such that 1 log message is
+generated for every 10 TCP packets per connection, run the following
+command as root:
+sysctl net.inet.siftr.ppl=10
+.Pp
+To change the log file location to /tmp/siftr.log, run the following
+command as root:
+sysctl net.inet.siftr.logfile=/tmp/siftr.log
+.Sh SEE ALSO
+.Xr tcpdump 1 ,
+.Xr tcp 4 ,
+.Xr sysctl 8 ,
+.Xr alq 9 ,
+.Xr pfil 9
+.Sh ACKNOWLEDGEMENTS
+Development of this software was made possible in part by grants from the
+Cisco University Research Program Fund at Community Foundation Silicon Valley,
+and the FreeBSD Foundation.
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 7.4
+and
+.Fx 8.2 .
+.Pp
+.Nm
+was first released in 2007 by Lawrence Stewart and James Healy whilst working on
+the NewTCP research project at Swinburne University of Technology's Centre for
+Advanced Internet Architectures, Melbourne, Australia, which was made possible
+in part by a grant from the Cisco University Research Program Fund at Community
+Foundation Silicon Valley.
+More details are available at:
+.Pp
+http://caia.swin.edu.au/urp/newtcp/
+.Pp
+Work on
+.Nm
+v1.2.x was sponsored by the FreeBSD Foundation as part of
+the
+.Qq Enhancing the FreeBSD TCP Implementation
+project 2008-2009.
+More details are available at:
+.Pp
+http://www.freebsdfoundation.org/
+.Pp
+http://caia.swin.edu.au/freebsd/etcp09/
+.Sh AUTHORS
+.An -nosplit
+.Nm
+was written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org
+and
+.An James Healy Aq Mt jimmy@deefa.com .
+.Pp
+This manual page was written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org .
+.Sh BUGS
+Current known limitations and any relevant workarounds are outlined below:
+.Bl -dash
+.It
+The internal queue used to pass information between the threads of operation is
+currently unbounded.
+This allows
+.Nm
+to cope with bursty network traffic, but sustained high packet-per-second
+traffic can cause exhaustion of kernel memory if the processing thread cannot
+keep up with the packet rate.
+.It
+If using
+.Nm
+on a machine that is also running other modules utilising the
+.Xr pfil 9
+framework e.g.
+.Xr dummynet 4 ,
+.Xr ipfw 8 ,
+.Xr pf 4 Ns ,
+the order in which you load the modules is important.
+You should kldload the other modules first, as this will ensure TCP packets
+undergo any necessary manipulations before
+.Nm
+.Qq sees
+and processes them.
+.It
+There is a known, harmless lock order reversal warning between the
+.Xr pfil 9
+mutex and tcbinfo TCP lock reported by
+.Xr witness 4
+when
+.Nm
+is enabled in a kernel compiled with
+.Xr witness 4
+support.
+.It
+There is no way to filter which TCP flows you wish to capture data for.
+Post processing is required to separate out data belonging to particular flows
+of interest.
+.It
+The module does not detect deletion of the log file path.
+New log messages will simply be lost if the log file being used by
+.Nm
+is deleted whilst the module is set to use the file.
+Switching to a new log file using the
+.Em net.inet.siftr.logfile
+variable will create the new file and allow log messages to begin being written
+to disk again.
+The new log file path must differ from the path to the deleted file.
+.It
+The hash table used within the code is sized to hold 65536 flows.
+This is not a
+hard limit, because chaining is used to handle collisions within the hash table
+structure.
+However, we suspect (based on analogies with other hash table performance data)
+that the hash table look up performance (and therefore the module's packet
+processing performance) will degrade in an exponential manner as the number of
+unique flows handled in a module enable/disable cycle approaches and surpasses
+65536.
+.It
+There is no garbage collection performed on the flow hash table.
+The only way currently to flush it is to disable
+.Nm .
+.It
+The PPL variable applies to packets that make it into the processing thread,
+not total packets received in the hook function.
+Packets are skipped before the PPL variable is applied, which means there may be
+a slight discrepancy in the triggering of log messages.
+For example, if PPL was set to 10, and the 8th packet since the last log message
+is skipped, the 11th packet will actually trigger the log message to be
+generated.
+This is discussed in greater depth in CAIA technical report 070824A.
+.It
+At the time of writing, there was no simple way to hook into the TCP layer
+to intercept packets.
+.Nm Ap s
+use of IP layer hook points means all IP
+traffic will be processed by the
+.Nm
+.Xr pfil 9
+hook function, which introduces minor, but nonetheless unnecessary packet delay
+and processing overhead on the system for non-TCP packets as well.
+Hooking in at the IP layer is also not ideal from the data gathering point of
+view.
+Packets traversing up the stack will be intercepted and cause a log message
+generation BEFORE they have been processed by the TCP layer, which means we
+cannot observe the cause-and-affect relationship between inbound events and the
+corresponding TCP control block as precisely as could be.
+Ideally,
+.Nm
+should intercept packets after they have been processed by the TCP layer i.e.
+intercept packets coming up the stack after they have been processed by
+.Fn tcp_input ,
+and intercept packets coming down the stack after they have been
+processed by
+.Fn tcp_output .
+The current code still gives satisfactory granularity though, as inbound events
+tend to trigger outbound events, allowing the cause-and-effect to be observed
+indirectly by capturing the state on outbound events as well.
+.It
+The
+.Qq inflight bytes
+value logged by
+.Nm
+does not take into account bytes that have been
+.No SACK Ap ed
+by the receiving host.
+.It
+Packet hash generation does not currently work for IPv6 based TCP packets.
+.It
+Compressed notation is not used for IPv6 address representation.
+This consumes more bytes than is necessary in log output.
+.El

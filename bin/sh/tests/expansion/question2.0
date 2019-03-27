@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+unset dummyvar
+msg=`(: ${dummyvar?}) 2>&1`
+r=$?
+[ "$r" != 0 ] && case $msg in
+*dummyvar?* | *?dummyvar*) : ;;
+*)
+	printf 'Bad message: [%s]\n' "$msg"
+	exit 1
+esac

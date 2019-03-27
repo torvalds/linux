@@ -1,0 +1,134 @@
+/dts-v1/;
+
+#include "rt3050.dtsi"
+
+/ {
+	compatible = "FONERA20N", "ralink,rt3052-soc";
+	model = "La Fonera 2.0N";
+
+	cfi@1f000000 {
+		compatible = "cfi-flash";
+		reg = <0x1f000000 0x800000>;
+		bank-width = <2>;
+		device-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x7b0000>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		wifi {
+			label = "fonera20n:orange:wifi";
+			gpios = <&gpio0 7 1>;
+		};
+
+		power {
+			label = "fonera20n:green:power";
+			gpios = <&gpio0 9 1>;
+		};
+
+		usb {
+			label = "fonera20n:orange:usb";
+			gpios = <&gpio0 14 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 12 1>;
+			linux,code = <0x198>;
+		};
+
+		switch {
+			label = "switch";
+			gpios = <&gpio0 13 1>;
+			linux,code = <0xf7>;
+			linux,input-type = <5>; /* EV_SW */
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "spi", "jtag", "mdio", "rgmii", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x28>;
+};
+
+&esw {
+	mediatek,portmap = <0x2f>;
+
+	port@0 {
+		compatible = "swconfig,port";
+		swconfig,segment = "lan";
+		swconfig,portmap = <0 4>;
+	};
+
+	port@1 {
+		compatible = "swconfig,port";
+		swconfig,segment = "lan";
+		swconfig,portmap = <1 3>;
+	};
+
+	port@2 {
+		compatible = "swconfig,port";
+		swconfig,segment = "lan";
+		swconfig,portmap = <2 2>;
+	};
+
+	port@3 {
+		compatible = "swconfig,port";
+		swconfig,segment = "lan";
+		swconfig,portmap = <3 1>;
+	};
+
+	port@4 {
+		compatible = "swconfig,port";
+		swconfig,segment = "wan";
+		swconfig,portmap = <4 0>;
+	};
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&otg {
+	status = "okay";
+};

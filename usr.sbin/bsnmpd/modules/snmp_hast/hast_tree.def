@@ -1,0 +1,76 @@
+#-
+# Copyright (c) 2013 Mikolaj Golub <trociny@FreeBSD.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+(1 internet
+  (4 private
+    (1 enterprises
+      (12325 fokus
+        (1 begemot
+          (220 begemotHast
+            (1 begemotHastObjects
+              (1 hastConfig
+                (1 hastConfigFile OCTETSTRING op_hastConfig GET)
+              )
+              (2 hastResourceTable
+                (1 hastResourceEntry : OCTETSTRING op_hastResourceTable
+                  (1 hastResourceIndex INTEGER32 GET)
+                  (2 hastResourceName OCTETSTRING GET)
+                  (3 hastResourceRole INTEGER GET SET)
+                  (4 hastResourceProvName OCTETSTRING GET)
+                  (5 hastResourceLocalPath OCTETSTRING GET)
+                  (6 hastResourceExtentSize INTEGER32 GET)
+                  (7 hastResourceKeepDirty INTEGER32 GET)
+                  (8 hastResourceRemoteAddr OCTETSTRING GET)
+                  (9 hastResourceSourceAddr OCTETSTRING GET)
+                  (10 hastResourceReplication INTEGER GET)
+                  (11 hastResourceStatus INTEGER GET)
+                  (12 hastResourceDirty COUNTER64 GET)
+                  (13 hastResourceReads COUNTER64 GET)
+                  (14 hastResourceWrites COUNTER64 GET)
+                  (15 hastResourceDeletes COUNTER64 GET)
+                  (16 hastResourceFlushes COUNTER64 GET)
+                  (17 hastResourceActivemapUpdates COUNTER64 GET)
+                  (18 hastResourceReadErrors COUNTER64 GET)
+                  (19 hastResourceWriteErrors COUNTER64 GET)
+                  (20 hastResourceDeleteErrors COUNTER64 GET)
+                  (21 hastResourceFlushErrors COUNTER64 GET)
+                  (22 hastResourceWorkerPid INTEGER GET)
+                  (23 hastResourceLocalQueue UNSIGNED32 GET)
+                  (24 hastResourceSendQueue UNSIGNED32 GET)
+                  (25 hastResourceRecvQueue UNSIGNED32 GET)
+                  (26 hastResourceDoneQueue UNSIGNED32 GET)
+                  (27 hastResourceIdleQueue UNSIGNED32 GET)
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)

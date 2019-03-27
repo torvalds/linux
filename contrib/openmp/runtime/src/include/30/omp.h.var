@@ -1,0 +1,165 @@
+/*
+ * include/30/omp.h.var
+ */
+
+
+//===----------------------------------------------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.txt for details.
+//
+//===----------------------------------------------------------------------===//
+
+
+#ifndef __OMP_H
+#   define __OMP_H
+
+#   define KMP_VERSION_MAJOR    @LIBOMP_VERSION_MAJOR@
+#   define KMP_VERSION_MINOR    @LIBOMP_VERSION_MINOR@
+#   define KMP_VERSION_BUILD    @LIBOMP_VERSION_BUILD@
+#   define KMP_BUILD_DATE       "@LIBOMP_BUILD_DATE@"
+
+#   ifdef __cplusplus
+    extern "C" {
+#   endif
+
+#       define omp_set_num_threads          ompc_set_num_threads
+#       define omp_set_dynamic              ompc_set_dynamic
+#       define omp_set_nested               ompc_set_nested
+#       define omp_set_max_active_levels    ompc_set_max_active_levels
+#       define omp_set_schedule             ompc_set_schedule
+#       define omp_get_ancestor_thread_num  ompc_get_ancestor_thread_num
+#       define omp_get_team_size            ompc_get_team_size
+
+
+#       define kmp_set_stacksize            kmpc_set_stacksize
+#       define kmp_set_stacksize_s          kmpc_set_stacksize_s
+#       define kmp_set_blocktime            kmpc_set_blocktime
+#       define kmp_set_library              kmpc_set_library
+#       define kmp_set_defaults             kmpc_set_defaults
+#       define kmp_set_affinity_mask_proc   kmpc_set_affinity_mask_proc
+#       define kmp_unset_affinity_mask_proc kmpc_unset_affinity_mask_proc
+#       define kmp_get_affinity_mask_proc   kmpc_get_affinity_mask_proc
+
+#       define kmp_malloc                   kmpc_malloc
+#       define kmp_calloc                   kmpc_calloc
+#       define kmp_realloc                  kmpc_realloc
+#       define kmp_free                     kmpc_free
+
+
+#   if defined(_WIN32)
+#       define __KAI_KMPC_CONVENTION __cdecl
+#   else
+#       define __KAI_KMPC_CONVENTION
+#   endif
+
+    /* schedule kind constants */
+    typedef enum omp_sched_t {
+	omp_sched_static  = 1,
+	omp_sched_dynamic = 2,
+	omp_sched_guided  = 3,
+	omp_sched_auto    = 4
+    } omp_sched_t;
+
+    /* set API functions */
+    extern void   __KAI_KMPC_CONVENTION  omp_set_num_threads (int);
+    extern void   __KAI_KMPC_CONVENTION  omp_set_dynamic     (int);
+    extern void   __KAI_KMPC_CONVENTION  omp_set_nested      (int);
+    extern void   __KAI_KMPC_CONVENTION  omp_set_max_active_levels (int);
+    extern void   __KAI_KMPC_CONVENTION  omp_set_schedule          (omp_sched_t, int);
+
+    /* query API functions */
+    extern int    __KAI_KMPC_CONVENTION  omp_get_num_threads  (void);
+    extern int    __KAI_KMPC_CONVENTION  omp_get_dynamic      (void);
+    extern int    __KAI_KMPC_CONVENTION  omp_get_nested       (void);
+    extern int    __KAI_KMPC_CONVENTION  omp_get_max_threads  (void);
+    extern int    __KAI_KMPC_CONVENTION  omp_get_thread_num   (void);
+    extern int    __KAI_KMPC_CONVENTION  omp_get_num_procs    (void);
+    extern int    __KAI_KMPC_CONVENTION  omp_in_parallel      (void);
+    extern int    __KAI_KMPC_CONVENTION  omp_in_final         (void);
+    extern int    __KAI_KMPC_CONVENTION  omp_get_active_level        (void);
+    extern int    __KAI_KMPC_CONVENTION  omp_get_level               (void);
+    extern int    __KAI_KMPC_CONVENTION  omp_get_ancestor_thread_num (int);
+    extern int    __KAI_KMPC_CONVENTION  omp_get_team_size           (int);
+    extern int    __KAI_KMPC_CONVENTION  omp_get_thread_limit        (void);
+    extern int    __KAI_KMPC_CONVENTION  omp_get_max_active_levels   (void);
+    extern void   __KAI_KMPC_CONVENTION  omp_get_schedule            (omp_sched_t *, int *);
+
+    /* lock API functions */
+    typedef struct omp_lock_t {
+        void * _lk;
+    } omp_lock_t;
+
+    extern void   __KAI_KMPC_CONVENTION  omp_init_lock    (omp_lock_t *);
+    extern void   __KAI_KMPC_CONVENTION  omp_set_lock     (omp_lock_t *);
+    extern void   __KAI_KMPC_CONVENTION  omp_unset_lock   (omp_lock_t *);
+    extern void   __KAI_KMPC_CONVENTION  omp_destroy_lock (omp_lock_t *);
+    extern int    __KAI_KMPC_CONVENTION  omp_test_lock    (omp_lock_t *);
+
+    /* nested lock API functions */
+    typedef struct omp_nest_lock_t {
+        void * _lk;
+    } omp_nest_lock_t;
+
+    extern void   __KAI_KMPC_CONVENTION  omp_init_nest_lock    (omp_nest_lock_t *);
+    extern void   __KAI_KMPC_CONVENTION  omp_set_nest_lock     (omp_nest_lock_t *);
+    extern void   __KAI_KMPC_CONVENTION  omp_unset_nest_lock   (omp_nest_lock_t *);
+    extern void   __KAI_KMPC_CONVENTION  omp_destroy_nest_lock (omp_nest_lock_t *);
+    extern int    __KAI_KMPC_CONVENTION  omp_test_nest_lock    (omp_nest_lock_t *);
+
+    /* time API functions */
+    extern double __KAI_KMPC_CONVENTION  omp_get_wtime (void);
+    extern double __KAI_KMPC_CONVENTION  omp_get_wtick (void);
+
+#   include <stdlib.h>
+    /* kmp API functions */
+    extern int    __KAI_KMPC_CONVENTION  kmp_get_stacksize          (void);
+    extern void   __KAI_KMPC_CONVENTION  kmp_set_stacksize          (int);
+    extern size_t __KAI_KMPC_CONVENTION  kmp_get_stacksize_s        (void);
+    extern void   __KAI_KMPC_CONVENTION  kmp_set_stacksize_s        (size_t);
+    extern int    __KAI_KMPC_CONVENTION  kmp_get_blocktime          (void);
+    extern int    __KAI_KMPC_CONVENTION  kmp_get_library            (void);
+    extern void   __KAI_KMPC_CONVENTION  kmp_set_blocktime          (int);
+    extern void   __KAI_KMPC_CONVENTION  kmp_set_library            (int);
+    extern void   __KAI_KMPC_CONVENTION  kmp_set_library_serial     (void);
+    extern void   __KAI_KMPC_CONVENTION  kmp_set_library_turnaround (void);
+    extern void   __KAI_KMPC_CONVENTION  kmp_set_library_throughput (void);
+    extern void   __KAI_KMPC_CONVENTION  kmp_set_defaults           (char const *);
+
+    /* affinity API functions */
+    typedef void * kmp_affinity_mask_t;
+
+    extern int    __KAI_KMPC_CONVENTION  kmp_set_affinity             (kmp_affinity_mask_t *);
+    extern int    __KAI_KMPC_CONVENTION  kmp_get_affinity             (kmp_affinity_mask_t *);
+    extern int    __KAI_KMPC_CONVENTION  kmp_get_affinity_max_proc    (void);
+    extern void   __KAI_KMPC_CONVENTION  kmp_create_affinity_mask     (kmp_affinity_mask_t *);
+    extern void   __KAI_KMPC_CONVENTION  kmp_destroy_affinity_mask    (kmp_affinity_mask_t *);
+    extern int    __KAI_KMPC_CONVENTION  kmp_set_affinity_mask_proc   (int, kmp_affinity_mask_t *);
+    extern int    __KAI_KMPC_CONVENTION  kmp_unset_affinity_mask_proc (int, kmp_affinity_mask_t *);
+    extern int    __KAI_KMPC_CONVENTION  kmp_get_affinity_mask_proc   (int, kmp_affinity_mask_t *);
+
+    extern void * __KAI_KMPC_CONVENTION  kmp_malloc  (size_t);
+    extern void * __KAI_KMPC_CONVENTION  kmp_aligned_malloc  (size_t, size_t);
+    extern void * __KAI_KMPC_CONVENTION  kmp_calloc  (size_t, size_t);
+    extern void * __KAI_KMPC_CONVENTION  kmp_realloc (void *, size_t);
+    extern void   __KAI_KMPC_CONVENTION  kmp_free    (void *);
+
+    extern void   __KAI_KMPC_CONVENTION  kmp_set_warnings_on(void);
+    extern void   __KAI_KMPC_CONVENTION  kmp_set_warnings_off(void);
+
+#   undef __KAI_KMPC_CONVENTION
+
+    /* Warning:
+       The following typedefs are not standard, deprecated and will be removed in a future release.
+    */
+    typedef int     omp_int_t;
+    typedef double  omp_wtime_t;
+
+#   ifdef __cplusplus
+    }
+#   endif
+
+#endif /* __OMP_H */
+

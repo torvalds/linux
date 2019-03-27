@@ -1,0 +1,5 @@
+rewrite in on bge0 inet6 proto tcp from any to any -> src any dst dstlist/a;
+rewrite in on bge0 inet6 proto tcp from 1:1:1::1/128 to any -> src any dst dstlist/bee;
+rewrite in on bge0 inet6 proto tcp from 1:1:1::1/128 to 2:2::2:2/128 -> src any dst dstlist/cat;
+rewrite in on bge0 inet6 proto tcp from pool/a to 2:2::2:2/128 -> src any dst dstlist/bat;
+rewrite in on bge0 inet6 proto tcp from pool/a to pool/1 -> src any dst dstlist/ant;

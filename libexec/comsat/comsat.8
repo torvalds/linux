@@ -1,0 +1,111 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)comsat.8	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd January 21, 2010
+.Dt COMSAT 8
+.Os
+.Sh NAME
+.Nm comsat
+.Nd biff server
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+The
+.Nm
+utility is the server process which receives reports of incoming mail
+and notifies users if they have requested this service.
+The
+.Nm
+utility receives messages on a datagram port associated with the
+.Dq biff
+service
+specification (see
+.Xr services 5
+and
+.Xr inetd 8 ) .
+The one line messages are of the form:
+.Pp
+.D1 Ar user Ns @ Ns Ar mailbox Ns - Ns Ar offset Ns Op : Ns Ar mailbox-name
+.Pp
+If the
+.Ar user
+specified is logged in to the system and the associated terminal has
+the owner execute bit turned on (by a
+.Dq Nm biff Cm y ) ,
+the
+.Ar offset
+is used as a seek offset into the appropriate mailbox file and
+the first 7 lines or 560 characters of the message are printed
+on the user's terminal.
+Lines which appear to be part of
+the message header other than the
+.Dq Li From ,
+.Dq Li \&To ,
+.Dq Li Date ,
+or
+.Dq Li Subject
+lines are not included in the displayed message.
+.Pp
+If the
+.Ar user
+specified is logged in to the system and the associated terminal has
+the group execute bit turned on (by a
+.Dq Nm biff Cm b ) ,
+two bell characters
+.Tn ( ASCII
+\\007) are printed on the user's terminal.
+.Pp
+If
+.Ar mailbox-name
+omitted, standard mailbox assumed.
+.Sh FILES
+.Bl -tag -width ".Pa /var/mail/user" -compact
+.It Pa /var/run/utx.active
+to find out who is logged on and on what terminals
+.It Pa /var/mail/user
+standard mailbox
+.El
+.Sh SEE ALSO
+.Xr biff 1 ,
+.Xr inetd 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.2 .
+.Sh BUGS
+The message header filtering is prone to error.
+The density of the information presented is near the theoretical minimum.
+.Pp
+Users should be notified of mail which arrives on other
+machines than the one to which they are currently logged in.
+.Pp
+The notification should appear in a separate window so it
+does not mess up the screen.

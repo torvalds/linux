@@ -1,0 +1,3 @@
+include std_defines
+call OK refresh
+compare curses_start.chk

@@ -1,0 +1,30 @@
+# BRE Quantifiers
+ab\?c	b	abc	abc
+ab\+c	b	abc	abc
+# BRE Branching
+abc\|de	b	abc	abc
+a\|b\|c	b	abc	a
+\(ab\|bc\)	b	abcd	ab
+# ERE Backrefs
+(ab)\1	-	ab
+(ab)\1	-	abab	abab
+\1(ab)	C	ESUBREG
+(a)(b)(c)(d)(e)(f)(g)(h)(i)\9	-	abcdefghii	abcdefghii
+# \w, \W, \s, \S (alnum, ^alnum, space, ^space)
+\w+	-	-%@a0X-	a0X
+\w\+	b	-%@a0X-	a0X
+\s+	-	aSNTb	SNT
+\s\+	b	aSNTb	SNT
+# Word boundaries (\b, \B, \<, \>, \`, \')
+# (is/not boundary, start/end word, start/end subject string)
+\babc\b	&	<abc>	abc
+\<abc\> &	<abc>	abc
+\Babc\B	&	abc
+\B[abc]\B	&	<abc>	b
+\B[abc]+	-	<abc>	bc
+\B[abc]\+	b	<abc>	bc
+\`abc\'	&	abc	abc
+\`.+\'	-	abNc	abNc
+\`.\+\'	b	abNc	abNc
+(\`a)	-	Na
+(a\')	-	aN

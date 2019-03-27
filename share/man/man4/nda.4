@@ -1,0 +1,88 @@
+.\"
+.\" Copyright (c) 2017 Netflix, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 20, 2017
+.Dt NDA 4
+.Os
+.Sh NAME
+.Nm nda
+.Nd NVMe Direct Access device driver
+.Sh SYNOPSIS
+.Cd device nvme
+.Cd device scbus
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for direct access devices, implementing the
+.Tn NVMe
+command protocol, that are attached to the system through a host adapter
+supported by the CAM subsystem.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width 12
+.It Va kern.cam.nda.sort_io_queue
+.Pp
+This variable determines whether the software queued entries are
+sorted in LBA order or not.
+Sorting is almost always a waste of time.
+The default is to not sort.
+.El
+.Pp
+The following report per-device settings, and are read-only unless
+otherwise indicated. Replace
+.Va N
+with the device unit number.
+.Bl -tag -width 12
+.It Va kern.cam.nda.N.rotating
+.Pp
+This variable reports whether the storage volume is spinning or
+flash.
+It's value is hard coded to 0 indicating flash.
+.It Va kern.cam.nda.N.unmapped_io
+This variable reports whether the
+.Nm
+driver accepts unmapped I/O for this unit.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/nda*" -compact
+.It Pa /dev/nda*
+NVMe storage device nodes
+.El
+.Sh SEE ALSO
+.Xr nvd 4 ,
+.Xr nvme 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+.An Warner Losh Aq Mt imp@FreeBSD.org

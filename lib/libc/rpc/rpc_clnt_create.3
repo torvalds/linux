@@ -1,0 +1,514 @@
+.\" @(#)rpc_clnt_create.3n 1.36 93/08/31 SMI; from SVr4
+.\" Copyright 1989 AT&T
+.\" @(#)rpc_clnt_create 1.5 89/07/24 SMI;
+.\" Copyright (c) 1988 Sun Microsystems, Inc. - All Rights Reserved.
+.\" $NetBSD: rpc_clnt_create.3,v 1.2 2000/06/20 00:53:08 fvdl Exp $
+.\" $FreeBSD$
+.Dd May 7, 1993
+.Dt RPC_CLNT_CREATE 3
+.Os
+.Sh NAME
+.Nm rpc_clnt_create ,
+.Nm clnt_control ,
+.Nm clnt_create ,
+.Nm clnt_create_timed ,
+.Nm clnt_create_vers ,
+.Nm clnt_create_vers_timed ,
+.Nm clnt_destroy ,
+.Nm clnt_dg_create ,
+.Nm clnt_pcreateerror ,
+.Nm clnt_raw_create ,
+.Nm clnt_spcreateerror ,
+.Nm clnt_tli_create ,
+.Nm clnt_tp_create ,
+.Nm clnt_tp_create_timed ,
+.Nm clnt_vc_create ,
+.Nm rpc_createerr
+.Nd "library routines for dealing with creation and manipulation of"
+.Vt CLIENT
+handles
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In rpc/rpc.h
+.Ft bool_t
+.Fn clnt_control "CLIENT *clnt" "const u_int req" "char *info"
+.Ft "CLIENT *"
+.Fn clnt_create "const char * host" "const rpcprog_t prognum" "const rpcvers_t versnum" "const char *nettype"
+.Ft "CLIENT *"
+.Fn clnt_create_timed "const char * host" "const rpcprog_t prognum" "const rpcvers_t versnum" "const char *nettype" "const struct timeval *timeout"
+.Ft "CLIENT *"
+.Fn clnt_create_vers "const char * host" "const rpcprog_t prognum" "rpcvers_t *vers_outp" "const rpcvers_t vers_low" "const rpcvers_t vers_high" "const char *nettype"
+.Ft "CLIENT *"
+.Fn clnt_create_vers_timed "const char * host" "const rpcprog_t prognum" "rpcvers_t *vers_outp" "const rpcvers_t vers_low" "const rpcvers_t vers_high" "const char *nettype" "const struct timeval *timeout"
+.Ft void
+.Fn clnt_destroy "CLIENT *clnt"
+.Ft "CLIENT *"
+.Fn clnt_dg_create "const int fildes" "const struct netbuf *svcaddr" "const rpcprog_t prognum" "const rpcvers_t versnum" "const u_int sendsz" "const u_int recvsz"
+.Ft void
+.Fn clnt_pcreateerror "const char *s"
+.Ft "char *"
+.Fn clnt_spcreateerror "const char *s"
+.Ft "CLIENT *"
+.Fn clnt_raw_create "const rpcprog_t prognum" "const rpcvers_t versnum"
+.Ft "CLIENT *"
+.Fn clnt_tli_create "const int fildes" "const struct netconfig *netconf" "struct netbuf *svcaddr" "const rpcprog_t prognum" "const rpcvers_t versnum" "const u_int sendsz" "const u_int recvsz"
+.Ft "CLIENT *"
+.Fn clnt_tp_create "const char * host" "const rpcprog_t prognum" "const rpcvers_t versnum" "const struct netconfig *netconf"
+.Ft "CLIENT *"
+.Fn clnt_tp_create_timed "const char * host" "const rpcprog_t prognum" "const rpcvers_t versnum" "const struct netconfig *netconf" "const struct timeval *timeout"
+.Ft "CLIENT *"
+.Fn clnt_vc_create "const int fildes" "const struct netbuf *svcaddr" "const rpcprog_t prognum" "const rpcvers_t versnum" "u_int sendsz" "u_int recvsz"
+.Sh DESCRIPTION
+RPC library routines allow C language programs to make procedure
+calls on other machines across the network.
+First a
+.Vt CLIENT
+handle is created and then the client calls a procedure to send a
+request to the server.
+On receipt of the request, the server calls a dispatch routine
+to perform the requested service, and then sends a reply.
+.Sh Routines
+.Bl -tag -width YYYYYYY
+.It Fn clnt_control
+A function macro to change or retrieve various information
+about a client object.
+The
+.Fa req
+argument
+indicates the type of operation, and
+.Fa info
+is a pointer to the information.
+For both connectionless and connection-oriented transports,
+the supported values of
+.Fa req
+and their argument types and what they do are:
+.Bl -column "CLSET_FD_NCLOSE" "struct timeval *" "set total timeout"
+.It Dv CLSET_TIMEOUT Ta "struct timeval *" Ta "set total timeout"
+.It Dv CLGET_TIMEOUT Ta "struct timeval *" Ta "get total timeout"
+.El
+.Pp
+Note:
+if you set the timeout using
+.Fn clnt_control ,
+the timeout argument passed by
+.Fn clnt_call
+is ignored in all subsequent calls.
+.Pp
+Note:
+If you set the timeout value to 0,
+.Fn clnt_control
+immediately returns an error
+.Pq Dv RPC_TIMEDOUT .
+Set the timeout argument to 0 for batching calls.
+.Bl -column CLSET_FD_NCLOSE "struct timeval *"
+.It Dv CLGET_SVC_ADDR Ta "struct netbuf *" Ta "get servers address"
+.It Dv CLGET_FD Ta "int *" Ta "get fd from handle"
+.It Dv CLSET_FD_CLOSE Ta "void" Ta "close fd on destroy"
+.It Dv CLSET_FD_NCLOSE Ta void Ta "do not close fd on destroy"
+.It Dv CLGET_VERS Ta "uint32_t *" Ta "get RPC program version"
+.It Dv CLSET_VERS Ta "uint32_t *" Ta "set RPC program version"
+.It Dv CLGET_XID Ta "uint32_t *" Ta "get XID of previous call"
+.It Dv CLSET_XID Ta "uint32_t *" Ta "set XID of next call"
+.El
+.Pp
+The following operations are valid for connectionless transports only:
+.Bl -column CLSET_RETRY_TIMEOUT "struct timeval *" "set total timeout"
+.It Dv CLSET_RETRY_TIMEOUT Ta "struct timeval *" Ta "set the retry timeout"
+.It Dv CLGET_RETRY_TIMEOUT Ta "struct timeval *" Ta "get the retry timeout"
+.It Dv CLSET_CONNECT Ta Vt "int *" Ta use Xr connect 2
+.El
+.Pp
+The retry timeout is the time that RPC
+waits for the server to reply before retransmitting the request.
+The
+.Fn clnt_control
+function
+returns
+.Dv TRUE
+on success and
+.Dv FALSE
+on failure.
+.It Fn clnt_create
+Generic client creation routine for program
+.Fa prognum
+and version
+.Fa versnum .
+The
+.Fa host
+argument
+identifies the name of the remote host where the server
+is located.
+The
+.Fa nettype
+argument
+indicates the class of transport protocol to use.
+The transports are tried in left to right order in
+.Ev NETPATH
+environment variable or in top to bottom order in
+the netconfig database.
+The
+.Fn clnt_create
+function
+tries all the transports of the
+.Fa nettype
+class available from the
+.Ev NETPATH
+environment variable and the netconfig database,
+and chooses the first successful one.
+A default timeout is set and can be modified using
+.Fn clnt_control .
+This routine returns
+.Dv NULL
+if it fails.
+The
+.Fn clnt_pcreateerror
+routine can be used to print the reason for failure.
+.Pp
+Note:
+.Fn clnt_create
+returns a valid client handle even
+if the particular version number supplied to
+.Fn clnt_create
+is not registered with the
+.Xr rpcbind 8
+service.
+This mismatch will be discovered by a
+.Fn clnt_call
+later (see
+.Xr rpc_clnt_calls 3 ) .
+.It Fn clnt_create_timed
+Generic client creation routine which is similar to
+.Fn clnt_create
+but which also has the additional argument
+.Fa timeout
+that specifies the maximum amount of time allowed for
+each transport class tried.
+In all other respects, the
+.Fn clnt_create_timed
+call behaves exactly like the
+.Fn clnt_create
+call.
+.It Fn clnt_create_vers
+Generic client creation routine which is similar to
+.Fn clnt_create
+but which also checks for the
+version availability.
+The
+.Fa host
+argument
+identifies the name of the remote host where the server
+is located.
+The
+.Fa nettype
+argument
+indicates the class transport protocols to be used.
+If the routine is successful it returns a client handle created for
+the highest version between
+.Fa vers_low
+and
+.Fa vers_high
+that is supported by the server.
+The
+.Fa vers_outp
+argument
+is set to this value.
+That is, after a successful return
+.Fa vers_low
+<=
+.Fa *vers_outp
+<=
+.Fa vers_high .
+If no version between
+.Fa vers_low
+and
+.Fa vers_high
+is supported by the server then the routine fails and returns
+.Dv NULL .
+A default timeout is set and can be modified using
+.Fn clnt_control .
+This routine returns
+.Dv NULL
+if it fails.
+The
+.Fn clnt_pcreateerror
+routine can be used to print the reason for failure.
+Note:
+.Fn clnt_create
+returns a valid client handle even
+if the particular version number supplied to
+.Fn clnt_create
+is not registered with the
+.Xr rpcbind 8
+service.
+This mismatch will be discovered by a
+.Fn clnt_call
+later (see
+.Xr rpc_clnt_calls 3 ) .
+However,
+.Fn clnt_create_vers
+does this for you and returns a valid handle
+only if a version within
+the range supplied is supported by the server.
+.It Fn clnt_create_vers_timed
+Generic client creation routine which is similar to
+.Fn clnt_create_vers
+but which also has the additional argument
+.Fa timeout
+that specifies the maximum amount of time allowed for
+each transport class tried.
+In all other respects, the
+.Fn clnt_create_vers_timed
+call behaves exactly like the
+.Fn clnt_create_vers
+call.
+.It Fn clnt_destroy
+A function macro that destroys the client's RPC handle.
+Destruction usually involves deallocation
+of private data structures, including
+.Fa clnt
+itself.
+Use of
+.Fa clnt
+is undefined after calling
+.Fn clnt_destroy .
+If the RPC library opened the associated file descriptor, or
+.Dv CLSET_FD_CLOSE
+was set using
+.Fn clnt_control ,
+the file descriptor will be closed.
+The caller should call
+.Fn auth_destroy "clnt->cl_auth"
+(before calling
+.Fn clnt_destroy )
+to destroy the associated
+.Vt AUTH
+structure (see
+.Xr rpc_clnt_auth 3 ) .
+.It Fn clnt_dg_create
+This routine creates an RPC client for the remote program
+.Fa prognum
+and version
+.Fa versnum ;
+the client uses a connectionless transport.
+The remote program is located at address
+.Fa svcaddr .
+The
+.Fa fildes
+argument
+is an open and bound file descriptor.
+This routine will resend the call message in intervals of
+15 seconds until a response is received or until the
+call times out.
+The total time for the call to time out is specified by
+.Fn clnt_call
+(see
+.Fn clnt_call
+in
+.Xr rpc_clnt_calls 3 ) .
+The retry time out and the total time out periods can
+be changed using
+.Fn clnt_control .
+The user may set the size of the send and receive
+buffers with the
+.Fa sendsz
+and
+.Fa recvsz
+arguments;
+values of 0 choose suitable defaults.
+This routine returns
+.Dv NULL
+if it fails.
+.It Fn clnt_pcreateerror
+Print a message to standard error indicating
+why a client RPC handle could not be created.
+The message is prepended with the string
+.Fa s
+and a colon, and appended with a newline.
+.It Fn clnt_spcreateerror
+Like
+.Fn clnt_pcreateerror ,
+except that it returns a string
+instead of printing to the standard error.
+A newline is not appended to the message in this case.
+Warning:
+returns a pointer to a buffer that is overwritten
+on each call.
+.It Fn clnt_raw_create
+This routine creates an RPC
+client handle for the remote program
+.Fa prognum
+and version
+.Fa versnum .
+The transport used to pass messages to the service is
+a buffer within the process's address space,
+so the corresponding RPC
+server should live in the same address space;
+(see
+.Fn svc_raw_create
+in
+.Xr rpc_svc_create 3 ) .
+This allows simulation of RPC and measurement of
+RPC overheads, such as round trip times,
+without any kernel or networking interference.
+This routine returns
+.Dv NULL
+if it fails.
+The
+.Fn clnt_raw_create
+function
+should be called after
+.Fn svc_raw_create .
+.It Fn clnt_tli_create
+This routine creates an RPC
+client handle for the remote program
+.Fa prognum
+and version
+.Fa versnum .
+The remote program is located at address
+.Fa svcaddr .
+If
+.Fa svcaddr
+is
+.Dv NULL
+and it is connection-oriented, it is assumed that the file descriptor
+is connected.
+For connectionless transports, if
+.Fa svcaddr
+is
+.Dv NULL ,
+.Dv RPC_UNKNOWNADDR
+error is set.
+The
+.Fa fildes
+argument
+is a file descriptor which may be open, bound and connected.
+If it is
+.Dv RPC_ANYFD ,
+it opens a file descriptor on the transport specified by
+.Fa netconf .
+If
+.Fa fildes
+is
+.Dv RPC_ANYFD
+and
+.Fa netconf
+is
+.Dv NULL ,
+a
+.Dv RPC_UNKNOWNPROTO
+error is set.
+If
+.Fa fildes
+is unbound, then it will attempt to bind the descriptor.
+The user may specify the size of the buffers with the
+.Fa sendsz
+and
+.Fa recvsz
+arguments;
+values of 0 choose suitable defaults.
+Depending upon the type of the transport (connection-oriented
+or connectionless),
+.Fn clnt_tli_create
+calls appropriate client creation routines.
+This routine returns
+.Dv NULL
+if it fails.
+The
+.Fn clnt_pcreateerror
+routine can be used to print the reason for failure.
+The remote rpcbind
+service (see
+.Xr rpcbind 8 )
+is not consulted for the address of the remote
+service.
+.It Fn clnt_tp_create
+Like
+.Fn clnt_create
+except
+.Fn clnt_tp_create
+tries only one transport specified through
+.Fa netconf .
+The
+.Fn clnt_tp_create
+function
+creates a client handle for the program
+.Fa prognum ,
+the version
+.Fa versnum ,
+and for the transport specified by
+.Fa netconf .
+Default options are set,
+which can be changed using
+.Fn clnt_control
+calls.
+The remote rpcbind service on the host
+.Fa host
+is consulted for the address of the remote service.
+This routine returns
+.Dv NULL
+if it fails.
+The
+.Fn clnt_pcreateerror
+routine can be used to print the reason for failure.
+.It Fn clnt_tp_create_timed
+Like
+.Fn clnt_tp_create
+except
+.Fn clnt_tp_create_timed
+has the extra argument
+.Fa timeout
+which specifies the maximum time allowed for
+the creation attempt to succeed.
+In all other respects, the
+.Fn clnt_tp_create_timed
+call behaves exactly like the
+.Fn clnt_tp_create
+call.
+.It Fn clnt_vc_create
+This routine creates an RPC
+client for the remote program
+.Fa prognum
+and version
+.Fa versnum ;
+the client uses a connection-oriented transport.
+The remote program is located at address
+.Fa svcaddr .
+The
+.Fa fildes
+argument
+is an open and bound file descriptor.
+The user may specify the size of the send and receive buffers
+with the
+.Fa sendsz
+and
+.Fa recvsz
+arguments;
+values of 0 choose suitable defaults.
+This routine returns
+.Dv NULL
+if it fails.
+The address
+.Fa svcaddr
+should not be
+.Dv NULL
+and should point to the actual address of the remote program.
+The
+.Fn clnt_vc_create
+function
+does not consult the remote rpcbind service for this information.
+.It Xo
+.Vt "struct rpc_createerr" Va rpc_createerr ;
+.Xc
+A global variable whose value is set by any RPC
+client handle creation routine
+that fails.
+It is used by the routine
+.Fn clnt_pcreateerror
+to print the reason for the failure.
+.El
+.Sh SEE ALSO
+.Xr rpc 3 ,
+.Xr rpc_clnt_auth 3 ,
+.Xr rpc_clnt_calls 3 ,
+.Xr rpcbind 8

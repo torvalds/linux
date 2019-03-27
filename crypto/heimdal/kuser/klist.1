@@ -1,0 +1,135 @@
+.\" Copyright (c) 2000 - 2005 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd October  6, 2005
+.Dt KLIST 1
+.Os HEIMDAL
+.Sh NAME
+.Nm klist
+.Nd list Kerberos credentials
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Oo Fl c Ar cache \*(Ba Xo
+.Fl Fl cache= Ns Ar cache
+.Xc
+.Oc
+.Op Fl s | Fl t | Fl Fl test
+.Op Fl T | Fl Fl tokens
+.Op Fl 5 | Fl Fl v5
+.Op Fl v | Fl Fl verbose
+.Op Fl l | Fl Fl list-caches
+.Op Fl f
+.Op Fl Fl version
+.Op Fl Fl help
+.Ek
+.Sh DESCRIPTION
+.Nm
+reads and displays the current tickets in the credential cache (also
+known as the ticket file).
+.Pp
+Options supported:
+.Bl -tag -width Ds
+.It Fl c Ar cache , Fl Fl cache= Ns Ar cache
+credential cache to list
+.It Fl s , Fl t , Fl Fl test
+Test for there being an active and valid TGT for the local realm of
+the user in the credential cache.
+.It Fl T , Fl Fl tokens
+display AFS tokens
+.It Fl 5 , Fl Fl v5
+display v5 cred cache (this is the default)
+.It Fl f
+Include ticket flags in short form, each character stands for a
+specific flag, as follows:
+.Bl -tag -width  XXX -compact -offset indent
+.It F
+forwardable
+.It f
+forwarded
+.It P
+proxiable
+.It p
+proxied
+.It D
+postdate-able
+.It d
+postdated
+.It R
+renewable
+.It I
+initial
+.It i
+invalid
+.It A
+pre-authenticated
+.It H
+hardware authenticated
+.El
+.Pp
+This information is also output with the
+.Fl Fl verbose
+option, but in a more verbose way.
+.It Fl v , Fl Fl verbose
+Verbose output. Include all possible information:
+.Bl -tag -width XXXX -offset indent
+.It Server
+the principal the ticket is for
+.It Ticket etype
+the encryption type used in the ticket, followed by the key version of
+the ticket, if it is available
+.It Session key
+the encryption type of the session key, if it's different from the
+encryption type of the ticket
+.It Auth time
+the time the authentication exchange took place
+.It Start time
+the time that this ticket is valid from (only printed if it's
+different from the auth time)
+.It End time
+when the ticket expires, if it has already expired this is also noted
+.It Renew till
+the maximum possible end time of any ticket derived from this one
+.It Ticket flags
+the flags set on the ticket
+.It Addresses
+the set of addresses from which this ticket is valid
+.El
+.It Fl l , Fl Fl list-caches
+List the credential caches for the current users, not all cache types
+supports listing multiple caches.
+.Pp
+.El
+.Sh SEE ALSO
+.Xr kdestroy 1 ,
+.Xr kinit 1

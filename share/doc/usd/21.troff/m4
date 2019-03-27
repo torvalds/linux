@@ -1,0 +1,416 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)m4	8.1 (Berkeley) 8/14/93
+.\"
+.\" $FreeBSD$
+.tr |
+.mh
+Hyphenation.
+.pg
+The automatic hyphenation may be switched off and on.
+When switched on with \fBhy\fR,
+several variants may be set.
+A \fIhyphenation indicator\fR character may be imbedded in a word to
+specify desired hyphenation points,
+or may be prepended to suppress hyphenation.
+In addition,
+the user may specify a small exception word list.
+.pg
+Only words that consist of a central alphabetic string
+surrounded by (usually null) non-alphabetic strings
+are considered candidates for automatic hyphenation.
+Words that were input containing hyphens
+(minus),
+em-dashes (\fB\e(em\fR),
+or hyphenation indicator characters\
+\(emsuch as mother-in-law\(em\
+are \fIalways\fR subject to splitting after those characters,
+whether or not automatic hyphenation is on or off.
+.h1
+.bt
+\fB&nh\fR	hyphenate	-	E	\
+Automatic hyphenation is turned off.
+.bt
+\fB&hy\fIN\fR	on,\fIN=\fR1	on,\fIN=\fR1	E	\
+Automatic hyphenation is turned on
+for \fIN\fR\|\(>=1, or off for \fIN=\fR\|0.
+If \fIN=\fR\|2, \fIlast\fR lines (ones that will cause a trap)
+are not hyphenated.
+For \fIN=\fR\|4 and 8, the last and first two characters
+respectively of a word are not split off.
+These values are additive;
+i.|e. \fIN=\fR\|14 will invoke all three restrictions.
+.bt
+\fB&hc\fI|c\fR	\fB\e%	\e%\fR	E	Hyphenation indicator character is set
+to \fIc\fR or to the default \fB\e%\fR.
+The indicator does not appear in the output.
+.bt
+\fB&hw\fI|word1|...\fR		ignored	-	Specify hyphenation points in words
+with imbedded minus signs.
+Versions of a word with terminal \fIs\fR are implied;
+i.|e. \fIdig\-it\fR implies \fIdig\-its\fR.
+This list is examined initially \fIand\fR after
+each suffix stripping.
+The space available is small\(emabout 128 characters.
+.mh
+Three Part Titles.
+.pg
+The titling function \fBtl\fR provides for automatic placement
+of three fields at the left, center, and right of a line
+with a title-length
+specifiable with \fBlt\fR.
+\fBtl\fR may be used anywhere, and is independent of the
+normal text collecting process.
+A common use is in header and footer macros.
+.h1
+.bt
+\fB&tl\fI|\'left\|\'center\|\'right\|\'\fR	-	-	\
+The strings \fIleft\fR, \fIcenter\fR, and \fIright\fR are
+respectively left-adjusted, centered, and right-adjusted
+in the current title-length.
+Any of the strings may be empty,
+and overlapping is permitted.
+If the page-number character (initially \fB%\fR) is found within any of the fields it is replaced
+by the current page number having the format assigned to register \fB%\fR.
+Any character may be used as the string delimiter.
+.bt
+\fB&pc\fI|c\fR	\fB%\fR	off	-	The page number character is set to \fIc\fR,
+or removed.
+The page-number register remains \fB%\fR.
+.bt
+\fB&lt\fI|\(+-N\fR	6.5\|in	previous	E,\fBm\fR	Length of title set to \fI\(+-N\fR.
+The line-length and the title-length are \fIindependent\fR.
+Indents do not apply to titles; page-offsets do.
+.mh
+Output Line Numbering.
+.pg
+.ll -\w'0000'u
+.nm 1 3
+Automatic sequence numbering of output lines may be
+requested with \fBnm\fR.
+When in effect,
+a three-digit, arabic number plus a digit-space
+is prepended to output text lines.
+The text lines are thus offset by four digit-spaces,
+and otherwise retain their line length;
+a reduction in line length may be desired to keep the right margin
+aligned with an earlier margin.
+Blank lines, other vertical spaces, and lines generated by \fBtl\fR
+are \fInot\fR numbered.
+Numbering can be temporarily suspended with \fBnn\fR,
+or with an \fB.nm\fR followed by a later \fB.nm|+0\fR.
+In addition,
+a line number indent \fII\fR, and the number-text separation \fIS\fR
+may be specified in digit-spaces.
+Further, it can be specified that only those line numbers that are
+multiples of some number \fIM\fR are to be printed (the others will appear
+as blank number fields).
+.br
+.nm
+.ll
+.h1
+.bt
+\fB&nm\fI|\(+-N|M|S|I\fR		off	E	\
+Line number mode.
+If \fI\(+-N\fR is given,
+line numbering is turned on,
+and the next output line numbered is numbered \fI\(+-N\fR.
+Default values are \fIM=\fR\|1, \fIS=\fR\|1, and \fII=\fR\|0.
+Parameters corresponding to missing arguments are unaffected;
+a non-numeric argument is considered missing.
+In the absence of all arguments, numbering is turned off;
+the next line number is preserved for possible further use
+in number register \fBln\fR.
+.bt
+\fB&nn\fI|N\fR	-	\fIN=\fR1	E	The next \fIN\fR text output lines are not
+numbered.
+.pg
+.ll -\w'0000'u
+.nm +0
+As an example, the paragraph portions of this section
+are numbered with \fIM=\fR\|3:
+\&\fB.nm|1|3\fR was placed at the beginning;
+\&\fB.nm\fR was placed at the end of the first paragraph;
+and \fB.nm|+0\fR was placed in front of this paragraph;
+and \fB.nm\fR finally placed at the end.
+Line lengths were also changed (by \fB\ew\'0000\'u\fR) to keep the right side aligned.
+Another example is
+\&\fB.nm|+5|5|x|3\fR which turns on numbering with the line number of the next
+line to be five greater than the last numbered line,
+with \fIM=\fR\|5, with spacing \fIS\fR untouched, and with the indent \fII\fR set to 3.
+.br
+.ll
+.nm
+.mh
+Conditional Acceptance of Input
+.pg
+In the following,
+\fIc\fR is a one-character, built-in \fIcondition\fR name,
+\fB!\fR signifies \fInot\fR,
+\fIN\fR is a numerical expression,
+\fIstring1\fR and \fIstring2\fR are strings delimited by any non-blank, non-numeric character \fInot\fR in the strings,
+and
+\fIanything\fR represents what is conditionally accepted.
+.h1
+.bt
+\fB&if\fI|c|anything\fR		-	-	If condition \fIc\fR true, accept \fIanything\fR as input;
+in multi-line case use \fI\e{anything\|\e}\fR.
+.bt
+\fB&if|!\fIc|anything\fR		-	-	If condition \fIc\fR false, accept \fIanything\fR.
+.bt
+\fB&if\fI|N|anything\fR		-	\fBu\fR	If expression \fIN\fR > 0, accept \fIanything\fR.
+.bt
+\fB&if|!\fIN|anything\fR	-	\fBu\fR	If expression \fIN\fR \(<= 0, accept \fIanything\fR.
+.bt
+\fB&if\fI|\|\'string1\|\'string2\|\'|anything\fR	-	If \fIstring1\fR identical to \fIstring2\fR,
+accept \fIanything\fR.
+.bt
+\fB&if|!\fI\|\'string1\|\'string2\|\'|anything\fR	-	If \fIstring1\fR not identical to \fIstring2\fR,
+accept \fIanything\fR.
+.bt
+\fB&ie\fI|c|anything\fR		-	\fBu\fR	If portion of if-else; all above forms (like \fBif\fR).
+.bt
+\fB&el\fI|anything\fR		-	-	Else portion of if-else.
+.pg
+The built-in condition names are:
+.TS
+center box;
+c2|c
+c2|c
+c2|l.
+Condition
+Name	True If
+_
+\fBo\fR	Current page number is odd
+\fBe\fR	Current page number is even
+\fBt\fR	Formatter is \*(TR
+\fBn\fR	Formatter is \*(NR
+.TE
+If the condition \fIc\fR is \fItrue\fR, or if the number \fIN\fR is greater than zero,
+or if the strings compare identically (including motions and character size and font),
+\fIanything\fR is accepted as input.
+If a \fB!\fR precedes the condition, number, or string comparison,
+the sense of the acceptance is reversed.
+.pg
+Any spaces between the condition and the beginning of \fIanything\fR are skipped over.
+The \fIanything\fR can be either a single input line (text, macro, or whatever)
+or a number of input lines.
+In the multi-line case,
+the first line must begin with a left delimiter \fB\e{\fR and
+the last line must end with a right delimiter \fB\e}\fR.
+.pg
+The request \fBie\fR (if-else) is identical to \fBif\fR
+except that the acceptance state is remembered.
+A subsequent and matching \fBel\fR (else) request then uses the reverse sense of that state.
+\fBie\fR|-|\fBel\fR pairs may be nested.
+.pg
+Some examples are:
+.x1
+.ft B
+.ne 1
+&if e .tl \'\|Even Page %\'\'\'
+.ft R
+.x2
+which outputs a title if the page number is even; and
+.x1
+.ft B
+.ne 3.1
+&ie \en%>1 \e{\e
+\&\'sp 0.5i
+&tl \'\|Page %\'\'\'
+\&\'sp ~\|1.2i|\e}
+&el .sp ~\|2.5i
+.ft R
+.x2
+which treats page 1 differently from other pages.
+.mh
+Environment Switching.
+.pg
+A number of the parameters that
+control the text processing are gathered together into an
+\fIenvironment\fR, which can be switched by the user.
+The environment parameters are those associated
+with requests noting E in their \fINotes\fR column;
+in addition, partially collected lines and words are in the environment.
+Everything else is global; examples are page-oriented parameters,
+diversion-oriented parameters, number registers, and macro and string definitions.
+All environments are initialized with default parameter values.
+.h1
+.bt
+\fB&ev\fI|N\fR	\fIN\(eq\fR0	previous	-	Environment switched to
+environment 0\(<=\fIN\fR\(<=2.
+Switching is done in push-down fashion so that
+restoring a previous environment \fImust\fR be done with \fB.ev\fR
+rather than specific reference.
+.mh
+Insertions from the Standard Input
+.pg
+The input can be temporarily switched to the system \fIstandard input\fR
+with \fBrd\fR,
+which will switch back when \fItwo\fR newlines
+in a row are found (the \fIextra\fR blank line is not used).
+This mechanism is intended for insertions in form-letter-like documentation.
+On \s-1UNIX\s+1, the \fIstandard input\fR can be the user's keyboard,
+a \fIpipe\fR, or a \fIfile\fR.
+.h1
+.bt
+\fB&rd\fI|prompt\fR	-	\fIprompt=\fR\s-1BEL\s+1		\
+Read insertion from the standard input until two newlines in a row are found.
+If the standard input is the user's keyboard, \fIprompt\fR (or a \s-1BEL\s+1)
+is written onto the user's terminal.
+\fBrd\fR behaves like a macro,
+and arguments may be placed after \fIprompt\fR.
+.bt
+\fB&ex\fR	-	-	-	Exit from \*(NR\(sl\*(TR.
+Text processing is terminated exactly as if all input had ended.
+.pg
+If insertions are to be
+taken from the terminal keyboard \fIwhile\fR output is being printed
+on the terminal, the command line option \fB\-q\fR will turn off the echoing
+of keyboard input and prompt only with \s-1BEL\s+1.
+The regular input and insertion input \fIcannot\fR
+simultaneously come from the standard input.
+.pg
+As an example,
+multiple copies of a form letter may be prepared by entering the insertions
+for all the copies in one file to be used as the standard input,
+and causing the file containing the letter to reinvoke itself using \fBnx\fR (\(sc19);
+the process would ultimately be ended by an \fBex\fR in the insertion file.
+.mh
+Input\(slOutput File Switching
+.pg
+The (read-only) number register \fB.c\fR contains the input line number in
+the current input file.  The number register \fBc.\fR is a general register
+serving the same purpose.
+.h1
+.bt
+\fB&so\fI|filename\fR		-	-	Switch source file.
+The top input (file reading) level is switched to \fIfilename\fR.
+The effect of an \fBso\fR encountered in a macro
+occurs immediately.
+When the new file ends,
+input is again taken from the original file.
+\fBso\fR's may be nested.
+.bt
+\fB&nx\fI|filename\fR		end-of-file	-	Next file is \fIfilename\fR.
+The current file is considered ended, and the input is immediately switched
+to \fIfilename\fR.
+.bt
+\fB&pi\fI|program\fR		-	-	Pipe output to \fIprogram\fR (\*(NR only).
+This request must occur \fIbefore\fR any printing occurs.
+No arguments are transmitted to \fIprogram\fR.
+.mh
+Miscellaneous
+.pg
+.h1
+.bt
+.mc \s12\(br\s0
+\fB&mc\fI|c|N\fR	-	off	E,\fBm\fR	\
+Specifies that a \fImargin\fR character \fIc\fR appear a distance
+\fIN\fR to the right of the right margin
+after each non-empty text line (except those produced by \fBtl\fR).
+If the output line is too-long (as can happen in nofill mode)
+the character will be appended to the line.
+If \fIN\fR is not given, the previous \fIN\fR is used; the initial \fIN\fR is
+0.2|inches in \*(NR and 1\|em in \*(TR.
+The margin character used with this paragraph was a 12-point box-rule.
+.br
+.mc
+.bt
+\fB&tm\fI|string\fR	-	newline	-	\
+After skipping initial blanks, \fIstring\fR (rest of the line) is read in \fIcopy mode\fR
+and written on the user's terminal. (see \(sc21).
+.bt
+\fB&ig\fI|yy\fR	-	\fI.yy=\fB..\fR	-	Ignore \
+input lines.
+\fBig\fR behaves exactly like \fBde\fR (\(sc7) except that the
+input is discarded.
+The input is read in \fIcopy mode\fR, and any auto-incremented
+registers will be affected.
+.bt
+\fB&pm\fI|t\fR	-	all	-	\
+Print macros.
+The names and sizes of all of the defined macros and strings are printed
+on the user's terminal;
+if \fIt\fR is given, only the total of the sizes is printed.
+The sizes is given in \fIblocks\fR
+of 128 characters.
+.bt
+\fB&ab\fI|string\fR	-	-	-	\
+Print \fIstring\fR on standard error and terminate immediately.  The
+default \fIstring\fR is "User Abort". Does not cause a break.  Only output
+preceding the last break is written.
+.bt
+.lg 0
+\fB&fl\fR	-	-	B	\c
+.lg
+Flush output buffer.
+Used in interactive debugging to force output.
+.mh
+Output and Error Messages.
+.pg
+The output from \fBtm\fR, \fBpm\fR, \fBab\fR and the prompt from \fBrd\fR,
+as well as various \fIerror\fR messages are written onto
+\s-1UNIX\s+1's \fIstandard error\fR output.
+The latter is different from the \fIstandard output\fR,
+where \*(NR formatted output goes.
+By default, both are written onto the user's terminal,
+but they can be independently redirected.
+.pg
+Various \fIerror\fR conditions may occur during
+the operation of \*(NR and \*(TR.
+Certain less serious errors having only local impact do not
+cause processing to terminate.
+Two examples are \fIword overflow\fR, caused by a word that is too large
+to fit into the word buffer (in fill mode), and
+\fIline overflow\fR, caused by an output line that grew too large
+to fit in the line buffer;
+in both cases, a message is printed, the offending excess
+is discarded,
+and the affected word or line is marked at the point of truncation
+with a \(** in \*(NR and a \(lh in \*(TR.
+The philosophy is to continue processing, if possible,
+on the grounds that output useful for debugging may be produced.
+If a serious error occurs, processing terminates,
+and an appropriate message is printed.
+Examples are the inability to create, read, or write files,
+and the exceeding of certain internal limits that
+make future output unlikely to be useful.
+.ps 10
+.vs 12
+.ft R
+.bp

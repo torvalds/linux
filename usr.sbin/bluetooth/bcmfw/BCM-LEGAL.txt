@@ -1,0 +1,8 @@
+$FreeBSD$
+
+BCM firmware version 2.15
+Copyright (c) 2000-2002 Broadcom Corporation
+
+Permission to distribute from..
+Contact info:
+        bluetooth_help@broadcom.com

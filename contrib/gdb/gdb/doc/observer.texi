@@ -1,0 +1,70 @@
+@c -*-texinfo-*-
+@node GDB Observers
+@appendix @value{GDBN} Currently available observers
+
+@section Implementation rationale
+@cindex observers implementation rationale
+
+An @dfn{observer} is an entity which is interested in being notified
+when GDB reaches certain states, or certain events occur in GDB.
+The entity being observed is called the @dfn{subject}.  To receive
+notifications, the observer attaches a callback to the subject.
+One subject can have several observers.
+
+@file{observer.c} implements an internal generic low-level event
+notification mechanism.  This generic event notification mechanism is
+then re-used to implement the exported high-level notification
+management routines for all possible notifications.
+
+The current implementation of the generic observer provides support
+for contextual data.  This contextual data is given to the subject
+when attaching the callback.  In return, the subject will provide
+this contextual data back to the observer as a parameter of the
+callback.
+
+Note that the current support for the contextual data is only partial,
+as it lacks a mechanism that would deallocate this data when the
+callback is detached.  This is not a problem so far, as this contextual
+data is only used internally to hold a function pointer.  Later on, if
+a certain observer needs to provide support for user-level contextual
+data, then the generic notification mechanism will need to be
+enhanced to allow the observer to provide a routine to deallocate the
+data when attaching the callback.
+
+The observer implementation is also currently not reentrant.
+In particular, it is therefore not possible to call the attach
+or detach routines during a notification.
+
+@section @code{normal_stop} Notifications
+@cindex @code{normal_stop} observer
+@cindex notification about inferior execution stop
+
+@value{GDBN} notifies all @code{normal_stop} observers when the
+inferior execution has just stopped, the associated messages and
+annotations have been printed, and the control is about to be returned
+to the user. 
+
+Note that the @code{normal_stop} notification is not emitted when
+the execution stops due to a breakpoint, and this breakpoint has
+a condition that is not met.  If the breakpoint has any associated
+commands list, the commands are executed after the notification
+is emitted.
+
+The following interface is available to manage @code{normal_stop}
+observers:
+
+@deftypefun extern struct observer *observer_attach_normal_stop (observer_normal_stop_ftype *@var{f})
+Attach the given @code{normal_stop} callback function @var{f} and
+return the associated observer.
+@end deftypefun
+
+@deftypefun extern void observer_detach_normal_stop (struct observer *@var{observer});
+Remove @var{observer} from the list of observers to be notified when
+a @code{normal_stop} event occurs.
+@end deftypefun
+
+@deftypefun extern void observer_notify_normal_stop (void);
+Send a notification to all @code{normal_stop} observers.
+@end deftypefun
+
+

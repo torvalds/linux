@@ -1,0 +1,121 @@
+.\" Copyright (c) 2005 Gleb Smirnoff <glebius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 4, 2017
+.Dt UNR 9
+.Os
+.Sh NAME
+.Nm new_unrhdr ,
+.Nm clear_unrhdr ,
+.Nm delete_unrhdr ,
+.Nm alloc_unr ,
+.Nm alloc_unr_specific ,
+.Nm free_unr
+.Nd "kernel unit number allocator"
+.Sh SYNOPSIS
+.In sys/systm.h
+.Ft "struct unrhdr *"
+.Fn new_unrhdr "int low" "int high" "struct mtx *mutex"
+.Ft void
+.Fn clear_unrhdr "struct unrhdr *uh"
+.Ft void
+.Fn delete_unrhdr "struct unrhdr *uh"
+.Ft int
+.Fn alloc_unr "struct unrhdr *uh"
+.Ft int
+.Fn alloc_unrl "struct unrhdr *uh"
+.Ft int
+.Fn alloc_unr_specific "struct unrhdr *uh" "u_int item"
+.Ft void
+.Fn free_unr "struct unrhdr *uh" "u_int item"
+.Sh DESCRIPTION
+The kernel unit number allocator is a generic facility, which allows to allocate
+unit numbers within a specified range.
+.Bl -tag -width indent
+.It Fn new_unrhdr low high mutex
+Initialize a new unit number allocator entity.
+The
+.Fa low
+and
+.Fa high
+arguments
+specify minimum and maximum number of unit numbers.
+There is no cost associated with the range of unit numbers, so unless the resource
+really is finite,
+.Dv INT_MAX
+can be used.
+If
+.Fa mutex
+is not
+.Dv NULL ,
+it is used for locking when allocating and freeing units.
+Otherwise, internal mutex is used.
+.It Fn clear_unrhdr uh
+Clear all units from the specified unit number allocator entity.
+This function resets the entity as if it were just initialized with
+.Fn new_unrhdr .
+.It Fn delete_unrhdr uh
+Delete specified unit number allocator entity.
+This function frees the memory associated with the entity, it does not free
+any units.
+To free all units use
+.Fn clear_unrhdr .
+.It Fn alloc_unr uh
+Return a new unit number.
+The lowest free number is always allocated.
+This function does not allocate memory and never sleeps, however it may
+block on a mutex.
+If no free unit numbers are left,
+.Li \-1
+is returned.
+.It Fn alloc_unrl uh
+Same as
+.Fn alloc_unr
+except that mutex is assumed to be already locked and thus is not used.
+.It Fn alloc_unr_specific uh item
+Allocate a specific unit number.
+This function allocates memory and thus may sleep.
+The allocated unit number is returned on success.
+If the specified number is already allocated or out of the range,
+.Li \-1
+is returned.
+.It Fn free_unr uh item
+Free a previously allocated unit number.
+This function may require allocating memory, and thus it can sleep.
+There is no pre-locked variant.
+.El
+.Sh CODE REFERENCES
+The above functions are implemented in
+.Pa sys/kern/subr_unit.c .
+.Sh HISTORY
+Kernel unit number allocator first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+.An -nosplit
+Kernel unit number allocator was written by
+.An Poul-Henning Kamp .
+This manpage was written by
+.An Gleb Smirnoff .

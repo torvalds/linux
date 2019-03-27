@@ -1,0 +1,16 @@
+/*
+ * $FreeBSD$
+ */
+
+/*
+ * libregex uses a different version name because its symbols are not strictly
+ * compatible with those provided by libc. Re-using the version name from libc
+ * could cause linking headaches and make debugging more difficult than it needs
+ * to be.
+ */
+LIBREGEX_1.0 {
+	regcomp;
+	regerror;
+	regexec;
+	regfree;
+};

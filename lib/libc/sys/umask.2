@@ -1,0 +1,88 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)umask.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 4, 1993
+.Dt UMASK 2
+.Os
+.Sh NAME
+.Nm umask
+.Nd set file creation mode mask
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/stat.h
+.Ft mode_t
+.Fn umask "mode_t numask"
+.Sh DESCRIPTION
+The
+.Fn umask
+routine sets the process's file mode creation mask to
+.Fa numask
+and returns the previous value of the mask.
+The 9 low-order
+access permission
+bits of
+.Fa numask
+are used by system calls, including
+.Xr open 2 ,
+.Xr mkdir 2 ,
+and
+.Xr mkfifo 2 ,
+to turn off corresponding bits
+requested in file mode.
+(See
+.Xr chmod 2 ) .
+This clearing allows each user to restrict the default access
+to his files.
+.Pp
+The default mask value is S_IWGRP|S_IWOTH (022, write access for the
+owner only).
+Child processes inherit the mask of the calling process.
+.Sh RETURN VALUES
+The previous value of the file mode mask is returned by the call.
+.Sh ERRORS
+The
+.Fn umask
+system call is always successful.
+.Sh SEE ALSO
+.Xr chmod 2 ,
+.Xr mkfifo 2 ,
+.Xr mknod 2 ,
+.Xr open 2
+.Sh STANDARDS
+The
+.Fn umask
+system call is expected to conform to
+.St -p1003.1-90 .
+.Sh HISTORY
+The
+.Fn umask
+function appeared in
+.At v7 .

@@ -1,0 +1,113 @@
+# Brazilian Portuguese translation of Dialog.
+# Copyright (C) 2001 Thomas Dickey.
+# This file is distributed under the same license as the dialog package.
+# Frédéric L. W. Meunier <0@pervalidus.net>, 2001.
+# Flamarion Jorge <flamarilinux@yahoo.com.br>, 2009.
+#
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2011-01-16 17:57-0500\n"
+"PO-Revision-Date: 2009-01-06 23:48-0200\n"
+"Last-Translator: Flamarion Jorge <flamarilinux@yahoo.com.br>\n"
+"Language-Team: Brazilian Portuguese <ldp-br@bazar.conectiva.com.br>\n"
+"Language: pt_BR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: buttons.c:387
+msgid "Yes"
+msgstr "Sim"
+
+#: buttons.c:395
+msgid "No"
+msgstr "Não"
+
+#: buttons.c:403
+msgid "OK"
+msgstr "Aceitar"
+
+#: buttons.c:411
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: buttons.c:419
+msgid "EXIT"
+msgstr "Sair"
+
+#: buttons.c:427
+msgid "Extra"
+msgstr "Extra"
+
+#: buttons.c:435
+msgid "Help"
+msgstr "Ajuda"
+
+#. Headline "Month"
+#: calendar.c:298
+msgid "Month"
+msgstr "Mês"
+
+#. Headline "Year"
+#: calendar.c:318
+msgid "Year"
+msgstr "Ano"
+
+#: dialog.c:756
+msgid "Rename"
+msgstr "Renomear"
+
+#: fselect.c:571
+msgid "Directories"
+msgstr "Diretórios"
+
+#: fselect.c:572
+msgid "Files"
+msgstr "Arquivos"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Sucesso"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Falhou"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Passou"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Completo"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Checado"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Feito"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Pulado"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "Em Progresso"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "N/A"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Progresso Global"
+
+#: textbox.c:468
+msgid "Search"
+msgstr "Pesquisa"

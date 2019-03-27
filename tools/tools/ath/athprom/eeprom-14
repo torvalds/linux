@@ -1,0 +1,120 @@
+# $FreeBSD$
+#
+# v14 format EEPROM template (AR5416 and later 11n parts)
+#
+ |===================== Header Information ====================|
+ |  Major Version           $V_major  |  Minor Version           $V_minor  |
+ |-------------------------------------------------------------|
+ |  Checksum           $checksum   |  Length             $length   |
+ |  RegDomain 1        $regDmn0   |  RegDomain 2        $regDmn1   |
+ |  TX Mask            $txMask   |  RX Mask            $rxMask   |
+ |  rfSilent           $rfSilent   |  btOptions          $btOptions   |
+ |  deviceCap          $deviceCap   |                              |
+ |  MacAddress: $macaddr0:$macaddr1:$macaddr2:$macaddr3:$macaddr4:$macaddr5                              |
+ |  OpFlags: [$opCapFlags] 11A 1, 11G 1                               |
+ |  eepMisc: [$eepMisc] endian 0                                   |
+ |-------------------------------------------------------------|
+ |  Customer Data in hex                                       |
+ |= $custData0 $custData1 $custData2 $custData3 $custData4 $custData5 $custData6 $custData7 $custData8 $custData9 $custData10 $custData11 $custData12 $custData13 $custData14 $custData15           =|
+ |= $custData16 $custData17 $custData18 $custData19 $custData20 $custData21 $custData22 $custData23 $custData24 $custData25 $custData26 $custData27 $custData28 $custData29 $custData30 $custData31           =|
+ |= $custData32 $custData33 $custData34 $custData35 $custData36 $custData37 $custData38 $custData39 $custData40 $custData41 $custData42 $custData43 $custData44 $custData45 $custData46 $custData47           =|
+ |= $custData48 $custData49 $custData50 $custData51 $custData52 $custData53 $custData54 $custData55 $custData56 $custData57 $custData58 $custData59 $custData60 $custData61 $custData62 $custData63           =|
+ |=============================================================|
+
+.ifmode 11a
+ |=========== 5GHz Modal Header ===========|
+ |  Ant Chain 0                $antCtrlChain0  |
+ |  Ant Chain 1                $antCtrlChain1  |
+ |  Ant Chain 2                $antCtrlChain2  |
+ |  Ant Chain common           0x00001120  |
+ |  Antenna Gain Chain 0              $antGainCh0  |
+ |  Antenna Gain Chain 1              $antGainCh1  |
+ |  Antenna Gain Chain 2              $antGainCh2  |
+ |  Switch Settling                   $switchSettling  |
+ |  TxRxAttenuation Ch 0              $txRxAttenCh0  |
+ |  TxRxAttenuation Ch 1              $txRxAttenCh1  |
+ |  TxRxAttenuation Ch 2              $txRxAttenCh2  |
+ |  RxTxMargin Chain 0                $rxTxMarginCh0  |
+ |  RxTxMargin Chain 1                $rxTxMarginCh1  |
+ |  RxTxMargin Chain 2                $rxTxMarginCh2  |
+ |  adc desired size                  $adcDesiredSize  |
+ |  pga desired size                  $pgaDesiredSize  |
+ |  xlna gain Chain 0                 $xlnaGainCh0  |
+ |  xlna gain Chain 1                 $xlnaGainCh1  |
+ |  xlna gain Chain 2                 $xlnaGainCh2  |
+ |  tx end to xpa off                 $txEndToXPAOff  |
+ |  tx end to rx on                   $txEndToRxOn  |
+ |  tx frame to xpa on                $txFrameToXPAOn  |
+ |  thresh62                          $thresh62  |
+ |  noise floor thres 0               $noiseFloorThreshCh0  |
+ |  noise floor thres 1               $noiseFloorThreshCh1  |
+ |  noise floor thres 2               $noiseFloorThreshCh2  |
+ |  Xpd Gain Mask                     $xpdGain  |
+ |  Xpd extern                        $xpd  |
+ |  IQ Cal I, Q Chain 0          $iqCalICh0, $iqCalQCh0  |
+ |  IQ Cal I, Q Chain 1          $iqCalICh1, $iqCalQCh1  |
+ |  IQ Cal I, Q Chain 2          $iqCalICh2, $iqCalQCh2  |
+ |  pdGain Overlap                $pdGainOverlap dB  |
+ |  Analog Output Bias (ob)           $ob  |
+ |  Analog Driver Bias (db)           $db  |
+ |  Xpa bias level                    $xpaBiasLvl  |
+ |  pwr dec 2 chain               $pwrDecreaseFor2Chain dB  |
+ |  pwr dec 3 chain               $pwrDecreaseFor3Chain dB  |
+ |  txFrameToDataStart                $txFrameToDataStart  |
+ |  txFrameToPaOn                     $txFrameToPaOn  |
+ |  ht40PowerIncForPdadc              $ht40PowerIncForPdadc  |
+ |=========================================|
+
+============================Target Power Info===============================
+|     rate     |     $testChannel0     |     $testChannel1     |     $testChannel2     |     $testChannel3     |
+|==============|==============|==============|==============|==============|
+|     6-24     |     $pwr6_24_0     |     $pwr6_24_1     |     $pwr6_24_2     |     $pwr6_24_3     |
+|      36      |     $pwr36_0     |     $pwr36_1     |     $pwr36_2     |     $pwr36_3     |
+|      48      |     $pwr48_0     |     $pwr48_1     |     $pwr48_2     |     $pwr48_3     |
+|      54      |     $pwr54_0     |     $pwr54_1     |     $pwr54_2     |     $pwr54_3     |
+|==============|==============|==============|==============|==============|
+|     rate     |     $testChannel4     |     $testChannel5     |     $testChannel6     |     $testChannel7     |
+|==============|==============|==============|==============|==============|
+|     6-24     |     $pwr6_24_4     |     $pwr6_24_5     |     $pwr6_24_6     |     $pwr6_24_7     |
+|      36      |     $pwr36_4     |     $pwr36_5     |     $pwr36_6     |     $pwr36_7     |
+|      48      |     $pwr48_4     |     $pwr48_5     |     $pwr48_6     |     $pwr48_7     |
+|      54      |     $pwr54_4     |     $pwr54_5     |     $pwr54_6     |     $pwr54_7     |
+|==============|==============|==============|==============|==============|
+
+=======================Test Group Band Edge Power========================
+.forctl
+|                                                                       |
+| CTL: $CTL   [ $ctlRD $ctlType mode ]                                    |
+|=======|=======|=======|=======|=======|=======|=======|=======|=======|
+| edge  | $rdEdge0  | $rdEdge1  | $rdEdge2  | $rdEdge3  | $rdEdge4  | $rdEdge5  | $rdEdge6  | $rdEdge7  |
+|=======|=======|=======|=======|=======|=======|=======|=======|=======|
+| power | $rdEdgePower0  | $rdEdgePower1  | $rdEdgePower2  | $rdEdgePower3  | $rdEdgePower4  | $rdEdgePower5  | $rdEdgePower6  | $rdEdgePower7  |
+|=======|=======|=======|=======|=======|=======|=======|=======|=======|
+| flag  |  $rdEdgeFlag0   |  $rdEdgeFlag1   |  $rdEdgeFlag2   |  $rdEdgeFlag3   |  $rdEdgeFlag4   |  $rdEdgeFlag5   |  $rdEdgeFlag6   |  $rdEdgeFlag7   |
+=========================================================================
+.endforctl
+.endmode
+
+.ifmode 11g
+=============Target Power Info================
+|     rate     |     $testChannel0     |     $testChannel1     |
+|==============|==============|==============|
+|      1       |     $pwr6_24_0     |     $pwr6_24_1     |
+|      2       |     $pwr36_0     |     $pwr36_1     |
+|      5.5     |     $pwr48_0     |     $pwr48_1     |
+|      11      |     $pwr54_0     |     $pwr54_1     |
+|==============|==============|==============|
+
+=======================Test Group Band Edge Power========================
+.forctl
+|                                                                       |
+| CTL: $CTL   [ $ctlRD $ctlType mode ]                                    |
+|=======|=======|=======|=======|=======|=======|=======|=======|=======|
+| edge  | $rdEdge0  | $rdEdge1  | $rdEdge2  | $rdEdge3  | $rdEdge4  | $rdEdge5  | $rdEdge6  | $rdEdge7  |
+|=======|=======|=======|=======|=======|=======|=======|=======|=======|
+| power | $rdEdgePower0  | $rdEdgePower1  | $rdEdgePower2  | $rdEdgePower3  | $rdEdgePower4  | $rdEdgePower5  | $rdEdgePower6  | $rdEdgePower7  |
+|=======|=======|=======|=======|=======|=======|=======|=======|=======|
+| flag  |  $rdEdgeFlag0   |  $rdEdgeFlag1   |  $rdEdgeFlag2   |  $rdEdgeFlag3   |  $rdEdgeFlag4   |  $rdEdgeFlag5   |  $rdEdgeFlag6   |  $rdEdgeFlag7   |
+=========================================================================
+.endforctl
+.endmode

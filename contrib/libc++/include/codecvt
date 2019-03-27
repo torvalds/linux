@@ -1,0 +1,550 @@
+// -*- C++ -*-
+//===-------------------------- codecvt -----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CODECVT
+#define _LIBCPP_CODECVT
+
+/*
+    codecvt synopsis
+
+namespace std
+{
+
+enum codecvt_mode
+{
+    consume_header = 4,
+    generate_header = 2,
+    little_endian = 1
+};
+
+template <class Elem, unsigned long Maxcode = 0x10ffff,
+          codecvt_mode Mode = (codecvt_mode)0>
+class codecvt_utf8
+    : public codecvt<Elem, char, mbstate_t>
+{
+    explicit codecvt_utf8(size_t refs = 0);
+    ~codecvt_utf8();
+};
+
+template <class Elem, unsigned long Maxcode = 0x10ffff,
+          codecvt_mode Mode = (codecvt_mode)0>
+class codecvt_utf16
+    : public codecvt<Elem, char, mbstate_t>
+{
+    explicit codecvt_utf16(size_t refs = 0);
+    ~codecvt_utf16();
+};
+
+template <class Elem, unsigned long Maxcode = 0x10ffff,
+          codecvt_mode Mode = (codecvt_mode)0>
+class codecvt_utf8_utf16
+    : public codecvt<Elem, char, mbstate_t>
+{
+    explicit codecvt_utf8_utf16(size_t refs = 0);
+    ~codecvt_utf8_utf16();
+};
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__locale>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+enum codecvt_mode
+{
+    consume_header = 4,
+    generate_header = 2,
+    little_endian = 1
+};
+
+// codecvt_utf8
+
+template <class _Elem> class __codecvt_utf8;
+
+template <>
+class _LIBCPP_TYPE_VIS __codecvt_utf8<wchar_t>
+    : public codecvt<wchar_t, char, mbstate_t>
+{
+    unsigned long _Maxcode_;
+    codecvt_mode _Mode_;
+public:
+    typedef wchar_t   intern_type;
+    typedef char      extern_type;
+    typedef mbstate_t state_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __codecvt_utf8(size_t __refs, unsigned long _Maxcode,
+                            codecvt_mode _Mode)
+        : codecvt<wchar_t, char, mbstate_t>(__refs), _Maxcode_(_Maxcode),
+          _Mode_(_Mode) {}
+protected:
+    virtual result
+        do_out(state_type& __st,
+               const intern_type* __frm, const intern_type* __frm_end, const intern_type*& __frm_nxt,
+               extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual result
+        do_in(state_type& __st,
+              const extern_type* __frm, const extern_type* __frm_end, const extern_type*& __frm_nxt,
+              intern_type* __to, intern_type* __to_end, intern_type*& __to_nxt) const;
+    virtual result
+        do_unshift(state_type& __st,
+                   extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual int do_encoding() const throw();
+    virtual bool do_always_noconv() const throw();
+    virtual int do_length(state_type&, const extern_type* __frm, const extern_type* __end,
+                          size_t __mx) const;
+    virtual int do_max_length() const throw();
+};
+
+template <>
+class _LIBCPP_TYPE_VIS __codecvt_utf8<char16_t>
+    : public codecvt<char16_t, char, mbstate_t>
+{
+    unsigned long _Maxcode_;
+    codecvt_mode _Mode_;
+public:
+    typedef char16_t  intern_type;
+    typedef char      extern_type;
+    typedef mbstate_t state_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __codecvt_utf8(size_t __refs, unsigned long _Maxcode,
+                            codecvt_mode _Mode)
+        : codecvt<char16_t, char, mbstate_t>(__refs), _Maxcode_(_Maxcode),
+          _Mode_(_Mode) {}
+protected:
+    virtual result
+        do_out(state_type& __st,
+               const intern_type* __frm, const intern_type* __frm_end, const intern_type*& __frm_nxt,
+               extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual result
+        do_in(state_type& __st,
+              const extern_type* __frm, const extern_type* __frm_end, const extern_type*& __frm_nxt,
+              intern_type* __to, intern_type* __to_end, intern_type*& __to_nxt) const;
+    virtual result
+        do_unshift(state_type& __st,
+                   extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual int do_encoding() const throw();
+    virtual bool do_always_noconv() const throw();
+    virtual int do_length(state_type&, const extern_type* __frm, const extern_type* __end,
+                          size_t __mx) const;
+    virtual int do_max_length() const throw();
+};
+
+template <>
+class _LIBCPP_TYPE_VIS __codecvt_utf8<char32_t>
+    : public codecvt<char32_t, char, mbstate_t>
+{
+    unsigned long _Maxcode_;
+    codecvt_mode _Mode_;
+public:
+    typedef char32_t  intern_type;
+    typedef char      extern_type;
+    typedef mbstate_t state_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __codecvt_utf8(size_t __refs, unsigned long _Maxcode,
+                            codecvt_mode _Mode)
+        : codecvt<char32_t, char, mbstate_t>(__refs), _Maxcode_(_Maxcode),
+          _Mode_(_Mode) {}
+protected:
+    virtual result
+        do_out(state_type& __st,
+               const intern_type* __frm, const intern_type* __frm_end, const intern_type*& __frm_nxt,
+               extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual result
+        do_in(state_type& __st,
+              const extern_type* __frm, const extern_type* __frm_end, const extern_type*& __frm_nxt,
+              intern_type* __to, intern_type* __to_end, intern_type*& __to_nxt) const;
+    virtual result
+        do_unshift(state_type& __st,
+                   extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual int do_encoding() const throw();
+    virtual bool do_always_noconv() const throw();
+    virtual int do_length(state_type&, const extern_type* __frm, const extern_type* __end,
+                          size_t __mx) const;
+    virtual int do_max_length() const throw();
+};
+
+template <class _Elem, unsigned long _Maxcode = 0x10ffff,
+          codecvt_mode _Mode = (codecvt_mode)0>
+class _LIBCPP_TEMPLATE_VIS codecvt_utf8
+    : public __codecvt_utf8<_Elem>
+{
+public:
+    _LIBCPP_INLINE_VISIBILITY
+    explicit codecvt_utf8(size_t __refs = 0)
+        : __codecvt_utf8<_Elem>(__refs, _Maxcode, _Mode) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    ~codecvt_utf8() {}
+};
+
+// codecvt_utf16
+
+template <class _Elem, bool _LittleEndian> class __codecvt_utf16;
+
+template <>
+class _LIBCPP_TYPE_VIS __codecvt_utf16<wchar_t, false>
+    : public codecvt<wchar_t, char, mbstate_t>
+{
+    unsigned long _Maxcode_;
+    codecvt_mode _Mode_;
+public:
+    typedef wchar_t   intern_type;
+    typedef char      extern_type;
+    typedef mbstate_t state_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __codecvt_utf16(size_t __refs, unsigned long _Maxcode,
+                            codecvt_mode _Mode)
+        : codecvt<wchar_t, char, mbstate_t>(__refs), _Maxcode_(_Maxcode),
+          _Mode_(_Mode) {}
+protected:
+    virtual result
+        do_out(state_type& __st,
+               const intern_type* __frm, const intern_type* __frm_end, const intern_type*& __frm_nxt,
+               extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual result
+        do_in(state_type& __st,
+              const extern_type* __frm, const extern_type* __frm_end, const extern_type*& __frm_nxt,
+              intern_type* __to, intern_type* __to_end, intern_type*& __to_nxt) const;
+    virtual result
+        do_unshift(state_type& __st,
+                   extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual int do_encoding() const throw();
+    virtual bool do_always_noconv() const throw();
+    virtual int do_length(state_type&, const extern_type* __frm, const extern_type* __end,
+                          size_t __mx) const;
+    virtual int do_max_length() const throw();
+};
+
+template <>
+class _LIBCPP_TYPE_VIS __codecvt_utf16<wchar_t, true>
+    : public codecvt<wchar_t, char, mbstate_t>
+{
+    unsigned long _Maxcode_;
+    codecvt_mode _Mode_;
+public:
+    typedef wchar_t   intern_type;
+    typedef char      extern_type;
+    typedef mbstate_t state_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __codecvt_utf16(size_t __refs, unsigned long _Maxcode,
+                            codecvt_mode _Mode)
+        : codecvt<wchar_t, char, mbstate_t>(__refs), _Maxcode_(_Maxcode),
+          _Mode_(_Mode) {}
+protected:
+    virtual result
+        do_out(state_type& __st,
+               const intern_type* __frm, const intern_type* __frm_end, const intern_type*& __frm_nxt,
+               extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual result
+        do_in(state_type& __st,
+              const extern_type* __frm, const extern_type* __frm_end, const extern_type*& __frm_nxt,
+              intern_type* __to, intern_type* __to_end, intern_type*& __to_nxt) const;
+    virtual result
+        do_unshift(state_type& __st,
+                   extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual int do_encoding() const throw();
+    virtual bool do_always_noconv() const throw();
+    virtual int do_length(state_type&, const extern_type* __frm, const extern_type* __end,
+                          size_t __mx) const;
+    virtual int do_max_length() const throw();
+};
+
+template <>
+class _LIBCPP_TYPE_VIS __codecvt_utf16<char16_t, false>
+    : public codecvt<char16_t, char, mbstate_t>
+{
+    unsigned long _Maxcode_;
+    codecvt_mode _Mode_;
+public:
+    typedef char16_t  intern_type;
+    typedef char      extern_type;
+    typedef mbstate_t state_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __codecvt_utf16(size_t __refs, unsigned long _Maxcode,
+                            codecvt_mode _Mode)
+        : codecvt<char16_t, char, mbstate_t>(__refs), _Maxcode_(_Maxcode),
+          _Mode_(_Mode) {}
+protected:
+    virtual result
+        do_out(state_type& __st,
+               const intern_type* __frm, const intern_type* __frm_end, const intern_type*& __frm_nxt,
+               extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual result
+        do_in(state_type& __st,
+              const extern_type* __frm, const extern_type* __frm_end, const extern_type*& __frm_nxt,
+              intern_type* __to, intern_type* __to_end, intern_type*& __to_nxt) const;
+    virtual result
+        do_unshift(state_type& __st,
+                   extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual int do_encoding() const throw();
+    virtual bool do_always_noconv() const throw();
+    virtual int do_length(state_type&, const extern_type* __frm, const extern_type* __end,
+                          size_t __mx) const;
+    virtual int do_max_length() const throw();
+};
+
+template <>
+class _LIBCPP_TYPE_VIS __codecvt_utf16<char16_t, true>
+    : public codecvt<char16_t, char, mbstate_t>
+{
+    unsigned long _Maxcode_;
+    codecvt_mode _Mode_;
+public:
+    typedef char16_t  intern_type;
+    typedef char      extern_type;
+    typedef mbstate_t state_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __codecvt_utf16(size_t __refs, unsigned long _Maxcode,
+                            codecvt_mode _Mode)
+        : codecvt<char16_t, char, mbstate_t>(__refs), _Maxcode_(_Maxcode),
+          _Mode_(_Mode) {}
+protected:
+    virtual result
+        do_out(state_type& __st,
+               const intern_type* __frm, const intern_type* __frm_end, const intern_type*& __frm_nxt,
+               extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual result
+        do_in(state_type& __st,
+              const extern_type* __frm, const extern_type* __frm_end, const extern_type*& __frm_nxt,
+              intern_type* __to, intern_type* __to_end, intern_type*& __to_nxt) const;
+    virtual result
+        do_unshift(state_type& __st,
+                   extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual int do_encoding() const throw();
+    virtual bool do_always_noconv() const throw();
+    virtual int do_length(state_type&, const extern_type* __frm, const extern_type* __end,
+                          size_t __mx) const;
+    virtual int do_max_length() const throw();
+};
+
+template <>
+class _LIBCPP_TYPE_VIS __codecvt_utf16<char32_t, false>
+    : public codecvt<char32_t, char, mbstate_t>
+{
+    unsigned long _Maxcode_;
+    codecvt_mode _Mode_;
+public:
+    typedef char32_t  intern_type;
+    typedef char      extern_type;
+    typedef mbstate_t state_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __codecvt_utf16(size_t __refs, unsigned long _Maxcode,
+                            codecvt_mode _Mode)
+        : codecvt<char32_t, char, mbstate_t>(__refs), _Maxcode_(_Maxcode),
+          _Mode_(_Mode) {}
+protected:
+    virtual result
+        do_out(state_type& __st,
+               const intern_type* __frm, const intern_type* __frm_end, const intern_type*& __frm_nxt,
+               extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual result
+        do_in(state_type& __st,
+              const extern_type* __frm, const extern_type* __frm_end, const extern_type*& __frm_nxt,
+              intern_type* __to, intern_type* __to_end, intern_type*& __to_nxt) const;
+    virtual result
+        do_unshift(state_type& __st,
+                   extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual int do_encoding() const throw();
+    virtual bool do_always_noconv() const throw();
+    virtual int do_length(state_type&, const extern_type* __frm, const extern_type* __end,
+                          size_t __mx) const;
+    virtual int do_max_length() const throw();
+};
+
+template <>
+class _LIBCPP_TYPE_VIS __codecvt_utf16<char32_t, true>
+    : public codecvt<char32_t, char, mbstate_t>
+{
+    unsigned long _Maxcode_;
+    codecvt_mode _Mode_;
+public:
+    typedef char32_t  intern_type;
+    typedef char      extern_type;
+    typedef mbstate_t state_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __codecvt_utf16(size_t __refs, unsigned long _Maxcode,
+                            codecvt_mode _Mode)
+        : codecvt<char32_t, char, mbstate_t>(__refs), _Maxcode_(_Maxcode),
+          _Mode_(_Mode) {}
+protected:
+    virtual result
+        do_out(state_type& __st,
+               const intern_type* __frm, const intern_type* __frm_end, const intern_type*& __frm_nxt,
+               extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual result
+        do_in(state_type& __st,
+              const extern_type* __frm, const extern_type* __frm_end, const extern_type*& __frm_nxt,
+              intern_type* __to, intern_type* __to_end, intern_type*& __to_nxt) const;
+    virtual result
+        do_unshift(state_type& __st,
+                   extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual int do_encoding() const throw();
+    virtual bool do_always_noconv() const throw();
+    virtual int do_length(state_type&, const extern_type* __frm, const extern_type* __end,
+                          size_t __mx) const;
+    virtual int do_max_length() const throw();
+};
+
+template <class _Elem, unsigned long _Maxcode = 0x10ffff,
+          codecvt_mode _Mode = (codecvt_mode)0>
+class _LIBCPP_TEMPLATE_VIS codecvt_utf16
+    : public __codecvt_utf16<_Elem, _Mode & little_endian>
+{
+public:
+    _LIBCPP_INLINE_VISIBILITY
+    explicit codecvt_utf16(size_t __refs = 0)
+        : __codecvt_utf16<_Elem, _Mode & little_endian>(__refs, _Maxcode, _Mode) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    ~codecvt_utf16() {}
+};
+
+// codecvt_utf8_utf16
+
+template <class _Elem> class __codecvt_utf8_utf16;
+
+template <>
+class _LIBCPP_TYPE_VIS __codecvt_utf8_utf16<wchar_t>
+    : public codecvt<wchar_t, char, mbstate_t>
+{
+    unsigned long _Maxcode_;
+    codecvt_mode _Mode_;
+public:
+    typedef wchar_t   intern_type;
+    typedef char      extern_type;
+    typedef mbstate_t state_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __codecvt_utf8_utf16(size_t __refs, unsigned long _Maxcode,
+                            codecvt_mode _Mode)
+        : codecvt<wchar_t, char, mbstate_t>(__refs), _Maxcode_(_Maxcode),
+          _Mode_(_Mode) {}
+protected:
+    virtual result
+        do_out(state_type& __st,
+               const intern_type* __frm, const intern_type* __frm_end, const intern_type*& __frm_nxt,
+               extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual result
+        do_in(state_type& __st,
+              const extern_type* __frm, const extern_type* __frm_end, const extern_type*& __frm_nxt,
+              intern_type* __to, intern_type* __to_end, intern_type*& __to_nxt) const;
+    virtual result
+        do_unshift(state_type& __st,
+                   extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual int do_encoding() const throw();
+    virtual bool do_always_noconv() const throw();
+    virtual int do_length(state_type&, const extern_type* __frm, const extern_type* __end,
+                          size_t __mx) const;
+    virtual int do_max_length() const throw();
+};
+
+template <>
+class _LIBCPP_TYPE_VIS __codecvt_utf8_utf16<char32_t>
+    : public codecvt<char32_t, char, mbstate_t>
+{
+    unsigned long _Maxcode_;
+    codecvt_mode _Mode_;
+public:
+    typedef char32_t  intern_type;
+    typedef char      extern_type;
+    typedef mbstate_t state_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __codecvt_utf8_utf16(size_t __refs, unsigned long _Maxcode,
+                            codecvt_mode _Mode)
+        : codecvt<char32_t, char, mbstate_t>(__refs), _Maxcode_(_Maxcode),
+          _Mode_(_Mode) {}
+protected:
+    virtual result
+        do_out(state_type& __st,
+               const intern_type* __frm, const intern_type* __frm_end, const intern_type*& __frm_nxt,
+               extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual result
+        do_in(state_type& __st,
+              const extern_type* __frm, const extern_type* __frm_end, const extern_type*& __frm_nxt,
+              intern_type* __to, intern_type* __to_end, intern_type*& __to_nxt) const;
+    virtual result
+        do_unshift(state_type& __st,
+                   extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual int do_encoding() const throw();
+    virtual bool do_always_noconv() const throw();
+    virtual int do_length(state_type&, const extern_type* __frm, const extern_type* __end,
+                          size_t __mx) const;
+    virtual int do_max_length() const throw();
+};
+
+template <>
+class _LIBCPP_TYPE_VIS __codecvt_utf8_utf16<char16_t>
+    : public codecvt<char16_t, char, mbstate_t>
+{
+    unsigned long _Maxcode_;
+    codecvt_mode _Mode_;
+public:
+    typedef char16_t  intern_type;
+    typedef char      extern_type;
+    typedef mbstate_t state_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __codecvt_utf8_utf16(size_t __refs, unsigned long _Maxcode,
+                            codecvt_mode _Mode)
+        : codecvt<char16_t, char, mbstate_t>(__refs), _Maxcode_(_Maxcode),
+          _Mode_(_Mode) {}
+protected:
+    virtual result
+        do_out(state_type& __st,
+               const intern_type* __frm, const intern_type* __frm_end, const intern_type*& __frm_nxt,
+               extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual result
+        do_in(state_type& __st,
+              const extern_type* __frm, const extern_type* __frm_end, const extern_type*& __frm_nxt,
+              intern_type* __to, intern_type* __to_end, intern_type*& __to_nxt) const;
+    virtual result
+        do_unshift(state_type& __st,
+                   extern_type* __to, extern_type* __to_end, extern_type*& __to_nxt) const;
+    virtual int do_encoding() const throw();
+    virtual bool do_always_noconv() const throw();
+    virtual int do_length(state_type&, const extern_type* __frm, const extern_type* __end,
+                          size_t __mx) const;
+    virtual int do_max_length() const throw();
+};
+
+template <class _Elem, unsigned long _Maxcode = 0x10ffff,
+          codecvt_mode _Mode = (codecvt_mode)0>
+class _LIBCPP_TEMPLATE_VIS codecvt_utf8_utf16
+    : public __codecvt_utf8_utf16<_Elem>
+{
+public:
+    _LIBCPP_INLINE_VISIBILITY
+    explicit codecvt_utf8_utf16(size_t __refs = 0)
+        : __codecvt_utf8_utf16<_Elem>(__refs, _Maxcode, _Mode) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    ~codecvt_utf8_utf16() {}
+};
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_CODECVT

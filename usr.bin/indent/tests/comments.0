@@ -1,0 +1,52 @@
+/* $FreeBSD$ */
+typedef enum x {
+	aaaaaaaaaaaaaaaaaaaaaa = 1 << 0,	/* test a */
+	bbbbbbbbbbbbbbbbb = 1 << 1,	/* test b */
+	cccccccccccccc = 1 << 1,	/* test c */
+	dddddddddddddddddddddddddddddd = 1 << 2	/* test d */
+} x;
+
+/* See r303597, r303598, r309219, and r309343 */
+void t(void) {
+	/*
+	 * Old indent wrapped the URL near where this sentence ends.
+	 *
+	 * https://www.freebsd.org/cgi/man.cgi?query=indent&apropos=0&sektion=0&manpath=FreeBSD+12-current&arch=default&format=html
+	 */
+	 
+	/*
+	 * Old indent did not wrap to column 78
+	 * 
+	 * aaaaaa bbbbbb cccccc dddddd eeeeee ffffff ggggg hhhhh iiiii jjjj kk
+	 */
+	
+	/*
+	 * Old indent unnecessarily removed the star comment continuation on the next line.
+	 * 
+	 * *test*
+	 */
+	
+	/* r309219 Go through linked list, freeing from the malloced (t[-1]) address. */
+	
+	/* r309343	*/
+}
+
+int c(void)
+{
+	if (1) { /*- a christmas tree  *
+				      ***
+				     ***** */
+		    /*- another one *
+				   ***
+				  ***** */
+	    7;
+	}
+
+	if (1) /*- a christmas tree  *
+				    ***
+				   ***** */
+		    /*- another one *
+				   ***
+				  ***** */
+	    1;
+}

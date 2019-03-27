@@ -1,0 +1,27 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_SERVER" 1 "2010-07-19" "librdmacm" "librdmacm" librdmacm
+.SH NAME
+rdma_server \- simple RDMA CM connection and ping-pong test.
+.SH SYNOPSIS
+.sp
+.nf
+\fIrdma_server\fR [-p port]
+.fi
+.SH "DESCRIPTION"
+Uses synchronous librdmam calls to establish an RDMA connections between
+two nodes.  This example is intended to provide a very simple coding
+example of how to use RDMA.
+.SH "OPTIONS"
+.TP
+\-p port
+Changes the port number that the server listens on.  By default the server
+listens on port 7471.
+.SH "NOTES"
+Basic usage is to start rdma_server, then connect to the server using the
+rdma_client program.
+.P
+Because this test maps RDMA resources to userspace, users must ensure
+that they have available system resources and permissions.  See the
+libibverbs README file for additional details.
+.SH "SEE ALSO"
+rdma_cm(7), udaddy(1), mckey(1), rping(1), rdma_client(1)

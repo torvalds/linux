@@ -1,0 +1,102 @@
+
+#------------------------------------------------------------------------------
+# $File: acorn,v 1.6 2017/10/19 16:40:37 christos Exp $
+# acorn:  file(1) magic for files found on Acorn systems
+#
+
+# RISC OS Chunk File Format
+# From RISC OS Programmer's Reference Manual, Appendix D
+# We guess the file type from the type of the first chunk.
+0	lelong		0xc3cbc6c5	RISC OS Chunk data
+>12	string		OBJ_		\b, AOF object
+>12	string		LIB_		\b, ALF library
+
+# RISC OS AIF, contains "SWI OS_Exit" at offset 16.
+16	lelong		0xef000011	RISC OS AIF executable
+
+# RISC OS Draw files
+# From RISC OS Programmer's Reference Manual, Appendix E
+0	string 		Draw		RISC OS Draw file data
+
+# RISC OS new format font files
+# From RISC OS Programmer's Reference Manual, Appendix E
+0	string		FONT\0		RISC OS outline font data,
+>5	byte		x		version %d
+0	string		FONT\1		RISC OS 1bpp font data,
+>5	byte		x		version %d
+0	string		FONT\4		RISC OS 4bpp font data
+>5	byte		x		version %d
+
+# RISC OS Music files
+# From RISC OS Programmer's Reference Manual, Appendix E
+0	string		Maestro\r	RISC OS music file
+>8	byte		x		version %d
+
+>8	byte		x		type %d
+
+# Digital Symphony data files
+# From: Bernard Jungen (bern8817@euphonynet.be)
+0		string	\x02\x01\x13\x13\x13\x01\x0d\x10	Digital Symphony sound sample (RISC OS),
+>8		byte	x	version %d,
+>9		pstring	x	named "%s",
+>(9.b+19)	byte	=0	8-bit logarithmic
+>(9.b+19)	byte	=1	LZW-compressed linear
+>(9.b+19)	byte	=2	8-bit linear signed
+>(9.b+19)	byte	=3	16-bit linear signed
+>(9.b+19)	byte	=4	SigmaDelta-compressed linear
+>(9.b+19)	byte	=5	SigmaDelta-compressed logarithmic
+>(9.b+19)	byte	>5	unknown format
+
+0	string	\x02\x01\x13\x13\x14\x12\x01\x0b	Digital Symphony song (RISC OS),
+>8	byte	x	version %d,
+>9	byte	=1	1 voice,
+>9	byte	!1	%d voices,
+>10	leshort	=1	1 track,
+>10	leshort	!1	%d tracks,
+>12	leshort	=1	1 pattern
+>12	leshort	!1	%d patterns
+
+0	string	\x02\x01\x13\x13\x10\x14\x12\x0e
+>9	byte	=0	Digital Symphony sequence (RISC OS),
+>>8	byte	x	version %d,
+>>10	byte	=1	1 line,
+>>10	byte	!1	%d lines,
+>>11	leshort	=1	1 position
+>>11	leshort	!1	%d positions
+>9	byte	=1	Digital Symphony pattern data (RISC OS),
+>>8	byte	x	version %d,
+>>10	leshort	=1	1 pattern
+>>10	leshort	!1	%d patterns
+
+# From: Joerg Jenderek
+# URL: https://www.kyzer.me.uk/pack/xad/#PackDir
+# reference: https://www.kyzer.me.uk/pack/xad/xad_PackDir.lha/PackDir.c
+# GRR: line below is too general as it matches also "Git pack" in ./revision
+0	string	PACK\0
+# check for valid compression method 0-4
+>5	ulelong	<5
+# https://www.riscosopen.org/wiki/documentation/show/Introduction%20To%20Filing%20Systems
+# To skip "Git pack" version 0 test for root directory object like
+# ADFS::RPC.$.websitezip.FONTFIX
+>>9	string	>ADFS\  PackDir archive (RISC OS)
+# TrID labels above as "Acorn PackDir compressed Archive"
+# compression mode y (0 - 4) for GIF LZW with a maximum n bits
+# (y~n,0~12,1~13,2~14,3~15,4~16)
+>>>5	ulelong+12 x	\b, LZW %u-bits compression
+# http://www.filebase.org.uk/filetypes
+# !Packdir compressed archive has three hexadecimal digits code 68E
+!:mime	application/x-acorn-68E
+!:ext	pkd/bin
+# null terminated root directory object like IDEFS::IDE-4.$.Apps.GRAPHICS.!XFMPdemo
+>>>9	string	x	\b, root "%s"
+# load address 0xFFFtttdd, ttt is the object filetype and dddddddddd is time
+>>>>&1	ulelong	x	\b, load address 0x%x
+# execution address 0xdddddddd dddddddddd is 40 bit unsigned centiseconds since 1.1.1900 UTC
+>>>>&5	ulelong	x	\b, exec address 0x%x
+# attributes (bits: 0~owner read,1~owner write,3~no delete,4~public read,5~public write)
+>>>>&9	ulelong	x	\b, attributes 0x%x 
+# number of entries in this directory. for root dir 0
+#>>>&13	ulelong	x	\b, entries 0x%x 
+# the entries start here with object name
+>>>>&17	string	x	\b, 1st object "%s"
+

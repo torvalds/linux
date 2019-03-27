@@ -1,0 +1,132 @@
+# $FreeBSD$
+
+# arge0 is connected to the LAN side of the switch PHY.
+# arge1 is connected to the single port WAN side of the switch PHY.
+
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x19000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
+
+hint.arge.0.phymask=0x0
+hint.arge.0.media=1000
+hint.arge.0.fduplex=1
+hint.arge.0.eeprommac=0x1f05120c
+hint.arge.0.mdio=mdioproxy0     # .. off of the switch mdiobus
+hint.arge.0.miimode=3 
+
+hint.arge.1.phymask=0x10
+hint.arge.1.media=1000
+hint.arge.1.fduplex=1
+hint.arge.1.eeprommac=0x1f05520c
+hint.arge.1.mdio=mdioproxy1     # .. off of the switch mdiobus
+hint.arge.1.miimode=3 
+
+#
+# AR8316 switch config
+#
+hint.arswitch.0.at="mdio0"
+hint.arswitch.0.is_7240=0       # We need to be explicitly told this
+hint.arswitch.0.numphys=4       # 5 active switch PHYs (PHY 0 -> 4)
+hint.arswitch.0.phy4cpu=1       # No, PHY 4 == dedicated PHY
+hint.arswitch.0.is_rgmii=1      # Yes, is RGMII
+hint.arswitch.0.is_gmii=0       # No, not GMII
+
+# ath0 - slot 17
+hint.pcib.0.bus.0.17.0.ath_fixup_addr=0x1f051000
+hint.pcib.0.bus.0.17.0.ath_fixup_size=4096
+
+# ath1 - slot 18
+hint.pcib.0.bus.0.18.0.ath_fixup_addr=0x1f055000
+hint.pcib.0.bus.0.18.0.ath_fixup_size=4096
+# .. and now, telling each ath(4) NIC where to find the firmware
+# image.
+hint.ath.0.eeprom_firmware="pcib.0.bus.0.17.0.eeprom_firmware"
+hint.ath.1.eeprom_firmware="pcib.0.bus.0.18.0.eeprom_firmware"
+
+# Inherited from AR71XX_BASE.hints
+#hint.mx25l.0.at="spibus0"
+#hint.mx25l.0.cs=0
+# This board has two 16 MB flash devices on difference Chip Select pins
+hint.mx25l.1.at="spibus0"
+hint.mx25l.1.cs=1
+
+
+# Geom MAP
+
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x00040000
+hint.map.0.name="uboot"
+hint.map.0.readonly=1
+
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00040000
+hint.map.1.end=0x00050000
+hint.map.1.name="u-boot-env"
+hint.map.1.readonly=1
+
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00050000
+hint.map.2.end=0x00060000
+hint.map.2.name="ART"
+hint.map.2.readonly=1
+
+# requires a 1M alignment and padding in the image.
+# make sure you are using conv=sync and bs=1M in your dd
+hint.map.3.at="flash/spi0"
+hint.map.3.start=0x00060000
+hint.map.3.end="search:0x00160000:0x100000:.!/bin/sh"
+hint.map.3.name="kernel"
+hint.map.3.readonly=1
+
+hint.map.4.at="flash/spi0"
+hint.map.4.start="search:0x00160000:0x100000:.!/bin/sh"
+hint.map.4.end=0x01000000
+hint.map.4.name="rootfs"
+hint.map.4.readonly=1
+
+hint.map.5.at="flash/spi1"
+hint.map.5.start=0x00FF0000
+hint.map.5.end=0x01000000
+hint.map.5.name="cfg"
+hint.map.5.readonly=0
+
+# Pin 1  - SCK
+# Pin 2  - SDA
+# Pin 3  - usb 
+# Pin 4  - 
+# Pin 5  - aoss
+# Pin 6  - router auto
+# Pin 7  - router off
+# Pin 8  - movie engine
+# Pin 9  - 
+# Pin 10 - 
+# Pin 11 - reset button
+# Pin 12 - CS0
+# Pin 13 - CS1
+# Pin 14 - 
+# Pin 15 - 
+# Pin 16 - 
+# Pin 17 - 
+
+# Don't flip on anything that isn't already enabled.
+# Force on CS lines for flash devices, apparently this isn't done
+# by uboot in normal booting.  No idea why. 
+hint.gpio.0.function_set=0x00003004
+hint.gpio.0.function_clear=0x00000000
+
+# These are the GPIO LEDs and buttons which can be software controlled.
+hint.gpio.0.pinmask=0x0001
+
+hint.gpio.0.pinon=0x00000004
+
+hint.gpioiic.0.at="gpiobus0"
+#hint.gpioiic.0.pins=0x0003
+hint.gpioiic.0.sda=0
+hint.gpioiic.0.scl=1
+
+# LEDs are configured separately and driven by the LED device
+hint.gpioled.0.at="gpiobus0"
+hint.gpioled.0.name="red-diag"
+hint.gpioled.0.pins=0x0001

@@ -1,0 +1,57 @@
+LDAP support for am-utils was originally done by Leif Johansson
+<leifj AT it.su.se>.  He no longer maintains it.
+
+The current LDAP support for am-utils is for LDAPv2 only.  Reportedly,
+LDAPv3 mostly works.  Volunteers and patches are welcome.
+
+The IANA has assigned the following Private Enterprise Number to:
+
+	10180  Am-utils Organization   Erez Zadok	ezk AT am-utils.org
+
+There are three files in this directory that relate to LDAP:
+
+ldap.schema:
+
+	This is the most current schema.
+
+ldap-id.txt:
+
+	This is an experimental schema for amd mount maps in LDAP.  Since
+	LDAP isn't maintained now, this code may not match with either the
+	current ldap_info.c code or with Amd mount maps in general.
+
+	The schema is written in the form of an internet-draft but it has
+	not been published as such.  We need volunteers who know and use
+	LDAP to clean it up and further its process of submission.
+
+ldap-id.ms:
+
+	This is the NROFF source of the draft.  To generate the text from
+	it, run "nroff -ms ldap-id.ms > ldap-id.txt"
+
+Erez.
+
+------- Forwarded Message
+
+From: "IANA Private Enterprise Number" <iana-pen AT icann.org>
+To: "Erez Zadok" <ezk AT cs.columbia.edu>
+Subject: RE: Application for Enterprise-number (10180)
+Date: Sun, 15 Jul 2001 14:43:45 -0700
+
+Dear Erez,
+
+The IANA has assigned the following Private Enterprise
+Number to:
+
+10180  Am-utils Organization   Erez Zadok                 ezk AT am-utils.org
+
+Please notify the IANA if there is a change in your contact
+or company information.
+
+Thank you,
+
+Bill Huang
+IANA - Private Enterprise Numbers
+
+------- End of Forwarded Message
+

@@ -1,0 +1,86 @@
+\ #if (FICL_WANT_OOP)
+\ ** ficl/softwords/ficlclass.fr
+\ Classes to model ficl data structures in objects
+\ This is a demo!
+\ John Sadler 14 Sep 1998
+\
+\ ** C - W O R D
+\ Models a FICL_WORD
+\
+\ $FreeBSD$
+
+object subclass c-word
+    c-word     ref: .link
+    c-2byte    obj: .hashcode
+    c-byte     obj: .flags
+    c-byte     obj: .nName
+    c-bytePtr  obj: .pName
+    c-cellPtr  obj: .pCode
+    c-4byte    obj: .param0
+
+    \ Push word's name...
+    : get-name   ( inst class -- c-addr u )
+        2dup
+        my=[ .pName get-ptr ] -rot
+        my=[ .nName get ]
+    ;
+
+    : next   ( inst class -- link-inst class )
+        my=> .link ;
+        
+    : ?
+        ." c-word: " 
+        2dup --> get-name type cr
+    ;
+
+end-class
+
+\ ** C - W O R D L I S T
+\ Models a FICL_HASH
+\ Example of use:
+\ get-current c-wordlist --> ref current
+\ current --> ?
+\ current --> .hash --> ?
+\ current --> .hash --> next --> ?
+
+object subclass c-wordlist
+    c-wordlist ref: .parent
+    c-ptr      obj: .name
+    c-cell     obj: .size
+    c-word     ref: .hash   ( first entry in hash table )
+
+    : ?
+        --> get-name ." ficl wordlist "  type cr ;
+    : push  drop  >search ;
+    : pop   2drop previous ;
+    : set-current   drop set-current ;
+    : get-name   drop wid-get-name ;
+    : words   { 2:this -- }
+        this my=[ .size get ] 0 do 
+            i this my=[ .hash index ]  ( 2list-head )
+            begin
+                2dup --> get-name type space
+                --> next over
+            0= until 2drop cr
+        loop
+    ;
+end-class
+
+\ : named-wid  wordlist postpone c-wordlist  metaclass => ref ;
+
+
+\ ** C - F I C L S T A C K
+object subclass c-ficlstack
+    c-4byte    obj: .nCells
+    c-cellPtr  obj: .link
+    c-cellPtr  obj: .sp
+    c-4byte    obj: .stackBase
+
+    : init   2drop ;
+    : ?      2drop
+        ." ficl stack " cr ;
+    : top
+        --> .sp --> .addr --> prev --> get ;
+end-class
+
+\ #endif

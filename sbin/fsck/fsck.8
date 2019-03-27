@@ -1,0 +1,247 @@
+.\"	$NetBSD: fsck.8,v 1.19 1999/03/10 00:08:33 erh Exp $
+.\"
+.\" Copyright (c) 1996 Christos Zoulas.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Christos Zoulas.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 5, 2019
+.Dt FSCK 8
+.Os
+.Sh NAME
+.Nm fsck
+.Nd file system consistency check and interactive repair
+.Sh SYNOPSIS
+.Nm
+.Op Fl Cdfnpvy
+.Op Fl B | F
+.Op Fl T Ar fstype : Ns Ar fsoptions
+.Op Fl t Ar fstype
+.Op Fl c Ar fstab
+.Oo Ar special | node Oc ...
+.Sh DESCRIPTION
+The
+.Nm
+utility invokes file system-specific programs to check
+the special devices listed in the
+.Xr fstab 5
+file or in the command line for consistency.
+.Pp
+It is normally used in the script
+.Pa /etc/rc
+during automatic reboot.
+Traditionally,
+.Nm
+is invoked before the file systems are mounted
+and all checks are done to completion at that time.
+If background checking is available,
+.Nm
+is invoked twice.
+It is first invoked at the traditional time,
+before the file systems are mounted, with the
+.Fl F
+flag to do checking on all the file systems
+that cannot do background checking.
+It is then invoked a second time,
+after the system has completed going multiuser, with the
+.Fl B
+flag to do checking on all the file systems
+that can do background checking.
+Unlike the foreground checking,
+the background checking is started asynchronously
+so that other system activity can proceed
+even on the file systems that are being checked.
+.Pp
+If no file systems are specified,
+.Nm
+reads the table
+.Pa /etc/fstab
+to determine which file systems to check.
+Only partitions in
+.Pa /etc/fstab
+that are mounted
+.Dq rw ,
+.Dq rq
+or
+.Dq ro
+and that have non-zero pass number are checked.
+File systems with pass number 1 (normally just the root file system)
+are always checked one at a time.
+.Pp
+If not in preen mode, the remaining entries are checked in order of
+increasing pass number one at a time.
+This is needed when interaction with
+.Nm
+is required.
+.Pp
+In preen mode, after pass 1 completes, all remaining file systems are checked,
+in pass number order running one process per disk drive in parallel for each
+pass number in increasing order.
+.Pp
+In other words: In preen mode all pass 1 partitions are checked sequentially.
+Next all pass 2 partitions are checked in parallel, one process per disk drive.
+Next all pass 3 partitions are checked in parallel, one process per disk drive.
+etc.
+.Pp
+The disk drive containing each file system is inferred from the shortest prefix
+of the device name that ends in a digit; the remaining characters are assumed
+to be the partition and slice designators.
+.Pp
+If the
+.Fl t
+or
+.Fl T
+flags are not specified,
+.Nm
+will attempt to determine the file system type and call the
+appropriated file system check utility.
+Failure to detect the file system type will cause
+.Nm
+to fail with a message that the partition has an unknown file system type.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl C
+Check if the
+.Dq clean
+flag is set in the superblock and skip file system checks if file system was
+properly dismounted and marked clean.
+.It Fl c Ar fstab
+Specify the
+.Pa fstab
+file to use.
+.It Fl d
+Debugging mode.
+Just print the commands without executing them.
+Available
+only if
+.Nm
+is compiled to support it.
+.It Fl f
+Force checking of file systems.
+Running 
+.Dq Li fsck -f
+ignores the journal and does a full
+consistency check of the disk so will find and fix the errors about which the
+journal is unaware.
+.It Fl n
+Causes
+.Nm
+to assume no as the answer to all operator questions, except "CONTINUE?".
+.It Fl p
+Enter preen mode.
+In preen mode, only a restricted class of innocuous
+file system inconsistencies will be corrected.
+If unexpected inconsistencies caused by hardware or
+software failures are encountered, the check program
+will exit with a failure.
+See the manual pages for the individual check programs
+for a list of the sorts of failures that they correct
+when running in preen mode.
+.It Fl F
+Run in foreground mode.
+The check program for each file system is invoked with the
+.Fl F
+flag to determine whether it wishes to run as part of
+the boot up sequence,
+or if it is able to do its job in background after the
+system is up and running.
+A non-zero exit code indicates that it wants to run in foreground
+and the check program is invoked.
+A zero exit code indicates that it is able to run later in background
+and just a deferred message is printed.
+.It Fl B
+Run in background mode.
+The check program for each file system is invoked with the
+.Fl F
+flag to determine whether it wishes to run as part of
+the boot up sequence,
+or if it is able to do its job in background after the
+system is up and running.
+A non-zero exit code indicates that it wanted to run in foreground
+which is assumed to have been done, so the file system is skipped.
+A zero exit code indicates that it is able to run in background
+so the check program is invoked with the
+.Fl B
+flag to indicate that a check on the active file system should be done.
+When running in background mode,
+only one file system at a time will be checked.
+Note that background
+.Nm
+is limited to checking for only the most commonly occurring
+file system abnormalities.
+Under certain circumstances,
+some errors can escape background
+.Nm .
+It is recommended that you perform foreground
+.Nm
+on your systems periodically and whenever you encounter
+file-system\-related panics.
+.It Fl t Ar fstype
+Invoke
+.Nm
+only for the comma separated list of file system types.
+If the
+list starts with
+.Dq no
+then invoke
+.Nm
+for the file system types that are not specified in the list.
+.It Fl v
+Print the commands before executing them.
+.It Fl y
+Causes
+.Nm
+to assume yes
+as the answer to all operator questions.
+.It Fl T Ar fstype : Ns Ar fsoptions
+List of comma separated file system specific options for the specified
+file system type, in the same format as
+.Xr mount 8 .
+.El
+.Sh FILES
+.Bl -tag -width /etc/fstab -compact
+.It Pa /etc/fstab
+file system table
+.El
+.Sh SEE ALSO
+.Xr fstab 5 ,
+.Xr fsck_ffs 8 ,
+.Xr fsck_msdosfs 8 ,
+.Xr mount 8
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.Bx 4.0 .
+It was reimplemented as a filesystem independent wrapper in
+.Nx 1.3
+and first appeared in
+.Fx 5.0 .
+The original filesystem specific utility became
+.Xr fsck_ffs 8
+at this point.

@@ -1,0 +1,13 @@
+
+#------------------------------------------------------------------------------
+# $File: applix,v 1.5 2009/09/19 16:28:08 christos Exp $
+# applix:  file(1) magic for Applixware
+# From: Peter Soos <sp@osb.hu>
+#
+0	string		*BEGIN		Applixware
+>7	string		WORDS			Words Document
+>7	string		GRAPHICS		Graphic
+>7	string		RASTER			Bitmap
+>7	string		SPREADSHEETS		Spreadsheet
+>7	string		MACRO			Macro
+>7	string		BUILDER			Builder Object

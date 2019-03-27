@@ -1,0 +1,131 @@
+.\" Copyright (c) 1998-2000 Proofpoint, Inc. and its suppliers.
+.\"	 All rights reserved.
+.\" Copyright (c) 1983, 1997 Eric P. Allman.  All rights reserved.
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" By using this file, you agree to the terms and conditions set
+.\" forth in the LICENSE file which can be found at the top level of
+.\" the sendmail distribution.
+.\"
+.\"
+.\"     $Id: aliases.5,v 8.20 2013-11-22 20:51:55 ca Exp $
+.\"
+.TH ALIASES 5 "$Date: 2013-11-22 20:51:55 $"
+.SH NAME
+aliases
+\- aliases file for sendmail
+.SH SYNOPSIS
+.B aliases
+.SH DESCRIPTION
+This file describes user 
+ID 
+aliases used by 
+sendmail.
+The file resides in 
+/etc/mail 
+and 
+is formatted as a series of lines of the form
+.IP
+name: addr_1, addr_2, addr_3, . . .
+.PP
+The
+.I name
+is the name to alias, and the
+.I addr_n
+are the aliases for that name.  
+.I addr_n
+can be another alias, a local username, a local filename,
+a command,
+an include file,
+or an external address.
+.TP
+.B Local Username
+username
+.IP
+The username must be available via getpwnam(3).
+.TP
+.B Local Filename
+/path/name
+.IP
+Messages are appended to the file specified by the full pathname
+(starting with a slash (/))
+.TP
+.B Command
+|command
+.IP
+A command starts with a pipe symbol (|),
+it receives messages via standard input.
+.TP
+.B Include File
+:include: /path/name
+.IP
+The aliases in pathname are added to the aliases for
+.I name.
+.TP
+.B E-Mail Address
+user@domain
+.IP
+An e-mail address in RFC 822 format.
+.PP
+Lines beginning with white space are continuation lines.  
+Another way to continue lines is by placing a backslash 
+directly before a newline.  
+Lines beginning with 
+# 
+are comments.
+.PP
+Aliasing occurs only on local names.  
+Loops can not occur, since no message will be sent to any person more than once.
+.PP
+If an alias is found for
+.IR name ,
+sendmail then checks for an alias for
+.IR owner-name .
+If it is found and the result of the lookup expands to a single
+address, the envelope sender address of the message is rewritten to
+that address.
+If it is found and the result expands to more than one address, the
+envelope sender address is changed to
+.IR owner-name .
+.PP
+After aliasing has been done, local and valid recipients who have a 
+``.forward'' 
+file in their home directory have messages forwarded to the 
+list of users defined in that file.
+.PP
+This is only the raw data file; the actual aliasing information is
+placed into a binary format in the file 
+/etc/mail/aliases.db
+using the program 
+newaliases(1).  
+A 
+newaliases
+command should be executed each time the aliases file is changed for the 
+change to take effect.
+.SH SEE  ALSO
+newaliases(1), 
+dbm(3), 
+dbopen(3), 
+db_open(3), 
+sendmail(8)
+.PP
+.I
+SENDMAIL Installation and Operation Guide.
+.PP
+.I 
+SENDMAIL An Internetwork Mail Router.
+.SH BUGS
+If you have compiled 
+sendmail 
+with DBM support instead of NEWDB,
+you may have encountered problems in 
+dbm(3) 
+restricting a single alias to about 1000 bytes of information.  
+You can get longer aliases by ``chaining''; that is, make the last name in 
+the alias be a dummy name which is a continuation alias.
+.SH HISTORY
+The
+.B aliases
+file format appeared in 
+4.0BSD.

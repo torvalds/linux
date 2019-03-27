@@ -1,0 +1,59 @@
+.\"
+.\" Copyright (c) 2007 Kevin Lo
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 13, 2008
+.Dt WLAN_AMRR 4
+.Os
+.Sh NAME
+.Nm wlan_amrr
+.Nd AMRR rate adaptation algorithm support for 802.11 devices
+.Sh SYNOPSIS
+.Cd "device wlan_amrr"
+.Sh DESCRIPTION
+The
+.Nm
+module implements the Adaptive Multi-Rate Retry tx rate control
+algorithm for use by 802.11 device drivers.
+.Sh SEE ALSO
+.Xr bwi 4 ,
+.Xr iwn 4 ,
+.Xr ral 4 ,
+.Xr rum 4 ,
+.Xr ural 4 ,
+.Xr wlan 4 ,
+.Xr wpi 4 ,
+.Xr zyd 4
+.Sh STANDARDS
+More information can be found in the paper describing the
+.Em AMRR
+algorithm at
+.Pa http://hal.inria.fr/inria-00070784/en/ .
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 6.0 .

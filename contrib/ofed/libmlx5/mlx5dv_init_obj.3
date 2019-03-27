@@ -1,0 +1,130 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org (MIT) - See COPYING.md
+.\"
+.TH MLX5DV_INIT_OBJ 3 2017-02-02 1.0.0
+.SH "NAME"
+mlx5dv_init_obj \- Initialize mlx5 direct verbs object from ibv_xxx structures
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/mlx5dv.h>
+.sp
+.BI "int mlx5dv_init_obj(struct mlx5dv_obj *obj, uint64_t obj_type);
+.fi
+.SH "DESCRIPTION"
+.B mlx5dv_init_obj()
+This function will initialize mlx5dv_xxx structs based on supplied type. The information
+for initialization is taken from ibv_xx structs supplied as part of input.
+
+Request information of CQ marks its owned by direct verbs for all consumer index
+related actions. The initialization type can be combination of several types together.
+.PP
+.nf
+struct mlx5dv_qp {
+.in +8
+uint32_t                *dbrec;
+struct {
+.in +8
+void            *buf;
+uint32_t        wqe_cnt;
+uint32_t        stride;
+.in -8
+} sq;
+struct {
+.in +8
+void            *buf;
+uint32_t        wqe_cnt;
+uint32_t        stride;
+.in -8
+} rq;
+struct {
+.in +8
+void            *reg;
+uint32_t        size;
+.in -8
+} bf;
+uint64_t                comp_mask;
+.in -8
+};
+
+struct mlx5dv_cq {
+.in +8
+void                    *buf;
+uint32_t                *dbrec;
+uint32_t                cqe_cnt;
+uint32_t                cqe_size;
+void                    *uar;
+uint32_t                cqn;
+uint64_t                comp_mask;
+.in -8
+};
+
+struct mlx5dv_srq {
+.in +8
+void                    *buf;
+uint32_t                *dbrec;
+uint32_t                stride;
+uint32_t                head;
+uint32_t                tail;
+uint64_t                comp_mask;
+.in -8
+};
+
+struct mlx5dv_rwq {
+.in +8
+void            *buf;
+uint32_t        *dbrec;
+uint32_t        wqe_cnt;
+uint32_t        stride;
+uint64_t        comp_mask;
+.in -8
+};
+
+struct mlx5dv_obj {
+.in +8
+struct {
+.in +8
+struct ibv_qp           *in;
+struct mlx5dv_qp        *out;
+.in -8
+} qp;
+struct {
+.in +8
+struct ibv_cq           *in;
+struct mlx5dv_cq        *out;
+.in -8
+} cq;
+struct {
+.in +8
+struct ibv_srq          *in;
+struct mlx5dv_srq       *out;
+.in -8
+} srq;
+struct {
+.in +8
+struct ibv_wq           *in;
+struct mlx5dv_rwq       *out;
+.in -8
+} rwq;
+.in -8
+};
+
+enum mlx5dv_obj_type {
+.in +8
+MLX5DV_OBJ_QP   = 1 << 0,
+MLX5DV_OBJ_CQ   = 1 << 1,
+MLX5DV_OBJ_SRQ  = 1 << 2,
+MLX5DV_OBJ_RWQ  = 1 << 3,
+.in -8
+};
+.fi
+.SH "RETURN VALUE"
+0 on success or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+ * The information if doorbell is blueflame is based on mlx5dv_qp->bf->size,
+in case of 0 it's not a BF.
+ * Compatibility masks (comp_mask) are in/out fields.
+.SH "SEE ALSO"
+.BR mlx5dv (7)
+.SH "AUTHORS"
+.TP
+Leon Romanovsky <leonro@mellanox.com>

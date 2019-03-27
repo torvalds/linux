@@ -1,0 +1,23 @@
+# $FreeBSD$
+
+set -e
+T=$(mktemp -d "${TMPDIR:-/tmp}/sh-test.XXXXXX")
+trap 'rm -rf "$T"' 0
+
+cd -P "$T"
+D=$(pwd)
+
+mkdir a a/1 b b/1 b/2
+
+CDPATH=$D/a:
+# Basic test.
+cd 1 >/dev/null
+[ "$(pwd)" = "$D/a/1" ]
+# Test that the current directory is not checked before CDPATH.
+cd "$D/b"
+cd 1 >/dev/null
+[ "$(pwd)" = "$D/a/1" ]
+# Test not using a CDPATH entry.
+cd "$D/b"
+cd 2
+[ "$(pwd)" = "$D/b/2" ]

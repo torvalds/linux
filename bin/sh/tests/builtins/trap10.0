@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+# Check that the return statement will not break the EXIT trap, ie. all
+# trap commands are executed before the script exits.
+
+test "$(trap 'printf trap; echo ped' EXIT; f() { return; }; f)" = trapped || exit 1

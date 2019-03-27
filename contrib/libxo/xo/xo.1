@@ -1,0 +1,200 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt XO 1
+.Os
+.Sh NAME
+.Nm xo
+.Nd emit formatted output based on format string and arguments
+.Sh SYNOPSIS
+.Nm
+.Op Fl options
+.Op Ar argument...
+.Sh DESCRIPTION
+The
+.Nm
+utility allows command line access to the functionality of
+the
+.Nm libxo
+library.
+Using
+.Nm ,
+shell scripts can emit
+.Em XML ,
+.Em JSON ,
+or
+.Em HTML
+using the same commands that emit text output.
+.Pp
+.Bl -tag -width indent
+.It Ic --close Ar path
+Close tags for the given path
+.It Ic --depth Ar num
+Set the depth for pretty printing
+.It Ic --help
+Display help text
+.It Ic -H | Ic --html
+Generate HTML output
+.It Ic -J | Ic --json
+Generate JSON output
+.It Ic --leading-xpath Ar path
+Add a prefix to generated XPaths (HTML)
+.It Ic --open Ar path
+Open tags for the given path
+.It Ic -p | Ic --pretty
+Make 'pretty' output (add indent, newlines)
+.It Ic --style Ar style
+Generate given style (xml, json, text, html)
+.It Ic -T | Ic --text
+Generate text output (the default style)
+.It Ic --version
+Display version information
+.It Ic -W | Ic --warn
+Display warnings in text on stderr
+.It Ic --warn-xml
+Display warnings in xml on stdout
+.It Ic --wrap Ar path
+Wrap output in a set of containers
+.It Ic -X | Ic --xml
+Generate XML output
+.It Ic --xpath
+Add XPath data to HTML output
+.El
+.Pp
+The
+.Nm
+utility accepts a format string suitable for
+.Xr xo_emit 3
+and a set of zero or more arguments used to supply data for that string.
+.Pp
+In addition,
+.Nm
+accepts any of the
+.Nm libxo
+options listed in
+.Xr xo_options 7 .
+.Sh EXAMPLES
+In this example,
+.Nm
+is used to emit the same data encoded in text and then in XML by
+adding the "-p" (pretty) and "-X" (XML output) flags:
+.Bd -literal -offset indent
+  % xo 'The {:product} is {:status}\\n' stereo "in route"
+  The stereo is in route
+  % xo -p -X 'The {:product} is {:status}\\n' stereo "in route"
+  <product>stereo</product>
+  <status>in route</status>
+.Ed
+.Pp
+In this example, the output from a
+.Nm
+command is shown in several styles:
+.Bd -literal -offset indent
+  xo "The {k:name} weighs {:weight/%d} pounds.\\n" fish 6
+.Pp
+  TEXT:
+    The fish weighs 6 pounds.
+  XML:
+    <name>fish</name>
+    <weight>6</weight>
+  JSON:
+    "name": "fish",
+    "weight": 6
+  HTML:
+    <div class="line">
+      <div class="text">The </div>
+      <div class="data" data-tag="name">fish</div>
+      <div class="text"> weighs </div>
+      <div class="data" data-tag="weight">6</div>
+      <div class="text"> pounds.</div>
+    </div>
+.Ed
+.Pp
+The
+.Fl "-wrap <path>"
+option can be used to wrap emitted content in a
+specific hierarchy.
+The path is a set of hierarchical names separated
+by the '/' character.
+.Bd -literal -offset indent
+  xo --wrap top/a/b/c '{:tag}' value
+.Pp
+  XML:
+    <top>
+      <a>
+        <b>
+          <c>
+            <tag>value</tag>
+          </c>
+        </b>
+      </a>
+    </top>
+  JSON:
+    "top": {
+      "a": {
+        "b": {
+          "c": {
+            "tag": "value"
+          }
+        }
+      }
+    }
+.Ed
+.Pp
+The
+.Fl "\-open <path>"
+and
+.Fl "\-close <path>"
+can be used to emit
+hierarchical information without the matching close and open
+tag.
+This allows a shell script to emit open tags, data, and
+then close tags.
+The
+.Fl \-depth
+option may be used to set the
+depth for indentation.
+The
+.Fl "\-leading-xpath"
+may be used to
+prepend data to the XPath values used for HTML output style.
+.Bd -literal -offset indent
+  #!/bin/sh
+  xo --open top/data
+  xo --depth 2 '{tag}' value
+  xo --close top/data
+.Pp
+  XML:
+    <top>
+      <data>
+        <tag>value</tag>
+      </data>
+    </top>
+  JSON:
+    "top": {
+      "data": {
+        "tag": "value"
+      }
+    }
+.Ed
+.Sh SEE ALSO
+.Xr libxo 3 ,
+.Xr xo_emit 3 ,
+.Xr xo_options 7
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

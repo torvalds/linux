@@ -1,0 +1,215 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)tunefs.8	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd January 29, 2019
+.Dt TUNEFS 8
+.Os
+.Sh NAME
+.Nm tunefs
+.Nd tune up an existing UFS file system
+.Sh SYNOPSIS
+.Nm
+.Op Fl A
+.Op Fl a Cm enable | disable
+.Op Fl e Ar maxbpg
+.Op Fl f Ar avgfilesize
+.Op Fl j Cm enable | disable
+.Op Fl J Cm enable | disable
+.Op Fl k Ar held-for-metadata-blocks
+.Op Fl L Ar volname
+.Op Fl l Cm enable | disable
+.Op Fl m Ar minfree
+.Op Fl N Cm enable | disable
+.Op Fl n Cm enable | disable
+.Op Fl o Cm space | time
+.Op Fl p
+.Op Fl s Ar avgfpdir
+.Op Fl S Ar size
+.Op Fl t Cm enable | disable
+.Ar special | filesystem
+.Sh DESCRIPTION
+The
+.Nm
+utility is designed to change the dynamic parameters of a UFS file system
+which affect the layout policies.
+The
+.Nm
+utility cannot be run on an active file system.
+To change an active file system,
+it must be downgraded to read-only or unmounted.
+.Pp
+The parameters which are to be changed are indicated by the flags
+given below:
+.Bl -tag -width indent
+.It Fl A
+The file system has several backups of the super-block.
+Specifying
+this option will cause all backups to be modified as well as the
+primary super-block.
+This is potentially dangerous - use with caution.
+.It Fl a Cm enable | disable
+Turn on/off the administrative POSIX.1e ACL enable flag.
+.It Fl e Ar maxbpg
+Indicate the maximum number of blocks any single file can
+allocate out of a cylinder group before it is forced to begin
+allocating blocks from another cylinder group.
+Typically this value is set to about one quarter of the total blocks
+in a cylinder group.
+The intent is to prevent any single file from using up all the
+blocks in a single cylinder group,
+thus degrading access times for all files subsequently allocated
+in that cylinder group.
+The effect of this limit is to cause big files to do long seeks
+more frequently than if they were allowed to allocate all the blocks
+in a cylinder group before seeking elsewhere.
+For file systems with exclusively large files,
+this parameter should be set higher.
+.It Fl f Ar avgfilesize
+Specify the expected average file size.
+.It Fl j Cm enable | disable
+Turn on/off soft updates journaling.
+.It Fl J Cm enable | disable
+Turn on/off gjournal flag.
+.It Fl k Ar held-for-metadata-blocks
+Set the amount of space to be held for metadata blocks.
+When set, the file system preference routines will try to save
+the specified amount of space immediately following the inode blocks
+in each cylinder group for use by metadata blocks.
+Clustering the metadata blocks speeds up random file access
+and decreases the running time of
+.Xr fsck 8 .
+While this option can be set at any time,
+it is most effective if set before any data is loaded into the file system.
+By default
+.Xr newfs 8
+sets it to half of the space reserved to minfree.
+.It Fl L Ar volname
+Add/modify an optional file system volume label.
+Legal characters are alphanumerics, dashes, and underscores.
+.It Fl l Cm enable | disable
+Turn on/off MAC multilabel flag.
+.It Fl m Ar minfree
+Specify the percentage of space held back
+from normal users; the minimum free space threshold.
+The default value used is 8%.
+Note that lowering the threshold can adversely affect performance:
+.Bl -bullet
+.It
+Settings of 5% and less force space optimization to
+always be used which will greatly increase the overhead for file
+writes.
+.It
+The file system's ability to avoid fragmentation will be reduced
+when the total free space, including the reserve, drops below 15%.
+As free space approaches zero, throughput can degrade by up to a
+factor of three over the performance obtained at a 10% threshold.
+.El
+.Pp
+If the value is raised above the current usage level,
+users will be unable to allocate files until enough files have
+been deleted to get under the higher threshold.
+.It Fl N Cm enable | disable
+Turn on/off the administrative NFSv4 ACL enable flag.
+.It Fl n Cm enable | disable
+Turn on/off soft updates.
+.It Fl o Cm space | time
+The file system can either try to minimize the time spent
+allocating blocks, or it can attempt to minimize the space
+fragmentation on the disk.
+Optimization for space has much
+higher overhead for file writes.
+The kernel normally changes the preference automatically as
+the percent fragmentation changes on the file system.
+.It Fl p
+Show a summary of what the current tunable settings
+are on the selected file system.
+More detailed information can be
+obtained from the
+.Xr dumpfs 8
+utility.
+.It Fl s Ar avgfpdir
+Specify the expected number of files per directory.
+.It Fl S Ar size
+Specify the softdep journal size in bytes.
+The minimum is 4M.
+.It Fl t Cm enable | disable
+Turn on/off the TRIM enable flag.
+If enabled, and if the underlying device supports the BIO_DELETE
+command, the file system will send a delete request to the underlying
+device for each freed block.
+The trim enable flag is typically set when the underlying device
+uses flash-memory as the device can use the delete command to
+pre-zero or at least avoid copying blocks that have been deleted.
+.Pp
+Note that this does not trim blocks that are already free.
+See the
+.Xr fsck_ffs 8
+.Fl E
+flag.
+.El
+.Pp
+At least one of these flags is required.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/fstab"
+.It Pa /etc/fstab
+read this to determine the device file for a
+specified mount point.
+.El
+.Sh SEE ALSO
+.Xr fs 5 ,
+.Xr dumpfs 8 ,
+.Xr gjournal 8 ,
+.Xr growfs 8 ,
+.Xr newfs 8
+.Rs
+.%A M. McKusick
+.%A W. Joy
+.%A S. Leffler
+.%A R. Fabry
+.%T "A Fast File System for UNIX"
+.%J "ACM Transactions on Computer Systems 2"
+.%N 3
+.%P pp 181-197
+.%D August 1984
+.%O "(reprinted in the BSD System Manager's Manual, SMM:5)"
+.Re
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.2 .
+.Sh BUGS
+This utility does not work on active file systems.
+To change the root file system, the system must be rebooted
+after the file system is tuned.
+.\" Take this out and a Unix Daemon will dog your steps from now until
+.\" the time_t's wrap around.
+.Pp
+You can tune a file system, but you cannot tune a fish.

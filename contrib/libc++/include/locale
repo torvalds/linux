@@ -1,0 +1,4360 @@
+// -*- C++ -*-
+//===-------------------------- locale ------------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_LOCALE
+#define _LIBCPP_LOCALE
+
+/*
+    locale synopsis
+
+namespace std
+{
+
+class locale
+{
+public:
+    // types:
+    class facet;
+    class id;
+
+    typedef int category;
+    static const category // values assigned here are for exposition only
+        none     = 0x000,
+        collate  = 0x010,
+        ctype    = 0x020,
+        monetary = 0x040,
+        numeric  = 0x080,
+        time     = 0x100,
+        messages = 0x200,
+        all = collate | ctype | monetary | numeric | time | messages;
+
+    // construct/copy/destroy:
+    locale() noexcept;
+    locale(const locale& other) noexcept;
+    explicit locale(const char* std_name);
+    explicit locale(const string& std_name);
+    locale(const locale& other, const char* std_name, category);
+    locale(const locale& other, const string& std_name, category);
+    template <class Facet> locale(const locale& other, Facet* f);
+    locale(const locale& other, const locale& one, category);
+
+    ~locale(); // not virtual
+
+    const locale& operator=(const locale& other) noexcept;
+
+    template <class Facet> locale combine(const locale& other) const;
+
+    // locale operations:
+    basic_string<char> name() const;
+    bool operator==(const locale& other) const;
+    bool operator!=(const locale& other) const;
+    template <class charT, class Traits, class Allocator>
+      bool operator()(const basic_string<charT,Traits,Allocator>& s1,
+                      const basic_string<charT,Traits,Allocator>& s2) const;
+
+    // global locale objects:
+    static locale global(const locale&);
+    static const locale& classic();
+};
+
+template <class Facet> const Facet& use_facet(const locale&);
+template <class Facet> bool has_facet(const locale&) noexcept;
+
+// 22.3.3, convenience interfaces:
+template <class charT> bool isspace (charT c, const locale& loc);
+template <class charT> bool isprint (charT c, const locale& loc);
+template <class charT> bool iscntrl (charT c, const locale& loc);
+template <class charT> bool isupper (charT c, const locale& loc);
+template <class charT> bool islower (charT c, const locale& loc);
+template <class charT> bool isalpha (charT c, const locale& loc);
+template <class charT> bool isdigit (charT c, const locale& loc);
+template <class charT> bool ispunct (charT c, const locale& loc);
+template <class charT> bool isxdigit(charT c, const locale& loc);
+template <class charT> bool isalnum (charT c, const locale& loc);
+template <class charT> bool isgraph (charT c, const locale& loc);
+template <class charT> charT toupper(charT c, const locale& loc);
+template <class charT> charT tolower(charT c, const locale& loc);
+
+template<class Codecvt, class Elem = wchar_t,
+         class Wide_alloc = allocator<Elem>,
+         class Byte_alloc = allocator<char>>
+class wstring_convert
+{
+public:
+    typedef basic_string<char, char_traits<char>, Byte_alloc> byte_string;
+    typedef basic_string<Elem, char_traits<Elem>, Wide_alloc> wide_string;
+    typedef typename Codecvt::state_type                      state_type;
+    typedef typename wide_string::traits_type::int_type       int_type;
+
+    explicit wstring_convert(Codecvt* pcvt = new Codecvt);          // explicit in C++14
+    wstring_convert(Codecvt* pcvt, state_type state);
+    explicit wstring_convert(const byte_string& byte_err,           // explicit in C++14
+                    const wide_string& wide_err = wide_string());
+    wstring_convert(const wstring_convert&) = delete;               // C++14
+    wstring_convert & operator=(const wstring_convert &) = delete;  // C++14
+    ~wstring_convert();
+
+    wide_string from_bytes(char byte);
+    wide_string from_bytes(const char* ptr);
+    wide_string from_bytes(const byte_string& str);
+    wide_string from_bytes(const char* first, const char* last);
+
+    byte_string to_bytes(Elem wchar);
+    byte_string to_bytes(const Elem* wptr);
+    byte_string to_bytes(const wide_string& wstr);
+    byte_string to_bytes(const Elem* first, const Elem* last);
+
+    size_t converted() const; // noexcept in C++14
+    state_type state() const;
+};
+
+template <class Codecvt, class Elem = wchar_t, class Tr = char_traits<Elem>>
+class wbuffer_convert
+    : public basic_streambuf<Elem, Tr>
+{
+public:
+    typedef typename Tr::state_type state_type;
+
+    explicit wbuffer_convert(streambuf* bytebuf = 0, Codecvt* pcvt = new Codecvt,
+                    state_type state = state_type());       // explicit in C++14
+    wbuffer_convert(const wbuffer_convert&) = delete;               // C++14
+    wbuffer_convert & operator=(const wbuffer_convert &) = delete;  // C++14
+    ~wbuffer_convert();                                             // C++14
+    
+    streambuf* rdbuf() const;
+    streambuf* rdbuf(streambuf* bytebuf);
+
+    state_type state() const;
+};
+
+// 22.4.1 and 22.4.1.3, ctype:
+class ctype_base;
+template <class charT> class ctype;
+template <> class ctype<char>; // specialization
+template <class charT> class ctype_byname;
+template <> class ctype_byname<char>; // specialization
+
+class codecvt_base;
+template <class internT, class externT, class stateT> class codecvt;
+template <class internT, class externT, class stateT> class codecvt_byname;
+
+// 22.4.2 and 22.4.3, numeric:
+template <class charT, class InputIterator> class num_get;
+template <class charT, class OutputIterator> class num_put;
+template <class charT> class numpunct;
+template <class charT> class numpunct_byname;
+
+// 22.4.4, col lation:
+template <class charT> class collate;
+template <class charT> class collate_byname;
+
+// 22.4.5, date and time:
+class time_base;
+template <class charT, class InputIterator> class time_get;
+template <class charT, class InputIterator> class time_get_byname;
+template <class charT, class OutputIterator> class time_put;
+template <class charT, class OutputIterator> class time_put_byname;
+
+// 22.4.6, money:
+class money_base;
+template <class charT, class InputIterator> class money_get;
+template <class charT, class OutputIterator> class money_put;
+template <class charT, bool Intl> class moneypunct;
+template <class charT, bool Intl> class moneypunct_byname;
+
+// 22.4.7, message retrieval:
+class messages_base;
+template <class charT> class messages;
+template <class charT> class messages_byname;
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__locale>
+#include <__debug>
+#include <algorithm>
+#include <memory>
+#include <ios>
+#include <streambuf>
+#include <iterator>
+#include <limits>
+#include <version>
+#ifndef __APPLE__
+#include <cstdarg>
+#endif
+#include <cstdlib>
+#include <ctime>
+#include <cstdio>
+#ifdef _LIBCPP_HAS_CATOPEN
+#include <nl_types.h>
+#endif
+
+#ifdef __APPLE__
+#include <Availability.h>
+#endif
+
+#ifdef _LIBCPP_LOCALE__L_EXTENSIONS
+#include <__bsd_locale_defaults.h>
+#else
+#include <__bsd_locale_fallbacks.h>
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#if defined(__APPLE__) || defined(__FreeBSD__)
+#  define _LIBCPP_GET_C_LOCALE 0
+#elif defined(__CloudABI__) || defined(__NetBSD__)
+#  define _LIBCPP_GET_C_LOCALE LC_C_LOCALE
+#else
+#  define _LIBCPP_GET_C_LOCALE __cloc()
+   // Get the C locale object
+   _LIBCPP_FUNC_VIS locale_t __cloc();
+#define __cloc_defined
+#endif
+
+// __scan_keyword
+// Scans [__b, __e) until a match is found in the basic_strings range
+//  [__kb, __ke) or until it can be shown that there is no match in [__kb, __ke).
+//  __b will be incremented (visibly), consuming CharT until a match is found
+//  or proved to not exist.  A keyword may be "", in which will match anything.
+//  If one keyword is a prefix of another, and the next CharT in the input
+//  might match another keyword, the algorithm will attempt to find the longest
+//  matching keyword.  If the longer matching keyword ends up not matching, then
+//  no keyword match is found.  If no keyword match is found, __ke is returned
+//  and failbit is set in __err.
+//  Else an iterator pointing to the matching keyword is found.  If more than
+//  one keyword matches, an iterator to the first matching keyword is returned.
+//  If on exit __b == __e, eofbit is set in __err.  If __case_sensitive is false,
+//  __ct is used to force to lower case before comparing characters.
+//  Examples:
+//  Keywords:  "a", "abb"
+//  If the input is "a", the first keyword matches and eofbit is set.
+//  If the input is "abc", no match is found and "ab" are consumed.
+template <class _InputIterator, class _ForwardIterator, class _Ctype>
+_LIBCPP_HIDDEN
+_ForwardIterator
+__scan_keyword(_InputIterator& __b, _InputIterator __e,
+               _ForwardIterator __kb, _ForwardIterator __ke,
+               const _Ctype& __ct, ios_base::iostate& __err,
+               bool __case_sensitive = true)
+{
+    typedef typename iterator_traits<_InputIterator>::value_type _CharT;
+    size_t __nkw = static_cast<size_t>(_VSTD::distance(__kb, __ke));
+    const unsigned char __doesnt_match = '\0';
+    const unsigned char __might_match = '\1';
+    const unsigned char __does_match = '\2';
+    unsigned char __statbuf[100];
+    unsigned char* __status = __statbuf;
+    unique_ptr<unsigned char, void(*)(void*)> __stat_hold(0, free);
+    if (__nkw > sizeof(__statbuf))
+    {
+        __status = (unsigned char*)malloc(__nkw);
+        if (__status == 0)
+            __throw_bad_alloc();
+        __stat_hold.reset(__status);
+    }
+    size_t __n_might_match = __nkw;  // At this point, any keyword might match
+    size_t __n_does_match = 0;       // but none of them definitely do
+    // Initialize all statuses to __might_match, except for "" keywords are __does_match
+    unsigned char* __st = __status;
+    for (_ForwardIterator __ky = __kb; __ky != __ke; ++__ky, (void) ++__st)
+    {
+        if (!__ky->empty())
+            *__st = __might_match;
+        else
+        {
+            *__st = __does_match;
+            --__n_might_match;
+            ++__n_does_match;
+        }
+    }
+    // While there might be a match, test keywords against the next CharT
+    for (size_t __indx = 0; __b != __e && __n_might_match > 0; ++__indx)
+    {
+        // Peek at the next CharT but don't consume it
+        _CharT __c = *__b;
+        if (!__case_sensitive)
+            __c = __ct.toupper(__c);
+        bool __consume = false;
+        // For each keyword which might match, see if the __indx character is __c
+        // If a match if found, consume __c
+        // If a match is found, and that is the last character in the keyword,
+        //    then that keyword matches.
+        // If the keyword doesn't match this character, then change the keyword
+        //    to doesn't match
+        __st = __status;
+        for (_ForwardIterator __ky = __kb; __ky != __ke; ++__ky, (void) ++__st)
+        {
+            if (*__st == __might_match)
+            {
+                _CharT __kc = (*__ky)[__indx];
+                if (!__case_sensitive)
+                    __kc = __ct.toupper(__kc);
+                if (__c == __kc)
+                {
+                    __consume = true;
+                    if (__ky->size() == __indx+1)
+                    {
+                        *__st = __does_match;
+                        --__n_might_match;
+                        ++__n_does_match;
+                    }
+                }
+                else
+                {
+                    *__st = __doesnt_match;
+                    --__n_might_match;
+                }
+            }
+        }
+        // consume if we matched a character
+        if (__consume)
+        {
+            ++__b;
+            // If we consumed a character and there might be a matched keyword that
+            //   was marked matched on a previous iteration, then such keywords
+            //   which are now marked as not matching.
+            if (__n_might_match + __n_does_match > 1)
+            {
+                __st = __status;
+                for (_ForwardIterator __ky = __kb; __ky != __ke; ++__ky, (void) ++__st)
+                {
+                    if (*__st == __does_match && __ky->size() != __indx+1)
+                    {
+                        *__st = __doesnt_match;
+                        --__n_does_match;
+                    }
+                }
+            }
+        }
+    }
+    // We've exited the loop because we hit eof and/or we have no more "might matches".
+    if (__b == __e)
+        __err |= ios_base::eofbit;
+    // Return the first matching result
+    for (__st = __status; __kb != __ke; ++__kb, (void) ++__st)
+        if (*__st == __does_match)
+            break;
+    if (__kb == __ke)
+        __err |= ios_base::failbit;
+    return __kb;
+}
+
+struct _LIBCPP_TYPE_VIS __num_get_base
+{
+    static const int __num_get_buf_sz = 40;
+
+    static int __get_base(ios_base&);
+    static const char __src[33];
+};
+
+_LIBCPP_FUNC_VIS
+void __check_grouping(const string& __grouping, unsigned* __g, unsigned* __g_end,
+                      ios_base::iostate& __err);
+
+template <class _CharT>
+struct __num_get
+    : protected __num_get_base
+{
+    static string __stage2_float_prep(ios_base& __iob, _CharT* __atoms, _CharT& __decimal_point,
+                                      _CharT& __thousands_sep);
+
+    static int __stage2_float_loop(_CharT __ct, bool& __in_units, char& __exp,
+                                   char* __a, char*& __a_end,
+                                   _CharT __decimal_point, _CharT __thousands_sep,
+                                   const string& __grouping, unsigned* __g,
+                                   unsigned*& __g_end, unsigned& __dc, _CharT* __atoms);
+#ifndef _LIBCPP_ABI_OPTIMIZED_LOCALE_NUM_GET
+    static string __stage2_int_prep(ios_base& __iob, _CharT* __atoms, _CharT& __thousands_sep);
+    static int __stage2_int_loop(_CharT __ct, int __base, char* __a, char*& __a_end,
+                  unsigned& __dc, _CharT __thousands_sep, const string& __grouping,
+                  unsigned* __g, unsigned*& __g_end, _CharT* __atoms);
+
+#else
+    static string __stage2_int_prep(ios_base& __iob, _CharT& __thousands_sep)
+    {
+        locale __loc = __iob.getloc();
+        const numpunct<_CharT>& __np = use_facet<numpunct<_CharT> >(__loc);
+        __thousands_sep = __np.thousands_sep();
+        return __np.grouping();
+    }
+
+    const _CharT* __do_widen(ios_base& __iob, _CharT* __atoms) const
+    {
+      return __do_widen_p(__iob, __atoms);
+    }
+
+
+    static int __stage2_int_loop(_CharT __ct, int __base, char* __a, char*& __a_end,
+                  unsigned& __dc, _CharT __thousands_sep, const string& __grouping,
+                  unsigned* __g, unsigned*& __g_end, const _CharT* __atoms);
+private:
+    template<typename T>
+    const T* __do_widen_p(ios_base& __iob, T* __atoms) const
+    {
+      locale __loc = __iob.getloc();
+      use_facet<ctype<T> >(__loc).widen(__src, __src + 26, __atoms);
+      return __atoms;
+    }
+
+    const char* __do_widen_p(ios_base& __iob, char* __atoms) const
+    {
+      (void)__iob;
+      (void)__atoms;
+      return __src;
+    }
+#endif
+};
+
+#ifndef _LIBCPP_ABI_OPTIMIZED_LOCALE_NUM_GET
+template <class _CharT>
+string
+__num_get<_CharT>::__stage2_int_prep(ios_base& __iob, _CharT* __atoms, _CharT& __thousands_sep)
+{
+    locale __loc = __iob.getloc();
+    use_facet<ctype<_CharT> >(__loc).widen(__src, __src + 26, __atoms);
+    const numpunct<_CharT>& __np = use_facet<numpunct<_CharT> >(__loc);
+    __thousands_sep = __np.thousands_sep();
+    return __np.grouping();
+}
+#endif
+
+template <class _CharT>
+string
+__num_get<_CharT>::__stage2_float_prep(ios_base& __iob, _CharT* __atoms, _CharT& __decimal_point,
+                    _CharT& __thousands_sep)
+{
+    locale __loc = __iob.getloc();
+    use_facet<ctype<_CharT> >(__loc).widen(__src, __src + 32, __atoms);
+    const numpunct<_CharT>& __np = use_facet<numpunct<_CharT> >(__loc);
+    __decimal_point = __np.decimal_point();
+    __thousands_sep = __np.thousands_sep();
+    return __np.grouping();
+}
+
+template <class _CharT>
+int
+#ifndef _LIBCPP_ABI_OPTIMIZED_LOCALE_NUM_GET
+__num_get<_CharT>::__stage2_int_loop(_CharT __ct, int __base, char* __a, char*& __a_end,
+                  unsigned& __dc, _CharT __thousands_sep, const string& __grouping,
+                  unsigned* __g, unsigned*& __g_end, _CharT* __atoms)
+#else
+__num_get<_CharT>::__stage2_int_loop(_CharT __ct, int __base, char* __a, char*& __a_end,
+                  unsigned& __dc, _CharT __thousands_sep, const string& __grouping,
+                  unsigned* __g, unsigned*& __g_end, const _CharT* __atoms)
+
+#endif
+{
+    if (__a_end == __a && (__ct == __atoms[24] || __ct == __atoms[25]))
+    {
+        *__a_end++ = __ct == __atoms[24] ? '+' : '-';
+        __dc = 0;
+        return 0;
+    }
+    if (__grouping.size() != 0 && __ct == __thousands_sep)
+    {
+        if (__g_end-__g < __num_get_buf_sz)
+        {
+            *__g_end++ = __dc;
+            __dc = 0;
+        }
+        return 0;
+    }
+    ptrdiff_t __f = find(__atoms, __atoms + 26, __ct) - __atoms;
+    if (__f >= 24)
+        return -1;
+    switch (__base)
+    {
+    case 8:
+    case 10:
+        if (__f >= __base)
+            return -1;
+        break;
+    case 16:
+        if (__f < 22)
+            break;
+        if (__a_end != __a && __a_end - __a <= 2 && __a_end[-1] == '0')
+        {
+            __dc = 0;
+            *__a_end++ = __src[__f];
+            return 0;
+        }
+        return -1;
+    }
+    *__a_end++ = __src[__f];
+    ++__dc;
+    return 0;
+}
+
+template <class _CharT>
+int
+__num_get<_CharT>::__stage2_float_loop(_CharT __ct, bool& __in_units, char& __exp, char* __a, char*& __a_end,
+                    _CharT __decimal_point, _CharT __thousands_sep, const string& __grouping,
+                    unsigned* __g, unsigned*& __g_end, unsigned& __dc, _CharT* __atoms)
+{
+    if (__ct == __decimal_point)
+    {
+        if (!__in_units)
+            return -1;
+        __in_units = false;
+        *__a_end++ = '.';
+        if (__grouping.size() != 0 && __g_end-__g < __num_get_buf_sz)
+            *__g_end++ = __dc;
+        return 0;
+    }
+    if (__ct == __thousands_sep && __grouping.size() != 0)
+    {
+        if (!__in_units)
+            return -1;
+        if (__g_end-__g < __num_get_buf_sz)
+        {
+            *__g_end++ = __dc;
+            __dc = 0;
+        }
+        return 0;
+    }
+    ptrdiff_t __f = find(__atoms, __atoms + 32, __ct) - __atoms;
+    if (__f >= 32)
+        return -1;
+    char __x = __src[__f];
+    if (__x == '-' || __x == '+')
+    {
+        if (__a_end == __a || (__a_end[-1] & 0x5F) == (__exp & 0x7F))
+        {
+            *__a_end++ = __x;
+            return 0;
+        }
+        return -1;
+    }
+    if (__x == 'x' || __x == 'X')
+        __exp = 'P';
+    else if ((__x & 0x5F) == __exp)
+    {
+        __exp |= 0x80;
+        if (__in_units)
+        {
+            __in_units = false;
+            if (__grouping.size() != 0 && __g_end-__g < __num_get_buf_sz)
+                *__g_end++ = __dc;
+        }
+    }
+    *__a_end++ = __x;
+    if (__f >= 22)
+        return 0;
+    ++__dc;
+    return 0;
+}
+
+_LIBCPP_EXTERN_TEMPLATE2(struct _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS __num_get<char>)
+_LIBCPP_EXTERN_TEMPLATE2(struct _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS __num_get<wchar_t>)
+
+template <class _CharT, class _InputIterator = istreambuf_iterator<_CharT> >
+class _LIBCPP_TEMPLATE_VIS num_get
+    : public locale::facet,
+      private __num_get<_CharT>
+{
+public:
+    typedef _CharT char_type;
+    typedef _InputIterator iter_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit num_get(size_t __refs = 0)
+        : locale::facet(__refs) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get(iter_type __b, iter_type __e, ios_base& __iob,
+                  ios_base::iostate& __err, bool& __v) const
+    {
+        return do_get(__b, __e, __iob, __err, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get(iter_type __b, iter_type __e, ios_base& __iob,
+                  ios_base::iostate& __err, long& __v) const
+    {
+        return do_get(__b, __e, __iob, __err, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get(iter_type __b, iter_type __e, ios_base& __iob,
+                  ios_base::iostate& __err, long long& __v) const
+    {
+        return do_get(__b, __e, __iob, __err, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get(iter_type __b, iter_type __e, ios_base& __iob,
+                  ios_base::iostate& __err, unsigned short& __v) const
+    {
+        return do_get(__b, __e, __iob, __err, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get(iter_type __b, iter_type __e, ios_base& __iob,
+                  ios_base::iostate& __err, unsigned int& __v) const
+    {
+        return do_get(__b, __e, __iob, __err, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get(iter_type __b, iter_type __e, ios_base& __iob,
+                  ios_base::iostate& __err, unsigned long& __v) const
+    {
+        return do_get(__b, __e, __iob, __err, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get(iter_type __b, iter_type __e, ios_base& __iob,
+                  ios_base::iostate& __err, unsigned long long& __v) const
+    {
+        return do_get(__b, __e, __iob, __err, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get(iter_type __b, iter_type __e, ios_base& __iob,
+                  ios_base::iostate& __err, float& __v) const
+    {
+        return do_get(__b, __e, __iob, __err, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get(iter_type __b, iter_type __e, ios_base& __iob,
+                  ios_base::iostate& __err, double& __v) const
+    {
+        return do_get(__b, __e, __iob, __err, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get(iter_type __b, iter_type __e, ios_base& __iob,
+                  ios_base::iostate& __err, long double& __v) const
+    {
+        return do_get(__b, __e, __iob, __err, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get(iter_type __b, iter_type __e, ios_base& __iob,
+                  ios_base::iostate& __err, void*& __v) const
+    {
+        return do_get(__b, __e, __iob, __err, __v);
+    }
+
+    static locale::id id;
+
+protected:
+    _LIBCPP_INLINE_VISIBILITY
+    ~num_get() {}
+
+    template <class _Fp>
+    _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
+    iter_type __do_get_floating_point
+                            (iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, _Fp& __v) const;
+
+    template <class _Signed>
+    _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
+    iter_type __do_get_signed
+                            (iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, _Signed& __v) const;
+
+    template <class _Unsigned>
+    _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
+    iter_type __do_get_unsigned
+                            (iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, _Unsigned& __v) const;
+
+
+    virtual iter_type do_get(iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, bool& __v) const;
+
+    virtual iter_type do_get(iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, long& __v) const
+    { return this->__do_get_signed ( __b, __e, __iob, __err, __v ); }
+
+    virtual iter_type do_get(iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, long long& __v) const
+    { return this->__do_get_signed ( __b, __e, __iob, __err, __v ); }
+
+    virtual iter_type do_get(iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, unsigned short& __v) const
+    { return this->__do_get_unsigned ( __b, __e, __iob, __err, __v ); }
+
+    virtual iter_type do_get(iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, unsigned int& __v) const
+    { return this->__do_get_unsigned ( __b, __e, __iob, __err, __v ); }
+
+    virtual iter_type do_get(iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, unsigned long& __v) const
+    { return this->__do_get_unsigned ( __b, __e, __iob, __err, __v ); }
+
+    virtual iter_type do_get(iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, unsigned long long& __v) const
+    { return this->__do_get_unsigned ( __b, __e, __iob, __err, __v ); }
+
+    virtual iter_type do_get(iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, float& __v) const
+    { return this->__do_get_floating_point ( __b, __e, __iob, __err, __v ); }
+
+    virtual iter_type do_get(iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, double& __v) const
+    { return this->__do_get_floating_point ( __b, __e, __iob, __err, __v ); }
+
+    virtual iter_type do_get(iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, long double& __v) const
+    { return this->__do_get_floating_point ( __b, __e, __iob, __err, __v ); }
+
+    virtual iter_type do_get(iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, void*& __v) const;
+};
+
+template <class _CharT, class _InputIterator>
+locale::id
+num_get<_CharT, _InputIterator>::id;
+
+template <class _Tp>
+_LIBCPP_HIDDEN _Tp
+__num_get_signed_integral(const char* __a, const char* __a_end,
+                          ios_base::iostate& __err, int __base)
+{
+    if (__a != __a_end)
+    {
+        typename remove_reference<decltype(errno)>::type __save_errno = errno;
+        errno = 0;
+        char *__p2;
+        long long __ll = strtoll_l(__a, &__p2, __base, _LIBCPP_GET_C_LOCALE);
+        typename remove_reference<decltype(errno)>::type __current_errno = errno;
+        if (__current_errno == 0)
+            errno = __save_errno;
+        if (__p2 != __a_end)
+        {
+            __err = ios_base::failbit;
+            return 0;
+        }
+        else if (__current_errno == ERANGE         ||
+                 __ll < numeric_limits<_Tp>::min() ||
+                 numeric_limits<_Tp>::max() < __ll)
+        {
+            __err = ios_base::failbit;
+            if (__ll > 0)
+                return numeric_limits<_Tp>::max();
+            else
+                return numeric_limits<_Tp>::min();
+        }
+        return static_cast<_Tp>(__ll);
+    }
+    __err = ios_base::failbit;
+    return 0;
+}
+
+template <class _Tp>
+_LIBCPP_HIDDEN _Tp
+__num_get_unsigned_integral(const char* __a, const char* __a_end,
+                            ios_base::iostate& __err, int __base)
+{
+    if (__a != __a_end)
+    {
+        const bool __negate = *__a == '-';
+        if (__negate && ++__a == __a_end) {
+          __err = ios_base::failbit;
+          return 0;
+        }
+        typename remove_reference<decltype(errno)>::type __save_errno = errno;
+        errno = 0;
+        char *__p2;
+        unsigned long long __ll = strtoull_l(__a, &__p2, __base, _LIBCPP_GET_C_LOCALE);
+        typename remove_reference<decltype(errno)>::type __current_errno = errno;
+        if (__current_errno == 0)
+            errno = __save_errno;
+        if (__p2 != __a_end)
+        {
+            __err = ios_base::failbit;
+            return 0;
+        }
+        else if (__current_errno == ERANGE || numeric_limits<_Tp>::max() < __ll)
+        {
+            __err = ios_base::failbit;
+            return numeric_limits<_Tp>::max();
+        }
+        _Tp __res = static_cast<_Tp>(__ll);
+        if (__negate) __res = -__res;
+        return __res;
+    }
+    __err = ios_base::failbit;
+    return 0;
+}
+
+template <class _Tp>
+_LIBCPP_INLINE_VISIBILITY
+_Tp __do_strtod(const char* __a, char** __p2);
+
+template <>
+inline _LIBCPP_INLINE_VISIBILITY
+float __do_strtod<float>(const char* __a, char** __p2) {
+    return strtof_l(__a, __p2, _LIBCPP_GET_C_LOCALE);
+}
+
+template <>
+inline _LIBCPP_INLINE_VISIBILITY
+double __do_strtod<double>(const char* __a, char** __p2) {
+    return strtod_l(__a, __p2, _LIBCPP_GET_C_LOCALE);
+}
+
+template <>
+inline _LIBCPP_INLINE_VISIBILITY
+long double __do_strtod<long double>(const char* __a, char** __p2) {
+    return strtold_l(__a, __p2, _LIBCPP_GET_C_LOCALE);
+}
+
+template <class _Tp>
+_LIBCPP_HIDDEN
+_Tp
+__num_get_float(const char* __a, const char* __a_end, ios_base::iostate& __err)
+{
+    if (__a != __a_end)
+    {
+        typename remove_reference<decltype(errno)>::type __save_errno = errno;
+        errno = 0;
+        char *__p2;
+        _Tp __ld = __do_strtod<_Tp>(__a, &__p2);
+        typename remove_reference<decltype(errno)>::type __current_errno = errno;
+        if (__current_errno == 0)
+            errno = __save_errno;
+        if (__p2 != __a_end)
+        {
+            __err = ios_base::failbit;
+            return 0;
+        }
+        else if (__current_errno == ERANGE)
+            __err = ios_base::failbit;
+        return __ld;
+    }
+    __err = ios_base::failbit;
+    return 0;
+}
+
+template <class _CharT, class _InputIterator>
+_InputIterator
+num_get<_CharT, _InputIterator>::do_get(iter_type __b, iter_type __e,
+                                        ios_base& __iob,
+                                        ios_base::iostate& __err,
+                                        bool& __v) const
+{
+    if ((__iob.flags() & ios_base::boolalpha) == 0)
+    {
+        long __lv = -1;
+        __b = do_get(__b, __e, __iob, __err, __lv);
+        switch (__lv)
+        {
+        case 0:
+            __v = false;
+            break;
+        case 1:
+            __v = true;
+            break;
+        default:
+            __v = true;
+            __err = ios_base::failbit;
+            break;
+        }
+        return __b;
+    }
+    const ctype<_CharT>& __ct = use_facet<ctype<_CharT> >(__iob.getloc());
+    const numpunct<_CharT>& __np = use_facet<numpunct<_CharT> >(__iob.getloc());
+    typedef typename numpunct<_CharT>::string_type string_type;
+    const string_type __names[2] = {__np.truename(), __np.falsename()};
+    const string_type* __i = __scan_keyword(__b, __e, __names, __names+2,
+                                            __ct, __err);
+    __v = __i == __names;
+    return __b;
+}
+
+// signed
+
+template <class _CharT, class _InputIterator>
+template <class _Signed>
+_InputIterator
+num_get<_CharT, _InputIterator>::__do_get_signed(iter_type __b, iter_type __e,
+                                        ios_base& __iob,
+                                        ios_base::iostate& __err,
+                                        _Signed& __v) const
+{
+    // Stage 1
+    int __base = this->__get_base(__iob);
+    // Stage 2
+    char_type __thousands_sep;
+    const int __atoms_size = 26;
+#ifdef _LIBCPP_ABI_OPTIMIZED_LOCALE_NUM_GET
+    char_type __atoms1[__atoms_size];
+    const char_type *__atoms = this->__do_widen(__iob, __atoms1);
+    string __grouping = this->__stage2_int_prep(__iob, __thousands_sep);
+#else
+    char_type __atoms[__atoms_size];
+    string __grouping = this->__stage2_int_prep(__iob, __atoms, __thousands_sep);
+#endif
+    string __buf;
+    __buf.resize(__buf.capacity());
+    char* __a = &__buf[0];
+    char* __a_end = __a;
+    unsigned __g[__num_get_base::__num_get_buf_sz];
+    unsigned* __g_end = __g;
+    unsigned __dc = 0;
+    for (; __b != __e; ++__b)
+    {
+        if (__a_end == __a + __buf.size())
+        {
+            size_t __tmp = __buf.size();
+            __buf.resize(2*__buf.size());
+            __buf.resize(__buf.capacity());
+            __a = &__buf[0];
+            __a_end = __a + __tmp;
+        }
+        if (this->__stage2_int_loop(*__b, __base, __a, __a_end, __dc,
+                                    __thousands_sep, __grouping, __g, __g_end,
+                                    __atoms))
+            break;
+    }
+    if (__grouping.size() != 0 && __g_end-__g < __num_get_base::__num_get_buf_sz)
+        *__g_end++ = __dc;
+    // Stage 3
+    __v = __num_get_signed_integral<_Signed>(__a, __a_end, __err, __base);
+    // Digit grouping checked
+    __check_grouping(__grouping, __g, __g_end, __err);
+    // EOF checked
+    if (__b == __e)
+        __err |= ios_base::eofbit;
+    return __b;
+}
+
+// unsigned
+
+template <class _CharT, class _InputIterator>
+template <class _Unsigned>
+_InputIterator
+num_get<_CharT, _InputIterator>::__do_get_unsigned(iter_type __b, iter_type __e,
+                                        ios_base& __iob,
+                                        ios_base::iostate& __err,
+                                        _Unsigned& __v) const
+{
+    // Stage 1
+    int __base = this->__get_base(__iob);
+    // Stage 2
+    char_type __thousands_sep;
+    const int __atoms_size = 26;
+#ifdef _LIBCPP_ABI_OPTIMIZED_LOCALE_NUM_GET
+    char_type __atoms1[__atoms_size];
+    const char_type *__atoms = this->__do_widen(__iob, __atoms1);
+    string __grouping = this->__stage2_int_prep(__iob, __thousands_sep);
+#else
+    char_type __atoms[__atoms_size];
+    string __grouping = this->__stage2_int_prep(__iob, __atoms, __thousands_sep);
+#endif
+    string __buf;
+    __buf.resize(__buf.capacity());
+    char* __a = &__buf[0];
+    char* __a_end = __a;
+    unsigned __g[__num_get_base::__num_get_buf_sz];
+    unsigned* __g_end = __g;
+    unsigned __dc = 0;
+    for (; __b != __e; ++__b)
+    {
+        if (__a_end == __a + __buf.size())
+        {
+            size_t __tmp = __buf.size();
+            __buf.resize(2*__buf.size());
+            __buf.resize(__buf.capacity());
+            __a = &__buf[0];
+            __a_end = __a + __tmp;
+        }
+        if (this->__stage2_int_loop(*__b, __base, __a, __a_end, __dc,
+                                    __thousands_sep, __grouping, __g, __g_end,
+                                    __atoms))
+            break;
+    }
+    if (__grouping.size() != 0 && __g_end-__g < __num_get_base::__num_get_buf_sz)
+        *__g_end++ = __dc;
+    // Stage 3
+    __v = __num_get_unsigned_integral<_Unsigned>(__a, __a_end, __err, __base);
+    // Digit grouping checked
+    __check_grouping(__grouping, __g, __g_end, __err);
+    // EOF checked
+    if (__b == __e)
+        __err |= ios_base::eofbit;
+    return __b;
+}
+
+// floating point
+
+template <class _CharT, class _InputIterator>
+template <class _Fp>
+_InputIterator
+num_get<_CharT, _InputIterator>::__do_get_floating_point(iter_type __b, iter_type __e,
+                                        ios_base& __iob,
+                                        ios_base::iostate& __err,
+                                        _Fp& __v) const
+{
+    // Stage 1, nothing to do
+    // Stage 2
+    char_type __atoms[32];
+    char_type __decimal_point;
+    char_type __thousands_sep;
+    string __grouping = this->__stage2_float_prep(__iob, __atoms,
+                                                  __decimal_point,
+                                                  __thousands_sep);
+    string __buf;
+    __buf.resize(__buf.capacity());
+    char* __a = &__buf[0];
+    char* __a_end = __a;
+    unsigned __g[__num_get_base::__num_get_buf_sz];
+    unsigned* __g_end = __g;
+    unsigned __dc = 0;
+    bool __in_units = true;
+    char __exp = 'E';
+    for (; __b != __e; ++__b)
+    {
+        if (__a_end == __a + __buf.size())
+        {
+            size_t __tmp = __buf.size();
+            __buf.resize(2*__buf.size());
+            __buf.resize(__buf.capacity());
+            __a = &__buf[0];
+            __a_end = __a + __tmp;
+        }
+        if (this->__stage2_float_loop(*__b, __in_units, __exp, __a, __a_end,
+                                      __decimal_point, __thousands_sep,
+                                      __grouping, __g, __g_end,
+                                      __dc, __atoms))
+            break;
+    }
+    if (__grouping.size() != 0 && __in_units && __g_end-__g < __num_get_base::__num_get_buf_sz)
+        *__g_end++ = __dc;
+    // Stage 3
+    __v = __num_get_float<_Fp>(__a, __a_end, __err);
+    // Digit grouping checked
+    __check_grouping(__grouping, __g, __g_end, __err);
+    // EOF checked
+    if (__b == __e)
+        __err |= ios_base::eofbit;
+    return __b;
+}
+
+template <class _CharT, class _InputIterator>
+_InputIterator
+num_get<_CharT, _InputIterator>::do_get(iter_type __b, iter_type __e,
+                                        ios_base& __iob,
+                                        ios_base::iostate& __err,
+                                        void*& __v) const
+{
+    // Stage 1
+    int __base = 16;
+    // Stage 2
+    char_type __atoms[26];
+    char_type __thousands_sep = 0;
+    string __grouping;
+    use_facet<ctype<_CharT> >(__iob.getloc()).widen(__num_get_base::__src,
+                                                    __num_get_base::__src + 26, __atoms);
+    string __buf;
+    __buf.resize(__buf.capacity());
+    char* __a = &__buf[0];
+    char* __a_end = __a;
+    unsigned __g[__num_get_base::__num_get_buf_sz];
+    unsigned* __g_end = __g;
+    unsigned __dc = 0;
+    for (; __b != __e; ++__b)
+    {
+        if (__a_end == __a + __buf.size())
+        {
+            size_t __tmp = __buf.size();
+            __buf.resize(2*__buf.size());
+            __buf.resize(__buf.capacity());
+            __a = &__buf[0];
+            __a_end = __a + __tmp;
+        }
+        if (this->__stage2_int_loop(*__b, __base, __a, __a_end, __dc,
+                                    __thousands_sep, __grouping,
+                                    __g, __g_end, __atoms))
+            break;
+    }
+    // Stage 3
+    __buf.resize(__a_end - __a);
+    if (__libcpp_sscanf_l(__buf.c_str(), _LIBCPP_GET_C_LOCALE, "%p", &__v) != 1)
+        __err = ios_base::failbit;
+    // EOF checked
+    if (__b == __e)
+        __err |= ios_base::eofbit;
+    return __b;
+}
+
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS num_get<char>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS num_get<wchar_t>)
+
+struct _LIBCPP_TYPE_VIS __num_put_base
+{
+protected:
+    static void __format_int(char* __fmt, const char* __len, bool __signd,
+                             ios_base::fmtflags __flags);
+    static bool __format_float(char* __fmt, const char* __len,
+                               ios_base::fmtflags __flags);
+    static char* __identify_padding(char* __nb, char* __ne,
+                                    const ios_base& __iob);
+};
+
+template <class _CharT>
+struct __num_put
+    : protected __num_put_base
+{
+    static void __widen_and_group_int(char* __nb, char* __np, char* __ne,
+                                      _CharT* __ob, _CharT*& __op, _CharT*& __oe,
+                                      const locale& __loc);
+    static void __widen_and_group_float(char* __nb, char* __np, char* __ne,
+                                        _CharT* __ob, _CharT*& __op, _CharT*& __oe,
+                                        const locale& __loc);
+};
+
+template <class _CharT>
+void
+__num_put<_CharT>::__widen_and_group_int(char* __nb, char* __np, char* __ne,
+                                         _CharT* __ob, _CharT*& __op, _CharT*& __oe,
+                                         const locale& __loc)
+{
+    const ctype<_CharT>&    __ct = use_facet<ctype<_CharT> >   (__loc);
+    const numpunct<_CharT>& __npt = use_facet<numpunct<_CharT> >(__loc);
+    string __grouping = __npt.grouping();
+    if (__grouping.empty())
+    {
+        __ct.widen(__nb, __ne, __ob);
+        __oe = __ob + (__ne - __nb);
+    }
+    else
+    {
+        __oe = __ob;
+        char* __nf = __nb;
+        if (*__nf == '-' || *__nf == '+')
+            *__oe++ = __ct.widen(*__nf++);
+        if (__ne - __nf >= 2 && __nf[0] == '0' && (__nf[1] == 'x' ||
+                                                   __nf[1] == 'X'))
+        {
+            *__oe++ = __ct.widen(*__nf++);
+            *__oe++ = __ct.widen(*__nf++);
+        }
+        reverse(__nf, __ne);
+        _CharT __thousands_sep = __npt.thousands_sep();
+        unsigned __dc = 0;
+        unsigned __dg = 0;
+        for (char* __p = __nf; __p < __ne; ++__p)
+        {
+            if (static_cast<unsigned>(__grouping[__dg]) > 0 &&
+                __dc == static_cast<unsigned>(__grouping[__dg]))
+            {
+                *__oe++ = __thousands_sep;
+                __dc = 0;
+                if (__dg < __grouping.size()-1)
+                    ++__dg;
+            }
+            *__oe++ = __ct.widen(*__p);
+            ++__dc;
+        }
+        reverse(__ob + (__nf - __nb), __oe);
+    }
+    if (__np == __ne)
+        __op = __oe;
+    else
+        __op = __ob + (__np - __nb);
+}
+
+template <class _CharT>
+void
+__num_put<_CharT>::__widen_and_group_float(char* __nb, char* __np, char* __ne,
+                                           _CharT* __ob, _CharT*& __op, _CharT*& __oe,
+                                           const locale& __loc)
+{
+    const ctype<_CharT>&    __ct = use_facet<ctype<_CharT> >   (__loc);
+    const numpunct<_CharT>& __npt = use_facet<numpunct<_CharT> >(__loc);
+    string __grouping = __npt.grouping();
+    __oe = __ob;
+    char* __nf = __nb;
+    if (*__nf == '-' || *__nf == '+')
+        *__oe++ = __ct.widen(*__nf++);
+    char* __ns;
+    if (__ne - __nf >= 2 && __nf[0] == '0' && (__nf[1] == 'x' ||
+                                               __nf[1] == 'X'))
+    {
+        *__oe++ = __ct.widen(*__nf++);
+        *__oe++ = __ct.widen(*__nf++);
+        for (__ns = __nf; __ns < __ne; ++__ns)
+            if (!isxdigit_l(*__ns, _LIBCPP_GET_C_LOCALE))
+                break;
+    }
+    else
+    {
+        for (__ns = __nf; __ns < __ne; ++__ns)
+            if (!isdigit_l(*__ns, _LIBCPP_GET_C_LOCALE))
+                break;
+    }
+    if (__grouping.empty())
+    {
+        __ct.widen(__nf, __ns, __oe);
+        __oe += __ns - __nf;
+    }
+    else
+    {
+        reverse(__nf, __ns);
+        _CharT __thousands_sep = __npt.thousands_sep();
+        unsigned __dc = 0;
+        unsigned __dg = 0;
+        for (char* __p = __nf; __p < __ns; ++__p)
+        {
+            if (__grouping[__dg] > 0 && __dc == static_cast<unsigned>(__grouping[__dg]))
+            {
+                *__oe++ = __thousands_sep;
+                __dc = 0;
+                if (__dg < __grouping.size()-1)
+                    ++__dg;
+            }
+            *__oe++ = __ct.widen(*__p);
+            ++__dc;
+        }
+        reverse(__ob + (__nf - __nb), __oe);
+    }
+    for (__nf = __ns; __nf < __ne; ++__nf)
+    {
+        if (*__nf == '.')
+        {
+            *__oe++ = __npt.decimal_point();
+            ++__nf;
+            break;
+        }
+        else
+            *__oe++ = __ct.widen(*__nf);
+    }
+    __ct.widen(__nf, __ne, __oe);
+    __oe += __ne - __nf;
+    if (__np == __ne)
+        __op = __oe;
+    else
+        __op = __ob + (__np - __nb);
+}
+
+_LIBCPP_EXTERN_TEMPLATE2(struct _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS __num_put<char>)
+_LIBCPP_EXTERN_TEMPLATE2(struct _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS __num_put<wchar_t>)
+
+template <class _CharT, class _OutputIterator = ostreambuf_iterator<_CharT> >
+class _LIBCPP_TEMPLATE_VIS num_put
+    : public locale::facet,
+      private __num_put<_CharT>
+{
+public:
+    typedef _CharT char_type;
+    typedef _OutputIterator iter_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit num_put(size_t __refs = 0)
+        : locale::facet(__refs) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type put(iter_type __s, ios_base& __iob, char_type __fl,
+                  bool __v) const
+    {
+        return do_put(__s, __iob, __fl, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type put(iter_type __s, ios_base& __iob, char_type __fl,
+                  long __v) const
+    {
+        return do_put(__s, __iob, __fl, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type put(iter_type __s, ios_base& __iob, char_type __fl,
+                  long long __v) const
+    {
+        return do_put(__s, __iob, __fl, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type put(iter_type __s, ios_base& __iob, char_type __fl,
+                  unsigned long __v) const
+    {
+        return do_put(__s, __iob, __fl, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type put(iter_type __s, ios_base& __iob, char_type __fl,
+                  unsigned long long __v) const
+    {
+        return do_put(__s, __iob, __fl, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type put(iter_type __s, ios_base& __iob, char_type __fl,
+                  double __v) const
+    {
+        return do_put(__s, __iob, __fl, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type put(iter_type __s, ios_base& __iob, char_type __fl,
+                  long double __v) const
+    {
+        return do_put(__s, __iob, __fl, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type put(iter_type __s, ios_base& __iob, char_type __fl,
+                  const void* __v) const
+    {
+        return do_put(__s, __iob, __fl, __v);
+    }
+
+    static locale::id id;
+
+protected:
+    _LIBCPP_INLINE_VISIBILITY
+    ~num_put() {}
+
+    virtual iter_type do_put(iter_type __s, ios_base& __iob, char_type __fl,
+                             bool __v) const;
+    virtual iter_type do_put(iter_type __s, ios_base& __iob, char_type __fl,
+                             long __v) const;
+    virtual iter_type do_put(iter_type __s, ios_base& __iob, char_type __fl,
+                             long long __v) const;
+    virtual iter_type do_put(iter_type __s, ios_base& __iob, char_type __fl,
+                             unsigned long) const;
+    virtual iter_type do_put(iter_type __s, ios_base& __iob, char_type __fl,
+                             unsigned long long) const;
+    virtual iter_type do_put(iter_type __s, ios_base& __iob, char_type __fl,
+                             double __v) const;
+    virtual iter_type do_put(iter_type __s, ios_base& __iob, char_type __fl,
+                             long double __v) const;
+    virtual iter_type do_put(iter_type __s, ios_base& __iob, char_type __fl,
+                             const void* __v) const;
+};
+
+template <class _CharT, class _OutputIterator>
+locale::id
+num_put<_CharT, _OutputIterator>::id;
+
+template <class _CharT, class _OutputIterator>
+_LIBCPP_HIDDEN
+_OutputIterator
+__pad_and_output(_OutputIterator __s,
+                 const _CharT* __ob, const _CharT* __op, const _CharT* __oe,
+                 ios_base& __iob, _CharT __fl)
+{
+    streamsize __sz = __oe - __ob;
+    streamsize __ns = __iob.width();
+    if (__ns > __sz)
+        __ns -= __sz;
+    else
+        __ns = 0;
+    for (;__ob < __op; ++__ob, ++__s)
+        *__s = *__ob;
+    for (; __ns; --__ns, ++__s)
+        *__s = __fl;
+    for (; __ob < __oe; ++__ob, ++__s)
+        *__s = *__ob;
+    __iob.width(0);
+    return __s;
+}
+
+#if !defined(__APPLE__) || \
+    (defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED > __MAC_10_8) || \
+    (defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_6_0)
+
+template <class _CharT, class _Traits>
+_LIBCPP_HIDDEN
+ostreambuf_iterator<_CharT, _Traits>
+__pad_and_output(ostreambuf_iterator<_CharT, _Traits> __s,
+                 const _CharT* __ob, const _CharT* __op, const _CharT* __oe,
+                 ios_base& __iob, _CharT __fl)
+{
+    if (__s.__sbuf_ == nullptr)
+        return __s;
+    streamsize __sz = __oe - __ob;
+    streamsize __ns = __iob.width();
+    if (__ns > __sz)
+        __ns -= __sz;
+    else
+        __ns = 0;
+    streamsize __np = __op - __ob;
+    if (__np > 0)
+    {
+        if (__s.__sbuf_->sputn(__ob, __np) != __np)
+        {
+            __s.__sbuf_ = nullptr;
+            return __s;
+        }
+    }
+    if (__ns > 0)
+    {
+        basic_string<_CharT, _Traits> __sp(__ns, __fl);
+        if (__s.__sbuf_->sputn(__sp.data(), __ns) != __ns)
+        {
+            __s.__sbuf_ = nullptr;
+            return __s;
+        }
+    }
+    __np = __oe - __op;
+    if (__np > 0)
+    {
+        if (__s.__sbuf_->sputn(__op, __np) != __np)
+        {
+            __s.__sbuf_ = nullptr;
+            return __s;
+        }
+    }
+    __iob.width(0);
+    return __s;
+}
+
+#endif
+
+template <class _CharT, class _OutputIterator>
+_OutputIterator
+num_put<_CharT, _OutputIterator>::do_put(iter_type __s, ios_base& __iob,
+                                         char_type __fl, bool __v) const
+{
+    if ((__iob.flags() & ios_base::boolalpha) == 0)
+        return do_put(__s, __iob, __fl, (unsigned long)__v);
+    const numpunct<char_type>& __np = use_facet<numpunct<char_type> >(__iob.getloc());
+    typedef typename numpunct<char_type>::string_type string_type;
+#if _LIBCPP_DEBUG_LEVEL >= 2
+    string_type __tmp(__v ? __np.truename() : __np.falsename());
+    string_type __nm = _VSTD::move(__tmp);
+#else
+    string_type __nm = __v ? __np.truename() : __np.falsename();
+#endif
+    for (typename string_type::iterator __i = __nm.begin(); __i != __nm.end(); ++__i, ++__s)
+        *__s = *__i;
+    return __s;
+}
+
+template <class _CharT, class _OutputIterator>
+_OutputIterator
+num_put<_CharT, _OutputIterator>::do_put(iter_type __s, ios_base& __iob,
+                                         char_type __fl, long __v) const
+{
+    // Stage 1 - Get number in narrow char
+    char __fmt[6] = {'%', 0};
+    const char* __len = "l";
+    this->__format_int(__fmt+1, __len, true, __iob.flags());
+    const unsigned __nbuf = (numeric_limits<long>::digits / 3)
+                          + ((numeric_limits<long>::digits % 3) != 0)
+                          + ((__iob.flags() & ios_base::showbase) != 0)
+                          + 2;
+    char __nar[__nbuf];
+    int __nc = __libcpp_snprintf_l(__nar, sizeof(__nar), _LIBCPP_GET_C_LOCALE, __fmt, __v);
+    char* __ne = __nar + __nc;
+    char* __np = this->__identify_padding(__nar, __ne, __iob);
+    // Stage 2 - Widen __nar while adding thousands separators
+    char_type __o[2*(__nbuf-1) - 1];
+    char_type* __op;  // pad here
+    char_type* __oe;  // end of output
+    this->__widen_and_group_int(__nar, __np, __ne, __o, __op, __oe, __iob.getloc());
+    // [__o, __oe) contains thousands_sep'd wide number
+    // Stage 3 & 4
+    return __pad_and_output(__s, __o, __op, __oe, __iob, __fl);
+}
+
+template <class _CharT, class _OutputIterator>
+_OutputIterator
+num_put<_CharT, _OutputIterator>::do_put(iter_type __s, ios_base& __iob,
+                                         char_type __fl, long long __v) const
+{
+    // Stage 1 - Get number in narrow char
+    char __fmt[8] = {'%', 0};
+    const char* __len = "ll";
+    this->__format_int(__fmt+1, __len, true, __iob.flags());
+    const unsigned __nbuf = (numeric_limits<long long>::digits / 3)
+                          + ((numeric_limits<long long>::digits % 3) != 0)
+                          + ((__iob.flags() & ios_base::showbase) != 0)
+                          + 2;
+    char __nar[__nbuf];
+    int __nc = __libcpp_snprintf_l(__nar, sizeof(__nar), _LIBCPP_GET_C_LOCALE, __fmt, __v);
+    char* __ne = __nar + __nc;
+    char* __np = this->__identify_padding(__nar, __ne, __iob);
+    // Stage 2 - Widen __nar while adding thousands separators
+    char_type __o[2*(__nbuf-1) - 1];
+    char_type* __op;  // pad here
+    char_type* __oe;  // end of output
+    this->__widen_and_group_int(__nar, __np, __ne, __o, __op, __oe, __iob.getloc());
+    // [__o, __oe) contains thousands_sep'd wide number
+    // Stage 3 & 4
+    return __pad_and_output(__s, __o, __op, __oe, __iob, __fl);
+}
+
+template <class _CharT, class _OutputIterator>
+_OutputIterator
+num_put<_CharT, _OutputIterator>::do_put(iter_type __s, ios_base& __iob,
+                                         char_type __fl, unsigned long __v) const
+{
+    // Stage 1 - Get number in narrow char
+    char __fmt[6] = {'%', 0};
+    const char* __len = "l";
+    this->__format_int(__fmt+1, __len, false, __iob.flags());
+    const unsigned __nbuf = (numeric_limits<unsigned long>::digits / 3)
+                          + ((numeric_limits<unsigned long>::digits % 3) != 0)
+                          + ((__iob.flags() & ios_base::showbase) != 0)
+                          + 1;
+    char __nar[__nbuf];
+    int __nc = __libcpp_snprintf_l(__nar, sizeof(__nar), _LIBCPP_GET_C_LOCALE, __fmt, __v);
+    char* __ne = __nar + __nc;
+    char* __np = this->__identify_padding(__nar, __ne, __iob);
+    // Stage 2 - Widen __nar while adding thousands separators
+    char_type __o[2*(__nbuf-1) - 1];
+    char_type* __op;  // pad here
+    char_type* __oe;  // end of output
+    this->__widen_and_group_int(__nar, __np, __ne, __o, __op, __oe, __iob.getloc());
+    // [__o, __oe) contains thousands_sep'd wide number
+    // Stage 3 & 4
+    return __pad_and_output(__s, __o, __op, __oe, __iob, __fl);
+}
+
+template <class _CharT, class _OutputIterator>
+_OutputIterator
+num_put<_CharT, _OutputIterator>::do_put(iter_type __s, ios_base& __iob,
+                                         char_type __fl, unsigned long long __v) const
+{
+    // Stage 1 - Get number in narrow char
+    char __fmt[8] = {'%', 0};
+    const char* __len = "ll";
+    this->__format_int(__fmt+1, __len, false, __iob.flags());
+    const unsigned __nbuf = (numeric_limits<unsigned long long>::digits / 3)
+                          + ((numeric_limits<unsigned long long>::digits % 3) != 0)
+                          + ((__iob.flags() & ios_base::showbase) != 0)
+                          + 1;
+    char __nar[__nbuf];
+    int __nc = __libcpp_snprintf_l(__nar, sizeof(__nar), _LIBCPP_GET_C_LOCALE, __fmt, __v);
+    char* __ne = __nar + __nc;
+    char* __np = this->__identify_padding(__nar, __ne, __iob);
+    // Stage 2 - Widen __nar while adding thousands separators
+    char_type __o[2*(__nbuf-1) - 1];
+    char_type* __op;  // pad here
+    char_type* __oe;  // end of output
+    this->__widen_and_group_int(__nar, __np, __ne, __o, __op, __oe, __iob.getloc());
+    // [__o, __oe) contains thousands_sep'd wide number
+    // Stage 3 & 4
+    return __pad_and_output(__s, __o, __op, __oe, __iob, __fl);
+}
+
+template <class _CharT, class _OutputIterator>
+_OutputIterator
+num_put<_CharT, _OutputIterator>::do_put(iter_type __s, ios_base& __iob,
+                                         char_type __fl, double __v) const
+{
+    // Stage 1 - Get number in narrow char
+    char __fmt[8] = {'%', 0};
+    const char* __len = "";
+    bool __specify_precision = this->__format_float(__fmt+1, __len, __iob.flags());
+    const unsigned __nbuf = 30;
+    char __nar[__nbuf];
+    char* __nb = __nar;
+    int __nc;
+    if (__specify_precision)
+        __nc = __libcpp_snprintf_l(__nb, __nbuf, _LIBCPP_GET_C_LOCALE, __fmt,
+                                   (int)__iob.precision(), __v);
+    else
+        __nc = __libcpp_snprintf_l(__nb, __nbuf, _LIBCPP_GET_C_LOCALE, __fmt, __v);
+    unique_ptr<char, void(*)(void*)> __nbh(0, free);
+    if (__nc > static_cast<int>(__nbuf-1))
+    {
+        if (__specify_precision)
+            __nc = __libcpp_asprintf_l(&__nb, _LIBCPP_GET_C_LOCALE, __fmt, (int)__iob.precision(), __v);
+        else
+            __nc = __libcpp_asprintf_l(&__nb, _LIBCPP_GET_C_LOCALE, __fmt, __v);
+        if (__nb == 0)
+            __throw_bad_alloc();
+        __nbh.reset(__nb);
+    }
+    char* __ne = __nb + __nc;
+    char* __np = this->__identify_padding(__nb, __ne, __iob);
+    // Stage 2 - Widen __nar while adding thousands separators
+    char_type __o[2*(__nbuf-1) - 1];
+    char_type* __ob = __o;
+    unique_ptr<char_type, void(*)(void*)> __obh(0, free);
+    if (__nb != __nar)
+    {
+        __ob = (char_type*)malloc(2*static_cast<size_t>(__nc)*sizeof(char_type));
+        if (__ob == 0)
+            __throw_bad_alloc();
+        __obh.reset(__ob);
+    }
+    char_type* __op;  // pad here
+    char_type* __oe;  // end of output
+    this->__widen_and_group_float(__nb, __np, __ne, __ob, __op, __oe, __iob.getloc());
+    // [__o, __oe) contains thousands_sep'd wide number
+    // Stage 3 & 4
+    __s = __pad_and_output(__s, __ob, __op, __oe, __iob, __fl);
+    return __s;
+}
+
+template <class _CharT, class _OutputIterator>
+_OutputIterator
+num_put<_CharT, _OutputIterator>::do_put(iter_type __s, ios_base& __iob,
+                                         char_type __fl, long double __v) const
+{
+    // Stage 1 - Get number in narrow char
+    char __fmt[8] = {'%', 0};
+    const char* __len = "L";
+    bool __specify_precision = this->__format_float(__fmt+1, __len, __iob.flags());
+    const unsigned __nbuf = 30;
+    char __nar[__nbuf];
+    char* __nb = __nar;
+    int __nc;
+    if (__specify_precision)
+        __nc = __libcpp_snprintf_l(__nb, __nbuf, _LIBCPP_GET_C_LOCALE, __fmt,
+                                   (int)__iob.precision(), __v);
+    else
+        __nc = __libcpp_snprintf_l(__nb, __nbuf, _LIBCPP_GET_C_LOCALE, __fmt, __v);
+    unique_ptr<char, void(*)(void*)> __nbh(0, free);
+    if (__nc > static_cast<int>(__nbuf-1))
+    {
+        if (__specify_precision)
+            __nc = __libcpp_asprintf_l(&__nb, _LIBCPP_GET_C_LOCALE, __fmt, (int)__iob.precision(), __v);
+        else
+            __nc = __libcpp_asprintf_l(&__nb, _LIBCPP_GET_C_LOCALE, __fmt, __v);
+        if (__nb == 0)
+            __throw_bad_alloc();
+        __nbh.reset(__nb);
+    }
+    char* __ne = __nb + __nc;
+    char* __np = this->__identify_padding(__nb, __ne, __iob);
+    // Stage 2 - Widen __nar while adding thousands separators
+    char_type __o[2*(__nbuf-1) - 1];
+    char_type* __ob = __o;
+    unique_ptr<char_type, void(*)(void*)> __obh(0, free);
+    if (__nb != __nar)
+    {
+        __ob = (char_type*)malloc(2*static_cast<size_t>(__nc)*sizeof(char_type));
+        if (__ob == 0)
+            __throw_bad_alloc();
+        __obh.reset(__ob);
+    }
+    char_type* __op;  // pad here
+    char_type* __oe;  // end of output
+    this->__widen_and_group_float(__nb, __np, __ne, __ob, __op, __oe, __iob.getloc());
+    // [__o, __oe) contains thousands_sep'd wide number
+    // Stage 3 & 4
+    __s = __pad_and_output(__s, __ob, __op, __oe, __iob, __fl);
+    return __s;
+}
+
+template <class _CharT, class _OutputIterator>
+_OutputIterator
+num_put<_CharT, _OutputIterator>::do_put(iter_type __s, ios_base& __iob,
+                                         char_type __fl, const void* __v) const
+{
+    // Stage 1 - Get pointer in narrow char
+    char __fmt[6] = "%p";
+    const unsigned __nbuf = 20;
+    char __nar[__nbuf];
+    int __nc = __libcpp_snprintf_l(__nar, sizeof(__nar), _LIBCPP_GET_C_LOCALE, __fmt, __v);
+    char* __ne = __nar + __nc;
+    char* __np = this->__identify_padding(__nar, __ne, __iob);
+    // Stage 2 - Widen __nar
+    char_type __o[2*(__nbuf-1) - 1];
+    char_type* __op;  // pad here
+    char_type* __oe;  // end of output
+    const ctype<char_type>& __ct = use_facet<ctype<char_type> >(__iob.getloc());
+    __ct.widen(__nar, __ne, __o);
+    __oe = __o + (__ne - __nar);
+    if (__np == __ne)
+        __op = __oe;
+    else
+        __op = __o + (__np - __nar);
+    // [__o, __oe) contains wide number
+    // Stage 3 & 4
+    return __pad_and_output(__s, __o, __op, __oe, __iob, __fl);
+}
+
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS num_put<char>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS num_put<wchar_t>)
+
+template <class _CharT, class _InputIterator>
+_LIBCPP_HIDDEN
+int
+__get_up_to_n_digits(_InputIterator& __b, _InputIterator __e,
+                     ios_base::iostate& __err, const ctype<_CharT>& __ct, int __n)
+{
+    // Precondition:  __n >= 1
+    if (__b == __e)
+    {
+        __err |= ios_base::eofbit | ios_base::failbit;
+        return 0;
+    }
+    // get first digit
+    _CharT __c = *__b;
+    if (!__ct.is(ctype_base::digit, __c))
+    {
+        __err |= ios_base::failbit;
+        return 0;
+    }
+    int __r = __ct.narrow(__c, 0) - '0';
+    for (++__b, (void) --__n; __b != __e && __n > 0; ++__b, (void) --__n)
+    {
+        // get next digit
+        __c = *__b;
+        if (!__ct.is(ctype_base::digit, __c))
+            return __r;
+        __r = __r * 10 + __ct.narrow(__c, 0) - '0';
+    }
+    if (__b == __e)
+        __err |= ios_base::eofbit;
+    return __r;
+}
+
+class _LIBCPP_TYPE_VIS time_base
+{
+public:
+    enum dateorder {no_order, dmy, mdy, ymd, ydm};
+};
+
+template <class _CharT>
+class _LIBCPP_TEMPLATE_VIS __time_get_c_storage
+{
+protected:
+    typedef basic_string<_CharT> string_type;
+
+    virtual const string_type* __weeks() const;
+    virtual const string_type* __months() const;
+    virtual const string_type* __am_pm() const;
+    virtual const string_type& __c() const;
+    virtual const string_type& __r() const;
+    virtual const string_type& __x() const;
+    virtual const string_type& __X() const;
+
+    _LIBCPP_INLINE_VISIBILITY
+    ~__time_get_c_storage() {}
+};
+
+template <> _LIBCPP_FUNC_VIS const string* __time_get_c_storage<char>::__weeks() const;
+template <> _LIBCPP_FUNC_VIS const string* __time_get_c_storage<char>::__months() const;
+template <> _LIBCPP_FUNC_VIS const string* __time_get_c_storage<char>::__am_pm() const;
+template <> _LIBCPP_FUNC_VIS const string& __time_get_c_storage<char>::__c() const;
+template <> _LIBCPP_FUNC_VIS const string& __time_get_c_storage<char>::__r() const;
+template <> _LIBCPP_FUNC_VIS const string& __time_get_c_storage<char>::__x() const;
+template <> _LIBCPP_FUNC_VIS const string& __time_get_c_storage<char>::__X() const;
+
+template <> _LIBCPP_FUNC_VIS const wstring* __time_get_c_storage<wchar_t>::__weeks() const;
+template <> _LIBCPP_FUNC_VIS const wstring* __time_get_c_storage<wchar_t>::__months() const;
+template <> _LIBCPP_FUNC_VIS const wstring* __time_get_c_storage<wchar_t>::__am_pm() const;
+template <> _LIBCPP_FUNC_VIS const wstring& __time_get_c_storage<wchar_t>::__c() const;
+template <> _LIBCPP_FUNC_VIS const wstring& __time_get_c_storage<wchar_t>::__r() const;
+template <> _LIBCPP_FUNC_VIS const wstring& __time_get_c_storage<wchar_t>::__x() const;
+template <> _LIBCPP_FUNC_VIS const wstring& __time_get_c_storage<wchar_t>::__X() const;
+
+template <class _CharT, class _InputIterator = istreambuf_iterator<_CharT> >
+class _LIBCPP_TEMPLATE_VIS time_get
+    : public locale::facet,
+      public time_base,
+      private __time_get_c_storage<_CharT>
+{
+public:
+    typedef _CharT                  char_type;
+    typedef _InputIterator          iter_type;
+    typedef time_base::dateorder    dateorder;
+    typedef basic_string<char_type> string_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit time_get(size_t __refs = 0)
+        : locale::facet(__refs) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    dateorder date_order() const
+    {
+        return this->do_date_order();
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get_time(iter_type __b, iter_type __e, ios_base& __iob,
+                       ios_base::iostate& __err, tm* __tm) const
+    {
+        return do_get_time(__b, __e, __iob, __err, __tm);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get_date(iter_type __b, iter_type __e, ios_base& __iob,
+                       ios_base::iostate& __err, tm* __tm) const
+    {
+        return do_get_date(__b, __e, __iob, __err, __tm);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get_weekday(iter_type __b, iter_type __e, ios_base& __iob,
+                          ios_base::iostate& __err, tm* __tm) const
+    {
+        return do_get_weekday(__b, __e, __iob, __err, __tm);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get_monthname(iter_type __b, iter_type __e, ios_base& __iob,
+                            ios_base::iostate& __err, tm* __tm) const
+    {
+        return do_get_monthname(__b, __e, __iob, __err, __tm);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get_year(iter_type __b, iter_type __e, ios_base& __iob,
+                       ios_base::iostate& __err, tm* __tm) const
+    {
+        return do_get_year(__b, __e, __iob, __err, __tm);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get(iter_type __b, iter_type __e, ios_base& __iob,
+                  ios_base::iostate& __err, tm *__tm,
+                  char __fmt, char __mod = 0) const
+    {
+        return do_get(__b, __e, __iob, __err, __tm, __fmt, __mod);
+    }
+
+    iter_type get(iter_type __b, iter_type __e, ios_base& __iob,
+                  ios_base::iostate& __err, tm* __tm,
+                  const char_type* __fmtb, const char_type* __fmte) const;
+
+    static locale::id id;
+
+protected:
+    _LIBCPP_INLINE_VISIBILITY
+    ~time_get() {}
+
+    virtual dateorder do_date_order() const;
+    virtual iter_type do_get_time(iter_type __b, iter_type __e, ios_base& __iob,
+                                  ios_base::iostate& __err, tm* __tm) const;
+    virtual iter_type do_get_date(iter_type __b, iter_type __e, ios_base& __iob,
+                                  ios_base::iostate& __err, tm* __tm) const;
+    virtual iter_type do_get_weekday(iter_type __b, iter_type __e, ios_base& __iob,
+                                     ios_base::iostate& __err, tm* __tm) const;
+    virtual iter_type do_get_monthname(iter_type __b, iter_type __e, ios_base& __iob,
+                                       ios_base::iostate& __err, tm* __tm) const;
+    virtual iter_type do_get_year(iter_type __b, iter_type __e, ios_base& __iob,
+                                  ios_base::iostate& __err, tm* __tm) const;
+    virtual iter_type do_get(iter_type __b, iter_type __e, ios_base& __iob,
+                             ios_base::iostate& __err, tm* __tm,
+                             char __fmt, char __mod) const;
+private:
+    void __get_white_space(iter_type& __b, iter_type __e,
+                           ios_base::iostate& __err, const ctype<char_type>& __ct) const;
+    void __get_percent(iter_type& __b, iter_type __e, ios_base::iostate& __err,
+                       const ctype<char_type>& __ct) const;
+
+    void __get_weekdayname(int& __m,
+                           iter_type& __b, iter_type __e,
+                           ios_base::iostate& __err,
+                           const ctype<char_type>& __ct) const;
+    void __get_monthname(int& __m,
+                         iter_type& __b, iter_type __e,
+                         ios_base::iostate& __err,
+                         const ctype<char_type>& __ct) const;
+    void __get_day(int& __d,
+                   iter_type& __b, iter_type __e,
+                   ios_base::iostate& __err,
+                   const ctype<char_type>& __ct) const;
+    void __get_month(int& __m,
+                     iter_type& __b, iter_type __e,
+                     ios_base::iostate& __err,
+                     const ctype<char_type>& __ct) const;
+    void __get_year(int& __y,
+                   iter_type& __b, iter_type __e,
+                   ios_base::iostate& __err,
+                   const ctype<char_type>& __ct) const;
+    void __get_year4(int& __y,
+                    iter_type& __b, iter_type __e,
+                    ios_base::iostate& __err,
+                    const ctype<char_type>& __ct) const;
+    void __get_hour(int& __d,
+                    iter_type& __b, iter_type __e,
+                    ios_base::iostate& __err,
+                    const ctype<char_type>& __ct) const;
+    void __get_12_hour(int& __h,
+                       iter_type& __b, iter_type __e,
+                       ios_base::iostate& __err,
+                       const ctype<char_type>& __ct) const;
+    void __get_am_pm(int& __h,
+                     iter_type& __b, iter_type __e,
+                     ios_base::iostate& __err,
+                     const ctype<char_type>& __ct) const;
+    void __get_minute(int& __m,
+                      iter_type& __b, iter_type __e,
+                      ios_base::iostate& __err,
+                      const ctype<char_type>& __ct) const;
+    void __get_second(int& __s,
+                      iter_type& __b, iter_type __e,
+                      ios_base::iostate& __err,
+                      const ctype<char_type>& __ct) const;
+    void __get_weekday(int& __w,
+                       iter_type& __b, iter_type __e,
+                       ios_base::iostate& __err,
+                       const ctype<char_type>& __ct) const;
+    void __get_day_year_num(int& __w,
+                            iter_type& __b, iter_type __e,
+                            ios_base::iostate& __err,
+                            const ctype<char_type>& __ct) const;
+};
+
+template <class _CharT, class _InputIterator>
+locale::id
+time_get<_CharT, _InputIterator>::id;
+
+// time_get primitives
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_weekdayname(int& __w,
+                                                    iter_type& __b, iter_type __e,
+                                                    ios_base::iostate& __err,
+                                                    const ctype<char_type>& __ct) const
+{
+    // Note:  ignoring case comes from the POSIX strptime spec
+    const string_type* __wk = this->__weeks();
+    ptrdiff_t __i = __scan_keyword(__b, __e, __wk, __wk+14, __ct, __err, false) - __wk;
+    if (__i < 14)
+        __w = __i % 7;
+}
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_monthname(int& __m,
+                                                  iter_type& __b, iter_type __e,
+                                                  ios_base::iostate& __err,
+                                                  const ctype<char_type>& __ct) const
+{
+    // Note:  ignoring case comes from the POSIX strptime spec
+    const string_type* __month = this->__months();
+    ptrdiff_t __i = __scan_keyword(__b, __e, __month, __month+24, __ct, __err, false) - __month;
+    if (__i < 24)
+        __m = __i % 12;
+}
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_day(int& __d,
+                                            iter_type& __b, iter_type __e,
+                                            ios_base::iostate& __err,
+                                            const ctype<char_type>& __ct) const
+{
+    int __t = __get_up_to_n_digits(__b, __e, __err, __ct, 2);
+    if (!(__err & ios_base::failbit) && 1 <= __t && __t <= 31)
+        __d = __t;
+    else
+        __err |= ios_base::failbit;
+}
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_month(int& __m,
+                                              iter_type& __b, iter_type __e,
+                                              ios_base::iostate& __err,
+                                              const ctype<char_type>& __ct) const
+{
+    int __t = __get_up_to_n_digits(__b, __e, __err, __ct, 2) - 1;
+    if (!(__err & ios_base::failbit) && __t <= 11)
+        __m = __t;
+    else
+        __err |= ios_base::failbit;
+}
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_year(int& __y,
+                                             iter_type& __b, iter_type __e,
+                                             ios_base::iostate& __err,
+                                             const ctype<char_type>& __ct) const
+{
+    int __t = __get_up_to_n_digits(__b, __e, __err, __ct, 4);
+    if (!(__err & ios_base::failbit))
+    {
+        if (__t < 69)
+            __t += 2000;
+        else if (69 <= __t && __t <= 99)
+            __t += 1900;
+        __y = __t - 1900;
+    }
+}
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_year4(int& __y,
+                                              iter_type& __b, iter_type __e,
+                                              ios_base::iostate& __err,
+                                              const ctype<char_type>& __ct) const
+{
+    int __t = __get_up_to_n_digits(__b, __e, __err, __ct, 4);
+    if (!(__err & ios_base::failbit))
+        __y = __t - 1900;
+}
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_hour(int& __h,
+                                             iter_type& __b, iter_type __e,
+                                             ios_base::iostate& __err,
+                                             const ctype<char_type>& __ct) const
+{
+    int __t = __get_up_to_n_digits(__b, __e, __err, __ct, 2);
+    if (!(__err & ios_base::failbit) && __t <= 23)
+        __h = __t;
+    else
+        __err |= ios_base::failbit;
+}
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_12_hour(int& __h,
+                                                iter_type& __b, iter_type __e,
+                                                ios_base::iostate& __err,
+                                                const ctype<char_type>& __ct) const
+{
+    int __t = __get_up_to_n_digits(__b, __e, __err, __ct, 2);
+    if (!(__err & ios_base::failbit) && 1 <= __t && __t <= 12)
+        __h = __t;
+    else
+        __err |= ios_base::failbit;
+}
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_minute(int& __m,
+                                               iter_type& __b, iter_type __e,
+                                               ios_base::iostate& __err,
+                                               const ctype<char_type>& __ct) const
+{
+    int __t = __get_up_to_n_digits(__b, __e, __err, __ct, 2);
+    if (!(__err & ios_base::failbit) && __t <= 59)
+        __m = __t;
+    else
+        __err |= ios_base::failbit;
+}
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_second(int& __s,
+                                               iter_type& __b, iter_type __e,
+                                               ios_base::iostate& __err,
+                                               const ctype<char_type>& __ct) const
+{
+    int __t = __get_up_to_n_digits(__b, __e, __err, __ct, 2);
+    if (!(__err & ios_base::failbit) && __t <= 60)
+        __s = __t;
+    else
+        __err |= ios_base::failbit;
+}
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_weekday(int& __w,
+                                                iter_type& __b, iter_type __e,
+                                                ios_base::iostate& __err,
+                                                const ctype<char_type>& __ct) const
+{
+    int __t = __get_up_to_n_digits(__b, __e, __err, __ct, 1);
+    if (!(__err & ios_base::failbit) && __t <= 6)
+        __w = __t;
+    else
+        __err |= ios_base::failbit;
+}
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_day_year_num(int& __d,
+                                                     iter_type& __b, iter_type __e,
+                                                     ios_base::iostate& __err,
+                                                     const ctype<char_type>& __ct) const
+{
+    int __t = __get_up_to_n_digits(__b, __e, __err, __ct, 3);
+    if (!(__err & ios_base::failbit) && __t <= 365)
+        __d = __t;
+    else
+        __err |= ios_base::failbit;
+}
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_white_space(iter_type& __b, iter_type __e,
+                                                    ios_base::iostate& __err,
+                                                    const ctype<char_type>& __ct) const
+{
+    for (; __b != __e && __ct.is(ctype_base::space, *__b); ++__b)
+        ;
+    if (__b == __e)
+        __err |= ios_base::eofbit;
+}
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_am_pm(int& __h,
+                                              iter_type& __b, iter_type __e,
+                                              ios_base::iostate& __err,
+                                              const ctype<char_type>& __ct) const
+{
+    const string_type* __ap = this->__am_pm();
+    if (__ap[0].size() + __ap[1].size() == 0)
+    {
+        __err |= ios_base::failbit;
+        return;
+    }
+    ptrdiff_t __i = __scan_keyword(__b, __e, __ap, __ap+2, __ct, __err, false) - __ap;
+    if (__i == 0 && __h == 12)
+        __h = 0;
+    else if (__i == 1 && __h < 12)
+        __h += 12;
+}
+
+template <class _CharT, class _InputIterator>
+void
+time_get<_CharT, _InputIterator>::__get_percent(iter_type& __b, iter_type __e,
+                                                ios_base::iostate& __err,
+                                                const ctype<char_type>& __ct) const
+{
+    if (__b == __e)
+    {
+        __err |= ios_base::eofbit | ios_base::failbit;
+        return;
+    }
+    if (__ct.narrow(*__b, 0) != '%')
+        __err |= ios_base::failbit;
+    else if(++__b == __e)
+        __err |= ios_base::eofbit;
+}
+
+// time_get end primitives
+
+template <class _CharT, class _InputIterator>
+_InputIterator
+time_get<_CharT, _InputIterator>::get(iter_type __b, iter_type __e,
+                                      ios_base& __iob,
+                                      ios_base::iostate& __err, tm* __tm,
+                                      const char_type* __fmtb, const char_type* __fmte) const
+{
+    const ctype<char_type>& __ct = use_facet<ctype<char_type> >(__iob.getloc());
+    __err = ios_base::goodbit;
+    while (__fmtb != __fmte && __err == ios_base::goodbit)
+    {
+        if (__b == __e)
+        {
+            __err = ios_base::failbit;
+            break;
+        }
+        if (__ct.narrow(*__fmtb, 0) == '%')
+        {
+            if (++__fmtb == __fmte)
+            {
+                __err = ios_base::failbit;
+                break;
+            }
+            char __cmd = __ct.narrow(*__fmtb, 0);
+            char __opt = '\0';
+            if (__cmd == 'E' || __cmd == '0')
+            {
+                if (++__fmtb == __fmte)
+                {
+                    __err = ios_base::failbit;
+                    break;
+                }
+                __opt = __cmd;
+                __cmd = __ct.narrow(*__fmtb, 0);
+            }
+            __b = do_get(__b, __e, __iob, __err, __tm, __cmd, __opt);
+            ++__fmtb;
+        }
+        else if (__ct.is(ctype_base::space, *__fmtb))
+        {
+            for (++__fmtb; __fmtb != __fmte && __ct.is(ctype_base::space, *__fmtb); ++__fmtb)
+                ;
+            for (        ;    __b != __e    && __ct.is(ctype_base::space, *__b);    ++__b)
+                ;
+        }
+        else if (__ct.toupper(*__b) == __ct.toupper(*__fmtb))
+        {
+            ++__b;
+            ++__fmtb;
+        }
+        else
+            __err = ios_base::failbit;
+    }
+    if (__b == __e)
+        __err |= ios_base::eofbit;
+    return __b;
+}
+
+template <class _CharT, class _InputIterator>
+typename time_get<_CharT, _InputIterator>::dateorder
+time_get<_CharT, _InputIterator>::do_date_order() const
+{
+    return mdy;
+}
+
+template <class _CharT, class _InputIterator>
+_InputIterator
+time_get<_CharT, _InputIterator>::do_get_time(iter_type __b, iter_type __e,
+                                              ios_base& __iob,
+                                              ios_base::iostate& __err,
+                                              tm* __tm) const
+{
+    const char_type __fmt[] = {'%', 'H', ':', '%', 'M', ':', '%', 'S'};
+    return get(__b, __e, __iob, __err, __tm, __fmt, __fmt + sizeof(__fmt)/sizeof(__fmt[0]));
+}
+
+template <class _CharT, class _InputIterator>
+_InputIterator
+time_get<_CharT, _InputIterator>::do_get_date(iter_type __b, iter_type __e,
+                                              ios_base& __iob,
+                                              ios_base::iostate& __err,
+                                              tm* __tm) const
+{
+    const string_type& __fmt = this->__x();
+    return get(__b, __e, __iob, __err, __tm, __fmt.data(), __fmt.data() + __fmt.size());
+}
+
+template <class _CharT, class _InputIterator>
+_InputIterator
+time_get<_CharT, _InputIterator>::do_get_weekday(iter_type __b, iter_type __e,
+                                                 ios_base& __iob,
+                                                 ios_base::iostate& __err,
+                                                 tm* __tm) const
+{
+    const ctype<char_type>& __ct = use_facet<ctype<char_type> >(__iob.getloc());
+    __get_weekdayname(__tm->tm_wday, __b, __e, __err, __ct);
+    return __b;
+}
+
+template <class _CharT, class _InputIterator>
+_InputIterator
+time_get<_CharT, _InputIterator>::do_get_monthname(iter_type __b, iter_type __e,
+                                                   ios_base& __iob,
+                                                   ios_base::iostate& __err,
+                                                   tm* __tm) const
+{
+    const ctype<char_type>& __ct = use_facet<ctype<char_type> >(__iob.getloc());
+    __get_monthname(__tm->tm_mon, __b, __e, __err, __ct);
+    return __b;
+}
+
+template <class _CharT, class _InputIterator>
+_InputIterator
+time_get<_CharT, _InputIterator>::do_get_year(iter_type __b, iter_type __e,
+                                              ios_base& __iob,
+                                              ios_base::iostate& __err,
+                                              tm* __tm) const
+{
+    const ctype<char_type>& __ct = use_facet<ctype<char_type> >(__iob.getloc());
+    __get_year(__tm->tm_year, __b, __e, __err, __ct);
+    return __b;
+}
+
+template <class _CharT, class _InputIterator>
+_InputIterator
+time_get<_CharT, _InputIterator>::do_get(iter_type __b, iter_type __e,
+                                         ios_base& __iob,
+                                         ios_base::iostate& __err, tm* __tm,
+                                         char __fmt, char) const
+{
+    __err = ios_base::goodbit;
+    const ctype<char_type>& __ct = use_facet<ctype<char_type> >(__iob.getloc());
+    switch (__fmt)
+    {
+    case 'a':
+    case 'A':
+        __get_weekdayname(__tm->tm_wday, __b, __e, __err, __ct);
+        break;
+    case 'b':
+    case 'B':
+    case 'h':
+        __get_monthname(__tm->tm_mon, __b, __e, __err, __ct);
+        break;
+    case 'c':
+        {
+        const string_type& __fm = this->__c();
+        __b = get(__b, __e, __iob, __err, __tm, __fm.data(), __fm.data() + __fm.size());
+        }
+        break;
+    case 'd':
+    case 'e':
+        __get_day(__tm->tm_mday, __b, __e, __err, __ct);
+        break;
+    case 'D':
+        {
+        const char_type __fm[] = {'%', 'm', '/', '%', 'd', '/', '%', 'y'};
+        __b = get(__b, __e, __iob, __err, __tm, __fm, __fm + sizeof(__fm)/sizeof(__fm[0]));
+        }
+        break;
+    case 'F':
+        {
+        const char_type __fm[] = {'%', 'Y', '-', '%', 'm', '-', '%', 'd'};
+        __b = get(__b, __e, __iob, __err, __tm, __fm, __fm + sizeof(__fm)/sizeof(__fm[0]));
+        }
+        break;
+    case 'H':
+        __get_hour(__tm->tm_hour, __b, __e, __err, __ct);
+        break;
+    case 'I':
+        __get_12_hour(__tm->tm_hour, __b, __e, __err, __ct);
+        break;
+    case 'j':
+        __get_day_year_num(__tm->tm_yday, __b, __e, __err, __ct);
+        break;
+    case 'm':
+        __get_month(__tm->tm_mon, __b, __e, __err, __ct);
+        break;
+    case 'M':
+        __get_minute(__tm->tm_min, __b, __e, __err, __ct);
+        break;
+    case 'n':
+    case 't':
+        __get_white_space(__b, __e, __err, __ct);
+        break;
+    case 'p':
+        __get_am_pm(__tm->tm_hour, __b, __e, __err, __ct);
+        break;
+    case 'r':
+        {
+        const char_type __fm[] = {'%', 'I', ':', '%', 'M', ':', '%', 'S', ' ', '%', 'p'};
+        __b = get(__b, __e, __iob, __err, __tm, __fm, __fm + sizeof(__fm)/sizeof(__fm[0]));
+        }
+        break;
+    case 'R':
+        {
+        const char_type __fm[] = {'%', 'H', ':', '%', 'M'};
+        __b = get(__b, __e, __iob, __err, __tm, __fm, __fm + sizeof(__fm)/sizeof(__fm[0]));
+        }
+        break;
+    case 'S':
+        __get_second(__tm->tm_sec, __b, __e, __err, __ct);
+        break;
+    case 'T':
+        {
+        const char_type __fm[] = {'%', 'H', ':', '%', 'M', ':', '%', 'S'};
+        __b = get(__b, __e, __iob, __err, __tm, __fm, __fm + sizeof(__fm)/sizeof(__fm[0]));
+        }
+        break;
+    case 'w':
+        __get_weekday(__tm->tm_wday, __b, __e, __err, __ct);
+        break;
+    case 'x':
+        return do_get_date(__b, __e, __iob, __err, __tm);
+    case 'X':
+        {
+        const string_type& __fm = this->__X();
+        __b = get(__b, __e, __iob, __err, __tm, __fm.data(), __fm.data() + __fm.size());
+        }
+        break;
+    case 'y':
+        __get_year(__tm->tm_year, __b, __e, __err, __ct);
+        break;
+    case 'Y':
+        __get_year4(__tm->tm_year, __b, __e, __err, __ct);
+        break;
+    case '%':
+        __get_percent(__b, __e, __err, __ct);
+        break;
+    default:
+        __err |= ios_base::failbit;
+    }
+    return __b;
+}
+
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS time_get<char>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS time_get<wchar_t>)
+
+class _LIBCPP_TYPE_VIS __time_get
+{
+protected:
+    locale_t __loc_;
+
+    __time_get(const char* __nm);
+    __time_get(const string& __nm);
+    ~__time_get();
+};
+
+template <class _CharT>
+class _LIBCPP_TEMPLATE_VIS __time_get_storage
+    : public __time_get
+{
+protected:
+    typedef basic_string<_CharT> string_type;
+
+    string_type __weeks_[14];
+    string_type __months_[24];
+    string_type __am_pm_[2];
+    string_type __c_;
+    string_type __r_;
+    string_type __x_;
+    string_type __X_;
+
+    explicit __time_get_storage(const char* __nm);
+    explicit __time_get_storage(const string& __nm);
+
+    _LIBCPP_INLINE_VISIBILITY ~__time_get_storage() {}
+
+    time_base::dateorder __do_date_order() const;
+
+private:
+    void init(const ctype<_CharT>&);
+    string_type __analyze(char __fmt, const ctype<_CharT>&);
+};
+
+#define _LIBCPP_TIME_GET_STORAGE_EXPLICIT_INSTANTIATION(_CharT) \
+template <> _LIBCPP_FUNC_VIS time_base::dateorder __time_get_storage<_CharT>::__do_date_order() const; \
+template <> _LIBCPP_FUNC_VIS __time_get_storage<_CharT>::__time_get_storage(const char*); \
+template <> _LIBCPP_FUNC_VIS __time_get_storage<_CharT>::__time_get_storage(const string&); \
+template <> _LIBCPP_FUNC_VIS void __time_get_storage<_CharT>::init(const ctype<_CharT>&); \
+template <> _LIBCPP_FUNC_VIS __time_get_storage<_CharT>::string_type __time_get_storage<_CharT>::__analyze(char, const ctype<_CharT>&); \
+extern template _LIBCPP_FUNC_VIS time_base::dateorder __time_get_storage<_CharT>::__do_date_order() const; \
+extern template _LIBCPP_FUNC_VIS __time_get_storage<_CharT>::__time_get_storage(const char*); \
+extern template _LIBCPP_FUNC_VIS __time_get_storage<_CharT>::__time_get_storage(const string&); \
+extern template _LIBCPP_FUNC_VIS void __time_get_storage<_CharT>::init(const ctype<_CharT>&); \
+extern template _LIBCPP_FUNC_VIS __time_get_storage<_CharT>::string_type __time_get_storage<_CharT>::__analyze(char, const ctype<_CharT>&); \
+/**/
+
+_LIBCPP_TIME_GET_STORAGE_EXPLICIT_INSTANTIATION(char)
+_LIBCPP_TIME_GET_STORAGE_EXPLICIT_INSTANTIATION(wchar_t)
+#undef _LIBCPP_TIME_GET_STORAGE_EXPLICIT_INSTANTIATION
+
+template <class _CharT, class _InputIterator = istreambuf_iterator<_CharT> >
+class _LIBCPP_TEMPLATE_VIS time_get_byname
+    : public time_get<_CharT, _InputIterator>,
+      private __time_get_storage<_CharT>
+{
+public:
+    typedef time_base::dateorder    dateorder;
+    typedef _InputIterator          iter_type;
+    typedef _CharT                  char_type;
+    typedef basic_string<char_type> string_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit time_get_byname(const char* __nm, size_t __refs = 0)
+        : time_get<_CharT, _InputIterator>(__refs),
+          __time_get_storage<_CharT>(__nm) {}
+    _LIBCPP_INLINE_VISIBILITY
+    explicit time_get_byname(const string& __nm, size_t __refs = 0)
+        : time_get<_CharT, _InputIterator>(__refs),
+          __time_get_storage<_CharT>(__nm) {}
+
+protected:
+    _LIBCPP_INLINE_VISIBILITY
+    ~time_get_byname() {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    virtual dateorder do_date_order() const {return this->__do_date_order();}
+private:
+    _LIBCPP_INLINE_VISIBILITY
+    virtual const string_type* __weeks() const  {return this->__weeks_;}
+    _LIBCPP_INLINE_VISIBILITY
+    virtual const string_type* __months() const {return this->__months_;}
+    _LIBCPP_INLINE_VISIBILITY
+    virtual const string_type* __am_pm() const  {return this->__am_pm_;}
+    _LIBCPP_INLINE_VISIBILITY
+    virtual const string_type& __c() const      {return this->__c_;}
+    _LIBCPP_INLINE_VISIBILITY
+    virtual const string_type& __r() const      {return this->__r_;}
+    _LIBCPP_INLINE_VISIBILITY
+    virtual const string_type& __x() const      {return this->__x_;}
+    _LIBCPP_INLINE_VISIBILITY
+    virtual const string_type& __X() const      {return this->__X_;}
+};
+
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS time_get_byname<char>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS time_get_byname<wchar_t>)
+
+class _LIBCPP_TYPE_VIS __time_put
+{
+    locale_t __loc_;
+protected:
+    _LIBCPP_INLINE_VISIBILITY __time_put() : __loc_(_LIBCPP_GET_C_LOCALE) {}
+    __time_put(const char* __nm);
+    __time_put(const string& __nm);
+    ~__time_put();
+    void __do_put(char* __nb, char*& __ne, const tm* __tm,
+                  char __fmt, char __mod) const;
+    void __do_put(wchar_t* __wb, wchar_t*& __we, const tm* __tm,
+                  char __fmt, char __mod) const;
+};
+
+template <class _CharT, class _OutputIterator = ostreambuf_iterator<_CharT> >
+class _LIBCPP_TEMPLATE_VIS time_put
+    : public locale::facet,
+      private __time_put
+{
+public:
+    typedef _CharT char_type;
+    typedef _OutputIterator iter_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit time_put(size_t __refs = 0)
+        : locale::facet(__refs) {}
+
+    iter_type put(iter_type __s, ios_base& __iob, char_type __fl, const tm* __tm,
+                  const char_type* __pb, const char_type* __pe) const;
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type put(iter_type __s, ios_base& __iob, char_type __fl,
+                  const tm* __tm, char __fmt, char __mod = 0) const
+    {
+        return do_put(__s, __iob, __fl, __tm, __fmt, __mod);
+    }
+
+    static locale::id id;
+
+protected:
+    _LIBCPP_INLINE_VISIBILITY
+    ~time_put() {}
+    virtual iter_type do_put(iter_type __s, ios_base&, char_type, const tm* __tm,
+                             char __fmt, char __mod) const;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit time_put(const char* __nm, size_t __refs)
+        : locale::facet(__refs),
+          __time_put(__nm) {}
+    _LIBCPP_INLINE_VISIBILITY
+    explicit time_put(const string& __nm, size_t __refs)
+        : locale::facet(__refs),
+          __time_put(__nm) {}
+};
+
+template <class _CharT, class _OutputIterator>
+locale::id
+time_put<_CharT, _OutputIterator>::id;
+
+template <class _CharT, class _OutputIterator>
+_OutputIterator
+time_put<_CharT, _OutputIterator>::put(iter_type __s, ios_base& __iob,
+                                       char_type __fl, const tm* __tm,
+                                       const char_type* __pb,
+                                       const char_type* __pe) const
+{
+    const ctype<char_type>& __ct = use_facet<ctype<char_type> >(__iob.getloc());
+    for (; __pb != __pe; ++__pb)
+    {
+        if (__ct.narrow(*__pb, 0) == '%')
+        {
+            if (++__pb == __pe)
+            {
+                *__s++ = __pb[-1];
+                break;
+            }
+            char __mod = 0;
+            char __fmt = __ct.narrow(*__pb, 0);
+            if (__fmt == 'E' || __fmt == 'O')
+            {
+                if (++__pb == __pe)
+                {
+                    *__s++ = __pb[-2];
+                    *__s++ = __pb[-1];
+                    break;
+                }
+                __mod = __fmt;
+                __fmt = __ct.narrow(*__pb, 0);
+            }
+            __s = do_put(__s, __iob, __fl, __tm, __fmt, __mod);
+        }
+        else
+            *__s++ = *__pb;
+    }
+    return __s;
+}
+
+template <class _CharT, class _OutputIterator>
+_OutputIterator
+time_put<_CharT, _OutputIterator>::do_put(iter_type __s, ios_base&,
+                                          char_type, const tm* __tm,
+                                          char __fmt, char __mod) const
+{
+    char_type __nar[100];
+    char_type* __nb = __nar;
+    char_type* __ne = __nb + 100;
+    __do_put(__nb, __ne, __tm, __fmt, __mod);
+    return _VSTD::copy(__nb, __ne, __s);
+}
+
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS time_put<char>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS time_put<wchar_t>)
+
+template <class _CharT, class _OutputIterator = ostreambuf_iterator<_CharT> >
+class _LIBCPP_TEMPLATE_VIS time_put_byname
+    : public time_put<_CharT, _OutputIterator>
+{
+public:
+    _LIBCPP_INLINE_VISIBILITY
+    explicit time_put_byname(const char* __nm, size_t __refs = 0)
+        : time_put<_CharT, _OutputIterator>(__nm, __refs) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit time_put_byname(const string& __nm, size_t __refs = 0)
+        : time_put<_CharT, _OutputIterator>(__nm, __refs) {}
+
+protected:
+    _LIBCPP_INLINE_VISIBILITY
+    ~time_put_byname() {}
+};
+
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS time_put_byname<char>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS time_put_byname<wchar_t>)
+
+// money_base
+
+class _LIBCPP_TYPE_VIS money_base
+{
+public:
+    enum part {none, space, symbol, sign, value};
+    struct pattern {char field[4];};
+
+    _LIBCPP_INLINE_VISIBILITY money_base() {}
+};
+
+// moneypunct
+
+template <class _CharT, bool _International = false>
+class _LIBCPP_TEMPLATE_VIS moneypunct
+    : public locale::facet,
+      public money_base
+{
+public:
+    typedef _CharT                  char_type;
+    typedef basic_string<char_type> string_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit moneypunct(size_t __refs = 0)
+        : locale::facet(__refs) {}
+
+    _LIBCPP_INLINE_VISIBILITY char_type   decimal_point() const {return do_decimal_point();}
+    _LIBCPP_INLINE_VISIBILITY char_type   thousands_sep() const {return do_thousands_sep();}
+    _LIBCPP_INLINE_VISIBILITY string      grouping()      const {return do_grouping();}
+    _LIBCPP_INLINE_VISIBILITY string_type curr_symbol()   const {return do_curr_symbol();}
+    _LIBCPP_INLINE_VISIBILITY string_type positive_sign() const {return do_positive_sign();}
+    _LIBCPP_INLINE_VISIBILITY string_type negative_sign() const {return do_negative_sign();}
+    _LIBCPP_INLINE_VISIBILITY int         frac_digits()   const {return do_frac_digits();}
+    _LIBCPP_INLINE_VISIBILITY pattern     pos_format()    const {return do_pos_format();}
+    _LIBCPP_INLINE_VISIBILITY pattern     neg_format()    const {return do_neg_format();}
+
+    static locale::id id;
+    static const bool intl = _International;
+
+protected:
+    _LIBCPP_INLINE_VISIBILITY
+    ~moneypunct() {}
+
+    virtual char_type   do_decimal_point() const {return numeric_limits<char_type>::max();}
+    virtual char_type   do_thousands_sep() const {return numeric_limits<char_type>::max();}
+    virtual string      do_grouping()      const {return string();}
+    virtual string_type do_curr_symbol()   const {return string_type();}
+    virtual string_type do_positive_sign() const {return string_type();}
+    virtual string_type do_negative_sign() const {return string_type(1, '-');}
+    virtual int         do_frac_digits()   const {return 0;}
+    virtual pattern     do_pos_format()    const
+        {pattern __p = {{symbol, sign, none, value}}; return __p;}
+    virtual pattern     do_neg_format()    const
+        {pattern __p = {{symbol, sign, none, value}}; return __p;}
+};
+
+template <class _CharT, bool _International>
+locale::id
+moneypunct<_CharT, _International>::id;
+
+template <class _CharT, bool _International>
+const bool
+moneypunct<_CharT, _International>::intl;
+
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS moneypunct<char, false>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS moneypunct<char, true>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS moneypunct<wchar_t, false>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS moneypunct<wchar_t, true>)
+
+// moneypunct_byname
+
+template <class _CharT, bool _International = false>
+class _LIBCPP_TEMPLATE_VIS moneypunct_byname
+    : public moneypunct<_CharT, _International>
+{
+public:
+    typedef money_base::pattern  pattern;
+    typedef _CharT                  char_type;
+    typedef basic_string<char_type> string_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit moneypunct_byname(const char* __nm, size_t __refs = 0)
+        : moneypunct<_CharT, _International>(__refs) {init(__nm);}
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit moneypunct_byname(const string& __nm, size_t __refs = 0)
+        : moneypunct<_CharT, _International>(__refs) {init(__nm.c_str());}
+
+protected:
+    _LIBCPP_INLINE_VISIBILITY
+    ~moneypunct_byname() {}
+
+    virtual char_type   do_decimal_point() const {return __decimal_point_;}
+    virtual char_type   do_thousands_sep() const {return __thousands_sep_;}
+    virtual string      do_grouping()      const {return __grouping_;}
+    virtual string_type do_curr_symbol()   const {return __curr_symbol_;}
+    virtual string_type do_positive_sign() const {return __positive_sign_;}
+    virtual string_type do_negative_sign() const {return __negative_sign_;}
+    virtual int         do_frac_digits()   const {return __frac_digits_;}
+    virtual pattern     do_pos_format()    const {return __pos_format_;}
+    virtual pattern     do_neg_format()    const {return __neg_format_;}
+
+private:
+    char_type   __decimal_point_;
+    char_type   __thousands_sep_;
+    string      __grouping_;
+    string_type __curr_symbol_;
+    string_type __positive_sign_;
+    string_type __negative_sign_;
+    int         __frac_digits_;
+    pattern     __pos_format_;
+    pattern     __neg_format_;
+
+    void init(const char*);
+};
+
+template<> _LIBCPP_FUNC_VIS void moneypunct_byname<char, false>::init(const char*);
+template<> _LIBCPP_FUNC_VIS void moneypunct_byname<char, true>::init(const char*);
+template<> _LIBCPP_FUNC_VIS void moneypunct_byname<wchar_t, false>::init(const char*);
+template<> _LIBCPP_FUNC_VIS void moneypunct_byname<wchar_t, true>::init(const char*);
+
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS moneypunct_byname<char, false>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS moneypunct_byname<char, true>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS moneypunct_byname<wchar_t, false>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS moneypunct_byname<wchar_t, true>)
+
+// money_get
+
+template <class _CharT>
+class __money_get
+{
+protected:
+    typedef _CharT                  char_type;
+    typedef basic_string<char_type> string_type;
+
+    _LIBCPP_INLINE_VISIBILITY __money_get() {}
+
+    static void __gather_info(bool __intl, const locale& __loc,
+                              money_base::pattern& __pat, char_type& __dp,
+                              char_type& __ts, string& __grp,
+                              string_type& __sym, string_type& __psn,
+                              string_type& __nsn, int& __fd);
+};
+
+template <class _CharT>
+void
+__money_get<_CharT>::__gather_info(bool __intl, const locale& __loc,
+                                   money_base::pattern& __pat, char_type& __dp,
+                                   char_type& __ts, string& __grp,
+                                   string_type& __sym, string_type& __psn,
+                                   string_type& __nsn, int& __fd)
+{
+    if (__intl)
+    {
+        const moneypunct<char_type, true>& __mp =
+            use_facet<moneypunct<char_type, true> >(__loc);
+        __pat = __mp.neg_format();
+        __nsn = __mp.negative_sign();
+        __psn = __mp.positive_sign();
+        __dp = __mp.decimal_point();
+        __ts = __mp.thousands_sep();
+        __grp = __mp.grouping();
+        __sym = __mp.curr_symbol();
+        __fd = __mp.frac_digits();
+    }
+    else
+    {
+        const moneypunct<char_type, false>& __mp =
+            use_facet<moneypunct<char_type, false> >(__loc);
+        __pat = __mp.neg_format();
+        __nsn = __mp.negative_sign();
+        __psn = __mp.positive_sign();
+        __dp = __mp.decimal_point();
+        __ts = __mp.thousands_sep();
+        __grp = __mp.grouping();
+        __sym = __mp.curr_symbol();
+        __fd = __mp.frac_digits();
+    }
+}
+
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS __money_get<char>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS __money_get<wchar_t>)
+
+template <class _CharT, class _InputIterator = istreambuf_iterator<_CharT> >
+class _LIBCPP_TEMPLATE_VIS money_get
+    : public locale::facet,
+      private __money_get<_CharT>
+{
+public:
+    typedef _CharT                  char_type;
+    typedef _InputIterator          iter_type;
+    typedef basic_string<char_type> string_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit money_get(size_t __refs = 0)
+        : locale::facet(__refs) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get(iter_type __b, iter_type __e, bool __intl, ios_base& __iob,
+                  ios_base::iostate& __err, long double& __v) const
+    {
+        return do_get(__b, __e, __intl, __iob, __err, __v);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type get(iter_type __b, iter_type __e, bool __intl, ios_base& __iob,
+                  ios_base::iostate& __err, string_type& __v) const
+    {
+        return do_get(__b, __e, __intl, __iob, __err, __v);
+    }
+
+    static locale::id id;
+
+protected:
+
+    _LIBCPP_INLINE_VISIBILITY
+    ~money_get() {}
+
+    virtual iter_type do_get(iter_type __b, iter_type __e, bool __intl,
+                             ios_base& __iob, ios_base::iostate& __err,
+                             long double& __v) const;
+    virtual iter_type do_get(iter_type __b, iter_type __e, bool __intl,
+                             ios_base& __iob, ios_base::iostate& __err,
+                             string_type& __v) const;
+
+private:
+    static bool __do_get(iter_type& __b, iter_type __e,
+                         bool __intl, const locale& __loc,
+                         ios_base::fmtflags __flags, ios_base::iostate& __err,
+                         bool& __neg, const ctype<char_type>& __ct,
+                         unique_ptr<char_type, void(*)(void*)>& __wb,
+                         char_type*& __wn, char_type* __we);
+};
+
+template <class _CharT, class _InputIterator>
+locale::id
+money_get<_CharT, _InputIterator>::id;
+
+_LIBCPP_FUNC_VIS void __do_nothing(void*);
+
+template <class _Tp>
+_LIBCPP_HIDDEN
+void
+__double_or_nothing(unique_ptr<_Tp, void(*)(void*)>& __b, _Tp*& __n, _Tp*& __e)
+{
+    bool __owns = __b.get_deleter() != __do_nothing;
+    size_t __cur_cap = static_cast<size_t>(__e-__b.get()) * sizeof(_Tp);
+    size_t __new_cap = __cur_cap < numeric_limits<size_t>::max() / 2 ?
+                       2 * __cur_cap : numeric_limits<size_t>::max();
+    if (__new_cap == 0)
+        __new_cap = sizeof(_Tp);
+    size_t __n_off = static_cast<size_t>(__n - __b.get());
+    _Tp* __t = (_Tp*)realloc(__owns ? __b.get() : 0, __new_cap);
+    if (__t == 0)
+        __throw_bad_alloc();
+    if (__owns)
+        __b.release();
+    __b = unique_ptr<_Tp, void(*)(void*)>(__t, free);
+    __new_cap /= sizeof(_Tp);
+    __n = __b.get() + __n_off;
+    __e = __b.get() + __new_cap;
+}
+
+// true == success
+template <class _CharT, class _InputIterator>
+bool
+money_get<_CharT, _InputIterator>::__do_get(iter_type& __b, iter_type __e,
+                                            bool __intl, const locale& __loc,
+                                            ios_base::fmtflags __flags,
+                                            ios_base::iostate& __err,
+                                            bool& __neg,
+                                            const ctype<char_type>& __ct,
+                                            unique_ptr<char_type, void(*)(void*)>& __wb,
+                                            char_type*& __wn, char_type* __we)
+{
+    const unsigned __bz = 100;
+    unsigned __gbuf[__bz];
+    unique_ptr<unsigned, void(*)(void*)> __gb(__gbuf, __do_nothing);
+    unsigned* __gn = __gb.get();
+    unsigned* __ge = __gn + __bz;
+    money_base::pattern __pat;
+    char_type __dp;
+    char_type __ts;
+    string __grp;
+    string_type __sym;
+    string_type __psn;
+    string_type __nsn;
+    // Capture the spaces read into money_base::{space,none} so they
+    // can be compared to initial spaces in __sym.
+    string_type __spaces;
+    int __fd;
+    __money_get<_CharT>::__gather_info(__intl, __loc, __pat, __dp, __ts, __grp,
+                                       __sym, __psn, __nsn, __fd);
+    const string_type* __trailing_sign = 0;
+    __wn = __wb.get();
+    for (unsigned __p = 0; __p < 4 && __b != __e; ++__p)
+    {
+        switch (__pat.field[__p])
+        {
+        case money_base::space:
+            if (__p != 3)
+            {
+                if (__ct.is(ctype_base::space, *__b))
+                    __spaces.push_back(*__b++);
+                else
+                {
+                    __err |= ios_base::failbit;
+                    return false;
+                }
+            }
+            _LIBCPP_FALLTHROUGH();
+        case money_base::none:
+            if (__p != 3)
+            {
+                while (__b != __e && __ct.is(ctype_base::space, *__b))
+                    __spaces.push_back(*__b++);
+            }
+            break;
+        case money_base::sign:
+            if (__psn.size() + __nsn.size() > 0)
+            {
+                if (__psn.size() == 0 || __nsn.size() == 0)
+                {   // sign is optional
+                    if (__psn.size() > 0)
+                    {   // __nsn.size() == 0
+                        if (*__b == __psn[0])
+                        {
+                            ++__b;
+                            if (__psn.size() > 1)
+                                __trailing_sign = &__psn;
+                        }
+                        else
+                            __neg = true;
+                    }
+                    else if (*__b == __nsn[0])  // __nsn.size() > 0 &&  __psn.size() == 0
+                    {
+                        ++__b;
+                        __neg = true;
+                        if (__nsn.size() > 1)
+                            __trailing_sign = &__nsn;
+                    }
+                }
+                else  // sign is required
+                {
+                    if (*__b == __psn[0])
+                    {
+                        ++__b;
+                        if (__psn.size() > 1)
+                            __trailing_sign = &__psn;
+                    }
+                    else if (*__b == __nsn[0])
+                    {
+                        ++__b;
+                        __neg = true;
+                        if (__nsn.size() > 1)
+                            __trailing_sign = &__nsn;
+                    }
+                    else
+                    {
+                        __err |= ios_base::failbit;
+                        return false;
+                    }
+                }
+            }
+            break;
+        case money_base::symbol:
+            {
+            bool __more_needed = __trailing_sign ||
+                                 (__p < 2)       ||
+                                 (__p == 2 && __pat.field[3] != static_cast<char>(money_base::none));
+            bool __sb = (__flags & ios_base::showbase) != 0;
+            if (__sb || __more_needed)
+            {
+                typename string_type::const_iterator __sym_space_end = __sym.begin();
+                if (__p > 0 && (__pat.field[__p - 1] == money_base::none ||
+                                __pat.field[__p - 1] == money_base::space)) {
+                    // Match spaces we've already read against spaces at
+                    // the beginning of __sym.
+                    while (__sym_space_end != __sym.end() &&
+                           __ct.is(ctype_base::space, *__sym_space_end))
+                        ++__sym_space_end;
+                    const size_t __num_spaces = __sym_space_end - __sym.begin();
+                    if (__num_spaces > __spaces.size() ||
+                        !equal(__spaces.end() - __num_spaces, __spaces.end(),
+                               __sym.begin())) {
+                        // No match. Put __sym_space_end back at the
+                        // beginning of __sym, which will prevent a
+                        // match in the next loop.
+                        __sym_space_end = __sym.begin();
+                    }
+                }
+                typename string_type::const_iterator __sym_curr_char = __sym_space_end;
+                while (__sym_curr_char != __sym.end() && __b != __e &&
+                       *__b == *__sym_curr_char) {
+                    ++__b;
+                    ++__sym_curr_char;
+                }
+                if (__sb && __sym_curr_char != __sym.end())
+                {
+                    __err |= ios_base::failbit;
+                    return false;
+                }
+            }
+            }
+            break;
+        case money_base::value:
+            {
+            unsigned __ng = 0;
+            for (; __b != __e; ++__b)
+            {
+                char_type __c = *__b;
+                if (__ct.is(ctype_base::digit, __c))
+                {
+                    if (__wn == __we)
+                        __double_or_nothing(__wb, __wn, __we);
+                    *__wn++ = __c;
+                    ++__ng;
+                }
+                else if (__grp.size() > 0 && __ng > 0 && __c == __ts)
+                {
+                    if (__gn == __ge)
+                        __double_or_nothing(__gb, __gn, __ge);
+                    *__gn++ = __ng;
+                    __ng = 0;
+                }
+                else
+                    break;
+            }
+            if (__gb.get() != __gn && __ng > 0)
+            {
+                if (__gn == __ge)
+                    __double_or_nothing(__gb, __gn, __ge);
+                *__gn++ = __ng;
+            }
+            if (__fd > 0)
+            {
+                if (__b == __e || *__b != __dp)
+                {
+                    __err |= ios_base::failbit;
+                    return false;
+                }
+                for (++__b; __fd > 0; --__fd, ++__b)
+                {
+                    if (__b == __e || !__ct.is(ctype_base::digit, *__b))
+                    {
+                        __err |= ios_base::failbit;
+                        return false;
+                    }
+                    if (__wn == __we)
+                        __double_or_nothing(__wb, __wn, __we);
+                    *__wn++ = *__b;
+                }
+            }
+            if (__wn == __wb.get())
+            {
+                __err |= ios_base::failbit;
+                return false;
+            }
+            }
+            break;
+        }
+    }
+    if (__trailing_sign)
+    {
+        for (unsigned __i = 1; __i < __trailing_sign->size(); ++__i, ++__b)
+        {
+            if (__b == __e || *__b != (*__trailing_sign)[__i])
+            {
+                __err |= ios_base::failbit;
+                return false;
+            }
+        }
+    }
+    if (__gb.get() != __gn)
+    {
+        ios_base::iostate __et = ios_base::goodbit;
+        __check_grouping(__grp, __gb.get(), __gn, __et);
+        if (__et)
+        {
+            __err |= ios_base::failbit;
+            return false;
+        }
+    }
+    return true;
+}
+
+template <class _CharT, class _InputIterator>
+_InputIterator
+money_get<_CharT, _InputIterator>::do_get(iter_type __b, iter_type __e,
+                                          bool __intl, ios_base& __iob,
+                                          ios_base::iostate& __err,
+                                          long double& __v) const
+{
+    const int __bz = 100;
+    char_type __wbuf[__bz];
+    unique_ptr<char_type, void(*)(void*)> __wb(__wbuf, __do_nothing);
+    char_type* __wn;
+    char_type* __we = __wbuf + __bz;
+    locale __loc = __iob.getloc();
+    const ctype<char_type>& __ct = use_facet<ctype<char_type> >(__loc);
+    bool __neg = false;
+    if (__do_get(__b, __e, __intl, __loc, __iob.flags(), __err, __neg, __ct,
+                 __wb, __wn, __we))
+    {
+        const char __src[] = "0123456789";
+        char_type __atoms[sizeof(__src)-1];
+        __ct.widen(__src, __src + (sizeof(__src)-1), __atoms);
+        char __nbuf[__bz];
+        char* __nc = __nbuf;
+        unique_ptr<char, void(*)(void*)> __h(0, free);
+        if (__wn - __wb.get() > __bz-2)
+        {
+            __h.reset((char*)malloc(static_cast<size_t>(__wn - __wb.get() + 2)));
+            if (__h.get() == 0)
+                __throw_bad_alloc();
+            __nc = __h.get();
+        }
+        if (__neg)
+            *__nc++ = '-';
+        for (const char_type* __w = __wb.get(); __w < __wn; ++__w, ++__nc)
+            *__nc = __src[find(__atoms, _VSTD::end(__atoms), *__w) - __atoms];
+        *__nc = char();
+        if (sscanf(__nbuf, "%Lf", &__v) != 1)
+            __throw_runtime_error("money_get error");
+    }
+    if (__b == __e)
+        __err |= ios_base::eofbit;
+    return __b;
+}
+
+template <class _CharT, class _InputIterator>
+_InputIterator
+money_get<_CharT, _InputIterator>::do_get(iter_type __b, iter_type __e,
+                                          bool __intl, ios_base& __iob,
+                                          ios_base::iostate& __err,
+                                          string_type& __v) const
+{
+    const int __bz = 100;
+    char_type __wbuf[__bz];
+    unique_ptr<char_type, void(*)(void*)> __wb(__wbuf, __do_nothing);
+    char_type* __wn;
+    char_type* __we = __wbuf + __bz;
+    locale __loc = __iob.getloc();
+    const ctype<char_type>& __ct = use_facet<ctype<char_type> >(__loc);
+    bool __neg = false;
+    if (__do_get(__b, __e, __intl, __loc, __iob.flags(), __err, __neg, __ct,
+                 __wb, __wn, __we))
+    {
+        __v.clear();
+        if (__neg)
+            __v.push_back(__ct.widen('-'));
+        char_type __z = __ct.widen('0');
+        char_type* __w;
+        for (__w = __wb.get(); __w < __wn-1; ++__w)
+            if (*__w != __z)
+                break;
+        __v.append(__w, __wn);
+    }
+    if (__b == __e)
+        __err |= ios_base::eofbit;
+    return __b;
+}
+
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS money_get<char>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS money_get<wchar_t>)
+
+// money_put
+
+template <class _CharT>
+class __money_put
+{
+protected:
+    typedef _CharT                  char_type;
+    typedef basic_string<char_type> string_type;
+
+    _LIBCPP_INLINE_VISIBILITY __money_put() {}
+
+    static void __gather_info(bool __intl, bool __neg, const locale& __loc,
+                              money_base::pattern& __pat, char_type& __dp,
+                              char_type& __ts, string& __grp,
+                              string_type& __sym, string_type& __sn,
+                              int& __fd);
+    static void __format(char_type* __mb, char_type*& __mi, char_type*& __me,
+                         ios_base::fmtflags __flags,
+                         const char_type* __db, const char_type* __de,
+                         const ctype<char_type>& __ct, bool __neg,
+                         const money_base::pattern& __pat, char_type __dp,
+                         char_type __ts, const string& __grp,
+                         const string_type& __sym, const string_type& __sn,
+                         int __fd);
+};
+
+template <class _CharT>
+void
+__money_put<_CharT>::__gather_info(bool __intl, bool __neg, const locale& __loc,
+                                   money_base::pattern& __pat, char_type& __dp,
+                                   char_type& __ts, string& __grp,
+                                   string_type& __sym, string_type& __sn,
+                                   int& __fd)
+{
+    if (__intl)
+    {
+        const moneypunct<char_type, true>& __mp =
+            use_facet<moneypunct<char_type, true> >(__loc);
+        if (__neg)
+        {
+            __pat = __mp.neg_format();
+            __sn = __mp.negative_sign();
+        }
+        else
+        {
+            __pat = __mp.pos_format();
+            __sn = __mp.positive_sign();
+        }
+        __dp = __mp.decimal_point();
+        __ts = __mp.thousands_sep();
+        __grp = __mp.grouping();
+        __sym = __mp.curr_symbol();
+        __fd = __mp.frac_digits();
+    }
+    else
+    {
+        const moneypunct<char_type, false>& __mp =
+            use_facet<moneypunct<char_type, false> >(__loc);
+        if (__neg)
+        {
+            __pat = __mp.neg_format();
+            __sn = __mp.negative_sign();
+        }
+        else
+        {
+            __pat = __mp.pos_format();
+            __sn = __mp.positive_sign();
+        }
+        __dp = __mp.decimal_point();
+        __ts = __mp.thousands_sep();
+        __grp = __mp.grouping();
+        __sym = __mp.curr_symbol();
+        __fd = __mp.frac_digits();
+    }
+}
+
+template <class _CharT>
+void
+__money_put<_CharT>::__format(char_type* __mb, char_type*& __mi, char_type*& __me,
+                              ios_base::fmtflags __flags,
+                              const char_type* __db, const char_type* __de,
+                              const ctype<char_type>& __ct, bool __neg,
+                              const money_base::pattern& __pat, char_type __dp,
+                              char_type __ts, const string& __grp,
+                              const string_type& __sym, const string_type& __sn,
+                              int __fd)
+{
+    __me = __mb;
+    for (unsigned __p = 0; __p < 4; ++__p)
+    {
+        switch (__pat.field[__p])
+        {
+        case money_base::none:
+            __mi = __me;
+            break;
+        case money_base::space:
+            __mi = __me;
+            *__me++ = __ct.widen(' ');
+            break;
+        case money_base::sign:
+            if (!__sn.empty())
+                *__me++ = __sn[0];
+            break;
+        case money_base::symbol:
+            if (!__sym.empty() && (__flags & ios_base::showbase))
+                __me = _VSTD::copy(__sym.begin(), __sym.end(), __me);
+            break;
+        case money_base::value:
+            {
+            // remember start of value so we can reverse it
+            char_type* __t = __me;
+            // find beginning of digits
+            if (__neg)
+                ++__db;
+            // find end of digits
+            const char_type* __d;
+            for (__d = __db; __d < __de; ++__d)
+                if (!__ct.is(ctype_base::digit, *__d))
+                    break;
+            // print fractional part
+            if (__fd > 0)
+            {
+                int __f;
+                for (__f = __fd; __d > __db && __f > 0; --__f)
+                    *__me++ = *--__d;
+                char_type __z = __f > 0 ? __ct.widen('0') : char_type();
+                for (; __f > 0; --__f)
+                    *__me++ = __z;
+                *__me++ = __dp;
+            }
+            // print units part
+            if (__d == __db)
+            {
+                *__me++ = __ct.widen('0');
+            }
+            else
+            {
+                unsigned __ng = 0;
+                unsigned __ig = 0;
+                unsigned __gl = __grp.empty() ? numeric_limits<unsigned>::max()
+                                              : static_cast<unsigned>(__grp[__ig]);
+                while (__d != __db)
+                {
+                    if (__ng == __gl)
+                    {
+                        *__me++ = __ts;
+                        __ng = 0;
+                        if (++__ig < __grp.size())
+                            __gl = __grp[__ig] == numeric_limits<char>::max() ?
+                                        numeric_limits<unsigned>::max() :
+                                        static_cast<unsigned>(__grp[__ig]);
+                    }
+                    *__me++ = *--__d;
+                    ++__ng;
+                }
+            }
+            // reverse it
+            reverse(__t, __me);
+            }
+            break;
+        }
+    }
+    // print rest of sign, if any
+    if (__sn.size() > 1)
+        __me = _VSTD::copy(__sn.begin()+1, __sn.end(), __me);
+    // set alignment
+    if ((__flags & ios_base::adjustfield) == ios_base::left)
+        __mi = __me;
+    else if ((__flags & ios_base::adjustfield) != ios_base::internal)
+        __mi = __mb;
+}
+
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS __money_put<char>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS __money_put<wchar_t>)
+
+template <class _CharT, class _OutputIterator = ostreambuf_iterator<_CharT> >
+class _LIBCPP_TEMPLATE_VIS money_put
+    : public locale::facet,
+      private __money_put<_CharT>
+{
+public:
+    typedef _CharT                  char_type;
+    typedef _OutputIterator         iter_type;
+    typedef basic_string<char_type> string_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit money_put(size_t __refs = 0)
+        : locale::facet(__refs) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type put(iter_type __s, bool __intl, ios_base& __iob, char_type __fl,
+                  long double __units) const
+    {
+        return do_put(__s, __intl, __iob, __fl, __units);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    iter_type put(iter_type __s, bool __intl, ios_base& __iob, char_type __fl,
+                  const string_type& __digits) const
+    {
+        return do_put(__s, __intl, __iob, __fl, __digits);
+    }
+
+    static locale::id id;
+
+protected:
+    _LIBCPP_INLINE_VISIBILITY
+    ~money_put() {}
+
+    virtual iter_type do_put(iter_type __s, bool __intl, ios_base& __iob,
+                             char_type __fl, long double __units) const;
+    virtual iter_type do_put(iter_type __s, bool __intl, ios_base& __iob,
+                             char_type __fl, const string_type& __digits) const;
+};
+
+template <class _CharT, class _OutputIterator>
+locale::id
+money_put<_CharT, _OutputIterator>::id;
+
+template <class _CharT, class _OutputIterator>
+_OutputIterator
+money_put<_CharT, _OutputIterator>::do_put(iter_type __s, bool __intl,
+                                           ios_base& __iob, char_type __fl,
+                                           long double __units) const
+{
+    // convert to char
+    const size_t __bs = 100;
+    char __buf[__bs];
+    char* __bb = __buf;
+    char_type __digits[__bs];
+    char_type* __db = __digits;
+    size_t __n = static_cast<size_t>(snprintf(__bb, __bs, "%.0Lf", __units));
+    unique_ptr<char, void(*)(void*)> __hn(0, free);
+    unique_ptr<char_type, void(*)(void*)> __hd(0, free);
+    // secure memory for digit storage
+    if (__n > __bs-1)
+    {
+        __n = static_cast<size_t>(__libcpp_asprintf_l(&__bb, _LIBCPP_GET_C_LOCALE, "%.0Lf", __units));
+        if (__bb == 0)
+            __throw_bad_alloc();
+        __hn.reset(__bb);
+        __hd.reset((char_type*)malloc(__n * sizeof(char_type)));
+        if (__hd == nullptr)
+            __throw_bad_alloc();
+        __db = __hd.get();
+    }
+    // gather info
+    locale __loc = __iob.getloc();
+    const ctype<char_type>& __ct = use_facet<ctype<char_type> >(__loc);
+    __ct.widen(__bb, __bb + __n, __db);
+    bool __neg = __n > 0 && __bb[0] == '-';
+    money_base::pattern __pat;
+    char_type __dp;
+    char_type __ts;
+    string __grp;
+    string_type __sym;
+    string_type __sn;
+    int __fd;
+    this->__gather_info(__intl, __neg, __loc, __pat, __dp, __ts, __grp, __sym, __sn, __fd);
+    // secure memory for formatting
+    char_type __mbuf[__bs];
+    char_type* __mb = __mbuf;
+    unique_ptr<char_type, void(*)(void*)> __hw(0, free);
+    size_t __exn = static_cast<int>(__n) > __fd ?
+                   (__n - static_cast<size_t>(__fd)) * 2 + __sn.size() +
+                    __sym.size() + static_cast<size_t>(__fd) + 1
+                 : __sn.size() + __sym.size() + static_cast<size_t>(__fd) + 2;
+    if (__exn > __bs)
+    {
+        __hw.reset((char_type*)malloc(__exn * sizeof(char_type)));
+        __mb = __hw.get();
+        if (__mb == 0)
+            __throw_bad_alloc();
+    }
+    // format
+    char_type* __mi;
+    char_type* __me;
+    this->__format(__mb, __mi, __me, __iob.flags(),
+                   __db, __db + __n, __ct,
+                   __neg, __pat, __dp, __ts, __grp, __sym, __sn, __fd);
+    return __pad_and_output(__s, __mb, __mi, __me, __iob, __fl);
+}
+
+template <class _CharT, class _OutputIterator>
+_OutputIterator
+money_put<_CharT, _OutputIterator>::do_put(iter_type __s, bool __intl,
+                                           ios_base& __iob, char_type __fl,
+                                           const string_type& __digits) const
+{
+    // gather info
+    locale __loc = __iob.getloc();
+    const ctype<char_type>& __ct = use_facet<ctype<char_type> >(__loc);
+    bool __neg = __digits.size() > 0 && __digits[0] == __ct.widen('-');
+    money_base::pattern __pat;
+    char_type __dp;
+    char_type __ts;
+    string __grp;
+    string_type __sym;
+    string_type __sn;
+    int __fd;
+    this->__gather_info(__intl, __neg, __loc, __pat, __dp, __ts, __grp, __sym, __sn, __fd);
+    // secure memory for formatting
+    char_type __mbuf[100];
+    char_type* __mb = __mbuf;
+    unique_ptr<char_type, void(*)(void*)> __h(0, free);
+    size_t __exn = static_cast<int>(__digits.size()) > __fd ?
+                   (__digits.size() - static_cast<size_t>(__fd)) * 2 +
+                    __sn.size() + __sym.size() + static_cast<size_t>(__fd) + 1
+                 : __sn.size() + __sym.size() + static_cast<size_t>(__fd) + 2;
+    if (__exn > 100)
+    {
+        __h.reset((char_type*)malloc(__exn * sizeof(char_type)));
+        __mb = __h.get();
+        if (__mb == 0)
+            __throw_bad_alloc();
+    }
+    // format
+    char_type* __mi;
+    char_type* __me;
+    this->__format(__mb, __mi, __me, __iob.flags(),
+                   __digits.data(), __digits.data() + __digits.size(), __ct,
+                   __neg, __pat, __dp, __ts, __grp, __sym, __sn, __fd);
+    return __pad_and_output(__s, __mb, __mi, __me, __iob, __fl);
+}
+
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS money_put<char>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS money_put<wchar_t>)
+
+// messages
+
+class _LIBCPP_TYPE_VIS messages_base
+{
+public:
+    typedef ptrdiff_t catalog;
+
+    _LIBCPP_INLINE_VISIBILITY messages_base() {}
+};
+
+template <class _CharT>
+class _LIBCPP_TEMPLATE_VIS messages
+    : public locale::facet,
+      public messages_base
+{
+public:
+    typedef _CharT               char_type;
+    typedef basic_string<_CharT> string_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit messages(size_t __refs = 0)
+        : locale::facet(__refs) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    catalog open(const basic_string<char>& __nm, const locale& __loc) const
+    {
+        return do_open(__nm, __loc);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    string_type get(catalog __c, int __set, int __msgid,
+                    const string_type& __dflt) const
+    {
+        return do_get(__c, __set, __msgid, __dflt);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    void close(catalog __c) const
+    {
+        do_close(__c);
+    }
+
+    static locale::id id;
+
+protected:
+    _LIBCPP_INLINE_VISIBILITY
+    ~messages() {}
+
+    virtual catalog do_open(const basic_string<char>&, const locale&) const;
+    virtual string_type do_get(catalog, int __set, int __msgid,
+                               const string_type& __dflt) const;
+    virtual void do_close(catalog) const;
+};
+
+template <class _CharT>
+locale::id
+messages<_CharT>::id;
+
+template <class _CharT>
+typename messages<_CharT>::catalog
+messages<_CharT>::do_open(const basic_string<char>& __nm, const locale&) const
+{
+#ifdef _LIBCPP_HAS_CATOPEN
+    catalog __cat = (catalog)catopen(__nm.c_str(), NL_CAT_LOCALE);
+    if (__cat != -1)
+        __cat = static_cast<catalog>((static_cast<size_t>(__cat) >> 1));
+    return __cat;
+#else // !_LIBCPP_HAS_CATOPEN
+    _LIBCPP_UNUSED_VAR(__nm);
+    return -1;
+#endif // _LIBCPP_HAS_CATOPEN
+}
+
+template <class _CharT>
+typename messages<_CharT>::string_type
+messages<_CharT>::do_get(catalog __c, int __set, int __msgid,
+                         const string_type& __dflt) const
+{
+#ifdef _LIBCPP_HAS_CATOPEN
+    string __ndflt;
+    __narrow_to_utf8<sizeof(char_type)*__CHAR_BIT__>()(back_inserter(__ndflt),
+                                                       __dflt.c_str(),
+                                                       __dflt.c_str() + __dflt.size());
+    if (__c != -1)
+        __c <<= 1;
+    nl_catd __cat = (nl_catd)__c;
+    char* __n = catgets(__cat, __set, __msgid, __ndflt.c_str());
+    string_type __w;
+    __widen_from_utf8<sizeof(char_type)*__CHAR_BIT__>()(back_inserter(__w),
+                                                        __n, __n + strlen(__n));
+    return __w;
+#else // !_LIBCPP_HAS_CATOPEN
+    _LIBCPP_UNUSED_VAR(__c);
+    _LIBCPP_UNUSED_VAR(__set);
+    _LIBCPP_UNUSED_VAR(__msgid);
+    return __dflt;
+#endif // _LIBCPP_HAS_CATOPEN
+}
+
+template <class _CharT>
+void
+messages<_CharT>::do_close(catalog __c) const
+{
+#ifdef _LIBCPP_HAS_CATOPEN
+    if (__c != -1)
+        __c <<= 1;
+    nl_catd __cat = (nl_catd)__c;
+    catclose(__cat);
+#else // !_LIBCPP_HAS_CATOPEN
+    _LIBCPP_UNUSED_VAR(__c);
+#endif // _LIBCPP_HAS_CATOPEN
+}
+
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS messages<char>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS messages<wchar_t>)
+
+template <class _CharT>
+class _LIBCPP_TEMPLATE_VIS messages_byname
+    : public messages<_CharT>
+{
+public:
+    typedef messages_base::catalog catalog;
+    typedef basic_string<_CharT> string_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit messages_byname(const char*, size_t __refs = 0)
+        : messages<_CharT>(__refs) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit messages_byname(const string&, size_t __refs = 0)
+        : messages<_CharT>(__refs) {}
+
+protected:
+    _LIBCPP_INLINE_VISIBILITY
+    ~messages_byname() {}
+};
+
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS messages_byname<char>)
+_LIBCPP_EXTERN_TEMPLATE2(class _LIBCPP_EXTERN_TEMPLATE_TYPE_VIS messages_byname<wchar_t>)
+
+template<class _Codecvt, class _Elem = wchar_t,
+         class _Wide_alloc = allocator<_Elem>,
+         class _Byte_alloc = allocator<char> >
+class _LIBCPP_TEMPLATE_VIS wstring_convert
+{
+public:
+    typedef basic_string<char, char_traits<char>, _Byte_alloc>   byte_string;
+    typedef basic_string<_Elem, char_traits<_Elem>, _Wide_alloc> wide_string;
+    typedef typename _Codecvt::state_type                        state_type;
+    typedef typename wide_string::traits_type::int_type          int_type;
+
+private:
+    byte_string __byte_err_string_;
+    wide_string __wide_err_string_;
+    _Codecvt* __cvtptr_;
+    state_type __cvtstate_;
+    size_t __cvtcount_;
+
+    wstring_convert(const wstring_convert& __wc);
+    wstring_convert& operator=(const wstring_convert& __wc);
+public:
+    _LIBCPP_INLINE_VISIBILITY
+    _LIBCPP_EXPLICIT_AFTER_CXX11 wstring_convert(_Codecvt* __pcvt = new _Codecvt);
+    _LIBCPP_INLINE_VISIBILITY
+    wstring_convert(_Codecvt* __pcvt, state_type __state);
+    _LIBCPP_EXPLICIT_AFTER_CXX11 wstring_convert(const byte_string& __byte_err,
+                    const wide_string& __wide_err = wide_string());
+#ifndef _LIBCPP_CXX03_LANG
+    _LIBCPP_INLINE_VISIBILITY
+    wstring_convert(wstring_convert&& __wc);
+#endif
+    ~wstring_convert();
+
+    _LIBCPP_INLINE_VISIBILITY
+    wide_string from_bytes(char __byte)
+        {return from_bytes(&__byte, &__byte+1);}
+    _LIBCPP_INLINE_VISIBILITY
+    wide_string from_bytes(const char* __ptr)
+        {return from_bytes(__ptr, __ptr + char_traits<char>::length(__ptr));}
+    _LIBCPP_INLINE_VISIBILITY
+    wide_string from_bytes(const byte_string& __str)
+        {return from_bytes(__str.data(), __str.data() + __str.size());}
+    wide_string from_bytes(const char* __first, const char* __last);
+
+    _LIBCPP_INLINE_VISIBILITY
+    byte_string to_bytes(_Elem __wchar)
+        {return to_bytes(&__wchar, &__wchar+1);}
+    _LIBCPP_INLINE_VISIBILITY
+    byte_string to_bytes(const _Elem* __wptr)
+        {return to_bytes(__wptr, __wptr + char_traits<_Elem>::length(__wptr));}
+    _LIBCPP_INLINE_VISIBILITY
+    byte_string to_bytes(const wide_string& __wstr)
+        {return to_bytes(__wstr.data(), __wstr.data() + __wstr.size());}
+    byte_string to_bytes(const _Elem* __first, const _Elem* __last);
+
+    _LIBCPP_INLINE_VISIBILITY
+    size_t converted() const _NOEXCEPT {return __cvtcount_;}
+    _LIBCPP_INLINE_VISIBILITY
+    state_type state() const {return __cvtstate_;}
+};
+
+template<class _Codecvt, class _Elem, class _Wide_alloc, class _Byte_alloc>
+inline
+wstring_convert<_Codecvt, _Elem, _Wide_alloc, _Byte_alloc>::
+    wstring_convert(_Codecvt* __pcvt)
+        : __cvtptr_(__pcvt), __cvtstate_(), __cvtcount_(0)
+{
+}
+
+template<class _Codecvt, class _Elem, class _Wide_alloc, class _Byte_alloc>
+inline
+wstring_convert<_Codecvt, _Elem, _Wide_alloc, _Byte_alloc>::
+    wstring_convert(_Codecvt* __pcvt, state_type __state)
+        : __cvtptr_(__pcvt), __cvtstate_(__state), __cvtcount_(0)
+{
+}
+
+template<class _Codecvt, class _Elem, class _Wide_alloc, class _Byte_alloc>
+wstring_convert<_Codecvt, _Elem, _Wide_alloc, _Byte_alloc>::
+    wstring_convert(const byte_string& __byte_err, const wide_string& __wide_err)
+        : __byte_err_string_(__byte_err), __wide_err_string_(__wide_err),
+          __cvtstate_(), __cvtcount_(0)
+{
+    __cvtptr_ = new _Codecvt;
+}
+
+#ifndef _LIBCPP_CXX03_LANG
+
+template<class _Codecvt, class _Elem, class _Wide_alloc, class _Byte_alloc>
+inline
+wstring_convert<_Codecvt, _Elem, _Wide_alloc, _Byte_alloc>::
+    wstring_convert(wstring_convert&& __wc)
+        : __byte_err_string_(_VSTD::move(__wc.__byte_err_string_)),
+          __wide_err_string_(_VSTD::move(__wc.__wide_err_string_)),
+          __cvtptr_(__wc.__cvtptr_),
+          __cvtstate_(__wc.__cvtstate_), __cvtcount_(__wc.__cvtcount_)
+{
+    __wc.__cvtptr_ = nullptr;
+}
+
+#endif  // _LIBCPP_CXX03_LANG
+
+template<class _Codecvt, class _Elem, class _Wide_alloc, class _Byte_alloc>
+wstring_convert<_Codecvt, _Elem, _Wide_alloc, _Byte_alloc>::~wstring_convert()
+{
+    delete __cvtptr_;
+}
+
+template<class _Codecvt, class _Elem, class _Wide_alloc, class _Byte_alloc>
+typename wstring_convert<_Codecvt, _Elem, _Wide_alloc, _Byte_alloc>::wide_string
+wstring_convert<_Codecvt, _Elem, _Wide_alloc, _Byte_alloc>::
+    from_bytes(const char* __frm, const char* __frm_end)
+{
+    __cvtcount_ = 0;
+    if (__cvtptr_ != nullptr)
+    {
+        wide_string __ws(2*(__frm_end - __frm), _Elem());
+        if (__frm != __frm_end)
+            __ws.resize(__ws.capacity());
+        codecvt_base::result __r = codecvt_base::ok;
+        state_type __st = __cvtstate_;
+        if (__frm != __frm_end)
+        {
+            _Elem* __to = &__ws[0];
+            _Elem* __to_end = __to + __ws.size();
+            const char* __frm_nxt;
+            do
+            {
+                _Elem* __to_nxt;
+                __r = __cvtptr_->in(__st, __frm, __frm_end, __frm_nxt,
+                                          __to, __to_end, __to_nxt);
+                __cvtcount_ += __frm_nxt - __frm;
+                if (__frm_nxt == __frm)
+                {
+                    __r = codecvt_base::error;
+                }
+                else if (__r == codecvt_base::noconv)
+                {
+                    __ws.resize(__to - &__ws[0]);
+                    // This only gets executed if _Elem is char
+                    __ws.append((const _Elem*)__frm, (const _Elem*)__frm_end);
+                    __frm = __frm_nxt;
+                    __r = codecvt_base::ok;
+                }
+                else if (__r == codecvt_base::ok)
+                {
+                    __ws.resize(__to_nxt - &__ws[0]);
+                    __frm = __frm_nxt;
+                }
+                else if (__r == codecvt_base::partial)
+                {
+                    ptrdiff_t __s = __to_nxt - &__ws[0];
+                    __ws.resize(2 * __s);
+                    __to = &__ws[0] + __s;
+                    __to_end = &__ws[0] + __ws.size();
+                    __frm = __frm_nxt;
+                }
+            } while (__r == codecvt_base::partial && __frm_nxt < __frm_end);
+        }
+        if (__r == codecvt_base::ok)
+            return __ws;
+    }
+
+    if (__wide_err_string_.empty())
+        __throw_range_error("wstring_convert: from_bytes error");
+
+    return __wide_err_string_;
+}
+
+template<class _Codecvt, class _Elem, class _Wide_alloc, class _Byte_alloc>
+typename wstring_convert<_Codecvt, _Elem, _Wide_alloc, _Byte_alloc>::byte_string
+wstring_convert<_Codecvt, _Elem, _Wide_alloc, _Byte_alloc>::
+    to_bytes(const _Elem* __frm, const _Elem* __frm_end)
+{
+    __cvtcount_ = 0;
+    if (__cvtptr_ != nullptr)
+    {
+        byte_string __bs(2*(__frm_end - __frm), char());
+        if (__frm != __frm_end)
+            __bs.resize(__bs.capacity());
+        codecvt_base::result __r = codecvt_base::ok;
+        state_type __st = __cvtstate_;
+        if (__frm != __frm_end)
+        {
+            char* __to = &__bs[0];
+            char* __to_end = __to + __bs.size();
+            const _Elem* __frm_nxt;
+            do
+            {
+                char* __to_nxt;
+                __r = __cvtptr_->out(__st, __frm, __frm_end, __frm_nxt,
+                                           __to, __to_end, __to_nxt);
+                __cvtcount_ += __frm_nxt - __frm;
+                if (__frm_nxt == __frm)
+                {
+                    __r = codecvt_base::error;
+                }
+                else if (__r == codecvt_base::noconv)
+                {
+                    __bs.resize(__to - &__bs[0]);
+                    // This only gets executed if _Elem is char
+                    __bs.append((const char*)__frm, (const char*)__frm_end);
+                    __frm = __frm_nxt;
+                    __r = codecvt_base::ok;
+                }
+                else if (__r == codecvt_base::ok)
+                {
+                    __bs.resize(__to_nxt - &__bs[0]);
+                    __frm = __frm_nxt;
+                }
+                else if (__r == codecvt_base::partial)
+                {
+                    ptrdiff_t __s = __to_nxt - &__bs[0];
+                    __bs.resize(2 * __s);
+                    __to = &__bs[0] + __s;
+                    __to_end = &__bs[0] + __bs.size();
+                    __frm = __frm_nxt;
+                }
+            } while (__r == codecvt_base::partial && __frm_nxt < __frm_end);
+        }
+        if (__r == codecvt_base::ok)
+        {
+            size_t __s = __bs.size();
+            __bs.resize(__bs.capacity());
+            char* __to = &__bs[0] + __s;
+            char* __to_end = __to + __bs.size();
+            do
+            {
+                char* __to_nxt;
+                __r = __cvtptr_->unshift(__st, __to, __to_end, __to_nxt);
+                if (__r == codecvt_base::noconv)
+                {
+                    __bs.resize(__to - &__bs[0]);
+                    __r = codecvt_base::ok;
+                }
+                else if (__r == codecvt_base::ok)
+                {
+                    __bs.resize(__to_nxt - &__bs[0]);
+                }
+                else if (__r == codecvt_base::partial)
+                {
+                    ptrdiff_t __sp = __to_nxt - &__bs[0];
+                    __bs.resize(2 * __sp);
+                    __to = &__bs[0] + __sp;
+                    __to_end = &__bs[0] + __bs.size();
+                }
+            } while (__r == codecvt_base::partial);
+            if (__r == codecvt_base::ok)
+                return __bs;
+        }
+    }
+
+    if (__byte_err_string_.empty())
+        __throw_range_error("wstring_convert: to_bytes error");
+
+    return __byte_err_string_;
+}
+
+template <class _Codecvt, class _Elem = wchar_t, class _Tr = char_traits<_Elem> >
+class _LIBCPP_TEMPLATE_VIS wbuffer_convert
+    : public basic_streambuf<_Elem, _Tr>
+{
+public:
+    // types:
+    typedef _Elem                          char_type;
+    typedef _Tr                            traits_type;
+    typedef typename traits_type::int_type int_type;
+    typedef typename traits_type::pos_type pos_type;
+    typedef typename traits_type::off_type off_type;
+    typedef typename _Codecvt::state_type  state_type;
+
+private:
+    char*       __extbuf_;
+    const char* __extbufnext_;
+    const char* __extbufend_;
+    char __extbuf_min_[8];
+    size_t __ebs_;
+    char_type* __intbuf_;
+    size_t __ibs_;
+    streambuf* __bufptr_;
+    _Codecvt* __cv_;
+    state_type __st_;
+    ios_base::openmode __cm_;
+    bool __owns_eb_;
+    bool __owns_ib_;
+    bool __always_noconv_;
+
+    wbuffer_convert(const wbuffer_convert&);
+    wbuffer_convert& operator=(const wbuffer_convert&);
+public:
+    _LIBCPP_EXPLICIT_AFTER_CXX11 wbuffer_convert(streambuf* __bytebuf = 0, 
+            _Codecvt* __pcvt = new _Codecvt, state_type __state = state_type());
+    ~wbuffer_convert();
+
+    _LIBCPP_INLINE_VISIBILITY
+    streambuf* rdbuf() const {return __bufptr_;}
+    _LIBCPP_INLINE_VISIBILITY
+    streambuf* rdbuf(streambuf* __bytebuf)
+    {
+        streambuf* __r = __bufptr_;
+        __bufptr_ = __bytebuf;
+        return __r;
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    state_type state() const {return __st_;}
+
+protected:
+    virtual int_type underflow();
+    virtual int_type pbackfail(int_type __c = traits_type::eof());
+    virtual int_type overflow (int_type __c = traits_type::eof());
+    virtual basic_streambuf<char_type, traits_type>* setbuf(char_type* __s,
+                                                            streamsize __n);
+    virtual pos_type seekoff(off_type __off, ios_base::seekdir __way,
+                             ios_base::openmode __wch = ios_base::in | ios_base::out);
+    virtual pos_type seekpos(pos_type __sp,
+                             ios_base::openmode __wch = ios_base::in | ios_base::out);
+    virtual int sync();
+
+private:
+    bool __read_mode();
+    void __write_mode();
+    wbuffer_convert* __close();
+};
+
+template <class _Codecvt, class _Elem, class _Tr>
+wbuffer_convert<_Codecvt, _Elem, _Tr>::
+    wbuffer_convert(streambuf* __bytebuf, _Codecvt* __pcvt, state_type __state)
+    : __extbuf_(0),
+      __extbufnext_(0),
+      __extbufend_(0),
+      __ebs_(0),
+      __intbuf_(0),
+      __ibs_(0),
+      __bufptr_(__bytebuf),
+      __cv_(__pcvt),
+      __st_(__state),
+      __cm_(0),
+      __owns_eb_(false),
+      __owns_ib_(false),
+      __always_noconv_(__cv_ ? __cv_->always_noconv() : false)
+{
+    setbuf(0, 4096);
+}
+
+template <class _Codecvt, class _Elem, class _Tr>
+wbuffer_convert<_Codecvt, _Elem, _Tr>::~wbuffer_convert()
+{
+    __close();
+    delete __cv_;
+    if (__owns_eb_)
+        delete [] __extbuf_;
+    if (__owns_ib_)
+        delete [] __intbuf_;
+}
+
+template <class _Codecvt, class _Elem, class _Tr>
+typename wbuffer_convert<_Codecvt, _Elem, _Tr>::int_type
+wbuffer_convert<_Codecvt, _Elem, _Tr>::underflow()
+{
+    if (__cv_ == 0 || __bufptr_ == 0)
+        return traits_type::eof();
+    bool __initial = __read_mode();
+    char_type __1buf;
+    if (this->gptr() == 0)
+        this->setg(&__1buf, &__1buf+1, &__1buf+1);
+    const size_t __unget_sz = __initial ? 0 : min<size_t>((this->egptr() - this->eback()) / 2, 4);
+    int_type __c = traits_type::eof();
+    if (this->gptr() == this->egptr())
+    {
+        memmove(this->eback(), this->egptr() - __unget_sz, __unget_sz * sizeof(char_type));
+        if (__always_noconv_)
+        {
+            streamsize __nmemb = static_cast<streamsize>(this->egptr() - this->eback() - __unget_sz);
+            __nmemb = __bufptr_->sgetn((char*)this->eback() + __unget_sz, __nmemb);
+            if (__nmemb != 0)
+            {
+                this->setg(this->eback(),
+                           this->eback() + __unget_sz,
+                           this->eback() + __unget_sz + __nmemb);
+                __c = *this->gptr();
+            }
+        }
+        else
+        {
+             _LIBCPP_ASSERT(!(__extbufnext_ == NULL && (__extbufend_ != __extbufnext_)), "underflow moving from NULL" );
+             if (__extbufend_ != __extbufnext_)
+                memmove(__extbuf_, __extbufnext_, __extbufend_ - __extbufnext_);
+            __extbufnext_ = __extbuf_ + (__extbufend_ - __extbufnext_);
+            __extbufend_ = __extbuf_ + (__extbuf_ == __extbuf_min_ ? sizeof(__extbuf_min_) : __ebs_);
+            streamsize __nmemb = _VSTD::min(static_cast<streamsize>(this->egptr() - this->eback() - __unget_sz),
+                                 static_cast<streamsize>(__extbufend_ - __extbufnext_));
+            codecvt_base::result __r;
+            // FIXME: Do we ever need to restore the state here?
+            //state_type __svs = __st_;
+            streamsize __nr = __bufptr_->sgetn(const_cast<char*>(__extbufnext_), __nmemb);
+            if (__nr != 0)
+            {
+                __extbufend_ = __extbufnext_ + __nr;
+                char_type*  __inext;
+                __r = __cv_->in(__st_, __extbuf_, __extbufend_, __extbufnext_,
+                                       this->eback() + __unget_sz,
+                                       this->egptr(), __inext);
+                if (__r == codecvt_base::noconv)
+                {
+                    this->setg((char_type*)__extbuf_, (char_type*)__extbuf_, 
+                               (char_type*) const_cast<char *>(__extbufend_));
+                    __c = *this->gptr();
+                }
+                else if (__inext != this->eback() + __unget_sz)
+                {
+                    this->setg(this->eback(), this->eback() + __unget_sz, __inext);
+                    __c = *this->gptr();
+                }
+            }
+        }
+    }
+    else
+        __c = *this->gptr();
+    if (this->eback() == &__1buf)
+        this->setg(0, 0, 0);
+    return __c;
+}
+
+template <class _Codecvt, class _Elem, class _Tr>
+typename wbuffer_convert<_Codecvt, _Elem, _Tr>::int_type
+wbuffer_convert<_Codecvt, _Elem, _Tr>::pbackfail(int_type __c)
+{
+    if (__cv_ != 0 && __bufptr_ != 0 && this->eback() < this->gptr())
+    {
+        if (traits_type::eq_int_type(__c, traits_type::eof()))
+        {
+            this->gbump(-1);
+            return traits_type::not_eof(__c);
+        }
+        if (traits_type::eq(traits_type::to_char_type(__c), this->gptr()[-1]))
+        {
+            this->gbump(-1);
+            *this->gptr() = traits_type::to_char_type(__c);
+            return __c;
+        }
+    }
+    return traits_type::eof();
+}
+
+template <class _Codecvt, class _Elem, class _Tr>
+typename wbuffer_convert<_Codecvt, _Elem, _Tr>::int_type
+wbuffer_convert<_Codecvt, _Elem, _Tr>::overflow(int_type __c)
+{
+    if (__cv_ == 0 || __bufptr_ == 0)
+        return traits_type::eof();
+    __write_mode();
+    char_type __1buf;
+    char_type* __pb_save = this->pbase();
+    char_type* __epb_save = this->epptr();
+    if (!traits_type::eq_int_type(__c, traits_type::eof()))
+    {
+        if (this->pptr() == 0)
+            this->setp(&__1buf, &__1buf+1);
+        *this->pptr() = traits_type::to_char_type(__c);
+        this->pbump(1);
+    }
+    if (this->pptr() != this->pbase())
+    {
+        if (__always_noconv_)
+        {
+            streamsize __nmemb = static_cast<streamsize>(this->pptr() - this->pbase());
+            if (__bufptr_->sputn((const char*)this->pbase(), __nmemb) != __nmemb)
+                return traits_type::eof();
+        }
+        else
+        {
+            char* __extbe = __extbuf_;
+            codecvt_base::result __r;
+            do
+            {
+                const char_type* __e;
+                __r = __cv_->out(__st_, this->pbase(), this->pptr(), __e,
+                                        __extbuf_, __extbuf_ + __ebs_, __extbe);
+                if (__e == this->pbase())
+                    return traits_type::eof();
+                if (__r == codecvt_base::noconv)
+                {
+                    streamsize __nmemb = static_cast<size_t>(this->pptr() - this->pbase());
+                    if (__bufptr_->sputn((const char*)this->pbase(), __nmemb) != __nmemb)
+                        return traits_type::eof();
+                }
+                else if (__r == codecvt_base::ok || __r == codecvt_base::partial)
+                {
+                    streamsize __nmemb = static_cast<size_t>(__extbe - __extbuf_);
+                    if (__bufptr_->sputn(__extbuf_, __nmemb) != __nmemb)
+                        return traits_type::eof();
+                    if (__r == codecvt_base::partial)
+                    {
+                        this->setp(const_cast<char_type *>(__e), this->pptr());
+                        this->__pbump(this->epptr() - this->pbase());
+                    }
+                }
+                else
+                    return traits_type::eof();
+            } while (__r == codecvt_base::partial);
+        }
+        this->setp(__pb_save, __epb_save);
+    }
+    return traits_type::not_eof(__c);
+}
+
+template <class _Codecvt, class _Elem, class _Tr>
+basic_streambuf<_Elem, _Tr>*
+wbuffer_convert<_Codecvt, _Elem, _Tr>::setbuf(char_type* __s, streamsize __n)
+{
+    this->setg(0, 0, 0);
+    this->setp(0, 0);
+    if (__owns_eb_)
+        delete [] __extbuf_;
+    if (__owns_ib_)
+        delete [] __intbuf_;
+    __ebs_ = __n;
+    if (__ebs_ > sizeof(__extbuf_min_))
+    {
+        if (__always_noconv_ && __s)
+        {
+            __extbuf_ = (char*)__s;
+            __owns_eb_ = false;
+        }
+        else
+        {
+            __extbuf_ = new char[__ebs_];
+            __owns_eb_ = true;
+        }
+    }
+    else
+    {
+        __extbuf_ = __extbuf_min_;
+        __ebs_ = sizeof(__extbuf_min_);
+        __owns_eb_ = false;
+    }
+    if (!__always_noconv_)
+    {
+        __ibs_ = max<streamsize>(__n, sizeof(__extbuf_min_));
+        if (__s && __ibs_ >= sizeof(__extbuf_min_))
+        {
+            __intbuf_ = __s;
+            __owns_ib_ = false;
+        }
+        else
+        {
+            __intbuf_ = new char_type[__ibs_];
+            __owns_ib_ = true;
+        }
+    }
+    else
+    {
+        __ibs_ = 0;
+        __intbuf_ = 0;
+        __owns_ib_ = false;
+    }
+    return this;
+}
+
+template <class _Codecvt, class _Elem, class _Tr>
+typename wbuffer_convert<_Codecvt, _Elem, _Tr>::pos_type
+wbuffer_convert<_Codecvt, _Elem, _Tr>::seekoff(off_type __off, ios_base::seekdir __way,
+                                        ios_base::openmode __om)
+{
+    int __width = __cv_->encoding();
+    if (__cv_ == 0 || __bufptr_ == 0 || (__width <= 0 && __off != 0) || sync())
+        return pos_type(off_type(-1));
+    // __width > 0 || __off == 0, now check __way
+    if (__way != ios_base::beg && __way != ios_base::cur && __way != ios_base::end)
+        return pos_type(off_type(-1));
+    pos_type __r = __bufptr_->pubseekoff(__width * __off, __way, __om);
+    __r.state(__st_);
+    return __r;
+}
+
+template <class _Codecvt, class _Elem, class _Tr>
+typename wbuffer_convert<_Codecvt, _Elem, _Tr>::pos_type
+wbuffer_convert<_Codecvt, _Elem, _Tr>::seekpos(pos_type __sp, ios_base::openmode __wch)
+{
+    if (__cv_ == 0 || __bufptr_ == 0 || sync())
+        return pos_type(off_type(-1));
+    if (__bufptr_->pubseekpos(__sp, __wch) == pos_type(off_type(-1)))
+        return pos_type(off_type(-1));
+    return __sp;
+}
+
+template <class _Codecvt, class _Elem, class _Tr>
+int
+wbuffer_convert<_Codecvt, _Elem, _Tr>::sync()
+{
+    if (__cv_ == 0 || __bufptr_ == 0)
+        return 0;
+    if (__cm_ & ios_base::out)
+    {
+        if (this->pptr() != this->pbase())
+            if (overflow() == traits_type::eof())
+                return -1;
+        codecvt_base::result __r;
+        do
+        {
+            char* __extbe;
+            __r = __cv_->unshift(__st_, __extbuf_, __extbuf_ + __ebs_, __extbe);
+            streamsize __nmemb = static_cast<streamsize>(__extbe - __extbuf_);
+            if (__bufptr_->sputn(__extbuf_, __nmemb) != __nmemb)
+                return -1;
+        } while (__r == codecvt_base::partial);
+        if (__r == codecvt_base::error)
+            return -1;
+        if (__bufptr_->pubsync())
+            return -1;
+    }
+    else if (__cm_ & ios_base::in)
+    {
+        off_type __c;
+        if (__always_noconv_)
+            __c = this->egptr() - this->gptr();
+        else
+        {
+            int __width = __cv_->encoding();
+            __c = __extbufend_ - __extbufnext_;
+            if (__width > 0)
+                __c += __width * (this->egptr() - this->gptr());
+            else
+            {
+                if (this->gptr() != this->egptr())
+                {
+                    reverse(this->gptr(), this->egptr());
+                    codecvt_base::result __r;
+                    const char_type* __e = this->gptr();
+                    char* __extbe;
+                    do
+                    {
+                        __r = __cv_->out(__st_, __e, this->egptr(), __e,
+                                         __extbuf_, __extbuf_ + __ebs_, __extbe);
+                        switch (__r)
+                        {
+                        case codecvt_base::noconv:
+                            __c += this->egptr() - this->gptr();
+                            break;
+                        case codecvt_base::ok:
+                        case codecvt_base::partial:
+                            __c += __extbe - __extbuf_;
+                            break;
+                        default:
+                            return -1;
+                        }
+                    } while (__r == codecvt_base::partial);
+                }
+            }
+        }
+        if (__bufptr_->pubseekoff(-__c, ios_base::cur, __cm_) == pos_type(off_type(-1)))
+            return -1;
+        this->setg(0, 0, 0);
+        __cm_ = 0;
+    }
+    return 0;
+}
+
+template <class _Codecvt, class _Elem, class _Tr>
+bool
+wbuffer_convert<_Codecvt, _Elem, _Tr>::__read_mode()
+{
+    if (!(__cm_ & ios_base::in))
+    {
+        this->setp(0, 0);
+        if (__always_noconv_)
+            this->setg((char_type*)__extbuf_,
+                       (char_type*)__extbuf_ + __ebs_,
+                       (char_type*)__extbuf_ + __ebs_);
+        else
+            this->setg(__intbuf_, __intbuf_ + __ibs_, __intbuf_ + __ibs_);
+        __cm_ = ios_base::in;
+        return true;
+    }
+    return false;
+}
+
+template <class _Codecvt, class _Elem, class _Tr>
+void
+wbuffer_convert<_Codecvt, _Elem, _Tr>::__write_mode()
+{
+    if (!(__cm_ & ios_base::out))
+    {
+        this->setg(0, 0, 0);
+        if (__ebs_ > sizeof(__extbuf_min_))
+        {
+            if (__always_noconv_)
+                this->setp((char_type*)__extbuf_,
+                           (char_type*)__extbuf_ + (__ebs_ - 1));
+            else
+                this->setp(__intbuf_, __intbuf_ + (__ibs_ - 1));
+        }
+        else
+            this->setp(0, 0);
+        __cm_ = ios_base::out;
+    }
+}
+
+template <class _Codecvt, class _Elem, class _Tr>
+wbuffer_convert<_Codecvt, _Elem, _Tr>*
+wbuffer_convert<_Codecvt, _Elem, _Tr>::__close()
+{
+    wbuffer_convert* __rt = 0;
+    if (__cv_ != 0 && __bufptr_ != 0)
+    {
+        __rt = this;
+        if ((__cm_ & ios_base::out) && sync())
+            __rt = 0;
+    }
+    return __rt;
+}
+
+_LIBCPP_END_NAMESPACE_STD
+
+_LIBCPP_POP_MACROS
+
+#endif  // _LIBCPP_LOCALE

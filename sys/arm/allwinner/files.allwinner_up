@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+arm/allwinner/a10_timer.c		standard

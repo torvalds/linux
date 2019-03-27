@@ -1,0 +1,133 @@
+.\" Copyright (c) 2003 Mike Barcroft <mike@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 26, 2005
+.Dt FPCLASSIFY 3
+.Os
+.Sh NAME
+.Nm fpclassify , isfinite , isinf , isnan , isnormal
+.Nd "classify a floating-point number"
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft int
+.Fn fpclassify "real-floating x"
+.Ft int
+.Fn isfinite "real-floating x"
+.Ft int
+.Fn isinf "real-floating x"
+.Ft int
+.Fn isnan "real-floating x"
+.Ft int
+.Fn isnormal "real-floating x"
+.Sh DESCRIPTION
+The
+.Fn fpclassify
+macro takes an argument of
+.Fa x
+and returns one of the following manifest constants.
+.Bl -tag -width ".Dv FP_SUBNORMAL"
+.It Dv FP_INFINITE
+Indicates that
+.Fa x
+is an infinite number.
+.It Dv FP_NAN
+Indicates that
+.Fa x
+is not a number (NaN).
+.It Dv FP_NORMAL
+Indicates that
+.Fa x
+is a normalized number.
+.It Dv FP_SUBNORMAL
+Indicates that
+.Fa x
+is a denormalized number.
+.It Dv FP_ZERO
+Indicates that
+.Fa x
+is zero (0 or \-0).
+.El
+.Pp
+The
+.Fn isfinite
+macro returns a non-zero value if and only if its argument has
+a finite (zero, subnormal, or normal) value.
+The
+.Fn isinf ,
+.Fn isnan ,
+and
+.Fn isnormal
+macros return non-zero if and only if
+.Fa x
+is an infinity, NaN,
+or a non-zero normalized number, respectively.
+.Pp
+The symbol
+.Fn isnanf
+is provided as an alias to
+.Fn isnan
+for compatibility, and its use is deprecated.
+Similarly,
+.Fn finite
+and
+.Fn finitef
+are deprecated versions of
+.Fn isfinite .
+.Sh SEE ALSO
+.Xr isgreater 3 ,
+.Xr math 3 ,
+.Xr signbit 3
+.Sh STANDARDS
+The
+.Fn fpclassify ,
+.Fn isfinite ,
+.Fn isinf ,
+.Fn isnan ,
+and
+.Fn isnormal
+macros conform to
+.St -isoC-99 .
+.Sh HISTORY
+The
+.Fn fpclassify ,
+.Fn isfinite ,
+.Fn isinf ,
+.Fn isnan ,
+and
+.Fn isnormal
+macros were added in
+.Fx 5.1 .
+.Bx 3
+introduced
+.Fn isinf
+and
+.Fn isnan
+functions, which accepted
+.Vt double
+arguments; these have been superseded by the macros
+described above.

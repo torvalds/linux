@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+# It is not immediately obvious that this should work, and someone probably
+# relies on it.
+
+while :; do
+	trap 'break' USR1
+	kill -USR1 $$
+	echo bad
+	exit 1
+done
+echo good

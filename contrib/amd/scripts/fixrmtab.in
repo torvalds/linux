@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# Invalidate /etc/rmtab entries for hosts named.
+# Restart mountd for changes to take effect.
+#
+# usage: fixrmtab host1 host2 ...
+#
+# Package:	am-utils-6.x
+# Author:	Andreas Stolcke <stolcke@icsi.berkeley.edu>
+
+#set -x
+
+# allow user to pass RMTAB file name from environment
+if test -z "${RMTAB}" ; then
+	RMTAB=/etc/rmtab
+fi
+
+if [ ! -f "$RMTAB" ]; then
+	exit 0
+fi
+
+TMP="$(mktemp ${RMTAB}.XXXXXX)"
+if [ -z "$TMP" ]; then
+	exit 1
+fi
+
+trap "rm -f $TMP" 0 1 2 3 15
+
+for host
+do
+	sed -e "/^$host:/s/^./#/" "$RMTAB" > "$TMP" && cp "$TMP" "$RMTAB"
+done

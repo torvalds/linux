@@ -1,0 +1,192 @@
+.\"
+.\" This manual page is taken directly from Plan9, and modified to
+.\" describe the actual BSD implementation. Permission for
+.\" use of this page comes from Rob Pike <rob@plan9.att.com>.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 12, 2011
+.Dt RFORK 2
+.Os
+.Sh NAME
+.Nm rfork
+.Nd manipulate process resources
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft pid_t
+.Fn rfork "int flags"
+.Sh DESCRIPTION
+Forking, vforking or rforking are the only ways new processes are created.
+The
+.Fa flags
+argument to
+.Fn rfork
+selects which resources of the
+invoking process (parent) are shared
+by the new process (child) or initialized to
+their default values.
+The resources include
+the open file descriptor table (which, when shared, permits processes
+to open and close files for other processes),
+and open files.
+The
+.Fa flags
+argument
+is the logical OR of some subset of:
+.Bl -tag -width ".Dv RFLINUXTHPN"
+.It Dv RFPROC
+If set a new process is created; otherwise changes affect the
+current process.
+.It Dv RFNOWAIT
+If set, the child process will be dissociated from the parent.
+Upon
+exit the child will not leave a status for the parent to collect.
+See
+.Xr wait 2 .
+.It Dv RFFDG
+If set, the invoker's file descriptor table (see
+.Xr intro 2 )
+is copied; otherwise the two processes share a
+single table.
+.It Dv RFCFDG
+If set, the new process starts with a clean file descriptor table.
+Is mutually exclusive with
+.Dv RFFDG .
+.It Dv RFTHREAD
+If set, the new process shares file descriptor to process leaders table
+with its parent.
+Only applies when neither
+.Dv RFFDG
+nor
+.Dv RFCFDG
+are set.
+.It Dv RFMEM
+If set, the kernel will force sharing of the entire address space,
+typically by sharing the hardware page table directly.
+The child
+will thus inherit and share all the segments the parent process owns,
+whether they are normally shareable or not.
+The stack segment is
+not split (both the parent and child return on the same stack) and thus
+.Fn rfork
+with the RFMEM flag may not generally be called directly from high level
+languages including C.
+May be set only with
+.Dv RFPROC .
+A helper function is provided to assist with this problem and will cause
+the new process to run on the provided stack.
+See
+.Xr rfork_thread 3
+for information.
+Note that a lot of code will not run correctly in such an environment.
+.It Dv RFSIGSHARE
+If set, the kernel will force sharing the sigacts structure between the
+child and the parent.
+.It Dv RFTSIGZMB
+If set, the kernel will deliver a specified signal to the parent
+upon the child exit, instead of default SIGCHLD.
+The signal number
+.Dv signum
+is specified by oring the
+.Dv RFTSIGFLAGS(signum)
+expression into
+.Fa flags .
+Specifying signal number 0 disables signal delivery upon the child exit.
+.It Dv RFLINUXTHPN
+If set, the kernel will deliver SIGUSR1 instead of SIGCHLD upon thread
+exit for the child.
+This is intended to mimic certain Linux clone behaviour.
+.El
+.Pp
+File descriptors in a shared file descriptor table are kept
+open until either they are explicitly closed
+or all processes sharing the table exit.
+.Pp
+If
+.Dv RFPROC
+is set, the
+value returned in the parent process
+is the process id
+of the child process; the value returned in the child is zero.
+Without
+.Dv RFPROC ,
+the return value is zero.
+Process id's range from 1 to the maximum integer
+.Ft ( int )
+value.
+The
+.Fn rfork
+system call
+will sleep, if necessary, until required process resources are available.
+.Pp
+The
+.Fn fork
+system call
+can be implemented as a call to
+.Fn rfork "RFFDG | RFPROC"
+but is not for backwards compatibility.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn rfork
+returns a value
+of 0 to the child process and returns the process ID of the child
+process to the parent process.
+Otherwise, a value of -1 is returned
+to the parent process, no child process is created, and the global
+variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn rfork
+system call
+will fail and no child process will be created if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The system-imposed limit on the total
+number of processes under execution would be exceeded.
+The limit is given by the
+.Xr sysctl 3
+MIB variable
+.Dv KERN_MAXPROC .
+(The limit is actually ten less than this
+except for the super user).
+.It Bq Er EAGAIN
+The user is not the super user, and
+the system-imposed limit
+on the total number of
+processes under execution by a single user would be exceeded.
+The limit is given by the
+.Xr sysctl 3
+MIB variable
+.Dv KERN_MAXPROCPERUID .
+.It Bq Er EAGAIN
+The user is not the super user, and
+the soft resource limit corresponding to the
+.Fa resource
+argument
+.Dv RLIMIT_NOFILE
+would be exceeded (see
+.Xr getrlimit 2 ) .
+.It Bq Er EINVAL
+Both the RFFDG and the RFCFDG flags were specified.
+.It Bq Er EINVAL
+Any flags not listed above were specified.
+.It Bq Er EINVAL
+An invalid signal number was specified.
+.It Bq Er ENOMEM
+There is insufficient swap space for the new process.
+.El
+.Sh SEE ALSO
+.Xr fork 2 ,
+.Xr intro 2 ,
+.Xr minherit 2 ,
+.Xr vfork 2 ,
+.Xr pthread_create 3 ,
+.Xr rfork_thread 3
+.Sh HISTORY
+The
+.Fn rfork
+function first appeared in Plan9.

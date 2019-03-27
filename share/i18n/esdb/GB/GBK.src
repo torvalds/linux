@@ -1,0 +1,10 @@
+# $FreeBSD$ 
+# $NetBSD: GBK.src,v 1.1 2006/11/23 03:25:25 tnozaki Exp $
+
+NAME		"GBK"
+ENCODING	"GBK2K"
+VARIABLE	"2byte"
+DEFCSID		"ISO646-US"		0
+DEFCSID		"GB2312:GBK"		1
+DEFCSID		"GBK"			2
+INVALID		0x3F	# '?'

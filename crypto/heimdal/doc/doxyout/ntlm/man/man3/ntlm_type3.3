@@ -1,0 +1,96 @@
+.TH "ntlm_type3" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalntlmlibrary" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+ntlm_type3 \- 
+.SH SYNOPSIS
+.br
+.PP
+\fC#include <heimntlm.h>\fP
+.PP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "uint32_t \fBflags\fP"
+.br
+.ti -1c
+.RI "char * \fBusername\fP"
+.br
+.ti -1c
+.RI "char * \fBtargetname\fP"
+.br
+.ti -1c
+.RI "struct \fBntlm_buf\fP \fBlm\fP"
+.br
+.ti -1c
+.RI "struct \fBntlm_buf\fP \fBntlm\fP"
+.br
+.ti -1c
+.RI "struct \fBntlm_buf\fP \fBsessionkey\fP"
+.br
+.ti -1c
+.RI "char * \fBws\fP"
+.br
+.ti -1c
+.RI "uint32_t \fBos\fP [2]"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+Struct for the NTLM type3 message info, the strings is assumed to be in UTF8. When filled in by the library it should be freed with \fBheim_ntlm_free_type3()\fP. 
+.PP
+\fBExamples: \fP
+.in +1c
+.PP
+\fBtest_ntlm.c\fP.
+.SH "Field Documentation"
+.PP 
+.SS "uint32_t \fBntlm_type3::flags\fP"
+.PP
+
+.PP
+\fBExamples: \fP
+.in +1c
+\fBtest_ntlm.c\fP.
+.SS "char* \fBntlm_type3::username\fP"
+.PP
+
+.PP
+\fBExamples: \fP
+.in +1c
+\fBtest_ntlm.c\fP.
+.SS "char* \fBntlm_type3::targetname\fP"
+.PP
+
+.PP
+\fBExamples: \fP
+.in +1c
+\fBtest_ntlm.c\fP.
+.SS "struct \fBntlm_buf\fP \fBntlm_type3::lm\fP\fC [read]\fP"
+.PP
+
+.SS "struct \fBntlm_buf\fP \fBntlm_type3::ntlm\fP\fC [read]\fP"
+.PP
+
+.PP
+\fBExamples: \fP
+.in +1c
+\fBtest_ntlm.c\fP.
+.SS "struct \fBntlm_buf\fP \fBntlm_type3::sessionkey\fP\fC [read]\fP"
+.PP
+
+.SS "char* \fBntlm_type3::ws\fP"
+.PP
+
+.PP
+\fBExamples: \fP
+.in +1c
+\fBtest_ntlm.c\fP.
+.SS "uint32_t \fBntlm_type3::os\fP[2]"
+.PP
+
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Heimdalntlmlibrary from the source code.

@@ -1,0 +1,312 @@
+# configure.host
+#
+# This shell script handles all host based configuration for libstdc++.
+# It sets various shell variables based on the the host and the
+# configuration options.  You can modify this shell script without needing
+# to rerun autoconf/aclocal/etc.  This file is "sourced" not executed.
+#
+# You should read docs/html/17_intro/porting.* to make sense of this file.
+#
+#
+# It uses the following shell variables as set by config.guess:
+#   host                The configuration host (full CPU-vendor-OS triplet)
+#   host_cpu            The configuration host CPU
+#   host_os             The configuration host OS
+#
+#
+# It sets the following shell variables:
+#
+#   cpu_include_dir        CPU-specific directory, defaults to cpu/generic
+#                          if cpu/host_cpu doesn't exist.  This is not used
+#                          directly, but sets the default for others.
+#
+#   os_include_dir         OS-specific directory, defaults to os/generic.
+#
+#   c_model                the "C" header model, defaults to c_std.
+#
+#   c_compatibility        if "C" compatibility headers are necessary,
+#                          defaults to no.
+#
+#   abi_baseline_pair      directory name for ABI compat testing,
+#                          defaults to host_cpu-host_os (as per config.guess)
+#
+#   abi_tweaks_dir         location of cxxabi_tweaks.h,
+#                          defaults to cpu_include_dir
+#
+#   atomicity_dir          location of atomicity.h,
+#                          defaults to cpu_include_dir
+#
+#   atomic_word_dir        location of atomic_word.h
+#                          defaults to generic.
+#
+#   cpu_defines_dir        location of cpu_defines.h
+#                          defaults to generic.
+#
+# It possibly modifies the following variables:
+#
+#   OPT_LDFLAGS            extra flags to pass when linking the library, of
+#                          the form '-Wl,blah'
+#                          (defaults to empty in acinclude.m4)
+#
+#   port_specific_symbol_files
+#                          whitespace-seperated list of files containing
+#                          additional symbols to export from the shared
+#                          library, when symbol versioning is in use
+#
+#
+# If the defaults will not work for your platform, you need only change the
+# variables that won't work, i.e., you do not need to explicitly set a
+# working variable to its default.  Most hosts only need to change the two
+# *_include_dir variables.
+
+
+# DEFAULTS
+# Try to guess a default cpu_include_dir based on the name of the CPU.  We
+# cannot do this for os_include_dir; there are too many portable operating
+# systems out there.  :-)
+c_model=c_std
+c_compatibility=no
+atomic_word_dir=cpu/generic
+atomicity_dir="cpu/generic"
+cpu_defines_dir="cpu/generic"
+try_cpu=generic
+abi_tweaks_dir="cpu/generic"
+
+# HOST-SPECIFIC OVERRIDES
+# Set any CPU-dependent bits.
+
+# Provide a way to funnel exotic flavors and prefixed/postfixed chip
+# variants into the established source config/cpu/* sub-directories.
+# THIS TABLE IS SORTED.  KEEP IT THAT WAY.
+case "${host_cpu}" in
+  alpha*)
+    try_cpu=alpha
+    ;;
+  arm* | xscale | ep9312)
+    try_cpu=arm
+    ;;
+  i[567]86 | x86_64)
+    try_cpu=i486
+    ;;
+  hppa*)
+    try_cpu=hppa
+    ;;
+  mips*)
+    try_cpu=mips
+    ;;
+  m680[246]0)
+    try_cpu=m68k
+    ;;
+  powerpc* | rs6000)
+    try_cpu=powerpc
+    ;;
+  sparc* | ultrasparc)
+    try_cpu=sparc
+    ;;
+  *)
+    if test -d ${glibcxx_srcdir}/config/cpu/${host_cpu}; then
+      try_cpu=${host_cpu}
+    fi
+esac
+
+
+# Now look for the file(s) usually tied to a CPU model, and make
+# default choices for those if they haven't been explicitly set
+# already.  
+cpu_include_dir=cpu/${try_cpu}
+
+
+# Set specific CPU overrides for cpu_defines_dir. Most can just use generic.
+# THIS TABLE IS SORTED.  KEEP IT THAT WAY.
+case "${host_cpu}" in
+  powerpc* | rs6000)
+    cpu_defines_dir=cpu/powerpc
+    ;;
+esac
+
+
+# Set specific CPU overrides for atomic_word_dir. Most can just use generic.
+# THIS TABLE IS SORTED.  KEEP IT THAT WAY.
+case "${host_cpu}" in
+  alpha*)
+    atomic_word_dir=cpu/alpha
+    ;;
+  cris*)
+    atomic_word_dir=cpu/cris
+    ;;
+  ia64)
+    atomic_word_dir=cpu/ia64
+    ;;
+  powerpc* | rs6000)
+    atomic_word_dir=cpu/powerpc
+    ;;
+  sparc* | ultrasparc)
+    atomic_word_dir=cpu/sparc
+    ;;
+esac
+
+
+# Set specific CPU overrides for atomicity_dir.
+# This can be over-ridden in GLIBCXX_ENABLE_ATOMIC_BUILTINS.
+# THIS TABLE IS SORTED.  KEEP IT THAT WAY.
+if test -f ${glibcxx_srcdir}/config/${cpu_include_dir}/atomicity.h ; then
+  atomicity_dir=$cpu_include_dir
+fi
+
+
+if test -f ${glibcxx_srcdir}/config/${cpu_include_dir}/cxxabi_tweaks.h ; then
+  abi_tweaks_dir=$cpu_include_dir
+fi
+
+
+# Set any OS-dependent bits.
+# Set the os_include_dir.
+# Set c_model, c_compatibility here.
+# If atomic ops and/or numeric limits are OS-specific rather than
+# CPU-specifc, set those here too.
+# THIS TABLE IS SORTED.  KEEP IT THAT WAY.
+case "${host_os}" in
+  aix4.[3456789]* | aix[56789]*)
+    # We set os_include_dir to os/aix only on AIX 4.3 and newer, but
+    # os/aix/atomicity.h works on earlier versions of AIX 4.*, so we
+    # explicitly duplicate the directory for 4.[<3].
+    os_include_dir="os/aix"
+    atomicity_dir="os/aix"
+    atomic_word_dir="os/aix"
+    OPT_LDFLAGS="-Wl,-G"
+    ;;
+  aix4.*)
+    os_include_dir="os/generic"
+    atomicity_dir="os/aix"
+    atomic_word_dir="os/aix"
+    ;;
+  aix*)
+    os_include_dir="os/generic"
+    atomicity_dir="cpu/generic"
+    ;;
+  bsd*)
+    # Plain BSD attempts to share FreeBSD files.
+    os_include_dir="os/bsd/freebsd"
+    ;;
+  cygwin*)
+    os_include_dir="os/newlib"
+    ;;
+  darwin | darwin[1-7] | darwin[1-7].*)
+    # On Darwin, performance is improved if libstdc++ is single-module.
+    # Up to at least 10.3.7, -flat_namespace is required for proper
+    # treatment of coalesced symbols.
+    OPT_LDFLAGS="${OPT_LDFLAGS} -Wl,-single_module -Wl,-flat_namespace"
+    os_include_dir="os/bsd/darwin"
+    ;;
+  darwin[89] | darwin[89].* | darwin[1-9][0-9]* )
+    # On Darwin, performance is improved if libstdc++ is single-module,
+    # and on 8+ compatibility is better if not -flat_namespace.
+    OPT_LDFLAGS="${OPT_LDFLAGS} -Wl,-single_module"
+    os_include_dir="os/bsd/darwin"
+    ;;
+  *djgpp*)      # leading * picks up "msdosdjgpp"
+    os_include_dir="os/djgpp"
+    ;;
+  freebsd*)
+    os_include_dir="os/bsd/freebsd"
+    ;;
+  gnu* | linux* | kfreebsd*-gnu | knetbsd*-gnu)
+    if [ "$uclibc" = "yes" ]; then
+      os_include_dir="os/uclibc"
+    else
+      os_include_dir="os/gnu-linux"
+    fi
+    ;;
+  hpux*)
+    os_include_dir="os/hpux"
+    ;;
+  irix[1-6] | irix[1-5].* | irix6.[0-4]*)
+    # This is known to work on at least IRIX 5.2 and 6.3.
+    os_include_dir="os/irix/irix5.2"
+    atomicity_dir=os/irix
+    atomic_word_dir=os/irix
+    ;;
+  irix6.5*)
+    os_include_dir="os/irix/irix6.5"
+    atomicity_dir=os/irix
+    atomic_word_dir=os/irix
+    ;;
+  mingw32*)
+    os_include_dir="os/mingw32"
+    ;;
+  netbsd*)
+    os_include_dir="os/bsd/netbsd"
+    ;;
+  qnx6.[12]*)
+    os_include_dir="os/qnx/qnx6.1"
+    c_model=c
+    ;;
+  solaris2)
+    # This too-vague configuration does not provide enough information
+    # to select a ctype include, and thus os_include_dir is a crap shoot.
+    echo "Please specify the full version of Solaris, ie. solaris2.9 " 1>&2
+    exit 1
+    ;;
+  solaris2.5 | solaris2.5.[0-9])
+    os_include_dir="os/solaris/solaris2.5"
+    ;;
+  solaris2.6)
+    os_include_dir="os/solaris/solaris2.6"
+    ;;
+  solaris2.[789] | solaris2.1[0-9])
+    os_include_dir="os/solaris/solaris2.7"
+    ;;
+  tpf)
+    os_include_dir="os/tpf"
+    ;;
+  vxworks)
+    os_include_dir="os/vxworks"
+    ;;
+  windiss*)
+    os_include_dir="os/windiss"
+    ;;
+  *)
+    os_include_dir="os/generic"
+    ;;
+esac
+
+
+# Set any OS-dependent and CPU-dependent bits.
+# THIS TABLE IS SORTED.  KEEP IT THAT WAY.
+case "${host}" in
+  *-*-linux*)
+    case "${host_cpu}" in
+      i[567]86)
+        abi_baseline_pair=i486-linux-gnu
+        ;;
+      powerpc64)
+        abi_baseline_pair=powerpc64-linux-gnu
+        ;;
+      s390)
+        abi_baseline_pair=s390-linux-gnu
+        ;;
+      s390x)
+        abi_baseline_pair=s390x-linux-gnu
+        ;;
+      x86_64)
+        abi_baseline_pair=x86_64-linux-gnu
+        ;;
+      *)
+        if test -d ${glibcxx_srcdir}/config/abi/post/${try_cpu}-linux-gnu; then
+          abi_baseline_pair=${try_cpu}-linux-gnu
+        fi
+    esac
+    ;;
+  mips*-*-*)
+    case "${host_os}" in
+      gnu* | linux* | irix*)
+        ;;
+      *)
+        atomicity_dir="cpu/generic"
+        ;;
+    esac
+    ;;
+  powerpc*-*-darwin*)
+    port_specific_symbol_files="\$(srcdir)/../config/os/bsd/darwin/ppc-extra.ver"
+    ;;
+esac

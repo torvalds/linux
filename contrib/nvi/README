@@ -1,0 +1,66 @@
+#	$Id: README,v 9.2 2015/04/08 17:18:56 zy Exp $
+
+This is version 2.1.3 (2015-04-08) of nex/nvi, a reimplementation of the ex/vi
+text editors originally distributed as part of the Fourth Berkeley
+Software Distribution (4BSD), by the University of California, Berkeley.
+
+The directory layout is as follows:
+
+    LICENSE ....... Copyright, use and redistribution information.
+    README ........ This file.
+    build ......... Build directory.
+    catalog ....... Message catalogs; see catalog/README.
+    cl ............ Vi interface to the curses(3) library.
+    common ........ Code shared by ex and vi.
+    docs .......... Ex/vi documentation, both current and historic.
+    ex ............ Ex source code.
+    regex ......... Modified regex library with wide character support.
+    vi ............ Vi source code.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+o Nvi was written by Keith Bostic, and the last version is 1.79.  After that,
+
+	Sven Verdoolaege added the iconv support and the DB3 locking.
+
+	Jun-ichiro itojun Hagino developed the file encoding detection
+	techniques in his nvi-m17n.
+
+The following acknowledgments were written by Keith Bostic:
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+o This software is several years old and is the product of many folks' work.  
+
+	This software was originally derived from software contributed to
+	the University of California, Berkeley by Steve Kirkendall, the
+	author of the vi clone elvis.  Without his work, this work would
+	have been far more difficult.
+
+	IEEE POSIX 1003.2 style regular expression support is courtesy of
+	Henry Spencer, for which I am *very* grateful.
+
+	Elan Amir did the original 4BSD curses work that made it possible
+	to support a full-screen editor using curses.
+
+	George Neville-Neil added the Tcl interpreter, and the initial
+	interpreter design was his.
+
+	Sven Verdoolaege added the Perl interpreter.
+
+	Rob Mayoff provided the original Cscope support.
+
+o Many, many people suggested enhancements, and provided bug reports and
+  testing, far too many to individually thank.
+
+o From the original vi acknowledgements, by William Joy and Mark Horton:
+
+	Bruce Englar encouraged the early development of this display
+	editor.  Peter Kessler helped bring sanity to version 2's
+	command layout.  Bill Joy wrote versions 1 and 2.0 through 2.7,
+	and created the framework that users see in the present editor.
+	Mark Horton added macros and other features and made the editor
+	work on a large number of terminals and Unix systems.
+
+o And...
+	The financial support of UUNET Communications Services is gratefully
+	acknowledged.

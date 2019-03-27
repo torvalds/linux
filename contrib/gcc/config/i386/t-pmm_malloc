@@ -1,0 +1,6 @@
+# Install pmm_malloc.h as mm_malloc.h.
+
+EXTRA_HEADERS += mm_malloc.h
+mm_malloc.h: $(srcdir)/config/i386/pmm_malloc.h
+	rm -f $@
+	cat $^ > $@

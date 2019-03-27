@@ -1,0 +1,152 @@
+.\" Copyright (c) 1995, 1996
+.\"	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 23, 1996
+.Dt MKNETID 8
+.Os
+.Sh NAME
+.Nm mknetid
+.Nd "generate netid map data"
+.Sh SYNOPSIS
+.Nm
+.Op Fl q
+.Op Fl g Ar group_file
+.Op Fl p Ar passwd_file
+.Op Fl h Ar hosts_file
+.Op Fl n Ar netid_file
+.Op Fl d Ar domain
+.Sh DESCRIPTION
+The
+.Nm
+utility processes the contents of the
+.Xr group 5 ,
+.Xr passwd 5 ,
+.Xr hosts 5
+and
+.Xr netid 5
+files into the format used to generate the
+.Pa netid.byname
+.Tn NIS
+map.
+This map is used to hold credential information for both users
+and hosts in an operating system independent format.
+.Pp
+The
+.Nm
+utility checks for duplicate occurrences of netids and filters
+them out.
+.Pp
+The
+.Nm
+utility prints its results on the standard output.
+It is usually called
+only by
+.Pa /var/yp/Makefile
+when rebuilding the
+.Tn NIS
+maps.
+.Sh OPTIONS
+The
+.Nm
+utility supports the following options:
+.Bl -tag -width indent
+.It Fl q
+Normally,
+.Nm
+prints a warning message when it encounters a duplicate netid.
+This flag turns on 'quiet' mode, allowing the warnings to be
+suppressed.
+Other error messages may still be generated.
+.It Fl g Ar group_file
+Specify the location of the group information
+file.
+The compiled-in default is
+.Pa /etc/group .
+.It Fl p Ar passwd_file
+Specify the location of the passwd information
+file.
+The compiled-in default is
+.Pa /etc/passwd .
+.It Fl h Ar hosts_file
+Specify the location of the hosts database
+file.
+The compiled-in default is
+.Pa /etc/hosts .
+.It Fl n Ar netid_file
+Specify the location of the netid information
+file.
+The compiled-in default is
+.Pa /etc/netid .
+Note that no error is generated if the netid database cannot be
+found.
+The netid database is not likely to be present on most systems
+until
+.Tn Secure RPC
+support is added to
+.Fx .
+.It Fl d Ar domain
+By default, the
+.Nm
+utility uses the system domainname when generating netid records.
+If
+the system domainname is not set, the domain must be specified on the
+command line with the
+.Fl d
+flag.
+If the domainname is set, the
+.Fl d
+flag may be used to override it.
+.El
+.Sh FILES
+.Bl -tag -width /var/yp/Makefile -compact
+.It Pa /var/yp/Makefile
+the Makefile that calls
+.Nm yp_mkdb
+and
+.Nm
+to build the
+.Tn NIS
+databases
+.It Pa /etc/group
+the default group database file
+.It Pa /etc/passwd
+the default passwd database file
+.It Pa /etc/hosts
+the default hosts database file
+.It Pa /etc/netid
+the default netid database file
+.El
+.Sh SEE ALSO
+.Xr yp 8 ,
+.Xr yp_mkdb 8
+.Sh AUTHORS
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu

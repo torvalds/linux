@@ -1,0 +1,37 @@
+# Build the libraries for both hard and soft floating point and all of the 
+# different processor models
+
+MULTILIB_OPTIONS	= msoft-float \
+			  mcpu=common/mcpu=power/mcpu=powerpc
+
+MULTILIB_DIRNAMES	= soft-float \
+			  common power powerpc
+
+MULTILIB_MATCHES	= $(MULTILIB_MATCHES_FLOAT) \
+			  mcpu?power=mpower \
+			  mcpu?power=mrios1 \
+			  mcpu?power=mcpu?rios1 \
+			  mcpu?power=mcpu?rsc \
+			  mcpu?power=mcpu?rsc1 \
+			  mcpu?power=mpower2 \
+			  mcpu?power=mrios2 \
+			  mcpu?power=mcpu=rios2 \
+			  mcpu?powerpc=mcpu?601 \
+			  mcpu?powerpc=mcpu?602 \
+			  mcpu?powerpc=mcpu?603 \
+			  mcpu?powerpc=mcpu?603e \
+			  mcpu?powerpc=mcpu?604 \
+			  mcpu?powerpc=mcpu?620 \
+			  mcpu?powerpc=mcpu?403 \
+			  mcpu?powerpc=mpowerpc \
+			  mcpu?powerpc=mpowerpc-gpopt \
+			  mcpu?powerpc=mpowerpc-gfxopt
+
+# GCC 128-bit long double support routines.
+LIB2FUNCS_EXTRA = $(srcdir)/config/rs6000/darwin-ldouble.c
+
+# Aix 3.2.x needs milli.exp for -mcpu=common
+EXTRA_PARTS = milli.exp
+milli.exp: $(srcdir)/config/rs6000/milli.exp
+	rm -f milli.exp
+	cp $(srcdir)/config/rs6000/milli.exp ./milli.exp

@@ -1,0 +1,336 @@
+.\" Copyright (c) 2005 Sam Leffler <sam@errno.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 24, 2017
+.Dt WPA_CLI 8
+.Os
+.Sh NAME
+.Nm wpa_cli
+.Nd "text-based frontend program for interacting with wpa_supplicant"
+.Sh SYNOPSIS
+.Nm wpa_cli
+.Op Fl p Ar path_to_ctrl_sockets
+.Op Fl i Ar ifname
+.Op Fl hvB
+.Op Fl a Ar action_file
+.Op Fl P Ar pid_file
+.Op Fl g Ar global_ctrl
+.Op Fl G Ar ping_interval
+.Ar command ...
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is a text-based frontend program for interacting with
+.Xr wpa_supplicant 8 .
+It is used to query current status,
+change configuration,
+trigger events,
+and
+request interactive user input.
+.Pp
+The
+.Nm
+utility
+can show the
+current authentication status,
+selected security
+mode, dot11 and dot1x MIBs, etc.
+In addition,
+.Nm
+can configure EAPOL state machine
+parameters and trigger events such as reassociation
+and IEEE 802.1X logoff/logon.
+.Pp
+The
+.Nm
+utility
+provides an interface to supply authentication information
+such as username and password when it is not provided in the
+.Xr wpa_supplicant.conf 5
+configuration file.
+This can be used, for example, to implement
+one-time passwords or generic token card
+authentication where the authentication is based on a
+challenge-response that uses an external device for generating the
+response.
+.Pp
+The
+.Nm
+utility
+supports two modes: interactive and command line.
+Both modes share the same command set and the main difference
+is in interactive mode providing access to unsolicited messages
+(event messages, username/password requests).
+.Pp
+Interactive mode is started when
+.Nm
+is executed without any parameters on the command line.
+Commands are then entered from the controlling terminal in
+response to the
+.Nm
+prompt.
+In command line mode, the same commands are
+entered as command line arguments.
+.Pp
+The control interface of
+.Xr wpa_supplicant 8
+can be configured to allow
+non-root user access by using the
+.Va ctrl_interface_group
+parameter
+in the
+.Xr wpa_supplicant.conf 5
+configuration file.
+This makes it possible to run
+.Nm
+with a normal user account.
+.Sh AUTHENTICATION PARAMETERS
+When
+.Xr wpa_supplicant 8
+needs authentication parameters, such as username and password,
+that are not present in the configuration file, it sends a
+request message to all attached frontend programs, e.g.,
+.Nm
+in interactive mode.
+The
+.Nm
+utility
+shows these requests with a
+.Dq Li CTRL-REQ- Ns Ao Ar type Ac Ns Li - Ns Ao Ar id Ac Ns : Ns Aq Ar text
+prefix, where
+.Aq Ar type
+is
+.Li IDENTITY , PASSWORD ,
+or
+.Li OTP
+(One-Time Password),
+.Aq Ar id
+is a unique identifier for the current network,
+.Aq Ar text
+is a description of the request.
+In the case of an
+.Li OTP
+(One-Time Password) request,
+it includes the challenge from the authentication server.
+.Pp
+A user must supply
+.Xr wpa_supplicant 8
+the needed parameters in response to these requests.
+.Pp
+For example,
+.Bd -literal -offset indent
+CTRL-REQ-PASSWORD-1:Password needed for SSID foobar
+> password 1 mysecretpassword
+
+Example request for generic token card challenge-response:
+
+CTRL-REQ-OTP-2:Challenge 1235663 needed for SSID foobar
+> otp 2 9876
+.Ed
+.Sh OPTIONS
+These options are available:
+.Bl -tag -width indent
+.It Fl p Ar path
+Control sockets path.
+This should match the
+.Ic ctrl_interface
+in
+.Xr wpa_supplicant.conf 5 .
+The default path is
+.Pa /var/run/wpa_supplicant .
+.It Fl i Ar ifname
+Interface to be configured.
+By default, the first interface found in the socket path is used.
+.It Fl h
+Show help.
+.It Fl v
+Show version information.
+.It Fl B
+Run the daemon in the background.
+.It Fl a Ar action_file
+Run in daemon mode, executing the action file based on events from
+.Xr wpa_supplicant 8 .
+.It Fl P Ar pid_file
+PID file location.
+.It Fl g Ar global_ctrl
+Use a global control interface to
+.Xr wpa_supplicant 8
+rather than the default Unix domain sockets.
+.It Fl G Ar ping_interval
+Wait
+.Dq ping_interval
+seconds before sending each ping to
+.Xr wpa_supplicant 8 .
+See the
+.Ic ping
+command.
+.It command
+See available commands in the next section.
+.El
+.Sh COMMANDS
+These commands can be supplied on the command line
+or at a prompt when operating interactively.
+.Bl -tag -width indent
+.It Ic status
+Report the current WPA/EAPOL/EAP status for the current interface.
+.It Ic ifname
+Show the current interface name.
+The default interface is the first interface found in the socket path.
+.It Ic ping
+Ping the
+.Xr wpa_supplicant 8
+utility.
+This command can be used to test the status of the
+.Xr wpa_supplicant 8
+daemon.
+.It Ic mib
+Report MIB variables (dot1x, dot11) for the current interface.
+.It Ic help
+Show usage help.
+.It Ic interface Op Ar ifname
+Show available interfaces and/or set the current interface
+when multiple interfaces are available.
+.It Ic level Ar debug_level
+Change the debugging level in
+.Xr wpa_supplicant 8 .
+Larger numbers generate more messages.
+.It Ic license
+Display the full license for
+.Nm .
+.It Ic logoff
+Send the IEEE 802.1X EAPOL state machine into the
+.Dq logoff
+state.
+.It Ic logon
+Send the IEEE 802.1X EAPOL state machine into the
+.Dq logon
+state.
+.It Ic set Op Ar settings
+Set variables.
+When no arguments are supplied, the known variables and their settings
+are displayed.
+.It Ic pmksa
+Show the contents of the PMKSA cache.
+.It Ic reassociate
+Force a reassociation to the current access point.
+.It Ic reconfigure
+Force
+.Xr wpa_supplicant 8
+to re-read its configuration file.
+.It Ic preauthenticate Ar BSSID
+Force preauthentication of the specified
+.Ar BSSID .
+.It Ic identity Ar network_id identity
+Configure an identity for an SSID.
+.It Ic password Ar network_id password
+Configure a password for an SSID.
+.It Ic new_password Ar network_id password
+Change the password for an SSID.
+.It Ic PIN Ar network_id pin
+Configure a PIN for an SSID.
+.It Ic passphrase Ar network_id passphrase
+Configure a private key passphrase for an SSID.
+.It Ic bssid Ar network_id bssid
+Set a preferred BSSID for an SSID
+.It Ic blacklist Op Ar bssid | clear
+Add a BSSID to the blacklist.
+When invoked without any extra arguments, display the blacklist.
+Specifying
+.Ar clear
+causes
+.Nm
+to clear the blacklist.
+.It Ic list_networks
+List configured networks.
+.It Ic select_network Ar network_id
+Select a network and disable others.
+.It Ic enable_network Ar network_id
+Enable a network.
+.It Ic disable_network Ar network_id
+Disable a network.
+.It Ic add_network
+Add a network.
+.It Ic remove_network Ar network_id
+Remove a network.
+.It Ic set_network Op Ar network_id variable value
+Set network variables.
+Shows a list of variables when run without arguments.
+.It Ic get_network Ar network_id variable
+Get network variables.
+.It Ic disconnect
+Disconnect and wait for reassociate/reconnect command before connecting.
+.It Ic reconnect
+Similar to
+.Ic reassociate ,
+but only takes effect if already disconnected.
+.It Ic scan
+Request new BSS scan.
+.It Ic scan_results
+Get the latest BSS scan results.
+This command can be invoked after running a BSS scan with
+.Ic scan .
+.It Ic bss Op Ar idx | bssid
+Get a detailed BSS scan result for the network identified by
+.Dq bssid
+or
+.Dq idx .
+.It Ic otp Ar network_id password
+Configure a one-time password for an SSID.
+.It Ic terminate
+Force
+.Xr wpa_supplicant 8
+to terminate.
+.It Ic interface_add Ar ifname Op Ar confname driver ctrl_interface driver_param bridge_name
+Add a new interface with the given parameters.
+.It Ic interface_remove Ar ifname
+Remove the interface.
+.It Ic interface_list
+List available interfaces.
+.It Ic quit
+Exit
+.Nm .
+.El
+.Sh SEE ALSO
+.Xr wpa_supplicant.conf 5 ,
+.Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Jouni Malinen Aq Mt j@w1.fi .
+This manual page is derived from the
+.Pa README
+and
+.Pa wpa_cli.c
+files included in the
+.Nm wpa_supplicant
+distribution.

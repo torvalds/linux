@@ -1,0 +1,64 @@
+HOW TO USE THIS SYSTEM
+======================
+
+[press the PageDown key to go to the next screen when you finish
+ reading this one]
+
+The following keys are recognized in most of the dialogs you'll
+encounter during this installation:
+
+KEY             ACTION
+---             ------
+SPACE           Select or toggle the current item.
+ENTER           Finish with a menu or item.
+UP ARROW        Move to previous item (or up, in a text display box).
+DOWN ARROW      Move to next item (or down, in a text display box).
+TAB             Move to next item or group.
+RIGHT ARROW     Move to next item or group (same as TAB).
+SHIFT-TAB       Move to previous item or group.
+LEFT ARROW      Move to previous item or group (same as SHIFT-TAB).
+PAGE UP         In text display boxes, scrolls up one page.
+PAGE DOWN       In text display boxes, scrolls down one page.
+F1              Display associated help text.
+
+If you see small "^(-)" or "v(+)" symbols at the edges of a menu, it
+means that there are more items above or below the current one that
+aren't being shown (due to insufficient screen space).  In text
+display boxes, the amount of text above the current point will be
+displayed as a percentage in the lower right corner.  Using the
+Up/Down arrow keys will cause the object to scroll by line.  The
+PageUp and PageDown keys will scroll by entire screens.
+
+Selecting OK in a menu will confirm whatever action it's controlling.
+Selecting Cancel will cancel the operation and generally return you to
+the previous menu. Use TAB to move the cursor around and select the
+buttons.
+
+Most screens offer a Help button - USE IT!  It generally offers useful
+context-specific hints on what to do and if you're at all unsure about
+what to do at a given configuration menu, choose Help!
+
+
+SPECIAL FEATURES:
+=================
+
+It is possible to select a menu item by typing the first character of
+its name, if unique.  This will generally be an item number.
+
+The console driver contains a scroll-back buffer for reviewing things
+that may have scrolled off the screen.  To use scroll-back, press the
+"Scroll Lock" key on your keyboard and use the arrow or Page Up/Page
+Down keys to move through the saved text.  To leave scroll-back mode,
+press the Scroll Lock key again.  This feature is most useful for
+reading back through your boot messages (go ahead, try it now!) though
+it's also useful when dealing with sub-shells or other "expert modes"
+that don't use menus and tend to scroll their output off the top of
+the screen.
+
+FreeBSD also supports multiple "virtual consoles" which you can use
+in order to have several active sessions at once.  Use ALT-F<n> to
+switch between screens, where `F<n>' is the function key corresponding
+to the screen you wish to see.  By default, the system comes with 8
+virtual consoles enabled - you can enable more by editing the
+/etc/ttys file and turning the "off" field to "on" in the relevant vty
+entries (up to 12).

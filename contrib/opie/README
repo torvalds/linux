@@ -1,0 +1,508 @@
+OPIE Software Distribution, Release 2.4                   Important Information
+=======================================                   =====================
+
+Introduction
+============
+
+	"One-time Passwords In Everything" (OPIE) is a freely distributable
+software package originally developed at and for the US Naval Research
+Laboratory (NRL). Recent versions are the result of a cooperative effort
+between of NRL, several of the original NRL authors, The Inner Net, and many
+other contributors from the Internet community.
+
+	OPIE is an implementation of the One-Time Password (OTP) System that
+is being considered for the Internet standards-track. OPIE provides a one-time
+password system. The system should be secure against the passive attacks
+now commonplace on the Internet (see RFC 1704 for more details). The system
+is vulnerable to active dictionary attacks, though these are not widespread
+at present and can be detected through proper use of system audit
+software. 
+
+	OPIE is primarily written for UNIX-like operating systems, but
+we are working to make applicable portions portable to other operating systems.
+The OPIE software is derived in part from and is fully interoperable with the
+Bell Communications Research (Bellcore) S/Key Release 1 software. Because
+Bellcore claims "S/Key" as a trademark for their software, NRL was forced to
+use a different name (we picked "OPIE") for this software distribution.
+
+	OPIE includes the following additions/modifications to the
+original Bellcore S/Key(tm) Version 1 software:
+
+* Just about three command installation (unpack the software, run the
+  configure script, and run make install). While we still recommend that you
+  follow instructions and test things by hand, the more adventurous can
+  install OPIE quickly.
+
+* A modified BSD FTP daemon that does OTP.
+
+* A version of su that uses OTP by default. 
+
+* MD5 support. MD5 is now the default algorithm, though MD4 is still supported
+  by changing a parameter in the Makefile. This change was made because MD5 is
+  widely believed to be cryptographically stronger than MD4 (see RFC 1321).
+
+* A more portable version of MD4 has been substituted for the original MD4. 
+  This should solve the endian problems that were in S/Key.
+
+* Most of the system-dependencies have been moved to a new file "opie_cfg.h".
+
+* Configuration options have been moved to the Makefile.
+
+* Isolated system dependencies (e.g. BSDisms) with appropriate #ifdefs.
+
+* Revised the opiekey(1) program to simultaneously support MD4 and MD5, with
+  the default algorithm being tunable using the MDX symbol in the Makefile.
+
+* More operating systems are supported by recent versions of OPIE, but older
+  BSD systems that aren't close to being compliant with the POSIX standard are
+  no longer supported.
+
+* Transition mechanisms are optional to prevent potential back doors.
+
+* On systems using the /etc/opieaccess transition mechanism, users can choose
+  to require the use of OPIE to login to their accounts when it would 
+  otherwise be optional.
+
+* Bug fixes
+
+* Cosmetic changes
+
+* Prompts (optionally) identify specifically what kind of entry (system
+  password, secret pass phrase, or OTP response) is allowed.
+
+* Changes to mostly conform with the draft Internet OTP standard.
+
+A Glance at What's New
+======================
+
+    2.4 TEST VERSION -- NOT FOR REDISTRIBUTION
+
+    Merged in opieauto, which is disabled by default.
+
+    Lots of documentation updates.
+
+    Portability and bug fixes.
+
+    2.32 January 1, 1998.
+
+    Indicate support for extended responses in challenges and check for such
+indication before generating any extended responses.
+
+    Lots of portability and bug fixes.
+
+    2.31 March 20, 1997.
+
+    Removed active attack protection support due to patent problems.
+
+    Removed the supplemental key file; it did more harm than good.
+
+    Moved user locks to a separate directory.
+
+    Moved user-serviceable configuration options to the configure script.
+
+    Lots of portability and bug fixes.
+
+    2.3 September 22, 1996
+
+    Autoconf is now the only supported configuration method.
+
+    Lots of internal functions got re-written in ways that will make some
+planned future changes easier.
+
+    OTP extended responses, such as automatic re-initialization.
+
+    Support for a supplemental key file that stores information that was not
+in the original /etc/skeykeys file. This allows OPIE to store extra data needed
+for things like the OTP re-initialization extended response without breaking
+interoperability with other S/Key derived programs. This file is named
+"/etc/opiekeys.ext" by default. Unlike the standard key file, it MUST NOT be
+world readable.
+
+    OPIE should better support some of the native "features" of drain bamaged
+OSs such as AIX, HP-UX, and Solaris.
+
+    OPIE's utmp/wtmp handling has been completely re-written. This should solve
+many of the utmp/wtmp problems people have been having.
+
+    Lots of cleanups.
+
+    Bug fixes.
+
+    2.22 May 3, 1996.
+
+    More minor bug fixes. OPIE once again works on Solaris 2.x.
+
+    2.21 April 27, 1996.
+
+    Minor bug fixes.
+
+    2.2 April 11, 1996.
+
+    opiesubr.c, opiesubr2.c, and a few other functions moved into a
+subdirectory and split into files with fine granularity. Ditto with missing
+function replacements. This subdirectory structure changes a lot of things
+around and more splitting like this should be expected in the near future.
+
+    Added opiegenerator() library function that should make it very easy to
+create OTP clients using the OPIE library (this function is subject to change:
+there are a few problems remaining to be solved). Just about re-wrote
+opiegetpass() to use raw I/O and got most of the OPIE programs actually using
+that function. Autoconf build fixes. Lots of bug fixes. Lots of portability
+fixes. Function declarations should be ANSI style for ANSI compilers. Several
+fixes to bring OPIE in line with the latest OTP spec. MJR DES key crunch
+de-implemented.
+
+    Added sample programs: opiegen (client) and opieserv (server).
+
+    Probably broke non-autoconf support along the way :(. I've tried to bring
+this back in sync, but it may still be broken.
+
+    2.11 December 27, 1995.
+
+    Minor bug fixes.
+
+    2.10 December 26, 1995.
+
+    Optional autoconf support. opieinfo is now a normal program. Bugs fixed --
+should work much better on SunOS, HP-UX, and AIX.
+
+    2.01 -- 2.04
+
+    Bug fix releases.
+
+    2.00
+
+    Initial release of OPIE 2.0.
+
+System Requirements
+===================
+
+        In order to build and run properly, OPIE requires:
+
+        * A UNIX-like operating system
+        * An ANSI C compiler and run-time library
+        * POSIX.1- and X/Open XPG-compliance (including termios)
+        * The BSD sockets API
+        * Approximately five megabytes of free disk space
+
+        In practice, we believe that many systems who are close to meeting
+these requirements but aren't completely there (for example, SunOS with the
+native compiler) will also work. Systems who aren't anywhere near close
+(for example, DOS) are not likely to work without major adjustments to the
+OPIE code.
+
+If OPIE Doesn't Work
+====================
+
+	Under NO circumstances should you send trouble reports directly to the
+authors or contributors. They WILL BE IGNORED.
+
+	Make sure you have the latest version of OPIE. The latest version is
+available by HTTP at:
+
+	http://www.inner.net/pub/opie
+
+	(sorry, but anonymous FTP is no longer available)
+
+	If you have installed the OPIE software (either through "make test"
+in (7) above or "make install" in (14)), you can run "make uninstall" from the
+OPIE software distribution directory. This should remove the OPIE software and
+restore the original system programs, but it will not work properly (and can
+even result in the total loss of the old system programs -- beware!) if the
+installation procedure itself did not work properly.
+
+	If you are running a release version, try installing the latest public
+test version (look around). These frequently have already fixed the problem
+you are seeing, but may have new problems of their own (that's why they're
+test versions!). Similarly, if you are running a test version, try installing
+the latest released version.
+
+	OPIE is NOT supported software. We don't promise to support you or
+even to acknowledge your mail, but we are interested in bug reports and are
+reasonable folks. We also have an interest in seeing OPIE work on as many
+systems as we can. However, if your system doesn't meet the basic requirements
+for OPIE, this will probably require an unreasonable amount of effort.
+
+	The best bug reports include a diagnosis of the problem and a fix. 
+Your bug report can still be valuable if you can at least diagnose what the 
+problem is. If you just tell us "it doesn't work," then we won't be able to
+do anything to help you.
+
+	We've received a number of bug reports from people that look
+interesting, only to find when we try to follow up on them that the user
+either has an invalid return address or never bothered to respond to our
+followup. Please make sure that bug reports you send us have an electronic
+mail address that we can reply to somewhere in them (if necessary, just
+put it in the message body). If we send you a response and you are unable
+to invest the time to work with us to solve the problem, please tell us --
+few things are more irritating than when someone sends us information
+about a bug that we'd like to fix and then is never heard from again.
+
+	We try to respond to all properly submitted bug reports. Improperly
+submitted bug reports will be responded to only if we have time left after
+responding to properly submitted bug reports. We deliberately ignore bug
+"reports" sent to mailing lists or USENET news groups instead of or before
+our bug report address. At the least, the latter practice is lacking in
+courtesy.
+
+	The file BUG-REPORT contains our bug reporting form. Please use it
+and follow the submission instructions in that file. We are going to switch
+to machine-parsed bug report processing sometime in the near future to make
+it easier to coordinate bug hunting.
+
+Gotchas
+=======
+
+	Solaris 2.x is just a lose. It does a lot of nonstandard and downright
+broken things. If you want OPIE to be reliable on your box, upgrade to OpenBSD
+or Linux.
+
+	While an almost universal "feature", most people remain unaware that
+an intruder can log into a system, then log in again by running the "login"
+command from a shell. Because the second login is from the local host, the
+utmp entry will not show a remote login host anymore. The OPIE replacement
+for /bin/login currently carries on this behavior for compatibility reasons.
+If you would like to prevent this from happening, you should change the
+permissions of /bin/login to 0100, thus preventing unprivileged users from
+executing it. This fix should work on non-OPIE /bin/login programs as well.
+
+	On 4.3BSDish systems, the supplied /bin/login replacement obtains
+the terminal type for the console comes from the console line in the /etc/ttys
+file. Several systems contain a default entry in this file that specifies the
+console terminal type as "unknown". This is probably not what you want.
+
+	The OPIE FTP daemon responds with two 530 error messages if you have 
+not yet logged in and execute a command that will also do a PORT request. This 
+is a feature, not a bug, as the FTP client is really sending the server two 
+commands (for instance, a PORT and a LIST if you tell your BSD FTP client to do
+a DIR command) and the server is responding to each of them with an error. The
+stock BSD FTP daemon doesn't check the PORT commands to see if you are logged 
+in, so you would only get one error message. This change should not break any
+standards-compliant FTP client, but there are a number of brain-damaged GUI
+clients that have a track record for not dealing gracefully with any server
+other than the stock BSD one.
+
+	The /etc/opieaccess transition mechanism is, by definition, a security
+hole in the OPIE software because an attacker could use it to circumvent the
+requirement for OPIE authentication. You should compile the software with
+support for this file disabled unless you absolutely cannot use the software
+without it because of your environment. If you do use this support for
+transition purposes, you should move people to OTP authentication as quickly
+as possible and rebuild and reinstall OPIE with this transition support
+disabled so that you won't have a lurking security hole.
+
+        If this wasn't already clear, do not let your sequence number fall
+below about ten. If your sequence number reaches zero, your OTP sequence
+can only be reset by the superuser. System administrators should make this
+caveat known to their users.
+
+	On Solaris 2.x systems (and possibly others) running NIS+, users
+should run keylogin(1) manually after login because opielogin(1) does not
+do that automatically like the system login(1) program.
+
+	There are reports that some versions of GNU C Compiler (GCC)
+(when installed on some systems) use their own termios(4) instead of
+the system's termios(4).  This can cause problems.  If you are having
+compilation problems that seem to relate to termios and you are using
+GCC, you should probably verify that it is using the system's
+termios(4) and not some internal-to-GCC termios(4).  One report
+indicates that Sun's C compiler works fine with SunOS 4.1.3/4.1.4 on
+SPARC, but that some version of GCC on the same system has this
+termios(4) problem.  We haven't reproduced these problems ourselves
+and hence aren't sure what is happening, but we pass this along for
+your information. (This may have something to do with the use of GNU
+libc)
+
+	If a user has a valid entry in the opiekeys database but has an
+asterisk in their traditional password entry, they will not be able to
+log in via opielogin, but opielogin will decrement their sequence number
+if a valid response is received.
+
+        On some systems, the OPIE login program does not always display
+a "login:" prompt the first time. There is a race condition in many older
+telnetds that is probably the cause of this problem. This should be fixed by
+replacing your telnetd with the latest version of the stock telnetd 
+(ftp.cray.com:/src/telnet). 
+
+	The standard HPUX compiler is severely drain bamaged. One of the
+worst parts is that it sometimes won't grok a symbol definition with forward
+slashes in them properly and can choke badly on the definition of the key
+file's location. If this happens to you, install and use GCC. (This problem
+may or may not also come up with the optional HP ANSI C compiler -- we don't
+know for sure what compilers have this problem).
+
+	As of OPIE 2.2, the seed is converted to lower case and its length is
+checked in order to comply with the OTP specification. If any of your users
+have seeds that use capital letters or are too long, they need to run the OPIE
+2.2 opiepasswd program to re-initialize their sequence to one with a different
+seed.
+
+	opielogin is a replacement for /bin/login. It is NOT an OPIE "shell."
+You can use it as one, but don't be surprised if it doesn't behave the way
+you expect -- we've seen various reports of success and failure when used this
+way. An OPIE "shell" is on the TODO list.
+
+	Clients that use opiegen() will automatically send a re-initialization
+extended response if the sequence number falls below ten. If the server does
+not support this, the user will need to log in using opiekey and reset his
+sequence manually (using opiepasswd).
+
+	For reasons that remain very unclear, Solaris passes the login name
+from getty/telnetd to login by stuffing it in the terminal input buffer
+instead of passing it on the command line like every other *IX. This is just
+plain broken. Solaris has other problems with its telnetd and getty; you may
+want to consider getting the telnet(d) sources (ftp.cray.com:/src/telnet)
+and reasonable getty sources (try sunsite.unc.edu:/pub/Linux/system/Serial, at
+least one of agetty, mingetty, and getty_ps should work) and replacing the
+Solaris versions with these. OPIE should work *much* more happily with these
+programs than the ones that come with Solaris. However, there could be negative
+side effects -- this is not a procedure recommended for the faint of heart.
+
+	OPIE is a lot more fussy than it used to be about lock files and where
+it puts them. The lock file directory must be a directory used only for OPIE
+lock files. It must be a directory, owned by the superuser, and must be mode
+0700.
+
+	opieauto is a potential security hole. It opens a limited window of
+exposure by transmitting and storing information that can be used to
+generate one or more OTPs earlier than the current sequence number. Every
+effort has been made to limit the potential for compromise to the user-
+specified window. However, an attacker with superuser priveleges or access to
+your account on the client system can still generate OTPs based on the
+information cached via opieauto. In practice, there are other ways for such an
+an attacker to get your entire secret pass phrase, so this is probably not
+creating a significant new security problem. However, because of this
+potential for problems and because opieauto uses system features that are not
+present on all systems, opieauto support is not compiled in by default and
+must be specifically enabled at compile time.
+
+	Many users are running OPIE with the key file on a shared NFS volume
+in order to use OTP as a single-login system for a cluster of machines. OPIE
+was NOT designed to be operated this way, though it does seem to work. If it
+fails or if this proves insecure, this is not OPIE's fault. Note that, if you
+do this, you probably want to share the OPIE lock files too.
+
+Gripes
+======
+
+	Is it too much to ask that certain OS vendors just do the right thing
+and not "fix" what isn't broken? (Look at all the ifdefs in the OPIE code and
+the answer is clear)
+
+	utmp and wtmp handling in OPIE has been a very, very sore subject.
+Every vendor does things differently, and, of course, most of them swear they
+are complying to some or other "standard." My (cmetz) conclusion is that the
+only thing that is standard about utmp and wtmp handling is that it will be
+nonstandard on any given system. I've tried a lot of things and I've wasted
+*a lot* of time on trying to make utmp and wtmp handling work for everybody;
+my conclusion is that it will never happen. While I am still interested in
+hearing about fixes for utmp/wtmp on systems where they don't work, I'm not
+likely to go out of my way to fix utmp/wtmp handling. If you want it fixed,
+the best way to do it is to fix it yourself and contribute a patch. As long as
+the patch is reasonable, it will be included in the next release. If you can't
+wait, use the --disable-utmp option.
+
+Credits
+=======
+
+	First and foremost credit goes to Phil Karn, Neil M. Haller, and John
+S. Walden of Bellcore for creating the S/Key Version 1 software distribution
+and for making its source code freely available to the public. Without their
+work, OPIE would not exist. Neil has also invested a good amount of his time 
+in the development of a standard for One-Time Passwords so that packages like
+OPIE can interoperate.
+
+	The first NRL OPIE distribution included modifications made primarily 
+by Dan McDonald of the U.S. Naval Research Laboratory (NRL) during March 1994.
+The 2nd NRL OPIE distribution, which has a number of improvements in areas
+such as portability of software and ease of installation, is primarily the
+work of Ran Atkinson and Craig Metz. Other NRL contributors include Brian 
+Adamson, Steve Batsell, Preston Mullen, Bao Phan, Jim Ramsey, and Georg Thomas.
+
+	Some of version 2.2 was developed at NRL and released as a work in
+progress. Most of the release version was developed by Craig Metz (also of
+NRL), others at The Inner Net, and contributors from the Internet community.
+Versions beyond 2.2 were developed outside NRL, so don't blame them if they
+don't work (But please credit them when it does. Without the NRL effort, there
+wouldn't be an OPIE).
+
+	We would like to also thank everyone who helped us by by beta testing,
+reporting bugs, suggesting improvements, and/or sending us patches. We
+appreciate your contributions -- they have helped to make OPIE more of a
+community effort. These contributors include:
+
+	Mowgli Assor
+	Lawrie Brown
+	Andrew Davis
+	Taso N. Devetzis
+	Carson Gaspar
+	Dennis Glatting
+        Ben Golding
+	Axel Grewe
+	"Hobbit"
+	Kojima Hajime
+	Darren Hosking
+	Matt Hucke
+	Kenji Kamizono
+	Charles Karney
+	Jeff Kletsky
+	Peter Koch
+	Martijn Koster
+	Osamu Kurati
+	Ayamura Kikuchi
+	Ronald van der Meer
+	Bret Musser
+        Hiroshi Nakano
+	Ikuo Nakagawa
+	Angelo Neri
+	C. R. Oldham
+	Ossama Othman
+	D. Jason Penney
+	John Perkins
+	Steve Price
+	Jim Simmons
+	Steve Simmons
+	Brad Smith
+	Werner Wiethege
+	Ken-ichi Yamasaki
+	Wietse Venema
+
+	OPIE development at NRL was sponsored by the Information Security
+Program Office (PD 71E), U.S. Space and Naval Warfare Systems Command, Crystal
+City, Virginia.
+
+	If you have problems with OPIE, please follow the instructions under
+"If OPIE Doesn't Work." Under NO circumstances should you send trouble
+reports directly to the authors or contributors. They WILL BE IGNORED.
+
+Trademarks
+==========
+S/Key is a trademark of Bell Communications Research (Bellcore).
+UNIX is a trademark of X/Open.
+NRL is a trademark of the U. S. Naval Research Laboratory.
+
+All other trademarks are trademarks of their respective owners.
+
+The term "OPIE" is in the public domain and hence cannot be legally 
+trademarked by anyone. Please do not abuse it.
+
+Copyrights
+==========
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
+Reserved. The Inner Net License Version 2 applies to these portions of
+the software.
+You should have received a copy of the license with this software. If
+you didn't get a copy, you may request one from <license@inner.net>.
+
+Portions of this software are Copyright 1995 by Randall Atkinson and Dan
+McDonald, All Rights Reserved. All Rights under this copyright are assigned
+to the U.S. Naval Research Laboratory (NRL). The NRL Copyright Notice and
+License Agreement applies to this software.
+
+Portions of this software are copyright 1980-1990 Regents of the
+University of California, all rights reserved. The Berkeley Software
+License Agreement specifies the terms and conditions for redistribution.
+
+Portions of this software are copyright 1990 Bell Communications Research
+(Bellcore), all rights reserved.

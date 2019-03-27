@@ -1,0 +1,164 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_new_die.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd September 4, 2011
+.Dt DWARF_NEW_DIE 3
+.Os
+.Sh NAME
+.Nm dwarf_new_die
+.Nd allocate a new debugging information entry
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft Dwarf_P_Die
+.Fo dwarf_new_die
+.Fa "Dwarf_P_Debug dbg"
+.Fa "Dwarf_Tag tag"
+.Fa "Dwarf_P_Die parent"
+.Fa "Dwarf_P_Die child"
+.Fa "Dwarf_P_Die left"
+.Fa "Dwarf_P_Die right"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_new_die
+allocates a new DWARF debugging information entry and links it
+to another debugging information entry.
+.Pp
+Argument
+.Ar dbg
+should reference a DWARF producer instance allocated using
+.Xr dwarf_producer_init 3
+or
+.Xr dwarf_producer_init_b 3 .
+.Pp
+Argument
+.Ar tag
+should specify the tag of the newly created debugging information entry.
+Valid values for this argument are those for the
+.Dv DW_TAG_ Ns *
+symbols defined in
+.In libdwarf.h .
+.Pp
+Argument
+.Ar parent
+specifies the parent link of the debugging information entry.
+.Pp
+Argument
+.Ar child
+specifies the first child link of the debugging information entry.
+.Pp
+Argument
+.Ar left
+specifies the left sibling link of the debugging information entry.
+.Pp
+Argument
+.Ar right
+specifies the right sibling link of the debugging information entry.
+.Pp
+Only one of arguments
+.Ar parent ,
+.Ar child ,
+.Ar left
+and
+.Ar right
+is allowed to be non-NULL.
+Application code can subsequently call the function
+.Xr dwarf_die_link 3
+to change the links for the created debugging information entry.
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case
+of an error.
+.Sh RETURN VALUES
+On success, function
+.Fn dwarf_new_die
+returns the newly created debugging information entry.
+In case of an error, function
+.Fn dwarf_new_die
+returns
+.Dv DW_DLV_BADADDR
+and sets the argument
+.Ar err .
+.Sh EXAMPLES
+To create debugging information entries and add them to the producer
+instance, use:
+.Bd -literal -offset indent
+Dwarf_P_Debug dbg;
+Dwarf_P_Die die1, die2;
+Dwarf_Error de;
+
+/* ... assume dbg refers to a DWARF producer instance ... */
+
+die1 = dwarf_new_die(dbg, DW_TAG_compilation_unit, NULL, NULL, NULL,
+    NULL, &de);
+if (die1 == NULL) {
+	warnx("dwarf_new_die failed: %s", dwarf_errmsg(-1));
+	return;
+}
+
+die2 = dwarf_new_die(dbg, DW_TAG_base_type, die1, NULL, NULL,
+    NULL, &de);
+if (die1 == NULL) {
+	warnx("dwarf_new_die failed: %s", dwarf_errmsg(-1));
+	return;
+}
+
+if (dwarf_add_die_to_debug(dbg, die1, &de) != DW_DLV_OK) {
+	warnx("dwarf_add_die_to_debug failed: %s", dwarf_errmsg(-1));
+	return;
+}
+.Ed
+.Sh ERRORS
+Function
+.Fn dwarf_new_die
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Ar dbg
+was NULL.
+.It Bq Er DW_DLE_ARGUMENT
+More than one of the arguments
+.Ar parent ,
+.Ar child ,
+.Ar left
+and
+.Ar right
+were non-NULL.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of the
+function.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_add_die_to_debug 3 ,
+.Xr dwarf_die_link 3 ,
+.Xr dwarf_producer_init 3 ,
+.Xr dwarf_producer_init_b 3

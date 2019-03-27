@@ -1,0 +1,315 @@
+# Copyright (c) 1980, 1985, 1989 The Regents of the University of California.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. All advertising materials mentioning features or use of this software
+#    must display the following acknowledgement:
+#	This product includes software developed by the University of
+#	California, Berkeley and its contributors.
+# 4. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)termcap.src	5.88 (Berkeley) 4/30/91
+# $FreeBSD$
+#
+# for syscons
+# common entry without semigraphics
+cons25w|ansiw|ansi80x25-raw:\
+	:am:bs:NP:ms:pt:AX:eo:bw:ut:km:\
+	:co#80:li#25:pa#64:Co#8:it#8:\
+	:al=\E[L:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:\
+	:dc=\E[P:dl=\E[M:do=\E[B:bt=\E[Z:ho=\E[H:ic=\E[@:cb=\E[1K:\
+	:nd=\E[C:rs=\Ec:so=\E[7m:se=\E[27m:up=\E[A:cr=^M:ta=^I:\
+	:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:sc=\E7:rc=\E8:\
+	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
+	:k9=\E[U:k;=\E[V:F1=\E[W:F2=\E[X:K2=\E[E:nw=\E[E:ec=\E[%dX:\
+	:kb=^H:kh=\E[H:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:le=^H:sf=\E[S:sr=\E[T:\
+	:kN=\E[G:kP=\E[I:@7=\E[F:kI=\E[L:kD=\177:kB=\E[Z:\
+	:IC=\E[%d@:DC=\E[%dP:SF=\E[%dS:SR=\E[%dT:AL=\E[%dL:DL=\E[%dM:\
+	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:cv=\E[%i%dd:ch=\E[%i%d`:\
+	:mb=\E[5m:md=\E[1m:mr=\E[7m:me=\E[m:bl=^G:\
+	:ve=\E[=S:vi=\E[=1S:vs=\E[=2S:
+# CP437 FreeBSD console with ACS support
+cons25|ansis|ansi80x25:\
+	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261i^U0\333y\363z\362:\
+	:tc=cons25w:
+cons25-m|ansis-mono|ansi80x25-mono:\
+	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25:
+cons30|ansi80x30:\
+	:li#30:tc=cons25:
+cons30-m|ansi80x30-mono:\
+	:li#30:tc=cons25-m:
+cons43|ansi80x43:\
+	:li#43:tc=cons25:
+cons43-m|ansi80x43-mono:\
+	:li#43:tc=cons25-m:
+cons50|ansil|ansi80x50:\
+	:li#50:tc=cons25:
+cons50-m|ansil-mono|ansi80x50-mono:\
+	:li#50:tc=cons25-m:
+cons60|ansi80x60:\
+	:li#60:tc=cons25:
+cons60-m|ansi80x60-mono:\
+	:li#60:tc=cons25-m:
+# Syscons console with 132 characters (VESA modes)
+cons25-w|ansi132x25:\
+	:co#132:tc=cons25:
+cons30-w|ansi132x30:\
+	:co#132:tc=cons30:
+cons43-w|ansi132x43:\
+	:co#132:tc=cons43:
+cons50-w|ansil-w|ansi132x50:\
+	:co#132:tc=cons50:
+cons60-w|ansi132x60:\
+	:co#132:tc=cons60:
+# KOI8-R/KOI8-U FreeBSD console with ACS support
+cons25r|cons25u|pc3r|ibmpc3r|cons25-koi8:\
+	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\2210\215:\
+	:tc=cons25w:
+cons25r-m|cons25u-m|pc3r-m|ibmpc3r-mono|cons25-koi8-mono:\
+	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25r:
+cons30r|cons30u|cons30-koi8:\
+	:li#30:tc=cons25r:
+cons30r-m|cons30u-m|cons30-koi8-mono:\
+	:li#30:tc=cons25r-m:
+cons43r|cons43u|cons43-koi8:\
+	:li#43:tc=cons25r:
+cons43r-m|cons43u-m|cons43-koi8-mono:\
+	:li#43:tc=cons25r-m:
+cons50r|cons50u|cons50-koi8:\
+	:li#50:tc=cons25r:
+cons50r-m|cons50u-m|cons50-koi8-mono:\
+	:li#50:tc=cons25r-m:
+cons60r|cons60u|cons60-koi8:\
+	:li#60:tc=cons25r:
+cons60r-m|cons60u-m|cons60-koi8-mono:\
+	:li#60:tc=cons25r-m:
+# Syscons console with 90 characters (VGA modes)
+# KOI8-R/KOI8-U FreeBSD console with ACS support.
+cons25r-v|cons25u-v|pc3r-v|ibmpc3r-vga|cons25-koi8-vga:\
+	:co#90:tc=cons25r:
+cons25r-mv|cons25u-mv|pc3r-mv|ibmpc3r-monovga|cons25-koi8-monovga:\
+	:co#90:tc=cons25r-m:
+cons30r-v|cons30u-v|cons30-koi8-vga:\
+	:co#90:tc=cons30r:
+cons30r-mv|cons30u-mv|cons30-koi8-monovga:\
+	:co#90:tc=cons30r-m:
+cons43r-v|cons43u-v|cons43-koi8-vga:\
+	:co#90:tc=cons43r:
+cons43r-mv|cons43u-mv|cons43-koi8-monovga:\
+	:co#90:tc=cons43r-m:
+cons50r-v|cons50u-v|cons50-koi8-vga:\
+	:co#90:tc=cons50r:
+cons50r-mv|cons50u-mv|cons50-koi8-monovga:\
+	:co#90:tc=cons50r-m:
+cons60r-v|cons60u-v|cons60-koi8-vga:\
+	:co#90:tc=cons60r:
+cons60r-mv|cons60u-mv|cons60-koi8-monovga:\
+	:co#90:tc=cons60r-m:
+# ISO 8859-2 FreeBSD console with ACS support
+cons25l2|cons25-iso8859-2:\
+	:ac=f\260i\247:\
+	:tc=cons25w:
+cons25l2-m|cons25-iso8859-2-mono:\
+	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25l2:
+cons30l2|cons30-iso8859-2:\
+	:li#30:tc=cons25l2:
+cons30l2-m|cons30-iso8859-2-mono:\
+	:li#30:tc=cons25l2-m:
+cons43l2|cons43-iso8859-2:\
+	:li#43:tc=cons25l2:
+cons43l2-m|cons43-iso8859-2-mono:\
+	:li#43:tc=cons25l2-m:
+cons50l2|cons50-iso8859-2:\
+	:li#50:tc=cons25l2:
+cons50l2-m|cons50-iso8859-2-mono:\
+	:li#50:tc=cons25l2-m:
+cons60l2|cons60-iso8859-2:\
+	:li#60:tc=cons25l2:
+cons60l2-m|cons60-iso8859-2-mono:\
+	:li#60:tc=cons25l2-m:
+# ISO 8859-1 FreeBSD console with ACS support
+cons25l1|cons25-iso8859-1:\
+	:ac=f\260g\261}\243+\253,\273i\247:\
+	:tc=cons25w:
+cons25l1-m|cons25-iso8859-1-mono:\
+	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25l1:
+cons30l1|cons30-iso8859-1:\
+	:li#30:tc=cons25l1:
+cons30l1-m|cons30-iso8859-1-mono:\
+	:li#30:tc=cons25l1-m:
+cons43l1|cons43-iso8859-1:\
+	:li#43:tc=cons25l1:
+cons43l1-m|cons43-iso8859-1-mono:\
+	:li#43:tc=cons25l1-m:
+cons50l1|cons50-iso8859-1:\
+	:li#50:tc=cons25l1:
+cons50l1-m|cons50-iso8859-1-mono:\
+	:li#50:tc=cons25l1-m:
+cons60l1|cons60-iso8859-1:\
+	:li#60:tc=cons25l1:
+cons60l1-m|cons60-iso8859-1-mono:\
+	:li#60:tc=cons25l1-m:
+# 132x25 ISO 8859-1 FreeBSD console
+cons25l1-w|cons25w-iso8859-1:\
+	:co#132:tc=cons25l1:
+cons30l1-w|cons30w-iso8859-1:\
+	:co#132:tc=cons30l1:
+cons43l1-w|cons43w-iso8859-1:\
+	:co#132:tc=cons43l1:
+cons50l1-w|cons50w-iso8859-1:\
+	:co#132:tc=cons50l1:
+cons60l1-w|cons60w-iso8859-1:\
+	:co#132:tc=cons60l1:
+# ISO 8859-7 FreeBSD console with ACS support
+cons25l7|cons25-iso8859-7:\
+	:ac=f\260g\261{\360}\243+\253,\273i\247:\
+	:tc=cons25w:
+cons25l7-m|cons25-iso8859-7-mono:\
+	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25l7:
+cons30l7|cons30-iso8859-7:\
+	:li#30:tc=cons25l7:
+cons30l7-m|cons30-iso8859-7-mono:\
+	:li#30:tc=cons25l7-m:
+cons43l7|cons43-iso8859-7:\
+	:li#43:tc=cons25l7:
+cons43l7-m|cons43-iso8859-7-mono:\
+	:li#43:tc=cons25l7-m:
+cons50l7|cons50-iso8859-7:\
+	:li#50:tc=cons25l7:
+cons50l7-m|cons50-iso8859-7-mono:\
+	:li#50:tc=cons25l7-m:
+cons60l7|cons60-iso8859-7:\
+	:li#60:tc=cons25l7:
+cons60l7-m|cons60-iso8859-7-mono:\
+	:li#60:tc=cons25l7-m:
+
+SC|screen|VT 100/ANSI X3.64 virtual terminal:\
+	:am:xn:ms:mi:G0:km:\
+	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:bs:bt=\E[Z:\
+	:cb=\E[1K:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:ct=\E[3g:\
+	:do=^J:nd=\E[C:pt:rc=\E8:rs=\Ec:sc=\E7:st=\EH:up=\EM:\
+	:le=^H:bl=^G:cr=^M:it#8:ho=\E[H:nw=\EE:ta=^I:is=\E)0:\
+	:li#24:co#80:us=\E[4m:ue=\E[24m:so=\E[3m:se=\E[23m:\
+	:mb=\E[5m:md=\E[1m:mr=\E[7m:me=\E[m:sr=\EM:al=\E[L:\
+	:AL=\E[%dL:dl=\E[M:DL=\E[%dM:cs=\E[%i%d;%dr:dc=\E[P:\
+	:DC=\E[%dP:im=\E[4h:ei=\E[4l:IC=\E[%d@:\
+	:ks=\E[?1h\E=:ke=\E[?1l\E>:vb=\Eg:\
+	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=^H:\
+	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[15~:k6=\E[17~:\
+	:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:F1=\E[23~:F2=\E[24~:\
+	:F3=\E[25~:F4=\E[26~:F5=\E[28~:F6=\E[29~:\
+	:F7=\E[31~:F8=\E[32~:F9=\E[33~:FA=\E[34~:\
+	:kh=\E[1~:kI=\E[2~:kD=\E[3~:@7=\E[4~:kP=\E[5~:\
+	:kN=\E[6~:eA=\E(B\E)0:as=^N:ae=^O:ti=\E[?1049h:te=\E[?1049l:\
+	:vi=\E[?25l:ve=\E[34h\E[?25h:vs=\E[34l:\
+	:Co#8:pa#64:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:AX:\
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~..--++,,hhII00:
+
+vt100|dec-vt100|vt100-am|vt100am|dec vt100:\
+	:do=2\E[B:co#80:li#24:cl=50\E[H\E[J:sf=2*\ED:\
+	:le=^H:bs:am:cm=5\E[%i%d;%dH:nd=2\E[C:up=2\E[A:\
+	:ce=3\E[K:cd=50\E[J:so=2\E[7m:se=2\E[m:us=2\E[4m:ue=2\E[m:\
+	:md=2\E[1m:mr=2\E[7m:mb=2\E[5m:me=2\E[m:\
+	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;24r\E[24;1H:\
+	:if=/usr/share/tabset/vt100:nw=2\EE:ho=\E[H:\
+	:as=2\E(0:ae=2\E(B:\
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||:\
+	:rs=\E>\E[?1;3;4;5l\E[?7;8h:ks=\E[?1h\E=:ke=\E[?1l\E>:\
+	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=\177:\
+	:k0=\EOy:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\EOt:\
+	:k6=\EOu:k7=\EOv:k8=\EOl:k9=\EOw:k;=\EOx:@8=\EOM:\
+	:K1=\EOq:K2=\EOr:K3=\EOs:K4=\EOp:K5=\EOn:pt:sr=2*\EM:xn:\
+	:sc=2\E7:rc=2\E8:cs=5\E[%i%d;%dr:UP=2\E[%dA:DO=2\E[%dB:RI=2\E[%dC:\
+	:LE=2\E[%dD:ct=2\E[3g:st=2\EH:ta=^I:ms:bl=^G:cr=^M:eo:it#8:\
+	:RA=\E[?7l:SA=\E[?7h:po=\E[5i:pf=\E[4i:
+
+# $XTermId: termcap,v 1.78 2009/11/09 00:24:26 tom Exp $
+#
+xterm-new|modern xterm:\
+	:@7=\EOF:@8=\EOM:F1=\E[23~:F2=\E[24~:K2=\EOE:Km=\E[M:\
+	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[15~:k6=\E[17~:\
+	:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:kI=\E[2~:\
+	:kN=\E[6~:kP=\E[5~:kd=\EOB:kh=\EOH:kl=\EOD:kr=\EOC:ku=\EOA:\
+	:tc=xterm-basic:
+#
+# This chunk is used for building the VT220/Sun/PC keyboard variants.
+xterm-basic|modern xterm common:\
+	:am:bs:km:mi:ms:ut:xn:AX:\
+	:Co#8:co#80:kn#12:li#24:pa#64:\
+	:AB=\E[4%dm:AF=\E[3%dm:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:\
+	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:ae=\E(B:al=\E[L:\
+	:as=\E(0:bl=^G:cd=\E[J:ce=\E[K:cl=\E[H\E[2J:\
+	:cm=\E[%i%d;%dH:cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:dl=\E[M:\
+	:ei=\E[4l:ho=\E[H:im=\E[4h:is=\E[!p\E[?3;4l\E[4l\E>:\
+	:kD=\E[3~:kb=^H:ke=\E[?1l\E>:ks=\E[?1h\E=:le=^H:md=\E[1m:\
+	:me=\E[m:ml=\El:mr=\E[7m:mu=\Em:nd=\E[C:op=\E[39;49m:\
+	:rc=\E8:rs=\E[!p\E[?3;4l\E[4l\E>:sc=\E7:se=\E[27m:sf=^J:\
+	:so=\E[7m:sr=\EM:st=\EH:\
+	:ue=\E[24m:up=\E[A:us=\E[4m:ve=\E[?12l\E[?25h:vi=\E[?25l:vs=\E[?12;25h:
+#
+# This is the only entry which you should have to customize, since "xterm"
+# is widely used for a variety of incompatible terminal emulations including
+# color_xterm and rxvt.
+xterm|X11 terminal emulator:\
+	:tc=xterm-new:
+#
+# Add the capability to "clear the screen" after exiting vi, more/less, etc.
+xterm-clear:\
+	:te=\E[?1049l:ti=\E[?1049h:\
+	:tc=xterm-new:
+#
+# This should work for the commonly used "color xterm" variations (XFree86
+# xterm, color_xterm, nxterm, rxvt).  Note that it does not set 'bce', so for
+# XFree86 and rxvt, some applications that use colors will be less efficient,
+# and in a few special cases (with "smart" optimization) the wrong color will
+# be painted in spots.
+xterm-color|generic "ANSI" color xterm:\
+	:Co#8:NC@:pa#64:\
+	:AB=\E[4%dm:AF=\E[3%dm:ac=:op=\E[m:tc=xterm-r6:
+#
+# Compatible with the X11R6.3 xterm
+xterm-r6|xterm-old|X11R6 xterm:\
+	:am:bs:km:mi:ms:pt:xn:\
+	:co#80:kn#20:li#24:\
+	:*6=\E[4~:@0=\E[1~:@7=\E[4~:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:\
+	:DO=\E[%dB:F1=\E[23~:F2=\E[24~:F3=\E[25~:F4=\E[26~:\
+	:F5=\E[28~:F6=\E[29~:F7=\E[31~:F8=\E[32~:F9=\E[33~:\
+	:FA=\E[34~:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:ae=^O:al=\E[L:\
+	:as=^N:bl=^G:cd=\E[J:ce=\E[K:cl=\E[H\E[2J:cm=\E[%i%d;%dH:\
+	:cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:dl=\E[M:eA=\E)0:ei=\E[4l:\
+	:ho=\E[H:im=\E[4h:\
+	:is=\E[m\E[?7h\E[4l\E>\E7\E[r\E[?1;3;4;6l\E8:\
+	:k1=\E[11~:k2=\E[12~:k3=\E[13~:k4=\E[14~:k5=\E[15~:\
+	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:\
+	:kD=\E[3~:kI=\E[2~:kN=\E[6~:kP=\E[5~:kb=^H:kd=\EOB:\
+	:ke=\E[?1l\E>:kh=\E[1~:kl=\EOD:kr=\EOC:ks=\E[?1h\E=:\
+	:ku=\EOA:md=\E[1m:me=\E[m:ml=\El:mr=\E[7m:mu=\Em:nd=\E[C:\
+	:rc=\E8:rs=\E[m\E[?7h\E[4l\E>\E7\E[r\E[?1;3;4;6l\E8:\
+	:sc=\E7:se=\E[m:sf=^J:so=\E[7m:sr=\EM:\
+	:ue=\E[m:up=\E[A:us=\E[4m:
+#
+# Add the capability to "clear the screen" after exiting vi, more/less, etc.
+xterm-r6-clear:\
+	:te=\E[2J\E[?47l\E8:ti=\E7\E[?47h:ue=\E[m:\
+	:tc=xterm-r6:

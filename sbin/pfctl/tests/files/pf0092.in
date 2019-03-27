@@ -1,0 +1,30 @@
+anchor { # testing comments
+	anchor in {
+		# comment before rule
+		pass quick
+	}
+	# silly nesting
+	anchor out {
+		anchor in {
+			anchor out {
+				anchor in {
+					anchor out {
+						anchor in {
+							anchor out {
+								anchor in {
+									pass
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	pass in on tun1000000
+	anchor foo on tun1000000 {
+
+		pass
+	}
+} # comment after closing brace
+

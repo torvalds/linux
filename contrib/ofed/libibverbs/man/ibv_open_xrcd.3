@@ -1,0 +1,77 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_OPEN_XRCD 3 2011-06-17 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_open_xrcd, ibv_close_xrcd \- open or close an XRC protection domain (XRCDs)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "struct ibv_xrcd *ibv_open_xrcd(struct ibv_context " "*context" ","
+.BI "                               struct ibv_xrcd_init_attr " "*xrcd_init_attr" );
+.sp
+.BI "int ibv_close_xrcd(struct ibv_xrcd " "*xrcd" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_open_xrcd()
+open an XRC domain for the RDMA device context
+.I context
+.I xrcd_init_attr
+is an ibv_xrcd_init_attr struct, as defined in <infiniband/verbs.h>.
+.PP
+.nf
+struct ibv_xrcd_init_attr {
+.in +8
+uint32_t         comp_mask;  /* Identifies valid fields */
+int              fd;
+int              oflag;
+.fi
+.PP
+.I fd
+is the file descriptor to associate with the XRCD.
+.I oflag
+describes the desired creation attributes.  It is a bitwise OR of zero or more
+of the following flags:
+.PP
+.TP
+.B O_CREAT
+Indicates that an XRCD should be created and associated with the inode referenced
+by the given fd.  If the XRCD exists, this flag has no effect except as noted under
+.BR O_EXCL
+below.\fR
+.TP
+.B O_EXCL
+If
+.BR O_EXCL
+and
+.BR O_CREAT
+are set, open will fail if an XRCD associated with the inode exists.
+.PP
+If
+.I fd
+equals -1, no inode is associated with the XRCD. To indicate that XRCD should be created, use
+.I oflag
+=
+.B O_CREAT\fR.
+.PP
+.B ibv_close_xrcd()
+closes the XRCD
+.I xrcd\fR.
+If this is the last reference, the XRCD will be destroyed.
+.SH "RETURN VALUE"
+.B ibv_open_xrcd()
+returns a pointer to the opened XRCD, or NULL if the request fails.
+.PP
+.B ibv_close_xrcd()
+returns 0 on success, or the value of errno on failure (which indicates the
+failure reason).
+.SH "NOTES"
+.B ibv_close_xrcd()
+may fail if any other resource is still associated with the XRCD being closed.
+.SH "SEE ALSO"
+.BR ibv_create_srq_ex (3),
+.BR ibv_create_qp_ex (3),
+.SH "AUTHORS"
+.TP
+Sean Hefty <sean.hefty@intel.com>

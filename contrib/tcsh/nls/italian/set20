@@ -1,0 +1,41 @@
+$ $tcsh: set20,v 1.4 2015/08/13 08:54:04 christos Exp $
+$ tc.bind.c
+$set 20 
+1 Nome di tasto non corretto `%S'\n
+2 Nome di tasto sbagliato: %S\n
+3 Nome di comando sbagliato: %S\n
+4 Specificazione di tasto sbagliata %S\n
+5 Stringa di specificazione sbagliata\n
+6 Definizione dei tasti standard\n
+7 Definizione dei tasti alternativi\n
+8 Definizione delle combinazioni di più tasti\n
+9 Definizione dei tasti freccia\n
+10 %-15s->  non è definita\n
+11 BACO!!! %s non è definita da nessuna parte.\n
+12 Utilizzo: bindkey [opzioni] [--] [TASTO [COMANDO]]\n
+13     -a   elenca o definisce un tasto nella tabella dei tasti alternativi\n
+14     -b   interpreta TASTO come C-, M-, F- o X- tasto\n
+15     -s   interpreta COMANDO come una sequenza di caratteri da mandare in uscita\n
+16     -c   interpreta COMANDO come un comando interno o esterno\n
+17     -v   definisce tutti i tasti alla 'vi'\n
+18     -e   definisce tutti i tasti alla 'emacs'\n
+19     -d   definisce tutti i tasti in base all'editor di default (%s)\n
+20     -l   elenca i comandi di modifica testo con relativa descrizione\n
+21     -r   rimuove la definizione per TASTO\n
+22     -k   interpreta TASTO come un nome simbolico di tasto freccia\n
+23     --   forza un'interruzione nella interpretazione delle opzioni\n
+24     -u   (o qualsiasi opzione non corretta) questo messaggio\n
+25 Senza TASTO o COMANDO, stampa tutte le definizioni\n
+26 Senza COMANDO, stampa la definizione di TASTO.\n
+27 specificazione di tasto sbagliata -- stringa nulla\n
+28 specificazione di tasto sbagliata -- stringa vuota\n
+29 Specificazione di tasto funzione sbagliata.  Il tasto nullo non si può usare\n
+30 specificazione di tasto sbagliata -- numero esadecimale non corretto\n
+31 specificazione di tasto sbagliata -- numero ottale non corretto\n
+32 specificazione di tasto sbagliata -- numero decimale non corretto\n
+33 Specificazione di tasto funzione sbagliata.\n
+34 Il tasto nullo non si può usare\n
+35 specificazione di tasto sbagliata -- nome "%S" sconosciuto\n
+36 utilizzo: bind [TASTO | COMANDO TASTO | "emacs" | "vi" | "-a"]\n
+37 Funzione non corretta
+38  %s\t\tnon è definita\n

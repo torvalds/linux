@@ -1,0 +1,130 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_getarsym.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd August 15, 2006
+.Dt ELF_GETARSYM 3
+.Os
+.Sh NAME
+.Nm elf_getarsym
+.Nd retrieve the symbol table of an archive
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft "Elf_Arsym *"
+.Fn elf_getarsym "Elf *elf" "size_t *ptr"
+.Sh DESCRIPTION
+The function
+.Fn elf_getarsym
+retrieves the symbol table for an
+.Xr ar 1
+archive, if one is available.
+.Pp
+Argument
+.Ar elf
+should be a descriptor for an
+.Xr ar 1
+archive opened using
+.Fn elf_begin
+or
+.Fn elf_memory .
+.Pp
+If the archive
+.Ar elf
+contains a symbol table with n entries, this function returns a
+pointer to an array of n+1
+.Vt Elf_Arsym
+structures.
+An
+.Vt Elf_Arsym
+structure has the following elements:
+.Bl -tag -width indent -compact
+.It Vt "char *" Va as_name
+This structure member is a pointer to a null-terminated symbol name.
+.It Vt "off_t" Va as_off
+This structure member contains the byte offset from the beginning of the archive to
+the header for the archive member.
+This value is suitable for use with
+.Xr elf_rand 3 .
+.It Vt "unsigned long" Va as_hash
+This structure member contains a portable hash value for the symbol
+name, as computed by
+.Xr elf_hash 3 .
+.El
+.Pp
+The last entry of the returned array will have a NULL value for member
+.Va as_name ,
+a zero value for member
+.Va as_off
+and an illegal value of ~0UL for
+.Va as_hash .
+.Pp
+If argument
+.Ar ptr
+is non-null, the
+.Fn elf_getarsym
+function will store the number of table entries returned (including the
+sentinel entry at the end) into the location it points to.
+.Sh RETURN VALUES
+Function
+.Fn elf_getarsym
+returns a pointer to an array of
+.Vt Elf_Arsym
+structures if successful, or a NULL
+pointer if an error was encountered.
+.Pp
+If argument
+.Ar ptr
+is non-null and there was no error, the library will store the
+number of archive symbol entries returned into the location it
+points to.
+If argument
+.Ar ptr
+is non-null and an error was encountered, the library will
+set the location pointed to by it to zero.
+.Sh ERRORS
+Function
+.Fn elf_getarsym
+may fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was NULL.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was not a descriptor for an
+.Xr ar 1
+archive.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_begin 3 ,
+.Xr elf_getarhdr 3 ,
+.Xr elf_hash 3 ,
+.Xr elf_memory 3 ,
+.Xr elf_next 3 ,
+.Xr elf_rand 3

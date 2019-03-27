@@ -1,0 +1,268 @@
+/*-
+ * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015 Semihalf
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+
+/ {
+	model = "annapurna,alpine";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		serial0 = &serial0;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x0>;
+			d-cache-line-size = <64>;	// 64 bytes
+			i-cache-line-size = <64>;	// 64 bytes
+			d-cache-size = <0x8000>;	// L1, 32K
+			i-cache-size = <0x8000>;	// L1, 32K
+			timebase-frequency = <0>;
+			bus-frequency = <375000000>;
+			clock-frequency = <0>;
+		};
+
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x0>;
+			d-cache-line-size = <64>;	// 64 bytes
+			i-cache-line-size = <64>;	// 64 bytes
+			d-cache-size = <0x8000>;	// L1, 32K
+			i-cache-size = <0x8000>;	// L1, 32K
+			timebase-frequency = <0>;
+			bus-frequency = <375000000>;
+			clock-frequency = <0>;
+		};
+
+		cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x0>;
+			d-cache-line-size = <64>;	// 64 bytes
+			i-cache-line-size = <64>;	// 64 bytes
+			d-cache-size = <0x8000>;	// L1, 32K
+			i-cache-size = <0x8000>;	// L1, 32K
+			timebase-frequency = <0>;
+			bus-frequency = <375000000>;
+			clock-frequency = <0>;
+		};
+
+		cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x0>;
+			d-cache-line-size = <64>;	// 64 bytes
+			i-cache-line-size = <64>;	// 64 bytes
+			d-cache-size = <0x8000>;	// L1, 32K
+			i-cache-size = <0x8000>;	// L1, 32K
+			timebase-frequency = <0>;
+			bus-frequency = <375000000>;
+			clock-frequency = <0>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00100000 0x7ff00000>;	// 2047MB at 1MB
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x0 0xfb000000 0x03000000>;
+		bus-frequency = <0>;
+
+		MPIC: interrupt-controller {
+			compatible = "arm,gic";
+			reg =	< 0x1000 0x1000 >,	/* Distributor Registers */
+				< 0x2000 0x2000 >;	/* CPU Interface Registers */
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <3>;
+
+		// In intr[2], bits[3:0] are trigger type and level flags.
+		//   1 = low-to-high edge triggered
+		//   2 = high-to-low edge triggered
+		//   4 = active high level-sensitive
+		//   8 = active low level-sensitive
+		// The hardware only supports active-high-level or rising-edge.
+
+		};
+
+		generic_timer {
+			compatible = "arm,sp804";
+			reg = <0x02890000 0x1000>;
+			interrupts = <0 9 4>;
+			interrupt-parent = <&MPIC>;
+			clock-frequency = <375000000>;
+		};
+
+		cpu_resume {
+			compatible = "annapurna-labs,al-cpu-resume";
+			reg = <0x00ff5ec0 0x30>;
+		};
+
+		ccu {
+			compatible = "annapurna-labs,al-ccu";
+			reg = <0x00090000 0x10000>;
+			io_coherency = <1>;
+		};
+
+		nb_service {
+			compatible = "annapurna-labs,al-nb-service";
+			reg = <0x00070000 0x10000>;
+			interrupts =	<0 32 4>,
+					<0 33 4>,
+					<0 34 4>,
+					<0 35 4>;
+			interrupt-parent = <&MPIC>;
+		};
+
+		wdt0 {
+			compatible = "arm,sp805", "arm,primecell";
+			reg = <0x288c000 0x1000>;
+			interrupt-parent = <&MPIC>;
+		};
+
+		/* SerDes */
+		serdes {
+			compatible = "annapurna-labs,al-serdes";
+			reg = <0x28c0000 0x1000>;
+		};
+
+		serial0: serial@2883000 {
+			compatible = "ns16550";
+			reg = <0x2883000 0x20>;
+			reg-shift = <2>;
+			current-speed = <115200>;
+			clock-frequency = <375000000>;
+			interrupts = <0 17 4>;
+			interrupt-parent = <&MPIC>;
+		};
+	};
+
+	/* MSIX Configuration */
+	msix: msix {
+		compatible = "annapurna-labs,al-msix";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0xfbe00000 0x100000>;
+		interrupts = <0 96 1 0 159 1>;
+		interrupt-parent = <&MPIC>;
+	};
+
+	pcie-internal {
+		compatible = "annapurna-labs,al-internal-pcie";
+		device_type = "pci";
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <0xfbc00000 0x100000>;
+		interrupt-parent = <&MPIC>;
+		interrupt-map-mask = <0xf800 0 0 7>;
+		interrupt-map = <0x3000 0 0 1 &MPIC 0 32 4>, // USB adapter
+				<0x3800 0 0 1 &MPIC 0 36 4>,
+				<0x4000 0 0 1 &MPIC 0 43 4>, // SATA 0 (PCIe expander)
+				<0x4800 0 0 1 &MPIC 0 44 1>; // SATA 1 (onboard)
+		msi-parent = <&msix>;
+
+		// ranges:
+		// - ECAM - non prefetchable config space
+		// - 32 bit non prefetchable memory space
+		ranges = <0x00000000 0x0 0xfbc00000 0xfbc00000 0x0 0x100000
+			  0x02000000 0x0 0xfe000000 0xfe000000 0x0 0x1000000>;
+
+		bus-range = <0x00 0x00>;
+	};
+
+// WORKAROUND: enabling PCIe controller when no card is plugged in
+// leads to kernel panic because u-boot disables PCIe controller if no link
+// is detected. Just be kind and compatible with Linux
+/*	// External PCIe Controller 0
+	pcie-external0 {
+		compatible = "annapurna-labs,al-external-pcie";
+		reg = <0xfd800000 0x00020000>;
+		device_type = "pci";
+		#size-cells = <2>;
+		#address-cells = <3>;
+		interrupt-parent = <&MPIC>;
+		interrupt-map-mask = <0x00 0 0 7>;
+		interrupt-map = <0x0000 0 0 1 &MPIC 0 40 4>;
+
+		// ranges:
+		// Controller 0:
+		// - ECAM - non prefetchable config space: 2MB
+		// - IO - IO port space 64KB, reserve 64KB from target memory windows
+		//   real IO address on the pci bus starts at 0x10000
+		// - 32 bit non prefetchable memory space: 128MB - 64KB
+
+		ranges = <0x00000000 0x0 0xfb600000 0xfb600000 0x0 0x00200000
+			0x01000000 0x0 0x00010000 0xe0000000 0x0 0x00010000
+			0x02000000 0x0 0xe1000000 0xe1000000 0x0 0x06f00000>;
+
+		bus-range = <0x00 0xff>;
+	};
+
+	// External PCIe Controllers 1
+	pcie-external1 {
+		compatible = "annapurna-labs,al-external-pcie";
+		reg = <0xfd820000 0x00020000>;
+		device_type = "pci";
+		#size-cells = <2>;
+		#address-cells = <3>;
+		interrupt-parent = <&MPIC>;
+		interrupt-map-mask = <0x0 0 0 7>;
+		interrupt-map = <0x0000 0 0 1 &MPIC 0 41 4>;
+
+		// ranges:
+		// - ECAM - non prefetchable config space: 2MB
+		// - IO - IO port space 64KB, reserve 64KB from target memory windows
+		//   real IO address on the pci bus starts at 0x20000
+		// - 32 bit non prefetchable memory space: 64MB - 64KB
+		ranges = <0x00000000 0x0 0xfb800000 0xfb800000 0x0 0x00200000
+			  0x01000000 0x0 0x00020000 0xe8000000 0x0 0x00010000
+			  0x02000000 0x0 0xe8100000 0xe8100000 0x0 0x02ff0000>;
+
+		bus-range = <0x00 0xff>;
+	}; */
+
+	chosen {
+		stdin = "serial0";
+		stdout = "serial0";
+		stddbg = "serial0";
+	};
+};

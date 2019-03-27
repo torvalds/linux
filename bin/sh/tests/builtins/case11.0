@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+false
+case x in
+*)
+esac

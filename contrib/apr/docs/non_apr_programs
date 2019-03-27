@@ -1,0 +1,47 @@
+How do I use APR'ized programs in connection with programs that don't
+use APR?  These darn incomplete types don't let me fill out the APR types.
+
+The APR developers acknowledge that most programs are not using APR, and
+we don't expect them to migrate to using APR just because APR has been
+released.  So, we have provided a way for non-APR'ized programs to interact
+very cleanly with APR.
+
+There are a set of functions, all documented in apr_portable.h, which allow
+a programmer to either get a native type from an APR type, or to setup an
+APR type from a native type.
+
+For example, if you are writing an add-on to another program that does not use
+APR for file I/O, but you (in your infinite wisdom) want to use APR to make
+sure your section is portable.  Assume the program provides a type foo_t with
+a file descriptor in it (fd).
+
+void function_using_apr(foo_t non_apr_struct, ap_pool_t *p)
+{
+    ap_file_t *apr_file = NULL;
+
+    ap_put_os_file(&apr_file, &non_apr_struct->fd, p);
+
+    ...
+}
+
+There are portable functions for each APR incomplete type.  They are all 
+called ap_put_os_foobar(), and they each take the same basic arguments, a
+pointer to a pointer to the incomplete type (the last pointer in that list 
+should be NULL), a pointer to the native type, and a pool.  Each of these can
+be found in apr_portable.h.
+
+If you have to do the exact opposite (take an APR type and convert it to a 
+native type, there are functions for that too.  For example:
+
+void function_not_using_apr(apr_file_t *apr_file)
+{
+    int unix_file_desc;
+
+    ap_get_os_file(&unix_file_desc, apr_file);
+   
+    ...
+}
+
+For each ap_put_os_foobar, there is a corresponding ap_get_os_file.  These are
+also documented in apr_portable.h.
+

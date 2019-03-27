@@ -1,0 +1,83 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2002 Hiten Pandya
+.\" Copyright (c) 2002 Robert N. M. Watson
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 21, 2017
+.Dt DEVINFO 8
+.Os
+.Sh NAME
+.Nm devinfo
+.Nd print information about system device configuration
+.Sh SYNOPSIS
+.Nm
+.Op Fl rv
+.Nm
+.Fl u
+.Nm
+.Fl p Ar dev Op Fl v
+.Sh DESCRIPTION
+The
+.Nm
+utility, without any arguments, shows the hierarchy of devices available
+in the system, starting from the
+.Dq nexus
+device.
+.Pp
+The following options are accepted.
+.Bl -tag -width indent
+.It Fl r
+Causes hardware resource information (such as IRQ, I/O ports, I/O memory
+addresses) to be also listed, under each device that has reserved those resources.
+.It Fl u
+Displays the same information as with
+.Fl r
+but sorts by resource type rather than by device, allowing to review the
+set of system resources by usage and available resources.
+I.e., it lists all
+the IRQ consumers together.
+.It Fl v
+Display all devices in the driver tree, not just those that are attached or
+busy.
+Without this flag, only those devices that have attached are reported.
+This flag also displays verbose information about each device.
+.It Fl p Ar dev
+Display the path of
+.Ar dev
+back to the root of the device tree.
+.El
+.Sh SEE ALSO
+.Xr systat 1 ,
+.Xr devinfo 3 ,
+.Xr iostat 8 ,
+.Xr pciconf 8 ,
+.Xr pnpinfo 8 ,
+.Xr vmstat 8 ,
+.Xr devclass 9 ,
+.Xr device 9
+.Sh AUTHORS
+.An Mike Smith Aq Mt msmith@FreeBSD.org

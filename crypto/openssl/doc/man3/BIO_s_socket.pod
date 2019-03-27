@@ -1,0 +1,54 @@
+=pod
+
+=head1 NAME
+
+BIO_s_socket, BIO_new_socket - socket BIO
+
+=head1 SYNOPSIS
+
+ #include <openssl/bio.h>
+
+ const BIO_METHOD *BIO_s_socket(void);
+
+ BIO *BIO_new_socket(int sock, int close_flag);
+
+=head1 DESCRIPTION
+
+BIO_s_socket() returns the socket BIO method. This is a wrapper
+round the platform's socket routines.
+
+BIO_read_ex() and BIO_write_ex() read or write the underlying socket.
+BIO_puts() is supported but BIO_gets() is not.
+
+If the close flag is set then the socket is shut down and closed
+when the BIO is freed.
+
+BIO_new_socket() returns a socket BIO using B<sock> and B<close_flag>.
+
+=head1 NOTES
+
+Socket BIOs also support any relevant functionality of file descriptor
+BIOs.
+
+The reason for having separate file descriptor and socket BIOs is that on some
+platforms sockets are not file descriptors and use distinct I/O routines,
+Windows is one such platform. Any code mixing the two will not work on
+all platforms.
+
+=head1 RETURN VALUES
+
+BIO_s_socket() returns the socket BIO method.
+
+BIO_new_socket() returns the newly allocated BIO or NULL is an error
+occurred.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

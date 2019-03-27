@@ -1,0 +1,135 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ppp
+# REQUIRE: netif
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="ppp"
+desc="Point to Point Protocol"
+rcvar="ppp_enable"
+command="/usr/sbin/${name}"
+start_cmd="ppp_start"
+stop_cmd="ppp_stop"
+start_postcmd="ppp_poststart"
+
+ppp_start_profile()
+{
+	local _ppp_profile _ppp_mode _ppp_nat _ppp_unit
+	local _ppp_profile_cleaned _punct _punct_c
+
+	_ppp_profile=$1
+	_ppp_profile_cleaned=$1
+	_punct=". - / +"
+	for _punct_c in $_punct; do
+		_ppp_profile_cleaned=`ltr ${_ppp_profile_cleaned} ${_punct_c} '_'`
+	done
+
+	# Check for ppp profile mode override.
+	#
+	eval _ppp_mode=\$ppp_${_ppp_profile_cleaned}_mode
+	if [ -z "$_ppp_mode" ]; then
+		_ppp_mode=$ppp_mode
+	fi
+
+	# Check for ppp profile nat override.
+	#
+	eval _ppp_nat=\$ppp_${_ppp_profile_cleaned}_nat
+	if [ -z "$_ppp_nat" ]; then
+		_ppp_nat=$ppp_nat
+	fi
+
+	# Establish ppp mode.
+	#
+	if [ "${_ppp_mode}" != "ddial" -a "${_ppp_mode}" != "direct" \
+		-a "${_ppp_mode}" != "dedicated" \
+		-a "${_ppp_mode}" != "background" ]; then
+		_ppp_mode="auto"
+	fi
+
+	rc_flags="-quiet -${_ppp_mode}"
+
+	# Switch on NAT mode?
+	#
+	case ${_ppp_nat} in
+	[Yy][Ee][Ss])
+		rc_flags="$rc_flags -nat"
+		;;
+	esac
+
+	# Check for hard wired unit
+	eval _ppp_unit=\$ppp_${_ppp_profile_cleaned}_unit
+	if [ -n "${_ppp_unit}" ]; then
+		_ppp_unit="-unit${_ppp_unit}"
+	fi
+	rc_flags="$rc_flags $_ppp_unit"
+
+	# Run!
+	#
+	su -m $ppp_user -c "$command ${rc_flags} ${_ppp_profile}"
+}
+
+ppp_start()
+{
+	local _ppp_profile _p
+
+	_ppp_profile=$*
+	if [ -z "${_ppp_profile}" ]; then
+		_ppp_profile=$ppp_profile
+	fi
+
+	echo -n "Starting PPP profile:"
+
+	for _p in $_ppp_profile; do
+		echo -n " $_p"
+		ppp_start_profile $_p
+	done
+
+	echo "."
+}
+
+ppp_poststart()
+{
+	# Re-Sync ipfilter and pf so they pick up any new network interfaces
+	#
+	if [ -f /etc/rc.d/ipfilter ]; then
+		/etc/rc.d/ipfilter quietresync
+	fi
+	if [ -f /etc/rc.d/pf ]; then
+		/etc/rc.d/pf quietresync
+	fi
+}
+
+ppp_stop_profile() {
+	local _ppp_profile
+
+	_ppp_profile=$1
+
+	/bin/pkill -f "^${command}.*[[:space:]]${_ppp_profile}\$" || \
+		echo -n "(not running)"
+}
+
+ppp_stop() {
+	local _ppp_profile _p
+
+	_ppp_profile=$*
+	if [ -z "${_ppp_profile}" ]; then
+		_ppp_profile=$ppp_profile
+	fi
+
+	echo -n "Stopping PPP profile:"
+
+	for _p in $_ppp_profile; do
+		echo -n " $_p"
+		ppp_stop_profile $_p
+	done
+
+	echo "."
+}
+
+load_rc_config $name
+run_rc_command $*

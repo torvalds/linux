@@ -1,0 +1,173 @@
+@c $Id$
+
+@node Kerberos 4 issues, Windows compatibility, Things in search for a better place, Top
+@comment  node-name,  next,  previous,  up
+@chapter Kerberos 4 issues
+
+Kerberos 4 KDC and KA server have been moved.
+
+For more about AFS, see the section @xref{AFS}.
+
+@menu
+* Principal conversion issues::  
+* Converting a version 4 database::  
+@end menu
+
+@node Principal conversion issues, Converting a version 4 database, Kerberos 4 issues, Kerberos 4 issues
+@section Principal conversion issues
+
+First, Kerberos 4 and Kerberos 5 principals are different. A version 4
+principal consists of a name, an instance, and a realm. A version 5
+principal has one or more components, and a realm (the terms ``name''
+and ``instance'' are still used, for the first and second component,
+respectively).    Also, in some cases the name of a version 4 principal
+differs from the first component of the corresponding version 5
+principal. One notable example is the ``host'' type principals, where
+the version 4 name is @samp{rcmd} (for ``remote command''), and the
+version 5 name is @samp{host}. For the class of principals that has a
+hostname as instance, there is an other major difference, Kerberos 4
+uses only the first component of the hostname, whereas Kerberos 5 uses
+the fully qualified hostname.
+
+Because of this it can be hard or impossible to correctly convert a
+version 4 principal to a version 5 principal @footnote{the other way is
+not always trivial either, but usually easier}. The biggest problem is
+to know if the conversion resulted in a valid principal. To give an
+example, suppose you want to convert the principal @samp{rcmd.foo}.
+
+The @samp{rcmd} name suggests that the instance is a hostname (even if
+there are exceptions to this rule). To correctly convert the instance
+@samp{foo} to a hostname, you have to know which host it is referring
+to. You can to this by either guessing (from the realm) which domain
+name to append, or you have to have a list of possible hostnames. In the
+simplest cases you can cover most principals with the first rule. If you
+have several domains sharing a single realm this will not usually
+work. If the exceptions are few you can probably come by with a lookup
+table for the exceptions.
+
+In a complex scenario you will need some kind of host lookup mechanism.
+Using DNS for this is tempting, but DNS is error prone, slow and unsafe
+@footnote{at least until secure DNS is commonly available}.
+
+Fortunately, the KDC has a trump on hand: it can easily tell if a
+principal exists in the database. The KDC will use
+@code{krb5_425_conv_principal_ext} to convert principals when handling
+to version 4 requests.
+
+@node Converting a version 4 database, , Principal conversion issues, Kerberos 4 issues
+@section Converting a version 4 database
+
+If you want to convert an existing version 4 database, the principal
+conversion issue arises too.
+
+If you decide to convert your database once and for all, you will only
+have to do this conversion once. It is also possible to run a version 5
+KDC as a slave to a version 4 KDC. In this case this conversion will
+happen every time the database is propagated.  When doing this
+conversion, there are a few things to look out for. If you have stale
+entries in the database, these entries will not be converted. This might
+be because these principals are not used anymore, or it might be just
+because the principal couldn't be converted.
+
+You might also see problems with a many-to-one mapping of
+principals. For instance, if you are using DNS lookups and you have two
+principals @samp{rcmd.foo} and @samp{rcmd.bar}, where `foo' is a CNAME
+for `bar', the resulting principals will be the same. Since the
+conversion function can't tell which is correct, these conflicts will
+have to be resolved manually.
+
+@subsection Conversion example
+
+Given the following set of hosts and services:
+
+@example
+foo.se          rcmd
+mail.foo.se     rcmd, pop
+ftp.bar.se      rcmd, ftp
+@end example
+
+you have a database that consists of the following principals:
+
+@samp{rcmd.foo}, @samp{rcmd.mail}, @samp{pop.mail}, @samp{rcmd.ftp}, and
+@samp{ftp.ftp}.
+
+lets say you also got these extra principals: @samp{rcmd.gone},
+@samp{rcmd.old-mail}, where @samp{gone.foo.se} was a machine that has
+now passed away, and @samp{old-mail.foo.se} was an old mail machine that
+is now a CNAME for @samp{mail.foo.se}.
+
+When you convert this database you want the following conversions to be
+done:
+@example
+rcmd.foo         host/foo.se
+rcmd.mail        host/mail.foo.se
+pop.mail         pop/mail.foo.se
+rcmd.ftp         host/ftp.bar.se
+ftp.ftp          ftp/ftp.bar.se
+rcmd.gone        @i{removed}
+rcmd.old-mail    @i{removed}
+@end example
+
+A @file{krb5.conf} that does this looks like:
+
+@example
+[realms]
+        FOO.SE = @{
+                v4_name_convert = @{
+                        host = @{
+                                ftp = ftp
+                                pop = pop
+                                rcmd = host
+                        @}
+                @}
+                v4_instance_convert = @{
+                        foo = foo.se
+                        ftp = ftp.bar.se
+                @}
+                default_domain = foo.se
+        @}
+@end example
+
+The @samp{v4_name_convert} section says which names should be considered
+having an instance consisting of a hostname, and it also says how the
+names should be converted (for instance @samp{rcmd} should be converted
+to @samp{host}). The @samp{v4_instance_convert} section says how a
+hostname should be qualified (this is just a hosts-file in
+disguise). Host-instances that aren't covered by
+@samp{v4_instance_convert} are qualified by appending the contents of
+the @samp{default_domain}.
+
+Actually, this example doesn't work. Or rather, it works to well. Since
+it has no way of knowing which hostnames are valid and which are not, it
+will happily convert @samp{rcmd.gone} to @samp{host/gone.foo.se}. This
+isn't a big problem, but if you have run your kerberos realm for a few
+years, chances are big that you have quite a few `junk' principals.
+
+If you don't want this you can remove the @samp{default_domain}
+statement, but then you will have to add entries for @emph{all} your hosts
+in the @samp{v4_instance_convert} section.
+
+Instead of doing this you can use DNS to convert instances. This is not
+a solution without problems, but it is probably easier than adding lots
+of static host entries. 
+
+To enable DNS lookup you should turn on @samp{v4_instance_resolve} in
+the @samp{[libdefaults]} section.
+
+@subsection Converting a database
+
+The database conversion is done with @samp{hprop}. You can run this
+command to propagate the database to the machine called
+@samp{slave-server} (which should be running a @samp{hpropd}).
+
+@example
+hprop --source=krb4-db --master-key=/.m slave-server
+@end example
+
+This command can also be to use for converting the v4 database on the
+server:
+
+@example
+hprop -n --source=krb4-db -d /var/kerberos/principal --master-key=/.m | hpropd -n
+@end example
+

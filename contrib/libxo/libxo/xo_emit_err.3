@@ -1,0 +1,82 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_emit_err , xo_emit_errc , xo_emit_errx
+.Nm xo_emit_warn , xo_emit_warnx , xo_emit_warn_c , xo_emit_warn_hc
+.Nd emit errors and warnings in multiple output styles
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Fn xo_emit_warn "const char *fmt"  "..."
+.Ft void
+.Fn xo_emit_warnx "const char *fmt" "..."
+.Ft void
+.Fn xo_emit_warn_c "int code" "const char *fmt" "..."
+.Ft void
+.Fn xo_emit_warn_hc "xo_handle_t *xop" "int code, const char *fmt" "..."
+.Ft void
+.Fn xo_emit_err "int eval" "const char *fmt" "..."
+.Ft void
+.Fn xo_emit_errc "int eval" "int code" "const char *fmt" "..."
+.Ft void
+.Fn xo_emit_errx "int eval" "const char *fmt" "..."
+.Sh DESCRIPTION
+Many programs make use of the standard library functions
+.Xr err 3
+and
+.Xr warn 3
+to generate errors and warnings for the user.
+.Nm libxo
+wants to
+pass that information via the current output style, and provides
+compatible functions to allow this.
+.Pp
+The
+.Fa fmt
+argument is one compatible with
+.Xr xo_emit 3
+which allows these functions make structured data.
+To generate unstructured data,
+use the
+.Xr xo_err 3
+functions.
+.Pp
+These functions display the program name, a colon, a formatted message
+based on the arguments, and then optionally a colon and an error
+message associated with either
+.Fa errno
+or the
+.Fa code
+parameter.
+.Bd -literal -offset indent
+    EXAMPLE:
+        if (open(filename, O_RDONLY) < 0)
+            xo_err(1, "cannot open file '%s'", filename);
+.Ed
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr xo_format 5 ,
+.Xr xo_err 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

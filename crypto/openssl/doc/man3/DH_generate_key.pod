@@ -1,0 +1,54 @@
+=pod
+
+=head1 NAME
+
+DH_generate_key, DH_compute_key - perform Diffie-Hellman key exchange
+
+=head1 SYNOPSIS
+
+ #include <openssl/dh.h>
+
+ int DH_generate_key(DH *dh);
+
+ int DH_compute_key(unsigned char *key, BIGNUM *pub_key, DH *dh);
+
+=head1 DESCRIPTION
+
+DH_generate_key() performs the first step of a Diffie-Hellman key
+exchange by generating private and public DH values. By calling
+DH_compute_key(), these are combined with the other party's public
+value to compute the shared key.
+
+DH_generate_key() expects B<dh> to contain the shared parameters
+B<dh-E<gt>p> and B<dh-E<gt>g>. It generates a random private DH value
+unless B<dh-E<gt>priv_key> is already set, and computes the
+corresponding public value B<dh-E<gt>pub_key>, which can then be
+published.
+
+DH_compute_key() computes the shared secret from the private DH value
+in B<dh> and the other party's public value in B<pub_key> and stores
+it in B<key>. B<key> must point to B<DH_size(dh)> bytes of memory.
+
+=head1 RETURN VALUES
+
+DH_generate_key() returns 1 on success, 0 otherwise.
+
+DH_compute_key() returns the size of the shared secret on success, -1
+on error.
+
+The error codes can be obtained by L<ERR_get_error(3)>.
+
+=head1 SEE ALSO
+
+L<DH_new(3)>, L<ERR_get_error(3)>, L<RAND_bytes(3)>, L<DH_size(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

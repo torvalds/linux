@@ -1,0 +1,349 @@
+.\" Copyright 2002-2007 Sandvine Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Sandvine Inc.; provided,
+.\" however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Sandvine Inc.
+.\"    trademarks, including the mark "SANDVINE" on advertising, endorsements,
+.\"    or otherwise except as such appears in the above copyright notice or in
+.\"    the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY SANDVINE "AS IS", AND TO THE MAXIMUM
+.\" EXTENT PERMITTED BY LAW, SANDVINE MAKES NO REPRESENTATIONS OR WARRANTIES,
+.\" EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE, INCLUDING WITHOUT LIMITATION,
+.\" ANY AND ALL IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+.\" PURPOSE, OR NON-INFRINGEMENT.  SANDVINE DOES NOT WARRANT, GUARANTEE, OR
+.\" MAKE ANY REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE
+.\" USE OF THIS SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY
+.\" OR OTHERWISE.  IN NO EVENT SHALL SANDVINE BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF SANDVINE IS ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" Author: Dave Chapeskie
+.\" $FreeBSD$
+.\"
+.Dd March 1, 2007
+.Dt NG_SOURCE 4
+.Os
+.Sh NAME
+.Nm ng_source
+.Nd netgraph node for traffic generation
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph/ng_source.h
+.Sh DESCRIPTION
+The
+.Nm source
+node acts as a source of packets according to the parameters set up
+using control messages and input packets.
+The
+.Nm
+node type is used primarily for testing and benchmarking.
+.Sh HOOKS
+The
+.Nm source
+node has two hooks:
+.Va input
+and
+.Va output .
+The
+.Va output
+hook must remain connected, its disconnection will shutdown the node.
+.Sh OPERATION
+The operation of the node is as follows.
+Packets received on the
+.Va input
+hook are queued internally.
+When
+.Va output
+hook is connected,
+.Nm
+node assumes that its neighbour node is of
+.Xr ng_ether 4
+node type.
+The neighbour is queried for its interface name.
+The
+.Nm
+node then uses queue of the interface for its evil purposes.
+The
+.Nm
+node also disables
+.Va autosrc
+option on neighbour
+.Xr ng_ether 4
+node.
+If interface name cannot be obtained automatically, it should
+be configured explicitly with the
+.Dv NGM_SOURCE_SETIFACE
+control message, and
+.Va autosrc
+should be turned off on
+.Xr ng_ether 4
+node manually.
+.Pp
+Once interface is configured, upon receipt of a
+.Dv NGM_SOURCE_START
+control message the node starts sending
+the previously queued packets out the
+.Va output
+hook on every clock tick as fast
+as the connected interface will take them.
+While active, on every clock tick the node checks the available space
+in the interface queue and sends that many packets out its
+.Va output
+hook.
+Once the number of packets indicated in the start message has been
+sent, or upon receipt of a
+.Dv NGM_SOURCE_STOP
+message, the node stops sending data.
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages as well as the following,
+which must be sent with the
+.Dv NGM_SOURCE_COOKIE
+attached.
+.Bl -tag -width foo
+.It Dv NGM_SOURCE_GET_STATS Pq Ic getstats
+Returns a structure containing the following fields:
+.Bl -tag -width ".Va elapsedTime"
+.It Va outOctets
+The number of octets/bytes sent out the
+.Va output
+hook.
+.It Va outFrames
+The number of frames/packets sent out the
+.Va output
+hook.
+.It Va queueOctets
+The number of octets queued from the
+.Va input
+hook.
+.It Va queueFrames
+The number of frames queued from the
+.Va input
+hook.
+.It Va startTime
+The time the last start message was received.
+.It Va endTime
+The time the last end message was received or
+the output packet count was reached.
+.It Va elapsedTime
+Either
+.Va endTime Li \- Va startTime
+or current time
+\-
+.Va startTime .
+.El
+.It Dv NGM_SOURCE_CLR_STATS Pq Ic clrstats
+Clears and resets the statistics returned by
+.Ic getstats
+(except
+.Va queueOctets
+and
+.Va queueFrames ) .
+.It Dv NGM_SOURCE_GETCLR_STATS Pq Ic getclrstats
+As
+.Ic getstats
+but clears the statistics at the same time.
+.It Dv NGM_SOURCE_START Pq Ic start
+This message requires a single
+.Vt uint64_t
+parameter which is the number of packets to
+send before stopping.
+Node starts sending the queued packets out the
+.Va output
+hook.
+The
+.Va output
+hook must be connected and node must have
+interface configured.
+.It Dv NGM_SOURCE_STOP Pq Ic stop
+Stops the node if it is active.
+.It Dv NGM_SOURCE_CLR_DATA Pq Ic clrdata
+Clears the packets queued from the
+.Va input
+hook.
+.It Dv NGM_SOURCE_SETIFACE Pq Ic setiface
+This message requires the name of the interface
+to be configured as an argument.
+.It Dv NGM_SOURCE_SETPPS Pq Ic setpps
+This message requires a single
+.Vt uint32_t
+parameter which puts upper limit on the amount of packets
+sent per second.
+.It Dv NGM_SOURCE_SET_TIMESTAMP Pq Ic settimestamp
+This message specifies that a timestamp (in the format of a
+.Vt "struct timeval" )
+should be inserted in the transmitted packets.
+This message requires a structure containing the following fields:
+.Bl -tag -width ".Va offset"
+.It Va offset
+The offset from the beginning of the packet at which the timestamp is to be
+inserted.
+.It Va flags
+Set to 1 to enable the timestamp.
+.El
+.It Dv NGM_SOURCE_GET_TIMESTAMP Pq Ic gettimestamp
+Returns the current timestamp settings in the form of the structure described
+above.
+.It Dv NGM_SOURCE_SET_COUNTER Pq Ic setcounter
+This message specifies that a counter should be embedded in transmitted
+packets.
+Up to four counters may be independently configured.
+This message requires a structure containing the following fields:
+.Bl -tag -width ".Va increment"
+.It Va offset
+The offset from the beginning of the packet at which the counter is to be
+inserted.
+.It Va flags
+Set to 1 to enable the counter.
+.It Va width
+The byte width of the counter.
+It may be 1, 2, or 4.
+.It Va next_val
+The value for the next insertion of the counter.
+.It Va min_val
+The minimum value to be used by the counter.
+.It Va max_val
+The maximum value to be used by the counter.
+.It Va increment
+The value to be added to the counter after each insertion.
+It may be negative.
+.It Va index
+The counter to be configured, from 0 to 3.
+.El
+.It Dv NGM_SOURCE_GET_COUNTER Pq Ic getcounter
+This message requires a single
+.Vt uint8_t
+parameter which specifies the counter to query.
+Returns the current counter settings in the form of the structure described
+above.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, when all hooks have been disconnected, or when the
+.Va output
+hook has been disconnected.
+.Sh EXAMPLES
+Attach the node to an
+.Xr ng_ether 4
+node for an interface.
+If
+.Nm ng_ether
+is
+not already loaded you will need to do so.
+For example, these commands
+load the
+.Nm ng_ether
+module and attach the
+.Va output
+hook of a new
+.Nm source
+node to
+.Va orphans
+hook of the
+.Li bge0:
+.Nm ng_ether
+node.
+.Bd -literal -offset indent
+kldload ng_ether
+ngctl mkpeer bge0: source orphans output
+.Ed
+.Pp
+At this point the new node can be referred to as
+.Dq Li bge0:orphans .
+The
+node can be given its own name like this:
+.Pp
+.Dl "ngctl name bge0:orphans src0"
+.Pp
+After which it can be referred to as
+.Dq Li src0: .
+.Pp
+Once created, packets can be sent to the node as raw binary data.
+Each packet must be delivered in a separate netgraph message.
+.Pp
+The following example uses a short Perl script to convert the hex
+representation of an ICMP packet to binary and deliver it to the
+.Nm source
+node's
+.Va input
+hook via
+.Xr nghook 8 :
+.Bd -literal -offset indent
+perl -pe 's/(..)[ \et\en]*/chr(hex($1))/ge' <<EOF | nghook src0: input
+ff ff ff ff ff ff 00 00 00 00 00 00 08 00 45 00
+00 54 cb 13 00 00 40 01 b9 87 c0 a8 2b 65 0a 00
+00 01 08 00 f8 d0 c9 76 00 00 45 37 01 73 00 01
+04 0a 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15
+16 17 18 19 1a 1b 1c 1d 1e 1f 20 21 22 23 24 25
+26 27 28 29 2a 2b 2c 2d 2e 2f 30 31 32 33 34 35
+36 37
+EOF
+.Ed
+.Pp
+To check that the node has queued these packets you can get the node
+statistics:
+.Bd -literal -offset indent
+ngctl msg bge0:orphans getstats
+Args:   { queueOctets=64 queueFrames=1 }
+.Ed
+.Pp
+Send as many packets as required out the
+.Va output
+hook:
+.Pp
+.Dl "ngctl msg bge0:orphans start 16"
+.Pp
+Either wait for them to be sent (periodically fetching stats if desired)
+or send the stop message:
+.Pp
+.Dl "ngctl msg bge0:orphans stop"
+.Pp
+Check the statistics (here we use
+.Ic getclrstats
+to also clear the statistics):
+.Bd -literal -offset indent
+ngctl msg bge0:orphans getclrstats
+Args:   { outOctets=1024 outFrames=16 queueOctets=64 queueFrames=1
+startTime={ tv_sec=1035305880 tv_usec=758036 } endTime={ tv_sec=1035305880
+tv_usec=759041 } elapsedTime={ tv_usec=1005 } }
+.Ed
+.Pp
+The times are from
+.Vt "struct timeval" Ns s ,
+the
+.Va tv_sec
+field is seconds since
+the Epoch and can be converted into a date string via TCL's [clock
+format] or via the
+.Xr date 1
+command:
+.Bd -literal -offset indent
+date -r 1035305880
+Tue Oct 22 12:58:00 EDT 2002
+.Ed
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_echo 4 ,
+.Xr ng_hole 4 ,
+.Xr ng_tee 4 ,
+.Xr ngctl 8 ,
+.Xr nghook 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.8 .
+.Sh AUTHORS
+.An Dave Chapeskie

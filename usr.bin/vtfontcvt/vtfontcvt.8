@@ -1,0 +1,74 @@
+.\" Copyright (c) 2014 The FreeBSD Foundation.  All rights reserved.
+.\"
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 9, 2014
+.Dt VTFONTCVT 8
+.Os
+.Sh NAME
+.Nm vtfontcvt
+.Nd "convert font files for use by the video console"
+.Sh SYNOPSIS
+.Nm
+.Op Fl h Ar height
+.Op Fl v
+.Op Fl w Ar width
+.Ar normal_font
+.Op Ar bold_font
+.Ar output_file
+.Sh DESCRIPTION
+The
+.Nm
+utility reads source font files in either BDF or Unifont HEX format and
+outputs a binary font file for use by
+.Xr vt 4 .
+HEX format files must have the file extension
+.Pa .hex .
+.Pp
+The following options are available:
+.Bl -tag -width "12345678"
+.It Fl h Ar height
+Set font height.
+The default is 16.
+Font height is set automatically for HEX files that have a
+.Ql # Height: Ar height
+comment before any font data.
+.It Fl v
+Display verbose statistics about the converted font.
+.It Fl w Ar width
+Set font width.
+The default is 8.
+Font width is set automatically for HEX files that have a
+.Ql # Width: Ar width
+comment before any font data.
+.El
+.Sh SEE ALSO
+.Xr vidcontrol 1 ,
+.Xr vt 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 10.1 .

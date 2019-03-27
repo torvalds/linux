@@ -1,0 +1,135 @@
+//===-- TypeNodes.def - Metadata about Type AST nodes -----------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+//  This file defines the AST type info database. Each type node is
+//  enumerated by providing its name (e.g., "Builtin" or "Enum") and
+//  base class (e.g., "Type" or "TagType"). Depending on where in the
+//  abstract syntax tree the type will show up, the enumeration uses
+//  one of five different macros:
+//
+//    TYPE(Class, Base) - A type that can show up anywhere in the AST,
+//    and might be dependent, canonical, or non-canonical. All clients
+//    will need to understand these types.
+//
+//    ABSTRACT_TYPE(Class, Base) - An abstract class that shows up in
+//    the type hierarchy but has no concrete instances.
+//
+//    NON_CANONICAL_TYPE(Class, Base) - A type that can show up
+//    anywhere in the AST but will never be a part of a canonical
+//    type. Clients that only need to deal with canonical types
+//    (ignoring, e.g., typedefs and other type aliases used for
+//    pretty-printing) can ignore these types.
+//
+//    DEPENDENT_TYPE(Class, Base) - A type that will only show up
+//    within a C++ template that has not been instantiated, e.g., a
+//    type that is always dependent. Clients that do not need to deal
+//    with uninstantiated C++ templates can ignore these types.
+//
+//    NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base) - A type that
+//    is non-canonical unless it is dependent.  Defaults to TYPE because
+//    it is neither reliably dependent nor reliably non-canonical.
+//
+//  There is a sixth macro, independent of the others.  Most clients
+//  will not need to use it.
+//
+//    LEAF_TYPE(Class) - A type that never has inner types.  Clients
+//    which can operate on such types more efficiently may wish to do so.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef ABSTRACT_TYPE
+#  define ABSTRACT_TYPE(Class, Base) TYPE(Class, Base)
+#endif
+
+#ifndef NON_CANONICAL_TYPE
+#  define NON_CANONICAL_TYPE(Class, Base) TYPE(Class, Base)
+#endif
+
+#ifndef DEPENDENT_TYPE
+#  define DEPENDENT_TYPE(Class, Base) TYPE(Class, Base)
+#endif
+
+#ifndef NON_CANONICAL_UNLESS_DEPENDENT_TYPE
+#  define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base) TYPE(Class, Base)
+#endif
+
+TYPE(Builtin, Type)
+TYPE(Complex, Type)
+TYPE(Pointer, Type)
+TYPE(BlockPointer, Type)
+ABSTRACT_TYPE(Reference, Type)
+TYPE(LValueReference, ReferenceType)
+TYPE(RValueReference, ReferenceType)
+TYPE(MemberPointer, Type)
+ABSTRACT_TYPE(Array, Type)
+TYPE(ConstantArray, ArrayType)
+TYPE(IncompleteArray, ArrayType)
+TYPE(VariableArray, ArrayType)
+DEPENDENT_TYPE(DependentSizedArray, ArrayType)
+DEPENDENT_TYPE(DependentSizedExtVector, Type)
+DEPENDENT_TYPE(DependentAddressSpace, Type)
+TYPE(Vector, Type)
+DEPENDENT_TYPE(DependentVector, Type)
+TYPE(ExtVector, VectorType)
+ABSTRACT_TYPE(Function, Type)
+TYPE(FunctionProto, FunctionType)
+TYPE(FunctionNoProto, FunctionType)
+DEPENDENT_TYPE(UnresolvedUsing, Type)
+NON_CANONICAL_TYPE(Paren, Type)
+NON_CANONICAL_TYPE(Typedef, Type)
+NON_CANONICAL_TYPE(Adjusted, Type)
+NON_CANONICAL_TYPE(Decayed, AdjustedType)
+NON_CANONICAL_UNLESS_DEPENDENT_TYPE(TypeOfExpr, Type)
+NON_CANONICAL_UNLESS_DEPENDENT_TYPE(TypeOf, Type)
+NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Decltype, Type)
+NON_CANONICAL_UNLESS_DEPENDENT_TYPE(UnaryTransform, Type)
+ABSTRACT_TYPE(Tag, Type)
+TYPE(Record, TagType)
+TYPE(Enum, TagType)
+NON_CANONICAL_TYPE(Elaborated, Type)
+NON_CANONICAL_TYPE(Attributed, Type)
+DEPENDENT_TYPE(TemplateTypeParm, Type)
+NON_CANONICAL_TYPE(SubstTemplateTypeParm, Type)
+DEPENDENT_TYPE(SubstTemplateTypeParmPack, Type)
+NON_CANONICAL_UNLESS_DEPENDENT_TYPE(TemplateSpecialization, Type)
+ABSTRACT_TYPE(Deduced, Type)
+TYPE(Auto, DeducedType)
+TYPE(DeducedTemplateSpecialization, DeducedType)
+DEPENDENT_TYPE(InjectedClassName, Type)
+DEPENDENT_TYPE(DependentName, Type)
+DEPENDENT_TYPE(DependentTemplateSpecialization, Type)
+NON_CANONICAL_UNLESS_DEPENDENT_TYPE(PackExpansion, Type)
+NON_CANONICAL_TYPE(ObjCTypeParam, Type)
+TYPE(ObjCObject, Type)
+TYPE(ObjCInterface, ObjCObjectType)
+TYPE(ObjCObjectPointer, Type)
+TYPE(Pipe, Type)
+TYPE(Atomic, Type)
+
+#ifdef LAST_TYPE
+LAST_TYPE(Atomic)
+#undef LAST_TYPE
+#endif
+
+// These types are always leaves in the type hierarchy.
+#ifdef LEAF_TYPE
+LEAF_TYPE(Enum)
+LEAF_TYPE(Builtin)
+LEAF_TYPE(Record)
+LEAF_TYPE(InjectedClassName)
+LEAF_TYPE(ObjCInterface)
+LEAF_TYPE(TemplateTypeParm)
+#undef LEAF_TYPE
+#endif
+
+#undef NON_CANONICAL_UNLESS_DEPENDENT_TYPE
+#undef DEPENDENT_TYPE
+#undef NON_CANONICAL_TYPE
+#undef ABSTRACT_TYPE
+#undef TYPE

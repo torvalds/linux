@@ -1,0 +1,79 @@
+$FreeBSD$
+
+  UFS Access Control Lists Copyright
+
+The UFS Access Control Lists implementation is copyright Robert Watson,
+and is made available under a Berkeley-style license.
+
+  About UFS Access Control Lists (ACLs)
+
+Access control lists allow the association of fine-grained discretionary
+access control information with files and directories, extending the
+base UNIX permission model in a (mostly) compatible way.  This
+implementation largely follows the POSIX.1e model, and relies on the
+availability of extended attributes to store extended components of
+the ACL, while maintaining the base permission information in the inode.
+
+  Using UFS Access Control Lists (ACLs)
+
+Support for UFS access control lists may be enabled by adding:
+
+	options UFS_ACL
+
+to your kernel configuration.  As ACLs rely on the availability of extended
+attributes, your file systems must have support for extended attributes.
+For UFS2, this is supported natively, so no further configuration is
+necessary.  For UFS1, you must also enable the optional extended attributes
+support documented in README.extattr.  A summary of the instructions
+and ACL-specific information follows.
+
+To enable support for ACLs on a file system, the 'acls' mount flag
+must be set for the file system.  This may be set using the tunefs
+'-a' flag:
+
+	tunefs -a enable /dev/md0a
+
+Or by using the mount-time flag:
+
+	mount -o acls /dev/md0a /mnt
+
+The flag may also be set in /etc/fstab.  Note that mounting a file
+system previously configured for ACLs without ACL-support will result
+in incorrect application of discretionary protections.  Likewise,
+mounting an ACL-enabled file system without kernel support for ACLs
+will result in incorrect application of discretionary protections.  If
+the kernel is not configured for ACL support, a warning will be
+printed by the kernel at mount-time.  For reliability purposes, it
+is recommended that the superblock flag be used instead of the
+mount-time flag, as this will avoid re-mount isses with the root file
+system.  For reliability and performance reasons, the use of ACLs on
+UFS1 is discouraged; UFS2 extended attributes provide a more reliable
+storage mechanism for ACLs.
+
+Currently, support for ACLs on UFS1 requires the use of UFS1 EAs, which may
+be enabled by adding:
+
+	options UFS_EXTATTR
+
+to your kernel configuration file and rebuilding.  Because of filesystem
+mount atomicity requirements, it is also recommended that:
+
+	options UFS_EXTATTR_AUTOSTART
+
+be added to the kernel so as to support the atomic enabling of the
+required extended attributes with the filesystem mount operation.  To
+enable ACLs, two extended attributes must be available in the
+EXTATTR_NAMESPACE_SYSTEM namespace: "posix1e.acl_access", which holds
+the access ACL, and "posix1e.acl_default" which holds the default ACL
+for directories.  If you're using UFS1 Extended Attributes, the following
+commands may be used to create the necessary EA backing files for
+ACLs in the filesystem root of each filesystem.  In these examples,
+the root filesystem is used; see README.extattr for more details.
+
+  mkdir -p /.attribute/system
+  cd /.attribute/system
+  extattrctl initattr -p / 388 posix1e.acl_access
+  extattrctl initattr -p / 388 posix1e.acl_default
+
+On the next mount of the root filesystem, the attributes will be
+automatically started, and ACLs will be enabled.

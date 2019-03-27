@@ -1,0 +1,122 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2000 Alexander Langer
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 12, 2018
+.Dt MODULE 9
+.Os
+.Sh NAME
+.Nm module
+.Nd structure describing a kernel module
+.Sh DESCRIPTION
+Each module in the kernel is described by a
+.Vt module_t
+structure.
+The structure contains the name of the device, a unique ID number,
+a pointer to an event handler function and to an argument,
+which is given to the event handler,
+as well as some kernel internal data.
+.Pp
+The
+.Xr DECLARE_MODULE 9
+macro
+registers the module with the system.
+.Pp
+When the module is loaded, the event handler function is called with
+the
+.Fa what
+argument set to
+.Dv MOD_LOAD .
+.Pp
+On unload it is first called with
+.Fa what
+set to
+.Dv MOD_QUIESCE .
+If the unload was not forced, a non-zero return will prevent the
+unload from happening.
+.Pp
+If the unload continues
+.Fa what
+is set to
+.Dv MOD_UNLOAD .
+If the module returns non-zero to this, the unload will not happen.
+.Pp
+The difference between
+.Dv MOD_QUIESCE
+and
+.Dv MOD_UNLOAD
+is that the module should fail
+.Dv MOD_QUIESCE
+if it is currently in use, whereas
+.Dv MOD_UNLOAD
+should only fail if it is impossible to unload the module, for instance
+because there are memory references to the module which cannot be revoked.
+.Pp
+When the system is shutting down,
+.Fa what
+contains the value of
+.Dv MOD_SHUTDOWN .
+.Pp
+The module should return
+.Er EOPNOTSUPP
+for unsupported and unrecognized values of
+.Fa what .
+.Sh EXAMPLES
+.Bd -literal
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+
+static int foo_handler(module_t mod, int /*modeventtype_t*/ what,
+                       void *arg);
+
+static moduledata_t mod_data= {
+        "foo",
+        foo_handler,
+	NULL
+};
+
+MODULE_VERSION(foo, 1);
+MODULE_DEPEND(foo, bar, 1, 3, 4);
+
+DECLARE_MODULE(foo, mod_data, SI_SUB_EXEC, SI_ORDER_ANY);
+.Ed
+.Sh SEE ALSO
+.Xr DECLARE_MODULE 9 ,
+.Xr DEV_MODULE 9 ,
+.Xr DRIVER_MODULE 9 ,
+.Xr MODULE_DEPEND 9 ,
+.Xr MODULE_PNP_INFO 9 ,
+.Xr MODULE_VERSION 9 ,
+.Xr SYSCALL_MODULE 9
+.Pp
+.Pa /usr/share/examples/kld
+.Sh AUTHORS
+This manual page was written by
+.An Alexander Langer Aq Mt alex@FreeBSD.org .

@@ -1,0 +1,76 @@
+.\" Copyright (c) 1997 Brian Cully <shmit@kublai.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 25, 2014
+.Dt PTHREAD_CLEANUP_PUSH 3
+.Os
+.Sh NAME
+.Nm pthread_cleanup_push
+.Nd add a cleanup function for thread exit
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft void
+.Fn pthread_cleanup_push "void \*[lp]*cleanup_routine\*[rp]\*[lp]void *\*[rp]" "void *arg"
+.Sh DESCRIPTION
+The
+.Fn pthread_cleanup_push
+function adds
+.Fa cleanup_routine
+to the top of the stack of cleanup handlers that
+get called when the current thread exits.
+.Pp
+When
+.Fa cleanup_routine
+is called, it is passed
+.Fa arg
+as its only argument.
+.Pp
+The
+.Fn pthread_cleanup_push
+function is implemented as a macro that opens a new block.
+Invocations of this function must appear as standalone statements that are
+paired with a later call of
+.Xr pthread_cleanup_pop 3
+in the same lexical scope.
+.Sh RETURN VALUES
+The
+.Fn pthread_cleanup_push
+function does not return any value.
+.Sh ERRORS
+None
+.Sh SEE ALSO
+.Xr pthread_cleanup_pop 3 ,
+.Xr pthread_exit 3
+.Sh STANDARDS
+The
+.Fn pthread_cleanup_push
+function conforms to
+.St -p1003.1-96 .

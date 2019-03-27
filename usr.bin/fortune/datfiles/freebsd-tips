@@ -1,0 +1,801 @@
+This fortune brought to you by:
+$FreeBSD$
+%
+Any user that is a member of the wheel group can use "su -" to simulate
+a root login. You can add a user to the wheel group by editing /etc/group.
+		-- Konstantinos Konstantinidis <kkonstan@duth.gr>
+%
+By pressing "Scroll Lock" you can use the arrow keys to scroll backward
+through the console output.  Press "Scroll Lock" again to turn it off.
+Don't have a "Scroll Lock" key? The "Pause / Break" key acts alike.
+%
+Can't remember if you've installed a certain port or not? Try "pkg info
+-x port_name".
+%
+Ever wonder what those numbers after command names were, as in cat(1)?  It's
+the section of the manual the man page is in.  "man man" will tell you more.
+		-- David Scheidt <dscheidt@tumbolia.com>
+%
+Forget how to spell a word or a variation of a word? Use
+
+	look portion_of_word_you_know
+		-- Dru <genesis@istar.ca>
+%
+Forget what directory you are in? Type "pwd".
+		-- Dru <genesis@istar.ca>
+%
+Forget when Easter is? Try "ncal -e". If you need the date for Orthodox
+Easter, use "ncal -o" instead.
+		-- Dru <genesis@istar.ca>
+%
+FreeBSD is started up by the program 'init'.  The first thing init does when
+starting multiuser mode (ie, starting the computer up for normal use) is to
+run the shell script /etc/rc.  By reading /etc/rc and the /etc/rc.d/ scripts,
+you can learn a lot about how the system is put together, which again will
+make you more confident about what happens when you do something with it.
+%
+Handy bash(1) prompt:  PS1="\u@\h \w \!$ "
+		-- David Scheidt <dscheidt@tumbolia.com>
+%
+Having trouble using fetch through a firewall? Try setting the environment
+variable FTP_PASSIVE_MODE to yes, and see fetch(3) for more details.
+%
+If other operating systems have damaged your Master Boot Record, you can
+reinstall it with gpart(8). See
+"man gpart" for details.
+%
+If you accidentally end up inside vi, you can quit it by pressing Escape, colon
+(:), q (q), bang (!) and pressing return.
+%
+If you do not want to get beeps in X11 (X Windows), you can turn them off with
+
+	xset b off
+%
+If you have a CD-ROM drive in your machine, you can make the CD-ROM that is
+presently inserted available by typing 'mount /cdrom' as root.  The CD-ROM
+will be available under /cdrom/.  Remember to do 'umount /cdrom' before
+removing the CD-ROM (it will usually not be possible to remove the CD-ROM
+without doing this.)
+
+Note: This tip may not work in all configurations.
+%
+If you need a reminder to leave your terminal, type "leave +hhmm" where
+"hhmm" represents in how many hours and minutes you need to leave.
+		-- Dru <genesis@istar.ca>
+%
+If you need to ask a question on the FreeBSD-questions mailing list then
+
+	https://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/\
+		freebsd-questions/index.html
+
+contains lots of useful advice to help you get the best results.
+%
+If you write part of a filename in tcsh,
+pressing TAB will show you the available choices when there
+is more than one, or complete the filename if there's only one match.
+%
+If you `set watch = (0 any any)' in tcsh, you will be notified when
+someone logs in or out of your system.
+%
+If you use the C shell, add the following line to the .cshrc file in your
+home directory to prevent core files from being written to disk:
+
+	limit coredumpsize 0
+		-- Dru <genesis@istar.ca>
+%
+If you want df(1) and other commands to display disk sizes in
+kilobytes instead of 512-byte blocks, set BLOCKSIZE in your
+environment to 'K'.  You can also use 'M' for Megabytes or 'G' for
+Gigabytes.  If you want df(1) to automatically select the best size
+then use 'df -h'.
+%
+If you want to play CDs with FreeBSD, a utility for this is already included.
+Type 'cdcontrol' then 'help' to learn more.  (You may need to set the CDROM
+environment variable in order to make cdcontrol want to start.)
+%
+If you'd like to keep track of applications in the FreeBSD ports tree, take a
+look at FreshPorts;
+
+	https://www.freshports.org/
+%
+In order to make fetch (the FreeBSD downloading tool) ask for
+username/password when it encounters a password-protected web page, you can set
+the environment variable HTTP_AUTH to 'basic:*'.
+%
+In order to search for a string in some files, use 'grep' like this:
+
+	 grep "string" filename1 [filename2 filename3 ...]
+
+This will print out the lines in the files that contain the string.  grep can
+also do a lot more advanced searches - type 'man grep' for details.
+%
+In order to support national characters for European languages in tools like
+less without creating other nationalisation aspects, set the environment
+variable LC_ALL to 'en_US.UTF-8'.
+%
+"man firewall" will give advice for building a FreeBSD firewall using ipfw(8).
+		-- David Scheidt <dscheidt@tumbolia.com>
+%
+"man hier" will explain the way FreeBSD filesystems are normally laid out.
+		-- David Scheidt <dscheidt@tumbolia.com>
+%
+Man pages are divided into section depending on topic.  There are 9 different
+sections numbered from 1 (General Commands) to 9 (Kernel Developer's Manual).
+You can get an introduction to each topic by typing
+
+	man <number> intro
+
+In other words, to get the intro to general commands, type
+
+	man 1 intro
+%
+"man ports" gives many useful hints about installing FreeBSD ports.
+%
+"man security" gives very good advice on how to tune the security of your
+FreeBSD system.
+%
+"man tuning" gives some tips how to tune performance of your FreeBSD system.
+		-- David Scheidt <dscheidt@tumbolia.com>
+%
+Need to do a search in a manpage or in a file you've sent to a pager? Use
+"/search_word". To repeat the same search, type "n" for next or "p" for
+previous.
+		-- Dru <genesis@istar.ca>
+%
+Need to find the location of a program? Use "locate program_name".
+		-- Dru <genesis@istar.ca>
+%
+Need to leave your terminal for a few minutes and don't want to logout?
+Use "lock -p". When you return, use your password as the key to unlock the
+terminal.
+		-- Dru <genesis@istar.ca>
+%
+Need to quickly empty a file? Use ": > filename".
+		-- Dru <genesis@istar.ca>
+%
+Need to quickly return to your home directory? Type "cd".
+		-- Dru <genesis@istar.ca>
+%
+Need to remove all those ^M characters from a DOS file? Try
+
+	tr -d \\r < dosfile > newfile
+		-- Originally by Dru <genesis@istar.ca>
+%
+Need to see the calendar for this month? Simply type "cal".  To see the
+whole year, type "cal -y".
+		-- Dru <genesis@istar.ca>
+%
+Need to see which daemons are listening for connection requests? Use
+"sockstat -4l" for IPv4, and "sockstat -l" for IPv4 and IPv6.
+		-- Dru <genesis@istar.ca>
+%
+Need to see your routing table? Type "netstat -rn". The entry with the G
+flag is your gateway.
+		-- Dru <genesis@istar.ca>
+%
+Nice bash prompt: PS1='(\[$(tput md)\]\t <\w>\[$(tput me)\]) $(echo $?) \$ '
+		-- Mathieu <mathieu@hal.interactionvirtuelle.com>
+%
+Over quota?  "du -sh * | sort -h " will give you a sorted list of your
+directory sizes.
+		-- David Scheidt <dscheidt@tumbolia.com>
+%
+nc(1) (or netcat) is useful not only for redirecting input/output to
+TCP or UDP connections, but also for proxying them with inetd(8).
+%
+sh (the default Bourne shell in FreeBSD) supports command-line editing.  Just
+``set -o emacs'' or ``set -o vi'' to enable it. Use "<TAB>" key to complete
+paths.
+%
+Simple tcsh prompt: set prompt = '%# '
+%
+The default editor in FreeBSD is vi, which is efficient to use when you have
+learned it, but somewhat user-unfriendly.  To use ee (an easier but less
+powerful editor) instead, set the environment variable EDITOR to /usr/bin/ee
+%
+Time to change your password? Type "passwd" and follow the prompts.
+		-- Dru <genesis@istar.ca>
+%
+To change an environment variable in /bin/sh use:
+
+	$ VARIABLE="value"
+	$ export VARIABLE
+%
+To change an environment variable in tcsh you use: setenv NAME "value"
+where NAME is the name of the variable and "value" its new value.
+%
+To clear the screen, use "clear". To re-display your screen buffer, press
+the scroll lock key and use your page up button. When you're finished,
+press the scroll lock key again to get your prompt back.
+		-- Dru <genesis@istar.ca>
+%
+You can press Ctrl-L while in the shell to clear the screen.
+%
+To determine whether a file is a text file, executable, or some other type
+of file, use
+
+	file filename
+		-- Dru <genesis@istar.ca>
+%
+To do a fast search for a file, try
+
+	 locate filename
+
+locate uses a database that is updated every Saturday (assuming your computer
+is running FreeBSD at the time) to quickly find files based on name only.
+%
+To erase a line you've written at the command prompt, use "Ctrl-U".
+		-- Dru <genesis@istar.ca>
+%
+To find out the hostname associated with an IP address, use
+
+	drill -x IP_address
+		-- Dru <genesis@istar.ca>
+%
+To obtain a neat PostScript rendering of a manual page, use ``-t'' switch
+of the man(1) utility: ``man -t <topic>''.  For example:
+
+	man -t grep > grep.ps	# Save the PostScript version to a file
+or
+	man -t printf | lp	# Send the PostScript directly to printer
+%
+To quickly create an empty file, use "touch filename".
+		-- Dru <genesis@istar.ca>
+%
+To read a compressed file without having to first uncompress it, use
+"zcat" or "zless" to view it. There is also "bzcat", "bzless", "xzcat"
+and "xzless".
+		-- Dru <genesis@istar.ca>
+%
+To save disk space in your home directory, compress files you rarely
+use with "gzip filename".
+		-- Dru <genesis@istar.ca>
+%
+To search for files that match a particular name, use find(1); for example
+
+	find / -name "*GENERIC*" -ls
+
+will search '/', and all subdirectories, for files with 'GENERIC' in the name.
+      	--  Stephen Hilton <nospam@hiltonbsd.com>
+%
+To see all of the directories on your FreeBSD system, type
+
+	find / -type d | less
+
+All the files?
+
+	find / -type f | less
+%
+To see how long it takes a command to run, type the word "time" before the
+command name.
+		-- Dru <genesis@istar.ca>
+%
+To see how much disk space is left on your UFS partitions, use
+
+	df -h
+		-- Dru <genesis@istar.ca>
+%
+To see the 10 largest files in a directory or on a UFS partition, use
+
+	du -h /partition_or_directory_name | sort -rh | head
+		-- Dru <genesis@istar.ca>
+%
+To see the IP addresses currently set on your active interfaces, type
+"ifconfig -u".
+		-- Dru <genesis@istar.ca>
+%
+To see the last 10 lines of a long file, use "tail filename". To see the
+first 10 lines, use "head filename". To see new lines as they're appended
+to a file, use "tail -f filename".
+		-- Dru <genesis@istar.ca>
+%
+To see the last time that you logged in, use lastlogin(8).
+		-- Dru <genesis@istar.ca>
+%
+To see the MAC addresses of the NICs on your system, type
+
+	ifconfig -a
+		-- Dru <genesis@istar.ca>
+%
+To see the output from when your computer started, run dmesg(8).  If it has
+been replaced with other messages, look at /var/run/dmesg.boot.
+		-- Francisco Reyes <lists@natserv.com>
+%
+Want colour in your directory listings?  Use "ls -G".  "ls -F" is also useful,
+and they can be combined as "ls -FG".
+%
+Want to find a specific port, just type the following under /usr/ports
+or one its subdirectories:
+
+	make search name=<port-name>
+    or
+	make search key=<keyword>
+%
+Want to know how many words, lines, or bytes are contained in a file? Type
+"wc filename".
+		-- Dru <genesis@istar.ca>
+%
+Want to see how much virtual memory you're using? Just type "swapinfo" to
+be shown information about the usage of your swap partitions.
+%
+Want to strip UTF-8 BOM(Byte Order Mark) from given files?
+
+	sed -e '1s/^\xef\xbb\xbf//' < bomfile > newfile
+%
+Want to use sed(1) to edit a file in place?  Well, to replace every 'e' with
+an 'o', in a file named 'foo', you can do:
+
+	sed -i.bak s/e/o/g foo
+
+And you'll get a backup of the original in a file named 'foo.bak', but if you
+want no backup:
+
+	sed -i '' s/e/o/g foo
+%
+When you've made modifications to a file in vi(1) and then find that
+you can't write it, type ``<ESC>!rm -f %'' then ``:w!'' to force the
+write
+
+This won't work if you don't have write permissions to the directory
+and probably won't be suitable if you're editing through a symbolic link.
+
+If you have sudo(8) installed and permissions to use it, type 
+``<ESC>w ! sudo tee %'' to force a write.
+%
+You can adjust the volume of various parts of the sound system in your
+computer by typing 'mixer <type> <volume>'.  To get a list of what you can
+adjust, just type 'mixer'.
+%
+You can automatically download and install binary packages by doing
+
+	pkg install <package>
+
+This will also automatically install the packages that are dependencies
+for the package you install (ie, the packages it needs in order to work.)
+%
+You can change the video mode on all consoles by adding something like
+the following to /etc/rc.conf:
+
+	allscreens="80x30"
+
+You can use "vidcontrol -i mode | grep T" for a list of supported text
+modes.
+		-- Konstantinos Konstantinidis <kkonstan@duth.gr>
+%
+You can disable tcsh's terminal beep if you `set nobeep'.
+%
+You can install extra packages for FreeBSD by using the ports system.
+If you have installed it, you can download, compile, and install software by
+just typing
+
+	# cd /usr/ports/<category>/<portname>
+	# make install && make clean
+
+as root.  The ports infrastructure will download the software, change it so
+it works on FreeBSD, compile it, install it, register the installation so it
+will be possible to automatically uninstall it, and clean out the temporary
+working space it used.  You can remove an installed port you decide you do not
+want after all by typing
+
+	# cd /usr/ports/<category>/<portname>
+	# make deinstall
+
+as root.
+%
+You can look through a file in a nice text-based interface by typing
+
+	less filename
+%
+You can make a log of your terminal session with script(1).
+%
+You can often get answers to your questions about FreeBSD by searching in the
+FreeBSD mailing list archives at
+
+	http://freebsd.markmail.org
+%
+You can open up a new split-screen window in (n)vi with :N or :E and then
+use ^w to switch between the two.
+%
+You can permanently set environment variables for your shell by putting them
+in a startup file for the shell.  The name of the startup file varies
+depending on the shell - csh and tcsh uses .login, bash, sh, ksh and zsh use
+.profile.  When using bash, sh, ksh or zsh, don't forget to export the
+variable.
+%
+You can press Ctrl-D to quickly exit from a shell, or logout from a
+login shell.
+		-- Konstantinos Konstantinidis <kkonstan@duth.gr>
+%
+You can press up-arrow or down-arrow to walk through a list of
+previous commands in tcsh.
+%
+You can search for documentation on a keyword by typing
+
+	apropos keyword
+%
+You can `set autologout = 30' to have tcsh log you off automatically
+if you leave the shell idle for more than 30 minutes.
+%
+You can use aliases to decrease the amount of typing you need to do to get
+commands you commonly use.  Examples of fairly popular aliases include (in
+Bourne shell style, as in /bin/sh, bash, ksh, and zsh):
+
+	alias lf="ls -FA"
+	alias ll="ls -lA"
+	alias su="su -m"
+
+In csh or tcsh, these would be
+
+	alias lf ls -FA
+	alias ll ls -lA
+	alias su su -m
+
+To remove an alias, you can usually use 'unalias aliasname'.  To list all
+aliases, you can usually type just 'alias'.
+%
+You can use /etc/make.conf to control the options used to compile software
+on this system.  Example entries are in
+/usr/share/examples/etc/make.conf and in make.conf(5).
+For options that are set for building FreeBSD's kernel and its world, see
+src.conf(5).
+%
+You can use "pkg info" to see a list of packages you have installed.
+%
+You can use the 'fetch' command to retrieve files over ftp, http or https.
+
+	 fetch https://www.FreeBSD.org/index.html
+
+will download the front page of the FreeBSD web site.
+%
+You can use "whereis" to search standard binary, manual page and source
+directories for the specified programs. This can be particularly handy
+when you are trying to find where in the ports tree an application is.
+
+Try "whereis firefox" and "whereis whereis".
+		-- Konstantinos Konstantinidis <kkonstan@duth.gr>
+%
+Want to run the same command again?
+In many shells (e.g., tcsh, zsh, bash) you can type "!!".
+%
+Want to go the directory you were just in?
+Type "cd -"
+%
+Can't delete /usr/obj? Enter "chflags -R noschg /usr/obj" to remove the
+system immutable flag for all files in /usr/obj.
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+Want to list all files of an installed package? Enter
+"pkg info -l packagename".
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+Are you looking for a package? Search for it with
+"pkg search part_of_package_name"
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+If you want to recursively copy a directory preserving file and directory
+attributes use
+"cp -a source target"
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+Do you wonder what a terminal program is doing at the moment? dd(1) does not
+show any throughput? Hit "^T" (Control + t) to send SIGINFO to the process
+and see what it is doing.
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+Do you want to know which version of FreeBSD you are running? Enter
+"freebsd-version -ku" to display kernel and userland version.
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+If you want to end one or more processes at a time using a regular expression
+enter "pkill regex".
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+Do you want to run a program directly after some other process has ended? Use
+"pwait pid && new_program"
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+When you want your users to be able to reboot or shutdown FreeBSD, add them
+to the group "operator" and they are allowed to use shutdown(8) and poweroff(8).
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+If you need to create a FAT32 formatted USB thumb drive, find out its devicename
+running dmesg(8) after inserting it. Then create an MBR schema, a single slice and
+format it:
+
+# gpart create -s MBR ${devicename}
+# gpart add -t fat32 ${devicename}
+# newfs_msdos -F 32 -L thumbdrive ${devicename}s1
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+If you want to get a sorted list of all services that are started when FreeBSD boots,
+enter "service -e".
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+To easily configure your installed FreeBSD use bsdconfig(8).
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+After you compiled and installed a new version of FreeBSD, use etcupdate(8) to merge
+configuration updates.
+Run "etcupdate extract" once when your sources match your running system, then run
+"etcupdate" after every upgrade and "etcupdate resolve" to resolve any conflicts.
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+Do you want to do a binary upgrade of your running FreeBSD installation? Use freebsd-update(8).
+
+To install updates and patches for the running branch use
+# freebsd-update fetch install
+
+To upgrade to a newer release use
+# freebsd-update upgrade -r ${name_of_release}
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+To run rc scripts in /etc/rc.d and /usr/local/etc/rc.d use service(8).
+Run "service ${name_of_rc_script} start" to start a daemon and
+"service ${name_of_rc_script} stop" to stop it.
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+If you don't want to edit /etc/rc.conf directly, use sysrc(8) to add and remove entries.
+Use "sysrc name=value" to add an entry and "sysrc -x name" to delete an entry.
+
+		-- Lars Engels <lme@FreeBSD.org>
+%
+You can upload the dmesg of your system to help developers get an overview of commonly
+used hardware and peripherals for FreeBSD. Use the curl package to upload it like this:
+curl -v -d "nickname=$USER" -d "description=FreeBSD/$(uname -m) on \
+$(kenv smbios.system.maker) $(kenv smbios.system.product)" -d "do=addd" \
+--data-urlencode 'dmesg@/var/run/dmesg.boot' http://dmesgd.nycbug.org/index.cgi
+%
+Want to know how much memory (in bytes) your machine has installed? Let
+sysctl(8) tell you with the following command:
+
+sysctl hw.realmem
+
+The realmem value is memory before the kernel and modules are loaded, whereas
+hw.physmem is what is left after they were loaded. 
+
+The number of active CPUs is displayed using this command:
+
+sysctl hw.ncpu
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+When using ZFS as the file system the "df" command is reporting the pool size
+and not file system sizes. It also does not know about descendent ZFS
+datasets, snapshots, quotas, and reservations with their individual space usage. 
+Use the built-in "zfs list" command to get a better overview of space usage:
+
+zfs list -o space
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+To learn more about what your system is doing, take a look at systat(1). For
+example, to get various of statistics related to virtual memory usage, process
+scheduling, device interrupts, system name translation caching, and disk I/O,
+enter the following:
+
+systat -vmstat
+
+Other values are icmp, icmp6, ifstat, iostat, ip, ip6, netstat, pigs, sctp,
+swap, tcp, or zarc. You can switch between displays using :<display> and exit
+back to your shell by typing
+
+:quit
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+To set a quota of 10 GB for the user named foo on a ZFS dataset, run the
+following command:
+
+# zfs set userquota@foo=10G pool/home/foo
+
+The zfs userspace command can display the quota and current space usage:
+
+# zfs userspace pool/home/foo
+
+To unset a quota, assign "none" as the value. 
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+ZFS can display I/O statistics for a given pool using the iostat subcommand.
+By default, it will display one line of current activity.  To display stats
+every 5 seconds run the following command (cancel with CTRL+C):
+
+zpool iostat 5
+
+To view individual disk activities, specify the -v parameter:
+
+zpool iostat -v
+
+Of course, both can be combined. For more options, see zpool(8).
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+FreeBSD's top(1) utility displays CPU statistics by default.
+To display I/O activity for each process instead, run top like this:
+
+top -m io
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+ZFS keeps a history of commands run against a specific pool using the
+history subcommand to zpool:
+
+zpool history
+
+More details are available using the -i and -l parameters. Note that ZFS
+will not keep the complete pool history forever and will remove older
+events in favor of never ones.
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+To display the compression ratio for the ZFS dataset /var/log on the pool
+mypool, run the following command:
+
+zfs get refcompressratio mypool/var/log
+
+The refcompressratio will only display the compression ratio for that specific
+dataset, not the descendant datasets. To include the child datasets, the
+command looks like this:
+
+zfs get compressratio mypool/var
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+You can limit the depth of the displayed datasets in the "zfs list" output
+using the -d parameter. To display only the first level of datasets below
+mypool/usr and not the ones deeper than those, run this command:
+
+zfs list -d 1 mypool/usr
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+The "zfs list" command can be filtered in multiple ways. To display just
+the dataset name, use the -o parameter:
+
+zfs list -o name mypool/usr
+
+More columns and their order can be defined by separating them with commas:
+
+zfs list -o mountpoint,name,avail
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+The output of "zfs list" can be sorted by a specific column using -s.  To
+sort the datasets by the "used" column in ascending order, run this command:
+
+zfs list -s used
+
+To sort in descending order instead, use -S:
+
+zfs list -S used
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+To make the "zfs list" output more script-friendly, you can suppress the
+output of the headers for each column by passing the -H parameter:
+
+zfs list -H
+
+Another helpful option for script writers is -p, which displays the numbers
+in non-rounded, exact values:
+
+zfs list -p 
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+Before deleting a dataset or snapshot, perform a dry run using the -n
+parameter. This is to make sure you really want to delete just that
+dataset/snapshot and not any dependent ones. ZFS will display the resulting
+action when -n is combined with the -v option without actually performing
+it:
+
+zfs destroy -nrv mypool@mysnap
+
+Once you are sure this is exactly what you intend to do, remove the -n
+parameter to execute the destroy operation.
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+You can delete a range of ZFS snapshots (a-z) in multiple ways.
+The following will delete d and all earlier snapshots: 
+
+zfs destroy mypool/data@%d
+
+To delete d and all later snapshots:
+
+zfs destroy mypool/data@d%
+
+To delete all dataset snapshots:
+
+zfs destroy mypool/data@%
+
+Make sure to let ZFS perform a dry run (-n option) first and display (-v) what
+it would do to confirm that the delete operation is removing exactly what you 
+intended. 
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+To set a custom ZFS property on the mypool pool, you need to provide it
+using the "key1:key2=value" syntax, where the colon (:) is used as the
+separator and identifier from the built-in ZFS properties:
+
+# zfs set warranty:expires=2038-01-19 mypool
+
+The custom property is applied to all datasets and can be queried like any
+built-in properties using zfs get:
+
+zfs get warranty:expires mypool
+
+To reset the value of a custom property, use the inherit subcommand:
+
+# zfs inherit warranty:expires mypool
+
+Removing a custom property from a pool is done using the -r flag to the
+"zfs inherit" command:
+
+# zfs inherit -r warranty:expires mypool
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+To delete a range of ZFS snapshots, use the % (percent) character after the
+full path to the first snapshot that should be included. For example, to
+simulate deleting snapshots a through (including) d, use this command:
+
+# zfs destroy -rvn mypool/tmp@a%d
+
+Once you are sure that this is what you want, remove the -n option:
+
+# zfs destroy -rv mypool/tmp@a%d
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+You can prevent the removal of a ZFS snapshot by using the hold subcommand.
+For example, to prevent the snapshot called milestone from deletion, run the
+following command:
+
+# zfs hold milestone_hold mypool/projects@my_milestone
+
+The "zfs holds" command will list all current snapshots that are protected
+this way (-r for a recursive list):
+
+# zfs holds -r mypool
+
+The TIMESTAMP column in the output of the above command is from when the
+hold was created, not the snapshot it holds. The "zfs destroy" command will
+echo a "dataset is busy" message on the console when it encounters a hold.
+Use "zfs release" to release the hold on the snapshot:
+
+# zfs release milestone_hold mypool/projects@my_milestone
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+A user "sender" needs the following permissions set to send a ZFS dataset:
+
+# zfs allow -u sender send,snapshot txpool
+
+On the receiving side, the user "receiver" requires these permissions:
+
+# zfs allow -u receiver compression,mountpoint,mount,create,receive rxpool
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+Don't let your zpool fill up completely by creating a dataset with
+reservation.
+
+# zfs create -o refreservation=<5% of total pool space> <poolname>/reserved
+
+You can always shrink the reserve if you need the space, but your pool will
+always have space left this way.
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%

@@ -1,0 +1,677 @@
+Device Tree Compiler Manual
+===========================
+
+I - "dtc", the device tree compiler
+    1) Obtaining Sources
+    1.1) Submitting Patches
+    2) Description
+    3) Command Line
+    4) Source File
+    4.1) Overview
+    4.2) Properties
+    4.3) Labels and References
+
+II - The DT block format
+    1) Header
+    2) Device tree generalities
+    3) Device tree "structure" block
+    4) Device tree "strings" block
+
+
+III - libfdt
+
+IV - Utility Tools
+    1) convert-dtsv0 -- Conversion to Version 1
+    1) fdtdump
+
+
+I - "dtc", the device tree compiler
+===================================
+
+1) Sources
+
+Source code for the Device Tree Compiler can be found at git.kernel.org.
+
+The upstream repository is here:
+
+    git://git.kernel.org/pub/scm/utils/dtc/dtc.git
+    https://git.kernel.org/pub/scm/utils/dtc/dtc.git
+
+The gitweb interface for the upstream respository is:
+
+    https://git.kernel.org/cgit/utils/dtc/dtc.git/
+
+1.1) Submitting Patches
+
+Patches should be sent to the maintainers:
+	David Gibson <david@gibson.dropbear.id.au>
+	Jon Loeliger <jdl@jdl.com>
+and CCed to <devicetree-compiler@vger.kernel.org>.
+
+2) Description
+
+The Device Tree Compiler, dtc, takes as input a device-tree in
+a given format and outputs a device-tree in another format.
+Typically, the input format is "dts", a human readable source
+format, and creates a "dtb", or binary format as output.
+
+The currently supported Input Formats are:
+
+    - "dtb": "blob" format.  A flattened device-tree block with
+        header in one binary blob.
+
+    - "dts": "source" format.  A text file containing a "source"
+        for a device-tree.
+
+    - "fs" format.  A representation equivalent to the output of
+        /proc/device-tree  where nodes are directories and
+	properties are files.
+
+The currently supported Output Formats are:
+
+     - "dtb": "blob" format
+
+     - "dts": "source" format
+
+     - "asm": assembly language file.  A file that can be sourced
+        by gas to generate a device-tree "blob".  That file can
+        then simply be added to your Makefile.  Additionally, the
+        assembly file exports some symbols that can be used.
+
+
+3) Command Line
+
+The syntax of the dtc command line is:
+
+    dtc [options] [<input_filename>]
+
+Options:
+
+    <input_filename>
+	The name of the input source file.  If no <input_filename>
+	or "-" is given, stdin is used.
+
+    -b <number>
+	Set the physical boot cpu.
+
+    -f
+	Force.  Try to produce output even if the input tree has errors.
+
+    -h
+	Emit a brief usage and help message.
+
+    -I <input_format>
+	The source input format, as listed above.
+
+    -o <output_filename>
+	The name of the generated output file.  Use "-" for stdout.
+
+    -O <output_format>
+	The generated output format, as listed above.
+
+    -d <dependency_filename>
+	Generate a dependency file during compilation.
+
+    -q
+	Quiet: -q suppress warnings, -qq errors, -qqq all
+
+    -R <number>
+	Make space for <number> reserve map entries
+	Relevant for dtb and asm output only.
+
+    -@
+	Generates a __symbols__ node at the root node of the resulting blob
+	for any node labels used, and for any local references using phandles
+	it also generates a __local_fixups__ node that tracks them.
+
+	When using the /plugin/ tag all unresolved label references to
+	be tracked in the __fixups__ node, making dynamic resolution possible.
+
+    -A
+	Generate automatically aliases for all node labels. This is similar to
+	the -@ option (the __symbols__ node contain identical information) but
+	the semantics are slightly different since no phandles are automatically
+	generated for labeled nodes.
+
+    -S <bytes>
+	Ensure the blob at least <bytes> long, adding additional
+	space if needed.
+
+    -v
+	Print DTC version and exit.
+
+    -V <output_version>
+	Generate output conforming to the given <output_version>.
+	By default the most recent version is generated.
+	Relevant for dtb and asm output only.
+
+
+The <output_version> defines what version of the "blob" format will be
+generated.  Supported versions are 1, 2, 3, 16 and 17.  The default is
+always the most recent version and is likely the highest number.
+
+Additionally, dtc performs various sanity checks on the tree.
+
+
+4) Device Tree Source file
+
+4.1) Overview
+
+Here is a very rough overview of the layout of a DTS source file:
+
+
+    sourcefile:   versioninfo plugindecl list_of_memreserve devicetree
+
+    memreserve:   label 'memreserve' ADDR ADDR ';'
+		| label 'memreserve' ADDR '-' ADDR ';'
+
+    devicetree:   '/' nodedef
+
+    versioninfo:  '/' 'dts-v1' '/' ';'
+
+    plugindecl:   '/' 'plugin' '/' ';'
+                | /* empty */
+
+    nodedef:      '{' list_of_property list_of_subnode '}' ';'
+
+    property:     label PROPNAME '=' propdata ';'
+
+    propdata:     STRING
+		| '<' list_of_cells '>'
+		| '[' list_of_bytes ']'
+
+    subnode:      label nodename nodedef
+
+That structure forms a hierarchical layout of nodes and properties
+rooted at an initial node as:
+
+    / {
+    }
+
+Both classic C style and C++ style comments are supported.
+
+Source files may be directly included using the syntax:
+
+    /include/ "filename"
+
+
+4.2) Properties
+
+Properties are named, possibly labeled, values.  Each value
+is one of:
+
+    - A null-teminated C-like string,
+    - A numeric value fitting in 32 bits,
+    - A list of 32-bit values
+    - A byte sequence
+
+Here are some example property definitions:
+
+    - A property containing a 0 terminated string
+
+	property1 = "string_value";
+
+    - A property containing a numerical 32-bit hexadecimal value
+
+	property2 = <1234abcd>;
+
+    - A property containing 3 numerical 32-bit hexadecimal values
+
+	property3 = <12345678 12345678 deadbeef>;
+
+    - A property whose content is an arbitrary array of bytes
+
+	property4 = [0a 0b 0c 0d de ea ad be ef];
+
+
+Node may contain sub-nodes to obtain a hierarchical structure.
+For example:
+
+    - A child node named "childnode" whose unit name is
+      "childnode at address".  It in turn has a string property
+      called "childprop".
+
+	childnode@addresss {
+	    childprop = "hello\n";
+	};
+
+
+By default, all numeric values are hexadecimal.  Alternate bases
+may be specified using a prefix "d#" for decimal, "b#" for binary,
+and "o#" for octal.
+
+Strings support common escape sequences from C: "\n", "\t", "\r",
+"\(octal value)", "\x(hex value)".
+
+
+4.3) Labels and References
+
+Labels may be applied to nodes or properties.  Labels appear
+before a node name, and are referenced using an ampersand: &label.
+Absolute node path names are also allowed in node references.
+
+In this exmaple, a node is labled "mpic" and then referenced:
+
+    mpic:  interrupt-controller@40000 {
+	...
+    };
+
+    ethernet-phy@3 {
+	interrupt-parent = <&mpic>;
+	...
+    };
+
+And used in properties, lables may appear before or after any value:
+
+    randomnode {
+	prop: string = data: "mystring\n" data_end: ;
+	...
+    };
+
+
+
+II - The DT block format
+========================
+
+This chapter defines the format of the flattened device-tree
+passed to the kernel. The actual content of the device tree
+are described in the kernel documentation in the file
+
+    linux-2.6/Documentation/powerpc/booting-without-of.txt
+
+You can find example of code manipulating that format within
+the kernel.  For example, the file:
+
+	including arch/powerpc/kernel/prom_init.c
+
+will generate a flattened device-tree from the Open Firmware
+representation.  Other utilities such as fs2dt, which is part of
+the kexec tools, will generate one from a filesystem representation.
+Some bootloaders such as U-Boot provide a bit more support by
+using the libfdt code.
+
+For booting the kernel, the device tree block has to be in main memory.
+It has to be accessible in both real mode and virtual mode with no
+mapping other than main memory.  If you are writing a simple flash
+bootloader, it should copy the block to RAM before passing it to
+the kernel.
+
+
+1) Header
+---------
+
+The kernel is entered with r3 pointing to an area of memory that is
+roughly described in include/asm-powerpc/prom.h by the structure
+boot_param_header:
+
+    struct boot_param_header {
+        u32     magic;                  /* magic word OF_DT_HEADER */
+        u32     totalsize;              /* total size of DT block */
+        u32     off_dt_struct;          /* offset to structure */
+        u32     off_dt_strings;         /* offset to strings */
+        u32     off_mem_rsvmap;         /* offset to memory reserve map */
+        u32     version;                /* format version */
+        u32     last_comp_version;      /* last compatible version */
+
+        /* version 2 fields below */
+        u32     boot_cpuid_phys;        /* Which physical CPU id we're
+                                           booting on */
+        /* version 3 fields below */
+        u32     size_dt_strings;        /* size of the strings block */
+
+        /* version 17 fields below */
+        u32	size_dt_struct;		/* size of the DT structure block */
+    };
+
+Along with the constants:
+
+    /* Definitions used by the flattened device tree */
+    #define OF_DT_HEADER            0xd00dfeed      /* 4: version,
+						       4: total size */
+    #define OF_DT_BEGIN_NODE        0x1             /* Start node: full name
+						       */
+    #define OF_DT_END_NODE          0x2             /* End node */
+    #define OF_DT_PROP              0x3             /* Property: name off,
+						       size, content */
+    #define OF_DT_END               0x9
+
+All values in this header are in big endian format, the various
+fields in this header are defined more precisely below.  All "offset"
+values are in bytes from the start of the header; that is from the
+value of r3.
+
+   - magic
+
+     This is a magic value that "marks" the beginning of the
+     device-tree block header. It contains the value 0xd00dfeed and is
+     defined by the constant OF_DT_HEADER
+
+   - totalsize
+
+     This is the total size of the DT block including the header. The
+     "DT" block should enclose all data structures defined in this
+     chapter (who are pointed to by offsets in this header). That is,
+     the device-tree structure, strings, and the memory reserve map.
+
+   - off_dt_struct
+
+     This is an offset from the beginning of the header to the start
+     of the "structure" part the device tree. (see 2) device tree)
+
+   - off_dt_strings
+
+     This is an offset from the beginning of the header to the start
+     of the "strings" part of the device-tree
+
+   - off_mem_rsvmap
+
+     This is an offset from the beginning of the header to the start
+     of the reserved memory map. This map is a list of pairs of 64-
+     bit integers. Each pair is a physical address and a size. The
+     list is terminated by an entry of size 0. This map provides the
+     kernel with a list of physical memory areas that are "reserved"
+     and thus not to be used for memory allocations, especially during
+     early initialization. The kernel needs to allocate memory during
+     boot for things like un-flattening the device-tree, allocating an
+     MMU hash table, etc... Those allocations must be done in such a
+     way to avoid overriding critical things like, on Open Firmware
+     capable machines, the RTAS instance, or on some pSeries, the TCE
+     tables used for the iommu. Typically, the reserve map should
+     contain _at least_ this DT block itself (header,total_size). If
+     you are passing an initrd to the kernel, you should reserve it as
+     well. You do not need to reserve the kernel image itself. The map
+     should be 64-bit aligned.
+
+   - version
+
+     This is the version of this structure. Version 1 stops
+     here. Version 2 adds an additional field boot_cpuid_phys.
+     Version 3 adds the size of the strings block, allowing the kernel
+     to reallocate it easily at boot and free up the unused flattened
+     structure after expansion. Version 16 introduces a new more
+     "compact" format for the tree itself that is however not backward
+     compatible. Version 17 adds an additional field, size_dt_struct,
+     allowing it to be reallocated or moved more easily (this is
+     particularly useful for bootloaders which need to make
+     adjustments to a device tree based on probed information). You
+     should always generate a structure of the highest version defined
+     at the time of your implementation. Currently that is version 17,
+     unless you explicitly aim at being backward compatible.
+
+   - last_comp_version
+
+     Last compatible version. This indicates down to what version of
+     the DT block you are backward compatible. For example, version 2
+     is backward compatible with version 1 (that is, a kernel build
+     for version 1 will be able to boot with a version 2 format). You
+     should put a 1 in this field if you generate a device tree of
+     version 1 to 3, or 16 if you generate a tree of version 16 or 17
+     using the new unit name format.
+
+   - boot_cpuid_phys
+
+     This field only exist on version 2 headers. It indicate which
+     physical CPU ID is calling the kernel entry point. This is used,
+     among others, by kexec. If you are on an SMP system, this value
+     should match the content of the "reg" property of the CPU node in
+     the device-tree corresponding to the CPU calling the kernel entry
+     point (see further chapters for more informations on the required
+     device-tree contents)
+
+   - size_dt_strings
+
+     This field only exists on version 3 and later headers.  It
+     gives the size of the "strings" section of the device tree (which
+     starts at the offset given by off_dt_strings).
+
+   - size_dt_struct
+
+     This field only exists on version 17 and later headers.  It gives
+     the size of the "structure" section of the device tree (which
+     starts at the offset given by off_dt_struct).
+
+So the typical layout of a DT block (though the various parts don't
+need to be in that order) looks like this (addresses go from top to
+bottom):
+
+             ------------------------------
+       r3 -> |  struct boot_param_header  |
+             ------------------------------
+             |      (alignment gap) (*)   |
+             ------------------------------
+             |      memory reserve map    |
+             ------------------------------
+             |      (alignment gap)       |
+             ------------------------------
+             |                            |
+             |    device-tree structure   |
+             |                            |
+             ------------------------------
+             |      (alignment gap)       |
+             ------------------------------
+             |                            |
+             |     device-tree strings    |
+             |                            |
+      -----> ------------------------------
+      |
+      |
+      --- (r3 + totalsize)
+
+  (*) The alignment gaps are not necessarily present; their presence
+      and size are dependent on the various alignment requirements of
+      the individual data blocks.
+
+
+2) Device tree generalities
+---------------------------
+
+This device-tree itself is separated in two different blocks, a
+structure block and a strings block. Both need to be aligned to a 4
+byte boundary.
+
+First, let's quickly describe the device-tree concept before detailing
+the storage format. This chapter does _not_ describe the detail of the
+required types of nodes & properties for the kernel, this is done
+later in chapter III.
+
+The device-tree layout is strongly inherited from the definition of
+the Open Firmware IEEE 1275 device-tree. It's basically a tree of
+nodes, each node having two or more named properties. A property can
+have a value or not.
+
+It is a tree, so each node has one and only one parent except for the
+root node who has no parent.
+
+A node has 2 names. The actual node name is generally contained in a
+property of type "name" in the node property list whose value is a
+zero terminated string and is mandatory for version 1 to 3 of the
+format definition (as it is in Open Firmware). Version 16 makes it
+optional as it can generate it from the unit name defined below.
+
+There is also a "unit name" that is used to differentiate nodes with
+the same name at the same level, it is usually made of the node
+names, the "@" sign, and a "unit address", which definition is
+specific to the bus type the node sits on.
+
+The unit name doesn't exist as a property per-se but is included in
+the device-tree structure. It is typically used to represent "path" in
+the device-tree. More details about the actual format of these will be
+below.
+
+The kernel powerpc generic code does not make any formal use of the
+unit address (though some board support code may do) so the only real
+requirement here for the unit address is to ensure uniqueness of
+the node unit name at a given level of the tree. Nodes with no notion
+of address and no possible sibling of the same name (like /memory or
+/cpus) may omit the unit address in the context of this specification,
+or use the "@0" default unit address. The unit name is used to define
+a node "full path", which is the concatenation of all parent node
+unit names separated with "/".
+
+The root node doesn't have a defined name, and isn't required to have
+a name property either if you are using version 3 or earlier of the
+format. It also has no unit address (no @ symbol followed by a unit
+address). The root node unit name is thus an empty string. The full
+path to the root node is "/".
+
+Every node which actually represents an actual device (that is, a node
+which isn't only a virtual "container" for more nodes, like "/cpus"
+is) is also required to have a "device_type" property indicating the
+type of node .
+
+Finally, every node that can be referenced from a property in another
+node is required to have a "linux,phandle" property. Real open
+firmware implementations provide a unique "phandle" value for every
+node that the "prom_init()" trampoline code turns into
+"linux,phandle" properties. However, this is made optional if the
+flattened device tree is used directly. An example of a node
+referencing another node via "phandle" is when laying out the
+interrupt tree which will be described in a further version of this
+document.
+
+This "linux, phandle" property is a 32-bit value that uniquely
+identifies a node. You are free to use whatever values or system of
+values, internal pointers, or whatever to generate these, the only
+requirement is that every node for which you provide that property has
+a unique value for it.
+
+Here is an example of a simple device-tree. In this example, an "o"
+designates a node followed by the node unit name. Properties are
+presented with their name followed by their content. "content"
+represents an ASCII string (zero terminated) value, while <content>
+represents a 32-bit hexadecimal value. The various nodes in this
+example will be discussed in a later chapter. At this point, it is
+only meant to give you a idea of what a device-tree looks like. I have
+purposefully kept the "name" and "linux,phandle" properties which
+aren't necessary in order to give you a better idea of what the tree
+looks like in practice.
+
+  / o device-tree
+      |- name = "device-tree"
+      |- model = "MyBoardName"
+      |- compatible = "MyBoardFamilyName"
+      |- #address-cells = <2>
+      |- #size-cells = <2>
+      |- linux,phandle = <0>
+      |
+      o cpus
+      | | - name = "cpus"
+      | | - linux,phandle = <1>
+      | | - #address-cells = <1>
+      | | - #size-cells = <0>
+      | |
+      | o PowerPC,970@0
+      |   |- name = "PowerPC,970"
+      |   |- device_type = "cpu"
+      |   |- reg = <0>
+      |   |- clock-frequency = <5f5e1000>
+      |   |- 64-bit
+      |   |- linux,phandle = <2>
+      |
+      o memory@0
+      | |- name = "memory"
+      | |- device_type = "memory"
+      | |- reg = <00000000 00000000 00000000 20000000>
+      | |- linux,phandle = <3>
+      |
+      o chosen
+        |- name = "chosen"
+        |- bootargs = "root=/dev/sda2"
+        |- linux,phandle = <4>
+
+This tree is almost a minimal tree. It pretty much contains the
+minimal set of required nodes and properties to boot a linux kernel;
+that is, some basic model informations at the root, the CPUs, and the
+physical memory layout.  It also includes misc information passed
+through /chosen, like in this example, the platform type (mandatory)
+and the kernel command line arguments (optional).
+
+The /cpus/PowerPC,970@0/64-bit property is an example of a
+property without a value. All other properties have a value. The
+significance of the #address-cells and #size-cells properties will be
+explained in chapter IV which defines precisely the required nodes and
+properties and their content.
+
+
+3) Device tree "structure" block
+
+The structure of the device tree is a linearized tree structure. The
+"OF_DT_BEGIN_NODE" token starts a new node, and the "OF_DT_END_NODE"
+ends that node definition. Child nodes are simply defined before
+"OF_DT_END_NODE" (that is nodes within the node). A 'token' is a 32
+bit value. The tree has to be "finished" with a OF_DT_END token
+
+Here's the basic structure of a single node:
+
+     * token OF_DT_BEGIN_NODE (that is 0x00000001)
+     * for version 1 to 3, this is the node full path as a zero
+       terminated string, starting with "/". For version 16 and later,
+       this is the node unit name only (or an empty string for the
+       root node)
+     * [align gap to next 4 bytes boundary]
+     * for each property:
+        * token OF_DT_PROP (that is 0x00000003)
+        * 32-bit value of property value size in bytes (or 0 if no
+          value)
+        * 32-bit value of offset in string block of property name
+        * property value data if any
+        * [align gap to next 4 bytes boundary]
+     * [child nodes if any]
+     * token OF_DT_END_NODE (that is 0x00000002)
+
+So the node content can be summarized as a start token, a full path,
+a list of properties, a list of child nodes, and an end token. Every
+child node is a full node structure itself as defined above.
+
+NOTE: The above definition requires that all property definitions for
+a particular node MUST precede any subnode definitions for that node.
+Although the structure would not be ambiguous if properties and
+subnodes were intermingled, the kernel parser requires that the
+properties come first (up until at least 2.6.22).  Any tools
+manipulating a flattened tree must take care to preserve this
+constraint.
+
+4) Device tree "strings" block
+
+In order to save space, property names, which are generally redundant,
+are stored separately in the "strings" block. This block is simply the
+whole bunch of zero terminated strings for all property names
+concatenated together. The device-tree property definitions in the
+structure block will contain offset values from the beginning of the
+strings block.
+
+
+III - libfdt
+============
+
+This library should be merged into dtc proper.
+This library should likely be worked into U-Boot and the kernel.
+
+
+IV - Utility Tools
+==================
+
+1) convert-dtsv0 -- Conversion to Version 1
+
+convert-dtsv0 is a small utility program which converts (DTS)
+Device Tree Source from the obsolete version 0 to version 1.
+
+Version 1 DTS files are marked by line "/dts-v1/;" at the top of the file.
+
+The syntax of the convert-dtsv0 command line is:
+
+    convert-dtsv0 [<input_filename ... >]
+
+Each file passed will be converted to the new /dts-v1/ version by creating
+a new file with a "v1" appended the filename.
+
+Comments, empty lines, etc. are preserved.
+
+
+2) fdtdump -- Flat Device Tree dumping utility
+
+The fdtdump program prints a readable version of a flat device tree file.
+
+The syntax of the fdtdump command line is:
+
+    fdtdump <DTB-file-name>

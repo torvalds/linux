@@ -1,0 +1,31 @@
+# $FreeBSD$
+
+failures=''
+ok=''
+
+testcase() {
+	code="$1"
+
+	unset v
+	eval ": \$($code)"
+
+	if [ "${v:+bad}" = "" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "Failure for $code"
+	fi
+}
+
+testcase ': ${v=0}'
+testcase ': ${v:=0}'
+testcase ': $((v=1))'
+testcase ': $((v+=1))'
+w='v=1'
+testcase ': $(($w))'
+testcase ': $((${$+v=1}))'
+testcase ': $((v${$+=1}))'
+testcase ': $((v $(echo =) 1))'
+testcase ': $(($(echo $w)))'
+
+test "x$failures" = x

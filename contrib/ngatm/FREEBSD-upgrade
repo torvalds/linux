@@ -1,0 +1,13 @@
+$FreeBSD$
+
+This is the user part of the NgATM stuff. Be careful to feed changes
+back to the maintainer <harti@freebsd.org>, because the code here is
+actually shared with other environments besides FreeBSD.
+
+Import should be done by:
+
+	cvs import \
+		-m "Virgin import of NgATM user part X.Y" \
+		src/contrib/ngatm BEGEMOT NGATM_X_Y
+
+harti

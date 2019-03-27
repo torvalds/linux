@@ -1,0 +1,152 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)uniq.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd May 1, 2018
+.Dt UNIQ 1
+.Os
+.Sh NAME
+.Nm uniq
+.Nd report or filter out repeated lines in a file
+.Sh SYNOPSIS
+.Nm
+.Op Fl c
+.Op Fl d | Fl u
+.Op Fl i
+.Op Fl f Ar num
+.Op Fl s Ar chars
+.Oo
+.Ar input_file
+.Op Ar output_file
+.Oc
+.Sh DESCRIPTION
+The
+.Nm
+utility reads the specified
+.Ar input_file
+comparing adjacent lines, and writes a copy of each unique input line to
+the
+.Ar output_file .
+If
+.Ar input_file
+is a single dash
+.Pq Sq Fl
+or absent, the standard input is read.
+If
+.Ar output_file
+is absent, standard output is used for output.
+The second and succeeding copies of identical adjacent input lines are
+not written.
+Repeated lines in the input will not be detected if they are not adjacent,
+so it may be necessary to sort the files first.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl c , Fl -count
+Precede each output line with the count of the number of times the line
+occurred in the input, followed by a single space.
+.It Fl d , Fl -repeated
+Only output lines that are repeated in the input.
+.It Fl f Ar num , Fl -skip-fields Ar num
+Ignore the first
+.Ar num
+fields in each input line when doing comparisons.
+A field is a string of non-blank characters separated from adjacent fields
+by blanks.
+Field numbers are one based, i.e., the first field is field one.
+.It Fl i , Fl -ignore-case
+Case insensitive comparison of lines.
+.It Fl s Ar chars , Fl -skip-chars Ar chars
+Ignore the first
+.Ar chars
+characters in each input line when doing comparisons.
+If specified in conjunction with the
+.Fl f , Fl -unique
+option, the first
+.Ar chars
+characters after the first
+.Ar num
+fields will be ignored.
+Character numbers are one based, i.e., the first character is character one.
+.It Fl u , Fl -unique
+Only output lines that are not repeated in the input.
+.\".It Fl Ns Ar n
+.\"(Deprecated; replaced by
+.\".Fl f ) .
+.\"Ignore the first n
+.\"fields on each input line when doing comparisons,
+.\"where n is a number.
+.\"A field is a string of non-blank
+.\"characters separated from adjacent fields
+.\"by blanks.
+.\".It Cm \&\(pl Ns Ar n
+.\"(Deprecated; replaced by
+.\".Fl s ) .
+.\"Ignore the first
+.\".Ar m
+.\"characters when doing comparisons, where
+.\".Ar m
+.\"is a
+.\"number.
+.El
+.Sh ENVIRONMENT
+The
+.Ev LANG ,
+.Ev LC_ALL ,
+.Ev LC_COLLATE
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std
+.Sh COMPATIBILITY
+The historic
+.Cm \&\(pl Ns Ar number
+and
+.Fl Ns Ar number
+options have been deprecated but are still supported in this implementation.
+.Sh SEE ALSO
+.Xr sort 1
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001
+as amended by Cor.\& 1-2002.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v3 .

@@ -1,0 +1,167 @@
+Simple_httpd  -  A small and free Web server
+
+"Simple_httpd is like /usr/bin/mail is to mail clients, no frills."
+
+This HTTP server can be used in any FreeBSD/PicoBSD application.
+
+It has been tested under FreeBSD 2.2.x, 3.x and 4.x. It might work 
+on other OS systems, but it's for FreeBSD primarily.
+
+The main advantage to Simple_httpd is that it is very small.
+The 25K binary can satisfy most needs in a small or embedded
+appplication.  If you want a full featured server see 
+/usr/ports/www/apache* or http://www.apache.org 
+
+Simple_httpd is released under a BSD style copyright that unlike
+GPL is embedded developer friendly.
+
+The server is designed to be run in one of two modes.  The standard
+mode is a httpd server running in the background serving up a directory
+of html,gif,cgi whatever.  Your traditional www server.
+
+The "fetch" mode supports file transfer over httpd.  This 
+is best thought of as mate for fetch(1).  This feature can be
+useful to transfer a file from one host to another.
+
+Simple_httpd has the ability to run CGI scripts.  All CGI
+scripts must be located in ${DOCUMENT_ROOT}/cgi-bin.  The
+server currently only sets 3 environment variables before calling
+the script.
+
+CGI Environment variables are below:
+
+SERVER_SOFTWARE = FreeBSD/PicoBSD
+REMOTE_HOST = client.canada_lower_taxes.com
+REMOTE_ADDR = 200.122.13.108
+
+In most target applications for this server the extra DNS traffic from
+the remote_addr lookup will likely be on the local lan anyway and not
+on the other side of the internet.  You can turn it off yourself in
+the code if you want to speed the whole process up.  Be sure to turn
+it off for the logfile also.
+
+How to use it?
+==============
+
+Compile with make, run as follows
+
+usage: simple_httpd 	[-vD]
+			[-d directory]
+			[-g grpid]
+			[-l logfile]
+			[-p port]
+or
+usage: simple_httpd [-p port] -f filename
+
+-v
+Run the server verbose.  Show the program options that will be used for this
+process.  Will only show information during startup, no messages will
+be displayed while serving requests.  In other words you can still 
+daemonize without fear of output on stdout.
+
+-D
+Do not daemonize.  The server will not run in the background.  It will
+stay attached to the tty.  This is useful for debugging.  In this
+mode no log file is created.  Logging info is to stdout.
+
+This option is automatically selected if fetch option is selected.
+
+-d directory
+The html document directory, if nothing is provided the default is 
+/httphome if UID is root, otherwise document root is ${HOME}/public_html
+
+-l logfile
+Set the logfile to use. Log messages will be written to /var/log/jhttpd.log
+if you are root and ${HOME}/jhttpd.log otherwise. If you don't want a 
+log file try "-l /dev/null"
+
+-p port
+Set the port httpd server will listen to.  Default is port 80 if
+you are root and 1080 if you are not. 
+
+-f filename
+This is the only option needed to use the "fetch" feature.  The file
+specified will be the ONLY file served to ANY GET request from a browser
+or fetch(1).
+
+Example
+=======
+
+Standard Mode:
+--------------
+If you have the FreeBSD handbook installed on your machine and would 
+like to serve it up over http for a quick look you could do this
+
+simple_httpd -d /usr/share/doc/handbook -l /usr/tmp/jlog.txt -p 1088 -v
+
+Any browser would be able to look at the handbook with
+http://whatever_host/handbook.html:1088
+
+I'm using 1088 as the port since I already have apache running on port 80
+and port 1080 on my host.
+
+Please note, the handbook is not installed by default in FreeBSD 3.x
+It must be installed from the ports collection first if you want to
+try this.
+
+Another simple example is to browse your local ports collection:
+
+cd /usr/ports
+make readmes   #wait about 1 hour!
+simple_httpd -p 1080 -v -d /usr/ports
+
+Then point your browser at http://whatever_host/README.html
+
+Fetch Mode:
+--------------
+This is designed to be used in conjunction with fetch(3).  It allows
+for easy transfer of files from one host to another without messy
+authentication or pathnames required with ftp.  The file to be
+served up must be readable by the user running simple_httpd.
+This is not a magic way to avoid permissions and read files.
+
+The daemon will only serve up ONE file.  The file specified will 
+be returned for every GET request regardless of what the browser
+asks for.  This allows for on the fly naming.
+
+sender# simple_httpd -f /usr/tmp/big_file.tgz
+receiver# fetch http://sender.com/Industrial_Secrets.tgz
+
+big_file.tgz was transferred from one machine to another and renamed
+Industrial_Secrets.tgz at the same time.
+
+Tunneling over other TCP ports.  Choose something that firewall
+will probably pass. See /etc/services.
+
+sender# simple_httpd -p 53 -f /usr/tmp/big_file.tgz
+receiver# fetch http://sender.com:53/Industrial_Secrets.tgz
+
+To Do
+=====
+
+Simple authentication would be very useful [understatment].
+/etc/passwd or PAM would be nice.
+
+I think a netmask option would be good. Most internet appliances
+probably want to restrict traffic to local ethernet anyway.
+ie: Allow anything from my class C.
+
+The server always has 1 zombie process hanging around when it
+runs as a daemon.  Should fix so that it doesn't happen.
+
+Anything to make it faster!
+
+Man page
+
+If anyone has any improvements or ways to easily implement something
+please let me <wlloyd@slap.net> know.  If you make some neat embedded
+device with PicoBSD I want to know too!
+
+Credits
+=======
+
+This program was originally contributed by Marc Nicholas <marc@netstor.com>
+
+Major rewrite by William Lloyd <wlloyd@slap.net>
+
+$FreeBSD$

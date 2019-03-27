@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  
+  <PropertyGroup>
+    <_PropertySheetDisplayName>x64 Settings</_PropertySheetDisplayName>
+  </PropertyGroup>
+    
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <!-- Note that Win64 defines may cause WIN32 to become defined when using windows headers, 
+      but _WIN32 implies Windows 32 bit or above. If the standard headers are not included 
+      these are sometimes required even for 64 bit builds and should never cause harm there.-->
+      <PreprocessorDefinitions>WIN32;_WIN32;WIN64;_WIN64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>x64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <Link>
+      <TargetMachine>MachineX64</TargetMachine>
+    </Link>
+    <Lib>
+      <AdditionalOptions>/MACHINE:X64 %(AdditionalOptions)</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+
+</Project>

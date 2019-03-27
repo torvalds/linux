@@ -1,0 +1,123 @@
+.\"
+.\" Copyright (c) 2014 Sandvine Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 8, 2015
+.Dt IOVCTL 8
+.Os
+.Sh NAME
+.Nm iovctl
+.Nd "PCI SR-IOV configuration utility"
+.Sh SYNOPSIS
+.Nm
+.Fl C
+.Op Fl f Ar config-file
+.Op Fl n
+.Nm
+.Fl D
+.Op Fl f Ar config-file | Fl d Ar device
+.Op Fl n
+.Nm
+.Fl S
+.Op Fl f Ar config-file | Fl d Ar device
+.Sh DESCRIPTION
+The
+.Nm
+utility creates or destroys PCI Single-Root I/O Virtualization
+.Pq SR-IOV
+Virtual Functions
+.Pq VFs .
+When invoked with the
+.Fl C
+flag,
+.Nm
+creates VFs as children of the Physical Function
+.Pq PF
+configured in the specified configuration file.
+When invoked with the
+.Fl D
+flag,
+.Nm
+destroys all VFs that are children of the specified device.
+Available PF devices can be seen in
+.Pa /dev/iov/ .
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl C
+Enable SR-IOV on the specified PF device and create VF children.
+This operation will fail if the PF already has VF children.
+This option must be used in conjunction with the
+.Fl f
+option.
+.It Fl d Ar device
+Specify the PF device to use for the given operation.
+.Ar device
+may either be the name of a PF device, or a full path name to a node in
+.Pa /dev/iov/ .
+This option may not be used with the
+.Fl C
+option.
+.It Fl D
+Delete all VF children of the specified PF device.
+This operation will fail if SR-IOV is not currently enabled on the specified
+device.
+.It Fl f Ar config-file
+Specify the pathname of the configuration file.
+For the
+.Fl C
+option, this file will be used to specify all configuration values.
+For the
+.Fl D
+and
+.Fl S
+options, this file will only be used to specify the name of the PF device.
+.Pp
+See
+.Xr iovctl.conf
+for a description of the config file format and documentation of the
+configuration parameters that apply to all PF drivers.
+See the PF driver manual page for configuration parameters specific to
+particular hardware.
+.It Fl n
+Perform a dry-run.
+Perform all validation of the specified action and print what would be done,
+but do not perform the actual creation or destruction of VFs.
+This option may not be used with the
+.Fl S
+flag.
+.It Fl S
+Read the configuration schema from the specified device and print its contents
+to stdout.
+This action may be used to discover the configuration parameters supported on
+a given PF device.
+.El
+.Sh SEE ALSO
+.Xr iovctl.conf 5 ,
+.Xr rc.conf 5
+.Sh AUTHORS
+This manual page was written by
+.An Ryan Stone Aq Mt rstone@FreeBSD.org .

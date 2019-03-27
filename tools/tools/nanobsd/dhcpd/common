@@ -1,0 +1,274 @@
+# $FreeBSD$
+
+#-
+# Copyright (c) 2014 M. Warner Losh.
+# Copyright (c) 2010 iXsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL iXsystems, Inc OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#
+# This file is heavily derived from both Sam Leffler's Avilia config,
+# as well as the BSDRP project's config file.  Neither of these have
+# an explicit copyright/license statement, but are implicitly BSDL. This
+# example has been taken from the FreeNAS project (an early version) and
+# simplified to meet the needs of the example.
+#
+
+# NB: You want the other file
+
+NANO_PMAKE="make -j $(sysctl -n hw.ncpu)"
+
+NANO_CFG_BASE=$(pwd)
+NANO_CFG_BASE=${NANO_CFG_BASE%/dhcpd}
+NANO_SRC=$(pwd)
+NANO_SRC=${NANO_SRC%/tools/tools/nanobsd/dhcpd}
+NANO_OBJ=${NANO_SRC}/../dhcpd/obj
+# Where cust_pkg() finds packages to install
+#XXX: Is this the right place?
+#NANO_PORTS=$(realpath ${NANO_SRC}/../ports)
+NANO_PORTS=/usr/ports
+NANO_PACKAGE_DIR=${NANO_SRC}/${NANO_TOOLS}/Pkg
+NANO_DATADIR=${NANO_OBJ}/_.data
+NANO_DATASIZE=40960
+NANO_INIT_IMG2=0
+unset MAKEOBJDIRPREFIX
+
+# this to go into nanobsd.sh
+NANO_PORTS=${NANO_PORTS:-/usr/ports}
+
+customize_cmd cust_allow_ssh_root
+
+add_etc_make_conf()
+{
+	touch ${NANO_WORLDDIR}/etc/make.conf
+}
+customize_cmd add_etc_make_conf
+
+clean_usr_local()
+{
+	LOCAL_DIR=${NANO_WORLDDIR}/usr/local
+	pprint 2 "Clean and create world directory (${LOCAL_DIR})"
+	if rm -rf ${LOCAL_DIR}/ > /dev/null 2>&1 ; then
+		true
+	else
+		chflags -R noschg ${LOCAL_DIR}/
+		rm -rf ${LOCAL_DIR}/
+	fi
+	for f in bin etc lib libdata libexec sbin share; do
+		mkdir -p ${LOCAL_DIR}/$f
+	done
+}
+customize_cmd clean_usr_local
+
+cust_install_machine_files()
+{
+	echo "cd ${NANO_CFG_BASE}/Files"
+	cd ${NANO_CFG_BASE}/Files
+	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${NANO_WORLDDIR}
+}
+customize_cmd cust_install_files
+customize_cmd cust_install_machine_files 
+
+buildenv()
+{
+	cd ${NANO_SRC}
+	env __MAKE_CONF=${NANO_MAKE_CONF_BUILD} DESTDIR=${NANO_WORLDDIR} make buildenv
+}
+
+NANO_MAKEFS="makefs -B big \
+	-o bsize=4096,fsize=512,density=8192,optimization=space"
+export NANO_MAKEFS
+
+# NB: leave c++ enabled so devd can be built
+CONF_BUILD="
+WITHOUT_ACPI=true
+WITHOUT_ATM=true
+WITHOUT_AUDIT=true
+WITHOUT_BIND_DNSSEC=true
+WITHOUT_BIND_ETC=true
+WITHOUT_BIND_LIBS_LWRES=true
+WITHOUT_BLUETOOTH=true
+WITHOUT_CALENDAR=true
+WITHOUT_CVS=true
+WITHOUT_DICT=true
+WITHOUT_EXAMPLES=true
+WITHOUT_FORTRAN=true
+WITHOUT_GAMES=true
+WITHOUT_GCOV=true
+WITHOUT_GPIB=true
+WITHOUT_HTML=true
+WITHOUT_I4B=true
+WITHOUT_IPFILTER=true
+WITHOUT_IPX=true
+WITHOUT_LIBKSE=true
+WITHOUT_LOCALES=true
+WITHOUT_LPR=true
+WITHOUT_MAN=true
+WITHOUT_NETCAT=true
+WITHOUT_NIS=true
+WITHOUT_NLS=true
+WITHOUT_NS_CACHING=true
+WITHOUT_OBJC=true
+WITHOUT_PROFILE=true
+WITHOUT_SENDMAIL=true
+WITHOUT_SHAREDOCS=true
+WITHOUT_SYSCONS=true
+WITHOUT_LIB32=true
+"
+CONF_INSTALL="$CONF_BUILD
+INSTALL_NODEBUG=t
+NOPORTDOCS=t
+NO_INSTALL_MANPAGES=t
+"
+# The following would help...
+# WITHOUT_TOOLCHAIN=true		can't build ports
+# WITHOUT_INSTALLLIB=true		libgcc.a
+#
+# from the build
+# WITHOUT_INFO=true			makeinfo
+# WITHOUT_RCS=true
+PKG_ONLY_MAKE_CONF="
+WITHOUT_TOOLCHAIN=true
+WITHOUT_INSTALLLIB=true
+WITHOUT_INFO=true
+WITHOUT_RCS=true
+"
+
+NANO_PACKAGE_ONLY=1
+
+# install a package from a pre-built binary
+do_add_pkg ()
+{
+	# Need to create ${NANO_OBJ}/ports in this add_pkg_${port} function
+	set -x
+	mkdir -p ${NANO_OBJ}/ports/distfiles
+	mkdir -p ${NANO_OBJ}/ports/packages
+	mkdir -p ${NANO_WORLDDIR}/usr/ports/packages
+	mkdir -p ${NANO_WORLDDIR}/usr/ports/distfiles
+	mount -t nullfs -o noatime ${NANO_OBJ}/ports/packages \
+	    ${NANO_WORLDDIR}/usr/ports/packages
+	mount -t nullfs -o noatime ${NANO_OBJ}/ports/distfiles \
+	    ${NANO_WORLDDIR}/usr/ports/distfiles
+	CR env ASSUME_ALWAYS_YES=YES SIGNATURE_TYPE=none /usr/sbin/pkg add /usr/ports/packages/All/$1.txz
+	umount ${NANO_WORLDDIR}/usr/ports/distfiles
+	umount ${NANO_WORLDDIR}/usr/ports/packages
+	rmdir ${NANO_WORLDDIR}/usr/ports/packages
+	rmdir ${NANO_WORLDDIR}/usr/ports/distfiles
+	rmdir ${NANO_WORLDDIR}/usr/ports
+	set +x
+}
+
+# Build a port (with the side effect of creating a package)
+do_add_port ()
+{
+	local port_path
+	port_path=$1
+	shift
+	set -x
+	# Need to create ${NANO_OBJ}/ports in this add_port_${port} function
+	mkdir -p ${NANO_OBJ}/ports/distfiles
+	mkdir -p ${NANO_OBJ}/ports/packages
+	mkdir -p ${NANO_PORTS}/packages
+	mkdir -p ${NANO_PORTS}/distfiles
+	mkdir -p ${NANO_WORLDDIR}/usr/src
+	mkdir -p ${NANO_WORLDDIR}/usr/ports
+      	mount -t nullfs -o noatime ${NANO_SRC} ${NANO_WORLDDIR}/usr/src
+	mount -t nullfs -o noatime ${NANO_PORTS} ${NANO_WORLDDIR}/usr/ports
+	mount -t nullfs -o noatime ${NANO_OBJ}/ports/packages \
+	    ${NANO_WORLDDIR}/usr/ports/packages
+	mount -t nullfs -o noatime ${NANO_OBJ}/ports/distfiles \
+	    ${NANO_WORLDDIR}/usr/ports/distfiles
+	mkdir -p ${NANO_WORLDDIR}/dev
+	mount -t devfs devfs ${NANO_WORLDDIR}/dev
+	mkdir -p ${NANO_WORLDDIR}/usr/workdir
+	cp /etc/resolv.conf ${NANO_WORLDDIR}/etc/resolv.conf
+	# OK, a little inefficient, but likely not enough to worry about.
+	CR ldconfig /lib /usr/lib /usr/local/lib
+	CR ldconfig -R
+	CR ldconfig -r
+# Improvement: Don't know why package-recursive don't works here
+	CR "env UNAME_p=${NANO_ARCH} TARGET=${NANO_ARCH} \
+	    TARGET_ARCH=${NANO_ARCH} PORTSDIR=${NANO_PORTS} make \
+	    __MAKE_CONF=${NANO_MAKE_CONF_BUILD} \
+	    WRKDIRPREFIX=/usr/workdir -C /usr/ports/$port_path \
+	    package-recursive BATCH=yes $* clean FORCE_PKG_REGISTER=t"
+	rm ${NANO_WORLDDIR}/etc/resolv.conf
+	rm -rf ${NANO_WORLDDIR}/usr/obj
+	rm -rf ${NANO_WORLDDIR}/usr/workdir
+	umount ${NANO_WORLDDIR}/dev
+	umount ${NANO_WORLDDIR}/usr/ports/packages
+	umount ${NANO_WORLDDIR}/usr/ports/distfiles
+	umount ${NANO_WORLDDIR}/usr/ports
+	umount ${NANO_WORLDDIR}/usr/src
+	set +x
+}
+
+# Need to check if this function works with cross-compiling architecture!!!!
+# Recursive complex fonction: Generate one function for each ports
+add_port () {
+    local port_path=$1
+    local port=`echo $1 | sed -e 's/\//_/'`
+    shift
+    # Check if package already exist
+    # Need to:
+    # 1. check ARCH of this package!
+    # 2. Add a trap
+    cd ${NANO_PORTS}/${port_path}
+    PKG_NAME=`env PORTSDIR=${NANO_PORTS} make __MAKE_CONF=${NANO_MAKE_CONF_BUILD} package-name` 
+    if [ -f ${NANO_OBJ}/ports/packages/All/${PKG_NAME}.txz ]; then
+	# Pkg file found: Generate add_pkg_NAME function
+	eval "
+	    add_pkg_${port} () {
+	        do_add_pkg ${PKG_NAME}
+	    }
+            customize_cmd add_pkg_${port}
+            "
+    else
+	# No pkg file: Generate add_port_NAME function
+        eval "
+            add_port_${port} () {
+	        do_add_port ${port_path} $*
+	    }
+	    customize_cmd add_port_${port}
+	"
+	NANO_PACKAGE_ONLY=0
+    fi
+}
+
+die()
+{
+	echo "$*"
+	exit 1
+}
+
+# Automatically include the packaging port here so it is always first so it
+# builds the port and adds the package so we can add other packages.
+add_port ports-mgmt/pkg
+
+rp=$(realpath ${NANO_OBJ}/)
+__a=`mount | grep ${rp} | awk '{print length($3), $3;}' | sort -rn | awk '{$1=""; print;}'`
+if [ -n "$__a" ]; then
+    echo "unmounting $__a"
+    umount $__a
+fi
+
+NANO_BOOTLOADER="boot/boot0"

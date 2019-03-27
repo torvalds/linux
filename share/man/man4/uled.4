@@ -1,0 +1,95 @@
+.\"
+.\" Copyright (c) 2014 Kevin Lo
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 31, 2017
+.Dt ULED 4
+.Os
+.Sh NAME
+.Nm uled
+.Nd USB LED driver
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines into
+your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device uled"
+.Cd "device usb"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time,
+place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+uled_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Dream Cheeky WebMail Notifier and
+ThingM blink(1) notification LED.
+.Pp
+Subsequently, the
+.Pa /dev/uled0
+device can be used by userland applications.
+.Sh IOCTLS
+The following
+.Xr ioctl 2
+commands can be performed on
+.Pa /dev/uled0 ,
+which are defined in
+.In dev/usb/uled_ioctl.h :
+.Bl -tag -width indent
+.It Dv ULED_GET_COLOR
+The command returns LED colors with values for RGB.
+This
+.Xr ioctl 2
+takes the following structure:
+.Bd -literal
+struct uled_color {
+	uint8_t	red;
+	uint8_t	green;
+	uint8_t	blue;
+};
+.Ed
+.It Dv ULED_SET_COLOR
+The command sets LED colors with values for RGB.
+It uses the same structure as above.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/uled0" -compact
+.It Pa /dev/uled0
+blocking device node
+.El
+.Sh SEE ALSO
+.Xr ohci 4 ,
+.Xr uhci 4 ,
+.Xr usb 4
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Kevin Lo Aq Mt kevlo@FreeBSD.org .

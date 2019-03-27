@@ -1,0 +1,230 @@
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getenv.3	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd June 20, 2007
+.Dt GETENV 3
+.Os
+.Sh NAME
+.Nm getenv ,
+.Nm putenv ,
+.Nm setenv ,
+.Nm unsetenv
+.Nd environment variable functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft char *
+.Fn getenv "const char *name"
+.Ft int
+.Fn setenv "const char *name" "const char *value" "int overwrite"
+.Ft int
+.Fn putenv "char *string"
+.Ft int
+.Fn unsetenv "const char *name"
+.Sh DESCRIPTION
+These functions set, unset and fetch environment variables from the
+host
+.Em environment list .
+.Pp
+The
+.Fn getenv
+function obtains the current value of the environment variable,
+.Fa name .
+The application should not modify the string pointed
+to by the
+.Fn getenv
+function.
+.Pp
+The
+.Fn setenv
+function inserts or resets the environment variable
+.Fa name
+in the current environment list.
+If the variable
+.Fa name
+does not exist in the list,
+it is inserted with the given
+.Fa value .
+If the variable does exist, the argument
+.Fa overwrite
+is tested; if
+.Fa overwrite
+is zero, the
+variable is not reset, otherwise it is reset
+to the given
+.Fa value .
+.Pp
+The
+.Fn putenv
+function takes an argument of the form ``name=value'' and
+puts it directly into the current environment,
+so altering the argument shall change the environment.
+If the variable
+.Fa name
+does not exist in the list,
+it is inserted with the given
+.Fa value .
+If the variable
+.Fa name
+does exist, it is reset to the given
+.Fa value .
+.Pp
+The
+.Fn unsetenv
+function
+deletes all instances of the variable name pointed to by
+.Fa name
+from the list.
+.Pp
+If corruption (e.g., a name without a value) is detected while making a copy of
+environ for internal usage, then
+.Fn setenv ,
+.Fn unsetenv
+and
+.Fn putenv
+will output a warning to stderr about the issue, drop the corrupt entry and
+complete the task without error.
+.Sh RETURN VALUES
+The
+.Fn getenv
+function returns the value of the environment variable as a
+.Dv NUL Ns
+-terminated string.
+If the variable
+.Fa name
+is not in the current environment,
+.Dv NULL
+is returned.
+.Pp
+.Rv -std setenv putenv unsetenv
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The function
+.Fn getenv ,
+.Fn setenv
+or
+.Fn unsetenv
+failed because the
+.Fa name
+is a
+.Dv NULL
+pointer, points to an empty string, or points to a string containing an
+.Dq Li \&=
+character.
+.Pp
+The function
+.Fn putenv
+failed because
+.Fa string
+is a
+.Dv NULL
+pointer,
+.Fa string
+is without an
+.Dq Li \&=
+character or
+.Dq Li \&=
+is the first character in
+.Fa string .
+This does not follow the
+.Tn POSIX
+specification.
+.It Bq Er ENOMEM
+The function
+.Fn setenv ,
+.Fn unsetenv
+or
+.Fn putenv
+failed because they were unable to allocate memory for the environment.
+.El
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr sh 1 ,
+.Xr execve 2 ,
+.Xr environ 7
+.Sh STANDARDS
+The
+.Fn getenv
+function conforms to
+.St -isoC .
+The
+.Fn setenv ,
+.Fn putenv
+and
+.Fn unsetenv
+functions conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The functions
+.Fn setenv
+and
+.Fn unsetenv
+appeared in
+.At v7 .
+The
+.Fn putenv
+function appeared in
+.Bx 4.3 Reno .
+.Pp
+Until
+.Fx 7.0 ,
+.Fn putenv
+would make a copy of
+.Fa string
+and insert it into the environment using
+.Fn setenv .
+This was changed to use
+.Fa string
+as the memory location of the ``name=value'' pair to follow the
+.Tn POSIX
+specification.
+.Sh BUGS
+Successive calls to
+.Fn setenv
+that assign a larger-sized
+.Fa value
+than any previous value to the same
+.Fa name
+will result in a memory leak.
+The
+.Fx
+semantics for this function
+(namely, that the contents of
+.Fa value
+are copied and that old values remain accessible indefinitely) make this
+bug unavoidable.
+Future versions may eliminate one or both of these
+semantic guarantees in order to fix the bug.

@@ -1,0 +1,81 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)modf.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd March 29, 2008
+.Dt MODF 3
+.Os
+.Sh NAME
+.Nm modf ,
+.Nm modff ,
+.Nm modfl
+.Nd extract signed integral and fractional values from floating-point number
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn modf "double value" "double *iptr"
+.Ft float
+.Fn modff "float value" "float *iptr"
+.Ft long double
+.Fn modfl "long double value" "long double *iptr"
+.Sh DESCRIPTION
+The
+.Fn modf ,
+.Fn modff ,
+and
+.Fn modfl
+functions break the argument
+.Fa value
+into integral and fractional parts, each of which has the
+same sign as the argument.
+It stores the integral part as a
+floating point number
+in the object pointed to by
+.Fa iptr .
+.Sh RETURN VALUES
+These functions return the signed fractional part of
+.Fa value .
+.Sh SEE ALSO
+.Xr frexp 3 ,
+.Xr ldexp 3 ,
+.Xr math 3
+.Sh STANDARDS
+The
+.Fn modf ,
+.Fn modff ,
+and
+.Fn modfl
+functions conform to
+.St -isoC-99 .

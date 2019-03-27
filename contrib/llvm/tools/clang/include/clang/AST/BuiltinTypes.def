@@ -1,0 +1,327 @@
+//===-- BuiltinTypes.def - Metadata about BuiltinTypes ----------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+//  This file defines the database about various builtin singleton types.
+//
+//  BuiltinType::Id is the enumerator defining the type.
+//
+//  Context.SingletonId is the global singleton of this type.  Some global
+//  singletons are shared by multiple types.
+//
+//    BUILTIN_TYPE(Id, SingletonId) - A builtin type that has not been
+//    covered by any other #define.  Defining this macro covers all
+//    the builtins.
+//
+//    SIGNED_TYPE(Id, SingletonId) - A signed integral type.
+//
+//    UNSIGNED_TYPE(Id, SingletonId) - An unsigned integral type.
+//
+//    FLOATING_TYPE(Id, SingletonId) - A floating-point type.
+//
+//    PLACEHOLDER_TYPE(Id, SingletonId) - A placeholder type.  Placeholder
+//    types are used to perform context-sensitive checking of specific
+//    forms of expression.
+//
+//    SHARED_SINGLETON_TYPE(Expansion) - The given expansion corresponds
+//    to a builtin which uses a shared singleton type.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef SIGNED_TYPE
+#define SIGNED_TYPE(Id, SingletonId) BUILTIN_TYPE(Id, SingletonId)
+#endif
+
+#ifndef UNSIGNED_TYPE
+#define UNSIGNED_TYPE(Id, SingletonId) BUILTIN_TYPE(Id, SingletonId)
+#endif
+
+#ifndef FLOATING_TYPE
+#define FLOATING_TYPE(Id, SingletonId) BUILTIN_TYPE(Id, SingletonId)
+#endif
+
+#ifndef PLACEHOLDER_TYPE
+#define PLACEHOLDER_TYPE(Id, SingletonId) BUILTIN_TYPE(Id, SingletonId)
+#endif
+
+#ifndef SHARED_SINGLETON_TYPE
+#define SHARED_SINGLETON_TYPE(Expansion) Expansion
+#endif
+
+//===- Builtin Types ------------------------------------------------------===//
+
+// void
+BUILTIN_TYPE(Void, VoidTy)
+
+//===- Unsigned Types -----------------------------------------------------===//
+
+// 'bool' in C++, '_Bool' in C99
+UNSIGNED_TYPE(Bool, BoolTy)
+
+// 'char' for targets where it's unsigned
+SHARED_SINGLETON_TYPE(UNSIGNED_TYPE(Char_U, CharTy))
+
+// 'unsigned char', explicitly qualified
+UNSIGNED_TYPE(UChar, UnsignedCharTy)
+
+// 'wchar_t' for targets where it's unsigned
+SHARED_SINGLETON_TYPE(UNSIGNED_TYPE(WChar_U, WCharTy))
+
+// 'char8_t' in C++20 (proposed)
+UNSIGNED_TYPE(Char8, Char8Ty)
+
+// 'char16_t' in C++
+UNSIGNED_TYPE(Char16, Char16Ty)
+
+// 'char32_t' in C++
+UNSIGNED_TYPE(Char32, Char32Ty)
+
+// 'unsigned short'
+UNSIGNED_TYPE(UShort, UnsignedShortTy)
+
+// 'unsigned int'
+UNSIGNED_TYPE(UInt, UnsignedIntTy)
+
+// 'unsigned long'
+UNSIGNED_TYPE(ULong, UnsignedLongTy)
+
+// 'unsigned long long'
+UNSIGNED_TYPE(ULongLong, UnsignedLongLongTy)
+
+// '__uint128_t'
+UNSIGNED_TYPE(UInt128, UnsignedInt128Ty)
+
+//===- Signed Types -------------------------------------------------------===//
+
+// 'char' for targets where it's signed
+SHARED_SINGLETON_TYPE(SIGNED_TYPE(Char_S, CharTy))
+
+// 'signed char', explicitly qualified
+SIGNED_TYPE(SChar, SignedCharTy)
+
+// 'wchar_t' for targets where it's signed
+SHARED_SINGLETON_TYPE(SIGNED_TYPE(WChar_S, WCharTy))
+
+// 'short' or 'signed short'
+SIGNED_TYPE(Short, ShortTy)
+
+// 'int' or 'signed int'
+SIGNED_TYPE(Int, IntTy)
+
+// 'long' or 'signed long'
+SIGNED_TYPE(Long, LongTy)
+
+// 'long long' or 'signed long long'
+SIGNED_TYPE(LongLong, LongLongTy)
+
+// '__int128_t'
+SIGNED_TYPE(Int128, Int128Ty)
+
+//===- Fixed point types --------------------------------------------------===//
+
+// 'short _Accum'
+SIGNED_TYPE(ShortAccum, ShortAccumTy)
+
+// '_Accum'
+SIGNED_TYPE(Accum, AccumTy)
+
+// 'long _Accum'
+SIGNED_TYPE(LongAccum, LongAccumTy)
+
+// 'unsigned short _Accum'
+UNSIGNED_TYPE(UShortAccum, UnsignedShortAccumTy)
+
+// 'unsigned _Accum'
+UNSIGNED_TYPE(UAccum, UnsignedAccumTy)
+
+// 'unsigned long _Accum'
+UNSIGNED_TYPE(ULongAccum, UnsignedLongAccumTy)
+
+// 'short _Fract'
+SIGNED_TYPE(ShortFract, ShortFractTy)
+
+// '_Fract'
+SIGNED_TYPE(Fract, FractTy)
+
+// 'long _Fract'
+SIGNED_TYPE(LongFract, LongFractTy)
+
+// 'unsigned short _Fract'
+UNSIGNED_TYPE(UShortFract, UnsignedShortFractTy)
+
+// 'unsigned _Fract'
+UNSIGNED_TYPE(UFract, UnsignedFractTy)
+
+// 'unsigned long _Fract'
+UNSIGNED_TYPE(ULongFract, UnsignedLongFractTy)
+
+// '_Sat short _Accum'
+SIGNED_TYPE(SatShortAccum, SatShortAccumTy)
+
+// '_Sat _Accum'
+SIGNED_TYPE(SatAccum, SatAccumTy)
+
+// '_Sat long _Accum'
+SIGNED_TYPE(SatLongAccum, SatLongAccumTy)
+
+// '_Sat unsigned short _Accum'
+UNSIGNED_TYPE(SatUShortAccum, SatUnsignedShortAccumTy)
+
+// '_Sat unsigned _Accum'
+UNSIGNED_TYPE(SatUAccum, SatUnsignedAccumTy)
+
+// '_Sat unsigned long _Accum'
+UNSIGNED_TYPE(SatULongAccum, SatUnsignedLongAccumTy)
+
+// '_Sat short _Fract'
+SIGNED_TYPE(SatShortFract, SatShortFractTy)
+
+// '_Sat _Fract'
+SIGNED_TYPE(SatFract, SatFractTy)
+
+// '_Sat long _Fract'
+SIGNED_TYPE(SatLongFract, SatLongFractTy)
+
+// '_Sat unsigned short _Fract'
+UNSIGNED_TYPE(SatUShortFract, SatUnsignedShortFractTy)
+
+// '_Sat unsigned _Fract'
+UNSIGNED_TYPE(SatUFract, SatUnsignedFractTy)
+
+// '_Sat unsigned long _Fract'
+UNSIGNED_TYPE(SatULongFract, SatUnsignedLongFractTy)
+
+//===- Floating point types -----------------------------------------------===//
+
+// 'half' in OpenCL, '__fp16' in ARM NEON.
+FLOATING_TYPE(Half, HalfTy)
+
+// 'float'
+FLOATING_TYPE(Float, FloatTy)
+
+// 'double'
+FLOATING_TYPE(Double, DoubleTy)
+
+// 'long double'
+FLOATING_TYPE(LongDouble, LongDoubleTy)
+
+// '_Float16'
+FLOATING_TYPE(Float16, HalfTy)
+
+// '__float128'
+FLOATING_TYPE(Float128, Float128Ty)
+
+//===- Language-specific types --------------------------------------------===//
+
+// This is the type of C++0x 'nullptr'.
+BUILTIN_TYPE(NullPtr, NullPtrTy)
+
+// The primitive Objective C 'id' type.  The user-visible 'id'
+// type is a typedef of an ObjCObjectPointerType to an
+// ObjCObjectType with this as its base.  In fact, this only ever
+// shows up in an AST as the base type of an ObjCObjectType.
+BUILTIN_TYPE(ObjCId, ObjCBuiltinIdTy)
+
+// The primitive Objective C 'Class' type.  The user-visible
+// 'Class' type is a typedef of an ObjCObjectPointerType to an
+// ObjCObjectType with this as its base.  In fact, this only ever
+// shows up in an AST as the base type of an ObjCObjectType.
+BUILTIN_TYPE(ObjCClass, ObjCBuiltinClassTy)
+
+// The primitive Objective C 'SEL' type.  The user-visible 'SEL'
+// type is a typedef of a PointerType to this.
+BUILTIN_TYPE(ObjCSel, ObjCBuiltinSelTy)
+
+// OpenCL sampler_t.
+BUILTIN_TYPE(OCLSampler, OCLSamplerTy)
+
+// OpenCL event_t.
+BUILTIN_TYPE(OCLEvent, OCLEventTy)
+
+// OpenCL clk_event_t.
+BUILTIN_TYPE(OCLClkEvent, OCLClkEventTy)
+
+// OpenCL queue_t.
+BUILTIN_TYPE(OCLQueue, OCLQueueTy)
+
+// OpenCL reserve_id_t.
+BUILTIN_TYPE(OCLReserveID, OCLReserveIDTy)
+
+// This represents the type of an expression whose type is
+// totally unknown, e.g. 'T::foo'.  It is permitted for this to
+// appear in situations where the structure of the type is
+// theoretically deducible.
+BUILTIN_TYPE(Dependent, DependentTy)
+
+// The type of an unresolved overload set.  A placeholder type.
+// Expressions with this type have one of the following basic
+// forms, with parentheses generally permitted:
+//   foo          # possibly qualified, not if an implicit access
+//   foo          # possibly qualified, not if an implicit access
+//   &foo         # possibly qualified, not if an implicit access
+//   x->foo       # only if might be a static member function
+//   &x->foo      # only if might be a static member function
+//   &Class::foo  # when a pointer-to-member; sub-expr also has this type
+// OverloadExpr::find can be used to analyze the expression.
+//
+// Overload should be the first placeholder type, or else change
+// BuiltinType::isNonOverloadPlaceholderType()
+PLACEHOLDER_TYPE(Overload, OverloadTy)
+
+// The type of a bound C++ non-static member function.
+// A placeholder type.  Expressions with this type have one of the
+// following basic forms:
+//   foo          # if an implicit access
+//   x->foo       # if only contains non-static members
+PLACEHOLDER_TYPE(BoundMember, BoundMemberTy)
+
+// The type of an expression which refers to a pseudo-object,
+// such as those introduced by Objective C's @property or
+// VS.NET's __property declarations.  A placeholder type.  The
+// pseudo-object is actually accessed by emitting a call to
+// some sort of function or method;  typically there is a pair
+// of a setter and a getter, with the setter used if the
+// pseudo-object reference is used syntactically as the
+// left-hand-side of an assignment operator.
+//
+// A pseudo-object reference naming an Objective-C @property is
+// always a dot access with a base of object-pointer type,
+// e.g. 'x.foo'.
+//
+// In VS.NET, a __property declaration creates an implicit
+// member with an associated name, which can then be named
+// in any of the normal ways an ordinary member could be.
+PLACEHOLDER_TYPE(PseudoObject, PseudoObjectTy)
+
+// __builtin_any_type.  A placeholder type.  Useful for clients
+// like debuggers that don't know what type to give something.
+// Only a small number of operations are valid on expressions of
+// unknown type, most notably explicit casts.
+PLACEHOLDER_TYPE(UnknownAny, UnknownAnyTy)
+
+PLACEHOLDER_TYPE(BuiltinFn, BuiltinFnTy)
+
+// The type of a cast which, in ARC, would normally require a
+// __bridge, but which might be okay depending on the immediate
+// context.
+PLACEHOLDER_TYPE(ARCUnbridgedCast, ARCUnbridgedCastTy)
+
+// A placeholder type for OpenMP array sections.
+PLACEHOLDER_TYPE(OMPArraySection, OMPArraySectionTy)
+
+#ifdef LAST_BUILTIN_TYPE
+LAST_BUILTIN_TYPE(OMPArraySection)
+#undef LAST_BUILTIN_TYPE
+#endif
+
+#undef SHARED_SINGLETON_TYPE
+#undef PLACEHOLDER_TYPE
+#undef FLOATING_TYPE
+#undef SIGNED_TYPE
+#undef UNSIGNED_TYPE
+#undef BUILTIN_TYPE

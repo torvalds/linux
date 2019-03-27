@@ -1,0 +1,2 @@
+pass in proto tcp from any to any port = http flags S/SA keep state (tcp.established 60)
+pass in proto tcp from any to any port = http flags S/SA keep state (max 10, no-sync, tcp.first 2, adaptive.start 6, adaptive.end 12)

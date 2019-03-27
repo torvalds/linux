@@ -1,0 +1,223 @@
+.\" Copyright (c) 2013 Edward Tomasz Napierala
+.\" Copyright (c) 2015-2017 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd March 29, 2017
+.Dt CTL 4
+.Os
+.Sh NAME
+.Nm ctl
+.Nd CAM Target Layer
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ctl"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ctl_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+subsystem provides SCSI target devices emulation.
+It supports features such as:
+.Pp
+.Bl -bullet -compact
+.It
+Disk, CD-ROM and processor device emulation
+.It
+Tagged queueing
+.It
+SCSI task attribute support (ordered, head of queue, simple tags)
+.It
+SCSI implicit command ordering support
+.It
+Full task management support (abort, query, reset, etc.)
+.It
+Support for multiple ports, initiators, targets and backing stores
+.It
+Support for VMWare VAAI and Microsoft ODX offload (COMPARE AND WRITE,
+XCOPY, POPULATE TOKEN/WRITE USING TOKEN, WRITE SAME and UNMAP)
+.It
+Persistent reservation support
+.It
+Extensive VPD/mode/log pages support
+.It
+Featured error reporting, error injection and basic SMART support
+.It
+High Availability clustering support with ALUA
+.It
+All I/O handled in-kernel, no userland context switch overhead
+.El
+.Pp
+The
+.Nm
+subsystem includes multiple frontends to provide access using different
+transport protocols and implementations:
+.Bl -tag -width cfumass
+.It camsim
+Provides access for local system via virtual initiator mode
+.Xr CAM 4
+SIM.
+.It camtgt
+Provides access for remote systems via target mode
+.Xr CAM 4
+SIMs, such as Fibre Channel
+.Xr isp 4
+and
+.Xr mpt 4 .
+.It cfumass
+Provides access for remote systems via USB Mass Storage Class
+Bulk Only (BBB) Transport.
+.It ha
+Internal frontend used to receive requests from other node ports in
+High Availability cluster.
+.It ioctl
+Provides access for local user-level applications via
+.Xr ioctl 2
+based API.
+.It iscsi
+Provides access for remote systems via the iSCSI protocol using
+.Xr cfiscsi 4 .
+.It tpc
+Internal frontend used to receive requests from Third Party Copy engine,
+implementing copy offload operations.
+.El
+.Pp
+The
+.Nm
+subsystem includes two backends to create logical units using different
+kinds of backing stores:
+.Bl -tag -width ramdisk
+.It block
+Stores data in ZFS ZVOLs, files or raw block devices.
+.It ramdisk
+Stores data in RAM, that makes it mostly useful for performance testing.
+Depending on configured capacity can work as black hole, thin or thick
+provisioned disk.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va kern.cam.ctl.debug
+Bit mask of enabled CTL log levels:
+.Bl -tag -offset indent -compact
+.It 1
+log commands with errors;
+.It 2
+log all commands;
+.It 4
+log data for commands other then READ/WRITE.
+.El
+Defaults to 0.
+.It Va kern.cam.ctl.ha_id
+Specifies unique position of this node within High Availability cluster.
+Default is 0 -- no HA, 1 and 2 -- HA enabled at specified position.
+.It Va kern.cam.ctl.ha_mode
+Specifies High Availability cluster operation mode:
+.Bl -tag -offset indent -compact
+.It 0
+Active/Standby -- primary node has backend access and processes requests,
+while secondary can only do basic LUN discovery and reservation;
+.It 1
+Active/Active -- both nodes have backend access and process requests,
+while secondary node synchronizes processing with primary one;
+.It 2
+Active/Active -- primary node has backend access and processes requests,
+while secondary node forwards all requests and data to primary one;
+.El
+All above modes require established connection between HA cluster nodes.
+If connection is not configured, secondary node will report Unavailable
+state; if configured but not established -- Transitioning state.
+Defaults to 0.
+.It Va kern.cam.ctl.ha_peer
+String value, specifying method to establish connection to peer HA node.
+Can be "listen IP:port", "connect IP:port" or empty.
+.It Va kern.cam.ctl.ha_link
+Reports present state of connection between HA cluster nodes:
+.Bl -tag -offset indent -compact
+.It 0
+not configured;
+.It 1
+configured but not established;
+.It 2
+established.
+.El
+.It Va kern.cam.ctl.ha_role
+Specifies default role of this node:
+.Bl -tag -offset indent -compact
+.It 0
+primary;
+.It 1
+secondary.
+.El
+This role can be overridden on per-LUN basis using "ha_role" LUN option,
+so that for one LUN one node is primary, while for another -- another.
+Role change from primary to secondary for HA modes 0 and 2 closes backends,
+the opposite change -- opens.
+If there is no primary node (both nodes are secondary, or secondary node has
+no connection to primary one), secondary node(s) report Transitioning state.
+State with two primary nodes is illegal (split brain condition).
+.El
+.Sh TUNABLE VARIABLES
+The following variables are available as
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va kern.cam.ctl.max_luns
+Specifies the maximum number of LUNs we support, must be a power of 2.
+The default value is 1024.
+.It Va kern.cam.ctl.max_ports
+Specifies the maximum number of ports we support, must be a power of 2.
+The default value is 256.
+.El
+.Sh SEE ALSO
+.Xr cfiscsi 4 ,
+.Xr cfumass 4 ,
+.Xr ctladm 8 ,
+.Xr ctld 8 ,
+.Xr ctlstat 8
+.Sh HISTORY
+The
+.Nm
+subsystem first appeared in
+.Fx 9.1 .
+.Sh AUTHORS
+The
+.Nm
+subsystem was originally written by
+.An Kenneth Merry Aq Mt ken@FreeBSD.org .
+Later work was done by
+.An Alexander Motin Aq Mt mav@FreeBSD.org .

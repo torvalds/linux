@@ -1,0 +1,450 @@
+.\"
+.\" Copyright (c) 2010 Lawrence Stewart <lstewart@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 26, 2016
+.Dt OSD 9
+.Os
+.Sh NAME
+.Nm osd ,
+.Nm osd_register ,
+.Nm osd_deregister ,
+.Nm osd_set ,
+.Nm osd_reserve ,
+.Nm osd_set_reserved ,
+.Nm osd_free_reserved ,
+.Nm osd_get ,
+.Nm osd_del ,
+.Nm osd_call ,
+.Nm osd_exit
+.Nd Object Specific Data
+.Sh SYNOPSIS
+.In sys/osd.h
+.Ft typedef void
+.Fn "\*(lp*osd_destructor_t\*(rp" "void *value"
+.Ft typedef int
+.Fn "\*(lp*osd_method_t\*(rp" "void *obj" "void *data"
+.Ft int
+.Fo osd_register
+.Fa "u_int type"
+.Fa "osd_destructor_t destructor"
+.Fa "osd_method_t *methods"
+.Fc
+.Ft void
+.Fo osd_deregister
+.Fa "u_int type"
+.Fa "u_int slot"
+.Fc
+.Ft int
+.Fo osd_set
+.Fa "u_int type"
+.Fa "struct osd *osd"
+.Fa "u_int slot"
+.Fa "void *value"
+.Fc
+.Ft void **
+.Fo osd_reserve
+.Fa "u_int slot"
+.Fc
+.Ft int
+.Fo osd_set_reserved
+.Fa "u_int type"
+.Fa "struct osd *osd"
+.Fa "u_int slot"
+.Fa "void **rsv"
+.Fa "void *value"
+.Fc
+.Ft void
+.Fo osd_free_reserved
+.Fa "void **rsv"
+.Fc
+.Ft void *
+.Fo osd_get
+.Fa "u_int type"
+.Fa "struct osd *osd"
+.Fa "u_int slot"
+.Fc
+.Ft void
+.Fo osd_del
+.Fa "u_int type"
+.Fa "struct osd *osd"
+.Fa "u_int slot"
+.Fc
+.Ft int
+.Fo osd_call
+.Fa "u_int type"
+.Fa "u_int method"
+.Fa "void *obj"
+.Fa "void *data"
+.Fc
+.Ft void
+.Fo osd_exit
+.Fa "u_int type"
+.Fa "struct osd *osd"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+framework provides a mechanism to dynamically associate arbitrary data at
+run-time with any kernel data structure which has been suitably modified for use
+with
+.Nm .
+The one-off modification required involves embedding a
+.Vt "struct osd"
+inside the kernel data structure.
+.Pp
+An additional benefit is that after the initial change to a structure is made,
+all subsequent use of
+.Nm
+with the structure involves no changes to the structure's layout.
+By extension, if the data structure is part of the ABI,
+.Nm
+provides a way of extending the structure in an ABI preserving manner.
+.Pp
+The details of the embedded
+.Vt "struct osd"
+are not relevant to consumers of the
+.Nm
+framework and should not be manipulated directly.
+.Pp
+Data associated with a structure is referenced by the
+.Nm
+framework using a type/slot identifier pair.
+Types are statically defined in
+.In sys/osd.h
+and provide a high-level grouping for slots to be registered under.
+Slot identifiers are dynamically assigned by the framework when a data type is
+registered using
+.Fn osd_register
+and remains valid until a corresponding call to
+.Fn osd_deregister .
+.Ss Functions
+The
+.Fn osd_register
+function registers a type/slot identifier pair with the
+.Nm
+framework for use with a new data type.
+The function may sleep and therefore cannot be called from a non-sleepable
+context.
+The
+.Fa type
+argument specifies which high-level type grouping from
+.In sys/osd.h
+the slot identifier should be allocated under.
+The
+.Fa destructor
+argument specifies an optional osd_destructor_t function pointer that will be
+called for objects of the type being registered which are later destroyed by the
+.Fn osd_del
+function.
+NULL may be passed if no destructor is required.
+The
+.Fa methods
+argument specifies an optional array of osd_method_t function pointers which
+can be later invoked by the
+.Fn osd_call
+function.
+NULL may be passed if no methods are required.
+The
+.Fa methods
+argument is currently only useful with the OSD_JAIL type identifier.
+.Pp
+The
+.Fn osd_deregister
+function deregisters a previously registered type/slot identifier pair.
+The function may sleep and therefore cannot be called from a non-sleepable
+context.
+The
+.Fa type
+argument specifies which high-level type grouping from
+.In sys/osd.h
+the slot identifier is allocated under.
+The
+.Fa slot
+argument specifies the slot identifier which is being deregistered and should be
+the value that was returned by
+.Fn osd_register
+when the data type was registered.
+.Pp
+The
+.Fn osd_set
+function associates a data object pointer with a kernel data structure's
+.Vt struct osd
+member.
+The
+.Fa type
+argument specifies which high-level type grouping from
+.In sys/osd.h
+the slot identifier is allocated under.
+The
+.Fa osd
+argument is a pointer to the kernel data structure's
+.Vt struct osd
+which will have the
+.Fa value
+pointer associated with it.
+The
+.Fa slot
+argument specifies the slot identifier to assign the
+.Fa value
+pointer to.
+The
+.Fa value
+argument points to a data object to associate with
+.Fa osd .
+.Pp
+The
+.Fn osd_set_reserved
+function does the same as
+.Fn osd_set ,
+but with an extra argument
+.Fa rsv
+that is internal-use memory previously allocated via
+.Fn osd_reserve .
+.Pp
+The
+.Fn osd_get
+function returns the data pointer associated with a kernel data structure's
+.Vt struct osd
+member from the specified type/slot identifier pair.
+The
+.Fa type
+argument specifies which high-level type grouping from
+.In sys/osd.h
+the slot identifier is allocated under.
+The
+.Fa osd
+argument is a pointer to the kernel data structure's
+.Vt struct osd
+to retrieve the data pointer from.
+The
+.Fa slot
+argument specifies the slot identifier to retrieve the data pointer from.
+.Pp
+The
+.Fn osd_del
+function removes the data pointer associated with a kernel data structure's
+.Vt struct osd
+member from the specified type/slot identifier pair.
+The
+.Fa type
+argument specifies which high-level type grouping from
+.In sys/osd.h
+the slot identifier is allocated under.
+The
+.Fa osd
+argument is a pointer to the kernel data structure's
+.Vt struct osd
+to remove the data pointer from.
+The
+.Fa slot
+argument specifies the slot identifier to remove the data pointer from.
+If an osd_destructor_t function pointer was specified at registration time, the
+destructor function will be called and passed the data pointer for the type/slot
+identifier pair which is being deleted.
+.Pp
+The
+.Fn osd_call
+function calls the specified osd_method_t function pointer for all
+currently registered slots of a given type on the specified
+.Fa obj
+and
+.Fa data
+pointers.
+The function may sleep and therefore cannot be called from a non-sleepable
+context.
+The
+.Fa type
+argument specifies which high-level type grouping from
+.In sys/osd.h
+to call the method for.
+The
+.Fa method
+argument specifies the index into the osd_method_t array that was passed to
+.Fn osd_register .
+The
+.Fa obj
+and
+.Fa data
+arguments are passed to the method function pointer of each slot.
+.Pp
+The
+.Fn osd_exit
+function removes all data object pointers from all currently registered slots
+for a given type for the specified kernel data structure's
+.Vt struct osd
+member.
+The
+.Fa type
+argument specifies which high-level type grouping from
+.In sys/osd.h
+to remove data pointers from.
+The
+.Fa osd
+argument is a pointer to the kernel data structure's
+.Vt struct osd
+to remove all data object pointers for all currently registered slots from.
+.Sh IMPLEMENTATION NOTES
+.Nm
+uses a two dimensional matrix (array of arrays) as the data structure to manage
+the external data associated with a kernel data structure's
+.Vt struct osd
+member.
+The type identifier is used as the index into the outer array, and the slot
+identifier is used as the index into the inner array.
+To set or retrieve a data pointer for a given type/slot identifier pair,
+.Fn osd_set
+and
+.Fn osd_get
+perform the equivalent of array[type][slot], which is both constant time and
+fast.
+.Pp
+If
+.Fn osd_set
+is called on a
+.Vt struct osd
+for the first time, the array for storing data pointers is dynamically allocated
+using
+.Xr malloc 9
+with M_NOWAIT to a size appropriate for the slot identifier being set.
+If a subsequent call to
+.Fn osd_set
+attempts to set a slot identifier which is numerically larger than the slot used
+in the previous
+.Fn osd_set
+call,
+.Xr realloc 9
+is used to grow the array to the appropriate size such that the slot identifier
+can be used.
+To maximise the efficiency of any code which calls
+.Fn osd_set
+sequentially on a number of different slot identifiers (e.g., during an
+initialisation phase) one should loop through the slot identifiers in descending
+order from highest to lowest.
+This will result in only a single
+.Xr malloc 9
+call to create an array of the largest slot size and all subsequent calls to
+.Fn osd_set
+will proceed without any
+.Xr realloc 9
+calls.
+.Pp
+It is possible for
+.Fn osd_set
+to fail to allocate this array.
+To ensure that such allocation succeeds,
+.Fn osd_reserve
+may be called (in a non-blocking context), and it will pre-allocate the
+memory via
+.Xr malloc 9
+with M_WAITOK.
+Then this pre-allocated memory is passed to
+.Fn osd_set_reserved ,
+which will use it if necessary or otherwise discard it.
+The memory may also be explicitly discarded by calling
+.Fn osd_free_reserved .
+As this method always allocates memory whether or not it is ultimately needed,
+it should be used only rarely, such as in the unlikely event that
+.Fn osd_set
+fails.
+.Pp
+The
+.Nm
+API is geared towards slot identifiers storing pointers to the same underlying
+data structure type for a given
+.Nm
+type identifier.
+This is not a requirement, and
+.Xr khelp 9
+for example stores completely different data types in slots under the OSD_KHELP
+type identifier.
+.Ss Locking
+.Nm
+internally uses a mix of
+.Xr mutex 9 ,
+.Xr rmlock 9
+and
+.Xr sx 9
+locks to protect its internal data structures and state.
+.Pp
+Responsibility for synchronising access to a kernel data structure's
+.Vt struct osd
+member is left to the subsystem that uses the data structure and calls the
+.Nm
+API.
+.Pp
+.Fn osd_get
+only acquires an
+.Xr rmlock
+in read mode, therefore making it safe to use in the majority of contexts within
+the kernel including most fast paths.
+.Sh RETURN VALUES
+.Fn osd_register
+returns the slot identifier for the newly registered data type.
+.Pp
+.Fn osd_set
+and
+.Fn osd_set_reserved
+return zero on success or ENOMEM if the specified type/slot identifier pair
+triggered an internal
+.Xr realloc 9
+which failed
+.Ns (
+.Fn osd_set_reserved
+will always succeed when
+.Fa rsv
+is non-NULL).
+.Pp
+.Fn osd_get
+returns the data pointer for the specified type/slot identifier pair, or NULL if
+the slot has not been initialised yet.
+.Pp
+.Fn osd_reserve
+returns a pointer suitable for passing to
+.Fn osd_set_reserved
+or
+.Fn osd_free_reserved .
+.Pp
+.Fn osd_call
+returns zero if no method is run or the method for each slot runs successfully.
+If a method for a slot returns non-zero,
+.Fn osd_call
+terminates prematurely and returns the method's error to the caller.
+.Sh SEE ALSO
+.Xr khelp 9
+.Sh HISTORY
+The
+Object Specific Data (OSD) facility first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+facility was written by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org .

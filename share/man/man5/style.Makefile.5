@@ -1,0 +1,283 @@
+.\" Copyright (c) 2002-2003 David O'Brien <obrien@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL DAVID O'BRIEN OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 21, 2015
+.Dt STYLE.MAKEFILE 5
+.Os
+.Sh NAME
+.Nm style.Makefile
+.Nd
+.Fx
+.Pa Makefile
+file style guide
+.Sh DESCRIPTION
+This file specifies the preferred style for makefiles in the
+.Fx
+source tree.
+.Bl -bullet
+.It
+All makefiles should have an SCM ID at the start of the file,
+followed by a blank line.
+.Bd -literal
+# $FreeBSD\&$
+
+.Ed
+.It
+.Cm .PATH :
+comes next if needed, and is spelled
+.Dq Li ".PATH: " ,
+with a single
+.Tn ASCII
+space after a colon.
+Do not use the
+.Va VPATH
+variable.
+.It
+Special variables (i.e.,
+.Va LIB , SRCS , MLINKS ,
+etc.) are listed in order of
+.Dq product ,
+then building and installing a binary.
+Special variables may also be listed in
+.Dq build
+order: i.e., ones for the primary program (or library) first.
+The general
+.Dq product
+order is:
+.Va PROG Ns / Ns Oo Va SH Oc Ns Va LIB Ns / Ns Va SCRIPTS
+.Va FILES
+.Va LINKS
+.Oo Va NO_ Oc Ns Va MAN
+.Va MLINKS
+.Va INCS
+.Va SRCS
+.Va WARNS
+.Va CFLAGS
+.Va DPADD
+.Va LDADD .
+The general
+.Dq build
+order is:
+.Va PROG Ns / Ns Oo Va SH Oc Ns Va LIB Ns / Ns Va SCRIPTS
+.Va SRCS
+.Va WARNS
+.Va CFLAGS
+.Va DPADD
+.Va LDADD
+.Va INCS
+.Va FILES
+.Va LINKS
+.Oo Va NO_ Oc Ns Va MAN
+.Va MLINKS .
+.It
+Omit
+.Va SRCS
+when using
+.In bsd.prog.mk
+and there is a single source file named the same as the
+.Va PROG .
+.It
+Omit
+.Va MAN
+when using
+.In bsd.prog.mk
+and the manual page is named the same as the
+.Va PROG ,
+and is in section 1.
+.It
+All variable assignments are spelled
+.Dq Va VAR Ns Ic = ,
+i.e., no space between the variable name and the
+.Ic = .
+Keep values sorted alphabetically, if possible.
+.It
+Variables are expanded with
+.Sy {} ,
+not
+.Sy () .
+Such as
+.Va ${VARIABLE} .
+.It
+Do not use
+.Ic +=
+to set variables that are only set once
+(or to set variables for the first time).
+.It
+Do not use vertical whitespace in simple makefiles,
+but do use it to group locally related things in more complex/longer ones.
+.It
+.Va WARNS
+comes before
+.Va CFLAGS ,
+as it is basically a
+.Va CFLAGS
+modifier.
+It comes before
+.Va CFLAGS
+rather than after
+.Va CFLAGS
+so it does not get lost in a sea of
+.Va CFLAGS
+statements as
+.Va WARNS
+is an important thing.
+The usage of
+.Va WARNS
+is spelled
+.Dq Li "WARNS?= " ,
+so that it may be overridden on the command line or in
+.Xr make.conf 5 .
+.It
+.Dq Li "NO_WERROR= yes"
+should not be used,
+it defeats the purpose of
+.Va WARNS .
+It should only be used on the command line and in special circumstances.
+.It
+.Va CFLAGS
+is spelled
+.Dq Li "CFLAGS+= " .
+.It
+Listing
+.Fl D Ns 's
+before
+.Fl I Ns 's
+in
+.Va CFLAGS
+is preferred for alphabetical ordering and to make
+.Fl D Ns 's
+easier to see.
+The
+.Fl D Ns 's
+often affect conditional compilation,
+and
+.Fl I Ns 's
+tend to be quite long.
+Split long
+.Va CFLAGS
+settings between the
+.Fl D Ns 's
+and
+.Fl I Ns 's.
+.It
+Do not use GCCisms (such as
+.Fl g
+and
+.Fl Wall )
+in
+.Va CFLAGS .
+.It
+Typically, there is one
+.Tn ASCII
+tab between
+.Va VAR Ns Ic =
+and the value in order to start the value in column 9.
+An
+.Tn ASCII
+space is allowed for variable names that extend beyond column 9.
+A lack of whitespace is also allowed for very long variable names.
+.It
+.Ic .include In bsd.*.mk
+goes last.
+.It
+Do not use anachronisms like
+.Va $<
+and
+.Va $@ .
+Instead use
+.Va ${.IMPSRC}
+or
+.Va ${.ALLSRC}
+and
+.Va ${.TARGET} .
+.It
+To not build the
+.Dq foo
+part of the base system,
+use
+.Va NO_FOO ,
+not
+.Va NOFOO .
+.It
+To optionally build something in the base system,
+spell the knob
+.Va WITH_FOO
+not
+.Va WANT_FOO
+or
+.Va USE_FOO .
+The latter are reserved for the
+.Fx
+Ports Collection.
+.It
+For variables that are only checked with
+.Fn defined ,
+do not provide any fake value.
+.El
+.Pp
+The desire to express a logical grouping often means not obeying some of the
+above.
+.Sh EXAMPLES
+The simplest program
+.Pa Makefile
+is:
+.Bd -literal -offset indent
+# $FreeBSD\&$
+
+PROG=	foo
+
+\&.include <bsd.prog.mk>
+.Ed
+.Pp
+The simplest library
+.Pa Makefile
+is:
+.Bd -literal -offset indent
+# $FreeBSD\&$
+
+LIB=	foo
+SHLIB_MAJOR= 1
+MAN=	libfoo.3
+SRCS=	foo.c
+
+\&.include <bsd.lib.mk>
+.Ed
+.Sh SEE ALSO
+.Xr make 1 ,
+.Xr make.conf 5 ,
+.Xr style 9
+.Sh HISTORY
+This manual page is inspired from the same source as
+.Xr style 9
+manual page in
+.Fx .
+.Sh BUGS
+There are few hard and fast style rules here.
+The style of many things is too dependent on the context of the whole makefile,
+or the lines surrounding it.

@@ -1,0 +1,118 @@
+.\" Copyright (c) 2004 Michael Telahun Makonnen
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 17, 2018
+.Dt PTHREAD_RWLOCK_TIMEDRDLOCK 3
+.Os
+.Sh NAME
+.Nm pthread_rwlock_timedrdlock
+.Nd "acquire a read-write lock for reading or give up after a specified period"
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_rwlock_timedrdlock "pthread_rwlock_t *restrict rwlock" "const struct timespec *restrict abs_timeout"
+.Sh DESCRIPTION
+This function acquires a read lock on the read-write lock
+.Fa rwlock .
+However, if the lock cannot be
+acquired without waiting for another thread to
+unlock the lock,
+this wait shall be terminated when
+.Fa abs_timeout
+expires.
+.Pp
+A thread may hold multiple concurrent read locks.
+The
+.Xr pthread_rwlock_unlock 3
+function must be called once for each lock acquired.
+.Pp
+If the thread should be interrupted by a signal,
+the
+.Fn pthread_rwlock_timedrdlock
+function will be automatically restarted after the thread returns from
+the signal handler.
+.Pp
+The calling thread may deadlock if
+at the time the call is made it holds a write lock on
+.Fa rwlock .
+The results are undefined if this function is called with
+an uninitialized read-write lock.
+.Sh IMPLEMENTATION NOTES
+To prevent writer starvation, writers are favored over readers.
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_rwlock_timedrdlock
+function will return zero.
+Otherwise, an error number will be returned to indicate the error.
+.Pp
+This function shall not return an error code of
+.Er EINTR .
+.Sh ERRORS
+The
+.Fn pthread_rwlock_timedrdlock
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er ETIMEDOUT
+The lock could not be acquired before the specified timeout expired.
+.El
+.Pp
+The
+.Fn pthread_rwlock_timedrdlock
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The read lock could not be
+acquired because the maximum number of read locks for
+.Fa rwlock
+would be exceeded.
+.It Bq Er EDEADLK
+The calling thread already holds a write lock on
+.Fa rwlock .
+.It Bq Er EINVAL
+The value specified by
+.Fa rwlock
+does not refer to an initialized read-write lock object,
+or the
+.Fa abs_timeout
+nanosecond value is less than zero or
+greater than or equal to 1 billion.
+.El
+.Sh SEE ALSO
+.Xr pthread_rwlock_init 3 ,
+.Xr pthread_rwlock_timedwrlock 3 ,
+.Xr pthread_rwlock_unlock 3
+.Sh STANDARDS
+The
+.Fn pthread_rwlock_timedrdlock
+function is expected to conform to
+.St -p1003.1-96 .
+.Sh HISTORY
+The
+.Fn pthread_rwlock_timedrdlock
+function first appeared in
+.Fx 5.2 .

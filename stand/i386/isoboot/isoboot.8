@@ -1,0 +1,69 @@
+.\" Copyright (c) 2018 iXsystems, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 30, 2018
+.Dt ISOBOOT 8
+.Os
+.Sh NAME
+.Nm isoboot
+.Nd Boot code for hybrid ISO/USB images on BIOS-based computers
+.Sh DESCRIPTION
+.Nm
+is used on BIOS-based computers to boot from an ISO image that has
+been written to a USB flash drive or other HDD-like device.
+.Nm
+is installed in a
+.Cm freebsd-boot
+partition with
+.Xr mkimg 1 .
+.Sh IMPLEMENTATION NOTES
+The El Torito standard for bootable CDs provides a 32KB "System Area"
+at the beginning of an image.
+To create an image that is able to be booted by the BIOS as either a
+CD-ROM ("ISO") and as a more HDD-like image (e.g. on a USB flash drive)
+it is necessary to have both a standard El Torito boot catalog
+containing a HDD-style partition table and boot code.
+.Nm
+is intended to be placed in a GPT partition to allow the system to find
+the standard
+.Fx
+.Xr loader 8
+in the ISO filesystem later in the image.
+.Sh BOOTING
+.Nm
+looks for an ISO filesystem image on the device it was booted from and
+seeks to read either the primary
+.Fx
+.Xr loader 8
+or kernel from there.
+.Sh SEE ALSO
+.Xr mkimg 1
+.Sh HISTORY
+.Nm
+appeared in FreeBSD 12.0.
+.Sh AUTHORS
+This manual page written by
+.An Benno Rice Aq benno@FreeBSD.org .

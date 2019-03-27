@@ -1,0 +1,2 @@
+binat on em0 inet6 from fc00::/64 to any -> fc00:0:0:1::/64
+binat on em0 inet6 from any to fc00:0:0:1::/64 -> fc00::/64

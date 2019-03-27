@@ -1,0 +1,130 @@
+/*
+ * Copyright (c) 2005 Kungliga Tekniska Högskolan
+ * (Royal Institute of Technology, Stockholm, Sweden). 
+ * All rights reserved. 
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met: 
+ *
+ * 1. Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright 
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the distribution. 
+ *
+ * 3. Neither the name of the Institute nor the names of its contributors 
+ *    may be used to endorse or promote products derived from this software 
+ *    without specific prior written permission. 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+ * SUCH DAMAGE. 
+ */
+/* $Id$ */
+
+command = {
+	name = "dump"
+	option = {
+		long = "config-file"
+		short = "c"
+		type = "string"
+		help = "configuration file"
+		argument = "file"
+	}
+	option = {
+		long = "realm"
+		short = "r"
+		type = "string"
+		help = "realm"
+	}
+	function = "iprop_dump"
+	help = "Prints the iprop transaction log in text."
+	max_args = "0"
+}
+command = {
+	name = "truncate"
+	option = {
+		long = "config-file"
+		short = "c"
+		type = "string"
+		help = "configuration file"
+		argument = "file"
+	}
+	option = {
+		long = "realm"
+		short = "r"
+		type = "string"
+		help = "realm"
+	}
+	function = "iprop_truncate"
+	help = "Truncate the log, preserve the version number."
+	max_args = "0"
+}
+command = {
+	name = "replay"
+	option = {
+		long = "start-version"
+		type = "integer"
+		help = "start replay with this version"
+		argument = "version-number"
+		default = "-1"
+	}
+	option = {
+		long = "end-version"
+		type = "integer"
+		help = "end replay with this version"
+		argument = "version-number"
+		default = "-1"
+	}
+	option = {
+		long = "config-file"
+		short = "c"
+		type = "string"
+		help = "configuration file"
+		argument = "file"
+	}
+	option = {
+		long = "realm"
+		short = "r"
+		type = "string"
+		help = "realm"
+	}
+	function = "iprop_replay"
+	help = "Replay the log on the database."
+	max_args = "0"
+}
+command = {
+	name = "last-version"
+	option = {
+		long = "config-file"
+		short = "c"
+		type = "string"
+		help = "configuration file"
+		argument = "file"
+	}
+	option = {
+		long = "realm"
+		short = "r"
+		type = "string"
+		help = "realm"
+	}
+	function = "last_version"
+	help = "Print the last version of the log-file."
+	max_args = "0"
+}
+command = {
+	name = "help"
+	argument = "command"
+	max_args = "1"
+	function = "help"
+}

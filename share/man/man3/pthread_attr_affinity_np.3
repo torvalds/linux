@@ -1,0 +1,160 @@
+.\"-
+.\" Copyright (c) 2010 Xin LI <delphij@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 2, 2016
+.Dt PTHREAD_ATTR_AFFINITY_NP 3
+.Os
+.Sh NAME
+.Nm pthread_attr_getaffinity_np ,
+.Nm pthread_attr_setaffinity_np
+.Nd manage CPU affinity in thread attribute objects
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread_np.h
+.Ft int
+.Fn pthread_attr_getaffinity_np "const pthread_attr_t *pattr" "size_t cpusetsize" "cpuset_t *cpusetp"
+.Ft int
+.Fn pthread_attr_setaffinity_np "pthread_attr_t *pattr" "size_t cpusetsize" "const cpuset_t *cpusetp"
+.Sh DESCRIPTION
+The
+.Fn pthread_attr_getaffinity_np
+and
+.Fn pthread_attr_setaffinity_np
+functions allow the manipulation of sets of CPUs available to the specified thread attribute object.
+.Pp
+Masks of type
+.Ft cpuset_t
+are composed using the
+.Dv CPU_SET
+macros.
+The kernel tolerates large sets as long as all CPUs specified
+in the set exist.
+Sets smaller than the kernel uses generate an error on calls to
+.Fn pthread_attr_getaffinity_np
+even if the result set would fit within the user supplied set.
+Calls to
+.Fn pthread_attr_setaffinity_np
+tolerate small sets with no restrictions.
+.Pp
+The supplied mask should have a size of
+.Fa cpusetsize
+bytes.
+This size is usually provided by calling
+.Li sizeof(cpuset_t)
+which is ultimately determined by the value of
+.Dv CPU_SETSIZE
+as defined in
+.In sys/cpuset.h .
+.Pp
+.Fn pthread_attr_getaffinity_np
+retrieves the
+mask from the thread attribute object specified by
+.Fa pattr ,
+and stores it in the space provided by
+.Fa cpusetp .
+.Pp
+.Fn pthread_attr_setaffinity_np
+sets the mask for the thread attribute object specified by
+.Fa pattr
+to the value in
+.Fa cpusetp .
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_attr_getaffinity_np
+and
+.Fn pthread_attr_setaffinity_np
+functions will return zero.
+Otherwise an error number will be returned
+to indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_attr_getaffinity_np
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa pattr
+or the attribute specified by it is
+.Dv NULL .
+.It Bq Er ERANGE
+The
+.Fa cpusetsize
+is too small.
+.El
+.Pp
+The
+.Fn pthread_attr_setaffinity_np
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa pattr
+or the attribute specified by it is
+.Dv NULL .
+.It Bq Er EINVAL
+The
+.Fa cpusetp
+specified a CPU that was outside the set supported by the kernel.
+.It Bq Er ERANGE
+The
+.Fa cpusetsize
+is too small.
+.It Bq Er ENOMEM
+Insufficient memory exists to store the cpuset mask.
+.El
+.Sh SEE ALSO
+.Xr cpuset 1 ,
+.Xr cpuset 2 ,
+.Xr cpuset_getid 2 ,
+.Xr cpuset_setid 2 ,
+.Xr pthread_getaffinity_np 3 ,
+.Xr pthread_setaffinity_np 3
+.Sh STANDARDS
+The
+.Nm pthread_attr_getaffinity_np
+and
+.Nm pthread_attr_setaffinity_np
+functions are non-standard
+.Fx
+extensions and may be not available on other operating systems.
+.Sh HISTORY
+The
+.Nm pthread_attr_getaffinity_np
+and
+.Nm pthread_attr_setaffinity_np
+functions first appeared in
+.Fx 7.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm pthread_attr_getaffinity_np
+and
+.Nm pthread_attr_setaffinity_np
+functions were written by
+.An David Xu Aq Mt davidxu@FreeBSD.org ,
+and this manpage was written by
+.An Xin LI Aq Mt delphij@FreeBSD.org .

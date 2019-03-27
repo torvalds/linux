@@ -1,0 +1,74 @@
+.\" Copyright (c) 2014 Michihiro NAKAJIMA
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 14, 2014
+.Dt ARCHIVE_READ_ADD_PASSPHRASE 3
+.Os
+.Sh NAME
+.Nm archive_read_add_passphrase ,
+.Nm archive_read_set_passphrase_callback
+.Nd functions for reading encrypted archives
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive.h
+.Ft int
+.Fo archive_read_add_passphrase
+.Fa "struct archive *"
+.Fa "const char *passphrase"
+.Fc
+.Ft int
+.Fo archive_read_set_passphrase_callback
+.Fa "struct archive *"
+.Fa "void *client_data"
+.Fa "archive_passphrase_callback *"
+.Fc
+.Sh DESCRIPTION
+.Bl -tag -width indent
+.It Fn archive_read_add_passphrase
+Register passphrases for reading an encryption archive.
+If
+.Ar passphrase
+is
+.Dv NULL
+or empty, this function will do nothing and
+.Cm ARCHIVE_FAILED
+will be returned.
+Otherwise,
+.Cm ARCHIVE_OK
+will be returned. 
+.It Fn archive_read_set_passphrase_callback
+Register callback function that will be invoked to get a passphrase 
+for decrption after trying all passphrases registered by the
+.Fn archive_read_add_passphrase
+function failed.
+.El
+.\" .Sh ERRORS
+.Sh SEE ALSO
+.Xr tar 1 ,
+.Xr libarchive 3 ,
+.Xr archive_read 3 ,
+.Xr archive_read_set_options 3

@@ -1,0 +1,119 @@
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)siginterrupt.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 4, 1993
+.Dt SIGINTERRUPT 3
+.Os
+.Sh NAME
+.Nm siginterrupt
+.Nd allow signals to interrupt system calls
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In signal.h
+.Ft int
+.Fn siginterrupt "int sig" "int flag"
+.Sh DESCRIPTION
+The
+.Fn siginterrupt
+function
+is used to change the system call restart
+behavior when a system call is interrupted by the specified signal.
+If the flag is false (0), then system calls will be restarted if
+they are interrupted by the specified signal
+and no data has been transferred yet.
+System call restart has been the default behavior since
+.Bx 4.2 ,
+and is the default behaviour for
+.Xr signal 3
+on
+.Fx .
+.Pp
+If the flag is true (1),
+then restarting of system calls is disabled.
+If a system call is interrupted by the specified signal
+and no data has been transferred,
+the system call will return \-1 with the global variable
+.Va errno
+set to
+.Er EINTR .
+Interrupted system calls that have started transferring
+data will return the amount of data actually transferred.
+System call interrupt is the signal behavior found on
+.Bx 4.1
+and
+.At V
+systems.
+.Pp
+Note that the new
+.Bx 4.2
+signal handling semantics are not
+altered in any other way.
+Most notably, signal handlers always remain installed until
+explicitly changed by a subsequent
+.Xr sigaction 2
+call, and the signal mask operates as documented in
+.Xr sigaction 2 .
+Programs may switch between restartable and interruptible
+system call operation as often as desired in the execution of a program.
+.Pp
+Issuing a
+.Fn siginterrupt 3
+call during the execution of a signal handler will cause
+the new action to take place on the next signal to be caught.
+.Sh NOTES
+This library routine uses an extension of the
+.Xr sigaction 2
+system call that is not available in
+.Bx 4.2 ,
+hence it should not be used if backward compatibility is needed.
+.Sh RETURN VALUES
+.Rv -std siginterrupt
+.Sh ERRORS
+The
+.Fn siginterrupt
+call fails if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa sig
+argument
+is not a valid signal number.
+.El
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr sigprocmask 2 ,
+.Xr sigsuspend 2 ,
+.Xr signal 3
+.Sh HISTORY
+The
+.Fn siginterrupt
+function appeared in
+.Bx 4.3 .

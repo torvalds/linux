@@ -1,0 +1,274 @@
+.\" $FreeBSD$
+.\" Man page generated from reStructuredText.
+.
+.TH "LLC" "1" "2018-08-02" "7" "LLVM"
+.SH NAME
+llc \- LLVM static compiler
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH SYNOPSIS
+.sp
+\fBllc\fP [\fIoptions\fP] [\fIfilename\fP]
+.SH DESCRIPTION
+.sp
+The \fBllc\fP command compiles LLVM source inputs into assembly language
+for a specified architecture.  The assembly language output can then be passed
+through a native assembler and linker to generate a native executable.
+.sp
+The choice of architecture for the output assembly code is automatically
+determined from the input file, unless the \fB\-march\fP option is used to
+override the default.
+.SH OPTIONS
+.sp
+If \fBfilename\fP is "\fB\-\fP" or omitted, \fBllc\fP reads from standard input.
+Otherwise, it will from \fBfilename\fP\&.  Inputs can be in either the LLVM assembly
+language format (\fB\&.ll\fP) or the LLVM bitcode format (\fB\&.bc\fP).
+.sp
+If the \fB\-o\fP option is omitted, then \fBllc\fP will send its output
+to standard output if the input is from standard input.  If the \fB\-o\fP
+option specifies "\fB\-\fP", then the output will also be sent to standard output.
+.sp
+If no \fB\-o\fP option is specified and an input file other than "\fB\-\fP" is
+specified, then \fBllc\fP creates the output filename by taking the input
+filename, removing any existing \fB\&.bc\fP extension, and adding a \fB\&.s\fP suffix.
+.sp
+Other \fBllc\fP options are described below.
+.SS End\-user Options
+.INDENT 0.0
+.TP
+.B \-help
+Print a summary of command line options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-O=uint
+Generate code at different optimization levels.  These correspond to the
+\fB\-O0\fP, \fB\-O1\fP, \fB\-O2\fP, and \fB\-O3\fP optimization levels used by
+\fBclang\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-mtriple=<target triple>
+Override the target triple specified in the input file with the specified
+string.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-march=<arch>
+Specify the architecture for which to generate assembly, overriding the target
+encoded in the input file.  See the output of \fBllc \-help\fP for a list of
+valid architectures.  By default this is inferred from the target triple or
+autodetected to the current architecture.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-mcpu=<cpuname>
+Specify a specific chip in the current architecture to generate code for.
+By default this is inferred from the target triple and autodetected to
+the current architecture.  For a list of available CPUs, use:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+llvm\-as < /dev/null | llc \-march=xyz \-mcpu=help
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-filetype=<output file type>
+Specify what kind of output \fBllc\fP should generated.  Options are: \fBasm\fP
+for textual assembly ( \fB\(aq.s\(aq\fP), \fBobj\fP for native object files (\fB\(aq.o\(aq\fP)
+and \fBnull\fP for not emitting anything (for performance testing).
+.sp
+Note that not all targets support all options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-mattr=a1,+a2,\-a3,...
+Override or control specific attributes of the target, such as whether SIMD
+operations are enabled or not.  The default set of attributes is set by the
+current CPU.  For a list of available attributes, use:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+llvm\-as < /dev/null | llc \-march=xyz \-mattr=help
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-disable\-fp\-elim
+Disable frame pointer elimination optimization.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-disable\-excess\-fp\-precision
+Disable optimizations that may produce excess precision for floating point.
+Note that this option can dramatically slow down code on some systems
+(e.g. X86).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-enable\-no\-infs\-fp\-math
+Enable optimizations that assume no Inf values.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-enable\-no\-nans\-fp\-math
+Enable optimizations that assume no NAN values.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-enable\-unsafe\-fp\-math
+Enable optimizations that make unsafe assumptions about IEEE math (e.g. that
+addition is associative) or may not work for all input ranges.  These
+optimizations allow the code generator to make use of some instructions which
+would otherwise not be usable (such as \fBfsin\fP on X86).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-stats
+Print statistics recorded by code\-generation passes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-time\-passes
+Record the amount of time needed for each pass and print a report to standard
+error.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-load=<dso_path>
+Dynamically load \fBdso_path\fP (a path to a dynamically shared object) that
+implements an LLVM target.  This will permit the target name to be used with
+the \fB\-march\fP option so that code can be generated for that target.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-meabi=[default|gnu|4|5]
+Specify which EABI version should conform to.  Valid EABI versions are \fIgnu\fP,
+\fI4\fP and \fI5\fP\&.  Default value (\fIdefault\fP) depends on the triple.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-stack\-size\-section
+Emit the .stack_sizes section which contains stack size metadata. The section
+contains an array of pairs of function symbol values (pointer size) and stack
+sizes (unsigned LEB128). The stack size values only include the space allocated
+in the function prologue. Functions with dynamic stack allocations are not
+included.
+.UNINDENT
+.SS Tuning/Configuration Options
+.INDENT 0.0
+.TP
+.B \-\-print\-machineinstrs
+Print generated machine code between compilation phases (useful for debugging).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-regalloc=<allocator>
+Specify the register allocator to use.
+Valid register allocators are:
+.sp
+\fIbasic\fP
+.INDENT 7.0
+.INDENT 3.5
+Basic register allocator.
+.UNINDENT
+.UNINDENT
+.sp
+\fIfast\fP
+.INDENT 7.0
+.INDENT 3.5
+Fast register allocator. It is the default for unoptimized code.
+.UNINDENT
+.UNINDENT
+.sp
+\fIgreedy\fP
+.INDENT 7.0
+.INDENT 3.5
+Greedy register allocator. It is the default for optimized code.
+.UNINDENT
+.UNINDENT
+.sp
+\fIpbqp\fP
+.INDENT 7.0
+.INDENT 3.5
+Register allocator based on \(aqPartitioned Boolean Quadratic Programming\(aq.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-spiller=<spiller>
+Specify the spiller to use for register allocators that support it.  Currently
+this option is used only by the linear scan register allocator.  The default
+\fBspiller\fP is \fIlocal\fP\&.  Valid spillers are:
+.sp
+\fIsimple\fP
+.INDENT 7.0
+.INDENT 3.5
+Simple spiller
+.UNINDENT
+.UNINDENT
+.sp
+\fIlocal\fP
+.INDENT 7.0
+.INDENT 3.5
+Local spiller
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Intel IA\-32\-specific Options
+.INDENT 0.0
+.TP
+.B \-\-x86\-asm\-syntax=[att|intel]
+Specify whether to emit assembly code in AT&T syntax (the default) or Intel
+syntax.
+.UNINDENT
+.SH EXIT STATUS
+.sp
+If \fBllc\fP succeeds, it will exit with 0.  Otherwise, if an error
+occurs, it will exit with a non\-zero value.
+.SH SEE ALSO
+.sp
+lli
+.SH AUTHOR
+Maintained by The LLVM Team (http://llvm.org/).
+.SH COPYRIGHT
+2003-2018, LLVM Project
+.\" Generated by docutils manpage writer.
+.

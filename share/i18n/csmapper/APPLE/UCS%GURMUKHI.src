@@ -1,0 +1,333 @@
+# $FreeBSD$
+
+TYPE		ROWCOL
+NAME		UCS/GURMUKHI
+SRC_ZONE	0x0000-0x2212
+OOB_MODE	INVALID
+DST_INVALID	0x100
+DST_UNIT_BITS	16
+#=======================================================================
+#   File name:  GURMUKHI.TXT
+#
+#   Contents:   Map (external version) from Mac OS Gurmukhi
+#               encoding to Unicode 2.1 and later.
+#
+#   Copyright:  (c) 1997-2002, 2005 by Apple Computer, Inc., all rights
+#               reserved.
+#
+#   Contact:    charsets@apple.com
+#
+#   Changes:
+#
+#       c02  2005-Apr-05    Update header comments. Matches internal xml
+#                           <c1.1> and Text Encoding Converter 2.0.
+#      b3,c1 2002-Dec-19    Change mappings for 0x91, 0xD5 based on
+#							new decomposition rules. Update URLs,
+#                           notes. Matches internal utom<b2>.
+#       b02  1999-Sep-22    Update contact e-mail address. Matches
+#                           internal utom<b1>, ufrm<b1>, and Text
+#                           Encoding Converter version 1.5.
+#       n02  1998-Feb-05    First version; matches internal utom<n5>,
+#                           ufrm<n6>.
+#
+# Standard header:
+# ----------------
+#
+#   Apple, the Apple logo, and Macintosh are trademarks of Apple
+#   Computer, Inc., registered in the United States and other countries.
+#   Unicode is a trademark of Unicode Inc. For the sake of brevity,
+#   throughout this document, "Macintosh" can be used to refer to
+#   Macintosh computers and "Unicode" can be used to refer to the
+#   Unicode standard.
+#
+#   Apple Computer, Inc. ("Apple") makes no warranty or representation,
+#   either express or implied, with respect to this document and the
+#   included data, its quality, accuracy, or fitness for a particular
+#   purpose. In no event will Apple be liable for direct, indirect,
+#   special, incidental, or consequential damages resulting from any
+#   defect or inaccuracy in this document or the included data.
+#
+#   These mapping tables and character lists are subject to change.
+#   The latest tables should be available from the following:
+#
+#   <http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/>
+#
+#   For general information about Mac OS encodings and these mapping
+#   tables, see the file "README.TXT".
+#
+# Format:
+# -------
+#
+#   Three tab-separated columns;
+#   '#' begins a comment which continues to the end of the line.
+#     Column #1 is the Mac OS Gurmukhi code or code sequence
+#       (in hex as 0xNN or 0xNN+0xNN)
+#     Column #2 is the corresponding Unicode or Unicode sequence
+#       (in hex as 0xNNNN or 0xNNNN+0xNNNN).
+#     Column #3 is a comment containing the Unicode name or sequence
+#       of names. In some cases an additional comment follows the
+#       Unicode name(s).
+#
+#   The entries are in two sections. The first section is for pairs of
+#   Mac OS Gurmukhi code points that must be mapped in a special way.
+#   The second section maps individual code points.
+#
+#   Within each section, the entries are in Mac OS Gurmukhi code order.
+#
+#   Control character mappings are not shown in this table, following
+#   the conventions of the standard UTC mapping tables. However, the
+#   Mac OS Gurmukhi character set uses the standard control characters
+#   at 0x00-0x1F and 0x7F.
+#
+# Notes on Mac OS Gurmukhi:
+# -------------------------
+#
+#   This is a legacy Mac OS encoding; in the Mac OS X Carbon and Cocoa
+#   environments, it is only supported via transcoding to and from
+#   Unicode.
+#
+#   Mac OS Gurmukhi is based on IS 13194:1991 (ISCII-91), with the
+#   addition of several punctuation and symbol characters. However,
+#   Mac OS Gurmukhi does not support the ATR (attribute) mechanism of
+#   ISCII-91.
+#
+# 1. ISCII-91 features in Mac OS Gurmukhi include:
+#
+#  a) Explicit halant and soft halant
+#
+#     A double halant (0xE8 + 0xE8) constitutes an "explicit halant",
+#     which will always appear as a halant instead of causing formation
+#     of a ligature or half-form consonant.
+#
+#     Halant followed by nukta (0xE8 + 0xE9) constitutes a "soft
+#     halant", which prevents formation of a ligature and instead
+#     retains the half-form of the first consonant.
+#
+#  b) Invisible consonant
+#
+#     The byte 0xD9 (called INV in ISCII-91) is an invisible consonant:
+#     It behaves like a consonant but has no visible appearance. It is
+#     intended to be used (often in combination with halant) to display
+#     dependent forms in isolation, such as the RA forms or consonant
+#     half-forms.
+#
+#  c) Extensions for Vedic, etc.
+#
+#     The byte 0xF0 (called EXT in ISCII-91) followed by any byte in
+#     the range 0xA1-0xEE constitutes a two-byte code point which can
+#     be used to represent additional characters for Vedic (or other
+#     extensions); 0xF0 followed by any other byte value constitutes
+#     malformed text. Mac OS Gurmukhi supports this mechanism, but
+#     does not currently map any of these two-byte code points to
+#     anything.
+#
+# 2. Mac OS Gurmukhi additions
+#
+#   Mac OS Gurmukhi adds characters using the code points
+#   0x80-0x8A and 0x90-0x94 (the latter are some Gurmukhi additions).
+#
+# 3. Unused code points
+#
+#   The following code points are currently unused, and are not shown
+#   here: 0x8B-0x8F, 0x95-0xA1, 0xA3, 0xAA-0xAB, 0xAE-0xAF, 0xB2,
+#   0xC7, 0xCE, 0xD0, 0xD2-0xD3, 0xD6, 0xDF-0xE0, 0xE3-0xE4, 0xE7,
+#   0xEB-0xEF, 0xFB-0xFF. In addition, 0xF0 is not shown here, but it
+#   has a special function as described above.
+#
+# Unicode mapping issues and notes:
+# ---------------------------------
+#
+# 1. Mapping the byte pairs
+#
+#   If the byte value 0xE8 is encountered when mapping Mac OS
+#   Gurmukhi text, then the next byte (if there is one) should be
+#   examined. If the next byte is 0xE8 or 0xE9, then the byte pair
+#   should be mapped using the first section of the mapping table
+#   below. Otherwise, each byte should be mapped using the second
+#   section of the mapping table below.
+#
+#   - The Unicode Standard, Version 2.0, specifies how explicit
+#     halant and soft halant should be represented in Unicode;
+#     these mappings are used below.
+#
+#   If the byte value 0xF0 is encountered when mapping Mac OS
+#   Gurmukhi text, then the next byte should be examined. If there
+#   is no next byte (e.g. 0xF0 at end of buffer), the mapping
+#   process should indicate incomplete character. If there is a next
+#   byte but it is not in the range 0xA1-0xEE, the mapping process
+#   should indicate malformed text. Otherwise, the mapping process
+#   should treat the byte pair as a valid two-byte code point with no
+#   mapping (e.g. map it to QUESTION MARK, REPLACEMENT CHARACTER,
+#   etc.).
+#
+# 2. Mapping the invisible consonant
+#
+#   It has been suggested that INV in ISCII-91 should map to ZERO
+#   WIDTH NON-JOINER in Unicode. However, this causes problems with
+#   roundtrip fidelity: The ISCII-91 sequences 0xE8+0xE8 and 0xE8+0xD9
+#   would map to the same sequence of Unicode characters. We have
+#   instead mapped INV to LEFT-TO-RIGHT MARK, which avoids these
+#   problems.
+#
+# 3. Mappings using corporate characters
+#
+#   Mapping the GURMUKHI LETTER SHA 0xD5 presents an interesting
+#   problem. At first glance, we could map it to the single Unicode
+#   character 0x0A36.
+#
+#   However, our goal is that the mappings provided here should also
+#   be able to generate the mappings to maximally decomposed Unicode
+#   by simple recursive substitution of the canonical decompositions
+#   in the Unicode database. We want mapping tables derived this way
+#   to retain full roundtrip fidelity.
+#
+#   Since the canonical decomposition of 0x0A36 is 0x0A38+0x0A3C,
+#   the decomposition mapping for 0xD5 would be identical with the
+#   decomposition mapping for 0xD7+0xE9, and roundtrip fidelity would
+#   be lost.
+#
+#   We solve this problem by using a grouping hint (one of the set of
+#   transcoding hints defined by Apple).
+#
+#   Apple has defined a block of 32 corporate characters as "transcoding
+#   hints." These are used in combination with standard Unicode characters
+#   to force them to be treated in a special way for mapping to other
+#   encodings; they have no other effect. Sixteen of these transcoding
+#   hints are "grouping hints" - they indicate that the next 2-4 Unicode
+#   characters should be treated as a single entity for transcoding. The
+#   other sixteen transcoding hints are "variant tags" - they are like
+#   combining characters, and can follow a standard Unicode (or a sequence
+#   consisting of a base character and other combining characters) to
+#   cause it to be treated in a special way for transcoding. These always
+#   terminate a combining-character sequence.
+#
+#   The transcoding coding hint used in this mapping table is:
+#     0xF860 group next 2 characters
+#
+#   Then we can map 0x91 as follows:
+#     0xD5 -> 0xF860+0x0A38+0x0A3C
+#
+#   We could also have used a variant tag such as 0xF87F and mapped it
+#   this way:
+#     0xD5 -> 0x0A36+0xF87F
+#
+# 4. Additional loose mappings from Unicode
+#
+#   These are not preserved in roundtrip mappings.
+#
+#   0A59 -> 0xB4+0xE9   # GURMUKHI LETTER KHHA
+#   0A5A -> 0xB5+0xE9   # GURMUKHI LETTER GHHA
+#   0A5B -> 0xBA+0xE9   # GURMUKHI LETTER ZA
+#   0A5E -> 0xC9+0xE9   # GURMUKHI LETTER FA
+#
+#   0A70 -> 0xA2    # GURMUKHI TIPPI
+#
+#   Loose mappings from Unicode should also map U+0A71 (GURMUKHI ADDAK)
+#   followed by any Gurmukhi consonant to the equivalent ISCII-91
+#   consonant plus halant plus the consonant again. For example:
+#
+#   0A71+0A15 -> 0xB3+0xE8+0xB3
+#   0A71+0A16 -> 0xB4+0xE8+0xB4
+#   ...
+#
+# Details of mapping changes in each version:
+# -------------------------------------------
+#
+#   Changes from version b02 to version b03/c01:
+#
+#   - Change mapping of 0x91 from 0xF860+0x0A21+0x0A3C to 0x0A5C GURMUKHI
+#     LETTER RRA, now that the canonical decomposition of 0x0A5C to
+#     0x0A21+0x0A3C has been deleted
+#
+#   - Change mapping of 0xD5 from 0x0A36 GURMUKHI LETTER SHA to
+#     0xF860+0x0A38+0x0A3C, now that a canonical decomposition of 0x0A36
+#     to 0x0A38+0x0A3C has been added.
+#
+##################
+BEGIN_MAP
+0x0000 - 0x007F = 0x00 -
+0x00A9 = 0x88
+0x00AE = 0x89
+0x00D7 = 0x80
+0x0964 = 0xEA
+0x0A02 = 0xA2
+0x0A05 = 0xA4
+0x0A06 = 0xA5
+0x0A07 = 0xA6
+0x0A08 = 0xA7
+0x0A09 = 0xA8
+0x0A0A = 0xA9
+0x0A0F = 0xAC
+0x0A10 = 0xAD
+0x0A13 = 0xB0
+0x0A14 = 0xB1
+0x0A15 = 0xB3
+0x0A16 = 0xB4
+0x0A17 = 0xB5
+0x0A18 = 0xB6
+0x0A19 = 0xB7
+0x0A1A = 0xB8
+0x0A1B = 0xB9
+0x0A1C = 0xBA
+0x0A1D = 0xBB
+0x0A1E = 0xBC
+0x0A1F = 0xBD
+0x0A20 = 0xBE
+0x0A21 = 0xBF
+0x0A22 = 0xC0
+0x0A23 = 0xC1
+0x0A24 = 0xC2
+0x0A25 = 0xC3
+0x0A26 = 0xC4
+0x0A27 = 0xC5
+0x0A28 = 0xC6
+0x0A2A = 0xC8
+0x0A2B = 0xC9
+0x0A2C = 0xCA
+0x0A2D = 0xCB
+0x0A2E = 0xCC
+0x0A2F = 0xCD
+0x0A30 = 0xCF
+0x0A32 = 0xD1
+0x0A35 = 0xD4
+0x0A38 = 0xD7
+0x0A39 = 0xD8
+0x0A3C = 0xE9
+0x0A3E = 0xDA
+0x0A3F = 0xDB
+0x0A40 = 0xDC
+0x0A41 = 0xDD
+0x0A42 = 0xDE
+0x0A47 = 0xE1
+0x0A48 = 0xE2
+0x0A4B = 0xE5
+0x0A4C = 0xE6
+0x0A4D = 0xE8
+#0x0A4D+0x200C = 0xE8+0xE8
+#0x0A4D+0x200D = 0xE8+0xE9
+0x0A5C = 0x91
+0x0A66 = 0xF1
+0x0A67 = 0xF2
+0x0A68 = 0xF3
+0x0A69 = 0xF4
+0x0A6A = 0xF5
+0x0A6B = 0xF6
+0x0A6C = 0xF7
+0x0A6D = 0xF8
+0x0A6E = 0xF9
+0x0A6F = 0xFA
+0x0A71 = 0x90
+0x0A72 = 0x93
+0x0A73 = 0x92
+0x0A74 = 0x94
+0x200E = 0xD9
+0x2013 = 0x82
+0x2014 = 0x83
+0x2018 = 0x84
+0x2019 = 0x85
+0x2022 = 0x87
+0x2026 = 0x86
+0x2122 = 0x8A
+0x2212 = 0x81
+#0xF860+0x0A38+0x0A3C = 0xD5
+END_MAP

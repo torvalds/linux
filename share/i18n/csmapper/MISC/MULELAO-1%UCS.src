@@ -1,0 +1,119 @@
+# $FreeBSD$ 
+# $NetBSD: MULELAO-1%UCS.src,v 1.1 2006/11/25 10:27:22 tnozaki Exp $
+
+TYPE		ROWCOL
+NAME		"MULELAO-1/UCS"
+SRC_ZONE	0x00 - 0xFF
+OOB_MODE	ILSEQ
+DST_ILSEQ	0xFFFE
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#
+# This mapping data is made from the mapping data provided by X-TT Project.
+# Original notice:
+#
+#   mulelao to unicode table
+#
+#   Copyright (c) 1998 Takuya SHIOZAKI, All Rights reserved.
+#   Copyright (c) 1998,1999 Pablo Saratxaga <srtxg@@chanae.alphanet.ch>
+#
+#   Redistribution and use in source and binary forms, with or without
+#   modification, are permitted provided that the following conditions
+#   are met:
+#   1. Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
+#   2. Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#
+#   THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+#   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#   ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+#   FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+#   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+#   OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#   HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+#   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#   OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+#   SUCH DAMAGE.
+#
+#   Major Release ID: X-TrueType Server Version 1.3 [Aoi MATSUBARA Release 3]
+#
+#
+#    Table build by looking into the unicode chart,
+#    http://charts.unicode.org/Unicode.charts/normal/U0E80.html
+#    and an actual X11 font using mulelao-1 encoding.
+#
+#    added the SKIP monetary symbol (U+20AD) at its logical place -- srtxg
+#
+0x00 - 0xA0 = 0x0000 -
+0xA1 = 0x0E81
+0xA2 = 0x0E82
+0xA4 = 0x0E84
+0xA7 = 0x0E87
+0xA8 = 0x0E88
+0xAA = 0x0E8A
+0xAD = 0x0E8D
+0xB4 = 0x0E94
+0xB5 = 0x0E95
+0xB6 = 0x0E96
+0xB7 = 0x0E97
+0xB9 = 0x0E99
+0xBA = 0x0E9A
+0xBB = 0x0E9B
+0xBC = 0x0E9C
+0xBD = 0x0E9D
+0xBE = 0x0E9E
+0xBF = 0x0E9F
+0xC1 = 0x0EA1
+0xC2 = 0x0EA2
+0xC3 = 0x0EA3
+0xC5 = 0x0EA5
+0xC7 = 0x0EA7
+0xCA = 0x0EAA
+0xCB = 0x0EAB
+0xCD = 0x0EAD
+0xCE = 0x0EAE
+0xCF = 0x0EAF
+0xD0 = 0x0EB0
+0xD1 = 0x0EB1
+0xD2 = 0x0EB2
+0xD3 = 0x0EB3
+0xD4 = 0x0EB4
+0xD5 = 0x0EB5
+0xD6 = 0x0EB6
+0xD7 = 0x0EB7
+0xD8 = 0x0EB8
+0xD9 = 0x0EB9
+0xDB = 0x0EBB
+0xDC = 0x0EBC
+0xDD = 0x0EBD
+0xDF = 0x20AD
+0xE0 = 0x0EC0
+0xE1 = 0x0EC1
+0xE2 = 0x0EC2
+0xE3 = 0x0EC3
+0xE4 = 0x0EC4
+0xE6 = 0x0EC6
+0xE8 = 0x0EC8
+0xE9 = 0x0EC9
+0xEA = 0x0ECA
+0xEB = 0x0ECB
+0xEC = 0x0ECC
+0xED = 0x0ECD
+0xF0 = 0x0ED0
+0xF1 = 0x0ED1
+0xF2 = 0x0ED2
+0xF3 = 0x0ED3
+0xF4 = 0x0ED4
+0xF5 = 0x0ED5
+0xF6 = 0x0ED6
+0xF7 = 0x0ED7
+0xF8 = 0x0ED8
+0xF9 = 0x0ED9
+0xFB = 0x0EDC
+0xFC = 0x0EDC
+0xFD = 0x0EDD
+END_MAP

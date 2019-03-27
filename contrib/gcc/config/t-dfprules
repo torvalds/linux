@@ -1,0 +1,10 @@
+# Use DFP_ENABLE to build decimal floating point support routines for
+# all decimal floating point types (32-bit, 64-bit and 128-bit). We
+# use `true' for clarity, but any value will do.
+#
+DFP_ENABLE = true
+
+# DFP_CFLAGS can be used to pass target-specific CFLAGS when compiling
+# dfp-bit.c.  This is useful for overriding the definition of macros.
+#
+# DFP_CFLAGS = -DFOO=bar

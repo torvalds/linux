@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+# some sort of 't' outside BMP
+s=$s$(printf '\360\235\225\245')
+
+# Start a new shell so the locale change is picked up.
+ss="$(LC_ALL=en_US.UTF-8 ${SH} -c "printf %s \$'\U0001d565'")"
+[ "$s" = "$ss" ]

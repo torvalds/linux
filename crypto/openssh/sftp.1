@@ -1,0 +1,630 @@
+.\" $OpenBSD: sftp.1,v 1.119 2018/07/23 19:53:55 jmc Exp $
+.\"
+.\" Copyright (c) 2001 Damien Miller.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: July 23 2018 $
+.Dt SFTP 1
+.Os
+.Sh NAME
+.Nm sftp
+.Nd secure file transfer program
+.Sh SYNOPSIS
+.Nm sftp
+.Op Fl 46aCfpqrv
+.Op Fl B Ar buffer_size
+.Op Fl b Ar batchfile
+.Op Fl c Ar cipher
+.Op Fl D Ar sftp_server_path
+.Op Fl F Ar ssh_config
+.Op Fl i Ar identity_file
+.Op Fl l Ar limit
+.Op Fl o Ar ssh_option
+.Op Fl P Ar port
+.Op Fl R Ar num_requests
+.Op Fl S Ar program
+.Op Fl s Ar subsystem | sftp_server
+.Ar destination
+.Sh DESCRIPTION
+.Nm
+is a file transfer program, similar to
+.Xr ftp 1 ,
+which performs all operations over an encrypted
+.Xr ssh 1
+transport.
+It may also use many features of ssh, such as public key authentication and
+compression.
+.Pp
+The
+.Ar destination
+may be specified either as
+.Sm off
+.Oo user @ Oc host Op : path
+.Sm on
+or as a URI in the form
+.Sm off
+.No sftp:// Oo user @ Oc host Oo : port Oc Op / path .
+.Sm on
+.Pp
+If the
+.Ar destination
+includes a
+.Ar path
+and it is not a directory,
+.Nm
+will retrieve files automatically if a non-interactive
+authentication method is used; otherwise it will do so after
+successful interactive authentication.
+.Pp
+If no
+.Ar path
+is specified, or if the
+.Ar path
+is a directory,
+.Nm
+will log in to the specified
+.Ar host
+and enter interactive command mode, changing to the remote directory
+if one was specified.
+An optional trailing slash can be used to force the
+.Ar path
+to be interpreted as a directory.
+.Pp
+Since the destination formats use colon characters to delimit host
+names from path names or port numbers, IPv6 addresses must be
+enclosed in square brackets to avoid ambiguity.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
+.It Fl a
+Attempt to continue interrupted transfers rather than overwriting
+existing partial or complete copies of files.
+If the partial contents differ from those being transferred,
+then the resultant file is likely to be corrupt.
+.It Fl B Ar buffer_size
+Specify the size of the buffer that
+.Nm
+uses when transferring files.
+Larger buffers require fewer round trips at the cost of higher
+memory consumption.
+The default is 32768 bytes.
+.It Fl b Ar batchfile
+Batch mode reads a series of commands from an input
+.Ar batchfile
+instead of
+.Em stdin .
+Since it lacks user interaction it should be used in conjunction with
+non-interactive authentication to obviate the need to enter a password
+at connection time (see
+.Xr sshd 8
+and
+.Xr ssh-keygen 1
+for details).
+A
+.Ar batchfile
+of
+.Sq \-
+may be used to indicate standard input.
+.Nm
+will abort if any of the following
+commands fail:
+.Ic get , put , reget , reput, rename , ln ,
+.Ic rm , mkdir , chdir , ls ,
+.Ic lchdir , chmod , chown ,
+.Ic chgrp , lpwd , df , symlink ,
+and
+.Ic lmkdir .
+Termination on error can be suppressed on a command by command basis by
+prefixing the command with a
+.Sq \-
+character (for example,
+.Ic -rm /tmp/blah* ) .
+.It Fl C
+Enables compression (via ssh's
+.Fl C
+flag).
+.It Fl c Ar cipher
+Selects the cipher to use for encrypting the data transfers.
+This option is directly passed to
+.Xr ssh 1 .
+.It Fl D Ar sftp_server_path
+Connect directly to a local sftp server
+(rather than via
+.Xr ssh 1 ) .
+This option may be useful in debugging the client and server.
+.It Fl F Ar ssh_config
+Specifies an alternative
+per-user configuration file for
+.Xr ssh 1 .
+This option is directly passed to
+.Xr ssh 1 .
+.It Fl f
+Requests that files be flushed to disk immediately after transfer.
+When uploading files, this feature is only enabled if the server
+implements the "fsync@openssh.com" extension.
+.It Fl i Ar identity_file
+Selects the file from which the identity (private key) for public key
+authentication is read.
+This option is directly passed to
+.Xr ssh 1 .
+.It Fl l Ar limit
+Limits the used bandwidth, specified in Kbit/s.
+.It Fl o Ar ssh_option
+Can be used to pass options to
+.Nm ssh
+in the format used in
+.Xr ssh_config 5 .
+This is useful for specifying options
+for which there is no separate
+.Nm sftp
+command-line flag.
+For example, to specify an alternate port use:
+.Ic sftp -oPort=24 .
+For full details of the options listed below, and their possible values, see
+.Xr ssh_config 5 .
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It AddressFamily
+.It BatchMode
+.It BindAddress
+.It BindInterface
+.It CanonicalDomains
+.It CanonicalizeFallbackLocal
+.It CanonicalizeHostname
+.It CanonicalizeMaxDots
+.It CanonicalizePermittedCNAMEs
+.It CertificateFile
+.It ChallengeResponseAuthentication
+.It CheckHostIP
+.It Ciphers
+.It Compression
+.It ConnectionAttempts
+.It ConnectTimeout
+.It ControlMaster
+.It ControlPath
+.It ControlPersist
+.It GlobalKnownHostsFile
+.It GSSAPIAuthentication
+.It GSSAPIDelegateCredentials
+.It HashKnownHosts
+.It Host
+.It HostbasedAuthentication
+.It HostbasedKeyTypes
+.It HostKeyAlgorithms
+.It HostKeyAlias
+.It HostName
+.It IdentitiesOnly
+.It IdentityAgent
+.It IdentityFile
+.It IPQoS
+.It KbdInteractiveAuthentication
+.It KbdInteractiveDevices
+.It KexAlgorithms
+.It LogLevel
+.It MACs
+.It NoHostAuthenticationForLocalhost
+.It NumberOfPasswordPrompts
+.It PasswordAuthentication
+.It PKCS11Provider
+.It Port
+.It PreferredAuthentications
+.It ProxyCommand
+.It ProxyJump
+.It PubkeyAcceptedKeyTypes
+.It PubkeyAuthentication
+.It RekeyLimit
+.It SendEnv
+.It ServerAliveInterval
+.It ServerAliveCountMax
+.It SetEnv
+.It StrictHostKeyChecking
+.It TCPKeepAlive
+.It UpdateHostKeys
+.It User
+.It UserKnownHostsFile
+.It VerifyHostKeyDNS
+.El
+.It Fl P Ar port
+Specifies the port to connect to on the remote host.
+.It Fl p
+Preserves modification times, access times, and modes from the
+original files transferred.
+.It Fl q
+Quiet mode: disables the progress meter as well as warning and
+diagnostic messages from
+.Xr ssh 1 .
+.It Fl R Ar num_requests
+Specify how many requests may be outstanding at any one time.
+Increasing this may slightly improve file transfer speed
+but will increase memory usage.
+The default is 64 outstanding requests.
+.It Fl r
+Recursively copy entire directories when uploading and downloading.
+Note that
+.Nm
+does not follow symbolic links encountered in the tree traversal.
+.It Fl S Ar program
+Name of the
+.Ar program
+to use for the encrypted connection.
+The program must understand
+.Xr ssh 1
+options.
+.It Fl s Ar subsystem | sftp_server
+Specifies the SSH2 subsystem or the path for an sftp server
+on the remote host.
+A path is useful when the remote
+.Xr sshd 8
+does not have an sftp subsystem configured.
+.It Fl v
+Raise logging level.
+This option is also passed to ssh.
+.El
+.Sh INTERACTIVE COMMANDS
+Once in interactive mode,
+.Nm
+understands a set of commands similar to those of
+.Xr ftp 1 .
+Commands are case insensitive.
+Pathnames that contain spaces must be enclosed in quotes.
+Any special characters contained within pathnames that are recognized by
+.Xr glob 3
+must be escaped with backslashes
+.Pq Sq \e .
+.Bl -tag -width Ds
+.It Ic bye
+Quit
+.Nm sftp .
+.It Ic cd Op Ar path
+Change remote directory to
+.Ar path .
+If
+.Ar path
+is not specified, then change directory to the one the session started in.
+.It Ic chgrp Ar grp Ar path
+Change group of file
+.Ar path
+to
+.Ar grp .
+.Ar path
+may contain
+.Xr glob 7
+characters and may match multiple files.
+.Ar grp
+must be a numeric GID.
+.It Ic chmod Ar mode Ar path
+Change permissions of file
+.Ar path
+to
+.Ar mode .
+.Ar path
+may contain
+.Xr glob 7
+characters and may match multiple files.
+.It Ic chown Ar own Ar path
+Change owner of file
+.Ar path
+to
+.Ar own .
+.Ar path
+may contain
+.Xr glob 7
+characters and may match multiple files.
+.Ar own
+must be a numeric UID.
+.It Xo Ic df
+.Op Fl hi
+.Op Ar path
+.Xc
+Display usage information for the filesystem holding the current directory
+(or
+.Ar path
+if specified).
+If the
+.Fl h
+flag is specified, the capacity information will be displayed using
+"human-readable" suffixes.
+The
+.Fl i
+flag requests display of inode information in addition to capacity information.
+This command is only supported on servers that implement the
+.Dq statvfs@openssh.com
+extension.
+.It Ic exit
+Quit
+.Nm sftp .
+.It Xo Ic get
+.Op Fl afPpr
+.Ar remote-path
+.Op Ar local-path
+.Xc
+Retrieve the
+.Ar remote-path
+and store it on the local machine.
+If the local
+path name is not specified, it is given the same name it has on the
+remote machine.
+.Ar remote-path
+may contain
+.Xr glob 7
+characters and may match multiple files.
+If it does and
+.Ar local-path
+is specified, then
+.Ar local-path
+must specify a directory.
+.Pp
+If the
+.Fl a
+flag is specified, then attempt to resume partial transfers of existing files.
+Note that resumption assumes that any partial copy of the local file matches
+the remote copy.
+If the remote file contents differ from the partial local copy then the
+resultant file is likely to be corrupt.
+.Pp
+If the
+.Fl f
+flag is specified, then
+.Xr fsync 2
+will be called after the file transfer has completed to flush the file
+to disk.
+.Pp
+If either the
+.Fl P
+or
+.Fl p
+flag is specified, then full file permissions and access times are
+copied too.
+.Pp
+If the
+.Fl r
+flag is specified then directories will be copied recursively.
+Note that
+.Nm
+does not follow symbolic links when performing recursive transfers.
+.It Ic help
+Display help text.
+.It Ic lcd Op Ar path
+Change local directory to
+.Ar path .
+If
+.Ar path
+is not specified, then change directory to the local user's home directory.
+.It Ic lls Op Ar ls-options Op Ar path
+Display local directory listing of either
+.Ar path
+or current directory if
+.Ar path
+is not specified.
+.Ar ls-options
+may contain any flags supported by the local system's
+.Xr ls 1
+command.
+.Ar path
+may contain
+.Xr glob 7
+characters and may match multiple files.
+.It Ic lmkdir Ar path
+Create local directory specified by
+.Ar path .
+.It Xo Ic ln
+.Op Fl s
+.Ar oldpath
+.Ar newpath
+.Xc
+Create a link from
+.Ar oldpath
+to
+.Ar newpath .
+If the
+.Fl s
+flag is specified the created link is a symbolic link, otherwise it is
+a hard link.
+.It Ic lpwd
+Print local working directory.
+.It Xo Ic ls
+.Op Fl 1afhlnrSt
+.Op Ar path
+.Xc
+Display a remote directory listing of either
+.Ar path
+or the current directory if
+.Ar path
+is not specified.
+.Ar path
+may contain
+.Xr glob 7
+characters and may match multiple files.
+.Pp
+The following flags are recognized and alter the behaviour of
+.Ic ls
+accordingly:
+.Bl -tag -width Ds
+.It Fl 1
+Produce single columnar output.
+.It Fl a
+List files beginning with a dot
+.Pq Sq \&. .
+.It Fl f
+Do not sort the listing.
+The default sort order is lexicographical.
+.It Fl h
+When used with a long format option, use unit suffixes: Byte, Kilobyte,
+Megabyte, Gigabyte, Terabyte, Petabyte, and Exabyte in order to reduce
+the number of digits to four or fewer using powers of 2 for sizes (K=1024,
+M=1048576, etc.).
+.It Fl l
+Display additional details including permissions
+and ownership information.
+.It Fl n
+Produce a long listing with user and group information presented
+numerically.
+.It Fl r
+Reverse the sort order of the listing.
+.It Fl S
+Sort the listing by file size.
+.It Fl t
+Sort the listing by last modification time.
+.El
+.It Ic lumask Ar umask
+Set local umask to
+.Ar umask .
+.It Ic mkdir Ar path
+Create remote directory specified by
+.Ar path .
+.It Ic progress
+Toggle display of progress meter.
+.It Xo Ic put
+.Op Fl afPpr
+.Ar local-path
+.Op Ar remote-path
+.Xc
+Upload
+.Ar local-path
+and store it on the remote machine.
+If the remote path name is not specified, it is given the same name it has
+on the local machine.
+.Ar local-path
+may contain
+.Xr glob 7
+characters and may match multiple files.
+If it does and
+.Ar remote-path
+is specified, then
+.Ar remote-path
+must specify a directory.
+.Pp
+If the
+.Fl a
+flag is specified, then attempt to resume partial
+transfers of existing files.
+Note that resumption assumes that any partial copy of the remote file
+matches the local copy.
+If the local file contents differ from the remote local copy then
+the resultant file is likely to be corrupt.
+.Pp
+If the
+.Fl f
+flag is specified, then a request will be sent to the server to call
+.Xr fsync 2
+after the file has been transferred.
+Note that this is only supported by servers that implement
+the "fsync@openssh.com" extension.
+.Pp
+If either the
+.Fl P
+or
+.Fl p
+flag is specified, then full file permissions and access times are
+copied too.
+.Pp
+If the
+.Fl r
+flag is specified then directories will be copied recursively.
+Note that
+.Nm
+does not follow symbolic links when performing recursive transfers.
+.It Ic pwd
+Display remote working directory.
+.It Ic quit
+Quit
+.Nm sftp .
+.It Xo Ic reget
+.Op Fl Ppr
+.Ar remote-path
+.Op Ar local-path
+.Xc
+Resume download of
+.Ar remote-path .
+Equivalent to
+.Ic get
+with the
+.Fl a
+flag set.
+.It Xo Ic reput
+.Op Fl Ppr
+.Op Ar local-path
+.Ar remote-path
+.Xc
+Resume upload of
+.Op Ar local-path .
+Equivalent to
+.Ic put
+with the
+.Fl a
+flag set.
+.It Ic rename Ar oldpath Ar newpath
+Rename remote file from
+.Ar oldpath
+to
+.Ar newpath .
+.It Ic rm Ar path
+Delete remote file specified by
+.Ar path .
+.It Ic rmdir Ar path
+Remove remote directory specified by
+.Ar path .
+.It Ic symlink Ar oldpath Ar newpath
+Create a symbolic link from
+.Ar oldpath
+to
+.Ar newpath .
+.It Ic version
+Display the
+.Nm
+protocol version.
+.It Ic \&! Ns Ar command
+Execute
+.Ar command
+in local shell.
+.It Ic \&!
+Escape to local shell.
+.It Ic \&?
+Synonym for help.
+.El
+.Sh SEE ALSO
+.Xr ftp 1 ,
+.Xr ls 1 ,
+.Xr scp 1 ,
+.Xr ssh 1 ,
+.Xr ssh-add 1 ,
+.Xr ssh-keygen 1 ,
+.Xr ssh_config 5 ,
+.Xr glob 7 ,
+.Xr sftp-server 8 ,
+.Xr sshd 8
+.Rs
+.%A T. Ylonen
+.%A S. Lehtinen
+.%T "SSH File Transfer Protocol"
+.%N draft-ietf-secsh-filexfer-00.txt
+.%D January 2001
+.%O work in progress material
+.Re

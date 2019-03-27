@@ -1,0 +1,341 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)lpd.8	8.3 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\"
+.Dd June 6, 2001
+.Dt LPD 8
+.Os
+.Sh NAME
+.Nm lpd
+.Nd line printer spooler daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl cdlpsW46
+.Op Ar port#
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is the line printer daemon (spool area handler) and is normally invoked
+at boot time from the
+.Xr rc 8
+file.
+It makes a single pass through the
+.Xr printcap 5
+file to find out about the existing printers and
+prints any files left after a crash.
+It then uses the system calls
+.Xr listen 2
+and
+.Xr accept 2
+to receive requests to print files in the queue,
+transfer files to the spooling area, display the queue,
+or remove jobs from the queue.
+In each case, it forks a child to handle
+the request so the parent can continue to listen for more requests.
+.Pp
+Available options:
+.Bl -tag -width Ds
+.It Fl c
+By default, if some remote host has a connection error while trying to
+send a print request to
+.Nm
+on a local host,
+.Nm
+will only send error message to that remote host.
+The
+.Fl c
+flag causes
+.Nm
+to also log all of those connection errors via
+.Xr syslog 3 .
+.It Fl d
+Turn on
+.Dv SO_DEBUG
+on the Internet listening socket (see
+.Xr setsockopt 2 ) .
+.It Fl l
+The
+.Fl l
+flag causes
+.Nm
+to log valid requests received from the network.
+This can be useful
+for debugging purposes.
+.It Fl p
+The
+.Fl p
+flag is a synonym for the
+.Fl s
+flag.
+It is being deprecated, and may be removed in a
+future version of
+.Nm .
+.It Fl s
+The
+.Fl s
+(secure) flag causes
+.Nm
+not to open an Internet listening socket.
+This means that
+.Nm
+will not accept any connections from any remote
+hosts, although it will still accept print requests
+from all local users.
+.It Fl W
+By default, the
+.Nm
+daemon will only accept connections which originate
+from a reserved-port (<1024) on the remote host.
+The
+.Fl W
+flag causes
+.Nm
+to accept connections coming from any port.
+This is can be useful when you want to accept print jobs
+from certain implementations of lpr written for Windows.
+.It Fl 4
+Inet only.
+.It Fl 6
+Inet6 only.
+.It Fl 46
+Inet and inet6 (default).
+.It Ar "port#"
+The Internet port number used to rendezvous
+with other processes is normally obtained with
+.Xr getservbyname 3
+but can be changed with the
+.Ar port#
+argument.
+.El
+.Pp
+Access control is provided by two means.
+First, all requests must come from
+one of the machines listed in the file
+.Pa /etc/hosts.equiv
+or
+.Pa /etc/hosts.lpd .
+Second, if the
+.Li rs
+capability is specified in the
+.Xr printcap 5
+entry for the printer being accessed,
+.Em lpr
+requests will only be honored for those users with accounts on the
+machine with the printer.
+.Pp
+The file
+.Em minfree
+in each spool directory contains the number of kilobytes to leave free
+so that the line printer queue will not completely fill the disk.
+The
+.Em minfree
+file can be edited with your favorite text editor.
+.Pp
+The daemon begins processing files
+after it has successfully set the lock for exclusive
+access (described a bit later),
+and scans the spool directory
+for files beginning with
+.Em cf .
+Lines in each
+.Em cf
+file specify files to be printed or non-printing actions to be
+performed.
+Each such line begins with a key character
+to specify what to do with the remainder of the line.
+.Bl -tag -width Ds
+.It J
+Job Name.
+String to be used for the job name on the burst page.
+.It C
+Classification.
+String to be used for the classification line
+on the burst page.
+.It L
+Literal.
+The line contains identification info from
+the password file and causes the banner page to be printed.
+.It T
+Title.
+String to be used as the title for
+.Xr pr 1 .
+.It H
+Host Name.
+Name of the machine where
+.Xr lpr 1
+was invoked.
+.It P
+Person.
+Login name of the person who invoked
+.Xr lpr 1 .
+This is used to verify ownership by
+.Xr lprm 1 .
+.It M
+Send mail to the specified user when the current print job completes.
+.It f
+Formatted File.
+Name of a file to print which is already formatted.
+.It l
+Like ``f'' but passes control characters and does not make page breaks.
+.It p
+Name of a file to print using
+.Xr pr 1
+as a filter.
+.It t
+Troff File.
+The file contains
+.Xr troff 1
+output (cat phototypesetter commands).
+.It n
+Ditroff File.
+The file contains device independent troff
+output.
+.It r
+DVI File.
+The file contains
+.Tn Tex l
+output
+DVI format from Stanford.
+.It g
+Graph File.
+The file contains data produced by
+.Xr plot 3 .
+.It c
+Cifplot File.
+The file contains data produced by
+.Em cifplot .
+.It v
+The file contains a raster image.
+.It r
+The file contains text data with
+FORTRAN carriage control characters.
+.It \&1
+Troff Font R.
+Name of the font file to use instead of the default.
+.It \&2
+Troff Font I.
+Name of the font file to use instead of the default.
+.It \&3
+Troff Font B.
+Name of the font file to use instead of the default.
+.It \&4
+Troff Font S.
+Name of the font file to use instead of the default.
+.It W
+Width.
+Changes the page width (in characters) used by
+.Xr pr 1
+and the text filters.
+.It I
+Indent.
+The number of characters to indent the output by (in ASCII).
+.It U
+Unlink.
+Name of file to remove upon completion of printing.
+.It N
+File name.
+The name of the file which is being printed, or a blank
+for the standard input (when
+.Xr lpr 1
+is invoked in a pipeline).
+.It Z
+Locale.
+String to be used as the locale for
+.Xr pr 1 .
+.El
+.Pp
+If a file cannot be opened, a message will be logged via
+.Xr syslog 3
+using the
+.Em LOG_LPR
+facility.
+The
+.Nm
+utility will try up to 20 times
+to reopen a file it expects to be there, after which it will
+skip the file to be printed.
+.Pp
+The
+.Nm
+utility uses
+.Xr flock 2
+to provide exclusive access to the lock file and to prevent multiple
+daemons from becoming active simultaneously.
+If the daemon should be killed
+or die unexpectedly, the lock file need not be removed.
+The lock file is kept in a readable
+.Tn ASCII
+form
+and contains two lines.
+The first is the process id of the daemon and the second is the control
+file name of the current job being printed.
+The second line is updated to
+reflect the current status of
+.Nm
+for the programs
+.Xr lpq 1
+and
+.Xr lprm 1 .
+.Sh FILES
+.Bl -tag -width "/var/spool/*/minfree" -compact
+.It Pa /etc/printcap
+printer description file
+.It Pa /var/spool/*
+spool directories
+.It Pa /var/spool/*/minfree
+minimum free space to leave
+.It Pa /dev/lp*
+line printer devices
+.It Pa /var/run/printer
+socket for local requests
+.It Pa /etc/hosts.equiv
+lists machine names allowed printer access
+.It Pa /etc/hosts.lpd
+lists machine names allowed printer access,
+but not under same administrative control.
+.El
+.Sh SEE ALSO
+.Xr lpq 1 ,
+.Xr lpr 1 ,
+.Xr lprm 1 ,
+.Xr setsockopt 2 ,
+.Xr syslog 3 ,
+.Xr hosts.lpd 5 ,
+.Xr printcap 5 ,
+.Xr chkprintcap 8 ,
+.Xr lpc 8 ,
+.Xr pac 8
+.Rs
+.%T "4.2 BSD Line Printer Spooler Manual"
+.Re
+.Sh HISTORY
+An
+.Nm
+daemon appeared in Version 6 AT&T UNIX.

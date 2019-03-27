@@ -1,0 +1,104 @@
+HLR/AuC testing gateway for hostapd EAP-SIM/AKA database/authenticator
+
+hlr_auc_gw is an example implementation of the EAP-SIM/AKA/AKA'
+database/authentication gateway interface to HLR/AuC. It could be
+replaced with an implementation of SS7 gateway to GSM/UMTS
+authentication center (HLR/AuC). hostapd will send SIM/AKA
+authentication queries over a UNIX domain socket to and external
+program, e.g., hlr_auc_gw.
+
+hlr_auc_gw can be configured with GSM and UMTS authentication data with
+text files: GSM triplet file (see hostapd.sim_db) and Milenage file (see
+hlr_auc_gw.milenage_db). Milenage parameters can be used to generate
+dynamic authentication data for EAP-SIM, EAP-AKA, and EAP-AKA' while the
+GSM triplet data is used for a more static configuration (e.g., triplets
+extracted from a SIM card).
+
+Alternatively, hlr_auc_gw can be built with support for an SQLite
+database for more dynamic operations. This is enabled by adding
+"CONFIG_SQLITE=y" into hostapd/.config before building hlr_auc_gw ("make
+clean; make hlr_auc_gw" in this directory).
+
+hostapd is configured to use hlr_auc_gw with the eap_sim_db parameter in
+hostapd.conf (e.g., "eap_sim_db=unix:/tmp/hlr_auc_gw.sock"). hlr_auc_gw
+is configured with command line parameters:
+
+hlr_auc_gw [-hu] [-s<socket path>] [-g<triplet file>] [-m<milenage file>] \
+        [-D<DB file>] [-i<IND len in bits>]
+
+options:
+  -h = show this usage help
+  -u = update SQN in Milenage file on exit
+  -s<socket path> = path for UNIX domain socket
+                    (default: /tmp/hlr_auc_gw.sock)
+  -g<triplet file> = path for GSM authentication triplets
+  -m<milenage file> = path for Milenage keys
+  -D<DB file> = path to SQLite database
+  -i<IND len in bits> = IND length for SQN (default: 5)
+
+
+The SQLite database can be initialized with sqlite, e.g., by running
+following commands in "sqlite3 /path/to/hlr_auc_gw.db":
+
+CREATE TABLE milenage(
+	imsi INTEGER PRIMARY KEY NOT NULL,
+	ki CHAR(32) NOT NULL,
+	opc CHAR(32) NOT NULL,
+	amf CHAR(4) NOT NULL,
+	sqn CHAR(12) NOT NULL
+);
+INSERT INTO milenage(imsi,ki,opc,amf,sqn) VALUES(
+	232010000000000,
+	'90dca4eda45b53cf0f12d7c9c3bc6a89',
+	'cb9cccc4b9258e6dca4760379fb82581',
+	'61df',
+	'000000000000'
+);
+INSERT INTO milenage(imsi,ki,opc,amf,sqn) VALUES(
+	555444333222111,
+	'5122250214c33e723a5dd523fc145fc0',
+	'981d464c7c52eb6e5036234984ad0bcf',
+	'c3ab',
+	'16f3b3f70fc1'
+);
+
+
+hostapd (EAP server) can also be configured to store the EAP-SIM/AKA
+pseudonyms and reauth information into a SQLite database. This is
+configured with the db parameter within the eap_sim_db configuration
+option.
+
+
+"hlr_auc_gw -D /path/to/hlr_auc_gw.db" can then be used to fetch
+Milenage parameters based on IMSI from the database. The database can be
+updated dynamically while hlr_auc_gw is running to add/remove/modify
+entries.
+
+
+Example configuration files for hostapd to operate as a RADIUS
+authentication server for EAP-SIM/AKA/AKA':
+
+hostapd.conf:
+
+driver=none
+radius_server_clients=hostapd.radius_clients
+eap_server=1
+eap_user_file=hostapd.eap_user
+eap_sim_db=unix:/tmp/hlr_auc_gw.sock db=/tmp/eap_sim.db
+eap_sim_aka_result_ind=1
+
+hostapd.radius_clients:
+
+0.0.0.0/0	radius
+
+hostapd.eap_user:
+
+"0"*	AKA
+"1"*	SIM
+"2"*	AKA
+"3"*	SIM
+"4"*	AKA
+"5"*	SIM
+"6"*	AKA'
+"7"*	AKA'
+"8"*	AKA'

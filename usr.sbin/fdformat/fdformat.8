@@ -1,0 +1,180 @@
+.\" Copyright (C) 1993, 1994, 1995, 2001 by Joerg Wunsch, Dresden
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 4, 2017
+.Dt FDFORMAT 8
+.Os
+.Sh NAME
+.Nm fdformat
+.Nd format floppy disks
+.Sh SYNOPSIS
+.Nm
+.Op Fl F Ar fill
+.Op Fl f Ar fmt
+.Op Fl s Ar fmtstr
+.Op Fl nqvy
+.Ar device
+.Sh DESCRIPTION
+The
+.Nm
+utility formats a floppy disk at
+.Ar device ,
+where
+.Ar device
+may either be given as a full path
+name of a device node for a floppy disk drive
+(e.g.\&
+.Pa /dev/fd0 ) ,
+or using an abbreviated name that will be looked up
+under
+.Pa /dev
+(e.g.\&
+.Dq Li fd0 ) .
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl s Ar fmtstr"
+.It Fl F Ar fill
+Use
+.Ar fill
+as the fill byte for newly formatted sectors.
+The
+.Ar fill
+argument
+must be a number in the range 0 through 255 using common C
+language notation.
+The default value is
+.Dq Li 0xf6 .
+.It Fl f Ar fmt
+Specify the density settings for a
+.Ar fmt
+kilobyte format, as described in
+.Xr fdcontrol 8 .
+.It Fl s Ar fmtstr
+Specify the density settings using explicit parameters, as
+described in
+.Xr fdcontrol 8 .
+.It Fl n
+Do not verify floppy after formatting.
+.It Fl q
+Suppress any normal output from the command, and do not ask the
+user for a confirmation whether to format the floppy disk at
+.Ar device .
+.It Fl v
+Do not format, verify only.
+.It Fl y
+Do not ask for confirmation whether to format the floppy disk but
+still report formatting status.
+.El
+.Pp
+For non-autoselecting subdevices, neither
+.Fl f Ar fmt
+nor
+.Fl s Ar fmtstr
+may be specified, since the preconfigured media density settings
+from the kernel driver will always be used.
+However, if
+.Ar device
+is a device with automatic media density selection (see
+.Xr fdc 4 ) ,
+both methods can be used to override the density settings for the
+newly formatted medium (without permanently changing the density
+settings of
+.Ar device ) .
+.Pp
+If the
+.Fl q
+flag has not been specified, the user is asked for a confirmation
+of the intended formatting process.
+In order to continue, an answer
+of
+.Ql y
+must be given.
+.Pp
+Note that
+.Nm
+does only perform low-level formatting.
+In order to create
+a file system on the medium, see the commands
+.Xr newfs 8
+for a
+.Tn UFS
+file system, or
+.Xr newfs_msdos 8
+for an
+.Tn MS-DOS
+(FAT)
+file system.
+.Sh EXIT STATUS
+An exit status of 0 is returned upon successful operation.
+Exit status
+1 is returned on any errors during floppy formatting, and an exit status
+of 2 reflects invalid arguments given to the program (along with an
+appropriate information written to diagnostic output).
+.Sh DIAGNOSTICS
+Unless
+.Fl q
+has been specified, a single letter is printed to standard output
+to inform the user about the progress of work.
+First, an
+.Ql F
+is printed when the track is being formatted, then a
+.Ql V
+while it is being verified, and if an error has been detected, it
+will finally change to
+.Ql E .
+Detailed status information (cylinder, head and sector number, and the
+exact cause of the error) will be printed for up to 10 errors after the
+entire formatting process has completed.
+.Sh SEE ALSO
+.Xr fdc 4 ,
+.Xr fdcontrol 8 ,
+.Xr newfs 8 ,
+.Xr newfs_msdos 8
+.Sh HISTORY
+The
+.Nm
+utility
+has been developed for
+.Bx 386 0.1
+and upgraded to the new
+.Xr fdc 4
+floppy disk driver.
+It later became part of the
+.Fx 1.1
+system.
+Starting with
+.Fx 5.0 ,
+it uses the unified density specifications as described in
+.Xr fdcontrol 8 .
+.Sh AUTHORS
+.An -nosplit
+The program has been contributed by
+.An J\(:org Wunsch ,
+Dresden, with changes by
+.An Serge Vakulenko
+and
+.An Andrey A. Chernov ,
+Moscow.

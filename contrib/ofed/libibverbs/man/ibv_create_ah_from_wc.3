@@ -1,0 +1,64 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_CREATE_AH_FROM_WC 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_init_ah_from_wc, ibv_create_ah_from_wc \- initialize or create an
+address handle (AH) from a work completion
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_init_ah_from_wc(struct ibv_context " "*context" ", uint8_t " "port_num" ,
+.BI "                        struct ibv_wc " "*wc" ", struct ibv_grh " "*grh" ,
+.BI "                        struct ibv_ah_attr " "*ah_attr" );
+.sp
+.BI "struct ibv_ah *ibv_create_ah_from_wc(struct ibv_pd " "*pd" ,
+.BI "                                     struct ibv_wc " "*wc" ,
+.BI "                                     struct ibv_grh " "*grh" ,
+.BI "                                     uint8_t " "port_num" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_init_ah_from_wc()
+initializes the address handle (AH) attribute structure
+.I ah_attr
+for the RDMA device context
+.I context
+using the port number
+.I port_num\fR,
+using attributes from the work completion
+.I wc
+and the Global Routing Header (GRH) structure
+.I grh\fR.
+.PP
+.B ibv_create_ah_from_wc()
+creates an AH associated with the protection domain
+.I pd
+using the port number
+.I port_num\fR,
+using attributes from the work completion
+.I wc
+and the Global Routing Header (GRH) structure
+.I grh\fR.
+.SH "RETURN VALUE"
+.B ibv_init_ah_from_wc()
+returns 0 on success, and \-1 on error.
+.PP
+.B ibv_create_ah_from_wc()
+returns a pointer to the created AH, or NULL if the request fails.
+.SH "NOTES"
+The filled structure
+.I ah_attr
+returned from
+.B ibv_init_ah_from_wc()
+can be used to create a new AH using
+.B ibv_create_ah()\fR.
+.SH "SEE ALSO"
+.BR ibv_open_device (3),
+.BR ibv_alloc_pd (3),
+.BR ibv_create_ah (3),
+.BR ibv_destroy_ah (3),
+.BR ibv_poll_cq (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

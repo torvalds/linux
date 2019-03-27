@@ -1,0 +1,314 @@
+\ Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
+\
+\ Permission is hereby granted, free of charge, to any person obtaining 
+\ a copy of this software and associated documentation files (the
+\ "Software"), to deal in the Software without restriction, including
+\ without limitation the rights to use, copy, modify, merge, publish,
+\ distribute, sublicense, and/or sell copies of the Software, and to
+\ permit persons to whom the Software is furnished to do so, subject to
+\ the following conditions:
+\
+\ The above copyright notice and this permission notice shall be 
+\ included in all copies or substantial portions of the Software.
+\
+\ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
+\ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+\ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+\ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+\ BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+\ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+\ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+\ SOFTWARE.
+
+preamble {
+
+#include "inner.h"
+
+#define CTX   ((br_pem_decoder_context *)(void *)((unsigned char *)t0ctx - offsetof(br_pem_decoder_context, cpu)))
+
+/* see bearssl_pem.h */
+void
+br_pem_decoder_init(br_pem_decoder_context *ctx)
+{
+	memset(ctx, 0, sizeof *ctx);
+	ctx->cpu.dp = &ctx->dp_stack[0];
+	ctx->cpu.rp = &ctx->rp_stack[0];
+	br_pem_decoder_init_main(&ctx->cpu);
+	br_pem_decoder_run(&ctx->cpu);
+}
+
+/* see bearssl_pem.h */
+size_t
+br_pem_decoder_push(br_pem_decoder_context *ctx,
+	const void *data, size_t len)
+{
+	if (ctx->event) {
+		return 0;
+	}
+	ctx->hbuf = data;
+	ctx->hlen = len;
+	br_pem_decoder_run(&ctx->cpu);
+	return len - ctx->hlen;
+}
+
+/* see bearssl_pem.h */
+int
+br_pem_decoder_event(br_pem_decoder_context *ctx)
+{
+	int event;
+
+	event = ctx->event;
+	ctx->event = 0;
+	return event;
+}
+
+}
+
+\ Define a word that evaluates to the address of a field within the
+\ decoder context.
+: addr:
+	next-word { field }
+	"addr-" field + 0 1 define-word
+	0 8191 "offsetof(br_pem_decoder_context, " field + ")" + make-CX
+	postpone literal postpone ; ;
+
+addr: event
+addr: name
+addr: buf
+addr: ptr
+
+\ Set a byte at a specific address (offset within the context).
+cc: set8 ( value addr -- ) {
+	size_t addr = T0_POP();
+	unsigned x = T0_POP();
+	*((unsigned char *)CTX + addr) = x;
+}
+
+\ Get a byte at a specific address (offset within the context).
+cc: get8 ( addr -- value ) {
+	size_t addr = T0_POP();
+	T0_PUSH(*((unsigned char *)CTX + addr));
+}
+
+\ Send an event.
+: send-event ( event -- )
+	addr-event set8 co ;
+
+\ Low-level function to read a single byte. Returned value is the byte
+\ (0 to 255), or -1 if there is no available data.
+cc: read8-native ( -- x ) {
+	if (CTX->hlen > 0) {
+		T0_PUSH(*CTX->hbuf ++);
+		CTX->hlen --;
+	} else {
+		T0_PUSHi(-1);
+	}
+}
+
+\ Read next byte. Block until the next byte is available.
+: read8 ( -- x )
+	begin read8-native dup 0< ifnot ret then drop co again ;
+
+\ Read bytes until next end-of-line.
+: skip-newline ( -- )
+	begin read8 `\n <> while repeat ;
+
+\ Read bytes until next end-of-line; verify that they are all whitespace.
+\ This returns -1 if they were all whitespace, 0 otherwise.
+: skip-newline-ws ( -- bool )
+	-1 { r }
+	begin read8 dup `\n <> while ws? ifnot 0 >r then repeat
+	drop r ;
+
+\ Normalise a byte to uppercase (ASCII only).
+: norm-upper ( x -- x )
+	dup dup `a >= swap `z <= and if 32 - then ;
+
+\ Read bytes and compare with the provided string. On mismatch, the
+\ rest of the line is consumed. Matching is not case sensitive.
+: match-string ( str -- bool )
+	begin
+		dup data-get8 norm-upper dup ifnot 2drop -1 ret then
+		read8 norm-upper dup `\n = if drop 2drop 0 ret then
+		= ifnot drop skip-newline 0 ret then
+		1+
+	again ;
+
+\ Read bytes into the provided buffer, but no more than the provided
+\ count. Reading stops when end-of-line is reached. Returned value
+\ is the count of bytes written to the buffer, or 0 if the buffer size
+\ was exceeded. All bytes are normalised to uppercase (ASCII only).
+: read-bytes ( addr len -- len )
+	dup { orig-len }
+	swap
+	begin
+		over ifnot 2drop skip-newline 0 ret then
+		read8 dup `\n = if 2drop orig-len swap - ret then
+		dup `\r = if drop else norm-upper over set8 then
+		1+ swap 1- swap
+	again ;
+
+\ Remove trailing dashes from the name buffer.
+: trim-dashes ( len -- )
+	begin dup while
+		1-
+		dup addr-name + get8 `- <> if
+			addr-name + 1+ 0 swap set8 ret
+		then
+	repeat
+	addr-name set8 ;
+
+\ Scan input for next "begin" banner.
+: next-banner-begin ( -- )
+	begin
+		"-----BEGIN " match-string if
+			addr-name 127 read-bytes
+			dup if trim-dashes ret then
+			drop
+		then
+	again ;
+
+\ Convert a Base64 character to its numerical value. Returned value is
+\ 0 to 63 for Base64 characters, -1 for '=', and -2 for all other characters.
+cc: from-base64 ( char -- x ) {
+	uint32_t c = T0_POP();
+	uint32_t p, q, r, z;
+	p = c - 0x41;
+	q = c - 0x61;
+	r = c - 0x30;
+
+	z = ((p + 2) & -LT(p, 26))
+		| ((q + 28) & -LT(q, 26))
+		| ((r + 54) & -LT(r, 10))
+		| (64 & -EQ(c, 0x2B))
+		| (65 & -EQ(c, 0x2F))
+		| EQ(c, 0x3D);
+	T0_PUSHi((int32_t)z - 2);
+}
+
+\ Test whether a character is whitespace (but not a newline).
+: ws? ( x -- bool )
+	dup `\n <> swap 32 <= and ;
+
+\ Read next character, skipping whitespace (except newline).
+: next-nonws ( -- x )
+	begin
+		read8 dup ws? ifnot ret then
+		drop
+	again ;
+
+\ Write one byte in the output buffer.
+cc: write8 ( x -- ) {
+	unsigned char x = (unsigned char)T0_POP();
+	CTX->buf[CTX->ptr ++] = x;
+	if (CTX->ptr == sizeof CTX->buf) {
+		if (CTX->dest) {
+			CTX->dest(CTX->dest_ctx, CTX->buf, sizeof CTX->buf);
+		}
+		CTX->ptr = 0;
+	}
+}
+
+\ Flush the output buffer.
+cc: flush-buf ( -- ) {
+	if (CTX->ptr > 0) {
+		if (CTX->dest) {
+			CTX->dest(CTX->dest_ctx, CTX->buf, CTX->ptr);
+		}
+		CTX->ptr = 0;
+	}
+}
+
+\ Decode the four next Base64 characters. Returned value is:
+\    0   quartet processed, three bytes produced.
+\   -1   dash encountered as first character (no leading whitespace).
+\    1   quartet processed, one or two bytes produced, terminator reached.
+\    2   end-of-line reached.
+\    3   error.
+\ For all positive return values, the remaining of the current line has been
+\ consumed.
+: decode-next-quartet ( -- r )
+	\ Process first character. It may be a dash.
+	read8 dup `- = if drop -1 ret then
+	dup ws? if drop next-nonws then
+	dup `\n = if drop 2 ret then
+	from-base64 dup 0< if drop skip-newline 3 ret then
+	{ acc }
+
+	\ Second character.
+	next-nonws dup `\n = if drop 3 ret then
+	from-base64 dup 0< if drop skip-newline 3 ret then
+	acc 6 << + >acc
+
+	\ Third character: may be an equal sign.
+	next-nonws dup `\n = if drop 3 ret then
+	dup `= = if
+		\ Fourth character must be an equal sign.
+		drop
+		next-nonws dup `\n = if drop 3 ret then
+		skip-newline-ws ifnot drop 3 ret then
+		`= <> if 3 ret then
+		acc 0x0F and if 3 ret then
+		acc 4 >> write8
+		1 ret
+	then
+	from-base64 dup 0< if drop skip-newline 3 ret then
+	acc 6 << + >acc
+
+	\ Fourth character: may be an equal sign.
+	next-nonws dup `\n = if drop 3 ret then
+	dup `= = if
+		drop skip-newline-ws ifnot 3 ret then
+		acc 0x03 and if 3 ret then
+		acc 10 >> write8
+		acc 2 >> write8
+		1 ret
+	then
+	from-base64 dup 0< if drop skip-newline 3 ret then
+	acc 6 << + >acc
+	acc 16 >> write8
+	acc 8 >> write8
+	acc write8
+	0 ;
+
+\ Check trailer line (possibly, the leading dash has been read). This
+\ sends the appropriate event.
+: check-trailer ( bool -- )
+	ifnot
+		begin read8 dup `\n = while drop repeat
+		`- <> if skip-newline 3 send-event ret then
+	then
+	"----END " match-string ifnot 3 send-event ret then
+	flush-buf
+	skip-newline 2 send-event ;
+
+\ Decode one line worth of characters. Returned value is 0 if the end of the
+\ object is reached, -1 otherwise. The end of object or error event is sent.
+: decode-line ( -- bool )
+	-1 { first }
+	begin
+		decode-next-quartet
+		case
+			0 of endof
+			-1 of
+				first ifnot
+					skip-newline 3 send-event
+				else
+					-1 check-trailer
+				then
+				0 ret
+			endof
+			1 of 0 check-trailer 0 ret endof
+			2 of -1 ret endof
+
+			\ On decoding error
+			drop 3 send-event 0 ret
+		endcase
+		0 >first
+	again ;
+
+: main ( -- ! )
+	begin
+		next-banner-begin 1 send-event
+		begin decode-line while repeat
+	again ;

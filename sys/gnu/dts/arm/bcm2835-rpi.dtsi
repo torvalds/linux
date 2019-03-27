@@ -1,0 +1,110 @@
+#include <dt-bindings/power/raspberrypi-power.h>
+
+/ {
+	memory {
+		device_type = "memory";
+		reg = <0 0x10000000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		act {
+			label = "ACT";
+			default-state = "keep";
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	soc {
+		firmware: firmware {
+			compatible = "raspberrypi,bcm2835-firmware", "simple-bus";
+			#address-cells = <0>;
+			#size-cells = <0>;
+			mboxes = <&mailbox>;
+		};
+
+		power: power {
+			compatible = "raspberrypi,bcm2835-power";
+			firmware = <&firmware>;
+			#power-domain-cells = <1>;
+		};
+
+		mailbox@7e00b840 {
+			compatible = "brcm,bcm2835-vchiq";
+			reg = <0x7e00b840 0xf>;
+			interrupts = <0 2>;
+		};
+	};
+};
+
+&gpio {
+	pinctrl-names = "default";
+
+	gpioout: gpioout {
+		brcm,pins = <6>;
+		brcm,function = <BCM2835_FSEL_GPIO_OUT>;
+	};
+
+	alt0: alt0 {
+		brcm,pins = <4 5 7 8 9 10 11>;
+		brcm,function = <BCM2835_FSEL_ALT0>;
+	};
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_gpio0>;
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_gpio2>;
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
+&i2c2 {
+	status = "okay";
+};
+
+&sdhci {
+	pinctrl-names = "default";
+	pinctrl-0 = <&emmc_gpio48>;
+	bus-width = <4>;
+};
+
+&sdhost {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhost_gpio48>;
+	status = "okay";
+	bus-width = <4>;
+};
+
+&usb {
+	power-domains = <&power RPI_POWER_DOMAIN_USB>;
+};
+
+&v3d {
+	power-domains = <&power RPI_POWER_DOMAIN_V3D>;
+};
+
+&hdmi {
+	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
+	status = "okay";
+};
+
+&vec {
+	power-domains = <&power RPI_POWER_DOMAIN_VEC>;
+	status = "okay";
+};
+
+&dsi0 {
+	power-domains = <&power RPI_POWER_DOMAIN_DSI0>;
+};
+
+&dsi1 {
+	power-domains = <&power RPI_POWER_DOMAIN_DSI1>;
+};

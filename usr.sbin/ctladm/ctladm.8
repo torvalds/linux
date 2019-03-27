@@ -1,0 +1,1081 @@
+.\"
+.\" Copyright (c) 2003 Silicon Graphics International Corp.
+.\" Copyright (c) 2015 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2018 Marcelo Araujo <araujo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    substantially similar to the "NO WARRANTY" disclaimer below
+.\"    ("Disclaimer") and any redistribution must be conditioned upon
+.\"    including a substantially similar Disclaimer requirement for further
+.\"    binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" ctladm utility man page.
+.\"
+.\" Author: Ken Merry <ken@FreeBSD.org>
+.\"
+.\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
+.\" $FreeBSD$
+.\"
+.Dd May 10, 2018
+.Dt CTLADM 8
+.Os
+.Sh NAME
+.Nm ctladm
+.Nd CAM Target Layer control utility
+.Sh SYNOPSIS
+.Nm
+.Aq Ar command
+.Op lun
+.Op generic args
+.Op command args
+.Nm
+.Ic tur
+.Aq lun
+.Op general options
+.Nm
+.Ic inquiry
+.Aq lun
+.Op general options
+.Nm
+.Ic reqsense
+.Aq lun
+.Op general options
+.Nm
+.Ic reportluns
+.Aq lun
+.Op general options
+.Nm
+.Ic read
+.Aq lun
+.Op general options
+.Aq Fl l Ar lba
+.Aq Fl d Ar datalen
+.Aq Fl f Ar file|-
+.Aq Fl b Ar blocksize_bytes
+.Op Fl c Ar cdbsize
+.Op Fl N
+.Nm
+.Ic write
+.Aq lun
+.Op general options
+.Aq Fl l Ar lba
+.Aq Fl d Ar datalen
+.Aq Fl f Ar file|-
+.Aq Fl b Ar blocksize_bytes
+.Op Fl c Ar cdbsize
+.Op Fl N
+.Nm
+.Ic readcap
+.Aq lun
+.Op general options
+.Op Fl c Ar cdbsize
+.Nm
+.Ic modesense
+.Aq lun
+.Aq Fl m Ar page | Fl l
+.Op Fl P Ar pc
+.Op Fl d
+.Op Fl S Ar subpage
+.Op Fl c Ar size
+.Nm
+.Ic start
+.Aq lun
+.Op general options
+.Op Fl i
+.Op Fl o
+.Nm
+.Ic stop
+.Aq lun
+.Op general options
+.Op Fl i
+.Op Fl o
+.Nm
+.Ic synccache
+.Aq lun
+.Op general options
+.Op Fl l Ar lba
+.Op Fl b Ar blockcount
+.Op Fl r
+.Op Fl i
+.Op Fl c Ar cdbsize
+.Nm
+.Ic lunlist
+.Nm
+.Ic delay
+.Aq lun
+.Aq Fl l Ar datamove|done
+.Aq Fl t Ar secs
+.Op Fl T Ar oneshot|cont
+.Nm
+.Ic inject
+.Aq Fl i Ar action
+.Aq Fl p Ar pattern
+.Op Fl r Ar lba,len
+.Op Fl s Ar len fmt Op Ar args
+.Op Fl c
+.Op Fl d Ar delete_id
+.Nm
+.Ic create
+.Aq Fl b Ar backend
+.Op Fl B Ar blocksize
+.Op Fl d Ar device_id
+.Op Fl l Ar lun_id
+.Op Fl o Ar name=value
+.Op Fl s Ar size_bytes
+.Op Fl S Ar serial_num
+.Op Fl t Ar device_type
+.Nm
+.Ic remove
+.Aq Fl b Ar backend
+.Aq Fl l Ar lun_id
+.Op Fl o Ar name=value
+.Nm
+.Ic modify
+.Aq Fl b Ar backend
+.Aq Fl l Ar lun_id
+.Op Fl o Ar name=value
+.Aq Fl s Ar size_bytes
+.Nm
+.Ic devlist
+.Op Fl b Ar backend
+.Op Fl v
+.Op Fl x
+.Nm
+.Ic port
+.Op Fl c
+.Op Fl o Ar on|off
+.Op Fl w Ar wwpn
+.Op Fl W Ar wwnn
+.Op Fl O Ar pp|vp
+.Op Fl p Ar targ_port
+.Op Fl r Ar targ_port
+.Op Fl t Ar fe_type
+.Nm
+.Ic portlist
+.Op Fl f Ar frontend
+.Op Fl i
+.Op Fl l
+.Op Fl p Ar targ_port
+.Op Fl q
+.Op Fl v
+.Op Fl x
+.Nm
+.Ic lunmap
+.Aq Fl p Ar targ_port
+.Op Fl l Ar pLUN
+.Op Fl L Ar cLUN
+.Nm
+.Ic dumpooa
+.Nm
+.Ic dumpstructs
+.Nm
+.Ic islist
+.Op Fl v
+.Op Fl x
+.Nm
+.Ic islogout
+.Aq Fl a | Fl c Ar connection-id | Fl i Ar name | Fl p Ar portal
+.Nm
+.Ic isterminate
+.Aq Fl a | Fl c Ar connection-id | Fl i Ar name | Fl p Ar portal
+.Nm
+.Ic help
+.Sh DESCRIPTION
+The
+.Nm
+utility is designed to provide a way to access and control the CAM Target
+Layer (CTL).
+It provides a way to send
+.Tn SCSI
+commands to the CTL layer, and also provides
+some meta-commands that utilize
+.Tn SCSI
+commands.
+(For instance, the
+.Ic lunlist
+command is implemented using the
+.Tn SCSI
+REPORT LUNS and INQUIRY commands.)
+.Pp
+The
+.Nm
+utility has a number of primary functions, many of which require a device
+identifier.
+The device identifier takes the following form:
+.Bl -tag -width 14n
+.It lun
+Specify the LUN number to operate on.
+.El
+Many of the primary functions of the
+.Nm
+utility take the following optional arguments:
+.Bl -tag -width 10n
+.It Fl C Ar retries
+Specify the number of times to retry a command in the event of failure.
+.It Fl D Ar device
+Specify the device to open.  This allows opening a device other than the
+default device,
+.Pa /dev/cam/ctl ,
+to be opened for sending commands.
+.It Fl I Ar id
+Specify the initiator number to use.
+By default,
+.Nm
+will use 7 as the initiator number.
+.El
+.Pp
+Primary commands:
+.Bl -tag -width 11n
+.It Ic tur
+Send the
+.Tn SCSI
+TEST UNIT READY command to the device and report whether or not it is
+ready.
+.It Ic inquiry
+Send the
+.Tn SCSI
+INQUIRY command to the device and display some of the returned inquiry
+data.
+.It Ic reqsense
+Send the
+.Tn SCSI
+REQUEST SENSE command to the device and display the returned sense
+information.
+.It Ic reportluns
+Send the
+.Tn SCSI
+REPORT LUNS command to the device and display supported LUNs.
+.It Ic read
+Send a
+.Tn SCSI
+READ command to the device, and write the requested data to a file or
+stdout.
+.Bl -tag -width 12n
+.It Fl l Ar lba
+Specify the starting Logical Block Address for the READ.  This can be
+specified in decimal, octal (starting with 0), hexadecimal (starting with
+0x) or any other base supported by
+.Xr strtoull 3 .
+.It Fl d Ar datalen
+Specify the length, in 512 byte blocks, of the READ request.
+.It Fl f Ar file
+Specify the destination for the data read by the READ command.  Either a
+filename or
+.Sq -
+for stdout may be specified.
+.It Fl c Ar cdbsize
+Specify the minimum
+.Tn SCSI
+CDB (Command Data Block) size to be used for the READ request.  Allowable
+values are 6, 10, 12 and 16.  Depending upon the LBA and amount of data
+requested, a larger CDB size may be used to satisfy the request.  (e.g.,
+for LBAs above 0xffffffff, READ(16) must be used to satisfy the request.)
+.It Fl b Ar blocksize
+Specify the blocksize of the underlying
+.Tn SCSI
+device, so the transfer length
+can be calculated accurately.  The blocksize can be obtained via the
+.Tn SCSI
+READ CAPACITY command.
+.It Fl N
+Do not copy data to
+.Nm
+from the kernel when doing a read, just execute the command without copying
+data.
+This is to be used for performance testing.
+.El
+.It Ic write
+Read data from a file or stdin, and write the data to the device using the
+.Tn SCSI
+WRITE command.
+.Bl -tag -width 12n
+.It Fl l Ar lba
+Specify the starting Logical Block Address for the WRITE.  This can be
+specified in decimal, octal (starting with 0), hexadecimal (starting with
+0x) or any other base supported by
+.Xr strtoull 3 .
+.It Fl d Ar atalen
+Specify the length, in 512 byte blocks, of the WRITE request.
+.It Fl f Ar file
+Specify the source for the data to be written by the WRITE command.  Either a
+filename or
+.Sq -
+for stdin may be specified.
+.It Fl c Ar cdbsize
+Specify the minimum
+.Tn SCSI
+CDB (Command Data Block) size to be used for the READ request.  Allowable
+values are 6, 10, 12 and 16.  Depending upon the LBA and amount of data
+requested, a larger CDB size may be used to satisfy the request.  (e.g.,
+for LBAs above 0xffffffff, READ(16) must be used to satisfy the request.)
+.It Fl b Ar blocksize
+Specify the blocksize of the underlying
+.Tn SCSI
+device, so the transfer length
+can be calculated accurately.  The blocksize can be obtained via the
+.Tn SCSI
+READ CAPACITY command.
+.It Fl N
+Do not copy data to
+.Nm
+to the kernel when doing a write, just execute the command without copying
+data.
+This is to be used for performance testing.
+.El
+.It Ic readcap
+Send the
+.Tn SCSI
+READ CAPACITY command to the device and display the device size and device
+block size.  By default, READ CAPACITY(10) is
+used.  If the device returns a maximum LBA of 0xffffffff, however,
+.Nm
+will automatically issue a READ CAPACITY(16), which is implemented as a
+service action of the SERVICE ACTION IN(16) opcode.  The user can specify
+the minimum CDB size with the
+.Fl c
+argument.  Valid values for the
+.Fl c
+option are 10 and 16.  If a 10 byte CDB is specified, the request will be
+automatically reissued with a 16 byte CDB if the maximum LBA returned is
+0xffffffff.
+.It Ic modesense
+Send a
+.Tn SCSI
+MODE SENSE command to the device, and display the requested mode page(s) or
+page list.
+.Bl -tag -width 10n
+.It Fl m Ar page
+Specify the mode page to display.  This option and the
+.Fl l
+option are mutually exclusive.  One of the two must be specified, though.
+Mode page numbers may be specified in decimal or hexadecimal.
+.It Fl l
+Request that the list of mode pages supported by the device be returned.
+This option and the
+.Fl m
+option are mutually exclusive.  One of the two must be specified, though.
+.It Fl P Ar pc
+Specify the mode page control value.  Possible values are:
+.Bl -tag -width 2n -compact
+.It 0
+Current values.
+.It 1
+Changeable value bitmask.
+.It 2
+Default values.
+.It 3
+Saved values.
+.El
+.It Fl d
+Disable block descriptors when sending the mode sense request.
+.It Fl S Ar subpage
+Specify the subpage used with the mode sense request.
+.It Fl c Ar cdbsize
+Specify the CDB size used for the mode sense request.  Supported values are
+6 and 10.
+.El
+.It Ic start
+Send the
+.Tn SCSI
+START STOP UNIT command to the specified LUN with the start
+bit set.
+.Bl -tag -width 4n
+.It Fl i
+Set the immediate bit in the CDB.  Note that CTL does not support the
+immediate bit, so this is primarily useful for making sure that CTL returns
+the proper error.
+.El
+.It Ic stop
+Send the
+.Tn SCSI
+START STOP UNIT command to the specified LUN with the start
+bit cleared.  We use an ordered tag to stop the LUN, so we can guarantee
+that all pending I/O executes before it is stopped.  (CTL guarantees this
+anyway, but
+.Nm
+sends an ordered tag for completeness.)
+.Bl -tag -width 4n
+.It Fl i
+Set the immediate bit in the CDB.  Note that CTL does not support the
+immediate bit, so this is primarily useful for making sure that CTL returns
+the proper error.
+.El
+.It Ic synccache
+Send the
+.Tn SCSI
+SYNCHRONIZE CACHE command to the device.  By default, SYNCHRONIZE
+CACHE(10) is used.  If the specified starting LBA is greater than
+0xffffffff or the length is greater than 0xffff, though,
+SYNCHRONIZE CACHE(16) will be used.  The 16 byte command will also be used
+if the user specifies a 16 byte CDB with the
+.Fl c
+argument.
+.Bl -tag -width 14n
+.It Fl l Ar lba
+Specify the starting LBA of the cache region to synchronize.  This option is a
+no-op for CTL.  If you send a SYNCHRONIZE CACHE command, it will sync the
+cache for the entire LUN.
+.It Fl b Ar blockcount
+Specify the length of the cache region to synchronize.  This option is a
+no-op for CTL.  If you send a SYNCHRONIZE CACHE command, it will sync the
+cache for the entire LUN.
+.It Fl r
+Specify relative addressing for the starting LBA.  CTL does not support
+relative addressing, since it only works for linked commands, and CTL
+does not support linked commands.
+.It Fl i
+Tell the target to return status immediately after issuing the SYNCHRONIZE CACHE
+command rather than waiting for the cache to finish syncing.  CTL does not
+support this bit.
+.It Fl c Ar cdbsize
+Specify the minimum CDB size.  Valid values are 10 and 16 bytes.
+.El
+.It Ic lunlist
+List all LUNs registered with CTL.
+Because this command uses the ioctl port, it will only work when the FETDs
+(Front End Target Drivers) are enabled.
+This command is the equivalent of doing a REPORT LUNS on one LUN and then
+an INQUIRY on each LUN in the system.
+.It Ic delay
+Delay commands at the given location.  There are two places where commands
+may be delayed currently: before data is transferred
+.Pq Dq datamove
+and just prior to sending status to the host
+.Pq Dq done .
+One of the two must be supplied as an argument to the
+.Fl l
+option.  The
+.Fl t
+option must also be specified.
+.Bl -tag -width 12n
+.It Fl l Ar delayloc
+Delay command(s) at the specified location.
+This can either be at the data movement stage (datamove) or prior to
+command completion (done).
+.It Fl t Ar delaytime
+Delay command(s) for the specified number of seconds.  This must be
+specified.  If set to 0, it will clear out any previously set delay for
+this particular location (datamove or done).
+.It Fl T Ar delaytype
+Specify the delay type.
+By default, the
+.Ic delay
+option will delay the next command sent to the given LUN.
+With the
+.Fl T Ar cont
+option, every command will be delayed by the specified period of time.
+With the
+.Fl T Ar oneshot
+the next command sent to the given LUN will be delayed and all subsequent
+commands will be completed normally.
+This is the default.
+.El
+.It Ic inject
+Inject the specified type of error for the LUN specified, when a command
+that matches the given pattern is seen.
+The sense data returned is in either fixed or descriptor format, depending
+upon the status of the D_SENSE bit in the control mode page (page 0xa) for
+the LUN.
+.Pp
+Errors are only injected for commands that have not already failed for
+other reasons.
+By default, only the first command matching the pattern specified is
+returned with the supplied error.
+.Pp
+If the
+.Fl c
+flag is specified, all commands matching the pattern will be returned with
+the specified error until the error injection command is deleted with
+.Fl d
+flag.
+.Bl -tag -width 17n
+.It Fl i Ar action
+Specify the error to return:
+.Bl -tag -width 10n
+.It aborted
+Return the next matching command on the specified LUN with the sense key
+ABORTED COMMAND (0x0b), and the ASC/ASCQ 0x45,0x00 ("Select or reselect
+failure").
+.It mediumerr
+Return the next matching command on the specified LUN with the sense key
+MEDIUM ERROR (0x03) and the ASC/ASCQ 0x11,0x00 ("Unrecovered read error") for
+reads, or ASC/ASCQ 0x0c,0x02 ("Write error - auto reallocation failed")
+for write errors.
+.It ua
+Return the next matching command on the specified LUN with the sense key
+UNIT ATTENTION (0x06) and the ASC/ASCQ 0x29,0x00 ("POWER ON, RESET, OR BUS
+DEVICE RESET OCCURRED").
+.It custom
+Return the next matching command on the specified LUN with the supplied
+sense data.
+The
+.Fl s
+argument must be specified.
+.El
+.It Fl p Ar pattern
+Specify which commands should be returned with the given error.
+.Bl -tag -width 10n
+.It read
+The error should apply to READ(6), READ(10), READ(12), READ(16), etc.
+.It write
+The error should apply to WRITE(6), WRITE(10), WRITE(12), WRITE(16), WRITE
+AND VERIFY(10), etc.
+.It rw
+The error should apply to both read and write type commands.
+.It readcap
+The error should apply to READ CAPACITY(10) and READ CAPACITY(16) commands.
+.It tur
+The error should apply to TEST UNIT READY commands.
+.It any
+The error should apply to any command.
+.El
+.It Fl r Ar lba,len
+Specify the starting lba and length of the range of LBAs which should
+trigger an error.
+This option is only applies when read and/or write patterns are specified.
+If used with other command types, the error will never be triggered.
+.It Fl s Ar len fmt Op Ar args
+Specify the sense data that is to be returned for custom actions.
+If the format is
+.Sq - ,
+len bytes of sense data will be read from standard input and written to the
+sense buffer.
+If len is longer than 252 bytes (the maximum allowable
+.Tn SCSI
+sense data length), it will be truncated to that length.
+The sense data format is described in
+.Xr cam_cdbparse 3 .
+.It Fl c
+The error injection should be persistent, instead of happening once.
+Persistent errors must be deleted with the
+.Fl d
+argument.
+.It Fl d Ar delete_id
+Delete the specified error injection serial number.
+The serial number is returned when the error is injected.
+.El
+.It Ic port
+Perform one of several CTL frontend port operations.
+Either get a list of frontend ports
+.Pq Fl l ,
+turn one or more frontends on
+or off
+.Pq Fl o Ar on|off ,
+or set the World Wide Node Name
+.Pq Fl w Ar wwnn
+or World Wide Port Name
+.Pq Fl W Ar wwpn
+for a given port.
+One of
+.Fl l ,
+.Fl o ,
+or
+.Fl w
+or
+.Fl W
+must be specified.
+The WWNN and WWPN may both be specified at the same time, but cannot be
+combined with enabling/disabling or listing ports.
+.Bl -tag -width 12n
+.It Fl c
+Create new frontend port using free pp and vp=0.
+.It Fl o Ar on|off
+Turn the specified CTL frontend ports on or off.
+If no port number or port type is specified, all ports are turned on or
+off.
+.It Fl O Ar pp|vp
+Specify generic options on the ioctl frontend port.
+At present, only pp and vp port numbers can be set.
+.It Fl p Ar targ_port
+Specify the frontend port number.
+The port numbers can be found in the frontend port list.
+.It Fl r
+Remove port specified with
+.Pq Fl p Ar targ_port .
+.It Fl t Ar fe_type
+Specify the frontend type.
+Currently defined port types are
+.Dq fc
+(Fibre Channel),
+.Dq scsi
+(Parallel SCSI),
+.Dq ioctl
+(CTL ioctl interface),
+and
+.Dq internal
+(CTL CAM SIM).
+.It Fl w Ar wwnn
+Set the World Wide Node Name for the given port.
+The
+.Fl n
+argument must be specified, since this is only possible to implement on a
+single port.
+As a general rule, the WWNN should be the same across all ports on the
+system.
+.It Fl W Ar wwpn
+Set the World Wide Port Name for the given port.
+The
+.Fl n
+argument must be specified, since this is only possible to implement on a
+single port.
+As a general rule, the WWPN must be different for every port in the system.
+.El
+.It Ic portlist
+List CTL frontend ports.
+.Bl -tag -width 12n
+.It Fl f Ar frontend
+Specify the frontend type.
+.It Fl i
+Report target and connected initiators addresses.
+.It Fl l
+Report LUN mapping.
+.It Fl p Ar targ_port
+Specify the frontend port number.
+.It Fl q
+Omit the header in the port list output.
+.It Fl v
+Enable verbose output (report all port options).
+.It Fl x
+Output the port list in XML format.
+.El
+.It Ic lunmap
+Change LUN mapping for specified port.
+If both
+.Ar pLUN
+and
+.Ar cLUN
+are specified -- LUN will be mapped.
+If
+.Ar pLUN
+is specified, but
+.Ar cLUN
+is not -- LUN will be unmapped.
+If neither
+.Ar pLUN
+nor
+.Ar cLUN
+are specified -- LUN mapping will be disabled, exposing all CTL LUNs.
+.Bl -tag -width 12n
+.It Fl p Ar targ_port
+Specify the frontend port number.
+.It Fl l Ar pLUN
+LUN number visible by specified port.
+.It Fl L Ar cLUN
+CTL LUN number.
+.El
+.It Ic dumpooa
+Dump the OOA (Order Of Arrival) queue for each LUN registered with CTL.
+.It Ic dumpstructs
+Dump the CTL structures to the console.
+.It Ic create
+Create a new LUN.
+The backend must be specified, and depending upon the backend requested,
+some of the other options may be required.
+If the LUN is created successfully, the LUN configuration will be
+displayed.
+If LUN creation fails, a message will be displayed describing the failure.
+.Bl -tag -width 14n
+.It Fl b Ar backend
+The
+.Fl b
+flag is required.
+This specifies the name backend to use when creating the LUN.
+Examples are
+.Dq ramdisk
+and
+.Dq block .
+.It Fl B Ar blocksize
+Specify the blocksize of the backend in bytes.
+.It Fl d Ar device_id
+Specify the LUN-associated string to use in the
+.Tn SCSI
+INQUIRY VPD page 0x83 data.
+.It Fl l Ar lun_id
+Request that a particular LUN number be assigned.
+If the requested LUN number is not available, the request will fail.
+.It Fl o Ar name=value
+Specify a backend-specific name/value pair.
+Multiple
+.Fl o
+arguments may be specified.
+Refer to the backend documentation for arguments that may be used.
+.It Fl s Ar size_bytes
+Specify the size of the LUN in bytes.
+Some backends may allow setting the size (e.g. the ramdisk backend) and for
+others the size may be implicit (e.g. the block backend).
+.It Fl S Ar serial_num
+Specify the serial number to be used in the
+.Tn SCSI
+INQUIRY VPD page 0x80 data.
+.It Fl t Ar device_type
+Specify the numeric SCSI device type to use when creating the LUN.
+If this flag is not used, the type of LUN created is backend-specific.
+Not all LUN types are supported.
+Currently CTL supports Direct Access (type 0), Processor (type 3)
+and CD/DVD (type 5) LUNs.
+The backend requested may or may not support all of the LUN types that CTL
+supports.
+.El
+.It Ic remove
+Remove a LUN.
+The backend must be specified, and the LUN number must also be specified.
+Backend-specific options may also be specified with the
+.Fl o
+flag.
+.Bl -tag -width 14n
+.It Fl b Ar backend
+Specify the backend that owns the LUN to be removed.
+Examples are
+.Dq ramdisk
+and
+.Dq block .
+.It Fl l Ar lun_id
+Specify the LUN number to remove.
+.It Fl o Ar name=value
+Specify a backend-specific name/value pair.
+Multiple
+.Fl o
+arguments may be specified.
+Refer to the backend documentation for arguments that may be used.
+.El
+.It Ic modify
+Modify a LUN size.
+The backend, the LUN number, and the size must be specified.
+.Bl -tag -width 14n
+.It Fl b Ar backend
+Specify the backend that owns the LUN to be modified.
+Examples are
+.Dq ramdisk
+and
+.Dq block .
+.It Fl l Ar lun_id
+Specify the LUN number to modify.
+.It Fl o Ar name=value
+Specify a backend-specific name/value pair.
+Multiple
+.Fl o
+arguments may be specified.
+Refer to the backend documentation for arguments that may be used.
+.It Fl s Ar size_bytes
+Specify the size of the LUN in bytes.
+For the
+.Dq block
+backend, an
+.Dq auto
+keyword may be passed instead; this will make CTL use the size of backing
+file or device.
+.El
+.It Ic devlist
+Get a list of all configured LUNs.
+This also includes the LUN size and blocksize, serial number and device ID.
+.Bl -tag -width 11n
+.It Fl b Ar backend
+Specify the backend.
+This restricts the LUN list to the named backend.
+Examples are
+.Dq ramdisk
+and
+.Dq block .
+.It Fl v
+Be verbose.
+This will also display any backend-specific LUN attributes in addition to
+the standard per-LUN information.
+.It Fl x
+Dump the raw XML.
+The LUN list information from the kernel comes in XML format, and this
+option allows the display of the raw XML data.
+This option and the
+.Fl v
+and
+.Fl b
+options are mutually exclusive.
+If you specify
+.Fl x ,
+the entire LUN database is displayed in XML format.
+.El
+.It Ic islist
+Get a list of currently running iSCSI sessions.
+This includes initiator and target names and the unique connection IDs.
+.Bl -tag -width 11n
+.It Fl v
+Verbose mode.
+.It Fl x
+Dump the raw XML.
+The sessions list information from the kernel comes in XML format, and this
+option allows the display of the raw XML data.
+.El
+.It Ic islogout
+Ask the initiator to log out iSCSI sessions matching criteria.
+.Bl -tag -width 11n
+.It Fl a
+Log out all sessions.
+.It Fl c
+Specify connection ID.
+.It Fl i
+Specify initiator name.
+.It Fl p
+Specify initiator portal (hostname or IP address).
+.El
+.It Ic isterminate
+Forcibly terminate iSCSI sessions matching criteria.
+.Bl -tag -width 11n
+.It Fl a
+Terminate all sessions.
+.It Fl c
+Specify connection ID.
+.It Fl i
+Specify initiator name.
+.It Fl p
+Specify initiator portal (hostname or IP address).
+.El
+.It Ic help
+Display
+.Nm
+usage information.
+.El
+.Sh OPTIONS
+Number of additional configuration options may be specified for LUNs.
+Some options are global, others are backend-specific.
+.Pp
+Global options:
+.Bl -tag -width 12n
+.It Va vendor
+Specifies LUN vendor string up to 8 chars.
+.It Va product
+Specifies LUN product string up to 16 chars.
+.It Va revision
+Specifies LUN revision string up to 4 chars.
+.It Va scsiname
+Specifies LUN SCSI name string.
+.It Va eui
+Specifies LUN EUI-64 identifier.
+.It Va naa
+Specifies LUN NAA identifier.
+.It Va uuid
+Specifies LUN locally assigned RFC 4122 UUID identifier.
+EUI, NAA or UUID identifier should be set to UNIQUE value to allow
+EXTENDED COPY command access the LUN.
+Non-unique LUN identifiers may lead to data corruption.
+Some initiators may not support later introduced UUID identifiers.
+.It Va ha_role
+Setting to "primary" or "secondary" overrides default role of the node
+in HA cluster, set by kern.cam.ctl.ha_role sysctl.
+.It Va insecure_tpc
+Setting to "on" allows EXTENDED COPY command sent to this LUN access
+other LUNs on this host, not accessible otherwise.
+This allows to offload copying between different iSCSI targets residing
+on the same host in trusted environments.
+.It Va readcache
+Set to "off", disables read caching for the LUN, if supported by the backend.
+.It Va readonly
+Set to "on", blocks all media write operations to the LUN, reporting it
+as write protected.
+.It Va removable
+Set to "on", makes LUN removable.
+.It Va reordering
+Set to "unrestricted", allows target to process commands with SIMPLE task
+attribute in arbitrary order.  Any data integrity exposures related to
+command sequence order shall be explicitly handled by the application
+client through the selection of appropriate commands and task attributes.
+The default value is "restricted".  It improves data integrity, but may
+introduce some additional delays.
+.It Va serseq
+Set to "on" to serialize consecutive reads/writes.
+Set to "read" to serialize consecutive reads.
+Set to "off" to allow them be issued in parallel.
+Parallel issue of consecutive operations may confuse logic of the
+backing file system, hurting performance; but it may improve performance
+of backing stores without prefetch/write-back.
+.It Va pblocksize
+.It Va pblockoffset
+Specify physical block size and offset of the device.
+.It Va ublocksize
+.It Va ublockoffset
+Specify UNMAP block size and offset of the device.
+.It Va rpm
+Specifies medium rotation rate of the device: 0 -- not reported,
+1 -- non-rotating (SSD), >1024 -- value in revolutions per minute.
+.It Va formfactor
+Specifies nominal form factor of the device: 0 -- not reported, 1 -- 5.25",
+2 -- 3.5", 3 -- 2.5", 4 -- 1.8", 5 -- less then 1.8".
+.It Va provisioning_type
+When UNMAP support is enabled, this option specifies provisioning type:
+"resource", "thin" or "unknown".
+Default value is "thin".
+Logical units without UNMAP support are reported as fully provisioned.
+.It Va unmap
+Setting to "on" or "off" controls UNMAP support for the logical unit.
+Default value is "on" if supported by the backend.
+.It Va unmap_max_lba
+.It Va unmap_max_descr
+Specify maximum allowed number of LBAs and block descriptors per UNMAP
+command to report in Block Limits VPD page.
+.It Va write_same_max_lba
+Specify maximum allowed number of LBAs per WRITE SAME command to report
+in Block Limits VPD page.
+.It Va avail-threshold
+.It Va used-threshold
+.It Va pool-avail-threshold
+.It Va pool-used-threshold
+Set per-LUN/-pool thin provisioning soft thresholds.
+LUN will establish UNIT ATTENTION condition if its or pool available space
+get below configured avail values, or its or pool used space get above
+configured used values.
+Pool thresholds are working only for ZVOL-backed LUNs.
+.It Va writecache
+Set to "off", disables write caching for the LUN, if supported by the backend.
+.El
+.Pp
+Options specific for block backend:
+.Bl -tag -width 12n
+.It Va file
+Specifies file or device name to use for backing store.
+.It Va num_threads
+Specifies number of backend threads to use for this LUN.
+.El
+.Pp
+Options specific for ramdisk backend:
+.Bl -tag -width 12n
+.It Va capacity
+Specifies capacity of backing store (maximum RAM for data).
+The default value is zero, that disables backing store completely,
+making all writes go to nowhere, while all reads return zeroes.
+.El
+.Sh EXAMPLES
+.Pp
+Send a
+.Tn SCSI
+TEST UNIT READY command to LUN 1.
+.Pp
+.Dl ctladm tur 1
+.Pp
+Display the list of mode pages supported by LUN 1.
+.Pp
+.Dl ctladm modesense 1 -l
+.Pp
+Display the saved version of the Control mode page (page 10) on LUN 0.
+Disable fetching block descriptors, and use a 10 byte MODE SENSE command
+instead of the default 6 byte command.
+.Pp
+.Dl ctladm modesense 0 -m 10 -P 3 -d -c 10
+.Pp
+Read the first 512 byte block from LUN 2 and dump it to the file
+.Bd -literal
+.Dl ctladm read 2 -l 0 -d 1 -b 512 -f - > foo
+.Ed
+.Pp
+Read 10240 bytes from the file
+.Pa /tmp/bar
+and write it to LUN 3.
+starting at LBA 0xff432140.
+.Pp
+.Bd -literal
+.Dl ctladm write 3 -l 0xff432140 -d 20 -b 512 -f /tmp/bar
+.Ed
+.Pp
+Create a LUN with the
+.Dq fake
+ramdisk as a backing store.
+The LUN will claim to have a size of approximately 10 terabytes,
+while having no real data store (all written data are lost).
+.Pp
+.Dl ctladm create -b ramdisk -s 10485760000000000
+.Pp
+Create a thin provisioned LUN with a ramdisk as a backing store.
+The LUN will have maximal backing store capacity of 10 gigabytes,
+while reporting size of 10 terabytes,
+.Pp
+.Dl ctladm create -b ramdisk -s 10T -o capacity=10G
+.Pp
+Create a LUN using the block backend, and specify the file
+.Pa src/usr.sbin/ctladm/ctladm.8
+as the backing store.
+The size of the LUN will be derived from the size of the file.
+.Pp
+.Dl ctladm create -b block -o file=src/usr.sbin/ctladm/ctladm.8
+.Pp
+Create a LUN using the block backend, specify the file
+.Pa src/usr.sbin/ctladm/ctladm.8
+as the backing store, and specify the
+.Tn SCSI
+VPD page 0x80 and 0x83 serial number
+.Fl ( S )
+and device ID
+.Fl ( d ) .
+.Pp
+.Dl ctladm create -b block -o file=src/usr.sbin/ctladm/ctladm.8 -S MYSERIAL321 -d MYDEVID123
+.Pp
+Use to specify generic options on ioctl frontend port, now it is
+only possible to set pp and/or vp port number.
+.Pp
+.Dl ctladm port -c -O pp=11 -O vp=12
+.Pp
+Remove specified targ_port.
+.Pp
+.Dl ctladm port -r -p 4
+.Pp
+.Pp
+Remove LUN 12, which is handled by the block backend, from the system.
+.Pp
+.Dl ctladm remove -b block -l 12
+.Pp
+List configured LUNs in the system, along with their backend and serial
+number.
+This works when the Front End Target Drivers are enabled or disabled.
+.Pp
+.Dl ctladm devlist
+.Pp
+List all LUNs in the system, along with their inquiry data and device type.
+This only works when the FETDs are enabled, since the commands go through the
+ioctl port.
+.Pp
+.Dl ctladm lunlist
+.Pp
+Inject a medium error on LUN 6 for every read that covers the first 512
+blocks of the LUN.
+.Pp
+.Dl ctladm inject 6 -i mediumerr -p read -r 0,512 -c
+.Pp
+Inject a custom error on LUN 6 for the next TEST UNIT READY command only.
+This will result in a sense key of NOT READY (0x02), and an ASC/ASCQ of
+0x04,0x02 ("Logical unit not ready, initializing command required").
+.Pp
+.Bd -literal -offset indent
+ctladm inject 6 -i custom -p tur -s 18 "f0 0 02 s12 04 02"
+.Ed
+.Sh SEE ALSO
+.Xr cam 3 ,
+.Xr cam_cdbparse 3 ,
+.Xr cam 4 ,
+.Xr ctl 4 ,
+.Xr xpt 4 ,
+.Xr camcontrol 8 ,
+.Xr ctld 8 ,
+.Xr ctlstat 8
+.Sh HISTORY
+The
+.Nm
+utility was originally written during the Winter/Spring of 2003 as an
+interface to CTL.
+.Sh AUTHORS
+.An Ken Merry Aq Mt ken@FreeBSD.org

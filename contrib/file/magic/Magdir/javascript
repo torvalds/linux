@@ -1,0 +1,17 @@
+
+#------------------------------------------------------------------------------
+# $File: javascript,v 1.1 2012/06/16 13:30:36 christos Exp $
+# javascript:  magic for javascript and node.js scripts.
+#
+0	search/1/w	#!/bin/node		Node.js script text executable
+!:mime application/javascript
+0	search/1/w	#!/usr/bin/node		Node.js script text executable
+!:mime application/javascript
+0	search/1/w	#!/bin/nodejs		Node.js script text executable
+!:mime application/javascript
+0	search/1/w	#!/usr/bin/nodejs	Node.js script text executable
+!:mime application/javascript
+0	search/1	#!/usr/bin/env\ node	Node.js script text executable
+!:mime application/javascript
+0	search/1	#!/usr/bin/env\ nodejs	Node.js script text executable
+!:mime application/javascript

@@ -1,0 +1,98 @@
+.\" Copyright (c) 2004 David Schultz <das@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 16, 2005
+.Dt FEENABLEEXCEPT 3
+.Os
+.Sh NAME
+.Nm feenableexcept ,
+.Nm fedisableexcept ,
+.Nm fegetexcept
+.Nd floating-point exception masking
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In fenv.h
+.Fd "#pragma STDC FENV_ACCESS ON"
+.Ft int
+.Fn feenableexcept "int excepts"
+.Ft int
+.Fn fedisableexcept "int excepts"
+.Ft int
+.Fn fegetexcept "void"
+.Sh DESCRIPTION
+The
+.Fn feenableexcept
+and
+.Fn fedisableexcept
+functions
+unmask and mask (respectively) exceptions specified in
+.Fa excepts .
+The
+.Fn fegetexcept
+function
+returns the current exception mask.
+All exceptions are masked by default.
+.Pp
+Floating-point operations that produce unmasked exceptions will trap, and a
+.Dv SIGFPE
+will be delivered to the process.
+By installing a signal handler for
+.Dv SIGFPE ,
+applications can take appropriate action immediately without
+testing the exception flags after every operation.
+Note that the trap may not be immediate, but it should occur
+before the next floating-point instruction is executed.
+.Pp
+For all of these functions, the possible types of exceptions
+include those described in
+.Xr fenv 3 .
+Some architectures may define other types of floating-point exceptions.
+.Sh RETURN VALUES
+The
+.Fn feenableexcept ,
+.Fn fedisableexcept ,
+and
+.Fn fegetexcept
+functions return a bitmap of the exceptions that were unmasked
+prior to the call.
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr feclearexcept 3 ,
+.Xr feholdexcept 3 ,
+.Xr fenv 3 ,
+.Xr feupdateenv 3
+.Sh BUGS
+Functions in the standard library may trigger exceptions multiple
+times as a result of intermediate computations;
+however, they generally do not trigger spurious exceptions.
+.Pp
+No interface is provided to permit exceptions to be handled in
+nontrivial ways.
+There is no uniform way for an exception handler to access
+information about the exception-causing instruction, or
+to determine whether that instruction should be reexecuted
+after returning from the handler.

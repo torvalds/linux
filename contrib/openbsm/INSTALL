@@ -1,0 +1,45 @@
+OpenBSM Build and Installation Instructions
+
+OpenBSM is currently built using autoconf and automake, which should allow
+for building on a range of operating systems, including FreeBSD, Mac OS X,
+and Linux.  Some components are built only if appropriate kernel audit
+support is found.  Typical builds will be performed using:
+
+    ./configure
+    make
+
+On Linux systems, OpenSSL headers may have to be installed to support
+encryption of on-the-wire audit streams using auditdistd; the following
+appears to work on Ubuntu:
+
+    sudo apt-get install libssl-dev
+
+Similarly, Mac OS X systems will require OpenSSL support:
+
+    brew install openssl
+
+Mac OS X systems will similarly require setting CFLAGS and LDFLAGS to notify
+configure of the location of the OpenSSL headers and library:
+
+    CFLAGS=-I/usr/local/opt/openssl/include			\
+    LDFLAGS=-L/usr/local/opt/openssl/lib			\
+    configure
+
+To install the library, binaries, and man pages, use:
+
+    make install
+
+The OpenBSM install will not install files in /etc; these have to be
+manually installed or merged.  Currently, the locations of these files are
+not configurable.
+
+You may wish to specify that the OpenBSM components not be installed in the
+base system, rather in a specific directory.  This may be done using the
+--prefix argument to configure.  If installing to a specific directory,
+remember to update your library path so that when running tools from that
+directory the correct libbsm is used:
+
+    ./configure --prefix=/home/rwatson/openbsm
+    make
+    make install
+    LD_LIBRARY_PATH=/home/rwatson/openbsm/libbsm ; export LD_LIBRARY_PATH

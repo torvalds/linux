@@ -1,0 +1,151 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ctype.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd March 30, 2004
+.Dt CTYPE 3
+.Os
+.Sh NAME
+.Nm digittoint ,
+.Nm isalnum ,
+.Nm isalpha ,
+.Nm isascii ,
+.Nm isblank ,
+.Nm iscntrl ,
+.Nm isdigit ,
+.Nm isgraph ,
+.Nm ishexnumber ,
+.Nm isideogram ,
+.Nm islower ,
+.Nm isnumber ,
+.Nm isphonogram ,
+.Nm isprint ,
+.Nm ispunct ,
+.Nm isrune ,
+.Nm isspace ,
+.Nm isspecial ,
+.Nm isupper ,
+.Nm isxdigit ,
+.Nm toascii ,
+.Nm tolower ,
+.Nm toupper
+.Nd character classification functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In ctype.h
+.Ft int
+.Fn digittoint "int c"
+.Ft int
+.Fn isalnum "int c"
+.Ft int
+.Fn isalpha "int c"
+.Ft int
+.Fn isascii "int c"
+.Ft int
+.Fn iscntrl "int c"
+.Ft int
+.Fn isdigit "int c"
+.Ft int
+.Fn isgraph "int c"
+.Ft int
+.Fn ishexnumber "int c"
+.Ft int
+.Fn isideogram "int c"
+.Ft int
+.Fn islower "int c"
+.Ft int
+.Fn isnumber "int c"
+.Ft int
+.Fn isphonogram "int c"
+.Ft int
+.Fn isspecial "int c"
+.Ft int
+.Fn isprint "int c"
+.Ft int
+.Fn ispunct "int c"
+.Ft int
+.Fn isrune "int c"
+.Ft int
+.Fn isspace "int c"
+.Ft int
+.Fn isupper "int c"
+.Ft int
+.Fn isxdigit "int c"
+.Ft int
+.Fn toascii "int c"
+.Ft int
+.Fn tolower "int c"
+.Ft int
+.Fn toupper "int c"
+.Sh DESCRIPTION
+The above functions perform character tests and conversions on the integer
+.Fa c .
+They are available as macros, defined in the include file
+.In ctype.h ,
+or as true functions in the C library.
+See the specific manual pages for more information.
+.Sh SEE ALSO
+.Xr digittoint 3 ,
+.Xr isalnum 3 ,
+.Xr isalpha 3 ,
+.Xr isascii 3 ,
+.Xr isblank 3 ,
+.Xr iscntrl 3 ,
+.Xr isdigit 3 ,
+.Xr isgraph 3 ,
+.Xr isideogram 3 ,
+.Xr islower 3 ,
+.Xr isphonogram 3 ,
+.Xr isprint 3 ,
+.Xr ispunct 3 ,
+.Xr isrune 3 ,
+.Xr isspace 3 ,
+.Xr isspecial 3 ,
+.Xr isupper 3 ,
+.Xr isxdigit 3 ,
+.Xr toascii 3 ,
+.Xr tolower 3 ,
+.Xr toupper 3 ,
+.Xr wctype 3 ,
+.Xr ascii 7
+.Sh STANDARDS
+These functions, except for
+.Fn digittoint ,
+.Fn isascii ,
+.Fn ishexnumber ,
+.Fn isideogram ,
+.Fn isnumber ,
+.Fn isphonogram ,
+.Fn isrune ,
+.Fn isspecial
+and
+.Fn toascii ,
+conform to
+.St -isoC .

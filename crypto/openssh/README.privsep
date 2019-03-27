@@ -1,0 +1,54 @@
+Privilege separation, or privsep, is method in OpenSSH by which
+operations that require root privilege are performed by a separate
+privileged monitor process.  Its purpose is to prevent privilege
+escalation by containing corruption to an unprivileged process.
+More information is available at:
+	http://www.citi.umich.edu/u/provos/ssh/privsep.html
+
+Privilege separation is now enabled by default; see the
+UsePrivilegeSeparation option in sshd_config(5).
+
+When privsep is enabled, during the pre-authentication phase sshd will
+chroot(2) to "/var/empty" and change its privileges to the "sshd" user
+and its primary group.  sshd is a pseudo-account that should not be
+used by other daemons, and must be locked and should contain a
+"nologin" or invalid shell.
+
+You should do something like the following to prepare the privsep
+preauth environment:
+
+	# mkdir /var/empty
+	# chown root:sys /var/empty
+	# chmod 755 /var/empty
+	# groupadd sshd
+	# useradd -g sshd -c 'sshd privsep' -d /var/empty -s /bin/false sshd
+
+/var/empty should not contain any files.
+
+configure supports the following options to change the default
+privsep user and chroot directory:
+
+  --with-privsep-path=xxx Path for privilege separation chroot
+  --with-privsep-user=user Specify non-privileged user for privilege separation
+
+PAM-enabled OpenSSH is known to function with privsep on AIX, FreeBSD, 
+HP-UX (including Trusted Mode), Linux, NetBSD and Solaris.
+
+On Cygwin, Tru64 Unix and OpenServer only the pre-authentication part
+of privsep is supported.  Post-authentication privsep is disabled
+automatically (so you won't see the additional process mentioned below).
+
+Note that for a normal interactive login with a shell, enabling privsep
+will require 1 additional process per login session.
+
+Given the following process listing (from HP-UX):
+
+     UID   PID  PPID  C    STIME TTY       TIME COMMAND
+    root  1005     1  0 10:45:17 ?         0:08 /opt/openssh/sbin/sshd -u0
+    root  6917  1005  0 15:19:16 ?         0:00 sshd: stevesk [priv]
+ stevesk  6919  6917  0 15:19:17 ?         0:03 sshd: stevesk@2
+ stevesk  6921  6919  0 15:19:17 pts/2     0:00 -bash
+
+process 1005 is the sshd process listening for new connections.
+process 6917 is the privileged monitor process, 6919 is the user owned
+sshd process and 6921 is the shell process.

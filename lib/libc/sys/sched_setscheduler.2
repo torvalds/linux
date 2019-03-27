@@ -1,0 +1,166 @@
+.\" $FreeBSD$
+.\" Copyright (c) 1998 HD Associates, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 12, 1998
+.Dt SCHED_SETSCHEDULER 2
+.Os
+.Sh NAME
+.Nm sched_setscheduler ,
+.Nm sched_getscheduler
+.Nd set/get scheduling policy and scheduler parameters
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sched.h
+.Ft int
+.Fn sched_setscheduler "pid_t pid" "int policy" "const struct sched_param *param"
+.Ft int
+.Fn sched_getscheduler "pid_t pid"
+.Sh DESCRIPTION
+The
+.Fn sched_setscheduler
+system call sets the scheduling policy and scheduling parameters
+of the process specified by
+.Fa pid
+to
+.Fa policy
+and the parameters specified in the
+.Vt sched_param
+structure pointed to by
+.Fa param ,
+respectively.
+The value of the
+.Fa sched_priority
+member in the
+.Fa param
+structure must be any integer within the inclusive priority range for
+the scheduling policy specified by
+.Fa policy .
+.Pp
+In this implementation, if the value of
+.Fa pid
+is negative the system call will fail.
+.Pp
+If a process specified by
+.Fa pid
+exists and if the calling process has permission, the scheduling
+policy and scheduling parameters will be set for the process
+whose process ID is equal to
+.Fa pid .
+.Pp
+If
+.Fa pid
+is zero, the scheduling policy and scheduling
+parameters are set for the calling process.
+.Pp
+In this implementation, the policy of when a process can affect
+the scheduling parameters of another process is specified in
+.St -p1003.1b-93
+as a write-style operation.
+.Pp
+The scheduling policies are in
+.Fa <sched.h> :
+.Bl -tag -width [SCHED_OTHER]
+.It Bq Er SCHED_FIFO
+First-in-first-out fixed priority scheduling with no round robin scheduling;
+.It Bq Er SCHED_OTHER
+The standard time sharing scheduler;
+.It Bq Er SCHED_RR
+Round-robin scheduling across same priority processes.
+.El
+.Pp
+The
+.Vt sched_param
+structure is defined in
+.Fa <sched.h> :
+.Bd -literal -offset indent
+struct sched_param {
+	int sched_priority;	/* scheduling priority */
+};
+.Ed
+.Pp
+The
+.Fn sched_getscheduler
+system call returns the scheduling policy of the process specified
+by
+.Fa pid .
+.Pp
+If a process specified by
+.Fa pid
+exists and if the calling process has permission,
+the scheduling parameters for the process whose process ID is equal to
+.Fa pid
+are returned.
+.Pp
+In this implementation, the policy of when a process can obtain the
+scheduling parameters of another process are detailed in
+.St -p1003.1b-93
+as a read-style operation.
+.Pp
+If
+.Fa pid
+is zero, the scheduling parameters for the calling process will be
+returned.
+In this implementation, the
+.Fa sched_getscheduler
+system call will fail if
+.Fa pid
+is negative.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+On failure
+.Va errno
+will be set to the corresponding value:
+.Bl -tag -width Er
+.It Bq Er ENOSYS
+The system is not configured to support this functionality.
+.It Bq Er EPERM
+The requesting process doesn not have permission as detailed in
+.St -p1003.1b-93 .
+.It Bq Er ESRCH
+No process can be found corresponding to that specified by
+.Fa pid .
+.It Bq Er EINVAL
+The value of the
+.Fa policy
+argument is invalid, or one or more of the parameters contained in
+.Fa param
+is outside the valid range for the specified scheduling policy.
+.El
+.Sh SEE ALSO
+.Xr sched_get_priority_max 2 ,
+.Xr sched_get_priority_min 2 ,
+.Xr sched_getparam 2 ,
+.Xr sched_rr_get_interval 2 ,
+.Xr sched_setparam 2 ,
+.Xr sched_yield 2
+.Sh STANDARDS
+The
+.Fn sched_setscheduler
+and
+.Fn sched_getscheduler
+system calls conform to
+.St -p1003.1b-93 .

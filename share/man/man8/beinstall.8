@@ -1,0 +1,134 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2018 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd August 20, 2018
+.Dt BEINSTALL.SH 1
+.Os
+.Sh NAME
+.Nm beinstall.sh
+.Nd "install a boot environment using the current FreeBSD source tree"
+.Sh SYNOPSIS
+.Nm
+.Op Ar options Ar ...
+.Sh DESCRIPTION
+.Nm
+installs a boot environment using the current
+.Fx
+source tree.
+.Nm
+also automatically performs
+.Pa /etc
+updates
+(using either
+.Xr etcupdate 8
+or
+.Xr mergemaster 8 )
+and
+package updates using
+.Xr pkg-upgrade 8
+automatically in the new boot environment sandbox.
+.Pp
+Upon successful completion, the system will be ready to boot into the new boot
+environment.
+Upon failure, the target boot environment will be destroyed.
+In all cases, the running system is left untouched
+and a reboot into a partially updated system
+(due to install or hardware failure) cannot happen.
+Additionally, the full installation process requires
+only one reboot as it is performed
+in a new boot environment.
+.Pp
+.Nm
+requires a fully built world and kernel.
+It also requires
+.Xr beadm 1
+and
+.Xr pkg 8 ,
+which are not present in the base system and have to be installed manually.
+.Pp
+The
+.Ar options
+provided to
+.Nm
+are world and kernel flags like
+.Ev KERNCONF
+as described in
+.Xr build 7 .
+.Sh ENVIRONMENT
+User modifiable variables.
+Set these in the environment if desired:
+.Bl -tag -width indent
+.It Ev CONFIG_UPDATER Pq default: Dq Li "etcupdate"
+Config updater:
+.Xr etcupdate 8
+and
+.Xr mergemaster 8
+are supported.
+Set to an empty string to skip.
+.It Ev ETCUPDATE_FLAGS Pq default: Dq Li "-F"
+Flags for
+.Xr etcupdate 8
+if used.
+.It Ev MERGEMASTER_FLAGS Pq default: Dq Li "-iFU"
+Flags for
+.Xr mergemaster 8
+if used.
+.It Ev NO_PKG_UPGRADE Pq default: Dq Li ""
+If not empty,
+.Dq Li pkg upgrade
+will be skipped.
+.El
+.Sh FILES
+.Bl -tag -width indent
+.It Sy src/ Ns Pa tools/build/beinstall.sh
+Place where
+.Nm
+lives in the src tree.
+.El
+.Sh SEE ALSO
+.Xr beadm 1 ,
+.Xr build 7 ,
+.Xr development 7 ,
+.Xr etcupdate 8 ,
+.Xr mergemaster 8 ,
+.Xr pkg 8
+.Sh HISTORY
+.Nm
+is inspired by and similar in function to
+Solaris/illumos-style upgrades.
+.Pp
+The
+.Nm
+manual page first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+The
+.Nm
+script was implemented by
+.An Will Andrews Aq Mt will@FreeBSD.org .
+This manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .

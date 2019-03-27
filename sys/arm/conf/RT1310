@@ -1,0 +1,80 @@
+#
+# Custom kernel for RT1310 boards.
+#
+# $FreeBSD$
+#
+
+ident		RT1310
+include 	"std.arm"
+include 	"../ralink/std.ralink"
+
+# Flattened Device Tree
+options 	FDT
+options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=wzr2-g300n.dts
+
+makeoptions	MODULES_OVERRIDE=""
+
+#makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+makeoptions	WERROR="-Werror"
+
+options 	SCHED_4BSD		# 4BSD scheduler
+options 	INET			# InterNETworking
+options 	FFS			# Berkeley Fast Filesystem
+options 	TMPFS			# Efficient memory filesystem
+options 	MSDOSFS
+
+options 	ROOTDEVNAME=\"cd9660:/dev/cfid0s.rootfs.uzip\"
+
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING # Posix P1003_1B real-time extensions
+options 	MUTEX_NOINLINE
+options 	RWLOCK_NOINLINE
+options 	NO_FFS_SNAPSHOT
+options 	NO_SWAPPING
+
+# Debugging
+options 	ALT_BREAK_TO_DEBUGGER
+options 	DDB
+#options 	DEADLKRES		# Enable the deadlock resolver
+#options 	DIAGNOSTIC
+#options 	INVARIANTS		# Enable calls of extra sanity checking
+#options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
+options 	KDB
+options 	WITNESS			# Enable checks to detect deadlocks and cycles
+options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
+#options 	WITNESS_KDB
+
+# Pseudo devices
+device		loop
+device		md
+device		pty
+device		random
+
+# Serial ports
+device		uart
+device		uart_ns8250
+
+# Flash
+device		cfi
+device		cfid
+
+# Networking
+device		ether
+device		mii
+device		bpf
+device		fv
+
+# etherswitch
+device		mdio
+device		etherswitch
+device		miiproxy
+device		ip17x
+
+# GPIO
+device		gpio
+device		gpioled
+device		rt1310gpio
+

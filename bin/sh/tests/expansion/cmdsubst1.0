@@ -1,0 +1,48 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if ! eval "[ $* ]"; then
+		echo "Failed: $*"
+		: $((failures += 1))
+	fi
+}
+
+check '"$(echo abcde)" = "abcde"'
+check '"$(echo abcde; :)" = "abcde"'
+
+check '"$(printf abcde)" = "abcde"'
+check '"$(printf abcde; :)" = "abcde"'
+
+# regular
+check '-n "$(umask)"'
+check '-n "$(umask; :)"'
+check '-n "$(umask 2>&1)"'
+check '-n "$(umask 2>&1; :)"'
+
+# special
+check '-n "$(times)"'
+check '-n "$(times; :)"'
+check '-n "$(times 2>&1)"'
+check '-n "$(times 2>&1; :)"'
+
+# regular
+check '".$(umask -@ 2>&1)." = ".umask: Illegal option -@."'
+check '".$(umask -@ 2>&1; :)." = ".umask: Illegal option -@."'
+check '".$({ umask -@; } 2>&1)." = ".umask: Illegal option -@."'
+
+# special
+check '".$(shift xyz 2>&1)." = ".shift: Illegal number: xyz."'
+check '".$(shift xyz 2>&1; :)." = ".shift: Illegal number: xyz."'
+check '".$({ shift xyz; } 2>&1)." = ".shift: Illegal number: xyz."'
+
+v=1
+check '-z "$(v=2 :)"'
+check '"$v" = 1'
+check '-z "$(v=3)"'
+check '"$v" = 1'
+check '"$(v=4 eval echo \$v)" = 4'
+check '"$v" = 1'
+
+exit $((failures > 0))

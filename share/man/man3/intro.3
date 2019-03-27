@@ -1,0 +1,134 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)intro.3	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd March 22, 2017
+.Dt INTRO 3
+.Os
+.Sh NAME
+.Nm intro
+.Nd introduction to the C libraries
+.Sh DESCRIPTION
+This section provides an overview of the C
+library functions, their error returns and other
+common definitions and concepts.
+Most of these functions are available from the C library,
+.Em libc .
+Other libraries, such as the math library,
+.Em libm ,
+must be indicated at compile time with the
+.Fl l
+option of the compiler.
+.Pp
+The various libraries (followed by the loader flag):
+.Bl -tag -width "libc (-lc)"
+.It Em libc Pq Fl l Ns Ar c
+Standard C library functions.
+When using the C compiler
+.Xr cc 1 ,
+it is not necessary
+to supply the loader flag
+.Fl l Ns Ar c
+for these functions.
+There are several `libraries' or groups of functions included inside of
+.Em libc
+: the standard
+.Tn I/O
+routines,
+database routines,
+bit operators,
+string operators,
+character tests and character operators,
+des encryption routines,
+storage allocation, time functions, signal handling and more.
+.It Em libcurses Pq Fl l Ns Ar curses Fl l Ns Ar termcap
+Terminal independent screen management routines
+for two dimensional non-bitmap display terminals.
+(See
+.Xr ncurses 3 . )
+.It Em libcompat Pq Fl l Ns Ar compat
+Functions which are obsolete but are available for compatibility with
+.Bx 4.3 .
+In particular,
+a number of system call interfaces provided in previous releases of
+.Bx
+have been included for source code compatibility.
+Use of these routines should, for the most part, be avoided.
+The manual page entry for each compatibility routine
+indicates the proper interface to use.
+.It Em libkvm Pq Fl l Ns Ar kvm
+Functions used to access kernel memory are in this library.
+They can be used
+against both a running system and a crash dump.
+(See
+.Xr kvm 3 . )
+.It Em libl Pq Fl l Ns Ar l
+The library for
+.Xr lex 1 .
+.It Em libm Pq Fl l Ns Ar m
+The math library,
+.Em libm .
+The math library is loaded as needed by the Pascal compiler,
+but not by the C compiler which requires the
+.Fl l Ns Ar m
+flag.
+(See
+.Xr math 3 . )
+.It Em libmp Pq Fl l Ns Ar mp
+.It Em libtermcap Pq Fl l Ns Ar termcap
+The terminal independent operation library package.
+(See
+.Xr termcap 3 . )
+.It Em liby Pq Fl l Ns Ar y
+The library for
+.Xr yacc 1 .
+.El
+.Sh FILES
+.Bl -tag -width /usr/lib/libm_p.a -compact
+.It Pa /usr/lib/libc.a
+the C library
+.It Pa /usr/lib/libc_p.a
+the C library compiled for profiling
+.It Pa /usr/lib/libm.a
+the math library
+.It Pa /usr/lib/libm_p.a
+the math library compiled for profiling
+.El
+.Sh SEE ALSO
+.Xr cc 1 ,
+.Xr ld 1 ,
+.Xr nm 1 ,
+.Xr intro 2 ,
+.Xr math 3 ,
+.Xr stdio 3
+.Sh HISTORY
+An
+.Nm
+manual appeared in
+.At v7 .

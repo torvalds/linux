@@ -1,0 +1,49 @@
+At the moment, only installation from a harddisk
+is supported. All commands are shown to you on
+the screen before executing. This is just to make
+sure that nothing bad is done to your harddisk :-)
+
+You can also select to install from a premounted dir.
+Then the "tar/base" directory must be mounted on
+"/install", so that all tar-packages from the basic
+stuff are in "/install/*.tgz". (So you could be able
+to install via NFS...)
+
+Good luck...,
+anyone wants to help programming this tool?,
+
+Florian La Roche
+
+Contents:
+=========
+- overview about what "setup" does.
+- creating a Linux-partition before starting "setup"
+- about lilo
+- how to use "setup", what keys are supported
+
+What does "setup" do on my computer?
+====================================
+Setup will ask you for a partition on your harddisk,
+where you would like to have Linux installed.
+You can then choose to install this distribution from
+your local harddisk or via network (NFS).
+setup will install a very basic system.
+At the end, you can install lilo, the Linux Loader.
+Rebooting your computer with this little linux system
+and then runing the setup-program on it, will give
+the possibility to install more packages.
+
+Creating a Linux-partition:
+===========================
+To install this Linux distribution, you need to
+create an extra partition on your harddisk for
+Linux.
+
+What is lilo and how should I install it?
+=========================================
+Read the lilo-documentation for this...
+
+
+
+Florian La Roche
+

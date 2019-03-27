@@ -1,0 +1,89 @@
+<HTML>
+<HEAD><TITLE>xxfi_data</TITLE></HEAD>
+<BODY>
+<!--
+$Id: xxfi_data.html,v 1.5 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>xxfi_data</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+sfsistat (*xxfi_data)(
+	SMFICTX *ctx
+);
+</PRE>
+Handle the DATA command.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>xxfi_data is called when the client uses the DATA command.
+</TR>
+<TR align="left" valign=top>
+<TH>Default Behavior</TH>
+<TD>Do nothing; return SMFIS_CONTINUE.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>ctx</TD>
+	<TD>Opaque context structure.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>SPECIAL RETURN VALUES</TH>
+<TD><TABLE border="1" cellspacing=0>
+  <TR bgcolor="#dddddd"><TH>Return value</TH><TH>Description</TH></TR>
+  <TR valign="top">
+     <TD>SMFIS_TEMPFAIL</TD>
+     <TD>Reject this message with a temporary error.
+     </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_REJECT</TD>
+     <TD>Reject this message.
+     </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_DISCARD</TD>
+     <TD>Accept and silently discard this message.
+     </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_ACCEPT</TD>
+     <TD>Accept this message.
+     </TD>
+  </TR>
+</TABLE>
+</TR>
+
+<!----------- Notes ---------->
+<TR>
+<TH valign="top" align=left>NOTES</TH> 
+<TD>For more details on ESMTP responses, please see RFC
+<A href="http://www.rfc-editor.org/rfc/rfc1869.txt">1869</A>.</TD>
+</TR>
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2006 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

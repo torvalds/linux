@@ -1,0 +1,127 @@
+#	$Id: README,v 9.0 2012/10/19 17:06:15 zy Exp $
+
+Generally, all non-system error and informational messages in nvi are
+catalog messages, i.e. they can be tailored to a specific langauge.
+Command strings, usage strings, system errors and other 'known text'
+are not.
+
+Message catalogs in nvi are fairly simple.  Every catalog message
+consists of two parts -- an initial number followed by a pipe (`|')
+character, followed by the English text for the message.  For example:
+
+	msgq(sp, M_ERR, "001|This is an error message");
+
+would be a typical message.
+
+When the msgq() routine is called, if the user has specified a message
+catalog and the format string (the third argument) has a leading number,
+then it is converted to a record number, and that record is retrieved
+from the message catalog and used as a replacement format string.  If
+the record can't be retrieved for any reason, the English text is displayed
+instead.
+
+Each message format string MUST map into the English format string, i.e.
+it can't display more or different arguments than the English one.
+
+For example:
+
+	msgq(sp, M_ERR, "002|Error: %d %x", arg1, arg2);
+
+is a format string that displays two arguments.
+
+Arguments to the msgq function are required to contain ONLY printable
+characters.  No further translation is done by the msgq routine before
+displaying the message on the screen.  For example, in the msgq call:
+
+	msgq(sp, M_ERR, "003|File: %s", file_name);
+
+"file_name" must contain only printable characters.  The routine
+msg_print() returns a printable version of a string; the third argument
+indicates whether the string needs to be freed.  For example:
+
+	char *p;
+	int nf;
+
+	p = msg_print(sp, file_name, &nf);
+	msgq(sp, M_ERR, "003|File: %s", p);
+	if (nf)
+		FREE_SPACE(sp, p, 0);
+
+makes sure that "file_name" is printable before calling the msgq
+routine.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The message catalogs themselves are maintained in two files.  The first
+is the "base file" which contains two fields, a record number and the
+message itself.  All base files are named using the convention
+"<language>.base", e.g. the English one is "english.base".  For
+example:
+
+	002 "Line length overflow"
+	003 "unable to delete line %lu"
+	004 "unable to append to line %lu"
+	005 "unable to insert at line %lu"
+	006 "unable to store line %lu"
+	007 "unable to get last line"
+
+are the first few lines of the current english.base file.
+
+Before this file being converted to the second file, the POSIX formatted
+message catalog file, by gencat(1), two lines:
+
+	$set 1
+	$quote "
+
+will be inserted before the base text to setup the set_id and the quote
+character.  So the double-quote needs to be escaped by a backslash to be
+included in a message; same as the backslash itself.
+
+These files are named for their language, e.g. "english".  However, a
+locale(1) name is also recommended.
+
+To create a new catalog for nvi:
+
+Copy the file english.base to a file that you can modify , e.g.  "cp
+english.base german.base".  For each of the messages in the file,
+replace the message with the string that you want to use.  If you have
+doubts about the meaning of a message, just email me.
+
+A latest english.base can be created from source by running the command
+"make english" in the catalog/ directory.
+
+Once you've translated all of the strings, then add your catalog to the
+"CAT=" line of the Makefile, and run the command "make catalog".  This
+will create the second (and corresponding) file for each file named
+<language>.base.
+
+Don't worry about missing line numbers, i.e. base files that look like:
+
+	005	Message number 5.
+	007	Message number 7.
+
+This simply means that a message was deleted during the course of nvi's
+development.  It will be taken care of automatically when you create
+the second form of the file.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+If you add new messages to the nvi sources, you can check your work by
+doing "make english; make check".  The "make check" target lists unused
+message numbers, duplicate message numbers, and duplicate messages.
+Unused message numbers are only useful if you are condensing messages.
+Duplicate message numbers are a serious problem and have to be fixed.
+Duplicate messages are only interesting if a message appears often enough
+that it's worth creating a routine so that the string is only need in
+a single place.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+To select a catalog when running nvi, set the "msgcat" option.  If the
+value of this option ends with a '/', it is treated as the name of a
+directory that contains a message catalog "$LC_MESSAGES", which is set
+through the LC_MESSAGES environment variable but returned by setlocale(3).
+Check the output of locale(1) to validate such a value.  If the option
+doesn't end in a '/', the option is treated as the full path name of the
+message catalog to use.
+
+If any messages are missing from the catalog, the backup text (English)
+is used instead.

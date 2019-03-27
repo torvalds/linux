@@ -1,0 +1,158 @@
+.\" Copyright (c) 2002
+.\"	Nate Lawson.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Nate Lawson AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 15, 2002
+.Dt SCSI_TARGET 8
+.Os
+.Sh NAME
+.Nm scsi_target
+.Nd usermode SCSI disk emulator
+.Sh SYNOPSIS
+.Nm
+.Op Fl AdST
+.Op Fl b Ar size
+.Op Fl c Ar size
+.Op Fl s Ar size
+.Op Fl W Ar num
+.Ar bus : Ns Ar target : Ns Ar lun
+.Ar filename
+.Sh DESCRIPTION
+The
+.Nm
+utility emulates a SCSI target device using the
+.Xr targ 4
+device driver.
+It supports the basic commands of a direct access device, like
+.Xr da 4 .
+In typical operation, it opens a control device and
+enables target mode for the specified LUN.
+It then communicates with
+the SIM using CCBs exchanged via
+.Xr read 2
+and
+.Xr write 2 .
+READ and WRITE CDBs are satisfied with the specified backing store file.
+.Pp
+For performance, all backing store accesses use
+.Xr aio 4 .
+Thus,
+.Nm
+requires a kernel compiled with
+.Cd "options VFS_AIO" .
+.Pp
+Options:
+.Bl -tag -width indent
+.It Fl A
+Enable 16 addresses if supported by the SIM.
+Default is 8.
+.It Fl S
+Enable synchronous transfers if supported by the SIM.
+Default is disabled.
+.It Fl T
+Enable tagged queuing if supported by the SIM.
+Default is no tagged queuing.
+.It Fl W Cm 8 | 16 | 32
+Enable 16 or 32 bit wide transfers if supported by the SIM.
+Default is 8.
+.It Fl b Ar bufsize
+Set buffer size for transfers.
+Transfers larger than this will be split into multiple transfers.
+.It Fl c Ar sectorsize
+Set sector size for emulated volume.
+Default is 512.
+.It Fl d
+Enable debugging output in
+.Nm
+and its associated control device.
+.It Fl s Ar volsize
+Use a different size for the emulated volume.
+Must be less than or equal to the size of
+.Ar filename .
+If the number ends with a
+.Dq Li k ,
+.Dq Li m ,
+.Dq Li g ,
+.Dq Li t ,
+.Dq Li p ,
+or
+.Dq Li e ,
+the number is multiplied by 2^10 (1K), 2^20 (1M), 2^30 (1G), 2^40 (1T),
+2^50 (1P) and 2^60 (1E)
+respectively.
+.El
+.Pp
+Required arguments:
+.Bl -tag -width indent
+.It Ar bus : Ns Ar target : Ns Ar lun
+Attach to specified bus ID, target ID, and LUN.
+.It Ar filename
+File to use as a backing store.
+.El
+.Pp
+All options default to the minimal functionality of SCSI-1.
+To be safe,
+.Nm
+checks the SIM for the requested capability before enabling target mode.
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/examples/scsi_target" -compact
+.It Pa /dev/targ*
+Control devices.
+.It Pa /usr/share/examples/scsi_target
+Source directory.
+.El
+.Sh EXAMPLES
+Create a 5 megabyte backing store file.
+.Pp
+.Dl "dd if=/dev/zero of=vol size=1m count=5"
+.Pp
+Enable target mode on bus 0, target ID 1, LUN 0, using
+.Pa vol
+as the backing store for READ6/10 and WRITE6/10 commands.
+Only the first 1000 bytes of
+.Pa vol
+will be used.
+Debugging information will be output.
+16-bit wide transfers will be used if the SIM supports them.
+.Pp
+.Dl "scsi_target -d -s 1000 -W 16 0:1:0 vol"
+.Sh SEE ALSO
+.Xr scsi 4 ,
+.Xr targ 4
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+example first appeared in
+.Fx 3.0
+and was written by
+.An Justin T. Gibbs .
+It was rewritten for
+.Fx 5.0
+by
+.An Nate Lawson Aq Mt nate@root.org .

@@ -1,0 +1,290 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)write.2	8.5 (Berkeley) 4/2/94
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2017
+.Dt WRITE 2
+.Os
+.Sh NAME
+.Nm write ,
+.Nm writev ,
+.Nm pwrite ,
+.Nm pwritev
+.Nd write output
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft ssize_t
+.Fn write "int fd" "const void *buf" "size_t nbytes"
+.Ft ssize_t
+.Fn pwrite "int fd" "const void *buf" "size_t nbytes" "off_t offset"
+.In sys/uio.h
+.Ft ssize_t
+.Fn writev "int fd" "const struct iovec *iov" "int iovcnt"
+.Ft ssize_t
+.Fn pwritev "int fd" "const struct iovec *iov" "int iovcnt" "off_t offset"
+.Sh DESCRIPTION
+The
+.Fn write
+system call
+attempts to write
+.Fa nbytes
+of data to the object referenced by the descriptor
+.Fa fd
+from the buffer pointed to by
+.Fa buf .
+The
+.Fn writev
+system call
+performs the same action, but gathers the output data
+from the
+.Fa iovcnt
+buffers specified by the members of the
+.Fa iov
+array: iov[0], iov[1], ..., iov[iovcnt\|-\|1].
+The
+.Fn pwrite
+and
+.Fn pwritev
+system calls
+perform the same functions, but write to the specified position in
+the file without modifying the file pointer.
+.Pp
+For
+.Fn writev
+and
+.Fn pwritev ,
+the
+.Fa iovec
+structure is defined as:
+.Pp
+.Bd -literal -offset indent -compact
+struct iovec {
+	void   *iov_base;  /* Base address. */
+	size_t iov_len;    /* Length. */
+};
+.Ed
+.Pp
+Each
+.Fa iovec
+entry specifies the base address and length of an area
+in memory from which data should be written.
+The
+.Fn writev
+system call
+will always write a complete area before proceeding
+to the next.
+.Pp
+On objects capable of seeking, the
+.Fn write
+starts at a position
+given by the pointer associated with
+.Fa fd ,
+see
+.Xr lseek 2 .
+Upon return from
+.Fn write ,
+the pointer is incremented by the number of bytes which were written.
+.Pp
+Objects that are not capable of seeking always write from the current
+position.
+The value of the pointer associated with such an object
+is undefined.
+.Pp
+If the real user is not the super-user, then
+.Fn write
+clears the set-user-id bit on a file.
+This prevents penetration of system security
+by a user who
+.Dq captures
+a writable set-user-id file
+owned by the super-user.
+.Pp
+When using non-blocking I/O on objects such as sockets that are subject
+to flow control,
+.Fn write
+and
+.Fn writev
+may write fewer bytes than requested;
+the return value must be noted,
+and the remainder of the operation should be retried when possible.
+.Sh RETURN VALUES
+Upon successful completion the number of bytes which were written
+is returned.
+Otherwise a -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn write ,
+.Fn writev ,
+.Fn pwrite
+and
+.Fn pwritev
+system calls
+will fail and the file pointer will remain unchanged if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument
+is not a valid descriptor open for writing.
+.It Bq Er EPIPE
+An attempt is made to write to a pipe that is not open
+for reading by any process.
+.It Bq Er EPIPE
+An attempt is made to write to a socket of type
+.Dv SOCK_STREAM
+that is not connected to a peer socket.
+.It Bq Er EFBIG
+An attempt was made to write a file that exceeds the process's
+file size limit or the maximum file size.
+.It Bq Er EFAULT
+Part of
+.Fa iov
+or data to be written to the file
+points outside the process's allocated address space.
+.It Bq Er EINVAL
+The pointer associated with
+.Fa fd
+was negative.
+.It Bq Er ENOSPC
+There is no free space remaining on the file system
+containing the file.
+.It Bq Er EDQUOT
+The user's quota of disk blocks on the file system
+containing the file has been exhausted.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.It Bq Er EINTR
+A signal interrupted the write before it could be completed.
+.It Bq Er EAGAIN
+The file was marked for non-blocking I/O,
+and no data could be written immediately.
+.It Bq Er EROFS
+An attempt was made to write over a disk label area at the beginning
+of a slice.
+Use
+.Xr disklabel 8
+.Fl W
+to enable writing on the disk label area.
+.It Bq Er EINVAL
+The value
+.Fa nbytes
+is greater than
+.Dv SSIZE_MAX
+(or greater than
+.Dv INT_MAX ,
+if the sysctl
+.Va debug.iosize_max_clamp
+is non-zero).
+.El
+.Pp
+In addition,
+.Fn writev
+and
+.Fn pwritev
+may return one of the following errors:
+.Bl -tag -width Er
+.It Bq Er EDESTADDRREQ
+The destination is no longer available when writing to a
+.Ux
+domain datagram socket on which
+.Xr connect 2
+had been used to set a destination address.
+.It Bq Er EINVAL
+The
+.Fa iovcnt
+argument
+was less than or equal to 0, or greater than
+.Dv IOV_MAX .
+.It Bq Er EINVAL
+One of the
+.Fa iov_len
+values in the
+.Fa iov
+array was negative.
+.It Bq Er EINVAL
+The sum of the
+.Fa iov_len
+values in the
+.Fa iov
+array overflowed a 32-bit integer.
+.It Bq Er ENOBUFS
+The mbuf pool has been completely exhausted when writing to a socket.
+.El
+.Pp
+The
+.Fn pwrite
+and
+.Fn pwritev
+system calls may also return the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa offset
+value was negative.
+.It Bq Er ESPIPE
+The file descriptor is associated with a pipe, socket, or FIFO.
+.El
+.Sh SEE ALSO
+.Xr fcntl 2 ,
+.Xr lseek 2 ,
+.Xr open 2 ,
+.Xr pipe 2 ,
+.Xr select 2
+.Sh STANDARDS
+The
+.Fn write
+system call is expected to conform to
+.St -p1003.1-90 .
+The
+.Fn writev
+and
+.Fn pwrite
+system calls are expected to conform to
+.St -xpg4.2 .
+.Sh HISTORY
+The
+.Fn pwritev
+system call appeared in
+.Fx 6.0 .
+The
+.Fn pwrite
+function appeared in
+.At V.4 .
+The
+.Fn writev
+system call appeared in
+.Bx 4.2 .
+The
+.Fn write
+function appeared in
+.At v1 .

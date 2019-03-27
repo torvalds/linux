@@ -1,0 +1,4 @@
+call win1 newwin 6 6 2 5
+check win1 NON_NULL
+call OK wrefresh $win1
+compare window.chk

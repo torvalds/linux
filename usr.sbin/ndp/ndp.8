@@ -1,0 +1,313 @@
+.\"	$KAME: ndp.8,v 1.28 2002/07/17 08:46:33 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 9, 2014
+.Dt NDP 8
+.Os
+.\"
+.Sh NAME
+.Nm ndp
+.Nd control/diagnose IPv6 neighbor discovery protocol
+.\"
+.Sh SYNOPSIS
+.Nm
+.Op Fl nt
+.Ar hostname
+.Nm
+.Op Fl nt
+.Fl a | c | p
+.Nm
+.Op Fl nt
+.Fl r
+.Nm
+.Op Fl nt
+.Fl H | P | R
+.Nm
+.Op Fl nt
+.Fl A Ar wait
+.Nm
+.Op Fl nt
+.Fl d Ar hostname
+.Nm
+.Op Fl nt
+.Fl f Ar filename
+.Nm
+.Op Fl nt
+.Fl i
+.Ar interface
+.Op Ar expressions ...
+.Nm
+.Op Fl nt
+.Fl I Op Ar interface | Li delete
+.Nm
+.Op Fl nt
+.Fl s Ar nodename etheraddr
+.Op Li temp
+.Op Li proxy
+.\"
+.Sh DESCRIPTION
+The
+.Nm
+utility manipulates the address mapping table
+used by the Neighbor Discovery Protocol (NDP).
+.Bl -tag -width indent
+.It Fl a
+Dump the currently existing NDP entries.
+The following information will be printed:
+.Bl -tag -width "Neighbor"
+.It Neighbor
+IPv6 address of the neighbor.
+.It Linklayer Address
+Linklayer address of the neighbor.
+It could be
+.Dq Li (incomplete)
+when the address is not available.
+.It Netif
+Network interface associated with the neighbor cache entry.
+.It Expire
+The time until expiry of the entry.
+The entry could become
+.Dq Li permanent ,
+in which case it will never expire.
+.It S
+State of the neighbor cache entry, as a single letter:
+.Pp
+.Bl -tag -width indent -compact
+.It N
+Nostate
+.It W
+Waitdelete
+.It I
+Incomplete
+.It R
+Reachable
+.It S
+Stale
+.It D
+Delay
+.It P
+Probe
+.It ?\&
+Unknown state (should never happen).
+.El
+.It Flags
+Flags on the neighbor cache entry, in a single letter.
+They are: Router, proxy neighbor advertisement
+.Pq Dq p .
+The field could be followed by a decimal number,
+which means the number of NS probes the node has sent during the current state.
+.El
+.It Fl A Ar wait
+Repeat
+.Fl a
+(dump NDP entries)
+every
+.Ar wait
+seconds.
+.It Fl c
+Erase all the NDP entries.
+.It Fl d
+Delete specified NDP entry.
+.It Fl f Ar filename
+Cause the file
+.Ar filename
+to be read and multiple entries to be set in the
+.Tn NDP
+table.
+Entries
+in the file should be of the form
+.Pp
+.Bd -ragged -offset indent -compact
+.Ar hostname ether_addr
+.Op Cm temp
+.Op Cm proxy
+.Ed
+.Pp
+with argument meanings as given above.
+Leading whitespace and empty lines are ignored.
+A
+.Ql #
+character will mark the rest of the line as a comment.
+.It Fl H
+Harmonize consistency between the routing table and the default router
+list; install the top entry of the list into the kernel routing table.
+.It Fl I
+Shows the default interface used as the default route when
+there is no default router.
+.It Fl I Ar interface
+Specifies the default interface used as the default route when
+there is no default router.
+The
+.Ar interface
+will be used as the default.
+.It Fl I Li delete
+The current default interface will be deleted from the kernel.
+.It Fl i Ar interface Op Ar expressions ...
+View ND information for the specified interface.
+If additional arguments
+.Ar expressions
+are given,
+.Nm
+sets or clears the flags or variables for the interface as specified in
+the expression.
+Each expression should be separated by white spaces or tab characters.
+Possible expressions are as follows.
+Some of the expressions can begin with the
+special character
+.Ql - ,
+which means the flag specified in the expression should be cleared.
+Note that you need
+.Fl -
+before
+.Fl foo
+in this case.
+.\"
+.Bl -tag -width indent
+.It Ic nud
+Turn on or off NUD (Neighbor Unreachability Detection) on the
+interface.
+NUD is usually turned on by default.
+.It Ic accept_rtadv
+Specify whether or not to accept Router Advertisement messages
+received on the
+.Ar interface .
+This flag is set by
+.Va net.inet6.ip6.accept_rtadv
+sysctl variable.
+.It Ic auto_linklocal
+Specify whether or not to perform automatic link-local address configuration
+on
+.Ar interface .
+This flag is set by
+.Va net.inet6.ip6.auto_linklocal
+sysctl variable.
+.It Ic no_prefer_iface
+The address on the outgoing interface is preferred by source addess
+selection rule.
+If this flag is set, stop treating the address on the
+.Ar interface
+as special even when the
+.Ar interface
+is outgoing interface.
+The default value of this flag is off.
+.It Ic disabled
+Disable IPv6 operation on the interface.
+When disabled, the interface discards any IPv6 packets
+received on or being sent to the interface.
+In the sending case, an error of ENETDOWN will be returned to the
+application.
+This flag is typically set automatically in the kernel as a result of
+a certain failure of Duplicate Address Detection.
+If the auto_linklocal per-interface flag is set, automatic link-local
+address configuration is performed again when this flag is cleared.
+.It Ic basereachable Ns Li = Ns Pq Ar number
+Specify the BaseReachbleTimer on the interface in millisecond.
+.It Ic retrans Ns Li = Ns Pq Ar number
+Specify the RetransTimer on the interface in millisecond.
+.It Ic curhlim Ns Li = Ns Pq Ar number
+Specify the Cur Hop Limit on the interface.
+.El
+.It Fl n
+Do not try to resolve numeric addresses to hostnames.
+.It Fl p
+Show prefix list.
+The following information will be printed:
+.Bl -tag -width indent
+.It Cm if
+The network interface associated with this prefix.
+.It Cm flags
+The status of the prefix, expressed by a combination of the following
+letters:
+.Pp
+.Bl -tag -width indent -compact
+.It Cm A
+This prefix can be used for stateless address autoconfiguration.
+.It Cm L, Cm O
+This prefix can be used for on-link determination; that is, it can be
+used to determine whether a given destination address is on-link.
+.It Cm D
+There are no reachable routers advertising this prefix.
+.El
+.It Cm vltime
+Valid lifetime; the length of time for which the prefix and a stateless
+autoconfigured address generated from this prefix can be used for the
+source or destination address of a packet.
+.It Cm pltime
+Preferred lifetime; the length of time for which the prefix and a stateless
+autoconfigured address generated from this prefix can be used by upper-layer
+protocols unrestrictedly.
+.It Cm expire
+This is the remaining time that the prefix is in the valid state.
+.It Cm ref
+The number of kernel references held for this prefix.
+.El
+.It Fl P
+Flush all the entries in the prefix list.
+.It Fl r
+Show default router list.
+.It Fl R
+Flush all the entries in the default router list.
+.It Fl s
+Register an NDP entry for a node.
+The entry will be permanent unless the word
+.Li temp
+is given in the command.
+If the word
+.Li proxy
+is given, this system will act as a proxy NDP server,
+responding to requests for
+.Ar hostname
+even though the host address is not its own.
+.It Fl t
+Print timestamp for each entry,
+to make it possible to merge the output with
+.Xr tcpdump 1 .
+Most useful when used with
+.Fl A .
+.El
+.\"
+.Sh EXIT STATUS
+.Ex -std
+.\"
+.Sh SEE ALSO
+.Xr arp 8
+.\"
+.Sh HISTORY
+The
+.Nm
+utility first appeared in the WIDE Hydrangea IPv6 protocol stack kit.
+The
+.Fl I Ar auto_linklocal
+flag first appeared in
+.Fx 8.0 .
+.\"
+.\" .Sh BUGS
+.\" (to be written)

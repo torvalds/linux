@@ -1,0 +1,161 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ss7	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+7: Error Handling
+.PP
+Error handling is an extremely difficult area, and many of the problems are semantic ones.
+When an error is found, for example, it may be necessary to reclaim parse tree storage,
+delete or alter symbol table entries, and, typically, set switches to avoid generating any further output.
+.PP
+It is seldom acceptable to stop all processing when an error is found; it is more useful to continue
+scanning the input to find further syntax errors.
+This leads to the problem of getting the parser ``restarted'' after an error.
+A general class of algorithms to do this involves discarding a number of tokens
+from the input string, and attempting to adjust the parser so that input can continue.
+.PP
+To allow the user some control over this process,
+Yacc provides a simple, but reasonably general, feature.
+The token name ``error'' is reserved for error handling.
+This name can be used in grammar rules;
+in effect, it suggests places where errors are expected, and recovery might take place.
+The parser pops its stack until it enters a state where the token ``error'' is legal.
+It then behaves as if the token ``error'' were the current lookahead token,
+and performs the action encountered.
+The lookahead token is then reset to the token that caused the error.
+If no special error rules have been specified, the processing halts when an error is detected.
+.PP
+In order to prevent a cascade of error messages, the parser, after
+detecting an error, remains in error state until three tokens have been successfully
+read and shifted.
+If an error is detected when the parser is already in error state,
+no message is given, and the input token is quietly deleted.
+.PP
+As an example, a rule of the form
+.DS
+stat	:	error
+.DE
+would, in effect, mean that on a syntax error the parser would attempt to skip over the statement
+in which the error was seen.
+More precisely, the parser will
+scan ahead, looking for three tokens that might legally follow
+a statement, and start processing at the first of these; if
+the beginnings of statements are not sufficiently distinctive, it may make a
+false start in the middle of a statement, and end up reporting a
+second error where there is in fact no error.
+.PP
+Actions may be used with these special error rules.
+These actions might attempt to reinitialize tables, reclaim symbol table space, etc.
+.PP
+Error rules such as the above are very general, but difficult to control.
+Somewhat easier are rules such as
+.DS
+stat	:	error  \';\'
+.DE
+Here, when there is an error, the parser attempts to skip over the statement, but
+will do so by skipping to the next \';\'.
+All tokens after the error and before the next \';\' cannot be shifted, and are discarded.
+When the \';\' is seen, this rule will be reduced, and any ``cleanup''
+action associated with it performed.
+.PP
+Another form of error rule arises in interactive applications, where
+it may be desirable to permit a line to be reentered after an error.
+A possible error rule might be
+.DS
+input	:	error  \'\en\'  {  printf( "Reenter last line: " );  }  input
+			{	$$  =  $4;  }
+.DE
+There is one potential difficulty with this approach;
+the parser must correctly process three input tokens before it
+admits that it has correctly resynchronized after the error.
+If the reentered line contains an error
+in the first two tokens, the parser deletes the offending tokens,
+and gives no message; this is clearly unacceptable.
+For this reason, there is a mechanism that
+can be used to force the parser
+to believe that an error has been fully recovered from.
+The statement
+.DS
+yyerrok ;
+.DE
+in an action
+resets the parser to its normal mode.
+The last example is better written
+.DS
+input	:	error  \'\en\'
+			{	yyerrok;
+				printf( "Reenter last line: " );   }
+		input
+			{	$$  =  $4;  }
+	;
+.DE
+.PP
+As mentioned above, the token seen immediately
+after the ``error'' symbol is the input token at which the
+error was discovered.
+Sometimes, this is inappropriate; for example, an
+error recovery action might
+take upon itself the job of finding the correct place to resume input.
+In this case,
+the previous lookahead token must be cleared.
+The statement
+.DS
+yyclearin ;
+.DE
+in an action will have this effect.
+For example, suppose the action after error
+were to call some sophisticated resynchronization routine,
+supplied by the user, that attempted to advance the input to the
+beginning of the next valid statement.
+After this routine was called, the next token returned by yylex would presumably
+be the first token in a legal statement;
+the old, illegal token must be discarded, and the error state reset.
+This could be done by a rule like
+.DS
+stat	:	error 
+			{	resynch();
+				yyerrok ;
+				yyclearin ;   }
+	;
+.DE
+.PP
+These mechanisms are admittedly crude, but do allow for a simple, fairly effective recovery of the parser
+from many errors;
+moreover, the user can get control to deal with
+the error actions required by other portions of the program.

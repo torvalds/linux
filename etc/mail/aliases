@@ -1,0 +1,79 @@
+# $FreeBSD$
+#	@(#)aliases	5.3 (Berkeley) 5/24/90
+#
+#  Aliases in this file will NOT be expanded in the header from
+#  Mail, but WILL be visible over networks.
+#
+#	>>>>>>>>>>	The program "newaliases" must be run after
+#	>> NOTE >>	this file is updated for any changes to
+#	>>>>>>>>>>	show through to sendmail.
+#
+#
+# See also RFC 2142, `MAILBOX NAMES FOR COMMON SERVICES, ROLES
+# AND FUNCTIONS', May 1997
+# 	http://tools.ietf.org/html/rfc2142
+
+# Pretty much everything else in this file points to "root", so
+# you would do well in either reading root's mailbox or forwarding
+# root's email from here.
+
+# root:	me@my.domain
+
+# Basic system aliases -- these MUST be present
+MAILER-DAEMON: postmaster
+postmaster: root
+
+# General redirections for pseudo accounts
+_dhcp:	root
+_pflogd: root
+auditdistd:	root
+bin:	root
+bind:	root
+daemon:	root
+games:	root
+hast:	root
+kmem:	root
+mailnull: postmaster
+man:	root
+news:	root
+nobody:	root
+operator: root
+pop:	root
+proxy:	root
+smmsp:	postmaster
+sshd:	root
+system:	root
+toor:	root
+tty:	root
+usenet: news
+uucp:	root
+
+# Well-known aliases -- these should be filled in!
+# manager:
+# dumper:
+
+# BUSINESS-RELATED MAILBOX NAMES
+# info:
+# marketing:
+# sales:
+# support:
+
+# NETWORK OPERATIONS MAILBOX NAMES
+abuse:	root
+# noc:		root
+security:	root
+
+# SUPPORT MAILBOX NAMES FOR SPECIFIC INTERNET SERVICES
+ftp: 		root
+ftp-bugs: 	ftp
+# hostmaster: 	root
+# webmaster: 	root
+# www: 		webmaster
+
+# NOTE: /var/msgs and /var/msgs/bounds must be owned by sendmail's
+#	DefaultUser (defaults to mailnull) for the msgs alias to work.
+#
+# msgs: "| /usr/bin/msgs -s"
+
+# bit-bucket: /dev/null
+# dev-null: bit-bucket

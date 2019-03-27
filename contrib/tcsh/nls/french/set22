@@ -1,0 +1,17 @@
+$ $tcsh: set22,v 1.3 2011/02/04 18:19:35 christos Exp $
+$ tc.func.c
+$set 22 
+1 %S: \t a comme alias 
+2 \nMot de passe incorrect pour %s\n
+3 Erreur alias 'precmd' enlevé.\n
+4 Erreur alias 'cwdcmd' enlevé.\n
+5 Erreur alias 'beepcmd' enlevé.\n
+6 Erreur alias 'periodic' enlevé.\n
+7 étude de la ligne de commande\n
+8 Voulez vous vraiment supprimer tous les fichiers? [n/y] 
+9 passe la suppression des fichiers!\n
+10 la ligne de commande est maintenant :\n
+11 étude de la ligne de commande\n
+12 dans une des listes\n
+13 la ligne de commande est maintenant :\n
+14 OoyY

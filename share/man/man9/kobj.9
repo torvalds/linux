@@ -1,0 +1,156 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2000 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 14, 2011
+.Dt KOBJ 9
+.Os
+.Sh NAME
+.Nm kobj
+.Nd a kernel object system for FreeBSD
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/kobj.h
+.Ft void
+.Fn kobj_class_compile "kobj_class_t cls"
+.Ft void
+.Fn kobj_class_compile_static "kobj_class_t cls" "kobj_ops_t ops"
+.Ft void
+.Fn kobj_class_free "kobj_class_t cls"
+.Ft kobj_t
+.Fn kobj_create "kobj_class_t cls" "struct malloc_type *mtype" "int mflags"
+.Ft void
+.Fn kobj_init "kobj_t obj" "kobj_class_t cls"
+.Ft void
+.Fn kobj_init_static "kobj_t obj" "kobj_class_t cls"
+.Ft void
+.Fn kobj_delete "kobj_t obj" "struct malloc_type *mtype"
+.Fn DEFINE_CLASS name "kobj_method_t *methods" "size_t size"
+.Sh DESCRIPTION
+The kernel object system implements an object-oriented programming
+system in the
+.Fx
+kernel.
+The system is based around the concepts of interfaces, which are
+descriptions of sets of methods; classes, which are lists of functions
+implementing certain methods from those interfaces; and objects,
+which combine a class with a structure in memory.
+.Pp
+Methods are called using a dynamic method dispatching algorithm which
+is designed to allow new interfaces and classes to be introduced into
+the system at runtime.
+The method dispatch algorithm is designed to be both fast and robust
+and is only slightly more expensive than a direct function call,
+making kernel objects suitable for performance-critical algorithms.
+.Pp
+Suitable uses for kernel objects are any algorithms which need some
+kind of polymorphism (i.e., many different objects which can be treated
+in a uniform way).
+The common behaviour of the objects is described by a suitable
+interface and each different type of object is implemented by a
+suitable class.
+.Pp
+The simplest way to create a kernel object is to call
+.Fn kobj_create
+with a suitable class, malloc type and flags (see
+.Xr malloc 9
+for a description of the malloc type and flags).
+This will allocate memory for the object based on the object size
+specified by the class and initialise it by zeroing the memory and
+installing a pointer to the class' method dispatch table.
+Objects created in this way should be freed by calling
+.Fn kobj_delete .
+.Pp
+Clients which would like to manage the allocation of memory
+themselves should call
+.Fn kobj_init
+or
+.Fn kobj_init_static
+with a pointer to the memory for the object and the class which
+implements it.
+It is also possible to use
+.Fn kobj_init
+and
+.Fn kobj_init_static
+to change the class for an object.
+This should be done with care as the classes must agree on the layout
+of the object.
+The device framework uses this feature to associate drivers with
+devices.
+.Pp
+The functions
+.Fn kobj_class_compile ,
+.Fn kobj_class_compile_static
+and
+.Fn kobj_class_free
+are used to process a class description to make method dispatching
+efficient.
+A client should not normally need to call these since a class
+will automatically be compiled the first time it is used.
+If a class is to be used before
+.Xr malloc 9
+and
+.Xr mutex 9
+are initialised,
+then
+.Fn kobj_class_compile_static
+should be called with the class and a pointer to a statically
+allocated
+.Vt kobj_ops
+structure before the class is used to initialise any objects.
+In that case, also
+.Fn kobj_init_static
+should be used instead of
+.Fn kobj_init .
+.Pp
+To define a class, first define a simple array of
+.Vt kobj_method_t .
+Each method which the class implements should be entered into the
+table using the macro
+.Fn KOBJMETHOD
+which takes the name of the method (including its interface) and a
+pointer to a function which implements it.
+The table should be terminated with two zeros.
+The macro
+.Fn DEFINE_CLASS
+can then be used to initialise a
+.Vt kobj_class_t
+structure.
+The size argument to
+.Fn DEFINE_CLASS
+specifies how much memory should be allocated for each object.
+.Sh HISTORY
+Some of the concepts for this interface appeared in the device
+framework used for the alpha port of
+.Fx 3.0
+and more widely in
+.Fx 4.0 .
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

@@ -1,0 +1,9 @@
+#------------------------------------------------------------------------------
+# $File: m4,v 1.2 2017/08/14 07:40:38 christos Exp $
+# make:  file(1) magic for M4 scripts
+#
+0	regex	\^dnl\ 		M4 macro processor script text
+!:mime	text/x-m4
+0	regex	\^AC_DEFUN\\(\\[	M4 macro processor script text
+!:strength + 15
+!:mime	text/x-m4

@@ -1,0 +1,41 @@
+# $FreeBSD$ 
+# $NetBSD: UTF.alias,v 1.5 2007/12/17 14:06:57 joerg Exp $
+
+7		csunicode11utf7
+7		unicode-1-1-utf-7
+7		utf7
+
+8		utf8
+
+16		unicode
+16		utf16
+
+16-INTERNAL	ucs-2-internal
+
+16-SWAPPED	ucs-2-swapped
+
+16BE		csunicode
+16BE		csunicode11
+16BE		iso-10646-ucs-2
+16BE		ucs-2
+16BE		ucs-2be
+16BE		unicode-1-1
+16BE		unicodebig
+16BE		utf16be
+
+16LE		ucs-2le
+16LE		unicodelittle
+16LE		utf16le
+
+32-INTERNAL	ucs-4-internal
+
+32-SWAPPED	ucs-4-swapped
+
+32BE		csucs4
+32BE		iso-10646-ucs-4
+32BE		ucs-4
+32BE		ucs-4be
+32BE		utf32be
+
+32LE		ucs-4le
+32LE		utf32le

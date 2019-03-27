@@ -1,0 +1,34 @@
+# $FreeBSD$
+
+run_test() {
+	w='@ @'
+	check() {
+		[ "$v" = "$w" ] || echo "Expected $w got $v"
+	}
+
+	command local v=$w
+	check
+	command command local v=$w
+	check
+
+	HOME=/known/value
+	check() {
+		[ "$v" = ~ ] || echo "Expected $HOME got $v"
+	}
+
+	command local v=~
+	check
+	command command local v=~
+	check
+
+	check() {
+		[ "$v" = "x:$HOME" ] || echo "Expected x:$HOME got $v"
+	}
+
+	command local v=x:~
+	check
+	command command local v=x:~
+	check
+}
+
+run_test

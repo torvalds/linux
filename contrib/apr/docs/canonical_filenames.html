@@ -1,0 +1,156 @@
+<HTML>
+<HEAD><TITLE>APR Canonical Filenames</TITLE></HEAD>
+<BODY>
+<h1>APR Canonical Filename</h1>
+
+<h2>Requirements</h2>
+
+<p>APR porters need to address the underlying discrepancies between
+file systems.  To achieve a reasonable degree of security, the
+program depending upon APR needs to know that two paths may be
+compared, and that a mismatch is guarenteed to reflect that the
+two paths do not return the same resource</p>.
+
+<p>The first discrepancy is in volume roots.  Unix and pure deriviates
+have only one root path, "/".  Win32 and OS2 share root paths of
+the form "D:/", D: is the volume designation.  However, this can
+be specified as "//./D:/" as well, indicating D: volume of the 
+'this' machine.  Win32 and OS2 also may employ a UNC root path,
+of the form "//server/share/" where share is a share-point of the
+specified network server.  Finally, NetWare root paths are of the
+form "server/volume:/", or the simpler "volume:/" syntax for 'this'
+machine.  All these non-Unix file systems accept volume:path,
+without a slash following the colon, as a path relative to the
+current working directory, which APR will treat as ambigious, that
+is, neither an absolute nor a relative path per se.</p>
+
+<p>The second discrepancy is in the meaning of the 'this' directory.
+In general, 'this' must be eliminated from the path where it occurs.
+The syntax "path/./" and "path/" are both aliases to path.  However,
+this isn't file system independent, since the double slash "//" has
+a special meaning on OS2 and Win32 at the start of the path name,
+and is invalid on those platforms before the "//server/share/" UNC
+root path is completed.  Finally, as noted above, "//./volume/" is
+legal root syntax on WinNT, and perhaps others.</p>
+
+<p>The third discrepancy is in the context of the 'parent' directory.
+When "parent/path/.." occurs, the path must be unwound to "parent".
+It's also critical to simply truncate leading "/../" paths to "/",
+since the parent of the root is root.  This gets tricky on the
+Win32 and OS2 platforms, since the ".." element is invalid before
+the "//server/share/" is complete, and the "//server/share/../"
+seqence is the complete UNC root "//server/share/".  In relative
+paths, leading ".." elements are significant, until they are merged
+with an absolute path.  The relative form must only retain the ".."
+segments as leading segments, to be resolved once merged to another
+relative or an absolute path.</p>
+
+<p>The fourth discrepancy occurs with acceptance of alternate character
+codes for the same element.  Path seperators are not retained within
+the APR canonical forms.  The OS filesystem and APR (slashed) forms
+can both be returned as strings, to be used in the proper context.
+Unix, Win32 and Netware all accept slashes and backslashes as the
+same path seperator symbol, although unix strictly accepts slashes.
+While the APR form of the name strictly uses slashes, always consider
+that there could be a platform that actually accepts slashes as a
+character within a segment name.</p>
+
+<p>The fifth and worst discrepancy plauges Win32, OS2, Netware, and some
+filesystems mounted in Unix.  Case insensitivity can permit the same
+file to slip through in both it's proper case and alternate cases.
+Simply changing the case is insufficient for any character set beyond
+ASCII, since various dilectic forms of characters suffer from one to
+many or many to one translations.  An example would be u-umlaut, which
+might be accepted as a single character u-umlaut, a two character
+sequence u and the zero-width umlaut, the upper case form of the same,
+or perhaps even a captial U alone.  This can be handled in different
+ways depending on the purposes of the APR based program, but the one
+requirement is that the path must be absolute in order to resolve these
+ambiguities.  Methods employed include comparison of device and inode
+file uniqifiers, which is a fairly fast operation, or quering the OS
+for the true form of the name, which can be much slower.  Only the
+acknowledgement of the file names by the OS can validate the equality
+of two different cases of the same filename.</p>
+
+<p>The sixth discrepancy, illegal or insignificant characters, is especially 
+significant in non-unix file systems.  Trailing periods are accepted
+but never stored, therefore trailing periods must be ignored for any
+form of comparison.  And all OS's have certain expectations of what
+characters are illegal (or undesireable due to confusion.)</p>
+
+<p>A final warning, canonical functions don't transform or resolve case
+or character ambiguity issues until they are resolved into an absolute
+path.  The relative canonical path, while useful, while useful for URL
+or similar identifiers, cannot be used for testing or comparison of file 
+system objects.</p>
+
+<hr>
+
+<h2>Canonical API</h2>
+
+Functions to manipulate the apr_canon_file_t (an opaque type) include:
+
+<ul>
+<li>Create canon_file_t (from char* path and canon_file_t parent path)
+<li>Merged canon_file_t (from path and parent, both canon_file_t)
+<li>Get char* path of all or some segments
+<li>Get path flags of IsRelative, IsVirtualRoot, and IsAbsolute
+<li>Compare two canon_file_t structures for file equality
+</ul>
+
+<p>The path is corrected to the file system case only if is in absolute 
+form.  The apr_canon_file_t should be preserved as long as possible and 
+used as the parent to create child entries to reduce the number of expensive 
+stat and case canonicalization calls to the OS.</p>
+
+<p>The comparison operation provides that the APR can postpone correction
+of case by simply relying upon the device and inode for equivalence.  The
+stat implementation provides that two files are the same, while their
+strings are not equivalent, and eliminates the need for the operating
+system to return the proper form of the name.</p>
+
+<p>In any case, returning the char* path, with a flag to request the proper
+case, forces the OS calls to resolve the true names of each segment.  Where
+there is a penality for this operation and the stat device and inode test
+is faster, case correction is postponed until the char* result is requested.
+On platforms that identify the inode, device, or proper name interchangably
+with no penalities, this may occur when the name is initially processed.</p>
+
+<hr>
+
+<h2>Unix Example</h2>
+
+<p>First the simplest case:</p>
+
+<pre>
+Parse Canonical Name 
+accepts parent path as canonical_t
+        this path as string
+
+Split this path Segments on '/'
+
+For each of this path Segments
+  If first Segment
+    If this Segment is Empty ([nothing]/)
+      Append this Root Segment (don't merge)
+      Continue to next Segment
+    Else is relative
+      Append parent Segments (to merge)
+      Continue with this Segment
+  If Segment is '.' or empty (2 slashes)
+    Discard this Segment
+    Continue with next Segment
+  If Segment is '..'
+    If no previous Segment or previous Segment is '..'
+      Append this Segment
+      Continue with next Segment
+    If previous Segment and previous is not Root Segment
+      Discard previous Segment
+    Discard this Segment
+    Continue with next Segment
+  Append this Relative Segment
+  Continue with next Segment        
+</pre>
+
+</BODY>
+</HTML>

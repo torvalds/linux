@@ -1,0 +1,60 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1998 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 19, 2005
+.Dt DEVCLASS_GET_DEVICES 9
+.Os
+.Sh NAME
+.Nm devclass_get_devices
+.Nd get a list of devices in a devclass
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Ft int
+.Fn devclass_get_devices "devclass_t dc" "device_t **devlistp" "int *devcountp"
+.Sh DESCRIPTION
+Retrieve a list of all device instances currently in the devclass and
+return the list in
+.Fa *devlistp
+and the count in
+.Fa *devcountp .
+The memory allocated for the list should be freed using
+.Fn free "*devlistp" "M_TEMP" ,
+even if
+.Fa *devcountp
+is 0.
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an appropriate error is returned.
+.Sh SEE ALSO
+.Xr devclass 9 ,
+.Xr device 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

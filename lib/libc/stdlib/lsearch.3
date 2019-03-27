@@ -1,0 +1,146 @@
+.\"
+.\" Initial implementation:
+.\" Copyright (c) 2002 Robert Drehmel
+.\" All rights reserved.
+.\"
+.\" As long as the above copyright statement and this notice remain
+.\" unchanged, you can do what ever you want with this file.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 17, 2016
+.Dt LSEARCH 3
+.Os
+.Sh NAME
+.Nm lsearch ,
+.Nm lfind
+.Nd linear search and append
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In search.h
+.Ft "void *"
+.Fo lsearch
+.Fa "const void *key" "void *base" "size_t *nelp" "size_t width"
+.Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
+.Ft "void *"
+.Fo lfind
+.Fa "const void *key" "const void *base" "size_t *nelp" "size_t width"
+.Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn lsearch
+and
+.Fn lfind
+functions walk linearly through an array and compare each element with
+the one to be sought using a supplied comparison function.
+.Pp
+The
+.Fa key
+argument
+points to an element that matches the one that is searched.
+The array's address in memory is denoted by the
+.Fa base
+argument.
+The width of one element (i.e., the size as returned by
+.Fn sizeof )
+is passed as the
+.Fa width
+argument.
+The number of valid elements contained in the array (not the number of
+elements the array has space reserved for) is given in the integer pointed
+to by
+.Fa nelp .
+The
+.Fa compar
+argument points to a function which compares its two arguments and returns
+zero if they are matching, and non-zero otherwise.
+.Pp
+If no matching element was found in the array,
+.Fn lsearch
+copies
+.Fa key
+into the position after the last element and increments the
+integer pointed to by
+.Fa nelp .
+.Sh RETURN VALUES
+The
+.Fn lsearch
+and
+.Fn lfind
+functions
+return a pointer to the first element found.
+If no element was found,
+.Fn lsearch
+returns a pointer to the newly added element, whereas
+.Fn lfind
+returns
+.Dv NULL .
+Both functions return
+.Dv NULL
+if an error occurs.
+.Sh EXAMPLES
+.Bd -literal
+#include <search.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static int
+element_compare(const void *p1, const void *p2)
+{
+	int left = *(const int *)p1;
+	int right = *(const int *)p2;
+
+	return (left - right);
+}
+
+int
+main(int argc, char **argv)
+{
+	const int array[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+	size_t element_size = sizeof(array[0]);
+	size_t array_size = sizeof(array) / element_size;
+	int key;
+	void *element;
+
+	printf("Enter a number: ");
+	if (scanf("%d", &key) != 1) {
+		printf("Bad input\en");
+		return (EXIT_FAILURE);
+	}
+
+	element = lfind(&key, array, &array_size, element_size,
+	    element_compare);
+
+	if (element != NULL)
+		printf("Element found: %d\en", *(int *)element);
+	else
+		printf("Element not found\en");
+
+	return (EXIT_SUCCESS);
+}
+.Ed
+.Sh SEE ALSO
+.Xr bsearch 3 ,
+.Xr hsearch 3 ,
+.Xr tsearch 3
+.Sh STANDARDS
+The
+.Fn lsearch
+and
+.Fn lfind
+functions conform to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn lsearch
+and
+.Fn lfind
+functions appeared in
+.Bx 4.2 .
+In
+.Fx 5.0 ,
+they reappeared conforming to
+.St -p1003.1-2001 .

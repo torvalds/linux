@@ -1,0 +1,42 @@
+CREATE TABLE users(
+	identity TEXT PRIMARY KEY,
+	methods TEXT,
+	password TEXT,
+	remediation TEXT,
+	phase2 INTEGER,
+	t_c_timestamp INTEGER
+);
+
+CREATE TABLE wildcards(
+	identity TEXT PRIMARY KEY,
+	methods TEXT
+);
+
+INSERT INTO users(identity,methods,password,phase2) VALUES ('user','TTLS-MSCHAPV2','password',1);
+INSERT INTO users(identity,methods,password,phase2) VALUES ('DOMAIN\mschapv2 user','TTLS-MSCHAPV2','password',1);
+
+INSERT INTO wildcards(identity,methods) VALUES ('','TTLS,TLS');
+INSERT INTO wildcards(identity,methods) VALUES ('0','AKA');
+
+CREATE TABLE authlog(
+	timestamp TEXT,
+	session TEXT,
+	nas_ip TEXT,
+	username TEXT,
+	note TEXT
+);
+
+CREATE TABLE pending_tc(
+	mac_addr TEXT PRIMARY KEY,
+	identity TEXT
+);
+
+CREATE TABLE current_sessions(
+	mac_addr TEXT PRIMARY KEY,
+	identity TEXT,
+	start_time TEXT,
+	nas TEXT,
+	hs20_t_c_filtering BOOLEAN,
+	waiting_coa_ack BOOLEAN,
+	coa_ack_received BOOLEAN
+);

@@ -1,0 +1,96 @@
+#!/bin/sh -
+
+#-
+# Copyright (c) 1991, 1993
+#	The Regents of the University of California.  All rights reserved.
+#
+# This code is derived from software contributed to Berkeley by
+# Kenneth Almquist.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)builtins.def	8.4 (Berkeley) 5/4/95
+# $FreeBSD$
+
+#
+# This file lists all the builtin commands.  The first column is the name
+# of a C routine.
+# The -j flag specifies that this command is to be excluded from systems
+# without job control.
+# The -h flag specifies that this command is to be excluded from systems
+# based on the NO_HISTORY compile-time symbol.
+# The -n flag specifies that this command can safely be run in the same
+# process when it is the only command in a command substitution.  Some
+# commands have special logic defined in safe_builtin().
+# The -s flag specifies that this is a POSIX 'special built-in' command.
+# The rest of the line specifies the command name or names used to run the
+# command.  The entry for bltincmd, which is run when the user does not specify
+# a command, must come first.
+#
+# NOTE: bltincmd must come first!
+
+bltincmd -n	builtin
+aliascmd	alias
+bgcmd -j	bg
+bindcmd		bind
+breakcmd	-s break -s continue
+cdcmd		cd chdir
+commandcmd -n	command
+dotcmd		-s .
+echocmd -n	echo
+evalcmd		-s eval
+execcmd		-s exec
+exitcmd		-s exit
+letcmd		let
+exportcmd	-s export -s readonly
+#exprcmd		expr
+falsecmd -n	false
+fgcmd -j	fg
+freebsd_wordexpcmd	freebsd_wordexp
+getoptscmd	getopts
+hashcmd		hash
+histcmd -h	fc
+jobidcmd -n	jobid
+jobscmd -n	jobs
+killcmd -n	kill
+localcmd	local
+printfcmd -n	printf
+pwdcmd -n	pwd
+readcmd		read
+returncmd	-s return
+setcmd		-s set
+setvarcmd	setvar
+shiftcmd	-s shift
+testcmd -n	test [
+timescmd -n	-s times
+trapcmd		-s trap
+truecmd -n	-s : true
+typecmd -n	type
+ulimitcmd	ulimit
+umaskcmd	umask
+unaliascmd	unalias
+unsetcmd	-s unset
+waitcmd		wait
+wordexpcmd	wordexp

@@ -1,0 +1,14 @@
+# Load macro tests
+section {
+
+.load(try=false, multiline=false, trim=false, escape=false, key="key1", target="string", priority=1) "${CURDIR}/load.inc"
+.load(try=false, multiline=true, trim=false, escape=false, key="key2", target="string", priority=1) "${CURDIR}/load.inc"
+.load(try=false, multiline=true, trim=true, escape=false, key="key3", target="string", priority=1) "${CURDIR}/load.inc"
+.load(try=false, multiline=true, trim=true, escape=true, key="key4", target="string", priority=1) "${CURDIR}/load.inc"
+.load(try=false, multiline=false, trim=true, escape=false, key="key5", target="string", priority=1) "${CURDIR}/load.inc"
+.load(try=false, multiline=false, trim=false, escape=true, key="key6", target="string", priority=1) "${CURDIR}/load.inc"
+.load(try=false, multiline=false, trim=true, escape=true, key="key7", target="string", priority=1) "${CURDIR}/load.inc"
+.load(try=false, multiline=false, trim=false, escape=false, key="key8", target="int", priority=1) "${CURDIR}/load.inc"
+.load(try=false, multiline=false, trim=false, escape=false, key="key9", target="int", priority=4) "${CURDIR}/load.inc"
+.load(try=true, multiline=false, trim=false, escape=false, key="key10", target="string", priority=1) "load_bad.inc"
+};

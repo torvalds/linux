@@ -1,0 +1,162 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: gelf_getsymshndx.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd November 5, 2006
+.Dt GELF_GETSYMSHNDX 3
+.Os
+.Sh NAME
+.Nm gelf_getsymshndx ,
+.Nm gelf_update_symshndx
+.Nd read and update symbol information using extended section indices
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In gelf.h
+.Ft "GElf_Sym *"
+.Fo gelf_getsymshndx
+.Fa "Elf_Data *symdata"
+.Fa "Elf_Data *xndxdata"
+.Fa "int ndx"
+.Fa "GElf_Sym *sym"
+.Fa "Elf32_Word *xndxptr"
+.Fc
+.Ft int
+.Fo gelf_update_symshndx
+.Fa "Elf_Data *symdata"
+.Fa "Elf_Data *xndxdata"
+.Fa "int ndx"
+.Fa "GElf_Sym *sym"
+.Fa "Elf32_Word xndx"
+.Fc
+.Sh DESCRIPTION
+These functions are analogous to
+.Fn gelf_getsym
+and
+.Fn gelf_update_sym
+respectively, but are capable of handling symbol tables using extended
+section numbering.
+.Pp
+Argument
+.Ar symdata
+is an
+.Vt Elf_Data
+descriptor associated with a section of type
+.Dv SHT_SYMTAB .
+Argument
+.Ar xndxdata
+is an
+.Vt Elf_Data
+descriptor associated with a section of type
+.Dv SHT_SYMTAB_SHNDX .
+Argument
+.Ar ndx
+is the index of the symbol table entry being retrieved or updated.
+Argument
+.Ar sym
+is a pointer to a class-independent
+.Vt GElf_Sym
+structure.
+.Vt GElf_Sym
+structures are described in detail in
+.Xr gelf 3 .
+.Pp
+Function
+.Fn gelf_getsymshndx
+retrieves symbol information at index
+.Ar ndx
+from the data descriptor specified by argument
+.Ar symdata
+and stores in class-independent form in argument
+.Ar sym .
+In addition it retrieves the extended section index for the
+symbol from data buffer
+.Ar xndxdata
+and stores it into the location pointed to by argument
+.Ar xndxptr .
+.Pp
+Function
+.Fn gelf_update_symshndx
+updates the underlying symbol table entry in data
+descriptor
+.Ar symdata
+with the information in argument
+.Ar sym .
+In addition it sets the extended section index in
+data buffer
+.Ar xndxdata
+to the value of argument
+.Ar xndx .
+.Sh RETURN VALUES
+Function
+.Fn gelf_getsymshndx
+returns the value of argument
+.Ar sym
+if successful, or NULL in case of an error.
+.Pp
+Function
+.Fn gelf_update_symshndx
+returns a non-zero value if successful, or zero in case of an error.
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+Arguments
+.Ar symdata ,
+.Ar xndxdata ,
+.Ar xndxptr
+or
+.Ar sym
+were NULL.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar ndx
+was less than zero, or too large for either of descriptors
+.Ar symdata
+or
+.Ar xndxdata .
+.It Bq Er ELF_E_ARGUMENT
+Data descriptor
+.Ar symdata
+was not associated with a section of type
+.Dv SHT_SYMTAB .
+.It Bq Er ELF_E_ARGUMENT
+Data descriptor
+.Ar xndxdata
+was not associated with a section of type
+.Dv SHT_SYMTAB_SHNDX .
+.It Bq Er ELF_E_ARGUMENT
+Data descriptor
+.Ar symdata
+and
+.Ar xndxdata
+were associated with different ELF objects.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_getdata 3 ,
+.Xr elf_getscn 3 ,
+.Xr gelf 3 ,
+.Xr gelf_getsym 3 ,
+.Xr gelf_update_sym 3

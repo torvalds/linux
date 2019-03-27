@@ -1,0 +1,10 @@
+$ $tcsh: set11,v 1.5 2006/03/02 18:46:46 christos Exp $
+$ sh.c
+$set 11
+1 Warnung: kein Zugriff auf Tty (%s).\n
+2 Daher keine Job Control in dieser Shell.\n
+3 Sie haben %d Mails.\n
+4 Sie haben %d Mails in %s.\n
+5 Sie haben %sMail.\n
+6 neue\040
+7 Sie haben %sMail in %s.\n

@@ -1,0 +1,199 @@
+#! /bin/sh
+# $Id: headers-sh.in,v 1.11 2011/10/18 23:49:13 tom Exp $
+##############################################################################
+# Copyright (c) 2004-2007,2011 Thomas E. Dickey                              #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Adjust includes for header files that reside in a subdirectory of
+# /usr/include, etc.
+#
+# Parameters (the first case creates the sed script):
+#	$1 is the target directory
+#	$2 is the source directory
+# or (the second case does the install, using the sed script):
+#	$1 is the script to use for installing
+#	$2 is the target directory
+#	$3 is the source directory
+#	$4 is the file to install, editing source/target/etc.
+
+PACKAGE=@PACKAGE@
+PKGNAME=@PACKAGE_PREFIX@
+CONFIGH=@PACKAGE_CONFIG@
+SUB_INC=@SUB_INC@
+
+: ${TMPDIR:=/tmp}
+
+TMPSED=headers.sed
+
+DIGIT=0123456789
+alpha=abcdefghijklmnopqrstuvwxyz
+ALPHA=ABCDEFGHIJKLMNOPQRSTUVWXYZ
+
+alnum=_${DIGIT}${alpha}
+ALNUM=_${DIGIT}${ALPHA}
+MIXED=_${DIGIT}${ALPHA}${alpha}
+
+pkgname=`echo "$PKGNAME" | tr "$ALPHA" "$alpha"`
+
+if test $# = 2 ; then
+	rm -f $TMPSED
+	DST=$1
+	REF=$2
+	LEAF=`basename $DST`
+
+	# map the include-directory, if needed, to the subdirectory
+	case $DST in
+	/*/include/$LEAF)
+		END=`basename $DST`
+		for i in $REF/*.h
+		do
+			NAME=`basename $i`
+			echo "s/<$NAME>/<$END\/$NAME>/g" >> $TMPSED
+		done
+		;;
+	*)
+		touch $TMPSED
+		;;
+	esac
+
+	# cannot do _this_ in -e options:
+	cat >headers.tmp <<EOF
+s/^#[^ ][^ ]*//
+s/[^'$MIXED']/ /g
+s/[ 	][ 	]*/ /g
+s/^ //
+s/ $//
+:split
+	h
+	s/ .*//
+	p
+	t next
+	b done
+:next
+	x
+	s/^[^ ][^ ]* //
+	t split
+:done
+EOF
+	# pick up autoconf-style symbols used in the application's headers
+	for name in $REF/*.h
+	do
+		sed -e 's/^[ 	][ 	]*#[ 	][ 	]*/#/' $name \
+		| egrep '^#(if|ifdef|ifndef|elif)' \
+		| sed	-f headers.tmp \
+		| sort -u \
+		| egrep '^(HAVE_|NEED_|NO_|ENABLE_|DISABLE_)' \
+		| sed	-e 's%^\(.*\)%s/\\<\1\\>/'${PKGNAME}'_\1/g%' >>$TMPSED
+	done
+	rm -f headers.tmp
+
+	# pick up autoconf-defined symbols in the config.h file
+	for name in `
+	egrep '^#define[ 	][ 	]*['$ALNUM']' $REF/$CONFIGH \
+		| sed \
+			-e 's/^#define[ 	][ 	]*//' \
+			-e 's/[ 	].*//' \
+		| egrep -v "^${PACKAGE}_" \
+		| sort -u`
+	do
+		echo "s/\\<$name\\>/${PKGNAME}_$name/g" >>$TMPSED
+	done
+
+	if test "$SUB_INC" = yes
+	then
+		echo "s,#include <${pkgname}_,#include <${PACKAGE}/${pkgname}_," >>$TMPSED
+	fi
+
+	echo '/_FILE_OFFSET_BITS/d' >>$TMPSED
+
+	# reduce the count if possible, since some old sed's limit is 100 lines
+	sort -u $TMPSED >headers.tmp
+	mv headers.tmp $TMPSED
+else
+	PRG=""
+	while test $# != 3
+	do
+		PRG="$PRG $1"; shift
+	done
+
+	DST=$1
+	REF=$2
+	SRC=$3
+
+	SHOW=`basename $SRC`
+	TMPSRC=$TMPDIR/${SHOW}-text$$
+	TMPEDT=$TMPDIR/${SHOW}-edit$$
+	TMPTMP=$TMPDIR/${SHOW}-temp$$
+
+	echo "	... $SHOW"
+	test -f $REF/$SRC && SRC="$REF/$SRC"
+
+	rm -f $TMPSRC
+	cat $SRC >$TMPSRC
+
+	tmp1=1
+	while true
+	do
+		tmp2=`expr $tmp1 + 49`
+		if test $tmp1 = 1
+		then
+			sed "${tmp2}q" $TMPSED >$TMPEDT
+		else
+			sed "1,${tmp1}d; ${tmp2}q" $TMPSED >$TMPEDT
+		fi
+		test -s $TMPEDT || break
+		sed -f $TMPEDT $TMPSRC > $TMPTMP
+		mv $TMPTMP $TMPSRC
+		tmp1=$tmp2
+	done
+
+	NAME=`basename $SRC`
+
+	# Just in case someone gzip'd manpages, remove the conflicting copy.
+	test -f $DST/$NAME.gz && rm -f $DST/$NAME.gz
+
+	if test "$SUB_INC" = yes
+	then
+		case $NAME in #(vi
+		${pkgname}_*) #(vi
+			case "$PRG" in #(vi
+			*install*)
+				test -d $DST/$PACKAGE || mkdir -p $DST/$PACKAGE 
+				;;
+			esac
+			NAME=$PACKAGE/$NAME
+			;;
+		*)
+			NAME=$PACKAGE.h
+			;;
+		esac
+	fi
+
+	eval $PRG $TMPSRC $DST/$NAME
+	rm -f $TMPEDT $TMPTMP $TMPSRC
+fi
+# vile:ts=4 sw=4

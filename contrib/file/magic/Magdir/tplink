@@ -1,0 +1,82 @@
+
+#------------------------------------------------------------------------------
+# $File: tplink,v 1.2 2017/12/14 05:52:56 christos Exp $
+# tplink: File magic for openwrt firmware files
+
+# URL: https://wiki.openwrt.org/doc/techref/header
+# Reference: http://git.openwrt.org/?p=openwrt.git;a=blob;f=tools/firmware-utils/src/mktplinkfw.c
+# From: Joerg Jenderek
+# check for valid header version 1 or 2
+0		ulelong		<3
+>0		ulelong		!0
+# test for header padding with nulls
+>>0x100		long		0
+>>>0		use		firmware-tplink
+
+0		name		firmware-tplink
+>0		ubyte		x		firmware
+!:mime application/x-tplink-bin
+!:ext	bin
+# hardware id like 10430001 07410001 09410004 09410006
+>0x40		ubeshort	x		%x
+>0x42		ubeshort	x		v%x
+# hardware revision like 1
+>0x44		ubelong		!1		(revision %u)
+# vendor_name[24] like OpenWrt or TP-LINK Technologies
+>4		string		x		%.24s
+# fw_version[36] like r49389 or ver. 1.0
+>0x1c		string		x		%.36s
+# header version 1 or 2
+>0		ubyte		!1		V%X
+# ver_hi.ver_mid.ver_lo
+>0x98		long		!0		\b, version
+>>0x98		ubeshort	x		%u
+>>0x9A		ubeshort	x		\b.%u
+>>0x9C		ubeshort	x		\b.%u
+# region code 0~universal 1~US
+>0x48		ubelong		x
+#>>0x48		ubelong		0		(universal)
+>>0x48		ubelong		1		(US)
+>>0x48		ubelong		>1		(region %u)
+# total length of the firmware. not always true
+>0x7C		ubelong		x		\b, %u bytes or less
+# unknown 1
+>0x48		ubelong		!0		\b, UNKNOWN1 0x%x
+# md5sum1[16]
+#>0x4c		ubequad		x		\b, MD5 %llx
+#>>0x54		ubequad		x		\b%llx
+# unknown 2
+>0x5c		ubelong		!0		\b, UNKNOWN2 0x%x
+# md5sum2[16]
+#>0x60		ubequad		!0		\b, 2nd MD5 %llx
+#>>0x68		ubequad		x		\b%llx
+# unknown 3
+>0x70		ubelong		!0		\b, UNKNOWN3 0x%x
+# kernel load address
+#>0x74		ubelong		x		\b, 0x%x load
+# kernel entry point
+#>0x78		ubelong		x		\b, 0x%x entry
+# kernel data offset. 200h means direct after header
+>0x80		ubelong		x		\b, at 0x%x
+# kernel data length and 1 space
+>0x84		ubelong		x		%u bytes 
+# look for kernel type (gzip compressed vmlinux.bin by ./compress)
+>(0x80.L)	indirect	x
+# root file system data offset
+>0x88		ubelong		x		\b, at 0x%x
+# rootfs data length and 1 space
+>0x8C		ubelong		x		%u bytes 
+# in 5.32 only true for offset ~< FILE_BYTES_MAX=9 MB defined in ../../src/file.h 
+>(0x88.L)	indirect	x
+#>(0x88.L)	string		x		\b, file system '%.4s'
+#>(0x88.L)	ubequad		x		\b, file system 0x%llx
+# bootloader data offset
+>0x90		ubelong		!0		\b, at 0x%x
+# bootloader data length only resonable if bootloader offset not null
+>>0x94		ubelong		!0		%u bytes
+# pad[354] should be 354 null bytes.
+#>0x9E		ubequad		!0		\b, padding 0x%llx
+# But at 0x120 18 non null bytes in examples like
+# wr940nv4_eu_3_16_9_up_boot(160620).bin
+# wr940nv6_us_3_18_1_up_boot(171030).bin
+#>0x120		ubequad		!0		\b, other padding 0x%llx

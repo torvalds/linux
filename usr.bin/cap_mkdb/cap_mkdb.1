@@ -1,0 +1,105 @@
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)cap_mkdb.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd February 22, 2005
+.Dt CAP_MKDB 1
+.Os
+.Sh NAME
+.Nm cap_mkdb
+.Nd create capability database
+.Sh SYNOPSIS
+.Nm
+.Op Fl b | l
+.Op Fl v
+.Op Fl f Ar outfile
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility builds a hashed database out of the
+.Xr getcap 3
+logical database constructed by the concatenation of the specified
+files.
+.Pp
+The database is named by the basename of the first file argument and
+the string
+.Dq .db .
+The
+.Xr getcap 3
+routines can access the database in this form much more quickly
+than they can the original text file(s).
+.Pp
+The ``tc'' capabilities of the records are expanded before the
+record is stored into the database.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl b
+Use big-endian byte order for database metadata.
+.It Fl f Ar outfile
+Specify a different database basename.
+.It Fl l
+Use little-endian byte order for database metadata.
+.It Fl v
+Print out the number of capability records in the database.
+.El
+.Pp
+The
+.Fl b
+and
+.Fl l
+flags are mutually exclusive.
+The default byte ordering is the current host order.
+.Sh FORMAT
+Each record is stored in the database using two different types of keys.
+.Pp
+The first type is a key which consists of the first capability of
+the record (not including the trailing colon (``:'')) with a data
+field consisting of a special byte followed by the rest of the record.
+The special byte is either a 0 or 1, where a 0 means that the record
+is okay, and a 1 means that there was a ``tc'' capability in the record
+that could not be expanded.
+.Pp
+The second type is a key which consists of one of the names from the
+first capability of the record with a data field consisting a special
+byte followed by the first capability of the record.
+The special byte is a 2.
+.Pp
+In normal operation names are looked up in the database, resulting
+in a key/data pair of the second type.
+The data field of this key/data pair is used to look up a key/data
+pair of the first type which has the real data associated with the
+name.
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr dbopen 3 ,
+.Xr getcap 3 ,
+.Xr termcap 5

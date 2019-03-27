@@ -1,0 +1,417 @@
+#-
+# Copyright (c) 2005  - Garance Alistair Drosehn <gad@FreeBSD.org>.
+# All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#  1. Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#  2. Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+#  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+#  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+#  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+#  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+#  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+#  SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+testpgm=/usr/bin/env
+gblenv=PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
+gblenv=TESTVAR=Global-TV-Value
+gblenv=OUTSIDEVAR=OutsideValue
+
+#  These first two tests are testing how well the regression-script itself is
+#  handling environment-variables, as much as testing the `env' program.
+[test]
+   sb_args:/bin/sh
+   setenv:TESTVAR=a1a
+   script:/bin/echo A-${TESTVAR}-Z
+   stdout:A-a1a-Z
+[run]
+[test]
+   sb_args:-S /bin/sh
+   script:/bin/echo A-${TESTVAR}-Z
+   stdout:A-Global-TV-Value-Z
+[run]
+
+[test]
+   sb_args:-S TESTVAR=bb22bb /bin/sh
+   script:/bin/echo A-${TESTVAR}-Z
+   stdout:A-bb22bb-Z
+[run]
+[test]
+   sb_args:-S\_TESTVAR=ab22ab\_/bin/sh
+   script:/bin/echo A-${TESTVAR}-Z
+   stdout:A-ab22ab-Z
+[run]
+[test]
+   sb_args:-S\_TESTVAR="abc\_33\_abc"\_/bin/sh
+   script:/bin/echo A-${TESTVAR}-Z
+   stdout:A-abc 33 abc-Z
+[run]
+
+#   First we see that 'sh' can not be found in /usr/sbin, and then
+#   we show that it can be found without changing PATH by using -P
+#   And then show that it can be NOT found by using -P...
+[test]
+   sb_args:-S sh
+   setenv:PATH=/usr/sbin
+   script:/bin/echo A-${PATH}-Z
+   $?:127
+   stderr:[%-testpgm.basename-%]: sh: No such file or directory
+[run]
+[test]
+   sb_args:-S -P/bin sh
+   setenv:PATH=/usr/sbin
+   script:/bin/echo A-${PATH}-Z
+   stdout:A-/usr/sbin-Z
+[run]
+[test]
+   sb_args:-S -P/sbin:/usr/sbin sh
+   script:/bin/echo A-${PATH}-Z
+   $?:127
+   stderr:[%-testpgm.basename-%]: sh: No such file or directory
+[run]
+
+#  Hmm.  I wonder if -P should always set an 'ENV_PATH' variable?
+[test]
+   sb_args:-S -P/bin:/usr/bin:${PATH} ENV_PATH=/bin:/usr/bin:${PATH} sh
+   setenv:PATH=/usr/sbin
+   script:/bin/echo A-${PATH}-Z
+   script:/bin/echo B-${ENV_PATH}-Y
+   stdout:A-/usr/sbin-Z
+   stdout:B-/bin:/usr/bin:/usr/sbin-Y
+[run]
+
+#   Show that the comment-characters are working, both for where they are
+#   recognized and where they are ignored.
+[test]
+   sb_args:-STESTVAR="abc44abc" /bin/sh # This is some arbitrary text
+   user_args:us11er us22er
+   script:/bin/echo A-${TESTVAR}-Z B-$1-Y
+   stdout:A-abc44abc-Z B-us11er-Y
+[run]
+[test]
+   sb_args:-STESTVAR="abc55abc" /bin/sh \c This is some arbitrary text
+   user_args:us11er us22er
+   script:/bin/echo A-${TESTVAR}-Z B-$1-Y
+   stdout:A-abc55abc-Z B-us11er-Y
+[run]
+[test]
+   sb_args:-STESTVAR=abc#44#abc /bin/sh
+   user_args:us11er us22er
+   script:/bin/echo A-${TESTVAR}-Z B-$1-Y
+   stdout:A-abc#44#abc-Z B-us11er-Y
+[run]
+[test]
+   sb_args:-STESTVAR='abc\c55\cabc' /bin/sh
+   user_args:us11er us22er
+   script:/bin/echo A-${TESTVAR}-Z B-$1-Y
+   stdout:A-abc\c55\cabc-Z B-us11er-Y
+[run]
+
+#   Test various aspects of quoted strings
+[test]
+   sb_args:-STESTVAR="abc'def" /bin/sh
+   script:/bin/echo A-${TESTVAR}-Z
+   stdout:A-abc'def-Z
+[run]
+[test]
+   sb_args:-STESTVAR='abc"def' /bin/sh
+   script:/bin/echo A-${TESTVAR}-Z
+   stdout:A-abc"def-Z
+[run]
+[test]
+   sb_args:-STESTVAR='ab\'cd\'ef' /bin/sh
+   script:/bin/echo A-${TESTVAR}-Z
+   stdout:A-ab'cd'ef-Z
+[run]
+[test]
+   sb_args:-STESTVAR='abc\"def\'ghi' /bin/sh
+   script:/bin/echo A-${TESTVAR}-Z
+   stdout:A-abc\"def'ghi-Z
+[run]
+[test]
+   sb_args:-STESTVAR='abc''def''ghi' /bin/sh
+   script:/bin/echo A-${TESTVAR}-Z
+   stdout:A-abcdefghi-Z
+[run]
+[test]
+   sb_args:-STESTVAR='abc\ndef\nghi' /bin/sh
+   script:/bin/echo "A-${TESTVAR}-Z"
+   stdout:A-abc\ndef\nghi-Z
+[run]
+[test]
+   sb_args:-STESTVAR="abc\ndef\nghi" /bin/sh
+   script:/bin/echo "A-${TESTVAR}-Z"
+   stdout:A-abc
+   stdout:def
+   stdout:ghi-Z
+[run]
+[test]
+   sb_args:-STESTVAR=""\_OTHERVAR=""\_/bin/sh
+   script:/bin/echo A-${TESTVAR}-M-${OTHERVAR}-Z
+   stdout:A--M--Z
+[run]
+[test]
+   sb_args:-STESTVAR=no-term-"-dq... /bin/sh
+   script:/bin/echo "A-${TESTVAR}-Z"
+   $?:1
+   stderr:[%-testpgm.basename-%]: No terminating quote for string: TESTVAR=no-term-"-dq... /bin/sh
+[run]
+[test]
+   sb_args:-STESTVAR=no-term-'-sq... /bin/sh
+   script:/bin/echo "A-${TESTVAR}-Z"
+   $?:1
+   stderr:[%-testpgm.basename-%]: No terminating quote for string: TESTVAR=no-term-'-sq... /bin/sh
+[run]
+
+# Some tests of variable-substitution.
+[test]
+   sb_args:-S TESTVAR=${TEST7} /bin/sh
+   setenv:TEST7=a23456a
+   script:/bin/echo "A-${TESTVAR}-Z"
+   stdout:A-a23456a-Z
+[run]
+[test]
+   sb_args:-S TESTVAR=${TEST8} /bin/sh
+   setenv:TEST8=b234567b
+   script:/bin/echo "A-${TESTVAR}-Z"
+   stdout:A-b234567b-Z
+[run]
+[test]
+   sb_args:-S TESTVAR=${TEST9} /bin/sh
+   setenv:TEST9=c2345678c
+   script:/bin/echo "A-${TESTVAR}-Z"
+   stdout:A-c2345678c-Z
+[run]
+[test]
+   sb_args:-S TESTVAR=${TEST8}+${TEST9}+${TEST10} /bin/sh
+   setenv:TEST8=a234567z
+   setenv:TEST9=a2345678z
+   setenv:TEST10=a23456789z
+   script:/bin/echo "A-${TESTVAR}-Z"
+   stdout:A-a234567z+a2345678z+a23456789z-Z
+[run]
+[test]
+   sb_args:-S TESTVAR=$* /bin/sh
+   script:/bin/echo "A-${TESTVAR}-Z"
+   $?:1
+   stderr:[%-testpgm.basename-%]: Only ${VARNAME} expansion is supported, error at: $* /bin/sh
+[run]
+[test]
+   sb_args:-S TESTVAR=/usr/bin:$PATH /bin/sh
+   script:/bin/echo "A-${TESTVAR}-Z"
+   $?:1
+   stderr:[%-testpgm.basename-%]: Only ${VARNAME} expansion is supported, error at: $PATH /bin/sh
+[run]
+
+#  For a short time `env' was changed to recognize 'something=value' as a
+#  valid utility name if 'something' begins with a '/'.  However, that was
+#  a bad idea, since variable-names with a '/' -- while rare -- are still
+#  more blessed by standards than a filename with an '=' in it.  So, this
+#  test goes back to expecting an error...
+[test]
+   symlink:/bin/echo /tmp/envtest=echo
+   sb_args:-S/tmp/envtest=echo false
+   $?:1
+[run]
+
+# Show interactions between -i (clear environment), and ${VAR} substitution,
+# and that -i will clear the environment at the right point in processing...
+[test]
+   sb_args:-iS PATH=/bin:/usr/bin:/Not WASPATH=${PATH} WASOUT=${OUTSIDEVAR} TESTVAR=SbValue WASTEST=${TESTVAR} /bin/sh
+   script:/bin/echo "=== set ==="
+   script:# drop some environment variables that 'sh' itself sets, and
+   script:# then have 'set' print out all remaining environment variables.
+   script:# (can't unset OPTIND/PWD, so we use grep to get rid of those)
+   script:unset -v IFS PS1 PS2 PS4 PPID
+   script:set | grep -Ev '^(OPTIND|PWD)=' | sort
+   stdout:=== set ===
+   stdout:PATH=/bin:/usr/bin:/Not
+   stdout:TESTVAR=SbValue
+   stdout:WASOUT=OutsideValue
+   stdout:WASPATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
+   stdout:WASTEST=Global-TV-Value
+[run]
+
+# Had a bug with ${VAR} expansion if the character before the $ was
+# one of the argument-separator characters.  So the first of the
+# following worked, but the second one failed:
+[test]
+   sb_args:-Secho Testv:${TESTV} Scriptname:
+   setenv:TESTV=ab/ba
+   stdout:Testv:ab/ba Scriptname: [%-script.pathname-%]
+[run]
+[test]
+   sb_args:-Secho testV: ${TESTV} scriptname:
+   setenv:TESTV=cd/dc
+   stdout:testV: cd/dc scriptname: [%-script.pathname-%]
+[run]
+
+#  A "nothing variable" inside a quoted string should produce a zero-length
+#  argument, but if it's outside of quotes then it should result in, well,
+#  nothing.  Note the tricks we play with [%-script.pathname-%] so that we
+#  can supply parameters *to* the script, even though the kernel is always
+#  going to stick the script name on as ARG[2] when invoking `env'.
+[test]
+   sb_args:-S/bin/sh [%-script.pathname-%] userDQ: "" SQ: '' scriptname:
+   setenv:TNADA=
+   script:printf "list_args.sh with \$# = $#\n"
+   script:# Process all parameters.
+   script:N=0
+   script:while test $# != 0 ; do
+   script:    N=$(($N+1))
+   script:    printf "....\$$N = [%3d] '$1'\n" ${#1}
+   script:    shift
+   script:done
+   stdout:list_args.sh with $# = 6
+   stdout:....$1 = [  7] 'userDQ:'
+   stdout:....$2 = [  0] ''
+   stdout:....$3 = [  3] 'SQ:'
+   stdout:....$4 = [  0] ''
+   stdout:....$5 = [ 11] 'scriptname:'
+   stdout:....$6 = [ 16] '/tmp/env-regress'
+[run]
+[test]
+   sb_args:-S/bin/sh [%-script.pathname-%] userB "${TNADA}" scriptname:
+   setenv:TNADA=
+   script:printf "list_args.sh with \$# = $#\n"
+   script:# Process all parameters.
+   script:N=0
+   script:while test $# != 0 ; do
+   script:    N=$(($N+1))
+   script:    printf "....\$$N = [%3d] '$1'\n" ${#1}
+   script:    shift
+   script:done
+   stdout:list_args.sh with $# = 4
+   stdout:....$1 = [  5] 'userB'
+   stdout:....$2 = [  0] ''
+   stdout:....$3 = [ 11] 'scriptname:'
+   stdout:....$4 = [ 16] '/tmp/env-regress'
+[run]
+[test]
+   sb_args:-S/bin/sh [%-script.pathname-%] userA ${TNADA} scriptname:
+   setenv:TNADA=
+   script:printf "list_args.sh with \$# = $#\n"
+   script:# Process all parameters.
+   script:N=0
+   script:while test $# != 0 ; do
+   script:    N=$(($N+1))
+   script:    printf "....\$$N = [%3d] '$1'\n" ${#1}
+   script:    shift
+   script:done
+   stdout:list_args.sh with $# = 3
+   stdout:....$1 = [  5] 'userA'
+   stdout:....$2 = [ 11] 'scriptname:'
+   stdout:....$3 = [ 16] '[%-script.pathname-%]'
+[run]
+[test]
+   sb_args:-S/bin/sh [%-script.pathname-%] ${A} ${NB} ${C} ${ND} ${NE} ${F} S:
+   setenv:A=A_ThisisAlongstring_A1
+   setenv:NB=
+   setenv:C=C_ThisisAlongstring_C1
+   setenv:ND=
+   setenv:NE=
+   setenv:F=F_ThisisAlongstring_F1
+   script:printf "list_args.sh with \$# = $#\n"
+   script:# Process all parameters.
+   script:N=0
+   script:while test $# != 0 ; do
+   script:    N=$(($N+1))
+   script:    printf "....\$$N = [%3d] '$1'\n" ${#1}
+   script:    shift
+   script:done
+   stdout:list_args.sh with $# = 5
+   stdout:....$1 = [ 22] 'A_ThisisAlongstring_A1'
+   stdout:....$2 = [ 22] 'C_ThisisAlongstring_C1'
+   stdout:....$3 = [ 22] 'F_ThisisAlongstring_F1'
+   stdout:....$4 = [  2] 'S:'
+   stdout:....$5 = [ 16] '/tmp/env-regress'
+[run]
+[test]
+   sb_args:-S/bin/sh [%-script.pathname-%] ${A} ${NB} "${NB}" ${NB} ${C} "${ND}" ${NE} ${F} S:
+   setenv:A=A_ThisisAlongstring_A1
+   setenv:NB=
+   setenv:C=C_ThisisAlongstring_C1
+   setenv:ND=
+   setenv:NE=
+   setenv:F=F_ThisisAlongstring_F1
+   script:printf "list_args.sh with \$# = $#\n"
+   script:# Process all parameters.
+   script:N=0
+   script:while test $# != 0 ; do
+   script:    N=$(($N+1))
+   script:    printf "....\$$N = [%3d] '$1'\n" ${#1}
+   script:    shift
+   script:done
+   stdout:list_args.sh with $# = 7
+   stdout:....$1 = [ 22] 'A_ThisisAlongstring_A1'
+   stdout:....$2 = [  0] ''
+   stdout:....$3 = [ 22] 'C_ThisisAlongstring_C1'
+   stdout:....$4 = [  0] ''
+   stdout:....$5 = [ 22] 'F_ThisisAlongstring_F1'
+   stdout:....$6 = [  2] 'S:'
+   stdout:....$7 = [ 16] '/tmp/env-regress'
+[run]
+
+[test]
+   sb_args:-S/bin/echo ${A} ${B} ${C} ${D} ScriptName:
+   setenv:A=A_ThisisAlongstring_A1
+   setenv:B=B_ThisisAlongstring_B1
+   setenv:C=C_ThisisAlongstring_C1
+   setenv:D=D_ThisisAlongstring_D1
+   stdout:A_ThisisAlongstring_A1 B_ThisisAlongstring_B1 C_ThisisAlongstring_C1 D_ThisisAlongstring_D1 ScriptName: [%-script.pathname-%]
+[run]
+[test]
+   sb_args:-S/bin/echo ${A} "${B}" ${C} "${D}" ScriptName:
+   setenv:A=A_ThisisAlongstring_A1
+   setenv:B=B_ThisisAlongstring_B1
+   setenv:C=C_ThisisAlongstring_C1
+   setenv:D=D_ThisisAlongstring_D1
+   stdout:A_ThisisAlongstring_A1 B_ThisisAlongstring_B1 C_ThisisAlongstring_C1 D_ThisisAlongstring_D1 ScriptName: [%-script.pathname-%]
+[run]
+
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -S '\c' >/dev/null
+[run]
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -S'\c' >/dev/null
+[run]
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -u foo -S '\c' >/dev/null
+[run]
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -u foo -S'\c' >/dev/null
+[run]
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -S '-u bar \c' >/dev/null
+[run]
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -S'-u bar \c' >/dev/null
+[run]
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -u foo -S '-u bar \c' >/dev/null
+[run]
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -u foo -S'-u bar \c' >/dev/null
+[run]

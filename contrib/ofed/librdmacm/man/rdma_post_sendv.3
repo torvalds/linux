@@ -1,0 +1,49 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_POST_SENDV" 3 "2010-07-19" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_post_sendv \- post a work request to send a message.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_verbs.h>"
+.P
+.B "int" rdma_post_sendv
+.BI "(struct rdma_cm_id *" id ","
+.BI "void *" context ","
+.BI "struct ibv_sge *" slg ","
+.BI "int " nsge ","
+.BI "int " flags ");"
+.SH ARGUMENTS
+.IP "id" 12
+A reference to a communication identifier where the message buffer
+will be posted.
+.IP "context" 12
+User-defined context associated with the request.
+.IP "slg" 12
+A scatter-gather list of memory buffers posted as a single request.
+.IP "nsge" 12
+The number of scatter-gather entries in the slg array.
+.IP "flags" 12
+Optional flags used to control the send operation.
+.SH "DESCRIPTION"
+Posts a work request to the send queue of the queue pair associated
+with the rdma_cm_id.  The contents of the posted buffers will be sent
+to the remote peer of a connection.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+The user is responsible for ensuring that the remote peer has queued a
+receive request before issuing the send operations.  For a list of
+supported flags, see ibv_post_send.  Unless the send request is using
+inline data, the message buffers must have been registered
+before being posted, and the buffers must remain registered
+until the send completes.
+.P
+Send operations may not be posted to an rdma_cm_id or the corresponding
+queue pair until it has been connected.
+.P
+The user-defined context associated with the send request will be
+returned to the user through the work completion wr_id, work request
+identifier, field.
+.SH "SEE ALSO"
+rdma_cm(7), rdma_connect(3), rdma_accept(3),
+ibv_post_send(3), rdma_post_send(3), rdma_post_recv(3)

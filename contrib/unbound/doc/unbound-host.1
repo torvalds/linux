@@ -1,0 +1,118 @@
+.TH "unbound\-host" "1" "Oct  8, 2018" "NLnet Labs" "unbound 1.8.1"
+.\"
+.\" unbound-host.1 -- unbound DNS lookup utility
+.\"
+.\" Copyright (c) 2007, NLnet Labs. All rights reserved.
+.\"
+.\" See LICENSE for the license.
+.\"
+.\"
+.SH "NAME"
+.B unbound\-host
+\- unbound DNS lookup utility
+.SH "SYNOPSIS"
+.B unbound\-host
+.RB [ \-C
+.IR configfile ]
+.RB [ \-vdhr46D ]
+.RB [ \-c 
+.IR class ]
+.RB [ \-t
+.IR type ]
+.RB [ \-y
+.IR key ]
+.RB [ \-f
+.IR keyfile ]
+.RB [ \-F
+.IR namedkeyfile ]
+.I hostname
+.SH "DESCRIPTION"
+.B Unbound\-host
+uses the unbound validating resolver to query for the hostname and display
+results. With the \fB\-v\fR option it displays validation 
+status: secure, insecure, bogus (security failure).
+.P
+By default it reads no configuration file whatsoever.  It attempts to reach
+the internet root servers.  With \fB\-C\fR an unbound config file and with
+\fB\-r\fR resolv.conf can be read.
+.P
+The available options are:
+.TP
+.I hostname
+This name is resolved (looked up in the DNS).
+If a IPv4 or IPv6 address is given, a reverse lookup is performed.
+.TP
+.B \-h
+Show the version and commandline option help.
+.TP
+.B \-v
+Enable verbose output and it shows validation results, on every line.
+Secure means that the NXDOMAIN (no such domain name), nodata (no such data)
+or positive data response validated correctly with one of the keys.
+Insecure means that that domain name has no security set up for it.
+Bogus (security failure) means that the response failed one or more checks,
+it is likely wrong, outdated, tampered with, or broken.
+.TP
+.B \-d
+Enable debug output to stderr. One \-d shows what the resolver and validator
+are doing and may tell you what is going on. More times, \-d \-d, gives a
+lot of output, with every packet sent and received.
+.TP
+.B \-c \fIclass
+Specify the class to lookup for, the default is IN the internet class.
+.TP
+.B \-t \fItype
+Specify the type of data to lookup. The default looks for IPv4, IPv6 and
+mail handler data, or domain name pointers for reverse queries.
+.TP
+.B \-y \fIkey
+Specify a public key to use as trust anchor. This is the base for a chain
+of trust that is built up from the trust anchor to the response, in order
+to validate the response message. Can be given as a DS or DNSKEY record.
+For example \-y "example.com DS 31560 5 1 1CFED84787E6E19CCF9372C1187325972FE546CD".
+.TP
+.B \-D
+Enables DNSSEC validation.  Reads the root anchor from the default configured
+root anchor at the default location, \fI/var/unbound/root.key\fR. 
+.TP
+.B \-f \fIkeyfile
+Reads keys from a file. Every line has a DS or DNSKEY record, in the format
+as for \-y. The zone file format, the same as dig and drill produce.
+.TP
+.B \-F \fInamedkeyfile
+Reads keys from a BIND\-style named.conf file. Only the trusted\-key {}; entries
+are read.
+.TP
+.B \-C \fIconfigfile
+Uses the specified unbound.conf to prime
+.IR libunbound (3).
+Pass it as first argument if you want to override some options from the
+config file with further arguments on the commandline.
+.TP
+.B \-r
+Read /etc/resolv.conf, and use the forward DNS servers from there (those could
+have been set by DHCP).  More info in
+.IR resolv.conf (5).
+Breaks validation if those servers do not support DNSSEC.
+.TP
+.B \-4
+Use solely the IPv4 network for sending packets.
+.TP
+.B \-6
+Use solely the IPv6 network for sending packets.
+.SH "EXAMPLES"
+Some examples of use. The keys shown below are fakes, thus a security failure
+is encountered.
+.P
+$ unbound\-host www.example.com
+.P
+$ unbound\-host \-v \-y "example.com DS 31560 5 1 1CFED84787E6E19CCF9372C1187325972FE546CD" www.example.com
+.P
+$ unbound\-host \-v \-y "example.com DS 31560 5 1 1CFED84787E6E19CCF9372C1187325972FE546CD" 192.0.2.153
+.SH "EXIT CODE"
+The unbound\-host program exits with status code 1 on error, 
+0 on no error. The data may not be available on exit code 0, exit code 1
+means the lookup encountered a fatal error.
+.SH "SEE ALSO"
+\fIunbound.conf\fR(5), 
+\fIunbound\fR(8).

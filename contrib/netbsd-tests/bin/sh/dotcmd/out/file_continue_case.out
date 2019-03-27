@@ -1,0 +1,6 @@
+before dotcmd
+before case
+before continue
+after continue, return value: 0
+after case
+after dotcmd, return value: 0

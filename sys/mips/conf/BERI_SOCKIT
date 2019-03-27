@@ -1,0 +1,26 @@
+#
+# BERI_SOCKIT -- Kernel for the SRI/Cambridge "BERI" (Bluespec Extensible
+# RISC Implementation) FPGA soft core, as configured in its Terasic SoCKit
+# reference configuration.  This kernel configration must be further
+# specialized to include a root filesystem specification.
+#
+# $FreeBSD$
+#
+
+include "std.BERI"
+
+ident		BERI_SOCKIT
+
+options 	ROOTDEVNAME=\"ufs:vtbd0\"
+
+device		altera_pio
+device		altera_jtag_uart
+
+device		virtio
+device		virtio_blk
+device		vtnet
+device		virtio_mmio
+
+options 	FDT
+options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=beripad-sockit.dts

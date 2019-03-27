@@ -1,0 +1,104 @@
+.\" Copyright (c) 1983, 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)rusers.1	6.7 (Berkeley) 4/23/91
+.\" $FreeBSD$
+.\"
+.Dd April 23, 1991
+.Dt RUSERS 1
+.Os
+.Sh NAME
+.Nm rusers
+.Nd who is logged in to machines on local network
+.Sh SYNOPSIS
+.Nm
+.Op Fl al
+.Op Ar host ...
+.Sh DESCRIPTION
+The
+.Nm
+command produces output similar to
+.Xr who 1 ,
+but for the list of
+.Ar host Ns s
+or all machines on the local
+network.
+For each
+.Ar host
+responding to the
+.Nm
+query,
+the hostname with the names of the users currently logged
+on is printed on each line.
+The
+.Nm
+command will wait for
+one minute to catch late responders.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
+Print all machines responding even if no one is currently logged in.
+.It Fl l
+Print a long format listing.
+This includes the user name, host name,
+tty that the user is logged in to, the date and time the user
+logged in, the amount of time since the user typed on the keyboard,
+and the remote host they logged in from (if applicable).
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It rusers: RPC: Program not registered
+The
+.Xr rpc.rusersd 8
+daemon has not been started on the remote host.
+.It rusers: RPC: Timed out
+A communication error occurred.
+Either the network is
+excessively congested, or the
+.Xr rpc.rusersd 8
+daemon has terminated on the remote host.
+.It rusers: "RPC: Port mapper failure - RPC: Timed out"
+The remote host is not running the portmapper (see
+.Xr rpcbind 8 ) ,
+and cannot accommodate any RPC-based services.
+The host may be down.
+.El
+.Sh SEE ALSO
+.Xr rwho 1 ,
+.Xr users 1 ,
+.Xr who 1 ,
+.Xr rpc.rusersd 8 ,
+.Xr rpcbind 8
+.Sh HISTORY
+The
+.Nm
+command
+appeared in
+.Em Sun-OS .
+.Sh BUGS
+The sorting options are not implemented.

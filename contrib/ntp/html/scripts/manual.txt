@@ -1,0 +1,13 @@
+document.write("<p>Program Manual Pages<p><ul>\
+<li class='inline'><a href='ntpd.html'><tt>ntpd</tt> - Network Time Protocol (NTP) daemon</a></li>\
+<li class='inline'><a href='ntpq.html'><tt>ntpq</tt> - standard NTP query program</a></li>\
+<li class='inline'><a href='ntpdc.html'><tt>ntpdc</tt> - special NTP query program</a></li>\
+<li class='inline'><a href='ntpdate.html'><tt>ntpdate</tt> - set the date and time via NTP</a></li>\
+<li class='inline'><a href='sntp.html'><tt>sntp</tt> - Simple Network Time Protocol (SNTP) client</a></li>\
+<li class='inline'><a href='ntptrace.html'><tt>ntptrace</tt> - trace a chain of NTP servers back to the primary source</a></li>\
+<li class='inline'><a href='tickadj.html'><tt>tickadj</tt> - set time-related kernel variables</a></li>\
+<li class='inline'><a href='ntptime.html'><tt>ntptime</tt> - read and set kernel time variables</a></li>\
+<li class='inline'><a href='keygen.html'><tt>ntp-keygen</tt> - generate public and private keys</a></li>\
+<li class='inline'><a href='ntpdsim_new.html'><tt>ntpdsim</tt> - Network Time Protocol (NTP) simulator</a></li>\
+<li class='inline'><a href='sitemap.html'>Site Map</a></li>\
+</ul>")

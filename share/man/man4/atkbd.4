@@ -1,0 +1,233 @@
+.\"
+.\" Copyright (c) 1999
+.\" Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 29, 2008
+.Dt ATKBD 4
+.Os
+.Sh NAME
+.Nm atkbd
+.Nd the AT keyboard interface
+.Sh SYNOPSIS
+.Cd "options ATKBD_DFLT_KEYMAP"
+.Cd "makeoptions ATKBD_DFLT_KEYMAP=_keymap_name_"
+.Cd "options KBD_DISABLE_KEYMAP_LOAD"
+.Cd "device atkbd"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.atkbd.0.at="atkbdc"
+.Cd hint.atkbd.0.irq="1"
+.Sh DESCRIPTION
+The
+.Nm
+driver, together with the
+.Nm atkbdc
+driver, provides access to the AT 84 keyboard or the AT enhanced keyboard
+which is connected to the AT keyboard controller.
+.Pp
+This driver is required for the console driver
+.Xr syscons 4
+or
+.Xr vt 4 .
+.Pp
+There can be only one
+.Nm
+device defined in the kernel configuration file.
+This device also requires the
+.Nm atkbdc
+keyboard controller to be present.
+The
+.Em irq
+number must always be 1; there is no provision of changing the number.
+.Ss Function Keys
+The AT keyboard has a number of function keys.
+They are numbered as follows and can be associated with strings
+by the
+.Xr kbdcontrol 1
+command.
+You can use a keyboard map file (see
+.Xr kbdmap 5 )
+to map them to arbitrary keys, particularly
+the functions in the range from 65 to 96
+which are not used by default.
+.Pp
+.Bl -tag -width "Function Key Number" -compact
+.It "Function Key number"
+Function Key
+.It "1, 2,...12"
+F1, F2,...\& F12
+.It "13, 14,...24"
+Shift+F1, Shift+F2,...\& Shift+F12
+.It "25, 26,...36"
+Ctl+F1, Ctl+F2,...\& Ctl+F12
+.It "37, 38,...48"
+Shift+Ctl+F1, Shift+Ctl+F2,...\& Shift+Ctl+F12
+.It 49
+Home and Numpad 7 (without NumLock)
+.It 50
+Up Arrow and Numpad 8 (without NumLock)
+.It 51
+Page Up and Numpad 9 (without NumLock)
+.It 52
+Numpad -
+.It 53
+Left Arrow and Numpad 4 (without NumLock)
+.It 54
+Numpad 5 (without NumLock)
+.It 55
+Right Arrow and Numpad 6 (without NumLock)
+.It 56
+Numpad +
+.It 57
+End and Numpad 1 (without NumLock)
+.It 58
+Down Arrow and Numpad 2 (without NumLock)
+.It 59
+Page Down and Numpad 3 (without NumLock)
+.It 60
+Ins and Numpad 0 (without NumLock)
+.It 61
+Del
+.It 62
+Left GUI Key
+.It 63
+Right GUI Key
+.It 64
+Menu
+.It "65, 66,...96"
+free (not used by default)
+.El
+.Pp
+See the man page for the
+.Xr kbdcontrol 1
+command for how to assign a string to the function key.
+.Sh DRIVER CONFIGURATION
+.Ss Kernel Configuration Options
+The following kernel configuration options control the
+.Nm
+driver.
+.Bl -tag -width ATKBD_DFLT
+.It Em ATKBD_DFLT_KEYMAP
+This option sets the default, built-in keymap of the
+.Nm
+driver to the named keymap.
+See
+.Sx EXAMPLES
+below.
+.It Em KBD_DISABLE_KEYMAP_LOAD
+The keymap can be modified by the
+.Xr kbdcontrol 1
+command.
+This option will disable this feature and prevent the user from
+changing key assignment.
+.El
+.Ss Driver Flags
+The
+.Nm
+driver accepts the following driver flags.
+They can be set either in
+.Pa /boot/device.hints ,
+or else from within the boot loader
+(see
+.Xr loader 8 ) .
+.Bl -tag -width FAIL
+.It bit 0 (FAIL_IF_NO_KBD)
+By default the
+.Nm
+driver will install even if a keyboard is not actually connected to the
+system.
+This option prevents the driver from being installed in this situation.
+.It bit 1 (NO_RESET)
+When this option is given, the
+.Nm
+driver will not reset the keyboard when initializing it.
+It may be useful for laptop computers whose function keys
+have special functions and these functions are forgotten when the
+keyboard is reset.
+.It bit 2 (ALT_SCANCODESET)
+Certain keyboards, such as those on some ThinkPad models, behave
+like the old XT keyboard and require this option.
+.It bit 3 (NO_PROBE_TEST)
+When this option is given, the
+.Nm
+driver will not test the keyboard port during the probe routine.
+Some machines hang during boot when this test is performed.
+.El
+.\".Sh FILES
+.Sh EXAMPLES
+The
+.Nm
+driver requires the keyboard controller
+.Nm atkbdc .
+Thus, the kernel configuration file should contain the following lines.
+.Pp
+.Dl "device atkbdc"
+.Dl "device atkbd"
+.Pp
+The following example shows how to set the default, built-in keymap
+to
+.Pa jp.106.kbd .
+.Pp
+.Dl "device atkbdc"
+.Dl "options ATKBD_DFLT_KEYMAP"
+.Dl "makeoptions ATKBD_DFLT_KEYMAP=jp.106"
+.Dl "device atkbd"
+.Pp
+In both cases, you also need to have following lines in
+.Pa /boot/device.hints .
+.Pp
+.Dl hint.atkbdc.0.at="isa"
+.Dl hint.atkbdc.0.port="0x060"
+.Dl hint.atkbd.0.at="atkbdc"
+.Dl hint.atkbd.0.irq="1"
+.\".Sh DIAGNOSTICS
+.\".Sh CAVEATS
+.\".Sh BUGS
+.Sh SEE ALSO
+.Xr kbdcontrol 1 ,
+.Xr atkbdc 4 ,
+.Xr psm 4 ,
+.Xr syscons 4 ,
+.Xr vt 4 ,
+.Xr kbdmap 5 ,
+.Xr loader 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 3.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An S\(/oren Schmidt Aq Mt sos@FreeBSD.org
+and
+.An Kazutaka Yokota Aq Mt yokota@FreeBSD.org .
+This manual page was written by
+.An Kazutaka Yokota .

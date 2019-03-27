@@ -1,0 +1,398 @@
+.\" $File: libmagic.man,v 1.41 2017/05/23 21:54:07 christos Exp $
+.\"
+.\" Copyright (c) Christos Zoulas 2003.
+.\" All Rights Reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice immediately at the beginning of the file, without modification,
+.\"    this list of conditions, and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 23, 2017
+.Dt LIBMAGIC 3
+.Os
+.Sh NAME
+.Nm magic_open ,
+.Nm magic_close ,
+.Nm magic_error ,
+.Nm magic_errno ,
+.Nm magic_descriptor ,
+.Nm magic_buffer ,
+.Nm magic_getflags ,
+.Nm magic_setflags ,
+.Nm magic_check ,
+.Nm magic_compile ,
+.Nm magic_list ,
+.Nm magic_load ,
+.Nm magic_load_buffers ,
+.Nm magic_setparam ,
+.Nm magic_getparam ,
+.Nm magic_version
+.Nd Magic number recognition library
+.Sh LIBRARY
+.Lb libmagic
+.Sh SYNOPSIS
+.In magic.h
+.Ft magic_t
+.Fn magic_open "int flags"
+.Ft void
+.Fn magic_close "magic_t cookie"
+.Ft const char *
+.Fn magic_error "magic_t cookie"
+.Ft int
+.Fn magic_errno "magic_t cookie"
+.Ft const char *
+.Fn magic_descriptor "magic_t cookie" "int fd"
+.Ft const char *
+.Fn magic_file "magic_t cookie" "const char *filename"
+.Ft const char *
+.Fn magic_buffer "magic_t cookie" "const void *buffer" "size_t length"
+.Ft int
+.Fn magic_getflags "magic_t cookie"
+.Ft int
+.Fn magic_setflags "magic_t cookie" "int flags"
+.Ft int
+.Fn magic_check "magic_t cookie" "const char *filename"
+.Ft int
+.Fn magic_compile "magic_t cookie" "const char *filename"
+.Ft int
+.Fn magic_list "magic_t cookie" "const char *filename"
+.Ft int
+.Fn magic_load "magic_t cookie" "const char *filename"
+.Ft int
+.Fn magic_load_buffers "magic_t cookie" "void **buffers" "size_t *sizes" "size_t nbuffers"
+.Ft int
+.Fn magic_getparam "magic_t cookie" "int param" "void *value"
+.Ft int
+.Fn magic_setparam "magic_t cookie" "int param" "const void *value"
+.Ft int
+.Fn magic_version "void"
+.Sh DESCRIPTION
+These functions
+operate on the magic database file
+which is described
+in
+.Xr magic __FSECTION__ .
+.Pp
+The function
+.Fn magic_open
+creates a magic cookie pointer and returns it.
+It returns
+.Dv NULL
+if there was an error allocating the magic cookie.
+The
+.Ar flags
+argument specifies how the other magic functions should behave:
+.Bl -tag -width MAGIC_COMPRESS
+.It Dv MAGIC_NONE
+No special handling.
+.It Dv MAGIC_DEBUG
+Print debugging messages to stderr.
+.It Dv MAGIC_SYMLINK
+If the file queried is a symlink, follow it.
+.It Dv MAGIC_COMPRESS
+If the file is compressed, unpack it and look at the contents.
+.It Dv MAGIC_DEVICES
+If the file is a block or character special device, then open the device
+and try to look in its contents.
+.It Dv MAGIC_MIME_TYPE
+Return a MIME type string, instead of a textual description.
+.It Dv MAGIC_MIME_ENCODING
+Return a MIME encoding, instead of a textual description.
+.It Dv MAGIC_MIME
+A shorthand for MAGIC_MIME_TYPE | MAGIC_MIME_ENCODING.
+.It Dv MAGIC_CONTINUE
+Return all matches, not just the first.
+.It Dv MAGIC_CHECK
+Check the magic database for consistency and print warnings to stderr.
+.It Dv MAGIC_PRESERVE_ATIME
+On systems that support
+.Xr utime 3
+or
+.Xr utimes 2 ,
+attempt to preserve the access time of files analysed.
+.It Dv MAGIC_RAW
+Don't translate unprintable characters to a \eooo octal representation.
+.It Dv MAGIC_ERROR
+Treat operating system errors while trying to open files and follow symlinks
+as real errors, instead of printing them in the magic buffer.
+.It Dv MAGIC_APPLE
+Return the Apple creator and type.
+.It Dv MAGIC_EXTENSION
+Return a slash-separated list of extensions for this file type.
+.It Dv MAGIC_COMPRESS_TRANSP
+Don't report on compression, only report about the uncompressed data.
+.It Dv MAGIC_NO_CHECK_APPTYPE
+Don't check for
+.Dv EMX
+application type (only on EMX).
+.It Dv MAGIC_NO_CHECK_CDF
+Don't get extra information on MS Composite Document Files.
+.It Dv MAGIC_NO_CHECK_COMPRESS
+Don't look inside compressed files.
+.It Dv MAGIC_NO_CHECK_ELF
+Don't print ELF details.
+.It Dv MAGIC_NO_CHECK_ENCODING
+Don't check text encodings.
+.It Dv MAGIC_NO_CHECK_SOFT
+Don't consult magic files.
+.It Dv MAGIC_NO_CHECK_TAR
+Don't examine tar files.
+.It Dv MAGIC_NO_CHECK_TEXT
+Don't check for various types of text files.
+.It Dv MAGIC_NO_CHECK_TOKENS
+Don't look for known tokens inside ascii files.
+.El
+.Pp
+The
+.Fn magic_close
+function closes the
+.Xr magic __FSECTION__
+database and deallocates any resources used.
+.Pp
+The
+.Fn magic_error
+function returns a textual explanation of the last error, or
+.Dv NULL
+if there was no error.
+.Pp
+The
+.Fn magic_errno
+function returns the last operating system error number
+.Pq Xr errno 2
+that was encountered by a system call.
+.Pp
+The
+.Fn magic_file
+function returns a textual description of the contents of the
+.Ar filename
+argument, or
+.Dv NULL
+if an error occurred.
+If the
+.Ar filename
+is
+.Dv NULL ,
+then stdin is used.
+.Pp
+The
+.Fn magic_descriptor
+function returns a textual description of the contents of the
+.Ar fd
+argument, or
+.Dv NULL
+if an error occurred.
+.Pp
+The
+.Fn magic_buffer
+function returns a textual description of the contents of the
+.Ar buffer
+argument with
+.Ar length
+bytes size.
+.Pp
+The
+.Fn magic_getflags
+functions returns a value representing current
+.Ar flags
+set.
+.Pp
+The
+.Fn magic_setflags
+function sets the
+.Ar flags
+described above.
+Note that using both MIME flags together can also
+return extra information on the charset.
+.Pp
+The
+.Fn magic_check
+function can be used to check the validity of entries in the colon
+separated database files passed in as
+.Ar filename ,
+or
+.Dv NULL
+for the default database.
+It returns 0 on success and \-1 on failure.
+.Pp
+The
+.Fn magic_compile
+function can be used to compile the colon
+separated list of database files passed in as
+.Ar filename ,
+or
+.Dv NULL
+for the default database.
+It returns 0 on success and \-1 on failure.
+The compiled files created are named from the
+.Xr basename 1
+of each file argument with
+.Dq .mgc
+appended to it.
+.Pp
+The
+.Fn magic_list
+function dumps all magic entries in a human readable format,
+dumping first the entries that are matched against binary files and then the
+ones that match text files.
+It takes and optional
+.Fa filename
+argument which is a colon separated list of database files, or
+.Dv NULL
+for the default database.
+.Pp
+The
+.Fn magic_load
+function must be used to load the colon
+separated list of database files passed in as
+.Ar filename ,
+or
+.Dv NULL
+for the default database file before any magic queries can performed.
+.Pp
+The default database file is named by the MAGIC environment variable.
+If that variable is not set, the default database file name is __MAGIC__.
+.Fn magic_load
+adds
+.Dq .mgc
+to the database filename as appropriate.
+.Pp
+The
+.Fn magic_load_buffers
+function takes an array of size
+.Fa nbuffers
+of
+.Fa buffers
+with a respective size for each in the array of
+.Fa sizes
+loaded with the contents of the magic databases from the filesystem.
+This function can be used in environment where the magic library does
+not have direct access to the filesystem, but can access the magic
+database via shared memory or other IPC means.
+.Pp
+The
+.Fn magic_getparam
+and
+.Fn magic_setparam
+allow getting and setting various limits related to the magic
+library.
+.Bl -column "MAGIC_PARAM_ELF_PHNUM_MAX" "size_t" "Default" -offset indent
+.It Sy "Parameter" Ta Sy "Type" Ta Sy "Default"
+.It Li MAGIC_PARAM_INDIR_MAX Ta size_t Ta 15
+.It Li MAGIC_PARAM_NAME_MAX Ta size_t Ta 30
+.It Li MAGIC_PARAM_ELF_NOTES_MAX Ta size_t Ta 256
+.It Li MAGIC_PARAM_ELF_PHNUM_MAX Ta size_t Ta 128
+.It Li MAGIC_PARAM_ELF_SHNUM_MAX Ta size_t Ta 32768
+.It Li MAGIC_PARAM_REGEX_MAX Ta size_t Ta 8192
+.It Li MAGIC_PARAM_BYTES_MAX Ta size_t Ta 1048576
+.El
+.Pp
+The
+.Dv MAGIC_PARAM_INDIR_RECURSION
+parameter controls how many levels of recursion will be followed for
+indirect magic entries.
+.Pp
+The
+.Dv MAGIC_PARAM_NAME_RECURSION
+parameter controls how many levels of recursion will be followed for
+for name/use calls.
+.Pp
+The
+.Dv MAGIC_PARAM_NAME_MAX
+parameter controls the maximum number of calls for name/use.
+.Pp
+The
+.Dv MAGIC_PARAM_NOTES_MAX
+parameter controls how many ELF notes will be processed.
+.Pp
+The
+.Dv MAGIC_PARAM_PHNUM_MAX
+parameter controls how many ELF program sections will be processed.
+.Pp
+The
+.Dv MAGIC_PARAM_SHNUM_MAX
+parameter controls how many ELF sections will be processed.
+.Pp
+The
+.Fn magic_version
+command returns the version number of this library which is compiled into
+the shared library using the constant
+.Dv MAGIC_VERSION
+from
+.In magic.h .
+This can be used by client programs to verify that the version they compile
+against is the same as the version that they run against.
+.Sh RETURN VALUES
+The function
+.Fn magic_open
+returns a magic cookie on success and
+.Dv NULL
+on failure setting errno to an appropriate value.
+It will set errno to
+.Er EINVAL
+if an unsupported value for flags was given.
+The
+.Fn magic_list ,
+.Fn magic_load ,
+.Fn magic_compile ,
+and
+.Fn magic_check
+functions return 0 on success and \-1 on failure.
+The
+.Fn magic_buffer ,
+.Fn magic_getpath ,
+and
+.Fn magic_file ,
+functions return a string on success and
+.Dv NULL
+on failure.
+The
+.Fn magic_error
+function returns a textual description of the errors of the above
+functions, or
+.Dv NULL
+if there was no error.
+The
+.Fn magic_version
+always returns the version number of the library.
+Finally,
+.Fn magic_setflags
+returns \-1 on systems that don't support
+.Xr utime 3 ,
+or
+.Xr utimes 2
+when
+.Dv MAGIC_PRESERVE_ATIME
+is set.
+.Sh FILES
+.Bl -tag -width __MAGIC__.mgc -compact
+.It Pa __MAGIC__
+The non-compiled default magic database.
+.It Pa __MAGIC__.mgc
+The compiled default magic database.
+.El
+.Sh SEE ALSO
+.Xr file __CSECTION__ ,
+.Xr magic __FSECTION__
+.Sh AUTHORS
+.An M\(oans Rullg\(oard
+Initial libmagic implementation, and configuration.
+.An Christos Zoulas
+API cleanup, error code and allocation handling.

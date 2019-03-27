@@ -1,0 +1,126 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)hotspare.kshlib	1.6	09/06/22 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_root/zpool_add/zpool_add.kshlib
+
+
+function cleanup_devices_all
+{
+	$RM -f ${devarray[*]}
+	[ -d "$HOTSPARE_TMPDIR" ] && rmdir $HOTSPARE_TMPDIR
+
+	return 0
+}
+
+typeset -a pooldevs
+typeset -a sparedevs
+typeset -a logdevs
+typeset -a keywords=("" "mirror" "raidz" "raidz2")
+typeset -a devarray
+ 
+function set_devs
+{
+	mkdir $HOTSPARE_TMPDIR
+	typeset -i i=0
+	while (( i < $N_DEVARRAY_FILES )) ; do
+		eval devarray[$i]=$HOTSPARE_TMPDIR/file.$i
+		log_must create_vdevs ${devarray[$i]}
+		(( i = i + 1 ))
+	done
+
+	sparedevs=("${devarray[0]}" "${devarray[1]}")
+
+	pooldevs=("${devarray[3]}" "${devarray[4]}" "${devarray[5]}")
+
+	logdevs="${devarray[7]}"
+
+}
+
+function partition_cleanup
+{
+	cleanup_devices_all
+	return 0
+}
+
+#
+# $1: keyword, should be "" "mirror" "raidz" "raidz2"
+# $2: hotspare list, default as $sparedevs
+#
+function setup_hotspares # keyword, spares
+{
+	typeset keyword=$1
+	shift
+	typeset spares=${@:-${sparedevs[@]}}
+
+	create_pool "$TESTPOOL" "$keyword" \
+		${pooldevs[@]}
+	log_must poolexists "$TESTPOOL"
+	log_must $ZPOOL set autoreplace=on "$TESTPOOL"
+	log_must $ZPOOL add -f "$TESTPOOL" spare $spares
+	log_must iscontained "$TESTPOOL" "$spares"
+
+	if [[ -n ${logdevs[@]} ]] ; then
+		log_must $ZPOOL add -f "$TESTPOOL" log ${logdevs[@]}
+		log_must iscontained "$TESTPOOL" "${logdevs[@]}"
+	fi
+}
+
+#
+# $1: the function name that run for all hotspares
+# $2: hotspare list, default as $sparedevs
+#
+function iterate_over_hotspares # function, spares
+{
+	typeset function=$1
+	typeset spares=${2:-${sparedevs[@]}}
+
+	for spare in $spares
+	do
+		$function $spare
+	done
+}
+
+wait_until_resilvered() {
+typeset -i i=0
+typeset -i timeout=60
+while [[ $i -lt $timeout ]]; do
+	if is_pool_resilvered $TESTPOOL; then
+		break
+	fi
+	(( i += 1 ))
+	if [[ $i == $timeout ]]; then
+		$ZPOOL status $TESTPOOL
+		log_fail "Pool didn't resilver in ${timeout} seconds"
+	fi
+	$SLEEP 1
+done
+}

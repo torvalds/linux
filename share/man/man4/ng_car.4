@@ -1,0 +1,215 @@
+.\" Copyright (c) 2005 Nuno Antunes <nuno.antunes@gmail.com>
+.\" Copyright (c) 2007 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 13, 2012
+.Dt NG_CAR 4
+.Os
+.Sh NAME
+.Nm ng_car
+.Nd Committed Access Rate netgraph node type
+.Sh SYNOPSIS
+.In netgraph/ng_car.h
+.Sh DESCRIPTION
+The
+.Nm car
+node type limits traffic flowing through it using:
+.Pp
+.Bl -bullet -compact
+.It
+Single rate three color marker as described in RFC 2697,
+.It
+Two rate three color marker as described in RFC 2698,
+.It
+RED-like rate limit algorithm used by Cisco,
+.It
+Traffic shaping with RED.
+.El
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va upper"
+.It Va upper
+Hook leading to upper layer protocols.
+.It Va lower
+Hook leading to lower layer protocols.
+.El
+.Pp
+Traffic flowing from
+.Va upper
+to
+.Va lower
+is considered
+.Sy downstream
+traffic.
+Traffic flowing from
+.Va lower
+to
+.Va upper
+is considered
+.Sy upstream
+traffic.
+.Sh MODES OF OPERATION
+Each hook can operate in one of the following modes:
+.Bl -tag -width foo
+.It Dv NG_CAR_SINGLE_RATE
+Single rate three color marker as described in RFC 2697.
+Committed burst packets are counted as green, extended burst packets are
+counted as yellow and exceeding packets are counted as red.
+Committed burst getting refilled with CIR (Committed Information Rate) speed.
+When it is full, exceeded burst getting refilled.
+.It Dv NG_CAR_DOUBLE_RATE
+Two rate three color marker as described in RFC 2698.
+Committed burst packets are counted as green, peak burst packets are counted
+as yellow and exceeding packets are counted as red.
+Committed burst getting refilled with CIR speed.
+Peak burst getting refilled with PIR (Peak Information Rate) speed at the
+same time.
+.It Dv NG_CAR_RED
+Similar to
+.Dv NG_CAR_SINGLE_RATE ,
+but with different understanding of extended burst.
+When normal burst exceeded and extended burst is used, packets are counted
+red with probability equal to part of extended burst consumed.
+Extended burst getting refilled first.
+When it is full, committed burst getting refilled.
+This behavior is similar to RED active queue management algorithm.
+.Pp
+This algorithm is more polite to the TCP traffic than NG_CAR_SINGLE_RATE.
+.It Dv NG_CAR_SHAPE
+Committed burst packets are counted as green, exceeding packets are delayed
+by queue with RED management and counted as yellow.
+Packets dropped by queue counted as red.
+Queue parameters are hardcoded: length 99 packets, min_th 8 packets, max_p 100%.
+.Pp
+Traffic shaping is much more polite to the TCP traffic than rate limit on
+links with bandwidth * delay product less than 6-8 TCP segments, but it
+consumes additional system resources for queue processing.
+.El
+By default, all information rates are measured in bits per second and bursts
+are measured in bytes.
+But when NG_CAR_COUNT_PACKETS option is enabled,
+rates are measured in packets per second and bursts are in packets.
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages and the following
+specific messages.
+.Bl -tag -width foo
+.It Dv NGM_CAR_SET_CONF Pq Ic setconf
+Set node configuration to the specified at
+.Vt "struct ng_car_bulkconf"
+.It Dv NGM_CAR_GET_CONF Pq Ic getconf
+Return current node configuration as
+.Vt "struct ng_car_bulkconf"
+.Bd -literal
+struct ng_car_hookconf {
+	uint64_t cbs;		/* Committed burst size (bytes) */
+	uint64_t ebs;		/* Exceeded/Peak burst size (bytes) */
+	uint64_t cir;		/* Committed information rate (bits/s) */
+	uint64_t pir;		/* Peak information rate (bits/s) */
+	uint8_t  green_action;	/* Action for green packets */
+	uint8_t  yellow_action;	/* Action for yellow packets */
+	uint8_t  red_action;	/* Action for red packets */
+	uint8_t  mode;		/* single/double rate, ... */
+	uint8_t  opt;		/* color-aware or color-blind */
+};
+
+/* possible actions (..._action) */
+enum {
+    NG_CAR_ACTION_FORWARD = 1,
+    NG_CAR_ACTION_DROP
+};
+
+/* operation modes (mode) */
+enum {
+    NG_CAR_SINGLE_RATE = 0,
+    NG_CAR_DOUBLE_RATE,
+    NG_CAR_RED,
+    NG_CAR_SHAPE
+};
+
+/* mode options (opt) */
+#define NG_CAR_COUNT_PACKETS	2
+
+struct ng_car_bulkconf {
+	struct ng_car_hookconf upstream;
+	struct ng_car_hookconf downstream;
+};
+.Ed
+.It Dv NGM_CAR_GET_STATS Pq Ic getstats
+Return node statistics as
+.Vt "struct ng_car_bulkstats"
+.Bd -literal
+struct ng_car_hookstats {
+	uint64_t passed_pkts;	/* Counter for passed packets */
+	uint64_t droped_pkts;	/* Counter for dropped packets */
+	uint64_t green_pkts;	/* Counter for green packets */
+	uint64_t yellow_pkts;	/* Counter for yellow packets */
+	uint64_t red_pkts;	/* Counter for red packets */
+	uint64_t errors;	/* Counter for operation errors */
+};
+
+struct ng_car_bulkstats {
+	struct ng_car_hookstats upstream;
+	struct ng_car_hookstats downstream;
+};
+.Ed
+.It Dv NGM_CAR_CLR_STATS Pq Ic clrstats
+Clear node statistics.
+.It Dv NGM_CAR_GETCLR_STATS Pq Ic getclrstats
+Atomically return and clear node statistics.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh EXAMPLES
+Limit outgoing data rate over fxp0 Ethernet interface to 20Mbit/s
+and incoming packet rate to 5000pps.
+.Bd -literal -offset indent
+/usr/sbin/ngctl -f- <<-SEQ
+	mkpeer fxp0: car lower lower
+	name fxp0:lower fxp0_car
+	connect fxp0: fxp0_car: upper upper
+	msg fxp0_car: setconf { downstream={ cir=20000000 cbs=2500000 ebs=2500000 greenAction=1 yellowAction=1 redAction=2 mode=2 } upstream={ cir=5000 cbs=100 ebs=100 greenAction=1 yellowAction=1 redAction=2 mode=2 opt=2 } }
+SEQ
+.Ed
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ngctl 8
+.Rs
+.%A J. Heinanen
+.%T "A Single Rate Three Color Marker"
+.%O RFC 2697
+.Re
+.Rs
+.%A J. Heinanen
+.%T "A Two Rate Three Color Marker"
+.%O RFC 2698
+.Re
+.Sh AUTHORS
+.An Nuno Antunes Aq Mt nuno.antunes@gmail.com
+.An Alexander Motin Aq Mt mav@FreeBSD.org
+.Sh BUGS
+At this moment only DROP and FORWARD actions are implemented.

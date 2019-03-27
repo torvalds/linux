@@ -1,0 +1,6 @@
+Active Internet connections (including servers)
+Proto Recv-Q Send-Q  Local Address          Foreign Address        State
+tcp        0      0  *.http                 *.*                    LISTEN
+Active Internet6 connections (including servers)
+Proto Recv-Q Send-Q  Local Address          Foreign Address        (state)
+tcp6       0      0  *.http                 *.*                    LISTEN

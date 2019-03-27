@@ -1,0 +1,12 @@
+UT_ALL=even this gets exported
+UT_BADDIR=unit-tests
+UT_DOLLAR=This is $UT_FU
+UT_F=fine
+UT_FOO=foobar is fubar
+UT_FU=fubar
+UT_NO=all
+UT_OK=good
+UT_OKDIR=unit-tests
+UT_TEST=export-all
+UT_ZOO=hoopie
+exit status 0

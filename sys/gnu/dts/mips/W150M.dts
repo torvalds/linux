@@ -1,0 +1,114 @@
+/dts-v1/;
+
+#include "rt3050.dtsi"
+
+/ {
+	compatible = "W150M", "ralink,rt3050-soc";
+	model = "Tenda W150M";
+
+	cfi@1f000000 {
+		compatible = "cfi-flash";
+		reg = <0x1f000000 0x800000>;
+		bank-width = <2>;
+		device-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x3c8000>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		3grouter {
+			label = "w150m:blue:3grouter";
+			gpios = <&gpio0 11 1>;
+		};
+
+		ap {
+			label = "w150m:blue:ap";
+			gpios = <&gpio0 12 1>;
+		};
+
+		wisprouter {
+			label = "w150m:blue:wisprouter";
+			gpios = <&gpio0 9 1>;
+		};
+
+		wirelessrouter {
+			label = "w150m:blue:wirelessrouter";
+			gpios = <&gpio0 13 1>;
+		};
+
+		3g {
+			label = "w150m:blue:3g";
+			gpios = <&gpio0 7 1>;
+		};
+
+		wpsreset {
+			label = "w150m:blue:wpsreset";
+			gpios = <&gpio0 14 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 0 1>;
+			linux,code = <0x198>;
+		};
+
+		mode {
+			label = "mode";
+			gpios = <&gpio0 10 1>;
+			linux,code = <0x100>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "spi", "i2c", "jtag", "rgmii", "mdio", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x4>;
+};
+
+&esw {
+	mediatek,portmap = <0x2f>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};

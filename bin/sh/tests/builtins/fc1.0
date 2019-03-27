@@ -1,0 +1,27 @@
+# $FreeBSD$
+set -e
+trap 'echo Broken pipe -- test failed' PIPE
+
+P=${TMPDIR:-/tmp}
+cd $P
+T=$(mktemp -d sh-test.XXXXXX)
+cd $T
+
+mkfifo input output error
+HISTFILE=/dev/null ${SH} +m -i <input >output 2>error &
+{
+	# Syntax error
+	echo ')' >&3
+	# Read error message, shell will read new input now
+	read dummy <&5
+	# Execute bad command again
+	echo 'fc -e true' >&3
+	# Verify that the shell is still running
+	echo 'echo continued' >&3 || rc=3
+	echo 'exit' >&3 || rc=3
+	read line <&4 && [ "$line" = continued ] && : ${rc:=0}
+} 3>input 4<output 5<error
+
+rm input output error
+rmdir ${P}/${T}
+exit ${rc:-3}

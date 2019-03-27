@@ -1,0 +1,115 @@
+.\" Copyright (c) 2002,2003 Alexey Zelkin <phantom@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 31, 2003
+.Dt PTHREAD_ATTR_GET_NP 3
+.Os
+.Sh NAME
+.Nm pthread_attr_get_np
+.Nd get attributes of existent thread
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread_np.h
+.Ft int
+.Fn pthread_attr_get_np "pthread_t pid" "pthread_attr_t *dst"
+.Sh DESCRIPTION
+The
+.Fn pthread_attr_get_np
+function is used to get existent thread's attributes.
+Most fields of
+.Vt pthread_attr_t
+structure are exact values of attributes provided at thread creation
+time (as parameter to
+.Xr pthread_create 3
+function), except for the stack address.
+.Pp
+Value returned as
+.Fa dst
+is supposed to be used in conjunction with
+.Fn pthread_attr_get*
+functions to retrieve individual values from
+.Vt pthread_attr_t
+structure.
+Parameter
+.Fa dst
+should point to allocated memory area big enough to fit this structure.
+.Pp
+It is HIGHLY RECOMMENDED to use
+.Xr pthread_attr_init 3
+function to allocate attribute storage.
+.Sh IMPLEMENTATION NOTES
+The
+.Fn pthread_attr_get_np
+function will always return a pointer to the thread's real stack address,
+regardless of its value in the original attributes structure.
+.Sh RETURN VALUES
+If successful,
+.Fn pthread_attr_get_np
+function returns 0.
+Otherwise, an error number is returned to indicate the error.
+.Sh EXAMPLES
+.Bd -literal
+size_t
+my_thread_stack_size(pthread_t pid)
+{
+    pthread_attr_t attr;
+    size_t size;
+
+    pthread_attr_init(&attr);
+    pthread_attr_get_np(pid, &attr);
+    pthread_attr_getstacksize(&attr, &size);
+    pthread_attr_destroy(&attr);
+    return(size);
+}
+.Ed
+.Sh ERRORS
+The
+.Fn pthread_attr_get_np
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid value for one of given parameters.
+.It Bq Er ESRCH
+No thread could be found corresponding to that specified by the given
+thread ID.
+.El
+.Sh SEE ALSO
+.Xr pthread_attr_destroy 3 ,
+.Xr pthread_attr_getdetachstate 3 ,
+.Xr pthread_attr_getinheritsched 3 ,
+.Xr pthread_attr_getschedparam 3 ,
+.Xr pthread_attr_getschedpolicy 3 ,
+.Xr pthread_attr_getscope 3 ,
+.Xr pthread_attr_getstack 3 ,
+.Xr pthread_attr_getstackaddr 3 ,
+.Xr pthread_attr_getstacksize 3 ,
+.Xr pthread_attr_init 3
+.Sh AUTHORS
+The
+.Fn pthread_attr_get_np
+function and this manual page were written by
+.An Alexey Zelkin Aq Mt phantom@FreeBSD.org .

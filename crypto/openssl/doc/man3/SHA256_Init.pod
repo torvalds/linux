@@ -1,0 +1,108 @@
+=pod
+
+=head1 NAME
+
+SHA1, SHA1_Init, SHA1_Update, SHA1_Final, SHA224, SHA224_Init, SHA224_Update,
+SHA224_Final, SHA256, SHA256_Init, SHA256_Update, SHA256_Final, SHA384,
+SHA384_Init, SHA384_Update, SHA384_Final, SHA512, SHA512_Init, SHA512_Update,
+SHA512_Final - Secure Hash Algorithm
+
+=head1 SYNOPSIS
+
+ #include <openssl/sha.h>
+
+ int SHA1_Init(SHA_CTX *c);
+ int SHA1_Update(SHA_CTX *c, const void *data, size_t len);
+ int SHA1_Final(unsigned char *md, SHA_CTX *c);
+ unsigned char *SHA1(const unsigned char *d, size_t n,
+                     unsigned char *md);
+
+ int SHA224_Init(SHA256_CTX *c);
+ int SHA224_Update(SHA256_CTX *c, const void *data, size_t len);
+ int SHA224_Final(unsigned char *md, SHA256_CTX *c);
+ unsigned char *SHA224(const unsigned char *d, size_t n,
+                       unsigned char *md);
+
+ int SHA256_Init(SHA256_CTX *c);
+ int SHA256_Update(SHA256_CTX *c, const void *data, size_t len);
+ int SHA256_Final(unsigned char *md, SHA256_CTX *c);
+ unsigned char *SHA256(const unsigned char *d, size_t n,
+                       unsigned char *md);
+
+ int SHA384_Init(SHA512_CTX *c);
+ int SHA384_Update(SHA512_CTX *c, const void *data, size_t len);
+ int SHA384_Final(unsigned char *md, SHA512_CTX *c);
+ unsigned char *SHA384(const unsigned char *d, size_t n,
+                       unsigned char *md);
+
+ int SHA512_Init(SHA512_CTX *c);
+ int SHA512_Update(SHA512_CTX *c, const void *data, size_t len);
+ int SHA512_Final(unsigned char *md, SHA512_CTX *c);
+ unsigned char *SHA512(const unsigned char *d, size_t n,
+                       unsigned char *md);
+
+=head1 DESCRIPTION
+
+Applications should use the higher level functions
+L<EVP_DigestInit(3)> etc. instead of calling the hash
+functions directly.
+
+SHA-1 (Secure Hash Algorithm) is a cryptographic hash function with a
+160 bit output.
+
+SHA1() computes the SHA-1 message digest of the B<n>
+bytes at B<d> and places it in B<md> (which must have space for
+SHA_DIGEST_LENGTH == 20 bytes of output). If B<md> is NULL, the digest
+is placed in a static array. Note: setting B<md> to NULL is B<not thread safe>.
+
+The following functions may be used if the message is not completely
+stored in memory:
+
+SHA1_Init() initializes a B<SHA_CTX> structure.
+
+SHA1_Update() can be called repeatedly with chunks of the message to
+be hashed (B<len> bytes at B<data>).
+
+SHA1_Final() places the message digest in B<md>, which must have space
+for SHA_DIGEST_LENGTH == 20 bytes of output, and erases the B<SHA_CTX>.
+
+The SHA224, SHA256, SHA384 and SHA512 families of functions operate in the
+same way as for the SHA1 functions. Note that SHA224 and SHA256 use a
+B<SHA256_CTX> object instead of B<SHA_CTX>. SHA384 and SHA512 use B<SHA512_CTX>.
+The buffer B<md> must have space for the output from the SHA variant being used
+(defined by SHA224_DIGEST_LENGTH, SHA256_DIGEST_LENGTH, SHA384_DIGEST_LENGTH and
+SHA512_DIGEST_LENGTH). Also note that, as for the SHA1() function above, the
+SHA224(), SHA256(), SHA384() and SHA512() functions are not thread safe if
+B<md> is NULL.
+
+The predecessor of SHA-1, SHA, is also implemented, but it should be
+used only when backward compatibility is required.
+
+=head1 RETURN VALUES
+
+SHA1(), SHA224(), SHA256(), SHA384() and SHA512() return a pointer to the hash
+value.
+
+SHA1_Init(), SHA1_Update() and SHA1_Final() and equivalent SHA224, SHA256,
+SHA384 and SHA512 functions return 1 for success, 0 otherwise.
+
+=head1 CONFORMING TO
+
+US Federal Information Processing Standard FIPS PUB 180-4 (Secure Hash
+Standard),
+ANSI X9.30
+
+=head1 SEE ALSO
+
+L<EVP_DigestInit(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

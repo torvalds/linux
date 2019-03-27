@@ -1,0 +1,170 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)vgrindefs.5	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd June 6, 1993
+.Dt VGRINDEFS 5
+.Os
+.Sh NAME
+.Nm vgrindefs
+.Nd language definition data base for
+.Xr vgrind 1
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+The
+.Nm
+file
+contains all language definitions for
+.Xr vgrind 1 .
+The data base is
+very similar to
+.Xr termcap 5 .
+.Sh FIELDS
+The following table names and describes each field.
+.Bl -column Namexxx Tpexxx
+.It Sy "Name	Type	Description"
+.It "ab	str	regular expression for the start of an alternate comment"
+.It "ae	str	regular expression for the end of an alternate comment"
+.It "pb	str	regular expression for start of a procedure"
+.It "bb	str	regular expression for start of a lexical block"
+.It "be	str	regular expression for the end of a lexical block"
+.It "cb	str	regular expression for the start of a comment"
+.It "ce	str	regular expression for the end of a comment"
+.It "sb	str	regular expression for the start of a string"
+.It "se	str	regular expression for the end of a string"
+.It "lb	str	regular expression for the start of a character constant"
+.It "le	str	regular expression for the end of a character constant"
+.It "nc	str	regular expression for a non-comment (see below)"
+.It "tl	bool	present means procedures are only defined at the top lexical level"
+.It "oc	bool	present means upper and lower case are equivalent"
+.It "kw	str	a list of keywords separated by spaces"
+.El
+.Pp
+Non-comments are required to describe a certain context where a
+sequence that would normally start a comment loses its special
+meaning.
+A typical example for this can be found in Perl, where
+comments are normally starting with
+.Ql # ,
+while the string
+.Ql $#
+is an operator on an array.
+.Sh REGULAR EXPRESSIONS
+.Nm Vgrindefs
+uses regular expression which are very similar to those of
+.Xr ex 1
+and
+.Xr lex 1 .
+The characters `^', `$', `:' and `\e'
+are reserved characters and must be
+"quoted" with a preceding
+.Ql \e
+if they
+are to be included as normal characters.
+The metasymbols and their meanings are:
+.Bl -tag -width indent
+.It $
+the end of a line
+.It \&^
+the beginning of a line
+.It \ed
+a delimiter (space, tab, newline, start of line)
+.It \ea
+matches any string of symbols (like .* in lex)
+.It \ep
+matches any alphanumeric name.
+In a procedure definition (pb) the string
+that matches this symbol is used as the procedure name.
+.It ()
+grouping
+.It \&|
+alternation
+.It ?
+last item is optional
+.It \ee
+preceding any string means that the string will not match an
+input string if the input string is preceded by an escape character (\e).
+This is typically used for languages (like C) which can include the
+string delimiter in a string by escaping it.
+.El
+.Pp
+Unlike other regular expressions in the system, these match words
+and not characters.
+Hence something like "(tramp|steamer)flies?"
+would match "tramp", "steamer", "trampflies", or "steamerflies".
+.Sh KEYWORD LIST
+The keyword list is just a list of keywords in the language separated
+by spaces.
+If the "oc" boolean is specified, indicating that upper
+and lower case are equivalent, then all the keywords should be
+specified in lower case.
+.Sh FILES
+.Bl -tag -width /usr/share/misc/vgrindefs -compact
+.It Pa /usr/share/misc/vgrindefs
+File containing terminal descriptions.
+.El
+.Sh EXAMPLES
+The following entry, which describes the C language, is
+typical of a language entry.
+.Bd -literal
+C|c:\
+:pb=^\ed?*?\ed?\ep\ed?\e(\ea?\e):bb={:be=}:cb=/*:ce=*/:sb=":se=\ee":\e
+:lb=':le=\ee':tl:\e
+:kw=asm auto break case char continue default do double else enum\e
+extern float for fortran goto if int long register return short\e
+sizeof static struct switch typedef union unsigned while #define\e
+#else #endif #if #ifdef #ifndef #include #undef # define else endif\e
+if ifdef ifndef include undef:
+.Ed
+.Pp
+Note that the first field is just the language name (and any variants
+of it).
+Thus the C language could be specified to
+.Xr vgrind 1
+as "c" or "C".
+.Pp
+Entries may continue onto multiple lines by giving a \e as the last
+character of a line.
+Capabilities in
+.Nm
+are of two types:
+Boolean capabilities which indicate that the language has
+some particular feature
+and string
+capabilities which give a regular expression or
+keyword list.
+.Sh SEE ALSO
+.Xr troff 1 ,
+.Xr vgrind 1
+.Sh HISTORY
+The
+.Nm
+file format appeared in
+.Bx 4.2 .

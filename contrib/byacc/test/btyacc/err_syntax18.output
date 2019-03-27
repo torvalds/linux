@@ -1,0 +1,52 @@
+   0  $accept : expr $end
+
+   1  expr : '(' expr ')'
+
+state 0
+	$accept : . expr $end  (0)
+
+	'('  shift 1
+	.  error
+
+	expr  goto 2
+
+
+state 1
+	expr : '(' . expr ')'  (1)
+
+	'('  shift 1
+	.  error
+
+	expr  goto 3
+
+
+state 2
+	$accept : expr . $end  (0)
+
+	$end  accept
+
+
+state 3
+	expr : '(' expr . ')'  (1)
+
+	')'  shift 4
+	.  error
+
+
+state 4
+	expr : '(' expr ')' .  (1)
+
+	.  reduce 1
+
+
+4 terminals, 2 nonterminals
+2 grammar rules, 5 states
+
+grammar parser grammar
+symbol# value# symbol
+     0      0  $end
+     1    256  error
+     2     40  '('
+     3     41  ')'
+     4    257  $accept
+     5    258  expr

@@ -1,0 +1,7 @@
+# $FreeBSD$
+# Test that attached options before and after c are processed
+
+case `${SH} -fca 'echo $-:$-:$0:$@' foo -bar` in
+*f*:*a*:foo:-bar) true ;;
+*) false ;;
+esac

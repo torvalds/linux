@@ -1,0 +1,347 @@
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)hexdump.1	8.2 (Berkeley) 4/18/94
+.\" $FreeBSD$
+.\"
+.Dd October 29, 2014
+.Dt HEXDUMP 1
+.Os
+.Sh NAME
+.Nm hexdump , hd
+.Nd ASCII, decimal, hexadecimal, octal dump
+.Sh SYNOPSIS
+.Nm
+.Op Fl bcCdovx
+.Op Fl e Ar format_string
+.Op Fl f Ar format_file
+.Op Fl n Ar length
+.Bk -words
+.Op Fl s Ar offset
+.Ek
+.Ar
+.Nm hd
+.Op Fl bcdovx
+.Op Fl e Ar format_string
+.Op Fl f Ar format_file
+.Op Fl n Ar length
+.Bk -words
+.Op Fl s Ar offset
+.Ek
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility is a filter which displays the specified files, or
+the standard input, if no files are specified, in a user specified
+format.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl b
+.Em One-byte octal display .
+Display the input offset in hexadecimal, followed by sixteen
+space-separated, three column, zero-filled, bytes of input data,
+in octal, per line.
+.It Fl c
+.Em One-byte character display .
+Display the input offset in hexadecimal, followed by sixteen
+space-separated, three column, space-filled, characters of input
+data per line.
+.It Fl C
+.Em Canonical hex+ASCII display .
+Display the input offset in hexadecimal, followed by sixteen
+space-separated, two column, hexadecimal bytes, followed by the
+same sixteen bytes in %_p format enclosed in ``|'' characters.
+.Pp
+Calling the command
+.Nm hd
+implies this option.
+.It Fl d
+.Em Two-byte decimal display .
+Display the input offset in hexadecimal, followed by eight
+space-separated, five column, zero-filled, two-byte units
+of input data, in unsigned decimal, per line.
+.It Fl e Ar format_string
+Specify a format string to be used for displaying data.
+.It Fl f Ar format_file
+Specify a file that contains one or more newline separated format strings.
+Empty lines and lines whose first non-blank character is a hash mark
+.Pf ( Cm \&# )
+are ignored.
+.It Fl n Ar length
+Interpret only
+.Ar length
+bytes of input.
+.It Fl o
+.Em Two-byte octal display .
+Display the input offset in hexadecimal, followed by eight
+space-separated, six column, zero-filled, two byte quantities of
+input data, in octal, per line.
+.It Fl s Ar offset
+Skip
+.Ar offset
+bytes from the beginning of the input.
+By default,
+.Ar offset
+is interpreted as a decimal number.
+With a leading
+.Cm 0x
+or
+.Cm 0X ,
+.Ar offset
+is interpreted as a hexadecimal number,
+otherwise, with a leading
+.Cm 0 ,
+.Ar offset
+is interpreted as an octal number.
+Appending the character
+.Cm b ,
+.Cm k ,
+or
+.Cm m
+to
+.Ar offset
+causes it to be interpreted as a multiple of
+.Li 512 ,
+.Li 1024 ,
+or
+.Li 1048576 ,
+respectively.
+.It Fl v
+Cause
+.Nm
+to display all input data.
+Without the
+.Fl v
+option, any number of groups of output lines, which would be
+identical to the immediately preceding group of output lines (except
+for the input offsets), are replaced with a line comprised of a
+single asterisk.
+.It Fl x
+.Em Two-byte hexadecimal display .
+Display the input offset in hexadecimal, followed by eight, space
+separated, four column, zero-filled, two-byte quantities of input
+data, in hexadecimal, per line.
+.El
+.Pp
+For each input file,
+.Nm
+sequentially copies the input to standard output, transforming the
+data according to the format strings specified by the
+.Fl e
+and
+.Fl f
+options, in the order that they were specified.
+.Ss Formats
+A format string contains any number of format units, separated by
+whitespace.
+A format unit contains up to three items: an iteration count, a byte
+count, and a format.
+.Pp
+The iteration count is an optional positive integer, which defaults to
+one.
+Each format is applied iteration count times.
+.Pp
+The byte count is an optional positive integer.
+If specified it defines the number of bytes to be interpreted by
+each iteration of the format.
+.Pp
+If an iteration count and/or a byte count is specified, a single slash
+must be placed after the iteration count and/or before the byte count
+to disambiguate them.
+Any whitespace before or after the slash is ignored.
+.Pp
+The format is required and must be surrounded by double quote
+(" ") marks.
+It is interpreted as a fprintf-style format string (see
+.Xr fprintf 3 ) ,
+with the
+following exceptions:
+.Bl -bullet -offset indent
+.It
+An asterisk (*) may not be used as a field width or precision.
+.It
+A byte count or field precision
+.Em is
+required for each ``s'' conversion
+character (unlike the
+.Xr fprintf 3
+default which prints the entire string if the precision is unspecified).
+.It
+The conversion characters ``h'', ``l'', ``n'', ``p'' and ``q'' are
+not supported.
+.It
+The single character escape sequences
+described in the C standard are supported:
+.Bd -ragged -offset indent -compact
+.Bl -column <alert_character>
+.It "NUL	\e0"
+.It "<alert character>	\ea"
+.It "<backspace>	\eb"
+.It "<form-feed>	\ef"
+.It "<newline>	\en"
+.It "<carriage return>	\er"
+.It "<tab>	\et"
+.It "<vertical tab>	\ev"
+.El
+.Ed
+.El
+.Pp
+The
+.Nm
+utility also supports the following additional conversion strings:
+.Bl -tag -width Fl
+.It Cm \&_a Ns Op Cm dox
+Display the input offset, cumulative across input files, of the
+next byte to be displayed.
+The appended characters
+.Cm d ,
+.Cm o ,
+and
+.Cm x
+specify the display base
+as decimal, octal or hexadecimal respectively.
+.It Cm \&_A Ns Op Cm dox
+Identical to the
+.Cm \&_a
+conversion string except that it is only performed
+once, when all of the input data has been processed.
+.It Cm \&_c
+Output characters in the default character set.
+Nonprinting characters are displayed in three character, zero-padded
+octal, except for those representable by standard escape notation
+(see above),
+which are displayed as two character strings.
+.It Cm _p
+Output characters in the default character set.
+Nonprinting characters are displayed as a single
+.Dq Cm \&. .
+.It Cm _u
+Output US
+.Tn ASCII
+characters, with the exception that control characters are
+displayed using the following, lower-case, names.
+Characters greater than 0xff, hexadecimal, are displayed as hexadecimal
+strings.
+.Bl -column 000_nu 001_so 002_st 003_et 004_eo
+.It "000 NUL" Ta "001 SOH" Ta "002 STX" Ta "003 ETX" Ta "004 EOT" Ta "005 ENQ"
+.It "006 ACK" Ta "007 BEL" Ta "008 BS" Ta "009 HT" Ta "00A LF" Ta "00B VT"
+.It "00C FF" Ta "00D CR" Ta "00E\ SO" Ta "00F SI" Ta "010 DLE" Ta "011 DC1"
+.It "012 DC2" Ta "013 DC3" Ta "014 DC4" Ta "015\ NAK" Ta "016 SYN" Ta "017 ETB"
+.It "018 CAN" Ta "019 EM" Ta "01A SUB" Ta "01B ESC" Ta "01C FS" Ta "01D GS"
+.It "01E RS" Ta "01F US" Ta "07F DEL" Ta \& Ta \& Ta \&
+.El
+.El
+.Pp
+The default and supported byte counts for the conversion characters
+are as follows:
+.Bl -tag -width  "Xc,_Xc,_Xc,_Xc,_Xc,_Xc" -offset indent
+.It Li \&%_c , \&%_p , \&%_u , \&%c
+One byte counts only.
+.It Xo
+.Li \&%d , \&%i , \&%o ,
+.Li \&%u , \&%X , \&%x
+.Xc
+Four byte default, one, two and four byte counts supported.
+.It Xo
+.Li \&%E , \&%e , \&%f ,
+.Li \&%G , \&%g
+.Xc
+Eight byte default, four and twelve byte counts supported.
+.El
+.Pp
+The amount of data interpreted by each format string is the sum of the
+data required by each format unit, which is the iteration count times the
+byte count, or the iteration count times the number of bytes required by
+the format if the byte count is not specified.
+.Pp
+The input is manipulated in ``blocks'', where a block is defined as the
+largest amount of data specified by any format string.
+Format strings interpreting less than an input block's worth of data,
+whose last format unit both interprets some number of bytes and does
+not have a specified iteration count, have the iteration count
+incremented until the entire input block has been processed or there
+is not enough data remaining in the block to satisfy the format string.
+.Pp
+If, either as a result of user specification or
+.Nm
+modifying
+the iteration count as described above, an iteration count is
+greater than one, no trailing whitespace characters are output
+during the last iteration.
+.Pp
+It is an error to specify a byte count as well as multiple conversion
+characters or strings unless all but one of the conversion characters
+or strings is
+.Cm \&_a
+or
+.Cm \&_A .
+.Pp
+If, as a result of the specification of the
+.Fl n
+option or end-of-file being reached, input data only partially
+satisfies a format string, the input block is zero-padded sufficiently
+to display all available data (i.e., any format units overlapping the
+end of data will display some number of the zero bytes).
+.Pp
+Further output by such format strings is replaced by an equivalent
+number of spaces.
+An equivalent number of spaces is defined as the number of spaces
+output by an
+.Cm s
+conversion character with the same field width
+and precision as the original conversion character or conversion
+string but with any
+.Dq Li \&+ ,
+.Dq \&\ \& ,
+.Dq Li \&#
+conversion flag characters
+removed, and referencing a NULL string.
+.Pp
+If no format strings are specified, the default display is equivalent
+to specifying the
+.Fl x
+option.
+.Sh EXIT STATUS
+.Ex -std hexdump hd
+.Sh EXAMPLES
+Display the input in perusal format:
+.Bd -literal -offset indent
+"%06.6_ao "  12/1 "%3_u "
+"\et\et" "%_p "
+"\en"
+.Ed
+.Pp
+Implement the \-x option:
+.Bd -literal -offset indent
+"%07.7_Ax\en"
+"%07.7_ax  " 8/2 "%04x " "\en"
+.Ed
+.Sh SEE ALSO
+.Xr gdb 1 ,
+.Xr od 1

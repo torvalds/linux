@@ -1,0 +1,204 @@
+# $FreeBSD$
+#
+# Makefile for the BOOTP programs:
+#   bootpd	- BOOTP server daemon
+#   bootpef	- BOOTP extension file builder
+#   bootpgw	- BOOTP gateway daemon
+#   bootptest	- BOOTP tester (client)
+#
+
+# OPTion DEFinitions:
+# Remove the -DVEND_CMU if you don't wish to support the "CMU vendor format"
+# in addition to the RFC1048 format.  Leaving out DEBUG saves little.
+OPTDEFS= -DSYSLOG -DVEND_CMU -DDEBUG
+
+# Uncomment and edit this to choose the facility code used for syslog.
+# LOG_FACILITY= "-DLOG_BOOTP=LOG_LOCAL2"
+
+# SYStem DEFinitions:
+# Either uncomment some of the following, or do:
+#	"make sunos4"	(or "make sunos5", etc.)
+# SYSDEFS= -DSUNOS -DETC_ETHERS
+# SYSDEFS= -DSVR4
+# SYSLIBS= -lsocket -lnsl
+
+# Uncomment this if your system does not provide streror(3)
+# STRERROR=strerror.o
+
+# FILE DEFinitions:
+# The next few lines may be uncommented and changed to alter the default
+# filenames bootpd uses for its configuration and dump files.
+#CONFFILE= -DCONFIG_FILE=\"/usr/etc/bootptab\"
+#DUMPFILE= -DDUMPTAB_FILE=\"/usr/etc/bootpd.dump\"
+#FILEDEFS= $(CONFFILE) $(DUMPFILE)
+
+# MORE DEFinitions (whatever you might want to add)
+# One might define NDEBUG (to remove "assert()" checks).
+MOREDEFS=
+
+INSTALL=/usr/bin/install
+DESTDIR=
+BINDIR=/usr/etc
+MANDIR=/usr/local/man
+
+CFLAGS= $(OPTDEFS) $(SYSDEFS) $(FILEDEFS) $(MOREDEFS)
+PROGS= bootpd bootpef bootpgw bootptest
+TESTS= trylook trygetif trygetea
+
+all: $(PROGS) $(TESTS)
+
+system: install
+
+install: $(PROGS)
+	-for f in $(PROGS) ;\
+	do \
+		$(INSTALL) -c -s $$f $(DESTDIR)$(BINDIR) ;\
+	done
+
+MAN5= bootptab.5
+MAN8= bootpd.8 bootpef.8 bootptest.8
+install.man: $(MAN5) $(MAN8)
+	-for f in $(MAN5) ;\
+	do \
+		$(INSTALL) -c -m 644 $$f $(DESTDIR)$(MANDIR)/man5 ;\
+	done
+	-for f in $(MAN8) ;\
+	do \
+		$(INSTALL) -c -m 644 $$f $(DESTDIR)$(MANDIR)/man8 ;\
+	done
+
+clean:
+	-rm -f core *.o
+	-rm -f $(PROGS) $(TESTS)
+
+distclean:
+	-rm -f *.BAK *.CKP *~ .emacs*
+
+#
+# Handy targets for systems needing special treatment:
+# (Most POSIX systems should work with just "make all")
+#
+
+# DEC/OSF1 on the Alpha
+alpha:
+	$(MAKE) SYSDEFS="-DETC_ETHERS -Dint32=int -D_SOCKADDR_LEN" \
+		STRERROR=strerror.o
+
+# Control Data EP/IX 1.4.3 system, BSD 4.3 mode
+epix143:
+	$(MAKE) CC="cc -systype bsd43" \
+		SYSDEFS="-Dconst= -D_SIZE_T -DNO_UNISTD -DUSE_BFUNCS" \
+		STRERROR=strerror.o
+
+# Control Data EP/IX 2.1.1 system, SVR4 mode
+epix211:
+	$(MAKE) CC="cc -systype svr4" \
+		SYSDEFS="-DSVR4" \
+		SYSLIBS="-lsocket -lnsl"
+
+# IRIX 5.X (Silicon Graphics)
+irix:
+	$(MAKE) SYSDEFS= SYSLIBS=
+
+# Linux 1.1.80+ on [34]86
+linux:
+	$(MAKE) SYSDEFS="-O6 -Wall -fomit-frame-pointer"
+
+# SunOS 4.X
+sunos4:
+	$(MAKE) SYSDEFS="-DSUNOS -DETC_ETHERS" \
+		STRERROR=strerror.o
+
+# Solaris 2.X (i.e. SunOS 5.X)
+sunos5:
+	$(MAKE) SYSDEFS="-DSVR4 -DETC_ETHERS" \
+		SYSLIBS="-lsocket -lnsl"
+
+# Solaris 2.X (i.e. SunOS 5.X) with GCC.  Note that GCC normally
+# defines __STDC__=1 which breaks many Solaris header files...
+sunos5gcc:
+	$(MAKE) SYSDEFS="-DSVR4 -DETC_ETHERS -D__STDC__=0" \
+		SYSLIBS="-lsocket -lnsl" CC="gcc -Wall"
+
+# UNIX System V Rel. 3
+svr3:
+	$(MAKE) SYSDEFS="-DSYSV"
+
+# UNIX System V Rel. 4
+svr4:
+	$(MAKE) SYSDEFS="-DSVR4" \
+		SYSLIBS="-lsocket -lnsl"
+
+# AT&T/GIS - Both AT&T StarServer and NCR 3000
+# may work for others using Wollongong's WIN-TCP
+wollongong gis :
+	$(MAKE) SYSDEFS="-DSVR4 -DWIN_TCP" \
+		SYSLIBS="-lsocket -lnsl"
+
+#
+# How to build each program:
+#
+
+OBJ_D=	bootpd.o dovend.o readfile.o hash.o dumptab.o \
+	 lookup.o getif.o hwaddr.o tzone.o report.o $(STRERROR)
+bootpd: $(OBJ_D)
+	$(CC) -o $@ $(OBJ_D) $(SYSLIBS)
+
+OBJ_EF=	bootpef.o dovend.o readfile.o hash.o dumptab.o \
+	 lookup.o hwaddr.o tzone.o report.o $(STRERROR)
+bootpef: $(OBJ_EF)
+	$(CC) -o $@ $(OBJ_EF) $(SYSLIBS)
+
+OBJ_GW= bootpgw.o getif.o hwaddr.o report.o $(STRERROR)
+bootpgw: $(OBJ_GW)
+	$(CC) -o $@ $(OBJ_GW) $(SYSLIBS)
+
+OBJ_TEST= bootptest.o print-bootp.o getif.o getether.o \
+	 report.o $(STRERROR)
+bootptest: $(OBJ_TEST)
+	$(CC) -o $@ $(OBJ_TEST) $(SYSLIBS)
+
+# This is just for testing the lookup functions.
+TRYLOOK= trylook.o lookup.o report.o $(STRERROR)
+trylook : $(TRYLOOK)
+	$(CC) -o $@ $(TRYLOOK) $(SYSLIBS)
+
+# This is just for testing getif.
+TRYGETIF= trygetif.o getif.o report.o $(STRERROR)
+trygetif : $(TRYGETIF)
+	$(CC) -o $@ $(TRYGETIF) $(SYSLIBS)
+
+# This is just for testing getether.
+TRYGETEA= trygetea.o getether.o report.o $(STRERROR)
+trygetea : $(TRYGETEA)
+	$(CC) -o $@ $(TRYGETEA) $(SYSLIBS)
+
+# This rule just keeps the LOG_BOOTP define localized.
+report.o : report.c
+	$(CC) $(CFLAGS) $(LOG_FACILITY) -c $<
+
+# Punt SunOS -target noise
+.c.o:
+	$(CC) $(CFLAGS) -c $<
+
+#
+# Header file dependencies:
+#
+
+bootpd.o  : bootp.h bptypes.h hash.h hwaddr.h bootpd.h dovend.h
+bootpd.o  : readfile.h report.h tzone.h patchlevel.h getif.h
+bootpef.o : bootp.h bptypes.h hash.h hwaddr.h bootpd.h dovend.h
+bootpef.o : readfile.h report.h tzone.h patchlevel.h
+bootpgw.o : bootp.h bptypes.h getif.h hwaddr.h report.h patchlevel.h
+bootptest.o : bootp.h bptypes.h bootptest.h getif.h patchlevel.h
+dovend.o : bootp.h bptypes.h bootpd.h hash.h hwaddr.h report.h dovend.h
+dumptab.o : bootp.h bptypes.h hash.h hwaddr.h report.h patchlevel.h bootpd.h
+getif.o : getif.h report.h
+hash.o : hash.h
+hwaddr.o : bptypes.h hwaddr.h report.h
+lookup.o : bootp.h bptypes.h lookup.h report.h
+print-bootp.o : bootp.h bptypes.h bootptest.h
+readfile.o : bootp.h bptypes.h hash.h hwaddr.h lookup.h readfile.h
+readfile.o : report.h tzone.h bootpd.h
+report.o : report.h
+tzone.o : bptypes.h report.h tzone.h

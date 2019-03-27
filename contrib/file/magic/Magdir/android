@@ -1,0 +1,145 @@
+
+#------------------------------------------------------------
+# $File: android,v 1.10 2017/03/17 21:35:28 christos Exp $
+# Various android related magic entries
+#------------------------------------------------------------
+
+# Dalvik .dex format. http://retrodev.com/android/dexformat.html
+# From <mkf@google.com> "Mike Fleming"
+# Fixed to avoid regexec 17 errors on some dex files
+# From <diff@lookout.com> "Tim Strazzere"
+0	string	dex\n
+>0	regex	dex\n[0-9]{2}\0	Dalvik dex file
+>4	string	>000			version %s
+0	string	dey\n
+>0	regex	dey\n[0-9]{2}\0	Dalvik dex file (optimized for host)
+>4	string	>000			version %s
+
+# Android bootimg format
+# From https://android.googlesource.com/\
+# platform/system/core/+/master/mkbootimg/bootimg.h
+0		string	ANDROID!	Android bootimg
+>1024	string	LOKI\01		\b, LOKI'd
+>8		lelong	>0			\b, kernel
+>>12	lelong	>0			\b (0x%x)
+>16		lelong	>0			\b, ramdisk
+>>20	lelong	>0			\b (0x%x)
+>24		lelong	>0			\b, second stage
+>>28	lelong	>0			\b (0x%x)
+>36		lelong	>0			\b, page size: %d
+>38		string	>0			\b, name: %s
+>64		string	>0		 	\b, cmdline (%s)
+
+# Android Backup archive
+# From: Ariel Shkedi
+# File extension: .ab
+# No mime-type defined
+# URL: https://github.com/android/platform_frameworks_base/blob/\
+# 0bacfd2ba68d21a68a3df345b830bc2a1e515b5a/services/java/com/\
+# android/server/BackupManagerService.java#L2367
+# After the header comes a tar file
+# If compressed, the entire tar file is compressed with JAVA deflate
+#
+# Include the version number hardcoded with the magic string to avoid
+# false positives
+0	string/b	ANDROID\ BACKUP\n1\n	Android Backup
+>17	string		0\n			\b, Not-Compressed
+>17	string		1\n			\b, Compressed
+# any string as long as it's not the word none (which is matched below)
+>>19    regex/1l	\^([^n\n]|n[^o]|no[^n]|non[^e]|none.+).*	\b, Encrypted (%s)
+>>19	string		none\n			\b, Not-Encrypted
+# Commented out because they don't seem useful to print
+# (but they are part of the header - the tar file comes after them):
+#>>>&1		regex/1l .*	\b, Password salt: %s
+#>>>>&1		regex/1l .*	\b, Master salt: %s
+#>>>>>&1	regex/1l .*	\b, PBKDF2 rounds: %s
+#>>>>>>&1	regex/1l .*	\b, IV: %s
+#>>>>>>>&1	regex/1l .*	\b, Key: %s
+
+# *.pit files by Joerg Jenderek
+# http://forum.xda-developers.com/showthread.php?p=9122369
+# http://forum.xda-developers.com/showthread.php?t=816449
+# Partition Information Table for Samsung's smartphone with Android
+# used by flash software Odin
+0		ulelong			0x12349876
+# 1st pit entry marker
+>0x01C	ulequad&0xFFFFFFFCFFFFFFFC	=0x0000000000000000
+# minimal 13 and maximal 18 PIT entries found
+>>4		ulelong			<128	Partition Information Table for Samsung smartphone
+>>>4		ulelong			x	\b, %d entries
+# 1. pit entry
+>>>4		ulelong			>0	\b; #1
+>>>0x01C	use				PIT-entry
+>>>4		ulelong			>1	\b; #2
+>>>0x0A0	use				PIT-entry
+>>>4		ulelong			>2	\b; #3
+>>>0x124	use				PIT-entry
+>>>4		ulelong			>3	\b; #4
+>>>0x1A8	use				PIT-entry
+>>>4		ulelong			>4	\b; #5
+>>>0x22C	use				PIT-entry
+>>>4		ulelong			>5	\b; #6
+>>>0x2B0	use				PIT-entry
+>>>4		ulelong			>6	\b; #7
+>>>0x334	use				PIT-entry
+>>>4		ulelong			>7 	\b; #8
+>>>0x3B8	use				PIT-entry
+>>>4		ulelong			>8 	\b; #9
+>>>0x43C	use				PIT-entry
+>>>4		ulelong			>9	\b; #10
+>>>0x4C0	use				PIT-entry
+>>>4		ulelong			>10	\b; #11
+>>>0x544	use				PIT-entry
+>>>4		ulelong			>11	\b; #12
+>>>0x5C8	use				PIT-entry
+>>>4		ulelong			>12	\b; #13
+>>>>0x64C	use				PIT-entry
+# 14. pit entry
+>>>4		ulelong			>13	\b; #14
+>>>>0x6D0	use				PIT-entry
+>>>4		ulelong			>14	\b; #15
+>>>0x754	use				PIT-entry
+>>>4		ulelong			>15	\b; #16
+>>>0x7D8	use				PIT-entry
+>>>4		ulelong			>16	\b; #17
+>>>0x85C	use				PIT-entry
+# 18. pit entry
+>>>4		ulelong			>17	\b; #18
+>>>0x8E0	use				PIT-entry
+
+0	name			PIT-entry
+# garbage value implies end of pit entries
+>0x00		ulequad&0xFFFFFFFCFFFFFFFC	=0x0000000000000000
+# skip empty partition name
+>>0x24		ubyte				!0
+# partition name
+>>>0x24		string				>\0			%-.32s
+# flags
+>>>0x0C		ulelong&0x00000002		2			\b+RW
+# partition ID:
+# 0~IPL,MOVINAND,GANG;1~PIT,GPT;2~HIDDEN;3~SBL,HIDDEN;4~SBL2,HIDDEN;5~BOOT;6~KENREl,RECOVER,misc;7~RECOVER
+# ;11~MODEM;20~efs;21~PARAM;22~FACTORY,SYSTEM;23~DBDATAFS,USERDATA;24~CACHE;80~BOOTLOADER;81~TZSW
+>>>0x08	ulelong		x			(0x%x)
+# filename
+>>>0x44		string				>\0			"%-.64s"
+#>>>0x18	ulelong				>0
+# blocksize in 512 byte units ?
+#>>>>0x18	ulelong				x			\b, %db
+# partition size in blocks ?
+#>>>>0x22	ulelong				x			\b*%d
+
+# Android sparse img format
+# From https://android.googlesource.com/\
+# platform/system/core/+/master/libsparse/sparse_format.h
+0		lelong	0xed26ff3a		Android sparse image
+>4		leshort	x			\b, version: %d
+>6		leshort	x			\b.%d
+>16		lelong	x			\b, Total of %d
+>12		lelong	x			\b %d-byte output blocks in
+>20		lelong	x			\b %d input chunks.
+
+# Android binary XML magic
+# In include/androidfw/ResourceTypes.h:
+# RES_XML_TYPE = 0x0003 followed by the size of the header (ResXMLTree_header),
+# which is 8 bytes (2 bytes type + 2 bytes header size + 4 bytes size).
+0	lelong	0x00080003	Android binary XML

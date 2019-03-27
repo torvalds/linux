@@ -1,0 +1,59 @@
+.\" Generated from pam_setenv.c by gendoc.pl
+.\" $OpenPAM: pam_setenv.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_SETENV 3
+.Os
+.Sh NAME
+.Nm pam_setenv
+.Nd mirrors setenv(3)
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.Ft "int"
+.Fn pam_setenv "pam_handle_t *pamh" "const char *name" "const char *value" "int overwrite"
+.Sh DESCRIPTION
+The
+.Fn pam_setenv
+function sets an environment variable.
+Its semantics are similar to those of
+.Xr setenv 3 ,
+but it modifies the PAM
+context's environment list instead of the application's.
+.Pp
+.Sh RETURN VALUES
+The
+.Fn pam_setenv
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.El
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_getenv 3 ,
+.Xr pam_getenvlist 3 ,
+.Xr pam_putenv 3 ,
+.Xr pam_strerror 3 ,
+.Xr setenv 3
+.Sh STANDARDS
+The
+.Fn pam_setenv
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn pam_setenv
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

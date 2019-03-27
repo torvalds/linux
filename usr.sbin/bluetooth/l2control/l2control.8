@@ -1,0 +1,97 @@
+.\" Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: l2control.8,v 1.5 2003/05/21 00:53:00 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd April 9, 2011
+.Dt L2CONTROL 8
+.Os
+.Sh NAME
+.Nm l2control
+.Nd L2CAP configuration utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl hn
+.Fl a Ar local
+.Ar command
+.Op Ar parameters ...
+.Sh DESCRIPTION
+The
+.Nm
+utility connects to the local device with the specified BD_ADDR or name
+and attempts to send the specified command.
+The
+.Nm
+utility will print results to the standard output and error messages to
+the standard error output.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a Ar local
+Connect to the local device with the specified BD_ADDR or name.
+Example:
+.Fl a Li 00:01:02:03:04:05
+or
+.Fl a Li bt_device .
+.It Fl h
+Display usage message and exit.
+.It Fl n
+Show Bluetooth addresses as numbers.
+Normally
+.Nm
+attempts to resolve Bluetooth addresses, and display them symbolically.
+.It Ar command
+One of the supported commands (see below).
+The special command
+.Cm help
+can be used to obtain a list of all supported commands.
+To get more information about a specific command use
+.Cm help Ar command .
+.It Ar parameters
+One or more optional space separated command parameters.
+.El
+.Sh COMMANDS
+The currently supported node commands in
+.Nm
+are:
+.Pp
+.Bl -tag -width "Write_Auto_Disconnect_Timeout" -offset indent -compact
+.It Cm Read_Node_Flags
+.It Cm Read_Debug_Level
+.It Cm Write_Debug_Level
+.It Cm Read_Connection_List
+.It Cm Read_Channel_List
+.It Cm Read_Auto_Disconnect_Timeout
+.It Cm Write_Auto_Disconnect_Timeout
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr netgraph 3 ,
+.Xr netgraph 4 ,
+.Xr ng_l2cap 4 ,
+.Xr l2ping 8
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt emax@FreeBSD.org

@@ -1,0 +1,98 @@
+.\" Generated from pam_authenticate.c by gendoc.pl
+.\" $OpenPAM: pam_authenticate.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_AUTHENTICATE 3
+.Os
+.Sh NAME
+.Nm pam_authenticate
+.Nd perform authentication within the PAM framework
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.Ft "int"
+.Fn pam_authenticate "pam_handle_t *pamh" "int flags"
+.Sh DESCRIPTION
+The
+.Fn pam_authenticate
+function attempts to authenticate the user
+associated with the pam context specified by the
+.Fa pamh
+argument.
+.Pp
+The application is free to call
+.Fn pam_authenticate
+as many times as it
+wishes, but some modules may maintain an internal retry counter and
+return
+.Dv PAM_MAXTRIES
+when it exceeds some preset or hardcoded limit.
+.Pp
+The
+.Fa flags
+argument is the binary or of zero or more of the following
+values:
+.Bl -tag -width 18n
+.It Dv PAM_SILENT
+Do not emit any messages.
+.It Dv PAM_DISALLOW_NULL_AUTHTOK
+Fail if the user's authentication token is null.
+.El
+.Pp
+If any other bits are set,
+.Fn pam_authenticate
+will return
+.Dv PAM_BAD_CONSTANT .
+.Sh RETURN VALUES
+The
+.Fn pam_authenticate
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_ABORT
+General failure.
+.It Bq Er PAM_AUTHINFO_UNAVAIL
+Authentication information is unavailable.
+.It Bq Er PAM_AUTH_ERR
+Authentication error.
+.It Bq Er PAM_BAD_CONSTANT
+Bad constant.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_CRED_INSUFFICIENT
+Insufficient credentials.
+.It Bq Er PAM_MAXTRIES
+Maximum number of tries exceeded.
+.It Bq Er PAM_PERM_DENIED
+Permission denied.
+.It Bq Er PAM_SERVICE_ERR
+Error in service module.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.It Bq Er PAM_USER_UNKNOWN
+Unknown user.
+.El
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The
+.Fn pam_authenticate
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

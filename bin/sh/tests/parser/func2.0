@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+f() { return 42; }
+f() { return 3; } &
+f
+[ $? -eq 42 ]

@@ -1,0 +1,166 @@
+=pod
+
+=head1 NAME
+
+EVP_DigestSignInit, EVP_DigestSignUpdate, EVP_DigestSignFinal,
+EVP_DigestSign - EVP signing functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ int EVP_DigestSignInit(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
+                        const EVP_MD *type, ENGINE *e, EVP_PKEY *pkey);
+ int EVP_DigestSignUpdate(EVP_MD_CTX *ctx, const void *d, size_t cnt);
+ int EVP_DigestSignFinal(EVP_MD_CTX *ctx, unsigned char *sig, size_t *siglen);
+
+ int EVP_DigestSign(EVP_MD_CTX *ctx, unsigned char *sigret,
+                    size_t *siglen, const unsigned char *tbs,
+                    size_t tbslen);
+
+=head1 DESCRIPTION
+
+The EVP signature routines are a high level interface to digital signatures.
+
+EVP_DigestSignInit() sets up signing context B<ctx> to use digest B<type> from
+ENGINE B<e> and private key B<pkey>. B<ctx> must be created with
+EVP_MD_CTX_new() before calling this function. If B<pctx> is not NULL, the
+EVP_PKEY_CTX of the signing operation will be written to B<*pctx>: this can
+be used to set alternative signing options. Note that any existing value in
+B<*pctx> is overwritten. The EVP_PKEY_CTX value returned must not be freed
+directly by the application if B<ctx> is not assigned an EVP_PKEY_CTX value before
+being passed to EVP_DigestSignInit() (which means the EVP_PKEY_CTX is created
+inside EVP_DigestSignInit() and it will be freed automatically when the
+EVP_MD_CTX is freed).
+
+The digest B<type> may be NULL if the signing algorithm supports it.
+
+No B<EVP_PKEY_CTX> will be created by EVP_DigsetSignInit() if the passed B<ctx>
+has already been assigned one via L<EVP_MD_CTX_set_ctx(3)>. See also L<SM2(7)>.
+
+Only EVP_PKEY types that support signing can be used with these functions. This
+includes MAC algorithms where the MAC generation is considered as a form of
+"signing". Built-in EVP_PKEY types supported by these functions are CMAC,
+Poly1305, DSA, ECDSA, HMAC, RSA, SipHash, Ed25519 and Ed448.
+
+Not all digests can be used for all key types. The following combinations apply.
+
+=over 4
+
+=item DSA
+
+Supports SHA1, SHA224, SHA256, SHA384 and SHA512
+
+=item ECDSA
+
+Supports SHA1, SHA224, SHA256, SHA384, SHA512 and SM3
+
+=item RSA with no padding
+
+Supports no digests (the digest B<type> must be NULL)
+
+=item RSA with X931 padding
+
+Supports SHA1, SHA256, SHA384 and SHA512
+
+=item All other RSA padding types
+
+Support SHA1, SHA224, SHA256, SHA384, SHA512, MD5, MD5_SHA1, MD2, MD4, MDC2,
+SHA3-224, SHA3-256, SHA3-384, SHA3-512
+
+=item Ed25519 and Ed448
+
+Support no digests (the digest B<type> must be NULL)
+
+=item HMAC
+
+Supports any digest
+
+=item CMAC, Poly1305 and SipHash
+
+Will ignore any digest provided.
+
+=back
+
+If RSA-PSS is used and restrictions apply then the digest must match.
+
+EVP_DigestSignUpdate() hashes B<cnt> bytes of data at B<d> into the
+signature context B<ctx>. This function can be called several times on the
+same B<ctx> to include additional data. This function is currently implemented
+using a macro.
+
+EVP_DigestSignFinal() signs the data in B<ctx> and places the signature in B<sig>.
+If B<sig> is B<NULL> then the maximum size of the output buffer is written to
+the B<siglen> parameter. If B<sig> is not B<NULL> then before the call the
+B<siglen> parameter should contain the length of the B<sig> buffer. If the
+call is successful the signature is written to B<sig> and the amount of data
+written to B<siglen>.
+
+EVP_DigestSign() signs B<tbslen> bytes of data at B<tbs> and places the
+signature in B<sig> and its length in B<siglen> in a similar way to
+EVP_DigestSignFinal().
+
+=head1 RETURN VALUES
+
+EVP_DigestSignInit(), EVP_DigestSignUpdate(), EVP_DigestSignaFinal() and
+EVP_DigestSign() return 1 for success and 0 or a negative value for failure. In
+particular, a return value of -2 indicates the operation is not supported by the
+public key algorithm.
+
+The error codes can be obtained from L<ERR_get_error(3)>.
+
+=head1 NOTES
+
+The B<EVP> interface to digital signatures should almost always be used in
+preference to the low level interfaces. This is because the code then becomes
+transparent to the algorithm used and much more flexible.
+
+EVP_DigestSign() is a one shot operation which signs a single block of data
+in one function. For algorithms that support streaming it is equivalent to
+calling EVP_DigestSignUpdate() and EVP_DigestSignFinal(). For algorithms which
+do not support streaming (e.g. PureEdDSA) it is the only way to sign data.
+
+In previous versions of OpenSSL there was a link between message digest types
+and public key algorithms. This meant that "clone" digests such as EVP_dss1()
+needed to be used to sign using SHA1 and DSA. This is no longer necessary and
+the use of clone digest is now discouraged.
+
+For some key types and parameters the random number generator must be seeded
+or the operation will fail.
+
+The call to EVP_DigestSignFinal() internally finalizes a copy of the digest
+context. This means that calls to EVP_DigestSignUpdate() and
+EVP_DigestSignFinal() can be called later to digest and sign additional data.
+
+Since only a copy of the digest context is ever finalized, the context must
+be cleaned up after use by calling EVP_MD_CTX_free() or a memory leak
+will occur.
+
+The use of EVP_PKEY_size() with these functions is discouraged because some
+signature operations may have a signature length which depends on the
+parameters set. As a result EVP_PKEY_size() would have to return a value
+which indicates the maximum possible signature for any set of parameters.
+
+=head1 SEE ALSO
+
+L<EVP_DigestVerifyInit(3)>,
+L<EVP_DigestInit(3)>,
+L<evp(7)>, L<HMAC(3)>, L<MD2(3)>,
+L<MD5(3)>, L<MDC2(3)>, L<RIPEMD160(3)>,
+L<SHA1(3)>, L<dgst(1)>
+
+=head1 HISTORY
+
+EVP_DigestSignInit(), EVP_DigestSignUpdate() and EVP_DigestSignFinal()
+were added in OpenSSL 1.0.0.
+
+=head1 COPYRIGHT
+
+Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

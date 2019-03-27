@@ -1,0 +1,212 @@
+.\"
+.\" Copyright (c) 2015
+.\"	Mark R V Murray
+.\" Copyright (c) 2000
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" "
+.Dd July 16, 2015
+.Dt RANDOM 9
+.Os
+.Sh NAME
+.Nm arc4rand ,
+.Nm arc4random ,
+.Nm random ,
+.Nm read_random ,
+.Nm read_random_uio ,
+.Nm srandom
+.Nd supply pseudo-random numbers
+.Sh SYNOPSIS
+.In sys/libkern.h
+.Ft void
+.Fn srandom "u_long seed"
+.Ft u_long
+.Fn random "void"
+.Ft void
+.Fn arc4rand "void *ptr" "u_int length" "int reseed"
+.Ft uint32_t
+.Fn arc4random "void"
+.Pp
+.In sys/random.h
+.Ft int
+.Fn read_random "void *buffer" "int count"
+.Ft int
+.Fn read_random_uio "struct uio *uio" "bool nonblock"
+.Sh DESCRIPTION
+The
+.Fn random
+function will by default produce
+a sequence of numbers
+that can be duplicated
+by calling
+.Fn srandom
+with some constant
+as the
+.Fa seed .
+The
+.Fn srandom
+function may be called with any arbitrary
+.Fa seed
+value to get slightly more unpredictable numbers.
+It is important to remember that the
+.Fn random
+function is entirely predictable,
+and is therefore not of use where
+knowledge of the sequence of numbers
+may be of benefit to an attacker.
+.Pp
+The
+.Fn arc4rand
+function will return very good quality random numbers,
+better suited
+for security-related purposes.
+The random numbers from
+.Fn arc4rand
+are seeded from the entropy device
+if it is available.
+Automatic reseeds happen
+after a certain timeinterval
+and after a certain number of bytes
+have been delivered.
+A forced reseed
+can be forced
+by passing a non-zero
+value in the
+.Fa reseed
+argument.
+.Pp
+The
+.Fn read_random
+function is used to return entropy directly from the entropy device
+if it has been loaded.
+If the entropy device is not loaded, then
+the
+.Fa buffer
+is ignored
+and zero is returned.
+The
+.Fa buffer
+is filled with no more than
+.Fa count
+bytes.
+It is strongly advised that
+.Fn read_random
+is not used;
+instead use
+.Fn arc4rand
+unless it is
+necessary to know
+that no entropy
+has been returned.
+.Pp
+The
+.Fn read_random_uio
+function behaves identically to
+.Xr read 2
+on
+.Pa /dev/random .
+The
+.Fa uio
+argument points to a buffer where random data should be stored.
+This function only returns data if the random device is seeded.
+It blocks if unseeded,
+except when the
+.Fa nonblock
+argument is true.
+.Pp
+All the bits returned by
+.Fn random ,
+.Fn arc4rand ,
+.Fn read_random ,
+and
+.Fn read_random_uio
+are usable.
+For example,
+.Sq Li random()&01
+will produce a random binary value.
+.Pp
+The
+.Fn arc4random
+is a convenience function which calls
+.Fn arc4rand
+to return a 32 bit pseudo-random integer.
+.Sh RETURN VALUES
+The
+.Fn random
+function uses
+a non-linear additive feedback random number generator
+employing a default table
+of size 31
+containing long integers
+to return successive pseudo-random
+numbers in the range from 0 to
+.if t 2\u\s731\s10\d\(mi1.
+.if n (2**31)\(mi1.
+The period of this random number generator
+is very large,
+approximately
+.if t 16\(mu(2\u\s731\s10\d\(mi1).
+.if n 16*((2**31)\(mi1).
+.Pp
+The
+.Fn arc4rand
+function uses the RC4 algorithm
+to generate successive pseudo-random bytes.
+The
+.Fn arc4random
+function uses
+.Fn arc4rand
+to generate pseudo-random numbers
+in the range from 0 to
+.if t 2\u\s732\s10\d\(mi1.
+.if n (2**32)\(mi1.
+.Pp
+The
+.Fn read_random
+function returns
+the number of bytes placed in
+.Fa buffer .
+.Pp
+.Fn read_random_uio
+returns zero when successful,
+otherwise an error code is returned.
+.Sh ERRORS
+.Fn read_random_uio
+may fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+.Fa uio
+points to an invalid memory region.
+.It Bq Er EWOULDBLOCK
+The random device is unseeded and
+.Fa nonblock
+is true.
+.El
+.Sh AUTHORS
+.An Dan Moschuk
+wrote
+.Fn arc4random .
+.An Mark R V Murray
+wrote
+.Fn read_random .

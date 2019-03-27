@@ -1,0 +1,16 @@
+$FreeBSD$
+
+This directory has various tools for use with the net80211 layer.
+Some may not work depending on the capabilities of the underyling
+wireless driver.  Everything should work with ath.
+
+scripts		various scripts to test wireless configurations
+stumbler	view nearby networks using raw packet interface
+w00t		variety of programs that use the raw packet interface
+wesside		WEP frag attack tool using raw packet interface
+wlaninject	inject 802.11 packets using the raw packet interface
+wlanstats	dump net80211 statistics
+wlanwatch	monitor net80211 events via the routing socket
+wlanwds		handling of WDS dynamic links using vaps
+
+The raw packet tools are from Andrea Bittau <a.bittau@cs.ucl.ac.uk>.

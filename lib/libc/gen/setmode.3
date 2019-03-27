@@ -1,0 +1,127 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)setmode.3	8.2 (Berkeley) 4/28/95
+.\" $FreeBSD$
+.\"
+.Dd February 22, 2015
+.Dt SETMODE 3
+.Os
+.Sh NAME
+.Nm getmode ,
+.Nm setmode
+.Nd modify mode bits
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft mode_t
+.Fn getmode "const void *set" "mode_t mode"
+.Ft void *
+.Fn setmode "const char *mode_str"
+.Sh DESCRIPTION
+The
+.Fn getmode
+function
+returns a copy of the file permission bits
+.Fa mode
+as altered by the values pointed to by
+.Fa set .
+While only the mode bits are altered, other parts of the file mode
+may be examined.
+.Pp
+The
+.Fn setmode
+function
+takes an absolute (octal) or symbolic value, as described in
+.Xr chmod 1 ,
+as an argument
+and returns a pointer to mode values to be supplied to
+.Fn getmode .
+Because some of the symbolic values are relative to the file
+creation mask,
+.Fn setmode
+may call
+.Xr umask 2 .
+If this occurs, the file creation mask will be restored before
+.Fn setmode
+returns.
+If the calling program changes the value of its file creation mask
+after calling
+.Fn setmode ,
+.Fn setmode
+must be called again if
+.Fn getmode
+is to modify future file modes correctly.
+.Pp
+If the mode passed to
+.Fn setmode
+is invalid or if memory cannot be allocated for the return value,
+.Fn setmode
+returns
+.Dv NULL .
+.Pp
+The value returned from
+.Fn setmode
+is obtained from
+.Fn malloc
+and should be returned to the system with
+.Fn free
+when the program is done with it, generally after a call to
+.Fn getmode .
+.Sh ERRORS
+The
+.Fn setmode
+function
+may fail and set errno for any of the errors specified for the library
+routine
+.Xr malloc 3
+or
+.Xr strtol 3 .
+In addition,
+.Fn setmode
+will fail and set
+.Va errno
+to:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa mode
+argument does not represent a valid mode.
+.El
+.Sh SEE ALSO
+.Xr chmod 1 ,
+.Xr stat 2 ,
+.Xr umask 2 ,
+.Xr malloc 3
+.Sh HISTORY
+The
+.Fn getmode
+and
+.Fn setmode
+functions first appeared in
+.Bx 4.4 .

@@ -1,0 +1,212 @@
+<div class="line">
+  <div class="title">Sample text</div>
+</div>
+<div class="line">
+  <div class="text">This sample text was taken from the Punjabi Wikipedia article on Lahore and transliterated into the Latin script.</div>
+</div>
+<div class="line">
+  <div class="title">Gurmukhi:</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="gurmukhi">ਲਹੌਰ ਪਾਕਿਸਤਾਨੀ ਪੰਜਾਬ ਦੀ ਰਾਜਧਾਨੀ ਹੈ । ਲੋਕ ਗਿਣਤੀ ਦੇ ਨਾਲ ਕਰਾਚੀ ਤੋਂ ਬਾਅਦ ਲਹੌਰ ਦੂਜਾ ਸਭ ਤੋਂ ਵੱਡਾ ਸ਼ਹਿਰ ਹੈ । ਲਹੌਰ ਪਾਕਿਸਤਾਨ ਦਾ ਸਿਆਸੀ, ਰਹਤਲੀ ਤੇ ਪੜ੍ਹਾਈ ਦਾ ਗੜ੍ਹ ਹੈ ਅਤੇ ਇਸ ਲਈ ਇਹਨੂੰ ਪਾਕਿਸਤਾਨ ਦਾ ਦਿਲ ਵੀ ਕਿਹਾ ਜਾਂਦਾ ਹੈ । ਲਹੌਰ ਦਰਿਆ-ਏ-ਰਾਵੀ ਦੇ ਕੰਢੇ ਤੇ ਵਸਦਾ ਹੈ ਤੇ ਇਸਦੀ ਲੋਕ ਗਿਣਤੀ ਇੱਕ ਕਰੋੜ ਦੇ ਨੇੜੇ ਹੈ ।</div>
+</div>
+<div class="line">
+  <div class="title">Shahmukhi:</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="shahmukhi">لہور پاکستانی پنجاب دا دارالحکومت اے۔ لوک گنتی دے نال کراچی توں بعد لہور دوجا سبھ توں وڈا شہر اے۔ لہور پاکستان دا سیاسی، رہتلی تے پڑھائی دا گڑھ اے تے اس لئی ایھنوں پاکستان دا دل وی کیھا جاندا اے۔ لہور دریاۓ راوی دے کنڈھے تے وسدا اے اسدی لوک گنتی اک کروڑ دے نیڑے اے ۔</div>
+</div>
+<div class="line">
+  <div class="title">Transliteration</div>
+  <div class="text">:</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="tranliteration">lahor pākistān panjāb dā dārul hakūmat ē. lōk giṇtī dē nāḷ karācī tō᷈ bāad lahor dūjā sab tō᷈ vaḍḍā shahr ē. lahor pākistān dā siāsī, rahtalī tē paṛā̀ī dā gā́ṛ ē tē is laī ihnū᷈ pākistān dā dil vī kehā jāndā ē. lahor dariāē rāvī dē kanḍē tē vasdā ē. isdī lōk giṇtī ikk karōṛ dē nēṛē ē.</div>
+</div>
+<div class="line">
+  <div class="text">Wide char: </div>
+  <div class="data" data-tag="wc">෴ - 0xdf4 - 1</div>
+</div>
+<div class="line">
+  <div class="text">Wide char: </div>
+  <div class="data" data-tag="wc">ණ - 0xdab - 1</div>
+</div>
+<div class="line">
+  <div class="text">Wide char: </div>
+  <div class="data" data-tag="wc">් - 0xdca - 0</div>
+</div>
+<div class="line">
+  <div class="text">Wide char: </div>
+  <div class="data" data-tag="wc">ණ - 0xdab - 1</div>
+</div>
+<div class="line">
+  <div class="text">Wide char: </div>
+  <div class="data" data-tag="wc">្ - 0x17d2 - 0</div>
+</div>
+<div class="line">
+  <div class="text">Wide char: </div>
+  <div class="data" data-tag="wc">෴ - 0xdf4 - 1</div>
+</div>
+<div class="line">
+  <div class="text">Wide char: </div>
+  <div class="data" data-tag="wc">1 - 0x31 - 1</div>
+</div>
+<div class="line">
+  <div class="text">Wide char: </div>
+  <div class="data" data-tag="wc">͏ - 0x34f - 0</div>
+</div>
+<div class="line">
+  <div class="text">Wide char: </div>
+  <div class="data" data-tag="wc">2 - 0x32 - 1</div>
+</div>
+<div class="line">
+  <div class="text">Wide char: </div>
+  <div class="data" data-tag="wc">⃝ - 0x20dd - 0</div>
+</div>
+<div class="line">
+  <div class="text">Cool: [</div>
+  <div class="data" data-tag="fancy">1͏2⃝</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="text">Οὐχὶ ταὐτὰ παρίσταταί μοι </div>
+  <div class="data" data-tag="v1">γιγνώσκειν</div>
+  <div class="text">, </div>
+  <div class="data" data-tag="v2">ὦ ἄνδρες ᾿Αθηναῖοι</div>
+</div>
+<div class="line">
+  <div class="text">გთხოვთ </div>
+  <div class="data" data-tag="v1">ახლავე გაიაროთ რეგისტრაცია</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="v2">Unicode-ის მეათე საერთაშორისო</div>
+</div>
+<div class="line">
+  <div class="title">Width</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="width">63</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="sinhala">෴ණ්ණ෴</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="title">Width</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="width">6</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="sinhala">෴</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="title">Width</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="width">3</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="sinhala">෴ණ්ණ෴</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="title">Width</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="width">6</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="not-sinhala">1234</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="text">[</div>
+  <div class="data" data-tag="tag">ර්‍ඝ</div>
+  <div class="text">]</div>
+</div>
+<div class="line">
+  <div class="title">Width</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="width">4</div>
+</div>
+<div class="line">
+  <div class="title">First Name               </div>
+  <div class="title">Last Name     </div>
+  <div class="title">Department  </div>
+  <div class="title">Time (%)</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="first-name">Jim</div>
+  <div class="text"> (</div>
+  <div class="data" data-tag="nic-name">"რეგტ"</div>
+  <div class="text">)</div>
+  <div class="padding">             </div>
+  <div class="data" data-tag="last-name">გთხოვთ ახ     </div>
+  <div class="data" data-tag="department">     431</div>
+  <div class="data" data-tag="percent-time">      90</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="first-name">Terry</div>
+  <div class="text"> (</div>
+  <div class="data" data-tag="nic-name">"&lt;one"</div>
+  <div class="text">)</div>
+  <div class="padding">           </div>
+  <div class="data" data-tag="last-name">Οὐχὶ ταὐτὰ παρ</div>
+  <div class="data" data-tag="department">     660</div>
+  <div class="data" data-tag="percent-time">      90</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="first-name">Leslie</div>
+  <div class="text"> (</div>
+  <div class="data" data-tag="nic-name">"Les"</div>
+  <div class="text">)</div>
+  <div class="padding">           </div>
+  <div class="data" data-tag="last-name">Patterson     </div>
+  <div class="data" data-tag="department">     341</div>
+  <div class="data" data-tag="percent-time">      60</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="first-name">Ashley</div>
+  <div class="text"> (</div>
+  <div class="data" data-tag="nic-name">"Ash"</div>
+  <div class="text">)</div>
+  <div class="padding">           </div>
+  <div class="data" data-tag="last-name">Meter &amp; Smith </div>
+  <div class="data" data-tag="department">    1440</div>
+  <div class="data" data-tag="percent-time">      40</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="first-name">0123456789</div>
+  <div class="text"> (</div>
+  <div class="data" data-tag="nic-name">"0123456789"</div>
+  <div class="text">)</div>
+  <div class="data" data-tag="last-name">01234567890123</div>
+  <div class="data" data-tag="department">    1440</div>
+  <div class="data" data-tag="percent-time">      40</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="first-name">ახლა</div>
+  <div class="text"> (</div>
+  <div class="data" data-tag="nic-name">"გაიარო"</div>
+  <div class="text">)</div>
+  <div class="padding">          </div>
+  <div class="data" data-tag="last-name">საერთაშორისო  </div>
+  <div class="data" data-tag="department">     123</div>
+  <div class="data" data-tag="percent-time">      90</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="first-name">෴ණ්ණ෴෴ණ්ණ෴</div>
+  <div class="text"> (</div>
+  <div class="data" data-tag="nic-name">"Mick"</div>
+  <div class="text">)</div>
+  <div class="padding">        </div>
+  <div class="data" data-tag="last-name">෴ණ්ණ෴෴ණ්ණ෴෴ණ්ණ෴෴෴</div>
+  <div class="data" data-tag="department">     110</div>
+  <div class="data" data-tag="percent-time">      20</div>
+</div>

@@ -1,0 +1,7 @@
+#
+# DEFAULTS -- Default kernel configuration file for FreeBSD/arm
+#
+# $FreeBSD$
+
+device		mem
+

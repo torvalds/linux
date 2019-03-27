@@ -1,0 +1,287 @@
+.\" Copyright (c) 2003
+.\"	Bill Paul <wpaul@windriver.com>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 21, 2016
+.Dt RE 4
+.Os
+.Sh NAME
+.Nm re
+.Nd "RealTek 8139C+/8169/816xS/811xS/8168/810xE/8111 PCI/PCIe Ethernet adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device re"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_re_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various NICs based on the RealTek RTL8139C+,
+RTL8169, RTL816xS, RTL811xS, RTL8168, RTL810xE and RTL8111 PCI and
+PCIe Ethernet controllers.
+.Pp
+NICs based on the 8139C+ and 810xE are capable of 10 and 100Mbps speeds
+over CAT5 cable.
+NICs based on the 8169, 816xS, 811xS, 8168 and 8111 are capable of 10, 100
+and 1000Mbps operation.
+.Pp
+All NICs supported by the
+.Nm
+driver have TCP/IP checksum offload and hardware VLAN tagging/insertion
+features, and use a descriptor-based DMA mechanism.
+They are also
+capable of TCP large send (TCP segmentation offload).
+.Pp
+The 8139C+ is a single-chip solution combining both a 10/100 MAC and PHY.
+The 8169 is a 10/100/1000 MAC only, requiring a GMII or TBI external PHY.
+The 816xS, 811xS, 8168 and 8111 are single-chip devices containing both a
+10/100/1000 MAC and 10/100/1000 copper PHY.
+Standalone 10/100/1000 cards are available
+in both 32-bit PCI and 64-bit PCI models.
+The 8110S is designed for
+embedded LAN-on-motherboard applications.
+.Pp
+The 8169, 8169S and 8110S also support jumbo frames, which can be configured
+via the interface MTU setting.
+The MTU is limited to 7422, since the chip cannot transmit larger frames.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit jumbo frames.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to
+.Xr rc.conf 5 .
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 1000baseTX
+Set 1000baseTX operation over twisted pair.
+The RealTek gigE chips support 1000Mbps in
+.Cm full-duplex
+mode only.
+.\" .It Cm 1000baseSX
+.\" Set 1000Mbps (Gigabit Ethernet) operation.
+.\" Both
+.\" .Cm full-duplex
+.\" and
+.\" .Cm half-duplex
+.\" modes are supported.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports RealTek RTL8139C+, RTL8169, RTL816xS, RTL811xS, RTL8168,
+RTL810xE and RTL8111 based Fast Ethernet and Gigabit Ethernet adapters including:
+.Pp
+.Bl -bullet -compact
+.It
+Alloy Computer Products EtherGOLD 1439E 10/100 (8139C+)
+.It
+Compaq Evo N1015v Integrated Ethernet (8139C+)
+.It
+Corega CG-LAPCIGT Gigabit Ethernet (8169S)
+.It
+D-Link DGE-528(T) Gigabit Ethernet (8169S)
+.It
+Gigabyte 7N400 Pro2 Integrated Gigabit Ethernet (8110S)
+.It
+LevelOne GNC-0105T (8169S)
+.It
+LinkSys EG1032 (32-bit PCI)
+.It
+PLANEX COMMUNICATIONS Inc.\& GN-1200TC (8169S)
+.It
+TP-Link TG-3468 v2 Gigabit Ethernet (8168)
+.It
+USRobotics USR997902 Gigabit Ethernet (8169S)
+.It
+Xterasys XN-152 10/100/1000 NIC (8169)
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "xxxxxx"
+.It Va hw.re.intr_filter
+This tunable makes driver use interrupt filter handler on
+controllers that support MSI/MSI-X capability.
+If MSI/MSI-X is disabled by administrator this tunable has no
+effect and driver will use interrupt filter handler.
+The default value is 0 to use interrupt thread handler.
+.It Va hw.re.msi_disable
+This tunable disables MSI support on the Ethernet hardware.
+The default value is 0.
+.It Va hw.re.msix_disable
+This tunable disables MSI-X support on the Ethernet hardware.
+The default value is 0.
+.It Va hw.re.prefer_iomap
+This tunable controls which register mapping should be used on the
+specified device.
+A non-zero value enables I/O space register mapping.
+The default value is 0 to use memory space register mapping.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width "xxxxxx"
+.It Va dev.re.%d.int_rx_mod
+Maximum amount of time to delay receive interrupt processing in
+units of 1us.
+The accepted range is 0 to 65, the default is 65(65us).
+Value 0 completely disables the interrupt moderation.
+The interface need to be brought down and up again before a change
+takes effect.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "re%d: couldn't map memory"
+A fatal initialization error has occurred.
+.It "re%d: couldn't map ports"
+A fatal initialization error has occurred.
+.It "re%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "re%d: no memory for softc struct!"
+The driver failed to allocate memory for per-device instance information
+during initialization.
+.It "re%d: failed to enable memory mapping!"
+The driver failed to initialize PCI shared memory mapping.
+This might
+happen if the card is not in a bus-master slot.
+.It "re%d: no memory for jumbo buffers!"
+The driver failed to allocate memory for jumbo frames during
+initialization.
+.It "re%d: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr polling 4 ,
+.Xr rgephy 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Rs
+.%T RealTek Semiconductor RTL8139C+, RTL8169, RTL8169S and RTL8110S datasheets
+.%U http://www.realtek.com.tw/
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.2 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@windriver.com .
+.Sh BUGS
+The Xterasys XN-152 32-bit PCI NIC, which uses the RTL8169 MAC and
+Marvell 88E1000 PHY, has a defect that causes DMA corruption
+if the board is plugged into a 64-bit PCI slot.
+The defect
+lies in the board design, not the chip itself: the PCI REQ64# and ACK64#
+lines should be pulled high, but they are not.
+The result is that the
+8169 chip is tricked into performing 64-bit DMA transfers even though
+a 64-bit data path between the NIC and the bus does not actually exist.
+.Pp
+Unfortunately, it is not possible to correct this problem in software,
+however it is possible to detect it.
+When the
+.Nm
+driver is loaded, it will run a diagnostic routine designed to
+validate DMA operation by placing the chip in digital loopback mode
+and initiating a packet transmission.
+If the card functions properly,
+the transmitted data will
+be echoed back unmodified.
+If the echoed data is corrupt, the driver
+will print an error message on the console and abort the device attach.
+The
+user should ensure the NIC is installed in a 32-bit PCI slot to
+avoid this problem.
+.Pp
+The RealTek 8169, 8169S and 8110S chips appear to only be capable of
+transmitting jumbo frames up to 7.5K in size.

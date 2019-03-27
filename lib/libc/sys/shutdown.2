@@ -1,0 +1,171 @@
+.\" Copyright (c) 2007 Bruce M. Simpson.
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)shutdown.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd July 27, 2015
+.Dt SHUTDOWN 2
+.Os
+.Sh NAME
+.Nm shutdown
+.Nd disable sends and/or receives on a socket
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.Ft int
+.Fn shutdown "int s" "int how"
+.Sh DESCRIPTION
+The
+.Fn shutdown
+system call disables sends or receives on a socket.
+The
+.Fa how
+argument specifies the type of shutdown.
+Possible values are:
+.Bl -tag -width ".Dv SHUT_RDWR"
+.It Dv SHUT_RD
+Further receives will be disallowed.
+.It Dv SHUT_WR
+Further sends will be disallowed.
+This may cause actions specific to the protocol family of the socket
+.Fa s
+to happen; see
+.Sx IMPLEMENTATION NOTES .
+.It Dv SHUT_RDWR
+Further sends and receives will be disallowed.
+Implies
+.Dv SHUT_WR .
+.El
+.Pp
+If the file descriptor
+.Fa s
+is associated with a
+.Dv SOCK_STREAM
+socket, all or part of the full-duplex connection will be shut down.
+.\"
+.Sh IMPLEMENTATION NOTES
+The following protocol specific actions apply to the use of
+.Dv SHUT_WR
+(and potentially also
+.Dv SHUT_RDWR ) ,
+based on the properties of the socket associated with the file descriptor
+.Fa s .
+.Bl -column ".Dv PF_INET6" ".Dv SOCK_STREAM" ".Dv IPPROTO_SCTP"
+.It Sy Domain Ta Sy Type Ta Sy Protocol Ta Sy Action
+.It Dv PF_INET Ta Dv SOCK_DGRAM Ta Dv IPPROTO_SCTP Ta
+Failure,
+as socket is not connected.
+.It Dv PF_INET Ta Dv SOCK_DGRAM Ta Dv IPPROTO_UDP Ta
+Failure,
+as socket is not connected.
+.It Dv PF_INET Ta Dv SOCK_STREAM Ta Dv IPPROTO_SCTP Ta
+Send queued data and tear down association.
+.It Dv PF_INET Ta Dv SOCK_STREAM Ta Dv IPPROTO_TCP Ta
+Send queued data, wait for ACK, then send FIN.
+.It Dv PF_INET6 Ta Dv SOCK_DGRAM Ta Dv IPPROTO_SCTP Ta
+Failure,
+as socket is not connected.
+.It Dv PF_INET6 Ta Dv SOCK_DGRAM Ta Dv IPPROTO_UDP Ta
+Failure,
+as socket is not connected.
+.It Dv PF_INET6 Ta Dv SOCK_STREAM Ta Dv IPPROTO_SCTP Ta
+Send queued data and tear down association.
+.It Dv PF_INET6 Ta Dv SOCK_STREAM Ta Dv IPPROTO_TCP Ta
+Send queued data, wait for ACK, then send FIN.
+.El
+.\"
+.Sh RETURN VALUES
+.Rv -std shutdown
+.Sh ERRORS
+The
+.Fn shutdown
+system call fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa s
+argument is not a valid file descriptor.
+.It Bq Er EINVAL
+The
+.Fa how
+argument is invalid.
+.It Bq Er ENOTCONN
+The
+.Fa s
+argument specifies a socket which is not connected.
+.It Bq Er ENOTSOCK
+The
+.Fa s
+argument does not refer to a socket.
+.El
+.Sh SEE ALSO
+.Xr connect 2 ,
+.Xr socket 2 ,
+.Xr inet 4 ,
+.Xr inet6 4
+.Sh STANDARDS
+The
+.Fn shutdown
+system call is expected to comply with
+.St -p1003.1g-2000 ,
+when finalized.
+.Sh HISTORY
+The
+.Fn shutdown
+system call appeared in
+.Bx 4.2 .
+The
+.Dv SHUT_RD , SHUT_WR ,
+and
+.Dv SHUT_RDWR
+constants appeared in
+.St -p1003.1g-2000 .
+.Sh AUTHORS
+.An -nosplit
+This manual page was updated by
+.An Bruce M. Simpson Aq Mt bms@FreeBSD.org
+to reflect how
+.Fn shutdown
+behaves with
+.Dv PF_INET
+and
+.Dv PF_INET6
+sockets.
+.Sh BUGS
+The ICMP
+.Dq Li "port unreachable"
+message should be generated in response to
+datagrams received on a local port to which
+.Fa s
+is bound
+after
+.Fn shutdown
+is called.

@@ -1,0 +1,75 @@
+#!/bin/sh
+
+# Copyright (c) 2018 M. Warner Losh
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+# PROVIDE: devmatch
+# REQUIRE: kldxref
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="devmatch"
+desc="Use devmatch(8) to load kernel modules"
+rcvar="${name}_enable"
+
+start_cmd="${name}_start"
+stop_cmd=':'
+one_nomatch="$2"
+
+devmatch_start()
+{
+	local x m list
+
+	if [ -n "$one_nomatch" ]; then
+		list=$(devmatch -p "${one_nomatch}" | sort -u)
+	else
+		list=$(devmatch | sort -u)
+	fi
+
+	[ -n "$list" ] || return
+
+	# While kldload can accept multiple modules
+	# on the line at once, we loop here in case
+	# there's some weird error with one of them.
+	# We also optimize against the false positives
+	# or drivers that have symbolic links that
+	# confuse devmatch by running it -n.
+	# Finally, we filter out all items in the
+	# devmactch_blacklist.
+	devctl freeze
+	x=$(echo ${devmatch_blacklist} | tr ' ' '#')
+	for m in ${list}; do
+		case "#${x}#" in
+		*"#${m}#"*) continue ;;
+		esac
+		echo "Autoloading module: ${m}"
+		kldload -n ${m}
+	done
+	devctl thaw
+}
+
+load_rc_config $name
+run_rc_command "$1"

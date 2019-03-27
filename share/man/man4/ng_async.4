@@ -1,0 +1,172 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_async.8,v 1.6 1999/01/25 23:46:25 archie Exp $
+.\"
+.Dd November 13, 2012
+.Dt NG_ASYNC 4
+.Os
+.Sh NAME
+.Nm ng_async
+.Nd asynchronous framing netgraph node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph/ng_async.h
+.Sh DESCRIPTION
+The
+.Nm async
+node type performs conversion between synchronous frames and
+asynchronous frames, as defined for the PPP protocol in RFC 1662.
+Asynchronous framing uses flag bytes and octet-stuffing
+to simulate a frame oriented connection over an octet-oriented
+asynchronous serial line.
+.Pp
+The node transmits and receives asynchronous data on the
+.Dv async
+hook.
+Mbuf boundaries of incoming data are ignored.
+Once a complete packet has been received, it is decoded and
+stripped of all framing bytes, and transmitted out the
+.Dv sync
+hook as a single frame.
+.Pp
+Synchronous frames are transmitted and received on the
+.Dv sync
+hook.
+Packets received on this hook are encoded as asynchronous frames
+and sent out on
+.Dv async .
+Received packets should start with the address and control fields,
+or the PPP protocol field if address and control field compression
+is employed, and contain no checksum field.
+If the first four bytes are
+.Dv "0xff 0x03 0xc0 0x21"
+(an LCP protocol frame) then complete control character escaping
+is enabled for that frame (in PPP, LCP packets are always sent with
+no address and control field compression and all control characters
+escaped).
+.Pp
+This node supports
+.Dq flag sharing
+for packets transmitted on
+.Dv async .
+This is an optimization where the trailing flag byte
+of one frame is shared with the opening flag byte of the next.
+Flag sharing between frames is disabled after one second of transmit
+idle time.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va async"
+.It Va async
+Asynchronous connection.
+Typically this hook would be connected to a
+.Xr ng_tty 4
+node, which handles transmission of serial data over a tty device.
+.It Va sync
+Synchronous connection.
+This hook sends and receives synchronous frames.
+For PPP, these frames should contain address, control, and protocol fields,
+but no checksum field.
+Typically this hook would be connected to an individual link hook of a
+.Xr ng_ppp 4
+type node.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_ASYNC_CMD_SET_CONFIG Pq Ic setconfig
+Sets the node configuration, which is described by a
+.Dv "struct ng_async_cfg" :
+.Bd -literal -offset 4n
+struct ng_async_cfg {
+	u_char    enabled;  /* Turn encoding on/off */
+	uint16_t  amru;     /* Max receive async frame length */
+	uint16_t  smru;     /* Max receive sync frame length */
+	uint32_t  accm;     /* ACCM encoding */
+};
+.Ed
+The
+.Dv enabled
+field enables or disables all encoding/decoding functions (default disabled).
+When disabled, the node operates in simple
+.Dq pass through
+mode.
+The
+.Dv amru
+and
+.Dv smru
+fields are the asynchronous and synchronous MRU (maximum receive unit) values,
+respectively.
+These both default to 1600; note that the async MRU
+applies to the incoming frame length after asynchronous decoding.
+The
+.Dv accm
+field is the asynchronous character control map, which controls the escaping
+of characters 0x00 thorough 0x1f (default 0xffffffff).
+.It Dv NGM_ASYNC_CMD_GET_CONFIG Pq Ic getconfig
+This command returns the current configuration structure.
+.It Dv NGM_ASYNC_CMD_GET_STATS Pq Ic getstats
+This command returns a
+.Dv "struct ng_async_stat"
+containing node statistics for packet, octet, and error counts.
+.It Dv NGM_ASYNC_CMD_CLR_STATS Pq Ic clrstats
+Clears the node statistics.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_ppp 4 ,
+.Xr ng_tty 4 ,
+.Xr ngctl 8
+.Rs
+.%A W. Simpson
+.%T "PPP in HDLC-link Framing"
+.%O RFC 1662
+.Re
+.Rs
+.%A W. Simpson
+.%T "The Point-to-Point Protocol (PPP)"
+.%O RFC 1661
+.Re
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Archie Cobbs Aq Mt archie@FreeBSD.org

@@ -1,0 +1,5 @@
+ensemble <- scan(file1, list(day=0, sec=0, gps=0, gpsw=0, loran=0, loranw=0, ensemble=0, std=0))
+str <- paste("eps/", file1, ".eps", sep="")
+postscript(str,  ,  ,  , 5, pointsize=18)
+par(mgp=c(1, 0, 0), tck = 0.03, mar = c(2, 2, 1, 1))
+plot(ensemble$sec, ensemble$ensemble, type="l", xlab=paste("MJD", ensemble$day, "Time (s)"), ylab="Ensemble Offset (ns)", ylim=c(-400, 400))

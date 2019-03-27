@@ -1,0 +1,9 @@
+#!/bin/sh
+# $Id: fselect2-stdout,v 1.6 2010/01/13 10:20:03 tom Exp $
+
+. ./setup-vars
+
+RESULT=`$DIALOG --stdout --title "Please choose a file" "$@" --fselect $HOME/ 0 0`
+retval=$?
+
+. ./report-string

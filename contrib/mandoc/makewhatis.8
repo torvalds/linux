@@ -1,0 +1,228 @@
+.\"	$Id: makewhatis.8,v 1.6 2017/05/17 22:27:12 schwarze Exp $
+.\"
+.\" Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
+.\" Copyright (c) 2011, 2012, 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: May 17 2017 $
+.Dt MAKEWHATIS 8
+.Os
+.Sh NAME
+.Nm makewhatis
+.Nd index UNIX manuals
+.Sh SYNOPSIS
+.Nm
+.Op Fl aDnpQ
+.Op Fl T Cm utf8
+.Op Fl C Ar file
+.Nm
+.Op Fl aDnpQ
+.Op Fl T Cm utf8
+.Ar dir ...
+.Nm
+.Op Fl DnpQ
+.Op Fl T Cm utf8
+.Fl d Ar dir
+.Op Ar
+.Nm
+.Op Fl Dnp
+.Op Fl T Cm utf8
+.Fl u Ar dir
+.Op Ar
+.Nm
+.Op Fl DQ
+.Fl t Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility extracts keywords from
+.Ux
+manuals and indexes them in a database for fast retrieval by
+.Xr apropos 1 ,
+.Xr whatis 1 ,
+and
+.Xr man 1 Ns 's
+.Fl k
+option.
+.Pp
+By default,
+.Nm
+creates a database in each
+.Ar dir
+using the files
+.Sm off
+.Sy man Ar section Li /
+.Op Ar arch Li /
+.Ar title . section
+.Sm on
+and
+.Sm off
+.Sy cat Ar section Li /
+.Op Ar arch Li /
+.Ar title . Sy 0
+.Sm on
+in that directory.
+Existing databases are replaced.
+If a directory contains no manual pages, no database is created in that
+directory.
+If
+.Ar dir
+is not provided,
+.Nm
+uses the default paths stipulated by
+.Xr man.conf 5 .
+.Pp
+The arguments are as follows:
+.Bl -tag -width "-C file"
+.It Fl a
+Use all directories and files found below
+.Ar dir ... .
+.It Fl C Ar file
+Specify an alternative configuration
+.Ar file
+in
+.Xr man.conf 5
+format.
+.It Fl D
+Display all files added or removed to the index.
+With a second
+.Fl D ,
+also show all keywords added for each file.
+.It Fl d Ar dir
+Merge (remove and re-add)
+.Ar
+to the database in
+.Ar dir .
+.It Fl n
+Do not create or modify any database; scan and parse only,
+and print manual page names and descriptions to standard output.
+.It Fl p
+Print warnings about potential problems with manual pages
+to the standard error output.
+.It Fl Q
+Quickly build reduced-size databases
+by reading only the NAME sections of manuals.
+The resulting databases will usually contain names and descriptions only.
+.It Fl T Cm utf8
+Use UTF-8 encoding instead of ASCII for strings stored in the databases.
+.It Fl t Ar
+Check the given
+.Ar files
+for potential problems.
+Implies
+.Fl a ,
+.Fl n ,
+and
+.Fl p .
+All diagnostic messages are printed to the standard output;
+the standard error output is not used.
+.It Fl u Ar dir
+Remove
+.Ar
+from the database in
+.Ar dir .
+If that causes the database to become empty, also delete the database file.
+.El
+.Pp
+If fatal parse errors are encountered while parsing, the offending file
+is printed to stderr, omitted from the index, and the parse continues
+with the next input file.
+.Sh ENVIRONMENT
+.Bl -tag -width MANPATH
+.It Ev MANPATH
+A colon-separated list of directories to create databases in.
+Ignored if a
+.Ar dir
+argument or the
+.Fl t
+option is specified.
+.El
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa mandoc.db
+A database of manpages relative to the directory of the file.
+This file is portable across architectures and systems, so long as the
+manpage hierarchy it indexes does not change.
+.It Pa /etc/man.conf
+The default
+.Xr man 1
+configuration file.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Pp
+.Bl -tag -width Ds -compact
+.It 0
+No errors occurred.
+.It 5
+Invalid command line arguments were specified.
+No input files have been read.
+.It 6
+An operating system error occurred, for example memory exhaustion or an
+error accessing input files.
+Such errors cause
+.Nm
+to exit at once, possibly in the middle of parsing or formatting a file.
+The output databases are corrupt and should be removed.
+.El
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr man 1 ,
+.Xr whatis 1 ,
+.Xr man.conf 5
+.Sh HISTORY
+A
+.Nm
+utility first appeared in
+.Bx 2 .
+It was rewritten in
+.Xr perl 1
+for
+.Ox 2.7
+and in C for
+.Ox 5.6 .
+.Pp
+The
+.Ar dir
+argument first appeared in
+.Nx 1.0 ;
+the options
+.Fl dpt
+in
+.Ox 2.7 ;
+the option
+.Fl u
+in
+.Ox 3.4 ;
+and the options
+.Fl aCDnQT
+in
+.Ox 5.6 .
+.Sh AUTHORS
+.An -nosplit
+.An Bill Joy
+wrote the original
+.Bx
+.Nm
+in February 1979,
+.An Marc Espie
+started the Perl version in 2000,
+and the current version of
+.Nm
+was written by
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
+and
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org .

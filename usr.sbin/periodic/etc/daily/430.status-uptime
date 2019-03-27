@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_status_uptime_enable" in
+    [Yy][Ee][Ss])
+	rwho=$(echo /var/rwho/*)
+        if [ -f "${rwho%% *}" ]
+        then
+	    echo ""
+	    echo "Local network system status:"
+	    prog=ruptime
+	else
+	    echo ""
+	    echo "Local system status:"
+	    prog=uptime
+	fi
+	rc=$($prog | tee /dev/stderr | wc -l)
+	if [ $? -eq 0 ]
+	then
+	    [ $rc -gt 1 ] && rc=1
+	else
+	    rc=3
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

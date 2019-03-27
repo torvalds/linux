@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Build the GNU C++ stack (g++, libstdc++).
+This is the default on platforms where gcc is the system compiler.

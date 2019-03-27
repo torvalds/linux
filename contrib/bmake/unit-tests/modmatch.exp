@@ -1,0 +1,20 @@
+LIB=a X_LIBS:M${LIB${LIB:tu}} is "/tmp/liba.a"
+LIB=a X_LIBS:M*/lib${LIB}.a is "/tmp/liba.a"
+LIB=a X_LIBS:M*/lib${LIB}.a:tu is "/TMP/LIBA.A"
+LIB=b X_LIBS:M${LIB${LIB:tu}} is ""
+LIB=b X_LIBS:M*/lib${LIB}.a is ""
+LIB=b X_LIBS:M*/lib${LIB}.a:tu is ""
+LIB=c X_LIBS:M${LIB${LIB:tu}} is ""
+LIB=c X_LIBS:M*/lib${LIB}.a is ""
+LIB=c X_LIBS:M*/lib${LIB}.a:tu is ""
+LIB=d X_LIBS:M${LIB${LIB:tu}} is "/tmp/libd.a"
+LIB=d X_LIBS:M*/lib${LIB}.a is "/tmp/libd.a"
+LIB=d X_LIBS:M*/lib${LIB}.a:tu is "/TMP/LIBD.A"
+LIB=e X_LIBS:M${LIB${LIB:tu}} is "/tmp/libe.a"
+LIB=e X_LIBS:M*/lib${LIB}.a is "/tmp/libe.a"
+LIB=e X_LIBS:M*/lib${LIB}.a:tu is "/TMP/LIBE.A"
+Mscanner=OK
+Upper=One Two Three Four
+Lower=five six seven
+nose=One Three five
+exit status 0

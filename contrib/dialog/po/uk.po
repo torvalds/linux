@@ -1,0 +1,113 @@
+# translation of uk.po to Ukrainian
+# Dialog
+# Copyright 2003, # Thomas Dickey
+# Eugeniy Meshcheryakov <eugen@univ.kiev.ua>, 2004.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: uk\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2004-02-12 20:17+0200\n"
+"Last-Translator: Eugeniy Meshcheryakov <eugen@univ.kiev.ua>\n"
+"Language-Team: Ukrainian\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.0.2\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "Так"
+
+#: buttons.c:393
+msgid "No"
+msgstr "Ні"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "Гаразд"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "Скасувати"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "ВИЙТИ"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "Додатково"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "Допомога"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "Місяць"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "Рік"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "Перейменувати"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "Каталоги"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "Файли"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr ""
+
+#: mixedgauge.c:61
+#, fuzzy
+msgid "Failed"
+msgstr "Файли"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr ""
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr ""
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr ""
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr ""
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr ""
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr ""
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr ""
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr ""
+
+#: textbox.c:489
+#, fuzzy
+msgid "Search"
+msgstr "Search"

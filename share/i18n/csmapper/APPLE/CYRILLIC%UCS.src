@@ -1,0 +1,272 @@
+# $FreeBSD$
+# $NetBSD: CYRILLIC%UCS.src,v 1.1 2006/03/13 19:45:36 tnozaki Exp $
+
+TYPE		ROWCOL
+NAME		CYRILLIC/UCS
+SRC_ZONE	0x00-0xFF
+OOB_MODE	ILSEQ
+DST_ILSEQ	0xFFFE
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#
+# This mapping data is made from the mapping data provided by Unicode, Inc.
+# Original notice:
+#
+#=======================================================================
+#   File name:  CYRILLIC.TXT
+#
+#   Contents:   Map (external version) from Mac OS Cyrillic
+#               character set to Unicode 2.1 and later.
+#
+#   Copyright:  (c) 1995-2002, 2005 by Apple Computer, Inc., all rights
+#               reserved.
+#
+#   Contact:    charsets@apple.com
+#
+#   Changes:
+#
+#       c03  2005-Apr-05    Update header comments. Matches internal xml
+#                           <c1.1> and Text Encoding Converter 2.0.
+#      b3,c1 2002-Dec-19    Update URLs, notes. Matches internal
+#                           utom<b2>.
+#       b02  1999-Sep-22    Encoding changed for Mac OS 9.0 to merge
+#                           with Mac OS Ukrainian and support EURO SIGN;
+#                           Change mappings for 0xA2, 0xB6, and 0xFF.
+#                           Update contact e-mail address. Matches
+#                           internal utom<b2>, ufrm<b2>, and Text
+#                           Encoding Converter version 1.5.
+#       n05  1998-Feb-05    Update header comments to new format; no
+#                           mapping changes.  Matches internal utom<n3>,
+#                           ufrm<n13>, and Text Encoding Converter
+#                           version 1.3.
+#       n03  1995-Apr-15    First version (after fixing some typos).
+#                           Matches internal ufrm<n5>.
+#
+# Standard header:
+# ----------------
+#
+#   Apple, the Apple logo, and Macintosh are trademarks of Apple
+#   Computer, Inc., registered in the United States and other countries.
+#   Unicode is a trademark of Unicode Inc. For the sake of brevity,
+#   throughout this document, "Macintosh" can be used to refer to
+#   Macintosh computers and "Unicode" can be used to refer to the
+#   Unicode standard.
+#
+#   Apple Computer, Inc. ("Apple") makes no warranty or representation,
+#   either express or implied, with respect to this document and the
+#   included data, its quality, accuracy, or fitness for a particular
+#   purpose. In no event will Apple be liable for direct, indirect,
+#   special, incidental, or consequential damages resulting from any
+#   defect or inaccuracy in this document or the included data.
+#
+#   These mapping tables and character lists are subject to change.
+#   The latest tables should be available from the following:
+#
+#   <http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/>
+#
+#   For general information about Mac OS encodings and these mapping
+#   tables, see the file "README.TXT".
+#
+# Format:
+# -------
+#
+#   Three tab-separated columns;
+#   '#' begins a comment which continues to the end of the line.
+#     Column #1 is the Mac OS Cyrillic code (in hex as 0xNN)
+#     Column #2 is the corresponding Unicode (in hex as 0xNNNN)
+#     Column #3 is a comment containing the Unicode name
+#
+#   The entries are in Mac OS Cyrillic code order.
+#
+#   Control character mappings are not shown in this table, following
+#   the conventions of the standard UTC mapping tables. However, the
+#   Mac OS Cyrillic character set uses the standard control characters
+#   at 0x00-0x1F and 0x7F.
+#
+# Notes on Mac OS Cyrillic:
+# -------------------------
+#
+#   This is a legacy Mac OS encoding; in the Mac OS X Carbon and Cocoa
+#   environments, it is only supported directly in programming
+#   interfaces for QuickDraw Text, the Script Manager, and related
+#   Text Utilities. For other purposes it is supported via transcoding
+#   to and from Unicode.
+#
+#   This is the "Euro sign" version of Mac Cyrillic for Mac OS 9.0 and
+#   later. Before Mac OS 9.0, there were two separate Slavic Cyrillic
+#   encodings:
+#
+#   1. The Cyrillic currency sign variant (used for localized Russian
+#      and Bulgarian systems), which had the following:
+#       0xA2  U+00A2 CENT SIGN
+#       0xB6  U+2202 PARTIAL DIFFERENTIAL
+#       0xFF  U+00A4 CURRENCY SIGN
+#
+#   2. The Ukrainian currency sign variant (used for localized Ukrainian
+#      systems and the pre-9.0 Cyrillic Language Kit), which had the
+#      following:
+#       0xA2  U+0490 CYRILLIC CAPITAL LETTER GHE WITH UPTURN
+#       0xB6  U+0491 CYRILLIC SMALL LETTER GHE WITH UPTURN
+#       0xFF  U+00A4 CURRENCY SIGN
+#
+#   This new Cyrillic Euro sign version is based on the old Ukrainian
+#   currency sign variant, with 0xFF changed to be EURO SIGN.
+#
+#   The Mac OS Cyrillic encoding includes the Cyrillic letter repertoire
+#   of ISO 8859-5 (although not at the same code points). This covers
+#   most of the Slavic languages written in Cyrillic script.
+#
+#   The Mac OS Cyrillic encoding also includes a number of characters
+#   needed for the Mac OS user interface and localization (e.g.
+#   ellipsis, bullet, copyright sign). All of the characters in Mac OS
+#   Cyrillic that are also in the Mac OS Roman encoding are at the
+#   same code point in both; this improves application compatibility.
+#
+#   Note: There is a common Ukrainian glyph variation in which the glyph
+#   for CYRILLIC CAPITAL LETTER BYELORUSSIAN-UKRAINIAN I may or may not
+#   have a dot above.
+#
+# Unicode mapping issues and notes:
+# ---------------------------------
+#
+# Details of mapping changes in each version:
+# -------------------------------------------
+#
+#   Changes from version n05 to version b02:
+#
+#   - Encoding changed for Mac OS 9.0 to merge with Mac OS Ukrainian and
+#   support EURO SIGN. 0xA2 changed from U+00A2 to U+0490; 0xB6 changed
+#   from U+2202 to U+0491; 0xFF changed from U+00A4 to U+20AC.
+#
+##################
+0x00 - 0x7E = 0x00 -
+0x80 = 0x0410
+0x81 = 0x0411
+0x82 = 0x0412
+0x83 = 0x0413
+0x84 = 0x0414
+0x85 = 0x0415
+0x86 = 0x0416
+0x87 = 0x0417
+0x88 = 0x0418
+0x89 = 0x0419
+0x8A = 0x041A
+0x8B = 0x041B
+0x8C = 0x041C
+0x8D = 0x041D
+0x8E = 0x041E
+0x8F = 0x041F
+0x90 = 0x0420
+0x91 = 0x0421
+0x92 = 0x0422
+0x93 = 0x0423
+0x94 = 0x0424
+0x95 = 0x0425
+0x96 = 0x0426
+0x97 = 0x0427
+0x98 = 0x0428
+0x99 = 0x0429
+0x9A = 0x042A
+0x9B = 0x042B
+0x9C = 0x042C
+0x9D = 0x042D
+0x9E = 0x042E
+0x9F = 0x042F
+0xA0 = 0x2020
+0xA1 = 0x00B0
+0xA2 = 0x0490
+0xA3 = 0x00A3
+0xA4 = 0x00A7
+0xA5 = 0x2022
+0xA6 = 0x00B6
+0xA7 = 0x0406
+0xA8 = 0x00AE
+0xA9 = 0x00A9
+0xAA = 0x2122
+0xAB = 0x0402
+0xAC = 0x0452
+0xAD = 0x2260
+0xAE = 0x0403
+0xAF = 0x0453
+0xB0 = 0x221E
+0xB1 = 0x00B1
+0xB2 = 0x2264
+0xB3 = 0x2265
+0xB4 = 0x0456
+0xB5 = 0x00B5
+0xB6 = 0x0491
+0xB7 = 0x0408
+0xB8 = 0x0404
+0xB9 = 0x0454
+0xBA = 0x0407
+0xBB = 0x0457
+0xBC = 0x0409
+0xBD = 0x0459
+0xBE = 0x040A
+0xBF = 0x045A
+0xC0 = 0x0458
+0xC1 = 0x0405
+0xC2 = 0x00AC
+0xC3 = 0x221A
+0xC4 = 0x0192
+0xC5 = 0x2248
+0xC6 = 0x2206
+0xC7 = 0x00AB
+0xC8 = 0x00BB
+0xC9 = 0x2026
+0xCA = 0x00A0
+0xCB = 0x040B
+0xCC = 0x045B
+0xCD = 0x040C
+0xCE = 0x045C
+0xCF = 0x0455
+0xD0 = 0x2013
+0xD1 = 0x2014
+0xD2 = 0x201C
+0xD3 = 0x201D
+0xD4 = 0x2018
+0xD5 = 0x2019
+0xD6 = 0x00F7
+0xD7 = 0x201E
+0xD8 = 0x040E
+0xD9 = 0x045E
+0xDA = 0x040F
+0xDB = 0x045F
+0xDC = 0x2116
+0xDD = 0x0401
+0xDE = 0x0451
+0xDF = 0x044F
+0xE0 = 0x0430
+0xE1 = 0x0431
+0xE2 = 0x0432
+0xE3 = 0x0433
+0xE4 = 0x0434
+0xE5 = 0x0435
+0xE6 = 0x0436
+0xE7 = 0x0437
+0xE8 = 0x0438
+0xE9 = 0x0439
+0xEA = 0x043A
+0xEB = 0x043B
+0xEC = 0x043C
+0xED = 0x043D
+0xEE = 0x043E
+0xEF = 0x043F
+0xF0 = 0x0440
+0xF1 = 0x0441
+0xF2 = 0x0442
+0xF3 = 0x0443
+0xF4 = 0x0444
+0xF5 = 0x0445
+0xF6 = 0x0446
+0xF7 = 0x0447
+0xF8 = 0x0448
+0xF9 = 0x0449
+0xFA = 0x044A
+0xFB = 0x044B
+0xFC = 0x044C
+0xFD = 0x044D
+0xFE = 0x044E
+0xFF = 0x20AC
+END_MAP

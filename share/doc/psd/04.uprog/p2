@@ -1,0 +1,275 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.\"	@(#)p2	8.1 (Berkeley) 6/8/93
+.\"
+.NH
+BASICS
+.NH 2
+Program Arguments
+.PP
+When a C program is run as a command,
+the arguments on the command line are made available
+to the
+function
+.UL main
+as an argument count
+.UL argc
+and an array
+.UL argv
+of
+pointers to
+character strings
+that contain
+the arguments.
+By convention,
+.UL argv[0]
+is the command name itself,
+so
+.UL argc
+is always greater than 0.
+.PP
+The following program illustrates the mechanism:
+it simply echoes its arguments
+back to the terminal.
+(This is essentially the
+.UL echo
+command.)
+.P1
+main(argc, argv)	/* echo arguments */
+int argc;
+char *argv[];
+{
+	int i;
+
+	for (i = 1; i < argc; i++)
+		printf("%s%c", argv[i], (i<argc-1) ? ' ' : '\en');
+}
+.P2
+.UL argv
+is a pointer to an array
+whose individual elements are pointers to arrays of characters;
+each is terminated by
+.UL \e0 ,
+so they can be treated as strings.
+The program starts by printing 
+.UL argv[1]
+and loops until it has printed them all.
+.PP
+The argument count and the arguments
+are parameters to
+.UL main .
+If you want to keep them around so other
+routines can get at them, you must
+copy them to external variables.
+.NH 2
+The ``Standard Input'' and ``Standard Output''
+.PP
+The simplest input mechanism is to read the ``standard input,''
+which is generally the user's terminal.
+The function
+.UL getchar
+returns the next input character each time it is called.
+A file may be substituted for the terminal by
+using the
+.UL <
+convention: 
+if
+.UL prog
+uses 
+.UL getchar ,
+then
+the command line
+.P1
+prog <file
+.P2
+causes
+.UL prog
+to read
+.UL file
+instead of the terminal.
+.UL prog
+itself need know nothing about where its input
+is coming from.
+This is also true if the input comes from another program via
+the 
+.U 
+pipe mechanism:
+.P1
+otherprog | prog
+.P2
+provides the standard input for
+.UL prog
+from the standard output of
+.UL otherprog.
+.PP
+.UL getchar
+returns the value
+.UL EOF
+when it encounters the end of file
+(or an error)
+on whatever you are reading.
+The value of
+.UL EOF
+is normally defined to be
+.UL -1 ,
+but it is unwise to take any advantage
+of that knowledge.
+As will become clear shortly,
+this value is automatically defined for you when
+you compile a program,
+and need not be of any concern.
+.PP
+Similarly,
+.UL putchar(c)
+puts the character
+.UL c
+on the ``standard output,''
+which is also by default the terminal.
+The output can be captured on a file
+by using
+.UL > :
+if
+.UL prog
+uses
+.UL putchar ,
+.P1
+prog >outfile
+.P2
+writes the standard output on
+.UL outfile 
+instead of the terminal.
+.UL outfile
+is created if it doesn't exist;
+if it already exists, its previous contents are overwritten.
+And a pipe can be used:
+.P1
+prog | otherprog
+.P2
+puts the standard output of
+.UL prog
+into the standard input of
+.UL otherprog.
+.PP
+The function
+.UL printf ,
+which formats output in various ways,
+uses
+the same mechanism as
+.UL putchar
+does,
+so calls to
+.UL printf
+and
+.UL putchar
+may be intermixed in any order;
+the output will appear in the order of the calls.
+.PP
+Similarly, the function
+.UL scanf
+provides for formatted input conversion;
+it will read the standard input and break it
+up into strings, numbers, etc.,
+as desired.
+.UL scanf
+uses the same mechanism as
+.UL getchar ,
+so calls to them may also be intermixed.
+.PP
+Many programs
+read only one input and write one output;
+for such programs I/O
+with
+.UL getchar ,
+.UL putchar ,
+.UL scanf ,
+and
+.UL printf
+may be entirely adequate,
+and it is almost always enough to get started.
+This is particularly true if
+the
+.UC UNIX
+pipe facility is used to connect the output of
+one program to the input of the next.
+For example, the following program
+strips out all ascii control characters
+from its input
+(except for newline and tab).
+.P1
+#include <stdio.h>
+
+main()	/* ccstrip: strip non-graphic characters */
+{
+	int c;
+	while ((c = getchar()) != EOF)
+		if ((c >= ' ' && c < 0177) || c == '\et' || c == '\en')
+			putchar(c);
+	exit(0);
+}
+.P2
+The line
+.P1
+#include <stdio.h>
+.P2
+should appear at the beginning of each source file.
+It causes the C compiler to read a file
+.IT /usr/include/stdio.h ) (
+of
+standard routines and symbols
+that includes the definition of
+.UL EOF .
+.PP
+If it is necessary to treat multiple files,
+you can use
+.UL cat
+to collect the files for you:
+.P1
+cat file1 file2 ... | ccstrip >output
+.P2
+and thus avoid learning how to access files from a program.
+By the way,
+the call to
+.UL exit
+at the end is not necessary to make the program work
+properly,
+but it assures that any caller
+of the program will see a normal termination status
+(conventionally 0)
+from the program when it completes.
+Section 6 discusses status returns in more detail.

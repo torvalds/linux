@@ -1,0 +1,272 @@
+.\" Copyright (c) 1995 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)locate.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd August 17, 2006
+.Dt LOCATE 1
+.Os
+.Sh NAME
+.Nm locate
+.Nd find filenames quickly
+.Sh SYNOPSIS
+.Nm
+.Op Fl 0Scims
+.Op Fl l Ar limit
+.Op Fl d Ar database
+.Ar pattern ...
+.Sh DESCRIPTION
+The
+.Nm
+program searches a database for all pathnames which match the specified
+.Ar pattern .
+The database is recomputed periodically (usually weekly or daily),
+and contains the pathnames
+of all files which are publicly accessible.
+.Pp
+Shell globbing and quoting characters
+.Dq ( * ,
+.Dq \&? ,
+.Dq \e ,
+.Dq \&[
+and
+.Dq \&] )
+may be used in
+.Ar pattern ,
+although they will have to be escaped from the shell.
+Preceding any character with a backslash
+.Pq Dq \e
+eliminates any special
+meaning which it may have.
+The matching differs in that no characters must be matched explicitly,
+including slashes
+.Pq Dq / .
+.Pp
+As a special case, a pattern containing no globbing characters
+.Pq Dq foo
+is matched as though it were
+.Dq *foo* .
+.Pp
+Historically, locate only stored characters between 32 and 127.
+The
+current implementation store any character except newline
+.Pq Sq \en
+and
+.Dv NUL
+.Pq Sq \e0 .
+The 8-bit character support does not waste extra space for
+plain ASCII file names.
+Characters less than 32 or greater than 127
+are stored in 2 bytes.
+.Pp
+The following options are available:
+.Bl -tag -width 10n
+.It Fl 0
+Print pathnames separated by an
+.Tn ASCII
+.Dv NUL
+character (character code 0) instead of default NL
+(newline, character code 10).
+.It Fl S
+Print some statistics about the database and exit.
+.It Fl c
+Suppress normal output; instead print a count of matching file names.
+.It Fl d Ar database
+Search in
+.Ar database
+instead of the default file name database.
+Multiple
+.Fl d
+options are allowed.
+Each additional
+.Fl d
+option adds the specified database to the list
+of databases to be searched.
+.Pp
+The option
+.Ar database
+may be a colon-separated list of databases.
+A single colon is a reference
+to the default database.
+.Bd -literal
+$ locate -d $HOME/lib/mydb: foo
+.Ed
+.Pp
+will first search string
+.Dq foo
+in
+.Pa $HOME/lib/mydb
+and then in
+.Pa /var/db/locate.database .
+.Bd -literal
+$ locate -d $HOME/lib/mydb::/cdrom/locate.database foo
+.Ed
+.Pp
+will first search string
+.Dq foo
+in
+.Pa $HOME/lib/mydb
+and then in
+.Pa /var/db/locate.database
+and then in
+.Pa /cdrom/locate.database .
+.Pp
+.Dl "$ locate -d db1 -d db2 -d db3 pattern"
+.Pp
+is the same as
+.Pp
+.Dl "$ locate -d db1:db2:db3 pattern"
+.Pp
+or
+.Pp
+.Dl "$ locate -d db1:db2 -d db3 pattern"
+.Pp
+If
+.Fl
+is given as the database name, standard input will be read instead.
+For example, you can compress your database
+and use:
+.Bd -literal
+$ zcat database.gz | locate -d - pattern
+.Ed
+.Pp
+This might be useful on machines with a fast CPU and little RAM and slow
+I/O.
+Note: you can only use
+.Em one
+pattern for stdin.
+.It Fl i
+Ignore case distinctions in both the pattern and the database.
+.It Fl l Ar number
+Limit output to
+.Ar number
+of file names and exit.
+.It Fl m
+Use
+.Xr mmap 2
+instead of the
+.Xr stdio 3
+library.
+This is the default behavior
+and is faster in most cases.
+.It Fl s
+Use the
+.Xr stdio 3
+library instead of
+.Xr mmap 2 .
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width LOCATE_PATH -compact
+.It Pa LOCATE_PATH
+path to the locate database if set and not empty, ignored if the
+.Fl d
+option was specified.
+.El
+.Sh FILES
+.Bl -tag -width /etc/periodic/weekly/310.locate -compact
+.It Pa /var/db/locate.database
+locate database
+.It Pa /usr/libexec/locate.updatedb
+Script to update the locate database
+.It Pa /etc/periodic/weekly/310.locate
+Script that starts the database rebuild
+.El
+.Sh SEE ALSO
+.Xr find 1 ,
+.Xr whereis 1 ,
+.Xr which 1 ,
+.Xr fnmatch 3 ,
+.Xr locate.updatedb 8
+.Rs
+.%A Woods, James A.
+.%D 1983
+.%T "Finding Files Fast"
+.%J ";login"
+.%V 8:1
+.%P pp. 8-10
+.Re
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Bx 4.4 .
+Many new features were
+added in
+.Fx 2.2 .
+.Sh BUGS
+The
+.Nm
+program may fail to list some files that are present, or may
+list files that have been removed from the system.
+This is because
+locate only reports files that are present in the database, which is
+typically only regenerated once a week by the
+.Pa /etc/periodic/weekly/310.locate
+script.
+Use
+.Xr find 1
+to locate files that are of a more transitory nature.
+.Pp
+The
+.Nm
+database is typically built by user
+.Dq nobody
+and the
+.Xr locate.updatedb 8
+utility skips directories
+which are not readable for user
+.Dq nobody ,
+group
+.Dq nobody ,
+or
+world.
+For example, if your HOME directory is not world-readable,
+.Em none
+of your files are
+in the database.
+.Pp
+The
+.Nm
+database is not byte order independent.
+It is not possible
+to share the databases between machines with different byte order.
+The current
+.Nm
+implementation understands databases in host byte order or
+network byte order if both architectures use the same integer size.
+So on a
+.Fx Ns /i386
+machine
+(little endian), you can read
+a locate database which was built on SunOS/sparc machine
+(big endian, net).
+.Pp
+The
+.Nm
+utility does not recognize multibyte characters.

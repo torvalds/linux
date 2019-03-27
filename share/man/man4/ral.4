@@ -1,0 +1,304 @@
+.\" Copyright (c) 2005-2010 Damien Bergamini <damien.bergamini@free.fr>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 4, 2017
+.Dt RAL 4
+.Os
+.Sh NAME
+.Nm ral
+.Nd "Ralink Technology IEEE 802.11a/g/n wireless network device"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ral"
+.Cd "device ralfw"
+.Cd "device wlan"
+.Cd "device wlan_amrr"
+.Cd "device firmware"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ral_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports PCI/PCIe/CardBus wireless adapters based on the Ralink RT2500,
+RT2501, RT2600, RT2700, RT2800, RT3090 and RT3900E chipsets.
+.Pp
+The RT2500 chipset is the first generation of 802.11b/g adapters from Ralink.
+It consists of two integrated chips, an RT2560 MAC/BBP and an RT2525 radio
+transceiver.
+.Pp
+The RT2501 chipset is the second generation of 802.11a/b/g adapters from
+Ralink.
+It consists of two integrated chips, an RT2561 MAC/BBP and an RT2527 radio
+transceiver.
+This chipset provides support for the IEEE 802.11e standard with multiple
+hardware transmission queues and allows scatter/gather for efficient DMA
+operations.
+.Pp
+The RT2600 chipset consists of two integrated chips, an RT2661 MAC/BBP and an
+RT2529 radio transceiver.
+This chipset uses the MIMO (multiple-input multiple-output) technology with
+multiple radio transceivers to extend the operating range of the adapter and
+to achieve higher throughput.
+However, the RT2600 chipset does not support any of the 802.11n features.
+.Pp
+The RT2700 chipset is a low-cost version of the RT2800 chipset.
+It supports a single transmit path and two receiver paths (1T2R).
+It consists of two integrated chips, an RT2760 or RT2790 (PCIe) MAC/BBP and
+an RT2720 (2.4GHz) or RT2750 (2.4GHz/5GHz) radio transceiver.
+.Pp
+The RT2800 chipset is the first generation of 802.11n adapters from Ralink.
+It consists of two integrated chips, an RT2860 or RT2890 (PCIe) MAC/BBP and
+an RT2820 (2.4GHz) or RT2850 (2.4GHz/5GHz) radio transceiver.
+The RT2800 chipset supports two transmit paths and up to three receiver
+paths (2T2R/2T3R).
+It can achieve speeds up to 144Mbps (20MHz bandwidth) and 300Mbps (40MHz
+bandwidth.)
+.Pp
+The RT3090 chipset is the first generation of single-chip 802.11n adapters
+from Ralink.
+.Nm
+supports
+.Cm station ,
+.Cm adhoc ,
+.Cm hostap ,
+.Cm mesh ,
+.Cm wds ,
+and
+.Cm monitor
+mode operation.
+Only one
+.Cm hostap
+or
+.Cm mesh
+virtual interface may be configured at a time.
+Any number of
+.Cm wds
+virtual interfaces may be configured together with a
+.Cm hostap
+interface.
+Multiple
+.Cm station
+interfaces may be operated together with a
+.Cm hostap
+interface to construct a wireless repeater device.
+.Pp
+The RT3900E chipset is a single-chip 802.11n adapters from Ralink.
+The MAC/Baseband Processor can be an RT5390 or RT5392.
+The RT5390 chip operates in the 2GHz spectrum and supports 1 transmit path
+and 1 receiver path (1T1R).
+The RT5392 chip operates in the 2GHz spectrum and supports up to 2 transmit
+paths and 2 receiver paths (2T2R).
+.Pp
+The transmit speed is user-selectable or can be adapted automatically by the
+driver depending on the number of hardware transmission retries.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports PCI/PCIe/CardBus wireless adapters based on Ralink Technology
+chipsets, including:
+.Pp
+.Bl -column -compact ".Li Atlantis Land A02-PCM-W54" "RT2561S" "CardBus"
+.It Em Card Ta Em MAC/BBP Ta Em Bus
+.It "A-Link WL54H" Ta RT2560 Ta PCI
+.It "A-Link WL54PC" Ta RT2560 Ta CardBus
+.It "AirLink101 AWLC5025" Ta RT2661 Ta CardBus
+.It "AirLink101 AWLH5025" Ta RT2661 Ta PCI
+.It "Amigo AWI-914W" Ta RT2560 Ta CardBus
+.It "Amigo AWI-922W" Ta RT2560 Ta mini-PCI
+.It "Amigo AWI-926W" Ta RT2560 Ta PCI
+.It "AMIT WL531C" Ta RT2560 Ta CardBus
+.It "AMIT WL531P" Ta RT2560 Ta PCI
+.It "AOpen AOI-831" Ta RT2560 Ta PCI
+.It "ASUS WL-107G" Ta RT2560 Ta CardBus
+.It "ASUS WL-130g" Ta RT2560 Ta PCI
+.It "Atlantis Land A02-PCI-W54" Ta RT2560 Ta PCI
+.It "Atlantis Land A02-PCM-W54" Ta RT2560 Ta CardBus
+.It "Belkin F5D7000 v3" Ta RT2560 Ta PCI
+.It "Belkin F5D7010 v2" Ta RT2560 Ta CardBus
+.It "Billionton MIWLGRL" Ta RT2560 Ta mini-PCI
+.It "Canyon CN-WF511" Ta RT2560 Ta PCI
+.It "Canyon CN-WF513" Ta RT2560 Ta CardBus
+.It "CC&C WL-2102" Ta RT2560 Ta CardBus
+.It "CNet CWC-854" Ta RT2560 Ta CardBus
+.It "CNet CWP-854" Ta RT2560 Ta PCI
+.It "Compex WL54G" Ta RT2560 Ta CardBus
+.It "Compex WLP54G" Ta RT2560 Ta PCI
+.It "Conceptronic C54RC" Ta RT2560 Ta CardBus
+.It "Conceptronic C54Ri" Ta RT2560 Ta PCI
+.It "D-Link DWA-525 rev A2" Ta RT5392 Ta PCI
+.It "Digitus DN-7001G-RA" Ta RT2560 Ta CardBus
+.It "Digitus DN-7006G-RA" Ta RT2560 Ta PCI
+.It "E-Tech WGPC02" Ta RT2560 Ta CardBus
+.It "E-Tech WGPI02" Ta RT2560 Ta PCI
+.It "Edimax EW-7108PCg" Ta RT2560 Ta CardBus
+.It "Edimax EW-7128g" Ta RT2560 Ta PCI
+.It "Eminent EM3036" Ta RT2560 Ta CardBus
+.It "Eminent EM3037" Ta RT2560 Ta PCI
+.It "Encore ENLWI-G-RLAM" Ta RT2560 Ta PCI
+.It "Encore ENPWI-G-RLAM" Ta RT2560 Ta CardBus
+.It "Fiberline WL-400P" Ta RT2560 Ta PCI
+.It "Fibreline WL-400X" Ta RT2560 Ta CardBus
+.It "Gigabyte GN-WI01GS" Ta RT2561S Ta mini-PCI
+.It "Gigabyte GN-WIKG" Ta RT2560 Ta mini-PCI
+.It "Gigabyte GN-WMKG" Ta RT2560 Ta CardBus
+.It "Gigabyte GN-WP01GS" Ta RT2561S Ta PCI
+.It "Gigabyte GN-WPKG" Ta RT2560 Ta PCI
+.It "Hawking HWC54GR" Ta RT2560 Ta CardBus
+.It "Hawking HWP54GR" Ta RT2560 Ta PCI
+.It "iNexQ CR054g-009 (R03)" Ta RT2560 Ta PCI
+.It "JAHT WN-4054P" Ta RT2560 Ta CardBus
+.It "JAHT WN-4054PCI" Ta RT2560 Ta PCI
+.It "LevelOne WNC-0301 v2" Ta RT2560 Ta PCI
+.It "LevelOne WPC-0301 v2" Ta RT2560 Ta CardBus
+.It "Linksys WMP54G v4" Ta RT2560 Ta PCI
+.It "Micronet SP906GK" Ta RT2560 Ta PCI
+.It "Micronet SP908GK V3" Ta RT2560 Ta CardBus
+.It "Minitar MN54GCB-R" Ta RT2560 Ta CardBus
+.It "Minitar MN54GPC-R" Ta RT2560 Ta PCI
+.It "MSI CB54G2" Ta RT2560 Ta CardBus
+.It "MSI MP54G2" Ta RT2560 Ta mini-PCI
+.It "MSI PC54G2" Ta RT2560 Ta PCI
+.It "OvisLink EVO-W54PCI" Ta RT2560 Ta PCI
+.It "PheeNet HWL-PCIG/RA" Ta RT2560 Ta PCI
+.It "Planex GW-NS300N" Ta RT2860 Ta CardBus
+.It "Pro-Nets CB80211G" Ta RT2560 Ta CardBus
+.It "Pro-Nets PC80211G" Ta RT2560 Ta PCI
+.It "Repotec RP-WB7108" Ta RT2560 Ta CardBus
+.It "Repotec RP-WP0854" Ta RT2560 Ta PCI
+.It "SATech SN-54C" Ta RT2560 Ta CardBus
+.It "SATech SN-54P" Ta RT2560 Ta PCI
+.It "Sitecom WL-112" Ta RT2560 Ta CardBus
+.It "Sitecom WL-115" Ta RT2560 Ta PCI
+.It "SMC SMCWCB-GM" Ta RT2661 Ta CardBus
+.It "SMC SMCWPCI-GM" Ta RT2661 Ta PCI
+.It "SparkLAN WL-685R" Ta RT2560 Ta CardBus
+.It "Surecom EP-9321-g" Ta RT2560 Ta PCI
+.It "Surecom EP-9321-g1" Ta RT2560 Ta PCI
+.It "Surecom EP-9428-g" Ta RT2560 Ta CardBus
+.It "Sweex LC500050" Ta RT2560 Ta CardBus
+.It "Sweex LC700030" Ta RT2560 Ta PCI
+.It "TekComm NE-9321-g" Ta RT2560 Ta PCI
+.It "TekComm NE-9428-g" Ta RT2560 Ta CardBus
+.It "Unex CR054g-R02" Ta RT2560 Ta PCI
+.It "Unex MR054g-R02" Ta RT2560 Ta CardBus
+.It "Zinwell ZWX-G160" Ta RT2560 Ta CardBus
+.It "Zinwell ZWX-G360" Ta RT2560 Ta mini-PCI
+.It "Zinwell ZWX-G361" Ta RT2560 Ta PCI
+.It "Zonet ZEW1500" Ta RT2560 Ta CardBus
+.It "Zonet ZEW1600" Ta RT2560 Ta PCI
+.El
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Pp
+.Dl "ifconfig wlan create wlandev ral0 inet 192.168.0.20 netmask 0xffffff00"
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Bd -literal -offset indent
+ifconfig wlan create wlandev ral0 inet 192.168.0.20 \e
+    netmask 0xffffff00 ssid my_net
+.Ed
+.Pp
+Join a specific BSS network with 40-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev ral0 inet 192.168.0.20 \e
+    netmask 0xffffff00 ssid my_net \e
+    wepmode on wepkey 0x1234567890 weptxkey 1
+.Ed
+.Pp
+Join a specific BSS network with 104-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev ral0 inet 192.168.0.20 \e
+    netmask 0xffffff00 ssid my_net \e
+    wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ral%d: could not load 8051 microcode"
+An error occurred while attempting to upload the microcode to the onboard 8051
+microcontroller unit.
+.It "ral%d: timeout waiting for MCU to initialize"
+The onboard 8051 microcontroller unit failed to initialize in time.
+.It "ral%d: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr cardbus 4 ,
+.Xr intro 4 ,
+.Xr wlan 4 ,
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr wlan_xauth 4 ,
+.Xr hostapd 8 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Rs
+.%T "Ralink Technology"
+.%U http://www.ralinktech.com/
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.7 .
+Support for the RT2501 and RT2600 chipsets was added in
+.Ox 3.9 .
+Support for the RT2800 chipset was added in
+.Ox 4.3 .
+Support for the RT2700 chipset was added in
+.Ox 4.4 .
+Support for the RT3090 chipset was added in
+.Ox 4.9 .
+.Sh AUTHORS
+The original
+.Nm
+driver was written by
+.An Damien Bergamini Aq Mt damien@openbsd.org .
+.Sh CAVEATS
+The
+.Nm
+driver does not make use of the hardware cryptographic engine.
+.Pp
+The
+.Nm
+driver does not support any of the 802.11n capabilities offered by
+the RT2700 and RT2800 chipsets.
+Additional work is required in before those features can be supported.
+.Pp
+Host AP mode does not support power saving.
+Clients attempting to use power saving mode may experience significant
+packet loss (disabling power saving on the client will fix this).
+.Pp
+Some PCI
+.Nm
+adapters strictly require a system supporting PCI 2.2 or greater.
+Check the board's PCI version before purchasing the card as it is likely these
+adapters will not work in systems based on older revisions of the PCI
+specification.

@@ -1,0 +1,159 @@
+$Id: INSTALL,v 1.22 2018/07/31 15:34:00 schwarze Exp $
+
+About the portable mandoc distribution
+--------------------------------------
+The mandoc manpage compiler toolset (formerly called "mdocml")
+is a suite of tools compiling mdoc(7), the roff(7) macro language
+of choice for BSD manual pages, and man(7), the predominant
+historical language for UNIX manuals.
+
+It includes a man(1) manual viewer and additional tools.
+For general information, see <http://mandoc.bsd.lv/>.
+
+In case you have questions or want to provide feedback, read
+<http://mandoc.bsd.lv/contact.html>.  Consider subscribing to the
+discuss@ mailing list mentioned on that page.  If you intend to
+help with the development of mandoc, consider subscribing to the
+tech@ mailing list, too.
+
+Enjoy using the mandoc toolset!
+
+Ingo Schwarze, Karlsruhe, August 2018
+
+
+Installation
+------------
+Before manually installing mandoc on your system, please check
+whether the newest version of mandoc is already installed by default
+or available via a binary package or a ports system.  A list of the
+latest bundled and ported versions of mandoc for various operating
+systems is maintained at <http://mandoc.bsd.lv/ports.html>.
+
+Regarding how packages and ports are maintained for your operating
+system, please consult your operating system documentation.
+To install mandoc manually, the following steps are needed:
+
+1. If you want to build the CGI program, man.cgi(8), too,
+run the command "echo BUILD_CGI=1 >> configure.local".
+Then run "cp cgi.h.example cgi.h" and edit cgi.h as desired.
+
+2. If you also want to build the catman(8) utility, run the
+command "echo BUILD_CATMAN=1 >> configure.local".  Note that it
+is unlikely to be a drop-in replacement providing the same
+functionality as your system's "catman", if your operating
+system contains one.
+
+3. Define MANPATH_DEFAULT in configure.local
+if /usr/share/man:/usr/X11R6/man:/usr/local/man is not appropriate
+for your operating system.
+
+4. Run "./configure".
+This script attempts autoconfiguration of mandoc for your system.
+Read both its standard output and the file "Makefile.local" it
+generates.  If anything looks wrong or different from what you
+wish, read the file "configure.local.example", create and edit
+a file "configure.local", and re-run "./configure" until the
+result seems right to you.
+
+5. Run "make".
+Any POSIX-compatible make, in particular both BSD make and GNU make,
+should work.  If the build fails, look at "configure.local.example"
+and go back to step 2.
+
+6. Run "make -n install" and check whether everything will be
+installed to the intended places.  Otherwise, put some *DIR or *NM*
+variables into "configure.local" and go back to step 4.
+
+7. Optionally run the regression suite.
+Basically, that amounts to "cd regress && ./regress.pl".
+But you should probably look at "./mandoc -l regress/regress.pl.1"
+first.
+
+8. Run "sudo make install".  If you intend to build a binary
+package using some kind of fake root mechanism, you may need a
+command like "make DESTDIR=... install".  Read the *-install targets
+in the "Makefile" to understand how DESTDIR is used.
+
+9. Run the command "sudo makewhatis" to build mandoc.db(5) databases
+in all the directory trees configured in step 3.  Whenever installing
+new manual pages, re-run makewhatis(8) to update the databases, or
+apropos(1) will not find the new pages.
+
+10. To set up a man.cgi(8) server, read its manual page.
+
+Note that a very small number of man(7) pages contain low-level
+roff(7) markup that mandoc does not yet understand.  On some BSD
+systems using mandoc, third-party software is vetted on whether it
+may be formatted with mandoc.  If not, groff(1) is pulled in as a
+dependency and used to install pre-formatted "catpages" instead of
+manual page sources.  This mechanism is used much less frequently
+than in the past.  On OpenBSD, only 25 out of about 10000 ports
+still require formatting with groff(1).
+
+
+Understanding mandoc dependencies
+---------------------------------
+The following libraries are required:
+
+1. zlib for decompressing gzipped manual pages.
+
+2. The fts(3) directory traversion functions.
+If your system does not have them, the bundled compatibility version
+will be used, so you need not worry in that case.  But be careful: old
+glibc versions of fts(3) were known to be broken on 32bit platforms,
+see <https://sourceware.org/bugzilla/show_bug.cgi?id=11460>.
+That was presumably fixed in glibc-2.23.
+If you run into that problem, set "HAVE_FTS=0" in configure.local.
+
+3. Marc Espie's ohash(3) library.
+If your system does not have it, the bundled compatibility version
+will be used, so you probably need not worry about it.
+
+One of the chief design goals of the mandoc toolbox is to make
+sure that nothing related to documentation requires C++.
+Consequently, linking mandoc against any kind of C++ program
+would defeat the purpose and is not supported.
+
+
+Checking autoconfiguration quality
+----------------------------------
+If you want to check whether automatic configuration works well
+on your platform, consider the following:
+
+The mandoc package intentionally does not use GNU autoconf because
+we consider that toolset a blatant example of overengineering that
+is obsolete nowadays, since all modern operating systems are now
+reasonably close to POSIX and do not need arcane shell magic any
+longer.  If your system does need such magic, consider upgrading
+to reasonably modern POSIX-compliant tools rather than asking for
+autoconf-style workarounds.
+
+As far as mandoc is using any features not mandated by ANSI X3.159-1989
+("ANSI C") or IEEE Std 1003.1-2008 ("POSIX") that some modern systems
+do not have, we intend to provide autoconfiguration tests and
+compat_*.c implementations.  Please report any that turn out to be
+missing.  Note that while we do strive to produce portable code,
+we do not slavishly restrict ourselves to POSIX-only interfaces.
+For improved security and readability, we do use well-designed,
+modern interfaces like reallocarray(3) even if they are still rather
+uncommon, of course bundling compat_*.c implementations as needed.
+
+Where mandoc is using ANSI C or POSIX features that some systems
+still lack and that compat_*.c implementations can be provided for
+without too much hassle, we will consider adding them, too, so
+please report whatever is missing on your platform.
+
+The following steps can be used to manually check the automatic
+configuration on your platform:
+
+1. Run "make distclean".
+
+2. Run "./configure"
+
+3. Read the file "config.log".  It shows the compiler commands used
+to test the libraries installed on your system and the standard
+output and standard error output these commands produce.  Watch out
+for unexpected failures.  Those are most likely to happen if headers
+or libraries are installed in unusual places or interfaces defined
+in unusual headers.  You can also look at the file "config.h" and
+check that no "#define HAVE_*" differ from your expectations.

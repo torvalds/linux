@@ -1,0 +1,244 @@
+.\"-
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)df.1	8.3 (Berkeley) 5/8/95
+.\" $FreeBSD$
+.\"
+.Dd August 8, 2017
+.Dt DF 1
+.Os
+.Sh NAME
+.Nm df
+.Nd display free disk space
+.Sh SYNOPSIS
+.Nm
+.Op Fl -libxo
+.Op Fl b | g | H | h | k | m | P
+.Op Fl acilnT
+.Op Fl \&,
+.Op Fl t Ar type
+.Op Ar file | filesystem ...
+.Sh DESCRIPTION
+The
+.Nm
+utility
+displays statistics about the amount of free disk space on the specified
+.Ar file system
+or on the file system of which
+.Ar file
+is a part.
+By default block counts are displayed with an assumed block size of
+512 bytes.
+If neither a file or a file system operand is specified,
+statistics for all mounted file systems are displayed
+(subject to the
+.Fl t
+option below).
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
+.It Fl a
+Show all mount points, including those that were mounted with the
+.Dv MNT_IGNORE
+flag.
+This is implied for file systems specified on the command line.
+.It Fl b
+Explicitly use 512 byte blocks, overriding any
+.Ev BLOCKSIZE
+specification from the environment.
+This is the same as the
+.Fl P
+option.
+The
+.Fl k
+option overrides this option.
+.It Fl c
+Display a grand total.
+.It Fl g
+Use 1073741824 byte (1 Gibibyte) blocks rather than the default.
+This overrides any
+.Ev BLOCKSIZE
+specification from the environment.
+.It Fl h
+.Dq Human-readable
+output.
+Use unit suffixes: Byte, Kibibyte, Mebibyte, Gibibyte, Tebibyte and
+Pebibyte (based on powers of 1024) in order to reduce the number of
+digits to four or fewer.
+.It Fl H , Fl Fl si
+.Dq Human-readable
+output.
+Use unit suffixes: Byte, Kilobyte, Megabyte,
+Gigabyte, Terabyte and Petabyte (based on powers of 1000) in order to
+reduce the number of
+digits to four or fewer.
+.It Fl i
+Include statistics on the number of free and used inodes.
+In conjunction with the
+.Fl h
+or
+.Fl H
+options, the number of inodes is scaled by powers of 1000.
+.It Fl k
+Use 1024 byte (1 Kibibyte) blocks rather than the default.
+This overrides the
+.Fl P
+option and any
+.Ev BLOCKSIZE
+specification from the environment.
+.It Fl l
+Only display information about locally-mounted file systems.
+.It Fl m
+Use 1048576 byte (1 Mebibyte) blocks rather than the default.
+This overrides any
+.Ev BLOCKSIZE
+specification from the environment.
+.It Fl n
+Print out the previously obtained statistics from the file systems.
+This option should be used if it is possible that one or more
+file systems are in a state such that they will not be able to provide
+statistics without a long delay.
+When this option is specified,
+.Nm
+will not request new statistics from the file systems, but will respond
+with the possibly stale statistics that were previously obtained.
+.It Fl P
+Explicitly use 512 byte blocks, overriding any
+.Ev BLOCKSIZE
+specification from the environment.
+This is the same as the
+.Fl b
+option.
+The
+.Fl k
+option overrides this option.
+.It Fl t
+Only print out statistics for file systems of the specified types.
+More than one type may be specified in a comma separated list.
+The list of file system types can be prefixed with
+.Dq no
+to specify the file system types for which action should
+.Em not
+be taken.
+For example, the
+.Nm
+command:
+.Bd -literal -offset indent
+df -t nonfs,nullfs
+.Ed
+.Pp
+lists all file systems except those of type
+.Tn NFS
+and
+.Tn NULLFS .
+The
+.Xr lsvfs 1
+command can be used to find out the types of file systems
+that are available on the system.
+.It Fl T
+Include file system type.
+.It Fl ,
+(Comma) Print sizes grouped and separated by thousands using the
+non-monetary separator returned by
+.Xr localeconv 3 ,
+typically a comma or period.
+If no locale is set, or the locale does not have a non-monetary separator, this
+option has no effect.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width BLOCKSIZE
+.It Ev BLOCKSIZE
+Specifies the units in which to report block counts.
+This uses
+.Xr getbsize 3 ,
+which allows units of bytes or numbers scaled with the letters
+.Em k
+(for multiples of 1024 bytes),
+.Em m
+(for multiples of 1048576 bytes) or
+.Em g
+(for gibibytes).
+The allowed range is 512 bytes to 1 GB.
+If the value is outside, it will be set to the appropriate limit.
+.El
+.Sh SEE ALSO
+.Xr lsvfs 1 ,
+.Xr quota 1 ,
+.Xr fstatfs 2 ,
+.Xr getfsstat 2 ,
+.Xr statfs 2 ,
+.Xr getbsize 3 ,
+.Xr getmntinfo 3 ,
+.Xr libxo 3 ,
+.Xr localeconv 3 ,
+.Xr xo_parse_args 3 ,
+.Xr fstab 5 ,
+.Xr mount 8 ,
+.Xr pstat 8 ,
+.Xr quot 8 ,
+.Xr swapinfo 8
+.Sh STANDARDS
+With the exception of most options,
+the
+.Nm
+utility conforms to
+.St -p1003.1-2004 ,
+which defines only the
+.Fl k , P
+and
+.Fl t
+options.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .
+.Sh BUGS
+The
+.Fl n
+flag is ignored if a file or file system is specified.
+Also, if a mount
+point is not accessible by the user, it is possible that the file system
+information could be stale.
+.Pp
+The
+.Fl b
+and
+.Fl P
+options are identical.
+The former comes from the BSD tradition, and the latter is required
+for
+.St -p1003.1-2004
+conformity.

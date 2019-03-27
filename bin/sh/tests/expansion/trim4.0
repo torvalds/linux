@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+v1=/homes/SOME_USER
+v2=
+v3=C123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+
+# Trigger bug in VSTRIMRIGHT processing STADJUST() call in expand.c:subevalvar()
+while [ ${#v2} -lt 2000 ]; do
+	v4="${v2} ${v1%/*} $v3"
+	if [ ${#v4} -ne $((${#v2} + ${#v3} + 8)) ]; then
+		echo bad: ${#v4} -ne $((${#v2} + ${#v3} + 8))
+	fi
+	v2=x$v2
+	v3=y$v3
+done

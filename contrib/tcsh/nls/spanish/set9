@@ -1,0 +1,12 @@
+$ $tcsh: set9,v 1.4 2015/05/26 17:38:25 christos Exp $
+$ ed.xmap.c
+$set 9
+1 AddXkey: No se permite una tecla extendida nula.\n
+2 AddXkey: No se permite comando introducción de secuencia (sequence-lead-in)\n
+3 DeleteXkey: No se permite una tecla extendida nula.\n
+4 Tecla de extendida indefinida "%S"\n
+5 Algunas teclas extendidas son demasiado grandes para el buffer de impresión interno
+6 Enumerate: ¡¡BUG!! Se ha pasado un puntero nulo!\n
+7 no hay entrada
+8 Falta algo a continuación: '%c'\n
+9 Una constante octal no cabe en un carácter.\n

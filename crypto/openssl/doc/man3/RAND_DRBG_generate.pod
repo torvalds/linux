@@ -1,0 +1,88 @@
+=pod
+
+=head1 NAME
+
+RAND_DRBG_generate,
+RAND_DRBG_bytes
+- generate random bytes using the given drbg instance
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand_drbg.h>
+
+ int RAND_DRBG_generate(RAND_DRBG *drbg,
+                        unsigned char *out, size_t outlen,
+                        int prediction_resistance,
+                        const unsigned char *adin, size_t adinlen);
+
+ int RAND_DRBG_bytes(RAND_DRBG *drbg,
+                     unsigned char *out, size_t outlen);
+
+
+=head1 DESCRIPTION
+
+RAND_DRBG_generate() generates B<outlen> random bytes using the given
+DRBG instance B<drbg> and stores them in the buffer at B<out>.
+
+Before generating the output, the DRBG instance checks whether the maximum
+number of generate requests (I<reseed interval>) or the maximum timespan
+(I<reseed time interval>) since its last seeding have been reached.
+If this is the case, the DRBG reseeds automatically.
+Additionally, an immediate reseeding can be requested by setting the
+B<prediction_resistance> flag to 1. See NOTES section for more details.
+
+The caller can optionally provide additional data to be used for reseeding
+by passing a pointer B<adin> to a buffer of length B<adinlen>.
+This additional data is mixed into the internal state of the random
+generator but does not contribute to the entropy count.
+The additional data can be omitted by setting B<adin> to NULL and
+B<adinlen> to 0;
+
+RAND_DRBG_bytes() generates B<outlen> random bytes using the given
+DRBG instance B<drbg> and stores them in the buffer at B<out>.
+This function is a wrapper around the RAND_DRBG_generate() call,
+which collects some additional data from low entropy sources
+(e.g., a high resolution timer) and calls
+RAND_DRBG_generate(drbg, out, outlen, 0, adin, adinlen).
+
+
+=head1 RETURN VALUES
+
+RAND_DRBG_generate() and RAND_DRBG_bytes() return 1 on success,
+and 0 on failure.
+
+=head1 NOTES
+
+The I<reseed interval> and I<reseed time interval> of the B<drbg> are set to
+reasonable default values, which in general do not have to be adjusted.
+If necessary, they can be changed using L<RAND_DRBG_set_reseed_interval(3)>
+and L<RAND_DRBG_set_reseed_time_interval(3)>, respectively.
+
+A request for prediction resistance can only be satisfied by pulling fresh
+entropy from one of the approved entropy sources listed in section 5.5.2 of
+[NIST SP 800-90C].
+Since the default DRBG implementation does not have access to such an approved
+entropy source, a request for prediction resistance will always fail.
+In other words, prediction resistance is currently not supported yet by the DRBG.
+
+=head1 HISTORY
+
+The RAND_DRBG functions were added in OpenSSL 1.1.1.
+
+=head1 SEE ALSO
+
+L<RAND_bytes(3)>,
+L<RAND_DRBG_set_reseed_interval(3)>,
+L<RAND_DRBG_set_reseed_time_interval(3)>,
+L<RAND_DRBG(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

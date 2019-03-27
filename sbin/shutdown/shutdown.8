@@ -1,0 +1,242 @@
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)shutdown.8	8.2 (Berkeley) 4/27/95
+.\" $FreeBSD$
+.\"
+.Dd January 1, 2018
+.Dt SHUTDOWN 8
+.Os
+.Sh NAME
+.Nm shutdown ,
+.Nm poweroff
+.Nd "close down the system at a given time"
+.Sh SYNOPSIS
+.Nm
+.Op Fl
+.Oo
+.Fl c | Fl h | Fl p |
+.Fl r | Fl k
+.Oc
+.Oo
+.Fl o
+.Op Fl n
+.Oc
+.Ar time
+.Op Ar warning-message ...
+.Nm poweroff
+.Sh DESCRIPTION
+The
+.Nm
+utility provides an automated shutdown procedure for super-users
+to nicely notify users when the system is shutting down,
+saving them from system administrators, hackers, and gurus, who
+would otherwise not bother with such niceties.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl c
+The system is power cycled (power turned off and then back on)
+at the specified time.
+If the hardware doesn't support power cycle, the system will be
+halted.
+At the present time, only systems with BMC supported by the
+.Xr ipmi 4
+driver that implement this functionality support this flag.
+The amount of time the system is off is dependent on the device
+that implements this feature.
+.It Fl h
+The system is halted at the specified
+.Ar time .
+.It Fl p
+The system is halted and the power is turned off
+(hardware support required, otherwise the system is halted)
+at the specified
+.Ar time .
+.It Fl r
+The system is rebooted at the specified
+.Ar time .
+.It Fl k
+Kick everybody off.
+The
+.Fl k
+option
+does not actually halt the system, but leaves the
+system multi-user with logins disabled (for all but super-user).
+.It Fl o
+If one of the
+.Fl c ,
+.Fl h ,
+.Fl p
+or
+.Fl r
+options are specified,
+.Nm
+will execute
+.Xr halt 8
+or
+.Xr reboot 8
+instead of sending a signal to
+.Xr init 8 .
+.It Fl n
+If the
+.Fl o
+option is specified, prevent the file system cache from being flushed by passing
+.Fl n
+to
+.Xr halt 8
+or
+.Xr reboot 8 .
+This option should probably not be used.
+.It Ar time
+.Ar Time
+is the time at which
+.Nm
+will bring the system down and
+may be the case-insensitive word
+.Ar now
+(indicating an immediate shutdown) or
+a future time in one of two formats:
+.Ar +number ,
+or
+.Ar yymmddhhmm ,
+where the year, month, and day may be defaulted
+to the current system values.
+The first form brings the system down in
+.Ar number
+minutes and the second at the absolute time specified.
+.Ar +number
+may be specified in units other than minutes by appending the corresponding
+suffix:
+.Dq Li s ,
+.Dq Li sec ,
+.Dq Li m ,
+.Dq Li min .
+.Dq Li h ,
+.Dq Li hour .
+.Pp
+If an absolute time is specified, but not a date,
+and that time today has already passed,
+.Nm
+will assume that the same time tomorrow was meant.
+(If a complete date is specified which has already passed,
+.Nm
+will print an error and exit without shutting the system down.)
+.It Ar warning-message
+Any other arguments comprise the warning message that is broadcast
+to users currently logged into the system.
+.It Fl
+If
+.Sq Fl
+is supplied as an option, the warning message is read from the standard
+input.
+.El
+.Pp
+At intervals, becoming more frequent as apocalypse approaches
+and starting at ten hours before shutdown, warning messages are displayed
+on the terminals of all users logged in.
+Five minutes before
+shutdown, or immediately if shutdown is in less than 5 minutes,
+logins are disabled by creating
+.Pa /var/run/nologin
+and copying the
+warning message there.
+If this file exists when a user attempts to
+log in,
+.Xr login 1
+prints its contents and exits.
+The file is
+removed just before
+.Nm
+exits.
+.Pp
+At shutdown time a message is written to the system log, containing the
+time of shutdown, the person who initiated the shutdown and the reason.
+The corresponding signal is then sent to
+.Xr init 8
+to respectively halt, reboot or bring the system down to single-user state
+(depending on the above options).
+The time of the shutdown and the warning message
+are placed in
+.Pa /var/run/nologin
+and should be used to
+inform the users about when the system will be back up
+and why it is going down (or anything else).
+.Pp
+A scheduled shutdown can be canceled by killing the
+.Nm
+process (a
+.Dv SIGTERM
+should suffice).
+The
+.Pa /var/run/nologin
+file that
+.Nm
+created will be removed automatically.
+.Pp
+When run without options, the
+.Nm
+utility will place the system into single user mode at the
+.Ar time
+specified.
+.Pp
+Calling
+.Dq Nm poweroff
+is equivalent to running:
+.Bd -literal -offset indent
+shutdown -p now
+.Ed
+.Sh FILES
+.Bl -tag -width /var/run/nologin -compact
+.It Pa /var/run/nologin
+tells
+.Xr login 1
+not to let anyone log in
+.El
+.Sh EXAMPLES
+Reboot the system in 30 minutes and display a warning message on the terminals
+of all users currently logged in:
+.Pp
+.Dl # shutdown -r +30 \&"System will reboot\&"
+.Sh COMPATIBILITY
+The hours and minutes in the second time format may be separated by
+a colon (``:'') for backward compatibility.
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr login 1 ,
+.Xr wall 1 ,
+.Xr nologin 5 ,
+.Xr halt 8 ,
+.Xr init 8 ,
+.Xr reboot 8
+.Sh HISTORY
+A
+.Nm
+command was originally written by Ian Johnstone for UNSW's modified
+.At "6th Edn" .
+It was modified and then incorporated in
+.Bx 4.1 .

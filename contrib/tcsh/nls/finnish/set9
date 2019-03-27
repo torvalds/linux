@@ -1,0 +1,12 @@
+$ $tcsh: set9,v 1.5 2015/09/01 14:08:28 kim Exp $
+$ ed.xmap.c
+$set 9
+1 AddXkey: Tyhjää laajennettua näppäintä ei sallita.\n
+2 AddXkey: sequence-lead-in command not allowed\n
+3 DeleteXkey: Tyhjää laajennettua näppäintä ei sallita.\n
+4 Sitomaton laajennettu näppäin "%S"\n
+5 Jotkin laajennetut näppäimet ovat liian pitkiä sisäiselle tulostuspuskurille
+6 Enumerate: VIKA!! Välitetty null-osoitin\n!
+7 ei syötettä
+8 Jotain on seurattava: '%c'\n
+9 Oktaalivakio ei mahdu char-tyypin muuttujaan.\n

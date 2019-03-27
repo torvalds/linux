@@ -1,0 +1,16 @@
+# $FreeBSD$ 
+# $NetBSD: MAC.alias,v 1.1 2006/03/13 19:45:36 tnozaki Exp $
+
+CENTEURO	maccentraleurope
+
+CYRILLIC	mac-cyrillic
+CYRILLIC	macukraine
+CYRILLIC	macukrainian
+
+DEVANAGA	macdevanagari iscii-dev
+
+ROMAN		csmacintosh
+ROMAN		mac
+ROMAN		macintosh
+
+ROMANIAN	macromania

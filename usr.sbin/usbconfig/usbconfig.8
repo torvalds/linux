@@ -1,0 +1,167 @@
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 2008-2010 Hans Petter Selasky. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 29, 2018
+.Dt USBCONFIG 8
+.Os
+.Sh NAME
+.Nm usbconfig
+.Nd configure the USB subsystem
+.Sh SYNOPSIS
+.Nm
+.Op Fl u Ar unit
+.Op Fl a Ar addr
+.Op cmds...
+.Nm
+.Op Oo Fl d Oc Ar [ugen]<unit>.<addr>
+.Op cmds...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to configure and dump information about the USB subsystem.
+.Pp
+The options are as follows:
+.Bl -tag -width "        "
+.It Fl u Ar unit
+Limit device range to USB devices connected to the given USBUS unit.
+.It Fl a Ar addr
+Limit device range to the given USB device index.
+Should only be used in conjunction with the unit argument.
+.It Fl d Ar [ugen]<unit>.<addr>
+Limit device range to USB devices connected to the given unit and address.
+The unit and address coordinates may be prefixed by the lowercased word "ugen".
+.It Fl h
+Show help and available commands.
+.El
+.Pp
+The following commands may be used with
+.Nm :
+.Bl -tag -width indent
+.It Cm set_config Ar cfg_index
+Choose the configuration for the USB device.
+Valid values range from zero to the number reported as the
+.Ar bNumConfigurations
+in
+.Cm dump_device_desc
+output.
+The special value of 255 unconfigures the device, detaching
+the interface drivers and reducing the power consumption to minimum,
+but without going into power saving mode or detaching from the bus.
+In some cases, it prevents the device from charging.
+.It Cm set_alt Ar alt_index
+Choose the alternate interface for the USB device.
+Alternative settings for the current configuration are available as the
+.Ar bAlternateSetting
+in
+.Cm dump_curr_config_desc
+output.
+Usually there is no need to adjust this setting.
+.It Cm set_template Ar template
+Set the global USB device side template.
+See
+.Xr usb_template 4
+for more information.
+.It Cm get_template
+Get the current USB device side template.
+.It Cm add_dev_quirk_vplh Ar vid Ar pid Ar lo_rev Ar hi_rev Ar quirk_name
+Add a quirk by specifying the Vendor ID, Product ID, low and high
+revision numbers, and the quirk name.
+See
+.Xr usb_quirk 4
+for more information.
+.It Cm remove_dev_quirk_vplh Ar vid Ar pid Ar lo_rev Ar hi_rev Ar quirk_name
+Remove a quirk.
+.It Cm add_quirk Ar quirk_name
+Add quirk for the currently selected USB device.
+.It Cm remove_quirk Ar quirk_name
+Remove a quirk for the currently selected USB device.
+.It Cm dump_all_desc
+Display the device and configuration descriptors.
+.It Cm dump_quirk_names
+Display the list of supported quirk names.
+.It Cm dump_device_quirks
+Display the list of current device quirks.
+.It Cm dump_device_desc
+Display the device descriptor.
+.It Cm dump_curr_config_desc
+Display current configuration descriptor.
+.It Cm dump_all_config_desc
+Display all the configuration descriptors.
+.It Cm dump_string Ar index
+Display string descriptor at selected index.
+.It Cm dump_info
+Display summary information about the device.
+.It Cm show_ifdrv
+Display the list of interface drivers (such as
+.Xr ukbd 4
+or
+.Xr u3g 4 )
+currently attached to the device.
+.It Cm suspend
+Force the device to suspend.
+.It Cm resume
+Force the device to resume.
+.It Cm power_off
+Turn the device off.
+.It Cm power_save
+Turn the automatic suspend and resume on.
+This is the default for USB hubs.
+.It Cm power_on
+Turn the device on and disable automatic suspend and resume.
+This is the default for non-hub devices.
+.It Cm reset
+Reset the device.
+This forces the USB stack to reenumerate the bus.
+.It Cm list
+List all available USB devices.
+This is the default if
+.Nm
+is called without specifying a command.
+.It Cm do_request Ar bmReqTyp Ar bReq Ar wVal Ar wIdx Ar wLen Ar data...
+Perform a synchronous control request on the specified device.
+See
+.Xr libusb20_dev_request_sync 3
+for more information.
+.El
+.Sh EXAMPLES
+List all connected USB devices and their attached interface drivers:
+.Pp
+.Dl usbconfig show_ifdrv
+.Pp
+Dump device and configuration descriptors for device on USB bus 1 at address 2:
+.Pp
+.Dl usbconfig ugen1.2 dump_all_desc
+.Pp
+Dump HID descriptor for device on USB bus 1 at address 2:
+.Pp
+.Dl usbconfig ugen1.2 do_request 0x81 0x06 0x2200 0 0x100
+.Pp
+Power off the device on USB bus 1 at address 2:
+.Pp
+.Dl usbconfig ugen1.2 power_off
+.Sh SEE ALSO
+.Xr usb 4 ,
+.Xr usb_quirk 4 ,
+.Xr usb_template 4

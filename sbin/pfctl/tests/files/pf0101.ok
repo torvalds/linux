@@ -1,0 +1,4 @@
+pass all flags S/SA set ( prio 3 ) keep state
+pass out on lo1000000 proto tcp from any to any port = ssh flags S/SA set ( prio(5, 2) ) keep state
+pass inet proto udp from any to 127.0.0.1 port = domain set ( prio 4 ) keep state
+pass inet proto udp from any to 127.0.0.2 port = domain set ( prio 4 ) keep state

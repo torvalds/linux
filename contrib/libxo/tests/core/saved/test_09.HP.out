@@ -1,0 +1,93 @@
+<div class="line">
+  <div class="title">Item      </div>
+  <div class="title">       Count</div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="name">gum       </div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="name">rope      </div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="name">ladder    </div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="name">bolt      </div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="name">water     </div>
+</div>
+<div class="line">
+</div>
+<div class="line">
+</div>
+<div class="line">
+  <div class="title">Item      </div>
+  <div class="title">       Count</div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="item">gum       </div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="item">rope      </div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="item">ladder    </div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="item">bolt      </div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="item">water     </div>
+</div>
+<div class="line">
+</div>
+<div class="line">
+</div>
+<div class="line">
+  <div class="title">Test      </div>
+  <div class="title">       Three</div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="item">gum       </div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="item">rope      </div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="item">ladder    </div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="item">bolt      </div>
+</div>
+<div class="line">
+  <div class="text">Name: </div>
+  <div class="data" data-tag="item">water     </div>
+</div>
+<div class="line">
+  <div class="label">Total:</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="total">six</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="one">one</div>
+  <div class="data" data-tag="two">two</div>
+  <div class="data" data-tag="three">three</div>
+</div>
+<div class="line">
+</div>

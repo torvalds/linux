@@ -1,0 +1,145 @@
+.\" Copyright (c) 2003 Ruslan Ermilov
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 1, 2004
+.Dt NG_VLAN 4
+.Os
+.Sh NAME
+.Nm ng_vlan
+.Nd IEEE 802.1Q VLAN tagging netgraph node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph.h
+.In netgraph/ng_vlan.h
+.Sh DESCRIPTION
+The
+.Nm vlan
+node type multiplexes frames tagged according to
+the IEEE 802.1Q standard between different hooks.
+.Pp
+Each node has two special hooks,
+.Va downstream
+and
+.Va nomatch ,
+and an arbitrary number of
+.Dq vlan
+hooks, each associated with a particular VLAN tag.
+.Pp
+An
+.Dv ETHERTYPE_VLAN
+frame received on the
+.Va downstream
+hook with a tag that the node has been configured to filter
+is sent out the corresponding
+.Dq vlan
+hook.
+If it does not match any of the configured tags, or is not of a type
+.Dv ETHERTYPE_VLAN ,
+it is sent out the
+.Va nomatch
+hook.
+If the
+.Va nomatch
+hook is not connected, the packet is dropped.
+.Pp
+An Ethernet frame received on the
+.Va nomatch
+hook is passed unmodified to the
+.Va downstream
+hook.
+.Pp
+An Ethernet frame received on any of the
+.Dq vlan
+hooks is tagged accordingly and sent out the
+.Va downstream
+hook.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width "Aq Em any valid name"
+.It Va downstream
+Typically this hook would be connected to a
+.Xr ng_ether 4
+node, using the
+.Va lower
+hook.
+.It Va nomatch
+Typically this hook would also be connected to an
+.Xr ng_ether 4
+type node using the
+.Va upper
+hook.
+.It Aq Em "any valid name"
+Any other hook name will be accepted and should later be associated with
+a particular tag.
+Typically this hook would be attached to an
+.Xr ng_eiface 4
+type node using the
+.Va ether
+hook.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_VLAN_ADD_FILTER Pq Ic addfilter
+Associates a hook with the tag.
+.It Dv NGM_VLAN_DEL_FILTER Pq Ic delfilter
+Disassociates a hook from the tag.
+.It Dv NGM_VLAN_GET_TABLE Pq Ic gettable
+Returns a table of all hook/tag associations.
+.El
+.Sh EXAMPLES
+.Bd -literal
+#!/bin/sh
+
+ETHER_IF=rl0
+
+ngctl -f- <<EOF
+shutdown ${ETHER_IF}:
+mkpeer ${ETHER_IF}: vlan lower downstream
+name ${ETHER_IF}:lower vlan
+connect ${ETHER_IF}: vlan: upper nomatch
+EOF
+
+ngctl mkpeer vlan: eiface vlan123 ether
+ngctl msg vlan: addfilter '{ vlan=123 hook="vlan123" }'
+.Ed
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_eiface 4 ,
+.Xr ng_ether 4 ,
+.Xr ngctl 8 ,
+.Xr nghook 8
+.Sh HISTORY
+The
+.Nm
+node type appeared in
+.Fx 4.10 .
+.Sh AUTHORS
+.An Ruslan Ermilov Aq Mt ru@FreeBSD.org

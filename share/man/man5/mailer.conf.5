@@ -1,0 +1,173 @@
+.\"	$NetBSD: mailer.conf.5,v 1.2 1999/05/29 18:18:30 christos Exp $
+.\"
+.\" Copyright (c) 1998
+.\" 	Perry E. Metzger.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"	This product includes software developed for the NetBSD Project
+.\"	by Perry E. Metzger.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 26, 2017
+.Dt MAILER.CONF 5
+.Os
+.Sh NAME
+.Nm mailer.conf
+.Nd configuration file for
+.Xr mailwrapper 8
+.Sh DESCRIPTION
+The file
+.Pa /etc/mail/mailer.conf
+contains a series of lines of the form
+.Pp
+.Ar name
+.Ar program
+.Op Ar arguments ...
+.Pp
+The first word of each line is the
+.Ar name
+of a program invoking
+.Xr mailwrapper 8 .
+(For example, on a typical system
+.Pa /usr/sbin/sendmail
+would be a symbolic link to
+.Xr mailwrapper 8 ,
+as would
+.Xr newaliases 1
+and
+.Xr mailq 1 .
+Thus,
+.Ar name
+might be
+.Dq Li sendmail
+or
+.Dq Li newaliases
+etc.)
+.Pp
+The second word of each line is the name of the
+.Ar program
+to actually execute when the first name is invoked.
+.Pp
+The further
+.Ar arguments ,
+if any, are passed to the
+.Ar program ,
+followed by the arguments
+.Xr mailwrapper 8
+was called with.
+.Pp
+The file may also contain comment lines, denoted by a
+.Ql #
+mark in the first column of any line.
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa /etc/mail/mailer.conf
+.El
+.Sh EXAMPLES
+This example shows how to set up
+.Nm
+to invoke the traditional
+.Xr sendmail 8
+program:
+.Bd -literal -offset indent
+# Execute the "real" sendmail program located in
+# /usr/libexec/sendmail/sendmail
+sendmail	/usr/libexec/sendmail/sendmail
+mailq		/usr/libexec/sendmail/sendmail
+newaliases	/usr/libexec/sendmail/sendmail
+.Ed
+.Pp
+Using
+.Nm Postfix
+(from ports)
+to replace
+.Xr sendmail 8 :
+.Bd -literal -offset indent
+# Emulate sendmail using postfix
+sendmail	/usr/local/sbin/sendmail
+mailq		/usr/local/sbin/sendmail
+newaliases	/usr/local/sbin/sendmail
+.Ed
+.Pp
+Using
+.Nm Exim
+(from ports)
+to replace
+.Xr sendmail 8 :
+.Bd -literal -offset indent
+# Emulate sendmail using exim
+sendmail	/usr/local/sbin/exim
+mailq		/usr/local/sbin/exim -bp
+newaliases	/usr/bin/true
+rmail		/usr/local/sbin/exim -i -oee
+.Ed
+.Pp
+Using
+.Nm mini_sendmail
+(from ports)
+to replace
+.Xr sendmail 8 :
+.Bd -literal -offset indent
+# Send outgoing mail to a smart relay using mini_sendmail
+sendmail	/usr/local/bin/mini_sendmail -srelayhost
+.Ed
+.Pp
+Using
+.Xr dma 8
+to replace
+.Xr sendmail 8 :
+.Bd -literal -offset indent
+# Execute dma instead of sendmail
+sendmail	/usr/libexec/dma
+mailq		/usr/libexec/dma
+newaliases	/usr/libexec/dma
+rmail		/usr/libexec/dma
+.Ed
+.Sh SEE ALSO
+.Xr mail 1 ,
+.Xr mailq 1 ,
+.Xr newaliases 1 ,
+.Xr dma 8 ,
+.Xr mailwrapper 8 ,
+.Xr sendmail 8
+.Pp
+.Xr postfix 1 Pq Pa ports/mail/postfix ,
+.Xr dma 8 Pq Pa ports/mail/dma ,
+.Xr exim 8 Pq Pa ports/mail/exim ,
+.Xr mini_sendmail 8 Pq Pa ports/mail/mini_sendmail
+.Sh HISTORY
+.Nm
+appeared in
+.Nx 1.4 .
+.Sh AUTHORS
+.An Perry E. Metzger Aq Mt perry@piermont.com
+.Sh BUGS
+The entire reason this program exists is a crock.
+Instead, a command
+for how to submit mail should be standardized, and all the "behave
+differently if invoked with a different name" behavior of things like
+.Xr mailq 1
+should go away.

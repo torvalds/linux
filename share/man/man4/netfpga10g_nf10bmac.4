@@ -1,0 +1,70 @@
+.\"-
+.\" Copyright (c) 2014 Bjoern A. Zeeb
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-11-C-0249
+.\" ("MRC2"), as part of the DARPA MRC research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 17, 2014
+.Dt NETFPGA10G_NF10BMAC 4
+.Os
+.Sh NAME
+.Nm netfpga10g_nf10bmac
+.Nd driver for the NetFPGA-10G Embedded CPU Ethernet Core
+.Sh SYNOPSIS
+.Cd "device netfpga10g_nf10bmac"
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides support for the NetFPGA-10G Embedded CPU Ethernet
+Core.
+.Sh HARDWARE
+The current version of the
+.Nm
+driver works with one PIO mode interface of the
+NetFPGA-10G Embedded CPU Ethernet Core version 1.00a.
+.Sh SEE ALSO
+.Xr netintro 4 ,
+.Xr ifconfig 8
+.Rs
+.%T NetFPGA-10G Wiki
+.%U https://github.com/NetFPGA/NetFPGA-public/wiki
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+This software and this manual page were
+developed by SRI International and the University of Cambridge Computer
+Laboratory under DARPA/AFRL contract
+.Pq FA8750-11-C-0249
+.Pq Do MRC2 Dc ,
+as part of the DARPA MRC research programme.
+The device driver was written by
+.An Bjoern A. Zeeb .

@@ -1,0 +1,325 @@
+# $Id: Makefile.in,v 1.90 2013/08/04 20:23:20 tom Exp $
+##############################################################################
+# Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Author: Thomas E. Dickey 1996-on
+#
+# Makefile for ncurses source code.
+#
+# This makes the ncurses utility programs.
+#
+# The variable 'srcdir' refers to the source-distribution, and can be set with
+# the configure script by "--srcdir=DIR".
+#
+# The rules are organized to produce the libraries for the configured models,
+# and the programs with the configured default model.
+
+# turn off _all_ suffix rules; we'll generate our own
+.SUFFIXES:
+
+SHELL		= /bin/sh
+VPATH		= @srcdir@
+THIS		= Makefile
+
+CF_MFLAGS 	= @cf_cv_makeflags@
+@SET_MAKE@
+
+x		= @EXEEXT@
+o		= .@OBJEXT@
+
+MODEL		= ../@DFT_OBJ_SUBDIR@
+DESTDIR		= @DESTDIR@
+top_srcdir	= @top_srcdir@
+srcdir		= @srcdir@
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+bindir		= @bindir@
+libdir		= @libdir@
+includedir	= @includedir@
+datarootdir	= @datarootdir@
+datadir		= @datadir@
+includesubdir	= @includesubdir@
+
+INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
+
+LIBTOOL		= @LIBTOOL@
+LIBTOOL_CLEAN	= @LIB_CLEAN@
+LIBTOOL_COMPILE	= @LIB_COMPILE@
+LIBTOOL_LINK	= @LIB_LINK@
+LIBTOOL_INSTALL	= @LIB_INSTALL@
+LIBTOOL_UNINSTALL = @LIB_UNINSTALL@
+
+INSTALL		= @INSTALL@
+INSTALL_PROG	= @INSTALL_PROGRAM@
+transform	= @program_transform_name@
+
+AWK		= @AWK@
+LN_S		= @LN_S@
+
+CTAGS		= @CTAGS@
+ETAGS		= @ETAGS@
+
+CC		= @CC@
+CPP		= @CPP@
+CFLAGS		= @CFLAGS@
+
+INCDIR		= $(top_srcdir)/include
+CPPFLAGS	= -I../progs -I$(srcdir) -DHAVE_CONFIG_H @CPPFLAGS@
+
+CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
+
+CFLAGS_LIBTOOL	= $(CCFLAGS)
+CFLAGS_NORMAL	= $(CCFLAGS)
+CFLAGS_DEBUG	= $(CCFLAGS) @CC_G_OPT@ -DTRACE
+CFLAGS_PROFILE	= $(CCFLAGS) -pg
+CFLAGS_SHARED	= $(CCFLAGS) @CC_SHARED_OPTS@
+
+CFLAGS_DEFAULT	= $(CFLAGS_@DFT_UPR_MODEL@)
+
+REL_VERSION	= @cf_cv_rel_version@
+ABI_VERSION	= @cf_cv_abi_version@
+LOCAL_LIBDIR	= @top_builddir@/lib
+
+LD		= @LD@
+LINK		= @LINK_PROGS@ $(LIBTOOL_LINK)
+LDFLAGS		= @EXTRA_LDFLAGS@ @LDFLAGS@
+RPATH_LIST	= @RPATH_LIST@
+
+LDFLAGS_LIBTOOL	= $(LDFLAGS) $(CFLAGS_LIBTOOL)
+LDFLAGS_NORMAL	= $(LDFLAGS) $(CFLAGS_NORMAL)
+LDFLAGS_DEBUG	= $(LDFLAGS) $(CFLAGS_DEBUG)
+LDFLAGS_PROFILE	= $(LDFLAGS) $(CFLAGS_PROFILE)
+LDFLAGS_SHARED	= $(LDFLAGS) $(CFLAGS_SHARED) @LD_SHARED_OPTS@
+
+LDFLAGS_DEFAULT	= $(LDFLAGS_@DFT_UPR_MODEL@)
+
+LIBS_TIC	= @TINFO_LDFLAGS@ @LDFLAGS_STATIC@ @TICS_LIBS@ @TINFO_LIBS@ @LDFLAGS_SHARED@ @LD_MODEL@ @LIBS@
+LDFLAGS_TIC	= @TICS_LDFLAGS@ $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_TIC)
+
+LIBS_TINFO	= @LDFLAGS_STATIC@ @TINFO_LIBS@ @LDFLAGS_SHARED@ @LD_MODEL@ @LIBS@
+LDFLAGS_TINFO	= @TINFO_LDFLAGS@ $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_TINFO)
+
+LINT		= @LINT@
+LINT_OPTS	= @LINT_OPTS@
+LINT_LIBS	= -lncurses @LIBS@
+
+AUTO_SRC = \
+	termsort.c \
+	transform.h
+
+# tic relies on direct access to the terminfo database
+GET_PROGS = infocmp$x clear$x tabs$x tput$x tset$x toe$x
+PUT_PROGS = @MAKE_TERMINFO@ tic$x
+PROGS = $(PUT_PROGS) $(GET_PROGS)
+
+# Default library, for linking applications
+DEPS_CURSES = ../lib/@LIB_PREFIX@ncurses@DFT_DEP_SUFFIX@
+
+HEADER_DEPS	= \
+	../include/curses.h \
+	$(INCDIR)/term_entry.h \
+	$(INCDIR)/tic.h \
+	$(INCDIR)/nc_alloc.h
+
+################################################################################
+all:		$(AUTO_SRC) $(PROGS)
+
+sources:	$(AUTO_SRC)
+
+install: 	$(AUTO_SRC) install.progs
+uninstall: uninstall.progs
+
+# this line simplifies the configure-script
+libs \
+install.libs \
+uninstall.libs:
+
+TRANSFORM = sed 's/$x$$//'|sed '$(transform)'|sed 's/$$/$x/'
+
+# transformed names for installing files
+actual_captoinfo = `echo captoinfo$x| $(TRANSFORM)`
+actual_clear     = `echo clear$x|     $(TRANSFORM)`
+actual_infocmp   = `echo infocmp$x|   $(TRANSFORM)`
+actual_infotocap = `echo infotocap$x| $(TRANSFORM)`
+actual_init      = `echo init$x|      $(TRANSFORM)`
+actual_reset     = `echo reset$x|     $(TRANSFORM)`
+actual_tabs      = `echo tabs$x|      $(TRANSFORM)`
+actual_tic       = `echo tic$x|       $(TRANSFORM)`
+actual_toe       = `echo toe$x|       $(TRANSFORM)`
+actual_tput      = `echo tput$x|      $(TRANSFORM)`
+actual_tset      = `echo tset$x|      $(TRANSFORM)`
+
+# transformed names for comparing at runtime
+define_captoinfo = `echo captoinfo|   $(TRANSFORM)`
+define_infotocap = `echo infotocap|   $(TRANSFORM)`
+define_init      = `echo init|        $(TRANSFORM)`
+define_reset     = `echo reset|       $(TRANSFORM)`
+
+transform.h :
+	echo "#ifndef __TRANSFORM_H"					>$@
+	echo "#define __TRANSFORM_H 1"					>>$@
+	echo "#include <progs.priv.h>"					>>$@
+	echo "extern bool same_program(const char *, const char *);"	>>$@
+	-sh -c 'if test -n "$x" ; then echo "#define SUFFIX_IGNORED \"$x\"">>$@; fi'
+	echo "#define PROG_CAPTOINFO \"$(define_captoinfo)\""		>>$@
+	echo "#define PROG_INFOTOCAP \"$(define_infotocap)\""		>>$@
+	echo "#define PROG_RESET     \"$(define_reset)\""		>>$@
+	echo "#define PROG_INIT      \"$(define_init)\""		>>$@
+	echo "#endif /* __TRANSFORM_H */"				>>$@
+
+install.progs: $(AUTO_SRC) $(PROGS) $(DESTDIR)$(bindir)
+@MAKE_TERMINFO@	$(LIBTOOL_INSTALL) $(INSTALL_PROG) tic$x     $(DESTDIR)$(bindir)/$(actual_tic)
+@MAKE_TERMINFO@	$(LIBTOOL_INSTALL) $(INSTALL_PROG) toe$x     $(DESTDIR)$(bindir)/$(actual_toe)
+@MAKE_TERMINFO@	@echo "linking $(actual_infotocap) to $(actual_tic)"
+@MAKE_TERMINFO@	-@rm -f $(DESTDIR)$(bindir)/$(actual_infotocap)
+@MAKE_TERMINFO@	(cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tic) $(actual_infotocap))
+@MAKE_TERMINFO@	@echo "linking $(actual_captoinfo) to $(actual_tic)"
+@MAKE_TERMINFO@	-@rm -f $(DESTDIR)$(bindir)/$(actual_captoinfo)
+@MAKE_TERMINFO@	(cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tic) $(actual_captoinfo))
+	$(LIBTOOL_INSTALL) $(INSTALL_PROG) infocmp$x $(DESTDIR)$(bindir)/$(actual_infocmp)
+	$(LIBTOOL_INSTALL) $(INSTALL_PROG) clear$x   $(DESTDIR)$(bindir)/$(actual_clear)
+	$(LIBTOOL_INSTALL) $(INSTALL_PROG) tabs$x    $(DESTDIR)$(bindir)/$(actual_tabs)
+	$(LIBTOOL_INSTALL) $(INSTALL_PROG) tput$x    $(DESTDIR)$(bindir)/$(actual_tput)
+	$(LIBTOOL_INSTALL) $(INSTALL_PROG) tset$x    $(DESTDIR)$(bindir)/$(actual_tset)
+	@echo "linking $(actual_reset) to $(actual_tset)"
+	-@rm -f $(DESTDIR)$(bindir)/$(actual_reset)
+	(cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tset) $(actual_reset))
+
+uninstall.progs:
+@MAKE_TERMINFO@	-@$(LIBTOOL_CLEAN) rm -f $(DESTDIR)$(bindir)/$(actual_tic)
+@MAKE_TERMINFO@	-@$(LIBTOOL_CLEAN) rm -f $(DESTDIR)$(bindir)/$(actual_toe)
+@MAKE_TERMINFO@	-@rm -f $(DESTDIR)$(bindir)/$(actual_captoinfo)
+@MAKE_TERMINFO@	-@rm -f $(DESTDIR)$(bindir)/$(actual_infotocap)
+	-@$(LIBTOOL_CLEAN) rm -f $(DESTDIR)$(bindir)/$(actual_infocmp)
+	-@$(LIBTOOL_CLEAN) rm -f $(DESTDIR)$(bindir)/$(actual_clear)
+	-@$(LIBTOOL_CLEAN) rm -f $(DESTDIR)$(bindir)/$(actual_tabs)
+	-@$(LIBTOOL_CLEAN) rm -f $(DESTDIR)$(bindir)/$(actual_tput)
+	-@$(LIBTOOL_CLEAN) rm -f $(DESTDIR)$(bindir)/$(actual_tset)
+	-@rm -f $(DESTDIR)$(bindir)/$(actual_reset)
+
+$(DESTDIR)$(bindir) :
+	mkdir -p $@
+
+#
+# Utilities normally built by make all start here
+#
+
+DEPS_TIC = \
+	$(MODEL)/tic$o \
+	$(MODEL)/dump_entry$o \
+	$(MODEL)/transform$o
+
+tic$x: $(DEPS_TIC) $(DEPS_CURSES) transform.h
+	@ECHO_LD@ $(LINK) $(DEPS_TIC) $(LDFLAGS_TIC) -o $@
+
+DEPS_TOE = \
+	$(MODEL)/toe$o
+
+toe$x: $(DEPS_TOE) $(DEPS_CURSES)
+	@ECHO_LD@ $(LINK) $(DEPS_TOE) $(LDFLAGS_TIC) -o $@
+
+DEPS_CLEAR = \
+	$(MODEL)/clear$o
+
+clear$x: $(DEPS_CLEAR) $(DEPS_CURSES)
+	@ECHO_LD@ $(LINK) $(DEPS_CLEAR) $(LDFLAGS_TINFO) -o $@
+
+DEPS_TABS = \
+	$(MODEL)/tabs$o
+
+tabs$x: $(DEPS_TABS) $(DEPS_TABS)
+	@ECHO_LD@ $(LINK) $(DEPS_TABS) $(LDFLAGS_TINFO) -o $@
+
+DEPS_TPUT = \
+	$(MODEL)/tput$o \
+	$(MODEL)/transform$o
+
+tput$x: $(DEPS_TPUT) $(DEPS_CURSES) transform.h
+	@ECHO_LD@ $(LINK) $(DEPS_TPUT) $(LDFLAGS_TINFO) -o $@
+
+DEPS_INFOCMP = \
+	$(MODEL)/infocmp$o \
+	$(MODEL)/dump_entry$o
+
+infocmp$x: $(DEPS_INFOCMP) $(DEPS_CURSES)
+	@ECHO_LD@ $(LINK) $(DEPS_INFOCMP) $(LDFLAGS_TIC) -o $@
+
+DEPS_TSET = \
+	$(MODEL)/tset$o \
+	$(MODEL)/transform$o
+
+tset$x: $(DEPS_TSET) $(DEPS_CURSES) transform.h
+	@ECHO_LD@ $(LINK) $(DEPS_TSET) $(LDFLAGS_TINFO) -o $@
+
+termsort.c: $(srcdir)/MKtermsort.sh
+	sh $(srcdir)/MKtermsort.sh $(AWK) $(srcdir)/../include/@TERMINFO_CAPS@ >$@
+
+#
+# Utility productions start here
+#
+
+tags:
+	$(CTAGS) *.[ch]
+
+@MAKE_UPPER_TAGS@TAGS:
+@MAKE_UPPER_TAGS@	$(ETAGS) *.[ch]
+
+mostlyclean ::
+	-rm -f core tags TAGS *~ *.bak *.i *.ln *.atac trace
+
+clean :: mostlyclean
+	-sh -c "if test -n '$x' ; then $(MAKE) clean x=''; fi"
+	-rm -f $(AUTO_SRC)
+	-rm -f $(PROGS)
+	-rm -rf .libs
+
+distclean :: clean
+	-rm -f Makefile
+
+realclean :: distclean
+
+# These rules are used to allow "make -n" to work on a clean directory-tree
+../include/hashsize.h \
+../include/parametrized.h \
+../include/term.h :
+	cd ../include; $(MAKE) $(CF_MFLAGS)
+$(DEPS_CURSES) :
+	cd ../ncurses; $(MAKE) $(CF_MFLAGS)
+
+lint:
+@MAKE_TERMINFO@	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/tic.c     $(srcdir)/dump_entry.c $(LINT_LIBS)
+@MAKE_TERMINFO@	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/toe.c     $(srcdir)/dump_entry.c $(LINT_LIBS)
+	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/clear.c                          $(LINT_LIBS)
+	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/infocmp.c $(srcdir)/dump_entry.c $(LINT_LIBS)
+	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/tabs.c                           $(LINT_LIBS)
+	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/tput.c                           $(LINT_LIBS)
+	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/tset.c    $(srcdir)/dump_entry.c $(LINT_LIBS)
+
+###############################################################################
+# The remainder of this file is automatically generated during configuration
+###############################################################################

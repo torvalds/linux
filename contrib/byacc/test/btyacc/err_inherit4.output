@@ -1,0 +1,165 @@
+   0  $accept : declaration $end
+
+   1  $$1 :
+
+   2  $$2 :
+
+   3  declaration : class type $$1 $$2 namelist
+   4              | type locnamelist
+
+   5  class : GLOBAL
+   6        | LOCAL
+
+   7  type : REAL
+   8       | INTEGER
+
+   9  namelist : namelist NAME
+  10           | NAME
+
+  11  locnamelist : namelist
+
+state 0
+	$accept : . declaration $end  (0)
+
+	GLOBAL  shift 1
+	LOCAL  shift 2
+	REAL  shift 3
+	INTEGER  shift 4
+	.  error
+
+	declaration  goto 5
+	class  goto 6
+	type  goto 7
+
+
+state 1
+	class : GLOBAL .  (5)
+
+	.  reduce 5
+
+
+state 2
+	class : LOCAL .  (6)
+
+	.  reduce 6
+
+
+state 3
+	type : REAL .  (7)
+
+	.  reduce 7
+
+
+state 4
+	type : INTEGER .  (8)
+
+	.  reduce 8
+
+
+state 5
+	$accept : declaration . $end  (0)
+
+	$end  accept
+
+
+state 6
+	declaration : class . type $$1 $$2 namelist  (3)
+
+	REAL  shift 3
+	INTEGER  shift 4
+	.  error
+
+	type  goto 8
+
+
+state 7
+	declaration : type . locnamelist  (4)
+
+	NAME  shift 9
+	.  error
+
+	namelist  goto 10
+	locnamelist  goto 11
+
+
+state 8
+	declaration : class type . $$1 $$2 namelist  (3)
+	$$1 : .  (1)
+
+	.  reduce 1
+
+	$$1  goto 12
+
+
+state 9
+	namelist : NAME .  (10)
+
+	.  reduce 10
+
+
+state 10
+	namelist : namelist . NAME  (9)
+	locnamelist : namelist .  (11)
+
+	NAME  shift 13
+	$end  reduce 11
+
+
+state 11
+	declaration : type locnamelist .  (4)
+
+	.  reduce 4
+
+
+state 12
+	declaration : class type $$1 . $$2 namelist  (3)
+	$$2 : .  (2)
+
+	.  reduce 2
+
+	$$2  goto 14
+
+
+state 13
+	namelist : namelist NAME .  (9)
+
+	.  reduce 9
+
+
+state 14
+	declaration : class type $$1 $$2 . namelist  (3)
+
+	NAME  shift 9
+	.  error
+
+	namelist  goto 15
+
+
+state 15
+	declaration : class type $$1 $$2 namelist .  (3)
+	namelist : namelist . NAME  (9)
+
+	NAME  shift 13
+	$end  reduce 3
+
+
+7 terminals, 8 nonterminals
+12 grammar rules, 16 states
+
+grammar parser grammar
+symbol# value# symbol
+     0      0  $end
+     1    256  error
+     2    257  GLOBAL
+     3    258  LOCAL
+     4    259  REAL
+     5    260  INTEGER
+     6    261  NAME
+     7    262  $accept
+     8    263  declaration
+     9    264  namelist
+    10    265  locnamelist
+    11    266  class
+    12    267  type
+    13    268  $$1
+    14    269  $$2

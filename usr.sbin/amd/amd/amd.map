@@ -1,0 +1,4 @@
+# $FreeBSD$
+#
+/defaults       type:=host;fs:=${autodir}/${rhost}/host;rhost:=${key}
+*               opts:=rw,grpid,resvport,vers=3,proto=tcp,nosuid,nodev

@@ -1,0 +1,138 @@
+.\"
+.\" Copyright (c) 2009 Bruce Simpson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 9, 2009
+.Dt IGMP 4
+.Os
+.Sh NAME
+.Nm igmp
+.Nd Internet Group Management Protocol
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netinet/in.h
+.In netinet/in_systm.h
+.In netinet/ip.h
+.In netinet/igmp.h
+.Ft int
+.Fn socket AF_INET SOCK_RAW IPPROTO_IGMP
+.Sh DESCRIPTION
+.Tn IGMP
+is a control plane protocol used by IPv4 hosts and routers to
+propagate multicast group membership information.
+Normally this protocol is not used directly, except by the kernel
+itself, in response to multicast membership requests by user
+applications.
+Routing protocols may open a raw socket to directly interact with
+.Nm .
+.Pp
+As of
+.Fx 8.0 ,
+IGMP version 3 is implemented.
+This adds support for Source-Specific Multicast (SSM), whereby
+applications may communicate to upstream multicast routers that
+they are only interested in receiving multicast streams from
+particular sources.
+.\"
+.Sh SYSCTL VARIABLES
+.Bl -tag -width indent
+.\"
+.It net.inet.igmp.stats
+This opaque read-only variable exposes the stack-wide IGMPv3
+protocol statistics to
+.Xr netstat 1 .
+.\"
+.It net.inet.igmp.ifinfo
+This opaque read-only variable exposes the per-link IGMPv3 status to
+.Xr ifmcstat 8 .
+.\"
+.It net.inet.igmp.gsrdelay
+This variable specifies the time threshold, in seconds, for processing
+Group-and-Source Specific Queries (GSR).
+As GSR query processing requires maintaining state on the host,
+it may cause memory to be allocated, and is therefore a potential
+attack point for Denial-of-Service (DoS).
+If more than one GSR query is received within this threshold,
+it will be dropped, to mitigate the potential for DoS.
+.\"
+.It net.inet.igmp.default_version
+This variable controls the default version of IGMP to be used on all links.
+This sysctl is normally set to 3 by default.
+.\"
+.It net.inet.igmp.legacysupp
+If this variable is non-zero, then IGMP v1 and v2 membership reports
+received on a link will be allowed to suppress the IGMP v3 state-change
+reports which would otherwise be issued by this host.
+This sysctl is normally enabled by default.
+.\"
+.It net.inet.igmp.v2enable
+If this variable is non-zero, then IGMP v2 membership queries will be
+processed by this host, and backwards compatibility will be enabled
+until the v2 'Old Querier Present' timer expires.
+This sysctl is normally enabled by default.
+.\"
+.It net.inet.igmp.v1enable
+If this variable is non-zero, then IGMP v1 membership queries will be
+processed by this host, and backwards compatibility will be enabled
+until the v1 'Old Querier Present' timer expires.
+This sysctl is normally enabled by default.
+.\"
+.It net.inet.igmp.sendlocal
+If this variable is non-zero, then IGMP state-changes for groups in
+the 224.0.0.0/24 link-scope prefix will be issued.
+This behaviour is recommended if deploying
+.Fx
+in a network environment with layer 2 devices which snoop IGMP traffic
+to mitigate multicast propagation throughout the network.
+This sysctl is normally enabled by default.
+.\"
+.It net.inet.igmp.sendra
+If this variable is non-zero, then IGMP v2 and v3 reports will contain
+the IP Router Alert option.
+This sysctl is normally enabled by default.
+.\"
+.It net.inet.igmp.recvifkludge
+If this variable is non-zero, then received IGMP reports which contain
+0.0.0.0 as their source will be rewritten to contain the subnet address.
+This is useful when there are hosts on-link which have not yet been
+configured with a primary IPv4 address.
+This sysctl is normally enabled by default.
+.\"
+.El
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr sourcefilter 3 ,
+.Xr inet 4 ,
+.Xr multicast 4 ,
+.Xr ifmcstat 8
+.Sh HISTORY
+The
+.Nm
+manual page re-appeared in
+.Fx 8.0 .

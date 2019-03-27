@@ -1,0 +1,86 @@
+/dts-v1/;
+
+#include "mt7620a.dtsi"
+
+/ {
+	compatible = "ralink,mt7620a-eval-board", "ralink,mt7620a-soc";
+	model = "Ralink MT7620A evaluation board";
+
+	gpio-keys-polled {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		wps {
+			label = "wps";
+			gpios = <&gpio0 12 1>;
+			linux,code = <0x100>;
+		};
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 13 1>;
+			linux,code = <0x101>;
+		};
+	};
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "en25q64";
+		spi-max-frequency = <1000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x7b0000>;
+		};
+	};
+};
+
+&ethernet {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&ephy_pins>;
+	mediatek,portmap = "llllw";
+};
+
+&gsw {
+	mediatek,port4 = "ephy";
+};
+
+&sdhci {
+	status = "okay";
+};
+
+&pcie {
+	status = "okay";
+};

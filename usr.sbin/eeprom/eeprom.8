@@ -1,0 +1,700 @@
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" Copyright (c) 2004 Marius Strobl
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	from: NetBSD: eeprom.8,v 1.11 2003/03/31 01:31:39 perry Exp
+.\" $FreeBSD$
+.\"
+.Dd September 1, 2006
+.Dt EEPROM 8 sparc64
+.Os
+.Sh NAME
+.Nm eeprom
+.Nd "display or modify contents of the EEPROM or NVRAM"
+.Sh SYNOPSIS
+.Nm
+.Fl a
+.Nm
+.Op Fl
+.Ar name Ns Op = Ns Ar value
+.Ar ...
+.Sh DESCRIPTION
+The
+.Nm
+utility provides an interface for displaying and changing the system's
+configuration variables contained in EEPROM or NVRAM.
+In the first synopsis form, all available configuration variables and their
+current values are printed.
+In the second form, only the variable selected by
+.Ar name
+and its value is printed or changed if
+.Ar name
+is followed by
+.Ql =
+and a
+.Ar value .
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl
+Commands for displaying or changing variables are taken from stdin, allowing
+one
+.Ar name
+or one
+.Ar name
+and
+.Ar value
+pair per line.
+The output is printed on stdout.
+.It Fl a
+Print all available configuration variables and their current values.
+.El
+.Sh VARIABLES AND VALUES
+Below are variables and values that one is likely to find on a system equipped
+with OpenBoot 3.x and Open Firmware respectively.
+.Pp
+Note: the attempt to set a variable to an illegal value results in the
+Open Firmware setting it to some legal value instead.
+The
+.Nm
+utility will detect this, try to recover the previous value of the variable
+and issue a warning telling that the requested value could not be set.
+.Bl -tag -width ".Va last-hardware-update"
+.It Va auto-boot?
+If
+.Dq Li true ,
+the system will try to boot automatically from the devices listed in
+.Va boot-device
+and
+.Va diag-device
+respectively, using the command specified in
+.Va boot-command
+at power-up.
+Default:
+.Dq Li true .
+.It Va auto-boot-retry?
+If set to
+.Dq Li true
+and
+.Va auto-boot?
+is also set to
+.Dq Li true ,
+the system will try to boot from the specified boot devices forever.
+Default:
+.Dq Li false .
+.It Va ansi-terminal?
+If
+.Dq Li false ,
+.Tn ANSI
+escape sequences are not interpreted by the terminal emulator.
+Default:
+.Dq Li true .
+.It Va boot-command
+Command executed when
+.Va auto-boot?
+is set to
+.Dq Li true .
+Default:
+.Dq Li boot .
+.It Va boot-device
+Default device to boot from if
+.Va diag-switch?
+is set to
+.Dq Li false .
+Takes one or more device aliases or device paths.
+The boot devices are sequentially tried to boot from, beginning with the first
+one specified.
+Default:
+.Dq Li "net disk" .
+.It Va cpci-probe-list
+Digits in the format
+.Dq Li 0,1,2
+specifying in which order to probe the devices on the CompactPCI bus at
+power-up.
+Default: system-dependent.
+.It Va boot-file
+Default arguments for boot when
+.Va diag-switch?
+is set to
+.Dq Li false .
+When empty, the secondary boot loader will choose the file to boot.
+Default: empty string.
+.It Va diag-device
+Like
+.Va boot-device .
+Used when
+.Va diag-switch?
+is set to
+.Dq Li true .
+Default:
+.Dq Li net .
+.It Va diag-file
+Like
+.Va boot-file .
+Used when
+.Va diag-switch?
+is set to
+.Dq Li true .
+Default: empty string.
+.It Va diag-level
+Level of diagnostics to run when
+.Va diag-switch?
+is set to
+.Dq Li true .
+Possible values are
+.Dq Li max ,
+.Dq Li menus ,
+.Dq Li min
+and
+.Dq Li off
+(depending on the system model).
+When set to
+.Dq Li off ,
+the Power-On Self Test (POST) is not run.
+The other values are interpreted by the POST.
+Default:
+.Dq Li min
+or
+.Dq Li max
+(system-dependent).
+.It Va diag-switch?
+If
+.Dq Li true ,
+the system will boot and run in diagnostic mode.
+Default:
+.Dq Li false
+or
+.Dq Li true
+(system-dependent).
+.It Va env-monitor
+Enables or disables the Advanced System Monitoring (ASM).
+Possible values are
+.Dq Li enabled
+and
+.Dq Li disabled .
+Default:
+.Dq Li enabled .
+.It Va fcode-debug?
+Used for debugging FCode programs.
+If set to
+.Dq Li true ,
+names of additional FCodes are registered in the Forth dictionary.
+Default:
+.Dq Li false .
+.It Va hardware-revision
+A string describing the system hardware version.
+Default: system-dependent.
+.It Va input-device
+One of the strings
+.Dq Li keyboard ,
+.Dq Li ttya ,
+or
+.Dq Li ttyb ,
+specifying the default console input device.
+Default:
+.Dq Li keyboard
+or
+.Dq Li ttya
+(system-dependent).
+.It Va keyboard-click?
+If set to
+.Dq Li true ,
+the keys click annoyingly.
+Default:
+.Dq Li false .
+.It Va keymap
+Keymap for a custom keyboard.
+Default: empty string.
+.It Va last-hardware-update
+Similar to
+.Va hardware-revision ,
+describing when the hardware was last updated.
+Default: system-dependent.
+.It Va last-poweroff-cause
+Cause of the last power-off.
+Used internally by the OpenBoot PROM.
+Default:
+.Dq Li 0 .
+.It Va load-base
+Default address where client programs are loaded to.
+It is unlikely that this value should ever be changed.
+Default:
+.Dq Li 16384 .
+.It Va local-mac-address?
+If set to
+.Dq Li false ,
+all Ethernet devices with FCode will use the system default MAC address.
+If set to
+.Dq Li true ,
+Ethernet devices with FCode that contains a unique MAC address will use it
+rather than the system's default MAC address.
+Default:
+.Dq Li false .
+.Pp
+Ethernet devices with FCode include those supported by
+.Xr dc 4 ,
+.Xr gem 4
+and
+.Xr hme 4 .
+Please see the respective manual page for further information.
+.It Va mfg-mode
+Manufacture test mode interpreted by the POST.
+Possible values are
+.Dq Li chamber
+and
+.Dq Li off .
+Default:
+.Dq Li off .
+.It Va mfg-switch?
+If set to
+.Dq Li true ,
+manufacturing tests are repeated until stopped by pressing STOP-A.
+Default:
+.Dq Li off .
+.It Va net-timeout
+If set to
+.Dq Li 0 ,
+the system will try to boot forever when the boot device used is a network
+device.
+Any non-zero value is interpreted as minutes to try a network boot.
+Default:
+.Dq Li 0 .
+.It Va nvramrc
+Contents of the NVRAMRC.
+Default: empty string.
+.Pp
+While
+.Va nvramrc
+can be set using
+.Nm ,
+it is preferred to use
+.Ic nvedit
+in the boot monitor instead.
+.It Va oem-banner
+A string displayed at power-up, rather than the default banner.
+Used when
+.Va oem-banner?
+is set to
+.Dq Li true .
+Default: system-dependent.
+.It Va oem-banner?
+If set to
+.Dq Li true ,
+the string stored in
+.Va oem-banner
+is displayed at power-up rather than the default banner.
+Default: system-dependent.
+.It Va oem-logo
+A logo displayed at power-up when
+.Va oem-logo?
+is set to
+.Dq Li true ,
+rather than the default logo.
+The logo has to be 512 bytes in size, containing a 64x64-bit monochrome image
+in Sun Raster format without the leading 32-byte header.
+Default: system-dependent.
+.Pp
+To set the logo with
+.Nm ,
+give the pathname of the file containing the image as the
+.Ar value .
+Using an empty
+.Ar value
+will remove the image.
+.It Va oem-logo?
+If set to
+.Dq Li true ,
+the logo stored in
+.Va oem-logo
+is displayed at power-up rather than the default logo.
+.It Va output-device
+One of the strings
+.Dq Li screen ,
+.Dq Li ttya ,
+or
+.Dq Li ttyb ,
+specifying the default console output device.
+Default:
+.Dq Li screen
+or
+.Dq Li ttya
+(system-dependent).
+.It Va pcia-probe-list
+Digits in the format
+.Dq Li 1,2,3
+specifying in which order to probe the devices on the PCI bus A.
+Default: system-dependent.
+.It Va pcib-probe-list
+Like
+.Va pcia-probe-list ,
+but for PCI bus B.
+Default: system-dependent.
+.It Va #power-cycles
+Number of power-cycles.
+Automatically incremented on each power-cycle.
+Default: system-dependent.
+.It Va sbus-probe-list
+Digits in the format
+.Dq Li 0123
+specifying in which order to probe the SBus slots at power-up.
+Default: system-dependent.
+.It Va screen-#columns
+An integer specifying the screen width in characters per line.
+Default:
+.Dq Li 80 .
+.It Va screen-#rows
+An integer specifying the screen height in lines.
+Default:
+.Dq Li 34 .
+.It Va scsi-initiator-id
+The SCSI ID of SCSI controllers in the range of [0-7] or [0-f] (depending
+on the controller).
+A SCSI controller may or may not adhere to this setting, depending on its
+FCode and device driver.
+Default:
+.Dq Li 7 .
+.It Va security-#badlogins
+Number of incorrect password attempts when
+.Va security-mode
+is set to
+.Dq Li command
+or
+.Dq Li full .
+Default:
+.Dq Li 0 .
+.It Va security-mode
+Boot monitor security level.
+One of the three possible values
+.Dq Li full ,
+.Dq Li command ,
+or
+.Dq Li none .
+When set to
+.Dq Li full ,
+all boot monitor commands except for
+.Ic go
+require the password.
+When set to
+.Dq Li command ,
+all boot monitor commands except for
+.Ic boot
+and
+.Ic go
+require the password.
+When set to
+.Dq Li none ,
+no password is required.
+Default:
+.Dq Li none .
+.Pp
+When
+.Nm
+is used to set
+.Va security-mode
+to
+.Dq Li full
+or
+.Dq Li command ,
+you will be prompted for the password.
+When
+.Va security-mode
+is set to
+.Dq Li none ,
+.Nm
+will clear the password.
+.It Va security-password
+The password used when
+.Va security-mode
+is set to
+.Dq Li full
+or
+.Dq Li command .
+The maximum length for this password is 8 characters.
+All characters exceeding this length will be ignored.
+The value displayed for
+.Va security-password
+is always an empty string, even when a password is set.
+Default: empty string.
+.Pp
+When
+.Va security-mode
+is set to
+.Dq Li full
+or
+.Dq Li command ,
+.Nm
+can be used to enter a new password using any
+.Ar value
+for
+.Va security-password
+on the command line.
+You will be prompted by
+.Nm
+to type in the new password in this case.
+Trying to set
+.Va security-password
+when
+.Va security-mode
+is set to
+.Dq Li none
+using
+.Nm
+has no effect.
+.It Va selftest-#megs
+An integer specifying the number of megabytes of memory to test upon
+power-up when
+.Va diag-switch?
+is set to
+.Dq Li false .
+Default:
+.Dq Li 1 .
+.It Va shutdown-temperature
+Temperature at which the ASM issues an over-temperature shutdown.
+Default: system-dependent.
+.It Va silent-mode
+If set to
+.Dq Li true ,
+memory test messages will not be displayed at power-up.
+Default:
+.Dq Li false .
+.It Va sunmon-compat?
+If set to
+.Dq Li true ,
+the old bootROM interface will be used while in the boot monitor,
+rather than the OpenBoot PROM interface.
+Default:
+.Dq Li false .
+.It Va system-board-date
+Manufacturing date of the system board.
+Default: system-dependent.
+.It Va system-board-serial#
+Serial number of the system board.
+Default: system-dependent.
+.It Va tpe-link-test?
+Enable link test on 10baseT and 100baseTX Ethernet devices.
+Default:
+.Dq Li true .
+.It Va ttya-mode
+A string of five comma separated fields in the format
+.Dq Li 9600,8,n,1,- .
+The first field is the baud rate.
+The second field is the number of data bits.
+The third field is the parity; acceptable values for parity are
+.Ql n
+(none),
+.Ql e
+(even),
+.Ql o
+(odd),
+.Ql m
+(mark), and
+.Ql s
+(space).
+The fourth field is the number of stop bits.
+The fifth field is the
+.Dq handshake
+field; acceptable values are
+.Ql -
+(none),
+.Ql h
+(RTS/CTS), and
+.Ql s
+(Xon/Xoff).
+Default:
+.Dq Li 9600,8,n,1,- .
+.It Va ttya-ignore-cd
+If set to
+.Dq Li true ,
+the system will ignore carrier detect.
+Default:
+.Dq Li true .
+.It Va ttya-rts-dtr-off
+If set to
+.Dq Li true ,
+the system will ignore RTS/DTR.
+Default:
+.Dq Li false .
+.It Va ttyb-mode
+Like
+.Va ttya-mode ,
+but for ttyb.
+Default:
+.Dq Li 9600,8,n,1,- .
+.It Va ttyb-ignore-cd
+Like
+.Va ttya-ignore-cd ,
+but for ttyb.
+Default:
+.Dq Li true .
+.It Va ttyb-rts-dtr-off
+Like
+.Va ttya-rts-dtr-off ,
+but for ttyb.
+Default:
+.Dq Li false .
+.It Va use-boot-table?
+Use boot table defined by the OEM.
+Default: system-dependent.
+.It Va use-nvramrc?
+If set to
+.Dq Li true ,
+the script stored in
+.Va nvramrc
+will be executed during start-up.
+Default:
+.Dq Li false .
+.It Va warning-temperature
+Temperature at which the ASM issues an over-temperature warning.
+Default: system-dependent.
+.It Va watchdog-enable?
+Enables or disables the system watchdog timer.
+Default:
+.Dq Li false .
+.It Va watchdog-reboot?
+If set to
+.Dq Li true ,
+the system will reboot upon terminal count of the system watchdog timer.
+If set to
+.Dq Li false ,
+the system will fall into the boot monitor.
+Default:
+.Dq Li false .
+.It Va watchdog-timeout
+Expiry limit for the system watchdog timer.
+Range and unit depend on the system model.
+Default: system-dependent.
+.El
+.Sh EXAMPLES
+Print all available configuration variables and their current values:
+.Pp
+.Dl "eeprom -a"
+.Pp
+Print the current value of the
+.Va local-mac-address?
+variable:
+.Pp
+.Dl "eeprom local-mac-address\e?"
+.Pp
+Set the value of the
+.Va local-mac-address?
+variable to
+.Dq Li true :
+.Pp
+.Dl "eeprom local-mac-address\e?=true"
+.Pp
+Note that the
+.Ql \e
+in the above examples is used to keep the shell from interpreting the
+.Ql \&? .
+.Pp
+Write an image to the
+.Va oem-logo
+variable:
+.Pp
+.Dl "eeprom oem-logo=/path/to/image.raw"
+.Pp
+Remove the image from the
+.Va oem-logo
+variable again:
+.Pp
+.Dl "eeprom oem-logo="
+.Pp
+Set the value of the
+.Va security-mode
+variable to
+.Dq Li full ,
+and set the password:
+.Bd -literal -offset indent
+eeprom security-mode=full
+New password:
+Retype new password:
+.Ed
+.Pp
+Remember that the maximum length for the password is 8 characters.
+All characters exceeding this length will be ignored.
+.Pp
+Set a new password when the
+.Va security-mode
+variable is set to
+.Dq Li command
+or
+.Dq Li full :
+.Bd -literal -offset indent
+eeprom security-password=
+New password:
+Retype new password:
+.Ed
+.Sh SEE ALSO
+.Xr dc 4 ,
+.Xr gem 4 ,
+.Xr hme 4 ,
+.Xr ofwdump 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.4 .
+It was adopted from there by
+.Fx 2.0 .
+The
+.Nm
+utility was removed from
+.Fx
+again after
+.Fx 2.1.7
+because the utility was unused at that time.
+The present implementation of the
+.Nm
+utility first appeared in
+.Fx 5.3 .
+It is inspired by the
+.Nx
+.Xr eeprom 8
+and SunOS/Solaris
+.Xr eeprom 1M
+utilities.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility uses base code from the
+.Nx
+version written by
+.An Jason R. Thorpe .
+The handlers for the Open Firmware
+.Pa /options
+node were written by
+.An Marius Strobl Aq Mt marius@FreeBSD.org .
+The code for accessing the Open Firmware device tree is shared with the
+.Xr ofwdump 8
+utility written by
+.An Thomas Moestl Aq Mt tmm@FreeBSD.org .
+.Sh BUGS
+Currently,
+.Nm
+only supports systems equipped with Open Firmware and is only tested on Sun
+Microsystems sun4u machines.

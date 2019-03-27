@@ -1,0 +1,139 @@
+.\" Copyright (c) 2007 Christian Brueffer
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 5, 2013
+.Dt HPTIOP 4
+.Os
+.Sh NAME
+.Nm hptiop
+.Nd "HighPoint RocketRAID 3xxx/4xxx device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device hptiop"
+.Cd "device scbus"
+.Cd "device da"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hptiop_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the HighPoint RocketRAID 3xxx/4xxx series
+of SAS and SATA RAID controllers.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following SAS and SATA RAID controllers:
+.Pp
+.Bl -bullet -compact
+.It
+HighPoint RocketRAID 4522
+.It
+HighPoint RocketRAID 4521
+.It
+HighPoint RocketRAID 4520
+.It
+HighPoint RocketRAID 4322
+.It
+HighPoint RocketRAID 4321
+.It
+HighPoint RocketRAID 4320
+.It
+HighPoint RocketRAID 4311
+.It
+HighPoint RocketRAID 4310
+.It
+HighPoint RocketRAID 3640
+.It
+HighPoint RocketRAID 3622
+.It
+HighPoint RocketRAID 3620
+.El
+.Pp
+The
+.Nm
+driver also supports the following SAS and SATA RAID controllers that
+are already End-of-Life:
+.Pp
+.Bl -bullet -compact
+.It
+HighPoint RocketRAID 4211
+.It
+HighPoint RocketRAID 4210
+.It
+HighPoint RocketRAID 3560
+.It
+HighPoint RocketRAID 3540
+.It
+HighPoint RocketRAID 3530
+.It
+HighPoint RocketRAID 3522
+.It
+HighPoint RocketRAID 3521
+.It
+HighPoint RocketRAID 3520
+.It
+HighPoint RocketRAID 3511
+.It
+HighPoint RocketRAID 3510
+.It
+HighPoint RocketRAID 3410
+.It
+HighPoint RocketRAID 3320
+.It
+HighPoint RocketRAID 3220
+.It
+HighPoint RocketRAID 3122
+.It
+HighPoint RocketRAID 3120
+.It
+HighPoint RocketRAID 3020
+.El
+.Sh NOTES
+The
+.Nm
+driver has only been tested on the i386 and amd64 platforms.
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr hptmv 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An HighPoint Technologies, Inc.

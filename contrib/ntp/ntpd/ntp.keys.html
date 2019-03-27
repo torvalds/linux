@@ -1,0 +1,267 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.5, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>NTP Symmetric Key</title>
+
+<meta name="description" content="NTP Symmetric Key">
+<meta name="keywords" content="NTP Symmetric Key">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="#Top" rel="start" title="Top">
+<link href="dir.html#Top" rel="up" title="(dir)">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<h1 class="settitle" align="center">NTP Symmetric Key</h1>
+
+
+
+
+
+<a name="Top"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002ekeys-Description" accesskey="n" rel="next">ntp.keys Description</a>, Previous: <a href="dir.html#Top" accesskey="p" rel="prev">(dir)</a>, Up: <a href="dir.html#Top" accesskey="u" rel="up">(dir)</a> &nbsp; </p>
+</div>
+<a name="NTP_0027s-Symmetric-Key-File-User-Manual"></a>
+<h1 class="top">NTP&rsquo;s Symmetric Key File User Manual</h1>
+
+<p>This document describes the symmetric key file for the NTP Project&rsquo;s
+<code>ntpd</code> program.
+</p>
+<p>This document applies to version 4.2.8p13 of <code>ntp.keys</code>.
+</p>
+<a name="SEC_Overview"></a>
+<h2 class="shortcontents-heading">Short Table of Contents</h2>
+
+<div class="shortcontents">
+<ul class="no-bullet">
+<li><a name="stoc-Description" href="#toc-Description">1 Description</a></li>
+</ul>
+</div>
+
+
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002ekeys-Description" accesskey="1">ntp.keys Description</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002ekeys-Notes" accesskey="2">ntp.keys Notes</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+</table>
+
+<hr>
+<a name="ntp_002ekeys-Description"></a>
+<div class="header">
+<p>
+Previous: <a href="#Top" accesskey="p" rel="prev">Top</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="Description"></a>
+<h2 class="chapter">1 Description</h2>
+
+<p>The name and location of the symmetric key file for <code>ntpd</code> can
+be specified in a configuration file, by default <code>/etc/ntp.keys</code>.
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002ekeys-Notes" accesskey="1">ntp.keys Notes</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+</table>
+
+<hr>
+<a name="ntp_002ekeys-Notes"></a>
+<div class="header">
+<p>
+Previous: <a href="#ntp_002ekeys-See-Also" accesskey="p" rel="prev">ntp.keys See Also</a>, Up: <a href="#ntp_002ekeys-Description" accesskey="u" rel="up">ntp.keys Description</a> &nbsp; </p>
+</div>
+<a name="Notes-about-ntp_002ekeys"></a>
+<h3 class="section">1.1 Notes about ntp.keys</h3>
+<a name="index-ntp_002ekeys"></a>
+<a name="index-NTP-symmetric-key-file-format"></a>
+
+
+
+<p>This document describes the format of an NTP symmetric key file.
+For a description of the use of this type of file, see the
+&quot;Authentication Support&quot;
+section of the
+<code>ntp.conf(5)</code>
+page.
+</p>
+<p><code>ntpd(8)</code>
+reads its keys from a file specified using the
+<code>-k</code>
+command line option or the
+<code>keys</code>
+statement in the configuration file.
+While key number 0 is fixed by the NTP standard
+(as 56 zero bits)
+and may not be changed,
+one or more keys numbered between 1 and 65535
+may be arbitrarily set in the keys file.
+</p>
+<p>The key file uses the same comment conventions
+as the configuration file.
+Key entries use a fixed format of the form
+</p>
+<div class="example">
+<pre class="example"><kbd>keyno</kbd> <kbd>type</kbd> <kbd>key</kbd> <kbd>opt_IP_list</kbd>
+</pre></div>
+
+<p>where
+<kbd>keyno</kbd>
+is a positive integer (between 1 and 65535),
+<kbd>type</kbd>
+is the message digest algorithm,
+<kbd>key</kbd>
+is the key itself, and
+<kbd>opt_IP_list</kbd>
+is an optional comma-separated list of IPs
+where the
+<kbd>keyno</kbd>
+should be trusted.
+that are allowed to serve time.
+Each IP in
+<kbd>opt_IP_list</kbd>
+may contain an optional
+<code>/subnetbits</code>
+specification which identifies the number of bits for
+the desired subnet of trust.
+If
+<kbd>opt_IP_list</kbd>
+is empty,
+any properly-authenticated message will be
+accepted.
+</p>
+<p>The
+<kbd>key</kbd>
+may be given in a format
+controlled by the
+<kbd>type</kbd>
+field.
+The
+<kbd>type</kbd>
+<code>MD5</code>
+is always supported.
+If
+<code>ntpd</code>
+was built with the OpenSSL library
+then any digest library supported by that library may be specified.
+However, if compliance with FIPS 140-2 is required the
+<kbd>type</kbd>
+must be either
+<code>SHA</code>
+or
+<code>SHA1</code>.
+</p>
+<p>What follows are some key types, and corresponding formats:
+</p>
+<dl compact="compact">
+<dt><code>MD5</code></dt>
+<dd><p>The key is 1 to 16 printable characters terminated by
+an EOL,
+whitespace,
+or
+a
+<code>#</code>
+(which is the &quot;start of comment&quot; character).
+</p>
+</dd>
+<dt><code>SHA</code></dt>
+<dt><code>SHA1</code></dt>
+<dt><code>RMD160</code></dt>
+<dd><p>The key is a hex-encoded ASCII string of 40 characters,
+which is truncated as necessary.
+</p></dd>
+</dl>
+
+<p>Note that the keys used by the
+<code>ntpq(8)</code>
+and
+<code>ntpdc(8)</code>
+programs are checked against passwords
+requested by the programs and entered by hand,
+so it is generally appropriate to specify these keys in ASCII format.
+</p>
+<p>This section was generated by <strong>AutoGen</strong>,
+using the <code>agtexi-cmd</code> template and the option descriptions for the <code>ntp.keys</code> program.
+This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002ekeys-Files" accesskey="1">ntp.keys Files</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Files
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002ekeys-See-Also" accesskey="2">ntp.keys See Also</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">See Also
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002ekeys-Notes" accesskey="3">ntp.keys Notes</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Notes
+</td></tr>
+</table>
+
+<hr>
+<a name="ntp_002ekeys-Files"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002ekeys-See-Also" accesskey="n" rel="next">ntp.keys See Also</a>, Up: <a href="#ntp_002ekeys-Notes" accesskey="u" rel="up">ntp.keys Notes</a> &nbsp; </p>
+</div>
+<a name="ntp_002ekeys-Files-1"></a>
+<h4 class="subsection">1.1.1 ntp.keys Files</h4>
+<dl compact="compact">
+<dt><samp>/etc/ntp.keys</samp></dt>
+<dd><p>the default name of the configuration file
+</p></dd>
+</dl>
+<hr>
+<a name="ntp_002ekeys-See-Also"></a>
+<div class="header">
+<p>
+Previous: <a href="#ntp_002ekeys-Files" accesskey="p" rel="prev">ntp.keys Files</a>, Up: <a href="#ntp_002ekeys-Notes" accesskey="u" rel="up">ntp.keys Notes</a> &nbsp; </p>
+</div>
+<a name="ntp_002ekeys-See-Also-1"></a>
+<h4 class="subsection">1.1.2 ntp.keys See Also</h4>
+<p><code>ntp.conf(5)</code>,
+<code>ntpd(1ntpdmdoc)</code>,
+<code>ntpdate(1ntpdatemdoc)</code>,
+<code>ntpdc(1ntpdcmdoc)</code>,
+<code>sntp(1sntpmdoc)</code>
+</p><hr>
+<div class="header">
+<p>
+ &nbsp; </p>
+</div>
+<a name="ntp_002ekeys-Notes-1"></a>
+<h4 class="subsection">1.1.3 ntp.keys Notes</h4>
+<p>This document was derived from FreeBSD.
+</p><hr>
+
+
+
+</body>
+</html>

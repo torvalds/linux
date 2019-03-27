@@ -1,0 +1,72 @@
+.\" $FreeBSD$
+.am vS
+..
+.am vE
+..
+'ss 23
+'ds _ \d\(mi\u
+'ps 9z
+'vs 10p
+'ds - \(mi
+'ds / \\h'\\w' 'u-\\w'/'u'/
+'ds /* \\h'\\w' 'u-\\w'/'u'/*
+'bd B 3
+'bd S B 3
+'nr cm 0
+'nf
+'de vH
+'ev 2
+'ft 1
+'sp .35i
+'tl '\s14\f3\\*(=F\fP\s0'\\*(=H'\f3\s14\\*(=F\fP\s0'
+'sp .25i
+'ft 1
+\f2\s12\h'\\n(.lu-\w'\\*(=f'u'\\*(=f\fP\s0\h'|0u'
+.sp .05i
+'ev
+'ds =G \\*(=F
+..
+'de vF
+'ev 2
+'sp .35i
+'ie o 'tl '\f2\\*(=M''Page % of \\*(=G\fP'
+'el 'tl '\f2Page % of \\*(=G''\\*(=M\fP'
+'bp
+'ev
+'ft 1
+'if \\n(cm=1 'ft 2
+..
+'de ()
+'pn 1
+..
+'de +C
+'nr cm 1
+'ft 2
+'ds +K
+'ds -K
+..
+'de -C
+'nr cm 0
+'ft 1
+'ds +K \f3
+'ds -K \fP
+..
+'+C
+'-C
+'am +C
+'ne 3
+..
+'de FN
+\f2\s14\h'\\n(.lu-\w'\\$1'u'\\$1\fP\s0\h'|0u'\c
+.if r x .if \\nx .if d =F .tm \\$1 \\*(=F \\n%
+'ds =f \&...\\$1
+..
+'de FC
+.if r x .if \\nx .if d =F .tm \\$1 \\*(=F \\n%
+'ds =f \&...\\$1
+..
+'de -F
+'rm =f
+..
+'ft 1
+'lg 0

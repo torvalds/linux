@@ -1,0 +1,21 @@
+$FreeBSD$
+
+This directory contains gdb macros for kernel debugging.  When you
+build a debug kernel, the target "gdbinit" in the kernel Makefile will
+create the correct .gdbinit files in the kernel build directory.  To
+perform kernel debugging, you would do:
+
+  # cd /usr/obj/usr/src/sys/GENERIC  (or name of kernel config)
+  # make gdbinit
+  # gdb kernel.debug
+  This GDB was configured as "i386-undermydesk-freebsd"...
+  Ready to go.  Enter 'tr' to connect to remote target
+  and 'getsyms' after connection to load kld symbols.
+  (kgdb) 
+
+
+This directory also contains a kgdb script that, given a crash dump number,
+automatically extracts the path to the kernel source, runs gdb to extract
+information about kernel modules loaded, and then reruns gdb loading the
+necessary symbols for the modules.  You need to make sure you build the
+modules w/ debugging symbols separately to get things to work.

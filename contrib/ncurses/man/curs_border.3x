@@ -1,0 +1,153 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_border.3x,v 1.22 2010/12/04 18:36:44 tom Exp $
+.TH curs_border 3X ""
+.na
+.hy 0
+.SH NAME
+\fBborder\fR,
+\fBwborder\fR,
+\fBbox\fR,
+\fBhline\fR,
+\fBwhline\fR,
+\fBvline\fR,
+\fBwvline\fR,
+\fBmvhline\fR,
+\fBmvwhline\fR,
+\fBmvvline\fR,
+\fBmvwvline\fR \- create \fBcurses\fR borders, horizontal and vertical lines
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.br
+\fBint border(chtype ls, chtype rs, chtype ts, chtype bs,\fR
+   \fBchtype tl, chtype tr, chtype bl, chtype br);\fR
+.br
+\fBint wborder(WINDOW *win, chtype ls, chtype rs,\fR
+   \fBchtype ts, chtype bs, chtype tl, chtype tr,\fR
+   \fBchtype bl, chtype br);\fR
+.br
+\fBint box(WINDOW *win, chtype verch, chtype horch);\fR
+.br
+\fBint hline(chtype ch, int n);\fR
+.br
+\fBint whline(WINDOW *win, chtype ch, int n);\fR
+.br
+\fBint vline(chtype ch, int n);\fR
+.br
+\fBint wvline(WINDOW *win, chtype ch, int n);\fR
+.br
+\fBint mvhline(int y, int x, chtype ch, int n);\fR
+.br
+\fBint mvwhline(WINDOW *, int y, int x, chtype ch, int n);\fR
+.br
+\fBint mvvline(int y, int x, chtype ch, int n);\fR
+.br
+\fBint mvwvline(WINDOW *, int y, int x, chtype ch, int n);\fR
+.br
+.SH DESCRIPTION
+The \fBborder\fR, \fBwborder\fR and \fBbox\fR routines
+draw a box around the edges of a window.
+Other than the window, each argument is a character with attributes:
+.sp
+.RS
+\fIls\fR \- left side,
+.br
+\fIrs\fR \- right side,
+.br
+\fIts\fR \- top side,
+.br
+\fIbs\fR \- bottom side,
+.br
+\fItl\fR \- top left-hand corner,
+.br
+\fItr\fR \- top right-hand corner,
+.br
+\fIbl\fR \- bottom left-hand corner, and
+.br
+\fIbr\fR \- bottom right-hand corner.
+.RE
+.PP
+If any of these arguments is zero, then the corresponding
+default values (defined in \fBcurses.h\fR) are used instead:
+.sp
+.RS
+\fBACS_VLINE\fR,
+.br
+\fBACS_VLINE\fR,
+.br
+\fBACS_HLINE\fR,
+.br
+\fBACS_HLINE\fR,
+.br
+\fBACS_ULCORNER\fR,
+.br
+\fBACS_URCORNER\fR,
+.br
+\fBACS_LLCORNER\fR,
+.br
+\fBACS_LRCORNER\fR.
+.RE
+.PP
+\fBbox(\fR\fIwin\fR\fB, \fR\fIverch\fR\fB, \fR\fIhorch\fR\fB)\fR is a shorthand
+for the following call: \fBwborder(\fR\fIwin\fR\fB,\fR \fIverch\fR\fB,\fR
+\fIverch\fR\fB,\fR \fIhorch\fR\fB,\fR \fIhorch\fR\fB, 0, 0, 0, 0)\fR.
+.PP
+The \fBhline\fR and \fBwhline\fR functions draw a horizontal (left to right)
+line using \fIch\fR starting at the current cursor position in the window.  The
+current cursor position is not changed.  The line is at most \fIn\fR characters
+long, or as many as fit into the window.
+.PP
+The \fBvline\fR and \fBwvline\fR functions draw a vertical (top to bottom) line
+using \fIch\fR starting at the current cursor position in the window.  The
+current cursor position is not changed.  The line is at most \fIn\fR characters
+long, or as many as fit into the window.
+.SH RETURN VALUE
+All routines return the integer \fBOK\fR.  The SVr4.0 manual says "or a
+non-negative integer if \fBimmedok\fR is set", but this appears to be an error.
+.PP
+X/Open does not define any error conditions.
+This implementation returns an error
+if the window pointer is null.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+The borders generated by these functions are \fIinside\fR borders (this
+is also true of SVr4 curses, though the fact is not documented).
+.PP
+Note that \fBborder\fR and \fBbox\fR may be macros.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.
+The standard specifies that they return \fBERR\fR on failure,
+but specifies no error conditions.
+.SH SEE ALSO
+\fBcurses\fR(3X), \fBcurs_outopts\fR(3X).

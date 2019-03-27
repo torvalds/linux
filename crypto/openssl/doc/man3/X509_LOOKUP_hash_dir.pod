@@ -1,0 +1,139 @@
+=pod
+
+=head1 NAME
+
+X509_LOOKUP_hash_dir, X509_LOOKUP_file,
+X509_load_cert_file,
+X509_load_crl_file,
+X509_load_cert_crl_file - Default OpenSSL certificate
+lookup methods
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509_vfy.h>
+
+ X509_LOOKUP_METHOD *X509_LOOKUP_hash_dir(void);
+ X509_LOOKUP_METHOD *X509_LOOKUP_file(void);
+
+ int X509_load_cert_file(X509_LOOKUP *ctx, const char *file, int type);
+ int X509_load_crl_file(X509_LOOKUP *ctx, const char *file, int type);
+ int X509_load_cert_crl_file(X509_LOOKUP *ctx, const char *file, int type);
+
+=head1 DESCRIPTION
+
+B<X509_LOOKUP_hash_dir> and B<X509_LOOKUP_file> are two certificate
+lookup methods to use with B<X509_STORE>, provided by OpenSSL library.
+
+Users of the library typically do not need to create instances of these
+methods manually, they would be created automatically by
+L<X509_STORE_load_locations(3)> or
+L<SSL_CTX_load_verify_locations(3)>
+functions.
+
+Internally loading of certificates and CRLs is implemented via functions
+B<X509_load_cert_crl_file>, B<X509_load_cert_file> and
+B<X509_load_crl_file>. These functions support parameter I<type>, which
+can be one of constants B<FILETYPE_PEM>, B<FILETYPE_ASN1> and
+B<FILETYPE_DEFAULT>. They load certificates and/or CRLs from specified
+file into memory cache of B<X509_STORE> objects which given B<ctx>
+parameter is associated with.
+
+Functions B<X509_load_cert_file> and
+B<X509_load_crl_file> can load both PEM and DER formats depending of
+type value. Because DER format cannot contain more than one certificate
+or CRL object (while PEM can contain several concatenated PEM objects)
+B<X509_load_cert_crl_file> with B<FILETYPE_ASN1> is equivalent to
+B<X509_load_cert_file>.
+
+Constant B<FILETYPE_DEFAULT> with NULL filename causes these functions
+to load default certificate store file (see
+L<X509_STORE_set_default_paths(3)>.
+
+
+Functions return number of objects loaded from file or 0 in case of
+error.
+
+Both methods support adding several certificate locations into one
+B<X509_STORE>.
+
+This page documents certificate store formats used by these methods and
+caching policy.
+
+=head2 File Method
+
+The B<X509_LOOKUP_file> method loads all the certificates or CRLs
+present in a file into memory at the time the file is added as a
+lookup source.
+
+File format is ASCII text which contains concatenated PEM certificates
+and CRLs.
+
+This method should be used by applications which work with a small
+set of CAs.
+
+=head2 Hashed Directory Method
+
+B<X509_LOOKUP_hash_dir> is a more advanced method, which loads
+certificates and CRLs on demand, and caches them in memory once
+they are loaded. As of OpenSSL 1.0.0, it also checks for newer CRLs
+upon each lookup, so that newer CRLs are as soon as they appear in
+the directory.
+
+The directory should contain one certificate or CRL per file in PEM format,
+with a file name of the form I<hash>.I<N> for a certificate, or
+I<hash>.B<r>I<N> for a CRL.
+The I<hash> is the value returned by the L<X509_NAME_hash(3)> function applied
+to the subject name for certificates or issuer name for CRLs.
+The hash can also be obtained via the B<-hash> option of the L<x509(1)> or
+L<crl(1)> commands.
+
+The .I<N> or .B<r>I<N> suffix is a sequence number that starts at zero, and is
+incremented consecutively for each certificate or CRL with the same I<hash>
+value.
+Gaps in the sequence numbers are not supported, it is assumed that there are no
+more objects with the same hash beyond the first missing number in the
+sequence.
+
+Sequence numbers make it possible for the directory to contain multiple
+certificates with same subject name hash value.
+For example, it is possible to have in the store several certificates with same
+subject or several CRLs with same issuer (and, for example, different validity
+period).
+
+When checking for new CRLs once one CRL for given hash value is
+loaded, hash_dir lookup method checks only for certificates with
+sequence number greater than that of the already cached CRL.
+
+Note that the hash algorithm used for subject name hashing changed in OpenSSL
+1.0.0, and all certificate stores have to be rehashed when moving from OpenSSL
+0.9.8 to 1.0.0.
+
+OpenSSL includes a L<rehash(1)> utility which creates symlinks with correct
+hashed names for all files with .pem suffix in a given directory.
+
+=head1 RETURN VALUES
+
+X509_LOOKUP_hash_dir() and X509_LOOKUP_file() always return a valid
+B<X509_LOOKUP_METHOD> structure.
+
+X509_load_cert_file(), X509_load_crl_file() and X509_load_cert_crl_file() return
+the number of loaded objects or 0 on error.
+
+=head1 SEE ALSO
+
+L<PEM_read_PrivateKey(3)>,
+L<X509_STORE_load_locations(3)>,
+L<X509_store_add_lookup(3)>,
+L<SSL_CTX_load_verify_locations(3)>,
+L<X509_LOOKUP_meth_new(3)>,
+
+=head1 COPYRIGHT
+
+Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

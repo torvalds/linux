@@ -1,0 +1,10 @@
+path=':/bin:/tmp::/:.:/no/such/dir:.'
+path='/bin:/tmp:/:/no/such/dir'
+path='/bin:/tmp:/:/no/such/dir'
+path='/bin':'/tmp':'/':'/no/such/dir'
+path='/bin':'/tmp':'/':'/no/such/dir'
+path_/usr/xbin=/opt/xbin/
+paths=/bin /tmp / /no/such/dir /opt/xbin
+PATHS=/BIN /TMP / /NO/SUCH/DIR /OPT/XBIN
+The answer is 42
+exit status 0

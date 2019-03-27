@@ -1,0 +1,124 @@
+#
+# $FreeBSD$
+#
+NANO_TOOLS=`pwd`
+NANO_PACKAGE_DIR=`pwd`/Pkg
+NANO_RAM_TMPVARSIZE=40960
+NANO_PMAKE="make -j 8"
+NANO_LABEL="rescue"
+NANO_RAM_TMPVARSIZE=40960
+#NANO_MEDIASIZE="8027712"
+#NANO_MEDIASIZE="2097152"
+NANO_MEDIASIZE="3932160"
+NANO_SECTS="63"
+NANO_HEADS="16"
+NANO_IMAGES="2"
+NANO_INIT_IMG2="0"
+NANO_BOOT0CFG="-o packet,update,nosetdrv -s 1 -m 3"
+NANO_DRIVE=da0
+#NANO_MODULES=
+NANO_BOOTLOADER="boot/boot0"
+NANO_BOOT2CFG=""
+NANO_MD_BACKING=swap
+
+# Options to put in make.conf during buildworld only
+CONF_BUILD='
+'
+# Options to put in make.conf during installworld only                          
+CONF_INSTALL='
+'
+# Options to put in make.conf during both build- & installworld.                
+CONF_WORLD='                                                                    
+#TARGET_ARCH=i386
+CFLAGS=-O -pipe                                                                
+WITHOUT_TESTS=YES
+ALL_MODULES=YES
+'
+
+# Functions
+toLower() {
+  echo $1 | tr "[:upper:]" "[:lower:]"
+}
+
+toUpper() {
+  echo $1 | tr "[:lower:]" "[:upper:]"
+}
+
+#customize_cmd cust_comconsole
+customize_cmd cust_allow_ssh_root
+customize_cmd cust_install_files
+
+cust_ld32_cfg () (
+	cd ${NANO_WORLDDIR}/libexec
+	if [ \! -f ld-elf32.so.1 ]; then
+	ln -s ld-elf.so.1 ld-elf32.so.1
+	fi
+)
+customize_cmd cust_ld32_cfg
+
+#cust_boot_cfg () (
+#	cd ${NANO_WORLDDIR}
+#	echo "-S115200 -h" > boot.config
+#	echo "console=\"comconsole\"" > boot/loader.conf
+#	echo "comconsole_speed=\"115200\"" >> boot/loader.conf
+#	echo "hint.acpi.0.disabled=\"1\"" >> boot/loader.conf
+#)
+#customize_cmd cust_boot_cfg
+
+customize_cmd cust_pkgng
+
+cust_etc_cfg () (
+  cd ${NANO_WORLDDIR}
+#  mkdir -pv scratch
+	echo "hostname=\"rescue\"" > etc/rc.conf
+	echo "font8x14=\"iso15-8x14\"" >> etc/rc.conf
+	echo "font8x16=\"iso15-8x16\"" >> etc/rc.conf
+	echo "font8x8=\"iso15-8x8\"" >> etc/rc.conf
+	echo "keymap=\"german.iso\"" >> etc/rc.conf
+	echo "#ifconfig_fxp0=\"AUTO\"" >> etc/rc.conf
+	echo "#sshd_enable=\"YES\"" >> etc/rc.conf
+	echo "/dev/ufs/${NANO_LABEL}s1a / ufs ro,noatime 0 0" > etc/fstab
+	echo "/dev/${NANO_DRIVE}s3 /cfg ufs rw,noauto 2 2" >> etc/fstab
+	echo "tmpfs /boot/zfs tmpfs rw,size=1048576,mode=777 0 0" >> etc/fstab
+	echo "ports:/usr/ports /usr/ports nfs rw,noauto,noatime,bg,soft,intr,nfsv3 0 0" >> etc/fstab
+#	echo "/dev/ad1s1a /scratch ufs rw,noauto,noatime 0 0" >> etc/fstab
+	/usr/sbin/pwd_mkdb -d etc etc/master.passwd
+)
+customize_cmd cust_etc_cfg
+
+setup_nanobsd_etc ( ) (
+	pprint 2 "configure nanobsd /etc"
+	(
+	cd ${NANO_WORLDDIR}
+	# create diskless marker file
+	touch etc/diskless
+	# Make root filesystem R/O by default
+	echo "root_rw_mount=NO" >> etc/defaults/rc.conf
+	# save config file for scripts
+	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
+	mkdir -p cfg
+	)
+)
+last_orders () (
+	pprint 2 "last orders"
+	(
+	cd ${NANO_WORLDDIR}
+	#makefs converts labels to uppercase anyways
+	BIGLABEL=`toUpper "${NANO_LABEL}"`
+	echo "/dev/iso9660/${BIGLABEL} / cd9660 ro,noatime 0 0" > etc/fstab
+	echo "tmpfs /boot/zfs tmpfs rw,size=1048576,mode=777 0 0" >> etc/fstab
+	echo "ports:/usr/ports /usr/ports nfs rw,noauto,noatime,bg,soft,intr,nfsv3 0 0" >> etc/fstab
+#	echo "/dev/ad1s1a /scratch ufs rw,noauto,noatime 0 0" >> etc/fstab
+	rm -f conf/default/etc/remount
+	touch conf/default/etc/.keepme
+	touch conf/default/var/.keepme
+	mkdir bootpool
+	mkdir mnt/a
+	mkdir mnt/b
+	mkdir mnt/c
+	cd ..
+	makefs -t cd9660 -o rockridge \
+	-o label="${BIGLABEL}" -o publisher="RMX" \
+	-o bootimage="i386;_.w/boot/cdboot" -o no-emul-boot _.disk.iso _.w/
+	)
+)

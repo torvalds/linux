@@ -1,0 +1,176 @@
+$FreeBSD$
+
+PLEASE READ THE DISCLAIMER FILE.  DO NOT CALL THE SUN MICROSYSTEMS SUPPORT
+LINE WITH QUESTIONS ON THIS RELEASE.  THEY CANNOT ANSWER QUESTIONS ABOUT THIS
+UNSUPPORTED SOURCE RELEASE.
+
+TIRPCSRC 2.3 29 Aug 1994
+
+This distribution contains SunSoft's implementation of transport-independent
+RPC (TI-RPC), External Data Representation (XDR), and various utilities and
+documentation.  These libraries and programs form the base of Open Network
+Computing (ONC), and are derived directly from the Solaris 2.3 source.
+
+Previous releases of RPC Source based on SunOS 4.x were ported to 4.2BSD and
+used Sockets as the transport interface.  These versions were
+transport-specific RPC (TS-RPC).
+
+TI-RPC is an enhanced version of TS-RPC that requires the UNIX System V
+Transport Layer Interface (TLI) or an equivalent X/Open Transport Interface
+(XTI).  TI-RPC is on-the-wire compatible with the TS-RPC, which is supported
+by almost 70 vendors on all major operating systems.  TS-RPC source code
+(RPCSRC 4.0) remains available from several internet sites.
+
+This release is a native source release, that is, it is compatible for
+building on Solaris 2.3.  This release was built on Solaris 2.3 using SunPro
+SPARCompiler 2.0.1.
+
+Solaris 2.3 is based on System V, Release 4 (SVR4), and while this release
+should be mostly compatible with other SVR4 systems, some Solaris facilities
+that are assumed may not be available.  In particular, this release uses the
+Makefile format supported by SparcCompiler 2.0.1.  Second, the Secure RPC
+routines use the Solaris Name Service Switch to access public-key credential
+databases.  This code will need to be ported if your system does not support
+the Name Service Switch.  Finally, this release uses the synchronization
+interfaces of UI Threads to make certain interfaces thread-safe.  These
+interfaces are found in libthread in Solaris 2.3 and later.
+
+Applications linked with this release's librpc must link with the United
+States domestic version of libcrypt in order to resolve the cbc_crypt() and
+ecb_crypt() functions.  These routines are used with Secure RPC however all
+RPC programs that link with this release's librpc will need to link with the
+domestic libcrypt.  Note that the Solaris 2.3 Encryption Kit is only available
+within the United States.  (PLEASE NOTE: The RPC implementation found in
+Solaris 2.3's libnsl does *not* have this requirement; linking with libcrypt
+is only a requirement for the TIRPCSRC 2.3 version of librpc.)
+
+
+DOCUMENTATION NOTE
+
+The documentation found in the doc directory are derived from the Solaris 2.3
+Network Interfaces Programming Guide.  A small number of compile examples are
+given, and these use libnsl to link in the RPC library.  This release builds
+the RPC library as librpc.  To use this release's librpc, use the link command
+"-lrpc -lnsl -lcrypt".  This links the application with TIRPCSRC 2.3's librpc
+for RPC routines, Solaris's libnsl for other networking functions, and
+libcrypt for the cbc_crypt() and ecb_crypt functions.
+
+
+WHY IS THIS RELEASE BEING DONE?
+
+This release is being distributed to make the Sun implementation of the ONC
+technologies available for reference and porting to non-Solaris platforms.
+The current release is a native source distribution, and provides services
+that are already available on Solaris 2.3 (such as the RPC headers, the RPC
+library in libnsl, rpcbind, rpcinfo, etc.).  It is not our intention to
+replace these services.  See the DISCLAIMER for further information about the
+legal status of this release.
+
+
+WHAT'S NEW IN THIS RELEASE: TIRPCSRC 2.3
+
+The previous release was TIRPCSRC 2.0.
+
+1.      This release is based on Solaris 2.3.  The previous release was
+	based on Solaris 2.0.  This release contains a significant number of
+	bug fixes and other enhancements over TIRPCSRC 2.0.
+
+2.      The RPC library is thread safe for all client-side interfaces
+	(clnt_create, clnt_call, etc.).  The server-side interfaces
+	(svc_create, svc_run, etc.) are not thread safe in this release. The
+	server-side interfaces will be made thread safe in the next release of
+	TIRPCSRC.  Please see the manual pages for details about which
+	interfaces are thread safe.
+
+3.      As part of the work to make the RPC library thread-safe, rpcgen has
+	been enhanced to generate thread-safe RPC stubs (the -M option).  Note
+	that this modifies the call-signature for the stub functions; the
+	procedure calling the RPC stub must now pass to the stub a pointer to
+	an allocated structure where results will be placed by the stub.  See
+	the rpcgen manual page and the rpcgen Programming Guide for details.
+
+4.      The Remote Asynchronous Calls (RAC) library is now included.  RAC was
+	first introduced in TIRPCSRC 1.0, and was bundled with librpc.  It is
+	now a separate library.  The asynchronous call model that RAC provides
+	can be achieved by using threads for making client-side RPC calls.
+	The ONC Technology group recommends using threads (where possible) to
+	achieve asynchrony rather than RAC.  See the rpc_rac(3n) manual page
+	for details.
+
+
+ROADMAP
+
+The directory hierarchy is as follows:
+
+    cmd/        Utilities
+    cmd/rpcgen      The RPC Language compiler (for .x files)
+    cmd/rpcbind     The RPC bindery and portmapper
+    cmd/rpcinfo     RPC bindery query utility
+    cmd/keyserv     The Secure RPC keyserver
+    cmd/demo        Some simple ONC demo services
+
+    doc/        Postscript versions of ONC documentation
+
+    head/       Header files
+    head/rpcsvc     RPCL (.x) specifications for various ONC services, and
+                    header files.
+
+    lib/        Libraries
+    lib/librpc      The RPC and XDR library
+    lib/librac      The Remote Asynchronous Calls (RAC) library
+
+    man/        Manual pages for the RPC library and utilities.
+
+    uts/common/rpc      RPC header files
+
+
+
+BUILD INSTRUCTIONS
+
+Prior to building the release, you must define the SRC environment variable
+to be the path to the top-level Makefile.  For example, if /usr/src/tirpcsrc
+is where to top-level Makefile is located, execute this command prior to
+building the release:
+
+        setenv SRC /usr/src/tirpcsrc        (csh)
+or
+        SRC=/usr/src/tirpcsrc; export SRC   (sh)
+
+The sources in the lib directory depend on header files installed from head
+and uts/common/rpc, and the programs in the cmd directory depend on libraries
+from lib.  Therefore, you should do a "make install" to build the release.
+
+The top-level Makefile builds the release.  The "ROOT" macro defines where the
+headers and libraries are installed.  The default for ROOT is "/proto".  You
+may change this by either modifiying Makefile.master, or issuing the build
+command with a new definition for ROOT:
+
+        make install ROOT=/opt/onc
+
+You will of course need write privileges for the destination directory.
+The headers, libraries and executables will be built and installed under the
+ROOT.
+
+
+The demonstration services in the demo directory are not built by the
+top-level "make install" command.  To build these, cd to the cmd/demo
+directory and enter "make".  The four services will be built.
+RPCGEN MUST BE INSTALLED in a path that make can find.  To run the
+services, rpcbind must be running, then invoke the service
+(you probably will want to put it in the background).  rpcinfo can be
+used to check that the service succeeded in getting registered with
+rpcbind, and to ping the service (see rpcinfo's man page).  You can
+then use the corresponding client program to exercise the service.
+
+
+BUILDING ONC APPLICATIONS
+
+See the Makefiles in the demonstration services for examples of building
+ONC applications with this release.  The $(ROOT)/usr/include directory
+must be included in the compiler header file search path (-I), and the
+$(ROOT)/usr/lib directory must be included in the linker library file search
+path (-L).  Also, to run executables built dynamically, the shared library
+search path (LD_LIBRARY_PATH) must also include $(ROOT)/usr/lib.  In addition
+to linking in this release's librpc (via -lrpc), you must also link with
+Solaris's libnsl (-lnsl) and the US domestic version of libcrypt (-lcrypt).
+

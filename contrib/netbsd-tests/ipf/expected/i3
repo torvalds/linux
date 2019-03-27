@@ -1,0 +1,11 @@
+log in all
+pass in inet from 128.16.0.0/16 to 129.10.10.0/24
+pass in inet from 128.0.0.0/24 to 128.0.0.0/16
+pass in inet from 128.0.0.0/24 to 128.0.0.0/16
+pass in inet from 128.0.0.0/24 to 128.0.0.0/16
+pass in inet from 128.0.0.0/24 to 128.0.0.0/16
+pass in inet from 128.0.0.0/24 to 128.0.0.0/16
+pass in inet from 127.0.0.1/32 to 127.0.0.1/32
+block in log inet from any to any
+block in log level auth.info on hme0(!) all
+log level local5.warn out all

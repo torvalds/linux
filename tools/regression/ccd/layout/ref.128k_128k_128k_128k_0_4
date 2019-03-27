@@ -1,0 +1,10 @@
+$FreeBSD$
+ccd3: 4 components (md90, md91, md92, md93), 960 blocks concatenated
+76089c8ed2249882ae0bb260dcb4a913
+4cc57a9dd953d032ae7e07edaef31203
+476dc065c9ba15e4610975fe57d2d46e
+569cb47720caaf9543c26737195e6f67
+0 16 240
+		240 16 240
+				480 16 240
+						720 16 240

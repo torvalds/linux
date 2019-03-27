@@ -1,0 +1,89 @@
+# sample configuration and control file for ntploowatch
+#
+# delay:	sampling interval in seconds
+delay=60
+# samples:	use only last # samples
+samples=600
+# DO NOT USE srcprefix in shared config files
+# srcprefix:	name of file to read samples from
+#  		current time suffix (month name) is appended
+#		defaults to "./var@$STATHOST/loopstats."
+#		The string "$STATHOST"is replaced by the name of the host
+#		being monitored
+#srcprefix=./var@$STATHOST/loopstats.
+#
+# showoffs:	yes/no control display of offset values
+showoffs=yes
+#
+# showfreq:	yes/no control display of frequency values
+showfreq=yes
+#
+# showcmpl:	yes/no control display of compliance values
+showcmpl=no
+#
+# showoreg:	yes/no control display of linear regression of offset values
+showoreg=no
+#
+# showfreg:	yes/no control display of linear regression of frequency values
+showfreg=no
+#
+# timebase:	dynamic/ISO_DATE_TIME point of zero for linear regression
+#		ISO_DATE_TIME:  yyyy-mm-dd_hh:mm:ss.ms
+#		values are interpreted using local time zone
+#		parts omitted from front default to current date/time
+#		parts omitted from end  default to lowest permitted values
+#		to get aa:bb being interpreted as minutes:seconds use aa:bb.0
+#		for dynamic '00:00:00.0 of current day' is used
+timebase=dynamic
+#
+# freqbase:	dynamic/<baseval> 
+#		if a number is given, subtract this from sampling values for display
+#		if dynamic is selected, freqbase is adjusted to fit into the range of
+#		offset values
+freqbase=dynamic
+#
+# cmplscale:	dynamic/<scaling>
+#		if a number is given, the sampling values are divided by this number
+#		if dynamic is selected, cmplscale is adjusted to fit into the range of
+#		offset values
+cmplscale=dynamic
+#
+# DumbScale:	0/1
+#		0 enables dynamic adjust of value ranges for freqbase and cmplscale
+#		  timescale is labeled with human readable times
+#		1 only uses explicit scaling for numbers
+#		  timescale is labeled with hours relative to timebase
+DumbScale=0
+#
+# StartTime:	none/ISO_DATE_TIME
+#		ignore any samples before the specified date
+StartTime=none
+#
+# EndTime:	none/ISO_DATE_TIME
+#		ignore any samples after the specified date
+#
+#		if both StartTime and EndTime are specified
+#		the value specified for samples is ignored
+EndTime=none
+#
+# MaxOffs:	none/<number>
+#		limit display (y-axis) to values not larger than <number>
+MaxOffset=none
+#
+# MinOffs:	none/<number>
+#		limit display (y-axis) to values not smaller than <number>
+MinOffset=none
+
+#
+# verbose:	<number>
+# 		specify level for debugging 
+#		default is 0 for printing and 1 for monitoring
+#		level 1 will just print a timestamp for any display update
+#		(this is every delay seconds)
+verbose=1
+#
+# deltaT:	<seconds>
+#		mark `holes' in the sample data grater than <seconds>
+#		by a break in the plot
+#		default: 512 seconds
+deltaT=512

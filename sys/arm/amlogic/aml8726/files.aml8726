@@ -1,0 +1,31 @@
+#$FreeBSD$
+
+kern/kern_clocksource.c				standard
+
+arm/amlogic/aml8726/aml8726_l2cache.c		standard
+
+arm/amlogic/aml8726/aml8726_machdep.c		standard
+arm/amlogic/aml8726/aml8726_mp.c		optional	smp
+arm/amlogic/aml8726/aml8726_identsoc.c		standard
+arm/amlogic/aml8726/aml8726_ccm.c		standard
+arm/amlogic/aml8726/aml8726_clkmsr.c		standard
+arm/amlogic/aml8726/aml8726_pic.c		optional	aml_pic
+arm/amlogic/aml8726/aml8726_rtc.c		standard
+arm/amlogic/aml8726/aml8726_timer.c		standard
+arm/amlogic/aml8726/aml8726_wdt.c		standard
+
+# serial console for debugging early boot code
+# also define SOCDEV_PA and SOCDEV_VA in std.aml8726
+#arm/amlogic/aml8726/aml8726_uart_console.c	standard
+
+arm/amlogic/aml8726/aml8726_fb.c		optional	vt
+arm/amlogic/aml8726/aml8726_gpio.c		optional	gpio
+arm/amlogic/aml8726/aml8726_i2c.c		optional	iicbus
+arm/amlogic/aml8726/aml8726_mmc.c		optional	mmc gpio
+arm/amlogic/aml8726/aml8726_sdxc-m8.c		optional	mmc gpio
+arm/amlogic/aml8726/aml8726_pinctrl.c		optional	fdt_pinctrl
+#arm/amlogic/aml8726/aml8726_rng.c		optional	random
+arm/amlogic/aml8726/uart_dev_aml8726.c		optional	uart
+arm/amlogic/aml8726/aml8726_usb_phy-m3.c	optional	dwcotg usb gpio
+arm/amlogic/aml8726/aml8726_usb_phy-m6.c	optional	dwcotg usb gpio
+arm/amlogic/aml8726/aml8726_if_dwc.c		optional	dwc

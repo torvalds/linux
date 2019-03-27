@@ -1,0 +1,14 @@
+$FreeBSD$
+
+Example for creating many different builds (including different
+arch) from a common set of files, as well as building natively
+using qemu user space emulation.
+
+This creates a simple appliance that uses dnsmasq to serve DNS
+and DHCPd.
+
+This is a work in progress. Generally, to build this you should
+     cd tools/tools/nanobsd/dhcpd
+     sudo sh ../nanobsd.sh -C os-base
+but do be careful if things are interrupted. There may still be
+bugs lurking that cause your entire FreeBSD tree to disappear.

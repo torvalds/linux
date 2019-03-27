@@ -1,0 +1,122 @@
+.\"
+.\" Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 16, 2004
+.Dt G_DATA 9
+.Os
+.Sh NAME
+.Nm g_read_data ,
+.Nm g_write_data
+.Nd "read/write data from/to GEOM consumer"
+.Sh SYNOPSIS
+.In geom/geom.h
+.Ft "void *"
+.Fo g_read_data
+.Fa "struct g_consumer *cp" "off_t offset" "off_t length" "int *error"
+.Fc
+.Ft int
+.Fo g_write_data
+.Fa "struct g_consumer *cp" "off_t offset" "void *ptr" "off_t length"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn g_read_data
+function reads
+.Fa length
+bytes of data from the provider attached to consumer
+.Fa cp ,
+starting at offset
+.Fa offset .
+The buffer returned from
+.Fn g_read_data
+is allocated with
+.Fn g_malloc ,
+so it should be freed by the caller with
+.Fn g_free
+after use.
+If the operation fails, an error value will be stored in the
+.Fa error
+argument if it is not
+.Dv NULL .
+.Pp
+The
+.Fn g_write_data
+function writes
+.Fa length
+bytes of data from the buffer pointed to by
+.Fa ptr
+to the provider attached to consumer
+.Fa cp ,
+starting at offset
+.Fa offset .
+.Sh RESTRICTIONS/CONDITIONS
+The
+.Fa length
+argument
+should be a multiple of the provider's sectorsize
+and less than or equal to
+.Dv DFLTPHYS
+.Dv ( DFLTPHYS
+is defined in
+.In sys/param.h ) .
+.Pp
+The topology lock must not be held.
+.Sh RETURN VALUES
+The
+.Fn g_read_data
+function returns a pointer to a data buffer or
+.Dv NULL
+if an error occurred.
+In that case an error value is stored in the
+.Fa error
+argument unless it is
+.Dv NULL .
+.Pp
+The
+.Fn g_write_data
+function returns 0 if successful; otherwise an error code is returned.
+.Sh ERRORS
+Possible errors:
+.Bl -tag -width Er
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the consumer.
+.El
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr DECLARE_GEOM_CLASS 9 ,
+.Xr g_access 9 ,
+.Xr g_attach 9 ,
+.Xr g_bio 9 ,
+.Xr g_consumer 9 ,
+.Xr g_event 9 ,
+.Xr g_geom 9 ,
+.Xr g_provider 9 ,
+.Xr g_provider_by_name 9 ,
+.Xr g_wither_geom 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

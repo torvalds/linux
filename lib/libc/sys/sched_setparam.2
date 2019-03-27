@@ -1,0 +1,174 @@
+.\" $FreeBSD$
+.\" Copyright (c) 1998 HD Associates, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 12, 1998
+.Dt SCHED_SETPARAM 2
+.Os
+.Sh NAME
+.Nm sched_setparam ,
+.Nm sched_getparam
+.Nd set/get scheduling parameters
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sched.h
+.Ft int
+.Fn sched_setparam "pid_t pid" "const struct sched_param *param"
+.Ft int
+.Fn sched_getparam "pid_t pid" "struct sched_param *param"
+.Sh DESCRIPTION
+The
+.Fn sched_setparam
+system call sets the scheduling parameters of the process specified by
+.Fa pid
+to the values specified by the
+.Fa sched_param
+structure pointed to by
+.Fa param .
+The value of the
+.Fa sched_priority
+member in the
+.Fa param
+structure must be any integer within the inclusive priority range for
+the current scheduling policy of the process specified by
+.Fa pid .
+Higher numerical values for the priority represent higher priorities.
+.Pp
+In this implementation, if the value of
+.Fa pid
+is negative the system call will fail.
+.Pp
+If a process specified by
+.Fa pid
+exists and if the calling process has permission, the scheduling
+parameters are set for the process whose process ID is equal to
+.Fa pid .
+.Pp
+If
+.Fa pid
+is zero, the scheduling parameters are set for the calling process.
+.Pp
+In this implementation, the policy of when a process can affect
+the scheduling parameters of another process is specified in
+.St -p1003.1b-93
+as a write-style operation.
+.Pp
+The target process, whether it is running or not running, will resume
+execution after all other runnable processes of equal or greater
+priority have been scheduled to run.
+.Pp
+If the priority of the process specified by the
+.Fa pid
+argument is set higher than that of the lowest priority running process
+and if the specified process is ready to run, the process specified by
+the
+.Fa pid
+argument will preempt a lowest priority running process.
+Similarly, if
+the process calling
+.Fn sched_setparam
+sets its own priority lower than that of one or more other nonempty
+process lists, then the process that is the head of the highest priority
+list will also preempt the calling process.
+Thus, in either case, the
+originating process might not receive notification of the completion of
+the requested priority change until the higher priority process has
+executed.
+.Pp
+In this implementation, when the current scheduling policy for the
+process specified by
+.Fa pid
+is normal timesharing (SCHED_OTHER, aka SCHED_NORMAL when not POSIX-source)
+or the idle policy (SCHED_IDLE when not POSIX-source) then the behavior
+is as if the process had been running under SCHED_RR with a priority
+lower than any actual realtime priority.
+.Pp
+The
+.Fn sched_getparam
+system call will return the scheduling parameters of a process specified
+by
+.Fa pid
+in the
+.Fa sched_param
+structure pointed to by
+.Fa param .
+.Pp
+If a process specified by
+.Fa pid
+exists and if the calling process has permission,
+the scheduling parameters for the process whose process ID is equal to
+.Fa pid
+are returned.
+.Pp
+In this implementation, the policy of when a process can obtain the
+scheduling parameters of another process are detailed in
+.St -p1003.1b-93
+as a read-style operation.
+.Pp
+If
+.Fa pid
+is zero, the scheduling parameters for the calling process will be
+returned.
+In this implementation, the
+.Fa sched_getparam
+system call will fail if
+.Fa pid
+is negative.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+On failure
+.Va errno
+will be set to the corresponding value:
+.Bl -tag -width Er
+.It Bq Er ENOSYS
+The system is not configured to support this functionality.
+.It Bq Er EPERM
+The requesting process doesn not have permission as detailed in
+.St -p1003.1b-93 .
+.It Bq Er ESRCH
+No process can be found corresponding to that specified by
+.Fa pid .
+.It Bq Er EINVAL
+For
+.Fn sched_setparam :
+one or more of the requested scheduling parameters
+is outside the range defined for the scheduling policy of the specified
+.Fa pid .
+.El
+.Sh SEE ALSO
+.Xr sched_get_priority_max 2 ,
+.Xr sched_get_priority_min 2 ,
+.Xr sched_getscheduler 2 ,
+.Xr sched_rr_get_interval 2 ,
+.Xr sched_setscheduler 2 ,
+.Xr sched_yield 2
+.Sh STANDARDS
+The
+.Fn sched_setparam
+and
+.Fn sched_getparam
+system calls conform to
+.St -p1003.1b-93 .

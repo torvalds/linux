@@ -1,0 +1,42 @@
+/*
+ * USA holiday
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _calendar_usholiday_
+#define _calendar_usholiday_
+
+01/01	New Year's Day
+01/14	Julian Calendar New Year's Day
+02/02	Groundhog Day
+02/14	St. Valentine's Day
+02/MonThird	President's Day (3rd Monday of February)
+03/05	Mother-in-Law Day, USA
+03/SunSecond	Daylight Savings Time begins in USA; clocks move forward (2nd Sunday of March)
+03/17	St. Patrick's Day
+03/20*	Vernal Equinox
+04/01	April Fool's Day
+04/15	Income Tax Day, USA.
+04/28*	Arbor Day, USA (varies from state to state)
+05/SunSecond	Mother's Day (2nd Sunday of May)
+05/SatThird	Armed Forces in USA Day (3rd Saturday of May)
+05/MonLast	Memorial Day in USA (Last Monday of May)
+06/SunThird	Father's Day (3rd Sunday of June)
+06/21*	Summer Solstice
+07/04	US Independence Day
+09/MonFirst	Labor Day in USA (1st Monday of September)
+09/SunSecond	Grandparent's Day in USA (2nd Sunday of September; varies from state to state)
+09/22*	Autumnal Equinox
+10/MonSecond	Columbus Day in USA (2nd Monday of October)
+10/31	All Hallows Eve  (Halloween)
+11/05*	Election Day in USA (1st Tuesday after 1st Monday for even years)
+11/SunFirst	Daylight Savings Time ends in USA; clocks move back (1st Sunday of November)
+11/11	Veterans' Day
+11/ThuFourth	Thanksgiving Day (4th Thursday in November)
+12/21*	Winter Solstice
+12/24	Christmas Eve
+12/25	Christmas
+12/31	New Year's Eve
+
+#endif /* !_calendar_usholiday_ */

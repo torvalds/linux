@@ -1,0 +1,52 @@
+#
+# Specific board setup for the Buffalo Airstation WZR-300HP
+#
+# The WZR-300HP has the following hardware:
+#
+# + AR7242 CPU SoC
+# + AR9280 5GHz 11n
+# + AR8136 Gigabit switch
+# + 2 m25ll128 based 16MB flash
+# + 64MB RAM
+# + uboot environment
+
+# $FreeBSD$
+
+#NO_UNIVERSE
+
+include		"std.AR724X"
+ident		"WZR-300HP"
+hints		"WZR-300HP.hints"
+
+options 	AR71XX_REALMEM=64*1024*1024
+
+options 	AR71XX_ENV_UBOOT
+
+options 	BOOTVERBOSE
+
+# GEOM modules
+device		geom_map	# to get access to the SPI flash partitions
+device		xz
+options		GEOM_UZIP
+
+options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uzip\"
+
+options 	AR71XX_ATH_EEPROM	# Fetch EEPROM/PCI config from flash
+options 	ATH_EEPROM_FIRMWARE	# Use EEPROM from flash
+device		firmware		# Used by the above
+
+# Options required for miiproxy and mdiobus
+options         ARGE_MDIO               # Export an MDIO bus separate from arge
+device          miiproxy                # MDIO bus <-> MII PHY rendezvous
+
+device          etherswitch
+device          arswitch
+
+# hwpmc
+device		hwpmc_mips24k
+device		hwpmc
+
+# load these via modules, shrink kernel
+nodevice	if_bridge
+nodevice	bridgestp
+nodevice	random

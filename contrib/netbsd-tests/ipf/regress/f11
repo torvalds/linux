@@ -1,0 +1,7 @@
+pass in proto tcp from any to any port = 23 flags S/SA keep state
+block in proto tcp from any to any port = 23 flags S/SA keep state
+pass in proto udp from any to any port = 53 keep frags
+block in proto udp from any to any port = 53 keep frags
+pass in proto udp from any to any port = 53 keep state
+block in proto udp from any to any port = 53 keep state
+pass in on e0 proto tcp from any to any port = 25 keep state

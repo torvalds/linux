@@ -1,0 +1,46 @@
+.\" #
+.\" # Copyright (c) 2015, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2015
+.\" 
+.Dd July 20, 2015
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_set_syslog_enterprise_id
+.Nd Set the enterprise identifier for syslog content
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Fn xo_set_syslog_enterprise_id "unsigned short eid"
+.Ft void
+.Sh DESCRIPTION
+The
+.Fn xo_set_syslog_enterprise_id
+function records an enterprise identifier used for subsequent
+.Xr xo_syslog 3
+calls.
+Enterprise IDs are
+defined by IANA, the Internet Assigned Numbers Authority:
+.Bd -literal -offset indent
+https://www.iana.org/assignments/enterprise-numbers/enterprise-numbers
+.Ed
+.Sh SEE ALSO
+.Xr xo_syslog 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

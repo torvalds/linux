@@ -1,0 +1,115 @@
+.\" Copyright (c) 2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: bthost.1,v 1.7 2003/05/21 22:19:00 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd May 8, 2003
+.Dt BTHOST 1
+.Os
+.Sh NAME
+.Nm bthost
+.Nd look up Bluetooth host names and Protocol Service Multiplexor values
+.Sh SYNOPSIS
+.Nm
+.Op Fl bhp
+.Ar host_or_protocol
+.Sh DESCRIPTION
+The
+.Nm
+utility looks for information about Bluetooth hosts and
+Protocol Service Multiplexor (PSM) values.
+It gets this information from the
+.Pa /etc/bluetooth/hosts
+and
+.Pa /etc/bluetooth/protocols
+files.
+.Pp
+In host mode, it simply converts between the host names and Bluetooth addresses.
+The argument can be either a host name or a Bluetooth address.
+The program first attempts to interpret it as a Bluetooth address.
+If this fails, it will treat it as a host name.
+A Bluetooth address consists of six hex bytes separated by a colon,
+e.g.,
+.Dq Li 01:02:03:04:05:06 .
+A host name consists of names separated by dots, e.g.,
+.Dq Li my.cell.phone .
+.Pp
+In protocol mode, it simply converts between the Protocol Service Multiplexor
+names and assigned numbers.
+The argument can be either a Protocol Service Multiplexor name or
+an assigned number.
+The program first attempts to interpret it as an assigned number.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl b
+Produce brief output.
+.It Fl h
+Display usage message and exit.
+.It Fl p
+Activate protocol mode.
+.El
+.Pp
+The
+.Nm
+utility will print results to the standard output, and error messages to the
+standard error.
+An output can be quite different,
+here is an example that demonstrates all of the possibilities:
+.Bd -literal -offset indent
+% bthost localhost
+Host localhost has address FF:FF:FF:00:00:00
+% bthost ff:ff:ff:00:00:00
+Host FF:FF:FF:00:00:00 has name localhost
+% bthost -b localhost
+FF:FF:FF:00:00:00
+% bthost -b ff:ff:ff:00:00:00
+localhost
+% bthost do.not.exists
+do.not.exists: Unknown host
+% bthost 0:0:0:0:0:0
+00:00:00:00:00:00: Unknown host
+% bthost -p sdp
+Protocol/Service Multiplexor sdp has number 1
+% bthost -p 3
+Protocol/Service Multiplexor rfcomm has number 3
+% bthost -bp HID-Control
+17
+% bthost -p foo
+foo: Unknown Protocol/Service Multiplexor
+.Ed
+.Sh FILES
+.Bl -tag -width ".Pa /etc/bluetooth/hosts" -compact
+.It Pa /etc/bluetooth/hosts
+.It Pa /etc/bluetooth/protocols
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr bluetooth 3 ,
+.Xr bluetooth.hosts 5 ,
+.Xr bluetooth.protocols 5
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com

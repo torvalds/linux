@@ -1,0 +1,78 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)bcmp.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd August 15, 2016
+.Dt BCMP 3
+.Os
+.Sh NAME
+.Nm bcmp
+.Nd compare byte string
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In strings.h
+.Ft int
+.Fn bcmp "const void *b1" "const void *b2" "size_t len"
+.Sh DESCRIPTION
+The
+.Fn bcmp
+function
+compares byte string
+.Fa b1
+against byte string
+.Fa b2 ,
+returning zero if they are identical, non-zero otherwise.
+Both strings are assumed to be
+.Fa len
+bytes long.
+Zero-length strings are always identical.
+.Pp
+The strings may overlap.
+.Sh SEE ALSO
+.Xr memcmp 3 ,
+.Xr strcasecmp 3 ,
+.Xr strcmp 3 ,
+.Xr strcoll 3 ,
+.Xr strxfrm 3 ,
+.Xr timingsafe_bcmp 3
+.Sh HISTORY
+A
+.Fn bcmp
+function first appeared in
+.Bx 4.2 .
+Its prototype existed previously in
+.In string.h
+before it was moved to
+.In strings.h
+for
+.St -p1003.1-2001
+compliance.

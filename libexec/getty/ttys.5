@@ -1,0 +1,176 @@
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)ttys.5	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\" "
+.Dd August 3, 2018
+.Dt TTYS 5
+.Os
+.Sh NAME
+.Nm ttys
+.Nd terminal initialization information
+.Sh DESCRIPTION
+The file
+.Nm
+contains information that is used by various routines to initialize
+and control the use of terminal special files.
+Pseudo-terminals (see
+.Xr pts 4 )
+are not listed.
+This information is read with the
+.Xr getttyent 3
+library routines.
+There is one line in the
+.Nm
+file per special device file.
+Fields are separated by tabs and/or spaces.
+Fields comprised of more than one word should be enclosed in double
+quotes (``"'').
+Blank lines and comments may appear anywhere in the file; comments
+are delimited by hash marks (``#'') and new lines.
+Any unspecified fields will default to null.
+.Pp
+The first field is normally the
+name of the terminal special file as it is found in
+.Pa /dev .
+However, it can be any arbitrary string
+when the associated command is not related to a tty.
+.Pp
+The second field of the file is the command to execute for the line,
+usually
+.Xr getty 8 ,
+which initializes and opens the line, setting the speed, waiting for
+a user name and executing the
+.Xr login 1
+program.
+It can be, however, any desired command, for example
+the start up for a window system terminal emulator or some other
+daemon process, and can contain multiple words if quoted.
+.Pp
+The third field is the type of terminal usually connected to that
+tty line, normally the one found in the
+.Xr termcap 5
+data base file.
+The environment variable
+.Ev TERM
+is initialized with the value by
+either
+.Xr getty 8
+or
+.Xr login 1 .
+.Pp
+The remaining fields set flags in the
+.Fa ty_status
+entry (see
+.Xr getttyent 3 ) ,
+specify a window system process that
+.Xr init 8
+will maintain for the terminal line, optionally determine the
+type of tty (whether dialin, network or otherwise),
+or specify a tty group
+name that allows the login class database (see
+.Xr login.conf 5 )
+to refer to many ttys as a group, to selectively allow or
+deny access or enable or disable accounting facilities for
+ttys as a group.
+.Pp
+As flag values, the strings ``on'' and ``off'' specify that
+.Xr init 8
+should (should not) execute the command given in the second field.
+``onifconsole'' will cause this line to be enabled if and only if it is
+an active kernel console device (it is equivalent to ``on'' in this
+case).
+The flag ``onifexists'' will cause this line to be enabled if and only
+if the name exists.
+If the name starts with a ``/'', it will be considered an absolute
+path.
+Otherwise, it is considered a path relative to
+.Pa /dev .
+The flag ``secure'' (if the console is enabled) allows users with a
+uid of 0 to login on
+this line.
+The flag ``dialin'' indicates that a tty entry describes a dialin
+line, and ``network'' is obsolete and does nothing.
+Either of these strings may also be specified in the terminal type
+field.
+The string ``window='' may be followed by a quoted command
+string which
+.Xr init 8
+will execute
+.Em before
+starting the command specified by the second field.
+.Pp
+The string ``group='' may be followed by a group name comprised of
+alphanumeric characters that can be used by
+.Xr login.conf 5
+to refer to many tty lines as a group to enable or disable access
+and accounting facilities.
+If no group is specified, then the tty becomes a member of the group
+"none".
+For backwards compatibility, the ``group='' should appear last on the
+line, immediately before the optional comment.
+.Pp
+Both the second field and any command specified with ``window=''
+will be split into words and executed using
+.Xr execve 2 .
+Words are separated by any combinations of tabs and spaces.
+Arguments containing whitespace should be enclosed in single quotes
+.Pq Li ' .
+Note that no shell-style globbing or other variable substitution occurs.
+.Sh FILES
+.Bl -tag -width /etc/ttys -compact
+.It Pa /etc/ttys
+.El
+.Sh EXAMPLES
+.Bd -literal
+# root login on console at 1200 baud
+console	"/usr/libexec/getty std.1200"	vt100	on secure
+# dialup at 1200 baud, no root logins
+ttyd0	"/usr/libexec/getty d1200"	dialup	on group=dialup	# 555-1234
+# Mike's terminal: hp2621
+ttyh0	"/usr/libexec/getty std.9600"	hp2621-nl	on group=dialup	# 457 Evans
+# John's terminal: vt100
+ttyh1	"/usr/libexec/getty std.9600"	vt100	on group=dialup		# 459 Evans
+# terminal emulate/window system
+ttyv0	"/usr/local/bin/xterm -display :0"	xterm	on window="/usr/local/bin/X :0"
+.Ed
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr getttyent 3 ,
+.Xr gettytab 5 ,
+.Xr login.conf 5 ,
+.Xr termcap 5 ,
+.Xr getty 8 ,
+.Xr init 8 ,
+.Xr pam_securetty 8 ,
+.Xr pstat 8
+.Sh HISTORY
+A
+.Nm
+file appeared in
+.At v6 .

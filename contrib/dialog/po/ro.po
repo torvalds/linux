@@ -1,0 +1,116 @@
+# Translation of dialog messages in Romanian.
+# Copyright (C) 2015 Free Software Foundation, Inc.
+# This file is distributed under the same license as the dialog package.
+# Laurentiu Buzdugan <lbuz@rolix.org>, 2005.
+# Mihai Cristescu <mihai.cristescu@archlinux.info>, 2015.
+#
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2015-03-13 19:50+0200\n"
+"Last-Translator: Mihai Cristescu <mihai.cristescu@archlinux.info>\n"
+"Language-Team: Romanian <translation-team-ro@lists.sourceforge.net>\n"
+"Language: ro\n"
+"X-Bugs: Report translation errors to the Language-Team address.\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1?0:(((n%100>19)||((n%100==0)&&(n!=0)))?2:1));\n"
+"X-Generator: Poedit 1.7.4\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "Da"
+
+#: buttons.c:393
+msgid "No"
+msgstr "Nu"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "OK"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "Renunță"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "TERMINĂ"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "Extra"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "Ajutor"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "Lună"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "An"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "Redenumește"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "Directoare"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "Fișiere"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "A reușit"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "A eșuat"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "A trecut"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Complet"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Verificat"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Gata"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Omis"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "În curs"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "N/A"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Progres pe ansamblu"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "Căutare"

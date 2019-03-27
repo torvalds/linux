@@ -1,0 +1,200 @@
+.\" Copyright (c) 1998, Nicolas Souchu
+.\" Copyright (c) 2004, Joerg Wunsch
+.\" Copyright (c) 2015, Michael Gmelin <freebsd@grem.de>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 25, 2015
+.Dt SMB 4
+.Os
+.Sh NAME
+.Nm smb
+.Nd SMB generic I/O device driver
+.Sh SYNOPSIS
+.Cd "device smb"
+.Sh DESCRIPTION
+The
+.Em smb
+character device driver provides generic I/O to any
+.Xr smbus 4
+instance.
+To control SMB devices, use
+.Pa /dev/smb?
+with the ioctls described below.
+Any of these ioctl commands takes a pointer to
+.Vt struct smbcmd
+as its argument.
+.Bd -literal
+#include <sys/types.h>
+
+struct smbcmd {
+	u_char cmd;
+	u_char reserved;
+	u_short op;
+	union {
+		char    byte;
+		char    buf[2];
+		short   word;
+	} wdata;
+	union {
+		char    byte;
+		char    buf[2];
+		short   word;
+	} rdata;
+	int  slave;
+	char *wbuf;     /* use wdata if NULL */
+	int  wcount;
+	char *rbuf;     /* use rdata if NULL */
+	int  rcount;
+};
+.Ed
+.Pp
+The
+.Fa slave
+field is always used, and provides the address of the
+SMBus slave device.
+The slave address is specified in the seven most significant bits
+.Pq i.e., Dq "left-justified" .
+The least significant bit of the slave address must be zero.
+.Pp
+.Bl -column ".Dv SMB_QUICK_WRITE" -compact
+.It Em Ioctl Ta Em Description
+.Pp
+.It Dv SMB_QUICK_WRITE Ta
+.Em QuickWrite
+does not transfer any data.
+It just issues the device address with write intent to the bus.
+.It Dv SMB_QUICK_READ Ta
+.Em QuickRead
+does not transfer any data.
+It just issues the device address with read intent to the bus.
+.It Dv SMB_SENDB Ta
+.Em SendByte
+sends the byte provided in
+.Fa cmd
+to the device.
+.It Dv SMB_RECVB Ta
+.Em ReceiveByte
+reads a single byte from the device which is returned in
+.Fa cmd .
+.It Dv SMB_WRITEB Ta
+.Em WriteByte
+first sends the byte from
+.Fa cmd
+to the device, followed by the byte given in
+.Fa wdata.byte .
+.It Dv SMB_WRITEW Ta
+.Em WriteWord
+first sends the byte from
+.Fa cmd
+to the device, followed by the word given in
+.Fa wdata.word .
+Note that the SMBus byte-order is little-endian by definition.
+.It Dv SMB_READB Ta
+.Em ReadByte
+first sends the byte from
+.Fa cmd
+to the device, then reads one byte of data from
+the device.
+Returned data is stored in
+.Fa rdata.byte .
+.It Dv SMB_READW Ta
+.Em ReadWord
+first sends the byte from
+.Fa cmd
+to the device, then reads one word of data from
+the device.
+Returned data is stored in
+.Fa rdata.word .
+.It Dv SMB_PCALL Ta
+.Em ProcedureCall
+first sends the byte from
+.Fa cmd
+to the device, followed by the word provided in
+.Fa wdata.word .
+It then reads one word of data from the device and returns it
+in
+.Fa rdata.word .
+.It Dv SMB_BWRITE Ta
+.Em BlockWrite
+first sends the byte from
+.Fa cmd
+to the device, then the byte from
+.Fa wcount
+followed by
+.Fa wcount
+bytes of data that are taken from the buffer pointed to by
+.Fa wbuf .
+The SMBus specification mandates that no more than 32 bytes of
+data can be transferred in a single block read or write command.
+This value can be read from the constant
+.Dv SMB_MAXBLOCKSIZE .
+.It Dv SMB_BREAD Ta
+.Em BlockRead
+first sends the byte from
+.Fa cmd
+to the device, then reads a count of data bytes that the device
+is going to provide and then reads that many bytes.
+The count is returned in
+.Fa rcount.
+The data is returned in the buffer pointed to by
+.Fa rbuf .
+.El
+.Pp
+The
+.Xr read 2
+and
+.Xr write 2
+system calls are not implemented by this driver.
+.Sh ERRORS
+The
+.Xr ioctl 2
+commands can cause the following driver-specific errors:
+.Bl -tag -width Er
+.It Bq Er ENXIO
+Device did not respond to selection.
+.It Bq Er EBUSY
+Device still in use.
+.It Bq Er ENODEV
+Operation not supported by device (not supposed to happen).
+.It Bq Er EINVAL
+General argument error.
+.It Bq Er EWOULDBLOCK
+SMBus transaction timed out.
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr smbus 4
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Nicolas Souchu
+and extended by
+.An Michael Gmelin Aq freebsd@grem.de .

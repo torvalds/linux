@@ -1,0 +1,706 @@
+.\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\"	All rights reserved.
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\"	All rights reserved.
+.\"
+.\" Author: Harti Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Begemot: bsnmp/lib/bsnmpclient.3,v 1.12 2005/10/04 08:46:50 brandt_h Exp $
+.\"
+.Dd December 31, 2016
+.Dt BSNMPCLIENT 3
+.Os
+.Sh NAME
+.Nm snmp_client ,
+.Nm snmp_client_init ,
+.Nm snmp_client_set_host ,
+.Nm snmp_client_set_port ,
+.Nm snmp_send_cb_f ,
+.Nm snmp_timeout_cb_f ,
+.Nm snmp_timeout_start_f ,
+.Nm snmp_timeout_stop_f ,
+.Nm snmp_open ,
+.Nm snmp_close ,
+.Nm snmp_pdu_create ,
+.Nm snmp_add_binding ,
+.Nm snmp_pdu_check ,
+.Nm snmp_pdu_send ,
+.Nm snmp_oid_append ,
+.Nm snmp_parse_server ,
+.Nm snmp_receive ,
+.Nm snmp_table_cb_f ,
+.Nm snmp_table_fetch ,
+.Nm snmp_table_fetch_async ,
+.Nm snmp_dialog ,
+.Nm snmp_discover_engine
+.Nd "SNMP client library"
+.Sh LIBRARY
+Begemot SNMP library
+.Pq libbsnmp, -lbsnmp
+.Sh SYNOPSIS
+.In asn1.h
+.In snmp.h
+.In snmpclient.h
+.Ft typedef void
+.Fn (*snmp_send_cb_f) "struct snmp_pdu *req" "struct snmp_pdu *resp" "void *uarg"
+.Ft typedef void
+.Fn (*snmp_timeout_cb_f) "void *uarg"
+.Ft typedef void *
+.Fn (*snmp_timeout_start_f) "struct timeval *timeout" "snmp_timeout_cb_f callback" "void *uarg"
+.Ft typedef void
+.Fn (*snmp_timeout_stop_f) "void *timeout_id"
+.Vt extern struct snmp_client snmp_client ;
+.Ft void
+.Fn snmp_client_init "struct snmp_client *client"
+.Ft int
+.Fn snmp_client_set_host "struct snmp_client *client" "const char *host"
+.Ft int
+.Fn snmp_client_set_port "struct snmp_client *client" "const char *port"
+.Ft int
+.Fn snmp_open "const char *host" "const char *port" "const char *read_community" "const char *write_community"
+.Ft void
+.Fn snmp_close "void"
+.Ft void
+.Fn snmp_pdu_create "struct snmp_pdu *pdu" "u_int op"
+.Ft int
+.Fn snmp_add_binding "struct snmp_pdu *pdu" "..."
+.Ft int
+.Fn snmp_pdu_check "const struct snmp_pdu *req" "const struct snmp_pdu *resp"
+.Ft int32_t
+.Fn snmp_pdu_send "struct snmp_pdu *pdu" "snmp_send_cb_f func" "void *uarg"
+.Ft int
+.Fn snmp_oid_append "struct asn_oid *oid" "const char *fmt" "..."
+.Ft int
+.Fn snmp_parse_server "struct snmp_client *sc" "const char *str"
+.Ft int
+.Fn snmp_receive "int blocking"
+.Ft typedef void
+.Fn (*snmp_table_cb_f) "void *list" "void *arg" "int res"
+.Ft int
+.Fn snmp_table_fetch "const struct snmp_table *descr" "void *list"
+.Ft int
+.Fn snmp_table_fetch_async "const struct snmp_table *descr" "void *list" "snmp_table_cb_f callback" "void *uarg"
+.Ft int
+.Fn snmp_dialog "struct snmp_pdu *req" "struct snmp_pdu *resp"
+.Ft int
+.Fn snmp_discover_engine "void"
+.Sh DESCRIPTION
+The SNMP library contains routines to easily build SNMP client applications
+that use SNMP versions 1, 2 or 3.
+Most of the routines use a
+.Vt struct snmp_client :
+.Bd -literal -offset indent
+struct snmp_client {
+	enum snmp_version	version;
+	int			trans;	/* which transport to use */
+
+	/* these two are read-only for the application */
+	char			*cport;	/* port number as string */
+	char			*chost;	/* host name or IP address as string */
+
+	char			read_community[SNMP_COMMUNITY_MAXLEN + 1];
+	char			write_community[SNMP_COMMUNITY_MAXLEN + 1];
+
+	/* SNMPv3 specific fields */
+	int32_t			identifier;
+	int32_t			security_model;
+	struct snmp_engine	engine;
+	struct snmp_user	user;
+
+	/* SNMPv3 Access control - VACM*/
+	uint32_t		clen;
+	uint8_t			cengine[SNMP_ENGINE_ID_SIZ];
+	char			cname[SNMP_CONTEXT_NAME_SIZ];
+
+	struct timeval		timeout;
+	u_int			retries;
+
+	int			dump_pdus;
+
+	size_t			txbuflen;
+	size_t			rxbuflen;
+
+	int			fd;
+
+	int32_t			next_reqid;
+	int32_t			max_reqid;
+	int32_t			min_reqid;
+
+	char			error[SNMP_STRERROR_LEN];
+
+	snmp_timeout_start_f	timeout_start;
+	snmp_timeout_stop_f	timeout_stop;
+
+	char			local_path[sizeof(SNMP_LOCAL_PATH)];
+};
+.Ed
+.Pp
+The fields of this structure are described below.
+.Bl -tag -width "timeout_start"
+.It Va version
+This is the version of SNMP to use.
+See
+.Xr bsnmplib 3
+for applicable values.
+The default version is
+.Li SNMP_V2c .
+.It Va trans
+If this is
+.Dv SNMP_TRANS_LOC_DGRAM
+a local datagram socket is used.
+If it is
+.Dv SNMP_TRANS_LOC_STREAM
+a local stream socket is used.
+For
+.Dv SNMP_TRANS_UDP
+a UDP socket is created.
+It uses the
+.Va chost
+field as the path to the server's socket for local sockets.
+.It Va cport
+The SNMP agent's UDP port number.
+This may be a symbolic port number (from
+.Pa /etc/services )
+or a numeric port number.
+If this field is
+.Li NULL
+(the default) the standard SNMP port is used.
+This field should not be changed directly but rather by calling
+.Fn snmp_client_set_port .
+.It Va chost
+The SNMP agent's host name, IP address or
+.Ux
+domain socket path name.
+If this is
+.Li NULL
+(the default)
+.Li localhost
+is assumed.
+This field should not be changed directly but rather through calling
+.Fn snmp_client_set_host .
+.It Va read_community
+This is the community name to be used for all requests except SET requests.
+The default is
+.Sq public .
+.It Va write_community
+The community name to be used for SET requests.
+The default is
+.Sq private .
+.It Va identifier
+The message identifier value to be used with SNMPv3 PDUs. Incremented with
+each transmitted PDU.
+.It Va security_model
+The security model to be used with SNMPv3 PDUs. Currently only User-Based
+Security model specified by RFC 3414 (value 3) is supported.
+.It Va engine
+The authoritive SNMP engine parameters to be used with SNMPv3 PDUs.
+.It Va user
+The USM SNMP user credentials to be used with SNMPv3 PDUs.
+.It Va clen
+The length of the context engine id to be used with SNMPv3 PDUs.
+.It Va cengine
+The context engine id to be used with SNMPv3 PDUs. Default is empty.
+.It Va cname
+The context name to be used with SNMPv3 PDUs. Default is
+.Sq "" .
+.It Va timeout
+The maximum time to wait for responses to requests.
+If the time elapses, the request is resent up to
+.Va retries
+times.
+The default is 3 seconds.
+.It Va retries
+Number of times a request PDU is to be resent.
+If set to 0, the request is sent only once.
+The default is 3 retransmissions.
+.It Va dump_pdus
+If set to a non-zero value all received and sent PDUs are dumped via
+.Xr snmp_pdu_dump 3 .
+The default is not to dump PDUs.
+.It Va txbuflen
+The encoding buffer size to be allocated for transmitted PDUs.
+The default is 10000 octets.
+.It Va rxbuflen
+The decoding buffer size to be allocated for received PDUs.
+This is the size of the maximum PDU that can be received.
+The default is 10000 octets.
+.It Va fd
+After calling
+.Fn snmp_open
+this is the file socket file descriptor used for sending and receiving PDUs.
+.It Va next_reqid
+The request id of the next PDU to send.
+Used internal by the library.
+.It Va max_reqid
+The maximum request id to use for outgoing PDUs.
+The default is
+.Li INT32_MAX .
+.It Va min_reqid
+The minimum request id to use for outgoing PDUs.
+Request ids are allocated linearily starting at
+.Va min_reqid
+up to
+.Va max_reqid .
+.It Va error
+If an error happens, this field is set to a printable string describing the
+error.
+.It Va timeout_start
+This field must point to a function setting up a one shot timeout.
+After the timeout has elapsed, the given callback function must be called
+with the user argument.
+The
+.Fn timeout_start
+function must return a
+.Vt void *
+identifying the timeout.
+.It Va timeout_stop
+This field must be set to a function that stops a running timeout.
+The function will be called with the return value of the corresponding
+.Fn timeout_start
+function.
+.It Va local_path
+If in local socket mode, the name of the clients socket.
+Not needed by the application.
+.El
+.Pp
+In the current implementation there is a global variable
+.Pp
+.D1 Vt extern struct snmp_client snmp_client ;
+.Pp
+that is used by all the library functions.
+The first call into the library must be a call to
+.Fn snmp_client_init
+to initialize this global variable to the default values.
+After this call and before calling
+.Fn snmp_open
+the fields of the variable may be modified by the user.
+The modification of the
+.Va chost
+and
+.Va cport
+fields should be done only via the functions
+.Fn snmp_client_set_host
+and
+.Fn snmp_client_set_port .
+.Pp
+The function
+.Fn snmp_open
+creates a UDP or
+.Ux
+domain socket and connects it to the agent's IP address and port.
+If any of the arguments of the call is not
+.Li NULL
+the corresponding field in the global
+.Va snmp_client
+is set from the argument.
+Otherwise the values that are already in that variable are used.
+The function
+.Fn snmp_close
+closes the socket, stops all timeouts and frees all dynamically allocated
+resources.
+.Pp
+The next three functions are used to create request PDUs.
+The function
+.Fn snmp_pdu_create
+initializes a PDU of type
+.Va op .
+It does not allocate space for the PDU itself.
+This is the responsibility of the caller.
+.Fn snmp_add_binding
+adds bindings to the PDU and returns the (zero based) index of the first new
+binding.
+The arguments are pairs of pointer to the OIDs and syntax constants,
+terminated by a NULL.
+The call
+.Bd -literal -offset indent
+snmp_add_binding(&pdu,
+    &oid1, SNMP_SYNTAX_INTEGER,
+    &oid2, SNMP_SYNTAX_OCTETSTRING,
+    NULL);
+.Ed
+.Pp
+adds two new bindings to the PDU and returns the index of the first one.
+It is the responsibility of the caller to set the value part of the binding
+if necessary.
+The functions returns -1 if the maximum number of bindings is exhausted.
+The function
+.Fn snmp_oid_append
+can be used to construct variable OIDs for requests.
+It takes a pointer to an
+.Vt struct asn_oid
+that is to be constructed, a format string, and a number of arguments
+the type of which depends on the format string.
+The format string is interpreted
+character by character in the following way:
+.Bl -tag -width ".It Li ( Va N Ns Li )"
+.It Li i
+This format expects an argument of type
+.Vt asn_subid_t
+and appends this as a single integer to the OID.
+.It Li a
+This format expects an argument of type
+.Vt struct in_addr
+and appends to four parts of the IP address to the OID.
+.It Li s
+This format expects an argument of type
+.Vt const char *
+and appends the length of the string (as computed by
+.Xr strlen 3 )
+and each of the characters in the string to the OID.
+.It ( Va N Ns )
+This format expects no argument.
+.Va N
+must be a decimal number and is stored into an internal variable
+.Va size .
+.It Li b
+This format expects an argument of type
+.Vt const char *
+and appends
+.Va size
+characters from the string to the OID.
+The string may contain
+.Li NUL
+characters.
+.It Li c
+This format expects two arguments: one of type
+.Vt size_t
+and one of type
+.Vt const u_char * .
+The first argument gives the number of bytes to append to the OID from the string
+pointed to by the second argument.
+.El
+.Pp
+The function
+.Fn snmp_pdu_check
+may be used to check a response PDU.
+A number of checks are performed
+(error code, equal number of bindings, syntaxes and values for SET PDUs).
+The function returns +1 if everything is ok, 0 if a NOSUCHNAME or similar
+error was detected, -1 if the response PDU had fatal errors
+and -2 if
+.Fa resp
+is
+.Li NULL
+(a timeout occurred).
+.Pp
+The function
+.Fn snmp_pdu_send
+encodes and sends the given PDU.
+It records the PDU together with the callback
+and user pointers in an internal list and arranges for retransmission if no
+response is received.
+When a response is received or the retransmission count
+is exceeded the callback
+.Fa func
+is called with the original request PDU, the response PDU and the user argument
+.Fa uarg .
+If the retransmit count is exceeded,
+.Fa func
+is called with the original request PDU, the response pointer set to
+.Li NULL
+and the user argument
+.Fa uarg .
+The caller should not free the request PDU until the callback function is
+called.
+The callback function must free the request PDU and the response PDU (if not
+.Li NULL ).
+.Pp
+The function
+.Fn snmp_receive
+tries to receive a PDU.
+If the argument is zero, the function polls to see
+whether a packet is available, if the argument is non-zero, the function blocks
+until the next packet is received.
+The packet is delivered via the usual callback
+mechanism (non-response packets are silently dropped).
+The function returns 0, if a packet was received and successfully dispatched,
+-1 if an error occurred or no packet was available (in polling mode).
+.Pp
+The next two functions are used to retrieve tables from SNMP agents.
+They use
+the following input structure, that describes the table:
+.Bd -literal -offset indent
+struct snmp_table {
+	struct asn_oid		table;
+	struct asn_oid		last_change;
+	u_int			max_iter;
+	size_t			entry_size;
+	u_int			index_size;
+	uint64_t		req_mask;
+
+	struct snmp_table_entry {
+	    asn_subid_t		subid;
+	    enum snmp_syntax	syntax;
+	    off_t		offset;
+	}			entries[];
+};
+.Ed
+.Pp
+The fields of this structure have the following meaning:
+.Bl -tag -width "last_change"
+.It Va table
+This is the base OID of the table.
+.It Va last_change
+Some tables have a scalar variable of type TIMETICKS attached to them,
+that holds the time when the table was last changed.
+This OID should be the OID of this variable (without the \&.0 index).
+When the table is retrieved
+with multiple GET requests, and the variable changes between two request,
+the table fetch is restarted.
+.It Va max_iter
+Maximum number of tries to fetch the table.
+.It Va entry_size
+The table fetching routines return a list of structures one for each table
+row.
+This variable is the size of one structure and used to
+.Xr malloc 3
+the structure.
+.It Va index_size
+This is the number of index columns in the table.
+.It Va req_mask
+This is a bit mask with a 1 for each table column that is required.
+Bit 0 corresponds to the first element (index 0) in the array
+.Va entries ,
+bit 1 to the second (index 1) and so on.
+SNMP tables may be sparse.
+For sparse columns the bit should not be set.
+If the bit for a given column is set and
+the column value cannot be retrieved for a given row, the table fetch is
+restarted assuming that the table is currently being modified by the agent.
+The bits for the index columns are ignored.
+.It Va entries
+This is a variable sized array of column descriptors.
+This array is terminated by an element with syntax
+.Li SNMP_SYNTAX_NULL .
+The first
+.Va index_size
+elements describe all the index columns of the table, the rest are normal
+columns.
+If for the column at
+.Ql entries[N]
+the expression
+.Ql req_mask & (1 << N)
+yields true, the column is considered a required column.
+The fields of this the array elements have the following meaning:
+.Bl -tag -width "syntax"
+.It Va subid
+This is the OID subid of the column.
+This is ignored for index entries.
+Index entries are decoded according to the
+.Va syntax
+field.
+.It Va syntax
+This is the syntax of the column or index.
+A syntax of
+.Li SNMP_SYNTAX_NULL
+terminates the array.
+.It Va offset
+This is the starting offset of the value of the column in the return structures.
+This field can be set with the ISO-C
+.Fn offsetof
+macro.
+.El
+.El
+.Pp
+Both table fetching functions return TAILQ (see
+.Xr queue 3 )
+of structures--one for each table row.
+These structures must start with a
+.Fn TAILQ_ENTRY
+and a
+.Vt uint64_t
+and are allocated via
+.Xr malloc 3 .
+The
+.Fa list
+argument of the table functions must point to a
+.Fn TAILQ_HEAD .
+The
+.Vt uint64_t
+fields, usually called
+.Va found
+is used to indicate which of the columns have been found for the given
+row.
+It is encoded like the
+.Fa req_mask
+field.
+.Pp
+The function
+.Fn snmp_table_fetch
+synchronously fetches the given table.
+If everything is ok 0 is returned.
+Otherwise the function returns -1 and sets an appropriate error string.
+The function
+.Fn snmp_table_fetch_async
+fetches the tables asynchronously.
+If either the entire table is fetch, or
+an error occurs the callback function
+.Fa callback
+is called with the callers arguments
+.Fa list
+and
+.Fa uarg
+and a parameter that is either 0 if the table was fetched, or
+-1 if there was an error.
+The function itself returns -1 if it could not
+initialize fetching of the table.
+.Pp
+The following table description is used to fetch the ATM interface table:
+.Bd -literal -offset indent
+/*
+ * ATM interface table
+ */
+struct atmif {
+	TAILQ_ENTRY(atmif) link;
+	uint64_t	found;
+	int32_t		index;
+	u_char		*ifname;
+	size_t		ifnamelen;
+	uint32_t	node_id;
+	uint32_t	pcr;
+	int32_t		media;
+	uint32_t	vpi_bits;
+	uint32_t	vci_bits;
+	uint32_t	max_vpcs;
+	uint32_t	max_vccs;
+	u_char		*esi;
+	size_t		esilen;
+	int32_t		carrier;
+};
+TAILQ_HEAD(atmif_list, atmif);
+
+/* list of all ATM interfaces */
+struct atmif_list atmif_list;
+
+static const struct snmp_table atmif_table = {
+	OIDX_begemotAtmIfTable,
+	OIDX_begemotAtmIfTableLastChange, 2,
+	sizeof(struct atmif),
+	1, 0x7ffULL,
+	{
+	  { 0, SNMP_SYNTAX_INTEGER,
+		offsetof(struct atmif, index) },
+	  { 1, SNMP_SYNTAX_OCTETSTRING,
+		offsetof(struct atmif, ifname) },
+	  { 2, SNMP_SYNTAX_GAUGE,
+		offsetof(struct atmif, node_id) },
+	  { 3, SNMP_SYNTAX_GAUGE,
+		offsetof(struct atmif, pcr) },
+	  { 4, SNMP_SYNTAX_INTEGER,
+		offsetof(struct atmif, media) },
+	  { 5, SNMP_SYNTAX_GAUGE,
+		offsetof(struct atmif, vpi_bits) },
+	  { 6, SNMP_SYNTAX_GAUGE,
+		offsetof(struct atmif, vci_bits) },
+	  { 7, SNMP_SYNTAX_GAUGE,
+		offsetof(struct atmif, max_vpcs) },
+	  { 8, SNMP_SYNTAX_GAUGE,
+		offsetof(struct atmif, max_vccs) },
+	  { 9, SNMP_SYNTAX_OCTETSTRING,
+		offsetof(struct atmif, esi) },
+	  { 10, SNMP_SYNTAX_INTEGER,
+		offsetof(struct atmif, carrier) },
+          { 0, SNMP_SYNTAX_NULL, 0 }
+	}
+};
+
+\&...
+	if (snmp_table_fetch(&atmif_table, &atmif_list) != 0)
+		errx(1, "AtmIf table: %s", snmp_client.error);
+\&...
+.Ed
+.Pp
+The function
+.Fn snmp_dialog
+is used to execute a synchonuous dialog with the agent.
+The request PDU
+.Fa req
+is sent and the function blocks until the response PDU is received.
+Note,
+that asynchonuous receives are handled (i.e. callback functions of other send
+calls or table fetches may be called while in the function).
+The response PDU is returned in
+.Fa resp .
+If no response could be received after all timeouts and retries, the function
+returns -1.
+If a response was received 0 is returned.
+.Pp
+The function
+.Fn snmp_discover_engine
+is used to discover the authoritative snmpEngineId of a remote SNMPv3 agent.
+A request PDU with empty USM user name is sent and the client's engine
+parameters are set according to the snmpEngine parameters received in the
+response PDU.
+If the client is configured to use authentication and/or privacy and the
+snmpEngineBoots and/or snmpEngineTime in the response had zero values, an
+additional request (possibly encrypted) with the appropriate user credentials
+is sent to fetch the missing values.
+Note, that the function blocks until the discovery process is completed.
+If no response could be received after all timeouts and retries, or the
+response contained errors the function returns -1.
+If the discovery process was completed 0 is returned.
+.Pp
+The function
+.Fn snmp_parse_server
+is used to parse an SNMP server specification string and fill in the
+fields of a
+.Vt struct snmp_client .
+The syntax of a server specification is
+.Pp
+.D1 [trans::][community@][server][:port]
+.Pp
+where
+.Va trans
+is the transport name (one of udp, stream or dgram),
+.Va community
+is the string to be used for both the read and the write community,
+.Va server
+is the server's host name in case of UDP and the path name in case
+of a local socket, and
+.Va port
+is the port in case of UDP transport.
+The function returns 0 in the case of success and return -1 and sets
+the error string in case of an error.
+.Sh DIAGNOSTICS
+If an error occurs in any of the function an error indication as described
+above is returned.
+Additionally the function sets a printable error string
+in the
+.Va error
+filed of
+.Va snmp_client .
+.Sh SEE ALSO
+.Xr gensnmptree 1 ,
+.Xr bsnmpd 1 ,
+.Xr bsnmpagent 3 ,
+.Xr bsnmplib 3
+.Sh STANDARDS
+This implementation conforms to the applicable IETF RFCs and ITU-T
+recommendations.
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@FreeBSD.org
+.An Kendy Kutzner Aq kutzner@fokus.gmd.de

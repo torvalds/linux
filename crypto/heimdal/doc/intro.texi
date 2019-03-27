@@ -1,0 +1,98 @@
+@c $Id$
+
+@node Introduction, What is Kerberos?, Top, Top
+@c @node Introduction, What is Kerberos?, Top, Top
+@comment  node-name,  next,  previous,  up
+@chapter Introduction
+
+@heading What is Heimdal?
+
+Heimdal is a free implementation of Kerberos 5. The goals are to:
+
+@itemize @bullet
+@item
+have an implementation that can be freely used by anyone
+@item
+be protocol compatible with existing implementations and, if not in
+conflict, with RFC 4120 (and any future updated RFC). RFC 4120
+replaced RFC 1510.
+@item
+be reasonably compatible with the M.I.T Kerberos V5 API
+@item
+have support for Kerberos V5 over GSS-API (RFC1964)
+@item
+include the most important and useful application programs (rsh, telnet,
+popper, etc.)
+@item
+include enough backwards compatibility with Kerberos V4
+@end itemize
+
+@heading Status
+
+Heimdal has the following features (this does not mean any of this
+works):
+
+@itemize @bullet
+@item
+a stub generator and a library to encode/decode/whatever ASN.1/DER
+stuff
+@item
+a @code{libkrb5} library that should be possible to get to work with
+simple applications
+@item
+a GSS-API library
+@item
+@file{kinit}, @file{klist}, @file{kdestroy}
+@item
+@file{telnet}, @file{telnetd}
+@item
+@file{rsh}, @file{rshd}
+@item
+@file{popper}, @file{push} (a movemail equivalent)
+@item
+@file{ftp}, and @file{ftpd}
+@item
+a library @file{libkafs} for authenticating to AFS and a program
+@file{afslog} that uses it
+@item
+some simple test programs
+@item
+a KDC that supports most things,
+@item
+simple programs for distributing databases between a KDC master and
+slaves
+@item
+a password changing daemon @file{kpasswdd}, library functions for
+changing passwords and a simple client
+@item
+some kind of administration system
+@item
+Kerberos V4 support in many of the applications.
+@end itemize
+
+@heading Bug reports
+
+If you find bugs in this software, make sure it is a genuine bug and not
+just a part of the code that isn't implemented.
+
+Bug reports should be sent to @email{heimdal-bugs@@h5l.org}. Please
+include information on what machine and operating system (including
+version) you are running, what you are trying to do, what happens, what
+you think should have happened, an example for us to repeat, the output
+you get when trying the example, and a patch for the problem if you have
+one. Please make any patches with @code{diff -u} or @code{diff -c}.
+
+Suggestions, comments and other non bug reports are also welcome.
+
+@heading Mailing list
+
+There are two mailing lists with talk about
+Heimdal. @email{heimdal-announce@@sics.se} is a low-volume announcement
+list, while @email{heimdal-discuss@@sics.se} is for general discussion.
+Send a message to @email{majordomo@@sics.se} to subscribe.
+
+@heading Heimdal source code, binaries and the manual
+
+The source code for heimdal, links to binaries and the manual (this
+document) can be found on our web-page at
+@url{http://www.pdc.kth.se/heimdal/}.

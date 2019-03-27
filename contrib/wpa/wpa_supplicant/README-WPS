@@ -1,0 +1,399 @@
+wpa_supplicant and Wi-Fi Protected Setup (WPS)
+==============================================
+
+This document describes how the WPS implementation in wpa_supplicant
+can be configured and how an external component on the client (e.g.,
+management GUI) is used to enable WPS enrollment and registrar
+registration.
+
+
+Introduction to WPS
+-------------------
+
+Wi-Fi Protected Setup (WPS) is a mechanism for easy configuration of a
+wireless network. It allows automated generation of random keys (WPA
+passphrase/PSK) and configuration of an access point and client
+devices. WPS includes number of methods for setting up connections
+with PIN method and push-button configuration (PBC) being the most
+commonly deployed options.
+
+While WPS can enable more home networks to use encryption in the
+wireless network, it should be noted that the use of the PIN and
+especially PBC mechanisms for authenticating the initial key setup is
+not very secure. As such, use of WPS may not be suitable for
+environments that require secure network access without chance for
+allowing outsiders to gain access during the setup phase.
+
+WPS uses following terms to describe the entities participating in the
+network setup:
+- access point: the WLAN access point
+- Registrar: a device that control a network and can authorize
+  addition of new devices); this may be either in the AP ("internal
+  Registrar") or in an external device, e.g., a laptop, ("external
+  Registrar")
+- Enrollee: a device that is being authorized to use the network
+
+It should also be noted that the AP and a client device may change
+roles (i.e., AP acts as an Enrollee and client device as a Registrar)
+when WPS is used to configure the access point.
+
+
+More information about WPS is available from Wi-Fi Alliance:
+http://www.wi-fi.org/wifi-protected-setup
+
+
+wpa_supplicant implementation
+-----------------------------
+
+wpa_supplicant includes an optional WPS component that can be used as
+an Enrollee to enroll new network credential or as a Registrar to
+configure an AP.
+
+
+wpa_supplicant configuration
+----------------------------
+
+WPS is an optional component that needs to be enabled in
+wpa_supplicant build configuration (.config). Here is an example
+configuration that includes WPS support and Linux nl80211 -based
+driver interface:
+
+CONFIG_DRIVER_NL80211=y
+CONFIG_WPS=y
+
+If you want to enable WPS external registrar (ER) functionality, you
+will also need to add following line:
+
+CONFIG_WPS_ER=y
+
+Following parameter can be used to enable support for NFC config method:
+
+CONFIG_WPS_NFC=y
+
+
+WPS needs the Universally Unique IDentifier (UUID; see RFC 4122) for
+the device. This is configured in the runtime configuration for
+wpa_supplicant (if not set, UUID will be generated based on local MAC
+address):
+
+# example UUID for WPS
+uuid=12345678-9abc-def0-1234-56789abcdef0
+
+The network configuration blocks needed for WPS are added
+automatically based on control interface commands, so they do not need
+to be added explicitly in the configuration file.
+
+WPS registration will generate new network blocks for the acquired
+credentials. If these are to be stored for future use (after
+restarting wpa_supplicant), wpa_supplicant will need to be configured
+to allow configuration file updates:
+
+update_config=1
+
+
+
+External operations
+-------------------
+
+WPS requires either a device PIN code (usually, 8-digit number) or a
+pushbutton event (for PBC) to allow a new WPS Enrollee to join the
+network. wpa_supplicant uses the control interface as an input channel
+for these events.
+
+The PIN value used in the commands must be processed by an UI to
+remove non-digit characters and potentially, to verify the checksum
+digit. "wpa_cli wps_check_pin <PIN>" can be used to do such processing.
+It returns FAIL if the PIN is invalid, or FAIL-CHECKSUM if the checksum
+digit is incorrect, or the processed PIN (non-digit characters removed)
+if the PIN is valid.
+
+If the client device has a display, a random PIN has to be generated
+for each WPS registration session. wpa_supplicant can do this with a
+control interface request, e.g., by calling wpa_cli:
+
+wpa_cli wps_pin any
+
+This will return the generated 8-digit PIN which will then need to be
+entered at the Registrar to complete WPS registration. At that point,
+the client will be enrolled with credentials needed to connect to the
+AP to access the network.
+
+
+If the client device does not have a display that could show the
+random PIN, a hardcoded PIN that is printed on a label can be
+used. wpa_supplicant is notified this with a control interface
+request, e.g., by calling wpa_cli:
+
+wpa_cli wps_pin any 12345670
+
+This starts the WPS negotiation in the same way as above with the
+generated PIN.
+
+When the wps_pin command is issued for an AP (including P2P GO) mode
+interface, an optional timeout parameter can be used to specify
+expiration timeout for the PIN in seconds. For example:
+
+wpa_cli wps_pin any 12345670 300
+
+
+If a random PIN is needed for a user interface, "wpa_cli wps_pin get"
+can be used to generate a new PIN without starting WPS negotiation.
+This random PIN can then be passed as an argument to another wps_pin
+call when the actual operation should be started.
+
+If the client design wants to support optional WPS PBC mode, this can
+be enabled by either a physical button in the client device or a
+virtual button in the user interface. The PBC operation requires that
+a button is also pressed at the AP/Registrar at about the same time (2
+minute window). wpa_supplicant is notified of the local button event
+over the control interface, e.g., by calling wpa_cli:
+
+wpa_cli wps_pbc
+
+At this point, the AP/Registrar has two minutes to complete WPS
+negotiation which will generate a new WPA PSK in the same way as the
+PIN method described above.
+
+
+If the client wants to operate in the Registrar role to learn the
+current AP configuration and optionally, to configure an AP,
+wpa_supplicant is notified over the control interface, e.g., with
+wpa_cli:
+
+wpa_cli wps_reg <AP BSSID> <AP PIN>
+(example: wpa_cli wps_reg 02:34:56:78:9a:bc 12345670)
+
+This is used to fetch the current AP settings instead of actually
+changing them. The main difference with the wps_pin command is that
+wps_reg uses the AP PIN (e.g., from a label on the AP) instead of a
+PIN generated at the client.
+
+In order to change the AP configuration, the new configuration
+parameters are given to the wps_reg command:
+
+wpa_cli wps_reg <AP BSSID> <AP PIN> <new SSID> <auth> <encr> <new key>
+examples:
+  wpa_cli wps_reg 02:34:56:78:9a:bc 12345670 testing WPA2PSK CCMP 12345678
+  wpa_cli wps_reg 02:34:56:78:9a:bc 12345670 clear OPEN NONE ""
+
+<auth> must be one of the following: OPEN WPAPSK WPA2PSK
+<encr> must be one of the following: NONE WEP TKIP CCMP
+
+
+Scanning
+--------
+
+Scan results ('wpa_cli scan_results' or 'wpa_cli bss <idx>') include a
+flags field that is used to indicate whether the BSS support WPS. If
+the AP support WPS, but has not recently activated a Registrar, [WPS]
+flag will be included. If PIN method has been recently selected,
+[WPS-PIN] is shown instead. Similarly, [WPS-PBC] is shown if PBC mode
+is in progress. GUI programs can use these as triggers for suggesting
+a guided WPS configuration to the user. In addition, control interface
+monitor events WPS-AP-AVAILABLE{,-PBC,-PIN} can be used to find out if
+there are WPS enabled APs in scan results without having to go through
+all the details in the GUI. These notification could be used, e.g., to
+suggest possible WPS connection to the user.
+
+
+wpa_gui
+-------
+
+wpa_gui-qt4 directory contains a sample GUI that shows an example of
+how WPS support can be integrated into the GUI. Its main window has a
+WPS tab that guides user through WPS registration with automatic AP
+selection. In addition, it shows how WPS can be started manually by
+selecting an AP from scan results.
+
+
+Credential processing
+---------------------
+
+By default, wpa_supplicant processes received credentials and updates
+its configuration internally. However, it is possible to
+control these operations from external programs, if desired.
+
+This internal processing can be disabled with wps_cred_processing=1
+option. When this is used, an external program is responsible for
+processing the credential attributes and updating wpa_supplicant
+configuration based on them.
+
+Following control interface messages are sent out for external programs:
+
+WPS-CRED-RECEIVED  <hexdump of Credential attribute(s)>
+For example:
+<2>WPS-CRED-RECEIVED 100e006f10260001011045000c6a6b6d2d7770732d74657374100300020020100f000200081027004030653462303435366332363666653064333961643135353461316634626637313234333761636664623766333939653534663166316230323061643434386235102000060266a0ee1727
+
+
+wpa_supplicant as WPS External Registrar (ER)
+---------------------------------------------
+
+wpa_supplicant can be used as a WPS ER to configure an AP or enroll
+new Enrollee to join the network. This functionality uses UPnP and
+requires that a working IP connectivity is available with the AP (this
+can be either over a wired or wireless connection).
+
+Separate wpa_supplicant process can be started for WPS ER
+operations. A special "none" driver can be used in such a case to
+indicate that no local network interface is actually controlled. For
+example, following command could be used to start the ER:
+
+wpa_supplicant -Dnone -c er.conf -ieth0
+
+Sample er.conf:
+
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=admin
+device_name=WPS External Registrar
+
+
+wpa_cli commands for ER functionality:
+
+wps_er_start [IP address]
+- start WPS ER functionality
+- the optional IP address parameter can be used to filter operations only
+  to include a single AP
+- if run again while ER is active, the stored information (discovered APs
+  and Enrollees) are shown again
+
+wps_er_stop
+- stop WPS ER functionality
+
+wps_er_learn <UUID|BSSID> <AP PIN>
+- learn AP configuration
+
+wps_er_set_config <UUID|BSSID> <network id>
+- use AP configuration from a locally configured network (e.g., from
+  wps_reg command); this does not change the AP's configuration, but
+  only prepares a configuration to be used when enrolling a new device
+  to the AP
+
+wps_er_config <UUID|BSSID> <AP PIN> <new SSID> <auth> <encr> <new key>
+- examples:
+  wps_er_config 87654321-9abc-def0-1234-56789abc0002 12345670 testing WPA2PSK CCMP 12345678
+  wpa_er_config 87654321-9abc-def0-1234-56789abc0002 12345670 clear OPEN NONE ""
+
+<auth> must be one of the following: OPEN WPAPSK WPA2PSK
+<encr> must be one of the following: NONE WEP TKIP CCMP
+
+
+wps_er_pbc <Enrollee UUID|MAC address>
+- accept an Enrollee PBC using External Registrar
+
+wps_er_pin <Enrollee UUID|"any"|MAC address> <PIN> [Enrollee MAC address]
+- add an Enrollee PIN to External Registrar
+- if Enrollee UUID is not known, "any" can be used to add a wildcard PIN
+- if the MAC address of the enrollee is known, it should be configured
+  to allow the AP to advertise list of authorized enrollees
+
+
+WPS ER events:
+
+WPS_EVENT_ER_AP_ADD
+- WPS ER discovered an AP
+
+WPS-ER-AP-ADD 87654321-9abc-def0-1234-56789abc0002 02:11:22:33:44:55 pri_dev_type=6-0050F204-1 wps_state=1 |Very friendly name|Company|Long description of the model|WAP|http://w1.fi/|http://w1.fi/hostapd/
+
+WPS_EVENT_ER_AP_REMOVE
+- WPS ER removed an AP entry
+
+WPS-ER-AP-REMOVE 87654321-9abc-def0-1234-56789abc0002
+
+WPS_EVENT_ER_ENROLLEE_ADD
+- WPS ER discovered a new Enrollee
+
+WPS-ER-ENROLLEE-ADD 2b7093f1-d6fb-5108-adbb-bea66bb87333 02:66:a0:ee:17:27 M1=1 config_methods=0x14d dev_passwd_id=0 pri_dev_type=1-0050F204-1 |Wireless Client|Company|cmodel|123|12345|
+
+WPS_EVENT_ER_ENROLLEE_REMOVE
+- WPS ER removed an Enrollee entry
+
+WPS-ER-ENROLLEE-REMOVE 2b7093f1-d6fb-5108-adbb-bea66bb87333 02:66:a0:ee:17:27
+
+WPS-ER-AP-SETTINGS
+- WPS ER learned AP settings
+
+WPS-ER-AP-SETTINGS uuid=fd91b4ec-e3fa-5891-a57d-8c59efeed1d2 ssid=test-wps auth_type=0x0020 encr_type=0x0008 key=12345678
+
+
+WPS with NFC
+------------
+
+WPS can be used with NFC-based configuration method. An NFC tag
+containing a password token from the Enrollee can be used to
+authenticate the connection instead of the PIN. In addition, an NFC tag
+with a configuration token can be used to transfer AP settings without
+going through the WPS protocol.
+
+When the station acts as an Enrollee, a local NFC tag with a password
+token can be used by touching the NFC interface of a Registrar.
+
+"wps_nfc [BSSID]" command starts WPS protocol run with the local end as
+the Enrollee using the NFC password token that is either pre-configured
+in the configuration file (wps_nfc_dev_pw_id, wps_nfc_dh_pubkey,
+wps_nfc_dh_privkey, wps_nfc_dev_pw) or generated dynamically with
+"wps_nfc_token <WPS|NDEF>" command. The included nfc_pw_token tool
+(build with "make nfc_pw_token") can be used to generate NFC password
+tokens during manufacturing (each station needs to have its own random
+keys).
+
+The "wps_nfc_config_token <WPS/NDEF>" command can be used to build an
+NFC configuration token when wpa_supplicant is controlling an AP
+interface (AP or P2P GO). The output value from this command is a
+hexdump of the current AP configuration (WPS parameter requests this to
+include only the WPS attributes; NDEF parameter requests additional NDEF
+encapsulation to be included). This data needs to be written to an NFC
+tag with an external program. Once written, the NFC configuration token
+can be used to touch an NFC interface on a station to provision the
+credentials needed to access the network.
+
+The "wps_nfc_config_token <WPS/NDEF> <network id>" command can be used
+to build an NFC configuration token based on a locally configured
+network.
+
+If the station includes NFC interface and reads an NFC tag with a MIME
+media type "application/vnd.wfa.wsc", the NDEF message payload (with or
+without NDEF encapsulation) can be delivered to wpa_supplicant using the
+following wpa_cli command:
+
+wps_nfc_tag_read <hexdump of payload>
+
+If the NFC tag contains a configuration token, the network is added to
+wpa_supplicant configuration. If the NFC tag contains a password token,
+the token is added to the WPS Registrar component. This information can
+then be used with wps_reg command (when the NFC password token was from
+an AP) using a special value "nfc-pw" in place of the PIN parameter. If
+the ER functionality has been started (wps_er_start), the NFC password
+token is used to enable enrollment of a new station (that was the source
+of the NFC password token).
+
+"nfc_get_handover_req <NDEF> <WPS-CR>" command can be used to build the
+WPS carrier record for a Handover Request Message for connection
+handover. The first argument selects the format of the output data and
+the second argument selects which type of connection handover is
+requested (WPS-CR = Wi-Fi handover as specified in WSC 2.0).
+
+"nfc_get_handover_sel <NDEF> <WPS> [UUID|BSSID]" command can be used to
+build the contents of a Handover Select Message for connection handover
+when this does not depend on the contents of the Handover Request
+Message. The first argument selects the format of the output data and
+the second argument selects which type of connection handover is
+requested (WPS = Wi-Fi handover as specified in WSC 2.0). If the options
+UUID|BSSID argument is included, this is a request to build the handover
+message for the specified AP when wpa_supplicant is operating as a WPS
+ER.
+
+"nfc_report_handover <INIT/RESP> WPS <carrier from handover request>
+<carrier from handover select>" can be used as an alternative way for
+reporting completed NFC connection handover. The first parameter
+indicates whether the local device initiated or responded to the
+connection handover and the carrier records are the selected carrier
+from the handover request and select messages as a hexdump.
+
+The "wps_er_nfc_config_token <WPS/NDEF> <UUID|BSSID>" command can be
+used to build an NFC configuration token for the specified AP when
+wpa_supplicant is operating as a WPS ER. The output value from this
+command is a hexdump of the selected AP configuration (WPS parameter
+requests this to include only the WPS attributes; NDEF parameter
+requests additional NDEF encapsulation to be included). This data needs
+to be written to an NFC tag with an external program. Once written, the
+NFC configuration token can be used to touch an NFC interface on a
+station to provision the credentials needed to access the network.

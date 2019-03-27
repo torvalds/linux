@@ -1,0 +1,62 @@
+#! /bin/sh
+#
+# Script for testing multi-bss open+WPA1+WPA2.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+BRIDGE=bridge0
+WPA_WLAN=wlan0
+CONF=$TMPDIR/bsd-$WPA_WLAN.conf
+WPA_SSID=$SSID-wpa
+OPEN_WLAN=wlan1
+
+makeconf()
+{
+	conf=$1
+	rm -f $conf
+	cat >$conf <<EOF
+interface=$2
+ctrl_interface=$HOSTAPD_CTRL_INTERFACE
+logger_syslog=-1
+logger_syslog_level=0
+logger_stdout=-1
+logger_stdout_level=0
+debug=4
+wpa=3
+wpa_key_mgmt=WPA-PSK
+wpa_passphrase=$WPA_PASSPHRASE
+wpa_pairwise=CCMP
+EOF
+}
+
+trap "ifconfig $BRIDGE destroy; ifconfig $WPA_WLAN destroy; \
+     ifconfig $OPEN_WLAN destroy; rm -f $CONF" 2
+
+ifconfig $WPA_WLAN create wlandev $WIRELESS wlanmode hostap bssid
+#wlandebug -i $WPA_WLAN assoc+crypto
+wlandebug -i $WPA_WLAN state+assoc+11n
+ifconfig $WPA_WLAN ssid $WPA_SSID
+ifconfig $WPA_WLAN channel $CHANNEL
+ifconfig $WPA_WLAN mtu 1500		# NB: if_bridge requires matching mtu's
+
+ifconfig $OPEN_WLAN create wlandev $WIRELESS wlanmode hostap bssid
+#wlandebug -i $OPEN_WLAN assoc+crypto
+wlandebug -i $OPEN_WLAN state+assoc+11n
+ifconfig $OPEN_WLAN ssid $SSID
+ifconfig $OPEN_WLAN channel $CHANNEL
+ifconfig $OPEN_WLAN mtu 1500		# NB: if_bridge requires matching mtu's
+
+ifconfig $BRIDGE create
+ifconfig $BRIDGE addm $WIRED addm $WPA_WLAN addm $OPEN_WLAN up
+ifconfig $WPA_WLAN up
+ifconfig $OPEN_WLAN up
+ifconfig $WIRED up
+
+ifconfig
+
+makeconf $CONF $WPA_WLAN
+#athdebug -i $WIRELESS keycache
+start_hostapd -K $CONF

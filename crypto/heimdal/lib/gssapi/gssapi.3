@@ -1,0 +1,172 @@
+.\" Copyright (c) 2003 - 2005 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd April 20, 2005
+.Dt GSSAPI 3
+.Os
+.Sh NAME
+.Nm gssapi
+.Nd Generic Security Service Application Program Interface library
+.Sh LIBRARY
+GSS-API Library (libgssapi, -lgssapi)
+.Sh DESCRIPTION
+The Generic Security Service Application Program Interface (GSS-API)
+provides security services to callers in a generic fashion,
+supportable with a range of underlying mechanisms and technologies and
+hence allowing source-level portability of applications to different
+environments.
+.Pp
+The GSS-API implementation in Heimdal implements the Kerberos 5 and
+the SPNEGO GSS-API security mechanisms.
+.Sh LIST OF FUNCTIONS
+These functions constitute the gssapi library,
+.Em libgssapi .
+Declarations for these functions may be obtained from the include file
+.Pa gssapi.h .
+.Bl -column -compact
+.It Sy Name/Page
+.It Xr gss_accept_sec_context 3
+.It Xr gss_acquire_cred 3
+.It Xr gss_add_cred 3
+.It Xr gss_add_oid_set_member 3
+.It Xr gss_canonicalize_name 3
+.It Xr gss_compare_name 3
+.It Xr gss_context_time 3
+.It Xr gss_create_empty_oid_set 3
+.It Xr gss_delete_sec_context 3
+.It Xr gss_display_name 3
+.It Xr gss_display_status 3
+.It Xr gss_duplicate_name 3
+.It Xr gss_export_name 3
+.It Xr gss_export_sec_context 3
+.It Xr gss_get_mic 3
+.It Xr gss_import_name 3
+.It Xr gss_import_sec_context 3
+.It Xr gss_indicate_mechs 3
+.It Xr gss_init_sec_context 3
+.It Xr gss_inquire_context 3
+.It Xr gss_inquire_cred 3
+.It Xr gss_inquire_cred_by_mech 3
+.It Xr gss_inquire_mechs_for_name 3
+.It Xr gss_inquire_names_for_mech 3
+.It Xr gss_krb5_ccache_name 3
+.It Xr gss_krb5_compat_des3_mic 3
+.It Xr gss_krb5_copy_ccache 3
+.It Xr gss_krb5_extract_authz_data_from_sec_context 3
+.It Xr gss_krb5_import_ccache 3
+.It Xr gss_process_context_token 3
+.It Xr gss_release_buffer 3
+.It Xr gss_release_cred 3
+.It Xr gss_release_name 3
+.It Xr gss_release_oid_set 3
+.It Xr gss_seal 3
+.It Xr gss_sign 3
+.It Xr gss_test_oid_set_member 3
+.It Xr gss_unseal 3
+.It Xr gss_unwrap 3
+.It Xr gss_verify 3
+.It Xr gss_verify_mic 3
+.It Xr gss_wrap 3
+.It Xr gss_wrap_size_limit 3
+.El
+.Sh COMPATIBILITY
+The
+.Nm Heimdal
+GSS-API implementation had a bug in releases before 0.6 that made it
+fail to inter-operate when using DES3 with other GSS-API
+implementations when using
+.Fn gss_get_mic
+/
+.Fn gss_verify_mic .
+It is possible to modify the behavior of the generator of the MIC with
+the
+.Pa krb5.conf
+configuration file so that old clients/servers will still
+work.
+.Pp
+New clients/servers will try both the old and new MIC in Heimdal 0.6.
+In 0.7 it will check only if configured - the compatibility code will
+be removed in 0.8.
+.Pp
+Heimdal 0.6 still generates by default the broken GSS-API DES3 mic,
+this will change in 0.7 to generate correct des3 mic.
+.Pp
+To turn on compatibility with older clients and servers, change the
+.Nm [gssapi]
+.Ar broken_des3_mic
+in
+.Pa krb5.conf
+that contains a list of globbing expressions that will be matched
+against the server name.
+To turn off generation of the old (incompatible) mic of the MIC use
+.Nm [gssapi]
+.Ar correct_des3_mic .
+.Pp
+If a match for a entry is in both
+.Nm [gssapi]
+.Ar correct_des3_mic
+and
+.Nm [gssapi]
+.Ar broken_des3_mic ,
+the later will override.
+.Pp
+This config option modifies behaviour for both clients and servers.
+.Pp
+Microsoft implemented SPNEGO to Windows2000, however, they managed to
+get it wrong, their implementation didn't fill in the MechListMIC in
+the reply token with the right content.
+There is a work around for this problem, but not all implementation
+support it.
+.Pp
+Heimdal defaults to correct SPNEGO when the the kerberos
+implementation uses CFX, or when it is configured by the user.
+To turn on compatibility with peers, use option
+.Nm [gssapi]
+.Ar require_mechlist_mic .
+.Sh EXAMPLES
+.Bd -literal -offset indent
+[gssapi]
+	broken_des3_mic = cvs/*@SU.SE
+	broken_des3_mic = host/*@E.KTH.SE
+	correct_des3_mic = host/*@SU.SE
+	require_mechlist_mic = host/*@SU.SE
+.Ed
+.Sh BUGS
+All of 0.5.x versions of
+.Nm heimdal
+had broken token delegations in the client side, the server side was
+correct.
+.Sh SEE ALSO
+.Xr krb5 3 ,
+.Xr krb5.conf 5 ,
+.Xr kerberos 8

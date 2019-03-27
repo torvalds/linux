@@ -1,0 +1,93 @@
+.TH HOSTS_ACCESS 3
+.SH NAME
+hosts_access, hosts_ctl, request_init, request_set \- access control library
+.SH SYNOPSIS
+.nf
+#include "tcpd.h"
+
+extern int allow_severity;
+extern int deny_severity;
+
+struct request_info *request_init(request, key, value, ..., 0)
+struct request_info *request;
+
+struct request_info *request_set(request, key, value, ..., 0)
+struct request_info *request;
+
+int hosts_access(request)
+struct request_info *request;
+
+int hosts_ctl(daemon, client_name, client_addr, client_user)
+char *daemon;
+char *client_name;
+char *client_addr;
+char *client_user;
+.fi
+.SH DESCRIPTION
+The routines described in this document are part of the \fIlibwrap.a\fR
+library. They implement a rule-based access control language with
+optional shell commands that are executed when a rule fires.
+.PP
+request_init() initializes a structure with information about a client
+request. request_set() updates an already initialized request
+structure. Both functions take a variable-length list of key-value
+pairs and return their first argument.  The argument lists are
+terminated with a zero key value. All string-valued arguments are
+copied. The expected keys (and corresponding value types) are:
+.IP "RQ_FILE (int)"
+The file descriptor associated with the request.
+.IP "RQ_CLIENT_NAME (char *)"
+The client host name.
+.IP "RQ_CLIENT_ADDR (char *)"
+A printable representation of the client network address.
+.IP "RQ_CLIENT_SIN (struct sockaddr_in *)"
+An internal representation of the client network address and port.  The
+contents of the structure are not copied.
+.IP "RQ_SERVER_NAME (char *)"
+The hostname associated with the server endpoint address.
+.IP "RQ_SERVER_ADDR (char *)"
+A printable representation of the server endpoint address.
+.IP "RQ_SERVER_SIN (struct sockaddr_in *)"
+An internal representation of the server endpoint address and port.
+The contents of the structure are not copied.
+.IP "RQ_DAEMON (char *)"
+The name of the daemon process running on the server host.
+.IP "RQ_USER (char *)"
+The name of the user on whose behalf the client host makes the request.
+.PP
+hosts_access() consults the access control tables described in the
+\fIhosts_access(5)\fR manual page.  When internal endpoint information
+is available, host names and client user names are looked up on demand,
+using the request structure as a cache.  hosts_access() returns zero if
+access should be denied.
+.PP
+hosts_ctl() is a wrapper around the request_init() and hosts_access()
+routines with a perhaps more convenient interface (though it does not
+pass on enough information to support automated client username
+lookups).  The client host address, client host name and username
+arguments should contain valid data or STRING_UNKNOWN.  hosts_ctl()
+returns zero if access should be denied.
+.PP
+The \fIallow_severity\fR and \fIdeny_severity\fR variables determine
+how accepted and rejected requests may be logged. They must be provided
+by the caller and may be modified by rules in the access control
+tables.
+.SH DIAGNOSTICS
+Problems are reported via the syslog daemon.
+.SH SEE ALSO
+hosts_access(5), format of the access control tables.
+hosts_options(5), optional extensions to the base language.
+.SH FILES
+/etc/hosts.allow, /etc/hosts.deny, access control tables.
+.SH BUGS
+hosts_access() uses the strtok() library function. This may interfere
+with other code that relies on strtok().
+.SH AUTHOR
+.na
+.nf
+Wietse Venema (wietse@wzv.win.tue.nl)
+Department of Mathematics and Computing Science
+Eindhoven University of Technology
+Den Dolech 2, P.O. Box 513, 
+5600 MB Eindhoven, The Netherlands
+\" @(#) hosts_access.3 1.8 96/02/11 17:01:26

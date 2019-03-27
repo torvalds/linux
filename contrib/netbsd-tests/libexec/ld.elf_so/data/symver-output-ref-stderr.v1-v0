@@ -1,0 +1,1 @@
+/usr/tests/libexec/ld.elf_so/h_helper_symver_dso0/libh_helper_symver_dso.so.1: version V_1 required by /usr/tests/libexec/ld.elf_so/h_dl_symver_v1 not defined

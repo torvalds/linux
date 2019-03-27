@@ -1,0 +1,175 @@
+# $Id: makefile.in,v 1.24 2015/07/05 22:12:29 tom Exp $
+#
+# UNIX template-makefile for Berkeley Yacc
+
+THIS		= yacc
+
+#### Start of system configuration section. ####
+
+srcdir 		= @srcdir@
+VPATH  		= @srcdir@
+
+CC		= @CC@
+
+INSTALL		= @INSTALL@
+INSTALL_PROGRAM	= @INSTALL_PROGRAM@
+INSTALL_DATA	= @INSTALL_DATA@
+transform	= @program_transform_name@
+
+DEFINES		=
+EXTRA_CFLAGS	= @EXTRA_CFLAGS@
+CPPFLAGS	= -I. -I$(srcdir) $(DEFINES) -DHAVE_CONFIG_H -DYYPATCH=`cat $(srcdir)/VERSION` @CPPFLAGS@
+CFLAGS		= @CFLAGS@ $(CPPFLAGS) $(EXTRA_CFLAGS)
+
+LDFLAGS		= @LDFLAGS@
+LIBS		= @LIBS@
+
+AWK		= @AWK@
+CTAGS		= @CTAGS@
+ETAGS		= @ETAGS@
+LINT		= @LINT@
+LINTFLAGS	= @LINT_OPTS@
+
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+
+datarootdir	= @datarootdir@
+bindir		= $(DESTDIR)@bindir@
+mandir		= $(DESTDIR)@mandir@/man1
+manext		= 1
+
+testdir		= $(srcdir)/test
+
+SKELETON	= @SKELETON@
+x		= @EXEEXT@
+o		= .@OBJEXT@
+
+#### End of system configuration section. ####
+
+SHELL		= /bin/sh
+@SET_MAKE@
+
+H_FILES = \
+	defs.h
+
+C_FILES = \
+	closure.c \
+	error.c \
+	graph.c \
+	lalr.c \
+	lr0.c \
+	main.c \
+	mkpar.c \
+	mstring.c \
+	output.c \
+	reader.c \
+	$(SKELETON).c \
+	symtab.c \
+	verbose.c \
+	warshall.c
+
+OBJS	= \
+	closure$o \
+	error$o \
+	graph$o \
+	lalr$o \
+	lr0$o \
+	main$o \
+	mkpar$o \
+	mstring$o \
+	output$o \
+	reader$o \
+	$(SKELETON)$o \
+	symtab$o \
+	verbose$o \
+	warshall$o
+
+YACCPAR	= \
+	btyaccpar.c \
+	yaccpar.c
+
+TRANSFORM_BIN = sed 's/$x$$//'       |sed '$(transform)'|sed 's/$$/$x/'
+TRANSFORM_MAN = sed 's/$(manext)$$//'|sed '$(transform)'|sed 's/$$/$(manext)/'
+
+actual_bin = `echo $(THIS)$x        | $(TRANSFORM_BIN)`
+actual_man = `echo $(THIS).$(manext)| $(TRANSFORM_MAN)`
+
+all : $(THIS)$x
+
+install: all installdirs
+	$(INSTALL_PROGRAM) $(THIS)$x $(bindir)/$(actual_bin)
+	- $(INSTALL_DATA) $(srcdir)/$(THIS).1 $(mandir)/$(actual_man)
+
+installdirs:
+	mkdir -p $(bindir)
+	- mkdir -p $(mandir)
+
+uninstall:
+	- rm -f $(bindir)/$(actual_bin)
+	- rm -f $(mandir)/$(actual_man)
+
+################################################################################
+.SUFFIXES : .c $o .i .skel
+
+.c$o:
+	@RULE_CC@
+	@ECHO_CC@$(CC) -c $(CFLAGS) $<
+
+.c.i :
+	@RULE_CC@
+	@ECHO_CC@$(CPP) -C $(CPPFLAGS) $*.c >$@
+
+.skel.c :
+	$(AWK) -f $(srcdir)/skel2c $*.skel > $@
+
+################################################################################
+
+$(THIS)$x : $(OBJS)
+	@ECHO_LD@$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $(OBJS) $(LIBS)
+
+mostlyclean :
+	- rm -f core .nfs* *$o *.bak *.BAK *.out
+
+clean :: mostlyclean
+	- rm -f $(THIS)$x
+
+distclean :: clean
+	- rm -f config.log config.cache config.status config.h makefile man2html.tmp
+	- rm -f $(testdir)/yacc/test-* $(testdir)/btyacc/test-*
+
+realclean :: distclean
+	- rm -f tags TAGS
+
+sources : $(YACCPAR)
+
+maintainer-clean :: realclean
+	rm -f $(YACCPAR)
+
+################################################################################
+check:	$(THIS)$x
+	$(SHELL) $(testdir)/run_test.sh $(testdir)
+
+check_make: $(THIS)$x
+	$(SHELL) $(testdir)/run_make.sh $(testdir)
+
+check_lint:
+	$(SHELL) $(testdir)/run_lint.sh $(testdir)
+################################################################################
+tags: $(H_FILES) $(C_FILES) 
+	$(CTAGS) $(C_FILES) $(H_FILES)
+
+lint: $(C_FILES) 
+	$(LINT) $(LINTFLAGS) $(CPPFLAGS) $(C_FILES)
+
+@MAKE_UPPER_TAGS@TAGS: $(H_FILES) $(C_FILES) 
+@MAKE_UPPER_TAGS@	$(ETAGS) $(C_FILES) $(H_FILES)
+
+depend:
+	makedepend -- $(CPPFLAGS) -- $(C_FILES)
+
+$(OBJS) : defs.h makefile
+
+main$o \
+$(SKELETON)$o : VERSION
+
+# DO NOT DELETE THIS LINE -- make depend depends on it.

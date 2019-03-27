@@ -1,0 +1,48 @@
+[34mblue[44m[32mgreen[42m[31mred[41m[33myellow[43m[39mdefault[0m
+[1mbold [4mbold-ul [7mtriple [0;4;7minv-ul [0;4munderline [0mplain
+Item      [1;4m  Total Sold[0;4m    In Stock[7m    On Order[0m  SKU
+gum               1412          54[33m          10[39m  GRO-000-415
+rope                85[7m           4[0m           2  HRD-000-212
+ladder               0[7m           2[0m           1  HRD-000-517
+bolt              4123         144[33m          42[39m  HRD-000-632
+water               17          14           2  GRO-000-2331
+
+
+Item 'gum':
+   Total sold: 1412.0
+   In stock: [7m54[0m
+   On order: 10
+   SKU: GRO-000-415
+Item 'rope':
+   Total sold: 85.0
+   In stock: [7m4[0m
+   On order: 2
+   SKU: HRD-000-212
+Item 'ladder':
+   Total sold: 0
+   In stock: [7m2[0m
+   On order: 1
+   SKU: HRD-000-517
+Item 'bolt':
+   Total sold: 4123.0
+   In stock: [7m144[0m
+   On order: 42
+   SKU: HRD-000-632
+Item 'water':
+   Total sold: 17.0
+   In stock: [7m14[0m
+   On order: 2
+   SKU: GRO-000-2331
+Item 'fish':
+   [1;37;44mTotal sold: 1321.0[0m
+   In stock: 45
+   On order: 1
+   SKU: GRO-000-533
+Item: gum
+Item: rope
+Item: ladder
+Item: bolt
+Item: water
+XXXXXXXX
+X        XCost: 425
+X                              XCost: 455

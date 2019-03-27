@@ -1,0 +1,102 @@
+.\" Copyright (c) 1995
+.\"	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 12, 1995
+.Dt ETHERS 5
+.Os
+.Sh NAME
+.Nm ethers
+.Nd ethernet address database
+.Sh DESCRIPTION
+The
+.Nm
+database contains information regarding known 48-bit ethernet addresses
+of hosts on an Internetwork.
+The data is stored in a file called
+.Pa /etc/ethers
+in the following format:
+.Pp
+.D1 Ar ethernet-address fully-qualified-host-name
+.Pp
+Items are separated by any number of blanks and/or
+tab characters.
+A ``#'' at the start of a line indicates the
+beginning of a comment that extends to the end of the line.
+A ``+'' at
+the start of a line will cause the
+.Xr ethers 3
+library functions to use data stored in the
+.Tn NIS
+.Pa ethers.byname
+and
+.Pa ethers.byaddr
+maps in addition to the data in the
+.Pa /etc/ethers
+file.
+.Pp
+An ethernet address is expressed in
+.Tn ASCII
+form as "x:x:x:x:x:x" where
+.Ar x
+is a hexadecimal value between 0x00 and 0xFF.
+The address values
+should be in network order.
+Hostnames specified in the
+.Pa /etc/ethers
+database should correspond to entries in the
+.Xr hosts 5
+file.
+.Pp
+The
+.Fn ether_line
+function in the standard C library can be used to break individual
+lines in the
+.Pa /etc/ethers
+database into their individual components: a binary Ethernet address
+stored as an
+.Pa ether_addr
+structure, and a hostname stored as a character string.
+.Sh FILES
+.Bl -tag -width /etc/services -compact
+.It Pa /etc/ethers
+The
+.Nm
+file resides in
+.Pa /etc .
+.El
+.Sh SEE ALSO
+.Xr ethers 3 ,
+.Xr yp 8
+.Sh HISTORY
+The
+.Nm
+format is based on the format used in SunOS 4.1.x.

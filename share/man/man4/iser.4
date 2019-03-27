@@ -1,0 +1,94 @@
+.\" Copyright (c) 2015, Mellanox Technologies, Inc. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.\" $FreeBSD$
+.Dd June 6, 2016
+.Dt ISER 4
+.Os
+.Sh NAME
+.Nm iser
+.Nd iSCSI Extensions for RDMA (iSER) driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iser"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+iser_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+(iSCSI Extensions for RDMA) initiator driver extends the iSCSI protocol to RDMA.
+It permits data to be transferred directly into and out of SCSI buffers
+without intermediate data copies.
+iSER uses the RDMA protocol suite to supply higher bandwidth for
+block storage transfers (zero copy behavior).
+To that fact, it eliminates the
+TCP/IP processing overhead while preserving the compatibility with iSCSI protocol.
+The initiator is the iSCSI/iSER client, which connects to an iSCSI/iSER target,
+providing local access to a remote block device.
+The userland component is provided by
+.Xr iscsid 8
+and both the kernel and userland are configured using
+.Xr iscsictl 8 .
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va kern.iser.debug
+Verbosity level for log messages from the
+.Nm
+driver.
+Set to 0 to disable logging or 1 to warn about potential problems.
+Larger values enable info and debugging output.
+Defaults to 0.
+.El
+.Sh SEE ALSO
+.Xr iscsi 4 ,
+.Xr iscsi.conf 5 ,
+.Xr iscsictl 8 ,
+.Xr iscsid 8
+.Sh HISTORY
+The
+.Nm
+subsystem first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+The
+.Nm
+subsystem was developed by
+.An Max Gurtovoy Aq Mt maxg@mellanox.com
+and
+.An Sagi Grimberg Aq Mt sagig@mellanox.com
+under sponsorship from Mellanox Technologies.

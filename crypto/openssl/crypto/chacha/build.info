@@ -1,0 +1,18 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]={- $target{chacha_asm_src} -}
+
+GENERATE[chacha-x86.s]=asm/chacha-x86.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+GENERATE[chacha-x86_64.s]=asm/chacha-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[chacha-ppc.s]=asm/chacha-ppc.pl $(PERLASM_SCHEME)
+GENERATE[chacha-armv4.S]=asm/chacha-armv4.pl $(PERLASM_SCHEME)
+INCLUDE[chacha-armv4.o]=..
+GENERATE[chacha-armv8.S]=asm/chacha-armv8.pl $(PERLASM_SCHEME)
+INCLUDE[chacha-armv8.o]=..
+
+BEGINRAW[Makefile(unix)]
+##### CHACHA assembler implementations
+
+{- $builddir -}/chacha-%.S:	{- $sourcedir -}/asm/chacha-%.pl
+	CC="$(CC)" $(PERL) $< $(PERLASM_SCHEME) $@
+ENDRAW[Makefile(unix)]

@@ -1,0 +1,156 @@
+.\"
+.\" Copyright (c) 1995 David Hovemeyer <daveho@infocom.com>
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 14, 2019
+.Dt SHMAT 2
+.Os
+.Sh NAME
+.Nm shmat ,
+.Nm shmdt
+.Nd attach or detach shared memory
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/ipc.h
+.In sys/shm.h
+.Ft void *
+.Fn shmat "int shmid" "const void *addr" "int flag"
+.Ft int
+.Fn shmdt "const void *addr"
+.Sh DESCRIPTION
+The
+.Fn shmat
+system call
+attaches the shared memory segment identified by
+.Fa shmid
+to the calling process's address space.
+The address where the segment
+is attached is determined as follows:
+.\"
+.\" These are cribbed almost exactly from Stevens, _Advanced Programming in
+.\" the UNIX Environment_.
+.\"
+.Bl -bullet
+.It
+If
+.Fa addr
+is 0, the segment is attached at an address selected by the
+kernel.
+.It
+If
+.Fa addr
+is nonzero and
+.Va SHM_RND
+is not specified in
+.Fa flag ,
+the segment is attached the specified address.
+.It
+If
+.Fa addr
+is specified and
+.Va SHM_RND
+is specified,
+.Fa addr
+is rounded down to the nearest multiple of SHMLBA.
+.El
+.Pp
+If the
+.Va SHM_REMAP
+flag is specified and the passed
+.Fa addr
+is not
+.Dv NULL ,
+any existing mappings in the virtual addresses range are
+cleared before the segment is attached.
+If the flag is not specified,
+.Fa addr
+is not
+.Dv NULL ,
+and the virtual address range contains
+some pre-existing mappings, the
+.Fn shmat
+call fails.
+.Pp
+The
+.Fn shmdt
+system call
+detaches the shared memory segment at the address specified by
+.Fa addr
+from the calling process's address space.
+.Sh RETURN VALUES
+Upon success,
+.Fn shmat
+returns the address where the segment is attached; otherwise, -1
+is returned and
+.Va errno
+is set to indicate the error.
+.Pp
+.Rv -std shmdt
+.Sh ERRORS
+The
+.Fn shmat
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+No shared memory segment was found corresponding to
+.Fa shmid .
+.It Bq Er EINVAL
+The
+.Fa addr
+argument
+was not an acceptable address.
+.It Bq Er ENOMEM
+The specified
+.Fa addr
+cannot be used for mapping, for instance due to the amount of available
+space being smaller than the segment size,
+or because pre-existing mappings are in the range and no
+.Va SHM_REMAP
+flag was provided.
+.It Bq Er EMFILE
+Failed to attach the shared memory segment because the per-process
+.Va kern.ipc.shmseg
+.Xr sysctl 3
+limit was reached.
+.El
+.Pp
+The
+.Fn shmdt
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa addr
+argument
+does not point to a shared memory segment.
+.El
+.Sh "SEE ALSO"
+.Xr shmctl 2 ,
+.Xr shmget 2

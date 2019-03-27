@@ -1,0 +1,18 @@
+# Debian installations and man page suffixes
+MDOC
+calc_tickadj,sbin,8
+ntp-keygen,sbin,8
+ntp-wait,sbin,8
+ntpd,sbin,8
+ntpdate,sbin,8
+ntpdc,bin,1
+ntpdsim,sbin,8
+ntpq,bin,1
+ntpsnmpd,sbin,8
+ntpsweep,bin,1
+ntptime,sbin,8
+ntptrace,bin,1
+sntp,bin,1
+tickadj,sbin,8
+timetrim,sbin,8
+update-leap,sbin,8

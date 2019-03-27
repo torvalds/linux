@@ -1,0 +1,211 @@
+.\"
+.\" Copyright (c) 2004 Tom Rhodes
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 13, 2004
+.Dt KERNEL_MOUNT 9
+.Os
+.Sh NAME
+.Nm free_mntarg ,
+.Nm kernel_mount ,
+.Nm kernel_vmount ,
+.Nm mount_arg ,
+.Nm mount_argb ,
+.Nm mount_argf ,
+.Nm mount_argsu
+.Nd "functions provided as part of the kernel mount interface"
+.Sh SYNOPSIS
+.Ft void
+.Fn free_mntarg "struct mntarg *ma"
+.Ft int
+.Fn kernel_mount "struct mntarg *ma" "int flags"
+.Ft int
+.Fn kernel_vmount "int flags" ...
+.Ft "struct mntarg *"
+.Fo mount_arg
+.Fa "struct mntarg *ma" "const char *name" "const void *val" "int len"
+.Fc
+.Ft "struct mntarg *"
+.Fn mount_argb "struct mntarg *ma" "int flag" "const char *name"
+.Ft "struct mntarg *"
+.Fn mount_argf "struct mntarg *ma" "const char *name" "const char *fmt" ...
+.Ft "struct mntarg *"
+.Fo mount_argsu
+.Fa "struct mntarg *ma" "const char *name" "const void *val" "int len"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn kernel_mount
+family of functions are provided as an API for building a list
+of mount arguments which will be used to mount file systems
+from inside the kernel.
+By accumulating a list of arguments, the API takes shape and
+provides the information necessary for the kernel to control
+the
+.Xr mount 8
+utility.
+When an error occurs, the process will stop.
+This will not cause a
+.Xr panic 9 .
+.Pp
+The header of the structure is stored in
+.Pa src/sys/kern/vfs_mount.c
+which permits automatic structure creation to
+ease the mount process.
+Memory allocation must always be freed when the entire
+process is complete, it is an error otherwise.
+.Pp
+The
+.Fn free_mntarg
+function is used to free or clear the
+.Vt mntarg
+structure.
+.Pp
+The
+.Fn kernel_mount
+function pulls information from the structure to perform
+the mount request on a given file system.
+Additionally, the
+.Fn kernel_mount
+function always calls the
+.Fn free_mntarg
+function.
+If
+.Fa ma
+contains any error code generated during the construction,
+that code will be called and the file system mount will
+not be attempted.
+.Pp
+The
+.Fn kernel_vmount
+is a function similar to
+.Xr printf 9
+which is used to mount a file system.
+.Pp
+The
+.Fn mount_arg
+function takes a plain argument and crafts parts of
+the structure with regards to various mount options.
+If the length is a value less than 0,
+.Xr strlen 3
+is used.
+This argument will be referenced until either
+.Fn free_mntarg
+or
+.Fn kernel_mount
+is called.
+.Pp
+The
+.Fn mount_argb
+function is used to add boolean arguments to
+the structure.
+The
+.Fa flag
+is the boolean value and
+.Fa name
+must start with
+.Qq Li no ,
+otherwise a panic will occur.
+.Pp
+The
+.Fn mount_argf
+function adds
+.Xr printf 9
+style arguments to the current structure.
+.Pp
+The
+.Fn mount_argsu
+function will add arguments to the structure from a
+userland string.
+.Sh EXAMPLES
+An example of the
+.Fn *_cmount
+function:
+.Bd -literal
+static int
+msdosfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+{
+	struct msdosfs_args args;
+	int error;
+
+	if (data == NULL)
+		return (EINVAL);
+	error = copyin(data, &args, sizeof(args));
+	if (error)
+		return (error);
+
+	ma = mount_argsu(ma, "from", args.fspec, MAXPATHLEN);
+	ma = mount_arg(ma, "export", &args.export, sizeof(args.export));
+	ma = mount_argf(ma, "uid", "%d", args.uid);
+	ma = mount_argf(ma, "gid", "%d", args.gid);
+	ma = mount_argf(ma, "mask", "%d", args.mask);
+	ma = mount_argf(ma, "dirmask", "%d", args.dirmask);
+
+	ma = mount_argb(ma, args.flags & MSDOSFSMNT_SHORTNAME, "noshortname");
+	ma = mount_argb(ma, args.flags & MSDOSFSMNT_LONGNAME, "nolongname");
+	ma = mount_argb(ma, !(args.flags & MSDOSFSMNT_NOWIN95), "nowin95");
+	ma = mount_argb(ma, args.flags & MSDOSFSMNT_KICONV, "nokiconv");
+
+	ma = mount_argsu(ma, "cs_win", args.cs_win, MAXCSLEN);
+	ma = mount_argsu(ma, "cs_dos", args.cs_dos, MAXCSLEN);
+	ma = mount_argsu(ma, "cs_local", args.cs_local, MAXCSLEN);
+
+	error = kernel_mount(ma, flags);
+
+	return (error);
+}
+.Ed
+.Pp
+When working with
+.Fn kernel_vmount ,
+.Fa varargs
+must come in pairs, e.g.,
+.Brq Va name , value .
+.Bd -literal
+	error = kernel_vmount(
+	    MNT_RDONLY,
+	    "fstype", vfsname,
+	    "fspath", "/",
+	    "from", path,
+	    NULL);
+.Ed
+.Sh SEE ALSO
+.Xr VFS 9 ,
+.Xr VFS_MOUNT 9
+.Sh HISTORY
+The
+.Fn kernel_mount
+family of functions and this manual page first
+appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Fn kernel_mount
+family of functions and API was developed by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .
+This manual page was written by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org .

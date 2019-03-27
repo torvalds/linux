@@ -1,0 +1,198 @@
+/*
+ * deutsche Geschichte
+ *
+ * 
+ * Die Angaben wurden überwiegend entnommen aus dem Buch:
+ * 
+ * Fragen an die deutsche Geschichte, Ideen, Kräfte, Entscheidungen von
+ * 1800 bis zur Gegenwart; historische Ausstellung im Reichstagsgebäude
+ * in Berlin; Katalog, 16. Auflage, Sonderausgabe - Bonn: Deutscher
+ * Bundestag, Referat Öffentlichkeitsarbeit, 1990
+ * 
+ * English Title: Questions on German history
+ * 
+ * ISBN 3-924521-59-X
+ * 
+ * $FreeBSD$
+ */
+
+#ifndef _de_DE_ISO8859_1_geschichte_
+#define _de_DE_ISO8859_1_geschichte_
+
+LANG=de_DE.ISO8859-1
+
+/* 1800-1933 */
+07/11 	Gründung des Rheinbundes, 1806
+10/14	Doppelschlacht bei Jena und Auerstedt, 1806
+10/16	Völkerschlacht bei Leipzig, 1813
+06/18	Niederlage Napoleons bei Waterloo, 1815
+10/18	Wartburgfest der Deutschen Burschenschaften, 1817
+01/01	Inkrafttreten des Vertrages über den deutschen Zollverein, 1834
+12/07	Erste deutsche Eisenbahn zwischen Nürnberg und Fürth, 1835
+06	Aufstand der schlesischen Weber, 1844
+12/21	Verabschiedung des Gesetzes über die Grundrechte des deutschen
+	Volkes durch die Frankfurter Nationalversammlung, 1848
+03/27	Annahme der deutschen Reichsverfassung in der Frankfurter
+	Paulskirche, Wahl von Friedrich Wilhelm IV von Preußen zum
+	deutschen Kaiser, 1849
+04/28	Ablehnung der deutschen Kaiserkrone durch den preußischen König, 1849
+07/03	Schlacht von Königgrätz
+07/13	Emser Depesche, 1870
+07/18	Verkündung des Dogmas von der päpstlichen Unfehlbarkeit
+	durch das I. Vatikanische Konzil
+01/18	Proklamation des deutschen Kaiserreiches in Versailles, 1871
+10/18	Verabschiedung des Sozialistengesetzes durch den Reichstag, 1878
+03/20	Entlassung von Bismarck als Reichskanzler und
+	preußischer Ministerpräsident, 1890
+06/21	Eröffnung des Nord-Ostsee-Kanals, 1895
+01/07	Billigung des Bürgerlichen Gesetzbuches (BGB) durch den Reichstag, 1896
+01/01	Bürgerliches Gesetzbuch tritt in Kraft, 1900
+06/28	Ermordung des österreichischen Thronfolgers Erzherzog Franz
+	Ferdinand durch serbische Nationalisten in Sarajewo, 1914
+07/28	Kriegserklärung Österreich-Ungarns an Serbien, 1914
+08/01	Deutsche Mobilmachung und Kriegserklärung an Rußland, 1914
+08/03	Deutsche Kriegserklärung an Frankreich, 1914
+08/04	Kriegserklärung Großbritanniens an Deutschland, 1914
+08/04	Bewilligung der Kriegskredite im Reichstag, 1914
+08/26	Schlacht bei Tannenberg, 1914
+02/21	Schlacht um Verdun, 1916
+03/08	Ausbruch der Revolution in Rußland, Abdankung von Zar Nikolaus II, 1917
+04/06	Kriegserklärung der USA an Deutschland, 1917
+12/15	Waffenstillstand zwisch Rußland und Deutschland, 1917
+03/03	Frieden von Brest-Litowsk, 1918
+11/03	Matrosenaufstand in Kiel, 1918
+11/09	Ausrufung der Republik durch Scheidemann (SPD), 1918
+02/11	Friedrich Ebert wird Reichspräsident, Weimar 1919
+06/28	Unterzeichnung des Versailler Vertrages, 1919
+03/21	Volksabstimmung in Oberschlesien, 1921
+04/16	Vertrag von Rapallo, 1922
+06/24	Ermordung von Reichsaußenminister Rathenau, 1922
+01/11	Besetzung des Ruhrgebietes durch Frankreich und Belgien, 1923
+09/10	Eintritt Deutschlands in den Völkerbund, 1926
+10/25	Schwarzer Freitag in New York, Beginn der Weltwirtschaftskrise, 1929
+
+
+/* II. Weltkrieg */
+10/14	Austritt Deutschlands aus dem Völkerbund, 1933
+03/16	Wiedereinführung der allgemeinen Wehrpflicht in Deutschland, 1935
+10/25	Deutsch-italienischer Vertrag, Achse Berlin-Rom, 1936
+11/25	Antikominternpakt zwischen Deutschland und Japan, 1936
+01/13	Volksabstimmung im Saargebiet über die Rückführung 
+	ins deutsche Reich, 1935
+03/12	Einmarsch deutscher Truppen in Österreich, 1938
+09/29	Münchner Abkommen, 1938
+03/15	Einmarsch deutscher Truppen in die Tschechoslowakei, 1939
+03/23	Rückgabe des Memelgebietes an Deutschland, 1939
+08/23	Abschluß des Hitler-Stalin-Paktes, 1939
+09/03	Kriegserklärung Großbritanniens und Frankreichs an Deutschland, 1939
+04/09	Deutsche Besetzung Dänemarks, Invasion in Norwegen, 1940
+05/10	Deutscher Angriff auf Belgien, die Niederlande, Luxemburg
+	und Frankreich, 1940
+06/22	Deutscher Angriff gegen die Sowjetunion, 1941
+12/11	Kriegserklärung Deutschlands an die USA, 1941
+01/14	Konferenz von Casablanca, 1943
+01/31	Kapitulation der 6. deutschen Armee in Stalingrad, 1943
+06/06	Alliierte Landung in Nordwestfrankreich, 1944
+02/04	Konferenz von Jalta, 4.-11.2. 1945
+04/25	Zusammentreffen von amerikanischen und sowjetischen Truppen
+	bei Torgau an der Elbe, 1945
+05/08	Bedingungslose Kapitulation von Deutschland, 1945
+07/01	Rückzug britischer und amerikanischer Truppen aus Sachsen, Thüringen und
+	Mecklenburg, Einmarsch westlicher Truppen in Berlin, 1945
+07/17	Potsdamer Konferenz, 1945
+09/01	Deutscher Überfall auf Polen, Beginn des 2. Weltkrieges, 1939
+10/01	Verkündigung der Urteile im Nürnberger Hauptkriegsverbrecherprozeß, 1946
+02/25	Auflösung der Landes Preußen durch den Kontrollrat, 1947
+08/06	Erster Atombombenabwurf auf Hiroshima, 1945
+08/08	Atombombenabwurf auf Nagasaki, 1945
+04/19	Aufstand im Warschauer Ghetto, 1943
+12/07	Japan bombardiert Pearl Harbor, 1941
+
+/* Deutschland nach dem 2. Weltkrieg */
+04/11	Attentat auf Dutschke, Studentenunruhen, 1968
+04/26	GAU in Tschernobyl, 1986
+05/05	Natobeitritt, Wiederbewaffnung, Souveränität der Bundesrepublik, 1955
+05/06	Rücktritt von Brandt, 1974
+05/16	Wahl von Schmidt (SPD) zum Bundeskanzler, 1974
+05/23	Verkündung des Grundgesetzes, 1949
+05/23	Wahl von Richard von Weizsäcker zum Bundespräsidenten, 1984
+06/05	Marshallplan, 1947
+06/20	Währungsreform in den Westzonen, 1948
+06/24	Beginn der Berliner Blockade, 1948
+07/01	Wahl von Heinrich Lübke zum Bundespräsidenten, 1959
+07/01	Wirtschafts- und Währungsunion, 1990
+08/12	Deutsch-sowjetischer Gewaltverzichtsvertrag, Moskau 1970
+08/14	Wahl zum ersten deutschen Bundestag, 1949
+09/03	Vier-Mächte-Abkommen über Berlin, 1971
+09/05	Entführung und Ermordung von Arbeitgeberpräsident Schleyer, 
+	Entführung einer Lufthansa-Maschine nach Mogadischu, 1977
+09/07	DDR-Staatsratsvorsitzender Honecker in der Bundesrepublik, 1987
+09/12	Wahl von Theodor Heuss (FDP) zum Bundespräsidenten, 1949
+09/15	Wahl von Konrad Adenauer (CDU) zum Bundeskanzler, 1949
+09/17	Bruch der Sozialliberalen Koalition, 1982
+09/18	Aufnahme von Bundesrepublik und DDR in die UNO, 1973
+10/01	Ablösung von Bundeskanzler Schmidt durch Kohl, 1982
+10/23	Volksabstimmung im Saargebiet, 1955
+12/02	Washingtoner Abkommen über Bi-Zone, 1946
+12/07	Deutsch-polnischer Vertrag, Warschau 1970
+12/10	Friedensnobelpreis für Brandt, 1971
+12/12	Nachrüstungsbeschluß des NATO-Ministerates, 1979
+12/21	Grundlagenvertrag zwischen DDR und Bundesrepublik, 1972
+
+
+/* Nationalsozialismus */
+11/09	Hitler-Putsch in München/Marsch auf die Feldherrenhalle, 1923
+11/09	Reichskristallnacht, 1938
+09/14	Reichstagswahl: Erdrutsch zugunsten der NSDAP, 1930
+07/31	Reichstagswahl: NSDAP wird stärkste Fraktion, 1932
+11/06	Reichstagswahl: Rückgang der NSDAP, 1932
+01/30	Ernennung von Hitler zum Reichskanzler, 1933
+02/27	Reichstagsbrand, 1933
+03/05	Reichstagswahl: Mehrheit für NSDAP+DNVP, 1933
+03/23	Annahme des Ermächtigungsgesetzes, 1933
+03/31	Erstes Gesetz zur Gleichschaltung der Länder, 1933
+04/01	Organisierter Boykott jüdischer Geschäfte, 1933
+04/07	Zweites Gesetz zur Gleichschaltung der Länder, 1933
+05/02	Auflösung der Gewerkschaften, 1933
+06	Auflösung aller Parteien außer NSDAP, 1933
+07/20	Konkordat zwischen Deutschland und dem Vatikan, 1933
+06/30	Röhm-Putsch, Ausschaltung der SA-Führung, 1934
+09/15	Nürnberger Gesetze, 1935
+01/08	Eröffnung der olympischen Spiele in Berlin, 1936
+01/20	Wannseekonferenz, 1942
+04/30	Selbstmord Hitlers, 1945
+07/29	Mussolini geboren, 1883
+
+/* Sozialismus */
+01/21	Lenin gestorben, 1924
+06	Gründung des Bundes der Kommunisten in London
+	durch Marx und Engels, 1847
+05/23	Gründung des Allgemeinen Deutschen Arbeitervereins in Leipzig
+	unter Führung von Ferdinand Lassalles, 1863
+08/07	Gründung der Sozialdemokratischen Arbeiterpartei in Eisenach
+	unter der Führung von August Bebel und Wilhelm Liebknecht, 1869
+04/06	Gründung der Unabhängigen Sozialdemokratischen Partei, Gotha 1917
+11/07	Oktoberrevolution in Rußland, Putsch der Bolschewisten, 1917
+12/31	Gründung der KPD, 1918
+01/15	Ermordung von Rosa Luxemburg und Karl Liebknecht, 1919
+03/05	Tod Stalins, 1953
+03/18	Erste demokratische Volkskammerwahl, 1990
+04/21	Zwangsvereinigung von KPD und SPD zur SED, 1946
+05/14	Gründung der Warschauer Paktes, 1955
+06/17	Arbeiteraufstand am 17. Juni 1953
+06/25	Begin der Korea-Krieges, 1950
+08/13	Bau der Berliner Mauer, 1961
+08/21	Einmarsch des Warschauer Pakts in die Tschechoslowakei, 1968
+10/03	Offizielles Ende der DDR :-), 1990
+10/07	Gründung der DDR, 1949
+10/09	Massendemonstration in Leipzig, 1989
+10/14	Kuba-Krise, 1962
+10/18	Ablösung von Erich Honecker als SED-Generalsekretär, 1989
+11/09	Fall der Berliner Mauer, 1989
+09/09	Mao Tse-Tung gestorben im Alter von 82 Jahren, 1976
+11/10	Sowjetischer Präsident Leonid Breschnew gestorben, Alter 75, 1982
+03/27	Chruschtschow wird sowjetischer Präsident, 1958
+10/12	Chruschtschow schlägt während einer Rede in der UNO mit den
+	Schuhen auf den Tisch, 1960
+
+#endif /* _de_DE_ISO8859_1_geschichte_ */

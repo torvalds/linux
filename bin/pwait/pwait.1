@@ -1,0 +1,101 @@
+.\"
+.\" Copyright (c) 2004-2009, Jilles Tjoelker
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with
+.\" or without modification, are permitted provided that the
+.\" following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above
+.\"    copyright notice, this list of conditions and the
+.\"    following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the
+.\"    above copyright notice, this list of conditions and
+.\"    the following disclaimer in the documentation and/or
+.\"    other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+.\" CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+.\" PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\" COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+.\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 7, 2017
+.Dt PWAIT 1
+.Os
+.Sh NAME
+.Nm pwait
+.Nd wait for processes to terminate
+.Sh SYNOPSIS
+.Nm
+.Op Fl t Ar duration
+.Op Fl v
+.Ar pid
+\&...
+.Sh DESCRIPTION
+The
+.Nm
+utility will wait until each of the given processes has terminated.
+.Pp
+The following option is available:
+.Bl -tag -width indent
+.It Fl t Ar duration
+If any process is still running after
+.Ar duration ,
+.Nm
+will exit.
+The
+.Ar duration
+value can be integer or decimal numbers.
+Values without unit symbols are interpreted as seconds.
+.Pp
+Supported unit symbols are:
+.Bl -tag -width indent -compact
+.It s
+seconds
+.It m
+minutes
+.It h
+hours
+.El
+.It Fl v
+Print the exit status when each process terminates.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success, and >0 if an error occurs.
+.Pp
+If the
+.Fl t
+flag is specified and a timeout occurs, the exit status will be 124.
+.Pp
+Invalid pids elicit a warning message but are otherwise ignored.
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr pkill 1 ,
+.Xr ps 1 ,
+.Xr wait 1 ,
+.Xr kqueue 2
+.Sh NOTES
+.Nm
+is not a substitute for the
+.Xr wait 1
+builtin
+as it will not clean up any zombies or state in the parent process.
+.Sh HISTORY
+A
+.Nm
+command first appeared in SunOS 5.8.

@@ -1,0 +1,751 @@
+.\" Copyright (c) 2011 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: dwarf.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd December 21, 2014
+.Dt DWARF 3
+.Os
+.Sh NAME
+.Nm dwarf
+.Nd access debugging information in object files
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Sh DESCRIPTION
+The
+.Lb libdwarf
+provides functions that allow an application to read and write debugging
+information in object files.
+The format of debugging information accessible through this API
+is defined by the DWARF standard, see
+.Xr dwarf 4 .
+.Pp
+The
+.Xr DWARF 3
+API has two parts:
+.Bl -bullet
+.It
+A consumer API set allows applications to read existing debug information
+in a program object.
+The functions that comprise the DWARF consumer API are described in
+the section
+.Sx "DWARF Consumer API"
+below.
+.It
+A producer API set that allows applications to add debug information
+to a program object.
+The functions that comprise the DWARF producer API are described in
+the section
+.Sx "DWARF Producer API"
+below.
+.El
+.Pp
+Each function referenced below is further described in its own manual page.
+.Ss Namespace use
+The DWARF library uses the following prefixes:
+.Pp
+.Bl -tag -width ".Li Dwarf_*" -compact
+.It Li DWARF_*
+Used for error numbers and constants.
+.It Li DW_*
+Used for constants.
+.It Li Dwarf_*
+Used for types.
+.It Li dwarf_*
+Used for functions and macros that make up the API.
+.El
+.Ss Data Types
+The DWARF(3) API uses the following data types:
+.Pp
+.Bl -tag -width ".Vt Dwarf_Unsigned" -compact
+.It Vt Dwarf_Abbrev
+Describes DWARF abbreviations.
+.It Vt Dwarf_Addr
+A program address in the target object.
+.It Vt Dwarf_Arange
+Describes address ranges.
+.It Vt Dwarf_Attribute , Vt Dwarf_P_Attribute
+Describes attributes of debugging information entries.
+.It Vt Dwarf_Bool
+Used for boolean states.
+.It Vt Dwarf_Cie , Vt Dwarf_P_Cie
+Describes call information that is common to several frames.
+.It Vt Dwarf_Debug , Vt Dwarf_P_Debug
+An opaque type describing a debug context.
+.It Vt Dwarf_Die , Vt Dwarf_P_Die
+A debugging information entry.
+.It Vt Dwarf_Fde , Vt Dwarf_P_Fde
+A frame descriptor.
+.It Vt Dwarf_Func
+A descriptor representing a function.
+.It Vt Dwarf_Global
+A descriptor representing a global name.
+.It Vt Dwarf_Half
+A 16-bit wide unsigned numeric type.
+.It Vt Dwarf_Handler
+A pointer to an error handling function.
+.It Vt Dwarf_Line
+A descriptor for a source line.
+.It Vt Dwarf_Off
+An unsigned file offset.
+.It Vt Dwarf_P_Expr
+A descriptor for a location expression.
+.It Vt Dwarf_Ptr
+A virtual address used by an application.
+.It Vt Dwarf_Signed
+A 64-bit wide signed numeric type.
+.It Vt Dwarf_Small
+An 8-bit wide unsigned numeric type.
+.It Vt Dwarf_Type
+A descriptor representing a user-specified type.
+.It Vt Dwarf_Unsigned
+A 64-bit wide unsigned numeric type.
+.It Vt Dwarf_Var
+A descriptor representing a static variable.
+.It Vt Dwarf_Weak
+A descriptor representing a weak name.
+.El
+.Ss Error Handling
+Library functions that encounter an error will return with a value
+other than
+.Dv DW_DLV_OK .
+.Pp
+The
+.Lb libdwarf
+allows applications to specify three levels of error handling:
+.Bl -enum -compact
+.It
+Most library functions take a parameter of type
+.Vt Dwarf_Error
+that specifies a location to store an error descriptor in
+case of an error.
+If an error occurs during the execution on an API, and if this
+parameter is non-NULL, then an error descriptor is written to the
+location specified.
+.It
+Otherwise, if the error parameter was NULL, but if an error handler
+was defined for the debug context in use using
+.Xr dwarf_init 3
+or
+.Xr dwarf_seterrhand 3 ,
+then the library will invoke the specified error handler with an error
+descriptor as argument.
+.It
+Otherwise, if a library wide error handler was specified using
+.Xr dwarf_seterrhand 3 ,
+it is called.
+.El
+.Pp
+Error descriptors may be used with
+.Xr dwarf_errmsg 3
+or
+.Xr dwarf_errno 3 .
+.Sh The DWARF Consumer API
+The DWARF consumer API permits applications to read DWARF information in
+an object file.
+.Pp
+The major functional groups of functions in the consumer API are listed
+below.
+.Pp
+.Bl -tag -compact -width "CCCC"
+.It Abbreviations
+.Bl -tag -compact -width indent
+.It Fn dwarf_get_abbrev
+Retrieve abbreviation information at a given offset.
+.It Fn dwarf_get_abbrev_children_flag
+Check if an abbreviation has child elements.
+.It Fn dwarf_get_abbrev_code
+Retrieve the abbreviation code for an abbreviation entry descriptor.
+.It Fn dwarf_get_abbrev_entry
+Retrieve abbreviation information for an abbreviation entry
+descriptor.
+.It Fn dwarf_get_abbrev_tag
+Retrieve the tag for an abbreviation entry.
+.El
+.It Addresses
+.Bl -tag -compact -width indent
+.It Fn dwarf_get_address_size
+Return the number of bytes needed to represent an address.
+.It Fn dwarf_get_arange
+Search for an address range descriptor covering an address.
+.It Fn dwarf_get_arange_cu_header_offset
+Retrieve the offsets associated with an address range descriptor.
+.It Fn dwarf_get_arange_info
+Extract address range information from a descriptor.
+.It Fn dwarf_get_aranges
+Retrieve program address space mappings.
+.It Fn dwarf_get_cu_die_offset
+Retrieve the offset associated with a compilation unit for an address
+range descriptor.
+.It Fn dwarf_get_ranges , Fn dwarf_get_ranges_a
+Retrieve information about non-contiguous address ranges for
+a debugging information entry.
+.El
+.It Attributes
+.Bl -tag -compact -width indent
+.It Fn dwarf_arrayorder
+Retrieve the value of a
+.Dv DW_AT_ordering
+attribute.
+.It Fn dwarf_attr
+Retrieve an attribute descriptor.
+.It Fn dwarf_attrlist
+Retrieve attribute descriptors for a debugging information entry.
+.It Fn dwarf_attroffset
+Retrieve the section-relative offset of an attribute descriptor.
+.It Fn dwarf_attrval_flag
+Retrieve a
+.Dv DW_AT_FORM_flag
+value.
+.It Fn dwarf_attrval_signed
+Retrieve an attribute's value as a signed integral quantity.
+.It Fn dwarf_attrval_string
+Retrieve an attribute's value as a NUL-terminated string.
+.It Fn dwarf_attrval_unsigned
+Retrieve an attribute's value as an unsigned integral quantity.
+.It Fn dwarf_bitoffset ,
+Retrieve the value of a
+.Dv DW_AT_bit_offset
+attribute.
+.It Fn dwarf_bitsize ,
+Retrieve the value of a
+.Dv DW_AT_bit_size
+attribute.
+.It Fn dwarf_bytesize
+Retrieve the value of a
+.Dv DW_AT_byte_size
+attribute.
+.It Fn dwarf_formaddr
+Return the value of an
+.Dv ADDRESS Ns - Ns
+class attribute.
+.It Fn dwarf_formblock
+Return the value of a
+.Dv BLOCK Ns - Ns
+class attribute
+.It Fn dwarf_formexprloc
+Return information about a location expression.
+.It Fn dwarf_formflag
+Retrieve information about a
+.Dv BOOLEAN Ns - Ns
+class attribute.
+.It Fn dwarf_formref , Fn dwarf_global_formref
+Retrieve offsets for
+.Dv REFERENCE Ns - Ns
+class attributes.
+.It Fn dwarf_formsdata , Fn dwarf_formudata
+Retrieve the value of a
+.Dv CONSTANT Ns - Ns
+class attribute.
+.It Fn dwarf_formsig8
+Return the type signature for a DWARF type.
+.It Fn dwarf_formstring
+Retrieve information about a
+.Dv STRING Ns - Ns
+class attribute.
+.It Fn dwarf_get_form_class
+Retrieve the form class for an attribute.
+.It Fn dwarf_hasattr
+Check for the presence of an attribute.
+.It Fn dwarf_hasform
+Check if an attribute has the given form.
+.It Fn dwarf_whatattr
+Retrieve the attribute code for an attribute.
+.It Fn dwarf_whatform , Fn dwarf_whatform_direct
+Retrieve the form of an attribute.
+.El
+.It Call Information Entries and Frame Descriptor Entries
+.Bl -tag -compact -width indent
+.It Fn dwarf_get_cie_index
+Retrieve the index for a CIE descriptor.
+.It Fn dwarf_get_cie_info
+Retrieve information from a CIE descriptor.
+.It Fn dwarf_get_cie_of_fde
+Retrieve a CIE descriptor.
+.It Fn dwarf_get_fde_at_pc
+Retrieve an FDE descriptor for an address.
+.It Fn dwarf_get_fde_info_for_all_regs
+Retrieve register rule row.
+.It Fn dwarf_get_fde_info_for_all_regs3
+Retrieve register rule row (revised API).
+.It Fn dwarf_get_fde_info_for_cfa_reg3
+Retrieve a CFA register rule.
+.It Fn dwarf_get_fde_info_for_reg
+Retrieve a register rule.
+.It Fn dwarf_get_fde_info_for_reg3
+Retrieve a register rule (revised API).
+.It Fn dwarf_get_fde_instr_bytes
+Retrieve instructions from an FDE descriptor.
+.It Fn dwarf_get_fde_list , Fn dwarf_get_fde_list_eh
+Retrieve frame information.
+.It Fn dwarf_get_fde_n
+Retrieve an FDE descriptor.
+.It Fn dwarf_get_fde_range
+Retrieve range information from an FDE descriptor.
+.El
+.It Compilation Units
+.Bl -tag -compact -width indent
+.It Xo
+.Fn dwarf_get_cu_die_offset_given_cu_header_offset ,
+.Fn dwarf_get_cu_die_offset_given_cu_header_offset_b
+.Xc
+Retrieve the offset of the debugging information entry for a
+compilation or type unit.
+.It Xo
+.Fn dwarf_next_cu_header ,
+.Fn dwarf_next_cu_header_b ,
+.Fn dwarf_next_cu_header_c
+.Xc
+Step through compilation units in a debug context.
+.El
+.It Debugging Information Entries
+.Bl -tag -compact -width indent
+.It Fn dwarf_child
+Returns the child of a debugging information entry.
+.It Fn dwarf_die_abbrev_code
+Returns the abbreviation code for a debugging information entry.
+.It Fn dwarf_die_CU_offset , Fn dwarf_die_CU_offset_range
+Retrieve offsets and lengths for a compilation unit.
+.It Fn dwarf_diename
+Returns the
+.Dv DW_AT_name
+attribute for a debugging information entry.
+.It Fn dwarf_dieoffset
+Retrieves the offset for a debugging information entry.
+.It Fn dwarf_get_die_infotypes_flag
+Indicate the originating section for a debugging information entry.
+.It Fn dwarf_highpc , Fn dwarf_highpc_b
+Return the highest PC value for a debugging information entry.
+.It Fn dwarf_lowpc
+Return the lowest PC value for a debugging information entry.
+.It Fn dwarf_offdie , Fn dwarf_offdie_b
+Retrieve a debugging information entry given an offset.
+.It Fn dwarf_siblingof , Fn dwarf_siblingof_b
+Retrieve the sibling descriptor for a debugging information entry.
+.It Fn dwarf_srclang
+Retrieve the source language attribute for a debugging information
+entry.
+.It Fn dwarf_tag
+Retrieve the tag for a debugging information entry.
+.El
+.It Functions
+.Bl -tag -compact -width indent
+.It Fn dwarf_func_cu_offset
+Retrieves the offset for the compilation unit for a function.
+.It Fn dwarf_func_die_offset
+Retrieves the offset for the debugging information entry for a
+function.
+.It Fn dwarf_funcname
+Retrieves the name of a function.
+.It Fn dwarf_func_name_offsets
+Retrieve both the name and offsets for a function.
+.It Fn dwarf_get_funcs
+Retrieve information about static functions.
+.El
+.It Globals
+.Bl -tag -compact -width indent
+.It Fn dwarf_get_globals
+Retrieve a list of globals.
+.It Fn dwarf_global_cu_offset
+Return the offset for compilation unit for a global.
+.It Fn dwarf_global_die_offset
+Return the offset for the debugging information entry for a global.
+.It Fn dwarf_global_name_offsets
+Return the name and offsets for a global.
+.It Fn dwarf_globname
+Return the name for a global.
+.El
+.It Initialization and Finalization
+Functions
+.Fn dwarf_elf_init
+and
+.Fn dwarf_init
+may be used for initialization.
+The function
+.Fn dwarf_finish
+may be used to release resources.
+.Pp
+The functions
+.Fn dwarf_object_init
+and
+.Fn dwarf_object_finish
+allow an application to specify alternate low-level file access
+routines.
+.It Line Numbers
+.Bl -tag -compact -width indent
+.It Fn dwarf_lineaddr
+Retrieve the program address for a source line.
+.It Fn dwarf_linebeginstatement
+Check if a source line corresponds to the beginning of a statement.
+.It Fn dwarf_lineblock
+Check if a source line corresponds to the start of a basic block.
+.It Fn dwarf_lineendsequence
+Check if the source line corresponds to the end of a sequence of
+instructions.
+.It Fn dwarf_lineno
+Retrieve the line number for a line descriptor.
+.It Fn dwarf_lineoff
+Retrieve the column number for a line descriptor.
+.It Fn dwarf_linesrc
+Retrieve the source file for a line descriptor.
+.It Fn dwarf_line_srcfileno
+Retrieve the index of the source file for a line descriptor.
+.It Fn dwarf_srcfiles
+Retrieve source files for a compilation unit.
+.It Fn dwarf_srclines
+Return line number information for a compilation unit.
+.El
+.It Location Lists
+.Bl -tag -compact -width indent
+.It Fn dwarf_get_loclist_entry
+Retrieve a location list entry.
+.It Fn dwarf_loclist , Fn dwarf_loclist_n
+Retrieve location expressions.
+.It Xo
+.Fn dwarf_loclist_from_expr ,
+.Fn dwarf_loclist_from_expr_a ,
+.Fn dwarf_loclist_from_expr_b
+.Xc
+Translate a location expression into a location descriptor.
+.El
+.It Error Handling
+.Bl -tag -compact -width indent
+.It Fn dwarf_errmsg
+Retrieve a human-readable error message.
+.It Fn dwarf_errno
+Retrieve an error number from an error descriptor.
+.It Fn dwarf_seterrarg
+Set the argument passed to a callback error handler.
+.It Fn dwarf_seterrhand
+Set the callback handler to be called in case of an error.
+.El
+.It Frame Handling
+.Bl -tag -compact -width indent
+.It Fn dwarf_expand_frame_instructions
+Translate frame instruction bytes.
+.It Fn dwarf_set_frame_cfa_value
+Set the CFA parameter for the internal register rule table.
+.It Fn dwarf_set_frame_rule_initial_value
+Set the initial value of the register rules in the internal register
+rule table.
+.It Fn dwarf_set_frame_rule_table_size
+Set the maximum number of columns in the register rule table.
+.It Fn dwarf_set_frame_same_value
+Set the register number representing the
+.Dq "same value"
+rule.
+.It Fn dwarf_set_frame_undefined_value
+Set the register number representing the
+.Dq "undefined"
+rule.
+.El
+.It Macros
+.Bl -tag -compact -width indent
+.It Fn dwarf_find_macro_value_start
+Return the macro value part of a macro string.
+.It Fn dwarf_get_macro_details
+Retrieve macro information.
+.El
+.It Memory Management
+In the DWARF consumer API, the rules for memory management differ
+between functions.
+In some cases, the memory areas returned to the application by the
+library are freed by calling specific API functions.
+In others, the deallocation function
+.Fn dwarf_dealloc
+suffices.
+The individual manual pages for the API's functions document the
+specific memory management rules to be followed.
+.Pp
+The function
+.Fn dwarf_dealloc
+is used to mark memory arenas as unused.
+Additionally, the following functions release specific types of
+DWARF resources:
+.Fn dwarf_fde_cie_list_dealloc ,
+.Fn dwarf_funcs_dealloc ,
+.Fn dwarf_globals_dealloc ,
+.Fn dwarf_pubtypes_dealloc ,
+.Fn dwarf_ranges_dealloc ,
+.Fn dwarf_srclines_dealloc ,
+.Fn dwarf_types_dealloc ,
+.Fn dwarf_vars_dealloc ,
+and
+.Fn dwarf_weaks_dealloc .
+.It Symbol Constants
+The following functions may be used to return symbolic names
+for DWARF constants:
+.Fn dwarf_get_ACCESS_name ,
+.Fn dwarf_get_AT_name ,
+.Fn dwarf_get_ATE_name ,
+.Fn dwarf_get_CC_name ,
+.Fn dwarf_get_CFA_name ,
+.Fn dwarf_get_CHILDREN_name ,
+.Fn dwarf_get_DS_name ,
+.Fn dwarf_get_DSC_name ,
+.Fn dwarf_get_EH_name ,
+.Fn dwarf_get_END_name ,
+.Fn dwarf_get_FORM_name ,
+.Fn dwarf_get_ID_name ,
+.Fn dwarf_get_INL_name ,
+.Fn dwarf_get_LANG_name ,
+.Fn dwarf_get_LNE_name ,
+.Fn dwarf_get_LNS_name ,
+.Fn dwarf_get_MACINFO_name ,
+.Fn dwarf_get_OP_name ,
+.Fn dwarf_get_ORD_name ,
+.Fn dwarf_get_TAG_name ,
+.Fn dwarf_get_VIRTUALITY_name ,
+and
+.Fn dwarf_get_VIS_name .
+.It Types
+.Bl -tag -compact -width indent
+.It Fn dwarf_get_pubtypes , Fn dwarf_get_types
+Retrieve descriptors for user-defined types.
+.It Fn dwarf_next_types_section
+Step through
+.Dq \&.debug_types
+sections in a debug context.
+.It Fn dwarf_pubtype_cu_offset , Fn dwarf_type_cu_offset
+Return the offset for the compilation unit for a type.
+.It Fn dwarf_pubtype_die_offset , Fn dwarf_type_die_offset
+Return the offset for the debugging information entry for a type.
+.It Fn dwarf_pubtypename , Fn dwarf_typename
+Retrieve the name of a type.
+.It Fn dwarf_pubtype_name_offsets , Fn dwarf_type_name_offsets
+Retrieve the name and offsets for a type.
+.El
+.It Variables
+.Bl -tag -compact -width indent
+.It Fn dwarf_get_vars
+Retrieve descriptors for static variables.
+.It Fn dwarf_var_cu_offset
+Return the offset for the compilation unit for a variable.
+.It Fn dwarf_var_die_offset
+Return the offset for the debugging information entry for a variable.
+.It Fn dwarf_varname
+Retrieve the name of a variable.
+.It Fn dwarf_var_name_offsets
+Retrieve the name and offsets for a variable.
+.El
+.It Weak Symbols
+.Bl -tag -compact -width indent
+.It Fn dwarf_get_weaks
+Retrieve information about weak symbols.
+.It Fn dwarf_weak_cu_offset
+Return the offset for the compilation unit for a weak symbol.
+.It Fn dwarf_weak_die_offset
+Return the offset for the debugging information entry for a weak symbol.
+.It Fn dwarf_weakname
+Retrieve the name of a weak symbol.
+.It Fn dwarf_weak_name_offsets
+Retrieve the name and offsets for a weak symbol.
+.El
+.It Miscellaneous
+.Bl -tag -compact -width indent
+.It Fn dwarf_get_elf
+Retrieve the ELF descriptor for a debug context, see
+.Xr elf 3 .
+.It Fn dwarf_get_str
+Retrieve a NUL-terminated string from the DWARF string section.
+.It Fn dwarf_set_reloc_application
+Control whether relocations are to be handled by
+.Lb libdwarf .
+.El
+.El
+.Sh The DWARF Producer API
+The DWARF producer API permits applications to add DWARF information to
+an object file.
+.Pp
+The major functional groups of functions in the producer API are listed
+below.
+.Bl -tag -width "CCCC"
+.It Attribute Management
+The following functions are used to attach attributes to a debugging
+information entry:
+.Fn dwarf_add_AT_comp_dir ,
+.Fn dwarf_add_AT_const_value_signedint ,
+.Fn dwarf_add_AT_const_value_string ,
+.Fn dwarf_add_AT_const_value_unsignedint ,
+.Fn dwarf_add_AT_dataref ,
+.Fn dwarf_add_AT_flag ,
+.Fn dwarf_add_AT_location_expr ,
+.Fn dwarf_add_AT_name ,
+.Fn dwarf_add_AT_producer ,
+.Fn dwarf_add_AT_ref_address ,
+.Fn dwarf_add_AT_reference ,
+.Fn dwarf_add_AT_signed_const ,
+.Fn dwarf_add_AT_string ,
+.Fn dwarf_add_AT_targ_address ,
+.Fn dwarf_add_AT_targ_address_b
+and
+.Fn dwarf_add_AT_unsigned_const .
+.It Debugging Information Entry Management
+.Bl -tag -compact -width indent
+.It Fn dwarf_add_die_to_debug
+Set the root debugging information entry for a DWARF producer instance.
+.It Fn dwarf_die_link
+Links debugging information entries.
+.It Fn dwarf_new_die
+Allocate a new debugging information entry.
+.El
+.It Initialization and Finalization
+The functions
+.Fn dwarf_producer_init
+and
+.Fn dwarf_producer_init_b
+are used to initialize a producer instance.
+.Pp
+When done, applications release resources using the function
+.Fn dwarf_producer_finish .
+.It Relocations and Sections
+.Bl -tag -compact -width indent
+.It Fn dwarf_get_relocation_info
+Retrieve a relocation array from a producer instance.
+.It Fn dwarf_get_relocation_info_count
+Return the number of relocation arrays for a producer instance.
+.It Fn dwarf_get_section_bytes
+Retrieve the ELF byte stream for a section.
+.It Fn dwarf_reset_section_bytes
+Reset internal state for a producer instance.
+.It Fn dwarf_transform_to_disk_form
+Prepare byte streams for writing out.
+.El
+.It Macros
+.Bl -tag -compact -width indent
+.It Fn dwarf_def_macro
+Add a macro definition.
+.It Fn dwarf_end_macro_file , Fn dwarf_start_macro_file
+Record macro file related information.
+.It Fn dwarf_undef_macro
+Note the removal of a macro definition.
+.It Fn dwarf_vendor_ext
+Enables storing macro information as specified in the DWARF standard.
+.El
+.It Symbols, Expressions, Addresses and Offsets
+.Bl -tag -compact -width indent
+.It Fn dwarf_add_arange , Fn dwarf_add_arange_b
+Add address range information.
+.It Fn dwarf_add_directory_decl
+Add information about an include directory to a producer instance.
+.It Fn dwarf_add_fde_inst
+Add an operation to a frame descriptor entry.
+.It Fn dwarf_add_file_decl
+Add information about a source file to a producer instance.
+.It Fn dwarf_add_frame_cie
+Add call information to a frame descriptor.
+.It Fn dwarf_add_frame_fde , Fn dwarf_add_frame_fde_b
+Link a frame descriptor to a producer instance.
+.It Fn dwarf_add_funcname
+Add information about a function to a producer instance.
+.It Fn dwarf_add_line_entry
+Record mapping information between machine addresses and a source line.
+.It Fn dwarf_add_expr_addr , Fn dwarf_add_expr_addr_b
+Add a
+.Dv DW_OP_addr
+opcode to a location expression.
+.It Fn dwarf_add_expr_gen
+Add an operator to a location expression.
+.It Fn dwarf_add_pubname
+Add information about a global name to a producer instance.
+.It Fn dwarf_add_typename
+Add information about a type to a producer instance.
+.It Fn dwarf_add_varname
+Add information about a static variable to a producer instance.
+.It Fn dwarf_add_weakname
+Add information about a weak symbol to a producer instance.
+.It Fn dwarf_expr_current_offset
+Retrieve the current size of a location expression.
+.It Fn dwarf_expr_into_block
+Convert a location expression into a byte stream.
+.It Fn dwarf_fde_cfa_offset
+Append a
+.Dv DW_CFA_offset
+operation to a frame descriptor.
+.It Fn dwarf_lne_end_sequence , Fn dwarf_lne_set_address
+Note address ranges for source lines.
+.It Fn dwarf_new_expr
+Allocate a location expression descriptor.
+.It Fn dwarf_new_fde
+Allocate a frame descriptor.
+.El
+.It Miscellaneous
+The function
+.Fn dwarf_producer_set_isa
+sets the instruction set architecture for the producer instance.
+.El
+.Sh COMPATIBILITY
+This implementation is believed to be source compatible with the
+SGI/GNU DWARF(3) library, version 20110113.
+.Pp
+Known differences with the SGI/GNU library include:
+.Bl -bullet -compact
+.It
+The memory management scheme used differs, in a backward-compatible
+way.
+See
+.Sx Memory Management
+above, for coding guidelines for portable applications.
+.It
+There is provision for setting a library-wide error handler in
+addition to the per-debug context handlers supported by the SGI/GNU
+API, see the subsection
+.Sx Error Handling
+above.
+.El
+.Ss Extensions
+The following APIs are extensions specific to this implementation:
+.Bl -bullet -compact
+.It
+.Fn dwarf_attroffset
+.It
+.Fn dwarf_next_types_section
+.It
+.Fn dwarf_producer_set_isa
+.El
+.Sh SEE ALSO
+.Xr elf 3
+.Sh STANDARDS
+The DWARF standard is defined by
+.Rs
+.%T "The DWARF Debugging Information Format"
+.%V "Version 4"
+.%O "http://www.dwarfstd.org/"
+.Re
+.Sh HISTORY
+The DWARF(3) API originated at Silicon Graphics Inc.
+.Pp
+A BSD-licensed implementation of a subset of the API was written by
+.An John Birrell Aq Mt jb@FreeBSD.org
+for the
+.Fx
+project.
+The implementation was subsequently revised and completed by
+.An Kai Wang Aq Mt kaiwang27@users.sourceforge.net .
+.Pp
+Manual pages for this implementation were written by
+.An Joseph Koshy Aq Mt jkoshy@users.sourceforge.net
+and
+.An Kai Wang Aq Mt kaiwang27@users.sourceforge.net .

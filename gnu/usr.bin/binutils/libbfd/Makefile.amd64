@@ -1,0 +1,29 @@
+# $FreeBSD$
+
+.include "${.CURDIR}/Makefile.i386"
+
+#	Get the i386 VECS.
+I386_VECS:=	${VECS}
+
+DEFAULT_VECTOR=	bfd_elf64_x86_64_freebsd_vec
+
+SRCS+=	elf64-x86-64.c \
+	efi-app-x86_64.c \
+	elf64.c \
+	elf64-gen.c \
+	elf64-target.h \
+	pepigen.c \
+	pex64igen.c
+
+VECS=	${DEFAULT_VECTOR} \
+	bfd_elf64_x86_64_vec \
+	bfd_efi_app_x86_64_vec \
+	${I386_VECS}
+
+CLEANFILES+=	pepigen.c pex64igen.c
+
+pepigen.c: peXXigen.c
+	sed -e s/XX/pep/g ${.ALLSRC} > ${.TARGET}
+
+pex64igen.c: peXXigen.c
+	sed -e s/XX/pex64/g ${.ALLSRC} > ${.TARGET}

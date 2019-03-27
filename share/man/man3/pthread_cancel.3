@@ -1,0 +1,81 @@
+.\" $FreeBSD$
+.Dd January 17, 1999
+.Dt PTHREAD_CANCEL 3
+.Os
+.Sh NAME
+.Nm pthread_cancel
+.Nd cancel execution of a thread
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_cancel "pthread_t thread"
+.Sh DESCRIPTION
+The
+.Fn pthread_cancel
+function requests that
+.Fa thread
+be canceled.
+The target thread's cancelability state and type determines
+when the cancellation takes effect.
+When the cancellation is acted on,
+the cancellation cleanup handlers for
+.Fa thread
+are called.
+When the last cancellation cleanup handler returns,
+the thread-specific data destructor functions will be called for
+.Fa thread .
+When the last destructor function returns,
+.Fa thread
+will be terminated.
+.Pp
+The cancellation processing in the target thread runs asynchronously with
+respect to the calling thread returning from
+.Fn pthread_cancel .
+.Pp
+A status of
+.Dv PTHREAD_CANCELED
+is made available to any threads joining with the target.
+The symbolic
+constant
+.Dv PTHREAD_CANCELED
+expands to a constant expression of type
+.Ft "(void *)" ,
+whose value matches no pointer to an object in memory nor the value
+.Dv NULL .
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_cancel
+functions will return zero.
+Otherwise an error number will be returned to
+indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_cancel
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er ESRCH
+No thread could be found corresponding to that specified by the given
+thread ID.
+.El
+.Sh SEE ALSO
+.Xr pthread_cleanup_pop 3 ,
+.Xr pthread_cleanup_push 3 ,
+.Xr pthread_exit 3 ,
+.Xr pthread_join 3 ,
+.Xr pthread_setcancelstate 3 ,
+.Xr pthread_setcanceltype 3 ,
+.Xr pthread_testcancel 3
+.Sh STANDARDS
+The
+.Fn pthread_cancel
+function conforms to
+.St -p1003.1-96 .
+.Sh AUTHORS
+This manual page was written by
+.An David Leonard Aq Mt d@openbsd.org
+for the
+.Ox
+implementation of
+.Fn pthread_cancel .

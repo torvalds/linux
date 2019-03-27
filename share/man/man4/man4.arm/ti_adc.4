@@ -1,0 +1,128 @@
+.\"
+.\" Copyright (c) 2014 Luiz Otavio O Souza <loos@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 1, 2014
+.Dt TI_ADC 4
+.Os
+.Sh NAME
+.Nm ti_adc
+.Nd TI AM3XXX analog to digital converter driver
+.Sh SYNOPSIS
+.Cd "device ti_adc"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to the AIN (analog inputs) on am3xxx SoCs.
+.Pp
+It provides raw readings of the converted values for each analog inputs.
+.Pp
+The access to
+.Nm
+data is made via the
+.Xr sysctl 8
+interface:
+.Bd -literal
+dev.ti_adc.0.%desc: TI ADC controller
+dev.ti_adc.0.%driver: ti_adc
+dev.ti_adc.0.%pnpinfo: name=adc@44E0D000 compat=ti,adc
+dev.ti_adc.0.%parent: simplebus0
+dev.ti_adc.0.clockdiv: 2400
+dev.ti_adc.0.ain.0.enable: 0
+dev.ti_adc.0.ain.0.open_delay: 0
+dev.ti_adc.0.ain.0.samples_avg: 0
+dev.ti_adc.0.ain.0.input: 0
+dev.ti_adc.0.ain.1.enable: 0
+dev.ti_adc.0.ain.1.open_delay: 0
+dev.ti_adc.0.ain.1.samples_avg: 0
+dev.ti_adc.0.ain.1.input: 0
+dev.ti_adc.0.ain.2.enable: 0
+dev.ti_adc.0.ain.2.open_delay: 0
+dev.ti_adc.0.ain.2.samples_avg: 0
+dev.ti_adc.0.ain.2.input: 0
+dev.ti_adc.0.ain.3.enable: 0
+dev.ti_adc.0.ain.3.open_delay: 0
+dev.ti_adc.0.ain.3.samples_avg: 0
+dev.ti_adc.0.ain.3.input: 0
+dev.ti_adc.0.ain.4.enable: 0
+dev.ti_adc.0.ain.4.open_delay: 0
+dev.ti_adc.0.ain.4.samples_avg: 0
+dev.ti_adc.0.ain.4.input: 0
+dev.ti_adc.0.ain.5.enable: 0
+dev.ti_adc.0.ain.5.open_delay: 0
+dev.ti_adc.0.ain.5.samples_avg: 0
+dev.ti_adc.0.ain.5.input: 0
+dev.ti_adc.0.ain.6.enable: 1
+dev.ti_adc.0.ain.6.open_delay: 0
+dev.ti_adc.0.ain.6.samples_avg: 4
+dev.ti_adc.0.ain.6.input: 2308
+dev.ti_adc.0.ain.7.enable: 1
+dev.ti_adc.0.ain.7.open_delay: 0
+dev.ti_adc.0.ain.7.samples_avg: 0
+dev.ti_adc.0.ain.7.input: 3812
+.Ed
+.Pp
+On Beaglebone-black the analog input 7 is connected to the 3V3B rail through
+a voltage divisor (2:1).
+The 3V3B voltage rail comes from the TL5209 LDO regulator which is limited
+to 500mA maximum.
+.Pp
+Global settings:
+.Bl -tag -width ".Va dev.ti_adc.0.clockdiv"
+.It Va dev.ti_adc.0.clockdiv
+Sets the ADC clock prescaler.
+The minimum value is 10 and the maximum is 65535.
+The ADC clock is based on CLK_M_OSC (24Mhz) / clockdiv.
+This gives a maximum of ~2.4Mhz for the ADC clock and ~10Khz for the default
+setting (clockdiv = 2400).
+.El
+.Pp
+Settings per input:
+.Bl -tag -width ".Va dev.ti_adc.0.ain.%d.samples_avg"
+.It Va dev.ti_adc.0.ain.%d.enable
+Enable the conversion for the input.
+Each input should be individually enabled before it can be used.
+When all the inputs are disabled, the ADC is turned off.
+.It Va dev.ti_adc.0.ain.%d.open_delay
+Sets the number of ADC clock cycles to wait after applying the input
+configuration and before start the ADC conversion.
+.It Va dev.ti_adc.0.ain.%d.samples_avg
+Sets the number of samples average used on each input, it can be set to 0
+(no samples average), 2, 4, 8, or 16.
+.It Va dev.ti_adc.0.ain.%d.input
+Is the converted raw value of the voltage applied on the analog input.
+It is made of a 12 bit value (0 ~ 4095).
+.El
+.Sh SEE ALSO
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 10.1 .
+.Sh AUTHORS
+.An -nosplit
+The driver and this manual page was written by
+.An Luiz Otavio O Souza Aq Mt loos@FreeBSD.org .

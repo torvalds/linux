@@ -1,0 +1,503 @@
+.\"	$NetBSD: ftpd.8,v 1.7 1995/04/11 02:44:53 cgd Exp $
+.\"
+.\" Copyright (c) 1985, 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
+.\"
+.Dd July 19, 2003
+.Dt FTPD 8
+.Os BSD 4.2
+.Sh NAME
+.Nm ftpd
+.Nd Internet File Transfer Protocol server
+.Sh SYNOPSIS
+.Nm
+.Op Fl a Ar authmode
+.Op Fl dilvU
+.Op Fl g Ar umask
+.Op Fl p Ar port
+.Op Fl T Ar maxtimeout
+.Op Fl t Ar timeout
+.Op Fl Fl gss-bindings
+.Op Fl I | Fl Fl no-insecure-oob
+.Op Fl u Ar default umask
+.Op Fl B | Fl Fl builtin-ls
+.Op Fl Fl good-chars= Ns Ar string
+.Sh DESCRIPTION
+.Nm Ftpd
+is the
+Internet File Transfer Protocol
+server process.  The server uses the
+.Tn TCP
+protocol
+and listens at the port specified in the
+.Dq ftp
+service specification; see
+.Xr services 5 .
+.Pp
+Available options:
+.Bl -tag -width Ds
+.It Fl a
+Select the level of authentication required.  Kerberised login can not
+be turned off. The default is to only allow kerberised login.  Other
+possibilities can be turned on by giving a string of comma separated
+flags as argument to
+.Fl a .
+Recognised flags are:
+.Bl -tag -width plain
+.It Ar plain
+Allow logging in with plaintext password. The password can be a(n) OTP
+or an ordinary password.
+.It Ar otp
+Same as
+.Ar plain ,
+but only OTP is allowed.
+.It Ar ftp
+Allow anonymous login.
+.El
+.Pp
+The following combination modes exists for backwards compatibility:
+.Bl -tag -width plain
+.It Ar none
+Same as
+.Ar plain,ftp .
+.It Ar safe
+Same as
+.Ar ftp .
+.It Ar user
+Ignored.
+.El
+.It Fl d
+Debugging information is written to the syslog using LOG_FTP.
+.It Fl g
+Anonymous users will get a umask of
+.Ar umask .
+.It Fl Fl gss-bindings
+require the peer to use GSS-API bindings (ie make sure IP addresses match).
+.It Fl i
+Open a socket and wait for a connection. This is mainly used for
+debugging when ftpd isn't started by inetd.
+.It Fl l
+Each successful and failed
+.Xr ftp 1
+session is logged using syslog with a facility of LOG_FTP.
+If this option is specified twice, the retrieve (get), store (put), append,
+delete, make directory, remove directory and rename operations and
+their filename arguments are also logged.
+.It Fl p
+Use
+.Ar port
+(a service name or number) instead of the default
+.Ar ftp/tcp .
+.It Fl T
+A client may also request a different timeout period;
+the maximum period allowed may be set to
+.Ar timeout
+seconds with the
+.Fl T
+option.
+The default limit is 2 hours.
+.It Fl t
+The inactivity timeout period is set to
+.Ar timeout
+seconds (the default is 15 minutes).
+.It Fl u
+Set the initial umask to something else than the default 027.
+.It Fl U
+In previous versions of
+.Nm ftpd ,
+when a passive mode client requested a data connection to the server, the
+server would use data ports in the range 1024..4999.  Now, by default,
+if the system supports the IP_PORTRANGE socket option, the server will
+use data ports in the range 49152..65535.  Specifying this option will
+revert to the old behavior.
+.It Fl v
+Verbose mode.
+.It Xo
+.Fl B ,
+.Fl Fl builtin-ls
+.Xc
+use built-in ls to list files
+.It Xo
+.Fl Fl good-chars= Ns Ar string
+.Xc
+allowed anonymous upload filename chars
+.It Xo
+.Fl I
+.Fl Fl no-insecure-oob
+.Xc
+don't allow insecure out of band.
+Heimdal ftp clients before 0.6.3 doesn't support secure oob, so turning
+on this option makes them no longer work.
+.El
+.Pp
+The file
+.Pa /etc/nologin
+can be used to disable ftp access.
+If the file exists,
+.Nm
+displays it and exits.
+If the file
+.Pa /etc/ftpwelcome
+exists,
+.Nm
+prints it before issuing the
+.Dq ready
+message.
+If the file
+.Pa /etc/motd
+exists,
+.Nm
+prints it after a successful login.
+.Pp
+The ftp server currently supports the following ftp requests.
+The case of the requests is ignored.
+.Bl -column "Request" -offset indent
+.It Request Ta "Description"
+.It ABOR Ta "abort previous command"
+.It ACCT Ta "specify account (ignored)"
+.It ALLO Ta "allocate storage (vacuously)"
+.It APPE Ta "append to a file"
+.It CDUP Ta "change to parent of current working directory"
+.It CWD Ta "change working directory"
+.It DELE Ta "delete a file"
+.It HELP Ta "give help information"
+.It LIST Ta "give list files in a directory" Pq Dq Li "ls -lgA"
+.It MKD Ta "make a directory"
+.It MDTM Ta "show last modification time of file"
+.It MODE Ta "specify data transfer" Em mode
+.It NLST Ta "give name list of files in directory"
+.It NOOP Ta "do nothing"
+.It PASS Ta "specify password"
+.It PASV Ta "prepare for server-to-server transfer"
+.It PORT Ta "specify data connection port"
+.It PWD Ta "print the current working directory"
+.It QUIT Ta "terminate session"
+.It REST Ta "restart incomplete transfer"
+.It RETR Ta "retrieve a file"
+.It RMD Ta "remove a directory"
+.It RNFR Ta "specify rename-from file name"
+.It RNTO Ta "specify rename-to file name"
+.It SITE Ta "non-standard commands (see next section)"
+.It SIZE Ta "return size of file"
+.It STAT Ta "return status of server"
+.It STOR Ta "store a file"
+.It STOU Ta "store a file with a unique name"
+.It STRU Ta "specify data transfer" Em structure
+.It SYST Ta "show operating system type of server system"
+.It TYPE Ta "specify data transfer" Em type
+.It USER Ta "specify user name"
+.It XCUP Ta "change to parent of current working directory (deprecated)"
+.It XCWD Ta "change working directory (deprecated)"
+.It XMKD Ta "make a directory (deprecated)"
+.It XPWD Ta "print the current working directory (deprecated)"
+.It XRMD Ta "remove a directory (deprecated)"
+.El
+.Pp
+The following commands are specified by RFC2228.
+.Bl -column Request -offset indent
+.It AUTH Ta "authentication/security mechanism"
+.It ADAT Ta "authentication/security data"
+.It PROT Ta "data channel protection level"
+.It PBSZ Ta "protection buffer size"
+.It MIC Ta "integrity protected command"
+.It CONF Ta "confidentiality protected command"
+.It ENC Ta "privacy protected command"
+.It CCC Ta "clear command channel"
+.El
+.Pp
+The following non-standard or
+.Tn UNIX
+specific commands are supported
+by the
+SITE request.
+.Pp
+.Bl -column Request -offset indent
+.It UMASK Ta change umask, (e.g.
+.Ic "SITE UMASK 002" )
+.It IDLE Ta set idle-timer, (e.g.
+.Ic "SITE IDLE 60" )
+.It CHMOD Ta change mode of a file (e.g.
+.Ic "SITE CHMOD 755 filename" )
+.It FIND Ta quickly find a specific file with GNU
+.Xr locate 1 .
+.It HELP Ta give help information.
+.El
+.Pp
+The following Kerberos related site commands are understood.
+.Bl -column Request -offset indent
+.It KAUTH Ta obtain remote tickets.
+.It KLIST Ta show remote tickets
+.El
+.Pp
+The remaining ftp requests specified in Internet RFC 959
+are
+recognized, but not implemented.
+MDTM and SIZE are not specified in RFC 959, but will appear in the
+next updated FTP RFC.
+.Pp
+The ftp server will abort an active file transfer only when the
+ABOR
+command is preceded by a Telnet "Interrupt Process" (IP)
+signal and a Telnet "Synch" signal in the command Telnet stream,
+as described in Internet RFC 959.
+If a
+STAT
+command is received during a data transfer, preceded by a Telnet IP
+and Synch, transfer status will be returned.
+.Pp
+.Nm Ftpd
+interprets file names according to the
+.Dq globbing
+conventions used by
+.Xr csh 1 .
+This allows users to use the metacharacters
+.Dq Li \&*?[]{}~ .
+.Pp
+.Nm Ftpd
+authenticates users according to these rules.
+.Pp
+.Bl -enum -offset indent
+.It
+If Kerberos authentication is used, the user must pass valid tickets
+and the principal must be allowed to login as the remote user.
+.It
+The login name must be in the password data base, and not have a null
+password (if Kerberos is used the password field is not checked).  In
+this case a password must be provided by the client before any file
+operations may be performed.  If the user has an OTP key, the response
+from a successful USER command will include an OTP challenge. The
+client may choose to respond with a PASS command giving either a
+standard password or an OTP one-time password. The server will
+automatically determine which type of password it has been given and
+attempt to authenticate accordingly. See
+.Xr otp 1
+for more information on OTP authentication.
+.It
+The login name must not appear in the file
+.Pa /etc/ftpusers .
+.It
+The user must have a standard shell returned by
+.Xr getusershell 3 .
+.It
+If the user name appears in the file
+.Pa /etc/ftpchroot
+the session's root will be changed to the user's login directory by
+.Xr chroot 2
+as for an
+.Dq anonymous
+or
+.Dq ftp
+account (see next item).  However, the user must still supply a password.
+This feature is intended as a compromise between a fully anonymous account
+and a fully privileged account.  The account should also be set up as for an
+anonymous account.
+.It
+If the user name is
+.Dq anonymous
+or
+.Dq ftp ,
+an
+anonymous ftp account must be present in the password
+file (user
+.Dq ftp ) .
+In this case the user is allowed
+to log in by specifying any password (by convention an email address for
+the user should be used as the password).
+.El
+.Pp
+In the last case,
+.Nm ftpd
+takes special measures to restrict the client's access privileges.
+The server performs a
+.Xr chroot 2
+to the home directory of the
+.Dq ftp
+user.
+In order that system security is not breached, it is recommended
+that the
+.Dq ftp
+subtree be constructed with care, consider following these guidelines
+for anonymous ftp.
+.Pp
+In general all files should be owned by
+.Dq root ,
+and have non-write permissions (644 or 755 depending on the kind of
+file). No files should be owned or writable by
+.Dq ftp
+(possibly with exception for the
+.Pa ~ftp/incoming ,
+as specified below).
+.Bl -tag -width "~ftp/pub" -offset indent
+.It Pa ~ftp
+The
+.Dq ftp
+homedirectory should be owned by root.
+.It Pa ~ftp/bin
+The directory for external programs (such as
+.Xr ls 1 ) .
+These programs must either be statically linked, or you must setup an
+environment for dynamic linking when running chrooted.
+These programs will be used if present:
+.Bl -tag -width "locate" -offset indent
+.It ls
+Used when listing files.
+.It compress
+When retrieving a filename that ends in
+.Pa .Z ,
+and that file isn't present,
+.Nm
+will try to find the filename without
+.Pa .Z
+and compress it on the fly.
+.It gzip
+Same as compress, just with files ending in
+.Pa .gz .
+.It gtar
+Enables retrieval of whole directories as files ending in
+.Pa .tar .
+Can also be combined with compression. You must use GNU Tar (or some
+other that supports the
+.Fl z
+and
+.Fl Z
+flags).
+.It locate
+Will enable ``fast find'' with the
+.Ic SITE FIND
+command. You must also create a
+.Pa locatedb
+file in
+.Pa ~ftp/etc .
+.El
+.It Pa ~ftp/etc
+If you put copies of the
+.Xr passwd 5
+and
+.Xr group 5
+files here, ls will be able to produce owner names rather than
+numbers. Remember to remove any passwords from these files.
+.Pp
+The file
+.Pa motd ,
+if present, will be printed after a successful login.
+.It Pa ~ftp/dev
+Put a copy of
+.Xr /dev/null 7
+here.
+.It Pa ~ftp/pub
+Traditional place to put whatever you want to make public.
+.El
+.Pp
+If you want guests to be able to upload files, create a
+.Pa ~ftp/incoming
+directory owned by
+.Dq root ,
+and group
+.Dq ftp
+with mode 730 (make sure
+.Dq ftp
+is member of group
+.Dq ftp ) .
+The following restrictions apply to anonymous users:
+.Bl -bullet
+.It
+Directories created will have mode 700.
+.It
+Uploaded files will be created with an umask of 777, if not changed
+with the
+.Fl g
+option.
+.It
+These command are not accessible:
+.Ic DELE , RMD , RNTO , RNFR ,
+.Ic SITE UMASK ,
+and
+.Ic SITE CHMOD .
+.It
+Filenames must start with an alpha-numeric character, and consist of
+alpha-numeric characters or any of the following:
+.Li \&+
+(plus),
+.Li \&-
+(minus),
+.Li \&=
+(equal),
+.Li \&_
+(underscore),
+.Li \&.
+(period), and
+.Li \&,
+(comma).
+.El
+.Sh FILES
+.Bl -tag -width /etc/ftpwelcome -compact
+.It Pa /etc/ftpusers
+Access list for users.
+.It Pa /etc/ftpchroot
+List of normal users who should be chroot'd.
+.It Pa /etc/ftpwelcome
+Welcome notice.
+.It Pa /etc/motd
+Welcome notice after login.
+.It Pa /etc/nologin
+Displayed and access refused.
+.It Pa ~/.klogin
+Login access for Kerberos.
+.El
+.Sh SEE ALSO
+.Xr ftp 1 ,
+.Xr otp 1 ,
+.Xr getusershell 3 ,
+.Xr ftpusers 5 ,
+.Xr syslogd 8
+.Sh STANDARDS
+.Bl -tag -compact -width "RFC 1938"
+.It Cm RFC 959
+FTP PROTOCOL SPECIFICATION
+.It Cm RFC 1938
+OTP Specification
+.It Cm RFC 2228
+FTP Security Extensions.
+.El
+.Sh BUGS
+The server must run as the super-user
+to create sockets with privileged port numbers.  It maintains
+an effective user id of the logged in user, reverting to
+the super-user only when binding addresses to sockets.  The
+possible security holes have been extensively
+scrutinized, but are possibly incomplete.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .

@@ -1,0 +1,23 @@
+
+#------------------------------------------------------------------------------
+# $File: polyml,v 1.1 2016/02/26 15:52:45 christos Exp $
+# polyml:  file(1) magic for PolyML
+#
+# PolyML
+# MPEG, FLI, DL originally from vax@ccwf.cc.utexas.edu (VaX#n8)
+# FLC, SGI, Apple originally from Daniel Quinlan (quinlan@yggdrasil.com)
+
+# [0]: http://www.polyml.org/
+# [1]: https://github.com/polyml/polyml/blob/master/\
+#	libpolyml/savestate.cpp#L146-L147
+# [2]: https://github.com/polyml/polyml/blob/master/\
+#	libpolyml/savestate.cpp#L1262-L1263
+
+# Type: Poly/ML saved data
+# From: Matthew Fernandez <matthew.fernandez@gmail.com>
+
+0	string	POLYSAVE	Poly/ML saved state
+>8	long	x		version %u
+
+0	string  POLYMODU	Poly/ML saved module
+>8	long	x		version %u

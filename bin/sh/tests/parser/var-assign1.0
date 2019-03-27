@@ -1,0 +1,19 @@
+# $FreeBSD$
+# In a variable assignment, both the name and the equals sign must be entirely
+# unquoted. Therefore, there is only one assignment below; the other words
+# containing equals signs are command words.
+
+abc=0
+\abc=1 2>/dev/null
+a\bc=2 2>/dev/null
+abc\=3 2>/dev/null
+a\bc\=4 2>/dev/null
+'abc'=5 2>/dev/null
+a'b'c=6 2>/dev/null
+abc'='7 2>/dev/null
+'abc=8' 2>/dev/null
+"abc"=9 2>/dev/null
+a"b"c=10 2>/dev/null
+abc"="11 2>/dev/null
+"abc=12" 2>/dev/null
+[ "$abc" = 0 ]

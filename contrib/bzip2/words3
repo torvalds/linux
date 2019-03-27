@@ -1,0 +1,30 @@
+
+If you got this far and the 'cmp's didn't complain, it looks
+like you're in business.  
+
+To install in /usr/local/bin, /usr/local/lib, /usr/local/man and 
+/usr/local/include, type
+
+   make install
+
+To install somewhere else, eg, /xxx/yyy/{bin,lib,man,include}, type 
+
+   make install PREFIX=/xxx/yyy
+
+If you are (justifiably) paranoid and want to see what 'make install'
+is going to do, you can first do
+
+   make -n install                      or
+   make -n install PREFIX=/xxx/yyy      respectively.
+
+The -n instructs make to show the commands it would execute, but
+not actually execute them.
+
+Instructions for use are in the preformatted manual page, in the file
+bzip2.txt.  For more detailed documentation, read the full manual.  
+It is available in Postscript form (manual.ps), PDF form (manual.pdf),
+and HTML form (manual.html).
+
+You can also do "bzip2 --help" to see some helpful information. 
+"bzip2 -L" displays the software license.
+

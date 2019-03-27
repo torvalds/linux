@@ -1,0 +1,20 @@
+# $FreeBSD$
+
+traps=$(${SH} -c 'trap "echo bad" 0; trap - 0; trap')
+[ -z "$traps" ] || exit 1
+traps=$(${SH} -c 'trap "echo bad" 0; trap "" 0; trap')
+expected_traps=$(${SH} -c 'trap "" EXIT; trap')
+[ "$traps" = "$expected_traps" ] || exit 2
+traps=$(${SH} -c 'trap "echo bad" 0; trap 0; trap')
+[ -z "$traps" ] || exit 3
+traps=$(${SH} -c 'trap "echo bad" 0; trap -- 0; trap')
+[ -z "$traps" ] || exit 4
+traps=$(${SH} -c 'trap "echo bad" 0 1 2; trap - 0 1 2; trap')
+[ -z "$traps" ] || exit 5
+traps=$(${SH} -c 'trap "echo bad" 0 1 2; trap "" 0 1 2; trap')
+expected_traps=$(${SH} -c 'trap "" EXIT HUP INT; trap')
+[ "$traps" = "$expected_traps" ] || exit 6
+traps=$(${SH} -c 'trap "echo bad" 0 1 2; trap 0 1 2; trap')
+[ -z "$traps" ] || exit 7
+traps=$(${SH} -c 'trap "echo bad" 0 1 2; trap -- 0 1 2; trap')
+[ -z "$traps" ] || exit 8

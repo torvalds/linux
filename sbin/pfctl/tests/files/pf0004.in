@@ -1,0 +1,16 @@
+block in all
+block in proto tcp all
+block in proto { tcp, udp } all
+
+block in from any to any
+block in from 10.0.0.0/8 to any
+block in from ! 10.0.0.0/8 to any
+block in from { 10.0.0.0/8, 172.16.0.0/12 } to any
+
+block in proto tcp from any port = ssh to any
+block in proto tcp from any port { ssh, ftp >< 2048, != 1234, >= www } \
+	to any port 1024:2048
+
+block in proto { tcp, udp } from { 10.0.0.0/8, 172.16.0.0/12 } port { ssh, ftp } \
+	to { 192.168.0.0/16, 12.34.56.78 } port { 6667, 6668, 6669:65535 }
+

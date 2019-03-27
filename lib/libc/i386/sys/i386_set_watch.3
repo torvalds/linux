@@ -1,0 +1,118 @@
+.\" Copyright (c) 2000 Brian S. Dean
+.\" All rights reserved.
+.\"
+.\" This man-page is based on a similar man-page by Jonathan Lemon
+.\" which is copyrighted under the following conditions:
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 24, 2000
+.Dt I386_SET_WATCH 3
+.Os
+.Sh NAME
+.Nm i386_clr_watch ,
+.Nm i386_set_watch
+.Nd manage i386 debug register values
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In machine/reg.h
+.In machine/sysarch.h
+.Ft int
+.Fn i386_clr_watch "int watchnum" "struct dbreg *d"
+.Ft int
+.Fn i386_set_watch "int watchnum" "unsigned int watchaddr" "int size" "int access" "struct dbreg *d"
+.Sh DESCRIPTION
+The
+.Fn i386_clr_watch
+function
+will disable the indicated watch point within the specified debug
+register set.
+.Pp
+The
+.Fn i386_set_watch
+function
+will set up the specified debug registers as indicated by the
+arguments.
+The
+.Fa watchnum
+argument specifies which watch register is used, 0, 1, 2, 3, or \-1.
+If
+.Fa watchnum
+is \-1, a free watch register is found and used.
+If there are no free
+watch registers, an error code of \-1 is returned.
+The
+.Fa watchaddr
+argument
+specifies the watch address,
+.Fa size
+specifies the size in bytes of the area to be watched (1, 2, or 4 bytes),
+and
+.Fa access
+specifies the type of watch point:
+.Pp
+.Bd -literal -offset indent -compact
+DBREG_DR7_EXEC	  An execution breakpoint.
+DBREG_DR7_WRONLY  Break only when the watch area is written to.
+DBREG_DR7_RDWR	  Break when the watch area is read from or written
+                  to.
+.Ed
+.Pp
+Note that these functions do not actually set or clear breakpoints;
+they manipulate the indicated debug register set.
+You must use
+.Xr ptrace 2
+to retrieve and install the debug register values for a process.
+.Sh RETURN VALUES
+On success, the
+.Fn i386_clr_watch
+function returns 0.
+On error, \-1 returned which indicates that
+.Fa watchnum
+is invalid (not in the range of 0-3).
+If the specified watchnum was already disabled, no error is returned.
+.Pp
+On success, the
+.Fn i386_set_watch
+function returns the
+.Fa watchnum
+argument, or the watchnum actually used in the case where the specified
+.Fa watchnum
+was \-1.
+On error, the
+.Fn i386_set_watch
+function returns \-1 indicating that the watchpoint could not established
+because either no more watchpoints are available, or
+.Fa watchnum ,
+.Fa size ,
+or
+.Fa access
+is invalid.
+.Sh SEE ALSO
+.Xr ptrace 2 ,
+.Xr procfs 5
+.Sh AUTHORS
+This man page was written by
+.An Brian S. Dean .

@@ -1,0 +1,28 @@
+Installing DMA:
+===============
+
+On most systems (with a development environment installed) you should be able to compile DMA with:
+    make
+
+Once it have compiled it successfully, you can install it with:
+    make install sendmail-link mailq-link install-spool-dirs install-etc
+
+Troubleshooting:
+----------------
+On systems that do not default to a compatible "make" version, try using "gmake" or "pmake" instead of "make". Some known examples of this:
+* Solaris 9
+* Solaris 10
+
+Check that you have the following commands installed:
+* cc - gcc is known to work
+* lex - flex is known to work
+* yacc - bison is kjnown to work
+* make - BSD make and GNU make is knwon to work
+* sh - Need to be POSIX compliant, dash, bash known to work
+* install - GNU and BSD versions known to work
+* openssl - Add the header location to C_INCLUDE_PATH if you get errors about "err.h"
+
+If you have all of these tools installed, set the CC, YACC, INSTALL, LEX and SH variable to point to the relevant location and command.
+
+Example:
+    make CC=gcc YACC=bison LEX=/usr/bin/flex SH=/bin/bash INSTALL=/usr/bin/install

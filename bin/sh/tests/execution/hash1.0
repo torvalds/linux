@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+T=`mktemp -d "${TMPDIR:-/tmp}/sh-test.XXXXXXXX"` || exit
+trap 'rm -rf "${T}"' 0
+PATH=$T:$PATH
+ls -ld . >/dev/null
+cat <<EOF >"$T/ls"
+:
+EOF
+chmod 755 "$T/ls"
+PATH=$PATH
+ls -ld .

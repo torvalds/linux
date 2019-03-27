@@ -1,0 +1,16 @@
+include "arch/regress/conf/std.regress"
+maxusers 4
+file-system	REGRESSFS
+
+master0		at root
+
+# Devices that are their own parent must be handled properly
+# when the instance is negated.
+
+looper*		at master0
+looper*		at looper?
+looper1		at looper0
+
+no looper*	at looper?
+
+config regress root on ?

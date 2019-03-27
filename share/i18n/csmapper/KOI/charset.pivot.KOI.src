@@ -1,0 +1,7 @@
+# $FreeBSD$ 
+# $NetBSD: charset.pivot.KOI.src,v 1.1 2006/09/16 08:38:20 tnozaki Exp $
+
+ISO-5427		UCS			1
+UCS			ISO-5427		1
+KOI7			UCS			1
+UCS			KOI7			1

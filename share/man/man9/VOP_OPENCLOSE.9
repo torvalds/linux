@@ -1,0 +1,104 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 2, 2009
+.Dt VOP_OPEN 9
+.Os
+.Sh NAME
+.Nm VOP_OPEN ,
+.Nm VOP_CLOSE
+.Nd open or close a file
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn VOP_OPEN "struct vnode *vp" "int mode" "struct ucred *cred" "struct thread *td" "struct file *fp"
+.Ft int
+.Fn VOP_CLOSE "struct vnode *vp" "int mode" "struct ucred *cred" "struct thread *td"
+.Sh DESCRIPTION
+The
+.Fn VOP_OPEN
+entry point is called before a file is accessed by a process and the
+.Fn VOP_CLOSE
+entry point is called after a file is finished with by the process.
+.Pp
+The arguments are:
+.Bl -tag -width mode
+.It Fa vp
+The vnode of the file.
+.It Fa mode
+The access mode required by the calling process.
+.It Fa cred
+The caller's credentials.
+.It Fa td
+The thread which is accessing the file.
+.It Fa fp
+The file being opened.
+.El
+.Pp
+Pointer to the file
+.Fa fp
+is useful for file systems which require such information, e.g.,
+.Xr fdescfs 5 .
+Use
+.Ql NULL
+as
+.Fa fp
+argument to
+.Fn VOP_OPEN
+for in-kernel opens.
+.Pp
+The access mode is a set of flags, including
+.Dv FREAD ,
+.Dv FWRITE ,
+.Dv O_NONBLOCK ,
+.Dv O_APPEND .
+.Sh LOCKS
+.Fn VOP_OPEN
+expects
+.Fa vp
+to be locked on entry and will leave it locked on return.
+.Pp
+.Fn VOP_CLOSE
+expects at least a reference to be associated with the vnode and does not
+care whether the vnode is locked or not.
+The lock and reference state is left unchanged on return.
+Note that
+.Fa vn_close
+expects an unlocked, referenced vnode and will dereference the vnode prior
+to returning.
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an error code is returned.
+.Sh SEE ALSO
+.Xr vnode 9 ,
+.Xr VOP_LOOKUP 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

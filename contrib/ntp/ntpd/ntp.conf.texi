@@ -1,0 +1,49 @@
+\input texinfo    @c -*-texinfo-*-
+@c %**start of header
+@setfilename ntp.conf.info
+@settitle NTP Configuration File User's Manual
+@include ../sntp/include/version.texi
+@paragraphindent 2
+@c %**end of header
+
+@ifinfo
+This file documents the use of the NTP Project's NTP configuration file,
+version @value{VERSION}, @value{UPDATED}.
+@end ifinfo
+
+@direntry
+* ntp.conf: (ntp.conf).                      NTP's configuration file
+@end direntry
+
+@titlepage
+@title NTP's Configuration File User's Manual
+@subtitle ntp.conf, version @value{VERSION}, @value{UPDATED}
+@c @author Max @email{foo@ntp.org}
+@end titlepage
+
+@c @page
+@c @vskip 0pt plus 1filll
+
+@node Top, ntp.conf Description, (dir), (dir)
+@top NTP's Configuration File User Manual
+
+This document describes the configuration file for the NTP Project's
+@code{ntpd} program.
+
+This document applies to version @value{VERSION} of @code{ntp.conf}.
+
+@shortcontents
+
+@menu
+* ntp.conf Description::        
+* ntp.conf Notes::        
+@end menu
+
+@node ntp.conf Description,  , Top, Top
+@comment  node-name,  next,  previous,  up
+@section Description
+
+The behavior of  @code{ntpd} can be changed by a configuration file,
+by default @code{ntp.conf}.
+
+@include invoke-ntp.conf.texi

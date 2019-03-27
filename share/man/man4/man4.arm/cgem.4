@@ -1,0 +1,298 @@
+.\"
+.\" Copyright (c) 2014 Thomas Skibo <thomasskibo@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 26, 2014
+.Dt CGEM 4
+.Os
+.Sh NAME
+.Nm cgem
+.Nd "Cadence GEM Gigabit Ethernet driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ether"
+.Cd "device miibus"
+.Cd "device cgem"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Cadence GEM (Gigabit Ethernet MAC).
+The Cadence GEM is used in some SoC (System on a Chip) devices such as
+the Xilinx Zynq-7000 and the Atmel SAMA5D3.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode using
+.Xr ifconfig 8
+or by adding media options to
+.Xr rc.conf 5 .
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 1000baseT
+Set 1000Mbps (Gigabit Ethernet) operation over twisted pair.
+The GEM supports 1000Mbps in
+.Cm full-duplex
+mode only.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Force full-duplex operation.
+.It Cm half-duplex
+Force half-duplex operation.
+.El
+.Pp
+The driver provides support for TCP/UDP/IP checksum offloading (although
+disabled by default).
+The device and driver also support 1536-byte frames for VLANs (vlanmtu).
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width "xxxxxxxx"
+.It Va dev.cgem.%d.rxbufs
+The number of receive buffers allocated to the hardware.
+The default value is 256.
+The maximum value is 511.
+If this number is increased while the interface is UP, it will not
+take effect until the next packet is received.
+If this number is decreased while the interface is UP, buffers will
+not be immediately removed from the receive buffer ring but the
+number of buffers will decrease as packets are received until it
+reaches the new value.
+.It Va dev.cgem.%d.rxhangwar
+This tunable enables a work-around to recover from receive hangs.
+The default value is 1.
+Set to 0 to disable the work-around.
+.El
+.Pp
+The following read-only variables are available as
+.Xr sysctl 8
+variables:
+.Bl -tag -width "xxxxxxxx"
+.It Va dev.cgem.%d._rxoverruns
+This variable counts the number of receive packet buffer overrun interrupts.
+.It Va dev.cgem.%d._rxnobufs
+This variable counts the number of interrupts due to the GEM buffer ring
+going empty.
+.It Va dev.cgem.%d._rxdmamapfails
+This variable is the number of times bus_dmamap_load_mbuf_sg(9) failed in
+the receive path.
+.It Va dev.cgem.%d._txfull
+The number of times the GEM's transmit ring was full.
+.It Va dev.cgem.%d._txdmamapfails
+This variable is the number of times bus_dmamap_load_mbuf_sg(9) failed in
+the transmit path.
+.It Va dev.cgem.%d._txdefrags
+This variable is the number of times the driver needed to call m_defrag(9)
+because a packet queued for transmit had too many DMA segments.
+.It Va dev.cgem.%d._txdefragfails
+This variable is the number of times
+.Xr m_defrag 9
+failed.
+.It Va dev.cgem.%d.stats.*
+The following variables are useful MAC counters supplied by the hardware:
+.It Va dev.cgem.%d.stats.tx_bytes
+A 64-bit counter of the number of bytes transmitted in frames without error.
+.It Va dev.cgem.%d.stats.tx_frames
+Counter of frames transmitted without error excluding pause frames.
+.It Va dev.cgem.%d.stats.tx_frames_bcast
+Counter of broadcast frames transmitted without error excluding
+pause frames.
+.It Va dev.cgem.%d.stats.tx_frames_multi
+Counter of multicast frames transmitted without error excluding
+pause frames.
+.It Va dev.cgem.%d.stats.tx_frames_pause
+Counter of pause frames transmitted without error.
+.It Va dev.cgem.%d.stats.tx_frames_64b
+Counter of 64 byte frames transmitted without error.
+.It Va dev.cgem.%d.stats.tx_frames_65to127b
+Counter of 65 to 127 byte frames transmitted without error.
+.It Va dev.cgem.%d.stats.tx_frames_128to255b
+Counter of 128 to 255 byte frames transmitted without error.
+.It Va dev.cgem.%d.stats.tx_frames_256to511b
+Counter of 256 to 511 byte frames transmitted without error.
+.It Va dev.cgem.%d.stats.tx_frames_512to1023b
+Counter of 512 to 1023 byte frames transmitted without error.
+.It Va dev.cgem.%d.stats.tx_frames_1024to1536b
+Counter of 1024 to 1536 byte frames transmitted without error.
+.It Va dev.cgem.%d.stats.tx_under_runs
+Counter of frames not transmitted due to a transmit underrun.
+.It Va dev.cgem.%d.stats.tx_single_collisn
+Counter of frames experiencing a single collision before being successfully
+transmitted.
+.It Va dev.cgem.%d.stats.tx_multi_collisn
+Counter of frames experiencing between 2 and 15 collisions before
+being successfully transmitted.
+.It Va dev.cgem.%d.stats.tx_excsv_collisn
+Counter of frames that failed to transmit because they experienced 16
+collisions.
+.It Va dev.cgem.%d.stats.tx_late_collisn
+Counter of frames that experienced a late collision.
+.It Va dev.cgem.%d.stats.tx_deferred_frames
+Counter of frames experiencing deferral due to carrier sense being
+active on their first attempt at transmission.
+.It Va dev.cgem.%d.stats.tx_carrier_sense_errs
+Counter of frames transmitted where carrier sense was not seen during
+transmission or where carrier sense was deasserted after being asserted
+in a transmit frame without collision.
+.It Va dev.cgem.%d.stats.rx_bytes
+A 64-bit counter of bytes received without error excluding pause
+frames.
+.It Va dev.cgem.%d.stats.rx_frames
+Counter of frames received without error excluding pause frames.
+.It Va dev.cgem.%d.stats.rx_frames_bcast
+Counter of broadcast frames receive without error excluding pause frames.
+.It Va dev.cgem.%d.stats.rx_frames_multi
+Counter of multicast frames receive without error excluding pause frames.
+.It Va dev.cgem.%d.stats.rx_frames_pause
+Counter of pause frames recevied without error.
+.It Va dev.cgem.%d.stats.rx_frames_64b
+Counter of 64-byte frames received without error.
+.It Va dev.cgem.%d.stats.rx_frames_65to127b
+Counter of 65 to 127 byte frames received without error.
+.It Va dev.cgem.%d.stats.rx_frames_128to255b
+Counter of 128 to 255 byte frames received without error.
+.It Va dev.cgem.%d.stats.rx_frames_256to511b
+Counter of 256 to 511 byte frames received without error.
+.It Va dev.cgem.%d.stats.rx_frames_512to1023b
+Counter of 512 to 1023 byte frames received without error.
+.It Va dev.cgem.%d.stats.rx_frames_1024to1536b
+Counter of 1024 to 1536 byte frames received without error.
+.It Va dev.cgem.%d.stats.rx_frames_undersize
+Counter of frames received less than 64 bytes in length that
+do not also have either a CRC error or an alignment error.
+.It Va dev.cgem.%d.stats.rx_frames_oversize
+Counter of frames received exceeding 1536 bytes and do not also have either
+a CRC error or an alignment error.
+.It Va dev.cgem.%d.stats.rx_frames_jabber
+Counter of frames received exceeding 1536 bytes and also have either a CRC
+error, an alignment error, or a receive symbol error.
+.It Va dev.cgem.%d.stats.rx_frames_fcs_errs
+Counter of frames received with a bad CRC and are between 64
+and 1536 bytes.
+.It Va dev.cgem.%d.stats.rx_frames_length_errs
+Counter of frames received that are shorter than that extracted
+from the length field.
+.It Va dev.cgem.%d.stats.rx_symbol_errs
+Counter of receive symbol errors.
+.It Va dev.cgem.%d.stats.rx_align_errs
+Counter of received frames that are not an integral number of bytes.
+.It Va dev.cgem.%d.stats.rx_resource_errs
+Counter of frames successfully receive by the MAC but could not be
+copied to memory because no receive buffer was available.
+.It Va dev.cgem.%d.stats.rx_overrun_errs
+Counter of frames that are address recognized but were not copied
+to memory due to a receive overrun.
+.It Va dev.cgem.%d.stats.rx_frames_ip_hdr_csum_errs
+Counter of frames discarded due to an incorrect IP header checksum when
+checksum offloading is enabled.
+.It Va dev.cgem.%d.stats.rx_frames_tcp_csum_errs
+Counter of frames discarded due to an incorrect TCP checksum when
+checksum offloading is enabled.
+.It Va dev.cgem.%d.stats.rx_frames_udp_csum_errs
+Counter of frames discarded due to an incorrect UDP checksum when
+checksum offloading is enabled.
+.El
+.Sh SEE ALSO
+.Xr miibus 4 ,
+.Xr ifconfig 8
+.Rs
+.%T "Zynq-7000 SoC Technical Reference Manual (Xilinx doc UG585)"
+.%U http://www.xilinx.com/support/documentation/user_guides/\:ug585-Zynq-7000-TRM.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+driver and this manual page was written by
+.An Thomas Skibo Aq Mt thomasskibo@yahoo.com .
+.Sh BUGS
+The GEM can perform TCP/UDP/IP checksum offloading.
+However, when transmit checksum offloading is enabled, the GEM generates and
+replaces checksums for all packets it transmits.
+In a system that is forwarding packets, the device could potentially correct
+the checksum of packet that was corrupted in transit.
+For this reason, checksum offloading is disabled by default but can be
+enabled using ifconfig(8).
+.Pp
+When receive checksum offloading is enabled, the device will discard packets
+with bad TCP/UDP/IP checksums.
+The bad packets will not be counted in any
+.Xr netstat 1
+statistics.
+There are
+.Xr sysctl 8
+variables that count
+packets discarded by the hardware (see below).
+.Pp
+The GEM used in the Zynq-7000 has a bug such that  the receiver can
+potentially freeze up under a high load.
+The issue is described in sec. 16.7
+"Known Issues" of the Zynq-7000 SoC Technical Reference Manual (Xilinx
+UG585 v1.7).
+The
+.Nm
+driver implements the work-around suggested in the manual.
+If the bug does not exist in other versions of this device, the
+work-around can be disabled by setting the dev.cgem.%d.rxhangwar
+.Xr sysctl 8
+variable to 0.

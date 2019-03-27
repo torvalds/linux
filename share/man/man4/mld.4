@@ -1,0 +1,102 @@
+.\"
+.\" Copyright (c) 2009 Bruce Simpson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 8, 2013
+.Dt MLD 4
+.Os
+.Sh NAME
+.Nm mld
+.Nd Multicast Listener Discovery Protocol
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netinet/in.h
+.In netinet/in_systm.h
+.In netinet/ip6.h
+.In netinet/icmp6.h
+.In netinet6/mld6.h
+.Ft int
+.Fn socket AF_INET6 SOCK_RAW IPPROTO_ICMPV6
+.Sh DESCRIPTION
+.Tn MLD
+is a control plane protocol used by IPv6 hosts and routers to
+propagate multicast group membership information.
+Normally this protocol is not used directly, except by the kernel
+itself, in response to multicast membership requests by user
+applications.
+Multicast routing protocol daemons may open a raw socket to directly
+interact with
+.Nm
+and receive membership reports.
+.Pp
+As of
+.Fx 8.0 ,
+MLD version 2 is implemented.
+This adds support for Source-Specific Multicast (SSM), whereby
+applications may communicate to upstream multicast routers that
+they are only interested in receiving multicast streams from
+particular sources.
+The retransmission of state-change reports adds some robustness
+to the protocol.
+.\"
+.Sh SYSCTL VARIABLES
+.Bl -tag -width indent
+.\"
+.It net.inet6.mld.ifinfo
+This opaque read-only variable exposes the per-link MLDv2 status to
+.Xr ifmcstat 8 .
+.\"
+.It net.inet6.mld.gsrdelay
+This variable specifies the time threshold, in seconds, for processing
+Group-and-Source Specific Queries (GSR).
+As GSR query processing requires maintaining state on the host,
+it may cause memory to be allocated, and is therefore a potential
+attack point for Denial-of-Service (DoS).
+If more than one GSR query is received within this threshold,
+it will be dropped, to mitigate the potential for DoS.
+.\"
+.It net.inet6.mld.v1enable
+If this variable is non-zero, then MLDv1 membership queries (and host
+reports) will be processed by this host, and backwards compatibility
+will be enabled until the v1 'Older Version Querier Present' timer expires.
+This sysctl is normally enabled by default.
+.\"
+.El
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr sourcefilter 3 ,
+.Xr icmp6 4 ,
+.Xr inet 4 ,
+.Xr multicast 4 ,
+.Xr ifmcstat 8
+.Sh HISTORY
+The
+.Nm
+manual page appeared in
+.Fx 8.0 .

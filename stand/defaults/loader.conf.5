@@ -1,0 +1,374 @@
+.\" Copyright (c) 1999 Daniel C. Sobral
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd October 6, 2018
+.Dt LOADER.CONF 5
+.Os
+.Sh NAME
+.Nm loader.conf
+.Nd "system bootstrap configuration information"
+.Sh DESCRIPTION
+The file
+.Nm
+contains descriptive information on bootstrapping the system.
+Through
+it you can specify the kernel to be booted, parameters to be passed to
+it, and additional modules to be loaded; and generally set all variables
+described in
+.Xr loader 8 .
+.Pp
+.Sh SYNTAX
+Though
+.Nm Ns 's
+format was defined explicitly to resemble
+.Xr rc.conf 5 ,
+and can be sourced by
+.Xr sh 1 ,
+some settings are treated in a special fashion.
+Also, the
+behavior of some settings is defined by the setting's suffix;
+the prefix identifies which module the setting controls.
+.Pp
+The general parsing rules are:
+.Bl -bullet
+.It
+Spaces and empty lines are ignored.
+.It
+A # sign will mark the remainder of the line as a comment.
+.It
+Only one setting can be present on each line.
+.El
+.Pp
+All settings have the following format:
+.Pp
+.Dl variable="value"
+.Pp
+Unless it belongs to one of the classes of settings that receive special
+treatment, a setting will set the value of a
+.Xr loader 8
+environment variable.
+The settings that receive special
+treatment are listed below.
+Settings beginning with
+.Qq *
+below define the modules to be loaded and
+may have any prefix; the prefix identifies a module.
+All such settings sharing a common
+prefix refer to the same module.
+.Bl -tag -width Ar
+.It Ar exec
+Immediately executes a
+.Xr loader 8
+command.
+This type of setting cannot be processed by programs other
+than
+.Xr loader 8 ,
+so its use should be avoided.
+Multiple instances of it will be processed
+independently.
+.It Ar loader_conf_files
+Defines additional configuration files to be processed right after the
+present file.
+.It Ar kernel
+Name of the kernel to be loaded.
+If no kernel name is set, no additional
+modules will be loaded.
+The name must be a subdirectory of
+.Pa /boot
+that contains a kernel.
+.It Ar kernel_options
+Flags to be passed to the kernel.
+.It Ar vfs.root.mountfrom
+Specify the root partition to mount.
+For example:
+.Pp
+.Dl vfs.root.mountfrom="ufs:/dev/da0s1a"
+.Pp
+.Xr loader 8
+automatically calculates the value of this tunable from
+.Pa /etc/fstab
+from the partition the kernel was loaded from.
+The calculated value might be calculated incorrectly when
+.Pa /etc/fstab
+is not available during
+.Xr loader 8
+startup (as during diskless booting from NFS), or if a different
+device is desired by the user.
+The preferred value can be set in
+.Pa /loader.conf .
+.Pp
+The value can also be overridden from the
+.Xr loader 8
+command line.
+This is useful for system recovery when
+.Pa /etc/fstab
+is damaged, lost, or read from the wrong partition.
+.It Ar password
+Protect boot menu with a password without interrupting
+.Ic autoboot
+process.
+The password should be in clear text format.
+If a password is set, boot menu will not appear until any key is pressed during
+countdown period specified by
+.Va autoboot_delay
+variable or
+.Ic autoboot
+process fails.
+In both cases user should provide specified password to be able to access boot
+menu.
+.It Ar bootlock_password
+Provides a password to be required by check-password before execution is
+allowed to continue.
+The password should be in clear text format.
+If a password is set, the user must provide specified password to boot.
+.It Ar verbose_loading
+If set to
+.Dq YES ,
+module names will be displayed as they are loaded.
+.It Ar module_blacklist
+Blacklist of modules.
+Modules specified in the blacklist may not be loaded automatically with a
+.Ar *_load
+directive, but they may be loaded directly at the
+.Xr loader 8
+prompt.
+Blacklisted modules may still be loaded indirectly as dependencies of other
+modules.
+.It Ar *_load
+If set to
+.Dq YES ,
+that module will be loaded.
+If no name is defined (see below), the
+module's name is taken to be the same as the prefix.
+.It Ar *_name
+Defines the name of the module.
+.It Ar *_type
+Defines the module's type.
+If none is given, it defaults to a kld module.
+.It Ar *_flags
+Flags and parameters to be passed to the module.
+.It Ar *_before
+Commands to be executed before the module is loaded.
+Use of this setting
+should be avoided.
+.It Ar *_after
+Commands to be executed after the module is loaded.
+Use of this setting
+should be avoided.
+.It Ar *_error
+Commands to be executed if the loading of a module fails.
+Except for the
+special value
+.Dq abort ,
+which aborts the bootstrap process, use of this setting should be avoided.
+.El
+.Pp
+.Em WARNING:
+developers should never use these suffixes for any kernel environment
+variables (tunables) or conflicts will result.
+.Sh DEFAULT SETTINGS
+Most of
+.Nm Ns 's
+default settings can be ignored.
+The few of them which are important
+or useful are:
+.Bl -tag -width bootfile -offset indent
+.It Va bitmap_load
+.Pq Dq NO
+If set to
+.Dq YES ,
+a bitmap will be loaded to be displayed on screen while booting.
+.It Va bitmap_name
+.Pq Dq Pa /boot/splash.bmp
+Name of the bitmap to be loaded.
+Any other name can be used.
+.It Va comconsole_speed
+.Dq ( 9600
+or the value of the
+.Va BOOT_COMCONSOLE_SPEED
+variable when
+.Xr loader 8
+was compiled).
+Sets the speed of the serial console.
+If the previous boot loader stage specified that a serial console
+is in use then the default speed is determined from the current
+serial port speed setting.
+.It Va console
+.Pq Dq vidconsole
+.Dq comconsole
+selects serial console,
+.Dq vidconsole
+selects the video console,
+.Dq nullconsole
+selects a mute console
+(useful for systems with neither a video console nor a serial port), and
+.Dq spinconsole
+selects the video console which prevents any input and hides all output
+replacing it with
+.Dq spinning
+character (useful for embedded products and such).
+.It Va efi_max_resolution
+Specify the maximum desired resolution for the EFI console.
+The following values are accepted:
+.Bl -column "WidthxHeight"
+.It Sy Value Ta Sy Resolution
+.It 480p Ta 640x480
+.It 720p Ta 1280x720
+.It 1080p Ta 1920x1080
+.It 2160p Ta 3840x2160
+.It 4k Ta 3840x2160
+.It 5k Ta 5120x2880
+.It Va Width Ns x Ns Va Height Ta Va Width Ns x Ns Va Height
+.El
+.It Va kernel
+.Pq Dq kernel
+.It Va kernels
+.Pq Dq kernel kernel.old
+Space or comma separated list of kernels to present in the boot menu.
+.It Va loader_conf_files
+.Pq Dq Pa /boot/loader.conf /boot/loader.conf.local
+.It Va splash_bmp_load
+.Pq Dq NO
+If set to
+.Dq YES ,
+will load the splash screen module, making it possible to display a bmp image
+on the screen while booting.
+.It Va splash_pcx_load
+.Pq Dq NO
+If set to
+.Dq YES ,
+will load the splash screen module, making it possible to display a pcx image
+on the screen while booting.
+.It Va vesa_load
+.Pq Dq NO
+If set to
+.Dq YES ,
+the vesa module will be loaded, enabling bitmaps above VGA resolution to
+be displayed.
+.It Va beastie_disable
+If set to
+.Dq YES ,
+the beastie boot menu will be skipped.
+.It Va loader_logo Pq Dq Li orbbw
+Selects a desired logo in the beastie boot menu.
+Possible values are:
+.Dq Li orbbw ,
+.Dq Li orb ,
+.Dq Li fbsdbw ,
+.Dq Li beastiebw ,
+.Dq Li beastie ,
+and
+.Dq Li none .
+.It Va loader_color
+If set to
+.Dq NO ,
+the beastie boot menu will be displayed without ANSI coloring.
+.It Va entropy_cache_load
+.Pq Dq YES
+If set to
+.Dq NO ,
+the very early
+boot-time entropy file
+will not be loaded.
+See the entropy entries in
+.Xr rc.conf 5 .
+.It Va entropy_cache_name
+.Pq Dq /boot/entropy
+The name of the very early
+boot-time entropy cache file.
+.It Va cpu_microcode_load
+.Pq Dq NO
+If set to
+.Dq YES ,
+the microcode update file specified by
+.Va cpu_microcode_name
+will be loaded and applied very early during boot.
+This provides functionality similar to
+.Xr cpucontrol 8
+but ensures that CPU features enabled by microcode updates can be
+used by the kernel.
+The update will be re-applied automatically when resuming from an
+ACPI sleep state.
+If the update file contains updates for multiple processor models,
+the kernel will search for and extract a matching update.
+Currently this setting is supported only on Intel
+.Dv i386
+and
+.Dv amd64
+processors.
+It has no effect on other processor types.
+.It Va cpu_microcode_name
+A path to a microcode update file.
+.El
+.Sh OTHER SETTINGS
+Other settings that may be used in
+.Nm
+that have no default value:
+.Bl -tag -width bootfile -offset indent
+.It Va fdt_overlays
+Specifies a comma-delimited list of FDT overlays to apply.
+.Pa /boot/dtb/overlays
+is created by default for overlays to be placed in.
+.It Va kernels_autodetect
+If set to
+.Dq YES ,
+attempt to auto-detect kernels installed in
+.Pa /boot .
+This is an option specific to the Lua-based loader.
+It is not available in the default Forth-based loader.
+.El
+.Sh FILES
+.Bl -tag -width /boot/defaults/loader.conf -compact
+.It Pa /boot/defaults/loader.conf
+default settings -- do not change this file.
+.It Pa /boot/loader.conf
+user defined settings.
+.It Pa /boot/loader.conf.local
+machine-specific settings for sites with a common loader.conf.
+.El
+.Sh SEE ALSO
+.Xr rc.conf 5 ,
+.Xr boot 8 ,
+.Xr cpucontrol 8 ,
+.Xr loader 8 ,
+.Xr loader.4th 8
+.Sh HISTORY
+The file
+.Nm
+first appeared in
+.Fx 3.2 .
+.Sh AUTHORS
+This manual page was written by
+.An Daniel C. Sobral Aq dcs@FreeBSD.org .
+.Sh BUGS
+The
+.Xr loader 8
+stops reading
+.Nm
+when it encounters a syntax error, so any options which are vital for
+booting a particular system (i.e.\&
+.Dq Va hw.ata.ata_dma Ns "=0" )
+should precede any experimental additions to
+.Nm .

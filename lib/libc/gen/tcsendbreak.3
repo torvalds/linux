@@ -1,0 +1,179 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)tcsendbreak.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd January 11, 2017
+.Dt TCSENDBREAK 3
+.Os
+.Sh NAME
+.Nm tcsendbreak ,
+.Nm tcdrain ,
+.Nm tcflush ,
+.Nm tcflow
+.Nd line control functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In termios.h
+.Ft int
+.Fn tcdrain "int fd"
+.Ft int
+.Fn tcflow "int fd" "int action"
+.Ft int
+.Fn tcflush "int fd" "int action"
+.Ft int
+.Fn tcsendbreak "int fd" "int len"
+.Sh DESCRIPTION
+The
+.Fn tcdrain
+function waits until all output written to the terminal referenced by
+.Fa fd
+has been transmitted to the terminal.
+.Pp
+The
+.Fn tcflow
+function suspends transmission of data to or the reception of data from
+the terminal referenced by
+.Fa fd
+depending on the value of
+.Fa action .
+The value of
+.Fa action
+must be one of the following:
+.Bl -tag -width "TCIOFF"
+.It Fa TCOOFF
+Suspend output.
+.It Fa TCOON
+Restart suspended output.
+.It Fa TCIOFF
+Transmit a STOP character, which is intended to cause the terminal to stop
+transmitting data to the system.
+(See the description of IXOFF in the
+.Ql Input Modes
+section of
+.Xr termios 4 ) .
+.It Fa TCION
+Transmit a START character, which is intended to cause the terminal to start
+transmitting data to the system.
+(See the description of IXOFF in the
+.Ql Input Modes
+section of
+.Xr termios 4 ) .
+.El
+.Pp
+The
+.Fn tcflush
+function discards any data written to the terminal referenced by
+.Fa fd
+which has not been transmitted to the terminal, or any data received
+from the terminal but not yet read, depending on the value of
+.Fa action .
+The value of
+.Fa action
+must be one of the following:
+.Bl -tag -width "TCIOFLUSH"
+.It Fa TCIFLUSH
+Flush data received but not read.
+.It Fa TCOFLUSH
+Flush data written but not transmitted.
+.It Fa TCIOFLUSH
+Flush both data received but not read and data written but not transmitted.
+.El
+.Pp
+The
+.Fn tcsendbreak
+function transmits a continuous stream of zero-valued bits for four-tenths
+of a second to the terminal referenced by
+.Fa fd .
+The
+.Fa len
+argument is ignored in this implementation.
+.Sh RETURN VALUES
+Upon successful completion, all of these functions return a value of zero.
+.Sh ERRORS
+If any error occurs, a value of -1 is returned and the global variable
+.Va errno
+is set to indicate the error, as follows:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid file descriptor.
+.It Bq Er EINVAL
+The
+.Fa action
+argument is not a proper value.
+.It Bq Er ENOTTY
+The file associated with
+.Fa fd
+is not a terminal.
+.It Bq Er EINTR
+A signal interrupted the
+.Fn tcdrain
+function.
+.It Bq Er EWOULDBLOCK
+The configured timeout expired before the
+.Fn tcdrain
+function could write all buffered output.
+.El
+.Sh SEE ALSO
+.Xr tcsetattr 3 ,
+.Xr termios 4 ,
+.Xr tty 4 ,
+.Xr comcontrol 8
+.Sh STANDARDS
+The
+.Fn tcsendbreak ,
+.Fn tcflush
+and
+.Fn tcflow
+functions are expected to be compliant with the
+.St -p1003.1-88
+specification.
+.Pp
+The
+.Fn tcdrain
+function is expected to be compliant with
+.St -p1003.1-88
+when the drain wait value is set to zero with
+.Xr comcontrol 8 ,
+or with
+.Xr ioctl 2
+.Va TIOCSDRAINWAIT ,
+or with
+.Xr sysctl 8
+.Va kern.tty_drainwait .
+A non-zero drain wait value can result in
+.Fn tcdrain
+returning
+.Va EWOULDBLOCK
+without writing all output.
+The default value for
+.Va kern.tty_drainwait
+is 300 seconds.

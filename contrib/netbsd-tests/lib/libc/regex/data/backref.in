@@ -1,0 +1,21 @@
+# back references, ugh
+a\(b\)\2c	bC	ESUBREG
+a\(b\1\)c	bC	ESUBREG
+a\(b*\)c\1d	b	abbcbbd	abbcbbd	bb
+a\(b*\)c\1d	b	abbcbd
+a\(b*\)c\1d	b	abbcbbbd
+^\(.\)\1	b	abc
+a\([bc]\)\1d	b	abcdabbd	abbd	b
+a\(\([bc]\)\2\)*d	b	abbccd	abbccd
+a\(\([bc]\)\2\)*d	b	abbcbd
+# actually, this next one probably ought to fail, but the spec is unclear
+a\(\(b\)*\2\)*d		b	abbbd	abbbd
+# here is a case that no NFA implementation does right
+\(ab*\)[ab]*\1	b	ababaaa	ababaaa	a
+# check out normal matching in the presence of back refs
+\(a\)\1bcd	b	aabcd	aabcd
+\(a\)\1bc*d	b	aabcd	aabcd
+\(a\)\1bc*d	b	aabd	aabd
+\(a\)\1bc*d	b	aabcccd	aabcccd
+\(a\)\1bc*[ce]d	b	aabcccd	aabcccd
+^\(a\)\1b\(c\)*cd$	b	aabcccd	aabcccd

@@ -1,0 +1,5 @@
+#test matching on tos
+
+intf = "lo0"
+pass out on $intf inet proto tcp from any to any port 22 tos 0x10
+pass out on $intf inet proto tcp from any to any port 22 tos 0x08

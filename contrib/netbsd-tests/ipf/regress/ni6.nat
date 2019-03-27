@@ -1,0 +1,3 @@
+rdr nf0 192.168.6.2 port 111 -> 192.168.7.1 port 111 udp proxy rpcbu
+rdr nf0 192.168.6.2 port 111 -> 192.168.7.1 port 111 tcp proxy rpcbt
+map qfe0 192.168.6.0/24 -> 192.168.7.2/32

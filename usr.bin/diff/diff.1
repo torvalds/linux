@@ -1,0 +1,612 @@
+.\" $OpenBSD: diff.1,v 1.47 2015/11/24 19:35:41 jmc Exp $
+.\"
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)diff.1	8.1 (Berkeley) 6/30/93
+.\" $FreeBSD$
+.\"
+.Dd August 18, 2018
+.Dt DIFF 1
+.Os
+.Sh NAME
+.Nm diff
+.Nd differential file and directory comparator
+.Sh SYNOPSIS
+.Nm diff
+.Op Fl aBbdipTtw
+.Oo
+.Fl c | e | f |
+.Fl n | q | u
+.Oc
+.Op Fl -brief
+.Op Fl -changed-group-format Ar GFMT
+.Op Fl -ed
+.Op Fl -expand-tabs
+.Op Fl -forward-ed
+.Op Fl -ignore-all-space
+.Op Fl -ignore-case
+.Op Fl -ignore-space-change
+.Op Fl -initial-tab
+.Op Fl -minimal
+.Op Fl -no-ignore-file-name-case
+.Op Fl -normal
+.Op Fl -rcs
+.Op Fl -show-c-function
+.Op Fl -starting-file
+.Op Fl -speed-large-files
+.Op Fl -strip-trailing-cr
+.Op Fl -tabsize
+.Op Fl -text
+.Op Fl -unified
+.Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
+.Op Fl L Ar label | Fl -label Ar label
+.Ar file1 file2
+.Nm diff
+.Op Fl aBbdilpTtw
+.Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
+.Op Fl L Ar label | Fl -label Ar label
+.Op Fl -brief
+.Op Fl -changed-group-format Ar GFMT
+.Op Fl -ed
+.Op Fl -expand-tabs
+.Op Fl -forward-ed
+.Op Fl -ignore-all-space
+.Op Fl -ignore-case
+.Op Fl -ignore-space-change
+.Op Fl -initial-tab
+.Op Fl -minimal
+.Op Fl -no-ignore-file-name-case
+.Op Fl -normal
+.Op Fl -paginate
+.Op Fl -rcs
+.Op Fl -show-c-function
+.Op Fl -speed-large-files
+.Op Fl -starting-file
+.Op Fl -strip-trailing-cr
+.Op Fl -tabsize
+.Op Fl -text
+.Fl C Ar number | -context Ar number
+.Ar file1 file2
+.Nm diff
+.Op Fl aBbdiltw
+.Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
+.Op Fl -brief
+.Op Fl -changed-group-format Ar GFMT
+.Op Fl -ed
+.Op Fl -expand-tabs
+.Op Fl -forward-ed
+.Op Fl -ignore-all-space
+.Op Fl -ignore-case
+.Op Fl -ignore-space-change
+.Op Fl -initial-tab
+.Op Fl -minimal
+.Op Fl -no-ignore-file-name-case
+.Op Fl -normal
+.Op Fl -paginate
+.Op Fl -rcs
+.Op Fl -show-c-function
+.Op Fl -speed-large-files
+.Op Fl -starting-file
+.Op Fl -strip-trailing-cr
+.Op Fl -tabsize
+.Op Fl -text
+.Fl D Ar string | Fl -ifdef Ar string
+.Ar file1 file2
+.Nm diff
+.Op Fl aBbdilpTtw
+.Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
+.Op Fl L Ar label | Fl -label Ar label
+.Op Fl -brief
+.Op Fl -changed-group-format Ar GFMT
+.Op Fl -ed
+.Op Fl -expand-tabs
+.Op Fl -forward-ed
+.Op Fl -ignore-all-space
+.Op Fl -ignore-case
+.Op Fl -ignore-space-change
+.Op Fl -initial-tab
+.Op Fl -minimal
+.Op Fl -no-ignore-file-name-case
+.Op Fl -normal
+.Op Fl -paginate
+.Op Fl -rcs
+.Op Fl -show-c-function
+.Op Fl -speed-large-files
+.Op Fl -starting-file
+.Op Fl -strip-trailing-cr
+.Op Fl -tabsize
+.Op Fl -text
+.Fl U Ar number | Fl -unified Ar number
+.Ar file1 file2
+.Nm diff
+.Op Fl aBbdilNPprsTtw
+.Oo
+.Fl c | e | f |
+.Fl n | q | u
+.Oc
+.Op Fl -brief
+.Op Fl -changed-group-format Ar GFMT
+.Op Fl -context
+.Op Fl -ed
+.Op Fl -expand-tabs
+.Op Fl -forward-ed
+.Op Fl -ignore-all-space
+.Op Fl -ignore-case
+.Op Fl -ignore-space-change
+.Op Fl -initial-tab
+.Op Fl -minimal
+.Op Fl -new-file
+.Op Fl -no-ignore-file-name-case
+.Op Fl -normal
+.Op Fl -paginate
+.Op Fl -rcs
+.Op Fl -recursive
+.Op Fl -report-identical-files
+.Op Fl -show-c-function
+.Op Fl -speed-large-files
+.Op Fl -strip-trailing-cr
+.Op Fl -tabsize
+.Op Fl -text
+.Op Fl -unidirectional-new-file
+.Op Fl -unified
+.Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
+.Bk -words
+.Op Fl L Ar label | Fl -label Ar label
+.Op Fl S Ar name | Fl -starting-file Ar name
+.Op Fl X Ar file | Fl -exclude-from Ar file
+.Op Fl x Ar pattern | Fl -exclude Ar pattern
+.Ek
+.Ar dir1 dir2
+.Sh DESCRIPTION
+The
+.Nm
+utility compares the contents of
+.Ar file1
+and
+.Ar file2
+and writes to the standard output the list of changes necessary to
+convert one file into the other.
+No output is produced if the files are identical.
+.Pp
+Output options (mutually exclusive):
+.Bl -tag -width Ds
+.It Fl C Ar number Fl -context Ar number
+Like
+.Fl c
+but produces a diff with
+.Ar number
+lines of context.
+.It Fl c
+Produces a diff with 3 lines of context.
+With
+.Fl c
+the output format is modified slightly:
+the output begins with identification of the files involved and
+their creation dates and then each change is separated
+by a line with fifteen
+.Li * Ns 's .
+The lines removed from
+.Ar file1
+are marked with
+.Sq \&-\ \& ;
+those added to
+.Ar file2
+are marked
+.Sq \+\ \& .
+Lines which are changed from one file to the other are marked in
+both files with
+.Sq !\ \& .
+Changes which lie within 3 lines of each other are grouped together on
+output.
+.It Fl D Ar string Fl -ifdef Ar string
+Creates a merged version of
+.Ar file1
+and
+.Ar file2
+on the standard output, with C preprocessor controls included so that
+a compilation of the result without defining
+.Ar string
+is equivalent to compiling
+.Ar file1 ,
+while defining
+.Ar string
+will yield
+.Ar file2 .
+.It Fl e -ed
+Produces output in a form suitable as input for the editor utility,
+.Xr ed 1 ,
+which can then be used to convert file1 into file2.
+.Pp
+Extra commands are added to the output when comparing directories with
+.Fl e ,
+so that the result is a
+.Xr sh 1
+script for converting text files which are common to the two directories
+from their state in
+.Ar dir1
+to their state in
+.Ar dir2 .
+.It Fl f -forward-ed
+Identical output to that of the
+.Fl e
+flag, but in reverse order.
+It cannot be digested by
+.Xr ed 1 .
+.It Fl n
+Produces a script similar to that of
+.Fl e ,
+but in the opposite order and with a count of changed lines on each
+insert or delete command.
+This is the form used by
+.Xr rcsdiff 1 .
+.It Fl q -brief
+Just print a line when the files differ.
+Does not output a list of changes.
+.It Fl U Ar number Fl -unified Ar number
+Like
+.Fl u
+but produces a diff with
+.Ar number
+lines of context.
+.It Fl u
+Produces a
+.Em unified
+diff with 3 lines of context.
+A unified diff is similar to the context diff produced by the
+.Fl c
+option.
+However, unlike with
+.Fl c ,
+all lines to be changed (added and/or removed) are present in
+a single section.
+.El
+.Pp
+Comparison options:
+.Bl -tag -width Ds
+.It Fl a -text
+Treat all files as
+.Tn ASCII
+text.
+Normally
+.Nm
+will simply print
+.Dq Binary files ... differ
+if files contain binary characters.
+Use of this option forces
+.Nm
+to produce a diff.
+.It Fl B Fl -ignore-blank-lines
+Causes chunks that include only blank lines to be ignored.
+.It Fl b
+Causes trailing blanks (spaces and tabs) to be ignored, and other
+strings of blanks to compare equal.
+.It Fl d -minimal
+Try very hard to produce a diff as small as possible.
+This may consume a lot of processing power and memory when processing
+large files with many changes.
+.It Fl I Ar pattern Fl -ignore-matching-lines Ar pattern
+Ignores changes, insertions, and deletions whose lines match the
+extended regular expression
+.Ar pattern .
+Multiple
+.Fl I
+patterns may be specified.
+All lines in the change must match some pattern for the change to be
+ignored.
+See
+.Xr re_format 7
+for more information on regular expression patterns.
+.It Fl i -ignore-case
+Ignores the case of letters.
+E.g.,
+.Dq A
+will compare equal to
+.Dq a .
+.It Fl l -paginate
+Pass the output through
+.Xr pr 1
+to paginate it.
+.It Fl L Ar label Fl -label Ar label
+Print
+.Ar label
+instead of the first (and second, if this option is specified twice)
+file name and time in the context or unified diff header.
+.It Fl p -show-c-function
+With unified and context diffs, show with each change
+the first 40 characters of the last line before the context beginning
+with a letter, an underscore or a dollar sign.
+For C source code following standard layout conventions, this will
+show the prototype of the function the change applies to.
+.It Fl T -initial-tab
+Print a tab rather than a space before the rest of the line for the
+normal, context or unified output formats.
+This makes the alignment of tabs in the line consistent.
+.It Fl t -expand-tabs
+Will expand tabs in output lines.
+Normal or
+.Fl c
+output adds character(s) to the front of each line which may screw up
+the indentation of the original source lines and make the output listing
+difficult to interpret.
+This option will preserve the original source's indentation.
+.It Fl w -ignore-all-blanks
+Is similar to
+.Fl b -ignore-space-change
+but causes whitespace (blanks and tabs) to be totally ignored.
+E.g.,
+.Dq if (\ \&a == b \&)
+will compare equal to
+.Dq if(a==b) .
+.It Fl -changed-group-format Ar GFMT
+Format input groups in the provided
+.Pp
+the format is a string with special keywords:
+.Bl -tag -width %<
+.It %<
+lines from FILE1
+.It %<
+lines from FILE2
+.El
+.It Fl -ignore-file-name-case
+ignore case when comparing file names
+.It Fl -no-ignore-file-name-case
+do not ignore case wen comparing file names (default)
+.It Fl -normal
+default diff output
+.It Fl -speed-large-files
+stub option for compatibility with GNU diff
+.It Fl -strip-trailing-cr
+strip carriage return on input files
+.It Fl tabsize Ar number
+Number of spaces representing a tab (default 8)
+.El
+.Pp
+Directory comparison options:
+.Bl -tag -width Ds
+.It Fl N -new-file
+If a file is found in only one directory, act as if it was found in the
+other directory too but was of zero size.
+.It Fl P -unidirectional-new-file
+If a file is found only in
+.Ar dir2 ,
+act as if it was found in
+.Ar dir1
+too but was of zero size.
+.It Fl r -recursive
+Causes application of
+.Nm
+recursively to common subdirectories encountered.
+.It Fl S Ar name Fl -starting-file Ar name
+Re-starts a directory
+.Nm
+in the middle, beginning with file
+.Ar name .
+.It Fl s -report-identical-files
+Causes
+.Nm
+to report files which are the same, which are otherwise not mentioned.
+.It Fl X Ar file Fl -exclude-from Ar file
+Exclude files and subdirectories from comparison whose basenames match
+lines in
+.Ar file .
+Multiple
+.Fl X
+options may be specified.
+.It Fl x Ar pattern Fl -exclude Ar pattern
+Exclude files and subdirectories from comparison whose basenames match
+.Ar pattern .
+Patterns are matched using shell-style globbing via
+.Xr fnmatch 3 .
+Multiple
+.Fl x
+options may be specified.
+.El
+.Pp
+If both arguments are directories,
+.Nm
+sorts the contents of the directories by name, and then runs the
+regular file
+.Nm
+algorithm, producing a change list,
+on text files which are different.
+Binary files which differ,
+common subdirectories, and files which appear in only one directory
+are described as such.
+In directory mode only regular files and directories are compared.
+If a non-regular file such as a device special file or
+.Tn FIFO
+is encountered, a diagnostic message is printed.
+.Pp
+If only one of
+.Ar file1
+and
+.Ar file2
+is a directory,
+.Nm
+is applied to the non-directory file and the file contained in
+the directory file with a filename that is the same as the
+last component of the non-directory file.
+.Pp
+If either
+.Ar file1
+or
+.Ar file2
+is
+.Sq - ,
+the standard input is
+used in its place.
+.Ss Output Style
+The default (without
+.Fl e ,
+.Fl c ,
+or
+.Fl n -rcs
+.\" -C
+options)
+output contains lines of these forms, where
+.Va XX , YY , ZZ , QQ
+are line numbers respective of file order.
+.Pp
+.Bl -tag -width "XX,YYcZZ,QQ" -compact
+.It Li XX Ns Ic a Ns Li YY
+At (the end of) line
+.Va XX
+of
+.Ar file1 ,
+append the contents
+of line
+.Va YY
+of
+.Ar file2
+to make them equal.
+.It Li XX Ns Ic a Ns Li YY,ZZ
+Same as above, but append the range of lines,
+.Va YY
+through
+.Va ZZ
+of
+.Ar file2
+to line
+.Va XX
+of file1.
+.It Li XX Ns Ic d Ns Li YY
+At line
+.Va XX
+delete
+the line.
+The value
+.Va YY
+tells to which line the change would bring
+.Ar file1
+in line with
+.Ar file2 .
+.It Li XX,YY Ns Ic d Ns Li ZZ
+Delete the range of lines
+.Va XX
+through
+.Va YY
+in
+.Ar file1 .
+.It Li XX Ns Ic c Ns Li YY
+Change the line
+.Va XX
+in
+.Ar file1
+to the line
+.Va YY
+in
+.Ar file2 .
+.It Li XX,YY Ns Ic c Ns Li ZZ
+Replace the range of specified lines with the line
+.Va ZZ .
+.It Li XX,YY Ns Ic c Ns Li ZZ,QQ
+Replace the range
+.Va XX , Ns Va YY
+from
+.Ar file1
+with the range
+.Va ZZ , Ns Va QQ
+from
+.Ar file2 .
+.El
+.Pp
+These lines resemble
+.Xr ed 1
+subcommands to convert
+.Ar file1
+into
+.Ar file2 .
+The line numbers before the action letters pertain to
+.Ar file1 ;
+those after pertain to
+.Ar file2 .
+Thus, by exchanging
+.Ic a
+for
+.Ic d
+and reading the line in reverse order, one can also
+determine how to convert
+.Ar file2
+into
+.Ar file1 .
+As in
+.Xr ed 1 ,
+identical
+pairs (where num1 = num2) are abbreviated as a single
+number.
+.Sh FILES
+.Bl -tag -width /tmp/diff.XXXXXXXX -compact
+.It Pa /tmp/diff. Ns Ar XXXXXXXX
+Temporary file used when comparing a device or the standard input.
+Note that the temporary file is unlinked as soon as it is created
+so it will not show up in a directory listing.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 0
+No differences were found.
+.It 1
+Differences were found.
+.It >1
+An error occurred.
+.El
+.Sh SEE ALSO
+.Xr cmp 1 ,
+.Xr comm 1 ,
+.Xr diff3 1 ,
+.Xr ed 1 ,
+.Xr patch 1 ,
+.Xr pr 1 ,
+.Xr sdiff 1
+.Rs
+.%A James W. Hunt
+.%A M. Douglas McIlroy
+.%T "An Algorithm for Differential File Comparison"
+.%J Computing Science Technical Report
+.%Q Bell Laboratories 41
+.%D June 1976
+.Re
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The flags
+.Op Fl aDdIiLlNnPpqSsTtwXx
+are extensions to that specification.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v6 .

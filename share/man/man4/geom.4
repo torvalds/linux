@@ -1,0 +1,497 @@
+.\"
+.\" Copyright (c) 2002 Poul-Henning Kamp
+.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Poul-Henning Kamp
+.\" and NAI Labs, the Security Research Division of Network Associates, Inc.
+.\" under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 9, 2018
+.Dt GEOM 4
+.Os
+.Sh NAME
+.Nm GEOM
+.Nd "modular disk I/O request transformation framework"
+.Sh SYNOPSIS
+.Cd options GEOM_BDE
+.Cd options GEOM_CACHE
+.Cd options GEOM_CONCAT
+.Cd options GEOM_ELI
+.Cd options GEOM_GATE
+.Cd options GEOM_JOURNAL
+.Cd options GEOM_LABEL
+.Cd options GEOM_LINUX_LVM
+.Cd options GEOM_MAP
+.Cd options GEOM_MIRROR
+.Cd options GEOM_MOUNTVER
+.Cd options GEOM_MULTIPATH
+.Cd options GEOM_NOP
+.Cd options GEOM_PART_APM
+.Cd options GEOM_PART_BSD
+.Cd options GEOM_PART_BSD64
+.Cd options GEOM_PART_EBR
+.Cd options GEOM_PART_EBR_COMPAT
+.Cd options GEOM_PART_GPT
+.Cd options GEOM_PART_LDM
+.Cd options GEOM_PART_MBR
+.Cd options GEOM_PART_VTOC8
+.Cd options GEOM_RAID
+.Cd options GEOM_RAID3
+.Cd options GEOM_SHSEC
+.Cd options GEOM_STRIPE
+.Cd options GEOM_UZIP
+.Cd options GEOM_VIRSTOR
+.Cd options GEOM_ZERO
+.Sh DESCRIPTION
+The
+.Nm
+framework provides an infrastructure in which
+.Dq classes
+can perform transformations on disk I/O requests on their path from
+the upper kernel to the device drivers and back.
+.Pp
+Transformations in a
+.Nm
+context range from the simple geometric
+displacement performed in typical disk partitioning modules over RAID
+algorithms and device multipath resolution to full blown cryptographic
+protection of the stored data.
+.Pp
+Compared to traditional
+.Dq "volume management" ,
+.Nm
+differs from most
+and in some cases all previous implementations in the following ways:
+.Bl -bullet
+.It
+.Nm
+is extensible.
+It is trivially simple to write a new class
+of transformation and it will not be given stepchild treatment.
+If
+someone for some reason wanted to mount IBM MVS diskpacks, a class
+recognizing and configuring their VTOC information would be a trivial
+matter.
+.It
+.Nm
+is topologically agnostic.
+Most volume management implementations
+have very strict notions of how classes can fit together, very often
+one fixed hierarchy is provided, for instance, subdisk - plex -
+volume.
+.El
+.Pp
+Being extensible means that new transformations are treated no differently
+than existing transformations.
+.Pp
+Fixed hierarchies are bad because they make it impossible to express
+the intent efficiently.
+In the fixed hierarchy above, it is not possible to mirror two
+physical disks and then partition the mirror into subdisks, instead
+one is forced to make subdisks on the physical volumes and to mirror
+these two and two, resulting in a much more complex configuration.
+.Nm
+on the other hand does not care in which order things are done,
+the only restriction is that cycles in the graph will not be allowed.
+.Sh "TERMINOLOGY AND TOPOLOGY"
+.Nm
+is quite object oriented and consequently the terminology
+borrows a lot of context and semantics from the OO vocabulary:
+.Pp
+A
+.Dq class ,
+represented by the data structure
+.Vt g_class
+implements one
+particular kind of transformation.
+Typical examples are MBR disk
+partition, BSD disklabel, and RAID5 classes.
+.Pp
+An instance of a class is called a
+.Dq geom
+and represented by the data structure
+.Vt g_geom .
+In a typical i386
+.Fx
+system, there
+will be one geom of class MBR for each disk.
+.Pp
+A
+.Dq provider ,
+represented by the data structure
+.Vt g_provider ,
+is the front gate at which a geom offers service.
+A provider is
+.Do
+a disk-like thing which appears in
+.Pa /dev
+.Dc - a logical
+disk in other words.
+All providers have three main properties:
+.Dq name ,
+.Dq sectorsize
+and
+.Dq size .
+.Pp
+A
+.Dq consumer
+is the backdoor through which a geom connects to another
+geom provider and through which I/O requests are sent.
+.Pp
+The topological relationship between these entities are as follows:
+.Bl -bullet
+.It
+A class has zero or more geom instances.
+.It
+A geom has exactly one class it is derived from.
+.It
+A geom has zero or more consumers.
+.It
+A geom has zero or more providers.
+.It
+A consumer can be attached to zero or one providers.
+.It
+A provider can have zero or more consumers attached.
+.El
+.Pp
+All geoms have a rank-number assigned, which is used to detect and
+prevent loops in the acyclic directed graph.
+This rank number is
+assigned as follows:
+.Bl -enum
+.It
+A geom with no attached consumers has rank=1.
+.It
+A geom with attached consumers has a rank one higher than the
+highest rank of the geoms of the providers its consumers are
+attached to.
+.El
+.Sh "SPECIAL TOPOLOGICAL MANEUVERS"
+In addition to the straightforward attach, which attaches a consumer
+to a provider, and detach, which breaks the bond, a number of special
+topological maneuvers exists to facilitate configuration and to
+improve the overall flexibility.
+.Bl -inset
+.It Em TASTING
+is a process that happens whenever a new class or new provider
+is created, and it provides the class a chance to automatically configure an
+instance on providers which it recognizes as its own.
+A typical example is the MBR disk-partition class which will look for
+the MBR table in the first sector and, if found and validated, will
+instantiate a geom to multiplex according to the contents of the MBR.
+.Pp
+A new class will be offered to all existing providers in turn and a new
+provider will be offered to all classes in turn.
+.Pp
+Exactly what a class does to recognize if it should accept the offered
+provider is not defined by
+.Nm ,
+but the sensible set of options are:
+.Bl -bullet
+.It
+Examine specific data structures on the disk.
+.It
+Examine properties like
+.Dq sectorsize
+or
+.Dq mediasize
+for the provider.
+.It
+Examine the rank number of the provider's geom.
+.It
+Examine the method name of the provider's geom.
+.El
+.It Em ORPHANIZATION
+is the process by which a provider is removed while
+it potentially is still being used.
+.Pp
+When a geom orphans a provider, all future I/O requests will
+.Dq bounce
+on the provider with an error code set by the geom.
+Any
+consumers attached to the provider will receive notification about
+the orphanization when the event loop gets around to it, and they
+can take appropriate action at that time.
+.Pp
+A geom which came into being as a result of a normal taste operation
+should self-destruct unless it has a way to keep functioning whilst
+lacking the orphaned provider.
+Geoms like disk slicers should therefore self-destruct whereas
+RAID5 or mirror geoms will be able to continue as long as they do
+not lose quorum.
+.Pp
+When a provider is orphaned, this does not necessarily result in any
+immediate change in the topology: any attached consumers are still
+attached, any opened paths are still open, any outstanding I/O
+requests are still outstanding.
+.Pp
+The typical scenario is:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+A device driver detects a disk has departed and orphans the provider for it.
+.It
+The geoms on top of the disk receive the orphanization event and
+orphan all their providers in turn.
+Providers which are not attached to will typically self-destruct
+right away.
+This process continues in a quasi-recursive fashion until all
+relevant pieces of the tree have heard the bad news.
+.It
+Eventually the buck stops when it reaches geom_dev at the top
+of the stack.
+.It
+Geom_dev will call
+.Xr destroy_dev 9
+to stop any more requests from
+coming in.
+It will sleep until any and all outstanding I/O requests have
+been returned.
+It will explicitly close (i.e.: zero the access counts), a change
+which will propagate all the way down through the mesh.
+It will then detach and destroy its geom.
+.It
+The geom whose provider is now detached will destroy the provider,
+detach and destroy its consumer and destroy its geom.
+.It
+This process percolates all the way down through the mesh, until
+the cleanup is complete.
+.El
+.Pp
+While this approach seems byzantine, it does provide the maximum
+flexibility and robustness in handling disappearing devices.
+.Pp
+The one absolutely crucial detail to be aware of is that if the
+device driver does not return all I/O requests, the tree will
+not unravel.
+.It Em SPOILING
+is a special case of orphanization used to protect
+against stale metadata.
+It is probably easiest to understand spoiling by going through
+an example.
+.Pp
+Imagine a disk,
+.Pa da0 ,
+on top of which an MBR geom provides
+.Pa da0s1
+and
+.Pa da0s2 ,
+and on top of
+.Pa da0s1
+a BSD geom provides
+.Pa da0s1a
+through
+.Pa da0s1e ,
+and that both the MBR and BSD geoms have
+autoconfigured based on data structures on the disk media.
+Now imagine the case where
+.Pa da0
+is opened for writing and those
+data structures are modified or overwritten: now the geoms would
+be operating on stale metadata unless some notification system
+can inform them otherwise.
+.Pp
+To avoid this situation, when the open of
+.Pa da0
+for write happens,
+all attached consumers are told about this and geoms like
+MBR and BSD will self-destruct as a result.
+When
+.Pa da0
+is closed, it will be offered for tasting again
+and, if the data structures for MBR and BSD are still there, new
+geoms will instantiate themselves anew.
+.Pp
+Now for the fine print:
+.Pp
+If any of the paths through the MBR or BSD module were open, they
+would have opened downwards with an exclusive bit thus rendering it
+impossible to open
+.Pa da0
+for writing in that case.
+Conversely,
+the requested exclusive bit would render it impossible to open a
+path through the MBR geom while
+.Pa da0
+is open for writing.
+.Pp
+From this it also follows that changing the size of open geoms can
+only be done with their cooperation.
+.Pp
+Finally: the spoiling only happens when the write count goes from
+zero to non-zero and the retasting happens only when the write count goes
+from non-zero to zero.
+.It Em CONFIGURE
+is the process where the administrator issues instructions
+for a particular class to instantiate itself.
+There are multiple
+ways to express intent in this case - a particular provider may be
+specified with a level of override forcing, for instance, a BSD
+disklabel module to attach to a provider which was not found palatable
+during the TASTE operation.
+.Pp
+Finally, I/O is the reason we even do this: it concerns itself with
+sending I/O requests through the graph.
+.It Em "I/O REQUESTS" ,
+represented by
+.Vt "struct bio" ,
+originate at a consumer,
+are scheduled on its attached provider and, when processed, are returned
+to the consumer.
+It is important to realize that the
+.Vt "struct bio"
+which enters through the provider of a particular geom does not
+.Do
+come out on the other side
+.Dc .
+Even simple transformations like MBR and BSD will clone the
+.Vt "struct bio" ,
+modify the clone, and schedule the clone on their
+own consumer.
+Note that cloning the
+.Vt "struct bio"
+does not involve cloning the
+actual data area specified in the I/O request.
+.Pp
+In total, four different I/O requests exist in
+.Nm :
+read, write, delete, and
+.Dq "get attribute".
+.Pp
+Read and write are self explanatory.
+.Pp
+Delete indicates that a certain range of data is no longer used
+and that it can be erased or freed as the underlying technology
+supports.
+Technologies like flash adaptation layers can arrange to erase
+the relevant blocks before they will become reassigned and
+cryptographic devices may want to fill random bits into the
+range to reduce the amount of data available for attack.
+.Pp
+It is important to recognize that a delete indication is not a
+request and consequently there is no guarantee that the data actually
+will be erased or made unavailable unless guaranteed by specific
+geoms in the graph.
+If
+.Dq "secure delete"
+semantics are required, a
+geom should be pushed which converts delete indications into (a
+sequence of) write requests.
+.Pp
+.Dq "Get attribute"
+supports inspection and manipulation
+of out-of-band attributes on a particular provider or path.
+Attributes are named by
+.Tn ASCII
+strings and they will be discussed in
+a separate section below.
+.El
+.Pp
+(Stay tuned while the author rests his brain and fingers: more to come.)
+.Sh DIAGNOSTICS
+Several flags are provided for tracing
+.Nm
+operations and unlocking
+protection mechanisms via the
+.Va kern.geom.debugflags
+sysctl.
+All of these flags are off by default, and great care should be taken in
+turning them on.
+.Bl -tag -width indent
+.It 0x01 Pq Dv G_T_TOPOLOGY
+Provide tracing of topology change events.
+.It 0x02 Pq Dv G_T_BIO
+Provide tracing of buffer I/O requests.
+.It 0x04 Pq Dv G_T_ACCESS
+Provide tracing of access check controls.
+.It 0x08 (unused)
+.It 0x10 (allow foot shooting)
+Allow writing to Rank 1 providers.
+This would, for example, allow the super-user to overwrite the MBR on the root
+disk or write random sectors elsewhere to a mounted disk.
+The implications are obvious.
+.It 0x40 Pq Dv G_F_DISKIOCTL
+This is unused at this time.
+.It 0x80 Pq Dv G_F_CTLDUMP
+Dump contents of gctl requests.
+.El
+.Sh OBSOLETE OPTIONS
+.Pp
+The following options have been deprecated and will be removed in
+.Fx 12 :
+.Cd GEOM_BSD ,
+.Cd GEOM_FOX ,
+.Cd GEOM_MBR ,
+.Cd GEOM_SUNLABEL ,
+and
+.Cd GEOM_VOL .
+.Pp
+Use
+.Cd GEOM_PART_BSD ,
+.Cd GEOM_MULTIPATH ,
+.Cd GEOM_PART_MBR ,
+.Cd GEOM_PART_VTOC8 ,
+.Cd GEOM_LABEL
+options, respectively, instead.
+.Sh SEE ALSO
+.Xr libgeom 3 ,
+.Xr DECLARE_GEOM_CLASS 9 ,
+.Xr disk 9 ,
+.Xr g_access 9 ,
+.Xr g_attach 9 ,
+.Xr g_bio 9 ,
+.Xr g_consumer 9 ,
+.Xr g_data 9 ,
+.Xr g_event 9 ,
+.Xr g_geom 9 ,
+.Xr g_provider 9 ,
+.Xr g_provider_by_name 9
+.Sh HISTORY
+This software was developed for the
+.Fx
+Project by
+.An Poul-Henning Kamp
+and NAI Labs, the Security Research Division of Network Associates, Inc.\&
+under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the
+DARPA CHATS research program.
+.Pp
+The first precursor for
+.Nm
+was a gruesome hack to Minix 1.2 and was
+never distributed.
+An earlier attempt to implement a less general scheme
+in
+.Fx
+never succeeded.
+.Sh AUTHORS
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org

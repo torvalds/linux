@@ -1,0 +1,15 @@
+# $FreeBSD$
+command -V ls
+command -V true
+command -V /bin/ls
+
+fun() {
+	:
+}
+command -V fun
+command -V break
+command -V if
+command -V {
+
+alias foo=bar
+command -V foo

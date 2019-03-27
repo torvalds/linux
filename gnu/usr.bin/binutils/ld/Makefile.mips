@@ -1,0 +1,38 @@
+# $FreeBSD$
+
+.if ${TARGET_ARCH:Mmips*el*} != ""
+_EMULATION_ENDIAN=l
+.else
+_EMULATION_ENDIAN=b
+.endif
+
+.if ${TARGET_ARCH:Mmips64*} != ""
+NATIVE_EMULATION=elf64${_EMULATION_ENDIAN}tsmip_fbsd
+LIBSEARCHPATH.elf32${_EMULATION_ENDIAN}tsmip_fbsd=\"=/usr/lib32\"
+.elif ${TARGET_ARCH:Mmipsn32*} != ""
+NATIVE_EMULATION=elf32${_EMULATION_ENDIAN}tsmipn32_fbsd
+.else
+NATIVE_EMULATION?=elf32${_EMULATION_ENDIAN}tsmip_fbsd
+.endif
+
+MIPS_ABIS=elf32btsmip_fbsd elf32ltsmip_fbsd elf64btsmip_fbsd elf64ltsmip_fbsd \
+    elf32btsmipn32_fbsd elf32ltsmipn32_fbsd
+.for abi in ${MIPS_ABIS}
+EMS+= ${abi}
+.if ${abi} != ${NATIVE_EMULATION}
+.for ext in ${ELF_SCR_EXT}
+LDSCRIPTS+= ${abi}.${ext}
+ldscripts/${abi}.${ext}: e${abi}.c
+.endfor
+.endif
+SRCS+=	e${abi}.c
+CLEANFILES+=	e${abi}.c
+# nb: elf32 handles both elf32 and elf64 targets
+e${abi}.c:	${.CURDIR}/${abi}.sh emultempl/elf32.em \
+    scripttempl/elf.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSEARCHPATH} \
+	    ${TOOLS_PREFIX}/usr \
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    ${abi} ""  no ${abi} ${TARGET_TUPLE} \
+	    ${.CURDIR}/${abi}.sh
+.endfor

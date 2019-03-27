@@ -1,0 +1,157 @@
+.\"-
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)kill.1	8.2 (Berkeley) 4/28/95
+.\" $FreeBSD$
+.\"
+.Dd October 3, 2016
+.Dt KILL 1
+.Os
+.Sh NAME
+.Nm kill
+.Nd terminate or signal a process
+.Sh SYNOPSIS
+.Nm
+.Op Fl s Ar signal_name
+.Ar pid ...
+.Nm
+.Fl l
+.Op Ar exit_status
+.Nm
+.Fl Ar signal_name
+.Ar pid ...
+.Nm
+.Fl Ar signal_number
+.Ar pid ...
+.Sh DESCRIPTION
+The
+.Nm
+utility sends a signal to the processes specified by the
+.Ar pid
+operands.
+.Pp
+Only the super-user may send signals to other users' processes.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl s Ar signal_name
+A symbolic signal name specifying the signal to be sent instead of the
+default
+.Dv TERM .
+.It Fl l Op Ar exit_status
+If no operand is given, list the signal names; otherwise, write
+the signal name corresponding to
+.Ar exit_status .
+.It Fl Ar signal_name
+A symbolic signal name specifying the signal to be sent instead of the
+default
+.Dv TERM .
+.It Fl Ar signal_number
+A non-negative decimal integer, specifying the signal to be sent instead
+of the default
+.Dv TERM .
+.El
+.Pp
+The following PIDs have special meanings:
+.Bl -tag -width indent
+.It -1
+If superuser, broadcast the signal to all processes; otherwise broadcast
+to all processes belonging to the user.
+.El
+.Pp
+Some of the more commonly used signals:
+.Pp
+.Bl -tag -width indent -compact
+.It 1
+HUP (hang up)
+.It 2
+INT (interrupt)
+.It 3
+QUIT (quit)
+.It 6
+ABRT (abort)
+.It 9
+KILL (non-catchable, non-ignorable kill)
+.It 14
+ALRM (alarm clock)
+.It 15
+TERM (software termination signal)
+.El
+.Pp
+Some shells may provide a builtin
+.Nm
+command which is similar or identical to this utility.
+Consult the
+.Xr builtin 1
+manual page.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Terminate
+the processes with PIDs 142 and 157:
+.Pp
+.Dl "kill 142 157"
+.Pp
+Send the hangup signal
+.Pq Dv SIGHUP
+to the process with PID 507:
+.Pp
+.Dl "kill -s HUP 507"
+.Pp
+Terminate the process group with PGID 117:
+.Pp
+.Dl "kill -- -117"
+.Sh SEE ALSO
+.Xr builtin 1 ,
+.Xr csh 1 ,
+.Xr killall 1 ,
+.Xr ps 1 ,
+.Xr sh 1 ,
+.Xr kill 2 ,
+.Xr sigaction 2
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be
+.St -p1003.2
+compatible.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v3
+in section 8 of the manual.
+.Sh BUGS
+A replacement for the command
+.Dq Li kill 0
+for
+.Xr csh 1
+users should be provided.

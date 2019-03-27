@@ -1,0 +1,487 @@
+// -*- C++ -*-
+//===---------------------------- system_error ----------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_SYSTEM_ERROR
+#define _LIBCPP_SYSTEM_ERROR
+
+/*
+    system_error synopsis
+
+namespace std
+{
+
+class error_category
+{
+public:
+    virtual ~error_category() noexcept;
+
+    constexpr error_category();
+    error_category(const error_category&) = delete;
+    error_category& operator=(const error_category&) = delete;
+
+    virtual const char* name() const noexcept = 0;
+    virtual error_condition default_error_condition(int ev) const noexcept;
+    virtual bool equivalent(int code, const error_condition& condition) const noexcept;
+    virtual bool equivalent(const error_code& code, int condition) const noexcept;
+    virtual string message(int ev) const = 0;
+
+    bool operator==(const error_category& rhs) const noexcept;
+    bool operator!=(const error_category& rhs) const noexcept;
+    bool operator<(const error_category& rhs) const noexcept;
+};
+
+const error_category& generic_category() noexcept;
+const error_category& system_category() noexcept;
+
+template <class T> struct is_error_code_enum
+    : public false_type {};
+
+template <class T> struct is_error_condition_enum
+    : public false_type {};
+
+template <class _Tp>
+inline constexpr size_t is_error_condition_enum_v = is_error_condition_enum<_Tp>::value; // C++17
+
+template <class _Tp>
+inline constexpr size_t is_error_code_enum_v = is_error_code_enum<_Tp>::value; // C++17
+
+class error_code
+{
+public:
+    // constructors:
+    error_code() noexcept;
+    error_code(int val, const error_category& cat) noexcept;
+    template <class ErrorCodeEnum>
+        error_code(ErrorCodeEnum e) noexcept;
+
+    // modifiers:
+    void assign(int val, const error_category& cat) noexcept;
+    template <class ErrorCodeEnum>
+        error_code& operator=(ErrorCodeEnum e) noexcept;
+    void clear() noexcept;
+
+    // observers:
+    int value() const noexcept;
+    const error_category& category() const noexcept;
+    error_condition default_error_condition() const noexcept;
+    string message() const;
+    explicit operator bool() const noexcept;
+};
+
+// non-member functions:
+bool operator<(const error_code& lhs, const error_code& rhs) noexcept;
+template <class charT, class traits>
+    basic_ostream<charT,traits>&
+    operator<<(basic_ostream<charT,traits>& os, const error_code& ec);
+
+class error_condition
+{
+public:
+    // constructors:
+    error_condition() noexcept;
+    error_condition(int val, const error_category& cat) noexcept;
+    template <class ErrorConditionEnum>
+        error_condition(ErrorConditionEnum e) noexcept;
+
+    // modifiers:
+    void assign(int val, const error_category& cat) noexcept;
+    template <class ErrorConditionEnum>
+        error_condition& operator=(ErrorConditionEnum e) noexcept;
+    void clear() noexcept;
+
+    // observers:
+    int value() const noexcept;
+    const error_category& category() const noexcept;
+    string message() const noexcept;
+    explicit operator bool() const noexcept;
+};
+
+bool operator<(const error_condition& lhs, const error_condition& rhs) noexcept;
+
+class system_error
+    : public runtime_error
+{
+public:
+    system_error(error_code ec, const string& what_arg);
+    system_error(error_code ec, const char* what_arg);
+    system_error(error_code ec);
+    system_error(int ev, const error_category& ecat, const string& what_arg);
+    system_error(int ev, const error_category& ecat, const char* what_arg);
+    system_error(int ev, const error_category& ecat);
+
+    const error_code& code() const noexcept;
+    const char* what() const noexcept;
+};
+
+template <> struct is_error_condition_enum<errc>
+    : true_type { }
+
+error_code make_error_code(errc e) noexcept;
+error_condition make_error_condition(errc e) noexcept;
+
+// Comparison operators:
+bool operator==(const error_code& lhs, const error_code& rhs) noexcept;
+bool operator==(const error_code& lhs, const error_condition& rhs) noexcept;
+bool operator==(const error_condition& lhs, const error_code& rhs) noexcept;
+bool operator==(const error_condition& lhs, const error_condition& rhs) noexcept;
+bool operator!=(const error_code& lhs, const error_code& rhs) noexcept;
+bool operator!=(const error_code& lhs, const error_condition& rhs) noexcept;
+bool operator!=(const error_condition& lhs, const error_code& rhs) noexcept;
+bool operator!=(const error_condition& lhs, const error_condition& rhs) noexcept;
+
+template <> struct hash<std::error_code>;
+template <> struct hash<std::error_condition>;
+
+}  // std
+
+*/
+
+#include <__errc>
+#include <type_traits>
+#include <stdexcept>
+#include <__functional_base>
+#include <string>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+// is_error_code_enum
+
+template <class _Tp>
+struct _LIBCPP_TEMPLATE_VIS is_error_code_enum
+    : public false_type {};
+
+#if _LIBCPP_STD_VER > 14
+template <class _Tp>
+_LIBCPP_INLINE_VAR constexpr size_t is_error_code_enum_v = is_error_code_enum<_Tp>::value;
+#endif
+
+// is_error_condition_enum
+
+template <class _Tp>
+struct _LIBCPP_TEMPLATE_VIS is_error_condition_enum
+    : public false_type {};
+
+#if _LIBCPP_STD_VER > 14
+template <class _Tp>
+_LIBCPP_INLINE_VAR constexpr size_t is_error_condition_enum_v = is_error_condition_enum<_Tp>::value;
+#endif
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS is_error_condition_enum<errc>
+    : true_type { };
+
+#ifdef _LIBCPP_HAS_NO_STRONG_ENUMS
+template <>
+struct _LIBCPP_TEMPLATE_VIS is_error_condition_enum<errc::__lx>
+    : true_type { };
+#endif
+
+class _LIBCPP_TYPE_VIS error_condition;
+class _LIBCPP_TYPE_VIS error_code;
+
+// class error_category
+
+class _LIBCPP_HIDDEN __do_message;
+
+class _LIBCPP_TYPE_VIS error_category
+{
+public:
+    virtual ~error_category() _NOEXCEPT;
+
+#if defined(_LIBCPP_BUILDING_LIBRARY) && \
+    defined(_LIBCPP_DEPRECATED_ABI_LEGACY_LIBRARY_DEFINITIONS_FOR_INLINE_FUNCTIONS)
+    error_category() _NOEXCEPT;
+#else
+    _LIBCPP_INLINE_VISIBILITY
+    _LIBCPP_CONSTEXPR_AFTER_CXX11 error_category() _NOEXCEPT _LIBCPP_DEFAULT
+#endif
+private:
+    error_category(const error_category&);// = delete;
+    error_category& operator=(const error_category&);// = delete;
+
+public:
+    virtual const char* name() const _NOEXCEPT = 0;
+    virtual error_condition default_error_condition(int __ev) const _NOEXCEPT;
+    virtual bool equivalent(int __code, const error_condition& __condition) const _NOEXCEPT;
+    virtual bool equivalent(const error_code& __code, int __condition) const _NOEXCEPT;
+    virtual string message(int __ev) const = 0;
+
+    _LIBCPP_INLINE_VISIBILITY
+    bool operator==(const error_category& __rhs) const _NOEXCEPT {return this == &__rhs;}
+
+    _LIBCPP_INLINE_VISIBILITY
+    bool operator!=(const error_category& __rhs) const _NOEXCEPT {return !(*this == __rhs);}
+
+    _LIBCPP_INLINE_VISIBILITY
+    bool operator< (const error_category& __rhs) const _NOEXCEPT {return this < &__rhs;}
+
+    friend class _LIBCPP_HIDDEN __do_message;
+};
+
+class _LIBCPP_HIDDEN __do_message
+    : public error_category
+{
+public:
+    virtual string message(int ev) const;
+};
+
+_LIBCPP_FUNC_VIS const error_category& generic_category() _NOEXCEPT;
+_LIBCPP_FUNC_VIS const error_category& system_category() _NOEXCEPT;
+
+class _LIBCPP_TYPE_VIS error_condition
+{
+    int __val_;
+    const error_category* __cat_;
+public:
+    _LIBCPP_INLINE_VISIBILITY
+    error_condition() _NOEXCEPT : __val_(0), __cat_(&generic_category()) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    error_condition(int __val, const error_category& __cat) _NOEXCEPT
+        : __val_(__val), __cat_(&__cat) {}
+
+    template <class _Ep>
+        _LIBCPP_INLINE_VISIBILITY
+        error_condition(_Ep __e,
+              typename enable_if<is_error_condition_enum<_Ep>::value>::type* = 0
+                                                                     ) _NOEXCEPT
+            {*this = make_error_condition(__e);}
+
+    _LIBCPP_INLINE_VISIBILITY
+    void assign(int __val, const error_category& __cat) _NOEXCEPT
+    {
+        __val_ = __val;
+        __cat_ = &__cat;
+    }
+
+    template <class _Ep>
+        _LIBCPP_INLINE_VISIBILITY
+        typename enable_if
+        <
+            is_error_condition_enum<_Ep>::value,
+            error_condition&
+        >::type
+        operator=(_Ep __e) _NOEXCEPT
+            {*this = make_error_condition(__e); return *this;}
+
+    _LIBCPP_INLINE_VISIBILITY
+    void clear() _NOEXCEPT
+    {
+        __val_ = 0;
+        __cat_ = &generic_category();
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    int value() const _NOEXCEPT {return __val_;}
+
+    _LIBCPP_INLINE_VISIBILITY
+    const error_category& category() const _NOEXCEPT {return *__cat_;}
+    string message() const;
+
+    _LIBCPP_INLINE_VISIBILITY
+        _LIBCPP_EXPLICIT
+        operator bool() const _NOEXCEPT {return __val_ != 0;}
+};
+
+inline _LIBCPP_INLINE_VISIBILITY
+error_condition
+make_error_condition(errc __e) _NOEXCEPT
+{
+    return error_condition(static_cast<int>(__e), generic_category());
+}
+
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+operator<(const error_condition& __x, const error_condition& __y) _NOEXCEPT
+{
+    return __x.category() < __y.category()
+        || (__x.category() == __y.category() && __x.value() < __y.value());
+}
+
+// error_code
+
+class _LIBCPP_TYPE_VIS error_code
+{
+    int __val_;
+    const error_category* __cat_;
+public:
+    _LIBCPP_INLINE_VISIBILITY
+    error_code() _NOEXCEPT : __val_(0), __cat_(&system_category()) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    error_code(int __val, const error_category& __cat) _NOEXCEPT
+        : __val_(__val), __cat_(&__cat) {}
+
+    template <class _Ep>
+        _LIBCPP_INLINE_VISIBILITY
+        error_code(_Ep __e,
+                   typename enable_if<is_error_code_enum<_Ep>::value>::type* = 0
+                                                                     ) _NOEXCEPT
+            {*this = make_error_code(__e);}
+
+    _LIBCPP_INLINE_VISIBILITY
+    void assign(int __val, const error_category& __cat) _NOEXCEPT
+    {
+        __val_ = __val;
+        __cat_ = &__cat;
+    }
+
+    template <class _Ep>
+        _LIBCPP_INLINE_VISIBILITY
+        typename enable_if
+        <
+            is_error_code_enum<_Ep>::value,
+            error_code&
+        >::type
+        operator=(_Ep __e) _NOEXCEPT
+            {*this = make_error_code(__e); return *this;}
+
+    _LIBCPP_INLINE_VISIBILITY
+    void clear() _NOEXCEPT
+    {
+        __val_ = 0;
+        __cat_ = &system_category();
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    int value() const _NOEXCEPT {return __val_;}
+
+    _LIBCPP_INLINE_VISIBILITY
+    const error_category& category() const _NOEXCEPT {return *__cat_;}
+
+    _LIBCPP_INLINE_VISIBILITY
+    error_condition default_error_condition() const _NOEXCEPT
+        {return __cat_->default_error_condition(__val_);}
+
+    string message() const;
+
+    _LIBCPP_INLINE_VISIBILITY
+        _LIBCPP_EXPLICIT
+        operator bool() const _NOEXCEPT {return __val_ != 0;}
+};
+
+inline _LIBCPP_INLINE_VISIBILITY
+error_code
+make_error_code(errc __e) _NOEXCEPT
+{
+    return error_code(static_cast<int>(__e), generic_category());
+}
+
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+operator<(const error_code& __x, const error_code& __y) _NOEXCEPT
+{
+    return __x.category() < __y.category()
+        || (__x.category() == __y.category() && __x.value() < __y.value());
+}
+
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+operator==(const error_code& __x, const error_code& __y) _NOEXCEPT
+{
+    return __x.category() == __y.category() && __x.value() == __y.value();
+}
+
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+operator==(const error_code& __x, const error_condition& __y) _NOEXCEPT
+{
+    return __x.category().equivalent(__x.value(), __y)
+        || __y.category().equivalent(__x, __y.value());
+}
+
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+operator==(const error_condition& __x, const error_code& __y) _NOEXCEPT
+{
+    return __y == __x;
+}
+
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+operator==(const error_condition& __x, const error_condition& __y) _NOEXCEPT
+{
+    return __x.category() == __y.category() && __x.value() == __y.value();
+}
+
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+operator!=(const error_code& __x, const error_code& __y) _NOEXCEPT
+{return !(__x == __y);}
+
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+operator!=(const error_code& __x, const error_condition& __y) _NOEXCEPT
+{return !(__x == __y);}
+
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+operator!=(const error_condition& __x, const error_code& __y) _NOEXCEPT
+{return !(__x == __y);}
+
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+operator!=(const error_condition& __x, const error_condition& __y) _NOEXCEPT
+{return !(__x == __y);}
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS hash<error_code>
+    : public unary_function<error_code, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(const error_code& __ec) const _NOEXCEPT
+    {
+        return static_cast<size_t>(__ec.value());
+    }
+};
+
+template <>
+struct _LIBCPP_TEMPLATE_VIS hash<error_condition>
+    : public unary_function<error_condition, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(const error_condition& __ec) const _NOEXCEPT
+    {
+        return static_cast<size_t>(__ec.value());
+    }
+};
+
+// system_error
+
+class _LIBCPP_TYPE_VIS system_error
+    : public runtime_error
+{
+    error_code __ec_;
+public:
+    system_error(error_code __ec, const string& __what_arg);
+    system_error(error_code __ec, const char* __what_arg);
+    system_error(error_code __ec);
+    system_error(int __ev, const error_category& __ecat, const string& __what_arg);
+    system_error(int __ev, const error_category& __ecat, const char* __what_arg);
+    system_error(int __ev, const error_category& __ecat);
+    ~system_error() _NOEXCEPT;
+
+    _LIBCPP_INLINE_VISIBILITY
+    const error_code& code() const _NOEXCEPT {return __ec_;}
+
+private:
+    static string __init(const error_code&, string);
+};
+
+_LIBCPP_NORETURN _LIBCPP_FUNC_VIS
+void __throw_system_error(int ev, const char* what_arg);
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_SYSTEM_ERROR

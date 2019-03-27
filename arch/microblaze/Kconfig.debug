@@ -1,5 +1,0 @@
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-
-config TRACE_IRQFLAGS_SUPPORT
-	def_bool y

@@ -1,0 +1,70 @@
+before open
+open: false
+enabled: false
+closed: false
+java.lang.IllegalStateException: consumer not open
+java.lang.IllegalStateException: consumer not open
+java.lang.IllegalStateException: consumer not open
+java.lang.IllegalStateException: consumer not open
+java.lang.IllegalStateException: consumer not open
+java.lang.IllegalStateException: consumer not open
+java.lang.IllegalStateException: consumer not open
+java.lang.IllegalStateException: consumer not open
+java.lang.IllegalStateException: consumer not open
+before compile
+open: true
+enabled: false
+closed: false
+java.lang.IllegalStateException: consumer already open
+java.lang.IllegalStateException: no compiled program
+before enable
+open: true
+enabled: false
+closed: false
+java.lang.IllegalStateException: Not all compiled probes are enabled. Compiled description syscall:::entry { @[execname] = count(); } tick-101ms { printa(@); } not enabled.
+before go
+open: true
+enabled: true
+closed: false
+java.lang.IllegalStateException: go() not called
+java.lang.IllegalStateException: go() not called
+java.lang.IllegalStateException: go() not called
+java.lang.IllegalStateException: go() not called
+before go, running: false
+consumerStarted, running: true
+after go
+open: true
+enabled: false
+closed: false
+java.lang.IllegalStateException: go() already called
+java.lang.IllegalStateException: go() already called
+java.lang.IllegalStateException: go() already called
+java.lang.IllegalStateException: go() already called
+java.lang.IllegalStateException: go() already called
+java.lang.IllegalStateException: go() already called
+consumerStopped, running: false
+after stop, running: false
+after stop
+open: true
+enabled: false
+closed: false
+java.lang.IllegalStateException: consumer already stopped
+after close
+open: false
+enabled: false
+closed: true
+java.lang.IllegalStateException: cannot reopen a closed consumer
+java.lang.IllegalStateException: consumer closed
+java.lang.IllegalStateException: consumer closed
+java.lang.IllegalStateException: consumer closed
+java.lang.IllegalStateException: consumer closed
+java.lang.IllegalStateException: consumer closed
+java.lang.IllegalStateException: consumer closed
+java.lang.IllegalStateException: consumer closed
+java.lang.IllegalStateException: consumer closed
+java.lang.IllegalStateException: consumer closed
+java.lang.IllegalStateException: consumer closed
+java.lang.IllegalStateException: consumer closed
+java.lang.IllegalStateException: consumer closed
+java.lang.IllegalStateException: consumer closed
+java.lang.IllegalStateException: consumer closed

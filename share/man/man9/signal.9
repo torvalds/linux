@@ -1,0 +1,438 @@
+.\"
+.\" Copyright (C) 2002 Chad David <davidc@FreeBSD.org>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 8, 2013
+.Dt SIGNAL 9
+.Os
+.Sh NAME
+.Nm signal ,
+.Nm SIGADDSET ,
+.Nm SIGDELSET ,
+.Nm SETEMPTYSET ,
+.Nm SIGFILLSET ,
+.Nm SIGISMEMBER ,
+.Nm SIGISEMPTY ,
+.Nm SIGNOTEMPTY ,
+.Nm SIGSETEQ ,
+.Nm SIGSETNEQ ,
+.Nm SIGSETOR ,
+.Nm SIGSETAND ,
+.Nm SIGSETNAND ,
+.Nm SIGSETCANTMASK ,
+.Nm SIG_STOPSIGMASK ,
+.Nm SIG_CONTSIGMASK ,
+.Nm SIGPENDING ,
+.Nm cursig ,
+.Nm execsigs ,
+.Nm issignal ,
+.Nm killproc ,
+.Nm pgsigio ,
+.Nm postsig ,
+.Nm sigexit ,
+.Nm siginit ,
+.Nm signotify ,
+.Nm trapsignal
+.Nd "kernel signal functions"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
+.In sys/signalvar.h
+.Ft void
+.Fn SIGADDSET "sigset_t set" "int signo"
+.Ft void
+.Fn SIGDELSET "sigset_t set" "int signo"
+.Ft void
+.Fn SIGEMPTYSET "sigset_t set"
+.Ft void
+.Fn SIGFILLSET "sigset_t set"
+.Ft int
+.Fn SIGISMEMBER "sigset_t set" "int signo"
+.Ft int
+.Fn SIGISEMPTY "sigset_t set"
+.Ft int
+.Fn SIGNOTEMPTY "sigset_t set"
+.Ft int
+.Fn SIGSETEQ "sigset_t set1" "sigset_t set2"
+.Ft int
+.Fn SIGSETNEQ "sigset_t set1" "sigset_t set2"
+.Ft void
+.Fn SIGSETOR "sigset_t set1" "sigset_t set2"
+.Ft void
+.Fn SIGSETAND "sigset_t set1" "sigset_t set2"
+.Ft void
+.Fn SIGSETNAND "sigset_t set1" "sigset_t set2"
+.Ft void
+.Fn SIG_CANTMASK "sigset_t set"
+.Ft void
+.Fn SIG_STOPSIGMASK "sigset_t set"
+.Ft void
+.Fn SIG_CONTSIGMASK "sigset_t set"
+.Ft int
+.Fn SIGPENDING "struct proc *p"
+.Ft int
+.Fn cursig "struct thread *td"
+.Ft void
+.Fn execsigs "struct proc *p"
+.Ft int
+.Fn issignal "struct thread *td"
+.Ft void
+.Fn killproc "struct proc *p" "char *why"
+.Ft void
+.Fn pgsigio "struct sigio **sigiop" "int sig" "int checkctty"
+.Ft void
+.Fn postsig "int sig"
+.Ft void
+.Fn sigexit "struct thread *td" "int signum"
+.Ft void
+.Fn siginit "struct proc *p"
+.Ft void
+.Fn signotify "struct thread *td"
+.Ft void
+.Fn trapsignal "struct thread *td" "int sig" "u_long code"
+.Sh DESCRIPTION
+The
+.Fn SIGADDSET
+macro adds
+.Fa signo
+to
+.Fa set .
+No effort is made to ensure that
+.Fa signo
+is a valid signal number.
+.Pp
+The
+.Fn SIGDELSET
+macro removes
+.Fa signo
+from
+.Fa set .
+No effort is made to ensure that
+.Fa signo
+is a valid signal number.
+.Pp
+The
+.Fn SIGEMPTYSET
+macro clears all signals in
+.Fa set .
+.Pp
+The
+.Fn SIGFILLSET
+macro sets all signals in
+.Fa set .
+.Pp
+The
+.Fn SIGISMEMBER
+macro determines if
+.Fa signo
+is set in
+.Fa set .
+.Pp
+The
+.Fn SIGISEMPTY
+macro determines if
+.Fa set
+does not have any signals set.
+.Pp
+The
+.Fn SIGNOTEMPTY
+macro determines if
+.Fa set
+has any signals set.
+.Pp
+The
+.Fn SIGSETEQ
+macro determines if two signal sets are equal; that is, the same signals
+are set in both.
+.Pp
+The
+.Fn SIGSETNEQ
+macro determines if two signal sets differ; that is, if any signal set in
+one is not set in the other.
+.Pp
+The
+.Fn SIGSETOR
+macro ORs the signals set in
+.Fa set2
+into
+.Fa set1 .
+.Pp
+The
+.Fn SIGSETAND
+macro ANDs the signals set in
+.Fa set2
+into
+.Fa set1 .
+.Pp
+The
+.Fn SIGSETNAND
+macro NANDs the signals set in
+.Fa set2
+into
+.Fa set1 .
+.Pp
+The
+.Fn SIG_CANTMASK
+macro clears the
+.Dv SIGKILL
+and
+.Dv SIGSTOP
+signals from
+.Fa set .
+These two signals cannot be blocked or caught and
+.Fn SIG_CANTMASK
+is used in code where signals are manipulated to ensure this policy
+is enforced.
+.Pp
+The
+.Fn SIG_STOPSIGMASK
+macro clears the
+.Dv SIGSTOP ,
+.Dv SIGTSTP ,
+.Dv SIGTTIN ,
+and
+.Dv SIGTTOU
+signals from
+.Fa set .
+.Fn SIG_STOPSIGMASK
+is used to clear stop signals when a process is waiting for a child to
+exit or exec, and when a process is continuing after having been
+suspended.
+.Pp
+The
+.Fn SIG_CONTSIGMASK
+macro clears the
+.Dv SIGCONT
+signal from
+.Fa set .
+.Fn SIG_CONTSIGMASK
+is called when a process is stopped.
+.Pp
+The
+.Fn SIGPENDING
+macro determines if the given process has any pending signals that are
+not masked.
+If the process has a pending signal and the process is currently being
+traced,
+.Fn SIGPENDING
+will return true even if the signal is masked.
+.Pp
+The
+.Fn cursig
+function returns the signal number that should be delivered to process
+.Fa td->td_proc .
+If there are no signals pending, zero is returned.
+.Pp
+The
+.Fn execsigs
+function resets the signal set and signal stack of a process in preparation
+for an
+.Xr execve 2 .
+The process lock for
+.Fa p
+must be held before
+.Fn execsigs
+is called.
+.Pp
+The
+.Fn issignal
+function determines if there are any pending signals for process
+.Fa td->td_proc
+that should be caught, or cause this process to terminate or interrupt its
+current system call.
+If process
+.Fa td->td_proc
+is currently being traced, ignored signals will be handled and the process
+is always stopped.
+Stop signals are handled and cleared right away by
+.Fn issignal
+unless the process is a member of an orphaned process group and the stop
+signal originated from a TTY.
+The process spin lock for
+.Fa td->td_proc
+may be acquired and released.
+The
+.Vt sigacts
+structure
+.Fa td->td_proc->p_sigacts
+must be locked before calling
+.Fn issignal
+and may be released and reacquired during the call.
+The process lock for
+.Fa td->td_proc
+must be acquired before calling
+.Fn issignal
+and may be released and reacquired during the call.
+Default signal actions are not taken for system processes and init.
+.Pp
+The
+.Fn killproc
+function delivers
+.Dv SIGKILL
+to
+.Fa p .
+.Fa why
+is logged as the reason
+.Em why
+the process was killed.
+.Pp
+The
+.Fn pgsigio
+function sends the signal
+.Fa sig
+to the process or process group
+.Fa sigiop->sio_pgid .
+If
+.Fa checkctty
+is non-zero, the signal is only delivered to processes in the process group
+that have a controlling terminal.
+If
+.Fa sigiop->sio_pgid
+is for a process (> 0), the lock for
+.Fa sigiop->sio_proc
+is acquired and released.
+If
+.Fa sigiop->sio_pgid
+is for a process group (< 0), the process group lock for
+.Fa sigiop->sio_pgrp
+is acquired and released.
+The lock
+.Va sigio_lock
+is acquired and released.
+.Pp
+The
+.Fn postsig
+function handles the actual delivery of the signal
+.Fa sig .
+.Fn postsig
+is called from
+.Fn ast
+after the kernel has been notified that a signal should be delivered
+(via a call to
+.Fn signotify ,
+which causes the flag
+.Dv PS_NEEDSIGCHK
+to be set).
+The process lock for process that owns
+.Va curthread
+must be held before
+.Fn postsig
+is called, and the current process cannot be 0.
+The lock for the
+.Va p_sigacts
+field of the current process must be held before
+.Fn postsig
+is called, and may be released and reacquired.
+.Pp
+The
+.Fn sigexit
+function causes the process that owns
+.Fa td
+to exit with a return value of signal number
+.Fa sig .
+If required, the process will dump core.
+The process lock for the process that owns
+.Fa td
+must be held before
+.Fn sigexit
+is called.
+.Pp
+The
+.Fn siginit
+function is called during system initialization to cause every signal with
+a default property of
+.Dv SA_IGNORE
+(except
+.Dv SIGCONT )
+to be ignored by
+.Fa p .
+The process lock for
+.Fa p
+is acquired and released, as is the lock for sigacts structure
+.Fa p->p_sigacts .
+The only process that
+.Fn siginit
+is ever called for
+is
+.Va proc0 .
+.Pp
+The
+.Fn signotify
+function flags that there are unmasked signals pending that
+.Fn ast
+should handle.
+The process lock for process
+.Fa td->td_proc
+must be held before
+.Fn signotify
+is called, and the thread lock is acquired and released.
+.Pp
+The
+.Fn trapsignal
+function sends a signal that is the result of a trap to process
+.Fa td->td_proc .
+If the process is not being traced and the signal can be delivered
+immediately,
+.Fn trapsignal
+will deliver it directly; otherwise,
+.Fn trapsignal
+will call
+.Xr psignal 9
+to cause the signal to be delivered.
+The process lock for
+.Fa td->td_proc
+is acquired and released.
+The lock for the
+.Va p_sigacts
+field of
+.Fa td->td_proc
+is acquired and released.
+.Sh RETURN VALUES
+The
+.Fn SIGISMEMBER ,
+.Fn SIGISEMPTY ,
+.Fn SIGNOTEMPTY ,
+.Fn SIGSETEQ ,
+.Fn SIGSETNEQ ,
+and
+.Fn SIGPENDING
+macros all return non-zero (true) if the condition they are checking
+is found to be true; otherwise, zero (false) is returned.
+.Pp
+The
+.Fn cursig
+function returns either a valid signal number or zero.
+.Pp
+.Fn issignal
+returns either a valid signal number or zero.
+.Sh SEE ALSO
+.Xr gsignal 9 ,
+.Xr pgsignal 9 ,
+.Xr psignal 9
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@FreeBSD.org .

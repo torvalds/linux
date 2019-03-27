@@ -1,0 +1,229 @@
+.\" Copyright (c) 2010 Semihalf
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 10, 2010
+.Dt NANDSIM 8
+.Os
+.Sh NAME
+.Nm nandsim
+.Nd NAND simulator control program
+.Sh SYNOPSIS
+.Nm
+.Ic status
+.Aq ctrl_no | Fl -all  | Fl a
+.Op Fl v
+.Nm
+.Ic conf
+.Aq filename
+.Nm
+.Ic start
+.Aq ctrl_no
+.Nm
+.Ic mod
+.Aq ctrl_no:cs_no | Fl l Aq loglevel
+.Op Fl p Aq prog_time
+.Op Fl e Aq erase_time
+.Op Fl r Aq read_time
+.Op Fl E Aq error_ratio
+.Op Fl h
+.Nm
+.Ic stop
+.Aq ctrl_no
+.Nm
+.Ic error
+.Aq ctrl_no:cs_no
+.Aq page_num
+.Aq column
+.Aq length
+.Aq pattern
+.Nm
+.Ic bb
+.Aq ctrl_no:cs_no
+.Op blk_num,blk_num2,...
+.Op Fl U
+.Op Fl L
+.Nm
+.Ic freeze
+.Op ctrl_no
+.Nm
+.Ic log
+.Aq ctrl_no | Fl -all  | Fl a
+.Nm
+.Ic stats
+.Aq ctrl_no:cs_no
+.Aq page_num
+.Nm
+.Ic dump
+.Aq ctrl_no:cs_no
+.Aq filename
+.Nm
+.Ic restore
+.Aq ctrl_no:chip_no
+.Aq filename
+.Nm
+.Ic destroy
+.Aq ctrl_no[:cs_no] | Fl -all | Fl a
+.Nm
+.Ic help
+.Op Fl v
+.Sh COMMAND DESCRIPTION
+Controllers and chips are arranged into a simple hierarchy.
+There can be up to 4 controllers configured, each with 4 chip select (CS) lines.
+A given chip is connected to one of the chip selects.
+.Pp
+Controllers are specified as
+.Aq ctrl_no ;
+chip selects are specified as
+.Aq cs_no .
+.Bl -tag -width periphlist
+.It Ic status
+Gets controller(s) status. If
+.Fl a
+or
+.Fl -all
+flag is specified - command will print status of every controller
+currently available.
+Optional flag
+.Fl v
+causes printing complete information about the controller, and all
+chips attached to it.
+.It Ic conf
+Reads simulator configuration from a specified file (this includes
+the simulation "layout" i.e. controllers-chips assignments).
+Configuration changes for an already started simulation require a
+full stop-start cycle in order to take effect i.e.:
+.Bl -column
+.It nandsim stop ...
+.It nandsim destroy ...
+.Pp
+.It << edit config file >>
+.Pp
+.It nandsim conf ...
+.It nandsim start ...
+.El
+.It Ic mod
+Alters simulator parameters on-the-fly.
+If controller number and CS pair is not specified, the general
+simulator parameters (not specific to a controller or a chip) will be modified.
+Changing chip's parameters requires specifying both controller number and CS
+to which the given chip is connected.
+Parameters which can be altered:
+.Pp
+General simulator related:
+.Bl -tag -width flag
+.It Fl l Aq log_level
+change logging level to
+.Aq log_level
+.El
+.Pp
+Chip related:
+.Bl -tag -width flag
+.It Fl p Aq prog_time
+change prog time for specified chip to
+.Aq prog_time
+.It Fl e Aq erase_time
+change erase time for specified chip to
+.Aq erase_time
+.It Fl r Aq read_time
+change read time for specified chip to
+.Aq read_time
+.It Fl E Aq error_ratio
+change error ratio for specified chip to
+.Aq error_ratio .
+Error ratio is a number of errors per million read/write bytes.
+.El
+.Pp
+Additionally, flag
+.Fl h
+will list parameters which can be altered.
+.El
+.Bl -tag -width periphlist
+.It Ic bb
+Marks/unmarks a specified block as bad.
+To mark/unmark the bad condition an a block, the following parameters
+have to be supplied: controller number, CS number, and at least one
+block number.
+It is possible to specify multiple blocks, by separating blocks numbers
+with a comma.
+The following options can be used for the 'bb' command:
+.Bl -tag -width flag
+.It Fl U
+unmark the bad previously marked block as bad.
+.It Fl L
+list all blocks marked as bad on a given chip.
+.El
+.It Ic log
+Prints activity log of the specified controller to stdout; if
+controller number is not specified, logs for all available
+controllers are printed.
+.It Ic stats
+Print statistics of the selected controller, chip and page.
+Statistics includes read count, write count, raw read count, raw
+write count, ECC stats (succeeded corrections, failed correction).
+.It Ic dump
+Dumps a snaphot of a single chip (including data and bad blocks
+information, wearout level) into the file.
+.It Ic restore
+Restores chip state from a dump-file snapshot (produced previously
+with the 'dump' command).
+.It Ic start
+Starts a controller i.e. the simulation.
+.It Ic stop
+Stops an already started controller; if the controller number is not
+supplied, attempts to stop all currently working controllers.
+.It Ic destroy
+Removes existing active chip/controller and its configuration from
+memory and releases the resources.
+Specifying flag
+.Fl a
+or
+.Fl -all
+causes removal of every chip and controller.
+Controller must be stopped in order to be destroyed.
+.It Ic error
+Directly overwrites a certain number of bytes in the specified page
+at a given offset with a supplied pattern (which mimics the
+corruption of flash contents).
+.It Ic help
+Prints synopsis,
+.Fl v
+gives more verbose output.
+.It Ic freeze
+Stops simulation of given controller (simulates power-loss).
+All commands issues to any chip on this controller are ignored.
+.El
+.Sh SEE ALSO
+.Xr nand 4 ,
+.Xr nandsim 4 ,
+.Xr nandsim.conf 5
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+This utility was written by
+.An Lukasz Wojcik .

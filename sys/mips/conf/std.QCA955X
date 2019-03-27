@@ -1,0 +1,77 @@
+#
+# QCA955X_BASE -- Kernel configuration base file for the Qualcomm Atheros
+# QCA955x SoC.
+#
+# This file (and the hints file accompanying it) are not designed to be
+# used by themselves. Instead, users of this file should create a kernel
+# config file which includes this file (which gets the basic hints), then
+# override the default options (adding devices as needed) and adding
+# hints as needed (for example, the GPIO and LAN PHY.)
+#
+# $FreeBSD$
+#
+
+machine         mips mips
+#ident		std.QCA955X
+cpu		CPU_MIPS74K
+makeoptions	KERNLOADADDR=0x80050000
+options 	HZ=1000
+
+files		"../atheros/files.ar71xx"
+hints		"QCA955X_BASE.hints"
+
+options 	DDB
+options 	KDB
+options 	ALQ
+
+options 	SCHED_4BSD		#4BSD scheduler
+options 	INET			#InterNETworking
+#options 	INET6			#InterNETworking
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+#options 	NFSCL			#Network Filesystem Client
+options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+
+# PMC - fow now there's no hwpmc module for mips74k
+options 	HWPMC_HOOKS
+
+# options 	NFS_LEGACYRPC
+# Debugging for use in -current
+#options 	INVARIANTS
+#options 	INVARIANT_SUPPORT
+#options 	WITNESS
+#options 	WITNESS_SKIPSPIN
+options 	FFS                     #Berkeley Fast Filesystem
+#options 	SOFTUPDATES             #Enable FFS soft updates support
+#options 	UFS_ACL                 #Support for access control lists
+#options 	UFS_DIRHASH             #Improve performance on big directories
+options 	NO_FFS_SNAPSHOT		# We don't require snapshot support
+
+include 	"std.AR_MIPS_BASE"
+makeoptions 	MODULES_OVERRIDE+="hwpmc_mips74k"
+
+# EEPROM caldata for AHB connected device
+options 	AR71XX_ATH_EEPROM
+device 		ar71xx_caldata
+device 		firmware
+
+# Support QCA955x in the HAL
+option		AH_SUPPORT_QCA9550	# Chipset support
+
+# Support EEPROM caldata in AHB devices
+options 	ATH_EEPROM_FIRMWARE
+
+device		uart_ar71xx
+
+device		ar71xx_apb
+# Until some better interrupt handling is shoehorned into qca955x_apb,
+# we'll have to stick to shared interrupts for IP2/IP3 demux.
+# device		qca955x_apb
+
+device 		usb
+device 		ehci
+
+device  	scbus
+device  	umass
+device  	da
+

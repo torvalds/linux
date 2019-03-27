@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=fi.w1.wpa_supplicant1
+Exec=@BINDIR@/wpa_supplicant -u
+User=root
+SystemdService=wpa_supplicant.service

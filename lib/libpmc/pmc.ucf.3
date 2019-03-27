@@ -1,0 +1,113 @@
+.\" Copyright (c) 2010 Fabien Thomas.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 30, 2010
+.Dt PMC.UCF 3
+.Os
+.Sh NAME
+.Nm pmc.ucf
+.Nd measurement events for
+.Tn Intel
+uncore fixed function performance counters.
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+Each fixed-function PMC measures a specific hardware event.
+The number of fixed-function PMCs implemented in a CPU can vary.
+The number of fixed-function PMCs present can be determined at runtime
+by using function
+.Xr pmc_cpuinfo 3 .
+.Pp
+Intel uncore fixed-function PMCs are documented in
+.Rs
+.%B "Intel(R) 64 and IA-32 Architectures Software Developes Manual"
+.%T "Volume 3B: System Programming Guide, Part 2"
+.%N "Order Number: 253669-033US"
+.%D December 2009
+.%Q "Intel Corporation"
+.Re
+.Pp
+.Ss PMC Capabilities
+Fixed-function PMCs support the following capabilities:
+.Bl -column "PMC_CAP_INTERRUPT" "Support"
+.It Em Capability Ta Em Support
+.It PMC_CAP_CASCADE Ta \&No
+.It PMC_CAP_EDGE Ta \&No
+.It PMC_CAP_INTERRUPT Ta \&No
+.It PMC_CAP_INVERT Ta \&No
+.It PMC_CAP_READ Ta Yes
+.It PMC_CAP_PRECISE Ta \&No
+.It PMC_CAP_SYSTEM Ta \&No
+.It PMC_CAP_TAGGING Ta \&No
+.It PMC_CAP_THRESHOLD Ta \&No
+.It PMC_CAP_USER Ta \&No
+.It PMC_CAP_WRITE Ta Yes
+.El
+.Ss Class Name Prefix
+These PMCs are named using a class name prefix of
+.Dq Li ucf- .
+.Ss Event Specifiers (Fixed Function PMCs)
+The fixed function PMCs are selectable using the following
+event names:
+.Bl -tag -width indent
+.It Li UCLOCK
+.Pq Fixed Function Counter 0
+The fixed-function uncore counter increments at the rate of the U-clock.
+The frequency of the uncore clock domain can be determined from the uncore
+clock ratio which is available in the PCI configuration space register at
+offset C0H under device number 0 and Function 0.
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.core2 3 ,
+.Xr pmc.corei7 3 ,
+.Xr pmc.corei7uc 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.k7 3 ,
+.Xr pmc.k8 3 ,
+.Xr pmc.p4 3 ,
+.Xr pmc.p5 3 ,
+.Xr pmc.p6 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmc.westmere 3 ,
+.Xr pmc.westmereuc 3 ,
+.Xr pmc_cpuinfo 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .

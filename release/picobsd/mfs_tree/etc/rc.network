@@ -1,0 +1,83 @@
+#!/bin/sh -
+# $FreeBSD$
+
+network_pass1() {
+    echo -n 'Doing initial network setup:'
+    # Set the host name if it is not already set
+    if [ -z "`hostname -s`" ] ; then
+	hostname $hostname
+	echo ' hostname'
+    fi
+    # Set up all the network interfaces, calling startup scripts if needed
+    for ifn in ${network_interfaces}; do
+	[ -e /etc/start_if.${ifn} ] && . /etc/start_if.${ifn}
+	# Do the primary ifconfig if specified
+	eval ifconfig_args=\$ifconfig_${ifn}
+	[ -n "${ifconfig_args}" ] && ifconfig ${ifn} ${ifconfig_args}
+	# Check to see if aliases need to be added
+	alias=0
+	while :
+	do
+	    eval ifconfig_args=\$ifconfig_${ifn}_alias${alias}
+	    if [ -n "${ifconfig_args}" ]; then
+		ifconfig ${ifn} ${ifconfig_args} alias
+		alias=$((${alias} + 1))
+	    else
+		break;
+	    fi
+	done
+	ifconfig ${ifn}
+    done
+    # Load the filters if required
+    if [ -f /etc/rc.firewall -a "${firewall_enable}" = "YES" ] ; then
+	# Set quiet mode if requested
+	if [ "${firewall_quiet}" = "YES" ]; then
+	    fwcmd="/sbin/ipfw -q"
+	else
+	    fwcmd="/sbin/ipfw"
+	fi
+	$fwcmd -f flush	# Flush out the list before we begin.
+
+	. /etc/rc.firewall
+	echo "Firewall rules loaded."
+    else
+	echo "Warning: kernel has firewall functionality, but firewall rules weren't loaded."
+	echo "         All ip services are ENABLED by default."
+    fi
+    # Configure routing
+    if [ "x$defaultrouter" != "xNO" ] ; then
+	static_routes="default ${static_routes}"
+	route_default="default ${defaultrouter}"
+    fi
+    # Set up any static routes.  This should be done before router discovery.
+    if [ "x${static_routes}" != "x" ]; then
+	for i in ${static_routes}; do
+	    eval route_args=\$route_${i}
+	    route add ${route_args}
+	done
+    fi
+    echo -n 'Additional routing options:'
+    if [ -n "$tcp_extensions" -a "x$tcp_extensions" != "xYES" ] ; then
+	echo -n ' tcp_extensions=NO'
+	sysctl net.inet.tcp.rfc1323=0 >/dev/null 2>&1
+	sysctl net.inet.tcp.rfc1644=0 >/dev/null 2>&1
+    fi
+    if [ "X$gateway_enable" = X"YES" ]; then
+	echo -n ' IP_gateway=YES'
+	sysctl net.inet.ip.forwarding=1 >/dev/null 2>&1
+    fi
+    if [ "X$arpproxy_all" = X"YES" ]; then
+	echo -n ' turning on ARP_PROXY_ALL: '
+	sysctl net.link.ether.inet.proxyall=1 2>&1
+    fi
+    echo '.'
+    network_pass1_done=YES	# Let future generations know we made it.
+}
+
+network_pass2() {
+    network_pass2_done=YES
+}
+
+network_pass3() {
+    network_pass3_done=YES
+}

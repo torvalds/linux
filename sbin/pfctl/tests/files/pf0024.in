@@ -1,0 +1,8 @@
+#test variable concat
+a="ssh"
+b="ftp"
+c=$a $b
+d=$a $b $a $b
+e=$a $b $b "test" $a $b
+
+pass in proto tcp from any to any port { $c }

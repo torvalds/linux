@@ -1,8 +1,0 @@
-jvmti-y += libjvmti.o
-jvmti-y += jvmti_agent.o
-
-CFLAGS_jvmti         = -fPIC -DPIC -I$(JDIR)/include -I$(JDIR)/include/linux
-CFLAGS_REMOVE_jvmti  = -Wmissing-declarations
-CFLAGS_REMOVE_jvmti += -Wstrict-prototypes
-CFLAGS_REMOVE_jvmti += -Wextra
-CFLAGS_REMOVE_jvmti += -Wwrite-strings

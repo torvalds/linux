@@ -1,0 +1,61 @@
+=pod
+
+=head1 NAME
+
+BN_num_bits, BN_num_bytes, BN_num_bits_word - get BIGNUM size
+
+=head1 SYNOPSIS
+
+ #include <openssl/bn.h>
+
+ int BN_num_bytes(const BIGNUM *a);
+
+ int BN_num_bits(const BIGNUM *a);
+
+ int BN_num_bits_word(BN_ULONG w);
+
+=head1 DESCRIPTION
+
+BN_num_bytes() returns the size of a B<BIGNUM> in bytes.
+
+BN_num_bits_word() returns the number of significant bits in a word.
+If we take 0x00000432 as an example, it returns 11, not 16, not 32.
+Basically, except for a zero, it returns I<floor(log2(w))+1>.
+
+BN_num_bits() returns the number of significant bits in a B<BIGNUM>,
+following the same principle as BN_num_bits_word().
+
+BN_num_bytes() is a macro.
+
+=head1 RETURN VALUES
+
+The size.
+
+=head1 NOTES
+
+Some have tried using BN_num_bits() on individual numbers in RSA keys,
+DH keys and DSA keys, and found that they don't always come up with
+the number of bits they expected (something like 512, 1024, 2048,
+...).  This is because generating a number with some specific number
+of bits doesn't always set the highest bits, thereby making the number
+of I<significant> bits a little lower.  If you want to know the "key
+size" of such a key, either use functions like RSA_size(), DH_size()
+and DSA_size(), or use BN_num_bytes() and multiply with 8 (although
+there's no real guarantee that will match the "key size", just a lot
+more probability).
+
+=head1 SEE ALSO
+
+L<DH_size(3)>, L<DSA_size(3)>,
+L<RSA_size(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

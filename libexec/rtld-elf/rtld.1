@@ -1,0 +1,375 @@
+.\" Copyright (c) 1995 Paul Kranenburg
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"      This product includes software developed by Paul Kranenburg.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 20, 2017
+.Dt RTLD 1
+.Os
+.Sh NAME
+.Nm ld-elf.so.1 ,
+.Nm ld.so ,
+.Nm rtld
+.Nd run-time link-editor
+.Sh DESCRIPTION
+The
+.Nm
+utility is a self-contained shared object providing run-time
+support for loading and link-editing shared objects into a process'
+address space.
+It is also commonly known as the dynamic linker.
+It uses the data structures
+contained within dynamically linked programs to determine which shared
+libraries are needed and loads them using the
+.Xr mmap 2
+system call.
+.Pp
+After all shared libraries have been successfully loaded,
+.Nm
+proceeds to resolve external references from both the main program and
+all objects loaded.
+A mechanism is provided for initialization routines
+to be called on a per-object basis, giving a shared object an opportunity
+to perform any extra set-up before execution of the program proper begins.
+This is useful for C++ libraries that contain static constructors.
+.Pp
+When resolving dependencies for the loaded objects,
+.Nm
+translates dynamic token strings in rpath and soname.
+If the
+.Fl "z origin"
+option of the static linker was set when linking the binary,
+the token expansion is performed at the object load time, see
+.Xr ld 1 .
+The following strings are recognized now:
+.Bl -tag -width ".Pa $PLATFORM"
+.It Pa $ORIGIN
+Translated to the full path of the loaded object.
+.It Pa $OSNAME
+Translated to the name of the operating system implementation.
+.It Pa $OSREL
+Translated to the release level of the operating system.
+.It Pa $PLATFORM
+Translated to the machine hardware platform.
+.El
+.Pp
+The
+.Nm
+utility itself is loaded by the kernel together with any dynamically-linked
+program that is to be executed.
+The kernel transfers control to the
+dynamic linker.
+After the dynamic linker has finished loading,
+relocating, and initializing the program and its required shared
+objects, it transfers control to the entry point of the program.
+The following search order is used to locate required shared objects:
+.Pp
+.Bl -enum -offset indent -compact
+.It
+.Dv DT_RPATH
+of the referencing object unless that object also contains a
+.Dv DT_RUNPATH
+tag
+.It
+.Dv DT_RPATH
+of the program unless the referencing object contains a
+.Dv DT_RUNPATH
+tag
+.It
+Path indicated by
+.Ev LD_LIBRARY_PATH
+environment variable
+.It
+.Dv DT_RUNPATH
+of the referencing object
+.It
+Hints file produced by the
+.Xr ldconfig 8
+utility
+.It
+The
+.Pa /lib
+and
+.Pa /usr/lib
+directories, unless the referencing object was linked using the
+.Dq Fl z Ar nodefaultlib
+option
+.El
+.Pp
+The
+.Nm
+utility
+recognizes a number of environment variables that can be used to modify
+its behaviour.
+On 64-bit architectures, the linker for 32-bit objects recognizes
+all the environment variables listed below, but is being prefixed with
+.Ev LD_32_ ,
+for example:
+.Ev LD_32_TRACE_LOADED_OBJECTS .
+.Bl -tag -width ".Ev LD_LIBMAP_DISABLE"
+.It Ev LD_DUMP_REL_POST
+If set,
+.Nm
+will print a table containing all relocations after symbol
+binding and relocation.
+.It Ev LD_DUMP_REL_PRE
+If set,
+.Nm
+will print a table containing all relocations before symbol
+binding and relocation.
+.It Ev LD_LIBMAP
+A library replacement list in the same format as
+.Xr libmap.conf 5 .
+For convenience, the characters
+.Ql =
+and
+.Ql \&,
+can be used instead of a space and a newline.
+This variable is parsed after
+.Xr libmap.conf 5 ,
+and will override its entries.
+This variable is unset for set-user-ID and set-group-ID programs.
+.It Ev LD_LIBMAP_DISABLE
+If set, disables the use of
+.Xr libmap.conf 5
+and
+.Ev LD_LIBMAP .
+This variable is unset for set-user-ID and set-group-ID programs.
+.It Ev LD_ELF_HINTS_PATH
+This variable will override the default location of
+.Dq hints
+file.
+This variable is unset for set-user-ID and set-group-ID programs.
+.It Ev LD_LIBRARY_PATH
+A colon separated list of directories, overriding the default search path
+for shared libraries.
+This variable is unset for set-user-ID and set-group-ID programs.
+.It Ev LD_LIBRARY_PATH_RPATH
+If the variable is specified and has a value starting with
+any of \'y\', \'Y\' or \'1\' symbols, the path specified by
+.Ev LD_LIBRARY_PATH
+variable is allowed to override the path from
+.Dv DT_RPATH
+for binaries which does not contain
+.Dv DT_RUNPATH
+tag.
+For such binaries, when the variable
+.Ev LD_LIBRARY_PATH_RPATH
+is set,
+.Dq Fl z Ar nodefaultlib
+link-time option is ignored as well.
+.It Ev LD_PRELOAD
+A list of shared libraries, separated by colons and/or white space,
+to be linked in before any
+other shared libraries.
+If the directory is not specified then
+the directories specified by
+.Ev LD_LIBRARY_PATH
+will be searched first
+followed by the set of built-in standard directories.
+This variable is unset for set-user-ID and set-group-ID programs.
+.It Ev LD_LIBRARY_PATH_FDS
+A colon separated list of file descriptor numbers for library directories.
+This is intended for use within
+.Xr capsicum 4
+sandboxes, when global namespaces such as the filesystem are unavailable.
+It is consulted just after LD_LIBRARY_PATH.
+This variable is unset for set-user-ID and set-group-ID programs.
+.It Ev LD_BIND_NOT
+When set to a nonempty string, prevents modifications of the PLT slots when
+doing bindings.
+As result, each call of the PLT-resolved function is resolved.
+In combination with debug output, this provides complete account of
+all bind actions at runtime.
+This variable is unset for set-user-ID and set-group-ID programs.
+.It Ev LD_BIND_NOW
+When set to a nonempty string, causes
+.Nm
+to relocate all external function calls before starting execution of the
+program.
+Normally, function calls are bound lazily, at the first call
+of each function.
+.Ev LD_BIND_NOW
+increases the start-up time of a program, but it avoids run-time
+surprises caused by unexpectedly undefined functions.
+.It Ev LD_TRACE_LOADED_OBJECTS
+When set to a nonempty string, causes
+.Nm
+to exit after loading the shared objects and printing a summary which includes
+the absolute pathnames of all objects, to standard output.
+.It Ev LD_TRACE_LOADED_OBJECTS_ALL
+When set to a nonempty string, causes
+.Nm
+to expand the summary to indicate which objects caused each object to
+be loaded.
+.It Ev LD_TRACE_LOADED_OBJECTS_FMT1
+.It Ev LD_TRACE_LOADED_OBJECTS_FMT2
+When set, these variables are interpreted as format strings a la
+.Xr printf 3
+to customize the trace output and are used by
+.Xr ldd 1 Ns 's
+.Fl f
+option and allows
+.Xr ldd 1
+to be operated as a filter more conveniently.
+If the dependency name starts with string
+.Pa lib ,
+.Ev LD_TRACE_LOADED_OBJECTS_FMT1
+is used, otherwise
+.Ev LD_TRACE_LOADED_OBJECTS_FMT2
+is used.
+The following conversions can be used:
+.Bl -tag -width 4n
+.It Li %a
+The main program's name
+(also known as
+.Dq __progname ) .
+.It Li \&%A
+The value of the environment variable
+.Ev LD_TRACE_LOADED_OBJECTS_PROGNAME .
+Typically used to print both the names of programs and shared libraries
+being inspected using
+.Xr ldd 1 .
+.It Li %o
+The library name.
+.It Li %p
+The full pathname as determined by
+.Nm rtld Ns 's
+library search rules.
+.It Li %x
+The library's load address.
+.El
+.Pp
+Additionally,
+.Ql \en
+and
+.Ql \et
+are recognized and have their usual meaning.
+.It Ev LD_UTRACE
+If set,
+.Nm
+will log events such as the loading and unloading of shared objects via
+.Xr utrace 2 .
+.It Ev LD_LOADFLTR
+If set,
+.Nm
+will process the filtee dependencies of the loaded objects immediately,
+instead of postponing it until required.
+Normally, the filtees are opened at the time of the first symbol resolution
+from the filter object.
+.El
+.Sh DIRECT EXECUTION MODE
+.Nm
+is typically used implicitly, loaded by the kernel as requested by the
+.Dv PT_INTERP
+program header of the executed binary.
+.Fx
+also supports a direct execution mode for the dynamic linker.
+In this mode, the user explicitly executes
+.Nm
+and provides the path of the program to be linked and executed as
+an argument.
+This mode allows use of a non-standard dynamic linker for a program
+activation without changing the binary or without changing
+the installed dynamic linker.
+Execution options may be specified.
+.Pp
+The syntax of the direct invocation is
+.Bd -ragged -offset indent
+.Pa /libexec/ld-elf.so.1
+.Op Fl f Ar fd
+.Op Fl p
+.Op Fl -
+.Pa image_path
+.Op Ar image arguments
+.Ed
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl f Ar fd
+File descriptor
+.Ar fd
+references the binary to be activated by
+.Nm .
+It must already be opened in the process when executing
+.Nm .
+If this option is specified,
+.Ar image_path
+is only used to provide the
+.Va argv[0]
+value to the program.
+.It Fl p
+If the
+.Pa image_path
+argument specifies a name which does not contain a slash
+.Dq Li /
+character,
+.Nm
+uses the search path provided by the environment variable
+.Dv PATH
+to find the binary to execute.
+.It Fl -
+Ends the
+.Nm
+options.
+The argument following
+.Fl -
+is interpreted as the path of the binary to execute.
+.El
+.Pp
+In the direct execution mode,
+.Nm
+emulates verification of the binary execute permission for the
+current user.
+This is done to avoid breaking user expectations in naively restricted 
+execution environments.
+The verification only uses Unix
+.Dv DACs ,
+ignores
+.Dv ACLs ,
+and is naturally prone to race conditions.
+Environments which rely on such restrictions are weak
+and breakable on their own.
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/ld-elf32.so.hints" -compact
+.It Pa /var/run/ld-elf.so.hints
+Hints file.
+.It Pa /var/run/ld-elf32.so.hints
+Hints file for 32-bit binaries on 64-bit system.
+.It Pa /etc/libmap.conf
+The libmap configuration file.
+.It Pa /etc/libmap32.conf
+The libmap configuration file for 32-bit binaries on 64-bit system.
+.El
+.Sh SEE ALSO
+.Xr ld 1 ,
+.Xr ldd 1 ,
+.Xr capsicum 4 ,
+.Xr elf 5 ,
+.Xr libmap.conf 5 ,
+.Xr ldconfig 8

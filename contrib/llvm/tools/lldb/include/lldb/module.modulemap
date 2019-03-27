@@ -1,0 +1,139 @@
+
+module lldb_API {
+  requires cplusplus
+
+  umbrella "API"
+  module * { export * }
+}
+
+module lldb_Host {
+  requires cplusplus
+
+  // Because we have OS-specific headers in Host, we just list
+  // all OS-independent headers here that will include the correct
+  // OS-specific header for us.
+  module ConnectionFileDescriptor { header "Host/ConnectionFileDescriptor.h" export * }
+  module Debug { header "Host/Debug.h" export * }
+  module Editline { header "Host/Editline.h" export * }
+  module FileCache { header "Host/FileCache.h" export * }
+  module File { header "Host/File.h" export * }
+  module FileSystem { header "Host/FileSystem.h" export * }
+  module HostGetOpt { header "Host/HostGetOpt.h" export * }
+  module Host { header "Host/Host.h" export * }
+  module HostInfoBase { header "Host/HostInfoBase.h" export * }
+  module HostInfo { header "Host/HostInfo.h" export * }
+  module HostNativeProcessBase { header "Host/HostNativeProcessBase.h" export * }
+  module HostNativeProcess { header "Host/HostNativeProcess.h" export * }
+  module HostNativeThreadBase { header "Host/HostNativeThreadBase.h" export * }
+  module HostNativeThreadForward { header "Host/HostNativeThreadForward.h" export * }
+  module HostNativeThread { header "Host/HostNativeThread.h" export * }
+  module HostProcess { header "Host/HostProcess.h" export * }
+  module HostThread { header "Host/HostThread.h" export * }
+  module LockFileBase { header "Host/LockFileBase.h" export * }
+  module LockFile { header "Host/LockFile.h" export * }
+  module MainLoopBase { header "Host/MainLoopBase.h" export * }
+  module MainLoop { header "Host/MainLoop.h" export * }
+  module MonitoringProcessLauncher { header "Host/MonitoringProcessLauncher.h" export * }
+  module OptionParser { header "Host/OptionParser.h" export * }
+  module PipeBase { header "Host/PipeBase.h" export * }
+  module Pipe { header "Host/Pipe.h" export * }
+  module PosixApi { header "Host/PosixApi.h" export * }
+  module ProcessLauncher { header "Host/ProcessLauncher.h" export * }
+  module ProcessRunLock { header "Host/ProcessRunLock.h" export * }
+  module PseudoTerminal { header "Host/PseudoTerminal.h" export * }
+  module SafeMachO { header "Host/SafeMachO.h" export * }
+  module SocketAddress { header "Host/SocketAddress.h" export * }
+  module Socket { header "Host/Socket.h" export * }
+  module StringConvert { header "Host/StringConvert.h" export * }
+  module Symbols { header "Host/Symbols.h" export * }
+  module TaskPool { header "Host/TaskPool.h" export * }
+  module Terminal { header "Host/Terminal.h" export * }
+  module ThreadLauncher { header "Host/ThreadLauncher.h" export * }
+  module Time { header "Host/Time.h" export * }
+  module XML { header "Host/XML.h" export * }
+
+  export *
+}
+
+module lldb_Initialization {
+  requires cplusplus
+
+  umbrella "Initialization"
+  module * { export * }
+}
+
+
+module lldb_Wrapper {
+
+  module lldb_Breakpoint {
+    requires cplusplus
+
+    umbrella "Breakpoint"
+    module * { export * }
+  }
+
+  module lldb_Core {
+    requires cplusplus
+
+    umbrella "Core"
+    module * { export * }
+  }
+
+  module lldb_DataFormatters {
+    requires cplusplus
+
+    umbrella "DataFormatters"
+    module * { export * }
+  }
+
+  module lldb_Expression {
+    requires cplusplus
+
+    umbrella "Expression"
+    module * { export * }
+    // TODO: This file includes a non-public header.
+    exclude header "Expression/REPL.h"
+  }
+
+  module lldb_Interpreter {
+    requires cplusplus
+
+    umbrella "Interpreter"
+    module * { export * }
+  }
+
+  module lldb_Symbol {
+    requires cplusplus
+
+    umbrella "Symbol"
+    module * { export * }
+  }
+  module lldb_Target {
+    requires cplusplus
+
+    umbrella "Target"
+    module * { export * }
+  }
+}
+
+
+module lldb_Utility {
+  requires cplusplus
+
+  umbrella "Utility"
+  module * { export * }
+
+  module lldb_defines { header "lldb-defines.h" export * }
+  module lldb_enumerations { header "lldb-enumerations.h" export * }
+  module lldb_forward { header "lldb-forward.h" export * }
+  module lldb_private_enumerations { header "lldb-private-enumerations.h" export * }
+  module lldb_private_defines { header "lldb-private-defines.h" export * }
+  module lldb_private_forward { header "lldb-private-forward.h" export * }
+  module lldb_private { header "lldb-private.h" export * }
+  module lldb_private_interfaces { header "lldb-private-interfaces.h" export * }
+  module lldb_private_types { header "lldb-private-types.h" export * }
+  module lldb_public { header "lldb-public.h" export * }
+  module lldb_types { header "lldb-types.h" export * }
+  module lldb_versioning { header "lldb-versioning.h" export * }
+
+}

@@ -1,0 +1,677 @@
+#!/bin/sh
+#
+# Fake Root Solaris/SVR4/SVR5 Build System - Prototype
+#
+# The following code has been provide under Public Domain License.  I really
+# don't care what you use it for.  Just as long as you don't complain to me
+# nor my employer if you break it. - Ben Lindstrom (mouring@eviladmin.org)
+#
+umask 022
+#
+# Options for building the package
+# You can create a openssh-config.local with your customized options
+#
+REMOVE_FAKE_ROOT_WHEN_DONE=yes
+#
+# uncommenting TEST_DIR and using
+# configure --prefix=/var/tmp --with-privsep-path=/var/tmp/empty
+# and
+# PKGNAME=tOpenSSH should allow testing a package without interfering
+# with a real OpenSSH package on a system. This is not needed on systems
+# that support the -R option to pkgadd.
+#TEST_DIR=/var/tmp	# leave commented out for production build
+PKGNAME=OpenSSH
+# revisions within the same version (REV=a)
+#REV=
+SYSVINIT_NAME=opensshd
+AWK=${AWK:="nawk"}
+MAKE=${MAKE:="make"}
+SSHDUID=67	# Default privsep uid
+SSHDGID=67	# Default privsep gid
+# uncomment these next three as needed
+#PERMIT_ROOT_LOGIN=no
+#X11_FORWARDING=yes
+#USR_LOCAL_IS_SYMLINK=yes
+# System V init run levels
+SYSVINITSTART=S98
+SYSVINITSTOPT=K30
+# We will source these if they exist
+POST_MAKE_INSTALL_FIXES=./pkg-post-make-install-fixes.sh
+POST_PROTOTYPE_EDITS=./pkg-post-prototype-edit.sh
+# We'll be one level deeper looking for these
+PKG_PREINSTALL_LOCAL=../pkg-preinstall.local
+PKG_POSTINSTALL_LOCAL=../pkg-postinstall.local
+PKG_PREREMOVE_LOCAL=../pkg-preremove.local
+PKG_POSTREMOVE_LOCAL=../pkg-postremove.local
+PKG_REQUEST_LOCAL=../pkg-request.local
+# end of sourced files
+#
+OPENSSHD=opensshd.init
+OPENSSH_MANIFEST=openssh.xml
+OPENSSH_FMRI=svc:/site/${SYSVINIT_NAME}:default
+SMF_METHOD_DIR=/lib/svc/method/site
+SMF_MANIFEST_DIR=/var/svc/manifest/site
+
+PATH_GROUPADD_PROG=@PATH_GROUPADD_PROG@
+PATH_USERADD_PROG=@PATH_USERADD_PROG@
+PATH_PASSWD_PROG=@PATH_PASSWD_PROG@
+#
+# list of system directories we do NOT want to change owner/group/perms
+# when installing our package
+SYSTEM_DIR="/etc	\
+/etc/init.d		\
+/etc/rcS.d		\
+/etc/rc0.d		\
+/etc/rc1.d		\
+/etc/rc2.d		\
+/etc/opt		\
+/lib			\
+/lib/svc		\
+/lib/svc/method		\
+/lib/svc/method/site	\
+/opt			\
+/opt/bin		\
+/usr			\
+/usr/bin		\
+/usr/lib		\
+/usr/sbin		\
+/usr/share		\
+/usr/share/man		\
+/usr/share/man/man1	\
+/usr/share/man/man8	\
+/usr/local		\
+/usr/local/bin		\
+/usr/local/etc		\
+/usr/local/libexec	\
+/usr/local/man		\
+/usr/local/man/man1	\
+/usr/local/man/man8	\
+/usr/local/sbin		\
+/usr/local/share	\
+/var			\
+/var/opt		\
+/var/run		\
+/var/svc		\
+/var/svc/manifest	\
+/var/svc/manifest/site  \
+/var/tmp		\
+/tmp"
+
+# We may need to build as root so we make sure PATH is set up
+# only set the path if it's not set already
+[ -d /opt/bin ]  &&  {
+	echo $PATH | grep ":/opt/bin"  > /dev/null 2>&1
+	[ $? -ne 0 ] && PATH=$PATH:/opt/bin
+}
+[ -d /usr/local/bin ]  &&  {
+	echo $PATH | grep ":/usr/local/bin"  > /dev/null 2>&1
+	[ $? -ne 0 ] && PATH=$PATH:/usr/local/bin
+}
+[ -d /usr/ccs/bin ]  &&  {
+	echo $PATH | grep ":/usr/ccs/bin"  > /dev/null 2>&1
+	[ $? -ne 0 ] && PATH=$PATH:/usr/ccs/bin
+}
+export PATH
+#
+
+[ -f Makefile ]  ||  {
+	echo "Please run this script from your build directory"
+	exit 1
+}
+
+# we will look for openssh-config.local to override the above options
+[ -s ./openssh-config.local ]  &&  . ./openssh-config.local
+
+START=`pwd`
+FAKE_ROOT=$START/pkg
+
+## Fill in some details, like prefix and sysconfdir
+for confvar in prefix exec_prefix bindir sbindir libexecdir datadir mandir sysconfdir piddir srcdir
+do
+	eval $confvar=`grep "^$confvar=" Makefile | cut -d = -f 2`
+done
+
+## Are we using Solaris' SMF?
+DO_SMF=0
+if egrep "^#define USE_SOLARIS_PROCESS_CONTRACTS" config.h > /dev/null 2>&1
+then
+	DO_SMF=1
+fi
+
+## Collect value of privsep user
+for confvar in SSH_PRIVSEP_USER
+do
+	eval $confvar=`awk '/#define[ \t]'$confvar'/{print $3}' config.h`
+done
+
+## Set privsep defaults if not defined
+if [ -z "$SSH_PRIVSEP_USER" ]
+then
+	SSH_PRIVSEP_USER=sshd
+fi
+
+## Extract common info requires for the 'info' part of the package.
+VERSION=`./ssh -V 2>&1 | sed -e 's/,.*//'`
+
+ARCH=`uname -m`
+DEF_MSG="\n"
+OS_VER=`uname -v`
+SCRIPT_SHELL=/sbin/sh
+UNAME_R=`uname -r`
+UNAME_S=`uname -s`
+case ${UNAME_S} in
+	SunOS)	UNAME_S=Solaris
+		OS_VER=${UNAME_R}
+		ARCH=`uname -p`
+		RCS_D=yes
+		DEF_MSG="(default: n)"
+		;;
+	SCO_SV)	case ${UNAME_R} in
+			3.2)	UNAME_S=OpenServer5
+		OS_VER=`uname -X | grep Release | sed -e 's/^Rel.*3.2v//'`
+				;;
+			5)	UNAME_S=OpenServer6
+				;;
+		esac
+		SCRIPT_SHELL=/bin/sh
+		RC1_D=no
+		DEF_MSG="(default: n)"
+		;;
+esac
+
+case `basename $0` in
+	buildpkg.sh)
+## Start by faking root install
+echo "Faking root install..."
+[ -d $FAKE_ROOT ]  &&  rm -fr $FAKE_ROOT
+mkdir $FAKE_ROOT
+${MAKE} install-nokeys DESTDIR=$FAKE_ROOT
+if [ $? -gt 0 ]
+then
+	echo "Fake root install failed, stopping."
+	exit 1
+fi
+
+## Setup our run level stuff while we are at it.
+if [ $DO_SMF -eq 1 ]
+then
+	# For Solaris' SMF, /lib/svc/method/site is the preferred place
+	# for start/stop scripts that aren't supplied with the OS, and
+	# similarly /var/svc/manifest/site for manifests.
+	mkdir -p $FAKE_ROOT${TEST_DIR}${SMF_METHOD_DIR}
+	mkdir -p $FAKE_ROOT${TEST_DIR}${SMF_MANIFEST_DIR}
+
+	cp ${OPENSSHD} $FAKE_ROOT${TEST_DIR}${SMF_METHOD_DIR}/${SYSVINIT_NAME}
+	chmod 744 $FAKE_ROOT${TEST_DIR}${SMF_METHOD_DIR}/${SYSVINIT_NAME}
+
+	cat ${OPENSSH_MANIFEST} | \
+	    sed -e "s|__SYSVINIT_NAME__|${SYSVINIT_NAME}|" \
+	    -e "s|__SMF_METHOD_DIR__|${SMF_METHOD_DIR}|" \
+	    > $FAKE_ROOT${TEST_DIR}${SMF_MANIFEST_DIR}/${SYSVINIT_NAME}.xml
+	chmod 644 $FAKE_ROOT${TEST_DIR}${SMF_MANIFEST_DIR}/${SYSVINIT_NAME}.xml
+else
+	mkdir -p $FAKE_ROOT${TEST_DIR}/etc/init.d
+
+	cp ${OPENSSHD} $FAKE_ROOT${TEST_DIR}/etc/init.d/${SYSVINIT_NAME}
+	chmod 744 $FAKE_ROOT${TEST_DIR}/etc/init.d/${SYSVINIT_NAME}
+fi
+
+[ "${PERMIT_ROOT_LOGIN}" = no ]  &&  \
+	perl -p -i -e "s/#PermitRootLogin yes/PermitRootLogin no/" \
+		$FAKE_ROOT${sysconfdir}/sshd_config
+[ "${X11_FORWARDING}" = yes ]  &&  \
+	perl -p -i -e "s/#X11Forwarding no/X11Forwarding yes/" \
+		$FAKE_ROOT${sysconfdir}/sshd_config
+# fix PrintMotd
+perl -p -i -e "s/#PrintMotd yes/PrintMotd no/" \
+	$FAKE_ROOT${sysconfdir}/sshd_config
+
+# We don't want to overwrite config files on multiple installs
+mv $FAKE_ROOT${sysconfdir}/ssh_config $FAKE_ROOT${sysconfdir}/ssh_config.default
+mv $FAKE_ROOT${sysconfdir}/sshd_config $FAKE_ROOT${sysconfdir}/sshd_config.default
+
+# local tweeks here
+[ -s "${POST_MAKE_INSTALL_FIXES}" ]  &&  . ${POST_MAKE_INSTALL_FIXES}
+
+cd $FAKE_ROOT
+
+## Ok, this is outright wrong, but it will work.  I'm tired of pkgmk
+## whining.
+for i in *; do
+  PROTO_ARGS="$PROTO_ARGS $i=/$i";
+done
+
+## Build info file
+echo "Building pkginfo file..."
+cat > pkginfo << _EOF
+PKG=$PKGNAME
+NAME="OpenSSH Portable for ${UNAME_S}"
+DESC="Secure Shell remote access utility; replaces telnet and rlogin/rsh."
+VENDOR="OpenSSH Portable Team - https://www.openssh.com/portable.html"
+ARCH=$ARCH
+VERSION=$VERSION$REV
+CATEGORY="Security,application"
+BASEDIR=/
+CLASSES="none"
+PSTAMP="${UNAME_S} ${OS_VER} ${ARCH} `date '+%d%b%Y %H:%M'`"
+_EOF
+
+## Build empty depend file that may get updated by $POST_PROTOTYPE_EDITS
+echo "Building depend file..."
+touch depend
+
+## Build space file
+echo "Building space file..."
+if [ $DO_SMF -eq 1 ]
+then
+	# XXX Is this necessary?  If not, remove space line from mk-proto.awk.
+	touch space
+else
+	cat > space << _EOF
+# extra space required by start/stop links added by installf 
+# in postinstall
+$TEST_DIR/etc/rc0.d/${SYSVINITSTOPT}${SYSVINIT_NAME} 0 1
+$TEST_DIR/etc/rc2.d/${SYSVINITSTART}${SYSVINIT_NAME} 0 1
+_EOF
+	[ "$RC1_D" = no ]  ||  \
+	echo "$TEST_DIR/etc/rc1.d/${SYSVINITSTOPT}${SYSVINIT_NAME} 0 1" >> space
+	[ "$RCS_D" = yes ]  &&  \
+	echo "$TEST_DIR/etc/rcS.d/${SYSVINITSTOPT}${SYSVINIT_NAME} 0 1" >> space
+fi
+
+## Build preinstall file
+echo "Building preinstall file..."
+cat > preinstall << _EOF
+#! ${SCRIPT_SHELL}
+#
+_EOF
+
+# local preinstall changes here
+[ -s "${PKG_PREINSTALL_LOCAL}" ]  &&  . ${PKG_PREINSTALL_LOCAL}
+
+cat >> preinstall << _EOF
+#
+if [ "\${PRE_INS_STOP}" = "yes" ]
+then
+	if [ $DO_SMF -eq 1 ] 
+	then
+		svcadm disable $OPENSSH_FMRI
+	else
+		${TEST_DIR}/etc/init.d/${SYSVINIT_NAME} stop
+	fi
+fi
+
+exit 0
+_EOF
+
+## Build postinstall file
+echo "Building postinstall file..."
+cat > postinstall << _EOF
+#! ${SCRIPT_SHELL}
+#
+[ -f \${PKG_INSTALL_ROOT}${sysconfdir}/ssh_config ]  ||  \\
+	cp -p \${PKG_INSTALL_ROOT}${sysconfdir}/ssh_config.default \\
+		\${PKG_INSTALL_ROOT}${sysconfdir}/ssh_config
+[ -f \${PKG_INSTALL_ROOT}${sysconfdir}/sshd_config ]  ||  \\
+	cp -p \${PKG_INSTALL_ROOT}${sysconfdir}/sshd_config.default \\
+		\${PKG_INSTALL_ROOT}${sysconfdir}/sshd_config
+
+# make rc?.d dirs only if we are doing a test install
+[ -n "${TEST_DIR}" ]  &&  [ $DO_SMF -ne 1 ] && {
+	[ "$RCS_D" = yes ]  &&  mkdir -p ${TEST_DIR}/etc/rcS.d
+	mkdir -p ${TEST_DIR}/etc/rc0.d
+	[ "$RC1_D" = no ]  ||  mkdir -p ${TEST_DIR}/etc/rc1.d
+	mkdir -p ${TEST_DIR}/etc/rc2.d
+}
+
+if [ $DO_SMF -eq 1 ]
+then
+	# Delete the existing service, if it exists, then import the 
+	# new one.
+	if svcs $OPENSSH_FMRI > /dev/null 2>&1
+	then
+		svccfg delete -f $OPENSSH_FMRI
+	fi
+	# NOTE, The manifest disables sshd by default.
+	svccfg import ${TEST_DIR}${SMF_MANIFEST_DIR}/${SYSVINIT_NAME}.xml
+else
+	if [ "\${USE_SYM_LINKS}" = yes ]
+	then
+		[ "$RCS_D" = yes ]  &&  \\
+	installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rcS.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
+		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc0.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
+		[ "$RC1_D" = no ]  ||  \\
+		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc1.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
+		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc2.d/${SYSVINITSTART}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
+	else
+		[ "$RCS_D" = yes ]  &&  \\
+	installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rcS.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
+		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc0.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
+		[ "$RC1_D" = no ]  ||  \\
+		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc1.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
+		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc2.d/${SYSVINITSTART}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
+	fi
+fi
+
+# If piddir doesn't exist we add it. (Ie. --with-pid-dir=/var/opt/ssh)
+[ -d $piddir ]  ||  installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR$piddir d 0755 root sys
+
+_EOF
+
+# local postinstall changes here
+[ -s "${PKG_POSTINSTALL_LOCAL}" ]  &&  . ${PKG_POSTINSTALL_LOCAL}
+
+cat >> postinstall << _EOF
+installf -f ${PKGNAME}
+
+# Use chroot to handle PKG_INSTALL_ROOT
+if [ ! -z "\${PKG_INSTALL_ROOT}" ]
+then
+	chroot="chroot \${PKG_INSTALL_ROOT}"
+fi
+# If this is a test build, we will skip the groupadd/useradd/passwd commands
+if [ ! -z "${TEST_DIR}" ]
+then
+	chroot=echo
+fi
+
+	echo "PrivilegeSeparation user always required."
+	if cut -f1 -d: \${PKG_INSTALL_ROOT}/etc/passwd | egrep '^'$SSH_PRIVSEP_USER'\$' >/dev/null
+	then
+		echo "PrivSep user $SSH_PRIVSEP_USER already exists."
+		SSH_PRIVSEP_GROUP=\`grep "^$SSH_PRIVSEP_USER:" \${PKG_INSTALL_ROOT}/etc/passwd | awk -F: '{print \$4}'\`
+		SSH_PRIVSEP_GROUP=\`grep ":\$SSH_PRIVSEP_GROUP:" \${PKG_INSTALL_ROOT}/etc/group | awk -F: '{print \$1}'\`
+	else
+		DO_PASSWD=yes
+	fi
+	[ -z "\$SSH_PRIVSEP_GROUP" ]  &&  SSH_PRIVSEP_GROUP=$SSH_PRIVSEP_USER
+
+	# group required?
+	if cut -f1 -d: \${PKG_INSTALL_ROOT}/etc/group | egrep '^'\$SSH_PRIVSEP_GROUP'\$' >/dev/null
+	then
+		echo "PrivSep group \$SSH_PRIVSEP_GROUP already exists."
+	else
+		DO_GROUP=yes
+	fi
+
+	# create group if required
+	[ "\$DO_GROUP" = yes ]  &&  {
+		# Use gid of 67 if possible
+		if cut -f3 -d: \${PKG_INSTALL_ROOT}/etc/group | egrep '^'$SSHDGID'\$' >/dev/null
+		then
+			:
+		else
+			sshdgid="-g $SSHDGID"
+		fi
+		echo "Creating PrivSep group \$SSH_PRIVSEP_GROUP."
+		\$chroot ${PATH_GROUPADD_PROG} \$sshdgid \$SSH_PRIVSEP_GROUP
+	}
+
+	# Create user if required
+	[ "\$DO_PASSWD" = yes ]  &&  {
+		# Use uid of 67 if possible
+		if cut -f3 -d: \${PKG_INSTALL_ROOT}/etc/passwd | egrep '^'$SSHDUID'\$' >/dev/null
+		then
+			:
+		else
+			sshduid="-u $SSHDUID"
+		fi
+		echo "Creating PrivSep user $SSH_PRIVSEP_USER."
+		\$chroot ${PATH_USERADD_PROG} -c 'SSHD PrivSep User' -s /bin/false -g $SSH_PRIVSEP_USER \$sshduid $SSH_PRIVSEP_USER
+		\$chroot ${PATH_PASSWD_PROG} -l $SSH_PRIVSEP_USER
+	}
+
+if [ "\${POST_INS_START}" = "yes" ]
+then
+	if [ $DO_SMF -eq 1 ]
+	then
+		svcadm enable $OPENSSH_FMRI
+	else
+		${TEST_DIR}/etc/init.d/${SYSVINIT_NAME} start
+	fi
+fi
+exit 0
+_EOF
+
+## Build preremove file
+echo "Building preremove file..."
+cat > preremove << _EOF
+#! ${SCRIPT_SHELL}
+#
+if [ $DO_SMF -eq 1 ] 
+then
+	svcadm disable $OPENSSH_FMRI
+else
+	${TEST_DIR}/etc/init.d/${SYSVINIT_NAME} stop
+fi
+_EOF
+
+# local preremove changes here
+[ -s "${PKG_PREREMOVE_LOCAL}" ]  &&  . ${PKG_PREREMOVE_LOCAL}
+
+cat >> preremove << _EOF
+exit 0
+_EOF
+
+## Build postremove file
+echo "Building postremove file..."
+cat > postremove << _EOF
+#! ${SCRIPT_SHELL}
+#
+if [ $DO_SMF -eq 1 ]
+then
+	if svcs $OPENSSH_FMRI > /dev/null 2>&1
+	then
+		svccfg delete -f $OPENSSH_FMRI
+	fi
+fi
+_EOF
+
+# local postremove changes here
+[ -s "${PKG_POSTREMOVE_LOCAL}" ]  &&  . ${PKG_POSTREMOVE_LOCAL}
+
+cat >> postremove << _EOF
+exit 0
+_EOF
+
+## Build request file
+echo "Building request file..."
+cat > request << _EOF
+trap 'exit 3' 15
+
+_EOF
+
+[ -x /usr/bin/ckyorn ]  ||  cat >> request << _EOF
+
+ckyorn() {
+# for some strange reason OpenServer5 has no ckyorn
+# We build a striped down version here
+
+DEFAULT=n
+PROMPT="Yes or No [yes,no,?,quit]"
+HELP_PROMPT="        Enter y or yes if your answer is yes; n or no if your answer is no."
+USAGE="usage: ckyorn [options]
+where options may include:
+        -d default
+        -h help
+        -p prompt
+"
+
+if [ \$# != 0 ]
+then
+	while getopts d:p:h: c
+	do
+		case \$c in
+			h)	HELP_PROMPT="\$OPTARG" ;;
+			d)	DEFAULT=\$OPTARG ;;
+			p)	PROMPT=\$OPTARG ;;
+			\\?)	echo "\$USAGE" 1>&2
+				exit 1 ;;
+		esac
+	done
+	shift \`expr \$OPTIND - 1\`
+fi
+
+while true
+do
+	echo "\${PROMPT}\\c " 1>&2
+	read key
+	[ -z "\$key" ]  &&  key=\$DEFAULT
+	case \$key in
+		[n,N]|[n,N][o,O]|[y,Y]|[y,Y][e,E][s,S])	echo "\${key}\\c"
+			exit 0 ;;
+		\\?)	echo \$HELP_PROMPT 1>&2 ;;
+		q|quit)	echo "q\\c" 1>&2
+			exit 3 ;;
+	esac
+done
+
+}
+
+_EOF
+
+if [ $DO_SMF -eq 1 ]
+then
+	# This could get hairy, as the running sshd may not be under SMF.
+	# We'll assume an earlier version of OpenSSH started via SMF.
+	cat >> request << _EOF
+PRE_INS_STOP=no
+POST_INS_START=no
+# determine if should restart the daemon
+if [ -s ${piddir}/sshd.pid  ] && \\
+    /usr/bin/svcs -H $OPENSSH_FMRI 2>&1 | egrep "^online" > /dev/null 2>&1
+then
+	ans=\`ckyorn -d n \\
+-p "Should the running sshd daemon be restarted? ${DEF_MSG}"\` || exit \$?
+	case \$ans in
+		[y,Y]*)	PRE_INS_STOP=yes
+			POST_INS_START=yes
+			;;
+	esac
+
+else
+
+# determine if we should start sshd
+	ans=\`ckyorn -d n \\
+-p "Start the sshd daemon after installing this package? ${DEF_MSG}"\` || exit \$?
+	case \$ans in
+		[y,Y]*)	POST_INS_START=yes ;;
+	esac
+fi
+
+# make parameters available to installation service,
+# and so to any other packaging scripts
+cat >\$1 <<!
+PRE_INS_STOP='\$PRE_INS_STOP'
+POST_INS_START='\$POST_INS_START'
+!
+
+_EOF
+else
+	cat >> request << _EOF
+USE_SYM_LINKS=no
+PRE_INS_STOP=no
+POST_INS_START=no
+# Use symbolic links?
+ans=\`ckyorn -d n \\
+-p "Do you want symbolic links for the start/stop scripts? ${DEF_MSG}"\` || exit \$?
+case \$ans in
+	[y,Y]*)	USE_SYM_LINKS=yes ;;
+esac
+
+# determine if should restart the daemon
+if [ -s ${piddir}/sshd.pid  -a  -f ${TEST_DIR}/etc/init.d/${SYSVINIT_NAME} ]
+then
+	ans=\`ckyorn -d n \\
+-p "Should the running sshd daemon be restarted? ${DEF_MSG}"\` || exit \$?
+	case \$ans in
+		[y,Y]*)	PRE_INS_STOP=yes
+			POST_INS_START=yes
+			;;
+	esac
+
+else
+
+# determine if we should start sshd
+	ans=\`ckyorn -d n \\
+-p "Start the sshd daemon after installing this package? ${DEF_MSG}"\` || exit \$?
+	case \$ans in
+		[y,Y]*)	POST_INS_START=yes ;;
+	esac
+fi
+
+# make parameters available to installation service,
+# and so to any other packaging scripts
+cat >\$1 <<!
+USE_SYM_LINKS='\$USE_SYM_LINKS'
+PRE_INS_STOP='\$PRE_INS_STOP'
+POST_INS_START='\$POST_INS_START'
+!
+
+_EOF
+fi
+
+# local request changes here
+[ -s "${PKG_REQUEST_LOCAL}" ]  &&  . ${PKG_REQUEST_LOCAL}
+
+cat >> request << _EOF
+exit 0
+
+_EOF
+
+## Next Build our prototype
+echo "Building prototype file..."
+cat >mk-proto.awk << _EOF
+	    BEGIN { print "i pkginfo"; print "i depend"; \\
+		    print "i preinstall"; print "i postinstall"; \\
+ 		    print "i preremove"; print "i postremove"; \\
+		    print "i request"; print "i space"; \\
+		    split("$SYSTEM_DIR",sys_files); }
+	    {
+	     for (dir in sys_files) { if ( \$3 != sys_files[dir] )
+		     { if ( \$1 == "s" )
+			{ \$5=""; \$6=""; }
+		     else
+			{ \$5="root"; \$6="sys"; }
+		     }
+		else
+		     { \$4="?"; \$5="?"; \$6="?"; break;}
+	    } }
+	    { print; }
+_EOF
+
+find . | egrep -v "prototype|pkginfo|mk-proto.awk" | sort | \
+	pkgproto $PROTO_ARGS | ${AWK} -f mk-proto.awk > prototype
+
+# /usr/local is a symlink on some systems
+[ "${USR_LOCAL_IS_SYMLINK}" = yes ]  &&  {
+	grep -v "^d none /usr/local ? ? ?$" prototype > prototype.new
+	mv prototype.new prototype
+}
+
+## Step back a directory and now build the package.
+cd ..
+# local prototype tweeks here
+[ -s "${POST_PROTOTYPE_EDITS}" ]  &&  . ${POST_PROTOTYPE_EDITS}
+
+echo "Building package.."
+pkgmk -d ${FAKE_ROOT} -f $FAKE_ROOT/prototype -o
+echo | pkgtrans -os ${FAKE_ROOT} ${START}/$PKGNAME-$VERSION$REV-$UNAME_S-$ARCH.pkg
+	;;
+
+	justpkg.sh)
+rm -fr ${FAKE_ROOT}/${PKGNAME}
+grep -v "^PSTAMP=" $FAKE_ROOT/pkginfo > $$tmp
+mv $$tmp $FAKE_ROOT/pkginfo
+cat >> $FAKE_ROOT/pkginfo << _EOF
+PSTAMP="${UNAME_S} ${OS_VER} ${ARCH} `date '+%d%b%Y %H:%M'`"
+_EOF
+pkgmk -d ${FAKE_ROOT} -f $FAKE_ROOT/prototype -o
+echo | pkgtrans -os ${FAKE_ROOT} ${START}/$PKGNAME-$VERSION$REV-$UNAME_S-$ARCH.pkg
+	;;
+
+esac
+
+[ "${REMOVE_FAKE_ROOT_WHEN_DONE}" = yes ]  &&  rm -rf $FAKE_ROOT
+exit 0
+

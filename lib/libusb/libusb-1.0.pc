@@ -1,0 +1,11 @@
+# $FreeBSD$
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libusb-1.0
+Description: Library that abstracts ways to access USB devices (v1.0)
+Version: 1.0.13
+Libs: -L${libdir} -lusb
+Cflags: -I${includedir}

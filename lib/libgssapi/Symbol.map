@@ -1,0 +1,77 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.1 {
+	GSS_C_NT_ANONYMOUS;
+	GSS_C_NT_EXPORT_NAME;
+	GSS_C_NT_HOSTBASED_SERVICE;
+	GSS_C_NT_HOSTBASED_SERVICE_X;
+	GSS_C_NT_MACHINE_UID_NAME;
+	GSS_C_NT_STRING_UID_NAME;
+	GSS_C_NT_USER_NAME;
+	GSS_KRB5_NT_MACHINE_UID_NAME;
+	GSS_KRB5_NT_PRINCIPAL_NAME;
+	GSS_KRB5_NT_STRING_UID_NAME;
+	GSS_KRB5_NT_USER_NAME;
+	gss_accept_sec_context;
+	gss_acquire_cred;
+	gss_add_buffer_set_member;
+	gss_add_cred;
+	gss_add_oid_set_member;
+	gss_canonicalize_name;
+	gss_compare_name;
+	gss_context_time;
+	gss_create_empty_buffer_set;
+	gss_create_empty_oid_set;
+	gss_decapsulate_token;
+	gss_delete_sec_context;
+	gss_display_name;
+	gss_display_status;
+	gss_duplicate_name;
+	gss_duplicate_oid;
+	gss_encapsulate_token;
+	gss_export_name;
+	gss_export_sec_context;
+	gss_get_mic;
+	gss_import_name;
+	gss_import_sec_context;
+	gss_indicate_mechs;
+	gss_init_sec_context;
+	gss_inquire_context;
+	gss_inquire_cred;
+	gss_inquire_cred_by_mech;
+	gss_inquire_cred_by_oid;
+	gss_inquire_mechs_for_name;
+	gss_inquire_names_for_mech;
+	gss_inquire_sec_context_by_oid;
+	gss_oid_equal;
+	gss_oid_to_str;
+	gss_pname_to_uid;
+	gss_process_context_token;
+	gss_pseudo_random;
+	gss_release_buffer;
+	gss_release_buffer_set;
+	gss_release_cred;
+	gss_release_name;
+	gss_release_oid;
+	gss_release_oid_set;
+	gss_seal;
+	gss_set_cred_option;
+	gss_set_sec_context_option;
+	gss_sign;
+	gss_test_oid_set_member;
+	gss_unseal;
+	gss_unwrap;
+	gss_verify;
+	gss_verify_mic;
+	gss_wrap;
+	gss_wrap_size_limit;
+};
+
+FBSDprivate_1.0 {
+	_gss_copy_oid;
+	_gss_copy_buffer;
+	_gss_free_oid;
+	_gss_mg_collect_error;
+};

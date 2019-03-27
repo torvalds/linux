@@ -1,0 +1,23 @@
+int [3] [ 0x1, 0x2, 0x3 ]
+char [30] "ab"
+bar_t [2] [ 
+    bar_t {
+        int alpha = 0x5
+    }, 
+    bar_t {
+        int alpha = 0x6
+    }
+]
+foo_t {
+    int [3] a = [ 0x1, 0x2, 0x3 ]
+    char [30] b = [ "ab" ]
+    bar_t [2] c = [ 
+        bar_t {
+            int alpha = 0x5
+        }, 
+        bar_t {
+            int alpha = 0x6
+        }
+    ]
+    char [3] d = [ '\004', '\0', '\0' ]
+}

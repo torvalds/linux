@@ -1,0 +1,21 @@
+# Doxyfile 1.5.2
+
+# $FreeBSD$
+
+#---------------------------------------------------------------------------
+# Project related configuration options
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "FreeBSD kernel MK48TXX device code"
+OUTPUT_DIRECTORY       = $(DOXYGEN_DEST_PATH)/dev_mk48txx/
+EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
+#---------------------------------------------------------------------------
+# configuration options related to the input files
+#---------------------------------------------------------------------------
+INPUT                  = $(DOXYGEN_SRC_PATH)/dev/mk48txx/ \
+                         $(NOTREVIEWED)
+
+GENERATE_TAGFILE       = dev_mk48txx/dev_mk48txx.tag
+
+@INCLUDE_PATH          = $(DOXYGEN_INCLUDE_PATH)
+@INCLUDE               = common-Doxyfile
+

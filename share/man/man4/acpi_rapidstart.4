@@ -1,0 +1,84 @@
+.\" Copyright (c) 2013 Takanori Watanabe
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 8, 2013
+.Dt ACPI_RAPIDSTART 4
+.Os
+.Sh NAME
+.Nm acpi_rapidstart
+.Nd "Intel rapid start technology ACPI driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device acpi_rapidstart"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+acpi_rapidstart_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Intel Rapid Start technology ACPI device interface.
+Note that this is only for the ACPI device interface.
+This has _CID PNP0C02 so it should be loaded at boot time to avoid attaching
+to the acpi_sysresource driver.
+.Sh SYSCTLS
+The following
+.Xr sysctl 8
+nodes are currently implemented:
+.Bl -tag -width indent
+.It Va dev.acpi_rapidstart.0.ffs
+Rapid start flag.
+It is a bitwise OR of the following:
+.Pp
+.Bl -tag -width indent-two -compact
+.It Li 1
+Enter Fast Flash Standby in RTC wake.
+.It Li 2
+Enter Fast Flash Standby in Critical Battery Wake enable
+.El
+.It Va dev.acpi_rapidstart.0.ftv
+Fast Flash Standby timer value in minutes.
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Takanori Watanabe Aq Mt takawata@FreeBSD.org .

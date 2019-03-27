@@ -1,0 +1,138 @@
+#
+# Define some standard symbols for curses so tests can reference things
+# symbolically instead of using magic numbers.
+#
+#
+# boolean
+#
+assign TRUE	0x01
+assign FALSE	0x00
+#
+# colours
+#
+assign COLOR_BLACK     0x00
+assign COLOR_RED       0x01
+assign COLOR_GREEN     0x02
+assign COLOR_YELLOW    0x03
+assign COLOR_BLUE      0x04
+assign COLOR_MAGENTA   0x05
+assign COLOR_CYAN      0x06
+assign COLOR_WHITE     0x07
+#
+# Attributes
+#
+assign NORMAL        0x00000000
+assign STANDOUT      0x00000100
+assign UNDERSCORE    0x00000200
+assign REVERSE       0x00000400
+assign BLINK         0x00000800
+assign DIM           0x00001000
+assign BOLD          0x00002000
+assign BLANK         0x00004000
+assign PROTECT       0x00008000
+assign ALTCHARSET    0x00010000
+assign ACS_IS_WACS   0x00040000
+#
+# Keys
+#
+assign    KEY_BREAK      0x101
+assign    KEY_DOWN       0x102
+assign    KEY_UP         0x103
+assign    KEY_LEFT       0x104
+assign    KEY_RIGHT      0x105
+assign    KEY_HOME       0x106
+assign    KEY_BACKSPACE  0x107
+assign    KEY_F0         0x108
+assign    KEY_F1         0x109
+assign    KEY_F2         0x10a
+assign    KEY_F3         0x10b
+assign    KEY_F4         0x10c
+assign    KEY_F5         0x10d
+assign    KEY_F6         0x10e
+assign    KEY_F7         0x10f
+assign    KEY_F8         0x110
+assign    KEY_F9         0x111
+assign    KEY_DL         0x148
+assign    KEY_IL         0x149
+assign    KEY_DC         0x14A
+assign    KEY_IC         0x14B
+assign    KEY_EIC        0x14C
+assign    KEY_CLEAR      0x14D
+assign    KEY_EOS        0x14E
+assign    KEY_EOL        0x14F
+assign    KEY_SF         0x150
+assign    KEY_SR         0x151
+assign    KEY_NPAGE      0x152
+assign    KEY_PPAGE      0x153
+assign    KEY_STAB       0x154
+assign    KEY_CTAB       0x155
+assign    KEY_CATAB      0x156
+assign    KEY_ENTER      0x157
+assign    KEY_SRESET     0x158
+assign    KEY_RESET      0x159
+assign    KEY_PRINT      0x15A
+assign    KEY_LL         0x15B
+assign    KEY_A1         0x15C
+assign    KEY_A3         0x15D
+assign    KEY_B2         0x15E
+assign    KEY_C1         0x15F
+assign    KEY_C3         0x160
+assign    KEY_BTAB       0x161
+assign    KEY_BEG        0x162
+assign    KEY_CANCEL     0x163
+assign    KEY_CLOSE      0x164
+assign    KEY_COMMAND    0x165
+assign    KEY_COPY       0x166
+assign    KEY_CREATE     0x167
+assign    KEY_END        0x168
+assign    KEY_EXIT       0x169
+assign    KEY_FIND       0x16A
+assign    KEY_HELP       0x16B
+assign    KEY_MARK       0x16C
+assign    KEY_MESSAGE    0x16D
+assign    KEY_MOVE       0x16E
+assign    KEY_NEXT       0x16F
+assign    KEY_OPEN       0x170
+assign    KEY_OPTIONS    0x171
+assign    KEY_PREVIOUS   0x172
+assign    KEY_REDO       0x173
+assign    KEY_REFERENCE  0x174
+assign    KEY_REFRESH    0x175
+assign    KEY_REPLACE    0x176
+assign    KEY_RESTART    0x177
+assign    KEY_RESUME     0x178
+assign    KEY_SAVE       0x179
+assign    KEY_SBEG       0x17A
+assign    KEY_SCANCEL    0x17B
+assign    KEY_SCOMMAND   0x17C
+assign    KEY_SCOPY      0x17D
+assign    KEY_SCREATE    0x17E
+assign    KEY_SDC        0x17F
+assign    KEY_SDL        0x180
+assign    KEY_SELECT     0x181
+assign    KEY_SEND       0x182
+assign    KEY_SEOL       0x183
+assign    KEY_SEXIT      0x184
+assign    KEY_SFIND      0x185
+assign    KEY_SHELP      0x186
+assign    KEY_SHOME      0x187
+assign    KEY_SIC        0x188
+assign    KEY_SLEFT      0x189
+assign    KEY_SMESSAGE   0x18A
+assign    KEY_SMOVE      0x18B
+assign    KEY_SNEXT      0x18C
+assign    KEY_SOPTIONS   0x18D
+assign    KEY_SPREVIOUS  0x18E
+assign    KEY_SPRINT     0x18F
+assign    KEY_SREDO      0x190
+assign    KEY_SREPLACE   0x191
+assign    KEY_SRIGHT     0x192
+assign    KEY_SRSUME     0x193
+assign    KEY_SSAVE      0x194
+assign    KEY_SSUSPEND   0x195
+assign    KEY_SUNDO      0x196
+assign    KEY_SUSPEND    0x197
+assign    KEY_UNDO       0x198
+assign    KEY_MOUSE      0x199
+assign    KEY_RESIZE     0x200
+

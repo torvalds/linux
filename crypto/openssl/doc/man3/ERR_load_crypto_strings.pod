@@ -1,0 +1,58 @@
+=pod
+
+=head1 NAME
+
+ERR_load_crypto_strings, SSL_load_error_strings, ERR_free_strings -
+load and free error strings
+
+=head1 SYNOPSIS
+
+Deprecated:
+
+ #include <openssl/err.h>
+
+ #if OPENSSL_API_COMPAT < 0x10100000L
+ void ERR_load_crypto_strings(void);
+ void ERR_free_strings(void);
+ #endif
+
+ #include <openssl/ssl.h>
+
+ #if OPENSSL_API_COMPAT < 0x10100000L
+ void SSL_load_error_strings(void);
+ #endif
+
+=head1 DESCRIPTION
+
+ERR_load_crypto_strings() registers the error strings for all
+B<libcrypto> functions. SSL_load_error_strings() does the same,
+but also registers the B<libssl> error strings.
+
+In versions prior to OpenSSL 1.1.0,
+ERR_free_strings() releases any resources created by the above functions.
+
+=head1 RETURN VALUES
+
+ERR_load_crypto_strings(), SSL_load_error_strings() and
+ERR_free_strings() return no values.
+
+=head1 SEE ALSO
+
+L<ERR_error_string(3)>
+
+=head1 HISTORY
+
+The ERR_load_crypto_strings(), SSL_load_error_strings(), and
+ERR_free_strings() functions were deprecated in OpenSSL 1.1.0 by
+OPENSSL_init_crypto() and OPENSSL_init_ssl() and should not be used.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

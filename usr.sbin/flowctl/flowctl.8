@@ -1,0 +1,90 @@
+.\" Copyright (c) 2004-2005 Gleb Smirnoff <glebius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 8, 2012
+.Dt FLOWCTL 8
+.Os
+.Sh NAME
+.Nm flowctl
+.Nd
+.Xr ng_netflow 4
+control utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl d Ar level
+.Ar path command
+.Sh DESCRIPTION
+The
+.Nm
+utility is intended to control the
+.Xr ng_netflow 4
+nodes.
+It has a single option:
+.Bl -tag -width ".Fl d Ar level"
+.It Fl d Ar level
+Set the
+.Xr netgraph 3
+debugging level to
+.Ar level .
+.El
+.Sh COMMANDS
+Currently,
+.Nm
+supports only one command.
+.Bl -tag -width ".Cm show"
+.It Cm show Oo Cm ipv4|ipv6 Oc Op Cm human|verbose
+This command is the analog of the
+.Dq "show ip cache flow"
+command of a Cisco router.
+It dumps the contents of the flow cache in Cisco-like format.
+Specifying either
+.Cm ipv4
+or
+.Cm ipv6
+would extract only IPv4 or IPv6 flows respectively.
+It has optional parameter
+.Cm verbose ,
+which is analog of the
+.Dq "show ip cache verbose flow"
+command. Additionally,
+.Cm human
+parameter can be specify to show selected flows in human-readable format.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr netgraph 3 ,
+.Xr ng_netflow 4
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An Gleb Smirnoff Aq Mt glebius@FreeBSD.org ,
+based on
+.Nm ipacctctl
+written by
+.An Roman V. Palagin Aq Mt romanp@unshadow.net .

@@ -1,0 +1,129 @@
+.\" Copyright (c) 2003, 2004 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris Costello
+.\" at Safeport Network Services and Network Associates Labs, the
+.\" Security Research Division of Network Associates, Inc. under
+.\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 17, 2004
+.Dt SETFSMAC 8
+.Os
+.Sh NAME
+.Nm setfsmac
+.Nd set MAC label for a file hierarchy
+.Sh SYNOPSIS
+.Nm
+.Op Fl ehqvx
+.Oo Fl f Ar specfile Oc ...
+.Oo Fl s Ar specfile Oc ...
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility accepts a list of specification files as input and sets the MAC
+labels on the specified file system hierarchies.
+Path names specified will be visited in order as given on the command
+line, and each tree will be traversed in pre-order.
+(Generally, it will not be very useful to use relative paths instead of
+absolute paths.)
+Multiple entries matching a single file will be combined and applied in
+a single transaction.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl e
+Treat any file systems encountered which do not support MAC labelling as
+errors, instead of warning and skipping them.
+.It Fl f Ar specfile
+Apply the specifications in
+.Ar specfile
+to the specified paths.
+.\" XXX
+.Bf -emphasis
+NOTE: Only the first entry for each file is applied;
+all others are disregarded and silently dropped.
+.Ef
+Multiple
+.Fl f
+arguments may be specified to include multiple
+specification files.
+.It Fl h
+When a symbolic link is encountered, change the label of the link rather
+than the file the link points to.
+.It Fl q
+Do not print non-fatal warnings during execution.
+.It Fl s Ar specfile
+Apply the specifications in
+.Ar specfile ,
+but assume the specification format is compatible with the SELinux
+.Ar specfile
+format.
+.\" XXX
+.Bf -emphasis
+NOTE: Only the first entry for each file is applied;
+all others are disregarded and silently dropped.
+.Ef
+The prefix
+.Dq Li sebsd/
+will be automatically prepended to the labels in
+.Ar specfile .
+Labels matching
+.Dq Li <<none>>
+will be explicitly not relabeled.
+This permits SEBSD to reuse existing SELinux policy specification files.
+.It Fl v
+Increase the degree of verbosity.
+.It Fl x
+Do not recurse into new file systems when traversing them.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/security/lomac-policy.contexts" -compact
+.It Pa /usr/share/security/lomac-policy.contexts
+Sample specfile containing LOMAC policy entries.
+.El
+.Sh EXAMPLES
+See
+.Sx FILES .
+.Sh SEE ALSO
+.Xr mac 3 ,
+.Xr mac_set_file 3 ,
+.Xr mac_set_link 3 ,
+.Xr mac 4 ,
+.Xr re_format 7 ,
+.Xr getfmac 8 ,
+.Xr setfmac 8 ,
+.Xr mac 9
+.Sh AUTHORS
+This software was contributed to the
+.Fx
+Project by Network Associates Labs,
+the Security Research Division of Network Associates
+Inc.
+under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.

@@ -1,0 +1,2361 @@
+# $FreeBSD$
+---
+debug.disablecwd
+bool
+
+Determines whether or not the
+.Xr getwcd 3
+system call should be allowed. 
+
+---
+debug.disablefullpath
+bool
+
+Determines whether or not the
+.Fn vn_fullpath
+function may be used.
+
+---
+debug.dobkgrdwrite
+bool
+
+Determines if background writes should be performed.
+
+---
+debug.hashstat.nchash
+struct
+
+Displays nchash chain lengths.  This is a read-only
+variable.
+
+---
+debug.hashstat.rawnchash
+
+---
+debug.ieee80211
+bool
+
+This 
+.Nm
+allows you to enable or disable debugging for 802.11 devices.
+
+---
+debug.kdb.available
+variable
+
+Used to retrieve a list of currently available debugger backends.
+
+---
+debug.kdb.current
+variable
+
+Allows for the selection of the debugger backend
+which is used to handle debugger requests.
+
+---
+debug.kdb.enter
+variable
+
+When written to, the system should break to the debugger.
+
+---
+debug.malloc.failure_count
+bool
+
+Number of times a coerced malloc failure has occurred as a
+result of
+.Va debug.malloc.failure_rate .
+Useful for tracking what might have happened
+and whether failures are being generated.
+
+---
+debug.malloc.failure_rate
+bool
+
+Debugging feature causing
+.Dv M_NOWAIT
+allocations to fail at a specified rate.
+How often to generate a failure: if set to 0 (default), this
+feature is disabled.
+In other words if set to 10 (one in ten
+.Xr malloc 3
+calls will fail).
+
+---
+debug.rman_debug
+bool
+
+This
+.Nm
+allows you to enable or disable debugging for
+.Xr rman 9 ,
+the
+.Fx
+resource manager.
+
+---
+debug.sizeof.bio
+
+---
+debug.sizeof.buf
+
+---
+debug.sizeof.cdev
+
+---
+debug.sizeof.devstat
+
+---
+debug.sizeof.kinfo_proc
+
+---
+debug.sizeof.proc
+
+---
+debug.sizeof.vnode
+
+---
+debug.vnlru_nowhere
+
+---
+hw.acpi.cpu.current_speed
+bool
+
+Display the current CPU speed.
+This is adjustable, but doing so is not recommended.
+
+---
+hw.acpi.cpu.max_speed
+int
+
+Allows you to change the stepping for processor speed
+on machines which support
+.Xr acpi 4 .
+
+---
+hw.acpi.disable_on_poweroff
+bool
+
+Some systems using
+.Xr acpi 4
+have problems powering off when shutting down with
+.Xr acpi 4
+enabled.  This
+.Nm
+disables
+.Xr acpi 4
+when rebooting and shutting down.
+
+---
+hw.acpi.s4bios
+bool
+
+This
+.Nm
+determines whether or not the S4BIOS sleep implementation
+should be used.
+
+---
+hw.acpi.sleep_delay
+int
+
+Set the sleep delay for
+.Xr acpi 4 .
+
+---
+hw.acpi.supported_sleep_state
+bool
+
+List supported
+.Tn ACPI
+sleep states
+
+---
+hw.acpi.thermal.min_runtime
+
+---
+hw.acpi.thermal.polling_rate
+int
+
+The interval in seconds that should be used to check
+the current system temperature.
+
+---
+hw.acpi.thermal.tz0.temperature
+str
+
+Displays the current temperature.
+This is a read-only variable.
+
+---
+hw.acpi.thermal.tz0.thermal_flags
+
+---
+hw.acpi.verbose
+bool
+
+Determines whether or not
+.Xr acpi 4
+should be verbose.
+
+---
+hw.ata.ata_dma
+bool
+
+Allows the enabling and disabling of DMA for
+ATA devices.
+
+---
+hw.ata.atapi_dma
+bool
+
+Allows the enabling and disabling of DMA for
+atapi devices, such as CD-ROM drives.
+
+---
+hw.ata.tags
+bool
+
+An experimental feature for IDE hard drives which
+allows write caching to be turned on.
+Please read the
+.Xr tuning 7
+manual page carefully before using this.
+
+---
+hw.ata.wc
+bool
+
+Determines whether or not IDE write caching should
+be turned on or off.
+See
+.Xr tuning 7 
+for more information.
+
+---
+hw.bus.devices
+
+---
+hw.bus.info
+int
+
+This is an internally used function that returns
+the kernel bus interface version.
+
+---
+hw.bus.rman
+
+---
+hw.busdmafree_bpages
+
+---
+hw.busdma.reserved_bpages
+
+---
+hw.busdma.active_bpages
+
+---
+hw.busdma.total_bpages
+
+---
+hw.busdma.total_bounced
+
+---
+hw.busdma.total_deferred
+
+---
+hw.byteorder
+int
+
+Returns the system byte order.
+This is a read-only variable.
+
+---
+hw.cardbus.cis_debug
+
+---
+hw.cardbus.debug
+
+---
+hw.cbb.debug
+
+---
+hw.cbb.start_16_io
+
+---
+hw.cbb.start_32_io
+
+---
+hw.cbb.start_memory
+
+---
+hw.floatingpoint
+bool
+
+Reports true if the machine has a floating point processor.
+This is a read-only variable.
+
+---
+hw.fxp0.bundle_max
+int
+
+Controls the receive interrupt microcode bundle size limit 
+for the
+.Xr fxp 4
+device.
+
+---
+hw.fxp0.int_delay
+int
+
+Controls the receive interrupt microcode bundling delay 
+for the
+.Xr fxp 4
+device.
+
+---
+hw.fxp_noflow
+bool
+
+Disables flow control support on
+.Xr fxp 4
+cards.
+When flow control is enabled, and if the operating system
+does not acknowledge the packet buffer filling,
+the card will begin to generate Ethernet quench
+packets, but appears to get into a feedback
+loop of some sort, hosing local switches.
+This is a workaround for this issue.
+
+---
+hw.fxp_rnr
+int
+
+Set the amount of times that a no-resource 
+condition may occur before the 
+.Xr fxp 4
+device may restart.
+
+---
+hw.instruction_sse
+bool
+
+Returns true if SSE support is enabled in the kernel.
+This is a read-only variable.
+
+---
+hw.intrcnt
+bool
+
+Displays a list of interrupt counters.
+This is a read-only variable.
+
+---
+hw.intrnames
+str
+
+Displays a list of zero-terminated interrupt
+names.  This is a read-only variable.
+
+---
+hw.kbd.keymap_restrict_change
+bool
+
+This sysctl acts as a sort of secure-level, allowing
+control of the console keymap.
+Giving this a value of 1 means that only the
+root user can change restricted keys
+(like boot, panic...).
+A value of 2 means that only root
+can change restricted keys and regular keys.
+Regular users still can change accents and function keys.
+A value of 3 means only root can change restricted,
+regular and accent keys, while a value of 4 means that
+no changes to the keymap are
+allowed by anyone other than the root user.
+
+---
+hw.machine
+str
+
+Displays the machine class.
+This is a read-only variable.
+
+---
+hw.machine_arch
+str
+
+Displays the current architecture.
+This is a read-only variable.
+
+---
+hw.model
+str
+
+Displays the model information of the current running hardware.
+This is a read-only variable.
+
+---
+hw.ncpu
+bool
+
+Report the number of CPU's in the system.
+This is a read-only variable.
+
+---
+hw.pagesize
+int
+
+Displays the current 
+.Xr pagesize 1 .
+This is a read-only variable.
+
+---
+hw.pccard.cis_debug
+int
+
+Allows debugging to be turned on or off for
+CIS.
+
+---
+hw.pccard.debug
+bool
+
+Determines whether or not to use debugging for the
+PC Card bus driver.
+
+---
+hw.pci.allow_unsupported_io_range
+bool
+
+Some machines do not detect their CardBus slots correctly
+because they use unsupported I/O ranges.
+This 
+.Nm
+allows FreeBSD to use those ranges.
+
+---
+hw.pci.enable_io_modes
+
+---
+hw.snd.pcm0.ac97rate
+
+---
+hw.snd.verbose
+int
+
+Control the level of verbosity for the
+.Pa /dev/sndstat
+device.  See the
+.Xr pcm 4
+man page for more information on debug
+levels.
+
+---
+hw.snd.report_soft_formats
+bool
+
+Controls the internal format conversion if it is available 
+transparently to the application software.
+See 
+.Xr pcm 4
+for more information.
+
+---
+hw.syscons.bell
+bool
+
+Allows you to control whether or not to use the 'bell'
+while using the console.  This is turned on by default.
+
+---
+hw.syscons.saver.keybonly
+bool
+
+This variable tells the system that the screen saver
+may only wake up if the keyboard is used.  This means
+that log messages that are pushed to the console will
+not cause the screen saver to stop, and display the log
+message will not display.  This can be disabled to mimic
+the behavior of older syscons.
+
+---
+hw.syscons.sc_no_suspend_vtswitch
+bool
+
+Disables switching between virtual terminals during suspend
+or resume.  See 
+.Xr syscons 4
+for more information.
+
+---
+hw.wi.debug
+bool
+
+Controls the level of debugging for 
+.Xr wi 4
+devices.
+
+---
+hw.wi.txerate
+int
+
+This value allows controls the maximum amount of error 
+messages per second.
+Giving this
+.Nm
+a value of 0 (zero) disables error messages completely.
+
+---
+kern.acct_chkfreq
+int
+
+Specifies the frequency (in minutes) with which free disk 
+space should be checked.
+This is used in conjunction with
+.Va kern.acct_resume
+and
+.Va kern.acct_suspend.
+
+---
+kern.acct_resume
+int
+
+The percentage of free disk space above which process 
+accounting will resume.
+
+---
+kern.acct_suspend
+int
+
+The percentage of free disk space below which process
+accounting stops.
+
+---
+kern.argmax
+bool
+
+The maximum number of bytes that can be
+used in an argument to
+.Xr execve 2 .
+This is basically the maximum number of
+characters which can be used in a single
+command line.
+On some rare occasions, this value needs
+altering.
+If so, please check out the
+.Xr xargs 1
+utility.
+
+---
+kern.bootfile
+str
+
+The kernel which was used to boot the system.
+
+---
+kern.boottime
+str
+
+The time at which the current kernel became 
+active after the system booted.  This is a
+read-only variable.
+
+---
+kern.chroot_allow_open_directories
+bool
+
+Depending on the setting of this variable, open
+file descriptors which reference directories will
+fail.
+If set to
+.Em 0 ,
+.Xr chroot 8
+will always fail with
+.Er EPERM
+if there are any directories open.
+If set to
+.Em 1
+(the default),
+.Xr chroot 8
+will fail with
+.Er EPERM
+if there are any directories open and the
+process is already subject to the
+.Xr chroot 8
+system call.
+Any other value will bypass the check for open directories.
+Please see the
+.Xr chroot 2
+man page for more information.
+
+---
+kern.clockrate
+struct
+
+Displays information about the system clock.
+This is a read-only variable.
+
+---
+kern.console
+
+---
+kern.coredump
+bool
+
+Determines where the kernel should dump a core file
+in the event of a kernel panic.
+
+---
+kern.corefile
+str
+
+Describes the file name that a core image should be stored to.
+See the
+.Xr core 5
+man page for more information on this variable.
+
+---
+kern.cp_time
+struct
+
+Contains CPU time statistics.
+This is a read-only variable.
+
+---
+kern.devname
+struct
+
+An internally used 
+.Nm
+that returns suitable device names for the 
+.Fn devname
+function.
+See the 
+.Xr devname 3
+manual page for more information.
+
+---
+kern.devstat.all
+struct
+
+An internally used
+.Nm
+that returns current devstat statistics as well
+as the current devstat generation number.
+See the 
+.Xr devstat 3
+man page for more information.
+
+---
+kern.devstat.generation
+
+---
+kern.devstat.numdevs
+
+---
+kern.devstat.version
+int
+
+Displays the devstat list version number.
+This is a read-only variable.
+
+---
+kern.disks
+str
+
+Display disk devices that the kernel is currently 
+aware of.
+This is a read-only variable.
+
+---
+kern.domainname
+str
+
+This shows the name of the current YP/NIS domain.
+
+---
+kern.drainwait
+int
+
+The time to wait after dropping DTR to the given number.
+The units are measured in hundredths of a second.
+The default is 300 hundredths,
+i.e., 3 seconds.
+This option is needed mainly to set proper recover
+time after modem resets.
+
+---
+kern.elf32.fallback_brand
+
+---
+kern.fallback_elf_brand
+
+---
+kern.file
+struct
+
+Returns the entire file structure.
+
+---
+kern.function_list
+struct
+
+Returns all functions names in the kernel.
+
+---
+kern.geom.confdot
+
+---
+kern.geom.conftxt
+
+---
+kern.geom.confxml
+
+---
+kern.hostid
+int
+
+This
+.Nm
+may contain the IP address of the system.
+
+---
+kern.hostname
+str
+
+Display the system hostname.
+This can be modified with the
+.Xr hostname 1
+utility.
+
+---
+kern.init_path
+string
+
+The path to search for the 
+.Xr init 8
+process.
+This is a read-only variable.
+
+---
+kern.iov_max
+
+---
+kern.ipc.clust_hiwm
+
+---
+kern.ipc.clust_lowm
+
+---
+kern.ipc.maxsockbuf
+int
+
+The maximum buffer size that may be allocated for sockets.
+See
+.Xr getsockopt 2
+for more information.
+
+---
+kern.ipc.maxsockets
+int
+
+The maximum number of sockets available.
+
+---
+kern.ipc.mb_statpcpu
+
+---
+kern.ipc.mbstat
+
+---
+kern.ipc.mbuf_hiwm
+
+---
+kern.ipc.mbuf_lowm
+
+---
+kern.ipc.mbuf_wait
+
+---
+kern.ipc.msqids
+
+---
+kern.ipc.nmbclusters
+bool
+
+Maximum number of mbuf clusters available.
+The kernel uses a preallocated pool of
+.Dq mbuf clusters
+for the
+.Xr mbuf 9
+allocator.
+The pool size is tuned by the kernel during boot.
+That size is set to a value which seems appropriate
+for the current system.
+
+---
+kern.ipc.nmbcnt
+
+---
+kern.ipc.nmbufs
+
+---
+kern.ipc.nsfbufs
+
+---
+kern.ipc.numopensockets
+
+---
+kern.ipc.somaxconn
+int
+
+The maximum pending socket connection queue size.
+
+---
+kern.ipc.zero_copy.receive
+bool
+
+When set to a non-zero value, zero copy is
+enabled for received packets.
+This reduces copying of data around for
+outgoing packets and can significantly
+improve throughput for network connections.
+
+---
+kern.ipc.zero_copy.send
+bool
+
+When set to a non-zero value, zero copy is
+enabled for sent packets.
+This reduces copying of data around for outgoing
+packets and can significantly improve throughput
+for network connections.
+
+---
+kern.job_control
+bool
+
+Reports whether or not job control is available.
+This is a read-only variable.
+
+---
+kern.kq_calloutmax
+
+---
+kern.lastpid
+int
+
+Displays the last PID used by a process.  
+This is a read-only variable.
+
+---
+kern.logsigexit
+bool
+
+Tells the kernel whether or not to log fatal signal exits.
+
+---
+kern.malloc
+str
+
+Displays how memory is currently being allocated.
+This is a read-only variable.
+
+---
+kern.maxfiles
+int
+
+The maximum number of files allowed for all the
+processes of the running kernel.
+You can override the default value which the 
+kernel calculates by explicitly setting this to
+a non-zero value.
+Also see the
+.Xr tuning 7
+man page for more information.
+
+---
+kern.maxfilesperproc
+int
+
+The maximum number of files any one process can open.
+See the
+.Xr ps 1
+utility for more information on monitoring processes.
+
+---
+kern.maxproc
+int
+
+The maximum number of processes that the system
+can be running at any time.
+See the
+.Xr ps 1
+utility for more information on monitoring processes.
+
+---
+kern.maxprocperuid
+int
+
+The maximum number of processes one user ID can run.
+See the
+.Xr ps 1
+utility for more information on monitoring processes.
+
+---
+kern.maxusers
+int
+
+Controls the scaling of a number of static system tables, including
+defaults for the maximum number of open files, sizing of network
+memory resources, etc.
+See the
+.Xr tuning 7
+man page for more information.
+This
+.Nm
+cannot be set using
+.Xr sysctl 8 .
+Use 
+.Xr loader 8
+instead to set this at boot time.
+
+---
+kern.maxvnodes
+bool
+
+The maximum number of
+.Em vnodes
+(virtual file system nodes)
+the system can have open simultaneously.
+
+---
+kern.minvnodes
+bool
+
+The minimun number of
+.Em vnodes
+(virtual file system nodes)
+the system can have open simultaneously.
+
+---
+kern.module_path
+str
+
+This 
+.Nm
+holds a colon-separated list of directories in which the
+kernel will search for loadable kernel modules.
+This path is search when using commands such as
+.Xr kldload 8 
+and 
+.Xr kldunload 8 .
+
+---
+kern.msgbuf
+string
+
+Contains the kernel message buffer.
+
+---
+kern.msgbuf_clear
+bool
+
+Giving this 
+.Nm
+a value of 1 (one) will cause the kernel message buffer to
+be cleared.  It should be noted though, that the 
+.Nm
+will then automatically revert back to it's original
+value of 0 (zero).
+
+---
+kern.ngroups
+int
+
+Contains the maximum number of groups that a
+user may belong to.
+This is a read-only variable.
+
+---
+kern.openfiles
+int
+
+Shows the current amount of system-wide
+open files.
+This is useful when used in conjunction
+with
+.Va kern.maxfiles
+for tuning your system.
+This is a read-only variable.
+
+---
+kern.osreldate
+string
+
+Displays the kernel release date.
+This is a read-only variable.
+
+---
+kern.osrelease
+str
+
+Displays the current version of
+.Fx
+running.
+This is a read-only variable.
+
+---
+kern.osrevision
+string
+
+Displays the operating system revision.
+This is a read-only variable.
+
+---
+kern.ostype
+str
+
+Alter the name of the current operating system.
+Changing this will change the output from
+the
+.Xr uname 1
+utility.
+Changing the default is not recommended.
+
+---
+kern.posix1version
+string
+
+Returns the version of
+.Tn POSIX
+that the system
+is attempting to comply with.
+This is a read-only variable.
+
+---
+kern.powercycle_on_panic
+bool
+
+In the event of a panic, this variable controls whether or not the
+system should try to power cycle instead of rebooting.
+
+---
+kern.poweroff_on_panic
+bool
+
+In the event of a panic, this variable controls whether or not the
+system should try to power off instead of rebooting.
+
+---
+kern.proc.all
+
+---
+kern.proc.args
+int
+
+Allows a process to retrieve the argument list
+or process title for another process without 
+looking in the address space of another program.
+This is a read-only variable.
+
+---
+kern.proc.pgrp
+
+---
+kern.proc.pid
+struct
+
+This internally used 
+.Nm
+may be used to extract process information.  See
+.Xr sysctl 3
+for an example.
+
+---
+kern.proc.ruid
+
+---
+kern.proc.tty
+
+---
+kern.proc.uid
+
+---
+kern.ps_argsopen
+bool
+
+By setting this to 0, command line arguments are hidden 
+for processes which you are not running.
+This is useful on multi-user machines where things
+like passwords might accidentally be added to command
+line programs.
+
+---
+
+kern.quantum
+
+---
+kern.random.adaptors
+str
+
+Displays registered PRNG adaptors.
+This is a read-only variable.
+
+---
+kern.random.sys.burst
+
+---
+kern.random.sys.harvest.ethernet
+
+---
+kern.random.sys.harvest.interrupt
+
+---
+kern.random.sys.harvest.point_to_point
+
+---
+kern.random.sys.harvest.swi
+
+---
+kern.random.sys.seeded
+
+---
+kern.randompid
+
+---
+kern.rootdev
+string
+
+Displays the current root file system device.  This
+is a read-only variable.
+
+---
+kern.saved_ids
+bool
+
+Displays whether or not saved set-group/user ID is 
+available.  This is a read-only variable.
+
+---
+kern.securelevel
+bool
+
+The current kernel security level.
+See the
+.Xr init 8
+manual page for a good description
+about what a security level is.
+
+---
+kern.sugid_coredump
+bool
+
+By default, a process that changes user or group credentials whether
+real or effective will not create a corefile.
+This behavior can be changed to generate a core dump by
+setting this variable to 1.
+
+---
+kern.sync_on_panic
+bool
+
+In the event of a panic, this variable controls whether or not the
+system should try and 
+.Xr sync 8 .
+In some circumstances, this could cause a double panic, and as a result,
+this may be turned off if needed.
+
+---
+kern.threads.debug
+bool
+
+Determines whether to use debugging for kernel threads.
+This is useful for testing.
+
+---
+kern.threads.max_groups_per_proc
+
+---
+kern.threads.max_threads_hits
+
+---
+kern.threads.max_threads_per_proc
+
+---
+kern.threads.virtual_cpu
+int
+
+The maximum amount of virtual CPU's that be used for 
+threading.
+
+---
+kern.tty_nin
+
+---
+kern.tty_nout
+
+---
+kern.ttys
+bool
+
+Used internally by the 
+.Xr pstat 8
+command.
+This is a read-only variable.
+
+---
+kern.version
+str
+
+Displays the current kernel version information.
+This is a read-only variable.
+
+---
+machdep.acpi_root
+
+---
+machdep.cpu_idle_hlt
+bool
+
+Halt idle CPUs.
+This is good for an SMP system.
+
+---
+machdep.disable_mtrrs
+
+---
+machdep.guessed_bootdev
+
+---
+machdep.hyperthreading_allowed
+bool
+
+Setting this tunable to zero disables
+the use of additional logical processors
+provided by Intel HTT technology.
+
+---
+machdep.panic_on_nmi
+
+---
+machdep.siots
+
+---
+net.inet.accf.unloadable
+
+---
+net.inet.icmp.bmcastecho
+
+---
+net.inet.icmp.drop_redirect
+
+---
+net.inet.icmp.icmplim
+
+---
+net.inet.icmp.icmplim_output
+
+---
+net.inet.icmp.log_redirect
+
+---
+net.inet.icmp.maskfake
+
+---
+net.inet.icmp.maskrepl
+
+---
+net.inet.ip.accept_sourceroute
+bool
+
+Controls forwarding of source-routed IP packets.
+
+---
+net.inet.ip.check_interface
+bool
+
+This
+.Nm 
+verifies that packets arrive on the correct interfaces.  
+
+---
+net.inet.ip.fastforwarding
+bool
+
+When fast forwarding is enabled, IP packets are forwarded directly to
+the appropriate network interface with a minimal validity checking,
+which greatly improves throughput.
+Please see the
+.Xr inet 4
+man page for more information.
+
+---
+net.inet.ip.forwarding
+bool
+
+Act as a gateway machine and forward packets.
+This can also be configured using the
+gateway_enable value in 
+.Pa /etc/rc.conf
+
+---
+net.inet.ip.fw.one_pass
+int
+
+---
+net.inet.ip.intr_queue_drops
+
+---
+net.inet.ip.intr_queue_maxlen
+
+---
+net.inet.ip.maxfragpackets
+
+---
+net.inet.ip.maxfragsperpacket
+
+---
+net.inet.ip.redirect
+bool
+
+Controls the sending of ICMP redirects in response to unforwardable IP
+packets.
+
+---
+net.inet.ip.sourceroute
+bool
+
+Determines whether or not source routed IP packets
+should be forwarded.
+
+---
+net.inet.ip.stats
+
+---
+net.inet.ip.ttl
+int
+
+The TTL (time-to-live) to use for outgoing packets.
+
+---
+net.inet.raw.maxdgram
+
+---
+net.inet.raw.olddiverterror
+
+---
+net.inet.raw.pcblist
+
+---
+net.inet.raw.recvspace
+
+---
+net.inet.tcp.always_keepalive
+bool
+
+Determines whether or not to attempt to detect dead TCP
+connections by sending 'keepalives' intermittently.  This 
+is enabled by default and can also be configured using the
+tcp_keepalive value in 
+.Pa /etc/rc.conf
+
+---
+net.inet.tcp.blackhole
+bool
+
+Manipulates system behavior when
+connection requests are received on a 
+TCP port without a socket listening.
+See the 
+.Xr blackhole 4
+man page for more information.
+
+---
+net.inet.tcp.delacktime
+
+---
+net.inet.tcp.delayed_ack
+bool
+
+Historically speaking, this feature was designed to allow the
+acknowledgment to transmitted data to be returned along with the
+response.  See the
+.Xr tuning 7
+man page for more information.
+
+---
+net.inet.tcp.do_tcpdrain
+
+---
+net.inet.tcp.getcred
+
+---
+net.inet.tcp.icmp_may_rst
+
+---
+net.inet.tcp.inflight_debug
+bool
+
+Control debugging for the
+.Va net.inet.tcp.inflight_enable
+.Nm .
+Please see the
+.Xr tuning 7
+man page for more information.
+
+---
+net.inet.tcp.inflight_enable
+bool
+
+Turns on bandwidth delay product limiting for all
+TCP connections.  Please see the
+.Xr tuning 7
+man page for more information.
+
+---
+net.inet.tcp.inflight_max
+bool
+
+.Em double check
+The maximum amount of data that may be queued for 
+bandwidth delay product limiting.
+
+---
+net.inet.tcp.inflight_min
+bool
+
+.Em double check
+The minimum amount of data that may be queued for 
+bandwidth delay product limiting.
+
+---
+net.inet.tcp.inflight_stab
+bool
+
+This parameter represents the maximal packets 
+added to the bandwidth delay product window
+calculation.  Changing this is not recommended.
+
+---
+net.inet.tcp.isn_reseed_interval
+
+---
+net.inet.tcp.local_slowstart_flightsize
+
+---
+net.inet.tcp.log_in_vain
+bool
+
+Allows the system to log connections to TCP
+ports that do not have sockets listening.
+This variable can also be tuned by changing 
+the value for log_in_vain
+in 
+.Pa /etc/rc.conf
+
+---
+net.inet.tcp.minmss
+bool
+
+Enable for network link optimization TCP can adjust its MSS and thus
+packet size according to the observed path MTU.  This is done
+dynamically based on feedback from the remote host and network
+components along the packet path.  This information can be
+abused to pretend an extremely low path MTU.
+
+---
+net.inet.tcp.minmssoverload
+bool
+
+The PSS rate for the
+.Va net.inet.tcp.minmss
+sysctl.
+Setting this will force packets to be reset
+and dropped, this should hinder the availability
+of DoS attacks on WWW servers using POST attacks.
+
+---
+net.inet.tcp.msl
+
+---
+net.inet.tcp.mssdflt
+bool
+
+This is the default TCP Maximum Segment Size
+for TCP packets.  The default setting is recommended
+in most cases.
+
+---
+net.inet.tcp.v6mssdflt
+bool
+
+This is the default TCP Maximum Segment Size
+for TCP IPv6 packets.  The default setting is recommend
+in most cases.
+
+---
+net.inet.tcp.newreno
+
+---
+net.inet.tcp.path_mtu_discovery
+
+---
+net.inet.tcp.pcbcount
+
+---
+net.inet.tcp.pcblist
+
+---
+net.inet.tcp.recvspace
+bool
+
+This variables controls the amount of receive 
+buffer space for any given TCP connection.  This
+can be particularly useful when tuning network 
+applications.  See the 
+.Xr tuning 7
+man page for more information.
+
+---
+net.inet.tcp.rexmit_min
+
+---
+net.inet.tcp.rexmit_slop
+
+---
+net.inet.tcp.rfc1323
+bool
+
+Determines whether support for RFC1323 (TCP Extensions 
+for High Performance) should be enabled.
+This variable can also be tuned by changing the value
+for tcp_extensions in
+.Pa /etc/rc.conf
+
+---
+net.inet.tcp.rfc1644
+
+---
+net.inet.tcp.rfc3042
+
+---
+net.inet.tcp.rfc3390
+
+---
+net.inet.tcp.sendspace
+bool
+
+This variables controls the amount of send 
+buffer space for any given TCP connection.  This
+can be particularly useful when tuning network 
+applications.  See the 
+.Xr tuning 7
+manual page for more information.
+
+---
+net.inet.tcp.slowstart_flightsize
+
+---
+net.inet.tcp.stats
+
+---
+net.inet.tcp.syncache.bucketlimit
+
+---
+net.inet.tcp.syncache.cachelimit
+
+---
+net.inet.tcp.syncache.count
+
+---
+net.inet.tcp.syncache.hashsize
+
+---
+net.inet.tcp.syncache.rexmtlimit
+
+---
+net.inet.tcp.syncookies
+
+---
+net.inet.tcp.tcbhashsize
+
+---
+net.inet.tcp.v6mssdflt
+
+---
+net.inet.udp.blackhole
+bool
+
+Manipulates system behavior when 
+connection requests are received on a 
+UDP port.
+See the 
+.Xr blackhole 4
+man page for more information.
+
+---
+net.inet.udp.getcred
+
+---
+net.inet.udp.log_in_vain
+bool
+
+Allows the system to log connections to UDP
+ports that do not have sockets listening.
+This variable can also be tuned by changing 
+the value for log_in_vain
+in 
+.Pa /etc/rc.conf
+
+---
+net.inet.udp.maxdgram
+
+---
+net.inet.udp.pcblist
+
+---
+net.inet.udp.recvspace
+
+---
+net.inet.udp.stats
+
+---
+net.inet6.icmp6.errppslimit
+
+---
+net.inet6.icmp6.nd6_debug
+
+---
+net.inet6.icmp6.nd6_delay
+
+---
+net.inet6.icmp6.nd6_maxnudhint
+
+---
+net.inet6.icmp6.nd6_mmaxtries
+
+---
+net.inet6.icmp6.nd6_prune
+
+---
+net.inet6.icmp6.nd6_umaxtries
+
+---
+net.inet6.icmp6.nd6_useloopback
+
+---
+net.inet6.icmp6.nodeinfo
+
+---
+net.inet6.icmp6.rediraccept
+
+---
+net.inet6.icmp6.redirtimeout
+
+---
+net.inet6.tcp6.getcred
+
+---
+net.inet6.udp6.getcred
+
+---
+net.isr.enable
+
+---
+net.link.ether.inet.log_arp_movements
+
+---
+net.link.ether.inet.log_arp_wrong_iface
+
+---
+net.link.ether.ipfw
+
+---
+net.link.generic.ifdata
+
+---
+net.link.generic.system.ifcount
+
+---
+net.link.gif.max_nesting
+bool
+
+Determines whether to allow recursive tunnels or not.
+
+---
+net.link.gif.parallel_tunnels
+bool
+
+Determines whether to allow parallel tunnels or not.
+
+---
+net.local.dgram.pcblist
+
+---
+net.local.stream.pcblist
+
+---
+security.bsd.see_other_uids
+bool
+
+Turning this option on will prevent users from viewing information
+about processes running under other user id numbers (UIDs).
+
+---
+security.bsd.suser_enabled
+
+---
+security.bsd.unprivileged_proc_debug
+
+---
+security.bsd.unprivileged_read_msgbuf
+
+---
+security.jail.set_hostname_allowed
+bool
+
+Determines whether or not the root user
+within the jail can set the hostname.
+
+---
+security.jail.socket_unixiproute_only
+
+---
+security.jail.sysvipc_allowed
+
+---
+security.mac.biba.enabled
+bool
+
+Enables enforcement of the Biba integrity policy.
+
+---
+security.mac.biba.ptys_equal
+bool
+
+Label
+.Sm off
+.Xr pty 4
+s
+.Sm on
+as
+.Dq biba/equal
+upon creation.
+
+---
+security.mac.biba.revocation_enabled
+bool
+
+Revoke access to objects if the label is changed to dominate the subject.
+
+---
+security.mac.enforce_fs
+bool
+
+Enforce MAC policies for file system accesses.
+
+---
+security.mac.enforce_kld
+bool
+
+Enforce MAC policies on
+.Xr kld 4 .
+
+---
+security.mac.enforce_network
+bool
+
+Enforce MAC policies on network interfaces.
+
+---
+security.mac.enforce_pipe
+bool
+
+Enforce MAC policies on pipes.
+
+---
+security.mac.enforce_process
+bool
+
+Enforce MAC policies between system processes
+(e.g.
+.Xr ps 1 ,
+.Xr ktrace 2 ).
+
+---
+security.mac.enforce_socket
+bool
+
+Enforce MAC policies on sockets.
+
+---
+security.mac.enforce_system
+bool
+
+Enforce MAC policies on system-related items
+(e.g.
+.Xr kenv 1 ,
+.Xr acct 2 ,
+.Xr reboot 2 ).
+
+---
+security.mac.enforce_vm
+bool
+
+Enforce MAC policies on
+.Xr mmap 2
+and
+.Xr mprotect 2 .
+
+---
+security.mac.ifoff.lo_enabled
+bool
+
+Use this too disable network traffic over the loopback
+.Xr lo 4
+interface.
+See
+.Xr mac_ifoff 4
+for more information.
+
+---
+security.mac.ifoff.other_enabled
+bool
+
+Use this to enable network traffic over other interfaces.
+See
+.Xr mac_ifoff 4
+for more information.
+
+---
+security.mac.ifoff.bpfrecv_enabled
+bool
+
+Use this too allow
+.Xr bpf 4
+traffic to be received,
+even while other traffic is disabled.
+
+---
+security.mac.mls.enabled
+bool
+
+Enables the enforcement of the MLS confidentiality policy,
+see
+.Xr mac_mls 4
+for more information.
+
+---
+security.mac.mls.ptys_equal
+bool
+
+Label
+.Sm off
+.Xr pty 4
+s
+.Sm on
+as
+.Dq mls/equal
+upon creation.
+
+---
+security.mac.mls.revocation_enabled
+bool
+
+Revoke access to objects if the label is changed to a more sensitive
+level than the subject.
+
+---
+security.mac.portacl.rules
+str
+
+The port access control list is specified in the following format:
+
+.Sy idtype
+.Li :
+.Sy id
+.Li :
+.Sy protocol
+.Li :
+.Sy port
+.Li [,
+.Sy idtype
+.Li :
+.Sy id
+.Li :
+.Sy protocol
+.Li :
+.Sy port
+.Li ,...]
+
+.Sy idtype
+Describes the type of subject match to be performed.
+Either
+.Li uid
+for userid matching, or
+.Li gid
+for group ID matching.
+.Sy id
+The user or group ID (depending on
+.Sy idtype )
+allowed to bind to the specified port.
+.Bf -emphasis
+NOTE: User and group names are not valid; only the actual ID numbers
+may be used.
+.Ef
+.Sy protocol
+Describes which protocol this entry applies to.
+Either
+.Li tcp
+or
+.Li udp
+are supported.
+.Sy port
+Describes which port this entry applies to.
+.Bf -emphasis
+NOTE: MAC security policies may not override other security system policies
+by allowing accesses that they may deny, such as
+.Va net.inet.ip.portrange.reservedlow /
+.Va net.inet.ip.portrange.reservedhigh .
+.Ef
+
+---
+security.mac.seeotheruids.enabled
+bool
+
+Enable/disable
+.Va security.mac.seeotheruids
+See
+.Xr mac_seeotheruids 4
+for more information.
+
+---
+security.mac.seeotheruids.primarygroup_enabled
+bool
+
+Allow users to see processes and sockets owned by the same primary
+group.
+
+---
+security.mac.seeotheruids.specificgid_enabled
+bool
+
+Allow processes with a specific group ID to be exempt from the policy,
+set this to
+.Li 1
+and set
+.Va security.mac.seeotheruids.specificgid
+to the gid to be exempted.
+
+---
+security.mac_test
+str
+
+Used for debugging.
+See
+.Xr mac_test 4
+for more information.
+
+---
+user.bc_base_max
+
+---
+user.bc_dim_max
+
+---
+user.bc_scale_max
+
+---
+user.bc_string_max
+
+---
+user.coll_weights_max
+
+---
+user.cs_path
+
+---
+user.line_max
+
+---
+user.posix2_c_bind
+
+---
+user.posix2_c_dev
+
+---
+user.posix2_fort_dev
+
+---
+user.posix2_fort_run
+
+---
+user.posix2_localedef
+
+---
+user.posix2_sw_dev
+
+---
+user.posix2_upe
+
+---
+user.posix2_version
+
+---
+user.re_dup_max
+
+---
+user.stream_max
+
+---
+user.tzname_max
+
+---
+vfs.altbufferflushes
+
+---
+vfs.bufdefragcnt
+
+---
+vfs.buffreekvacnt
+
+---
+vfs.bufmallocspace
+
+---
+vfs.bufreusecnt
+
+---
+vfs.bufspace
+
+---
+vfs.cache.nchstats
+
+---
+vfs.conflist
+
+---
+vfs.devfs.generation
+
+---
+vfs.devfs.inodes
+
+---
+vfs.devfs.noverflow
+
+---
+vfs.devfs.topinode
+
+---
+vfs.dirtybufferflushes
+
+---
+vfs.dirtybufthresh
+
+---
+vfs.ffs.adjblkcnt
+
+---
+vfs.ffs.adjrefcnt
+
+---
+vfs.ffs.freeblks
+
+---
+vfs.ffs.freedirs
+
+---
+vfs.ffs.freefiles
+
+---
+vfs.ffs.setflags
+
+---
+vfs.flushwithdeps
+
+---
+vfs.getnewbufcalls
+
+---
+vfs.getnewbufrestarts
+
+---
+vfs.hibufspace
+
+---
+vfs.hidirtybuffers
+
+---
+vfs.hifreebuffers
+
+---
+vfs.hirunningspace
+
+---
+vfs.lobufspace
+
+---
+vfs.lodirtybuffers
+
+---
+vfs.lofreebuffers
+
+---
+vfs.lorunningspace
+
+---
+vfs.maxbufspace
+
+---
+vfs.maxmallocbufspace
+
+---
+vfs.numdirtybuffers
+
+---
+vfs.numfreebuffers
+
+---
+vfs.opv_numops
+
+---
+vfs.pfs.vncache.entries
+
+---
+vfs.pfs.vncache.hits
+
+---
+vfs.pfs.vncache.maxentries
+
+---
+vfs.pfs.vncache.misses
+
+---
+vfs.read_max
+
+---
+vfs.recursiveflushes
+
+---
+vfs.runningbufspace
+
+---
+vfs.ufs.dirhash_docheck
+
+---
+vfs.ufs.dirhash_maxmem
+
+---
+vfs.ufs.dirhash_mem
+
+---
+vfs.ufs.dirhash_minsize
+
+---
+vfs.usermount
+bool
+
+This
+.Nm
+allows the root user to grant access to non-root users
+so that they may mount floppy and CD-ROM drives.
+
+---
+vfs.vmiodirenable
+bool
+
+Controls how directories are cached by the system.
+This is turned on by default.  See the 
+.Xr tuning 7
+man page for a more detailed explanation on this
+variable.
+
+---
+vfs.write_behind
+bool
+
+Tells the file system to issue media writes as
+full clusters are collected, which typically 
+occurs when writing large sequential files.
+This is turned on by default, but under certain
+circumstances may stall processes and can therefore
+be turned off.
+
+---
+vm.disable_swapspace_pageouts
+
+---
+vm.dmmax
+
+---
+vm.kvm_free
+
+---
+vm.kvm_size
+
+---
+vm.loadavg
+struct
+
+Displays the load average history.  This is a 
+read-only variable.
+
+---
+vm.max_launder
+
+---
+vm.nswapdev
+int
+
+Displays the number of swap devices available
+to the system.  This is a read-only variable.
+
+---
+vm.pageout_full_stats_interval
+
+---
+vm.pageout_lock_miss
+
+---
+vm.pageout_stats_free_max
+
+---
+vm.pageout_stats_interval
+
+---
+vm.pageout_stats_max
+
+---
+vm.stats.sys.v_intr
+
+---
+vm.stats.sys.v_soft
+
+---
+vm.stats.sys.v_swtch
+
+---
+vm.stats.sys.v_syscall
+
+---
+vm.stats.sys.v_trap
+
+---
+vm.stats.vm.v_cow_faults
+
+---
+vm.stats.vm.v_cow_optim
+
+---
+vm.stats.vm.v_forkpages
+
+---
+vm.stats.vm.v_forks
+
+---
+vm.stats.vm.v_intrans
+
+---
+vm.stats.vm.v_kthreadpages
+
+---
+vm.stats.vm.v_kthreads
+
+---
+vm.stats.vm.v_ozfod
+
+---
+vm.stats.vm.v_pdpages
+
+---
+vm.stats.vm.v_pdwakeups
+
+---
+vm.stats.vm.v_reactivated
+
+---
+vm.stats.vm.v_rforkpages
+
+---
+vm.stats.vm.v_rforks
+
+---
+vm.stats.vm.v_swapin
+
+---
+vm.stats.vm.v_swapout
+
+---
+vm.stats.vm.v_swappgsin
+
+---
+vm.stats.vm.v_swappgsout
+
+---
+vm.stats.vm.v_vforkpages
+
+---
+vm.stats.vm.v_vforks
+
+---
+vm.stats.vm.v_vm_faults
+
+---
+vm.stats.vm.v_vnodein
+
+---
+vm.stats.vm.v_vnodeout
+
+---
+vm.stats.vm.v_vnodepgsin
+
+---
+vm.stats.vm.v_vnodepgsout
+
+---
+vm.stats.vm.v_zfod
+
+---
+vm.swap_async_max
+int
+
+The maximum number of in-progress async operations
+that may be performed.  
+
+---
+vm.swap_enabled
+bool
+
+Determines whether or not processes may swap.
+
+---
+vm.swap_idle_enabled
+
+See 
+.Xr tuning 7
+for a detailed explanation of this
+.Nm .
+
+---
+vm.swap_info
+
+---
+vm.vmtotal
+string
+
+Displays virtual memory statistics which are collected
+at five second intervals.
+
+---
+vm.zone
+string
+
+Shows memory used by the kernel zone allocator, by zone.
+This information can also be found by using the 
+.Xr vmstat 8 
+command.
+
+---
+

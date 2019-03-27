@@ -1,0 +1,480 @@
+.\" Copyright (c) 2003-2010 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 2, 2012
+.Dt ARCHIVE_WRITE_OPTIONS 3
+.Os
+.Sh NAME
+.Nm archive_write_set_filter_option ,
+.Nm archive_write_set_format_option ,
+.Nm archive_write_set_option ,
+.Nm archive_write_set_options
+.Nd functions controlling options for writing archives
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.Ft int
+.Fo archive_write_set_filter_option
+.Fa "struct archive *"
+.Fa "const char *module"
+.Fa "const char *option"
+.Fa "const char *value"
+.Fc
+.Ft int
+.Fo archive_write_set_format_option
+.Fa "struct archive *"
+.Fa "const char *module"
+.Fa "const char *option"
+.Fa "const char *value"
+.Fc
+.Ft int
+.Fo archive_write_set_option
+.Fa "struct archive *"
+.Fa "const char *module"
+.Fa "const char *option"
+.Fa "const char *value"
+.Fc
+.Ft int
+.Fo archive_write_set_options
+.Fa "struct archive *"
+.Fa "const char *options"
+.Fc
+.Sh DESCRIPTION
+These functions provide a way for libarchive clients to configure
+specific write modules.
+.Bl -tag -width indent
+.It Xo
+.Fn archive_write_set_filter_option ,
+.Fn archive_write_set_format_option
+.Xc
+Specifies an option that will be passed to currently-registered
+filters (including decompression filters) or format readers.
+.Pp
+If
+.Ar option
+and
+.Ar value
+are both
+.Dv NULL ,
+these functions will do nothing and
+.Cm ARCHIVE_OK
+will be returned.
+If
+.Ar option
+is
+.Dv NULL
+but
+.Ar value
+is not, these functions will do nothing and
+.Cm ARCHIVE_FAILED
+will be returned.
+.Pp
+If
+.Ar module
+is not
+.Dv NULL ,
+.Ar option
+and
+.Ar value
+will be provided to the filter or reader named
+.Ar module .
+The return value will be either
+.Cm ARCHIVE_OK
+if the option was successfully handled or
+.Cm ARCHIVE_WARN
+if the option was unrecognized by the module or could otherwise
+not be handled.
+If there is no such module,
+.Cm ARCHIVE_FAILED
+will be returned.
+.Pp
+If
+.Ar module
+is
+.Dv NULL ,
+.Ar option
+and
+.Ar value
+will be provided to every registered module.
+If any module returns
+.Cm ARCHIVE_FATAL ,
+this value will be returned immediately.
+Otherwise,
+.Cm ARCHIVE_OK
+will be returned if any module accepts the option, and
+.Cm ARCHIVE_FAILED
+in all other cases.
+.\"
+.It Fn archive_write_set_option
+Calls
+.Fn archive_write_set_format_option ,
+then
+.Fn archive_write_set_filter_option .
+If either function returns
+.Cm ARCHIVE_FATAL ,
+.Cm ARCHIVE_FATAL
+will be returned
+immediately.
+Otherwise, greater of the two values will be returned.
+.\"
+.It Fn archive_write_set_options
+.Ar options
+is a comma-separated list of options.
+If
+.Ar options
+is
+.Dv NULL
+or empty,
+.Cm ARCHIVE_OK
+will be returned immediately.
+.Pp
+Individual options have one of the following forms:
+.Bl -tag -compact -width indent
+.It Ar option=value
+The option/value pair will be provided to every module.
+Modules that do not accept an option with this name will ignore it.
+.It Ar option
+The option will be provided to every module with a value of
+.Dq 1 .
+.It Ar !option
+The option will be provided to every module with a NULL value.
+.It Ar module:option=value , Ar module:option , Ar module:!option
+As above, but the corresponding option and value will be provided
+only to modules whose name matches
+.Ar module .
+.El
+.El
+.\"
+.Sh OPTIONS
+.Bl -tag -compact -width indent
+.It Filter gzip
+.Bl -tag -compact -width indent
+.It Cm compression-level
+The value is interpreted as a decimal integer specifying the
+gzip compression level.
+.El
+.It Filter xz
+.Bl -tag -compact -width indent
+.It Cm compression-level
+The value is interpreted as a decimal integer specifying the
+compression level.
+.El
+.It Format mtree
+.Bl -tag -compact -width indent
+.It Cm cksum , Cm device , Cm flags , Cm gid , Cm gname , Cm indent , Cm link , Cm md5 , Cm mode , Cm nlink , Cm rmd160 , Cm sha1 , Cm sha256 , Cm sha384 , Cm sha512 , Cm size , Cm time , Cm uid , Cm uname
+Enable a particular keyword in the mtree output.
+Prefix with an exclamation mark to disable the corresponding keyword.
+The default is equivalent to
+.Dq device, flags, gid, gname, link, mode, nlink, size, time, type, uid, uname .
+.It Cm all
+Enables all of the above keywords.
+.It Cm use-set
+Enables generation of
+.Cm /set
+lines that specify default values for the following files and/or directories.
+.It Cm indent
+XXX needs explanation XXX
+.El
+.It Format iso9660 - volume metadata
+These options are used to set standard ISO9660 metadata.
+.Bl -tag -compact -width indent
+.It Cm abstract-file Ns = Ns Ar filename
+The file with the specified name will be identified in the ISO9660 metadata
+as holding the abstract for this volume.  Default: none.
+.It Cm application-id Ns = Ns Ar filename
+The file with the specified name will be identified in the ISO9660 metadata
+as holding the application identifier for this volume.  Default: none.
+.It Cm biblio-file Ns = Ns Ar filename
+The file with the specified name will be identified in the ISO9660 metadata
+as holding the bibliography for this volume.  Default: none.
+.It Cm copyright-file Ns = Ns Ar filename
+The file with the specified name will be identified in the ISO9660 metadata
+as holding the copyright for this volume.  Default: none.
+.It Cm publisher Ns = Ns Ar filename
+The file with the specified name will be identified in the ISO9660 metadata
+as holding the publisher information for this volume.  Default: none.
+.It Cm volume-id Ns = Ns Ar string
+The specified string will be used as the Volume Identifier in the ISO9660 metadata.
+It is limited to 32 bytes. Default: none.
+.El
+.It Format iso9660 - boot support
+These options are used to make an ISO9660 image that can be directly
+booted on various systems.
+.Bl -tag -compact -width indent
+.It Cm boot Ns = Ns Ar filename
+The file matching this name will be used as the El Torito boot image file.
+.It Cm boot-catalog Ns = Ns Ar name
+The name that will be used for the El Torito boot catalog.
+Default:
+.Ar boot.catalog
+.It Cm boot-info-table
+The boot image file provided by the
+.Cm boot Ns = Ns Ar filename
+option will be edited with appropriate boot information in bytes 8 through 64.
+Default: disabled
+.It Cm boot-load-seg Ns = Ns Ar hexadecimal-number
+The load segment for a no-emulation boot image.
+.It Cm boot-load-size Ns = Ns Ar decimal-number
+The number of "virtual" 512-byte sectors to be loaded from a no-emulation boot image.
+Some very old BIOSes can only load very small images, setting this
+value to 4 will often allow such BIOSes to load the first part of
+the boot image (which will then need to be intelligent enough to
+load the rest of itself).
+This should not be needed unless you are trying to support systems with very old BIOSes.
+This defaults to the full size of the image.
+.It Cm boot-type Ns = Ns Ar value
+Specifies the boot semantics used by the El Torito boot image:
+If the
+.Ar value
+is
+.Cm fd ,
+then the boot image is assumed to be a bootable floppy image.
+If the
+.Ar value
+is
+.Cm hd ,
+then the boot image is assumed to be a bootable hard disk image.
+If the
+.Ar value
+is
+.Cm no-emulation ,
+the boot image is used without floppy or hard disk emulation.
+If the boot image is exactly 1.2MB, 1.44MB, or 2.88MB, then
+the default is
+.Cm fd ,
+otherwise the default is
+.Cm no-emulation.
+.El
+.It Format iso9660 - filename and size extensions
+Various extensions to the base ISO9660 format.
+.Bl -tag -compact -width indent
+.It Cm allow-ldots
+If enabled, allows filenames to begin with a leading period.
+If disabled, filenames that begin with a leading period will have
+that period replaced by an underscore character in the standard ISO9660
+namespace.
+This does not impact names stored in the Rockridge or Joliet extension area.
+Default: disabled.
+.It Cm allow-lowercase
+If enabled, allows filenames to contain lowercase characters.
+If disabled, filenames will be forced to uppercase.
+This does not impact names stored in the Rockridge or Joliet extension area.
+Default: disabled.
+.It Cm allow-multidot
+If enabled, allows filenames to contain multiple period characters, in violation of the ISO9660 specification.
+If disabled, additional periods will be converted to underscore characters.
+This does not impact names stored in the Rockridge or Joliet extension area.
+Default: disabled.
+.It Cm allow-period
+If enabled, allows filenames to contain trailing period characters, in violation of the ISO9660 specification.
+If disabled,trailing periods will be converted to underscore characters.
+This does not impact names stored in the Rockridge or Joliet extension area.
+Default: disabled.
+.It Cm allow-pvd-lowercase
+If enabled, the Primary Volume Descriptor may contain lowercase ASCII characters, in violation of the ISO9660 specification.
+If disabled, characters will be converted to uppercase ASCII.
+Default: disabled.
+.It Cm allow-sharp-tilde
+If enabled, sharp and tilde characters will be permitted in filenames, in violation if the ISO9660 specification.
+If disabled, such characters will be converted to underscore characters.
+Default: disabled.
+.It Cm allow-vernum
+If enabled, version numbers will be included with files.
+If disabled, version numbers will be suppressed, in violation of the ISO9660 standard.
+This does not impact names stored in the Rockridge or Joliet extension area.
+Default: enabled.
+.It Cm iso-level
+This enables support for file size and file name extensions in the
+core ISO9660 area.
+The name extensions specified here do not affect the names stored in the Rockridge or Joliet extension areas.
+.Bl -tag -compact -width indent
+.It Cm iso-level=1
+The most compliant form of ISO9660 image.
+Filenames are limited to 8.3 uppercase format,
+directory names are limited to 8 uppercase characters,
+files are limited to 4 GiB,
+the complete ISO9660 image cannot exceed 4 GiB.
+.It Cm iso-level=2
+Filenames are limited to 30 uppercase characters with a 30-character extension,
+directory names are limited to 30 characters,
+files are limited to 4 GiB.
+.It Cm iso-level=3
+As with
+.Cm iso-level=2 ,
+except that files may exceed 4 GiB.
+.It Cm iso-level=4
+As with
+.Cm iso-level=3 ,
+except that filenames may be up to 193 characters
+and may include arbitrary 8-bit characters.
+.El
+.It Cm joliet
+Microsoft's Joliet extensions store a completely separate set of directory information about each file.
+In particular, this information includes Unicode filenames of up to 255 characters.
+Default: enabled.
+.It Cm limit-depth
+If enabled, libarchive will use directory relocation records to ensure that
+no pathname exceeds the ISO9660 limit of 8 directory levels.
+If disabled, no relocation will occur.
+Default: enabled.
+.It Cm limit-dirs
+If enabled, libarchive will cause an error if there are more than
+65536 directories.
+If disabled, there is no limit on the number of directories.
+Default: enabled
+.It Cm pad
+If enabled, 300 kiB of zero bytes will be appended to the end of the archive.
+Default: enabled
+.It Cm relaxed-filenames
+If enabled, all 7-bit ASCII characters are permitted in filenames
+(except lowercase characters unless
+.Cm allow-lowercase
+is also specified).
+This violates ISO9660 standards.
+This does not impact names stored in the Rockridge or Joliet extension area.
+Default: disabled.
+.It Cm rockridge
+The Rockridge extensions store an additional set of POSIX-style file
+information with each file, including mtime, atime, ctime, permissions,
+and long filenames with arbitrary 8-bit characters.
+These extensions also support symbolic links and other POSIX file types.
+Default: enabled.
+.El
+.It Format iso9660 - zisofs support
+The zisofs extensions permit each file to be independently compressed
+using a gzip-compatible compression.
+This can provide significant size savings, but requires the reading
+system to have support for these extensions.
+These extensions are disabled by default.
+.Bl -tag -compact -width indent
+.It Cm compression-level Ns = Ns number
+The compression level used by the deflate compressor.
+Ranges from 0 (least effort) to 9 (most effort).
+Default: 6
+.It Cm zisofs
+Synonym for
+.Cm zisofs=direct .
+.It Cm zisofs=direct
+Compress each file in the archive.
+Unlike
+.Cm zisofs=indirect ,
+this is handled entirely within libarchive and does not require a
+separate utility.
+For best results, libarchive tests each file and will store
+the file uncompressed if the compression does not actually save any space.
+In particular, files under 2k will never be compressed.
+Note that boot image files are never compressed.
+.It Cm zisofs=indirect
+Recognizes files that have already been compressed with the
+.Cm mkzftree
+utility and sets up the necessary file metadata so that
+readers will correctly identify these as zisofs-compressed files.
+.It Cm zisofs-exclude Ns = Ns Ar filename
+Specifies a filename that should not be compressed when using
+.Cm zisofs=direct .
+This option can be provided multiple times to suppress compression
+on many files.
+.El
+.It Format zip
+.Bl -tag -compact -width indent
+.It Cm compression
+The value is either
+.Dq store
+or
+.Dq deflate
+to indicate how the following entries should be compressed.
+Note that this setting is ignored for directories, symbolic links,
+and other special entries.
+.It Cm experimental
+This boolean option enables or disables experimental Zip features
+that may not be compatible with other Zip implementations.
+.It Cm fakecrc32
+This boolean option disables CRC calculations.
+All CRC fields are set to zero.
+It should not be used except for testing purposes.
+.It Cm hdrcharset
+This sets the character set used for filenames.
+.It Cm zip64
+Zip64 extensions provide additional file size information
+for entries larger than 4 GiB.
+They also provide extended file offset and archive size information
+when archives exceed 4 GiB.
+By default, the Zip writer selectively enables these extensions only as needed.
+In particular, if the file size is unknown, the Zip writer will
+include Zip64 extensions to guard against the possibility that the
+file might be larger than 4 GiB.
+.Pp
+Setting this boolean option will force the writer to use Zip64 extensions
+even for small files that would not otherwise require them.
+This is primarily useful for testing.
+.Pp
+Disabling this option with
+.Cm !zip64
+will force the Zip writer to avoid Zip64 extensions:
+It will reject files with size greater than 4 GiB,
+it will reject any new entries once the total archive size reaches 4 GiB,
+and it will not use Zip64 extensions for files with unknown size.
+In particular, this can improve compatibility when generating archives
+where the entry sizes are not known in advance.
+.El
+.El
+.Sh EXAMPLES
+The following example creates an archive write handle to
+create a gzip-compressed ISO9660 format image.
+The two options here specify that the ISO9660 archive will use
+.Ar kernel.img
+as the boot image for El Torito booting, and that the gzip
+compressor should use the maximum compression level.
+.Bd -literal -offset indent
+a = archive_write_new();
+archive_write_add_filter_gzip(a);
+archive_write_set_format_iso9660(a);
+archive_write_set_options(a, "boot=kernel.img,compression=9");
+archive_write_open_filename(a, filename, blocksize);
+.Ed
+.\"
+.Sh ERRORS
+More detailed error codes and textual descriptions are available from the
+.Fn archive_errno
+and
+.Fn archive_error_string
+functions.
+.\"
+.Sh SEE ALSO
+.Xr tar 1 ,
+.Xr libarchive 3 ,
+.Xr archive_read_set_options 3 ,
+.Xr archive_write 3
+.Sh HISTORY
+The
+.Nm libarchive
+library first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The options support for libarchive was originally implemented by
+.An Michihiro NAKAJIMA .
+.Sh BUGS

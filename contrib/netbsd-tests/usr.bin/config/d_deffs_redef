@@ -1,0 +1,10 @@
+include "arch/regress/conf/std.regress"
+maxusers 4
+file-system	REGRESSFS
+
+master0		at root
+
+defflag		NOT_A_FS
+deffs		NOT_A_FS
+
+config regress root on ?

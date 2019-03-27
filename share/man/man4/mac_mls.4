@@ -1,0 +1,243 @@
+.\" Copyright (c) 2002-2004 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris Costello
+.\" at Safeport Network Services and Network Associates Laboratories, the
+.\" Security Research Division of Network Associates, Inc. under
+.\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 25, 2015
+.Dt MAC_MLS 4
+.Os
+.Sh NAME
+.Nm mac_mls
+.Nd "Multi-Level Security confidentiality policy"
+.Sh SYNOPSIS
+To compile MLS into your kernel, place the following lines in your kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Cd "options MAC_MLS"
+.Ed
+.Pp
+Alternately, to load the MLS module at boot time, place the following line
+in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Ed
+.Pp
+and in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mac_mls_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+policy module implements the Multi-Level Security, or MLS model,
+which controls access between subjects and objects based on their
+confidentiality by means of a strict information flow policy.
+Each subject and object in the system has an MLS label associated with it;
+each subject's MLS label contains information on its clearance level,
+and each object's MLS label contains information on its classification.
+.Pp
+In MLS, all system subjects and objects are assigned confidentiality labels,
+made up of a sensitivity level and zero or more compartments.
+Together, these label elements permit all labels to be placed in a partial
+order, with confidentiality protections based on a dominance operator
+describing the order.
+The sensitivity level is expressed as a value between 0 and
+65535, with higher values reflecting higher sensitivity levels.
+The compartment field is expressed as a set of up to 256 components,
+numbered from 1 to 256.
+A complete label consists of both sensitivity and compartment
+elements.
+.Pp
+With normal labels, dominance is defined as a label having a higher
+or equal active sensitivity level, and having at least
+all of the same compartments as the label to which it is being compared.
+With respect to label comparisons,
+.Dq Li lower
+is defined as being dominated by the label to which it is being compared,
+and
+.Dq Li higher
+is defined as dominating the label to which it is being compared,
+and
+.Dq Li equal
+is defined as both labels being able to satisfy the dominance requirements
+over one another.
+.Pp
+Three special label values exist:
+.Bl -column -offset indent ".Li mls/equal" "dominated by all other labels"
+.It Sy Label Ta Sy Comparison
+.It Li mls/low Ta "dominated by all other labels"
+.It Li mls/equal Ta "equal to all other labels"
+.It Li mls/high Ta "dominates all other labels"
+.El
+.Pp
+The
+.Dq Li mls/equal
+label may be applied to subjects and objects for which no enforcement of the
+MLS security policy is desired.
+.Pp
+The MLS model enforces the following basic restrictions:
+.Bl -bullet
+.It
+Subjects may not observe the processes of another subject if its
+clearance level is lower than the clearance level of the object it is
+attempting to observe.
+.It
+Subjects may not read, write, or otherwise observe objects without proper
+clearance (e.g.\& subjects may not observe objects whose classification label
+dominates its own clearance label)
+.It
+Subjects may not write to objects with a lower classification level than
+its own clearance level.
+.It
+A subject may read and write to an object if its clearance level is equal
+to the object's classification level as though MLS protections were not in
+place.
+.El
+.Pp
+These rules prevent subjects of lower clearance from gaining access
+information classified beyond its clearance level in order to protect the
+confidentiality of classified information, subjects of higher clearance
+from writing to objects of lower classification in order to prevent the
+accidental or malicious leaking of information, and subjects of lower
+clearance from observing subjects of higher clearance altogether.
+In traditional trusted operating systems, the MLS confidentiality model is
+used in concert with the Biba integrity model
+.Xr ( mac_biba 4 )
+in order to protect the Trusted Code Base (TCB).
+.Ss Label Format
+Almost all system objects are tagged with an effective, active label element,
+reflecting the classification of the object, or classification of the data
+contained in the object.
+In general, object labels are represented in the following form:
+.Pp
+.Sm off
+.D1 Li mls / Ar grade : compartments
+.Sm on
+.Pp
+For example:
+.Bd -literal -offset indent
+mls/10:2+3+6
+mls/low
+.Ed
+.Pp
+Subject labels consist of three label elements: an effective (active) label,
+as well as a range of available labels.
+This range is represented using two ordered MLS label elements, and when set
+on a process, permits the process to change its active label to any label of
+greater or equal integrity to the low end of the range, and lesser or equal
+integrity to the high end of the range.
+In general, subject labels are represented in the following form:
+.Pp
+.Sm off
+.D1 Li mls / Ar effectivegrade : effectivecompartments ( lograde : locompartments No -
+.D1 Ar higrade : hicompartments )
+.Sm on
+.Pp
+For example:
+.Bd -literal -offset indent
+mls/10:2+3+6(5:2+3-20:2+3+4+5+6)
+mls/high(low-high)
+.Ed
+.Pp
+Valid ranged labels must meet the following requirement regarding their
+elements:
+.Pp
+.D1 Ar rangehigh No \[>=] Ar effective No \[>=] Ar rangelow
+.Pp
+One class of objects with ranges currently exists, the network interface.
+In the case of the network interface, the effective label element references
+the default label for packets received over the interface, and the range
+represents the range of acceptable labels of packets to be transmitted over
+the interface.
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+MIBs are available for fine-tuning the enforcement of this MAC policy.
+.Bl -tag -width ".Va security.mac.mls.ptys_equal"
+.It Va security.mac.mls.enabled
+Enables the enforcement of the MLS confidentiality policy.
+(Default: 1).
+.It Va security.mac.mls.ptys_equal
+Label
+.Xr pty 4 Ns s
+as
+.Dq Li mls/equal
+upon creation.
+(Default: 0).
+.It Va security.mac.mls.revocation_enabled
+Revoke access to objects if the label is changed to a more sensitive
+level than the subject.
+(Default: 0).
+.El
+.Sh IMPLEMENTATION NOTES
+Currently, the
+.Nm
+policy relies on superuser status
+.Pq Xr suser 9
+in order to change network interface MLS labels.
+This will eventually go away, but it is currently a liability and may
+allow the superuser to bypass MLS protections.
+.Sh SEE ALSO
+.Xr mac 4 ,
+.Xr mac_biba 4 ,
+.Xr mac_bsdextended 4 ,
+.Xr mac_ifoff 4 ,
+.Xr mac_lomac 4 ,
+.Xr mac_none 4 ,
+.Xr mac_partition 4 ,
+.Xr mac_portacl 4 ,
+.Xr mac_seeotheruids 4 ,
+.Xr mac_test 4 ,
+.Xr maclabel 7 ,
+.Xr mac 9
+.Sh HISTORY
+The
+.Nm
+policy module first appeared in
+.Fx 5.0
+and was developed by the
+.Tn TrustedBSD
+Project.
+.Sh AUTHORS
+This software was contributed to the
+.Fx
+Project by Network Associates Laboratories,
+the Security Research Division of Network Associates
+Inc.\& under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Sh BUGS
+While the MAC Framework design is intended to support the containment of
+the root user, not all attack channels are currently protected by entry
+point checks.
+As such, MAC Framework policies should not be relied on, in isolation,
+to protect against a malicious privileged user.

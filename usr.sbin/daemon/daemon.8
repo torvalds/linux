@@ -1,0 +1,227 @@
+.\" Copyright (c) 1999 Berkeley Software Design, Inc. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Berkeley Software Design Inc's name may not be used to endorse or
+.\"    promote products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY BERKELEY SOFTWARE DESIGN INC ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL BERKELEY SOFTWARE DESIGN INC BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 25, 2019
+.Dt DAEMON 8
+.Os
+.Sh NAME
+.Nm daemon
+.Nd run detached from the controlling terminal
+.Sh SYNOPSIS
+.Nm
+.Op Fl cfrS
+.Op Fl p Ar child_pidfile
+.Op Fl P Ar supervisor_pidfile
+.Op Fl t Ar title
+.Op Fl u Ar user
+.Op Fl m Ar output_mask
+.Op Fl o Ar output_file
+.Op Fl s Ar syslog_priority
+.Op Fl T Ar syslog_tag
+.Op Fl l Ar syslog_facility
+.Op Fl R Ar restart_delay_seconds
+.Ar command arguments ...
+.Sh DESCRIPTION
+The
+.Nm
+utility detaches itself from the controlling terminal and
+executes the program specified by its arguments.
+Privileges may be lowered to the specified user.
+The output of the daemonized process may be redirected to syslog and to a
+log file.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl c
+Change the current working directory to the root
+.Pq Dq Pa / .
+.It Fl f
+Redirect standard input, standard output and standard error to
+.Pa /dev/null .
+.It Fl S
+Enable syslog output.
+This is implicitly applied if other syslog parameters are provided.
+The default values are daemon, notice, and daemon for facility, priority, and
+tag, respectively.
+.It Fl o Ar output_file
+Append output from the daemonized process to
+.Pa output_file .
+If the file does not exist, it is created with permissions 0600.
+.It Fl m Ar output_mask
+Redirect output from the child process stdout (1), stderr (2), or both (3).
+This value specifies what is sent to syslog and the log file.
+The default is 3.
+.It Fl p Ar child_pidfile
+Write the ID of the created process into the
+.Ar child_pidfile
+using the
+.Xr pidfile 3
+functionality.
+The program is executed in a spawned child process while the
+.Nm
+waits until it terminates to keep the
+.Ar child_pidfile
+locked and removes it after the process exits.
+The
+.Ar child_pidfile
+owner is the user who runs the
+.Nm
+regardless of whether the
+.Fl u
+option is used or not.
+.It Fl P Ar supervisor_pidfile
+Write the ID of the
+.Nm
+process into the
+.Ar supervisor_pidfile
+using the
+.Xr pidfile 3
+functionality.
+The program is executed in a spawned child process while the
+.Nm
+waits until it terminates to keep the
+.Ar supervisor_pidfile
+locked and removes it after the process exits.
+The
+.Ar supervisor_pidfile
+owner is the user who runs the
+.Nm
+regardless of whether the
+.Fl u
+option is used or not.
+.It Fl r
+Supervise and restart the program after a one-second delay if it has
+been terminated.
+.It Fl R Ar restart_delay_seconds
+Supervise and restart the program after the specified delay
+if it has been terminated.
+.It Fl t Ar title
+Set the title for the daemon process.
+The default is the daemonized invocation.
+.It Fl u Ar user
+Login name of the user to execute the program under.
+Requires adequate superuser privileges.
+.It Fl s Ar syslog_priority
+These priorities are accepted: emerg, alert, crit, err, warning,
+notice, info, and debug.
+The default is notice.
+.It Fl l Ar syslog_facility
+These facilities are accepted: auth, authpriv, console, cron, daemon,
+ftp, kern, lpr, mail, news, ntp, security, syslog, user, uucp, and
+local0, ..., local7.
+The default is daemon.
+.It Fl T Ar syslog_tag
+Set the tag which is appended to all syslog messages.
+The default is daemon.
+.El
+.Pp
+If any of the options
+.Fl p ,
+.Fl P ,
+.Fl r ,
+.Fl o ,
+.Fl s ,
+.Fl T ,
+.Fl m ,
+.Fl S ,
+or
+.Fl l
+are specified, the program is executed in a spawned child process.
+The
+.Nm
+waits until it terminates to keep the pid file(s) locked and removes them
+after the process exits or restarts the program.
+In this case if the monitoring
+.Nm
+receives software termination signal (SIGTERM) it forwards it to the
+spawned process.
+Normally it will cause the child to exit, remove the pidfile(s)
+and then terminate.
+.Pp
+If neither file or syslog output are selected, all output is redirected to the
+.Nm
+process and written to stdout.
+The
+.Fl f
+option may be used to suppress the stdout output completely.
+.Pp
+The
+.Fl P
+option is useful combined with the
+.Fl r
+option as
+.Ar supervisor_pidfile
+contains the ID of the supervisor
+not the child.
+This is especially important if you use
+.Fl r
+in an rc script as the
+.Fl p
+option will give you the child's ID to signal when you attempt to
+stop the service, causing
+.Nm
+to restart the child.
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 1 if an error is returned by the
+.Xr daemon 3
+library routine, 2 if
+.Ar child_pidfile
+or
+.Ar supervisor_pidfile
+is requested, but cannot be opened, 3 if process is already running (pidfile
+exists and is locked), 4 if
+.Ar syslog_priority
+is not accepted, 5 if
+.Ar syslog_facility
+is not accepted, 6 if
+.Ar output_mask
+is not within the accepted range, 7 if
+.Ar output_file
+cannot be opened for appending, and otherwise 0.
+.Sh DIAGNOSTICS
+If the command cannot be executed, an error message is printed to
+standard error.
+The exact behavior depends on the logging parameters and the
+.Fl f
+flag.
+.Sh SEE ALSO
+.Xr nohup 1 ,
+.Xr setregid 2 ,
+.Xr setreuid 2 ,
+.Xr daemon 3 ,
+.Xr exec 3 ,
+.Xr pidfile 3 ,
+.Xr termios 4 ,
+.Xr tty 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 4.7 .

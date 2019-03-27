@@ -1,0 +1,8 @@
+algorithm aes-cbc;
+iv-method encblkno1;
+keylength 128;
+verify_method none;
+keygen pkcs5_pbkdf2/sha1 {
+        iterations 42;
+        salt AAAAgKajcCnHR7sR1k1RKQ9Q0uY=;
+};

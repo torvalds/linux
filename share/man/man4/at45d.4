@@ -1,0 +1,184 @@
+.\"
+.\" Copyright (c) 2019 Ian Lepore <ian@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 2, 2019
+.Dt AT45D 4
+.Os
+.Sh NAME
+.Nm at45d
+.Nd driver for DataFlash(tm) non-volatile storage devices
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device at45d"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+at45d_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the family of non-volatile storage
+devices known collectively as DataFlash(tm).
+DataFlash chips typically have part numbers beginning with AT45DB.
+The
+.Nm
+driver supports only the SPI bus versions of each AT45DB device,
+indicated by the last digit of the part number being 1 or 2.
+.Pp
+The
+.Nm
+driver uses opcode 0x9f to read the manufacturer and device ID
+data to determine whether the device is supported.
+The device ID is looked up using a table of data within the driver
+which describes the attributes of each supported device,
+such as block size, sector size, and device capacity.
+When a supported device is found, the
+.Nm
+driver creates a disk device and makes it accessible at
+.Pa /dev/flash/at45d? .
+The new disk device is then tasted by the available
+.Xr geom 4
+modules as with any disk device.
+.Sh HARDWARE
+The
+.Nm
+driver provides support for the following devices:
+.Pp
+.Bl -bullet -compact
+.It
+AT45DB011B
+.It
+AT45DB021B
+.It
+AT45DB041x
+.It
+AT45DB081B
+.It
+AT45DB161x
+.It
+AT45DB321x
+.It
+AT45DB321x
+.It
+AT45DB641E
+.It
+AT45DB642x
+.El
+.Sh FDT CONFIGURATION
+On an
+.Xr fdt 4
+based system, the
+.Nm
+device is defined as a slave device subnode
+of the SPI bus controller node.
+All properties documented in the
+.Va spibus.txt
+bindings document can be used with the
+.Nm
+device.
+The most commonly-used ones are documented below.
+.Pp
+The following properties are required in the
+.Nm
+device subnode:
+.Bl -tag -width indent
+.It Va compatible
+Must be the string "atmel,at45".
+.It Va reg
+Chip select address of device.
+.It Va spi-max-frequency
+The maximum bus frequency to use when communicating with this slave device.
+Actual bus speed may be lower, depending on the capabilities of the SPI
+bus controller hardware.
+.El
+.Pp
+The following properties are optional for the
+.Nm
+device subnode:
+.Bl -tag -width indent
+.It Va freebsd,sectorsize
+The sector size of the disk created for this storage device.
+It must be a multiple of the device's page size.
+The default is the device page size.
+.It Va spi-cpha
+Empty property indicating the slave device requires shifted clock
+phase (CPHA) mode.
+.It Va spi-cpol
+Empty property indicating the slave device requires inverse clock
+polarity (CPOL) mode.
+.It Va spi-cs-high
+Empty property indicating the slave device requires chip select active high.
+.El
+.Sh HINTS CONFIGURATION
+On a
+.Xr device.hints 5
+based system, such as
+.Li MIPS ,
+these values are configurable for
+.Nm :
+.Bl -tag -width indent
+.It Va hint.at45d.%d.at
+The spibus the
+.Nm
+instance is attached to.
+.It Va hint.at45d.%d.clock
+The maximum bus frequency to use when communicating with this device.
+Actual bus speed may be lower, depending on the capabilities of the SPI
+bus controller hardware.
+.It Va hint.at45d.%d.cs
+The chip-select number to assert when performing I/O for this device.
+Set the high bit (1 << 31) to invert the logic level of the chip select line.
+.It Va hint.at45d.%d.mode
+The SPI mode (0-3) to use when communicating with this device.
+.It Va hint.at45d.%d.sectorsize
+The sector size of the disk created for this storage device.
+It must be a multiple of the device's page size.
+The default is the device page size.
+.El
+.Sh FILES
+.Bl -tag -width /dev/flash/at45d?
+.It Pa /dev/flash/at45d?
+Provides read/write access to the storage device.
+.It Pa /dev/flash/spi?
+An alias for the
+.Pa /dev/at45d?
+device, for backwards compatibility with older versions of the driver.
+.El
+.Sh SEE ALSO
+.Xr fdt 4 ,
+.Xr geom 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 6.0 .

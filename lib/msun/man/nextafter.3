@@ -1,0 +1,96 @@
+.\" Copyright (c) 1985, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)ieee.3	6.4 (Berkeley) 5/6/91
+.\" $FreeBSD$
+.\"
+.Dd May 4, 2005
+.Dt NEXTAFTER 3
+.Os
+.Sh NAME
+.Nm nextafter ,
+.Nm nextafterf ,
+.Nm nextafterl ,
+.Nm nexttoward ,
+.Nm nexttowardf ,
+.Nm nexttowardl
+.Nd next representable value
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn nextafter "double x" "double y"
+.Ft float
+.Fn nextafterf "float x" "float y"
+.Ft long double
+.Fn nextafterl "long double x" "long double y"
+.Ft double
+.Fn nexttoward "double x" "long double y"
+.Ft float
+.Fn nexttowardf "float x" "long double y"
+.Ft long double
+.Fn nexttowardl "long double x" "long double y"
+.Sh DESCRIPTION
+These functions
+return the next machine representable number from
+.Fa x
+in direction
+.Fa y .
+.Sh SEE ALSO
+.Xr ieee 3 ,
+.Xr math 3
+.Sh STANDARDS
+The
+.Fn nextafter ,
+.Fn nextafterf ,
+.Fn nextafterl ,
+.Fn nexttoward ,
+.Fn nexttowardf ,
+and
+.Fn nexttowardl
+routines conform to
+.St -isoC-99 .
+They implement the Nextafter function recommended by
+.St -ieee754 ,
+with the extension that
+.Fn nextafter "+0.0" "-0.0"
+returns
+.Li -0.0 ,
+and
+.Fn nextafter "-0.0" "+0.0"
+returns
+.Li +0.0 .
+.Sh HISTORY
+The
+.Fn nextafter
+function appeared in
+.Bx 4.3 ,
+and
+.Fn nextafterf
+appeared in
+.Fx 2.0 .

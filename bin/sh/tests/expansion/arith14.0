@@ -1,0 +1,40 @@
+# $FreeBSD$
+# Check that <</>> use the low bits of the shift count.
+
+if [ $((1<<16<<16)) = 0 ]; then
+	width=32
+elif [ $((1<<32<<32)) = 0 ]; then
+	width=64
+elif [ $((1<<64<<64)) = 0 ]; then
+	width=128
+elif [ $((1<<64>>64)) = 1 ]; then
+	# Integers are wider than 128 bits; assume arbitrary precision.
+	# Nothing to test here.
+	exit 0
+else
+	echo "Cannot determine integer width"
+	exit 2
+fi
+
+twowidth=$((width * 2))
+j=43 k=$((1 << (width - 2))) r=0
+
+i=0
+while [ $i -lt $twowidth ]; do
+	if [ "$((j << i))" != "$((j << (i + width)))" ]; then
+		echo "Problem with $j << $i"
+		r=2
+	fi
+	i=$((i + 1))
+done
+
+i=0
+while [ $i -lt $twowidth ]; do
+	if [ "$((k >> i))" != "$((k >> (i + width)))" ]; then
+		echo "Problem with $k >> $i"
+		r=2
+	fi
+	i=$((i + 1))
+done
+
+exit $r

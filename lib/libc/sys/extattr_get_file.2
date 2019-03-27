@@ -1,0 +1,276 @@
+.\"
+.\" Copyright (c) 2001 Dima Dorfman <dima@unixfreak.org>
+.\" Copyright (c) 2003 Robert Watson <rwatson@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 29, 2008
+.Dt EXTATTR 2
+.Os
+.Sh NAME
+.Nm extattr_get_fd ,
+.Nm extattr_set_fd ,
+.Nm extattr_delete_fd ,
+.Nm extattr_list_fd ,
+.Nm extattr_get_file ,
+.Nm extattr_set_file ,
+.Nm extattr_delete_file ,
+.Nm extattr_list_file ,
+.Nm extattr_get_link ,
+.Nm extattr_set_link ,
+.Nm extattr_delete_link ,
+.Nm extattr_list_link
+.Nd system calls to manipulate VFS extended attributes
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/extattr.h
+.Ft ssize_t
+.Fn extattr_get_fd "int fd" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_set_fd "int fd" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
+.Ft int
+.Fn extattr_delete_fd "int fd" "int attrnamespace" "const char *attrname"
+.Ft ssize_t
+.Fn extattr_list_fd "int fd" "int attrnamespace" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_get_file "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_set_file "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
+.Ft int
+.Fn extattr_delete_file "const char *path" "int attrnamespace" "const char *attrname"
+.Ft ssize_t
+.Fn extattr_list_file "const char *path" "int attrnamespace" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_get_link "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_set_link "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
+.Ft int
+.Fn extattr_delete_link "const char *path" "int attrnamespace" "const char *attrname"
+.Ft ssize_t
+.Fn extattr_list_link "const char *path" "int attrnamespace" "void *data" "size_t nbytes"
+.Sh DESCRIPTION
+Named extended attributes are meta-data associated with vnodes
+representing files and directories.
+They exist as
+.Qq Li name=value
+pairs within a set of namespaces.
+.Pp
+The
+.Fn extattr_get_file
+system call retrieves the value of the specified extended attribute into
+a buffer pointed to by
+.Fa data
+of size
+.Fa nbytes .
+The
+.Fn extattr_set_file
+system call sets the value of the specified extended attribute to the data
+described by
+.Fa data .
+The
+.Fn extattr_delete_file
+system call deletes the extended attribute specified.
+The
+.Fn extattr_list_file
+returns a list of attributes present in the requested namespace.
+Each list entry consists of a single byte containing the length
+of the attribute name, followed by the attribute name.
+The attribute name is not terminated by ASCII 0 (nul).
+The
+.Fn extattr_get_file ,
+and
+.Fn extattr_list_file
+calls consume the
+.Fa data
+and
+.Fa nbytes
+arguments in the style of
+.Xr read 2 ;
+.Fn extattr_set_file
+consumes these arguments in the style of
+.Xr write 2 .
+.Pp
+If
+.Fa data
+is
+.Dv NULL
+in a call to
+.Fn extattr_get_file
+and
+.Fn extattr_list_file
+then the size of defined extended attribute data will be returned, rather
+than the quantity read, permitting applications to test the size of the
+data without performing a read.
+The
+.Fn extattr_delete_link ,
+.Fn extattr_get_link ,
+and
+.Fn extattr_set_link
+system calls behave in the same way as their _file counterparts, except that
+they do not follow symlinks.
+.Pp
+The
+.Fn extattr_get_fd ,
+.Fn extattr_set_fd ,
+.Fn extattr_delete_fd ,
+and
+.Fn extattr_list_fd ,
+calls are identical to their
+.Qq Li _file
+counterparts except for the first argument.
+The
+.Qq Li _fd
+functions take a file descriptor, while the
+.Qq Li _file
+functions take a path.
+Both arguments describe a file associated with the extended attribute
+that should be manipulated.
+.Pp
+The following arguments are common to all the system calls described here:
+.Bl -tag -width attrnamespace
+.It Fa attrnamespace
+the namespace in which the extended attribute resides; see
+.Xr extattr 9
+.It Fa attrname
+the name of the extended attribute
+.El
+.Pp
+Named extended attribute semantics vary by file system implementing the call.
+Not all operations may be supported for a particular attribute.
+Additionally, the format of the data in
+.Fa data
+is attribute-specific.
+.Pp
+For more information on named extended attributes, please see
+.Xr extattr 9 .
+.Sh CAVEAT
+This interface is under active development, and as such is subject to
+change as applications are adapted to use it.
+Developers are discouraged from relying on its stability.
+.Sh RETURN VALUES
+If successful, the
+.Fn extattr_get_file ,
+.Fn extattr_set_file ,
+and
+.Fn extattr_list_file
+calls return the number of bytes
+that were read or written from the
+.Fa data ,
+respectively, or if
+.Fa data
+was
+.Dv NULL ,
+then
+.Fn extattr_get_file
+and
+.Fn extattr_list_file
+return the number of bytes available to read.
+If any of the calls are unsuccessful, the value \-1 is returned
+and the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+.Rv -std extattr_delete_file
+.Sh ERRORS
+The following errors may be returned by the system calls themselves.
+Additionally, the file system implementing the call may return any
+other errors it desires.
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa attrnamespace
+and
+.Fa attrname
+arguments,
+or the memory range defined by
+.Fa data
+and
+.Fa nbytes
+point outside the process's allocated address space.
+.It Bq Er ENAMETOOLONG
+The attribute name was longer than
+.Dv EXTATTR_MAXNAMELEN .
+.El
+.Pp
+The
+.Fn extattr_get_fd ,
+.Fn extattr_set_fd ,
+.Fn extattr_delete_fd ,
+and
+.Fn extattr_list_fd
+system calls may also fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The file descriptor referenced by
+.Fa fd
+was invalid.
+.El
+.Pp
+Additionally, the
+.Fn extattr_get_file ,
+.Fn extattr_set_file ,
+and
+.Fn extattr_delete_file
+calls may also fail due to the following errors:
+.Bl -tag -width Er
+.It Bq Er ENOATTR
+The requested attribute was not defined for this file.
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded 255 characters,
+or an entire path name exceeded 1023 characters.
+.It Bq Er ENOENT
+A component of the path name that must exist does not exist.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix.
+.\" XXX are any missing?
+.El
+.Sh SEE ALSO
+.Xr extattr 3 ,
+.Xr getextattr 8 ,
+.Xr setextattr 8 ,
+.Xr extattr 9 ,
+.Xr VOP_GETEXTATTR 9 ,
+.Xr VOP_SETEXTATTR 9
+.Sh HISTORY
+Extended attribute support was developed as part of the
+.Tn TrustedBSD
+Project, and introduced in
+.Fx 5.0 .
+It was developed to support security extensions requiring additional labels
+to be associated with each file or directory.
+.Sh BUGS
+In earlier versions of this API, passing an empty string for the
+attribute name to
+.Fn extattr_get_fd ,
+.Fn extattr_get_file ,
+or
+.Fn extattr_get_link
+would return the list of attributes defined for the target object.
+This interface has been deprecated in preference to using the explicit
+list API, and should not be used.

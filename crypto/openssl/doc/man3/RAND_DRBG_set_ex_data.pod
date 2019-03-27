@@ -1,0 +1,68 @@
+=pod
+
+=head1 NAME
+
+RAND_DRBG_set_ex_data,
+RAND_DRBG_get_ex_data,
+RAND_DRBG_get_ex_new_index
+- store and retrieve extra data from the DRBG instance
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand_drbg.h>
+
+ int RAND_DRBG_set_ex_data(RAND_DRBG *drbg, int idx, void *data);
+
+ void *RAND_DRBG_get_ex_data(const RAND_DRBG *drbg, int idx);
+
+ int RAND_DRBG_get_ex_new_index(long argl, void *argp,
+                                CRYPTO_EX_new *new_func,
+                                CRYPTO_EX_dup *dup_func,
+                                CRYPTO_EX_free *free_func);
+
+
+
+=head1 DESCRIPTION
+
+RAND_DRBG_set_ex_data() enables an application to store arbitrary application
+specific data B<data> in a RAND_DRBG instance B<drbg>. The index B<idx> should
+be a value previously returned from a call to RAND_DRBG_get_ex_new_index().
+
+RAND_DRBG_get_ex_data() retrieves application specific data previously stored
+in an RAND_DRBG instance B<drbg>. The B<idx> value should be the same as that
+used when originally storing the data.
+
+For more detailed information see L<CRYPTO_get_ex_data(3)> and
+L<CRYPTO_set_ex_data(3)> which implement these functions and
+L<CRYPTO_get_ex_new_index(3)> for generating a unique index.
+
+=head1 RETURN VALUES
+
+RAND_DRBG_set_ex_data() returns 1 for success or 0 for failure.
+
+RAND_DRBG_get_ex_data() returns the previously stored value or NULL on
+failure. NULL may also be a valid value.
+
+
+=head1 NOTES
+
+RAND_DRBG_get_ex_new_index(...) is implemented as a macro and equivalent to
+CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_DRBG,...).
+
+=head1 SEE ALSO
+
+L<CRYPTO_get_ex_data(3)>,
+L<CRYPTO_set_ex_data(3)>,
+L<CRYPTO_get_ex_new_index(3)>,
+L<RAND_DRBG(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

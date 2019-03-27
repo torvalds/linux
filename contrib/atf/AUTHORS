@@ -1,0 +1,30 @@
+Authors and contributors                        Automated Testing Framework
+===========================================================================
+
+
+* Julio Merino <jmmv@NetBSD.org>
+
+  Main developer.  He started the work on this project when he took part in
+  the Google Summer of Code 2007 program as a student.
+
+* Martin Husemann <martin@NetBSD.org>
+
+  Mentored this project during its development as part of the Google Summer
+  of Code 2007 program.
+
+* Lukasz Strzygowski <qx89l4@gmail.com>
+
+  Participant of the Google Summer of Code 2008 program.  Mentored by The
+  NetBSD Foundation, he worked on the atfify NetBSD-SoC project and, as a
+  side-effect, he contributed to the ATF source code.  He developed the
+  initial version of the atf-check utility and started the addition of the
+  ATF_REQUIRE family of macros in the C interface.
+
+* Paul Goyette <pgoyette@NetBSD.org>
+
+  Implemented timestamping of test programs and test cases so that
+  atf-report can provide timings for their execution.
+
+
+===========================================================================
+vim: filetype=text:textwidth=75:expandtab:shiftwidth=2:softtabstop=2

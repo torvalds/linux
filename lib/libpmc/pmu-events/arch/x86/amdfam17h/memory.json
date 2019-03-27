@@ -1,0 +1,226 @@
+[
+ {
+ "EventName": "ls_locks.spec_lock_map_commit",
+ "EventCode": "0x25",
+ "BriefDescription": "Unit Masks ORed.",
+ "PublicDescription": "Unit Masks ORed.",
+ "UMask": "0x8"
+ },
+ {
+ "EventName": "ls_locks.spec_lock",
+ "EventCode": "0x25",
+ "BriefDescription": "Unit Masks ORed.",
+ "PublicDescription": "Unit Masks ORed.",
+ "UMask": "0x4"
+ },
+ {
+ "EventName": "ls_locks.non_spec_lock",
+ "EventCode": "0x25",
+ "BriefDescription": "Unit Masks ORed.",
+ "PublicDescription": "Unit Masks ORed.",
+ "UMask": "0x2"
+ },
+ {
+ "EventName": "ls_locks.bus_lock",
+ "EventCode": "0x25",
+ "BriefDescription": "Unit Masks ORed.",
+ "PublicDescription": "Unit Masks ORed.",
+ "UMask": "0x1"
+ },
+ {
+ "EventName": "ls_dispatch.ld_st_dispatch",
+ "EventCode": "0x29",
+ "BriefDescription": "Load-op-Stores.",
+ "PublicDescription": "Counts the number of operations dispatched to the LS unit. Unit Masks ADDed. Load-op-Stores.",
+ "UMask": "0x4"
+ },
+ {
+ "EventName": "ls_dispatch.store_dispatch",
+ "EventCode": "0x29",
+ "BriefDescription": "Counts the number of operations dispatched to the LS unit. Unit Masks ADDed.",
+ "PublicDescription": "Counts the number of operations dispatched to the LS unit. Unit Masks ADDed.",
+ "UMask": "0x2"
+ },
+ {
+ "EventName": "ls_dispatch.ld_dispatch",
+ "EventCode": "0x29",
+ "BriefDescription": "Counts the number of operations dispatched to the LS unit. Unit Masks ADDed.",
+ "PublicDescription": "Counts the number of operations dispatched to the LS unit. Unit Masks ADDed.",
+ "UMask": "0x1"
+ },
+ {
+ "EventName": "ls_stlf",
+ "EventCode": "0x35",
+ "BriefDescription": "Number of STLF hits."
+ },
+ {
+ "EventName": "ls_dc_accesses",
+ "EventCode": "0x40",
+ "BriefDescription": "The number of accesses to the data cache for load and store references. This may include certain microcode scratchpad accesses, although these are generally rare. Each increment represents an eight-byte access, although the instruction may only be accessing a portion of that. This event is a speculative event."
+ },
+ {
+ "EventName": "ls_mab_alloc_pipe.tlb_pipe_early",
+ "EventCode": "0x41",
+ "BriefDescription": "MAB Allocation by Pipe.",
+ "PublicDescription": "MAB Allocation by Pipe.",
+ "UMask": "0x10"
+ },
+ {
+ "EventName": "ls_mab_alloc_pipe.hw_pf",
+ "EventCode": "0x41",
+ "BriefDescription": "MAB Allocation by Pipe.",
+ "PublicDescription": "MAB Allocation by Pipe.",
+ "UMask": "0x8"
+ },
+ {
+ "EventName": "ls_mab_alloc_pipe.tlb_pipe_late",
+ "EventCode": "0x41",
+ "BriefDescription": "MAB Allocation by Pipe.",
+ "PublicDescription": "MAB Allocation by Pipe.",
+ "UMask": "0x4"
+ },
+ {
+ "EventName": "ls_mab_alloc_pipe.st_pipe",
+ "EventCode": "0x41",
+ "BriefDescription": "MAB Allocation by Pipe.",
+ "PublicDescription": "MAB Allocation by Pipe.",
+ "UMask": "0x2"
+ },
+ {
+ "EventName": "ls_mab_alloc_pipe.data_pipe",
+ "EventCode": "0x41",
+ "BriefDescription": "MAB Allocation by Pipe.",
+ "PublicDescription": "MAB Allocation by Pipe.",
+ "UMask": "0x1"
+ },
+ {
+ "EventName": "ls_l1_d_tlb_miss.tlb_reload1_gl2_miss",
+ "EventCode": "0x45",
+ "BriefDescription": "L1 DTLB Miss.",
+ "PublicDescription": "L1 DTLB Miss.",
+ "UMask": "0x80"
+ },
+ {
+ "EventName": "ls_l1_d_tlb_miss.tlb_reload2_ml2_miss",
+ "EventCode": "0x45",
+ "BriefDescription": "L1 DTLB Miss.",
+ "PublicDescription": "L1 DTLB Miss.",
+ "UMask": "0x40"
+ },
+ {
+ "EventName": "ls_l1_d_tlb_miss.tlb_reload32_kl2_miss",
+ "EventCode": "0x45",
+ "BriefDescription": "L1 DTLB Miss.",
+ "PublicDescription": "L1 DTLB Miss.",
+ "UMask": "0x20"
+ },
+ {
+ "EventName": "ls_l1_d_tlb_miss.tlb_reload4_kl2_miss",
+ "EventCode": "0x45",
+ "BriefDescription": "L1 DTLB Miss.",
+ "PublicDescription": "L1 DTLB Miss.",
+ "UMask": "0x10"
+ },
+ {
+ "EventName": "ls_l1_d_tlb_miss.tlb_reload1_gl2_hit",
+ "EventCode": "0x45",
+ "BriefDescription": "L1 DTLB Miss.",
+ "PublicDescription": "L1 DTLB Miss.",
+ "UMask": "0x8"
+ },
+ {
+ "EventName": "ls_l1_d_tlb_miss.tlb_reload2_ml2_hit",
+ "EventCode": "0x45",
+ "BriefDescription": "L1 DTLB Miss.",
+ "PublicDescription": "L1 DTLB Miss.",
+ "UMask": "0x4"
+ },
+ {
+ "EventName": "ls_l1_d_tlb_miss.tlb_reload32_kl2_hit",
+ "EventCode": "0x45",
+ "BriefDescription": "L1 DTLB Miss.",
+ "PublicDescription": "L1 DTLB Miss.",
+ "UMask": "0x2"
+ },
+ {
+ "EventName": "ls_l1_d_tlb_miss.tlb_reload4_kl2_hit",
+ "EventCode": "0x45",
+ "BriefDescription": "L1 DTLB Miss.",
+ "PublicDescription": "L1 DTLB Miss.",
+ "UMask": "0x1"
+ },
+ {
+ "EventName": "ls_tablewalker.perf_mon_tablewalk_alloc_iside1",
+ "EventCode": "0x46",
+ "BriefDescription": "Tablewalker allocation.",
+ "PublicDescription": "Tablewalker allocation.",
+ "UMask": "0x8"
+ },
+ {
+ "EventName": "ls_tablewalker.perf_mon_tablewalk_alloc_iside0",
+ "EventCode": "0x46",
+ "BriefDescription": "Tablewalker allocation.",
+ "PublicDescription": "Tablewalker allocation.",
+ "UMask": "0x4"
+ },
+ {
+ "EventName": "ls_tablewalker.perf_mon_tablewalk_alloc_dside1",
+ "EventCode": "0x46",
+ "BriefDescription": "Tablewalker allocation.",
+ "PublicDescription": "Tablewalker allocation.",
+ "UMask": "0x2"
+ },
+ {
+ "EventName": "ls_tablewalker.perf_mon_tablewalk_alloc_dside0",
+ "EventCode": "0x46",
+ "BriefDescription": "Tablewalker allocation.",
+ "PublicDescription": "Tablewalker allocation.",
+ "UMask": "0x1"
+ },
+ {
+ "EventName": "ls_misal_accesses",
+ "EventCode": "0x47",
+ "BriefDescription": "Misaligned loads."
+ },
+ {
+ "EventName": "ls_pref_instr_disp.prefetch_nta",
+ "EventCode": "0x4b",
+ "BriefDescription": "Software Prefetch Instructions Dispatched.",
+ "PublicDescription": "Software Prefetch Instructions Dispatched.",
+ "UMask": "0x4"
+ },
+ {
+ "EventName": "ls_pref_instr_disp.store_prefetch_w",
+ "EventCode": "0x4b",
+ "BriefDescription": "Software Prefetch Instructions Dispatched.",
+ "PublicDescription": "Software Prefetch Instructions Dispatched.",
+ "UMask": "0x2"
+ },
+ {
+ "EventName": "ls_pref_instr_disp.load_prefetch_w",
+ "EventCode": "0x4b",
+ "BriefDescription": "Prefetch, Prefetch_T0_T1_T2.",
+ "PublicDescription": "Software Prefetch Instructions Dispatched. Prefetch, Prefetch_T0_T1_T2.",
+ "UMask": "0x1"
+ },
+ {
+ "EventName": "ls_inef_sw_pref.mab_mch_cnt",
+ "EventCode": "0x52",
+ "BriefDescription": "The number of software prefetches that did not fetch data outside of the processor core.",
+ "PublicDescription": "The number of software prefetches that did not fetch data outside of the processor core.",
+ "UMask": "0x2"
+ },
+ {
+ "EventName": "ls_inef_sw_pref.data_pipe_sw_pf_dc_hit",
+ "EventCode": "0x52",
+ "BriefDescription": "The number of software prefetches that did not fetch data outside of the processor core.",
+ "PublicDescription": "The number of software prefetches that did not fetch data outside of the processor core.",
+ "UMask": "0x1"
+ },
+ {
+ "EventName": "ls_not_halted_cyc",
+ "EventCode": "0x76",
+ "BriefDescription": "Cycles not in Halt."
+ "SampleAfterValue": "2000003",
+ }
+]

@@ -1,0 +1,95 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)setmode.3	8.2 (Berkeley) 4/28/95
+.\" $FreeBSD$
+.\"
+.Dd January 1, 2000
+.Dt STRTOFFLAGS 3
+.Os
+.Sh NAME
+.Nm fflagstostr ,
+.Nm strtofflags
+.Nd convert between file flag bits and their string names
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft char *
+.Fn fflagstostr "u_long flags"
+.Ft int
+.Fn strtofflags "char **stringp" "u_long *setp" "u_long *clrp"
+.Sh DESCRIPTION
+The
+.Fn fflagstostr
+function returns a comma separated string of the file flags represented by
+.Fa flags .
+If no flags are set a zero length string is returned.
+.Pp
+If memory cannot be allocated for the return value,
+.Fn fflagstostr
+returns
+.Dv NULL .
+.Pp
+The value returned from
+.Fn fflagstostr
+is obtained from
+.Fn malloc
+and should be returned to the system with
+.Fn free
+when the program is done with it.
+.Pp
+The
+.Fn strtofflags
+function takes a string of file flags, as described in
+.Xr chflags 1 ,
+parses it, and returns the 'set' flags and 'clear' flags
+such as would be given as arguments to
+.Xr chflags 2 .
+On success
+.Fn strtofflags
+returns 0, otherwise it returns non-zero and
+.Fa stringp
+is left pointing to the offending token.
+.Sh ERRORS
+The
+.Fn fflagstostr
+function
+may fail and set errno for any of the errors specified for the library
+routine
+.Xr malloc 3 .
+.Sh SEE ALSO
+.Xr chflags 1 ,
+.Xr chflags 2 ,
+.Xr malloc 3
+.Sh HISTORY
+The
+.Fn fflagstostr
+and
+.Fn strtofflags
+functions first appeared in
+.Fx 4.0 .

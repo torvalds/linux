@@ -1,0 +1,222 @@
+.\" @(#)getnetconfig.3n 1.28 93/06/02 SMI; from SVr4
+.\" $NetBSD: getnetconfig.3,v 1.1 2000/06/02 23:11:11 fvdl Exp $
+.\" $FreeBSD$
+.\" Copyright 1989 AT&T
+.Dd April 22, 2000
+.Dt GETNETCONFIG 3
+.Os
+.Sh NAME
+.Nm getnetconfig ,
+.Nm setnetconfig ,
+.Nm endnetconfig ,
+.Nm getnetconfigent ,
+.Nm freenetconfigent ,
+.Nm nc_perror ,
+.Nm nc_sperror
+.Nd get network configuration database entry
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In netconfig.h
+.Ft "struct netconfig *"
+.Fn getnetconfig "void *handlep"
+.Ft "void *"
+.Fn setnetconfig "void"
+.Ft int
+.Fn endnetconfig "void *handlep"
+.Ft "struct netconfig *"
+.Fn getnetconfigent "const char *netid"
+.Ft void
+.Fn freenetconfigent "struct netconfig *netconfigp"
+.Ft void
+.Fn nc_perror "const char *msg"
+.Ft "char *"
+.Fn nc_sperror "void"
+.Sh DESCRIPTION
+The library routines described on this page
+provide the application access to
+the system network configuration database,
+.Pa /etc/netconfig .
+The
+.Fn getnetconfig
+function
+returns a pointer to the
+current entry in the
+netconfig
+database, formatted as a
+.Ft "struct netconfig" .
+Successive calls will return successive netconfig
+entries in the netconfig database.
+The
+.Fn getnetconfig
+function
+can be used to search the entire netconfig
+file.
+The
+.Fn getnetconfig
+function
+returns
+.Dv NULL
+at the end of the file.
+The
+.Fa handlep
+argument
+is the handle obtained through
+.Fn setnetconfig .
+.Pp
+A call to
+.Fn setnetconfig
+has the effect of
+.Dq binding
+to or
+.Dq rewinding
+the netconfig database.
+The
+.Fn setnetconfig
+function
+must be called before the first call to
+.Fn getnetconfig
+and may be called at any other time.
+The
+.Fn setnetconfig
+function
+need not be called before a call to
+.Fn getnetconfigent .
+The
+.Fn setnetconfig
+function
+returns a unique handle to be used by
+.Fn getnetconfig .
+.Pp
+The
+.Fn endnetconfig
+function
+should be called when processing is complete to release resources for reuse.
+The
+.Fa handlep
+argument
+is the handle obtained through
+.Fn setnetconfig .
+Programmers should be aware, however, that the last call to
+.Fn endnetconfig
+frees all memory allocated by
+.Fn getnetconfig
+for the
+.Ft "struct netconfig"
+data structure.
+The
+.Fn endnetconfig
+function
+may not be called before
+.Fn setnetconfig .
+.Pp
+The
+.Fn getnetconfigent
+function
+returns a pointer
+to the netconfig structure corresponding
+to
+.Fa netid .
+It returns
+.Dv NULL
+if
+.Fa netid
+is invalid
+(that is, does not name an entry in the netconfig database).
+.Pp
+The
+.Fn freenetconfigent
+function
+frees the netconfig structure pointed to by
+.Fa netconfigp
+(previously returned by
+.Fn getnetconfigent ) .
+.Pp
+The
+.Fn nc_perror
+function
+prints a message to the standard error indicating why any of the
+above routines failed.
+The message is prepended with the string
+.Fa msg
+and a colon.
+A newline character is appended at the end of the message.
+.Pp
+The
+.Fn nc_sperror
+function
+is similar to
+.Fn nc_perror
+but instead of sending the message
+to the standard error, will return a pointer to a string that
+contains the error message.
+.Pp
+The
+.Fn nc_perror
+and
+.Fn nc_sperror
+functions
+can also be used with the
+.Ev NETPATH
+access routines defined in
+.Xr getnetpath 3 .
+.Sh RETURN VALUES
+The
+.Fn setnetconfig
+function
+returns a unique handle to be used by
+.Fn getnetconfig .
+In the case of an error,
+.Fn setnetconfig
+returns
+.Dv NULL
+and
+.Fn nc_perror
+or
+.Fn nc_sperror
+can be used to print the reason for failure.
+.Pp
+The
+.Fn getnetconfig
+function
+returns a pointer to the current entry in the netconfig
+database, formatted as a
+.Ft "struct netconfig" .
+The
+.Fn getnetconfig
+function
+returns
+.Dv NULL
+at the end of the file, or upon failure.
+.Pp
+The
+.Fn endnetconfig
+function
+returns 0 on success and \-1 on failure
+(for example, if
+.Fn setnetconfig
+was not called previously).
+.Pp
+On success,
+.Fn getnetconfigent
+returns a pointer to the
+.Ft "struct netconfig"
+structure corresponding to
+.Fa netid ;
+otherwise it returns
+.Dv NULL .
+.Pp
+The
+.Fn nc_sperror
+function
+returns a pointer to a buffer which contains the error message string.
+This buffer is overwritten on each call.
+In multithreaded applications, this buffer is
+implemented as thread-specific data.
+.Sh FILES
+.Bl -tag -width /etc/netconfig -compact
+.It Pa /etc/netconfig
+.El
+.Sh SEE ALSO
+.Xr getnetpath 3 ,
+.Xr netconfig 5

@@ -1,0 +1,25 @@
+#
+# test ruleset
+#
+# allow packets coming from foo to bar through.
+#
+pass in from 10.1.1.2 to 10.2.1.1
+#
+# allow any TCP packets from the same subnet as foo is on through to host
+# 10.1.1.2 if they are destined for port 6667.
+#
+pass in proto tcp from 10.2.2.2/24 to 10.1.1.2/32 port = 6667
+#
+# allow in UDP packets which are NOT from port 53 and are destined for
+# localhost
+#
+pass in proto udp from 10.2.2.2 port != 53 to localhost
+#
+# block all ICMP unreachables.
+#
+block in proto icmp from any to any icmp-type unreach
+#
+# allow packets through which have a non-standard IP header length (ie there
+# are IP options such as source-routing present).
+#
+pass in from any to any with ipopts

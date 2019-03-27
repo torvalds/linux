@@ -1,0 +1,168 @@
+=pod
+
+=head1 NAME
+
+openssl-pkey,
+pkey - public or private key processing tool
+
+=head1 SYNOPSIS
+
+B<openssl> B<pkey>
+[B<-help>]
+[B<-inform PEM|DER>]
+[B<-outform PEM|DER>]
+[B<-in filename>]
+[B<-passin arg>]
+[B<-out filename>]
+[B<-passout arg>]
+[B<-traditional>]
+[B<-I<cipher>>]
+[B<-text>]
+[B<-text_pub>]
+[B<-noout>]
+[B<-pubin>]
+[B<-pubout>]
+[B<-engine id>]
+[B<-check>]
+[B<-pubcheck>]
+
+=head1 DESCRIPTION
+
+The B<pkey> command processes public or private keys. They can be converted
+between various forms and their components printed out.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-inform DER|PEM>
+
+This specifies the input format DER or PEM. The default format is PEM.
+
+=item B<-outform DER|PEM>
+
+This specifies the output format, the options have the same meaning and default
+as the B<-inform> option.
+
+=item B<-in filename>
+
+This specifies the input filename to read a key from or standard input if this
+option is not specified. If the key is encrypted a pass phrase will be
+prompted for.
+
+=item B<-passin arg>
+
+The input file password source. For more information about the format of B<arg>
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
+
+=item B<-out filename>
+
+This specifies the output filename to write a key to or standard output if this
+option is not specified. If any encryption options are set then a pass phrase
+will be prompted for. The output filename should B<not> be the same as the input
+filename.
+
+=item B<-passout password>
+
+The output file password source. For more information about the format of B<arg>
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
+
+=item B<-traditional>
+
+Normally a private key is written using standard format: this is PKCS#8 form
+with the appropriate encryption algorithm (if any). If the B<-traditional>
+option is specified then the older "traditional" format is used instead.
+
+=item B<-I<cipher>>
+
+These options encrypt the private key with the supplied cipher. Any algorithm
+name accepted by EVP_get_cipherbyname() is acceptable such as B<des3>.
+
+=item B<-text>
+
+Prints out the various public or private key components in
+plain text in addition to the encoded version.
+
+=item B<-text_pub>
+
+Print out only public key components even if a private key is being processed.
+
+=item B<-noout>
+
+Do not output the encoded version of the key.
+
+=item B<-pubin>
+
+By default a private key is read from the input file: with this
+option a public key is read instead.
+
+=item B<-pubout>
+
+By default a private key is output: with this option a public
+key will be output instead. This option is automatically set if
+the input is a public key.
+
+=item B<-engine id>
+
+Specifying an engine (by its unique B<id> string) will cause B<pkey>
+to attempt to obtain a functional reference to the specified engine,
+thus initialising it if needed. The engine will then be set as the default
+for all available algorithms.
+
+=item B<-check>
+
+This option checks the consistency of a key pair for both public and private
+components.
+
+=item B<-pubcheck>
+
+This option checks the correctness of either a public key or the public component
+of a key pair.
+
+=back
+
+=head1 EXAMPLES
+
+To remove the pass phrase on an RSA private key:
+
+ openssl pkey -in key.pem -out keyout.pem
+
+To encrypt a private key using triple DES:
+
+ openssl pkey -in key.pem -des3 -out keyout.pem
+
+To convert a private key from PEM to DER format:
+
+ openssl pkey -in key.pem -outform DER -out keyout.der
+
+To print out the components of a private key to standard output:
+
+ openssl pkey -in key.pem -text -noout
+
+To print out the public components of a private key to standard output:
+
+ openssl pkey -in key.pem -text_pub -noout
+
+To just output the public part of a private key:
+
+ openssl pkey -in key.pem -pubout -out pubkey.pem
+
+=head1 SEE ALSO
+
+L<genpkey(1)>, L<rsa(1)>, L<pkcs8(1)>,
+L<dsa(1)>, L<genrsa(1)>, L<gendsa(1)>
+
+=head1 COPYRIGHT
+
+Copyright 2006-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,191 @@
+.\"	$Id: mandoc_malloc.3,v 1.2 2016/07/07 19:19:01 schwarze Exp $
+.\"
+.\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 7 2016 $
+.Dt MANDOC_MALLOC 3
+.Os
+.Sh NAME
+.Nm mandoc_malloc ,
+.Nm mandoc_realloc ,
+.Nm mandoc_reallocarray ,
+.Nm mandoc_calloc ,
+.Nm mandoc_strdup ,
+.Nm mandoc_strndup ,
+.Nm mandoc_asprintf
+.Nd memory allocation function wrappers used in the mandoc library
+.Sh SYNOPSIS
+.In sys/types.h
+.In mandoc_aux.h
+.Ft "void *"
+.Fo mandoc_malloc
+.Fa "size_t size"
+.Fc
+.Ft "void *"
+.Fo mandoc_realloc
+.Fa "void *ptr"
+.Fa "size_t size"
+.Fc
+.Ft "void *"
+.Fo mandoc_reallocarray
+.Fa "void *ptr"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fc
+.Ft "void *"
+.Fo mandoc_calloc
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fc
+.Ft "char *"
+.Fo mandoc_strdup
+.Fa "const char *s"
+.Fc
+.Ft "char *"
+.Fo mandoc_strndup
+.Fa "const char *s"
+.Fa "size_t maxlen"
+.Fc
+.Ft int
+.Fo mandoc_asprintf
+.Fa "char **ret"
+.Fa "const char *format"
+.Fa "..."
+.Fc
+.Sh DESCRIPTION
+These functions call the libc functions of the same names, passing
+through their return values when successful.
+In case of failure, they do not return, but instead call
+.Xr err 3 .
+They can be used both internally by any code in the mandoc libraries
+and externally by programs using that library, for example
+.Xr mandoc 1 ,
+.Xr man 1 ,
+.Xr apropos 1 ,
+.Xr makewhatis 8 ,
+and
+.Xr man.cgi 8 .
+.Pp
+The function
+.Fn mandoc_malloc
+allocates one new object, leaving the memory uninitialized.
+The functions
+.Fn mandoc_realloc
+and
+.Fn mandoc_reallocarray
+change the size of an existing object or array, possibly moving it.
+When shrinking the size, existing data is truncated; when growing,
+the additional memory is not initialized.
+The function
+.Fn mandoc_calloc
+allocates a new array, initializing it to zero.
+.Pp
+The argument
+.Fa size
+is the size of each object.
+The argument
+.Fa nmemb
+is the new number of objects in the array.
+The argument
+.Fa ptr
+is a pointer to the existing object or array to be resized; if it is
+.Dv NULL ,
+a new object or array is allocated.
+.Pp
+The functions
+.Fn mandoc_strdup
+and
+.Fn mandoc_strndup
+copy a string into newly allocated memory.
+For
+.Fn mandoc_strdup ,
+the string pointed to by
+.Fa s
+needs to be NUL-terminated.
+For
+.Fn mandoc_strndup ,
+at most
+.Fa maxlen
+bytes are copied.
+The function
+.Fn mandoc_asprintf
+writes output formatted according to
+.Fa format
+into newly allocated memory and returns a pointer to the result in
+.Fa ret .
+For all three string functions, the result is always NUL-terminated.
+.Pp
+When the objects and strings are no longer needed,
+the pointers returned by these functions can be passed to
+.Xr free 3 .
+.Sh RETURN VALUES
+The function
+.Fn mandoc_asprintf
+always returns the number of characters written, excluding the
+final NUL byte.
+It never returns -1.
+.Pp
+The other functions always return a valid pointer; they never return
+.Dv NULL .
+.Sh FILES
+These functions are implemented in
+.Pa mandoc_aux.c .
+.Sh SEE ALSO
+.Xr asprintf 3 ,
+.Xr err 3 ,
+.Xr malloc 3 ,
+.Xr strdup 3
+.Sh STANDARDS
+The functions
+.Fn malloc ,
+.Fn realloc ,
+and
+.Fn calloc
+are required by
+.St -ansiC .
+The functions
+.Fn strdup
+and
+.Fn strndup
+are required by
+.St -p1003.1-2008 .
+The function
+.Fn asprintf
+is a widespread extension that first appeared in the GNU C library.
+.Pp
+The function
+.Fn reallocarray
+is an extension that first appeared in
+.Ox 5.6 .
+If it is not provided by the operating system, the mandoc build system
+uses a bundled portable implementation.
+.Sh HISTORY
+The functions
+.Fn mandoc_malloc ,
+.Fn mandoc_realloc ,
+.Fn mandoc_calloc ,
+and
+.Fn mandoc_strdup
+have been available since mandoc 1.9.12,
+.Fn mandoc_strndup
+since 1.11.5,
+and
+.Fn mandoc_asprintf
+and
+.Fn mandoc_reallocarray
+since 1.12.4 and 1.13.0.
+.Sh AUTHORS
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org

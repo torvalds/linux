@@ -1,0 +1,118 @@
+# GCC build-specific configuration file.
+# Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003
+# Free Software Foundation, Inc.
+
+#This file is part of GCC.
+
+#GCC is free software; you can redistribute it and/or modify it under
+#the terms of the GNU General Public License as published by the Free
+#Software Foundation; either version 2, or (at your option) any later
+#version.
+
+#GCC is distributed in the hope that it will be useful, but WITHOUT
+#ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+#for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with GCC; see the file COPYING.  If not, write to the Free
+#Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+#02110-1301, USA.
+
+# This is the GCC build-specific configuration file
+# where a configuration type is mapped to different system-specific
+# definitions and files.  This is invoked by the autoconf-generated
+# configure script.  Putting it in a separate shell file lets us skip
+# running autoconf when modifying build-specific information.
+
+# This file switches on the shell variable ${build}.  As much of this
+# as possible should be replaced with autoconf tests in the future.
+
+# This file sets the following shell variables for use by the
+# autoconf-generated configure script:
+#
+#  build_xm_defines	List of macros to define when compiling for the
+#			build machine.
+#
+#  build_xm_file	List of files to include when compiling for the
+#			build machine.
+#
+#  build_install_headers_dir
+#			Target to use when installing header files.
+#
+#  build_exeext		Set to the suffix, if the build machine requires
+#			executables to have a file name suffix.
+
+# Default settings.
+build_xm_file=
+build_xm_defines=
+build_exeext=
+build_install_headers_dir=install-headers-tar
+
+# System-specific settings.
+case $build in
+  alpha*-dec-osf4*)
+    # Some versions of OSF4 (specifically X4.0-9 296.7) have
+    # a broken tar, so we use cpio instead.
+    build_install_headers_dir=install-headers-cpio
+    ;;
+  alpha*-dec-*vms*)
+    build_xm_file=alpha/xm-vms.h
+    build_exeext=.exe
+    build_install_headers_dir=install-headers-cp
+    prefix=/gnu
+    local_prefix=/gnu
+    ;;
+  hppa1.0-*-hpux1[01]* | \
+  hppa*64*-*-hpux11* | \
+  hppa1.1-*-hpux11* | \
+  hppa2*-*-hpux11* )
+    build_install_headers_dir=install-headers-cpio
+    ;;
+  i370-*-opened* | i370-*-mvs* )
+    # IBM 360/370/390 Architecture
+    build_xm_defines='FATAL_EXIT_CODE=12'
+    ;;
+  i[34567]86-*-cygwin* | i[34567]86-*-pe )
+    build_xm_file=i386/xm-cygwin.h
+    build_exeext=.exe
+    ;;
+  i[34567]86-*-mingw32*)
+    build_xm_file=i386/xm-mingw32.h
+    build_exeext=.exe
+    ;;
+  i[34567]86-pc-msdosdjgpp*)
+    build_xm_file=i386/xm-djgpp.h
+    build_exeext=.exe
+    ;;
+  i[34567]86-*-sco3.2v5*) 
+    # 80386 running SCO Open Server 5
+    build_install_headers_dir=install-headers-cpio
+    ;;
+  i[34567]86-sequent-ptx4* | i[34567]86-sequent-sysv4* )
+    build_install_headers_dir=install-headers-cpio
+    ;;
+  i[34567]86-*-sysv4*) 
+    # Intel x86 running system V r4
+    build_install_headers_dir=install-headers-cpio
+    ;;
+  i[34567]86-*-udk*) 
+    # Intel x86 on SCO UW/OSR5 Dev Kit
+    build_install_headers_dir=install-headers-cpio
+    ;;
+  i[34567]86-*-uwin*)
+    build_exeext=.exe
+    ;;
+  i386-*-vsta) 
+    # Intel 80386's running VSTa kernel
+    ;;
+  m68000-hp-hpux* | m68k-hp-hpux*) 
+    # HP 9000 series 300
+    build_install_headers_dir=install-headers-cpio
+    ;;
+  *-*-sysv*)
+    # All other System V variants.
+    build_install_headers_dir=install-headers-cpio
+    ;;
+esac
+

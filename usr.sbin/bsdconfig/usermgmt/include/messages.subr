@@ -1,0 +1,119 @@
+# Copyright (c) 2012 Ron McDowell
+# Copyright (c) 2012-2014 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+hline_alnum_punc_tab_enter="Use alpha-numeric, punctuation, TAB or ENTER"
+hline_alnum_space_tab_enter="Use alpha-numeric, SPACE, TAB or ENTER"
+hline_alnum_tab_enter="Use alpha-numeric, TAB or ENTER"
+hline_arrows_space_tab_enter="Use arrows, SPACE, TAB or ENTER"
+hline_arrows_tab_enter="Press arrows, TAB or ENTER"
+hline_num_arrows_tab_enter="Use numbers, arrows, TAB or ENTER"
+hline_num_tab_enter="Use numbers, TAB or ENTER"
+msg_account_does_not_expire="Account does not expire"
+msg_account_expire_manual_edit="Enter account expiration time. Format is one of:\n\n a) decimal for UNIX time since %s\n b) dd-mmm-yy[yy] for day, month, and 2- or 4-digit year\n c) +n[mhdwoy] for relative time from current date\n\nNOTE: Value of zero disables expiration."
+msg_account_expires_on="Account Expires on"
+msg_add="Add"
+msg_add_group="Add Group"
+msg_add_login="Add Login"
+msg_cancel="Cancel"
+msg_continue="Continue"
+msg_create_dotfiles="Create Dotfiles"
+msg_create_home_directory="Create Home Directory"
+msg_delete="Delete"
+msg_delete_exit_or_cancel="Choose Delete/Exit when finished or Cancel."
+msg_delete_group="Delete Group"
+msg_delete_home_directory="Delete Home Directory"
+msg_delete_login="Delete Login"
+msg_delete_primary_group="Delete Primary Group"
+msg_deleting_home_directory="Deleting home directory..."
+msg_disable_password_auth_for_account="Disable password authentication for this account?"
+msg_disable_password_auth_for_group="Disable password authentication for this group?"
+msg_edit_date_time_with_a_calendar="Edit date/time with a calendar"
+msg_edit_group="Edit/View Group"
+msg_edit_login="Edit/View Login"
+msg_edit_view="Edit/View"
+msg_enter_group_members_manually="Enter Group Members manually"
+msg_enter_groups_manually="Enter Groups manually"
+msg_enter_number_of_days_into_the_future="Enter number of days into the future"
+msg_enter_value_manually="Edit value manually"
+msg_error="ERROR!"
+msg_exit="Exit"
+msg_full_name="Full Name"
+msg_group="Group"
+msg_group_added="Group Added"
+msg_group_already_used="%s: Group is already used."
+msg_group_deleted="Group Deleted"
+msg_group_id="Group ID"
+msg_group_id_leave_empty_for_default="Group ID (Leave empty for default)"
+msg_group_is_empty="Group is empty."
+msg_group_members="Group Members"
+msg_group_must_start_with_letter="Group must start with a letter."
+msg_group_not_found="%s: Group not found."
+msg_group_password="Group Password"
+msg_group_passwords_do_not_match="Group Passwords do not match."
+msg_group_updated="Group Updated"
+msg_groups="Groups"
+msg_home_directory="Home Directory"
+msg_login="Login"
+msg_login_added="Login Added"
+msg_login_already_used="%s: Login is already used."
+msg_login_class="Login Class"
+msg_login_deleted="Login Deleted"
+msg_login_is_empty="Login is empty."
+msg_login_management="Login/Group Management"
+msg_login_must_start_with_letter="Login must start with a letter."
+msg_login_not_found="%s: Login not found."
+msg_login_updated="Login Updated"
+msg_member_of_groups="Member of Groups"
+msg_n_a="N/A"
+msg_no="No"
+msg_no_group_specified="No group specified!"
+msg_no_user_specified="No user specified!"
+msg_number_of_seconds_since_epoch="Number of seconds since the Epoch\n(1 = %s)\nNULL or zero to disable:"
+msg_ok="OK"
+msg_password="Password"
+msg_password_does_not_expire="Password does not expire"
+msg_password_expire_manual_edit="Enter password expiration time. Format is one of:\n\n a) decimal for UNIX time since %s\n b) dd-mmm-yy[yy] for day, month, and 2- or 4-digit year\n c) +n[mhdwoy] for relative time from current date\n\nNOTE: Value of zero disables expiration."
+msg_password_expires_on="Password Expires on"
+msg_passwords_do_not_match="Passwords do not match."
+msg_please_enter_a_group_name="Please enter a group name!"
+msg_please_enter_a_user_name="Please enter a user name!"
+msg_reenter_group_password="Re-enter Group Password"
+msg_reenter_password="Re-enter Password"
+msg_save="Save"
+msg_save_exit_or_cancel="Choose Save/Exit when finished or Cancel."
+msg_select_group_members_from_list="Select Group Members from a list"
+msg_select_groups_from_list="Select Groups from a list"
+msg_select_login_shell="Select Login Shell"
+msg_separated_by_commas="Separated by commas"
+msg_shell="Shell"
+msg_unknown_user_management_menu_selection="Unknown user management menu selection"
+msg_use_default_values_for_all_account_details="Use default values for all account details?"
+msg_user="User"
+msg_user_id="UID"
+msg_user_id_leave_empty_for_default="UID (Leave empty for default)"
+msg_warning="WARNING!"
+msg_yes="Yes"

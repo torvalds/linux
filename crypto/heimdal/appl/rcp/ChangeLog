@@ -1,0 +1,130 @@
+2008-04-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Sync with NetBSD rcp, add v6 parsing support and no setuid code
+	at all.
+
+2007-12-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Add missing files, from Buchan Milne.
+
+2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: more files
+	
+2006-08-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* util.c: Check return values from setuid, prompted by MIT
+	advisory.  Thanks to Tom Yu at MIT, and Michael Calmer and Marcus
+	Meissner at SUSE.  Either of CVE-2006-3083 or CVE-2006-3084.
+
+	* rcp.c: Check return values from setuid, prompted by MIT
+	advisory.  Thanks to Tom Yu at MIT, and Michael Calmer and Marcus
+	Meissner at SUSE.  Either of CVE-2006-3083 or CVE-2006-3084.
+
+	* rcp.c: Check return values from seteuid, prompted by MIT
+	advisory.  Thanks to Tom Yu at MIT, and Michael Calmer and Marcus
+	Meissner at SUSE.  Either of CVE-2006-3083 or CVE-2006-3084.
+	
+2005-10-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rcp.c: Check return value from asprintf instead of string !=
+	NULL since it undefined behavior on Linux. From Björn Sandell
+	
+2005-08-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* util.c: Explicit typecast to avoid signess warning.
+	
+2005-05-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rcp_locl.h: undef _PATH_RSH to make sure our version is used
+	
+2005-05-11  David Love  <fx@gnu.org>
+
+	* rcp.c: MODEMASK is defined in sys/vnode.h on Solaris, so undef
+	it before we define our own.
+
+2005-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rcp_locl.h: use BINDIR instead of "/usr/bin/ with _PATH_RSH
+
+2005-04-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* util.c: use unsigned char * to make sure its not negative when
+	passing it to is* functions
+
+2004-05-14  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rcp.c: add -e (passed to rsh)
+	
+2003-04-16  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rcp.1: add a HISTORY section
+
+	* rcp.1: brief manpage
+
+	* rcp.c: add a -4 option
+
+2001-09-24  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rcp.c: more va_* fixing; from Thomas Klausner
+
+2001-09-08  Assar Westerlund  <assar@sics.se>
+
+	* rcp.c (run_err): always match va_start and va_end
+
+2001-09-04  Assar Westerlund  <assar@sics.se>
+
+	* util.c (allocbuf): do not leak memory on failure and zero
+	re-used memory, from Markus Friedl <markus@openbsd.org>
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* rcp.c (main): add missing setprogname
+
+2001-06-14  Assar Westerlund  <assar@sics.se>
+
+	* rcp.c: add some const replace a few malloc/snprintf with
+	asprintf
+	* rcp.c (sizestr): remove and use snprintf to do this correctly
+	instead
+
+2001-04-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rcp.c: convert to use getarg
+
+	* rcp.c: do a better job of supporting files larger than 2GB
+
+2001-02-07  Assar Westerlund  <assar@sics.se>
+
+	* rcp.c: add -F for forwarding ticket, from Ake Sandgren
+	<ake@cs.umu.se>
+
+2001-01-29  Assar Westerlund  <assar@sics.se>
+
+	* util.c (roundup): add fallback definition
+
+	* rcp.c: remove non-STDC code
+	* rcp_locl.h: add sys/types.h and sys/wait.h
+
+	* rcp.c: no calls to err with NULL
+
+2001-01-28  Assar Westerlund  <assar@sics.se>
+
+	* rcp_locl.h: add
+
+	* Makefile.am (LDADD): remove unused libraries
+
+2001-01-27  Assar Westerlund  <assar@sics.se>
+
+	* util.c: replace vfork by fork
+
+	* rcp.c: add RCSID S_ISTXT -> S_ISVTX printf sizes of files with
+ 	%lu instead of %q (which is not portable)
+
+	* util.c: add RCSID do not use sig_t
+	* rcp.c: remove __P, use st_mtime et al from struct stat
+	* extern.h: remove __P
+
+	* initial import of port of bsd rcp changed to use existing rsh,
+	contributed by Richard Nyberg <rnyberg@it.su.se>
+

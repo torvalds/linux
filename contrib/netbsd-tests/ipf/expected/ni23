@@ -1,0 +1,37 @@
+> ppp0 ip #0 28(20) 17 4.4.4.4,6700 > 2.2.2.2,4500
+0
+< hme0 ip #0 28(20) 17 2.2.2.2,4500 > 3.3.3.1,6700
+> bge0 ip #0 28(20) 17 1.1.2.3,4500 > 3.3.3.1,6700
+List of active MAP/Redirect filters:
+rdr le0,bge0 1.1.0.0/16 -> 2.2.2.2/32 ip
+map hme0,ppp0 3.3.3.0/24 -> 4.4.4.4/32
+
+List of active sessions:
+MAP 3.3.3.1         6700  <- -> 4.4.4.4         6700  [2.2.2.2 4500]
+RDR 2.2.2.2         4500  <- -> 1.1.2.3         4500  [3.3.3.1 6700]
+
+Hostmap table:
+3.3.3.1,2.2.2.2 -> 4.4.4.4,0.0.0.0 (use = 1)
+List of active state sessions:
+4:udp src:3.3.3.1,6700 dst:2.2.2.2,4500 24
+	FWD: IN pkts 1 bytes 28 OUT pkts 1 bytes 28
+	REV: IN pkts 1 bytes 28 OUT pkts 1 bytes 28
+	tag 0 pass 0x2008402 = pass in keep state
+	interfaces: in X[le0],X[hme0] out X[ppp0],X[bge0]
+	Sync status: not synchronized
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+1 block in all
+1 pass in on le0,hme0 to ppp0:3.3.3.254 out-via ppp0,bge0 inet proto udp from any to any keep state
+Rules configured (set 0, out)
+0 block out all
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

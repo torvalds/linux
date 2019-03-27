@@ -1,0 +1,202 @@
+\ Menu.rc
+\ $FreeBSD$
+\
+\ You should not edit this file! Put any overrides in menu.rc.local
+\ instead as this file can be replaced during system updates.
+\
+\ Load required Forth modules
+include /boot/version.4th
+include /boot/brand.4th
+include /boot/menu.4th
+include /boot/menu-commands.4th
+include /boot/shortcuts.4th
+
+\ Screen prep
+clear         \ clear the screen (see `screen.4th')
+print_version \ print version string (bottom-right; see `version.4th')
+draw-beastie  \ draw freebsd mascot (on right; see `beastie.4th')
+draw-brand    \ draw the FreeBSD title (top-left; see `brand.4th')
+menu-init     \ initialize the menu area (see `menu.4th')
+
+\ Initialize main menu constructs (see `menu.4th')
+\ NOTE: To use `non-ansi' variants, add `loader_color=0' to loader.conf(5)
+\ NOTE: ANSI variants can use `^' in place of literal `Esc' (ASCII 27)
+
+\ 
+\ MAIN MENU
+\ 
+
+set menuset_name1="main"
+
+set mainmenu_init[1]="init_boot"
+set mainmenu_caption[1]="Boot Multi User [Enter]"
+set maintoggled_text[1]="Boot [S]ingle User [Enter]"
+set mainmenu_command[1]="boot"
+set mainansi_caption[1]="^[1mB^[moot Multi User ^[1m[Enter]^[m"
+set maintoggled_ansi[1]="Boot ^[1mS^[mingle User ^[1m[Enter]^[m"
+\ keycode set by init_boot
+
+set mainmenu_init[2]="init_altboot"
+set mainmenu_caption[2]="Boot [S]ingle User"
+set maintoggled_text[2]="Boot [M]ulti User"
+set mainmenu_command[2]="altboot"
+set mainansi_caption[2]="Boot ^[1mS^[mingle User"
+set maintoggled_ansi[2]="Boot ^[1mM^[multi User"
+\ keycode set by init_altboot
+
+set mainmenu_caption[3]="[Esc]ape to loader prompt"
+set mainmenu_command[3]="goto_prompt"
+set mainmenu_keycode[3]=27
+set mainansi_caption[3]="^[1mEsc^[mape to loader prompt"
+
+\ Enable built-in "Reboot" trailing menuitem
+\ NOTE: appears before menu_options if configured
+\ 
+set mainmenu_reboot
+
+\ Enable "Options:" separator. When set to a numerical value (1-8), a visual
+\ separator is inserted before that menuitem number.
+\ 
+set mainmenu_options=5
+
+set mainmenu_kernel=5
+set mainmenu_command[5]="cycle_kernel"
+set mainmenu_keycode[5]=107
+
+set mainmenu_caption[6]="Configure Boot [O]ptions..."
+set mainmenu_command[6]="2 goto_menu"
+set mainmenu_keycode[6]=111
+set mainansi_caption[6]="Configure Boot ^[1mO^[mptions..."
+
+s" currdev" getenv dup 0> [if] drop 4 s" zfs:" compare 0= [if]
+    set mainmenu_caption[7]="Select Boot [E]nvironment..."
+    set mainmenu_command[7]="3 goto_menu"
+    set mainmenu_keycode[7]=101
+    set mainansi_caption[7]="Select Boot ^[1mE^[37mnvironment..."
+
+    s" chain_disk" getenv? [if]
+	set mainmenu_caption[8]="Chain[L]oad ${chain_disk}"
+	set mainmenu_command[8]="chain ${chain_disk}"
+	set mainmenu_keycode[8]=108
+	set mainansi_caption[8]="Chain^[1mL^[moad ${chain_disk}"
+    [then]
+[else]
+    s" chain_disk" getenv? [if]
+	set mainmenu_caption[7]="Chain[L]oad ${chain_disk}"
+	set mainmenu_command[7]="chain ${chain_disk}"
+	set mainmenu_keycode[7]=108
+	set mainansi_caption[7]="Chain^[1mL^[moad ${chain_disk}"
+    [then]
+[then] [else] drop [then]
+
+
+\ 
+\ BOOT OPTIONS MENU
+\ 
+
+set menuset_name2="options"
+
+set optionsmenu_caption[1]="Back to Main Menu [Backspace]"
+set optionsmenu_command[1]="1 goto_menu"
+set optionsmenu_keycode[1]=8
+set optionsansi_caption[1]="Back to Main Menu ^[1m[Backspace]^[m"
+
+set optionsmenu_caption[2]="Load System [D]efaults"
+set optionsmenu_command[2]="set_default_boot_options"
+set optionsmenu_keycode[2]=100
+set optionsansi_caption[2]="Load System ^[1mD^[mefaults"
+
+set optionsmenu_options=3
+set optionsmenu_optionstext="Boot Options:"
+
+set optionsmenu_acpi=3
+set optionsmenu_caption[3]="[A]CPI Support off"
+set optionstoggled_text[3]="[A]CPI Support On"
+set optionsmenu_command[3]="toggle_acpi"
+set optionsmenu_keycode[3]=97
+set optionsansi_caption[3]="^[1mA^[mCPI Support ^[34;1mOff^[m"
+set optionstoggled_ansi[3]="^[1mA^[mCPI Support ^[32;7mOn^[m"
+
+set optionsmenu_init[4]="init_safemode"
+set optionsmenu_caption[4]="Safe [M]ode... off"
+set optionstoggled_text[4]="Safe [M]ode... On"
+set optionsmenu_command[4]="toggle_safemode"
+set optionsmenu_keycode[4]=109
+set optionsansi_caption[4]="Safe ^[1mM^[mode... ^[34;1mOff^[m"
+set optionstoggled_ansi[4]="Safe ^[1mM^[mode... ^[32;7mOn^[m"
+
+set optionsmenu_init[5]="init_singleuser"
+set optionsmenu_caption[5]="[S]ingle User. off"
+set optionstoggled_text[5]="[S]ingle User. On"
+set optionsmenu_command[5]="toggle_singleuser"
+set optionsmenu_keycode[5]=115
+set optionsansi_caption[5]="^[1mS^[mingle User. ^[34;1mOff^[m"
+set optionstoggled_ansi[5]="^[1mS^[mingle User. ^[32;7mOn^[m"
+
+set optionsmenu_init[6]="init_verbose"
+set optionsmenu_caption[6]="[V]erbose..... off"
+set optionstoggled_text[6]="[V]erbose..... On"
+set optionsmenu_command[6]="toggle_verbose"
+set optionsmenu_keycode[6]=118
+set optionsansi_caption[6]="^[1mV^[merbose..... ^[34;1mOff^[m"
+set optionstoggled_ansi[6]="^[1mV^[merbose..... ^[32;7mOn^[m"
+
+\ 
+\ BOOT ENVIRONMENT MENU
+\ 
+
+set menuset_name3="bootenv"
+
+set bemenu_current="Active: "
+set beansi_current="^[1m${bemenu_current}^[m"
+set bemenu_bootfs="bootfs: "
+set beansi_bootfs="^[1m${bemenu_bootfs}^[m"
+set bemenu_page="[P]age: "
+set beansi_page="^[1mP^[mage: "
+set bemenu_pageof=" of "
+set beansi_pageof="${bemenu_pageof}"
+set zfs_be_currpage=1
+
+set bootenvmenu_init="init_bootenv"
+
+set bootenvmenu_command[1]="be_draw_screen 1 goto_menu"
+set bootenvmenu_keycode[1]=8
+
+set bootenvmenu_command[2]="set_bootenv"
+set bootenvmenu_keycode[2]=97
+set bootenv_root[2]="${zfs_be_active}"
+
+set bootenvmenu_command[3]="set_be_page"
+set bootenvmenu_keycode[3]=112
+
+set bootenvmenu_options=4
+set bootenvmenu_optionstext="Boot Environments:"
+
+\ Enable automatic booting (add ``autoboot_delay=N'' to loader.conf(5) to
+\ customize the timeout; default is 10-seconds)
+\ 
+set menu_timeout_command="boot"
+
+\ Include optional elements defined in a local file
+\ 
+try-include /boot/menu.rc.local
+
+\ Initialize boot environment variables
+\
+s" reloadbe" sfind ( xt|0 bool ) [if]
+    s" bootenv_autolist" getenv dup -1 = [if]
+	drop s" execute" evaluate		\ Use evaluate to avoid passing
+						\ reloadbe an optional parameter
+    [else]
+	s" YES" compare-insensitive 0= [if]
+	    s" execute" evaluate
+	[then]
+    [then]
+[else]
+    drop ( xt=0 )
+[then]
+
+\ Display the main menu (see `menu.4th')
+set menuset_initial=1
+menuset-loadinitial
+menu-display

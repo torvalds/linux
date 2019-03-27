@@ -1,0 +1,30 @@
+The DNS64 code was written by Viagenie, 2009, by Simon Perrault as part
+of the Ecdysis project.  The code is copyright by them, and has the BSD
+license (see the dns64/dns64.c file).
+
+To enable DNS64 functionality in Unbound, two directives in unbound.conf must
+be edited:
+
+1. The "module-config" directive must start with "dns64". For example:
+
+    module-config: "dns64 validator iterator"
+
+If you're not using DNSSEC then you may remove "validator".
+
+2. The "dns64-prefix" directive indicates your DNS64 prefix. For example:
+
+    dns64-prefix: 64:FF9B::/96
+
+The prefix must be a /96 or shorter.
+
+To test that things are working right, perform a query against Unbound for a
+domain name for which no AAAA record exists. You should see a AAAA record in
+the answer section. The corresponding IPv6 address will be inside the DNS64
+prefix. For example:
+
+    $ unbound -c unbound.conf
+    $ dig @localhost jazz-v4.viagenie.ca aaaa
+    [...]
+    ;; ANSWER SECTION:
+    jazz-v4.viagenie.ca.        86400   IN      AAAA    64:ff9b::ce7b:1f02
+

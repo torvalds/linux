@@ -1,0 +1,167 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2001
+.Dt VM_PAGE_BITS 9
+.Os
+.Sh NAME
+.Nm vm_page_bits ,
+.Nm vm_page_set_validclean ,
+.Nm vm_page_clear_dirty ,
+.Nm vm_page_set_invalid ,
+.Nm vm_page_zero_invalid ,
+.Nm vm_page_is_valid ,
+.Nm vm_page_test_dirty ,
+.Nm vm_page_dirty ,
+.Nm vm_page_undirty
+.Nd "manage page clean and dirty bits"
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_page.h
+.Ft int
+.Fn vm_page_bits "int base" "int size"
+.Ft void
+.Fn vm_page_set_validclean "vm_page_t m" "int base" "int size"
+.Ft void
+.Fn vm_page_clear_dirty "vm_page_t m" "int base" "int size"
+.Ft void
+.Fn vm_page_set_invalid "vm_page_t m" "int base" "int size"
+.Ft void
+.Fn vm_page_zero_invalid "vm_page_t m" "boolean_t setvalid"
+.Ft int
+.Fn vm_page_is_valid "vm_page_t m" "int base" "int size"
+.Ft void
+.Fn vm_page_test_dirty "vm_page_t m"
+.Ft void
+.Fn vm_page_dirty "vm_page_t m"
+.Ft void
+.Fn vm_page_undirty "vm_page_t m"
+.Sh DESCRIPTION
+.Fn vm_page_bits
+calculates the bits representing the
+.Dv DEV_BSIZE
+range of bytes between
+.Fa base
+and
+.Fa size .
+The byte range is expected to be within a single page, and if
+.Fa size
+is zero, no bits will be set.
+.Pp
+.Fn vm_page_set_validclean
+flags the byte range between
+.Fa base
+and
+.Fa size
+as valid and clean.
+The range is expected to be
+.Dv DEV_BSIZE
+aligned and no larger than
+.Dv PAGE_SIZE .
+If it is not properly aligned, any unaligned chunks of the
+.Dv DEV_BSIZE
+blocks at the beginning and end of the range will be zeroed.
+.Pp
+If
+.Fa base
+is zero and
+.Fa size
+is one page, the modified bit in the page map is cleared; as well,
+the
+.Dv VPO_NOSYNC
+flag is cleared.
+.Pp
+.Fn vm_page_clear_dirty
+clears the dirty bits within a page in the range between
+.Fa base
+and
+.Fa size .
+The bits representing the range are calculated by calling
+.Fn vm_page_bits .
+.Pp
+.Fn vm_page_set_invalid
+clears the bits in both the valid and dirty flags representing
+the
+.Dv DEV_BSIZE
+blocks between
+.Fa base
+and
+.Fa size
+in the page.
+The bits are calculated by calling
+.Fn vm_page_bits .
+As well as clearing the bits within the page, the generation
+number within the object holding the page is incremented.
+.Pp
+.Fn vm_page_zero_invalid
+zeroes all of the blocks within the page that are currently
+flagged as invalid.
+If
+.Fa setvalid
+is
+.Dv TRUE ,
+all of the valid bits within the page are set.
+.Pp
+In some cases, such as NFS, the valid bits cannot be set
+in order to maintain cache consistency.
+.Pp
+.Fn vm_page_is_valid
+checks to determine if the all of the
+.Dv DEV_BSIZE
+blocks between
+.Fa base
+and
+.Fa size
+of the page are valid.
+If
+.Fa size
+is zero and the page is entirely invalid
+.Fn vm_page_is_valid
+will return
+.Dv TRUE ,
+in all other cases a size of zero will return
+.Dv FALSE .
+.Pp
+.Fn vm_page_test_dirty
+checks if a page has been modified via any of its physical maps,
+and if so, flags the entire page as dirty.
+.Fn vm_page_dirty
+is called to modify the dirty bits.
+.Pp
+.Fn vm_page_dirty
+flags the entire page as dirty.
+It is expected that the page is not currently on the cache queue.
+.Pp
+.Fn vm_page_undirty
+clears all of the dirty bits in a page.
+.Sh NOTES
+None of these functions are allowed to block.
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@acns.ab.ca .

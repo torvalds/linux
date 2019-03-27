@@ -1,0 +1,302 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for VOP_RENAME(9) [or similar] entry $
+# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $FreeBSD$
+#
+############################################################ DESCRIPTION
+#
+# Print filesystem paths being renamed by VOP_RENAME(9) [or similar]
+# NB: All paths are shown even if error prevents their rename.
+#
+############################################################ PROBE
+
+: ${PROBE:=vfs:vop:$PROFILE:entry}
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+$PROBE /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");}
+	this->fvp = args[1] ? args[1]->a_fdvp : NULL;
+	this->fncp = this->fvp != NULL ?
+		this->fvp->v_cache_dst.tqh_first : 0;
+	this->ffi_name = args[1] ? (
+		args[1]->a_fcnp != NULL ?
+			stringof(args[1]->a_fcnp->cn_nameptr) : ""
+	) : "";
+	this->fmount = this->fvp != NULL ?
+		this->fvp->v_mount : NULL; /* ptr to vfs we are in */
+	this->ffi_fs = this->fmount != NULL ?
+		stringof(this->fmount->mnt_stat.f_fstypename) : "";
+	this->ffi_mount = this->fmount != NULL ?
+		stringof(this->fmount->mnt_stat.f_mntonname) : "";
+	this->fd_name = args[0]->v_cache_dd != NULL ?
+		stringof(args[0]->v_cache_dd->nc_name) : "";
+
+	this->tvp = args[1] ? args[1]->a_tdvp : NULL;
+	this->tncp = this->tvp != NULL ?
+		this->tvp->v_cache_dst.tqh_first : 0;
+	this->tfi_name = args[1] ? (
+		args[1]->a_tcnp != NULL ?
+			stringof(args[1]->a_tcnp->cn_nameptr) : ""
+	) : "";
+	this->tmount = this->tvp != NULL ?
+		this->tvp->v_mount : NULL; /* ptr to vfs we are in */
+	this->tfi_fs = this->tmount != NULL ?
+		stringof(this->tmount->mnt_stat.f_fstypename) : "";
+	this->tfi_mount = this->tmount != NULL ?
+		stringof(this->tmount->mnt_stat.f_mntonname) : "";
+	this->td_name = this->tvp != NULL ? (
+		this->tvp->v_cache_dd != NULL ?
+			stringof(this->tvp->v_cache_dd->nc_name) : ""
+	) : "";
+
+	$( awk -v MAX_DEPTH=$MAX_DEPTH '
+		{ sub(/^\\\t/, "\t") }
+		{ buf = buf "\t" $0 "\n" }
+		END {
+			sub(/\n$/, "", buf)
+			$0 = buf
+			sub(/^[[:space:]]*/, "")
+			for (DEPTH = 1; DEPTH <= MAX_DEPTH + 1; DEPTH++) {
+				gsub(/DEPTH/, DEPTH)
+				print
+				$0 = buf
+			}
+		}
+	' <<-EOFDEPTH
+	this->fnameDEPTH = this->tnameDEPTH = "";
+	EOFDEPTH
+	)
+}
+
+$PROBE /this->fvp == 0 || this->ffi_fs == 0 ||
+	this->ffi_fs == "devfs" || this->ffi_fs == "" ||
+	this->ffi_name == ""/ /* probe ID $(( $ID + 1 )) */
+{${TRACE:+
+	printf("<$(( $ID + 1 ))>");}
+	this->fncp = 0;
+}
+
+$PROBE /this->tvp == 0 || this->tfi_fs == 0 ||
+	this->tfi_fs == "devfs" || this->tfi_fs == "" ||
+	this->tfi_name == ""/ /* probe ID $(( $ID + 2 )) */
+{${TRACE:+
+	printf("<$(( $ID + 2 ))>");}
+	this->tncp = 0;
+}
+
+/*********************************************************/
+
+$PROBE /this->fncp/ /* probe ID $(( $ID + 3 )) (depth 1) */
+{${TRACE:+
+	printf("<$(( $ID + 3 ))>");}
+	this->fdvp = this->fncp->nc_dvp != NULL ?
+		this->fncp->nc_dvp->v_cache_dst.tqh_first : 0;
+	this->fname1 = this->fdvp != 0 ? (
+		this->fdvp->nc_name != 0 ? stringof(this->fdvp->nc_name) : ""
+	) : "";
+}
+
+$PROBE /this->tncp/ /* probe ID $(( $ID + 4 )) (depth 1) */
+{${TRACE:+
+	printf("<$(( $ID + 4 ))>");}
+	this->tdvp = this->tncp->nc_dvp != NULL ?
+		this->tncp->nc_dvp->v_cache_dst.tqh_first : 0;
+	this->tname1 = this->tdvp != 0 ? (
+		this->tdvp->nc_name != 0 ? stringof(this->tdvp->nc_name) : ""
+	) : "";
+}
+
+$PROBE /this->fname1 == 0 || this->ffi_fs == 0 ||
+	this->ffi_fs == "devfs" || this->ffi_fs == "" ||
+	this->fname1 == "/" || this->fname1 == ""/ /* probe ID $((
+		$ID + 5
+	)) */
+{${TRACE:+
+	printf("<$(( $ID + 5 ))>");}
+	this->fdvp = 0;
+}
+
+$PROBE /this->tname1 == 0 || this->tfi_fs == 0 ||
+	this->tfi_fs == "devfs" || this->tfi_fs == "" ||
+	this->tname1 == "/" || this->tname1 == ""/ /* probe ID $((
+		$ID + 6
+	)) */
+{${TRACE:+
+	printf("<$(( $ID + 6 ))>");}
+	this->tdvp = 0;
+}
+
+/*********************************************************/
+
+/*
+ * BEGIN Pathname-depth iterators
+ */
+
+$( awk -v ID=$(( $ID + 7 )) -v MAX_DEPTH=$MAX_DEPTH '
+	{ buf = buf $0 "\n" }
+	END {
+		sub(/\n$/, "", buf)
+		for (DEPTH = 2; DEPTH <= MAX_DEPTH; DEPTH++) {
+			$0 = buf
+			gsub(/DEPTH/, DEPTH)
+			gsub(/IDNUM1/, ID)
+			gsub(/IDNUM2/, ID + 1)
+			print
+			ID = ID + 2
+		}
+	}
+' <<EOFDEPTH
+$PROBE /this->fdvp/ /* probe ID IDNUM1 (depth DEPTH) */
+{${TRACE:+
+	printf("<IDNUM1>");}
+	this->fdvp = this->fdvp->nc_dvp != NULL ?
+		this->fdvp->nc_dvp->v_cache_dst.tqh_first : 0;
+	this->fnameDEPTH = this->fdvp != 0 ? (
+		this->fdvp->nc_name != 0 ? stringof(this->fdvp->nc_name) : ""
+	) : "";
+}
+$PROBE /this->tdvp/ /* probe ID IDNUM2 (depth DEPTH) */
+{${TRACE:+
+	printf("<IDNUM2>");}
+	this->tdvp = this->tdvp->nc_dvp != NULL ?
+		this->tdvp->nc_dvp->v_cache_dst.tqh_first : 0;
+	this->tnameDEPTH = this->tdvp != 0 ? (
+		this->tdvp->nc_name != 0 ? stringof(this->tdvp->nc_name) : ""
+	) : "";
+}
+
+EOFDEPTH
+)
+
+$PROBE /this->fdvp/ /* probe ID $(( $ID + $MAX_DEPTH * 2 + 5 )) */
+{${TRACE:+
+	printf("<$(( $ID + $MAX_DEPTH * 2 + 5 ))>");}
+	this->fdvp = this->fdvp->nc_dvp != NULL ?
+		this->fdvp->nc_dvp->v_cache_dst.tqh_first : 0;
+	this->fname$(( $MAX_DEPTH + 1 )) = this->fdvp != 0 ? (
+		this->fdvp->nc_dvp != NULL ? "..." : ""
+	) : "";
+}
+$PROBE /this->tdvp/ /* probe ID $(( $ID + $MAX_DEPTH * 2 + 6 )) */
+{${TRACE:+
+	printf("<$(( $ID + $MAX_DEPTH * 2 + 6 ))>");}
+	this->tdvp = this->tdvp->nc_dvp != NULL ?
+		this->tdvp->nc_dvp->v_cache_dst.tqh_first : 0;
+	this->tname$(( $MAX_DEPTH + 1 )) = this->tdvp != 0 ? (
+		this->tdvp->nc_dvp != NULL ? "..." : ""
+	) : "";
+}
+
+/*
+ * END Pathname-depth iterators
+ */
+
+/*********************************************************/
+
+$PROBE /this->ffi_mount != 0 && this->tfi_mount != 0/ /* probe ID $((
+	$ID + $MAX_DEPTH * 2 + 7
+)) */
+{${TRACE:+
+	printf("<$(( $ID + $MAX_DEPTH * 2 + 7 ))>");
+}
+	/*
+	 * Join 'from' full path
+	 * NB: Up-to but not including the parent directory (joined below)
+	 */
+	this->fpath = this->ffi_mount;
+	this->fpath = strjoin(this->fpath, this->ffi_mount != 0 ? (
+		this->ffi_mount == "/" ? "" : "/"
+	) : "/");
+	$( awk -v MAX_DEPTH=$MAX_DEPTH '
+		{ sub(/^\\\t/, "\t") }
+		{ buf = buf "\t" $0 "\n" }
+		END {
+			sub(/\n$/, "", buf)
+			$0 = buf
+			sub(/^[[:space:]]*/, "")
+			for (N = MAX_DEPTH + 1; N > 0; N--) {
+				gsub(/N/, N)
+				print
+				$0 = buf
+			}
+		}
+	' <<-EOFDEPTH
+	this->fpath = strjoin(this->fpath,
+	\	strjoin(this->fnameN, this->fnameN != "" ? "/" : ""));
+	EOFDEPTH
+	)
+
+	/* Join the 'from' parent directory name */
+	this->fpath = strjoin(this->fpath, strjoin(this->fname =
+		(this->fd_name != 0 ? this->fd_name : ""),
+		this->fname != "" ? "/" : ""));
+
+	/* Join the 'from' entry name */
+	this->fpath = strjoin(this->fpath,
+		this->fname = (this->ffi_name != 0 ? this->ffi_name : ""));
+
+	/*
+	 * Join 'to' full path
+	 * NB: Up-to but not including the parent directory (joined below)
+	 */
+	this->tpath = this->tfi_mount;
+	this->tpath = strjoin(this->tpath, this->tfi_mount != 0 ? (
+		this->tfi_mount == "/" ? "" : "/"
+	) : "/");
+	$( awk -v MAX_DEPTH=$MAX_DEPTH '
+		{ sub(/^\\\t/, "\t") }
+		{ buf = buf "\t" $0 "\n" }
+		END {
+			sub(/\n$/, "", buf)
+			$0 = buf
+			sub(/^[[:space:]]*/, "")
+			for (N = MAX_DEPTH + 1; N > 0; N--) {
+				gsub(/N/, N)
+				print
+				$0 = buf
+			}
+		}
+	' <<-EOFDEPTH
+	this->tpath = strjoin(this->tpath,
+	\	strjoin(this->tnameN, this->tnameN != "" ? "/" : ""));
+	EOFDEPTH
+	)
+
+	/* Join the 'to' parent directory name */
+	this->tpath = strjoin(this->tpath, strjoin(this->tname =
+		(this->td_name != 0 ? this->td_name : ""),
+		this->tname != "" ? "/" : ""));
+
+	/* Join the 'to' entry name */
+	this->tpath = strjoin(this->tpath,
+		this->tname = (this->tfi_name != 0 ? this->tfi_name : ""));
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + $MAX_DEPTH * 2 + 8 ))
+
+############################################################ EVENT ACTION
+
+EVENT_TEST="this->ffi_mount != 0 && this->tfi_mount != 0"
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print 'from' and 'to' full paths
+	 */
+	printf("%s -> %s", this->fpath, this->tpath);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

@@ -1,0 +1,106 @@
+.\" Copyright (C) 2011 Hiroki Sato <hrs@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS
+.\" IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE
+.\" PROJECT OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 16, 2011
+.Dt RTADVCTL 8
+.Os
+.Sh NAME
+.Nm rtadvctl
+.Nd control program for
+.Xr rtadvd 8
+daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Ar subcommand
+.Op Ar interface ...
+.Sh DESCRIPTION
+.Nm
+is a utility that communicates with the
+.Xr rtadvd 8
+daemon and displays information about Router Advertisement messages being
+sent on each interface.
+.Pp
+This utility provides several options and subcommands.
+The options are as follows:
+.Bl -tag -width indent
+.\"
+.It Fl v
+Increase verbosity level.
+When specified once, the
+.Nm
+utility shows additional information about prefixes, RDNSS, and DNSSL
+options.
+When given twice, it additionally shows information about
+inactive interfaces and some statistics.
+.El
+.Pp
+The subcommands are as follows:
+.Bl -tag -width indent
+.\"
+.It reload Op interfaces...
+Specifies to reload the configuration file.
+If one or more
+.Ar interfaces
+are specified, configuration entries for the interfaces will be reloaded
+selectively.
+.It enable interfaces...
+Specifies to mark the interface as enabled and to tries to reload the
+configuration entry.
+This subcommand is useful for dynamically-added interfaces.
+.Pp
+The
+.Xr rtadvd 8
+daemon marks an interface as enabled if the interface exists and the
+configuration file has a valid entry for it when it is invoked.
+.It disable interfaces...
+Specifies to mark the interface as disabled.
+.It shutdown
+Makes the
+.Xr rtadvd 8
+daemon shut down.
+Note that the
+.Xr rtadvd 8
+daemon will send several RAs with zero lifetime to invalidate the old
+information on each interface.
+It will take at most nine seconds.
+.It show Op interfaces...
+Displays information about the Router Advertisement messages being sent
+on each interface.
+.El
+.Sh SEE ALSO
+.Xr rtadvd.conf 5 ,
+.Xr rtadvd 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.Nm
+was written by
+.An Hiroki Sato Aq Mt hrs@FreeBSD.org .

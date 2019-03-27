@@ -1,0 +1,143 @@
+.\" $tcsh: eight-bit.me,v 3.2 2006/03/02 18:46:44 christos Exp $
+How to use 8 bit characters
+by 
+Johan Widen 
+(jw@sics.se) 
+and 
+Per Hedeland 
+(per@erix.ericsson.se)
+
+.pp
+(Disclaimer: This is really a sketch of an approach rather
+than a "how-to" document.
+Also, it is mostly relevant to Swedish X Window users...)
+
+.pp
+The way I use this facility at present is to add lines such as the following
+to my .cshrc:
+
+.nf 
+setenv NOREBIND
+setenv LC_CTYPE iso_8859_1
+foreach key ( \\\\304 \\\\305 \\\\326 \\\\344 \\\\345 \\\\366 )
+   bindkey $key self-insert-command
+end
+.fi
+
+.pp
+Note that if I used a system with a reasonably complete NLS
+(and a tcsh compiled to use it),
+all of the above could be replaced with simply setting the LANG environment
+variable to an appropriate value - the NLS would then indicate exactly which
+characters should be considered printable, and tcsh would do the rebinding
+of these automatically. The above works for tcsh's simulated NLS and for
+the NLS in SunOS 4.1 - without the NOREBIND setting, all of the
+Meta-<non-control-character> bindings would be undone in these cases.
+
+.pp
+These keybindings are the codes for my national characters, but the bindings
+(M-d, M-e etc) are not conveniently placed.
+They are however consistent with what other programs will see.
+
+.pp
+Now: I actually want the character \\304 to be inserted when I press say '{'
+together with a modifier key. I want the behavior to be the same not only
+in tcsh but in say cat, an editor and all other programs. I fix this by
+performing a keyboard remapping with the
+.i xmodmap
+program (I use X Windows).
+
+.pp
+I give xmodmap an input something like the following:
+
+.nf
+keycode 26 = Mode_switch
+add mod2 = Mode_switch
+! if you want Mode_switch to toggle, at the expense of losing
+! Caps- or whatever Lock you currently have, add the two lines below
+! clear Lock
+! add Lock = Mode_switch
+! 	Binds swedish characters on ][\\
+!
+keycode 71 = bracketleft braceleft adiaeresis Adiaeresis
+keycode 72 = bracketright braceright aring Aring
+keycode 95 = backslash bar odiaeresis Odiaeresis
+.fi
+
+or:
+
+.nf
+keysym Alt_R = Mode_switch
+add mod2 = Mode_switch
+keysym bracketleft = bracketleft braceleft Adiaeresis adiaeresis
+keysym bracketright = bracketright braceright Aring aring
+keysym backslash = backslash bar Odiaeresis odiaeresis
+.fi
+
+Another, more portable way of doing the same thing is:
+
+.nf
+#!/bin/sh
+# Make Alt-] etc produce the "appropriate" Swedish iso8859/1 keysym values
+# Should handle fairly strange initial mappings
+
+xmodmap -pk | sed -e 's/[()]//g' | \\
+awk 'BEGIN {
+	alt["bracketright"] = "Aring"; alt["braceright"] = "aring";
+	alt["bracketleft"] = "Adiaeresis"; alt["braceleft"] = "adiaeresis";
+	alt["backslash"] = "Odiaeresis"; alt["bar"] = "odiaeresis";
+}
+NF >= 5 && (alt[$3] != "" || alt[$5] != "") {
+	printf "keycode %s = %s %s ", $1, $3, $5;
+	if (alt[$3] != "") printf "%s ", alt[$3];
+	else printf "%s ", $3;
+	printf "%s\\n", alt[$5];
+	next;
+}
+alt[$3] != "" {
+	printf "keycode %s = %s %s %s\\n", $1, $3, $3, alt[$3];
+}
+NF >= 5 && ($3 ~ /^Alt_[LR]$/ || $5 ~ /^Alt_[LR]$/) {
+	printf "keycode %s = %s %s Mode_switch\\n", $1, $3, $5;
+	if ($3 ~ /^Alt_[LR]$/) altkeys = altkeys " " $3;
+	else altkeys = altkeys " " $5;
+	next;
+}
+$3 ~ /^Alt_[LR]$/ {
+	printf "keycode %s = %s %s Mode_switch\\n", $1, $3, $3;
+	altkeys = altkeys " " $3;
+}
+END {
+	if (altkeys != "") printf "clear mod2\\nadd mod2 =%s\\n", altkeys;
+}' | xmodmap -
+.fi
+
+.pp
+Finally, with the binding of the codes of my national characters to
+self-insert-command, I lost the ability to use the Meta key to call the
+functions previously bound to M-d, M-e, and M-v (<esc>d etc still works).
+However, with the assumption that
+most of my input to tcsh will be through the
+.i xterm
+terminal emulator, I can get that ability back via xterm bindings!
+Since M-d is the only one of the "lost" key combinations that was
+actually bound to a function in my case,
+and it had the same binding as M-D, I can use the following in
+my .Xdefaults file:
+
+.nf
+XTerm*VT100.Translations:	#override \\n\\
+			Meta ~Ctrl<Key>d:	string(0x1b) string(d)
+.fi
+
+- or, if I really want a complete mapping:
+
+.nf
+XTerm*VT100.Translations:	#override \\n\\
+			:Meta ~Ctrl<Key>d:	string(0x1b) string(d) \\n\\
+			:Meta ~Ctrl<Key>D:	string(0x1b) string(D) \\n\\
+			:Meta ~Ctrl<Key>e:	string(0x1b) string(e) \\n\\
+			:Meta ~Ctrl<Key>E:	string(0x1b) string(E) \\n\\
+			:Meta ~Ctrl<Key>v:	string(0x1b) string(v) \\n\\
+			:Meta ~Ctrl<Key>V:	string(0x1b) string(V)
+.fi

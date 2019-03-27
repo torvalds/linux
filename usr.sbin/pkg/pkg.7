@@ -1,0 +1,281 @@
+.\" Copyright (c) 2013 Bryan Drewery <bdrewery@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 12, 2013
+.Dt PKG 7
+.Os
+.Sh NAME
+.Nm pkg
+.Nd a utility for manipulating packages
+.Sh SYNOPSIS
+.Nm
+.Ao Ar command Ac
+.Nm
+add
+.Op Fl f
+.Ao Pa pkg.txz Ac
+.Nm
+.Fl N
+.Nm
+bootstrap
+.Op Fl f
+.Sh DESCRIPTION
+.Nm
+is the package management tool.
+It is used to manage local packages installed from
+.Xr ports 7
+and install/upgrade packages from remote repositories.
+.Pp
+To avoid backwards incompatibility issues, the actual
+.Xr pkg 8
+tool is not installed in the base system.
+The first time invoked,
+.Nm
+will bootstrap the real
+.Xr pkg 8
+from a remote repository.
+.Bl -tag -width "pkg bootstrap"
+.It Nm Ao Ar command Ac
+If
+.Xr pkg 8
+is not installed yet, it will be fetched, have its signature verified,
+installed, and then have the original command forwarded to it.
+If already installed, the command requested will be forwarded to the real
+.Xr pkg 8 .
+.It Nm Li add Oo Fl f Oc Ao Pa pkg.txz Ac
+Install
+.Xr pkg 8
+from a local package instead of fetching from remote.
+If a
+.Pa pkg.txz.sig
+file exists and
+signature checking is enabled, then the signature will be verified
+before installing the package.
+If the
+.Fl f
+flag is specified, then
+.Xr pkg 8
+will be installed regardless if it is already installed.
+.It Nm Fl N
+Do not bootstrap, just determine if
+.Xr pkg 8
+is actually installed or not.
+Returns 0 and the number of packages installed
+if it is, otherwise 1.
+.It Nm Li bootstrap Op Fl f
+Attempt to bootstrap and do not forward anything to
+.Xr pkg 8
+after it is installed.
+If the
+.Fl f
+flag is specified, then
+.Xr pkg 8
+will be fetched and installed regardless if it is already installed.
+.El
+.Sh CONFIGURATION
+Configuration varies in whether it is in a repository configuration file
+or the global configuration file.
+.Pp
+Repository configuration can be stored in
+.Pa /etc/pkg/FreeBSD.conf
+in the following format:
+.Bd -literal -offset indent
+FreeBSD: {
+  url: "pkg+http://pkg.FreeBSD.org/${ABI}/latest",
+  mirror_type: "srv",
+  signature_type: "none",
+  fingerprints: "/usr/share/keys/pkg",
+  enabled: yes
+}
+.Ed
+.Bl -tag -width signature_type -compact
+.It url
+Refer to
+.Dv PACKAGESITE
+in
+.Sx ENVIRONMENT
+.It mirror_type
+Refer to
+.Dv MIRROR_TYPE
+in
+.Sx ENVIRONMENT
+.It signature_type
+Refer to
+.Dv SIGNATURE_TYPE
+in
+.Sx ENVIRONMENT
+.It fingerprints
+Refer to
+.Dv FINGERPRINTS
+in
+.Sx ENVIRONMENT
+.It enabled
+Defines whether this repository should be used or not.
+Valid values are
+.Dv yes ,
+.Dv true ,
+.Dv 1 ,
+.Dv no ,
+.Dv false ,
+.Dv 0 .
+.El
+.Pp
+Global configuration can be stored in
+.Pa /usr/local/etc/pkg.conf
+in the following format:
+.Bd -literal -offset indent
+PACKAGESITE: "pkg+http://pkg.FreeBSD.org/${ABI}/latest",
+MIRROR_TYPE: "srv",
+SIGNATURE_TYPE: "none",
+FINGERPRINTS: "/usr/share/keys/pkg",
+ASSUME_ALWAYS_YES: "yes"
+REPOS_DIR: ["/etc/pkg", "/usr/local/etc/pkg/repos"]
+.Ed
+.Pp
+Reference
+.Sx ENVIRONMENT
+for each variable.
+.Sh ENVIRONMENT
+The following environment variables can be set to override the settings
+from the
+.Pa pkg.conf
+file used.
+.Bl -tag -width "ASSUME_ALWAYS_YES"
+.It Ev MIRROR_TYPE
+This defines which mirror type should be used.
+Valid values are
+.Dv SRV ,
+.Dv HTTP ,
+.Dv NONE .
+.It Ev ABI
+This defines the ABI for the package to be installed.
+Default ABI is determined from
+.Pa /bin/sh .
+.It Ev ASSUME_ALWAYS_YES
+If set, no confirmation will be asked when bootstrapping
+.Xr pkg 8 .
+.It Ev SIGNATURE_TYPE
+If set to
+.Dv FINGERPRINTS
+then a signature will be required and validated against known
+certificate fingerprints when bootstrapping
+.Xr pkg 8 .
+.It Ev FINGERPRINTS
+If
+.Sy SIGNATURE_TYPE
+is set to
+.Dv FINGERPRINTS
+this value should be set to the directory path where known fingerprints are
+located.
+.It Ev PACKAGESITE
+The URL that
+.Xr pkg 8
+and other packages
+will be fetched from.
+.It Ev REPOS_DIR
+Comma-separated list of directories that should be searched for repository
+configuration files.
+.El
+.Sh FILES
+Configuration is read from the files in the listed order.
+This path can be changed by setting
+.Sy REPOS_DIR .
+The last enabled repository is the one used for bootstrapping
+.Xr pkg 8 .
+.Bl -tag -width "/usr/local/etc/pkg/repos/*.conf"
+.It Pa /usr/local/etc/pkg.conf
+.It Pa /etc/pkg/FreeBSD.conf
+.It Pa /usr/local/etc/pkg/repos/*.conf
+.El
+.Sh EXAMPLES
+Some examples are listed here.
+The full list of available commands are available in
+.Xr pkg 8
+once it is bootstrapped.
+.Pp
+Search for a package:
+.Dl $ pkg search perl
+.Pp
+Install a package:
+.Dl % pkg install perl
+.Pp
+List installed packages:
+.Dl $ pkg info
+.Pp
+Upgrade from remote repository:
+.Dl % pkg upgrade
+.Pp
+List non-automatic packages:
+.Dl $ pkg query -e '%a = 0' %o
+.Pp
+List automatic packages:
+.Dl $ pkg query -e '%a = 1' %o
+.Pp
+Delete an installed package:
+.Dl % pkg delete perl
+.Pp
+Remove unneeded dependencies:
+.Dl % pkg autoremove
+.Pp
+Change a package from automatic to non-automatic, which will prevent
+.Ic autoremove
+from removing it:
+.Dl % pkg set -A 0 perl
+.Pp
+Change a package from non-automatic to automatic, which will make
+.Ic autoremove
+allow it be removed once nothing depends on it:
+.Dl % pkg set -A 1 perl
+.Pp
+Create package file from an installed package:
+.Dl % pkg create -o /usr/ports/packages/All perl
+.Pp
+Determine which package installed a file:
+.Dl $ pkg which /usr/local/bin/perl
+.Pp
+Audit installed packages for security advisories:
+.Dl $ pkg audit
+.Pp
+Check installed packages for checksum mismatches:
+.Dl # pkg check -s -a
+.Pp
+Check for missing dependencies:
+.Dl # pkg check -d -a
+.Sh SEE ALSO
+.Xr ports 7 ,
+.Xr pkg 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 9.1 .
+It became the default package tool in
+.Fx 10.0 ,
+replacing the
+pkg_install suite of tools
+.Xr pkg_add 1 ,
+.Xr pkg_info 1 and
+.Xr pkg_create 1 .

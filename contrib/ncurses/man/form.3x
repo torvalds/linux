@@ -1,0 +1,210 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: form.3x,v 1.24 2010/12/04 18:40:45 tom Exp $
+.TH form 3X ""
+.SH NAME
+\fBform\fR \- curses extension for programming forms
+.SH SYNOPSIS
+\fB#include <form.h>\fR
+.br
+.SH DESCRIPTION
+The \fBform\fR library provides terminal-independent facilities for composing
+form screens on character-cell terminals.  The library includes: field
+routines, which create and modify form fields; and form routines, which group
+fields into forms, display forms on the screen, and handle interaction with the
+user.
+.PP
+The \fBform\fR library uses the \fBcurses\fR libraries.
+To use the \fBform\fR library, link with the options
+\fB\-lform \-lcurses\fR.
+.PP
+Your program should set up the locale, e.g.,
+.sp
+     \fBsetlocale(LC_ALL, "");\fP
+.sp
+so that input/output processing will work.
+.PP
+A curses initialization routine such as \fBinitscr\fR must be called
+before using any of these functions.
+.
+.SS Current Default Values for Field Attributes
+.
+The \fBform\fR library maintains a default value for field attributes.  You
+can get or set this default by calling the appropriate \fBset_\fR
+or retrieval
+routine with a \fBNULL\fR field pointer.  Changing this default with a
+\fBset_\fR function affects future field creations, but does not change the
+rendering of fields already created.
+.
+.SS Routine Name Index
+.
+The following table lists each \fBform\fR routine and the name of
+the manual page on which it is described.
+.
+.TS
+l l
+l l .
+\fBcurses\fR Routine Name	Manual Page Name
+=
+current_field	\fBform_page\fR(3X)
+data_ahead	\fBform_data\fR(3X)
+data_behind	\fBform_data\fR(3X)
+dup_field	\fBform_field_new\fR(3X)
+dynamic_field_info	\fBform_field_info\fR(3X)
+field_arg	\fBform_field_validation\fR(3X)
+field_back	\fBform_field_attributes\fR(3X)
+field_buffer	\fBform_field_buffer\fR(3X)
+field_count	\fBform_field\fR(3X)
+field_fore	\fBform_field_attributes\fR(3X)
+field_index	\fBform_page\fR(3X)
+field_info	\fBform_field_info\fR(3X)
+field_init	\fBform_hook\fR(3X)
+field_just	\fBform_field_just\fR(3X)
+field_opts	\fBform_field_opts\fR(3X)
+field_opts_off	\fBform_field_opts\fR(3X)
+field_opts_on	\fBform_field_opts\fR(3X)
+field_pad	\fBform_field_attributes\fR(3X)
+field_status	\fBform_field_buffer\fR(3X)
+field_term	\fBform_hook\fR(3X)
+field_type	\fBform_field_validation\fR(3X)
+field_userptr	\fBform_field_userptr\fR(3X)
+form_driver	\fBform_driver\fR(3X)
+form_fields	\fBform_field\fR(3X)
+form_init	\fBform_hook\fR(3X)
+form_opts	\fBform_opts\fR(3X)
+form_opts_off	\fBform_opts\fR(3X)
+form_opts_on	\fBform_opts\fR(3X)
+form_page	\fBform_page\fR(3X)
+form_request_by_name	\fBform_requestname\fR(3X)
+form_request_name	\fBform_requestname\fR(3X)
+form_sub	\fBform_win\fR(3X)
+form_term	\fBform_hook\fR(3X)
+form_userptr	\fBform_userptr\fR(3X)
+form_win	\fBform_win\fR(3X)
+free_field	\fBform_field_new\fR(3X)
+free_fieldtype	\fBform_fieldtype\fR(3X)
+free_form	\fBform_new\fR(3X)
+link_field	\fBform_field_new\fR(3X)
+link_fieldtype	\fBform_fieldtype\fR(3X)
+move_field	\fBform_field\fR(3X)
+new_field	\fBform_field_new\fR(3X)
+new_fieldtype	\fBform_fieldtype\fR(3X)
+new_form	\fBform_new\fR(3X)
+new_page	\fBform_new_page\fR(3X)
+pos_form_cursor	\fBform_cursor\fR(3X)
+post_form	\fBform_post\fR(3X)
+scale_form	\fBform_win\fR(3X)
+set_current_field	\fBform_page\fR(3X)
+set_field_back	\fBform_field_attributes\fR(3X)
+set_field_buffer	\fBform_field_buffer\fR(3X)
+set_field_fore	\fBform_field_attributes\fR(3X)
+set_field_init	\fBform_hook\fR(3X)
+set_field_just	\fBform_field_just\fR(3X)
+set_field_opts	\fBform_field_opts\fR(3X)
+set_field_pad	\fBform_field_attributes\fR(3X)
+set_field_status	\fBform_field_buffer\fR(3X)
+set_field_term	\fBform_hook\fR(3X)
+set_field_type	\fBform_field_validation\fR(3X)
+set_field_userptr	\fBform_field_userptr\fR(3X)
+set_fieldtype_arg	\fBform_fieldtype\fR(3X)
+set_fieldtype_choice	\fBform_fieldtype\fR(3X)
+set_form_fields	\fBform_field\fR(3X)
+set_form_init	\fBform_hook\fR(3X)
+set_form_opts	\fBform_field_opts\fR(3X)
+set_form_page	\fBform_page\fR(3X)
+set_form_sub	\fBform_win\fR(3X)
+set_form_term	\fBform_hook\fR(3X)
+set_form_userptr	\fBform_userptr\fR(3X)
+set_form_win	\fBform_win\fR(3X)
+set_max_field	\fBform_field_buffer\fR(3X)
+set_new_page	\fBform_new_page\fR(3X)
+unpost_form	\fBform_post\fR(3X)
+.TE
+.SH RETURN VALUE
+Routines that return pointers return \fBNULL\fR on error,
+and set errno to the corresponding error-code returned by functions
+returning an integer.
+Routines that return
+an integer return one of the following error codes:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_BAD_STATE
+Routine was called from an initialization or termination function.
+.TP 5
+.B E_CONNECTED
+The field is already connected to a form.
+.TP 5
+.B E_INVALID_FIELD
+Contents of a field are not valid.
+.TP 5
+.B E_NOT_CONNECTED
+No fields are connected to the form.
+.TP 5
+.B E_NOT_POSTED
+The form has not been posted.
+.TP 5
+.B E_NO_ROOM
+Form is too large for its window.
+.TP 5
+.B E_POSTED
+The form is already posted.
+.TP 5
+.B E_REQUEST_DENIED
+The form driver could not process the request.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.TP 5
+.B E_UNKNOWN_COMMAND
+The form driver code saw an unknown request code.
+.SH SEE ALSO
+\fBcurses\fR(3X) and related pages whose names begin "form_" for detailed
+descriptions of the entry points.
+.SH NOTES
+The header file \fB<form.h>\fR automatically includes the header files
+\fB<curses.h>\fR and \fB<eti.h>\fR.
+.PP
+In your library list, libform.a should be before libncurses.a; that is,
+you want to say `\-lform \-lncurses', not the other way around (which would
+give you a link error using most linkers).
+.SH PORTABILITY
+These routines emulate the System V forms library.  They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.  Manual pages and adaptation for ncurses by Eric
+S. Raymond.
+.SH SEE ALSO
+This describes \fBncurses\fR
+version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).

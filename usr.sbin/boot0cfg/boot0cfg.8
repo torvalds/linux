@@ -1,0 +1,204 @@
+.\" Copyright (c) 1999 Robert Nordier
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+.\" OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 1, 2013
+.Dt BOOT0CFG 8
+.Os
+.Sh NAME
+.Nm boot0cfg
+.Nd boot manager installation/configuration utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl Bv
+.Op Fl b Ar boot0
+.Op Fl d Ar drive
+.Op Fl e Ar bell character
+.Op Fl f Ar file
+.Op Fl i Ar volume-id
+.Op Fl m Ar mask
+.Op Fl o Ar options
+.Op Fl s Ar slice
+.Op Fl t Ar ticks
+.Ar disk
+.Sh DESCRIPTION
+The
+.Fx
+.Sq boot0
+boot manager permits the operator to select from which disk and
+slice an i386 machine (PC) is booted.
+.Pp
+Note that what are referred to here as
+.Dq slices
+are typically called
+.Dq partitions
+in
+.No non- Ns Bx
+documentation relating to the PC.
+Typically, only non-removable disks are sliced.
+.Pp
+The
+.Nm
+utility optionally installs the
+.Sq boot0
+boot manager on the specified
+.Ar disk ;
+and allows various operational parameters to be configured.
+.Pp
+On PCs, a boot manager typically occupies sector 0 of a disk, which is
+known as the Master Boot Record (MBR).
+The MBR contains both code (to which control is passed by the PC BIOS)
+and data (an embedded table of defined slices).
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl B
+Install the
+.Sq boot0
+boot manager.
+This option causes MBR code to be replaced, without
+affecting the embedded slice table.
+.It Fl b Ar boot0
+Specify which
+.Sq boot0
+image to use.
+The default is
+.Pa /boot/boot0
+which will use the video card as output, alternatively
+.Pa /boot/boot0sio
+can be used for output to the COM1 port.
+(Be aware that nothing will be output to the COM1 port unless the
+modem signals DSR and CTS are active.)
+.It Fl d Ar drive
+Specify the drive number used by the PC BIOS in referencing the drive
+which contains the specified
+.Ar disk .
+Typically this will be 0x80 for the first hard drive, 0x81 for the
+second hard drive, and so on; however any integer between 0 and 0xff
+is acceptable here.
+.It Fl e Ar bell character
+Set the character to be printed in case of input error.
+.It Fl f Ar file
+Specify that a backup copy of the preexisting MBR should be written to
+.Ar file .
+This file is created if it does not exist, and replaced if it does.
+.It Fl i Ar volume-id
+Specifies a volume-id (in the form XXXX-XXXX) to be saved at location
+0x1b8 in the MBR. This information is sometimes used by NT, XP and Vista
+to identify the disk drive. The option is only compatible with version 2.00
+of the 512-byte boot block.
+.It Fl m Ar mask
+Specify slices to be enabled/disabled, where
+.Ar mask
+is an integer between 0 (no slices enabled) and 0xf (all four slices
+enabled).
+Each mask bit enables corresponding slice if set to 1.
+The least significant bit of the mask corresponds to slice 1,
+the most significant bit of the mask corresponds to slice 4.
+.It Fl o Ar options
+A comma-separated string of any of the following options may be
+specified (with
+.Dq no
+prepended as necessary):
+.Bl -tag -width indent
+.It packet
+Use the disk packet (BIOS INT 0x13 extensions) interface,
+as opposed to the legacy (CHS) interface, when doing disk I/O.
+This allows booting above cylinder 1023, but requires specific
+BIOS support.
+The default is
+.Sq packet .
+.It setdrv
+Forces the drive containing the disk to be referenced using drive
+number definable by means of the -d option.
+The default is
+.Sq nosetdrv .
+.It update
+Allow the MBR to be updated by the boot manager.
+(The MBR may be updated to flag slices as
+.Sq active ,
+and to save slice selection information.)
+This is the default; a
+.Sq noupdate
+option causes the MBR to be treated as read-only.
+.El
+.It Fl s Ar slice
+Set the default boot selection to
+.Ar slice .
+Values between 1 and 4 refer to slices; a value of 5 refers to the
+option of booting from a second disk.
+The special string
+.Dq PXE
+or a value of 6 can be used to boot via PXE.
+.It Fl t Ar ticks
+Set the timeout value to
+.Ar ticks .
+(There are approximately 18.2 ticks per second.)
+.It Fl v
+Verbose: display information about the slices defined, etc.
+.El
+.Sh FILES
+.Bl -tag -width /boot/boot0sio -compact
+.It Pa /boot/boot0
+The default
+.Sq boot0
+image
+.It Pa /boot/boot0sio
+Image for serial consoles (COM1,9600,8,N,1,MODEM)
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+To boot slice 2 on the next boot:
+.Pp
+.Dl "boot0cfg -s 2 ada0"
+.Pp
+To enable just slices 1 and 3 in the menu:
+.Pp
+.Dl "boot0cfg -m 0x5 ada0"
+.Pp
+To go back to non-interactive booting, use
+.Xr gpart 8
+to install the default MBR:
+.Pp
+.Dl "gpart bootcode -b /boot/mbr ada0"
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr boot 8 ,
+.Xr gpart 8
+.Sh AUTHORS
+.An Robert Nordier Aq Mt rnordier@FreeBSD.org
+.Sh BUGS
+Use of the
+.Sq packet
+option may cause
+.Sq boot0
+to fail, depending on the nature of BIOS support.
+.Pp
+Use of the
+.Sq setdrv
+option with an incorrect -d operand may cause the boot0 code
+to write the MBR to the wrong disk, thus trashing its previous
+content.  Be careful.

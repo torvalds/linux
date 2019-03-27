@@ -1,0 +1,23 @@
+make: "cond1.mk" line 75: warning: extra else
+make: "cond1.mk" line 85: warning: extra else
+2 is  prime
+A='other' B='unknown' C='clever' o='no,no'
+Passed:
+ var
+ ("var")
+ (var != var)
+ var != var
+ !((var != var) && defined(name))
+ var == quoted
+
+1 is not prime
+2 is  prime
+3 is  prime
+4 is not prime
+5 is  prime
+
+make: warning: String comparison operator should be either == or !=
+make: Bad conditional expression `"0" > 0' in "0" > 0?OK:No
+
+OK
+exit status 0

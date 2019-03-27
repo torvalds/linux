@@ -1,0 +1,144 @@
+.\" $NetBSD: gem.4,v 1.2 2003/02/14 15:20:18 grant Exp $
+.\"
+.\" Copyright (c) 2002 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 25, 2009
+.Dt GEM 4
+.Os
+.Sh NAME
+.Nm gem
+.Nd ERI/GEM/GMAC Ethernet device driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device gem"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_gem_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the GMAC Ethernet hardware found mostly in
+the last Apple PowerBooks G3s and most G4-based Apple hardware, as
+well as Sun UltraSPARC machines.
+.Pp
+All controllers supported by the
+.Nm
+driver have TCP checksum offload capability for both receive and transmit,
+support for the reception and transmission of extended frames for
+.Xr vlan 4
+and a 512-bit multicast hash filter.
+.Sh HARDWARE
+Chips supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Apple GMAC
+.It
+Sun ERI 10/100 Mbps Ethernet
+.It
+Sun GEM Gigabit Ethernet
+.El
+.Pp
+The
+following add-on cards are known to work with the
+.Nm
+driver at this time:
+.Pp
+.Bl -bullet -compact
+.It
+Sun Gigabit Ethernet PCI 2.0/3.0 (GBE/P)
+(part no.\& 501-4373)
+.It
+Sun Gigabit Ethernet SBus 2.0/3.0 (GBE/S)
+(part no.\& 501-4375)
+.El
+.Sh NOTES
+On sparc64 the
+.Nm
+driver respects the
+.Va local-mac-address?
+system configuration variable which can be set in the Open Firmware boot
+monitor using the
+.Ic setenv
+command or by
+.Xr eeprom 8 .
+If set to
+.Dq Li false
+(the default), the
+.Nm
+driver will use the system's default MAC address for all of its devices.
+If set to
+.Dq Li true ,
+the unique MAC address of each interface is used if present rather than
+the system's default MAC address.
+.Pp
+Supported interfaces having their own MAC address include the on-board
+Sun ERI 10/100 Mbps on boards equipped with more than one Ethernet interface
+and the Sun Gigabit Ethernet 2.0/3.0 GBE add-on cards.
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr vlan 4 ,
+.Xr eeprom 8 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Nx 1.6 .
+The first
+.Fx
+version to include it was
+.Fx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written for
+.Nx
+by
+.An Eduardo Horvath Aq Mt eeh@NetBSD.org .
+It was ported to
+.Fx
+by
+.An Thomas Moestl Aq Mt tmm@FreeBSD.org
+and later on improved by
+.An Marius Strobl Aq Mt marius@FreeBSD.org .
+The man page was written by
+.An Thomas Klausner Aq Mt wiz@NetBSD.org .

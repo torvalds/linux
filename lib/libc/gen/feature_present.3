@@ -1,0 +1,72 @@
+.\" Copyright (c) 2008 Yahoo!, Inc.
+.\" All rights reserved.
+.\" Written by: John Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 8, 2008
+.Dt FEATURE_PRESENT 3
+.Os
+.Sh NAME
+.Nm feature_present
+.Nd query presence of a kernel feature
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn feature_present "const char *feature"
+.Sh DESCRIPTION
+The
+.Fn feature_present
+function provides a method for an application to determine if a specific
+kernel feature is present in the currently running kernel.
+The
+.Fa feature
+argument specifies the name of the feature to check.
+The
+.Fn feature_present
+function will return 1 if the specified feature is present,
+otherwise it will return 0.
+If the
+.Fn feature_present
+function is not able to determine the presence of
+.Fa feature
+due to an internal error it will return 0.
+.Sh RETURN VALUES
+If
+.Fa feature
+is present then 1 is returned;
+otherwise 0 is returned.
+.Sh SEE ALSO
+.Xr sysconf 3 ,
+.Xr sysctl 3
+.Sh HISTORY
+The
+.Fn feature_present
+function first appeared in
+.Fx 8.0 .

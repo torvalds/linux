@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: zfs
+# REQUIRE: zfsbe
+# BEFORE: FILESYSTEMS var
+
+. /etc/rc.subr
+
+name="zfs"
+desc="Mount and share ZFS datasets"
+rcvar="zfs_enable"
+start_cmd="zfs_start"
+stop_cmd="zfs_stop"
+required_modules="zfs"
+
+zfs_start_jail()
+{
+	if [ `$SYSCTL_N security.jail.mount_allowed` -eq 1 ]; then
+		zfs mount -a
+	fi
+}
+
+zfs_start_main()
+{
+	zfs mount -va
+	zfs share -a
+	if [ ! -r /etc/zfs/exports ]; then
+		touch /etc/zfs/exports
+	fi
+}
+
+zfs_start()
+{
+	if [ `$SYSCTL_N security.jail.jailed` -eq 1 ]; then
+		zfs_start_jail
+	else
+		zfs_start_main
+	fi
+}
+
+zfs_stop_jail()
+{
+	if [ `$SYSCTL_N security.jail.mount_allowed` -eq 1 ]; then
+		zfs unmount -a
+	fi
+}
+
+zfs_stop_main()
+{
+	zfs unshare -a
+	zfs unmount -a
+}
+
+zfs_stop()
+{
+	if [ `$SYSCTL_N security.jail.jailed` -eq 1 ]; then
+		zfs_stop_jail
+	else
+		zfs_stop_main
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

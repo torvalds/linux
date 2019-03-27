@@ -1,0 +1,6 @@
+
+#------------------------------------------------------------------------------
+# $File: mmdf,v 1.6 2009/09/19 16:28:10 christos Exp $
+# mmdf:  file(1) magic for MMDF mail files
+#
+0	string	\001\001\001\001	MMDF mailbox

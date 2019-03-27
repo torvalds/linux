@@ -1,0 +1,124 @@
+.\" Copyright (c) 2005 David Xu <davidxu@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 30, 2005
+.Dt MQUEUEFS 5
+.Os
+.Sh NAME
+.Nm mqueuefs
+.Nd POSIX message queue file system
+.Sh SYNOPSIS
+To link into kernel:
+.Pp
+.Cd "options P1003_1B_MQUEUE"
+.Pp
+To load as a kernel loadable module:
+.Pp
+.Dl "kldload mqueuefs"
+.Sh DESCRIPTION
+The
+.Nm
+module will permit the
+.Fx
+kernel to support
+.Tn POSIX
+message queue.
+The module contains system calls to manipulate
+.Tn POSIX
+message queues.
+It also contains a file system to implement a view for all message queues of
+the system.
+This helps users to keep track of their message queues and make
+it more easily usable without having to invent additional tools.
+.Pp
+The most common usage is as follows:
+.Pp
+.Dl "mount -t mqueuefs null /mnt/mqueue"
+.Pp
+where
+.Pa /mnt/mqueue
+is a mount point.
+.Pp
+It is possible to define an entry in
+.Pa /etc/fstab
+that looks similar to:
+.Bd -literal
+null	/mnt/mqueue	mqueuefs	rw	0	0
+.Ed
+.Pp
+This will mount
+.Nm
+at the
+.Pa /mnt/mqueue
+mount point during system boot.
+Using
+.Pa /mnt/mqueue
+as a permanent mount point is not advised as its intention
+has always been to be a temporary mount point.
+See
+.Xr hier 7
+for more information on
+.Fx
+directory layout.
+.Pp
+Some common tools can be used on the file system, e.g.:
+.Xr cat 1 ,
+.Xr chmod 1 ,
+.Xr chown 8 ,
+.Xr ls 1 ,
+.Xr rm 1 ,
+etc.
+To use only the message queue system calls, it is not necessary for
+user to mount the file system, just load the module or compile it
+into the kernel.
+Manually creating a file, for example,
+.Dq Li "touch /mnt/mqueue/myqueue" ,
+will create a message queue named
+.Pa myqueue
+in the kernel, default
+message queue attributes will be applied to the queue.
+It is not
+advised to use this method to create a queue;
+it is better to use the
+.Xr mq_open 2
+system call to create a queue as it
+allows the user to specify different attributes.
+.Pp
+To see the queue's attributes, just read the file:
+.Pp
+.Dl "cat /mnt/mqueue/myqueue"
+.Sh SEE ALSO
+.Xr mq_open 2 ,
+.Xr nmount 2 ,
+.Xr unmount 2 ,
+.Xr mount 8 ,
+.Xr umount 8
+.Sh AUTHORS
+This manual page was written by
+.An David Xu Aq Mt davidxu@FreeBSD.org .

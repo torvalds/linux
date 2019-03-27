@@ -1,0 +1,166 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Marc Fonvieille
+# Copyright (c) 2013-2015 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/packages/packages.subr
+
+############################################################ CONFIGURATION
+
+#
+# List of languages to display (descriptions pulled from $msg_{lang}doc_desc)
+#
+: ${DOCSINSTALL_LANGS:=\
+	bn da de el en es fr hu it ja mn nl pl pt ru sr tr zh_cn zh_tw \
+}
+
+############################################################ GLOBALS
+
+#
+# Strings that should be moved to an i18n file and loaded with f_include_lang()
+#
+hline_arrows_space_tab_enter="Use arrows, SPACE, TAB or ENTER"
+msg_bndoc_desc="Bengali Documentation"
+msg_cancel="Cancel"
+msg_dadoc_desc="Danish Documentation"
+msg_dedoc_desc="German Documentation"
+msg_docsinstall_menu_text="This menu allows you to install the whole documentation set from\nthe FreeBSD Documentation Project: Handbook, FAQ, and articles.\n\nPlease select the language versions you wish to install. At\nminimum, you should install the English version, the original\nversion of the documentation."
+msg_eldoc_desc="Greek Documentation"
+msg_endoc_desc="English Documentation (recommended)"
+msg_esdoc_desc="Spanish Documentation"
+msg_frdoc_desc="French Documentation"
+msg_freebsd_documentation_installation="FreeBSD Documentation Installation"
+msg_freebsd_installer="FreeBSD Installer"
+msg_hudoc_desc="Hungarian Documentation"
+msg_itdoc_desc="Italian Documentation"
+msg_jadoc_desc="Japanese Documentation"
+msg_mndoc_desc="Mongolian Documentation"
+msg_nldoc_desc="Dutch Documentation"
+msg_ok="OK"
+msg_pldoc_desc="Polish Documentation"
+msg_ptdoc_desc="Portuguese Documentation"
+msg_rudoc_desc="Russian Documentation"
+msg_srdoc_desc="Serbian Documentation"
+msg_trdoc_desc="Turkish Documentation"
+msg_zh_cndoc_desc="Simplified Chinese Documentation"
+msg_zh_twdoc_desc="Traditional Chinese Documentation"
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt="$msg_docsinstall_menu_text"
+	local check_list= # Calculated below
+	local hline="$hline_arrows_space_tab_enter"
+
+	local lang desc upper status
+	for lang in $DOCSINSTALL_LANGS; do
+		# Fetch the i18n description to display
+		f_getvar msg_${lang}doc_desc desc
+		f_shell_escape "$desc" desc
+
+		# Get default status for each language
+		upper=$( echo "$lang" | awk '{print toupper($0)}' )
+		case "$lang" in
+		en) f_getvar DIST_DOC_$upper:-on status ;;
+		 *) f_getvar DIST_DOC_$upper:-off status
+		esac
+
+		check_list="$check_list
+			'$lang' '$desc' '$status'
+		" # END-QUOTE
+	done
+
+	local height width rows
+	eval f_dialog_checklist_size height width rows \
+	                             \"\$title\"  \
+	                             \"\$btitle\" \
+	                             \"\$prompt\" \
+	                             \"\$hline\"  \
+	                             $check_list
+	local selected
+	selected=$( eval $DIALOG \
+		--title \"\$title\"             \
+		--backtitle \"\$btitle\"        \
+		--separate-output               \
+		--hline \"\$hline\"             \
+		--ok-label \"\$msg_ok\"         \
+		--cancel-label \"\$msg_cancel\" \
+		--checklist \"\$prompt\"        \
+		$height $width $rows            \
+		$check_list                     \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_menutag_store -s "$selected"
+	return $retval
+}
+
+############################################################ MAIN
+
+#
+# Initialize
+#
+f_dialog_title "$msg_freebsd_documentation_installation"
+f_dialog_backtitle "$msg_freebsd_installer"
+f_mustberoot_init
+
+#
+# Launch application main menu
+#
+dialog_menu_main || f_die
+f_dialog_menutag_fetch selected
+
+# Let pkg_add be able to use name servers
+f_quietly cp -f $BSDINSTALL_TMPETC/resolv.conf $BSDINSTALL_CHROOT/etc/
+
+#
+# Install each of the selected packages
+#
+docsets=""
+for lang in $selected; do
+	docsets="$docsets $lang-freebsd-doc"
+done
+
+ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install $docsets
+
+################################################################################
+# END
+################################################################################

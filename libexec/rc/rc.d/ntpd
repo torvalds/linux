@@ -1,0 +1,209 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ntpd
+# REQUIRE: DAEMON ntpdate FILESYSTEMS devfs
+# BEFORE:  LOGIN
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="ntpd"
+desc="Network Time Protocol daemon"
+rcvar="ntpd_enable"
+command="/usr/sbin/${name}"
+extra_commands="fetch needfetch"
+fetch_cmd="ntpd_fetch_leapfile"
+needfetch_cmd="ntpd_needfetch_leapfile"
+start_precmd="ntpd_precmd"
+
+_ntp_tmp_leapfile="/var/run/ntpd.leap-seconds.list"
+_ntp_default_dir="/var/db/ntp"
+_ntp_default_driftfile="${_ntp_default_dir}/ntpd.drift"
+_ntp_old_driftfile="/var/db/ntpd.drift"
+
+pidfile="${_ntp_default_dir}/${name}.pid"
+
+load_rc_config $name
+
+can_run_nonroot()
+{
+	# If the admin set what uid to use, we don't change it.
+	if [ -n "${ntpd_user}" ]; then
+		return 1
+	fi
+
+	# If the admin set any command line options involving files, we
+	# may not be able to access them as user ntpd.
+	case "${rc_flags}" in
+	    *-f* | *--driftfile* | *-i* | *--jaildir*   | \
+	    *-k* | *--keyfile*   | *-l* | *--logfile*   | \
+	    *-p* | *--pidfile*   | *-s* | *--statsdir* )
+		return 1;;
+	esac
+
+	# If the admin set any options in ntp.conf involving files,
+	# we may not be able to access them as user ntpd.
+	local fileopts="^[ \t]*crypto|^[ \t]*driftfile|^[ \t]*key|^[ \t]*logfile|^[ \t]*statsdir"
+	grep -E -q "${fileopts}" "${ntpd_config}" && return 1
+
+	# Try to set up the the MAC ntpd policy so ntpd can run with reduced
+	# privileges.  Detect whether MAC is compiled into the kernel, load
+	# the policy module if not already present, then check whether the
+	# policy has been disabled via tunable or sysctl.
+	[ -n "$(sysctl -qn security.mac.version)" ] || return 1
+	sysctl -qn security.mac.ntpd >/dev/null || kldload -qn mac_ntpd || return 1
+	[ "$(sysctl -qn security.mac.ntpd.enabled)" == "1" ] || return 1
+
+	# On older existing systems, the ntp dir may by owned by root, change
+	# it to ntpd to give the daemon create/write access to the driftfile.
+	if [ "$(stat -f %u ${_ntp_default_dir})" = "0" ]; then
+		chown ntpd:ntpd "${_ntp_default_dir}" || return 1
+		chmod 0755 "${_ntp_default_dir}" || return 1
+		logger -s -t "rc.d/ntpd" -p daemon.notice \
+		    "${_ntp_default_dir} updated to owner ntpd:ntpd, mode 0755"
+	fi
+
+	# If the driftfile exists in the standard location for older existing
+	# systems, move it into the ntp dir and fix the ownership if we can.
+	if [ -f "${_ntp_old_driftfile}" ] && [ ! -L "${_ntp_old_driftfile}" ]; then
+		mv "${_ntp_old_driftfile}" "${_ntp_default_driftfile}" &&
+		   chown ntpd:ntpd "${_ntp_default_driftfile}" || return 1
+		logger -s -t "rc.d/ntpd" -p daemon.notice \
+		    "${_ntp_default_driftfile} updated to owner ntpd:ntpd"
+		logger -s -t "rc.d/ntpd" -p daemon.notice \
+		    "${_ntp_old_driftfile} moved to ${_ntp_default_driftfile}"
+	fi
+}
+
+ntpd_precmd()
+{
+	local driftopt
+
+	# If we can run as a non-root user, switch uid to ntpd and use the
+	# new default location for the driftfile inside the ntpd-owned dir.
+	# Otherwise, figure out what to do about the driftfile option.  If set
+	# by the admin, we don't add the option.  If the file exists in the old
+	# default location we use that, else we use the new default location.
+	if can_run_nonroot; then
+		_user="ntpd"
+		driftopt="-f ${_ntp_default_driftfile}"
+	elif [ -z "${rc_flags##*-f*}" ] ||
+	     [ -z "${rc_flags##*--driftfile*}" ] ||
+	     grep -q "^[ \t]*driftfile" "${ntpd_config}"; then
+		driftopt="" # admin set the option, we don't need to add it.
+	elif [ -f "${_ntp_old_driftfile}" ]; then
+		driftopt="-f ${_ntp_old_driftfile}"
+	else
+		driftopt="-f ${_ntp_default_driftfile}"
+	fi
+
+	# Set command_args based on the various config vars.
+	command_args="-p ${pidfile} -c ${ntpd_config} ${driftopt}"
+	if checkyesno ntpd_sync_on_start; then
+		command_args="${command_args} -g"
+	fi
+
+	# Make sure the leapfile is ready to use.
+	ntpd_init_leapfile
+	if [ ! -f "${ntp_db_leapfile}" ]; then
+		ntpd_fetch_leapfile
+	fi
+}
+
+current_ntp_ts() {
+	# Seconds between 1900-01-01 and 1970-01-01
+	# echo $(((70*365+17)*86400))
+	ntp_to_unix=2208988800
+
+	echo $(($(date -u +%s)+$ntp_to_unix))
+}
+	
+get_ntp_leapfile_ver() {
+	# Leapfile update date (version number).
+	expr "$(awk '$1 == "#$" { print $2 }' "$1" 2>/dev/null)" : \
+		'^\([1-9][0-9]*\)$' \| 0
+}
+
+get_ntp_leapfile_expiry() {
+	# Leapfile expiry date.
+	expr "$(awk '$1 == "#@" { print $2 }' "$1" 2>/dev/null)" : \
+		'^\([1-9][0-9]*\)$' \| 0
+}
+
+ntpd_init_leapfile() {
+	# Refresh working leapfile with an invalid hash due to
+	# FreeBSD id header. Ntpd will ignore leapfiles with a
+	# mismatch hash. The file must be the virgin file from
+	# the source.
+	if [ ! -f $ntp_db_leapfile ]; then
+		cp -p $ntp_src_leapfile $ntp_db_leapfile
+	fi
+}
+
+ntpd_needfetch_leapfile() {
+	local rc verbose
+	
+	if checkyesno ntp_leapfile_fetch_verbose; then
+		verbose=echo
+	else
+		verbose=:
+	fi
+
+	ntp_ver_no_src=$(get_ntp_leapfile_ver $ntp_src_leapfile)
+	ntp_expiry_src=$(get_ntp_leapfile_expiry $ntp_src_leapfile)
+	ntp_ver_no_db=$(get_ntp_leapfile_ver $ntp_db_leapfile)
+	ntp_expiry_db=$(get_ntp_leapfile_expiry $ntp_db_leapfile)
+	$verbose ntp_src_leapfile version is $ntp_ver_no_src expires $ntp_expiry_src
+	$verbose ntp_db_leapfile version is $ntp_ver_no_db expires $ntp_expiry_db
+
+	if [ "$ntp_ver_no_src" -gt "$ntp_ver_no_db" -o \
+	     "$ntp_ver_no_src" -eq "$ntp_ver_no_db" -a \
+	     "$ntp_expiry_src" -gt "$ntp_expiry_db" ]; then
+		$verbose replacing $ntp_db_leapfile with $ntp_src_leapfile 
+		cp -p $ntp_src_leapfile $ntp_db_leapfile
+		ntp_ver_no_db=$ntp_ver_no_src
+	else
+		$verbose not replacing $ntp_db_leapfile with $ntp_src_leapfile 
+	fi
+	ntp_leapfile_expiry_seconds=$((ntp_leapfile_expiry_days*86400))
+	ntp_leap_expiry=$(get_ntp_leapfile_expiry $ntp_db_leapfile)
+	ntp_leap_fetch_date=$((ntp_leap_expiry-ntp_leapfile_expiry_seconds))
+	if [ $(current_ntp_ts) -ge $ntp_leap_fetch_date ]; then
+		$verbose Within ntp leapfile expiry limit, initiating fetch
+		# Return code 0: ntp leapfile fetch needed
+		return 0
+	fi
+	# Return code 1: ntp leapfile fetch not needed
+	return 1
+}
+
+ntpd_fetch_leapfile() {
+	if checkyesno ntp_leapfile_fetch_verbose; then
+		verbose=echo
+	else
+		verbose=:
+	fi
+
+	if ntpd_needfetch_leapfile ; then
+		for url in $ntp_leapfile_sources ; do
+			$verbose fetching $url
+			fetch $ntp_leapfile_fetch_opts -o $_ntp_tmp_leapfile $url && break
+		done
+		ntp_ver_no_tmp=$(get_ntp_leapfile_ver $_ntp_tmp_leapfile)
+		ntp_expiry_tmp=$(get_ntp_leapfile_expiry $_ntp_tmp_leapfile)
+		if [ "$ntp_expiry_tmp" -gt "$ntp_expiry_db" -o \
+		     "$ntp_expiry_tmp" -eq "$ntp_expiry_db" -a \
+		     "$ntp_ver_no_tmp" -gt "$ntp_ver_no_db" ]; then
+			$verbose using $url as $ntp_db_leapfile
+			mv -f $_ntp_tmp_leapfile $ntp_db_leapfile ||
+			    $verbose "warning: cannot replace $ntp_db_leapfile (read-only fs?)"
+		else
+			$verbose using existing $ntp_db_leapfile
+		fi
+	fi
+}
+
+run_rc_command "$1"

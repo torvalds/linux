@@ -1,0 +1,80 @@
+=pod
+
+=head1 NAME
+
+RAND_DRBG_get0_master,
+RAND_DRBG_get0_public,
+RAND_DRBG_get0_private
+- get access to the global RAND_DRBG instances
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand_drbg.h>
+
+ RAND_DRBG *RAND_DRBG_get0_master(void);
+ RAND_DRBG *RAND_DRBG_get0_public(void);
+ RAND_DRBG *RAND_DRBG_get0_private(void);
+
+
+=head1 DESCRIPTION
+
+The default RAND API implementation (RAND_OpenSSL()) utilizes three
+shared DRBG instances which are accessed via the RAND API:
+
+The <public> and <private> DRBG are thread-local instances, which are used
+by RAND_bytes() and RAND_priv_bytes(), respectively.
+The <master> DRBG is a global instance, which is not intended to be used
+directly, but is used internally to reseed the other two instances.
+
+These functions here provide access to the shared DRBG instances.
+
+=head1 RETURN VALUES
+
+RAND_DRBG_get0_master() returns a pointer to the <master> DRBG instance.
+
+RAND_DRBG_get0_public() returns a pointer to the <public> DRBG instance.
+
+RAND_DRBG_get0_private() returns a pointer to the <private> DRBG instance.
+
+
+=head1 NOTES
+
+It is not thread-safe to access the <master> DRBG instance.
+The <public> and <private> DRBG instance can be accessed safely, because
+they are thread-local. Note however, that changes to these two instances
+apply only to the current thread.
+
+For that reason it is recommended not to change the settings of these
+three instances directly.
+Instead, an application should change the default settings for new DRBG instances
+at initialization time, before creating additional threads.
+
+During initialization, it is possible to change the reseed interval
+and reseed time interval.
+It is also possible to exchange the reseeding callbacks entirely.
+
+
+=head1 HISTORY
+
+The RAND_DRBG functions were added in OpenSSL 1.1.1.
+
+=head1 SEE ALSO
+
+L<RAND_DRBG_set_callbacks(3)>,
+L<RAND_DRBG_set_reseed_defaults(3)>,
+L<RAND_DRBG_set_reseed_interval(3)>,
+L<RAND_DRBG_set_reseed_time_interval(3)>,
+L<RAND_DRBG_set_callbacks(3)>,
+L<RAND_DRBG_generate(3)>,
+L<RAND_DRBG(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

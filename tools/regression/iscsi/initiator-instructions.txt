@@ -1,0 +1,59 @@
+How to prepare initiator virtual machines for iSCSI target testing
+------------------------------------------------------------------
+
+1. Install operating systems.
+
+  - FreeBSD: Use default settings for everything.  Don't install
+    ports from the system installer, use "portsnap fetch extract"
+    after installation instead.
+
+  - Fedora: Change the environment to "Minimal install".
+
+  - Solaris: Use defaults.
+
+2. Install required software.
+
+  - FreeBSD: install from ports, with 'make install BATCH=1':
+  	benchmarks/bonnie++
+  	benchmarks/iozone
+  	benchmarks/postmark
+	databases/postgresql92-server
+	databases/postgresql92-contrib
+
+ - Fedora:
+ 	yum install btrfs-progs bonnie++ postgresql-server postgresql-contrib iscsi-initiator-utils
+	chkconfig iscsid on
+	chkconfig iscsi on
+
+	After that, install iozone and postmark from source; they are not
+	provided by Fedora; download sites:
+
+	http://www.iozone.org/src/current/iozone3_397.tar
+	http://www.gtlib.gatech.edu/pub/debian/pool/main/p/postmark/postmark_1.53.orig.tar.gz
+
+	To build iozone, use "make linux".  Copy the 'postmark' and 'iozone' binaries
+	to /usr/local/bin/.
+
+ - Solaris: 
+	Install gcc:
+
+	pkg install gcc-45
+	pkg install system/header
+
+	After that, install bonnie++, iozone, and postmark from source; download sites:
+
+	http://www.coker.com.au/bonnie++/experimental/bonnie++-1.97.tgz
+	http://www.iozone.org/src/current/iozone3_397.tar
+	http://www.gtlib.gatech.edu/pub/debian/pool/main/p/postmark/postmark_1.53.orig.tar.gz
+
+	To build iozone, use "make Solaris10gcc".  Copy the 'bonnie++', 'postmark', and 'iozone'
+	binaries to /usr/bin/.
+
+	Fetch the binary PostgreSQL distribution from the link below and untar to /usr/postgres/:
+
+	http://ftp.postgresql.org/pub/binary/v9.2.3/solaris/solaris11/i386/postgresql-9.2.3-S11.i386-32.tar.bz2
+
+3. Run the test script.
+
+	./iscsi-test.sh
+

@@ -1,0 +1,123 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: gelf_update_ehdr.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd August 27, 2006
+.Dt GELF_UPDATE_EHDR 3
+.Os
+.Sh NAME
+.Nm gelf_update_ehdr ,
+.Nm gelf_update_phdr ,
+.Nm gelf_update_shdr
+.Nd update underlying ELF data structures
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In gelf.h
+.Ft int
+.Fn gelf_update_ehdr "Elf *elf" "GElf_Ehdr *ehdr"
+.Ft int
+.Fn gelf_update_phdr "Elf *elf" "int ndx" "GElf_Phdr *phdr"
+.Ft int
+.Fn gelf_update_shdr "Elf_Scn *scn" "GElf_Shdr *shdr"
+.Sh DESCRIPTION
+These functions are used to update ELF data structures on the underlying
+ELF descriptor.
+Class-dependent data structures in the underlying ELF descriptor
+are updated using the data in the class-independent GElf descriptors
+and the underlying ELF data structures are marked
+.Dq dirty .
+The conversion process signals an error if the values being copied
+to the target ELF data structure would exceed representation
+limits.
+GElf descriptors are described in
+.Xr gelf 3 .
+.Pp
+Function
+.Fn gelf_update_ehdr
+updates the ELF Executable Header with the values in the
+class-independent executable header
+.Ar ehdr .
+.Pp
+Function
+.Fn gelf_update_phdr
+updates the ELF Program Header structure at index
+.Ar ndx
+with the values in the class-independent program header
+.Ar phdr .
+.Pp
+Function
+.Fn gelf_update_shdr
+updates the ELF Section Header structure associated with section
+descriptor
+.Ar scn
+with the values in argument
+.Ar shdr .
+.Sh RETURN VALUES
+These functions return a non-zero integer on success, or zero in case
+of an error.
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+Arguments
+.Ar elf ,
+.Ar ehdr ,
+.Ar phdr ,
+.Ar scn ,
+or
+.Ar shdr
+were NULL.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was not a descriptor for an ELF object.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+had an unsupported ELF class.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar ndx
+exceeded the number of entries in the program header table.
+.It Bq Er ELF_E_ARGUMENT
+Section descriptor
+.Ar scn
+was not associated with an ELF descriptor.
+.It Bq Er ELF_E_MODE
+ELF descriptor
+.Ar elf
+was not opened for writing or updating.
+.It Bq Er ELF_E_RESOURCE
+An out of memory condition was detected.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_flagelf 3 ,
+.Xr elf_flagphdr 3 ,
+.Xr elf_flagshdr 3 ,
+.Xr gelf 3 ,
+.Xr gelf_getehdr 3 ,
+.Xr gelf_getphdr 3 ,
+.Xr gelf_getshdr 3

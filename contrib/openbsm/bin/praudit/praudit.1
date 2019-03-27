@@ -1,0 +1,121 @@
+.\" Copyright (c) 2004-2009 Apple Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1.  Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\" 2.  Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\" 3.  Neither the name of Apple Inc. ("Apple") nor the names of
+.\"     its contributors may be used to endorse or promote products derived
+.\"     from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL APPLE OR ITS CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd June 11, 2018
+.Dt PRAUDIT 1
+.Os
+.Sh NAME
+.Nm praudit
+.Nd "print the contents of audit trail files"
+.Sh SYNOPSIS
+.Nm
+.Op Fl lnpx
+.Op Fl r | s
+.Op Fl d Ar del
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility prints the contents of the audit trail files to the standard output in
+human-readable form.
+If no
+.Ar file
+argument is specified, the standard input is used
+by default.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl d Ar del
+Specifies the delimiter.
+The default delimiter is the comma.
+.It Fl l
+Prints the entire record on the same line.
+If this option is not specified,
+every token is displayed on a different line.
+.It Fl n
+Do not convert user and group IDs to their names but leave in their
+numeric forms.
+.It Fl p
+Specify this option if input to
+.Nm
+is piped from the
+.Xr tail 1
+utility.
+This causes
+.Nm
+to sync to the start of the next record.
+.It Fl r
+Prints the records in their raw, numeric form.
+This option is exclusive from
+.Fl s .
+.It Fl s
+Prints the tokens in their short form.
+Short text representations for
+record and event type are displayed.
+This option is exclusive from
+.Fl r .
+.It Fl x
+Print audit records in the XML output format.
+.El
+.Pp
+If the raw or short forms are not specified, the default is to print the tokens
+in their long form.
+Events are displayed as per their descriptions given in
+.Pa /etc/security/audit_event ;
+UIDs and GIDs are expanded to their names;
+dates and times are displayed in human-readable format.
+.Sh EXIT STATUS
+.Ex -std
+.Sh FILES
+.Bl -tag -width ".Pa /etc/security/audit_control" -compact
+.It Pa /etc/security/audit_class
+Descriptions of audit event classes.
+.It Pa /etc/security/audit_event
+Descriptions of audit events.
+.El
+.Sh SEE ALSO
+.Xr auditreduce 1 ,
+.Xr audit 4 ,
+.Xr auditpipe 4 ,
+.Xr audit_class 5 ,
+.Xr audit_event 5
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Sh AUTHORS
+.An -nosplit
+This software was created by McAfee Research, the security research division
+of McAfee, Inc., under contract to Apple Computer Inc.
+Additional authors include
+.An Wayne Salamon ,
+.An Robert Watson ,
+and SPARTA Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.

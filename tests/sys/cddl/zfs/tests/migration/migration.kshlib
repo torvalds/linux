@@ -1,0 +1,152 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)migration.kshlib	1.2	07/01/09 SMI"
+#
+
+#
+# This function creates the test archive for migration.
+#
+# Usage:
+# prepare srcdir cmd
+#
+# Return value: 0 on success
+#		1 on failure
+#
+# Where:
+#	srcdir: is the directory where the testfile is
+#	cmd:	is the command to be executed.
+#		E.g.
+#		$TAR cf $TESTDIR/tar${TESTCASE_ID}.tar
+#
+function prepare #srcdir cmd
+{
+	typeset srcdir=$1
+	typeset cmd=$2
+	typeset -i retval=0
+
+	cwd=$PWD
+	cd $srcdir
+	(( $? != 0 )) && return 1
+
+	$cmd
+	(( $? != 0 )) && return 1
+
+	cd $cwd
+	(( $? != 0 )) && return 1
+
+	return 0
+}
+
+#
+# This function executes a passed in command and then determines the chksum 
+# of the resulting file.  The chksum components are checked against the ones
+# passed in to determine if they are equal.  If they are equal, 0 is returned
+# otherwise 1 is returned.
+#
+# Usage:
+# migrate destdir oldsuma oldsumb command_to_execute
+#
+# Return value: 0 on success
+#		1 on failure
+#
+# Where:
+#	destdir: is the directory where the command is to be executed on
+#	oldsuma: is the first part of the values returned by sum
+#	oldsumb: is the second part of the values returned by sum
+#	cmd: is the command to be executed;
+#		E.g.
+#		"$TAR xf $TESTDIR/tar${TESTCASE_ID}.tar"
+#
+function migrate #destdir oldsuma oldsumb cmd
+{
+	typeset destdir=$1
+	typeset oldsuma=$2
+	typeset oldsumb=$3
+	typeset cmd=$4
+	typeset -i retval=0
+
+	cwd=$PWD
+	cd $destdir
+	(( $? != 0 )) && return 1
+
+	$cmd
+	(( $? != 0 )) && return 1
+
+	sumy=`$SUM ./$BNAME`
+	suma=`$ECHO $sumy | $AWK '{print $1}'`
+	sumb=`$ECHO $sumy | $AWK '{print $2}'`
+
+	if (( $oldsuma != $suma )); then
+		log_note "$SUM values are not the same"
+		retval=1
+	fi
+
+	if (( $oldsumb != $sumb )); then
+		log_note "$SUM values are not the same"
+		retval=1
+	fi
+
+	cd $cwd
+	(( $? != 0 )) && return 1
+	return $retval
+}
+
+function migrate_cpio
+{
+	typeset destdir=$1
+	typeset archive=$2
+	typeset oldsuma=$3
+	typeset oldsumb=$4
+	typeset -i retval=0
+
+	cwd=$PWD
+	cd $destdir
+	(( $? != 0 )) && return 1
+
+	$CPIO -iv < $archive
+	(( $? != 0 )) && return 1
+
+	sumy=`$SUM ./$BNAME`
+	suma=`$ECHO $sumy | $AWK '{print $1}'`
+	sumb=`$ECHO $sumy | $AWK '{print $2}'`
+
+	if (( $oldsuma != $suma )); then
+		log_note "$SUM values are not the same"
+		retval=1
+	fi
+
+	if (( $oldsumb != $sumb )); then
+		log_note "$SUM values are not the same"
+		retval=1
+	fi
+
+	cd $cwd
+	(( $? != 0 )) && return 1
+	return $retval
+}

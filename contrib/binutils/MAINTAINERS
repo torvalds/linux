@@ -1,0 +1,122 @@
+Please feel free to add, edit, delete this file.
+Please do not make ChangeLog entries.
+
+COPYING, COPYING.LIB, README
+	http://gnu.org.
+
+Makefile.*; configure; configure.in; src-release
+	Any global maintainer can approve changes to these
+	files, but they should be aware	that they need to
+	be kept in sync with their counterparts in the GCC
+	repository.  Also please notify the following of
+	any committed patches:
+		binutils@sources.redhat.com
+		gdb-patches@sources.redhat.com
+
+bfd/; binutils/; gas/; gprof/; ld/; opcodes/; cpu/; BFD's part of include/
+	binutils: http://sources.redhat.com/binutils/
+	Patches to binutils@sources.redhat.com.
+	Please notify the following of any interface changes:
+		gdb-patches@sources.redhat.com
+
+cgen/; cgen parts of opcodes/, sim/ & include/
+	cgen: http://sources.redhat.com/cgen/
+	Patches to cgen@sources.redhat.com
+	May need separate opcodes/ or sim/ approval for
+		commits of regenerated files there.
+
+config.guess; config.sub; readline/support/config.{sub,guess}
+	config: http://savannah.gnu.org/projects/config
+	Patches to config-patches@gnu.org.
+	Changes need to be done in tandem with the official CONFIG
+	sources or submitted to the master file maintainer and brought
+	in via a merge.  When updating any of these files, please be
+	sure to update all of them.
+	Please notify the following of any committed patches:
+		binutils@sources.redhat.com
+		gdb-patches@sources.redhat.com
+
+depcomp
+        Send bug reports and patches to bug-automake@gnu.org.
+
+gdb/; readline/; sim/; GDB's part of include/
+	GDB: http://www.gnu.org/software/gdb/
+	Patches to gdb-patches@sources.redhat.com.
+	See also gdb/MAINTAINERS and sim/MAINTAINERS.
+
+include/
+	See binutils/, gdb/, sid/, gcc/, libiberty/ etc.
+
+intl/; config.rhost; libiberty/; libiberty's part of include/ 
+	gcc: http://gcc.gnu.org
+	Changes need to be done in tandem with the official GCC
+	sources or submitted to the master file maintainer and brought
+	in via a merge.  Note: approved patches in gcc's libiberty or
+	intl are automatically approved in this libiberty and intl also;
+	feel free to merge them yourself if needed sooner than the next
+	merge.  Otherwise, changes are automatically merged, usually
+	within a day.
+
+ltconfig; ltmain.sh; ltcf-*.sh
+	libtool: http://www.gnu.org/software/libtool/
+	Changes need to be done in tandem with the official LIBTOOL
+	sources or submitted to the master file maintainer and brought
+	in via a merge.
+
+mkinstalldirs; move-if-change
+	autoconf: http://gnu.org
+	Patches to autoconf-patches@gnu.org.
+	Changes need to be done in tandem with the official AUTOCONF
+	sources or submitted to the master file maintainer and brought
+	in via a merge.
+
+symlink-tree
+	gcc: http://gcc.gnu.org
+	See libiberty.
+
+newlib/; libgloss/
+	http://sources.redhat.com/newlib/
+	Patches to newlib@sources.redhat.com.
+
+sid/; SID's part of cgen/
+	sid: http://sources.redhat.com/sid/
+	Patches to sid@sources.redhat.com
+
+texinfo/texinfo.tex
+	texinfo: http://ftp.gnu.org.
+	Latest version can be found on ftp://ftp.gnu.org and can be
+	imported at any (reasonable) time.
+	Please not use GCC's texinfo.  Please do not import texinfo.
+
+tcl/; tix/; itcl/; tk/; libgui/
+	insight: http://sources.redhat.com/insight/
+	Contact insight@sources.redhat.com.
+
+winsup/
+	cygwin: http://sources.redhat.com/cygwin
+	Patches to cygwin-patches@sources.redhat.com.
+	General discussion cygwin@sources.redhat.com.
+	See also winsup/MAINTAINERS.
+
+config-ml.in; makefile.vms; mkdep; setup.com;
+etc/; utils/;
+	Any global maintainer can approve changes to these
+	files and directories.
+
+compile; depcomp; install-sh; missing; ylwrap;
+config/
+	Any global maintainer can approve changes to these
+	files and directories, but they should be aware
+	that they need to be kept in sync with their
+	counterparts in the GCC repository.
+
+modules file
+	Obviously changes to this file should not go through
+	overseers@sources.redhat.com.  If you understand the file
+	format (or can cut-and-paste existing entries), modify it. If
+	it scares you, get someone who does understand it to help you.
+	Be prepared to fix it if you do break it.
+
+/* Local variables: */
+/* change-log-default-name: "/dev/null" */
+/* End: */

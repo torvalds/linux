@@ -1,0 +1,11 @@
+This is a small 'ps' replacement, which uses information available via
+sysctl(3) interface (contrary to the 'aps', which requires you to mount
+procfs(5) to be able to get exactly the same info, so I think that 'sps'
+is superior solution).
+
+When I have some time, I'll add usual switches and other functions that normal
+'ps' has...
+
+<abial@freebsd.org>
+
+$FreeBSD$

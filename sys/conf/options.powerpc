@@ -1,0 +1,37 @@
+# $FreeBSD$
+# Options specific to the powerpc platform kernels
+
+AIM			opt_global.h
+BOOKE			opt_global.h
+BOOKE_E500		opt_global.h
+BOOKE_PPC4XX		opt_global.h
+CELL
+
+POWERPC
+POWERPC64
+POWERPCSPE
+
+FPU_EMU
+
+COMPAT_FREEBSD32	opt_global.h
+
+GFB_DEBUG		opt_gfb.h
+GFB_NO_FONT_LOADING	opt_gfb.h
+GFB_NO_MODE_CHANGE	opt_gfb.h
+
+MPC85XX			opt_platform.h
+POWERMAC		opt_platform.h
+PS3			opt_platform.h
+MAMBO
+POWERNV			opt_platform.h
+PSERIES
+PSIM
+
+SC_OFWFB		opt_ofwfb.h
+
+OFWCONS_POLL_HZ		opt_ofw.h
+
+# AGP debugging support
+AGP_DEBUG		opt_agp.h
+
+MIKROTIK

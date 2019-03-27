@@ -1,0 +1,110 @@
+# Translation of Dialog into the walloon language.
+# Copyright 2003-2006,2007 # Thomas Dickey
+#
+# Pablo Saratxaga <pablo@walon.org>, 2007.
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20070704\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2007-08-29 18:24+0200\n"
+"Last-Translator: Pablo Saratxaga <pablo@walon.org>\n"
+"Language-Team: Walloon <linux-wa@walon.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.0.2\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "Oyi"
+
+#: buttons.c:393
+msgid "No"
+msgstr "Neni"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "'l est bon"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "Rinoncî"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "Moussî foû"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "Rawete"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "Aidance"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "Moes"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "Anêye"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "Rilomer"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "Ridants"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "Fitchîs"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Succès"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Berwete"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Passé"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Tot fwait"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Verifyî"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Fwait"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Passé houte"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "En alaedje"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "N/D"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Avançmint"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "Cweri"

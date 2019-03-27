@@ -1,0 +1,101 @@
+.\" Copyright (c) 2010 Joseph Koshy
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_formstring.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd July 24, 2010
+.Dt DWARF_FORMSTRING 3
+.Os
+.Sh NAME
+.Nm dwarf_formstring
+.Nd return the value of a STRING class attribute
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_formstring
+.Fa "Dwarf_Attribute attr"
+.Fa "char **ret"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_formstring
+sets the location pointed to by argument
+.Ar ret
+to a pointer to a NUL-terminated string containing
+the value of the attribute referenced by argument
+.Ar attr .
+The form of argument
+.Ar attr
+must be one of
+.Dv DW_FORM_string
+or
+.Dv DW_FORM_strp .
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to return an error descriptor in case
+of an error.
+.Ss Memory Management
+The memory area referenced by the returned pointer is managed by
+the DWARF(3) library.
+The application should not attempt to directly free this memory
+area.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_formstring
+returns
+.Dv DW_DLV_OK
+on success.
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets argument
+.Ar err .
+.Sh ERRORS
+Function
+.Fn dwarf_formstring
+may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ATTR_FORM_BAD"
+.It Bq Er DW_DLE_ARGUMENT
+Either of arguments
+.Ar attr
+or
+.Ar ret
+was NULL.
+.It Bq Er DW_DLE_ATTR_FORM_BAD
+The attribute referenced by argument
+.Ar attr
+was not of a permitted kind.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_attr 3 ,
+.Xr dwarf_formblock 3 ,
+.Xr dwarf_formref 3 ,
+.Xr dwarf_formsdata 3 ,
+.Xr dwarf_formsig8 3 ,
+.Xr dwarf_formudata 3 ,
+.Xr dwarf_hasattr 3

@@ -1,0 +1,27 @@
+
+#------------------------------------------------------------------------------
+# $File: vax,v 1.9 2014/04/30 21:41:02 christos Exp $
+# vax:  file(1) magic for VAX executable/object and APL workspace
+#
+0	lelong		0101557		VAX single precision APL workspace
+0	lelong		0101556		VAX double precision APL workspace
+
+#
+# VAX a.out (BSD; others collide with 386 and other 32-bit little-endian
+# executables, and are handled in aout)
+#
+0	lelong		0420		a.out VAX demand paged (first page unmapped) pure executable
+>16	lelong		>0		not stripped
+
+#
+# VAX COFF
+#
+# The `versions' were commented out, but have been un-commented out.
+# (Was the problem just one of endianness?)
+#
+0	leshort		0570		VAX COFF executable
+>12	lelong		>0		not stripped
+>22	leshort		>0		- version %d
+0	leshort		0575		VAX COFF pure executable
+>12	lelong		>0		not stripped
+>22	leshort		>0		- version %d

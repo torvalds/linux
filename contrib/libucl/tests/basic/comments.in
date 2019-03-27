@@ -1,0 +1,25 @@
+# This test is intended to check various comments in ucl
+
+obj {
+	
+	key = value
+	key = "/* value"
+	/*
+	key = value
+	*/
+# Nested comments
+	key = nested
+	/*
+	adasdasdads
+	/* asdasdasd */asjdasjldaskd
+	/* asdsadasd */
+	/* /* /* /* /* */ */ */ */ */
+# some
+	*/
+	key = quotes # quoted
+# Quotes
+	/*
+	key = "/* value"
+	key = "*/value"
+	*/
+}

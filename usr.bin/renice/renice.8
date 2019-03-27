@@ -1,0 +1,134 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)renice.8	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd June 9, 1993
+.Dt RENICE 8
+.Os
+.Sh NAME
+.Nm renice
+.Nd alter priority of running processes
+.Sh SYNOPSIS
+.Nm
+.Ar priority
+.Op Oo Fl p Oc Ar pid ...
+.Op Oo Fl g Oc Ar pgrp ...
+.Op Oo Fl u Oc Ar user ...
+.Nm
+.Fl n Ar increment
+.Op Oo Fl p Oc Ar pid ...
+.Op Oo Fl g Oc Ar pgrp ...
+.Op Oo Fl u Oc Ar user ...
+.Sh DESCRIPTION
+The
+.Nm
+utility alters the
+scheduling priority of one or more running processes.
+The following
+.Ar who
+parameters are interpreted as process ID's, process group
+ID's, user ID's or user names.
+The
+.Nm Ns 'ing
+of a process group causes all processes in the process group
+to have their scheduling priority altered.
+The
+.Nm Ns 'ing
+of a user causes all processes owned by the user to have
+their scheduling priority altered.
+By default, the processes to be affected are specified by
+their process ID's.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl g
+Force
+.Ar who
+parameters to be interpreted as process group ID's.
+.It Fl n
+Instead of changing the specified processes to the given priority,
+interpret the following argument as an increment to be applied to
+the current priority of each process.
+.It Fl u
+Force the
+.Ar who
+parameters to be interpreted as user names or user ID's.
+.It Fl p
+Reset the
+.Ar who
+interpretation to be (the default) process ID's.
+.El
+.Pp
+Users other than the super-user may only alter the priority of
+processes they own,
+and can only monotonically increase their ``nice value''
+within the range 0 to
+.Dv PRIO_MAX
+(20).
+(This prevents overriding administrative fiats.)
+The super-user
+may alter the priority of any process
+and set the priority to any value in the range
+.Dv PRIO_MIN
+(\-20)
+to
+.Dv PRIO_MAX .
+Useful priorities are:
+20 (the affected processes will run only when nothing else
+in the system wants to),
+0 (the ``base'' scheduling priority),
+anything negative (to make things go very fast).
+.Sh FILES
+.Bl -tag -width /etc/passwd -compact
+.It Pa /etc/passwd
+to map user names to user ID's
+.El
+.Sh EXAMPLES
+Change the priority of process ID's 987 and 32, and
+all processes owned by users daemon and root.
+.Pp
+.Dl "renice +1 987 -u daemon root -p 32"
+.Sh SEE ALSO
+.Xr nice 1 ,
+.Xr rtprio 1 ,
+.Xr getpriority 2 ,
+.Xr setpriority 2
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.0 .
+.Sh BUGS
+Non super-users cannot increase scheduling priorities of their own processes,
+even if they were the ones that decreased the priorities in the first place.

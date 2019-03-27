@@ -1,0 +1,162 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)zpool_upgrade.kshlib	1.5	08/02/27 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+# This part of the test suite relies on variables being setup in the
+# zpool_upgrade.cfg script. Those variables give us details about which
+# files make up the pool, and what the pool name is.
+
+
+# A function to import a pool from files we have stored in the test suite
+# We import the pool, and create some random data in the pool.
+# $1 a version number we can use to get information about the pool
+function create_old_pool
+{
+	VERSION=$1
+	POOL_FILES=$($ENV | grep "ZPOOL_VERSION_${VERSION}_FILES"\
+		| $AWK -F= '{print $2}')
+	POOL_NAME=$($ENV|grep "ZPOOL_VERSION_${VERSION}_NAME"\
+		| $AWK -F= '{print $2}')
+
+	log_note "Creating $POOL_NAME from $POOL_FILES"
+	for pool_file in $POOL_FILES; do
+		$CP -f $STF_SUITE/tests/cli_root/zpool_upgrade/blockfiles/$pool_file.Z \
+		$TMPDIR
+		$UNCOMPRESS $TMPDIR/$pool_file.Z
+	done
+	log_must $ZPOOL import -d $TMPDIR $POOL_NAME
+
+	# Now put some random contents into the pool.
+	COUNT=0
+	while [ "$COUNT" -lt 1024 ]; do
+		$DD if=/dev/urandom of=/$POOL_NAME/random.$COUNT \
+			count=1 bs=1024 > /dev/null 2>&1
+		COUNT=$(( $COUNT + 1 ))
+	done
+}
+
+
+# A function to check the contents of a pool, upgrade it to the current version
+# and then verify that the data is consistent after upgrading. Note that we're
+# not using "zpool status -x" to see if the pool is healthy, as it's possible
+# to also upgrade faulted, or degraded pools.
+# $1 a version number we can use to get information about the pool
+function check_upgrade { 
+	VERSION=$1
+	POOL_NAME=$($ENV| $GREP "ZPOOL_VERSION_${VERSION}_NAME"\
+		| $AWK -F= '{print $2}')
+	POOL_FILES=$($ENV | $GREP "ZPOOL_VERSION_${VERSION}_FILES"\
+		| $AWK -F= '{print $2}')
+
+	log_note "Checking if we can upgrade from ZFS version ${VERSION}."
+	PRE_UPGRADE_CHECKSUM=$(check_pool $POOL_NAME pre )
+	log_must $ZPOOL upgrade $POOL_NAME > /dev/null
+	POST_UPGRADE_CHECKSUM=$(check_pool $POOL_NAME post )
+
+	log_note "Checking that there are no differences between checksum output"
+	log_must $DIFF $PRE_UPGRADE_CHECKSUM $POST_UPGRADE_CHECKSUM  
+	$RM $PRE_UPGRADE_CHECKSUM $POST_UPGRADE_CHECKSUM
+}
+
+# A function to destroy an upgraded pool, plus the files it was based on.
+# $1 a version number we can use to get information about the pool
+function destroy_upgraded_pool {
+	VERSION=$1
+	POOL_NAME=$($ENV|grep "ZPOOL_VERSION_${VERSION}_NAME"\
+		| $AWK -F= '{print $2}')
+	POOL_FILES=$($ENV | grep "ZPOOL_VERSION_${VERSION}_FILES"\
+		| $AWK -F= '{print $2}')
+	if poolexists "$POOL_NAME"; then  
+		log_must $ZPOOL destroy $POOL_NAME
+	fi
+	for file in $POOL_FILES; do
+		if [ -e "$TMPDIR/$file" ]; then
+			$RM $TMPDIR/$file
+		fi
+	done
+}
+
+# This function does a basic sanity check on the pool by computing the
+# checksums of all files in the pool, printing the name of the file containing
+# the checksum results.
+# $1 the name of the pool
+# $2 a flag we can use to determine when this check is being performed
+#    (ie. pre or post pool-upgrade)
+function check_pool { # pool state
+	POOL=$1
+	STATE=$2
+	$FIND /$POOL -type f -exec $CKSUM {} + > \
+		$TMPDIR/pool-checksums.$POOL.$STATE
+	print $TMPDIR/pool-checksums.$POOL.$STATE
+}
+
+# This function simply checks that a pool has a particular version number
+# as reported by zdb and zpool upgrade -v
+# $1 the name of the pool
+# $2 the version of the pool we expect to see
+function check_poolversion { # pool version
+
+	POOL=$1
+	VERSION=$2
+
+	# check version using zdb
+	ACTUAL=$(get_config $POOL version)
+	[ "$ACTUAL" != "$VERSION" ] && log_fail \
+		"ERROR: $POOL not upgraded: wanted '$VERSION', got '$ACTUAL'"
+
+	# check version using zpool upgrade
+	ACTUAL=$($ZPOOL upgrade | $GREP $POOL$ | \
+	 $AWK '{print $1}' | $SED -e 's/ //g')
+	[ "$ACTUAL" != "$VERSION" ] &&
+		log_fail "$POOL reported version '$ACTUAL', expected '$VERSION'"
+}
+
+# A simple function to get a random number between two bounds
+# probably not the most efficient for large ranges, but it's okay.
+# Note since we're using $RANDOM, 32767 is the largest number we
+# can accept as the upper bound.
+# $1 lower bound
+# $2 upper bound
+function random { # min max
+
+	typeset MIN=$1
+	typeset MAX=$2
+	typeset RAND=0
+
+	while [ "$RAND" -lt "$MIN" ]
+	do
+		RAND=$(( $RANDOM % $MAX + 1))
+	done
+
+	print $RAND
+}
+

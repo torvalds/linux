@@ -1,0 +1,145 @@
+.\" Copyright (c) 2013, Sean Bruno <sbruno@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 5, 2013
+.Dt GPIO 4
+.Os
+.Sh NAME
+.Nm gpiobus
+.Nd GPIO bus system
+.Sh SYNOPSIS
+To compile these devices into your kernel and use the device hints, place the
+following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device gpio"
+.Cd "device gpioc"
+.Cd "device gpioiic"
+.Cd "device gpioled"
+.Ed
+.Pp
+Additional device entries for the
+.Li ARM
+architecture include:
+.Bd -ragged -offset indent
+.Cd "device a10_gpio"
+.Cd "device bcm_gpio"
+.Cd "device imx51_gpio"
+.Cd "device lpcgpio"
+.Cd "device mv_gpio"
+.Cd "device ti_gpio"
+.Cd "device gpio_avila"
+.Cd "device gpio_cambria"
+.Cd "device zy7_gpio"
+.Cd "device pxagpio"
+.Ed
+.Pp
+Additional device entries for the
+.Li MIPS
+architecture include:
+.Bd -ragged -offset indent
+.Cd "device ar71xxx_gpio"
+.Cd "device octeon_gpio"
+.Cd "device rt305_gpio"
+.Ed
+.Pp
+Additional device entries for the
+.Li POWERPC
+architecture include:
+.Bd -ragged -offset indent
+.Cd "device wiigpio"
+.Cd "device macgpio"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+system provides a simple interface to the GPIO pins that are usually
+available on embedded architectures and can provide bit banging style
+devices to the system.
+.Pp
+The acronym
+.Li GPIO
+means
+.Dq General-Purpose Input/Output.
+.Pp
+The BUS physically consists of multiple pins that can be configured
+for input/output, IRQ delivery, SDA/SCL
+.Em iicbus
+use, etc.
+.Pp
+On some embedded architectures (like MIPS), discovery of the bus and
+configuration of the pins is done via
+.Xr device.hints 5
+in the platform's kernel
+.Xr config 5
+file.
+.Pp
+On some others (like ARM), where
+.Xr FDT 4
+is used to describe the device tree, the bus discovery is done via the DTS
+passed to the kernel, being either statically compiled in, or by a variety
+of ways where the boot loader (or Open Firmware enabled system) passes the
+DTS blob to the kernel at boot.
+.Pp
+The following
+.Xr device.hints 5
+are only provided by the
+.Cd ar71xx_gpio
+driver:
+.Bl -tag -width ".Va hint.gpioiic.%d.atXXX"
+.It Va hint.gpio.%d.pinmask
+This is a bitmask of pins on the GPIO board that we would like to expose
+for use to the host operating system.
+To expose pin 0, 4 and 7, use the bitmask of
+10010001 converted to the hexadecimal value 0x0091.
+.It Va hint.gpio.%d.pinon
+This is a bitmask of pins on the GPIO board that will be set to ON at host
+start.
+To set pin 2, 5 and 13 to be set ON at boot, use the bitmask of
+10000000010010 converted to the hexadecimal value 0x2012.
+.It Va hint.gpio.function_set
+.It Va hint.gpio.function_clear
+These are bitmasks of pins that will remap a pin to handle a specific
+function (USB, UART TX/RX, etc) in the Atheros function registers.
+This is mainly used to set/clear functions that we need when they are set up or
+not set up by uBoot.
+.El
+.Pp
+Simply put, each pin of the GPIO interface is connected to an input/output
+of some device in a system.
+.Sh SEE ALSO
+.Xr gpioiic 4 ,
+.Xr gpioled 4 ,
+.Xr iicbus 4 ,
+.Xr gpioctl 8
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Sean Bruno Aq Mt sbruno@FreeBSD.org .

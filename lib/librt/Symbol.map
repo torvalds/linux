@@ -1,0 +1,65 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	aio_read;
+	aio_write;
+	aio_return;
+	aio_waitcomplete;
+	aio_fsync;
+	mq_open;
+	mq_close;
+	mq_notify;
+	mq_getattr;
+	mq_setattr;
+	mq_timedreceive;
+	mq_timedsend;
+	mq_unlink;
+	mq_send;
+	mq_receive;
+	timer_create;
+	timer_delete;
+	timer_gettime;
+	timer_settime;
+	timer_getoverrun;
+};
+
+FBSD_1.5 {
+	lio_listio;
+	mq_getfd_np;
+	timer_oshandle_np;
+};
+
+FBSDprivate_1.0 {
+	_mq_open;
+	_mq_close;
+	_mq_notify;
+	_mq_getattr;
+	_mq_setattr;
+	_mq_timedreceive;
+	_mq_timedsend;
+	_mq_unlink;
+	_mq_send;
+	_mq_receive;
+	__mq_open;
+	__mq_close;
+	__mq_notify;
+	__mq_getattr;
+	__mq_setattr;
+	__mq_timedreceive;
+	__mq_timedsend;
+	__mq_unlink;
+	__mq_send;
+	__mq_receive;
+	_timer_create;
+	_timer_delete;
+	_timer_gettime;
+	_timer_settime;
+	_timer_getoverrun;
+	__timer_create;
+	__timer_delete;
+	__timer_gettime;
+	__timer_settime;
+	__timer_getoverrun;
+};

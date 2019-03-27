@@ -1,0 +1,105 @@
+if [ ! "$_TIMEZONE_COUNTRIES_SUBR" ]; then _TIMEZONE_COUNTRIES_SUBR=1
+#
+# Copyright (c) 2011-2015 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ FUNCTIONS
+
+# f_country $code $property [$var_to_set]
+#
+# Returns a single property of a given country. Available properties are:
+#
+# 	name         Name of the country as read from _PATH_ISO3166.
+# 	nzones       Number of zones within the country (-1 if country has
+# 	             only a single zone).
+# 	filename     The filename portion of the TZ field (after the `/') as
+# 	             read from _PATH_ZONETAB.
+# 	cont         The principal continent in which the country lies (appears
+# 	             before the `/' in the TZ field of _PATH_ZONETAB).
+# 	filename_N   Like filename, but for the Nth zone when the country has
+# 	             multiple zones (nzones > 0).
+# 	cont_N       Like cont, but for the Nth zone when the country has
+# 	             multiple zones (nzones > 0).
+# 	descr_N      Like name, but for the Nth zone when the country has
+# 	             multiple zones (nzones > 0)
+#
+# If $var_to_set is missing or NULL, the value of $var_to_get is printed to
+# standard output for capturing in a sub-shell (which is less-recommended
+# because of performance degredation; for example, when called in a loop).
+#
+f_country()
+{
+	f_getvar "country_${1}_$2" $3
+}
+
+# f_sort_countries
+#
+# Sorts alphabetically the 2-character country codes listed in $COUNTRIES based
+# on the name of each country.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_sort_countries_awk='
+function _asorti(src, dest)
+{
+	k = nitems = 0
+	for (i in src) dest[++nitems] = i
+	for (i = 1; i <= nitems; k = i++) {
+		idx = dest[i]
+		while ((k > 0) && (dest[k] > idx)) {
+			dest[k+1] = dest[k]; k--
+		}
+		dest[k+1] = idx
+	}
+	return nitems
+}
+BEGIN {
+	split(ENVIRON["COUNTRIES"], array, /[[:space:]]+/)
+	for (item in array)
+	{
+		tlc = array[item]
+		name = ENVIRON["country_" tlc "_name"]
+		countries[name] = tlc
+	}
+	n = _asorti(countries, sorted_countries)
+	for (i = 1; i <= n; i++)
+		print countries[sorted_countries[i]]
+	exit
+}
+'
+f_sort_countries()
+{
+	export COUNTRIES # for awk(1) ENVIRON[] visibility
+	COUNTRIES=$( awk "$f_sort_countries_awk" )
+	export COUNTRIES # Pedantic
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." timezone/countries.subr
+
+fi # ! $_TIMEZONE_COUNTRIES_SUBR

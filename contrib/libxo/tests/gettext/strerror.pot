@@ -1,0 +1,472 @@
+#
+# Copyright (c) 1982, 1985, 1993
+#	The Regents of the University of California.  All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# List of system errors ala strerror() and sys_errlist
+# Phil Shafer <phil@juniper.net>, 2015.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2015-07-01 16:15-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Received {:received} {N:byte,bytes} from {:from}#{:port} in {:time} ms\n"
+msgstr ""
+
+# 0 - ENOERROR
+msgid "No error: 0"
+msgstr ""
+
+# 1 - EPERM
+msgid "Operation not permitted"
+msgstr ""
+
+# 2 - ENOENT
+msgid "No such file or directory"
+msgstr ""
+
+# 3 - ESRCH
+msgid "No such process"
+msgstr ""
+
+# 4 - EINTR
+msgid "Interrupted system call"
+msgstr ""
+
+# 5 - EIO
+msgid "Input/output error"
+msgstr ""
+
+# 6 - ENXIO
+msgid "Device not configured"
+msgstr ""
+
+# 7 - E2BIG
+msgid "Argument list too long"
+msgstr ""
+
+# 8 - ENOEXEC
+msgid "Exec format error"
+msgstr ""
+
+# 9 - EBADF
+msgid "Bad file descriptor"
+msgstr ""
+
+# 10 - ECHILD
+msgid "No child processes"
+msgstr ""
+
+# 11 - EDEADLK
+msgid "Resource deadlock avoided"
+msgstr ""
+
+# 12 - ENOMEM
+msgid "Cannot allocate memory"
+msgstr ""
+
+# 13 - EACCES
+msgid "Permission denied"
+msgstr ""
+
+# 14 - EFAULT
+msgid "Bad address"
+msgstr ""
+
+# 15 - ENOTBLK
+msgid "Block device required"
+msgstr ""
+
+# 16 - EBUSY
+msgid "Device busy"
+msgstr ""
+
+# 17 - EEXIST
+msgid "File exists"
+msgstr ""
+
+# 18 - EXDEV
+msgid "Cross-device link"
+msgstr ""
+
+# 19 - ENODEV
+msgid "Operation not supported by device"
+msgstr ""
+
+# 20 - ENOTDIR
+msgid "Not a directory"
+msgstr ""
+
+# 21 - EISDIR
+msgid "Is a directory"
+msgstr ""
+
+# 22 - EINVAL
+msgid "Invalid argument"
+msgstr ""
+
+# 23 - ENFILE
+msgid "Too many open files in system"
+msgstr ""
+
+# 24 - EMFILE
+msgid "Too many open files"
+msgstr ""
+
+# 25 - ENOTTY
+msgid "Inappropriate ioctl for device"
+msgstr ""
+
+# 26 - ETXTBSY
+msgid "Text file busy"
+msgstr ""
+
+# 27 - EFBIG
+msgid "File too large"
+msgstr ""
+
+# 28 - ENOSPC
+msgid "No space left on device"
+msgstr ""
+
+# 29 - ESPIPE
+msgid "Illegal seek"
+msgstr ""
+
+# 30 - EROFS
+msgid "Read-only file system"
+msgstr ""
+
+# 31 - EMLINK
+msgid "Too many links"
+msgstr ""
+
+# 32 - EPIPE
+msgid "Broken pipe"
+msgstr ""
+
+#
+# math software
+#
+
+# 33 - EDOM
+msgid "Numerical argument out of domain"
+msgstr ""
+
+# 34 - ERANGE
+msgid "Result too large"
+msgstr ""
+
+#
+# non-blocking and interrupt i/o
+#
+
+# 35 - EAGAIN
+# 35 - EWOULDBLOCK
+msgid "Resource temporarily unavailable"
+msgstr ""
+
+# 36 - EINPROGRESS
+msgid "Operation now in progress"
+msgstr ""
+
+# 37 - EALREADY
+msgid "Operation already in progress"
+msgstr ""
+
+
+#
+# ipc/network software -- argument errors
+#
+
+# 38 - ENOTSOCK
+msgid "Socket operation on non-socket"
+msgstr ""
+
+# 39 - EDESTADDRREQ
+msgid "Destination address required"
+msgstr ""
+
+# 40 - EMSGSIZE
+msgid "Message too long"
+msgstr ""
+
+# 41 - EPROTOTYPE
+msgid "Protocol wrong type for socket"
+msgstr ""
+
+# 42 - ENOPROTOOPT
+msgid "Protocol not available"
+msgstr ""
+
+# 43 - EPROTONOSUPPORT
+msgid "Protocol not supported"
+msgstr ""
+
+# 44 - ESOCKTNOSUPPORT
+msgid "Socket type not supported"
+msgstr ""
+
+# 45 - EOPNOTSUPP
+msgid "Operation not supported"
+msgstr ""
+
+# 46 - EPFNOSUPPORT
+msgid "Protocol family not supported"
+msgstr ""
+
+# 47 - EAFNOSUPPORT
+msgid "Address family not supported by protocol family"
+msgstr ""
+
+# 48 - EADDRINUSE
+msgid "Address already in use"
+msgstr ""
+
+# 49 - EADDRNOTAVAIL
+msgid "Can't assign requested address"
+msgstr ""
+
+#
+# ipc/network software -- operational errors
+#
+
+# 50 - ENETDOWN
+msgid "Network is down"
+msgstr ""
+
+# 51 - ENETUNREACH
+msgid "Network is unreachable"
+msgstr ""
+
+# 52 - ENETRESET
+msgid "Network dropped connection on reset"
+msgstr ""
+
+# 53 - ECONNABORTED
+msgid "Software caused connection abort"
+msgstr ""
+
+# 54 - ECONNRESET
+msgid "Connection reset by peer"
+msgstr ""
+
+# 55 - ENOBUFS
+msgid "No buffer space available"
+msgstr ""
+
+# 56 - EISCONN
+msgid "Socket is already connected"
+msgstr ""
+
+# 57 - ENOTCONN
+msgid "Socket is not connected"
+msgstr ""
+
+# 58 - ESHUTDOWN
+msgid "Can't send after socket shutdown"
+msgstr ""
+
+# 59 - ETOOMANYREFS
+msgid "Too many references: can't splice"
+msgstr ""
+
+# 60 - ETIMEDOUT
+msgid "Operation timed out"
+msgstr ""
+
+# 61 - ECONNREFUSED
+msgid "Connection refused"
+msgstr ""
+
+# 62 - ELOOP
+msgid "Too many levels of symbolic links"
+msgstr ""
+
+# 63 - ENAMETOOLONG
+msgid "File name too long"
+msgstr ""
+
+#
+# should be rearranged
+#
+
+# 64 - EHOSTDOWN
+msgid "Host is down"
+msgstr ""
+
+# 65 - EHOSTUNREACH
+msgid "No route to host"
+msgstr ""
+
+# 66 - ENOTEMPTY
+msgid "Directory not empty"
+msgstr ""
+
+#
+# quotas & mush
+#
+
+# 67 - EPROCLIM
+msgid "Too many processes"
+msgstr ""
+
+# 68 - EUSERS
+msgid "Too many users"
+msgstr ""
+
+# 69 - EDQUOT
+msgid "Disc quota exceeded"
+msgstr ""
+
+#
+# Network File System
+#
+
+# 70 - ESTALE
+msgid "Stale NFS file handle"
+msgstr ""
+
+# 71 - EREMOTE
+msgid "Too many levels of remote in path"
+msgstr ""
+
+# 72 - EBADRPC
+msgid "RPC struct is bad"
+msgstr ""
+
+# 73 - ERPCMISMATCH
+msgid "RPC version wrong"
+msgstr ""
+
+# 74 - EPROGUNAVAIL
+msgid "RPC prog. not avail"
+msgstr ""
+
+# 75 - EPROGMISMATCH
+msgid "Program version wrong"
+msgstr ""
+
+# 76 - EPROCUNAVAIL
+msgid "Bad procedure for program"
+msgstr ""
+
+# 77 - ENOLCK
+msgid "No locks available"
+msgstr ""
+
+# 78 - ENOSYS
+msgid "Function not implemented"
+msgstr ""
+
+# 79 - EFTYPE
+msgid "Inappropriate file type or format"
+msgstr ""
+
+# 80 - EAUTH
+msgid "Authentication error"
+msgstr ""
+
+# 81 - ENEEDAUTH
+msgid "Need authenticator"
+msgstr ""
+
+# 82 - EIDRM
+msgid "Identifier removed"
+msgstr ""
+
+# 83 - ENOMSG
+msgid "No message of desired type"
+msgstr ""
+
+# 84 - EOVERFLOW
+msgid "Value too large to be stored in data type"
+msgstr ""
+
+# 85 - ECANCELED
+msgid "Operation canceled"
+msgstr ""
+
+# 86 - EILSEQ
+msgid "Illegal byte sequence"
+msgstr ""
+
+# 87 - ENOATTR
+msgid "Attribute not found"
+msgstr ""
+
+#
+# General
+#
+
+# 88 - EDOOFUS
+msgid "Programming error"
+msgstr ""
+
+# 89 - EBADMSG
+msgid "Bad message"
+msgstr ""
+
+# 90 - EMULTIHOP
+msgid "Multihop attempted"
+msgstr ""
+
+# 91 - ENOLINK
+msgid "Link has been severed"
+msgstr ""
+
+# 92 - EPROTO
+msgid "Protocol error"
+msgstr ""
+
+# 93 - ENOTCAPABLE
+msgid "Capabilities insufficient"
+msgstr ""
+
+# 94 - ECAPMODE
+msgid "Not permitted in capability mode"
+msgstr ""
+
+# 95 - ENOTRECOVERABLE
+msgid "State not recoverable"
+msgstr ""
+
+# 96 - EOWNERDEAD
+msgid "Previous owner died"
+msgstr ""
+
+# 97 - EINTEGRITY
+msgid "Integrity check failed"
+msgstr ""

@@ -1,0 +1,57 @@
+.\" Copyright (c) 2003 Tim J. Robbins
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 7, 2003
+.Dt GB2312 5
+.Os
+.Sh NAME
+.Nm gb2312
+.Nd "GB2312 encoding method for Chinese text"
+.Sh SYNOPSIS
+.Nm ENCODING
+.Qq GB2312
+.Sh DESCRIPTION
+The
+.Nm GB2312
+encoding implements GB\ 2312-1980, a PRC national standard
+for the encoding of simplified Chinese characters.
+.Pp
+Multibyte characters in the GB2312
+encoding can be one byte or two bytes long.
+.No GB\ 11383-1981 Pq Tn ASCII
+characters are represented by single bytes in the range 0x00 to 0x7F.
+Simplified Chinese characters are represented by two bytes, both in
+the range 0xA1-0xFE.
+.Sh SEE ALSO
+.Xr euc 5 ,
+.Xr gb18030 5 ,
+.Xr gbk 5
+.Sh STANDARDS
+The
+.Nm GB2312
+encoding is believed to be compatible with GB\ 2312-1980.
+This standard has been superseded by GB\ 18030-2000, but is still
+in wide use.

@@ -1,0 +1,96 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 24, 1996
+.Dt VOP_RENAME 9
+.Os
+.Sh NAME
+.Nm VOP_RENAME
+.Nd rename a file
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn VOP_RENAME "struct vnode *fdvp" "struct vnode *fvp" "struct componentname *fcnp" "struct vnode *tdvp" "struct vnode *tvp" "struct componentname *tcnp"
+.Sh DESCRIPTION
+This renames a file and possibly changes its parent directory.
+If the destination object exists, it will be removed first.
+.Pp
+Its arguments are:
+.Bl -tag -width fdvp
+.It Fa fdvp
+The vnode of the old parent directory.
+.It Fa fvp
+The vnode of the file to be renamed.
+.It Fa fcnp
+Pathname information about the file's current name.
+.It Fa tdvp
+The vnode of the new parent directory.
+.It Fa tvp
+The vnode of the target file (if it exists).
+.It Fa tcnp
+Pathname information about the file's new name.
+.El
+.Sh LOCKS
+The source directory and file are unlocked but are expected to have their
+ref count bumped on entry.
+The VOP routine is expected to
+.Xr vrele 9
+both prior
+to returning.
+.Pp
+The destination directory and file are locked as well as having their ref
+count bumped.
+The VOP routine is expected to
+.Xr vput 9
+both prior to
+returning.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EPERM
+The file is immutable.
+.It Bq Er EXDEV
+It is not possible to rename a file between different file systems.
+.It Bq Er EINVAL
+An attempt was made to rename
+.Pa \&.
+or
+.Pa .. ,
+or to perform an operation which would break the directory tree structure.
+.It Bq Er ENOTDIR
+An attempt was made to rename a directory to a file or vice versa.
+.It Bq Er ENOTEMPTY
+An attempt was made to remove a directory which is not empty.
+.El
+.Sh SEE ALSO
+.Xr vnode 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

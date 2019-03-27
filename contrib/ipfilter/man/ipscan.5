@@ -1,0 +1,52 @@
+.\"	$FreeBSD$
+.\"
+.TH IPSCAN 5
+.SH NAME
+ipscan, ipscan.conf \- ipscan file format
+.SH DESCRIPTION
+.PP
+WARNING: This feature is to be considered experimental and may change
+significantly until a final implementation is drawn up.
+.PP
+The format for files accept by ipscan currently follow this rough grammar:
+.LP
+.nf
+line     ::= name ":" matchup [ "," matchup ] "=" action .
+matchup  ::= "(" ")" | "(" literal ")" | "(" literal "," match ")" .
+action   ::= result | result "else" result .
+result   ::= "close" | "track" | redirect .
+redirect ::= "redirect" ip-address [ "(" "," port-number ")" ] .
+match    ::= { match-char }
+match-char ::= "*" | "?" | "."
+.fi
+.PP
+In this example an ip-address is a dotted-quad IPv4 address and a port-number
+is a number betwee 1 and 65535, inclusive.  The match string is must be of
+same length as the literal string that it is matching (literal).  The length
+of either string is limited to 16 bytes.
+.PP
+Currently, the redirect option is not yet been implemented.
+.LP
+.nf
+#
+# * = match any character, . = exact match, ? = case insensitive
+#
+# Scan for anything that looks like HTTP and redirect it to the local
+# proxy.  One catch - this feature (redirect) is not yet implemented.
+#
+http : ("GET ", "???." ) = redirect(127.0.0.1)
+#
+# Track ssh connections (i.e do nothing)
+#
+ssh : (), ("SSH-") = track
+#
+# Things which look like smtp to be tracked else closed.
+# Client can start with EHLO (ESMTP) or HELO (SMTP).
+#
+smtp : ("HELO ", "**??."), ("220 ", "....") = track else close
+#
+.fi
+.SH FILES
+/etc/ipscan.conf
+.SH SEE ALSO
+ipscan(8)

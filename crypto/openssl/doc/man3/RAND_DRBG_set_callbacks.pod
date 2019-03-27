@@ -1,0 +1,147 @@
+=pod
+
+=head1 NAME
+
+RAND_DRBG_set_callbacks,
+RAND_DRBG_get_entropy_fn,
+RAND_DRBG_cleanup_entropy_fn,
+RAND_DRBG_get_nonce_fn,
+RAND_DRBG_cleanup_nonce_fn
+- set callbacks for reseeding
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand_drbg.h>
+
+
+ int RAND_DRBG_set_callbacks(RAND_DRBG *drbg,
+                             RAND_DRBG_get_entropy_fn get_entropy,
+                             RAND_DRBG_cleanup_entropy_fn cleanup_entropy,
+                             RAND_DRBG_get_nonce_fn get_nonce,
+                             RAND_DRBG_cleanup_nonce_fn cleanup_nonce);
+
+
+=head2 Callback Functions
+
+ typedef size_t (*RAND_DRBG_get_entropy_fn)(
+                       RAND_DRBG *drbg,
+                       unsigned char **pout,
+                       int entropy,
+                       size_t min_len, size_t max_len,
+                       int prediction_resistance);
+
+ typedef void (*RAND_DRBG_cleanup_entropy_fn)(
+                     RAND_DRBG *drbg,
+                     unsigned char *out, size_t outlen);
+
+ typedef size_t (*RAND_DRBG_get_nonce_fn)(
+                       RAND_DRBG *drbg,
+                       unsigned char **pout,
+                       int entropy,
+                       size_t min_len, size_t max_len);
+
+ typedef void (*RAND_DRBG_cleanup_nonce_fn)(
+                     RAND_DRBG *drbg,
+                     unsigned char *out, size_t outlen);
+
+
+
+=head1 DESCRIPTION
+
+RAND_DRBG_set_callbacks() sets the callbacks for obtaining fresh entropy and
+the nonce when reseeding the given B<drbg>.
+The callback functions are implemented and provided by the caller.
+Their parameter lists need to match the function prototypes above.
+
+Setting the callbacks is allowed only if the DRBG has not been initialized yet.
+Otherwise, the operation will fail.
+To change the settings for one of the three shared DRBGs it is necessary to call
+RAND_DRBG_uninstantiate() first.
+
+The B<get_entropy>() callback is called by the B<drbg> when it requests fresh
+random input.
+It is expected that the callback allocates and fills a random buffer of size
+B<min_len> <= size <= B<max_len> (in bytes) which contains at least B<entropy>
+bits of randomness.
+The B<prediction_resistance> flag indicates whether the reseeding was
+triggered by a prediction resistance request.
+
+The buffer's address is to be returned in *B<pout> and the number of collected
+randomness bytes as return value.
+
+If the callback fails to acquire at least B<entropy> bits of randomness,
+it must indicate an error by returning a buffer length of 0.
+
+If B<prediction_resistance> was requested and the random source of the DRBG
+does not satisfy the conditions requested by [NIST SP 800-90C], then
+it must also indicate an error by returning a buffer length of 0.
+See NOTES section for more details.
+
+The B<cleanup_entropy>() callback is called from the B<drbg> to to clear and
+free the buffer allocated previously by get_entropy().
+The values B<out> and B<outlen> are the random buffer's address and length,
+as returned by the get_entropy() callback.
+
+The B<get_nonce>() and B<cleanup_nonce>() callbacks are used to obtain a nonce
+and free it again. A nonce is only required for instantiation (not for reseeding)
+and only in the case where the DRBG uses a derivation function.
+The callbacks are analogous to get_entropy() and cleanup_entropy(),
+except for the missing prediction_resistance flag.
+
+If the derivation function is disabled, then no nonce is used for instantiation,
+and the B<get_nonce>() and B<cleanup_nonce>() callbacks can be omitted by
+setting them to NULL.
+
+
+=head1 RETURN VALUES
+
+RAND_DRBG_set_callbacks() return 1 on success, and 0 on failure
+
+=head1 NOTES
+
+It is important that B<cleanup_entropy>() and B<cleanup_nonce>() clear the buffer
+contents safely before freeing it, in order not to leave sensitive information
+about the DRBG's state in memory.
+
+A request for prediction resistance can only be satisfied by pulling fresh
+entropy from one of the approved entropy sources listed in section 5.5.2 of
+[NIST SP 800-90C].
+Since the default implementation of the get_entropy callback does not have access
+to such an approved entropy source, a request for prediction resistance will
+always fail.
+In other words, prediction resistance is currently not supported yet by the DRBG.
+
+The derivation function is disabled during initialization by calling the
+RAND_DRBG_set() function with the RAND_DRBG_FLAG_CTR_NO_DF flag.
+For more information on the derivation function and when it can be omitted,
+see [NIST SP 800-90A Rev. 1]. Roughly speeking it can be omitted if the random
+source has "full entropy", i.e., contains 8 bits of entropy per byte.
+
+Even if a nonce is required, the B<get_nonce>() and B<cleanup_nonce>()
+callbacks can be omitted by setting them to NULL.
+In this case the DRBG will automatically request an extra amount of entropy
+(using the B<get_entropy>() and B<cleanup_entropy>() callbacks) which it will
+utilize for the nonce, following the recommendations of [NIST SP 800-90A Rev. 1],
+section 8.6.7.
+
+
+=head1 HISTORY
+
+The RAND_DRBG functions were added in OpenSSL 1.1.1.
+
+=head1 SEE ALSO
+
+L<RAND_DRBG_new(3)>,
+L<RAND_DRBG_reseed(3)>,
+L<RAND_DRBG(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

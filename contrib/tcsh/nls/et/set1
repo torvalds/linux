@@ -1,0 +1,140 @@
+$ $tcsh: set1,v 1.5 2015/05/26 17:38:25 christos Exp $
+$ Error messages
+$set 1 
+1 Süntaksi viga
+2 %s ei ole lubatud
+3 Sõna on liiga pikk
+4 $< rida on liiga pikk
+5 $0 jaoks pole faili
+6 Mittetäielik [] muutja
+7 $ laiendus peab lõppema enne ]
+8 Halb : täiendaja $ '%c'
+9 Viga indeksis
+10 Vigane number
+11 Sõnad on otsas
+12 Faili nimi on puudu
+13 Sisemine täiendi viga
+14 Käsku pole
+15 Liiga vähe argumente
+16 Liiga palju argumente
+17 Seda aliast on liiga ohtlik luua
+18 Tühi if
+19 Ebaõige then
+20 Sõnad pole sulgudes
+21 %s ei leita
+22 Vigane mask
+23 Pole sellist limiiti
+24 Argument on liiga suur
+25 Vigane või tundmatu skaleerimis faktor
+26 Defineerimata muutuja
+27 Kataloogi pinu pole nii sügav
+28 Vigane signaali number
+29 Tundmatu signaal; kill -l annab signaalid
+30 Muutuja nimi peab algama tähega
+31 Muutuja nimi on liiga pikk
+32 Muutuja nimi võib koosneda ainult tähtedest ja numbritest
+33 Sellel käsuinterpretaatoril puudub töökontroll
+34 Avaldises on süntaksi viga
+35 Kodukataloogi pole
+36 Kodukataloogi ei saa minna
+37 Vigane tühi käsk
+38 Omistamisel pole avaldist
+39 Tundmatu operaator
+40 Arusaamatu
+41 %s: Fail on olemas
+42 Võtme -c argumendi lõpus on langkriips
+43 Katkestatud
+44 Indeks on piiridest väljas
+45 Rea ületäitumine 
+46 Sellist tööd pole
+47 Terminalilt ei saa
+48 Pole while/foreach sees
+49 Protsessid on otsas
+50 Ei leia
+51 Puuduv '%c'
+52 Ei leia sümbolit '%c'
+53 Mälu on otsas
+54 Toru ei saa luua
+55 %s: %s
+56 %s
+57 Kasuta: jobs [ -l ]
+58 Argumendid peavad olema tööde või protsesside identifikaatorid
+59 Käesolevat tööd pole
+60 Pole eelmist tööd
+61 Pole mustrile vastavat tööd
+62 Fork süveneb > %d; võibolla `...` tsükkel
+63 Alamshellis pole töökontrolli
+64 Sünkroniseerimise tõrge: Protsessi %d pole
+65 %sTeil on peatatud töid
+66 %sTeil on seisatud töid
+67 Pole teist kataloogi
+68 Kataloogi pinu on tühi
+69 Halb kataloog
+70 kasuta: %s [-%s]%s
+71 -h võtmel puudub operand
+72 Pole meldimise shell
+73 Nulliga jagamine
+74 Jäägi leidmine nulliga
+75 Vigane skaala; te mõtlesite ehk "%s"?
+76 Login shelli ei saa peatada (praegu)
+77 Tundmatu kasutaja: %s
+78 $home muutujat pole väärtustatud
+79 Kasuta: history [-%s] [# sündmuste number]
+80 $, ! või < pole lubatud kasutada koos $# või $?
+81 Reavahetus muutuja nimes
+82 * pole lubatud kasutada koos $# või $?
+83 $?<number> või $#<number> pole lubatud
+84 Lubamatu muutuja nimi
+85 Reavahetus muutuja indeksis
+86 Laiendamise puhvri ületäitumine
+87 Muutuja süntaksi viga
+88 Vigane ! kasutamine
+89 Eelmist asendust pole
+90 Vigane asendamine
+91 Eelmist vasakut poolt pole
+92 Parem pool on liiga pikk
+93 Vigane ! modifikaator: '%c'
+94 Modifikaator ebaõnnestus
+95 Asenduse puhvri ületäitumine
+96 Vigane ! argumendi valik
+97 Pole eelmist otsimist
+98 %s: Sündmust pole
+99 Liiga palju )
+100 Liiga palju (
+101 Halvasti paigutatud (
+102 Suunamisel pole nime antud
+103 Segane väljundi suunamine
+104 << ei saa () vahel kasutada
+105 Segane sisendi suunamine
+106 Halvasti paigutatud ()
+107 Aliaste tsükkel
+108 $watch muutuja pole seatud
+109 Plaanitud sündmuseid pole
+110 Kasuta: sched -<sündmuse#>.\nKasuta: sched [+]hh:mm <käsk>
+111 Niipalju sündmuseid pole
+112 Pole käsku, mida käivitada
+113 Vigane sündmuseaeg
+114 Suhteline aeg ei ole am/pm notatsiooniga kooskõlas
+115 Termcap sõne on liiga pikk
+116 Kasuta: settc %s [yes|no]
+117 Tundmatu omadus `%s'
+118 Tundmatu termcap parameeter '%%%c'
+119 `%s' jaoks on liiga palju argumente (%d)
+120 `%s' nõuab %d argumenti
+121 Kasuta: echotc [-v|-s] [<omadus> [<argumendid>]]
+122 %s: %s. Vale arhitektuur
+123 !# Ajaloo tsükkel
+124 Vigane failipäring
+125 Valija ületäitumine 
+126 Tundmatu võti: `-%s'\nKasuta: %s [ -bcdefilmnqstvVxX -Dnimi[=väärtus] ] [ argument ... ]
+127 Tundmatu võti: `-%s'\nKasuta: %s [ -bcdefFilmnqstvVxX ] [ argument ... ]
+128 Tundmatu võti: `-%s'\nKasuta: %s [ -bcdefilmnqstvVxX ] [ argument ... ]
+129 \nVigane täiendus: "%s"
+130 \nVigane %s: '%c'
+131 \nEraldaja '%c' puudub pärast %s "%s"
+132 \nMittetäielik %s: "%s"
+133 -m võtmel pole operandi
+134 Kasuta: unlimit [-fh] [limiidid]
+135 $%S on ainult lugemiseks
+136 Pole sellist tööd
+137 Tundmatu colorls muutuja '%c%c'

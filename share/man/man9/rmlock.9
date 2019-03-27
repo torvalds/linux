@@ -1,0 +1,325 @@
+.\" Copyright (c) 2007 Stephan Uphoff <ups@FreeBSD.org>
+.\" Copyright (c) 2006 Gleb Smirnoff <glebius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" Based on rwlock.9 man page
+.Dd November 11, 2017
+.Dt RMLOCK 9
+.Os
+.Sh NAME
+.Nm rmlock ,
+.Nm rm_init ,
+.Nm rm_init_flags ,
+.Nm rm_destroy ,
+.Nm rm_rlock ,
+.Nm rm_try_rlock ,
+.Nm rm_wlock ,
+.Nm rm_runlock ,
+.Nm rm_wunlock ,
+.Nm rm_wowned ,
+.Nm rm_sleep ,
+.Nm rm_assert ,
+.Nm RM_SYSINIT ,
+.Nm RM_SYSINIT_FLAGS
+.Nd kernel reader/writer lock optimized for read-mostly access patterns
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/lock.h
+.In sys/rmlock.h
+.Ft void
+.Fn rm_init "struct rmlock *rm" "const char *name"
+.Ft void
+.Fn rm_init_flags "struct rmlock *rm" "const char *name" "int opts"
+.Ft void
+.Fn rm_destroy "struct rmlock *rm"
+.Ft void
+.Fn rm_rlock "struct rmlock *rm"  "struct rm_priotracker* tracker"
+.Ft int
+.Fn rm_try_rlock "struct rmlock *rm"  "struct rm_priotracker* tracker"
+.Ft void
+.Fn rm_wlock "struct rmlock *rm"
+.Ft void
+.Fn rm_runlock "struct rmlock *rm" "struct rm_priotracker* tracker"
+.Ft void
+.Fn rm_wunlock "struct rmlock *rm"
+.Ft int
+.Fn rm_wowned "const struct rmlock *rm"
+.Ft int
+.Fn rm_sleep "void *wchan" "struct rmlock *rm" "int priority" "const char *wmesg" "int timo"
+.Pp
+.Cd "options INVARIANTS"
+.Cd "options INVARIANT_SUPPORT"
+.Ft void
+.Fn rm_assert "struct rmlock *rm" "int what"
+.In sys/kernel.h
+.Fn RM_SYSINIT "name" "struct rmlock *rm" "const char *desc"
+.Fn RM_SYSINIT_FLAGS "name" "struct rmlock *rm" "const char *desc" "int flags"
+.Sh DESCRIPTION
+Read-mostly locks allow shared access to protected data by multiple threads,
+or exclusive access by a single thread.
+The threads with shared access are known as
+.Em readers
+since they only read the protected data.
+A thread with exclusive access is known as a
+.Em writer
+since it can modify protected data.
+.Pp
+Read-mostly locks are designed to be efficient for locks almost exclusively
+used as reader locks and as such should be used for protecting data that
+rarely changes.
+Acquiring an exclusive lock after the lock has been locked for shared access
+is an expensive operation.
+.Pp
+Normal read-mostly locks are similar to
+.Xr rwlock 9
+locks and follow the same lock ordering rules as
+.Xr rwlock 9
+locks.
+Read-mostly locks have full priority propagation like mutexes.
+Unlike
+.Xr rwlock 9 ,
+read-mostly locks propagate priority to both readers and writers.
+This is implemented via the
+.Va rm_priotracker
+structure argument supplied to
+.Fn rm_rlock
+and
+.Fn rm_runlock .
+Readers can recurse if the lock is initialized with the
+.Dv RM_RECURSE
+option;
+however, writers are never allowed to recurse.
+.Pp
+Sleepable read-mostly locks are created by passing
+.Dv RM_SLEEPABLE
+to
+.Fn rm_init_flags .
+Unlike normal read-mostly locks,
+sleepable read-mostly locks follow the same lock ordering rules as
+.Xr sx 9
+locks.
+Sleepable read-mostly locks do not propagate priority to writers,
+but they do propagate priority to readers.
+Writers are permitted to sleep while holding a read-mostly lock,
+but readers are not.
+Unlike other sleepable locks such as
+.Xr sx 9
+locks,
+readers must use try operations on other sleepable locks to avoid sleeping.
+.Ss Macros and Functions
+.Bl -tag -width indent
+.It Fn rm_init "struct rmlock *rm" "const char *name"
+Initialize the read-mostly lock
+.Fa rm .
+The
+.Fa name
+description is used solely for debugging purposes.
+This function must be called before any other operations
+on the lock.
+.It Fn rm_init_flags "struct rmlock *rm" "const char *name" "int opts"
+Similar to
+.Fn rm_init ,
+initialize the read-mostly lock
+.Fa rm
+with a set of optional flags.
+The
+.Fa opts
+arguments contains one or more of the following flags:
+.Bl -tag -width ".Dv RM_NOWITNESS"
+.It Dv RM_NOWITNESS
+Instruct
+.Xr witness 4
+to ignore this lock.
+.It Dv RM_RECURSE
+Allow threads to recursively acquire shared locks for
+.Fa rm .
+.It Dv RM_SLEEPABLE
+Create a sleepable read-mostly lock.
+.It Dv RM_NEW
+If the kernel has been compiled with
+.Cd "option INVARIANTS" ,
+.Fn rm_init_flags
+will assert that the
+.Fa rm
+has not been initialized multiple times without intervening calls to
+.Fn rm_destroy
+unless this option is specified.
+.El
+.It Fn rm_rlock "struct rmlock *rm" "struct rm_priotracker* tracker"
+Lock
+.Fa rm
+as a reader using
+.Fa tracker
+to track read owners of a lock for priority propagation.
+This data structure is only used internally by
+.Nm
+and must persist until
+.Fn rm_runlock
+has been called.
+This data structure can be allocated on the stack since
+readers cannot sleep.
+If any thread holds this lock exclusively, the current thread blocks,
+and its priority is propagated to the exclusive holder.
+If the lock was initialized with the
+.Dv RM_RECURSE
+option the
+.Fn rm_rlock
+function can be called when the current thread has already acquired reader
+access on
+.Fa rm .
+.It Fn rm_try_rlock "struct rmlock *rm" "struct rm_priotracker* tracker"
+Try to lock
+.Fa rm
+as a reader.
+.Fn rm_try_rlock
+will return 0 if the lock cannot be acquired immediately;
+otherwise,
+the lock will be acquired and a non-zero value will be returned.
+Note that
+.Fn rm_try_rlock
+may fail even while the lock is not currently held by a writer.
+If the lock was initialized with the
+.Dv RM_RECURSE
+option,
+.Fn rm_try_rlock
+will succeed if the current thread has already acquired reader access.
+.It Fn rm_wlock "struct rmlock *rm"
+Lock
+.Fa rm
+as a writer.
+If there are any shared owners of the lock, the current thread blocks.
+The
+.Fn rm_wlock
+function cannot be called recursively.
+.It Fn rm_runlock "struct rmlock *rm" "struct rm_priotracker* tracker"
+This function releases a shared lock previously acquired by
+.Fn rm_rlock .
+The
+.Fa tracker
+argument must match the
+.Fa tracker
+argument used for acquiring the shared lock
+.It Fn rm_wunlock "struct rmlock *rm"
+This function releases an exclusive lock previously acquired by
+.Fn rm_wlock .
+.It Fn rm_destroy "struct rmlock *rm"
+This functions destroys a lock previously initialized with
+.Fn rm_init .
+The
+.Fa rm
+lock must be unlocked.
+.It Fn rm_wowned "const struct rmlock *rm"
+This function returns a non-zero value if the current thread owns an
+exclusive lock on
+.Fa rm .
+.It Fn rm_sleep "void *wchan" "struct rmlock *rm" "int priority" "const char *wmesg" "int timo"
+This function atomically releases
+.Fa rm
+while waiting for an event.
+The
+.Fa rm
+lock must be exclusively locked.
+For more details on the parameters to this function,
+see
+.Xr sleep 9 .
+.It Fn rm_assert "struct rmlock *rm" "int what"
+This function asserts that the
+.Fa rm
+lock is in the state specified by
+.Fa what .
+If the assertions are not true and the kernel is compiled with
+.Cd "options INVARIANTS"
+and
+.Cd "options INVARIANT_SUPPORT" ,
+the kernel will panic.
+Currently the following base assertions are supported:
+.Bl -tag -width ".Dv RA_UNLOCKED"
+.It Dv RA_LOCKED
+Assert that current thread holds either a shared or exclusive lock
+of
+.Fa rm .
+.It Dv RA_RLOCKED
+Assert that current thread holds a shared lock of
+.Fa rm .
+.It Dv RA_WLOCKED
+Assert that current thread holds an exclusive lock of
+.Fa rm .
+.It Dv RA_UNLOCKED
+Assert that current thread holds neither a shared nor exclusive lock of
+.Fa rm .
+.El
+.Pp
+In addition, one of the following optional flags may be specified with
+.Dv RA_LOCKED ,
+.Dv RA_RLOCKED ,
+or
+.Dv RA_WLOCKED :
+.Bl -tag -width ".Dv RA_NOTRECURSED"
+.It Dv RA_RECURSED
+Assert that the current thread holds a recursive lock of
+.Fa rm .
+.It Dv RA_NOTRECURSED
+Assert that the current thread does not hold a recursive lock of
+.Fa rm .
+.El
+.El
+.Sh SEE ALSO
+.Xr locking 9 ,
+.Xr mutex 9 ,
+.Xr panic 9 ,
+.Xr rwlock 9 ,
+.Xr sema 9 ,
+.Xr sleep 9 ,
+.Xr sx 9
+.Sh HISTORY
+These
+functions appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+facility was written by
+.An "Stephan Uphoff" .
+This manual page was written by
+.An "Gleb Smirnoff"
+for rwlock and modified to reflect rmlock by
+.An "Stephan Uphoff" .
+.Sh BUGS
+The
+.Nm
+implementation is currently not optimized for single processor systems.
+.Pp
+.Fn rm_try_rlock
+can fail transiently even when there is no writer, while another reader
+updates the state on the local CPU.
+.Pp
+The
+.Nm
+implementation uses a single per CPU list shared by all
+rmlocks in the system.
+If rmlocks become popular, hashing to multiple per CPU queues may
+be needed to speed up the writer lock process.

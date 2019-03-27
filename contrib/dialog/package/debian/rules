@@ -1,0 +1,106 @@
+#!/usr/bin/make -f
+# Made with the aid of dh_make, by Craig Small
+# Sample debian/rules that uses debhelper. GNU copyright 1997 by Joey Hess.
+# Some lines taken from debmake, by Cristoph Lameter.
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+# These are used for cross-compiling and for saving the configure script
+# from having to guess our platform (since we know it already)
+DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+
+CPPFLAGS	:= $(shell dpkg-buildflags --get CPPFLAGS)
+CFLAGS		:= $(shell dpkg-buildflags --get CFLAGS)
+LDFLAGS		:= $(shell dpkg-buildflags --get LDFLAGS)
+
+ACTUAL_PROG	= cdialog
+
+ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+        CFLAGS += -O0
+else
+        CFLAGS += -O2
+endif
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
+        INSTALL_PROGRAM += -s
+endif
+
+
+configure: configure-stamp
+configure-stamp:
+	dh_testdir
+
+	cp -v package/dialog.map package/${ACTUAL_PROG}.map
+
+	CPPFLAGS="$(CPPFLAGS)" \
+	CFLAGS="$(CFLAGS)" \
+	LDFLAGS="$(LDFLAGS)" \
+	./configure \
+		--host=$(DEB_HOST_GNU_TYPE) \
+		--build=$(DEB_BUILD_GNU_TYPE) \
+		--prefix=/usr \
+		--mandir=\$${prefix}/share/man \
+		--enable-nls \
+		--enable-header-subdir \
+		--enable-widec \
+		--with-shared \
+		--with-screen=ncursesw6 \
+		--with-package=${ACTUAL_PROG} \
+		--with-versioned-syms \
+		--disable-rpath-hack
+
+	touch configure-stamp
+
+build: build-stamp
+build-stamp: configure-stamp
+	dh_testdir
+
+	$(MAKE)
+
+	touch build-stamp
+
+clean:
+	dh_testdir
+	dh_testroot
+
+	[ ! -f makefile ] || $(MAKE) distclean
+
+	rm -f configure-stamp build-stamp install-stamp
+
+	dh_clean
+
+install: install-stamp
+install-stamp: build-stamp
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/${ACTUAL_PROG}
+
+	touch install-stamp
+
+# Build architecture-independent files here.
+binary-indep: build install
+# No binary-indep target.
+
+# Build architecture-dependent files here.
+binary-arch: build install
+	dh_testdir
+	dh_testroot
+	dh_installdocs
+	dh_installexamples
+	dh_installchangelogs CHANGES
+	dh_strip
+	dh_compress
+	dh_fixperms
+	dh_installdeb
+	dh_makeshlibs
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install install-stamp

@@ -1,0 +1,3 @@
+rewrite in on bge0 inet6 from 1:1:1::1/128 to 2:2::2:2/128 -> src 3:3:3::3/128 dst 4::4:4:4/128;
+rewrite out on bge0 inet6 from 1:1:1::1/128 to 2:2::2:2/128 -> src 3:3:3::/96 dst 4::4:4:4/128;
+rewrite in on bge0 inet6 from 1:1:1::1/128 to 2:2::2:2/128 -> src 3:3:3::/96 dst 4::4:0:0/96;

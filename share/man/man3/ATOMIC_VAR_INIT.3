@@ -1,0 +1,301 @@
+.\" Copyright (c) 2011 Ed Schouten <ed@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 27, 2011
+.Dt ATOMIC_VAR_INIT 3
+.Os
+.Sh NAME
+.Nm ATOMIC_VAR_INIT ,
+.Nm atomic_init ,
+.Nm atomic_load ,
+.Nm atomic_store ,
+.Nm atomic_exchange ,
+.Nm atomic_compare_exchange_strong ,
+.Nm atomic_compare_exchange_weak ,
+.Nm atomic_fetch_add ,
+.Nm atomic_fetch_and ,
+.Nm atomic_fetch_or ,
+.Nm atomic_fetch_sub ,
+.Nm atomic_fetch_xor ,
+.Nm atomic_is_lock_free
+.Nd type-generic atomic operations
+.Sh SYNOPSIS
+.In stdatomic.h
+.Pp
+_Atomic(T)
+.Fa v
+= ATOMIC_VAR_INIT(c);
+.Ft void
+.Fn atomic_init "_Atomic(T) *object" "T value"
+.Ft T
+.Fn atomic_load "_Atomic(T) *object"
+.Ft T
+.Fn atomic_load_explicit "_Atomic(T) *object" "memory_order order"
+.Ft void
+.Fn atomic_store "_Atomic(T) *object" "T desired"
+.Ft void
+.Fn atomic_store_explicit "_Atomic(T) *object" "T desired" "memory_order order"
+.Ft T
+.Fn atomic_exchange "_Atomic(T) *object" "T desired"
+.Ft T
+.Fn atomic_exchange_explicit "_Atomic(T) *object" "T desired" "memory_order order"
+.Ft _Bool
+.Fn atomic_compare_exchange_strong "_Atomic(T) *object" "T *expected" "T desired"
+.Ft _Bool
+.Fn atomic_compare_exchange_strong_explicit "_Atomic(T) *object" "T *expected" "T desired" "memory_order success" "memory_order failure"
+.Ft _Bool
+.Fn atomic_compare_exchange_weak "_Atomic(T) *object" "T *expected" "T desired"
+.Ft _Bool
+.Fn atomic_compare_exchange_weak_explicit "_Atomic(T) *object" "T *expected" "T desired" "memory_order success" "memory_order failure"
+.Ft T
+.Fn atomic_fetch_add "_Atomic(T) *object" "T operand"
+.Ft T
+.Fn atomic_fetch_add_explicit "_Atomic(T) *object" "T operand" "memory_order order"
+.Ft T
+.Fn atomic_fetch_and "_Atomic(T) *object" "T operand"
+.Ft T
+.Fn atomic_fetch_and_explicit "_Atomic(T) *object" "T operand" "memory_order order"
+.Ft T
+.Fn atomic_fetch_or "_Atomic(T) *object" "T operand"
+.Ft T
+.Fn atomic_fetch_or_explicit "_Atomic(T) *object" "T operand" "memory_order order"
+.Ft T
+.Fn atomic_fetch_sub "_Atomic(T) *object" "T operand"
+.Ft T
+.Fn atomic_fetch_sub_explicit "_Atomic(T) *object" "T operand" "memory_order order"
+.Ft T
+.Fn atomic_fetch_xor "_Atomic(T) *object" "T operand"
+.Ft T
+.Fn atomic_fetch_xor_explicit "_Atomic(T) *object" "T operand" "memory_order order"
+.Ft _Bool
+.Fn atomic_is_lock_free "const _Atomic(T) *object"
+.Sh DESCRIPTION
+The header
+.In stdatomic.h
+provides type-generic macros for atomic operations.
+Atomic operations can be used by multithreaded programs to provide
+shared variables between threads that in most cases may be modified
+without acquiring locks.
+.Pp
+Atomic variables are declared using the
+.Fn _Atomic
+type specifier.
+These variables are not type-compatible with their non-atomic
+counterparts.
+Depending on the compiler used, atomic variables may be opaque and can
+therefore only be influenced using the macros described.
+.Pp
+The
+.Fn atomic_init
+macro initializes the atomic variable
+.Fa object
+with a
+.Fa value .
+Atomic variables can be initialized while being declared using
+.Fn ATOMIC_VAR_INIT .
+.Pp
+The
+.Fn atomic_load
+macro returns the value of atomic variable
+.Fa object .
+The
+.Fn atomic_store
+macro sets the atomic variable
+.Fa object
+to its
+.Fa desired
+value.
+.Pp
+The
+.Fn atomic_exchange
+macro combines the behaviour of
+.Fn atomic_load
+and
+.Fn atomic_store .
+It sets the atomic variable
+.Fa object
+to its desired
+.Fa value
+and returns the original contents of the atomic variable.
+.Pp
+The
+.Fn atomic_compare_exchange_strong
+macro stores a
+.Fa desired
+value into atomic variable
+.Fa object ,
+only if the atomic variable is equal to its
+.Fa expected
+value.
+Upon success, the macro returns
+.Dv true .
+Upon failure, the
+.Fa desired
+value is overwritten with the value of the atomic variable and
+.Dv false
+is returned.
+The
+.Fn atomic_compare_exchange_weak
+macro is identical to
+.Fn atomic_compare_exchange_strong ,
+but is allowed to fail even if atomic variable
+.Fa object
+is equal to its
+.Fa expected
+value.
+.Pp
+The
+.Fn atomic_fetch_add
+macro adds the value
+.Fa operand
+to atomic variable
+.Fa object
+and returns the original contents of the atomic variable.
+.Pp
+The
+.Fn atomic_fetch_and
+macro applies the
+.Em and
+operator to atomic variable
+.Fa object
+and
+.Fa operand
+and stores the value into
+.Fa object ,
+while returning the original contents of the atomic variable.
+.Pp
+The
+.Fn atomic_fetch_or
+macro applies the
+.Em or
+operator to atomic variable
+.Fa object
+and
+.Fa operand
+and stores the value into
+.Fa object ,
+while returning the original contents of the atomic variable.
+.Pp
+The
+.Fn atomic_fetch_sub
+macro subtracts the value
+.Fa operand
+from atomic variable
+.Fa object
+and returns the original contents of the atomic variable.
+.Pp
+The
+.Fn atomic_fetch_xor
+macro applies the
+.Em xor
+operator to atomic variable
+.Fa object
+and
+.Fa operand
+and stores the value into
+.Fa object ,
+while returning the original contents of the atomic variable.
+.Pp
+The
+.Fn atomic_is_lock_free
+macro returns whether atomic variable
+.Fa object
+uses locks when using atomic operations.
+.Sh BARRIERS
+The atomic operations described previously are implemented in such a way
+that they disallow both the compiler and the executing processor to
+re-order any nearby memory operations across the atomic operation.
+In certain cases this behaviour may cause suboptimal performance.
+To mitigate this, every atomic operation has an
+.Fn _explicit
+version that allows the re-ordering to be configured.
+.Pp
+The
+.Fa order
+parameter of these
+.Fn _explicit
+macros can have one of the following values.
+.Bl -tag -width memory_order_relaxed
+.It Dv memory_order_relaxed
+No operation orders memory.
+.It Dv memory_order_consume
+Perform consume operation.
+.It Dv memory_order_acquire
+Acquire fence.
+.It Dv memory_order_release
+Release fence.
+.It Dv memory_order_acq_rel
+Acquire and release fence.
+.It Dv memory_order_seq_cst
+Sequentially consistent acquire and release fence.
+.El
+.Pp
+The previously described macros are identical to the
+.Fn _explicit
+macros, when
+.Fa order
+is
+.Dv memory_order_seq_cst .
+.Sh COMPILER SUPPORT
+These atomic operations are typically implemented by the compiler, as
+they must be implemented type-generically and must often use special
+hardware instructions.
+As this interface has not been adopted by most compilers yet, the
+.In stdatomic.h
+header implements these macros on top of existing compiler intrinsics to
+provide forward compatibility.
+.Pp
+This means that certain aspects of the interface, such as support for
+different barrier types may simply be ignored.
+When using GCC, all atomic operations are executed as if they are using
+.Dv memory_order_seq_cst .
+.Pp
+Instead of using the atomic operations provided by this interface,
+.St -isoC-2011
+allows the atomic variables to be modified directly using built-in
+language operators.
+This behaviour cannot be emulated for older compilers.
+To prevent unintended non-atomic access to these variables, this header
+file places the atomic variable in a structure when using an older
+compiler.
+.Pp
+When using GCC on architectures on which it lacks support for built-in
+atomic intrinsics, these macros may emit function calls to fallback
+routines.
+These fallback routines are only implemented for 32-bits and 64-bits
+datatypes, if supported by the CPU.
+.Sh SEE ALSO
+.Xr pthread 3 ,
+.Xr atomic 9
+.Sh STANDARDS
+These macros attempt to conform to
+.St -isoC-2011 .
+.Sh HISTORY
+These macros appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An \&Ed Schouten Aq Mt ed@FreeBSD.org
+.An David Chisnall Aq Mt theraven@FreeBSD.org

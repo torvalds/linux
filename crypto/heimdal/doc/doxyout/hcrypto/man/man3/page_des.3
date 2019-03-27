@@ -1,0 +1,35 @@
+.TH "page_des" 3 "11 Jan 2012" "Version 1.5.2" "Heimdal crypto library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+page_des \- DES - Data Encryption Standard crypto interface 
+See the library functions here: \fBDES crypto functions\fP
+.PP
+DES was created by IBM, modififed by NSA and then adopted by NBS (now NIST) and published ad FIPS PUB 46 (updated by FIPS 46-1).
+.PP
+Since the 19th May 2005 DES was withdrawn by NIST and should no longer be used. See \fBEVP - generic crypto interface\fP for replacement encryption algorithms and interfaces.
+.PP
+Read more the iteresting history of DES on Wikipedia http://www.wikipedia.org/wiki/Data_Encryption_Standard .
+.SH "DES key generation"
+.PP
+To generate a DES key safely you have to use the code-snippet below. This is because the \fBDES_random_key()\fP can fail with an abort() in case of and failure to start the random generator.
+.PP
+There is a replacement function \fBDES_new_random_key()\fP, however that function does not exists in OpenSSL.
+.PP
+.PP
+.nf
+ DES_cblock key;
+ do {
+     if (RAND_rand(&key, sizeof(key)) != 1)
+          goto failure;
+     DES_set_odd_parity(key);
+ } while (DES_is_weak_key(&key));
+.fi
+.PP
+.SH "DES implementation history"
+.PP
+There was no complete BSD licensed, fast, GPL compatible implementation of DES, so Love wrote the part that was missing, fast key schedule setup and adapted the interface to the orignal libdes.
+.PP
+The document that got me started for real was 'Efficient Implementation of the Data Encryption Standard' by Dag Arne Osvik. I never got to the PC1 transformation was working, instead I used table-lookup was used for all key schedule setup. The document was very useful since it de-mystified other implementations for me.
+.PP
+The core DES function (SBOX + P transformation) is from Richard Outerbridge public domain DES implementation. My sanity is saved thanks to his work. Thank you Richard. 

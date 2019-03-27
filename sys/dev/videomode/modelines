@@ -1,0 +1,181 @@
+// $NetBSD: modelines,v 1.8 2011/03/21 19:28:37 jdc Exp $
+// $FreeBSD$
+//
+// This file was imported from XFree86, and is made of the contents of both
+// the vesamodes and extramodes files.  As a result these should correspond
+// to the same default modes compiled into XFree86.
+//
+//  Default modes distilled from
+//      "VESA and Industry Standards and Guide for Computer Display Monitor
+//       Timing", version 1.0, revision 0.8, adopted September 17, 1998.
+//
+//  $XFree86: xc/programs/Xserver/hw/xfree86/etc/vesamodes,v 1.3 1999/11/16 03:28:03 tsi Exp $
+// $XFree86: xc/programs/Xserver/hw/xfree86/etc/extramodes,v 1.5 2002/06/05 19:43:05 dawes Exp $
+//
+//
+// Use "make -f Makefile.videomode" to regenerate videomode.c
+//
+
+# 640x350 @ 85Hz (VESA) hsync: 37.9kHz
+ModeLine "640x350"    31.5  640  672  736  832    350  382  385  445 +hsync -vsync
+
+# 640x400 @ 85Hz (VESA) hsync: 37.9kHz
+ModeLine "640x400"    31.5  640  672  736  832    400  401  404  445 -hsync +vsync
+
+# 720x400 @ 70Hz (EDID established timing) hsync: 31.47kHz
+ModeLine "720x400"    28.32 720  738  846  900    400  412  414  449 -hsync +vsync
+
+# 720x400 @ 85Hz (VESA) hsync: 37.9kHz
+ModeLine "720x400"    35.5  720  756  828  936    400  401  404  446 -hsync +vsync
+
+# 720x400 @ 88Hz (EDID established timing) hsync: 39.44kHz
+ModeLine "720x400"    35.5  720  738  846  900    400  421  423  449 -hsync -vsync
+
+# 640x480 @ 60Hz (Industry standard) hsync: 31.5kHz
+ModeLine "640x480"    25.175 640  656  752  800    480  490  492  525 -hsync -vsync
+
+# 640x480 @ 72Hz (VESA) hsync: 37.9kHz
+ModeLine "640x480"    31.5  640  664  704  832    480  489  492  520 -hsync -vsync
+
+# 640x480 @ 75Hz (VESA) hsync: 37.5kHz
+ModeLine "640x480"    31.5  640  656  720  840    480  481  484  500 -hsync -vsync
+
+# 640x480 @ 85Hz (VESA) hsync: 43.3kHz
+ModeLine "640x480"    36.0  640  696  752  832    480  481  484  509 -hsync -vsync
+
+# 800x600 @ 56Hz (VESA) hsync: 35.2kHz
+ModeLine "800x600"    36.0  800  824  896 1024    600  601  603  625 +hsync +vsync
+
+# 800x600 @ 60Hz (VESA) hsync: 37.9kHz
+ModeLine "800x600"    40.0  800  840  968 1056    600  601  605  628 +hsync +vsync
+
+# 800x600 @ 72Hz (VESA) hsync: 48.1kHz
+ModeLine "800x600"    50.0  800  856  976 1040    600  637  643  666 +hsync +vsync
+
+# 800x600 @ 75Hz (VESA) hsync: 46.9kHz
+ModeLine "800x600"    49.5  800  816  896 1056    600  601  604  625 +hsync +vsync
+
+# 800x600 @ 85Hz (VESA) hsync: 53.7kHz
+ModeLine "800x600"    56.25  800  832  896 1048    600  601  604  631 +hsync +vsync
+
+# 1024x768i @ 43Hz (industry standard) hsync: 35.5kHz
+ModeLine "1024x768"   44.9 1024 1032 1208 1264    768  768  776  817 +hsync +vsync Interlace
+
+# 1024x768 @ 60Hz (VESA) hsync: 48.4kHz
+ModeLine "1024x768"   65.0 1024 1048 1184 1344    768  771  777  806 -hsync -vsync
+
+# 1024x768 @ 70Hz (VESA) hsync: 56.5kHz
+ModeLine "1024x768"   75.0 1024 1048 1184 1328    768  771  777  806 -hsync -vsync
+
+# 1024x768 @ 75Hz (VESA) hsync: 60.0kHz
+ModeLine "1024x768"   78.75 1024 1040 1136 1312    768  769  772  800 +hsync +vsync
+
+# 1024x768 @ 85Hz (VESA) hsync: 68.7kHz
+ModeLine "1024x768"   94.5 1024 1072 1168 1376    768  769  772  808 +hsync +vsync
+
+# 1024x768 @ 89Hz (non-standard) hsync: 72.0kHz
+ModeLine "1024x768"   100  1024 1108 1280 1408    768  768  780  796 +hsync +vsync
+
+# 1152x864 @ 75Hz (VESA) hsync: 67.5kHz
+ModeLine "1152x864"  108.0 1152 1216 1344 1600    864  865  868  900 +hsync +vsync
+
+# 1280x768 @ 75Hz (non-standard) hsync: 60.6kHz
+ModeLine "1280x768" 105.64 1280 1312 1712 1744    768  782  792  807 -hsync +vsync
+
+# 1280x960 @ 60Hz (VESA) hsync: 60.0kHz
+ModeLine "1280x960"  108.0 1280 1376 1488 1800    960  961  964 1000 +hsync +vsync
+
+# 1280x960 @ 85Hz (VESA) hsync: 85.9kHz
+ModeLine "1280x960"  148.5 1280 1344 1504 1728    960  961  964 1011 +hsync +vsync
+
+# 1280x1024 @ 60Hz (VESA) hsync: 64.0kHz
+ModeLine "1280x1024" 108.0 1280 1328 1440 1688   1024 1025 1028 1066 +hsync +vsync
+
+# 1280x1024 @ 70Hz (non-standard) hsync: 74.0kHz
+ModeLine "1280x1024" 126.0 1280 1328 1440 1688   1024 1025 1028 1066 +hsync +vsync
+
+# 1280x1024 @ 75Hz (VESA) hsync: 80.0kHz
+ModeLine "1280x1024" 135.0 1280 1296 1440 1688   1024 1025 1028 1066 +hsync +vsync
+
+# 1280x1024 @ 85Hz (VESA) hsync: 91.1kHz
+ModeLine "1280x1024" 157.5 1280 1344 1504 1728   1024 1025 1028 1072 +hsync +vsync
+
+# 1600x1200 @ 60Hz (VESA) hsync: 75.0kHz
+ModeLine "1600x1200" 162.0 1600 1664 1856 2160   1200 1201 1204 1250 +hsync +vsync
+
+# 1600x1200 @ 65Hz (VESA) hsync: 81.3kHz
+ModeLine "1600x1200" 175.5 1600 1664 1856 2160   1200 1201 1204 1250 +hsync +vsync
+
+# 1600x1200 @ 70Hz (VESA) hsync: 87.5kHz
+ModeLine "1600x1200" 189.0 1600 1664 1856 2160   1200 1201 1204 1250 +hsync +vsync
+
+# 1600x1200 @ 75Hz (VESA) hsync: 93.8kHz
+ModeLine "1600x1200" 202.5 1600 1664 1856 2160   1200 1201 1204 1250 +hsync +vsync
+
+# 1600x1200 @ 85Hz (VESA) hsync: 106.3kHz
+ModeLine "1600x1200" 229.5 1600 1664 1856 2160   1200 1201 1204 1250 +hsync +vsync
+
+# 1680x1050 @ 60.00Hz (GTF) hsync: 65.22 kHz; pclk: 147.14 MHz
+ModeLine "1680x1050" 147.14 1680 1784 1968 2256  1050 1051 1054 1087 +hsync +vsync
+
+# 1792x1344 @ 60Hz (VESA) hsync: 83.6kHz
+ModeLine "1792x1344" 204.8 1792 1920 2120 2448   1344 1345 1348 1394 -hsync +vsync
+
+# 1792x1344 @ 75Hz (VESA) hsync: 106.3kHz
+ModeLine "1792x1344" 261.0 1792 1888 2104 2456   1344 1345 1348 1417 -hsync +vsync
+
+# 1856x1392 @ 60Hz (VESA) hsync: 86.3kHz
+ModeLine "1856x1392" 218.3 1856 1952 2176 2528   1392 1393 1396 1439 -hsync +vsync
+
+# 1856x1392 @ 75Hz (VESA) hsync: 112.5kHz
+ModeLine "1856x1392" 288.0 1856 1984 2208 2560   1392 1393 1396 1500 -hsync +vsync
+
+# 1920x1440 @ 60Hz (VESA) hsync: 90.0kHz
+ModeLine "1920x1440" 234.0 1920 2048 2256 2600   1440 1441 1444 1500 -hsync +vsync
+
+# 1920x1440 @ 75Hz (VESA) hsync: 112.5kHz
+ModeLine "1920x1440" 297.0 1920 2064 2288 2640   1440 1441 1444 1500 -hsync +vsync
+
+
+//
+// Extra modes to include as default modes in the X server.
+//
+// $XFree86: xc/programs/Xserver/hw/xfree86/etc/extramodes,v 1.5 2002/06/05 19:43:05 dawes Exp $
+//
+
+# 832x624 @ 75Hz (74.55Hz) (fix if the official/Apple spec is different) hsync: 49.725kHz
+ModeLine "832x624" 57.284 832  864  928 1152  624  625  628  667 -Hsync -Vsync
+
+# 1152x768 @ 54.8Hz (Titanium PowerBook) hsync: 44.2kHz
+ModeLine "1152x768"   64.995 1152 1178 1314 1472  768  771  777  806 +hsync +vsync
+
+# 1400x1050 @ 60Hz (VESA GTF) hsync: 65.5kHz
+ModeLine "1400x1050" 122.0 1400 1488 1640 1880   1050 1052 1064 1082 +hsync +vsync
+
+# 1400x1050 @ 75Hz (VESA GTF) hsync: 82.2kHz
+ModeLine "1400x1050" 155.8 1400 1464 1784 1912   1050 1052 1064 1090 +hsync +vsync
+
+# 1600x1024 @ 60Hz (SGI 1600SW) hsync: 64.0kHz
+Modeline "1600x1024" 106.910 1600 1620 1640 1670 1024 1027 1030 1067 -hsync -vsync
+
+# 1920x1440 @ 85Hz (VESA GTF) hsync: 128.5kHz
+Modeline "1920x1440" 341.35  1920 2072 2288 2656  1440 1441 1444 1512 -hsync +vsync
+
+# 2048x1536 @ 60Hz (VESA GTF) hsync: 95.3kHz
+Modeline "2048x1536" 266.95  2048 2200 2424 2800  1536 1537 1540 1589 -hsync +vsync
+
+# 2048x1536 @ 75Hz (VESA GTF) hsync: 120.2kHz
+Modeline "2048x1536" 340.48  2048 2216 2440 2832  1536 1537 1540 1603 -hsync +vsync
+
+# 2048x1536 @ 85Hz (VESA GTF) hsync: 137.0kHz
+Modeline "2048x1536" 388.04  2048 2216 2440 2832  1536 1537 1540 1612 -hsync +vsync
+
+//
+// some Sun-specific modes
+//
+
+# 1152x900 @ 66Hz - default on most SBus graphics devices
+ModeLine "1152x900"  94.50 1152 1192 1320 1528 900 902 906 937 -hsync -vsync
+
+# 1152x900 @ 76Hz
+ModeLine "1152x900" 105.56 1152 1168 1280 1472 900 902 906 943 -hsync -vsync 

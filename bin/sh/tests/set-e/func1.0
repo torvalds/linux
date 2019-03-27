@@ -1,0 +1,7 @@
+# $FreeBSD$
+set -e
+f() {
+	false
+	true
+}
+f || true

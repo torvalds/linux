@@ -1,0 +1,13 @@
+# $FreeBSD$
+# A commonly used but non-POSIX builtin.
+
+f() {
+	local x
+	x=2
+	[ "$x" = 2 ]
+}
+x=1
+f || exit 3
+[ "$x" = 1 ] || exit 3
+f || exit 3
+[ "$x" = 1 ] || exit 3

@@ -1,0 +1,90 @@
+.\"
+.\" Copyright (c) 2003 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Marshall
+.\" Kirk McKusick and Network Associates Laboratories, the Security
+.\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
+.\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+.\" research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 3, 2016
+.Dt MKSNAP_FFS 8
+.Os
+.Sh NAME
+.Nm mksnap_ffs
+.Nd take a file system snapshot
+.Sh SYNOPSIS
+.Nm
+.Ar snapshot_name
+.Sh DESCRIPTION
+The
+.Nm
+utility creates a snapshot named
+.Ar snapshot_name .
+.Pp
+The group ownership of the file is set to
+.Dq Li operator ;
+the owner of the file remains
+.Dq Li root .
+The mode of the snapshot is set to be readable by the owner
+or members of the
+.Dq Li operator
+group.
+.Sh EXAMPLES
+Create a snapshot of
+.Pa /usr/home
+file system and mount the snapshot elsewhere:
+.Bd -literal -offset indent
+mksnap_ffs /usr/home/snapshot
+mdconfig -a -t vnode -o readonly -f /usr/home/snapshot
+mount -o ro /dev/md0 /mnt/
+.Ed
+.Sh SEE ALSO
+.Xr chmod 2 ,
+.Xr chown 8 ,
+.Xr mdconfig 8 ,
+.Xr mount 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.1 .
+.Sh CAVEATS
+The disk full situation is not handled gracefully and may
+lead to a system panic when no free blocks are found.
+.Pp
+Every filesystem can have only up to 20 active snapshots.
+When this limit is reached, attempting to create more snapshots
+fails with
+.Er ENOSPC ,
+and
+.Nm
+reports that it is
+.Dq out of space .

@@ -1,0 +1,48 @@
+.\" Copyright (c) 1987, 1988, 1989, 1990, 1991, 1992, 1994, 1995, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP-LINKTYPE @MAN_MISC_INFO@ "7 April 2014"
+.SH NAME
+pcap-linktype \- link-layer header types supported by libpcap
+.SH DESCRIPTION
+For a live capture or ``savefile'', libpcap supplies, as the return
+value of the
+.BR pcap_datalink (3PCAP)
+routine, a value that indicates the type of link-layer header at the
+beginning of the packets it provides.  This is not necessarily the type
+of link-layer header that the packets being captured have on the network
+from which they're being captured; for example, packets from an IEEE
+802.11 network might be provided by libpcap with Ethernet headers that
+the network adapter or the network adapter driver generates from the
+802.11 headers.  The names for those values begin with
+.BR DLT_ ,
+so they are sometimes called "DLT_ values".
+.PP
+The values stored in the link-layer header type field in the savefile
+header are, in most but not all cases, the same as the values returned
+by
+.BR pcap_datalink() .
+The names for those values begin with
+.BR LINKTYPE_ .
+.PP
+The link-layer header types supported by libpcap are described at
+http://www.tcpdump.org/linktypes.html.
+.SH SEE ALSO
+pcap_datalink(3PCAP)

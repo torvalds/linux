@@ -1,0 +1,74 @@
+#!/bin/sh
+#
+# Wait for the default route to be up if DHCP is in use
+#
+# $FreeBSD$
+#
+
+# PROVIDE: defaultroute
+# REQUIRE: devd netif stf
+# KEYWORD: nojailvnet
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="defaultroute"
+desc="Setup default router"
+start_cmd="defaultroute_start"
+stop_cmd=":"
+
+# Does any interface have a carrier?
+defaultroute_carrier()
+{
+	local carrier nocarrier
+
+	carrier=1
+	for _if in ${dhcp_interfaces}; do
+		output=`/sbin/ifconfig ${_if}`
+		nocarrier=`expr "${output}" : '.*[[:blank:]]status: \(no carrier\)'`
+		[ -z "${nocarrier}" ] && carrier=0
+	done
+	return ${carrier}
+}
+
+defaultroute_start()
+{
+	local nl waited
+
+	afexists inet || return 0
+
+	# Return without waiting if we don't have dhcp interfaces or
+	# if none of the dhcp interfaces is plugged in.
+	dhcp_interfaces=`list_net_interfaces dhcp`
+	[ -z "${dhcp_interfaces}" ] && return
+
+	# Wait for a default route
+	waited=0
+	while [ ${waited} -lt ${defaultroute_delay} ]; do
+		defif=`get_default_if -inet`
+		if [ -n "${defif}" ]; then
+			if [ ${waited} -ne 0 ]; then
+				echo -n "($defif)"
+				nl=1
+			fi
+			break
+		fi
+		if [ ${waited} -eq 0 ]; then
+			echo -n "Waiting ${defaultroute_delay}s for the default route interface: "
+		else
+			echo -n .
+		fi
+		if [ ${waited} -eq ${defaultroute_carrier_delay} ] && ! defaultroute_carrier; then
+			echo -n "(no carrier)"
+			break
+		fi
+		nl=1
+		sleep 1
+		waited=$(($waited + 1))
+	done
+
+	[ -n "$nl" ] && echo
+}
+
+load_rc_config $name
+run_rc_command "$1"

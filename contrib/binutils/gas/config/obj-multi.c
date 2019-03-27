@@ -1,0 +1,4 @@
+/* foo */
+
+#include "as.h"
+

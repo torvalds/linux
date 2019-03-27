@@ -1,0 +1,113 @@
+.\" $NetBSD: ehci.4,v 1.8 2001/11/21 17:22:56 augustss Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 24, 2018
+.Dt EHCI 4
+.Os
+.Sh NAME
+.Nm ehci
+.Nd USB Enhanced Host Controller driver
+.Sh SYNOPSIS
+.Cd "device ehci"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Tn USB
+Enhanced Host Controller Interface,
+which is used by
+.Tn USB
+2.0 controllers.
+.Pp
+.Tn EHCI
+controllers are peculiar in that they can only handle the
+.Tn USB
+2.0 protocol.
+This means that they normally have one or more companion controllers
+(i.e.,
+.Xr ohci 4
+or
+.Xr uhci 4 )
+handling USB 1.x devices.
+Consequently each
+.Tn USB
+connector is electrically connected to two
+.Tn USB
+controllers.
+The handling of this is totally automatic,
+but can be noticed since
+.Tn USB
+1.x and
+.Tn USB
+2.0 devices plugged in to the same
+connector appear to connect to different USB buses.
+.Sh LOADER TUNABLES
+When the kernel has been compiled with
+.Cd options USB_DEBUG ,
+some tunables become available that affect the behavior of
+.Nm .
+These tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "xxxxxx"
+.It Va hw.usb.ehci.lostintrbug
+This tunable enables the lost interrupt quirk.
+The default value is 0 (off).
+.It Va hw.usb.ehci.iaadbug
+This tunable enables the EHCI doorbell quirk.
+The default value is 0 (off).
+.It Va hw.usb.ehci.no_hs
+This tunable disables USB devices to attach like HIGH-speed ones and will force all attached devices to attach to the FULL- or LOW-speed companion controller.
+The default value is 0 (off).
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.ehci.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.El
+.Sh SEE ALSO
+.Xr ohci 4 ,
+.Xr uhci 4 ,
+.Xr usb 4 ,
+.Xr xhci 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.1 .

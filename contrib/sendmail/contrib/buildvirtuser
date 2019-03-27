@@ -1,0 +1,216 @@
+#!/usr/bin/perl -w
+
+# Copyright (c) 1999-2004, 2007 Gregory Neil Shapiro.  All Rights Reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the author nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+
+# $Id: buildvirtuser,v 1.8 2007-10-08 18:44:15 gshapiro Exp $
+
+=head1 NAME
+
+buildvirtuser - Build virtusertable support from a directory of files
+
+=head1 SYNOPSIS
+
+    buildvirtuser [-f] [-t]
+
+=head1 DESCRIPTION
+
+buildvirtuser will build /etc/mail/virtusertable.db and /etc/mail/virthosts
+based on the contents of the directory /etc/mail/virtusers/.  That
+directory should contain one file per virtual domain with the filename
+matching the virtual domain name and the contents containing a list of
+usernames on the left and the actual address for that username on the
+right.  An empty left column translates to the default for that domain.
+Blank lines and lines beginning with '#' are ignored.  Occurrences of
+$DOMAIN in the file are replaced by the current domain being processed.
+Occurrences of $LHS in the right hand side are replaced by the address on
+the left hand side.
+
+The -f option forces the database to be rebuilt regardless of whether
+any file changes were detected.
+
+The -t option instructs the program to build a text file instead of a
+database.  The text file can then be used with makemap.
+
+=head1 CONFIGURATION
+
+In order to function properly, sendmail must be configured to use these
+files with:
+
+	FEATURE(`virtusertable')dnl
+	VIRTUSER_DOMAIN_FILE(`/etc/mail/virthosts')dnl
+
+If a new domain is added (i.e., by adding a new file to
+/etc/mail/virtusers/), the sendmail daemon must be restarted for the change
+to take affect.
+
+=head1 EXAMPLES
+
+Here is an example file from the /etc/mail/virtusers/ directory:
+
+=head2 /etc/mail/virtusers/example.org:
+
+ # Services
+ MAILER-DAEMON	gshapiro+bounce.$DOMAIN@example.net
+ postmaster	gshapiro+$LHS.$DOMAIN@example.net
+ webmaster	gshapiro+$LHS.$DOMAIN@example.net
+ 
+ # Defaults
+ 		error:nouser No such user
+ 
+ # Users
+ gshapiro	gshapiro+$DOMAIN@example.net
+ zoe		zoe@example.com
+
+=head1 AUTHOR
+
+Gregory Neil Shapiro E<lt>F<gshapiro@gshapiro.net>E<gt>
+
+=cut
+
+use strict;
+use File::stat;
+use Getopt::Std;
+
+my $makemap = "/usr/sbin/makemap";
+my $dbtype = "hash";
+my $maildir = "/etc/mail";
+my $virthosts = "$maildir/virthosts";
+my $newvirthosts = "$maildir/virthosts.new";
+my $virts = "$maildir/virtusers";
+my $newvirt = "$maildir/virtusertable.new.db";
+my $virt = "$maildir/virtusertable.db";
+my %virt = ();
+my $newest = 0;
+my ($lhs, $domain, $key, $value);
+my $opts = {};
+
+sub preserve_perms ($$)
+{
+	my $old = shift;
+	my $new = shift;
+	my $st;
+
+	$st = stat($old);
+	return if (!defined($st));
+	chmod($st->mode, $new) || warn "Could not chmod($st->mode, $new): $!\n";
+	chown($st->uid, $st->gid, $new) || warn "Could not chmod($st->uid, $st->gid, $new): $!\n";
+}
+
+getopts('ft', $opts) || die "Usage: $0 [-f] [-t]\n";
+
+if ($opts->{t})
+{
+	$newvirt = "$maildir/virtusertable.new";
+	$virt = "$maildir/virtusertable";
+}
+
+opendir(VIRTS, $virts) || die "Could not open directory $virts: $!\n";
+my @virts = grep { -f "$virts/$_" } readdir(VIRTS);
+closedir(VIRTS) || die "Could not close directory $virts: $!\n";
+
+foreach $domain (@virts)
+{
+	next if ($domain =~ m/^\./);
+	open(DOMAIN, "$virts/$domain") || die "Could not open file $virts/$domain: $!\n";
+	my $line = 0;
+	my $mtime = 0;
+	my $st = stat("$virts/$domain");
+	$mtime = $st->mtime if (defined($st));
+	if ($mtime > $newest)
+	{
+		$newest = $mtime;
+	}
+LINE:	while (<DOMAIN>)
+	{
+		chomp;
+		$line++;
+		next LINE if /^#/;
+		next LINE if /^$/;
+		if (m/^([^\t ]*)[\t ]+(.*)$/)
+		{
+			if (defined($1))
+			{
+				$lhs = "$1";
+				$key = "$1\@$domain";
+			}
+			else
+			{
+				$lhs = "";
+				$key = "\@$domain";
+			}
+			$value = $2;
+		}
+		else
+		{
+			warn "Bogus line $line in $virts/$domain\n";
+		}
+
+		# Variable subsitution
+		$key =~ s/\$DOMAIN/$domain/g;
+		$value =~ s/\$DOMAIN/$domain/g;
+		$value =~ s/\$LHS/$lhs/g;
+		$virt{$key} = $value;
+	}
+	close(DOMAIN) || die "Could not close $virts/$domain: $!\n";
+}
+
+my $virtmtime = 0;
+my $st = stat($virt);
+$virtmtime = $st->mtime if (defined($st));
+if ($opts->{f} || $virtmtime < $newest)
+{
+	print STDOUT "Rebuilding $virt\n";
+# logger -s -t ${prog} -p mail.info "Rebuilding ${basedir}/virtusertable"
+	if ($opts->{t})
+	{
+		open(MAKEMAP, ">$newvirt") || die "Could not open $newvirt: $!\n";
+	}
+	else
+	{
+		open(MAKEMAP, "|$makemap $dbtype $newvirt") || die "Could not start makemap: $!\n";
+	}
+
+	foreach $key (keys %virt)
+	{
+		print MAKEMAP "$key\t\t$virt{$key}\n";
+	}
+	close(MAKEMAP) || die "Could not close makemap ($?): $!\n";
+	preserve_perms($virt, $newvirt);
+	rename($newvirt, $virt) || die "Could not rename $newvirt to $virt: $!\n";
+
+	open(VIRTHOST, ">$newvirthosts") || die "Could not open file $newvirthosts: $!\n";
+	foreach $domain (sort @virts)
+	{
+		next if ($domain =~ m/^\./);
+		print VIRTHOST "$domain\n";
+	}
+	close(VIRTHOST) || die "Could not close $newvirthosts: $!\n";
+	preserve_perms($virthosts, $newvirthosts);
+	rename($newvirthosts, $virthosts) || die "Could not rename $newvirthosts to $virthosts: $!\n";
+}
+exit 0;

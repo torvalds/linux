@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libsvn_client
+Description: Subversion Client Library
+Version: @PACKAGE_VERSION@
+Requires:  apr-@SVN_APR_MAJOR_VERSION@
+Requires.private:  libsvn_wc libsvn_ra libsvn_delta libsvn_diff libsvn_subr
+Libs: -L${libdir}  -lsvn_client
+Cflags: -I${includedir}

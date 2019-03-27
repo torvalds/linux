@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: iscsictl
+# REQUIRE: NETWORK iscsid
+# BEFORE:  DAEMON
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="iscsictl"
+desc="iSCSI initiator management utility"
+rcvar="iscsictl_enable"
+command="/usr/bin/${name}"
+command_args="${iscsictl_flags}"
+required_modules="iscsi"
+
+load_rc_config $name
+run_rc_command "$1"

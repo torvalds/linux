@@ -1,0 +1,91 @@
+.\" Generated from openpam_log.c by gendoc.pl
+.\" $OpenPAM: openpam_log.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt OPENPAM_LOG 3
+.Os
+.Sh NAME
+.Nm openpam_log
+.Nd log a message through syslog
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.In security/openpam.h
+.Ft "void"
+.Fn openpam_log "int level" "const char *fmt" "..."
+.Sh DESCRIPTION
+The
+.Fn openpam_log
+function logs messages using
+.Xr syslog 3 .
+It is primarily intended for internal use by the library and modules.
+.Pp
+The
+.Fa level
+argument indicates the importance of the message.
+The following levels are defined:
+.Bl -tag -width 18n
+.It Dv PAM_LOG_LIBDEBUG
+Debugging messages.
+For internal use only.
+.It Dv PAM_LOG_DEBUG
+Debugging messages.
+These messages are normally not logged unless the global
+integer variable
+.Va openpam_debug
+is set to a non-zero
+value, in which case they are logged with a
+.Xr syslog 3
+priority of
+.Dv LOG_DEBUG .
+.It Dv PAM_LOG_VERBOSE
+Information about the progress of the authentication
+process, or other non-essential messages.
+These messages are logged with a
+.Xr syslog 3
+priority of
+.Dv LOG_INFO .
+.It Dv PAM_LOG_NOTICE
+Messages relating to non-fatal errors.
+These messages are logged with a
+.Xr syslog 3
+priority of
+.Dv LOG_NOTICE .
+.It Dv PAM_LOG_ERROR
+Messages relating to serious errors.
+These messages are logged with a
+.Xr syslog 3
+priority of
+.Dv LOG_ERR .
+.El
+.Pp
+The remaining arguments are a
+.Xr printf 3
+format string and the
+corresponding arguments.
+.Pp
+The
+.Fn openpam_log
+function does not modify the value of
+.Va errno .
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr printf 3 ,
+.Xr syslog 3
+.Sh STANDARDS
+The
+.Fn openpam_log
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn openpam_log
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

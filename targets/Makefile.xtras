@@ -1,0 +1,78 @@
+# $FreeBSD$
+#
+# Makefile.xtras - non-build targets
+
+# Resist the urge to fill this with miscellaneous junk
+
+# We are not building here (shouldn't be), so no meta mode.
+.MAKE.MODE = normal
+
+_here := ${_PARSEDIR}
+
+.MAIN: no-default
+
+.if !empty(SB_NAME)
+# mk wrapper
+MAKE_CMD= mk
+MAKE_MACHINE_CMD= mk --machine <machine>
+.else
+# not using 'mk'
+MAKE_CMD= ${.MAKE:T}
+MAKE_MACHINE_CMD= env MACHINE=<machine> ${.MAKE:T}
+.endif
+
+no-default:
+	@echo "ERROR: there is no supported default target."; \
+	echo "Try '${MAKE_CMD} help'"
+
+
+.if make(show-valid-targets)
+OTHER_TARGETS = \
+	destroy \
+	destroy-arch \
+	destroy-host \
+	destroy-stage \
+
+BUILD_TARGETS_${MACHINE:tu} != cd ${_here} && \
+	find . \( -name Makefile.depend -o -name ${.MAKE.DEPENDFILE:T} \) | \
+	sed 's,/Makefile.*,,;s,^./,,' | sort -u
+
+.for _machine in ${all_machine_list}
+_targets_${_machine} != cd ${_here} && \
+	find . \( -name Makefile.depend.${_machine} -o \
+	    -name ${.MAKE.DEPENDFILE:T}.${_machine} \) | \
+	sed 's,/Makefile.*,,;s,^./,,' | sort -u
+BUILD_TARGETS_${_machine:tu} += ${_targets_${_machine}}
+.endfor
+
+show-valid-targets:
+.for _machine in ${all_machine_list:O}
+.if !empty(BUILD_TARGETS_${_machine:tu})
+	@echo "Build targets for ${_machine} (leave out the ${target_dirs:S,${_here:T},,:S,^/,,:S,$,/,}):"
+	@echo -e "${BUILD_TARGETS_${_machine:tu}:O:ts\n}" | sed -e 's,^,  ,'
+	@echo
+.endif
+.endfor
+	@echo "Other targets:"; echo "${OTHER_TARGETS:O:ts\n}" | sed -e 's,^,  ,'
+.endif
+
+help: show-help
+show-help:
+	@echo; \
+	echo "You can see the targets which are valid for a given machine"; \
+	echo "by running '${MAKE_MACHINE_CMD} show-valid-targets'"; \
+	echo "For other information, read: ${HELP_DOCS:@d@${.newline}$d@}"; \
+	echo
+
+not-valid-target:
+	@echo "ERROR: '${_TARGETS}' is not a valid target for ${MACHINE}."
+
+.if make(destroy*)
+.include <bsd.obj.mk>
+.endif
+
+.for t in ${_TARGETS:Nlove}
+.if !target($t)
+$t: not-valid-target show-help
+.endif
+.endfor

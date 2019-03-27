@@ -1,0 +1,8 @@
+# $FreeBSD$ 
+# $NetBSD: ATARIST.src,v 1.1 2006/10/19 14:45:02 tnozaki Exp $
+
+NAME		"ATARIST"
+ENCODING	"NONE"
+VARIABLE	"none"
+DEFCSID		"ATARIST"		0
+INVALID		0x3F # '?'

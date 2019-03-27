@@ -1,0 +1,329 @@
+.\" Copyright (c) 2003 Hidetoshi Shimokawa
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\"
+.Dd February 11, 2003
+.Dt DCONSCHAT 8
+.Os
+.Sh NAME
+.Nm dconschat
+.Nd user interface to
+.Xr dcons 4
+.Sh SYNOPSIS
+.Nm
+.Op Fl brvwRT1
+.Op Fl e Ar escape-char
+.Op Fl h Ar hz
+.Op Fl C Ar console_port
+.Op Fl G Ar gdb_port
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Nm
+.Op Fl brvwR1
+.Op Fl h Ar hz
+.Op Fl C Ar console_port
+.Op Fl G Ar gdb_port
+.Op Fl a Ar address
+.Op Fl u Ar bus_num
+.Fl t Ar target_eui64
+.Sh DESCRIPTION
+The
+.Nm
+utility is designed to provide a way for users to access
+.Xr dcons 4
+(dumb console device) on a local or remote system.
+The
+.Nm
+utility interacts with
+.Xr dcons 4
+using
+.Xr kvm 3
+or
+.Xr firewire 4 ,
+and interacts with the user over TTY or TCP/IP.
+To access remote
+.Xr dcons 4
+using
+.Xr firewire 4 ,
+you have to specify target EUI64 address using the
+.Fl t
+option. Physical DMA should be enabled on the target machine for access
+via FireWire.
+.Pp
+The
+.Nm
+utility and the
+.Xr dcons 4
+driver communicate using 2 ports, one for the console port and another
+for remote
+.Xr gdb 1
+port.
+Users are supposed to access
+.Nm
+using TTY,
+.Xr telnet 1
+and
+.Xr gdb 1 .
+You can specify listen ports for console and
+.Xr gdb 1
+port using the
+.Fl C
+and
+.Fl G
+options respectively.
+The port number 0 has special meaning that
+current TTY (stdin/stdout) is used instead of TCP/IP.
+A negative port number will disable the port.
+By analogy with
+.Xr pty 4
+device, the
+.Xr dcons 4
+acts as a slave device and
+.Nm
+acts as a master device with
+.Xr telnetd 8 .
+.Pp
+Typed characters are normally transmitted directly to
+.Xr dcons 4 .
+A escape character (the default is
+.Ql ~
+) appearing as the first character of a line is an escape signal; the
+following are recognized:
+.Bl -tag -width ident
+.It Ic ~.
+Drop the connection and exit.
+.It Ic ~^G
+Invoke kgdb on the terminal on which dconschat is running.
+.It Ic ~^R
+Reset the target over FireWire if a reset address is registered in Configuration ROM.
+.It Ic ~^Z
+Suspend the dconschat process.
+.El
+.Pp
+The following options are supported.
+.Bl -tag -width indent
+.It Fl b
+Translate Ctrl-C to ALT_BREAK (CR +
+.Ql ~
++ Ctrl-B) on
+.Xr gdb 1
+port.
+.It Fl r
+Replay old buffer on connection.
+.It Fl v
+Verbose debug output.
+Multiple
+.Fl v
+options increase verbosity.
+.It Fl w
+Listen on a wildcard address rather than localhost.
+.It Fl R
+Read-only.
+Do not write anything to the
+.Xr dcons 4
+buffer.
+.It Fl T
+Enable ad-hoc workaround for the TELNET protocol to
+remove unnecessary byte sequences.
+It should be set when you access
+.Nm
+using
+.Xr telnet 1 .
+.It Fl 1
+One-shot.
+Read available buffer, then exit.
+This implies the
+.Fl r
+option.
+.It Fl e Ar escape-char
+Specify escape character.
+The default is '~'.
+.It Fl h Ar hz
+Specify polling rate.
+The default value is 100.
+.It Fl C Ar console_port
+Specify the console port.
+The default value is 0 (stdin/stdout).
+.It Fl G Ar gdb_port
+Specify
+.Xr gdb 1
+port.
+The default value is \-1 (disabled).
+.It Fl M Ar core
+Specify core file.
+.It Fl N Ar system
+Specify system file such as
+.Pa /boot/kernel/kernel .
+.It Fl t Ar target_eui64
+Specify the 64-bit extended unique identifier of the target,
+and use FireWire to access remote
+.Xr dcons 4 .
+.It Fl a Ar address
+Specify the physical I/O address of the
+.Xr dcons 4
+buffer.
+See
+.Xr dcons 4
+for details.
+If this option is not specified,
+.Nm
+tries to get the address from the Configuration ROM on the target.
+You are supposed to enable
+.Xr dcons_crom 4
+on the target to omit this option.
+.It Fl u Ar bus_num
+Specify FireWire bus number.
+The default is 0.
+.El
+.Sh FILES
+.Bl -tag -width indent -compact
+.It Pa /dev/fwmem0.0
+.It Pa /dev/mem
+.It Pa /dev/kmem
+.El
+.Sh EXAMPLES
+To use
+.Nm
+with FireWire for remote
+.Xr dcons 4 ,
+you have to specify the EUI64 of the target.
+You can obtain EUI64 by running
+.Xr fwcontrol 8
+without options.
+The first EUI64 is of the host running
+.Xr fwcontrol 8
+and others on the bus follow.
+.Bd -literal -offset indent
+# fwcontrol
+2 devices (info_len=2)
+node           EUI64          status
+   1  77-66-55-44-33-22-11-00      0
+   0  00-11-22-33-44-55-66-77      1
+.Ed
+.Pp
+The EUI64 does not change unless you change the hardware
+as the ethernet address.
+.Pp
+Now we can run
+.Nm .
+.Bd -literal -offset indent
+# dconschat -br -G 12345 -t 00-11-22-33-44-55-66-77
+.Ed
+.Pp
+You will get console output of the target and login prompt if a
+.Xr getty 8
+is running on
+.Xr dcons 4 .
+You can break to DDB with ALT_BREAK (CR +
+.Ql ~
++ Ctrl-B)
+if
+.Dv DDB
+and
+.Dv ALT_BREAK_TO_DEBUGGER
+are enabled in the target kernel.
+To quit the session, type CR +
+.Ql ~
++
+.Ql \&.
+in the console port.
+.Pp
+Using
+.Xr gdb 1
+port is almost the same as remote
+.Xr gdb 1
+over serial line except
+using TCP/IP instead of
+.Pa /dev/cu* .
+See
+.Sx "On-line Kernel Debugging Using Remote GDB"
+section of
+.%T "The FreeBSD Developers Handbook"
+and
+.Xr gdb 4
+for details.
+.Bd -literal -offset indent
+% gdb -k kernel.debug
+(kgdb) target remote :12345
+.Ed
+.Pp
+Once
+.Xr gdb 1
+is attached and you specified the
+.Fl b
+option to
+.Nm ,
+typing Ctrl-C in
+.Xr gdb 1
+causes a break to debugger.
+.Pp
+The following command gets the console log from the crash dump:
+.Bd -literal -offset indent
+# dconschat -1 -M vmcore.0 -N kernel.0
+.Ed
+.Pp
+If you want access to the console using
+.Xr telnet 1 ,
+try the following:
+.Bd -literal -offset indent
+# dconschat -rTC 5555 &
+# telnet localhost 5555
+.Ed
+.Pp
+You may want to keep logging console output of several machines.
+.Nm conserver-com
+in the Ports collection may help you.
+Insert the following lines in
+.Pa conserver.cf :
+.Bd -literal -offset indent
+console local {
+	master localhost;
+	type exec;
+	exec /usr/sbin/dconschat -rh 25;
+}
+console remote {
+	master localhost;
+	type exec;
+	exec /usr/sbin/dconschat -rh 25 -t 00-11-22-33-44-55-66-77;
+}
+.Ed
+.Sh SEE ALSO
+.Xr gdb 1 ,
+.Xr telnet 1 ,
+.Xr kvm 3 ,
+.Xr dcons 4 ,
+.Xr dcons_crom 4 ,
+.Xr ddb 4 ,
+.Xr firewire 4 ,
+.Xr fwohci 4 ,
+.Xr gdb 4 ,
+.Xr eui64 5 ,
+.Xr fwcontrol 8
+.Sh AUTHORS
+.An Hidetoshi Shimokawa Aq Mt simokawa@FreeBSD.org
+.Sh BUGS
+This utility is
+.Ud

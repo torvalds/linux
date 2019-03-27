@@ -1,0 +1,59 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" Author: Thomas E. Dickey 1996
+.\"
+.\" $Id: wresize.3x,v 1.13 2010/12/04 18:40:45 tom Exp $
+.TH wresize 3X ""
+.SH NAME
+\fBwresize\fR \- resize a curses window
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint wresize(WINDOW *win, int lines, int columns);\fR
+.SH DESCRIPTION
+This is an extension to the curses library.                                    
+It reallocates storage for an \fBncurses\fR 
+window to adjust its dimensions to the specified values.
+If either dimension is larger than the current values, the
+window's data is filled with blanks that have the current background rendition
+(as set by \fBwbkgdset\fR) merged into them.
+.SH RETURN VALUE
+The function returns the integer \fBERR\fR upon failure and \fBOK\fR on success.
+It will fail if either of the dimensions less than or equal to zero,
+or if an error occurs while (re)allocating memory for the window.
+.SH NOTES
+The only restriction placed on the dimensions is that they be greater than zero.
+The dimensions are not compared to \fBcurses\fR screen dimensions to
+simplify the logic of \fBresizeterm\fR.
+The caller must ensure that the window's dimensions fit within the
+actual screen dimensions.
+.SH SEE ALSO
+\fBresizeterm\fR(3X).
+.SH AUTHOR
+Thomas Dickey (from an equivalent function written in 1988 for BSD curses).

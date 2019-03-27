@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+f() {
+	trap 'return 42' USR1
+	kill -USR1 $$
+	return 3
+}
+f
+r=$?
+[ "$r" = 42 ]

@@ -1,0 +1,123 @@
+.\" Copyright (c) 1998 HD Associates, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 12, 1998
+.Dt SCHED_GET_PRIORITY_MAX 2
+.Os
+.Sh NAME
+.Nm sched_get_priority_max ,
+.Nm sched_get_priority_min ,
+.Nm sched_rr_get_interval
+.Nd get scheduling parameter limits
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sched.h
+.Ft int
+.Fn sched_get_priority_max "int policy"
+.Ft int
+.Fn sched_get_priority_min "int policy"
+.Ft int
+.Fn sched_rr_get_interval "pid_t pid" "struct timespec *interval"
+.Sh DESCRIPTION
+The
+.Fn sched_get_priority_max
+and
+.Fn sched_get_priority_min
+system calls return the appropriate maximum or minimum, respectively,
+for the scheduling policy specified by
+.Fa policy .
+The
+.Fn sched_rr_get_interval
+system call updates the
+.Fa timespec
+structure referenced by the
+.Fa interval
+argument to contain the current execution time limit (i.e., time
+quantum) for the process specified by
+.Fa pid .
+If
+.Fa pid
+is zero, the current execution time limit for the calling process is
+returned.
+.Pp
+The value of
+.Fa policy
+should be one of the scheduling policy values defined in
+.Fa <sched.h> :
+.Bl -tag -width [SCHED_OTHER]
+.It Bq Er SCHED_FIFO
+First-in-first-out fixed priority scheduling with no round robin scheduling;
+.It Bq Er SCHED_OTHER
+The standard time sharing scheduler;
+.It Bq Er SCHED_RR
+Round-robin scheduling across same priority processes.
+.El
+.Sh RETURN VALUES
+If successful, the
+.Fn sched_get_priority_max
+and
+.Fn sched_get_priority_min
+system calls shall return the appropriate maximum or minimum values,
+respectively.
+If unsuccessful, they shall return a value of -1 and set
+.Fa errno
+to indicate the error.
+.Pp
+.Rv -std sched_rr_get_interval
+.Sh ERRORS
+On failure
+.Va errno
+will be set to the corresponding value:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of the
+.Fa policy
+argument does not represent a defined scheduling policy.
+.It Bq Er ENOSYS
+The
+.Fn sched_get_priority_max ,
+.Fn sched_get_priority_min ,
+and
+.Fn sched_rr_get_interval
+system calls are not supported by the implementation.
+.It Bq Er ESRCH
+No process can be found corresponding to that specified by
+.Fa pid .
+.El
+.Sh SEE ALSO
+.Xr sched_getparam 2 ,
+.Xr sched_getscheduler 2 ,
+.Xr sched_setparam 2 ,
+.Xr sched_setscheduler 2
+.Sh STANDARDS
+The
+.Fn sched_get_priority_max ,
+.Fn sched_get_priority_min ,
+and
+.Fn sched_rr_get_interval
+system calls conform to
+.St -p1003.1b-93 .

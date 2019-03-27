@@ -1,0 +1,25 @@
+4500 0044 0000 0000 ff11 bda6 7f00 0001 7f00 0001 2775 2775 0030 0000 4500 0028 0000 0000 0006 435a 6363 6363 5858 5858 038d 0050 0000 0000 0000 0000 5000 1000 2491 0000 
+
+4500 0028 0000 0000 0006 435a 6363 6363 5858 5858 038d 0050 0000 0000 0000 0000 5000 1000 2491 0000 
+
+List of active MAP/Redirect filters:
+divert in on bar0 proto tcp from 0/0 to 0/0 -> src 127.0.0.1/32,10101 dst 127.0.0.1/32,10101 udp;
+
+List of active sessions:
+DIV-RDR 127.0.0.1       10101 <- -> 88.88.88.88     80    [99.99.99.99 909]
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

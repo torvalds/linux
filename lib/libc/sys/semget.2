@@ -1,0 +1,156 @@
+.\"
+.\" Copyright (c) 1995 David Hovemeyer <daveho@infocom.com>
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 4, 2018
+.Dt SEMGET 2
+.Os
+.Sh NAME
+.Nm semget
+.Nd obtain a semaphore id
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/sem.h
+.Ft int
+.Fn semget "key_t key" "int nsems" "int flag"
+.Sh DESCRIPTION
+Based on the values of
+.Fa key
+and
+.Fa flag ,
+.Fn semget
+returns the identifier of a newly created or previously existing
+set of semaphores.
+.\"
+.\" This is copied verbatim from the shmget manpage.  Perhaps
+.\" it should go in a common manpage, such as .Xr ipc 2
+.\"
+The key
+is analogous to a filename: it provides a handle that names an
+IPC object.
+There are three ways to specify a key:
+.Bl -bullet
+.It
+IPC_PRIVATE may be specified, in which case a new IPC object
+will be created.
+.It
+An integer constant may be specified.
+If no IPC object corresponding
+to
+.Fa key
+is specified and the IPC_CREAT bit is set in
+.Fa flag ,
+a new one will be created.
+.It
+The
+.Xr ftok 3
+function
+may be used to generate a key from a pathname.
+.El
+.\"
+.\" Likewise for this section, except SHM_* becomes SEM_*.
+.\"
+.Pp
+The mode of a newly created IPC object is determined by ORing these constants
+into the
+.Fa flag
+argument:
+.Bl -tag -width 0000
+.It Dv 0400
+Read access for user.
+.It Dv 0200
+Alter access for user.
+.It Dv 0040
+Read access for group.
+.It Dv 0020
+Alter access for group.
+.It Dv 0004
+Read access for other.
+.It Dv 0002
+Alter access for other.
+.El
+.Pp
+If a new set of semaphores is being created,
+.Fa nsems
+is used to indicate the number of semaphores the set should contain.
+Otherwise,
+.Fa nsems
+may be specified as 0.
+.Sh RETURN VALUES
+The
+.Fn semget
+system call
+returns the id of a semaphore set if successful; otherwise, -1
+is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn semget
+system call
+will fail if:
+.Bl -tag -width Er
+.\" ipcperm could fail (we are opening to read and write, as it were)
+.It Bq Er EACCES
+Access permission failure.
+.\"
+.\" sysv_sem.c is quite explicit about these, so I'm pretty sure
+.\" this is accurate
+.\"
+.It Bq Er EEXIST
+IPC_CREAT and IPC_EXCL were specified, and a semaphore set
+corresponding to
+.Fa key
+already exists.
+.It Bq Er EINVAL
+The number of semaphores requested exceeds the system imposed maximum
+per set.
+.It Bq Er EINVAL
+A semaphore set corresponding to
+.Fa key
+already exists and contains fewer semaphores than
+.Fa nsems .
+.It Bq Er EINVAL
+A semaphore set corresponding to
+.Fa key
+does not exist and
+.Fa nsems
+is 0 or negative.
+.It Bq Er ENOSPC
+Insufficiently many semaphores are available.
+.It Bq Er ENOSPC
+The kernel could not allocate a
+.Fa "struct semid_ds" .
+.It Bq Er ENOENT
+No semaphore set was found corresponding to
+.Fa key ,
+and IPC_CREAT was not specified.
+.El
+.Sh SEE ALSO
+.Xr semctl 2 ,
+.Xr semop 2 ,
+.Xr ftok 3

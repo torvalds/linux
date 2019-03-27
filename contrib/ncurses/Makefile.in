@@ -1,0 +1,110 @@
+# $Id: Makefile.in,v 1.38 2014/01/18 20:19:45 tom Exp $
+##############################################################################
+# Copyright (c) 1998-2013,2014 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Author: Thomas E. Dickey		1996-on
+#
+# Master Makefile for ncurses library.
+
+SHELL = /bin/sh
+VPATH		= @srcdir@
+
+DESTDIR=@DESTDIR@
+RPATH_LIST=@RPATH_LIST@
+TOP_MFLAGS = @cf_cv_makeflags@ DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
+
+@SET_MAKE@
+
+NCURSES_MAJOR	= @NCURSES_MAJOR@
+NCURSES_MINOR	= @NCURSES_MINOR@
+NCURSES_PATCH	= @NCURSES_PATCH@
+
+top_srcdir	= @top_srcdir@
+srcdir		= @srcdir@
+
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+datarootdir	= @datarootdir@
+
+bindir		= @bindir@
+ticdir		= @TERMINFO@
+includedir	= @includedir@
+includesubdir	= @includesubdir@
+libdir		= @libdir@
+mandir		= @mandir@
+
+include_dir	= ${includedir}${includesubdir}
+
+INSTALL		= @INSTALL@
+INSTALL_DATA	= @INSTALL_DATA@
+
+DIRS_TO_MAKE	= @DIRS_TO_MAKE@
+
+all ::	$(DIRS_TO_MAKE)
+
+$(DIRS_TO_MAKE) :
+	mkdir $@
+
+preinstall :
+	@ echo ''
+	@ echo '** Configuration summary for NCURSES $(NCURSES_MAJOR).$(NCURSES_MINOR) $(NCURSES_PATCH):'
+	@ echo ''
+	@ echo '     extended funcs: '`test @NCURSES_EXT_FUNCS@ != 0 && echo yes || echo no`
+	@ echo '     xterm terminfo: '@WHICH_XTERM@
+	@ echo ''
+	@ echo '      bin directory: '$(bindir)
+	@ echo '      lib directory: '$(libdir)
+	@ echo '  include directory: '$(include_dir)
+	@ echo '      man directory: '$(mandir)
+@MAKE_TERMINFO@	@ echo ' terminfo directory: '$(ticdir)
+	@ echo ''
+	@ test "$(include_dir)" = "$(prefix)/include" || \
+		echo '** Include-directory is not in a standard location'
+	@ test ! -f $(include_dir)/termcap.h || \
+		fgrep NCURSES_VERSION $(include_dir)/termcap.h >/dev/null || \
+		echo '** Will overwrite non-ncurses termcap.h'
+	@ test ! -f $(include_dir)/curses.h || \
+		fgrep NCURSES_VERSION $(include_dir)/curses.h >/dev/null || \
+		echo '** Will overwrite non-ncurses curses.h'
+
+distclean \
+realclean ::
+
+
+# Put the common rules here so that we can easily construct the list of
+# directories to visit.
+all \
+clean \
+distclean \
+mostlyclean \
+realclean \
+depend \
+sources \
+tags \
+uninstall \
+install ::

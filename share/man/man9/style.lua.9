@@ -1,0 +1,128 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL [your name] OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 25, 2018
+.Dt STYLE.LUA 9
+.Os
+.Sh NAME
+.Nm style.lua
+.Nd
+.Fx
+lua file style guide
+.Sh DESCRIPTION
+This file specifies the preferred style for lua source files in the
+.Fx
+source tree.
+Many of the style rules are implicit in the examples.
+Be careful to check the examples before assuming that
+.Nm
+is silent on an issue.
+.Pp
+The copyright header should be a series of single-line comments.
+Use the single-line comment style for every line in a multi-line comment.
+.Pp
+After any copyright header, there is a blank line, and the
+.Li $\&FreeBSD$
+comment for non-C/C++ source files.
+.Pp
+The preferred method of including other files and modules is with
+.Fn require name ,
+such as:
+.Bd -literal
+-- $FreeBSD$
+
+config = require("config");
+menu = require("menu");
+password = require("password");
+-- One blank line following the module require block
+.Ed
+.Pp
+.Fn include
+is generally avoided.
+.Pp
+Indentation and wrapping should match the guidelines provided by
+.Xr style 9 .
+Do note that it is ok to wrap much earlier than 80 columns if readability would
+otherwise suffer.
+.Pp
+Where possible,
+.Fn s:method ...
+is preferred to
+.Fn method s ... .
+This is applicable to objects with methods.
+String are a commonly-used example of objects with methods.
+.Pp
+Testing for
+.Va nil
+should be done explicitly, rather than as a boolean expression.
+Single-line conditional statements and loops should be avoided.
+.Pp
+.Ic local
+variables should be preferred to global variables in module scope.
+internal_underscores tend to be preferred for variable identifiers, while
+camelCase tends to be preferred for function identifiers.
+.Pp
+If a table definition spans multiple lines, then the final value in the table
+should include the optional terminating comma.
+For example:
+.Bd -literal
+-- No terminating comma needed for trivial table definitions
+local trivial_table = {1, 2, 3, 4}
+
+local complex_table = {
+	{
+		id = "foo",
+		func = foo_function, -- Trailing comma preferred
+	},
+	{
+		id = "bar",
+		func = bar_function,
+	},	-- Trailing comma preferred
+}
+.Ed
+.Pp
+This reduces the chance for errors to be introduced when modifying more complex
+tables.
+.Pp
+Multiple local variables should not be declared
+.Sy and
+initialized on a single line.
+Lines containing multiple variable declarations without initialization are ok.
+Lines containing multiple variable declarations initialized to a single function
+call returning a tuple with the same number of values is also ok.
+.Pp
+Initialization
+.Sy should
+be done at declaration time as appropriate.
+.Sh SEE ALSO
+.Xr style 9
+.Sh HISTORY
+This manual page is inspired from the same source as
+.Xr style 9
+manual page in
+.Fx .

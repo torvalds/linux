@@ -1,0 +1,165 @@
+.\"-
+.\" Copyright (c) 2017 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 5, 2018
+.Dt DPCPU 9
+.Os
+.Sh NAME
+.Nm dpcpu
+.Nd Kernel Dynamic Per-CPU Memory Allocator
+.Sh SYNOPSIS
+.In sys/pcpu.h
+.Ss Per-CPU Variable Definition and Declaration
+.Fn DPCPU_DEFINE "type" "name"
+.Fn DPCPU_DEFINE_STATIC "type" "name"
+.Fn DPCPU_DECLARE "type" "name"
+.Ss Current CPU Accessor Functions
+.Fn DPCPU_PTR "name"
+.Fn DPCPU_GET "name"
+.Fn DPCPU_SET "name" "value"
+.Ss Named CPU Accessor Functions
+.Fn DPCPU_ID_PTR "cpu" "name"
+.Fn DPCPU_ID_GET "cpu" "name"
+.Fn DPCPU_ID_SET "cpu" "name" "value"
+.Sh DESCRIPTION
+.Nm
+instantiates one instance of a global variable with each CPU in the system.
+Dynamically allocated per-CPU variables are defined using
+.Fn DPCPU_DEFINE ,
+which defines a variable of name
+.Ar name
+and type
+.Ar type .
+Arbitrary C types may be used, including structures and arrays.
+If no initialization is provided, then each per-CPU instance of the variable
+will be zero-filled (i.e., as though allocated in BSS):
+.Bd -literal -offset 1234
+DPCPU_DEFINE(int, foo_int);
+.Ed
+.Pp
+Values may also be initialized statically with the definition, causing each
+per-CPU instance to be initialized with the value:
+.Bd -literal -offset 1234
+DPCPU_DEFINE(int, foo_int) = 1;
+.Ed
+.Pp
+Values that can be defined as
+.Dv static
+must use
+.Fn DPCPU_DEFINE_STATIC :
+.Bd -literal -offset 1234
+DPCPU_DEFINE_STATIC(int, foo_int);
+.Ed
+.Pp
+.Fn DPCPU_DECLARE
+produces a declaration of the per-CPU variable suitable for use in header
+files.
+.Pp
+The current CPU's variable instance can be accessed via
+.Nm DPCPU_PTR
+(which returns a pointer to the per-CPU instance),
+.Nm DPCPU_GET
+(which retrieves the value of the per-CPU instance),
+and
+.Nm DPCPU_SET
+(which sets the value of the per-CPU instance).
+.Pp
+Instances of variables associated with specific CPUs can be accessed via the
+.Nm DPCPU_ID_PTR ,
+.Nm DPCPU_ID_GET ,
+and
+.Nm DPGPU_ID_SET
+accessor functions, which accept an additional CPU ID argument,
+.Ar cpu .
+.Ss Synchronization
+In addition to the ordinary synchronization concerns associated with global
+variables, which may imply the use of
+.Xr atomic 9 ,
+.Xr mutex 9 ,
+or other kernel synchronization primitives, it is further the case that
+thread migration could dynamically change the instance of a variable being
+accessed by a thread between operations.
+This requires additional care when reasoning about and protecting per-CPU
+variables.
+.Pp
+For example, it may be desirable to protect access using
+.Xr critical_section 9
+to prevent both preemption and migration during use.
+Alternatively, it may be desirable to cache the CPU ID at the start of a
+sequence of accesses, using suitable synchronization to make non-atomic
+sequences safe in the presence of migration.
+.Bd -literal -offset 1234
+DPCPU_DEFINE_STATIC(int, foo_int);
+DPCPU_DEFINE_STATIC(struct mutex, foo_lock);
+
+void
+foo_int_increment(void)
+{
+    int cpu, value;
+
+    /* Safe as atomic access. */
+    atomic_add_int(DPCPU_PTR(foo_int), 1);
+
+    /*
+     * Protect with a critical section, which prevents preemption
+     * and migration.  However, access to instances from remote CPUs
+     * is not safe, as critical sections prevent concurrent access
+     * only from the current CPU.
+     */
+    critical_enter();
+    value = DPCPU_GET(foo_int);
+    value++;
+    DPCPU_SET(foo_int, value);
+    critical_exit();
+
+    /*
+     * Protect with a per-CPU mutex, tolerating migration, but
+     * potentially accessing the variable from multiple CPUs if
+     * migration occurs after reading curcpu.  Remote access to a
+     * per-CPU variable is safe as long as the correct mutex is
+     * acquired.
+     */
+    cpu = curcpu;
+    mtx_lock(DPCPU_ID_PTR(cpu, foo_lock));
+    value = DPCPU_ID_GET(cpu, foo_int);
+    value++;
+    DPCPU_ID_SET(cpu, foo_int);
+    mtx_unlock(DPCPU_ID_PTR(cpu, foo_lock));
+}
+.Ed
+.Sh SEE ALSO
+.Xr atomic 9 ,
+.Xr critical_enter 9 ,
+.Xr mutex 9
+.Sh HISTORY
+.Nm
+was first introduced by
+.An Jeff Roberson
+in
+.Fx 8.0 .
+This manual page was written by
+.An Robert N. M. Watson.

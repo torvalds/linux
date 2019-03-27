@@ -1,0 +1,105 @@
+/*
+ * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@bluezbox.com>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+ 
+#include "bcm2835-rpi-b.dts"
+
+/ {
+	/* This is only necessary for FDT_DTB_STATIC */
+	memory {
+		device_type = "memory";
+		reg = <0 0x8000000>; /* 128MB, Set by VideoCore */
+	
+	};
+
+	rpi_ft5406 { 
+		compatible = "rpi,rpi-ft5406"; 
+		status = "okay"; 
+	}; 
+
+
+	/* Temporary patches */
+	soc {
+		sdhost: mmc@7e202000 {
+			status = "disabled";
+		}
+
+		sdhci@7e300000 {
+			status = "okay";
+		};
+
+		spi@7e204000 {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi0_pins &spi0_cs_pins>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi0_pins &spi0_cs_pins>;
+		};
+
+		gpio@7e200000 {
+			/* Pins that can short 3.3V to GND in output mode: 46-47
+			 * Pins used by VideoCore: 48-53
+			 */
+			broadcom,read-only = <46>, <47>, <48>, <49>, <50>, 
+			                     <51>, <52>, <53>;
+			                     
+			/* Reserved */
+			pins_reserved: reserved {
+				broadcom,pins = <48>, <49>, <50>, <51>, <52>,
+				                <53>;
+			};
+
+			spi0_pins: spi0_pins {
+				brcm,pins = <9 10 11>;
+				brcm,function = <4>; /* alt0 */
+			};
+
+			spi0_cs_pins: spi0_cs_pins {
+				brcm,pins = <8 7>;
+				brcm,function = <1>; /* output */
+			};
+		}
+		
+		vchiq {
+			compatible = "brcm,bcm2835-vchiq";
+			reg = <0x7e00b840 0xf>;
+			interrupts = <0 2>;
+			cache-line-size = <32>;
+		};
+
+		display {
+			compatible = "broadcom,bcm2835-fb", "broadcom,bcm2708-fb";
+
+			broadcom,vc-mailbox = <&mailbox>;
+			broadcom,vc-channel = <1>;
+
+			broadcom,width = <0>;         /* Set by VideoCore */
+			broadcom,height = <0>;        /* Set by VideoCore */
+			broadcom,depth = <0>;         /* Set by VideoCore */
+		};
+
+	};
+};

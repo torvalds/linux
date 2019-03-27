@@ -1,0 +1,49 @@
+#!/bin/sh
+# wait for amd to die on local host before returning from program.
+# Usage: wait4amd2die [delay [count]]
+# If not specified, delay=5 seconds and count=6 (total 30 seconds)
+# If at end of total delay amd is till up, return 1; else return 0.
+#
+# Package:	am-utils-6.x
+# Author:	Erez Zadok <ezk@cs.columbia.edu>
+
+#set -x
+
+# set path
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+PATH=@sbindir@:@bindir@:/usr/bin:/bin:${PATH}
+export PATH
+
+# how long to wait?
+if test -n "$1"
+then
+	delay=$1
+else
+	delay=3
+fi
+# how many times to delay
+if test -n "$2"
+then
+	count=$2
+else
+	count=10
+fi
+
+i=1
+maxcount=`expr $count + 1`
+while [ $i != $maxcount ]; do
+	# run amq
+	@sbindir@/amq > /dev/null 2>&1
+	if [ $? != 0 ]
+	then
+		# amq failed to run (because amd is dead)
+		echo "wait4amd2die: amd is down!"
+		exit 0
+	fi
+	echo "wait4amd2die: delay $delay sec ($i of $count)..."
+	sleep $delay
+	i=`expr $i + 1`
+done
+echo "wait4amd2die: amd is still up..."
+exit 1

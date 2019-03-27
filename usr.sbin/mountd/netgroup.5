@@ -1,0 +1,190 @@
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)netgroup.5	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd December 11, 1993
+.Dt NETGROUP 5
+.Os
+.Sh NAME
+.Nm netgroup
+.Nd defines network groups
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+The
+.Nm
+file
+specifies ``netgroups'', which are sets of
+.Sy (host, user, domain)
+tuples that are to be given similar network access.
+.Pp
+Each line in the file
+consists of a netgroup name followed by a list of the members of the
+netgroup.
+Each member can be either the name of another netgroup or a specification
+of a tuple as follows:
+.Bd -literal -offset indent
+(host, user, domain)
+.Ed
+.Pp
+where the
+.Sy host ,
+.Sy user ,
+and
+.Sy domain
+are character string names for the corresponding component.
+Any of the comma separated fields may be empty to specify a ``wildcard'' value
+or may consist of the string ``-'' to specify ``no valid value''.
+The members of the list may be separated by whitespace and/or commas;
+the ``\e'' character may be used at the end of a line to specify
+line continuation.
+Lines are limited to 1024 characters.
+The functions specified in
+.Xr getnetgrent 3
+should normally be used to access the
+.Nm
+database.
+.Pp
+Lines that begin with a # are treated as comments.
+.Sh NIS/YP INTERACTION
+On most other platforms,
+.Nm Ns s
+are only used in conjunction with
+.Tn NIS
+and local
+.Pa /etc/netgroup
+files are ignored.
+With
+.Fx ,
+.Nm Ns s
+can be used with either
+.Tn NIS
+or local files, but there are certain
+caveats to consider.
+The existing
+.Nm
+system is extremely inefficient where
+.Fn innetgr 3
+lookups are concerned since
+.Nm
+memberships are computed on the fly.
+By contrast, the
+.Tn NIS
+.Nm
+database consists of three separate maps (netgroup, netgroup.byuser
+and netgroup.byhost) that are keyed to allow
+.Fn innetgr 3
+lookups to be done quickly.
+The
+.Fx
+.Nm
+system can interact with the
+.Tn NIS
+.Nm
+maps in the following ways:
+.Bl -bullet -offset indent
+.It
+If the
+.Pa /etc/netgroup
+file does not exist, or it exists and is empty, or
+it exists and contains only a
+.Sq + ,
+and
+.Tn NIS
+is running,
+.Nm
+lookups will be done exclusively through
+.Tn NIS ,
+with
+.Fn innetgr 3
+taking advantage of the netgroup.byuser and
+netgroup.byhost maps to speed up searches.
+(This
+is more or less compatible with the behavior of SunOS and
+similar platforms.)
+.It
+If the
+.Pa /etc/netgroup
+exists and contains only local
+.Nm
+information (with no
+.Tn NIS
+.Sq +
+token), then only the local
+.Nm
+information will be processed (and
+.Tn NIS
+will be ignored).
+.It
+If
+.Pa /etc/netgroup
+exists and contains both local netgroup data
+.Pa and
+the
+.Tn NIS
+.Sq +
+token, the local data and the
+.Tn NIS
+netgroup
+map will be processed as a single combined
+.Nm
+database.
+While this configuration is the most flexible, it
+is also the least efficient: in particular,
+.Fn innetgr 3
+lookups will be especially slow if the
+database is large.
+.El
+.Sh FILES
+.Bl -tag -width /etc/netgroup -compact
+.It Pa /etc/netgroup
+the netgroup database
+.El
+.Sh COMPATIBILITY
+The file format is compatible with that of various vendors, however it
+appears that not all vendors use an identical format.
+.Sh SEE ALSO
+.Xr getnetgrent 3 ,
+.Xr exports 5
+.Sh BUGS
+The interpretation of access restrictions based on the member tuples of a
+netgroup is left up to the various network applications.
+Also, it is not obvious how the domain specification
+applies to the
+.Bx
+environment.
+.Pp
+The
+.Nm
+database should be stored in the form of a
+hashed
+.Xr db 3
+database just like the
+.Xr passwd 5
+database to speed up reverse lookups.

@@ -1,0 +1,110 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2017 Poul-Henning Kamp <phk@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 10, 2018
+.Dt BCM283X_PWM 4
+.Os
+.Sh NAME
+.Nm bcm283x_pwm
+.Nd bcm283x_pwm - driver for Raspberry Pi 2/3 PWM
+.Sh SYNOPSIS
+.Cd "kldload bcm283x_clkman"
+.Cd "kldload bcm283x_pwm"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to the PWM engine on GPIO12 of Raspberry Pi 2 and 3 hardware.
+.Pp
+The PWM hardware is controlled via the
+.Xr sysctl 8
+interface:
+.Bd -literal
+dev.pwm.0.mode: 1
+dev.pwm.0.mode2: 1
+dev.pwm.0.freq: 125000000
+dev.pwm.0.ratio: 2500
+dev.pwm.0.ratio2: 2500
+dev.pwm.0.period: 10000
+dev.pwm.0.period2: 10000
+dev.pwm.0.pwm_freq: 12500
+dev.pwm.0.pwm_freq2: 12500
+.Ed
+.Bl -tag -width ".Va dev.pwm"
+.It Va dev.pwm.0.mode , dev.pwm.0.mode2
+PWM Mode for channels 1 and 2.
+Three modes exist, 0=off, 1=PWM, 2=N/M.
+The N/M mode is a first order delta-sigma mode, which makes a quite
+handy DAC output with a trivial RC lowpass filter.
+.Pp
+.It Va dev.pwm.0.freq
+The input frequency to the PWM hardware in Hz.
+Applies to both channels 1 and 2.
+Minimum frequency is 123 kHz, maximum frequency is 125 MHz.
+.It Va dev.pwm.0.period , dev.pwm.0.period2
+The period length in cycles.
+In PWM mode, the output frequencies will be
+(
+.Va dev.pwm.0.freq
+/
+.Va dev.pwm.period
+) and (
+.Va dev.pwm.0.freq2
+/
+.Va dev.pwm.0.period2
+).
+In N/M mode this is the 'M'.
+.It Va dev.pwm.0.ratio , dev.pwm.0.ratio2
+The "on" period in cycles for PWM channels 1 and 2.
+In PWM mode, to get a 25% dutycycle, set this to 25% of
+.Va dev.pwm.0.period
+or
+.Va dev.pwm.0.period2 ,
+as appropriate.
+In N/M mode this is the 'N'.
+.It Va dev.pwm.0.pwm_freq , dev.pwm.0.pwm_freq2
+The calculated PWM output frequencies in PWM mode, for channels 1 and 2.
+.El
+.Pp
+.Sh NOTES
+Currently the
+.Nm
+driver ignores the 'status="disabled"' flag in the DTB, assuming that
+if you load the driver, you want it to work.
+.Sh SEE ALSO
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver and this manual page were written by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .

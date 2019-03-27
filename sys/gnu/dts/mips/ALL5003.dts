@@ -1,0 +1,109 @@
+/dts-v1/;
+
+#include "rt5350.dtsi"
+
+/ {
+	compatible = "ALL5003", "ralink,rt5350-soc";
+	model = "Allnet ALL5003";
+
+	i2c-gpio {
+		compatible = "i2c-gpio";
+		gpios = <&gpio0 1 0 &gpio0 2 0>;
+		i2c-gpio,delay-us = <10>;
+
+		pcf0: iexp@38 {
+			#gpio-cells = <2>;
+			compatible = "inxp,pcf8574a";
+			reg = <0x38>;
+			gpio-controller;
+		};
+
+		hwmon@4b {
+			compatible = "national,lm92";
+			reg = <0x4b>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		ld1 {
+			label = "all5003:green:ld1";
+			gpios = <&pcf0 0 1>;
+		};
+
+		ld2 {
+			label = "all5003:green:ld2";
+			gpios = <&pcf0 1 1>;
+		};
+	};
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "mx25l25635e";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x1fb0000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "jtag", "rgmii", "mdio", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x28>;
+};
+
+&esw {
+	mediatek,portmap = <0x3f>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};

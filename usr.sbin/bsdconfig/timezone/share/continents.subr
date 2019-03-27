@@ -1,0 +1,166 @@
+if [ ! "$_TIMEZONE_CONTINENTS_SUBR" ]; then _TIMEZONE_CONTINENTS_SUBR=1
+#
+# Copyright (c) 2011-2015 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." timezone/continents.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="090.timezone"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ CONFIGURATION
+
+#
+# List of worldly continents/oceans (export'ed for awk(1) ENVIRON visibility)
+#
+export CONTINENTS="
+	africa
+	america
+	antarctica
+	arctic
+	asia
+	atlantic
+	australia
+	europe
+	indian
+	pacific
+	utc
+"
+
+#
+# Directory name of each continent/ocean (in _PATH_ZONEINFO)
+#
+export continent_africa_name="Africa"
+export continent_america_name="America"
+export continent_antarctica_name="Antarctica"
+export continent_arctic_name="Arctic"
+export continent_asia_name="Asia"
+export continent_atlantic_name="Atlantic"
+export continent_australia_name="Australia"
+export continent_europe_name="Europe"
+export continent_indian_name="Indian"
+export continent_pacific_name="Pacific"
+export continent_utc_name="UTC"
+
+#
+# Export i18n menu texts of continents/oceans for awk(1) ENVIRON visibility
+# NOTE: These are defined in messages.subr included above.
+#
+export continent_africa_title
+export continent_america_title
+export continent_antarctica_title
+export continent_arctic_title
+export continent_asia_title
+export continent_atlantic_title
+export continent_australia_title
+export continent_europe_title
+export continent_indian_title
+export continent_pacific_title
+export continent_utc_title
+
+############################################################ FUNCTIONS
+
+# f_continent $cont $property [$var_to_set]
+#
+# Returns a single property of a given continent. Available properties are:
+#
+# 	name        Directory name of continent/ocean as it appears in
+# 	            _PATH_ZONEINFO.
+# 	title       Menu text of this continent/ocean to be displayed in the
+# 	            continent-selection menu.
+# 	nitems      Number of submenu items associated with this
+# 	            continent/ocean.
+# 	tlc_N       2-character country code of the Nth submenu item associated
+# 	            with this continent displayed in the country-selection menu
+# 	            (which appears after continent selection).
+# 	menu_list   Menu-list of regions for this continent.
+#
+# If $var_to_set is missing or NULL, the value of $var_to_get is printed to
+# standard output for capturing in a sub-shell (which is less-recommended
+# because of performance degredation; for example, when called in a loop).
+#
+f_continent()
+{
+	f_getvar "continent_${1}_$2" $3
+}
+
+# f_find_continent $title [$var_to_set]
+#
+# Returns continent identifier given continent title.
+#
+# If $var_to_set is missing or NULL, the value of $var_to_get is printed to
+# standard output for capturing in a sub-shell (which is less-recommended
+# because of performance degredation; for example, when called in a loop).
+#
+f_find_continent()
+{
+	local __cont __title
+	for __cont in $CONTINENTS; do
+		f_continent $__cont title __title
+		if [ "$1" = "$__title" ]; then
+			if [ "$2" ]; then
+				setvar "$2" $__cont
+			else
+				echo "$__cont"
+			fi
+			return $SUCCESS
+		fi
+	done
+	return $FAILURE
+}
+
+# f_OCEANP $cont [$var_to_set]
+#
+# Returns "1" if the first argument is an ocean, otherwise NULL.
+#
+# If $var_to_set is missing or NULL, the value of $var_to_get is printed to
+# standard output for capturing in a sub-shell (which is less-recommended
+# because of performance degredation; for example, when called in a loop).
+#
+f_OCEANP()
+{
+	case "$1" in
+	arctic|atlantic|indian|pacific)
+		if [ "$2" ]; then
+			setvar "$2" 1
+		else
+			echo 1
+		fi
+		;;
+	*)
+		[ "$2" ] && setvar "$2" ""
+	esac
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." timezone/continents.subr
+
+fi # ! $_TIMEZONE_CONTINENTS_SUBR

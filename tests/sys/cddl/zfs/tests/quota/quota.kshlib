@@ -1,0 +1,88 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)quota.kshlib	1.2	07/01/09 SMI"
+#
+
+# BLOCK_SIZE, QUOTA_VALUE and TOLERANCE set in quota.cfg
+readonly EDQUOT=69
+
+#
+# Function to fill the quota of a zfs filesystem
+#
+# $1 - The File system or container to fill.
+# $2 - The mountpoint to use.
+#
+function fill_quota 
+{
+	typeset FILESYSTEM="$1"
+	typeset MNTPT="$2"
+
+	log_must $ZFS set quota=$QUOTA_VALUE $FILESYSTEM
+
+	typeset -i write_size=0
+	(( write_size = 2 * QUOTA_VALUE ))
+
+	typeset -i zret=0
+	$FILE_WRITE -o create -f $MNTPT/$TESTFILE1 -b $BLOCK_SIZE \
+		 -c $write_size -d 0 
+	zret=$?
+        [[ $zret -ne EDQUOT ]] && log_fail "Got error $zret; expected $EDQUOT"
+
+	typeset -i file_size=`$LS -ls $MNTPT/$TESTFILE1 | $AWK '{ print $1 }'`
+	typeset -i limit=0
+	(( file_size = file_size * 512 ))
+	(( limit = QUOTA_VALUE + TOLERANCE ))
+	(( file_size > limit )) && \
+	    log_fail "File was created larger than the quota value, aborting!!!"
+	return 0
+}
+
+#
+# Function attempts to write another file in a ZFS filesystem
+# that has already filled its quota
+#
+function exceed_quota
+{
+	typeset FILESYSTEM="$1"
+	typeset MNTPT="$2"
+
+	log_must fill_quota $FILESYSTEM $MNTPT
+	typeset -i write_size=0
+        (( write_size = 2 * QUOTA_VALUE ))
+	typeset -i zret=0 
+	#
+	# Writing a file without API to access return code
+	#
+	log_note "Creating a file in a FS that has already exceeded its quota"
+	$FILE_WRITE -o create -f $MNTPT/$TESTFILE2 \
+		-b $BLOCK_SIZE -c $write_size -d 0
+	zret=$?
+        [[ $zret -ne EDQUOT ]] && log_fail "Got error $zret; expected $EDQUOT"
+	return 0
+}

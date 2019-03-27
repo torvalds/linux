@@ -1,0 +1,23 @@
+# $FreeBSD$
+
+# These assignments duplicate much of the functionality of
+# MACHINE_CPUARCH, but there's no easy way to export make functions...
+
+.if defined(TARGET_ARCH)
+TARGET_CPUARCH=${TARGET_ARCH:${__TO_CPUARCH}}
+.else
+TARGET_CPUARCH=${MACHINE_CPUARCH}
+.endif
+TARGET_ARCH?=	${MACHINE_ARCH}
+GCC_CPU=${TARGET_CPUARCH:C/amd64/i386/:C/powerpc/rs6000/:C/sparc64/sparc/}
+
+.if ${TARGET_ARCH} == "sparc64"
+TARGET_CPU_DEFAULT= TARGET_CPU_ultrasparc
+.endif
+.if ${TARGET_ARCH:Marm*eb} != "" || \
+	(${TARGET_CPUARCH} == "mips" && ${TARGET_ARCH:Mmips*el*} == "")
+TARGET_BIG_ENDIAN=t
+.endif
+.if ${TARGET_ARCH} == "powerpc64"
+TARGET_CPU_DEFAULT= \"powerpc64\"
+.endif

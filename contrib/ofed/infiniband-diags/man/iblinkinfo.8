@@ -1,0 +1,319 @@
+.\" Man page generated from reStructuredText.
+.
+.TH IBLINKINFO 8 "" "" "OpenIB Diagnostics"
+.SH NAME
+IBLINKINFO \- report link info for all links in the fabric
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH SYNOPSIS
+.sp
+iblinkinfo <options>
+.SH DESCRIPTION
+.sp
+iblinkinfo reports link info for each port in an IB fabric, node by node.
+Optionally, iblinkinfo can do partial scans and limit its output to parts of a
+fabric.
+.SH OPTIONS
+.sp
+\fB\-\-down, \-d\fP
+Print only nodes which have a port in the "Down" state.
+.sp
+\fB\-\-line, \-l\fP
+Print all information for each link on one line. Default is to print a header
+with the node information and then a list for each port (useful for
+grep\(aqing output).
+.sp
+\fB\-\-additional, \-p\fP
+Print additional port settings (<LifeTime>,<HoqLife>,<VLStallCount>)
+.sp
+\fB\-\-switches\-only\fP
+Show only switches in output.
+.sp
+\fB\-\-cas\-only\fP
+Show only CAs in output.
+.SS Partial Scan flags
+.sp
+The node to start a partial scan can be specified with the following addresses.
+.\" Define the common option -G
+.
+.sp
+\fB\-\-port\-guid, \-G <port_guid>\fP  Specify a port_guid
+.\" Define the common option -D for Directed routes
+.
+.sp
+\fB\-D, \-\-Direct <dr_path>\fP     The address specified is a directed route
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+Examples:
+   \-D "0"          # self port
+   \-D "0,1,2,1,4"  # out via port 1, then 2, ...
+
+   (Note the second number in the path specified must match the port being
+   used.  This can be specified using the port selection flag \(aq\-P\(aq or the
+   port found through the automatic selection process.)
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBNote:\fP For switches results are printed for all ports not just switch port 0.
+.sp
+\fB\-\-switch, \-S <port_guid>\fP same as "\-G". (provided only for backward compatibility)
+.sp
+How much of the scan to be printed can be controled with the following.
+.sp
+\fB\-\-all, \-a\fP
+Print all nodes found in a partial fabric scan.  Normally a
+partial fabric scan will return only the node specified.  This option will
+print the other nodes found as well.
+.sp
+\fB\-\-hops, \-n <hops>\fP
+Specify the number of hops away from a specified node to scan.  This is useful
+to expand a partial fabric scan beyond the node specified.
+.SS Cache File flags
+.\" Define the common option load-cache
+.
+.sp
+\fB\-\-load\-cache <filename>\fP
+Load and use the cached ibnetdiscover data stored in the specified
+filename.  May be useful for outputting and learning about other
+fabrics or a previous state of a fabric.
+.\" Define the common option diff
+.
+.sp
+\fB\-\-diff <filename>\fP
+Load cached ibnetdiscover data and do a diff comparison to the current
+network or another cache.  A special diff output for ibnetdiscover
+output will be displayed showing differences between the old and current
+fabric.  By default, the following are compared for differences: switches,
+channel adapters, routers, and port connections.
+.\" Define the common option diffcheck
+.
+.sp
+\fB\-\-diffcheck <key(s)>\fP
+Specify what diff checks should be done in the \fB\-\-diff\fP option above.
+Comma separate multiple diff check key(s).  The available diff checks
+are: \fBsw = switches\fP, \fBca = channel adapters\fP, \fBrouter\fP = routers,
+\fBport\fP = port connections, \fBlid\fP = lids, \fBnodedesc\fP = node
+descriptions.  Note that \fBport\fP, \fBlid\fP, and \fBnodedesc\fP are
+checked only for the node types that are specified (e.g. \fBsw\fP,
+\fBca\fP, \fBrouter\fP).  If \fBport\fP is specified alongside \fBlid\fP
+or \fBnodedesc\fP, remote port lids and node descriptions will also be compared.
+.sp
+\fB\-\-filterdownports <filename>\fP
+Filter downports indicated in a ibnetdiscover cache.  If a port was previously
+indicated as down in the specified cache, and is still down, do not output it in the
+resulting output.  This option may be particularly useful for environments
+where switches are not fully populated, thus much of the default iblinkinfo
+info is considered unuseful.  See \fBibnetdiscover\fP for information on caching
+ibnetdiscover output.
+.SS Port Selection flags
+.\" Define the common option -C
+.
+.sp
+\fB\-C, \-\-Ca <ca_name>\fP    use the specified ca_name.
+.\" Define the common option -P
+.
+.sp
+\fB\-P, \-\-Port <ca_port>\fP    use the specified ca_port.
+.\" Explanation of local port selection
+.
+.SS Local port Selection
+.sp
+Multiple port/Multiple CA support: when no IB device or port is specified
+(see the "local umad parameters" below), the libibumad library
+selects the port to use by the following criteria:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP 1. 3
+the first port that is ACTIVE.
+.IP 2. 3
+if not found, the first port that is UP (physical link up).
+.UNINDENT
+.sp
+If a port and/or CA name is specified, the libibumad library attempts
+to fulfill the user request, and will fail if it is not possible.
+.sp
+For example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+ibaddr                 # use the first port (criteria #1 above)
+ibaddr \-C mthca1       # pick the best port from "mthca1" only.
+ibaddr \-P 2            # use the second (active/up) port from the first available IB device.
+ibaddr \-C mthca0 \-P 2  # use the specified port only.
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Configuration flags
+.\" Define the common option -z
+.
+.sp
+\fB\-\-config, \-z  <config_file>\fP Specify alternate config file.
+.INDENT 0.0
+.INDENT 3.5
+Default: /etc/infiniband-diags/ibdiag.conf
+.UNINDENT
+.UNINDENT
+.\" Define the common option -z
+.
+.INDENT 0.0
+.TP
+.B \fB\-\-outstanding_smps, \-o <val>\fP
+Specify the number of outstanding SMP\(aqs which should be issued during the scan
+.sp
+Default: 2
+.UNINDENT
+.\" Define the common option --node-name-map
+.
+.sp
+\fB\-\-node\-name\-map <node\-name\-map>\fP Specify a node name map.
+.INDENT 0.0
+.INDENT 3.5
+This file maps GUIDs to more user friendly names.  See FILES section.
+.UNINDENT
+.UNINDENT
+.\" Define the common option -t
+.
+.sp
+\fB\-t, \-\-timeout <timeout_ms>\fP override the default timeout for the solicited mads.
+.\" Define the common option -y
+.
+.INDENT 0.0
+.TP
+.B \fB\-y, \-\-m_key <key>\fP
+use the specified M_key for requests. If non\-numeric value (like \(aqx\(aq)
+is specified then a value will be prompted for.
+.UNINDENT
+.SS Debugging flags
+.\" Define the common option -e
+.
+.INDENT 0.0
+.TP
+.B \-e
+show send and receive errors (timeouts and others)
+.UNINDENT
+.\" Define the common option -h
+.
+.sp
+\fB\-h, \-\-help\fP      show the usage message
+.\" Define the common option -v
+.
+.INDENT 0.0
+.TP
+.B \fB\-v, \-\-verbose\fP
+increase the application verbosity level.
+May be used several times (\-vv or \-v \-v \-v)
+.UNINDENT
+.\" Define the common option -V
+.
+.sp
+\fB\-V, \-\-version\fP     show the version info.
+.SH EXIT STATUS
+.sp
+0 on success, \-1 on failure to scan the fabric, 1 if check mode is used and
+inconsistencies are found.
+.SH FILES
+.\" Common text for the config file
+.
+.SS CONFIG FILE
+.sp
+/etc/infiniband-diags/ibdiag.conf
+.sp
+A global config file is provided to set some of the common options for all
+tools.  See supplied config file for details.
+.\" Common text to describe the node name map file.
+.
+.SS NODE NAME MAP FILE FORMAT
+.sp
+The node name map is used to specify user friendly names for nodes in the
+output.  GUIDs are used to perform the lookup.
+.sp
+This functionality is provided by the opensm\-libs package.  See \fBopensm(8)\fP
+for the file location for your installation.
+.sp
+\fBGenerically:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+# comment
+<guid> "<name>"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+# IB1
+# Line cards
+0x0008f104003f125c "IB1 (Rack 11 slot 1   ) ISR9288/ISR9096 Voltaire sLB\-24D"
+0x0008f104003f125d "IB1 (Rack 11 slot 1   ) ISR9288/ISR9096 Voltaire sLB\-24D"
+0x0008f104003f10d2 "IB1 (Rack 11 slot 2   ) ISR9288/ISR9096 Voltaire sLB\-24D"
+0x0008f104003f10d3 "IB1 (Rack 11 slot 2   ) ISR9288/ISR9096 Voltaire sLB\-24D"
+0x0008f104003f10bf "IB1 (Rack 11 slot 12  ) ISR9288/ISR9096 Voltaire sLB\-24D"
+
+# Spines
+0x0008f10400400e2d "IB1 (Rack 11 spine 1   ) ISR9288 Voltaire sFB\-12D"
+0x0008f10400400e2e "IB1 (Rack 11 spine 1   ) ISR9288 Voltaire sFB\-12D"
+0x0008f10400400e2f "IB1 (Rack 11 spine 1   ) ISR9288 Voltaire sFB\-12D"
+0x0008f10400400e31 "IB1 (Rack 11 spine 2   ) ISR9288 Voltaire sFB\-12D"
+0x0008f10400400e32 "IB1 (Rack 11 spine 2   ) ISR9288 Voltaire sFB\-12D"
+
+# GUID   Node Name
+0x0008f10400411a08 "SW1  (Rack  3) ISR9024 Voltaire 9024D"
+0x0008f10400411a28 "SW2  (Rack  3) ISR9024 Voltaire 9024D"
+0x0008f10400411a34 "SW3  (Rack  3) ISR9024 Voltaire 9024D"
+0x0008f104004119d0 "SW4  (Rack  3) ISR9024 Voltaire 9024D"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH AUTHOR
+.INDENT 0.0
+.TP
+.B Ira Weiny
+< \fI\%ira.weiny@intel.com\fP >
+.UNINDENT
+.\" Generated by docutils manpage writer.
+.

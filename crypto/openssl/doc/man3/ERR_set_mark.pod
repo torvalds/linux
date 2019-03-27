@@ -1,0 +1,39 @@
+=pod
+
+=head1 NAME
+
+ERR_set_mark, ERR_pop_to_mark - set marks and pop errors until mark
+
+=head1 SYNOPSIS
+
+ #include <openssl/err.h>
+
+ int ERR_set_mark(void);
+
+ int ERR_pop_to_mark(void);
+
+=head1 DESCRIPTION
+
+ERR_set_mark() sets a mark on the current topmost error record if there
+is one.
+
+ERR_pop_to_mark() will pop the top of the error stack until a mark is found.
+The mark is then removed.  If there is no mark, the whole stack is removed.
+
+=head1 RETURN VALUES
+
+ERR_set_mark() returns 0 if the error stack is empty, otherwise 1.
+
+ERR_pop_to_mark() returns 0 if there was no mark in the error stack, which
+implies that the stack became empty, otherwise 1.
+
+=head1 COPYRIGHT
+
+Copyright 2003-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

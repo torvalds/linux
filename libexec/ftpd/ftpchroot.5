@@ -1,0 +1,120 @@
+.\" Copyright (c) 2003 FreeBSD Project
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 26, 2003
+.Dt FTPCHROOT 5
+.Os
+.Sh NAME
+.Nm ftpchroot
+.Nd "list users and groups subject to FTP access restrictions"
+.Sh DESCRIPTION
+The file
+.Nm
+is read by
+.Xr ftpd 8
+at the beginning of an FTP session, after having authenticated the user.
+Each line in
+.Nm
+corresponds to a user or group.
+If a line in
+.Nm
+matches the current user or a group he is a member of,
+access restrictions will be applied to this
+session by changing its root directory with
+.Xr chroot 2
+to that specified on the line or to the user's login directory.
+.Pp
+The order of records in
+.Nm
+is important because the first match will be used.
+Fields on each line are separated by tabs or spaces.
+.Pp
+The first field specifies a user or group name.
+If it is prefixed by an
+.Dq at
+sign,
+.Ql @ ,
+it specifies a group name;
+the line will match each user who is a member of this group.
+As a special case, a single
+.Ql @
+in this field will match any user.
+A username is specified otherwise.
+.Pp
+The optional second field describes the directory for the user
+or each member of the group to be locked up in using
+.Xr chroot 2 .
+Be it omitted, the user's login directory will be used.
+If it is not an absolute pathname, then it will be relative
+to the user's login directory.
+If it contains the
+.Pa /./
+separator,
+.Xr ftpd 8
+will treat its left-hand side as the name of the directory to do
+.Xr chroot 2
+to, and its right-hand side to change the current directory to afterwards.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/ftpchroot" -compact
+.It Pa /etc/ftpchroot
+.El
+.Sh EXAMPLES
+These lines in
+.Nm
+will lock up the user
+.Dq Li webuser
+and each member of the group
+.Dq Li hostee
+in their respective login directories:
+.Bd -literal -offset indent
+webuser
+@hostee
+.Ed
+.Pp
+And this line will tell
+.Xr ftpd 8
+to lock up the user
+.Dq Li joe
+in
+.Pa /var/spool/ftp
+and then to change the current directory to
+.Pa /joe ,
+which is relative to the session's new root:
+.Pp
+.Dl "joe	/var/spool/ftp/./joe"
+.Pp
+And finally the following line will lock up every user connecting
+through FTP in his respective
+.Pa ~/public_html ,
+thus lowering possible impact on the system
+from intrinsic insecurity of FTP:
+.Pp
+.Dl "@	public_html"
+.Sh SEE ALSO
+.Xr chroot 2 ,
+.Xr group 5 ,
+.Xr passwd 5 ,
+.Xr ftpd 8

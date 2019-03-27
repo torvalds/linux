@@ -1,0 +1,88 @@
+.\" Copyright (c) 2001 FreeBSD inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by FreeBSD Inc.;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use FreeBSD
+.\"    Inc., Inc. trademarks, including the mark "FREEBSD
+.\"    INC." on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY FREEBSD INC. "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, FreeBSD Inc. MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" FreeBSD Inc. DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL FreeBSD Inc. BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF FreeBSD Inc. IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Julian Elischer <julian@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 19, 2001
+.Dt NG_SPLIT 4
+.Os
+.Sh NAME
+.Nm ng_split
+.Nd netgraph node to separate incoming and outgoing flows
+.Sh SYNOPSIS
+.In netgraph/ng_split.h
+.Sh DESCRIPTION
+The
+.Nm split
+node type is used to split a bidirectional stream of packets into
+two separate unidirectional streams of packets.
+.Sh HOOKS
+This node type supports the following three hooks:
+.Bl -tag -width ".Va mixed"
+.It Va in
+Packets received on
+.Em in
+are forwarded to
+.Em mixed .
+.It Va out
+Packets received on
+.Em out
+will be discarded as illegal.
+.It Va mixed
+Packets received on
+.Em mixed
+are forwarded to
+.Em out .
+.El
+.Sh CONTROL MESSAGES
+This node type supports only the generic control messages.
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 3.5
+but incorporated into
+.Fx
+in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq Mt julian@FreeBSD.org
+.An Vitaly V. Belekhov Aq Mt vitaly@riss-telecom.ru

@@ -1,0 +1,73 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)caesar.6	8.2 (Berkeley) 11/16/93
+.\" $FreeBSD$
+.\"
+.Dd November 16, 1993
+.Dt CAESAR 6
+.Os
+.Sh NAME
+.Nm caesar , rot13
+.Nd decrypt caesar ciphers
+.Sh SYNOPSIS
+.Nm
+.Op Ar rotation
+.Nm rot13
+.Sh DESCRIPTION
+The
+.Nm
+utility attempts to decrypt caesar ciphers using English letter frequency
+statistics.
+.Nm Caesar
+reads from the standard input and writes to the standard output.
+.Pp
+The optional numerical argument
+.Ar rotation
+may be used to specify a specific rotation value.
+If invoked as
+.Nm rot13 ,
+a rotation value of 13 will be used.
+.Pp
+The frequency (from most common to least) of English letters is as follows:
+.Bd -ragged -offset indent
+ETAONRISHDLFCMUGPYWBVKXJQZ
+.Ed
+.Pp
+Their frequencies as a percentage are as follows:
+.Bd -ragged -offset indent
+E(13), T(10.5), A(8.1), O(7.9), N(7.1), R(6.8), I(6.3), S(6.1), H(5.2),
+D(3.8), L(3.4), F(2.9), C(2.7), M(2.5), U(2.4), G(2),
+P(1.9), Y(1.9),
+W(1.5), B(1.4), V(.9), K(.4), X(.15), J(.13), Q(.11), Z(.07).
+.Ed
+.Pp
+Rotated postings to
+.Tn USENET
+and some of the databases used by the
+.Xr fortune 6
+program are rotated by 13 characters.

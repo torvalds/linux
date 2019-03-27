@@ -1,0 +1,28 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_LEAVE_MULTICAST" 3 "2007-05-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_leave_multicast \- Leaves a multicast group.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "int" rdma_leave_multicast
+.BI "(struct rdma_cm_id *" id ","
+.BI "struct sockaddr *" addr ");"
+.SH ARGUMENTS
+.IP "id" 12
+Communication identifier associated with the request.
+.IP "addr" 12
+Multicast address identifying the group to leave.
+.SH "DESCRIPTION"
+Leaves a multicast group and detaches an associated QP from the group.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+Calling this function before a group has been fully joined results in
+canceling the join operation.  Users should be aware that messages
+received from the multicast group may stilled be queued for
+completion processing immediately after leaving a multicast group.
+Destroying an rdma_cm_id will automatically leave all multicast groups.
+.SH "SEE ALSO"
+rdma_join_multicast(3), rdma_destroy_qp(3)

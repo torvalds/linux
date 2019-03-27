@@ -1,0 +1,227 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)select.2	8.2 (Berkeley) 3/25/94
+.\" $FreeBSD$
+.\"
+.Dd November 17, 2002
+.Dt SELECT 2
+.Os
+.Sh NAME
+.Nm select
+.Nd synchronous I/O multiplexing
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/select.h
+.Ft int
+.Fn select "int nfds" "fd_set *readfds" "fd_set *writefds" "fd_set *exceptfds" "struct timeval *timeout"
+.Fn FD_SET fd &fdset
+.Fn FD_CLR fd &fdset
+.Fn FD_ISSET fd &fdset
+.Fn FD_ZERO &fdset
+.Sh DESCRIPTION
+The
+.Fn select
+system call
+examines the I/O descriptor sets whose addresses are passed in
+.Fa readfds ,
+.Fa writefds ,
+and
+.Fa exceptfds
+to see if some of their descriptors
+are ready for reading, are ready for writing, or have an exceptional
+condition pending, respectively.
+The only exceptional condition detectable is out-of-band
+data received on a socket.
+The first
+.Fa nfds
+descriptors are checked in each set;
+i.e., the descriptors from 0 through
+.Fa nfds Ns No -1
+in the descriptor sets are examined.
+On return,
+.Fn select
+replaces the given descriptor sets
+with subsets consisting of those descriptors that are ready
+for the requested operation.
+The
+.Fn select
+system call
+returns the total number of ready descriptors in all the sets.
+.Pp
+The descriptor sets are stored as bit fields in arrays of integers.
+The following macros are provided for manipulating such descriptor sets:
+.Fn FD_ZERO &fdset
+initializes a descriptor set
+.Fa fdset
+to the null set.
+.Fn FD_SET fd &fdset
+includes a particular descriptor
+.Fa fd
+in
+.Fa fdset .
+.Fn FD_CLR fd &fdset
+removes
+.Fa fd
+from
+.Fa fdset .
+.Fn FD_ISSET fd &fdset
+is non-zero if
+.Fa fd
+is a member of
+.Fa fdset ,
+zero otherwise.
+The behavior of these macros is undefined if
+a descriptor value is less than zero or greater than or equal to
+.Dv FD_SETSIZE ,
+which is normally at least equal
+to the maximum number of descriptors supported by the system.
+.Pp
+If
+.Fa timeout
+is not a null pointer, it specifies the maximum interval to wait for the
+selection to complete.
+System activity can lengthen the interval by
+an indeterminate amount.
+.Pp
+If
+.Fa timeout
+is a null pointer, the select blocks indefinitely.
+.Pp
+To effect a poll, the
+.Fa timeout
+argument should not be a null pointer,
+but it should point to a zero-valued timeval structure.
+.Pp
+Any of
+.Fa readfds ,
+.Fa writefds ,
+and
+.Fa exceptfds
+may be given as null pointers if no descriptors are of interest.
+.Sh RETURN VALUES
+The
+.Fn select
+system call
+returns the number of ready descriptors that are contained in
+the descriptor sets,
+or -1 if an error occurred.
+If the time limit expires,
+.Fn select
+returns 0.
+If
+.Fn select
+returns with an error,
+including one due to an interrupted system call,
+the descriptor sets will be unmodified.
+.Sh ERRORS
+An error return from
+.Fn select
+indicates:
+.Bl -tag -width Er
+.It Bq Er EBADF
+One of the descriptor sets specified an invalid descriptor.
+.It Bq Er EFAULT
+One of the arguments
+.Fa readfds , writefds , exceptfds ,
+or
+.Fa timeout
+points to an invalid address.
+.It Bq Er EINTR
+A signal was delivered before the time limit expired and
+before any of the selected events occurred.
+.It Bq Er EINVAL
+The specified time limit is invalid.
+One of its components is
+negative or too large.
+.It Bq Er EINVAL
+The
+.Fa nfds
+argument
+was invalid.
+.El
+.Sh SEE ALSO
+.Xr accept 2 ,
+.Xr connect 2 ,
+.Xr getdtablesize 2 ,
+.Xr gettimeofday 2 ,
+.Xr kqueue 2 ,
+.Xr poll 2 ,
+.Xr read 2 ,
+.Xr recv 2 ,
+.Xr send 2 ,
+.Xr write 2 ,
+.Xr clocks 7
+.Sh NOTES
+The default size of
+.Dv FD_SETSIZE
+is currently 1024.
+In order to accommodate programs which might potentially
+use a larger number of open files with
+.Fn select ,
+it is possible
+to increase this size by having the program define
+.Dv FD_SETSIZE
+before the inclusion of any header which includes
+.In sys/types.h .
+.Pp
+If
+.Fa nfds
+is greater than the number of open files,
+.Fn select
+is not guaranteed to examine the unused file descriptors.
+For historical
+reasons,
+.Fn select
+will always examine the first 256 descriptors.
+.Sh STANDARDS
+The
+.Fn select
+system call and
+.Fn FD_CLR ,
+.Fn FD_ISSET ,
+.Fn FD_SET ,
+and
+.Fn FD_ZERO
+macros conform with
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn select
+system call appeared in
+.Bx 4.2 .
+.Sh BUGS
+.St -susv2
+allows systems to modify the original timeout in place.
+Thus, it is unwise to assume that the timeout value will be unmodified
+by the
+.Fn select
+system call.
+.Fx
+does not modify the return value, which can cause problems for applications
+ported from other systems.

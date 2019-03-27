@@ -1,0 +1,75 @@
+=pod
+
+=head1 NAME
+
+SMIME_read_CMS - parse S/MIME message
+
+=head1 SYNOPSIS
+
+ #include <openssl/cms.h>
+
+ CMS_ContentInfo *SMIME_read_CMS(BIO *in, BIO **bcont);
+
+=head1 DESCRIPTION
+
+SMIME_read_CMS() parses a message in S/MIME format.
+
+B<in> is a BIO to read the message from.
+
+If cleartext signing is used then the content is saved in a memory bio which is
+written to B<*bcont>, otherwise B<*bcont> is set to NULL.
+
+The parsed CMS_ContentInfo structure is returned or NULL if an
+error occurred.
+
+=head1 NOTES
+
+If B<*bcont> is not NULL then the message is clear text signed. B<*bcont> can
+then be passed to CMS_verify() with the B<CMS_DETACHED> flag set.
+
+Otherwise the type of the returned structure can be determined
+using CMS_get0_type().
+
+To support future functionality if B<bcont> is not NULL B<*bcont> should be
+initialized to NULL. For example:
+
+ BIO *cont = NULL;
+ CMS_ContentInfo *cms;
+
+ cms = SMIME_read_CMS(in, &cont);
+
+=head1 BUGS
+
+The MIME parser used by SMIME_read_CMS() is somewhat primitive.  While it will
+handle most S/MIME messages more complex compound formats may not work.
+
+The parser assumes that the CMS_ContentInfo structure is always base64 encoded
+and will not handle the case where it is in binary format or uses quoted
+printable format.
+
+The use of a memory BIO to hold the signed content limits the size of message
+which can be processed due to memory restraints: a streaming single pass option
+should be available.
+
+=head1 RETURN VALUES
+
+SMIME_read_CMS() returns a valid B<CMS_ContentInfo> structure or B<NULL>
+if an error occurred. The error can be obtained from ERR_get_error(3).
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<CMS_type(3)>,
+L<SMIME_read_CMS(3)>, L<CMS_sign(3)>,
+L<CMS_verify(3)>, L<CMS_encrypt(3)>,
+L<CMS_decrypt(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

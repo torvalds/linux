@@ -1,0 +1,355 @@
+.\" Copyright (c) 2006 Daniel Gerzo <danger@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 19, 2016
+.Dt NANOBSD 8
+.Os
+.Sh NAME
+.Nm nanobsd.sh
+.Nd utility used to create a FreeBSD system image suitable for embedded
+applications
+.Sh SYNOPSIS
+.Nm
+.Op Fl bfhiKknqvwX
+.Op Fl c Ar config-file
+.Sh DESCRIPTION
+The
+.Nm
+utility is a script which produces a minimal implementation of
+.Fx
+(called
+.Nm NanoBSD ) ,
+which typically fits on a small media such as a Compact Flash card,
+or other mass storage medium.
+It can be used to build specialized install images, designed for easy
+installation and maintenance.
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl c Ar config-file" -offset indent
+.It Fl b
+Skip the build stages (both for kernel and world).
+.It Fl c Ar config-file
+Specify the configuration file to use.
+.It Fl f
+Skip the code slice extraction.
+.It Fl h
+Display usage information.
+.It Fl i
+Skip the disk image build stage.
+.It Fl K
+Skip the
+.Cm installkernel
+stage of the build.
+.It Fl k
+Skip the
+.Cm buildkernel
+stage of the build.
+.It Fl n
+Do not cleanup before each build stage.
+This suppresses the normal cleanup work done before the
+.Cm buildworld
+stage and adds -DNO_CLEAN to the make command line
+used for each build stage (world and kernel).
+.It Fl q
+Make output more quiet.
+.It Fl v
+Make output more verbose.
+.It Fl w
+Skip the
+.Cm buildworld
+stage of the build.
+.It Fl X
+Make
+.Cm native-xtools.
+.El
+.Pp
+The features of
+.Nm NanoBSD
+include:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Ports and packages work as in
+.Fx .
+Every single application can be installed and used in a
+.Nm NanoBSD
+image, the same way as in
+.Fx .
+.It
+No missing functionality.
+If it is possible to do something with
+.Fx ,
+it is possible to do the same thing with
+.Nm NanoBSD ,
+unless the specific feature or features were explicitly removed from the
+.Nm NanoBSD
+image when it was created.
+.It
+Everything is read-only at run-time.
+It is safe to pull the power-plug.
+There is no necessity to run
+.Xr fsck 8
+after a non-graceful shutdown of the system.
+.It
+Easy to build and customize.
+Making use of just one shell script and one configuration file it is
+possible to build reduced and customized images satisfying any arbitrary
+set of requirements.
+.El
+.Ss NanoBSD Media Layout
+The mass storage medium is divided into three parts by default (which
+are normally mounted read-only):
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Two image partitions:
+.Li code#1
+and
+.Li code#2 .
+.It
+The configuration file partition, which can be mounted under the
+.Pa /cfg
+directory at run time.
+.El
+.Pp
+The
+.Pa /etc
+and
+.Pa /var
+directories are
+.Xr md 4
+(malloc backed) disks.
+.Pp
+The configuration file partition persists under the
+.Pa /cfg
+directory.
+It contains files for
+.Pa /etc
+directory and is briefly mounted read-only right after the system boot,
+therefore it is required to copy modified files from
+.Pa /etc
+back to the
+.Pa /cfg
+directory if changes are expected to persist after the system restarts.
+.Sh BUILDING Nm NanoBSD
+A
+.Nm NanoBSD
+image is built using a simple
+.Nm
+shell script, which can be
+found in the
+.Pa src/tools/tools/nanobsd
+directory.
+This script creates a bootable image, which can be copied on the storage
+medium using the
+.Xr dd 1
+utility.
+.Pp
+The necessary commands to build and install a
+.Nm NanoBSD
+image are:
+.Bd -literal -offset indent
+cd /usr/src/tools/tools/nanobsd
+sh nanobsd.sh
+cd /usr/obj/nanobsd.full
+dd if=_.disk.full of=/dev/da0 bs=64k
+.Ed
+.Sh CUSTOMIZING Nm NanoBSD
+This is probably the most important and most interesting feature of
+.Nm NanoBSD .
+This is also where you will be spending most of the time when developing with
+.Nm NanoBSD .
+.Pp
+Customization is done in two ways:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Configuration options.
+.It
+Custom functions.
+.El
+.Pp
+With configuration settings, it is possible to configure options passed
+to both the
+.Cm buildworld
+and
+.Cm installworld
+stages of the
+.Nm NanoBSD
+build process, as well as internal options passed to the main build
+process of
+.Nm NanoBSD .
+Through these options it is possible to cut the system down, so it will
+fit on as little as 64MB.
+You can use the configuration options to trim down the system
+even more, until it will consist of just the kernel and two or three
+files in the userland.
+.Pp
+The configuration file consists of configuration options, which override
+the default values.
+The most important directives are:
+.Bl -tag -width ".Va CONF_INSTALL" -offset indent
+.It Va NANO_NAME
+Build name (used to construct the working directory names).
+.It Va NANO_SRC
+Path to the source tree used to build the image.
+.It Va NANO_KERNEL
+Name of the kernel configuration file used to build the kernel.
+.It Va NANO_ARCH
+Machine processor architecture to build.
+Defaults to output of
+.Cm uname -p .
+.It Va NANO_BOOT0CFG
+Controls the options passed to
+.Xr boot0cfg 8 ;
+these dictate
+.Nm boot0 Ns 's
+behaviour.
+.It Va NANO_BOOTLOADER
+The
+.Nm boot0
+loader to use relative to the
+.Va NANO_WORLDDIR
+variable.
+This defaults to
+.Pa boot/boot0sio
+and should be overridden to
+.Pa boot/boot0
+to provide a VGA
+console.
+.It Va CONF_BUILD
+Options passed to the
+.Cm buildworld
+stage of the build.
+.It Va CONF_INSTALL
+Options passed to the
+.Cm installworld
+stage of the build.
+.It Va CONF_WORLD
+Options passed to both the
+.Cm buildworld
+and
+.Cm installworld
+stages of the build.
+.It Va FlashDevice
+Defines the type of media to use.
+Check the
+.Pa FlashDevice.sub
+file for more details.
+.El
+.Pp
+For more configuration options, please check the
+.Nm
+script.
+.Pp
+To build
+.Nm NanoBSD
+image using the
+.Pa nanobsd.conf
+configuration file, use the following command:
+.Bd -literal -offset indent
+sh nanobsd.sh -c nanobsd.conf
+.Ed
+.Pp
+It is possible to fine-tune
+.Nm NanoBSD
+using shell functions in the configuration file.
+The following example illustrates the basic model of custom functions:
+.Bd -literal -offset indent
+cust_foo () (
+	echo "bar=topless" > \\
+	     ${NANO_WORLDDIR}/etc/foo
+)
+customize_cmd cust_foo
+.Ed
+.Pp
+There are a few pre-defined customization functions ready for use:
+.Bl -tag -width ".Cm cust_allow_ssh_root" -offset indent
+.It Cm cust_comconsole
+Disables
+.Xr getty 8
+on the virtual
+.Xr syscons 4
+or
+.Xr vt 4
+terminals
+.Pq Pa /dev/ttyv*
+and enables the use of the first serial port as the system
+console.
+.It Cm cust_allow_ssh_root
+Allow root to log in via
+.Xr sshd 8 .
+.It Cm cust_install_files
+Installs files from the
+.Pa nanobsd/Files
+directory, which contains some useful scripts for system administration.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa src/tools/tools/nanobsd" -compact
+.It Pa src/tools/tools/nanobsd
+Base directory of the
+.Nm NanoBSD
+build script.
+.El
+.Sh EXAMPLES
+Making persistent changes to
+.Pa /etc/resolv.conf :
+.Bd -literal -offset indent
+vi /etc/resolv.conf
+\&...
+mount /cfg
+cp /etc/resolv.conf /cfg
+umount /cfg
+.Ed
+.Pp
+A more useful example of a customization function is the following,
+which changes the default size of the
+.Pa /etc
+directory from 5MB to 30MB:
+.Bd -literal -offset indent
+cust_etc_size () (
+	cd ${NANO_WORLDDIR}/conf
+	echo 30000 > default/etc/md_size
+)
+customize_cmd cust_etc_size
+.Ed
+.Sh SEE ALSO
+.Xr make.conf 5 ,
+.Xr boot 8 ,
+.Xr boot0cfg 8 ,
+.Xr picobsd 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+.An -nosplit
+.Nm NanoBSD
+was developed by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .
+This manual page was written by
+.An Daniel Gerzo Aq Mt danger@FreeBSD.org .

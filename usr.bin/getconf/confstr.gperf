@@ -1,0 +1,81 @@
+%{
+/*
+ * Copyright is disclaimed as to the contents of this file.
+ *
+ * $FreeBSD$
+ */
+
+#include <sys/types.h>
+
+#include <string.h>
+#include <unistd.h>
+
+#include "getconf.h"
+
+/*
+ * Override gperf's built-in external scope.
+ */
+static const struct map *in_word_set(const char *str);
+
+/*
+ * The Standard seems a bit ambiguous over whether the POSIX_V6_*
+ * are specified with or without a leading underscore, so we just
+ * use both.
+ */
+%}
+struct map { const char *name; int key; int valid; };
+%%
+PATH, _CS_PATH
+POSIX_V6_ILP32_OFF32_CFLAGS, _CS_POSIX_V6_ILP32_OFF32_CFLAGS
+POSIX_V6_ILP32_OFF32_LDFLAGS, _CS_POSIX_V6_ILP32_OFF32_LDFLAGS
+POSIX_V6_ILP32_OFF32_LIBS, _CS_POSIX_V6_ILP32_OFF32_LIBS
+POSIX_V6_ILP32_OFFBIG_CFLAGS, _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS
+POSIX_V6_ILP32_OFFBIG_LDFLAGS, _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS
+POSIX_V6_ILP32_OFFBIG_LIBS, _CS_POSIX_V6_ILP32_OFFBIG_LIBS
+POSIX_V6_LP64_OFF64_CFLAGS, _CS_POSIX_V6_LP64_OFF64_CFLAGS
+POSIX_V6_LP64_OFF64_LDFLAGS, _CS_POSIX_V6_LP64_OFF64_LDFLAGS
+POSIX_V6_LP64_OFF64_LIBS, _CS_POSIX_V6_LP64_OFF64_LIBS
+POSIX_V6_LPBIG_OFFBIG_CFLAGS, _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS
+POSIX_V6_LPBIG_OFFBIG_LDFLAGS, _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS
+POSIX_V6_LPBIG_OFFBIG_LIBS, _CS_POSIX_V6_LPBIG_OFFBIG_LIBS
+POSIX_V6_WIDTH_RESTRICTED_ENVS, _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS
+_POSIX_V6_ILP32_OFF32_CFLAGS, _CS_POSIX_V6_ILP32_OFF32_CFLAGS
+_POSIX_V6_ILP32_OFF32_LDFLAGS, _CS_POSIX_V6_ILP32_OFF32_LDFLAGS
+_POSIX_V6_ILP32_OFF32_LIBS, _CS_POSIX_V6_ILP32_OFF32_LIBS
+_POSIX_V6_ILP32_OFFBIG_CFLAGS, _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS
+_POSIX_V6_ILP32_OFFBIG_LDFLAGS, _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS
+_POSIX_V6_ILP32_OFFBIG_LIBS, _CS_POSIX_V6_ILP32_OFFBIG_LIBS
+_POSIX_V6_LP64_OFF64_CFLAGS, _CS_POSIX_V6_LP64_OFF64_CFLAGS
+_POSIX_V6_LP64_OFF64_LDFLAGS, _CS_POSIX_V6_LP64_OFF64_LDFLAGS
+_POSIX_V6_LP64_OFF64_LIBS, _CS_POSIX_V6_LP64_OFF64_LIBS
+_POSIX_V6_LPBIG_OFFBIG_CFLAGS, _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS
+_POSIX_V6_LPBIG_OFFBIG_LDFLAGS, _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS
+_POSIX_V6_LPBIG_OFFBIG_LIBS, _CS_POSIX_V6_LPBIG_OFFBIG_LIBS
+_POSIX_V6_WIDTH_RESTRICTED_ENVS, _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS
+%%
+int
+find_confstr(const char *name, int *key)
+{
+	const struct map *rv;
+
+	rv = in_word_set(name);
+	if (rv != NULL) {
+		if (rv->valid) {
+			*key = rv->key;
+			return 1;
+		}
+		return -1;
+	}
+	return 0;
+}
+
+void
+foreach_confstr(void (*func)(const char *, int))
+{
+	const struct map *mp;
+
+	for (mp = wordlist; mp->name != NULL; mp++) {
+		if (mp->valid)
+			func(mp->name, mp->key);
+	}
+}

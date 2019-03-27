@@ -1,0 +1,142 @@
+.\"	$NetBSD: zdiff.1,v 1.5 2010/04/14 19:52:05 wiz Exp $
+.\"	$OpenBSD: zdiff.1,v 1.2 2003/07/13 17:39:14 millert Exp $
+.\"
+.\" Copyright (c) 2003 Todd C. Miller <Todd.Miller@courtesan.com>
+.\" Copyright (c) 2010 Joerg Sonnenberger <joerg@NetBSD.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" Sponsored in part by the Defense Advanced Research Projects
+.\" Agency (DARPA) and Air Force Research Laboratory, Air Force
+.\" Materiel Command, USAF, under agreement number F39502-99-1-0512.
+.\"
+.\" $FreeBSD$
+.Dd May 23, 2011
+.Dt ZDIFF 1
+.Os
+.Sh NAME
+.Nm zcmp ,
+.Nm zdiff
+.Nd compare compressed files
+.Sh SYNOPSIS
+.Nm zcmp
+.Op Ar options
+.Ar file
+.Op Ar file2
+.Nm zdiff
+.Op Ar options
+.Ar file
+.Op Ar file2
+.Sh DESCRIPTION
+.Nm zcmp
+and
+.Nm zdiff
+are filters that invoke
+.Xr cmp 1
+or
+.Xr diff 1
+respectively to compare compressed files.
+Any
+.Ar options
+that are specified are passed to
+.Xr cmp 1
+or
+.Xr diff 1 .
+.Pp
+If only
+.Ar file1
+is specified, it is compared against a file with the same name, but
+with the extension removed.
+When both
+.Ar file1
+or
+.Ar file2
+are specified, either file may be compressed.
+.Pp
+Extensions handled by
+.Xr gzip 1 :
+.Bl -bullet -compact
+.It
+z, Z,
+.It
+gz,
+.It
+taz,
+.It
+tgz.
+.El
+.Pp
+Extensions handled by
+.Xr bzip2 1 :
+.Bl -bullet -compact
+.It
+bz,
+.It
+bz2,
+.It
+tbz,
+.It
+tbz2.
+.El
+.Pp
+Extensions handled by
+.Xr xz 1 :
+.Bl -bullet -compact
+.It
+lzma,
+.It
+xz,
+.It
+tlz,
+.It
+txz.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width "TMPDIR"
+.It Ev TMPDIR
+Directory in which to place temporary files.
+If unset,
+.Pa /tmp
+is used.
+.El
+.Sh FILES
+.Bl -tag -width "/tmp/zdiff.XXXXXXXXXX" -compact
+.It Pa /tmp/zcmp.XXXXXXXXXX
+Temporary file for
+.Nm zcmp .
+.It Pa /tmp/zdiff.XXXXXXXXXX
+Temporary file for
+.Nm zdiff .
+.El
+.Sh SEE ALSO
+.Xr bzip2 1 ,
+.Xr cmp 1 ,
+.Xr diff 1 ,
+.Xr gzip 1 ,
+.Xr xz 1
+.Sh CAVEATS
+.Nm zcmp
+and
+.Nm zdiff
+rely solely on the file extension to determine what is, or is not,
+a compressed file.
+Consequently, the following are not supported as arguments:
+.Bl -dash
+.It
+directories
+.It
+device special files
+.It
+filenames indicating the standard input
+.Pq Dq \-
+.El

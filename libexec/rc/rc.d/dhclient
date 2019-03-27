@@ -1,0 +1,65 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: dhclient
+# KEYWORD: nojailvnet nostart
+
+. /etc/rc.subr
+. /etc/network.subr
+
+ifn="$2"
+
+name="dhclient"
+desc="Dynamic Host Configuration Protocol (DHCP) client"
+rcvar=
+pidfile="/var/run/dhclient/${name}.${ifn}.pid"
+start_precmd="dhclient_prestart"
+stop_precmd="dhclient_pre_check"
+
+# rc_force check can only be done at the run_rc_command
+# time, so we're testing it in the pre* hooks.
+dhclient_pre_check()
+{
+	if [ -z "${rc_force}" ] && ! dhcpif $ifn; then
+		local msg
+		msg="'$ifn' is not a DHCP-enabled interface"
+		if [ -z "${rc_quiet}" ]; then
+			echo "$msg"
+		else
+			debug "$msg"
+		fi
+		exit 1
+	fi
+}
+
+dhclient_prestart()
+{
+	dhclient_pre_check
+
+	# Interface-specific flags (see rc.subr for $flags setting)
+	specific=$(get_if_var $ifn dhclient_flags_IF)
+	if [ -z "$flags" -a -n "$specific" ]; then
+		rc_flags=$specific
+	fi
+
+	background_dhclient=$(get_if_var $ifn background_dhclient_IF $background_dhclient)
+	if checkyesno background_dhclient; then
+		rc_flags="${rc_flags} -b"
+	fi
+
+	rc_flags="${rc_flags} ${ifn}"
+}
+
+load_rc_config $name
+load_rc_config network
+
+if [ -z $ifn ] ; then
+	# only complain if a command was specified but no interface
+	if [ -n "$1" ] ; then
+		err 1 "$0: no interface specified"
+	fi
+fi
+
+run_rc_command "$1"

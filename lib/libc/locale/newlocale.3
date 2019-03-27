@@ -1,0 +1,112 @@
+.\" Copyright (c) 2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by David Chisnall under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd September 17, 2011
+.Dt NEWLOCALE 3
+.Os
+.Sh NAME
+.Nm newlocale
+.Nd Creates a new locale
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In locale.h
+.Ft locale_t
+.Fn newlocale "int mask" "const char * locale" "locale_t base"
+.Sh DESCRIPTION
+Creates a new locale, inheriting some properties from an existing locale.
+The
+.Fa mask
+defines the components that the new locale will have set to the locale with the
+name specified in the
+.Fa locale
+parameter.
+Any other components will be inherited from
+.Fa base .
+The
+.Fa mask
+is either
+.Fa LC_ALL_MASK ,
+indicating all possible locale components,
+or the logical OR of some combination of the following:
+.Bl -tag -width "LC_MESSAGES_MASK" -offset indent
+.It LC_COLLATE_MASK
+The locale for string collation routines.
+This controls alphabetic ordering in
+.Xr strcoll 3
+and
+.Xr strxfrm 3 .
+.It LC_CTYPE_MASK
+The locale for the
+.Xr ctype 3
+and
+.Xr multibyte 3
+functions.
+This controls recognition of upper and lower case, alphabetic or
+non-alphabetic characters, and so on.
+.It LC_MESSAGES_MASK
+Set a locale for message catalogs, see
+.Xr catopen 3
+function.
+.It LC_MONETARY_MASK
+Set a locale for formatting monetary values; this affects
+the
+.Xr localeconv 3
+function.
+.It LC_NUMERIC_MASK
+Set a locale for formatting numbers.
+This controls the formatting of decimal points in input and output of floating
+point numbers in functions such as
+.Xr printf 3
+and
+.Xr scanf 3 ,
+as well as values returned by
+.Xr localeconv 3 .
+.It LC_TIME_MASK
+Set a locale for formatting dates and times using the
+.Xr strftime 3
+function.
+.El
+This function uses the same rules for loading locale components as
+.Xr setlocale 3 .
+.Sh RETURN VALUES
+Returns a new, valid,
+.Fa locale_t
+or NULL if an error occurs.
+You must free the returned locale with
+.Xr freelocale 3 .
+.Sh SEE ALSO
+.Xr duplocale 3 ,
+.Xr freelocale 3 ,
+.Xr localeconv 3 ,
+.Xr querylocale 3 ,
+.Xr uselocale 3 ,
+.Xr xlocale 3
+.Sh STANDARDS
+This function conforms to
+.St -p1003.1-2008 .

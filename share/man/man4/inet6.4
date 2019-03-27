@@ -1,0 +1,460 @@
+.\"	$KAME: inet6.4,v 1.21 2001/04/05 01:00:18 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 14, 2018
+.Dt INET6 4
+.Os
+.Sh NAME
+.Nm inet6
+.Nd Internet protocol version 6 family
+.Sh SYNOPSIS
+.In sys/types.h
+.In netinet/in.h
+.Sh DESCRIPTION
+The
+.Nm
+family is an updated version of
+.Xr inet 4
+family.
+While
+.Xr inet 4
+implements Internet Protocol version 4,
+.Nm
+implements Internet Protocol version 6.
+.Pp
+.Nm
+is a collection of protocols layered atop the
+.Em Internet Protocol version 6
+.Pq Tn IPv6
+transport layer, and utilizing the IPv6 address format.
+The
+.Nm
+family provides protocol support for the
+.Dv SOCK_STREAM , SOCK_DGRAM ,
+and
+.Dv SOCK_RAW
+socket types; the
+.Dv SOCK_RAW
+interface provides access to the
+.Tn IPv6
+protocol.
+.Sh ADDRESSING
+IPv6 addresses are 16 byte quantities, stored in network standard byteorder.
+The include file
+.In netinet/in.h
+defines this address
+as a discriminated union.
+.Pp
+Sockets bound to the
+.Nm
+family utilize the following addressing structure:
+.Bd -literal -offset indent
+struct sockaddr_in6 {
+	uint8_t		sin6_len;
+	sa_family_t	sin6_family;
+	in_port_t	sin6_port;
+	uint32_t	sin6_flowinfo;
+	struct in6_addr	sin6_addr;
+	uint32_t	sin6_scope_id;
+};
+.Ed
+.Pp
+Sockets may be created with the local address
+.Dq Dv ::
+(which is equal to IPv6 address
+.Dv 0:0:0:0:0:0:0:0 )
+to affect
+.Dq wildcard
+matching on incoming messages.
+.Pp
+The IPv6 specification defines scoped addresses,
+like link-local or site-local addresses.
+A scoped address is ambiguous to the kernel,
+if it is specified without a scope identifier.
+To manipulate scoped addresses properly from the userland,
+programs must use the advanced API defined in RFC2292.
+A compact description of the advanced API is available in
+.Xr ip6 4 .
+If a scoped address is specified without an explicit scope,
+the kernel may raise an error.
+Note that scoped addresses are not for daily use at this moment,
+both from a specification and an implementation point of view.
+.Pp
+The KAME implementation supports an extended numeric IPv6 address notation
+for link-local addresses,
+like
+.Dq Li fe80::1%de0
+to specify
+.Do
+.Li fe80::1
+on
+.Li de0
+interface
+.Dc .
+This notation is supported by
+.Xr getaddrinfo 3
+and
+.Xr getnameinfo 3 .
+Some of normal userland programs, such as
+.Xr telnet 1
+or
+.Xr ftp 1 ,
+are able to use this notation.
+With special programs
+like
+.Xr ping6 8 ,
+you can specify the outgoing interface by an extra command line option
+to disambiguate scoped addresses.
+.Pp
+Scoped addresses are handled specially in the kernel.
+In kernel structures like routing tables or interface structures,
+a scoped address will have its interface index embedded into the address.
+Therefore,
+the address in some kernel structures is not the same as that on the wire.
+The embedded index will become visible through a
+.Dv PF_ROUTE
+socket, kernel memory accesses via
+.Xr kvm 3
+and on some other occasions.
+HOWEVER, users should never use the embedded form.
+For details please consult
+.Pa IMPLEMENTATION
+supplied with KAME kit.
+.Sh PROTOCOLS
+The
+.Nm
+family is comprised of the
+.Tn IPv6
+network protocol, Internet Control
+Message Protocol version 6
+.Pq Tn ICMPv6 ,
+Transmission Control Protocol
+.Pq Tn TCP ,
+and User Datagram Protocol
+.Pq Tn UDP .
+.Tn TCP
+is used to support the
+.Dv SOCK_STREAM
+abstraction while
+.Tn UDP
+is used to support the
+.Dv SOCK_DGRAM
+abstraction.
+Note that
+.Tn TCP
+and
+.Tn UDP
+are common to
+.Xr inet 4
+and
+.Nm .
+A raw interface to
+.Tn IPv6
+is available
+by creating an Internet socket of type
+.Dv SOCK_RAW .
+The
+.Tn ICMPv6
+message protocol is accessible from a raw socket.
+.Ss MIB Variables
+A number of variables are implemented in the net.inet6 branch of the
+.Xr sysctl 3
+MIB.
+In addition to the variables supported by the transport protocols
+(for which the respective manual pages may be consulted),
+the following general variables are defined:
+.Bl -tag -width IPV6CTL_MAXFRAGPACKETS
+.It Dv IPV6CTL_FORWARDING
+.Pq ip6.forwarding
+Boolean: enable/disable forwarding of
+.Tn IPv6
+packets.
+Also, identify if the node is acting as a router.
+Defaults to off.
+.It Dv IPV6CTL_SENDREDIRECTS
+.Pq ip6.redirect
+Boolean: enable/disable sending of
+.Tn ICMPv6
+redirects in response to unforwardable
+.Tn IPv6
+packets.
+This option is ignored unless the node is routing
+.Tn IPv6
+packets,
+and should normally be enabled on all systems.
+Defaults to on.
+.It Dv IPV6CTL_DEFHLIM
+.Pq ip6.hlim
+Integer: default hop limit value to use for outgoing
+.Tn IPv6
+packets.
+This value applies to all the transport protocols on top of
+.Tn IPv6 .
+There are APIs to override the value.
+.It Dv IPV6CTL_MAXFRAGS
+.Pq ip6.maxfrags
+Integer: maximum number of fragments the host will accept and simultaneously
+hold across all reassembly queues in all VNETs.
+If set to 0, fragment reassembly is disabled.
+If set to -1, this limit is not applied.
+This limit is recalculated when the number of mbuf clusters is changed.
+This is a global limit.
+.It Dv IPV6CTL_MAXFRAGPACKETS
+.Pq ip6.maxfragpackets
+Integer: maximum number of fragmented packets the node will accept and
+simultaneously hold in the reassembly queue for a particular VNET.
+0 means that the node will not accept any fragmented packets for that VNET.
+-1 means that the node will not apply this limit for that VNET.
+This limit is recalculated when the number of mbuf clusters is changed.
+This is a per-VNET limit.
+.It Dv IPV6CTL_MAXFRAGBUCKETSIZE
+.Pq ip6.maxfragbucketsize
+Integer: maximum number of reassembly queues per bucket.
+Fragmented packets are hashed to buckets.
+Each bucket has a list of reassembly queues.
+The system must compare the incoming packets to the existing reassembly queues
+in the bucket to find a matching reassembly queue.
+To preserve system resources, the system limits the number of reassembly
+queues allowed in each bucket.
+This limit is recalculated when the number of mbuf clusters is changed or
+when the value of
+.Va ip6.maxfragpackets
+changes.
+This is a per-VNET limit.
+.It Dv IPV6CTL_MAXFRAGSPERPACKET
+.Pq ip6.maxfragsperpacket
+Integer: maximum number of fragments the host will accept and hold in the
+ressembly queue for a packet.
+This is a per-VNET limit.
+.It Dv IPV6CTL_ACCEPT_RTADV
+.Pq ip6.accept_rtadv
+Boolean: the default value of a per-interface flag to
+enable/disable receiving of
+.Tn ICMPv6
+router advertisement packets,
+and autoconfiguration of address prefixes and default routers.
+The node must be a host
+(not a router)
+for the option to be meaningful.
+Defaults to off.
+.It Dv IPV6CTL_AUTO_LINKLOCAL
+.Pq ip6.auto_linklocal
+Boolean: the default value of a per-interface flag to
+enable/disable performing automatic link-local address configuration.
+Defaults to on.
+.It Dv IPV6CTL_LOG_INTERVAL
+.Pq ip6.log_interval
+Integer: default interval between
+.Tn IPv6
+packet forwarding engine log output
+(in seconds).
+.It Dv IPV6CTL_HDRNESTLIMIT
+.Pq ip6.hdrnestlimit
+Integer: default number of the maximum
+.Tn IPv6
+extension headers
+permitted on incoming
+.Tn IPv6
+packets.
+If set to 0, the node will accept as many extension headers as possible.
+.It Dv IPV6CTL_DAD_COUNT
+.Pq ip6.dad_count
+Integer: default number of
+.Tn IPv6
+DAD
+.Pq duplicated address detection
+probe packets.
+The packets will be generated when
+.Tn IPv6
+interface addresses are configured.
+.It Dv IPV6CTL_AUTO_FLOWLABEL
+.Pq ip6.auto_flowlabel
+Boolean: enable/disable automatic filling of
+.Tn IPv6
+flowlabel field, for outstanding connected transport protocol packets.
+The field might be used by intermediate routers to identify packet flows.
+Defaults to on.
+.It Dv IPV6CTL_DEFMCASTHLIM
+.Pq ip6.defmcasthlim
+Integer: default hop limit value for an
+.Tn IPv6
+multicast packet sourced by the node.
+This value applies to all the transport protocols on top of
+.Tn IPv6 .
+There are APIs to override the value as documented in
+.Xr ip6 4 .
+.It Dv IPV6CTL_GIF_HLIM
+.Pq ip6.gifhlim
+Integer: default maximum hop limit value for an
+.Tn IPv6
+packet generated by
+.Xr gif 4
+tunnel interface.
+.It Dv IPV6CTL_KAME_VERSION
+.Pq ip6.kame_version
+String: identifies the version of KAME
+.Tn IPv6
+stack implemented in the kernel.
+.It Dv IPV6CTL_USE_DEPRECATED
+.Pq ip6.use_deprecated
+Boolean: enable/disable use of deprecated address,
+specified in RFC2462 5.5.4.
+Defaults to on.
+.It Dv IPV6CTL_RR_PRUNE
+.Pq ip6.rr_prune
+Integer: default interval between
+.Tn IPv6
+router renumbering prefix babysitting, in seconds.
+.It Dv IPV6CTL_V6ONLY
+.Pq ip6.v6only
+Boolean: enable/disable the prohibited use of
+.Tn IPv4
+mapped address on
+.Dv AF_INET6
+sockets.
+Defaults to on.
+.El
+.Ss Interaction between IPv4/v6 sockets
+By default,
+.Fx
+does not route IPv4 traffic to
+.Dv AF_INET6
+sockets.
+The default behavior intentionally violates RFC2553 for security reasons.
+Listen to two sockets if you want to accept both IPv4 and IPv6 traffic.
+IPv4 traffic may be routed with certain
+per-socket/per-node configuration, however, it is not recommended to do so.
+Consult
+.Xr ip6 4
+for details.
+.Pp
+The behavior of
+.Dv AF_INET6
+TCP/UDP socket is documented in RFC2553.
+Basically, it says this:
+.Bl -bullet -compact
+.It
+A specific bind on an
+.Dv AF_INET6
+socket
+.Xr ( bind 2
+with an address specified)
+should accept IPv6 traffic to that address only.
+.It
+If you perform a wildcard bind
+on an
+.Dv AF_INET6
+socket
+.Xr ( bind 2
+to IPv6 address
+.Li :: ) ,
+and there is no wildcard bind
+.Dv AF_INET
+socket on that TCP/UDP port, IPv6 traffic as well as IPv4 traffic
+should be routed to that
+.Dv AF_INET6
+socket.
+IPv4 traffic should be seen as if it came from an IPv6 address like
+.Li ::ffff:10.1.1.1 .
+This is called an IPv4 mapped address.
+.It
+If there are both a wildcard bind
+.Dv AF_INET
+socket and a wildcard bind
+.Dv AF_INET6
+socket on one TCP/UDP port, they should behave separately.
+IPv4 traffic should be routed to the
+.Dv AF_INET
+socket and IPv6 should be routed to the
+.Dv AF_INET6
+socket.
+.El
+.Pp
+However, RFC2553 does not define the ordering constraint between calls to
+.Xr bind 2 ,
+nor how IPv4 TCP/UDP port numbers and IPv6 TCP/UDP port numbers
+relate to each other
+(should they be integrated or separated).
+Implemented behavior is very different from kernel to kernel.
+Therefore, it is unwise to rely too much upon the behavior of
+.Dv AF_INET6
+wildcard bind sockets.
+It is recommended to listen to two sockets, one for
+.Dv AF_INET
+and another for
+.Dv AF_INET6 ,
+when you would like to accept both IPv4 and IPv6 traffic.
+.Pp
+It should also be noted that
+malicious parties can take advantage of the complexity presented above,
+and are able to bypass access control,
+if the target node routes IPv4 traffic to
+.Dv AF_INET6
+socket.
+Users are advised to take care handling connections
+from IPv4 mapped address to
+.Dv AF_INET6
+sockets.
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr socket 2 ,
+.Xr sysctl 3 ,
+.Xr icmp6 4 ,
+.Xr intro 4 ,
+.Xr ip6 4 ,
+.Xr tcp 4 ,
+.Xr udp 4
+.Sh STANDARDS
+.Rs
+.%A Tatsuya Jinmei
+.%A Atsushi Onoe
+.%T "An Extension of Format for IPv6 Scoped Addresses"
+.%R internet draft
+.%D June 2000
+.%N draft-ietf-ipngwg-scopedaddr-format-02.txt
+.%O work in progress material
+.Re
+.Sh HISTORY
+The
+.Nm
+protocol interfaces are defined in RFC2553 and RFC2292.
+The implementation described herein appeared in the WIDE/KAME project.
+.Sh BUGS
+The IPv6 support is subject to change as the Internet protocols develop.
+Users should not depend on details of the current implementation,
+but rather the services exported.
+.Pp
+Users are suggested to implement
+.Dq version independent
+code as much as possible, as you will need to support both
+.Xr inet 4
+and
+.Nm .

@@ -1,0 +1,12 @@
+$FreeBSD$
+
+This is a very cut down implementation of a "busybox" style binary
+for FreeBSD.
+
+It's based on the rescue build system, which uses the crunchgen functionality
+to build binaries.
+
+It's a work in progress.
+
+  -- adrian
+

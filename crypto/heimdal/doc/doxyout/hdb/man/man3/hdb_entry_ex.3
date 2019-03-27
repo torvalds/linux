@@ -1,0 +1,17 @@
+.TH "hdb_entry_ex" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalhdblibrary" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hdb_entry_ex \- 
+.SH SYNOPSIS
+.br
+.PP
+\fC#include <hdb.h>\fP
+.PP
+.SH "Detailed Description"
+.PP 
+\fBhdb_entry_ex\fP is a wrapper structure around the hdb_entry structure that allows backends to keep a pointer to the backing store, ie in ->hdb_fetch_kvno(), so that we the kadmin/kpasswd backend gets around to ->hdb_store(), the backend doesn't need to lookup the entry again. 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Heimdalhdblibrary from the source code.

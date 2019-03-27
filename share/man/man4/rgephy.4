@@ -1,0 +1,96 @@
+.\"
+.\" Copyright (c) 2011 Marius Strobl <marius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 16, 2011
+.Dt RGEPHY 4
+.Os
+.Sh NAME
+.Nm rgephy
+.Nd RealTek RTL8168/8169/8110/8211 series 10/100/1000 Gigabit Ethernet PHY driver
+.Sh SYNOPSIS
+To compile all available PHY drivers into the kernel,
+place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Ed
+.Pp
+Alternatively, to selectively compile this driver into the kernel,
+place the following lines in your kernel configuration file instead:
+.Bd -ragged -offset indent
+.Cd "device mii"
+.Cd "device rgephy"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the RealTek RTL8168, RTL8169, RTL8110 and RTL8211 series
+integrated 10/100/1000 Gigabit Ethernet PHYs.
+.Pp
+In order to get a list of media types and options supported by a specific
+instance of the
+.Nm
+driver, run
+.Li ifconfig -m
+on the instance of its parent MAC driver.
+.Pp
+Additionally,
+the
+.Nm
+driver supports the following special media option:
+.Bl -tag -width ".Cm flag0"
+.It Cm flag0
+When manually setting media type and options via
+.Xr ifconfig 8 ,
+the
+.Nm
+driver by default also triggers an autonegotiation advertising the selected
+media.
+This is done in order to work around hardware issues in certain scenarios.
+It is believed that this behavior does not cause harm in general but in fact
+can have an adverse effect in edge cases.
+In order to manually set the media type and options without also triggering
+an autonegotiation,
+the
+.Nm
+driver allows to turn this behavior off via the
+.Cm flag0
+media option.
+.El
+.Pp
+Note that this special media option will not show up in the output of
+.Xr ifconfig 8 ,
+even when set.
+.Sh EXAMPLES
+Manually set 100BASE-TX full-duplex without also triggering an
+autonegotiation:
+.Pp
+.Dl "ifconfig re0 media 100baseTX mediaopt full-duplex,flag0"
+.Sh SEE ALSO
+.\".Xr ifmedia 4 ,
+.Xr intro 4 ,
+.Xr miibus 4 ,
+.Xr ifconfig 8

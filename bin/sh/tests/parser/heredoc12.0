@@ -1,0 +1,47 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if ! eval "[ $* ]"; then
+		echo "Failed: $*"
+		: $((failures += 1))
+	fi
+}
+
+longmark=`printf %01000d 4`
+longmarkstripped=`printf %0999d 0`
+
+check '"$(cat <<'"$longmark
+$longmark"'
+echo yes)" = "yes"'
+
+check '"$(cat <<\'"$longmark
+$longmark"'
+echo yes)" = "yes"'
+
+check '"$(cat <<'"$longmark
+yes
+$longmark"'
+)" = "yes"'
+
+check '"$(cat <<\'"$longmark
+yes
+$longmark"'
+)" = "yes"'
+
+check '"$(cat <<'"$longmark
+$longmarkstripped
+$longmark.
+$longmark"'
+)" = "'"$longmarkstripped
+$longmark."'"'
+
+check '"$(cat <<\'"$longmark
+$longmarkstripped
+$longmark.
+$longmark"'
+)" = "'"$longmarkstripped
+$longmark."'"'
+
+exit $((failures != 0))

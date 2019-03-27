@@ -1,0 +1,133 @@
+#
+# This file adds to the values in AR91XX_BASE.hints.
+#
+# $FreeBSD$
+
+# Hard-code the PHY for now, until there's switch phy support.
+# hint.arge.0.phymask=0x000c
+hint.arge.0.phymask=0x0000
+hint.arge.0.media=1000
+hint.arge.0.fduplex=1
+# Where is the MAC address stored in flash for this particular unit.
+hint.arge.0.eeprommac=0x1f01fc00
+
+# This isn't used, but configure it anyway.
+# This should eventually just not be configured, but the if then
+# needs to be properly disabled or spurious interrupts occur.
+hint.arge.1.phymask=0x0
+
+# Where the ART is
+hint.ath.0.eepromaddr=0x1fff1000
+
+#
+# Define a slightly custom flash layout.
+
+# The default flash layout:
+#
+# 128k: uboot
+# 1024k: kernel
+# 4096k: rootfs
+# 2816: unknown
+# 64k: board config?
+# 64k: ART
+#
+# from printenv:
+# bootargs=console=ttyS0,115200 root=31:02 rootfstype=jffs2 init=/sbin/init
+#    mtdparts=ar9100-nor0:128k(u-boot),1024k(kernel),4096k(rootfs),64k(art)
+
+# This isn't a lot of space!
+# So:
+# 128k: uboot
+# 2048k: kernel
+# 5888k: rootfs
+# 64k: config
+# 64k: ART
+
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x00020000
+hint.map.0.name="uboot"
+hint.map.0.readonly=1
+
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00020000
+hint.map.1.end="search:0x00100000:0x10000:.!/bin/sh"
+hint.map.1.name="kernel"
+hint.map.1.readonly=1
+
+hint.map.2.at="flash/spi0"
+hint.map.2.start="search:0x00100000:0x10000:.!/bin/sh"
+hint.map.2.end=0x007e0000
+hint.map.2.name="rootfs"
+hint.map.2.readonly=1
+
+hint.map.3.at="flash/spi0"
+hint.map.3.start=0x007e0000
+hint.map.3.end=0x007f0000
+hint.map.3.name="cfg"
+hint.map.3.readonly=0
+
+# This is radio calibration section.  It is (or should be!) unique
+# for each board, to take into account thermal and electrical differences
+# as well as the regulatory compliance data.
+#
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x007f0000
+hint.map.4.end=0x00800000
+hint.map.4.name="art"
+hint.map.4.readonly=1
+
+# GPIO specific configuration block
+
+# Don't flip on anything that isn't already enabled.
+# This includes leaving the SPI CS1/CS2 pins as GPIO pins as they're
+# not used here.
+hint.gpio.0.function_set=0x00002000
+hint.gpio.0.function_clear=0x00000000
+
+# These are the GPIO LEDs and buttons which can be software controlled.
+hint.gpio.0.pinmask=0x001c02ae
+
+# pin 1 - USB (LED)
+# pin 2 - System (LED)
+# Pin 3 - Reset (input)
+# Pin 5 - QSS (LED)
+# Pin 7 - QSS Button (input)
+# Pin 8 - wired into the chip reset line
+# Pin 9 - WLAN
+# Pin 10 - UART TX (not GPIO)
+# Pin 13 - UART RX (not GPIO)
+# Pin 18 - RTL8366RB switch data line
+# Pin 19 - RTL8366RB switch clock line
+# Pin 20 - "GPIO20"
+
+# LEDs are configured separately and driven by the LED device
+#hint.gpioled.0.at="gpiobus0"
+#hint.gpioled.0.name="usb"
+#hint.gpioled.0.pins=0x0002
+
+hint.gpioled.1.at="gpiobus0"
+hint.gpioled.1.name="system"
+hint.gpioled.1.pins=0x0004
+
+hint.gpioled.2.at="gpiobus0"
+hint.gpioled.2.name="qss"
+hint.gpioled.2.pins=0x0020
+
+hint.gpioled.3.at="gpiobus0"
+hint.gpioled.3.name="wlan"
+hint.gpioled.3.pins=0x0200
+
+# GPIO I2C bus
+hint.gpioiic.0.at="gpiobus0"
+hint.gpioiic.0.pins=0xc0000
+hint.gpioiic.0.scl=1
+hint.gpioiic.0.sda=0
+
+# I2C bus
+# Don't be strict about I2C protocol - the relaxed semantics are required
+# by the realtek switch PHY.
+hint.iicbus.0.strict=0
+
+# Bit bang bus - override default delay
+#hint.iicbb.0.udelay=3

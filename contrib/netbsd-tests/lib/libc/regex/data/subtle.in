@@ -1,0 +1,21 @@
+# subtleties of matching
+abc		&	xabcy	abc
+a\(b\)?c\1d	b	acd
+aBc		i	Abc	Abc
+a[Bc]*d		i	abBCcd	abBCcd
+0[[:upper:]]1	&i	0a1	0a1
+0[[:lower:]]1	&i	0A1	0A1
+a[^b]c		&i	abc
+a[^b]c		&i	aBc
+a[^b]c		&i	adc	adc
+[a]b[c]		-	abc	abc
+[a]b[a]		-	aba	aba
+[abc]b[abc]	-	abc	abc
+[abc]b[abd]	-	abd	abd
+a(b?c)+d	-	accd	accd
+(wee|week)(knights|night)	-	weeknights	weeknights
+(we|wee|week|frob)(knights|night|day)	-	weeknights	weeknights
+a[bc]d		-	xyzaaabcaababdacd	abd
+a[ab]c		-	aaabc	abc
+abc		s	abc	abc
+a*		&	b	@b

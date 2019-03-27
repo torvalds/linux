@@ -1,0 +1,466 @@
+.\" Copyright (c) 2010 Joerg Sonnenberger
+.\" Copyright (c) 2016 Martin Matuska
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd February 15, 2017
+.Dt ARCHIVE_ENTRY_ACL 3
+.Os
+.Sh NAME
+.Nm archive_entry_acl_add_entry ,
+.Nm archive_entry_acl_add_entry_w ,
+.Nm archive_entry_acl_clear ,
+.Nm archive_entry_acl_count ,
+.Nm archive_entry_acl_from_text ,
+.Nm archive_entry_acl_from_text_w ,
+.Nm archive_entry_acl_next ,
+.Nm archive_entry_acl_next_w ,
+.Nm archive_entry_acl_reset ,
+.Nm archive_entry_acl_to_text ,
+.Nm archive_entry_acl_to_text_w ,
+.Nm archive_entry_acl_types
+.Nd functions for manipulating Access Control Lists in archive entry descriptions
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive_entry.h
+.Ft void
+.Fo archive_entry_acl_add_entry
+.Fa "struct archive_entry *a"
+.Fa "int type"
+.Fa "int permset"
+.Fa "int tag"
+.Fa "int qualifier"
+.Fa "const char *name"
+.Fc
+.Ft void
+.Fo archive_entry_acl_add_entry_w
+.Fa "struct archive_entry *a"
+.Fa "int type"
+.Fa "int permset"
+.Fa "int tag"
+.Fa "int qualifier"
+.Fa "const wchar_t *name"
+.Fc
+.Ft void
+.Fn archive_entry_acl_clear "struct archive_entry *a"
+.Ft int
+.Fn archive_entry_acl_count "struct archive_entry *a" "int type"
+.Ft int
+.Fo archive_entry_acl_from_text
+.Fa "struct archive_entry *a"
+.Fa "const char *text"
+.Fa "int type"
+.Fc
+.Ft int
+.Fo archive_entry_acl_from_text_w
+.Fa "struct archive_entry *a"
+.Fa "const wchar_t *text"
+.Fa "int type"
+.Fc
+.Ft int
+.Fo archive_entry_acl_next
+.Fa "struct archive_entry *a"
+.Fa "int type"
+.Fa "int *ret_type"
+.Fa "int *ret_permset"
+.Fa "int *ret_tag"
+.Fa "int *ret_qual"
+.Fa "const char **ret_name"
+.Fc
+.Ft int
+.Fo archive_entry_acl_next_w
+.Fa "struct archive_entry *a"
+.Fa "int type"
+.Fa "int *ret_type"
+.Fa "int *ret_permset"
+.Fa "int *ret_tag"
+.Fa "int *ret_qual"
+.Fa "const wchar_t **ret_name"
+.Fc
+.Ft int
+.Fn archive_entry_acl_reset "struct archive_entry *a" "int type"
+.Ft char *
+.Fo archive_entry_acl_to_text
+.Fa "struct archive_entry *a"
+.Fa "ssize_t *len_p"
+.Fa "int flags"
+.Fc
+.Ft wchar_t *
+.Fo archive_entry_acl_to_text_w
+.Fa "struct archive_entry *a"
+.Fa "ssize_t *len_p"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fn archive_entry_acl_types "struct archive_entry *a"
+.\" enum?
+.Sh DESCRIPTION
+The
+.Dq Access Control Lists (ACLs)
+extend the standard Unix perssion model.
+The ACL interface of
+.Nm libarchive
+supports both POSIX.1e and NFSv4 style ACLs. Use of ACLs is restricted by
+various levels of ACL support in operating systems, file systems and archive
+formats.
+.Ss POSIX.1e Access Control Lists
+A POSIX.1e ACL consists of a number of independent entries.
+Each entry specifies the permission set as bitmask of basic permissions.
+Valid permissions in the
+.Fa permset
+are:
+.Bl -tag -offset indent -compact -width "ARCHIVE_ENTRY_ACL_EXECUTE"
+.It Dv ARCHIVE_ENTRY_ACL_READ ( Sy r )
+.It Dv ARCHIVE_ENTRY_ACL_WRITE ( Sy w )
+.It Dv ARCHIVE_ENTRY_ACL_EXECUTE ( Sy x )
+.El
+The permissions correspond to the normal Unix permissions.
+.Pp
+The
+.Fa tag
+specifies the principal to which the permission applies.
+Valid values are:
+.Bl -hang -offset indent -compact -width "ARCHIVE_ENTRY_ACL_GROUP_OBJ"
+.It Dv ARCHIVE_ENTRY_ACL_USER
+The user specified by the name field.
+.It Dv ARCHIVE_ENTRY_ACL_USER_OBJ
+The owner of the file.
+.It Dv ARCHIVE_ENTRY_ACL_GROUP
+The group specied by the name field.
+.It Dv ARCHIVE_ENTRY_ACL_GROUP_OBJ
+The group who owns the file.
+.It Dv ARCHIVE_ENTRY_ACL_MASK
+The maximum permissions to be obtained via group permissions.
+.It Dv ARCHIVE_ENTRY_ACL_OTHER
+Any principal who is not file owner or a member of the owning group.
+.El
+.Pp
+The principals
+.Dv ARCHIVE_ENTRY_ACL_USER_OBJ ,
+.Dv ARCHIVE_ENTRY_ACL_GROUP_OBJ
+and
+.Dv ARCHIVE_ENTRY_ACL_OTHER
+are equivalent to user, group and other in the classic Unix permission
+model and specify non-extended ACL entries.
+.Pp
+All files with have an access ACL
+.Pq Dv ARCHIVE_ENTRY_ACL_TYPE_ACCESS .
+This specifies the permissions required for access to the file itself.
+Directories have an additional ACL
+.Pq Dv ARCHIVE_ENTRY_ACL_TYPE_DEFAULT ,
+which controls the initial access ACL for newly created directory entries.
+.Ss NFSv4 Access Control Lists
+A NFSv4 ACL consists of multiple individual entries called Access Control
+Entries (ACEs).
+.Pp
+There are four possible types of a NFSv4 ACE:
+.Bl -hang -offset indent -compact -width "ARCHIVE_ENTRY_ACL_TYE_ALLOW"
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_ALLOW
+Allow principal to perform actions requiring given permissions.
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_DENY
+Prevent principal from performing actions requiring given permissions.
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_AUDIT
+Log access attempts by principal which require given permissions.
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_ALARM
+Trigger a system alarm on access attempts by principal which require given
+permissions.
+.El
+.Pp
+The
+.Fa tag
+specifies the principal to which the permission applies.
+Valid values are:
+.Bl -hang -offset indent -compact -width "ARCHIVE_ENTRY_ACL_GROUP_OBJ"
+.It Dv ARCHIVE_ENTRY_ACL_USER
+The user specified by the name field.
+.It Dv ARCHIVE_ENTRY_ACL_USER_OBJ
+The owner of the file.
+.It Dv ARCHIVE_ENTRY_ACL_GROUP
+The group specied by the name field.
+.It Dv ARCHIVE_ENTRY_ACL_GROUP_OBJ
+The group who owns the file.
+.It Dv ARCHIVE_ENTRY_ACL_EVERYONE
+Any principal who is not file owner or a member of the owning group.
+.El
+.Pp
+Entries with the
+.Dv ARCHIVE_ENTRY_ACL_USER
+or
+.Dv ARCHIVE_ENTRY_ACL_GROUP
+tag store the user and group name in the
+.Fa name
+string and optionally the user or group ID in the
+.Fa qualifier
+integer.
+.Pp
+NFSv4 ACE permissions and flags are stored in the same
+.Fa permset
+bitfield. Some permissions share the same constant and permission character but
+have different effect on directories than on files. The following ACE
+permissions are supported:
+.Bl -tag -offset indent -compact -width ARCHIV
+.It Dv ARCHIVE_ENTRY_ACL_READ_DATA ( Sy r )
+Read data (file).
+.It Dv ARCHIVE_ENTRY_ACL_LIST_DIRECTORY ( Sy r )
+List entries (directory).
+.It ARCHIVE_ENTRY_ACL_WRITE_DATA ( Sy w )
+Write data (file).
+.It ARCHIVE_ENTRY_ACL_ADD_FILE ( Sy w )
+Create files (directory).
+.It Dv ARCHIVE_ENTRY_ACL_EXECUTE ( Sy x )
+Execute file or change into a directory.
+.It Dv ARCHIVE_ENTRY_ACL_APPEND_DATA ( Sy p )
+Append data (file).
+.It Dv ARCHIVE_ENTRY_ACL_ADD_SUBDIRECTORY ( Sy p )
+Create subdirectories (directory).
+.It Dv ARCHIVE_ENTRY_ACL_DELETE_CHILD ( Sy D )
+Remove files and subdirectories inside a directory.
+.It Dv ARCHIVE_ENTRY_ACL_DELETE ( Sy d )
+Remove file or directory.
+.It Dv ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES ( Sy a )
+Read file or directory attributes.
+.It Dv ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES ( Sy A )
+Write file or directory attributes.
+.It Dv ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS ( Sy R )
+Read named file or directory attributes.
+.It Dv ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS ( Sy W )
+Write named file or directory attributes.
+.It Dv ARCHIVE_ENTRY_ACL_READ_ACL ( Sy c )
+Read file or directory ACL.
+.It Dv ARCHIVE_ENTRY_ACL_WRITE_ACL ( Sy C )
+Write file or directory ACL.
+.It Dv ARCHIVE_ENTRY_ACL_WRITE_OWNER ( Sy o )
+Change owner of a file or directory.
+.It Dv ARCHIVE_ENTRY_ACL_SYNCHRONIZE ( Sy s )
+Use synchronous I/O.
+.El
+.Pp
+The following NFSv4 ACL inheritance flags are supported:
+.Bl -tag -offset indent -compact -width ARCHIV
+.It Dv ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT ( Sy f )
+Inherit parent directory ACE to files.
+.It Dv ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT ( Sy d )
+Inherit parent directory ACE to subdirectories.
+.It Dv ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY ( Sy i )
+Only inherit, do not apply the permission on the directory itself.
+.It Dv ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT ( Sy n )
+Do not propagate inherit flags. Only first-level entries inherit ACLs.
+.It Dv ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS ( Sy S )
+Trigger alarm or audit on successful access.
+.It Dv ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS ( Sy F )
+Trigger alarm or audit on failed access.
+.It Dv ARCHIVE_ENTRY_ACL_ENTRY_INHERITED ( Sy I )
+Mark that ACE was inherited.
+.El
+.Ss Functions
+.Fn archive_entry_acl_add_entry
+and
+.Fn archive_entry_acl_add_entry_w
+add a single ACL entry.
+For the access ACL and non-extended principals, the classic Unix permissions
+are updated. An archive entry cannot contain both POSIX.1e and NFSv4 ACL
+entries.
+.Pp
+.Fn archive_entry_acl_clear
+removes all ACL entries and resets the enumeration pointer.
+.Pp
+.Fn archive_entry_acl_count
+counts the ACL entries that have the given type mask.
+.Fa type
+can be the bitwise-or of
+.Bl -tag -offset indent -compact -width "ARCHIVE_ENTRY_ACL_TYPE_DEFAULT"
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_DEFAULT
+.El
+for POSIX.1e ACLs and
+.Bl -tag -offset indent -compact -width "ARCHIVE_ENTRY_ACL_TYPE_ALLOW"
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_ALLOW
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_DENY
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_AUDIT
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_ALARM
+.El
+for NFSv4 ACLs. For POSIX.1e ACLs if
+.Dv ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+is included and at least one extended ACL entry is found,
+the three non-extended ACLs are added.
+.Pp
+.Fn archive_entry_acl_from_text
+and
+.Fn archive_entry_acl_from_text_w
+add new
+.Pq or merge with existing
+ACL entries from
+.Pq wide
+text. The argument
+.Fa type
+may take one of the following values:
+.Bl -tag -offset indent -compact -width "ARCHIVE_ENTRY_ACL_TYPE_DEFAULT"
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_DEFAULT
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_NFS4
+.El
+Supports all formats that can be created with
+.Fn archive_entry_acl_to_text
+or respective
+.Fn archive_entry_acl_to_text_w .
+Existing ACL entries are preserved. To get a clean new ACL from text
+.Fn archive_entry_acl_clear
+must be called first. Entries prefixed with
+.Dq default:
+are treated as
+.Dv ARCHIVE_ENTRY_ACL_TYPE_DEFAULT
+unless
+.Fa type
+is
+.Dv ARCHIVE_ENTRY_ACL_TYPE_NFS4 .
+Invalid entries, non-parseable ACL entries and entries beginning with
+the
+.Sq #
+character
+.Pq comments
+are skipped.
+.Pp
+.Fn archive_entry_acl_next
+and
+.Fn archive_entry_acl_next_w
+return the next entry of the ACL list.
+This functions may only be called after
+.Fn archive_entry_acl_reset
+has indicated the presence of extended ACL entries.
+.Pp
+.Fn archive_entry_acl_reset
+prepare reading the list of ACL entries with
+.Fn archive_entry_acl_next
+or
+.Fn archive_entry_acl_next_w .
+The function returns either 0, if no non-extended ACLs are found.
+In this case, the access permissions should be obtained by
+.Xr archive_entry_mode 3
+or set using
+.Xr chmod 2 .
+Otherwise, the function returns the same value as
+.Fn archive_entry_acl_count .
+.Pp
+.Fn archive_entry_acl_to_text
+and
+.Fn archive_entry_acl_to_text_w
+convert the ACL entries for the given type into a
+.Pq wide
+string of ACL entries separated by newline. If the pointer
+.Fa len_p
+is not NULL, then the function shall return the length of the string
+.Pq not including the NULL terminator
+in the location pointed to by
+.Fa len_p .
+The
+.Fa flag
+argument is a bitwise-or.
+.Pp
+The following flags are effective only on POSIX.1e ACL:
+.Bl -tag -offset indent -compact -width ARCHIV
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+Output access ACLs.
+.It Dv ARCHIVE_ENTRY_ACL_TYPE_DEFAULT
+Output POSIX.1e default ACLs.
+.It Dv ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT
+Prefix each default ACL entry with the word
+.Dq default: .
+.It Dv ARCHIVE_ENTRY_ACL_STYLE_SOLARIS
+The mask and other ACLs don not contain a double colon.
+.El
+.Pp
+The following flags are effecive only on NFSv4 ACL:
+.Bl -tag -offset indent -compact -width ARCHIV
+.It Dv ARCHIVE_ENTRY_ACL_STYLE_COMPACT
+Do not output minus characters for unset permissions and flags in NFSv4 ACL
+permission and flag fields.
+.El
+.Pp
+The following flags are effective on both POSIX.1e and NFSv4 ACL:
+.Bl -tag -offset indent -compact -width ARCHIV
+.It Dv ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID
+Add an additional colon-separated field containing the user or group id.
+.It Dv ARCHIVE_ENTRY_ACL_STYLE_SEPARATOR_COMMA
+Separate ACL entries with comma instead of newline.
+.El
+.Pp
+If the archive entry contains NFSv4 ACLs, all types of NFSv4 ACLs are returned.
+It the entry contains POSIX.1e ACLs and none of the flags
+.Dv ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+or
+.Dv ARCHIVE_ENTRY_ACL_TYPE_DEFAULT
+are specified, both access and default entries are returned and default entries
+are prefixed with
+.Dq default: .
+.Pp
+.Fn archive_entry_acl_types
+get ACL entry types contained in an archive entry's ACL. As POSIX.1e and NFSv4
+ACL entries cannot be mixed, this function is a very efficient way to detect if
+an ACL already contains POSIX.1e or NFSv4 ACL entries.
+.Sh RETURN VALUES
+.Fn archive_entry_acl_count
+and
+.Fn archive_entry_acl_reset
+returns the number of ACL entries that match the given type mask.
+For POSIX.1e ACLS if the type mask includes
+.Dv ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+and at least one extended ACL entry exists, the three classic Unix
+permissions are counted.
+.Pp
+.Fn archive_entry_acl_from_text
+and
+.Fn archive_entry_acl_from_text_w
+return
+.Dv ARCHIVE_OK
+if all entries were successfully parsed and
+.Dv ARCHIVE_WARN
+if one or more entries were invalid or non-parseable.
+.Pp
+.Fn archive_entry_acl_next
+and
+.Fn archive_entry_acl_next_w
+return
+.Dv ARCHIVE_OK
+on success,
+.Dv ARCHIVE_EOF
+if no more ACL entries exist
+and
+.Dv ARCHIVE_WARN
+if
+.Fn archive_entry_acl_reset
+has not been called first.
+.Pp
+.Fn archive_entry_acl_to_text
+returns a string representing the ACL entries matching the given type and
+flags on success or NULL on error.
+.Pp
+.Fn archive_entry_acl_to_text_w
+returns a wide string representing the ACL entries matching the given type
+and flags on success or NULL on error.
+.Pp
+.Fn archive_entry_acl_types
+returns a bitmask of ACL entry types or 0 if archive entry has no ACL entries.
+.Sh SEE ALSO
+.Xr archive_entry 3 ,
+.Xr libarchive 3

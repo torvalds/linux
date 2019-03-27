@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to build libraries, programs, and kernel modules without IPv6 support.

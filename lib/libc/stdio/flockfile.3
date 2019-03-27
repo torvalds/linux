@@ -1,0 +1,104 @@
+.\" Copyright (c) 2003 Tim J. Robbins
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 10, 2003
+.Dt FLOCKFILE 3
+.Os
+.Sh NAME
+.Nm flockfile ,
+.Nm ftrylockfile ,
+.Nm funlockfile
+.Nd "stdio locking functions"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Ft void
+.Fn flockfile "FILE *stream"
+.Ft int
+.Fn ftrylockfile "FILE *stream"
+.Ft void
+.Fn funlockfile "FILE *stream"
+.Sh DESCRIPTION
+These functions provide explicit application-level locking of stdio streams.
+They can be used to avoid output from multiple threads being interspersed,
+input being dispersed among multiple readers, and to avoid the overhead
+of locking the stream for each operation.
+.Pp
+The
+.Fn flockfile
+function acquires an exclusive lock on the specified stream.
+If another thread has already locked the stream,
+.Fn flockfile
+will block until the lock is released.
+.Pp
+The
+.Fn ftrylockfile
+function is a non-blocking version of
+.Fn flockfile ;
+if the lock cannot be acquired immediately,
+.Fn ftrylockfile
+returns non-zero instead of blocking.
+.Pp
+The
+.Fn funlockfile
+function releases the lock on a stream acquired by an earlier call to
+.Fn flockfile
+or
+.Fn ftrylockfile .
+.Pp
+These functions behave as if there is a lock count associated
+with each stream.
+Each time
+.Fn flockfile
+is called on the stream, the count is incremented,
+and each time
+.Fn funlockfile
+is called on the stream, the count is decremented.
+The lock is only actually released when the count reaches zero.
+.Sh RETURN VALUES
+The
+.Fn flockfile
+and
+.Fn funlockfile
+functions return no value.
+.Pp
+The
+.Fn ftrylockfile
+function
+returns zero if the stream was successfully locked,
+non-zero otherwise.
+.Sh SEE ALSO
+.Xr getc_unlocked 3 ,
+.Xr putc_unlocked 3
+.Sh STANDARDS
+The
+.Fn flockfile ,
+.Fn ftrylockfile
+and
+.Fn funlockfile
+functions conform to
+.St -p1003.1-2001 .

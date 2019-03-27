@@ -1,0 +1,54 @@
+#	@(#)printcap	5.3 (Berkeley) 6/30/90
+# $FreeBSD$
+
+#
+# This enables a simple local "raw" printer, hooked up to the first
+# parallel port.  No kind of filtering is done, so everything you pass
+# to the "lpr" command will be printed unmodified.
+#
+# Remember, for further print queues you're going to add, you have
+# to choose different spool directories (the "sd" capability below),
+# otherwise you will greatly confuse lpd.
+#
+# For some advanced printing, have a look at the "apsfilter" package.
+# It plugs into the lpd system, allowing you to print a variety of
+# different file types by converting everything to PostScript(tm)
+# format.  For more information about apsfilter visit
+#
+#	     http://www.apsfilter.org/
+#
+# If you don't have a PostScript(tm) printer, don't panic, but do
+# also install the latest "ghostscript" package for best printer support.
+#
+# Do also refer to the "printing" section of the handbook.
+#
+#	https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/printing.html
+#
+# A local copy can be found under
+#
+#	/usr/share/doc/handbook/handbook.{html,latin1}.
+#
+# Banner pages are now suppressed by default.  Remove the :sh: capability
+# to turn them back on.
+#
+#lp|local line printer:\
+#	:sh:\
+#	:lp=/dev/lpt0:sd=/var/spool/output/lpd:lf=/var/log/lpd-errs:
+#
+# Sample remote printer.  The physical printer is on machine "lphost".
+# You can perform any kind of local filtering directly.  If you need
+# local filters (e.g. LF -> CR-LF conversion for HP printers), create
+# a filter script that sends the proper escape sequence to the printer
+# and then concatenates stdin to stdout.
+#
+#remote|sample remote printer:\
+#	:sh:\
+#	:rm=lphost:sd=/var/spool/output/lphost:lf=/var/log/lpd-errs:\
+#	:if=/usr/local/libexec/if-script:
+#
+# Simple Russian printer with hardware CP866 character set, output filter
+# used for KOI8-R -> CP866 conversion
+#
+#lp|Russian local line printer:\
+#	:sh:of=/usr/libexec/lpr/ru/koi2alt:\
+#	:lp=/dev/lpt0:sd=/var/spool/output/lpd:lf=/var/log/lpd-errs:

@@ -1,0 +1,328 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)jot.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd April 7, 2015
+.Dt JOT 1
+.Os
+.Sh NAME
+.Nm jot
+.Nd print sequential or random data
+.Sh SYNOPSIS
+.Nm
+.Op Fl cnr
+.Op Fl b Ar word
+.Op Fl w Ar word
+.Op Fl s Ar string
+.Op Fl p Ar precision
+.Op Ar reps Op Ar begin Op Ar end Op Ar s
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to print out increasing, decreasing, random,
+or redundant data, usually numbers, one per line.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl r
+Generate random data instead of the default sequential data.
+.It Fl b Ar word
+Just print
+.Ar word
+repetitively.
+.It Fl w Ar word
+Print
+.Ar word
+with the generated data appended to it.
+Octal, hexadecimal, exponential,
+.Tn ASCII ,
+zero padded,
+and right-adjusted representations
+are possible by using the appropriate
+.Xr printf 3
+conversion specification inside
+.Ar word ,
+in which case the data are inserted rather than appended.
+.It Fl c
+This is an abbreviation for
+.Fl w Ar %c .
+.It Fl s Ar string
+Print data separated by
+.Ar string .
+Normally, newlines separate data.
+.It Fl n
+Do not print the final newline normally appended to the output.
+.It Fl p Ar precision
+Print only as many digits or characters of the data
+as indicated by the integer
+.Ar precision .
+In the absence of
+.Fl p ,
+the precision is the greater of the precisions of
+.Ar begin
+and
+.Ar end .
+The
+.Fl p
+option is overridden by whatever appears in a
+.Xr printf 3
+conversion following
+.Fl w .
+.El
+.Pp
+The last four arguments indicate, respectively,
+the number of data, the lower bound, the upper bound,
+and the step size or, for random data, the seed.
+While at least one of them must appear,
+any of the other three may be omitted, and
+will be considered as such if given as
+.Fl ""
+or as an empty string.
+Any three of these arguments determines the fourth.
+If four are specified and the given and computed values of
+.Ar reps
+conflict, the lower value is used.
+If fewer than three are specified, defaults are assigned
+left to right, except for
+.Ar s ,
+which assumes a default of 1 or -1 if both
+.Ar begin
+and
+.Ar end
+are given.
+.Pp
+Defaults for the four arguments are, respectively,
+100, 1, 100, and 1, except that when random data are requested,
+the seed,
+.Ar s ,
+is picked randomly.
+The
+.Ar reps
+argument is expected to be an unsigned integer,
+and if given as zero is taken to be infinite.
+The
+.Ar begin
+and
+.Ar end
+arguments may be given as real numbers or as characters
+representing the corresponding value in
+.Tn ASCII .
+The last argument must be a real number.
+.Pp
+Random numbers are obtained through
+.Xr arc4random 3
+when no seed is specified,
+and through
+.Xr random 3
+when a seed is given.
+When
+.Nm
+is asked to generate random integers or characters with begin
+and end values in the range of the random number generator function
+and no format is specified with one of the
+.Fl w ,
+.Fl b ,
+or
+.Fl p
+options,
+.Nm
+will arrange for all the values in the range to appear in the output
+with an equal probability.
+In all other cases be careful to ensure that the output format's
+rounding or truncation will not skew the distribution of output
+values in an unintended way.
+.Pp
+The name
+.Nm
+derives in part from
+.Nm iota ,
+a function in APL.
+.Ss Rounding and truncation
+The
+.Nm
+utility uses double precision floating point arithmetic internally.
+Before printing a number, it is converted depending on the output
+format used.
+.Pp
+If no output format is specified or the output format is a
+floating point format
+.Po
+.Sq E ,
+.Sq G ,
+.Sq e ,
+.Sq f ,
+or
+.Sq g
+.Pc ,
+the value is rounded using the
+.Xr printf 3
+function, taking into account the requested precision.
+.Pp
+If the output format is an integer format
+.Po
+.Sq D ,
+.Sq O ,
+.Sq U ,
+.Sq X ,
+.Sq c ,
+.Sq d ,
+.Sq i ,
+.Sq o ,
+.Sq u ,
+or
+.Sq x
+.Pc ,
+the value is converted to an integer value by truncation.
+.Pp
+As an illustration, consider the following command:
+.Bd -literal -offset indent
+$ jot 6 1 10 0.5
+1
+2
+2
+2
+3
+4
+.Ed
+.Pp
+By requesting an explicit precision of 1, the values generated before rounding
+can be seen.
+The .5 values are rounded down if the integer part is even,
+up otherwise.
+.Bd -literal -offset indent
+$ jot -p 1 6 1 10 0.5
+1.0
+1.5
+2.0
+2.5
+3.0
+3.5
+.Ed
+.Pp
+By offsetting the values slightly, the values generated by the following
+command are always rounded down:
+.Bd -literal -offset indent
+$ jot -p 0 6 .9999999999 10 0.5
+1
+1
+2
+2
+3
+3
+.Ed
+.Pp
+Another way of achieving the same result is to force truncation by
+specifying an integer format:
+.Bd -literal -offset indent
+$ jot -w %d 6 1 10 0.5
+.Ed
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+The command
+.Dl jot - 1 10
+.Pp
+prints the integers from 1 to 10,
+while the command
+.Dl jot 21 -1 1.00
+.Pp
+prints 21 evenly spaced numbers increasing from -1 to 1.
+The
+.Tn ASCII
+character set is generated with
+.Dl jot -c 128 0
+.Pp
+and the strings xaa through xaz with
+.Dl jot -w xa%c 26 a
+.Pp
+while 20 random 8-letter strings are produced with
+.Dl "jot -r -c 160 a z | rs -g 0 8"
+.Pp
+Infinitely many
+.Em yes Ns 's
+may be obtained through
+.Dl jot -b yes 0
+.Pp
+and thirty
+.Xr ed 1
+substitution commands applying to lines 2, 7, 12, etc.\& is
+the result of
+.Dl jot -w %ds/old/new/ 30 2 - 5
+.Pp
+The stuttering sequence 9, 9, 8, 8, 7, etc.\& can be
+produced by truncating the output precision and a suitable choice of step size,
+as in
+.Dl jot -w %d - 9.5 0 -.5
+.Pp
+and a file containing exactly 1024 bytes is created with
+.Dl jot -b x 512 > block
+.Pp
+Finally, to set tabs four spaces apart starting
+from column 10 and ending in column 132, use
+.Dl expand -`jot -s, - 10 132 4`
+.Pp
+and to print all lines 80 characters or longer,
+.Dl grep `jot -s \&"\&" -b \&. 80`
+.Sh DIAGNOSTICS
+The following diagnostic messages deserve special explanation:
+.Bl -diag
+.It "illegal or unsupported format '%s'"
+The requested conversion format specifier for
+.Xr printf 3
+was not of the form
+.Dl %[#][ ][{+,-}][0-9]*[.[0-9]*]?
+where
+.Dq ?\&
+must be one of
+.Dl [l]{d,i,o,u,x}
+or
+.Dl {c,e,f,g,D,E,G,O,U,X}
+.It "range error in conversion"
+A value to be printed fell outside the range of the data type
+associated with the requested output format.
+.It "too many conversions"
+More than one conversion format specifier has been supplied,
+but only one is allowed.
+.El
+.Sh SEE ALSO
+.Xr ed 1 ,
+.Xr expand 1 ,
+.Xr rs 1 ,
+.Xr seq 1 ,
+.Xr yes 1 ,
+.Xr arc4random 3 ,
+.Xr printf 3 ,
+.Xr random 3
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.2 .
+.Sh AUTHORS
+.An John A. Kunze

@@ -1,0 +1,31 @@
+#
+# This builds network tools.
+#
+# $FreeBSD$
+#
+
+CRUNCH_PROGS_sbin+=	route ping
+CRUNCH_PROGS_usr.sbin+=	arp
+
+# inetd
+CRUNCH_PROGS_usr.sbin+=	inetd
+CRUNCH_LIBS+=	-lwrap
+
+#.if ${MK_INET6_SUPPORT} != "no"
+#CRUNCH_PROGS_sbin+= ping6
+#.endif
+
+# netstat
+CRUNCH_PROGS_usr.bin+=	netstat
+CRUNCH_LIBS+=	-lmemstat -lnetgraph
+
+# ifconfig
+CRUNCH_PROGS_sbin+=	ifconfig
+CRUNCH_SHLIBS+=	-l80211
+
+# wlan stuff
+CRUNCH_PROGS_usr.sbin+=	wlandebug
+
+# tcpdump
+CRUNCH_PROGS_usr.sbin+=	tcpdump
+# CRUNCH_LIBS+=	-lpcap -lcrypto

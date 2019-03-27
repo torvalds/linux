@@ -1,0 +1,83 @@
+# $FreeBSD$
+machine		i386
+cpu		I486_CPU
+cpu		I586_CPU
+cpu		I686_CPU
+ident		TINYBSD
+
+# To statically compile in device wiring instead of /boot/device.hints
+#hints		"GENERIC.hints"		# Default places to look for devices.
+
+options 	SCHED_4BSD		# 4BSD scheduler
+options 	INET			# InterNETworking
+options 	FFS			# Berkeley Fast Filesystem
+options 	SOFTUPDATES		# Enable FFS soft updates support
+options 	UFS_DIRHASH		# Improve performance on big directories
+options 	MD_ROOT			# MD is a potential root device
+options 	PROCFS			# Process filesystem (requires PSEUDOFS)
+options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	GEOM_PART_GPT		# GUID Partition Tables.
+options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
+options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
+options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
+					# output.  Adds ~128k to driver.
+options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug
+					# output.  Adds ~215k to driver.
+options 	ADAPTIVE_GIANT		# Giant mutex is adaptive.
+
+device		apic			# I/O APIC
+
+device		pci
+
+# ATA and ATAPI devices
+device		ata
+device		atadisk		# ATA disk drives
+options 	ATA_STATIC_ID	# Static device numbering
+
+# atkbdc0 controls both the keyboard and the PS/2 mouse
+device		atkbdc		# AT keyboard controller
+device		atkbd		# AT keyboard
+device		psm		# PS/2 mouse
+
+device		vga		# VGA video card driver
+
+#device		splash		# Splash screen and screen saver support
+
+# syscons is the default console driver, resembling an SCO console
+device		sc
+
+# Enable this for the pcvt (VT220 compatible) console driver
+#device		vt
+#options 	XSERVER		# support for X server on a vt console
+#options 	FAT_CURSOR	# start with block cursor
+
+device		agp		# support several AGP chipsets
+
+# Power management support (see NOTES for more options)
+#device		apm
+# Add suspend/resume support for the i8254.
+device		pmtimer
+
+# Pseudo devices.
+device		loop		# Network loopback
+device		random		# Entropy device
+device		ether		# Ethernet support
+device		pty		# Pseudo-ttys (telnet etc)
+device		md		# Memory "disks"
+
+# CLK_USE_I8254_CALIBRATION causes the calibrated frequency of the i8254
+# clock to actually be used.
+options CLK_USE_I8254_CALIBRATION
+
+# CPU_ELAN enables support for AMDs ElanSC520 CPU.
+options         CPU_ELAN
+options         CPU_SOEKRIS
+options         CPU_ELAN_XTAL=32768000
+options         CPU_ELAN_PPS
+
+device          bpf

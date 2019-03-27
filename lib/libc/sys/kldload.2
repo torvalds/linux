@@ -1,0 +1,96 @@
+.\"
+.\" Copyright (c) 1999 Chris Costello
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 3, 1999
+.Dt KLDLOAD 2
+.Os
+.Sh NAME
+.Nm kldload
+.Nd load KLD files into the kernel
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/linker.h
+.Ft int
+.Fn kldload "const char *file"
+.Sh DESCRIPTION
+The
+.Fn kldload
+system call
+loads a kld file into the kernel using the kernel linker.
+.Sh RETURN VALUES
+The
+.Fn kldload
+system call
+returns the fileid of the kld file which was loaded into the kernel.
+If an error occurs,
+.Fn kldload
+will return -1 and set
+.Va errno
+to indicate the error.
+.Sh ERRORS
+The named file is loaded unless:
+.Bl -tag -width Er
+.It Bq Er EPERM
+You do not have access to read the file or link it with the kernel.
+You should be the root user to be able to use the
+.Nm kld
+system calls.
+.It Bq Er EFAULT
+Bad address encountered when adding kld info into the kernel space.
+.It Bq Er ENOMEM
+There is no memory to load the file into the kernel.
+.It Bq Er ENOENT
+The file was not found.
+.It Bq Er ENOEXEC
+The file format of
+.Fa file
+was unrecognized.
+.It Bq Er EEXIST
+The supplied
+.Fa file
+has already been loaded.
+.El
+.Sh SEE ALSO
+.Xr kldfind 2 ,
+.Xr kldfirstmod 2 ,
+.Xr kldnext 2 ,
+.Xr kldstat 2 ,
+.Xr kldsym 2 ,
+.Xr kldunload 2 ,
+.Xr modfind 2 ,
+.Xr modfnext 2 ,
+.Xr modnext 2 ,
+.Xr modstat 2 ,
+.Xr kld 4 ,
+.Xr kldload 8
+.Sh HISTORY
+The
+.Nm kld
+interface first appeared in
+.Fx 3.0 .

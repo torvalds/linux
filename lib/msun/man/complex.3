@@ -1,0 +1,123 @@
+.\" Copyright (c) 2011 Murray Stokely <murray@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 19, 2018
+.Dt COMPLEX 3
+.Os
+.Sh NAME
+.Nm complex
+.Nd "complex arithmetic"
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In complex.h
+.Sh DESCRIPTION
+These functions support complex arithmetic in the C math library.
+.Sh "LIST OF FUNCTIONS"
+Each of the following
+.Vt "double complex"
+functions has a
+.Vt "float complex"
+counterpart with an
+.Ql f
+appended to the name and a
+.Vt "long double complex"
+counterpart with an
+.Ql l
+appended.
+As an example, the
+.Vt "float complex"
+and
+.Vt "long double complex"
+counterparts of
+.Ft double
+.Fn cabs "double complex z"
+are
+.Ft float
+.Fn cabsf "float complex z"
+and
+.Ft "long double"
+.Fn cabsl "long double complex z" ,
+respectively.
+.de Cl
+.Bl -column "csqrt" "complex absolute value (i.e., norm, modulus, magnitude)"
+.Em "Name	Description"
+..
+.\" Section 7.3.5 - 7.3.7 of ISO C99 standard unimplemented, see BUGS
+.\" Section 7.3.8 of ISO C99 standard
+.Ss Absolute-value Functions
+.Cl
+cabs	complex absolute value (i.e., norm, modulus, magnitude)
+csqrt	complex square root
+.El
+.Ss Exponential Function
+.Cl
+cexp	exponential base e
+.El
+.Ss Natural logarithm Function
+.Cl
+clog	natural logarithm
+.El
+.\" Section 7.3.9 of ISO C99 standard
+.Ss Manipulation Functions
+.Cl
+carg	compute the argument (i.e., phase angle)
+cimag	compute the imaginary part
+conj	compute the complex conjugate
+cproj	compute projection onto Riemann sphere
+creal	compute the real part
+.El
+.\" Section 7.3.5-6 of ISO C99 standard
+.Ss Trigonometric and Hyperbolic Functions
+.Cl
+cacos	arc cosine
+cacosh	arc hyperbolic cosine
+casin	arc sine
+casinh	arc hyperbolic sine
+catan	arc tangent
+catanh	arc hyperbolic tangent
+ccos	cosine
+ccosh	hyperbolic cosine
+cpow	power function
+csin	sine
+csinh	hyperbolic sine
+ctan	tangent
+ctanh	hyperbolic tangent
+.El
+.Sh SEE ALSO
+.Xr fenv 3 ,
+.Xr ieee 3 ,
+.Xr math 3 ,
+.Xr tgmath 3
+.Rs
+.%T "ISO/IEC 9899:TC3"
+.%U http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf
+.Re
+.Sh STANDARDS
+The
+.In complex.h
+functions described here conform to
+.St -isoC-99 .

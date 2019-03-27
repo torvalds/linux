@@ -1,0 +1,78 @@
+# This file is a shell script that overrides some of the tools and
+# flags used on a host specific basis.
+
+# Since the "bfd/hosts" directory is shared by the bfd, opcodes, and
+# binutils directories (at least), the index to it is also shared.
+# This is that index.  Each configure.in file should source this file
+# in its per-host part.
+
+# This sets the following shell variables:
+#  HDEFINES		host specific compiler options
+#  host64		set to true if 64 bit types are as fast as 32 bit
+#  HOST_64BIT_TYPE	host 64 bit type
+#  HOST_U_64BIT_TYPE	unsigned 64 bit type (not needed if 64BIT_TYPE is long)
+
+HDEFINES=
+host64=false
+HOST_64BIT_TYPE=
+HOST_U_64BIT_TYPE=
+
+case "${host}" in
+
+hppa*64*-*-hpux*)	# HP/UX's ftello64 et.al. declarations are only
+			# visible when _LARGEFILE64_SOURCE is defined.
+			# Without those declarations, real_ftell et.al.
+			# get mis-compiled.
+			HDEFINES="-DHOST_HPPAHPUX -D_LARGEFILE64_SOURCE"
+			host64=true;;
+hppa*-*-hpux*)		HDEFINES="-DHOST_HPPAHPUX -D_LARGEFILE64_SOURCE" ;;
+hppa*-*-hiux*)		HDEFINES=-DHOST_HPPAHPUX ;;
+hppa*-*-mpeix*)		HDEFINES=-DHOST_HPPAMPEIX ;;
+hppa*-*-bsd*)		HDEFINES=-DHOST_HPPABSD ;;
+hppa*-*-osf*)		HDEFINES=-DHOST_HPPAOSF ;;
+
+ia64-*-hpux*)		HDEFINES=-D_LARGEFILE64_SOURCE
+			host64=true;;
+ia64-*-*)		host64=true;;
+
+# Workaround for limitations on win9x where file contents are
+# not zero'd out if you seek past the end and then write.
+i[3-7]86-*-mingw32*)	HDEFINES=-D__USE_MINGW_FSEEK;;
+
+i[3-7]86-sequent-bsd*)	HDEFINES=-Dshared=genshared ;;
+i[3-7]86-sequent-sysv4*) ;;
+i[3-7]86-sequent-sysv*)	HDEFINES=-Dshared=genshared ;;
+
+mips*-*-netbsd*)	;;
+mips*-*-openbsd*)	;;
+mips*-dec-*)		HDEFINES="-G 4"	;;
+mips*-sgi-irix3*)	HDEFINES="-G 4" ;;
+mips*-sgi-irix4*)	HDEFINES="-G 4" ;;
+mips*-sgi-irix6*)	host64=true;;
+mips64*-*-linux*)	host64=true;;
+mips*-*-sysv4*)		;;
+mips*-*-sysv*)		HDEFINES="-G 4" ;;
+mips*-*-riscos*)	HDEFINES="-G 4" ;;
+
+m68*-hp-hpux*)		HDEFINES=-DHOST_HP300HPUX ;;
+
+*-*-windows*)
+			HOST_64BIT_TYPE=__int64
+			HOST_U_64BIT_TYPE="unsigned __int64"
+# The following krock is necessary because we can't run the build compiler
+# (MSVC) on the configure host, so we have to explicitly set the values here.
+# Note that this file is never run through autoconf, so we can't use any
+# autoconf macros here.  Because of this, we have to muck with autoconf
+# variables explicitly.
+			ac_cv_func_mmap_fixed_mapped=no
+			ac_cv_header_time=no
+			ac_cv_func_getpagesize=no
+			ac_cv_func_madvise=no
+			ac_cv_func_mprotect=no
+			ac_cv_func_getuid=no
+			ac_cv_func_getgid=no
+			ac_cv_header_sys_file_h=no
+			ac_cv_header_sys_time_h=no
+			ac_cv_header_unistd_h=no
+			;;
+esac

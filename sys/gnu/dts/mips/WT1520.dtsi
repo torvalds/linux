@@ -1,0 +1,46 @@
+#include "rt5350.dtsi"
+
+/ {
+	compatible = "NEXXWT1520", "ralink,rt5350-soc";
+	model = "Nexx WT1520";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x2000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS1,57600";
+	};
+};
+
+&uart {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uartf_pins>;
+	status = "okay";
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "jtag";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x4>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};

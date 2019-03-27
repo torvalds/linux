@@ -1,0 +1,153 @@
+.\" Copyright (c) 2005-2011 Stanislav Sedov <stas@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 13, 2011
+.Dt FUSER 1
+.Os
+.Sh NAME
+.Nm fuser
+.Nd list IDs of all processes that have one or more files open
+.Sh SYNOPSIS
+.Nm
+.Op Fl cfkmu
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl s Ar signal
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility writes to stdout the PIDs of processes that have one or
+more named files open.
+For block and character special devices, all processes using files
+on that device are listed.
+A file is considered open by a process if it was explicitly opened,
+is the working directory, root directory, jail root directory,
+active executable text, kernel trace file or the controlling terminal
+of the process.
+If
+.Fl m
+option is specified, the
+.Nm
+utility will also look through mmapped files.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl c
+Treat files as mount point and report on any files open in the file system.
+.It Fl f
+The report must be only for named files.
+.It Fl k
+Send signal to reported processes
+.Pq SIGKILL by default .
+.It Fl m
+Search through mmapped files too.
+.It Fl u
+Write the user name associated with each process to stderr.
+.It Fl M
+Extract values associated with the name list from the specified core
+instead of the default
+.Pa /dev/kmem .
+.It Fl N
+Extract the name list from the specified system instead of the default,
+which is the kernel image the system has booted from.
+.It Fl s
+Use given signal name instead of default SIGKILL.
+.El
+.Pp
+The following symbols, written to stderr will indicate how files is used:
+.Bl -tag -width MOUNT
+.It Cm r
+The file is the root directory of the process.
+.It Cm c
+The file is the current workdir directory of the process.
+.It Cm j
+The file is the jail-root of the process.
+.It Cm t
+The file is the kernel tracing file for the process.
+.It Cm x
+The file is executable text of the process.
+.It Cm y
+The process use this file as its controlling tty.
+.It Cm m
+The file is mmapped.
+.It Cm w
+The file is open for writing.
+.It Cm a
+The file is open as append only
+.Pq O_APPEND was specified .
+.It Cm d
+The process bypasses fs cache while writing to this file
+.Pq O_DIRECT was specified .
+.It Cm s
+Shared lock is hold.
+.It Cm e
+Exclusive lock is hold.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility returns 0 on successful completion and >0 otherwise.
+.Sh EXAMPLES
+The command:
+.Dq Li "fuser -fu ."
+writes to standard output the process IDs of processes that are using the
+current directory and writes to stderr an indication of how those processes are
+using the directory and user names associated with the processes that are using
+this directory.
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr ps 1 ,
+.Xr systat 1 ,
+.Xr iostat 8 ,
+.Xr pstat 8 ,
+.Xr vmstat 8
+.Sh STANDARDS
+The
+.Nm
+utility is expected to conform to
+.St -p1003.1-2004 .
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+The
+.Nm
+utility and this manual page was written by
+.An Stanislav Sedov Aq Mt stas@FreeBSD.org .
+.Sh BUGS
+Since
+.Nm
+takes a snapshot of the system, it is only correct for a very short period
+of time.
+When working via
+.Xr kvm 3
+interface the report will be limited to filesystems the
+.Nm
+utility knows about (currently only cd9660, devfs, nfs, ntfs, nwfs, udf,
+ufs and zfs).

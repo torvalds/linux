@@ -1,0 +1,366 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2013-2016 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/dialog.subr
+f_dialog_backtitle "FreeBSD Installer"
+
+############################################################ FUNCTIONS
+
+country_set()
+{
+	local error_str iface_up ifconfig_args=
+
+	#
+	# Setup what was selected
+	# NB: Do not change order of arguments (or regdomain will be ignored)
+	#
+	[ "$2" ] && ifconfig_args="$ifconfig_args country $2"
+	[ "$1" ] && ifconfig_args="$ifconfig_args regdomain $1"
+	[ "$ifconfig_args" ] || return $SUCCESS # Nothing to do
+	ifconfig_args="${ifconfig_args# }"
+
+	# Regdomain/country cannot be applied while interface is running
+	iface_up=$( ifconfig -lu | grep -w "$WLAN_IFACE" )
+	[ "$iface_up" ] && ifconfig "$WLAN_IFACE" down
+	f_eval_catch -dk error_str wlanconfig ifconfig "ifconfig %s %s" \
+		"$WLAN_IFACE" "$ifconfig_args"
+	error_str="${error_str#ifconfig: }"
+	# Restart wpa_supplicant(8) (should not fail).
+	[ "$iface_up" ] && f_eval_catch -d wlanconfig wpa_supplicant \
+		'wpa_supplicant -B -i "%s" -c "%s/wpa_supplicant.conf"' \
+		"$WLAN_IFACE" "$BSDINSTALL_TMPETC"
+	if [ "$error_str" ]; then
+		$DIALOG \
+			--title "$msg_error" \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--yes-label Change \
+			--no-label Ignore \
+			--yesno \
+			"Error while applying chosen settings ($error_str)" \
+			0 0 || return $SUCCESS # Skip
+		return $FAILURE # Restart
+	else
+		awk 'sub(/^\t\t/,"")||1' \
+			> "$BSDINSTALL_TMPETC/rc.conf.net.wlan" <<-EOF
+		create_args_$WLAN_IFACE="$ifconfig_args"
+		EOF
+	fi
+
+	return $SUCCESS
+}
+
+dialog_country_select()
+{
+	local input regdomains countries regdomain country prompt
+	local no_default="<not selected>"
+	local default_regdomain="${1:-$no_default}"
+	local default_country="${2:-$no_default}"
+
+	#
+	# Parse available countries/regdomains
+	#
+	input=$( ifconfig "$WLAN_IFACE" list countries | sed -e 's/DEBUG//gi' )
+	regdomains=$( echo "$input" | awk '
+		sub(/.*domains:/, ""), /[^[:alnum:][[:space:]]/ {
+			n = split($0, domains)
+			for (i = 1; i <= n; i++)
+				printf "'\''%s'\'' '\'\''", domains[i]
+		}
+	' | sort )
+	countries=$( echo "$input" | awk '
+		sub(/Country codes:/, ""), sub(/Regulatory.*/, "") {
+			while (match($0, /[[:upper:]][[:upper:][:digit:]] /)) {
+				country = substr($0, RSTART)
+				sub(/ [[:upper:]][[:upper:][:digit:]].*/, "", country)
+				code = substr(country, 1, 2)
+				desc = substr(country, 4)
+				sub(/[[:space:]]*$/, "", desc)
+				printf "'\''%s'\'' '\''%s'\''\n", code, desc
+				$0 = substr($0, RSTART + RLENGTH)
+			}
+		}
+	' | sort )
+
+	f_dialog_title "Regdomain selection"
+	prompt="Select your regdomain."
+	eval f_dialog_menu_size height width rows \
+		\"\$DIALOG_TITLE\" \"\$DIALOG_BACKTITLE\" \
+		\"\$prompt\" \"\" $regdomains
+	regdomain=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"             \
+		--backtitle \"\$DIALOG_BACKTITLE\"     \
+		--cancel-label \"\$msg_skip\"          \
+		--default-item \"\$default_regdomain\" \
+		--menu \"\$prompt\"                    \
+		$height $width $rows                   \
+		$regdomains                            \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	f_dialog_data_sanitize regdomain
+
+	f_dialog_title "Country selection"
+	prompt="Select your country."
+	eval f_dialog_menu_size height width rows \
+		\"\$DIALOG_TITLE\" \"\$DIALOG_BACKTITLE\" \
+		\"\$prompt\" \"\" $countries
+	country=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"           \
+		--backtitle \"\$DIALOG_BACKTITLE\"   \
+		--cancel-label \"\$msg_skip\"        \
+		--default-item \"\$default_country\" \
+		--menu \"\$prompt\"                  \
+		$height $width $rows                 \
+		$countries                           \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	f_dialog_data_sanitize country
+
+	country_set "$regdomain" "$country"
+}
+
+############################################################ MAIN
+
+: > "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
+chmod 0600 "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
+
+cat >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" << EOF
+ctrl_interface=/var/run/wpa_supplicant
+eapol_version=2
+ap_scan=1
+fast_reauth=1
+
+EOF
+
+#
+# Try to reach wpa_supplicant. If it isn't running and we can modify the
+# existing system, start it. Otherwise, fail.
+#
+if ! f_eval_catch -d wlanconfig wpa_cli "wpa_cli ping"; then
+	if [ ! "$BSDINSTALL_CONFIGCURRENT" ]; then
+		f_show_err "Wireless cannot be configured without %s" \
+		           "making changes to the local system!"
+		exit 1
+	fi
+	f_eval_catch wlanconfig wpa_supplicant \
+		'wpa_supplicant -B -i "%s" -c "%s/wpa_supplicant.conf"' \
+		"$1" "$BSDINSTALL_TMPETC" || exit 1
+
+	# See if we succeeded
+	f_eval_catch wlanconfig wpa_cli "wpa_cli ping" || exit 1
+fi
+
+#
+# There is no way to check country/regdomain without (possible)
+# interface state modification
+#
+if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
+	# Get current country/regdomain for selected interface
+	WLAN_IFACE=$( wpa_cli ifname | tail -n 1 )
+	INPUT=$( ifconfig "$WLAN_IFACE" list regdomain | head -n 1 )
+	DEF_REGDOMAIN=$( echo "$INPUT" | cut -w -f 2 )
+	DEF_COUNTRY=$( echo "$INPUT" | cut -w -f 4 )
+	[ "$DEF_REGDOMAIN" = 0 ] && DEF_REGDOMAIN="<not selected>"
+	[ "$DEF_COUNTRY" = 0 ] && DEF_COUNTRY="<not selected>"
+	f_dialog_title "Regdomain/country"
+	if f_yesno "Change regdomain/country ($DEF_REGDOMAIN/$DEF_COUNTRY)?"
+	then
+		while ! dialog_country_select "$DEF_REGDOMAIN" "$DEF_COUNTRY"
+		do :; done
+	fi
+fi
+
+while :; do
+	SCANSSID=0
+	f_eval_catch -d wlanconfig wpa_cli "wpa_cli scan"
+	f_dialog_title "Scanning"
+	f_dialog_pause "Waiting 5 seconds to scan for wireless networks..." 5 ||
+		exit 1
+
+	f_eval_catch -dk SCAN_RESULTS wlanconfig wpa_cli "wpa_cli scan_results"
+	NETWORKS=$( echo "$SCAN_RESULTS" | awk -F '\t' '
+		/..:..:..:..:..:../ && $5 { printf "\"%s\"\t\"%s\"\n", $5, $4 }
+	' | sort | uniq )
+
+	if [ ! "$NETWORKS" ]; then
+		f_dialog_title "$msg_error"
+		f_yesno "No wireless networks were found. Rescan?" && continue
+		exit 1
+	fi
+
+	f_dialog_title "Network Selection"
+	prompt="Select a wireless network to connect to."
+	f_dialog_menu_size height width rows "$DIALOG_TITLE" \
+		"$DIALOG_BACKTITLE" "$prompt" "" $menu_list
+	NETWORK=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--extra-button                     \
+		--extra-label \"Rescan\"           \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$NETWORKS                          \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	retval=$?
+	f_dialog_data_sanitize NETWORK
+	case $retval in
+	$DIALOG_OK) break ;;
+	$DIALOG_CANCEL)
+		# Ask if the user wants to select network manually
+		f_dialog_title "Network Selection"
+		f_yesno "Do you want to select the network manually?" || exit 1
+		f_dialog_input NETWORK "Enter SSID" || exit 1
+		prompt="Select encryption type"
+		menu_list="
+			'1 WPA/WPA2 PSK' ''
+			'2 WPA/WPA2 EAP' ''
+			'3 WEP' ''
+			'0 None' ''
+		" # END-QUOTE
+		eval f_dialog_menu_size height width rows \"\$DIALOG_TITLE\" \
+			\"\$DIALOG_BACKTITLE\" \"\$prompt\" \"\" $menu_list
+		ENCRYPTION=$( eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--menu \"\$prompt\"                \
+			$height $width $rows               \
+			$menu_list                         \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		) || exit 1
+		SCANSSID=1
+		break
+		;;
+	$DIALOG_EXTRA) # Rescan
+		;;
+	esac
+done
+
+[ "$ENCRYPTION" ] || ENCRYPTION=$( echo "$NETWORKS" |
+	awk -F '\t' "/^\"$NETWORK\"\t/ { print \$2 }" )
+
+if echo "$ENCRYPTION" | grep -q PSK; then
+	PASS=$( $DIALOG \
+		--title "WPA Setup"              \
+		--backtitle "$DIALOG_BACKTITLE"  \
+		--insecure                       \
+		--mixedform ""                   \
+		0 0 0                            \
+		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
+		"Password" 2 0 "" 2 12 15 63 1   \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	) || exec "$0" "$@"
+	awk 'sub(/^\t/,"")||1' \
+		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<EOF
+network={
+	ssid="$NETWORK"
+	scan_ssid=$SCANSSID
+	psk="$PASS"
+	priority=5
+}
+EOF
+elif echo "$ENCRYPTION" | grep -q EAP; then
+	USERPASS=$( $DIALOG \
+		--title "WPA-Enterprise Setup"   \
+		--backtitle "$DIALOG_BACKTITLE"  \
+		--insecure                       \
+		--mixedform ""                   \
+		0 0 0                            \
+		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
+		"Username" 2 0 "" 2 12 25 63 0   \
+		"Password" 3 0 "" 3 12 25 63 1   \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	) || exec "$0" "$@"
+	awk 'sub(/^\t/,"")||1' \
+		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<EOF
+network={
+	ssid="$NETWORK"
+	scan_ssid=$SCANSSID
+	key_mgmt=WPA-EAP$(
+	echo "$USERPASS" | awk '
+		NR == 1 { printf "\n\t\tidentity=\"%s\"", $1 }
+		NR == 2 { printf "\n\t\tpassword=\"%s\"", $1 }
+	' )
+	priority=5
+}
+EOF
+elif echo "$ENCRYPTION" | grep -q WEP; then
+	WEPKEY=$( $DIALOG \
+		--title "WEP Setup"              \
+		--backtitle "$DIALOG_BACKTITLE"  \
+		--insecure                       \
+		--mixedform ""                   \
+		0 0 0                            \
+		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
+		"WEP Key 0" 2 0 "" 2 12 15 0 1   \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	) || exec "$0" "$@"
+	awk 'sub(/^\t/,"")||1' \
+		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<EOF
+network={
+	ssid="$NETWORK"
+	scan_ssid=$SCANSSID
+	key_mgmt=NONE
+	wep_key0="$WEPKEY"
+	wep_tx_keyidx=0
+	priority=5
+}
+EOF
+else # Open
+	awk 'sub(/^\t/,"")||1' \
+		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<EOF
+network={
+	ssid="$NETWORK"
+	scan_ssid=$SCANSSID
+	key_mgmt=NONE
+	priority=5
+}
+EOF
+fi
+
+# Connect to any open networks policy
+cat >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" << EOF
+network={
+	priority=0
+	key_mgmt=NONE
+}
+EOF
+
+# Bring up new network
+[ "$BSDINSTALL_CONFIGCURRENT" ] &&
+	f_eval_catch -d wlanconfig wpa_cli "wpa_cli reconfigure"
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

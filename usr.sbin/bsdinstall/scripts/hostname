@@ -1,0 +1,125 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2015-2018 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading_includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+
+############################################################ CONFIGURATION
+
+#
+# Default value
+#
+: ${HOSTNAME=$( hostname )}
+
+#
+# Default file to store hostname entry in
+#
+: ${HOSTNAMEFILE:=$BSDINSTALL_TMPETC/rc.conf.hostname}
+
+############################################################ GLOBALS
+
+#
+# Strings that should be moved to an i18n file and loaded with f_include_lang()
+#
+msg_freebsd_installer="FreeBSD Installer"
+msg_ok="OK"
+msg_please_choose_a_hostname="Please choose a hostname for this machine.\n\nIf you are running on a managed network, please ask\nyour network administrator for an appropriate name."
+msg_set_hostname="Set Hostname"
+
+#
+# Command strings for various tasks
+#
+ECHO_OVERWRITE='echo "%s" > "%s"'
+SET_HOSTNAME='hostname -s "%s"'
+
+############################################################ FUNCTIONS
+
+# dialog_hostname
+#
+# Display input box (without cancel button) for user to enter desired hostname.
+#
+dialog_hostname()
+{
+	local prompt="$msg_please_choose_a_hostname"
+	local hline=
+	local value="$*"
+
+	local height width
+	f_dialog_inputbox_size height width \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$prompt" "$value" "$hline"
+
+	$DIALOG \
+		--title "$DIALOG_TITLE"         \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--hline "$hline"                \
+		--ok-label "$msg_ok"            \
+		--no-cancel                     \
+		--inputbox "$prompt"            \
+		$height $width "$value"         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+}
+
+############################################################ MAIN
+
+#
+# Initialize
+#
+f_dialog_title "$msg_set_hostname"
+f_dialog_backtitle "$msg_freebsd_installer"
+
+#
+# Get user input
+#
+HOSTNAME=$( dialog_hostname "$HOSTNAME" )
+[ $? -eq $DIALOG_CANCEL ] && exit 1
+
+#
+# Store the user's choice
+#
+f_eval_catch "$pgm" echo "$ECHO_OVERWRITE" \
+	'hostname=\"$HOSTNAME\"' "$HOSTNAMEFILE"
+retval=$?
+
+#
+# Activate entry if configured
+#
+if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
+	f_eval_catch "$pgm" hostname "$SET_HOSTNAME" "$HOSTNAME"
+	retval=$?
+fi
+
+exit $retval
+
+################################################################################
+# END
+################################################################################

@@ -1,0 +1,66 @@
+/* -*- Mode: Text -*- */
+autogen definitions perlopt;
+
+#include autogen-version.def
+
+prog-name      = 'ntpsweep';
+prog-title     = 'Print various informations about given ntp servers';
+package        = ntp;
+#include       version.def
+
+argument       = '[hostfile]';
+long-opts;
+gnu-usage;
+
+flag = {
+    name     = host-list;
+    value    = l;
+    arg-type = string;
+    max      = NOLIMIT;
+    stack-arg;
+    descrip  = 'Host to execute actions on';
+    doc      = <<- _EndOfDoc_
+            Use this option to specify the host on which this script operates.
+            May appear multiple times.
+	_EndOfDoc_;
+};
+
+flag = {
+    name    = peers;
+    value   = p;
+    descrip = 'Recursively list all peers a host synchronizes to';
+};
+
+flag = {
+    name     = maxlevel;
+    value    = m;
+    arg-type = number;
+    descrip  = 'Traverse peers up to this level (4 is a reasonable number)';
+};
+
+flag = {
+    name     = strip;
+    value    = s;
+    arg-type = string;
+    descrip  = 'Strip this string from hostnames';
+};
+
+/* Deprecated options */
+flag = {
+    name        = host;
+    value       = h;
+    arg-type    = string;
+    descrip     = 'Specify a single host';
+    deprecated;
+};
+
+doc-section	= {
+  ds-type	= 'DESCRIPTION';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_PROG_MDOC_DESCRIP
+.Nm 
+prints per host the NTP stratum level, the clock offset in seconds, the daemon
+version, the operating system and the processor. Optionally recursing through
+all peers.
+	_END_PROG_MDOC_DESCRIP;
+};

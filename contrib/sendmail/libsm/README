@@ -1,0 +1,132 @@
+# Copyright (c) 2000-2002 Proofpoint, Inc. and its suppliers.
+#	All rights reserved.
+#
+# By using this file, you agree to the terms and conditions set
+# forth in the LICENSE file which can be found at the top level of
+# the sendmail distribution.
+#
+#	$Id: README,v 1.25 2013-11-22 20:51:42 ca Exp $
+#
+
+Libsm is a library of generally useful C abstractions.
+For documentation, see index.html.
+
+Libsm stands alone; it depends on no other sendmail libraries,
+and the only sendmail header files it depends on are its own,
+which reside in ../include/sm.
+
+The t-*.c files are regression tests.
+These tests are incomplete: we do not yet test all of the APIs,
+and we have not yet converted all tests to use the test harness.
+If a test fails read the explanation it generates.  Sometimes it
+is sufficient to change a compile time flag, which are also listed
+below.  If that does not help, check the sendmail/README files for
+problems on your OS.
+
+The b-*.c files are benchmarks that compare system routines with
+those provided by libsm. By default sendmail uses the routines
+provided by the OS. In several cases, the routines provided by
+libsm are faster than those of the OS. If your OS provides the
+routines, you can compare the performance of them with the libsm
+versions by running the programs with the option -d (by default
+the programs just issue an explanation when/how to use them).
+The programs are:
+
+b-strcmp.c	tests strcasecmp().
+
++----------------------+
+| CONFIGURATION MACROS |
++----------------------+
+
+Libsm uses a set of C preprocessor macros to specify platform specific
+features of the C compiler and standard C libraries.
+
+If you are porting sendmail to a new platform, you may need to tweak
+the values of some of these macros.
+
+The following macros are given default values in <sm/config.h>.
+If the default value is wrong for a given platform, then a platform
+specific value is specified in one of two ways:
+
+  - A -D option is added to the confENVDEF macro; this change can be made
+    to the platform M4 file in devtools/OS, or to the site.config.m4
+    file in devtools/Site.
+
+  - The confSM_OS_HEADER macro in the platform M4 file defines sm_os_foo,
+    which forces "sm/os/sm_os_foo.h" to be included by "sm/config.h" via a
+    link that is made from "sm_os.h" to "sm/os/sm_os_foo.h".  Platform
+    specific configuration macro settings are added to <sm/os/sm_os_foo.h>.
+
+SM_CONF_STDBOOL_H
+	Set to 1 if the header file <stdbool.h> exists,
+	and defines true, false and bool.
+
+SM_CONF_SYS_CDEFS_H
+	Set to 1 if the header file <sys/cdefs.h> exists,
+	and defines __P.  You may need to do this to eliminate
+	warnings about __P being multiply defined.
+
+SM_CONF_STDDEF_H
+	Set to 0 if the header file <stddef.h> does not exist.
+
+SM_CONF_SETITIMER
+	Set to 0 if the setitimer function is not available.
+
+SM_CONF_SYSEXITS_H
+	Set to 1 if <sysexits.h> exists, and sets the EX_* macros
+	to values different from the default BSD values in <sm/sysexits.h>.
+
+SM_CONF_UID_GID
+	Set to 0 if <sys/types.h> does not define uid_t and gid_t.
+
+SM_CONF_SSIZE_T
+	Set to 0 if <sys/types.h> does not define ssize_t.
+
+SM_CONF_BROKEN_SIZE_T
+	Set to 1 if size_t is not unsigned.
+
+SM_CONF_LONGLONG
+	Set to 1 if your C compiler supports the 'long long' type.
+	This will be set automatically if you use gcc or a C compiler
+	that conforms to the 1999 ISO C standard.
+
+SM_CONF_QUAD_T
+	Set to 1 if your C compiler does not support 'long long',
+	but <sys/types.h> defines quad_t as an integral type.
+
+SM_CONF_SHM
+	Set to 1 if System V shared memory APIs are available.
+
+SM_CONF_MSG
+	Set to 1 if System V message queues are available.
+
+SM_CONF_SEM
+	Set to 1 if semaphores are available.
+
+SM_CONF_BROKEN_STRTOD
+	Set to 1 if your strtod() does not work properly.
+
+SM_CONF_GETOPT
+	Set to 1 if your operating system does not include getopt(3).
+
+SM_CONF_LDAP_INITIALIZE
+	Set to 1 if your LDAP client libraries include ldap_initialize(3).
+
+SM_CONF_LDAP_MEMFREE
+	Set to 1 if your LDAP client libraries include ldap_memfree(3).
+
+SM_IO_MAX_BUF_FILE
+	Set this to a useful buffer size for regular files if stat(2)
+	does not return a value for st_blksize that is the
+	"optimal blocksize for I/O".
+
+SM_IO_MAX_BUF
+	Set this to a useful maximum buffer size for other than
+	regular files if stat(2) does not return a value for
+	st_blksize that is the "optimal blocksize for I/O".
+
+SM_IO_MIN_BUF
+	Set this to a useful minimum buffer size for other than
+	regular files if stat(2) does not return a value for
+	st_blksize that is the "optimal blocksize for I/O".
+

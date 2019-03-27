@@ -1,0 +1,105 @@
+//===--- Types.def - Driver Type info ---------------------------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the driver type information. Users of this file
+// must define the TYPE macro to make use of this information.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef TYPE
+#error "Define TYPE prior to including this file!"
+#endif
+
+// TYPE(NAME, ID, PP_TYPE, TEMP_SUFFIX, FLAGS)
+
+// The first value is the type name as a string; for types which can
+// be user specified this should be the equivalent -x option.
+
+// The second value is the type id, which will result in a
+// clang::driver::types::TY_XX enum constant.
+
+// The third value is that id of the type for preprocessed inputs of
+// this type, or INVALID if this type is not preprocessed.
+
+// The fourth value is the suffix to use when creating temporary files
+// of this type, or null if unspecified.
+
+// The fifth value is a string containing option flags. Valid values:
+//  a - The type should only be assembled.
+//  p - The type should only be precompiled.
+//  u - The type can be user specified (with -x).
+//  m - Precompiling this type produces a module file.
+//  A - The type's temporary suffix should be appended when generating
+//      outputs of this type.
+
+
+// C family source language (with and without preprocessing).
+TYPE("cpp-output",               PP_C,         INVALID,         "i",     "u")
+TYPE("c",                        C,            PP_C,            "c",     "u")
+TYPE("cl",                       CL,           PP_C,            "cl",    "u")
+TYPE("cuda-cpp-output",          PP_CUDA,      INVALID,         "cui",   "u")
+TYPE("cuda",                     CUDA,         PP_CUDA,         "cu",    "u")
+TYPE("cuda",                     CUDA_DEVICE,  PP_CUDA,         "cu",    "")
+TYPE("hip-cpp-output",           PP_HIP,       INVALID,         "cui",   "u")
+TYPE("hip",                      HIP,          PP_HIP,          "cu",    "u")
+TYPE("hip",                      HIP_DEVICE,   PP_HIP,          "cu",    "")
+TYPE("objective-c-cpp-output",   PP_ObjC,      INVALID,         "mi",    "u")
+TYPE("objc-cpp-output",          PP_ObjC_Alias, INVALID,        "mi",    "u")
+TYPE("objective-c",              ObjC,         PP_ObjC,         "m",     "u")
+TYPE("c++-cpp-output",           PP_CXX,       INVALID,         "ii",    "u")
+TYPE("c++",                      CXX,          PP_CXX,          "cpp",   "u")
+TYPE("objective-c++-cpp-output", PP_ObjCXX,    INVALID,         "mii",   "u")
+TYPE("objc++-cpp-output",        PP_ObjCXX_Alias, INVALID,      "mii",   "u")
+TYPE("objective-c++",            ObjCXX,       PP_ObjCXX,       "mm",    "u")
+TYPE("renderscript",             RenderScript, PP_C,            "rs",    "u")
+
+// C family input files to precompile.
+TYPE("c-header-cpp-output",      PP_CHeader,   INVALID,         "i",     "p")
+TYPE("c-header",                 CHeader,      PP_CHeader,      "h",     "pu")
+TYPE("cl-header",                CLHeader,     PP_CHeader,      "h",     "pu")
+TYPE("objective-c-header-cpp-output", PP_ObjCHeader, INVALID,   "mi",    "p")
+TYPE("objective-c-header",       ObjCHeader,   PP_ObjCHeader,   "h",     "pu")
+TYPE("c++-header-cpp-output",    PP_CXXHeader, INVALID,         "ii",    "p")
+TYPE("c++-header",               CXXHeader,    PP_CXXHeader,    "hh",    "pu")
+TYPE("objective-c++-header-cpp-output", PP_ObjCXXHeader, INVALID, "mii", "p")
+TYPE("objective-c++-header",     ObjCXXHeader, PP_ObjCXXHeader, "h",     "pu")
+TYPE("c++-module",               CXXModule,    PP_CXXModule,    "cppm",  "mu")
+TYPE("c++-module-cpp-output",    PP_CXXModule, INVALID,         "iim",   "m")
+
+// Other languages.
+TYPE("ada",                      Ada,          INVALID,         nullptr, "u")
+TYPE("assembler",                PP_Asm,       INVALID,         "s",     "au")
+TYPE("assembler-with-cpp",       Asm,          PP_Asm,          "S",     "au")
+TYPE("f95",                      PP_Fortran,   INVALID,         nullptr, "u")
+TYPE("f95-cpp-input",            Fortran,      PP_Fortran,      nullptr, "u")
+TYPE("java",                     Java,         INVALID,         nullptr, "u")
+
+// LLVM IR/LTO types. We define separate types for IR and LTO because LTO
+// outputs should use the standard suffixes.
+TYPE("ir",                       LLVM_IR,      INVALID,         "ll",    "u")
+TYPE("ir",                       LLVM_BC,      INVALID,         "bc",    "u")
+TYPE("lto-ir",                   LTO_IR,       INVALID,         "s",     "")
+TYPE("lto-bc",                   LTO_BC,       INVALID,         "o",     "")
+
+// Misc.
+TYPE("ast",                      AST,          INVALID,         "ast",   "u")
+TYPE("pcm",                      ModuleFile,   INVALID,         "pcm",   "u")
+TYPE("plist",                    Plist,        INVALID,         "plist", "")
+TYPE("rewritten-objc",           RewrittenObjC,INVALID,         "cpp",   "")
+TYPE("rewritten-legacy-objc",    RewrittenLegacyObjC,INVALID,   "cpp",   "")
+TYPE("remap",                    Remap,        INVALID,         "remap", "")
+TYPE("precompiled-header",       PCH,          INVALID,         "gch",   "A")
+TYPE("object",                   Object,       INVALID,         "o",     "")
+TYPE("treelang",                 Treelang,     INVALID,         nullptr, "u")
+TYPE("image",                    Image,        INVALID,         "out",   "")
+TYPE("dSYM",                     dSYM,         INVALID,         "dSYM",  "A")
+TYPE("dependencies",             Dependencies, INVALID,         "d",     "")
+TYPE("cuda-fatbin",              CUDA_FATBIN,  INVALID,         "fatbin","A")
+TYPE("hip-fatbin",               HIP_FATBIN,   INVALID,         "hipfb", "A")
+TYPE("none",                     Nothing,      INVALID,         nullptr, "u")

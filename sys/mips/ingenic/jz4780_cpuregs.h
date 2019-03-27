@@ -1,0 +1,73 @@
+/*-
+ * Copyright (c) 2015 Alexander Kabaev <kan@FreeBSD.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+#ifndef JZ4780_CPUREGS_H
+#define JZ4780_CPUREGS_H
+
+/* Core control register */
+#define JZ_CORECTL_SLP1M_SHIFT	17
+#define JZ_CORECTL_SLP1M	(1u << JZ_CORECTL_SLP1M_SHIFT)
+#define JZ_CORECTL_SLP0M_SHIFT	16
+#define JZ_CORECTL_SLP0M	(1u << JZ_CORECTL_SLP0M_SHIFT)
+#define JZ_CORECTL_RPC1_SHIFT	9
+#define JZ_CORECTL_RPC1		(1u << JZ_CORECTL_RPC1_SHIFT)
+#define JZ_CORECTL_RPC0_SHIFT	8
+#define JZ_CORECTL_RPC0		(1u << JZ_CORECTL_RPC0_SHIFT)
+#define JZ_CORECTL_SWRST1_SHIFT	1
+#define JZ_CORECTL_SWRST1	(1u << JZ_CORECTL_SWRST1_SHIFT)
+#define JZ_CORECTL_SWRST0_SHIFT	0
+#define JZ_CORECTL_SWRST0	(1u << JZ_CORECTL_SWRST0_SHIFT)
+
+/* Core status register */
+#define JZ_CORESTS_SLP1_SHIFT	17
+#define JZ_CORESTS_SLP1		(1u << JZ_CORESTS_SLP1_SHIFT)
+#define JZ_CORESTS_SLP0_SHIFT	16
+#define JZ_CORESTS_SLP0		(1u << JZ_CORESTS_SLP0_SHIFT)
+#define JZ_CORESTS_IRQ1P_SHIFT	9
+#define JZ_CORESTS_IRQ1P	(1u << JZ_CORESTS_IRQ1P_SHIFT)
+#define JZ_CORESTS_IRQ0P_SHIFT	8
+#define JZ_CORESTS_IRQ0P	(1u << JZ_CORESTS_IRQ0P_SHIFT)
+#define JZ_CORESTS_MIRQ1P_SHIFT	1
+#define JZ_CORESTS_MIRQ1P	(1u << JZ_CORESTS_MIRQ1P_SHIFT)
+#define JZ_CORESTS_MIRQ0P_SHIFT	0
+#define JZ_CORESTS_MIRQ0P	(1u << JZ_CORESTS_MIRQ0P_SHIFT)
+
+/* Reset entry and IRQ mask */
+#define JZ_REIM_ENTRY_SHIFT	16
+#define JZ_REIM_ENTRY_WIDTH	16
+#define JZ_REIM_ENTRY_MASK	(0xFFFFu << JZ_REIM_ENTRY_SHIFT)
+#define JZ_REIM_IRQ1M_SHIFT	9
+#define JZ_REIM_IRQ1M		(1u << JZ_REIM_IRQ1M_SHIFT)
+#define JZ_REIM_IRQ0M_SHIFT	8
+#define JZ_REIM_IRQ0M		(1u << JZ_REIM_IRQ0M_SHIFT)
+#define JZ_REIM_MIRQ1M_SHIFT	1
+#define JZ_REIM_MIRQ1M		(1u << JZ_REIM_MIRQ1M_SHIFT)
+#define JZ_REIM_MIRQ0M_SHIFT	0
+#define JZ_REIM_MIRQ0M		(1u << JZ_REIM_MIRQ0M_SHIFT)
+
+#endif /* JZ4780_CPUREGS_H */

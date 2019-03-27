@@ -1,0 +1,17 @@
+#------------------------------------------------------------------------------
+# $File: music,v 1.1 2011/11/25 03:28:17 christos Exp $
+# music:  file (1) magic for music formats
+
+# BWW format used by Bagpipe Music Writer Gold by Robert MacNeil Musicworks
+# and Bagpipe Writer by Doug Wickstrom
+#
+0	string		Bagpipe		Bagpipe
+>8	string		Reader		Reader
+>>15	string		>\0		(version %.3s)
+>8	string		Music\ Writer	Music Writer
+>>20	string		:
+>>>21	string		>\0		(version %.3s)
+>>21	string		Gold		Gold
+>>>25	string		:
+>>>>26	string		>\0		(version %.3s)
+

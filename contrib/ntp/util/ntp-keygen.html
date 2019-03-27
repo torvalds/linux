@@ -1,0 +1,2131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.5, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Ntp-keygen User&rsquo;s Manual</title>
+
+<meta name="description" content="Ntp-keygen User&rsquo;s Manual">
+<meta name="keywords" content="Ntp-keygen User&rsquo;s Manual">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="#Top" rel="start" title="Top">
+<link href="dir.html#Top" rel="up" title="(dir)">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<h1 class="settitle" align="center">Ntp-keygen User&rsquo;s Manual</h1>
+
+
+
+
+
+<a name="SEC_Overview"></a>
+<h2 class="shortcontents-heading">Short Table of Contents</h2>
+
+<div class="shortcontents">
+<ul class="no-bullet">
+<li><a name="stoc-Description-1" href="#toc-Description-1">1 Description</a></li>
+</ul>
+</div>
+
+
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#Description" accesskey="1">Description</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Invocation" accesskey="2">ntp-keygen Invocation</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Invoking ntp-keygen
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Running-the-Program" accesskey="3">Running the Program</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Random-Seed-File" accesskey="4">Random Seed File</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Cryptographic-Data-Files" accesskey="5">Cryptographic Data Files</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+</table>
+
+<a name="Top"></a>
+<div class="header">
+<p>
+Next: <a href="#Description" accesskey="n" rel="next">Description</a>, Previous: <a href="dir.html#Top" accesskey="p" rel="prev">(dir)</a>, Up: <a href="dir.html#Top" accesskey="u" rel="up">(dir)</a> &nbsp; </p>
+</div>
+<a name="NTP-Key-Generation-Program-User-Manual"></a>
+<h1 class="top">NTP Key Generation Program User Manual</h1>
+
+<p>This document describes the use of the NTP Project&rsquo;s <code>ntp-keygen</code>
+program, that generates cryptographic data files used by the NTPv4
+authentication and identity schemes.
+It can generate message digest keys used in symmetric key cryptography and,
+if the OpenSSL software
+library has been installed, it can generate host keys, sign keys,
+certificates, and identity keys and parameters used by the Autokey
+public key cryptography.
+The message digest keys file is generated in a
+format compatible with NTPv3.
+All other files are in PEM-encoded
+printable ASCII format so they can be embedded as MIME attachments in
+mail to other sites.
+</p>
+<p>This document applies to version 4.2.8p13 of <code>ntp-keygen</code>.
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#Description" accesskey="1">Description</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+</table>
+
+<hr>
+<a name="Description"></a>
+<div class="header">
+<p>
+Next: <a href="#Running-the-Program" accesskey="n" rel="next">Running the Program</a>, Previous: <a href="#Top" accesskey="p" rel="prev">Top</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="Description-1"></a>
+<h2 class="chapter">1 Description</h2>
+
+<p>This program generates cryptographic data files used by the NTPv4
+authentication and identity schemes. It can generate message digest
+keys used in symmetric key cryptography and, if the OpenSSL software
+library has been installed, it can generate host keys, sign keys,
+certificates, and identity keys and parameters used by the Autokey
+public key cryptography. The message digest keys file is generated in a
+format compatible with NTPv3. All other files are in PEM-encoded
+printable ASCII format so they can be embedded as MIME attachments in
+mail to other sites.
+</p>
+<p>When used to generate message digest keys, the program produces a file
+containing ten pseudo-random printable ASCII strings suitable for the
+MD5 message digest algorithm included in the distribution.
+If the
+OpenSSL library is installed, it produces an additional ten hex-encoded
+random bit strings suitable for the SHA1 and other message digest
+algorithms.
+The message digest keys file must be distributed and stored
+using secure means beyond the scope of NTP itself.
+Besides the keys
+used for ordinary NTP associations, additional keys can be defined as
+passwords for the ntpq and ntpdc utility programs.
+</p>
+<p>The remaining generated files are compatible with other OpenSSL
+applications and other Public Key Infrastructure (PKI) resources.
+Certificates generated by this program are compatible with extant
+industry practice, although some users might find the interpretation of
+X509v3 extension fields somewhat liberal.
+However, the identity keys
+are probably not compatible with anything other than Autokey.
+</p>
+<p>Some files used by this program are encrypted using a private password.
+The <code>-p</code> option specifies the password for local encrypted files and the
+<code>-q</code> option the password for encrypted files sent to remote sites.
+If no password is specified, the host name returned by the Unix
+<code>gethostname()</code> function, normally the DNS name of the host, is used.
+</p>
+<p>The <kbd>pw</kbd> option of the <code>crypto</code> configuration command
+specifies the read password for previously encrypted local files.
+This must match the local password used by this program.
+If not specified, the host name is used.
+Thus, if files are generated by this program without password,
+they can be read back by ntpd without password, but only on the same
+host.
+</p>
+<p>Normally, encrypted files for each host are generated by that host and
+used only by that host, although exceptions exist as noted later on
+this page.
+The symmetric keys file, normally called <code>ntp.keys</code>, is
+usually installed in <code>/etc</code>.
+Other files and links are usually installed
+in <code>/usr/local/etc</code>, which is normally in a shared filesystem in
+NFS-mounted networks and cannot be changed by shared clients.
+The location of the keys directory can be changed by the keysdir
+configuration command in such cases.
+Normally, this is in <code>/etc</code>.
+</p>
+<p>This program directs commentary and error messages to the standard
+error stream <code>stderr</code> and remote files to the standard output stream
+<code>stdout</code> where they can be piped to other applications or redirected to
+files.
+The names used for generated files and links all begin with the
+string <code>ntpkey</code> and include the file type,
+generating host and filestamp,
+as described in the <a href="#Cryptographic-Data-Files">Cryptographic Data Files</a> section below.
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#Running-the-Program" accesskey="1">Running the Program</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Invocation" accesskey="2">ntp-keygen Invocation</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Random-Seed-File" accesskey="3">Random Seed File</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Cryptographic-Data-Files" accesskey="4">Cryptographic Data Files</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+</table>
+
+<hr>
+<a name="Running-the-Program"></a>
+<div class="header">
+<p>
+Next: <a href="#Random-Seed-File" accesskey="n" rel="next">Random Seed File</a>, Previous: <a href="#Description" accesskey="p" rel="prev">Description</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="Running-the-Program-1"></a>
+<h3 class="section">1.1 Running the Program</h3>
+
+<p>To test and gain experience with Autokey concepts, log in as root and
+change to the keys directory, usually <code>/usr/local/etc</code>.
+When run for the
+first time, or if all files with names beginning <code>ntpkey</code>] have been
+removed, use the <code>ntp-keygen</code> command without arguments to generate a
+default RSA host key and matching RSA-MD5 certificate with expiration
+date one year hence.
+If run again without options, the program uses the
+existing keys and parameters and generates only a new certificate with
+new expiration date one year hence.
+</p>
+<p>Run the command on as many hosts as necessary.
+Designate one of them as the trusted host (TH) using <code>ntp-keygen</code>
+with the <code>-T</code> option and configure
+it to synchronize from reliable Internet servers.
+Then configure the other hosts to synchronize to the TH directly or indirectly.
+A certificate trail is created when Autokey asks the immediately
+ascendant host towards the TH to sign its certificate, which is then
+provided to the immediately descendant host on request.
+All group hosts should have acyclic certificate trails ending on the TH.
+</p>
+<p>The host key is used to encrypt the cookie when required and so must be
+RSA type.
+By default, the host key is also the sign key used to encrypt signatures.
+A different sign key can be assigned using the <code>-S</code> option
+and this can be either RSA or DSA type.
+By default, the signature
+message digest type is MD5, but any combination of sign key type and
+message digest type supported by the OpenSSL library can be specified
+using the <code>-c</code> option.
+</p>
+<p>The rules say cryptographic media should be generated with proventic
+filestamps, which means the host should already be synchronized before
+this program is run.
+This of course creates a chicken-and-egg problem
+when the host is started for the first time.
+Accordingly, the host time
+should be set by some other means, such as eyeball-and-wristwatch, at
+least so that the certificate lifetime is within the current year.
+After that and when the host is synchronized to a proventic source, the
+certificate should be re-generated.
+</p>
+<p>Additional information on trusted groups and identity schemes is on the
+Autokey Public-Key Authentication page.
+</p>
+<hr>
+<a name="ntp_002dkeygen-Invocation"></a>
+<div class="header">
+<p>
+Next: <a href="#Random-Seed-File" accesskey="n" rel="next">Random Seed File</a>, Previous: <a href="#Running-the-Program" accesskey="p" rel="prev">Running the Program</a>, Up: <a href="#Description" accesskey="u" rel="up">Description</a> &nbsp; </p>
+</div>
+<a name="Invoking-ntp_002dkeygen"></a>
+<h3 class="section">1.2 Invoking ntp-keygen</h3>
+<a name="index-ntp_002dkeygen"></a>
+<a name="index-Create-a-NTP-host-key"></a>
+
+
+
+<p>This program generates cryptographic data files used by the NTPv4
+authentication and identification schemes.
+It can generate message digest keys used in symmetric key cryptography and,
+if the OpenSSL software library has been installed, it can generate host keys,
+signing keys, certificates, and identity keys and parameters used in Autokey
+public key cryptography.
+These files are used for cookie encryption,
+digital signature, and challenge/response identification algorithms
+compatible with the Internet standard security infrastructure.
+</p>
+<p>The message digest symmetric keys file is generated in a format
+compatible with NTPv3.
+All other files are in PEM-encoded printable ASCII format,
+so they can be embedded as MIME attachments in email to other sites
+and certificate authorities.
+By default, files are not encrypted.
+</p>
+<p>When used to generate message digest symmetric keys, the program
+produces a file containing ten pseudo-random printable ASCII strings
+suitable for the MD5 message digest algorithm included in the
+distribution.
+If the OpenSSL library is installed, it produces an additional ten
+hex-encoded random bit strings suitable for SHA1, AES-128-CMAC, and
+other message digest algorithms.
+The message digest symmetric keys file must be distributed and stored
+using secure means beyond the scope of NTP itself.
+Besides the keys used for ordinary NTP associations, additional keys
+can be defined as passwords for the
+<code>ntpq(1ntpqmdoc)</code>
+and
+<code>ntpdc(1ntpdcmdoc)</code>
+utility programs.
+</p>
+<p>The remaining generated files are compatible with other OpenSSL
+applications and other Public Key Infrastructure (PKI) resources.
+Certificates generated by this program are compatible with extant
+industry practice, although some users might find the interpretation of
+X509v3 extension fields somewhat liberal.
+However, the identity keys are probably not compatible with anything
+other than Autokey.
+</p>
+<p>Some files used by this program are encrypted using a private password.
+The
+<code>-p</code>
+option specifies the read password for local encrypted files and the
+<code>-q</code>
+option the write password for encrypted files sent to remote sites.
+If no password is specified, the host name returned by the Unix
+<code>hostname(1)</code>
+command, normally the DNS name of the host, is used as the the default read
+password, for convenience.
+The
+<code>ntp-keygen</code>
+program prompts for the password if it reads an encrypted file
+and the password is missing or incorrect.
+If an encrypted file is read successfully and
+no write password is specified, the read password is used
+as the write password by default.
+</p>
+<p>The
+<code>pw</code>
+option of the
+<code>crypto</code>
+<code>ntpd(1ntpdmdoc)</code>
+configuration command specifies the read
+password for previously encrypted local files.
+This must match the local read password used by this program.
+If not specified, the host name is used.
+Thus, if files are generated by this program without an explicit password,
+they can be read back by
+<code>ntpd(1ntpdmdoc)</code>
+without specifying an explicit password but only on the same host.
+If the write password used for encryption is specified as the host name,
+these files can be read by that host with no explicit password.
+</p>
+<p>Normally, encrypted files for each host are generated by that host and
+used only by that host, although exceptions exist as noted later on
+this page.
+The symmetric keys file, normally called
+<samp>ntp.keys</samp>,
+is usually installed in
+<samp>/etc</samp>.
+Other files and links are usually installed in
+<samp>/usr/local/etc</samp>,
+which is normally in a shared filesystem in
+NFS-mounted networks and cannot be changed by shared clients.
+In these cases, NFS clients can specify the files in another
+directory such as
+<samp>/etc</samp>
+using the
+<code>keysdir</code>
+<code>ntpd(1ntpdmdoc)</code>
+configuration file command.
+</p>
+<p>This program directs commentary and error messages to the standard
+error stream
+<samp>stderr</samp>
+and remote files to the standard output stream
+<samp>stdout</samp>
+where they can be piped to other applications or redirected to files.
+The names used for generated files and links all begin with the
+string
+<samp>ntpkey*</samp>
+and include the file type, generating host and filestamp,
+as described in the
+<a href="#Cryptographic-Data-Files">Cryptographic Data Files</a>
+section below.
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-usage" accesskey="1">ntp-keygen usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-imbits" accesskey="2">ntp-keygen imbits</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-certificate" accesskey="3">ntp-keygen certificate</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-cipher" accesskey="4">ntp-keygen cipher</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-id_002dkey" accesskey="5">ntp-keygen id-key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-gq_002dparams" accesskey="6">ntp-keygen gq-params</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-host_002dkey" accesskey="7">ntp-keygen host-key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-iffkey" accesskey="8">ntp-keygen iffkey</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-ident" accesskey="9">ntp-keygen ident</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-lifetime">ntp-keygen lifetime</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-modulus">ntp-keygen modulus</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-md5key">ntp-keygen md5key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-pvt_002dcert">ntp-keygen pvt-cert</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-password">ntp-keygen password</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-export_002dpasswd">ntp-keygen export-passwd</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-subject_002dname">ntp-keygen subject-name</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-sign_002dkey">ntp-keygen sign-key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-trusted_002dcert">ntp-keygen trusted-cert</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-mv_002dparams">ntp-keygen mv-params</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-mv_002dkeys">ntp-keygen mv-keys</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-config">ntp-keygen config</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-exit-status">ntp-keygen exit status</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Usage">ntp-keygen Usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Notes">ntp-keygen Notes</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Bugs">ntp-keygen Bugs</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+</table>
+
+<a name="Running-the-Program-2"></a>
+<h4 class="subsection">1.2.1 Running the Program</h4>
+<p>The safest way to run the
+<code>ntp-keygen</code>
+program is logged in directly as root.
+The recommended procedure is change to the
+<kbd>keys</kbd>
+directory, usually
+<samp>/usr/local/etc</samp>,
+then run the program.
+</p>
+<p>To test and gain experience with Autokey concepts, log in as root and
+change to the
+<kbd>keys</kbd>
+directory, usually
+<samp>/usr/local/etc</samp>.
+When run for the first time, or if all files with names beginning with
+<samp>ntpkey*</samp>
+have been removed, use the
+<code>ntp-keygen</code>
+command without arguments to generate a default
+<code>RSA</code>
+host key and matching
+<code>RSA-MD5</code>
+certificate file with expiration date one year hence,
+which is all that is necessary in many cases.
+The program also generates soft links from the generic names
+to the respective files.
+If run again without options, the program uses the
+existing keys and parameters and generates a new certificate file with
+new expiration date one year hence, and soft link.
+</p>
+<p>The host key is used to encrypt the cookie when required and so must be
+<code>RSA</code>
+type.
+By default, the host key is also the sign key used to encrypt signatures.
+When necessary, a different sign key can be specified and this can be
+either
+<code>RSA</code>
+or
+<code>DSA</code>
+type.
+By default, the message digest type is
+<code>MD5</code>,
+but any combination
+of sign key type and message digest type supported by the OpenSSL library
+can be specified, including those using the
+<code>AES128CMAC</code>, <code>MD2</code>, <code>MD5</code>, <code>MDC2</code>, <code>SHA</code>, <code>SHA1</code>
+and
+<code>RIPE160</code>
+message digest algorithms.
+However, the scheme specified in the certificate must be compatible
+with the sign key.
+Certificates using any digest algorithm are compatible with
+<code>RSA</code>
+sign keys;
+however, only
+<code>SHA</code>
+and
+<code>SHA1</code>
+certificates are compatible with
+<code>DSA</code>
+sign keys.
+</p>
+<p>Private/public key files and certificates are compatible with
+other OpenSSL applications and very likely other libraries as well.
+Certificates or certificate requests derived from them should be compatible
+with extant industry practice, although some users might find
+the interpretation of X509v3 extension fields somewhat liberal.
+However, the identification parameter files, although encoded
+as the other files, are probably not compatible with anything other than Autokey.
+</p>
+<p>Running the program as other than root and using the Unix
+<code>su(1)</code>
+command
+to assume root may not work properly, since by default the OpenSSL library
+looks for the random seed file
+<samp>.rnd</samp>
+in the user home directory.
+However, there should be only one
+<samp>.rnd</samp>,
+most conveniently
+in the root directory, so it is convenient to define the
+.Ev RANDFILE
+environment variable used by the OpenSSL library as the path to
+<samp>.rnd</samp>.
+</p>
+<p>Installing the keys as root might not work in NFS-mounted
+shared file systems, as NFS clients may not be able to write
+to the shared keys directory, even as root.
+In this case, NFS clients can specify the files in another
+directory such as
+<samp>/etc</samp>
+using the
+<code>keysdir</code>
+<code>ntpd(1ntpdmdoc)</code>
+configuration file command.
+There is no need for one client to read the keys and certificates
+of other clients or servers, as these data are obtained automatically
+by the Autokey protocol.
+</p>
+<p>Ordinarily, cryptographic files are generated by the host that uses them,
+but it is possible for a trusted agent (TA) to generate these files
+for other hosts; however, in such cases files should always be encrypted.
+The subject name and trusted name default to the hostname
+of the host generating the files, but can be changed by command line options.
+It is convenient to designate the owner name and trusted name
+as the subject and issuer fields, respectively, of the certificate.
+The owner name is also used for the host and sign key files,
+while the trusted name is used for the identity files.
+</p>
+<p>All files are installed by default in the keys directory
+<samp>/usr/local/etc</samp>,
+which is normally in a shared filesystem
+in NFS-mounted networks.
+The actual location of the keys directory
+and each file can be overridden by configuration commands,
+but this is not recommended.
+Normally, the files for each host are generated by that host
+and used only by that host, although exceptions exist
+as noted later on this page.
+</p>
+<p>Normally, files containing private values,
+including the host key, sign key and identification parameters,
+are permitted root read/write-only;
+while others containing public values are permitted world readable.
+Alternatively, files containing private values can be encrypted
+and these files permitted world readable,
+which simplifies maintenance in shared file systems.
+Since uniqueness is insured by the
+<kbd>hostname</kbd>
+and
+<kbd>filestamp</kbd>
+file name extensions, the files for an NTP server and
+dependent clients can all be installed in the same shared directory.
+</p>
+<p>The recommended practice is to keep the file name extensions
+when installing a file and to install a soft link
+from the generic names specified elsewhere on this page
+to the generated files.
+This allows new file generations to be activated simply
+by changing the link.
+If a link is present,
+<code>ntpd(1ntpdmdoc)</code>
+follows it to the file name to extract the
+<kbd>filestamp</kbd>.
+If a link is not present,
+<code>ntpd(1ntpdmdoc)</code>
+extracts the
+<kbd>filestamp</kbd>
+from the file itself.
+This allows clients to verify that the file and generation times
+are always current.
+The
+<code>ntp-keygen</code>
+program uses the same
+<kbd>filestamp</kbd>
+extension for all files generated
+at one time, so each generation is distinct and can be readily
+recognized in monitoring data.
+</p>
+<p>Run the command on as many hosts as necessary.
+Designate one of them as the trusted host (TH) using
+<code>ntp-keygen</code>
+with the
+<code>-T</code>
+option and configure it to synchronize from reliable Internet servers.
+Then configure the other hosts to synchronize to the TH directly or
+indirectly.
+A certificate trail is created when Autokey asks the immediately
+ascendant host towards the TH to sign its certificate, which is then
+provided to the immediately descendant host on request.
+All group hosts should have acyclic certificate trails ending on the TH.
+</p>
+<p>The host key is used to encrypt the cookie when required and so must be
+RSA type.
+By default, the host key is also the sign key used to encrypt
+signatures.
+A different sign key can be assigned using the
+<code>-S</code>
+option and this can be either
+<code>RSA</code>
+or
+<code>DSA</code>
+type.
+By default, the signature
+message digest type is
+<code>MD5</code>,
+but any combination of sign key type and
+message digest type supported by the OpenSSL library can be specified
+using the
+<code>-c</code>
+option.
+</p>
+<p>The rules say cryptographic media should be generated with proventic
+filestamps, which means the host should already be synchronized before
+this program is run.
+This of course creates a chicken-and-egg problem
+when the host is started for the first time.
+Accordingly, the host time
+should be set by some other means, such as eyeball-and-wristwatch, at
+least so that the certificate lifetime is within the current year.
+After that and when the host is synchronized to a proventic source, the
+certificate should be re-generated.
+</p>
+<p>Additional information on trusted groups and identity schemes is on the
+&ldquo;Autokey Public-Key Authentication&rdquo;
+page.
+</p>
+<p>File names begin with the prefix
+<samp>ntpkey</samp>_
+and end with the suffix
+<samp>_</samp><kbd>hostname</kbd>. <kbd>filestamp</kbd>,
+where
+<kbd>hostname</kbd>
+is the owner name, usually the string returned
+by the Unix
+<code>hostname(1)</code>
+command, and
+<kbd>filestamp</kbd>
+is the NTP seconds when the file was generated, in decimal digits.
+This both guarantees uniqueness and simplifies maintenance
+procedures, since all files can be quickly removed
+by a
+<code>rm</code> <samp>ntpkey*</samp>
+command or all files generated
+at a specific time can be removed by a
+<code>rm</code> <samp>*</samp><kbd>filestamp</kbd>
+command.
+To further reduce the risk of misconfiguration,
+the first two lines of a file contain the file name
+and generation date and time as comments.
+</p>
+<a name="Trusted-Hosts-and-Groups"></a>
+<h4 class="subsubsection">1.2.1.1 Trusted Hosts and Groups</h4>
+<p>Each cryptographic configuration involves selection of a signature scheme
+and identification scheme, called a cryptotype,
+as explained in the
+&lsquo;Authentication Options&rsquo;
+section of
+<code>ntp.conf(5)</code>.
+The default cryptotype uses
+<code>RSA</code>
+encryption,
+<code>MD5</code>
+message digest
+and
+<code>TC</code>
+identification.
+First, configure a NTP subnet including one or more low-stratum
+trusted hosts from which all other hosts derive synchronization
+directly or indirectly.
+Trusted hosts have trusted certificates;
+all other hosts have nontrusted certificates.
+These hosts will automatically and dynamically build authoritative
+certificate trails to one or more trusted hosts.
+A trusted group is the set of all hosts that have, directly or indirectly,
+a certificate trail ending at a trusted host.
+The trail is defined by static configuration file entries
+or dynamic means described on the
+&lsquo;Automatic NTP Configuration Options&rsquo;
+section of
+<code>ntp.conf(5)</code>.
+</p>
+<p>On each trusted host as root, change to the keys directory.
+To insure a fresh fileset, remove all
+<samp>ntpkey</samp>
+files.
+Then run
+<code>ntp-keygen</code>
+<code>-T</code>
+to generate keys and a trusted certificate.
+On all other hosts do the same, but leave off the
+<code>-T</code>
+flag to generate keys and nontrusted certificates.
+When complete, start the NTP daemons beginning at the lowest stratum
+and working up the tree.
+It may take some time for Autokey to instantiate the certificate trails
+throughout the subnet, but setting up the environment is completely automatic.
+</p>
+<p>If it is necessary to use a different sign key or different digest/signature
+scheme than the default, run
+<code>ntp-keygen</code>
+with the
+<code>-S</code> <kbd>type</kbd>
+option, where
+<kbd>type</kbd>
+is either
+<code>RSA</code>
+or
+<code>DSA</code>.
+The most frequent need to do this is when a
+<code>DSA</code>-signed
+certificate is used.
+If it is necessary to use a different certificate scheme than the default,
+run
+<code>ntp-keygen</code>
+with the
+<code>-c</code> <kbd>scheme</kbd>
+option and selected
+<kbd>scheme</kbd>
+as needed.
+If
+<code>ntp-keygen</code>
+is run again without these options, it generates a new certificate
+using the same scheme and sign key, and soft link.
+</p>
+<p>After setting up the environment it is advisable to update certificates
+from time to time, if only to extend the validity interval.
+Simply run
+<code>ntp-keygen</code>
+with the same flags as before to generate new certificates
+using existing keys, and soft links.
+However, if the host or sign key is changed,
+<code>ntpd(1ntpdmdoc)</code>
+should be restarted.
+When
+<code>ntpd(1ntpdmdoc)</code>
+is restarted, it loads any new files and restarts the protocol.
+Other dependent hosts will continue as usual until signatures are refreshed,
+at which time the protocol is restarted.
+</p>
+<a name="Identity-Schemes"></a>
+<h4 class="subsubsection">1.2.1.2 Identity Schemes</h4>
+<p>As mentioned on the Autonomous Authentication page,
+the default
+<code>TC</code>
+identity scheme is vulnerable to a middleman attack.
+However, there are more secure identity schemes available,
+including
+<code>PC</code>, <code>IFF</code>, <code>GQ</code>
+and
+<code>MV</code>
+schemes described below.
+These schemes are based on a TA, one or more trusted hosts
+and some number of nontrusted hosts.
+Trusted hosts prove identity using values provided by the TA,
+while the remaining hosts prove identity using values provided
+by a trusted host and certificate trails that end on that host.
+The name of a trusted host is also the name of its sugroup
+and also the subject and issuer name on its trusted certificate.
+The TA is not necessarily a trusted host in this sense, but often is.
+</p>
+<p>In some schemes there are separate keys for servers and clients.
+A server can also be a client of another server,
+but a client can never be a server for another client.
+In general, trusted hosts and nontrusted hosts that operate
+as both server and client have parameter files that contain
+both server and client keys.
+Hosts that operate
+only as clients have key files that contain only client keys.
+</p>
+<p>The PC scheme supports only one trusted host in the group.
+On trusted host alice run
+<code>ntp-keygen</code>
+<code>-P</code>
+<code>-p</code> <kbd>password</kbd>
+to generate the host key file
+<samp>ntpkey</samp>_ <code>RSA</code> <samp>key_alice.</samp> <kbd>filestamp</kbd>
+and trusted private certificate file
+<samp>ntpkey</samp>_ <code>RSA-MD5</code> <code>_</code> <samp>cert_alice.</samp> <kbd>filestamp</kbd>,
+and soft links.
+Copy both files to all group hosts;
+they replace the files which would be generated in other schemes.
+On each host
+<kbd>bob</kbd>
+install a soft link from the generic name
+<samp>ntpkey_host_</samp><kbd>bob</kbd>
+to the host key file and soft link
+<samp>ntpkey_cert_</samp><kbd>bob</kbd>
+to the private certificate file.
+Note the generic links are on bob, but point to files generated
+by trusted host alice.
+In this scheme it is not possible to refresh
+either the keys or certificates without copying them
+to all other hosts in the group, and recreating the soft links.
+</p>
+<p>For the
+<code>IFF</code>
+scheme proceed as in the
+<code>TC</code>
+scheme to generate keys
+and certificates for all group hosts, then for every trusted host in the group,
+generate the
+<code>IFF</code>
+parameter file.
+On trusted host alice run
+<code>ntp-keygen</code>
+<code>-T</code>
+<code>-I</code>
+<code>-p</code> <kbd>password</kbd>
+to produce her parameter file
+<samp>ntpkey_IFFpar_alice.</samp><kbd>filestamp</kbd>,
+which includes both server and client keys.
+Copy this file to all group hosts that operate as both servers
+and clients and install a soft link from the generic
+<samp>ntpkey_iff_alice</samp>
+to this file.
+If there are no hosts restricted to operate only as clients,
+there is nothing further to do.
+As the
+<code>IFF</code>
+scheme is independent
+of keys and certificates, these files can be refreshed as needed.
+</p>
+<p>If a rogue client has the parameter file, it could masquerade
+as a legitimate server and present a middleman threat.
+To eliminate this threat, the client keys can be extracted
+from the parameter file and distributed to all restricted clients.
+After generating the parameter file, on alice run
+<code>ntp-keygen</code>
+<code>-e</code>
+and pipe the output to a file or email program.
+Copy or email this file to all restricted clients.
+On these clients install a soft link from the generic
+<samp>ntpkey_iff_alice</samp>
+to this file.
+To further protect the integrity of the keys,
+each file can be encrypted with a secret password.
+</p>
+<p>For the
+<code>GQ</code>
+scheme proceed as in the
+<code>TC</code>
+scheme to generate keys
+and certificates for all group hosts, then for every trusted host
+in the group, generate the
+<code>IFF</code>
+parameter file.
+On trusted host alice run
+<code>ntp-keygen</code>
+<code>-T</code>
+<code>-G</code>
+<code>-p</code> <kbd>password</kbd>
+to produce her parameter file
+<samp>ntpkey_GQpar_alice.</samp><kbd>filestamp</kbd>,
+which includes both server and client keys.
+Copy this file to all group hosts and install a soft link
+from the generic
+<samp>ntpkey_gq_alice</samp>
+to this file.
+In addition, on each host
+<kbd>bob</kbd>
+install a soft link
+from generic
+<samp>ntpkey_gq_</samp><kbd>bob</kbd>
+to this file.
+As the
+<code>GQ</code>
+scheme updates the
+<code>GQ</code>
+parameters file and certificate
+at the same time, keys and certificates can be regenerated as needed.
+</p>
+<p>For the
+<code>MV</code>
+scheme, proceed as in the
+<code>TC</code>
+scheme to generate keys
+and certificates for all group hosts.
+For illustration assume trish is the TA, alice one of several trusted hosts
+and bob one of her clients.
+On TA trish run
+<code>ntp-keygen</code>
+<code>-V</code> <kbd>n</kbd>
+<code>-p</code> <kbd>password</kbd>,
+where
+<kbd>n</kbd>
+is the number of revokable keys (typically 5) to produce
+the parameter file
+<samp>ntpkeys_MVpar_trish.</samp><kbd>filestamp</kbd>
+and client key files
+<samp>ntpkeys_MVkey</samp><kbd>d</kbd> <kbd>_</kbd> <samp>trish.</samp> <kbd>filestamp</kbd>
+where
+<kbd>d</kbd>
+is the key number (0 &lt;
+<kbd>d</kbd>
+&lt;
+<kbd>n</kbd>).
+Copy the parameter file to alice and install a soft link
+from the generic
+<samp>ntpkey_mv_alice</samp>
+to this file.
+Copy one of the client key files to alice for later distribution
+to her clients.
+It does not matter which client key file goes to alice,
+since they all work the same way.
+Alice copies the client key file to all of her clients.
+On client bob install a soft link from generic
+<samp>ntpkey_mvkey_bob</samp>
+to the client key file.
+As the
+<code>MV</code>
+scheme is independent of keys and certificates,
+these files can be refreshed as needed.
+</p>
+<a name="Command-Line-Options"></a>
+<h4 class="subsubsection">1.2.1.3 Command Line Options</h4>
+<dl compact="compact">
+<dt><code>-b</code> <code>--imbits</code>= <kbd>modulus</kbd></dt>
+<dd><p>Set the number of bits in the identity modulus for generating identity keys to
+<kbd>modulus</kbd>
+bits.
+The number of bits in the identity modulus defaults to 256, but can be set to
+values from 256 to 2048 (32 to 256 octets).
+Use the larger moduli with caution, as this can consume considerable computing
+resources and increases the size of authenticated packets.
+</p></dd>
+<dt><code>-c</code> <code>--certificate</code>= <kbd>scheme</kbd></dt>
+<dd><p>Select certificate signature encryption/message digest scheme.
+The
+<kbd>scheme</kbd>
+can be one of the following:
+<code>RSA-MD2</code>, <code>RSA-MD5</code>, <code>RSA-MDC2</code>, <code>RSA-SHA</code>, <code>RSA-SHA1</code>, <code>RSA-RIPEMD160</code>, <code>DSA-SHA</code>,
+or
+<code>DSA-SHA1</code>.
+Note that
+<code>RSA</code>
+schemes must be used with an
+<code>RSA</code>
+sign key and
+<code>DSA</code>
+schemes must be used with a
+<code>DSA</code>
+sign key.
+The default without this option is
+<code>RSA-MD5</code>.
+If compatibility with FIPS 140-2 is required, either the
+<code>DSA-SHA</code>
+or
+<code>DSA-SHA1</code>
+scheme must be used.
+</p></dd>
+<dt><code>-C</code> <code>--cipher</code>= <kbd>cipher</kbd></dt>
+<dd><p>Select the OpenSSL cipher to encrypt the files containing private keys.
+The default without this option is three-key triple DES in CBC mode,
+<code>des-ede3-cbc</code>.
+The
+<code>openssl</code> <code>-h</code>
+command provided with OpenSSL displays available ciphers.
+</p></dd>
+<dt><code>-d</code> <code>--debug-level</code></dt>
+<dd><p>Increase debugging verbosity level.
+This option displays the cryptographic data produced in eye-friendly billboards.
+</p></dd>
+<dt><code>-D</code> <code>--set-debug-level</code>= <kbd>level</kbd></dt>
+<dd><p>Set the debugging verbosity to
+<kbd>level</kbd>.
+This option displays the cryptographic data produced in eye-friendly billboards.
+</p></dd>
+<dt><code>-e</code> <code>--id-key</code></dt>
+<dd><p>Write the
+<code>IFF</code>
+or
+<code>GQ</code>
+public parameters from the
+<kbd>IFFkey</kbd> <kbd>or</kbd> <kbd>GQkey</kbd>
+client keys file previously specified
+as unencrypted data to the standard output stream
+<samp>stdout</samp>.
+This is intended for automatic key distribution by email.
+</p></dd>
+<dt><code>-G</code> <code>--gq-params</code></dt>
+<dd><p>Generate a new encrypted
+<code>GQ</code>
+parameters and key file for the Guillou-Quisquater (GQ) identity scheme.
+This option is mutually exclusive with the
+<code>-I</code>
+and
+<code>-V</code>
+options.
+</p></dd>
+<dt><code>-H</code> <code>--host-key</code></dt>
+<dd><p>Generate a new encrypted
+<code>RSA</code>
+public/private host key file.
+</p></dd>
+<dt><code>-I</code> <code>--iffkey</code></dt>
+<dd><p>Generate a new encrypted
+<code>IFF</code>
+key file for the Schnorr (IFF) identity scheme.
+This option is mutually exclusive with the
+<code>-G</code>
+and
+Fl V
+options.
+</p></dd>
+<dt><code>-i</code> <code>--ident</code>= <kbd>group</kbd></dt>
+<dd><p>Set the optional Autokey group name to
+<kbd>group</kbd>.
+This is used in the identity scheme parameter file names of
+<code>IFF</code>, <code>GQ</code>,
+and
+<code>MV</code>
+client parameters files.
+In that role, the default is the host name if no group is provided.
+The group name, if specified using
+<code>-i</code>
+or
+<code>-s</code>
+following an
+&lsquo;@&rsquo;
+character, is also used in certificate subject and issuer names in the form
+<kbd>host</kbd> <kbd>@</kbd> <kbd>group</kbd>
+and should match the group specified via
+<code>crypto</code> <code>ident</code>
+or
+<code>server</code> <code>ident</code>
+in the ntpd configuration file.
+</p></dd>
+<dt><code>-l</code> <code>--lifetime</code>= <kbd>days</kbd></dt>
+<dd><p>Set the lifetime for certificate expiration to
+<kbd>days</kbd>.
+The default lifetime is one year (365 days).
+</p></dd>
+<dt><code>-m</code> <code>--modulus</code>= <kbd>bits</kbd></dt>
+<dd><p>Set the number of bits in the prime modulus for generating files to
+<kbd>bits</kbd>.
+The modulus defaults to 512, but can be set from 256 to 2048 (32 to 256 octets).
+Use the larger moduli with caution, as this can consume considerable computing
+resources and increases the size of authenticated packets.
+</p></dd>
+<dt><code>-M</code> <code>--md5key</code></dt>
+<dd><p>Generate a new symmetric keys file containing 10
+<code>MD5</code>
+keys, and if OpenSSL is available, 10
+<code>SHA</code>
+keys.
+An
+<code>MD5</code>
+key is a string of 20 random printable ASCII characters, while a
+<code>SHA</code>
+key is a string of 40 random hex digits.
+The file can be edited using a text editor to change the key type or key content.
+This option is mutually exclusive with all other options.
+</p></dd>
+<dt><code>-p</code> <code>--password</code>= <kbd>passwd</kbd></dt>
+<dd><p>Set the password for reading and writing encrypted files to
+<kbd>passwd</kbd>.
+These include the host, sign and identify key files.
+By default, the password is the string returned by the Unix
+<code>hostname</code>
+command.
+</p></dd>
+<dt><code>-P</code> <code>--pvt-cert</code></dt>
+<dd><p>Generate a new private certificate used by the
+<code>PC</code>
+identity scheme.
+By default, the program generates public certificates.
+Note: the PC identity scheme is not recommended for new installations.
+</p></dd>
+<dt><code>-q</code> <code>--export-passwd</code>= <kbd>passwd</kbd></dt>
+<dd><p>Set the password for writing encrypted
+<code>IFF</code>, <code>GQ</code> <code>and</code> <code>MV</code>
+identity files redirected to
+<samp>stdout</samp>
+to
+<kbd>passwd</kbd>.
+In effect, these files are decrypted with the
+<code>-p</code>
+password, then encrypted with the
+<code>-q</code>
+password.
+By default, the password is the string returned by the Unix
+<code>hostname</code>
+command.
+</p></dd>
+<dt><code>-s</code> <code>--subject-key</code>= <code>[host]</code> <code>[@ <kbd>group</kbd>]</code></dt>
+<dd><p>Specify the Autokey host name, where
+<kbd>host</kbd>
+is the optional host name and
+<kbd>group</kbd>
+is the optional group name.
+The host name, and if provided, group name are used in
+<kbd>host</kbd> <kbd>@</kbd> <kbd>group</kbd>
+form as certificate subject and issuer.
+Specifying
+<code>-s</code> <code>-@</code> <kbd>group</kbd>
+is allowed, and results in leaving the host name unchanged, as with
+<code>-i</code> <kbd>group</kbd>.
+The group name, or if no group is provided, the host name are also used in the
+file names of
+<code>IFF</code>, <code>GQ</code>,
+and
+<code>MV</code>
+identity scheme client parameter files.
+If
+<kbd>host</kbd>
+is not specified, the default host name is the string returned by the Unix
+<code>hostname</code>
+command.
+</p></dd>
+<dt><code>-S</code> <code>--sign-key</code>= <code>[<code>RSA</code> | <code>DSA</code>]</code></dt>
+<dd><p>Generate a new encrypted public/private sign key file of the specified type.
+By default, the sign key is the host key and has the same type.
+If compatibility with FIPS 140-2 is required, the sign key type must be
+<code>DSA</code>.
+</p></dd>
+<dt><code>-T</code> <code>--trusted-cert</code></dt>
+<dd><p>Generate a trusted certificate.
+By default, the program generates a non-trusted certificate.
+</p></dd>
+<dt><code>-V</code> <code>--mv-params</code> <kbd>nkeys</kbd></dt>
+<dd><p>Generate
+<kbd>nkeys</kbd>
+encrypted server keys and parameters for the Mu-Varadharajan (MV)
+identity scheme.
+This option is mutually exclusive with the
+<code>-I</code>
+and
+<code>-G</code>
+options.
+Note: support for this option should be considered a work in progress.
+</p></dd>
+</dl>
+
+<a name="Random-Seed-File-1"></a>
+<h4 class="subsubsection">1.2.1.4 Random Seed File</h4>
+<p>All cryptographically sound key generation schemes must have means
+to randomize the entropy seed used to initialize
+the internal pseudo-random number generator used
+by the library routines.
+The OpenSSL library uses a designated random seed file for this purpose.
+The file must be available when starting the NTP daemon and
+<code>ntp-keygen</code>
+program.
+If a site supports OpenSSL or its companion OpenSSH,
+it is very likely that means to do this are already available.
+</p>
+<p>It is important to understand that entropy must be evolved
+for each generation, for otherwise the random number sequence
+would be predictable.
+Various means dependent on external events, such as keystroke intervals,
+can be used to do this and some systems have built-in entropy sources.
+Suitable means are described in the OpenSSL software documentation,
+but are outside the scope of this page.
+</p>
+<p>The entropy seed used by the OpenSSL library is contained in a file,
+usually called
+<samp>.rnd</samp>,
+which must be available when starting the NTP daemon
+or the
+<code>ntp-keygen</code>
+program.
+The NTP daemon will first look for the file
+using the path specified by the
+<code>randfile</code>
+subcommand of the
+<code>crypto</code>
+configuration command.
+If not specified in this way, or when starting the
+<code>ntp-keygen</code>
+program,
+the OpenSSL library will look for the file using the path specified
+by the
+.Ev RANDFILE
+environment variable in the user home directory,
+whether root or some other user.
+If the
+.Ev RANDFILE
+environment variable is not present,
+the library will look for the
+<samp>.rnd</samp>
+file in the user home directory.
+Since both the
+<code>ntp-keygen</code>
+program and
+<code>ntpd(1ntpdmdoc)</code>
+daemon must run as root, the logical place to put this file is in
+<samp>/.rnd</samp>
+or
+<samp>/root/.rnd</samp>.
+If the file is not available or cannot be written,
+the daemon exits with a message to the system log and the program
+exits with a suitable error message.
+</p>
+<a name="Cryptographic-Data-Files-1"></a>
+<h4 class="subsubsection">1.2.1.5 Cryptographic Data Files</h4>
+<p>All file formats begin with two nonencrypted lines.
+The first line contains the file name, including the generated host name
+and filestamp, in the format
+<samp>ntpkey_</samp><kbd>key</kbd> <kbd>_</kbd> <kbd>name</kbd>. <kbd>filestamp</kbd>,
+where
+<kbd>key</kbd>
+is the key or parameter type,
+<kbd>name</kbd>
+is the host or group name and
+<kbd>filestamp</kbd>
+is the filestamp (NTP seconds) when the file was created.
+By convention,
+<kbd>key</kbd>
+names in generated file names include both upper and lower case
+characters, while
+<kbd>key</kbd>
+names in generated link names include only lower case characters.
+The filestamp is not used in generated link names.
+The second line contains the datestamp in conventional Unix
+<samp>date</samp>
+format.
+Lines beginning with
+&lsquo;#&rsquo;
+are considered comments and ignored by the
+<code>ntp-keygen</code>
+program and
+<code>ntpd(1ntpdmdoc)</code>
+daemon.
+</p>
+<p>The remainder of the file contains cryptographic data, encoded first using ASN.1
+rules, then encrypted if necessary, and finally written in PEM-encoded
+printable ASCII text, preceded and followed by MIME content identifier lines.
+</p>
+<p>The format of the symmetric keys file, ordinarily named
+<samp>ntp.keys</samp>,
+is somewhat different than the other files in the interest of backward compatibility.
+Ordinarily, the file is generated by this program, but it can be constructed
+and edited using an ordinary text editor.
+</p><pre class="verbatim"># ntpkey_MD5key_bk.ntp.org.3595864945
+# Thu Dec 12 19:22:25 2013
+
+1  MD5 L&quot;;Nw&lt;\`.I&lt;f4U0)247&quot;i  # MD5 key
+2  MD5 &amp;&gt;l0%XXK9O'51VwV&lt;xq~  # MD5 key
+3  MD5 lb4zLW~d^!K:]RsD'qb6  # MD5 key
+4  MD5 Yue:tL[+vR)M\`n~bY,'?  # MD5 key
+5  MD5 B;fx'Kgr/&amp;4ZTbL6=RxA  # MD5 key
+6  MD5 4eYwa\`o@}3i@@@@V@@..R9!l  # MD5 key
+7  MD5 \`A.([h+;wTQ|xfi%Sn_!  # MD5 key
+8  MD5 45:V,r4]l6y^JH6&quot;Sh?F  # MD5 key
+9  MD5 3-5vcn*6l29DS?Xdsg)*  # MD5 key
+10 MD5 2late4Me              # MD5 key
+11 SHA1 a27872d3030a9025b8446c751b4551a7629af65c  # SHA1 key
+12 SHA1 21bc3b4865dbb9e920902abdccb3e04ff97a5e74  # SHA1 key
+13 SHA1 2b7736fe24fef5ba85ae11594132ab5d6f6daba9  # SHA1 key
+14 SHA  a5332809c8878dd3a5b918819108a111509aeceb  # SHA  key
+15 MD2  2fe16c88c760ff2f16d4267e36c1aa6c926e6964  # MD2  key
+16 MD4  b2691811dc19cfc0e2f9bcacd74213f29812183d  # MD4  key
+17 MD5  e4d6735b8bdad58ec5ffcb087300a17f7fef1f7c  # MD5  key
+18 MDC2 a8d5e2315c025bf3a79174c87fbd10477de2eabc  # MDC2 key
+19 RIPEMD160 77ca332cafb30e3cafb174dcd5b80ded7ba9b3d2  # RIPEMD160 key
+20 AES128CMAC f92ff73eee86c1e7dc638d6489a04e4e555af878  # AES128CMAC key
+</pre><div class="example">
+<pre class="example">Figure 1. Typical Symmetric Key File
+</pre></div>
+
+<p>Figure 1 shows a typical symmetric keys file used by the reference
+implementation.
+Following the header the keys are entered one per line in the format
+</p><div class="example">
+<pre class="example"><kbd>keyno</kbd> <kbd>type</kbd> <kbd>key</kbd>
+</pre></div>
+<p>where
+<kbd>keyno</kbd>
+is a positive integer in the range 1-65535;
+<kbd>type</kbd>
+is the key type for the message digest algorithm, which in the absence of the
+OpenSSL library must be
+<code>MD5</code>
+to designate the MD5 message digest algorithm;
+if the OpenSSL library is installed, the key type can be any
+message digest algorithm supported by that library;
+however, if compatibility with FIPS 140-2 is required,
+the key type must be either
+<code>SHA</code>
+or
+<code>SHA1</code>;
+<kbd>key</kbd>
+is the key itself,
+which is a printable ASCII string 20 characters or less in length:
+each character is chosen from the 93 printable characters
+in the range 0x21 through 0x7e (
+&lsquo;&rsquo;!
+through
+&lsquo;~&rsquo;
+) excluding space and the
+&lsquo;#&rsquo;
+character, and terminated by whitespace or a
+&lsquo;#&rsquo;
+character.
+An OpenSSL key consists of a hex-encoded ASCII string of 40 characters, which
+is truncated as necessary.
+</p>
+<p>Note that the keys used by the
+<code>ntpq(1ntpqmdoc)</code>
+and
+<code>ntpdc(1ntpdcmdoc)</code>
+programs
+are checked against passwords requested by the programs
+and entered by hand, so it is generally appropriate to specify these keys
+in human readable ASCII format.
+</p>
+<p>The
+<code>ntp-keygen</code>
+program generates a symmetric keys file
+<samp>ntpkey_MD5key_</samp><kbd>hostname</kbd>. <kbd>filestamp</kbd>.
+Since the file contains private shared keys,
+it should be visible only to root and distributed by secure means
+to other subnet hosts.
+The NTP daemon loads the file
+<samp>ntp.keys</samp>,
+so
+<code>ntp-keygen</code>
+installs a soft link from this name to the generated file.
+Subsequently, similar soft links must be installed by manual
+or automated means on the other subnet hosts.
+While this file is not used with the Autokey Version 2 protocol,
+it is needed to authenticate some remote configuration commands
+used by the
+<code>ntpq(1ntpqmdoc)</code>
+and
+<code>ntpdc(1ntpdcmdoc)</code>
+utilities.
+</p>
+<p>This section was generated by <strong>AutoGen</strong>,
+using the <code>agtexi-cmd</code> template and the option descriptions for the <code>ntp-keygen</code> program.
+This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-usage" accesskey="1">ntp-keygen usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ntp-keygen help/usage (<samp>--help</samp>)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-imbits" accesskey="2">ntp-keygen imbits</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">imbits option (-b)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-certificate" accesskey="3">ntp-keygen certificate</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">certificate option (-c)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-cipher" accesskey="4">ntp-keygen cipher</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">cipher option (-C)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-id_002dkey" accesskey="5">ntp-keygen id-key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">id-key option (-e)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-gq_002dparams" accesskey="6">ntp-keygen gq-params</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">gq-params option (-G)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-host_002dkey" accesskey="7">ntp-keygen host-key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">host-key option (-H)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-iffkey" accesskey="8">ntp-keygen iffkey</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">iffkey option (-I)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-ident" accesskey="9">ntp-keygen ident</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ident option (-i)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-lifetime">ntp-keygen lifetime</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">lifetime option (-l)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-modulus">ntp-keygen modulus</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">modulus option (-m)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-md5key">ntp-keygen md5key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">md5key option (-M)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-pvt_002dcert">ntp-keygen pvt-cert</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">pvt-cert option (-P)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-password">ntp-keygen password</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">password option (-p)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-export_002dpasswd">ntp-keygen export-passwd</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">export-passwd option (-q)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-subject_002dname">ntp-keygen subject-name</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">subject-name option (-s)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-sign_002dkey">ntp-keygen sign-key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">sign-key option (-S)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-trusted_002dcert">ntp-keygen trusted-cert</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">trusted-cert option (-T)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-mv_002dparams">ntp-keygen mv-params</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">mv-params option (-V)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-mv_002dkeys">ntp-keygen mv-keys</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">mv-keys option (-v)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-config">ntp-keygen config</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">presetting/configuring ntp-keygen
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-exit-status">ntp-keygen exit status</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">exit status
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Usage">ntp-keygen Usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Usage
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Notes">ntp-keygen Notes</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Notes
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Bugs">ntp-keygen Bugs</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Bugs
+</td></tr>
+</table>
+
+<hr>
+<a name="ntp_002dkeygen-usage"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-imbits" accesskey="n" rel="next">ntp-keygen imbits</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="ntp_002dkeygen-help_002fusage-_0028_002d_002dhelp_0029"></a>
+<h4 class="subsection">1.2.2 ntp-keygen help/usage (<samp>--help</samp>)</h4>
+<a name="index-ntp_002dkeygen-help"></a>
+
+<p>This is the automatically generated usage text for ntp-keygen.
+</p>
+<p>The text printed is the same whether selected with the <code>help</code> option
+(<samp>--help</samp>) or the <code>more-help</code> option (<samp>--more-help</samp>).  <code>more-help</code> will print
+the usage text by passing it through a pager program.
+<code>more-help</code> is disabled on platforms without a working
+<code>fork(2)</code> function.  The <code>PAGER</code> environment variable is
+used to select the program, defaulting to <samp>more</samp>.  Both will exit
+with a status code of 0.
+</p>
+<div class="example">
+<pre class="example">ntp-keygen (ntp) - Create a NTP host key - Ver. 4.2.8p12
+Usage:  ntp-keygen [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]...
+  Flg Arg Option-Name    Description
+   -b Num imbits         identity modulus bits
+                                - it must be in the range:
+                                  256 to 2048
+   -c Str certificate    certificate scheme
+   -C Str cipher         privatekey cipher
+   -d no  debug-level    Increase debug verbosity level
+                                - may appear multiple times
+   -D Num set-debug-level Set the debug verbosity level
+                                - may appear multiple times
+   -e no  id-key         Write IFF or GQ identity keys
+   -G no  gq-params      Generate GQ parameters and keys
+   -H no  host-key       generate RSA host key
+   -I no  iffkey         generate IFF parameters
+   -i Str ident          set Autokey group name
+   -l Num lifetime       set certificate lifetime
+   -m Num modulus        prime modulus
+                                - it must be in the range:
+                                  256 to 2048
+   -M no  md5key         generate symmetric keys
+   -P no  pvt-cert       generate PC private certificate
+   -p Str password       local private password
+   -q Str export-passwd  export IFF or GQ group keys with password
+   -s Str subject-name   set host and optionally group name
+   -S Str sign-key       generate sign key (RSA or DSA)
+   -T no  trusted-cert   trusted certificate (TC scheme)
+   -V Num mv-params      generate &lt;num&gt; MV parameters
+   -v Num mv-keys        update &lt;num&gt; MV keys
+      opt version        output version information and exit
+   -? no  help           display extended usage information and exit
+   -! no  more-help      extended usage information passed thru pager
+   -&gt; opt save-opts      save the option state to a config file
+   -&lt; Str load-opts      load options from a config file
+                                - disabled as '--no-load-opts'
+                                - may appear multiple times
+
+Options are specified by doubled hyphens and their name or by a single
+hyphen and the flag character.
+
+
+The following option preset mechanisms are supported:
+ - reading file $HOME/.ntprc
+ - reading file ./.ntprc
+ - examining environment variables named NTP_KEYGEN_*
+
+Please send bug reports to:  &lt;http://bugs.ntp.org, bugs@ntp.org&gt;
+</pre></div>
+
+<hr>
+<a name="ntp_002dkeygen-imbits"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-certificate" accesskey="n" rel="next">ntp-keygen certificate</a>, Previous: <a href="#ntp_002dkeygen-usage" accesskey="p" rel="prev">ntp-keygen usage</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="imbits-option-_0028_002db_0029"></a>
+<h4 class="subsection">1.2.3 imbits option (-b)</h4>
+<a name="index-ntp_002dkeygen_002dimbits"></a>
+
+<p>This is the &ldquo;identity modulus bits&rdquo; option.
+This option takes a number argument <samp>imbits</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>The number of bits in the identity modulus.  The default is 256.
+</p><hr>
+<a name="ntp_002dkeygen-certificate"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-cipher" accesskey="n" rel="next">ntp-keygen cipher</a>, Previous: <a href="#ntp_002dkeygen-imbits" accesskey="p" rel="prev">ntp-keygen imbits</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="certificate-option-_0028_002dc_0029"></a>
+<h4 class="subsection">1.2.4 certificate option (-c)</h4>
+<a name="index-ntp_002dkeygen_002dcertificate"></a>
+
+<p>This is the &ldquo;certificate scheme&rdquo; option.
+This option takes a string argument <samp>scheme</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>scheme is one of
+RSA-MD2, RSA-MD5, RSA-MDC2, RSA-SHA, RSA-SHA1, RSA-RIPEMD160,
+DSA-SHA, or DSA-SHA1.
+</p>
+<p>Select the certificate signature encryption/message digest scheme.
+Note that RSA schemes must be used with a RSA sign key and DSA
+schemes must be used with a DSA sign key.  The default without
+this option is RSA-MD5.
+</p><hr>
+<a name="ntp_002dkeygen-cipher"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-id_002dkey" accesskey="n" rel="next">ntp-keygen id-key</a>, Previous: <a href="#ntp_002dkeygen-certificate" accesskey="p" rel="prev">ntp-keygen certificate</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="cipher-option-_0028_002dC_0029"></a>
+<h4 class="subsection">1.2.5 cipher option (-C)</h4>
+<a name="index-ntp_002dkeygen_002dcipher"></a>
+
+<p>This is the &ldquo;privatekey cipher&rdquo; option.
+This option takes a string argument <samp>cipher</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>Select the cipher which is used to encrypt the files containing
+private keys.  The default is three-key triple DES in CBC mode,
+equivalent to &quot;<code>-C des-ede3-cbc</code>&quot;.  The openssl tool lists ciphers
+available in &quot;<code>openssl -h</code>&quot; output.
+</p><hr>
+<a name="ntp_002dkeygen-id_002dkey"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-gq_002dparams" accesskey="n" rel="next">ntp-keygen gq-params</a>, Previous: <a href="#ntp_002dkeygen-cipher" accesskey="p" rel="prev">ntp-keygen cipher</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="id_002dkey-option-_0028_002de_0029"></a>
+<h4 class="subsection">1.2.6 id-key option (-e)</h4>
+<a name="index-ntp_002dkeygen_002did_002dkey"></a>
+
+<p>This is the &ldquo;write iff or gq identity keys&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>Write the public parameters from the IFF or GQ client keys to
+the standard output.
+This is intended for automatic key distribution by email.
+</p><hr>
+<a name="ntp_002dkeygen-gq_002dparams"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-host_002dkey" accesskey="n" rel="next">ntp-keygen host-key</a>, Previous: <a href="#ntp_002dkeygen-id_002dkey" accesskey="p" rel="prev">ntp-keygen id-key</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="gq_002dparams-option-_0028_002dG_0029"></a>
+<h4 class="subsection">1.2.7 gq-params option (-G)</h4>
+<a name="index-ntp_002dkeygen_002dgq_002dparams"></a>
+
+<p>This is the &ldquo;generate gq parameters and keys&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>Generate parameters and keys for the GQ identification scheme,
+obsoleting any that may exist.
+</p><hr>
+<a name="ntp_002dkeygen-host_002dkey"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-iffkey" accesskey="n" rel="next">ntp-keygen iffkey</a>, Previous: <a href="#ntp_002dkeygen-gq_002dparams" accesskey="p" rel="prev">ntp-keygen gq-params</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="host_002dkey-option-_0028_002dH_0029"></a>
+<h4 class="subsection">1.2.8 host-key option (-H)</h4>
+<a name="index-ntp_002dkeygen_002dhost_002dkey"></a>
+
+<p>This is the &ldquo;generate rsa host key&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>Generate new host keys, obsoleting any that may exist.
+</p><hr>
+<a name="ntp_002dkeygen-iffkey"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-ident" accesskey="n" rel="next">ntp-keygen ident</a>, Previous: <a href="#ntp_002dkeygen-host_002dkey" accesskey="p" rel="prev">ntp-keygen host-key</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="iffkey-option-_0028_002dI_0029"></a>
+<h4 class="subsection">1.2.9 iffkey option (-I)</h4>
+<a name="index-ntp_002dkeygen_002diffkey"></a>
+
+<p>This is the &ldquo;generate iff parameters&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>Generate parameters for the IFF identification scheme, obsoleting
+any that may exist.
+</p><hr>
+<a name="ntp_002dkeygen-ident"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-lifetime" accesskey="n" rel="next">ntp-keygen lifetime</a>, Previous: <a href="#ntp_002dkeygen-iffkey" accesskey="p" rel="prev">ntp-keygen iffkey</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="ident-option-_0028_002di_0029"></a>
+<h4 class="subsection">1.2.10 ident option (-i)</h4>
+<a name="index-ntp_002dkeygen_002dident"></a>
+
+<p>This is the &ldquo;set autokey group name&rdquo; option.
+This option takes a string argument <samp>group</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>Set the optional Autokey group name to name.  This is used in
+the file name of IFF, GQ, and MV client parameters files.  In
+that role, the default is the host name if this option is not
+provided.  The group name, if specified using <code>-i/--ident</code> or
+using <code>-s/--subject-name</code> following an &rsquo;<code>@</code>&rsquo; character,
+is also a part of the self-signed host certificate subject and
+issuer names in the form <code>host@group</code> and should match the
+&rsquo;<code>crypto ident</code>&rsquo; or &rsquo;<code>server ident</code>&rsquo; configuration in the
+<code>ntpd</code> configuration file.
+</p><hr>
+<a name="ntp_002dkeygen-lifetime"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-modulus" accesskey="n" rel="next">ntp-keygen modulus</a>, Previous: <a href="#ntp_002dkeygen-ident" accesskey="p" rel="prev">ntp-keygen ident</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="lifetime-option-_0028_002dl_0029"></a>
+<h4 class="subsection">1.2.11 lifetime option (-l)</h4>
+<a name="index-ntp_002dkeygen_002dlifetime"></a>
+
+<p>This is the &ldquo;set certificate lifetime&rdquo; option.
+This option takes a number argument <samp>lifetime</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>Set the certificate expiration to lifetime days from now.
+</p><hr>
+<a name="ntp_002dkeygen-modulus"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-md5key" accesskey="n" rel="next">ntp-keygen md5key</a>, Previous: <a href="#ntp_002dkeygen-lifetime" accesskey="p" rel="prev">ntp-keygen lifetime</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="modulus-option-_0028_002dm_0029"></a>
+<h4 class="subsection">1.2.12 modulus option (-m)</h4>
+<a name="index-ntp_002dkeygen_002dmodulus"></a>
+
+<p>This is the &ldquo;prime modulus&rdquo; option.
+This option takes a number argument <samp>modulus</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>The number of bits in the prime modulus.  The default is 512.
+</p><hr>
+<a name="ntp_002dkeygen-md5key"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-pvt_002dcert" accesskey="n" rel="next">ntp-keygen pvt-cert</a>, Previous: <a href="#ntp_002dkeygen-modulus" accesskey="p" rel="prev">ntp-keygen modulus</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="md5key-option-_0028_002dM_0029"></a>
+<h4 class="subsection">1.2.13 md5key option (-M)</h4>
+<a name="index-ntp_002dkeygen_002dmd5key"></a>
+
+<p>This is the &ldquo;generate symmetric keys&rdquo; option.
+Generate symmetric keys, obsoleting any that may exist.
+</p><hr>
+<a name="ntp_002dkeygen-pvt_002dcert"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-password" accesskey="n" rel="next">ntp-keygen password</a>, Previous: <a href="#ntp_002dkeygen-md5key" accesskey="p" rel="prev">ntp-keygen md5key</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="pvt_002dcert-option-_0028_002dP_0029"></a>
+<h4 class="subsection">1.2.14 pvt-cert option (-P)</h4>
+<a name="index-ntp_002dkeygen_002dpvt_002dcert"></a>
+
+<p>This is the &ldquo;generate pc private certificate&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>Generate a private certificate.  By default, the program generates
+public certificates.
+</p><hr>
+<a name="ntp_002dkeygen-password"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-export_002dpasswd" accesskey="n" rel="next">ntp-keygen export-passwd</a>, Previous: <a href="#ntp_002dkeygen-pvt_002dcert" accesskey="p" rel="prev">ntp-keygen pvt-cert</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="password-option-_0028_002dp_0029"></a>
+<h4 class="subsection">1.2.15 password option (-p)</h4>
+<a name="index-ntp_002dkeygen_002dpassword"></a>
+
+<p>This is the &ldquo;local private password&rdquo; option.
+This option takes a string argument <samp>passwd</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>Local files containing private data are encrypted with the
+DES-CBC algorithm and the specified password.  The same password
+must be specified to the local ntpd via the &quot;crypto pw password&quot;
+configuration command.  The default password is the local
+hostname.
+</p><hr>
+<a name="ntp_002dkeygen-export_002dpasswd"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-subject_002dname" accesskey="n" rel="next">ntp-keygen subject-name</a>, Previous: <a href="#ntp_002dkeygen-password" accesskey="p" rel="prev">ntp-keygen password</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="export_002dpasswd-option-_0028_002dq_0029"></a>
+<h4 class="subsection">1.2.16 export-passwd option (-q)</h4>
+<a name="index-ntp_002dkeygen_002dexport_002dpasswd"></a>
+
+<p>This is the &ldquo;export iff or gq group keys with password&rdquo; option.
+This option takes a string argument <samp>passwd</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>Export IFF or GQ identity group keys to the standard output,
+encrypted with the DES-CBC algorithm and the specified password.
+The same password must be specified to the remote ntpd via the
+&quot;crypto pw password&quot; configuration command.  See also the option
+&ndash;id-key (-e) for unencrypted exports.
+</p><hr>
+<a name="ntp_002dkeygen-subject_002dname"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-sign_002dkey" accesskey="n" rel="next">ntp-keygen sign-key</a>, Previous: <a href="#ntp_002dkeygen-export_002dpasswd" accesskey="p" rel="prev">ntp-keygen export-passwd</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="subject_002dname-option-_0028_002ds_0029"></a>
+<h4 class="subsection">1.2.17 subject-name option (-s)</h4>
+<a name="index-ntp_002dkeygen_002dsubject_002dname"></a>
+
+<p>This is the &ldquo;set host and optionally group name&rdquo; option.
+This option takes a string argument <samp>host@group</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>Set the Autokey host name, and optionally, group name specified
+following an &rsquo;<code>@</code>&rsquo; character.  The host name is used in the file
+name of generated host and signing certificates, without the
+group name.  The host name, and if provided, group name are used
+in <code>host@group</code> form for the host certificate subject and issuer
+fields.  Specifying &rsquo;<code>-s @group</code>&rsquo; is allowed, and results in
+leaving the host name unchanged while appending <code>@group</code> to the
+subject and issuer fields, as with <code>-i group</code>.  The group name, or
+if not provided, the host name are also used in the file names
+of IFF, GQ, and MV client parameter files.
+</p><hr>
+<a name="ntp_002dkeygen-sign_002dkey"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-trusted_002dcert" accesskey="n" rel="next">ntp-keygen trusted-cert</a>, Previous: <a href="#ntp_002dkeygen-subject_002dname" accesskey="p" rel="prev">ntp-keygen subject-name</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="sign_002dkey-option-_0028_002dS_0029"></a>
+<h4 class="subsection">1.2.18 sign-key option (-S)</h4>
+<a name="index-ntp_002dkeygen_002dsign_002dkey"></a>
+
+<p>This is the &ldquo;generate sign key (rsa or dsa)&rdquo; option.
+This option takes a string argument <samp>sign</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>Generate a new sign key of the designated type, obsoleting any
+that may exist.  By default, the program uses the host key as the
+sign key.
+</p><hr>
+<a name="ntp_002dkeygen-trusted_002dcert"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-mv_002dparams" accesskey="n" rel="next">ntp-keygen mv-params</a>, Previous: <a href="#ntp_002dkeygen-sign_002dkey" accesskey="p" rel="prev">ntp-keygen sign-key</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="trusted_002dcert-option-_0028_002dT_0029"></a>
+<h4 class="subsection">1.2.19 trusted-cert option (-T)</h4>
+<a name="index-ntp_002dkeygen_002dtrusted_002dcert"></a>
+
+<p>This is the &ldquo;trusted certificate (tc scheme)&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>Generate a trusted certificate.  By default, the program generates
+a non-trusted certificate.
+</p><hr>
+<a name="ntp_002dkeygen-mv_002dparams"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-mv_002dkeys" accesskey="n" rel="next">ntp-keygen mv-keys</a>, Previous: <a href="#ntp_002dkeygen-trusted_002dcert" accesskey="p" rel="prev">ntp-keygen trusted-cert</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="mv_002dparams-option-_0028_002dV_0029"></a>
+<h4 class="subsection">1.2.20 mv-params option (-V)</h4>
+<a name="index-ntp_002dkeygen_002dmv_002dparams"></a>
+
+<p>This is the &ldquo;generate &lt;num&gt; mv parameters&rdquo; option.
+This option takes a number argument <samp>num</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>Generate parameters and keys for the Mu-Varadharajan (MV)
+identification scheme.
+</p><hr>
+<a name="ntp_002dkeygen-mv_002dkeys"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-config" accesskey="n" rel="next">ntp-keygen config</a>, Previous: <a href="#ntp_002dkeygen-mv_002dparams" accesskey="p" rel="prev">ntp-keygen mv-params</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="mv_002dkeys-option-_0028_002dv_0029"></a>
+<h4 class="subsection">1.2.21 mv-keys option (-v)</h4>
+<a name="index-ntp_002dkeygen_002dmv_002dkeys"></a>
+
+<p>This is the &ldquo;update &lt;num&gt; mv keys&rdquo; option.
+This option takes a number argument <samp>num</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
+</li></ul>
+
+<p>This option has no &lsquo;<samp>doc</samp>&rsquo; documentation.
+</p>
+
+<hr>
+<a name="ntp_002dkeygen-config"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-exit-status" accesskey="n" rel="next">ntp-keygen exit status</a>, Previous: <a href="#ntp_002dkeygen-mv_002dkeys" accesskey="p" rel="prev">ntp-keygen mv-keys</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="presetting_002fconfiguring-ntp_002dkeygen"></a>
+<h4 class="subsection">1.2.22 presetting/configuring ntp-keygen</h4>
+
+<p>Any option that is not marked as <i>not presettable</i> may be preset by
+loading values from configuration (&quot;rc&quot; or &quot;ini&quot;) files, and values from environment variables named <code>NTP-KEYGEN</code> and <code>NTP-KEYGEN_&lt;OPTION_NAME&gt;</code>.  <code>&lt;OPTION_NAME&gt;</code> must be one of
+the options listed above in upper case and segmented with underscores.
+The <code>NTP-KEYGEN</code> variable will be tokenized and parsed like
+the command line.  The remaining variables are tested for existence and their
+values are treated like option arguments.
+</p>
+
+<p><code>libopts</code> will search in 2 places for configuration files:
+</p><ul>
+<li> $HOME
+</li><li> $PWD
+</li></ul>
+<p>The environment variables <code>HOME</code>, and <code>PWD</code>
+are expanded and replaced when <samp>ntp-keygen</samp> runs.
+For any of these that are plain files, they are simply processed.
+For any that are directories, then a file named <samp>.ntprc</samp> is searched for
+within that directory and processed.
+</p>
+<p>Configuration files may be in a wide variety of formats.
+The basic format is an option name followed by a value (argument) on the
+same line.  Values may be separated from the option name with a colon,
+equal sign or simply white space.  Values may be continued across multiple
+lines by escaping the newline with a backslash.
+</p>
+<p>Multiple programs may also share the same initialization file.
+Common options are collected at the top, followed by program specific
+segments.  The segments are separated by lines like:
+</p><div class="example">
+<pre class="example">[NTP-KEYGEN]
+</pre></div>
+<p>or by
+</p><div class="example">
+<pre class="example">&lt;?program ntp-keygen&gt;
+</pre></div>
+<p>Do not mix these styles within one configuration file.
+</p>
+<p>Compound values and carefully constructed string values may also be
+specified using XML syntax:
+</p><div class="example">
+<pre class="example">&lt;option-name&gt;
+   &lt;sub-opt&gt;...&amp;lt;...&amp;gt;...&lt;/sub-opt&gt;
+&lt;/option-name&gt;
+</pre></div>
+<p>yielding an <code>option-name.sub-opt</code> string value of
+</p><div class="example">
+<pre class="example">&quot;...&lt;...&gt;...&quot;
+</pre></div>
+<p><code>AutoOpts</code> does not track suboptions.  You simply note that it is a
+hierarchicly valued option.  <code>AutoOpts</code> does provide a means for searching
+the associated name/value pair list (see: optionFindValue).
+</p>
+<p>The command line options relating to configuration and/or usage help are:
+</p>
+<a name="version-_0028_002d_0029"></a>
+<h4 class="subsubheading">version (-)</h4>
+
+<p>Print the program version to standard out, optionally with licensing
+information, then exit 0.  The optional argument specifies how much licensing
+detail to provide.  The default is to print just the version.  The licensing infomation may be selected with an option argument.
+Only the first letter of the argument is examined:
+</p>
+<dl compact="compact">
+<dt>&lsquo;<samp>version</samp>&rsquo;</dt>
+<dd><p>Only print the version.  This is the default.
+</p></dd>
+<dt>&lsquo;<samp>copyright</samp>&rsquo;</dt>
+<dd><p>Name the copyright usage licensing terms.
+</p></dd>
+<dt>&lsquo;<samp>verbose</samp>&rsquo;</dt>
+<dd><p>Print the full copyright usage licensing terms.
+</p></dd>
+</dl>
+
+<hr>
+<a name="ntp_002dkeygen-exit-status"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-Usage" accesskey="n" rel="next">ntp-keygen Usage</a>, Previous: <a href="#ntp_002dkeygen-config" accesskey="p" rel="prev">ntp-keygen config</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="ntp_002dkeygen-exit-status-1"></a>
+<h4 class="subsection">1.2.23 ntp-keygen exit status</h4>
+
+<p>One of the following exit values will be returned:
+</p><dl compact="compact">
+<dt>&lsquo;<samp>0 (EXIT_SUCCESS)</samp>&rsquo;</dt>
+<dd><p>Successful program execution.
+</p></dd>
+<dt>&lsquo;<samp>1 (EXIT_FAILURE)</samp>&rsquo;</dt>
+<dd><p>The operation failed or the command syntax was not valid.
+</p></dd>
+<dt>&lsquo;<samp>66 (EX_NOINPUT)</samp>&rsquo;</dt>
+<dd><p>A specified configuration file could not be loaded.
+</p></dd>
+<dt>&lsquo;<samp>70 (EX_SOFTWARE)</samp>&rsquo;</dt>
+<dd><p>libopts had an internal operational error.  Please report
+it to autogen-users@lists.sourceforge.net.  Thank you.
+</p></dd>
+</dl>
+<hr>
+<a name="ntp_002dkeygen-Usage"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-Notes" accesskey="n" rel="next">ntp-keygen Notes</a>, Previous: <a href="#ntp_002dkeygen-exit-status" accesskey="p" rel="prev">ntp-keygen exit status</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="ntp_002dkeygen-Usage-1"></a>
+<h4 class="subsection">1.2.24 ntp-keygen Usage</h4>
+<hr>
+<a name="ntp_002dkeygen-Notes"></a>
+<div class="header">
+<p>
+Next: <a href="#ntp_002dkeygen-Bugs" accesskey="n" rel="next">ntp-keygen Bugs</a>, Previous: <a href="#ntp_002dkeygen-Usage" accesskey="p" rel="prev">ntp-keygen Usage</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="ntp_002dkeygen-Notes-1"></a>
+<h4 class="subsection">1.2.25 ntp-keygen Notes</h4>
+<hr>
+<a name="ntp_002dkeygen-Bugs"></a>
+<div class="header">
+<p>
+Previous: <a href="#ntp_002dkeygen-Notes" accesskey="p" rel="prev">ntp-keygen Notes</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
+</div>
+<a name="ntp_002dkeygen-Bugs-1"></a>
+<h4 class="subsection">1.2.26 ntp-keygen Bugs</h4>
+
+<hr>
+<a name="Random-Seed-File"></a>
+<div class="header">
+<p>
+Next: <a href="#Cryptographic-Data-Files" accesskey="n" rel="next">Cryptographic Data Files</a>, Previous: <a href="#Running-the-Program" accesskey="p" rel="prev">Running the Program</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="Random-Seed-File-2"></a>
+<h3 class="section">1.3 Random Seed File</h3>
+
+<p>All cryptographically sound key generation schemes must have means to
+randomize the entropy seed used to initialize the internal
+pseudo-random number generator used by the OpenSSL library routines.
+If a site supports ssh, it is very likely that means to do this are
+already available.
+The entropy seed used by the OpenSSL library is contained in a file,
+usually called <code>.rnd</code>, which must be available when
+starting the <code>ntp-keygen</code> program or <code>ntpd</code> daemon.
+</p>
+<p>The OpenSSL library looks for the file using the path specified by the
+<code>RANDFILE</code> environment variable in the user home directory, whether root
+or some other user.
+If the <code>RANDFILE</code> environment variable is not
+present, the library looks for the <code>.rnd</code> file in the user home
+directory.
+Since both the <code>ntp-keygen</code> program and <code>ntpd</code> daemon must run
+as root, the logical place to put this file is in <code>/.rnd</code> or
+<code>/root/.rnd</code>.
+If the file is not available or cannot be written, the program exits
+with a message to the system log.
+</p>
+<hr>
+<a name="Cryptographic-Data-Files"></a>
+<div class="header">
+<p>
+Previous: <a href="#Random-Seed-File" accesskey="p" rel="prev">Random Seed File</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="Cryptographic-Data-Files-2"></a>
+<h3 class="section">1.4 Cryptographic Data Files</h3>
+
+<p>File and link names are in the <code>form ntpkey_key_name.fstamp</code>,
+where <code>key</code> is the key or parameter type,
+<code>name</code> is the host or group name and
+<code>fstamp</code> is the filestamp (NTP seconds) when the file was created).
+By convention, key names in generated file names include both upper and
+lower case characters, while key names in generated link names include
+only lower case characters. The filestamp is not used in generated link
+names.
+</p>
+<p>The key name is a string defining the cryptographic key type.
+Key types include public/private keys host and sign, certificate cert
+and several challenge/response key types.
+By convention, client files used for
+challenges have a par subtype, as in the IFF challenge IFFpar, while
+server files for responses have a key subtype, as in the GQ response
+GQkey.
+</p>
+<p>All files begin with two nonencrypted lines. The first line contains
+the file name in the format <code>ntpkey_key_host.fstamp</code>.
+The second line contains the datestamp in conventional Unix date format.
+Lines beginning with <code>#</code> are ignored.
+</p>
+<p>The remainder of the file contains cryptographic data encoded first
+using ASN.1 rules, then encrypted using the DES-CBC algorithm with
+given password and finally written in PEM-encoded printable ASCII text
+preceded and followed by MIME content identifier lines.
+</p>
+<p>The format of the symmetric keys file, ordinarily named <code>ntp.keys</code>,
+is somewhat different than the other files in the interest of backward
+compatibility.
+Ordinarily, the file is generated by this program, but
+it can be constructed and edited using an ordinary text editor.
+</p>
+<div class="example">
+<pre class="example"># ntpkey_MD5key_hms.local.3564038757
+# Sun Dec  9 02:45:57 2012
+
+ 1 MD5 &quot;]!ghT%O;3)WJ,/Nc:&gt;I  # MD5 key
+ 2 MD5 lu+H^tF46BKR-6~pV_5  # MD5 key
+ 3 MD5 :lnoVsE%Yz*avh%EtNC  # MD5 key
+ 4 MD5 |fdZrf0sF~;w-i^V  # MD5 key
+ 5 MD5 IyAG&gt;O&quot;y&quot;LmCRS!*bHC  # MD5 key
+ 6 MD5 &quot;&gt;e\A&gt;hT/661ri52,,H  # MD5 key
+ 7 MD5 c9x=M'CfLxax9v)PV-si  # MD5 key
+ 8 MD5 E|=jvFVov?Bn|Ev=&amp;aK\  # MD5 key
+ 9 MD5 T!c4UT&amp;`(m$+m+B6,`Q0  # MD5 key
+10 MD5 JVF/1=)=IFbHbJQz..Cd  # MD5 key
+11 SHA1 6dea311109529e436c2b4fccae9bc753c16d1b48  # SHA1 key
+12 SHA1 7076f373d86c4848c59ff8046e49cb7d614ec394  # SHA1 key
+13 SHA1 5f48b1b60591eb01b7cf1d33b7774f08d20262d3  # SHA1 key
+14 SHA1 eed5ab9d9497319ec60cf3781d52607e76720178  # SHA1 key
+15 SHA1 f283562611a04c964da8126296f5f8e58c3f85de  # SHA1 key
+16 SHA1 1930da171297dd63549af50b29449de17dcf341f  # SHA1 key
+17 SHA1 fee892110358cd4382322b889869e750db8e8a8f  # SHA1 key
+18 SHA1 b5520c9fadd7ad3fd8bfa061c8821b65d029bb37  # SHA1 key
+19 SHA1 8c74fb440ec80f453ec6aaa62b9baed0ab723b92  # SHA1 key
+20 SHA1 6bc05f734306a189326000970c19b3910f403795  # SHA1 key
+</pre></div>
+
+<p>Figure 1. Typical Symmetric Key File
+</p>
+<p>Figure 1 shows a typical symmetric keys file used by the reference
+implementation.
+Each line of the file contains three fields, first an
+integer between 1 and 65535, inclusive, representing the key identifier
+used in the server and peer configuration commands.
+Next is the key type for the message digest algorithm,
+which in the absence of the
+OpenSSL library must be MD5 to designate the MD5 message digest
+algorithm.
+If the OpenSSL library is installed, the key type can be any
+message digest algorithm supported by that library.
+However, if
+compatibility with FIPS 140-2 is required, the key type must be either
+SHA or SHA1.
+The key type can be changed using an ASCII text editor.
+</p>
+<p>An MD5 key consists of a printable ASCII string less than or equal to
+16 characters and terminated by whitespace or a # character.
+An OpenSSL
+key consists of a hex-encoded ASCII string of 40 characters, which is
+truncated as necessary.
+</p>
+<p>Note that the keys used by the <code>ntpq</code> and <code>ntpdc</code> programs are
+checked against passwords requested by the programs and entered by hand,
+so it
+is generally appropriate to specify these keys in human readable ASCII
+format.
+</p>
+<p>The <code>ntp-keygen</code> program generates a MD5 symmetric keys file
+<code>ntpkey_MD5key_hostname.filestamp</code>.
+Since the file contains private
+shared keys, it should be visible only to root and distributed by
+secure means to other subnet hosts.
+The NTP daemon loads the file <code>ntp.keys</code>, so <code>ntp-keygen</code>
+installs a soft link from this name to the generated file.
+Subsequently, similar soft links must be installed by
+manual or automated means on the other subnet hosts.
+While this file is
+not used with the Autokey Version 2 protocol, it is needed to
+authenticate some remote configuration commands used by the <code>ntpq</code> and
+<code>ntpdc</code> utilities.
+</p><hr>
+
+
+
+</body>
+</html>

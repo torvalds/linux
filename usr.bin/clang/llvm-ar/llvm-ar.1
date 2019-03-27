@@ -1,0 +1,390 @@
+.\" $FreeBSD$
+.\" Man page generated from reStructuredText.
+.
+.TH "LLVM-AR" "1" "2018-08-02" "7" "LLVM"
+.SH NAME
+llvm-ar \- LLVM archiver
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH SYNOPSIS
+.sp
+\fBllvm\-ar\fP [\-]{dmpqrtx}[Rabfikou] [relpos] [count] <archive> [files...]
+.SH DESCRIPTION
+.sp
+The \fBllvm\-ar\fP command is similar to the common Unix utility, \fBar\fP\&. It
+archives several files together into a single file. The intent for this is
+to produce archive libraries by LLVM bitcode that can be linked into an
+LLVM program. However, the archive can contain any kind of file. By default,
+\fBllvm\-ar\fP generates a symbol table that makes linking faster because
+only the symbol table needs to be consulted, not each individual file member
+of the archive.
+.sp
+The \fBllvm\-ar\fP command can be used to \fIread\fP SVR4, GNU and BSD style archive
+files. However, right now it can only write in the GNU format. If an
+SVR4 or BSD style archive is used with the \fBr\fP (replace) or \fBq\fP (quick
+update) operations, the archive will be reconstructed in GNU format.
+.sp
+Here\(aqs where \fBllvm\-ar\fP departs from previous \fBar\fP implementations:
+.sp
+\fISymbol Table\fP
+.INDENT 0.0
+.INDENT 3.5
+Since \fBllvm\-ar\fP supports bitcode files. The symbol table it creates
+is in GNU format and includes both native and bitcode files.
+.UNINDENT
+.UNINDENT
+.sp
+\fILong Paths\fP
+.INDENT 0.0
+.INDENT 3.5
+Currently \fBllvm\-ar\fP can read GNU and BSD long file names, but only writes
+archives with the GNU format.
+.UNINDENT
+.UNINDENT
+.SH OPTIONS
+.sp
+The options to \fBllvm\-ar\fP are compatible with other \fBar\fP implementations.
+However, there are a few modifiers (\fIR\fP) that are not found in other \fBar\fP
+implementations. The options to \fBllvm\-ar\fP specify a single basic operation to
+perform on the archive, a variety of modifiers for that operation, the name of
+the archive file, and an optional list of file names. These options are used to
+determine how \fBllvm\-ar\fP should process the archive file.
+.sp
+The Operations and Modifiers are explained in the sections below. The minimal
+set of options is at least one operator and the name of the archive. Typically
+archive files end with a \fB\&.a\fP suffix, but this is not required. Following
+the \fIarchive\-name\fP comes a list of \fIfiles\fP that indicate the specific members
+of the archive to operate on. If the \fIfiles\fP option is not specified, it
+generally means either "none" or "all" members, depending on the operation.
+.SS Operations
+.sp
+d
+.INDENT 0.0
+.INDENT 3.5
+Delete files from the archive. No modifiers are applicable to this operation.
+The \fIfiles\fP options specify which members should be removed from the
+archive. It is not an error if a specified file does not appear in the archive.
+If no \fIfiles\fP are specified, the archive is not modified.
+.UNINDENT
+.UNINDENT
+.sp
+m[abi]
+.INDENT 0.0
+.INDENT 3.5
+Move files from one location in the archive to another. The \fIa\fP, \fIb\fP, and
+\fIi\fP modifiers apply to this operation. The \fIfiles\fP will all be moved
+to the location given by the modifiers. If no modifiers are used, the files
+will be moved to the end of the archive. If no \fIfiles\fP are specified, the
+archive is not modified.
+.UNINDENT
+.UNINDENT
+.sp
+p
+.INDENT 0.0
+.INDENT 3.5
+Print files to the standard output. This operation simply prints the
+\fIfiles\fP indicated to the standard output. If no \fIfiles\fP are
+specified, the entire  archive is printed.  Printing bitcode files is
+ill\-advised as they might confuse your terminal settings. The \fIp\fP
+operation never modifies the archive.
+.UNINDENT
+.UNINDENT
+.sp
+q
+.INDENT 0.0
+.INDENT 3.5
+Quickly append files to the end of the archive.  This operation quickly adds the
+\fIfiles\fP to the archive without checking for duplicates that should be
+removed first. If no \fIfiles\fP are specified, the archive is not modified.
+Because of the way that \fBllvm\-ar\fP constructs the archive file, its dubious
+whether the \fIq\fP operation is any faster than the \fIr\fP operation.
+.UNINDENT
+.UNINDENT
+.sp
+r[abu]
+.INDENT 0.0
+.INDENT 3.5
+Replace or insert file members. The \fIa\fP, \fIb\fP,  and \fIu\fP
+modifiers apply to this operation. This operation will replace existing
+\fIfiles\fP or insert them at the end of the archive if they do not exist. If no
+\fIfiles\fP are specified, the archive is not modified.
+.UNINDENT
+.UNINDENT
+.sp
+t[v]
+.INDENT 0.0
+.INDENT 3.5
+Print the table of contents. Without any modifiers, this operation just prints
+the names of the members to the standard output. With the \fIv\fP modifier,
+\fBllvm\-ar\fP also prints out the file type (B=bitcode, S=symbol
+table, blank=regular file), the permission mode, the owner and group, the
+size, and the date. If any \fIfiles\fP are specified, the listing is only for
+those files. If no \fIfiles\fP are specified, the table of contents for the
+whole archive is printed.
+.UNINDENT
+.UNINDENT
+.sp
+x[oP]
+.INDENT 0.0
+.INDENT 3.5
+Extract archive members back to files. The \fIo\fP modifier applies to this
+operation. This operation retrieves the indicated \fIfiles\fP from the archive
+and writes them back to the operating system\(aqs file system. If no
+\fIfiles\fP are specified, the entire archive is extract.
+.UNINDENT
+.UNINDENT
+.SS Modifiers (operation specific)
+.sp
+The modifiers below are specific to certain operations. See the Operations
+section (above) to determine which modifiers are applicable to which operations.
+.sp
+[a]
+.INDENT 0.0
+.INDENT 3.5
+When inserting or moving member files, this option specifies the destination of
+the new files as being after the \fIrelpos\fP member. If \fIrelpos\fP is not found,
+the files are placed at the end of the archive.
+.UNINDENT
+.UNINDENT
+.sp
+[b]
+.INDENT 0.0
+.INDENT 3.5
+When inserting or moving member files, this option specifies the destination of
+the new files as being before the \fIrelpos\fP member. If \fIrelpos\fP is not
+found, the files are placed at the end of the archive. This modifier is
+identical to the \fIi\fP modifier.
+.UNINDENT
+.UNINDENT
+.sp
+[i]
+.INDENT 0.0
+.INDENT 3.5
+A synonym for the \fIb\fP option.
+.UNINDENT
+.UNINDENT
+.sp
+[o]
+.INDENT 0.0
+.INDENT 3.5
+When extracting files, this option will cause \fBllvm\-ar\fP to preserve the
+original modification times of the files it writes.
+.UNINDENT
+.UNINDENT
+.sp
+[u]
+.INDENT 0.0
+.INDENT 3.5
+When replacing existing files in the archive, only replace those files that have
+a time stamp than the time stamp of the member in the archive.
+.UNINDENT
+.UNINDENT
+.SS Modifiers (generic)
+.sp
+The modifiers below may be applied to any operation.
+.sp
+[c]
+.INDENT 0.0
+.INDENT 3.5
+For all operations, \fBllvm\-ar\fP will always create the archive if it doesn\(aqt
+exist. Normally, \fBllvm\-ar\fP will print a warning message indicating that the
+archive is being created. Using this modifier turns off that warning.
+.UNINDENT
+.UNINDENT
+.sp
+[s]
+.INDENT 0.0
+.INDENT 3.5
+This modifier requests that an archive index (or symbol table) be added to the
+archive. This is the default mode of operation. The symbol table will contain
+all the externally visible functions and global variables defined by all the
+bitcode files in the archive.
+.UNINDENT
+.UNINDENT
+.sp
+[S]
+.INDENT 0.0
+.INDENT 3.5
+This modifier is the opposite of the \fIs\fP modifier. It instructs \fBllvm\-ar\fP to
+not build the symbol table. If both \fIs\fP and \fIS\fP are used, the last modifier to
+occur in the options will prevail.
+.UNINDENT
+.UNINDENT
+.sp
+[v]
+.INDENT 0.0
+.INDENT 3.5
+This modifier instructs \fBllvm\-ar\fP to be verbose about what it is doing. Each
+editing operation taken against the archive will produce a line of output saying
+what is being done.
+.UNINDENT
+.UNINDENT
+.SH STANDARDS
+.sp
+The \fBllvm\-ar\fP utility is intended to provide a superset of the IEEE Std 1003.2
+(POSIX.2) functionality for \fBar\fP\&. \fBllvm\-ar\fP can read both SVR4 and BSD4.4 (or
+Mac OS X) archives. If the \fBf\fP modifier is given to the \fBx\fP or \fBr\fP operations
+then \fBllvm\-ar\fP will write SVR4 compatible archives. Without this modifier,
+\fBllvm\-ar\fP will write BSD4.4 compatible archives that have long names
+immediately after the header and indicated using the "#1/ddd" notation for the
+name in the header.
+.SH FILE FORMAT
+.sp
+The file format for LLVM Archive files is similar to that of BSD 4.4 or Mac OSX
+archive files. In fact, except for the symbol table, the \fBar\fP commands on those
+operating systems should be able to read LLVM archive files. The details of the
+file format follow.
+.sp
+Each archive begins with the archive magic number which is the eight printable
+characters "!<arch>n" where n represents the newline character (0x0A).
+Following the magic number, the file is composed of even length members that
+begin with an archive header and end with a n padding character if necessary
+(to make the length even). Each file member is composed of a header (defined
+below), an optional newline\-terminated "long file name" and the contents of
+the file.
+.sp
+The fields of the header are described in the items below. All fields of the
+header contain only ASCII characters, are left justified and are right padded
+with space characters.
+.sp
+name \- char[16]
+.INDENT 0.0
+.INDENT 3.5
+This field of the header provides the name of the archive member. If the name is
+longer than 15 characters or contains a slash (/) character, then this field
+contains \fB#1/nnn\fP where \fBnnn\fP provides the length of the name and the \fB#1/\fP
+is literal.  In this case, the actual name of the file is provided in the \fBnnn\fP
+bytes immediately following the header. If the name is 15 characters or less, it
+is contained directly in this field and terminated with a slash (/) character.
+.UNINDENT
+.UNINDENT
+.sp
+date \- char[12]
+.INDENT 0.0
+.INDENT 3.5
+This field provides the date of modification of the file in the form of a
+decimal encoded number that provides the number of seconds since the epoch
+(since 00:00:00 Jan 1, 1970) per Posix specifications.
+.UNINDENT
+.UNINDENT
+.sp
+uid \- char[6]
+.INDENT 0.0
+.INDENT 3.5
+This field provides the user id of the file encoded as a decimal ASCII string.
+This field might not make much sense on non\-Unix systems. On Unix, it is the
+same value as the st_uid field of the stat structure returned by the stat(2)
+operating system call.
+.UNINDENT
+.UNINDENT
+.sp
+gid \- char[6]
+.INDENT 0.0
+.INDENT 3.5
+This field provides the group id of the file encoded as a decimal ASCII string.
+This field might not make much sense on non\-Unix systems. On Unix, it is the
+same value as the st_gid field of the stat structure returned by the stat(2)
+operating system call.
+.UNINDENT
+.UNINDENT
+.sp
+mode \- char[8]
+.INDENT 0.0
+.INDENT 3.5
+This field provides the access mode of the file encoded as an octal ASCII
+string. This field might not make much sense on non\-Unix systems. On Unix, it
+is the same value as the st_mode field of the stat structure returned by the
+stat(2) operating system call.
+.UNINDENT
+.UNINDENT
+.sp
+size \- char[10]
+.INDENT 0.0
+.INDENT 3.5
+This field provides the size of the file, in bytes, encoded as a decimal ASCII
+string.
+.UNINDENT
+.UNINDENT
+.sp
+fmag \- char[2]
+.INDENT 0.0
+.INDENT 3.5
+This field is the archive file member magic number. Its content is always the
+two characters back tick (0x60) and newline (0x0A). This provides some measure
+utility in identifying archive files that have been corrupted.
+.UNINDENT
+.UNINDENT
+.sp
+offset \- vbr encoded 32\-bit integer
+.INDENT 0.0
+.INDENT 3.5
+The offset item provides the offset into the archive file where the bitcode
+member is stored that is associated with the symbol. The offset value is 0
+based at the start of the first "normal" file member. To derive the actual
+file offset of the member, you must add the number of bytes occupied by the file
+signature (8 bytes) and the symbol tables. The value of this item is encoded
+using variable bit rate encoding to reduce the size of the symbol table.
+Variable bit rate encoding uses the high bit (0x80) of each byte to indicate
+if there are more bytes to follow. The remaining 7 bits in each byte carry bits
+from the value. The final byte does not have the high bit set.
+.UNINDENT
+.UNINDENT
+.sp
+length \- vbr encoded 32\-bit integer
+.INDENT 0.0
+.INDENT 3.5
+The length item provides the length of the symbol that follows. Like this
+\fIoffset\fP item, the length is variable bit rate encoded.
+.UNINDENT
+.UNINDENT
+.sp
+symbol \- character array
+.INDENT 0.0
+.INDENT 3.5
+The symbol item provides the text of the symbol that is associated with the
+\fIoffset\fP\&. The symbol is not terminated by any character. Its length is provided
+by the \fIlength\fP field. Note that is allowed (but unwise) to use non\-printing
+characters (even 0x00) in the symbol. This allows for multiple encodings of
+symbol names.
+.UNINDENT
+.UNINDENT
+.SH EXIT STATUS
+.sp
+If \fBllvm\-ar\fP succeeds, it will exit with 0.  A usage error, results
+in an exit code of 1. A hard (file system typically) error results in an
+exit code of 2. Miscellaneous or unknown errors result in an
+exit code of 3.
+.SH SEE ALSO
+.sp
+ar(1)
+.SH AUTHOR
+Maintained by The LLVM Team (http://llvm.org/).
+.SH COPYRIGHT
+2003-2018, LLVM Project
+.\" Generated by docutils manpage writer.
+.

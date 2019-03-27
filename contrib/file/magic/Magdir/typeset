@@ -1,0 +1,8 @@
+
+#------------------------------------------------------------------------------
+# $File: typeset,v 1.8 2009/09/19 16:28:13 christos Exp $
+# typeset:  file(1) magic for other typesetting
+#
+0	string		Interpress/Xerox	Xerox InterPress data
+>16	string		/			(version
+>>17	string		>\0			%s)

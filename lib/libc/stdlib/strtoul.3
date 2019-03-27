@@ -1,0 +1,224 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strtoul.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd November 28, 2001
+.Dt STRTOUL 3
+.Os
+.Sh NAME
+.Nm strtoul , strtoull , strtoumax , strtouq
+.Nd "convert a string to an"
+.Vt "unsigned long" , "unsigned long long" , uintmax_t ,
+or
+.Vt u_quad_t
+integer
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.In limits.h
+.Ft "unsigned long"
+.Fn strtoul "const char * restrict nptr" "char ** restrict endptr" "int base"
+.Ft "unsigned long long"
+.Fn strtoull "const char * restrict nptr" "char ** restrict endptr" "int base"
+.In inttypes.h
+.Ft uintmax_t
+.Fn strtoumax "const char * restrict nptr" "char ** restrict endptr" "int base"
+.In sys/types.h
+.In stdlib.h
+.In limits.h
+.Ft u_quad_t
+.Fn strtouq "const char *nptr" "char **endptr" "int base"
+.Sh DESCRIPTION
+The
+.Fn strtoul
+function
+converts the string in
+.Fa nptr
+to an
+.Vt "unsigned long"
+value.
+The
+.Fn strtoull
+function
+converts the string in
+.Fa nptr
+to an
+.Vt "unsigned long long"
+value.
+The
+.Fn strtoumax
+function
+converts the string in
+.Fa nptr
+to an
+.Vt uintmax_t
+value.
+The
+.Fn strtouq
+function
+converts the string in
+.Fa nptr
+to a
+.Vt u_quad_t
+value.
+The conversion is done according to the given
+.Fa base ,
+which must be between 2 and 36 inclusive,
+or be the special value 0.
+.Pp
+The string may begin with an arbitrary amount of white space
+(as determined by
+.Xr isspace 3 )
+followed by a single optional
+.Ql +
+or
+.Ql -
+sign.
+If
+.Fa base
+is zero or 16,
+the string may then include a
+.Dq Li 0x
+prefix,
+and the number will be read in base 16; otherwise, a zero
+.Fa base
+is taken as 10 (decimal) unless the next character is
+.Ql 0 ,
+in which case it is taken as 8 (octal).
+.Pp
+The remainder of the string is converted to an
+.Vt "unsigned long"
+value in the obvious manner,
+stopping at the end of the string
+or at the first character that does not produce a valid digit
+in the given base.
+(In bases above 10, the letter
+.Ql A
+in either upper or lower case
+represents 10,
+.Ql B
+represents 11, and so forth, with
+.Ql Z
+representing 35.)
+.Pp
+If
+.Fa endptr
+is not
+.Dv NULL ,
+.Fn strtoul
+stores the address of the first invalid character in
+.Fa *endptr .
+If there were no digits at all, however,
+.Fn strtoul
+stores the original value of
+.Fa nptr
+in
+.Fa *endptr .
+(Thus, if
+.Fa *nptr
+is not
+.Ql \e0
+but
+.Fa **endptr
+is
+.Ql \e0
+on return, the entire string was valid.)
+.Sh RETURN VALUES
+The
+.Fn strtoul ,
+.Fn strtoull ,
+.Fn strtoumax
+and
+.Fn strtouq
+functions
+return either the result of the conversion
+or, if there was a leading minus sign,
+the negation of the result of the conversion,
+unless the original (non-negated) value would overflow;
+in the latter case,
+.Fn strtoul
+returns
+.Dv ULONG_MAX ,
+.Fn strtoull
+returns
+.Dv ULLONG_MAX ,
+.Fn strtoumax
+returns
+.Dv UINTMAX_MAX ,
+and
+.Fn strtouq
+returns
+.Dv ULLONG_MAX .
+In all cases,
+.Va errno
+is set to
+.Er ERANGE .
+If no conversion could be performed, 0 is returned and
+the global variable
+.Va errno
+is set to
+.Er EINVAL
+(the last feature is not portable across all platforms).
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of
+.Fa base
+is not supported or
+no conversion could be performed
+(the last feature is not portable across all platforms).
+.It Bq Er ERANGE
+The given string was out of range; the value converted has been clamped.
+.El
+.Sh SEE ALSO
+.Xr strtol 3 ,
+.Xr strtonum 3 ,
+.Xr wcstoul 3
+.Sh STANDARDS
+The
+.Fn strtoul
+function
+conforms to
+.St -isoC .
+The
+.Fn strtoull
+and
+.Fn strtoumax
+functions
+conform to
+.St -isoC-99 .
+The
+.Bx
+.Fn strtouq
+function is deprecated.

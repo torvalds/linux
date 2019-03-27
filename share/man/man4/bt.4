@@ -1,0 +1,171 @@
+.\"
+.\" Copyright (c) 1994 Jordan Hubbard
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 15, 2017
+.Dt BT 4
+.Os
+.Sh NAME
+.Nm bt
+.Nd Buslogic/Mylex MultiMaster SCSI host adapter driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device isa"
+.Cd "device scbus"
+.Cd "device bt"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.bt.0.at="isa"
+.Cd hint.bt.0.port="0x330"
+.Ed
+.Sh DESCRIPTION
+This driver provides access to the
+.Tn SCSI
+bus connected to a Buslogic/Mylex MultiMaster or compatible controller:
+.Bd -ragged -offset indent
+MultiMaster "W" Series Host Adapters:
+.Bl -column "BT-956CD " "ISA " "Commands " "Description"
+.Em "Adapter" Ta Em "Bus" Ta Em "Commands" Ta Em "Description"
+BT-948	PCI	192	Ultra SCSI-3
+BT-958	PCI	192	Wide Ultra SCSI-3
+BT-958D	PCI	192	Wide Differential Ultra SCSI-3
+.El
+.Pp
+MultiMaster "C" Series Host Adapters:
+.Bl -column "BT-956CD " "ISA " "Commands " "Description"
+.Em "Adapter" Ta Em "Bus" Ta Em "Commands" Ta Em "Description"
+BT-946C	PCI	100	Fast SCSI-2
+BT-956C	PCI	100	Wide Fast SCSI-2
+BT-956CD	PCI	100	Wide Differential Fast SCSI-2
+BT-445C	VLB	100	Fast SCSI-2
+BT-545C	ISA	50	Fast SCSI-2
+BT-540CF	ISA	50	Fast SCSI-2
+.El
+.Pp
+MultiMaster "S" Series Host Adapters:
+.Bl -column "BT-956CD " "ISA " "Commands " "Description"
+.Em "Adapter" Ta Em "Bus" Ta Em "Commands" Ta Em "Description"
+BT-445S	VLB	30	Fast SCSI-2
+BT-545S	ISA	30	Fast SCSI-2
+BT-542D	ISA	30	Differential Fast SCSI-2
+BT-542B	ISA	30	SCSI-2 (542B revision H)
+.El
+.Pp
+MultiMaster "A" Series Host Adapters:
+.Bl -column "BT-956CD " "ISA " "Commands " "Description"
+.Em "Adapter" Ta Em "Bus" Ta Em "Commands" Ta Em "Description"
+BT-542B	ISA	30	SCSI-2 (542B revisions A - G)
+.El
+.Ed
+.Pp
+Tagged queueing is supported on 'W' series adapters, 'C' series adapters
+with firmware of rev 4.42 and higher, and 'S' series adapters with firmware
+of rev 3.35 and higher.
+.Pp
+Boards with certain firmware revisions may lock up under heavy load to
+certain devices, especially if tagged queueing is used.
+Should you encounter
+a problem with your adapter, contact Mylex technical support and ensure you
+have the latest firmware for your controller.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following BusLogic MultiMaster
+.Dq W ,
+.Dq C ,
+.Dq S ,
+and
+.Dq A
+series and compatible SCSI host adapters:
+.Pp
+.Bl -bullet -compact
+.It
+BusLogic BT-445C
+.It
+BusLogic BT-445S
+.It
+BusLogic BT-540CF
+.It
+BusLogic BT-542B
+.It
+BusLogic BT-542B
+.It
+BusLogic BT-542D
+.It
+BusLogic BT-545C
+.It
+BusLogic BT-545S
+.It
+BusLogic/BusTek BT-640
+.It
+BusLogic BT-946C
+.It
+BusLogic BT-948
+.It
+BusLogic BT-956C
+.It
+BusLogic BT-956CD
+.It
+BusLogic BT-958
+.It
+BusLogic BT-958D
+.It
+Storage Dimensions SDC3211B / SDC3211F
+.El
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr sa 4 ,
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in the
+.Bx 386
+patch kit.
+.Sh AUTHORS
+.An -nosplit
+.An Julian Elischer
+wrote a driver for the Multimaster cards that appeared in the
+.Bx 386
+patch kit.
+The driver was rewritten by
+.An Justin T. Gibbs
+to take advantage of new board features and work with the CAM SCSI framework in
+.Fx 3.0 .
+.Pp
+Special thanks to
+.An Leonard N. Zubkoff
+for writing such a complete and well documented Mylex/BusLogic MultiMaster
+driver for Linux.
+Support in this driver for the wide range of MultiMaster
+controllers and firmware revisions, with their otherwise undocumented quirks,
+would not have been possible without his efforts.

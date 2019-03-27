@@ -1,0 +1,154 @@
+.\"
+.\" Copyright (c) 2001, FreeBSD Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice unmodified, this list of conditions, and the following
+.\"    disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 13, 2012
+.Dt NG_ETF 4
+.Os
+.Sh NAME
+.Nm ng_etf
+.Nd Ethertype filtering netgraph node type
+.Sh SYNOPSIS
+.In netgraph.h
+.In netgraph/ng_etf.h
+.Sh DESCRIPTION
+The
+.Nm etf
+node type multiplexes and filters data between hooks on the basis
+of the ethertype found in an Ethernet header, presumed to be in the
+first 14 bytes of the data.
+Incoming Ethernet frames are accepted on the
+.Em downstream
+hook and if the ethertype matches a value which the node has been configured
+to filter, the packet is forwarded out the hook which was identified
+at the time that value was configured.
+If it does not match a configured
+value, it is passed to the
+.Em nomatch
+hook.
+If the
+.Em nomatch
+hook is not connected, the packet is dropped.
+.Pp
+Packets travelling in the other direction (towards the
+.Em downstream
+hook) are also examined and filtered.
+If a packet has an ethertype that matches one of the values configured
+into the node, it must have arrived in on the hook for which that value
+was configured, otherwise it will be discarded.
+Ethertypes of values other
+than those configured by the control messages must have arrived via the
+.Em nomatch
+hook.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Aq Em any legal name"
+.It Em downstream
+Typically this hook would be connected to a
+.Xr ng_ether 4
+node, using the
+.Em lower
+hook.
+.It Em nomatch
+Typically this hook would also be connected to an
+.Xr ng_ether 4
+type node using the
+.Em upper
+hook.
+.It Aq Em "any legal name"
+Any other hook name will be accepted and can be used as the match target
+of an ethertype.
+Typically this hook would be attached to
+a protocol handling node that requires and generates packets
+with a particular set of ethertypes.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width 4n
+.It Dv NGM_ETF_GET_STATUS Pq Ic getstatus
+This command returns a
+.Vt "struct ng_etfstat"
+containing node statistics for packet counts.
+.It Dv NGM_ETF_SET_FILTER Pq Ic setfilter
+Sets the a new ethertype filter into the node and specifies the hook to and
+from which packets of that type should use.
+The hook and ethertype
+are specified in a structure of type
+.Vt "struct ng_etffilter" :
+.Bd -literal -offset 4n
+struct ng_etffilter {
+    char	matchhook[NG_HOOKSIZ];	/* hook name */
+    uint16_t	ethertype;		/* this ethertype to this hook */
+};
+.Ed
+.El
+.Sh EXAMPLES
+Using
+.Xr ngctl 8
+it is possible to set a filter in place from the command line
+as follows:
+.Bd -literal -offset 4n
+#!/bin/sh
+ETHER_IF=fxp0
+MATCH1=0x834
+MATCH2=0x835
+cat <<DONE >/tmp/xwert
+# Make a new ethertype filter and attach to the Ethernet lower hook.
+# first remove left over bits from last time.
+shutdown ${ETHER_IF}:lower
+mkpeer ${ETHER_IF}: etf lower downstream
+# Give it a name to easily refer to it.
+name ${ETHER_IF}:lower etf
+# Connect the nomatch hook to the upper part of the same interface.
+# All unmatched packets will act as if the filter is not present.
+connect ${ETHER_IF}: etf: upper nomatch
+DONE
+ngctl -f /tmp/xwert
+
+# something to set a hook to catch packets and show them.
+echo "Unrecognised packets:"
+nghook -a etf: newproto &
+# Filter two random ethertypes to that hook.
+ngctl 'msg etf: setfilter { matchhook="newproto" ethertype=${MATCH1} }
+ngctl 'msg etf: setfilter { matchhook="newproto" ethertype=${MATCH2} }
+.Ed
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_ether 4 ,
+.Xr ngctl 8 ,
+.Xr nghook 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq Mt julian@FreeBSD.org

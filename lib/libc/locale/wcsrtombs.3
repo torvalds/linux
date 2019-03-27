@@ -1,0 +1,134 @@
+.\" Copyright (c) 2002-2004 Tim J. Robbins
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 21, 2004
+.Dt WCSRTOMBS 3
+.Os
+.Sh NAME
+.Nm wcsrtombs ,
+.Nm wcsnrtombs
+.Nd "convert a wide-character string to a character string (restartable)"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In wchar.h
+.Ft size_t
+.Fo wcsrtombs
+.Fa "char * restrict dst" "const wchar_t ** restrict src"
+.Fa "size_t len" "mbstate_t * restrict ps"
+.Fc
+.Ft size_t
+.Fo wcsnrtombs
+.Fa "char * restrict dst" "const wchar_t ** restrict src" "size_t nwc"
+.Fa "size_t len" "mbstate_t * restrict ps"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn wcsrtombs
+function converts a string of wide characters indirectly pointed to by
+.Fa src
+to a corresponding multibyte character string stored in the array
+pointed to by
+.Fa dst .
+No more than
+.Fa len
+bytes are written to
+.Fa dst .
+.Pp
+If
+.Fa dst
+is
+.Dv NULL ,
+no characters are stored.
+.Pp
+If
+.Fa dst
+is not
+.Dv NULL ,
+the pointer pointed to by
+.Fa src
+is updated to point to the character after the one that conversion stopped at.
+If conversion stops because a null character is encountered,
+.Fa *src
+is set to
+.Dv NULL .
+.Pp
+The
+.Vt mbstate_t
+argument,
+.Fa ps ,
+is used to keep track of the shift state.
+If it is
+.Dv NULL ,
+.Fn wcsrtombs
+uses an internal, static
+.Vt mbstate_t
+object, which is initialized to the initial conversion state
+at program startup.
+.Pp
+The
+.Fn wcsnrtombs
+function behaves identically to
+.Fn wcsrtombs ,
+except that conversion stops after reading at most
+.Fa nwc
+characters from the buffer pointed to by
+.Fa src .
+.Sh RETURN VALUES
+The
+.Fn wcsrtombs
+and
+.Fn wcsnrtombs
+functions return the number of bytes stored in
+the array pointed to by
+.Fa dst
+(not including any terminating null), if successful, otherwise it returns
+.Po Vt size_t Pc Ns \-1 .
+.Sh ERRORS
+The
+.Fn wcsrtombs
+and
+.Fn wcsnrtombs
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EILSEQ
+An invalid wide character was encountered.
+.It Bq Er EINVAL
+The conversion state is invalid.
+.El
+.Sh SEE ALSO
+.Xr mbsrtowcs 3 ,
+.Xr wcrtomb 3 ,
+.Xr wcstombs 3
+.Sh STANDARDS
+The
+.Fn wcsrtombs
+function conforms to
+.St -isoC-99 .
+.Pp
+The
+.Fn wcsnrtombs
+function is an extension to the standard.

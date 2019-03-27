@@ -1,0 +1,30 @@
+The following is a new package build script for Solaris.   This is being
+introduced into OpenSSH 3.0 and above in hopes of simplifying the build
+process.  As of 3.1p2 the script should work on all platforms that have
+SVR4 style package tools.
+
+The build process is called a 'dummy install'.. Which means the software does
+a  "make install-nokeys DESTDIR=[fakeroot]".  This way all manpages should
+be handled correctly and key are deferred until the first time the sshd
+is started.
+
+Directions:
+
+1. make -F Makefile.in distprep  (Only if you are getting from the CVS tree)
+2. ./configure --with-pam [..any other options you want..]
+3. look at the top of buildpkg.sh for the configurable options and put
+   any changes you want in openssh-config.local. Additional customizations
+   can be done to the build process by creating one or more of the following
+   scripts that will be sourced by buildpkg.sh.
+	pkg_post_make_install_fixes.sh pkg-post-prototype-edit.sh
+	pkg-preinstall.local pkg-postinstall.local pkg-preremove.local
+	pkg-postremove.local pkg-request.local
+4. Run "make package"
+
+If all goes well you should have a solaris package ready to be installed.
+
+If you have any problems with this script please post them to
+openssh-unix-dev@mindrot.org and I will try to assist you as best as I can.
+
+- Ben Lindstrom
+

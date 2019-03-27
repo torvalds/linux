@@ -1,0 +1,66 @@
+# OID cross reference table.
+# Links signatures OIDs to their corresponding public key algorithms
+# and digests.
+
+md2WithRSAEncryption	md2	rsaEncryption
+md5WithRSAEncryption	md5	rsaEncryption
+shaWithRSAEncryption	sha	rsaEncryption
+sha1WithRSAEncryption	sha1	rsaEncryption
+md4WithRSAEncryption	md4	rsaEncryption
+sha256WithRSAEncryption sha256	rsaEncryption
+sha384WithRSAEncryption	sha384	rsaEncryption
+sha512WithRSAEncryption	sha512	rsaEncryption
+sha224WithRSAEncryption	sha224	rsaEncryption
+mdc2WithRSA		mdc2	rsaEncryption
+ripemd160WithRSA	ripemd160 rsaEncryption
+RSA_SHA3_224		sha3_224 rsaEncryption
+RSA_SHA3_256		sha3_256 rsaEncryption
+RSA_SHA3_384		sha3_384 rsaEncryption
+RSA_SHA3_512		sha3_512 rsaEncryption
+# For PSS the digest algorithm can vary and depends on the included
+# AlgorithmIdentifier. The digest "undef" indicates the public key
+# method should handle this explicitly.
+rsassaPss		undef	rsaEncryption
+ED25519		    undef	ED25519
+ED448		    undef	ED448
+
+# Alternative deprecated OIDs. By using the older "rsa" OID this
+# type will be recognized by not normally used.
+
+md5WithRSA		md5	rsa
+sha1WithRSA		sha1	rsa
+
+dsaWithSHA		sha	dsa
+dsaWithSHA1		sha1	dsa
+
+dsaWithSHA1_2		sha1	dsa_2
+
+ecdsa_with_SHA1		sha1	X9_62_id_ecPublicKey
+ecdsa_with_SHA224	sha224	X9_62_id_ecPublicKey
+ecdsa_with_SHA256	sha256	X9_62_id_ecPublicKey
+ecdsa_with_SHA384	sha384	X9_62_id_ecPublicKey
+ecdsa_with_SHA512	sha512	X9_62_id_ecPublicKey
+ecdsa_with_Recommended	undef	X9_62_id_ecPublicKey
+ecdsa_with_Specified	undef	X9_62_id_ecPublicKey
+
+dsa_with_SHA224		sha224	dsa
+dsa_with_SHA256		sha256	dsa
+
+id_GostR3411_94_with_GostR3410_2001	id_GostR3411_94 id_GostR3410_2001
+id_GostR3411_94_with_GostR3410_94	id_GostR3411_94 id_GostR3410_94
+id_GostR3411_94_with_GostR3410_94_cc	id_GostR3411_94 id_GostR3410_94_cc
+id_GostR3411_94_with_GostR3410_2001_cc	id_GostR3411_94 id_GostR3410_2001_cc
+id_tc26_signwithdigest_gost3410_2012_256 id_GostR3411_2012_256 id_GostR3410_2012_256
+id_tc26_signwithdigest_gost3410_2012_512 id_GostR3411_2012_512 id_GostR3410_2012_512
+# ECDH KDFs and their corresponding message digests and schemes
+dhSinglePass_stdDH_sha1kdf_scheme		sha1	dh_std_kdf
+dhSinglePass_stdDH_sha224kdf_scheme		sha224	dh_std_kdf
+dhSinglePass_stdDH_sha256kdf_scheme		sha256	dh_std_kdf
+dhSinglePass_stdDH_sha384kdf_scheme		sha384	dh_std_kdf
+dhSinglePass_stdDH_sha512kdf_scheme		sha512	dh_std_kdf
+
+dhSinglePass_cofactorDH_sha1kdf_scheme		sha1	dh_cofactor_kdf
+dhSinglePass_cofactorDH_sha224kdf_scheme	sha224	dh_cofactor_kdf
+dhSinglePass_cofactorDH_sha256kdf_scheme	sha256	dh_cofactor_kdf
+dhSinglePass_cofactorDH_sha384kdf_scheme	sha384	dh_cofactor_kdf
+dhSinglePass_cofactorDH_sha512kdf_scheme	sha512	dh_cofactor_kdf

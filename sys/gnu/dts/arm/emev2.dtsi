@@ -1,0 +1,285 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the EMEV2 SoC
+ *
+ * Copyright (C) 2012 Renesas Solutions Corp.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	compatible = "renesas,emev2";
+	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
+		gpio4 = &gpio4;
+		i2c0 = &iic0;
+		i2c1 = &iic1;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0>;
+			clock-frequency = <533000000>;
+		};
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <1>;
+			clock-frequency = <533000000>;
+		};
+	};
+
+	gic: interrupt-controller@e0020000 {
+		compatible = "arm,pl390";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		reg = <0xe0028000 0x1000>,
+		      <0xe0020000 0x0100>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>;
+	};
+
+	clocks@e0110000 {
+		compatible = "renesas,emev2-smu";
+		reg = <0xe0110000 0x10000>;
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		c32ki: c32ki {
+			compatible = "fixed-clock";
+			clock-frequency = <32768>;
+			#clock-cells = <0>;
+		};
+		iic0_sclkdiv: iic0_sclkdiv@624,0 {
+			compatible = "renesas,emev2-smu-clkdiv";
+			reg = <0x624 0>;
+			clocks = <&pll3_fo>;
+			#clock-cells = <0>;
+		};
+		iic0_sclk: iic0_sclk@48c,1 {
+			compatible = "renesas,emev2-smu-gclk";
+			reg = <0x48c 1>;
+			clocks = <&iic0_sclkdiv>;
+			#clock-cells = <0>;
+		};
+		iic1_sclkdiv: iic1_sclkdiv@624,16 {
+			compatible = "renesas,emev2-smu-clkdiv";
+			reg = <0x624 16>;
+			clocks = <&pll3_fo>;
+			#clock-cells = <0>;
+		};
+		iic1_sclk: iic1_sclk@490,1 {
+			compatible = "renesas,emev2-smu-gclk";
+			reg = <0x490 1>;
+			clocks = <&iic1_sclkdiv>;
+			#clock-cells = <0>;
+		};
+		pll3_fo: pll3_fo {
+			compatible = "fixed-factor-clock";
+			clocks = <&c32ki>;
+			clock-div = <1>;
+			clock-mult = <7000>;
+			#clock-cells = <0>;
+		};
+		usia_u0_sclkdiv: usia_u0_sclkdiv@610,0 {
+			compatible = "renesas,emev2-smu-clkdiv";
+			reg = <0x610 0>;
+			clocks = <&pll3_fo>;
+			#clock-cells = <0>;
+		};
+		usib_u1_sclkdiv: usib_u1_sclkdiv@65c,0 {
+			compatible = "renesas,emev2-smu-clkdiv";
+			reg = <0x65c 0>;
+			clocks = <&pll3_fo>;
+			#clock-cells = <0>;
+		};
+		usib_u2_sclkdiv: usib_u2_sclkdiv@65c,16 {
+			compatible = "renesas,emev2-smu-clkdiv";
+			reg = <0x65c 16>;
+			clocks = <&pll3_fo>;
+			#clock-cells = <0>;
+		};
+		usib_u3_sclkdiv: usib_u3_sclkdiv@660,0 {
+			compatible = "renesas,emev2-smu-clkdiv";
+			reg = <0x660 0>;
+			clocks = <&pll3_fo>;
+			#clock-cells = <0>;
+		};
+		usia_u0_sclk: usia_u0_sclk@4a0,1 {
+			compatible = "renesas,emev2-smu-gclk";
+			reg = <0x4a0 1>;
+			clocks = <&usia_u0_sclkdiv>;
+			#clock-cells = <0>;
+		};
+		usib_u1_sclk: usib_u1_sclk@4b8,1 {
+			compatible = "renesas,emev2-smu-gclk";
+			reg = <0x4b8 1>;
+			clocks = <&usib_u1_sclkdiv>;
+			#clock-cells = <0>;
+		};
+		usib_u2_sclk: usib_u2_sclk@4bc,1 {
+			compatible = "renesas,emev2-smu-gclk";
+			reg = <0x4bc 1>;
+			clocks = <&usib_u2_sclkdiv>;
+			#clock-cells = <0>;
+		};
+		usib_u3_sclk: usib_u3_sclk@4c0,1 {
+			compatible = "renesas,emev2-smu-gclk";
+			reg = <0x4c0 1>;
+			clocks = <&usib_u3_sclkdiv>;
+			#clock-cells = <0>;
+		};
+		sti_sclk: sti_sclk@528,1 {
+			compatible = "renesas,emev2-smu-gclk";
+			reg = <0x528 1>;
+			clocks = <&c32ki>;
+			#clock-cells = <0>;
+		};
+	};
+
+	timer@e0180000 {
+		compatible = "renesas,em-sti";
+		reg = <0xe0180000 0x54>;
+		interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&sti_sclk>;
+		clock-names = "sclk";
+	};
+
+	uart0: serial@e1020000 {
+		compatible = "renesas,em-uart";
+		reg = <0xe1020000 0x38>;
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&usia_u0_sclk>;
+		clock-names = "sclk";
+	};
+
+	uart1: serial@e1030000 {
+		compatible = "renesas,em-uart";
+		reg = <0xe1030000 0x38>;
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&usib_u1_sclk>;
+		clock-names = "sclk";
+	};
+
+	uart2: serial@e1040000 {
+		compatible = "renesas,em-uart";
+		reg = <0xe1040000 0x38>;
+		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&usib_u2_sclk>;
+		clock-names = "sclk";
+	};
+
+	uart3: serial@e1050000 {
+		compatible = "renesas,em-uart";
+		reg = <0xe1050000 0x38>;
+		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&usib_u3_sclk>;
+		clock-names = "sclk";
+	};
+
+	pfc: pin-controller@e0140200 {
+		compatible = "renesas,pfc-emev2";
+		reg = <0xe0140200 0x100>;
+	};
+
+	gpio0: gpio@e0050000 {
+		compatible = "renesas,em-gio";
+		reg = <0xe0050000 0x2c>, <0xe0050040 0x20>;
+		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+		gpio-controller;
+		gpio-ranges = <&pfc 0 0 32>;
+		#gpio-cells = <2>;
+		ngpios = <32>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+	gpio1: gpio@e0050080 {
+		compatible = "renesas,em-gio";
+		reg = <0xe0050080 0x2c>, <0xe00500c0 0x20>;
+		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+		gpio-controller;
+		gpio-ranges = <&pfc 0 32 32>;
+		#gpio-cells = <2>;
+		ngpios = <32>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+	gpio2: gpio@e0050100 {
+		compatible = "renesas,em-gio";
+		reg = <0xe0050100 0x2c>, <0xe0050140 0x20>;
+		interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+		gpio-controller;
+		gpio-ranges = <&pfc 0 64 32>;
+		#gpio-cells = <2>;
+		ngpios = <32>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+	gpio3: gpio@e0050180 {
+		compatible = "renesas,em-gio";
+		reg = <0xe0050180 0x2c>, <0xe00501c0 0x20>;
+		interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+		gpio-controller;
+		gpio-ranges = <&pfc 0 96 32>;
+		#gpio-cells = <2>;
+		ngpios = <32>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+	gpio4: gpio@e0050200 {
+		compatible = "renesas,em-gio";
+		reg = <0xe0050200 0x2c>, <0xe0050240 0x20>;
+		interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+		gpio-controller;
+		gpio-ranges = <&pfc 0 128 31>;
+		#gpio-cells = <2>;
+		ngpios = <31>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
+	iic0: i2c@e0070000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,iic-emev2";
+		reg = <0xe0070000 0x28>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_EDGE_RISING>;
+		clocks = <&iic0_sclk>;
+		clock-names = "sclk";
+		status = "disabled";
+	};
+
+	iic1: i2c@e10a0000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,iic-emev2";
+		reg = <0xe10a0000 0x28>;
+		interrupts = <GIC_SPI 33 IRQ_TYPE_EDGE_RISING>;
+		clocks = <&iic1_sclk>;
+		clock-names = "sclk";
+		status = "disabled";
+	};
+};

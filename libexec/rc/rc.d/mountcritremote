@@ -1,0 +1,90 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: mountcritremote
+# REQUIRE: NETWORKING FILESYSTEMS ipsec netwait
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="mountcritremote"
+desc="Mount critical remote filesystems"
+stop_cmd=":"
+start_cmd="mountcritremote_start"
+start_precmd="mountcritremote_precmd"
+
+# Mount NFS filesystems if present in /etc/fstab
+#
+# XXX When the vfsload() issues with nfsclient support and related sysctls
+# have been resolved, this block can be removed, and the condition that
+# skips nfs in the following block (for "other network filesystems") can
+# be removed.
+#
+mountcritremote_precmd()
+{
+	case "`mount -d -a -t nfs 2> /dev/null`" in
+	*mount_nfs*)
+		# Handle absent nfs client support
+		load_kld -m nfs nfscl || return 1
+		;;
+	esac
+	return 0
+}
+
+mountcritremote_start()
+{
+	local mounted_remote_filesystem=false
+
+	# Mount nfs filesystems.
+	#
+	case "`/sbin/mount -d -a -t nfs`" in
+	'')
+		;;
+	*)
+		mounted_remote_filesystem=true
+		echo -n 'Mounting NFS filesystems:'
+		mount -a -t nfs
+		echo '.'
+		;;
+	esac
+
+	# Mount other network filesystems if present in /etc/fstab.
+	case ${extra_netfs_types} in
+	[Nn][Oo])
+		;;
+	*)
+		netfs_types="${netfs_types} ${extra_netfs_types}"
+		;;
+	esac
+
+	for i in ${netfs_types}; do
+		fstype=${i%:*}
+		fsdecr=${i#*:}
+
+		[ "${fstype}" = "nfs" ] && continue
+
+		case "`mount -d -a -t ${fstype}`" in
+		*mount_${fstype}*)
+			mounted_remote_filesystem=true
+			echo -n "Mounting ${fsdecr} filesystems:"
+			mount -a -t ${fstype}
+			echo '.'
+			;;
+		esac
+	done
+
+	if $mounted_remote_filesystem; then
+		# Cleanup /var again just in case it's a network mount.
+		/etc/rc.d/cleanvar quietreload
+		rm -f /var/run/clean_var /var/spool/lock/clean_var
+
+		# Regenerate the ldconfig hints in case there are additional
+		# library paths on remote file systems
+		/etc/rc.d/ldconfig quietstart
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

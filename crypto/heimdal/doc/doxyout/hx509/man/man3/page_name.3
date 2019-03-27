@@ -1,0 +1,18 @@
+.TH "page_name" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+page_name \- PKIX/X.509 Names 
+There are several names in PKIX/X.509, GeneralName and Name.
+.PP
+A Name consists of an ordered list of Relative Distinguished Names (RDN). Each RDN consists of an unordered list of typed strings. The types are defined by OID and have long and short description. For example id-at-commonName (2.5.4.3) have the long name CommonName and short name CN. The string itself can be of several encoding, UTF8, UTF16, Teltex string, etc. The type limit what encoding should be used.
+.PP
+GeneralName is a broader nametype that can contains al kind of stuff like Name, IP addresses, partial Name, etc.
+.PP
+Name is mapped into a hx509_name object.
+.PP
+Parse and string name into a hx509_name object with \fBhx509_parse_name()\fP, make it back into string representation with \fBhx509_name_to_string()\fP.
+.PP
+Name string are defined rfc2253, rfc1779 and X.501.
+.PP
+See the library functions here: \fBhx509 name functions\fP 

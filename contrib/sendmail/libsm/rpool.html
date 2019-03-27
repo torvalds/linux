@@ -1,0 +1,187 @@
+<html>
+<head>
+    <title>libsm : Resource Pools</title>
+</head>
+<body>
+
+<a href="index.html">Back to libsm overview</a>
+
+<center>
+    <h1> libsm : Resource Pools </h1>
+    <br> $Id: rpool.html,v 1.4 2000-12-07 17:33:09 dmoen Exp $
+</center>
+
+<h2> Introduction </h2>
+
+A resource pool is an object that owns a collection of objects
+that can be freed all at once.
+
+<p>
+Resource pools simplify storage management.
+    
+<p>
+Resource pools also speed up memory management.
+For example, here are some memory allocation statistics from a
+run of <tt>`sendmail -q`</tt> that delivered 3 messages:
+<blockquote><pre>
+     18	1	     82	12	     87	24	      7	42	      2	84
+   3046	2	     18	13	      6	25	     89	44	      2	88
+    728	3	     15	14	      2	26	     14	48	      1	91
+     31	4	      9	15	      3	27	    104	52	      3	92
+    103	5	    394	16	     80	28	      8	56	      2	96
+    125	6	     16	17	      1	31	      2	60	      1	100
+     45	7	     14	18	     59	32	     10	64	      9	108
+    130	8	      6	19	      1	33	      6	68	      3	135
+     40	9	    111	20	      7	34	      1	72	     10	140
+     37	10	      7	21	     54	36	     10	76
+     34	11	      4	22	     38	40	      5	80
+</pre></blockquote>
+The second number in each pair is the size of a memory block; the first
+number is the number of blocks of that size.  We can see that sendmail
+allocates large numbers of 2 byte blocks.  These memory blocks can be
+allocated and freed more quickly using resource pools, because:
+<ul>
+<li>
+        When you allocate a small block from a resource pool, the rpool
+        implementation carves off a chunk of a large preallocated block,
+	and hands you a pointer to it.
+<li>
+        When you free a resource pool, only a small number of large
+        blocks need to be freed.
+</ul>
+
+<h2> Synopsis </h2>
+
+<pre>
+#include &lt;sm/rpool.h&gt;
+
+typedef void (*SM_RPOOL_RFREE_T)(void *rcontext);
+typedef struct sm_rpool SM_RPOOL_T;
+typedef ... SM_RPOOL_ATTACH_T;
+
+SM_RPOOL_T *
+sm_rpool_new_x(
+	SM_RPOOL_T *parent);
+
+void
+sm_rpool_free(
+	SM_RPOOL_T *rpool);
+
+void *
+sm_rpool_malloc_x(
+	SM_RPOOL_T *rpool,
+	size_t size);
+
+SM_RPOOL_ATTACH_T
+sm_rpool_attach_x(
+	SM_RPOOL_T *rpool,
+	SM_RPOOL_RFREE_T rfree,
+	void *rcontext);
+
+void
+sm_rpool_detach(
+	SM_RPOOL_ATTACH_T);
+
+void
+sm_rpool_setsizes(
+	SM_RPOOL_T *rpool,
+	size_t poolsize,
+	size_t bigobjectsize);
+</pre>
+
+<h2> Description </h2>
+
+<dl>
+<dt>
+<tt> SM_RPOOL_T *sm_rpool_new_x(SM_RPOOL_T *parent) </tt>
+<dd>
+	Create a new resource pool object.
+	Raise an exception if there is insufficient heap space.
+	Initially, no memory is allocated for memory pools or resource lists.
+	<p>
+	If parent != NULL then the new rpool will be added as a resource
+	to the specified parent rpool, so that when the parent is freed,
+	the child is also freed.  However, even if a parent is specified,
+	you can free the rpool at any time, and it will be automatically
+	disconnected from the parent.
+	<p>
+<dt>
+<tt> void *sm_rpool_malloc_x(SM_RPOOL_T *rpool, size_t size) </tt>
+<dd>
+	Allocate a block of memory from a memory pool owned by the rpool.
+	Raise an exception if there is insufficient heap space.
+	A series of small allocation requests can be satisfied allocating
+	them from the same memory pool, which reduces the number of calls
+	to malloc.
+	All of the memory allocated by sm_rpool_malloc_x is freed when
+	the rpool is freed, and not before then.
+	<p>
+<dt>
+<tt> void sm_rpool_setsizes(SM_RPOOL_T *rpool, size_t poolsize, size_t bigobjectsize) </tt>
+<dd>
+	Set memory pool parameters.
+	You can safely call this function at any time, but an especially
+	good time to call it is immediately after creating the rpool,
+	before any pooled objects have been allocated using sm_rpool_malloc_x.
+	<p>
+	<tt>poolsize</tt> is the number of bytes of pool memory
+	that will be available in the next pool object to be allocated.
+	If you happen to know the total number of bytes of memory that
+	you will allocate from an rpool using sm_rpool_malloc_x
+	(including alignment padding), then you can pass that value
+	as the poolsize, and only a single pool will be allocated
+	during the lifetime of the rpool.
+	<tt>poolsize</tt> is an optimization, not a hard limit:
+	if you allocate more than this number of bytes from the rpool,
+	then more than one memory pool may be allocated by the rpool
+	to satisfy your requests.
+	<p>
+	<tt>bigobjectsize</tt> is a value &lt;= <tt>poolsize</tt>.
+	It is used when an <tt>sm_rpool_malloc_x</tt> request exceeds
+	the number of bytes available in the current pool.
+	If the request is &gt; <tt>bigobjectsize</tt> then the request
+	will be satisfied by allocating a new block just for this specific
+	request, and the current pool is not affected.
+	If the request is &lt;= <tt>bigobjectsize</tt> then the current
+	pool is closed and a new memory pool is allocated, from which the
+	request is satisfied.
+	Consequently, no more than <tt>bigobjectsize-1</tt> bytes will
+	ever be wasted at the end of a given pool.
+	<p>
+	If poolsize or bigobjectsize are 0, then suitable default values
+	are chosen.
+	<p>
+<dt>
+<tt> SM_RPOOL_ATTACH_T sm_rpool_attach_x(SM_RPOOL_T *rpool, SM_RPOOL_RFREE_T rfree, void *rcontext) </tt>
+<dd>
+	Attach an object to a resource pool, along with its free function.
+	When the rpool is freed, the specified object will also be freed.
+	Raise an exception if there is insufficient heap space.
+	<p>
+	The return value is a magic cookie which, if passed to
+	sm_rpool_detach, disconnects the object from the resource pool,
+	which prevents the object's free function from being called when
+	the rpool is freed.
+	<p>
+<dt>
+<tt> void sm_rpool_detach(SM_RPOOL_ATTACH_T a) </tt>
+<dd>
+	The argument is a magic cookie returned by <tt>sm_rpool_attach_t</tt>,
+	and refers to the object that was attached to an rpool by a specific
+	call to <tt>sm_rpool_attach_t</tt>.
+	Disconnect the object from the resource pool,
+	which prevents the object's free function from being called when
+	the rpool is freed.
+	<p>
+<dt>
+<tt> void sm_rpool_free(SM_RPOOL_T *rpool) </tt>
+<dd>
+	Free an rpool object.
+	All memory allocated using sm_rpool_malloc_x
+	and all objects attached using sm_rpool_attach_x
+	are freed at this time.
+	If the rpool has a parent rpool, it is detached from its parent.
+</dl>
+
+</body>
+</html>

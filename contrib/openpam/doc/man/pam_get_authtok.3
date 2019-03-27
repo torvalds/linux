@@ -1,0 +1,164 @@
+.\" Generated from pam_get_authtok.c by gendoc.pl
+.\" $OpenPAM: pam_get_authtok.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_GET_AUTHTOK 3
+.Os
+.Sh NAME
+.Nm pam_get_authtok
+.Nd retrieve authentication token
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.Ft "int"
+.Fn pam_get_authtok "pam_handle_t *pamh" "int item" "const char **authtok" "const char *prompt"
+.Sh DESCRIPTION
+The
+.Fn pam_get_authtok
+function either prompts the user for an
+authentication token or retrieves a cached authentication token,
+depending on circumstances.
+Either way, a pointer to the authentication token is stored in the
+location pointed to by the
+.Fa authtok
+argument, and the corresponding PAM
+item is updated.
+.Pp
+The
+.Fa item
+argument must have one of the following values:
+.Bl -tag -width 18n
+.It Dv PAM_AUTHTOK
+Returns the current authentication token, or the new token
+when changing authentication tokens.
+.It Dv PAM_OLDAUTHTOK
+Returns the previous authentication token when changing
+authentication tokens.
+.El
+.Pp
+The
+.Fa prompt
+argument specifies a prompt to use if no token is cached.
+If it is
+.Dv NULL ,
+the
+.Dv PAM_AUTHTOK_PROMPT
+or
+.Dv PAM_OLDAUTHTOK_PROMPT
+item,
+as appropriate, will be used.
+If that item is also
+.Dv NULL ,
+a hardcoded default prompt will be used.
+Additionally, when
+.Fn pam_get_authtok
+is called from a service module,
+the prompt may be affected by module options as described below.
+The prompt is then expanded using
+.Xr openpam_subst 3
+before it is passed to
+the conversation function.
+.Pp
+If
+.Fa item
+is set to
+.Dv PAM_AUTHTOK
+and there is a non-null
+.Dv PAM_OLDAUTHTOK
+item,
+.Fn pam_get_authtok
+will ask the user to confirm the new token by
+retyping it.
+If there is a mismatch,
+.Fn pam_get_authtok
+will return
+.Dv PAM_TRY_AGAIN .
+.Sh MODULE OPTIONS
+When called by a service module,
+.Fn pam_get_authtok
+will recognize the
+following module options:
+.Bl -tag -width 18n
+.It Dv authtok_prompt
+Prompt to use when
+.Fa item
+is set to
+.Dv PAM_AUTHTOK .
+This option overrides both the
+.Fa prompt
+argument and the
+.Dv PAM_AUTHTOK_PROMPT
+item.
+.It Dv echo_pass
+If the application's conversation function allows it, this
+lets the user see what they are typing.
+This should only be used for non-reusable authentication
+tokens.
+.It Dv oldauthtok_prompt
+Prompt to use when
+.Fa item
+is set to
+.Dv PAM_OLDAUTHTOK .
+This option overrides both the
+.Fa prompt
+argument and the
+.Dv PAM_OLDAUTHTOK_PROMPT
+item.
+.It Dv try_first_pass
+If the requested item is non-null, return it without
+prompting the user.
+Typically, the service module will verify the token, and
+if it does not match, clear the item before calling
+.Fn pam_get_authtok
+a second time.
+.It Dv use_first_pass
+Do not prompt the user at all; just return the cached
+value, or
+.Dv PAM_AUTH_ERR
+if there is none.
+.El
+.Sh RETURN VALUES
+The
+.Fn pam_get_authtok
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BAD_CONSTANT
+Bad constant.
+.It Bq Er PAM_BAD_ITEM
+Unrecognized or restricted item.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.It Bq Er PAM_TRY_AGAIN
+Try again.
+.El
+.Sh SEE ALSO
+.Xr openpam_get_option 3 ,
+.Xr openpam_subst 3 ,
+.Xr pam 3 ,
+.Xr pam_conv 3 ,
+.Xr pam_get_item 3 ,
+.Xr pam_get_user 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+The
+.Fn pam_get_authtok
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn pam_get_authtok
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

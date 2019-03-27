@@ -1,0 +1,84 @@
+.\"
+.\" Copyright (c) 2010 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Semihalf under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 12, 2010
+.Dt SIMPLEBUS 4
+.Os
+.Sh NAME
+.Nm simplebus
+.Nd ePAPR simple-bus driver
+.Sh SYNOPSIS
+.Cd "options FDT"
+.Sh DESCRIPTION
+This bus driver is dedicated for the
+.Pa simple-bus
+node of a flattened device tree compliant with the
+.Pa ePAPR
+specification.
+.Pp
+The
+.Nm
+entity does not represent any physical element by itself, it is rather an
+umbrella node grouping integrated on-chip peripherals like interrupt
+controller, connectivity controllers, accelerating engines and so on.
+.Pp
+The driver is generic and common for all flattened device tree nodes claiming
+.Pa simple-bus
+compatibility.
+It iterates over direct descendants of the
+.Pa simple-bus
+node, instantiates newbus children and assigns resources to them, based on the
+configuration data retrieved from the nodes properties in
+.Xr fdt 4 .
+.Pp
+Note the
+.Nm
+does not manage device resources and passes through any requests to the
+.Xr fdtbus 4
+layer.
+.Sh SEE ALSO
+.Xr fdt 4 ,
+.Xr fdtbus 4 ,
+.Xr openfirm 4
+.Sh STANDARDS
+Power.org Standard for Embedded Power Architecture Platform Requirements
+.Pq Vt ePAPR .
+.Sh HISTORY
+The
+.Nm
+support first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+The
+.Nm
+support was developed by Semihalf under sponsorship from the FreeBSD
+Foundation.
+This manual page was written by
+.An Rafal Jaworowski .

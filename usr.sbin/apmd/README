@@ -1,0 +1,213 @@
+FreeBSD apmd Package Release Notes (19990711 version)
+
+1. What is "apmd"?
+==================
+
+The apmd package provides a means of handling various APM events from
+userland code.  Using apmd.conf, the apmd(8) configuration file, you
+can select the APM events to be handled from userland and specify the
+commands for a given event, allowing APM behaviour to be configured
+flexibly.
+
+
+2. How to install the apmd package
+==================================
+
+2.1 Making the apmd control device file
+---------------------------------------
+
+apmd(8) uses the new special device file /dev/apmctl.  This should be
+created as follows:
+
+# cd /dev
+# mknod apmctl c 39 8
+
+2.2 Applying the kernel patch and building a new kernel
+-------------------------------------------------------
+
+The next step is to apply the patch against the sys source tree.
+Go to the source directory (eg. /usr/src/ or /usr/PAO3/src/) and run
+the patch command as follows:
+
+# gzip -cd [somewhere]/apmd-sys-R320.diff | patch
+
+For PAO3 users, the patch file name would be apmd-sys-PAO3.diff
+instead of apmd-sys-R320.diff.  After this step has completed
+successfully, build and install a new kernel and reboot your system.
+
+2.3 Making the apmd program
+---------------------------
+
+Go to src/usr.sbin/ and extract the apmd tarball as follows:
+
+# tar xzpvf [somewhere]/apmd-usr.sbin.tar.gz 
+
+Before doing a make all, you need to copy apm_bios.h in the sys source
+tree to /usr/include/machine/ first:
+
+# cp /sys/i386/include/apm_bios.h /usr/include/machine/
+
+Then do the build and install steps in the apmd directory:
+
+# cd src/usr.sbin/apmd
+# make depend all install
+
+2.4 Setting up the configuration file and userland script
+---------------------------------------------------------
+
+In src/usr.sbin/apm/etc/ there are example configuration and userland
+script files which are invoked automatically when the APM BIOS informs
+apmd of an event, such as suspend request.  Copy these files to
+/etc/ as follows:
+
+# cp src/usr.sbin/apm/etc/* /etc/
+
+
+3. Running the apmd daemon program
+==================================
+
+To run apmd(8) in background mode, simply type ``apmd''.
+
+# apmd
+
+To make a running apmd reload /etc/apmd.conf, send a SIGHUP signal to
+the apmd(8) process.
+
+# kill -HUP [apmd pid]
+or
+# killall -HUP apmd
+
+apmd has some command line options.  For the details, please 
+refer to the manpage of apmd.
+
+4. Configuration file
+=====================
+
+The structure of the apmd configuration file is quite simple.  For
+example:
+
+apm_event SUSPENDREQ {
+	exec "sync && sync && sync";
+	exec "sleep 1";
+	exec "zzz";
+}
+
+Will cause apmd to receive the APM event SUSPENDREQ (which may be
+posted by an LCD close), run the sync command 3 times and wait for a
+while, then execute zzz (apm -z) to put the system in the suspend
+state.
+
+4.1 The apm_event keyword
+-------------------------
+`apm_event' is the keyword which indicates the start of configuration for
+each events.
+
+4.2 APM events
+--------------
+
+If you wish to execute the same commands for different events, the
+event names should be delimited by a comma.  The following are valid
+event names:
+
+o Events ignored by the kernel if apmd is running:
+
+STANDBYREQ
+SUSPENDREQ
+USERSUSPENDREQ
+BATTERYLOW
+
+o Events passed to apmd after kernel handling:
+
+NORMRESUME
+CRITRESUME
+STANDBYRESUME
+POWERSTATECHANGE
+UPDATETIME
+
+
+Other events will not be sent to apmd.
+
+4.3 command line syntax
+-----------------------
+
+In the example above, the three lines beginning with `exec' are commands
+for the event.  Each line should be terminated with a semicolon.  The
+command list for the event should be enclosed by `{' and `}'. apmd(8)
+uses /bin/sh for double-quotation enclosed command execution, just as
+with system(3).  Each command is executed in order until the end of
+the list is reached or a command finishes with a non-zero status code. 
+apmd(8) will report any failed command's status code via syslog(3)
+and will then reject the request event posted by APM BIOS.
+
+4.4 Built-in functions
+----------------------
+
+You can also specify apmd built-in functions instead of command lines.
+A built-in function name should be terminated with a semicolon, just as
+with a command line.
+The following built-in functions are currently supported:
+
+o reject;
+
+  Reject last request posted by the APM BIOS.  This can be used to reject a
+  SUSPEND request when the LCD is closed and put the system in a STANDBY
+  state instead.
+
+
+
+5. EXAMPLES
+===========
+
+Sample configuration commands include:
+
+apm_event SUSPENDREQ {
+	exec "/etc/rc.suspend";
+}
+
+apm_event USERSUSPENDREQ {
+	exec "sync && sync && sync";
+	exec "sleep 1";
+	exec "apm -z";
+}
+
+apm_event NORMRESUME, STANDBYRESUME {
+	exec "/etc/rc.resume";
+}
+
+# resume event configuration for serial mouse users by
+# reinitializing a moused(8) connected to a serial port.
+#
+#apm_event NORMRESUME {
+#	exec "kill -HUP `cat /var/run/moused.pid`";
+#}
+
+# suspend request event configuration for ATA HDD users:
+# execute standby instead of suspend.
+#
+#apm_event SUSPENDREQ {
+#	reject;
+#	exec "sync && sync && sync";
+#	exec "sleep 1";
+#	exec "apm -Z";
+#}
+
+
+6. Call for developers
+======================
+
+The initial version of apmd(8) was implemented primarily to test the
+kernel support code and was ALPHA quality.  Based on that code, the
+current version was developed by KOIE Hidetaka <hide@koie.org>. 
+However, we're still looking around for interesting new features and
+ideas, so if you have any thoughts, please let us know. 
+Documentation is also sparse, and the manpage have just written.  
+If you wish to collaborate on this work, please e-mail me:
+iwasaki@freebsd.org.
+
+
+June 1, 1999
+Created by: iwasaki@FreeBSD.org
+Edited by: jkh@FreeBSD.org
+           nick@foobar.org
+
+$FreeBSD$

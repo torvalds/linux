@@ -1,0 +1,133 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP-SAVEFILE @MAN_FILE_FORMATS@ "8 March 2015"
+.SH NAME
+pcap-savefile \- libpcap savefile format
+.SH DESCRIPTION
+NOTE: applications and libraries should, if possible, use libpcap to
+read savefiles, rather than having their own code to read savefiles.
+If, in the future, a new file format is supported by libpcap,
+applications and libraries using libpcap to read savefiles will be able
+to read the new format of savefiles, but applications and libraries
+using their own code to read savefiles will have to be changed to
+support the new file format.
+.PP
+``Savefiles'' read and written by libpcap and applications using libpcap
+start with a per-file header.  The format of the per-file header is:
+.RS
+.TS
+box;
+c s
+c | c
+c s.
+Magic number
+_
+Major version	Minor version
+_
+Time zone offset
+_
+Time stamp accuracy
+_
+Snapshot length
+_
+Link-layer header type
+.TE
+.RE
+.PP
+All fields in the per-file header are in the byte order of the host
+writing the file.  Normally, the first field in the per-file header is a
+4-byte magic number, with the value 0xa1b2c3d4.  The magic number, when
+read by a host with the same byte order as the host that wrote the file,
+will have the value 0xa1b2c3d4, and, when read by a host with the
+opposite byte order as the host that wrote the file, will have the value
+0xd4c3b2a1.  That allows software reading the file to determine whether
+the byte order of the host that wrote the file is the same as the byte
+order of the host on which the file is being read, and thus whether the
+values in the per-file and per-packet headers need to be byte-swapped.
+.PP
+If the magic number has the value 0xa1b23c4d (with the two nibbles of
+the two lower-order bytes of the magic number swapped), which would be
+read as 0xa1b23c4d by a host with the same byte order as the host that
+wrote the file and as 0x4d3cb2a1 by a host with the opposite byte order
+as the host that wrote the file, the file format is the same as for
+regular files, except that the time stamps for packets are given in
+seconds and nanoseconds rather than seconds and microseconds.
+.PP
+Following this are:
+.IP
+A 2-byte file format major version number; the current version number is
+2.
+.IP
+A 2-byte file format minor version number; the current version number is
+4.
+.IP
+A 4-byte time zone offset; this is always 0.
+.IP
+A 4-byte number giving the accuracy of time stamps in the file; this is
+always 0.
+.IP
+A 4-byte number giving the "snapshot length" of the capture; packets
+longer than the snapshot length are truncated to the snapshot length, so
+that, if the snapshot length is
+.IR N ,
+only the first
+.I N
+bytes of a packet longer than
+.I N
+bytes will be saved in the capture.
+.IP
+a 4-byte number giving the link-layer header type for packets in the
+capture; see
+.BR pcap-linktype (@MAN_MISC_INFO@)
+for the
+.B LINKTYPE_
+values that can appear in this field.
+.PP
+Following the per-file header are zero or more packets; each packet
+begins with a per-packet header, which is immediately followed by the
+raw packet data.  The format of the per-packet header is:
+.RS
+.TS
+box;
+c.
+Time stamp, seconds value
+_
+Time stamp, microseconds or nanoseconds value
+_
+Length of captured packet data
+_
+Un-truncated length of the packet data
+.TE
+.RE
+.PP
+All fields in the per-packet header are in the byte order of the host
+writing the file.  The per-packet header begins with a time stamp giving
+the approximate time the packet was captured; the time stamp consists of
+a 4-byte value, giving the time in seconds since January 1, 1970,
+00:00:00 UTC, followed by a 4-byte value, giving the time in
+microseconds or nanoseconds since that second, depending on the magic
+number in the file header.  Following that are a 4-byte value giving the
+number of bytes of captured data that follow the per-packet header and a
+4-byte value giving the number of bytes that would have been present had
+the packet not been truncated by the snapshot length.  The two lengths
+will be equal if the number of bytes of packet data are less than or
+equal to the snapshot length.
+.SH SEE ALSO
+pcap(3PCAP), pcap-linktype(@MAN_MISC_INFO@)

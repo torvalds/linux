@@ -1,0 +1,46 @@
+# $FreeBSD$
+
+e= q='?' a='*' t=texttext s='ast*que?non' p='/et[c]/' w='a b c' b='{{(#)}}'
+h='##' c='\\\\'
+failures=''
+ok=''
+
+testcase() {
+	code="$1"
+	expected="$2"
+	oIFS="$IFS"
+	eval "$code"
+	IFS='|'
+	result="$#|$*"
+	IFS="$oIFS"
+	if [ "x$result" = "x$expected" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "For $code, expected $expected actual $result"
+	fi
+}
+
+# This doesn't make much sense, but it fails in dash so I'm adding it here:
+testcase 'set -- "${w%${w#???}}"'		'1|a b'
+
+testcase 'set -- ${p#/et[}'			'1|c]/'
+testcase 'set -- "${p#/et[}"'			'1|c]/'
+testcase 'set -- "${p%${p#????}}"'		'1|/et['
+
+testcase 'set -- ${b%'\'}\''}'			'1|{{(#)}'
+
+testcase 'set -- ${c#\\}'			'1|\\\'
+testcase 'set -- ${c#\\\\}'			'1|\\'
+testcase 'set -- ${c#\\\\\\}'			'1|\'
+testcase 'set -- ${c#\\\\\\\\}'			'0|'
+testcase 'set -- "${c#\\}"'			'1|\\\'
+testcase 'set -- "${c#\\\\}"'			'1|\\'
+testcase 'set -- "${c#\\\\\\}"'			'1|\'
+testcase 'set -- "${c#\\\\\\\\}"'		'1|'
+testcase 'set -- "${c#"$c"}"'			'1|'
+testcase 'set -- ${c#"$c"}'			'0|'
+testcase 'set -- "${c%"$c"}"'			'1|'
+testcase 'set -- ${c%"$c"}'			'0|'
+
+test "x$failures" = x

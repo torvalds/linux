@@ -1,0 +1,12 @@
+{% extends "!layout.html" %}
+
+{% block extrahead %}
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+{% endblock %}
+
+{% block rootrellink %}
+  <li><a href="{{ pathto('index') }}">lld Home</a>&nbsp;|&nbsp;</li>
+{% endblock %}

@@ -1,0 +1,72 @@
+=pod
+
+=head1 NAME
+
+CMS_add1_recipient_cert, CMS_add0_recipient_key - add recipients to a CMS enveloped data structure
+
+=head1 SYNOPSIS
+
+ #include <openssl/cms.h>
+
+ CMS_RecipientInfo *CMS_add1_recipient_cert(CMS_ContentInfo *cms,
+                                            X509 *recip, unsigned int flags);
+
+ CMS_RecipientInfo *CMS_add0_recipient_key(CMS_ContentInfo *cms, int nid,
+                                           unsigned char *key, size_t keylen,
+                                           unsigned char *id, size_t idlen,
+                                           ASN1_GENERALIZEDTIME *date,
+                                           ASN1_OBJECT *otherTypeId,
+                                           ASN1_TYPE *otherType);
+
+=head1 DESCRIPTION
+
+CMS_add1_recipient_cert() adds recipient B<recip> to CMS_ContentInfo enveloped
+data structure B<cms> as a KeyTransRecipientInfo structure.
+
+CMS_add0_recipient_key() adds symmetric key B<key> of length B<keylen> using
+wrapping algorithm B<nid>, identifier B<id> of length B<idlen> and optional
+values B<date>, B<otherTypeId> and B<otherType> to CMS_ContentInfo enveloped
+data structure B<cms> as a KEKRecipientInfo structure.
+
+The CMS_ContentInfo structure should be obtained from an initial call to
+CMS_encrypt() with the flag B<CMS_PARTIAL> set.
+
+=head1 NOTES
+
+The main purpose of this function is to provide finer control over a CMS
+enveloped data structure where the simpler CMS_encrypt() function defaults are
+not appropriate. For example if one or more KEKRecipientInfo structures
+need to be added. New attributes can also be added using the returned
+CMS_RecipientInfo structure and the CMS attribute utility functions.
+
+OpenSSL will by default identify recipient certificates using issuer name
+and serial number. If B<CMS_USE_KEYID> is set it will use the subject key
+identifier value instead. An error occurs if all recipient certificates do not
+have a subject key identifier extension.
+
+Currently only AES based key wrapping algorithms are supported for B<nid>,
+specifically: NID_id_aes128_wrap, NID_id_aes192_wrap and NID_id_aes256_wrap.
+If B<nid> is set to B<NID_undef> then an AES wrap algorithm will be used
+consistent with B<keylen>.
+
+=head1 RETURN VALUES
+
+CMS_add1_recipient_cert() and CMS_add0_recipient_key() return an internal
+pointer to the CMS_RecipientInfo structure just added or NULL if an error
+occurs.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<CMS_decrypt(3)>,
+L<CMS_final(3)>,
+
+=head1 COPYRIGHT
+
+Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,369 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local prompt="$msg_miscellaneous_menu_text"
+	local menu_list="
+		'X $msg_exit' '$msg_exit_this_menu'
+	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
+
+	# List of variables we'll need from rc.conf(5)
+	local var_list="
+		accounting_enable
+		local_startup
+		lpd_enable
+		named_enable
+		named_flags
+		nis_client_enable
+		nis_server_enable
+		nisdomainname
+		startup_dirs
+	" # END-QUOTE
+
+	# Add i386-specific variables if appropriate
+	if [ "$UNAME_P" = "i386" ]; then
+		var_list="$var_list
+			apm_enable
+		" # END-QUOTE
+	fi
+
+	# Obtain default-item (adjusted below for dynamic tags)
+	f_dialog_default_fetch defaultitem
+	local ditem="${defaultitem%%[$IFS]*}"
+
+	eval "$(
+		. "$RC_DEFAULTS"
+		source_rc_confs
+		export $var_list
+		export msg_apm            msg_apm_desc
+		export msg_startup_dirs   msg_startup_dirs_desc
+		export msg_named          msg_named_desc
+		export msg_named_flags    msg_named_flags_desc
+		export msg_nis_client     msg_nis_client_desc
+		export msg_nis_domainname msg_nis_domainname_desc
+		export msg_nis_server     msg_nis_server_desc
+		export msg_accounting     msg_accounting_desc
+		export msg_lpd            msg_lpd_desc
+		:| awk \
+			-v uname_p="$UNAME_P"            \
+			-v menu_tags="$DIALOG_MENU_TAGS" \
+			-v menu_fmt="'%s' '%s'\n"        \
+			-v mtag_fmt="%c [%c] %s"         \
+			-v separator="' ' ' -- '\n"      \
+			-v ditem="$ditem"                \
+		'
+		function mprint(tag,item)
+		{
+			printf menu_fmt, tag, item
+		}
+		END {
+			i = 1
+			defaultitem = ""
+
+			printf "menu_list=\"$menu_list\n"
+
+			if ( uname_p == "i386" )
+			{
+				#
+				# APM: Auto-power management services
+				#      (typically laptops)
+				#
+				char = substr(menu_tags, i++, 1)
+				mark = ( ENVIRON["apm_enable"] ~ \
+						/^[Yy][Ee][Ss]$/ ? "X" : " " )
+				subtag = ENVIRON["msg_apm"]
+				tag = sprintf(mtag_fmt, char, mark, subtag)
+				mprint(tag, ENVIRON["msg_apm_desc"])
+				if (ditem == char) defaultitem = tag
+			}
+
+			printf separator
+
+			#
+			# Startup dirs: Set the list of dirs to look for
+			#               startup scripts
+			#
+			char = substr(menu_tags, i++, 1)
+			mark = ( length(ENVIRON["local_startup"]) > 0 \
+					? "X" : " " )
+			subtag = ENVIRON["msg_startup_dirs"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_startup_dirs_desc"])
+			if (ditem == char) defaultitem = tag
+
+			#
+			# named: Run a local name server on this host
+			#
+			char = substr(menu_tags, i++, 1)
+			mark = ( ENVIRON["named_enable"] ~ \
+					/^[Yy][Ee][Ss]$/ ? "X" : " " )
+			subtag = ENVIRON["msg_named"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_named_desc"])
+			if (ditem == char) defaultitem = tag
+
+			#
+			# named flags: Set default flags to named (if enabled)
+			#
+			char = substr(menu_tags, i++, 1)
+			mark = ( length(ENVIRON["named_flags"]) > 0 \
+					? "X" : " " )
+			subtag = ENVIRON["msg_named_flags"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_named_flags_desc"])
+			if (ditem == char) defaultitem = tag
+
+			#
+			# NIS client: This host wishes to be an NIS client.
+			#
+			char = substr(menu_tags, i++, 1)
+			mark = ( ENVIRON["nis_client_enable"] ~ \
+					/^[Yy][Ee][Ss]$/ ? "X" : " " )
+			subtag = ENVIRON["msg_nis_client"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_nis_client_desc"])
+			if (ditem == char) defaultitem = tag
+
+			#
+			# NIS domainname: Set NIS domainname (if enabled)
+			#
+			char = substr(menu_tags, i++, 1)
+			mark = ( length(ENVIRON["nisdomainname"]) > 0 && \
+					ENVIRON["nisdomainname"] != "NO" \
+					? "X" : " " )
+			subtag = ENVIRON["msg_nis_domainname"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_nis_domainname_desc"])
+			if (ditem == char) defaultitem = tag
+
+			#
+			# NIS server: This host wishes to be an NIS server.
+			#
+			char = substr(menu_tags, i++, 1)
+			mark = ( ENVIRON["nis_server_enable"] ~ \
+					/^[Yy][Ee][Ss]$/ ? "X" : " " )
+			subtag = ENVIRON["msg_nis_server"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_nis_server_desc"])
+			if (ditem == char) defaultitem = tag
+
+			printf separator
+
+			#
+			# Accounting: This host wishes to run process
+			#             accounting.
+			#
+			char = substr(menu_tags, i++, 1)
+			mark = ( ENVIRON["accounting_enable"] ~ \
+					/^[Yy][Ee][Ss]$/ ? "X" : " " )
+			subtag = ENVIRON["msg_accounting"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_accounting_desc"])
+			if (ditem == char) defaultitem = tag
+
+			#
+			# lpd: This host has a printer and wants to run lpd.
+			#
+			char = substr(menu_tags, i++, 1)
+			mark = ( ENVIRON["lpd_enable"] ~ \
+					/^[Yy][Ee][Ss]$/ ? "X" : " " )
+			subtag = ENVIRON["msg_lpd"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_lpd_desc"])
+			if (ditem == char) defaultitem = tag
+
+			printf "\"\n"
+
+			if ( defaultitem )
+				printf "defaultitem=\"%s\"\n", defaultitem
+		}'
+	)"
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	f_dialog_default_store "$menu_choice"
+	return $retval
+}
+
+# dialog_input_value [ $prompt [ $init ] ]
+#
+# Prompt the user to input a value. If the user does not cancel or press ESC,
+# the return value is zero ($SUCCESS) and $value holds the user's input.
+#
+dialog_input_value()
+{
+	local prompt="$1" _input="$2"
+
+	f_dialog_title "$msg_value_required"
+	f_dialog_input _input "$prompt" "$_input" "$hline_alnum_tab_enter"
+	local retval=$?
+	f_dialog_title_restore
+
+	# Return if user has either pressed ESC or chosen Cancel/No
+	[ $retval -eq $DIALOG_OK ] || return $retval
+
+	value="$_input"
+	return $DIALOG_OK
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts h$GETOPTS_STDARGS flag; do
+	case "$flag" in
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Initialize
+#
+f_dialog_title "$msg_miscellaneous_startup_services"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+
+#
+# Launch application main menu
+#
+while :; do
+	dialog_menu_main || f_die
+	f_dialog_menutag_fetch mtag
+
+	case "$mtag" in
+	"X $msg_exit") break ;;
+	?" [X] "*) toggled=1 reverse=NO ;;
+	        *) toggled= reverse=YES
+	esac
+
+	case "$mtag" in
+	# Simple On/Off toggle bits
+	?" ["?"] $msg_apm")
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set apm_enable "%s"' "$reverse" ;;
+	?" ["?"] $msg_named")
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set named_enable "%s"' "$reverse" ;;
+	?" ["?"] $msg_accounting")
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set accounting_enable "%s"' "$reverse" ;;
+	?" ["?"] $msg_lpd")
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set lpd_enable "%s"' "$reverse" ;;
+	# Multi-variable On/Off toggle bits
+	?" ["?"] $msg_nis_client")
+		if f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set nis_client_enable "%s"' "$reverse"
+		then
+			[ "$reverse" = "NO" ] || f_eval_catch -dk err "$0" \
+				f_sysrc_set 'f_sysrc_set rpcbind_enable YES'
+		fi ;;
+	?" ["?"] $msg_nis_server")
+		if f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set nis_server_enable "%s"' "$reverse"
+		then
+			[ "$reverse" = "NO" ] || f_eval_catch -dk err "$0" \
+				f_sysrc_set 'f_sysrc_set rpcbind_enable YES'
+		fi ;;
+	# Checkboxes for non-boolean options
+	?" ["?"] $msg_nis_domainname")
+		dialog_input_value "$msg_nis_domainname_desc" \
+		                   "$( f_sysrc_get nisdomainname )" || continue
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set nisdomainname "%s"' "$value" ;;
+	?" ["?"] $msg_startup_dirs")
+		dialog_input_value "$msg_startup_dirs_desc" \
+		                   "$( f_sysrc_get local_startup )" || continue
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set local_startup "%s"' "$value" ;;
+	?" ["?"] $msg_named_flags")
+		dialog_input_value "$msg_named_flags_desc" \
+		                   "$( f_sysrc_get named_flags )" || continue
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set named_flags "%s"' "$value" ;;
+	esac
+
+	[ $? -eq $DIALOG_OK ] || f_dialog_msgbox "$err\n"
+done
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

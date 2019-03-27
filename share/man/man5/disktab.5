@@ -1,0 +1,139 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)disktab.5	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd October 14, 2006
+.Dt DISKTAB 5
+.Os
+.Sh NAME
+.Nm disktab
+.Nd disk description file
+.Sh SYNOPSIS
+.In disklabel.h
+.Sh DESCRIPTION
+.Nm Disktab
+is a simple database which describes disk geometries and
+disk partition characteristics.
+It is used
+.\"by the formatter(\c
+.\"IR.Xr format 8 )
+.\"to determine how to format the disk, and
+to initialize the disk label on the disk.
+The format is patterned
+after the
+.Xr termcap 5
+terminal data base.
+Entries in
+.Nm
+consist of a number of `:'-separated fields.
+The
+first field for each entry gives the names by which a
+disk's entry may be selected, separated by `|' characters.
+The
+last name given should be a long name fully identifying
+the disk.
+.Pp
+The optional fields for each entry are:
+.Bl -column "indent" "boolx"
+.It Sy "ID	Type	Description"
+.It "\&ty	str	Type of disk (e.g. removable, winchester)"
+.It "\&dt	str	Type of controller (e.g."
+.Tn SMD , ESDI ,
+floppy)
+.It "\&ns	num	Number of sectors per track"
+.It "\&nt	num	Number of tracks per cylinder"
+.It "\&nc	num	Total number of cylinders on the disk"
+.It "\&sc	num	Number of sectors per cylinder, ns*nt default"
+.It "\&su	num	Number of sectors per unit, sc*nc default"
+.It "\&se	num	Sector size in bytes,"
+.Dv DEV_BSIZE
+default
+.It "\&sf	bool	Controller supports bad144-style bad sector forwarding"
+.It "\&rm	num	Rotation speed, rpm, 3600 default"
+.It "\&sk	num	Sector skew per track, default 0"
+.It "\&cs	num	Sector skew per cylinder, default 0"
+.It "\&hs	num	Headswitch time, usec, default 0"
+.It "\&ts	num	One-cylinder seek time, usec, default 0"
+.It "\&il	num	Sector interleave (n:1), 1 default"
+.It "\&d[0-4]	num	Drive-type-dependent parameters"
+.It "\&bs	num	Boot block size, default"
+.Dv BBSIZE
+.It "\&sb	num	Superblock size, default 0"
+.It "\&ba	num	Block size for partition `a' (bytes)"
+.It "\&bd	num	Block size for partition `d' (bytes)"
+.It "\&be	num	Block size for partition `e' (bytes)"
+.It "\&bf	num	Block size for partition `f' (bytes)"
+.It "\&bg	num	Block size for partition `g' (bytes)"
+.It "\&bh	num	Block size for partition `h' (bytes)"
+.It "\&fa	num	Fragment size for partition `a' (bytes)"
+.It "\&fd	num	Fragment size for partition `d' (bytes)"
+.It "\&fe	num	Fragment size for partition `e' (bytes)"
+.It "\&ff	num	Fragment size for partition `f' (bytes)"
+.It "\&fg	num	Fragment size for partition `g' (bytes)"
+.It "\&fh	num	Fragment size for partition `h' (bytes)"
+.It "\&oa	num	Offset of partition `a' in sectors"
+.It "\&ob	num	Offset of partition `b' in sectors"
+.It "\&oc	num	Offset of partition `c' in sectors"
+.It "\&od	num	Offset of partition `d' in sectors"
+.It "\&oe	num	Offset of partition `e' in sectors"
+.It "\&of	num	Offset of partition `f' in sectors"
+.It "\&og	num	Offset of partition `g' in sectors"
+.It "\&oh	num	Offset of partition `h' in sectors"
+.It "\&pa	num	Size of partition `a' in sectors"
+.It "\&pb	num	Size of partition `b' in sectors"
+.It "\&pc	num	Size of partition `c' in sectors"
+.It "\&pd	num	Size of partition `d' in sectors"
+.It "\&pe	num	Size of partition `e' in sectors"
+.It "\&pf	num	Size of partition `f' in sectors"
+.It "\&pg	num	Size of partition `g' in sectors"
+.It "\&ph	num	Size of partition `h' in sectors"
+.It "\&ta	str	Partition type of partition `a'"
+.Pf ( Bx 4.2
+file system, swap, etc)
+.It "\&tb	str	Partition type of partition `b'"
+.It "\&tc	str	Partition type of partition `c'"
+.It "\&td	str	Partition type of partition `d'"
+.It "\&te	str	Partition type of partition `e'"
+.It "\&tf	str	Partition type of partition `f'"
+.It "\&tg	str	Partition type of partition `g'"
+.It "\&th	str	Partition type of partition `h'"
+.El
+.Sh FILES
+.Bl -tag -width /etc/disktab -compact
+.It Pa /etc/disktab
+.El
+.Sh SEE ALSO
+.Xr getdiskbyname 3 ,
+.Xr bsdlabel 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+description file appeared in
+.Bx 4.2 .

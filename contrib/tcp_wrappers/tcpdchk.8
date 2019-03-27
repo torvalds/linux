@@ -1,0 +1,66 @@
+.TH TCPDCHK 8
+.SH NAME
+tcpdchk \- tcp wrapper configuration checker
+.SH SYNOPSYS
+tcpdchk [-a] [-d] [-i inet_conf] [-v]
+.SH DESCRIPTION
+.PP
+\fItcpdchk\fR examines your tcp wrapper configuration and reports all
+potential and real problems it can find. The program examines the
+\fItcpd\fR access control files (by default, these are
+\fI/etc/hosts.allow\fR and \fI/etc/hosts.deny\fR), and compares the
+entries in these files against entries in the \fIinetd\fR or \fItlid\fR
+network configuration files.
+.PP
+\fItcpdchk\fR reports problems such as non-existent pathnames; services
+that appear in \fItcpd\fR access control rules, but are not controlled
+by \fItcpd\fR; services that should not be wrapped; non-existent host
+names or non-internet address forms; occurrences of host aliases
+instead of official host names; hosts with a name/address conflict;
+inappropriate use of wildcard patterns; inappropriate use of NIS
+netgroups or references to non-existent NIS netgroups; references to
+non-existent options; invalid arguments to options; and so on.
+.PP
+Where possible, \fItcpdchk\fR provides a helpful suggestion to fix the
+problem.
+.SH OPTIONS
+.IP -a
+Report access control rules that permit access without an explicit
+ALLOW keyword. This applies only when the extended access control
+language is enabled (build with -DPROCESS_OPTIONS).
+.IP -d
+Examine \fIhosts.allow\fR and \fIhosts.deny\fR files in the current
+directory instead of the default ones.
+.IP "-i inet_conf"
+Specify this option when \fItcpdchk\fR is unable to find your
+\fIinetd.conf\fR or \fItlid.conf\fR network configuration file, or when
+you suspect that the program uses the wrong one.
+.IP -v
+Display the contents of each access control rule.  Daemon lists, client
+lists, shell commands and options are shown in a pretty-printed format;
+this makes it easier for you to spot any discrepancies between what you
+want and what the program understands.
+.SH FILES
+.PP
+The default locations of the \fItcpd\fR access control tables are:
+.PP
+/etc/hosts.allow
+.br
+/etc/hosts.deny
+.SH SEE ALSO
+.na
+.nf
+tcpdmatch(8), explain what tcpd would do in specific cases.
+hosts_access(5), format of the tcpd access control tables.
+hosts_options(5), format of the language extensions.
+inetd.conf(5), format of the inetd control file.
+tlid.conf(5), format of the tlid control file.
+.SH AUTHORS
+.na
+.nf
+Wietse Venema (wietse@wzv.win.tue.nl),
+Department of Mathematics and Computing Science,
+Eindhoven University of Technology
+Den Dolech 2, P.O. Box 513, 
+5600 MB Eindhoven, The Netherlands
+\" @(#) tcpdchk.8 1.3 95/01/08 17:00:30

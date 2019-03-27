@@ -1,0 +1,54 @@
+
+#------------------------------------------------------------------------------
+# $File: vacuum-cleaner,v 1.1 2015/11/14 13:38:35 christos Exp $
+# vacuum cleaner magic by Thomas M. Ott (ThMO)
+#
+# navigation map for LG robot vacuum cleaner models VR62xx, VR64xx, VR63xx
+# file: MAPDATAyyyymmddhhmmss_xxxxxx_cc.blk
+# -> yyyymmdd: year, month, day of cleaning
+# -> hhmmss: hour, minute, second of cleaning
+# -> xxxxxx: 6 digits
+# -> cc: cleaning runs counter
+# size: 136044 bytes
+#
+# struct maphdr {
+#     int32_t  map_cnt;	     /*  0: single map */
+#     int32_t  min_ceil;     /*  4: 100 mm == 10 cm == min. ceil */
+#     int32_t  max_ceil;     /*  8: 10000 mm == 100 m == max. ceil */
+#     int32_t  max_climb;    /* 12: 50 mm = 5 cm == max. height to climb */
+#     int32_t  unknown;	     /* 16: 50000 ??? */
+#     int32_t  cell_bytes;   /* 20: # of bytes for cells per block */
+#     int32_t  block_max;    /* 24: 1000 == max. # of blocks */
+#     int32_t  route_max;    /* 28: 1000 == max. # of routes */
+#     int32_t  used_blocks;  /* 32: 5/45/33/... == # of block entries used! */
+#     int32_t  cell_dim;     /* 36: 10 == cell dimension */
+#     int32_t  clock_tick;   /* 40: 100 == clock ticks */
+# #if	0
+#     struct {		     /* 44: 1000 blocks for 10x10 cells */
+#         int32_t  yoffset;
+#         int32_t  xoffset;
+#         int32_t  posxy;
+#         int32_t  timecode;
+#       }      blocks[ 1000];
+#     char     cells[ 1000* 100]; /* 16044: 1000 10x10 cells */
+#     int16_t  routes[ 1000* 10]; /* 116044: 1000 10-routes */
+# #endif
+#   };
+
+0                lelong =1
+>4               lelong =100
+>>8              lelong =10000
+>>>12            lelong =50
+>>>>16           lelong =50000
+>>>>>20          lelong =100
+>>>>>>24         lelong =1000
+>>>>>>>28        lelong =1000
+>>>>>>>>36       lelong =10
+>>>>>>>>>40      lelong =100
+>>>>>>>>>>32     lelong x       LG robot VR6[234]xx %dm^2 navigation
+>>>>>>>>>>136040 lelong =-1     reuse map data
+>>>>>>>>>>136040 lelong =0      map data
+>>>>>>>>>>136040 lelong >0      spurious map data
+>>>>>>>>>>136040 lelong <-1     spurious map data
+
+

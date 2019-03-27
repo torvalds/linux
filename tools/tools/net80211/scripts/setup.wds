@@ -1,0 +1,21 @@
+#! /bin/sh
+#
+# Script for setting up a legacy WDS vap.
+# Assumes an ap vap is already setup.
+# Can be run multiple times to create multiple WDS vaps.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+BRIDGE=bridge0
+#BSSID='00:50:43:20:64:83'
+#BSSID='00:50:43:20:64:8d'
+BSSID='00:50:43:20:6f:a9'
+
+WLAN=`ifconfig wlan create wlanmode wds wlandev $WIRELESS wlanbssid $BSSID wdslegacy`
+ifconfig $BRIDGE addm $WLAN
+wlandebug -i $WLAN output+inact+node+11n
+#ifconfig $WLAN wepkey 1:0x0123456789 deftxkey 1 wep
+ifconfig $WLAN up

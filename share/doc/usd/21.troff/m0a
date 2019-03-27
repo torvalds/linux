@@ -1,0 +1,607 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\"	@(#)m0a	8.1 (Berkeley) 8/14/93
+.\"
+.\" $FreeBSD$
+.br
+.tr |
+.ce
+.ft B
+SUMMARY OF REQUESTS AND OUTLINE OF THIS MANUAL
+.ft R
+.de mx
+.ev 2
+.nf
+.h1
+.in
+.sp
+.fi
+.ev
+.ns
+..
+.xx
+.h1 \s-1#\s+1 *
+.fn
+.sp .3
+*Values separated by "\fB;\fR" are for \*(NR and \*(TR respectively.
+.sp .2
+\s-1#\s+1Notes are explained at the end of this Summary and Index
+.ef
+.mh
+General Explanation
+.mh
+Font and Character Size Control
+.bt
+\fB&ps\fI\|\(+-N\fR	10\|point	previous	E	Point size; also \fB\es\fI\(+-N\fR.\(dg
+.b1
+\fB&fz\fI|F|\(+-N\fR	off	-	E	font \fIF\fR to point size \fI\(+-N\fR.
+.b1
+\fB&fz|S|\fIF|\(+-N\fR	off	-	E	Special Font characters to point size \fI\(+-N\fR.
+.b1
+\fB&ss\fI|N\fR	12\(sl36\|em	ignored	E	Space-character size
+set to \fIN\fR\(sl36\|em.\(dg
+.b1
+\fB&cs\fI|F\|N\|M\fR	off	-	P	Constant character
+space (width)
+mode (font \fIF\^\fR\^).\(dg
+.b1
+\fB&bd\fI|F|N\fR	off	-	P	Embolden font \fIF\fR by \fIN\fR\(mi1 units.\(dg
+.b1
+\fB&bd|S|\fIF|N\fR	off	-	P	Embolden Special Font when current font is \fIF\fR.\(dg
+.fn
+.sp .2
+\(dgNo effect in \*(NR.
+.ef
+.b1
+\fB&ft\fI|F\fR	Roman	previous	E	Change to font
+\fIF\fR|= \fIx\fR, \fIxx\fR, or 1-4.
+Also \fB\ef\fIx\fR,\|\fB\ef(\fIxx\fR,\|\fB\ef\fIN\fR.
+.b1
+\fB&fp\fI|N|F\fR	R,I,B,S	ignored	-	Font named \fIF\fR mounted on physical position 1\(<=\fIN\fR\(<=4.
+.mh
+Page Control
+.bt
+\fB&pl\fI|\(+-N\fR	11\|in	11\|in	\fBv\fR	Page length.
+.b1
+\fB&bp|\fI\(+-N\fR	\fIN\(eq\fR1	-	B\(dd,\fBv\fR	\
+Eject current page; next page number \fIN\fR.
+.fn
+.sp .2
+\(ddThe use of "\ \fB\'\fR\ " as control character (instead of "\fB.\fR")
+suppresses the break function.
+.ef
+.b1
+\fB&pn\fI|\(+-N	N\(eq\fR1	ignored	-	Next page number \fIN\fR.
+.b1
+\fB&po\fI|\(+-N\fR	0;|26\(sl27\|in	previous	\fBv\fR	Page offset.
+.b1
+\fB&ne\fI|N\fR	-	\fIN\(eq\fR1\fIV\fR	D,\fBv\fR	Need \fIN\fR vertical space (\fIV\fR = vertical spacing).
+.b1
+\fB&mk|\fIR\fR	none	internal	D	Mark current vertical place in register \fIR\fR.
+.b1
+\fB&rt\fI|\(+-N\fR	none	internal	D,\fBv\fR	Return \fI(upward only)\fR to marked vertical place.
+.mh
+Text Filling, Adjusting, and Centering
+.bt
+\fB&br\fR	-	-	B	Break.
+.b1
+.lg 0
+\fB&fi\fR	\(fill	-	B,E	Fill output lines.
+.lg
+.b1
+\fB&nf\fR	fill	-	B,E	No filling or adjusting of output lines.
+.b1
+\fB&ad\fI|c\fR	adj,both	adjust	E	Adjust output lines with mode \fIc\fR.
+.b1
+\fB&na\fR	adjust	-	E	No output line adjusting.
+.b1
+\fB&ce\fI|N\fR	off	\fIN\(eq\fR1	B,E	Center following \fIN\fR input text lines.
+.mh
+Vertical Spacing
+.bt
+\fB&vs\fI|N\fR	1\(sl6in;12pts	previous	E,\fBp\fR	Vertical base line spacing (\fIV\fR\^).
+.b1
+\fB&ls\fI|N	N\(eq\fR1	previous	E	Output \fIN\(mi\fR1 \fIV\^\fRs after each text output line.
+.b1
+\fB&sp\fI|N\fR	-	\fIN\(eq\fR1\fIV\fR	B,\fBv\fR	Space \
+vertical distance \fIN\fR \fIin either direction\fR.
+.b1
+\fB&sv\fI|N\fR	-	\fIN\(eq\fR1\fIV\fR	\fBv\fR	Save vertical distance \fIN\fR.
+.b1
+\fB&os\fR	-	-	-	Output saved vertical distance.
+.b1
+\fB&ns\fR	space	-	D	Turn no-space mode on.
+.b1
+\fB&rs\fR	-	-	D	Restore spacing; turn no-space mode off.
+.mh
+Line Length and Indenting
+.bt
+\fB&ll\fI|\(+-N\fR	6.5\|in	previous	E,\fBm\fR	Line length.
+.b1
+\fB&in\fI|\(+-N\fR	\fIN\(eq\fR\^0	previous	B,E,\fBm\fR	Indent.
+.b1
+\fB&ti\fI|\(+-N\fR	-	ignored	B,E,\fBm\fR	Temporary indent.
+.mh
+Macros, Strings, Diversion, and Position Traps
+.bt
+\fB&de\fI|xx|yy\fR	-	\fI.yy=\fB..\fR	-	Define or redefine macro \fIxx;\fR end at call of \fIyy\fR.
+.b1
+\fB&am\fI|xx|yy\fR	-	\fI.yy=\fB..\fR	-	Append to a macro.
+.b1
+\fB&ds\fI|xx|string\fR	-	ignored	-	Define a string \fIxx\fR containing \fIstring\fR.
+.b1
+\fB&as\fI|xx|string\fR	-	ignored	-	Append \fIstring\fR to string \fIxx\fR.
+.b1
+\fB&rm\fI|xx\fR	-	ignored	-	Remove request, macro, or string.
+.b1
+\fB&rn\fI|xx|yy\fR	-	ignored	-	Rename request, macro, or string \fIxx\fR to \fIyy\fR.
+.b1
+\fB&di\fI|xx\fR	-	end	D	Divert output to macro \fIxx\fR.
+.b1
+\fB&da\fI|xx\fR	-	end	D	Divert and append to \fIxx\fR.
+.b1
+\fB&wh\fI|N|xx\fR	-	-	\fBv\fR	Set location trap; negative is w.r.t. page bottom.
+.b1
+\fB&ch\fI|xx|N\fR	-	-	\fBv\fR	Change trap location.
+.b1
+\fB&dt\fI|N|xx\fR	-	off	D,\fBv\fR	Set a diversion trap.
+.b1
+\fB&it\fI|N|xx\fR	-	off	E	Set an input-line count trap.
+.b1
+\fB&em\fI|xx\fR	none	none	-	End macro is \fIxx\fI.
+.mh
+Number Registers
+.bt
+\fB&nr\fI|R|\(+-N|M\fR	-	-	\fBu\fR	Define and set number register \fIR\fR; auto-increment by \fIM\fR.
+.b1
+\fB&af\fI|R|c\fR	arabic	-	-	Assign format to register \fIR\fR (\fIc=\fB1\fR, \fBi\fR, \fBI\fR, \fBa\fR, \fBA\fR).
+.b1
+\fB&rr\fI|R\fR	-	-	-	Remove register \fIR\fR.
+.mh
+Tabs, Leaders, and Fields
+.bt
+\fB&ta\fI|Nt|...\fR	0.8;|0.5in	none	E,\fBm\fR	Tab settings; \fIleft\fR type, unless \fIt=\fBR\fR(right), \fBC\fR(centered).
+.b1
+\fB&tc\fI|c\fR	none	none	E	Tab repetition character.
+.b1
+\fB&lc\fI|c\fR	\fB.\fR	none	E	Leader repetition character.
+.b1
+\fB&fc\fI|a|b\fR	off	off	-	Set field delimiter \fIa\fR and pad character \fIb\fR.
+.mh
+Input and Output Conventions and Character Translations
+.bt
+\fB&ec\fI|c\fR	\e	\e	-	Set escape character.
+.b1
+\fB&eo\fR	on	-	-	Turn off escape character mechanism.
+.b1
+\fB&lg\fI|N\fR	-;\|on	on	-	Ligature mode
+on if \fIN\fR>0.
+.b1
+\fB&ul\fI|N\fR	off	\fIN\(eq\fR1	E	Underline (italicize in \*(TR) \fIN\fR input lines.
+.b1
+\fB&cu\fI|N\fR	off	\fIN\(eq\fR1	E	Continuous underline in \*(NR; like \fBul\fR in \*(TR.
+.b1
+\fB&uf\fI|F\fR	Italic	Italic	-	Underline font set to \fIF\fR (to be switched to by \fBul\fR).
+.b1
+\fB&cc\fI|c\fR	\fB.	.\fR	E	Set control character to \fIc\fR.
+.b1
+\fB&c2\fI|c\fR	\fB\'	\'\fR	E	Set nobreak control character to \fIc\fR.
+.b1
+\fB&tr\fI|abcd....\fR	none	-	O	Translate \fIa\fR to \fIb\fR, etc. on output.
+.mh
+Local Horizontal and Vertical Motions, and the Width Function
+.mh
+Overstrike, Bracket, Line-drawing, and Zero-width Functions
+.mh
+Hyphenation.
+.bt
+\fB&nh\fR	hyphenate	-	E	No hyphenation.
+.b1
+\fB&hy\fI|N\fR	hyphenate	hyphenate	E	Hyphenate; \fIN =\fR mode.
+.b1
+\fB&hc\fI|c\fR	\fB\e%	\e%\fR	E	Hyphenation indicator character \fIc\fR.
+.b1
+\fB&hw\fI|word1|...\fR		ignored	-	Exception words.
+.mh
+Three Part Titles.
+.bt
+\fB&tl\fI|\'left\|\'center\|\'right\|\'\fR	-	-	Three part title.
+.b1
+\fB&pc\fI|c\fR	\fB%\fR	off	-	Page number character.
+.b1
+\fB&lt\fI|\(+-N\fR	6.5\|in	previous	E,\fBm\fR	Length of title.
+.mh
+Output Line Numbering.
+.bt
+\fB&nm\fI|\(+-N|M|S|I\fR	off	E	Number mode on or off, set parameters.
+.b1
+\fB&nn\fI|N\fR	-	\fIN\(eq\fR1	E	Do not number next \fIN\fR lines.
+.mh
+Conditional Acceptance of Input
+.bt
+\fB&if\fI|c|anything\fR	-	-	If condition \fIc\fR true, accept \fIanything\fR as input,
+.b1
+				for multi-line use \fI\e{anything\|\e}\fR.
+.b1
+\fB&if|!\fIc|anything\fR	-	-	If condition \fIc\fR false, accept \fIanything\fR.
+.b1
+\fB&if\fI|N|anything\fR	-	\fBu\fR	If expression \fIN\fR > 0, accept \fIanything\fR.
+.b1
+\fB&if|!\fIN|anything\fR	-	\fBu\fR	If expression \fIN\fR \(<= 0, accept \fIanything\fR.
+.b1
+\fB&if\fI|\|\'string1\|\'string2\|\'|anything\fR	-	If \fIstring1\fR identical to \fIstring2\fR,
+accept \fIanything\fR.
+.b1
+\fB&if|!\fI\|\'string1\|\'string2\|\'|anything\fR	-	If \fIstring1\fR not identical to \fIstring2\fR,
+accept \fIanything\fR.
+.b1
+\fB&ie\fI|c|anything\fR	-	\fBu\fR	If portion of if-else; all above forms (like \fBif\fR).
+.b1
+\fB&el\fI|anything\fR		-	-	Else portion of if-else.
+.mh
+Environment Switching.
+.bt
+\fB&ev\fI|N\fR	\fIN\(eq\fR0	previous	-	Environment switched (\fIpush down\fR).
+.mh
+Insertions from the Standard Input
+.bt
+\fB&rd\fI|prompt\fR\fR	-	\fIprompt=\s-1\fRBEL\s+1	Read insertion.
+.b1
+\fB&ex\fR	-	-	-	\
+Exit from \*(NR\(sl\*(TR.
+.mh
+Input\(slOutput File Switching
+.bt
+\fB&so\fI|filename\fR		-	-	Switch source file \fI(push down)\fR.
+.b1
+\fB&nx\fI|filename\fR		end-of-file	-	Next file.
+.b1
+\fB&pi\fI|program\fR		-	-	Pipe output to \fIprogram\fR (\*(NR only).
+.mh
+Miscellaneous
+.bt
+\fB&mc\fI|c|N\fR	-	off	E,\fBm\fR	Set margin character \fIc\fR and separation \fIN\fR.
+.b1
+\fB&tm\fI|string\fR	-	newline	-	Print \fIstring\fR on terminal \
+(\s-1UNIX\s+1 standard error output).
+.b1
+\fB&ig\fI|yy\fR	-	\fI.yy=\fB..\fR	-	Ignore till call of \fIyy\fR.
+.b1
+\fB&pm\fI|t\fR	-	all	-	Print macro names and sizes;
+.b1
+				if \fIt\fR present, print only total of sizes.
+.b1
+\fB&ab\fI|string\fR	-	-	-	Print a message and abort.
+.b1
+.lg 0
+\fB&fl\fR	-	-	B	Flush output buffer.
+.lg
+.mh
+Output and Error Messages
+.xx
+.nf
+.rm mx
+.ft R
+\l'\n(.lu'
+.ft B
+.xx
+.ta .3iC .6i
+	Notes-
+.xx
+.ft R
+	B	Request normally causes a break.
+	D	Mode or relevant parameters associated with current diversion level.
+	E	Relevant parameters are a part of the current environment.
+	O	Must stay in effect until logical output.
+	P	Mode must be still or again in effect at the time of physical output.
+	\fBv\fR,\fBp\fR,\fBm\fR,\fBu\fR	Default scale indicator; if not specified, scale indicators are \fIignored\fR.
+.br
+.nr zz 11
+.de cl
+.ie \\n+(cl<\n(zz \{\
+.	po +\\n(.lu/\n(zzu
+.	rt
+.\}
+.el \{\
+.po 26i/27u
+.\}
+..
+.nr cl 0 1
+.di zz
+.ta .3iR
+.nf
+.ps 8
+.vs 10
+ab	20
+ad	4
+af	8
+am	7
+as	7
+bd	2
+bp	3
+br	4
+c2	10
+cc	10
+ce	4
+ch	7
+cs	2
+cu	10
+da	7
+de	7
+di	7
+ds	7
+dt	7
+ec	10
+el	16
+em	7
+eo	10
+ev	17
+ex	18
+fc	9
+fi	4
+fl	20
+fp	2
+ft	2
+fz	2
+hc	13
+hw	13
+hy	13
+ie	16
+if	16
+ig	20
+in	6
+it	7
+lc	9
+lg	10
+li	10
+ll	6
+ls	5
+lt	14
+mc	20
+mk	3
+na	4
+ne	3
+nf	4
+nh	13
+nm	15
+nn	15
+nr	8
+ns	5
+nx	19
+os	5
+pc	14
+pi	19
+pl	3
+pm	20
+pn	3
+po	3
+ps	2
+rd	18
+rm	7
+rn	7
+rr	8
+rs	5
+rt	3
+so	19
+sp	5
+ss	2
+sv	5
+ta	9
+tc	9
+ti	6
+tl	14
+tm	20
+tr	10
+uf	10
+ul	10
+vs	5
+wh	7
+.di
+.nr aa \n(dn/\n(zz
+.ne \n(aau+10p
+.sp
+.ft B
+Alphabetical Request and Section Number Cross Reference
+.ft
+.sp .3
+.wh \n(nlu+\n(aau cl
+.nr qq \n(nlu+\n(aau
+.ps
+.vs
+.mk
+.zz
+.rt
+.sp \n(.tu
+.ch cl 12i
+.sp
+.bp
+.nf
+.ft B
+Escape Sequences for Characters, Indicators, and Functions
+.ft R
+.xx
+.TS
+c2l
+c2l2l
+n2l2l.
+.ft I
+.bd I 3
+Section	Escape
+Reference	Sequence	Meaning
+.ft R
+.bd I
+.xx
+10.1	\fB\e\e\fR	\e (to prevent or delay the interpretation of \e\|)
+10.1	\fB\ee\fR	Printable version of the \fIcurrent\fR escape character.
+2.1	\fB\e\'\fR	\' (acute accent); equivalent to \fB\e(aa\fR
+2.1	\fB\e\`\fR	\` (grave accent); equivalent to \fB\e(ga\fR
+2.1	\fB\e\-\fR	\- Minus sign in the \fIcurrent\fR font
+7	\fB\e\^.\fR	Period (dot) (see \fBde\fR)
+11.1	\fB\e\fR(space)	Unpaddable space-size space character
+11.1	\fB\e0\fR	Digit width space
+.tr ||
+11.1	\fB\e\||\fR	1\(sl6\|em narrow space character (zero width in \*(NR)
+.tr |
+11.1	\fB\e^\fR	1\(sl12\|em half-narrow space character (zero width in \*(NR)
+.tr &&
+4.1	\fB\e&\fR	Non-printing, zero width character
+.tr &.
+10.6	\fB\e!\fR	Transparent line indicator
+10.7	\fB\e"\fR	Beginning of comment
+7.3	\fB\e$\fIN\fR	Interpolate argument 1\(<=\fIN\fR\(<=9
+13	\fB\e%\fR	Default optional hyphenation character
+2.1	\fB\e(\fIxx\fR	Character named \fIxx\fR
+7.1	\fB\e\(**\fIx\fR,|\fB\e\(**(\fIxx\fR	Interpolate string \fIx\fR or \fIxx\fR
+9.1	\fB\ea\fR	Non-interpreted leader character
+12.3	\fB\eb\fI\'abc...\|\'\fR	Bracket building function
+4.2	\fB\ec\fR	Interrupt text processing
+11.1	\fB\ed\fR	Forward (down) 1\(sl2\|em vertical motion (1\(sl2 line in \*(NR)
+2.2	\fB\ef\fIx\fR,\fB\ef(\fIxx\fR,\fB\ef\fIN\fR	Change to font named \fIx\fR or \fIxx\fR, or position \fIN\fR
+11.1	\fB\eh\fI\'N|\'\fR	Local horizontal motion; move right \fIN\fR \fI(negative left)\fR
+11.3	\fB\ek\fIx\fR	Mark horizontal \fIinput\fR place in register \fIx\fR
+12.4	\fB\el\fI\|\'Nc\|\'\fR	Horizontal line drawing function (optionally with \fIc\fR\|)
+12.4	\fB\eL\fI\'Nc\|\'\fR	Vertical line drawing function (optionally with \fIc\fR\|)
+8	\fB\en\fIx\fR,\fB\en(\fIxx\fR	Interpolate number register \fIx\fR or \fIxx\fR
+12.1	\fB\eo\fI\'abc...\|\'\fR	Overstrike characters \fIa, b, c, ...\fR
+4.1	\fB\ep\fR	Break and spread output line
+11.1	\fB\er\fR	Reverse 1\|em vertical motion (reverse line in \*(NR)
+2.3	\fB\es\fIN\fR,\|\fB\es\fI\(+-N\fR	Point-size change function
+9.1	\fB\et\fR	Non-interpreted horizontal tab
+11.1	\fB\eu\fR	Reverse (up) 1\(sl2\|em vertical motion (1\(sl2 line in \*(NR)
+11.1	\fB\ev\fI\'N\|\|\'\fR	Local vertical motion; move down \fIN\fR \fI(negative up)\fR
+11.2	\fB\ew\fI\'string\|\'\fR	Interpolate width of \fIstring\fR
+5.2	\fB\ex\fI\'N\|\|\'\fR	Extra line-space function \fI(negative before, positive after)\fR
+12.2	\fB\ez\fIc\fR	Print \fIc\fR with zero width (without spacing)
+16	\fB\e{\fR	Begin conditional input
+16	\fB\e}\fR	End conditional input
+10.7	\fB\e\fR(newline)	Concealed (ignored) newline
+-	\fB\e\fIX\fR	\fIX\fR, any character \fInot\fR listed above
+.TE
+.fi
+.sp
+The escape sequences
+\fB\e\e\fR,
+\fB\e\^.\fR,
+\fB\e"\fR,
+\fB\e$\fR,
+\fB\e\(**\fR,
+\fB\ea\fR,
+\fB\en\fR,
+\fB\et\fR,
+and
+\fB\e\fR(newline) are interpreted in \fIcopy mode\fR (\(sc7.2).
+.bp
+.ft B
+.nf
+Predefined General Number Registers
+.ft
+.TS
+c2l
+c2l2l
+n2l2l.
+.ft I
+.bd I 3
+Section	Register
+Reference	Name	Description
+.ft R
+.bd I
+.xx
+3	\fB%\fR	Current page number.
+19	\fBc&\fR	Number of \fIlines\fR read from current input file.
+11.2	\fBct\fR	Character type (set by \fIwidth\fR function).
+7.4	\fBdl\fR	Width (maximum) of last completed diversion.
+7.4	\fBdn\fR	Height (vertical size) of last completed diversion.
+-	\fBdw\fR	Current day of the week (1-7).
+-	\fBdy\fR	Current day of the month (1-31).
+11.3	\fBhp\fR	Current horizontal place on \fIinput\fR line (not in ditroff)
+15	\fBln\fR	Output line number.
+-	\fBmo\fR	Current month (1-12).
+4.1	\fBnl\fR	Vertical position of last printed text base-line.
+11.2	\fBsb\fR	Depth of string below base line (generated by \fIwidth\fR function).
+11.2	\fBst\fR	Height of string above base line (generated by \fIwidth\fR function).
+-	\fByr\fR	Last two digits of current year.
+.TE
+.sp
+.ft B
+Predefined Read-Only Number Registers
+.ft R
+.TS
+c2l
+c2l2l
+n2l2l.
+.ft I
+.bd I 3
+Section	Register
+Reference	Name	Description
+.ft R
+.bd I
+.xx
+7.3	\fB&$\fR	Number of arguments available at the current macro level.
+-	\fB&A\fR	Set to 1 in \*(TR, if \fB\-a\fR option used; always 1 in \*(NR.
+11.1	\fB&H\fR	Available horizontal resolution in basic units.
+5.3	\fB&L\fR	Set to current \fIline-spacing\fR (\fBls\fR) parameter
+-	\fB&P\fR	Set to 1 if the current page is being printed; otherwise 0.
+-	\fB&T\fR	Set to 1 in \*(NR, if \fB\-T\fR option used; always 0 in \*(TR.
+11.1	\fB&V\fR	Available vertical resolution in basic units.
+5.2	\fB&a\fR	Post-line extra line-space most recently utilized \
+using \fB\ex\fI\'N\|\'\fR.
+19	\fB&c\fR	Number of \fIlines\fR read from current input file.
+7.4	\fB&d\fR	Current vertical place in current diversion; equal to \fBnl\fR, if no diversion.
+2.2	\fB&f\fR	Current font as physical quadrant (1-4).
+4	\fB&h\fR	Text base-line high-water mark on current page or diversion.
+6	\fB&i\fR	Current indent.
+4.2	\fB&j\fR	Current adjustment mode and type.
+4.1	\fB&k\fR	Length of text portion on current partial output line.
+6	\fB&l\fR	Current line length.
+4	\fB&n\fR	Length of text portion on previous output line.
+3	\fB&o\fR	Current page offset.
+3	\fB&p\fR	Current page length.
+2.3	\fB&s\fR	Current point size.
+7.5	\fB&t\fR	Distance to the next trap.
+4.1	\fB&u\fR	Equal to 1 in fill mode and 0 in nofill mode.
+5.1	\fB&v\fR	Current vertical line spacing.
+11.2	\fB&w\fR	Width of previous character.
+-	\fB&x\fR	Reserved version-dependent register.
+-	\fB&y\fR	Reserved version-dependent register.
+7.4	\fB&z\fR	Name of current diversion.
+.TE
+.in 0
+.fi
+.ps 10
+.vs 12
+.ft R
+.bp

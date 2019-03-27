@@ -1,0 +1,294 @@
+.\" Copyright (c) 2005 Robert N. M. Watson
+.\" Copyright (c) 2014,2015 The FreeBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Part of this documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 17, 2016
+.Dt LIBTHR 3
+.Os
+.Sh NAME
+.Nm libthr
+.Nd "1:1 POSIX threads library"
+.Sh LIBRARY
+.Lb libthr
+.Sh SYNOPSIS
+.In pthread.h
+.Sh DESCRIPTION
+The
+.Nm
+library provides a 1:1 implementation of the
+.Xr pthread 3
+library interfaces for application threading.
+It
+has been optimized for use by applications expecting system scope thread
+semantics.
+.Pp
+The library is tightly integrated with the run-time link editor
+.Xr ld-elf.so.1 1
+and
+.Lb libc ;
+all three components must be built from the same source tree.
+Mixing
+.Li libc
+and
+.Nm
+libraries from different versions of
+.Fx
+is not supported.
+The run-time linker
+.Xr ld-elf.so.1 1
+has some code to ensure backward-compatibility with older versions of
+.Nm .
+.Pp
+The man page documents the quirks and tunables of the
+.Nm .
+When linking with
+.Li -lpthread ,
+the run-time dependency
+.Li libthr.so.3
+is recorded in the produced object.
+.Sh MUTEX ACQUISITION
+A locked mutex (see
+.Xr pthread_mutex_lock 3 )
+is represented by a volatile variable of type
+.Dv lwpid_t ,
+which records the global system identifier of the thread
+owning the lock.
+.Nm
+performs a contested mutex acquisition in three stages, each of which
+is more resource-consuming than the previous.
+The first two stages are only applied for a mutex of
+.Dv PTHREAD_MUTEX_ADAPTIVE_NP
+type and
+.Dv PTHREAD_PRIO_NONE
+protocol (see
+.Xr pthread_mutexattr 3 ) .
+.Pp
+First, on SMP systems, a spin loop
+is performed, where the library attempts to acquire the lock by
+.Xr atomic 9
+operations.
+The loop count is controlled by the
+.Ev LIBPTHREAD_SPINLOOPS
+environment variable, with a default value of 2000.
+.Pp
+If the spin loop
+was unable to acquire the mutex, a yield loop
+is executed, performing the same
+.Xr atomic 9
+acquisition attempts as the spin loop,
+but each attempt is followed by a yield of the CPU time
+of the thread using the
+.Xr sched_yield 2
+syscall.
+By default, the yield loop
+is not executed.
+This is controlled by the
+.Ev LIBPTHREAD_YIELDLOOPS
+environment variable.
+.Pp
+If both the spin and yield loops
+failed to acquire the lock, the thread is taken off the CPU and
+put to sleep in the kernel with the
+.Xr _umtx_op 2
+syscall.
+The kernel wakes up a thread and hands the ownership of the lock to
+the woken thread when the lock becomes available.
+.Sh THREAD STACKS
+Each thread is provided with a private user-mode stack area
+used by the C runtime.
+The size of the main (initial) thread stack is set by the kernel, and is
+controlled by the
+.Dv RLIMIT_STACK
+process resource limit (see
+.Xr getrlimit 2 ) .
+.Pp
+By default, the main thread's stack size is equal to the value of
+.Dv RLIMIT_STACK
+for the process.
+If the
+.Ev LIBPTHREAD_SPLITSTACK_MAIN
+environment variable is present in the process environment
+(its value does not matter),
+the main thread's stack is reduced to 4MB on 64bit architectures, and to
+2MB on 32bit architectures, when the threading library is initialized.
+The rest of the address space area which has been reserved by the
+kernel for the initial process stack is used for non-initial thread stacks
+in this case.
+The presence of the
+.Ev LIBPTHREAD_BIGSTACK_MAIN
+environment variable overrides
+.Ev LIBPTHREAD_SPLITSTACK_MAIN ;
+it is kept for backward-compatibility.
+.Pp
+The size of stacks for threads created by the process at run-time
+with the
+.Xr pthread_create 3
+call is controlled by thread attributes: see
+.Xr pthread_attr 3 ,
+in particular, the
+.Xr pthread_attr_setstacksize 3 ,
+.Xr pthread_attr_setguardsize 3
+and
+.Xr pthread_attr_setstackaddr 3
+functions.
+If no attributes for the thread stack size are specified, the default
+non-initial thread stack size is 2MB for 64bit architectures, and 1MB
+for 32bit architectures.
+.Sh RUN-TIME SETTINGS
+The following environment variables are recognized by
+.Nm
+and adjust the operation of the library at run-time:
+.Bl -tag -width "Ev LIBPTHREAD_SPLITSTACK_MAIN"
+.It Ev LIBPTHREAD_BIGSTACK_MAIN
+Disables the reduction of the initial thread stack enabled by
+.Ev LIBPTHREAD_SPLITSTACK_MAIN .
+.It Ev LIBPTHREAD_SPLITSTACK_MAIN
+Causes a reduction of the initial thread stack, as described in the
+section
+.Sx THREAD STACKS .
+This was the default behaviour of
+.Nm
+before
+.Fx 11.0 .
+.It Ev LIBPTHREAD_SPINLOOPS
+The integer value of the variable overrides the default count of
+iterations in the
+.Li spin loop
+of the mutex acquisition.
+The default count is 2000, set by the
+.Dv MUTEX_ADAPTIVE_SPINS
+constant in the
+.Nm
+sources.
+.It Ev LIBPTHREAD_YIELDLOOPS
+A non-zero integer value enables the yield loop
+in the process of the mutex acquisition.
+The value is the count of loop operations.
+.It Ev LIBPTHREAD_QUEUE_FIFO
+The integer value of the variable specifies how often blocked
+threads are inserted at the head of the sleep queue, instead of its tail.
+Bigger values reduce the frequency of the FIFO discipline.
+The value must be between 0 and 255.
+.Pp
+.El
+The following
+.Dv sysctl
+MIBs affect the operation of the library:
+.Bl -tag -width "Dv debug.umtx.robust_faults_verbose"
+.It Dv kern.ipc.umtx_vnode_persistent
+By default, a shared lock backed by a mapped file in memory is
+automatically destroyed on the last unmap of the corresponding file's page,
+which is allowed by POSIX.
+Setting the sysctl to 1 makes such a shared lock object persist until
+the vnode is recycled by the Virtual File System.
+Note that in case file is not opened and not mapped, the kernel might
+recycle it at any moment, making this sysctl less useful than it sounds.
+.It Dv kern.ipc.umtx_max_robust
+The maximal number of robust mutexes allowed for one thread.
+The kernel will not unlock more mutexes than specified, see
+.Xr _umtx_op
+for more details.
+The default value is large enough for most useful applications.
+.It Dv debug.umtx.robust_faults_verbose
+A non zero value makes kernel emit some diagnostic when the robust
+mutexes unlock was prematurely aborted after detecting some inconsistency,
+as a measure to prevent memory corruption.
+.El
+.Pp
+The
+.Dv RLIMIT_UMTXP
+limit (see
+.Xr getrlimit 2 )
+defines how many shared locks a given user may create simultaneously.
+.Sh INTERACTION WITH RUN-TIME LINKER
+On load,
+.Nm
+installs interposing handlers into the hooks exported by
+.Li libc .
+The interposers provide real locking implementation instead of the
+stubs for single-threaded processes in
+.Li libc ,
+cancellation support and some modifications to the signal operations.
+.Pp
+.Nm
+cannot be unloaded; the
+.Xr dlclose 3
+function does not perform any action when called with a handle for
+.Nm .
+One of the reasons is that the internal interposing of
+.Li libc
+functions cannot be undone.
+.Sh SIGNALS
+The implementation interposes the user-installed
+.Xr signal 3
+handlers.
+This interposing is done to postpone signal delivery to threads which
+entered (libthr-internal) critical sections, where the calling
+of the user-provided signal handler is unsafe.
+An example of such a situation is owning the internal library lock.
+When a signal is delivered while the signal handler cannot be safely
+called, the call is postponed and performed until after the exit from
+the critical section.
+This should be taken into account when interpreting
+.Xr ktrace 1
+logs.
+.Sh SEE ALSO
+.Xr ktrace 1 ,
+.Xr ld-elf.so.1 1 ,
+.Xr getrlimit 2 ,
+.Xr errno 2 ,
+.Xr thr_exit 2 ,
+.Xr thr_kill 2 ,
+.Xr thr_kill2 2 ,
+.Xr thr_new 2 ,
+.Xr thr_self 2 ,
+.Xr thr_set_name 2 ,
+.Xr _umtx_op 2 ,
+.Xr dlclose 3 ,
+.Xr dlopen 3 ,
+.Xr getenv 3 ,
+.Xr pthread_attr 3 ,
+.Xr pthread_attr_setstacksize 3 ,
+.Xr pthread_create 3 ,
+.Xr signal 3 ,
+.Xr atomic 9
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+library
+was originally created by
+.An Jeff Roberson Aq Mt jeff@FreeBSD.org ,
+and enhanced by
+.An Jonathan Mini Aq Mt mini@FreeBSD.org
+and
+.An Mike Makonnen Aq Mt mtm@FreeBSD.org .
+It has been substantially rewritten and optimized by
+.An David Xu Aq Mt davidxu@FreeBSD.org .

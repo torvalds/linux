@@ -1,0 +1,167 @@
+.\" Copyright (c) 1996 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 21, 2009
+.Dt TZSETUP 8
+.Os
+.Sh NAME
+.Nm tzsetup
+.Nd set local timezone
+.Sh SYNOPSIS
+.Nm
+.Op Fl nrs
+.Op Fl C Ar chroot_directory
+.Op Ar zoneinfo_file | zoneinfo_name
+.Sh DESCRIPTION
+The
+.Nm
+utility reads a database of timezone information and presents a menu
+allowing the user to select a specific zone without knowing the details
+of the database layout.
+The selected zone is installed as the system
+default zone.
+The
+.Nm
+utility also determines whether any adjustment is necessary for systems where
+the hardware clock does not keep
+.Tn UTC .
+.Pp
+The following options are available:
+.Bl -tag -offset indent -width Fl
+.It Fl C Ar chroot_directory
+Open all files and directories relative to
+.Ar chroot_directory .
+.It Fl n
+Do not create or copy files.
+.It Fl r
+Reinstall the zoneinfo file installed last time.
+The name is obtained from
+.Pa /var/db/zoneinfo .
+.It Fl s
+Skip the initial question about adjusting the clock if not set to
+.Tn UTC .
+.El
+.Pp
+It is possible to short-circuit the menu system by specifying the
+location of a
+.Ar zoneinfo_file
+or the name of the
+.Ar zoneinfo_name
+on the command line; this is intended mainly for pre-configured installation
+scripts or people who know which zoneinfo they want to install.
+.Sh TIMEZONE DATABASE
+The contents of the timezone database are indexed by
+.Pa /usr/share/zoneinfo/zone.tab .
+This file lists, for each timezone data file, the
+.Tn ISO
+3166 territory code, approximate geographical coordinates
+(in
+.Tn ISO
+6709 format),
+and location within the territory.
+.Pp
+The maintainers of the database maintain the following policies:
+.Bl -enum -offset indent
+.It
+At least one zone for every country or inhabited geographical territory.
+.It
+One zone for every distinct, documented timezone history since the
+beginning of the
+.Ux
+epoch (January 1, 1970,
+.Tn GMT ) .
+.It
+Each zone is named for the most populous city therein.
+(Where possible,
+the database includes pre-1970 history for its city.)
+.El
+The source code to the database
+.Pq Pa /usr/src/share/zoneinfo/[a-z]*
+contains many additional comments and documentation references for the
+historically minded.
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/zoneinfo/zone.tab" -compact
+.It Pa /etc/localtime
+current time zone file
+.It Pa /etc/wall_cmos_clock
+see
+.Xr adjkerntz 8
+.It Pa /usr/share/misc/iso3166
+mapping of
+.Tn ISO
+3166 territory codes to names
+.It Pa /usr/share/zoneinfo
+directory for zoneinfo files
+.It Pa /usr/share/zoneinfo/zone.tab
+mapping of timezone file to country and location
+.It Pa /var/db/zoneinfo
+saved name of the timezone file installed last
+.El
+.Sh EXAMPLES
+Normal usage, to select the right zoneinfo file via the dialog-based
+user interface:
+.Dl tzsetup
+.Pp
+Install the file
+.Pa /usr/share/zoneinfo/Australia/Sydney :
+.Dl "tzsetup /usr/share/zoneinfo/Australia/Sydney"
+.Pp
+Install the zoneinfo file for Australia/Sydney, assumed to be located
+in
+.Pa /usr/share/zoneinfo :
+.Dl "tzsetup Australia/Sydney"
+.Pp
+After a reinstall of the zoneinfo files, you can reinstall the
+latest installed zoneinfo file (as specified in
+.Pa /var/db/zoneinfo ) :
+.Dl "tzsetup -r"
+.Sh SEE ALSO
+.Xr date 1 ,
+.Xr adjtime 2 ,
+.Xr ctime 3 ,
+.Xr timezone 3 ,
+.Xr tzfile 5 ,
+.Xr adjkerntz 8 ,
+.Xr zdump 8 ,
+.Xr zic 8
+.Sh DISCLAIMER
+The representation of certain localities as being associated with certain
+countries and/or territories is for the purposes of identification only,
+and does not imply any endorsement or rejection on the part of the
+.Fx
+Project of the territorial claims of any entity.
+.Sh BUGS
+Programs which are already running when
+.Nm
+creates or updates
+.Pa /etc/localtime
+will not reflect the updated timezone.
+When the system is first configured for a
+.Pf non- Tn UTC
+hardware clock, it is necessary to run
+.Xr adjkerntz 8
+(which normally happens as a part of system startup) in order to update
+the kernel's idea of the correct timezone offset.

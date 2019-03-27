@@ -1,0 +1,25 @@
+version: 1.0.10.{build}
+
+os: Visual Studio 2015
+
+environment:
+  matrix:
+    - platform: Win32
+      configuration: Debug
+    - platform: Win32
+      configuration: Release
+    - platform: x64
+      configuration: Debug
+    - platform: x64
+      configuration: Release
+
+matrix:
+  fast_finish: false
+
+init:
+  msbuild /version
+
+build:
+  parallel: true
+  project: libsodium.vcxproj
+  verbosity: minimal

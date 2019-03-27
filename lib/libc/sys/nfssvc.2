@@ -1,0 +1,258 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)nfssvc.2	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd June 9, 1993
+.Dt NFSSVC 2
+.Os
+.Sh NAME
+.Nm nfssvc
+.Nd NFS services
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.In sys/time.h
+.In nfs/rpcv2.h
+.In nfsserver/nfs.h
+.In unistd.h
+.Ft int
+.Fn nfssvc "int flags" "void *argstructp"
+.Sh DESCRIPTION
+The
+.Fn nfssvc
+system call is used by the NFS daemons to pass information into and out
+of the kernel and also to enter the kernel as a server daemon.
+The
+.Fa flags
+argument consists of several bits that show what action is to be taken
+once in the kernel and the
+.Fa argstructp
+points to one of three structures depending on which bits are set in
+flags.
+.Pp
+On the client side,
+.Xr nfsiod 8
+calls
+.Fn nfssvc
+with the
+.Fa flags
+argument set to
+.Dv NFSSVC_BIOD
+and
+.Fa argstructp
+set to
+.Dv NULL
+to enter the kernel as a block I/O server daemon.
+For
+.Tn NQNFS ,
+.Xr mount_nfs 8
+calls
+.Fn nfssvc
+with the
+.Dv NFSSVC_MNTD
+flag, optionally or'd with the flags
+.Dv NFSSVC_GOTAUTH
+and
+.Dv NFSSVC_AUTHINFAIL
+along with a pointer to a
+.Bd -literal
+struct nfsd_cargs {
+	char		*ncd_dirp;	/* Mount dir path */
+	uid_t		ncd_authuid;	/* Effective uid */
+	int		ncd_authtype;	/* Type of authenticator */
+	int		ncd_authlen;	/* Length of authenticator string */
+	u_char		*ncd_authstr;	/* Authenticator string */
+	int		ncd_verflen;	/* and the verifier */
+	u_char		*ncd_verfstr;
+	NFSKERBKEY_T	ncd_key;	/* Session key */
+};
+.Ed
+.Pp
+structure.
+The initial call has only the
+.Dv NFSSVC_MNTD
+flag set to specify service for the mount point.
+If the mount point is using Kerberos, then the
+.Xr mount_nfs 8
+utility will return from
+.Fn nfssvc
+with
+.Va errno
+==
+.Er ENEEDAUTH
+whenever the client side requires an ``rcmd''
+authentication ticket for the user.
+The
+.Xr mount_nfs 8
+utility will attempt to get the Kerberos ticket, and if successful will call
+.Fn nfssvc
+with the flags
+.Dv NFSSVC_MNTD
+and
+.Dv NFSSVC_GOTAUTH
+after filling the ticket into the
+ncd_authstr field
+and
+setting the ncd_authlen and ncd_authtype
+fields of the nfsd_cargs structure.
+If
+.Xr mount_nfs 8
+failed to get the ticket,
+.Fn nfssvc
+will be called with the flags
+.Dv NFSSVC_MNTD ,
+.Dv NFSSVC_GOTAUTH
+and
+.Dv NFSSVC_AUTHINFAIL
+to denote a failed authentication attempt.
+.Pp
+On the server side,
+.Fn nfssvc
+is called with the flag
+.Dv NFSSVC_NFSD
+and a pointer to a
+.Bd -literal
+struct nfsd_srvargs {
+	struct nfsd	*nsd_nfsd;	/* Pointer to in kernel nfsd struct */
+	uid_t		nsd_uid;	/* Effective uid mapped to cred */
+	uint32_t	nsd_haddr;	/* Ip address of client */
+	struct ucred	nsd_cr;		/* Cred. uid maps to */
+	int		nsd_authlen;	/* Length of auth string (ret) */
+	u_char		*nsd_authstr;	/* Auth string (ret) */
+	int		nsd_verflen;	/* and the verifier */
+	u_char		*nsd_verfstr;
+	struct timeval	nsd_timestamp;	/* timestamp from verifier */
+	uint32_t	nsd_ttl;	/* credential ttl (sec) */
+	NFSKERBKEY_T	nsd_key;	/* Session key */
+};
+.Ed
+.Pp
+to enter the kernel as an
+.Xr nfsd 8
+daemon.
+Whenever an
+.Xr nfsd 8
+daemon receives a Kerberos authentication ticket, it will return from
+.Fn nfssvc
+with
+.Va errno
+==
+.Er ENEEDAUTH .
+The
+.Xr nfsd 8
+utility will attempt to authenticate the ticket and generate a set of credentials
+on the server for the ``user id'' specified in the field nsd_uid.
+This is done by first authenticating the Kerberos ticket and then mapping
+the Kerberos principal to a local name and getting a set of credentials for
+that user via
+.Xr getpwnam 3
+and
+.Xr getgrouplist 3 .
+If successful, the
+.Xr nfsd 8
+utility will call
+.Fn nfssvc
+with the
+.Dv NFSSVC_NFSD
+and
+.Dv NFSSVC_AUTHIN
+flags set to pass the credential mapping in nsd_cr into the
+kernel to be cached on the server socket for that client.
+If the authentication failed,
+.Xr nfsd 8
+calls
+.Fn nfssvc
+with the flags
+.Dv NFSSVC_NFSD
+and
+.Dv NFSSVC_AUTHINFAIL
+to denote an authentication failure.
+.Pp
+The master
+.Xr nfsd 8
+server daemon calls
+.Fn nfssvc
+with the flag
+.Dv NFSSVC_ADDSOCK
+and a pointer to a
+.Bd -literal
+struct nfsd_args {
+	int	sock;	/* Socket to serve */
+	caddr_t	name;	/* Client address for connection based sockets */
+	int	namelen;/* Length of name */
+};
+.Ed
+.Pp
+to pass a server side
+.Tn NFS
+socket into the kernel for servicing by the
+.Xr nfsd 8
+daemons.
+.Sh RETURN VALUES
+Normally
+.Fn nfssvc
+does not return unless the server
+is terminated by a signal when a value of 0 is returned.
+Otherwise, -1 is returned and the global variable
+.Va errno
+is set to specify the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ENEEDAUTH
+This special error value
+is really used for authentication support, particularly Kerberos,
+as explained above.
+.It Bq Er EPERM
+The caller is not the super-user.
+.El
+.Sh SEE ALSO
+.Xr mount_nfs 8 ,
+.Xr nfsd 8 ,
+.Xr nfsiod 8
+.Sh HISTORY
+The
+.Fn nfssvc
+system call first appeared in
+.Bx 4.4 .
+.Sh BUGS
+The
+.Fn nfssvc
+system call is designed specifically for the
+.Tn NFS
+support daemons and as such is specific to their requirements.
+It should really return values to indicate the need for authentication
+support, since
+.Er ENEEDAUTH
+is not really an error.
+Several fields of the argument structures are assumed to be valid and
+sometimes to be unchanged from a previous call, such that
+.Fn nfssvc
+must be used with extreme care.

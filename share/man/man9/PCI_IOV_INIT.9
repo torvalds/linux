@@ -1,0 +1,85 @@
+.\"
+.\" Copyright (c) 2014 Sandvine Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 28, 2015
+.Dt PCI_IOV_INIT 9
+.Os
+.Sh NAME
+.Nm PCI_IOV_INIT
+.Nd enable SR-IOV on a PF device
+.Sh SYNOPSIS
+.In sys/bus.h
+.In machine/stdarg.h
+.In sys/nv.h
+.In dev/pci/pci_iov.h
+.Ft int
+.Fn PCI_IOV_INIT "device_t dev" "uint16_t num_vfs" "const nvlist_t *pf_config"
+.Sh DESCRIPTION
+The
+.Fn PCI_IOV_INIT
+method is called by the PCI Single-Root I/O Virtualization (SR-IOV)
+infrastucture when the user requests that SR-IOV be enabled on a Physical
+Function (PF).
+The number of Virtual Functions (VFs) that will be created is passed to this
+method in the
+.Fa num_vfs
+argument.
+.Pp
+If the driver requested device-specific PF configuration parameters via a PF
+schema in its call to
+.Xr pci_iov_attach 9 ,
+those parameters will be available in the
+.Fa pf_config
+argument.
+All configuration parameters that were either set as required parameters or that
+had a default value set in the PF schema are guaranteed to be present in
+.Fa pf_config .
+Configuration parameters that were neither set as required nor were given a
+default value are optional and may or may not be present in
+.Fa pf_config .
+.Fa pf_config
+will not contain any configuration parameters that were not specified in the PF
+schema.
+All configuration parameters will have the correct type and are in the range of
+valid values specified in the schema.
+.Pp
+If this method returns successfully, then this method will not be called again
+on the same device until after a call to
+.Xr PCI_IOV_UNINIT 9 .
+.Sh RETURN VALUES
+Returns 0 on success, otherwise an appropriate error is returned.
+If this method returns an error then the SR-IOV configuration will be aborted
+and no VFs will be created.
+.Sh SEE ALSO
+.Xr nv 9 ,
+.Xr pci 9 ,
+.Xr PCI_IOV_ADD_VF 9 ,
+.Xr pci_iov_schema 9 ,
+.Xr PCI_IOV_UNINIT 9
+.Sh AUTHORS
+This manual page was written by
+.An Ryan Stone Aq Mt rstone@FreeBSD.org .

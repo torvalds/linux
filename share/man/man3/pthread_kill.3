@@ -1,0 +1,77 @@
+.\" Copyright (C) 2000 Jason Evans <jasone@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd April 27, 2000
+.Dt PTHREAD_KILL 3
+.Os
+.Sh NAME
+.Nm pthread_kill
+.Nd send a signal to a specified thread
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.In signal.h
+.Ft int
+.Fn pthread_kill "pthread_t thread" "int sig"
+.Sh DESCRIPTION
+The
+.Fn pthread_kill
+function sends a signal, specified by
+.Fa sig ,
+to a thread, specified by
+.Fa thread .
+If
+.Fa sig
+is 0, error checking is performed, but no signal is actually sent.
+.Sh RETURN VALUES
+If successful,
+.Fn pthread_kill
+returns 0.
+Otherwise, an error number is returned.
+.Sh ERRORS
+The
+.Fn pthread_kill
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er ESRCH
+.Fa thread
+is an invalid thread ID.
+.It Bq Er EINVAL
+.Fa sig
+is an invalid or unsupported signal number.
+.El
+.Sh SEE ALSO
+.Xr kill 2 ,
+.Xr pthread_self 3 ,
+.Xr raise 3
+.Sh STANDARDS
+The
+.Fn pthread_kill
+function conforms to
+.St -p1003.1-96

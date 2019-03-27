@@ -1,0 +1,115 @@
+=pod
+
+=head1 NAME
+
+X509_CRL_get0_by_serial, X509_CRL_get0_by_cert, X509_CRL_get_REVOKED,
+X509_REVOKED_get0_serialNumber, X509_REVOKED_get0_revocationDate,
+X509_REVOKED_set_serialNumber, X509_REVOKED_set_revocationDate,
+X509_CRL_add0_revoked, X509_CRL_sort - CRL revoked entry utility
+functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509.h>
+
+ int X509_CRL_get0_by_serial(X509_CRL *crl,
+                             X509_REVOKED **ret, ASN1_INTEGER *serial);
+ int X509_CRL_get0_by_cert(X509_CRL *crl, X509_REVOKED **ret, X509 *x);
+
+ STACK_OF(X509_REVOKED) *X509_CRL_get_REVOKED(X509_CRL *crl);
+
+ const ASN1_INTEGER *X509_REVOKED_get0_serialNumber(const X509_REVOKED *r);
+ const ASN1_TIME *X509_REVOKED_get0_revocationDate(const X509_REVOKED *r);
+
+ int X509_REVOKED_set_serialNumber(X509_REVOKED *r, ASN1_INTEGER *serial);
+ int X509_REVOKED_set_revocationDate(X509_REVOKED *r, ASN1_TIME *tm);
+
+ int X509_CRL_add0_revoked(X509_CRL *crl, X509_REVOKED *rev);
+
+ int X509_CRL_sort(X509_CRL *crl);
+
+=head1 DESCRIPTION
+
+X509_CRL_get0_by_serial() attempts to find a revoked entry in B<crl> for
+serial number B<serial>. If it is successful it sets B<*ret> to the internal
+pointer of the matching entry, as a result B<*ret> must not be freed up
+after the call.
+
+X509_CRL_get0_by_cert() is similar to X509_get0_by_serial() except it
+looks for a revoked entry using the serial number of certificate B<x>.
+
+X509_CRL_get_REVOKED() returns an internal pointer to a stack of all
+revoked entries for B<crl>.
+
+X509_REVOKED_get0_serialNumber() returns an internal pointer to the
+serial number of B<r>.
+
+X509_REVOKED_get0_revocationDate() returns an internal pointer to the
+revocation date of B<r>.
+
+X509_REVOKED_set_serialNumber() sets the serial number of B<r> to B<serial>.
+The supplied B<serial> pointer is not used internally so it should be
+freed up after use.
+
+X509_REVOKED_set_revocationDate() sets the revocation date of B<r> to
+B<tm>. The supplied B<tm> pointer is not used internally so it should be
+freed up after use.
+
+X509_CRL_add0_revoked() appends revoked entry B<rev> to CRL B<crl>. The
+pointer B<rev> is used internally so it must not be freed up after the call:
+it is freed when the parent CRL is freed.
+
+X509_CRL_sort() sorts the revoked entries of B<crl> into ascending serial
+number order.
+
+=head1 NOTES
+
+Applications can determine the number of revoked entries returned by
+X509_CRL_get_revoked() using sk_X509_REVOKED_num() and examine each one
+in turn using sk_X509_REVOKED_value().
+
+=head1 RETURN VALUES
+
+X509_CRL_get0_by_serial() and X509_CRL_get0_by_cert() return 0 for failure,
+1 on success except if the revoked entry has the reason C<removeFromCRL> (8),
+in which case 2 is returned.
+
+X509_REVOKED_set_serialNumber(), X509_REVOKED_set_revocationDate(),
+X509_CRL_add0_revoked() and X509_CRL_sort() return 1 for success and 0 for
+failure.
+
+X509_REVOKED_get0_serialNumber() returns an B<ASN1_INTEGER> pointer.
+
+X509_REVOKED_get0_revocationDate() returns an B<ASN1_TIME> value.
+
+X509_CRL_get_REVOKED() returns a STACK of revoked entries.
+
+=head1 SEE ALSO
+
+L<d2i_X509(3)>,
+L<ERR_get_error(3)>,
+L<X509_get0_signature(3)>,
+L<X509_get_ext_d2i(3)>,
+L<X509_get_extension_flags(3)>,
+L<X509_get_pubkey(3)>,
+L<X509_get_subject_name(3)>,
+L<X509_get_version(3)>,
+L<X509_NAME_add_entry_by_txt(3)>,
+L<X509_NAME_ENTRY_get_object(3)>,
+L<X509_NAME_get_index_by_NID(3)>,
+L<X509_NAME_print_ex(3)>,
+L<X509_new(3)>,
+L<X509_sign(3)>,
+L<X509V3_get_d2i(3)>,
+L<X509_verify_cert(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

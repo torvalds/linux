@@ -1,0 +1,7 @@
+/* $FreeBSD$ */
+/* See r303718 */
+void
+t(void)
+{
+	int		n = malloc(offsetof(struct s, f) + 1);
+}

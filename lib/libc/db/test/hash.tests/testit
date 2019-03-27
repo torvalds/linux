@@ -1,0 +1,147 @@
+#!/bin/csh -f
+#
+#	@(#)testit	8.1 (Berkeley) 6/4/93
+#
+
+echo ""
+echo "PAGE FILL "
+set name=WORDS
+	set i = 256
+	foreach j ( 11 14 21 )
+	    thash4 $i $j 25000 65536 $name < $name
+	end
+	set i = 512
+	foreach j ( 21 28 43 )
+	    thash4 $i $j 25000 65536  $name < $name
+	end
+	set i = 1024
+	foreach j ( 43 57 85 )
+	    thash4 $i $j 25000 65536 $name < $name
+	end
+	set i = 2048
+	foreach j ( 85 114 171 )
+	    thash4 $i $j 25000 65536 $name < $name
+	end
+	set i = 4096
+	foreach j ( 171 228 341 )
+	    thash4 $i $j 25000 65536 $name < $name
+	end
+	set i = 8192
+	foreach j ( 341 455 683 )
+	    thash4 $i $j 25000 65536 $name < $name
+	end
+	echo "PAGE FILL "
+	set i = 256
+	foreach j ( 11 14 21 )
+	    echo "$i"_"$j"
+	    tcreat3 $i $j 25000 $name < $name
+	    tread2 65536 < $name
+	    tverify $name < $name
+	    tseq > /dev/null
+	    tdel $i $j  $name < $name
+	end
+	set i = 512
+	foreach j ( 21 28 43 )
+	    echo "$i"_"$j"
+	    tcreat3 $i $j 25000 $name < $name
+	    tread2 65536 < $name
+	    tverify $name < $name
+	    tseq > /dev/null
+	    tdel $i $j  $name < $name
+	end
+	set i = 1024
+	foreach j ( 43 57 85 )
+	    echo "$i"_"$j"
+	    tcreat3 $i $j 25000 $name < $name
+	    tread2 65536 < $name
+	    tverify $name < $name
+	    tseq > /dev/null
+	    tdel $i $j  $name < $name
+	end
+	set i = 2048
+	foreach j ( 85 114 171 )
+	    echo "$i"_"$j"
+	    tcreat3 $i $j 25000 $name < $name
+	    tread2 65536 < $name
+	    tverify $name < $name
+	    tseq > /dev/null
+	    tdel $i $j  $name < $name
+	end
+	set i = 4096
+	foreach j ( 171 228 341 )
+	    echo "$i"_"$j"
+	    tcreat3 $i $j 25000 $name < $name
+	    tread2 65536 < $name
+	    tverify $name < $name
+	    tseq > /dev/null
+	    tdel $i $j  $name < $name
+	end
+	set i = 8192
+	foreach j ( 341 455 683 )
+	    echo "$i"_"$j"
+	    tcreat3 $i $j 25000 $name < $name
+	    tread2 65536 < $name
+	    tverify $name < $name
+	    tseq > /dev/null
+	    tdel $i $j  $name < $name
+	end
+set name=LONG.DATA
+	set i = 1024
+	foreach j ( 1 2 4 )
+	    echo thash4 $i $j 600 65536 $name 
+	    thash4 $i $j 600 65536 $name < $name
+	end
+
+	set i = 2048
+	foreach j ( 1 2 4 )
+	    echo thash4 $i $j 600 65536 $name 
+	    thash4 $i $j 600 65536 $name < $name
+	end
+	set i = 4096
+	foreach j ( 1 2 4 )
+	    echo thash4 $i $j 600 65536 $name 
+	    thash4 $i $j 600 65536 $name < $name
+	end
+	set i = 8192
+	foreach j ( 2 4 8 )
+	    echo thash4 $i $j 600 65536 $name 
+	    thash4 $i $j 600 65536 $name < $name
+	end
+	echo "PAGE FILL "
+	set i = 1024
+	foreach j ( 1 2 4 )
+	    echo "$i"_"$j"
+	    tcreat3 $i $j 600 $name < $name
+	    tread2 65536 < $name
+	    tverify $name < $name
+	    tseq > /dev/null
+	    tdel $i $j  $name < $name
+	end
+	set i = 2048
+	foreach j ( 1 2 4 )
+	    echo "$i"_"$j"
+	    tcreat3 $i $j 600 $name < $name
+	    tread2 65536 < $name
+	    tverify $name < $name
+	    tseq > /dev/null
+	    tdel $i $j  $name < $name
+	end
+	set i = 4096
+	foreach j ( 1 2 4 )
+	    echo "$i"_"$j"
+	    tcreat3 $i $j 600 $name < $name
+	    tread2 65536 < $name
+	    tverify $name < $name
+	    tseq > /dev/null
+	    tdel $i $j  $name < $name
+	end
+	set i = 8192
+	foreach j ( 2 4 8 )
+	    echo "$i"_"$j"
+	    tcreat3 $i $j 600 $name < $name
+	    tread2 65536 < $name
+	    tverify $name < $name
+	    tseq > /dev/null
+	    tdel $i $j  $name < $name
+	end
+driver2

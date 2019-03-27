@@ -1,0 +1,877 @@
+   0  $accept : line $end
+
+   1  lines :
+   2        | lines line
+
+   3  line : dexp '\n'
+   4       | vexp '\n'
+   5       | DREG '=' dexp '\n'
+   6       | VREG '=' vexp '\n'
+   7       | error '\n'
+
+   8  dexp : CONST
+   9       | DREG
+  10       | dexp '+' dexp
+  11       | dexp '-' dexp
+  12       | dexp '*' dexp
+  13       | dexp '/' dexp
+  14       | '-' dexp
+  15       | '(' dexp ')'
+
+  16  vexp : dexp
+  17       | '(' dexp ',' dexp ')'
+  18       | VREG
+  19       | vexp '+' vexp
+  20       | dexp '+' vexp
+  21       | vexp '-' vexp
+  22       | dexp '-' vexp
+  23       | vexp '*' vexp
+  24       | dexp '*' vexp
+  25       | vexp '/' vexp
+  26       | dexp '/' vexp
+  27       | '-' vexp
+  28       | '(' vexp ')'
+
+state 0
+	$accept : . line $end  (0)
+
+	error  shift 1
+	DREG  shift 2
+	VREG  shift 3
+	CONST  shift 4
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	line  goto 7
+	dexp  goto 8
+	vexp  goto 9
+
+
+state 1
+	line : error . '\n'  (7)
+
+	'\n'  shift 10
+	.  error
+
+
+state 2
+	line : DREG . '=' dexp '\n'  (5)
+	dexp : DREG .  (9)
+
+	'='  shift 11
+	'+'  reduce 9
+	'-'  reduce 9
+	'*'  reduce 9
+	'/'  reduce 9
+	'\n'  reduce 9
+
+
+state 3
+	line : VREG . '=' vexp '\n'  (6)
+	vexp : VREG .  (18)
+
+	'='  shift 12
+	'+'  reduce 18
+	'-'  reduce 18
+	'*'  reduce 18
+	'/'  reduce 18
+	'\n'  reduce 18
+
+
+state 4
+	dexp : CONST .  (8)
+
+	.  reduce 8
+
+
+state 5
+	dexp : '-' . dexp  (14)
+	vexp : '-' . vexp  (27)
+
+	DREG  shift 13
+	VREG  shift 14
+	CONST  shift 4
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	dexp  goto 15
+	vexp  goto 16
+
+
+state 6
+	dexp : '(' . dexp ')'  (15)
+	vexp : '(' . dexp ',' dexp ')'  (17)
+	vexp : '(' . vexp ')'  (28)
+
+	DREG  shift 13
+	VREG  shift 14
+	CONST  shift 4
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	dexp  goto 17
+	vexp  goto 18
+
+
+state 7
+	$accept : line . $end  (0)
+
+	$end  accept
+
+
+8: shift/reduce conflict (shift 19, reduce 16) on '+'
+8: shift/reduce conflict (shift 20, reduce 16) on '-'
+8: shift/reduce conflict (shift 21, reduce 16) on '*'
+8: shift/reduce conflict (shift 22, reduce 16) on '/'
+8: shift/reduce conflict (shift 23, reduce 16) on '\n'
+state 8
+	line : dexp . '\n'  (3)
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp . '/' dexp  (13)
+	vexp : dexp .  (16)
+	vexp : dexp . '+' vexp  (20)
+	vexp : dexp . '-' vexp  (22)
+	vexp : dexp . '*' vexp  (24)
+	vexp : dexp . '/' vexp  (26)
+
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'\n'  shift 23
+
+
+state 9
+	line : vexp . '\n'  (4)
+	vexp : vexp . '+' vexp  (19)
+	vexp : vexp . '-' vexp  (21)
+	vexp : vexp . '*' vexp  (23)
+	vexp : vexp . '/' vexp  (25)
+
+	'+'  shift 24
+	'-'  shift 25
+	'*'  shift 26
+	'/'  shift 27
+	'\n'  shift 28
+	.  error
+
+
+state 10
+	line : error '\n' .  (7)
+
+	.  reduce 7
+
+
+state 11
+	line : DREG '=' . dexp '\n'  (5)
+
+	DREG  shift 13
+	CONST  shift 4
+	'-'  shift 29
+	'('  shift 30
+	.  error
+
+	dexp  goto 31
+
+
+state 12
+	line : VREG '=' . vexp '\n'  (6)
+
+	DREG  shift 13
+	VREG  shift 14
+	CONST  shift 4
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	dexp  goto 32
+	vexp  goto 33
+
+
+state 13
+	dexp : DREG .  (9)
+
+	.  reduce 9
+
+
+state 14
+	vexp : VREG .  (18)
+
+	.  reduce 18
+
+
+15: reduce/reduce conflict (reduce 14, reduce 16) on '+'
+15: reduce/reduce conflict (reduce 14, reduce 16) on '-'
+15: reduce/reduce conflict (reduce 14, reduce 16) on '*'
+15: reduce/reduce conflict (reduce 14, reduce 16) on '/'
+15: reduce/reduce conflict (reduce 14, reduce 16) on '\n'
+15: reduce/reduce conflict (reduce 14, reduce 16) on ')'
+state 15
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp . '/' dexp  (13)
+	dexp : '-' dexp .  (14)
+	vexp : dexp .  (16)
+	vexp : dexp . '+' vexp  (20)
+	vexp : dexp . '-' vexp  (22)
+	vexp : dexp . '*' vexp  (24)
+	vexp : dexp . '/' vexp  (26)
+
+	.  reduce 14
+
+
+state 16
+	vexp : vexp . '+' vexp  (19)
+	vexp : vexp . '-' vexp  (21)
+	vexp : vexp . '*' vexp  (23)
+	vexp : vexp . '/' vexp  (25)
+	vexp : '-' vexp .  (27)
+
+	.  reduce 27
+
+
+17: shift/reduce conflict (shift 19, reduce 16) on '+'
+17: shift/reduce conflict (shift 20, reduce 16) on '-'
+17: shift/reduce conflict (shift 21, reduce 16) on '*'
+17: shift/reduce conflict (shift 22, reduce 16) on '/'
+17: shift/reduce conflict (shift 34, reduce 16) on ')'
+state 17
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp . '/' dexp  (13)
+	dexp : '(' dexp . ')'  (15)
+	vexp : dexp .  (16)
+	vexp : '(' dexp . ',' dexp ')'  (17)
+	vexp : dexp . '+' vexp  (20)
+	vexp : dexp . '-' vexp  (22)
+	vexp : dexp . '*' vexp  (24)
+	vexp : dexp . '/' vexp  (26)
+
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	')'  shift 34
+	','  shift 35
+
+
+state 18
+	vexp : vexp . '+' vexp  (19)
+	vexp : vexp . '-' vexp  (21)
+	vexp : vexp . '*' vexp  (23)
+	vexp : vexp . '/' vexp  (25)
+	vexp : '(' vexp . ')'  (28)
+
+	'+'  shift 24
+	'-'  shift 25
+	'*'  shift 26
+	'/'  shift 27
+	')'  shift 36
+	.  error
+
+
+state 19
+	dexp : dexp '+' . dexp  (10)
+	vexp : dexp '+' . vexp  (20)
+
+	DREG  shift 13
+	VREG  shift 14
+	CONST  shift 4
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	dexp  goto 37
+	vexp  goto 38
+
+
+state 20
+	dexp : dexp '-' . dexp  (11)
+	vexp : dexp '-' . vexp  (22)
+
+	DREG  shift 13
+	VREG  shift 14
+	CONST  shift 4
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	dexp  goto 39
+	vexp  goto 40
+
+
+state 21
+	dexp : dexp '*' . dexp  (12)
+	vexp : dexp '*' . vexp  (24)
+
+	DREG  shift 13
+	VREG  shift 14
+	CONST  shift 4
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	dexp  goto 41
+	vexp  goto 42
+
+
+state 22
+	dexp : dexp '/' . dexp  (13)
+	vexp : dexp '/' . vexp  (26)
+
+	DREG  shift 13
+	VREG  shift 14
+	CONST  shift 4
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	dexp  goto 43
+	vexp  goto 44
+
+
+state 23
+	line : dexp '\n' .  (3)
+
+	.  reduce 3
+
+
+state 24
+	vexp : vexp '+' . vexp  (19)
+
+	DREG  shift 13
+	VREG  shift 14
+	CONST  shift 4
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	dexp  goto 32
+	vexp  goto 45
+
+
+state 25
+	vexp : vexp '-' . vexp  (21)
+
+	DREG  shift 13
+	VREG  shift 14
+	CONST  shift 4
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	dexp  goto 32
+	vexp  goto 46
+
+
+state 26
+	vexp : vexp '*' . vexp  (23)
+
+	DREG  shift 13
+	VREG  shift 14
+	CONST  shift 4
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	dexp  goto 32
+	vexp  goto 47
+
+
+state 27
+	vexp : vexp '/' . vexp  (25)
+
+	DREG  shift 13
+	VREG  shift 14
+	CONST  shift 4
+	'-'  shift 5
+	'('  shift 6
+	.  error
+
+	dexp  goto 32
+	vexp  goto 48
+
+
+state 28
+	line : vexp '\n' .  (4)
+
+	.  reduce 4
+
+
+state 29
+	dexp : '-' . dexp  (14)
+
+	DREG  shift 13
+	CONST  shift 4
+	'-'  shift 29
+	'('  shift 30
+	.  error
+
+	dexp  goto 49
+
+
+state 30
+	dexp : '(' . dexp ')'  (15)
+
+	DREG  shift 13
+	CONST  shift 4
+	'-'  shift 29
+	'('  shift 30
+	.  error
+
+	dexp  goto 50
+
+
+state 31
+	line : DREG '=' dexp . '\n'  (5)
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp . '/' dexp  (13)
+
+	'+'  shift 51
+	'-'  shift 52
+	'*'  shift 53
+	'/'  shift 54
+	'\n'  shift 55
+	.  error
+
+
+32: shift/reduce conflict (shift 19, reduce 16) on '+'
+32: shift/reduce conflict (shift 20, reduce 16) on '-'
+32: shift/reduce conflict (shift 21, reduce 16) on '*'
+32: shift/reduce conflict (shift 22, reduce 16) on '/'
+state 32
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp . '/' dexp  (13)
+	vexp : dexp .  (16)
+	vexp : dexp . '+' vexp  (20)
+	vexp : dexp . '-' vexp  (22)
+	vexp : dexp . '*' vexp  (24)
+	vexp : dexp . '/' vexp  (26)
+
+	'+'  shift 19
+	'-'  shift 20
+	'*'  shift 21
+	'/'  shift 22
+	'\n'  reduce 16
+	')'  reduce 16
+
+
+state 33
+	line : VREG '=' vexp . '\n'  (6)
+	vexp : vexp . '+' vexp  (19)
+	vexp : vexp . '-' vexp  (21)
+	vexp : vexp . '*' vexp  (23)
+	vexp : vexp . '/' vexp  (25)
+
+	'+'  shift 24
+	'-'  shift 25
+	'*'  shift 26
+	'/'  shift 27
+	'\n'  shift 56
+	.  error
+
+
+state 34
+	dexp : '(' dexp ')' .  (15)
+
+	.  reduce 15
+
+
+state 35
+	vexp : '(' dexp ',' . dexp ')'  (17)
+
+	DREG  shift 13
+	CONST  shift 4
+	'-'  shift 29
+	'('  shift 30
+	.  error
+
+	dexp  goto 57
+
+
+state 36
+	vexp : '(' vexp ')' .  (28)
+
+	.  reduce 28
+
+
+37: reduce/reduce conflict (reduce 10, reduce 16) on '+'
+37: reduce/reduce conflict (reduce 10, reduce 16) on '-'
+37: shift/reduce conflict (shift 21, reduce 16) on '*'
+37: shift/reduce conflict (shift 22, reduce 16) on '/'
+37: reduce/reduce conflict (reduce 10, reduce 16) on '\n'
+37: reduce/reduce conflict (reduce 10, reduce 16) on ')'
+state 37
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp '+' dexp .  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp . '/' dexp  (13)
+	vexp : dexp .  (16)
+	vexp : dexp . '+' vexp  (20)
+	vexp : dexp . '-' vexp  (22)
+	vexp : dexp . '*' vexp  (24)
+	vexp : dexp . '/' vexp  (26)
+
+	'*'  shift 21
+	'/'  shift 22
+	'+'  reduce 10
+	'-'  reduce 10
+	'\n'  reduce 10
+	')'  reduce 10
+	','  reduce 10
+
+
+state 38
+	vexp : vexp . '+' vexp  (19)
+	vexp : dexp '+' vexp .  (20)
+	vexp : vexp . '-' vexp  (21)
+	vexp : vexp . '*' vexp  (23)
+	vexp : vexp . '/' vexp  (25)
+
+	'*'  shift 26
+	'/'  shift 27
+	'+'  reduce 20
+	'-'  reduce 20
+	'\n'  reduce 20
+	')'  reduce 20
+
+
+39: reduce/reduce conflict (reduce 11, reduce 16) on '+'
+39: reduce/reduce conflict (reduce 11, reduce 16) on '-'
+39: shift/reduce conflict (shift 21, reduce 16) on '*'
+39: shift/reduce conflict (shift 22, reduce 16) on '/'
+39: reduce/reduce conflict (reduce 11, reduce 16) on '\n'
+39: reduce/reduce conflict (reduce 11, reduce 16) on ')'
+state 39
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp '-' dexp .  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp . '/' dexp  (13)
+	vexp : dexp .  (16)
+	vexp : dexp . '+' vexp  (20)
+	vexp : dexp . '-' vexp  (22)
+	vexp : dexp . '*' vexp  (24)
+	vexp : dexp . '/' vexp  (26)
+
+	'*'  shift 21
+	'/'  shift 22
+	'+'  reduce 11
+	'-'  reduce 11
+	'\n'  reduce 11
+	')'  reduce 11
+	','  reduce 11
+
+
+state 40
+	vexp : vexp . '+' vexp  (19)
+	vexp : vexp . '-' vexp  (21)
+	vexp : dexp '-' vexp .  (22)
+	vexp : vexp . '*' vexp  (23)
+	vexp : vexp . '/' vexp  (25)
+
+	'*'  shift 26
+	'/'  shift 27
+	'+'  reduce 22
+	'-'  reduce 22
+	'\n'  reduce 22
+	')'  reduce 22
+
+
+41: reduce/reduce conflict (reduce 12, reduce 16) on '+'
+41: reduce/reduce conflict (reduce 12, reduce 16) on '-'
+41: reduce/reduce conflict (reduce 12, reduce 16) on '*'
+41: reduce/reduce conflict (reduce 12, reduce 16) on '/'
+41: reduce/reduce conflict (reduce 12, reduce 16) on '\n'
+41: reduce/reduce conflict (reduce 12, reduce 16) on ')'
+state 41
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp '*' dexp .  (12)
+	dexp : dexp . '/' dexp  (13)
+	vexp : dexp .  (16)
+	vexp : dexp . '+' vexp  (20)
+	vexp : dexp . '-' vexp  (22)
+	vexp : dexp . '*' vexp  (24)
+	vexp : dexp . '/' vexp  (26)
+
+	.  reduce 12
+
+
+state 42
+	vexp : vexp . '+' vexp  (19)
+	vexp : vexp . '-' vexp  (21)
+	vexp : vexp . '*' vexp  (23)
+	vexp : dexp '*' vexp .  (24)
+	vexp : vexp . '/' vexp  (25)
+
+	.  reduce 24
+
+
+43: reduce/reduce conflict (reduce 13, reduce 16) on '+'
+43: reduce/reduce conflict (reduce 13, reduce 16) on '-'
+43: reduce/reduce conflict (reduce 13, reduce 16) on '*'
+43: reduce/reduce conflict (reduce 13, reduce 16) on '/'
+43: reduce/reduce conflict (reduce 13, reduce 16) on '\n'
+43: reduce/reduce conflict (reduce 13, reduce 16) on ')'
+state 43
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp . '/' dexp  (13)
+	dexp : dexp '/' dexp .  (13)
+	vexp : dexp .  (16)
+	vexp : dexp . '+' vexp  (20)
+	vexp : dexp . '-' vexp  (22)
+	vexp : dexp . '*' vexp  (24)
+	vexp : dexp . '/' vexp  (26)
+
+	.  reduce 13
+
+
+state 44
+	vexp : vexp . '+' vexp  (19)
+	vexp : vexp . '-' vexp  (21)
+	vexp : vexp . '*' vexp  (23)
+	vexp : vexp . '/' vexp  (25)
+	vexp : dexp '/' vexp .  (26)
+
+	.  reduce 26
+
+
+state 45
+	vexp : vexp . '+' vexp  (19)
+	vexp : vexp '+' vexp .  (19)
+	vexp : vexp . '-' vexp  (21)
+	vexp : vexp . '*' vexp  (23)
+	vexp : vexp . '/' vexp  (25)
+
+	'*'  shift 26
+	'/'  shift 27
+	'+'  reduce 19
+	'-'  reduce 19
+	'\n'  reduce 19
+	')'  reduce 19
+
+
+state 46
+	vexp : vexp . '+' vexp  (19)
+	vexp : vexp . '-' vexp  (21)
+	vexp : vexp '-' vexp .  (21)
+	vexp : vexp . '*' vexp  (23)
+	vexp : vexp . '/' vexp  (25)
+
+	'*'  shift 26
+	'/'  shift 27
+	'+'  reduce 21
+	'-'  reduce 21
+	'\n'  reduce 21
+	')'  reduce 21
+
+
+state 47
+	vexp : vexp . '+' vexp  (19)
+	vexp : vexp . '-' vexp  (21)
+	vexp : vexp . '*' vexp  (23)
+	vexp : vexp '*' vexp .  (23)
+	vexp : vexp . '/' vexp  (25)
+
+	.  reduce 23
+
+
+state 48
+	vexp : vexp . '+' vexp  (19)
+	vexp : vexp . '-' vexp  (21)
+	vexp : vexp . '*' vexp  (23)
+	vexp : vexp . '/' vexp  (25)
+	vexp : vexp '/' vexp .  (25)
+
+	.  reduce 25
+
+
+state 49
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp . '/' dexp  (13)
+	dexp : '-' dexp .  (14)
+
+	.  reduce 14
+
+
+state 50
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp . '/' dexp  (13)
+	dexp : '(' dexp . ')'  (15)
+
+	'+'  shift 51
+	'-'  shift 52
+	'*'  shift 53
+	'/'  shift 54
+	')'  shift 34
+	.  error
+
+
+state 51
+	dexp : dexp '+' . dexp  (10)
+
+	DREG  shift 13
+	CONST  shift 4
+	'-'  shift 29
+	'('  shift 30
+	.  error
+
+	dexp  goto 58
+
+
+state 52
+	dexp : dexp '-' . dexp  (11)
+
+	DREG  shift 13
+	CONST  shift 4
+	'-'  shift 29
+	'('  shift 30
+	.  error
+
+	dexp  goto 59
+
+
+state 53
+	dexp : dexp '*' . dexp  (12)
+
+	DREG  shift 13
+	CONST  shift 4
+	'-'  shift 29
+	'('  shift 30
+	.  error
+
+	dexp  goto 60
+
+
+state 54
+	dexp : dexp '/' . dexp  (13)
+
+	DREG  shift 13
+	CONST  shift 4
+	'-'  shift 29
+	'('  shift 30
+	.  error
+
+	dexp  goto 61
+
+
+state 55
+	line : DREG '=' dexp '\n' .  (5)
+
+	.  reduce 5
+
+
+state 56
+	line : VREG '=' vexp '\n' .  (6)
+
+	.  reduce 6
+
+
+state 57
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp . '/' dexp  (13)
+	vexp : '(' dexp ',' dexp . ')'  (17)
+
+	'+'  shift 51
+	'-'  shift 52
+	'*'  shift 53
+	'/'  shift 54
+	')'  shift 62
+	.  error
+
+
+state 58
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp '+' dexp .  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp . '/' dexp  (13)
+
+	'*'  shift 53
+	'/'  shift 54
+	'+'  reduce 10
+	'-'  reduce 10
+	'\n'  reduce 10
+	')'  reduce 10
+
+
+state 59
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp '-' dexp .  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp . '/' dexp  (13)
+
+	'*'  shift 53
+	'/'  shift 54
+	'+'  reduce 11
+	'-'  reduce 11
+	'\n'  reduce 11
+	')'  reduce 11
+
+
+state 60
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp '*' dexp .  (12)
+	dexp : dexp . '/' dexp  (13)
+
+	.  reduce 12
+
+
+state 61
+	dexp : dexp . '+' dexp  (10)
+	dexp : dexp . '-' dexp  (11)
+	dexp : dexp . '*' dexp  (12)
+	dexp : dexp . '/' dexp  (13)
+	dexp : dexp '/' dexp .  (13)
+
+	.  reduce 13
+
+
+state 62
+	vexp : '(' dexp ',' dexp ')' .  (17)
+
+	.  reduce 17
+
+
+Rules never reduced:
+	lines :  (1)
+	lines : lines line  (2)
+
+
+State 8 contains 5 shift/reduce conflicts.
+State 15 contains 6 reduce/reduce conflicts.
+State 17 contains 5 shift/reduce conflicts.
+State 32 contains 4 shift/reduce conflicts.
+State 37 contains 2 shift/reduce conflicts, 4 reduce/reduce conflicts.
+State 39 contains 2 shift/reduce conflicts, 4 reduce/reduce conflicts.
+State 41 contains 6 reduce/reduce conflicts.
+State 43 contains 6 reduce/reduce conflicts.
+
+
+15 terminals, 5 nonterminals
+29 grammar rules, 63 states

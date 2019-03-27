@@ -1,0 +1,16 @@
+$ $tcsh: set30,v 1.4 2011/02/04 18:19:45 christos Exp $
+$ tw.parse.c
+$set 30 
+1 starting_a_command %d\n
+2 complete %d 
+3 complete %d %S\n
+4 %s: Internal match error.\n
+5 items
+6 rows
+7 Тут %d %s, все-таки показувати? [n/y] 
+8 looking = %d\n
+9 \nвнутрішня помилка tcsh: Вже й не знаю, що саме я шукаю!\n
+10 не каталог
+11 не знайдено
+12 не читається
+13 yY

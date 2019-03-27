@@ -1,0 +1,9 @@
+# check out the STARTEND option
+[abc]		&#	a(b)c	b
+[abc]		&#	a(d)c
+[abc]		&#	a(bc)d	b
+[abc]		&#	a(dc)d	c
+.		&#	a()c
+b.*c		&#	b(bc)c	bc
+b.*		&#	b(bc)c	bc
+.*c		&#	b(bc)c	bc

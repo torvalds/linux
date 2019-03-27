@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to build the LLD linker during the bootstrap phase of the build,
+and use it during buildworld and buildkernel.

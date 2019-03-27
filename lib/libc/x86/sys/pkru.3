@@ -1,0 +1,206 @@
+.\" Copyright (c) 2019 The FreeBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 16, 2019
+.Dt PKRU 3
+.Os
+.Sh NAME
+.Nm Protection Key Rights for User pages
+.Nd provide fast user-managed key-based access control for pages
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In machine/sysarch.h
+.Ft int
+.Fn x86_pkru_get_perm "unsigned int keyidx" "int *access" "int *modify"
+.Ft int
+.Fn x86_pkru_set_perm "unsigned int keyidx" "int access" "int modify"
+.Ft int
+.Fo x86_pkru_protect_range
+.Fa "void *addr"
+.Fa "unsigned long len"
+.Fa "unsigned int keyidx"
+.Fa "int flag"
+.Fc
+.Ft int
+.Fn x86_pkru_unprotect_range "void *addr" "unsigned long len"
+.Sh DESCRIPTION
+The protection keys feature provides an additional mechanism, besides the
+normal page permissions as established by
+.Xr mmap 2
+and
+.Xr mprotect 2 ,
+to control access to user-mode addresses.
+The mechanism gives safety measures which can be used to avoid
+incidental read or modification of sensitive memory,
+or as a debugging feature.
+It cannot guard against conscious accesses since permissions
+are user-controllable.
+.Pp
+If supported by hardware, each mapped user linear address
+has an associated 4-bit protection key.
+A new per-thread PKRU hardware register determines, for each protection
+key, whether user-mode addresses with that protection key may be
+read or written.
+.Pp
+Only one key may apply to a given range at a time.
+The default protection key index is zero, it is used even if no key
+was explicitly assigned to the address, or if the key was removed.
+.Pp
+The protection prevents the system from accessing user addresses as well
+as the user applications.
+When a system call was unable to read or write user memory due to key
+protection, it returns the
+.Er EFAULT
+error code.
+Note that some side effects may have occurred if this error is reported.
+.Pp
+Protection keys require that the system uses 4-level paging
+(also called long mode),
+which means that it is only available on amd64 system.
+Both 64-bit and 32-bit applications can use protection keys.
+More information about the hardware feature is provided in the IA32 Software
+Developer's Manual published by Intel Corp.
+.Pp
+The key indexes written into the page table entries are managed by the
+.Fn sysarch
+syscall.
+Per-key permissions are managed using the user-mode instructions
+.Em RDPKRU
+and
+.Em WRPKRU.
+The system provides convenient library helpers for both the syscall and
+the instructions, described below.
+.Pp
+The
+.Fn x86_pkru_protect_range
+function assigns key
+.Fa keyidx
+to the range starting at
+.Fa addr
+and having length
+.Fa len .
+Starting address is truncated to the page start,
+and the end is rounded up to the end of the page.
+After a successfull call, the range has the specified key assigned,
+even if the key is zero and it did not change the page table entries.
+.Pp
+The
+.Fa flags
+argument takes the logical OR of the following values:
+.Bl -tag -width
+.It Bq Va AMD64_PKRU_EXCL
+Only assign the key if the range does not have any other keys assigned
+(including the zero key).
+You must first remove any existing key with
+.Fn x86_pkru_unprotect_range
+in order for this request to succeed.
+If the
+.Va AMD64_PKRU_EXCL
+flag is not specified,
+.Fn x86_pkru_protect_range
+replaces any existing key.
+.It Bq Va AMD64_PKRU_PERSIST
+The keys assigned to the range are persistent.
+They are re-established when the current mapping is destroyed
+and a new mapping is created in any sub-range of the specified range.
+You must use a
+.Fn x86_pkru_unprotect_range
+call to forget the key.
+.El
+.Pp
+The
+.Fn x86_pkru_unprotect_range
+function removes any keys assigned to the specified range.
+Existing mappings are changed to use key index zero in page table entries.
+Keys are no longer considered installed for all mappings in the range,
+for the purposes of
+.Fn x86_pkru_protect_range
+with the
+.Va AMD64_PKRU_EXCL
+flag.
+.Pp
+The
+.Fn x86_pkru_get_perm
+function returns access rights for the key specified by the
+.Fn keyidx
+argument.
+If the value pointed to by
+.Fa access
+is zero after the call, no read or write permissions is granted for
+mappings which are assigned the key
+.Fn keyidx .
+If
+.Fa access
+is not zero, read access is permitted.
+The non-zero value of the variable pointed to by the
+.Fa modify
+argument indicates that write access is permitted.
+.Pp
+Conversely, the
+.Fn x86_pkru_set_perm
+establishes the access and modify permissions for the given key index
+as specified by its arguments.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EOPNOTSUPP
+The hardware does not support protection keys.
+.It Bq Er EINVAL
+The supplied key index is invalid (greater than 15).
+.It Bq Er EINVAL
+The supplied
+.Fa flags
+argument for
+.Fn x86_pkru_protect_range
+has reserved bits set.
+.It Bq Er EFAULT
+The supplied address range does not completely fit into the user-managed
+address range.
+.It Bq Er ENOMEM
+The memory shortage prevents the completion of the operation.
+.It Bq Er EBUSY
+The
+.Va AMD64_PKRU_EXCL
+flag was specified for
+.Fn x86_pkru_protect_range
+and the range already has defined protection keys.
+.El
+.Sh SEE ALSO
+.Xr mmap 2 ,
+.Xr mprotect 2 ,
+.Xr munmap 2 ,
+.Xr sysarch 2 .
+.Sh STANDARDS
+The
+.Nm
+functions are non-standard and first appeared in
+.Fx 13.0 .

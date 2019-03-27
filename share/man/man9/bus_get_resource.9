@@ -1,0 +1,94 @@
+.\"
+.\" Copyright (c) 2008
+.\"	The DragonFly Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. Neither the name of The DragonFly Project nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific, prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $DragonFly: src/share/man/man9/bus_get_resource.9,v 1.1 2008/11/09 09:48:41 swildner Exp $
+.\" $FreeBSD$
+.\"
+.Dd September 26, 2015
+.Dt BUS_GET_RESOURCE 9
+.Os
+.Sh NAME
+.Nm bus_get_resource
+.Nd "read a resource range/value with a given resource ID"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.In sys/rman.h
+.Ft int
+.Fo bus_get_resource
+.Fa "device_t dev" "int type" "int rid" "rman_res_t *startp" "rman_res_t *countp"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn bus_get_resource
+function reads the range or value of the resource
+.Fa type , rid
+pair and stores it in the
+.Fa startp
+and
+.Fa countp
+arguments.
+.Pp
+The arguments are as follows:
+.Bl -tag -width ".Fa startp"
+.It Fa dev
+The device to read the resource from.
+.It Fa type
+The type of resource you want to read.
+It is one of:
+.Pp
+.Bl -tag -width ".Dv SYS_RES_MEMORY" -compact
+.It Dv SYS_RES_IRQ
+for IRQs
+.It Dv SYS_RES_DRQ
+for ISA DMA lines
+.It Dv SYS_RES_MEMORY
+for I/O memory
+.It Dv SYS_RES_IOPORT
+for I/O ports
+.El
+.It Fa rid
+A bus-specific handle that identifies the resource being read.
+.It Fa startp
+A pointer to the start address of this resource.
+.It Fa countp
+A pointer to the length of the resource.
+For example, the size of the memory in bytes.
+.El
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an error is returned.
+.Sh SEE ALSO
+.Xr bus_set_resource 9 ,
+.Xr device 9 ,
+.Xr driver 9
+.Sh AUTHORS
+This manual page was written by
+.An Sascha Wildner .

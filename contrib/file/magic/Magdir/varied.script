@@ -1,0 +1,51 @@
+#------------------------------------------------------------------------------
+# $File: varied.script,v 1.11 2015/03/27 17:59:39 christos Exp $
+# varied.script:  file(1) magic for various interpreter scripts
+
+0	string/t		#!\ /			a
+>3	string		>\0			%s script text executable
+
+0	string/b		#!\ /			a
+>3	string		>\0			%s script executable (binary data)
+
+0	string/t		#!\t/			a
+>3	string		>\0			%s script text executable
+
+0	string/b		#!\t/			a
+>3	string		>\0			%s script executable (binary data)
+
+0	string/t		#!/			a
+>2	string		>\0			%s script text executable
+
+0	string/b		#!/			a
+>2	string		>\0			%s script executable (binary data)
+
+0	string/t		#!\ 			script text executable
+>3	string		>\0			for %s
+
+0	string/b		#!\ 			script executable
+>3	string		>\0			for %s (binary data)
+
+# using env
+0	string/t	#!/usr/bin/env		a
+>15	string/t	>\0			%s script text executable
+!:strength / 10
+
+0	string/b	#!/usr/bin/env		a
+>15	string/b	>\0			%s script executable (binary data)
+!:strength / 10
+
+0	string/t	#!\ /usr/bin/env	a
+>16	string/t	>\0			%s script text executable
+!:strength / 10
+
+0	string/b	#!\ /usr/bin/env	a
+>16	string/b	>\0			%s script executable (binary data)
+!:strength / 10
+
+# From: arno <arenevier@fdn.fr>
+# mozilla xpconnect typelib
+# see http://www.mozilla.org/scriptable/typelib_file.html
+0	string 		XPCOM\nTypeLib\r\n\032		XPConnect Typelib
+>0x10  byte        x       version %d
+>>0x11 byte        x      \b.%d

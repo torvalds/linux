@@ -1,0 +1,22 @@
+digraph G
+{
+  edge [fontname="FreeSans",fontsize=10,labelfontname="FreeSans",labelfontsize=10];
+  node [fontname="FreeSans",fontsize=10,shape=record];
+  Node9 [shape="box",label="Inherited",fontsize=10,height=0.2,width=0.4,fontname="FreeSans",fillcolor="grey75",style="filled" fontcolor="black"];
+  Node10 -> Node9 [dir=back,color="midnightblue",fontsize=10,style="solid",fontname="FreeSans"];
+  Node10 [shape="box",label="PublicBase",fontsize=10,height=0.2,width=0.4,fontname="FreeSans",color="black",URL="$classPublicBase.html"];
+  Node11 -> Node10 [dir=back,color="midnightblue",fontsize=10,style="solid",fontname="FreeSans"];
+  Node11 [shape="box",label="Truncated",fontsize=10,height=0.2,width=0.4,fontname="FreeSans",color="red",URL="$classTruncated.html"];
+  Node13 -> Node9 [dir=back,color="darkgreen",fontsize=10,style="solid",fontname="FreeSans"];
+  Node13 [shape="box",label="ProtectedBase",fontsize=10,height=0.2,width=0.4,fontname="FreeSans",color="black",URL="$classProtectedBase.html"];
+  Node14 -> Node9 [dir=back,color="firebrick4",fontsize=10,style="solid",fontname="FreeSans"];
+  Node14 [shape="box",label="PrivateBase",fontsize=10,height=0.2,width=0.4,fontname="FreeSans",color="black",URL="$classPrivateBase.html"];
+  Node15 -> Node9 [dir=back,color="midnightblue",fontsize=10,style="solid",fontname="FreeSans"];
+  Node15 [shape="box",label="Undocumented",fontsize=10,height=0.2,width=0.4,fontname="FreeSans",color="grey75"];
+  Node16 -> Node9 [dir=back,color="midnightblue",fontsize=10,style="solid",fontname="FreeSans"];
+  Node16 [shape="box",label="Templ< int >",fontsize=10,height=0.2,width=0.4,fontname="FreeSans",color="black",URL="$classTempl.html"];
+  Node17 -> Node16 [dir=back,color="orange",fontsize=10,style="dashed",label="< int >",fontname="FreeSans"];
+  Node17 [shape="box",label="Templ< T >",fontsize=10,height=0.2,width=0.4,fontname="FreeSans",color="black",URL="$classTempl.html"];
+  Node18 -> Node9 [dir=back,color="darkorchid3",fontsize=10,style="dashed",label="m_usedClass",fontname="FreeSans"];
+  Node18 [shape="box",label="Used",fontsize=10,height=0.2,width=0.4,fontname="FreeSans",color="black",URL="$classUsed.html"];
+}

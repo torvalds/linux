@@ -1,0 +1,513 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)scanf.3	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd January 4, 2003
+.Dt SCANF 3
+.Os
+.Sh NAME
+.Nm scanf ,
+.Nm fscanf ,
+.Nm sscanf ,
+.Nm vscanf ,
+.Nm vsscanf ,
+.Nm vfscanf
+.Nd input format conversion
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Ft int
+.Fn scanf "const char * restrict format" ...
+.Ft int
+.Fn fscanf "FILE * restrict stream" "const char * restrict format" ...
+.Ft int
+.Fn sscanf "const char * restrict str" "const char * restrict format" ...
+.In stdarg.h
+.Ft int
+.Fn vscanf "const char * restrict format" "va_list ap"
+.Ft int
+.Fn vsscanf "const char * restrict str" "const char * restrict format" "va_list ap"
+.Ft int
+.Fn vfscanf "FILE * restrict stream" "const char * restrict format" "va_list ap"
+.Sh DESCRIPTION
+The
+.Fn scanf
+family of functions scans input according to a
+.Fa format
+as described below.
+This format may contain
+.Em conversion specifiers ;
+the results from such conversions, if any,
+are stored through the
+.Em pointer
+arguments.
+The
+.Fn scanf
+function
+reads input from the standard input stream
+.Dv stdin ,
+.Fn fscanf
+reads input from the stream pointer
+.Fa stream ,
+and
+.Fn sscanf
+reads its input from the character string pointed to by
+.Fa str .
+The
+.Fn vfscanf
+function
+is analogous to
+.Xr vfprintf 3
+and reads input from the stream pointer
+.Fa stream
+using a variable argument list of pointers (see
+.Xr stdarg 3 ) .
+The
+.Fn vscanf
+function scans a variable argument list from the standard input and
+the
+.Fn vsscanf
+function scans it from a string;
+these are analogous to
+the
+.Fn vprintf
+and
+.Fn vsprintf
+functions respectively.
+Each successive
+.Em pointer
+argument must correspond properly with
+each successive conversion specifier
+(but see the
+.Cm *
+conversion below).
+All conversions are introduced by the
+.Cm %
+(percent sign) character.
+The
+.Fa format
+string
+may also contain other characters.
+White space (such as blanks, tabs, or newlines) in the
+.Fa format
+string match any amount of white space, including none, in the input.
+Everything else
+matches only itself.
+Scanning stops
+when an input character does not match such a format character.
+Scanning also stops
+when an input conversion cannot be made (see below).
+.Sh CONVERSIONS
+Following the
+.Cm %
+character introducing a conversion
+there may be a number of
+.Em flag
+characters, as follows:
+.Bl -tag -width ".Cm l No (ell)"
+.It Cm *
+Suppresses assignment.
+The conversion that follows occurs as usual, but no pointer is used;
+the result of the conversion is simply discarded.
+.It Cm hh
+Indicates that the conversion will be one of
+.Cm dioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Vt char
+(rather than
+.Vt int ) .
+.It Cm h
+Indicates that the conversion will be one of
+.Cm dioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Vt "short int"
+(rather than
+.Vt int ) .
+.It Cm l No (ell)
+Indicates that the conversion will be one of
+.Cm dioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Vt "long int"
+(rather than
+.Vt int ) ,
+that the conversion will be one of
+.Cm a , e , f ,
+or
+.Cm g
+and the next pointer is a pointer to
+.Vt double
+(rather than
+.Vt float ) ,
+or that the conversion will be one of
+.Cm c ,
+.Cm s
+or
+.Cm \&[
+and the next pointer is a pointer to an array of
+.Vt wchar_t
+(rather than
+.Vt char ) .
+.It Cm ll No (ell ell)
+Indicates that the conversion will be one of
+.Cm dioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Vt "long long int"
+(rather than
+.Vt int ) .
+.It Cm L
+Indicates that the conversion will be one of
+.Cm a , e , f ,
+or
+.Cm g
+and the next pointer is a pointer to
+.Vt "long double" .
+.It Cm j
+Indicates that the conversion will be one of
+.Cm dioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Vt intmax_t
+(rather than
+.Vt int ) .
+.It Cm t
+Indicates that the conversion will be one of
+.Cm dioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Vt ptrdiff_t
+(rather than
+.Vt int ) .
+.It Cm z
+Indicates that the conversion will be one of
+.Cm dioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Vt size_t
+(rather than
+.Vt int ) .
+.It Cm q
+(deprecated.)
+Indicates that the conversion will be one of
+.Cm dioux
+or
+.Cm n
+and the next pointer is a pointer to a
+.Vt "long long int"
+(rather than
+.Vt int ) .
+.El
+.Pp
+In addition to these flags,
+there may be an optional maximum field width,
+expressed as a decimal integer,
+between the
+.Cm %
+and the conversion.
+If no width is given,
+a default of
+.Dq infinity
+is used (with one exception, below);
+otherwise at most this many bytes are scanned
+in processing the conversion.
+In the case of the
+.Cm lc ,
+.Cm ls
+and
+.Cm l[
+conversions, the field width specifies the maximum number
+of multibyte characters that will be scanned.
+Before conversion begins,
+most conversions skip white space;
+this white space is not counted against the field width.
+.Pp
+The following conversions are available:
+.Bl -tag -width XXXX
+.It Cm %
+Matches a literal
+.Ql % .
+That is,
+.Dq Li %%
+in the format string
+matches a single input
+.Ql %
+character.
+No conversion is done, and assignment does not occur.
+.It Cm d
+Matches an optionally signed decimal integer;
+the next pointer must be a pointer to
+.Vt int .
+.It Cm i
+Matches an optionally signed integer;
+the next pointer must be a pointer to
+.Vt int .
+The integer is read in base 16 if it begins
+with
+.Ql 0x
+or
+.Ql 0X ,
+in base 8 if it begins with
+.Ql 0 ,
+and in base 10 otherwise.
+Only characters that correspond to the base are used.
+.It Cm o
+Matches an octal integer;
+the next pointer must be a pointer to
+.Vt "unsigned int" .
+.It Cm u
+Matches an optionally signed decimal integer;
+the next pointer must be a pointer to
+.Vt "unsigned int" .
+.It Cm x , X
+Matches an optionally signed hexadecimal integer;
+the next pointer must be a pointer to
+.Vt "unsigned int" .
+.It Cm a , A , e , E , f , F , g , G
+Matches a floating-point number in the style of
+.Xr strtod 3 .
+The next pointer must be a pointer to
+.Vt float
+(unless
+.Cm l
+or
+.Cm L
+is specified.)
+.It Cm s
+Matches a sequence of non-white-space characters;
+the next pointer must be a pointer to
+.Vt char ,
+and the array must be large enough to accept all the sequence and the
+terminating
+.Dv NUL
+character.
+The input string stops at white space
+or at the maximum field width, whichever occurs first.
+.Pp
+If an
+.Cm l
+qualifier is present, the next pointer must be a pointer to
+.Vt wchar_t ,
+into which the input will be placed after conversion by
+.Xr mbrtowc 3 .
+.It Cm S
+The same as
+.Cm ls .
+.It Cm c
+Matches a sequence of
+.Em width
+count
+characters (default 1);
+the next pointer must be a pointer to
+.Vt char ,
+and there must be enough room for all the characters
+(no terminating
+.Dv NUL
+is added).
+The usual skip of leading white space is suppressed.
+To skip white space first, use an explicit space in the format.
+.Pp
+If an
+.Cm l
+qualifier is present, the next pointer must be a pointer to
+.Vt wchar_t ,
+into which the input will be placed after conversion by
+.Xr mbrtowc 3 .
+.It Cm C
+The same as
+.Cm lc .
+.It Cm \&[
+Matches a nonempty sequence of characters from the specified set
+of accepted characters;
+the next pointer must be a pointer to
+.Vt char ,
+and there must be enough room for all the characters in the string,
+plus a terminating
+.Dv NUL
+character.
+The usual skip of leading white space is suppressed.
+The string is to be made up of characters in
+(or not in)
+a particular set;
+the set is defined by the characters between the open bracket
+.Cm \&[
+character
+and a close bracket
+.Cm \&]
+character.
+The set
+.Em excludes
+those characters
+if the first character after the open bracket is a circumflex
+.Cm ^ .
+To include a close bracket in the set,
+make it the first character after the open bracket
+or the circumflex;
+any other position will end the set.
+The hyphen character
+.Cm -
+is also special;
+when placed between two other characters,
+it adds all intervening characters to the set.
+To include a hyphen,
+make it the last character before the final close bracket.
+For instance,
+.Ql [^]0-9-]
+means the set
+.Dq "everything except close bracket, zero through nine, and hyphen" .
+The string ends with the appearance of a character not in the
+(or, with a circumflex, in) set
+or when the field width runs out.
+.Pp
+If an
+.Cm l
+qualifier is present, the next pointer must be a pointer to
+.Vt wchar_t ,
+into which the input will be placed after conversion by
+.Xr mbrtowc 3 .
+.It Cm p
+Matches a pointer value (as printed by
+.Ql %p
+in
+.Xr printf 3 ) ;
+the next pointer must be a pointer to
+.Vt void .
+.It Cm n
+Nothing is expected;
+instead, the number of characters consumed thus far from the input
+is stored through the next pointer,
+which must be a pointer to
+.Vt int .
+This is
+.Em not
+a conversion, although it can be suppressed with the
+.Cm *
+flag.
+.El
+.Pp
+The decimal point
+character is defined in the program's locale (category
+.Dv LC_NUMERIC ) .
+.Pp
+For backwards compatibility, a
+.Dq conversion
+of
+.Ql %\e0
+causes an immediate return of
+.Dv EOF .
+.Sh RETURN VALUES
+These
+functions
+return
+the number of input items assigned, which can be fewer than provided
+for, or even zero, in the event of a matching failure.
+Zero
+indicates that, while there was input available,
+no conversions were assigned;
+typically this is due to an invalid input character,
+such as an alphabetic character for a
+.Ql %d
+conversion.
+The value
+.Dv EOF
+is returned if an input failure occurs before any conversion such as an
+end-of-file occurs.
+If an error or end-of-file occurs after conversion
+has begun,
+the number of conversions which were successfully completed is returned.
+.Sh SEE ALSO
+.Xr getc 3 ,
+.Xr mbrtowc 3 ,
+.Xr printf 3 ,
+.Xr strtod 3 ,
+.Xr strtol 3 ,
+.Xr strtoul 3 ,
+.Xr wscanf 3
+.Sh STANDARDS
+The functions
+.Fn fscanf ,
+.Fn scanf ,
+.Fn sscanf ,
+.Fn vfscanf ,
+.Fn vscanf
+and
+.Fn vsscanf
+conform to
+.St -isoC-99 .
+.Sh BUGS
+Earlier implementations of
+.Nm
+treated
+.Cm \&%D , \&%E , \&%F , \&%O
+and
+.Cm \&%X
+as their lowercase equivalents with an
+.Cm l
+modifier.
+In addition,
+.Nm
+treated an unknown conversion character as
+.Cm \&%d
+or
+.Cm \&%D ,
+depending on its case.
+This functionality has been removed.
+.Pp
+Numerical strings are truncated to 512 characters; for example,
+.Cm %f
+and
+.Cm %d
+are implicitly
+.Cm %512f
+and
+.Cm %512d .
+.Pp
+The
+.Cm %n$
+modifiers for positional arguments are not implemented.
+.Pp
+The
+.Nm
+family of functions do not correctly handle multibyte characters in the
+.Fa format
+argument.

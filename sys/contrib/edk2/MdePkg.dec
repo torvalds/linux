@@ -1,0 +1,2140 @@
+## @file  MdePkg.dec
+# This Package provides all definitions, library classes and libraries instances.
+#
+# It also provides the definitions(including PPIs/PROTOCOLs/GUIDs) of
+# EFI1.10/UEFI2.6/PI1.4 and some Industry Standards.
+#
+# Copyright (c) 2007 - 2017, Intel Corporation. All rights reserved.<BR>
+# Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
+# (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>
+#
+# This program and the accompanying materials are licensed and made available under
+# the terms and conditions of the BSD License which accompanies this distribution.
+# The full text of the license may be found at
+# http://opensource.org/licenses/bsd-license.php
+#
+# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+##
+
+
+[Defines]
+  DEC_SPECIFICATION              = 0x00010005
+  PACKAGE_NAME                   = MdePkg
+  PACKAGE_UNI_FILE               = MdePkg.uni
+  PACKAGE_GUID                   = 1E73767F-8F52-4603-AEB4-F29B510B6766
+  PACKAGE_VERSION                = 1.06
+
+
+[Includes]
+  Include
+
+[Includes.IA32]
+  Include/Ia32
+
+[Includes.X64]
+  Include/X64
+
+[Includes.IPF]
+  Include/Ipf
+
+[Includes.EBC]
+  Include/Ebc
+
+[Includes.ARM]
+  Include/Arm
+
+[Includes.AARCH64]
+  Include/AArch64
+
+[LibraryClasses]
+  ##  @libraryclass  Provides most usb APIs to support the Hid requests defined in Usb Hid 1.1 spec
+  #                  and the standard requests defined in Usb 1.1 spec.
+  ##
+  UefiUsbLib|Include/Library/UefiUsbLib.h
+
+  ##  @libraryclass  Provides a service to retrieve a pointer to the EFI Runtime Services Table.
+  #                  Only available to DXE and UEFI module types.
+  UefiRuntimeServicesTableLib|Include/Library/UefiRuntimeServicesTableLib.h
+
+  ##  @libraryclass  Provides library functions for each of the UEFI Runtime Services.
+  #                  Only available to DXE and UEFI module types.
+  UefiRuntimeLib|Include/Library/UefiRuntimeLib.h
+
+  ##  @libraryclass  Provides library functions for common UEFI operations.
+  #                  Only available to DXE and UEFI module types.
+  ##
+  UefiLib|Include/Library/UefiLib.h
+
+  ##  @libraryclass  Module entry point library for UEFI drivers, DXE Drivers, DXE SMM Driver and DXE Runtime Drivers
+  UefiDriverEntryPoint|Include/Library/UefiDriverEntryPoint.h
+
+  ##  @libraryclass  UEFI Decompress Library Functions defintion for UEFI compress algorithm.
+  UefiDecompressLib|Include/Library/UefiDecompressLib.h
+
+  ##  @libraryclass  Provides a service to retrieve a pointer to the EFI Boot Services Table.
+  #                  Only available to DXE and UEFI module types.
+  UefiBootServicesTableLib|Include/Library/UefiBootServicesTableLib.h
+
+  ##  @libraryclass  Module entry point library for UEFI Applications.
+  UefiApplicationEntryPoint|Include/Library/UefiApplicationEntryPoint.h
+
+  ##  @libraryclass  Provides calibrated delay and performance counter services.
+  TimerLib|Include/Library/TimerLib.h
+
+  ##  @libraryclass  Provides library functions to access SMBUS devices.
+  #                  Libraries of this class must be ported to a specific SMBUS controller.
+  SmbusLib|Include/Library/SmbusLib.h
+
+  ##  @libraryclass  Provides the functions to submit Scsi commands defined in SCSI-2 specification for scsi device.
+  UefiScsiLib|Include/Library/UefiScsiLib.h
+
+  ##  @libraryclass  Provides a service to publish discovered system resources.
+  ResourcePublicationLib|Include/Library/ResourcePublicationLib.h
+
+  ##  @libraryclass  Provides services to log status code records.
+  ReportStatusCodeLib|Include/Library/ReportStatusCodeLib.h
+
+  ##  @libraryclass  Provides services to print a formatted string to a buffer.
+  #                  All combinations of Unicode and ASCII strings are supported.
+  ##
+  PrintLib|Include/Library/PrintLib.h
+
+  ##  @libraryclass  Provides an ordered collection data structure.
+  OrderedCollectionLib|Include/Library/OrderedCollectionLib.h
+
+  ##  @libraryclass  Provides services to send progress/error codes to a POST card.
+  PostCodeLib|Include/Library/PostCodeLib.h
+
+  ##  @libraryclass  Provides services to log the execution times and retrieve them later.
+  PerformanceLib|Include/Library/PerformanceLib.h
+
+  ##  @libraryclass  Provides a service to retrieve a pointer to the PEI Services Table.
+  PeiServicesTablePointerLib|Include/Library/PeiServicesTablePointerLib.h
+
+  ##  @libraryclass  Provides library functions for all PEI Services.
+  PeiServicesLib|Include/Library/PeiServicesLib.h
+
+  ##  @libraryclass  Module entry point library for PEIM.
+  PeimEntryPoint|Include/Library/PeimEntryPoint.h
+
+  ##  @libraryclass  Module entry point library for PEI core.
+  PeiCoreEntryPoint|Include/Library/PeiCoreEntryPoint.h
+
+  ##  @libraryclass  Provides services to load and relocate a PE/COFF image.
+  PeCoffLib|Include/Library/PeCoffLib.h
+  ##  @libraryclass  Provides extra action services for unloading and relocating a PE/COFF image on some specific platform such
+  ## as NT32 emulator.
+  PeCoffExtraActionLib|Include/Library/PeCoffExtraActionLib.h
+
+  ##  @libraryclass  Provides a service to retrieve the PE/COFF entry point from a PE/COFF image.
+  PeCoffGetEntryPointLib|Include/Library/PeCoffGetEntryPointLib.h
+
+  ##  @libraryclass  Provides services to access PCI Configuration Space on a platform with multiple PCI segments.
+  PciSegmentLib|Include/Library/PciSegmentLib.h
+
+  ##  @libraryclass  Provides services to access PCI Configuration Space.
+  PciLib|Include/Library/PciLib.h
+
+  ##  @libraryclass  Provides services to access PCI Configuration Space using the MMIO PCI Express window.
+  PciExpressLib|Include/Library/PciExpressLib.h
+
+  ##  @libraryclass  Provides services to access PCI Configuration Space using the I/O ports 0xCF8 and 0xCFC.
+  PciCf8Lib|Include/Library/PciCf8Lib.h
+
+  ##  @libraryclass  Provides library services to get and set Platform Configuration Database entries.
+  PcdLib|Include/Library/PcdLib.h
+
+  ##  @libraryclass  Provides services to allocate and free memory buffers of various memory types and alignments.
+  MemoryAllocationLib|Include/Library/MemoryAllocationLib.h
+
+  ##  @libraryclass  Provide services to access I/O Ports and MMIO registers.
+  IoLib|Include/Library/IoLib.h
+
+  ##  @libraryclass  Provide services to create, get and update HSTI table in AIP protocol.
+  HstiLib|Include/Library/HstiLib.h
+
+  ##  @libraryclass  Provides services to create and parse HOBs. Only available for PEI and DXE module types.
+  HobLib|Include/Library/HobLib.h
+
+  ##  @libraryclass  Provides a service to retrieve a pointer to the DXE Services Table.
+  #                  Only available to DXE module types.
+  ##
+  DxeServicesTableLib|Include/Library/DxeServicesTableLib.h
+
+  ##  @libraryclass  Module entry point library for DXE core.
+  DxeCoreEntryPoint|Include/Library/DxeCoreEntryPoint.h
+
+  ##  @libraryclass  Provides library functions to construct and parse UEFI Device Paths.
+  DevicePathLib|Include/Library/DevicePathLib.h
+
+  ##  @libraryclass  Provides services to print debug and assert messages to a debug output device.
+  DebugLib|Include/Library/DebugLib.h
+
+  ##  @libraryclass  Provides CPU architecture specific functions that can not be defined in the Base Library
+  #                  due to dependencies on the PAL Library
+  ##
+  CpuLib|Include/Library/CpuLib.h
+
+  ##  @libraryclass  Provides services to maintain instruction and data caches.
+  CacheMaintenanceLib|Include/Library/CacheMaintenanceLib.h
+
+  ##  @libraryclass  Provides copy memory, fill memory, zero memory, and GUID functions.
+  BaseMemoryLib|Include/Library/BaseMemoryLib.h
+
+  ##  @libraryclass  Provides string functions, linked list functions, math functions, synchronization functions
+  #                  and CPU architecture specific functions.
+  ##
+  BaseLib|Include/Library/BaseLib.h
+
+  ##  @libraryclass  This library provides common functions to process the different guided section data.
+  ExtractGuidedSectionLib|Include/Library/ExtractGuidedSectionLib.h
+
+  ##  @libraryclass  Provides three common serial I/O port functions.
+  SerialPortLib|Include/Library/SerialPortLib.h
+
+  ##  @libraryclass  Provides a set of PI library functions and macros for DXE phase.
+  DxeServicesLib|Include/Library/DxeServicesLib.h
+
+  ##  @libraryclass  Provides synchronization functions.
+  ##
+  SynchronizationLib|Include/Library/SynchronizationLib.h
+
+  ##  @libraryclass  Defines library APIs used by modules to save S3 Boot
+  #                  Script Opcodes.  These OpCode will be restored by S3
+  #                  related modules.
+  S3BootScriptLib|Include/Library/S3BootScriptLib.h
+
+  ##  @libraryclass  I/O and MMIO Library Services that do I/O and also enable
+  #                  the I/O operatation to be replayed during an S3 resume.
+  #                  This library class maps directly on top of the IoLib class.
+  S3IoLib|Include/Library/S3IoLib.h
+
+  ##  @libraryclass  PCI configuration Library Services that do PCI configuration
+  #                  and also enable the PCI operations to be replayed during an
+  #                  S3 resume. This library class maps directly on top of the
+  #                  PciLib class.
+  S3PciLib|Include/Library/S3PciLib.h
+
+  ##  @libraryclass  Smbus Library Services that do SMBus transactions and also
+  #                  enable the operatation to be replayed during an S3 resume.
+  #                  This library class maps directly on top of the SmbusLib class.
+  S3SmbusLib|Include/Library/S3SmbusLib.h
+
+  ##  @libraryclass  Stall Services that do stall and also enable the Stall
+  #                  operatation to be replayed during an S3 resume. This
+  #                  library class maps directly on top of the Timer class.
+  S3StallLib|Include/Library/S3StallLib.h
+
+  ##  @libraryclass  Defines library APIs used by modules to get/set print error level.
+  DebugPrintErrorLevelLib|Include/Library/DebugPrintErrorLevelLib.h
+
+  ##  @libraryclass  provides EFI_FILE_HANDLE services
+  FileHandleLib|Include/Library/FileHandleLib.h
+
+[LibraryClasses.IA32, LibraryClasses.X64]
+  ##  @libraryclass  Abstracts both S/W SMI generation and detection.
+  ##
+  SmmLib|Include/Library/SmmLib.h
+
+  ##  @libraryclass  Provides a service to retrieve a pointer to the SMM Services Table.
+  #                  Only available to SMM/DXE Combined and SMM module types.
+  SmmServicesTableLib|Include/Library/SmmServicesTableLib.h
+
+  ##  @libraryclass  Provides services for Smm Memory Operation.
+  #
+  SmmMemLib|Include/Library/SmmMemLib.h
+
+  ##  @libraryclass  Provides services to enable/disable periodic SMI handlers.
+  #
+  SmmPeriodicSmiLib|Include/Library/SmmPeriodicSmiLib.h
+
+  ##  @libraryclass  Provides services to generate random number.
+  #
+  RngLib|Include/Library/RngLib.h
+
+  ##  @libraryclass  Provides services to log the SMI handler registration.
+  SmiHandlerProfileLib|Include/Library/SmiHandlerProfileLib.h
+
+[LibraryClasses.IPF]
+  ##  @libraryclass  The SAL Library provides a service to make a SAL CALL.
+  SalLib|Include/Library/SalLib.h
+
+  ##  @libraryclass  Provides library services to make PAL Calls.
+  PalLib|Include/Library/PalLib.h
+
+  ##  @libraryclass  Provides library services to make Extended SAL Calls.
+  ExtendedSalLib|Include/Library/ExtendedSalLib.h
+
+[Guids]
+  #
+  # GUID defined in UEFI2.1/UEFI2.0/EFI1.1
+  #
+  ## Include/Guid/GlobalVariable.h
+  gEfiGlobalVariableGuid         = { 0x8BE4DF61, 0x93CA, 0x11D2, { 0xAA, 0x0D, 0x00, 0xE0, 0x98, 0x03, 0x2B, 0x8C }}
+
+  ## Include/Guid/PcAnsi.h
+  gEfiVT100PlusGuid              = { 0x7BAEC70B, 0x57E0, 0x4C76, { 0x8E, 0x87, 0x2F, 0x9E, 0x28, 0x08, 0x83, 0x43 }}
+
+  ## Include/Guid/PcAnsi.h
+  gEfiVT100Guid                  = { 0xDFA66065, 0xB419, 0x11D3, { 0x9A, 0x2D, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Guid/PcAnsi.h
+  gEfiPcAnsiGuid                 = { 0xE0C14753, 0xF9BE, 0x11D2, { 0x9A, 0x0C, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Guid/PcAnsi.h
+  gEfiVTUTF8Guid                 = { 0xAD15A0D6, 0x8BEC, 0x4ACF, { 0xA0, 0x73, 0xD0, 0x1D, 0xE7, 0x7E, 0x2D, 0x88 }}
+
+  ## Include/Guid/PcAnsi.h
+  gEfiUartDevicePathGuid         = { 0x37499a9d, 0x542f, 0x4c89, { 0xa0, 0x26, 0x35, 0xda, 0x14, 0x20, 0x94, 0xe4 }}
+
+  ## Include/Guid/PcAnsi.h
+  gEfiSasDevicePathGuid          = { 0xd487ddb4, 0x008b, 0x11d9, { 0xaf, 0xdc, 0x00, 0x10, 0x83, 0xff, 0xca, 0x4d }}
+
+  ## Include/Guid/Gpt.h
+  gEfiPartTypeLegacyMbrGuid      = { 0x024DEE41, 0x33E7, 0x11D3, { 0x9D, 0x69, 0x00, 0x08, 0xC7, 0x81, 0xF3, 0x9F }}
+
+  ## Include/Guid/Gpt.h
+  gEfiPartTypeSystemPartGuid     = { 0xC12A7328, 0xF81F, 0x11D2, { 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B }}
+
+  ## Include/Guid/Gpt.h
+  gEfiPartTypeUnusedGuid         = { 0x00000000, 0x0000, 0x0000, { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }}
+
+  ## Include/Guid/DebugImageInfoTable.h
+  gEfiDebugImageInfoTableGuid    = { 0x49152E77, 0x1ADA, 0x4764, { 0xB7, 0xA2, 0x7A, 0xFE, 0xFE, 0xD9, 0x5E, 0x8B }}
+
+  ## Include/Guid/Acpi.h
+  gEfiAcpiTableGuid              = { 0x8868E871, 0xE4F1, 0x11D3, { 0xBC, 0x22, 0x00, 0x80, 0xC7, 0x3C, 0x88, 0x81 }}
+
+  ## Include/Guid/Acpi.h
+  gEfiAcpi20TableGuid            = { 0x8868E871, 0xE4F1, 0x11D3, { 0xBC, 0x22, 0x00, 0x80, 0xC7, 0x3C, 0x88, 0x81 }}
+
+  ## Include/Guid/Acpi.h
+  gEfiAcpi10TableGuid            = { 0xEB9D2D30, 0x2D88, 0x11D3, { 0x9A, 0x16, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Guid/SmBios.h
+  gEfiSmbiosTableGuid            = { 0xEB9D2D31, 0x2D88, 0x11D3, { 0x9A, 0x16, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Guid/Mps.h
+  gEfiMpsTableGuid               = { 0xEB9D2D2F, 0x2D88, 0x11D3, { 0x9A, 0x16, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Guid/SalSystemTable.h
+  gEfiSalSystemTableGuid         = { 0xEB9D2D32, 0x2D88, 0x11D3, { 0x9A, 0x16, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Protocol/AuthenticationInfo.h
+  gEfiAuthenticationChapLocalGuid = { 0xC280C73E, 0x15CA, 0x11DA, { 0xB0, 0xCA, 0x00, 0x10, 0x83, 0xFF, 0xCA, 0x4D }}
+
+  ## Include/Protocol/AuthenticationInfo.h
+  gEfiAuthenticationChapRadiusGuid = { 0xD6062B50, 0x15CA, 0x11DA, { 0x92, 0x19, 0x00, 0x10, 0x83, 0xFF, 0xCA, 0x4D }}
+
+  ## Include/Guid/FileSystemVolumeLabelInfo.h
+  gEfiFileSystemVolumeLabelInfoIdGuid = { 0xDB47D7D3, 0xFE81, 0x11D3, { 0x9A, 0x35, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Guid/FileSystemInfo.h
+  gEfiFileSystemInfoGuid         = { 0x09576E93, 0x6D3F, 0x11D2, { 0x8E, 0x39, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }}
+
+  ## Include/Guid/FileInfo.h
+  gEfiFileInfoGuid               = { 0x09576E92, 0x6D3F, 0x11D2, { 0x8E, 0x39, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }}
+
+  ## Include/Protocol/Bis.h
+  gBootObjectAuthorizationParmsetGuid = { 0xEDD35E31, 0x07B9, 0x11D2, { 0x83, 0xA3, 0x00, 0xA0, 0xC9, 0x1F, 0xAD, 0xCF }}
+
+  ## Include/Protocol/PlatformToDriverConfiguration.h
+  gEfiPlatformToDriverConfigurationClpGuid = { 0x345ecc0e, 0xcb6, 0x4b75, { 0xbb, 0x57, 0x1b, 0x12, 0x9c, 0x47, 0x33,0x3e }}
+
+  ## Include/Guid/HiiKeyBoardLayout.h
+  gEfiHiiKeyBoardLayoutGuid      = { 0x14982a4f, 0xb0ed, 0x45b8, { 0xa8, 0x11, 0x5a, 0x7a, 0x9b, 0xc2, 0x32, 0xdf }}
+
+  ## Include/Protocol/Hash.h
+  gEfiHashAlgorithmMD5Guid       = { 0x0AF7C79C, 0x65B5, 0x4319, { 0xB0, 0xAE, 0x44, 0xEC, 0x48, 0x4E, 0x4A, 0xD7 }}
+
+  ## Include/Protocol/Hash.h
+  gEfiHashAlgorithmSha512Guid    = { 0xCAA4381E, 0x750C, 0x4770, { 0xB8, 0x70, 0x7A, 0x23, 0xB4, 0xE4, 0x21, 0x30 }}
+
+  ## Include/Protocol/Hash.h
+  gEfiHashAlgorithmSha384Guid    = { 0xEFA96432, 0xDE33, 0x4DD2, { 0xAE, 0xE6, 0x32, 0x8C, 0x33, 0xDF, 0x77, 0x7A }}
+
+  ## Include/Protocol/Hash.h
+  gEfiHashAlgorithmSha256Guid    = { 0x51AA59DE, 0xFDF2, 0x4EA3, { 0xBC, 0x63, 0x87, 0x5F, 0xB7, 0x84, 0x2E, 0xE9 }}
+
+  ## Include/Protocol/Hash.h
+  gEfiHashAlgorithmSha224Guid    = { 0x8DF01A06, 0x9BD5, 0x4BF7, { 0xB0, 0x21, 0xDB, 0x4F, 0xD9, 0xCC, 0xF4, 0x5B }}
+
+  ## Include/Protocol/Hash.h
+  gEfiHashAlgorithmSha1Guid      = { 0x2AE9D80F, 0x3FB2, 0x4095, { 0xB7, 0xB1, 0xE9, 0x31, 0x57, 0xB9, 0x46, 0xB6 }}
+
+  ## Include/Guid/EventGroup.h
+  gEfiEventReadyToBootGuid       = { 0x7CE88FB3, 0x4BD7, 0x4679, { 0x87, 0xA8, 0xA8, 0xD8, 0xDE, 0xE5, 0x0D, 0x2B }}
+
+  ## Include/Guid/EventGroup.h
+  gEfiEventMemoryMapChangeGuid   = { 0x78BEE926, 0x692F, 0x48FD, { 0x9E, 0xDB, 0x01, 0x42, 0x2E, 0xF0, 0xD7, 0xAB }}
+
+  ## Include/Guid/EventGroup.h
+  gEfiEventVirtualAddressChangeGuid = { 0x13FA7698, 0xC831, 0x49C7, { 0x87, 0xEA, 0x8F, 0x43, 0xFC, 0xC2, 0x51, 0x96 }}
+
+  ## Include/Guid/EventGroup.h
+  gEfiEventExitBootServicesGuid  = { 0x27ABF055, 0xB1B8, 0x4C26, { 0x80, 0x48, 0x74, 0x8F, 0x37, 0xBA, 0xA2, 0xDF }}
+
+  ## Include/Protocol/DebugPort.h
+  gEfiDebugPortVariableGuid      = { 0xEBA4E8D2, 0x3858, 0x41EC, { 0xA2, 0x81, 0x26, 0x47, 0xBA, 0x96, 0x60, 0xD0 }}
+
+  ## Include/Protocol/DebugPort.h
+  gEfiDebugPortDevicePathGuid    = { 0xEBA4E8D2, 0x3858, 0x41EC, { 0xA2, 0x81, 0x26, 0x47, 0xBA, 0x96, 0x60, 0xD0 }}
+
+  ## Include/Guid/HiiPlatformSetupFormset.h
+  gEfiHiiPlatformSetupFormsetGuid = { 0x93039971, 0x8545, 0x4b04, { 0xb4, 0x5e, 0x32, 0xeb, 0x83, 0x26, 0x04, 0x0e }}
+
+  ## Include/Guid/HiiPlatformSetupFormset.h
+  gEfiHiiDriverHealthFormsetGuid = { 0xf22fc20c, 0x8cf4, 0x45eb, { 0x8e, 0x6, 0xad, 0x4e, 0x50, 0xb9, 0x5d, 0xd3 }}
+
+  ## Include/Guid/HiiPlatformSetupFormset.h
+  gEfiHiiUserCredentialFormsetGuid = { 0x337f4407, 0x5aee, 0x4b83, { 0xb2, 0xa7, 0x4e, 0xad, 0xca, 0x30, 0x88, 0xcd }}
+
+  ## Include/Guid/HiiFormMapMethodGuid.h
+  gEfiHiiStandardFormGuid = { 0x3bd2f4ec, 0xe524, 0x46e4, { 0xa9, 0xd8, 0x51, 0x1, 0x17, 0x42, 0x55, 0x62 }}
+
+  ## Include/Guid/MemoryOverwriteControl.h
+  gEfiMemoryOverwriteControlDataGuid = { 0xe20939be, 0x32d4, 0x41be, {0xa1, 0x50, 0x89, 0x7f, 0x85, 0xd4, 0x98, 0x29 }}
+
+  ## Include/IndustryStandard/MemoryOverwriteRequestControlLock.h
+  gEfiMemoryOverwriteRequestControlLockGuid = { 0xBB983CCF, 0x151D, 0x40E1, {0xA0, 0x7B, 0x4A, 0x17, 0xBE, 0x16, 0x82, 0x92}}
+
+  ## Include/Guid/WinCertificate.h
+  gEfiCertTypeRsa2048Sha256Guid = { 0xa7717414, 0xc616, 0x4977, {0x94, 0x20, 0x84, 0x47, 0x12, 0xa7, 0x35, 0xbf }}
+
+  ## Include/Guid/Cper.h
+  gEfiEventNotificationTypeCmcGuid   = { 0x2DCE8BB1, 0xBDD7, 0x450e, { 0xB9, 0xAD, 0x9C, 0xF4, 0xEB, 0xD4, 0xF8, 0x90 }}
+
+  ## Include/Guid/Cper.h
+  gEfiEventNotificationTypeCpeGuid   = { 0x4E292F96, 0xD843, 0x4a55, { 0xA8, 0xC2, 0xD4, 0x81, 0xF2, 0x7E, 0xBE, 0xEE }}
+
+  ## Include/Guid/Cper.h
+  gEfiEventNotificationTypeMceGuid   = { 0xE8F56FFE, 0x919C, 0x4cc5, { 0xBA, 0x88, 0x65, 0xAB, 0xE1, 0x49, 0x13, 0xBB }}
+
+  ## Include/Guid/Cper.h
+  gEfiEventNotificationTypePcieGuid  = { 0xCF93C01F, 0x1A16, 0x4dfc, { 0xB8, 0xBC, 0x9C, 0x4D, 0xAF, 0x67, 0xC1, 0x04 }}
+
+  ## Include/Guid/Cper.h
+  gEfiEventNotificationTypeInitGuid  = { 0xCC5263E8, 0x9308, 0x454a, { 0x89, 0xD0, 0x34, 0x0B, 0xD3, 0x9B, 0xC9, 0x8E }}
+
+  ## Include/Guid/Cper.h
+  gEfiEventNotificationTypeNmiGuid   = { 0x5BAD89FF, 0xB7E6, 0x42c9, { 0x81, 0x4A, 0xCF, 0x24, 0x85, 0xD6, 0xE9, 0x8A }}
+
+  ## Include/Guid/Cper.h
+  gEfiEventNotificationTypeBootGuid  = { 0x3D61A466, 0xAB40, 0x409a, { 0xA6, 0x98, 0xF3, 0x62, 0xD4, 0x64, 0xB3, 0x8F }}
+
+  ## Include/Guid/Cper.h
+  gEfiEventNotificationTypeDmarGuid  = { 0x667DD791, 0xC6B3, 0x4c27, { 0x8A, 0x6B, 0x0F, 0x8E, 0x72, 0x2D, 0xEB, 0x41 }}
+
+  ## Include/Guid/Cper.h
+  gEfiProcessorGenericErrorSectionGuid  = { 0x9876ccad, 0x47b4, 0x4bdb, { 0xb6, 0x5e, 0x16, 0xf1, 0x93, 0xc4, 0xf3, 0xdb }}
+
+  ## Include/Guid/Cper.h
+  gEfiProcessorSpecificErrorSectionGuid = { 0xdc3ea0b0, 0xa144, 0x4797, { 0xb9, 0x5b, 0x53, 0xfa, 0x24, 0x2b, 0x6e, 0x1d }}
+
+  ## Include/Guid/Cper.h
+  gEfiIa32X64ProcessorErrorSectionGuid  = { 0xdc3ea0b0, 0xa144, 0x4797, { 0xb9, 0x5b, 0x53, 0xfa, 0x24, 0x2b, 0x6e, 0x1d }}
+
+  ## Include/Guid/Cper.h
+  gEfiPlatformMemoryErrorSectionGuid = { 0xa5bc1114, 0x6f64, 0x4ede, { 0xb8, 0x63, 0x3e, 0x83, 0xed, 0x7c, 0x83, 0xb1 }}
+
+  ## Include/Guid/Cper.h
+  gEfiPcieErrorSectionGuid           = { 0xd995e954, 0xbbc1, 0x430f, { 0xad, 0x91, 0xb4, 0x4d, 0xcb, 0x3c, 0x6f, 0x35 }}
+
+  ## Include/Guid/Cper.h
+  gEfiFirmwareErrorSectionGuid       = { 0x81212a96, 0x09ed, 0x4996, { 0x94, 0x71, 0x8d, 0x72, 0x9c, 0x8e, 0x69, 0xed }}
+
+  ## Include/Guid/Cper.h
+  gEfiPciBusErrorSectionGuid         = { 0xc5753963, 0x3b84, 0x4095, { 0xbf, 0x78, 0xed, 0xda, 0xd3, 0xf9, 0xc9, 0xdd }}
+
+  ## Include/Guid/Cper.h
+  gEfiPciDevErrorSectionGuid         = { 0xeb5e4685, 0xca66, 0x4769, { 0xb6, 0xa2, 0x26, 0x06, 0x8b, 0x00, 0x13, 0x26 }}
+
+  ## Include/Guid/Cper.h
+  gEfiDMArGenericErrorSectionGuid    = { 0x5b51fef7, 0xc79d, 0x4434, { 0x8f, 0x1b, 0xaa, 0x62, 0xde, 0x3e, 0x2c, 0x64 }}
+
+  ## Include/Guid/Cper.h
+  gEfiDirectedIoDMArErrorSectionGuid = { 0x71761d37, 0x32b2, 0x45cd, { 0xa7, 0xd0, 0xb0, 0xfe, 0xdd, 0x93, 0xe8, 0xcf }}
+
+  ## Include/Guid/Cper.h
+  gEfiIommuDMArErrorSectionGuid      = { 0x036f84e1, 0x7f37, 0x428c, { 0xa7, 0x9e, 0x57, 0x5f, 0xdf, 0xaa, 0x84, 0xec }}
+
+  #
+  # GUID defined in UEFI2.2
+  #
+  ## Include/Protocol/UserManager.h
+  gEfiEventUserProfileChangedGuid = { 0xbaf1e6de, 0x209e, 0x4adb, {0x8d, 0x96, 0xfd, 0x8b, 0x71, 0xf3, 0xf6, 0x83 }}
+
+  ## Include/Protocol/UserManager.h
+  gEfiUserCredentialClassUnknownGuid = { 0x5cf32e68, 0x7660, 0x449b, { 0x80, 0xe6, 0x7e, 0xa3, 0x6e, 0x3, 0xf6, 0xa8 }}
+
+  ## Include/Protocol/UserManager.h
+  gEfiUserCredentialClassPasswordGuid = { 0xf8e5058c, 0xccb6, 0x4714, { 0xb2, 0x20, 0x3f, 0x7e, 0x3a, 0x64, 0xb, 0xd1 }}
+
+  ## Include/Protocol/UserManager.h
+  gEfiUserCredentialClassSmartCardGuid = { 0x5f03ba33, 0x8c6b, 0x4c24, { 0xaa, 0x2e, 0x14, 0xa2, 0x65, 0x7b, 0xd4, 0x54 }}
+
+  ## Include/Protocol/UserManager.h
+  gEfiUserCredentialClassFingerprintGuid = { 0x32cba21f, 0xf308, 0x4cbc, { 0x9a, 0xb5, 0xf5, 0xa3, 0x69, 0x9f, 0x4, 0x4a }}
+
+  ## Include/Protocol/UserManager.h
+  gEfiUserCredentialClassHandprintGuid = { 0x5917ef16, 0xf723, 0x4bb9, { 0xa6, 0x4b, 0xd8, 0xc5, 0x32, 0xf4, 0xd8, 0xb5 }}
+
+  ## Include/Protocol/UserManager.h
+  gEfiUserCredentialClassSecureCardGuid = { 0x8a6b4a83, 0x42fe, 0x45d2, { 0xa2, 0xef, 0x46, 0xf0, 0x6c, 0x7d, 0x98, 0x52 }}
+
+  ## Include/Protocol/UserManager.h
+  gEfiUserInfoAccessSetupAdminGuid = { 0x85b75607, 0xf7ce, 0x471e, { 0xb7, 0xe4, 0x2a, 0xea, 0x5f, 0x72, 0x32, 0xee }}
+
+  ## Include/Protocol/UserManager.h
+  gEfiUserInfoAccessSetupNormalGuid = { 0x1db29ae0, 0x9dcb, 0x43bc, { 0x8d, 0x87, 0x5d, 0xa1, 0x49, 0x64, 0xdd, 0xe2 }}
+
+  ## Include/Protocol/UserManager.h
+  gEfiUserInfoAccessSetupRestrictedGuid = { 0xbdb38125, 0x4d63, 0x49f4, { 0x82, 0x12, 0x61, 0xcf, 0x5a, 0x19, 0xa, 0xf8 }}
+
+  ## Include/Guid/ImageAuthentication.h
+  gEfiImageSecurityDatabaseGuid  = { 0xd719b2cb, 0x3d3a, 0x4596, {0xa3, 0xbc, 0xda, 0xd0,  0xe, 0x67, 0x65, 0x6f }}
+  gEfiCertSha256Guid             = { 0xc1c41626, 0x504c, 0x4092, {0xac, 0xa9, 0x41, 0xf9, 0x36, 0x93, 0x43, 0x28 }}
+  gEfiCertRsa2048Guid            = { 0x3c5766e8, 0x269c, 0x4e34, {0xaa, 0x14, 0xed, 0x77, 0x6e, 0x85, 0xb3, 0xb6 }}
+  gEfiCertRsa2048Sha256Guid      = { 0xe2b36190, 0x879b, 0x4a3d, {0xad, 0x8d, 0xf2, 0xe7, 0xbb, 0xa3, 0x27, 0x84 }}
+  gEfiCertSha1Guid               = { 0x826ca512, 0xcf10, 0x4ac9, {0xb1, 0x87, 0xbe,  0x1, 0x49, 0x66, 0x31, 0xbd }}
+  gEfiCertRsa2048Sha1Guid        = { 0x67f8444f, 0x8743, 0x48f1, {0xa3, 0x28, 0x1e, 0xaa, 0xb8, 0x73, 0x60, 0x80 }}
+  gEfiCertX509Guid               = { 0xa5c059a1, 0x94e4, 0x4aa7, {0x87, 0xb5, 0xab, 0x15, 0x5c, 0x2b, 0xf0, 0x72 }}
+
+  #
+  # GUIDs defined in UEFI2.3.1
+  #
+  ## Include/Protocol/Kms.h
+  gEfiKmsFormatGeneric128Guid    = { 0xec8a3d69, 0x6ddf, 0x4108, {0x94, 0x76, 0x73, 0x37, 0xfc, 0x52, 0x21, 0x36 }}
+  gEfiKmsFormatGeneric160Guid    = { 0xa3b3e6f8, 0xefca, 0x4bc1, {0x88, 0xfb, 0xcb, 0x87, 0x33, 0x9b, 0x25, 0x79 }}
+  gEfiKmsFormatGeneric256Guid    = { 0x70f64793, 0xc323, 0x4261, {0xac, 0x2c, 0xd8, 0x76, 0xf2, 0x7c, 0x53, 0x45 }}
+  gEfiKmsFormatGeneric512Guid    = { 0x978fe043, 0xd7af, 0x422e, {0x8a, 0x92, 0x2b, 0x48, 0xe4, 0x63, 0xbd, 0xe6 }}
+  gEfiKmsFormatGeneric1024Guid   = { 0x43be0b44, 0x874b, 0x4ead, {0xb0, 0x9c, 0x24, 0x1a, 0x4f, 0xbd, 0x7e, 0xb3 }}
+  gEfiKmsFormatGeneric2048Guid   = { 0x40093f23, 0x630c, 0x4626, {0x9c, 0x48, 0x40, 0x37, 0x3b, 0x19, 0xcb, 0xbe }}
+  gEfiKmsFormatGeneric3072Guid   = { 0xb9237513, 0x6c44, 0x4411, {0xa9, 0x90, 0x21, 0xe5, 0x56, 0xe0, 0x5a, 0xde }}
+  gEfiKmsFormatMd2128Guid        = { 0x78be11c4, 0xee44, 0x4a22, {0x9f, 0x05, 0x03, 0x85, 0x2e, 0xc5, 0xc9, 0x78 }}
+  gEfiKmsFormatMdc2128Guid       = { 0xf7ad60f8, 0xefa8, 0x44a3, {0x91, 0x13, 0x23, 0x1f, 0x39, 0x9e, 0xb4, 0xc7 }}
+  gEfiKmsFormatMd4128Guid        = { 0xd1c17aa1, 0xcac5, 0x400f, {0xbe, 0x17, 0xe2, 0xa2, 0xae, 0x06, 0x67, 0x7c }}
+  gEfiKmsFormatMdc4128Guid       = { 0x3fa4f847, 0xd8eb, 0x4df4, {0xbd, 0x49, 0x10, 0x3a, 0x0a, 0x84, 0x7b, 0xbc }}
+  gEfiKmsFormatMd5128Guid        = { 0xdcbc3662, 0x9cda, 0x4b52, {0xa0, 0x4c, 0x82, 0xeb, 0x1d, 0x23, 0x48, 0xc7 }}
+  gEfiKmsFormatMd5sha128Guid     = { 0x1c178237, 0x6897, 0x459e, {0x9d, 0x36, 0x67, 0xce, 0x8e, 0xf9, 0x4f, 0x76 }}
+  gEfiKmsFormatSha1160Guid       = { 0x453c5e5a, 0x482d, 0x43f0, {0x87, 0xc9, 0x59, 0x41, 0xf3, 0xa3, 0x8a, 0xc2 }}
+  gEfiKmsFormatSha256256Guid     = { 0x6bb4f5cd, 0x8022, 0x448d, {0xbc, 0x6d, 0x77, 0x1b, 0xae, 0x93, 0x5f, 0xc6 }}
+  gEfiKmsFormatSha512512Guid     = { 0x2f240e12, 0xe14d, 0x475c, {0x83, 0xb0, 0xef, 0xff, 0x22, 0xd7, 0x7b, 0xe7 }}
+  gEfiKmsFormatAesxts128Guid     = { 0x4776e33f, 0xdb47, 0x479a, {0xa2, 0x5f, 0xa1, 0xcd, 0x0a, 0xfa, 0xb3, 0x8b }}
+  gEfiKmsFormatAesxts256Guid     = { 0xdc7e8613, 0xc4bb, 0x4db0, {0x84, 0x62, 0x13, 0x51, 0x13, 0x57, 0xab, 0xe2 }}
+  gEfiKmsFormatAescbc128Guid     = { 0xa0e8ee6a, 0x0e92, 0x44d4, {0x86, 0x1b, 0x0e, 0xaa, 0x4a, 0xca, 0x44, 0xa2 }}
+  gEfiKmsFormatAescbc256Guid     = { 0xd7e69789, 0x1f68, 0x45e8, {0x96, 0xef, 0x3b, 0x64, 0x07, 0xa5, 0xb2, 0xdc }}
+  gEfiKmsFormatRsasha11024Guid   = { 0x56417bed, 0x6bbe, 0x4882, {0x86, 0xa0, 0x3a, 0xe8, 0xbb, 0x17, 0xf8, 0xf9 }}
+  gEfiKmsFormatRsasha12048Guid   = { 0xf66447d4, 0x75a6, 0x463e, {0xa8, 0x19, 0x07, 0x7f, 0x2d, 0xda, 0x05, 0xe9 }}
+  gEfiKmsFormatRsasha2562048Guid = { 0xa477af13, 0x877d, 0x4060, {0xba, 0xa1, 0x25, 0xd1, 0xbe, 0xa0, 0x8a, 0xd3 }}
+  gEfiKmsFormatRsasha2563072Guid = { 0x4e1356c2,  0xeed, 0x463f, {0x81, 0x47, 0x99, 0x33, 0xab, 0xdb, 0xc7, 0xd5 }}
+
+  ## Include/Guid/ImageAuthentication.h
+  gEfiCertSha224Guid             = { 0xb6e5233,  0xa65c, 0x44c9, {0x94, 0x7,  0xd9, 0xab, 0x83, 0xbf, 0xc8, 0xbd }}
+  gEfiCertSha384Guid             = { 0xff3e5307, 0x9fd0, 0x48c9, {0x85, 0xf1, 0x8a, 0xd5, 0x6c, 0x70, 0x1e,  0x1 }}
+  gEfiCertSha512Guid             = { 0x93e0fae,  0xa6c4, 0x4f50, {0x9f, 0x1b, 0xd4, 0x1e, 0x2b, 0x89, 0xc1, 0x9a }}
+  gEfiCertPkcs7Guid              = { 0x4aafd29d, 0x68df, 0x49ee, {0x8a, 0xa9, 0x34, 0x7d, 0x37, 0x56, 0x65, 0xa7 }}
+
+  ## Include/Protocol/Hash.h
+  gEfiHashAlgorithmSha1NoPadGuid = { 0x24c5dc2f, 0x53e2, 0x40ca, { 0x9e, 0xd6, 0xa5, 0xd9, 0xa4, 0x9f, 0x46, 0x3b }}
+  gEfiHashAlgorithmSha256NoPadGuid = { 0x8628752a, 0x6cb7, 0x4814, { 0x96, 0xfc, 0x24, 0xa8, 0x15, 0xac, 0x22, 0x26 }}
+
+  #
+  # GUIDs defined in UEFI2.4
+  #
+  ## Include/Guid/FmpCapsule.h
+  gEfiFmpCapsuleGuid             =  { 0x6dcbd5ed, 0xe82d, 0x4c44, {0xbd, 0xa1, 0x71, 0x94, 0x19, 0x9a, 0xd9, 0x2a }}
+
+  ## Include/Guid/ImageAuthentication.h
+  gEfiCertX509Sha256Guid         = { 0x3bd2a492, 0x96c0, 0x4079, {0xb4, 0x20, 0xfc, 0xf9, 0x8e, 0xf1, 0x03, 0xed }}
+  gEfiCertX509Sha384Guid         = { 0x7076876e, 0x80c2, 0x4ee6, {0xaa, 0xd2, 0x28, 0xb3, 0x49, 0xa6, 0x86, 0x5b }}
+  gEfiCertX509Sha512Guid         = { 0x446dbf63, 0x2502, 0x4cda, {0xbc, 0xfa, 0x24, 0x65, 0xd2, 0xb0, 0xfe, 0x9d }}
+
+  ## Include/Protocol/Rng.h
+  gEfiRngAlgorithmSp80090Hash256Guid = { 0xa7af67cb, 0x603b, 0x4d42, {0xba, 0x21, 0x70, 0xbf, 0xb6, 0x29, 0x3f, 0x96 }}
+  gEfiRngAlgorithmSp80090Hmac256Guid = { 0xc5149b43, 0xae85, 0x4f53, {0x99, 0x82, 0xb9, 0x43, 0x35, 0xd3, 0xa9, 0xe7 }}
+  gEfiRngAlgorithmSp80090Ctr256Guid  = { 0x44f0de6e, 0x4d8c, 0x4045, {0xa8, 0xc7, 0x4d, 0xd1, 0x68, 0x85, 0x6b, 0x9e }}
+  gEfiRngAlgorithmX9313DesGuid       = { 0x63c4785a, 0xca34, 0x4012, {0xa3, 0xc8, 0x0b, 0x6a, 0x32, 0x4f, 0x55, 0x46 }}
+  gEfiRngAlgorithmX931AesGuid        = { 0xacd03321, 0x777e, 0x4d3d, {0xb1, 0xc8, 0x20, 0xcf, 0xd8, 0x88, 0x20, 0xc9 }}
+  gEfiRngAlgorithmRaw                = { 0xe43176d7, 0xb6e8, 0x4827, {0xb7, 0x84, 0x7f, 0xfd, 0xc4, 0xb6, 0x85, 0x61 }}
+
+  ## Include/Protocol/AdapterInformation.h
+  gEfiAdapterInfoMediaStateGuid       = { 0xD7C74207, 0xA831, 0x4A26, {0xB1, 0xF5, 0xD1, 0x93, 0x06, 0x5C, 0xE8, 0xB6 }}
+  gEfiAdapterInfoNetworkBootGuid      = { 0x1FBD2960, 0x4130, 0x41E5, {0x94, 0xAC, 0xD2, 0xCF, 0x03, 0x7F, 0xB3, 0x7C }}
+  gEfiAdapterInfoSanMacAddressGuid    = { 0x114da5ef, 0x2cf1, 0x4e12, {0x9b, 0xbb, 0xc4, 0x70, 0xb5, 0x52, 0x5, 0xd9 }}
+
+  ## Include/Guid/CapsuleReport.h
+  gEfiCapsuleReportGuid               = { 0x39b68c46, 0xf7fb, 0x441b, {0xb6, 0xec, 0x16, 0xb0, 0xf6, 0x98, 0x21, 0xf3 }}
+
+  #
+  # GUIDs defined in UEFI2.5
+  #
+
+  ## Include/Guid/PropertiesTable.h
+  gEfiPropertiesTableGuid        = { 0x880aaca3, 0x4adc, 0x4a04, {0x90, 0x79, 0xb7, 0x47, 0x34, 0x8, 0x25, 0xe5 }}
+
+  ## Include/Guid/SystemResourceTable.h
+  gEfiSystemResourceTableGuid    = { 0xb122a263, 0x3661, 0x4f68, {0x99, 0x29, 0x78, 0xf8, 0xb0, 0xd6, 0x21, 0x80 }}
+
+  ## Include/Protocol/AdapterInformation.h
+  gEfiAdapterInfoUndiIpv6SupportGuid = { 0x4bd56be3, 0x4975, 0x4d8a, {0xa0, 0xad, 0xc4, 0x91, 0x20, 0x4b, 0x5d, 0x4d }}
+
+  ## Include/Protocol/RegularExpressionProtocol.h
+  gEfiRegexSyntaxTypePosixExtendedGuid = {0x5F05B20F, 0x4A56, 0xC231, {0xFA, 0x0B, 0xA7, 0xB1, 0xF1, 0x10, 0x04, 0x1D }}
+
+  ## Include/Protocol/RegularExpressionProtocol.h
+  gEfiRegexSyntaxTypeEcma262Guid = { 0x9A473A4A, 0x4CEB, 0xB95A, {0x41, 0x5E, 0x5B, 0xA0, 0xBC, 0x63, 0x9B, 0x2E }}
+
+  ## Include/Protocol/RegularExpressionProtocol.h
+  gEfiRegexSyntaxTypePerlGuid = {0x63E60A51, 0x497D, 0xD427, {0xC4, 0xA5, 0xB8, 0xAB, 0xDC, 0x3A, 0xAE, 0xB6 }}
+
+  ## Include/Guid/Cper.h
+  gEfiPlatformMemory2ErrorSectionGuid = { 0x61EC04FC, 0x48E6, 0xD813, { 0x25, 0xC9, 0x8D, 0xAA, 0x44, 0x75, 0x0B, 0x12 }}
+
+  ## Include/Protocol/BlockIoCrypto.h
+  gEfiBlockIoCryptoAlgoAesXtsGuid            = { 0x2f87ba6a, 0x5c04, 0x4385, {0xa7, 0x80, 0xf3, 0xbf, 0x78, 0xa9, 0x7b, 0xec }}
+  gEfiBlockIoCryptoAlgoAesCbcMsBitlockerGuid = { 0x689e4c62, 0x70bf, 0x4cf3, {0x88, 0xbb, 0x33, 0xb3, 0x18, 0x26, 0x86, 0x70 }}
+
+  ## Include/Protocol/SmartCardEdge.h
+  gEfiPaddingRsassaPkcs1V1P5Guid = { 0x9317ec24, 0x7cb0, 0x4d0e, {0x8b, 0x32, 0x2e, 0xd9, 0x20, 0x9c, 0xd8, 0xaf }}
+  gEfiPaddingRsassaPssGuid       = { 0x7b2349e0, 0x522d, 0x4f8e, {0xb9, 0x27, 0x69, 0xd9, 0x7c, 0x9e, 0x79, 0x5f }}
+  gEfiPaddingNoneGuid            = { 0x3629ddb1, 0x228c, 0x452e, {0xb6, 0x16, 0x09, 0xed, 0x31, 0x6a, 0x97, 0x00 }}
+  gEfiPaddingRsaesPkcs1V1P5Guid  = { 0xe1c1d0a9, 0x40b1, 0x4632, {0xbd, 0xcc, 0xd9, 0xd6, 0xe5, 0x29, 0x56, 0x31 }}
+  gEfiPaddingRsaesOaepGuid       = { 0xc1e63ac4, 0xd0cf, 0x4ce6, {0x83, 0x5b, 0xee, 0xd0, 0xe6, 0xa8, 0xa4, 0x5b }}
+
+  ## Include/Guid/SmBios.h
+  gEfiSmbios3TableGuid = { 0xF2FD1544, 0x9794, 0x4A2C, { 0x99, 0x2E, 0xE5, 0xBB, 0xCF, 0x20, 0xE3, 0x94 }}
+
+  ## Include/Protocol/BootManagerPolicy.h
+  gEfiBootManagerPolicyConsoleGuid    = { 0xCAB0E94C, 0xE15F, 0x11E3, { 0x91, 0x8D, 0xB8, 0xE8, 0x56, 0x2C, 0xBA, 0xFA }}
+  gEfiBootManagerPolicyNetworkGuid    = { 0xD04159DC, 0xE15F, 0x11E3, { 0xB2, 0x61, 0xB8, 0xE8, 0x56, 0x2C, 0xBA, 0xFA }}
+  gEfiBootManagerPolicyConnectAllGuid = { 0x113B2126, 0xFC8A, 0x11E3, { 0xBD, 0x6C, 0xB8, 0xE8, 0x56, 0x2C, 0xBA, 0xFA }}
+
+  ## Include/Protocol/DevicePath.h
+  gEfiVirtualDiskGuid            = { 0x77AB535A, 0x45FC, 0x624B, {0x55, 0x60, 0xF7, 0xB2, 0x81, 0xD1, 0xF9, 0x6E }}
+  gEfiVirtualCdGuid              = { 0x3D5ABD30, 0x4175, 0x87CE, {0x6D, 0x64, 0xD2, 0xAD, 0xE5, 0x23, 0xC4, 0xBB }}
+  gEfiPersistentVirtualDiskGuid  = { 0x5CEA02C9, 0x4D07, 0x69D3, {0x26, 0x9F ,0x44, 0x96, 0xFB, 0xE0, 0x96, 0xF9 }}
+  gEfiPersistentVirtualCdGuid    = { 0x08018188, 0x42CD, 0xBB48, {0x10, 0x0F, 0x53, 0x87, 0xD5, 0x3D, 0xED, 0x3D }}
+
+  #
+  # GUIDs defined in UEFI2.6
+  #
+
+  ## Include/Guid/MemoryAttributesTable.h
+  gEfiMemoryAttributesTableGuid        = { 0xdcfa911d, 0x26eb, 0x469f, {0xa2, 0x20, 0x38, 0xb7, 0xdc, 0x46, 0x12, 0x20}}
+
+  ## Include/Guid/Cper.h
+  gEfiArmProcessorErrorSectionGuid     = { 0xe19e3d16, 0xbc11, 0x11e4, { 0x9c, 0xaa, 0xc2, 0x05, 0x1d, 0x5d, 0x46, 0xb0 }}
+
+  ## Guid for Image decoder
+  ## Include/Protocol/ImageDecoder.h
+  gEfiHiiImageDecoderNameJpegGuid           = { 0xefefd093, 0x0d9b, 0x46eb, { 0xa8, 0x56, 0x48, 0x35, 0x07, 0x00, 0xc9, 0x08 }}
+  gEfiHiiImageDecoderNamePngGuid            = { 0xaf060190, 0x5e3a, 0x4025, { 0xaf, 0xbd, 0xe1, 0xf9, 0x05, 0xbf, 0xaa, 0x4c }}
+
+  #
+  # GUID defined in PI1.0
+  #
+  ## Include/Guid/AprioriFileName.h
+  gPeiAprioriFileNameGuid        = { 0x1b45cc0a, 0x156a, 0x428a, { 0XAF, 0x62,  0x49, 0x86, 0x4d, 0xa0, 0xe6, 0xe6 }}
+
+  ## Include/Guid/Apriori.h
+  gAprioriGuid                   = { 0xFC510EE7, 0xFFDC, 0x11D4, { 0xBD, 0x41, 0x00, 0x80, 0xC7, 0x3C, 0x88, 0x81 }}
+
+  ## Include/Guid/FirmwareFileSystem2.h
+  gEfiFirmwareFileSystem2Guid     = { 0x8c8ce578, 0x8a3d, 0x4f1c, { 0x99, 0x35, 0x89, 0x61, 0x85, 0xc3, 0x2d, 0xd3 }}
+
+  ## Include/Guid/FirmwareFileSystem2.h
+  gEfiFirmwareVolumeTopFileGuid  = { 0x1BA0062E, 0xC779, 0x4582, { 0x85, 0x66, 0x33, 0x6A, 0xE8, 0xF7, 0x8F, 0x09 }}
+
+  ## Include/Guid/MemoryAllocationHob.h
+  gEfiHobMemoryAllocModuleGuid   = { 0xF8E21975, 0x0899, 0x4F58, { 0xA4, 0xBE, 0x55, 0x25, 0xA9, 0xC6, 0xD7, 0x7A }}
+
+  ## Include/Guid/MemoryAllocationHob.h
+  gEfiHobMemoryAllocStackGuid    = { 0x4ED4BF27, 0x4092, 0x42E9, { 0x80, 0x7D, 0x52, 0x7B, 0x1D, 0x00, 0xC9, 0xBD }}
+
+  ## Include/Guid/MemoryAllocationHob.h
+  gEfiHobMemoryAllocBspStoreGuid = { 0x564B33CD, 0xC92A, 0x4593, { 0x90, 0xBF, 0x24, 0x73, 0xE4, 0x3C, 0x63, 0x22 }}
+
+  ## Include/Guid/EventLegacyBios.h
+  gEfiEventLegacyBootGuid        = { 0x2A571201, 0x4966, 0x47F6, { 0x8B, 0x86, 0xF3, 0x1E, 0x41, 0xF3, 0x2F, 0x10 }}
+
+  ## Include/Guid/HobList.h
+  gEfiHobListGuid                = { 0x7739F24C, 0x93D7, 0x11D4, { 0x9A, 0x3A, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Guid/DxeServices.h
+  gEfiDxeServicesTableGuid       = { 0x05AD34BA, 0x6F02, 0x4214, { 0x95, 0x2E, 0x4D, 0xA0, 0x39, 0x8E, 0x2B, 0xB9 }}
+
+  ## Include/Guid/MdePkgTokenSpace.h
+  gEfiMdePkgTokenSpaceGuid       = { 0x914AEBE7, 0x4635, 0x459b, { 0xAA, 0x1C, 0x11, 0xE2, 0x19, 0xB0, 0x3A, 0x10 }}
+
+  ## Include/Guid/HardwareErrorVariable.h
+  gEfiHardwareErrorVariableGuid  = { 0x414E6BDD, 0xE47B, 0x47cc, { 0xB2, 0x44, 0xBB, 0x61, 0x02, 0x0C, 0xF5, 0x16 }}
+
+  #
+  # GUID defined in PI1.2
+  #
+  ## Include/Guid/EventGroup.h
+  gEfiEventDxeDispatchGuid       = { 0x7081E22F, 0xCAC6, 0x4053, { 0x94, 0x68, 0x67, 0x57, 0x82, 0xCF, 0x88, 0xE5 }}
+
+  ## Guid for EFI_DISK_INFO_PROTOCOL.Interface to specify Ide interface.
+  ## Include/Protocol/DiskInfo.h
+  gEfiDiskInfoIdeInterfaceGuid   = { 0x5E948FE3, 0x26D3, 0x42B5, { 0xAF, 0x17, 0x61, 0x02, 0x87, 0x18, 0x8D, 0xEC }}
+
+  ## Guid for EFI_DISK_INFO_PROTOCOL.Interface to specify Scsi interface.
+  ## Include/Protocol/DiskInfo.h
+  gEfiDiskInfoScsiInterfaceGuid  = { 0x08F74BAA, 0xEA36, 0x41D9, { 0x95, 0x21, 0x21, 0xA7, 0x0F, 0x87, 0x80, 0xBC }}
+
+  ## Guid for EFI_DISK_INFO_PROTOCOL.Interface to specify Usb interface.
+  ## Include/Protocol/DiskInfo.h
+  gEfiDiskInfoUsbInterfaceGuid   = { 0xCB871572, 0xC11A, 0x47B5, { 0xB4, 0x92, 0x67, 0x5E, 0xAF, 0xA7, 0x77, 0x27 }}
+
+  ## Guid for EFI_DISK_INFO_PROTOCOL.Interface to specify Ahci interface.
+  ## Include/Protocol/DiskInfo.h
+  gEfiDiskInfoAhciInterfaceGuid  = { 0x9e498932, 0x4abc, 0x45af, { 0xa3, 0x4d, 0x02, 0x47, 0x78, 0x7b, 0xe7, 0xc6 }}
+
+  ## Include/Guid/StatusCodeDataTypeId.h
+  gEfiStatusCodeDataTypeStringGuid = { 0x92D11080, 0x496F, 0x4D95, { 0xBE, 0x7E, 0x03, 0x74, 0x88, 0x38, 0x2B, 0x0A }}
+
+  ## Include/Guid/StatusCodeDataTypeId.h
+  gEfiStatusCodeSpecificDataGuid   = { 0x335984BD, 0xE805, 0x409A, { 0xB8, 0xF8, 0xD2, 0x7E, 0xCE, 0x5F, 0xF7, 0xA6 }}
+
+  ## Include/Guid/FirmwareFileSystem3.h
+  gEfiFirmwareFileSystem3Guid      = { 0x5473c07a, 0x3dcb, 0x4dca, { 0xbd, 0x6f, 0x1e, 0x96, 0x89, 0xe7, 0x34, 0x9a }}
+
+  #
+  # GUID defined in PI1.2.1
+  #
+  ## Include/Guid/EventGroup.h
+  gEfiEndOfDxeEventGroupGuid        = { 0x2ce967a, 0xdd7e, 0x4ffc, { 0x9e, 0xe7, 0x81, 0xc, 0xf0, 0x47, 0x8, 0x80 }}
+
+  ## Include/Guid/FirmwareContentsSigned.h
+  gEfiFirmwareContentsSignedGuid    = { 0xf9d89e8, 0x9259, 0x4f76, { 0xa5, 0xaf, 0xc, 0x89, 0xe3, 0x40, 0x23, 0xdf }}
+
+  ## Include/Guid/VectorHandoffTable.h
+  gEfiVectorHandoffTableGuid        = { 0x996ec11c, 0x5397, 0x4e73, { 0xb5, 0x8f, 0x82, 0x7e, 0x52, 0x90, 0x6d, 0xef }}
+
+  ## Include/IndustryStandard/Hsti.h
+  gAdapterInfoPlatformSecurityGuid  = {0x6be272c7, 0x1320, 0x4ccd, { 0x90, 0x17, 0xd4, 0x61, 0x2c, 0x01, 0x2b, 0x25 }}
+
+  #
+  # GUID defined in PI1.3
+  #
+  ## Guid for EFI_DISK_INFO_PROTOCOL.Interface to specify Nvme interface.
+  ## Include/Protocol/DiskInfo.h
+  gEfiDiskInfoNvmeInterfaceGuid  = { 0x3ab14680, 0x5d3f, 0x4a4d, { 0xbc, 0xdc, 0xcc, 0x38, 0x0, 0x18, 0xc7, 0xf7 }}
+
+  #
+  # GUID defined in PI1.4
+  #
+  ## Include/Guid/GraphicsInfoHob.h
+  gEfiGraphicsInfoHobGuid           = { 0x39f62cce, 0x6825, 0x4669, { 0xbb, 0x56, 0x54, 0x1a, 0xba, 0x75, 0x3a, 0x07 }}
+
+  ## Guid for EFI_DISK_INFO_PROTOCOL.Interface to specify UFS interface.
+  ## Include/Protocol/DiskInfo.h
+  gEfiDiskInfoUfsInterfaceGuid   = { 0x4b3029cc, 0x6b98, 0x47fb, { 0xbc, 0x96, 0x76, 0xdc, 0xb8, 0x4, 0x41, 0xf0 }}
+
+  #
+  # GUID defined in PI1.5
+  #
+  ## Include/Guid/GraphicsInfoHob.h
+  gEfiGraphicsDeviceInfoHobGuid     = { 0xe5cb2ac9, 0xd35d, 0x4430, { 0x93, 0x6e, 0x1d, 0xe3, 0x32, 0x47, 0x8d, 0xe7 }}
+
+  #
+  # GUID defined in Windows UEFI Firmware Update Platform doc
+  #
+  ## Include/IndustryStandard/WindowsUxCapsule.h
+  gWindowsUxCapsuleGuid          = { 0x3b8c8162, 0x188c, 0x46a4, { 0xae, 0xc9, 0xbe, 0x43, 0xf1, 0xd6, 0x56, 0x97}}
+
+[Guids.IA32, Guids.X64]
+  ## Include/Guid/Cper.h
+  gEfiIa32X64ErrorTypeCacheCheckGuid = { 0xA55701F5, 0xE3EF, 0x43de, { 0xAC, 0x72, 0x24, 0x9B, 0x57, 0x3F, 0xAD, 0x2C }}
+
+  ## Include/Guid/Cper.h
+  gEfiIa32X64ErrorTypeTlbCheckGuid   = { 0xFC06B535, 0x5E1F, 0x4562, { 0x9F, 0x25, 0x0A, 0x3B, 0x9A, 0xDB, 0x63, 0xC3 }}
+
+  ## Include/Guid/Cper.h
+  gEfiIa32X64ErrorTypeBusCheckGuid   = { 0x1CF3F8B3, 0xC5B1, 0x49a2, { 0xAA, 0x59, 0x5E, 0xEF, 0x92, 0xFF, 0xA6, 0x3C }}
+
+  ## Include/Guid/Cper.h
+  gEfiIa32X64ErrorTypeMsCheckGuid    = { 0x48AB7F57, 0xDC34, 0x4f6c, { 0xA7, 0xD3, 0xB0, 0xB5, 0xB0, 0xA7, 0x43, 0x14 }}
+
+[Ppis]
+  ## Include/Ppi/MasterBootMode.h
+  gEfiPeiMasterBootModePpiGuid = { 0x7408d748, 0xfc8c, 0x4ee6, {0x92, 0x88, 0xc4, 0xbe, 0xc0, 0x92, 0xa4, 0x10 } }
+
+  ## Include/Ppi/DxeIpl.h
+  gEfiDxeIplPpiGuid = {0xae8ce5d, 0xe448, 0x4437, {0xa8, 0xd7, 0xeb, 0xf5, 0xf1, 0x94, 0xf7, 0x31 }}
+
+  ## Include/Ppi/MemoryDiscovered.h
+  gEfiPeiMemoryDiscoveredPpiGuid = {0xf894643d, 0xc449, 0x42d1, {0x8e, 0xa8, 0x85, 0xbd, 0xd8, 0xc6, 0x5b, 0xde } }
+
+  ## Include/Ppi/BootInRecoveryMode.h
+  gEfiPeiBootInRecoveryModePpiGuid = { 0x17ee496a, 0xd8e4, 0x4b9a, {0x94, 0xd1, 0xce, 0x82, 0x72, 0x30, 0x8, 0x50 } }
+
+  ## Include/Ppi/EndOfPeiPhase.h
+  gEfiEndOfPeiSignalPpiGuid = {0x605EA650, 0xC65C, 0x42e1, {0xBA, 0x80, 0x91, 0xA5, 0x2A, 0xB6, 0x18, 0xC6 } }
+
+  ## Include/Ppi/Reset.h
+  gEfiPeiResetPpiGuid = { 0xef398d58, 0x9dfd, 0x4103, {0xbf, 0x94, 0x78, 0xc6, 0xf4, 0xfe, 0x71, 0x2f } }
+
+  ## Include/Ppi/StatusCode.h
+  gEfiPeiStatusCodePpiGuid = { 0x229832d3, 0x7a30, 0x4b36, {0xb8, 0x27, 0xf4, 0xc, 0xb7, 0xd4, 0x54, 0x36 } }
+
+  ## Include/Ppi/Security2.h
+  gEfiPeiSecurity2PpiGuid = { 0xdcd0be23, 0x9586, 0x40f4, { 0xb6, 0x43, 0x6, 0x52, 0x2c, 0xed, 0x4e, 0xde } }
+
+  ## Include/Ppi/TemporaryRamSupport.h
+  gEfiTemporaryRamSupportPpiGuid = { 0xdbe23aa9, 0xa345, 0x4b97, {0x85, 0xb6, 0xb2, 0x26, 0xf1, 0x61, 0x73, 0x89} }
+
+  ## Include/Ppi/CpuIo.h
+  gEfiPeiCpuIoPpiInstalledGuid = { 0xe6af1f7b, 0xfc3f, 0x46da, {0xa8, 0x28, 0xa3, 0xb4, 0x57, 0xa4, 0x42, 0x82 } }
+
+  ## Include/Ppi/PciCfg2.h
+  gEfiPciCfg2PpiGuid = { 0x57a449a, 0x1fdc, 0x4c06, { 0xbf, 0xc9, 0xf5, 0x3f, 0x6a, 0x99, 0xbb, 0x92 } }
+
+  ## Include/Ppi/Stall.h
+  gEfiPeiStallPpiGuid = { 0x1f4c6f90, 0xb06b, 0x48d8, {0xa2, 0x01, 0xba, 0xe5, 0xf1, 0xcd, 0x7d, 0x56 } }
+
+  ## Include/Ppi/ReadOnlyVariable2.h
+  gEfiPeiReadOnlyVariable2PpiGuid = { 0x2ab86ef5, 0xecb5, 0x4134, { 0xb5, 0x56, 0x38, 0x54, 0xca, 0x1f, 0xe1, 0xb4 } }
+
+  ## Include/Ppi/SecPlatformInformation.h
+  gEfiSecPlatformInformationPpiGuid = { 0x6f8c2b35, 0xfef4, 0x448d, {0x82, 0x56, 0xe1, 0x1b, 0x19, 0xd6, 0x10, 0x77 } }
+
+  ## Include/Ppi/LoadImage.h
+  gEfiPeiLoadedImagePpiGuid = { 0xc1fcd448, 0x6300, 0x4458, { 0xb8, 0x64, 0x28, 0xdf, 0x1, 0x53, 0x64, 0xbc } }
+
+  ## Include/Ppi/Smbus2.h
+  gEfiPeiSmbus2PpiGuid = { 0x9ca93627, 0xb65b, 0x4324, { 0xa2, 0x2, 0xc0, 0xb4, 0x61, 0x76, 0x45, 0x43 } }
+
+  ## Include/Ppi/FirmwareVolumeInfo.h
+  gEfiPeiFirmwareVolumeInfoPpiGuid = { 0x49edb1c1, 0xbf21, 0x4761, { 0xbb, 0x12, 0xeb, 0x0, 0x31, 0xaa, 0xbb, 0x39 } }
+
+  ## Include/Ppi/LoadFile.h
+  gEfiPeiLoadFilePpiGuid = { 0xb9e0abfe, 0x5979, 0x4914, { 0x97, 0x7f, 0x6d, 0xee, 0x78, 0xc2, 0x78, 0xa6 } }
+
+  ## Include/Ppi/Decompress.h
+  gEfiPeiDecompressPpiGuid = { 0x1a36e4e7, 0xfab6, 0x476a, { 0x8e, 0x75, 0x69, 0x5a, 0x5, 0x76, 0xfd, 0xd7 } }
+
+  ## Include/Ppi/Pcd.h
+  gPcdPpiGuid = { 0x6e81c58, 0x4ad7, 0x44bc, { 0x83, 0x90, 0xf1, 0x2, 0x65, 0xf7, 0x24, 0x80 } }
+
+  ## Include/Ppi/PcdInfo.h
+  gGetPcdInfoPpiGuid                 = { 0x4d8b155b, 0xc059, 0x4c8f, { 0x89, 0x26,  0x6, 0xfd, 0x43, 0x31, 0xdb, 0x8a } }
+
+  #
+  # PPIs defined in PI 1.2.
+  #
+
+  ## Include/Ppi/RecoveryModule.h
+  gEfiPeiRecoveryModulePpiGuid       = { 0xFB6D9542, 0x612D, 0x4f45, { 0x87, 0x2f, 0x5c, 0xff, 0x52, 0xe9, 0x3d, 0xcf }}
+
+  ## Include/Ppi/DeviceRecoveryModule.h
+  gEfiPeiDeviceRecoveryModulePpiGuid = { 0x0DE2CE25, 0x446A, 0x45a7, { 0xBF, 0xC9, 0x37, 0xDA, 0x26, 0x34, 0x4B, 0x37 }}
+
+  ## Include/Ppi/BlockIo.h
+  gEfiPeiVirtualBlockIoPpiGuid       = { 0x695d8aa1, 0x42ee, 0x4c46, { 0x80, 0x5c, 0x6e, 0xa6, 0xbc, 0xe7, 0x99, 0xe3 }}
+
+  ## Include/Ppi/S3Resume2.h
+  gEfiPeiS3Resume2PpiGuid             = { 0x6D582DBC, 0xDB85, 0x4514, {0x8F, 0xCC, 0x5A, 0xDF, 0x62, 0x27, 0xB1, 0x47 }}
+
+  ## Include/Ppi/ReportStatusCodeHandler.h
+  gEfiPeiRscHandlerPpiGuid           = { 0x65d394, 0x9951, 0x4144, {0x82, 0xa3, 0xa, 0xfc, 0x85, 0x79, 0xc2, 0x51 }}
+
+  ## Include/Ppi/PiPcd.h
+  gEfiPeiPcdPpiGuid                  = { 0x1f34d25, 0x4de2, 0x23ad, { 0x3f, 0xf3, 0x36, 0x35, 0x3f, 0xf3, 0x23, 0xf1 } }
+
+  #
+  # PPIs defined in PI 1.2.1.
+  #
+
+  ## Include/Ppi/PiPcdInfo.h
+  gEfiGetPcdInfoPpiGuid              = { 0xa60c6b59, 0xe459, 0x425d, { 0x9c, 0x69,  0xb, 0xcc, 0x9c, 0xb2, 0x7d, 0x81 } }
+
+  ## Include/Ppi/TemporaryRamDone.h
+  gEfiTemporaryRamDonePpiGuid        = { 0xceab683c, 0xec56, 0x4a2d, { 0xa9, 0x6, 0x40, 0x53, 0xfa, 0x4e, 0x9c, 0x16 } }
+
+  ## Include/Ppi/VectorHandoffInfo.h
+  gEfiVectorHandoffInfoPpiGuid       = { 0x3cd652b4, 0x6d33, 0x4dce, { 0x89, 0xdb, 0x83, 0xdf, 0x97, 0x66, 0xfc, 0xca }}
+
+  ## Include/Ppi/IsaHc.h
+  gEfiIsaHcPpiGuid                   = { 0x8d48bd70, 0xc8a3, 0x4c06, {0x90, 0x1b, 0x74, 0x79, 0x46, 0xaa, 0xc3, 0x58 } }
+
+  ## Include/Ppi/SuperIo.h
+  gEfiSioPpiGuid                     = { 0x23a464ad, 0xcb83, 0x48b8, {0x94, 0xab, 0x1a, 0x6f, 0xef, 0xcf, 0xe5, 0x22 } }
+
+  #
+  # PPIs defined in PI 1.3.
+  #
+
+  ## Include/Ppi/I2cMaster.h
+  gEfiPeiI2cMasterPpiGuid            = { 0xb3bfab9b, 0x9f9c, 0x4e8b, { 0xad, 0x37, 0x7f, 0x8c, 0x51, 0xfc, 0x62, 0x80 }}
+
+  ## Include/Ppi/FirmwareVolumeInfo2.h
+  gEfiPeiFirmwareVolumeInfo2PpiGuid  = { 0xea7ca24b, 0xded5, 0x4dad, { 0xa3, 0x89, 0xbf, 0x82, 0x7e, 0x8f, 0x9b, 0x38 } }
+
+  #
+  # PPIs defined in PI 1.4.
+  #
+
+  ## Include/Ppi/Graphics.h
+  gEfiPeiGraphicsPpiGuid             = { 0x6ecd1463, 0x4a4a, 0x461b, { 0xaf, 0x5f, 0x5a, 0x33, 0xe3, 0xb2, 0x16, 0x2b } }
+
+  ## Include/Ppi/MpServices.h
+  gEfiPeiMpServicesPpiGuid           = { 0xee16160a, 0xe8be, 0x47a6, { 0x82, 0xa, 0xc6, 0x90, 0xd, 0xb0, 0x25, 0xa } }
+
+  ## Include/Ppi/Capsule.h
+  gEfiPeiCapsulePpiGuid             = { 0x3acf33ee, 0xd892, 0x40f4, { 0xa2, 0xfc, 0x38, 0x54, 0xd2, 0xe1, 0x32, 0x3d }}
+  ## Keep name backwards compatible before PI Version 1.4
+  gPeiCapsulePpiGuid                = { 0x3acf33ee, 0xd892, 0x40f4, { 0xa2, 0xfc, 0x38, 0x54, 0xd2, 0xe1, 0x32, 0x3d }}
+
+  ## Include/Ppi/Reset2.h
+  gEfiPeiReset2PpiGuid              = { 0x6cc45765, 0xcce4, 0x42fd, {0xbc, 0x56, 0x1, 0x1a, 0xaa, 0xc6, 0xc9, 0xa8 } }
+
+  ## Include/Ppi/BlockIo2.h
+  gEfiPeiVirtualBlockIo2PpiGuid     = { 0x26cc0fad, 0xbeb3, 0x478a, { 0x91, 0xb2, 0xc, 0x18, 0x8f, 0x72, 0x61, 0x98 }}
+
+  ## Include/Ppi/SecPlatformInformation.h
+  gEfiSecPlatformInformation2PpiGuid = { 0x9e9f374b, 0x8f16, 0x4230, {0x98, 0x24, 0x58, 0x46, 0xee, 0x76, 0x6a, 0x97 } }
+
+[Protocols]
+  ## Include/Protocol/Pcd.h
+  gPcdProtocolGuid               = { 0x11B34006, 0xD85B, 0x4D0A, { 0xA2, 0x90, 0xD5, 0xA5, 0x71, 0x31, 0x0E, 0xF7 }}
+
+  ## Include/Protocol/PcdInfo.h
+  gGetPcdInfoProtocolGuid        = { 0x5be40f57, 0xfa68, 0x4610, { 0xbb, 0xbf, 0xe9, 0xc5, 0xfc, 0xda, 0xd3, 0x65 } }
+
+  #
+  # Protocols defined in PI1.0.
+  #
+
+  ## Include/Protocol/Bds.h
+  gEfiBdsArchProtocolGuid        = { 0x665E3FF6, 0x46CC, 0x11D4, { 0x9A, 0x38, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Protocol/Cpu.h
+  gEfiCpuArchProtocolGuid        = { 0x26BACCB1, 0x6F42, 0x11D4, { 0xBC, 0xE7, 0x00, 0x80, 0xC7, 0x3C, 0x88, 0x81 }}
+
+  ## Include/Protocol/Metronome.h
+  gEfiMetronomeArchProtocolGuid  = { 0x26BACCB2, 0x6F42, 0x11D4, { 0xBC, 0xE7, 0x00, 0x80, 0xC7, 0x3C, 0x88, 0x81 }}
+
+  ## Include/Protocol/MonotonicCounter.h
+  gEfiMonotonicCounterArchProtocolGuid = { 0x1DA97072, 0xBDDC, 0x4B30, { 0x99, 0xF1, 0x72, 0xA0, 0xB5, 0x6F, 0xFF, 0x2A }}
+
+  ## Include/Protocol/RealTimeClock.h
+  gEfiRealTimeClockArchProtocolGuid = { 0x27CFAC87, 0x46CC, 0x11D4, { 0x9A, 0x38, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Protocol/Reset.h
+  gEfiResetArchProtocolGuid      = { 0x27CFAC88, 0x46CC, 0x11D4, { 0x9A, 0x38, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Protocol/Runtime.h
+  gEfiRuntimeArchProtocolGuid    = { 0xb7dfb4e1, 0x052f, 0x449f, { 0x87, 0xbe, 0x98, 0x18, 0xfc, 0x91, 0xb7, 0x33 }}
+
+  ## Include/Protocol/Security.h
+  gEfiSecurityArchProtocolGuid   = { 0xA46423E3, 0x4617, 0x49F1, { 0xB9, 0xFF, 0xD1, 0xBF, 0xA9, 0x11, 0x58, 0x39 }}
+
+  ## Include/Protocol/SecurityPolicy.h
+  gEfiSecurityPolicyProtocolGuid = { 0x78E4D245, 0xCD4D, 0x4A05, { 0xA2, 0xBA, 0x47, 0x43, 0xE8, 0x6C, 0xFC, 0xAB }}
+
+  ## Include/Protocol/Timer.h
+  gEfiTimerArchProtocolGuid      = { 0x26BACCB3, 0x6F42, 0x11D4, { 0xBC, 0xE7, 0x00, 0x80, 0xC7, 0x3C, 0x88, 0x81 }}
+
+  ## Include/Protocol/VariableWrite.h
+  gEfiVariableWriteArchProtocolGuid = { 0x6441F818, 0x6362, 0x4E44, { 0xB5, 0x70, 0x7D, 0xBA, 0x31, 0xDD, 0x24, 0x53 }}
+
+  ## Include/Protocol/Variable.h
+  gEfiVariableArchProtocolGuid   = { 0x1E5668E2, 0x8481, 0x11D4, { 0xBC, 0xF1, 0x00, 0x80, 0xC7, 0x3C, 0x88, 0x81 }}
+
+  ## Include/Protocol/WatchdogTimer.h
+  gEfiWatchdogTimerArchProtocolGuid = { 0x665E3FF5, 0x46CC, 0x11D4, { 0x9A, 0x38, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Protocol/StatusCode.h
+  gEfiStatusCodeRuntimeProtocolGuid = { 0xD2B2B828, 0x0826, 0x48A7, { 0xB3, 0xDF, 0x98, 0x3C, 0x00, 0x60, 0x24, 0xF0 }}
+
+  ## Include/Protocol/SmbusHc.h
+  gEfiSmbusHcProtocolGuid        = {0xe49d33ed, 0x513d, 0x4634, { 0xb6, 0x98, 0x6f, 0x55, 0xaa, 0x75, 0x1c, 0x1b} }
+
+  ## Include/Protocol/FirmwareVolume2.h
+  gEfiFirmwareVolume2ProtocolGuid = { 0x220e73b6, 0x6bdb, 0x4413, { 0x84, 0x5, 0xb9, 0x74, 0xb1, 0x8, 0x61, 0x9a } }
+
+  ## Include/Protocol/FirmwareVolumeBlock.h
+  gEfiFirmwareVolumeBlockProtocolGuid = { 0x8f644fa9, 0xe850, 0x4db1, {0x9c, 0xe2, 0xb, 0x44, 0x69, 0x8e, 0x8d, 0xa4 } }
+
+  ## Include/Protocol/Capsule.h
+  gEfiCapsuleArchProtocolGuid    = { 0x5053697E, 0x2CBC, 0x4819, { 0x90, 0xD9, 0x05, 0x80, 0xDE, 0xEE, 0x57, 0x54 }}
+
+  #
+  # Protocols defined in PI 1.2.
+  #
+
+  ## Include/Protocol/MpService.h
+  gEfiMpServiceProtocolGuid = { 0x3fdda605, 0xa76e, 0x4f46, { 0xad, 0x29, 0x12, 0xf4, 0x53, 0x1b, 0x3d, 0x08 }}
+
+  ## Include/Protocol/PciHostBridgeResourceAllocation.h
+  gEfiPciHostBridgeResourceAllocationProtocolGuid = { 0xCF8034BE, 0x6768, 0x4d8b, { 0xb7, 0x39, 0x7c, 0xce, 0x68, 0x3a, 0x9f, 0xbe }}
+
+  ## Include/Protocol/PciPlatform.h
+  gEfiPciPlatformProtocolGuid    = { 0x07d75280, 0x27d4, 0x4d69, { 0x90, 0xd0, 0x56, 0x43, 0xe2, 0x38, 0xb3, 0x41 }}
+
+  ## Include/Protocol/PciOverride.h
+  gEfiPciOverrideProtocolGuid    = { 0xb5b35764, 0x460c, 0x4a06, {0x99, 0xfc, 0x77, 0xa1, 0x7c, 0x1b, 0x5c, 0xeb }}
+
+  ## Include/Protocol/PciEnumerationComplete.h
+  gEfiPciEnumerationCompleteProtocolGuid    = { 0x30cfe3e7, 0x3de1, 0x4586, {0xbe, 0x20, 0xde, 0xab, 0xa1, 0xb3, 0xb7, 0x93}}
+
+
+  ## Include/Protocol/IncompatiblePciDeviceSupport.h
+  gEfiIncompatiblePciDeviceSupportProtocolGuid = { 0xeb23f55a, 0x7863, 0x4ac2, { 0x8d, 0x3d, 0x95, 0x65, 0x35, 0xde, 0x03, 0x75 }}
+
+  ## Include/Protocol/PciHotPlugInit.h
+  gEfiPciHotPlugInitProtocolGuid = { 0xaa0e8bc1, 0xdabc, 0x46b0, { 0xa8, 0x44, 0x37, 0xb8, 0x16, 0x9b, 0x2b, 0xea }}
+
+  ## This protocol is used to add or remove all PCI child devices on the PCI root bridge.
+  #  Include/Protocol/PciHotPlugRequest.h
+  gEfiPciHotPlugRequestProtocolGuid = { 0x19CB87AB, 0x2CB9, 0x4665, { 0x83, 0x60, 0xDD, 0xCF, 0x60, 0x54, 0xF7, 0x9D }}
+
+  ## Include/Protocol/IdeControllerInit.h
+  gEfiIdeControllerInitProtocolGuid = { 0xa1e37052, 0x80d9, 0x4e65, { 0xa3, 0x17, 0x3e, 0x9a, 0x55, 0xc4, 0x3e, 0xc9 }}
+
+  ## Disk Info protocol is used to export Inquiry Data for a drive.
+  #  Include/Protocol/DiskInfo.h
+  gEfiDiskInfoProtocolGuid       = { 0xD432A67F, 0x14DC, 0x484B, { 0xB3, 0xBB, 0x3F, 0x02, 0x91, 0x84, 0x93, 0x27 }}
+
+  ## Include/Protocol/Smbios.h
+  gEfiSmbiosProtocolGuid          = {0x3583ff6, 0xcb36, 0x4940, { 0x94, 0x7e, 0xb9, 0xb3, 0x9f, 0x4a, 0xfa, 0xf7}}
+
+  ## Include/Protocol/S3SaveState.h
+  gEfiS3SaveStateProtocolGuid     = {0xe857caf6, 0xc046, 0x45dc, { 0xbe, 0x3f, 0xee, 0x7, 0x65, 0xfb, 0xa8, 0x87}}
+
+  ## Include/Protocol/S3SmmSaveState.h
+  gEfiS3SmmSaveStateProtocolGuid  = {0x320afe62, 0xe593, 0x49cb, { 0xa9, 0xf1, 0xd4, 0xc2, 0xf4, 0xaf, 0x1, 0x4c}}
+
+  ## Include/Protocol/ReportStatusCodeHandler.h
+  gEfiRscHandlerProtocolGuid      = { 0x86212936, 0xe76, 0x41c8, { 0xa0, 0x3a, 0x2a, 0xf2, 0xfc, 0x1c, 0x39, 0xe2 }}
+
+  ## Include/Protocol/SmmReportStatusCodeHandler.h
+  gEfiSmmRscHandlerProtocolGuid   = { 0x2ff29fa7, 0x5e80, 0x4ed9, { 0xb3, 0x80, 0x1, 0x7d, 0x3c, 0x55, 0x4f, 0xf4 }}
+
+  ## Include/Protocol/AcpiSystemDescriptionTable.h
+  gEfiAcpiSdtProtocolGuid         = { 0xeb97088e, 0xcfdf, 0x49c6, { 0xbe, 0x4b, 0xd9, 0x6, 0xa5, 0xb2, 0xe, 0x86 }}
+
+  ## Include/Protocol/SuperIo.h
+  gEfiSioProtocolGuid             = { 0x215fdd18, 0xbd50, 0x4feb, { 0x89, 0xb, 0x58, 0xca, 0xb, 0x47, 0x39, 0xe9 }}
+
+  ## Include/Protocol/SmmCpuIo2.h
+  gEfiSmmCpuIo2ProtocolGuid        = { 0x3242a9d8, 0xce70, 0x4aa0, { 0x95, 0x5d, 0x5e, 0x7b, 0x14, 0x0d, 0xe4, 0xd2 }}
+
+  ## Include/Protocol/SmmBase2.h
+  gEfiSmmBase2ProtocolGuid        = { 0xf4ccbfb7, 0xf6e0, 0x47fd, { 0x9d, 0xd4, 0x10, 0xa8, 0xf1, 0x50, 0xc1, 0x91 }}
+
+  ## Include/Protocol/SmmAccess2.h
+  gEfiSmmAccess2ProtocolGuid      = { 0xc2702b74, 0x800c, 0x4131, { 0x87, 0x46, 0x8f, 0xb5, 0xb8, 0x9c, 0xe4, 0xac }}
+
+  ## Include/Protocol/SmmControl2.h
+  gEfiSmmControl2ProtocolGuid     = { 0x843dc720, 0xab1e, 0x42cb, { 0x93, 0x57, 0x8a, 0x0, 0x78, 0xf3, 0x56, 0x1b}}
+
+  ## Include/Protocol/SmmConfiguration.h
+  gEfiSmmConfigurationProtocolGuid= { 0x26eeb3de, 0xb689, 0x492e, { 0x80, 0xf0, 0xbe, 0x8b, 0xd7, 0xda, 0x4b, 0xa7 }}
+
+  ## Include/Protocol/SmmReadyToLock.h
+  gEfiSmmReadyToLockProtocolGuid  = { 0x47b7fa8c, 0xf4bd, 0x4af6, { 0x82, 0x00, 0x33, 0x30, 0x86, 0xf0, 0xd2, 0xc8 }}
+
+  ## Include/Protocol/DxeSmmReadyToLock.h
+  gEfiDxeSmmReadyToLockProtocolGuid = { 0x60ff8964, 0xe906, 0x41d0, { 0xaf, 0xed, 0xf2, 0x41, 0xe9, 0x74, 0xe0, 0x8e }}
+
+  ## Include/Protocol/SmmCommunication.h
+  gEfiSmmCommunicationProtocolGuid  = { 0xc68ed8e2, 0x9dc6, 0x4cbd, { 0x9d, 0x94, 0xdb, 0x65, 0xac, 0xc5, 0xc3, 0x32 }}
+
+  ## Include/Protocol/SmmStatusCode.h
+  gEfiSmmStatusCodeProtocolGuid   = { 0x6afd2b77, 0x98c1, 0x4acd, { 0xa6, 0xf9, 0x8a, 0x94, 0x39, 0xde, 0xf, 0xb1}}
+
+  ## Include/Protocol/SmmCpu.h
+  gEfiSmmCpuProtocolGuid          = { 0xeb346b97, 0x975f, 0x4a9f, { 0x8b, 0x22, 0xf8, 0xe9, 0x2b, 0xb3, 0xd5, 0x69 }}
+
+  ## Include/Protocol/SmmPciRootBridgeIo.h
+  gEfiSmmPciRootBridgeIoProtocolGuid = { 0x8bc1714d, 0xffcb, 0x41c3, { 0x89, 0xdc, 0x6c, 0x74, 0xd0, 0x6d, 0x98, 0xea }}
+
+  ## Include/Protocol/SmmSwDispatch2.h
+  gEfiSmmSwDispatch2ProtocolGuid  = { 0x18a3c6dc, 0x5eea, 0x48c8, {0xa1, 0xc1, 0xb5, 0x33, 0x89, 0xf9, 0x89, 0x99 }}
+
+  ## Include/Protocol/SmmSxDispatch2.h
+  gEfiSmmSxDispatch2ProtocolGuid  = { 0x456d2859, 0xa84b, 0x4e47, {0xa2, 0xee, 0x32, 0x76, 0xd8, 0x86, 0x99, 0x7d }}
+
+  ## Include/Protocol/SmmPeriodicTimerDispatch2.h
+  gEfiSmmPeriodicTimerDispatch2ProtocolGuid = { 0x4cec368e, 0x8e8e, 0x4d71, {0x8b, 0xe1, 0x95, 0x8c, 0x45, 0xfc, 0x8a, 0x53 }}
+
+  ## Include/Protocol/SmmUsbDispatch2.h
+  gEfiSmmUsbDispatch2ProtocolGuid = { 0xee9b8d90, 0xc5a6, 0x40a2, {0xbd, 0xe2, 0x52, 0x55, 0x8d, 0x33, 0xcc, 0xa1 }}
+
+  ## Include/Protocol/SmmGpiDispatch2.h
+  gEfiSmmGpiDispatch2ProtocolGuid = { 0x25566b03, 0xb577, 0x4cbf, {0x95, 0x8c, 0xed, 0x66, 0x3e, 0xa2, 0x43, 0x80 }}
+
+  ## Include/Protocol/SmmStandbyButtonDispatch2.h
+  gEfiSmmStandbyButtonDispatch2ProtocolGuid = { 0x7300c4a1, 0x43f2, 0x4017, {0xa5, 0x1b, 0xc8, 0x1a, 0x7f, 0x40, 0x58, 0x5b }}
+
+  ## Include/Protocol/SmmPowerButtonDispatch2.h
+  gEfiSmmPowerButtonDispatch2ProtocolGuid = { 0x1b1183fa, 0x1823, 0x46a7, {0x88, 0x72, 0x9c, 0x57, 0x87, 0x55, 0x40, 0x9d }}
+
+  ## Include/Protocol/SmmIoTrapDispatch2.h
+  gEfiSmmIoTrapDispatch2ProtocolGuid = { 0x58dc368d, 0x7bfa, 0x4e77, {0xab, 0xbc, 0xe, 0x29, 0x41, 0x8d, 0xf9, 0x30 }}
+
+  ## Include/Protocol/PiPcd.h
+  gEfiPcdProtocolGuid = { 0x13a3f0f6, 0x264a, 0x3ef0, { 0xf2, 0xe0, 0xde, 0xc5, 0x12, 0x34, 0x2f, 0x34 } }
+
+  ## Include/Protocol/FirmwareVolumeBlock.h
+  gEfiFirmwareVolumeBlock2ProtocolGuid = { 0x8f644fa9, 0xe850, 0x4db1, {0x9c, 0xe2, 0xb, 0x44, 0x69, 0x8e, 0x8d, 0xa4 } }
+
+  ## Include/Protocol/CpuIo2.h
+  gEfiCpuIo2ProtocolGuid = {0xad61f191, 0xae5f, 0x4c0e, {0xb9, 0xfa, 0xe8, 0x69, 0xd2, 0x88, 0xc6, 0x4f } }
+
+  ## Include/Protocol/LegacyRegion2.h
+  gEfiLegacyRegion2ProtocolGuid = {0x70101eaf, 0x85, 0x440c, {0xb3, 0x56, 0x8e, 0xe3, 0x6f, 0xef, 0x24, 0xf0 } }
+
+  ## Include/Protocol/McaInitPmi.h
+  gEfiSalMcaInitPmiProtocolGuid = { 0xb60dc6e8, 0x3b6f, 0x11d5, {0xaf, 0x9, 0x0, 0xa0, 0xc9, 0x44, 0xa0, 0x5b } }
+
+  ## Include/Protocol/ExtendedSalBootService.h
+  gEfiExtendedSalBootServiceProtocolGuid  = { 0xde0ee9a4, 0x3c7a, 0x44f2, {0xb7, 0x8b, 0xe3, 0xcc, 0xd6, 0x9c, 0x3a, 0xf7 } }
+
+  ## Include/Protocol/ExtendedSalServiceClasses.h
+  gEfiExtendedSalBaseIoServicesProtocolGuid = { 0x5aea42b5, 0x31e1, 0x4515, {0xbc, 0x31, 0xb8, 0xd5, 0x25, 0x75, 0x65, 0xa6 } }
+  gEfiExtendedSalStallServicesProtocolGuid = { 0x53a58d06, 0xac27, 0x4d8c, {0xb5, 0xe9, 0xf0, 0x8a, 0x80, 0x65, 0x41, 0x70 } }
+  gEfiExtendedSalRtcServicesProtocolGuid = { 0x7e97a470, 0xefdb, 0x4d02, {0x8f, 0xce, 0x61, 0x90, 0xd2, 0x7b, 0xa2, 0x96 } }
+  gEfiExtendedSalVariableServicesProtocolGuid = { 0x4ecb6c53, 0xc641, 0x4370, {0x8c, 0xb2, 0x3b, 0x0e, 0x49, 0x6e, 0x83, 0x78 } }
+  gEfiExtendedSalMtcServicesProtocolGuid = { 0x899afd18, 0x75e8, 0x408b, {0xa4, 0x1a, 0x6e, 0x2e, 0x7e, 0xcd, 0xf4, 0x54 } }
+  gEfiExtendedSalResetServicesProtocolGuid = { 0x7d019990, 0x8ce1, 0x46f5, {0xa7, 0x76, 0x3c, 0x51, 0x98, 0x67, 0x6a, 0xa0 } }
+  gEfiExtendedSalStatusCodeServicesProtocolGuid = { 0xdbd91d, 0x55e9, 0x420f, {0x96, 0x39, 0x5e, 0x9f, 0x84, 0x37, 0xb4, 0x4f } }
+  gEfiExtendedSalFvBlockServicesProtocolGuid = { 0xa2271df1, 0xbcbb, 0x4f1d, {0x98, 0xa9, 0x06, 0xbc, 0x17, 0x2f, 0x07, 0x1a } }
+  gEfiExtendedSalMpServicesProtocolGuid = { 0x697d81a2, 0xcf18, 0x4dc0, {0x9e, 0x0d, 0x06, 0x11, 0x3b, 0x61, 0x8a, 0x3f } }
+  gEfiExtendedSalPalServicesProtocolGuid = { 0xe1cd9d21, 0x0fc2, 0x438d, {0x97, 0x03, 0x04, 0xe6, 0x6d, 0x96, 0x1e, 0x57 } }
+  gEfiExtendedSalBaseServicesProtocolGuid = { 0xd9e9fa06, 0x0fe0, 0x41c3, {0x96, 0xfb, 0x83, 0x42, 0x5a, 0x33, 0x94, 0xf8 } }
+  gEfiExtendedSalMcaServicesProtocolGuid = { 0x2a591128, 0x6cc7, 0x42b1, {0x8a, 0xf0, 0x58, 0x93, 0x3b, 0x68, 0x2d, 0xbb } }
+  gEfiExtendedSalPciServicesProtocolGuid = { 0xa46b1a31, 0xad66, 0x4905, {0x92, 0xf6, 0x2b, 0x46, 0x59, 0xdc, 0x30, 0x63 } }
+  gEfiExtendedSalCacheServicesProtocolGuid = { 0xedc9494, 0x2743, 0x4ba5, { 0x88, 0x18, 0x0a, 0xef, 0x52, 0x13, 0xf1, 0x88 } }
+  gEfiExtendedSalMcaLogServicesProtocolGuid = { 0xcb3fd86e, 0x38a3, 0x4c03, {0x9a, 0x5c, 0x90, 0xcf, 0xa3, 0xa2, 0xab, 0x7a } }
+
+  #
+  # Protocols defined in PI 1.2.1
+  #
+
+  ## Include/Protocol/Security2.h
+  gEfiSecurity2ArchProtocolGuid   = { 0x94ab2f58, 0x1438, 0x4ef1, {0x91, 0x52, 0x18, 0x94, 0x1a, 0x3a, 0x0e, 0x68 } }
+
+  ## Include/Protocol/SmmEndOfDxe.h
+  gEfiSmmEndOfDxeProtocolGuid = { 0x24e70042, 0xd5c5, 0x4260, { 0x8c, 0x39, 0xa, 0xd3, 0xaa, 0x32, 0xe9, 0x3d }}
+
+  ## Include/Protocol/IsaHc.h
+  gEfiIsaHcProtocolGuid               = { 0xbcdaf080, 0x1bde, 0x4e22, {0xae, 0x6a, 0x43, 0x54, 0x1e, 0x12, 0x8e, 0xc4 } }
+  gEfiIsaHcServiceBindingProtocolGuid = { 0xfad7933a, 0x6c21, 0x4234, {0xa4, 0x34, 0x0a, 0x8a, 0x0d, 0x2b, 0x07, 0x81 } }
+
+  ## Include/Protocol/SuperIoControl.h
+  gEfiSioControlProtocolGuid          = { 0xb91978df, 0x9fc1, 0x427d, { 0xbb, 0x5, 0x4c, 0x82, 0x84, 0x55, 0xca, 0x27 } }
+
+  ## Include/Protocol/PiPcdInfo.h
+  gEfiGetPcdInfoProtocolGuid      = { 0xfd0f4478,  0xefd, 0x461d, { 0xba, 0x2d, 0xe5, 0x8c, 0x45, 0xfd, 0x5f, 0x5e } }
+
+  #
+  # Protocols defined in PI 1.3.
+  #
+
+  ## Include/Protocol/I2cMaster.h
+  gEfiI2cMasterProtocolGuid = { 0xcd72881f, 0x45b5, 0x4feb, { 0x98, 0xc8, 0x31, 0x3d, 0xa8, 0x11, 0x74, 0x62 }}
+
+  ## Include/Protocol/I2cIo.h
+  gEfiI2cIoProtocolGuid = { 0xb60a3e6b, 0x18c4, 0x46e5, { 0xa2, 0x9a, 0xc9, 0xa1, 0x06, 0x65, 0xa2, 0x8e }}
+
+  ## Include/Protocol/I2cEnumerate.h
+  gEfiI2cEnumerateProtocolGuid = { 0xda8cd7c4, 0x1c00, 0x49e2, { 0x80, 0x3e, 0x52, 0x14, 0xe7, 0x01, 0x89, 0x4c }}
+
+  ## Include/Protocol/I2cHost.h
+  gEfiI2cHostProtocolGuid = { 0xa5aab9e3, 0xc727, 0x48cd, { 0x8b, 0xbf, 0x42, 0x72, 0x33, 0x85, 0x49, 0x48 }}
+
+  ## Include/Protocol/I2cBusConfigurationManagement.h
+  gEfiI2cBusConfigurationManagementProtocolGuid = { 0x55b71fb5, 0x17c6, 0x410e, { 0xb5, 0xbd, 0x5f, 0xa2, 0xe3, 0xd4, 0x46, 0x6b }}
+
+  #
+  # Protocols defined in UEFI2.1/UEFI2.0/EFI1.1
+  #
+
+  ## Include/Protocol/DebugPort.h
+  gEfiDebugPortProtocolGuid      = { 0xEBA4E8D2, 0x3858, 0x41EC, { 0xA2, 0x81, 0x26, 0x47, 0xBA, 0x96, 0x60, 0xD0 }}
+
+  ## Include/Protocol/DebugSupport.h
+  gEfiDebugSupportProtocolGuid   = { 0x2755590C, 0x6F3C, 0x42FA, { 0x9E, 0xA4, 0xA3, 0xBA, 0x54, 0x3C, 0xDA, 0x25 }}
+
+  ## Include/Protocol/Decompress.h
+  gEfiDecompressProtocolGuid     = { 0xD8117CFE, 0x94A6, 0x11D4, { 0x9A, 0x3A, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Protocol/DeviceIo.h
+  gEfiDeviceIoProtocolGuid       = { 0xAF6AC311, 0x84C3, 0x11D2, { 0x8E, 0x3C, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }}
+
+  ## Include/Protocol/DevicePath.h
+  gEfiDevicePathProtocolGuid     = { 0x09576E91, 0x6D3F, 0x11D2, { 0x8E, 0x39, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }}
+
+  ## Include/Protocol/DevicePathFromText.h
+  gEfiDevicePathFromTextProtocolGuid = { 0x05C99A21, 0xC70F, 0x4AD2, { 0x8A, 0x5F, 0x35, 0xDF, 0x33, 0x43, 0xF5, 0x1E }}
+
+  ## Include/Protocol/DevicePathToText.h
+  gEfiDevicePathToTextProtocolGuid = { 0x8B843E20, 0x8132, 0x4852, { 0x90, 0xCC, 0x55, 0x1A, 0x4E, 0x4A, 0x7F, 0x1C }}
+
+  ## Include/Protocol/DevicePathUtilities.h
+  gEfiDevicePathUtilitiesProtocolGuid = { 0x0379BE4E, 0xD706, 0x437D, { 0xB0, 0x37, 0xED, 0xB8, 0x2F, 0xB7, 0x72, 0xA4 }}
+
+  ## Include/Protocol/DriverBinding.h
+  gEfiDriverBindingProtocolGuid  = { 0x18A031AB, 0xB443, 0x4D1A, { 0xA5, 0xC0, 0x0C, 0x09, 0x26, 0x1E, 0x9F, 0x71 }}
+
+  ## Include/Protocol/PlatformDriverOverride.h
+  gEfiPlatformDriverOverrideProtocolGuid = { 0x6b30c738, 0xa391, 0x11d4, {0x9a, 0x3b, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d } }
+
+  ## Include/Protocol/DriverFamilyOverride.h
+  gEfiDriverFamilyOverrideProtocolGuid = { 0xb1ee129e, 0xda36, 0x4181, { 0x91, 0xf8, 0x4, 0xa4, 0x92, 0x37, 0x66, 0xa7 }}
+
+  ## Include/Protocol/BusSpecificDriverOverride.h
+  gEfiBusSpecificDriverOverrideProtocolGuid = { 0x3BC1B285, 0x8A15, 0x4A82, { 0xAA, 0xBF, 0x4D, 0x7D, 0x13, 0xFB, 0x32, 0x65 }}
+
+  ## Include/Protocol/DriverDiagnostics2.h
+  gEfiDriverDiagnostics2ProtocolGuid = { 0x4D330321, 0x025F, 0x4AAC, { 0x90, 0xD8, 0x5E, 0xD9, 0x00, 0x17, 0x3B, 0x63 }}
+
+  ## Include/Protocol/DriverDiagnostics.h
+  gEfiDriverDiagnosticsProtocolGuid = { 0x0784924F, 0xE296, 0x11D4, { 0x9A, 0x49, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Protocol/ComponentName2.h
+  gEfiComponentName2ProtocolGuid = { 0x6A7A5CFF, 0xE8D9, 0x4F70, { 0xBA, 0xDA, 0x75, 0xAB, 0x30, 0x25, 0xCE, 0x14 }}
+
+  ## Include/Protocol/ComponentName.h
+  gEfiComponentNameProtocolGuid  = { 0x107A772C, 0xD5E1, 0x11D4, { 0x9A, 0x46, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Protocol/DriverConfiguration2.h
+  gEfiDriverConfiguration2ProtocolGuid = { 0xBFD7DC1D, 0x24F1, 0x40D9, { 0x82, 0xE7, 0x2E, 0x09, 0xBB, 0x6B, 0x4E, 0xBE }}
+
+  ## Include/Protocol/DriverConfiguration.h
+  gEfiDriverConfigurationProtocolGuid = { 0x107A772B, 0xD5E1, 0x11D4, { 0x9A, 0x46, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Protocol/PlatformToDriverConfiguration.h
+  gEfiPlatformToDriverConfigurationProtocolGuid = { 0x642cd590, 0x8059, 0x4c0a, { 0xa9, 0x58, 0xc5, 0xec, 0x7, 0xd2, 0x3c, 0x4b } }
+
+  ## Include/Protocol/DriverSupportedEfiVersion.h
+  gEfiDriverSupportedEfiVersionProtocolGuid = { 0x5c198761, 0x16a8, 0x4e69, { 0x97, 0x2c, 0x89, 0xd6, 0x79, 0x54, 0xf8, 0x1d } }
+
+  ## Include/Protocol/SimpleTextIn.h
+  gEfiSimpleTextInProtocolGuid   = { 0x387477C1, 0x69C7, 0x11D2, { 0x8E, 0x39, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }}
+
+  ## Include/Protocol/SimpleTextInEx.h
+  gEfiSimpleTextInputExProtocolGuid = {0xdd9e7534, 0x7762, 0x4698, { 0x8c, 0x14, 0xf5, 0x85, 0x17, 0xa6, 0x25, 0xaa } }
+
+  ## Include/Protocol/SimpleTextOut.h
+  gEfiSimpleTextOutProtocolGuid  = { 0x387477C2, 0x69C7, 0x11D2, { 0x8E, 0x39, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }}
+
+  ## Include/Protocol/SimplePointer.h
+  gEfiSimplePointerProtocolGuid  = { 0x31878C87, 0x0B75, 0x11D5, { 0x9A, 0x4F, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Protocol/AbsolutePointer.h
+  gEfiAbsolutePointerProtocolGuid = { 0x8D59D32B, 0xC655, 0x4AE9, { 0x9B, 0x15, 0xF2, 0x59, 0x04, 0x99, 0x2A, 0x43 } }
+
+  ## Include/Protocol/SerialIo.h
+  gEfiSerialIoProtocolGuid       = { 0xBB25CF6F, 0xF1D4, 0x11D2, { 0x9A, 0x0C, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0xFD }}
+
+  ## Include/Protocol/GraphicsOutput.h
+  gEfiGraphicsOutputProtocolGuid = { 0x9042A9DE, 0x23DC, 0x4A38, { 0x96, 0xFB, 0x7A, 0xDE, 0xD0, 0x80, 0x51, 0x6A }}
+
+  ## Include/Protocol/EdidDiscovered.h
+  gEfiEdidDiscoveredProtocolGuid = { 0x1C0C34F6, 0xD380, 0x41FA, { 0xA0, 0x49, 0x8A, 0xD0, 0x6C, 0x1A, 0x66, 0xAA }}
+
+  ## Include/Protocol/EdidActive.h
+  gEfiEdidActiveProtocolGuid     = { 0xBD8C1056, 0x9F36, 0x44EC, { 0x92, 0xA8, 0xA6, 0x33, 0x7F, 0x81, 0x79, 0x86 }}
+
+  ## Include/Protocol/EdidOverride.h
+  gEfiEdidOverrideProtocolGuid   = { 0x48ECB431, 0xFB72, 0x45C0, { 0xA9, 0x22, 0xF4, 0x58, 0xFE, 0x04, 0x0B, 0xD5 }}
+
+  ## Include/Protocol/UgaIo.h
+  gEfiUgaIoProtocolGuid          = { 0x61A4D49E, 0x6F68, 0x4F1B, { 0xB9, 0x22, 0xA8, 0x6E, 0xED, 0x0B, 0x07, 0xA2 }}
+
+  ## Include/Protocol/UgaDraw.h
+  gEfiUgaDrawProtocolGuid        = { 0x982C298B, 0xF4FA, 0x41CB, { 0xB8, 0x38, 0x77, 0xAA, 0x68, 0x8F, 0xB8, 0x39 }}
+
+  ## Include/Protocol/LoadedImage.h
+  gEfiLoadedImageProtocolGuid    = { 0x5B1B31A1, 0x9562, 0x11D2, { 0x8E, 0x3F, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }}
+
+  ## Include/Protocol/LoadedImage.h
+  gEfiLoadedImageDevicePathProtocolGuid = { 0xbc62157e, 0x3e33, 0x4fec, {0x99, 0x20, 0x2d, 0x3b, 0x36, 0xd7, 0x50, 0xdf }}
+
+  ## Include/Protocol/LoadFile.h
+  gEfiLoadFileProtocolGuid       = { 0x56EC3091, 0x954C, 0x11D2, { 0x8E, 0x3F, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }}
+
+  ## Include/Protocol/LoadFile2.h
+  gEfiLoadFile2ProtocolGuid       = { 0x4006c0c1, 0xfcb3, 0x403e, {0x99, 0x6d, 0x4a, 0x6c, 0x87, 0x24, 0xe0, 0x6d }}
+
+  ## Include/Protocol/SimpleFileSystem.h
+  gEfiSimpleFileSystemProtocolGuid = { 0x964E5B22, 0x6459, 0x11D2, { 0x8E, 0x39, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }}
+
+  ## Include/Protocol/TapeIo.h
+  gEfiTapeIoProtocolGuid         = { 0x1E93E633, 0xD65A, 0x459E, { 0xAB, 0x84, 0x93, 0xD9, 0xEC, 0x26, 0x6D, 0x18 }}
+
+  ## Include/Protocol/DiskIo.h
+  gEfiDiskIoProtocolGuid         = { 0xCE345171, 0xBA0B, 0x11D2, { 0x8E, 0x4F, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }}
+
+  ## Include/Protocol/BlockIo.h
+  gEfiBlockIoProtocolGuid        = { 0x964E5B21, 0x6459, 0x11D2, { 0x8E, 0x39, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }}
+
+  ## Include/Protocol/UnicodeCollation.h
+  gEfiUnicodeCollationProtocolGuid = { 0x1D85CD7F, 0xF43D, 0x11D2, { 0x9A, 0x0C, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Protocol/UnicodeCollation.h
+  gEfiUnicodeCollation2ProtocolGuid = {0xa4c751fc, 0x23ae, 0x4c3e, { 0x92, 0xe9, 0x49, 0x64, 0xcf, 0x63, 0xf3, 0x49 }}
+
+  ## Include/Protocol/PciRootBridgeIo.h
+  gEfiPciRootBridgeIoProtocolGuid = { 0x2F707EBB, 0x4A1A, 0x11D4, { 0x9A, 0x38, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Protocol/PciIo.h
+  gEfiPciIoProtocolGuid          = { 0x4CF5B200, 0x68B8, 0x4CA5, { 0x9E, 0xEC, 0xB2, 0x3E, 0x3F, 0x50, 0x02, 0x9A }}
+
+  ## Include/Protocol/ScsiIo.h
+  gEfiScsiIoProtocolGuid         = { 0x932F47e6, 0x2362, 0x4002, { 0x80, 0x3E, 0x3C, 0xD5, 0x4B, 0x13, 0x8F, 0x85 }}
+
+  ## Include/Protocol/ScsiPassThruExt.h
+  gEfiExtScsiPassThruProtocolGuid = { 0x143b7632, 0xb81b, 0x4cb7, {0xab, 0xd3, 0xb6, 0x25, 0xa5, 0xb9, 0xbf, 0xfe }}
+
+  ## Include/Protocol/ScsiPassThru.h
+  gEfiScsiPassThruProtocolGuid   = { 0xA59E8FCF, 0xBDA0, 0x43BB, { 0x90, 0xB1, 0xD3, 0x73, 0x2E, 0xCA, 0xA8, 0x77 }}
+
+  ## Include/Protocol/IScsiInitiatorName.h
+  gEfiIScsiInitiatorNameProtocolGuid = { 0x59324945, 0xEC44, 0x4C0D, { 0xB1, 0xCD, 0x9D, 0xB1, 0x39, 0xDF, 0x07, 0x0C }}
+
+  ## Include/Protocol/Usb2HostController.h
+  gEfiUsb2HcProtocolGuid         = { 0x3E745226, 0x9818, 0x45B6, { 0xA2, 0xAC, 0xD7, 0xCD, 0x0E, 0x8B, 0xA2, 0xBC }}
+
+  ## Include/Protocol/UsbHostController.h
+  gEfiUsbHcProtocolGuid          = { 0xF5089266, 0x1AA0, 0x4953, { 0x97, 0xD8, 0x56, 0x2F, 0x8A, 0x73, 0xB5, 0x19 }}
+
+  ## Include/Protocol/UsbIo.h
+  gEfiUsbIoProtocolGuid          = { 0x2B2F68D6, 0x0CD2, 0x44CF, { 0x8E, 0x8B, 0xBB, 0xA2, 0x0B, 0x1B, 0x5B, 0x75 }}
+
+  ## Include/Protocol/AcpiTable.h
+  gEfiAcpiTableProtocolGuid      = { 0xFFE06BDD, 0x6107, 0x46A6, { 0x7B, 0xB2, 0x5A, 0x9C, 0x7E, 0xC5, 0x27, 0x5C }}
+
+  ## Include/Protocol/Ebc.h
+  gEfiEbcProtocolGuid            = { 0x13AC6DD1, 0x73D0, 0x11D4, { 0xB0, 0x6B, 0x00, 0xAA, 0x00, 0xBD, 0x6D, 0xE7 }}
+
+  ## Include/Protocol/SimpleNetwork.h
+  gEfiSimpleNetworkProtocolGuid  = { 0xA19832B9, 0xAC25, 0x11D3, { 0x9A, 0x2D, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Protocol/NetworkInterfaceIdentifier.h
+  gEfiNetworkInterfaceIdentifierProtocolGuid_31 = { 0x1ACED566, 0x76ED, 0x4218, { 0xBC, 0x81, 0x76, 0x7F, 0x1F, 0x97, 0x7A, 0x89 }}
+
+  ## Include/Protocol/NetworkInterfaceIdentifier.h
+  gEfiNetworkInterfaceIdentifierProtocolGuid = { 0xE18541CD, 0xF755, 0x4F73, { 0x92, 0x8D, 0x64, 0x3C, 0x8A, 0x79, 0xB2, 0x29 }}
+
+  ## Include/Protocol/PxeBaseCodeCallBack.h
+  gEfiPxeBaseCodeCallbackProtocolGuid = { 0x245DCA21, 0xFB7B, 0x11D3, { 0x8F, 0x01, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }}
+
+  ## Include/Protocol/PxeBaseCode.h
+  gEfiPxeBaseCodeProtocolGuid    = { 0x03C4E603, 0xAC28, 0x11D3, { 0x9A, 0x2D, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
+
+  ## Include/Protocol/Bis.h
+  gEfiBisProtocolGuid            = { 0x0B64AAB0, 0x5429, 0x11D4, { 0x98, 0x16, 0x00, 0xA0, 0xC9, 0x1F, 0xAD, 0xCF }}
+
+  ## Include/Protocol/ManagedNetwork.h
+  gEfiManagedNetworkServiceBindingProtocolGuid = { 0xF36FF770, 0xA7E1, 0x42CF, { 0x9E, 0xD2, 0x56, 0xF0, 0xF2, 0x71, 0xF4, 0x4C }}
+
+  ## Include/Protocol/ManagedNetwork.h
+  gEfiManagedNetworkProtocolGuid = { 0x7ab33a91, 0xace5, 0x4326, { 0xb5, 0x72, 0xe7, 0xee, 0x33, 0xd3, 0x9f, 0x16 }}
+
+  ## Include/Protocol/Arp.h
+  gEfiArpServiceBindingProtocolGuid = { 0xF44C00EE, 0x1F2C, 0x4A00, { 0xAA, 0x09, 0x1C, 0x9F, 0x3E, 0x08, 0x00, 0xA3 }}
+
+  ## Include/Protocol/Arp.h
+  gEfiArpProtocolGuid            = { 0xF4B427BB, 0xBA21, 0x4F16, { 0xBC, 0x4E, 0x43, 0xE4, 0x16, 0xAB, 0x61, 0x9C }}
+
+  ## Include/Protocol/Dhcp4.h
+  gEfiDhcp4ServiceBindingProtocolGuid = { 0x9D9A39D8, 0xBD42, 0x4A73, { 0xA4, 0xD5, 0x8E, 0xE9, 0x4B, 0xE1, 0x13, 0x80 }}
+
+  ## Include/Protocol/Dhcp4.h
+  gEfiDhcp4ProtocolGuid          = { 0x8A219718, 0x4EF5, 0x4761, { 0x91, 0xC8, 0xC0, 0xF0, 0x4B, 0xDA, 0x9E, 0x56 }}
+
+  ## Include/Protocol/Tcp4.h
+  gEfiTcp4ServiceBindingProtocolGuid = { 0x00720665, 0x67EB, 0x4A99, { 0xBA, 0xF7, 0xD3, 0xC3, 0x3A, 0x1C, 0x7C, 0xC9 }}
+
+  ## Include/Protocol/Tcp4.h
+  gEfiTcp4ProtocolGuid           = { 0x65530BC7, 0xA359, 0x410F, { 0xB0, 0x10, 0x5A, 0xAD, 0xC7, 0xEC, 0x2B, 0x62 }}
+
+  ## Include/Protocol/Ip4.h
+  gEfiIp4ServiceBindingProtocolGuid = { 0xC51711E7, 0xB4BF, 0x404A, { 0xBF, 0xB8, 0x0A, 0x04, 0x8E, 0xF1, 0xFF, 0xE4 }}
+
+  ## Include/Protocol/Ip4.h
+  gEfiIp4ProtocolGuid            = { 0x41D94CD2, 0x35B6, 0x455A, { 0x82, 0x58, 0xD4, 0xE5, 0x13, 0x34, 0xAA, 0xDD }}
+
+  ## Include/Protocol/Ip4Config.h
+  gEfiIp4ConfigProtocolGuid      = { 0x3B95AA31, 0x3793, 0x434B, { 0x86, 0x67, 0xC8, 0x07, 0x08, 0x92, 0xE0, 0x5E }}
+
+  ## Include/Protocol/Udp4.h
+  gEfiUdp4ServiceBindingProtocolGuid = { 0x83F01464, 0x99BD, 0x45E5, { 0xB3, 0x83, 0xAF, 0x63, 0x05, 0xD8, 0xE9, 0xE6 }}
+
+  ## Include/Protocol/Udp4.h
+  gEfiUdp4ProtocolGuid           = { 0x3AD9DF29, 0x4501, 0x478D, { 0xB1, 0xF8, 0x7F, 0x7F, 0xE7, 0x0E, 0x50, 0xF3 }}
+
+  ## Include/Protocol/Mtftp4.h
+  gEfiMtftp4ServiceBindingProtocolGuid = { 0x2FE800BE, 0x8F01, 0x4AA6, { 0x94, 0x6B, 0xD7, 0x13, 0x88, 0xE1, 0x83, 0x3F }}
+
+  ## Include/Protocol/Mtftp4.h
+  gEfiMtftp4ProtocolGuid         = { 0x78247C57, 0x63DB, 0x4708, { 0x99, 0xC2, 0xA8, 0xB4, 0xA9, 0xA6, 0x1F, 0x6B }}
+
+  ## Include/Protocol/AuthenticationInfo.h
+  gEfiAuthenticationInfoProtocolGuid = { 0x7671D9D0, 0x53DB, 0x4173, { 0xAA, 0x69, 0x23, 0x27, 0xF2, 0x1F, 0x0B, 0xC7 }}
+
+  ## Include/Protocol/Hash.h
+  gEfiHashServiceBindingProtocolGuid = { 0x42881c98, 0xa4f3, 0x44b0, { 0xa3, 0x9d, 0xdf, 0xa1, 0x86, 0x67, 0xd8, 0xcd }}
+
+  ## Include/Protocol/Hash.h
+  gEfiHashProtocolGuid           = { 0xC5184932, 0xDBA5, 0x46DB, { 0xA5, 0xBA, 0xCC, 0x0B, 0xDA, 0x9C, 0x14, 0x35 }}
+
+  ## Include/Protocol/TcgService.h
+  gEfiTcgProtocolGuid            = { 0xf541796d, 0xa62e, 0x4954, { 0xa7, 0x75, 0x95, 0x84, 0xf6, 0x1b, 0x9c, 0xdd }}
+
+  ## Include/Protocol/TrEEProtocol.h
+  gEfiTrEEProtocolGuid           = {0x607f766c, 0x7455, 0x42be, { 0x93, 0x0b, 0xe4, 0xd7, 0x6d, 0xb2, 0x72, 0x0f }}
+
+  ## Include/Protocol/Tcg2Protocol.h
+  gEfiTcg2ProtocolGuid           = {0x607f766c, 0x7455, 0x42be, { 0x93, 0x0b, 0xe4, 0xd7, 0x6d, 0xb2, 0x72, 0x0f }}
+  gEfiTcg2FinalEventsTableGuid   = {0x1e2ed096, 0x30e2, 0x4254, { 0xbd, 0x89, 0x86, 0x3b, 0xbe, 0xf8, 0x23, 0x25 }}
+
+  ## Include/Protocol/FormBrowser2.h
+  gEfiFormBrowser2ProtocolGuid   =   {0xb9d4c360, 0xbcfb, 0x4f9b, {0x92, 0x98, 0x53, 0xc1, 0x36, 0x98, 0x22, 0x58}}
+
+  ## Include/Protocol/HiiString.h
+  gEfiHiiStringProtocolGuid      =   {0x0fd96974, 0x23aa, 0x4cdc, {0xb9, 0xcb, 0x98, 0xd1, 0x77, 0x50, 0x32, 0x2a}}
+
+  ## Include/Protocol/HiiImage.h
+  gEfiHiiImageProtocolGuid       =   {0x31a6406a, 0x6bdf, 0x4e46, {0xb2, 0xa2, 0xeb, 0xaa, 0x89, 0xc4, 0x09, 0x20}}
+
+  ## Include/Protocol/HiiConfigRouting.h
+  gEfiHiiConfigRoutingProtocolGuid = {0x587e72d7, 0xcc50, 0x4f79, {0x82, 0x09, 0xca, 0x29, 0x1f, 0xc1, 0xa1, 0x0f}}
+
+  ## Include/Protocol/HiiDatabase.h
+  gEfiHiiDatabaseProtocolGuid    =   {0xef9fc172, 0xa1b2, 0x4693, {0xb3, 0x27, 0x6d, 0x32, 0xfc, 0x41, 0x60, 0x42}}
+
+  ## Include/Protocol/HiiFont.h
+  gEfiHiiFontProtocolGuid        =   {0xe9ca4775, 0x8657, 0x47fc, {0x97, 0xe7, 0x7e, 0xd6, 0x5a, 0x08, 0x43, 0x24}}
+
+  ## Include/Protocol/HiiConfigAccess.h
+  gEfiHiiConfigAccessProtocolGuid =  {0x330d4706, 0xf2a0, 0x4e4f, {0xa3, 0x69, 0xb6, 0x6f, 0xa8, 0xd5, 0x43, 0x85}}
+
+  ## Include/Protocol/HiiPackageList.h
+  gEfiHiiPackageListProtocolGuid  = { 0x6a1ee763, 0xd47a, 0x43b4, {0xaa, 0xbe, 0xef, 0x1d, 0xe2, 0xab, 0x56, 0xfc}}
+
+  #
+  # Protocols defined in UEFI2.2
+  #
+  ## Include/Protocol/Ip6.h
+  gEfiIp6ServiceBindingProtocolGuid    = { 0xec835dd3, 0xfe0f, 0x617b, {0xa6, 0x21, 0xb3, 0x50, 0xc3, 0xe1, 0x33, 0x88 }}
+
+  ## Include/Protocol/Ip6.h
+  gEfiIp6ProtocolGuid                  = { 0x2c8759d5, 0x5c2d, 0x66ef, {0x92, 0x5f, 0xb6, 0x6c, 0x10, 0x19, 0x57, 0xe2 }}
+
+  ## Include/Protocol/Ip6Config.h
+  gEfiIp6ConfigProtocolGuid            = { 0x937fe521, 0x95ae, 0x4d1a, {0x89, 0x29, 0x48, 0xbc, 0xd9, 0x0a, 0xd3, 0x1a }}
+
+  ## Include/Protocol/Mtftp6.h
+  gEfiMtftp6ServiceBindingProtocolGuid = { 0xd9760ff3, 0x3cca, 0x4267, {0x80, 0xf9, 0x75, 0x27, 0xfa, 0xfa, 0x42, 0x23 }}
+
+  ## Include/Protocol/Mtftp6.h
+  gEfiMtftp6ProtocolGuid               = { 0xbf0a78ba, 0xec29, 0x49cf, {0xa1, 0xc9, 0x7a, 0xe5, 0x4e, 0xab, 0x6a, 0x51 }}
+
+  ## Include/Protocol/Dhcp6.h
+  gEfiDhcp6ServiceBindingProtocolGuid  = { 0x9fb9a8a1, 0x2f4a, 0x43a6, {0x88, 0x9c, 0xd0, 0xf7, 0xb6, 0xc4, 0x7a, 0xd5 }}
+
+  ## Include/Protocol/Dhcp6.h
+  gEfiDhcp6ProtocolGuid                = { 0x87c8bad7, 0x595, 0x4053, {0x82, 0x97, 0xde, 0xde, 0x39, 0x5f, 0x5d, 0x5b }}
+
+  ## Include/Protocol/Udp6.h
+  gEfiUdp6ServiceBindingProtocolGuid   = { 0x66ed4721, 0x3c98, 0x4d3e, {0x81, 0xe3, 0xd0, 0x3d, 0xd3, 0x9a, 0x72, 0x54 }}
+
+  ## Include/Protocol/Udp6.h
+  gEfiUdp6ProtocolGuid                 = { 0x4f948815, 0xb4b9, 0x43cb, {0x8a, 0x33, 0x90, 0xe0, 0x60, 0xb3, 0x49, 0x55 }}
+
+  ## Include/Protocol/Tcp6.h
+  gEfiTcp6ServiceBindingProtocolGuid   = { 0xec20eb79, 0x6c1a, 0x4664, {0x9a, 0x0d, 0xd2, 0xe4, 0xcc, 0x16, 0xd6, 0x64 }}
+
+  ## Include/Protocol/Tcp6.h
+  gEfiTcp6ProtocolGuid                 = { 0x46e44855, 0xbd60, 0x4ab7, {0xab, 0x0d, 0xa6, 0x79, 0xb9, 0x44, 0x7d, 0x77 }}
+
+  ## Include/Protocol/VlanConfig.h
+  gEfiVlanConfigProtocolGuid           = { 0x9e23d768, 0xd2f3, 0x4366, {0x9f, 0xc3, 0x3a, 0x7a, 0xba, 0x86, 0x43, 0x74 }}
+
+  ## Include/Protocol/Eap.h
+  gEfiEapProtocolGuid                  = { 0x5d9f96db, 0xe731, 0x4caa, {0xa0, 0xd, 0x72, 0xe1, 0x87, 0xcd, 0x77, 0x62 }}
+
+  ## Include/Protocol/EapManagement.h
+  gEfiEapManagementProtocolGuid        = { 0xbb62e663, 0x625d, 0x40b2, {0xa0, 0x88, 0xbb, 0xe8, 0x36, 0x23, 0xa2, 0x45 }}
+
+  ## Include/Protocol/Ftp4.h
+  gEfiFtp4ServiceBindingProtocolGuid   = { 0xfaaecb1, 0x226e, 0x4782, {0xaa, 0xce, 0x7d, 0xb9, 0xbc, 0xbf, 0x4d, 0xaf }}
+
+  ## Include/Protocol/Ftp4.h
+  gEfiFtp4ProtocolGuid                 = { 0xeb338826, 0x681b, 0x4295, {0xb3, 0x56, 0x2b, 0x36, 0x4c, 0x75, 0x7b, 0x9 }}
+
+  ## Include/Protocol/IpSecConfig.h
+  gEfiIpSecConfigProtocolGuid          = { 0xce5e5929, 0xc7a3, 0x4602, {0xad, 0x9e, 0xc9, 0xda, 0xf9, 0x4e, 0xbf, 0xcf }}
+
+  ## Include/Protocol/DriverHealth.h
+  gEfiDriverHealthProtocolGuid         = { 0x2a534210, 0x9280, 0x41d8, {0xae, 0x79, 0xca, 0xda, 0x1, 0xa2, 0xb1, 0x27 }}
+
+  ## Include/Protocol/DeferredImageLoad.h
+  gEfiDeferredImageLoadProtocolGuid    = { 0x15853d7c, 0x3ddf, 0x43e0, {0xa1, 0xcb, 0xeb, 0xf8, 0x5b, 0x8f, 0x87, 0x2c }}
+
+  ## Include/Protocol/UserCredential.h
+  gEfiUserCredentialProtocolGuid       = { 0x71ee5e94, 0x65b9, 0x45d5, {0x82, 0x1a, 0x3a, 0x4d, 0x86, 0xcf, 0xe6, 0xbe }}
+
+  ## Include/Protocol/UserManager.h
+  gEfiUserManagerProtocolGuid          = { 0x6fd5b00c, 0xd426, 0x4283, {0x98, 0x87, 0x6c, 0xf5, 0xcf, 0x1c, 0xb1, 0xfe }}
+
+  ## Include/Protocol/AtaPassThru.h
+  gEfiAtaPassThruProtocolGuid          = { 0x1d3de7f0, 0x807, 0x424f, {0xaa, 0x69, 0x11, 0xa5, 0x4e, 0x19, 0xa4, 0x6f }}
+
+  #
+  # Protocols defined in UEFI2.3
+  #
+  ## Include/Protocol/FirmwareManagement.h
+  gEfiFirmwareManagementProtocolGuid   = { 0x86c77a67, 0xb97, 0x4633, {0xa1, 0x87, 0x49, 0x10, 0x4d, 0x6, 0x85, 0xc7 }}
+
+  ## Include/Protocol/IpSec.h
+  gEfiIpSecProtocolGuid                = { 0xdfb386f7, 0xe100, 0x43ad, {0x9c, 0x9a, 0xed, 0x90, 0xd0, 0x8a, 0x5e, 0x12 }}
+
+  ## Include/Protocol/IpSec.h
+  gEfiIpSec2ProtocolGuid               = { 0xa3979e64, 0xace8, 0x4ddc, {0xbc, 0x7, 0x4d, 0x66, 0xb8, 0xfd, 0x9, 0x77 }}
+
+  #
+  # Protocols defined in UEFI2.3.1
+  #
+  ## Include/Protocol/Kms.h
+  gEfiKmsProtocolGuid                  = { 0xEC3A978D, 0x7C4E, 0x48FA, {0x9A, 0xBE, 0x6A, 0xD9, 0x1C, 0xC8, 0xF8, 0x11 }}
+
+  ## Include/Protocol/BlockIo2.h
+  gEfiBlockIo2ProtocolGuid             = { 0xa77b2472, 0xe282, 0x4e9f, {0xa2, 0x45, 0xc2, 0xc0, 0xe2, 0x7b, 0xbc, 0xc1 }}
+
+  ## Include/Protocol/StorageSecurityCommand.h
+  gEfiStorageSecurityCommandProtocolGuid = { 0xc88b0b6d, 0x0dfc, 0x49a7, {0x9c, 0xb4, 0x49, 0x7, 0x4b, 0x4c, 0x3a, 0x78 }}
+
+  ## Include/Protocol/UserCredential2.h
+  gEfiUserCredential2ProtocolGuid      = { 0xe98adb03, 0xb8b9, 0x4af8, {0xba, 0x20, 0x26, 0xe9, 0x11, 0x4c, 0xbc, 0xe5 }}
+
+  #
+  # Protocols defined in UEFI2.4
+  #
+  ## Include/Protocol/DiskIo2.h
+  gEfiDiskIo2ProtocolGuid              = { 0x151c8eae, 0x7f2c, 0x472c, { 0x9e, 0x54, 0x98, 0x28, 0x19, 0x4f, 0x6a, 0x88 }}
+
+  ## Include/Protocol/Timestamp.h
+  gEfiTimestampProtocolGuid            = { 0xafbfde41, 0x2e6e, 0x4262, {0xba, 0x65, 0x62, 0xb9, 0x23, 0x6e, 0x54, 0x95 }}
+
+  ## Include/Protocol/Rng.h
+  gEfiRngProtocolGuid                  = { 0x3152bca5, 0xeade, 0x433d, {0x86, 0x2e, 0xc0, 0x1c, 0xdc, 0x29, 0x1f, 0x44 }}
+
+  ## Include/Protocol/AdapterInformation.h
+  gEfiAdapterInformationProtocolGuid   = { 0xE5DD1403, 0xD622, 0xC24E, {0x84, 0x88, 0xC7, 0x1B, 0x17, 0xF5, 0xE8, 0x02 }}
+
+  #
+  # Protocols defined in UEFI2.5
+  #
+  ## Include/Protocol/NvmExpressPassthru.h
+  gEfiNvmExpressPassThruProtocolGuid   = { 0x52c78312, 0x8edc, 0x4233, { 0x98, 0xf2, 0x1a, 0x1a, 0xa5, 0xe3, 0x88, 0xa5 }}
+
+  ## Include/Protocol/Hash2.h
+  gEfiHash2ServiceBindingProtocolGuid  = { 0xda836f8d, 0x217f, 0x4ca0, { 0x99, 0xc2, 0x1c, 0xa4, 0xe1, 0x60, 0x77, 0xea }}
+
+  ## Include/Protocol/Hash2.h
+  gEfiHash2ProtocolGuid                = { 0x55b1d734, 0xc5e1, 0x49db, { 0x96, 0x47, 0xb1, 0x6a, 0xfb, 0xe, 0x30, 0x5b }}
+
+  ## Include/Protocol/BlockIoCrypto.h
+  gEfiBlockIoCryptoProtocolGuid        = { 0xa00490ba, 0x3f1a, 0x4b4c, { 0xab, 0x90, 0x4f, 0xa9, 0x97, 0x26, 0xa1, 0xe8 }}
+
+  ## Include/Protocol/SmartCardReader.h
+  gEfiSmartCardReaderProtocolGuid      = { 0x2a4d1adf, 0x21dc, 0x4b81, {0xa4, 0x2f, 0x8b, 0x8e, 0xe2, 0x38, 0x00, 0x60 }}
+
+  ## Include/Protocol/SmartCardEdge.h
+  gEfiSmartCardEdgeProtocolGuid        = { 0xd317f29b, 0xa325, 0x4712, {0x9b, 0xf1, 0xc6, 0x19, 0x54, 0xdc, 0x19, 0x8c }}
+
+  ## Include/Protocol/UsbFunctionIo.h
+  gEfiUsbFunctionIoProtocolGuid        = { 0x32d2963a, 0xfe5d, 0x4f30, {0xb6, 0x33, 0x6e, 0x5d, 0xc5, 0x58, 0x3, 0xcc }}
+
+  ## Include/Protocol/BluetoothHc.h
+  gEfiBluetoothHcProtocolGuid         = { 0xb3930571, 0xbeba, 0x4fc5, { 0x92, 0x3, 0x94, 0x27, 0x24, 0x2e, 0x6a, 0x43 }}
+
+  ## Include/Protocol/BluetoothIo.h
+  gEfiBluetoothIoServiceBindingProtocolGuid   = { 0x388278d3, 0x7b85, 0x42f0, { 0xab, 0xa9, 0xfb, 0x4b, 0xfd, 0x69, 0xf5, 0xab }}
+  gEfiBluetoothIoProtocolGuid                 = { 0x467313de, 0x4e30, 0x43f1, { 0x94, 0x3e, 0x32, 0x3f, 0x89, 0x84, 0x5d, 0xb5 }}
+
+  ## Include/Protocol/BluetoothConfig.h
+  gEfiBluetoothConfigProtocolGuid             = { 0x62960cf3, 0x40ff, 0x4263, { 0xa7, 0x7c, 0xdf, 0xde, 0xbd, 0x19, 0x1b, 0x4b }}
+
+  ## Include/Protocol/RegularExpressionProtocol.h
+  gEfiRegularExpressionProtocolGuid = { 0xB3F79D9A, 0x436C, 0xDC11, {0xB0, 0x52, 0xCD, 0x85, 0xDF, 0x52, 0x4C, 0xE6 }}
+
+  ## Include/Protocol/BootManagerPolicy.h
+  gEfiBootManagerPolicyProtocolGuid    = { 0xfedf8e0c, 0xe147, 0x11e3, { 0x99, 0x03, 0xb8, 0xe8, 0x56, 0x2c, 0xba, 0xfa }}
+
+  ## Include/Protocol/HiiConfigKeyword.h
+  gEfiConfigKeywordHandlerProtocolGuid = {0x0a8badd5, 0x03b8, 0x4d19, {0xb1, 0x28, 0x7b, 0x8f, 0x0e, 0xda, 0xa5, 0x96}}
+
+  ## Include/Protocol/WiFi.h
+  gEfiWiFiProtocolGuid                 = { 0xda55bc9, 0x45f8, 0x4bb4, {0x87, 0x19, 0x52, 0x24, 0xf1, 0x8a, 0x4d, 0x45 }}
+
+  ## Include/Protocol/EapManagement2.h
+  gEfiEapManagement2ProtocolGuid       = { 0x5e93c847, 0x456d, 0x40b3, {0xa6, 0xb4, 0x78, 0xb0, 0xc9, 0xcf, 0x7f, 0x20 }}
+
+  ## Include/Protocol/EapConfiguration.h
+  gEfiEapConfigurationProtocolGuid     = { 0xe5b58dbb, 0x7688, 0x44b4, {0x97, 0xbf, 0x5f, 0x1d, 0x4b, 0x7c, 0xc8, 0xdb }}
+
+  ## Include/Protocol/Pkcs7Verify.h
+  gEfiPkcs7VerifyProtocolGuid          = { 0x47889fb2, 0xd671, 0x4fab, { 0xa0, 0xca, 0xdf, 0x0e, 0x44, 0xdf, 0x70, 0xd6 }}
+
+  ## Include/Protocol/Ip4Config2.h
+  gEfiIp4Config2ProtocolGuid           =  { 0x5b446ed1, 0xe30b, 0x4faa, {0x87, 0x1a, 0x36, 0x54, 0xec, 0xa3, 0x60, 0x80 }}
+
+  ## Include/Protocol/Dns4.h
+  gEfiDns4ServiceBindingProtocolGuid   = { 0xb625b186, 0xe063, 0x44f7, { 0x89, 0x5, 0x6a, 0x74, 0xdc, 0x6f, 0x52, 0xb4 }}
+
+  ## Include/Protocol/Dns4.h
+  gEfiDns4ProtocolGuid                 = { 0xae3d28cc, 0xe05b, 0x4fa1, { 0xa0, 0x11, 0x7e, 0xb5, 0x5a, 0x3f, 0x14, 0x1 }}
+
+  ## Include/Protocol/Dns6.h
+  gEfiDns6ServiceBindingProtocolGuid   = { 0x7f1647c8, 0xb76e, 0x44b2, { 0xa5, 0x65, 0xf7, 0xf, 0xf1, 0x9c, 0xd1, 0x9e }}
+
+  ## Include/Protocol/Dns6.h
+  gEfiDns6ProtocolGuid                 = { 0xca37bc1f, 0xa327, 0x4ae9, { 0x82, 0x8a, 0x8c, 0x40, 0xd8, 0x50, 0x6a, 0x17 }}
+
+  ## Include/Protocol/Http.h
+  gEfiHttpServiceBindingProtocolGuid   = { 0xbdc8e6af, 0xd9bc, 0x4379, {0xa7, 0x2a, 0xe0, 0xc4, 0xe7, 0x5d, 0xae, 0x1c }}
+
+  ## Include/Protocol/Http.h
+  gEfiHttpProtocolGuid                 = { 0x7a59b29b, 0x910b, 0x4171, {0x82, 0x42, 0xa8, 0x5a, 0x0d, 0xf2, 0x5b, 0x5b }}
+
+  ## Include/Protocol/HttpUtilities.h
+  gEfiHttpUtilitiesProtocolGuid        = { 0x3e35c163, 0x4074, 0x45dd, {0x43, 0x1e, 0x23, 0x98, 0x9d, 0xd8, 0x6b, 0x32 }}
+
+  ## Include/Protocol/Tls.h
+  gEfiTlsServiceBindingProtocolGuid   = { 0x952cb795, 0xff36, 0x48cf, {0xa2, 0x49, 0x4d, 0xf4, 0x86, 0xd6, 0xab, 0x8d }}
+
+  ## Include/Protocol/Tls.h
+  gEfiTlsProtocolGuid                 = { 0xca959f, 0x6cfa, 0x4db1, {0x95, 0xbc, 0xe4, 0x6c, 0x47, 0x51, 0x43, 0x90 }}
+  
+  ## Include/Protocol/TlsConfig.h
+  gEfiTlsConfigurationProtocolGuid    = { 0x1682fe44, 0xbd7a, 0x4407, { 0xb7, 0xc7, 0xdc, 0xa3, 0x7c, 0xa3, 0x92, 0x2d }}
+
+  ## Include/Protocol/Rest.h
+  gEfiRestProtocolGuid                 =  { 0x0db48a36, 0x4e54, 0xea9c, {0x9b, 0x09, 0x1e, 0xa5, 0xbe, 0x3a, 0x66, 0x0b }}
+
+  ## Include/Protocol/Supplicant.h
+  gEfiSupplicantServiceBindingProtocolGuid  = { 0x45bcd98e, 0x59ad, 0x4174, { 0x95, 0x46, 0x34, 0x4a, 0x7, 0x48, 0x58, 0x98 }}
+  gEfiSupplicantProtocolGuid                = { 0x54fcc43e, 0xaa89, 0x4333, { 0x9a, 0x85, 0xcd, 0xea, 0x24, 0x5, 0x1e, 0x9e }}
+
+  #
+  # Protocols defined in UEFI2.6
+  #
+  ## Include/Protocol/WiFi2.h
+  gEfiWiFi2ProtocolGuid                = { 0x1b0fb9bf, 0x699d, 0x4fdd, {0xa7, 0xc3, 0x25, 0x46, 0x68, 0x1b, 0xf6, 0x3b }}
+
+  ## Include/Protocol/RamDisk.h
+  gEfiRamDiskProtocolGuid              = { 0xab38a0df, 0x6873, 0x44a9, { 0x87, 0xe6, 0xd4, 0xeb, 0x56, 0x14, 0x84, 0x49 }}
+
+  ## Include/Protocol/ImageDecoder.h
+  ##
+  ## In UEFI 2.6 spec,this guid value is duplicate with
+  ## EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_GUID. Now update this guid value to
+  ## avoid the duplicate guid issue. So its value is not consistent with
+  ## UEFI spec definition now. We have proposed to update UEFI spec to
+  ## use this new guid. After new spec released, we will remove this
+  ## comments.
+  ##
+  gEfiHiiImageDecoderProtocolGuid      = { 0x9e66f251, 0x727c, 0x418c, { 0xbf, 0xd6, 0xc2, 0xb4, 0x25, 0x28, 0x18, 0xea }}
+
+  ## Include/Protocol/HiiImageEx.h
+  gEfiHiiImageExProtocolGuid           = { 0x1a1241e6, 0x8f19, 0x41a9, { 0xbc, 0xe,  0xe8, 0xef, 0x39, 0xe0, 0x65, 0x46 }}
+
+  ## Include/Protocol/SdMmcPassThru.h
+  gEfiSdMmcPassThruProtocolGuid        = { 0x716ef0d9, 0xff83, 0x4f69, {0x81, 0xe9, 0x51, 0x8b, 0xd3, 0x9a, 0x8e, 0x70 }}
+
+  ## Include/Protocol/EraseBlock.h
+  gEfiEraseBlockProtocolGuid           = { 0x95a9a93e, 0xa86e, 0x4926, {0xaa, 0xef, 0x99, 0x18, 0xe7, 0x72, 0xd9, 0x87 }}
+
+  #
+  # Protocols defined in Shell2.0
+  #
+  ## Include/Protocol/Shell.h
+  gEfiShellProtocolGuid                = { 0x6302d008, 0x7f9b, 0x4f30, {0x87, 0xac, 0x60, 0xc9, 0xfe, 0xf5, 0xda, 0x4e }}
+
+  ## Include/Protocol/ShellParameters.h
+  gEfiShellParametersProtocolGuid      = { 0x752f3136, 0x4e16, 0x4fdc, {0xa2, 0x2a, 0xe5, 0xf4, 0x68, 0x12, 0xf4, 0xca }}
+
+  #
+  # Protocols defined in Shell2.1
+  #
+  ## Include/Protocol/ShellDynamicCommand.h
+  gEfiShellDynamicCommandProtocolGuid  = { 0x3c7200e9, 0x005f, 0x4ea4, {0x87, 0xde, 0xa3, 0xdf, 0xac, 0x8a, 0x27, 0xc3 }}
+
+#
+# [Error.gEfiMdePkgTokenSpaceGuid]
+#   0x80000001 | Invalid value provided.
+#   0x80000002 | Reserved bits must be set to zero.
+#   0x80000003 | Incorrect progress code provided.
+#
+
+[PcdsFeatureFlag]
+  ## Indicates if the component name protocol will be installed.<BR><BR>
+  #   TRUE  - Does not install component name protocol.<BR>
+  #   FALSE - Install component name protocol.<BR>
+  # @Prompt Disable Component Name Protocol.
+  gEfiMdePkgTokenSpaceGuid.PcdComponentNameDisable|FALSE|BOOLEAN|0x0000000d
+
+  ## Indicates if the diagnostics name protocol will be installed.<BR><BR>
+  #   TRUE  - Does not install diagnostics name protocol.<BR>
+  #   FALSE - Install diagnostics name protocol.<BR>
+  # @Prompt Disable Diagnostics Name protocol.
+  gEfiMdePkgTokenSpaceGuid.PcdDriverDiagnosticsDisable|FALSE|BOOLEAN|0x0000000e
+
+  ## Indicates if the component name2 protocol will be installed.<BR><BR>
+  #   TRUE  - Does not install component name2 protocol.<BR>
+  #   FALSE - Install component name2 protocol.<BR>
+  # @Prompt Disable Component Name2 Protocol.
+  gEfiMdePkgTokenSpaceGuid.PcdComponentName2Disable|FALSE|BOOLEAN|0x00000010
+
+  ## Indicates if the diagnostics2 name protocol will be installed.<BR><BR>
+  #   TRUE  - Does not install diagnostics2 name protocol.<BR>
+  #   FALSE - Install diagnostics2 name protocol.<BR>
+  # @Prompt Disable Diagnostics2 Name Protocol.
+  gEfiMdePkgTokenSpaceGuid.PcdDriverDiagnostics2Disable|FALSE|BOOLEAN|0x00000011
+
+  ## Indicates if EFI 1.1 ISO 639-2 language supports are obsolete<BR><BR>
+  #   TRUE  - Deprecate global variable LangCodes.<BR>
+  #   FALSE - Does not deprecate global variable LangCodes.<BR>
+  # @Prompt Deprecate Global Variable LangCodes.
+  gEfiMdePkgTokenSpaceGuid.PcdUefiVariableDefaultLangDeprecate|FALSE|BOOLEAN|0x00000012
+
+  ## Indicates if UGA Draw Protocol is still consumed.<BR><BR>
+  #   TRUE  - Consume UGA Draw protocol.<BR>
+  #   FALSE - Does not consume UGA Draw protocol.<BR>
+  # @Prompt Consume UGA Draw Protocol.
+  gEfiMdePkgTokenSpaceGuid.PcdUgaConsumeSupport|TRUE|BOOLEAN|0x00000027
+
+  ## Indicates if a check will be made to see if a specified node is a member of linked list
+  #  in the following BaseLib functions: GetNextNode(), IsNull(), IsNodeAtEnd(), SwapListEntries().<BR><BR>
+  #   TRUE  - Verify a specified node is a member of linked list.<BR>
+  #   FALSE - Does not verify a specified node is a member of linked list.<BR>
+  # @Prompt Verify Node In List.
+  gEfiMdePkgTokenSpaceGuid.PcdVerifyNodeInList|FALSE|BOOLEAN|0x00000028
+
+  ## If TRUE, OrderedCollectionLib is instructed to validate the
+  #  ORDERED_COLLECTION structure at the end of such operations (typically
+  #  structure modifications) that justify validation of the structure for unit
+  #  testing purposes.
+  # @Prompt Validate ORDERED_COLLECTION structure
+  gEfiMdePkgTokenSpaceGuid.PcdValidateOrderedCollection|FALSE|BOOLEAN|0x0000002a
+
+[PcdsFixedAtBuild]
+  ## Status code value for indicating a watchdog timer has expired.
+  # EFI_COMPUTING_UNIT_HOST_PROCESSOR | EFI_CU_HP_EC_TIMER_EXPIRED
+  # @Prompt Progress Code for WatchDog Timer Expired.
+  # @ValidList  0x80000003 | 0x00011003
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueEfiWatchDogTimerExpired|0x00011003|UINT32|0x00000013
+
+  ## Status code value for indicating the invocation of SetVirtualAddressMap()
+  # EFI_SOFTWARE_EFI_RUNTIME_SERVICE | EFI_SW_RS_PC_SET_VIRTUAL_ADDRESS_MAP
+  # @Prompt Progress Code for Invocation of SetVirtualAddressMap.
+  # @ValidList  0x80000003 | 0x03111004
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueSetVirtualAddressMap|0x03111004|UINT32|0x00000014
+
+  ## Status code value for indicating the start of memory test
+  # EFI_COMPUTING_UNIT_MEMORY | EFI_CU_MEMORY_PC_TEST
+  # @Prompt Progress Code for Memory Test Start.
+  # @ValidList  0x80000003 | 0x00051006
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueMemoryTestStarted|0x00051006|UINT32|0x00000015
+
+  ## Status code value for indicating memory error in memory test
+  # EFI_COMPUTING_UNIT_MEMORY | EFI_CU_MEMORY_EC_UNCORRECTABLE
+  # @Prompt Progress Code for Memory Error.
+  # @ValidList  0x80000003 | 0x00051003
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueUncorrectableMemoryError|0x00051003|UINT32|0x00000016
+
+  ## Status code value for console operation failure.
+  # EFI_PERIPHERAL_REMOTE_CONSOLE | EFI_P_EC_CONTROLLER_ERROR
+  # @Prompt Progress Code for Console Error.
+  # @ValidList  0x80000003 | 0x01040006
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueRemoteConsoleError|0x01040006|UINT32|0x00000017
+
+  ## Status code value for console reset operation failure.
+  # EFI_PERIPHERAL_REMOTE_CONSOLE | EFI_P_PC_RESET
+  # @Prompt Progress Code for Console Reset.
+  # @ValidList  0x80000003 | 0x01040001
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueRemoteConsoleReset|0x01040001|UINT32|0x00000018
+
+  ## Status code value for console input operation failure.
+  # EFI_PERIPHERAL_REMOTE_CONSOLE | EFI_P_EC_INPUT_ERROR
+  # @Prompt Progress Code for Console Input Error.
+  # @ValidList  0x80000003 | 0x01040007
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueRemoteConsoleInputError|0x01040007|UINT32|0x00000019
+
+  ## Status code value for console output operation failure.
+  # EFI_PERIPHERAL_REMOTE_CONSOLE | EFI_P_EC_OUTPUT_ERROR
+  # @Prompt Progress Code for Console Output Error.
+  # @ValidList  0x80000003 | 0x01040008
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueRemoteConsoleOutputError|0x01040008|UINT32|0x0000001a
+
+  ## Status code value for mouse operation failure.
+  # EFI_PERIPHERAL_MOUSE | EFI_P_EC_INTERFACE_ERROR
+  # @Prompt Progress Code for Module Device Failure.
+  # @ValidList  0x80000003 | 0x01020005
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueMouseInterfaceError|0x01020005|UINT32|0x30001000
+
+  ## Status code value for indicating mouse device has been enabled.
+  # EFI_PERIPHERAL_MOUSE | EFI_P_PC_ENABLE
+  # @Prompt Progress Code for Enable Mouse Device.
+  # @ValidList  0x80000003 | 0x01020004
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueMouseEnable|0x01020004|UINT32|0x30001001
+
+  ## Status code value for indicating mouse device has been disabled.
+  # EFI_PERIPHERAL_MOUSE | EFI_P_PC_DISABLE
+  # @Prompt Progress Code for Disable Mouse Device.
+  # @ValidList  0x80000003 | 0x01020002
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueMouseDisable|0x01020002|UINT32|0x30001002
+
+  ## Status code value for enabling keyboard device.
+  # EFI_PERIPHERAL_KEYBOARD | EFI_P_PC_ENABLE
+  # @Prompt Progress Code for Enable Keyboard Device.
+  # @ValidList  0x80000003 | 0x01010004
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueKeyboardEnable|0x01010004|UINT32|0x30001003
+
+  ## Status code value for disabling keyboard device.
+  # EFI_PERIPHERAL_KEYBOARD | EFI_P_PC_DISABLE
+  # @Prompt Progress Code for Disable Keyboard Device.
+  # @ValidList  0x80000003 | 0x01010002
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueKeyboardDisable|0x01010002|UINT32|0x30001004
+
+  ## Status code value for indicating presence of keyboard.
+  # EFI_PERIPHERAL_KEYBOARD | EFI_P_PC_PRESENCE_DETECT
+  # @Prompt Progress Code for Detect Keyboard Device.
+  # @ValidList  0x80000003 | 0x01010003
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueKeyboardPresenceDetect|0x01010003|UINT32|0x30001005
+
+  ## Status code value for keyboard operation reset operation.
+  # EFI_PERIPHERAL_KEYBOARD | EFI_P_PC_RESET
+  # @Prompt Progress Code for Keyboard Device Reset.
+  # @ValidList  0x80000003 | 0x01010001
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueKeyboardReset|0x01010001|UINT32|0x30001006
+
+  ## Status code value for keyboard clear buffer operation.
+  # EFI_PERIPHERAL_KEYBOARD | EFI_P_KEYBOARD_PC_CLEAR_BUFFER
+  # @Prompt Progress Code for Keyboard Device Clear Buffer.
+  # @ValidList  0x80000003 | 0x01011000
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueKeyboardClearBuffer|0x01011000|UINT32|0x30001007
+
+  ## Status code value for keyboard device self-test.
+  # EFI_PERIPHERAL_KEYBOARD | EFI_P_KEYBOARD_PC_SELF_TEST
+  # @Prompt Progress Code for Keyboard Device SelfTest.
+  # @ValidList  0x80000003 | 0x01011001
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueKeyboardSelfTest|0x01011001|UINT32|0x30001008
+
+  ## Status code value for indicating keyboard device failure.
+  # EFI_PERIPHERAL_KEYBOARD | EFI_P_EC_INTERFACE_ERROR
+  # @Prompt Progress Code for Keyboard Device Failure.
+  # @ValidList  0x80000003 | 0x01010005
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueKeyboardInterfaceError|0x01010005|UINT32|0x30001009
+
+  ## Status code value for indicating keyboard input handler failure.
+  # EFI_PERIPHERAL_KEYBOARD | EFI_P_EC_INPUT_ERROR
+  # @Prompt Progress Code for Keyboard Input Failure.
+  # @ValidList  0x80000003 | 0x01010007
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueKeyboardInputError|0x01010007|UINT32|0x3000100a
+
+  ## Status code value for mouse input handler failure.
+  # EFI_PERIPHERAL_MOUSE | EFI_P_EC_INPUT_ERROR
+  # @Prompt Progress Code for Mouse Input Failure.
+  # @ValidList  0x80000003 | 0x01020007
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueMouseInputError|0x01020007|UINT32|0x3000100b
+
+  ## Status code value for mouse device reset operation.
+  # EFI_PERIPHERAL_MOUSE | EFI_P_PC_RESET
+  # @Prompt Progress Code for Mouse Device Reset.
+  # @ValidList  0x80000003 | 0x01020001
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueMouseReset|0x01020001|UINT32|0x3000100c
+
+  ## Status code value for indicating the handoff from PEI phase to DXE phase.
+  # EFI_SOFTWARE_PEI_CORE | EFI_SW_PEI_CORE_PC_HANDOFF_TO_NEXT
+  # @Prompt Progress Code for Handoff from Pei phase to Dxe phase.
+  # @ValidList  0x80000003 | 0x3021001
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValuePeiHandoffToDxe|0x3021001|UINT32|0x3000100d
+
+  ## Status code value for indicating one PEIM is dispatched.
+  #  EFI_SOFTWARE_PEI_CORE | EFI_SW_PC_INIT_BEGIN
+  # @Prompt Progress Code for Dispatching One PEIM.
+  # @ValidList  0x80000003 | 0x3020002
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValuePeimDispatch|0x3020002|UINT32|0x3000100e
+
+  ## Status code value for PeiCore entry.
+  #  EFI_SOFTWARE_PEI_CORE | EFI_SW_PC_INIT
+  # @Prompt Progress Code for PeiCore Entry.
+  # @ValidList  0x80000003 | 0x3020000
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValuePeiCoreEntry|0x3020000|UINT32|0x3000100f
+
+  ## Status code value for DxeCore entry.
+  # EFI_SOFTWARE_DXE_CORE | EFI_SW_DXE_CORE_PC_ENTRY_POINT
+  # @Prompt Progress Code for DxeCore Entry.
+  # @ValidList  0x80000003 | 0x3041000
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueDxeCoreEntry|0x3041000|UINT32|0x30001010
+
+  ## Status code value for handoff from DxeCore to BDS.
+  # EFI_SOFTWARE_DXE_CORE | EFI_SW_DXE_CORE_PC_HANDOFF_TO_NEXT
+  # @Prompt Progress Code for Handoff from DxeCore to BDS.
+  # @ValidList  0x80000003 | 0x3041001
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueDxeCoreHandoffToBds|0x3041001|UINT32|0x30001011
+
+  ## Status code value for indicating boot service exit.
+  # EFI_SOFTWARE_EFI_BOOT_SERVICE | EFI_SW_BS_PC_EXIT_BOOT_SERVICES
+  # @Prompt Progress Code for Exit of Boot Service.
+  # @ValidList  0x80000003 | 0x3101019
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueBootServiceExit|0x3101019|UINT32|0x30001012
+
+  ## Status code value for indicating the beginning of DXE driver.
+  # EFI_SOFTWARE_DXE_CORE | EFI_SW_PC_INIT_BEGIN
+  # @Prompt Progress Code for Begin of DXE Driver.
+  # @ValidList  0x80000003 | 0x3040002
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueDxeDriverBegin|0x3040002|UINT32|0x30001013
+
+  ## Status code value for indicating the end of DXE drive.
+  # EFI_SOFTWARE_DXE_CORE | EFI_SW_PC_INIT_END
+  # @Prompt Progress Code for End of DXE Driver.
+  # @ValidList  0x80000003 | 0x3040003
+  gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueDxeDriverEnd|0x3040003|UINT32|0x30001014
+
+  ## This flag is used to control build time optimization based on debug print level.
+  #  Its default value is 0xFFFFFFFF to expose all debug print level.
+  #  BIT0  - Initialization message.<BR>
+  #  BIT1  - Warning message.<BR>
+  #  BIT2  - Load Event message.<BR>
+  #  BIT3  - File System message.<BR>
+  #  BIT4  - Allocate or Free Pool message.<BR>
+  #  BIT5  - Allocate or Free Page message.<BR>
+  #  BIT6  - Information message.<BR>
+  #  BIT7  - Dispatcher message.<BR>
+  #  BIT8  - Variable message.<BR>
+  #  BIT10 - Boot Manager message.<BR>
+  #  BIT12 - BlockIo Driver message.<BR>
+  #  BIT14 - Network Driver message.<BR>
+  #  BIT16 - UNDI Driver message.<BR>
+  #  BIT17 - LoadFile message.<BR>
+  #  BIT19 - Event message.<BR>
+  #  BIT20 - Global Coherency Database changes message.<BR>
+  #  BIT21 - Memory range cachability changes message.<BR>
+  #  BIT22 - Detailed debug message.<BR>
+  #  BIT31 - Error message.<BR>
+  # @Prompt Fixed Debug Message Print Level.
+  gEfiMdePkgTokenSpaceGuid.PcdFixedDebugPrintErrorLevel|0xFFFFFFFF|UINT32|0x30001016
+
+[PcdsFixedAtBuild,PcdsPatchableInModule]
+  ## Indicates the maximum length of unicode string used in the following
+  #  BaseLib functions: StrLen(), StrSize(), StrCmp(), StrnCmp(), StrCpy(), StrnCpy()<BR><BR>
+  #  0  - No length check for unicode string.<BR>
+  #  >0 - Maximum length of unicode string.<BR>
+  # @Prompt Maximum Length of Unicode String.
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumUnicodeStringLength|1000000|UINT32|0x00000001
+
+  ## Indicates the maximum length of ascii string used in the following
+  #  BaseLib functions: AsciiStrLen(), AsciiStrSize(), AsciiStrCmp(), AsciiStrnCmp(),
+  #  AsciiStrCpy(), AsciiStrnCpy(). <BR><BR>
+  #  0  - No length check for ascii string.<BR>
+  #  >0 - Maximum length of ascii string.<BR>
+  # @Prompt Maximum Length of Ascii String.
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumAsciiStringLength|1000000|UINT32|0x00000002
+
+  ## Indicates the maximum node number of linked list.<BR><BR>
+  #  0  - No node number check for linked list.<BR>
+  #  >0 - Maximum node number of linked list.<BR>
+  # @Prompt Maximum Length of Linked List.
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumLinkedListLength|1000000|UINT32|0x00000003
+
+  ## Indicates the maximum node number of device path.<BR><BR>
+  #  0  - No node number check for device path.<BR>
+  #  >0 - Maximum node number of device path.<BR>
+  # @Prompt Maximum node number of device path.
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumDevicePathNodeCount|0|UINT32|0x00000029
+
+  ## Indicates the timeout tick of holding spin lock.<BR><BR>
+  #  0  - No timeout.<BR>
+  #  >0 - Timeout tick of holding spin lock.<BR>
+  # @Prompt Spin Lock Timeout (us).
+  gEfiMdePkgTokenSpaceGuid.PcdSpinLockTimeout|10000000|UINT32|0x00000004
+
+  ## The mask is used to control DebugLib behavior.<BR><BR>
+  #  BIT0 - Enable Debug Assert.<BR>
+  #  BIT1 - Enable Debug Print.<BR>
+  #  BIT2 - Enable Debug Code.<BR>
+  #  BIT3 - Enable Clear Memory.<BR>
+  #  BIT4 - Enable BreakPoint as ASSERT.<BR>
+  #  BIT5 - Enable DeadLoop as ASSERT.<BR>
+  # @Prompt Debug Property.
+  # @Expression  0x80000002 | (gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask & 0xC0) == 0
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0|UINT8|0x00000005
+
+  ## This flag is used to control the print out Debug message.<BR><BR>
+  #  BIT0  - Initialization message.<BR>
+  #  BIT1  - Warning message.<BR>
+  #  BIT2  - Load Event message.<BR>
+  #  BIT3  - File System message.<BR>
+  #  BIT4  - Allocate or Free Pool message.<BR>
+  #  BIT5  - Allocate or Free Page message.<BR>
+  #  BIT6  - Information message.<BR>
+  #  BIT7  - Dispatcher message.<BR>
+  #  BIT8  - Variable message.<BR>
+  #  BIT10 - Boot Manager message.<BR>
+  #  BIT12 - BlockIo Driver message.<BR>
+  #  BIT14 - Network Driver message.<BR>
+  #  BIT16 - UNDI Driver message.<BR>
+  #  BIT17 - LoadFile message.<BR>
+  #  BIT19 - Event message.<BR>
+  #  BIT20 - Global Coherency Database changes message.<BR>
+  #  BIT21 - Memory range cachability changes message.<BR>
+  #  BIT22 - Detailed debug message.<BR>
+  #  BIT31 - Error message.<BR>
+  # @Prompt Debug Message Print Level.
+  # @Expression  0x80000002 | (gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel & 0x7F84AA00) == 0
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0x80000000|UINT32|0x00000006
+
+  ## The mask is used to control ReportStatusCodeLib behavior.<BR><BR>
+  #  BIT0 - Enable Progress Code.<BR>
+  #  BIT1 - Enable Error Code.<BR>
+  #  BIT2 - Enable Debug Code.<BR>
+  # @Prompt Report Status Code Property.
+  # @Expression  0x80000002 | (gEfiMdePkgTokenSpaceGuid.PcdReportStatusCodePropertyMask & 0xF8) == 0
+  gEfiMdePkgTokenSpaceGuid.PcdReportStatusCodePropertyMask|0|UINT8|0x00000007
+
+  ## This value is used to fill a segment of memory when PcdDebugPropertyMask Clear Memory is enabled.
+  # @Prompt Value to Clear Memory.
+  gEfiMdePkgTokenSpaceGuid.PcdDebugClearMemoryValue|0xAF|UINT8|0x00000008
+
+  ## The mask is used to control PerformanceLib behavior.<BR><BR>
+  #  BIT0 - Enable Performance Measurement.<BR>
+  # @Prompt Performance Measurement Property.
+  # @Expression  0x80000002 | (gEfiMdePkgTokenSpaceGuid.PcdPerformanceLibraryPropertyMask & 0xFE) == 0
+  gEfiMdePkgTokenSpaceGuid.PcdPerformanceLibraryPropertyMask|0|UINT8|0x00000009
+
+  ## The mask is used to control PostCodeLib behavior.<BR><BR>
+  #  BIT0 - Enable Post Code.<BR>
+  #  BIT1 - Enable Post Code with Description.<BR>
+  # @Prompt Post Code Property.
+  # @Expression  0x80000002 | (gEfiMdePkgTokenSpaceGuid.PcdPostCodePropertyMask & 0xFC) == 0
+  gEfiMdePkgTokenSpaceGuid.PcdPostCodePropertyMask|0|UINT8|0x0000000b
+
+  ## The bit width of data to be written to Port80. The default value is 8.
+  # @Prompt Port80 Data Width
+  # @ValidList  0x80000001 | 8, 16, 32
+  gEfiMdePkgTokenSpaceGuid.PcdPort80DataWidth|8|UINT8|0x0000002d
+
+  ## This value is used to configure X86 Processor FSB clock.
+  # @Prompt FSB Clock.
+  gEfiMdePkgTokenSpaceGuid.PcdFSBClock|200000000|UINT32|0x0000000c
+
+  ## The maximum printable number of characters. UefLib functions: AsciiPrint(), AsciiErrorPrint(),
+  #  PrintXY(), AsciiPrintXY(), Print(), ErrorPrint() base on this PCD value to print characters.
+  # @Prompt Maximum Printable Number of Characters.
+  gEfiMdePkgTokenSpaceGuid.PcdUefiLibMaxPrintBufferSize|320|UINT32|0x101
+
+  ## This is the print buffer length for FileHandleLib.
+  #  FileHandlePrintLine() sizes buffers based on this PCD value for printing.
+  # @Prompt Number of Printable Characters.
+  gEfiMdePkgTokenSpaceGuid.PcdUefiFileHandleLibPrintBufferSize|1536|UINT16|0x201
+
+  ## Indicates the allowable maximum number in extract handler table.
+  # @Prompt Maximum Number of GuidedExtractHandler.
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumGuidedExtractHandler|0x10|UINT32|0x00000025
+
+  ## Indicates the default timeouts for USB transfers in milliseconds.
+  # @Prompt USB Transfer Timeout (ms).
+  gEfiMdePkgTokenSpaceGuid.PcdUsbTransferTimeoutValue|3000|UINT32|0x00000026
+
+  ## This value is used to set the available memory address to store Guided Extract Handlers.
+  #  The required memory space is decided by the value of PcdMaximumGuidedExtractHandler.
+  # @Prompt Memory Address of GuidedExtractHandler Table.
+  gEfiMdePkgTokenSpaceGuid.PcdGuidedExtractHandlerTableAddress|0x1000000|UINT64|0x30001015
+
+[PcdsFixedAtBuild.IPF, PcdsPatchableInModule.IPF]
+  ## The base address of IO port space for IA64 arch.
+  # @Prompt IA64 IO Port Space Base Address.
+  gEfiMdePkgTokenSpaceGuid.PcdIoBlockBaseAddressForIpf|0x0ffffc000000|UINT64|0x0000000f
+
+[PcdsFixedAtBuild, PcdsPatchableInModule, PcdsDynamic, PcdsDynamicEx]
+  ## This value is used to set the base address of PCI express hierarchy.
+  # @Prompt PCI Express Base Address.
+  gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseAddress|0xE0000000|UINT64|0x0000000a
+
+  ## Default current ISO 639-2 language: English & French.
+  # @Prompt Default Value of LangCodes Variable.
+  gEfiMdePkgTokenSpaceGuid.PcdUefiVariableDefaultLangCodes|"engfraengfra"|VOID*|0x0000001c
+
+  ## Default current ISO 639-2 language: English.
+  # @Prompt Default Value of Lang Variable.
+  gEfiMdePkgTokenSpaceGuid.PcdUefiVariableDefaultLang|"eng"|VOID*|0x0000001d
+
+  ## Default platform supported RFC 4646 languages: (American) English & French.
+  # @Prompt Default Value of PlatformLangCodes Variable.
+  gEfiMdePkgTokenSpaceGuid.PcdUefiVariableDefaultPlatformLangCodes|"en;fr;en-US;fr-FR"|VOID*|0x0000001e
+
+  ## Default current RFC 4646 language: (American) English.
+  # @Prompt Default Value of PlatformLang Variable.
+  gEfiMdePkgTokenSpaceGuid.PcdUefiVariableDefaultPlatformLang|"en-US"|VOID*|0x0000001f
+
+  ## Indicates the default baud rate of UART.
+  # @Prompt Default UART Baud Rate.
+  # @ValidList  0x80000001 | 115200, 57600, 38400, 19200, 9600, 7200, 4800, 3600, 2400, 2000, 1800, 1200, 600, 300, 150, 134, 110, 75, 50
+  gEfiMdePkgTokenSpaceGuid.PcdUartDefaultBaudRate|115200|UINT64|0x00000020
+
+  ## Indicates the number of efficient data bit in UART transaction.
+  # @Prompt Default UART Data Bit.
+  # @ValidRange 0x80000001 | 5 - 8
+  gEfiMdePkgTokenSpaceGuid.PcdUartDefaultDataBits|8|UINT8|0x00000021
+
+  ## Indicates the setting of data parity in UART transaction.<BR><BR>
+  # 0 - Default Parity.<BR>
+  # 1 - No Parity.<BR>
+  # 2 - Even Parity.<BR>
+  # 3 - Odd Parity.<BR>
+  # 4 - Mark Parity.<BR>
+  # 5 - Space Parity.<BR>
+  # @Prompt Default UART Parity.
+  # @ValidRange 0x80000001 | 0 - 5
+  gEfiMdePkgTokenSpaceGuid.PcdUartDefaultParity|1|UINT8|0x00000022
+
+  ## Indicates the setting of stop bit in UART transaction.<BR><BR>
+  # 0 - Default Stop Bits.<BR>
+  # 1 - One Stop Bit.<BR>
+  # 2 - One Five Stop Bits.<BR>
+  # 3 - Two Stop Bits.<BR>
+  # @Prompt Default UART Stop Bits.
+  # @ValidRange 0x80000001 | 0 - 3
+  gEfiMdePkgTokenSpaceGuid.PcdUartDefaultStopBits|1|UINT8|0x00000023
+
+  ## Indicates the usable type of terminal.<BR><BR>
+  #  0 - PCANSI<BR>
+  #  1 - VT100<BR>
+  #  2 - VT100+<BR>
+  #  3 - UTF8<BR>
+  #  4 - TTYTERM, NOT defined in UEFI SPEC<BR>
+  # @Prompt Default Terminal Type.
+  # @ValidRange 0x80000001 | 0 - 4
+  gEfiMdePkgTokenSpaceGuid.PcdDefaultTerminalType|0|UINT8|0x00000024
+
+  ## Indicates the receive FIFO depth of UART controller.<BR><BR>
+  # @Prompt Default UART Receive FIFO Depth.
+  gEfiMdePkgTokenSpaceGuid.PcdUartDefaultReceiveFifoDepth|1|UINT16|0x00000030
+
+  ## Error level for hardware recorder.
+  #  If value 0, platform does not support feature of hardware error record.
+  # @Prompt Error Level For Hardware Recorder
+  gEfiMdePkgTokenSpaceGuid.PcdHardwareErrorRecordLevel|0|UINT16|0x0000002b
+
+  ## The number of seconds that the firmware will wait before initiating the original default boot selection.
+  #  A value of 0 indicates that the default boot selection is to be initiated immediately on boot.
+  #  The value of 0xFFFF then firmware will wait for user input before booting.
+  # @Prompt Boot Timeout (s)
+  gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|0xffff|UINT16|0x0000002c
+
+[UserExtensions.TianoCore."ExtraFiles"]
+  MdePkgExtra.uni

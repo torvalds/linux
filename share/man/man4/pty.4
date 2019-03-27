@@ -1,0 +1,97 @@
+.\" Copyright (c) 2008 Ed Schouten <ed@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Portions of this software were developed under sponsorship from Snow
+.\" B.V., the Netherlands.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 20, 2008
+.Dt PTY 4
+.Os
+.Sh NAME
+.Nm pty
+.Nd BSD-style and System V-style compatibility pseudo-terminal driver
+.Sh SYNOPSIS
+.Cd "device pty"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the traditional BSD naming scheme that was
+used for accessing pseudo-terminals.
+When the device
+.Pa /dev/ptyXX
+is being opened, a new terminal shall be created with the
+.Xr pts 4
+driver.
+A device node for this terminal shall be created, which has the name
+.Pa /dev/ttyXX .
+.Pp
+The
+.Nm
+driver also provides a cloning System V
+.Pa /dev/ptmx
+device.
+.Pp
+New code should not try to allocate pseudo-terminals using this
+interface.
+It is only provided for compatibility with older C libraries
+that tried to open such devices when
+.Xr posix_openpt 2
+was being called.
+.Sh FILES
+The BSD-style compatibility pseudo-terminal driver uses the following
+device names:
+.Bl -tag -width ".Pa /dev/pty[l-sL-S][0-9a-v]"
+.It Pa /dev/pty[l-sL-S][0-9a-v]
+Pseudo-terminal master devices.
+.It Pa /dev/tty[l-sL-S][0-9a-v]
+Pseudo-terminal slave devices.
+.It Pa /dev/ptmx
+Control device, returns a file descriptor to a new master
+pseudo-terminal when opened.
+.El
+.Sh DIAGNOSTICS
+None.
+.Sh SEE ALSO
+.Xr posix_openpt 2 ,
+.Xr pts 4 ,
+.Xr tty 4
+.Sh HISTORY
+A
+pseudo-terminal driver appeared in
+.Bx 4.2 .
+.Sh BUGS
+Unlike previous implementations, the master and slave device nodes are
+destroyed when the PTY becomes unused.
+A call to
+.Xr stat 2
+on a nonexistent master device will already cause a new master device
+node to be created.
+The master device can only be destroyed by opening and closing it.
+.Pp
+The
+.Nm
+driver cannot be unloaded, because it cannot determine if it is being
+used.

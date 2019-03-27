@@ -1,0 +1,53 @@
+=pod
+
+=head1 NAME
+
+EVP_mdc2
+- MDC-2 For EVP
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ const EVP_MD *EVP_mdc2(void);
+
+=head1 DESCRIPTION
+
+MDC-2 (Modification Detection Code 2 or Meyer-Schilling) is a cryptographic
+hash function based on a block cipher.
+
+=over 4
+
+=item EVP_mdc2()
+
+The MDC-2DES algorithm of using MDC-2 with the DES block cipher. It produces a
+128-bit output from a given input.
+
+=back
+
+=head1 RETURN VALUES
+
+These functions return a B<EVP_MD> structure that contains the
+implementation of the symmetric cipher. See L<EVP_MD_meth_new(3)> for
+details of the B<EVP_MD> structure.
+
+=head1 CONFORMING TO
+
+ISO/IEC 10118-2:2000 Hash-Function 2, with DES as the underlying block cipher.
+
+=head1 SEE ALSO
+
+L<evp(7)>,
+L<EVP_DigestInit(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut
+

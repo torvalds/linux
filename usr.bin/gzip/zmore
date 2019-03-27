@@ -1,0 +1,82 @@
+#!/bin/sh -
+#
+# $NetBSD: zmore,v 1.5 2013/12/06 13:33:15 pettai Exp $
+#
+# $OpenBSD: zmore,v 1.6 2008/08/20 09:22:02 mpf Exp $
+#
+#-
+# Copyright (c) 2003 Todd C. Miller <Todd.Miller@courtesan.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+# Sponsored in part by the Defense Advanced Research Projects
+# Agency (DARPA) and Air Force Research Laboratory, Air Force
+# Materiel Command, USAF, under agreement number F39502-99-1-0512.
+#
+# $FreeBSD$
+
+# Pull out any command line flags so we can pass them to more/less
+flags=
+while test $# -ne 0; do
+	case "$1" in
+		--)
+			shift
+			break
+			;;
+		-*)
+			flags="$flags $1"
+			shift
+			;;
+		*)
+			break
+			;;
+	esac
+done
+
+if [ `basename $0` = "zless" ] ; then
+	pager=${PAGER-less}
+else
+	pager=${PAGER-more}
+fi
+
+# No files means read from stdin
+if [ $# -eq 0 ]; then
+	gzip -cdfq 2>&1 | $pager $flags
+	exit 0
+fi
+
+oterm=`stty -g 2>/dev/null`
+while test $# -ne 0; do
+	gzip -cdfq "$1" 2>&1 | $pager $flags
+	prev="$1"
+	shift
+	if tty -s && test -n "$oterm" -a $# -gt 0; then
+		#echo -n "--More--(Next file: $1)"
+		echo -n "$prev (END) - Next: $1 "
+		trap "stty $oterm 2>/dev/null" 0 1 2 3 13 15
+		stty cbreak -echo 2>/dev/null
+		REPLY=`dd bs=1 count=1 2>/dev/null`
+		stty $oterm 2>/dev/null
+		trap - 0 1 2 3 13 15
+		echo
+		case "$REPLY" in
+			s)
+				shift
+				;;
+			e|q)
+				break
+				;;
+		esac
+	fi
+done
+exit 0

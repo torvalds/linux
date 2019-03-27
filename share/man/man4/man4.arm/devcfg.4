@@ -1,0 +1,95 @@
+.\"
+.\" Copyright (c) 2013 Thomas Skibo
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 28, 2013
+.Dt DEVCFG 4
+.Os
+.Sh NAME
+.Nm devcfg
+.Nd Zynq PL device config interface
+.Sh SYNOPSIS
+.Cd device devcfg
+.Sh DESCRIPTION
+The special file
+.Pa /dev/devcfg
+can be used to configure the PL (FPGA) section of the Xilinx Zynq-7000.
+.Pp
+On the first write to the character device at file offset 0, the
+.Nm
+driver
+asserts the top-level PL reset signals, disables the PS-PL level shifters,
+and clears the PL configuration.
+Write data is sent to the PCAP (processor configuration access port).
+When the PL asserts the DONE signal, the devcfg driver will enable the level
+shifters and release the top-level PL reset signals.
+.Pp
+The PL (FPGA) can be configured by writing the bitstream to the character
+device like this:
+.Bd -literal -offset indent
+cat design.bit.bin > /dev/devcfg
+.Ed
+.Pp
+The file should not be confused with the .bit file output by the FPGA
+design tools.
+It is the binary form of the configuration bitstream.
+The Xilinx
+.Ic promgen
+tool can do the conversion:
+.Bd -literal -offset indent
+promgen -b -w -p bin -data_width 32 -u 0 design.bit -o design.bit.bin
+.Ed
+.Sh SYSCTL VARIABLES
+The
+.Nm
+driver provides the following
+.Xr sysctl 8
+variables:
+.Bl -tag -width 4n
+.It Va hw.fpga.pl_done
+.Pp
+This variable always reflects the status of the PL's DONE signal.
+A 1 means the PL section has been properly programmed.
+.It Va hw.fpga.en_level_shifters
+.Pp
+This variable controls if the PS-PL level shifters are enabled after the
+PL section has been reconfigured.
+This variable is 1 by default but setting it to 0 allows the PL section to be
+programmed with configurations that do not interface to the PS section of the
+part.
+Changing this value has no effect on the level shifters until the next device
+reconfiguration.
+.El
+.Sh FILES
+.Bl -tag -width 12n
+.It Pa /dev/devcfg
+Character device for the
+.Nm
+driver.
+.El
+.Sh SEE ALSO
+Zynq-7000 SoC Technical Reference Manual (Xilinx doc UG585)
+.Sh AUTHORS
+.An Thomas Skibo

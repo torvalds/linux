@@ -1,0 +1,84 @@
+# $FreeBSD$
+# $NetBSD: Makefile.part,v 1.6 2008/10/25 22:35:36 apb Exp $
+
+MKESDB?= ${.OBJDIR:H:H:H:H}/usr.bin/mkesdb_static/mkesdb_static
+
+PARTFILE?= ${.CURDIR}/${CODE}.part
+ALIASFILE?= ${.CURDIR}/${CODE}.alias
+.if !defined(NO_SEP)
+SEP?=	-
+.endif
+.if exists(${PARTFILE})
+PART!=	sed '/^\#/d;/^ *$$/d' ${PARTFILE}
+.endif
+.if !defined(NO_EPREFIX)
+CODESETS?= ${PART:C/^/${CODE}${SEP}/}
+EPREFIX?= ${CODE}${SEP}
+.else
+CODESETS?= ${PART}
+EPREFIX?=
+.endif
+ESUBDIR?= ${CODE}
+ESDB?=	${CODESETS:C/$/.esdb/:S/:/@/}
+
+FILES+=	${ESDB}
+FILESDIR= ${ESDBDIR}/${ESUBDIR}
+
+.SUFFIXES: .src .esdb
+
+.src.esdb:
+	${MKESDB} -o $@ $>
+
+CLEANFILES+= ${ESDB} esdb.dir.${ESUBDIR} esdb.alias.${ESUBDIR}
+
+# ----------------------------------------------------------------------
+# esdb.dir
+#
+esdb.dir.${ESUBDIR}: ${PARTFILE}
+	echo "# ${CODE}" >${.TARGET}
+.for i in ${PART}
+	printf "%-32s%s\n" "${EPREFIX}$i" \
+		"${ESUBDIR}/${EPREFIX}${i:S/:/@/}.esdb" >>${.TARGET}
+.endfor
+	echo >>${.TARGET}
+
+# ----------------------------------------------------------------------
+# esdb.alias
+#
+.for i in ${PART:S/:/@/}
+${CODE}_$i_aliases!= echo \
+	`sed \
+	    '/^\#/d;/^ *$$/d;/^${i:S/@/:/}[ 	]/!d;s/^[^ 	]*[ 	]*//' \
+		${ALIASFILE}`
+.endfor
+esdb.alias.${ESUBDIR}: ${PARTFILE} ${ALIASFILE}
+	echo "# ${CODE}" >${.TARGET}
+.for i in ${PART:S/:/@/}
+.for j in ${${CODE}_$i_aliases}
+	printf "%-32s%s\n" "$j" "${EPREFIX}${i:S/@/:/}" >>${.TARGET}
+.endfor
+.endfor
+	echo >>${.TARGET}
+
+.if !defined(_SKIP_BUILD)
+all: esdb.dir.${ESUBDIR} esdb.alias.${ESUBDIR} codesets
+.endif
+codesets: ${ESDB}
+
+.if !defined(NO_PREPROC)
+.for i in ${PART}
+.if !exists(${.CURDIR}/${EPREFIX}${i:S/:/@/}.src)
+${EPREFIX}${i:S/:/@/}.src: ${CODE}.src
+	sed ${SED_EXP:S@%%PART%%@${i}@} ${.ALLSRC} > ${.TARGET}
+	@echo ${.TARGET} >>.tmpfiles
+.endif
+.endfor
+.endif
+
+.if exists(.tmpfiles)
+TMPFILES!= cat .tmpfiles
+CLEANFILES+= ${TMPFILES} .tmpfiles
+.endif
+
+.include "./Makefile.inc"
+.include <bsd.prog.mk>

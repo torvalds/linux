@@ -1,0 +1,8 @@
+.\" $FreeBSD$
+Set to not build the kernel with
+.Xr ipsec 4
+support.
+This option is needed for
+.Xr ipsec 4
+and
+.Xr tcpmd5 4 .

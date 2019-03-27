@@ -1,0 +1,42 @@
+.\" $FreeBSD$
+.\" @(#)keylogout.1 1.4 91/03/11 TIRPC 1.0; from 1.3 89/07/26 SMI;
+.Dd April 15, 1989
+.Dt KEYLOGOUT 1
+.Os
+.Sh NAME
+.Nm keylogout
+.Nd delete stored secret key
+.Sh SYNOPSIS
+.Nm
+.Op Fl f
+.Sh DESCRIPTION
+The
+.Nm
+utility deletes the key stored by the key server process
+.Xr keyserv 8
+to be used by any secure network services, such as NFS.
+Further access to the key is revoked,
+however current session keys may remain valid till they expire,
+or are refreshed.
+This option will cause any background jobs that need secure RPC
+services to fail, and any scheduled
+.Nm at
+jobs that need the key to fail.
+Also since only one copy is kept on a machine of the key,
+it is a bad idea to place this in your
+.Pa .logout
+file since it will affect other sessions on the same machine.
+.Pp
+The following option is available:
+.Bl -tag -width indent
+.It Fl f
+Forget the rootkey.
+This will break secure NFS if it is done on a server.
+.El
+.Sh SEE ALSO
+.Xr chkey 1 ,
+.Xr keylogin 1 ,
+.Xr login 1 ,
+.Xr publickey 5 ,
+.Xr keyserv 8 ,
+.Xr newkey 8

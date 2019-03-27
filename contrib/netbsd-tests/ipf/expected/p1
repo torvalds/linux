@@ -1,0 +1,30 @@
+nomatch
+pass
+nomatch
+nomatch
+nomatch
+pass
+nomatch
+nomatch
+List of active MAP/Redirect filters:
+
+List of active sessions:
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+table role=ipf type=tree number=100
+	{ 1.1.1.1/32; ! 2.2.0.0/16; 2.2.2.0/24; ef00::5/128; };
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+2 pass in from pool/100 to any
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

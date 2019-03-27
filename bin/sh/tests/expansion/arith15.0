@@ -1,0 +1,20 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if [ $(($1)) != $2 ]; then
+		failures=$((failures+1))
+		echo "For $1, expected $2 actual $(($1))"
+	fi
+}
+
+XXX=-9223372036854775808
+check "XXX"		-9223372036854775808
+check "XXX - 1" 	9223372036854775807
+check "$XXX - 1"	9223372036854775807
+check "$XXX - 2"	9223372036854775806
+check "0x8000000000000000 == 0x7fffffffffffffff" \
+			0
+
+exit $((failures != 0))

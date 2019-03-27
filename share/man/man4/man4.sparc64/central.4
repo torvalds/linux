@@ -1,0 +1,60 @@
+.\"-
+.\" Copyright (c) 2004 Jason L. Wright (jason@thought.net)
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	from: OpenBSD: central.4,v 1.3 2004/09/24 07:03:47 miod Exp
+.\" $FreeBSD$
+.\"
+.Dd June 18, 2005
+.Dt CENTRAL 4 sparc64
+.Os
+.Sh NAME
+.Nm central
+.Nd "Central host controller and bus"
+.Sh SYNOPSIS
+.Cd "device central"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Tn Central
+host controller and bus found in
+.Tn Sun Enterprise xx00
+systems.
+It provides an attachment point for the main
+.Xr fhc 4
+.Tn FireHose
+controller used to control board level functions on the host.
+.Sh SEE ALSO
+.Xr fhc 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Jake Burkholder Aq Mt jake@FreeBSD.org .

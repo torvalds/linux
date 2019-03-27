@@ -1,0 +1,61 @@
+.\" Copyright (c) 1998-2000 Proofpoint, Inc. and its suppliers.
+.\"	 All rights reserved.
+.\" Copyright (c) 1983, 1990
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" By using this file, you agree to the terms and conditions set
+.\" forth in the LICENSE file which can be found at the top level of
+.\" the sendmail distribution.
+.\"
+.\"
+.\"	$Id: rmail.8,v 8.5 2013-11-22 20:51:53 ca Exp $
+.\"
+.TH RMAIL 8 "$Date: 2013-11-22 20:51:53 $"
+.SH NAME
+rmail
+\- handle remote mail received via uucp
+.SH SYNOPSIS
+.B rmail
+.RB [ \-D
+.IR domain ]
+.RB [ \-T ]
+.I 
+user ...
+.SH DESCRIPTION
+.B Rmail
+interprets incoming mail received via 
+uucp(1), 
+collapsing ``From'' lines in the form generated 
+by 
+mail.local(8) 
+into a single line of the form ``return-path!sender'', 
+and passing the processed mail on to 
+sendmail(8).
+.PP
+.B Rmail
+is explicitly designed for use with 
+uucp 
+and 
+sendmail.
+.SS Flags
+.TP
+.B \-D
+Use the specified
+.I domain
+instead of the default domain of ``UUCP''.
+.TP
+.B \-T
+Turn on debugging.
+.SH SEE ALSO
+uucp(1), 
+mail.local(8), 
+sendmail(8)
+.SH HISTORY
+The
+.B rmail
+program appeared in 
+4.2BSD.
+.SH BUGS
+.B Rmail
+should not reside in 
+/bin.

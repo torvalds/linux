@@ -1,0 +1,8 @@
+___sanitizer_free_hook
+___sanitizer_malloc_hook
+___sanitizer_report_error_summary
+___sanitizer_sandbox_on_notify
+___sanitizer_symbolize_code
+___sanitizer_symbolize_data
+___sanitizer_symbolize_demangle
+___sanitizer_symbolize_flush

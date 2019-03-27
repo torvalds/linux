@@ -1,0 +1,23 @@
+$ $tcsh: set19,v 1.5 2011/02/25 23:58:07 christos Exp $
+$ tc.alloc.c
+$set 19 
+1 nbytes=%d: η μνήμη τελείωσε\n
+2 free(%lx) κλήθηκε πρίν να εκχωρηθεί μνήμη.
+3 free(%lx) πριν την αρχή της μνήμης.
+4 free(%lx) μετά το τέλος της μνήμης.
+5 free(%lx) εσφαλμένο block.
+6 free(%lx) εσφαλμένη κλίμακα check.
+7 free(%lx) εσφαλμένος δείκτης block.
+8 Παρούσα εκχώρηση μνήμης του %s:\nfree:\t
+9 χρησιμοποιείται
+10 \n\tΣυνολικά χρησιμοποιείται: %d, συνολική ελεύθερη: %d\n
+11 \tΕχει εκχωρηθεί μνήμη από 0x%lx ως 0x%lx. Πραγματική αρχή 0x%lx\n
+12 Εχει εκχωρηθεί μνήμη από 0x%lx ως 0x%lx (%ld).\n
+13 %s current memory allocation:\n
+14 Total space allocated from system: %d\n
+15 Number of non-inuse chunks: %d\n
+16 Number of mmapped regions: %d\n
+17 Total space in mmapped regions: %d\n
+18 Total allocated space: %d\n
+19 Total non-inuse space: %d\n
+20 Top-most, releasable space: %d\n

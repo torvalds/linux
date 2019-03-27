@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+TEST_1.0 {
+};
+
+TEST_1.1 {
+} TEST_1.0;
+
+TESTprivate_1.0 {
+} TEST_1.1;
+

@@ -1,0 +1,88 @@
+.\"
+.\" Copyright (c) 2013 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 14, 2018
+.Dt PROCDESC 4
+.Os
+.Sh NAME
+.Nm procdesc
+.Nd process descriptor facility
+.Sh DESCRIPTION
+.Nm
+is a file-descriptor-oriented interface to process signalling and control,
+which supplements historic
+.Ux
+.Xr fork 2 ,
+.Xr kill 2 ,
+and
+.Xr wait4 2
+primitives with
+new system calls such as
+.Xr pdfork 2 ,
+.Xr pdkill 2 ,
+and
+.Xr pdwait4 2 .
+.Nm
+is designed for use with
+.Xr capsicum 4 ,
+replacing process identifiers with capability-oriented references.
+However, it can also be used independently of
+.Xr capsicum 4 ,
+displacing PIDs, which may otherwise suffer from race conditions.
+Given a process descriptor, it is possible to query its conventional PID using
+.Xr pdgetpid 2 .
+.Sh SEE ALSO
+.Xr fork 2 ,
+.Xr kill 2 ,
+.Xr pdfork 2 ,
+.Xr pdgetpid 2 ,
+.Xr pdkill 2 ,
+.Xr pdwait4 2 ,
+.Xr kqueue 2 ,
+.Xr wait4 2 ,
+.Xr capsicum 4
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 9.0 ,
+and was developed at the University of Cambridge.
+.Sh AUTHORS
+.Nm
+was developed by
+.An -nosplit
+.An Robert Watson Aq Mt rwatson@FreeBSD.org
+and
+.An Jonathan Anderson Aq Mt jonathan@FreeBSD.org
+at the University of Cambridge, and
+.An Ben Laurie Aq Mt benl@FreeBSD.org
+and
+.An Kris Kennaway Aq Mt kris@FreeBSD.org
+at Google, Inc.

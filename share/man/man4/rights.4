@@ -1,0 +1,724 @@
+.\"
+.\" Copyright (c) 2008-2010 Robert N. M. Watson
+.\" Copyright (c) 2012-2013 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed at the University of Cambridge Computer
+.\" Laboratory with support from a grant from Google, Inc.
+.\"
+.\" Portions of this documentation were written by Pawel Jakub Dawidek
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 28, 2019
+.Dt RIGHTS 4
+.Os
+.Sh NAME
+.Nm Capability rights
+.Nd Capsicum capability rights for file descriptors
+.Sh DESCRIPTION
+When a file descriptor is created by a function such as
+.Xr accept 2 ,
+.Xr accept4 2 ,
+.Xr fhopen 2 ,
+.Xr kqueue 2 ,
+.Xr mq_open 2 ,
+.Xr open 2 ,
+.Xr openat 2 ,
+.Xr pdfork 2 ,
+.Xr pipe 2 ,
+.Xr shm_open 2 ,
+.Xr socket 2
+or
+.Xr socketpair 2 ,
+it is assigned all capability rights.
+Those rights can be reduced (but never expanded) by using the
+.Xr cap_rights_limit 2 ,
+.Xr cap_fcntls_limit 2 and
+.Xr cap_ioctls_limit 2
+system calls.
+Once capability rights are reduced, operations on the file descriptor will be
+limited to those permitted by rights.
+.Pp
+The complete list of capability rights is provided below.
+The
+.Vt cap_rights_t
+type is used to store list of capability rights.
+The
+.Xr cap_rights_init 3
+family of functions should be used to manage the structure.
+.Sh RIGHTS
+The following rights may be specified in a rights mask:
+.Bl -tag -width CAP_RENAMEAT_SOURCE
+.It Dv CAP_ACCEPT
+Permit
+.Xr accept 2
+and
+.Xr accept4 2 .
+.It Dv CAP_ACL_CHECK
+Permit
+.Xr acl_valid_fd_np 3 .
+.It Dv CAP_ACL_DELETE
+Permit
+.Xr acl_delete_fd_np 3 .
+.It Dv CAP_ACL_GET
+Permit
+.Xr acl_get_fd 3
+and
+.Xr acl_get_fd_np 3 .
+.It Dv CAP_ACL_SET
+Permit
+.Xr acl_set_fd 3
+and
+.Xr acl_set_fd_np 3 .
+.It Dv CAP_BIND
+When not in capabilities mode, permit
+.Xr bind 2
+and
+.Xr bindat 2
+with special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter.
+Note that sockets can also become bound implicitly as a result of
+.Xr connect 2
+or
+.Xr send 2 ,
+and that socket options set with
+.Xr setsockopt 2
+may also affect binding behavior.
+.It Dv CAP_BINDAT
+Permit
+.Xr bindat 2 .
+This right has to be present on the directory descriptor.
+This right includes the
+.Dv CAP_LOOKUP
+right.
+.It Dv CAP_CHFLAGSAT
+An alias to
+.Dv CAP_FCHFLAGS
+and
+.Dv CAP_LOOKUP .
+.It Dv CAP_CONNECT
+When not in capabilities mode, permit
+.Xr connect 2
+and
+.Xr connectat 2
+with special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter.
+This right is also required for
+.Xr sendto 2
+with a non-NULL destination address.
+.It Dv CAP_CONNECTAT
+Permit
+.Xr connectat 2 .
+This right has to be present on the directory descriptor.
+This right includes the
+.Dv CAP_LOOKUP
+right.
+.It Dv CAP_CREATE
+Permit
+.Xr openat 2
+with the
+.Dv O_CREAT
+flag.
+.It Dv CAP_EVENT
+Permit
+.Xr select 2 ,
+.Xr poll 2 ,
+and
+.Xr kevent 2
+to be used in monitoring the file descriptor for events.
+.It Dv CAP_EXTATTR_DELETE
+Permit
+.Xr extattr_delete_fd 2 .
+.It Dv CAP_EXTATTR_GET
+Permit
+.Xr extattr_get_fd 2 .
+.It Dv CAP_EXTATTR_LIST
+Permit
+.Xr extattr_list_fd 2 .
+.It Dv CAP_EXTATTR_SET
+Permit
+.Xr extattr_set_fd 2 .
+.It Dv CAP_FCHDIR
+Permit
+.Xr fchdir 2 .
+.It Dv CAP_FCHFLAGS
+Permit
+.Xr fchflags 2
+and
+.Xr chflagsat 2
+if the
+.Dv CAP_LOOKUP
+right is also present.
+.It Dv CAP_FCHMOD
+Permit
+.Xr fchmod 2
+and
+.Xr fchmodat 2
+if the
+.Dv CAP_LOOKUP
+right is also present.
+.It Dv CAP_FCHMODAT
+An alias to
+.Dv CAP_FCHMOD
+and
+.Dv CAP_LOOKUP .
+.It Dv CAP_FCHOWN
+Permit
+.Xr fchown 2
+and
+.Xr fchownat 2
+if the
+.Dv CAP_LOOKUP
+right is also present.
+.It Dv CAP_FCHOWNAT
+An alias to
+.Dv CAP_FCHOWN
+and
+.Dv CAP_LOOKUP .
+.It Dv CAP_FCNTL
+Permit
+.Xr fcntl 2 .
+Note that only the
+.Dv F_GETFL ,
+.Dv F_SETFL ,
+.Dv F_GETOWN
+and
+.Dv F_SETOWN
+commands require this capability right.
+Also note that the list of permitted commands can be further limited with the
+.Xr cap_fcntls_limit 2
+system call.
+.It Dv CAP_FEXECVE
+Permit
+.Xr fexecve 2
+and
+.Xr openat 2
+with the
+.Dv O_EXEC
+flag;
+.Dv CAP_READ
+is also required.
+.It Dv CAP_FLOCK
+Permit
+.Xr flock 2 ,
+.Xr fcntl 2
+(with
+.Dv F_GETLK ,
+.Dv F_SETLK ,
+.Dv F_SETLKW
+or
+.Dv F_SETLK_REMOTE
+flag) and
+.Xr openat 2
+(with
+.Dv O_EXLOCK
+or
+.Dv O_SHLOCK
+flag).
+.It Dv CAP_FPATHCONF
+Permit
+.Xr fpathconf 2 .
+.It Dv CAP_FSCK
+Permit UFS background-fsck operations on the descriptor.
+.It Dv CAP_FSTAT
+Permit
+.Xr fstat 2
+and
+.Xr fstatat 2
+if the
+.Dv CAP_LOOKUP
+right is also present.
+.It Dv CAP_FSTATAT
+An alias to
+.Dv CAP_FSTAT
+and
+.Dv CAP_LOOKUP .
+.It Dv CAP_FSTATFS
+Permit
+.Xr fstatfs 2 .
+.It Dv CAP_FSYNC
+Permit
+.Xr aio_fsync 2 ,
+.Xr fdatasync 2 ,
+.Xr fsync 2
+and
+.Xr openat 2
+with
+.Dv O_FSYNC
+or
+.Dv O_SYNC
+flag.
+.It Dv CAP_FTRUNCATE
+Permit
+.Xr ftruncate 2
+and
+.Xr openat 2
+with the
+.Dv O_TRUNC
+flag.
+.It Dv CAP_FUTIMES
+Permit
+.Xr futimens 2
+and
+.Xr futimes 2 ,
+and permit
+.Xr futimesat 2
+and
+.Xr utimensat 2
+if the
+.Dv CAP_LOOKUP
+right is also present.
+.It Dv CAP_FUTIMESAT
+An alias to
+.Dv CAP_FUTIMES
+and
+.Dv CAP_LOOKUP .
+.It Dv CAP_GETPEERNAME
+Permit
+.Xr getpeername 2 .
+.It Dv CAP_GETSOCKNAME
+Permit
+.Xr getsockname 2 .
+.It Dv CAP_GETSOCKOPT
+Permit
+.Xr getsockopt 2 .
+.It Dv CAP_IOCTL
+Permit
+.Xr ioctl 2 .
+Be aware that this system call has enormous scope, including potentially
+global scope for some objects.
+The list of permitted ioctl commands can be further limited with the
+.Xr cap_ioctls_limit 2
+system call.
+.It Dv CAP_KQUEUE
+An alias to
+.Dv CAP_KQUEUE_CHANGE
+and
+.Dv CAP_KQUEUE_EVENT .
+.It Dv CAP_KQUEUE_CHANGE
+Permit
+.Xr kevent 2
+on a
+.Xr kqueue 2
+descriptor that modifies list of monitored events (the
+.Fa changelist
+argument is non-NULL).
+.It Dv CAP_KQUEUE_EVENT
+Permit
+.Xr kevent 2
+on a
+.Xr kqueue 2
+descriptor that monitors events (the
+.Fa eventlist
+argument is non-NULL).
+.Dv CAP_EVENT
+is also required on file descriptors that will be monitored using
+.Xr kevent 2 .
+.It Dv CAP_LINKAT_SOURCE
+Permit
+.Xr linkat 2
+on the source directory descriptor.
+This right includes the
+.Dv CAP_LOOKUP
+right.
+.Pp
+Warning:
+.Dv CAP_LINKAT_SOURCE
+makes it possible to link files in a directory for which file
+descriptors exist that have additional rights.
+For example,
+a file stored in a directory that does not allow
+.Dv CAP_READ
+may be linked in another directory that does allow
+.Dv CAP_READ ,
+thereby granting read access to a file that is otherwise unreadable.
+.It Dv CAP_LINKAT_TARGET
+Permit
+.Xr linkat 2
+on the target directory descriptor.
+This right includes the
+.Dv CAP_LOOKUP
+right.
+.It Dv CAP_LISTEN
+Permit
+.Xr listen 2 ;
+not much use (generally) without
+.Dv CAP_BIND .
+.It Dv CAP_LOOKUP
+Permit the file descriptor to be used as a starting directory for calls such as
+.Xr linkat 2 ,
+.Xr openat 2 ,
+and
+.Xr unlinkat 2 .
+.It Dv CAP_MAC_GET
+Permit
+.Xr mac_get_fd 3 .
+.It Dv CAP_MAC_SET
+Permit
+.Xr mac_set_fd 3 .
+.It Dv CAP_MKDIRAT
+Permit
+.Xr mkdirat 2 .
+This right includes the
+.Dv CAP_LOOKUP
+right.
+.It Dv CAP_MKFIFOAT
+Permit
+.Xr mkfifoat 2 .
+This right includes the
+.Dv CAP_LOOKUP
+right.
+.It Dv CAP_MKNODAT
+Permit
+.Xr mknodat 2 .
+This right includes the
+.Dv CAP_LOOKUP
+right.
+.It Dv CAP_MMAP
+Permit
+.Xr mmap 2
+with the
+.Dv PROT_NONE
+protection.
+.It Dv CAP_MMAP_R
+Permit
+.Xr mmap 2
+with the
+.Dv PROT_READ
+protection.
+This right includes the
+.Dv CAP_READ
+and
+.Dv CAP_SEEK
+rights.
+.It Dv CAP_MMAP_RW
+An alias to
+.Dv CAP_MMAP_R
+and
+.Dv CAP_MMAP_W .
+.It Dv CAP_MMAP_RWX
+An alias to
+.Dv CAP_MMAP_R ,
+.Dv CAP_MMAP_W
+and
+.Dv CAP_MMAP_X .
+.It Dv CAP_MMAP_RX
+An alias to
+.Dv CAP_MMAP_R
+and
+.Dv CAP_MMAP_X .
+.It Dv CAP_MMAP_W
+Permit
+.Xr mmap 2
+with the
+.Dv PROT_WRITE
+protection.
+This right includes the
+.Dv CAP_WRITE
+and
+.Dv CAP_SEEK
+rights.
+.It Dv CAP_MMAP_WX
+An alias to
+.Dv CAP_MMAP_W
+and
+.Dv CAP_MMAP_X .
+.It Dv CAP_MMAP_X
+Permit
+.Xr mmap 2
+with the
+.Dv PROT_EXEC
+protection.
+This right includes the
+.Dv CAP_SEEK
+right.
+.It Dv CAP_PDGETPID
+Permit
+.Xr pdgetpid 2 .
+.It Dv CAP_PDKILL
+Permit
+.Xr pdkill 2 .
+.It Dv CAP_PEELOFF
+Permit
+.Xr sctp_peeloff 2 .
+.It Dv CAP_PREAD
+An alias to
+.Dv CAP_READ
+and
+.Dv CAP_SEEK .
+.It Dv CAP_PWRITE
+An alias to
+.Dv CAP_SEEK
+and
+.Dv CAP_WRITE .
+.It Dv CAP_READ
+Permit
+.Xr aio_read 2
+.Dv ( CAP_SEEK
+is also required),
+.Xr openat 2
+with the
+.Dv O_RDONLY flag,
+.Xr read 2 ,
+.Xr readv 2 ,
+.Xr recv 2 ,
+.Xr recvfrom 2 ,
+.Xr recvmsg 2 ,
+.Xr pread 2
+.Dv ( CAP_SEEK
+is also required),
+.Xr preadv 2
+.Dv ( CAP_SEEK
+is also required) and related system calls.
+.It Dv CAP_RECV
+An alias to
+.Dv CAP_READ .
+.It Dv CAP_RENAMEAT_SOURCE
+Permit
+.Xr renameat 2
+on the source directory descriptor.
+This right includes the
+.Dv CAP_LOOKUP
+right.
+.Pp
+Warning:
+.Dv CAP_RENAMEAT_SOURCE
+makes it possible to move files to a directory for which file
+descriptors exist that have additional rights.
+For example,
+a file stored in a directory that does not allow
+.Dv CAP_READ
+may be moved to another directory that does allow
+.Dv CAP_READ ,
+thereby granting read access to a file that is otherwise unreadable.
+.It Dv CAP_RENAMEAT_TARGET
+Permit
+.Xr renameat 2
+on the target directory descriptor.
+This right includes the
+.Dv CAP_LOOKUP
+right.
+.It Dv CAP_SEEK
+Permit operations that seek on the file descriptor, such as
+.Xr lseek 2 ,
+but also required for I/O system calls that can read or write at any position
+in the file, such as
+.Xr pread 2
+and
+.Xr pwrite 2 .
+.It Dv CAP_SEM_GETVALUE
+Permit
+.Xr sem_getvalue 3 .
+.It Dv CAP_SEM_POST
+Permit
+.Xr sem_post 3 .
+.It Dv CAP_SEM_WAIT
+Permit
+.Xr sem_wait 3
+and
+.Xr sem_trywait 3 .
+.It Dv CAP_SEND
+An alias to
+.Dv CAP_WRITE .
+.It Dv CAP_SETSOCKOPT
+Permit
+.Xr setsockopt 2 ;
+this controls various aspects of socket behavior and may affect binding,
+connecting, and other behaviors with global scope.
+.It Dv CAP_SHUTDOWN
+Permit explicit
+.Xr shutdown 2 ;
+closing the socket will also generally shut down any connections on it.
+.It Dv CAP_SYMLINKAT
+Permit
+.Xr symlinkat 2 .
+This right includes the
+.Dv CAP_LOOKUP
+right.
+.It Dv CAP_TTYHOOK
+Allow configuration of TTY hooks, such as
+.Xr snp 4 ,
+on the file descriptor.
+.It Dv CAP_UNLINKAT
+Permit
+.Xr unlinkat 2
+and
+.Xr renameat 2 .
+This right is only required for
+.Xr renameat 2
+on the destination directory descriptor if the destination object already
+exists and will be removed by the rename.
+This right includes the
+.Dv CAP_LOOKUP
+right.
+.It Dv CAP_WRITE
+Allow
+.Xr aio_write 2 ,
+.Xr openat 2
+with
+.Dv O_WRONLY
+and
+.Dv O_APPEND
+flags set,
+.Xr send 2 ,
+.Xr sendmsg 2 ,
+.Xr sendto 2 ,
+.Xr write 2 ,
+.Xr writev 2 ,
+.Xr pwrite 2 ,
+.Xr pwritev 2
+and related system calls.
+For
+.Xr sendto 2
+with a non-NULL connection address,
+.Dv CAP_CONNECT
+is also required.
+For
+.Xr openat 2
+with the
+.Dv O_WRONLY
+flag, but without the
+.Dv O_APPEND
+flag,
+.Dv CAP_SEEK
+is also required.
+For
+.Xr aio_write 2 ,
+.Xr pwrite 2
+and
+.Xr pwritev 2
+.Dv CAP_SEEK
+is also required.
+.El
+.Sh SEE ALSO
+.Xr accept 2 ,
+.Xr accept4 2 ,
+.Xr aio_fsync 2 ,
+.Xr aio_read 2 ,
+.Xr aio_write 2 ,
+.Xr bind 2 ,
+.Xr bindat 2 ,
+.Xr cap_enter 2 ,
+.Xr cap_fcntls_limit 2 ,
+.Xr cap_ioctls_limit 2 ,
+.Xr cap_rights_limit 2 ,
+.Xr chflagsat 2 ,
+.Xr connect 2 ,
+.Xr connectat 2 ,
+.Xr extattr_delete_fd 2 ,
+.Xr extattr_get_fd 2 ,
+.Xr extattr_list_fd 2 ,
+.Xr extattr_set_fd 2 ,
+.Xr fchflags 2 ,
+.Xr fchmod 2 ,
+.Xr fchmodat 2 ,
+.Xr fchown 2 ,
+.Xr fchownat 2 ,
+.Xr fcntl 2 ,
+.Xr fexecve 2 ,
+.Xr fhopen 2 ,
+.Xr flock 2 ,
+.Xr fpathconf 2 ,
+.Xr fstat 2 ,
+.Xr fstatat 2 ,
+.Xr fstatfs 2 ,
+.Xr fsync 2 ,
+.Xr ftruncate 2 ,
+.Xr futimes 2 ,
+.Xr getpeername 2 ,
+.Xr getsockname 2 ,
+.Xr getsockopt 2 ,
+.Xr ioctl 2 ,
+.Xr kevent 2 ,
+.Xr kqueue 2 ,
+.Xr linkat 2 ,
+.Xr listen 2 ,
+.Xr mmap 2 ,
+.Xr mq_open 2 ,
+.Xr open 2 ,
+.Xr openat 2 ,
+.Xr pdfork 2 ,
+.Xr pdgetpid 2 ,
+.Xr pdkill 2 ,
+.Xr pdwait4 2 ,
+.Xr pipe 2 ,
+.Xr poll 2 ,
+.Xr pread 2 ,
+.Xr preadv 2 ,
+.Xr pwrite 2 ,
+.Xr pwritev 2 ,
+.Xr read 2 ,
+.Xr readv 2 ,
+.Xr recv 2 ,
+.Xr recvfrom 2 ,
+.Xr recvmsg 2 ,
+.Xr renameat 2 ,
+.Xr sctp_peeloff 2 ,
+.Xr select 2 ,
+.Xr send 2 ,
+.Xr sendmsg 2 ,
+.Xr sendto 2 ,
+.Xr setsockopt 2 ,
+.Xr shm_open 2 ,
+.Xr shutdown 2 ,
+.Xr socket 2 ,
+.Xr socketpair 2 ,
+.Xr symlinkat 2 ,
+.Xr unlinkat 2 ,
+.Xr write 2 ,
+.Xr writev 2 ,
+.Xr acl_delete_fd_np 3 ,
+.Xr acl_get_fd 3 ,
+.Xr acl_get_fd_np 3 ,
+.Xr acl_set_fd 3 ,
+.Xr acl_set_fd_np 3 ,
+.Xr acl_valid_fd_np 3 ,
+.Xr mac_get_fd 3 ,
+.Xr mac_set_fd 3 ,
+.Xr sem_getvalue 3 ,
+.Xr sem_post 3 ,
+.Xr sem_trywait 3 ,
+.Xr sem_wait 3 ,
+.Xr capsicum 4 ,
+.Xr snp 4
+.Sh HISTORY
+Support for capabilities and capabilities mode was developed as part of the
+.Tn TrustedBSD
+Project.
+.Sh AUTHORS
+.An -nosplit
+This manual page was created by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship from the FreeBSD Foundation based on the
+.Xr cap_new 2
+manual page by
+.An Robert Watson Aq Mt rwatson@FreeBSD.org .

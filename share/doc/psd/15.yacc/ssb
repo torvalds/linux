@@ -1,0 +1,147 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ssb	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+Appendix B: Yacc Input Syntax
+.PP
+This Appendix has a description of the Yacc input syntax, as a Yacc specification.
+Context dependencies, etc., are not considered.
+Ironically, the Yacc input specification language
+is most naturally specified as an LR(2) grammar; the sticky
+part comes when an identifier is seen in a rule, immediately
+following an action.
+If this identifier is followed by a colon, it is the start of the
+next rule; otherwise
+it is a continuation of the current rule, which just happens to have
+an action embedded in it.
+As implemented, the lexical analyzer looks
+ahead after seeing an identifier, and
+decide whether the next token (skipping blanks, newlines, comments, etc.)
+is a colon.
+If so, it returns the token C_IDENTIFIER.
+Otherwise, it returns IDENTIFIER.
+Literals (quoted strings) are also returned as IDENTIFIERS,
+but never as part of C_IDENTIFIERs.
+.sp
+.nf
+.ta .6i 1.2i 1.8i 2.4i 3i 3.6i
+
+            /*  grammar  for  the  input  to  Yacc  */
+
+	/*  basic  entities  */
+%token	IDENTIFIER	/*   includes  identifiers   and  literals  */
+%token	C_IDENTIFIER	/*    identifier  (but  not  literal)  followed  by  colon    */
+%token	NUMBER		/*    [0-9]+    */
+
+	/*  reserved  words:    %type  =>  TYPE,  %left  =>  LEFT,  etc.  */
+
+%token	LEFT  RIGHT  NONASSOC  TOKEN  PREC  TYPE  START  UNION
+
+%token	MARK	/*  the  %%  mark  */
+%token	LCURL	/*  the  %{  mark  */
+%token	RCURL	/*  the  %}  mark  */
+
+	/*  ascii  character  literals  stand  for  themselves  */
+
+%start	spec
+
+%%
+
+spec	:	defs  MARK  rules  tail
+	;
+
+tail	:	MARK	{    \fIIn  this  action,  eat  up  the  rest  of  the  file\fR    }
+	|	/*  empty:  the  second  MARK  is  optional  */
+	;
+
+defs	:	/*  empty  */
+	|	defs  def
+	;
+
+def	:	START  IDENTIFIER
+	|	UNION  {  \fICopy union  definition  to  output\fR  }
+	|	LCURL  {  \fICopy  C  code  to  output  file\fR   }  RCURL
+	|	ndefs  rword  tag  nlist
+	;
+
+rword	:	TOKEN
+	|	LEFT
+	|	RIGHT
+	|	NONASSOC
+	|	TYPE
+	;
+
+tag	:	/*  empty:  union  tag  is  optional  */
+	|	\'<\'  IDENTIFIER  \'>\'
+	;
+
+nlist	:	nmno
+	|	nlist  nmno
+	|	nlist  \',\'  nmno
+	;
+
+nmno	:	IDENTIFIER		/*  NOTE:  literal  illegal  with  %type  */
+	|	IDENTIFIER  NUMBER      /*  NOTE:  illegal  with  %type  */
+	;
+
+	/*  rules  section  */
+
+rules	:	C_IDENTIFIER  rbody  prec
+	|	rules  rule
+	;
+
+rule	:	C_IDENTIFIER  rbody  prec
+	|	'|'  rbody  prec
+	;
+
+rbody	:	/*  empty  */
+	|	rbody  IDENTIFIER
+	|	rbody  act
+	;
+
+act	:	\'{\'  {  \fICopy  action,  translate  $$,  etc.\fR  }  \'}\'
+	;
+
+prec	:	/*  empty  */
+	|	PREC  IDENTIFIER
+	|	PREC  IDENTIFIER  act
+	|	prec  \';\'
+	;
+.fi
+.bp

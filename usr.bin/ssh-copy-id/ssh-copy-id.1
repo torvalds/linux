@@ -1,0 +1,89 @@
+.\"-
+.\" Copyright (c) 2012 Eitan Adler
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 28, 2014
+.Dt SSH-COPY-ID 1
+.Os
+.Sh NAME
+.Nm ssh-copy-id
+.Nd copy public keys to a remote host
+.Sh SYNOPSIS
+.Nm
+.Op Fl lv
+.Op Fl i Ar keyfile
+.Op Fl o Ar option
+.Op Fl p Ar port
+.Oo Ar user Ns @ Oc Ns Ar hostname
+.Sh DESCRIPTION
+The
+.Nm
+utility copies public keys to a remote host's
+.Pa ~/.ssh/authorized_keys
+file (creating the file and directory, if required).
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl i Ar file
+Copy the public key contained in
+.Ar file .
+This option can be specified multiple times and can be combined with
+the
+.Fl l
+option.
+If a private key is specified and a public key is found then the public key
+will be used.
+.It Fl l
+Copy the keys currently held by
+.Xr ssh-agent 1 .
+This is the default if the
+.Fl i
+option was not specified.
+.It Fl o Ar ssh-option
+Pass this option directly to
+.Xr ssh 1 .
+This option can be specified multiple times.
+.It Fl p Ar port
+Connect to the specified port on the remote host instead of the
+default.
+.It Fl v
+Pass -v to
+.Xr ssh 1 .
+.El
+.Pp
+The remaining arguments are a list of remote hosts to connect to,
+each one optionally qualified by a user name.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+To send a specific key to multiple hosts:
+.Dl $ ssh-copy-id -i /path/to/keyfile.pub user@host1 user@host2 user@host3
+.Sh HISTORY
+The
+.Nm
+utility was written by
+.An Eitan Adler Aq Mt eadler@FreeBSD.org
+as a drop-in replacement for an existing utility included with
+OpenSSH.

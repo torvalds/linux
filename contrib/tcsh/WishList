@@ -1,0 +1,309 @@
+
+                                [Home] WishList
+
+   Home | RecentChanges | Preferences
+     _________________________________________________________________
+
+   Surprised by this behavior...is this a bug?
+
+   (Goal:  e.g.  distinguish  between  completely  numeric args/names and
+   those containing non-numerics)
+
+ % touch 1023 pex103 pex103a 104a z101 16a02 1999 2001 2001_A_Space_Odyssey
+ % ls -1 *[^0-9]*
+ 104a
+ 16a02
+ 2001_A_Space_Odyssey
+ pex103
+ pex103a
+ z101
+ # (great, looks good to me. Got everything containing a nonnumeric, no more, n
+o less.)
+
+ % foreach p ( 1023 pex103 pex103a 104a z101 16a02 1999 2001 2001_A_Space_Odyss
+ey )
+ foreach? if ( $p !~ *[^0-9]* ) echo $p
+ foreach? end
+ # (no output. Huh?)
+
+ % foreach p ( 1023 pex103 pex103a 104a z101 16a02 1999 2001 2001_A_Space_Odyss
+ey )
+ foreach? if ( $p =~ *[^0-9]* ) echo $p
+ foreach? end
+ 1023           (!)
+ pex103
+ pex103a
+ 104a
+ z101
+ 16a02
+ 1999           (!)
+ 2001           (!)
+ 2001_A_Space_Odyssey
+ # (Huh?)
+
+   The [MAN page description] for =~ and !~ just refer to "(see [Filename
+   substitution])',  but  evidently  there is a (unexplained) difference.
+   The  actual  filename  globbing  looks  correct to me, but the pattern
+   matching   operator   behavior  is  unexpected,  if  I'm  not  missing
+   something.
+
+   tcsh 6.09.00
+
+   - bhooglan
+     _________________________________________________________________
+
+   Wish "tcsh -l" would accept other flags. At least "-c".
+
+   Currently I can't get ssh to have the right environment unless it is a
+   login  shell. The .ssh/environment doesn't work for me because I login
+   to  different  machines  with  different environments. One thing to do
+   would  be  to not have the different environment for login compared to
+   other shells, but what I would really like is something like...
+
+   ssh remote_application_server "tcsh -l -c application"
+
+   The "ssh -t" doesn't work for me and I don't know why.
+
+   Thanks Tim
+
+   Fix limit vmemoryuse in Linux
+
+   In  Linux  tcsh  is  unable  to  limit  vmemoryuse.  This  is  because
+   RLIMIT_VMEM isn't defined, instead Linux has RLIMIT_AS which means the
+   same.  On  Google  groups  I  found  patches  suggested by Komazaki at
+   http://groups.google.com/groups?hl=sv&lr=&ie=UTF-8&oe=ISO-2022-JP&selm
+   =m3snmczvfc.wl%40thinkpad.osk.3web.ne.jp.osk.3web.ne.jp    and   Ogawa
+   Hirofumi suggests a patch at
+   http://groups.google.com/groups?hl=sv&lr=&ie=UTF-8&selm=87snmba4id.fsf
+   %40devron.myhome.or.jp  None  of  these  patches  seems  to  have been
+   included in version 6.12 as 6.12 still has this problem.
+
+   /Henrik??
+
+   New  idea:  use  last  line  (or  n'th line) of output as input to new
+   command.
+
+   I often find myself typing something like:
+
+   >locate lshort
+   /usr/local/stow/share/texmf/doc/latex/general/lshort.dvi    .    .   .
+   /usr/local/store/share/texmf/doc/latex/general/lshort.dvi
+
+   >xdvi /usr/local/store/share/texmf/doc/latex/general/lshort.dvi
+
+   Now the way I accomplish writing the last line, is by moving the mouse
+   over  the  last line, and the copy paste it. It would be very nice, if
+   the  shell could keep the last n lines of output in a buffer. This way
+   one could avoid using the mouse by typing something like:
+
+   >xdvi <M-1>
+
+   which  would  insert  the  last  line of output, similarly <M-2> could
+   insert  the second last line of output. (the exact commands used is of
+   course configured via bindkey).
+
+   This  could  save  me  a  couple  of  times  to  the  mouse everyday -
+   di010070@diku.dk
+
+          The shell does not capture any output from commands it runs, so
+          this  is really more a feature for the terminal (be it hardware
+          or software). --Kim
+
+   Fix  memory  leak  related  to  aliasrun().  Precmd,  Cwdcmd etc. leak
+   memory.
+
+   Fix migrate -site $$... Seems to hang... (aix370)
+
+   Fix history in loops.
+
+   New idea: sed operations on variables.
+
+   Lots  of  people  seem  to  like  the  idea  to be able to do sed type
+   operations  on  shell variables. Maybe we can extend the syntax of the
+   variable  editing  to understand string operations. So I would like to
+   be able to use:
+
+> set a="this is a STRING"
+> echo $a:[3-]
+is is a STRING
+> echo $a:[#]
+16
+> echo $a:[6-7]
+is
+> echo $a:[-2]
+ng
+> echo $a:[-20]
+Subscript out of bounds.
+> echo $a:[2-20]
+Subscript out of bounds.
+> echo $a:[1-1]:u$a:[2-].
+This is a string.
+
+   </blockquote>
+
+   Fix pipelines that contain builtins so that they behave correctly.
+
+   I  tried  to  fix  that (most of the code is in sh.sem.c, but it works
+   only  for  non  POSIX  machines  cause otherwise the setpgid() I added
+   fails).
+
+   Fix the correct code... How to do that involves A.I....
+
+   Rewrite  the  whole  thing.  It  has  taken  to  much beating over the
+   years...
+
+   Add  another  hook  like  precmd  to  be executed after the prompt but
+   before the command.
+
+   Add instructions for using configure in the README file.
+
+   Make manual page references links in the HTML version of the manual.
+
+   It is possible to match the words with ([0-9]) after them. Links could
+   be  using the manual page CGI at http://www.tac.eu.org/cgi-bin/man-cgi
+   for content.
+
+   Add OpenBSD?? to the Makefile, etc.
+
+   A  Csh compatability mode would be nice: I know tcsh is supposed to be
+   fully  csh  compatible,  but csh scripts containing such constructs as
+   '$<'  ,  'if  ( -d $file ) cd $file' or any of a great number of other
+   valid  csh commands, will produce syntax errors or the like with tcsh,
+   which  is  frustrating when writing/maintaining csh scripts which have
+   to  run on systems with only tcsh and systems with only csh. If such a
+   thing  exists, I couldn't find it after searching the man page for two
+   hours, and it should be better documented
+
+   Add  hooks  for  command  completion  Either  for a dynamically loaded
+   library,  or a callback to another program that allows another pass to
+   complete the command. As a trivial example, the module could duplicate
+   the  functionality of aliases. A tcsh_mud.so could define sigh, groan,
+   cheer,  lol,  etc  to  produce  output  if they weren't actually valid
+   commands.
+
+   Properly deal with : in filename substitution
+
+   Given something like
+
+   blah.foo:*.foo
+
+   expand it properly to something like
+
+   blah.foo:baz.foo:bob.foo:bar.foo
+
+   It already does this, if you have a file named like that... --Kim
+
+   Directory  commands  don't  handle  blanks  in filenames. If I have an
+   environment variable such as:
+
+% setenv TOMCAT '/c/Program? Files/Apache? Software Foundation/Tomcat? 5.0'
+and then do the following, setenv complains that it has too many arguments.
+% cd /tmp
+% cd "$TOMCAT"
+setenv: Too many arguments
+% dirs
+/c/Program? Files/Apache? Software Foundation/Tomcat? 5.0 /tmp
+% pushd "$TOMCAT"
+/c/Program? Files/Apache? Software Foundation/Tomcat? 5.0
+setenv: Too many arguments.
+% pushd /tmp
+/tmp /c/Program? Files/Apache? Software Foundation/Tomcat? 5.0
+% pushd
+/c/Program? Files/Apache? Software Foundation/Tomcat? 5.0 /tmp
+setenv: Too many arguments.
+
+   Wish  tcsh  would feature fc (fix command) as in bash !Wish tcsh would
+   featuer fc (fix command) as in bash !
+
+   i  wish  for  read-only  CVS  access  to  the  sources (as i am on the
+   bleeding egde)
+
+   Functions  would be useful! As would being able to redirect stderr (or
+   other file descriptors) independently of stdout! -- Rohan Talip
+
+   Don't  complete  commands  with non-executable files. For example if I
+   have a file called README in a directory in the PATH, and I type R TAB
+   tcsh will complete README as a command. But README does not have the x
+   bit set, so it's kind of pointless to have that completion.
+
+   -->  Setting the shell variable "recognize_only_executables" will give
+   you this behavior. --Waz
+
+   If  I  have  in  my  .tcshrc:  complete  {cd,pushd}  p/1/d/ and I type
+   "complete cd" at the shell prompt nothing is printed. It would be nice
+   if {cd,pushd} p/1/d/ was printed.
+
+   -->  I  had programmed this feature a while ago but have not submitted
+   it  because  the implementation is not robust enough to keep TCSH from
+   crashing  when  special  characters  are part of the pattern. I'll get
+   back to it at some point! --Waz
+
+   It would be nice if "set autolist" would be on by default.
+
+   ---
+
+   Unicode  (UTF-8) doesn't seem to work. It's not even possible to "make
+   catalogs"  in  unicode  environment.  Also  unicode support (and other
+   multibyte   encodings)   should   depend   on   environment  variables
+   (LC_CTYPE),  not  on  "set dspmbyte". On unicode terminal translations
+   show empty characters instead of messages.
+
+   In addition to message catalogs, there are more problems:
+ipi:~/test/tcsh/bin> ls
+tcsh  едц
+ipi:~/test/tcsh/bin> set dspmbyte utf8
+ipi:~/test/tcsh/bin> ls ???
+ls: No match.
+
+   Unicode is used more and more, and is default on many environments, so
+   this really should be fixed. --mpaananen
+     _________________________________________________________________
+
+   When I have a script called from complete I would like to have the the
+   existing  text  from the command line passed to that script so that it
+   can  look  at  all existing words to detemine what it should output as
+   the completion list.
+
+   For example:
+
+   complete prog 'n/-x/`myscript`'
+
+   Then when I do this:
+
+   > prog -a A -b B -x <TAB>
+
+   The script would get 'prog -a A -b B -x ' which would allow the script
+   to  base  its -x completions on the options given for -a and -b (or if
+   they  aren't  present give nothing - or a message saying that they are
+   required).  Setting  a temporary environment variable before executing
+   the command would also work and would probably be safer.
+
+   Perhaps  this info is already available as a special variable that can
+   be  manually  passed  to  the  script:  complete  prog 'n/-x/`myscript
+   $cmd_line`'?
+
+   Update:  I  looked  into this further by actually downloading the code
+   and  looking  through  it.  It  doesn't  seem that this information is
+   available  anywhere,  but  I  did  manage  to achieve what I wanted by
+   adding  the  following  two lines around the call to tw_complete (line
+   278, tw.parse.c 6.12.00):
+
+   added> tsetenv(STRCURRCMDLINE, (Char *)&qline);
+        looking = tw_complete(cmd_start, &wordp, &pat, looking, &suf);
+
+   added> Unsetenv(STRCURRCMDLINE);
+
+   And I added a definition for STRCURRCMDLINE to be "CURRCMDLINE".
+
+   This   provides   the   environment   variable   CURRCMDLINE   to  any
+   script/program running under complete. The only issue I see is picking
+   a  sufficiently obscure environment variable that noone else is likely
+   to  use,  but have it readable enough to understand what it is for. It
+   also  shouldn't overwrite an existing ENV variable if it is already in
+   use.
+     _________________________________________________________________
+
+   Home | RecentChanges | Preferences
+   Edit text of this page | View other revisions
+   Last edited March 25, 2004 10:27 (diff)
+   Search: ____________________

@@ -1,0 +1,10 @@
+pass in from 1.1.1.1/32 to 2.2.2.2/32
+pass in from {2.2.2.2/24,3.3.3.3/32} to 4.4.4.4/32
+pass in from {2.2.2.2/24,3.3.3.3/32} to {5.5.5.5/32,6.6.6.6/32}
+pass in from {2.2.2.2/24,3.3.3.3/32} to {5.5.5.5/32,6.6.6.6/32} port = {22,25}
+pass in proto tcp from {2.2.2.2/24,3.3.3.3/32} port = {53,9} to {5.5.5.5/32,6.6.6.6/32}
+pass in proto udp from {2.2.2.2/24,3.3.3.3/32} to {5.5.5.5/32,6.6.6.6/32} port = {53,9}
+pass in from 10.10.10.10 to 11.11.11.11
+pass in from pool/101 to hash/202
+pass in from hash/303 to pool/404
+pass in from pool=(!1.1.1.1,2.2.2.2,!2.2.0.0/16) to pool = ( 1.1.0.0/16 )

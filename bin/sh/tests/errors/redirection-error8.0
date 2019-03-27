@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+$SH -c '{ { :; } </var/empty/x; } 2>/dev/null || kill -INT $$; echo continued'
+r=$?
+[ "$r" -gt 128 ] && [ "$(kill -l "$r")" = INT ]

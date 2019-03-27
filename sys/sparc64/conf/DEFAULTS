@@ -1,0 +1,23 @@
+#
+# DEFAULTS -- Default kernel configuration file for FreeBSD/sparc64
+#
+# $FreeBSD$
+
+machine		sparc64
+
+# Pseudo devices.
+device		mem		# Memory and kernel memory devices
+
+# UART chips on this platform
+device		uart_ns8250
+device		uart_sab82532
+device		uart_z8530
+
+# Default partitioning schemes
+options 	GEOM_PART_BSD
+options 	GEOM_PART_VTOC8
+
+# Let sunkbd emulate an AT keyboard by default.
+options 	SUNKBD_EMULATE_ATKBD
+
+options 	NEW_PCIB

@@ -1,0 +1,103 @@
+.\" Copyright (c) 2007 Daniel Gerzo <danger@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd May 13, 2007
+.Dt BOOT.CONFIG 5
+.Os
+.Sh NAME
+.Nm boot.config
+.Nd "Configuration file for the boot blocks"
+.Sh DESCRIPTION
+The
+.Nm
+file contains options for the
+.Fx
+boot block code.
+.Pp
+When the
+.Fx
+boot loader runs, it searches the
+.Dq Li a
+slice of the boot partition for a
+.Nm
+file (as a result, slices which are missing an
+.Dq Li a
+partition require user intervention during the boot process).
+If the
+.Nm
+file is found, its contents are used as the default configuration
+options for the boot block code and are echoed to the system console.
+.Pp
+A valid format of this file is to put BIOS drive number, a controller
+type, a unit number, a partition, a kernel file name, and any other
+valid
+.Xr boot 8
+option on a single line, as it is done at the
+.Dq Li "boot:"
+prompt.
+.Pp
+The options related to the boot image selection described below and all
+the other options available for
+.Nm
+are documented in detail in the
+.Xr boot 8
+manual page.
+.Sh FILES
+.Bl -tag -width /boot.config -compact
+.It Pa /boot.config
+parameters for the boot blocks (optional)
+.El
+.Sh EXAMPLES
+The command:
+.Bd -literal -offset indent
+# echo "-P" > /boot.config
+.Ed
+.Pp
+will activate the serial console of
+.Fx .
+.Pp
+The command:
+.Bd -literal -offset indent
+# echo "1:ad(1,a)/boot/loader" > /boot.config
+.Ed
+.Pp
+will instruct the second stage of
+.Xr boot 8
+on the first disk to boot with the third
+.Xr boot 8
+stage from the second disk.
+.Pp
+The command:
+.Bd -literal -offset indent
+# echo "1:ad(1,a)/boot/loader -P" > /boot.config
+.Ed
+.Pp
+will do both of the above.
+.Sh SEE ALSO
+.Xr boot 8 ,
+.Xr loader 8
+.Sh AUTHORS
+This manual page was written by
+.An Daniel Gerzo Aq Mt danger@FreeBSD.org .

@@ -1,0 +1,153 @@
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)ascii.7	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd October 30, 2017
+.Dt ASCII 7
+.Os
+.Sh NAME
+.Nm ascii
+.Nd octal, hexadecimal, decimal and binary
+.Tn ASCII
+character sets
+.Sh DESCRIPTION
+The
+.Nm octal
+set:
+.Bd -literal -offset left
+000 NUL  001 SOH  002 STX  003 ETX  004 EOT  005 ENQ  006 ACK  007 BEL
+010 BS   011 HT   012 LF   013 VT   014 FF   015 CR   016 SO   017 SI
+020 DLE  021 DC1  022 DC2  023 DC3  024 DC4  025 NAK  026 SYN  027 ETB
+030 CAN  031 EM   032 SUB  033 ESC  034 FS   035 GS   036 RS   037 US
+040 SP   041  !   042  "   043  #   044  $   045  %   046  &   047  '
+050  (   051  )   052  *   053  +   054  ,   055  -   056  .   057  /
+060  0   061  1   062  2   063  3   064  4   065  5   066  6   067  7
+070  8   071  9   072  :   073  ;   074  <   075  =   076  >   077  ?
+100  @   101  A   102  B   103  C   104  D   105  E   106  F   107  G
+110  H   111  I   112  J   113  K   114  L   115  M   116  N   117  O
+120  P   121  Q   122  R   123  S   124  T   125  U   126  V   127  W
+130  X   131  Y   132  Z   133  [   134  \e\   135  ]   136  ^   137  _
+140  `   141  a   142  b   143  c   144  d   145  e   146  f   147  g
+150  h   151  i   152  j   153  k   154  l   155  m   156  n   157  o
+160  p   161  q   162  r   163  s   164  t   165  u   166  v   167  w
+170  x   171  y   172  z   173  {   174  |   175  }   176  ~   177 DEL
+.Ed
+.Pp
+The
+.Nm hexadecimal
+set:
+.Bd -literal -offset left
+00 NUL   01 SOH   02 STX   03 ETX   04 EOT   05 ENQ   06 ACK   07 BEL
+08 BS    09 HT    0a LF    0b VT    0c FF    0d CR    0e SO    0f SI
+10 DLE   11 DC1   12 DC2   13 DC3   14 DC4   15 NAK   16 SYN   17 ETB
+18 CAN   19 EM    1a SUB   1b ESC   1c FS    1d GS    1e RS    1f US
+20 SP    21  !    22  "    23  #    24  $    25  %    26  &    27  '
+28  (    29  )    2a  *    2b  +    2c  ,    2d  -    2e  .    2f  /
+30  0    31  1    32  2    33  3    34  4    35  5    36  6    37  7
+38  8    39  9    3a  :    3b  ;    3c  <    3d  =    3e  >    3f  ?
+40  @    41  A    42  B    43  C    44  D    45  E    46  F    47  G
+48  H    49  I    4a  J    4b  K    4c  L    4d  M    4e  N    4f  O
+50  P    51  Q    52  R    53  S    54  T    55  U    56  V    57  W
+58  X    59  Y    5a  Z    5b  [    5c  \e\    5d  ]    5e  ^    5f  _
+60  \`    61  a    62  b    63  c    64  d    65  e    66  f    67  g
+68  h    69  i    6a  j    6b  k    6c  l    6d  m    6e  n    6f  o
+70  p    71  q    72  r    73  s    74  t    75  u    76  v    77  w
+78  x    79  y    7a  z    7b  {    7c  |    7d  }    7e  ~    7f DEL
+.Ed
+.Pp
+The
+.Nm decimal
+set:
+.Bd -literal -offset left
+  0 NUL    1 SOH    2 STX    3 ETX    4 EOT    5 ENQ    6 ACK    7 BEL
+  8 BS     9 HT    10 LF    11 VT    12 FF    13 CR    14 SO    15 SI
+ 16 DLE   17 DC1   18 DC2   19 DC3   20 DC4   21 NAK   22 SYN   23 ETB
+ 24 CAN   25 EM    26 SUB   27 ESC   28 FS    29 GS    30 RS    31 US
+ 32 SP    33  !    34  "    35  #    36  $    37  %    38  &    39  '
+ 40  (    41  )    42  *    43  +    44  ,    45  -    46  .    47  /
+ 48  0    49  1    50  2    51  3    52  4    53  5    54  6    55  7
+ 56  8    57  9    58  :    59  ;    60  <    61  =    62  >    63  ?
+ 64  @    65  A    66  B    67  C    68  D    69  E    70  F    71  G
+ 72  H    73  I    74  J    75  K    76  L    77  M    78  N    79  O
+ 80  P    81  Q    82  R    83  S    84  T    85  U    86  V    87  W
+ 88  X    89  Y    90  Z    91  [    92  \e\    93  ]    94  ^    95  _
+ 96  `    97  a    98  b    99  c   100  d   101  e   102  f   103  g
+104  h   105  i   106  j   107  k   108  l   109  m   110  n   111  o
+112  p   113  q   114  r   115  s   116  t   117  u   118  v   119  w
+120  x   121  y   122  z   123  {   124  |   125  }   126  ~   127 DEL
+.Ed
+.Pp
+The
+.Nm binary
+set:
+.Bd -literal -offset left
+ 00     01     10     11
+
+NUL     SP      @      `     00000
+SOH      !      A      a     00001
+STX      "      B      b     00010
+ETX      #      C      c     00011
+EOT      $      D      d     00100
+ENQ      %      E      e     00101
+ACK      &      F      f     00110
+BEL      '      G      g     00111
+ BS      (      H      h     01000
+ HT      )      I      i     01001
+ LF      *      J      j     01010
+ VT      +      K      k     01011
+ FF      ,      L      l     01100
+ CR      -      M      m     01101
+ SO      .      N      n     01110
+ SI      /      O      o     01111
+DLE      0      P      p     10000
+DC1      1      Q      q     10001
+DC2      2      R      r     10010
+DC3      3      S      s     10011
+DC4      4      T      t     10100
+NAK      5      U      u     10101
+SYN      6      V      v     10110
+ETB      7      W      w     10111
+CAN      8      X      x     11000
+ EM      9      Y      y     11001
+SUB      :      Z      z     11010
+ESC      ;      [      {     11011
+ FS      <      \e\      |     11100
+ GS      =      ]      }     11101
+ RS      >      ^      -     11110
+ US      ?      _    DEL     11111
+.Ed
+.Sh FILES
+.Bl -tag -width /usr/share/misc/ascii -compact
+.It Pa /usr/share/misc/ascii
+.El
+.Sh HISTORY
+An
+.Nm
+manual page appeared in
+.At v7 .

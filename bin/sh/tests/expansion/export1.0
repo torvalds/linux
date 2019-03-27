@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+w='@ vv=6'
+
+v=0 vv=0
+export \v=$w
+[ "$v" = "@" ] || echo "Expected @ got $v"
+[ "$vv" = "6" ] || echo "Expected 6 got $vv"
+
+HOME=/known/value
+
+export \v=~
+[ "$v" = \~ ] || echo "Expected ~ got $v"

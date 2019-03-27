@@ -1,0 +1,341 @@
+# $FreeBSD$
+# $NetBSD: UCS%DINGBATS.src,v 1.2 2006/04/08 15:47:39 tnozaki Exp $
+
+TYPE		ROWCOL
+NAME		UCS/DINGBATS
+SRC_ZONE	0x0000-0x27BE
+OOB_MODE	INVALID
+DST_INVALID	0x100
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#
+# This mapping data is made from the mapping data provided by Unicode, Inc.
+# Original notice:
+#
+#=======================================================================
+#   File name:  DINGBATS.TXT
+#
+#   Contents:   Map (external version) from Mac OS Dingbats
+#               character set to Unicode 3.2 and later.
+#
+#   Copyright:  (c) 1994-2002, 2005 by Apple Computer, Inc., all rights
+#               reserved.
+#
+#   Contact:    charsets@apple.com
+#
+#   Changes:
+#
+#       c02  2005-Apr-05    Update header comments. Matches internal xml
+#                           <c1.1> and Text Encoding Converter 2.0.
+#      b3,c1 2002-Dec-19    Update mappings for 0x80-0x8D to use new
+#                           Unicode 3.2 characters. Update URLs, notes.
+#                           Matches internal utom<b2>.
+#       b02  1999-Sep-22    Update contact e-mail address. Matches
+#                           internal utom<b1>, ufrm<b1>, and Text
+#                           Encoding Converter version 1.5.
+#       n05  1998-Feb-05    Update to match internal utom<n4>, ufrm<n14>,
+#                           and Text Encoding Converter version 1.3:
+#                           Change all mappings to single corporate-zone
+#                           Unicodes to either use standard Unicodes
+#                           or standard Unicodes plus transcoding hints;
+#                           see details below. Also update header
+#                           comments to new format.
+#       n03  1995-Apr-15    First version (after fixing some typos).
+#                           Matches internal ufrm<n4>.
+#
+# Standard header:
+# ----------------
+#
+#   Apple, the Apple logo, and Macintosh are trademarks of Apple
+#   Computer, Inc., registered in the United States and other countries.
+#   Unicode is a trademark of Unicode Inc. For the sake of brevity,
+#   throughout this document, "Macintosh" can be used to refer to
+#   Macintosh computers and "Unicode" can be used to refer to the
+#   Unicode standard.
+#
+#   Apple Computer, Inc. ("Apple") makes no warranty or representation,
+#   either express or implied, with respect to this document and the
+#   included data, its quality, accuracy, or fitness for a particular
+#   purpose. In no event will Apple be liable for direct, indirect,
+#   special, incidental, or consequential damages resulting from any
+#   defect or inaccuracy in this document or the included data.
+#
+#   These mapping tables and character lists are subject to change.
+#   The latest tables should be available from the following:
+#
+#   <http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/>
+#
+#   For general information about Mac OS encodings and these mapping
+#   tables, see the file "README.TXT".
+#
+# Format:
+# -------
+#
+#   Three tab-separated columns;
+#   '#' begins a comment which continues to the end of the line.
+#     Column #1 is the Mac OS Dingbats code (in hex as 0xNN)
+#     Column #2 is the corresponding Unicode or Unicode sequence
+#       (in hex as 0xNNNN).
+#     Column #3 is a comment containing the Unicode name.
+#       In some cases an additional comment follows the Unicode name.
+#
+#   The entries are in Mac OS Dingbats code order.
+#
+#   Some of these mappings require the use of corporate characters.
+#   See the file "CORPCHAR.TXT" and notes below.
+#
+#   Control character mappings are not shown in this table, following
+#   the conventions of the standard UTC mapping tables. However, the
+#   Mac OS Dingbats character set uses the standard control characters
+#   at 0x00-0x1F and 0x7F.
+#
+# Notes on Mac OS Dingbats:
+# -------------------------
+#
+#   This is a legacy Mac OS encoding; in the Mac OS X Carbon and Cocoa
+#   environments, it is only supported directly in programming
+#   interfaces for QuickDraw Text, the Script Manager, and related
+#   Text Utilities. For other purposes it is supported via transcoding
+#   to and from Unicode.
+#
+#   The Mac OS Dingbats encoding shares the script code smRoman
+#   (0) with the standard Mac OS Roman encoding. To determine if
+#   the Dingbats encoding is being used, you must check if the
+#   font name is "Zapf Dingbats".
+#
+#   The layout of the Dingbats character set is identical to or
+#   a superset of the layout of the Adobe Zapf Dingbats encoding
+#   vector.
+#
+#   The following code points are unused, and are not shown here:
+#   0x8E-0xA0, 0xF0, 0xFF.
+#
+# Unicode mapping issues and notes:
+# ---------------------------------
+#
+# Details of mapping changes in each version:
+# -------------------------------------------
+#
+#   Changes from version b02 to version b03/c01:
+#
+#   - The mappings for the following Mac OS Dingbats characters
+#   were changed to use standard Unicode characters added for
+#   Unicode 3.2: 0x80-0x8D.
+#
+#   Changes from version n03 to version n05:
+#
+#   - The mappings for the following Mac OS Dingbats characters
+#   were changed from single corporate-zone Unicode characters
+#   to standard Unicode characters:
+#   0x80-0x81, 0x84-0x87, 0x8A-0x8D.
+#
+#   - The mappings for the following Mac OS Dingbats characters
+#   were changed from single corporate-zone Unicode characters
+#   to combinations of a standard Unicode and a transcoding hint:
+#   0x82-0x83, 0x88-0x89.
+#
+##################
+0x0000 - 0x0020 = 0x00 -
+0x2192 = 0xD5
+0x2194 = 0xD6
+0x2195 = 0xD7
+0x2460 = 0xAC
+0x2461 = 0xAD
+0x2462 = 0xAE
+0x2463 = 0xAF
+0x2464 = 0xB0
+0x2465 = 0xB1
+0x2466 = 0xB2
+0x2467 = 0xB3
+0x2468 = 0xB4
+0x2469 = 0xB5
+0x25A0 = 0x6E
+0x25B2 = 0x73
+0x25BC = 0x74
+0x25C6 = 0x75
+0x25CF = 0x6C
+0x25D7 = 0x77
+0x2605 = 0x48
+0x260E = 0x25
+0x261B = 0x2A
+0x261E = 0x2B
+0x2660 = 0xAB
+0x2663 = 0xA8
+0x2665 = 0xAA
+0x2666 = 0xA9
+0x2701 = 0x21
+0x2702 = 0x22
+0x2703 = 0x23
+0x2704 = 0x24
+0x2706 = 0x26
+0x2707 = 0x27
+0x2708 = 0x28
+0x2709 = 0x29
+0x270C = 0x2C
+0x270D = 0x2D
+0x270E = 0x2E
+0x270F = 0x2F
+0x2710 = 0x30
+0x2711 = 0x31
+0x2712 = 0x32
+0x2713 = 0x33
+0x2714 = 0x34
+0x2715 = 0x35
+0x2716 = 0x36
+0x2717 = 0x37
+0x2718 = 0x38
+0x2719 = 0x39
+0x271A = 0x3A
+0x271B = 0x3B
+0x271C = 0x3C
+0x271D = 0x3D
+0x271E = 0x3E
+0x271F = 0x3F
+0x2720 = 0x40
+0x2721 = 0x41
+0x2722 = 0x42
+0x2723 = 0x43
+0x2724 = 0x44
+0x2725 = 0x45
+0x2726 = 0x46
+0x2727 = 0x47
+0x2729 = 0x49
+0x272A = 0x4A
+0x272B = 0x4B
+0x272C = 0x4C
+0x272D = 0x4D
+0x272E = 0x4E
+0x272F = 0x4F
+0x2730 = 0x50
+0x2731 = 0x51
+0x2732 = 0x52
+0x2733 = 0x53
+0x2734 = 0x54
+0x2735 = 0x55
+0x2736 = 0x56
+0x2737 = 0x57
+0x2738 = 0x58
+0x2739 = 0x59
+0x273A = 0x5A
+0x273B = 0x5B
+0x273C = 0x5C
+0x273D = 0x5D
+0x273E = 0x5E
+0x273F = 0x5F
+0x2740 = 0x60
+0x2741 = 0x61
+0x2742 = 0x62
+0x2743 = 0x63
+0x2744 = 0x64
+0x2745 = 0x65
+0x2746 = 0x66
+0x2747 = 0x67
+0x2748 = 0x68
+0x2749 = 0x69
+0x274A = 0x6A
+0x274B = 0x6B
+0x274D = 0x6D
+0x274F = 0x6F
+0x2750 = 0x70
+0x2751 = 0x71
+0x2752 = 0x72
+0x2756 = 0x76
+0x2758 = 0x78
+0x2759 = 0x79
+0x275A = 0x7A
+0x275B = 0x7B
+0x275C = 0x7C
+0x275D = 0x7D
+0x275E = 0x7E
+0x2761 = 0xA1
+0x2762 = 0xA2
+0x2763 = 0xA3
+0x2764 = 0xA4
+0x2765 = 0xA5
+0x2766 = 0xA6
+0x2767 = 0xA7
+0x2768 = 0x80
+0x2769 = 0x81
+0x276A = 0x82
+0x276B = 0x83
+0x276C = 0x84
+0x276D = 0x85
+0x276E = 0x86
+0x276F = 0x87
+0x2770 = 0x88
+0x2771 = 0x89
+0x2772 = 0x8A
+0x2773 = 0x8B
+0x2774 = 0x8C
+0x2775 = 0x8D
+0x2776 = 0xB6
+0x2777 = 0xB7
+0x2778 = 0xB8
+0x2779 = 0xB9
+0x277A = 0xBA
+0x277B = 0xBB
+0x277C = 0xBC
+0x277D = 0xBD
+0x277E = 0xBE
+0x277F = 0xBF
+0x2780 = 0xC0
+0x2781 = 0xC1
+0x2782 = 0xC2
+0x2783 = 0xC3
+0x2784 = 0xC4
+0x2785 = 0xC5
+0x2786 = 0xC6
+0x2787 = 0xC7
+0x2788 = 0xC8
+0x2789 = 0xC9
+0x278A = 0xCA
+0x278B = 0xCB
+0x278C = 0xCC
+0x278D = 0xCD
+0x278E = 0xCE
+0x278F = 0xCF
+0x2790 = 0xD0
+0x2791 = 0xD1
+0x2792 = 0xD2
+0x2793 = 0xD3
+0x2794 = 0xD4
+0x2798 = 0xD8
+0x2799 = 0xD9
+0x279A = 0xDA
+0x279B = 0xDB
+0x279C = 0xDC
+0x279D = 0xDD
+0x279E = 0xDE
+0x279F = 0xDF
+0x27A0 = 0xE0
+0x27A1 = 0xE1
+0x27A2 = 0xE2
+0x27A3 = 0xE3
+0x27A4 = 0xE4
+0x27A5 = 0xE5
+0x27A6 = 0xE6
+0x27A7 = 0xE7
+0x27A8 = 0xE8
+0x27A9 = 0xE9
+0x27AA = 0xEA
+0x27AB = 0xEB
+0x27AC = 0xEC
+0x27AD = 0xED
+0x27AE = 0xEE
+0x27AF = 0xEF
+0x27B1 = 0xF1
+0x27B2 = 0xF2
+0x27B3 = 0xF3
+0x27B4 = 0xF4
+0x27B5 = 0xF5
+0x27B6 = 0xF6
+0x27B7 = 0xF7
+0x27B8 = 0xF8
+0x27B9 = 0xF9
+0x27BA = 0xFA
+0x27BB = 0xFB
+0x27BC = 0xFC
+0x27BD = 0xFD
+0x27BE = 0xFE
+END_MAP

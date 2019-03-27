@@ -1,0 +1,127 @@
+#
+# GNU Makefile for DOS-libpcap. djgpp version.
+#
+# Use this makefile from the libpcap root directory.
+# E.g. like this:
+#
+#  c:\net\pcap> make -f msdos/makefile.dj
+#
+# Note: you should do a "set LFN=y" before running this makefile.
+#
+
+VPATH = missing msdos bpf/net
+
+PREREQUISITES = scanner.c grammar.c tokdefs.h version.h msdos/pkt_stub.inc
+
+include ./msdos/common.dj
+
+DRIVER_DIR = ./msdos/pm_drvr
+
+CFLAGS += -DDEBUG -DNDIS_DEBUG -DHAVE_LIMITS_H -DHAVE_STRERROR -DHAVE_SNPRINTF -DHAVE_VSNPRINTF\
+          -D_U_='__attribute__((unused))'
+
+CFLAGS += -Dyylval=pcap_lval # -DBDEBUG -DNDEBUG
+
+SOURCES = grammar.c scanner.c bpf/net/bpf_filter.c bpf_image.c bpf_dump.c \
+          etherent.c gencode.c nametoaddr.c pcap-common.c pcap-dos.c optimize.c \
+          savefile.c pcap.c sf-pcap.c sf-pcapng.c \
+          msdos/pktdrvr.c msdos/ndis2.c # missing/snprintf.c
+
+OBJECTS = $(addprefix $(OBJ_DIR)/, $(notdir $(SOURCES:.c=.o)))
+TEMPBIN = tmp.bin
+
+ifeq ($(USE_32BIT_DRIVERS),1)
+  PM_OBJECTS = $(addprefix $(OBJ_DIR)/, \
+                 printk.o pci.o pci-scan.o bios32.o dma.o irq.o intwrap.o \
+                 lock.o kmalloc.o quirks.o timer.o net_init.o)
+  #
+  # Static link of drivers
+  #
+  ifeq ($(USE_32BIT_MODULES),0)
+    PM_OBJECTS += $(addprefix $(OBJ_DIR)/, \
+                    accton.o 8390.o 3c503.o 3c509.o 3c59x.o 3c515.o \
+                    3c575_cb.o 3c90x.o ne.o wd.o cs89x0.o rtl8139.o)
+  endif
+endif
+
+TARGETS = msdos/bin2c.exe libpcap.a filtertest.exe findalldevstest.exe \
+          nonblocktest.exe opentest.exe
+
+all: $(TARGETS)
+	@echo 'Welcome to libpcap/djgpp with samples.'
+
+ifeq ($(USE_32BIT_DRIVERS),1)
+$(PM_OBJECTS):
+	$(MAKE) -f Makefile.dj -C $(DRIVER_DIR) $(notdir $@)
+endif
+
+libpcap.a: version.h $(OBJECTS) $(PM_OBJECTS)
+	rm -f $@
+	ar rs $@ $^
+
+filtertest.exe: tests/filtertest.c libpcap.a
+	$(CC) $(CFLAGS) -Din_addr_t=u_long -o $@ $^ $(WATT32_ROOT)/lib/libwatt.a
+	@echo
+
+findalldevstest.exe: tests/findalldevstest.c libpcap.a
+	$(CC) $(CFLAGS) -o $@ $^ $(WATT32_ROOT)/lib/libwatt.a
+	@echo
+
+nonblocktest.exe: tests/nonblocktest.c libpcap.a
+	$(CC) $(CFLAGS) -o $@ $^ $(WATT32_ROOT)/lib/libwatt.a
+	@echo
+
+opentest.exe: tests/opentest.c libpcap.a
+	$(CC) $(CFLAGS) -o $@ $^ $(WATT32_ROOT)/lib/libwatt.a
+	@echo
+
+msdos/pkt_stub.inc: msdos/bin2c.exe msdos/pkt_rx1.S
+	$(ASM) -o $(TEMPBIN) -lmsdos/pkt_rx1.lst msdos/pkt_rx1.S
+	./msdos/bin2c $(TEMPBIN) > $@
+	rm -f $(TEMPBIN)
+
+grammar.c tokdefs.h: grammar.y
+	rm -f grammar.c tokdefs.h
+	$(YACC) --name-prefix=pcap_ --yacc --defines grammar.y
+	mv -f y.tab.c grammar.c
+	mv -f y.tab.h tokdefs.h
+
+version.h: ./VERSION
+	@echo '/* Generated from VERSION. Do not edit */' > $@
+	sed -e 's/.*/static char pcap_version_string[] = "libpcap (&)";/' ./VERSION >> $@
+
+scanner.c: scanner.l
+	$(LEX) -Ppcap_ -7 -t $^ > $@
+	@echo
+
+msdos/bin2c.exe: msdos/bin2c.c
+	$(CC) $*.c -o $*.exe
+
+clean:
+	rm -f $(OBJECTS) msdos/pkt_rx1.lst Makefile.bak .depend.dj $(PREREQUISITES)
+#	$(MAKE) -f Makefile.dj -C $(DRIVER_DIR) clean
+
+vclean: clean
+	rm -f $(TARGETS)
+	-rmdir $(OBJ_DIR)
+
+#
+# Manually generated dependencies
+#
+msdos/pktdrvr.c: msdos/pkt_stub.inc
+scanner.c: scanner.l
+grammar.c tokdefs.h: grammar.y
+grammar.h: grammar.y
+scanner.l: pcap-int.h pcap-namedb.h gencode.h grammar.h
+grammar.y: pcap-int.h gencode.h pcap-namedb.h
+
+#
+# Generate dependencies.
+#
+REPLACE = sed -e 's/\(.*\)\.o: /\n$$(OBJ_DIR)\/\1.o: /'
+
+depend: $(PREREQUISITES)
+	$(CC) -MM $(CFLAGS) $(SOURCES) | $(REPLACE) > .depend.dj
+
+-include .depend.dj
+

@@ -1,0 +1,19 @@
+# $FreeBSD$
+block in log quick from any with ipopts
+block in log quick proto tcp from any to any with short
+pass out on ed1 all head 150
+block out from 127.0.0.0/8 to any group 150
+block out from any to 127.0.0.0/8 group 150
+block out from any to 192.168.1.110/32 group 150
+pass in on ed1 all head 100
+block in from 127.0.0.0/8 to any group 100
+block in from 192.168.1.110/32 to any group 100
+block in from 192.168.0.1/0xffffff00 to any group 100
+pass out on fxp0 all head 250
+block out from 127.0.0.0/8 to any group 250
+block out from any to 127.0.0.0/8 group 250
+block out from any to 192.168.0.1/32 group 250
+pass in on fxp0 all head 200
+block in from 127.0.0.0/8 to any group 200
+block in from 192.168.0.1 to any group 200
+block in from 192.168.1.110/0xffffff00 to any group 200

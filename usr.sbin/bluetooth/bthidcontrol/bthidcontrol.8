@@ -1,0 +1,102 @@
+.\" Copyright (c) 2004 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: bthidcontrol.8,v 1.1 2004/02/13 21:44:41 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd October 30, 2006
+.Dt BTHIDCONTROL 8
+.Os
+.Sh NAME
+.Nm bthidcontrol
+.Nd Bluetooth HID control utility
+.Sh SYNOPSIS
+.Nm
+.Fl h
+.Nm
+.Op Fl a Ar BD_ADDR
+.Op Fl c Ar file
+.Op Fl H Ar file
+.Op Fl v
+.Ar command
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to query remote Bluetooth HID devices, dump HID descriptors
+in human readable form and perform simple manipulations on the Bluetooth HID
+daemon configuration files.
+.Pp
+The
+.Nm
+utility will print results to the standard output and error messages to the
+standard error.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a Ar BD_ADDR
+Specify BD_ADDR for the HID device.
+Example:
+.Fl a Li 00:01:02:03:04:05 .
+.It Fl c Ar file
+Specify path to the Bluetooth HID daemon configuration file.
+The default path is
+.Pa /etc/bluetooth/bthidd.conf .
+.It Fl H Ar file
+Specify path to the Bluetooth HID daemon known HIDs file.
+The default path is
+.Pa /var/db/bthidd.hids .
+.It Fl h
+Display usage message and exit.
+.It Fl v
+Be verbose and show items that are being used for padding.
+.It Ar command
+One of the supported commands (see below).
+Special command
+.Cm help
+can be used to obtain the list of all supported commands.
+To get more information about specific command use
+.Cm help Ar command .
+.El
+.Sh COMMANDS
+The currently supported node commands in
+.Nm
+are:
+.Pp
+.Bl -tag -width "Forget" -offset indent -compact
+.It Cm Query
+.It Cm Dump
+.It Cm Known
+.It Cm Forget
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/bluetooth/bthidd.conf" -compact
+.It Pa /etc/bluetooth/bthidd.conf
+.It Pa /var/db/bthidd.hids
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr bthidd 8
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com

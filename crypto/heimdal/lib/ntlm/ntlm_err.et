@@ -1,0 +1,24 @@
+#
+# Error messages for the ntlm library
+#
+# This might look like a com_err file, but is not
+#
+
+error_table ntlm
+
+prefix HNTLM_ERR
+error_code DECODE,		"Failed to decode packet"
+error_code INVALID_LENGTH,	"Input length invalid"
+error_code CRYPTO,		"Failed crypto primitive"
+error_code RAND,		"Random generator failed"
+error_code AUTH,		"NTLM authentication failed"
+error_code TIME_SKEW,		"Client time skewed to server"
+error_code OEM,			"Client set OEM string"
+error_code MISSING_NAME_SEPARATOR, "missing @ or \ in name"
+error_code MISSING_BUFFER, 	"missing expected buffer"
+error_code INVALID_APOP, 	"Invalid APOP response"
+error_code INVALID_CRAM_MD5, 	"Invalid CRAM-MD5 response"
+error_code INVALID_DIGEST_MD5, 	"Invalid DIGEST-MD5 response"
+error_code INVALID_DIGEST_MD5_RSPAUTH, 	"Invalid DIGEST-MD5 rspauth"
+
+end

@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+v=1
+alias a='unalias a
+v=2'
+eval a
+[ "$v" = 2 ]

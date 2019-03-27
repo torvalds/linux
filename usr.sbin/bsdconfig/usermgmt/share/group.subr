@@ -1,0 +1,518 @@
+if [ ! "$_USERMGMT_GROUP_SUBR" ]; then _USERMGMT_GROUP_SUBR=1
+#
+# Copyright (c) 2012 Ron McDowell
+# Copyright (c) 2012-2014 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." usermgmt/group.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/usermgmt/group_input.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="070.usermgmt"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ CONFIGURATION
+
+# set some reasonable defaults if /etc/adduser.conf does not exist.
+[ -f /etc/adduser.conf ] && f_include /etc/adduser.conf
+: ${passwdtype:="yes"}
+
+############################################################ FUNCTIONS
+
+# f_group_add [$group]
+#
+# Add a group. If both $group (as a first argument) and $VAR_GROUP are unset
+# or NULL and we are running interactively, prompt the user to enter the name
+# of a new group and (if $VAR_NO_CONFIRM is unset or NULL) prompt the user to
+# answer some questions about the new group. Variables that can be used to
+# script user input:
+#
+# 	VAR_GROUP [Optional if running interactively]
+# 		The group to add. Ignored if given non-NULL first-argument.
+#	VAR_GROUP_GID [Optional]
+# 		Numerical group ID to use. If NULL or unset, the group ID is
+# 		automatically chosen.
+# 	VAR_GROUP_MEMBERS [Optional]
+# 		Comma separated list of users that are a member of this group.
+# 	VAR_GROUP_PASSWORD [Optional]
+# 		newgrp(1) password to set for the group. Default if NULL or
+# 		unset is to disable newgrp(1) password authentication.
+#
+# Returns success if the group was successfully added.
+#
+f_group_add()
+{
+	local funcname=f_group_add
+	local title # Calculated below
+	local alert=f_show_msg no_confirm=
+
+	f_getvar $VAR_NO_CONFIRM no_confirm
+	[ "$no_confirm" ] && alert=f_show_info
+
+	local input
+	f_getvar 3:-\$$VAR_GROUP input "$1"
+
+	#
+	# NB: pw(8) has a ``feature'' wherein `-n name' can be taken as GID
+	# instead of name. Work-around is to also pass `-g GID' at the same
+	# time (the GID is ignored in this case, so any GID will do).
+	#
+	if [ "$input" ] && f_quietly pw groupshow -n "$input" -g 1337; then
+		f_show_err "$msg_group_already_used" "$input"
+		return $FAILURE
+	fi
+
+	local group_name="$input"
+	while f_interactive && [ ! "$group_name" ]; do
+		f_dialog_input_group_name group_name "$group_name" ||
+			return $SUCCESS
+		[ "$group_name" ] ||
+			f_show_err "$msg_please_enter_a_group_name"
+	done
+	if [ ! "$group_name" ]; then
+		f_show_err "$msg_no_group_specified"
+		return $FAILURE
+	fi
+
+	local group_password group_gid group_members
+	f_getvar $VAR_GROUP_PASSWORD	group_password
+	f_getvar $VAR_GROUP_GID		group_gid
+	f_getvar $VAR_GROUP_MEMBERS	group_members
+
+	local group_password_disable=
+	f_interactive || [ "$group_password" ] || group_password_disable=1
+
+	if f_interactive && [ ! "$no_confirm" ]; then
+		f_dialog_noyes \
+			"$msg_use_default_values_for_all_account_details"
+		retval=$?
+		if [ $retval -eq $DIALOG_ESC ]; then
+			return $SUCCESS
+		elif [ $retval -ne $DIALOG_OK ]; then
+			#
+			# Ask series of questions to pre-fill the editor screen
+			#
+			# Defaults used in each dialog should allow the user to
+			# simply hit ENTER to proceed and cancelling a single
+			# dialog cause them to return to the previous menu.
+			#
+	
+			if [ "$passwdtype" = "yes" ]; then
+				f_dialog_input_group_password group_password \
+					group_password_disable ||
+					return $FAILURE
+			fi
+			f_dialog_input_group_gid group_gid "$group_gid" ||
+				return $FAILURE
+			f_dialog_input_group_members group_members \
+				"$group_members" || return $FAILURE
+		fi
+	fi
+
+	#
+	# Loop until the user decides to Exit, Cancel, or presses ESC
+	#
+	title="$msg_add $msg_group: $group_name"
+	if f_interactive; then
+		local mtag retval defaultitem=
+		while :; do
+			f_dialog_title "$title"
+			f_dialog_menu_group_add "$defaultitem"
+			retval=$?
+			f_dialog_title_restore
+			f_dialog_menutag_fetch mtag
+			f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
+			defaultitem="$mtag"
+
+			# Return if user either pressed ESC or chose Cancel/No
+			[ $retval -eq $DIALOG_OK ] || return $FAILURE
+
+			case "$mtag" in
+			X) # Add/Exit
+			   local var
+			   for var in gid members name; do
+			   	local _group_$var
+			   	eval f_shell_escape \
+			   		\"\$group_$var\" _group_$var
+			   done
+
+			   local cmd="pw groupadd -n '$_group_name'"
+			   [ "$group_gid" ] && cmd="$cmd -g '$_group_gid'"
+			   [ "$group_members" ] &&
+			   	cmd="$cmd -M '$_group_members'"
+
+			   # Execute the command (break on success)
+			   if [ "$group_password_disable" ]; then
+			   	f_eval_catch $funcname pw '%s -h -' "$cmd"
+			   elif [ "$group_password" ]; then
+			   	echo "$group_password" |
+			   		f_eval_catch $funcname \
+			   			pw '%s -h 0' "$cmd"
+			   else
+			   	f_eval_catch $funcname pw '%s' "$cmd"
+			   fi && break
+			   ;;
+			1) # Group Name (prompt for new group name)
+			   f_dialog_input_group_name input "$group_name" ||
+			   	continue
+			   if f_quietly pw groupshow -n "$input" -g 1337; then
+			   	f_show_err "$msg_group_already_used" "$input"
+			   	continue
+			   fi
+			   group_name="$input"
+			   title="$msg_add $msg_group: $group_name"
+			   ;;
+			2) # Password
+			   f_dialog_input_group_password group_password \
+			   	group_password_disable
+			   ;;
+			3) # Group ID
+			   f_dialog_input_group_gid group_gid "$group_gid"
+			   ;;
+			4) # Group Members
+			   f_dialog_input_group_members group_members \
+					"$group_members"
+			   ;;
+			esac
+		done
+	else
+		local var
+		for var in gid members name; do
+			local _group_$var
+			eval f_shell_escape \"\$group_$var\" _group_$var
+		done
+
+		# Form the command
+		local cmd="pw groupadd -n '$_group_name'"
+		[ "$group_gid" ] && cmd="$cmd -g '$_group_gid'"
+		[ "$group_members" ] && cmd="$cmd -M '$_group_members'"
+
+		# Execute the command
+		local retval err
+		if [ "$group_password_disable" ]; then
+			f_eval_catch -k err $funcname pw '%s -h -' "$cmd"
+		elif [ "$group_password" ]; then
+			err=$( echo "$group_password" | f_eval_catch -de \
+				$funcname pw '%s -h 0' "$cmd" 2>&1 )
+		else
+			f_eval_catch -k err $funcname pw '%s' "$cmd"
+		fi
+		retval=$?
+		if [ $retval -ne $SUCCESS ]; then
+			f_show_err "%s" "$err"
+			return $retval
+		fi
+	fi
+
+	f_dialog_title "$title"
+	$alert "$msg_group_added"
+	f_dialog_title_restore
+	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 1
+
+	return $SUCCESS
+}
+
+# f_group_delete [$group]
+#
+# Delete a group. If both $group (as a first argument) and $VAR_GROUP are unset
+# or NULL and we are running interactively, prompt the user to select a group
+# from a list of available groups. Variables that can be used to script user
+# input:
+#
+# 	VAR_GROUP [Optional if running interactively]
+# 		The group to delete. Ignored if given non-NULL first-argument.
+#
+# Returns success if the group was successfully deleted.
+#
+f_group_delete()
+{
+	local funcname=f_group_delete
+	local title # Calculated below
+	local alert=f_show_msg no_confirm=
+
+	f_getvar $VAR_NO_CONFIRM no_confirm
+	[ "$no_confirm" ] && alert=f_show_info
+
+	local input
+	f_getvar 3:-\$$VAR_GROUP input "$1"
+
+	local group_name group_password group_gid group_members
+	if [ "$input" ] && ! f_input_group "$input"; then
+		f_show_err "$msg_group_not_found" "$input"
+		return $FAILURE
+	fi
+
+	#
+	# Loop until the user decides to Exit, Cancel, or presses ESC
+	#
+	title="$msg_delete $msg_group: $group_name"
+	if f_interactive; then
+		local mtag retval defaultitem=
+		while :; do
+        		f_dialog_title "$title"
+			f_dialog_menu_group_delete "$group_name" "$defaultitem"
+			retval=$?
+			f_dialog_title_restore
+			f_dialog_menutag_fetch mtag
+			f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
+			defaultitem="$mtag"
+
+			# Return if user either pressed ESC or chose Cancel/No
+			[ $retval -eq $DIALOG_OK ] || return $FAILURE
+
+			case "$mtag" in
+			X) # Delete/Exit
+			   local _group_name
+			   f_shell_escape "$group_name" _group_name
+			   f_eval_catch $funcname pw 'pw groupdel "%s"' \
+					"$_group_name" && break
+			   ;;
+			1) # Group Name (select different group from list)
+			   f_dialog_menu_group_list "$group_name" || continue
+			   f_dialog_menutag_fetch mtag
+
+			   [ "$mtag" = "X $msg_exit" ] && continue
+
+			   if ! f_input_group "$mtag"; then
+				f_show_err "$msg_group_not_found" "$mtag"
+				# Attempt to fall back to previous selection
+				f_input_group "$input" || return $FAILURE
+			   else
+				input="$mtag"
+			   fi
+			   ;;
+			esac
+		done
+	else
+		local retval err _group_name
+		f_shell_escape "$group_name" _group_name
+		f_eval_catch -k err $funcname pw \
+			"pw groupdel '%s'" "$_group_name"
+		retval=$?
+		if [ $retval -ne $SUCCESS ]; then
+			f_show_err "%s" "$err"
+			return $retval
+		fi
+	fi
+
+        f_dialog_title "$title"
+	$alert "$msg_group_deleted"
+	f_dialog_title_restore
+	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 1
+
+	return $SUCCESS
+}
+
+# f_group_edit [$group]
+#
+# Modify a group. If both $group (as a first argument) and $VAR_GROUP are unset
+# or NULL and we are running interactively, prompt the user to select a group
+# from a list of available groups. Variables that can be used to script user
+# input:
+#
+# 	VAR_GROUP [Optional if running interactively]
+# 		The group to modify. Ignored if given non-NULL first-argument.
+#	VAR_GROUP_GID [Optional]
+# 		Numerical group ID to set. If NULL or unset, the group ID is
+# 		unchanged.
+# 	VAR_GROUP_MEMBERS [Optional]
+# 		Comma separated list of users that are a member of this group.
+# 		If set but NULL, group memberships are reset (no users will be
+# 		a member of this group). If unset, group membership is
+# 		unmodified.
+# 	VAR_GROUP_PASSWORD [Optional]
+# 		newgrp(1) password to set for the group. If unset, the password
+# 		is unmodified. If NULL, the newgrp(1) password is disabled.
+#
+# Returns success if the group was successfully modified.
+#
+f_group_edit()
+{
+	local funcname=f_group_edit
+	local title # Calculated below
+	local alert=f_show_msg no_confirm=
+
+	f_getvar $VAR_NO_CONFIRM no_confirm
+	[ "$no_confirm" ] && alert=f_show_info
+
+	local input
+	f_getvar 3:-\$$VAR_GROUP input "$1"
+
+	#
+	# NB: pw(8) has a ``feature'' wherein `-n name' can be taken as GID
+	# instead of name. Work-around is to also pass `-g GID' at the same
+	# time (the GID is ignored in this case, so any GID will do).
+	#
+	if [ "$input" ] && ! f_quietly pw groupshow -n "$input" -g 1337; then
+		f_show_err "$msg_group_not_found" "$input"
+		return $FAILURE
+	fi
+
+	if f_interactive && [ ! "$input" ]; then
+		f_dialog_menu_group_list || return $SUCCESS
+		f_dialog_menutag_fetch input
+		[ "$input" = "X $msg_exit" ] && return $SUCCESS
+	elif [ ! "$input" ]; then
+		f_show_err "$msg_no_group_specified"
+		return $FAILURE
+	fi
+
+	local group_name group_password group_gid group_members
+	if ! f_input_group "$input"; then
+		f_show_err "$msg_group_not_found" "$input"
+		return $FAILURE
+	fi
+
+	f_isset $VAR_GROUP_GID && f_getvar $VAR_GROUP_GID group_gid
+	local null_members=
+	if f_isset $VAR_GROUP_MEMBERS; then
+		f_getvar $VAR_GROUP_MEMBERS group_members
+		[ "$group_members" ] || null_members=1
+	fi
+	local group_password_disable=
+	if f_isset $VAR_GROUP_PASSWORD; then
+		f_getvar $VAR_GROUP_PASSWORD group_password
+		[ "$group_password" ] || group_password_disable=1
+	fi
+
+	#
+	# Loop until the user decides to Exit, Cancel, or presses ESC
+	#
+	title="$msg_edit_view $msg_group: $group_name"
+	if f_interactive; then
+		local mtag retval defaultitem=
+		while :; do
+			f_dialog_title "$title"
+			f_dialog_menu_group_edit "$defaultitem"
+			retval=$?
+			f_dialog_title_restore
+			f_dialog_menutag_fetch mtag
+			f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
+			defaultitem="$mtag"
+
+			# Return if user either pressed ESC or chose Cancel/No
+			[ $retval -eq $DIALOG_OK ] || return $FAILURE
+
+			case "$mtag" in
+			X) # Save/Exit
+			   local var
+			   for var in gid members name; do
+			   	local _group_$var
+			   	eval f_shell_escape \
+			   		\"\$group_$var\" _group_$var
+			   done
+
+			   local cmd="pw groupmod -n '$_group_name'"
+			   [ "$group_gid" ] && cmd="$cmd -g '$_group_gid'"
+			   [ "$group_members" -o "$null_members" ] &&
+			   	cmd="$cmd -M '$_group_members'"
+
+			   # Execute the command (break on success)
+			   if [ "$group_password_disable" ]; then
+			   	f_eval_catch $funcname pw '%s -h -' "$cmd"
+			   elif [ "$group_password" ]; then
+			   	echo "$group_password" | f_eval_catch \
+			   		$funcname pw '%s -h 0' "$cmd"
+			   else
+			   	f_eval_catch $funcname pw '%s' "$cmd"
+			   fi && break
+			   ;;
+			1) # Group Name (select different group from list)
+			   f_dialog_menu_group_list "$group_name" || continue
+			   f_dialog_menutag_fetch mtag
+
+			   [ "$mtag" = "X $msg_exit" ] && continue
+
+			   if ! f_input_group "$mtag"; then
+			   	f_show_err "$msg_group_not_found" "$mtag"
+			   	# Attempt to fall back to previous selection
+			   	f_input_group "$input" || return $FAILURE
+			   else
+			   	input="$mtag"
+			   fi
+			   title="$msg_edit_view $msg_group: $group_name"
+			   ;;
+			2) # Password
+			   f_dialog_input_group_password group_password \
+			   	group_password_disable
+			   ;;
+			3) # Group ID
+			   f_dialog_input_group_gid group_gid "$group_gid"
+			   ;;
+			4) # Group Members
+			   f_dialog_input_group_members group_members \
+			   	"$group_members" && [ ! "$group_members" ] &&
+			   	null_members=1
+			   ;;
+			esac
+		done
+	else
+		local var
+		for var in gid members name; do
+			local _group_$var
+			eval f_shell_escape \"\$group_$var\" _group_$var
+		done
+
+		# Form the command
+		local cmd="pw groupmod -n '$_group_name'"
+		[ "$group_gid" ] && cmd="$cmd -g '$_group_gid'"
+		[ "$group_members" -o "$null_members" ] &&
+			cmd="$cmd -M '$_group_members'"
+
+		# Execute the command
+		local retval err
+		if [ "$group_password_disable" ]; then
+			f_eval_catch -k err $funcname pw '%s -h -' "$cmd"
+		elif [ "$group_password" -o "$null_password" ]; then
+			err=$( echo "$group_password" | f_eval_catch -de \
+				$funcname pw '%s -h 0' "$cmd" 2>&1 )
+		else
+			f_eval_catch -k err $funcname pw '%s' "$cmd"
+		fi
+		retval=$?
+		if [ $retval -ne $SUCCESS ]; then
+			f_show_err "%s" "$err"
+			return $retval
+		fi
+	fi
+
+	f_dialog_title "$title"
+	$alert "$msg_group_updated"
+	f_dialog_title_restore
+	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 1
+
+	return $SUCCESS
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." usermgmt/group.subr
+
+fi # ! $_USERMGMT_GROUP_SUBR

@@ -1,0 +1,21 @@
+Test 1:
+	Solaris 2.4 - upto and including 101945-34, > 34 ?
+	Solaris 2.5 - 11/95
+	Linux 1.2.13, < 1.3.45(?)
+	3com/sonix bridge
+	Instant Internet
+	KA9Q NOS
+	Netblazer 40i, Version 3.2 OS
+	Irix 6.x
+	HP-UX 9.0
+	HP-UX 10.1
+	LivingstonsComOS
+	MacOS 7.x, 8.x
+
+Test 6:
+	SunOS 4.1.x
+	ULtrix 4.3
+
+Test 7:
+	SunOS 4.1.x
+	Linux <= 1.3.84

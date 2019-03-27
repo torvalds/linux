@@ -1,0 +1,185 @@
+.\"
+.\" Copyright (c) 1999
+.\" Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 30, 1999
+.Dt VGA 4
+.Os
+.Sh NAME
+.Nm vga
+.Nd generic video card interface
+.Sh SYNOPSIS
+.Cd "options VESA"
+.Cd "options VESA_DEBUG=N"
+.Cd "options VGA_ALT_SEQACCESS"
+.Cd "options VGA_NO_FONT_LOADING"
+.Cd "options VGA_NO_MODE_CHANGE"
+.Cd "options VGA_SLOW_IOACCESS"
+.Cd "options VGA_WIDTH90"
+.Cd "device vga"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.vga.0.at="isa"
+.Sh DESCRIPTION
+The
+.Nm
+driver is a generic video card driver which provides access to
+video cards.
+This driver is required for the console driver
+.Xr syscons 4 .
+The console driver will call the
+.Nm
+driver to manipulate video hardware (changing video modes, loading font, etc).
+.Pp
+The
+.Nm
+driver supports the standard video cards: MDA, CGA, EGA and VGA.
+In
+addition, the driver can utilize VESA BIOS extensions if the video card
+supports them.
+VESA support can either be statically included in the kernel
+or can be loaded as a separate module.
+.Pp
+In order to statically link the VESA support to the kernel, the
+.Dv VESA
+option (see below) must be defined in the kernel configuration file.
+.Pp
+The
+.Nm vesa
+module can be dynamically loaded into the kernel using
+.Xr kldload 8 .
+.Sh DRIVER CONFIGURATION
+.Ss Kernel Configuration Options
+The following kernel configuration options
+(see
+.Xr config 8 )
+can be used to control the
+.Nm
+driver.
+These options provide compatibility with certain VGA cards.
+.Bl -tag -width MOUSE
+.It Dv VGA_ALT_SEQACCESS
+You may want to try this option if the mouse pointer is not drawn correctly
+or the font does not seem to be loaded properly on the VGA card.
+However, it may cause flicker on some systems.
+.It Dv VGA_SLOW_IOACCESS
+Older VGA cards may require this option for proper operation.
+It makes the driver perform byte-wide I/O to VGA registers and
+slow down a little.
+.It Dv VGA_WIDTH90
+This option enables 90 column modes: 90x25, 90x30, 90x43, 90x50, 90x60.
+These modes are not always supported by the video card and the display.
+It is highly likely that LCD display cannot work with these modes.
+.El
+.Pp
+The following options add optional features to the driver.
+.Bl -tag -width MOUSE
+.It Dv VESA
+Add VESA BIOS support to the driver.
+If the VGA card has the VESA BIOS extension 1.2 or later,
+this option will utilize the VESA BIOS service to switch to high
+resolution modes.
+.It Dv VESA_DEBUG=N
+Set the VESA support debug level to
+.Fa N .
+The default value is zero, which suppresses all debugging output.
+.El
+.Pp
+The following options will remove some features from the
+.Nm
+driver and save kernel memory.
+.Bl -tag -width MOUSE
+.It Dv VGA_NO_FONT_LOADING
+The
+.Nm
+driver can load software font to EGA and VGA cards.
+This option removes this feature.
+Note that if you use this option and
+still wish to use the mouse on the console then you must also use the
+.Dv SC_ALT_MOUSE_IMAGE
+option.
+See
+.Xr syscons 4 .
+.It Dv VGA_NO_MODE_CHANGE
+This option prevents the driver from changing video modes.
+.El
+.\".Sh FILES
+.Sh EXAMPLES
+Your kernel configuration should normally have:
+.Pp
+.Dl "device vga"
+.Pp
+And you need the following line in
+.Pa /boot/device.hints .
+.Pp
+.Dl hint.vga.0.at="isa"
+.Pp
+The following lines should be included in the kernel configuration file
+in order to enable the VESA BIOS Extension support.
+.Pp
+.Dl "options VESA"
+.Dl "device vga"
+.Pp
+If you do not want VESA support included in the kernel, but
+want to use occasionally, do not add the
+.Dv VESA
+option.
+And load the
+.Nm vesa
+module as desired:
+.Pp
+.Dl kldload vesa
+.\".Sh DIAGNOSTICS
+.\".Sh CAVEATS
+.\".Sh BUGS
+.Sh SEE ALSO
+.Xr vgl 3 ,
+.Xr syscons 4 ,
+.Xr config 8 ,
+.Xr kldload 8 ,
+.Xr kldunload 8
+.Sh STANDARDS
+.Rs
+.%T "VESA BIOS Extension (VBE)"
+.%A Video Electronics Standards Association
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 3.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An S\(/oren Schmidt Aq Mt sos@FreeBSD.org
+and
+.An Kazutaka Yokota Aq Mt yokota@FreeBSD.org .
+This manual page was written by
+.An Kazutaka Yokota .

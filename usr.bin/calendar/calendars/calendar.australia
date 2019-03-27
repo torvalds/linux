@@ -1,0 +1,72 @@
+/*
+ * Australian holidays
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _calendar_australia_
+#define _calendar_australia_
+
+LANG=en_AU.ISO8859-1
+
+/* Australia */
+Jan 26		Australia Day
+Apr/SunFirst	Daylight Savings Time ends in ACT, NSW, SA, TAS and VIC.
+Apr 25		Anzac Day
+Jun/MonSecond	Queen's Birthday Holiday (Australia, except WA)
+Oct/SunFirst	Daylight Savings Time starts in ACT, NSW, SA and VIC.
+
+/* ACT, NSW, common */
+Mar/MonSecond	Canberra Day (ACT)
+Sep/MonLast	Family & Community Day (ACT)
+Aug/MonFirst	Bank Holiday (ACT, NSW)
+Oct/MonFirst	Labour Day (ACT, NSW, SA)
+
+/* Victoria */
+Mar/MonSecond	Labour Day (VIC)
+Nov/TueFirst	Melbourne Cup (VIC)
+
+/* Tasmania
+ * http://www.wst.tas.gov.au/employment_info/public_holidays/html/2010
+ */
+Feb/MonSecond	Regatta Day (TAS)
+Feb/WedLast	Launceston Cup (TAS)
+Mar/TueFirst	King Island show (TAS)
+Mar/MonSecond	Eight Hours Day (TAS)
+Oct 10		Launceston Show Day (TAS)	/* Thursday preceding second Saturday in October */
+Oct 24		Hobart Show Day (TAS)		/* Thursday preceding fourth Saturday in October */
+Nov/MonFirst	Recreation Day (N TAS)		
+
+/*
+Oct/SatSecond-2	Launceston Show Day (TAS)	// Thursday preceding second Sat in October
+Oct/SatFourth-2	Hobart Show Day (TAS)		// Thursday preceding fourth Sat in October
+May/ThuFirst+1	Agfest (Circular Head only)	// Friday following the first Thursday in May
+Oct/SatFirst-1	Burnie Show			// Friday preceding first Saturday in October
+Oct/SatThird-1	Flinders Island Show		// Friday preceding third Saturday in October
+
+DEVONPORT CUP Wednesday not earlier than fifth and not later than eleventh day of January
+DEVONPORT SHOW Friday nearest last day in November, but not later than first day of December
+*/
+
+/* South Australia */
+May/MonThird	Adelaide Cup (SA)
+Dec 26		Proclamation Day holiday (SA)
+
+/* Western Australia */
+Mar/MonFirst	Labour Day (WA)
+Jun/MonFirst	Foundation Day (WA)
+Sep 30		Queen's Birthday (WA)
+
+/* Northern Territory */
+May/MonFirst	May Day (NT)
+Jul/FriFirst	Alice Springs Show Day (NT)
+Jul/FriSecond	Tennant Creek Show Day (NT)
+Jul/FriThird	Katherine Show Day (NT)
+Jul/FriLast	Darwin Show Day (NT)
+Aug/MonFirst	Picnic Day (NT)
+
+/* Queensland */
+May/MonFirst	Labour Day (QLD)
+Aug/WedSecond	RNA Show Day (Brisbane metro)	/* Second Last Wednesday */
+
+#endif

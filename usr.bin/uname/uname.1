@@ -1,0 +1,154 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)uname.1	8.3 (Berkeley) 4/8/94
+.\" $FreeBSD$
+.\"
+.Dd May 31, 2017
+.Dt UNAME 1
+.Os
+.Sh NAME
+.Nm uname
+.Nd display information about the system
+.Sh SYNOPSIS
+.Nm
+.Op Fl aiKmnoprsUv
+.Sh DESCRIPTION
+The
+.Nm
+command writes the name of the operating system implementation to
+standard output.
+When options are specified, strings representing one or more system
+characteristics are written to standard output.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a
+Behave as though the options
+.Fl m , n , r , s ,
+and
+.Fl v
+were specified.
+.It Fl i
+Write the kernel ident to standard output.
+.It Fl K
+Write the
+.Fx
+version of the kernel.
+.It Fl m
+Write the type of the current hardware platform to standard output.
+.Po Xr make 1
+uses it to set the
+.Va MACHINE
+variable.
+.Pc
+.It Fl n
+Write the name of the system to standard output.
+.It Fl o
+This is a synonym for the
+.Fl s
+option, for compatibility with other systems.
+.It Fl p
+Write the type of the machine processor architecture to standard output.
+.Po Xr make 1
+uses it to set the
+.Va MACHINE_ARCH
+variable.
+.Pc
+.It Fl r
+Write the current release level of the operating system
+to standard output.
+.It Fl s
+Write the name of the operating system implementation to standard output.
+.It Fl U
+Write the
+.Fx
+version of the user environment.
+.It Fl v
+Write the version level of this release of the operating system
+to standard output.
+.El
+.Pp
+If the
+.Fl a
+flag is specified, or multiple flags are specified, all
+output is written on a single line, separated by spaces.
+.Pp
+The
+.Fl K
+and
+.Fl U
+flags are intended to be used for fine grain differentiation of incremental
+.Fx
+development and user visible changes.
+.Sh ENVIRONMENT
+An environment variable composed of the string
+.Ev UNAME_
+followed by any flag to the
+.Nm
+utility (except for
+.Fl a )
+will allow the corresponding data to be set to the contents
+of the environment variable.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+The hardware platform
+.Pq Fl m
+can be different from the machine's processor architecture
+.Pq Fl p ,
+e.g., on 64-bit PowerPC,
+.Fl m
+would return
+.Va powerpc
+and
+.Fl p
+would return
+.Va powerpc64 .
+.Sh SEE ALSO
+.Xr feature_present 3 ,
+.Xr getosreldate 3 ,
+.Xr sysctl 3 ,
+.Xr uname 3 ,
+.Xr sysctl 8
+.Sh STANDARDS
+The
+.Nm
+command is expected to conform to the
+.St -p1003.2
+specification.
+.Sh HISTORY
+The
+.Nm
+command appeared in PWB UNIX.
+.Pp
+The
+.Fl K
+and
+.Fl U
+extension flags appeared in
+.Fx 10.0 .

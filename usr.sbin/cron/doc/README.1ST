@@ -1,0 +1,4 @@
+Sources substantially rearranged 26 Aug 94, Jordan Hubbard.  Content
+remains faithful to the original 3.0 cron source from Paul Vixie, but
+any bugs introduced by this reorganization or the port to FreeBSD remain
+purely my own.  - Jordan

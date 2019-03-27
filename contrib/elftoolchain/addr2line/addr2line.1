@@ -1,0 +1,182 @@
+.\" Copyright (c) 2009,2010 Joseph Koshy <jkoshy@users.sourceforge.net>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Id: addr2line.1 3642 2018-10-14 14:24:28Z jkoshy $
+.\"
+.Dd November 30, 2015
+.Dt ADDR2LINE 1
+.Os
+.Sh NAME
+.Nm addr2line
+.Nd translate program addresses to source file names and line numbers
+.Sh SYNOPSIS
+.Nm
+.Op Fl a | Fl -addresses
+.Op Fl b Ar target | Fl -target Ns = Ns Ar target
+.Op Fl e Ar pathname | Fl -exe Ns = Ns Ar pathname
+.Op Fl f | Fl -functions
+.Op Fl i | Fl -inlines
+.Op Fl j Ar sectionname | Fl -section Ns = Ns Ar sectionname
+.Op Fl p | Fl -pretty-print
+.Op Fl s | Fl -basename
+.Op Fl C | Fl -demangle
+.Op Fl H | Fl -help
+.Op Fl V | Fl -version
+.Op Ar hexaddress Ns ...
+.Sh DESCRIPTION
+The
+.Nm
+utility translates program addresses specified by the command line
+arguments
+.Ar hexaddress
+to their corresponding source file names and line numbers.
+If no arguments are given to
+.Nm ,
+it will read these addresses from standard input.
+.Pp
+Program addresses specified by arguments
+.Ar hexaddress
+are encoded using the conventions accepted by
+.Xr strtoull 3 .
+.Pp
+By default,
+.Nm
+will use the executable
+.Dq Pa a.out .
+The
+.Fl e
+option may be used to specified a different ELF object.
+.Pp
+The
+.Nm
+utility recognizes the following options:
+.Bl -tag -width indent
+.It Fl a | Fl -addresses
+Display the address prior to the line number information.
+.It Fl b Ar target | Fl -target Ns = Ns Ar target
+This option is recognized by
+.Nm
+but is ignored.
+It is supported for compatibility with GNU binutils.
+.It Fl e Ar pathname | Fl -exe Ns = Ns Ar pathname
+Use the ELF object specified by argument
+.Ar pathname
+to translate addresses.
+If this option is not specified,
+.Nm
+will use the file
+.Dq Pa a.out .
+.It Fl f | Fl -functions
+Display function names in addition to file and line number information.
+.It Fl i | Fl -inlines
+If the address specified belongs to an inlined function, also display the line
+number information for its caller, recursively until the first non-inlined
+caller.
+.It Fl j Ar sectionname | Fl -section Ns = Ns Ar sectionname
+The values specified by arguments
+.Ar hexaddress
+are to be treated as offsets into the section named
+.Ar sectionname .
+.It Fl p | -pretty-print
+Display the line number information on one line, in human readable manner.
+.It Fl s | -basename
+Display only the base name for each file name.
+.It Fl C | Fl -demangle
+Demangle C++ names.
+.It Fl H | Fl -help
+Print a help message.
+.It Fl V | Fl -version
+Print a version identifier and exit.
+.El
+.Sh OUTPUT FORMAT
+If the
+.Fl f
+option was not specified,
+.Nm
+will print the file name and line number for each address specified
+on a separate line.
+.Pp
+If the
+.Fl f
+option was specified,
+.Nm
+will print a line containing the name of the function corresponding
+to program address
+.Ar hexaddress ,
+followed by a line with the file name and line number.
+.Pp
+If the
+.Fl p
+option was specified,
+.Nm
+will print line number information and function name on one line in
+human readable manner. If the
+.Fl i
+option was also specified,
+.Nm
+will print the caller function information prefixed with
+.Dq (inlined by) .
+.Pp
+The
+.Nm
+utility prints the file name and line number using the format
+.Dq FILENAME:LINENUMBER .
+.Pp
+If a file or function name could not be determined,
+.Nm
+will print a question mark in their place.
+If the line number could not be determined,
+.Nm
+will print a zero in its place.
+.Sh EXAMPLES
+To map address 080483c4 in the default executable
+.Pa a.out
+to a source file name and line number use:
+.D1 "% addr2line 080483c4"
+.Pp
+To map address 080483c4 in executable
+.Pa helloworld ,
+use:
+.D1 "% addr2line -e helloworld 080483c4"
+.Pp
+To have
+.Nm
+act as a filter reading addresses from its standard input use:
+.D1 "% addr2line"
+.Pp
+To print the function name corresponding to an address in addition to
+its source file and line number use:
+.D1 "% addr2line -f 080483c4"
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr nm 1 ,
+.Xr elfdump 1 ,
+.Xr elfcopy 1 ,
+.Xr strtoull 3
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Kai Wang Aq Mt kaiwang27@users.sourceforge.net .

@@ -1,0 +1,38 @@
+
+#------------------------------------------------------------------------------
+# $File: troff,v 1.11 2014/06/03 19:01:34 christos Exp $
+# troff:  file(1) magic for *roff
+#
+# updated by Daniel Quinlan (quinlan@yggdrasil.com)
+
+# troff input
+0	search/1	.\\"		troff or preprocessor input text
+!:mime	text/troff
+0	search/1	'\\"		troff or preprocessor input text
+!:mime	text/troff
+0	search/1	'.\\"		troff or preprocessor input text
+!:mime	text/troff
+0	search/1	\\"		troff or preprocessor input text
+!:mime	text/troff
+0	search/1	'''		troff or preprocessor input text
+!:mime	text/troff
+0	regex/20l	\^\\.[A-Za-z0-9][A-Za-z0-9][\ \t]	troff or preprocessor input text
+!:mime	text/troff
+0	regex/20l	\^\\.[A-Za-z0-9][A-Za-z0-9]$	troff or preprocessor input text
+!:mime	text/troff
+
+# ditroff intermediate output text
+0	search/1	x\ T		ditroff output text
+>4	search/1	cat		for the C/A/T phototypesetter
+>4	search/1	ps		for PostScript
+>4	search/1	dvi		for DVI
+>4	search/1	ascii		for ASCII
+>4	search/1	lj4		for LaserJet 4
+>4	search/1	latin1		for ISO 8859-1 (Latin 1)
+>4	search/1	X75		for xditview at 75dpi
+>>7	search/1	-12		(12pt)
+>4	search/1	X100		for xditview at 100dpi
+>>8	search/1	-12		(12pt)
+
+# output data formats
+0	string		\100\357	very old (C/A/T) troff output data

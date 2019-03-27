@@ -1,0 +1,123 @@
+.de1 NOP
+.  it 1 an-trap
+.  if \\n[.$] \,\\$*\/
+..
+.ie t \
+.ds B-Font [CB]
+.ds I-Font [CI]
+.ds R-Font [CR]
+.el \
+.ds B-Font B
+.ds I-Font I
+.ds R-Font R
+.TH summary 1summaryman "20 Feb 2019" "ntp (4.2.8p13)" "User Commands"
+.\"
+.\" EDIT THIS FILE WITH CAUTION (in-mem file)
+.\"
+.\" It has been AutoGen-ed February 20, 2019 at 05:04:30 PM by AutoGen 5.18.5
+.\" From the definitions summary-opts.def
+.\" and the template file agman-cmd.tpl
+.SH NAME
+\f\*[B-Font]summary\fP
+\- compute various stastics from NTP stat files
+.SH SYNOPSIS
+\f\*[B-Font]summary\fP
+[\f\*[B-Font]\-\-option-name\f[]]
+[\f\*[B-Font]\-\-option-name\f[] \f\*[I-Font]value\f[]]
+.sp \n(Ppu
+.ne 2
+
+All arguments must be options.
+.sp \n(Ppu
+.ne 2
+
+.SH DESCRIPTION
+.sp
+.SH "OPTIONS"
+.TP
+.NOP \f\*[B-Font]\-\-directory\f[]=\f\*[I-Font]string\f[]
+Directory containing stat files.
+The default
+\f\*[I-Font]string\f[]
+for this option is:
+.ti +4
+ /var/log/ntp
+.sp
+        The directory where \fBntpd\fP will search for .stat files generated
+        by \fBntpd\fP.
+.TP
+.NOP \f\*[B-Font]\-\-end\-date\f[]=\f\*[I-Font]number\f[]
+End date.
+This option takes an integer number as its argument.
+.sp
+        Process all files with the date suffix less or equal to value of this
+        option.  Defaults to today minus one day (Use \fBdate \-u +%Y%m%d\fP)
+        to get the timestamp.
+.TP
+.NOP \f\*[B-Font]\-\-output\-directory\f[]=\f\*[I-Font]str\f[]
+Output directory.
+The default
+\f\*[I-Font]str\f[]
+for this option is:
+.ti +4
+ /tmp
+.sp
+        The output directory \fBsummary\fP will write all output files to.
+.TP
+.NOP \f\*[B-Font]\-\-peer\-dist\-limit\f[]=\f\*[I-Font]float\f[]
+Peer dist limit.
+The default
+\f\*[I-Font]float\f[]
+for this option is:
+.ti +4
+ 400
+.sp
+.TP
+.NOP \f\*[B-Font]\-\-skip\-time\-steps\f[]=\f\*[I-Font]float\f[]
+Ignore time offsets larger that this.
+The default
+\f\*[I-Font]float\f[]
+for this option is:
+.ti +4
+ 3600
+.sp
+.TP
+.NOP \f\*[B-Font]\-\-start\-date\f[]=\f\*[I-Font]num\f[]
+Start date.
+This option takes an integer number as its argument.
+The default
+\f\*[I-Font]num\f[]
+for this option is:
+.ti +4
+ 19700101
+.sp
+        Process all files with the date suffix more or equal to value of
+        this option.  Defaults to 197000101.
+.TP
+.NOP \f\*[B-Font]\-\-help\f[]
+Display usage information and exit.
+.TP
+.NOP \f\*[B-Font]\-\-more-help\f[]
+Pass the extended usage information through a pager.
+.TP
+.NOP \f\*[B-Font]\-\-version\f[] [{\f\*[I-Font]v|c|n\f[]}]
+Output version of program and exit.  The default mode is `v', a simple
+version.  The `c' mode will print copyright information and `n' will
+print the full copyright notice.
+.PP
+.SH "EXIT STATUS"
+One of the following exit values will be returned:
+.TP
+.NOP 0 " (EXIT_SUCCESS)"
+Successful program execution.
+.TP
+.NOP 1 " (EXIT_FAILURE)"
+The operation failed or the command syntax was not valid.
+.TP
+.NOP 70 " (EX_SOFTWARE)"
+libopts had an internal operational error.  Please report
+it to autogen-users@lists.sourceforge.net.  Thank you.
+.PP
+.SH "NOTES"
+This manual page was \fIAutoGen\fP-erated from the \fBsummary\fP
+option definitions.

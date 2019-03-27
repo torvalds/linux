@@ -1,0 +1,164 @@
+/dts-v1/;
+
+#include "mt7620a.dtsi"
+
+/ {
+	compatible = "asus,rp-n53", "ralink,mt7620a-soc";
+	model = "Asus RP-N53";
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		touch {
+			label = "touch";
+			gpios = <&gpio1 0 1>;
+			linux,code = <0x100>;
+		};
+
+		wps {
+			label = "wps";
+			gpios = <&gpio1 1 1>;
+			linux,code = <0x100>;
+		};
+
+		reset {
+			label = "reset";
+			gpios = <&gpio1 2 1>;
+			linux,code = <0x100>;
+		};
+
+		audio {
+			label = "audio";
+			gpios = <&gpio1 3 0>;
+			linux,code = <0x101>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		backlight {
+			label = "rp-n53:white:back";
+			gpios = <&gpio1 4 1>;
+		};
+
+		wifi0 {
+			label = "rp-n53:blue:5g3";
+			gpios = <&gpio1 5 1>;
+		};
+
+		wifi1 {
+			label = "rp-n53:blue:5g2";
+			gpios = <&gpio1 6 1>;
+		};
+
+		wifi2 {
+			label = "rp-n53:blue:5g1";
+			gpios = <&gpio1 7 1>;
+		};
+
+		wifi3 {
+			label = "rp-n53:blue:wifi";
+			gpios = <&gpio1 8 1>;
+		};
+
+		wifi4 {
+			label = "rp-n53:blue:2g1";
+			gpios = <&gpio1 9 1>;
+		};
+
+		wifi5 {
+			label = "rp-n53:blue:2g2";
+			gpios = <&gpio1 10 1>;
+		};
+
+		wifi6 {
+			label = "rp-n53:blue:2g3";
+			gpios = <&gpio1 11 1>;
+		};
+	};
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&i2c {
+	status = "okay";
+};
+
+&i2s {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcm_i2s_pins>;
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x7b0000>;
+		};
+	};
+};
+
+&pcm {
+	status = "okay";
+};
+
+&gdma {
+	status = "okay";
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "mdio", "rgmii1";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&gsw {
+	mediatek,port4 = "ephy";
+	pinctrl-names = "default";
+	pinctrl-0 = <&ephy_pins>;
+};
+
+&pcie {
+	status = "okay";
+};

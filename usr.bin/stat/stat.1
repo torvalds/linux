@@ -1,0 +1,606 @@
+.\"	$NetBSD: stat.1,v 1.28 2010/04/05 21:25:01 joerg Exp $
+.\"
+.\" Copyright (c) 2002 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Andrew Brown and Jan Schaumann.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 22, 2017
+.Dt STAT 1
+.Os
+.Sh NAME
+.Nm stat ,
+.Nm readlink
+.Nd display file status
+.Sh SYNOPSIS
+.Nm
+.Op Fl FHLnq
+.Op Fl f Ar format | Fl l | r | s | x
+.Op Fl t Ar timefmt
+.Op Ar
+.Nm readlink
+.Op Fl fn
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility displays information about the file pointed to by
+.Ar file .
+Read, write, or execute permissions of the named file are not required, but
+all directories listed in the pathname leading to the file must be
+searchable.
+If no argument is given,
+.Nm
+displays information about the file descriptor for standard input.
+.Pp
+When invoked as
+.Nm readlink ,
+only the target of the symbolic link is printed.
+If the given argument is not a symbolic link and the
+.Fl f
+option is not specified,
+.Nm readlink
+will print nothing and exit with an error.
+If the
+.Fl f
+option is specified, the output is canonicalized by following every symlink
+in every component of the given path recursively.
+.Nm readlink
+will resolve both absolute and relative paths, and return the absolute pathname
+corresponding to
+.Ar file .
+In this case, the argument does not need to be a symbolic link.
+.Pp
+The information displayed is obtained by calling
+.Xr lstat 2
+with the given argument and evaluating the returned structure.
+The default format displays the
+.Fa st_dev ,
+.Fa st_ino ,
+.Fa st_mode ,
+.Fa st_nlink ,
+.Fa st_uid ,
+.Fa st_gid ,
+.Fa st_rdev ,
+.Fa st_size ,
+.Fa st_atime ,
+.Fa st_mtime ,
+.Fa st_ctime ,
+.Fa st_birthtime ,
+.Fa st_blksize ,
+.Fa st_blocks ,
+and
+.Fa st_flags
+fields, in that order.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl F
+As in
+.Xr ls 1 ,
+display a slash
+.Pq Ql /
+immediately after each pathname that is a directory,
+an asterisk
+.Pq Ql *
+after each that is executable,
+an at sign
+.Pq Ql @
+after each symbolic link,
+a percent sign
+.Pq Ql %
+after each whiteout,
+an equal sign
+.Pq Ql =
+after each socket,
+and a vertical bar
+.Pq Ql |
+after each that is a FIFO.
+The use of
+.Fl F
+implies
+.Fl l .
+.It Fl H
+Treat each argument as the hexadecimal representation of an NFS file handle,
+and use
+.Xr fhstat 2
+instead of
+.Xr lstat 2 .
+This requires root privileges.
+.It Fl L
+Use
+.Xr stat 2
+instead of
+.Xr lstat 2 .
+The information reported by
+.Nm
+will refer to the target of
+.Ar file ,
+if file is a symbolic link, and not to
+.Ar file
+itself.
+If the link is broken or the target does not exist,
+fall back on
+.Xr lstat 2
+and report information about the link.
+.It Fl n
+Do not force a newline to appear at the end of each piece of output.
+.It Fl q
+Suppress failure messages if calls to
+.Xr stat 2
+or
+.Xr lstat 2
+fail.
+When run as
+.Nm readlink ,
+error messages are automatically suppressed.
+.It Fl f Ar format
+Display information using the specified format.
+See the
+.Sx Formats
+section for a description of valid formats.
+.It Fl l
+Display output in
+.Nm ls Fl lT
+format.
+.It Fl r
+Display raw information.
+That is, for all the fields in the
+.Vt stat
+structure,
+display the raw, numerical value (for example, times in seconds since the
+epoch, etc.).
+.It Fl s
+Display information in
+.Dq shell output
+format,
+suitable for initializing variables.
+.It Fl t Ar timefmt
+Display timestamps using the specified format.
+This format is
+passed directly to
+.Xr strftime 3 .
+.It Fl x
+Display information in a more verbose way as known from some
+.Tn Linux
+distributions.
+.El
+.Ss Formats
+Format strings are similar to
+.Xr printf 3
+formats in that they start with
+.Cm % ,
+are then followed by a sequence of formatting characters, and end in
+a character that selects the field of the
+.Vt "struct stat"
+which is to be formatted.
+If the
+.Cm %
+is immediately followed by one of
+.Cm n , t , % ,
+or
+.Cm @ ,
+then a newline character, a tab character, a percent character,
+or the current file number is printed, otherwise the string is
+examined for the following:
+.Pp
+Any of the following optional flags:
+.Bl -tag -width indent
+.It Cm #
+Selects an alternate output form for octal and hexadecimal output.
+Non-zero octal output will have a leading zero, and non-zero
+hexadecimal output will have
+.Dq Li 0x
+prepended to it.
+.It Cm +
+Asserts that a sign indicating whether a number is positive or negative
+should always be printed.
+Non-negative numbers are not usually printed
+with a sign.
+.It Cm -
+Aligns string output to the left of the field, instead of to the right.
+.It Cm 0
+Sets the fill character for left padding to the
+.Ql 0
+character, instead of a space.
+.It space
+Reserves a space at the front of non-negative signed output fields.
+A
+.Sq Cm +
+overrides a space if both are used.
+.El
+.Pp
+Then the following fields:
+.Bl -tag -width indent
+.It Ar size
+An optional decimal digit string specifying the minimum field width.
+.It Ar prec
+An optional precision composed of a decimal point
+.Sq Cm \&.
+and a decimal digit string that indicates the maximum string length,
+the number of digits to appear after the decimal point in floating point
+output, or the minimum number of digits to appear in numeric output.
+.It Ar fmt
+An optional output format specifier which is one of
+.Cm D , O , U , X , F ,
+or
+.Cm S .
+These represent signed decimal output, octal output, unsigned decimal
+output, hexadecimal output, floating point output, and string output,
+respectively.
+Some output formats do not apply to all fields.
+Floating point output only applies to
+.Vt timespec
+fields (the
+.Cm a , m ,
+and
+.Cm c
+fields).
+.Pp
+The special output specifier
+.Cm S
+may be used to indicate that the output, if
+applicable, should be in string format.
+May be used in combination with:
+.Bl -tag -width indent
+.It Cm amc
+Display date in
+.Xr strftime 3
+format.
+.It Cm dr
+Display actual device name.
+.It Cm f
+Display the flags of
+.Ar file
+as in
+.Nm ls Fl lTdo .
+.It Cm gu
+Display group or user name.
+.It Cm p
+Display the mode of
+.Ar file
+as in
+.Nm ls Fl lTd .
+.It Cm N
+Displays the name of
+.Ar file .
+.It Cm T
+Displays the type of
+.Ar file .
+.It Cm Y
+Insert a
+.Dq Li " -\*[Gt] "
+into the output.
+Note that the default output format
+for
+.Cm Y
+is a string, but if specified explicitly, these four characters are
+prepended.
+.El
+.It Ar sub
+An optional sub field specifier (high, middle, low).
+Only applies to
+the
+.Cm p , d , r ,
+and
+.Cm T
+output formats.
+It can be one of the following:
+.Bl -tag -width indent
+.It Cm H
+.Dq High
+\[em]
+specifies the major number for devices from
+.Cm r
+or
+.Cm d ,
+the
+.Dq user
+bits for permissions from the string form of
+.Cm p ,
+the file
+.Dq type
+bits from the numeric forms of
+.Cm p ,
+and the long output form of
+.Cm T .
+.It Cm L
+.Dq Low
+\[em]
+specifies the minor number for devices from
+.Cm r
+or
+.Cm d ,
+the
+.Dq other
+bits for permissions from the string form of
+.Cm p ,
+the
+.Dq user ,
+.Dq group ,
+and
+.Dq other
+bits from the numeric forms of
+.Cm p ,
+and the
+.Nm ls Fl F
+style output character for file type when used with
+.Cm T
+(the use of
+.Cm L
+for this is optional).
+.It Cm M
+.Dq Middle
+\[em]
+specifies the
+.Dq group
+bits for permissions from the
+string output form of
+.Cm p ,
+or the
+.Dq suid ,
+.Dq sgid ,
+and
+.Dq sticky
+bits for the numeric forms of
+.Cm p .
+.El
+.It Ar datum
+A required field specifier, being one of the following:
+.Bl -tag -width indent
+.It Cm d
+Device upon which
+.Ar file
+resides
+.Pq Fa st_dev .
+.It Cm i
+.Ar file Ns 's
+inode number
+.Pq Fa st_ino .
+.It Cm p
+File type and permissions
+.Pq Fa st_mode .
+.It Cm l
+Number of hard links to
+.Ar file
+.Pq Fa st_nlink .
+.It Cm u , g
+User ID and group ID of
+.Ar file Ns 's
+owner
+.Pq Fa st_uid , st_gid .
+.It Cm r
+Device number for character and block device special files
+.Pq Fa st_rdev .
+.It Cm a , m , c , B
+The time
+.Ar file
+was last accessed or modified, or when the inode was last changed, or
+the birth time of the inode
+.Pq Fa st_atime , st_mtime , st_ctime , st_birthtime .
+.It Cm z
+The size of
+.Ar file
+in bytes
+.Pq Fa st_size .
+.It Cm b
+Number of blocks allocated for
+.Ar file
+.Pq Fa st_blocks .
+.It Cm k
+Optimal file system I/O operation block size
+.Pq Fa st_blksize .
+.It Cm f
+User defined flags for
+.Ar file .
+.It Cm v
+Inode generation number
+.Pq Fa st_gen .
+.El
+.Pp
+The following five field specifiers are not drawn directly from the
+data in
+.Vt "struct stat" ,
+but are:
+.Bl -tag -width indent
+.It Cm N
+The name of the file.
+.It Cm R
+The absolute pathname corresponding to the file.
+.It Cm T
+The file type, either as in
+.Nm ls Fl F
+or in a more descriptive form if the
+.Ar sub
+field specifier
+.Cm H
+is given.
+.It Cm Y
+The target of a symbolic link.
+.It Cm Z
+Expands to
+.Dq major,minor
+from the
+.Va rdev
+field for character or block
+special devices and gives size output for all others.
+.El
+.El
+.Pp
+Only the
+.Cm %
+and the field specifier are required.
+Most field specifiers default to
+.Cm U
+as an output form, with the
+exception of
+.Cm p
+which defaults to
+.Cm O ;
+.Cm a , m ,
+and
+.Cm c
+which default to
+.Cm D ;
+and
+.Cm Y , T ,
+and
+.Cm N
+which default to
+.Cm S .
+.Sh EXIT STATUS
+.Ex -std stat readlink
+.Sh EXAMPLES
+If no options are specified, the default format is
+"%d %i %Sp %l %Su %Sg %r %z \e"%Sa\e" \e"%Sm\e" \e"%Sc\e" \e"%SB\e" %k %b %#Xf %N".
+.Bd -literal -offset indent
+\*[Gt] stat /tmp/bar
+0 78852 -rw-r--r-- 1 root wheel 0 0 "Jul  8 10:26:03 2004" "Jul  8 10:26:03 2004" "Jul  8 10:28:13 2004" "Jan  1 09:00:00 1970" 16384 0 0 /tmp/bar
+.Ed
+.Pp
+Given a symbolic link
+.Dq foo
+that points from
+.Pa /tmp/foo
+to
+.Pa / ,
+you would use
+.Nm
+as follows:
+.Bd -literal -offset indent
+\*[Gt] stat -F /tmp/foo
+lrwxrwxrwx 1 jschauma cs 1 Apr 24 16:37:28 2002 /tmp/foo@ -\*[Gt] /
+
+\*[Gt] stat -LF /tmp/foo
+drwxr-xr-x 16 root wheel 512 Apr 19 10:57:54 2002 /tmp/foo/
+.Ed
+.Pp
+To initialize some shell variables, you could use the
+.Fl s
+flag as follows:
+.Bd -literal -offset indent
+\*[Gt] csh
+% eval set `stat -s .cshrc`
+% echo $st_size $st_mtimespec
+1148 1015432481
+
+\*[Gt] sh
+$ eval $(stat -s .profile)
+$ echo $st_size $st_mtimespec
+1148 1015432481
+.Ed
+.Pp
+In order to get a list of file types including files pointed to if the
+file is a symbolic link, you could use the following format:
+.Bd -literal -offset indent
+$ stat -f "%N: %HT%SY" /tmp/*
+/tmp/bar: Symbolic Link -\*[Gt] /tmp/foo
+/tmp/output25568: Regular File
+/tmp/blah: Directory
+/tmp/foo: Symbolic Link -\*[Gt] /
+.Ed
+.Pp
+In order to get a list of the devices, their types and the major and minor
+device numbers, formatted with tabs and linebreaks, you could use the
+following format:
+.Bd -literal -offset indent
+stat -f "Name: %N%n%tType: %HT%n%tMajor: %Hr%n%tMinor: %Lr%n%n" /dev/*
+[...]
+Name: /dev/wt8
+        Type: Block Device
+        Major: 3
+        Minor: 8
+
+Name: /dev/zero
+        Type: Character Device
+        Major: 2
+        Minor: 12
+.Ed
+.Pp
+In order to determine the permissions set on a file separately, you could use
+the following format:
+.Bd -literal -offset indent
+\*[Gt] stat -f "%Sp -\*[Gt] owner=%SHp group=%SMp other=%SLp" .
+drwxr-xr-x -\*[Gt] owner=rwx group=r-x other=r-x
+.Ed
+.Pp
+In order to determine the three files that have been modified most recently,
+you could use the following format:
+.Bd -literal -offset indent
+\*[Gt] stat -f "%m%t%Sm %N" /tmp/* | sort -rn | head -3 | cut -f2-
+Apr 25 11:47:00 2002 /tmp/blah
+Apr 25 10:36:34 2002 /tmp/bar
+Apr 24 16:47:35 2002 /tmp/foo
+.Ed
+.Pp
+To display a file's modification time:
+.Bd -literal -offset indent
+\*[Gt] stat -f %m /tmp/foo
+1177697733
+.Ed
+.Pp
+To display the same modification time in a readable format:
+.Bd -literal -offset indent
+\*[Gt] stat -f %Sm /tmp/foo
+Apr 27 11:15:33 2007
+.Ed
+.Pp
+To display the same modification time in a readable and sortable format:
+.Bd -literal -offset indent
+\*[Gt] stat -f %Sm -t %Y%m%d%H%M%S /tmp/foo
+20070427111533
+.Ed
+.Pp
+To display the same in UTC:
+.Bd -literal -offset indent
+\*[Gt] sh
+$ TZ= stat -f %Sm -t %Y%m%d%H%M%S /tmp/foo
+20070427181533
+.Ed
+.Sh SEE ALSO
+.Xr file 1 ,
+.Xr ls 1 ,
+.Xr lstat 2 ,
+.Xr readlink 2 ,
+.Xr stat 2 ,
+.Xr printf 3 ,
+.Xr strftime 3
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Nx 1.6
+and
+.Fx 4.10 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An Andrew Brown Aq Mt atatat@NetBSD.org .
+This man page was written by
+.An Jan Schaumann Aq Mt jschauma@NetBSD.org .

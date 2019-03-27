@@ -1,0 +1,127 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+## Redefine environment variables here to override prototypes
+## defined in release.sh.
+#load_chroot_env() { }
+#load_target_env() { }
+#buildenv_setup() { }
+
+## Set the directory within which the release will be built.
+CHROOTDIR="/scratch"
+
+## Set the svn host.
+SVNROOT="svn://svn.FreeBSD.org/"
+
+## Set the src/, ports/, and doc/ branches or tags.
+SRCBRANCH="base/head@rHEAD"
+DOCBRANCH="doc/head@rHEAD"
+PORTBRANCH="ports/head@rHEAD"
+
+## Run svn co --force for src checkout.
+#SRC_FORCE_CHECKOUT=yes
+
+## Sample configuration for using git instead of svn.
+#VCSCMD="/usr/local/bin/git clone --branch master"
+#SVNROOT=""
+#SRCBRANCH="https://github.com/freebsd/freebsd"
+#DOCBRANCH="https://github.com/freebsd/freebsd-doc"
+#PORTBRANCH="https://github.com/freebsd/freebsd-ports"
+
+## Set to override the default target architecture.
+#TARGET="amd64"
+#TARGET_ARCH="amd64"
+#KERNEL="GENERIC"
+## Multiple kernels may be set.
+#KERNEL="GENERIC XENHVM"
+
+## Set to specify a custom make.conf and/or src.conf
+#MAKE_CONF="/etc/local/make.conf"
+#SRC_CONF="/etc/local/src.conf"
+
+## Set to use make(1) flags.
+#MAKE_FLAGS="-s"
+
+## Set to use world- and kernel-specific make(1) flags.
+#WORLD_FLAGS="-j $(sysctl -n hw.ncpu)"
+#KERNEL_FLAGS="-j $(( $(( $(sysctl -n hw.ncpu) + 1 )) / 2 ))"
+
+## Set miscellaneous 'make release' settings.
+#NODOC=
+#NOPORTS=
+#NOSRC=
+#WITH_DVD=
+#WITH_COMPRESSED_IMAGES=
+
+## Set to '1' to disable multi-threaded xz(1) compression.
+#XZ_THREADS=0
+
+## Set when building embedded images.
+#EMBEDDEDBUILD=
+
+## Set to a list of ports required to build embedded system-on-chip
+## images, such as sysutils/u-boot-rpi.
+#EMBEDDEDPORTS=
+
+## Set to the hardware platform of the target userland.  This value
+## is passed to make(1) to set the TARGET (value of uname -m) to cross
+## build.
+#EMBEDDED_TARGET=
+
+## Set to the machine processor architecture of the target userland.
+## This value is passed to make(1) to set the TARGET_ARCH (value of uname -p)
+## to cross build.
+#EMBEDDED_TARGET_ARCH=
+
+## Set to skip the chroot environment buildworld/installworld/distribution
+## step if it is expected the build environment will exist via alternate
+## means.
+#CHROOTBUILD_SKIP=
+
+## Set to a non-empty value skip checkout or update of /usr/src in
+## the chroot.  This is intended for use when /usr/src already exists.
+#SRC_UPDATE_SKIP=
+
+## Set to a non-empty value skip checkout or update of /usr/doc in
+## the chroot.  This is intended for use when /usr/doc already exists.
+#DOC_UPDATE_SKIP=
+
+## Set to a non-empty value skip checkout or update of /usr/ports in
+## the chroot.  This is intended for use when /usr/ports already exists.
+#PORTS_UPDATE_SKIP=
+
+## Set to pass additional flags to make(1) for the build chroot setup, such
+## as TARGET/TARGET_ARCH.
+#CHROOT_MAKEENV=
+
+## Set to a non-empty value to build virtual machine images as part of the
+## release build.
+#WITH_VMIMAGES=
+
+## Set to a non-empty value to compress virtual machine images with xz(1)
+## as part of the release build.
+#WITH_COMPRESSED_VMIMAGES=
+
+## If WITH_VMIMAGES is set to a non-empty value, this is the name of the
+## file to use for the installed userland/kernel.
+#VMBASE="vm"
+
+## If WITH_VMIMAGES is set to a non-empty value, this is the size of the
+## virtual machine disk filesystem.  Valid size values are described in
+## the truncate(1) manual page.
+#VMSIZE="20G"
+
+## If WITH_VMIMAGES is set to a non-empty value, this is a list of disk
+## image formats to create.  Valid values are listed in the mkimg(1)
+## manual page, as well as 'mkimg --formats' output.
+#VMFORMATS="vhdf vmdk qcow2 raw"
+
+## Set to a non-empty value to build virtual machine images for various
+## cloud providers as part of the release build.
+#WITH_CLOUDWARE=
+
+## If WITH_CLOUDWARE is set to a non-empty value, this is a list of providers
+## to create disk images.
+#CLOUDWARE="EC2 GCE VAGRANT-VIRTUALBOX VAGRANT-VMWARE"

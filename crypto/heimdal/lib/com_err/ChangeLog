@@ -1,0 +1,235 @@
+2007-07-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: split source files in dist and nodist.
+
+2007-07-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Only do roken rename for the library.
+
+2007-07-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: use version script.
+	
+	* version-script.map: use version script.
+
+2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: New library version.
+	
+2006-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am (compile_et_SOURCES): add lex.h
+	
+2005-12-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* com_err.3: Document the _r functions.
+	
+2005-07-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* com_err.h: Include <stdarg.h> for va_list to help AIX 5.2.
+	
+2005-06-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* parse.y: rename base to base_id since flex defines a function
+	with the argument base
+
+	* compile_et.h: rename base to base_id since flex defines a
+	function with the argument base
+
+	* compile_et.c: rename base to base_id since flex defines a
+	function with the argument base
+
+	* parse.y (name2number): rename base to num to avoid shadowing
+	
+	* compile_et.c: rename optind to optidx
+	
+2005-05-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* parse.y: check allocation errors
+
+	* lex.l: check allocation errors correctly
+	
+	* compile_et.h: include <err.h>
+	
+	* (main): compile_et.c: use strlcpy
+	
+2005-04-29  Dave Love  <fx@gnu.org>
+
+	* Makefile.am (LDADD): Add libcom_err.la
+
+2005-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* include strlcpy and *printf and use them
+
+2005-02-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* com_right.h: de-__P
+
+	* com_err.h: de-__P
+
+2002-08-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* compile_et.c: don't add comma after last enum member
+
+2002-08-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* compile_et.c: just declare er_list directly instead of including
+	com_right in generated header files
+
+2002-03-11  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libcom_err_la_LDFLAGS): set version to 2:1:1
+
+2002-03-10  Assar Westerlund  <assar@sics.se>
+
+	* com_err.c (error_message): do not call strerror with a negative error
+
+2001-05-17  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 2:0:1
+
+2001-05-11  Assar Westerlund  <assar@sics.se>
+
+	* com_err.h (add_to_error_table): add prototype
+	* com_err.c (add_to_error_table): new function, from Derrick J
+	Brashear <shadow@dementia.org>
+
+2001-05-06  Assar Westerlund  <assar@sics.se>
+
+	* com_err.h: add printf formats for gcc
+
+2001-02-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* error.c (initialize_error_table_r): put table at end of the list
+
+2001-02-15  Assar Westerlund  <assar@sics.se>
+
+	* com_err.c (default_proc): add printf attributes
+
+2000-08-16  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 1:1:0
+
+2000-07-31  Assar Westerlund  <assar@sics.se>
+
+	* com_right.h (initialize_error_table_r): fix prototype
+
+2000-04-05  Assar Westerlund  <assar@sics.se>
+
+	* com_err.c (_et_lit): explicitly initialize it to NULL to make
+	dyld on Darwin/MacOS X happy
+
+2000-01-16  Assar Westerlund  <assar@sics.se>
+
+	* com_err.h: remove __P definition (now in com_right.h).  this
+	file always includes com_right.h so that's where it should reside.
+	* com_right.h: moved __P here and added it to the function
+	prototypes
+	* com_err.h (error_table_name): add __P
+
+1999-07-03  Assar Westerlund  <assar@sics.se>
+
+	* parse.y (statement): use asprintf
+
+1999-06-13  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in: make it solaris make vpath-safe
+
+Thu Apr  1 11:13:53 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* compile_et.c: use getargs
+
+Sat Mar 20 00:16:30 1999  Assar Westerlund  <assar@sics.se>
+
+	* compile_et.c: static-ize
+
+Thu Mar 18 11:22:13 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: include Makefile.am.common
+
+Tue Mar 16 22:30:05 1999  Assar Westerlund  <assar@sics.se>
+
+	* parse.y: use YYACCEPT instead of return
+
+Sat Mar 13 22:22:56 1999  Assar Westerlund  <assar@sics.se>
+
+	* compile_et.c (generate_h): cast when calling is* to get rid of a
+ 	warning
+
+Thu Mar 11 15:00:51 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* parse.y: prototype for error_message
+
+Sun Nov 22 10:39:02 1998  Assar Westerlund  <assar@sics.se>
+
+	* compile_et.h: include ctype and roken
+
+	* compile_et.c: include err.h
+	(generate_h): remove unused variable
+
+	* Makefile.in (WFLAGS): set
+
+Fri Nov 20 06:58:59 1998  Assar Westerlund  <assar@sics.se>
+
+	* lex.l: undef ECHO to work around AIX lex bug
+
+Sun Sep 27 02:23:59 1998  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* com_err.c (error_message): try to pass code to strerror, to see
+ 	if it might be an errno code (this if broken, but some MIT code
+ 	seems to expect this behaviour)
+
+Sat Sep 26 17:42:39 1998  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* compile_et.c: <foo_err.h> -> "foo_err.h"
+
+Tue Jun 30 17:17:36 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in: add str{cpy,cat}_truncate
+
+Mon May 25 05:24:39 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (clean): try to remove shared library debris
+
+Sun Apr 19 09:50:17 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in: add symlink magic for linux
+
+Sun Apr  5 09:22:11 1998  Assar Westerlund  <assar@sics.se>
+
+	* parse.y: define alloca to malloc in case we're using bison but
+ 	don't have alloca
+
+Tue Mar 24 05:13:01 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in: link with snprintf (From Derrick J Brashear
+ 	<shadow@dementia.org>)
+
+Fri Feb 27 05:01:42 1998  Assar Westerlund  <assar@sics.se>
+
+	* parse.y: initialize ec->next
+
+Thu Feb 26 02:22:25 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: @LEXLIB@
+
+Sat Feb 21 15:18:54 1998  assar westerlund  <assar@sics.se>
+
+	* Makefile.in: set YACC and LEX
+
+Tue Feb 17 22:20:27 1998  Bjoern Groenvall  <bg@sics.se>
+
+	* com_right.h: Change typedefs so that one may mix MIT compile_et
+ 	generated code with krb4 dito.
+
+Tue Feb 17 16:30:55 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* compile_et.c (generate): Always return a value.
+
+	* parse.y: Files don't have to end with `end'.
+
+Mon Feb 16 16:09:20 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* lex.l (getstring): Replace getc() with input().
+
+	* Makefile.am: Fixes for new compile_et.

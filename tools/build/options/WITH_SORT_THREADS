@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to enable threads in
+.Xr sort 1 .

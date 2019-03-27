@@ -1,0 +1,173 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)zfs_destroy_common.kshlib	1.3	07/03/14 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+#
+# Create or recover a set of test environment which include ctr, vol, fs, 
+# snap & clone. It looks like the following.
+#
+# pool
+#    |ctr
+#    |  |fs
+#    |  | |fssnap
+#    |  |vol
+#    |     |volsnap
+#    |fsclone
+#    |volclone
+#
+# $1 indicate which dependent dataset need be created. Such as 'snap', 'clone'.
+#
+function setup_testenv #[dtst]
+{
+	typeset dtst=$1
+
+	if ! datasetexists $CTR; then
+		log_must $ZFS create $CTR
+	fi
+	if ! datasetexists $FS; then
+		log_must $ZFS create $FS
+	fi
+	# Volume test is only availible on globle zone
+	if ! datasetexists $VOL && is_global_zone; then
+		log_must $ZFS create -V $VOLSIZE $VOL
+		log_must $NEWFS /dev/zvol/$VOL
+
+		if [[ ! -d $TESTDIR1 ]]; then
+			log_must $MKDIR $TESTDIR1
+		fi
+		log_must $MOUNT /dev/zvol/$VOL $TESTDIR1
+	fi 
+
+	if [[ $dtst == snap || $dtst == clone ]]; then
+		if ! datasetexists $FSSNAP; then
+			log_must $ZFS snapshot $FSSNAP
+		fi
+		if ! datasetexists $VOLSNAP && is_global_zone; then
+			log_must $ZFS snapshot $VOLSNAP
+		fi
+	fi
+	
+	if [[ $dtst == clone ]]; then
+		if ! datasetexists $FSCLONE; then
+			log_must $ZFS clone $FSSNAP $FSCLONE
+		fi
+		if ! datasetexists $VOLCLONE && is_global_zone; then
+			log_must $ZFS clone $VOLSNAP $VOLCLONE
+		fi
+	fi
+}
+
+function make_dir_busy
+{
+	typeset dir=$1
+	typeset dirfiltered=$(echo $dir | sed -Ee 's,[/\.],_,g')
+
+	OLDPWD=$(pwd)
+	cd $dir
+	# Sleep for long enough for the test to have run through.  Note that
+	# even if the test itself changes directory, sleep will still be on it.
+	$SLEEP $STF_TIMEOUT &
+	eval SLEEP_PID_${dirfiltered}=$!
+	pid=$(eval echo \$SLEEP_PID_${dirfiltered})
+	cd ${OLDPWD}
+	log_note "Sleeping while on ${dir} in pid $pid"
+}
+
+function make_dir_unbusy
+{
+	typeset dir=$1
+	typeset dirfiltered=$(echo $dir | sed -Ee 's,[/\.],_,g')
+	typeset pid=$(eval echo \$SLEEP_PID_${dirfiltered})
+
+	# Safeguard in case this is used incorrectly.
+	[[ -z "$pid" ]] && log_fail "make_dir_unbusy called without busy?"
+	$KILL -15 $pid
+	eval SLEEP_PID_${dirfiltered}=""
+	log_note "Unbusied ${dir}"
+}
+
+# Clean up the testing environment
+#
+function cleanup_testenv
+{
+	if [[ $STF_EXITCODE -eq $STF_FAIL ]]; then
+		$ECHO "Testcase failed; dataset listing follows:"
+		$ZFS list -t all -r $TESTPOOL
+	fi
+	if (( ${#init_dir} != 0 )); then
+		cd $init_dir
+		init_dir=""
+	fi
+	if is_global_zone && ismounted "$TESTDIR1" "ufs" ; then
+		log_must $UMOUNT -f $TESTDIR1
+	fi
+	if [[ -d $TESTDIR1 ]]; then
+		log_must $RM -rf $TESTDIR1
+	fi
+
+	[[ -n "$SLEEP_PID" ]] && $KILL -15 $SLEEP_PID
+
+	if datasetexists $CTR; then
+		log_must $ZFS destroy -Rf $CTR
+	fi
+}
+
+#
+# Delete volume and related datasets from list, if the test cases was 
+# runing in local zone. Then check them are existed or non-exists.
+#
+# $1   function name
+# $2-n datasets name
+#
+function check_dataset
+{
+	typeset funname=$1
+	typeset newlist=""
+	typeset dtst
+	shift
+
+	for dtst in "$@"; do
+		# Volume and related stuff are unvailable in local zone
+		if ! is_global_zone; then
+			if [[ $dtst == $VOL || $dtst == $VOLSNAP || \
+				$dtst == $VOLCLONE ]]
+			then
+				continue
+			fi
+		fi
+		newlist="$newlist $dtst"
+	done
+
+	if (( ${#newlist} != 0 )); then
+		log_must eval "$funname $newlist"
+	fi
+}

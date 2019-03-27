@@ -1,0 +1,38 @@
+# $FreeBSD$
+
+.if ${TARGET_ARCH:Mmips*el*} != ""
+_EMULATION_ENDIAN=little
+.else
+_EMULATION_ENDIAN=big
+.endif
+
+.if ${TARGET_ARCH:Mmips64*} != ""
+DEFAULT_VECTOR=	bfd_elf64_trad${_EMULATION_ENDIAN}mips_vec
+.elif ${TARGET_ARCH:Mmipsn32*} != ""
+DEFAULT_VECTOR=	bfd_elf32_ntrad${_EMULATION_ENDIAN}mips_vec
+.else
+DEFAULT_VECTOR=bfd_elf32_trad${_EMULATION_ENDIAN}mips_vec
+.endif
+
+SRCS+=	coff-mips.c \
+	cpu-mips.c \
+	ecoff.c \
+	ecofflink.c \
+	elf32.c \
+	elf64.c \
+	elfn32-mips.c \
+	elf32-mips.c \
+	elf64-mips.c \
+	elfxx-mips.c \
+	elf32-target.h \
+	elf64-target.h \
+	elflink.c
+
+VECS=	bfd_elf32_tradbigmips_vec \
+	bfd_elf32_tradlittlemips_vec \
+	bfd_elf32_ntradbigmips_vec \
+	bfd_elf32_ntradlittlemips_vec \
+	bfd_elf64_tradbigmips_vec \
+	bfd_elf64_tradlittlemips_vec \
+	ecoff_little_vec \
+	ecoff_big_vec

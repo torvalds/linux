@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/spmi/spmi.h>
+
+&spmi_bus {
+
+	pmic@2 {
+		compatible = "qcom,pmi8994", "qcom,spmi-pmic";
+		reg = <0x2 SPMI_USID>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pmi8994_gpios: gpios@c000 {
+			compatible = "qcom,pmi8994-gpio", "qcom,spmi-gpio";
+			reg = <0xc000>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupts = <2 0xc0 0 IRQ_TYPE_NONE>,
+				     <2 0xc1 0 IRQ_TYPE_NONE>,
+				     <2 0xc2 0 IRQ_TYPE_NONE>,
+				     <2 0xc3 0 IRQ_TYPE_NONE>,
+				     <2 0xc4 0 IRQ_TYPE_NONE>,
+				     <2 0xc5 0 IRQ_TYPE_NONE>,
+				     <2 0xc6 0 IRQ_TYPE_NONE>,
+				     <2 0xc7 0 IRQ_TYPE_NONE>,
+				     <2 0xc8 0 IRQ_TYPE_NONE>,
+				     <2 0xc9 0 IRQ_TYPE_NONE>;
+		};
+	};
+
+	pmic@3 {
+		compatible = "qcom,pmi8994", "qcom,spmi-pmic";
+		reg = <0x3 SPMI_USID>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+};

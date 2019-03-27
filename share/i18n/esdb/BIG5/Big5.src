@@ -1,0 +1,9 @@
+# $FreeBSD$ 
+# $NetBSD: Big5.src,v 1.1 2006/06/19 17:28:25 tnozaki Exp $
+
+NAME		"encoding"
+ENCODING	"BIG5"
+VARIABLE	"variable"
+DEFCSID		"ISO646-US"		0
+DEFCSID		"encoding"		1
+INVALID		0x3F	# '?'

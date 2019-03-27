@@ -1,0 +1,8 @@
+ls is /bin/ls
+true is a shell builtin
+/bin/ls is /bin/ls
+fun is a shell function
+break is a special shell builtin
+if is a shell keyword
+{ is a shell keyword
+foo is an alias for bar

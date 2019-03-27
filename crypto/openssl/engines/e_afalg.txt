@@ -1,0 +1,30 @@
+# Copyright 1999-2017 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Function codes
+AFALG_F_AFALG_CHK_PLATFORM:100:afalg_chk_platform
+AFALG_F_AFALG_CREATE_SK:101:afalg_create_sk
+AFALG_F_AFALG_INIT_AIO:102:afalg_init_aio
+AFALG_F_AFALG_SETUP_ASYNC_EVENT_NOTIFICATION:103:\
+	afalg_setup_async_event_notification
+AFALG_F_AFALG_SET_KEY:104:afalg_set_key
+AFALG_F_BIND_AFALG:105:bind_afalg
+
+#Reason codes
+AFALG_R_EVENTFD_FAILED:108:eventfd failed
+AFALG_R_FAILED_TO_GET_PLATFORM_INFO:111:failed to get platform info
+AFALG_R_INIT_FAILED:100:init failed
+AFALG_R_IO_SETUP_FAILED:105:io setup failed
+AFALG_R_KERNEL_DOES_NOT_SUPPORT_AFALG:101:kernel does not support afalg
+AFALG_R_KERNEL_DOES_NOT_SUPPORT_ASYNC_AFALG:107:\
+	kernel does not support async afalg
+AFALG_R_MEM_ALLOC_FAILED:102:mem alloc failed
+AFALG_R_SOCKET_ACCEPT_FAILED:110:socket accept failed
+AFALG_R_SOCKET_BIND_FAILED:103:socket bind failed
+AFALG_R_SOCKET_CREATE_FAILED:109:socket create failed
+AFALG_R_SOCKET_OPERATION_FAILED:104:socket operation failed
+AFALG_R_SOCKET_SET_KEY_FAILED:106:socket set key failed

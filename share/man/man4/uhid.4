@@ -1,0 +1,176 @@
+.\" $NetBSD: uhid.4,v 1.13 2001/12/29 14:41:59 augustss Exp $
+.\"
+.\" Copyright (c) 1999, 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 1, 2018
+.Dt UHID 4
+.Os
+.Sh NAME
+.Nm uhid
+.Nd USB generic HID support
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device uhid"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+uhid_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for all HID (Human Interface Device) interfaces
+in USB devices that do not have a special driver.
+.Pp
+The device handles the following
+.Xr ioctl 2
+calls:
+.Bl -tag -width indent
+.It Dv USB_GET_REPORT_ID Pq Vt int
+Get the report identifier used by this HID report.
+.It Dv USB_GET_REPORT_DESC Pq Vt "struct usb_gen_descriptor"
+Get the HID report descriptor.
+Copies a maximum of
+.Va ugd_maxlen
+bytes of the report descriptor data into the memory
+specified by
+.Va ugd_data .
+Upon return
+.Va ugd_actlen
+is set to the number of bytes copied.
+Using
+this descriptor the exact layout and meaning of data to/from
+the device can be found.
+The report descriptor is delivered
+without any processing.
+.Bd -literal
+struct usb_gen_descriptor {
+	void   *ugd_data;
+	uint16_t ugd_maxlen;
+	uint16_t ugd_actlen;
+	uint8_t	ugd_report_type;
+	...
+};
+.Ed
+.It Dv USB_SET_IMMED Pq Vt int
+Sets the device in a mode where each
+.Xr read 2
+will return the current value of the input report.
+Normally
+a
+.Xr read 2
+will only return the data that the device reports on its
+interrupt pipe.
+This call may fail if the device does not support
+this feature.
+.It Dv USB_GET_REPORT Pq Vt "struct usb_gen_descriptor"
+Get a report from the device without waiting for data on
+the interrupt pipe.
+Copies a maximum of
+.Va ugd_maxlen
+bytes of the report data into the memory specified by
+.Va ugd_data .
+Upon return
+.Va ugd_actlen
+is set to the number of bytes copied.
+The
+.Va ugd_report_type
+field indicates which report is requested.
+It should be
+.Dv UHID_INPUT_REPORT ,
+.Dv UHID_OUTPUT_REPORT ,
+or
+.Dv UHID_FEATURE_REPORT .
+This call may fail if the device does not support this feature.
+.It Dv USB_SET_REPORT Pq Vt "struct usb_gen_descriptor"
+Set a report in the device.
+The
+.Va ugd_report_type
+field indicates which report is to be set.
+It should be
+.Dv UHID_INPUT_REPORT ,
+.Dv UHID_OUTPUT_REPORT ,
+or
+.Dv UHID_FEATURE_REPORT .
+The value of the report is specified by the
+.Va ugd_data
+and the
+.Va ugd_maxlen
+fields.
+This call may fail if the device does not support this feature.
+.El
+.Pp
+Use
+.Xr read 2
+to get data from the device.
+Data should be read in chunks of the
+size prescribed by the report descriptor.
+.Pp
+Use
+.Xr write 2
+to send data to the device.
+Data should be written in chunks of the
+size prescribed by the report descriptor.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.uhid.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/uhid?"
+.It Pa /dev/uhid?
+.El
+.Sh SEE ALSO
+.Xr usbhidctl 1 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Nx 1.4 .
+This manual page was adopted from
+.Nx
+by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org
+in April 2002.

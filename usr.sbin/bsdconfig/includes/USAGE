@@ -1,0 +1,71 @@
+# Copyright (c) 2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+Usage: bsdconfig @PROGRAM_NAME@ [OPTIONS] [include ...]
+
+OPTIONS:
+	-a    Always use color even when output is not to a terminal.
+	-d    Print description for each function selected. Implies `-f'.
+	-f    Show functions for selected includes.
+	-F pattern
+	      If `-f', only print functions matching pattern. Without `-f'
+	      print only includes containing functions matching pattern.
+	-h    Print this usage statement and exit.
+	-n    Disable the use of color.
+
+EXAMPLES:
+	View a list of available includes:
+
+		bsdconfig @PROGRAM_NAME@
+
+	View functions for all available includes (function names are
+	highlighted):
+
+		bsdconfig @PROGRAM_NAME@ -f
+
+	View functions with less(1) (function names are not highlighted):
+
+		bsdconfig @PROGRAM_NAME@ -f | less
+
+	View functions with less(1) and color:
+
+		bsdconfig @PROGRAM_NAME@ -af | less -R
+
+	View functions from `common.subr':
+
+		bsdconfig @PROGRAM_NAME@ common.subr
+
+	NB: The `-f' flag is implied when given an include.
+
+	Show only functions containing the word `show' in common.subr:
+
+		bsdconfig @PROGRAM_NAME@ -F show common
+
+	NB: The `.subr' suffix on the end of the include is optional.
+
+	Show descriptions of each of the `show' functions:
+
+		bsdconfig @PROGRAM_NAME@ -dF show

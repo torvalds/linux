@@ -1,0 +1,8 @@
+# $FreeBSD$ 
+# $NetBSD: TDS565.src,v 1.1 2006/11/29 15:45:26 tnozaki Exp $
+
+NAME		"TDS565"
+ENCODING	"NONE"
+VARIABLE	"none"
+DEFCSID		"TDS565"		0
+INVALID		0x3F # '?'

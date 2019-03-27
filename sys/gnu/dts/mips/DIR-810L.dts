@@ -1,0 +1,134 @@
+/dts-v1/;
+
+#include "mt7620a.dtsi"
+
+/ {
+	compatible = "dlink,dir-810l", "ralink,mt7620a-soc";
+	model = "D-Link DIR-810L";
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 1 1>;
+			linux,code = <0x100>;
+		};
+
+		wps {
+			label = "wps";
+			gpios = <&gpio0 2 1>;
+			linux,code = <0x100>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		power {
+			label = "dir-810l:green:power";
+			gpios = <&gpio0 9 0>;
+		};
+
+		wan {
+			label = "dir-810l:orange:wan";
+			gpios = <&gpio0 12 0>;
+		};
+
+		status {
+			label = "dir-810l:orange:power";
+			gpios = <&gpio0 13 0>;
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		factory5g: partition@50000 {
+			label = "factory5g";
+			reg = <0x50000 0x10000>;
+			read-only;
+		};
+
+		partition@60000 {
+			label = "Wolf_Config";
+			reg = <0x60000 0x10000>;
+			read-only;
+		};
+
+		partition@70000 {
+			label = "MyDlink";
+			reg = <0x70000 0x80000>;
+			read-only;
+		};
+
+		partition@e0000 {
+			label = "Jffs2";
+			reg = <0xe0000 0x80000>;
+			read-only;
+		};
+
+		partition@170000 {
+			label = "firmware";
+			reg = <0x170000 0x690000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "mdio", "rgmii1", "i2c", "wled", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x28>;
+	mediatek,portmap = "llllw";
+};
+
+&gsw {
+	mediatek,port4 = "ephy";
+	pinctrl-names = "default";
+	pinctrl-0 = <&ephy_pins>;
+};
+
+&pcie {
+	status = "okay";
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};

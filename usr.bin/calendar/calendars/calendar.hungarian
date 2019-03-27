@@ -1,0 +1,12 @@
+/*
+ * Hungarian calendar file(s)
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _calendar_hungarian_
+#define _calendar_hungarian_
+
+#include <hu_HU.ISO8859-2/calendar.all>
+
+#endif /* !_calendar_hungarian_ */

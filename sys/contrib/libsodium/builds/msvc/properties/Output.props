@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+ 
+  <PropertyGroup>
+    <_PropertySheetDisplayName>Output Settings</_PropertySheetDisplayName>
+    <!-- BuildRoot, RepoRoot, SourceRoot, DebugOrRelease and DefaultLinkage are custom props and should therefore not be referenced from *.import.props or nuget target files. -->
+    <BuildRoot>$(ProjectDir)..\..\</BuildRoot>
+    <RepoRoot>$(ProjectDir)..\..\..\..\</RepoRoot>
+    <SourceRoot>$(ProjectDir)..\..\..\..\..\</SourceRoot>    
+    <OutDir>$(ProjectDir)..\..\..\..\bin\$(PlatformName)\$(DebugOrRelease)\$(PlatformToolset)\$(DefaultLinkage)\</OutDir>
+    <IntDir>$(ProjectDir)..\..\..\..\obj\$(TargetName)\$(PlatformName)\$(DebugOrRelease)\$(PlatformToolset)\$(DefaultLinkage)\</IntDir>
+    <TargetDir>$(OutDir)</TargetDir>
+    <TargetName>$(TargetName)</TargetName>
+    <TargetPath>$(TargetDir)$(TargetName)$(TargetExt)</TargetPath>
+  </PropertyGroup>
+  
+  <ItemDefinitionGroup>
+    <Link>
+      <ImportLibrary>$(OutDir)$(TargetName).lib</ImportLibrary>
+    </Link>
+    <BuildLog>
+      <Path>$(OutDir)$(TargetName).log</Path>
+    </BuildLog> 
+  </ItemDefinitionGroup>
+  
+  <ImportGroup Label="PropertySheets">
+    <Import Project="Messages.props" />
+  </ImportGroup>    
+  
+</Project>

@@ -1,0 +1,141 @@
+.\" Copyright (c) 2012 Spectra Logic Corporation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    substantially similar to the "NO WARRANTY" disclaimer below
+.\"    ("Disclaimer") and any redistribution must be conditioned upon
+.\"    including a substantially similar Disclaimer requirement for further
+.\"    binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" Authors: Alan Somers         (Spectra Logic Corporation)
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 6, 2014
+.Dt XNB 4
+.Os
+.Sh NAME
+.Nm xnb
+.Nd "Xen Paravirtualized Backend Ethernet Driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options XENHVM"
+.Cd "device xenpci"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides the back half of a paravirtualized
+.Xr xen 4
+network connection.
+The netback and netfront drivers appear to their respective operating
+systems as Ethernet devices linked by a crossover cable.
+Typically,
+.Nm
+will run on Domain 0 and the netfront driver will run on a guest domain.
+However, it is also possible to run
+.Nm
+on a guest domain.
+It may be bridged or routed to provide the netfront
+domain access to other guest domains or to a physical network.
+.Pp
+In most respects, the
+.Nm
+device appears to the OS as any other Ethernet device.
+It can be configured at runtime entirely with
+.Xr ifconfig 8 .
+In particular, it supports MAC changing, arbitrary MTU sizes, checksum
+offload for IP, UDP, and TCP for both receive and transmit, and TSO.
+However, see
+.Sx CAVEATS
+before enabling txcsum, rxcsum, or tso.
+.Sh SYSCTL VARIABLES
+The following read-only variables are available via
+.Xr sysctl 8 :
+.Bl -tag -width indent
+.It Va dev.xnb.%d.dump_rings
+Displays information about the ring buffers used to pass requests between the
+netfront and netback.
+Mostly useful for debugging, but can also be used to
+get traffic statistics.
+.It Va dev.xnb.%d.unit_test_results
+Runs a builtin suite of unit tests and displays the results.
+Does not affect the operation of the driver in any way.
+Note that the test suite simulates error conditions; this will result in
+error messages being printed to the system log.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr xen 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Alan Somers Aq Mt asomers@FreeBSD.org
+and John Suykerbuyk.
+.Sh CAVEATS
+Packets sent through Xennet pass over shared memory, so the protocol includes
+no form of link-layer checksum or CRC.
+Furthermore, Xennet drivers always report to their hosts that they support
+receive and transmit checksum offloading.
+They "offload" the checksum calculation by simply skipping it.
+That works fine for packets that are exchanged between two domains on the same
+machine.
+However, when a Xennet interface is bridged to a physical interface,
+a correct checksum must be attached to any packets bound for that physical
+interface.
+Currently,
+.Fx
+lacks any mechanism for an Ethernet device to
+inform the OS that newly received packets are valid even though their checksums
+are not.
+So if the netfront driver is configured to offload checksum calculations,
+it will pass non-checksumed packets to
+.Nm ,
+which must then calculate the checksum in software before passing the packet
+to the OS.
+.Pp
+For this reason, it is recommended that if
+.Nm
+is bridged to a physical interface, then transmit checksum offloading should be
+disabled on the netfront.
+The Xennet protocol does not have any mechanism for the netback to request
+the netfront to do this; the operator must do it manually.
+.Sh BUGS
+The
+.Nm
+driver does not properly checksum UDP datagrams that span more than one
+Ethernet frame.
+Nor does it correctly checksum IPv6 packets.
+To workaround that bug, disable transmit checksum offloading on the
+netfront driver.

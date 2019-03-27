@@ -1,0 +1,115 @@
+#
+# PANDABOARD -- Custom configuration for the PandaBoard ARM development
+# platform, check out www.pandaboard.org
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+ident		PANDABOARD
+
+# This probably wants to move somewhere else.  Maybe we can create a basic
+# OMAP4340 config, then make a PANDABOARD config that includes the basic one,
+# adds the start addresses and custom devices plus pulls in this hints file.
+
+hints		"PANDABOARD.hints"
+
+include 	"std.armv7"
+include 	"../ti/omap4/std.omap4"
+
+makeoptions	MODULES_EXTRA=dtb/omap4
+
+options 	SCHED_ULE		# ULE scheduler
+options 	PLATFORM
+options 	SMP			# Enable multiple cores
+
+# NFS root from boopt/dhcp
+#options 	BOOTP
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_COMPAT
+#options 	BOOTP_NFSV3
+#options 	BOOTP_WIRED_TO=ue0
+
+device		fdt_pinctrl
+# Interrupt controller
+device		gic
+
+# ARM MPCore timer
+device		mpcore_timer
+
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		sdhci			# mmc/sd host controller
+
+# I2C support
+device		iicbus
+device		iic
+device		ti_i2c
+
+# Console and misc
+device		uart
+device		uart_ns8250
+device		pty
+device		snp
+device		md
+device		random			# Entropy device
+device		pl310			# PL310 L2 cache controller
+
+# GPIO
+device		gpio
+device		gpioled
+
+# The following enables MFS as root, this seems similar to an initramfs or initrd
+# as used in Linux.
+#options 	MD_ROOT
+#options 	MD_ROOT_SIZE=7560
+
+
+
+# USB support
+device		usb
+options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
+device		ohci
+device		ehci
+device		umass
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+
+# Ethernet
+device		loop
+device		ether
+device		mii
+device		smc
+device		smcphy
+device		bpf
+
+# USB Ethernet support, requires miibus
+device		miibus
+#device		axe			# ASIX Electronics USB Ethernet
+device		smsc			# SMSC LAN95xx USB Ethernet
+
+
+# OMAP-specific devices
+device		ti_sdma
+device		twl
+device		twl_vreg
+device		twl_clks
+
+# Flattened Device Tree
+options 	FDT			# Configure using FDT/DTB data
+options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=pandaboard.dts

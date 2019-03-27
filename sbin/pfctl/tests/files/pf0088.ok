@@ -1,0 +1,22 @@
+pass in on lo1000000 inet from any to 10.0.0.1 flags S/SA keep state
+pass in on lo1000000 inet from any to 10.0.0.1 flags S/SA keep state
+pass all flags S/SA keep state
+pass out all flags S/SA keep state
+pass out all flags S/SA keep state
+pass out quick all flags S/SA keep state
+pass on lo1000001 inet from any to 10.0.0.1 flags S/SA keep state
+pass on lo1000000 inet from any to 10.0.0.1 flags S/SA keep state
+pass inet from any to 10.0.0.2 flags S/SA modulate state
+pass inet from any to 10.0.0.2 flags S/SA keep state
+block drop inet from 10.0.0.3 to 10.0.0.2
+pass inet from any to 10.0.0.2 flags S/SA modulate state
+block drop inet from 10.0.0.3 to 10.0.0.2
+pass inet from any to 10.0.0.2 flags S/SA synproxy state
+pass out inet proto tcp from 10.0.0.4 to 10.0.0.5 flags S/SA keep state
+pass out inet proto tcp from 10.0.0.4 to 10.0.0.5 port = http flags S/SA keep state
+pass out all flags S/SA keep state
+pass in all flags S/SA keep state
+pass in on lo1000001 all flags S/SA keep state
+pass in on lo1000001 all flags S/SA keep state
+pass in on lo1000001 all flags S/SA keep state
+block drop all

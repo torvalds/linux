@@ -1,0 +1,233 @@
+.\" Copyright (c) 1999 Daniel C. Sobral
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 13, 2013
+.Dt LOADER.4TH 8
+.Os
+.Sh NAME
+.Nm loader.4th
+.Nd loader.conf processing tools
+.Sh DESCRIPTION
+The file that goes by the name of
+.Nm
+is a set of commands designed to manipulate
+.Xr loader.conf 5
+files.
+The default
+.Pa /boot/loader.rc
+includes
+.Nm
+and uses one of its commands to automatically read and process
+the standard
+.Xr loader.conf 5
+files.
+Other commands exists to help the user specify alternate
+configurations.
+.Pp
+The commands of
+.Nm
+by themselves are not enough for most uses.
+Please refer to the
+examples below for the most common situations, and to
+.Xr loader 8
+for additional commands.
+.Pp
+Before using any of the commands provided in
+.Nm ,
+it must be included
+through the command:
+.Pp
+.Dl include loader.4th
+.Pp
+This line is present in the default
+.Pa /boot/loader.rc
+file, so it is not needed (and should not be re-issued) in a normal setup.
+.Pp
+The commands provided by it are:
+.Bl -tag -width disable-module_module -compact -offset indent
+.It Ic boot
+.It Ic boot Ar kernelname Op Cm ...
+.It Ic boot Ar directory Op Cm ...
+.It Ic boot Fl flag Cm ...
+Boot as specified by the
+.Xr loader.conf 5
+files read.
+.Pp
+Depending on the arguments passed, it can override boot flags and
+either the kernel name or the search path for kernel and modules.
+.Pp
+.It Ic boot-conf
+.It Ic boot-conf Ar kernelname Op Cm ...
+.It Ic boot-conf Ar directory Op Cm ...
+.It Ic boot-conf Fl flag Cm ...
+Works like
+.Ic boot
+described above, but instead of booting immediately, uses
+.Ic autoboot ,
+so it can be stopped.
+.Pp
+.It Ic start
+Reads
+.Pa /boot/defaults/loader.conf ,
+all other
+.Xr loader.conf 5
+files specified in it, then loads the desired kernel and modules
+.Pq if not already loaded .
+After which you can use the
+.Ic boot
+or
+.Ic autoboot
+commmands or simply exit (provided
+.Va autoboot_delay
+is not set to NO) to boot the system.
+.Ic start
+is the command used in the default
+.Pa /boot/loader.rc
+file
+.Pq see Xr loader 8 .
+.Pp
+.It Ic initialize
+Initialize the support library so commands can be used without executing
+.Ic start
+first.
+Like
+.Ic start ,
+it reads
+.Pa /boot/defaults/loader.conf
+and all other
+.Xr loader.conf 5
+files specified in it
+.Pq but does not load kernel or modules .
+Returns a flag on the stack to indicate
+if any configuration files were successfully loaded.
+.Pp
+.It Ic read-conf Ar filename
+Reads and processes a
+.Xr loader.conf 5
+file.
+Does not proceed to boot.
+.Pp
+.It Ic enable-module Ar module
+Enables the loading of
+.Ar module .
+.Pp
+.It Ic disable-module Ar module
+Disables the loading of
+.Ar module .
+.Pp
+.It Ic toggle-module Ar module
+Toggles the loading of
+.Ar module
+on and off.
+.Pp
+.It Ic show-module Ar module
+Shows the information gathered in the
+.Xr loader.conf 5
+files about the module
+.Ar module .
+.Pp
+.It Ic retry
+Used inside
+.Xr loader.conf 5
+files to specify the action after a module loading fails.
+.Pp
+.It Ic ignore
+Used inside
+.Xr loader.conf 5
+files to specify the action after a module loading fails.
+.It Ic try-include Ar file Op Ar
+Process script files if they exist.
+Each file, in turn, is completely read into memory,
+and then each of its lines is passed to the command line interpreter.
+If any error is returned by the interpreter, the try-include
+command aborts immediately, without reading any other files, and
+silently returns without error.
+.El
+.Sh FILES
+.Bl -tag -width /boot/loader.4th -compact
+.It Pa /boot/loader
+The
+.Xr loader 8 .
+.It Pa /boot/loader.4th
+.Nm
+itself.
+.It Pa /boot/loader.rc
+.Xr loader 8
+bootstrapping script.
+.It Pa /boot/defaults/loader.conf
+File loaded by the
+.Ic start
+command.
+.El
+.Sh EXAMPLES
+Standard
+.Pa /boot/loader.rc :
+.Pp
+.Bd -literal -offset indent -compact
+include /boot/loader.4th
+start
+.Ed
+.Pp
+Load a different kernel with the standard configuration:
+.Pp
+.Bd -literal -offset indent -compact
+set kernel="kernel.old"
+unload
+boot-conf
+.Ed
+.Pp
+Read an additional configuration file and then proceed to boot:
+.Pp
+.Bd -literal -offset indent -compact
+unload
+read-conf /boot/special.conf
+boot-conf
+.Ed
+.Pp
+Disable the loading of the splash screen module and bitmap and then
+proceed to boot:
+.Pp
+.Bd -literal -offset indent -compact
+unload
+disable-module splash_bmp
+disable-module bitmap
+boot-conf
+.Ed
+.Sh SEE ALSO
+.Xr loader.conf 5 ,
+.Xr loader 8
+.Sh HISTORY
+The
+.Nm
+set of commands first appeared in
+.Fx 3.2 .
+.Sh AUTHORS
+The
+.Nm
+set of commands was written by
+.An Daniel C. Sobral Aq dcs@FreeBSD.org .
+.Sh BUGS
+A British espionage series.

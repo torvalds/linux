@@ -1,0 +1,132 @@
+.\"
+.\" Copyright (C) 2001 Jason Evans <jasone@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 1, 2006
+.Dt SEMA 9
+.Os
+.Sh NAME
+.Nm sema ,
+.Nm sema_init ,
+.Nm sema_destroy ,
+.Nm sema_post ,
+.Nm sema_wait ,
+.Nm sema_timedwait ,
+.Nm sema_trywait ,
+.Nm sema_value
+.Nd kernel counting semaphore
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/lock.h
+.In sys/sema.h
+.Ft void
+.Fn sema_init "struct sema *sema" "int value" "const char *description"
+.Ft void
+.Fn sema_destroy "struct sema *sema"
+.Ft void
+.Fn sema_post "struct sema *sema"
+.Ft void
+.Fn sema_wait "struct sema *sema"
+.Ft int
+.Fn sema_timedwait "struct sema *sema" "int timo"
+.Ft int
+.Fn sema_trywait "struct sema *sema"
+.Ft int
+.Fn sema_value "struct sema *sema"
+.Sh DESCRIPTION
+Counting semaphores provide a mechanism for synchronizing access to a pool of
+resources.
+Unlike mutexes, semaphores do not have the concept of an owner, so they can also
+be useful in situations where one thread needs to acquire a resource, and
+another thread needs to release it.
+Each semaphore has an integer value associated with it.
+Posting (incrementing) always succeeds, but waiting (decrementing) can only
+successfully complete if the resulting value of the semaphore is greater than or
+equal to zero.
+.Pp
+Semaphores should not be used where mutexes and condition variables
+will suffice.
+Semaphores are a more complex synchronization mechanism than mutexes and
+condition variables, and are not as efficient.
+.Pp
+Semaphores are created with
+.Fn sema_init ,
+where
+.Fa sema
+is a pointer to space for a
+.Vt "struct sema" ,
+.Fa value
+is the initial value of the semaphore, and
+.Fa description
+is a pointer to a null-terminated character string that describes the semaphore.
+Semaphores are destroyed with
+.Fn sema_destroy .
+A semaphore is posted (incremented) with
+.Fn sema_post .
+A semaphore is waited on (decremented) with
+.Fn sema_wait ,
+.Fn sema_timedwait ,
+or
+.Fn sema_trywait .
+The
+.Fa timo
+argument to
+.Fn sema_timedwait
+specifies the minimum time in ticks to wait before returning with failure.
+.Fn sema_value
+is used to read the current value of the semaphore.
+.Sh RETURN VALUES
+The
+.Fn sema_value
+function
+returns the current value of the semaphore.
+.Pp
+If decrementing the semaphore would result in its value being negative,
+.Fn sema_trywait
+returns 0 to indicate failure.
+Otherwise, a non-zero value is returned to indicate success.
+.Pp
+The
+.Fn sema_timedwait
+function
+returns 0 if waiting on the semaphore succeeded; otherwise a
+non-zero error code is returned.
+.Sh ERRORS
+The
+.Fn sema_timedwait
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EWOULDBLOCK
+Timeout expired.
+.El
+.Sh SEE ALSO
+.Xr condvar 9 ,
+.Xr locking 9 ,
+.Xr mtx_pool 9 ,
+.Xr mutex 9 ,
+.Xr rwlock 9 ,
+.Xr sx 9

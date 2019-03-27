@@ -1,0 +1,5 @@
+Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = bind9
+
+tp-glob: *_test

@@ -1,0 +1,677 @@
+#-
+# Copyright (C) 2010 The FreeBSD Foundation
+# All rights reserved.
+#
+# This software was developed by Shteryana Sotirova Shopova under
+# sponsorship from the FreeBSD Foundation.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#   documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#include "tc.def"
+
+typedef RowStatus ENUM (
+	1 active
+	2 notInService
+	3 notReady
+	4 createAndGo
+	5 createAndWait
+	6 destroy
+)
+
+typedef TruthValue ENUM (
+	1 true
+	2 false
+)
+
+typedef WlanRegDomainCode ENUM (
+	1 fcc
+	2 ca
+	3 etsi
+	4 etsi2
+	5 etsi3
+	6 fcc3
+	7 japan
+	8 korea
+	9 apac
+	10 apac2
+	11 apac3
+	12 row
+	13 none
+	14 debug
+	15 sr9
+	16 xr9
+	17 gz901
+)
+
+typedef WlanMgmtReasonCode ENUM (
+	1 unspecified
+	2 authenticationExpire
+	3 authenticationLeave
+	4 associationExpire
+	5 associationTooMany
+	6 notAuthenticated
+	7 notAssociated
+	8 associationLeave
+	9 associationNotAuthenticated
+	10 dissassocPwrcapBad
+	11 dissassocSuperchanBad
+	13 ieInvalid
+	14 micFailure
+	15 fourWayHandshakeTimeout
+	16 groupKeyUpdateTimeout
+	17 ieIn4FourWayDiffers
+	18 groupCipherInvalid
+	19 pairwiseCiherInvalid
+	20 akmpInvalid
+	21 unsupportedRsnIeVersion
+	22 invalidRsnIeCap
+	23 dot1xAuthFailed
+	24 cipherSuiteRejected
+	32 unspeciffiedQos
+	33 insufficientBw
+	34 tooManyFrames
+	35 outsideTxOp
+	36 leavingQbss
+	37 badMechanism
+	38 setupNeeded
+	39 timeout
+)
+
+typedef WlanIfaceOperatingModeType ENUM (
+	0 ibss
+	1 station
+	2 wds
+	3 adhocDemo
+	4 hostAp
+	5 monitor
+	6 meshPoint
+	7 tdma
+)
+
+typedef WlanIfaceFlagsType BITS (
+	1 uniqueBssid
+	2 noBeacons
+	3 wdsLegacy
+)
+
+typedef WlanDriverCaps BITS (
+	1 station
+	2 ieee8023encap
+	3 athFastFrames
+	4 athTurbo
+	5 ibss
+	6 pmgt
+	7 hostAp
+	8 ahDemo
+	9 swRetry
+	10 txPmgt
+	11 shortSlot
+	12 shortPreamble
+	13 monitor
+	14 dfs
+	15 mbss
+	16 wpa1
+	17 wpa2
+	18 burst
+	19 wme
+	20 wds
+	21 bgScan
+	22 txFrag
+	23 tdma
+)
+
+typedef WlanCryptoCaps BITS (
+	1 wep
+	2 tkip
+	3 aes
+	4 aesCcm
+	5 tkipMic
+	6 ckip
+)
+
+typedef WlanHTCaps BITS (
+	1 ldpc
+	2 chwidth40
+	3 greenField
+	4 shortGi20
+	5 shortGi40
+	6 txStbc
+	7 delba
+	8 amsdu7935
+	9 dssscck40
+	10 psmp
+	11 fortyMHzIntolerant
+	12 lsigTxOpProt
+	13 htcAmpdu
+	14 htcAmsdu
+	15 htcHt
+	16 htcSmps
+	17 htcRifs
+)
+
+typedef WlanIfaceDot11nPduType ENUM (
+	0 disabled
+	1 rxOnly
+	2 txOnly
+	3 txAndRx
+)
+
+typedef WlanPeerCapabilityFlags BITS (
+	1 ess
+	2 ibss
+	3 cfPollable
+	4 cfPollRequest
+	5 privacy
+	6 shortPreamble
+	7 pbcc
+	8 channelAgility
+	9 shortSlotTime
+	10 rsn
+	11 dsssofdm
+)
+
+typedef WlanIfacePeerFlagsType BITS (
+	1 authorizedForData
+	2 qosEnabled
+	3 erpEnabled
+	4 powerSaveMode
+	5 authRefHeld
+	6 htEnabled
+	7 htCompat
+	8 wpsAssoc
+	9 tsnAssoc
+	10 ampduRx
+	11 ampduTx
+	12 mimoPowerSave
+	13 sendRts
+	14 rifs
+	15 shortGiHT20
+	16 shortGiHT40
+	17 amsduRx
+	18 amsduTx
+)
+
+typedef WlanIfaceChannelFlagsType BITS (
+	1 turbo
+	2 cck
+	3 ofdm
+	4 spectrum2Ghz
+	5 spectrum5Ghz
+	6 passiveScan
+	7 dynamicCckOfdm
+	8 gfsk
+	9 spectrum900Mhz
+	10 dot11aStaticTurbo
+	11 halfRate
+	12 quarterRate
+	13 ht20
+	14 ht40u
+	15 ht40d
+	16 dfs
+	17 xmit4ms
+	18 noAdhoc
+	19 noHostAp
+	20 dot11d
+)
+
+typedef WlanIfaceChannelStateType BITS (
+	1 radar
+	2 cacDone
+	3 interferenceDetected
+	4 radarClear
+)
+
+typedef WlanIfPhyMode ENUM (
+	1 auto
+	2 dot11a
+	3 dot11b
+	4 dot11g
+	5 fh
+	6 turboA
+	7 turboG
+	8 sturboA
+	9 dot11na
+	10 dot11ng
+	11 ofdmHalf
+	12 ofdmQuarter
+)
+
+typedef WlanChannelType ENUM (
+	1 fhss
+	2 dot11a
+	3 dot11b
+	4 dot11g
+	5 tenMHz
+	6 fiveMHz
+	7 turbo
+	8 ht
+)
+
+typedef WlanScanFlagsType BITS (
+	1 noSelection
+	2 activeScan
+	3 pickFirst
+	4 backgroundScan
+	5 once
+	6 noBroadcast
+	7 noAutoSequencing
+	8 flushCashe
+	9 chechCashe
+)
+
+typedef WlanMeshNeighborPeerStateType ENUM (
+	0 idle
+	1 openTx
+	2 openRx
+	3 confirmRx
+	4 established
+	5 closing
+)
+
+(1 internet
+  (4 private
+    (1 enterprises
+      (12325 fokus
+        (1 begemot
+          (210 begemotWlan
+            (0 begemotWlanNotifications
+            )
+            (1 begemotWlanInterface
+              (1 wlanInterfaceTable
+                (1 wlanInterfaceEntry : OCTETSTRING op_wlan_iface
+                  (1 wlanIfaceIndex INTEGER GET)
+                  (2 wlanIfaceName OCTETSTRING GET SET)
+                  (3 wlanParentIfName OCTETSTRING GET SET)
+                  (4 wlanIfaceOperatingMode WlanIfaceOperatingModeType GET SET)
+                  (5 wlanIfaceFlags WlanIfaceFlagsType GET SET)
+                  (6 wlanIfaceBssid OCTETSTRING | MacAddress GET SET)
+                  (7 wlanIfaceLocalAddress OCTETSTRING | MacAddress GET SET)
+                  (8 wlanIfaceStatus RowStatus GET SET)
+                  (9 wlanIfaceState ENUM ( 1 up 2 down ) GET SET)
+              ))
+              (2 wlanIfParentTable
+                (1 wlanIfParentEntry : OCTETSTRING op_wlan_if_parent
+                  (1 wlanIfParentDriverCapabilities WlanDriverCaps GET)
+                  (2 wlanIfParentCryptoCapabilities WlanCryptoCaps GET)
+                  (3 wlanIfParentHTCapabilities WlanHTCaps GET)
+              ))
+              (3 wlanIfaceConfigTable
+                (1 wlanIfaceConfigEntry : OCTETSTRING op_wlan_iface_config
+                  (1 wlanIfacePacketBurst ENUM ( 1 true 2 false ) GET SET)
+                  (2 wlanIfaceCountryCode OCTETSTRING GET SET)
+                  (3 wlanIfaceRegDomain WlanRegDomainCode GET SET)
+                  (4 wlanIfaceDesiredSsid OCTETSTRING GET SET)
+                  (5 wlanIfaceDesiredChannel INTEGER32 GET SET)
+                  (6 wlanIfaceDynamicFreqSelection ENUM ( 1 true 2 false ) GET SET)
+                  (7 wlanIfaceFastFrames ENUM ( 1 true 2 false ) GET SET)
+                  (8 wlanIfaceDturbo ENUM ( 1 true 2 false ) GET SET)
+                  (9 wlanIfaceTxPower INTEGER32 GET SET)
+                  (10 wlanIfaceFragmentThreshold INTEGER GET SET)
+                  (11 wlanIfaceRTSThreshold INTEGER GET SET)
+                  (12 wlanIfaceWlanPrivacySubscribe ENUM ( 1 true 2 false ) GET SET)
+                  (13 wlanIfaceBgScan ENUM ( 1 true 2 false ) GET SET)
+                  (14 wlanIfaceBgScanIdle INTEGER32 GET SET)
+                  (15 wlanIfaceBgScanInterval INTEGER32 GET SET)
+                  (16 wlanIfaceBeaconMissedThreshold INTEGER GET SET)
+                  (17 wlanIfaceDesiredBssid OCTETSTRING | MacAddress GET SET)
+                  (18 wlanIfaceRoamingMode ENUM ( 1 device 2 auto 3 manual ) GET SET)
+                  (19 wlanIfaceDot11d ENUM ( 1 true 2 false ) GET SET)
+                  (20 wlanIfaceDot11h ENUM ( 1 true 2 false ) GET SET)
+                  (21 wlanIfaceDynamicWds ENUM ( 1 true 2 false ) GET SET)
+                  (22 wlanIfacePowerSave ENUM ( 1 true 2 false ) GET SET)
+                  (23 wlanIfaceApBridge ENUM ( 1 true 2 false ) GET SET)
+                  (24 wlanIfaceBeaconInterval INTEGER GET SET)
+                  (25 wlanIfaceDtimPeriod INTEGER GET SET)
+                  (26 wlanIfaceHideSsid ENUM ( 1 true 2 false ) GET SET)
+                  (27 wlanIfaceInactivityProccess ENUM ( 1 true 2 false ) GET SET)
+                  (28 wlanIfaceDot11gProtMode ENUM ( 1 off 2 cts 3 rtscts ) GET SET)
+                  (29 wlanIfaceDot11gPureMode ENUM ( 1 true 2 false ) GET SET)
+                  (30 wlanIfaceDot11nPureMode ENUM ( 1 true 2 false ) GET SET)
+                  (31 wlanIfaceDot11nAmpdu WlanIfaceDot11nPduType GET SET)
+                  (32 wlanIfaceDot11nAmpduDensity INTEGER GET SET)
+                  (33 wlanIfaceDot11nAmpduLimit INTEGER GET SET)
+                  (34 wlanIfaceDot11nAmsdu WlanIfaceDot11nPduType GET SET)
+                  (35 wlanIfaceDot11nAmsduLimit INTEGER GET SET)
+                  (36 wlanIfaceDot11nHighThroughput ENUM ( 1 true 2 false ) GET SET)
+                  (37 wlanIfaceDot11nHTCompatible ENUM ( 1 true 2 false ) GET SET)
+                  (38 wlanIfaceDot11nHTProtMode ENUM ( 1 off 2 rts ) GET SET)
+                  (39 wlanIfaceDot11nRIFS ENUM ( 1 true 2 false ) GET SET)
+                  (40 wlanIfaceDot11nShortGI ENUM ( 1 true 2 false ) GET SET)
+                  (41 wlanIfaceDot11nSMPSMode ENUM ( 1 disabled 2 static 3 dynamic ) GET SET)
+                  (42 wlanIfaceTdmaSlot INTEGER GET SET)
+                  (43 wlanIfaceTdmaSlotCount INTEGER GET SET)
+                  (44 wlanIfaceTdmaSlotLength INTEGER GET SET)
+                  (45 wlanIfaceTdmaBeaconInterval INTEGER32 GET SET)
+              ))
+              (4 wlanIfacePeerTable
+                (1 wlanIfacePeerEntry : OCTETSTRING OCTETSTRING | MacAddress op_wlan_if_peer
+                  (1 wlanIfacePeerAddress OCTETSTRING | MacAddress GET)
+                  (2 wlanIfacePeerAssociationId INTEGER32 GET)
+                  (3 wlanIfacePeerVlanTag INTEGER GET SET)
+                  (4 wlanIfacePeerFrequency INTEGER32 GET)
+                  (5 wlanIfacePeerCurrentTXRate INTEGER32 GET)
+                  (6 wlanIfacePeerRxSignalStrength INTEGER32 GET)
+                  (7 wlanIfacePeerIdleTimer INTEGER32 GET)
+                  (8 wlanIfacePeerTxSequenceNo INTEGER32 GET)
+                  (9 wlanIfacePeerRxSequenceNo INTEGER32 GET)
+                  (10 wlanIfacePeerTxPower INTEGER32 GET)
+                  (11 wlanIfacePeerCapabilities WlanPeerCapabilityFlags GET)
+                  (12 wlanIfacePeerFlags WlanIfacePeerFlagsType GET)
+              ))
+              (5 wlanIfaceChannelTable
+                (1 wlanIfaceChannelEntry : OCTETSTRING INTEGER op_wlan_channels
+                  (1 wlanIfaceChannelId INTEGER)
+                  (2 wlanIfaceChannelIeeeId INTEGER GET)
+                  (3 wlanIfaceChannelType WlanChannelType GET)
+                  (4 wlanIfaceChannelFlags WlanIfaceChannelFlagsType GET)
+                  (5 wlanIfaceChannelFrequency INTEGER32 GET)
+                  (6 wlanIfaceChannelMaxRegPower INTEGER32 GET)
+                  (7 wlanIfaceChannelMaxTxPower INTEGER32 GET)
+                  (8 wlanIfaceChannelMinTxPower INTEGER32 GET)
+                  (9 wlanIfaceChannelState WlanIfaceChannelStateType GET)
+                  (10 wlanIfaceChannelHTExtension INTEGER32 GET)
+                  (11 wlanIfaceChannelMaxAntennaGain INTEGER32 GET)
+              ))
+              (6 wlanIfRoamParamsTable
+                (1 wlanIfRoamParamsEntry : OCTETSTRING WlanIfPhyMode op_wlan_roam_params
+                  (1 wlanIfRoamPhyMode WlanIfPhyMode)
+                  (2 wlanIfRoamRxSignalStrength INTEGER32 GET)
+                  (3 wlanIfRoamTxRateThreshold INTEGER32 GET)
+              ))
+              (7 wlanIfTxParamsTable
+                (1 wlanIfTxParamsEntry : OCTETSTRING WlanIfPhyMode op_wlan_tx_params
+                  (1 wlanIfTxPhyMode WlanIfPhyMode)
+                  (2 wlanIfTxUnicastRate INTEGER32 GET SET)
+                  (3 wlanIfTxMcastRate INTEGER32 GET SET)
+                  (4 wlanIfTxMgmtRate INTEGER32 GET SET)
+                  (5 wlanIfTxMaxRetryCount INTEGER32 GET SET)
+              ))
+            )
+            (2 begemotWlanScanning
+              (1 wlanScanConfigTable
+                (1 wlanScanConfigEntry : OCTETSTRING op_wlan_scan_config
+                  (1 wlanScanFlags WlanScanFlagsType GET SET)
+                  (2 wlanScanDuration INTEGER GET SET)
+                  (3 wlanScanMinChannelDwellTime INTEGER32 GET SET)
+                  (4 wlanScanMaxChannelDwellTime INTEGER32 GET SET)
+                  (5 wlanScanConfigStatus ENUM ( 0 unknown 1 notStarted 2 running 3 finished 4 cancel ) GET SET)
+              ))
+              (2 wlanScanResultsTable
+                (1 wlanScanResultsEntry : OCTETSTRING OCTETSTRING OCTETSTRING | MacAddress op_wlan_scan_results
+                  (1 wlanScanResultID OCTETSTRING GET)
+                  (2 wlanScanResultBssid OCTETSTRING | MacAddress GET)
+                  (3 wlanScanResultChannel INTEGER32 GET)
+                  (4 wlanScanResultRate INTEGER32 GET)
+                  (5 wlanScanResultNoise INTEGER32 GET)
+                  (6 wlanScanResultBeaconInterval INTEGER32 GET)
+                  (7 wlanScanResultCapabilities WlanPeerCapabilityFlags GET)
+              ))
+            )
+            (3 begemotWlanStatistics
+              (1 wlanIfaceStatisticsTable
+                (1 wlanIfaceStatisticsEntry : OCTETSTRING op_wlan_iface_stats
+                  (1 wlanStatsRxBadVersion COUNTER GET)
+                  (2 wlanStatsRxTooShort COUNTER GET)
+                  (3 wlanStatsRxWrongBssid COUNTER GET)
+                  (4 wlanStatsRxDiscardedDups COUNTER GET)
+                  (5 wlanStatsRxWrongDir COUNTER GET)
+                  (6 wlanStatsRxDiscardMcastEcho COUNTER GET)
+                  (7 wlanStatsRxDiscardNoAssoc COUNTER GET)
+                  (8 wlanStatsRxWepNoPrivacy COUNTER GET)
+                  (9 wlanStatsRxWepUnencrypted COUNTER GET)
+                  (10 wlanStatsRxWepFailed COUNTER GET)
+                  (11 wlanStatsRxDecapsulationFailed COUNTER GET)
+                  (12 wlanStatsRxDiscardMgmt COUNTER GET)
+                  (13 wlanStatsRxControl COUNTER GET)
+                  (14 wlanStatsRxBeacon COUNTER GET)
+                  (15 wlanStatsRxRateSetTooBig COUNTER GET)
+                  (16 wlanStatsRxElemMissing COUNTER GET)
+                  (17 wlanStatsRxElemTooBig COUNTER GET)
+                  (18 wlanStatsRxElemTooSmall COUNTER GET)
+                  (19 wlanStatsRxElemUnknown COUNTER GET)
+                  (20 wlanStatsRxChannelMismatch COUNTER GET)
+                  (21 wlanStatsRxDropped COUNTER GET)
+                  (22 wlanStatsRxSsidMismatch COUNTER GET)
+                  (23 wlanStatsRxAuthNotSupported COUNTER GET)
+                  (24 wlanStatsRxAuthFailed COUNTER GET)
+                  (25 wlanStatsRxAuthCM COUNTER GET)
+                  (26 wlanStatsRxAssocWrongBssid COUNTER GET)
+                  (27 wlanStatsRxAssocNoAuth COUNTER GET)
+                  (28 wlanStatsRxAssocCapMismatch COUNTER GET)
+                  (29 wlanStatsRxAssocNoRateMatch COUNTER GET)
+                  (30 wlanStatsRxBadWpaIE COUNTER GET)
+                  (31 wlanStatsRxDeauthenticate COUNTER GET)
+                  (32 wlanStatsRxDisassociate COUNTER GET)
+                  (33 wlanStatsRxUnknownSubtype COUNTER GET)
+                  (34 wlanStatsRxFailedNoBuf COUNTER GET)
+                  (35 wlanStatsRxBadAuthRequest COUNTER GET)
+                  (36 wlanStatsRxUnAuthorized COUNTER GET)
+                  (37 wlanStatsRxBadKeyId COUNTER GET)
+                  (38 wlanStatsRxCCMPSeqViolation COUNTER GET)
+                  (39 wlanStatsRxCCMPBadFormat COUNTER GET)
+                  (40 wlanStatsRxCCMPFailedMIC COUNTER GET)
+                  (41 wlanStatsRxTKIPSeqViolation COUNTER GET)
+                  (42 wlanStatsRxTKIPBadFormat COUNTER GET)
+                  (43 wlanStatsRxTKIPFailedMIC COUNTER GET)
+                  (44 wlanStatsRxTKIPFailedICV COUNTER GET)
+                  (45 wlanStatsRxDiscardACL COUNTER GET)
+                  (46 wlanStatsTxFailedNoBuf COUNTER GET)
+                  (47 wlanStatsTxFailedNoNode COUNTER GET)
+                  (48 wlanStatsTxUnknownMgmt COUNTER GET)
+                  (49 wlanStatsTxBadCipher COUNTER GET)
+                  (50 wlanStatsTxNoDefKey COUNTER GET)
+                  (51 wlanStatsTxFragmented COUNTER GET)
+                  (52 wlanStatsTxFragmentsCreated COUNTER GET)
+                  (53 wlanStatsActiveScans COUNTER GET)
+                  (54 wlanStatsPassiveScans COUNTER GET)
+                  (55 wlanStatsTimeoutInactivity COUNTER GET)
+                  (56 wlanStatsCryptoNoMem COUNTER GET)
+                  (57 wlanStatsSwCryptoTKIP COUNTER GET)
+                  (58 wlanStatsSwCryptoTKIPEnMIC COUNTER GET)
+                  (59 wlanStatsSwCryptoTKIPDeMIC COUNTER GET)
+                  (60 wlanStatsCryptoTKIPCM COUNTER GET)
+                  (61 wlanStatsSwCryptoCCMP COUNTER GET)
+                  (62 wlanStatsSwCryptoWEP COUNTER GET)
+                  (63 wlanStatsCryptoCipherKeyRejected COUNTER GET)
+                  (64 wlanStatsCryptoNoKey COUNTER GET)
+                  (65 wlanStatsCryptoDeleteKeyFailed COUNTER GET)
+                  (66 wlanStatsCryptoUnknownCipher COUNTER GET)
+                  (67 wlanStatsCryptoAttachFailed COUNTER GET)
+                  (68 wlanStatsCryptoKeyFailed COUNTER GET)
+                  (69 wlanStatsCryptoEnMICFailed COUNTER GET)
+                  (70 wlanStatsIBSSCapMismatch COUNTER GET)
+                  (71 wlanStatsUnassocStaPSPoll COUNTER GET)
+                  (72 wlanStatsBadAidPSPoll COUNTER GET)
+                  (73 wlanStatsEmptyPSPoll COUNTER GET)
+                  (74 wlanStatsRxFFBadHdr COUNTER GET)
+                  (75 wlanStatsRxFFTooShort COUNTER GET)
+                  (76 wlanStatsRxFFSplitError COUNTER GET)
+                  (77 wlanStatsRxFFDecap COUNTER GET)
+                  (78 wlanStatsTxFFEncap COUNTER GET)
+                  (79 wlanStatsRxBadBintval COUNTER GET)
+                  (80 wlanStatsRxDemicFailed COUNTER GET)
+                  (81 wlanStatsRxDefragFailed COUNTER GET)
+                  (82 wlanStatsRxMgmt COUNTER GET)
+                  (83 wlanStatsRxActionMgmt COUNTER GET)
+                  (84 wlanStatsRxAMSDUTooShort COUNTER GET)
+                  (85 wlanStatsRxAMSDUSplitError COUNTER GET)
+                  (86 wlanStatsRxAMSDUDecap COUNTER GET)
+                  (87 wlanStatsTxAMSDUEncap COUNTER GET)
+                  (88 wlanStatsAMPDUBadBAR COUNTER GET)
+                  (89 wlanStatsAMPDUOowBar COUNTER GET)
+                  (90 wlanStatsAMPDUMovedBAR COUNTER GET)
+                  (91 wlanStatsAMPDURxBAR COUNTER GET)
+                  (92 wlanStatsAMPDURxOor COUNTER GET)
+                  (93 wlanStatsAMPDURxCopied COUNTER GET)
+                  (94 wlanStatsAMPDURxDropped COUNTER GET)
+                  (95 wlanStatsTxDiscardBadState COUNTER GET)
+                  (96 wlanStatsTxFailedNoAssoc COUNTER GET)
+                  (97 wlanStatsTxClassifyFailed COUNTER GET)
+                  (98 wlanStatsDwdsMcastDiscard COUNTER GET)
+                  (99 wlanStatsHTAssocRejectNoHT COUNTER GET)
+                  (100 wlanStatsHTAssocDowngrade COUNTER GET)
+                  (101 wlanStatsHTAssocRateMismatch COUNTER GET)
+                  (102 wlanStatsAMPDURxAge COUNTER GET)
+                  (103 wlanStatsAMPDUMoved COUNTER GET)
+                  (104 wlanStatsADDBADisabledReject COUNTER GET)
+                  (105 wlanStatsADDBANoRequest COUNTER GET)
+                  (106 wlanStatsADDBABadToken COUNTER GET)
+                  (107 wlanStatsADDBABadPolicy COUNTER GET)
+                  (108 wlanStatsAMPDUStopped COUNTER GET)
+                  (109 wlanStatsAMPDUStopFailed COUNTER GET)
+                  (110 wlanStatsAMPDURxReorder COUNTER GET)
+                  (111 wlanStatsScansBackground COUNTER GET)
+                  (112 wlanLastDeauthReason WlanMgmtReasonCode GET)
+                  (113 wlanLastDissasocReason WlanMgmtReasonCode GET)
+                  (114 wlanLastAuthFailReason WlanMgmtReasonCode GET)
+                  (115 wlanStatsBeaconMissedEvents COUNTER GET)
+                  (116 wlanStatsRxDiscardBadStates COUNTER GET)
+                  (117 wlanStatsFFFlushed COUNTER GET)
+                  (118 wlanStatsTxControlFrames COUNTER GET)
+                  (119 wlanStatsAMPDURexmt COUNTER GET)
+                  (120 wlanStatsAMPDURexmtFailed COUNTER GET)
+                  (121 wlanStatsReset ENUM ( 1 no-op 2 clear ) GET SET)
+              ))
+            )
+            (4 begemotWlanWep
+              (1 wlanWepInterfaceTable
+                (1 wlanWepInterfaceEntry : OCTETSTRING op_wlan_wep_iface
+                  (1 wlanWepMode ENUM ( 0 off 1 on 2 mixed ) GET SET)
+                  (2 wlanWepDefTxKey INTEGER32 GET SET)
+              ))
+              (2 wlanWepKeyTable
+                (1 wlanWepKeyEntry : OCTETSTRING INTEGER op_wlan_wep_key
+                  (1 wlanWepKeyID INTEGER GET SET)
+                  (2 wlanWepKeyLength INTEGER32 GET)
+                  (3 wlanWepKeySet OCTETSTRING | OctetString GET SET)
+                  (4 wlanWepKeyHash OCTETSTRING | OctetString GET)
+                  (5 wlanWepKeyStatus RowStatus GET SET)
+              ))
+            )
+            (5 begemotWlanMACAccessControl
+              (1 wlanMACAccessControlTable
+                (1 wlanMACAccessControlEntry : OCTETSTRING op_wlan_mac_access_control
+                  (1 wlanMACAccessControlPolicy ENUM ( 0 open 1 allow 2 deny 7 radius ) GET SET)
+                  (2 wlanMACAccessControlNacl COUNTER GET)
+                  (3 wlanMACAccessControlFlush ENUM ( 0 no-op 1 flush ) GET SET)
+              ))
+              (2 wlanMACAccessControlMACTable
+                (1 wlanMACAccessControlMACEntry : OCTETSTRING OCTETSTRING | MacAddress op_wlan_mac_acl_mac
+                  (1 wlanMACAccessControlMAC OCTETSTRING | MacAddress GET SET)
+                  (2 wlanMACAccessControlMACStatus RowStatus GET SET)
+              ))
+            )
+            (6 begemotWlanMeshRouting
+              (1 wlanMeshRoutingConfig
+                (1 wlanMeshMaxRetries INTEGER32 op_wlan_mesh_config GET SET)
+                (2 wlanMeshConfirmTimeout INTEGER32 op_wlan_mesh_config GET SET)
+                (3 wlanMeshHoldingTimeout INTEGER32 op_wlan_mesh_config GET SET)
+                (4 wlanMeshRetryTimeout INTEGER32 op_wlan_mesh_config GET SET)
+              )
+              (2 wlanMeshInterface
+                (1 wlanMeshInterfaceTable
+                  (1 wlanMeshInterfaceEntry : OCTETSTRING op_wlan_mesh_iface
+                    (1 wlanMeshId OCTETSTRING GET SET)
+                    (2 wlanMeshTTL INTEGER32 GET SET)
+                    (3 wlanMeshPeeringEnabled ENUM ( 1 true 2 false ) GET SET)
+                    (4 wlanMeshForwardingEnabled ENUM ( 1 true 2 false ) GET SET)
+                    (5 wlanMeshMetric ENUM ( 0 unknown 1 airtime ) GET SET)
+                    (6 wlanMeshPath ENUM ( 0 unknown 1 hwmp ) GET SET)
+                    (7 wlanMeshRoutesFlush ENUM ( 0 no-op 1 flush ) GET SET)
+                ))
+                (2 wlanMeshNeighborTable
+                  (1 wlanMeshNeighborEntry : OCTETSTRING OCTETSTRING | MacAddress op_wlan_mesh_neighbor
+                    (1 wlanMeshNeighborAddress OCTETSTRING | MacAddress GET)
+                    (2 wlanMeshNeighborFrequency INTEGER32 GET)
+                    (3 wlanMeshNeighborLocalId INTEGER32 GET)
+                    (4 wlanMeshNeighborPeerId INTEGER32 GET)
+                    (5 wlanMeshNeighborPeerState WlanMeshNeighborPeerStateType GET)
+                    (6 wlanMeshNeighborCurrentTXRate INTEGER32 GET)
+                    (7 wlanMeshNeighborRxSignalStrength INTEGER32 GET)
+                    (8 wlanMeshNeighborIdleTimer INTEGER32 GET)
+                    (9 wlanMeshNeighborTxSequenceNo INTEGER32 GET)
+                    (10 wlanMeshNeighborRxSequenceNo INTEGER32 GET)
+                ))
+              )
+              (3 wlanMeshRoute
+                (1 wlanMeshRouteTable
+                  (1 wlanMeshRouteEntry : OCTETSTRING OCTETSTRING | MacAddress op_wlan_mesh_route
+                    (1 wlanMeshRouteDestination OCTETSTRING | MacAddress GET SET)
+                    (2 wlanMeshRouteNextHop OCTETSTRING | MacAddress GET)
+                    (3 wlanMeshRouteHops INTEGER32 GET)
+                    (4 wlanMeshRouteMetric UNSIGNED32 GET)
+                    (5 wlanMeshRouteLifeTime UNSIGNED32 GET)
+                    (6 wlanMeshRouteLastMseq UNSIGNED32 GET)
+                    (7 wlanMeshRouteFlags BITS ( 1 valid 2 proxy ) GET)
+                    (8 wlanMeshRouteStatus RowStatus GET SET)
+                ))
+              )
+              (4 wlanMeshStatistics
+                (1 wlanMeshStatsTable
+                  (1 wlanMeshStatsEntry : OCTETSTRING op_wlan_mesh_stats
+                    (1 wlanMeshDroppedBadSta COUNTER GET)
+                    (2 wlanMeshDroppedNoLink COUNTER GET)
+                    (3 wlanMeshNoFwdTtl COUNTER GET)
+                    (4 wlanMeshNoFwdBuf COUNTER GET)
+                    (5 wlanMeshNoFwdTooShort COUNTER GET)
+                    (6 wlanMeshNoFwdDisabled COUNTER GET)
+                    (7 wlanMeshNoFwdPathUnknown COUNTER GET)
+                    (8 wlanMeshDroppedBadAE COUNTER GET)
+                    (9 wlanMeshRouteAddFailed COUNTER GET)
+                    (10 wlanMeshDroppedNoProxy COUNTER GET)
+                    (11 wlanMeshDroppedMisaligned COUNTER GET)
+                ))
+              )
+              (5 wlanMeshRouteProtocols
+                (1 wlanMeshProtoHWMP
+                  (1 wlanMeshHWMPConfig
+                    (1 wlanHWMPRouteInactiveTimeout INTEGER32 op_wlan_hwmp_config GET SET)
+                    (2 wlanHWMPRootAnnounceInterval INTEGER32 op_wlan_hwmp_config GET SET)
+                    (3 wlanHWMPRootInterval INTEGER32 op_wlan_hwmp_config GET SET)
+                    (4 wlanHWMPRootTimeout INTEGER32 op_wlan_hwmp_config GET SET)
+                    (5 wlanHWMPPathLifetime INTEGER32 op_wlan_hwmp_config GET SET)
+                    (6 wlanHWMPReplyForwardBit INTEGER32 op_wlan_hwmp_config GET SET)
+                    (7 wlanHWMPTargetOnlyBit INTEGER32 op_wlan_hwmp_config GET SET)
+                  )
+                  (2 wlanMeshHWMPInterface
+                    (1 wlanHWMPInterfaceTable
+                      (1 wlanHWMPInterfaceEntry : OCTETSTRING op_wlan_hwmp_iface
+                        (1 wlanHWMPRootMode ENUM ( 1 disabled 2 normal 3 proactive 4 rann ) GET SET)
+                        (2 wlanHWMPMaxHops INTEGER32 GET SET)
+                    ))
+                  )
+                  (3 wlanMeshHWMPStatistics
+                    (1 wlanMeshHWMPStatsTable
+                      (1 wlanMeshHWMPStatsEntry : OCTETSTRING op_wlan_hwmp_stats
+                        (1 wlanMeshHWMPWrongSeqNo COUNTER GET)
+                        (2 wlanMeshHWMPTxRootPREQ COUNTER GET)
+                        (3 wlanMeshHWMPTxRootRANN COUNTER GET)
+                        (4 wlanMeshHWMPProxy COUNTER GET)
+                    ))
+                  )
+                )
+              )
+  ))))))
+)

@@ -1,0 +1,26 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "allwinner,sun50i-a64";
+};
+
+&{/soc} {
+	pwm: pwm@1c21400 {
+		compatible = "allwinner,sun50i-a64-pwm",
+			     "allwinner,sun5i-a13-pwm";
+		reg = <0x01c21400 0x400>;
+		clocks = <&osc24M>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm_pin>;
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+};
+
+&{/soc/pinctrl@1c20800} {
+	pwm_pin: pwm_pin {
+		pins = "PD22";
+		function = "pwm";
+	};
+};

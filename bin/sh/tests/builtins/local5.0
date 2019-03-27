@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+f() {
+	local PATH IFS elem
+	IFS=:
+	for elem in ''$PATH''; do
+		PATH=/var/empty/$elem:$PATH
+	done
+	ls -d / >/dev/null
+}
+
+p1=$(command -v ls)
+f
+p2=$(command -v ls)
+[ "$p1" = "$p2" ]

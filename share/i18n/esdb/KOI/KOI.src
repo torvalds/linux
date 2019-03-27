@@ -1,0 +1,7 @@
+# $FreeBSD$ 
+# $NetBSD: KOI.src,v 1.2 2006/09/16 08:38:20 tnozaki Exp $
+
+NAME		"KOIx"
+ENCODING	"NONE"
+DEFCSID		"KOIx"		0
+INVALID		0x3F # '?'

@@ -1,0 +1,105 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)pac.8	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd June 6, 1993
+.Dt PAC 8
+.Os
+.Sh NAME
+.Nm pac
+.Nd printer/plotter accounting information
+.Sh SYNOPSIS
+.Nm
+.Op Fl P Ns Ar printer
+.Op Fl c
+.Op Fl m
+.Op Fl p Ns Ar price
+.Op Fl s
+.Op Fl r
+.Op Ar name ...
+.Sh DESCRIPTION
+The
+.Nm
+utility reads the printer/plotter accounting files, accumulating the number
+of pages (the usual case) or feet (for raster devices)
+of paper consumed by each user, and printing out
+how much each user consumed in pages or feet and dollars.
+.Pp
+Options and operands available:
+.Bl -tag -width PPprinter
+.It Fl P Ns Ar printer
+Accounting is done for the named printer.
+Normally, accounting is done for the default printer (site dependent) or
+the value of the environment variable
+.Ev PRINTER
+is used.
+.It Fl c
+Cause the output to be sorted by cost; usually the
+output is sorted alphabetically by name.
+.It Fl m
+Cause the host name to be ignored in the accounting file.
+This
+allows for a user on multiple machines to have all of his printing
+charges grouped together.
+.It Fl p Ns Ar price
+The value
+.Ar price
+is used for the cost in dollars instead of the default value of 0.02
+or the price specified in
+.Pa /etc/printcap .
+.It Fl r
+Reverse the sorting order.
+.It Fl s
+Accounting information is summarized on the
+summary accounting file; this summarization is necessary since on a
+busy system, the accounting file can grow by several lines per day.
+.It Ar names
+Statistics are only printed for user(s)
+.Ar name ;
+usually, statistics are printed for every user who has used any paper.
+.El
+.Sh FILES
+.Bl -tag -width /var/account/?_sum -compact
+.It Pa /var/account/?acct
+raw accounting files
+.It Pa /var/account/?_sum
+summary accounting files
+.It Pa /etc/printcap
+printer capability data base
+.El
+.Sh SEE ALSO
+.Xr printcap 5
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.0 .
+.Sh BUGS
+The relationship between the computed price and reality is
+as yet unknown.

@@ -1,0 +1,134 @@
+.\" Copyright (c) 2003-2011 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 14, 2014
+.Dt ARCHIVE_WRITE_FILTER 3
+.Os
+.Sh NAME
+.Nm archive_write_add_filter_b64encode ,
+.Nm archive_write_add_filter_by_name ,
+.Nm archive_write_add_filter_bzip2 ,
+.Nm archive_write_add_filter_compress ,
+.Nm archive_write_add_filter_grzip ,
+.Nm archive_write_add_filter_gzip ,
+.Nm archive_write_add_filter_lrzip ,
+.Nm archive_write_add_filter_lz4 ,
+.Nm archive_write_add_filter_lzip ,
+.Nm archive_write_add_filter_lzma ,
+.Nm archive_write_add_filter_lzop ,
+.Nm archive_write_add_filter_none ,
+.Nm archive_write_add_filter_program ,
+.Nm archive_write_add_filter_uuencode ,
+.Nm archive_write_add_filter_xz ,
+.Nm archive_write_add_filter_zstd ,
+.Nd functions enabling output filters
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive.h
+.Ft int
+.Fn archive_write_add_filter_b64encode "struct archive *"
+.Ft int
+.Fn archive_write_add_filter_bzip2 "struct archive *"
+.Ft int
+.Fn archive_write_add_filter_compress "struct archive *"
+.Ft int
+.Fn archive_write_add_filter_grzip "struct archive *"
+.Ft int
+.Fn archive_write_add_filter_gzip "struct archive *"
+.Ft int
+.Fn archive_write_add_filter_lrzip "struct archive *"
+.Ft int
+.Fn archive_write_add_filter_lz4 "struct archive *"
+.Ft int
+.Fn archive_write_add_filter_lzip "struct archive *"
+.Ft int
+.Fn archive_write_add_filter_lzma "struct archive *"
+.Ft int
+.Fn archive_write_add_filter_lzop "struct archive *"
+.Ft int
+.Fn archive_write_add_filter_none "struct archive *"
+.Ft int
+.Fn archive_write_add_filter_program "struct archive *" "const char * cmd"
+.Ft int
+.Fn archive_write_add_filter_uuencode "struct archive *"
+.Ft int
+.Fn archive_write_add_filter_xz "struct archive *"
+.Ft int
+.Fn archive_write_add_filter_zstd "struct archive *"
+.Sh DESCRIPTION
+.Bl -tag -width indent
+.It Xo
+.Fn archive_write_add_filter_bzip2 ,
+.Fn archive_write_add_filter_compress ,
+.Fn archive_write_add_filter_grzip ,
+.Fn archive_write_add_filter_gzip ,
+.Fn archive_write_add_filter_lrzip ,
+.Fn archive_write_add_filter_lz4 ,
+.Fn archive_write_add_filter_lzip ,
+.Fn archive_write_add_filter_lzma ,
+.Fn archive_write_add_filter_lzop ,
+.Fn archive_write_add_filter_xz ,
+.Fn archive_write_add_filter_zstd ,
+.Xc
+The resulting archive will be compressed as specified.
+Note that the compressed output is always properly blocked.
+.It Xo
+.Fn archive_write_add_filter_b64encode ,
+.Fn archive_write_add_filter_uuencode ,
+.Xc
+The output will be encoded as specified.
+The encoded output is always properly blocked.
+.It Fn archive_write_add_filter_none
+This is never necessary.
+It is provided only for backwards compatibility.
+.It Fn archive_write_add_filter_program
+The archive will be fed into the specified compression program.
+The output of that program is blocked and written to the client
+write callbacks.
+.El
+.Sh RETURN VALUES
+These functions return
+.Cm ARCHIVE_OK
+on success, or
+.Cm ARCHIVE_FATAL .
+.\"
+.Sh ERRORS
+Detailed error codes and textual descriptions are available from the
+.Fn archive_errno
+and
+.Fn archive_error_string
+functions.
+.\"
+.Sh SEE ALSO
+.Xr tar 1 ,
+.Xr libarchive 3 ,
+.Xr archive_write 3 ,
+.Xr archive_write_format 3 ,
+.Xr archive_write_set_options 3 ,
+.Xr cpio 5 ,
+.Xr mtree 5 ,
+.Xr tar 5

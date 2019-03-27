@@ -1,0 +1,157 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: random
+# REQUIRE: FILESYSTEMS
+# BEFORE: netif
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="random"
+desc="Harvest and save entropy for random device"
+start_cmd="random_start"
+stop_cmd="random_stop"
+
+extra_commands="saveseed"
+saveseed_cmd="${name}_stop"
+
+save_dev_random()
+{
+	oumask=`umask`
+	umask 077
+	for f ; do
+		debug "saving entropy to $f"
+		dd if=/dev/random of="$f" bs=4096 count=1 status=none &&
+			chmod 600 "$f"
+	done
+	umask ${oumask}
+}
+
+feed_dev_random()
+{
+	for f ; do
+		if [ -f "$f" -a -r "$f" -a -s "$f" ] ; then
+			if dd if="$f" of=/dev/random bs=4096 2>/dev/null ; then
+				debug "entropy read from $f"
+				rm -f "$f"
+			fi
+		fi
+	done
+}
+
+random_start()
+{
+
+	if [ ${harvest_mask} -gt 0 ]; then
+		echo -n 'Setting up harvesting: '
+		${SYSCTL} kern.random.harvest.mask=${harvest_mask} > /dev/null
+		${SYSCTL_N} kern.random.harvest.mask_symbolic
+	fi
+
+	echo -n 'Feeding entropy: '
+
+	if [ ! -w /dev/random ] ; then
+		warn "/dev/random is not writeable"
+		return 1
+	fi
+
+	# Reseed /dev/random with previously stored entropy.
+	case ${entropy_dir:=/var/db/entropy} in
+	[Nn][Oo])
+		;;
+	*)
+		if [ -d "${entropy_dir}" ] ; then
+			feed_dev_random "${entropy_dir}"/*
+		fi
+		;;
+	esac
+
+	case ${entropy_file:=/entropy} in
+	[Nn][Oo])
+		;;
+	*)
+		feed_dev_random "${entropy_file}" /var/db/entropy-file
+		save_dev_random "${entropy_file}"
+		;;
+	esac
+
+	case ${entropy_boot_file:=/boot/entropy} in
+	[Nn][Oo])
+		;;
+	*)
+		save_dev_random "${entropy_boot_file}"
+		;;
+	esac
+
+	echo '.'
+}
+
+random_stop()
+{
+	# Write some entropy so when the machine reboots /dev/random
+	# can be reseeded
+	#
+	case ${entropy_file:=/entropy} in
+	[Nn][Oo])
+		;;
+	*)
+		echo -n 'Writing entropy file:'
+		rm -f ${entropy_file} 2> /dev/null
+		oumask=`umask`
+		umask 077
+		if touch ${entropy_file} 2> /dev/null; then
+			entropy_file_confirmed="${entropy_file}"
+		else
+			# Try this as a reasonable alternative for read-only
+			# roots, diskless workstations, etc.
+			rm -f /var/db/entropy-file 2> /dev/null
+			if touch /var/db/entropy-file 2> /dev/null; then
+				entropy_file_confirmed=/var/db/entropy-file
+			fi
+		fi
+		case ${entropy_file_confirmed} in
+		'')
+			warn 'write failed (read-only fs?)'
+			;;
+		*)
+			dd if=/dev/random of=${entropy_file_confirmed} \
+			    bs=4096 count=1 2> /dev/null ||
+			    warn 'write failed (unwriteable file or full fs?)'
+			echo '.'
+			;;
+		esac
+		umask ${oumask}
+		;;
+	esac
+	case ${entropy_boot_file:=/boot/entropy} in
+	[Nn][Oo])
+		;;
+	*)
+		echo -n 'Writing early boot entropy file:'
+		rm -f ${entropy_boot_file} 2> /dev/null
+		oumask=`umask`
+		umask 077
+		if touch ${entropy_boot_file} 2> /dev/null; then
+			entropy_boot_file_confirmed="${entropy_boot_file}"
+		fi
+		case ${entropy_boot_file_confirmed} in
+		'')
+			warn 'write failed (read-only fs?)'
+			;;
+		*)
+			dd if=/dev/random of=${entropy_boot_file_confirmed} \
+			    bs=4096 count=1 2> /dev/null ||
+			    warn 'write failed (unwriteable file or full fs?)'
+			echo '.'
+			;;
+		esac
+		umask ${oumask}
+		;;
+	esac
+}
+
+load_rc_config $name
+run_rc_command "$1"

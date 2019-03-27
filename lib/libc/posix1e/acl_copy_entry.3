@@ -1,0 +1,85 @@
+.\"-
+.\" Copyright (c) 2001 Chris D. Faulhaber
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 10, 2001
+.Dt ACL_COPY_ENTRY 3
+.Os
+.Sh NAME
+.Nm acl_copy_entry
+.Nd copy an ACL entry to another ACL entry
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/acl.h
+.Ft int
+.Fn acl_copy_entry "acl_entry_t dest_d" "acl_entry_t src_d"
+.Sh DESCRIPTION
+The
+.Fn acl_copy_entry
+function
+is a POSIX.1e call that copies the contents of ACL entry
+.Fa src_d
+to ACL entry
+.Fa dest_d .
+.Sh RETURN VALUES
+.Rv -std acl_copy_entry
+.Sh ERRORS
+The
+.Fn acl_copy_entry
+function fails if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Argument
+.Fa src_d
+or
+.Fa dest_d
+is not a valid descriptor for an ACL entry, or
+arguments
+.Fa src_d
+and
+.Fa dest_d
+reference the same ACL entry.
+.El
+.Sh SEE ALSO
+.Xr acl 3 ,
+.Xr acl_get_entry 3 ,
+.Xr posix1e 3
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+.Sh HISTORY
+POSIX.1e support was introduced in
+.Fx 4.0 .
+The
+.Fn acl_copy_entry
+function was added in
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Fn acl_copy_entry
+function was written by
+.An Chris D. Faulhaber Aq Mt jedgar@fxp.org .

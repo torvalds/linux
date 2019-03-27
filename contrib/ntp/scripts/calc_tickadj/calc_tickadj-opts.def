@@ -1,0 +1,60 @@
+/* -*- Mode: Text -*- */
+AutoGen Definitions perlopt;
+
+#include autogen-version.def
+
+prog-name	= calc_tickadj;
+prog-title	= 'Calculates "optimal" value for tick given ntp drift file.';
+package		= ntp;
+#include	version.def
+
+long-opts;
+gnu-usage;
+
+flag = {
+    name        = drift-file;
+    value       = d;
+    arg-type    = string;
+    arg-default = '/etc/ntp/drift';
+    descrip     = 'Ntp drift file to use';
+    doc         = 'Use the specified drift file for calculations';
+};
+
+flag = {
+    name        = tick;
+    value       = t;
+    arg-type    = number;
+    descrip     = 'Tick value of this host';
+    doc         = 'The current tick which to adjustment will be calculated';
+};
+
+doc-section = {
+    ds-type     = 'DESCRIPTION';
+    ds-format   = 'texi';
+    ds-text     = <<- _EndOfDoc
+The @code{calc_tickadj} script uses provided ntp drift file to generate optimal
+tick value. Generally, ntpd can do better job if the drift value is the
+smallest possible number. 
+
+The example output of 
+@example
+$ ./calc_tickadj
+81.699 (drift)
+9999 usec; 9999779 nsec
+$ cat /etc/ntp/drift
+-23.159
+@end example
+
+means the following. If tick on that box is 10,000, by making the value 9999
+we'll shift the box from its current drift of -23.159 to a drift of 81.699, and
+in doing so we'll speed the clock up a little every second instead of slowing
+the clock down a little.
+
+If 'tick' on that box is 10,000,000 then by setting it to 9999779 the drift
+value will be somewhere around 0.0.
+
+@code{calc_tickadj} tries to determine the the tick value by using
+@code{tickadj} program from ntp package. If this doesn't work you can specify
+current tick manually on command line.
+	_EndOfDoc;
+};

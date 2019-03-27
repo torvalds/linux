@@ -1,0 +1,218 @@
+.\" Copyright (c) 2008 Poul-Henning Kamp
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 9, 2008
+.Dt FIFOLOG 1
+.Os
+.Sh NAME
+.Nm fifolog_create , fifolog_writer , fifolog_reader
+.Nd "initialize, write, seek and extract data from a fifolog"
+.Sh SYNOPSIS
+.Nm fifolog_create
+.Op Fl l Ar record-size
+.Op Fl r Ar record-count
+.Op Fl s Ar size
+.Ar file
+.Nm fifolog_reader
+.Op Fl t
+.Op Fl b Ar tstart
+.Op Fl B Ar Tstart
+.Op Fl e Ar tend
+.Op Fl E Ar Tend
+.Op Fl o Ar ofile
+.Op Fl R Ar regexp
+.Op Fl T Ar timefmt
+.Ar file
+.Nm fifolog_writer
+.Op Fl w Ar write-rate
+.Op Fl s Ar sync-rate
+.Op Fl z Ar compression
+.Ar file
+.Sh DESCRIPTION
+Fifologs provide a compact round-robin circular storage for
+recording text and binary information to permanent storage in a bounded
+and predictable fashion, time and space wise.
+.Pp
+A fifolog can be stored either directly on a disk partition or in a
+regular file.
+.Pp
+The input data stream is encoded, compressed and marked up with
+timestamps before it is written to storage, such that it is possible
+to seek out a particular time interval in the stored data, without
+having to decompress the entire logfile.
+.Pp
+The
+.Nm fifolog_create
+utility
+is used to initialize the first sector of a disk device
+or file system file to make it a fifolog and should be called only
+once.
+.Pp
+Running
+.Nm fifolog_create
+on an existing fifolog will reset it so that
+.Nm fifolog_reader
+and
+.Nm fifolog_writer
+will not see the previous contents.
+(The previous contents are not physically erased, and with a bit
+of hand-work all but the first record can be easily recovered.)
+.Pp
+If the
+.Ar file
+does not already exist,
+.Nm fifolog_create
+will attempt to create and
+.Xr ftruncate 2
+it to the specified size, defaulting to 86400 records of 512 bytes
+if the
+.Fl r , l
+or
+.Fl s
+options do not specify otherwise.
+.Pp
+The
+.Nm fifolog_writer
+utility
+will read standard input and write it to the end of the fifolog
+according to the parameters given.
+.Pp
+Writes happen whenever the output buffer is filled with compressed
+data or when either of two timers expire, forcing a partially filled
+buffer to be written.
+.Pp
+The first and faster timer,
+.Fl w Ar write-rate ,
+forces available data to be written
+but does not flush and reset the compression dictionary.
+This timer is intended to minimize the amount of logdata lost in RAM
+in case of a crash and by default it fires 10 seconds after
+the previous write.
+.Pp
+The second and slower timer,
+.Fl s Ar sync-rate ,
+forces a full flush and reset of the compression
+engine and causes the next record written to be a synchronization
+point with an uncompressed timestamp, making it possible to start
+reading the logfile from that record.
+By default this timer fires a minute after the previous sync.
+.Pp
+The
+.Fl z Ar compression
+option controls the
+.Xr zlib 3
+compression level; legal values are zero to nine which is the default.
+.Pp
+The
+.Nm fifolog_reader
+utility
+will retrieve records from the fifolog according to the specified
+parameters and write them either to standard output or the file specified
+with
+.Fl o .
+.Pp
+It is possible to specify a start and end time to limit the amount
+of data
+.Nm fifolog_reader
+will report.
+The lower-case variants
+.Fl b
+and
+.Fl e
+take a
+.Vt time_t
+value, whereas the upper-case variants
+.Fl B
+and
+.Fl E
+take human-readable specifications such as
+.Dq Li "1 hour ago" .
+.Pp
+The
+.Fl t
+option forces timestamps to be formatted as
+.Dq Li "YYYYMMDDhhmmss"
+instead of as
+.Vt time_t ,
+and
+.Fl T
+allows the specification of an
+.Xr strftime 3
+formatting string.
+.Pp
+Finally, records can be filtered such that only records matching the
+.Pq Dv REG_BASIC
+regular expression specified with
+.Fl R
+are output.
+.Sh IMPLEMENTATION NOTES
+The data stored in the fifolog consists of three layers, an outer
+layer that allows searches to synchronization points based on timestamps
+without having to decompress and decode the actual contents, a
+compression layer implemented with
+.Xr zlib 3 ,
+and an inner serialization and timestamping layer.
+.Pp
+The exact encoding is described in the
+.Pa fifolog.h
+file.
+.Pp
+Fifolog is particularly well suited for use on Flash based media, where
+it results in much lower write-wear, than a file system with regular
+log files rotated with
+.Xr newsyslog 8
+etc.
+.Sh EXAMPLES
+Create a fifolog with 1024*1024 records of 512 bytes:
+.Pp
+.Dl "fifolog_create -r 10m /tmp/fifolog"
+.Pp
+Write a single record to this file:
+.Pp
+.Dl "date | fifolog_writer /tmp/fifolog"
+.Pp
+Read it back with human readable timestamps:
+.Pp
+.Dl "fifolog_reader -t /tmp/fifolog"
+.Pp
+One particular useful use of
+.Nm fifolog_writer
+is with
+.Xr syslogd 8
+using a line such as this in
+.Xr syslog.conf 5 :
+.Pp
+.Dl "*.* |fifolog_writer /var/log/syslog_fifolog"
+.Sh HISTORY
+The fifolog tools have been liberated from an open source
+.Tn SCADA
+applications called
+.Dq measured ,
+which monitors and controls remote radio navigation
+transmitters for the Danish Air Traffic Control system.
+.Sh AUTHORS
+The fifolog tools were written by
+.An Poul-Henning Kamp .

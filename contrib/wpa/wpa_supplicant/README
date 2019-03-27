@@ -1,0 +1,1079 @@
+WPA Supplicant
+==============
+
+Copyright (c) 2003-2018, Jouni Malinen <j@w1.fi> and contributors
+All Rights Reserved.
+
+This program is licensed under the BSD license (the one with
+advertisement clause removed).
+
+If you are submitting changes to the project, please see CONTRIBUTIONS
+file for more instructions.
+
+
+
+License
+-------
+
+This software may be distributed, used, and modified under the terms of
+BSD license:
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+3. Neither the name(s) of the above-listed copyright holder(s) nor the
+   names of its contributors may be used to endorse or promote products
+   derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+Features
+--------
+
+Supported WPA/IEEE 802.11i features:
+- WPA-PSK ("WPA-Personal")
+- WPA with EAP (e.g., with RADIUS authentication server) ("WPA-Enterprise")
+  Following authentication methods are supported with an integrate IEEE 802.1X
+  Supplicant:
+  * EAP-TLS
+  * EAP-PEAP/MSCHAPv2 (both PEAPv0 and PEAPv1)
+  * EAP-PEAP/TLS (both PEAPv0 and PEAPv1)
+  * EAP-PEAP/GTC (both PEAPv0 and PEAPv1)
+  * EAP-PEAP/OTP (both PEAPv0 and PEAPv1)
+  * EAP-PEAP/MD5-Challenge (both PEAPv0 and PEAPv1)
+  * EAP-TTLS/EAP-MD5-Challenge
+  * EAP-TTLS/EAP-GTC
+  * EAP-TTLS/EAP-OTP
+  * EAP-TTLS/EAP-MSCHAPv2
+  * EAP-TTLS/EAP-TLS
+  * EAP-TTLS/MSCHAPv2
+  * EAP-TTLS/MSCHAP
+  * EAP-TTLS/PAP
+  * EAP-TTLS/CHAP
+  * EAP-SIM
+  * EAP-AKA
+  * EAP-AKA'
+  * EAP-PSK
+  * EAP-PAX
+  * EAP-SAKE
+  * EAP-IKEv2
+  * EAP-GPSK
+  * EAP-pwd
+  * LEAP (note: requires special support from the driver for IEEE 802.11
+	  authentication)
+  (following methods are supported, but since they do not generate keying
+   material, they cannot be used with WPA or IEEE 802.1X WEP keying)
+  * EAP-MD5-Challenge
+  * EAP-MSCHAPv2
+  * EAP-GTC
+  * EAP-OTP
+- key management for CCMP, TKIP, WEP104, WEP40
+- RSN/WPA2 (IEEE 802.11i)
+  * pre-authentication
+  * PMKSA caching
+
+Supported TLS/crypto libraries:
+- OpenSSL (default)
+- GnuTLS
+
+Internal TLS/crypto implementation (optional):
+- can be used in place of an external TLS/crypto library
+- TLSv1
+- X.509 certificate processing
+- PKCS #1
+- ASN.1
+- RSA
+- bignum
+- minimal size (ca. 50 kB binary, parts of which are already needed for WPA;
+  TLSv1/X.509/ASN.1/RSA/bignum parts are about 25 kB on x86)
+
+
+Requirements
+------------
+
+Current hardware/software requirements:
+- Linux kernel 2.4.x or 2.6.x with Linux Wireless Extensions v15 or newer
+- FreeBSD 6-CURRENT
+- NetBSD-current
+- Microsoft Windows with WinPcap (at least WinXP, may work with other versions)
+- drivers:
+	Linux drivers that support cfg80211/nl80211. Even though there are
+	number of driver specific interface included in wpa_supplicant, please
+	note that Linux drivers are moving to use generic wireless configuration
+	interface driver_nl80211 (-Dnl80211 on wpa_supplicant command line)
+	should be the default option to start with before falling back to driver
+	specific interface.
+
+	Linux drivers that support WPA/WPA2 configuration with the generic
+	Linux wireless extensions (WE-18 or newer). Obsoleted by nl80211.
+
+	In theory, any driver that supports Linux wireless extensions can be
+	used with IEEE 802.1X (i.e., not WPA) when using ap_scan=0 option in
+	configuration file.
+
+	Wired Ethernet drivers (with ap_scan=0)
+
+	BSD net80211 layer (e.g., Atheros driver)
+	At the moment, this is for FreeBSD 6-CURRENT branch and NetBSD-current.
+
+	Windows NDIS
+	The current Windows port requires WinPcap (http://winpcap.polito.it/).
+	See README-Windows.txt for more information.
+
+wpa_supplicant was designed to be portable for different drivers and
+operating systems. Hopefully, support for more wlan cards and OSes will be
+added in the future. See developer's documentation
+(http://hostap.epitest.fi/wpa_supplicant/devel/) for more information about the
+design of wpa_supplicant and porting to other drivers. One main goal
+is to add full WPA/WPA2 support to Linux wireless extensions to allow
+new drivers to be supported without having to implement new
+driver-specific interface code in wpa_supplicant.
+
+Optional libraries for layer2 packet processing:
+- libpcap (tested with 0.7.2, most relatively recent versions assumed to work,
+	this is likely to be available with most distributions,
+	http://tcpdump.org/)
+- libdnet (tested with v1.4, most versions assumed to work,
+	http://libdnet.sourceforge.net/)
+
+These libraries are _not_ used in the default Linux build. Instead,
+internal Linux specific implementation is used. libpcap/libdnet are
+more portable and they can be used by adding CONFIG_L2_PACKET=pcap into
+.config. They may also be selected automatically for other operating
+systems. In case of Windows builds, WinPcap is used by default
+(CONFIG_L2_PACKET=winpcap).
+
+
+Optional libraries for EAP-TLS, EAP-PEAP, and EAP-TTLS:
+- OpenSSL (tested with 1.0.1 and 1.0.2 versions; assumed to
+  work with most relatively recent versions; this is likely to be
+  available with most distributions, http://www.openssl.org/)
+- GnuTLS
+- internal TLSv1 implementation
+
+One of these libraries is needed when EAP-TLS, EAP-PEAP, EAP-TTLS, or
+EAP-FAST support is enabled. WPA-PSK mode does not require this or EAPOL/EAP
+implementation. A configuration file, .config, for compilation is
+needed to enable IEEE 802.1X/EAPOL and EAP methods. Note that EAP-MD5,
+EAP-GTC, EAP-OTP, and EAP-MSCHAPV2 cannot be used alone with WPA, so
+they should only be enabled if testing the EAPOL/EAP state
+machines. However, there can be used as inner authentication
+algorithms with EAP-PEAP and EAP-TTLS.
+
+See Building and installing section below for more detailed
+information about the wpa_supplicant build time configuration.
+
+
+
+WPA
+---
+
+The original security mechanism of IEEE 802.11 standard was not
+designed to be strong and has proven to be insufficient for most
+networks that require some kind of security. Task group I (Security)
+of IEEE 802.11 working group (http://www.ieee802.org/11/) has worked
+to address the flaws of the base standard and has in practice
+completed its work in May 2004. The IEEE 802.11i amendment to the IEEE
+802.11 standard was approved in June 2004 and published in July 2004.
+
+Wi-Fi Alliance (http://www.wi-fi.org/) used a draft version of the
+IEEE 802.11i work (draft 3.0) to define a subset of the security
+enhancements that can be implemented with existing wlan hardware. This
+is called Wi-Fi Protected Access<TM> (WPA). This has now become a
+mandatory component of interoperability testing and certification done
+by Wi-Fi Alliance. Wi-Fi provides information about WPA at its web
+site (http://www.wi-fi.org/OpenSection/protected_access.asp).
+
+IEEE 802.11 standard defined wired equivalent privacy (WEP) algorithm
+for protecting wireless networks. WEP uses RC4 with 40-bit keys,
+24-bit initialization vector (IV), and CRC32 to protect against packet
+forgery. All these choices have proven to be insufficient: key space is
+too small against current attacks, RC4 key scheduling is insufficient
+(beginning of the pseudorandom stream should be skipped), IV space is
+too small and IV reuse makes attacks easier, there is no replay
+protection, and non-keyed authentication does not protect against bit
+flipping packet data.
+
+WPA is an intermediate solution for the security issues. It uses
+Temporal Key Integrity Protocol (TKIP) to replace WEP. TKIP is a
+compromise on strong security and possibility to use existing
+hardware. It still uses RC4 for the encryption like WEP, but with
+per-packet RC4 keys. In addition, it implements replay protection,
+keyed packet authentication mechanism (Michael MIC).
+
+Keys can be managed using two different mechanisms. WPA can either use
+an external authentication server (e.g., RADIUS) and EAP just like
+IEEE 802.1X is using or pre-shared keys without need for additional
+servers. Wi-Fi calls these "WPA-Enterprise" and "WPA-Personal",
+respectively. Both mechanisms will generate a master session key for
+the Authenticator (AP) and Supplicant (client station).
+
+WPA implements a new key handshake (4-Way Handshake and Group Key
+Handshake) for generating and exchanging data encryption keys between
+the Authenticator and Supplicant. This handshake is also used to
+verify that both Authenticator and Supplicant know the master session
+key. These handshakes are identical regardless of the selected key
+management mechanism (only the method for generating master session
+key changes).
+
+
+
+IEEE 802.11i / WPA2
+-------------------
+
+The design for parts of IEEE 802.11i that were not included in WPA has
+finished (May 2004) and this amendment to IEEE 802.11 was approved in
+June 2004. Wi-Fi Alliance is using the final IEEE 802.11i as a new
+version of WPA called WPA2. This includes, e.g., support for more
+robust encryption algorithm (CCMP: AES in Counter mode with CBC-MAC)
+to replace TKIP and optimizations for handoff (reduced number of
+messages in initial key handshake, pre-authentication, and PMKSA caching).
+
+
+
+wpa_supplicant
+--------------
+
+wpa_supplicant is an implementation of the WPA Supplicant component,
+i.e., the part that runs in the client stations. It implements WPA key
+negotiation with a WPA Authenticator and EAP authentication with
+Authentication Server. In addition, it controls the roaming and IEEE
+802.11 authentication/association of the wlan driver.
+
+wpa_supplicant is designed to be a "daemon" program that runs in the
+background and acts as the backend component controlling the wireless
+connection. wpa_supplicant supports separate frontend programs and an
+example text-based frontend, wpa_cli, is included with wpa_supplicant.
+
+Following steps are used when associating with an AP using WPA:
+
+- wpa_supplicant requests the kernel driver to scan neighboring BSSes
+- wpa_supplicant selects a BSS based on its configuration
+- wpa_supplicant requests the kernel driver to associate with the chosen
+  BSS
+- If WPA-EAP: integrated IEEE 802.1X Supplicant completes EAP
+  authentication with the authentication server (proxied by the
+  Authenticator in the AP)
+- If WPA-EAP: master key is received from the IEEE 802.1X Supplicant
+- If WPA-PSK: wpa_supplicant uses PSK as the master session key
+- wpa_supplicant completes WPA 4-Way Handshake and Group Key Handshake
+  with the Authenticator (AP)
+- wpa_supplicant configures encryption keys for unicast and broadcast
+- normal data packets can be transmitted and received
+
+
+
+Building and installing
+-----------------------
+
+In order to be able to build wpa_supplicant, you will first need to
+select which parts of it will be included. This is done by creating a
+build time configuration file, .config, in the wpa_supplicant root
+directory. Configuration options are text lines using following
+format: CONFIG_<option>=y. Lines starting with # are considered
+comments and are ignored. See defconfig file for an example configuration
+and a list of available options and additional notes.
+
+The build time configuration can be used to select only the needed
+features and limit the binary size and requirements for external
+libraries. The main configuration parts are the selection of which
+driver interfaces (e.g., nl80211, wext, ..) and which authentication
+methods (e.g., EAP-TLS, EAP-PEAP, ..) are included.
+
+Following build time configuration options are used to control IEEE
+802.1X/EAPOL and EAP state machines and all EAP methods. Including
+TLS, PEAP, or TTLS will require linking wpa_supplicant with OpenSSL
+library for TLS implementation. Alternatively, GnuTLS or the internal
+TLSv1 implementation can be used for TLS functionality.
+
+CONFIG_IEEE8021X_EAPOL=y
+CONFIG_EAP_MD5=y
+CONFIG_EAP_MSCHAPV2=y
+CONFIG_EAP_TLS=y
+CONFIG_EAP_PEAP=y
+CONFIG_EAP_TTLS=y
+CONFIG_EAP_GTC=y
+CONFIG_EAP_OTP=y
+CONFIG_EAP_SIM=y
+CONFIG_EAP_AKA=y
+CONFIG_EAP_AKA_PRIME=y
+CONFIG_EAP_PSK=y
+CONFIG_EAP_SAKE=y
+CONFIG_EAP_GPSK=y
+CONFIG_EAP_PAX=y
+CONFIG_EAP_LEAP=y
+CONFIG_EAP_IKEV2=y
+CONFIG_EAP_PWD=y
+
+Following option can be used to include GSM SIM/USIM interface for GSM/UMTS
+authentication algorithm (for EAP-SIM/EAP-AKA/EAP-AKA'). This requires pcsc-lite
+(http://www.linuxnet.com/) for smart card access.
+
+CONFIG_PCSC=y
+
+Following options can be added to .config to select which driver
+interfaces are included.
+
+CONFIG_DRIVER_NL80211=y
+CONFIG_DRIVER_WEXT=y
+CONFIG_DRIVER_BSD=y
+CONFIG_DRIVER_NDIS=y
+
+Following example includes some more features and driver interfaces that
+are included in the wpa_supplicant package:
+
+CONFIG_DRIVER_NL80211=y
+CONFIG_DRIVER_WEXT=y
+CONFIG_DRIVER_BSD=y
+CONFIG_DRIVER_NDIS=y
+CONFIG_IEEE8021X_EAPOL=y
+CONFIG_EAP_MD5=y
+CONFIG_EAP_MSCHAPV2=y
+CONFIG_EAP_TLS=y
+CONFIG_EAP_PEAP=y
+CONFIG_EAP_TTLS=y
+CONFIG_EAP_GTC=y
+CONFIG_EAP_OTP=y
+CONFIG_EAP_SIM=y
+CONFIG_EAP_AKA=y
+CONFIG_EAP_PSK=y
+CONFIG_EAP_SAKE=y
+CONFIG_EAP_GPSK=y
+CONFIG_EAP_PAX=y
+CONFIG_EAP_LEAP=y
+CONFIG_EAP_IKEV2=y
+CONFIG_PCSC=y
+
+EAP-PEAP and EAP-TTLS will automatically include configured EAP
+methods (MD5, OTP, GTC, MSCHAPV2) for inner authentication selection.
+
+
+After you have created a configuration file, you can build
+wpa_supplicant and wpa_cli with 'make' command. You may then install
+the binaries to a suitable system directory, e.g., /usr/local/bin.
+
+Example commands:
+
+# build wpa_supplicant and wpa_cli
+make
+# install binaries (this may need root privileges)
+cp wpa_cli wpa_supplicant /usr/local/bin
+
+
+You will need to make a configuration file, e.g.,
+/etc/wpa_supplicant.conf, with network configuration for the networks
+you are going to use. Configuration file section below includes
+explanation fo the configuration file format and includes various
+examples. Once the configuration is ready, you can test whether the
+configuration work by first running wpa_supplicant with following
+command to start it on foreground with debugging enabled:
+
+wpa_supplicant -iwlan0 -c/etc/wpa_supplicant.conf -d
+
+Assuming everything goes fine, you can start using following command
+to start wpa_supplicant on background without debugging:
+
+wpa_supplicant -iwlan0 -c/etc/wpa_supplicant.conf -B
+
+Please note that if you included more than one driver interface in the
+build time configuration (.config), you may need to specify which
+interface to use by including -D<driver name> option on the command
+line. See following section for more details on command line options
+for wpa_supplicant.
+
+
+
+Command line options
+--------------------
+
+usage:
+  wpa_supplicant [-BddfhKLqqtuvW] [-P<pid file>] [-g<global ctrl>] \
+        [-G<group>] \
+        -i<ifname> -c<config file> [-C<ctrl>] [-D<driver>] [-p<driver_param>] \
+        [-b<br_ifname> [-MN -i<ifname> -c<conf> [-C<ctrl>] [-D<driver>] \
+        [-p<driver_param>] [-b<br_ifname>] [-m<P2P Device config file>] ...
+
+options:
+  -b = optional bridge interface name
+  -B = run daemon in the background
+  -c = Configuration file
+  -C = ctrl_interface parameter (only used if -c is not)
+  -i = interface name
+  -d = increase debugging verbosity (-dd even more)
+  -D = driver name (can be multiple drivers: nl80211,wext)
+  -f = Log output to default log location (normally /tmp)
+  -g = global ctrl_interface
+  -G = global ctrl_interface group
+  -K = include keys (passwords, etc.) in debug output
+  -t = include timestamp in debug messages
+  -h = show this help text
+  -L = show license (BSD)
+  -p = driver parameters
+  -P = PID file
+  -q = decrease debugging verbosity (-qq even less)
+  -u = enable DBus control interface
+  -v = show version
+  -W = wait for a control interface monitor before starting
+  -M = start describing matching interface
+  -N = start describing new interface
+  -m = Configuration file for the P2P Device
+
+drivers:
+  nl80211 = Linux nl80211/cfg80211
+  wext = Linux wireless extensions (generic)
+  wired = wpa_supplicant wired Ethernet driver
+  roboswitch = wpa_supplicant Broadcom switch driver
+  bsd = BSD 802.11 support (Atheros, etc.)
+  ndis = Windows NDIS driver
+
+In most common cases, wpa_supplicant is started with
+
+wpa_supplicant -B -c/etc/wpa_supplicant.conf -iwlan0
+
+This makes the process fork into background.
+
+The easiest way to debug problems, and to get debug log for bug
+reports, is to start wpa_supplicant on foreground with debugging
+enabled:
+
+wpa_supplicant -c/etc/wpa_supplicant.conf -iwlan0 -d
+
+If the specific driver wrapper is not known beforehand, it is possible
+to specify multiple comma separated driver wrappers on the command
+line. wpa_supplicant will use the first driver wrapper that is able to
+initialize the interface.
+
+wpa_supplicant -Dnl80211,wext -c/etc/wpa_supplicant.conf -iwlan0
+
+
+wpa_supplicant can control multiple interfaces (radios) either by
+running one process for each interface separately or by running just
+one process and list of options at command line. Each interface is
+separated with -N argument. As an example, following command would
+start wpa_supplicant for two interfaces:
+
+wpa_supplicant \
+	-c wpa1.conf -i wlan0 -D nl80211 -N \
+	-c wpa2.conf -i wlan1 -D wext
+
+
+If the interfaces on which wpa_supplicant is to run are not known or do
+not exist, wpa_supplicant can match an interface when it arrives. Each
+matched interface is separated with -M argument and the -i argument now
+allows for pattern matching.
+
+As an example, the following command would start wpa_supplicant for a
+specific wired interface called lan0, any interface starting with wlan
+and lastly any other interface. Each match has its own configuration
+file, and for the wired interface a specific driver has also been given.
+
+wpa_supplicant \
+	-M -c wpa_wired.conf -ilan0 -D wired \
+	-M -c wpa1.conf -iwlan* \
+	-M -c wpa2.conf
+
+
+If the interface is added in a Linux bridge (e.g., br0), the bridge
+interface needs to be configured to wpa_supplicant in addition to the
+main interface:
+
+wpa_supplicant -cw.conf -Dnl80211 -iwlan0 -bbr0
+
+
+Configuration file
+------------------
+
+wpa_supplicant is configured using a text file that lists all accepted
+networks and security policies, including pre-shared keys. See
+example configuration file, wpa_supplicant.conf, for detailed
+information about the configuration format and supported fields.
+
+Changes to configuration file can be reloaded be sending SIGHUP signal
+to wpa_supplicant ('killall -HUP wpa_supplicant'). Similarly,
+reloading can be triggered with 'wpa_cli reconfigure' command.
+
+Configuration file can include one or more network blocks, e.g., one
+for each used SSID. wpa_supplicant will automatically select the best
+network based on the order of network blocks in the configuration
+file, network security level (WPA/WPA2 is preferred), and signal
+strength.
+
+Example configuration files for some common configurations:
+
+1) WPA-Personal (PSK) as home network and WPA-Enterprise with EAP-TLS as work
+   network
+
+# allow frontend (e.g., wpa_cli) to be used by all users in 'wheel' group
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=wheel
+#
+# home network; allow all valid ciphers
+network={
+	ssid="home"
+	scan_ssid=1
+	key_mgmt=WPA-PSK
+	psk="very secret passphrase"
+}
+#
+# work network; use EAP-TLS with WPA; allow only CCMP and TKIP ciphers
+network={
+	ssid="work"
+	scan_ssid=1
+	key_mgmt=WPA-EAP
+	pairwise=CCMP TKIP
+	group=CCMP TKIP
+	eap=TLS
+	identity="user@example.com"
+	ca_cert="/etc/cert/ca.pem"
+	client_cert="/etc/cert/user.pem"
+	private_key="/etc/cert/user.prv"
+	private_key_passwd="password"
+}
+
+
+2) WPA-RADIUS/EAP-PEAP/MSCHAPv2 with RADIUS servers that use old peaplabel
+   (e.g., Funk Odyssey and SBR, Meetinghouse Aegis, Interlink RAD-Series)
+
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=wheel
+network={
+	ssid="example"
+	scan_ssid=1
+	key_mgmt=WPA-EAP
+	eap=PEAP
+	identity="user@example.com"
+	password="foobar"
+	ca_cert="/etc/cert/ca.pem"
+	phase1="peaplabel=0"
+	phase2="auth=MSCHAPV2"
+}
+
+
+3) EAP-TTLS/EAP-MD5-Challenge configuration with anonymous identity for the
+   unencrypted use. Real identity is sent only within an encrypted TLS tunnel.
+
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=wheel
+network={
+	ssid="example"
+	scan_ssid=1
+	key_mgmt=WPA-EAP
+	eap=TTLS
+	identity="user@example.com"
+	anonymous_identity="anonymous@example.com"
+	password="foobar"
+	ca_cert="/etc/cert/ca.pem"
+	phase2="auth=MD5"
+}
+
+
+4) IEEE 802.1X (i.e., no WPA) with dynamic WEP keys (require both unicast and
+   broadcast); use EAP-TLS for authentication
+
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=wheel
+network={
+	ssid="1x-test"
+	scan_ssid=1
+	key_mgmt=IEEE8021X
+	eap=TLS
+	identity="user@example.com"
+	ca_cert="/etc/cert/ca.pem"
+	client_cert="/etc/cert/user.pem"
+	private_key="/etc/cert/user.prv"
+	private_key_passwd="password"
+	eapol_flags=3
+}
+
+
+5) Catch all example that allows more or less all configuration modes. The
+   configuration options are used based on what security policy is used in the
+   selected SSID. This is mostly for testing and is not recommended for normal
+   use.
+
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=wheel
+network={
+	ssid="example"
+	scan_ssid=1
+	key_mgmt=WPA-EAP WPA-PSK IEEE8021X NONE
+	pairwise=CCMP TKIP
+	group=CCMP TKIP WEP104 WEP40
+	psk="very secret passphrase"
+	eap=TTLS PEAP TLS
+	identity="user@example.com"
+	password="foobar"
+	ca_cert="/etc/cert/ca.pem"
+	client_cert="/etc/cert/user.pem"
+	private_key="/etc/cert/user.prv"
+	private_key_passwd="password"
+	phase1="peaplabel=0"
+	ca_cert2="/etc/cert/ca2.pem"
+	client_cert2="/etc/cer/user.pem"
+	private_key2="/etc/cer/user.prv"
+	private_key2_passwd="password"
+}
+
+
+6) Authentication for wired Ethernet. This can be used with 'wired' or
+   'roboswitch' interface (-Dwired or -Droboswitch on command line).
+
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=wheel
+ap_scan=0
+network={
+	key_mgmt=IEEE8021X
+	eap=MD5
+	identity="user"
+	password="password"
+	eapol_flags=0
+}
+
+
+
+Certificates
+------------
+
+Some EAP authentication methods require use of certificates. EAP-TLS
+uses both server side and client certificates whereas EAP-PEAP and
+EAP-TTLS only require the server side certificate. When client
+certificate is used, a matching private key file has to also be
+included in configuration. If the private key uses a passphrase, this
+has to be configured in wpa_supplicant.conf ("private_key_passwd").
+
+wpa_supplicant supports X.509 certificates in PEM and DER
+formats. User certificate and private key can be included in the same
+file.
+
+If the user certificate and private key is received in PKCS#12/PFX
+format, they need to be converted to suitable PEM/DER format for
+wpa_supplicant. This can be done, e.g., with following commands:
+
+# convert client certificate and private key to PEM format
+openssl pkcs12 -in example.pfx -out user.pem -clcerts
+# convert CA certificate (if included in PFX file) to PEM format
+openssl pkcs12 -in example.pfx -out ca.pem -cacerts -nokeys
+
+
+
+wpa_cli
+-------
+
+wpa_cli is a text-based frontend program for interacting with
+wpa_supplicant. It is used to query current status, change
+configuration, trigger events, and request interactive user input.
+
+wpa_cli can show the current authentication status, selected security
+mode, dot11 and dot1x MIBs, etc. In addition, it can configure some
+variables like EAPOL state machine parameters and trigger events like
+reassociation and IEEE 802.1X logoff/logon. wpa_cli provides a user
+interface to request authentication information, like username and
+password, if these are not included in the configuration. This can be
+used to implement, e.g., one-time-passwords or generic token card
+authentication where the authentication is based on a
+challenge-response that uses an external device for generating the
+response.
+
+The control interface of wpa_supplicant can be configured to allow
+non-root user access (ctrl_interface_group in the configuration
+file). This makes it possible to run wpa_cli with a normal user
+account.
+
+wpa_cli supports two modes: interactive and command line. Both modes
+share the same command set and the main difference is in interactive
+mode providing access to unsolicited messages (event messages,
+username/password requests).
+
+Interactive mode is started when wpa_cli is executed without including
+the command as a command line parameter. Commands are then entered on
+the wpa_cli prompt. In command line mode, the same commands are
+entered as command line arguments for wpa_cli.
+
+
+Interactive authentication parameters request
+
+When wpa_supplicant need authentication parameters, like username and
+password, which are not present in the configuration file, it sends a
+request message to all attached frontend programs, e.g., wpa_cli in
+interactive mode. wpa_cli shows these requests with
+"CTRL-REQ-<type>-<id>:<text>" prefix. <type> is IDENTITY, PASSWORD, or
+OTP (one-time-password). <id> is a unique identifier for the current
+network. <text> is description of the request. In case of OTP request,
+it includes the challenge from the authentication server.
+
+The reply to these requests can be given with 'identity', 'password',
+and 'otp' commands. <id> needs to be copied from the the matching
+request. 'password' and 'otp' commands can be used regardless of
+whether the request was for PASSWORD or OTP. The main difference
+between these two commands is that values given with 'password' are
+remembered as long as wpa_supplicant is running whereas values given
+with 'otp' are used only once and then forgotten, i.e., wpa_supplicant
+will ask frontend for a new value for every use. This can be used to
+implement one-time-password lists and generic token card -based
+authentication.
+
+Example request for password and a matching reply:
+
+CTRL-REQ-PASSWORD-1:Password needed for SSID foobar
+> password 1 mysecretpassword
+
+Example request for generic token card challenge-response:
+
+CTRL-REQ-OTP-2:Challenge 1235663 needed for SSID foobar
+> otp 2 9876
+
+
+wpa_cli commands
+
+  status = get current WPA/EAPOL/EAP status
+  mib = get MIB variables (dot1x, dot11)
+  help = show this usage help
+  interface [ifname] = show interfaces/select interface
+  level <debug level> = change debug level
+  license = show full wpa_cli license
+  logoff = IEEE 802.1X EAPOL state machine logoff
+  logon = IEEE 802.1X EAPOL state machine logon
+  set = set variables (shows list of variables when run without arguments)
+  pmksa = show PMKSA cache
+  reassociate = force reassociation
+  reconfigure = force wpa_supplicant to re-read its configuration file
+  preauthenticate <BSSID> = force preauthentication
+  identity <network id> <identity> = configure identity for an SSID
+  password <network id> <password> = configure password for an SSID
+  pin <network id> <pin> = configure pin for an SSID
+  otp <network id> <password> = configure one-time-password for an SSID
+  passphrase <network id> <passphrase> = configure private key passphrase
+    for an SSID
+  bssid <network id> <BSSID> = set preferred BSSID for an SSID
+  list_networks = list configured networks
+  select_network <network id> = select a network (disable others)
+  enable_network <network id> = enable a network
+  disable_network <network id> = disable a network
+  add_network = add a network
+  remove_network <network id> = remove a network
+  set_network <network id> <variable> <value> = set network variables (shows
+    list of variables when run without arguments)
+  get_network <network id> <variable> = get network variables
+  save_config = save the current configuration
+  disconnect = disconnect and wait for reassociate command before connecting
+  scan = request new BSS scan
+  scan_results = get latest scan results
+  get_capability <eap/pairwise/group/key_mgmt/proto/auth_alg> = get capabilies
+  terminate = terminate wpa_supplicant
+  quit = exit wpa_cli
+
+
+wpa_cli command line options
+
+wpa_cli [-p<path to ctrl sockets>] [-i<ifname>] [-hvB] [-a<action file>] \
+        [-P<pid file>] [-g<global ctrl>]  [command..]
+  -h = help (show this usage text)
+  -v = shown version information
+  -a = run in daemon mode executing the action file based on events from
+       wpa_supplicant
+  -B = run a daemon in the background
+  default path: /var/run/wpa_supplicant
+  default interface: first interface found in socket path
+
+
+Using wpa_cli to run external program on connect/disconnect
+-----------------------------------------------------------
+
+wpa_cli can used to run external programs whenever wpa_supplicant
+connects or disconnects from a network. This can be used, e.g., to
+update network configuration and/or trigget DHCP client to update IP
+addresses, etc.
+
+One wpa_cli process in "action" mode needs to be started for each
+interface. For example, the following command starts wpa_cli for the
+default interface (-i can be used to select the interface in case of
+more than one interface being used at the same time):
+
+wpa_cli -a/sbin/wpa_action.sh -B
+
+The action file (-a option, /sbin/wpa_action.sh in this example) will
+be executed whenever wpa_supplicant completes authentication (connect
+event) or detects disconnection). The action script will be called
+with two command line arguments: interface name and event (CONNECTED
+or DISCONNECTED). If the action script needs to get more information
+about the current network, it can use 'wpa_cli status' to query
+wpa_supplicant for more information.
+
+Following example can be used as a simple template for an action
+script:
+
+#!/bin/sh
+
+IFNAME=$1
+CMD=$2
+
+if [ "$CMD" = "CONNECTED" ]; then
+    SSID=`wpa_cli -i$IFNAME status | grep ^ssid= | cut -f2- -d=`
+    # configure network, signal DHCP client, etc.
+fi
+
+if [ "$CMD" = "DISCONNECTED" ]; then
+    # remove network configuration, if needed
+    SSID=
+fi
+
+
+
+Integrating with pcmcia-cs/cardmgr scripts
+------------------------------------------
+
+wpa_supplicant needs to be running when using a wireless network with
+WPA. It can be started either from system startup scripts or from
+pcmcia-cs/cardmgr scripts (when using PC Cards). WPA handshake must be
+completed before data frames can be exchanged, so wpa_supplicant
+should be started before DHCP client.
+
+For example, following small changes to pcmcia-cs scripts can be used
+to enable WPA support:
+
+Add MODE="Managed" and WPA="y" to the network scheme in
+/etc/pcmcia/wireless.opts.
+
+Add the following block to the end of 'start' action handler in
+/etc/pcmcia/wireless:
+
+    if [ "$WPA" = "y" -a -x /usr/local/bin/wpa_supplicant ]; then
+	/usr/local/bin/wpa_supplicant -B -c/etc/wpa_supplicant.conf \
+		-i$DEVICE
+    fi
+
+Add the following block to the end of 'stop' action handler (may need
+to be separated from other actions) in /etc/pcmcia/wireless:
+
+    if [ "$WPA" = "y" -a -x /usr/local/bin/wpa_supplicant ]; then
+	killall wpa_supplicant
+    fi
+
+This will make cardmgr start wpa_supplicant when the card is plugged
+in.
+
+
+
+Dynamic interface add and operation without configuration files
+---------------------------------------------------------------
+
+wpa_supplicant can be started without any configuration files or
+network interfaces. When used in this way, a global (i.e., per
+wpa_supplicant process) control interface is used to add and remove
+network interfaces. Each network interface can then be configured
+through a per-network interface control interface. For example,
+following commands show how to start wpa_supplicant without any
+network interfaces and then add a network interface and configure a
+network (SSID):
+
+# Start wpa_supplicant in the background
+wpa_supplicant -g/var/run/wpa_supplicant-global -B
+
+# Add a new interface (wlan0, no configuration file, driver=nl80211, and
+# enable control interface)
+wpa_cli -g/var/run/wpa_supplicant-global interface_add wlan0 \
+	"" nl80211 /var/run/wpa_supplicant
+
+# Configure a network using the newly added network interface:
+wpa_cli -iwlan0 add_network
+wpa_cli -iwlan0 set_network 0 ssid '"test"'
+wpa_cli -iwlan0 set_network 0 key_mgmt WPA-PSK
+wpa_cli -iwlan0 set_network 0 psk '"12345678"'
+wpa_cli -iwlan0 set_network 0 pairwise TKIP
+wpa_cli -iwlan0 set_network 0 group TKIP
+wpa_cli -iwlan0 set_network 0 proto WPA
+wpa_cli -iwlan0 enable_network 0
+
+# At this point, the new network interface should start trying to associate
+# with the WPA-PSK network using SSID test.
+
+# Remove network interface
+wpa_cli -g/var/run/wpa_supplicant-global interface_remove wlan0
+
+
+Privilege separation
+--------------------
+
+To minimize the size of code that needs to be run with root privileges
+(e.g., to control wireless interface operation), wpa_supplicant
+supports optional privilege separation. If enabled, this separates the
+privileged operations into a separate process (wpa_priv) while leaving
+rest of the code (e.g., EAP authentication and WPA handshakes) into an
+unprivileged process (wpa_supplicant) that can be run as non-root
+user. Privilege separation restricts the effects of potential software
+errors by containing the majority of the code in an unprivileged
+process to avoid full system compromise.
+
+Privilege separation is not enabled by default and it can be enabled
+by adding CONFIG_PRIVSEP=y to the build configuration (.config). When
+enabled, the privileged operations (driver wrapper and l2_packet) are
+linked into a separate daemon program, wpa_priv. The unprivileged
+program, wpa_supplicant, will be built with a special driver/l2_packet
+wrappers that communicate with the privileged wpa_priv process to
+perform the needed operations. wpa_priv can control what privileged
+are allowed.
+
+wpa_priv needs to be run with network admin privileges (usually, root
+user). It opens a UNIX domain socket for each interface that is
+included on the command line; any other interface will be off limits
+for wpa_supplicant in this kind of configuration. After this,
+wpa_supplicant can be run as a non-root user (e.g., all standard users
+on a laptop or as a special non-privileged user account created just
+for this purpose to limit access to user files even further).
+
+
+Example configuration:
+- create user group for users that are allowed to use wpa_supplicant
+  ('wpapriv' in this example) and assign users that should be able to
+  use wpa_supplicant into that group
+- create /var/run/wpa_priv directory for UNIX domain sockets and control
+  user access by setting it accessible only for the wpapriv group:
+  mkdir /var/run/wpa_priv
+  chown root:wpapriv /var/run/wpa_priv
+  chmod 0750 /var/run/wpa_priv
+- start wpa_priv as root (e.g., from system startup scripts) with the
+  enabled interfaces configured on the command line:
+  wpa_priv -B -P /var/run/wpa_priv.pid nl80211:wlan0
+- run wpa_supplicant as non-root with a user that is in wpapriv group:
+  wpa_supplicant -i ath0 -c wpa_supplicant.conf
+
+wpa_priv does not use the network interface before wpa_supplicant is
+started, so it is fine to include network interfaces that are not
+available at the time wpa_priv is started. As an alternative, wpa_priv
+can be started when an interface is added (hotplug/udev/etc. scripts).
+wpa_priv can control multiple interface with one process, but it is
+also possible to run multiple wpa_priv processes at the same time, if
+desired.
+
+It should be noted that the interface used between wpa_supplicant and
+wpa_priv does not include all the capabilities of the wpa_supplicant
+driver interface and at times, this interface lacks update especially
+for recent addition. Consequently, use of wpa_priv does come with the
+price of somewhat reduced available functionality. The next section
+describing how wpa_supplicant can be used with reduced privileges
+without having to handle the complexity of separate wpa_priv. While that
+approve does not provide separation for network admin capabilities, it
+does allow other root privileges to be dropped without the drawbacks of
+the wpa_priv process.
+
+
+Linux capabilities instead of privileged process
+------------------------------------------------
+
+wpa_supplicant performs operations that need special permissions, e.g.,
+to control the network connection. Traditionally this has been achieved
+by running wpa_supplicant as a privileged process with effective user id
+0 (root). Linux capabilities can be used to provide restricted set of
+capabilities to match the functions needed by wpa_supplicant. The
+minimum set of capabilities needed for the operations is CAP_NET_ADMIN
+and CAP_NET_RAW.
+
+setcap(8) can be used to set file capabilities. For example:
+
+sudo setcap cap_net_raw,cap_net_admin+ep wpa_supplicant
+
+Please note that this would give anyone being able to run that
+wpa_supplicant binary access to the additional capabilities. This can
+further be limited by file owner/group and mode bits. For example:
+
+sudo chown wpas wpa_supplicant
+sudo chmod 0100 wpa_supplicant
+
+This combination of setcap, chown, and chmod commands would allow wpas
+user to execute wpa_supplicant with additional network admin/raw
+capabilities.
+
+Common way style of creating a control interface socket in
+/var/run/wpa_supplicant could not be done by this user, but this
+directory could be created before starting the wpa_supplicant and set to
+suitable mode to allow wpa_supplicant to create sockets
+there. Alternatively, other directory or abstract socket namespace could
+be used for the control interface.
+
+
+External requests for radio control
+-----------------------------------
+
+External programs can request wpa_supplicant to not start offchannel
+operations during other tasks that may need exclusive control of the
+radio. The RADIO_WORK control interface command can be used for this.
+
+"RADIO_WORK add <name> [freq=<MHz>] [timeout=<seconds>]" command can be
+used to reserve a slot for radio access. If freq is specified, other
+radio work items on the same channel may be completed in
+parallel. Otherwise, all other radio work items are blocked during
+execution. Timeout is set to 10 seconds by default to avoid blocking
+wpa_supplicant operations for excessive time. If a longer (or shorter)
+safety timeout is needed, that can be specified with the optional
+timeout parameter. This command returns an identifier for the radio work
+item.
+
+Once the radio work item has been started, "EXT-RADIO-WORK-START <id>"
+event message is indicated that the external processing can start. Once
+the operation has been completed, "RADIO_WORK done <id>" is used to
+indicate that to wpa_supplicant. This allows other radio works to be
+performed. If this command is forgotten (e.g., due to the external
+program terminating), wpa_supplicant will time out the radio work item
+and send "EXT-RADIO-WORK-TIMEOUT <id>" event to indicate that this has
+happened. "RADIO_WORK done <id>" can also be used to cancel items that
+have not yet been started.
+
+For example, in wpa_cli interactive mode:
+
+> radio_work add test
+1
+<3>EXT-RADIO-WORK-START 1
+> radio_work show
+ext:test@wlan0:0:1:2.487797
+> radio_work done 1
+OK
+> radio_work show
+
+
+> radio_work done 3
+OK
+> radio_work show
+ext:test freq=2412 timeout=30@wlan0:2412:1:28.583483
+<3>EXT-RADIO-WORK-TIMEOUT 2
+
+
+> radio_work add test2 freq=2412 timeout=60
+5
+<3>EXT-RADIO-WORK-START 5
+> radio_work add test3
+6
+> radio_work add test4
+7
+> radio_work show
+ext:test2 freq=2412 timeout=60@wlan0:2412:1:9.751844
+ext:test3@wlan0:0:0:5.071812
+ext:test4@wlan0:0:0:3.143870
+> radio_work done 6
+OK
+> radio_work show
+ext:test2 freq=2412 timeout=60@wlan0:2412:1:16.287869
+ext:test4@wlan0:0:0:9.679895
+> radio_work done 5
+OK
+<3>EXT-RADIO-WORK-START 7
+<3>EXT-RADIO-WORK-TIMEOUT 7

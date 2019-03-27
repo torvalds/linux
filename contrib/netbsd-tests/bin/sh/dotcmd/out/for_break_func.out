@@ -1,0 +1,5 @@
+before for
+before dotcmd
+before function
+before break
+after for

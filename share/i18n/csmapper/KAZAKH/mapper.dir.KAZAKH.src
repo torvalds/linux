@@ -1,0 +1,7 @@
+# $FreeBSD$ 
+# $NetBSD: mapper.dir.KAZAKH.src,v 1.1 2007/03/13 16:34:38 tnozaki Exp $
+
+KZ1048/UCS		mapper_std	KAZAKH/KZ1048%UCS.mps
+PTCP154/UCS		mapper_std	KAZAKH/PTCP154%UCS.mps
+UCS/KZ1048		mapper_std	KAZAKH/UCS%KZ1048.mps
+UCS/PTCP154		mapper_std	KAZAKH/UCS%PTCP154.mps

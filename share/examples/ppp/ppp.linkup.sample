@@ -1,0 +1,54 @@
+#########################################################################
+#
+#          Example of ppp.linkup file
+#
+#  This file is checked when ppp establishes a connection.
+#  ppp searches the labels in this file as follows:
+#
+#  1) The label that matches the IP number assigned to our side.
+#
+#  2) The label specified on the command line to ppp.
+#
+#  3) If no label has been found, use MYADDR if it exists.
+#
+#
+# $FreeBSD$
+#
+#########################################################################
+
+# It is no longer necessary to re-add the default route here as our
+# ppp.conf route is `sticky' (see the man page).
+# If you're into sound effects when the link comes up, you can run
+# ``auplay'' (assuming NAS is installed and configured).
+#
+MYADDR:
+ !bg /usr/X11R6/bin/auplay /etc/ppp/linkup.au
+
+# If we've got 192.244.176.32 as our address, then regard peer as a gateway
+# to 192.244.176.0 network.  This may also be done in ppp.conf instead.
+#
+192.244.176.32:
+ add 192.244.176.0 0 HISADDR
+
+# You may want to execute a script after connecting.  This script can do
+# nice things such as kick off "sendmail -q", "popclient my.isp" and
+# "slurp -d news".  It can be passed MYADDR, HISADDR and INTERFACE
+# as arguments too - useful for informing a DNS of your assigned IP.
+#
+# NOTE: It's vital that you use ``!bg'' rather than ``!'' if the program
+#       you're running will take some time or will require network
+#       connectivity.  Using ``!'' will delay ppp 'till the completion
+#       of the program being run!
+#
+# You may also want some sound effects....
+#
+pmdemand:
+ !bg /etc/ppp/ppp.etherup.pmdemand
+ ! sh -c "cat /etc/ppp/linkup.au >/dev/audio"
+
+# If your minimum call charge is 5 minutes, you may as well stay on
+# the line for that amount of time.  If we want a 60 second subsequent
+# timeout, set your timeout to 300 in ppp.conf and then do this:
+# 
+min5minutes:
+ !bg sh -c "sleep 240; pppctl -p mypassword 3000 set timeout 60"

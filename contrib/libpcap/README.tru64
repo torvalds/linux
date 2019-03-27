@@ -1,0 +1,49 @@
+The following instructions are applicable to Tru64 UNIX
+(formerly Digital UNIX (formerly DEC OSF/1)) version 4.0, and
+probably to later versions as well; at least some options apply to
+Digital UNIX 3.2 - perhaps all do.
+
+In order to use kernel packet filtering on this system, you have
+to configure it in such a way:
+
+Kernel configuration
+--------------------
+
+The packet filtering kernel option must be enabled at kernel
+installation.  If it was not the case, you can rebuild the kernel with
+"doconfig -c" after adding the following line in the kernel
+configuration file (/sys/conf/<HOSTNAME>):
+
+	option PACKETFILTER
+
+or use "doconfig" without any arguments to add the packet filter driver
+option via the kernel option menu (see the system administration
+documentation for information on how to do this).
+
+Device configuration
+--------------------
+
+Devices used for packet filtering must be created thanks to
+the following command (executed in the /dev directory):
+
+	./MAKEDEV pfilt
+
+Interface configuration
+-----------------------
+
+In order to capture all packets on a network, you may want to allow
+applications to put the interface on that network into "local copy"
+mode, so that tcpdump can see packets sent by the host on which it's
+running as well as packets received by that host, and to put the
+interface into "promiscuous" mode, so that tcpdump can see packets on
+the network segment not sent to the host on which it's running, by using
+the pfconfig(1) command:
+
+	pfconfig +c +p <network_device>
+
+or allow application to put any interface into "local copy" or
+"promiscuous" mode by using the command:
+
+	pfconfig +c +p -a
+
+Note: all instructions given require root privileges.

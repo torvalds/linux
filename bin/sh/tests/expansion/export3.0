@@ -1,0 +1,30 @@
+# $FreeBSD$
+
+w='@ @'
+check() {
+	[ "$v" = "$w" ] || echo "Expected $w got $v"
+}
+
+command export v=$w
+check
+command command export v=$w
+check
+
+HOME=/known/value
+check() {
+	[ "$v" = ~ ] || echo "Expected $HOME got $v"
+}
+
+command export v=~
+check
+command command export v=~
+check
+
+check() {
+	[ "$v" = "x:$HOME" ] || echo "Expected x:$HOME got $v"
+}
+
+command export v=x:~
+check
+command command export v=x:~
+check

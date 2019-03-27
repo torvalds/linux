@@ -1,0 +1,107 @@
+# Copyright (c) 2012-2016 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+hline_alnum_punc_tab_enter="Use alpha-numeric, punctuation, TAB or ENTER"
+hline_arrows_tab_enter="Press arrows, TAB or ENTER"
+hline_num_punc_tab_enter="Use numbers, punctuation, TAB or ENTER"
+msg_activate_default_router="Would you like to activate the new defaultrouter right now?\nIf you choose NO or press ESC, changes will be applied\nduring the next boot.\n\n     Current Default Router: %s\n         New Default Router: %s\n"
+msg_activate_hostname="Would you like to activate the new hostname right now?\nIf you choose NO or press ESC, changes will be applied\nduring the next boot.\n\n     Current Hostname: %s\n         New Hostname: %s\n\nNOTE: Your shell prompt may still reflect the original\nhostname until your next login."
+msg_activate_hostname_x11warning="WARNING! Activating the new hostname during an X11-Forwarded\n ssh(1) session will cause an X11 authentication error.\n\n     Current Hostname: %s\n         New Hostname: %s\n\nNOTE: Settings will become active upon reboot or if you\n relaunch this utility either locally or on the console."
+msg_add="Add"
+msg_add_nameserver="Add a new nameserver"
+msg_bring_interface_up="Would you like to bring the %s interface up right now?"
+msg_cancel="Cancel"
+msg_current_default_router="Current Default Route/Gateway: %s"
+msg_current_dhcp_status="Current DHCP status for %s: %s"
+msg_current_ipaddr="Current IP Address for %s: %s"
+msg_current_options="Current Options for %s: %s"
+msg_current_subnet="Current Subnet Mask for %s: %s"
+msg_custom="Custom (Manual)"
+msg_default_router="Default Router/Gateway"
+msg_dhcp="DHCP"
+msg_disabled="Disabled"
+msg_dns_configuration="DNS Nameserver Configuration:\nChoose Exit when finished else Cancel."
+msg_dns_nameservers="DNS nameservers"
+msg_enabled="Enabled"
+msg_exit="Exit"
+msg_hostname_domain="Hostname/Domain"
+msg_hostname_exceeds_max_length="ERROR! The hostname entered exceeds the maximum length of\n255 characters.\n\nInvalid Hostname: %s"
+msg_hostname_label_contains_invalid_chars="ERROR! One or more individual labels within the hostname\n(separated by dots) contains one or more invalid characters.\nLabels are case-insensitive and must contain only 0-9, a-z,\n or dash (though must not begin with or end with a dash).\n\nInvalid Hostname: %s"
+msg_hostname_label_exceeds_max_length="ERROR! One or more individual labels within the hostname\n(separated by dots) exceeds the maximum of 63 characters.\n\nInvalid Hostname: %s"
+msg_hostname_label_is_null="ERROR! One or more individual labels within the hostname\n(separated by dots) are null.\n\nInvalid Hostname: %s"
+msg_hostname_label_starts_or_ends_with_hyphen="ERROR! One or more individual labels within the hostname\n(separated by dots) starts or ends with a hyphen (hyphens\nare allowed, but a label cannot begin or end with a hyphen).\n\nInvalid Hostname: %s"
+msg_internal_error_nsindex_value="FATAL! dialog_input_nameserver_edit_awk: variable\nnsindex must be a whole positive integer greater-\nthan or equal-to zero.\n\nInvalid nsindex: %s"
+msg_ipaddr4="ipaddr"
+msg_ipv4_addr_octet_contains_invalid_chars="ERROR! One or more individual octets within the IPv4 address\n(separated by dots) contains one or more invalid characters.\nOctets must contain only the characters 0-9.\n\nInvalid IP Address: %s"
+msg_ipv4_addr_octet_exceeds_max_value="ERROR! One or more individual octets within the IPv4 address\n(separated by dots) exceeds the maximum of 255.\n\nInvalid IP Address: %s"
+msg_ipv4_addr_octet_is_null="ERROR! One or more individual octets within the IPv4 address\n(separated by dots) are null and/or missing.\n\nInvalid IP Address: %s"
+msg_ipv4_addr_octet_missing_or_extra="ERROR! The IPv4 address entered has either too few (less than\nfour) or too many (more than four) octets, separated by dots.\n\nInvalid IP Address: %s"
+msg_ipv4_mask_field_contains_invalid_chars="ERROR! One or more individual fields within the subnet mask\n(separated by dots) contains one or more invalid characters.\n\nInvalid Subnet Mask: %s"
+msg_ipv4_mask_field_exceeds_max_value="ERROR! One or more individual fields within the subnet mask\n(separated by dots) exceeds the maximum of 255.\n\nInvalid Subnet Mask: %s"
+msg_ipv4_mask_field_invalid_value="ERROR! One or more individual fields within the subnet mask\n(separated by dots) contains one or more invalid integers.\nFields must be one of 0/128/192/224/240/248/252/254/255.\n\nInvalid Subnet Mask: %s"
+msg_ipv4_mask_field_is_null="ERROR! One or more individual fields within the subnet mask\n(separated by dots) are null and/or missing.\n\nInvalid Subnet Mask: %s"
+msg_ipv4_mask_field_missing_or_extra="ERROR! The subnet mask entered has either too few or too many\nfields.\n\nInvalid Subnet Mask: %s"
+msg_ipv6_addr_segment_contains_invalid_chars="ERROR! One or more individual segments within the IP address\n(separated by colons) contains one or more invalid characters.\nSegments must contain only combinations of the characters 0-9,\nA-F, or a-f.\n\nInvalid IPv6 Address: %s"
+msg_ipv6_addr_segment_contains_too_many_chars="ERROR! One or more individual segments within the IP address\n(separated by colons) exceeds the length of 4 hex-digits.\n\nInvalid IPv6 Address: %s"
+msg_ipv6_addr_too_few_or_extra_segments="ERROR! The IP address entered has either too few (less than 3), too\nmany (more than 8), or not enough segments, separated by colons.\n\nInvalid IPv6 Address: %s"
+msg_ipv6_addr_too_many_null_segments="ERROR! Too many/incorrect null segments. A single null\nsegment is allowed within the IP address (separated by\ncolons) but not allowed at the beginning or end (unless\na double-null segment; i.e., \"::*\" or \"*::\").\n\nInvalid IPv6 Address: %s"
+msg_netmask="netmask"
+msg_network_configuration="%s Network Configuration:\nChoose Save/Exit when finished or Cancel."
+msg_network_interfaces="Network Interfaces"
+msg_network_management="Network Management"
+msg_networking_devices="Networking Devices"
+msg_nfs_mounts_may_cause_hang="WARNING! Changing this setting while NFS directories are\nmounted may cause the system to hang. Are you sure you\nwant to proceed?\n\n%s"
+msg_no_network_interfaces="No network interfaces detected."
+msg_no_options="No options (Default)"
+msg_ok="OK"
+msg_options="options"
+msg_please_enter_default_router="Please enter the IP address of your default\nrouter/gateway.  The address entered will be\napplied as the default gateway for all interfaces\nusing route(4)."
+msg_please_enter_fqhn="Please enter your fully qualified hostname (e.g. full.example.com). The\ndomain portion of the hostname will be configured in resolv.conf(5)."
+msg_please_enter_mediaopts="Please enter additional network media options to be passed to ifconfig(8) for the %s interface:"
+msg_please_enter_nameserver="Please enter the new IP address of the DNS nameserver:"
+msg_please_enter_nameserver_existing="Please enter the new IP address of the DNS nameserver\n(set to the NULL string [Ctrl-U] to remove entry):"
+msg_please_enter_new_ip_addr="Please enter the new IP address of the %s interface:"
+msg_please_enter_subnet_mask="Please enter the new network subnet mask for the %s interface:"
+msg_probing_network_interfaces="Probing network interface devices..."
+msg_removing_nameserver="Removing DNS nameserver from resolv.conf(5)..."
+msg_resolv_conf_changed_while_editing="ERROR! resolv.conf(5) has changed while editing this\nvalue. Please try again after waiting a few seconds."
+msg_resolv_conf_entry_no_longer_exists="ERROR! The entry you are trying to edit no longer\nexists in resolv.conf(5). Please try again after\nwaiting a few seconds."
+msg_return_to_previous_menu="Return to previous menu"
+msg_save_exit="Save/Exit"
+msg_saving_default_router="Saving new default router/gateway settings..."
+msg_saving_hostname="Saving new hostname/domain settings..."
+msg_saving_nameserver="Saving new DNS nameserver to resolv.conf(5)..."
+msg_saving_nameserver_existing="Editing DNS nameserver in resolv.conf(5)..."
+msg_saving_network_interface="Saving %s network interface settings..."
+msg_scanning_for_dhcp="Scanning for DHCP servers on %s interface..."
+msg_select_network_interface="Select a network interface to configure.\n\n* Interface is marked as \"active\""
+msg_supported_media_options="Below is a list of supported media options for the %s interface. Please select the options that you would like to set for the %s network interface"
+msg_unknown_networking_menu_selection="Unknown networking menu selection"
+msg_wireless_networks="Wireless Networks"
+msg_wlans="wlans"
+xmsg_please_enter_fqhn="Please enter your fully qualified hostname (e.g. foo.bar.com).\n The domain portion of the hostname will be configured in resolv.conf(5)."
+xmsg_please_enter_nameserver_existing="Please enter the new IP address of the DNS nameserver\n(set to the NULL string to remove entry):"
+xmsg_supported_media_options="Below is a list of supported media options for the %s interface. Please\nselect the options that you would like to set for the %s network interface"

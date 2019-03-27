@@ -1,0 +1,18 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        {- $target{rc4_asm_src} -}
+
+GENERATE[rc4-586.s]=asm/rc4-586.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+DEPEND[rc4-586.s]=../perlasm/x86asm.pl
+
+GENERATE[rc4-x86_64.s]=asm/rc4-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[rc4-md5-x86_64.s]=asm/rc4-md5-x86_64.pl $(PERLASM_SCHEME)
+
+GENERATE[rc4-parisc.s]=asm/rc4-parisc.pl $(PERLASM_SCHEME)
+
+BEGINRAW[Makefile]
+# GNU make "catch all"
+{- $builddir -}/rc4-%.s:	{- $sourcedir -}/asm/rc4-%.pl
+	CC="$(CC)" $(PERL) $< $(PERLASM_SCHEME) $@
+ENDRAW[Makefile]

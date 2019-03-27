@@ -1,0 +1,88 @@
+.\"
+.\" Copyright (c) 1999 Alfred Perlstein
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following condition
+.\" is met:
+.\"    Redistributions of source code must retain the above copyright
+.\"    notice, this condition and the following disclaimer.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 4, 2010
+.Dt VFS_CHECKEXP 9
+.Os
+.Sh NAME
+.Nm VFS_CHECKEXP
+.Nd check if a file system is exported to a client
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.Ft int
+.Fn VFS_CHECKEXP "struct mount *mp" "struct sockaddr *nam" "int *exflagsp" "struct ucred **credanonp"
+.Sh DESCRIPTION
+The
+.Fn VFS_CHECKEXP
+macro is used by the NFS server to check if a mount point is exported
+to a client.
+.Pp
+The arguments it expects are:
+.Bl -tag -width credanonp
+.It Fa mp
+The mount point to be checked.
+.It Fa nam
+An mbuf containing the network address of the client.
+.It Fa exflagsp
+Return parameter for the export flags for this client.
+.It Fa credanonp
+Return parameter for the anonymous credentials for this client.
+.El
+.Pp
+The
+.Fn VFS_CHECKEXP
+macro should be called on a file system's mount structure to determine if it
+is exported to a client whose address is contained in
+.Fa nam .
+.Pp
+It is generally called before
+.Xr VFS_FHTOVP 9
+to validate that a client has access to the file system.
+.Pp
+The file system should call
+.Xr vfs_export_lookup 9
+with the address of an appropriate
+.Vt netexport
+structure and the address of the client,
+.Fa nam ,
+to verify that the client can access this file system.
+.Sh RETURN VALUES
+The export flags and anonymous credentials specific to the client (returned
+by
+.Xr vfs_export_lookup 9 )
+will be returned in
+.Fa *exflagsp
+and
+.Fa *credanonp .
+.Sh SEE ALSO
+.Xr VFS 9 ,
+.Xr VFS_FHTOVP 9 ,
+.Xr vnode 9 ,
+.Xr VOP_VPTOFH 9
+.Sh AUTHORS
+This manual page was written by
+.An Alfred Perlstein .

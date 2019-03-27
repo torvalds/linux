@@ -1,0 +1,66 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "UCMATOSE" 1 "2007-05-15" "librdmacm" "librdmacm" librdmacm
+.SH NAME
+ucmatose \- RDMA CM connection and simple ping-pong test.
+.SH SYNOPSIS
+.sp
+.nf
+\fIucmatose\fR [-s server_address] [-b bind_address]
+		[-f address_format] [-P port_space]
+		[-c connections] [-C message_count] [-S message_size]
+\fIucmatose\fR -s server_address [-b bind_address]
+		[-f address_format] [-P port_space]
+		[-c connections] [-C message_count] [-S message_size] [-t tos]
+.fi
+.SH "DESCRIPTION"
+Establishes a set of reliable RDMA connections between two nodes using the
+librdmacm, optionally transfers data between the nodes, then disconnects.
+.SH "OPTIONS"
+.TP
+\-s server_address
+The network name or IP address of the server system listening for
+connections.  The used name or address must route over an RDMA device.
+This option must be specified by the client.
+.TP
+\-b bind_address
+The local network address to bind to.
+To bind to any address with IPv6 use -b ::0 .
+.TP
+\-f address_format
+Specifies the format of the server and bind address.  Be default, the
+format is determined by getaddrinfo() as either being a hostname, an IPv4
+address, or an IPv6 address.  This option may be used to indicate that
+a specific address format has been provided.  Supported address_format
+values are: name, ip, ipv6, and gid.
+.TP
+\-P port_space
+Specifies the port space for the connection.  Be default, the port space
+is the RDMA TCP port space. (Note that the RDMA port space may be separate
+from that used for IP.)  Supported port_space values are: tcp and ib.
+.TP
+\-c connections
+The number of connections to establish between the client and server.
+(default 1)
+.TP
+\-C message_count
+The number of messages to transfer over each connection.  (default 10)
+.TP
+\-S message_size
+The size of each message transferred, in bytes.  (default 100)
+.TP
+\-t tos
+Indicates the type of service used for the communication.  Type of service
+is implementation dependent based on subnet configuration.
+.TP
+\-m
+Tests event channel migration.  Migrates all communication identifiers to
+a different event channel for disconnect events.
+.SH "NOTES"
+Basic usage is to start ucmatose on a server system, then run
+ucmatose -s server_name on a client system.
+.P
+Because this test maps RDMA resources to userspace, users must ensure
+that they have available system resources and permissions.  See the
+libibverbs README file for additional details.
+.SH "SEE ALSO"
+rdma_cm(7), udaddy(1), mckey(1), rping(1)

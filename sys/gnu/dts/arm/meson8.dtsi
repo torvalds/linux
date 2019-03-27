@@ -1,0 +1,426 @@
+/*
+ * Copyright 2014 Carlo Caione <carlo@caione.org>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This library is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This library is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#include <dt-bindings/clock/meson8b-clkc.h>
+#include <dt-bindings/gpio/meson8-gpio.h>
+#include <dt-bindings/reset/amlogic,meson8b-clkc-reset.h>
+#include <dt-bindings/reset/amlogic,meson8b-reset.h>
+#include "meson.dtsi"
+
+/ {
+	model = "Amlogic Meson8 SoC";
+	compatible = "amlogic,meson8";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@200 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
+			reg = <0x200>;
+			enable-method = "amlogic,meson8-smp";
+			resets = <&clkc CLKC_RESET_CPU0_SOFT_RESET>;
+		};
+
+		cpu1: cpu@201 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
+			reg = <0x201>;
+			enable-method = "amlogic,meson8-smp";
+			resets = <&clkc CLKC_RESET_CPU1_SOFT_RESET>;
+		};
+
+		cpu2: cpu@202 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
+			reg = <0x202>;
+			enable-method = "amlogic,meson8-smp";
+			resets = <&clkc CLKC_RESET_CPU2_SOFT_RESET>;
+		};
+
+		cpu3: cpu@203 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
+			reg = <0x203>;
+			enable-method = "amlogic,meson8-smp";
+			resets = <&clkc CLKC_RESET_CPU3_SOFT_RESET>;
+		};
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* 2 MiB reserved for Hardware ROM Firmware? */
+		hwrom@0 {
+			reg = <0x0 0x200000>;
+			no-map;
+		};
+
+		/*
+		 * 1 MiB reserved for the "ARM Power Firmware": this is ARM
+		 * code which is responsible for system suspend. It loads a
+		 * piece of ARC code ("arc_power" in the vendor u-boot tree)
+		 * into SRAM, executes that and shuts down the (last) ARM core.
+		 * The arc_power firmware then checks various wakeup sources
+		 * (IR remote receiver, HDMI CEC, WIFI and Bluetooth wakeup or
+		 * simply the power key) and re-starts the ARM core once it
+		 * detects a wakeup request.
+		 */
+		power-firmware@4f00000 {
+			reg = <0x4f00000 0x100000>;
+			no-map;
+		};
+	};
+
+	scu@c4300000 {
+		compatible = "arm,cortex-a9-scu";
+		reg = <0xc4300000 0x100>;
+	};
+}; /* end of / */
+
+&aobus {
+	pmu: pmu@e0 {
+		compatible = "amlogic,meson8-pmu", "syscon";
+		reg = <0xe0 0x8>;
+	};
+
+	pinctrl_aobus: pinctrl@84 {
+		compatible = "amlogic,meson8-aobus-pinctrl";
+		reg = <0x84 0xc>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gpio_ao: ao-bank@14 {
+			reg = <0x14 0x4>,
+			      <0x2c 0x4>,
+			      <0x24 0x8>;
+			reg-names = "mux", "pull", "gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl_aobus 0 0 16>;
+		};
+
+		uart_ao_a_pins: uart_ao_a {
+			mux {
+				groups = "uart_tx_ao_a", "uart_rx_ao_a";
+				function = "uart_ao";
+			};
+		};
+
+		i2c_ao_pins: i2c_mst_ao {
+			mux {
+				groups = "i2c_mst_sck_ao", "i2c_mst_sda_ao";
+				function = "i2c_mst_ao";
+			};
+		};
+
+		ir_recv_pins: remote {
+			mux {
+				groups = "remote_input";
+				function = "remote";
+			};
+		};
+
+		pwm_f_ao_pins: pwm-f-ao {
+			mux {
+				groups = "pwm_f_ao";
+				function = "pwm_f_ao";
+			};
+		};
+	};
+};
+
+&cbus {
+	clkc: clock-controller@4000 {
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+		compatible = "amlogic,meson8-clkc";
+		reg = <0x8000 0x4>, <0x4000 0x400>;
+	};
+
+	reset: reset-controller@4404 {
+		compatible = "amlogic,meson8b-reset";
+		reg = <0x4404 0x9c>;
+		#reset-cells = <1>;
+	};
+
+	analog_top: analog-top@81a8 {
+		compatible = "amlogic,meson8-analog-top", "syscon";
+		reg = <0x81a8 0x14>;
+	};
+
+	pwm_ef: pwm@86c0 {
+		compatible = "amlogic,meson8-pwm", "amlogic,meson8b-pwm";
+		reg = <0x86c0 0x10>;
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	pinctrl_cbus: pinctrl@9880 {
+		compatible = "amlogic,meson8-cbus-pinctrl";
+		reg = <0x9880 0x10>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gpio: banks@80b0 {
+			reg = <0x80b0 0x28>,
+			      <0x80e8 0x18>,
+			      <0x8120 0x18>,
+			      <0x8030 0x30>;
+			reg-names = "mux", "pull", "pull-enable", "gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl_cbus 0 0 120>;
+		};
+
+		sd_a_pins: sd-a {
+			mux {
+				groups = "sd_d0_a", "sd_d1_a", "sd_d2_a",
+					"sd_d3_a", "sd_clk_a", "sd_cmd_a";
+				function = "sd_a";
+			};
+		};
+
+		sd_b_pins: sd-b {
+			mux {
+				groups = "sd_d0_b", "sd_d1_b", "sd_d2_b",
+					"sd_d3_b", "sd_clk_b", "sd_cmd_b";
+				function = "sd_b";
+			};
+		};
+
+		sd_c_pins: sd-c {
+			mux {
+				groups = "sd_d0_c", "sd_d1_c", "sd_d2_c",
+					"sd_d3_c", "sd_clk_c", "sd_cmd_c";
+				function = "sd_c";
+			};
+		};
+
+		spi_nor_pins: nor {
+			mux {
+				groups = "nor_d", "nor_q", "nor_c", "nor_cs";
+				function = "nor";
+			};
+		};
+
+		eth_pins: ethernet {
+			mux {
+				groups = "eth_tx_clk_50m", "eth_tx_en",
+					 "eth_txd1", "eth_txd0",
+					 "eth_rx_clk_in", "eth_rx_dv",
+					 "eth_rxd1", "eth_rxd0", "eth_mdio",
+					 "eth_mdc";
+				function = "ethernet";
+			};
+		};
+
+		pwm_e_pins: pwm-e {
+			mux {
+				groups = "pwm_e";
+				function = "pwm_e";
+			};
+		};
+
+		uart_a1_pins: uart-a1 {
+			mux {
+				groups = "uart_tx_a1",
+				       "uart_rx_a1";
+				function = "uart_a";
+			};
+		};
+
+		uart_a1_cts_rts_pins: uart-a1-cts-rts {
+			mux {
+				groups = "uart_cts_a1",
+				       "uart_rts_a1";
+				function = "uart_a";
+			};
+		};
+	};
+};
+
+&ahb_sram {
+	smp-sram@1ff80 {
+		compatible = "amlogic,meson8-smp-sram";
+		reg = <0x1ff80 0x8>;
+	};
+};
+
+&efuse {
+	compatible = "amlogic,meson8-efuse";
+	clocks = <&clkc CLKID_EFUSE>;
+	clock-names = "core";
+};
+
+&ethmac {
+	clocks = <&clkc CLKID_ETH>;
+	clock-names = "stmmaceth";
+};
+
+&gpio_intc {
+	compatible = "amlogic,meson8-gpio-intc", "amlogic,meson-gpio-intc";
+	status = "okay";
+};
+
+&hwrng {
+	compatible = "amlogic,meson8-rng", "amlogic,meson-rng";
+	clocks = <&clkc CLKID_RNG0>;
+	clock-names = "core";
+};
+
+&i2c_AO {
+	clocks = <&clkc CLKID_CLK81>;
+};
+
+&i2c_A {
+	clocks = <&clkc CLKID_CLK81>;
+};
+
+&i2c_B {
+	clocks = <&clkc CLKID_CLK81>;
+};
+
+&L2 {
+	arm,data-latency = <3 3 3>;
+	arm,tag-latency = <2 2 2>;
+	arm,filter-ranges = <0x100000 0xc0000000>;
+	prefetch-data = <1>;
+	prefetch-instr = <1>;
+	arm,shared-override;
+};
+
+&pwm_ab {
+	compatible = "amlogic,meson8-pwm", "amlogic,meson8b-pwm";
+};
+
+&pwm_cd {
+	compatible = "amlogic,meson8-pwm", "amlogic,meson8b-pwm";
+};
+
+&saradc {
+	compatible = "amlogic,meson8-saradc", "amlogic,meson-saradc";
+	clocks = <&clkc CLKID_XTAL>,
+		<&clkc CLKID_SAR_ADC>;
+	clock-names = "clkin", "core";
+};
+
+&sdio {
+	compatible = "amlogic,meson8-sdio", "amlogic,meson-mx-sdio";
+	clocks = <&clkc CLKID_SDIO>, <&clkc CLKID_CLK81>;
+	clock-names = "core", "clkin";
+};
+
+&spifc {
+	clocks = <&clkc CLKID_CLK81>;
+};
+
+&uart_AO {
+	compatible = "amlogic,meson8-uart", "amlogic,meson-uart";
+	clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_XTAL>, <&clkc CLKID_CLK81>;
+	clock-names = "baud", "xtal", "pclk";
+};
+
+&uart_A {
+	compatible = "amlogic,meson8-uart", "amlogic,meson-uart";
+	clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_XTAL>, <&clkc CLKID_UART0>;
+	clock-names = "baud", "xtal", "pclk";
+};
+
+&uart_B {
+	compatible = "amlogic,meson8-uart", "amlogic,meson-uart";
+	clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_XTAL>, <&clkc CLKID_UART1>;
+	clock-names = "baud", "xtal", "pclk";
+};
+
+&uart_C {
+	compatible = "amlogic,meson8-uart", "amlogic,meson-uart";
+	clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_XTAL>, <&clkc CLKID_UART2>;
+	clock-names = "baud", "xtal", "pclk";
+};
+
+&usb0 {
+	compatible = "amlogic,meson8-usb", "snps,dwc2";
+	clocks = <&clkc CLKID_USB0_DDR_BRIDGE>;
+	clock-names = "otg";
+};
+
+&usb1 {
+	compatible = "amlogic,meson8-usb", "snps,dwc2";
+	clocks = <&clkc CLKID_USB1_DDR_BRIDGE>;
+	clock-names = "otg";
+};
+
+&usb0_phy {
+	compatible = "amlogic,meson8-usb2-phy", "amlogic,meson-mx-usb2-phy";
+	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB0>;
+	clock-names = "usb_general", "usb";
+	resets = <&reset RESET_USB_OTG>;
+};
+
+&usb1_phy {
+	compatible = "amlogic,meson8-usb2-phy", "amlogic,meson-mx-usb2-phy";
+	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB1>;
+	clock-names = "usb_general", "usb";
+	resets = <&reset RESET_USB_OTG>;
+};

@@ -1,0 +1,345 @@
+.\" Copyright (c) 2003-2009 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 3, 2017
+.Dt ARCHIVE_READ_DISK 3
+.Os
+.Sh NAME
+.Nm archive_read_disk_new ,
+.Nm archive_read_disk_set_behavior ,
+.Nm archive_read_disk_set_symlink_logical ,
+.Nm archive_read_disk_set_symlink_physical ,
+.Nm archive_read_disk_set_symlink_hybrid ,
+.Nm archive_read_disk_entry_from_file ,
+.Nm archive_read_disk_gname ,
+.Nm archive_read_disk_uname ,
+.Nm archive_read_disk_set_uname_lookup ,
+.Nm archive_read_disk_set_gname_lookup ,
+.Nm archive_read_disk_set_standard_lookup
+.Nd functions for reading objects from disk
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive.h
+.Ft struct archive *
+.Fn archive_read_disk_new "void"
+.Ft int
+.Fn archive_read_disk_set_behavior "struct archive *" "int"
+.Ft int
+.Fn archive_read_disk_set_symlink_logical "struct archive *"
+.Ft int
+.Fn archive_read_disk_set_symlink_physical "struct archive *"
+.Ft int
+.Fn archive_read_disk_set_symlink_hybrid "struct archive *"
+.Ft const char *
+.Fn archive_read_disk_gname "struct archive *" "gid_t"
+.Ft const char *
+.Fn archive_read_disk_uname "struct archive *" "uid_t"
+.Ft int
+.Fo archive_read_disk_set_gname_lookup
+.Fa "struct archive *"
+.Fa "void *"
+.Fa "const char *(*lookup)(void *, gid_t)"
+.Fa "void (*cleanup)(void *)"
+.Fc
+.Ft int
+.Fo archive_read_disk_set_uname_lookup
+.Fa "struct archive *"
+.Fa "void *"
+.Fa "const char *(*lookup)(void *, uid_t)"
+.Fa "void (*cleanup)(void *)"
+.Fc
+.Ft int
+.Fn archive_read_disk_set_standard_lookup "struct archive *"
+.Ft int
+.Fo archive_read_disk_entry_from_file
+.Fa "struct archive *"
+.Fa "struct archive_entry *"
+.Fa "int fd"
+.Fa "const struct stat *"
+.Fc
+.Sh DESCRIPTION
+These functions provide an API for reading information about
+objects on disk.
+In particular, they provide an interface for populating
+.Tn struct archive_entry
+objects.
+.Bl -tag -width indent
+.It Fn archive_read_disk_new
+Allocates and initializes a
+.Tn struct archive
+object suitable for reading object information from disk.
+.It Fn archive_read_disk_set_behavior
+Configures various behavior options when reading entries from disk.
+The flags field consists of a bitwise OR of one or more of the
+following values:
+.Bl -tag -compact -width "indent"
+.It Cm ARCHIVE_READDISK_HONOR_NODUMP
+Skip files and directories with the nodump file attribute (file flag) set.
+By default, the nodump file atrribute is ignored.
+.It Cm ARCHIVE_READDISK_MAC_COPYFILE
+Mac OS X specific. Read metadata (ACLs and extended attributes) with
+.Xr copyfile 3 .
+By default, metadata is read using
+.Xr copyfile 3 .
+.It Cm ARCHIVE_READDISK_NO_ACL
+Do not read Access Control Lists.
+By default, ACLs are read from disk.
+.It Cm ARCHIVE_READDISK_NO_FFLAGS
+Do not read file attributes (file flags).
+By default, file attributes are read from disk.
+See
+.Xr chattr 1
+.Pq Linux
+or
+.Xr chflags 1
+.Pq FreeBSD, Mac OS X
+for more information on file attributes.
+.It Cm ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS
+Do not traverse mount points.
+By defaut, moint points are traversed.
+.It Cm ARCHIVE_READDISK_NO_XATTR
+Do not read extended file attributes (xattrs).
+By default, extended file attributes are read from disk.
+See
+.Xr xattr 7
+.Pq Linux ,
+.Xr xattr 2
+.Pq Mac OS X ,
+or
+.Xr getextattr 8
+.Pq FreeBSD
+for more information on extended file attributes.
+.It Cm ARCHIVE_READDISK_RESTORE_ATIME
+Restore access time of traversed files.
+By default, access time of traversed files is not restored.
+.El
+.It Xo
+.Fn archive_read_disk_set_symlink_logical ,
+.Fn archive_read_disk_set_symlink_physical ,
+.Fn archive_read_disk_set_symlink_hybrid
+.Xc
+This sets the mode used for handling symbolic links.
+The
+.Dq logical
+mode follows all symbolic links.
+The
+.Dq physical
+mode does not follow any symbolic links.
+The
+.Dq hybrid
+mode currently behaves identically to the
+.Dq logical
+mode.
+.It Xo
+.Fn archive_read_disk_gname ,
+.Fn archive_read_disk_uname
+.Xc
+Returns a user or group name given a gid or uid value.
+By default, these always return a NULL string.
+.It Xo
+.Fn archive_read_disk_set_gname_lookup ,
+.Fn archive_read_disk_set_uname_lookup
+.Xc
+These allow you to override the functions used for
+user and group name lookups.
+You may also provide a
+.Tn void *
+pointer to a private data structure and a cleanup function for
+that data.
+The cleanup function will be invoked when the
+.Tn struct archive
+object is destroyed or when new lookup functions are registered.
+.It Fn archive_read_disk_set_standard_lookup
+This convenience function installs a standard set of user
+and group name lookup functions.
+These functions use
+.Xr getpwuid 3
+and
+.Xr getgrgid 3
+to convert ids to names, defaulting to NULL if the names cannot
+be looked up.
+These functions also implement a simple memory cache to reduce
+the number of calls to
+.Xr getpwuid 3
+and
+.Xr getgrgid 3 .
+.It Fn archive_read_disk_entry_from_file
+Populates a
+.Tn struct archive_entry
+object with information about a particular file.
+The
+.Tn archive_entry
+object must have already been created with
+.Xr archive_entry_new 3
+and at least one of the source path or path fields must already be set.
+(If both are set, the source path will be used.)
+.Pp
+Information is read from disk using the path name from the
+.Tn struct archive_entry
+object.
+If a file descriptor is provided, some information will be obtained using
+that file descriptor, on platforms that support the appropriate
+system calls.
+.Pp
+If a pointer to a
+.Tn struct stat
+is provided, information from that structure will be used instead
+of reading from the disk where appropriate.
+This can provide performance benefits in scenarios where
+.Tn struct stat
+information has already been read from the disk as a side effect
+of some other operation.
+(For example, directory traversal libraries often provide this information.)
+.Pp
+Where necessary, user and group ids are converted to user and group names
+using the currently registered lookup functions above.
+This affects the file ownership fields and ACL values in the
+.Tn struct archive_entry
+object.
+.El
+More information about the
+.Va struct archive
+object and the overall design of the library can be found in the
+.Xr libarchive 3
+overview.
+.Sh EXAMPLE
+The following illustrates basic usage of the library by
+showing how to use it to copy an item on disk into an archive.
+.Bd -literal -offset indent
+void
+file_to_archive(struct archive *a, const char *name)
+{
+  char buff[8192];
+  size_t bytes_read;
+  struct archive *ard;
+  struct archive_entry *entry;
+  int fd;
+
+  ard = archive_read_disk_new();
+  archive_read_disk_set_standard_lookup(ard);
+  entry = archive_entry_new();
+  fd = open(name, O_RDONLY);
+  if (fd < 0)
+     return;
+  archive_entry_copy_pathname(entry, name);
+  archive_read_disk_entry_from_file(ard, entry, fd, NULL);
+  archive_write_header(a, entry);
+  while ((bytes_read = read(fd, buff, sizeof(buff))) > 0)
+    archive_write_data(a, buff, bytes_read);
+  archive_write_finish_entry(a);
+  archive_read_free(ard);
+  archive_entry_free(entry);
+}
+.Ed
+.Sh RETURN VALUES
+Most functions return
+.Cm ARCHIVE_OK
+(zero) on success, or one of several negative
+error codes for errors.
+Specific error codes include:
+.Cm ARCHIVE_RETRY
+for operations that might succeed if retried,
+.Cm ARCHIVE_WARN
+for unusual conditions that do not prevent further operations, and
+.Cm ARCHIVE_FATAL
+for serious errors that make remaining operations impossible.
+.Pp
+.Fn archive_read_disk_new
+returns a pointer to a newly-allocated
+.Tn struct archive
+object or NULL if the allocation failed for any reason.
+.Pp
+.Fn archive_read_disk_gname
+and
+.Fn archive_read_disk_uname
+return
+.Tn const char *
+pointers to the textual name or NULL if the lookup failed for any reason.
+The returned pointer points to internal storage that
+may be reused on the next call to either of these functions;
+callers should copy the string if they need to continue accessing it.
+.\"
+.Sh ERRORS
+Detailed error codes and textual descriptions are available from the
+.Fn archive_errno
+and
+.Fn archive_error_string
+functions.
+.\"
+.Sh SEE ALSO
+.Xr archive_read 3 ,
+.Xr archive_util 3 ,
+.Xr archive_write 3 ,
+.Xr archive_write_disk 3 ,
+.Xr tar 1 ,
+.Xr libarchive 3
+.Sh HISTORY
+The
+.Nm libarchive
+library first appeared in
+.Fx 5.3 .
+The
+.Nm archive_read_disk
+interface was added to
+.Nm libarchive 2.6
+and first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm libarchive
+library was written by
+.An Tim Kientzle Aq kientzle@FreeBSD.org .
+.Sh BUGS
+The
+.Dq standard
+user name and group name lookup functions are not the defaults because
+.Xr getgrgid 3
+and
+.Xr getpwuid 3
+are sometimes too large for particular applications.
+The current design allows the application author to use a more
+compact implementation when appropriate.
+.Pp
+The full list of metadata read from disk by
+.Fn archive_read_disk_entry_from_file
+is necessarily system-dependent.
+.Pp
+The
+.Fn archive_read_disk_entry_from_file
+function reads as much information as it can from disk.
+Some method should be provided to limit this so that clients who
+do not need ACLs, for instance, can avoid the extra work needed
+to look up such information.
+.Pp
+This API should provide a set of methods for walking a directory tree.
+That would make it a direct parallel of the
+.Xr archive_read 3
+API.
+When such methods are implemented, the
+.Dq hybrid
+symbolic link mode will make sense.

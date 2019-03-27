@@ -1,0 +1,367 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ss4	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+4: How the Parser Works
+.PP
+Yacc turns the specification file into a C program, which
+parses the input according to the specification given.
+The algorithm used to go from the
+specification to the parser is complex, and will not be discussed
+here (see
+the references for more information).
+The parser itself, however, is relatively simple,
+and understanding how it works, while
+not strictly necessary, will nevertheless make
+treatment of error recovery and ambiguities much more
+comprehensible.
+.PP
+The parser produced by Yacc consists
+of a finite state machine with a stack.
+The parser is also capable of reading and remembering the next
+input token (called the
+.I lookahead
+token).
+The
+.I "current state"
+is always the one on the top of the stack.
+The states of the finite state machine are given
+small integer labels; initially, the machine is in state 0,
+the stack contains only state 0, and no lookahead token has been read.
+.PP
+The machine has only four actions available to it, called
+.I shift ,
+.I reduce ,
+.I accept ,
+and
+.I error .
+A move of the parser is done as follows:
+.IP 1.
+Based on its current state, the parser decides
+whether it needs a lookahead token to decide
+what action should be done; if it needs one, and does
+not have one, it calls
+.I yylex
+to obtain the next token.
+.IP 2.
+Using the current state, and the lookahead token
+if needed, the parser decides on its next action, and
+carries it out.
+This may result in states being pushed onto the stack, or popped off of
+the stack, and in the lookahead token being processed
+or left alone.
+.PP
+The
+.I shift
+action is the most common action the parser takes.
+Whenever a shift action is taken, there is always
+a lookahead token.
+For example, in state 56 there may be
+an action:
+.DS
+	IF	shift 34
+.DE
+which says, in state 56, if the lookahead token is IF,
+the current state (56) is pushed down on the stack,
+and state 34 becomes the current state (on the
+top of the stack).
+The lookahead token is cleared.
+.PP
+The
+.I reduce
+action keeps the stack from growing without
+bounds.
+Reduce actions are appropriate when the parser has seen
+the right hand side of a grammar rule,
+and is prepared to announce that it has seen
+an instance of the rule, replacing the right hand side
+by the left hand side.
+It may be necessary to consult the lookahead token
+to decide whether to reduce, but
+usually it is not; in fact, the default
+action (represented by a ``.'') is often a reduce action.
+.PP
+Reduce actions are associated with individual grammar rules.
+Grammar rules are also given small integer
+numbers, leading to some confusion.
+The action
+.DS
+	\fB.\fR	reduce 18
+.DE
+refers to
+.I "grammar rule"
+18, while the action
+.DS
+	IF	shift 34
+.DE
+refers to
+.I state
+34.
+.PP
+Suppose the rule being reduced is
+.DS
+A	\fB:\fR	x  y  z    ;
+.DE
+The reduce action depends on the
+left hand symbol (A in this case), and the number of
+symbols on the right hand side (three in this case).
+To reduce, first pop off the top three states
+from the stack
+(In general, the number of states popped equals the number of symbols on the
+right side of the rule).
+In effect, these states were the ones
+put on the stack while recognizing
+.I x ,
+.I y ,
+and
+.I z ,
+and no longer serve any useful purpose.
+After popping these states, a state is uncovered
+which was the state the parser was in before beginning to
+process the rule.
+Using this uncovered state, and the symbol
+on the left side of the rule, perform what is in
+effect a shift of A.
+A new state is obtained, pushed onto the stack, and parsing continues.
+There are significant differences between the processing of
+the left hand symbol and an ordinary shift of a token,
+however, so this action is called a
+.I goto
+action.
+In particular, the lookahead token is cleared by a shift, and
+is not affected by a goto.
+In any case, the uncovered state contains an entry such as:
+.DS
+	A	goto 20
+.DE
+causing state 20 to be pushed
+onto the stack, and become the current state.
+.PP
+In effect, the reduce action ``turns back the clock'' in the parse,
+popping the states off the stack to go back to the
+state where the right hand side of the rule was first seen.
+The parser then behaves as if it had seen the left side at that time.
+If the right hand side of the rule is empty,
+no states are popped off of the stack: the uncovered state
+is in fact the current state.
+.PP
+The reduce action is also important in the treatment of user-supplied
+actions and values.
+When a rule is reduced, the code supplied with the rule is executed
+before the stack is adjusted.
+In addition to the stack holding the states, another stack,
+running in parallel with it, holds the values returned
+from the lexical analyzer and the actions.
+When a shift takes place, the external variable
+.I yylval
+is copied onto the value stack.
+After the return from the user code, the reduction is carried out.
+When the
+.I goto
+action is done, the external variable
+.I yyval
+is copied onto the value stack.
+The pseudo-variables $1, $2, etc., refer to the value stack.
+.PP
+The other two parser actions are conceptually much simpler.
+The
+.I accept
+action indicates that the entire input has been seen and
+that it matches the specification.
+This action appears only when the lookahead token is 
+the endmarker, and indicates that the parser has successfully
+done its job.
+The
+.I error
+action, on the other hand, represents a place where the parser
+can no longer continue parsing according to the specification.
+The input tokens it has seen, together with the lookahead token,
+cannot be followed by anything that would result
+in a legal input.
+The parser reports an error, and attempts to recover the situation and
+resume parsing: the error recovery (as opposed to the detection of error)
+will be covered in Section 7.
+.PP
+It is time for an example!
+Consider the specification
+.DS
+%token  DING  DONG  DELL
+%%
+rhyme	:	sound  place
+	;
+sound	:	DING  DONG
+	;
+place	:	DELL
+	;
+.DE
+.PP
+When Yacc is invoked with the
+.B \-v
+option, a file called
+.I y.output
+is produced, with a human-readable description of the parser.
+The
+.I y.output
+file corresponding to the above grammar (with some statistics
+stripped off the end) is:
+.DS
+state 0
+	$accept  :  \_rhyme  $end 
+
+	DING  shift 3
+	.  error
+
+	rhyme  goto 1
+	sound  goto 2
+
+state 1
+	$accept  :   rhyme\_$end 
+
+	$end  accept
+	.  error
+
+state 2
+	rhyme  :   sound\_place 
+
+	DELL  shift 5
+	.  error
+
+	place   goto 4
+
+state 3
+	sound   :   DING\_DONG 
+
+	DONG  shift 6
+	.  error
+
+state 4
+	rhyme  :   sound  place\_    (1)
+
+	.   reduce  1
+
+state 5
+	place  :   DELL\_    (3)
+
+	.   reduce  3
+
+state 6
+	sound   :   DING  DONG\_    (2)
+
+	.   reduce  2
+.DE
+Notice that, in addition to the actions for each state, there is a
+description of the parsing rules being processed in each
+state.  The \_ character is used to indicate
+what has been seen, and what is yet to come, in each rule.
+Suppose the input is
+.DS
+DING  DONG  DELL
+.DE
+It is instructive to follow the steps of the parser while
+processing this input.
+.PP
+Initially, the current state is state 0.
+The parser needs to refer to the input in order to decide
+between the actions available in state 0, so
+the first token,
+.I DING ,
+is read, becoming the lookahead token.
+The action in state 0 on
+.I DING
+is
+is ``shift 3'', so state 3 is pushed onto the stack,
+and the lookahead token is cleared.
+State 3 becomes the current state.
+The next token,
+.I DONG ,
+is read, becoming the lookahead token.
+The action in state 3 on the token
+.I DONG
+is ``shift 6'',
+so state 6 is pushed onto the stack, and the lookahead is cleared.
+The stack now contains 0, 3, and 6.
+In state 6, without even consulting the lookahead,
+the parser reduces by rule 2.
+.DS
+	sound  :   DING  DONG
+.DE
+This rule has two symbols on the right hand side, so
+two states, 6 and 3, are popped off of the stack, uncovering state 0.
+Consulting the description of state 0, looking for a goto on 
+.I sound ,
+.DS
+	sound	goto 2
+.DE
+is obtained; thus state 2 is pushed onto the stack,
+becoming the current state.
+.PP
+In state 2, the next token,
+.I DELL ,
+must be read.
+The action is ``shift 5'', so state 5 is pushed onto the stack, which now has
+0, 2, and 5 on it, and the lookahead token is cleared.
+In state 5, the only action is to reduce by rule 3.
+This has one symbol on the right hand side, so one state, 5,
+is popped off, and state 2 is uncovered.
+The goto in state 2 on
+.I place ,
+the left side of rule 3,
+is state 4.
+Now, the stack contains 0, 2, and 4.
+In state 4, the only action is to reduce by rule 1.
+There are two symbols on the right, so the top two states are popped off,
+uncovering state 0 again.
+In state 0, there is a goto on
+.I rhyme
+causing the parser to enter state 1.
+In state 1, the input is read; the endmarker is obtained,
+indicated by ``$end'' in the
+.I y.output
+file.
+The action in state 1 when the endmarker is seen is to accept,
+successfully ending the parse.
+.PP
+The reader is urged to consider how the parser works
+when confronted with such incorrect strings as
+.I "DING DONG DONG" ,
+.I "DING DONG" ,
+.I "DING DONG DELL DELL" ,
+etc.
+A few minutes spend with this and other simple examples will
+probably be repaid when problems arise in more complicated contexts.

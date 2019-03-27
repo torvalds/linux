@@ -1,0 +1,244 @@
+Version 2.8.7 contains no user-visible changes.
+
+User-visible changes in version 2.8.6:
+
+* New diff3 option --strip-trailing-cr.
+
+* With -N and -P, inaccessible empty regular files (the kind of files
+  that 'patch' creates to indicate nonexistent backups) are now
+  treated as nonexistent when they are in the 'backup' file position.
+
+* If multiple SKIP values are given to cmp, e.g., `cmp -i 10 -i 20',
+  cmp now uses the maximal value instead of the last one.
+
+* diff now omits the ".000000000" on hosts that do not support
+  fractional time stamps.
+
+Version 2.8.5 was not publicly released.
+
+User-visible changes in version 2.8.4:
+
+* Diff now simply prints "Files A and B differ" instead of "Binary
+  files A and B differ".  The message is output if either A or B
+  appears to be a binary file, and the old wording was misleading
+  because it implied that both files are binary, which is not
+  necessarily the case.
+
+User-visible changes in version 2.8.3:
+
+* New locale: en_US.
+
+User-visible changes in version 2.8.2:
+
+* New diff and sdiff option:
+  --tabsize=COLUMNS
+* If --ignore-space-change or --ignore-all-space is also specified,
+  --ignore-blank-lines now considers lines to be empty if they contain
+  only white space.
+* More platforms now handle multibyte characters correctly when
+  excluding files by name (diff -x and -X).
+* New locales: hu, pt_BR.
+
+User-visible changes in version 2.8.1:
+
+* Documentation fixes.
+
+User-visible changes in version 2.8:
+
+* cmp and diff now conform to POSIX 1003.1-2001 (IEEE Std 1003.1-2001)
+  if the underlying system conforms to POSIX and if the _POSIX2_VERSION
+  environment variable is set to 200112.  Conformance removes support
+  for `diff -NUM', where NUM is a number.  Use -C NUM or -U NUM instead.
+* cmp now supports trailing operands SKIP1 and SKIP2, like BSD cmp.
+* cmp -i or --ignore-initial now accepts SKIP1:SKIP2 option value.
+* New cmp option: -n or --bytes.
+* cmp's old -c or --print-chars option has been renamed;
+  use -b or --print-bytes instead.
+* cmp now outputs "byte" rather than "char" outside the POSIX locale.
+* cmp -l's index column width now adjusts to fit larger (or smaller) files.
+* cmp -l -s and cmp -s -l are not allowed.  Use cmp -s or cmp -l instead.
+* diff uses ISO 8601 style time stamps for output times (e.g. "2001-11-23
+  16:44:36.875702460 -0800") unless in the C or POSIX locale and the
+  -c style is specified.
+* diff's -I and -F options use the regexp syntax of grep, not of Emacs.
+* diff now accepts multiple context arguments, and uses their maximum value.
+* New diff and sdiff options:
+  -E  --ignore-tab-expansion
+  --strip-trailing-cr
+* New diff options:
+  --from-file=FILE, --to-file=FILE
+  --ignore-file-name-case
+  --no-ignore-file-name-case
+* New diff3 and sdiff option:
+  --diff-program=PROGRAM
+* The following diff options are still accepted, but are no longer documented.
+  They may be withdrawn in future releases.
+  -h (omit; it has no effect)
+  -H (use --speed-large-files instead)
+  -L (use --label instead)
+  -P (use --unidirectional-new-file instead)
+  --inhibit-hunk-merge (omit; it has no effect)
+* Recursive diffs now sort file names according to the LC_COLLATE locale
+  category if possible, instead of using native byte comparison.
+* Recursive diffs now detect and report directory loops.
+* Diff printf specs can now use the "0" and "'" flags.
+* The new sdiff interactive command `ed' precedes each version with a header.
+* On 64-bit hosts, files larger than 2 GB can be compared.
+* Some internationalization support has been added, but multibyte locales
+  are still not completely supported yet.
+* Some diagnostics have been reworded slightly for consistency.
+  Also, `diff -D FOO' now outputs `/* ! FOO */' instead of `/* not FOO */'.
+* The `patch' part of the manual now describes `patch' version 2.5.4.
+* Man pages are now distributed and installed.
+* There is support for DJGPP; see the 'ms' subdirectory and the files
+  m4/dos.m4 and */setmode.*.
+
+
+User-visible changes in version 2.7:
+
+* New diff option: --binary (useful only on non-POSIX hosts)
+* diff -b and -w now ignore line incompleteness; -B no longer does this.
+* cmp -c now uses locale to decide which output characters to quote.
+* Help and version messages are reorganized.
+
+
+User-visible changes in version 2.6:
+
+* New cmp, diff, diff3, sdiff option: --help
+* A new heuristic for diff greatly reduces the time needed to compare
+  large input files that contain many differences.
+* Partly as a result, GNU diff's output is not exactly the same as before.
+  Usually it is a bit smaller, but sometimes it is a bit larger.
+
+
+User-visible changes in version 2.5:
+
+* New cmp option: -v --version
+
+
+User-visible changes in version 2.4:
+
+* New cmp option: --ignore-initial=BYTES
+* New diff3 option: -T --initial-tab
+* New diff option: --line-format=FORMAT
+* New diff group format specifications:
+  <PRINTF_SPEC>[eflmnEFLMN]
+      A printf spec followed by one of the following letters
+      causes the integer corresponding to that letter to be
+      printed according to the printf specification.
+      E.g. `%5df' prints the number of the first line in the
+      group in the old file using the "%5d" format.
+	e: line number just before the group in old file; equals f - 1
+	f: first line number in group in the old file
+	l: last line number in group in the old file
+	m: line number just after the group in old file; equals l + 1
+	n: number of lines in group in the old file; equals l - f + 1
+	E, F, L, M, N: likewise, for lines in the new file
+  %(A=B?T:E)
+      If A equals B then T else E.  A and B are each either a decimal
+      constant or a single letter interpreted as above.  T and E are
+      arbitrary format strings.  This format spec is equivalent to T if
+      A's value equals B's; otherwise it is equivalent to E.  For
+      example, `%(N=0?no:%dN) line%(N=1?:s)' is equivalent to `no lines'
+      if N (the number of lines in the group in the the new file) is 0,
+      to `1 line' if N is 1, and to `%dN lines' otherwise.
+  %c'C'
+      where C is a single character, stands for the character C.  C may not
+      be a backslash or an apostrophe.  E.g. %c':' stands for a colon.
+  %c'\O'
+      where O is a string of 1, 2, or 3 octal digits, stands for the
+      character with octal code O.  E.g. %c'\0' stands for a null character.
+* New diff line format specifications:
+  <PRINTF_SPEC>n
+      The line number, printed with <PRINTF_SPEC>.
+      E.g. `%5dn' prints the line number with a "%5d" format.
+  %c'C'
+  %c'\O'
+      The character C, or with octal code O, as above.
+* Supported <PRINTF_SPEC>s have the same meaning as with printf, but must
+  match the extended regular expression %-*[0-9]*(\.[0-9]*)?[doxX].
+* The format spec %0 introduced in version 2.1 has been removed, since it
+  is incompatible with printf specs like %02d.  To represent a null char,
+  use %c'\0' instead.
+* cmp and diff now conform to POSIX 1003.2-1992 (ISO/IEC 9945-2:1993)
+  if the underlying system conforms to POSIX:
+  - Some messages' wordings are changed in minor ways.
+  - ``White space'' is now whatever C's `isspace' says it is.
+  - When comparing directories, if `diff' finds a file that is not a regular
+    file or a directory, it reports the file's type instead of diffing it.
+    (As usual, it follows symbolic links first.)
+  - When signaled, sdiff exits with the signal's status, not with status 2.
+* Now portable to hosts where int, long, pointer, etc. are not all the same
+  size.
+* `cmp - -' now works like `diff - -'.
+
+
+User-visible changes in version 2.3:
+
+* New diff option: --horizon-lines=lines
+
+
+User-visible changes in version 2.1:
+
+* New diff options:
+  --{old,new,unchanged}-line-format='format'
+  --{old,new,unchanged,changed}-group-format='format'
+  -U
+* New diff3 option:
+  -A --show-all
+* diff3 -m now defaults to -A, not -E.
+* diff3 now takes up to three -L or --label options, not just two.
+  If just two options are given, they refer to the first two input files,
+  not the first and third input files.
+* sdiff and diff -y handle incomplete lines.
+
+
+User-visible changes in version 2.0:
+
+* Add sdiff and cmp programs.
+* Add Texinfo documentation.
+* Add configure script.
+* Improve diff performance.
+* New diff options:
+-x --exclude
+-X --exclude-from
+-P --unidirectional-new-file
+-W --width
+-y --side-by-side
+--left-column
+--sdiff-merge-assist
+--suppress-common-lines
+* diff options renamed:
+--label renamed from --file-label
+--forward-ed renamed from --reversed-ed
+--paginate renamed from --print
+--entire-new-file renamed from --entire-new-files
+--new-file renamed from --new-files
+--all-text removed
+* New diff3 options:
+-v --version
+* Add long-named equivalents for other diff3 options.
+* diff options -F (--show-function-line) and -I (--ignore-matching-lines)
+  can now be given more than once.
+
+
+
+Copyright (C) 1993, 1994, 1998, 2001, 2002, 2004 Free Software
+Foundation, Inc.
+
+This file is part of GNU Diffutils.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+This program is distributed in the hope that they will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; see the file COPYING.  If not, write to
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.

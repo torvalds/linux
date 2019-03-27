@@ -1,0 +1,73 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: moused
+# REQUIRE: DAEMON FILESYSTEMS
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="moused"
+desc="Mouse daemon"
+rcvar="moused_enable"
+command="/usr/sbin/${name}"
+start_cmd="moused_start"
+pidprefix="/var/run/moused"
+pidfile="${pidprefix}.pid"
+pidarg=
+load_rc_config $name
+
+# Set the pid file and variable name. The second argument, if it exists, is
+# expected to be the mouse device.
+#
+if [ -n "$2" ]; then
+	eval moused_$2_enable=\${moused_$2_enable-${moused_nondefault_enable}}
+	rcvar="moused_${2}_enable"
+	pidfile="${pidprefix}.$2.pid"
+	pidarg="-I $pidfile"
+fi
+
+moused_start()
+{
+	local ms myflags myport mytype
+
+	# Set the mouse device and get any related variables. If
+	# a moused device has been specified on the commandline, then
+	# rc.conf(5) variables defined for that device take precedence
+	# over the generic moused_* variables. The only exception is
+	# the moused_port variable, which if not defined sets it to the
+	# passed in device name.
+	#
+	ms=$1
+	if [ -n "$ms" ]; then
+		eval myflags=\${moused_${ms}_flags-$moused_flags}
+		eval myport=\${moused_${ms}_port-/dev/$ms}
+		eval mytype=\${moused_${ms}_type-$moused_type}
+	else
+		ms="default"
+		myflags="$moused_flags"
+		myport="$moused_port"
+		mytype="$moused_type"
+	fi
+
+	check_startmsgs && echo -n "Starting ${ms} moused"
+	/usr/sbin/moused ${myflags} -p ${myport} -t ${mytype} ${pidarg}
+	check_startmsgs && echo '.'
+
+	mousechar_arg=
+	case ${mousechar_start} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		mousechar_arg="-M ${mousechar_start}"
+		;;
+	esac
+
+	for ttyv in /dev/ttyv* ; do
+		vidcontrol < ${ttyv} ${mousechar_arg} -m on
+	done
+}
+
+run_rc_command $*

@@ -1,0 +1,369 @@
+.\"	$KAME: rrenumd.conf.5,v 1.8 2001/02/06 02:17:23 jinmei Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 5, 1998
+.Dt RRENUMD.CONF 5
+.Os
+.Sh NAME
+.\"
+.Nm rrenumd.conf
+.Nd configuration file for router renumbering daemon
+.\"
+.Sh DESCRIPTION
+The rrenumd config file describes how the router renumbering packet
+must be constructed and to which destinations it should be sent.
+This file consists of a sequence of statements terminated by a semi-colon (`;').
+Statements are composed of tokens
+separated by white space, which can be any combination of blanks, tabs
+and newlines.
+This structure simplifies identification of
+the parts of the configuration associated with each other.
+Lines beginning with
+.Ql #
+are comments.
+.\"
+.Sh Meta Syntax
+Keywords and special characters that the parser expects exactly are
+displayed using the
+.Ic bold
+font.
+Parameters are specifying with
+.Ar underline .
+Parameters shown in
+square brackets (`[' and `]') are used to show optional
+keywords and parameters.
+The vertical bar (`|') is used to indicate
+between a choice of optional parameters.
+Curly braces (`{' and
+`}') are used to group keywords and parameters when necessary.
+.\"
+.Sh Interface specification
+There are some statements that may or have to specify interface.
+Interfaces are specified in the form of "name unit", such as
+.Ar lo0
+and
+.Ar ep1 .
+.\"
+.Sh Configuration Statements
+.Bl -tag -width Ds
+.\"
+.It Ic debug on|off ;
+Enables configuration file parser debugging.
+If
+.Ic on
+is specified,
+then debugging is enabled,
+If
+.Ic off
+is specified,
+then debugging is disabled.
+It is disabled by default.
+.\"
+.It Ic dest Ar dest-list Op Ar retrycmd ;
+Specifies destinations to which router renumbering messages should be
+sent.
+.Ar dest-list
+can be any combination of single or multiple numerical IPv6 addrs,
+or Full Qualified Domain Names.
+.Ar retrycmd
+has following syntax.
+.\"
+.Bl -tag -width Ds
+.It Ic retry Ar retry-num
+.Ar retry-num
+specifies how many router renumbering messages are sent repeatedly.
+.El
+.It Op Ic add|change|setglobal
+.Cm match-prefix Ar match-prefix-val
+.Bk -words
+.Op /match-prefix-len
+.Ek
+.Bk -words
+.Op Cm maxlen Ar maxlen-val
+.Ek
+.Bk -words
+.Op Cm minlen Ar minlen-val
+.Ek
+.Bk -words
+.Op Cm use-prefix Ar use-prefix-val
+.Ek
+.Bk -words
+.Op /use-prefix-len
+.Ek
+.Bk -words
+.Op Cm keeplen Ar keeplen-val
+.Ek
+.Bk -words
+.Op Ar use-prefix-values ;
+.Ek
+.Pp
+Specifies contents of sending router renumbering message with seqnum 0.
+If
+.Cm add|change|setglobal
+is not specified, then
+.Cm add
+is assumed.
+.Ar use-prefix-values
+has following syntax.
+.Pp
+{
+.Op Cm vltime Ar vltime-val
+.Bk -words
+.Op Cm pltime Ar pltime-val
+.Ek
+.Bk -words
+.Op Cm raf_onlink Cm on|off
+.Ek
+.Bk -words
+.Op Cm raf_auto Cm on|off
+.Ek
+.Bk -words
+.Op Cm rrf_decrprefd Cm on|off
+.Ek
+.Bk -words
+.Op Cm rrf_decrvalid Cm on|off
+.Ek
+}
+.Pp
+Each value has following meaning.
+.Pp
+.Bl -tag -width Ds -compact
+.It Cm match-prefix Ar match-prefix-val Op /match-prefix-len
+Specify
+.Ar match-prefix-val
+that is used for matching with preassigned prefixes to which
+.Cm add|change|setglobal
+command should be applied.
+.Ar /match-prefix-len
+Specify the starting part of
+.Ar match-prefix-val
+to be used for matching with preassigned prefixes, as decimal bit number.
+.It Cm maxlen Ar maxlen-val
+Specify the maximum length of prefixes which is allowed to be
+matched to
+.Ar match-prefix-val ,
+as decimal bit number.
+.It Cm minlen Ar minlen-val
+Specify the minimum length of prefixes which is allowed to be matched to
+.Ar match-prefix-val ,
+as decimal bit number.
+.It Cm use-prefix Ar use-prefix-val Op /usr-prefix-len
+Specify
+.Ar use-prefix-val
+that is used for prefixes to be added on
+.Cm add|change|setglobal
+command.
+.Ar /use-prefix-len
+Specify the starting part of
+.Ar use-prefix-val
+copied to the starting part of prefixes to be added on
+.Cm add|change|setglobal
+command, as decimal bit number.
+.It Cm keeplen Ar keeplen-val
+Specify the medium part of
+.Ar use-prefix-val
+just next to the starting part specified by
+.Ar use-prefix-len ,
+as decimal bit number.
+Contiguous bits part in the same bit position of an existent prefix
+matched with
+.Ar match-prefix-val
+is copied to the same bit position of prefixes to be added.
+.It Cm vltime Ar vmtime-val
+Assign an
+.Ar time
+as prefix valid life time for a prefix to be added.
+Valid value for
+.Ar time
+is decimal seconds number or special format as "d00h00m00s00",
+where 00 can take any decimal number, and "d" means days, "h" means hours,
+"m" means minutes, "s" means seconds.
+And alternatively, special keyword
+"infinity" can be also be specified.
+.It Cm pltime Ar pltime-val
+Assign an
+.Ar time
+as prefix preferred life time for a prefix to be added.
+Valid value for
+.Ar time
+is same as for
+.Ar vltime-val .
+.It Cm raf_onlink Cm on|off
+Let the prefix to be added to have on-link or off-link nature
+for the assigned interface.
+If
+.Cm on
+is specified, the prefix have on-link nature
+(e.g.\& the prefix
+belong to the link).
+If
+.Cm off
+is specified, the prefix have off-link nature
+(e.g.\& the
+prefix does not belong to the link).
+.It Cm raf_auto Cm on|off
+Enable or disable the autonomous address auto configuration
+for the prefix to be added.
+If
+.Cm on
+is specified, autonomous address auto configuration is
+enabled.
+If
+.Cm off
+is specified, it is disabled.
+.It Cm rrf_decrprefd Cm on|off
+Enable or disable the decrementation of the pltime.
+If
+.Cm on
+is specified, decrementation of the pltime is enabled.
+If
+.Cm off
+is specified, decrementation of the pltime is disabled.
+.It Cm rrf_decrvalid Cm on|off
+Enable or disable the decrementation of the vltime.
+If
+.Cm on
+is specified, decrementation of the vltime is enabled.
+If
+.Cm off
+is specified, decrementation of the vltime is disabled.
+.El
+.\"
+.It seqnum Ar seqnum-val { Ar rrenum-cmd } ;
+Specifies contents of sending router renumbering message with some
+specific seqnum.
+Multiple of this statement can be specified if they
+have different
+.Ar seqnum-val
+each other.
+.Ar rrenum-cmd
+has just same syntax with above add|change|setglobal statement.
+.El
+.\"
+.Sh EXAMPLES
+For each configuration file example shown below, we suppose
+every IPv6 subnet has its own prefix beginning with
+fec0:0:0::/48 and with its own subnet number
+(in this case,
+subnet number is 7th and 8th octet value of the prefix).
+.Pp
+If you want to assign prefixes beginning with 3ffe:501:ffff::/48
+to each subnet, then following configuration will be enough,
+if each of your routers supports IPv6 multicast forwarding.
+The subnet number of the existing fec0:0:0::/48 prefix and the
+newly assigned 3ffe:501:ffff::/48 prefix will be same.
+.\"
+.Bd -literal -offset indent
+dest ff05::2;
+
+add match-prefix fec0:0:0:: /48 use-prefix 3ffe:501:ffff:: /48 keeplen 16;
+.Ed
+.Pp
+.\"
+If your routers do not support IPv6 multicast forwarding,
+you will need to specify each destination at
+.Cm dest
+command.
+.\"
+.Bd -literal -offset indent
+dest fec0:0:0:1:260:8ff:fe24:fb3a fec0:0:0:2:200:eff:fe2e:dfe1 fec0:0:0:3:5254:ff:fedc:5217;
+
+add match-prefix fec0:0:0:: /48 use-prefix 3ffe:501:ffff:: /48 keeplen 16;
+.Ed
+.Pp
+.\"
+If you are going to do renumbering, then following procedure will be natural.
+.Bl -enum -offset indent
+.It
+Assign a new prefix.
+.It
+Set old prefix lifetimes to some appropriate transition
+period.
+In the following example we use 1 week for valid
+lifetime, and 0 for preferred lifetime.
+Also, enable old prefix lifetime expiration
+(By default, it is static and does not expire).
+.It
+After the transition period, old prefixes should become
+invalid, and may have been deleted.
+To make sure that they are deleted, send new router
+renumbering message, which specifies old prefixes as match
+prefix, and no use prefix.
+.El
+.Pp
+.\"
+The following configuration file will do 1 and 2.
+.\"
+.Bd -literal -offset indent
+dest ff05::2;
+
+seqnum 0 {
+	add match-prefix fec0:0:0:: /48 use-prefix 3ffe:501:fffe:: /48 keeplen 16;
+	};
+
+seqnum 1 {
+	change match-prefix 3ffe:501:ffff:: /48 use-prefix 3ffe:501:ffff:: /48 keeplen 16 vltime d7 pltime 0 rrf_decrvalid on rrf_decrprefd on;
+	};
+.Ed
+.Pp
+.\"
+And the following configuration file will do 3
+(should be
+used for the router renumbering message to be sent 1 week
+afterward).
+.\"
+.Bd -literal -offset indent
+dest ff05::2;
+
+change match-prefix 3ffe:501:ffff:: /48;
+.Ed
+.Pp
+.\"
+In the above example, only
+.Cm add
+and
+.Cm change
+commands are used, and there is no example for
+.Cm setglobal
+command.
+.Cm setglobal
+command is almost same with
+.Cm change
+command except that it deletes all pre-defined IPv6 global address.
+.Sh SEE ALSO
+.Xr prefix 8 ,
+.Xr rrenumd 8
+.Sh HISTORY
+The
+.Nm
+configuration file was first appeared in KAME IPv6 protocol stack kit.
+.\" .Sh BUGS
+.\" (to be written)

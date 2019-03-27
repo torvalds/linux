@@ -1,0 +1,131 @@
+.\" $Revision: 2.27 $
+.\" $FreeBSD$
+.\"
+.Dd June 1, 1996
+.Dt RTQUERY 8
+.Os
+.Sh NAME
+.Nm rtquery
+.Nd query routing daemons for their routing tables
+.Sh SYNOPSIS
+.Nm
+.Op Fl np1
+.Op Fl w Ar timeout
+.Op Fl r Ar addr
+.Op Fl a Ar secret
+.Ar host ...
+.Nm
+.Op Fl t Ar op
+.Ar host ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to query a RIP network routing daemon, such as
+.Xr routed 8 ,
+for its routing table by sending a
+.Em request
+or
+.Em poll
+command.
+The routing information in any routing
+.Em response
+packets returned is displayed numerically and symbolically.
+.Pp
+The
+.Nm
+utility by default uses the
+.Em request
+command.
+When the
+.Fl p
+option is specified,
+.Nm
+uses the
+.Em poll
+command, an
+undocumented extension to the RIP protocol supported by
+the commercial
+.Nm gated
+routing product.
+When querying
+.Nm gated ,
+the
+.Em poll
+command is preferred over the
+.Em request
+command because the response is not subject to Split Horizon and/or
+Poisoned Reverse, and because some versions of
+.Nm gated
+do not answer the
+.Em request
+command.
+The
+.Xr routed 8
+utility does not answer the
+.Em poll
+command, but recognizes
+.Em requests
+coming from
+.Nm
+and so answers completely.
+.Pp
+The
+.Nm
+utility is also used to turn tracing on or off in
+.Xr routed 8 .
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl n
+displays only the numeric network and host numbers instead of both
+numeric and symbolic.
+.It Fl p
+uses the
+.Em poll
+command to request full routing information from
+.Nm gated .
+This is an undocumented extension RIP protocol supported only by
+.Nm gated .
+.It Fl 1
+queries using RIP version 1 instead of RIP version 2.
+.It Fl w Ar timeout
+changes the delay for an answer from each host.
+By default, each host is given 15 seconds to respond.
+.It Fl r Ar addr
+asks about the route to destination
+.Em addr .
+.It Fl a Ar passwd=XXX
+.It Fl a Ar md5_passwd=XXX|KeyID
+causes the query to be sent with the indicated cleartext or MD5 password.
+.It Fl t Ar op
+changes tracing, where
+.Em op
+is one of the following.
+Requests from processes not running with UID 0 or on distant networks
+are generally ignored by the daemon except for a message in the system log.
+.Nm gated
+is likely to ignore these debugging requests.
+.El
+.Bl -tag -width Ds -offset indent-two
+.It Em on=tracefile
+turns tracing on into the specified file.
+That file must usually have been specified when the daemon was
+started or be the same as a fixed name, often
+.Pa /etc/routed.trace .
+.It Em more
+increases the debugging level.
+.It Em off
+turns off tracing.
+.It Em dump
+dumps the daemon's routing table to the current tracefile.
+.El
+.Sh SEE ALSO
+.Xr routed 8
+.Rs
+.%T Routing Information Protocol, RIPv1
+.%O RFC1058
+.Re
+.Rs
+.%T Routing Information Protocol, RIPv2
+.%O RFC1723
+.Re

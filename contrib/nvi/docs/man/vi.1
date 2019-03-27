@@ -1,0 +1,2747 @@
+.\" Copyright (c) 1994
+.\"     The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 1994, 1995, 1996
+.\"	Keith Bostic.  All rights reserved.
+.\" Copyright (c) 2011
+.\"	Zhihao Yuan.  All rights reserved.
+.\"
+.\" The vi program is freely redistributable.
+.\" You are welcome to copy, modify and share it with others
+.\" under the conditions listed in the LICENSE file.
+.\" If any company (not individual!) finds vi sufficiently useful
+.\" that you would have purchased it, or if any company wishes to
+.\" redistribute it, contributions to the authors would be appreciated.
+.\"
+.\"     $Id: vi.1,v 9.0 2013/11/02 12:11:56 zy Exp $
+.\"
+.Dd November 2, 2013
+.Dt VI 1
+.Os
+.Sh NAME
+.Nm ex , vi , view
+.Nd text editors
+.Sh SYNOPSIS
+.Nm ex
+.Op Fl FRrSsv
+.Op Fl c Ar cmd
+.Op Fl t Ar tag
+.Op Fl w Ar size
+.Op Ar
+.Nm vi\ \&
+.Op Fl eFRrS
+.Op Fl c Ar cmd
+.Op Fl t Ar tag
+.Op Fl w Ar size
+.Op Ar
+.Nm view
+.Op Fl eFrS
+.Op Fl c Ar cmd
+.Op Fl t Ar tag
+.Op Fl w Ar size
+.Op Ar
+.Sh DESCRIPTION
+.Nm vi
+is a screen-oriented text editor.
+.Nm ex
+is a line-oriented text editor.
+.Nm ex
+and
+.Nm vi
+are different interfaces to the same program,
+and it is possible to switch back and forth during an edit session.
+.Nm view
+is the equivalent of using the
+.Fl R
+.Pq read-only
+option of
+.Nm vi .
+.Pp
+This manual page is the one provided with the
+.Nm nex Ns / Ns Nm nvi
+versions of the
+.Nm ex Ns / Ns Nm vi
+text editors.
+.Nm nex Ns / Ns Nm nvi
+are intended as bug-for-bug compatible replacements for the original
+Fourth Berkeley Software Distribution
+.Pq 4BSD
+.Nm ex
+and
+.Nm vi
+programs.
+For the rest of this manual page,
+.Nm nex Ns / Ns Nm nvi
+is used only when it's necessary to distinguish it from the historic
+implementations of
+.Nm ex Ns / Ns Nm vi .
+.Pp
+This manual page is intended for users already familiar with
+.Nm ex Ns / Ns Nm vi .
+Anyone else should almost certainly read a good tutorial on the
+editor before this manual page.
+If you're in an unfamiliar environment,
+and you absolutely have to get work done immediately,
+read the section after the options description, entitled
+.Sx FAST STARTUP .
+It's probably enough to get you going.
+.Pp
+The following options are available:
+.Bl -tag -width "-w size "
+.It Fl c Ar cmd
+Execute
+.Ar cmd
+on the first file loaded.
+Particularly useful for initial positioning in the file, although
+.Ar cmd
+is not limited to positioning commands.
+This is the POSIX 1003.2 interface for the historic
+.Dq +cmd
+syntax.
+.Nm nex Ns / Ns Nm nvi
+supports both the old and new syntax.
+.It Fl e
+Start editing in ex mode, as if the command name were
+.Nm ex .
+.It Fl F
+Don't copy the entire file when first starting to edit.
+(The default is to make a copy in case someone else modifies
+the file during your edit session.)
+.\" .It Fl l
+.\" Start editing with the lisp and showmatch options set.
+.It Fl R
+Start editing in read-only mode, as if the command name was
+.Nm view ,
+or the
+.Cm readonly
+option was set.
+.It Fl r
+Recover the specified files, or, if no files are specified,
+list the files that could be recovered.
+If no recoverable files by the specified name exist,
+the file is edited as if the
+.Fl r
+option had not been specified.
+.It Fl S
+Run with the
+.Cm secure
+edit option set, disallowing all access to external programs.
+.It Fl s
+Enter batch mode; applicable only to
+.Nm ex
+edit sessions.
+Batch mode is useful when running
+.Nm ex
+scripts.
+Prompts, informative messages and other user oriented messages are turned off,
+and no startup files or environment variables are read.
+This is the POSIX 1003.2 interface for the historic
+.Dq -
+argument.
+.Nm nex Ns / Ns Nm nvi
+supports both the old and new syntax.
+.It Fl t Ar tag
+Start editing at the specified
+.Ar tag
+.Pq see Xr ctags 1 .
+.It Fl v
+Start editing in vi mode, as if the command name was
+.Nm vi .
+.It Fl w Ar size
+Set the initial window size to the specified number of lines.
+.El
+.Pp
+Command input for
+.Nm ex Ns / Ns Nm vi
+is read from the standard input.
+In the
+.Nm vi
+interface, it is an error if standard input is not a terminal.
+In the
+.Nm ex
+interface, if standard input is not a terminal,
+.Nm ex
+will read commands from it regardless; however, the session will be a
+batch mode session, exactly as if the
+.Fl s
+option had been specified.
+.Sh FAST STARTUP
+This section will tell you the minimum amount that you need to
+do simple editing tasks using
+.Nm vi .
+If you've never used any screen editor before,
+you're likely to have problems even with this simple introduction.
+In that case you should find someone that already knows
+.Nm vi
+and have them walk you through this section.
+.Pp
+.Nm vi
+is a screen editor.
+This means that it takes up almost the entire screen,
+displaying part of the file on each screen line,
+except for the last line of the screen.
+The last line of the screen is used for you to give commands to
+.Nm vi ,
+and for
+.Nm vi
+to give information to you.
+.Pp
+The other fact that you need to understand is that
+.Nm vi
+is a modeful editor,
+i.e., you are either entering text or you are executing commands,
+and you have to be in the right mode to do one or the other.
+You will be in command mode when you first start editing a file.
+There are commands that switch you into input mode.
+There is only one key that takes you out of input mode,
+and that is the
+.Aq escape
+key.
+.Pp
+In this manual,
+key names are denoted with \(la and \(ra, e.g.,
+.Aq escape
+means the
+.Dq escape
+key, usually labeled
+.Dq Esc
+on your terminal's keyboard.
+If you're ever confused as to which mode you're in,
+keep entering the
+.Aq escape
+key until
+.Nm vi
+beeps at you.
+Generally,
+.Nm vi
+will beep at you if you try and do something that's not allowed.
+It will also display error messages.
+.Pp
+To start editing a file, enter the following command:
+.Pp
+.Dl $ vi file
+.Pp
+The command you should enter as soon as you start editing is:
+.Pp
+.Dl :set verbose showmode
+.Pp
+This will make the editor give you verbose error messages and display
+the current mode at the bottom of the screen.
+.Pp
+The commands to move around the file are:
+.Bl -tag -width Ds
+.It Cm h
+Move the cursor left one character.
+.It Cm j
+Move the cursor down one line.
+.It Cm k
+Move the cursor up one line.
+.It Cm l
+Move the cursor right one character.
+.It Aq Cm cursor-arrows
+The cursor arrow keys should work, too.
+.It Cm / Ns Ar text
+Search for the string
+.Dq Ar text
+in the file,
+and move the cursor to its first character.
+.El
+.Pp
+The commands to enter new text are:
+.Bl -tag -width "<escape>"
+.It Cm a
+Append new text, after the cursor.
+.It Cm i
+Insert new text, before the cursor.
+.It Cm o
+Open a new line below the line the cursor is on, and start entering text.
+.It Cm O
+Open a new line above the line the cursor is on, and start entering text.
+.It Aq Cm escape
+Once you've entered input mode using one of the
+.Cm a ,
+.Cm i ,
+.Cm o
+or
+.Cm O
+commands, use
+.Aq Cm escape
+to quit entering text and return to command mode.
+.El
+.Pp
+The commands to copy text are:
+.Bl -tag -width Ds
+.It Cm yy
+Copy the line the cursor is on.
+.It Cm p
+Append the copied line after the line the cursor is on.
+.El
+.Pp
+The commands to delete text are:
+.Bl -tag -width Ds
+.It Cm dd
+Delete the line the cursor is on.
+.It Cm x
+Delete the character the cursor is on.
+.El
+.Pp
+The commands to write the file are:
+.Bl -tag -width Ds
+.It Cm :w
+Write the file back to the file with the name that you originally used
+as an argument on the
+.Nm vi
+command line.
+.It Cm :w Ar file_name
+Write the file back to the file with the name
+.Ar file_name .
+.El
+.Pp
+The commands to quit editing and exit the editor are:
+.Bl -tag -width Ds
+.It Cm :q
+Quit editing and leave
+.Nm vi
+(if you've modified the file, but not saved your changes,
+.Nm vi
+will refuse to quit).
+.It Cm :q!
+Quit, discarding any modifications that you may have made.
+.El
+.Pp
+One final caution:
+Unusual characters can take up more than one column on the screen,
+and long lines can take up more than a single screen line.
+The above commands work on
+.Dq physical
+characters and lines,
+i.e., they affect the entire line no matter how many screen lines it takes up
+and the entire character no matter how many screen columns it takes up.
+.Sh REGULAR EXPRESSIONS
+.Nm ex Ns / Ns Nm vi
+supports regular expressions
+.Pq REs ,
+as documented in
+.Xr re_format 7 ,
+for line addresses, as the first part of the
+.Nm ex Cm substitute ,
+.Cm global
+and
+.Cm v
+commands, and in search patterns.
+Basic regular expressions
+.Pq BREs
+are enabled by default;
+extended regular expressions
+.Pq EREs
+are used if the
+.Cm extended
+option is enabled.
+The use of regular expressions can be largely disabled using the
+.Cm magic
+option.
+.Pp
+The following strings have special meanings in the
+.Nm ex Ns / Ns Nm vi
+version of regular expressions:
+.Bl -bullet -offset 6u
+.It
+An empty regular expression is equivalent to the last regular expression used.
+.It
+.Sq \e<
+matches the beginning of the word.
+.It
+.Sq \e>
+matches the end of the word.
+.It
+.Sq \(a~
+matches the replacement part of the last
+.Cm substitute
+command.
+.El
+.Sh BUFFERS
+A buffer is an area where commands can save changed or deleted text
+for later use.
+.Nm vi
+buffers are named with a single character preceded by a double quote,
+for example
+.Cm \&" Ns Aq Ar c ;
+.Nm ex
+buffers are the same,
+but without the double quote.
+.Nm nex Ns / Ns Nm nvi
+permits the use of any character without another meaning in the position where
+a buffer name is expected.
+.Pp
+All buffers are either in
+.Em line mode
+or
+.Em character mode .
+Inserting a buffer in line mode into the text creates new lines for each of the
+lines it contains, while a buffer in character mode creates new lines for any
+lines
+.Em other
+than the first and last lines it contains.
+The first and last lines are inserted at the current cursor position, becoming
+part of the current line.
+If there is more than one line in the buffer,
+the current line itself will be split.
+All
+.Nm ex
+commands which store text into buffers do so in line mode.
+The behaviour of
+.Nm vi
+commands depend on their associated motion command:
+.Bl -bullet -offset 6u
+.It
+.Aq Cm control-A ,
+.Cm h ,
+.Cm l ,
+.Cm ,\& ,
+.Cm 0 ,
+.Cm B ,
+.Cm E ,
+.Cm F ,
+.Cm T ,
+.Cm W ,
+.Cm ^ ,
+.Cm b ,
+.Cm e ,
+.Cm f
+and
+.Cm t
+make the destination buffer character-oriented.
+.It
+.Cm j ,
+.Aq Cm control-M ,
+.Cm k ,
+.Cm \(aq ,
+.Cm - ,
+.Cm G ,
+.Cm H ,
+.Cm L ,
+.Cm M ,
+.Cm _
+and
+.Cm |\&
+make the destination buffer line-oriented.
+.It
+.Cm $ ,
+.Cm % ,
+.Cm \` ,
+.Cm (\& ,
+.Cm )\& ,
+.Cm / ,
+.Cm ?\& ,
+.Cm [[ ,
+.Cm ]] ,
+.Cm {
+and
+.Cm }
+make the destination buffer character-oriented, unless the starting and
+end positions are the first and last characters on a line.
+In that case, the buffer is line-oriented.
+.El
+.Pp
+The
+.Nm ex
+command
+.Cm display buffers
+displays the current mode for each buffer.
+.Pp
+Buffers named
+.Sq a
+through
+.Sq z
+may be referred to using their uppercase equivalent, in which case new content
+will be appended to the buffer, instead of replacing it.
+.Pp
+Buffers named
+.Sq 1
+through
+.Sq 9
+are special.
+A region of text modified using the
+.Cm c
+.Pq change
+or
+.Cm d
+.Pq delete
+commands is placed into the numeric buffer
+.Sq 1
+if no other buffer is specified and if it meets one of the following conditions:
+.Bl -bullet -offset 6u
+.It
+It includes characters from more than one line.
+.It
+It is specified using a line-oriented motion.
+.It
+It is specified using one of the following motion commands:
+.Aq Cm control-A ,
+.Cm \` Ns Aq Ar character ,
+.Cm n ,
+.Cm N ,
+.Cm % ,
+.Cm / ,
+.Cm { ,
+.Cm } ,
+.Cm \&( ,
+.Cm \&) ,
+and
+.Cm \&? .
+.El
+.Pp
+Before this copy is done, the previous contents of buffer
+.Sq 1
+are moved into buffer
+.Sq 2 ,
+.Sq 2
+into buffer
+.Sq 3 ,
+and so on.
+The contents of buffer
+.Sq 9
+are discarded.
+Note that this rotation occurs
+.Em regardless
+of the user specifying another buffer.
+In
+.Nm vi ,
+text may be explicitly stored into the numeric buffers.
+In this case, the buffer rotation occurs before the replacement of the buffer's
+contents.
+The numeric buffers are only available in
+.Nm vi
+mode.
+.Sh VI COMMANDS
+The following section describes the commands available in the command
+mode of the
+.Nm vi
+editor.
+The following words have a special meaning in the commands description:
+.Pp
+.Bl -tag -width bigword -compact -offset 3u
+.It Ar bigword
+A set of non-whitespace characters.
+.It Ar buffer
+Temporary area where commands may place text.
+If not specified, the default buffer is used.
+See also
+.Sx BUFFERS ,
+above.
+.It Ar count
+A positive number used to specify the desired number of iterations
+of a command.
+It defaults to 1 if not specified.
+.It Ar motion
+A cursor movement command which indicates the other end of the affected region
+of text, the first being the current cursor position.
+Repeating the command character makes it affect the whole current line.
+.It Ar word
+A sequence of letters, digits or underscores.
+.El
+.Pp
+.Ar buffer
+and
+.Ar count ,
+if both present, may be specified in any order.
+.Ar motion
+and
+.Ar count ,
+if both present, are effectively multiplied together
+and considered part of the motion.
+.Pp
+.Bl -tag -width Ds -compact
+.It Xo
+.Aq Cm control-A
+.Xc
+Search forward
+for the word starting at the cursor position.
+.Pp
+.It Xo
+.Op Ar count
+.Aq Cm control-B
+.Xc
+Page backwards
+.Ar count
+screens.
+Two lines of overlap are maintained, if possible.
+.Pp
+.It Xo
+.Op Ar count
+.Aq Cm control-D
+.Xc
+Scroll forward
+.Ar count
+lines.
+If
+.Ar count
+is not given, scroll forward the number of lines specified by the last
+.Aq Cm control-D
+or
+.Aq Cm control-U
+command.
+If this is the first
+.Aq Cm control-D
+command, scroll half the number of lines in the current screen.
+.Pp
+.It Xo
+.Op Ar count
+.Aq Cm control-E
+.Xc
+Scroll forward
+.Ar count
+lines, leaving the current line and column as is, if possible.
+.Pp
+.It Xo
+.Op Ar count
+.Aq Cm control-F
+.Xc
+Page forward
+.Ar count
+screens.
+Two lines of overlap are maintained, if possible.
+.Pp
+.It Aq Cm control-G
+Display the following file information:
+the file name
+.Pq as given to Nm vi ;
+whether the file has been modified since it was last written;
+if the file is read-only;
+the current line number;
+the total number of lines in the file;
+and the current line number as a percentage of the total lines in the file.
+.Pp
+.It Xo
+.Op Ar count
+.Aq Cm control-H
+.Xc
+.It Xo
+.Op Ar count
+.Cm h
+.Xc
+Move the cursor back
+.Ar count
+characters in the current line.
+.Pp
+.It Xo
+.Op Ar count
+.Aq Cm control-J
+.Xc
+.It Xo
+.Op Ar count
+.Aq Cm control-N
+.Xc
+.It Xo
+.Op Ar count
+.Cm j
+.Xc
+Move the cursor down
+.Ar count
+lines without changing the current column.
+.Pp
+.It Aq Cm control-L
+.It Aq Cm control-R
+Repaint the screen.
+.Pp
+.It Xo
+.Op Ar count
+.Aq Cm control-M
+.Xc
+.It Xo
+.Op Ar count
+.Cm +
+.Xc
+Move the cursor down
+.Ar count
+lines to the first non-blank character of that line.
+.Pp
+.It Xo
+.Op Ar count
+.Aq Cm control-P
+.Xc
+.It Xo
+.Op Ar count
+.Cm k
+.Xc
+Move the cursor up
+.Ar count
+lines, without changing the current column.
+.Pp
+.It Aq Cm control-T
+Return to the most recent tag context.
+.Pp
+.It Xo
+.Op Ar count
+.Aq Cm control-U
+.Xc
+Scroll backwards
+.Ar count
+lines.
+If
+.Ar count
+is not given, scroll backwards the number of lines specified by the last
+.Aq Cm control-D
+or
+.Aq Cm control-U
+command.
+If this is the first
+.Aq Cm control-U
+command, scroll half the number of lines in the current screen.
+.Pp
+.It Aq Cm control-W
+Switch to the next lower screen in the window,
+or to the first screen if there are no lower screens in the window.
+.Pp
+.It Xo
+.Op Ar count
+.Aq Cm control-Y
+.Xc
+Scroll backwards
+.Ar count
+lines, leaving the current line and column as is, if possible.
+.Pp
+.It Aq Cm control-Z
+Suspend the current editor session.
+.Pp
+.It Aq Cm escape
+Execute the
+.Nm ex
+command being entered, or cancel it if it is only partial.
+.Pp
+.It Aq Cm control-]
+Push a tag reference onto the tag stack.
+.Pp
+.It Aq Cm control-^
+Switch to the most recently edited file.
+.Pp
+.It Xo
+.Op Ar count
+.Aq Cm space
+.Xc
+.It Xo
+.Op Ar count
+.Cm l
+.Xc
+Move the cursor forward
+.Ar count
+characters without changing the current line.
+.Pp
+.It Xo
+.Op Ar count
+.Cm !\&
+.Ar motion shell-argument(s)
+.Aq Li carriage-return
+.Xc
+Replace the lines spanned by
+.Ar count
+and
+.Ar motion
+with the output
+.Pq standard output and standard error
+of the program named by the
+.Cm shell
+option, called with a
+.Fl c
+flag followed by the
+.Ar shell-argument(s)
+.Pq bundled into a single argument .
+Within
+.Ar shell-argument(s) ,
+the
+.Sq % ,
+.Sq #
+and
+.Sq !\&
+characters are expanded to the current file name,
+the previous current file name,
+and the command text of the previous
+.Cm !\&
+or
+.Cm :!
+commands, respectively.
+The special meaning of
+.Sq % ,
+.Sq #
+and
+.Sq !\&
+can be overridden by escaping them with a backslash.
+.Pp
+.It Xo
+.Op Ar count
+.Cm #
+.Sm off
+.Cm # | + | -
+.Sm on
+.Xc
+Increment
+.Pq trailing So # Sc or So + Sc
+or decrement
+.Pq trailing Sq -
+the number under the cursor by
+.Ar count ,
+starting at the cursor position or at the first non-blank
+character following it.
+Numbers with a leading
+.Sq 0x
+or
+.Sq 0X
+are interpreted as hexadecimal numbers.
+Numbers with a leading
+.Sq 0
+are interpreted as octal numbers unless they contain a non-octal digit.
+Other numbers may be prefixed with a
+.Sq +
+or
+.Sq -
+sign.
+.Pp
+.It Xo
+.Op Ar count
+.Cm $
+.Xc
+Move the cursor to the end of a line.
+If
+.Ar count
+is specified, additionally move the cursor down
+.Ar count
+\(mi 1 lines.
+.Pp
+.It Cm %
+Move to the
+.Cm matchchars
+character matching
+the one found at the cursor position or the closest to the right of it.
+.Pp
+.It Cm &
+Repeat the previous substitution command on the current line.
+.Pp
+.It Xo
+.Cm \(aq Ns Aq Ar character
+.Xc
+.It Xo
+.Cm \` Ns Aq Ar character
+.Xc
+Return to the cursor position marked by the character
+.Ar character ,
+or, if
+.Ar character
+is
+.Sq \(aq
+or
+.Sq \` ,
+to the position of the cursor before the last of the following commands:
+.Aq Cm control-A ,
+.Aq Cm control-T ,
+.Aq Cm control-] ,
+.Cm % ,
+.Cm \(aq ,
+.Cm \` ,
+.Cm (\& ,
+.Cm )\& ,
+.Cm / ,
+.Cm ?\& ,
+.Cm G ,
+.Cm H ,
+.Cm L ,
+.Cm [[ ,
+.Cm ]] ,
+.Cm { ,
+.Cm } .
+The first form returns to the first non-blank character of the line marked by
+.Ar character .
+The second form returns to the line and column marked by
+.Ar character .
+.Pp
+.It Xo
+.Op Ar count
+.Cm \&(
+.Xc
+.It Xo
+.Op Ar count
+.Cm \&)
+.Xc
+Move
+.Ar count
+sentences backward or forward, respectively.
+A sentence is an area of text that begins with the first nonblank character
+following the previous sentence, paragraph, or section
+boundary and continues until the next period, exclamation point,
+or question mark character, followed by any number of closing parentheses,
+brackets, double or single quote characters, followed by
+either an end-of-line or two whitespace characters.
+Groups of empty lines
+.Pq or lines containing only whitespace characters
+are treated as a single sentence.
+.Pp
+.It Xo
+.Op Ar count
+.Cm ,\&
+.Xc
+Reverse find character
+.Pq i.e., the last Cm F , f , T No or Cm t No command
+.Ar count
+times.
+.Pp
+.It Xo
+.Op Ar count
+.Cm -
+.Xc
+Move to the first non-blank character of the previous line,
+.Ar count
+times.
+.Pp
+.It Xo
+.Op Ar count
+.Cm .\&
+.Xc
+Repeat the last
+.Nm vi
+command that modified text.
+.Ar count
+replaces both the
+.Ar count
+argument of the repeated command and that of the associated
+.Ar motion .
+If the
+.Cm .\&
+command repeats the
+.Cm u
+command, the change log is rolled forward or backward, depending on the action
+of the
+.Cm u
+command.
+.Pp
+.It Xo
+.Pf / Ns Ar RE
+.Aq Li carriage-return
+.Xc
+.It Xo
+.Pf / Ns Ar RE Ns /
+.Op Ar offset
+.Op Cm z
+.Aq Li carriage-return
+.Xc
+.It Xo
+.Pf ?\& Ns Ar RE
+.Aq Li carriage-return
+.Xc
+.It Xo
+.Pf ?\& Ns Ar RE Ns ?\&
+.Op Ar offset
+.Op Cm z
+.Aq Li carriage-return
+.Xc
+.It Cm N
+.It Cm n
+Search forward
+.Pq Sq /
+or backward
+.Pq Sq ?\&
+for a regular expression.
+.Cm n
+and
+.Cm N
+repeat the last search in the same or opposite directions, respectively.
+If
+.Ar RE
+is empty, the last search regular expression is used.
+If
+.Ar offset
+is specified, the cursor is placed
+.Ar offset
+lines before or after the matched regular expression.
+If either
+.Cm n
+or
+.Cm N
+commands are used as motion components for the
+.Cm !\&
+command, there will be no prompt for the text of the command and the previous
+.Cm !\&
+will be executed.
+Multiple search patterns may be grouped together by delimiting them with
+semicolons and zero or more whitespace characters.
+These patterns are evaluated from left to right with the final cursor position
+determined by the last search pattern.
+A
+.Cm z
+command may be appended to the closed search expressions to reposition the
+result line.
+.Pp
+.It Cm 0
+Move to the first character in the current line.
+.Pp
+.It Cm :\&
+Execute an
+.Nm ex
+command.
+.Pp
+.It Xo
+.Op Ar count
+.Cm ;\&
+.Xc
+Repeat the last character find
+.Pq i.e., the last .Cm F , f , T No or Cm t No command
+.Ar count
+times.
+.Pp
+.It Xo
+.Op Ar count
+.Cm <
+.Ar motion
+.Xc
+.It Xo
+.Op Ar count
+.Cm >
+.Ar motion
+.Xc
+Shift
+.Ar count
+lines left or right, respectively, by an amount of
+.Cm shiftwidth .
+.Pp
+.It Cm @ Ar buffer
+Execute a named
+.Ar buffer
+as
+.Nm vi
+commands.
+The buffer may include
+.Nm ex
+commands too, but they must be expressed as a
+.Cm \&:
+command.
+If
+.Ar buffer
+is
+.Sq @
+or
+.Sq * ,
+then the last buffer executed shall be used.
+.Pp
+.It Xo
+.Op Ar count
+.Cm A
+.Xc
+Enter input mode, appending the text after the end of the line.
+If a
+.Ar count
+argument is given, the characters input are repeated
+.Ar count
+\(mi 1 times after input mode is exited.
+.Pp
+.It Xo
+.Op Ar count
+.Cm B
+.Xc
+Move backwards
+.Ar count
+bigwords.
+.Pp
+.It Xo
+.Op Ar buffer
+.Cm C
+.Xc
+Change text from the current position to the end-of-line.
+If
+.Ar buffer
+is specified,
+.Dq yank
+the deleted text into
+.Ar buffer .
+.Pp
+.It Xo
+.Op Ar buffer
+.Cm D
+.Xc
+Delete text from the current position to the end-of-line.
+If
+.Ar buffer
+is specified,
+.Dq yank
+the deleted text into
+.Ar buffer .
+.Pp
+.It Xo
+.Op Ar count
+.Cm E
+.Xc
+Move forward
+.Ar count
+end-of-bigwords.
+.Pp
+.It Xo
+.Op Ar count
+.Cm F Aq Ar character
+.Xc
+Search
+.Ar count
+times backward through the current line for
+.Aq Ar character .
+.Pp
+.It Xo
+.Op Ar count
+.Cm G
+.Xc
+Move to line
+.Ar count ,
+or the last line of the file if
+.Ar count
+is not specified.
+.Pp
+.It Xo
+.Op Ar count
+.Cm H
+.Xc
+Move to the screen line
+.Ar count
+\(mi 1 lines below the top of the screen.
+.Pp
+.It Xo
+.Op Ar count
+.Cm I
+.Xc
+Enter input mode, inserting the text at the beginning of the line.
+If a
+.Ar count
+argument is given,
+the characters input are repeated
+.Ar count
+\(mi 1 more times.
+.Pp
+.It Xo
+.Op Ar count
+.Cm J
+.Xc
+Join
+.Ar count
+lines with the current line.
+The spacing between two joined lines is set to two whitespace characters if the
+former ends with a question mark, a period or an exclamation point.
+It is set to one whitespace character otherwise.
+.Pp
+.It Xo
+.Op Ar count
+.Cm L
+.Xc
+Move to the screen line
+.Ar count
+\(mi 1 lines above the bottom of the screen.
+.Pp
+.It Cm M
+Move to the screen line in the middle of the screen.
+.Pp
+.It Xo
+.Op Ar count
+.Cm O
+.Xc
+Enter input mode, appending text in a new line above the current line.
+If a
+.Ar count
+argument is given,
+the characters input are repeated
+.Ar count
+\(mi 1 more times.
+.Pp
+.It Xo
+.Op Ar buffer
+.Cm P
+.Xc
+Insert text from
+.Ar buffer
+before the current column if
+.Ar buffer
+is character-oriented or before the current line if it is line-oriented.
+.Pp
+.It Cm Q
+Exit
+.Nm vi
+.Pq or visual
+mode and switch to
+.Nm ex
+mode.
+.Pp
+.It Xo
+.Op Ar count
+.Cm R
+.Xc
+Enter input mode, replacing the characters in the current line.
+If a
+.Ar count
+argument is given,
+the characters input are repeated
+.Ar count
+\(mi 1 more times upon exit from insert mode.
+.Pp
+.It Xo
+.Op Ar buffer
+.Op Ar count
+.Cm S
+.Xc
+Substitute
+.Ar count
+lines.
+If
+.Ar buffer
+is specified,
+.Dq yank
+the deleted text into
+.Ar buffer .
+.Pp
+.It Xo
+.Op Ar count
+.Cm T
+.Aq Ar character
+.Xc
+Search backwards,
+.Ar count
+times, through the current line for the character after the specified
+.Aq Ar character .
+.Pp
+.It Cm U
+Restore the current line to its state before the cursor last moved to it.
+.Pp
+.It Xo
+.Op Ar count
+.Cm W
+.Xc
+Move forward
+.Ar count
+bigwords.
+.Pp
+.It Xo
+.Op Ar buffer
+.Op Ar count
+.Cm X
+.Xc
+Delete
+.Ar count
+characters before the cursor, on the current line.
+If
+.Ar buffer
+is specified,
+.Dq yank
+the deleted text into
+.Ar buffer .
+.Pp
+.It Xo
+.Op Ar buffer
+.Op Ar count
+.Cm Y
+.Xc
+Copy
+.Pq or Dq yank
+.Ar count
+lines into
+.Ar buffer .
+.Pp
+.It Cm ZZ
+Write the file and exit
+.Nm vi
+if there are no more files to edit.
+Entering two
+.Dq quit
+commands in a row ignores any remaining file to edit.
+.Pp
+.It Xo
+.Op Ar count
+.Cm [[
+.Xc
+Back up
+.Ar count
+section boundaries.
+.Pp
+.It Xo
+.Op Ar count
+.Cm ]]
+.Xc
+Move forward
+.Ar count
+section boundaries.
+.Pp
+.It Cm ^
+Move to the first non-blank character on the current line.
+.Pp
+.It Xo
+.Op Ar count
+.Cm _
+.Xc
+Move down
+.Ar count
+\(mi 1 lines, to the first non-blank character.
+.Pp
+.It Xo
+.Op Ar count
+.Cm a
+.Xc
+Enter input mode, appending the text after the cursor.
+If a
+.Ar count
+argument is given,
+the characters input are repeated
+.Ar count
+number of times.
+.Pp
+.It Xo
+.Op Ar count
+.Cm b
+.Xc
+Move backwards
+.Ar count
+words.
+.Pp
+.It Xo
+.Op Ar buffer
+.Op Ar count
+.Cm c
+.Ar motion
+.Xc
+Change the region of text described by
+.Ar count
+and
+.Ar motion .
+If
+.Ar buffer
+is specified,
+.Dq yank
+the changed text into
+.Ar buffer .
+.Pp
+.It Xo
+.Op Ar buffer
+.Op Ar count
+.Cm d
+.Ar motion
+.Xc
+Delete the region of text described by
+.Ar count
+and
+.Ar motion .
+If
+.Ar buffer
+is specified,
+.Dq yank
+the deleted text into
+.Ar buffer .
+.Pp
+.It Xo
+.Op Ar count
+.Cm e
+.Xc
+Move forward
+.Ar count
+end-of-words.
+.Pp
+.It Xo
+.Op Ar count
+.Cm f Aq Ar character
+.Xc
+Search forward,
+.Ar count
+times, through the rest of the current line for
+.Aq Ar character .
+.Pp
+.It Xo
+.Op Ar count
+.Cm i
+.Xc
+Enter input mode, inserting the text before the cursor.
+If a
+.Ar count
+argument is given,
+the characters input are repeated
+.Ar count
+number of times.
+.Pp
+.It Xo
+.Cm m
+.Aq Ar character
+.Xc
+Save the current context
+.Pq line and column
+as
+.Aq Ar character .
+.Pp
+.It Xo
+.Op Ar count
+.Cm o
+.Xc
+Enter input mode, appending text in a new line under the current line.
+If a
+.Ar count
+argument is given,
+the characters input are repeated
+.Ar count
+\(mi 1 more times.
+.Pp
+.It Xo
+.Op Ar buffer
+.Cm p
+.Xc
+Append text from
+.Ar buffer .
+Text is appended after the current column if
+.Ar buffer
+is character oriented, or after the current line otherwise.
+.Pp
+.It Xo
+.Op Ar count
+.Cm r
+.Aq Ar character
+.Xc
+Replace
+.Ar count
+characters with
+.Ar character .
+.Pp
+.It Xo
+.Op Ar buffer
+.Op Ar count
+.Cm s
+.Xc
+Substitute
+.Ar count
+characters in the current line starting with the current character.
+If
+.Ar buffer
+is specified,
+.Dq yank
+the substituted text into
+.Ar buffer .
+.Pp
+.It Xo
+.Op Ar count
+.Cm t
+.Aq Ar character
+.Xc
+Search forward,
+.Ar count
+times, through the current line for the character immediately before
+.Aq Ar character .
+.Pp
+.It Cm u
+Undo the last change made to the file.
+If repeated, the
+.Cm u
+command alternates between these two states.
+The
+.Cm .\&
+command, when used immediately after
+.Cm u ,
+causes the change log to be rolled forward or backward, depending on the action
+of the
+.Cm u
+command.
+.Pp
+.It Xo
+.Op Ar count
+.Cm w
+.Xc
+Move forward
+.Ar count
+words.
+.Pp
+.It Xo
+.Op Ar buffer
+.Op Ar count
+.Cm x
+.Xc
+Delete
+.Ar count
+characters at the current cursor position, but no more than there are till the
+end of the line.
+.Pp
+.It Xo
+.Op Ar buffer
+.Op Ar count
+.Cm y
+.Ar motion
+.Xc
+Copy
+.Pq or Dq yank
+a text region specified by
+.Ar count
+and
+.Ar motion
+into a buffer.
+.Pp
+.It Xo
+.Op Ar count1
+.Cm z
+.Op Ar count2
+.Cm type
+.Xc
+Redraw, optionally repositioning and resizing the screen.
+If
+.Ar count2
+is specified, limit the screen size to
+.Ar count2
+lines.
+The following
+.Cm type
+characters may be used:
+.Bl -tag -width Ds
+.It Cm +
+If
+.Ar count1
+is specified, place the line
+.Ar count1
+at the top of the screen.
+Otherwise, display the screen after the current screen.
+.It Aq Cm carriage-return
+Place the line
+.Ar count1
+at the top of the screen.
+.It Cm .\&
+Place the line
+.Ar count1
+in the center of the screen.
+.It Cm -
+Place the line
+.Ar count1
+at the bottom of the screen.
+.It Cm ^
+If
+.Ar count1
+is given,
+display the screen before the screen before
+.Ar count1
+.Pq i.e., 2 screens before .
+Otherwise, display the screen before the current screen.
+.El
+.Pp
+.It Xo
+.Op Ar count
+.Cm {\&
+.Xc
+Move backward
+.Ar count
+paragraphs.
+.Pp
+.It Xo
+.Op Ar column
+.Cm |\&
+.Xc
+Move to a specific
+.Ar column
+position on the current line.
+If
+.Ar column
+is omitted,
+move to the start of the current line.
+.Pp
+.It Xo
+.Op Ar count
+.Cm }\&
+.Xc
+Move forward
+.Ar count
+paragraphs.
+.Pp
+.It Xo
+.Op Ar count
+.Cm ~
+.Ar motion
+.Xc
+If the
+.Cm tildeop
+option is not set, reverse the case of the next
+.Ar count
+character(s) and no
+.Ar motion
+can be specified.
+Otherwise
+.Ar motion
+is mandatory and
+.Cm ~
+reverses the case of the characters in a text region specified by the
+.Ar count
+and
+.Ar motion .
+.Pp
+.It Aq Cm interrupt
+Interrupt the current operation.
+The
+.Aq interrupt
+character is usually
+.Aq control-C .
+.El
+.Sh VI TEXT INPUT COMMANDS
+The following section describes the commands available in the text input mode
+of the
+.Nm vi
+editor.
+.Pp
+.Bl -tag -width Ds -compact
+.It Aq Cm nul
+Replay the previous input.
+.Pp
+.It Aq Cm control-D
+Erase to the previous
+.Ar shiftwidth
+column boundary.
+.Pp
+.It Cm ^ Ns Aq Cm control-D
+Erase all of the autoindent characters, and reset the autoindent level.
+.Pp
+.It Cm 0 Ns Aq Cm control-D
+Erase all of the autoindent characters.
+.Pp
+.It Aq Cm control-T
+Insert sufficient
+.Aq tab
+and
+.Aq space
+characters to move forward to the next
+.Ar shiftwidth
+column boundary.
+.Pp
+.It Aq Cm erase
+.It Aq Cm control-H
+Erase the last character.
+.Pp
+.It Aq Cm literal next
+Escape the next character from any special meaning.
+The
+.Aq literal\ \&next
+character is usually
+.Aq control-V .
+.Pp
+.It Aq Cm escape
+Resolve all text input into the file, and return to command mode.
+.Pp
+.It Aq Cm line erase
+Erase the current line.
+.Pp
+.It Aq Cm control-W
+.It Aq Cm word erase
+Erase the last word.
+The definition of word is dependent on the
+.Cm altwerase
+and
+.Cm ttywerase
+options.
+.Pp
+.Sm off
+.It Xo
+.Aq Cm control-X
+.Bq Cm 0-9A-Fa-f
+.Cm +
+.Xc
+.Sm on
+Insert a character with the specified hexadecimal value into the text.
+.Pp
+.It Aq Cm interrupt
+Interrupt text input mode, returning to command mode.
+The
+.Aq interrupt
+character is usually
+.Aq control-C .
+.El
+.Sh EX COMMANDS
+The following section describes the commands available in the
+.Nm ex
+editor.
+In each entry below, the tag line is a usage synopsis for the command.
+.Pp
+.Bl -tag -width Ds -compact
+.It Aq Cm end-of-file
+Scroll the screen.
+.Pp
+.It Cm !\& Ar argument(s)
+.It Xo
+.Op Ar range
+.Cm !\&
+.Ar argument(s)
+.Xc
+Execute a shell command, or filter lines through a shell command.
+.Pp
+.It Cm \&"
+A comment.
+.Pp
+.It Xo
+.Op Ar range
+.Cm nu Ns Op Cm mber
+.Op Ar count
+.Op Ar flags
+.Xc
+.It Xo
+.Op Ar range
+.Cm #
+.Op Ar count
+.Op Ar flags
+.Xc
+Display the selected lines, each preceded with its line number.
+.Pp
+.It Cm @ Ar buffer
+.It Cm * Ar buffer
+Execute a buffer.
+.Pp
+.It Xo
+.Op Ar range
+.Cm < Ns Op Cm < ...
+.Op Ar count
+.Op Ar flags
+.Xc
+Shift lines left.
+.Pp
+.It Xo
+.Op Ar line
+.Cm =
+.Op Ar flags
+.Xc
+Display the line number of
+.Ar line .
+If
+.Ar line
+is not specified, display the line number of the last line in the file.
+.Pp
+.It Xo
+.Op Ar range
+.Cm > Ns Op Cm > ...
+.Op Ar count
+.Op Ar flags
+.Xc
+Shift lines right.
+.Pp
+.It Xo
+.Cm ab Ns Op Cm breviate
+.Ar lhs rhs
+.Xc
+.Nm vi
+only.
+Add
+.Ar lhs
+as an abbreviation for
+.Ar rhs
+to the abbreviation list.
+.Pp
+.It Xo
+.Op Ar line
+.Cm a Ns Op Cm ppend Ns
+.Op Cm !\&
+.Xc
+The input text is appended after the specified line.
+.Pp
+.It Cm ar Ns Op Cm gs
+Display the argument list.
+.Pp
+.It Cm bg
+.Nm vi
+only.
+Background the current screen.
+.Pp
+.It Xo
+.Op Ar range
+.Cm c Ns Op Cm hange Ns
+.Op Cm !\&
+.Op Ar count
+.Xc
+The input text replaces the specified range.
+.Pp
+.It Xo
+.Cm chd Ns Op Cm ir Ns
+.Op Cm !\&
+.Op Ar directory
+.Xc
+.It Xo
+.Cm cd Ns Op Cm !\&
+.Op Ar directory
+.Xc
+Change the current working directory.
+.Pp
+.It Xo
+.Op Ar range
+.Cm co Ns Op Cm py
+.Ar line
+.Op Ar flags
+.Xc
+.It Xo
+.Op Ar range
+.Cm t
+.Ar line
+.Op Ar flags
+.Xc
+Copy the specified lines after the destination
+.Ar line .
+.Pp
+.It Xo
+.Cm cs Ns Op Cm cope
+.Cm add | find | help | kill | reset
+.Xc
+Execute a Cscope command.
+.Pp
+.It Xo
+.Op Ar range
+.Cm d Ns Op Cm elete
+.Op Ar buffer
+.Op Ar count
+.Op Ar flags
+.Xc
+Delete the lines from the file.
+.Pp
+.It Xo
+.Cm di Ns Op Cm splay
+.Cm b Ns Oo Cm uffers Oc |
+.Cm c Ns Oo Cm onnections Oc |
+.Cm s Ns Oo Cm creens Oc |
+.Cm t Ns Op Cm ags
+.Xc
+Display buffers, Cscope connections, screens or tags.
+.Pp
+.It Xo
+.Op Cm Ee Ns
+.Op Cm dit Ns
+.Op Cm !\&
+.Op Ar +cmd
+.Op Ar file
+.Xc
+.It Xo
+.Op Cm Ee Ns
+.Cm x Ns Op Cm !\&
+.Op Ar +cmd
+.Op Ar file
+.Xc
+Edit a different file.
+.Pp
+.It Xo
+.Cm exu Ns Op Cm sage
+.Op Ar command
+.Xc
+Display usage for an
+.Nm ex
+command.
+.Pp
+.It Xo
+.Cm f Ns Op Cm ile
+.Op Ar file
+.Xc
+Display and optionally change the file name.
+.Pp
+.It Xo
+.Op Cm Ff Ns
+.Cm g
+.Op Ar name
+.Xc
+.Nm vi
+mode only.
+Foreground the specified screen.
+.Pp
+.It Xo
+.Op Ar range
+.Cm g Ns Op Cm lobal
+.No / Ns Ar pattern Ns /
+.Op Ar commands
+.Xc
+.It Xo
+.Op Ar range
+.Cm v
+.No / Ns Ar pattern Ns /
+.Op Ar commands
+.Xc
+Apply commands to lines matching
+.Pq Sq global
+or not matching
+.Pq Sq v
+a pattern.
+.Pp
+.It Cm he Ns Op Cm lp
+Display a help message.
+.Pp
+.It Xo
+.Op Ar line
+.Cm i Ns Op Cm nsert Ns
+.Op Cm !\&
+.Xc
+The input text is inserted before the specified line.
+.Pp
+.It Xo
+.Op Ar range
+.Cm j Ns Op Cm oin Ns
+.Op Cm !\&
+.Op Ar count
+.Op Ar flags
+.Xc
+Join lines of text together.
+.Pp
+.It Xo
+.Op Ar range
+.Cm l Ns Op Cm ist
+.Op Ar count
+.Op Ar flags
+.Xc
+Display the lines unambiguously.
+.Pp
+.It Xo
+.Cm map Ns Op Cm !\&
+.Op Ar lhs rhs
+.Xc
+Define or display maps
+.Pq for Nm vi No only .
+.Pp
+.It Xo
+.Op Ar line
+.Cm ma Ns Op Cm rk
+.Aq Ar character
+.Xc
+.It Xo
+.Op Ar line
+.Cm k Aq Ar character
+.Xc
+Mark the line with the mark
+.Aq Ar character .
+.Pp
+.It Xo
+.Op Ar range
+.Cm m Ns Op Cm ove
+.Ar line
+.Xc
+Move the specified lines after the target line.
+.Pp
+.It Xo
+.Cm mk Ns Op Cm exrc Ns
+.Op Cm !\&
+.Ar file
+.Xc
+Write the abbreviations, editor options and maps to the specified
+.Ar file .
+.Pp
+.It Xo
+.Op Cm Nn Ns
+.Op Cm ext Ns
+.Op Cm !\&
+.Op Ar
+.Xc
+Edit the next file from the argument list.
+.\" .Pp
+.\" .It Xo
+.\" .Op Ar line
+.\" .Cm o Ns Op Cm pen
+.\" .No / Ns Ar pattern Ns /
+.\" .Op Ar flags
+.\" .Xc
+.\" Enter open mode.
+.Pp
+.It Cm pre Ns Op Cm serve
+Save the file in a form that can later be recovered using the
+.Nm ex
+.Fl r
+option.
+.Pp
+.It Xo
+.Op Cm \&Pp Ns
+.Cm rev Ns Op Cm ious Ns
+.Op Cm !\&
+.Xc
+Edit the previous file from the argument list.
+.Pp
+.It Xo
+.Op Ar range
+.Cm p Ns Op Cm rint
+.Op Ar count
+.Op Ar flags
+.Xc
+Display the specified lines.
+.Pp
+.It Xo
+.Op Ar line
+.Cm pu Ns Op Cm t
+.Op Ar buffer
+.Xc
+Append buffer contents to the current line.
+.Pp
+.It Xo
+.Cm q Ns Op Cm uit Ns
+.Op Cm !\&
+.Xc
+End the editing session.
+.Pp
+.It Xo
+.Op Ar line
+.Cm r Ns Op Cm ead Ns
+.Op Cm !\&
+.Op Ar file
+.Xc
+Read a file.
+.Pp
+.It Xo
+.Cm rec Ns Op Cm over
+.Ar file
+.Xc
+Recover
+.Ar file
+if it was previously saved.
+.Pp
+.It Xo
+.Cm res Ns Op Cm ize
+.Op Cm + Ns | Ns Cm - Ns
+.Ar size
+.Xc
+.Nm vi
+mode only.
+Grow or shrink the current screen.
+.Pp
+.It Xo
+.Cm rew Ns Op Cm ind Ns
+.Op Cm !\&
+.Xc
+Rewind the argument list.
+.Pp
+.It Xo
+.Cm se Ns Op Cm t
+.Sm off
+.Op option Oo = Oo value Oc Oc \ \&...
+.Sm on
+.Pf \ \& Op nooption ...
+.Op option? ...
+.Op Ar all
+.Xc
+Display or set editor options.
+.Pp
+.It Cm sh Ns Op Cm ell
+Run a shell program.
+.Pp
+.It Xo
+.Cm so Ns Op Cm urce
+.Ar file
+.Xc
+Read and execute
+.Nm ex
+commands from a file.
+.Pp
+.It Xo
+.Op Ar range
+.Cm s Ns Op Cm ubstitute
+.Sm off
+.Op / Ar pattern No / Ar replace No /
+.Sm on
+.Pf \ \& Op Ar options
+.Op Ar count
+.Op Ar flags
+.Xc
+.It Xo
+.Op Ar range
+.Cm &
+.Op Ar options
+.Op Ar count
+.Op Ar flags
+.Xc
+.It Xo
+.Op Ar range
+.Cm ~
+.Op Ar options
+.Op Ar count
+.Op Ar flags
+.Xc
+Make substitutions.
+The
+.Ar replace
+field may contain any of the following sequences:
+.Bl -tag -width Ds
+.It Sq \*(Am
+The text matched by
+.Ar pattern .
+.It Sq \(a~
+The replacement part of the previous
+.Cm substitute
+command.
+.It Sq %
+If this is the entire
+.Ar replace
+pattern, the replacement part of the previous
+.Cm substitute
+command.
+.It Sq \e Ns Ar \(sh
+Where
+.Sq Ar \(sh
+is an integer from 1 to 9, the text matched by the
+.Ar # Ns 'th subexpression in
+.Ar pattern .
+.It Sq \eL
+Causes the characters up to the end of the line of the next occurrence of
+.Sq \eE
+or
+.Sq \ee
+to be converted to lowercase.
+.It Sq \el
+Causes the next character to be converted to lowercase.
+.It Sq \eU
+Causes the characters up to the end of the line of the next occurrence of
+.Sq \eE
+or
+.Sq \ee
+to be converted to uppercase.
+.It Sq \eu
+Causes the next character to be converted to uppercase.
+.El
+.Pp
+.It Xo
+.Cm su Ns Op Cm spend Ns
+.Op Cm !\&
+.Xc
+.It Xo
+.Cm st Ns Op Cm op Ns
+.Op Cm !\&
+.Xc
+.It Aq Cm suspend
+Suspend the edit session.
+The
+.Aq suspend
+character is usually
+.Aq control-Z .
+.Pp
+.It Xo
+.Op Cm Tt Ns
+.Cm a Ns Op Cm g Ns
+.Op Cm !\&
+.Ar tagstring
+.Xc
+Edit the file containing the specified tag.
+.Pp
+.It Xo
+.Cm tagn Ns Op Cm ext Ns
+.Op Cm !\&
+.Xc
+Edit the file containing the next context for the current tag.
+.Pp
+.It Xo
+.Cm tagp Ns Op Cm op Ns
+.Op Cm !\&
+.Op Ar file | number
+.Xc
+Pop to the specified tag in the tags stack.
+.Pp
+.It Xo
+.Cm tagpr Ns Op Cm ev Ns
+.Op Cm !\&
+.Xc
+Edit the file containing the previous context for the current tag.
+.Pp
+.It Xo
+.Cm tagt Ns Op Cm op Ns
+.Op Cm !\&
+.Xc
+Pop to the least recent tag on the tags stack, clearing the stack.
+.Pp
+.It Xo
+.Cm una Ns Op Cm bbreviate
+.Ar lhs
+.Xc
+.Nm vi
+only.
+Delete an abbreviation.
+.Pp
+.It Cm u Ns Op Cm ndo
+Undo the last change made to the file.
+.Pp
+.It Xo
+.Cm unm Ns Op Cm ap Ns
+.Op Cm !\&
+.Ar lhs
+.Xc
+Unmap a mapped string.
+.Pp
+.It Cm ve Ns Op Cm rsion
+Display the version of the
+.Nm ex Ns / Ns Nm vi
+editor.
+.Pp
+.It Xo
+.Op Ar line
+.Cm vi Ns Op Cm sual
+.Op Ar type
+.Op Ar count
+.Op Ar flags
+.Xc
+.Nm ex
+mode only.
+Enter
+.Nm vi .
+.Pp
+.It Xo
+.Op Cm Vi Ns
+.Cm i Ns Op Cm sual Ns
+.Op Cm !\&
+.Op Ar +cmd
+.Op Ar file
+.Xc
+.Nm vi
+mode only.
+Edit a new file.
+.Pp
+.It Xo
+.Cm viu Ns Op Cm sage
+.Op Ar command
+.Xc
+Display usage for a
+.Nm vi
+command.
+.Pp
+.It Xo
+.Op Ar range
+.Cm w Ns Op Cm rite Ns
+.Op Cm !\&
+.Op >>
+.Op Ar file
+.Xc
+.It Xo
+.Op Ar range
+.Cm w Ns Op Cm rite
+.Op Cm !\&
+.Op Ar file
+.Xc
+.It Xo
+.Op Ar range
+.Cm wn Ns Op Cm !\&
+.Op >>
+.Op Ar file
+.Xc
+.It Xo
+.Op Ar range
+.Cm wq Ns Op Cm !\&
+.Op >>
+.Op Ar file
+.Xc
+Write the file.
+.Pp
+.It Xo
+.Op Ar range
+.Cm x Ns Op Cm it Ns
+.Op Cm !\&
+.Op Ar file
+.Xc
+Exit the editor,
+writing the file if it has been modified.
+.Pp
+.It Xo
+.Op Ar range
+.Cm ya Ns Op Cm nk
+.Op Ar buffer
+.Op Ar count
+.Xc
+Copy the specified lines to a buffer.
+.Pp
+.It Xo
+.Op Ar line
+.Cm z
+.Op Ar type
+.Op Ar count
+.Op Ar flags
+.Xc
+Adjust the window.
+.El
+.Sh SET OPTIONS
+There are a large number of options that may be set
+.Pq or unset
+to change the editor's behavior.
+This section describes the options, their abbreviations and their
+default values.
+.Pp
+In each entry below, the first part of the tag line is the full name
+of the option, followed by any equivalent abbreviations.
+The part in square brackets is the default value of the option.
+Most of the options are boolean, i.e., they are either on or off,
+and do not have an associated value.
+.Pp
+Options apply to both
+.Nm ex
+and
+.Nm vi
+modes, unless otherwise specified.
+.Bl -tag -width Ds
+.It Cm altwerase Bq off
+.Nm vi
+only.
+Select an alternate word erase algorithm.
+.It Cm autoindent , ai Bq off
+Automatically indent new lines.
+.It Cm autoprint , ap Bq on
+.Nm ex
+only.
+Display the current line automatically.
+.It Cm autowrite , aw Bq off
+Write modified files automatically when changing files or suspending the editor
+session.
+.It Cm backup Bq \&"\&"
+Back up files before they are overwritten.
+.It Cm beautify , bf Bq off
+Discard control characters.
+.It Cm cdpath Bo environment variable Ev CDPATH , or current directory Bc
+The directory paths used as path prefixes for the
+.Cm cd
+command.
+.It Cm cedit Bq no default
+Set the character to edit the colon command-line history.
+.It Cm columns , co Bq 80
+Set the number of columns in the screen.
+.It Cm comment Bq off
+.Nm vi
+only.
+Skip leading comments in shell, C and C++ language files.
+.It Cm directory , dir Bo environment variable Ev TMPDIR , or Pa /tmp Bc
+The directory where temporary files are created.
+.It Cm edcompatible , ed Bq off
+Remember the values of the
+.Sq c
+and
+.Sq g
+suffixes to the
+.Cm substitute
+commands, instead of initializing them as unset for each new command.
+.It Cm errorbells , eb Bq off
+.Nm ex
+only.
+Announce error messages with a bell.
+.It Cm escapetime Bq 1
+The tenths of a second
+.Nm ex Ns / Ns Nm vi
+waits for a subsequent key to complete an
+.Aq escape
+key mapping.
+.It Cm exrc , ex Bq off
+Read the startup files in the local directory.
+.It Cm extended Bq off
+Use extended regular expressions
+.Pq EREs
+rather than basic regular expressions
+.Pq BREs .
+See
+.Xr re_format 7
+for more information on regular expressions.
+.It Cm filec Bq Aq tab
+Set the character to perform file path completion on the colon command line.
+.It Cm fileencoding , fe Bq auto detect
+Set the encoding of the current file.
+.It Cm flash Bq on
+Flash the screen instead of beeping the keyboard on error.
+.It Cm hardtabs, ht Bq 0
+Set the spacing between hardware tab settings.
+This option currently has no effect.
+.It Cm iclower Bq off
+Makes all regular expressions case-insensitive,
+as long as an upper-case letter does not appear in the search string.
+.It Cm ignorecase , ic Bq off
+Ignore case differences in regular expressions.
+.It Cm inputencoding , ie Bq locale
+Set the encoding of your input characters.
+.It Cm keytime Bq 6
+The tenths of a second
+.Nm ex Ns / Ns Nm vi
+waits for a subsequent key to complete a key mapping.
+.It Cm leftright Bq off
+.Nm vi
+only.
+Do left-right scrolling.
+.It Cm lines , li Bq 24
+.Nm vi
+only.
+Set the number of lines in the screen.
+.It Cm lisp Bq off
+.Nm vi
+only.
+Modify various search commands and options to work with Lisp.
+This option is not yet implemented.
+.It Cm list Bq off
+Display lines in an unambiguous fashion.
+.It Cm lock Bq on
+Attempt to get an exclusive lock on any file being edited, read or written.
+.It Cm magic Bq on
+When turned off, all regular expression characters except for
+.Sq \(ha
+and
+.Sq \(Do
+are treated as ordinary characters.
+Preceding individual characters by
+.Sq \e
+re-enables them.
+.It Cm matchchars Bq []{}()
+Character pairs looked for by the
+.Cm %
+command.
+.It Cm matchtime Bq 7
+.Nm vi
+only.
+The tenths of a second
+.Nm ex Ns / Ns Nm vi
+pauses on the matching character when the
+.Cm showmatch
+option is set.
+.It Cm mesg Bq on
+Permit messages from other users.
+.It Cm msgcat Bq /usr/share/vi/catalog/
+Selects a message catalog to be used to display error and informational
+messages in a specified language.
+.It Cm modelines , modeline Bq off
+Read the first and last few lines of each file for
+.Nm ex
+commands.
+This option will never be implemented.
+.It Cm noprint Bq \&"\&"
+Characters that are never handled as printable characters.
+.It Cm number , nu Bq off
+Precede each line displayed with its current line number.
+.It Cm octal Bq off
+Display unknown characters as octal numbers, instead of the default
+hexadecimal.
+.It Cm open Bq on
+.Nm ex
+only.
+If this option is not set, the
+.Cm open
+and
+.Cm visual
+commands are disallowed.
+.It Cm optimize , opt Bq on
+.Nm vi
+only.
+Optimize text throughput to dumb terminals.
+This option is not yet implemented.
+.It Cm paragraphs , para Bq "IPLPPPQPP LIpplpipbp"
+.Nm vi
+only.
+Define additional paragraph boundaries for the
+.Cm {\&
+and
+.Cm }\&
+commands.
+.It Cm path Bq \&"\&"
+Define additional directories to search for files being edited.
+.It Cm print Bq \&"\&"
+Characters that are always handled as printable characters.
+.It Cm prompt Bq on
+.Nm ex
+only.
+Display a command prompt.
+.It Cm readonly , ro Bq off
+Mark the file and session as read-only.
+.It Cm recdir Bq /var/tmp/vi.recover
+The directory where recovery files are stored.
+.It Cm redraw , re Bq off
+.Nm vi
+only.
+Simulate an intelligent terminal on a dumb one.
+This option is not yet implemented.
+.It Cm remap Bq on
+Remap keys until resolved.
+.It Cm report Bq 5
+Set the number of lines about which the editor reports changes or yanks.
+.It Cm ruler Bq off
+.Nm vi
+only.
+Display a row/column ruler on the colon command line.
+.It Cm scroll , scr Bq "window size / 2"
+Set the number of lines scrolled.
+.It Cm searchincr Bq off
+Makes the
+.Cm /
+and
+.Cm ?\&
+commands incremental.
+.It Cm sections , sect Bq "NHSHH HUnhsh"
+.Nm vi
+only.
+Define additional section boundaries for the
+.Cm [[
+and
+.Cm ]]
+commands.
+.It Cm secure Bq off
+Turns off all access to external programs.
+.It Cm shell , sh Bo environment variable Ev SHELL , or Pa /bin/sh Bc
+Select the shell used by the editor.
+.It Cm shellmeta Bq ~{[*?$\`\(aq\&"\e
+Set the meta characters checked to determine if file name expansion
+is necessary.
+.It Cm shiftwidth , sw Bq 8
+Set the autoindent and shift command indentation width.
+.It Cm showmatch , sm Bq off
+.Nm vi
+only.
+Note the left matching characters when the right ones are inserted.
+.It Cm showmode , smd Bq off
+.Nm vi
+only.
+Display the current editor mode and a
+.Dq modified
+flag.
+.It Cm sidescroll Bq 16
+.Nm vi
+only.
+Set the amount a left-right scroll will shift.
+.It Cm slowopen , slow Bq off
+Delay display updating during text input.
+This option is not yet implemented.
+.It Cm sourceany Bq off
+Read startup files not owned by the current user.
+This option will never be implemented.
+.It Cm tabstop , ts Bq 8
+This option sets tab widths for the editor display.
+.It Cm taglength , tl Bq 0
+Set the number of significant characters in tag names.
+.It Cm tags , tag Bq tags
+Set the list of tags files.
+.It Xo
+.Cm term , ttytype , tty
+.Bq environment variable Ev TERM
+.Xc
+Set the terminal type.
+.It Cm terse Bq off
+This option has historically made editor messages less verbose.
+It has no effect in this implementation.
+.It Cm tildeop Bq off
+Modify the
+.Cm ~
+command to take an associated motion.
+.It Cm timeout , to Bq on
+Time out on keys which may be mapped.
+.It Cm ttywerase Bq off
+.Nm vi
+only.
+Select an alternate erase algorithm.
+.It Cm verbose Bq off
+.Nm vi
+only.
+Display an error message for every error.
+.It Cm w300 Bq no default
+.Nm vi
+only.
+Set the window size if the baud rate is less than 1200 baud.
+.It Cm w1200 Bq no default
+.Nm vi
+only.
+Set the window size if the baud rate is equal to 1200 baud.
+.It Cm w9600 Bq no default
+.Nm vi
+only.
+Set the window size if the baud rate is greater than 1200 baud.
+.It Cm warn Bq on
+.Nm ex
+only.
+This option causes a warning message to be printed on the terminal
+if the file has been modified since it was last written, before a
+.Cm !\&
+command.
+.It Xo
+.Cm window , w , wi
+.Bq environment variable Ev LINES No \(mi 1
+.Xc
+Set the window size for the screen.
+.It Cm windowname Bq off
+Change the icon/window name to the current file name.
+.It Cm wraplen , wl Bq 0
+.Nm vi
+only.
+Break lines automatically,
+the specified number of columns from the left-hand margin.
+If both the
+.Cm wraplen
+and
+.Cm wrapmargin
+edit options are set, the
+.Cm wrapmargin
+value is used.
+.It Cm wrapmargin , wm Bq 0
+.Nm vi
+only.
+Break lines automatically,
+the specified number of columns from the right-hand margin.
+If both the
+.Cm wraplen
+and
+.Cm wrapmargin
+edit options are set, the
+.Cm wrapmargin
+value is used.
+.It Cm wrapscan , ws Bq on
+Set searches to wrap around the end or beginning of the file.
+.It Cm writeany , wa Bq off
+Turn off file-overwriting checks.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width "COLUMNS"
+.It Ev COLUMNS
+The number of columns on the screen.
+This value overrides any system or terminal specific values.
+If the
+.Ev COLUMNS
+environment variable is not set when
+.Nm ex Ns / Ns Nm vi
+runs, or the
+.Cm columns
+option is explicitly reset by the user,
+.Nm ex Ns / Ns Nm vi
+enters the value into the environment.
+.It Ev EXINIT
+A list of
+.Nm ex
+startup commands, read after
+.Pa /etc/vi.exrc
+unless the variable
+.Ev NEXINIT
+is also set.
+.It Ev HOME
+The user's home directory, used as the initial directory path for the startup
+.Pa $HOME/.nexrc
+and
+.Pa $HOME/.exrc
+files.
+This value is also used as the default directory for the
+.Cm cd
+command.
+.It Ev LINES
+The number of rows on the screen.
+This value overrides any system or terminal specific values.
+If the
+.Ev LINES
+environment variable is not set when
+.Nm ex Ns / Ns Nm vi
+runs, or the
+.Cm lines
+option is explicitly reset by the user,
+.Nm ex Ns / Ns Nm vi
+enters the value into the environment.
+.It Ev NEXINIT
+A list of
+.Nm ex
+startup commands, read after
+.Pa /etc/vi.exrc .
+.It Ev SHELL
+The user's shell of choice
+.Pq see also the Cm shell No option .
+.It Ev TERM
+The user's terminal type.
+The default is the type
+.Dq unknown .
+If the
+.Ev TERM
+environment variable is not set when
+.Nm ex Ns / Ns Nm vi
+runs, or the
+.Cm term
+option is explicitly reset by the user,
+.Nm ex Ns / Ns Nm vi
+enters the value into the environment.
+.It Ev TMPDIR
+The location used to store temporary files
+.Pq see also the Cm directory No edit option .
+.El
+.Sh ASYNCHRONOUS EVENTS
+.Bl -tag -width "SIGWINCH" -compact
+.It Dv SIGALRM
+.Nm vi Ns / Ns Nm ex
+uses this signal for periodic backups of file modifications and to display
+.Dq busy
+messages when operations are likely to take a long time.
+.Pp
+.It Dv SIGHUP
+.It Dv SIGTERM
+If the current buffer has changed since it was last written in its entirety,
+the editor attempts to save the modified file so it can be later recovered.
+See the
+.Nm vi Ns / Ns Nm ex
+reference manual section
+.Sx Recovery
+for more information.
+.Pp
+.It Dv SIGINT
+When an interrupt occurs, the current operation is halted
+and the editor returns to the command level.
+If interrupted during text input,
+the text already input is resolved into the file as if the text
+input had been normally terminated.
+.Pp
+.It Dv SIGWINCH
+The screen is resized.
+See the
+.Nm vi Ns / Ns Nm ex
+reference manual section
+.Sx Sizing the Screen
+for more information.
+.\" .Pp
+.\" .It Dv SIGCONT
+.\" .It Dv SIGTSTP
+.\" .Nm vi Ns / Ns Nm ex
+.\" ignores these signals.
+.El
+.Sh FILES
+.Bl -tag -width "/var/tmp/vi.recover"
+.It Pa /bin/sh
+The default user shell.
+.It Pa /etc/vi.exrc
+System-wide
+.Nm vi
+startup file.
+It is read for
+.Nm ex
+commands first in the startup sequence.
+Must be owned by root or the user,
+and writable only by the owner.
+.It Pa /tmp
+Temporary file directory.
+.It Pa /var/tmp/vi.recover
+The default recovery file directory.
+.It Pa $HOME/.nexrc
+First choice for user's home directory startup file, read for
+.Nm ex
+commands right after
+.Pa /etc/vi.exrc
+unless either
+.Ev NEXINIT
+or
+.Ev EXINIT
+are set.
+Must be owned by root or the user,
+and writable only by the owner.
+.It Pa $HOME/.exrc
+Second choice for user's home directory startup file, read for
+.Nm ex
+commands under the same conditions as
+.Pa $HOME/.nexrc .
+.It Pa .nexrc
+First choice for local directory startup file, read for
+.Nm ex
+commands at the end of the startup sequence if the
+.Cm exrc
+option was turned on earlier.
+Must be owned by the user
+and writable only by the owner.
+.It Pa .exrc
+Second choice for local directory startup file, read for
+.Nm ex
+commands under the same conditions as
+.Pa .nexrc .
+.El
+.Sh EXIT STATUS
+The
+.Nm ex
+and
+.Nm vi
+utilities exit 0 on success,
+and \*(Gt0 if an error occurs.
+.Sh SEE ALSO
+.Xr ctags 1 ,
+.Xr iconv 1 ,
+.Xr re_format 7
+.Sh STANDARDS
+.Nm nex Ns / Ns Nm nvi
+is close to
+.St -p1003.1-2008 .
+That document differs from historical
+.Nm ex Ns / Ns Nm vi
+practice in several places; there are changes to be made on both sides.
+.Sh HISTORY
+The
+.Nm ex
+editor first appeared in
+.Bx 1 .
+The
+.Nm nex Ns / Ns Nm nvi
+replacements for the
+.Nm ex Ns / Ns Nm vi
+editor first appeared in
+.Bx 4.4 .
+.Sh AUTHORS
+.An Bill Joy
+wrote the original version of
+.Nm ex
+in 1977.

@@ -1,0 +1,41 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_EVENT_TYPE_STR 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+.nf
+ibv_event_type_str \- Return string describing event_type enum value
+.sp
+ibv_node_type_str \- Return string describing node_type enum value
+.sp
+ibv_port_state_str \- Return string describing port_state enum value
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "const char *ibv_event_type_str(enum ibv_event_type " "event_type");
+.sp
+.BI "const char *ibv_node_type_str(enum ibv_node_type " "node_type");
+.sp
+.BI "const char *ibv_port_state_str(enum ibv_port_state " "port_state");
+.fi
+.SH "DESCRIPTION"
+.B ibv_node_type_str()
+returns a string describing the node type enum value
+.IR node_type .
+.PP
+.B ibv_port_state_str()
+returns a string describing the port state enum value
+.IR port_state .
+.PP
+.B ibv_event_type_str()
+returns a string describing the event type enum value
+.IR event_type .
+.SH "RETURN VALUE"
+These functions return a constant string that describes the enum value
+passed as their argument.
+.SH "AUTHOR"
+.TP
+Roland Dreier
+.RI < rolandd@cisco.com >
+

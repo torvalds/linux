@@ -1,0 +1,1298 @@
+   0  $accept : input $end
+
+   1  opt_scope :
+   2            | CLCL
+   3            | opt_scope ID CLCL
+
+   4  typename : opt_scope ID
+
+   5  $$1 :
+
+   6  input : $$1 decl_list
+
+   7  decl_list :
+
+   8  $$2 :
+
+   9  decl_list : decl_list $$2 decl
+
+  10  decl : decl_specs declarator_list ';'
+
+  11  $$3 :
+
+  12  decl : decl_specs declarator $$3 block_statement
+
+  13  decl_specs : decl_spec
+  14             | decl_specs $$2 decl_spec
+
+  15  cv_quals :
+  16           | cv_quals cv_qual
+
+  17  decl_spec : cv_qual
+  18            | typename
+  19            | EXTERN
+  20            | REGISTER
+  21            | STATIC
+
+  22  cv_qual : CONST
+  23          | VOLATILE
+
+  24  $$4 :
+
+  25  $$5 :
+
+  26  declarator_list : declarator_list ',' $$4 $$5 declarator
+  27                  | declarator
+
+  28  declarator :
+  29             | ID
+
+  30  $$6 :
+
+  31  $$7 :
+
+  32  declarator : '(' $$6 $$7 declarator ')'
+  33             | '*' cv_quals $$4 $$5 declarator
+  34             | declarator '[' $$4 expr ']'
+  35             | declarator '(' $$4 formal_arg_list ')' cv_quals
+
+  36  formal_arg_list :
+  37                  | nonempty_formal_arg_list
+
+  38  nonempty_formal_arg_list : nonempty_formal_arg_list ',' $$6 formal_arg
+  39                           | formal_arg
+
+  40  formal_arg : decl_specs declarator
+
+  41  expr : expr '+' $$6 expr
+  42       | expr '-' $$6 expr
+  43       | expr '*' $$6 expr
+  44       | expr '%' $$6 expr
+  45       | expr '/' $$6 expr
+  46       | '*' $$2 expr
+  47       | ID
+  48       | CONSTANT
+
+  49  statement : decl
+  50            | expr ';'
+
+  51  $$8 :
+
+  52  $$9 :
+
+  53  statement : IF '(' $$6 expr ')' THEN $$8 statement ELSE $$9 statement
+  54            | IF '(' $$6 expr ')' THEN $$8 statement
+
+  55  $$10 :
+
+  56  statement : $$10 block_statement
+
+  57  statement_list :
+  58                 | statement_list $$2 statement
+
+  59  block_statement : '{' $$2 statement_list '}'
+
+state 0
+	$accept : . input $end  (0)
+	$$1 : .  (5)
+
+	.  reduce 5
+
+	input  goto 1
+	$$1  goto 2
+
+
+state 1
+	$accept : input . $end  (0)
+
+	$end  accept
+
+
+state 2
+	input : $$1 . decl_list  (6)
+	decl_list : .  (7)
+
+	.  reduce 7
+
+	decl_list  goto 3
+
+
+state 3
+	input : $$1 decl_list .  (6)
+	decl_list : decl_list . $$2 decl  (9)
+	$$2 : .  (8)
+
+	$end  reduce 6
+	ID  reduce 8
+	EXTERN  reduce 8
+	REGISTER  reduce 8
+	STATIC  reduce 8
+	CONST  reduce 8
+	VOLATILE  reduce 8
+	CLCL  reduce 8
+
+	$$2  goto 4
+
+
+state 4
+	decl_list : decl_list $$2 . decl  (9)
+	opt_scope : .  (1)
+
+	EXTERN  shift 5
+	REGISTER  shift 6
+	STATIC  shift 7
+	CONST  shift 8
+	VOLATILE  shift 9
+	CLCL  shift 10
+	ID  reduce 1
+
+	decl  goto 11
+	decl_specs  goto 12
+	decl_spec  goto 13
+	typename  goto 14
+	cv_qual  goto 15
+	opt_scope  goto 16
+
+
+state 5
+	decl_spec : EXTERN .  (19)
+
+	.  reduce 19
+
+
+state 6
+	decl_spec : REGISTER .  (20)
+
+	.  reduce 20
+
+
+state 7
+	decl_spec : STATIC .  (21)
+
+	.  reduce 21
+
+
+state 8
+	cv_qual : CONST .  (22)
+
+	.  reduce 22
+
+
+state 9
+	cv_qual : VOLATILE .  (23)
+
+	.  reduce 23
+
+
+state 10
+	opt_scope : CLCL .  (2)
+
+	.  reduce 2
+
+
+state 11
+	decl_list : decl_list $$2 decl .  (9)
+
+	.  reduce 9
+
+
+12: shift/reduce conflict (shift 18, reduce 28) on '('
+12: shift/reduce conflict (shift 19, reduce 8) on ID
+state 12
+	decl : decl_specs . declarator_list ';'  (10)
+	decl : decl_specs . declarator $$3 block_statement  (12)
+	decl_specs : decl_specs . $$2 decl_spec  (14)
+	$$2 : .  (8)
+	declarator : .  (28)
+
+	'*'  shift 17
+	'('  [trial] shift 18
+	ID  [trial] shift 19
+	'('  [trial] reduce 28
+	'['  reduce 28
+	ID  [trial] reduce 8
+	EXTERN  reduce 8
+	REGISTER  reduce 8
+	STATIC  reduce 8
+	CONST  reduce 8
+	VOLATILE  reduce 8
+	CLCL  reduce 8
+	';'  reduce 28
+	','  reduce 28
+	'{'  reduce 28
+
+	declarator_list  goto 20
+	declarator  goto 21
+	$$2  goto 22
+
+
+state 13
+	decl_specs : decl_spec .  (13)
+
+	.  reduce 13
+
+
+state 14
+	decl_spec : typename .  (18)
+
+	.  reduce 18
+
+
+state 15
+	decl_spec : cv_qual .  (17)
+
+	.  reduce 17
+
+
+state 16
+	opt_scope : opt_scope . ID CLCL  (3)
+	typename : opt_scope . ID  (4)
+
+	ID  shift 23
+	.  error
+
+
+state 17
+	declarator : '*' . cv_quals $$4 $$5 declarator  (33)
+	cv_quals : .  (15)
+
+	.  reduce 15
+
+	cv_quals  goto 24
+
+
+state 18
+	declarator : '(' . $$6 $$7 declarator ')'  (32)
+	$$6 : .  (30)
+
+	.  reduce 30
+
+	$$6  goto 25
+
+
+state 19
+	declarator : ID .  (29)
+
+	.  reduce 29
+
+
+state 20
+	decl : decl_specs declarator_list . ';'  (10)
+	declarator_list : declarator_list . ',' $$4 $$5 declarator  (26)
+
+	';'  shift 26
+	','  shift 27
+	.  error
+
+
+state 21
+	decl : decl_specs declarator . $$3 block_statement  (12)
+	declarator_list : declarator .  (27)
+	declarator : declarator . '[' $$4 expr ']'  (34)
+	declarator : declarator . '(' $$4 formal_arg_list ')' cv_quals  (35)
+	$$3 : .  (11)
+
+	'('  shift 28
+	'['  shift 29
+	';'  reduce 27
+	','  reduce 27
+	'{'  reduce 11
+
+	$$3  goto 30
+
+
+state 22
+	decl_specs : decl_specs $$2 . decl_spec  (14)
+	opt_scope : .  (1)
+
+	EXTERN  shift 5
+	REGISTER  shift 6
+	STATIC  shift 7
+	CONST  shift 8
+	VOLATILE  shift 9
+	CLCL  shift 10
+	ID  reduce 1
+
+	decl_spec  goto 31
+	typename  goto 14
+	cv_qual  goto 15
+	opt_scope  goto 16
+
+
+23: shift/reduce conflict (shift 32, reduce 4) on CLCL
+state 23
+	opt_scope : opt_scope ID . CLCL  (3)
+	typename : opt_scope ID .  (4)
+
+	CLCL  [trial] shift 32
+	'*'  reduce 4
+	'('  reduce 4
+	'['  reduce 4
+	ID  reduce 4
+	EXTERN  reduce 4
+	REGISTER  reduce 4
+	STATIC  reduce 4
+	CONST  reduce 4
+	VOLATILE  reduce 4
+	CLCL  [trial] reduce 4
+	';'  reduce 4
+	','  reduce 4
+	')'  reduce 4
+	'{'  reduce 4
+
+
+state 24
+	cv_quals : cv_quals . cv_qual  (16)
+	declarator : '*' cv_quals . $$4 $$5 declarator  (33)
+	$$4 : .  (24)
+
+	CONST  shift 8
+	VOLATILE  shift 9
+	'*'  reduce 24
+	'('  reduce 24
+	'['  reduce 24
+	ID  reduce 24
+	';'  reduce 24
+	','  reduce 24
+	')'  reduce 24
+	'{'  reduce 24
+
+	cv_qual  goto 33
+	$$4  goto 34
+
+
+state 25
+	declarator : '(' $$6 . $$7 declarator ')'  (32)
+	$$7 : .  (31)
+
+	.  reduce 31
+
+	$$7  goto 35
+
+
+state 26
+	decl : decl_specs declarator_list ';' .  (10)
+
+	.  reduce 10
+
+
+state 27
+	declarator_list : declarator_list ',' . $$4 $$5 declarator  (26)
+	$$4 : .  (24)
+
+	.  reduce 24
+
+	$$4  goto 36
+
+
+state 28
+	declarator : declarator '(' . $$4 formal_arg_list ')' cv_quals  (35)
+	$$4 : .  (24)
+
+	.  reduce 24
+
+	$$4  goto 37
+
+
+state 29
+	declarator : declarator '[' . $$4 expr ']'  (34)
+	$$4 : .  (24)
+
+	.  reduce 24
+
+	$$4  goto 38
+
+
+state 30
+	decl : decl_specs declarator $$3 . block_statement  (12)
+
+	'{'  shift 39
+	.  error
+
+	block_statement  goto 40
+
+
+state 31
+	decl_specs : decl_specs $$2 decl_spec .  (14)
+
+	.  reduce 14
+
+
+state 32
+	opt_scope : opt_scope ID CLCL .  (3)
+
+	.  reduce 3
+
+
+state 33
+	cv_quals : cv_quals cv_qual .  (16)
+
+	.  reduce 16
+
+
+state 34
+	declarator : '*' cv_quals $$4 . $$5 declarator  (33)
+	$$5 : .  (25)
+
+	.  reduce 25
+
+	$$5  goto 41
+
+
+35: shift/reduce conflict (shift 18, reduce 28) on '('
+state 35
+	declarator : '(' $$6 $$7 . declarator ')'  (32)
+	declarator : .  (28)
+
+	'*'  shift 17
+	'('  [trial] shift 18
+	ID  shift 19
+	'('  [trial] reduce 28
+	'['  reduce 28
+	')'  reduce 28
+
+	declarator  goto 42
+
+
+state 36
+	declarator_list : declarator_list ',' $$4 . $$5 declarator  (26)
+	$$5 : .  (25)
+
+	.  reduce 25
+
+	$$5  goto 43
+
+
+state 37
+	declarator : declarator '(' $$4 . formal_arg_list ')' cv_quals  (35)
+	opt_scope : .  (1)
+	formal_arg_list : .  (36)
+
+	EXTERN  shift 5
+	REGISTER  shift 6
+	STATIC  shift 7
+	CONST  shift 8
+	VOLATILE  shift 9
+	CLCL  shift 10
+	ID  reduce 1
+	')'  reduce 36
+
+	formal_arg  goto 44
+	decl_specs  goto 45
+	decl_spec  goto 13
+	typename  goto 14
+	cv_qual  goto 15
+	opt_scope  goto 16
+	formal_arg_list  goto 46
+	nonempty_formal_arg_list  goto 47
+
+
+state 38
+	declarator : declarator '[' $$4 . expr ']'  (34)
+
+	'*'  shift 48
+	ID  shift 49
+	CONSTANT  shift 50
+	.  error
+
+	expr  goto 51
+
+
+state 39
+	block_statement : '{' . $$2 statement_list '}'  (59)
+	$$2 : .  (8)
+
+	.  reduce 8
+
+	$$2  goto 52
+
+
+state 40
+	decl : decl_specs declarator $$3 block_statement .  (12)
+
+	.  reduce 12
+
+
+41: shift/reduce conflict (shift 18, reduce 28) on '('
+state 41
+	declarator : '*' cv_quals $$4 $$5 . declarator  (33)
+	declarator : .  (28)
+
+	'*'  shift 17
+	'('  [trial] shift 18
+	ID  shift 19
+	'('  [trial] reduce 28
+	'['  reduce 28
+	';'  reduce 28
+	','  reduce 28
+	')'  reduce 28
+	'{'  reduce 28
+
+	declarator  goto 53
+
+
+state 42
+	declarator : '(' $$6 $$7 declarator . ')'  (32)
+	declarator : declarator . '[' $$4 expr ']'  (34)
+	declarator : declarator . '(' $$4 formal_arg_list ')' cv_quals  (35)
+
+	'('  shift 28
+	'['  shift 29
+	')'  shift 54
+	.  error
+
+
+43: shift/reduce conflict (shift 18, reduce 28) on '('
+state 43
+	declarator_list : declarator_list ',' $$4 $$5 . declarator  (26)
+	declarator : .  (28)
+
+	'*'  shift 17
+	'('  [trial] shift 18
+	ID  shift 19
+	'('  [trial] reduce 28
+	'['  reduce 28
+	';'  reduce 28
+	','  reduce 28
+
+	declarator  goto 55
+
+
+state 44
+	nonempty_formal_arg_list : formal_arg .  (39)
+
+	.  reduce 39
+
+
+45: shift/reduce conflict (shift 18, reduce 28) on '('
+45: shift/reduce conflict (shift 19, reduce 8) on ID
+state 45
+	decl_specs : decl_specs . $$2 decl_spec  (14)
+	formal_arg : decl_specs . declarator  (40)
+	$$2 : .  (8)
+	declarator : .  (28)
+
+	'*'  shift 17
+	'('  [trial] shift 18
+	ID  [trial] shift 19
+	'('  [trial] reduce 28
+	'['  reduce 28
+	ID  [trial] reduce 8
+	EXTERN  reduce 8
+	REGISTER  reduce 8
+	STATIC  reduce 8
+	CONST  reduce 8
+	VOLATILE  reduce 8
+	CLCL  reduce 8
+	','  reduce 28
+	')'  reduce 28
+
+	declarator  goto 56
+	$$2  goto 22
+
+
+state 46
+	declarator : declarator '(' $$4 formal_arg_list . ')' cv_quals  (35)
+
+	')'  shift 57
+	.  error
+
+
+state 47
+	formal_arg_list : nonempty_formal_arg_list .  (37)
+	nonempty_formal_arg_list : nonempty_formal_arg_list . ',' $$6 formal_arg  (38)
+
+	','  shift 58
+	')'  reduce 37
+
+
+state 48
+	expr : '*' . $$2 expr  (46)
+	$$2 : .  (8)
+
+	.  reduce 8
+
+	$$2  goto 59
+
+
+state 49
+	expr : ID .  (47)
+
+	.  reduce 47
+
+
+state 50
+	expr : CONSTANT .  (48)
+
+	.  reduce 48
+
+
+state 51
+	declarator : declarator '[' $$4 expr . ']'  (34)
+	expr : expr . '+' $$6 expr  (41)
+	expr : expr . '-' $$6 expr  (42)
+	expr : expr . '*' $$6 expr  (43)
+	expr : expr . '%' $$6 expr  (44)
+	expr : expr . '/' $$6 expr  (45)
+
+	'+'  shift 60
+	'-'  shift 61
+	'*'  shift 62
+	'/'  shift 63
+	'%'  shift 64
+	']'  shift 65
+	.  error
+
+
+state 52
+	block_statement : '{' $$2 . statement_list '}'  (59)
+	statement_list : .  (57)
+
+	.  reduce 57
+
+	statement_list  goto 66
+
+
+state 53
+	declarator : '*' cv_quals $$4 $$5 declarator .  (33)
+	declarator : declarator . '[' $$4 expr ']'  (34)
+	declarator : declarator . '(' $$4 formal_arg_list ')' cv_quals  (35)
+
+	'('  shift 28
+	'['  shift 29
+	';'  reduce 33
+	','  reduce 33
+	')'  reduce 33
+	'{'  reduce 33
+
+
+state 54
+	declarator : '(' $$6 $$7 declarator ')' .  (32)
+
+	.  reduce 32
+
+
+state 55
+	declarator_list : declarator_list ',' $$4 $$5 declarator .  (26)
+	declarator : declarator . '[' $$4 expr ']'  (34)
+	declarator : declarator . '(' $$4 formal_arg_list ')' cv_quals  (35)
+
+	'('  shift 28
+	'['  shift 29
+	';'  reduce 26
+	','  reduce 26
+
+
+state 56
+	declarator : declarator . '[' $$4 expr ']'  (34)
+	declarator : declarator . '(' $$4 formal_arg_list ')' cv_quals  (35)
+	formal_arg : decl_specs declarator .  (40)
+
+	'('  shift 28
+	'['  shift 29
+	','  reduce 40
+	')'  reduce 40
+
+
+state 57
+	declarator : declarator '(' $$4 formal_arg_list ')' . cv_quals  (35)
+	cv_quals : .  (15)
+
+	.  reduce 15
+
+	cv_quals  goto 67
+
+
+state 58
+	nonempty_formal_arg_list : nonempty_formal_arg_list ',' . $$6 formal_arg  (38)
+	$$6 : .  (30)
+
+	.  reduce 30
+
+	$$6  goto 68
+
+
+state 59
+	expr : '*' $$2 . expr  (46)
+
+	'*'  shift 48
+	ID  shift 49
+	CONSTANT  shift 50
+	.  error
+
+	expr  goto 69
+
+
+state 60
+	expr : expr '+' . $$6 expr  (41)
+	$$6 : .  (30)
+
+	.  reduce 30
+
+	$$6  goto 70
+
+
+state 61
+	expr : expr '-' . $$6 expr  (42)
+	$$6 : .  (30)
+
+	.  reduce 30
+
+	$$6  goto 71
+
+
+state 62
+	expr : expr '*' . $$6 expr  (43)
+	$$6 : .  (30)
+
+	.  reduce 30
+
+	$$6  goto 72
+
+
+state 63
+	expr : expr '/' . $$6 expr  (45)
+	$$6 : .  (30)
+
+	.  reduce 30
+
+	$$6  goto 73
+
+
+state 64
+	expr : expr '%' . $$6 expr  (44)
+	$$6 : .  (30)
+
+	.  reduce 30
+
+	$$6  goto 74
+
+
+state 65
+	declarator : declarator '[' $$4 expr ']' .  (34)
+
+	.  reduce 34
+
+
+state 66
+	statement_list : statement_list . $$2 statement  (58)
+	block_statement : '{' $$2 statement_list . '}'  (59)
+	$$2 : .  (8)
+
+	'}'  shift 75
+	'*'  reduce 8
+	ID  reduce 8
+	CONSTANT  reduce 8
+	EXTERN  reduce 8
+	REGISTER  reduce 8
+	STATIC  reduce 8
+	CONST  reduce 8
+	VOLATILE  reduce 8
+	IF  reduce 8
+	CLCL  reduce 8
+	'{'  reduce 8
+
+	$$2  goto 76
+
+
+state 67
+	cv_quals : cv_quals . cv_qual  (16)
+	declarator : declarator '(' $$4 formal_arg_list ')' cv_quals .  (35)
+
+	CONST  shift 8
+	VOLATILE  shift 9
+	'('  reduce 35
+	'['  reduce 35
+	';'  reduce 35
+	','  reduce 35
+	')'  reduce 35
+	'{'  reduce 35
+
+	cv_qual  goto 33
+
+
+state 68
+	nonempty_formal_arg_list : nonempty_formal_arg_list ',' $$6 . formal_arg  (38)
+	opt_scope : .  (1)
+
+	EXTERN  shift 5
+	REGISTER  shift 6
+	STATIC  shift 7
+	CONST  shift 8
+	VOLATILE  shift 9
+	CLCL  shift 10
+	ID  reduce 1
+
+	formal_arg  goto 77
+	decl_specs  goto 45
+	decl_spec  goto 13
+	typename  goto 14
+	cv_qual  goto 15
+	opt_scope  goto 16
+
+
+state 69
+	expr : expr . '+' $$6 expr  (41)
+	expr : expr . '-' $$6 expr  (42)
+	expr : expr . '*' $$6 expr  (43)
+	expr : expr . '%' $$6 expr  (44)
+	expr : expr . '/' $$6 expr  (45)
+	expr : '*' $$2 expr .  (46)
+
+	.  reduce 46
+
+
+state 70
+	expr : expr '+' $$6 . expr  (41)
+
+	'*'  shift 48
+	ID  shift 49
+	CONSTANT  shift 50
+	.  error
+
+	expr  goto 78
+
+
+state 71
+	expr : expr '-' $$6 . expr  (42)
+
+	'*'  shift 48
+	ID  shift 49
+	CONSTANT  shift 50
+	.  error
+
+	expr  goto 79
+
+
+state 72
+	expr : expr '*' $$6 . expr  (43)
+
+	'*'  shift 48
+	ID  shift 49
+	CONSTANT  shift 50
+	.  error
+
+	expr  goto 80
+
+
+state 73
+	expr : expr '/' $$6 . expr  (45)
+
+	'*'  shift 48
+	ID  shift 49
+	CONSTANT  shift 50
+	.  error
+
+	expr  goto 81
+
+
+state 74
+	expr : expr '%' $$6 . expr  (44)
+
+	'*'  shift 48
+	ID  shift 49
+	CONSTANT  shift 50
+	.  error
+
+	expr  goto 82
+
+
+state 75
+	block_statement : '{' $$2 statement_list '}' .  (59)
+
+	.  reduce 59
+
+
+76: shift/reduce conflict (shift 49, reduce 1) on ID
+state 76
+	statement_list : statement_list $$2 . statement  (58)
+	opt_scope : .  (1)
+	$$10 : .  (55)
+
+	'*'  shift 48
+	ID  [trial] shift 49
+	CONSTANT  shift 50
+	EXTERN  shift 5
+	REGISTER  shift 6
+	STATIC  shift 7
+	CONST  shift 8
+	VOLATILE  shift 9
+	IF  shift 83
+	CLCL  shift 10
+	ID  [trial] reduce 1
+	'{'  reduce 55
+
+	expr  goto 84
+	decl  goto 85
+	statement  goto 86
+	decl_specs  goto 12
+	decl_spec  goto 13
+	typename  goto 14
+	cv_qual  goto 15
+	opt_scope  goto 16
+	$$10  goto 87
+
+
+state 77
+	nonempty_formal_arg_list : nonempty_formal_arg_list ',' $$6 formal_arg .  (38)
+
+	.  reduce 38
+
+
+state 78
+	expr : expr . '+' $$6 expr  (41)
+	expr : expr '+' $$6 expr .  (41)
+	expr : expr . '-' $$6 expr  (42)
+	expr : expr . '*' $$6 expr  (43)
+	expr : expr . '%' $$6 expr  (44)
+	expr : expr . '/' $$6 expr  (45)
+
+	'*'  shift 62
+	'/'  shift 63
+	'%'  shift 64
+	'+'  reduce 41
+	'-'  reduce 41
+	';'  reduce 41
+	')'  reduce 41
+	']'  reduce 41
+
+
+state 79
+	expr : expr . '+' $$6 expr  (41)
+	expr : expr . '-' $$6 expr  (42)
+	expr : expr '-' $$6 expr .  (42)
+	expr : expr . '*' $$6 expr  (43)
+	expr : expr . '%' $$6 expr  (44)
+	expr : expr . '/' $$6 expr  (45)
+
+	'*'  shift 62
+	'/'  shift 63
+	'%'  shift 64
+	'+'  reduce 42
+	'-'  reduce 42
+	';'  reduce 42
+	')'  reduce 42
+	']'  reduce 42
+
+
+state 80
+	expr : expr . '+' $$6 expr  (41)
+	expr : expr . '-' $$6 expr  (42)
+	expr : expr . '*' $$6 expr  (43)
+	expr : expr '*' $$6 expr .  (43)
+	expr : expr . '%' $$6 expr  (44)
+	expr : expr . '/' $$6 expr  (45)
+
+	.  reduce 43
+
+
+state 81
+	expr : expr . '+' $$6 expr  (41)
+	expr : expr . '-' $$6 expr  (42)
+	expr : expr . '*' $$6 expr  (43)
+	expr : expr . '%' $$6 expr  (44)
+	expr : expr . '/' $$6 expr  (45)
+	expr : expr '/' $$6 expr .  (45)
+
+	.  reduce 45
+
+
+state 82
+	expr : expr . '+' $$6 expr  (41)
+	expr : expr . '-' $$6 expr  (42)
+	expr : expr . '*' $$6 expr  (43)
+	expr : expr . '%' $$6 expr  (44)
+	expr : expr '%' $$6 expr .  (44)
+	expr : expr . '/' $$6 expr  (45)
+
+	.  reduce 44
+
+
+state 83
+	statement : IF . '(' $$6 expr ')' THEN $$8 statement ELSE $$9 statement  (53)
+	statement : IF . '(' $$6 expr ')' THEN $$8 statement  (54)
+
+	'('  shift 88
+	.  error
+
+
+state 84
+	expr : expr . '+' $$6 expr  (41)
+	expr : expr . '-' $$6 expr  (42)
+	expr : expr . '*' $$6 expr  (43)
+	expr : expr . '%' $$6 expr  (44)
+	expr : expr . '/' $$6 expr  (45)
+	statement : expr . ';'  (50)
+
+	'+'  shift 60
+	'-'  shift 61
+	'*'  shift 62
+	'/'  shift 63
+	'%'  shift 64
+	';'  shift 89
+	.  error
+
+
+state 85
+	statement : decl .  (49)
+
+	.  reduce 49
+
+
+state 86
+	statement_list : statement_list $$2 statement .  (58)
+
+	.  reduce 58
+
+
+state 87
+	statement : $$10 . block_statement  (56)
+
+	'{'  shift 39
+	.  error
+
+	block_statement  goto 90
+
+
+state 88
+	statement : IF '(' . $$6 expr ')' THEN $$8 statement ELSE $$9 statement  (53)
+	statement : IF '(' . $$6 expr ')' THEN $$8 statement  (54)
+	$$6 : .  (30)
+
+	.  reduce 30
+
+	$$6  goto 91
+
+
+state 89
+	statement : expr ';' .  (50)
+
+	.  reduce 50
+
+
+state 90
+	statement : $$10 block_statement .  (56)
+
+	.  reduce 56
+
+
+state 91
+	statement : IF '(' $$6 . expr ')' THEN $$8 statement ELSE $$9 statement  (53)
+	statement : IF '(' $$6 . expr ')' THEN $$8 statement  (54)
+
+	'*'  shift 48
+	ID  shift 49
+	CONSTANT  shift 50
+	.  error
+
+	expr  goto 92
+
+
+state 92
+	expr : expr . '+' $$6 expr  (41)
+	expr : expr . '-' $$6 expr  (42)
+	expr : expr . '*' $$6 expr  (43)
+	expr : expr . '%' $$6 expr  (44)
+	expr : expr . '/' $$6 expr  (45)
+	statement : IF '(' $$6 expr . ')' THEN $$8 statement ELSE $$9 statement  (53)
+	statement : IF '(' $$6 expr . ')' THEN $$8 statement  (54)
+
+	'+'  shift 60
+	'-'  shift 61
+	'*'  shift 62
+	'/'  shift 63
+	'%'  shift 64
+	')'  shift 93
+	.  error
+
+
+state 93
+	statement : IF '(' $$6 expr ')' . THEN $$8 statement ELSE $$9 statement  (53)
+	statement : IF '(' $$6 expr ')' . THEN $$8 statement  (54)
+
+	THEN  shift 94
+	.  error
+
+
+state 94
+	statement : IF '(' $$6 expr ')' THEN . $$8 statement ELSE $$9 statement  (53)
+	statement : IF '(' $$6 expr ')' THEN . $$8 statement  (54)
+	$$8 : .  (51)
+
+	.  reduce 51
+
+	$$8  goto 95
+
+
+95: shift/reduce conflict (shift 49, reduce 1) on ID
+state 95
+	statement : IF '(' $$6 expr ')' THEN $$8 . statement ELSE $$9 statement  (53)
+	statement : IF '(' $$6 expr ')' THEN $$8 . statement  (54)
+	opt_scope : .  (1)
+	$$10 : .  (55)
+
+	'*'  shift 48
+	ID  [trial] shift 49
+	CONSTANT  shift 50
+	EXTERN  shift 5
+	REGISTER  shift 6
+	STATIC  shift 7
+	CONST  shift 8
+	VOLATILE  shift 9
+	IF  shift 83
+	CLCL  shift 10
+	ID  [trial] reduce 1
+	'{'  reduce 55
+
+	expr  goto 84
+	decl  goto 85
+	statement  goto 96
+	decl_specs  goto 12
+	decl_spec  goto 13
+	typename  goto 14
+	cv_qual  goto 15
+	opt_scope  goto 16
+	$$10  goto 87
+
+
+96: shift/reduce conflict (shift 97, reduce 54) on ELSE
+state 96
+	statement : IF '(' $$6 expr ')' THEN $$8 statement . ELSE $$9 statement  (53)
+	statement : IF '(' $$6 expr ')' THEN $$8 statement .  (54)
+
+	ELSE  [trial] shift 97
+	'*'  reduce 54
+	ID  reduce 54
+	CONSTANT  reduce 54
+	EXTERN  reduce 54
+	REGISTER  reduce 54
+	STATIC  reduce 54
+	CONST  reduce 54
+	VOLATILE  reduce 54
+	IF  reduce 54
+	ELSE  [trial] reduce 54
+	CLCL  reduce 54
+	'{'  reduce 54
+	'}'  reduce 54
+
+
+state 97
+	statement : IF '(' $$6 expr ')' THEN $$8 statement ELSE . $$9 statement  (53)
+	$$9 : .  (52)
+
+	.  reduce 52
+
+	$$9  goto 98
+
+
+98: shift/reduce conflict (shift 49, reduce 1) on ID
+state 98
+	statement : IF '(' $$6 expr ')' THEN $$8 statement ELSE $$9 . statement  (53)
+	opt_scope : .  (1)
+	$$10 : .  (55)
+
+	'*'  shift 48
+	ID  [trial] shift 49
+	CONSTANT  shift 50
+	EXTERN  shift 5
+	REGISTER  shift 6
+	STATIC  shift 7
+	CONST  shift 8
+	VOLATILE  shift 9
+	IF  shift 83
+	CLCL  shift 10
+	ID  [trial] reduce 1
+	'{'  reduce 55
+
+	expr  goto 84
+	decl  goto 85
+	statement  goto 99
+	decl_specs  goto 12
+	decl_spec  goto 13
+	typename  goto 14
+	cv_qual  goto 15
+	opt_scope  goto 16
+	$$10  goto 87
+
+
+state 99
+	statement : IF '(' $$6 expr ')' THEN $$8 statement ELSE $$9 statement .  (53)
+
+	.  reduce 53
+
+
+State 12 contains 2 shift/reduce conflicts.
+State 23 contains 1 shift/reduce conflict.
+State 35 contains 1 shift/reduce conflict.
+State 41 contains 1 shift/reduce conflict.
+State 43 contains 1 shift/reduce conflict.
+State 45 contains 2 shift/reduce conflicts.
+State 76 contains 1 shift/reduce conflict.
+State 95 contains 1 shift/reduce conflict.
+State 96 contains 1 shift/reduce conflict.
+State 98 contains 1 shift/reduce conflict.
+
+
+29 terminals, 29 nonterminals
+60 grammar rules, 100 states
+
+grammar parser grammar
+symbol# value# symbol
+     0      0  $end
+     1    256  error
+     2     43  '+'
+     3     45  '-'
+     4     42  '*'
+     5     47  '/'
+     6     37  '%'
+     7    257  PREFIX
+     8    258  POSTFIX
+     9     40  '('
+    10     91  '['
+    11     46  '.'
+    12    259  ID
+    13    260  CONSTANT
+    14    261  EXTERN
+    15    262  REGISTER
+    16    263  STATIC
+    17    264  CONST
+    18    265  VOLATILE
+    19    266  IF
+    20    267  THEN
+    21    268  ELSE
+    22    269  CLCL
+    23     59  ';'
+    24     44  ','
+    25     41  ')'
+    26     93  ']'
+    27    123  '{'
+    28    125  '}'
+    29    270  $accept
+    30    271  input
+    31    272  expr
+    32    273  decl
+    33    274  declarator_list
+    34    275  decl_list
+    35    276  statement
+    36    277  statement_list
+    37    278  block_statement
+    38    279  declarator
+    39    280  formal_arg
+    40    281  decl_specs
+    41    282  decl_spec
+    42    283  typename
+    43    284  cv_quals
+    44    285  cv_qual
+    45    286  opt_scope
+    46    287  formal_arg_list
+    47    288  nonempty_formal_arg_list
+    48    289  $$1
+    49    290  $$2
+    50    291  $$3
+    51    292  $$4
+    52    293  $$5
+    53    294  $$6
+    54    295  $$7
+    55    296  $$8
+    56    297  $$9
+    57    298  $$10

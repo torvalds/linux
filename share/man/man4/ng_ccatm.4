@@ -1,0 +1,323 @@
+.\"
+.\" Copyright (c) 2001-2004
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\"	All rights reserved.
+.\" Copyright (c) 2005
+.\"	Hartmut Brandt.
+.\"	All rights reserved.
+.\"
+.\" Author: Harti Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 10, 2005
+.Dt NG_CCATM 4
+.Os
+.Sh NAME
+.Nm ng_ccatm
+.Nd "ATM Call Control netgraph node type"
+.Sh SYNOPSIS
+.In netnatm/unimsg.h
+.In netnatm/msg/unistruct.h
+.In netnatm/sig/unidef.h
+.In netnatm/api/unisap.h
+.In netnatm/api/atmapi.h
+.In netnatm/api/ccatm.h
+.In netgraph.h
+.In netgraph/ng_uni.h
+.In netgraph/ng_ccatm.h
+.Sh DESCRIPTION
+The
+.Nm
+node implements the API specified by the ATM Forum for access to ATM services
+(see ATM-Forum document
+.Pa af-saa-0108 ) .
+This document specifies the semantics
+of the API, not the exact language binding.
+For this reason, it is expected that
+this implementation is neither compile-time nor binary compatible with
+other implementations of this API.
+It should, however, be fairly straightforward
+to convert between different API implementations.
+.Pp
+This node is usually stacked on top of one or more UNI nodes (see
+.Xr ng_uni 4 ) .
+Each of these hooks appears as a
+.Dq port
+to the user of the node.
+It also has one hook connected to the ILMI daemon for management purposes.
+.Pp
+The node is removed when it receives a
+.Dv NGM_SHUTDOWN
+messages or when all hooks are disconnected.
+.Sh HOOKS
+The node understands a number of hooks with predefined names and an
+unlimited number of hooks for user connections.
+The predefined names are:
+.Bl -tag -width ".Va orphans"
+.It Va uni Ns Ar NNN
+These hooks stack the
+.Nm
+node on top of a UNI stack.
+The node expects the interface on these hooks
+to conform to the upper interface specified in
+.Xr ng_uni 4 .
+These hooks are forced into queuing mode, so that there are no circular
+calls from call control to UNI and UNI back to call control.
+The
+.Ar NNN
+in the hook name is the decimal port number and should not be zero.
+The port number is a 32-bit unsigned integer.
+.It Va manage
+This hook should be connected to the ILMI daemon.
+No data is ever sent on this hook and all received data is discarded.
+The hook is used to send control messages along.
+.It Va dump
+On receipt of a
+.Dv NGM_CCATM_DUMP
+command a textual description of the current state of the node is sent
+out of this hook.
+This text is sent as one large message consisting of more
+than one
+.Vt mbuf .
+.El
+.Pp
+All other hook names are taken to be user hooks and correspond to an
+ATM endpoint as specified in the ATM Forum document.
+The interface on these hooks is defined in
+.In atmapi.h
+and uses a structure
+.Bd -literal
+struct ccatm_op {
+	uint32_t	op;	/* request code */
+	u_char		data[];	/* optional data */
+};
+.Ed
+.Pp
+This structure is followed directly by the data for the operation.
+The opcode is one of the following:
+.Bd -literal
+enum atmop {
+	ATMOP_RESP,
+	ATMOP_ABORT_CONNECTION,
+	ATMOP_ACCEPT_INCOMING_CALL,
+	ATMOP_ADD_PARTY,
+	ATMOP_ADD_PARTY_REJECT,
+	ATMOP_ADD_PARTY_SUCCESS,
+	ATMOP_ARRIVAL_OF_INCOMING_CALL,
+	ATMOP_CALL_RELEASE,
+	ATMOP_CONNECT_OUTGOING_CALL,
+	ATMOP_DROP_PARTY,
+	ATMOP_GET_LOCAL_PORT_INFO,
+	ATMOP_P2MP_CALL_ACTIVE,
+	ATMOP_P2P_CALL_ACTIVE,
+	ATMOP_PREPARE_INCOMING_CALL,
+	ATMOP_PREPARE_OUTGOING_CALL,
+	ATMOP_QUERY_CONNECTION_ATTRIBUTES,
+	ATMOP_REJECT_INCOMING_CALL,
+	ATMOP_SET_CONNECTION_ATTRIBUTES,
+	ATMOP_WAIT_ON_INCOMING_CALL,
+	ATMOP_SET_CONNECTION_ATTRIBUTES_X,
+	ATMOP_QUERY_CONNECTION_ATTRIBUTES_X,
+	ATMOP_QUERY_STATE
+};
+.Ed
+.Pp
+These codes correspond directly to the operations specified in the ATM
+Forum document with the following exceptions:
+.Bl -tag -width foo
+.It Dv ATMOP_RESP
+As discussed in
+.Xr ng_uni 4 ,
+this is used to
+.Dq synchronify
+the interface.
+The argument is a
+.Bd -literal
+struct atm_resp {
+	int32_t		resp;
+	uint32_t	data;		/* type of attached data */
+};
+.Ed
+.Pp
+If the response code
+.Va resp
+is zero, the node has accepted the user request.
+If something goes wrong,
+.Va resp
+contains an error code.
+For requests that return data,
+.Va data
+contains a code describing the type of data and the data itself
+starts immediately after the structure.
+.It Dv ATMOP_QUERY_CONNECTION_ATTRIBUTES_X
+This is the same as
+.Dv ATMOP_QUERY_CONNECTION_ATTRIBUTES
+except that it allows to query several attributes
+within one request.
+.It Dv ATMOP_SET_CONNECTION_ATTRIBUTES_X
+This is the same as
+.Dv ATMOP_SET_CONNECTION_ATTRIBUTES
+except that it allows to set several attributes
+within one request.
+The list of attributes is followed directly by the attributes in the same
+order as they appear in the list.
+.El
+.Pp
+If a user hook is disconnected, an active connection on that hook is released.
+Incoming connections waiting to be accepted are reoffered to other
+listening hooks or rejected.
+.Sh CONTROL MESSAGES
+Besides the generic messages the node understands the following special
+messages:
+.Bl -tag -width foo
+.It Dv NGM_CCATM_DUMP Pq Ic dump
+This causes the internal state of the node to be dumped in ASCII to the
+.Va dump
+hook.
+.It Dv NGM_CCATM_STOP Pq Ic stop
+This message causes all connections on that port to be aborted (not released!\&)
+and all ATM endpoints which are bound to that port to be closed.
+It stops processing of all messages from the UNI stack on that port UNI stack.
+The argument is a
+.Bd -literal
+struct ngm_ccatm_port {
+	uint32_t	port;
+};
+.Ed
+.It Dv NGM_CCATM_START Pq Ic start
+Start processing on the port.
+The argument is a
+.Vt ngm_ccatm_port
+structure.
+.It Dv NGM_CCATM_CLEAR Pq Ic clear
+This message takes a
+.Vt ngm_ccatm_port
+structure and clears all prefixes and addresses on that port.
+If the port number is zero, all ports are cleared.
+.It Dv NGM_CCATM_GET_ADDRESSES Pq Ic get_addresses
+Get the list of all registered addresses on the given port.
+The argument is a
+.Vt ngm_ccatm_port
+structure and the result is a
+.Vt ngm_ccatm_get_addresses
+structure:
+.Bd -literal
+struct ngm_ccatm_get_addresses {
+	uint32_t	count;
+	struct ngm_ccatm_address_req addr[0];
+};
+struct ngm_ccatm_address_req {
+	uint32_t	port;
+	struct uni_addr	addr;
+};
+.Ed
+.Pp
+If the
+.Va port
+field is zero in the request, all addresses on all ports
+are returned.
+If it is not zero, only the addresses on that port are reported.
+The number of addresses is returned in the
+.Va count
+field.
+.It Dv NGM_CCATM_ADDRESS_REGISTERED Pq Ic address_reg
+This message is used by ILMI to inform the
+.Nm
+node that a previous address registration request was successful.
+This causes the node to activate that address.
+The argument to the message is a
+.Vt ngm_ccatm_address_req
+structure.
+.It Dv NGM_CCATM_ADDRESS_UNREGISTERED Pq Ic address_unreg
+This message is used by ILMI to inform the
+.Nm
+node that an address has been unregistered.
+The node clears that address from its tables.
+The argument is a
+.Vt ngm_ccatm_address_req
+structure.
+.It Dv NGM_CCATM_SET_PORT_PARAM Pq Ic set_port_param
+This request sets the parameters on the given port.
+The argument is a
+.Bd -literal
+struct ngm_ccatm_atm_port {
+	uint32_t port;		/* port for which to set parameters */
+	uint32_t pcr;		/* port peak cell rate */
+	uint32_t max_vpi_bits;
+	uint32_t max_vci_bits;
+	uint32_t max_svpc_vpi;
+	uint32_t max_svcc_vpi;
+	uint32_t min_svcc_vci;
+	uint8_t	 esi[6];
+	uint32_t num_addr;
+};
+.Ed
+.Pp
+This should be used only by ILMI and when that port is stopped and the
+address and prefix tables of that port are empty.
+The
+.Va num_addr
+field is ignored.
+.It Dv NGM_CCATM_GET_PORT_PARAM Pq Ic get_port_param
+Retrieve the parameters of the given port.
+The argument is a
+.Vt ngm_ccatm_port
+and the result a
+.Vt ngm_ccatm_atm_port .
+.It Dv NGM_CCATM_GET_PORTLIST Pq Ic get_portlist
+Get a list of all available ports on that node.
+This is returned as a
+.Bd -literal
+struct ngm_ccatm_portlist {
+	uint32_t	nports;
+	uint32_t	ports[];
+};
+.Ed
+.It Dv NGM_CCATM_GETSTATE Pq Ic getstate
+Return the state of a port.
+The argument is a
+.Vt "struct ngm_ccatm_port"
+and the return values as a
+.Vt uint32_t .
+.It Dv NGM_CCATM_SETLOG Pq Ic setlog
+This requests sets a new logging level and returns the previous one.
+The argument is either a
+.Vt uint32_t
+in which case it specifies the new logging level, or may be empty
+in which case just the old level is returned as a
+.Vt uint32_t .
+.It Dv NGM_CCATM_RESET Pq Ic reset
+Reset the node.
+This is allowed only if the number of user hooks and connected UNI stacks is
+zero.
+.It Dv NGM_CCATM_GET_EXSTAT
+Return extended status information from the node.
+.El
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_uni 4 ,
+.Xr ngctl 8
+.Sh AUTHORS
+.An Harti Brandt Aq Mt harti@FreeBSD.org

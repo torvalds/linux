@@ -1,0 +1,217 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)script.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd December 4, 2013
+.Dt SCRIPT 1
+.Os
+.Sh NAME
+.Nm script
+.Nd make typescript of terminal session
+.Sh SYNOPSIS
+.Nm
+.Op Fl adfkpqr
+.Op Fl F Ar pipe
+.Op Fl t Ar time
+.Op Ar file Op Ar command ...
+.Sh DESCRIPTION
+The
+.Nm
+utility makes a typescript of everything printed on your terminal.
+It is useful for students who need a hardcopy record of an interactive
+session as proof of an assignment, as the typescript file
+can be printed out later with
+.Xr lpr 1 .
+.Pp
+If the argument
+.Ar file
+is given,
+.Nm
+saves all dialogue in
+.Ar file .
+If no file name is given, the typescript is saved in the file
+.Pa typescript .
+.Pp
+If the argument
+.Ar command
+is given,
+.Nm
+will run the specified command with an optional argument vector
+instead of an interactive shell.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
+Append the output to
+.Ar file
+or
+.Pa typescript ,
+retaining the prior contents.
+.It Fl d
+When playing back a session with the
+.Fl p
+flag, do not sleep between records when playing back a timestamped session.
+.It Fl F Ar pipe
+Immediately flush output after each write.
+This will allow a user to create a named pipe using
+.Xr mkfifo 1
+and another user may watch the live session using a utility like
+.Xr cat 1 .
+.It Fl f
+Create
+.Ar file.filemon
+or
+.Pa typescript.filemon
+using
+.Xr filemon 4 .
+.It Fl k
+Log keys sent to the program as well as output.
+.It Fl p
+Play back a session recorded with the
+.Fl r
+flag in real time.
+.It Fl q
+Run in quiet mode, omit the start, stop and command status messages.
+.It Fl r
+Record a session with input, output, and timestamping.
+.It Fl t Ar time
+Specify the interval at which the script output file will be flushed
+to disk, in seconds.
+A value of 0
+causes
+.Nm
+to flush after every character I/O event.
+The default interval is
+30 seconds.
+.El
+.Pp
+The script ends when the forked shell (or command) exits (a
+.Em control-D
+to exit
+the Bourne shell
+.Pf ( Xr sh 1 ) ,
+and
+.Em exit ,
+.Em logout
+or
+.Em control-D
+(if
+.Em ignoreeof
+is not set) for the
+C-shell,
+.Xr csh 1 ) .
+.Pp
+Certain interactive commands, such as
+.Xr vi 1 ,
+create garbage in the typescript file.
+The
+.Nm
+utility works best with commands that do not manipulate the screen.
+The results are meant to emulate a hardcopy terminal, not an addressable one.
+.Sh ENVIRONMENT
+The following environment variables are utilized by
+.Nm :
+.Bl -tag -width SHELL
+.It Ev SCRIPT
+The
+.Ev SCRIPT
+environment variable is added to the sub-shell.
+If
+.Ev SCRIPT
+already existed in the users environment,
+its value is overwritten within the sub-shell.
+The value of
+.Ev SCRIPT
+is the name of the
+.Ar typescript
+file.
+.It Ev SHELL
+If the variable
+.Ev SHELL
+exists, the shell forked by
+.Nm
+will be that shell.
+If
+.Ev SHELL
+is not set, the Bourne shell
+is assumed.
+.Pq Most shells set this variable automatically .
+.El
+.Sh SEE ALSO
+.Xr csh 1
+.Po
+for the
+.Em history
+mechanism
+.Pc ,
+.Xr filemon 4
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 3.0 .
+.Pp
+The
+.Fl d ,
+.Fl p
+and
+.Fl r
+options first appeared in
+.Nx 2.0
+and were ported to
+.Fx 9.2 .
+.Sh BUGS
+The
+.Nm
+utility places
+.Sy everything
+in the log file, including linefeeds and backspaces.
+This is not what the naive user expects.
+.Pp
+It is not possible to specify a command without also naming the script file
+because of argument parsing compatibility issues.
+.Pp
+When running in
+.Fl k
+mode, echo cancelling is far from ideal.
+The slave terminal mode is checked
+for ECHO mode to check when to avoid manual echo logging.
+This does not
+work when the terminal is in a raw mode where
+the program being run is doing manual echo.
+.Pp
+If
+.Nm
+reads zero bytes from the terminal, it switches to a mode when it
+only attempts to read
+once a second until there is data to read.
+This prevents
+.Nm
+from spinning on zero-byte reads, but might cause a 1-second delay in
+processing of user input.

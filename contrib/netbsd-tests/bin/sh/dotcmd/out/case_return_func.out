@@ -1,0 +1,7 @@
+before case
+before dotcmd
+before function
+before return
+after function
+after dotcmd, return value: 0
+after case

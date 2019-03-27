@@ -1,0 +1,34 @@
+-- $Id$ --
+
+CANTHANDLE DEFINITIONS ::= BEGIN
+
+-- Code the tag [1] but not the [ CONTEXT CONS UT_Sequence ] for Kaka2
+-- Workaround: use inline the structure directly
+-- Code the tag [2] but it should be primitive since KAKA3 is
+-- Workaround: use the INTEGER type directly
+
+Kaka2  ::= SEQUENCE {
+        kaka2-1 [0] INTEGER
+}
+
+Kaka3  ::= INTEGER
+
+Foo ::= SEQUENCE {
+        kaka1 [0] IMPLICIT INTEGER OPTIONAL,
+        kaka2 [1] IMPLICIT Kaka2 OPTIONAL,
+        kaka3 [2] IMPLICIT Kaka3 OPTIONAL
+}
+
+-- Don't code kaka if it's 1
+-- Workaround is to use OPTIONAL and check for in the encoder stubs
+
+Bar ::= SEQUENCE {
+        kaka [0] INTEGER DEFAULT 1
+}
+
+--  Can't handle primitives in SET OF
+--  Workaround is to define a type that is only an integer and use that
+
+Baz ::= SET OF INTEGER
+
+END

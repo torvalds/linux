@@ -1,0 +1,160 @@
+.\"
+.\" Copyright (c) 2008-2009 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed at the University of Cambridge Computer
+.\" Laboratory with support from a grant from Google, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 23, 2017
+.Dt CAP_ENTER 2
+.Os
+.Sh NAME
+.Nm cap_enter ,
+.Nm cap_getmode
+.Nd Capability mode system calls
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/capsicum.h
+.Ft int
+.Fn cap_enter "void"
+.Ft int
+.Fn cap_getmode "u_int *modep"
+.Sh DESCRIPTION
+.Fn cap_enter
+places the current process into capability mode, a mode of execution in which
+processes may only issue system calls operating on file descriptors or
+reading limited global system state.
+Access to global name spaces, such as file system or IPC name spaces, is
+prevented.
+If the process is already in a capability mode sandbox, the system call is a
+no-op.
+Future process descendants created with
+.Xr fork 2
+or
+.Xr pdfork 2
+will be placed in capability mode from inception.
+.Pp
+When combined with
+.Xr cap_rights_limit 2 ,
+.Xr cap_ioctls_limit 2 ,
+.Xr cap_fcntls_limit 2 ,
+.Fn cap_enter
+may be used to create kernel-enforced sandboxes in which
+appropriately-crafted applications or application components may be run.
+.Pp
+.Fn cap_getmode
+returns a flag indicating whether or not the process is in a capability mode
+sandbox.
+.Sh RUN-TIME SETTINGS
+If the
+.Dv kern.trap_enotcap
+sysctl MIB is set to a non-zero value, then for any process executing in a
+capability mode sandbox, any syscall which results in either an
+.Er ENOTCAPABLE
+or
+.Er ECAPMODE
+error also generates the synchronous
+.Dv SIGTRAP
+signal to the thread on the syscall return.
+On signal delivery, the
+.Va si_errno
+member of the
+.Fa siginfo
+signal handler parameter is set to the syscall error value,
+and the
+.Va si_code
+member is set to
+.Dv TRAP_CAP .
+.Pp
+See also the
+.Dv PROC_TRAPCAP_CTL
+and
+.Dv PROC_TRAPCAP_STATUS
+operations of the
+.Xr procctl 2
+function for similar per-process functionality.
+.Sh CAVEAT
+Creating effective process sandboxes is a tricky process that involves
+identifying the least possible rights required by the process and then
+passing those rights into the process in a safe manner.
+Consumers of
+.Fn cap_enter
+should also be aware of other inherited rights, such as access to VM
+resources, memory contents, and other process properties that should be
+considered.
+It is advisable to use
+.Xr fexecve 2
+to create a runtime environment inside the sandbox that has as few implicitly
+acquired rights as possible.
+.Sh RETURN VALUES
+.Rv -std cap_enter cap_getmode
+.Pp
+When the process is in capability mode,
+.Fn cap_getmode
+sets the flag to a non-zero value.
+A zero value means the process is not in capability mode.
+.Sh ERRORS
+The
+.Fn cap_enter
+and
+.Fn cap_getmode
+system calls
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOSYS
+The kernel is compiled without:
+.Pp
+.Cd "options CAPABILITY_MODE"
+.El
+.Pp
+The
+.Fn cap_getmode
+system call may also return the following error:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+Pointer
+.Fa modep
+points outside the process's allocated address space.
+.El
+.Sh SEE ALSO
+.Xr cap_fcntls_limit 2 ,
+.Xr cap_ioctls_limit 2 ,
+.Xr cap_rights_limit 2 ,
+.Xr fexecve 2 ,
+.Xr procctl 2 ,
+.Xr cap_sandboxed 3 ,
+.Xr capsicum 4 ,
+.Xr sysctl 9
+.Sh HISTORY
+Support for capabilities and capabilities mode was developed as part of the
+.Tn TrustedBSD
+Project.
+.Sh AUTHORS
+These functions and the capability facility were created by
+.An "Robert N. M. Watson"
+at the University of Cambridge Computer Laboratory with support from a grant
+from Google, Inc.

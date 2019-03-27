@@ -1,0 +1,181 @@
+.\" Copyright (c) 2003 Matthew N. Dodd <winter@jurai.net>
+.\" Copyright (c) 2013 Dag-Erling Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 16, 2013
+.Dt LIBMAP.CONF 5
+.Os
+.Sh NAME
+.Nm libmap.conf
+.Nd "configuration file for dynamic object dependency mapping"
+.Sh DESCRIPTION
+The
+.Nm libmap
+functionality of
+.Xr ld-elf.so.1 1
+allows dynamic object dependencies to be mapped to arbitrary names.
+.Pp
+Each line in
+.Pa /etc/libmap.conf
+can have one of five forms:
+.Bl -tag -width indent
+.It Ar origin Ar target
+Whenever a dependency on
+.Ar origin
+is encountered while loading a dynamic object, use
+.Ar target
+instead of searching for
+.Ar origin
+in the normal library search paths.
+.It Ar path1 Ar path2
+When iterating through a library search path, replace any element that
+matches
+.Ar path1
+exactly with
+.Ar path2 .
+.It Bq Ar constraint
+Apply
+.Ar constraint
+to all subsequent mappings until the next constraint line or the end
+of the file.
+See the
+.Sx Constraints
+section for details.
+.It Cm include Ar file
+Parse the contents of
+.Ar file
+before continuing with the current file.
+Nesting depth is limited only by available memory, but each file
+encountered is processed only once, and loops are silently ignored.
+.It Cm includedir Ar dir
+Recurse through
+.Ar dir
+and parse the contents of any file that ends in
+.Pa .conf
+before continuing with the current file.
+Nesting depth is limited only by available memory, but each directory
+or file encountered is processed only once, and loops are silently
+ignored.
+.El
+.Ss Constraints
+Constrained mappings only apply when processing binaries or libraries
+that satisfy the constraint.
+There are three types of constraints:
+.Bl -tag -width indent
+.It Exact
+The constraint is matched literally so that only an executable with an
+identical fully qualified pathname will satisfy the constraint.
+This means that the executable
+.Pa /usr/bin/foo
+will not satisfy the constraint
+.Bq Pa /usr/bin/./foo ,
+and vice-versa.
+This is the default constraint type.
+.It Basename
+A constraint with no path is matched against the basename of the
+executable.
+For instance, the constraint
+.Bq Pa foo
+will match
+.Pa /bin/foo ,
+.Pa /usr/local/sbin/foo ,
+or any other executable named
+.Pa foo ,
+no matter what directory it is in.
+.It Directory
+A constraint with a trailing slash is satisfied if the full pathname
+begins with the constraint string.
+For instance, the constraint
+.Bq Pa /usr/bin/
+will match any executable with a path starting with
+.Pa /usr/bin/ .
+.El
+.Pp
+Note that the constraints are matched against the path that was passed
+as the first argument to whichever
+.Xr exec 3
+function was used to execute the binary in question.
+Most programs executed from a shell are run without a full path, via
+.Xr execvp 3
+or similar, so the basename constraint type is the most useful.
+.Pp
+.Bf -symbolic
+WARNING!
+Constraints apply to all mappings until the next constraint or the end
+of the file.
+Hence, unconstrained mappings must be placed at the top of the file.
+.Ef
+.Ss ABI compatibility
+On 64-bit architectures that provide 32-bit binary compatibility, the
+mappings in
+.Pa /etc/libmap.conf
+apply only to 64-bit binaries.
+Mappings for 32-bit binaries must be placed in
+.Pa /etc/libmap32.conf .
+.Sh FILES
+.Bl -tag -width ".Pa /etc/libmap32.conf" -compact
+.It Pa /etc/libmap.conf
+The libmap configuration file.
+.It Pa /etc/libmap32.conf
+The libmap configuration file for 32-bit binaries on 64-bit system.
+.El
+.Sh EXAMPLES
+.Bd -literal
+#
+# origin		target
+#
+libc_r.so.6		libpthread.so.2	# Everything that uses 'libc_r'
+libc_r.so		libpthread.so	# now uses 'libpthread'
+
+[/tmp/mplayer]		# Test version of mplayer uses libc_r
+libpthread.so.2		libc_r.so.6
+libpthread.so		libc_r.so
+
+[/usr/local/jdk1.4.1/]	# All Java 1.4.1 programs use libthr
+			# This works because "javavms" executes
+			# programs with the full pathname
+libpthread.so.2		libthr.so.2
+libpthread.so		libthr.so
+
+# Glue for Linux-only EPSON printer .so to be loaded into cups, etc.
+[/usr/local/lib/pips/libsc80c.so]
+libc.so.6		pluginwrapper/pips.so
+libdl.so.2		pluginwrapper/pips.so
+.Ed
+.Sh SEE ALSO
+.Xr ldd 1 ,
+.Xr rtld 1
+.Sh HISTORY
+The
+.Nm libmap
+mechanism first appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Matthew N. Dodd Aq Mt winter@jurai.net
+and extensively rewritten by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

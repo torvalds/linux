@@ -1,0 +1,5 @@
+rdr zx0 10.1.1.1/32 port 23 -> 10.2.2.1 port 10023 tcp
+rdr zx0 from any to 10.1.1.0/24 port = 23 -> 10.2.2.1 port 10023 tcp
+rdr zx0 from 10.2.0.0/16 to 10.1.1.0/24 port = 23 -> 10.2.2.1 port 10023 tcp
+rdr zx0 from 10.3.0.0/16 to 10.1.0.0/16 port = 23 -> 10.2.2.1 port 10023 tcp
+rdr zx0 ! from 10.2.0.0/16 to 10.1.1.0/24 port = 53 -> 10.2.2.1 port 10053 udp

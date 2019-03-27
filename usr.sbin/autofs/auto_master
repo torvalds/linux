@@ -1,0 +1,9 @@
+# $FreeBSD$
+#
+# Automounter master map, see auto_master(5) for details.
+#
+/net		-hosts		-nobrowse,nosuid,intr
+# When using the -media special map, make sure to edit devd.conf(5)
+# to move the call to "automount -c" out of the comments section.
+#/media		-media		-nosuid,noatime,autoro
+#/-		-noauto

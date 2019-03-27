@@ -1,0 +1,105 @@
+--------- Drill now is a subdirectory in ldns. To make life easier 
+--------- we are using ldns' version numbering for drill from now on. 
+--------- Sadly this means we GO BACKWARDS in the versions
+--------- This ChangeLog will not be updated anymore - all changes are
+--------- documented in ldns' ChangeLog
+
+1.0-pre3: to be released: drill-team
+	* Secure tracing works
+	* Added section about DNSSEC in the manual page
+	* Allow the class information to be given to do_chase()
+	* Lint fixes for the code
+	* Bugzilla was setup for drill
+	* Bug #97 (drill); -S crash was fixed
+	* Add -Q (quiet) flag was added. This supresses output from drill.
+
+1.0-pre2: 20 Jun 2005: drill-team
+	* Second prerelease
+	* Bugs where fix in the chasing functionality
+
+1.0-pre1: 1 Jun 2005: drill-team
+	* First drill release based on ldns
+	* drill's core code is not much more simple, as
+	  all the difficult stuff is moved to ldns.
+	* Much saner argument parsing
+
+---------- Above Newer drill based on ldns              --------------
+---------- Below Older drill with it's own DNS handling --------------
+
+0.9.2: Feb 3 2005: drill-team
+	* Added two more options (borrowed from dig)
+	  --rd, don't set the RD bit in queries
+	  --fail, don't query the next nameserver on SERVFAIL
+	* Fixed handling of obscure data types
+	* Handle classes other the 'IN' when making a query
+
+	* For people using FreeBSD: drill is now in the ports
+	  (Thanks to Jaap Akkerhuis)
+
+0.9.1: Jan 5 2005: drill-team
+	* Makefile tweaks
+	* drill ns . works
+	* re-check the root in when tracing
+	* added handling for some lesser known types (including WKS)
+
+0.9: Dec 6 2004: drill-team
+	* big configure.ac and Makefile.in updates (made more general)
+	* escapes in names argument and txt and dname data
+	* gcc 2(.95) support
+	* packet wire data is now checked for dangerous elements (like
+	  looping compression etc)
+	* (Multiple) Octal char representation
+	* Responses can be saved to file
+	* 'Answers' can be read from file instead of server
+	* Lots and lots of bugfixes and improvements
+
+0.8.1: Oct 27 2004: Miek
+	* configure.ac updates
+	* secure resolving updates (still doesn't work)
+	* printing additions
+	  - CERT RR supported
+	  - LOC RR support
+	* All non supported RRs are handled as unknown
+	* If no namservers found in /etc/resolv.conf 
+	  default to 127.0.0.1
+	* Various bugs fixed
+	  - Close sockets after using them
+	  - Some memory leaks were plugged
+
+0.8: Oct 26 2004: Miek
+	* Lots of features added. Drill is almost feature complete
+	* Unknown RR's are supported
+	* Numerous smaller updates in documentation
+	* Numerous code cleanups
+	* Dig is no longer needed to build drill
+
+0.7: Oct 21 2004: Miek
+	* reworked interal code
+	* DNSSEC is working, except the secure resolving
+	* build updates
+	* more sane options parsing
+	* more sane argument handling
+
+0.6-alpha: Oct 2004: Jelte
+	* No log
+
+0.5-alpha: Sept 22 2004: Miek
+	* most of the DNS stuff is working
+	* moved to configure
+	* tested on Linux/FreeBSD
+	* fully IPV6 capable
+	* new DNSSEC types supported
+	* DNSSEC somewhat working
+	* gcc => 3 is needed for building
+
+0.4-alpha: Sept 9 2004: Miek 
+	* moved to autoconf for building
+	* lots of various updates
+	* really a workable program now
+
+0.3-alpha: Sept 6 2004: Miek 
+	* IPv6 support
+	* automatic secure resolving
+	* --trace updates
+	* --chase updates
+	* more checks

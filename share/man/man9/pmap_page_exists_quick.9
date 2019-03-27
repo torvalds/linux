@@ -1,0 +1,66 @@
+.\"
+.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 21, 2003
+.Dt PMAP_PAGE_EXISTS_QUICK 9
+.Os
+.Sh NAME
+.Nm pmap_page_exists_quick
+.Nd determine if a page exists in a physical map
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/pmap.h
+.Ft boolean_t
+.Fn pmap_page_exists_quick "pmap_t pmap" "vm_page_t m"
+.Sh DESCRIPTION
+The
+.Fn pmap_page_exists_quick
+function is used to quickly determine if the page
+.Fa m
+exists in the physical map
+.Fa pmap .
+It is typically called from the VM paging code.
+.Sh IMPLEMENTATION NOTES
+The PV count used above may be changed upwards or downwards in future;
+it is only necessary that
+.Dv TRUE
+be returned for a small subset of pmaps for proper page aging.
+.Sh RETURN VALUES
+The
+.Fn pmap_page_exists_quick
+returns
+.Dv TRUE
+only if the PV entry for the physical map
+.Fa pmap
+is one of the first 16 PVs linked from the page
+.Fa m .
+.Sh SEE ALSO
+.Xr pmap 9
+.Sh AUTHORS
+This manual page was written by
+.An Bruce M Simpson Aq Mt bms@spc.org .

@@ -1,0 +1,323 @@
+# Copyright (c) 2008, 2009 Edward Tomasz Napierała <trasz@FreeBSD.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# This is a tools-level test intended to verify that cp(1) and mv(1)
+# do the right thing with respect to ACLs.  Run it as root using
+# ACL-enabled kernel:
+#
+# /usr/src/tools/regression/acltools/run /usr/src/tools/regression/acltools/tools-nfs4.test
+#
+# You need to have three subdirectories, named nfs4, posix and none,
+# with filesystems with NFSv4 ACLs, POSIX.1e ACLs and no ACLs enabled,
+# respectively, mounted on them, in your current directory.
+#
+# WARNING: Creates files in unsafe way.
+
+$ whoami
+> root
+$ umask 022
+
+$ touch nfs4/xxx
+$ getfacl -nq nfs4/xxx
+>             owner@:rw-p--aARWcCos:-------:allow
+>             group@:r-----a-R-c--s:-------:allow
+>          everyone@:r-----a-R-c--s:-------:allow
+
+$ touch posix/xxx
+$ getfacl -nq posix/xxx
+> user::rw-
+> group::r--
+> other::r--
+
+# mv with POSIX.1e ACLs.
+$ rm -f posix/xxx
+$ rm -f posix/yyy
+$ touch posix/xxx
+$ chmod 456 posix/xxx
+$ ls -l posix/xxx | cut -d' ' -f1
+> -r--r-xrw-
+$ setfacl -m u:42:x,g:43:w posix/xxx
+$ mv posix/xxx posix/yyy
+$ getfacl -nq posix/yyy
+> user::r--
+> user:42:--x
+> group::r-x
+> group:43:-w-
+> mask::rwx
+> other::rw-
+$ ls -l posix/yyy | cut -d' ' -f1
+> -r--rwxrw-+
+
+# mv from POSIX.1e to none.
+$ rm -f posix/xxx
+$ rm -f none/xxx
+$ touch posix/xxx
+$ chmod 345 posix/xxx
+$ setfacl -m u:42:x,g:43:w posix/xxx
+$ ls -l posix/xxx | cut -d' ' -f1
+> --wxrwxr-x+
+$ mv posix/xxx none/xxx
+> mv: failed to set acl entries for none/xxx: Operation not supported
+$ ls -l none/xxx | cut -d' ' -f1
+> --wxrwxr-x
+
+# mv from POSIX.1e to NFSv4.
+$ rm -f posix/xxx
+$ rm -f nfs4/xxx
+$ touch posix/xxx
+$ chmod 456 posix/xxx
+$ setfacl -m u:42:x,g:43:w posix/xxx
+$ ls -l posix/xxx | cut -d' ' -f1
+> -r--rwxrw-+
+$ mv posix/yyy nfs4/xxx
+> mv: failed to set acl entries for nfs4/xxx: Invalid argument
+$ getfacl -nq nfs4/xxx
+>             owner@:-wxp----------:-------:deny
+>             owner@:r-----aARWcCos:-------:allow
+>             group@:rwxp--a-R-c--s:-------:allow
+>          everyone@:rw-p--a-R-c--s:-------:allow
+$ ls -l nfs4/xxx | cut -d' ' -f1
+> -r--rwxrw-
+
+# mv with NFSv4 ACLs.
+$ rm -f nfs4/xxx
+$ rm -f nfs4/yyy
+$ touch nfs4/xxx
+$ setfacl -a0 u:42:x:allow,g:43:w:allow nfs4/xxx
+$ mv nfs4/xxx nfs4/yyy
+$ getfacl -nq nfs4/yyy
+>            user:42:--x-----------:-------:allow
+>           group:43:-w------------:-------:allow
+>             owner@:rw-p--aARWcCos:-------:allow
+>             group@:r-----a-R-c--s:-------:allow
+>          everyone@:r-----a-R-c--s:-------:allow
+$ ls -l nfs4/yyy | cut -d' ' -f1
+> -rw-r--r--+
+
+# mv from NFSv4 to POSIX.1e without any ACLs.
+$ rm -f nfs4/xxx
+$ rm -f posix/xxx
+$ touch nfs4/xxx
+$ chmod 456 nfs4/xxx
+$ ls -l nfs4/xxx | cut -d' ' -f1
+> -r--r-xrw-
+$ mv nfs4/xxx posix/xxx
+$ ls -l posix/xxx | cut -d' ' -f1
+> -r--r-xrw-
+
+# mv from NFSv4 to none.
+$ rm -f nfs4/xxx
+$ rm -f none/xxx
+$ touch nfs4/xxx
+$ chmod 345 nfs4/xxx
+$ ls -l nfs4/xxx | cut -d' ' -f1
+> --wxr--r-x
+$ setfacl -a0 u:42:x:allow,g:43:w:allow nfs4/xxx
+$ ls -l nfs4/xxx | cut -d' ' -f1
+> --wxr--r-x+
+$ mv nfs4/xxx none/xxx
+> mv: failed to set acl entries for none/xxx: Operation not supported
+$ ls -l none/xxx | cut -d' ' -f1
+> --wxr--r-x
+
+# mv from NFSv4 to POSIX.1e.
+$ rm -f nfs4/xxx
+$ rm -f posix/xxx
+$ touch nfs4/xxx
+$ chmod 345 nfs4/xxx
+$ ls -l nfs4/xxx | cut -d' ' -f1
+> --wxr--r-x
+$ setfacl -a0 u:42:x:allow,g:43:w:allow nfs4/xxx
+$ ls -l nfs4/xxx | cut -d' ' -f1
+> --wxr--r-x+
+$ mv nfs4/xxx posix/xxx
+> mv: failed to set acl entries for posix/xxx: Invalid argument
+$ ls -l posix/xxx | cut -d' ' -f1
+> --wxr--r-x
+
+# cp with POSIX.1e ACLs.
+$ rm -f posix/xxx
+$ rm -f posix/yyy
+$ touch posix/xxx
+$ setfacl -m u:42:x,g:43:w posix/xxx
+$ ls -l posix/xxx | cut -d' ' -f1
+> -rw-rwxr--+
+$ cp posix/xxx posix/yyy
+$ ls -l posix/yyy | cut -d' ' -f1
+> -rw-r-xr--
+
+# cp -p with POSIX.1e ACLs.
+$ rm -f posix/xxx
+$ rm -f posix/yyy
+$ touch posix/xxx
+$ setfacl -m u:42:x,g:43:w posix/xxx
+$ getfacl -nq posix/xxx
+> user::rw-
+> user:42:--x
+> group::r--
+> group:43:-w-
+> mask::rwx
+> other::r--
+$ ls -l posix/xxx | cut -d' ' -f1
+> -rw-rwxr--+
+$ cp -p posix/xxx posix/yyy
+$ getfacl -nq posix/yyy
+> user::rw-
+> user:42:--x
+> group::r--
+> group:43:-w-
+> mask::rwx
+> other::r--
+$ ls -l posix/yyy | cut -d' ' -f1
+> -rw-rwxr--+
+
+# cp from POSIX.1e to none.
+$ rm -f posix/xxx
+$ rm -f none/xxx
+$ touch posix/xxx
+$ setfacl -m u:42:x,g:43:w posix/xxx
+$ ls -l posix/xxx | cut -d' ' -f1
+> -rw-rwxr--+
+$ cp posix/xxx none/xxx
+$ ls -l none/xxx | cut -d' ' -f1
+> -rw-r-xr--
+
+# cp -p from POSIX.1e to none.
+$ rm -f posix/xxx
+$ rm -f none/xxx
+$ touch posix/xxx
+$ setfacl -m u:42:x,g:43:w posix/xxx
+$ ls -l posix/xxx | cut -d' ' -f1
+> -rw-rwxr--+
+$ cp -p posix/xxx none/xxx
+> cp: failed to set acl entries for none/xxx: Operation not supported
+$ ls -l none/xxx | cut -d' ' -f1
+> -rw-rwxr--
+
+# cp from POSIX.1e to NFSv4.
+$ rm -f posix/xxx
+$ rm -f nfs4/xxx
+$ touch posix/xxx
+$ setfacl -m u:42:x,g:43:w posix/xxx
+$ ls -l posix/xxx | cut -d' ' -f1
+> -rw-rwxr--+
+$ cp posix/xxx nfs4/xxx
+$ ls -l nfs4/xxx | cut -d' ' -f1
+> -rw-r-xr--
+
+# cp -p from POSIX.1e to NFSv4.
+$ rm -f posix/xxx
+$ rm -f nfs4/xxx
+$ touch posix/xxx
+$ setfacl -m u:42:x,g:43:w posix/xxx
+$ ls -l posix/xxx | cut -d' ' -f1
+> -rw-rwxr--+
+$ cp -p posix/xxx nfs4/xxx
+> cp: failed to set acl entries for nfs4/xxx: Invalid argument
+$ ls -l nfs4/xxx | cut -d' ' -f1
+> -rw-rwxr--
+
+# cp with NFSv4 ACLs.
+$ rm -f nfs4/xxx
+$ rm -f nfs4/yyy
+$ touch nfs4/xxx
+$ chmod 543 nfs4/xxx
+$ setfacl -a0 u:42:x:allow,g:43:w:allow nfs4/xxx
+$ ls -l nfs4/xxx | cut -d' ' -f1
+> -r-xr---wx+
+$ cp nfs4/xxx nfs4/yyy
+$ ls -l nfs4/yyy | cut -d' ' -f1
+> -r-xr----x
+
+# cp -p with NFSv4 ACLs.
+$ rm -f nfs4/xxx
+$ rm -f nfs4/yyy
+$ touch nfs4/xxx
+$ chmod 543 nfs4/xxx
+$ setfacl -a0 u:42:x:allow,g:43:w:allow nfs4/xxx
+$ cp -p nfs4/xxx nfs4/yyy
+$ getfacl -nq nfs4/yyy
+>            user:42:--x-----------:-------:allow
+>           group:43:-w------------:-------:allow
+>             owner@:--x-----------:-------:allow
+>             owner@:-w-p----------:-------:deny
+>             group@:-wxp----------:-------:deny
+>             owner@:r-x---aARWcCos:-------:allow
+>             group@:r-----a-R-c--s:-------:allow
+>          everyone@:-wxp--a-R-c--s:-------:allow
+$ ls -l nfs4/yyy | cut -d' ' -f1
+> -r-xr---wx+
+
+# cp from NFSv4 to none.
+$ rm -f nfs4/xxx
+$ rm -f none/xxx
+$ touch nfs4/xxx
+$ chmod 543 nfs4/xxx
+$ setfacl -a0 u:42:x:allow,g:43:w:allow nfs4/xxx
+$ ls -l nfs4/xxx | cut -d' ' -f1
+> -r-xr---wx+
+$ cp nfs4/xxx none/xxx
+$ ls -l none/xxx | cut -d' ' -f1
+> -r-xr----x
+
+# cp -p from NFSv4 to none.
+$ rm -f nfs4/xxx
+$ rm -f none/xxx
+$ touch nfs4/xxx
+$ chmod 543 nfs4/xxx
+$ setfacl -a0 u:42:x:allow,g:43:w:allow nfs4/xxx
+$ ls -l nfs4/xxx | cut -d' ' -f1
+> -r-xr---wx+
+$ cp -p nfs4/xxx none/xxx
+> cp: failed to set acl entries for none/xxx: Operation not supported
+$ ls -l none/xxx | cut -d' ' -f1
+> -r-xr---wx
+
+# cp from NFSv4 to POSIX.1e.
+$ rm -f nfs4/xxx
+$ rm -f posix/xxx
+$ touch nfs4/xxx
+$ chmod 543 nfs4/xxx
+$ setfacl -a0 u:42:x:allow,g:43:w:allow nfs4/xxx
+$ ls -l nfs4/xxx | cut -d' ' -f1
+> -r-xr---wx+
+$ cp nfs4/xxx posix/xxx
+$ ls -l posix/xxx | cut -d' ' -f1
+> -r-xr----x
+
+# cp -p from NFSv4 to POSIX.1e.
+$ rm -f nfs4/xxx
+$ rm -f posix/xxx
+$ touch nfs4/xxx
+$ chmod 543 nfs4/xxx
+$ setfacl -a0 u:42:x:allow,g:43:w:allow nfs4/xxx
+$ ls -l nfs4/xxx | cut -d' ' -f1
+> -r-xr---wx+
+$ cp -p nfs4/xxx posix/xxx
+> cp: failed to set acl entries for posix/xxx: Invalid argument
+$ ls -l posix/xxx | cut -d' ' -f1
+> -r-xr---wx

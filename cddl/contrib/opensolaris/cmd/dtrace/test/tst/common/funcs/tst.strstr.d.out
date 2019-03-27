@@ -1,0 +1,10 @@
+strstr("foobarbarbazbarbop", "foobarbarbazbarbop") = "foobarbarbazbarbop"
+strstr("foobarbarbazbarbop", "baz") = "bazbarbop"
+strstr("foobarbarbazbarbop", "bar") = "barbarbazbarbop"
+strstr("foobarbarbazbarbop", "bazbarbop") = "bazbarbop"
+strstr("foobarbarbazbarbop", "barba") = "barbarbazbarbop"
+strstr("bazbarbop", "zbarbop") = "zbarbop"
+strstr("foobarbarbazbarbop", "") = "foobarbarbazbarbop"
+strstr("", "") = ""
+strstr("f", "f") = "f"
+

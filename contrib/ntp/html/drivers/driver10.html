@@ -1,0 +1,53 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1">
+<meta name="GENERATOR" content="Mozilla/4.01 [en] (Win95; I) [Netscape]">
+<title>Austron 2200A/2201A GPS Receivers</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>Austron 2200A/2201A GPS Receivers</h3>
+<p>Author: David L. Mills (mills@udel.edu)<br>
+  Last update:
+  <!-- #BeginDate format:En2m -->11-Sep-2010  05:56<!-- #EndDate -->
+  UTC</p>
+<hr>
+<h4>Synopsis</h4>
+<p>Address: 127.127.10.<i>u</i><br>
+  Reference ID: <tt>GPS</tt><br>
+  Driver ID: <tt>GPS_AS2201</tt><br>
+  Serial Port: <tt>/dev/gps<i>u</i></tt>; 9600 baud, 8-bits, no parity<br>
+  Features: <tt>tty_clk</tt></p>
+<h4>Description</h4>
+<p>This driver supports the Austron 2200A/2201A GPS/LORAN Synchronized Clock and Timing Receiver connected via a serial port. It supports several special features of the clock, including the Input Buffer Module, Output Buffer Module, IRIG-B Interface Module and LORAN Assist Module. It requires the RS232 Buffered Serial Interface module for communication with the driver.</p>
+<p>For use with a single computer, the receiver can be connected directly to the receiver. For use with multiple computers, one of them is connected directly to the receiver and generates the polling messages. The other computers just listen to the receiver output directly or through a buffer amplifier. For computers that just listen, <tt>fudge flag2</tt> must be set and the <tt>ppsclock </tt>streams module configured on each of them.</p>
+<p>This receiver is capable of a comprehensive and large volume of statistics and operational data. The specific data collection commands and attributes are embedded in the driver source code; however, the collection process can be enabled or disabled using the flag4 flag. If set, collection is enabled; if not, which is the default, it is disabled. A comprehensive suite of data reduction and summary scripts is in the ./scripts/stats directory</p>
+of the ntp3 distribution.
+<h4>Monitor Data</h4>
+<p>When enabled by the <tt>flag4</tt> fudge flag, every received timecode is written as-is to the <tt>clockstats</tt> file.</p>
+<h4>Fudge Factors</h4>
+<dl>
+  <dt><tt>time1 <i>time</i></tt></dt>
+  <dd>Specifies the time offset calibration factor, in seconds and fraction, with default 0.0.</dd>
+  <dt><tt>time2 <i>time</i></tt></dt>
+  <dd>Not used by this driver.</dd>
+  <dt><tt>stratum <i>number</i></tt></dt>
+  <dd>Specifies the driver stratum, in decimal from 0 to 15, with default 0.</dd>
+  <dt><tt>refid <i>string</i></tt></dt>
+  <dd>Specifies the driver reference identifier, an ASCII string from one to four characters, with default <tt>GPS</tt>.</dd>
+  <dt><tt>flag1 0 | 1</tt></dt>
+  <dd>Not used by this driver.</dd>
+  <dt><tt>flag2 0 | 1</tt></dt>
+  <dd>Set for computers that listen-only.</dd>
+  <dt><tt>flag3 0 | 1</tt></dt>
+  <dd>Not used by this driver.</dd>
+  <dt><tt>flag4 0 | 1</tt></dt>
+  <dd>Enable verbose <tt>clockstats</tt> recording if set.</dd>
+</dl>
+<h4>Additional Information</h4>
+<p><a href="../refclock.html">Reference Clock Drivers</a></p>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

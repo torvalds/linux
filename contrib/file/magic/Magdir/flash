@@ -1,0 +1,62 @@
+
+#------------------------------------------------------------------------------
+# $File: flash,v 1.14 2017/05/25 20:09:55 christos Exp $
+# flash:	file(1) magic for Macromedia Flash file format
+#
+# See
+#
+#	http://www.macromedia.com/software/flash/open/
+#	http://wwwimages.adobe.com/www.adobe.com/content/dam/Adobe/\
+#	en/devnet/swf/pdf/swf-file-format-spec.pdf page 27
+#
+
+0   name	swf-details
+
+>0	string		F
+>>8	byte&0xfd	0x08		Macromedia Flash data
+!:mime	application/x-shockwave-flash
+>>>3	byte		x		\b, version %d
+>>8	byte&0xfe	0x10		Macromedia Flash data
+!:mime	application/x-shockwave-flash
+>>>3	byte		x		\b, version %d
+>>8	byte		0x18		Macromedia Flash data
+!:mime	application/x-shockwave-flash
+>>>3	byte		x		\b, version %d
+>>8	beshort&0xff87	0x2000		Macromedia Flash data
+!:mime	application/x-shockwave-flash
+>>>3	byte		x		\b, version %d
+>>8	beshort&0xffe0	0x3000		Macromedia Flash data
+!:mime	application/x-shockwave-flash
+>>>3	byte		x		\b, version %d
+>>8	byte&0x7	0
+>>>8	ubyte		>0x2f
+>>>>9	ubyte		<0x20		Macromedia Flash data
+!:mime	application/x-shockwave-flash
+>>>>>3	byte		x		\b, version %d
+
+>0	string		C
+>>8	byte		0x78		Macromedia Flash data (compressed)
+!:mime	application/x-shockwave-flash
+>>>3	byte		x		\b, version %d
+
+>0	string		Z
+>>8	byte		0x5d		Macromedia Flash data (lzma compressed)
+!:mime	application/x-shockwave-flash
+>>>3	byte		x		\b, version %d
+
+
+1	string		WS
+>4	ulelong		>14
+>>3	ubyte		!0
+>>>0	use		swf-details
+
+# From: Cal Peake <cp@absolutedigital.net>
+0	string		FLV\x01		Macromedia Flash Video
+!:mime	video/x-flv
+
+#
+# Yosu Gomez
+0	string	AGD2\xbe\xb8\xbb\xcd\x00	Macromedia Freehand 7 Document
+0	string	AGD3\xbe\xb8\xbb\xcc\x00	Macromedia Freehand 8 Document
+# From Dave Wilson
+0	string	AGD4\xbe\xb8\xbb\xcb\x00	Macromedia Freehand 9 Document

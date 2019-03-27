@@ -1,0 +1,270 @@
+.\" $NetBSD: uftdi.4,v 1.5 2002/02/07 03:15:08 ross Exp $
+.\"
+.\" Copyright (c) 2000 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 26, 2017
+.Dt UFTDI 4
+.Os
+.Sh NAME
+.Nm uftdi
+.Nd USB support for serial adapters based on the FTDI family of USB
+serial adapter chips.
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device ucom"
+.Cd "device uftdi"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+uftdi_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various serial adapters based on the
+following FTDI chips:
+.Pp
+.Bl -bullet -compact
+.It
+FT8U100AX
+.It
+FT8U232AM
+.It
+FT8U232BM
+.It
+FT232R
+.It
+FT2232C
+.It
+FT2232D
+.It
+FT2232H
+.It
+FT4232H
+.It
+FT230X
+.El
+.Pp
+The device is accessed through the
+.Xr ucom 4
+driver which makes it behave like a
+.Xr tty 4 .
+.Pp
+Many of the supported chips provide additional functionality
+such as bitbang mode and the MPSSE engine for serial bus emulation.
+The
+.Nm
+driver provides access to that functionality with the following
+.Xr ioctl 2
+calls, defined in
+.In dev/usb/uftdiio.h :
+.Bl -tag -width indent
+.It Dv UFTDIIOC_RESET_IO Pq Vt int
+Reset the channel to its default configuration, flush RX and TX FIFOs.
+.It Dv UFTDIIOC_RESET_RX Pq Vt int
+Flush the RX FIFO.
+.It Dv UFTDIIOC_RESET_TX Pq Vt int
+Flush the TX FIFO.
+.It Dv UFTDIIOC_SET_BITMODE Pq Vt "struct uftdi_bitmode"
+Put the channel into the operating mode specified in
+.Va mode ,
+and set the pins indicated by ones in
+.Va iomask
+to output mode.
+The
+.Va mode
+must be one of the
+.Va uftdi_bitmodes
+values.
+Setting
+.Va mode
+to
+.Dv UFTDI_BITMODE_NONE
+returns the channel to standard UART mode.
+.Bd -literal
+enum uftdi_bitmodes
+{
+	UFTDI_BITMODE_ASYNC = 0,
+	UFTDI_BITMODE_MPSSE = 1,
+	UFTDI_BITMODE_SYNC = 2,
+	UFTDI_BITMODE_CPU_EMUL = 3,
+	UFTDI_BITMODE_FAST_SERIAL = 4,
+	UFTDI_BITMODE_CBUS = 5,
+	UFTDI_BITMODE_NONE = 0xff,
+};
+
+struct uftdi_bitmode
+{
+	uint8_t mode;
+	uint8_t iomask;
+};
+.Ed
+.Pp
+Manuals and application notes published by FTDI describe these
+modes in detail.
+To use most of these modes, you first put the channel into
+the desired mode, then you
+.Xr read 2
+and
+.Xr write 2
+data which either reflects pin state or is interpreted
+as MPSSE commands and parameters, depending on the mode.
+.It Dv UFTDIIOC_GET_BITMODE Pq Vt "struct uftdi_bitmode"
+Return the current bitbang mode in the
+.Va mode
+member, and the state of the DBUS0..DBUS7 pins at the time
+of the call in the
+.Va iomask
+member.
+The pin state can be read while the chip is in any mode, including
+.Dv UFTDI_BITMODE_NONE
+(UART) mode.
+.It Dv UFTDIIOC_SET_ERROR_CHAR Pq Vt int
+Set the character which is inserted into the buffer to mark
+the point of an error such as FIFO overflow.
+.It Dv UFTDIIOC_SET_EVENT_CHAR Pq Vt int
+Set the character which causes a partial FIFO full of data
+to be returned immediately even if the FIFO is not full.
+.It Dv UFTDIIOC_SET_LATENCY Pq Vt int
+Set the amount of time to wait for a full FIFO,
+in milliseconds.
+If more than this much time elapses without receiving a new
+character, any characters in the FIFO are returned.
+.It Dv UFTDIIOC_GET_LATENCY Pq Vt int
+Get the current value of the latency timer.
+.It Dv UFTDIIOC_GET_HWREV Pq Vt int
+Get the hardware revision number.
+This is the
+.Va bcdDevice
+value from the
+.Va usb_device_descriptor .
+.It Dv UFTDIIOC_READ_EEPROM Pq Vt "struct uftdi_eeio"
+Read one or more words from the configuration eeprom.
+The FTDI chip performs eeprom I/O in 16-bit words.
+Set
+.Va offset
+and
+.Va length
+to values evenly divisible by two before the call, and the
+.Va data
+array will contain the requested values from eeprom after the call.
+.Bd -literal
+struct uftdi_eeio
+{
+	uint16_t offset;
+	uint16_t length;
+	uint16_t data[64];
+};
+.Ed
+.Pp
+The FT232R chip has an internal eeprom.
+An external serial eeprom is optional on other FTDI chips.
+The eeprom may contain 64, 128, or 256 words,
+depending on the part used.
+Multiple calls may be needed to read or write the larger parts.
+When no eeprom is present, all words in the returned data are 0xffff.
+An erased eeprom also reads as all 0xffff.
+.It Dv UFTDIIOC_WRITE_EEPROM Pq Vt "struct uftdi_eeio"
+Write one or more words to the configuration eeprom.
+The
+.Va uftdi_eeio
+values are as described for
+.Dv UFTDIIOC_READ_EEPROM .
+.Pp
+The FTDI chip does a blind write to the eeprom, and it will appear
+to succeed even when no eeprom is present.
+To ensure a good write you must read back and verify the data.
+It is
+.Em not
+necessary to erase before writing.
+Any position within the eeprom can be overwritten at any time.
+.It Dv UFTDIIOC_ERASE_EEPROM Pq Vt int
+Erase the entire eeprom.
+This is useful primarily for test and debugging, as there is no
+need to erase before writing.
+To help prevent accidental erasure caused by calling the wrong
+ioctl, you must pass the special value
+.Dv UFTDI_CONFIRM_ERASE
+as the argument to this ioctl.
+.El
+.Sh HARDWARE
+The
+.Nm
+driver supports the following adapters:
+.Pp
+.Bl -bullet -compact
+.It
+B&B Electronics USB->RS422/485 adapter
+.It
+Elexol USB MOD1 and USB MOD3
+.It
+HP USB-Serial adapter shipped with some HP laptops
+.It
+Inland UAS111
+.It
+QVS USC-1000
+.It
+Buffalo PC-OP-RS / Kurouto-shikou KURO-RS universal remote
+.It
+Prologix GPIB-USB Controller
+.El
+.Sh FILES
+.Bl -tag -width "/dev/ttyU*.init" -compact
+.It Pa /dev/ttyU*
+for callin ports
+.It Pa /dev/ttyU*.init
+.It Pa /dev/ttyU*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*
+for callout ports
+.It Pa /dev/cuaU*.init
+.It Pa /dev/cuaU*.lock
+corresponding callout initial-state and lock-state devices
+.El
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Fx 4.8
+from
+.Nx 1.5 .

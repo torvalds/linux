@@ -1,0 +1,138 @@
+-- $Id$ --
+
+TEST DEFINITIONS ::=
+
+BEGIN
+
+IMPORTS heim_any FROM heim;
+
+TESTuint32 ::= INTEGER (0..4294967295)
+
+TESTLargeTag ::= SEQUENCE {
+	foo[127] INTEGER (-2147483648..2147483647),
+	bar[128] INTEGER (-2147483648..2147483647)
+}
+
+TESTSeq ::= SEQUENCE {
+	tag0[0] INTEGER (-2147483648..2147483647),
+	tag1[1] TESTLargeTag,
+	tagless INTEGER (-2147483648..2147483647),
+	tag3[2] INTEGER (-2147483648..2147483647)
+}
+
+TESTChoice1 ::= CHOICE {
+	i1[1]	INTEGER (-2147483648..2147483647),
+	i2[2]	INTEGER (-2147483648..2147483647),
+	...
+}
+
+TESTChoice2 ::= CHOICE {
+	i1[1]	INTEGER (-2147483648..2147483647),
+	...
+}
+
+TESTInteger ::= INTEGER (-2147483648..2147483647)
+
+TESTInteger2 ::= [4] IMPLICIT TESTInteger
+TESTInteger3 ::= [5] IMPLICIT TESTInteger2
+
+TESTImplicit ::= SEQUENCE {
+	ti1[0] IMPLICIT INTEGER (-2147483648..2147483647),
+	ti2[1] IMPLICIT SEQUENCE {
+		foo[127] INTEGER (-2147483648..2147483647)
+	},
+	ti3[2] IMPLICIT [5] IMPLICIT [4] IMPLICIT INTEGER (-2147483648..2147483647)
+}
+
+TESTImplicit2 ::= SEQUENCE {
+	ti1[0] IMPLICIT TESTInteger,
+	ti2[1] IMPLICIT TESTLargeTag,
+	ti3[2] IMPLICIT TESTInteger3
+}
+
+TESTAllocInner ::= SEQUENCE {
+	ai[0] TESTInteger
+}
+
+TESTAlloc ::= SEQUENCE {
+	  tagless TESTAllocInner OPTIONAL,
+	  three [1] INTEGER (-2147483648..2147483647),
+	  tagless2 heim_any OPTIONAL
+}
+
+TESTOptional ::= SEQUENCE {
+	  zero [0] INTEGER (-2147483648..2147483647) OPTIONAL,
+	  one [1] INTEGER (-2147483648..2147483647) OPTIONAL
+}
+
+
+TESTCONTAINING ::= OCTET STRING ( CONTAINING INTEGER )
+TESTENCODEDBY ::= OCTET STRING ( ENCODED BY
+  { joint-iso-itu-t(2) asn(1) ber-derived(2) distinguished-encoding(1) }
+)
+
+TESTDer OBJECT IDENTIFIER ::= {
+	joint-iso-itu-t(2) asn(1) ber-derived(2) distinguished-encoding(1)
+}
+
+TESTCONTAININGENCODEDBY ::= OCTET STRING ( CONTAINING INTEGER ENCODED BY
+  { joint-iso-itu-t(2) asn(1) ber-derived(2) distinguished-encoding(1) }
+)
+
+TESTCONTAININGENCODEDBY2 ::= OCTET STRING (
+	CONTAINING INTEGER ENCODED BY TESTDer
+)
+
+
+TESTValue1 INTEGER ::= 1
+
+TESTUSERCONSTRAINED ::= OCTET STRING (CONSTRAINED BY { -- meh -- })
+-- TESTUSERCONSTRAINED2 ::= OCTET STRING (CONSTRAINED BY { TESTInteger })
+-- TESTUSERCONSTRAINED3 ::= OCTET STRING (CONSTRAINED BY { INTEGER })
+-- TESTUSERCONSTRAINED4 ::= OCTET STRING (CONSTRAINED BY { INTEGER : 1 })
+
+TESTSeqOf ::= SEQUENCE OF TESTInteger
+
+TESTSeqSizeOf1 ::= SEQUENCE SIZE (2) OF TESTInteger
+TESTSeqSizeOf2 ::= SEQUENCE SIZE (1..2) OF TESTInteger
+TESTSeqSizeOf3 ::= SEQUENCE SIZE (1..MAX) OF TESTInteger
+TESTSeqSizeOf4 ::= SEQUENCE SIZE (MIN..2) OF TESTInteger
+
+TESTOSSize1 ::= OCTET STRING SIZE (1..2)
+
+TESTSeqOfSeq ::= SEQUENCE OF SEQUENCE {
+	zero [0] TESTInteger
+}
+
+TESTSeqOfSeq2 ::= SEQUENCE OF SEQUENCE {
+	string [0] GeneralString
+}
+
+TESTSeqOfSeq3 ::= SEQUENCE OF SEQUENCE {
+	zero [0] TESTInteger,
+	string [0] GeneralString
+}
+
+TESTSeqOf2 ::= SEQUENCE {
+	strings SEQUENCE OF GeneralString
+}
+
+TESTSeqOf3 ::= SEQUENCE {
+	strings SEQUENCE OF GeneralString OPTIONAL
+}
+
+TESTPreserve ::= SEQUENCE {
+	zero [0] TESTInteger,
+	one [1] TESTInteger
+}
+
+TESTBitString ::= BIT STRING {
+	      zero(0),
+	      eight(8),
+	      thirtyone(31)
+}
+
+TESTMechType::= OBJECT IDENTIFIER
+TESTMechTypeList ::= SEQUENCE OF TESTMechType
+
+END

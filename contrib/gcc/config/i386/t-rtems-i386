@@ -1,0 +1,51 @@
+#
+# This file was based on t-sol2 - x68 Solaris implementation. Actually,
+# the source code to create crti.o anf crtn.o are exactly the same 
+# as the ones for Solaris. Later, we might want to have a RTEMS's 
+# version of these files.
+#
+
+crti.o: $(srcdir)/config/i386/sol2-ci.asm $(GCC_PASSES)
+	sed -e '/^!/d' <$(srcdir)/config/i386/sol2-ci.asm >crti.s
+	$(GCC_FOR_TARGET) -c -o crti.o crti.s
+crtn.o: $(srcdir)/config/i386/sol2-cn.asm $(GCC_PASSES)
+	sed -e '/^!/d' <$(srcdir)/config/i386/sol2-cn.asm >crtn.s
+	$(GCC_FOR_TARGET) -c -o crtn.o crtn.s
+
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+LIB2FUNCS_EXTRA = xp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#ifdef __LITTLE_ENDIAN__' > dp-bit.c
+	echo '#define FLOAT_BIT_ORDER_MISMATCH' >>dp-bit.c
+	echo '#endif'           >> dp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	echo '#ifdef __LITTLE_ENDIAN__' >> fp-bit.c
+	echo '#define FLOAT_BIT_ORDER_MISMATCH' >>fp-bit.c
+	echo '#endif'           >> fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+xp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define EXTENDED_FLOAT_STUBS' > xp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> xp-bit.c
+
+MULTILIB_OPTIONS = mtune=i486/mtune=pentium/mtune=pentiumpro \
+msoft-float
+MULTILIB_DIRNAMES= m486 mpentium mpentiumpro soft-float
+MULTILIB_MATCHES = msoft-float=mno-m80387
+MULTILIB_MATCHES += mtune?pentium=mtune?k6 mtune?pentiumpro=mtune?mathlon
+MULTILIB_EXCEPTIONS = \
+mtune=pentium/*msoft-float* \
+mtune=pentiumpro/*msoft-float*
+
+EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib

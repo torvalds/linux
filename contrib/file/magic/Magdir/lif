@@ -1,0 +1,8 @@
+
+#------------------------------------------------------------------------------
+# $File: lif,v 1.8 2009/09/19 16:28:10 christos Exp $
+# lif:  file(1) magic for lif
+#
+# (Daniel Quinlan <quinlan@yggdrasil.com>)
+#
+0	beshort		0x8000		lif file

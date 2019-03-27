@@ -1,0 +1,44 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+PROG=${1-UNKNOWN}
+
+ConfStr="$PROG"
+
+ConfStr="$ConfStr 4.2.8p12"
+
+case "$CSET" in
+ '') ;;
+ *) ConfStr="$ConfStr@$CSET" ;;
+esac
+
+case "" in
+ '')
+    case "1" in
+     '') ;;
+     *) ConfStr="${ConfStr}-a" ;;
+    esac
+    ;;
+ *)  ConfStr="${ConfStr}-r" ;;
+esac
+
+if [ ! -f .version ]; then
+  echo 0 > .version
+fi
+RUN="`cat .version`"
+RUN="`expr $RUN + 1`"
+echo $RUN > .version
+
+ConfStr="$ConfStr (${RUN})"
+
+echo "Version <${ConfStr}>";
+
+rm -f version.c
+cat > version.c << -EoF-
+/*
+ * version file for $PROG
+ */
+#include <config.h>
+const char * Version = "${ConfStr}";
+-EoF-

@@ -1,0 +1,123 @@
+.\" Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: ng_h4.4,v 1.2 2003/05/21 19:37:35 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd June 14, 2002
+.Dt NG_H4 4
+.Os
+.Sh NAME
+.Nm ng_h4
+.Nd Netgraph node type that is also an H4 line discipline
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph/bluetooth/include/ng_h4.h
+.Sh DESCRIPTION
+The
+.Nm h4
+node type is both a persistent Netgraph node type and a H4 line
+discipline.
+It implements a Bluetooth HCI UART transport layer as
+per chapter H4 of the Bluetooth Specification Book v1.1.
+A new node is created when the corresponding line discipline,
+.Dv H4DISC ,
+is registered on a tty device (see
+.Xr tty 4 ) .
+.Pp
+The node has a single hook called
+.Dv hook .
+Incoming bytes received on the tty device are re-assembled into
+HCI frames (according to the length).
+Full HCI frames are sent out on the hook.
+HCI frames received on
+.Dv hook
+are transmitted out on the tty device.
+No modification to the data is performed in either direction.
+While the line discipline is installed on a tty, the normal
+read and write operations are unavailable, returning
+.Er EIO .
+.Pp
+Information about the node is available via the netgraph
+.Xr ioctl 2
+command
+.Dv NGIOCGINFO .
+This command returns a
+.Vt "struct nodeinfo"
+similar to the
+.Dv NGM_NODEINFO
+.Xr netgraph 4
+control message.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va hook"
+.It Va hook
+single HCI frame contained in single
+.Vt mbuf
+structure.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_H4_NODE_RESET
+Reset the node.
+.It Dv NGM_H4_NODE_GET_STATE
+Returns current receiving state for the node.
+.It Dv NGM_H4_NODE_GET_DEBUG
+Returns an integer containing the current debug level for the node.
+.It Dv NGM_H4_NODE_SET_DEBUG
+This command takes an integer argument and sets current debug level
+for the node.
+.It Dv NGM_H4_NODE_GET_QLEN
+Returns current length of outgoing queue for the node.
+.It Dv NGM_H4_NODE_SET_QLEN
+This command takes an integer argument and sets maximum length of
+outgoing queue for the node.
+.It Dv NGM_H4_NODE_GET_STAT
+Returns various statistic information for the node, such as: number of
+bytes (frames) sent, number of bytes (frames) received and number of
+input (output) errors.
+.It Dv NGM_H4_NODE_RESET_STAT
+Reset all statistic counters to zero.
+.El
+.Sh SHUTDOWN
+This node shuts down when the corresponding device is closed
+(or the line discipline is uninstalled on the device).
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr netgraph 4 ,
+.Xr tty 4 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm h4
+node type was implemented in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh BUGS
+This node still uses
+.Xr spltty 9
+to lock tty layer.
+This is wrong.

@@ -1,0 +1,180 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)reservation.kshlib	1.3	09/01/12 SMI"
+#
+
+#
+# Function to set the reservation property of a dataset to
+# 'none' and verify that it is correctly set using both the
+# "normal" 'zfs get reservation' and the '-p' option which
+# gives a numerical value.
+#
+function zero_reservation
+{
+	typeset resv_val
+	dataset=$1
+
+	log_must $ZFS set reservation=none $dataset
+	log_must $ZFS set refreservation=none $dataset
+	
+	resv_val=`$ZFS get -H refreservation $dataset | awk '{print $3}'`
+	if [[ $? -ne 0 ]]; then
+		log_fail "Unable to get reservation prop on $dataset"
+	elif [[ $resv_val != "none" ]]; then
+		log_fail "Reservation not 'none' ($resv_val) as expected"
+	fi
+
+
+	resv_val=`$ZFS get -pH refreservation $dataset | awk '{print $3}'`
+	if [[ $? -ne 0 ]]; then
+		log_fail "Unable to get reservation prop on $dataset"
+	elif [[ $resv_val -ne 0 ]]; then
+		log_fail "Reservation not 0 ($resv_val) as expected"
+	fi
+	
+	return 0
+}
+
+#
+# Utility function to see if two values are within a certain specified
+# limit of each other. Used primarily to check that a dataset's parent
+# is correctly accounting for space used/available. Need this function as
+# currently there is some slop in the way space is accounted (i.e. can't
+# do a direct comparison).
+#
+function within_limits
+{
+	typeset -l valA=$1
+	typeset -l valB=$2
+	typeset -l delta=$3
+
+	if (( valA <= valB )); then
+		if (( (valB - valA) <= delta )); then
+                	return 0
+		fi
+	elif (( valB <= valA )); then
+		if (( (valA - valB) <= delta )); then
+			return 0
+		fi
+	fi
+
+	return 1
+}
+
+#
+# Function to create and mount multiple filesystems. The filesystem
+# will be named according to the name specified with a suffix value
+# taken from the loop counter.
+#
+function create_multiple_fs # num_fs base_fs_name base_mnt_name
+{
+        typeset -i iter=0
+        typeset -i count=$1
+        typeset FS_NAME=$2
+        typeset MNT_NAME=$3
+
+        while  (( $iter < $count )); do
+                log_must $ZFS create ${FS_NAME}$iter
+                log_must $ZFS set mountpoint=${MNT_NAME}$iter ${FS_NAME}$iter
+                (( iter = iter + 1 ))
+        done
+}
+
+#
+# This function compute the largest volume size which is multiple of volume
+# block size (default 8K) and not greater than the largest expected volsize.
+#
+# $1 The largest expected volume size.
+# $2 The volume block size
+#
+function floor_volsize #<largest_volsize> [volblksize]
+{
+	typeset -l largest_volsize=$1
+	typeset -l volblksize=${2:-8192}
+
+	if (( largest_volsize < volblksize )); then
+		log_fail "The largest_volsize must be greater than volblksize."
+	fi
+	typeset -l real_volsize
+	typeset -l n
+	
+	(( n = largest_volsize / volblksize ))
+	(( largest_volsize = volblksize * n ))
+
+	print $largest_volsize
+}
+
+#
+# Simple function to get the expected reservation for a ZVOL given the 
+# volume size, block size, and number of copies.
+#
+# NB: This routine must be kept in sync with the ZFS library function
+# libzfs_dataset.c:zvol_volsize_to_reservation().  Refer to that function
+# for the logic behind the calculations.
+#
+function zvol_volsize_to_reservation
+{
+	typeset resv_val
+	typeset nblocks
+	typeset numdb
+	typeset volsize=$1
+	typeset volblocksize=$2
+	typeset ncopies=$3
+	typeset ncopies_bp
+	typeset DN_MAX_INDBLKSHIFT=17
+	typeset SPA_BLKPTRSHIFT=7
+	typeset SPA_DVAS_PER_BP=3
+	typeset DVAS_PER_BP
+	typeset DNODES_PER_LEVEL_SHIFT
+	typeset DNODES_PER_LEVEL
+	typeset DN_MAX_INDBLKS
+
+	(( DNODES_PER_LEVEL_SHIFT = DN_MAX_INDBLKSHIFT - SPA_BLKPTRSHIFT ))
+	(( DNODES_PER_LEVEL = 1 << DNODES_PER_LEVEL_SHIFT ))
+	(( DN_MAX_INDBLKS = 1 << DN_MAX_INDBLKSHIFT ))
+
+	resv_val=$volsize
+	(( nblocks = volsize / volblocksize ))
+	numdb=7
+	while (( nblocks > 1 )); do
+		(( nblocks = nblocks + DNODES_PER_LEVEL - 1 ))
+		(( nblocks = nblocks / DNODES_PER_LEVEL ))
+		(( numdb = numdb + nblocks ))
+	done
+	(( ncopies_bp = ncopies + 1 ))
+	DVAS_PER_BP=$(min $SPA_DVAS_PER_BP $ncopies_bp)
+	(( numdb = numdb * DVAS_PER_BP ))
+	(( resv_val = volsize * ncopies ))
+	(( numdb = numdb * DN_MAX_INDBLKS ))
+	(( resv_val = resv_val + numdb ))
+
+	$ECHO $resv_val
+	return 0
+}
+

@@ -1,0 +1,144 @@
+=pod
+
+=head1 NAME
+
+EC_GROUP_get_ecparameters,
+EC_GROUP_get_ecpkparameters,
+EC_GROUP_new,
+EC_GROUP_new_from_ecparameters,
+EC_GROUP_new_from_ecpkparameters,
+EC_GROUP_free,
+EC_GROUP_clear_free,
+EC_GROUP_new_curve_GFp,
+EC_GROUP_new_curve_GF2m,
+EC_GROUP_new_by_curve_name,
+EC_GROUP_set_curve,
+EC_GROUP_get_curve,
+EC_GROUP_set_curve_GFp,
+EC_GROUP_get_curve_GFp,
+EC_GROUP_set_curve_GF2m,
+EC_GROUP_get_curve_GF2m,
+EC_get_builtin_curves - Functions for creating and destroying EC_GROUP
+objects
+
+=head1 SYNOPSIS
+
+ #include <openssl/ec.h>
+
+ EC_GROUP *EC_GROUP_new(const EC_METHOD *meth);
+ EC_GROUP *EC_GROUP_new_from_ecparameters(const ECPARAMETERS *params)
+ EC_GROUP *EC_GROUP_new_from_ecpkparameters(const ECPKPARAMETERS *params)
+ void EC_GROUP_free(EC_GROUP *group);
+ void EC_GROUP_clear_free(EC_GROUP *group);
+
+ EC_GROUP *EC_GROUP_new_curve_GFp(const BIGNUM *p, const BIGNUM *a,
+                                  const BIGNUM *b, BN_CTX *ctx);
+ EC_GROUP *EC_GROUP_new_curve_GF2m(const BIGNUM *p, const BIGNUM *a,
+                                   const BIGNUM *b, BN_CTX *ctx);
+ EC_GROUP *EC_GROUP_new_by_curve_name(int nid);
+
+ int EC_GROUP_set_curve(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a,
+                        const BIGNUM *b, BN_CTX *ctx);
+ int EC_GROUP_get_curve(const EC_GROUP *group, BIGNUM *p, BIGNUM *a, BIGNUM *b,
+                        BN_CTX *ctx);
+ int EC_GROUP_set_curve_GFp(EC_GROUP *group, const BIGNUM *p,
+                            const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
+ int EC_GROUP_get_curve_GFp(const EC_GROUP *group, BIGNUM *p,
+                            BIGNUM *a, BIGNUM *b, BN_CTX *ctx);
+ int EC_GROUP_set_curve_GF2m(EC_GROUP *group, const BIGNUM *p,
+                             const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
+ int EC_GROUP_get_curve_GF2m(const EC_GROUP *group, BIGNUM *p,
+                             BIGNUM *a, BIGNUM *b, BN_CTX *ctx);
+
+ ECPARAMETERS *EC_GROUP_get_ecparameters(const EC_GROUP *group, ECPARAMETERS *params)
+ ECPKPARAMETERS *EC_GROUP_get_ecpkparameters(const EC_GROUP *group, ECPKPARAMETERS *params)
+
+ size_t EC_get_builtin_curves(EC_builtin_curve *r, size_t nitems);
+
+=head1 DESCRIPTION
+
+Within the library there are two forms of elliptic curve that are of interest. The first form is those defined over the
+prime field Fp. The elements of Fp are the integers 0 to p-1, where p is a prime number. This gives us a revised
+elliptic curve equation as follows:
+
+y^2 mod p = x^3 +ax + b mod p
+
+The second form is those defined over a binary field F2^m where the elements of the field are integers of length at
+most m bits. For this form the elliptic curve equation is modified to:
+
+y^2 + xy = x^3 + ax^2 + b (where b != 0)
+
+Operations in a binary field are performed relative to an B<irreducible polynomial>. All such curves with OpenSSL
+use a trinomial or a pentanomial for this parameter.
+
+A new curve can be constructed by calling EC_GROUP_new, using the implementation provided by B<meth> (see
+L<EC_GFp_simple_method(3)>). It is then necessary to call EC_GROUP_set_curve() to set the curve parameters.
+EC_GROUP_new_from_ecparameters() will create a group from the
+specified B<params> and
+EC_GROUP_new_from_ecpkparameters() will create a group from the specific PK B<params>.
+
+EC_GROUP_set_curve() sets the curve parameters B<p>, B<a> and B<b>. For a curve over Fp B<b>
+is the prime for the field. For a curve over F2^m B<p> represents the irreducible polynomial - each bit
+represents a term in the polynomial. Therefore there will either be three or five bits set dependent on whether
+the polynomial is a trinomial or a pentanomial.
+
+EC_group_get_curve() obtains the previously set curve parameters.
+
+EC_GROUP_set_curve_GFp() and EC_GROUP_set_curve_GF2m() are synonyms for EC_GROUP_set_curve(). They are defined for
+backwards compatibility only and should not be used.
+
+EC_GROUP_get_curve_GFp() and EC_GROUP_get_curve_GF2m() are synonyms for EC_GROUP_get_curve(). They are defined for
+backwards compatibility only and should not be used.
+
+The functions EC_GROUP_new_curve_GFp and EC_GROUP_new_curve_GF2m are shortcuts for calling EC_GROUP_new and then the
+EC_GROUP_set_curve function. An appropriate default implementation method will be used.
+
+Whilst the library can be used to create any curve using the functions described above, there are also a number of
+predefined curves that are available. In order to obtain a list of all of the predefined curves, call the function
+EC_get_builtin_curves. The parameter B<r> should be an array of EC_builtin_curve structures of size B<nitems>. The function
+will populate the B<r> array with information about the builtin curves. If B<nitems> is less than the total number of
+curves available, then the first B<nitems> curves will be returned. Otherwise the total number of curves will be
+provided. The return value is the total number of curves available (whether that number has been populated in B<r> or
+not). Passing a NULL B<r>, or setting B<nitems> to 0 will do nothing other than return the total number of curves available.
+The EC_builtin_curve structure is defined as follows:
+
+ typedef struct {
+        int nid;
+        const char *comment;
+        } EC_builtin_curve;
+
+Each EC_builtin_curve item has a unique integer id (B<nid>), and a human readable comment string describing the curve.
+
+In order to construct a builtin curve use the function EC_GROUP_new_by_curve_name and provide the B<nid> of the curve to
+be constructed.
+
+EC_GROUP_free frees the memory associated with the EC_GROUP.
+If B<group> is NULL nothing is done.
+
+EC_GROUP_clear_free destroys any sensitive data held within the EC_GROUP and then frees its memory.
+If B<group> is NULL nothing is done.
+
+=head1 RETURN VALUES
+
+All EC_GROUP_new* functions return a pointer to the newly constructed group, or NULL on error.
+
+EC_get_builtin_curves returns the number of builtin curves that are available.
+
+EC_GROUP_set_curve_GFp, EC_GROUP_get_curve_GFp, EC_GROUP_set_curve_GF2m, EC_GROUP_get_curve_GF2m return 1 on success or 0 on error.
+
+=head1 SEE ALSO
+
+L<crypto(7)>, L<EC_GROUP_copy(3)>,
+L<EC_POINT_new(3)>, L<EC_POINT_add(3)>, L<EC_KEY_new(3)>,
+L<EC_GFp_simple_method(3)>, L<d2i_ECPKParameters(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2013-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

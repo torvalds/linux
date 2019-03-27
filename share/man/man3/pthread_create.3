@@ -1,0 +1,149 @@
+.\" Copyright (c) 1996 John Birrell <jb@cimlogic.com.au>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by John Birrell.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 17, 2018
+.Dt PTHREAD_CREATE 3
+.Os
+.Sh NAME
+.Nm pthread_create
+.Nd create a new thread
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_create "pthread_t *restrict thread" "const pthread_attr_t *restrict attr" "void *(*start_routine)(void *)" "void *restrict arg"
+.Sh DESCRIPTION
+The
+.Fn pthread_create
+function is used to create a new thread, with attributes specified by
+.Fa attr ,
+within a process.
+If
+.Fa attr
+is
+.Dv NULL ,
+the default attributes are used.
+If the attributes specified by
+.Fa attr
+are modified later, the thread's attributes are not affected.
+Upon
+successful completion
+.Fn pthread_create
+will store the ID of the created thread in the location specified by
+.Fa thread .
+.Pp
+The thread is created executing
+.Fa start_routine
+with
+.Fa arg
+as its sole argument.
+If the
+.Fa start_routine
+returns, the effect is as if there was an implicit call to
+.Fn pthread_exit
+using the return value of
+.Fa start_routine
+as the exit status.
+Note that the thread in which
+.Fn main
+was originally invoked differs from this.
+When it returns from
+.Fn main ,
+the effect is as if there was an implicit call to
+.Fn exit
+using the return value of
+.Fn main
+as the exit status.
+.Pp
+The signal state of the new thread is initialized as:
+.Bl -bullet -offset indent
+.It
+The signal mask is inherited from the creating thread.
+.It
+The set of signals pending for the new thread is empty.
+.El
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_create
+function will return zero.
+Otherwise an error number will be returned to
+indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_create
+function can return any of the following errors:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+The system lacked the necessary resources to create another thread.
+.It Bq Er EAGAIN
+The system-imposed limit on the total number of threads in a process
+.Dv [PTHREAD_THREADS_MAX]
+would be exceeded.
+.It Bq Er EAGAIN
+The
+.Dv RACCT_NTHR
+limit would be exceeded; see
+.Xr racct 2 .
+.It Bq Er EPERM
+The caller does not have permission to set the scheduling parameters or
+scheduling policy.
+.It Bq Er EINVAL
+A value specified by
+.Fa attr
+is invalid.
+.It Bq Er EDEADLK
+The CPU set specified by
+.Fa attr
+would prevent the thread from running on any CPU.
+.It Bq Er EFAULT
+The stack base specified by
+.Fa attr
+is invalid, or the kernel was unable to put required
+initial data on the stack.
+.El
+.Sh SEE ALSO
+.Xr cpuset_setaffinity 2 ,
+.Xr fork 2 ,
+.Xr racct 2 ,
+.Xr thr_new 2 ,
+.Xr pthread_attr 3 ,
+.Xr pthread_cancel 3 ,
+.Xr pthread_cleanup_pop 3 ,
+.Xr pthread_cleanup_push 3 ,
+.Xr pthread_exit 3 ,
+.Xr pthread_join 3
+.Sh STANDARDS
+The
+.Fn pthread_create
+function conforms to
+.St -p1003.1-96 .

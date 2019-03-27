@@ -1,0 +1,24 @@
+# $FreeBSD$
+# POSIX leaves the effect of NUL bytes in command substitution output
+# unspecified but we have always discarded them.
+
+failures=0
+
+check() {
+	if [ "$2" != "$3" ]; then
+		printf "Failed at line %s: got \"%s\" expected \"%s\"\n" "$1" "$2" "$3"
+		: $((failures += 1))
+	fi
+}
+
+fmt='\0a\0 \0b\0c d\0'
+assign_builtin=$(printf "$fmt")
+check "$LINENO" "$assign_builtin" "a bc d"
+assign_pipeline=$(printf "$fmt" | cat)
+check "$LINENO" "$assign_pipeline" "a bc d"
+set -- $(printf "$fmt") $(printf "$fmt" | cat) "$(printf "$fmt")" "$(printf "$fmt" | cat)" 
+IFS=@
+splits="$*"
+check "$LINENO" "$splits" "a@bc@d@a@bc@d@a bc d@a bc d"
+
+[ "$failures" = 0 ]

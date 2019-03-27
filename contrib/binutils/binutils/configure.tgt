@@ -1,0 +1,26 @@
+# This is the binutils target specific file.  This is invoked by the
+# autoconf generated configure script.  Putting it in a separate shell
+# file lets us skip running autoconf when modifying target specific
+# information.
+
+# This file switches on the shell variable ${targ}, and sets the
+# following shell variables:
+# targ_emul		name of emulation to use
+# targ_emul_vector	name of vector to use
+
+case "${targ}" in
+    powerpc-*-aix5* | rs6000-*-aix5*)
+	targ_emul=aix 
+	targ_emul_vector=bin_aix5_emulation 
+        ;;
+
+    powerpc-*-aix4.3* | rs6000-*-aix4.3*)
+	targ_emul=aix 
+        targ_emul_vector=bin_aix_emulation 
+        ;;
+
+    *)
+        targ_emul=vanilla 
+        targ_emul_vector=bin_vanilla_emulation 
+        ;;
+esac

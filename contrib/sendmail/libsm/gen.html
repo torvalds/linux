@@ -1,0 +1,43 @@
+<html>
+<head>
+    <title>libsm : General Definitions</title>
+</head>
+<body>
+
+<a href="index.html">Back to libsm overview</a>
+
+<center>
+    <h1> libsm : General Definitions </h1>
+    <br> $Id: gen.html,v 1.5 2000-12-08 21:41:42 ca Exp $
+</center>
+
+<h2> Introduction </h2>
+
+The header file <tt>&lt;sm/gen.h&gt;</tt>
+contains general definitions that are used by every other
+header file in <b>libsm</b>.
+
+<h2> Synopsis </h2>
+
+<pre>
+#include &lt;sm/gen.h&gt;
+
+#define NULL		((void*)0)
+
+typedef int bool;
+#define false	0
+#define true	1
+
+#define SM_MAX(a, b)	((a) &gt; (b) ? (a) : (b))
+#define SM_MIN(a, b)	((a) &lt; (b) ? (a) : (b))
+
+/*
+**  The following types can be accessed and updated atomically.
+**  This is relevant in the context of signal handlers and threads.
+*/
+typedef <i>some signed integral type</i> SM_ATOMIC_INT_T;
+typedef <i>some unsigned integral type</i> SM_ATOMIC_UINT_T;
+</pre>
+
+</body>
+</html>

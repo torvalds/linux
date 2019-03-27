@@ -1,0 +1,172 @@
+.\" Copyright (C) 2003-2004 Cronyx Engineering.
+.\" Copyright (C) 2003-2004 Roman Kurakin <rik@cronyx.ru>
+.\"
+.\" This software is distributed with NO WARRANTIES, not even the implied
+.\" warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.\" Authors grant any other persons or organisations a permission to use,
+.\" modify and redistribute this software in source and binary forms,
+.\" as long as this message is kept with the software, all derivative
+.\" works or modified versions.
+.\"
+.\" Cronyx Id: ng_sppp.4,v 1.1.2.3 2004/03/30 14:28:34 rik Exp $
+.\" $FreeBSD$
+.\"
+.Dd February 3, 2005
+.Dt NG_SPPP 4
+.Os
+.Sh NAME
+.Nm ng_sppp
+.Nd sppp netgraph node type
+.Sh SYNOPSIS
+.In netgraph/ng_sppp.h
+.Sh DESCRIPTION
+An
+.Nm sppp
+node is a
+.Xr netgraph 4
+interface to the original
+.Xr sppp 4
+network module for synchronous lines.
+Currently,
+.Xr sppp 4
+supports PPP and Cisco HDLC protocols.
+An
+.Nm sppp
+node could be considered as an alternative kernel mode PPP
+implementation to
+.Pa net/mpd
+port +
+.Xr ng_ppp 4 ,
+and as an alternative to
+.Xr ng_cisco 4
+node.
+While having less features than
+.Pa net/mpd
++
+.Xr ng_ppp 4 ,
+it is significantly easier to use in the majority of simple configurations,
+and allows the administrator to not install the
+.Pa net/mpd
+port.
+With
+.Nm sppp
+you do not need any other nodes, not even an
+.Xr ng_iface 4
+node.
+When an
+.Nm sppp
+node is created, a new interface appears which is accessible via
+.Xr ifconfig 8 .
+Network interfaces corresponding to
+.Nm sppp
+nodes are named
+.Li sppp0 , sppp1 ,
+etc.
+When a node is shut down, the corresponding interface is removed,
+and the interface name becomes available for reuse by future
+.Nm sppp
+nodes.
+New nodes always take the first unused interface.
+The node itself is assigned the same name as its interface, unless the name
+already exists, in which case the node remains unnamed.
+The
+.Nm sppp
+node allows drivers written to the old
+.Xr sppp 4
+interface to be rewritten using the
+newer more powerful
+.Xr netgraph 4
+interface, and still behave in a compatible manner without supporting both
+network modules.
+.Pp
+An
+.Nm sppp
+node has a single hook named
+.Va downstream .
+Usually it is connected directly to
+a device driver hook.
+.Pp
+The
+.Nm sppp
+nodes support the Berkeley Packet Filter,
+.Xr bpf 4 .
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va downstream"
+.It Va downstream
+The connection to the synchronous line.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_SPPP_GET_IFNAME Pq Ic getifname
+Returns the name of the associated interface as a
+.Dv NUL Ns -terminated
+.Tn ASCII
+string.
+Normally this is the same as the name of the node.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message.
+The associated interface is removed and becomes available
+for use by future
+.Nm sppp
+nodes.
+.Pp
+Unlike most other node types and like
+.Xr ng_iface 4
+does, an
+.Nm sppp
+node does
+.Em not
+go away when all hooks have been disconnected; rather, an explicit
+.Dv NGM_SHUTDOWN
+control message is required.
+.Sh EXAMPLES
+For example, if you have the
+.Xr cx 4
+device, you could run PPP over it with just one command:
+.Pp
+.Dl "ngctl mkpeer cx0: sppp rawdata downstream"
+.Pp
+Now you have the
+.Li sppp0
+interface (if this was the first
+.Nm sppp
+node) which can be
+accessed via
+.Xr ifconfig 8
+as a normal network interface,
+or via
+.Xr spppcontrol 8
+as an
+.Xr sppp 4
+interface.
+.Sh SEE ALSO
+.Xr bpf 4 ,
+.Xr cx 4 ,
+.Xr netgraph 4 ,
+.Xr ng_cisco 4 ,
+.Xr ng_iface 4 ,
+.Xr ng_ppp 4 ,
+.Xr sppp 4 ,
+.Xr ifconfig 8 ,
+.Xr ngctl 8 ,
+.Xr spppcontrol 8
+.Pp
+For complex networking topologies you may want to look at
+.Pa net/mpd
+port.
+.Sh HISTORY
+The
+.Nm sppp
+node type was implemented for
+.Fx 5.0 .
+It was included to the system since
+.Fx 5.3 .
+.Sh AUTHORS
+Copyright (C) 2003-2004
+.An Roman Kurakin Aq Mt rik@cronyx.ru

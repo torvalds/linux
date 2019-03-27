@@ -1,0 +1,221 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)swapon.8	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd October 21, 2016
+.Dt SWAPON 8
+.Os
+.Sh NAME
+.Nm swapon , swapoff , swapctl
+.Nd "specify devices for paging and swapping"
+.Sh SYNOPSIS
+.Nm swapon
+.Oo Fl F Ar fstab
+.Oc
+.Fl aLq | Ar
+.Nm swapoff
+.Oo Fl F Ar fstab
+.Oc
+.Fl aLq | Ar
+.Nm swapctl
+.Op Fl AghklmsU
+.Oo
+.Fl a Ar
+|
+.Fl d Ar
+.Oc
+.Sh DESCRIPTION
+The
+.Nm swapon , swapoff
+and
+.Nm swapctl
+utilities are used to control swap devices in the system.
+At boot time all swap entries in
+.Pa /etc/fstab
+are added automatically when the system goes multi-user.
+Swap devices use a fixed interleave; the maximum number of devices
+is unlimited.
+There is no priority mechanism.
+.Pp
+The
+.Nm swapon
+utility adds the specified swap devices to the system.
+If the
+.Fl a
+option is used, all swap devices in
+.Pa /etc/fstab
+will be added, unless their
+.Dq noauto
+or
+.Dq late
+option is also set.
+If the
+.Fl L
+option is specified,
+swap devices with the
+.Dq late
+option will be added as well as ones with no option.
+If the
+.Fl q
+option is used,
+informational messages will not be
+written to standard output when a swap device is added.
+.Pp
+The
+.Nm swapoff
+utility removes the specified swap devices from the system.
+If the
+.Fl a
+option is used, all swap devices in
+.Pa /etc/fstab
+will be removed, unless their
+.Dq noauto
+option is also set.
+If the
+.Fl L
+option is specified,
+only swap devices with the
+.Dq late
+option will be removed.
+If the
+.Fl q
+option is used,
+informational messages will not be
+written to standard output when a swap device is removed.
+Note that
+.Nm swapoff
+will fail and refuse to remove a swap device if there is insufficient
+VM (memory + remaining swap devices) to run the system.
+The
+.Nm swapoff
+utility
+must move swapped pages out of the device being removed which could
+lead to high system loads for a period of time, depending on how
+much data has been swapped out to that device.
+.Pp
+Other options supported by both
+.Nm swapon
+and
+.Nm swapoff
+are as follows:
+.Bl -tag -width indent
+.It Fl F Ar fstab
+Specify the
+.Pa fstab
+file to use.
+.El
+.Pp
+The
+.Nm swapctl
+utility exists primarily for those familiar with other
+.Bx Ns s
+and may be
+used to add, remove, or list swap devices.
+Note that the
+.Fl a
+option is used differently in
+.Nm swapctl
+and indicates that a specific list of devices should be added.
+The
+.Fl d
+option indicates that a specific list should be removed.
+The
+.Fl A
+and
+.Fl U
+options to
+.Nm swapctl
+operate on all swap entries in
+.Pa /etc/fstab
+which do not have their
+.Dq noauto
+option set.
+.Pp
+Swap information can be generated using the
+.Xr swapinfo 8
+utility,
+.Nm pstat
+.Fl s ,
+or
+.Nm swapctl
+.Fl l .
+The
+.Nm swapctl
+utility has the following options for listing swap:
+.Bl -tag -width indent
+.It Fl h
+Output values in human-readable form.
+.It Fl g
+Output values in gigabytes.
+.It Fl k
+Output values in kilobytes.
+.It Fl m
+Output values in megabytes.
+.It Fl l
+List the devices making up system swap.
+.It Fl s
+Print a summary line for system swap.
+.Pp
+The
+.Ev BLOCKSIZE
+environment variable is used if not specifically
+overridden.
+512 byte blocks are used by default.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/{ada,da}?s?b" -compact
+.It Pa /dev/{ada,da}?s?b
+standard paging devices
+.It Pa /dev/md?
+memory disk devices
+.It Pa /etc/fstab
+.Tn ASCII
+file system description table
+.El
+.Sh DIAGNOSTICS
+These utilities may fail for the reasons described in
+.Xr swapon 2 .
+.Sh SEE ALSO
+.Xr swapon 2 ,
+.Xr fstab 5 ,
+.Xr init 8 ,
+.Xr mdconfig 8 ,
+.Xr pstat 8 ,
+.Xr rc 8
+.Sh HISTORY
+The
+.Nm swapon
+utility appeared in
+.Bx 4.0 .
+The
+.Nm swapoff
+and
+.Nm swapctl
+utilities appeared in
+.Fx 5.1 .

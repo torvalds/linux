@@ -1,0 +1,5 @@
+# $FreeBSD$
+true() {
+	false
+}
+command true

@@ -1,0 +1,270 @@
+.\" Copyright (c) 1997, 1998
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 23, 2008
+.Dt XL 4
+.Os
+.Sh NAME
+.Nm xl
+.Nd "3Com Etherlink XL and Fast Etherlink XL Ethernet device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device xl"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_xl_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Ethernet adapters and embedded
+controllers based on the 3Com "boomerang," "cyclone," "hurricane"
+and "tornado" bus-master Etherlink XL chips.
+.Pp
+The Etherlink XL chips support built-in 10baseT, 10base2 and 10base5
+transceivers as well as an MII bus for externally attached PHY
+transceivers.
+The 3c905 series typically uses a National Semiconductor
+NS 83840A 10/100 PHY for 10/100 Mbps support in full or half-duplex.
+The 3c905B adapters have built-in autonegotiation logic mapped onto
+the MII for compatibility with previous drivers.
+Fast Etherlink XL
+adapters such as the 3c905-TX and 3c905B-TX are capable of 10 or
+100Mbps data rates in either full or half duplex and can be manually
+configured for any supported mode or automatically negotiate the highest
+possible mode with a link partner.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It autoselect
+Enable autoselection of the media type and options.
+Note that this
+option is only available with the 3c905 and 3c905B adapters with
+external PHYs or built-in autonegotiation logic.
+For 3c900 adapters,
+the driver will choose the mode specified in the EEPROM.
+The user can
+change this by adding media options to the
+.Pa /etc/rc.conf
+file.
+.It 10baseT/UTP
+Set 10Mbps operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 10base5/AUI
+Enable AUI transceiver (available only on COMBO cards).
+.It 10base2/BNC
+Enable BNC coax transceiver (available only on COMBO cards).
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It full-duplex
+Force full duplex operation.
+.It half-duplex
+Force half duplex operation.
+.El
+.Pp
+Note that the 100baseTX media type is only available if supported
+by the adapter.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the following hardware:
+.Pp
+.Bl -bullet -compact
+.It
+3Com 3c900-TPO
+.It
+3Com 3c900-COMBO
+.It
+3Com 3c905-TX
+.It
+3Com 3c905-T4
+.It
+3Com 3c900B-TPO
+.It
+3Com 3c900B-TPC
+.It
+3Com 3c900B-FL
+.It
+3Com 3c900B-COMBO
+.It
+3Com 3c905B-T4
+.It
+3Com 3c905B-TX
+.It
+3Com 3c905B-FX
+.It
+3Com 3c905B-COMBO
+.It
+3Com 3c905C-TX
+.It
+3Com 3c980, 3c980B, and 3c980C server adapters
+.It
+3Com 3cSOHO100-TX OfficeConnect adapters
+.It
+3Com 3c450 HomeConnect adapters
+.It
+3Com 3c555, 3c556 and 3c556B mini-PCI adapters
+.It
+3Com 3C3SH573BT, 3C575TX, 3CCFE575BT, 3CXFE575BT, 3CCFE575CT, 3CXFE575CT,
+3CCFEM656, 3CCFEM656B, and 3CCFEM656C, 3CXFEM656, 3CXFEM656B, and
+3CXFEM656C CardBus adapters
+.It
+3Com 3c905-TX, 3c905B-TX 3c905C-TX, 3c920B-EMB, and 3c920B-EMB-WNM embedded adapters
+.El
+.Pp
+Both the 3C656 family of CardBus cards and the 3C556 family of MiniPCI
+cards have a built-in proprietary modem.
+Neither the
+.Nm
+driver nor any other
+.Fx
+driver supports this modem.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "xl%d: couldn't map memory"
+A fatal initialization error has occurred.
+.It "xl%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "xl%d: device timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.It "xl%d: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.It "xl%d: no memory for tx list"
+The driver failed to allocate an mbuf for the transmitter ring when
+allocating a pad buffer or collapsing an mbuf chain into a cluster.
+.It "xl%d: command never completed!"
+Some commands issued to the 3c90x ASIC take time to complete: the
+driver is supposed to wait until the 'command in progress' bit in
+the status register clears before continuing.
+In rare instances, this
+bit may not clear.
+To avoid getting caught in an infinite wait loop,
+the driver only polls the bit for a finite number of times before
+giving up, at which point it issues this message.
+This message may
+be printed during driver initialization on slower machines.
+If you
+see this message but the driver continues to function normally, the
+message can probably be ignored.
+.It "xl%d: chip is in D3 power state -- setting to D0"
+This message applies only to 3c905B adapters, which support power
+management.
+Some operating systems place the 3c905B in low power
+mode when shutting down, and some PCI BIOSes fail to bring the chip
+out of this state before configuring it.
+The 3c905B loses all of
+its PCI configuration in the D3 state, so if the BIOS does not set
+it back to full power mode in time, it will not be able to configure it
+correctly.
+The driver tries to detect this condition and bring
+the adapter back to the D0 (full power) state, but this may not be
+enough to return the driver to a fully operational condition.
+If
+you see this message at boot time and the driver fails to attach
+the device as a network interface, you will have to perform second
+warm boot to have the device properly configured.
+.Pp
+Note that this condition only occurs when warm booting from another
+operating system.
+If you power down your system prior to booting
+.Fx ,
+the card should be configured correctly.
+.It "xl%d: WARNING: no media options bits set in the media options register!"
+This warning may appear when using the driver on some Dell Latitude
+docking stations with built-in 3c905-TX adapters.
+For whatever the
+reason, the 'MII available' bit in the media options register on
+this particular equipment is not set, even though it should be (the
+3c905-TX always uses an external PHY transceiver).
+The driver will
+attempt to guess the proper media type based on the PCI device ID
+word.
+The driver makes a lot of noise about this condition because
+the author considers it a manufacturing defect.
+.It xl%d: transmission error: %d
+.It xl%d: tx underrun, increasing tx start threshold to %d bytes
+This message may appear while the adapter tunes its transmission
+buffers under various load amounts and are mostly harmless.
+It is probably safe to ignore them.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr cardbus 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr pccard 4 ,
+.Xr polling 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu .

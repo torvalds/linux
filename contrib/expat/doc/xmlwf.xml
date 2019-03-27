@@ -1,0 +1,452 @@
+<!DOCTYPE refentry [
+  <!-- Fill in your name for FIRSTNAME and SURNAME. -->
+  <!ENTITY dhfirstname "<firstname>Scott</firstname>">
+  <!ENTITY dhsurname   "<surname>Bronson</surname>">
+  <!-- Please adjust the date whenever revising the manpage. -->
+  <!ENTITY dhdate      "<date>March 11, 2016</date>">
+  <!-- SECTION should be 1-8, maybe w/ subsection other parameters are
+       allowed: see man(7), man(1). -->
+  <!ENTITY dhsection   "<manvolnum>1</manvolnum>">
+  <!ENTITY dhemail     "<email>bronson@rinspin.com</email>">
+  <!ENTITY dhusername  "Scott Bronson">
+  <!ENTITY dhucpackage "<refentrytitle>XMLWF</refentrytitle>">
+  <!ENTITY dhpackage   "xmlwf">
+
+  <!ENTITY debian      "<productname>Debian GNU/Linux</productname>">
+  <!ENTITY gnu         "<acronym>GNU</acronym>">
+]>
+
+<refentry>
+  <refentryinfo>
+    <address>
+      &dhemail;
+    </address>
+    <author>
+      &dhfirstname;
+      &dhsurname;
+    </author>
+    <copyright>
+      <year>2001</year>
+      <holder>&dhusername;</holder>
+    </copyright>
+    &dhdate;
+  </refentryinfo>
+  <refmeta>
+    &dhucpackage;
+
+    &dhsection;
+  </refmeta>
+  <refnamediv>
+    <refname>&dhpackage;</refname>
+
+    <refpurpose>Determines if an XML document is well-formed</refpurpose>
+  </refnamediv>
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>&dhpackage;</command>
+	  <arg><option>-s</option></arg>
+	  <arg><option>-n</option></arg>
+	  <arg><option>-p</option></arg>
+	  <arg><option>-x</option></arg>
+
+	  <arg><option>-e <replaceable>encoding</replaceable></option></arg>
+	  <arg><option>-w</option></arg>
+
+	  <arg><option>-d <replaceable>output-dir</replaceable></option></arg>
+	  <arg><option>-c</option></arg>
+	  <arg><option>-m</option></arg>
+
+	  <arg><option>-r</option></arg>
+	  <arg><option>-t</option></arg>
+          <arg><option>-N</option></arg>
+
+	  <arg><option>-v</option></arg>
+
+	  <arg>file ...</arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+ 
+  <refsect1>
+    <title>DESCRIPTION</title>
+
+    <para>
+	<command>&dhpackage;</command> uses the Expat library to
+	determine if an XML document is well-formed.  It is
+	non-validating.
+	</para>
+
+	<para>
+	If you do not specify any files on the command-line, and you
+	have a recent version of <command>&dhpackage;</command>, the
+	input file will be read from standard input.
+	</para>
+
+  </refsect1>
+
+  <refsect1>
+    <title>WELL-FORMED DOCUMENTS</title>
+
+	<para>
+	  A well-formed document must adhere to the
+	  following rules:
+	</para>
+
+	<itemizedlist>
+      <listitem><para>
+	    The file begins with an XML declaration.  For instance,
+		<literal>&lt;?xml version="1.0" standalone="yes"?&gt;</literal>.
+		<emphasis>NOTE:</emphasis>
+		<command>&dhpackage;</command> does not currently
+		check for a valid XML declaration.
+      </para></listitem>
+      <listitem><para>
+		Every start tag is either empty (&lt;tag/&gt;)
+		or has a corresponding end tag.
+      </para></listitem>
+      <listitem><para>
+	    There is exactly one root element.  This element must contain
+		all other elements in the document.  Only comments, white
+		space, and processing instructions may come after the close
+		of the root element.
+      </para></listitem>
+      <listitem><para>
+		All elements nest properly.
+      </para></listitem>
+      <listitem><para>
+		All attribute values are enclosed in quotes (either single
+		or double).
+      </para></listitem>
+    </itemizedlist>
+
+	<para>
+	  If the document has a DTD, and it strictly complies with that
+	  DTD, then the document is also considered <emphasis>valid</emphasis>.
+	  <command>&dhpackage;</command> is a non-validating parser --
+	  it does not check the DTD.  However, it does support
+	  external entities (see the <option>-x</option> option).
+	</para>
+  </refsect1>
+
+  <refsect1>
+    <title>OPTIONS</title>
+
+<para>
+When an option includes an argument, you may specify the argument either
+separately ("<option>-d</option> output") or concatenated with the
+option ("<option>-d</option>output").  <command>&dhpackage;</command>
+supports both.
+</para>
+
+    <variablelist>
+
+      <varlistentry>
+        <term><option>-c</option></term>
+        <listitem>
+		<para>
+  If the input file is well-formed and <command>&dhpackage;</command>
+  doesn't encounter any errors, the input file is simply copied to
+  the output directory unchanged.
+  This implies no namespaces (turns off <option>-n</option>) and
+  requires <option>-d</option> to specify an output directory.
+  		</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-d output-dir</option></term>
+        <listitem>
+		<para>
+  Specifies a directory to contain transformed
+  representations of the input files.
+  By default, <option>-d</option> outputs a canonical representation
+  (described below).
+  You can select different output formats using <option>-c</option>,
+  <option>-m</option> and <option>-N</option>.
+	  </para>
+	  <para>
+  The output filenames will
+  be exactly the same as the input filenames or "STDIN" if the input is
+  coming from standard input.  Therefore, you must be careful that the
+  output file does not go into the same directory as the input
+  file.  Otherwise, <command>&dhpackage;</command> will delete the
+  input file before it generates the output file (just like running
+  <literal>cat &lt; file &gt; file</literal> in most shells).
+	  </para>
+	  <para> 
+  Two structurally equivalent XML documents have a byte-for-byte
+  identical canonical XML representation.
+  Note that ignorable white space is considered significant and
+  is treated equivalently to data.
+  More on canonical XML can be found at
+  http://www.jclark.com/xml/canonxml.html .
+	  </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-e encoding</option></term>
+        <listitem>
+		<para>
+   Specifies the character encoding for the document, overriding
+   any document encoding declaration.  <command>&dhpackage;</command>
+   supports four built-in encodings:
+   	<literal>US-ASCII</literal>,
+	<literal>UTF-8</literal>,
+	<literal>UTF-16</literal>, and
+	<literal>ISO-8859-1</literal>.
+   Also see the <option>-w</option> option.
+	   </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-m</option></term>
+        <listitem>
+		<para>
+  Outputs some strange sort of XML file that completely
+  describes the input file, including character positions.
+  Requires <option>-d</option> to specify an output file.
+	   </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-n</option></term>
+        <listitem>
+		<para>
+  Turns on namespace processing.  (describe namespaces)
+  <option>-c</option> disables namespaces.
+	   </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-N</option></term>
+        <listitem>
+          <para>
+  Adds a doctype and notation declarations to canonical XML output.
+  This matches the example output used by the formal XML test cases.
+  Requires <option>-d</option> to specify an output file.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-p</option></term>
+        <listitem>
+		<para>
+    Tells xmlwf to process external DTDs and parameter
+    entities.
+	 </para>
+	 <para>
+   Normally <command>&dhpackage;</command> never parses parameter
+   entities.  <option>-p</option> tells it to always parse them.
+   <option>-p</option> implies <option>-x</option>.
+	   </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-r</option></term>
+        <listitem>
+		<para>
+   Normally <command>&dhpackage;</command> memory-maps the XML file
+   before parsing; this can result in faster parsing on many
+   platforms.
+   <option>-r</option> turns off memory-mapping and uses normal file
+   IO calls instead.
+   Of course, memory-mapping is automatically turned off
+   when reading from standard input.
+	   </para>
+		<para>
+   Use of memory-mapping can cause some platforms to report
+   substantially higher memory usage for
+   <command>&dhpackage;</command>, but this appears to be a matter of
+   the operating system reporting memory in a strange way; there is
+   not a leak in <command>&dhpackage;</command>.
+           </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-s</option></term>
+        <listitem>
+		<para>
+  Prints an error if the document is not standalone. 
+  A document is standalone if it has no external subset and no
+  references to parameter entities.
+	   </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-t</option></term>
+        <listitem>
+		<para>
+  Turns on timings.  This tells Expat to parse the entire file,
+  but not perform any processing.
+  This gives a fairly accurate idea of the raw speed of Expat itself
+  without client overhead.
+  <option>-t</option> turns off most of the output options
+  (<option>-d</option>, <option>-m</option>, <option>-c</option>, ...).
+	   </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-v</option></term>
+        <listitem>
+		<para>
+  Prints the version of the Expat library being used, including some
+  information on the compile-time configuration of the library, and
+  then exits.
+	   </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-w</option></term>
+        <listitem>
+		<para>
+  Enables support for Windows code pages.
+  Normally, <command>&dhpackage;</command> will throw an error if it
+  runs across an encoding that it is not equipped to handle itself.  With
+  <option>-w</option>, &dhpackage; will try to use a Windows code
+  page.  See also <option>-e</option>.
+	   </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-x</option></term>
+        <listitem>
+		<para>
+  Turns on parsing external entities.
+  </para>
+<para>
+  Non-validating parsers are not required to resolve external
+  entities, or even expand entities at all.
+  Expat always expands internal entities (?),
+  but external entity parsing must be enabled explicitly.
+  </para>
+  <para>
+  External entities are simply entities that obtain their
+  data from outside the XML file currently being parsed.
+  </para>
+  <para>
+  This is an example of an internal entity:
+<literallayout>
+&lt;!ENTITY vers '1.0.2'&gt;
+</literallayout>
+  </para>
+  <para>
+  And here are some examples of external entities:
+
+<literallayout>
+&lt;!ENTITY header SYSTEM "header-&amp;vers;.xml"&gt;  (parsed)
+&lt;!ENTITY logo SYSTEM "logo.png" PNG&gt;         (unparsed)
+</literallayout>
+
+	   </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--</option></term>
+        <listitem>
+		<para>
+    (Two hyphens.)
+    Terminates the list of options.  This is only needed if a filename
+    starts with a hyphen.  For example:
+	   </para>
+<literallayout>
+&dhpackage; -- -myfile.xml
+</literallayout>
+		<para>
+    will run <command>&dhpackage;</command> on the file
+    <filename>-myfile.xml</filename>.
+	   </para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+	<para>
+    Older versions of <command>&dhpackage;</command> do not support
+    reading from standard input.
+	</para>
+  </refsect1>
+
+  <refsect1>
+  <title>OUTPUT</title>
+    <para>
+	If an input file is not well-formed,
+	<command>&dhpackage;</command> prints a single line describing
+	the problem to standard output.  If a file is well formed,
+	<command>&dhpackage;</command> outputs nothing.
+	Note that the result code is <emphasis>not</emphasis> set.
+	</para>
+  </refsect1>
+  
+  <refsect1>
+    <title>BUGS</title>
+	<para>
+	<command>&dhpackage;</command> returns a 0 - noerr result,
+	even if the file is not well-formed.  There is no good way for
+	a program to use <command>&dhpackage;</command> to quickly
+	check a file -- it must parse <command>&dhpackage;</command>'s
+	standard output.
+	</para>
+	<para>
+	The errors should go to standard error, not standard output.
+	</para>
+	<para>
+	There should be a way to get <option>-d</option> to send its
+	output to standard output rather than forcing the user to send
+	it to a file.
+	</para>
+	<para>
+	I have no idea why anyone would want to use the
+	<option>-d</option>, <option>-c</option>, and
+	<option>-m</option> options.  If someone could explain it to
+	me, I'd like to add this information to this manpage.
+	</para>
+  </refsect1>
+
+  <refsect1>
+    <title>ALTERNATIVES</title>
+	<para>
+	  Here are some XML validators on the web:
+
+<literallayout>
+http://www.hcrc.ed.ac.uk/~richard/xml-check.html
+http://www.stg.brown.edu/service/xmlvalid/
+http://www.scripting.com/frontier5/xml/code/xmlValidator.html
+http://www.xml.com/pub/a/tools/ruwf/check.html
+</literallayout>
+
+		 </para>
+  </refsect1>
+
+  <refsect1>
+    <title>SEE ALSO</title>
+	<para>
+
+<literallayout>
+The Expat home page:        http://www.libexpat.org/
+The W3 XML specification:   http://www.w3.org/TR/REC-xml
+</literallayout>
+
+	</para>
+  </refsect1>
+
+  <refsect1>
+    <title>AUTHOR</title>
+    <para>
+	  This manual page was written by &dhusername; &dhemail; for
+      the &debian; system (but may be used by others).  Permission is
+      granted to copy, distribute and/or modify this document under
+      the terms of the <acronym>GNU</acronym> Free Documentation
+      License, Version 1.1.
+	</para>
+  </refsect1>
+</refentry>

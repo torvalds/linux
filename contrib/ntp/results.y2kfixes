@@ -1,0 +1,76 @@
+Script started on Sat Jan  1 04:14:09 2000
+[root@timetest ntpdate]# date
+Sat Jan  1 04:14:11 EST 2000
+[root@timetest ntpdate]# ./ntpdate -b timelord.att.com
+14 Jul 13:44:39 ntpdate[11723]: step time server 135.16.xxxx.xxxx offset -14740193.210537 sec
+[root@timetest ntpdate]# date
+Wed Jul 14 13:44:42 EST 1999
+[root@timetest ntpdate]# cd ../ntptrace
+[root@timetest ntptrace]# ./ntptrace timelord.att.com
+timelord.att.com: stratum 2, offset -0.000879, synch distance 0.07207
+timemaster.att.com: stratum 1, offset -0.004876, synch distance 0.03485, refid 'GPS'
+[root@timetest ntptrace]# cd -
+[root@timetest ntpdate]# date
+Mon Feb 28 01:00:04 EST 2000
+[root@timetest ntpdate]# ./ntpdate -b timelord.att.com
+14 Jul 13:49:01 ntpdate[11760]: step time server 135.16.xxxx.xxxx offset -19739467.533126 sec
+[root@timetest ntpdate]# date
+Wed Jul 14 13:49:03 EST 1999
+[root@timetest ntpdate]# cd -
+[root@timetest ntptrace]# ./ntptrace timelord.att.com
+timelord.att.com: stratum 2, offset 0.001383, synch distance 0.05644
+timemaster.att.com: stratum 1, offset -0.006355, synch distance 0.04178, refid 'GPS'
+[root@timetest ntptrace]# cd -
+[root@timetest ntpdate]# date
+Tue Feb 29 01:00:05 EST 2000
+[root@timetest ntpdate]# ./ntpdate -b timelord.att.com
+14 Jul 13:57:41 ntpdate[12423]: step time server 135.16.xxxx.xxxx offset -19825349.396585 sec
+[root@timetest ntpdate]# date
+Wed Jul 14 13:57:43 EST 1999
+[root@timetest ntpdate]# cd -
+[root@timetest ntptrace]# ./ntptrace timelord.att.com
+timelord.att.com: stratum 2, offset -0.000094, synch distance 0.06522
+timemaster.att.com: stratum 1, offset -0.010803, synch distance 0.03078, refid 'GPS'
+[root@timetest ntptrace]# cd -
+[root@timetest ntpdate]# date 
+Wed Mar  1 01:00:03 EST 2000
+[root@timetest ntpdate]# ./ntpdate -b timelord.att.com
+14 Jul 13:58:10 ntpdate[12525]: step time server 135.16.xxxx.xxxx offset -19911719.766061 sec
+[root@timetest ntpdate]# date
+Wed Jul 14 13:58:12 EST 1999
+[root@timetest ntpdate]# cd -
+[root@timetest ntptrace]# ./ntptrace timelord.att.com
+timelord.att.com: stratum 2, offset -0.000719, synch distance 0.06561
+timemaster.att.com: stratum 1, offset -0.013598, synch distance 0.03116, refid 'GPS'
+
+Script done on Wed Jul 14 13:58:28 1999
+
+RESULTS OK.
+--------------------END OF TEST1-------------------- 
+
+
+### freeware test configuration
+server 127.127.1.0 prefer
+fudge 127.127.1.0 stratum 0
+driftfile drift.log
+
+
+ntpdate timelord.att.com
+server 135.16.xxxx.xxxx stratum 1, offset 0.000033, delay 0.02975
+31 Dec 23:58:59 ntpdate[83551]: adjust time server 135.16.74.3 offset 0.039057 s
+ec
+
+ntpdate timelord.att.com
+server 135.16.xxxx.xxxx stratum 1, offset 0.000019, delay 0.02504
+01 Jan 00:01:05 ntpdate[8352]: adjust time server 135.16.74.3 offset 0.039057 s
+ec
+
+ntpdate timelord.att.com
+server 135.25.xxxx.xxxx, stratum 1, offset -0.000023, delay 0.02731
+29 Feb 00:02:15 ntpdate[8353]: adjust time server 135.25.xxxx.xxxx offset -0.000023 sec
+
+
+
+
+
+

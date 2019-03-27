@@ -1,0 +1,52 @@
+\input texinfo    @c -*-texinfo-*-
+@c %**start of header
+@setfilename ntp-wait.info
+@settitle Ntp-wait User's Manual
+@include ../../sntp/include/version.texi
+@paragraphindent 2
+@c %**end of header
+
+@ifinfo
+This file documents the use of @code{ntp-wait},
+a program from
+the NTP Project,
+that is used to wait until @code{ntpd} has been able to
+synchronize and stabilize the time on the current host.
+@end ifinfo
+
+@direntry
+* ntp-wait: (ntp-wait).                 Wait for ntpd to synchronize and stabilize the system clock.
+@end direntry
+
+@titlepage
+@title ntp-wait User's Manual
+@subtitle ntp-wait, version @value{VERSION}, @value{UPDATED}
+@c @author Max @email{foo@ntp.org}
+@end titlepage
+
+@c @page
+@c @vskip 0pt plus 1filll
+
+@node Top, ntp-wait Description, (dir), (dir)
+
+This document describes the use of the NTP Project's @code{ntp-wait} program.
+
+If there are time-sensitive applications,
+the proper sequence of events is to
+run @code{ntpd -g} as early as possible,
+then invoke all of the non-time-sensitive process,
+run @code{ntp-wait} to block
+until the system's time has stabilized and synchronized,
+and only then start any applicaitons (like database servers) that require
+accurate and stable time.
+
+This document applies to version @value{VERSION} of @code{ntp-wait}.
+
+@shortcontents
+
+@menu
+* ntp-wait Description::            Description
+* ntp-wait Invocation::		Invoking ntp-wait
+@end menu
+
+@include invoke-ntp-wait.texi

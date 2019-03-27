@@ -1,0 +1,122 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_getstr.3x,v 1.19 2010/12/04 18:36:44 tom Exp $
+.TH curs_getstr 3X ""
+.na
+.hy 0
+.SH NAME
+\fBgetstr\fR,
+\fBgetnstr\fR,
+\fBwgetstr\fR,
+\fBwgetnstr\fR,
+\fBmvgetstr\fR,
+\fBmvgetnstr\fR,
+\fBmvwgetstr\fR,
+\fBmvwgetnstr\fR \- accept character strings from \fBcurses\fR terminal keyboard
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint getstr(char *str);\fR
+.br
+\fBint getnstr(char *str, int n);\fR
+.br
+\fBint wgetstr(WINDOW *win, char *str);\fR
+.br
+\fBint wgetnstr(WINDOW *win, char *str, int n);\fR
+.br
+\fBint mvgetstr(int y, int x, char *str);\fR
+.br
+\fBint mvwgetstr(WINDOW *win, int y, int x, char *str);\fR
+.br
+\fBint mvgetnstr(int y, int x, char *str, int n);\fR
+.br
+\fBint mvwgetnstr(WINDOW *, int y, int x, char *str, int n);\fR
+.br
+.SH DESCRIPTION
+The function \fBgetstr\fR is equivalent to a series of calls to \fBgetch\fR,
+until a newline or carriage return is received (the terminating character is
+not included in the returned string).  The resulting value is placed in the
+area pointed to by the character pointer \fIstr\fR.
+.PP
+\fBwgetnstr\fR reads at most \fIn\fR characters, thus preventing a possible
+overflow of the input buffer.  Any attempt to enter more characters (other
+than the terminating newline or carriage return) causes a beep.  Function
+keys also cause a beep and are ignored.  The \fBgetnstr\fR function reads
+from the \fIstdscr\fR default window.
+.PP
+The user's erase and kill characters are interpreted.  If keypad
+mode is on for the window, \fBKEY_LEFT\fR and \fBKEY_BACKSPACE\fR
+are both considered equivalent to the user's kill character.
+.PP
+Characters input are echoed only if \fBecho\fR is currently on.  In that case,
+backspace is echoed as deletion of the previous character (typically a left
+motion).
+.SH RETURN VALUE
+All routines return the integer \fBERR\fR upon failure and an \fBOK\fR (SVr4
+specifies only "an integer value other than \fBERR\fR") upon successful
+completion.
+.PP
+X/Open defines no error conditions.
+.PP
+In this implementation,
+these functions return an error
+if the window pointer is null, or
+if its timeout expires without having any data.
+.PP
+This implementation provides an extension as well.
+If a SIGWINCH interrupts the function, it will return \fBKEY_RESIZE\fP
+rather than \fBOK\fP or \fBERR\fP.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+Note that \fBgetstr\fR, \fBmvgetstr\fR, and \fBmvwgetstr\fR may be macros.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.
+They read single-byte characters only.
+The standard does not define any error conditions.
+This implementation returns ERR if the window pointer is null,
+or if the lower-level \fBwgetch\fR call returns an ERR.
+.PP
+SVr3 and early SVr4 curses implementations did not reject function keys;
+the SVr4.0 documentation claimed that "special keys" (such as function
+keys, "home" key, "clear" key, \fIetc\fR.) are "interpreted", without
+giving details.  It lied.  In fact, the `character' value appended to the
+string by those implementations was predictable but not useful
+(being, in fact, the low-order eight bits of the key's KEY_ value).
+.PP
+The functions \fBgetnstr\fR, \fBmvgetnstr\fR, and \fBmvwgetnstr\fR were
+present but not documented in SVr4.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_getch\fR(3X),
+\fBcurs_variables\fR(3X).

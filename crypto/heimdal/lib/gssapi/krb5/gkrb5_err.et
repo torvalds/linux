@@ -1,0 +1,31 @@
+#
+# extended gss krb5 error messages
+#
+
+id "$Id$"
+
+error_table gk5
+
+prefix GSS_KRB5_S
+
+error_code G_BAD_SERVICE_NAME, "No @ in SERVICE-NAME name string"
+error_code G_BAD_STRING_UID, "STRING-UID-NAME contains nondigits"
+error_code G_NOUSER, "UID does not resolve to username"
+error_code G_VALIDATE_FAILED, "Validation error"
+error_code G_BUFFER_ALLOC, "Couldn't allocate gss_buffer_t data"
+error_code G_BAD_MSG_CTX, "Message context invalid"
+error_code G_WRONG_SIZE, "Buffer is the wrong size"
+error_code G_BAD_USAGE, "Credential usage type is unknown"
+error_code G_UNKNOWN_QOP, "Unknown quality of protection specified"
+
+index 128
+
+error_code KG_CCACHE_NOMATCH, "Principal in credential cache does not match desired name"
+error_code KG_KEYTAB_NOMATCH, "No principal in keytab matches desired name"
+error_code KG_TGT_MISSING, "Credential cache has no TGT"
+error_code KG_NO_SUBKEY, "Authenticator has no subkey"
+error_code KG_CONTEXT_ESTABLISHED, "Context is already fully established"
+error_code KG_BAD_SIGN_TYPE, "Unknown signature type in token"
+error_code KG_BAD_LENGTH, "Invalid field length in token"
+error_code KG_CTX_INCOMPLETE, "Attempt to use incomplete security context"
+error_code KG_INPUT_TOO_LONG, "Input too long"

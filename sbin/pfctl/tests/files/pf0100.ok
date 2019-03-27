@@ -1,0 +1,18 @@
+pass all flags S/SA keep state
+anchor "/b" all
+anchor "/3" all
+anchor "relative" all {
+  pass in on lo0 all flags S/SA keep state label "TEST1"
+}
+anchor "/*" all
+anchor "/*" all
+anchor "foo" in on lo0 all {
+  anchor "bar" in all {
+    anchor "/3" all
+    anchor "/relative" all
+    pass in on lo0 all flags S/SA keep state label "FOO"
+  }
+  anchor in all {
+    pass in on lo0 all flags S/SA keep state label "BAR"
+  }
+}

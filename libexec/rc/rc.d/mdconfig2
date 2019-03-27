@@ -1,0 +1,227 @@
+#!/bin/sh
+#
+# Copyright (c) 2006  The FreeBSD Project
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# PROVIDE: mdconfig2
+# REQUIRE: mountcritremote
+# BEFORE: SERVERS
+
+. /etc/rc.subr
+
+name="mdconfig2"
+desc="Create and control memory disks"
+stop_cmd="mdconfig2_stop"
+start_cmd="mdconfig2_start"
+start_precmd='[ -n "${_mdconfig2_list}" ]'
+required_modules="geom_md:g_md"
+
+is_readonly()
+{
+	local _mp _ret
+
+	_mp=$1
+	_ret=`mount | while read _line; do
+		case ${_line} in
+		*" ${_mp} "*read-only*)
+			echo "yes"
+			;;
+
+		*)
+			;;
+		esac;
+	done`
+
+	if [ -n "${_ret}" ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+init_variables()
+{
+	local _i
+
+	_fs=""
+	_mp=""
+	_mounted="no"
+	_dev="/dev/${_md}"
+	eval _config=\$mdconfig_${_md}
+	eval _owner=\$mdconfig_${_md}_owner
+	eval _perms=\$mdconfig_${_md}_perms
+	eval _files=\$mdconfig_${_md}_files
+	eval _populate=\$mdconfig_${_md}_cmd
+
+	_type=${_config##*-t\ }
+	_type=${_type%%\ *}
+	if [ -z "${_type}" ]; then
+		err 1 "You need to specify \"-t <type>\" in mdconfig_${_md}"
+	fi
+
+	if [ "${_type}" = "vnode" ]; then
+		_file=${_config##*-f\ }
+		_file=${_file%%\ *}
+		if [ -z "${_file}" ]; then
+			err 2 "You need to specify \"-f <file>\" in mdconfig_${_md} for vnode devices"
+		fi
+
+		if [ "${_file}" != "${_file%.uzip}" ]; then
+			_dev="/dev/${_md}.uzip"
+		fi
+		for _i in `df ${_file} 2>/dev/null`; do _fs=${_i}; done
+	fi
+
+	# Debugging help.
+	debug "${_md} config: ${_config}"
+	debug "${_md} type: ${_type}"
+	debug "${_md} dev: ${_dev}"
+	debug "${_md} file: ${_file}"
+	debug "${_md} fs: ${_fs}"
+	debug "${_md} owner: ${_owner}"
+	debug "${_md} perms: ${_perms}"
+	debug "${_md} files: ${_files}"
+	debug "${_md} populate cmd: ${_populate}"
+}
+
+mdconfig2_start()
+{
+	local _md _fs _mp _mounted _dev _config _type _file _owner _perms _files _populate _fsck_cmd _i
+
+	for _md in ${_mdconfig2_list}; do
+		init_variables ${_md}
+		if [ ! -r ${_file} ]; then
+			err 3 "${_file} doesn't exist"
+			continue
+		fi
+		# First pass: create md(4) vnode devices from files stored on
+		# non-root partition. Swap and malloc md(4) devices have already
+		# been created.
+		if [ "${_type}" = "vnode" -a "${_fs}" != "/" ]; then
+			if [ "${_file}" != "${_file%.uzip}" ]; then
+				load_kld -m g_uzip geom_uzip || return 3
+			fi
+			if is_readonly ${_fs}; then
+				warn "${_fs} is mounted read-only, skipping ${_md}."
+				continue
+			fi
+			if mdconfig -l -u ${_md} >/dev/null 2>&1; then
+				err 3 "${_md} already exists"
+			fi
+			echo "Creating ${_md} device (${_type})."
+			if ! mdconfig -a ${_config} -u ${_md}; then
+				echo "Creating ${_md} device failed, moving on."
+				continue
+			fi
+			# Skip fsck for uzip devices.
+			if [ "${_file}" != "${_file%.uzip}" ]; then
+				_fsck_cmd=":"
+			elif checkyesno background_fsck; then
+				_fsck_cmd="fsck -F"
+			else
+				_fsck_cmd="fsck"
+			fi
+			if ! eval ${_fsck_cmd} -p ${_dev} >/dev/null; then
+				echo "Fsck failed on ${_dev}, not mounting the filesystem."
+				continue
+			fi
+			if mount -d ${_dev} >/dev/null 2>&1; then
+				echo "Mounting ${_dev}."
+				mount ${_dev}
+			fi
+		fi
+
+		for _i in `df ${_dev} 2>/dev/null`; do _mp=${_i}; done
+		if [ ! -z "${_mp}" -a "${_mp}" = "${_mp%%%}" ]; then
+			_mounted="yes"
+		fi
+
+		if checkyesno _mounted; then
+			# Second pass: change permissions and ownership.
+			[ -z "${_owner}" ] || chown -f ${_owner} ${_dev} ${_mp}
+			[ -z "${_perms}" ] || chmod -f ${_perms} ${_dev} ${_mp}
+
+			# Third pass: populate with foreign files.
+			if [ -n "${_files}" -o -n "${_populate}" ]; then
+				echo "Populating ${_dev}."
+			fi
+			if [ -n "${_files}" ]; then
+				cp -Rp ${_files} ${_mp}
+			fi
+			if [ -n "${_populate}" ]; then
+				eval ${_populate}
+			fi
+		fi
+	done
+}
+
+mdconfig2_stop()
+{
+	local _md _fs _mp _mounted _dev _config _type _file _owner _perms _files _populate
+
+	for _md in ${_mdconfig2_list}; do
+		init_variables ${_md}
+		if [ "${_type}" = "vnode" ]; then
+			for i in `df ${_dev} 2>/dev/null`; do _mp=$i; done
+			if [ ! -r "${_file}" -o "${_fs}" = "/" ]; then
+				continue
+			fi
+			if [ -z "${_mp}" -o "${_mp}" != "${_mp%%%}" ]; then
+				echo "Device ${_dev} isn't mounted."
+			else
+				echo "Umounting ${_dev}."
+				umount ${_dev}
+			fi
+			if mdconfig -l -u ${_md} >/dev/null 2>&1; then
+				echo "Destroying ${_md}."
+				mdconfig -d -u ${_md}
+			fi
+		fi
+	done
+}
+
+_mdconfig2_cmd="$1"
+if [ $# -gt 0 ]; then
+        shift
+fi
+[ -n "$*" ] && _mdconfig2_list="$*"
+
+load_rc_config $name
+
+if [ -z "${_mdconfig2_list}" ]; then
+	for _mdconfig2_config in `list_vars mdconfig_md[0-9]\* |
+		sort_lite -nk1.12`
+	do
+		_mdconfig2_unit=${_mdconfig2_config#mdconfig_md}
+		[ "${_mdconfig2_unit#*[!0-9]}" = "$_mdconfig2_unit" ] ||
+			continue
+		_mdconfig2_list="$_mdconfig2_list md$_mdconfig2_unit"
+	done
+	_mdconfig2_list="${_mdconfig2_list# }"
+fi
+
+run_rc_command "${_mdconfig2_cmd}"

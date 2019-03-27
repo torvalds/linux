@@ -1,0 +1,341 @@
+#!/bin/sh
+#
+# SYNOPSIS
+#	fixproto TARGET-DIR SOURCE-DIR-ALL SOURCE-DIR-STD
+#
+# COPYRIGHT
+#	Copyright (C) 1993, 1994, 1997, 1998, 2002, 2003
+#       Free Software Foundation, Inc.
+#	This file is part of GCC.
+#
+#	GCC is free software; you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation; either version 2, or (at your option)
+#	any later version.
+#
+#	GCC is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with GCC; see the file COPYING.  If not, write to
+#	the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+#	Boston, MA 02110-1301, USA.
+#
+# DESCRIPTION
+#	Adjunct script for GCC to populate a directory with ANSI,
+#	Posix.1, and C++ compatible header files.
+#
+#	Each file found under SOURCE-DIR-ALL is analyzed and "fixed."
+#       Only standard ANSI/POSIX files found under SOURCE-DIR-STD
+#       are analyzed and "fixed."
+#	The SOURCE-DIRs are searched in order; a file found
+#	under multiple SOURCE-DIRs is only handled for the first one.
+#
+# STRATEGY
+#       Each include file is fed through cpp, and the scan-decls program
+#	parses it, and emits any found function declarations.
+#	The fix-header program analyzes the scan-decls output,
+#	together with the original include file, and writes a "fixed"
+#	include file, if needed.
+#
+#	The comment at the beginning of fix-header.c lists specifically
+#	what kind of changes are made.
+#
+# NOTE
+#	Some file space will be wasted, because the original header
+#	files are copied.  An earlier version just included the original
+#	by "reference", using GNU cpp's #include_next mechanism.
+#	This is currently not done, partly because #include_next is
+#	fragile (susceptible to version incompatibilities, and depends
+#	and GCC-specific features), and partly for performance reasons.
+#
+# AUTHORS
+#	Ron Guilmette (rfg@netcom.com) (original idea and code)
+#	Per Bothner (bothner@cygnus.com) (major re-write)
+
+dirname=`echo "$0" | sed 's,^[^/]*$,.,;s,//*[^/]*$,,'`
+progname=`echo "$0" | sed 's,.*/,,'`
+original_dir=`${PWDCMD-pwd}`
+FIX_HEADER=${FIX_HEADER-$original_dir/fix-header}
+DEFINES="-D__STDC__=0 -D__cplusplus ${FIXPROTO_DEFINES}"
+
+if mkdir -p . 2> /dev/null; then
+  # Great, mkdir accepts -p
+  mkinstalldirs="mkdir -p"
+else
+  # We expect mkinstalldirs to be passed in the environment.
+  # If it is not, assume it is in the directory that contains this script.
+  mkinstalldirs=${mkinstalldirs-"/bin/sh $dirname/mkinstalldirs"}
+  if $mkinstalldirs . 2> /dev/null; then
+    :
+  else
+    # But, in case of failure, fallback to plain mkdir, and hope it works
+    mkinstalldirs=mkdir
+  fi
+fi
+
+if [ `echo $1 | wc -w` = 0 ] ; then
+  echo $progname\: usage\: $progname target-dir \[ source-dir \.\.\. \]
+  exit 1
+fi
+
+std_files="ctype.h dirent.h errno.h curses.h fcntl.h grp.h locale.h math.h pwd.h setjmp.h signal.h stdio.h stdlib.h string.h sys/socket.h sys/stat.h sys/times.h sys/resource.h sys/utsname.h sys/wait.h tar.h termios.h time.h unistd.h utime.h"
+
+rel_target_dir=$1
+# All files in $src_dir_all (normally same as $rel_target_dir) are
+# processed.
+src_dir_all=$2
+# In $src_dir_std (normally same as /usr/include), only the
+# "standard" ANSI/POSIX files listed in $std_files are processed.
+src_dir_std=$3
+
+case $rel_target_dir in
+  /* | [A-Za-z]:[\\/]*)
+     abs_target_dir=$rel_target_dir
+     ;;
+  *)
+     abs_target_dir=$original_dir/$rel_target_dir
+     ;;
+esac
+
+# Determine whether this system has symbolic links.
+if ln -s X $rel_target_dir/ShouldNotExist 2>/dev/null; then
+  rm -f $rel_target_dir/ShouldNotExist
+  LINKS=true
+elif ln -s X /tmp/ShouldNotExist 2>/dev/null; then
+  rm -f /tmp/ShouldNotExist
+  LINKS=true
+else
+  LINKS=false
+fi
+
+if [ \! -d $abs_target_dir ] ; then
+  echo $progname\: creating directory $rel_target_dir
+  $mkinstalldirs $abs_target_dir
+fi
+
+echo $progname\: populating \`$rel_target_dir\'
+
+include_path=""
+
+if [ `echo $* | wc -w` != 0 ] ; then
+  for rel_source_dir in $src_dir_all $src_dir_std; do
+     case $rel_source_dir in
+       /* | [A-Za-z]:[\\/]*)
+         abs_source_dir=$rel_source_dir
+         ;;
+       *)
+         abs_source_dir=$original_dir/$rel_source_dir
+         ;;
+     esac
+    include_path="$include_path -I$abs_source_dir"
+  done
+fi
+
+done_dirs=""
+subdirs_made=""
+echo "" >fixproto.list
+
+for code in ALL STD ; do
+
+  subdirs="."
+
+  case $code in
+    ALL)
+      rel_source_dir=$src_dir_all
+
+      dirs="."
+      levels=2
+      while $LINKS && test -n "$dirs" -a $levels -gt 0
+      do
+        levels=`expr $levels - 1`
+	newdirs=
+	for d in $dirs ; do
+	  # Find all directories under $d, relative to $d, excluding $d itself.
+	  # Assume directory names ending in CC or containing ++ are
+	  # for C++, so skip those.
+	  subdirs="$subdirs "`cd $rel_source_dir/$d; find . -type d -print | \
+	           sed -e '/^\.$/d' -e "s|^\./|${d}/|" -e 's|^\./||' \
+		     -e '/CC$/d' -e '/[+][+]/d'`
+	  links=
+	  links=`cd $rel_source_dir; find $d/. -type l -print | \
+		       sed -e "s|$d/./|$d/|" -e 's|^\./||'`
+	  for link in $links --dummy-- ; do
+	    test -d $rel_source_dir/$link/. && newdirs="$newdirs $link"
+	  done
+	done
+	dirs="$newdirs"
+	subdirs="$subdirs $newdirs"
+      done
+      ;;
+    STD)
+      rel_source_dir=$src_dir_std
+      ;;
+  esac
+
+  case $rel_source_dir in
+    /* | [A-Za-z]:[\\/]*)
+       abs_source_dir=$rel_source_dir
+       ;;
+    *)
+       abs_source_dir=$original_dir/$rel_source_dir
+       ;;
+  esac
+
+  if [ \! -d $abs_source_dir ] ; then
+    echo $progname\: warning\: no such directory\: \`$rel_source_dir\'
+    continue
+  fi
+
+  for rel_source_subdir in $subdirs; do
+
+      abs_target_subdir=${abs_target_dir}/${rel_source_subdir}
+      if [ \! -d $abs_target_subdir ] ; then
+	if $mkinstalldirs $abs_target_subdir ; then
+	  subdirs_made="$abs_target_subdir $subdirs_made"
+	fi
+      fi
+      # Append "/"; remove initial "./". Hence "." -> "" and "sys" -> "sys/".
+      rel_source_prefix=`echo $rel_source_subdir | sed -e 's|$|/|' -e 's|^./||'`
+
+      case $code in
+	ALL)
+	  # The 'sed' is in case the *.h matches nothing, which yields "*.h"
+	  # which would then get re-globbed in the current directory.  Sigh.
+	  rel_source_files=`cd ${abs_source_dir}/${rel_source_subdir}; echo *.h | sed -e 's|[*].h|NONE|'`
+	  ;;
+
+	STD)
+	  files_to_check="$std_files"
+	  rel_source_files=""
+
+	  # Also process files #included by the $std_files.
+	  while [ -n "${files_to_check}" ]
+	  do
+	    new_files_to_check=""
+	    for file in $files_to_check ; do
+	      xxfile=`echo $file | sed -e 's|/\([^/\.][^/\.]*\)/\.\./|/|'`
+	      # Create the dir where this file will go when fixed.
+	      xxdir=`echo ./$file | sed -e 's|/[^/]*$||'`
+	      if [ \! -d $abs_target_subdir/$xxdir ] ; then
+		if $mkinstalldirs $abs_target_subdir/$xxdir ; then
+		  subdirs_made="$abs_target_subdir/$xxdir $subdirs_made"
+		fi
+	      fi
+	      # Just in case we have edited out a symbolic link
+	      if [ -f $src_dir_std/$file -a -f $src_dir_std/$xxfile ] ; then
+		file=$xxfile
+	      fi
+	      case " $rel_source_files " in
+	        *" ${file} "*)
+		  # Already seen $file; nothing to do
+		  ;;
+		*)
+		  if test -f $src_dir_std/$file ; then
+		    rel_dir=`echo $file | sed -n -e 's|^\(.*/\)[^/]*$|\1|p'`
+		    # For #include "foo.h", that might be either "foo.h"
+		    # or "${rel_dir}foo.h (or something bogus).
+	            new_files_to_check="$new_files_to_check "`sed -n \
+			-e 's@	@ @g' \
+		        -e 's@^ *# *include *<\([^>]*\)>.*$@\1@p' -e \
+		        's@^ *# *include *\"\([^\"]*\)\".*$@\1 '$rel_dir'\1@p'\
+			<$src_dir_std/$file`
+	            rel_source_files="$rel_source_files $file"
+		  fi
+		  ;;
+	      esac
+	    done
+	    files_to_check="$new_files_to_check"
+	  done
+	  rel_source_files="$rel_source_files"
+	  ;;
+      esac
+
+      for filename in $rel_source_files ; do
+	rel_source_file=${rel_source_prefix}${filename}
+	abs_source_file=$abs_source_dir/$rel_source_file
+	abs_target_file=$abs_target_dir/$rel_source_file
+
+	if test "$filename" = 'NONE' ; then
+	  echo "(No *.h files in $abs_source_dir/$rel_source_subdir)"
+	# If target file exists, check if was written while processing one
+	# of the earlier source directories;  if so ignore it.
+	elif test -f $abs_target_file -a -n "$done_dirs" \
+	  && grep "$rel_source_file" fixproto.list >/dev/null
+	then true
+	else
+	  $FIX_HEADER $rel_source_file $abs_source_file $abs_target_file ${DEFINES} $include_path
+	  if test $? != 0 ; then exit 1 ; fi
+	  echo "${rel_source_file}" >>fixproto.list
+	fi
+      done
+    done
+    done_dirs="$done_dir $rel_source_dir"
+done
+
+# This might be more cleanly moved into the main loop, by adding
+# a <dummy> source directory at the end.  FIXME!
+
+# All the headers we create define size_t and NULL.
+for rel_source_file in unistd.h stdlib.h string.h time.h ; do
+  if grep "$rel_source_file" fixproto.list >/dev/null ; then
+    : # It exists, we don't need to make it
+  else
+    echo Adding missing $rel_source_file
+    rel_source_ident=`echo $rel_source_file | tr ./ __`
+    cat >tmp.h <<EOF
+/* Fake ${rel_source_file}, created by GCC.
+   The functions declared in this file do not necessarily exist in
+   your C library. */
+#ifndef __${rel_source_ident}
+#define __${rel_source_ident}
+
+#define __need_NULL
+#define __need_size_t
+#include <stddef.h>
+EOF
+    # Insert special stuff for particular files here.
+    case ${rel_source_file} in
+      time.h)
+        # If time.h doesn't exist, find out if sys/time.h does.
+        if test -f $src_dir_std/sys/time.h \
+            || grep "sys/time.h" fixproto.list >/dev/null ; then
+          # It does; include it and hope it has the needed declarations.
+          # Some versions require sys/types.h.
+          cat >>tmp.h <<EOF
+
+#include <sys/types.h>
+#include <sys/time.h>
+EOF
+        else
+          # It doesn't.  Make up plausible definitions for time_t, clock_t.
+          # Forward-declare struct tm.  Hope nobody tries to use it.  (Odds
+          # are they won't.)
+          cat >>tmp.h <<EOF
+
+typedef long time_t;
+typedef long clock_t;
+struct tm;
+EOF
+        fi ;;
+    esac
+    cat >>tmp.h <<EOF
+
+#endif /* __${rel_source_ident} */
+EOF
+    ${FIX_HEADER} $rel_source_file tmp.h $abs_target_dir/$rel_source_file ${DEFINES} $include_path
+    if test $? != 0 ; then exit 1 ; fi
+    if test -f $abs_target_dir/$rel_source_file ; then
+      rm tmp.h
+    else
+      mv tmp.h $abs_target_dir/$rel_source_file
+    fi
+  fi
+done
+
+# Remove any directories that we made that are still empty.
+rmdir $subdirs_made 2>/dev/null
+
+exit 0

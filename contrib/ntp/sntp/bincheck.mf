@@ -1,0 +1,17 @@
+# we traditionally installed software in bindir, while it should have gone
+# in sbindir.  Now that we offer a choice, look in the "other" installation
+# subdir to warn folks if there is another version there.
+
+install-exec-hook:
+	@test -z "${bin_PROGRAMS}${bin_SCRIPTS}"		\
+	|| for i in ${bin_PROGRAMS} ${bin_SCRIPTS} " "; do	\
+	   test ! -f ${sbindir}/$$i				\
+		|| echo "*** $$i is also in ${sbindir}!";	\
+	done
+	@test -z "${sbin_PROGRAMS}${asbin_SCRIPTS}"		\
+	|| for i in ${sbin_PROGRAMS} ${sbin_SCRIPTS} " "; do	\
+	   test ! -f ${bindir}/$$i				\
+		|| echo "*** $$i is also in ${bindir}!";	\
+	done
+
+#

@@ -1,0 +1,114 @@
+# Hungarian translation of dialog
+# Copyright (C) 2003, 2014 Free Software Foundation, Inc.
+# This file is distributed under the same license as the dialog package.
+#
+# Árpad Biró <biro_arpad@yahoo.com>, 2003.
+# Balázs Úr <urbalazs@gmail.com>, 2014.
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2014-03-20 23:07+0100\n"
+"Last-Translator: Balázs Úr <urbalazs@gmail.com>\n"
+"Language-Team: Hungarian <translation-team-hu@lists.sourceforge.net>\n"
+"Language: hu\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Lokalize 1.2\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "Igen"
+
+#: buttons.c:393
+msgid "No"
+msgstr "Nem"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "OK"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "Mégse"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "KILÉPÉS"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "Extra"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "Súgó"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "Hónap"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "Év"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "Átnevezés"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "Könyvtárak"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "Fájlok"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Sikerült"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Meghiúsult"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Teljesült"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Befejezve"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Bejelölve"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Kész"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Kihagyva"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "Folyamatban"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "N/A"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Teljes folyamat"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "Keresés"

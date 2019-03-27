@@ -1,0 +1,16 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+bindir=@bindir@
+mandir=@mandir@
+
+LOCALBIN=$bindir
+LOCALMAN=$mandir
+
+echo ""
+echo "Binaries are going to be installed into $LOCALBIN,"
+echo "Manual pages are going to be installed into $LOCALMAN."
+echo ""
+echo "creating Makefile"
+cat Makefile.munge | sed s:@LOCALMAN@:$LOCALMAN:g | sed s:@LOCALBIN@:$LOCALBIN:g > Makefile
+echo ""
+echo "Have you read the README file?"

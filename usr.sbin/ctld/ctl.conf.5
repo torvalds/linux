@@ -1,0 +1,587 @@
+.\" Copyright (c) 2012 The FreeBSD Foundation
+.\" Copyright (c) 2015 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" This software was developed by Edward Tomasz Napierala under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 21, 2016
+.Dt CTL.CONF 5
+.Os
+.Sh NAME
+.Nm ctl.conf
+.Nd CAM Target Layer / iSCSI target daemon configuration file
+.Sh DESCRIPTION
+The
+.Nm
+configuration file is used by the
+.Xr ctld 8
+daemon.
+Lines starting with
+.Ql #
+are interpreted as comments.
+The general syntax of the
+.Nm
+file is:
+.Bd -literal -offset indent
+.No pidfile Ar path
+
+.No auth-group Ar name No {
+.Dl chap Ar user Ar secret
+.Dl ...
+}
+
+.No portal-group Ar name No {
+.Dl listen Ar address
+.\".Dl listen-iser Ar address
+.Dl discovery-auth-group Ar name
+.Dl ...
+}
+
+.No target Ar name {
+.Dl auth-group Ar name
+.Dl portal-group Ar name
+.Dl lun Ar number No {
+.Dl 	path Ar path
+.Dl }
+.Dl ...
+}
+.Ed
+.Ss Global Context
+.Bl -tag -width indent
+.It Ic auth-group Ar name
+Create an
+.Sy auth-group
+configuration context,
+defining a new auth-group,
+which can then be assigned to any number of targets.
+.It Ic debug Ar level
+The debug verbosity level.
+The default is 0.
+.It Ic maxproc Ar number
+The limit for concurrently running child processes handling
+incoming connections.
+The default is 30.
+A setting of 0 disables the limit.
+.It Ic pidfile Ar path
+The path to the pidfile.
+The default is
+.Pa /var/run/ctld.pid .
+.It Ic portal-group Ar name
+Create a
+.Sy portal-group
+configuration context,
+defining a new portal-group,
+which can then be assigned to any number of targets.
+.It Ic lun Ar name
+Create a
+.Sy lun
+configuration context, defining a LUN to be exported by any number of targets.
+.It Ic target Ar name
+Create a
+.Sy target
+configuration context, which can optionally contain one or more
+.Sy lun
+contexts.
+.It Ic timeout Ar seconds
+The timeout for login sessions, after which the connection
+will be forcibly terminated.
+The default is 60.
+A setting of 0 disables the timeout.
+.It Ic isns-server Ar address
+An IPv4 or IPv6 address and optionally port of iSNS server to register on.
+.It Ic isns-period Ar seconds
+iSNS registration period.
+Registered Network Entity not updated during this period will be unregistered.
+The default is 900.
+.It Ic isns-timeout Ar seconds
+Timeout for iSNS requests.
+The default is 5.
+.El
+.Ss auth-group Context
+.Bl -tag -width indent
+.It Ic auth-type Ar type
+Sets the authentication type.
+Type can be either
+.Qq Ar none ,
+.Qq Ar deny ,
+.Qq Ar chap ,
+or
+.Qq Ar chap-mutual .
+In most cases it is not necessary to set the type using this clause;
+it is usually used to disable authentication for a given
+.Sy auth-group .
+.It Ic chap Ar user Ar secret
+A set of CHAP authentication credentials.
+Note that for any
+.Sy auth-group ,
+the configuration may only contain either
+.Sy chap
+or
+.Sy chap-mutual
+entries; it is an error to mix them.
+.It Ic chap-mutual Ar user Ar secret Ar mutualuser Ar mutualsecret
+A set of mutual CHAP authentication credentials.
+Note that for any
+.Sy auth-group ,
+the configuration may only contain either
+.Sy chap
+or
+.Sy chap-mutual
+entries; it is an error to mix them.
+.It Ic initiator-name Ar initiator-name
+An iSCSI initiator name.
+Only initiators with a name matching one of the defined
+names will be allowed to connect.
+If not defined, there will be no restrictions based on initiator
+name.
+.It Ic initiator-portal Ar address Ns Op / Ns Ar prefixlen
+An iSCSI initiator portal: an IPv4 or IPv6 address, optionally
+followed by a literal slash and a prefix length.
+Only initiators with an address matching one of the defined
+addresses will be allowed to connect.
+If not defined, there will be no restrictions based on initiator
+address.
+.El
+.Ss portal-group Context
+.Bl -tag -width indent
+.It Ic discovery-auth-group Ar name
+Assign a previously defined authentication group to the portal group,
+to be used for target discovery.
+By default, portal groups are assigned predefined
+.Sy auth-group
+.Qq Ar default ,
+which denies discovery.
+Another predefined
+.Sy auth-group ,
+.Qq Ar no-authentication ,
+may be used
+to permit discovery without authentication.
+.It Ic discovery-filter Ar filter
+Determines which targets are returned during discovery.
+Filter can be either
+.Qq Ar none ,
+.Qq Ar portal ,
+.Qq Ar portal-name ,
+or
+.Qq Ar portal-name-auth .
+When set to
+.Qq Ar none ,
+discovery will return all targets assigned to that portal group.
+When set to
+.Qq Ar portal ,
+discovery will not return targets that cannot be accessed by the
+initiator because of their
+.Sy initiator-portal .
+When set to
+.Qq Ar portal-name ,
+the check will include both
+.Sy initiator-portal
+and
+.Sy initiator-name .
+When set to
+.Qq Ar portal-name-auth ,
+the check will include
+.Sy initiator-portal ,
+.Sy initiator-name ,
+and authentication credentials.
+The target is returned if it does not require CHAP authentication,
+or if the CHAP user and secret used during discovery match those
+used by the target.
+Note that when using
+.Qq Ar portal-name-auth ,
+targets that require CHAP authentication will only be returned if
+.Sy discovery-auth-group
+requires CHAP.
+The default is
+.Qq Ar none .
+.It Ic listen Ar address
+An IPv4 or IPv6 address and port to listen on for incoming connections.
+.\".It Ic listen-iser Ar address
+.\"An IPv4 or IPv6 address and port to listen on for incoming connections
+.\"using iSER (iSCSI over RDMA) protocol.
+.It Ic offload Ar driver
+Define iSCSI hardware offload driver to use for this
+.Sy portal-group .
+The default is
+.Qq Ar none .
+.It Ic option Ar name Ar value
+The CTL-specific port options passed to the kernel.
+.It Ic redirect Ar address
+IPv4 or IPv6 address to redirect initiators to.
+When configured, all initiators attempting to connect to portal
+belonging to this
+.Sy portal-group
+will get redirected using "Target moved temporarily" login response.
+Redirection happens before authentication and any
+.Sy initiator-name
+or
+.Sy initiator-portal
+checks are skipped.
+.It Ic tag Ar value
+Unique 16-bit tag value of this
+.Sy portal-group .
+If not specified, the value is generated automatically.
+.It Ic foreign
+Specifies that this
+.Sy portal-group
+is listened by some other host.
+This host will announce it on discovery stage, but won't listen.
+.El
+.Ss target Context
+.Bl -tag -width indent
+.It Ic alias Ar text
+Assign a human-readable description to the target.
+There is no default.
+.It Ic auth-group Ar name
+Assign a previously defined authentication group to the target.
+By default, targets that do not specify their own auth settings,
+using clauses such as
+.Sy chap
+or
+.Sy initiator-name ,
+are assigned
+predefined
+.Sy auth-group
+.Qq Ar default ,
+which denies all access.
+Another predefined
+.Sy auth-group ,
+.Qq Ar no-authentication ,
+may be used to permit access
+without authentication.
+Note that this clause can be overridden using the second argument
+to a
+.Sy portal-group
+clause.
+.It Ic auth-type Ar type
+Sets the authentication type.
+Type can be either
+.Qq Ar none ,
+.Qq Ar deny ,
+.Qq Ar chap ,
+or
+.Qq Ar chap-mutual .
+In most cases it is not necessary to set the type using this clause;
+it is usually used to disable authentication for a given
+.Sy target .
+This clause is mutually exclusive with
+.Sy auth-group ;
+one cannot use
+both in a single target.
+.It Ic chap Ar user Ar secret
+A set of CHAP authentication credentials.
+Note that targets must only use one of
+.Sy auth-group , chap , No or Sy chap-mutual ;
+it is a configuration error to mix multiple types in one target.
+.It Ic chap-mutual Ar user Ar secret Ar mutualuser Ar mutualsecret
+A set of mutual CHAP authentication credentials.
+Note that targets must only use one of
+.Sy auth-group , chap , No or Sy chap-mutual ;
+it is a configuration error to mix multiple types in one target.
+.It Ic initiator-name Ar initiator-name
+An iSCSI initiator name.
+Only initiators with a name matching one of the defined
+names will be allowed to connect.
+If not defined, there will be no restrictions based on initiator
+name.
+This clause is mutually exclusive with
+.Sy auth-group ;
+one cannot use
+both in a single target.
+.It Ic initiator-portal Ar address Ns Op / Ns Ar prefixlen
+An iSCSI initiator portal: an IPv4 or IPv6 address, optionally
+followed by a literal slash and a prefix length.
+Only initiators with an address matching one of the defined
+addresses will be allowed to connect.
+If not defined, there will be no restrictions based on initiator
+address.
+This clause is mutually exclusive with
+.Sy auth-group ;
+one cannot use
+both in a single target.
+.Pp
+The
+.Sy auth-type ,
+.Sy chap ,
+.Sy chap-mutual ,
+.Sy initiator-name ,
+and
+.Sy initiator-portal
+clauses in the target context provide an alternative to assigning an
+.Sy auth-group
+defined separately, useful in the common case of authentication settings
+specific to a single target.
+.It Ic portal-group Ar name Op Ar ag-name
+Assign a previously defined portal group to the target.
+The default portal group is
+.Qq Ar default ,
+which makes the target available
+on TCP port 3260 on all configured IPv4 and IPv6 addresses.
+Optional second argument specifies
+.Sy auth-group
+for connections to this specific portal group.
+If second argument is not specified, target
+.Sy auth-group
+is used.
+.It Ic port Ar name
+.It Ic port Ar name/pp
+.It Ic port Ar name/pp/vp
+Assign specified CTL port (such as "isp0" or "isp2/1") to the target.
+This is used to export the target through a specific physical - eg Fibre
+Channel - port, in addition to portal-groups configured for the target.
+Use
+.Cm "ctladm portlist"
+command to retrieve the list of available ports.
+On startup
+.Xr ctld 8
+configures LUN mapping and enables all assigned ports.
+Each port can be assigned to only one target.
+.It Ic redirect Ar address
+IPv4 or IPv6 address to redirect initiators to.
+When configured, all initiators attempting to connect to this target
+will get redirected using "Target moved temporarily" login response.
+Redirection happens after successful authentication.
+.It Ic lun Ar number Ar name
+Export previously defined
+.Sy lun
+by the parent target.
+.It Ic lun Ar number
+Create a
+.Sy lun
+configuration context, defining a LUN exported by the parent target.
+.Pp
+This is an alternative to defining the LUN separately, useful in the common
+case of a LUN being exported by a single target.
+.El
+.Ss lun Context
+.Bl -tag -width indent
+.It Ic backend Ar block No | Ar ramdisk
+The CTL backend to use for a given LUN.
+Valid choices are
+.Qq Ar block
+and
+.Qq Ar ramdisk ;
+block is used for LUNs backed
+by files or disk device nodes; ramdisk is a bitsink device, used mostly for
+testing.
+The default backend is block.
+.It Ic blocksize Ar size
+The blocksize visible to the initiator.
+The default blocksize is 512 for disks, and 2048 for CD/DVDs.
+.It Ic ctl-lun Ar lun_id
+Global numeric identifier to use for a given LUN inside CTL.
+By default CTL allocates those IDs dynamically, but explicit specification
+may be needed for consistency in HA configurations.
+.It Ic device-id Ar string
+The SCSI Device Identification string presented to the initiator.
+.It Ic device-type Ar type
+Specify the SCSI device type to use when creating the LUN.
+Currently CTL supports Direct Access (type 0), Processor (type 3)
+and CD/DVD (type 5) LUNs.
+.It Ic option Ar name Ar value
+The CTL-specific options passed to the kernel.
+All CTL-specific options are documented in the
+.Sx OPTIONS
+section of
+.Xr ctladm 8 .
+.It Ic path Ar path
+The path to the file, device node, or
+.Xr zfs 8
+volume used to back the LUN.
+For optimal performance, create the volume with the
+.Qq Ar volmode=dev
+property set.
+.It Ic serial Ar string
+The SCSI serial number presented to the initiator.
+.It Ic size Ar size
+The LUN size, in bytes.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/ctl.conf" -compact
+.It Pa /etc/ctl.conf
+The default location of the
+.Xr ctld 8
+configuration file.
+.El
+.Sh EXAMPLES
+.Bd -literal
+auth-group ag0 {
+	chap-mutual "user" "secret" "mutualuser" "mutualsecret"
+	chap-mutual "user2" "secret2" "mutualuser" "mutualsecret"
+	initiator-portal 192.168.1.1/16
+}
+
+auth-group ag1 {
+	auth-type none
+	initiator-name "iqn.2012-06.com.example:initiatorhost1"
+	initiator-name "iqn.2012-06.com.example:initiatorhost2"
+	initiator-portal 192.168.1.1/24
+	initiator-portal [2001:db8::de:ef]
+}
+
+portal-group pg0 {
+	discovery-auth-group no-authentication
+	listen 0.0.0.0:3260
+	listen [::]:3260
+	listen [fe80::be:ef]:3261
+}
+
+target iqn.2012-06.com.example:target0 {
+	alias "Example target"
+	auth-group no-authentication
+	lun 0 {
+		path /dev/zvol/tank/example_0
+		blocksize 4096
+		size 4G
+	}
+}
+
+lun example_1 {
+	path /dev/zvol/tank/example_1
+	option naa 0x50015178f369f093
+}
+
+target iqn.2012-06.com.example:target1 {
+	auth-group ag0
+	portal-group pg0
+	lun 0 example_1
+	lun 1 {
+		path /dev/zvol/tank/example_2
+		option vendor "FreeBSD"
+	}
+}
+
+target naa.50015178f369f092 {
+	port isp0
+	port isp1
+	lun 0 example_1
+}
+.Ed
+.Pp
+An equivalent configuration in UCL format, for use with
+.Fl u :
+.Bd -literal
+auth-group {
+	ag0 {
+		chap-mutual = [
+			{
+				user = "user"
+				secret = "secretsecret"
+				mutual-user = "mutualuser"
+				mutual-secret = "mutualsecret"
+			},
+			{
+				user = "user2"
+				secret = "secret2secret2"
+				mutual-user = "mutualuser"
+				mutual-secret = "mutualsecret"
+			}
+		]
+	}
+
+	ag1 {
+		auth-type = none
+		initiator-name = [
+			"iqn.2012-06.com.example:initiatorhost1",
+			"iqn.2012-06.com.example:initiatorhost2"
+		]
+		initiator-portal = [192.168.1.1/24, "[2001:db8::de:ef]"]
+	}
+}
+
+portal-group {
+	pg0 {
+		discovery-auth-group = no-authentication
+		listen = [
+			0.0.0.0:3260,
+			"[::]:3260",
+			"[fe80::be:ef]:3261"
+		]
+	}
+}
+
+lun {
+	example_0 {
+		path = /dev/zvol/tank/example_0
+		blocksize = 4096
+		size = "4G"
+	}
+
+	example_1 {
+		path = /dev/zvol/tank/example_1
+		options {
+			naa = "0x50015178f369f093"
+		}
+	}
+
+	example_2 {
+		path = /dev/zvol/tank/example_2
+		options {
+			vendor = "FreeBSD"
+		}
+	}
+}
+
+target {
+	"iqn.2012-06.com.example:target0" {
+		alias = "Example target"
+		auth-group = no-authentication
+		lun = [
+			{ number = 0, name = example_0 },
+		]
+	}
+
+	"iqn.2012-06.com.example:target1" {
+		auth-group = ag0
+		portal-group { name = pg0 }
+		lun = [
+			{ number = 0, name = example_1 },
+			{ number = 1, name = example_2 }
+		]
+	}
+
+	naa.50015178f369f092 {
+		port = isp0
+		lun = [
+			{ number = 0, name = example_1 }
+		]
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr ctl 4 ,
+.Xr ctladm 8 ,
+.Xr ctld 8 ,
+.Xr zfs 8
+.Sh AUTHORS
+The
+.Nm
+configuration file functionality for
+.Xr ctld 8
+was developed by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.

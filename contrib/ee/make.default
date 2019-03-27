@@ -1,0 +1,57 @@
+# This is the make file for ee, the "easy editor".
+#
+# If building ee using curses, type "make curses", otherwise new_curse (a 
+# subset of curses that supports ee) will be built and ee will use new_curse 
+# instead of curses.
+#
+# The "install" target ("make install") will copy the ee binary to 
+# the /usr/local/bin directory on the local system.  The man page (ee.1) 
+# will be copied into the /usr/local/man/man1 directory.
+#
+# The "clean" target ("make clean") will remove the ee and new_curse.o 
+# object files, and the ee binary.
+#
+# If the system does not have localization routines, use the -DNO_CATGETS
+# define.  If the system supports setlocale(), catopen(), and catgets() and 
+# localization is desired, do not use -DNO_CATGETS.
+#
+# DEFINES is used for new_curse.c, and CFLAGS is used for ee.c.
+#
+
+# for System V, using new_curse with terminfo
+DEFINES =	-DSYS5 -DNCURSE 
+
+# for BSD, using new_curse with termcap
+#DEFINES = 	-DCAP -DNCURSE 
+
+# for BSD systems with select(), using new_curse with termcap, use:
+#DEFINES =      -DCAP -DNCURSE -DBSD_SELECT 
+
+# flags for compilation
+CFLAGS = -s -DNO_CATGETS
+
+# For Sun systems, remove the '#' from the front of the next two lines:
+#DEFINES = -DSYS5 -DNCURSE 
+#CFLAGS  = -I/usr/5include -L/usr/5lib -DNO_CATGETS -s
+
+all :	ee
+
+curses :	ee.c
+	cc ee.c -o ee $(CFLAGS) -lcurses 
+
+ee :	ee.o new_curse.o
+	cc -o ee ee.o new_curse.o $(CFLAGS) 
+
+ee.o :	ee.c new_curse.h
+	cc -c ee.c $(DEFINES) $(CFLAGS) 
+
+new_curse.o :	new_curse.c new_curse.h
+	cc new_curse.c -c $(DEFINES) $(CFLAGS)
+
+install :
+	cp ee /usr/local/bin/ee
+	cp ee.1 /usr/local/man/man1/ee.1
+
+clean :
+	rm -f ee.o new_curse.o ee 
+

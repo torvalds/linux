@@ -1,0 +1,874 @@
+.de1 NOP
+.  it 1 an-trap
+.  if \\n[.$] \,\\$*\/
+..
+.ie t \
+.ds B-Font [CB]
+.ds I-Font [CI]
+.ds R-Font [CR]
+.el \
+.ds B-Font B
+.ds I-Font I
+.ds R-Font R
+.TH ntpdc @NTPDC_MS@ "20 Feb 2019" "4.2.8p13" "User Commands"
+.\"
+.\" EDIT THIS FILE WITH CAUTION (in-mem file)
+.\"
+.\" It has been AutoGen-ed February 20, 2019 at 09:56:53 AM by AutoGen 5.18.5
+.\" From the definitions ntpdc-opts.def
+.\" and the template file agman-cmd.tpl
+.SH NAME
+\f\*[B-Font]ntpdc\fP
+\- vendor-specific NTPD control program
+.SH SYNOPSIS
+\f\*[B-Font]ntpdc\fP
+.\" Mixture of short (flag) options and long options
+[\f\*[B-Font]\-flags\f[]]
+[\f\*[B-Font]\-flag\f[] [\f\*[I-Font]value\f[]]]
+[\f\*[B-Font]\-\-option-name\f[][[=| ]\f\*[I-Font]value\f[]]]
+[ host ...]
+.sp \n(Ppu
+.ne 2
+
+.SH DESCRIPTION
+\f\*[B-Font]ntpdc\fP
+is deprecated.
+Please use
+\fCntpq\f[]\fR(@NTPQ_MS@)\f[] instead \- it can do everything
+\f\*[B-Font]ntpdc\fP
+used to do, and it does so using a much more sane interface.
+.sp \n(Ppu
+.ne 2
+
+\f\*[B-Font]ntpdc\fP
+is a utility program used to query
+\fCntpd\f[]\fR(@NTPD_MS@)\f[]
+about its
+current state and to request changes in that state.
+It uses NTP mode 7 control message formats described in the source code.
+The program may
+be run either in interactive mode or controlled using command line
+arguments.
+Extensive state and statistics information is available
+through the
+\f\*[B-Font]ntpdc\fP
+interface.
+In addition, nearly all the
+configuration options which can be specified at startup using
+ntpd's configuration file may also be specified at run time using
+\f\*[B-Font]ntpdc\fP.
+.SH "OPTIONS"
+.TP
+.NOP \f\*[B-Font]\-4\f[], \f\*[B-Font]\-\-ipv4\f[]
+Force IPv4 DNS name resolution.
+This option must not appear in combination with any of the following options:
+ipv6.
+.sp
+Force DNS resolution of following host names on the command line
+to the IPv4 namespace.
+.TP
+.NOP \f\*[B-Font]\-6\f[], \f\*[B-Font]\-\-ipv6\f[]
+Force IPv6 DNS name resolution.
+This option must not appear in combination with any of the following options:
+ipv4.
+.sp
+Force DNS resolution of following host names on the command line
+to the IPv6 namespace.
+.TP
+.NOP \f\*[B-Font]\-c\f[] \f\*[I-Font]cmd\f[], \f\*[B-Font]\-\-command\f[]=\f\*[I-Font]cmd\f[]
+run a command and exit.
+This option may appear an unlimited number of times.
+.sp
+The following argument is interpreted as an interactive format command
+and is added to the list of commands to be executed on the specified
+host(s).
+.TP
+.NOP \f\*[B-Font]\-d\f[], \f\*[B-Font]\-\-debug\-level\f[]
+Increase debug verbosity level.
+This option may appear an unlimited number of times.
+.sp
+.TP
+.NOP \f\*[B-Font]\-D\f[] \f\*[I-Font]number\f[], \f\*[B-Font]\-\-set\-debug\-level\f[]=\f\*[I-Font]number\f[]
+Set the debug verbosity level.
+This option may appear an unlimited number of times.
+This option takes an integer number as its argument.
+.sp
+.TP
+.NOP \f\*[B-Font]\-i\f[], \f\*[B-Font]\-\-interactive\f[]
+Force ntpq to operate in interactive mode.
+This option must not appear in combination with any of the following options:
+command, listpeers, peers, showpeers.
+.sp
+Force ntpq to operate in interactive mode.  Prompts will be written
+to the standard output and commands read from the standard input.
+.TP
+.NOP \f\*[B-Font]\-l\f[], \f\*[B-Font]\-\-listpeers\f[]
+Print a list of the peers.
+This option must not appear in combination with any of the following options:
+command.
+.sp
+Print a list of the peers known to the server as well as a summary of
+their state. This is equivalent to the 'listpeers' interactive command.
+.TP
+.NOP \f\*[B-Font]\-n\f[], \f\*[B-Font]\-\-numeric\f[]
+numeric host addresses.
+.sp
+Output all host addresses in dotted-quad numeric format rather than
+converting to the canonical host names. 
+.TP
+.NOP \f\*[B-Font]\-p\f[], \f\*[B-Font]\-\-peers\f[]
+Print a list of the peers.
+This option must not appear in combination with any of the following options:
+command.
+.sp
+Print a list of the peers known to the server as well as a summary
+of their state. This is equivalent to the 'peers' interactive command.
+.TP
+.NOP \f\*[B-Font]\-s\f[], \f\*[B-Font]\-\-showpeers\f[]
+Show a list of the peers.
+This option must not appear in combination with any of the following options:
+command.
+.sp
+Print a list of the peers known to the server as well as a summary
+of their state. This is equivalent to the 'dmpeers' interactive command.
+.TP
+.NOP \f\*[B-Font]\-\&?\f[], \f\*[B-Font]\-\-help\f[]
+Display usage information and exit.
+.TP
+.NOP \f\*[B-Font]\-\&!\f[], \f\*[B-Font]\-\-more-help\f[]
+Pass the extended usage information through a pager.
+.TP
+.NOP \f\*[B-Font]\->\f[] [\f\*[I-Font]cfgfile\f[]], \f\*[B-Font]\-\-save-opts\f[] [=\f\*[I-Font]cfgfile\f[]]
+Save the option state to \fIcfgfile\fP.  The default is the \fIlast\fP
+configuration file listed in the \fBOPTION PRESETS\fP section, below.
+The command will exit after updating the config file.
+.TP
+.NOP \f\*[B-Font]\-<\f[] \f\*[I-Font]cfgfile\f[], \f\*[B-Font]\-\-load-opts\f[]=\f\*[I-Font]cfgfile\f[], \f\*[B-Font]\-\-no-load-opts\f[]
+Load options from \fIcfgfile\fP.
+The \fIno-load-opts\fP form will disable the loading
+of earlier config/rc/ini files.  \fI\-\-no-load-opts\fP is handled early,
+out of order.
+.TP
+.NOP \f\*[B-Font]\-\-version\f[] [{\f\*[I-Font]v|c|n\f[]}]
+Output version of program and exit.  The default mode is `v', a simple
+version.  The `c' mode will print copyright information and `n' will
+print the full copyright notice.
+.PP
+.SH "OPTION PRESETS"
+Any option that is not marked as \fInot presettable\fP may be preset
+by loading values from configuration ("RC" or ".INI") file(s) and values from
+environment variables named:
+.nf
+  \fBNTPDC_<option-name>\fP or \fBNTPDC\fP
+.fi
+.ad
+The environmental presets take precedence (are processed later than)
+the configuration files.
+The \fIhomerc\fP files are "\fI$HOME\fP", and "\fI.\fP".
+If any of these are directories, then the file \fI.ntprc\fP
+is searched for within those directories.
+.SH USAGE
+If one or more request options are included on the command line
+when
+\f\*[B-Font]ntpdc\fP
+is executed, each of the requests will be sent
+to the NTP servers running on each of the hosts given as command
+line arguments, or on localhost by default.
+If no request options
+are given,
+\f\*[B-Font]ntpdc\fP
+will attempt to read commands from the
+standard input and execute these on the NTP server running on the
+first host given on the command line, again defaulting to localhost
+when no other host is specified.
+The
+\f\*[B-Font]ntpdc\fP
+utility will prompt for
+commands if the standard input is a terminal device.
+.sp \n(Ppu
+.ne 2
+
+The
+\f\*[B-Font]ntpdc\fP
+utility uses NTP mode 7 packets to communicate with the
+NTP server, and hence can be used to query any compatible server on
+the network which permits it.
+Note that since NTP is a UDP protocol
+this communication will be somewhat unreliable, especially over
+large distances in terms of network topology.
+The
+\f\*[B-Font]ntpdc\fP
+utility makes
+no attempt to retransmit requests, and will time requests out if
+the remote host is not heard from within a suitable timeout
+time.
+.sp \n(Ppu
+.ne 2
+
+The operation of
+\f\*[B-Font]ntpdc\fP
+are specific to the particular
+implementation of the
+\fCntpd\f[]\fR(@NTPD_MS@)\f[]
+daemon and can be expected to
+work only with this and maybe some previous versions of the daemon.
+Requests from a remote
+\f\*[B-Font]ntpdc\fP
+utility which affect the
+state of the local server must be authenticated, which requires
+both the remote program and local server share a common key and key
+identifier.
+.sp \n(Ppu
+.ne 2
+
+Note that in contexts where a host name is expected, a
+\f\*[B-Font]\-4\f[]
+qualifier preceding the host name forces DNS resolution to the IPv4 namespace,
+while a
+\f\*[B-Font]\-6\f[]
+qualifier forces DNS resolution to the IPv6 namespace.
+Specifying a command line option other than
+\f\*[B-Font]\-i\f[]
+or
+\f\*[B-Font]\-n\f[]
+will cause the specified query (queries) to be sent to
+the indicated host(s) immediately.
+Otherwise,
+\f\*[B-Font]ntpdc\fP
+will
+attempt to read interactive format commands from the standard
+input.
+.SS "Interactive Commands"
+Interactive format commands consist of a keyword followed by zero
+to four arguments.
+Only enough characters of the full keyword to
+uniquely identify the command need be typed.
+The output of a
+command is normally sent to the standard output, but optionally the
+output of individual commands may be sent to a file by appending a
+\[oq]\&>\[cq],
+followed by a file name, to the command line.
+.sp \n(Ppu
+.ne 2
+
+A number of interactive format commands are executed entirely
+within the
+\f\*[B-Font]ntpdc\fP
+utility itself and do not result in NTP
+mode 7 requests being sent to a server.
+These are described
+following.
+.TP 7
+.NOP \f\*[B-Font]\&?\f[] \f\*[I-Font]command_keyword\f[]
+.TP 7
+.NOP \f\*[B-Font]help\f[] \f\*[I-Font]command_keyword\f[]
+A
+\[oq]\f\*[B-Font]\&?\f[]\[cq]
+will print a list of all the command
+keywords known to this incarnation of
+\f\*[B-Font]ntpdc\fP.
+A
+\[oq]\f\*[B-Font]\&?\f[]\[cq]
+followed by a command keyword will print function and usage
+information about the command.
+This command is probably a better
+source of information about
+\fCntpq\f[]\fR(@NTPQ_MS@)\f[]
+than this manual
+page.
+.TP 7
+.NOP \f\*[B-Font]delay\f[] \f\*[I-Font]milliseconds\f[]
+Specify a time interval to be added to timestamps included in
+requests which require authentication.
+This is used to enable
+(unreliable) server reconfiguration over long delay network paths
+or between machines whose clocks are unsynchronized.
+Actually the
+server does not now require timestamps in authenticated requests,
+so this command may be obsolete.
+.TP 7
+.NOP \f\*[B-Font]host\f[] \f\*[I-Font]hostname\f[]
+Set the host to which future queries will be sent.
+Hostname may
+be either a host name or a numeric address.
+.TP 7
+.NOP \f\*[B-Font]hostnames\f[] [\f\*[B-Font]yes\f[] | \f\*[B-Font]no\f[]]
+If
+\f\*[B-Font]yes\f[]
+is specified, host names are printed in
+information displays.
+If
+\f\*[B-Font]no\f[]
+is specified, numeric
+addresses are printed instead.
+The default is
+\f\*[B-Font]yes\f[],
+unless
+modified using the command line
+\f\*[B-Font]\-n\f[]
+switch.
+.TP 7
+.NOP \f\*[B-Font]keyid\f[] \f\*[I-Font]keyid\f[]
+This command allows the specification of a key number to be
+used to authenticate configuration requests.
+This must correspond
+to a key number the server has been configured to use for this
+purpose.
+.TP 7
+.NOP \f\*[B-Font]quit\f[]
+Exit
+\f\*[B-Font]ntpdc\fP.
+.TP 7
+.NOP \f\*[B-Font]passwd\f[]
+This command prompts you to type in a password (which will not
+be echoed) which will be used to authenticate configuration
+requests.
+The password must correspond to the key configured for
+use by the NTP server for this purpose if such requests are to be
+successful.
+.TP 7
+.NOP \f\*[B-Font]timeout\f[] \f\*[I-Font]milliseconds\f[]
+Specify a timeout period for responses to server queries.
+The
+default is about 8000 milliseconds.
+Note that since
+\f\*[B-Font]ntpdc\fP
+retries each query once after a timeout, the total waiting time for
+a timeout will be twice the timeout value set.
+.PP
+.SS "Control Message Commands"
+Query commands result in NTP mode 7 packets containing requests for
+information being sent to the server.
+These are read-only commands
+in that they make no modification of the server configuration
+state.
+.TP 7
+.NOP \f\*[B-Font]listpeers\f[]
+Obtains and prints a brief list of the peers for which the
+server is maintaining state.
+These should include all configured
+peer associations as well as those peers whose stratum is such that
+they are considered by the server to be possible future
+synchronization candidates.
+.TP 7
+.NOP \f\*[B-Font]peers\f[]
+Obtains a list of peers for which the server is maintaining
+state, along with a summary of that state.
+Summary information
+includes the address of the remote peer, the local interface
+address (0.0.0.0 if a local address has yet to be determined), the
+stratum of the remote peer (a stratum of 16 indicates the remote
+peer is unsynchronized), the polling interval, in seconds, the
+reachability register, in octal, and the current estimated delay,
+offset and dispersion of the peer, all in seconds.
+.sp \n(Ppu
+.ne 2
+
+The character in the left margin indicates the mode this peer
+entry is operating in.
+A
+\[oq]\&+\[cq]
+denotes symmetric active, a
+\[oq]\&-\[cq]
+indicates symmetric passive, a
+\[oq]\&=\[cq]
+means the
+remote server is being polled in client mode, a
+\[oq]\&^\[cq]
+indicates that the server is broadcasting to this address, a
+\[oq]\&~\[cq]
+denotes that the remote peer is sending broadcasts and a
+\[oq]\&~\[cq]
+denotes that the remote peer is sending broadcasts and a
+\[oq]\&*\[cq]
+marks the peer the server is currently synchronizing
+to.
+.sp \n(Ppu
+.ne 2
+
+The contents of the host field may be one of four forms.
+It may
+be a host name, an IP address, a reference clock implementation
+name with its parameter or
+\fBREFCLK\f[]\fR()\f[]
+On
+\f\*[B-Font]hostnames\f[]
+\f\*[B-Font]no\f[]
+only IP-addresses
+will be displayed.
+.TP 7
+.NOP \f\*[B-Font]dmpeers\f[]
+A slightly different peer summary list.
+Identical to the output
+of the
+\f\*[B-Font]peers\f[]
+command, except for the character in the
+leftmost column.
+Characters only appear beside peers which were
+included in the final stage of the clock selection algorithm.
+A
+\[oq]\&.\[cq]
+indicates that this peer was cast off in the falseticker
+detection, while a
+\[oq]\&+\[cq]
+indicates that the peer made it
+through.
+A
+\[oq]\&*\[cq]
+denotes the peer the server is currently
+synchronizing with.
+.TP 7
+.NOP \f\*[B-Font]showpeer\f[] \f\*[I-Font]peer_address\f[] [\f\*[I-Font]...\f[]]
+Shows a detailed display of the current peer variables for one
+or more peers.
+Most of these values are described in the NTP
+Version 2 specification.
+.TP 7
+.NOP \f\*[B-Font]pstats\f[] \f\*[I-Font]peer_address\f[] [\f\*[I-Font]...\f[]]
+Show per-peer statistic counters associated with the specified
+peer(s).
+.TP 7
+.NOP \f\*[B-Font]clockstat\f[] \f\*[I-Font]clock_peer_address\f[] [\f\*[I-Font]...\f[]]
+Obtain and print information concerning a peer clock.
+The
+values obtained provide information on the setting of fudge factors
+and other clock performance information.
+.TP 7
+.NOP \f\*[B-Font]kerninfo\f[]
+Obtain and print kernel phase-lock loop operating parameters.
+This information is available only if the kernel has been specially
+modified for a precision timekeeping function.
+.TP 7
+.NOP \f\*[B-Font]loopinfo\f[] [\f\*[B-Font]oneline\f[] | \f\*[B-Font]multiline\f[]]
+Print the values of selected loop filter variables.
+The loop
+filter is the part of NTP which deals with adjusting the local
+system clock.
+The
+\[oq]offset\[cq]
+is the last offset given to the
+loop filter by the packet processing code.
+The
+\[oq]frequency\[cq]
+is the frequency error of the local clock in parts-per-million
+(ppm).
+The
+\[oq]time_const\[cq]
+controls the stiffness of the
+phase-lock loop and thus the speed at which it can adapt to
+oscillator drift.
+The
+\[oq]watchdog timer\[cq]
+value is the number
+of seconds which have elapsed since the last sample offset was
+given to the loop filter.
+The
+\f\*[B-Font]oneline\f[]
+and
+\f\*[B-Font]multiline\f[]
+options specify the format in which this
+information is to be printed, with
+\f\*[B-Font]multiline\f[]
+as the
+default.
+.TP 7
+.NOP \f\*[B-Font]sysinfo\f[]
+Print a variety of system state variables, i.e., state related
+to the local server.
+All except the last four lines are described
+in the NTP Version 3 specification, RFC-1305.
+.sp \n(Ppu
+.ne 2
+
+The
+\[oq]system flags\[cq]
+show various system flags, some of
+which can be set and cleared by the
+\f\*[B-Font]enable\f[]
+and
+\f\*[B-Font]disable\f[]
+configuration commands, respectively.
+These are
+the
+\f\*[B-Font]auth\f[],
+\f\*[B-Font]bclient\f[],
+\f\*[B-Font]monitor\f[],
+\f\*[B-Font]pll\f[],
+\f\*[B-Font]pps\f[]
+and
+\f\*[B-Font]stats\f[]
+flags.
+See the
+\fCntpd\f[]\fR(@NTPD_MS@)\f[]
+documentation for the meaning of these flags.
+There
+are two additional flags which are read only, the
+\f\*[B-Font]kernel_pll\f[]
+and
+\f\*[B-Font]kernel_pps\f[].
+These flags indicate
+the synchronization status when the precision time kernel
+modifications are in use.
+The
+\[oq]kernel_pll\[cq]
+indicates that
+the local clock is being disciplined by the kernel, while the
+\[oq]kernel_pps\[cq]
+indicates the kernel discipline is provided by the PPS
+signal.
+.sp \n(Ppu
+.ne 2
+
+The
+\[oq]stability\[cq]
+is the residual frequency error remaining
+after the system frequency correction is applied and is intended for
+maintenance and debugging.
+In most architectures, this value will
+initially decrease from as high as 500 ppm to a nominal value in
+the range .01 to 0.1 ppm.
+If it remains high for some time after
+starting the daemon, something may be wrong with the local clock,
+or the value of the kernel variable
+\fIkern.clockrate.tick\f[]
+may be
+incorrect.
+.sp \n(Ppu
+.ne 2
+
+The
+\[oq]broadcastdelay\[cq]
+shows the default broadcast delay,
+as set by the
+\f\*[B-Font]broadcastdelay\f[]
+configuration command.
+.sp \n(Ppu
+.ne 2
+
+The
+\[oq]authdelay\[cq]
+shows the default authentication delay,
+as set by the
+\f\*[B-Font]authdelay\f[]
+configuration command.
+.TP 7
+.NOP \f\*[B-Font]sysstats\f[]
+Print statistics counters maintained in the protocol
+module.
+.TP 7
+.NOP \f\*[B-Font]memstats\f[]
+Print statistics counters related to memory allocation
+code.
+.TP 7
+.NOP \f\*[B-Font]iostats\f[]
+Print statistics counters maintained in the input-output
+module.
+.TP 7
+.NOP \f\*[B-Font]timerstats\f[]
+Print statistics counters maintained in the timer/event queue
+support code.
+.TP 7
+.NOP \f\*[B-Font]reslist\f[]
+Obtain and print the server's restriction list.
+This list is
+(usually) printed in sorted order and may help to understand how
+the restrictions are applied.
+.TP 7
+.NOP \f\*[B-Font]monlist\f[] [\f\*[I-Font]version\f[]]
+Obtain and print traffic counts collected and maintained by the
+monitor facility.
+The version number should not normally need to be
+specified.
+.TP 7
+.NOP \f\*[B-Font]clkbug\f[] \f\*[I-Font]clock_peer_address\f[] [\f\*[I-Font]...\f[]]
+Obtain debugging information for a reference clock driver.
+This
+information is provided only by some clock drivers and is mostly
+undecodable without a copy of the driver source in hand.
+.PP
+.SS "Runtime Configuration Requests"
+All requests which cause state changes in the server are
+authenticated by the server using a configured NTP key (the
+facility can also be disabled by the server by not configuring a
+key).
+The key number and the corresponding key must also be made
+known to
+\f\*[B-Font]ntpdc\fP.
+This can be done using the
+\f\*[B-Font]keyid\f[]
+and
+\f\*[B-Font]passwd\f[]
+commands, the latter of which will prompt at the terminal for a
+password to use as the encryption key.
+You will also be prompted
+automatically for both the key number and password the first time a
+command which would result in an authenticated request to the
+server is given.
+Authentication not only provides verification that
+the requester has permission to make such changes, but also gives
+an extra degree of protection again transmission errors.
+.sp \n(Ppu
+.ne 2
+
+Authenticated requests always include a timestamp in the packet
+data, which is included in the computation of the authentication
+code.
+This timestamp is compared by the server to its receive time
+stamp.
+If they differ by more than a small amount the request is
+rejected.
+This is done for two reasons.
+First, it makes simple
+replay attacks on the server, by someone who might be able to
+overhear traffic on your LAN, much more difficult.
+Second, it makes
+it more difficult to request configuration changes to your server
+from topologically remote hosts.
+While the reconfiguration facility
+will work well with a server on the local host, and may work
+adequately between time-synchronized hosts on the same LAN, it will
+work very poorly for more distant hosts.
+As such, if reasonable
+passwords are chosen, care is taken in the distribution and
+protection of keys and appropriate source address restrictions are
+applied, the run time reconfiguration facility should provide an
+adequate level of security.
+.sp \n(Ppu
+.ne 2
+
+The following commands all make authenticated requests.
+.TP 7
+.NOP \f\*[B-Font]addpeer\f[] \f\*[I-Font]peer_address\f[] [\f\*[I-Font]keyid\f[]] [\f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]]
+Add a configured peer association at the given address and
+operating in symmetric active mode.
+Note that an existing
+association with the same peer may be deleted when this command is
+executed, or may simply be converted to conform to the new
+configuration, as appropriate.
+If the optional
+\f\*[I-Font]keyid\f[]
+is a
+nonzero integer, all outgoing packets to the remote server will
+have an authentication field attached encrypted with this key.
+If
+the value is 0 (or not given) no authentication will be done.
+The
+\f\*[I-Font]version\f[]
+can be 1, 2 or 3 and defaults to 3.
+The
+\f\*[B-Font]prefer\f[]
+keyword indicates a preferred peer (and thus will
+be used primarily for clock synchronisation if possible).
+The
+preferred peer also determines the validity of the PPS signal \- if
+the preferred peer is suitable for synchronisation so is the PPS
+signal.
+.TP 7
+.NOP \f\*[B-Font]addserver\f[] \f\*[I-Font]peer_address\f[] [\f\*[I-Font]keyid\f[]] [\f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]]
+Identical to the addpeer command, except that the operating
+mode is client.
+.TP 7
+.NOP \f\*[B-Font]broadcast\f[] \f\*[I-Font]peer_address\f[] [\f\*[I-Font]keyid\f[]] [\f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]]
+Identical to the addpeer command, except that the operating
+mode is broadcast.
+In this case a valid key identifier and key are
+required.
+The
+\f\*[I-Font]peer_address\f[]
+parameter can be the broadcast
+address of the local network or a multicast group address assigned
+to NTP.
+If a multicast address, a multicast-capable kernel is
+required.
+.TP 7
+.NOP \f\*[B-Font]unconfig\f[] \f\*[I-Font]peer_address\f[] [\f\*[I-Font]...\f[]]
+This command causes the configured bit to be removed from the
+specified peer(s).
+In many cases this will cause the peer
+association to be deleted.
+When appropriate, however, the
+association may persist in an unconfigured mode if the remote peer
+is willing to continue on in this fashion.
+.TP 7
+.NOP \f\*[B-Font]fudge\f[] \f\*[I-Font]peer_address\f[] [\f\*[B-Font]time1\f[]] [\f\*[B-Font]time2\f[]] [\f\*[I-Font]stratum\f[]] [\f\*[I-Font]refid\f[]]
+This command provides a way to set certain data for a reference
+clock.
+See the source listing for further information.
+.TP 7
+.NOP \f\*[B-Font]enable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]pps\f[] | \f\*[B-Font]stats\f[]]
+.TP 7
+.NOP \f\*[B-Font]disable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]pps\f[] | \f\*[B-Font]stats\f[]]
+These commands operate in the same way as the
+\f\*[B-Font]enable\f[]
+and
+\f\*[B-Font]disable\f[]
+configuration file commands of
+\fCntpd\f[]\fR(@NTPD_MS@)\f[].
+.RS
+.TP 7
+.NOP \f\*[B-Font]auth\f[]
+Enables the server to synchronize with unconfigured peers only
+if the peer has been correctly authenticated using either public key
+or private key cryptography.
+The default for this flag is enable.
+.TP 7
+.NOP \f\*[B-Font]bclient\f[]
+Enables the server to listen for a message from a broadcast or
+multicast server, as in the multicastclient command with
+default address.
+The default for this flag is disable.
+.TP 7
+.NOP \f\*[B-Font]calibrate\f[]
+Enables the calibrate feature for reference clocks.
+The default for this flag is disable.
+.TP 7
+.NOP \f\*[B-Font]kernel\f[]
+Enables the kernel time discipline, if available.
+The default for this flag is enable if support is available, otherwise disable.
+.TP 7
+.NOP \f\*[B-Font]monitor\f[]
+Enables the monitoring facility.
+See the documentation here about the
+\f\*[B-Font]monlist\f[]
+command or further information.
+The default for this flag is enable.
+.TP 7
+.NOP \f\*[B-Font]ntp\f[]
+Enables time and frequency discipline.
+In effect, this switch opens and closes the feedback loop,
+which is useful for testing.
+The default for this flag is enable.
+.TP 7
+.NOP \f\*[B-Font]pps\f[]
+Enables the pulse-per-second (PPS) signal when frequency
+and time is disciplined by the precision time kernel modifications.
+See the
+"A Kernel Model for Precision Timekeeping"
+(available as part of the HTML documentation
+provided in
+\fI/usr/share/doc/ntp\f[])
+page for further information.
+The default for this flag is disable.
+.TP 7
+.NOP \f\*[B-Font]stats\f[]
+Enables the statistics facility.
+See the
+\fIMonitoring\f[] \fIOptions\f[]
+section of
+\fCntp.conf\f[]\fR(5)\f[]
+for further information.
+The default for this flag is disable.
+.RE
+.TP 7
+.NOP \f\*[B-Font]restrict\f[] \f\*[I-Font]address\f[] \f\*[I-Font]mask\f[] \f\*[I-Font]flag\f[] [\f\*[I-Font]...\f[]]
+This command operates in the same way as the
+\f\*[B-Font]restrict\f[]
+configuration file commands of
+\fCntpd\f[]\fR(@NTPD_MS@)\f[].
+.TP 7
+.NOP \f\*[B-Font]unrestrict\f[] \f\*[I-Font]address\f[] \f\*[I-Font]mask\f[] \f\*[I-Font]flag\f[] [\f\*[I-Font]...\f[]]
+Unrestrict the matching entry from the restrict list.
+.TP 7
+.NOP \f\*[B-Font]delrestrict\f[] \f\*[I-Font]address\f[] \f\*[I-Font]mask\f[] [\f\*[B-Font]ntpport\f[]]
+Delete the matching entry from the restrict list.
+.TP 7
+.NOP \f\*[B-Font]readkeys\f[]
+Causes the current set of authentication keys to be purged and
+a new set to be obtained by rereading the keys file (which must
+have been specified in the
+\fCntpd\f[]\fR(@NTPD_MS@)\f[]
+configuration file).
+This
+allows encryption keys to be changed without restarting the
+server.
+.TP 7
+.NOP \f\*[B-Font]trustedkey\f[] \f\*[I-Font]keyid\f[] [\f\*[I-Font]...\f[]]
+.TP 7
+.NOP \f\*[B-Font]untrustedkey\f[] \f\*[I-Font]keyid\f[] [\f\*[I-Font]...\f[]]
+These commands operate in the same way as the
+\f\*[B-Font]trustedkey\f[]
+and
+\f\*[B-Font]untrustedkey\f[]
+configuration file
+commands of
+\fCntpd\f[]\fR(@NTPD_MS@)\f[].
+.TP 7
+.NOP \f\*[B-Font]authinfo\f[]
+Returns information concerning the authentication module,
+including known keys and counts of encryptions and decryptions
+which have been done.
+.TP 7
+.NOP \f\*[B-Font]traps\f[]
+Display the traps set in the server.
+See the source listing for
+further information.
+.TP 7
+.NOP \f\*[B-Font]addtrap\f[] \f\*[I-Font]address\f[] [\f\*[I-Font]port\f[]] [\f\*[I-Font]interface\f[]]
+Set a trap for asynchronous messages.
+See the source listing
+for further information.
+.TP 7
+.NOP \f\*[B-Font]clrtrap\f[] \f\*[I-Font]address\f[] [\f\*[I-Font]port\f[]] [\f\*[I-Font]interface\f[]]
+Clear a trap for asynchronous messages.
+See the source listing
+for further information.
+.TP 7
+.NOP \f\*[B-Font]reset\f[]
+Clear the statistics counters in various modules of the server.
+See the source listing for further information.
+.PP
+.SH "ENVIRONMENT"
+See \fBOPTION PRESETS\fP for configuration environment variables.
+.SH "FILES"
+See \fBOPTION PRESETS\fP for configuration files.
+.SH "EXIT STATUS"
+One of the following exit values will be returned:
+.TP
+.NOP 0 " (EXIT_SUCCESS)"
+Successful program execution.
+.TP
+.NOP 1 " (EXIT_FAILURE)"
+The operation failed or the command syntax was not valid.
+.TP
+.NOP 66 " (EX_NOINPUT)"
+A specified configuration file could not be loaded.
+.TP
+.NOP 70 " (EX_SOFTWARE)"
+libopts had an internal operational error.  Please report
+it to autogen-users@lists.sourceforge.net.  Thank you.
+.PP
+.SH "SEE ALSO"
+\fCntp.conf\f[]\fR(5)\f[],
+\fCntpd\f[]\fR(@NTPD_MS@)\f[]
+David L. Mills,
+\fINetwork Time Protocol (Version 3)\fR,
+RFC1305
+.PP
+
+.SH AUTHORS
+The formatting directives in this document came from FreeBSD.
+.SH "COPYRIGHT"
+Copyright (C) 1992-2017 The University of Delaware and Network Time Foundation all rights reserved.
+This program is released under the terms of the NTP license, <http://ntp.org/license>.
+.SH BUGS
+The
+\f\*[B-Font]ntpdc\fP
+utility is a crude hack.
+Much of the information it shows is
+deadly boring and could only be loved by its implementer.
+The
+program was designed so that new (and temporary) features were easy
+to hack in, at great expense to the program's ease of use.
+Despite
+this, the program is occasionally useful.
+.sp \n(Ppu
+.ne 2
+
+Please report bugs to http://bugs.ntp.org .
+.sp \n(Ppu
+.ne 2
+
+Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
+.SH "NOTES"
+This manual page was \fIAutoGen\fP-erated from the \fBntpdc\fP
+option definitions.

@@ -1,0 +1,131 @@
+.\" opielogin.1: Manual page for the opielogin(1) program.
+.\"
+.\" %%% portions-copyright-cmetz-96
+.\" Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
+.\" Reserved. The Inner Net License Version 2 applies to these portions of
+.\" the software.
+.\" You should have received a copy of the license with this software. If
+.\" you didn't get a copy, you may request one from <license@inner.net>.
+.\"
+.\" Portions of this software are Copyright 1995 by Randall Atkinson and Dan
+.\" McDonald, All Rights Reserved. All Rights under this copyright are assigned
+.\" to the U.S. Naval Research Laboratory (NRL). The NRL Copyright Notice and
+.\" License Agreement applies to this software.
+.\"
+.\"	History:
+.\"
+.\"     Modified by cmetz for OPIE 2.2. Removed MJR DES documentation.
+.\"	Modified at NRL for OPIE 2.0.
+.\"	Option descriptions added from BSD.
+.\"	Written at Bellcore for the S/Key Version 1 software distribution
+.\"		(keylogin.1).
+.\"
+.ll 6i
+.pl 10.5i
+.lt 6.0i
+.TH OPIELOGIN 1 "January 10, 1995"
+.AT 3
+
+.SH NAME
+opielogin \- Replacement for login(1) that issues OPIE challenges.
+
+.SH SYNOPSIS
+.B opielogin 
+[ -p ] [ -r 
+.I hostname
+| -h 
+.I hostname
+| -f
+.I username
+.sp 0
+| 
+.I username
+]
+
+.SH DESCRIPTION
+.I opielogin
+provides a replacement for the 
+.IR login (1)
+program that provides OPIE challenges
+to users and accepts OPIE responses. It is downward compatible with the 
+.IR keylogin(1)
+program from the Bellcore S/Key Version 1 distribution, which, in
+turn, is downward compatible with the
+.IR login(1)
+program from the 4.3BSD Net/2 distribution.
+
+.SH OPTIONS
+.TP
+.B \-p
+By default, login discards any previous environment.  The \-p 
+option disables this behavior.
+.TP
+.B \-r
+Process remote login from 
+.I hostname.
+.TP
+.B \-h
+The -h option specifies the host from which the connection was
+received.  It is used by various daemons such as telnetd(8).
+This option may only be used by the super\-user.
+.TP
+.B \-f
+The -f option is used when a user name is specified to indicate
+that proper authentication has already been done and that no
+password need be requested.  This option may only be used by the
+super\-user or when an already logged in user is logging in as
+themselves.
+.TP
+.I username
+The user name to log in as.
+.SH EXAMPLE
+.sp 0
+wintermute$ opielogin
+.sp 0
+login: kebe
+.sp 0
+otp-md5 499 wi43143
+.sp 0
+Password: (echo on)
+.sp 0
+Password:SLY BLOB TOUR POP BRED EDDY
+.sp 0
+ 
+.sp 0
+			Welcome to wintermute.
+.sp 0
+
+.sp 0
+wintermute$
+.LP
+.SH FILES
+.TP
+/etc/opiekeys -- database of information for the OPIE system.
+.TP
+/etc/opieaccess -- list of safe and unsafe networks and masks to go with them.
+.TP
+$HOME/.opiealways -- presence makes OPIE for logins mandatory for the user.
+
+.SH SEE ALSO
+.BR login (1),
+.BR opie (4),
+.BR opiekey (1),
+.BR opiepasswd (1),
+.BR opieinfo (1),
+.BR opiesu (1),
+.BR opieftpd (8),
+.BR opiekeys (5),
+.BR opieaccess (5)
+
+.SH AUTHOR
+Bellcore's S/Key was written by Phil Karn, Neil M. Haller, and John S. Walden
+of Bellcore. OPIE was created at NRL by Randall Atkinson, Dan McDonald, and
+Craig Metz.
+
+S/Key is a trademark of Bell Communications Research (Bellcore).
+
+.SH CONTACT
+OPIE is discussed on the Bellcore "S/Key Users" mailing list. To join,
+send an email request to:
+.sp
+skey-users-request@thumper.bellcore.com

@@ -1,0 +1,301 @@
+IMPORTANT NOTE:
+
+As of Feb. 11, 2002 (and indeed, for quite some time before that),
+the /etc/rc.diskless{1,2} scripts support a slightly different
+diskless boot process than the one documented in the rest of
+this file (which is 3 years old).
+
+I am not deleting the information below because it contains some
+useful background information on diskless operation, but for the
+actual details you should look at /etc/rc.diskless1, /etc/rc.diskless2,
+and the /usr/share/examples/diskless/clone_root script which can
+be useful to set up clients and server for diskless boot.
+
+--- $FreeBSD$ ---
+------------------------------------------------------------------------
+
+		      TEMPLATING machine configurations
+
+			    Matthew Dillon
+			    dillon@backplane.com
+
+    This document describes a general mechanism by which you can template
+    / and /usr.  That is, to keep a 'master template' of / and /usr on a
+    separate machine which is then used to update the rest of your machines.
+
+    Generally speaking, you can't simply mirror /.  You might be able to 
+    get away with mirroring /usr.  There are two main problems involved with
+    templating:
+
+    (1) Avoiding overwriting run-time generated files
+
+	By default, the system maintains a number of files in the root 
+	partition.  For example, sendmail will dbm /etc/aliases into
+	/etc/aliases.db.  vipw or chpass or other password related routines
+	will regenerate the password dbm's /etc/spwd.db, /etc/pwd.db, and
+	passwd.  /etc/namedb/s might contain generated secondaries.  And
+	so forth.
+
+	The templating mechanism must avoid copying over such files.
+
+    (2) Customizing machines.
+
+	Customizing machines is actually considerably simpler.  You create
+	a configuration hierarchy and convert the configuration files that
+	have to be customized into softlinks that run through a special
+	softlink in the configuration directory.  This will work for every
+	configuration file except possibly /etc/master.passwd
+
+	For example, /etc/resolv.conf would be turned into a softlink to
+	/conf/ME/resolv.conf, and /conf/ME itself would be a softlink to
+	/conf/<HOSTNAME>.  The actual resolv.conf configuration file
+	would reside in /conf/<HOSTNAME>.
+
+	If you have a lot of hosts, some configuration files may be commonly
+	classified.  For example, all your shell machines might have the 
+	same /etc/resolv.conf.  The solution is to make
+	/conf/<HOSTNAME>/resolv.conf a softlink to a common directory, say
+	/conf/HT.SHELL/resolv.conf.  It may sound a little messy, but this
+	sort of categorization actually makes the sysadmins job much, much
+	easier.
+
+	The /conf/ directory hierarchy is stored on the template and
+	distributed to all the machines along with the rest of the root
+	partition.
+
+	This type of customization is taken from my direct experience 
+	instituting such a system at BEST.  At the time, BEST had over 45 
+	machines managed from a single template.
+
+		RUN-TIME GENERATED OR MODIFIED FILES IN / or /USR
+
+	/etc/aliases.db
+	/etc/master.passwd
+	/etc/spwd.db
+	/etc/pwd.db
+	/etc/passwd
+	/etc/namedb/s
+	/root/.history
+	/root/.ssh/identity
+	/root/.ssh/identity.pub
+	/root/.ssh/random_seed
+	/root/.ssh/known_hosts
+	/conf/ME
+	/kernel*	( note 2 )
+	/dev	( note 3 )
+	/var	( note 4 )
+	/home	( note 4 )
+	/lost+found
+
+	/usr/lost+found
+	/usr/home	( note 4 )
+	/usr/crash	( note 5 )
+	/usr/obj	( note 5 )
+	/usr/ports	( note 5 )
+	/usr/src	( note 5 )
+	/usr/local/crack ( note 5 )
+	/usr/local/lib/X11/xdm/xdm-errors ( note 6 )
+	/usr/local/lib/X11/xdm/xdm-pid 	  ( note 6 )
+	/usr/local/etc/ssh_host_key	  ( note 6 )
+	/usr/local/etc/ssh_host_key.pub	  ( note 6 )
+	/usr/local/etc/ssh_random_seed	  ( note 6 )
+
+	/conf/ME	( note 7 )
+
+	note 2:	You typically want to update kernels manually and *NOT* 
+		template them as a safety measure.  This also allows you to run
+		different kernels on different machines or.
+
+	note 3: /dev must be updated manually.  Some devices, such as tty's and
+		pty's, use the access and/or modify time and/or user/group
+		operationally and regenerating the devices on the fly would be
+		bad.
+
+	note 4:	/var and /home are usually separately mounted partitions and
+		thus would not fall under the template, but as a safety measure
+		the template copier refuse to copy directories named 'home'.
+
+	note 5: These are directories that are as often created directly on
+		/usr as they are separately-mounted partitions.  You typically
+		do not want to template such directories.
+
+	note 6: Note that you can solve the problem of xdm and sshd creating
+		files in /usr.  With xdm, edit /usr/local/lib/xdm/xdm-config
+		and change the errorLogFile and pidFile config lines.
+
+		With sshd, add 'HostKey' and 'RandomSeed' directives to specify
+		/var/db for the location of the host key and run-time sshd
+		random seed:
+
+		HostKey /var/db/ssh_host_key
+		RandomSeed /var/db/ssh_random_seed
+
+	note 7: In this example, /conf/ME is the machine customizer and must
+		be pointed to the /conf/<full-host-name>/ directory, which is
+		different for each machine.  Thus, the /conf/ME softlink 
+		should never be overwritten by the templating copy.
+
+
+		TYPICAL CUSTOMIZED CONFIGURATION SOFTLINKS
+
+    The following files typically need to be turned into softlinks 
+    to /conf/ME/<filename>:
+
+	/etc/ccd.conf		-> /conf/ME/ccd.conf
+	/etc/ipfw.conf		...
+	/etc/fstab
+	/etc/motd
+	/etc/resolv.conf
+	/etc/aliases
+	/etc/sendmail.cw
+	/etc/organization
+	/etc/named.conf
+	/etc/rc.conf.local
+	/etc/printcap
+	/etc/inetd.conf
+	/etc/login.conf
+	/etc/gettytab
+	/etc/ntp.conf
+	/etc/exports
+	/root/.k5login		-> /conf/ME/root/.k5login
+
+    And, of course, /conf/ME is usually a softlink to the appropriate 
+    /conf/<full-host-name>/.  Depending on your system configuration, 
+    there may be other files not listed above that you have to worry about.
+
+    In many cases, /conf/ME/filename is itself a softlink to 
+    "../HT.xxxx/filename", where HT.xxxx is something like HT.STD ... this
+    added complexity actually makes it easier to manage multiple
+    classifications of machines.
+
+				DELETION OF FILES
+
+    Any file found on the template destination that does not exist in the
+    source and is not listed as an exception by the source should be deleted.
+    However, deletion can be dangerous and cpdup will ask for confirmation
+    by default.  Once you know you aren't going to blow things up, you can
+    turn this feature off and update your systems automatically from cron.
+
+    By formalizing the delete operation, you can be 100% sure that it is
+    possible to recreate / and /usr on any machine with only the original
+    template and a backup of the ( relatively few ) explicitly-excepted 
+    files.  The most common mistake a sysop makes is to make a change to a 
+    file in / or /usr on a target machine instead of the template machine.
+    If the target machine is updated once a night from cron, the sysop
+    quickly learns not to do this ( because his changes get overwritten
+    overnight ).  With a manual update, these sorts of mistakes can propagate
+    for weeks or months before they are caught.
+
+			    TEMPLATE COPYING AND SAFETY
+			       THE CPDUP PROGRAM
+
+    The 'cpdup' program is a program which efficiently duplicates a directory
+    tree.  The program copies source to destination, duplicating devices, 
+    softlinks, hardlinks, files, modification times, uid, gid, flags, perms,
+    and so forth.  The program incorporates several major features:
+
+	*   The program refuses, absolutely, to cross partition boundaries.
+	    i.e. if you were copying the template /usr from an NFS mount to
+	    your /usr, and you had a mount point called /usr/home, the
+	    template copying program would *NOT* descend into /usr/home on
+	    the destination.
+
+	    This is a safety.
+
+	*   The program accesses a file called .cpignore in each directory
+	    it descends into on the source to obtain a list of exceptions
+	    for that directory -- that is, files not to copy or mess with.
+
+	    This is a templating function.
+
+	*   The program refuses to delete a directory on the destination
+	    being replaced by a softlink or file on the source.
+
+	    This is a safety mechanism
+
+	*   The program is capable of maintaining MD5 check cache files and
+	    doing an MD5 check between source and destination during the
+	    scan.
+
+	*   The program is capable of deleting files/directories on the
+	    destination that do not exist on the source, but asks for
+	    confirmation by default.
+
+	    This is a templating and a safety mechanism.
+
+	*   The program uses a copy-to-tmp-and-rename methodology allowing
+	    it to be used to update live filesystems.
+
+	    This is a templating mechanism.
+
+	*   The program, by default, tries to determine if a copy is required
+	    by checking modify times, file size, perms, and other stat
+	    elements.  If the elements match, it does not bother to copy
+	    ( unless an MD5 check is being made, in which case it must read
+	    the destination file ).
+
+    You typically run cpdup on the target machine.  The target machine
+    temporarily mounts the template machine's / and /usr via NFS, read-only,
+    and runs cpdup to update / and /usr.  If you use this methodology note
+    that THERE ARE SECURITY CONSIDERATIONS!  See 'SECURITY CONSIDERATIONS WITH
+    NFS' below.  
+
+    Whatever script you use that does the NFS mounts should ensure that the
+    mount succeeded before continuing with the cpdup.
+
+    You should create .cpignore files in the appropriate directories on the 
+    template machine's / and /usr partitions so as not to overwrite active
+    files on the target.  The most critical .cpignore files should be
+    protected with 'chflags schg .cpignore'.  Specifically, the ones in /
+    and /etc, but possibly others as well.  For example, the .cpignore
+    hierarchy for protect /root is:
+
+	# /root/.cpignore contains
+	.history
+
+	# /root/.ssh/.cpignore contains
+	random_seed
+	known_hosts
+	authorized_keys
+	identity
+	identity.pub
+
+    WHEN INITIALLY CONVERTING A TARGET MACHINE TO USE TEMPLATING, ALWAYS
+    MAKE A FULL BACKUP OF THE TARGET MACHINE FIRST!  You may accidentally
+    delete files on the target during the conversion due to forgetting to
+    enter items into appropriate .cpignore files on the source.
+
+	SECURITY CONSIDERATIONS WITH NFS ROOT EXPORT FROM TEMPLATE MACHINE
+	SECURITY CONSIDERATIONS WITH NFS USR EXPORT FROM TEMPLATE MACHINE
+
+    There are some serious security considerations that must be taken into
+    account when exporting / and /usr on the template machine.
+
+	* only export read-only 
+
+	* the password file ( aka vipw ) may not contain any crypted passwords
+	  at all.  You MUST use ssh or kerberos to access the template machine.
+
+	  You can get away with giving only root a crypted password, but only
+	  if you disallow network root logins and only allow direct root
+	  logins on the  console.
+
+	* The machine's private ssh_host_key usually resides in /usr/local/etc.
+	  You must move this key to /var/db.  You can softlink link so no
+	  modification of sshd_config is required.
+
+	* The machine's private ~root/.ssh/identity file is also exposed by
+	  the NFS export, you should move this file to /var/db as well and
+	  put a softlink in ~root/.ssh.
+
+	* DON'T EXPORT /var !  Either that, or don't put the private keys
+	  in /var/db ... put them somewhere else.
+
+	* You may want to redirect the location of the random_seed file, which
+	  can be done by editing ~root/.ssh/sshd_config and
+	  /usr/local/etc/sshd_config so it is not exposed either.
+
+					-Matt
+					Matthew Dillon
+					dillon@backplane.com
+

@@ -1,0 +1,118 @@
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software developed by the Computer Systems
+.\" Engineering group at Lawrence Berkeley Laboratory under DARPA contract
+.\" BG 91-66 and contributed to Berkeley.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)kvm_nlist.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd November 27, 2015
+.Dt KVM_NLIST 3
+.Os
+.Sh NAME
+.Nm kvm_nlist ,
+.Nm kvm_nlist2
+.Nd retrieve symbol table names from a kernel image
+.Sh LIBRARY
+.Lb libkvm
+.Sh SYNOPSIS
+.In kvm.h
+.In nlist.h
+.Ft int
+.Fn kvm_nlist "kvm_t *kd" "struct nlist *nl"
+.Ft int
+.Fn kvm_nlist2 "kvm_t *kd" "struct kvm_nlist *nl"
+.Sh DESCRIPTION
+The
+.Fn kvm_nlist
+function retrieves the symbol table entries indicated by the name list argument
+.Fa \&nl .
+This argument points to an array of nlist structures, terminated by
+an entry whose
+.Fa n_name
+field is
+.Dv NULL
+(see
+.Xr nlist 3 ) .
+Each symbol is looked up using the
+.Fa n_name
+field, and if found, the
+corresponding
+.Fa n_type
+and
+.Fa n_value
+fields are filled in.
+These fields are set
+to 0 if the symbol is not found.
+.Pp
+The
+.Xr kldsym 2
+system call is used to locate symbols in live kernels.
+This is a less than perfect
+emulation of the nlist values but has the advantage of being aware of kernel
+modules and is reasonably fast.
+.Pp
+The
+.Fn kvm_nlist2
+function retrieves the symbol table entries indicated by the name list argument
+.Fa nl .
+This argument points to an array of
+.Vt "struct kvm_nlist"
+structures,
+terminated by an entry whose
+.Fa n_name
+field is
+.Dv NULL
+These structures are similar to the nlist structures used by
+.Fn kvm_nlist
+except that the
+.Fa n_value
+field uses a different type
+.Pq Vt kvaddr_t
+to avoid truncation when examining non-native kernel images.
+.Sh RETURN VALUES
+The
+.Fn kvm_nlist
+and
+.Fn kvm_nlist2
+functions return the number of invalid entries found.
+If the kernel symbol table was unreadable, -1 is returned.
+.Sh SEE ALSO
+.Xr kldsym 2 ,
+.Xr kvm 3 ,
+.Xr kvm_close 3 ,
+.Xr kvm_getargv 3 ,
+.Xr kvm_getenvv 3 ,
+.Xr kvm_geterr 3 ,
+.Xr kvm_getprocs 3 ,
+.Xr kvm_native 3 ,
+.Xr kvm_open 3 ,
+.Xr kvm_openfiles 3 ,
+.Xr kvm_read 3 ,
+.Xr kvm_write 3

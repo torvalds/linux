@@ -1,0 +1,6 @@
+.TARGET="phony" .PREFIX="phony" .IMPSRC=""
+.TARGET="all" .PREFIX="all" .IMPSRC="phony"
+.TARGET="ok" .PREFIX="ok" .IMPSRC=""
+.TARGET="also.ok" .PREFIX="also.ok" .IMPSRC=""
+.TARGET="bug" .PREFIX="bug" .IMPSRC=""
+exit status 0

@@ -1,0 +1,377 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)execve.2	8.5 (Berkeley) 6/1/94
+.\" $FreeBSD$
+.\"
+.Dd September 21, 2010
+.Dt EXECVE 2
+.Os
+.Sh NAME
+.Nm execve ,
+.Nm fexecve
+.Nd execute a file
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn execve "const char *path" "char *const argv[]" "char *const envp[]"
+.Ft int
+.Fn fexecve "int fd" "char *const argv[]" "char *const envp[]"
+.Sh DESCRIPTION
+The
+.Fn execve
+system call
+transforms the calling process into a new process.
+The new process is constructed from an ordinary file,
+whose name is pointed to by
+.Fa path ,
+called the
+.Em new process file .
+The
+.Fn fexecve
+system call is equivalent to
+.Fn execve
+except that the file to be executed is determined by the file
+descriptor
+.Fa fd
+instead of a
+.Fa path .
+This file is either an executable object file,
+or a file of data for an interpreter.
+An executable object file consists of an identifying header,
+followed by pages of data representing the initial program (text)
+and initialized data pages.
+Additional pages may be specified
+by the header to be initialized with zero data; see
+.Xr elf 5
+and
+.Xr a.out 5 .
+.Pp
+An interpreter file begins with a line of the form:
+.Pp
+.Bd -ragged -offset indent -compact
+.Sy \&#!
+.Em interpreter
+.Bq Em arg
+.Ed
+.Pp
+When an interpreter file is
+.Sy execve Ap d ,
+the system actually
+.Sy execve Ap s
+the specified
+.Em interpreter .
+If the optional
+.Em arg
+is specified, it becomes the first argument to the
+.Em interpreter ,
+and the name of the originally
+.Sy execve Ap d
+file becomes the second argument;
+otherwise, the name of the originally
+.Sy execve Ap d
+file becomes the first argument.
+The original arguments are shifted over to
+become the subsequent arguments.
+The zeroth argument is set to the specified
+.Em interpreter .
+.Pp
+The argument
+.Fa argv
+is a pointer to a null-terminated array of
+character pointers to null-terminated character strings.
+These strings construct the argument list to be made available to the new
+process.
+At least one argument must be present in
+the array; by custom, the first element should be
+the name of the executed program (for example, the last component of
+.Fa path ) .
+.Pp
+The argument
+.Fa envp
+is also a pointer to a null-terminated array of
+character pointers to null-terminated strings.
+A pointer to this array is normally stored in the global variable
+.Va environ .
+These strings pass information to the
+new process that is not directly an argument to the command (see
+.Xr environ 7 ) .
+.Pp
+File descriptors open in the calling process image remain open in
+the new process image, except for those for which the close-on-exec
+flag is set (see
+.Xr close 2
+and
+.Xr fcntl 2 ) .
+Descriptors that remain open are unaffected by
+.Fn execve .
+If any of the standard descriptors (0, 1, and/or 2) are closed at the
+time
+.Fn execve
+is called, and the process will gain privilege as a result of set-id
+semantics, those descriptors will be re-opened automatically.
+No programs, whether privileged or not, should assume that these descriptors
+will remain closed across a call to
+.Fn execve .
+.Pp
+Signals set to be ignored in the calling process are set to be ignored in
+the
+new process.
+Signals which are set to be caught in the calling process image
+are set to default action in the new process image.
+Blocked signals remain blocked regardless of changes to the signal action.
+The signal stack is reset to be undefined (see
+.Xr sigaction 2
+for more information).
+.Pp
+If the set-user-ID mode bit of the new process image file is set
+(see
+.Xr chmod 2 ) ,
+the effective user ID of the new process image is set to the owner ID
+of the new process image file.
+If the set-group-ID mode bit of the new process image file is set,
+the effective group ID of the new process image is set to the group ID
+of the new process image file.
+(The effective group ID is the first element of the group list.)
+The real user ID, real group ID and
+other group IDs of the new process image remain the same as the calling
+process image.
+After any set-user-ID and set-group-ID processing,
+the effective user ID is recorded as the saved set-user-ID,
+and the effective group ID is recorded as the saved set-group-ID.
+These values may be used in changing the effective IDs later (see
+.Xr setuid 2 ) .
+.Pp
+The set-ID bits are not honored if the respective file system has the
+.Cm nosuid
+option enabled or if the new process file is an interpreter file.
+Syscall
+tracing is disabled if effective IDs are changed.
+.Pp
+The new process also inherits the following attributes from
+the calling process:
+.Pp
+.Bl -column parent_process_ID -offset indent -compact
+.It process ID Ta see Xr getpid 2
+.It parent process ID Ta see Xr getppid 2
+.It process group ID Ta see Xr getpgrp 2
+.It access groups Ta see Xr getgroups 2
+.It working directory Ta see Xr chdir 2
+.It root directory Ta see Xr chroot 2
+.It control terminal Ta see Xr termios 4
+.It resource usages Ta see Xr getrusage 2
+.It interval timers Ta see Xr getitimer 2
+.It resource limits Ta see Xr getrlimit 2
+.It file mode mask Ta see Xr umask 2
+.It signal mask Ta see Xr sigaction 2 ,
+.Xr sigprocmask 2
+.El
+.Pp
+When a program is executed as a result of an
+.Fn execve
+system call, it is entered as follows:
+.Bd -literal -offset indent
+main(argc, argv, envp)
+int argc;
+char **argv, **envp;
+.Ed
+.Pp
+where
+.Fa argc
+is the number of elements in
+.Fa argv
+(the ``arg count'')
+and
+.Fa argv
+points to the array of character pointers
+to the arguments themselves.
+.Pp
+The
+.Fn fexecve
+ignores the file offset of
+.Fa fd .
+Since execute permission is checked by
+.Fn fexecve ,
+the file descriptor
+.Fa fd
+need not have been opened with the
+.Dv O_EXEC
+flag.
+However, if the file to be executed denies read permission for the process
+preparing to do the exec, the only way to provide the
+.Fa fd
+to
+.Fn fexecve
+is to use the
+.Dv O_EXEC
+flag when opening
+.Fa fd .
+Note that the file to be executed can not be open for writing.
+.Sh RETURN VALUES
+As the
+.Fn execve
+system call overlays the current process image
+with a new process image the successful call
+has no process to return to.
+If
+.Fn execve
+does return to the calling process an error has occurred; the
+return value will be -1 and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn execve
+system call
+will fail and return to the calling process if:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded 255 characters,
+or an entire path name exceeded 1023 characters.
+.It Bq Er ENOEXEC
+When invoking an interpreted script, the length of the first line,
+inclusive of the
+.Sy \&#!
+prefix and terminating newline, exceeds
+.Dv MAXSHELLCMDLEN
+characters.
+.It Bq Er ENOENT
+The new process file does not exist.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix.
+.It Bq Er EACCES
+The new process file is not an ordinary file.
+.It Bq Er EACCES
+The new process file mode denies execute permission.
+.It Bq Er ENOEXEC
+The new process file has the appropriate access
+permission, but has an invalid magic number in its header.
+.It Bq Er ETXTBSY
+The new process file is a pure procedure (shared text)
+file that is currently open for writing by some process.
+.It Bq Er ENOMEM
+The new process requires more virtual memory than
+is allowed by the imposed maximum
+.Pq Xr getrlimit 2 .
+.It Bq Er E2BIG
+The number of bytes in the new process' argument list
+is larger than the system-imposed limit.
+This limit is specified by the
+.Xr sysctl 3
+MIB variable
+.Dv KERN_ARGMAX .
+.It Bq Er EFAULT
+The new process file is not as long as indicated by
+the size values in its header.
+.It Bq Er EFAULT
+The
+.Fa path ,
+.Fa argv ,
+or
+.Fa envp
+arguments
+point
+to an illegal address.
+.It Bq Er EIO
+An I/O error occurred while reading from the file system.
+.El
+.Pp
+In addition, the
+.Fn fexecve
+will fail and return to the calling process if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid file descriptor open for executing.
+.El
+.Sh SEE ALSO
+.Xr ktrace 1 ,
+.Xr _exit 2 ,
+.Xr fork 2 ,
+.Xr open 2 ,
+.Xr execl 3 ,
+.Xr exit 3 ,
+.Xr sysctl 3 ,
+.Xr a.out 5 ,
+.Xr elf 5 ,
+.Xr fdescfs 5 ,
+.Xr environ 7 ,
+.Xr mount 8
+.Sh STANDARDS
+The
+.Fn execve
+system call conforms to
+.St -p1003.1-2001 ,
+with the exception of reopening descriptors 0, 1, and/or 2 in certain
+circumstances.
+A future update of the Standard is expected to require this behavior,
+and it may become the default for non-privileged processes as well.
+.\" NB: update this caveat when TC1 is blessed.
+The support for executing interpreted programs is an extension.
+The
+.Fn fexecve
+system call conforms to The Open Group Extended API Set 2 specification.
+.Sh HISTORY
+The
+.Fn execve
+system call appeared in
+.Bx 4.2 .
+The
+.Fn fexecve
+system call appeared in
+.Fx 8.0 .
+.Sh CAVEATS
+If a program is
+.Em setuid
+to a non-super-user, but is executed when
+the real
+.Em uid
+is ``root'', then the program has some of the powers
+of a super-user as well.
+.Pp
+When executing an interpreted program through
+.Fn fexecve ,
+kernel supplies
+.Pa /dev/fd/n
+as a second argument to the interpreter,
+where
+.Ar n
+is the file descriptor passed in the
+.Fa fd
+argument to
+.Fn fexecve .
+For this construction to work correctly, the
+.Xr fdescfs 5
+filesystem shall be mounted on
+.Pa /dev/fd .

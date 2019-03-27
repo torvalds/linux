@@ -1,0 +1,151 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2000 Alexander Langer
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 12, 2018
+.Dt DRIVER_MODULE 9
+.Os
+.Sh NAME
+.Nm DRIVER_MODULE ,
+.Nm DRIVER_MODULE_ORDERED ,
+.Nm EARLY_DRIVER_MODULE ,
+.Nm EARLY_DRIVER_MODULE_ORDERED
+.Nd kernel driver declaration macro
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/kernel.h
+.In sys/bus.h
+.In sys/module.h
+.Fn DRIVER_MODULE name busname "driver_t driver" "devclass_t devclass" "modeventhand_t evh" "void *arg"
+.Fn DRIVER_MODULE_ORDERED name busname "driver_t driver" "devclass_t devclass" "modeventhand_t evh" "void *arg" "int order"
+.Fn EARLY_DRIVER_MODULE name busname "driver_t driver" "devclass_t devclass" "modeventhand_t evh" "void *arg" "enum sysinit_elem_order order" "int pass"
+.Fn EARLY_DRIVER_MODULE_ORDERED name busname "driver_t driver" "devclass_t devclass" "modeventhand_t evh" "void *arg" "enum sysinit_elem_order order" "int pass"
+.Sh DESCRIPTION
+The
+.Fn DRIVER_MODULE
+macro declares a kernel driver.
+.Fn DRIVER_MODULE
+expands to the real driver declaration, where the phrase
+.Fa name
+is used as the naming prefix for the driver and its functions.
+Note that it is supplied as plain text, and not a
+.Li char
+or
+.Li char * .
+.Pp
+.Fa busname
+is the parent bus of the driver (PCI, ISA, PPBUS and others), e.g.\&
+.Ql pci ,
+.Ql isa ,
+or
+.Ql ppbus .
+.Pp
+The identifier used in
+.Fn DRIVER_MODULE
+can be different from the driver name.
+Also, the same driver identifier can exist on different buses,
+which is a pretty clean way of making front ends for different cards
+using the same driver on the same or different buses.
+For example, the following is allowed:
+.Pp
+.Fn DRIVER_MODULE foo isa foo_driver foo_devclass NULL NULL ;
+.Pp
+.Fn DRIVER_MODULE foo pci foo_driver foo_devclass NULL NULL ;
+.Pp
+.Fa driver
+is the driver of type
+.Li driver_t ,
+which contains the information about the driver and is therefore one of the
+two most important parts of the call to
+.Fn DRIVER_MODULE .
+.Pp
+The
+.Fa devclass
+argument contains the kernel-internal information about the device,
+which will be used within the kernel driver module.
+.Pp
+The
+.Fa evh
+argument is the event handler which is called when the driver (or module)
+is loaded or unloaded (see
+.Xr module 9 ) .
+.Pp
+The
+.Fa arg
+is unused at this time and should be a
+.Dv NULL
+pointer.
+.Pp
+The
+.Fn DRIVER_MODULE_ORDERED
+macro allows a driver to be registered in a specific order.
+This can be useful if a single kernel module contains multiple drivers
+that are inter-dependent.
+The
+.Fa order
+argument should be one of the
+.Xr SYSINIT 9
+initialization ordering constants
+.Pq Dv SI_ORDER_* .
+The default order for a driver module is
+.Dv SI_ORDER_MIDDLE .
+Typically a module will specify an order of
+.Dv SI_ORDER_ANY
+for a single driver to ensure it is registered last.
+.Pp
+The
+.Fn EARLY_DRIVER_MODULE
+macro allows a driver to be registered for a specific pass level.
+The boot time probe and attach process makes multiple passes over the
+device tree.
+Certain critical drivers that provide basic services needed by other
+devices are attach during earlier passes.
+Most drivers are attached in a final general pass.
+A driver that attaches during an early pass must register for a specific
+pass level
+.Pq BUS_PASS_*
+via the
+.Fa pass
+argument.
+Once a driver is registered it is available to attach to devices for
+all subsequent passes.
+.Pp
+The
+.Fn EARLY_DRIVER_MODULE_ORDERED
+macro allows a driver to be registered both in a specific order and
+for a specific pass level.
+.Sh SEE ALSO
+.Xr device 9 ,
+.Xr driver 9 ,
+.Xr module 9 ,
+.Xr MODULE_PNP_INFO 9 ,
+.Xr SYSINIT 9
+.Sh AUTHORS
+This manual page was written by
+.An Alexander Langer Aq Mt alex@FreeBSD.org .

@@ -1,0 +1,97 @@
+.\" Copyright (c) 2011-2012 Ed Schouten <ed@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 3, 2013
+.Dt UTX 8
+.Os
+.Sh NAME
+.Nm utx
+.Nd manage the user accounting database
+.Sh SYNOPSIS
+.Nm
+.Cm boot
+.Nm
+.Cm shutdown
+.Nm
+.Cm rm
+.Ar identifier
+.Ar ...
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to perform operations on the user accounting
+database, as done by
+.Xr pututxline 3 .
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm shutdown"
+.It Cm boot
+Write a boot time record to the user accounting database.
+This option should typically only be used by
+.Xr rc 8 .
+.It Cm shutdown
+Write a shutdown time record to the user accounting database.
+This option should typically only be used by
+.Xr rc 8 .
+.It Cm rm
+Remove stale sessions from the user accounting
+database, by referring to their
+.Ar identifier .
+Stale sessions can occur if a login service exits prematurely or fails
+to remove the session from the accounting database.
+.Pp
+Utilities such as
+.Xr w 1
+will not display the identifier corresponding with a login session,
+since its value is typically only of use by the process managing the
+record.
+The following command can be used to obtain all records from the user
+accounting database's active session table, including its identifiers:
+.Pp
+.Dl getent utmpx active
+.Pp
+Identifiers can either be supplied in hexadecimal form as displayed by
+.Xr getent 1 ,
+or as a string if the identifier allows such a representation.
+.El
+.Pp
+Because this utility requires write-access to the user accounting
+database, its use is limited to the super-user.
+.Sh SEE ALSO
+.Xr getent 1 ,
+.Xr w 1 ,
+.Xr pututxline 3
+.Sh HISTORY
+The
+.Nm
+utility replaced
+.Nm utxrm
+in
+.Fx 10.0 .
+.Sh AUTHORS
+.An Ed Schouten Aq Mt ed@FreeBSD.org

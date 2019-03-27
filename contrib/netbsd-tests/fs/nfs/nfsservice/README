@@ -1,0 +1,16 @@
+	$NetBSD: README,v 1.1 2010/07/26 15:53:00 pooka Exp $
+
+This directory contains the necessary bits to get an NFS server
+running in a rump kernel.  In essence, it's:
+
+  * rpcbind
+  * mountd
+  * nfsd
+
+Additionally, you need the libc rpc code which is in
+tests/fs/common/nfsrpc.
+
+TODO: make the standard nfs userspace services usable (the challenge
+comes from rpc being in libc).
+
+questions? ==> pooka@netbsd.org

@@ -1,0 +1,227 @@
+.\" Copyright (c) 2015 Mark Johnston <markj@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 18, 2015
+.Dt DTRACE_SCHED 4
+.Os
+.Sh NAME
+.Nm dtrace_sched
+.Nd a DTrace provider for tracing CPU scheduling events
+.Sh SYNOPSIS
+.Fn sched:::change-pri "struct thread *" "struct proc *" "uint8_t"
+.Fn sched:::dequeue "struct thread *" "struct proc *" "void *"
+.Fn sched:::enqueue "struct thread *" "struct proc *" "void *" "int"
+.Fn sched:::lend-pri "struct thread *" "struct proc *" "uint8_t" "struct thread *"
+.Fn sched:::load-change "int" "int"
+.Fn sched:::off-cpu "struct thread *" "struct proc *"
+.Fn sched:::on-cpu
+.Fn sched:::preempt
+.Fn sched:::remain-cpu
+.Fn sched:::surrender "struct thread *" "struct proc *"
+.Fn sched:::sleep
+.Fn sched:::tick "struct thread *" "struct proc *"
+.Fn sched:::wakeup "struct thread *" "struct proc *"
+.Sh DESCRIPTION
+The DTrace
+.Nm sched
+provider allows the tracing of events related to CPU scheduling in the 4BSD and
+ULE schedulers.
+.Pp
+The
+.Fn sched:::change-pri
+probe fires when a thread's active scheduling priority is about to be updated.
+The first two arguments are the thread whose priority is about to be changed,
+and the corresponding process.
+The third argument is the new absolute priority for the thread, while the
+current value is given by
+.Dv args[0]->td_priority .
+The
+.Fn sched:::lend-pri
+probe fires when the currently-running thread elevates the priority of another
+thread via priority lending.
+The first two arguments are the thread whose priority is about to be changed,
+and the corresponding process.
+The third argument is the new absolute priority for the thread.
+The fourth argument is the currently-running thread.
+.Pp
+The
+.Fn sched:::dequeue
+probe fires immediately before a runnable thread is removed from a scheduler
+run queue.
+This may occur when the thread is about to begin execution on a CPU, or because
+the thread is being migrated to a different run queue.
+The latter event may occur in several circumstances: the scheduler may be
+attempting to rebalance load between multiple CPUs, the thread's scheduling
+priority may have changed, or the thread's CPU affinity settings may have
+changed.
+The first two arguments to
+.Fn sched:::dequeue
+are the thread and corresponding process.
+The third argument is currently always
+.Dv NULL .
+The
+.Fn sched:::enqueue
+probe fires when a runnable thread is about to be added to a scheduler run
+queue.
+Its first two arguments are the thread and corresponding process.
+The third argument is currently always
+.Dv NULL .
+The fourth argument is a boolean value that is non-zero if the thread is
+enqueued at the beginning of its run queue slot, and zero if the thread is
+instead enqueued at the end.
+.Pp
+The
+.Fn sched:::load-change
+probe fires after the load of a thread queue is adjusted.
+The first argument is the cpuid for the CPU associated with the thread queue,
+and the second argument is the adjusted load of the thread queue, i.e., the
+number of elements in the queue.
+.Pp
+The
+.Fn sched:::off-cpu
+probe is triggered by the scheduler suspending execution of the
+currently-running thread, and the
+.Fn sched:::on-cpu
+probe fires when the current thread has been selected to run on a CPU and is
+about to begin or resume execution.
+The arguments to
+.Fn sched:::off-cpu
+are the thread and corresponding process selected to run following the
+currently-running thread.
+If these two threads are the same, the
+.Fn sched:::remain-cpu
+probe will fire instead.
+.Pp
+The
+.Fn sched:::surrender
+probe fires when the scheduler is called upon to make a scheduling decision by
+a thread running on a different CPU, via an interprocessor interrupt.
+The arguments to this probe are the interrupted thread and its corresponding
+process.
+This probe currently always fires in the context of the interrupted thread.
+.Pp
+The
+.Fn sched:::preempt
+probe will fire immediately before the currently-running thread is preempted.
+When this occurs, the scheduler will select a new thread to run, and one of the
+.Fn sched:::off-cpu
+or
+.Fn sched:::remain-cpu
+probes will subsequently fire, depending on whether or not the scheduler selects
+the preempted thread.
+.Pp
+The
+.Fn sched:::sleep
+probe fires immediately before the currently-running thread is about to suspend
+execution and begin waiting for a condition to be met.
+The
+.Fn sched:::wakeup
+probe fires when a thread is set up to resume execution after having gone to
+sleep.
+Its arguments are the thread being awoken, and the corresponding process.
+.Pp
+The
+.Fn sched:::tick
+fires before each scheduler clock tick.
+Its arguments are the currently-running thread and its corresponding process.
+.Sh ARGUMENTS
+The
+.Nm sched
+provider probes use the kernel types
+.Vt "struct proc"
+and
+.Vt "struct thread"
+to represent processes and threads, respectively.
+These structures have many fields and are defined in
+.Pa sys/proc.h .
+In a probe body, the currently-running thread can always be obtained with the
+.Va curthread
+global variable, which has type
+.Vt "struct thread *" .
+For example, when a running thread is about to sleep, the
+.Fn sched:::sleep
+probe fires in the context of that thread, which can be accessed using
+.Va curthread .
+The
+.Va curcpu
+global variable contains the cpuid of the CPU on which the currently-running
+thread is executing.
+.Sh EXAMPLES
+The following script gives a breakdown of CPU utilization by process name:
+.Bd -literal -offset indent
+sched:::on-cpu
+{
+        self->ts = timestamp;
+}
+
+sched:::off-cpu
+/self->ts != 0/
+{
+        @[execname] = sum((timestamp - self->ts) / 1000);
+        self->ts = 0;
+}
+.Ed
+.Pp
+Here, DTrace stores a timestamp each time a thread is scheduled to run, and
+computes the time elapsed in microseconds when it is descheduled.
+The results are summed by process name.
+.Sh COMPATIBILITY
+This provider is not compatible with the
+.Nm sched
+provider found in Solaris.
+In particular, the probe argument types are native
+.Fx
+types, and the
+.Fn sched:::cpucaps-sleep ,
+.Fn sched:::cpucaps-wakeup ,
+.Fn sched:::schedctl-nopreempt ,
+.Fn sched:::schedctl-preempt ,
+and
+.Fn sched:::schedctl-yield
+probes are not available in
+.Fx .
+.Pp
+The
+.Fn sched:::lend-pri
+and
+.Fn sched:::load-change
+probes are specific to
+.Fx .
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr sched_4bsd 4 ,
+.Xr sched_ule 4 ,
+.Xr SDT 9 ,
+.Xr sleepqueue 9
+.Sh HISTORY
+The
+.Nm sched
+provider first appeared in
+.Fx
+8.4 and 9.1.
+.Sh AUTHORS
+This manual page was written by
+.An Mark Johnston Aq Mt markj@FreeBSD.org .

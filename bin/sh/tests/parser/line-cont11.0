@@ -1,0 +1,23 @@
+# $FreeBSD$
+
+T=$(mktemp "${TMPDIR:-/tmp}/sh-test.XXXXXXXX") || exit
+trap 'rm -f -- "$T"' 0
+w='#A'
+# A naive pgetc_linecont() would push back two characters here, which
+# fails if a new buffer is read between the two characters.
+c='${w#\#}'
+c=$c$c$c$c
+c=$c$c$c$c
+c=$c$c$c$c
+c=$c$c$c$c
+c=$c$c$c$c
+c=$c$c$c$c
+printf 'v=%s\n' "$c" >"$T"
+. "$T"
+if [ "${#v}" != 4096 ]; then
+	echo "Length is bad (${#v})"
+	exit 3
+fi
+case $v in
+*[!A]*) echo "Content is bad"; exit 3 ;;
+esac

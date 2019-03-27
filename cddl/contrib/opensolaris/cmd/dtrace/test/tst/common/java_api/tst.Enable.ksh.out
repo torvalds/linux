@@ -1,0 +1,6 @@
+java.lang.IllegalStateException: Not all compiled probes are enabled. Compiled description dtrace:::END not enabled.
+java.lang.IllegalStateException: program already enabled
+java.lang.IllegalStateException: program already enabled
+java.lang.IllegalStateException: Not all compiled probes are enabled. Compiled description syscall:::return not enabled.
+java.lang.IllegalStateException: program already enabled
+java.lang.IllegalArgumentException: program not compiled by this consumer

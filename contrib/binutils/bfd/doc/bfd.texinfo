@@ -1,0 +1,340 @@
+\input texinfo.tex
+@setfilename bfd.info
+@c Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1997, 2000,
+@c 2001, 2002, 2003, 2006, 2007
+@c Free Software Foundation, Inc.
+@c 
+@synindex fn cp
+
+@ifinfo
+@format
+START-INFO-DIR-ENTRY
+* Bfd: (bfd).                   The Binary File Descriptor library.
+END-INFO-DIR-ENTRY
+@end format
+@end ifinfo
+
+@copying
+This file documents the BFD library.
+
+Copyright @copyright{} 1991, 2000, 2001, 2003, 2006, 2007 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``GNU General Public License'' and ``Funding
+Free Software'', the Front-Cover texts being (a) (see below), and with
+the Back-Cover Texts being (b) (see below).  A copy of the license is
+included in the section entitled ``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.
+@end copying
+@iftex
+@c@finalout
+@setchapternewpage on
+@c@setchapternewpage odd
+@settitle LIB BFD, the Binary File Descriptor Library
+@titlepage
+@title{libbfd}
+@subtitle{The Binary File Descriptor Library}
+@sp 1
+@subtitle First Edition---BFD version < 3.0  % Since no product is stable before version 3.0 :-)
+@subtitle Original Document Created: April 1991
+@author {Steve Chamberlain}
+@author {Cygnus Support}
+@page
+
+@tex
+\def\$#1${{#1}}  % Kluge: collect RCS revision info without $...$
+\xdef\manvers{1.5}  % For use in headers, footers too
+{\parskip=0pt
+\hfill Free Software Foundation\par
+\hfill sac\@www.gnu.org\par
+\hfill {\it BFD}, \manvers\par
+\hfill \TeX{}info \texinfoversion\par
+}
+\global\parindent=0pt % Steve likes it this way
+@end tex
+
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1991, 2001, 2003, 2006 Free Software Foundation, Inc.
+
+      Permission is granted to copy, distribute and/or modify this document
+      under the terms of the GNU Free Documentation License, Version 1.1
+      or any later version published by the Free Software Foundation;
+      with no Invariant Sections, with no Front-Cover Texts, and with no
+      Back-Cover Texts.  A copy of the license is included in the
+      section entitled ``GNU Free Documentation License''.
+
+@end titlepage
+@end iftex
+@contents
+
+@node Top, Overview, (dir), (dir)
+@ifinfo
+This file documents the binary file descriptor library libbfd.
+@end ifinfo
+
+@menu
+* Overview::			Overview of BFD
+* BFD front end::		BFD front end
+* BFD back ends::		BFD back ends
+* GNU Free Documentation License::  GNU Free Documentation License
+* BFD Index::		BFD Index
+@end menu
+
+@node Overview, BFD front end, Top, Top
+@chapter Introduction
+@cindex BFD
+@cindex what is it?
+BFD is a package which allows applications to use the
+same routines to operate on object files whatever the object file
+format.  A new object file format can be supported simply by
+creating a new BFD back end and adding it to the library.
+
+BFD is split into two parts: the front end, and the back ends (one for
+each object file format).
+@itemize @bullet
+@item The front end of BFD provides the interface to the user. It manages
+memory and various canonical data structures. The front end also
+decides which back end to use and when to call back end routines.
+@item The back ends provide BFD its view of the real world. Each back
+end provides a set of calls which the BFD front end can use to maintain
+its canonical form. The back ends also may keep around information for
+their own use, for greater efficiency.
+@end itemize
+@menu
+* History::			History
+* How It Works::		How It Works
+* What BFD Version 2 Can Do::	What BFD Version 2 Can Do
+@end menu
+
+@node History, How It Works, Overview, Overview
+@section History
+
+One spur behind BFD was the desire, on the part of the GNU 960 team at
+Intel Oregon, for interoperability of applications on their COFF and
+b.out file formats.  Cygnus was providing GNU support for the team, and
+was contracted to provide the required functionality.
+
+The name came from a conversation David Wallace was having with Richard
+Stallman about the library: RMS said that it would be quite hard---David
+said ``BFD''.  Stallman was right, but the name stuck.
+
+At the same time, Ready Systems wanted much the same thing, but for
+different object file formats: IEEE-695, Oasys, Srecords, a.out and 68k
+coff.
+
+BFD was first implemented by members of Cygnus Support; Steve
+Chamberlain (@code{sac@@cygnus.com}), John Gilmore
+(@code{gnu@@cygnus.com}), K.  Richard Pixley (@code{rich@@cygnus.com})
+and David Henkel-Wallace (@code{gumby@@cygnus.com}).
+
+
+
+@node How It Works, What BFD Version 2 Can Do, History, Overview
+@section How To Use BFD
+
+To use the library, include @file{bfd.h} and link with @file{libbfd.a}.	
+
+BFD provides a common interface to the parts of an object file
+for a calling application. 
+
+When an application successfully opens a target file (object, archive, or
+whatever), a pointer to an internal structure is returned. This pointer
+points to a structure called @code{bfd}, described in
+@file{bfd.h}.  Our convention is to call this pointer a BFD, and
+instances of it within code @code{abfd}.  All operations on
+the target object file are applied as methods to the BFD.  The mapping is
+defined within @code{bfd.h} in a set of macros, all beginning
+with @samp{bfd_} to reduce namespace pollution.
+
+For example, this sequence does what you would probably expect:
+return the number of sections in an object file attached to a BFD
+@code{abfd}. 
+
+@example
+@c @cartouche
+#include "bfd.h"
+
+unsigned int number_of_sections (abfd)
+bfd *abfd;
+@{
+  return bfd_count_sections (abfd);
+@}
+@c @end cartouche
+@end example
+
+The abstraction used within BFD is that an object file has:
+
+@itemize @bullet
+@item
+a header,
+@item
+a number of sections containing raw data (@pxref{Sections}),
+@item
+a set of relocations (@pxref{Relocations}), and
+@item
+some symbol information (@pxref{Symbols}).
+@end itemize
+@noindent
+Also, BFDs opened for archives have the additional attribute of an index
+and contain subordinate BFDs. This approach is fine for a.out and coff,
+but loses efficiency when applied to formats such as S-records and
+IEEE-695.
+
+@node What BFD Version 2 Can Do,  , How It Works, Overview
+@section What BFD Version 2 Can Do
+@include bfdsumm.texi
+
+@node BFD front end, BFD back ends, Overview, Top
+@chapter BFD Front End
+@include bfdt.texi
+@include bfdio.texi
+
+@menu
+* Memory Usage::
+* Initialization::
+* Sections::
+* Symbols::
+* Archives::
+* Formats::
+* Relocations::
+* Core Files::
+* Targets::
+* Architectures::
+* Opening and Closing::
+* Internal::
+* File Caching::
+* Linker Functions::
+* Hash Tables::
+@end menu
+
+@node Memory Usage, Initialization, BFD front end, BFD front end
+@section Memory Usage
+BFD keeps all of its internal structures in obstacks. There is one obstack
+per open BFD file, into which the current state is stored. When a BFD is
+closed, the obstack is deleted, and so everything which has been
+allocated by BFD for the closing file is thrown away.
+
+BFD does not free anything created by an application, but pointers into
+@code{bfd} structures become invalid on a @code{bfd_close}; for example,
+after a @code{bfd_close} the vector passed to
+@code{bfd_canonicalize_symtab} is still around, since it has been
+allocated by the application, but the data that it pointed to are
+lost.
+
+The general rule is to not close a BFD until all operations dependent
+upon data from the BFD have been completed, or all the data from within
+the file has been copied. To help with the management of memory, there
+is a function (@code{bfd_alloc_size}) which returns the number of bytes
+in obstacks associated with the supplied BFD. This could be used to
+select the greediest open BFD, close it to reclaim the memory, perform
+some operation and reopen the BFD again, to get a fresh copy of the data
+structures.
+
+@node Initialization, Sections, Memory Usage, BFD front end
+@include  init.texi
+
+@node Sections, Symbols, Initialization, BFD front end
+@include  section.texi
+
+@node Symbols, Archives, Sections, BFD front end
+@include  syms.texi
+
+@node Archives, Formats, Symbols, BFD front end
+@include  archive.texi
+
+@node Formats, Relocations, Archives, BFD front end
+@include  format.texi
+
+@node Relocations, Core Files, Formats, BFD front end
+@include  reloc.texi
+
+@node Core Files, Targets, Relocations, BFD front end
+@include  core.texi
+
+@node Targets, Architectures, Core Files, BFD front end
+@include  targets.texi
+
+@node Architectures, Opening and Closing, Targets, BFD front end
+@include  archures.texi
+
+@node Opening and Closing, Internal, Architectures, BFD front end
+@include  opncls.texi
+
+@node Internal, File Caching, Opening and Closing, BFD front end
+@include  libbfd.texi
+
+@node File Caching, Linker Functions, Internal, BFD front end
+@include  cache.texi
+
+@node Linker Functions, Hash Tables, File Caching, BFD front end
+@include  linker.texi
+
+@node Hash Tables, , Linker Functions, BFD front end
+@include  hash.texi
+
+@node BFD back ends, GNU Free Documentation License, BFD front end, Top
+@chapter BFD back ends
+@menu
+* What to Put Where::
+* aout ::	a.out backends
+* coff ::	coff backends
+* elf  ::	elf backends
+* mmo  ::	mmo backend
+@ignore
+* oasys ::	oasys backends
+* ieee ::	ieee backend
+* srecord ::	s-record backend
+@end ignore
+@end menu
+@node What to Put Where, aout, BFD back ends, BFD back ends
+@section What to Put Where
+All of BFD lives in one directory.
+
+@node aout, coff, What to Put Where, BFD back ends
+@include  aoutx.texi
+
+@node coff, elf, aout, BFD back ends
+@include  coffcode.texi
+
+@node elf, mmo, coff, BFD back ends
+@include  elf.texi
+@c Leave this out until the file has some actual contents...
+@c @include  elfcode.texi
+
+@node mmo,  , elf, BFD back ends
+@include  mmo.texi
+
+@node GNU Free Documentation License, BFD Index, BFD back ends, Top
+@include fdl.texi
+
+@node BFD Index,  , GNU Free Documentation License, Top
+@unnumbered BFD Index
+@printindex cp
+
+@tex
+% I think something like @colophon should be in texinfo.  In the
+% meantime:
+\long\def\colophon{\hbox to0pt{}\vfill
+\centerline{The body of this manual is set in}
+\centerline{\fontname\tenrm,}
+\centerline{with headings in {\bf\fontname\tenbf}}
+\centerline{and examples in {\tt\fontname\tentt}.}
+\centerline{{\it\fontname\tenit\/} and}
+\centerline{{\sl\fontname\tensl\/}}
+\centerline{are used for emphasis.}\vfill}
+\page\colophon
+% Blame: doc@cygnus.com, 28mar91.
+@end tex
+
+@bye

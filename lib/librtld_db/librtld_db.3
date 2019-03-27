@@ -1,0 +1,191 @@
+.\"-
+.\" Copyright (c) 2010 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Rui Paulo under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 10, 2010
+.Dt LIBRTLD_DB 3
+.Os
+.Sh NAME
+.Nm librtld_db
+.Nd library for run-time linker debugging
+.Sh LIBRARY
+.Lb librtld_db
+.Sh SYNOPSIS
+.In rtld_db.h
+.Ft void
+.Fo rd_delete
+.Fa "rd_agent_t *rdap"
+.Fc
+.Ft char *
+.Fo rd_errstr
+.Fa "rd_err_e rderr"
+.Fc
+.Ft rd_err_e
+.Fo rd_event_addr
+.Fa "rd_agent_t *rdap, rd_event_e event, rd_notify_t *notify"
+.Fc
+.Ft rd_err_e
+.Fo rd_event_enable
+.Fa "rd_agent_t *rdap, int onoff"
+.Fc
+.Ft rd_err_e
+.Fo rd_event_getmsg
+.Fa "rd_agent_t *rdap, rd_event_msg_t *msg"
+.Fc
+.Ft rd_err_e
+.Fo rd_init
+.Fa "int version"
+.Fc
+.Ft typedef int
+.Fo rl_iter_f
+.Fa "const rd_loadobj_t *, void *"
+.Fc
+.Ft rd_err_e
+.Fo rd_loadobj_iter
+.Fa "rd_agent_t *rdap, rl_iter_f *cb, void *clnt_data"
+.Fc
+.Ft void
+.Fo rd_log
+.Fa "const int onoff"
+.Fc
+.Ft rd_agent_t *
+.Fo rd_new
+.Fa "struct proc_handle *php"
+.Fc
+.Ft rd_err_e
+.Fo rd_objpad_enable
+.Fa "rd_agent_t *rdap, size_t padsize"
+.Fc
+.Ft rd_err_e
+.Fo rd_plt_resolution
+.Fa "rd_agent_t *rdap, uintptr_t pc, struct proc *proc"
+.Fa "uintptr_t plt_base, rd_plt_info_t *rpi"
+.Fc
+.Ft rd_err_e
+.Fo rd_reset
+.Fa "rd_agent_t *rdap"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm librtld_db
+library provides a debugging interface to the run-time linker (rtld).
+This library must be used along with
+.Xr libproc 3 .
+.Pp
+Most library functions take a
+.Ft rd_agent_t
+argument.
+This argument is an opaque structure containing information associated with
+the current status of the agent.
+.Pp
+Before you start using
+.Nm
+you should call
+.Fn rd_init
+with the
+.Ft RD_VERSION
+argument.
+This initializes the library to the correct version your program was compiled
+with and provides proper ABI stability.
+.Pp
+What follows is a description of what each function.
+.Pp
+.Fn rd_new
+creates a new
+.Nm
+agent.
+The
+.Ft php
+argument should be the
+.Ft proc_handle
+you received from
+.Xr libproc 3 .
+.Pp
+.Fn rd_reset
+resets your previously created agent.
+.Pp
+.Fn rd_delete
+deallocates the resources associated with the agent.
+.Pp
+.Fn rd_errstr
+returns an error string describing the error present in
+.Ft rderr .
+.Pp
+.Fn rd_event_enable
+enables reporting of events.
+This function always returns RD_OK.
+.Pp
+.Fn rd_event_addr
+returns the event address corresponding to the
+.Ft event
+parameter.
+At the moment we only report events of type RD_NOTIFY_BPT.
+.Pp
+.Fn rd_event_getmsg
+returns the message associated with the latest event.
+At the moment only RD_POSTINIT events are supported.
+.Pp
+.Fn rd_loadobj_iter
+allows you to iterate over the program's loaded objects.
+.Ft cb
+is a callback of type
+.Fn rl_iter_f .
+.Sh RETURN VALUES
+Most functions return an
+.Ft rd_err_e
+type error.
+The error codes are described in the header file for this library.
+You can get the error string using
+.Fn rd_errstr .
+.Sh SEE ALSO
+.Xr ld 1 ,
+.Xr ld-elf.so.1 1 ,
+.Xr ld.so 1 ,
+.Xr rtld 1 ,
+.Xr libproc 3
+.Sh HISTORY
+The
+.Nm librtld_db
+library first appeared in
+.Fx 9.0
+and was modeled after the same library present in the Solaris operating system.
+.Sh AUTHORS
+The
+.Nm librtld_db
+library and this manual page were written by
+.An Rui Paulo Aq Mt rpaulo@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.
+.Sh CAVEATS
+The functions
+.Fn rd_event_enable ,
+.Fn rd_log ,
+.Fn rd_objpad_enable
+and
+.Fn rd_plt_resolution
+are not yet implemented.

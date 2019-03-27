@@ -1,0 +1,124 @@
+$ $tcsh: set3,v 1.7 2011/02/04 18:19:36 christos Exp $
+$ Editor function descriptions
+$set 3
+1 Ein Zeichen zurück
+2 Lösche Zeichen hinter Cursor
+3 Lösche vom Anfang des aktuellen Worts bis zum Cursor - in Cut-Puffer
+4 Lösche vom Anfang der Zeile bis zum Cursor - in Cut-Puffer
+5 Gehe an den Anfang des aktuellen Worts
+6 Gehe zum Anfang der Zeile
+7 Wandele vom Cursor bis zum Ende des aktuellen Worts in Großbuchstaben um
+8 Vi: Ändere Groß/Kleinschreibung des Zeichen unter dem Cursor und bewege Cursor eins nach vorn
+9 Vi: Ändere bis zum Ende der Zeile
+10 Lösche Bildschirm (aktuelle Zeile oben)
+11 Vervollständige aktuelles Wort
+12 Gehe mit Tab vorwärts durch die Dateiliste
+13 Gehe mit Tab rückwärts durch die Dateiliste
+14 Vervollständige Wort (ignoriere programmierbare Vervollständigungen)
+15 Kopiere aktuelles Wort zum Cursor
+16 Kopiere Area zwischen Marke und Cursor in Cut-Puffer
+17 Erweitere zu früherem Wort für das dies ein Anfang ist
+18 Lösche Zeichen unter Cursor
+19 Lösche Zeichen unter Cursor oder gib EOF-Signal am Ende der Zeile
+20 Lösche Zeichen unter Cursor oder zeige Vervollständigungen am Ende der Zeile an
+21 Lösche Zeichen unter Cursor oder zeige Vervollständigungen oder gib EOF-Signal
+22 Lösche von Cursor bis zum Ende des aktuellen Worts - in Cut-Puffer
+23 Füge Argument hinzu, wenn gestartet, oder gib zahl ein
+24 Ziffer, die ein Argument beginnt
+25 Gehe zur nächsten History-Zeile
+26 Wandele vom Cursor bis zum Ende des aktuellen Worts in Kleinbuchstaben um
+27 Melde Ende der Datei
+28 Gehe zum Ende der Zeile
+29 Tausche Cursor und Marke aus
+30 Expandiere Wildcards in Dateinamen
+31 Expandiere History-Escapes
+32 Expandiere History-Escapes in einer Zeile
+33 Expandiere Variablen
+34 Gehe ein Zeichen vor
+35 Gehe vor bis zum Ende des akutellen Worts
+36 Vertausche zwei Zeichen vor dem Cursor
+37 Suche rückwärts in History nach Zeile mit gleichem Anfang
+38 Suche vorwärts in History nach Zeile mit gleichem Anfang
+39 Setze letzten Teil des vorherigen Befehls ein
+40 Incrementelle Suche (vorwärts)
+41 Incrementelle Suche (rückwärts)
+42 Lösche Zeile
+43 Lösche bis zum Ende der Zeile - in Cut-Puffer
+44 Lösche Area zwischen Marke und Cursor - in Cut-Puffer
+45 Lösche gesamte Zeile - in Cut-Puffer
+46 Zeige Möglichkeiten der Vervollständigung
+47 Zeige Möglichkeiten der Vervollständigung (ignoriere programmierbare Vervollständigungen)
+48 Zeige Treffer der Dateinamen-Wildcards
+49 Zeige Möglichkeiten der Vervollständigung oder gib EOF, falls Zeile leer
+50 Zeige durchschnittliche Last und augenblickl. Prozeßzustand
+51 Expandiere History-Escape und füge Leerzeichen ein
+52 Führe Befehl aus
+53 Expandiere Pfadnamen, eliminiere führende . und ..
+54 Expandiere Befehle in den entsprechenden Pfadnamen oder Alias
+55 Schalte von Insert- auf Einfügemodus oder umgekehrt
+56 Füge das achte Bit zu dem nächsten eingegebenen Zeichen hinzu
+57 Füge das nächste Eingabezeichen unverändert ein
+58 Baue Anzeige neu auf
+59 Starte angehaltenen Editor wieder
+60 Suche nach Hilfe für den aktuellen Befehl
+61 Dieses Zeichen wird zur Zeile hinzugefügt
+62 Dieses Zeichen ist das erste einer Folge von Zeichen
+63 Setze die Marke an der Stelle des Cursors
+64 Korrigiere die Schreibweise des aktuellen Wortes
+65 Korrigiere die Schreibweise der gesamten Zeile
+66 Sende Zeichen an Tty im "cooked mode"
+67 Schalte um zwischen literaler und lexicalischer aktueller History-Zeile
+68 Tausche das Zeichen links des Cursors mit dem unter dem Cursor
+69 Tausche die zwei Zeichen vor dem Cursor
+70 Tty delayed suspend Zeichen
+71 Tty flush output Zeichen
+72 Tty interrupt Zeichen
+73 Tty quit Zeichen
+74 Tty suspend Zeichen
+75 Tty allow output Zeichen
+76 Tty disallow output Zeichen
+77 Indicates unbound Zeichen
+78 Emacs universelles Argument (Argument mal 4)
+79 Gehe zur vorhergehenden History-Zeile
+80 Wandele die Zeichen vom Cursor bis zum Ende des akt. Worts in Großbuchst. um
+81 Vi gehe zum Anfang des nächsten Wortes
+82 Vi gehe in Einfügemodus hinter dem Cursor
+83 Vi gehe in Einfügemodus am Ende der Zeile
+84 Vi ändere Groß/Kleinschreibung des Zeichens unter dem Cursor und gehe ien vor
+85 Vi ändere Prefix-Befehl
+86 Vi ändere bis zum Ende der Zeile
+87 Vi gehe in Befehlsmodus (benutze alternative Tastenbelegung)
+88 Vi Befehlsmodus vervollständige aktuelles Wort
+89 Vi gehe zum vorhergehenden Zeichen (Backspace)
+90 Vi lösche Prefix-Befehl
+91 Vi gehe zum Ende des aktuellen Worts (durch Leerzeichen begrenzt)
+92 Vi gehe zum Ende des aktuellen Worts
+93 Vi gehe zum angegebenen Zeichen rückwärts
+94 Vi gehe zum angegebenen Zeichen vorwärts
+95 Vi gehe hoch zum angegebenen Zeichen rückwärts
+96 Vi gehe hoch zum angegebenen Zeichen vorwärts
+97 Vi gehe in Einfügemodus
+98 Vi gehe in Einfügemodus am Anfang der Zeile
+99 Vi wiederhole aktuelle Suche in dieselbe Richtung
+100 Vi wiederhole aktuelle Suche in entgegengesetzte Richtung
+101 Vi wiederhole aktuelle Suche in dieselbe Richtung
+102 Vi wiederhole aktuelle Suche in entgegengesetzte Richtung
+103 Vi ersetze Zeichen unter dem Cursor mit dem nächsten eingegebenen Zeichen
+104 Vi Ersetzungsmodus
+105 Vi suche History vorwärts
+106 Vi suche History rückwärts
+107 Vi ersetze Zeichen unter dem Cursor und gehe in Einfügemodus
+108 Vi ersetze gesamte Zeile
+109 Vi gehe zum verhergehenden Wort
+110 Vi gehe zum nächsten Wort
+111 Vi mache letzte Änderung rückgängig
+112 Vi gehe zum Anfang der Zeile
+113 Mache ein 'which' von dem aktuellen Befehl
+114 Füge den Cut-Puffer an der Cursor-Position ein
+115 Replace just-yanked text with yank from earlier kill
+116 (WIN32 only) Copy cut buffer to system clipboard
+117 (WIN32 only) Paste clipboard buffer at cursor position
+118 (WIN32 only) Convert each '/' in next word to '\\\\'
+119 (WIN32 only) Convert each '/' in previous word to '\\\\'
+120 (WIN32 only) Page visible console window up
+121 (WIN32 only) Page visible console window down

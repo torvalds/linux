@@ -1,0 +1,3 @@
+# Existing CC/GCC may not define -D__INTERIX, so need this here.
+# Since we want to configure with _ALL_SOURCE, we need to build that way too
+X_CFLAGS= -D__INTERIX -D_ALL_SOURCE

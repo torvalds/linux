@@ -1,0 +1,110 @@
+(This file is under construction.)			-*- text -*-
+
+If you've contributed to gas and your name isn't listed here, it is
+not meant as a slight.  I just don't know about it.  Email me,
+nickc@redhat.com and I'll correct the situation.
+
+This file will eventually be deleted: The general info will go into
+the documentation, and info on specific files will go into an AUTHORS
+file, as requested by the FSF.
+
+++++++++++++++++
+
+Dean Elsner wrote the original gas for vax.  [more details?]
+
+Jay Fenlason maintained gas for a while, adding support for
+gdb-specific debug information and the 68k series machines, most of
+the preprocessing pass, and extensive changes in messages.c,
+input-file.c, write.c.
+
+K. Richard Pixley maintained gas for a while, adding various
+enhancements and many bug fixes, including merging support for several
+processors, breaking gas up to handle multiple object file format
+backends (including heavy rewrite, testing, an integration of the coff
+and b.out backends), adding configuration including heavy testing and
+verification of cross assemblers and file splits and renaming,
+converted gas to strictly ansi C including full prototypes, added
+support for m680[34]0 & cpu32, considerable work on i960 including a
+coff port (including considerable amounts of reverse engineering), a
+sparc opcode file rewrite, decstation, rs6000, and hp300hpux host
+ports, updated "know" assertions and made them work, much other
+reorganization, cleanup, and lint.
+
+Ken Raeburn wrote the high-level BFD interface code to replace most of
+the code in format-specific I/O modules.
+
+The original Vax-VMS support was contributed by David L. Kashtan.
+Eric Youngdale and Pat Rankin have done much work with it since.
+
+The Intel 80386 machine description was written by Eliot Dresselhaus.
+
+Minh Tran-Le at IntelliCorp contributed some AIX 386 support.
+
+The Motorola 88k machine description was contributed by Devon Bowen of
+Buffalo University and Torbjorn Granlund of the Swedish Institute of
+Computer Science.
+
+Keith Knowles at the Open Software Foundation wrote the original MIPS
+back end (tc-mips.c, tc-mips.h), and contributed Rose format support
+that hasn't been merged in yet.  Ralph Campbell worked with the MIPS
+code to support a.out format.
+
+Support for the Zilog Z8k and Hitachi H8/300, H8/500 and SH processors
+(tc-z8k, tc-h8300, tc-h8500, tc-sh), and IEEE 695 object file format
+(obj-ieee), was written by Steve Chamberlain of Cygnus Solutions.
+Steve also modified the COFF back end (obj-coffbfd) to use BFD for
+some low-level operations, for use with the Hitachi, 29k and Zilog
+targets.
+
+John Gilmore built the AMD 29000 support, added .include support, and
+simplified the configuration of which versions accept which
+pseudo-ops.  He updated the 68k machine description so that Motorola's
+opcodes always produced fixed-size instructions (e.g. jsr), while
+synthetic instructions remained shrinkable (jbsr).  John fixed many
+bugs, including true tested cross-compilation support, and one bug in
+relaxation that took a week and required the proverbial one-bit fix.
+
+Ian Lance Taylor of Cygnus Solutions merged the Motorola and MIT
+syntaxes for the 68k, completed support for some COFF targets (68k,
+i386 SVR3, and SCO Unix), wrote the ECOFF support based on Michael
+Meissner's mips-tfile program, wrote the PowerPC and RS/6000 support,
+and made a few other minor patches.  He handled the binutils releases
+for versions 2.7 through 2.9.
+
+David Edelsohn contributed fixes for the PowerPC and AIX support.
+
+Steve Chamberlain made gas able to generate listings.
+
+Support for the HP9000/300 was contributed by Glenn Engel of HP.
+
+Support for ELF format files has been worked on by Mark Eichin of
+Cygnus Solutions (original, incomplete implementation), Pete
+Hoogenboom at the University of Utah (HPPA mainly), Michael Meissner
+of the Open Software Foundation (i386 mainly), and Ken Raeburn of
+Cygnus Solutions (sparc, initial 64-bit support).
+
+Several engineers at Cygnus Solutions have also provided many small
+bug fixes and configuration enhancements.
+
+The initial Alpha support was contributed by Carnegie-Mellon
+University.  Additional work was done by Ken Raeburn of Cygnus
+Solutions.  Richard Henderson then rewrote much of the Alpha support.
+
+Ian Dall updated the support code for the National Semiconductor 32000
+series, and added support for Mach 3 and NetBSD running on the PC532.
+
+Klaus Kaempf ported the assembler and the binutils to openVMS/Alpha.
+
+Steve Haworth contributed the support for the Texas Instruction c30
+(tms320c30).
+
+H.J. Lu has contributed many patches and much testing.
+
+Alan Modra reworked much of the i386 backend, improving the error
+checking, updating the code, and improving the 16 bit support, using
+patches from the work of Martynas Kunigelis and H.J. Lu.
+
+Many others have contributed large or small bugfixes and enhancements.  If
+you've contributed significant work and are not mentioned on this list, and
+want to be, let us know.  Some of the history has been lost; we aren't
+intentionally leaving anyone out.

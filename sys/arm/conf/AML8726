@@ -1,0 +1,101 @@
+#
+# Kernel configuration for Amlogic aml8726 boards.
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+# TODO: Port to INTRNG
+#NO_UNIVERSE
+
+ident		AML8726
+
+include 	"std.armv7"
+include 	"../amlogic/aml8726/std.aml8726"
+
+options 	SCHED_ULE		# ULE scheduler
+options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
+options 	LINUX_BOOT_ABI
+
+# NFS root from boopt/dhcp
+#options 	BOOTP
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_COMPAT
+#options 	BOOTP_NFSV3
+#options 	BOOTP_WIRED_TO=axe0
+
+# Interrupt controller
+device		aml_pic
+
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+
+# Boot device is 2nd slice on MMC/SD card
+options 	ROOTDEVNAME=\"ufs:mmcsd0s2\"
+
+device		pl310			# PL310 L2 cache controller
+
+# GPIO
+device		gpio
+device		gpioled
+
+# I2C support
+device		iicbus
+device		iicbb
+device		iic
+
+# vt is the default console driver, resembling an SCO console
+device		vt
+#device		kbdmux
+
+# Serial (COM) ports
+device		uart			# Generic UART driver
+
+# Pseudo devices.
+device		loop			# Network loopback
+device		random			# Entropy device
+device		ether			# Ethernet support
+device		pty			# BSD-style compatibility pseudo ttys
+
+# The `bpf' device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+# Note that 'bpf' is required for DHCP.
+device		bpf			# Berkeley packet filter
+
+# USB support
+device		usb			# General USB code (mandatory for USB)
+device		dwcotg			# DWC OTG controller
+options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
+
+#device		ukbd			# USB keyboard
+#device		ums			# USB mouse
+
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+device		umass			# Disks/Mass storage - Requires scbus and da
+
+# Ethernet support
+device		miibus			# MII bus support
+
+# SoC Ethernet, requires miibus
+device		dwc
+
+# USB Ethernet support, requires miibus
+device		axe			# ASIX Electronics USB Ethernet
+
+# Flattened Device Tree
+options 	FDT			# Configure using FDT/DTB data

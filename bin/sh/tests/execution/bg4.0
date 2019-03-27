@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+x=''
+: ${x:=1} &
+wait
+exit ${x:-0}

@@ -1,0 +1,35 @@
+# MMCCAM is the kernel config for doing MMC on CAM development
+# and testing on bhyve
+# $FreeBSD$
+
+include         MINIMAL
+
+ident		GENERIC-MMCCAM
+
+# Access GPT-formatted and labeled root volume
+options         GEOM_LABEL
+
+# UART -- for bhyve console
+device          uart
+
+# kgdb stub
+device          bvmdebug
+
+# VirtIO support, needed for bhyve
+device		virtio			# Generic VirtIO bus (required)
+device		virtio_pci		# VirtIO PCI device
+device		vtnet			# VirtIO Ethernet device
+device		virtio_blk		# VirtIO Block device
+device		virtio_scsi		# VirtIO SCSI device
+device		virtio_balloon		# VirtIO Memory Balloon device
+
+# CAM-specific stuff
+device		pass
+device		scbus
+device		da
+
+options	       MMCCAM
+
+# Add CAMDEBUG stuff
+options	       CAMDEBUG
+options	       CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_PROBE|CAM_DEBUG_PERIPH)

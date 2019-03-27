@@ -1,0 +1,224 @@
+.\" $OpenBSD: upgt.4,v 1.6 2008/04/17 14:01:22 jmc Exp $
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 2007 Marcus Glocker <mglocker@openbsd.org>
+.\" Copyright (c) 2005-2007
+.\"     Damien Bergamini <damien.bergamini@free.fr>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"
+.\"
+.\" Copyright (c) 2006 Theo de Raadt.
+.\" Copyright (c) 2006 The DragonFly Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. Neither the name of The DragonFly Project nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific, prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 17, 2008
+.Dt UPGT 4
+.Os
+.Sh NAME
+.Nm upgt
+.Nd Conexant/Intersil PrismGT SoftMAC USB IEEE 802.11b/g wireless network
+device
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ehci"
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device upgt"
+.Cd "device wlan"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_upgt_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the USB 2.0 Conexant/Intersil PrismGT series wireless
+adapters based on the GW3887 chipset.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.\" .It IBSS mode
+.\" Also known as
+.\" .Em IEEE ad-hoc
+.\" mode or
+.\" .Em peer-to-peer
+.\" mode.
+.\" This is the standardized method of operating without an access point.
+.\" Stations associate with a service set.
+.\" However, actual connections between stations are peer-to-peer.
+.\" .It Host AP
+.\" In this mode the driver acts as an access point (base station)
+.\" for other cards.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+.Nm
+supports software WEP.
+Wired Equivalent Privacy (WEP) is the de facto encryption standard
+for wireless networks.
+It can be typically configured in one of three modes:
+no encryption; 40-bit encryption; or 104-bit encryption.
+Unfortunately, due to serious weaknesses in WEP protocol
+it is strongly recommended that it not be used as the
+sole mechanism to secure wireless communication.
+WEP is not enabled by default.
+.\".Pp
+.\"The transmit speed is user-selectable or can be adapted automatically by the
+.\"driver depending on the received signal strength and on the number of hardware
+.\"transmission retries.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8 .
+.Sh FILES
+.\".Pp
+.\"These firmware files are not free because Conexant/Intersil refuses
+.\"to grant distribution rights.
+.\"As a result, even though
+.\".Ox
+.\"includes the driver, the firmware files cannot be included and
+.\"users have to download these files on their own.
+This driver requires the
+.Nm upgtfw
+firmware to be installed before it will work.
+The firmware files are not publicly available.
+A package of the firmware which can be installed via
+.Xr pkg_add 1
+is available:
+.Bd -literal -offset indent
+http://weongyo.org/project/upgt/upgt-firmware-2.13.1.0.tar.gz
+.Ed
+.Sh HARDWARE
+The
+.Nm
+driver supports USB 2.0 Conexant/Intersil PrismGT series wireless
+adapters based on the GW3887 chipset, among them:
+.Pp
+.Bl -bullet -compact
+.It
+Belkin F5D7050 (version 1000)
+.It
+Cohiba Proto Board
+.It
+D-Link DWL-G120 Cohiba
+.It
+FSC Connect2Air E-5400 USB D1700
+.It
+Gigaset USB Adapter 54
+.It
+Inventel UR045G
+.It
+Netgear WG111v1 (rev2)
+.It
+SMC EZ ConnectG SMC2862W-G
+.It
+Sagem XG703A
+.It
+Spinnaker DUT
+.It
+Spinnaker Proto Board
+.El
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Bd -literal -offset indent
+ifconfig wlan create wlandev upgt0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wlan create wlandev upgt0 ssid my_net up"
+.Pp
+Join a specific BSS network with 64-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev upgt0 ssid my_net \e
+        wepmode on wepkey 0x1234567890 weptxkey 1 up
+.Ed
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr wlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Marcus Glocker Aq Mt mglocker@openbsd.org .
+.Pp
+The hardware specification was reverse engineered by the people at
+.Pa http://www.prism54.org .
+.Sh CAVEATS
+The
+.Nm
+driver just supports the USB 2.0 devices (GW3887 chipset) but not the
+USB 1.0 devices containing the NET2280, ISL3880, and ISL3886 chipsets.
+Some further efforts would be necessary to add USB 1.0 support to the
+driver.

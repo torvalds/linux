@@ -1,0 +1,61 @@
+=pod
+
+=head1 NAME
+
+RSA-PSS - EVP_PKEY RSA-PSS algorithm support
+
+=head1 DESCRIPTION
+
+The B<RSA-PSS> EVP_PKEY implementation is a restricted version of the RSA
+algorithm which only supports signing, verification and key generation
+using PSS padding modes with optional parameter restrictions.
+
+It has associated private key and public key formats.
+
+This algorithm shares several control operations with the B<RSA> algorithm
+but with some restrictions described below.
+
+=head2 Signing and Verification
+
+Signing and verification is similar to the B<RSA> algorithm except the
+padding mode is always PSS. If the key in use has parameter restrictions then
+the corresponding signature parameters are set to the restrictions:
+for example, if the key can only be used with digest SHA256, MGF1 SHA256
+and minimum salt length 32 then the digest, MGF1 digest and salt length
+will be set to SHA256, SHA256 and 32 respectively.
+
+=head2 Key Generation
+
+By default no parameter restrictions are placed on the generated key.
+
+=head1 NOTES
+
+The public key format is documented in RFC4055.
+
+The PKCS#8 private key format used for RSA-PSS keys is similar to the RSA
+format except it uses the B<id-RSASSA-PSS> OID and the parameters field, if
+present, restricts the key parameters in the same way as the public key.
+
+=head1 CONFORMING TO
+
+RFC 4055
+
+=head1 SEE ALSO
+
+L<EVP_PKEY_CTX_set_rsa_pss_keygen_md(3)>,
+L<EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md(3)>,
+L<EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen(3)>,
+L<EVP_PKEY_CTX_new(3)>,
+L<EVP_PKEY_CTX_ctrl_str(3)>,
+L<EVP_PKEY_derive(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

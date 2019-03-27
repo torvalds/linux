@@ -1,0 +1,33 @@
+# CANNA -- Kernel config for Ingenic CANNA board
+#
+# $FreeBSD$
+
+#NO_UNIVERSE
+
+include		"X1000"
+ident		CANNA
+
+options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=ingenic/canna.dts
+
+#options 	KTR
+#options 	KTR_CPUMASK=0x3
+#options 	KTR_MASK=(KTR_GEN)
+#options 	KTR_COMPILE=(KTR_GEN)
+#options 	KTR_VERBOSE
+
+# Uncomment for NFS root
+#options 	BOOTP
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_NFSV3
+#options 	BOOTP_WIRED_TO=dme0
+#options 	BOOTP_COMPAT
+options 	ROOTDEVNAME=\"ufs:mmcsd0s3\"
+
+makeoptions	TRAMPLOADADDR=0x88000000
+
+device		sound
+device		xdma
+
+#options 	VERBOSE_SYSINIT
+options 	PRINTF_BUFR_SIZE=256

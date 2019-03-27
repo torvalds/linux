@@ -1,0 +1,261 @@
+# $FreeBSD$
+# $NetBSD: TURKISH%UCS.src,v 1.1 2006/03/13 19:45:36 tnozaki Exp $
+
+TYPE		ROWCOL
+NAME		TURKISH/UCS
+SRC_ZONE	0x00-0xFF
+OOB_MODE	ILSEQ
+DST_ILSEQ	0xFFFE
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#
+# This mapping data is made from the mapping data provided by Unicode, Inc.
+# Original notice:
+#
+#=======================================================================
+#   File name:  TURKISH.TXT
+#
+#   Contents:   Map (external version) from Mac OS Turkish
+#               character set to Unicode 2.1 and later.
+#
+#   Copyright:  (c) 1995-2002, 2005 by Apple Computer, Inc., all rights
+#               reserved.
+#
+#   Contact:    charsets@apple.com
+#
+#   Changes:
+#
+#       c02  2005-Apr-05    Update header comments. Matches internal xml
+#                           <c1.1> and Text Encoding Converter 2.0.
+#      b3,c1 2002-Dec-19    Update URLs, notes. Matches internal
+#                           utom<b1>.
+#       b02  1999-Sep-22    Update contact e-mail address. Matches
+#                           internal utom<b1>, ufrm<b1>, and Text
+#                           Encoding Converter version 1.5.
+#       n05  1998-Feb-05    Minor update to header comments
+#       n03  1997-Dec-14    Update to match internal utom<n5>, ufrm<n15>:
+#                           Change standard mapping for 0xBD from U+2126
+#                           to its canonical decomposition, U+03A9.
+#       n02  1995-Apr-15    First version (after fixing some typos).
+#                           Matches internal ufrm<n4>.
+#
+# Standard header:
+# ----------------
+#
+#   Apple, the Apple logo, and Macintosh are trademarks of Apple
+#   Computer, Inc., registered in the United States and other countries.
+#   Unicode is a trademark of Unicode Inc. For the sake of brevity,
+#   throughout this document, "Macintosh" can be used to refer to
+#   Macintosh computers and "Unicode" can be used to refer to the
+#   Unicode standard.
+#
+#   Apple Computer, Inc. ("Apple") makes no warranty or representation,
+#   either express or implied, with respect to this document and the
+#   included data, its quality, accuracy, or fitness for a particular
+#   purpose. In no event will Apple be liable for direct, indirect,
+#   special, incidental, or consequential damages resulting from any
+#   defect or inaccuracy in this document or the included data.
+#
+#   These mapping tables and character lists are subject to change.
+#   The latest tables should be available from the following:
+#
+#   <http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/>
+#
+#   For general information about Mac OS encodings and these mapping
+#   tables, see the file "README.TXT".
+#
+# Format:
+# -------
+#
+#   Three tab-separated columns;
+#   '#' begins a comment which continues to the end of the line.
+#     Column #1 is the Mac OS Turkish code (in hex as 0xNN)
+#     Column #2 is the corresponding Unicode (in hex as 0xNNNN)
+#     Column #3 is a comment containing the Unicode name
+#
+#   The entries are in Mac OS Turkish code order.
+#
+#   Two of these mappings requires the use of a corporate character.
+#   See the file "CORPCHAR.TXT" and notes below.
+#
+#   Control character mappings are not shown in this table, following
+#   the conventions of the standard UTC mapping tables. However, the
+#   Mac OS Turkish character set uses the standard control characters at
+#   0x00-0x1F and 0x7F.
+#
+# Notes on Mac OS Turkish:
+# ------------------------
+#
+#   This is a legacy Mac OS encoding; in the Mac OS X Carbon and Cocoa
+#   environments, it is only supported via transcoding to and from
+#   Unicode.
+#
+#	Mac OS Turkish is used for Turkish.
+#
+#   The Mac OS Turkish encoding shares the script code smRoman
+#   (0) with the Mac OS Roman encoding. To determine if the Turkish
+#   encoding is being used, you must also check if the system region
+#   code is 24, verTurkey.
+#
+#   This character set is a variant of standard Mac OS Roman. It adds
+#   upper & lower G with breve, upper & lower S with cedilla, upper I
+#   with dot, and moves the dotless lower i from its position at 0xF5
+#   in standard Mac OS Roman to a position at 0xDD here (leaving the
+#   0xF5 code point undefined in Mac OS Turkish). This gives a total
+#   of 7 code point differences from standard Mac OS Roman.
+#
+# Unicode mapping issues and notes:
+# ---------------------------------
+#
+#   The following corporate zone Unicode characters are used in this
+#   mapping:
+#
+#     0xF8A0  undefined1, used to map the single undefined code point
+#             in Mac OS Turkish (to obtain roundtrip fidelity for all
+#             code points).
+#     0xF8FF  Apple logo
+#
+#   NOTE: The graphic image associated with the Apple logo character
+#   is not authorized for use without permission of Apple, and
+#   unauthorized use might constitute trademark infringement.
+#
+# Details of mapping changes in each version:
+# -------------------------------------------
+#
+#   Changes from version n02 to version n03:
+#
+#   - Change mapping of 0xBD from U+2126 to its canonical
+#     decomposition, U+03A9.
+#
+##################
+0x00 - 0x7E = 0x0000 -
+0x80 = 0x00C4
+0x81 = 0x00C5
+0x82 = 0x00C7
+0x83 = 0x00C9
+0x84 = 0x00D1
+0x85 = 0x00D6
+0x86 = 0x00DC
+0x87 = 0x00E1
+0x88 = 0x00E0
+0x89 = 0x00E2
+0x8A = 0x00E4
+0x8B = 0x00E3
+0x8C = 0x00E5
+0x8D = 0x00E7
+0x8E = 0x00E9
+0x8F = 0x00E8
+0x90 = 0x00EA
+0x91 = 0x00EB
+0x92 = 0x00ED
+0x93 = 0x00EC
+0x94 = 0x00EE
+0x95 = 0x00EF
+0x96 = 0x00F1
+0x97 = 0x00F3
+0x98 = 0x00F2
+0x99 = 0x00F4
+0x9A = 0x00F6
+0x9B = 0x00F5
+0x9C = 0x00FA
+0x9D = 0x00F9
+0x9E = 0x00FB
+0x9F = 0x00FC
+0xA0 = 0x2020
+0xA1 = 0x00B0
+0xA2 = 0x00A2
+0xA3 = 0x00A3
+0xA4 = 0x00A7
+0xA5 = 0x2022
+0xA6 = 0x00B6
+0xA7 = 0x00DF
+0xA8 = 0x00AE
+0xA9 = 0x00A9
+0xAA = 0x2122
+0xAB = 0x00B4
+0xAC = 0x00A8
+0xAD = 0x2260
+0xAE = 0x00C6
+0xAF = 0x00D8
+0xB0 = 0x221E
+0xB1 = 0x00B1
+0xB2 = 0x2264
+0xB3 = 0x2265
+0xB4 = 0x00A5
+0xB5 = 0x00B5
+0xB6 = 0x2202
+0xB7 = 0x2211
+0xB8 = 0x220F
+0xB9 = 0x03C0
+0xBA = 0x222B
+0xBB = 0x00AA
+0xBC = 0x00BA
+0xBD = 0x03A9
+0xBE = 0x00E6
+0xBF = 0x00F8
+0xC0 = 0x00BF
+0xC1 = 0x00A1
+0xC2 = 0x00AC
+0xC3 = 0x221A
+0xC4 = 0x0192
+0xC5 = 0x2248
+0xC6 = 0x2206
+0xC7 = 0x00AB
+0xC8 = 0x00BB
+0xC9 = 0x2026
+0xCA = 0x00A0
+0xCB = 0x00C0
+0xCC = 0x00C3
+0xCD = 0x00D5
+0xCE = 0x0152
+0xCF = 0x0153
+0xD0 = 0x2013
+0xD1 = 0x2014
+0xD2 = 0x201C
+0xD3 = 0x201D
+0xD4 = 0x2018
+0xD5 = 0x2019
+0xD6 = 0x00F7
+0xD7 = 0x25CA
+0xD8 = 0x00FF
+0xD9 = 0x0178
+0xDA = 0x011E
+0xDB = 0x011F
+0xDC = 0x0130
+0xDD = 0x0131
+0xDE = 0x015E
+0xDF = 0x015F
+0xE0 = 0x2021
+0xE1 = 0x00B7
+0xE2 = 0x201A
+0xE3 = 0x201E
+0xE4 = 0x2030
+0xE5 = 0x00C2
+0xE6 = 0x00CA
+0xE7 = 0x00C1
+0xE8 = 0x00CB
+0xE9 = 0x00C8
+0xEA = 0x00CD
+0xEB = 0x00CE
+0xEC = 0x00CF
+0xED = 0x00CC
+0xEE = 0x00D3
+0xEF = 0x00D4
+0xF0 = 0xF8FF
+0xF1 = 0x00D2
+0xF2 = 0x00DA
+0xF3 = 0x00DB
+0xF4 = 0x00D9
+0xF5 = 0xF8A0
+0xF6 = 0x02C6
+0xF7 = 0x02DC
+0xF8 = 0x00AF
+0xF9 = 0x02D8
+0xFA = 0x02D9
+0xFB = 0x02DA
+0xFC = 0x00B8
+0xFD = 0x02DD
+0xFE = 0x02DB
+0xFF = 0x02C7
+END_MAP

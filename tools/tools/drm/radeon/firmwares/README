@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+To update firmwares:
+
+    1. Clone the following Git repository:
+       git://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git
+
+    2. Run this script as:
+       ./encode-firmwares /path/to/linux-firmwares/radeon

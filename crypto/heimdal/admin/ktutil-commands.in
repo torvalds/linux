@@ -1,0 +1,247 @@
+/*
+ * Copyright (c) 2004 Kungliga Tekniska Högskolan
+ * (Royal Institute of Technology, Stockholm, Sweden). 
+ * All rights reserved. 
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met: 
+ *
+ * 1. Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright 
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the distribution. 
+ *
+ * 3. Neither the name of the Institute nor the names of its contributors 
+ *    may be used to endorse or promote products derived from this software 
+ *    without specific prior written permission. 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+ * SUCH DAMAGE. 
+ */
+/* $Id$ */
+
+command = {
+	name = "add"
+	option = {
+		long = "principal"
+		short = "p"
+		type = "string"
+		help = "principal to add"
+		argument = "principal"
+		default = ""
+	}
+	option = {
+		long = "kvno"
+		short = "V"
+		type = "integer"
+		help = "key version number"
+		default = "-1"
+	}
+	option = {
+		long = "enctype"
+		short = "e"
+		type = "string"
+		argument = "enctype"
+		help = "encryption type"
+	}
+	option = {
+		long = "password"
+		short = "w"
+		type = "string"
+		help = "password for key"
+	}
+	option = {
+		long = "salt"
+		short = "s"
+		type = "-flag"
+		help = "use unsalted keys"
+		default = "1"
+	}
+	option = {
+		long = "random"
+		short = "r"
+		type = "flag"
+		help = "generate random key"
+	}
+	option = {
+		long = "hex"
+		short = "H"
+		type = "flag"
+		help = "password is a hexadecimal string"
+	}
+	function = "kt_add"
+	help = "Adds a key to a keytab."
+	max_args = "0"
+}
+command = {
+	name = "change"
+	option = {
+		long = "realm"
+		short = "r"
+		type = "string"
+		argument = "realm"
+		help = "realm to use"
+	}
+	option = {
+		long = "admin-server"
+		short = "a"
+		type = "string"
+		argument = "host"
+		help = "server to contact"
+	}
+	option = {
+		long = "server-port"
+		short = "s"
+		type = "integer"
+		argument = "port number"
+		help = "port number on server"
+	}
+	function = "kt_change"
+	argument = "[principal...]"
+	help = "Change keys for specified principals (default all)."
+}
+command = {
+	name = "copy"
+	function = "kt_copy"
+	argument = "source destination"
+	min_args = "2"
+	max_args = "2"
+	help = "Copies one keytab to another."
+}
+command = {
+	name = "get"
+	option = {
+		long = "principal"
+		short = "p"
+		type = "string"
+		help = "admin principal"
+		argument = "principal"
+	}
+	option = {
+		long = "enctypes"
+		short = "e"
+		type = "strings"
+		help = "encryption types to use"
+		argument = "enctype"
+	}
+	option = {
+		long = "realm"
+		short = "r"
+		type = "string"
+		argument = "realm"
+		help = "realm to use"
+	}
+	option = {
+		long = "admin-server"
+		short = "a"
+		type = "string"
+		argument = "host"
+		help = "server to contact"
+	}
+	option = {
+		long = "server-port"
+		short = "s"
+		type = "integer"
+		argument = "port number"
+		help = "port number on server"
+	}
+	function = "kt_get"
+	min_args = "1"
+	argument = "principal..."
+	help = "Change keys for specified principals, and add them to the keytab."
+}
+command = {
+	name = "list"
+	option = {
+		long = "keys"
+		type = "flag"
+		help = "show key values"
+	}
+	option = {
+		long = "timestamp"
+		type = "flag"
+		help = "show timestamps"
+	}
+	max_args = "0"
+	function = "kt_list"
+	help = "Show contents of keytab."
+}
+command = {
+	name = "purge"
+	option = {
+		long = "age"
+		type = "string"
+		help = "age to retiere"
+		default = "1 week";
+		argument = "time"
+	}
+	max_args = "0"
+	function = "kt_purge"
+	help = "Remove superceded keys from keytab."
+}
+command = {
+	name = "remove"
+	name = "delete"
+	option = {
+		long = "principal"
+		short = "p"
+		type = "string"
+		help = "principal to remove"
+		argument = "principal"
+	}
+	option = {
+		long = "kvno"
+		short = "V"
+		type = "integer"
+		help = "key version to remove"
+		argument = "enctype"
+		default = "0"
+	}
+	option = {
+		long = "enctype"
+		short = "e"
+		type = "string"
+		help = "enctype to remove"
+		argument = "enctype"
+	}
+	max_args = "0"
+	function = "kt_remove"
+	help = "Remove keys from keytab."
+}
+command = {
+	name = "rename"
+	function = "kt_rename"
+	argument = "from to"
+	min_args = "2"
+	max_args = "2"
+	help = "Renames an entry in the keytab."
+	option = {
+		long = "delete"
+		type = "-flag"
+		help = "don't delete orignal entry"
+	}
+}
+command = {
+	name = "destroy"
+	function = "kt_destroy"
+	max_args = "0"
+	help = "Destroy (remove) the keytab."
+}
+command = {
+	name = "help"
+	argument = "command"
+	max_args = "1"
+	function = "help"
+}

@@ -1,0 +1,159 @@
+.\" Copyright (c) 1998-2001, 2003 Proofpoint, Inc. and its suppliers.
+.\"	 All rights reserved.
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" By using this file, you agree to the terms and conditions set
+.\" forth in the LICENSE file which can be found at the top level of
+.\" the sendmail distribution.
+.\"
+.\"
+.\"	$Id: mail.local.8,v 8.26 2013-11-22 20:51:51 ca Exp $
+.\"
+.TH MAIL.LOCAL 8 "$Date: 2013-11-22 20:51:51 $"
+.SH NAME
+mail.local
+\- store mail in a mailbox
+.SH SYNOPSIS
+.B mail.local
+.RB [ \-7 "] [" \-B "] [" \-b "] [" \-d "] [" \-D
+.IR mbdb ]
+.RB [ \-l "] [" \-s "] [" \-f 
+\fIfrom\fR|\fB\-r\fR
+.IR from ]
+.RB [ \-h
+\fIfilename\fR ]
+.I "user ..."
+.SH DESCRIPTION
+.B Mail.local
+reads the standard input up to an end-of-file and appends it to each
+.I user's
+.B mail 
+file.  The
+.I user
+must be a valid user name.
+.PP
+The options are as follows:
+.TP 1i
+.B \-7
+Do not advertise 8BITMIME support in LMTP mode.
+.TP 
+.B \-B
+Turn off the attempts to notify the ``biff'' service.
+.TP 
+.B \-b
+Return a permanent error instead of a temporary error
+if a mailbox exceeds quota.
+.TP 
+.B \-d
+Specify this is a delivery (for backward compatibility).
+This option has no effect.
+.TP 
+.BI \-D " mbdb"
+Specify the name of the mailbox database
+which is used to look up local recipient names.
+This option defaults to "pw", which means use getpwnam().
+.TP 
+.BI \-f " from"
+Specify the sender's name.
+.TP
+.B \-l
+Turn on LMTP mode.
+.TP
+.B \-s
+Turn off the fsync(2) call that forces the mailbox to be committed
+to disk before returning a "success" status.
+.TP 
+.BI \-r " from"
+Specify the sender's name (for backward compatibility).
+Same as \-f.
+.TP
+.BI \-h " filename"
+Store incoming mail in \fIfilename\fR in the user's home directory instead
+of a system mail spool directory.
+.PP
+The next options are only available if
+.B mail.local
+has been compiled with -DHASHSPOOL.
+.TP
+.BI \-H " hashtypehashdepth"
+Select hashed mail directories.
+Valid hash types are
+.B u
+for user name and
+.B m
+for MD5 (requires compilation with -DHASHSPOOLMD5).
+Example:
+.BI \-H " u2"
+selects user name hashing with a hash depth of 2.
+Note: there must be no space between the hash type and the depth.
+.TP
+.BI \-p " path"
+Specify an alternate mail spool path.
+.TP
+.BI \-n
+Specify that the domain part of recipient addresses in LMTP mode
+should not be stripped.
+.PP
+Individual mail messages in the mailbox are delimited by an empty
+line followed by a line beginning with the string ``From ''.
+A line containing the string ``From '', the sender's name and a time stamp
+is prepended to each delivered mail message.
+A blank line is appended to each message.
+A greater-than character (``>'') is prepended to any line in the message
+which could be mistaken for a ``From '' delimiter line
+(that is,
+a line beginning with the five characters
+``From '' following a blank line).
+.PP
+The mail files are exclusively locked with 
+flock(2) 
+while mail is appended, 
+and a
+.B user.lock
+file also is created while the mailbox is locked 
+for compatibility with older MUAs.
+.PP
+If the ``biff'' service is returned by 
+getservbyname(3), 
+the biff server is notified of delivered mail.
+.PP
+The
+.B mail.local
+utility exits 0 on success, and >0 if an error occurs.
+.SH ENVIRONMENT
+.IP TZ
+Used to set the appropriate time zone on the timestamp.
+.SH FILES
+.PD 0.2v
+.TP 2.2i
+/tmp/local.XXXXXX
+temporary files
+.TP
+/var/mail/user
+user's default mailbox directory
+.TP 
+/var/mail/user.lock
+lock file for a user's default mailbox
+.PD
+.SH SEE ALSO
+mail(1), 
+flock(2), 
+getservbyname(3), 
+comsat(8), 
+sendmail(8)
+.SH WARNING
+.B mail.local
+escapes only "^From " lines that follow an empty line.
+If all lines starting with "From " should be escaped,
+use the 'E' flag for the local mailer in the
+sendmail.cf file.
+.SH HISTORY
+A superset of
+.B mail.local
+(handling mailbox reading as well as mail delivery)
+appeared in 
+Version 7 AT&T UNIX 
+as the program
+.BR mail .
+.\" $FreeBSD$

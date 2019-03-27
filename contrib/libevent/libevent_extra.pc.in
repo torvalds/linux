@@ -1,0 +1,16 @@
+#libevent pkg-config source file
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libevent_extra
+Description: libevent_extra
+Version: @VERSION@
+Requires:
+Conflicts:
+Libs: -L${libdir} -levent_extra
+Libs.private: @LIBS@
+Cflags: -I${includedir}
+

@@ -1,0 +1,172 @@
+.\" Copyright (c) 2005 Nate Lawson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 6, 2019
+.Dt POWERD 8
+.Os
+.Sh NAME
+.Nm powerd
+.Nd "system power control utility"
+.Sh SYNOPSIS
+.Nm
+.Op Fl a Ar mode
+.Op Fl b Ar mode
+.Op Fl i Ar percent
+.Op Fl m Ar freq
+.Op Fl M Ar freq
+.Op Fl n Ar mode
+.Op Fl p Ar ival
+.Op Fl P Ar pidfile
+.Op Fl r Ar percent
+.Op Fl s Ar source
+.Op Fl v
+.Sh DESCRIPTION
+The
+.Nm
+utility monitors the system state and sets various power control options
+accordingly.
+It offers power-saving modes that can be
+individually selected for operation on AC power or batteries.
+.Bl -tag -width ".Ar hiadaptive"
+.It Ar maximum
+Choose the highest performance values.
+May be abbreviated as
+.Ar max .
+.It Ar minimum
+Choose the lowest performance values to get the most power savings.
+May be abbreviated as
+.Ar min .
+.It Ar adaptive
+Attempt to strike a balance by degrading performance when the system
+appears idle and increasing it when the system is busy.
+It offers a good balance between a small performance loss for greatly
+increased power savings.
+May be abbreviated as
+.Ar adp .
+.It Ar hiadaptive
+Like
+.Ar adaptive
+mode, but tuned for systems where performance and interactivity are
+more important than power consumption.
+It increases frequency faster, reduces frequency less aggressively, and
+will maintain full frequency for longer.
+May be abbreviated as
+.Ar hadp .
+.El
+.Pp
+The default mode is
+.Ar adaptive
+for battery power and
+.Ar hiadaptive
+for the rest.
+.Pp
+.Nm
+recognizes these runtime options:
+.Bl -tag -width ".Fl r Ar percent"
+.It Fl a Ar mode
+Selects the
+.Ar mode
+to use while on AC power.
+.It Fl b Ar mode
+Selects the
+.Ar mode
+to use while on battery power.
+.It Fl i Ar percent
+Specifies the CPU load percent level when adaptive
+mode should begin to degrade performance to save power.
+The default is 50% or lower.
+.It Fl m Ar freq
+Specifies the minimum frequency to throttle down to.
+.It Fl M Ar freq
+Specifies the maximum frequency to throttle up to.
+.It Fl n Ar mode
+Selects the
+.Ar mode
+to use normally when the AC line state is unknown.
+.It Fl p Ar ival
+Specifies a different polling interval (in milliseconds) for AC line state
+and system idle levels.
+The default is 250 ms.
+.It Fl P Ar pidfile
+Specifies an alternative file in which the process ID should be stored.
+The default is
+.Pa /var/run/powerd.pid .
+.It Fl r Ar percent
+Specifies the CPU load percent level where adaptive
+mode should consider the CPU running and increase performance.
+The default is 75% or higher.
+.It Fl s Ar source
+Enforces method for AC line state refresh; by default, it is chosen
+automatically.
+The set of valid methods is
+.Cm sysctl , devd
+and
+.Cm apm
+(i386 only).
+.It Fl v
+Verbose mode.
+Messages about power changes will be printed to stdout and
+.Nm
+will operate in the foreground.
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr apm 4 ,
+.Xr cpufreq 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+.An -nosplit
+.An Colin Percival
+first wrote
+.Nm estctrl ,
+the utility that
+.Nm
+is based on.
+.An Nate Lawson
+then updated it for
+.Xr cpufreq 4 ,
+added features, and wrote this manual page.
+.Sh BUGS
+The
+.Nm
+utility should also power down idle disks and other components besides the CPU.
+.Pp
+If
+.Nm
+is used with
+.Pa power_profile ,
+they may override each other.
+.Pp
+The
+.Nm
+utility
+should probably use the
+.Xr devctl 4
+interface instead of polling for AC line state.

@@ -1,0 +1,119 @@
+=pod
+
+=head1 NAME
+
+openssl-engine,
+engine - load and query engines
+
+=head1 SYNOPSIS
+
+B<openssl engine>
+[ I<engine...> ]
+[B<-v>]
+[B<-vv>]
+[B<-vvv>]
+[B<-vvv>]
+[B<-vvv>]
+[B<-c>]
+[B<-t>]
+[B<-tt>]
+[B<-pre> I<command>]
+[B<-post> I<command>]
+[ I<engine...> ]
+
+=head1 DESCRIPTION
+
+The B<engine> command is used to query the status and capabilities
+of the specified B<engine>'s.
+Engines may be specified before and after all other command-line flags.
+Only those specified are queried.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-v> B<-vv> B<-vvv> B<-vvvv>
+
+Provides information about each specified engine. The first flag lists
+all the possible run-time control commands; the second adds a
+description of each command; the third adds the input flags, and the
+final option adds the internal input flags.
+
+=item B<-c>
+
+Lists the capabilities of each engine.
+
+=item B<-t>
+
+Tests if each specified engine is available, and displays the answer.
+
+=item B<-tt>
+
+Displays an error trace for any unavailable engine.
+
+=item B<-pre> I<command>
+
+=item B<-post> I<command>
+
+Command-line configuration of engines.
+The B<-pre> command is given to the engine before it is loaded and
+the B<-post> command is given after the engine is loaded.
+The I<command> is of the form I<cmd:val> where I<cmd> is the command,
+and I<val> is the value for the command.
+See the example below.
+
+=back
+
+=head1 EXAMPLE
+
+To list all the commands available to a dynamic engine:
+
+ $ openssl engine -t -tt -vvvv dynamic
+ (dynamic) Dynamic engine loading support
+      [ unavailable ]
+      SO_PATH: Specifies the path to the new ENGINE shared library
+           (input flags): STRING
+      NO_VCHECK: Specifies to continue even if version checking fails (boolean)
+           (input flags): NUMERIC
+      ID: Specifies an ENGINE id name for loading
+           (input flags): STRING
+      LIST_ADD: Whether to add a loaded ENGINE to the internal list (0=no,1=yes,2=mandatory)
+           (input flags): NUMERIC
+      DIR_LOAD: Specifies whether to load from 'DIR_ADD' directories (0=no,1=yes,2=mandatory)
+           (input flags): NUMERIC
+      DIR_ADD: Adds a directory from which ENGINEs can be loaded
+           (input flags): STRING
+      LOAD: Load up the ENGINE specified by other settings
+           (input flags): NO_INPUT
+
+To list the capabilities of the I<rsax> engine:
+
+ $ openssl engine -c
+ (rsax) RSAX engine support
+  [RSA]
+ (dynamic) Dynamic engine loading support
+
+=head1 ENVIRONMENT
+
+=over 4
+
+=item B<OPENSSL_ENGINES>
+
+The path to the engines directory.
+
+=back
+
+=head1 SEE ALSO
+
+L<config(5)>
+
+=head1 COPYRIGHT
+
+Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

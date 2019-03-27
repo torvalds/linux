@@ -1,0 +1,100 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_set0_verify_cert_store, SSL_CTX_set1_verify_cert_store,
+SSL_CTX_set0_chain_cert_store, SSL_CTX_set1_chain_cert_store,
+SSL_set0_verify_cert_store, SSL_set1_verify_cert_store,
+SSL_set0_chain_cert_store, SSL_set1_chain_cert_store - set certificate
+verification or chain store
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_CTX_set0_verify_cert_store(SSL_CTX *ctx, X509_STORE *st);
+ int SSL_CTX_set1_verify_cert_store(SSL_CTX *ctx, X509_STORE *st);
+ int SSL_CTX_set0_chain_cert_store(SSL_CTX *ctx, X509_STORE *st);
+ int SSL_CTX_set1_chain_cert_store(SSL_CTX *ctx, X509_STORE *st);
+
+ int SSL_set0_verify_cert_store(SSL *ctx, X509_STORE *st);
+ int SSL_set1_verify_cert_store(SSL *ctx, X509_STORE *st);
+ int SSL_set0_chain_cert_store(SSL *ctx, X509_STORE *st);
+ int SSL_set1_chain_cert_store(SSL *ctx, X509_STORE *st);
+
+=head1 DESCRIPTION
+
+SSL_CTX_set0_verify_cert_store() and SSL_CTX_set1_verify_cert_store()
+set the certificate store used for certificate verification to B<st>.
+
+SSL_CTX_set0_chain_cert_store() and SSL_CTX_set1_chain_cert_store()
+set the certificate store used for certificate chain building to B<st>.
+
+SSL_set0_verify_cert_store(), SSL_set1_verify_cert_store(),
+SSL_set0_chain_cert_store() and SSL_set1_chain_cert_store() are similar
+except they apply to SSL structure B<ssl>.
+
+All these functions are implemented as macros. Those containing a B<1>
+increment the reference count of the supplied store so it must
+be freed at some point after the operation. Those containing a B<0> do
+not increment reference counts and the supplied store B<MUST NOT> be freed
+after the operation.
+
+=head1 NOTES
+
+The stores pointers associated with an SSL_CTX structure are copied to any SSL
+structures when SSL_new() is called. As a result SSL structures will not be
+affected if the parent SSL_CTX store pointer is set to a new value.
+
+The verification store is used to verify the certificate chain sent by the
+peer: that is an SSL/TLS client will use the verification store to verify
+the server's certificate chain and a SSL/TLS server will use it to verify
+any client certificate chain.
+
+The chain store is used to build the certificate chain.
+
+If the mode B<SSL_MODE_NO_AUTO_CHAIN> is set or a certificate chain is
+configured already (for example using the functions such as
+L<SSL_CTX_add1_chain_cert(3)> or
+L<SSL_CTX_add_extra_chain_cert(3)>) then
+automatic chain building is disabled.
+
+If the mode B<SSL_MODE_NO_AUTO_CHAIN> is set then automatic chain building
+is disabled.
+
+If the chain or the verification store is not set then the store associated
+with the parent SSL_CTX is used instead to retain compatibility with previous
+versions of OpenSSL.
+
+=head1 RETURN VALUES
+
+All these functions return 1 for success and 0 for failure.
+
+=head1 SEE ALSO
+
+L<SSL_CTX_add_extra_chain_cert(3)>
+L<SSL_CTX_set0_chain(3)>
+L<SSL_CTX_set1_chain(3)>
+L<SSL_CTX_add0_chain_cert(3)>
+L<SSL_CTX_add1_chain_cert(3)>
+L<SSL_set0_chain(3)>
+L<SSL_set1_chain(3)>
+L<SSL_add0_chain_cert(3)>
+L<SSL_add1_chain_cert(3)>
+L<SSL_CTX_build_cert_chain(3)>
+L<SSL_build_cert_chain(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 1.0.2.
+
+=head1 COPYRIGHT
+
+Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

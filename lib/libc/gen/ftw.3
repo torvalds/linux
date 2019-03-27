@@ -1,0 +1,218 @@
+.\"	$OpenBSD: ftw.3,v 1.5 2004/01/25 14:48:32 jmc Exp $
+.\"
+.\" Copyright (c) 2003 Todd C. Miller <Todd.Miller@courtesan.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" Sponsored in part by the Defense Advanced Research Projects
+.\" Agency (DARPA) and Air Force Research Laboratory, Air Force
+.\" Materiel Command, USAF, under agreement number F39502-99-1-0512.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 5, 2004
+.Dt FTW 3
+.Os
+.Sh NAME
+.Nm ftw , nftw
+.Nd traverse (walk) a file tree
+.Sh SYNOPSIS
+.In ftw.h
+.Ft int
+.Fo ftw
+.Fa "const char *path"
+.Fa "int \*[lp]*fn\*[rp]\*[lp]const char *, const struct stat *, int\*[rp]"
+.Fa "int maxfds"
+.Fc
+.Ft int
+.Fo nftw
+.Fa "const char *path"
+.Fa "int \*[lp]*fn\*[rp]\*[lp]const char *, const struct stat *, int, struct FTW *\*[rp]"
+.Fa "int maxfds"
+.Fa "int flags"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn ftw
+and
+.Fn nftw
+functions traverse (walk) the directory hierarchy rooted in
+.Fa path .
+For each object in the hierarchy, these functions call the function
+pointed to by
+.Fa fn .
+The
+.Fn ftw
+function passes this function a pointer to a
+.Dv NUL Ns
+-terminated string containing
+the name of the object, a pointer to a
+.Vt stat
+structure corresponding to the
+object, and an integer flag.
+The
+.Fn nftw
+function passes the aforementioned arguments plus a pointer to a
+.Vt FTW
+structure as defined by
+.In ftw.h
+(shown below):
+.Bd -literal
+struct FTW {
+    int base;	/* offset of basename into pathname */
+    int level;	/* directory depth relative to starting point */
+};
+.Ed
+.Pp
+Possible values for the flag passed to
+.Fa fn
+are:
+.Bl -tag -width ".Dv FTW_DNR"
+.It Dv FTW_F
+A regular file.
+.It Dv FTW_D
+A directory being visited in pre-order.
+.It Dv FTW_DNR
+A directory which cannot be read.
+The directory will not be descended into.
+.It Dv FTW_DP
+A directory being visited in post-order
+.Po Fn nftw
+only
+.Pc .
+.It Dv FTW_NS
+A file for which no
+.Xr stat 2
+information was available.
+The contents of the
+.Vt stat
+structure are undefined.
+.It Dv FTW_SL
+A symbolic link.
+.It Dv FTW_SLN
+A symbolic link with a non-existent target
+.Po Fn nftw
+only
+.Pc .
+.El
+.Pp
+The
+.Fn ftw
+function traverses the tree in pre-order.
+That is, it processes the directory before the directory's contents.
+.Pp
+The
+.Fa maxfds
+argument specifies the maximum number of file descriptors
+to keep open while traversing the tree.
+It has no effect in this implementation.
+.Pp
+The
+.Fn nftw
+function has an additional
+.Fa flags
+argument with the following possible values:
+.Bl -tag -width ".Dv FTW_MOUNT"
+.It Dv FTW_PHYS
+Physical walk, do not follow symbolic links.
+.It Dv FTW_MOUNT
+The walk will not cross a mount point.
+.It FTW_DEPTH
+Process directories in post-order.
+Contents of a directory are visited before the directory itself.
+By default,
+.Fn nftw
+traverses the tree in pre-order.
+.It FTW_CHDIR
+Change to a directory before reading it.
+By default,
+.Fn nftw
+will change its starting directory.
+The current working directory will be restored to its original value before
+.Fn nftw
+returns.
+.El
+.Sh RETURN VALUES
+If the tree was traversed successfully, the
+.Fn ftw
+and
+.Fn nftw
+functions return 0.
+If the function pointed to by
+.Fa fn
+returns a non-zero value,
+.Fn ftw
+and
+.Fn nftw
+will stop processing the tree and return the value from
+.Fa fn .
+Both functions return \-1 if an error is detected.
+.Sh ERRORS
+The
+.Fn ftw
+and
+.Fn nftw
+functions may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr close 2 ,
+.Xr open 2 ,
+.Xr stat 2 ,
+.Xr malloc 3 ,
+.Xr opendir 3
+and
+.Xr readdir 3 .
+If the
+.Dv FTW_CHDIR
+flag is set, the
+.Fn nftw
+function may fail and set
+.Va errno
+for any of the errors specified for
+.Xr chdir 2 .
+In addition, either function may fail and set
+.Va errno
+as follows:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa maxfds
+argument is less than 1.
+.El
+.Sh SEE ALSO
+.Xr chdir 2 ,
+.Xr close 2 ,
+.Xr open 2 ,
+.Xr stat 2 ,
+.Xr fts 3 ,
+.Xr malloc 3 ,
+.Xr opendir 3 ,
+.Xr readdir 3
+.Sh STANDARDS
+The
+.Fn ftw
+and
+.Fn nftw
+functions conform to
+.St -p1003.1-2001 .
+.Sh HISTORY
+These functions first appeared in
+.At V.3 .
+Their first
+.Fx
+appearance was in
+.Fx 5.3 .
+.Sh BUGS
+The
+.Fa maxfds
+argument is currently ignored.

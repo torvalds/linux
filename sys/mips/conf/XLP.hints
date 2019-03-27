@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+# RTC
+hint.ds13rtc.0.at="iicbus1"
+hint.ds13rtc.0.addr=0xd0
+hint.ds13rtc.0.compatible="dallas,ds1374"

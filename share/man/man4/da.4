@@ -1,0 +1,233 @@
+.\" Copyright (c) 1996
+.\"	Julian Elischer <julian@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 20, 2017
+.Dt DA 4
+.Os
+.Sh NAME
+.Nm da
+.Nd SCSI Direct Access device driver
+.Sh SYNOPSIS
+.Cd device da
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for all
+.Tn SCSI
+devices of the direct access class that are attached to the system
+through a supported
+.Tn SCSI
+Host Adapter.
+The direct access class includes disk, magneto-optical,
+and solid-state devices.
+.Pp
+A
+.Tn SCSI
+Host
+adapter must also be separately configured into the system
+before a
+.Tn SCSI
+direct access device can be configured.
+.Sh CACHE EFFECTS
+Many direct access devices are equipped with read and/or write caches.
+Parameters affecting the device's cache are stored in mode page 8,
+the caching control page.
+Mode pages can be examined and modified via the
+.Xr camcontrol 8
+utility.
+.Pp
+The read cache is used to store data from device-initiated read ahead
+operations as well as frequently used data.
+The read cache is transparent
+to the user and can be enabled without any adverse effect.
+Most devices
+with a read cache come from the factory with it enabled.
+The read cache can be disabled by setting the
+.Tn RCD
+(Read Cache Disable) bit in the caching control mode page.
+.Pp
+The write cache can greatly decrease the latency of write operations
+and allows the device to reorganize writes to increase efficiency and
+performance.
+This performance gain comes at a price.
+Should the device
+lose power while its cache contains uncommitted write operations, these
+writes will be lost.
+The effect of a loss of write transactions on
+a file system is non-deterministic and can cause corruption.
+Most
+devices age write transactions to limit vulnerability to a few transactions
+recently reported as complete, but it is none-the-less recommended that
+systems with write cache enabled devices reside on an Uninterruptible
+Power Supply (UPS).
+The
+.Nm
+device driver ensures that the cache and media are synchronized upon
+final close of the device or an unexpected shutdown (panic) event.
+This ensures that it is safe to disconnect power once the operating system
+has reported that it has halted.
+The write cache can be enabled by setting the
+.Tn WCE
+(Write Cache Enable) bit in the caching control mode page.
+.Sh TAGGED QUEUING
+The
+.Nm
+device driver will take full advantage of the SCSI feature known as tagged
+queueing.
+Tagged queueing allows the device to process multiple transactions
+concurrently, often re-ordering them to reduce the number and length of
+seeks.
+To ensure that transactions to distant portions of the media,
+which may be deferred indefinitely by servicing requests nearer the current
+head position, are completed in a timely fashion, an ordered tagged
+transaction is sent every 15 seconds during continuous device operation.
+.Sh BAD BLOCK RECOVERY
+Direct Access devices have the capability of mapping out portions of
+defective media.
+Media recovery parameters are located in mode page 1,
+the Read-Write Error Recovery mode page.
+The most important media
+remapping features are 'Auto Write Reallocation' and 'Auto Read
+Reallocation' which can be enabled via the AWRE and ARRE bits,
+respectively, of the Read-Write Error Recovery page.
+Many devices do not ship from the factory with these feature enabled.
+Mode pages can be examined and modified
+via the
+.Xr camcontrol 8
+utility.
+.Sh KERNEL CONFIGURATION
+It is only necessary to explicitly configure one
+.Nm
+device; data structures are dynamically allocated as disks are found
+on the
+.Tn SCSI
+bus.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width 12
+.It Va kern.cam.da.retry_count
+This variable determines how many times the
+.Nm
+driver will retry a READ or WRITE command.
+This does not affect the number of retries used during probe time or for
+the
+.Nm
+driver dump routine.
+This value currently defaults to 4.
+.It Va kern.cam.da.default_timeout
+This variable determines how long the
+.Nm
+driver will wait before timing out an outstanding command.
+The units for this value are seconds, and the default is currently 60
+seconds.
+.It Va kern.cam.sort_io_queue
+.It Va kern.cam.da. Ns Ar X Ns Va .sort_io_queue
+These variables determine whether request queue should be sorted trying
+to optimize head seeks.
+Set to 1 to enable sorting, 0 to disable, -1 to leave it as-is.
+The default is sorting enabled for HDDs and disabled for SSDs.
+.It Va kern.cam.da. Ns Ar X Ns Va .delete_method
+This variable specifies method to handle BIO_DELETE requests:
+.Bl -tag -width "ATA_TRIM"
+.It ATA_TRIM
+ATA TRIM via ATA COMMAND PASS THROUGH command,
+.It UNMAP
+UNMAP command,
+.It WS16
+WRITE SAME(16) command with UNMAP flag,
+.It WS10
+WRITE SAME(10) command with UNMAP flag,
+.It ZERO
+WRITE SAME(10) command without UNMAP flag,
+.It DISABLE
+disable BIO_DELETE support.
+.El
+.It Va kern.cam.da. Ns Ar X Ns Va .minimum_cmd_size
+This variable determines what the minimum READ/WRITE CDB size is for a
+given
+.Nm
+unit.
+Valid minimum command size values are 6, 10, 12 and 16 bytes.
+The default is 6 bytes.
+.Pp
+The
+.Nm
+driver issues a CAM Path Inquiry CCB at probe time to determine whether the
+protocol the device in question speaks (e.g.\& ATAPI) typically does not allow
+6 byte commands.
+If it does not, the
+.Nm
+driver will default to using at least 10 byte CDBs.
+If a 6 byte READ or WRITE fails with an ILLEGAL REQUEST error, the
+.Nm
+driver will then increase the default CDB size for the device to 10 bytes and
+retry the command.
+CDB size is always
+chosen as the smallest READ/WRITE CDB that will satisfy the specified minimum
+command size, and the LBA and length of the READ or WRITE in question.
+(e.g., a write to an LBA larger than 2^32 will require a 16 byte CDB.)
+.El
+.Sh NOTES
+If a device becomes invalidated (media is removed, device becomes unresponsive)
+the disklabel and information held within the kernel about the device will
+be invalidated.
+To avoid corruption of a newly inserted piece of media or
+a replacement device, all accesses to the device will be discarded until
+the last file descriptor referencing the old device is closed.
+During this period, all new open attempts will be rejected.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/da*" -compact
+.It Pa /dev/da*
+SCSI disk device nodes
+.El
+.Sh DIAGNOSTICS
+None.
+.Sh SEE ALSO
+.Xr ada 4 ,
+.Xr cam 4 ,
+.Xr geom 4 ,
+.Xr nda 4 ,
+.Xr gpart 8
+.Sh HISTORY
+The
+.Nm
+driver was written for the
+.Tn CAM
+.Tn SCSI
+subsystem by
+.An Justin T. Gibbs .
+Many ideas were gleaned from the
+.Nm sd
+device driver written and ported from
+.Tn Mach
+2.5
+by
+.An Julian Elischer .

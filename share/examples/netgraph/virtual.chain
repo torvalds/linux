@@ -1,0 +1,370 @@
+#!/bin/sh
+#
+# Copyright (c) 2010, Yavuz Gokirmak
+#
+# All rights reserved.
+#
+# This source code may be used, modified, copied, distributed, and
+# sold, in both source and binary form provided that the above
+# copyright and these terms are retained, verbatim, as the first
+# lines of this file.  Under no circumstances is the author
+# responsible for the proper functioning of the software nor does
+# the author assume any responsibility for damages incurred with
+# its use.
+#
+# $FreeBSD$
+#
+# This script creates and connects n router like nodes. Complex wide
+# area topologies can be created with the help of script.
+#
+# Virtual nodes are generated via jails and network connections are
+# established using ng_eiface(4) node types.
+#
+# To use this script:
+#
+# 0. Make your own copy of this example script.
+#
+# 1. Edit the definition of ${TARGET_TOPOLOGY} to define your virtual
+#    nodes. Virtual topology definition includes node names and their
+#    IP address. Target top. syntax: ( name|ip<->name|ip ... )
+#    Example 1: ( n1|10.0.2.1/30<->n2|10.0.2.2/30 ...)
+#    Example 2: ( n1|2001:b90::14a/125<->n1|2001:b90::14b/125 ...)
+#
+# 2. Run this script with "start" as the command line argument.
+#
+# 3. Add necessary static route commands for each virtual node. For
+#    example assume you have three virtual nodes connected each other
+#    like a chain (n1 is connected to n2, n2 is connected to n3).
+#    In order to establish connectivity among these virtual nodes,
+#    you have to add default routes to node n1 and node n3. Example
+#    static route command is:
+#      STATIC_ROUTE0="jexec n1 route add -inet default 10.0.2.2"
+#      STATIC_ROUTE1="jexec n3 route add -inet default 10.0.2.5"
+#    After defining default routes with above format you have to set
+#    the total number of static route commands as:
+#      STATIC_ROUTE_CNT=2
+#
+# 4. Stop bridging by running this script with "stop" as the
+#    command line argument.
+#
+# 5. This script uses a template file in order to carry information
+#    between start and stop calls.
+#      In the start call, the netgraph interfaces and jails are created.
+#      At the stop phase, all created objects should be removed.
+#    DO NOT delete the temporary file between the start and stop phases.
+#
+# Target Topology:
+#
+# +---------------+  +---------------------------------------------+
+# |  n1 (vimage)  |  |                 n2 (vimage)                 |
+# |               |  |                                             |
+# | +-----------+ |  | +-----------+  +-----------+  +-----------+ |
+# | |  ngeth0   | |  | |  ngeth1   |  |  ngeth2   |  |  ngeth4   | |
+# | |(ng_eiface)| |  | |(ng_eiface)|  |(ng_eiface)|  |(ng_eiface)| |
+# | +--+-----+--+ |  | +--+-----+--+  +--+-----+--+  +--+-----+--+ |
+# |    |ether|    |  |    |ether|        |ether|        |ether|    |
+# |    +-X---+    |  |    +--X--+        +--X--+        +--X--+    |
+# +-------X-------+  +------X--------------X---------------X-------+
+#         X                X              X                X
+#          X               X             X                X
+#           XXXXXXXXXXXXXXX            X                  X
+#                                    X                    X
+#                          +--------X------+     +--------X------+
+#                          |   -+--X--+-   |     |   -+--X--+-   |
+#                          |    |ether|    |     |    |ether|    |
+#                          | +--+-----+--+ |     | +--+-----+--+ |
+#                          | |  ngeth3   | |     | |  ngeth5   | |
+#                          | |(ng_eiface)| |     | |(ng_eiface)| |
+#                          | +-----------+ |     | +-----------+ |
+#                          |               |     |               |
+#                          |  n3 (vimage)  |     |  n4 (vimage)  |
+#                          +---------------+     +---------------+
+#
+#
+#
+
+# List the names of virtual nodes and their IP addresses. Use ':'
+# character to separate node name from node IP address and netmask.
+
+TARGET_TOPOLOGY="n1|10.0.2.1/30<->n2|10.0.2.2/30 n2|10.0.2.5/30<->n3|10.0.2.6/30 n2|10.0.2.9/30<->n4|10.0.2.10/30"
+STATIC_ROUTE0="jexec n1 route add -inet default 10.0.2.2"
+STATIC_ROUTE1="jexec n3 route add -inet default 10.0.2.5"
+STATIC_ROUTE2="jexec n4 route add -inet default 10.0.2.9"
+STATIC_ROUTE_CNT=3
+
+# MAC manufacturer prefix. This can be modified according to needs.
+MAC_PREFIX="00:1d:92"
+
+# Temporary file is important for proper execution of script.
+TEMP_FILE="/var/tmp/.virtual.chain.tmp"
+
+# Set root directory for jails to be created.
+JAIL_PATH="/usr/jails/router"
+
+
+####################################################################
+####    Nothing below this point should need to be modified.    ####
+####################################################################
+
+
+# Start/restart routine.
+virtual_chain_start() {
+
+	# Load netgraph KLD's as necessary.
+
+	for KLD in ng_ether ng_bridge ng_eiface; do
+		if ! kldstat -v | grep -qw ${KLD}; then
+			echo -n "Loading ${KLD}.ko... "
+			kldload ${KLD} || exit 1
+			echo "done"
+		fi
+	done
+
+	# Reset all interfaces and jails. If temporary file can not be found
+	# script assumes that there is no previous configuration.
+
+	if [ ! -e ${TEMP_FILE} ]; then
+		echo "No previous configuration(${TEMP_FILE}) found to clean-up."
+	else
+		echo -n "Cleaning previous configuration..."
+		virtual_chain_stop
+		echo "done"
+	fi
+
+	# Create temporary file for usage. This file includes generated
+	# interface names and jail names. All bridges, interfaces and jails
+	# are written to file while created. In clean-up process written
+	# objects are cleaned (i.e. removed) from system.
+
+	if [ -e ${TEMP_FILE} ]; then
+		touch ${TEMP_FILE}
+	fi
+
+
+	# Attach other interfaces as well.
+	for CONNECTION in ${TARGET_TOPOLOGY}; do
+
+		# Virtual connections are defined in TARGET_TOPOLOGY variable.
+		# They have the form of 'nodeName|IPaddr'. Below two lines split
+
+		PEER1=`echo ${CONNECTION} | awk -F"<->" '{print $1}'`
+		PEER1_NAME=`echo ${PEER1} | awk -F"|" '{print $1}'`
+		PEER1_IP=`echo ${PEER1} | awk -F"|" '{print $2}'`
+
+		PEER2=`echo ${CONNECTION} | awk -F"<->" '{print $2}'`
+		PEER2_NAME=`echo ${PEER2} | awk -F"|" '{print $1}'`
+		PEER2_IP=`echo ${PEER2} | awk -F"|" '{print $2}'`
+
+		# !!! if not created already..
+		# Create virtual node (jail) with given name and using
+		# JAIL_PATH as root directory for jail.
+
+		virtual_chain_create_peer_if_necessary ${PEER1_NAME}
+		virtual_chain_create_peer_if_necessary ${PEER2_NAME}
+
+		# create an interface for peer with the given peer IP. Get interface
+		# for future use; you will connect this interface to the other
+		# peers' (PEER2) interface.
+		virtual_chain_create_interface_with_ip ${PEER1_NAME} ${PEER1_IP}
+		PEER1_INTERFACE=${RET_INTERFACE}
+
+		# create an interface for peer with the given peer IP. Get interface
+		# for future use; you will connect this interface to the other
+		# peers' (PEER2) interface.
+		virtual_chain_create_interface_with_ip ${PEER2_NAME} ${PEER2_IP}
+		PEER2_INTERFACE=${RET_INTERFACE}
+
+		# Connect virtual interface to other interface. Syntax is :
+		# ngctl connect INTERFACE1: INTERFACE2: ether ether.
+
+		echo -n "Connecting ${PEER1_INTERFACE}:ether to ${PEER2_INTERFACE}:ether..."
+		ngctl connect ${PEER1_INTERFACE}: ${PEER2_INTERFACE}: ether ether \
+			|| exit 1
+		echo "done"
+
+	done
+
+	# Executes static route add commands.
+	i=0
+	while [ $i != $STATIC_ROUTE_CNT ]; do
+		eval ROUTE=\${STATIC_ROUTE${i}}
+		ret=`${ROUTE}`
+		i=`expr $i + 1`
+	done
+
+	echo "Virtual WAN established successfully!"
+}
+
+virtual_chain_create_interface_with_ip() {
+
+	NODE_NAME=$1
+	NODE_IP=$2
+
+	# Create a ng_eiface object for virtual node. ng_eiface
+	# object has a hook that can be connected to one of bridge
+	# links. After creating interface get its automatically
+	# generated name for further usage.
+
+	echo "Creating eiface interface for virtual node ${NODE_NAME}."
+	ngctl mkpeer eiface ether ether
+	EIFACE=`ngctl l | grep ngeth | tail -n 1| awk '{print $2}'`
+	echo "Interface ${EIFACE} is created."
+
+	# Write name of the interface to temp file. Clean-up procedure
+	# will use this name to shutdown interface.
+
+	echo "interface ${EIFACE}" >> ${TEMP_FILE}
+
+	# Move virtual interface to virtual node. Note that Interface
+	# name will not be changed at the end of this movement. Moved
+	# interface can be seen at the output of ifconfig command in
+	# jail: 'jexec jailname ifconfig'
+
+	echo "Moving ${EIFACE} to ${NODE_NAME}"
+	ifconfig ${EIFACE} vnet ${NODE_NAME}
+
+	# Make lo0 interface localhost.
+	jexec ${NODE_NAME} ifconfig lo0 localhost
+
+	# Generate a random mac address for virtual interface. First
+	# three octets can be changed by user. Last three octets are
+	# generated randomly.
+	M4=`od -An -N2 -i /dev/random | sed -e 's/ //g' | \
+			awk '{ print $1 % 256 }'`
+	M5=`od -An -N2 -i /dev/random | sed -e 's/ //g' | \
+			awk '{ print $1 % 256 }'`
+	M6=`od -An -N2 -i /dev/random | sed -e 's/ //g' | \
+			awk '{ print $1 % 256 }'`
+
+	MAC=`printf ${MAC_PREFIX}:%02x:%02x:%02x ${M4} ${M5} ${M6}`
+
+	# Set the link address (mac address) of virtual interface in
+	# virtual node to randomly generated MAC.
+	echo "Setting MAC address of ${EIFACE} to '${MAC}'"
+	jexec ${NODE_NAME} ifconfig ${EIFACE} link $MAC
+
+	# Either IPv4 or IPv6 can be used in this script. Ifconfig
+	# IP setting syntax differs slightly for two IP versions.
+	# For version 4 'inet' keyword is used whereas for version 6
+	# 'inet6' is used. Below line tries to decide which IP version
+	# is given and sets IPVER to 'inet' or 'inet6'.
+
+	IPVER=`echo ${NODE_IP} | awk -F"." '{ split($4,last,"/"); \
+		if( NF==4 && $1>0 && $1<256 && $2<256 && $3<256 && \
+		last[1]<256) print "inet"; else print "inet6"}'`
+
+	# Set IP address of virtual interface in virtual node.
+	echo "Setting IP address of ${EIFACE} to '${NODE_IP}'"
+	jexec ${NODE_NAME} ifconfig ${EIFACE} ${IPVER} ${NODE_IP}
+
+	RET_INTERFACE=${EIFACE}
+}
+
+virtual_chain_create_peer_if_necessary() {
+
+	if ! grep -q $1 ${TEMP_FILE} ; then
+
+		echo -n "Creating virtual node (jail) ${1}..."
+		jail -c vnet name=${1} host.hostname=${1} \
+			path=${JAIL_PATH} persist
+		jexec ${1} sysctl -w net.inet.ip.forwarding=1
+		jexec ${1} sysctl -w net.inet6.ip6.forwarding=1
+		echo "done"
+
+		# Write name of the jail to temp file. Clean-up
+		# procedure will use this name to remove jail.
+
+		echo "node ${1}" >> ${TEMP_FILE}
+	fi
+
+}
+
+# Stop routine.
+virtual_chain_stop() {
+
+	if [ ! -e ${TEMP_FILE} ]; then
+		echo "Nothing to stop! ${TEMP_FILE}: temp file not found"
+	else
+
+		echo -n "Shutdown bridge interface.."
+		OBJECTS=`cat ${TEMP_FILE} | grep bridge | awk '{print $2}'`
+		for BRIDGE in ${OBJECTS}; do
+			ngctl shutdown ${BRIDGE}: >/dev/null 2>&1
+		done
+		echo "done"
+
+		echo -n "Shutdown all eiface interfaces..."
+		OBJECTS=`cat ${TEMP_FILE} | grep interface | awk '{print $2}'`
+		for INTERFACE in ${OBJECTS}; do
+			ngctl shutdown ${INTERFACE}: >/dev/null 2>&1
+		done
+		echo "done"
+
+		echo -n "Removing all jails..."
+		OBJECTS=`cat ${TEMP_FILE} | grep node | awk '{print $2}'`
+		for NODE in ${OBJECTS}; do
+			jail -r ${NODE}
+		done
+		echo "done"
+
+		echo "Removing tempfile ${TEMP_FILE}"
+		rm ${TEMP_FILE}
+	fi
+	echo "Virtual LAN objects removed successfully!"
+
+}
+
+virtual_chain_usage() {
+	echo "usage: $0 start [target_topology]"
+	echo "     : $0 [ stop | help ]"
+}
+
+
+# Main entry point.
+
+case $# in
+	1)
+		case $1 in
+                        start)
+                                echo -n "Creating default target topology:"
+				echo " ${TARGET_TOPOLOGY}"
+                                virtual_chain_start
+                                ;;
+                        stop)
+
+				if [ ! -e ${TEMP_FILE} ]; then
+					echo -n "Noting to stop! ${TEMP_FILE}:"
+					echo " temp file not found"
+				else
+					virtual_chain_stop
+				fi
+                                ;;
+                        help)
+                                virtual_chain_usage
+				exit 1
+                                ;;
+                        *)
+                                virtual_chain_usage
+                                exit 1
+
+                esac
+		;;
+	2)
+	        case $1 in
+			start)
+                        	TARGET_TOPOLOGY=$2
+                                echo -n "Creating target topology:"
+				echo "${TARGET_TOPOLOGY}"
+                                virtual_chain_start
+                                ;;
+                        *)
+                        	virtual_chain_usage
+                                exit 1
+                esac
+		;;
+
+	*)
+                virtual_chain_usage
+                exit 1
+esac
+

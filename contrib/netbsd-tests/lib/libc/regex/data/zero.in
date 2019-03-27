@@ -1,0 +1,7 @@
+# cases involving NULs
+aZb		&	a	a
+aZb		&p	a
+aZb		&p#	(aZb)	aZb
+aZ*b		&p#	(ab)	ab
+a.b		&#	(aZb)	aZb
+a.*		&#	(aZb)c	aZb

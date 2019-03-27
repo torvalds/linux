@@ -1,0 +1,35 @@
+block
+nomatch
+pass
+nomatch
+nomatch
+nomatch
+nomatch
+pass
+List of active MAP/Redirect filters:
+
+List of active sessions:
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+# 'anonymous' table refs 2
+table role=ipf type=hash number=2147483650 size=3
+	{ 127.0.0.1/32; 4.4.0.0/16; };
+# 'anonymous' table refs 2
+table role=ipf type=hash number=2147483649 size=3
+	{ 127.0.0.1/32; 4.4.0.0/16; };
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+1 block in from hash/2147483650 to any
+Rules configured (set 0, out)
+2 pass out from hash/2147483649 to any
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

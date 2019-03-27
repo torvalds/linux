@@ -1,0 +1,7 @@
+# test logging keywords, and log quick/quick log order
+block in log (all) quick on lo0 all
+block in quick log       on lo0 all
+block in quick log (all) on lo0 all
+block in log quick       on lo0 all
+block in log             on lo0 all
+block in log (all)       on lo0 all 

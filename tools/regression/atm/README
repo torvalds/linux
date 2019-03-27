@@ -1,0 +1,14 @@
+$FreeBSD$
+
+This directory contains tests for the ATM stuff.  All tests can be run
+from the top-level or from their sub-directories by starting RunTest.sh.
+
+These tests require ports/net/atmsupport to be installed - the
+scripts will remind you if they cannot find the package.
+
+proto_sscfu		test suite for the SSCF at the user interface
+proto_sscop		test suite for the SSCOP protocol
+proto_uni		test suite for the UNI protocol
+proto_cc		test suite for the call control function
+
+harti@freebsd.org

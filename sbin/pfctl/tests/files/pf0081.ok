@@ -1,0 +1,32 @@
+ip_list = "{ ::1 ::2 ::3 0.0.0.1 0.0.0.2 0.0.0.3 }"
+table_list = "{ <bar1> <bar2> <bar3> }"
+pass inet6 from (lo0) to ::1 flags S/SA keep state
+pass inet6 from (lo0) to ::2 flags S/SA keep state
+pass inet6 from (lo0) to ::3 flags S/SA keep state
+pass inet from (lo0) to 0.0.0.1 flags S/SA keep state
+pass inet from (lo0) to 0.0.0.2 flags S/SA keep state
+pass inet from (lo0) to 0.0.0.3 flags S/SA keep state
+pass from <foo> to <bar1> flags S/SA keep state
+pass from <foo> to <bar2> flags S/SA keep state
+pass from <foo> to <bar3> flags S/SA keep state
+pass inet6 from <foo> to ::1 flags S/SA keep state
+pass inet6 from <foo> to ::2 flags S/SA keep state
+pass inet6 from <foo> to ::3 flags S/SA keep state
+pass inet from <foo> to 0.0.0.1 flags S/SA keep state
+pass inet from <foo> to 0.0.0.2 flags S/SA keep state
+pass inet from <foo> to 0.0.0.3 flags S/SA keep state
+pass from <foo> to <bar1> flags S/SA keep state
+pass from <foo> to <bar2> flags S/SA keep state
+pass from <foo> to <bar3> flags S/SA keep state
+pass from no-route to <bar1> flags S/SA keep state
+pass from no-route to <bar2> flags S/SA keep state
+pass from no-route to <bar3> flags S/SA keep state
+pass inet6 from no-route to ::1 flags S/SA keep state
+pass inet6 from no-route to ::2 flags S/SA keep state
+pass inet6 from no-route to ::3 flags S/SA keep state
+pass inet from no-route to 0.0.0.1 flags S/SA keep state
+pass inet from no-route to 0.0.0.2 flags S/SA keep state
+pass inet from no-route to 0.0.0.3 flags S/SA keep state
+pass from no-route to <bar1> flags S/SA keep state
+pass from no-route to <bar2> flags S/SA keep state
+pass from no-route to <bar3> flags S/SA keep state

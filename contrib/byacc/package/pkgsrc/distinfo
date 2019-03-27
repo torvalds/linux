@@ -1,0 +1,6 @@
+$NetBSD: distinfo,v 1.4 2008/07/24 17:13:00 tonnerre Exp $
+
+SHA1 (byacc-20050813.tgz) = 3258494f3422eb3150944c1823af1c9c2c386062
+RMD160 (byacc-20050813.tgz) = 3ee159857a79025a83e2b0807577925fe460f816
+Size (byacc-20050813.tgz) = 138684 bytes
+SHA1 (patch-aa) = decae78775a5e0f1e1f7aaaa258da53903aa1f7a

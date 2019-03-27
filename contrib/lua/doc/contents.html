@@ -1,0 +1,619 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+<TITLE>Lua 5.3 Reference Manual - contents</TITLE>
+<LINK REL="stylesheet" TYPE="text/css" HREF="lua.css">
+<LINK REL="stylesheet" TYPE="text/css" HREF="index.css">
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=iso-8859-1">
+</HEAD>
+
+<BODY>
+
+<H1>
+<A HREF="http://www.lua.org/"><IMG SRC="logo.gif" ALT="Lua"></A>
+Lua 5.3 Reference Manual
+</H1>
+
+<P>
+The reference manual is the official definition of the Lua language.
+<BR>
+For a complete introduction to Lua programming, see the book
+<A HREF="http://www.lua.org/pil/">Programming in Lua</A>.
+
+<DIV CLASS="menubar">
+<A HREF="manual.html">start</A>
+&middot;
+<A HREF="#contents">contents</A>
+&middot;
+<A HREF="#index">index</A>
+&middot;
+<A HREF="http://www.lua.org/manual/">other versions</A>
+</DIV>
+
+<P>
+<SMALL>
+Copyright &copy; 2015&ndash;2018 Lua.org, PUC-Rio.
+Freely available under the terms of the
+<A HREF="http://www.lua.org/license.html">Lua license</A>.
+</SMALL>
+
+<H2><A NAME="contents">Contents</A></H2>
+<UL CLASS="contents menubar">
+<LI><A HREF="manual.html">1 &ndash; Introduction</A>
+<P>
+<LI><A HREF="manual.html#2">2 &ndash; Basic Concepts</A>
+<UL>
+<LI><A HREF="manual.html#2.1">2.1 &ndash; Values and Types</A>
+<LI><A HREF="manual.html#2.2">2.2 &ndash; Environments and the Global Environment</A>
+<LI><A HREF="manual.html#2.3">2.3 &ndash; Error Handling</A>
+<LI><A HREF="manual.html#2.4">2.4 &ndash; Metatables and Metamethods</A>
+<LI><A HREF="manual.html#2.5">2.5 &ndash; Garbage Collection</A>
+<UL>
+<LI><A HREF="manual.html#2.5.1">2.5.1 &ndash; Garbage-Collection Metamethods</A>
+<LI><A HREF="manual.html#2.5.2">2.5.2 &ndash; Weak Tables</A>
+</UL>
+<LI><A HREF="manual.html#2.6">2.6 &ndash; Coroutines</A>
+</UL>
+<P>
+<LI><A HREF="manual.html#3">3 &ndash; The Language</A>
+<UL>
+<LI><A HREF="manual.html#3.1">3.1 &ndash; Lexical Conventions</A>
+<LI><A HREF="manual.html#3.2">3.2 &ndash; Variables</A>
+<LI><A HREF="manual.html#3.3">3.3 &ndash; Statements</A>
+<UL>
+<LI><A HREF="manual.html#3.3.1">3.3.1 &ndash; Blocks</A>
+<LI><A HREF="manual.html#3.3.2">3.3.2 &ndash; Chunks</A>
+<LI><A HREF="manual.html#3.3.3">3.3.3 &ndash; Assignment</A>
+<LI><A HREF="manual.html#3.3.4">3.3.4 &ndash; Control Structures</A>
+<LI><A HREF="manual.html#3.3.5">3.3.5 &ndash; For Statement</A>
+<LI><A HREF="manual.html#3.3.6">3.3.6 &ndash; Function Calls as Statements</A>
+<LI><A HREF="manual.html#3.3.7">3.3.7 &ndash; Local Declarations</A>
+</UL>
+<LI><A HREF="manual.html#3.4">3.4 &ndash; Expressions</A>
+<UL>
+<LI><A HREF="manual.html#3.4.1">3.4.1 &ndash; Arithmetic Operators</A>
+<LI><A HREF="manual.html#3.4.2">3.4.2 &ndash; Bitwise Operators</A>
+<LI><A HREF="manual.html#3.4.3">3.4.3 &ndash; Coercions and Conversions</A>
+<LI><A HREF="manual.html#3.4.4">3.4.4 &ndash; Relational Operators</A>
+<LI><A HREF="manual.html#3.4.5">3.4.5 &ndash; Logical Operators</A>
+<LI><A HREF="manual.html#3.4.6">3.4.6 &ndash; Concatenation</A>
+<LI><A HREF="manual.html#3.4.7">3.4.7 &ndash; The Length Operator</A>
+<LI><A HREF="manual.html#3.4.8">3.4.8 &ndash; Precedence</A>
+<LI><A HREF="manual.html#3.4.9">3.4.9 &ndash; Table Constructors</A>
+<LI><A HREF="manual.html#3.4.10">3.4.10 &ndash; Function Calls</A>
+<LI><A HREF="manual.html#3.4.11">3.4.11 &ndash; Function Definitions</A>
+</UL>
+<LI><A HREF="manual.html#3.5">3.5 &ndash; Visibility Rules</A>
+</UL>
+<P>
+<LI><A HREF="manual.html#4">4 &ndash; The Application Program Interface</A>
+<UL>
+<LI><A HREF="manual.html#4.1">4.1 &ndash; The Stack</A>
+<LI><A HREF="manual.html#4.2">4.2 &ndash; Stack Size</A>
+<LI><A HREF="manual.html#4.3">4.3 &ndash; Valid and Acceptable Indices</A>
+<LI><A HREF="manual.html#4.4">4.4 &ndash; C Closures</A>
+<LI><A HREF="manual.html#4.5">4.5 &ndash; Registry</A>
+<LI><A HREF="manual.html#4.6">4.6 &ndash; Error Handling in C</A>
+<LI><A HREF="manual.html#4.7">4.7 &ndash; Handling Yields in C</A>
+<LI><A HREF="manual.html#4.8">4.8 &ndash; Functions and Types</A>
+<LI><A HREF="manual.html#4.9">4.9 &ndash; The Debug Interface</A>
+</UL>
+<P>
+<LI><A HREF="manual.html#5">5 &ndash; The Auxiliary Library</A>
+<UL>
+<LI><A HREF="manual.html#5.1">5.1 &ndash; Functions and Types</A>
+</UL>
+<P>
+<LI><A HREF="manual.html#6">6 &ndash; Standard Libraries</A>
+<UL>
+<LI><A HREF="manual.html#6.1">6.1 &ndash; Basic Functions</A>
+<LI><A HREF="manual.html#6.2">6.2 &ndash; Coroutine Manipulation</A>
+<LI><A HREF="manual.html#6.3">6.3 &ndash; Modules</A>
+<LI><A HREF="manual.html#6.4">6.4 &ndash; String Manipulation</A>
+<UL>
+<LI><A HREF="manual.html#6.4.1">6.4.1 &ndash; Patterns</A>
+<LI><A HREF="manual.html#6.4.2">6.4.2 &ndash; Format Strings for Pack and Unpack</A>
+</UL>
+<LI><A HREF="manual.html#6.5">6.5 &ndash; UTF-8 Support</A>
+<LI><A HREF="manual.html#6.6">6.6 &ndash; Table Manipulation</A>
+<LI><A HREF="manual.html#6.7">6.7 &ndash; Mathematical Functions</A>
+<LI><A HREF="manual.html#6.8">6.8 &ndash; Input and Output Facilities</A>
+<LI><A HREF="manual.html#6.9">6.9 &ndash; Operating System Facilities</A>
+<LI><A HREF="manual.html#6.10">6.10 &ndash; The Debug Library</A>
+</UL>
+<P>
+<LI><A HREF="manual.html#7">7 &ndash; Lua Standalone</A>
+<P>
+<LI><A HREF="manual.html#8">8 &ndash; Incompatibilities with the Previous Version</A>
+<UL>
+<LI><A HREF="manual.html#8.1">8.1 &ndash; Changes in the Language</A>
+<LI><A HREF="manual.html#8.2">8.2 &ndash; Changes in the Libraries</A>
+<LI><A HREF="manual.html#8.3">8.3 &ndash; Changes in the API</A>
+</UL>
+<P>
+<LI><A HREF="manual.html#9">9 &ndash; The Complete Syntax of Lua</A>
+</UL>
+
+<H2><A NAME="index">Index</A></H2>
+<TABLE CLASS="menubar" WIDTH="100%">
+<TR>
+<TD>
+<H3><A NAME="functions">Lua functions</A></H3>
+<P>
+<A HREF="manual.html#6.1">basic</A><BR>
+<A HREF="manual.html#pdf-_G">_G</A><BR>
+<A HREF="manual.html#pdf-_VERSION">_VERSION</A><BR>
+<A HREF="manual.html#pdf-assert">assert</A><BR>
+<A HREF="manual.html#pdf-collectgarbage">collectgarbage</A><BR>
+<A HREF="manual.html#pdf-dofile">dofile</A><BR>
+<A HREF="manual.html#pdf-error">error</A><BR>
+<A HREF="manual.html#pdf-getmetatable">getmetatable</A><BR>
+<A HREF="manual.html#pdf-ipairs">ipairs</A><BR>
+<A HREF="manual.html#pdf-load">load</A><BR>
+<A HREF="manual.html#pdf-loadfile">loadfile</A><BR>
+<A HREF="manual.html#pdf-next">next</A><BR>
+<A HREF="manual.html#pdf-pairs">pairs</A><BR>
+<A HREF="manual.html#pdf-pcall">pcall</A><BR>
+<A HREF="manual.html#pdf-print">print</A><BR>
+<A HREF="manual.html#pdf-rawequal">rawequal</A><BR>
+<A HREF="manual.html#pdf-rawget">rawget</A><BR>
+<A HREF="manual.html#pdf-rawlen">rawlen</A><BR>
+<A HREF="manual.html#pdf-rawset">rawset</A><BR>
+<A HREF="manual.html#pdf-require">require</A><BR>
+<A HREF="manual.html#pdf-select">select</A><BR>
+<A HREF="manual.html#pdf-setmetatable">setmetatable</A><BR>
+<A HREF="manual.html#pdf-tonumber">tonumber</A><BR>
+<A HREF="manual.html#pdf-tostring">tostring</A><BR>
+<A HREF="manual.html#pdf-type">type</A><BR>
+<A HREF="manual.html#pdf-xpcall">xpcall</A><BR>
+
+<P>
+<A HREF="manual.html#6.2">coroutine</A><BR>
+<A HREF="manual.html#pdf-coroutine.create">coroutine.create</A><BR>
+<A HREF="manual.html#pdf-coroutine.isyieldable">coroutine.isyieldable</A><BR>
+<A HREF="manual.html#pdf-coroutine.resume">coroutine.resume</A><BR>
+<A HREF="manual.html#pdf-coroutine.running">coroutine.running</A><BR>
+<A HREF="manual.html#pdf-coroutine.status">coroutine.status</A><BR>
+<A HREF="manual.html#pdf-coroutine.wrap">coroutine.wrap</A><BR>
+<A HREF="manual.html#pdf-coroutine.yield">coroutine.yield</A><BR>
+
+<P>
+<A HREF="manual.html#6.10">debug</A><BR>
+<A HREF="manual.html#pdf-debug.debug">debug.debug</A><BR>
+<A HREF="manual.html#pdf-debug.gethook">debug.gethook</A><BR>
+<A HREF="manual.html#pdf-debug.getinfo">debug.getinfo</A><BR>
+<A HREF="manual.html#pdf-debug.getlocal">debug.getlocal</A><BR>
+<A HREF="manual.html#pdf-debug.getmetatable">debug.getmetatable</A><BR>
+<A HREF="manual.html#pdf-debug.getregistry">debug.getregistry</A><BR>
+<A HREF="manual.html#pdf-debug.getupvalue">debug.getupvalue</A><BR>
+<A HREF="manual.html#pdf-debug.getuservalue">debug.getuservalue</A><BR>
+<A HREF="manual.html#pdf-debug.sethook">debug.sethook</A><BR>
+<A HREF="manual.html#pdf-debug.setlocal">debug.setlocal</A><BR>
+<A HREF="manual.html#pdf-debug.setmetatable">debug.setmetatable</A><BR>
+<A HREF="manual.html#pdf-debug.setupvalue">debug.setupvalue</A><BR>
+<A HREF="manual.html#pdf-debug.setuservalue">debug.setuservalue</A><BR>
+<A HREF="manual.html#pdf-debug.traceback">debug.traceback</A><BR>
+<A HREF="manual.html#pdf-debug.upvalueid">debug.upvalueid</A><BR>
+<A HREF="manual.html#pdf-debug.upvaluejoin">debug.upvaluejoin</A><BR>
+
+<P>
+<A HREF="manual.html#6.8">io</A><BR>
+<A HREF="manual.html#pdf-io.close">io.close</A><BR>
+<A HREF="manual.html#pdf-io.flush">io.flush</A><BR>
+<A HREF="manual.html#pdf-io.input">io.input</A><BR>
+<A HREF="manual.html#pdf-io.lines">io.lines</A><BR>
+<A HREF="manual.html#pdf-io.open">io.open</A><BR>
+<A HREF="manual.html#pdf-io.output">io.output</A><BR>
+<A HREF="manual.html#pdf-io.popen">io.popen</A><BR>
+<A HREF="manual.html#pdf-io.read">io.read</A><BR>
+<A HREF="manual.html#pdf-io.stderr">io.stderr</A><BR>
+<A HREF="manual.html#pdf-io.stdin">io.stdin</A><BR>
+<A HREF="manual.html#pdf-io.stdout">io.stdout</A><BR>
+<A HREF="manual.html#pdf-io.tmpfile">io.tmpfile</A><BR>
+<A HREF="manual.html#pdf-io.type">io.type</A><BR>
+<A HREF="manual.html#pdf-io.write">io.write</A><BR>
+
+<A HREF="manual.html#pdf-file:close">file:close</A><BR>
+<A HREF="manual.html#pdf-file:flush">file:flush</A><BR>
+<A HREF="manual.html#pdf-file:lines">file:lines</A><BR>
+<A HREF="manual.html#pdf-file:read">file:read</A><BR>
+<A HREF="manual.html#pdf-file:seek">file:seek</A><BR>
+<A HREF="manual.html#pdf-file:setvbuf">file:setvbuf</A><BR>
+<A HREF="manual.html#pdf-file:write">file:write</A><BR>
+
+</TD>
+<TD>
+<H3>&nbsp;</H3>
+<P>
+<A HREF="manual.html#6.7">math</A><BR>
+<A HREF="manual.html#pdf-math.abs">math.abs</A><BR>
+<A HREF="manual.html#pdf-math.acos">math.acos</A><BR>
+<A HREF="manual.html#pdf-math.asin">math.asin</A><BR>
+<A HREF="manual.html#pdf-math.atan">math.atan</A><BR>
+<A HREF="manual.html#pdf-math.ceil">math.ceil</A><BR>
+<A HREF="manual.html#pdf-math.cos">math.cos</A><BR>
+<A HREF="manual.html#pdf-math.deg">math.deg</A><BR>
+<A HREF="manual.html#pdf-math.exp">math.exp</A><BR>
+<A HREF="manual.html#pdf-math.floor">math.floor</A><BR>
+<A HREF="manual.html#pdf-math.fmod">math.fmod</A><BR>
+<A HREF="manual.html#pdf-math.huge">math.huge</A><BR>
+<A HREF="manual.html#pdf-math.log">math.log</A><BR>
+<A HREF="manual.html#pdf-math.max">math.max</A><BR>
+<A HREF="manual.html#pdf-math.maxinteger">math.maxinteger</A><BR>
+<A HREF="manual.html#pdf-math.min">math.min</A><BR>
+<A HREF="manual.html#pdf-math.mininteger">math.mininteger</A><BR>
+<A HREF="manual.html#pdf-math.modf">math.modf</A><BR>
+<A HREF="manual.html#pdf-math.pi">math.pi</A><BR>
+<A HREF="manual.html#pdf-math.rad">math.rad</A><BR>
+<A HREF="manual.html#pdf-math.random">math.random</A><BR>
+<A HREF="manual.html#pdf-math.randomseed">math.randomseed</A><BR>
+<A HREF="manual.html#pdf-math.sin">math.sin</A><BR>
+<A HREF="manual.html#pdf-math.sqrt">math.sqrt</A><BR>
+<A HREF="manual.html#pdf-math.tan">math.tan</A><BR>
+<A HREF="manual.html#pdf-math.tointeger">math.tointeger</A><BR>
+<A HREF="manual.html#pdf-math.type">math.type</A><BR>
+<A HREF="manual.html#pdf-math.ult">math.ult</A><BR>
+
+<P>
+<A HREF="manual.html#6.9">os</A><BR>
+<A HREF="manual.html#pdf-os.clock">os.clock</A><BR>
+<A HREF="manual.html#pdf-os.date">os.date</A><BR>
+<A HREF="manual.html#pdf-os.difftime">os.difftime</A><BR>
+<A HREF="manual.html#pdf-os.execute">os.execute</A><BR>
+<A HREF="manual.html#pdf-os.exit">os.exit</A><BR>
+<A HREF="manual.html#pdf-os.getenv">os.getenv</A><BR>
+<A HREF="manual.html#pdf-os.remove">os.remove</A><BR>
+<A HREF="manual.html#pdf-os.rename">os.rename</A><BR>
+<A HREF="manual.html#pdf-os.setlocale">os.setlocale</A><BR>
+<A HREF="manual.html#pdf-os.time">os.time</A><BR>
+<A HREF="manual.html#pdf-os.tmpname">os.tmpname</A><BR>
+
+<P>
+<A HREF="manual.html#6.3">package</A><BR>
+<A HREF="manual.html#pdf-package.config">package.config</A><BR>
+<A HREF="manual.html#pdf-package.cpath">package.cpath</A><BR>
+<A HREF="manual.html#pdf-package.loaded">package.loaded</A><BR>
+<A HREF="manual.html#pdf-package.loadlib">package.loadlib</A><BR>
+<A HREF="manual.html#pdf-package.path">package.path</A><BR>
+<A HREF="manual.html#pdf-package.preload">package.preload</A><BR>
+<A HREF="manual.html#pdf-package.searchers">package.searchers</A><BR>
+<A HREF="manual.html#pdf-package.searchpath">package.searchpath</A><BR>
+
+<P>
+<A HREF="manual.html#6.4">string</A><BR>
+<A HREF="manual.html#pdf-string.byte">string.byte</A><BR>
+<A HREF="manual.html#pdf-string.char">string.char</A><BR>
+<A HREF="manual.html#pdf-string.dump">string.dump</A><BR>
+<A HREF="manual.html#pdf-string.find">string.find</A><BR>
+<A HREF="manual.html#pdf-string.format">string.format</A><BR>
+<A HREF="manual.html#pdf-string.gmatch">string.gmatch</A><BR>
+<A HREF="manual.html#pdf-string.gsub">string.gsub</A><BR>
+<A HREF="manual.html#pdf-string.len">string.len</A><BR>
+<A HREF="manual.html#pdf-string.lower">string.lower</A><BR>
+<A HREF="manual.html#pdf-string.match">string.match</A><BR>
+<A HREF="manual.html#pdf-string.pack">string.pack</A><BR>
+<A HREF="manual.html#pdf-string.packsize">string.packsize</A><BR>
+<A HREF="manual.html#pdf-string.rep">string.rep</A><BR>
+<A HREF="manual.html#pdf-string.reverse">string.reverse</A><BR>
+<A HREF="manual.html#pdf-string.sub">string.sub</A><BR>
+<A HREF="manual.html#pdf-string.unpack">string.unpack</A><BR>
+<A HREF="manual.html#pdf-string.upper">string.upper</A><BR>
+
+<P>
+<A HREF="manual.html#6.6">table</A><BR>
+<A HREF="manual.html#pdf-table.concat">table.concat</A><BR>
+<A HREF="manual.html#pdf-table.insert">table.insert</A><BR>
+<A HREF="manual.html#pdf-table.move">table.move</A><BR>
+<A HREF="manual.html#pdf-table.pack">table.pack</A><BR>
+<A HREF="manual.html#pdf-table.remove">table.remove</A><BR>
+<A HREF="manual.html#pdf-table.sort">table.sort</A><BR>
+<A HREF="manual.html#pdf-table.unpack">table.unpack</A><BR>
+
+<P>
+<A HREF="manual.html#6.5">utf8</A><BR>
+<A HREF="manual.html#pdf-utf8.char">utf8.char</A><BR>
+<A HREF="manual.html#pdf-utf8.charpattern">utf8.charpattern</A><BR>
+<A HREF="manual.html#pdf-utf8.codepoint">utf8.codepoint</A><BR>
+<A HREF="manual.html#pdf-utf8.codes">utf8.codes</A><BR>
+<A HREF="manual.html#pdf-utf8.len">utf8.len</A><BR>
+<A HREF="manual.html#pdf-utf8.offset">utf8.offset</A><BR>
+
+<H3><A NAME="env">environment<BR>variables</A></H3>
+<P>
+<A HREF="manual.html#pdf-LUA_CPATH">LUA_CPATH</A><BR>
+<A HREF="manual.html#pdf-LUA_CPATH_5_3">LUA_CPATH_5_3</A><BR>
+<A HREF="manual.html#pdf-LUA_INIT">LUA_INIT</A><BR>
+<A HREF="manual.html#pdf-LUA_INIT_5_3">LUA_INIT_5_3</A><BR>
+<A HREF="manual.html#pdf-LUA_PATH">LUA_PATH</A><BR>
+<A HREF="manual.html#pdf-LUA_PATH_5_3">LUA_PATH_5_3</A><BR>
+
+</TD>
+<TD>
+<H3><A NAME="api">C API</A></H3>
+<P>
+<A HREF="manual.html#lua_Alloc">lua_Alloc</A><BR>
+<A HREF="manual.html#lua_CFunction">lua_CFunction</A><BR>
+<A HREF="manual.html#lua_Debug">lua_Debug</A><BR>
+<A HREF="manual.html#lua_Hook">lua_Hook</A><BR>
+<A HREF="manual.html#lua_Integer">lua_Integer</A><BR>
+<A HREF="manual.html#lua_KContext">lua_KContext</A><BR>
+<A HREF="manual.html#lua_KFunction">lua_KFunction</A><BR>
+<A HREF="manual.html#lua_Number">lua_Number</A><BR>
+<A HREF="manual.html#lua_Reader">lua_Reader</A><BR>
+<A HREF="manual.html#lua_State">lua_State</A><BR>
+<A HREF="manual.html#lua_Unsigned">lua_Unsigned</A><BR>
+<A HREF="manual.html#lua_Writer">lua_Writer</A><BR>
+
+<P>
+<A HREF="manual.html#lua_absindex">lua_absindex</A><BR>
+<A HREF="manual.html#lua_arith">lua_arith</A><BR>
+<A HREF="manual.html#lua_atpanic">lua_atpanic</A><BR>
+<A HREF="manual.html#lua_call">lua_call</A><BR>
+<A HREF="manual.html#lua_callk">lua_callk</A><BR>
+<A HREF="manual.html#lua_checkstack">lua_checkstack</A><BR>
+<A HREF="manual.html#lua_close">lua_close</A><BR>
+<A HREF="manual.html#lua_compare">lua_compare</A><BR>
+<A HREF="manual.html#lua_concat">lua_concat</A><BR>
+<A HREF="manual.html#lua_copy">lua_copy</A><BR>
+<A HREF="manual.html#lua_createtable">lua_createtable</A><BR>
+<A HREF="manual.html#lua_dump">lua_dump</A><BR>
+<A HREF="manual.html#lua_error">lua_error</A><BR>
+<A HREF="manual.html#lua_gc">lua_gc</A><BR>
+<A HREF="manual.html#lua_getallocf">lua_getallocf</A><BR>
+<A HREF="manual.html#lua_getextraspace">lua_getextraspace</A><BR>
+<A HREF="manual.html#lua_getfield">lua_getfield</A><BR>
+<A HREF="manual.html#lua_getglobal">lua_getglobal</A><BR>
+<A HREF="manual.html#lua_gethook">lua_gethook</A><BR>
+<A HREF="manual.html#lua_gethookcount">lua_gethookcount</A><BR>
+<A HREF="manual.html#lua_gethookmask">lua_gethookmask</A><BR>
+<A HREF="manual.html#lua_geti">lua_geti</A><BR>
+<A HREF="manual.html#lua_getinfo">lua_getinfo</A><BR>
+<A HREF="manual.html#lua_getlocal">lua_getlocal</A><BR>
+<A HREF="manual.html#lua_getmetatable">lua_getmetatable</A><BR>
+<A HREF="manual.html#lua_getstack">lua_getstack</A><BR>
+<A HREF="manual.html#lua_gettable">lua_gettable</A><BR>
+<A HREF="manual.html#lua_gettop">lua_gettop</A><BR>
+<A HREF="manual.html#lua_getupvalue">lua_getupvalue</A><BR>
+<A HREF="manual.html#lua_getuservalue">lua_getuservalue</A><BR>
+<A HREF="manual.html#lua_insert">lua_insert</A><BR>
+<A HREF="manual.html#lua_isboolean">lua_isboolean</A><BR>
+<A HREF="manual.html#lua_iscfunction">lua_iscfunction</A><BR>
+<A HREF="manual.html#lua_isfunction">lua_isfunction</A><BR>
+<A HREF="manual.html#lua_isinteger">lua_isinteger</A><BR>
+<A HREF="manual.html#lua_islightuserdata">lua_islightuserdata</A><BR>
+<A HREF="manual.html#lua_isnil">lua_isnil</A><BR>
+<A HREF="manual.html#lua_isnone">lua_isnone</A><BR>
+<A HREF="manual.html#lua_isnoneornil">lua_isnoneornil</A><BR>
+<A HREF="manual.html#lua_isnumber">lua_isnumber</A><BR>
+<A HREF="manual.html#lua_isstring">lua_isstring</A><BR>
+<A HREF="manual.html#lua_istable">lua_istable</A><BR>
+<A HREF="manual.html#lua_isthread">lua_isthread</A><BR>
+<A HREF="manual.html#lua_isuserdata">lua_isuserdata</A><BR>
+<A HREF="manual.html#lua_isyieldable">lua_isyieldable</A><BR>
+<A HREF="manual.html#lua_len">lua_len</A><BR>
+<A HREF="manual.html#lua_load">lua_load</A><BR>
+<A HREF="manual.html#lua_newstate">lua_newstate</A><BR>
+<A HREF="manual.html#lua_newtable">lua_newtable</A><BR>
+<A HREF="manual.html#lua_newthread">lua_newthread</A><BR>
+<A HREF="manual.html#lua_newuserdata">lua_newuserdata</A><BR>
+<A HREF="manual.html#lua_next">lua_next</A><BR>
+<A HREF="manual.html#lua_numbertointeger">lua_numbertointeger</A><BR>
+<A HREF="manual.html#lua_pcall">lua_pcall</A><BR>
+<A HREF="manual.html#lua_pcallk">lua_pcallk</A><BR>
+<A HREF="manual.html#lua_pop">lua_pop</A><BR>
+<A HREF="manual.html#lua_pushboolean">lua_pushboolean</A><BR>
+<A HREF="manual.html#lua_pushcclosure">lua_pushcclosure</A><BR>
+<A HREF="manual.html#lua_pushcfunction">lua_pushcfunction</A><BR>
+<A HREF="manual.html#lua_pushfstring">lua_pushfstring</A><BR>
+<A HREF="manual.html#lua_pushglobaltable">lua_pushglobaltable</A><BR>
+<A HREF="manual.html#lua_pushinteger">lua_pushinteger</A><BR>
+<A HREF="manual.html#lua_pushlightuserdata">lua_pushlightuserdata</A><BR>
+<A HREF="manual.html#lua_pushliteral">lua_pushliteral</A><BR>
+<A HREF="manual.html#lua_pushlstring">lua_pushlstring</A><BR>
+<A HREF="manual.html#lua_pushnil">lua_pushnil</A><BR>
+<A HREF="manual.html#lua_pushnumber">lua_pushnumber</A><BR>
+<A HREF="manual.html#lua_pushstring">lua_pushstring</A><BR>
+<A HREF="manual.html#lua_pushthread">lua_pushthread</A><BR>
+<A HREF="manual.html#lua_pushvalue">lua_pushvalue</A><BR>
+<A HREF="manual.html#lua_pushvfstring">lua_pushvfstring</A><BR>
+<A HREF="manual.html#lua_rawequal">lua_rawequal</A><BR>
+<A HREF="manual.html#lua_rawget">lua_rawget</A><BR>
+<A HREF="manual.html#lua_rawgeti">lua_rawgeti</A><BR>
+<A HREF="manual.html#lua_rawgetp">lua_rawgetp</A><BR>
+<A HREF="manual.html#lua_rawlen">lua_rawlen</A><BR>
+<A HREF="manual.html#lua_rawset">lua_rawset</A><BR>
+<A HREF="manual.html#lua_rawseti">lua_rawseti</A><BR>
+<A HREF="manual.html#lua_rawsetp">lua_rawsetp</A><BR>
+<A HREF="manual.html#lua_register">lua_register</A><BR>
+<A HREF="manual.html#lua_remove">lua_remove</A><BR>
+<A HREF="manual.html#lua_replace">lua_replace</A><BR>
+<A HREF="manual.html#lua_resume">lua_resume</A><BR>
+<A HREF="manual.html#lua_rotate">lua_rotate</A><BR>
+<A HREF="manual.html#lua_setallocf">lua_setallocf</A><BR>
+<A HREF="manual.html#lua_setfield">lua_setfield</A><BR>
+<A HREF="manual.html#lua_setglobal">lua_setglobal</A><BR>
+<A HREF="manual.html#lua_sethook">lua_sethook</A><BR>
+<A HREF="manual.html#lua_seti">lua_seti</A><BR>
+<A HREF="manual.html#lua_setlocal">lua_setlocal</A><BR>
+<A HREF="manual.html#lua_setmetatable">lua_setmetatable</A><BR>
+<A HREF="manual.html#lua_settable">lua_settable</A><BR>
+<A HREF="manual.html#lua_settop">lua_settop</A><BR>
+<A HREF="manual.html#lua_setupvalue">lua_setupvalue</A><BR>
+<A HREF="manual.html#lua_setuservalue">lua_setuservalue</A><BR>
+<A HREF="manual.html#lua_status">lua_status</A><BR>
+<A HREF="manual.html#lua_stringtonumber">lua_stringtonumber</A><BR>
+<A HREF="manual.html#lua_toboolean">lua_toboolean</A><BR>
+<A HREF="manual.html#lua_tocfunction">lua_tocfunction</A><BR>
+<A HREF="manual.html#lua_tointeger">lua_tointeger</A><BR>
+<A HREF="manual.html#lua_tointegerx">lua_tointegerx</A><BR>
+<A HREF="manual.html#lua_tolstring">lua_tolstring</A><BR>
+<A HREF="manual.html#lua_tonumber">lua_tonumber</A><BR>
+<A HREF="manual.html#lua_tonumberx">lua_tonumberx</A><BR>
+<A HREF="manual.html#lua_topointer">lua_topointer</A><BR>
+<A HREF="manual.html#lua_tostring">lua_tostring</A><BR>
+<A HREF="manual.html#lua_tothread">lua_tothread</A><BR>
+<A HREF="manual.html#lua_touserdata">lua_touserdata</A><BR>
+<A HREF="manual.html#lua_type">lua_type</A><BR>
+<A HREF="manual.html#lua_typename">lua_typename</A><BR>
+<A HREF="manual.html#lua_upvalueid">lua_upvalueid</A><BR>
+<A HREF="manual.html#lua_upvalueindex">lua_upvalueindex</A><BR>
+<A HREF="manual.html#lua_upvaluejoin">lua_upvaluejoin</A><BR>
+<A HREF="manual.html#lua_version">lua_version</A><BR>
+<A HREF="manual.html#lua_xmove">lua_xmove</A><BR>
+<A HREF="manual.html#lua_yield">lua_yield</A><BR>
+<A HREF="manual.html#lua_yieldk">lua_yieldk</A><BR>
+
+</TD>
+<TD>
+<H3><A NAME="auxlib">auxiliary library</A></H3>
+<P>
+<A HREF="manual.html#luaL_Buffer">luaL_Buffer</A><BR>
+<A HREF="manual.html#luaL_Reg">luaL_Reg</A><BR>
+<A HREF="manual.html#luaL_Stream">luaL_Stream</A><BR>
+
+<P>
+<A HREF="manual.html#luaL_addchar">luaL_addchar</A><BR>
+<A HREF="manual.html#luaL_addlstring">luaL_addlstring</A><BR>
+<A HREF="manual.html#luaL_addsize">luaL_addsize</A><BR>
+<A HREF="manual.html#luaL_addstring">luaL_addstring</A><BR>
+<A HREF="manual.html#luaL_addvalue">luaL_addvalue</A><BR>
+<A HREF="manual.html#luaL_argcheck">luaL_argcheck</A><BR>
+<A HREF="manual.html#luaL_argerror">luaL_argerror</A><BR>
+<A HREF="manual.html#luaL_buffinit">luaL_buffinit</A><BR>
+<A HREF="manual.html#luaL_buffinitsize">luaL_buffinitsize</A><BR>
+<A HREF="manual.html#luaL_callmeta">luaL_callmeta</A><BR>
+<A HREF="manual.html#luaL_checkany">luaL_checkany</A><BR>
+<A HREF="manual.html#luaL_checkinteger">luaL_checkinteger</A><BR>
+<A HREF="manual.html#luaL_checklstring">luaL_checklstring</A><BR>
+<A HREF="manual.html#luaL_checknumber">luaL_checknumber</A><BR>
+<A HREF="manual.html#luaL_checkoption">luaL_checkoption</A><BR>
+<A HREF="manual.html#luaL_checkstack">luaL_checkstack</A><BR>
+<A HREF="manual.html#luaL_checkstring">luaL_checkstring</A><BR>
+<A HREF="manual.html#luaL_checktype">luaL_checktype</A><BR>
+<A HREF="manual.html#luaL_checkudata">luaL_checkudata</A><BR>
+<A HREF="manual.html#luaL_checkversion">luaL_checkversion</A><BR>
+<A HREF="manual.html#luaL_dofile">luaL_dofile</A><BR>
+<A HREF="manual.html#luaL_dostring">luaL_dostring</A><BR>
+<A HREF="manual.html#luaL_error">luaL_error</A><BR>
+<A HREF="manual.html#luaL_execresult">luaL_execresult</A><BR>
+<A HREF="manual.html#luaL_fileresult">luaL_fileresult</A><BR>
+<A HREF="manual.html#luaL_getmetafield">luaL_getmetafield</A><BR>
+<A HREF="manual.html#luaL_getmetatable">luaL_getmetatable</A><BR>
+<A HREF="manual.html#luaL_getsubtable">luaL_getsubtable</A><BR>
+<A HREF="manual.html#luaL_gsub">luaL_gsub</A><BR>
+<A HREF="manual.html#luaL_len">luaL_len</A><BR>
+<A HREF="manual.html#luaL_loadbuffer">luaL_loadbuffer</A><BR>
+<A HREF="manual.html#luaL_loadbufferx">luaL_loadbufferx</A><BR>
+<A HREF="manual.html#luaL_loadfile">luaL_loadfile</A><BR>
+<A HREF="manual.html#luaL_loadfilex">luaL_loadfilex</A><BR>
+<A HREF="manual.html#luaL_loadstring">luaL_loadstring</A><BR>
+<A HREF="manual.html#luaL_newlib">luaL_newlib</A><BR>
+<A HREF="manual.html#luaL_newlibtable">luaL_newlibtable</A><BR>
+<A HREF="manual.html#luaL_newmetatable">luaL_newmetatable</A><BR>
+<A HREF="manual.html#luaL_newstate">luaL_newstate</A><BR>
+<A HREF="manual.html#luaL_openlibs">luaL_openlibs</A><BR>
+<A HREF="manual.html#luaL_opt">luaL_opt</A><BR>
+<A HREF="manual.html#luaL_optinteger">luaL_optinteger</A><BR>
+<A HREF="manual.html#luaL_optlstring">luaL_optlstring</A><BR>
+<A HREF="manual.html#luaL_optnumber">luaL_optnumber</A><BR>
+<A HREF="manual.html#luaL_optstring">luaL_optstring</A><BR>
+<A HREF="manual.html#luaL_prepbuffer">luaL_prepbuffer</A><BR>
+<A HREF="manual.html#luaL_prepbuffsize">luaL_prepbuffsize</A><BR>
+<A HREF="manual.html#luaL_pushresult">luaL_pushresult</A><BR>
+<A HREF="manual.html#luaL_pushresultsize">luaL_pushresultsize</A><BR>
+<A HREF="manual.html#luaL_ref">luaL_ref</A><BR>
+<A HREF="manual.html#luaL_requiref">luaL_requiref</A><BR>
+<A HREF="manual.html#luaL_setfuncs">luaL_setfuncs</A><BR>
+<A HREF="manual.html#luaL_setmetatable">luaL_setmetatable</A><BR>
+<A HREF="manual.html#luaL_testudata">luaL_testudata</A><BR>
+<A HREF="manual.html#luaL_tolstring">luaL_tolstring</A><BR>
+<A HREF="manual.html#luaL_traceback">luaL_traceback</A><BR>
+<A HREF="manual.html#luaL_typename">luaL_typename</A><BR>
+<A HREF="manual.html#luaL_unref">luaL_unref</A><BR>
+<A HREF="manual.html#luaL_where">luaL_where</A><BR>
+
+<H3><A NAME="library">standard library</A></H3>
+<P>
+<A HREF="manual.html#pdf-luaopen_base">luaopen_base</A><BR>
+<A HREF="manual.html#pdf-luaopen_coroutine">luaopen_coroutine</A><BR>
+<A HREF="manual.html#pdf-luaopen_debug">luaopen_debug</A><BR>
+<A HREF="manual.html#pdf-luaopen_io">luaopen_io</A><BR>
+<A HREF="manual.html#pdf-luaopen_math">luaopen_math</A><BR>
+<A HREF="manual.html#pdf-luaopen_os">luaopen_os</A><BR>
+<A HREF="manual.html#pdf-luaopen_package">luaopen_package</A><BR>
+<A HREF="manual.html#pdf-luaopen_string">luaopen_string</A><BR>
+<A HREF="manual.html#pdf-luaopen_table">luaopen_table</A><BR>
+<A HREF="manual.html#pdf-luaopen_utf8">luaopen_utf8</A><BR>
+
+<H3><A NAME="constants">constants</A></H3>
+<P>
+<A HREF="manual.html#pdf-LUA_ERRERR">LUA_ERRERR</A><BR>
+<A HREF="manual.html#pdf-LUA_ERRFILE">LUA_ERRFILE</A><BR>
+<A HREF="manual.html#pdf-LUA_ERRGCMM">LUA_ERRGCMM</A><BR>
+<A HREF="manual.html#pdf-LUA_ERRMEM">LUA_ERRMEM</A><BR>
+<A HREF="manual.html#pdf-LUA_ERRRUN">LUA_ERRRUN</A><BR>
+<A HREF="manual.html#pdf-LUA_ERRSYNTAX">LUA_ERRSYNTAX</A><BR>
+<A HREF="manual.html#pdf-LUA_HOOKCALL">LUA_HOOKCALL</A><BR>
+<A HREF="manual.html#pdf-LUA_HOOKCOUNT">LUA_HOOKCOUNT</A><BR>
+<A HREF="manual.html#pdf-LUA_HOOKLINE">LUA_HOOKLINE</A><BR>
+<A HREF="manual.html#pdf-LUA_HOOKRET">LUA_HOOKRET</A><BR>
+<A HREF="manual.html#pdf-LUA_HOOKTAILCALL">LUA_HOOKTAILCALL</A><BR>
+<A HREF="manual.html#pdf-LUA_MASKCALL">LUA_MASKCALL</A><BR>
+<A HREF="manual.html#pdf-LUA_MASKCOUNT">LUA_MASKCOUNT</A><BR>
+<A HREF="manual.html#pdf-LUA_MASKLINE">LUA_MASKLINE</A><BR>
+<A HREF="manual.html#pdf-LUA_MASKRET">LUA_MASKRET</A><BR>
+<A HREF="manual.html#pdf-LUA_MAXINTEGER">LUA_MAXINTEGER</A><BR>
+<A HREF="manual.html#pdf-LUA_MININTEGER">LUA_MININTEGER</A><BR>
+<A HREF="manual.html#pdf-LUA_MINSTACK">LUA_MINSTACK</A><BR>
+<A HREF="manual.html#pdf-LUA_MULTRET">LUA_MULTRET</A><BR>
+<A HREF="manual.html#pdf-LUA_NOREF">LUA_NOREF</A><BR>
+<A HREF="manual.html#pdf-LUA_OK">LUA_OK</A><BR>
+<A HREF="manual.html#pdf-LUA_OPADD">LUA_OPADD</A><BR>
+<A HREF="manual.html#pdf-LUA_OPBAND">LUA_OPBAND</A><BR>
+<A HREF="manual.html#pdf-LUA_OPBNOT">LUA_OPBNOT</A><BR>
+<A HREF="manual.html#pdf-LUA_OPBOR">LUA_OPBOR</A><BR>
+<A HREF="manual.html#pdf-LUA_OPBXOR">LUA_OPBXOR</A><BR>
+<A HREF="manual.html#pdf-LUA_OPDIV">LUA_OPDIV</A><BR>
+<A HREF="manual.html#pdf-LUA_OPEQ">LUA_OPEQ</A><BR>
+<A HREF="manual.html#pdf-LUA_OPIDIV">LUA_OPIDIV</A><BR>
+<A HREF="manual.html#pdf-LUA_OPLE">LUA_OPLE</A><BR>
+<A HREF="manual.html#pdf-LUA_OPLT">LUA_OPLT</A><BR>
+<A HREF="manual.html#pdf-LUA_OPMOD">LUA_OPMOD</A><BR>
+<A HREF="manual.html#pdf-LUA_OPMUL">LUA_OPMUL</A><BR>
+<A HREF="manual.html#pdf-LUA_OPPOW">LUA_OPPOW</A><BR>
+<A HREF="manual.html#pdf-LUA_OPSHL">LUA_OPSHL</A><BR>
+<A HREF="manual.html#pdf-LUA_OPSHR">LUA_OPSHR</A><BR>
+<A HREF="manual.html#pdf-LUA_OPSUB">LUA_OPSUB</A><BR>
+<A HREF="manual.html#pdf-LUA_OPUNM">LUA_OPUNM</A><BR>
+<A HREF="manual.html#pdf-LUA_REFNIL">LUA_REFNIL</A><BR>
+<A HREF="manual.html#pdf-LUA_REGISTRYINDEX">LUA_REGISTRYINDEX</A><BR>
+<A HREF="manual.html#pdf-LUA_RIDX_GLOBALS">LUA_RIDX_GLOBALS</A><BR>
+<A HREF="manual.html#pdf-LUA_RIDX_MAINTHREAD">LUA_RIDX_MAINTHREAD</A><BR>
+<A HREF="manual.html#pdf-LUA_TBOOLEAN">LUA_TBOOLEAN</A><BR>
+<A HREF="manual.html#pdf-LUA_TFUNCTION">LUA_TFUNCTION</A><BR>
+<A HREF="manual.html#pdf-LUA_TLIGHTUSERDATA">LUA_TLIGHTUSERDATA</A><BR>
+<A HREF="manual.html#pdf-LUA_TNIL">LUA_TNIL</A><BR>
+<A HREF="manual.html#pdf-LUA_TNONE">LUA_TNONE</A><BR>
+<A HREF="manual.html#pdf-LUA_TNUMBER">LUA_TNUMBER</A><BR>
+<A HREF="manual.html#pdf-LUA_TSTRING">LUA_TSTRING</A><BR>
+<A HREF="manual.html#pdf-LUA_TTABLE">LUA_TTABLE</A><BR>
+<A HREF="manual.html#pdf-LUA_TTHREAD">LUA_TTHREAD</A><BR>
+<A HREF="manual.html#pdf-LUA_TUSERDATA">LUA_TUSERDATA</A><BR>
+<A HREF="manual.html#pdf-LUA_USE_APICHECK">LUA_USE_APICHECK</A><BR>
+<A HREF="manual.html#pdf-LUA_YIELD">LUA_YIELD</A><BR>
+<A HREF="manual.html#pdf-LUAL_BUFFERSIZE">LUAL_BUFFERSIZE</A><BR>
+
+</TD>
+</TR>
+</TABLE>
+
+<P CLASS="footer">
+Last update:
+Mon Jun 18 22:56:06 -03 2018
+</P>
+<!--
+Last change: revised for Lua 5.3.5
+-->
+
+</BODY>
+</HTML>

@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+SRCS+= sysfake.c
+CLEANFILES+= sysfake.c
+
+sysfake.c: ${.CURDIR}/../../sys/kern/syscalls.master
+	sh ${.CURDIR}/../../tools/tools/shlib-compat/makesyscalls-fake.sh \
+		${.CURDIR}/../../sys/kern/syscalls.master > ${.TARGET}
+

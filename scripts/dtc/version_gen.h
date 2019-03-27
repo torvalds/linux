@@ -1,1 +1,0 @@
-#define DTC_VERSION "DTC 1.4.7-gf267e674"

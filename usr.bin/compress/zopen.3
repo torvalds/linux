@@ -1,0 +1,137 @@
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)zopen.3	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd June 9, 1993
+.Dt ZOPEN 3
+.Os
+.Sh NAME
+.Nm zopen
+.Nd compressed stream open function
+.Sh SYNOPSIS
+.Fd #include \&"zopen.h\&"
+.Ft FILE *
+.Fn zopen "const char *path" "const char *mode" "int bits"
+.Sh DESCRIPTION
+The
+.Fn zopen
+function
+opens the compressed file whose name is the string pointed to by
+.Fa path
+and associates a stream with it.
+.Pp
+The argument
+.Fa mode
+points to one of the following one-character strings:
+.Bl -tag -width indent
+.It Dq Li r
+Open compressed file for reading.
+The stream is positioned at the beginning of the file.
+.It Dq Li w
+Truncate file to zero length or create compressed file for writing.
+The stream is positioned at the beginning of the file.
+.El
+.Pp
+Any created files will have mode
+.Pf \\*q Dv S_IRUSR
+\&|
+.Dv S_IWUSR
+\&|
+.Dv S_IRGRP
+\&|
+.Dv S_IWGRP
+\&|
+.Dv S_IROTH
+\&|
+.Dv S_IWOTH Ns \\*q
+.Pq Li 0666 ,
+as modified by the process'
+umask value (see
+.Xr umask 2 ) .
+.Pp
+Files may only be read or written.
+Seek operations are not allowed.
+.Pp
+The
+.Fa bits
+argument, if non-zero, is set to the bits code limit.
+If zero, the default is 16.
+See
+.Xr compress 1
+for more information.
+.Sh RETURN VALUES
+Upon successful completion
+.Fn zopen
+returns a
+.Tn FILE
+pointer.
+Otherwise,
+.Dv NULL
+is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width [EINVAL]
+.It Bq Er EINVAL
+The
+.Fa mode
+or
+.Fa bits
+arguments specified to
+.Fn zopen
+were invalid.
+.It Bq Er EFTYPE
+The compressed file starts with an invalid header, or the compressed
+file is compressed with more bits than can be handled.
+.El
+.Pp
+The
+.Fn zopen
+function may also fail and set
+.Va errno
+for any of the errors specified for the routines
+.Xr fopen 3
+or
+.Xr funopen 3 .
+.Sh SEE ALSO
+.Xr compress 1 ,
+.Xr fopen 3 ,
+.Xr funopen 3
+.Sh HISTORY
+The
+.Nm
+function
+first appeared in
+.Bx 4.4 .
+.Sh BUGS
+The
+.Fn zopen
+function
+may not be portable to systems other than
+.Bx .

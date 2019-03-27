@@ -1,0 +1,409 @@
+.\"
+.\" This file and its contents are supplied under the terms of the
+.\" Common Development and Distribution License ("CDDL"), version 1.0.
+.\" You may only use this file in accordance with the terms of version
+.\" 1.0 of the CDDL.
+.\"
+.\" A full copy of the text of the CDDL should have accompanied this
+.\" source.  A copy of the CDDL is also available via the Internet at
+.\" http://www.illumos.org/license/CDDL.
+.\"
+.\"
+.\" Copyright 2012, Richard Lowe.
+.\" Copyright (c) 2012, 2017 by Delphix. All rights reserved.
+.\" Copyright 2017 Nexenta Systems, Inc.
+.\"
+.Dd October 06, 2017
+.Dt ZDB 8
+.Os
+.Sh NAME
+.Nm zdb
+.Nd display zpool debugging and consistency information
+.Sh SYNOPSIS
+.Nm
+.Op Fl AbcdDFGhikLMPsvX
+.Op Fl e Oo Fl V Oc Op Fl p Ar path ...
+.Op Fl I Ar inflight I/Os
+.Oo Fl o Ar var Ns = Ns Ar value Oc Ns ...
+.Op Fl t Ar txg
+.Op Fl U Ar cache
+.Op Fl x Ar dumpdir
+.Op Ar poolname Op Ar object ...
+.Nm
+.Op Fl AdiPv
+.Op Fl e Oo Fl V Oc Op Fl p Ar path ...
+.Op Fl U Ar cache
+.Ar dataset Op Ar object ...
+.Nm
+.Fl C
+.Op Fl A
+.Op Fl U Ar cache
+.Nm
+.Fl E
+.Op Fl A
+.Ar word0 Ns \&: Ns Ar word1 Ns :...: Ns Ar word15
+.Nm
+.Fl l
+.Op Fl Aqu
+.Ar device
+.Nm
+.Fl m
+.Op Fl AFLPX
+.Op Fl e Oo Fl V Oc Op Fl p Ar path ...
+.Op Fl t Ar txg
+.Op Fl U Ar cache
+.Ar poolname Op Ar vdev Op Ar metaslab ...
+.Nm
+.Fl O
+.Ar dataset path
+.Nm
+.Fl R
+.Op Fl A
+.Op Fl e Oo Fl V Oc Op Fl p Ar path ...
+.Op Fl U Ar cache
+.Ar poolname vdev Ns \&: Ns Ar offset Ns \&: Ns Ar size Ns Op : Ns Ar flags
+.Nm
+.Fl S
+.Op Fl AP
+.Op Fl e Oo Fl V Oc Op Fl p Ar path ...
+.Op Fl U Ar cache
+.Ar poolname
+.Sh DESCRIPTION
+The
+.Nm
+utility displays information about a ZFS pool useful for debugging and performs
+some amount of consistency checking.
+It is a not a general purpose tool and options
+.Pq and facilities
+may change.
+This is neither a
+.Xr fsck 8
+nor an
+.Xr fsdb 8
+utility.
+.Pp
+The output of this command in general reflects the on-disk structure of a ZFS
+pool, and is inherently unstable.
+The precise output of most invocations is not documented, a knowledge of ZFS
+internals is assumed.
+.Pp
+If the
+.Ar dataset
+argument does not contain any
+.Qq Sy /
+or
+.Qq Sy @
+characters, it is interpreted as a pool name.
+The root dataset can be specified as
+.Ar pool Ns /
+.Pq pool name followed by a slash .
+.Pp
+When operating on an imported and active pool it is possible, though unlikely,
+that zdb may interpret inconsistent pool data and behave erratically.
+.Sh OPTIONS
+Display options:
+.Bl -tag -width Ds
+.It Fl b
+Display statistics regarding the number, size
+.Pq logical, physical and allocated
+and deduplication of blocks.
+.It Fl c
+Verify the checksum of all metadata blocks while printing block statistics
+.Po see
+.Fl b
+.Pc .
+.Pp
+If specified multiple times, verify the checksums of all blocks.
+.It Fl C
+Display information about the configuration.
+If specified with no other options, instead display information about the cache
+file
+.Pq Pa /boot/zfs/zpool.cache .
+To specify the cache file to display, see
+.Fl U .
+.Pp
+If specified multiple times, and a pool name is also specified display both the
+cached configuration and the on-disk configuration.
+If specified multiple times with
+.Fl e
+also display the configuration that would be used were the pool to be imported.
+.It Fl d
+Display information about datasets.
+Specified once, displays basic dataset information: ID, create transaction,
+size, and object count.
+.Pp
+If specified multiple times provides greater and greater verbosity.
+.Pp
+If object IDs are specified, display information about those specific objects
+only.
+.It Fl D
+Display deduplication statistics, including the deduplication ratio
+.Pq Sy dedup ,
+compression ratio
+.Pq Sy compress ,
+inflation due to the zfs copies property
+.Pq Sy copies ,
+and an overall effective ratio
+.Pq Sy dedup No * Sy compress No / Sy copies .
+.It Fl DD
+Display a histogram of deduplication statistics, showing the allocated
+.Pq physically present on disk
+and referenced
+.Pq logically referenced in the pool
+block counts and sizes by reference count.
+.It Fl DDD
+Display the statistics independently for each deduplication table.
+.It Fl DDDD
+Dump the contents of the deduplication tables describing duplicate blocks.
+.It Fl DDDDD
+Also dump the contents of the deduplication tables describing unique blocks.
+.It Fl E Ar word0 Ns \&: Ns Ar word1 Ns :...: Ns Ar word15
+Decode and display block from an embedded block pointer specified by the
+.Ar word
+arguments.
+.It Fl h
+Display pool history similar to
+.Nm zpool Cm history ,
+but include internal changes, transaction, and dataset information.
+.It Fl i
+Display information about intent log
+.Pq ZIL
+entries relating to each dataset.
+If specified multiple times, display counts of each intent log transaction type.
+.It Fl k
+Examine the checkpointed state of the pool.
+Note, the on disk format of the pool is not reverted to the checkpointed state.
+.It Fl l Ar device
+Read the vdev labels from the specified device.
+.Nm Fl l
+will return 0 if valid label was found, 1 if error occurred, and 2 if no valid
+labels were found.
+.Pp
+If the
+.Fl q
+option is also specified, don't print the labels.
+.Pp
+If the
+.Fl u
+option is also specified, also display the uberblocks on this device.
+.It Fl L
+Disable leak tracing and the loading of space maps.
+By default,
+.Nm
+verifies that all non-free blocks are referenced, which can be very expensive.
+.It Fl m
+Display the offset, spacemap, and free space of each metaslab.
+.It Fl mm
+Also display information about the on-disk free space histogram associated with
+each metaslab.
+.It Fl mmm
+Display the maximum contiguous free space, the in-core free space histogram, and
+the percentage of free space in each space map.
+.It Fl mmmm
+Display every spacemap record.
+.It Fl M
+Display the offset, spacemap, and free space of each metaslab.
+.It Fl MM
+Also display information about the maximum contiguous free space and the
+percentage of free space in each space map.
+.It Fl MMM
+Display every spacemap record.
+.It Fl O Ar dataset path
+Look up the specified
+.Ar path
+inside of the
+.Ar dataset
+and display its metadata and indirect blocks.
+Specified
+.Ar path
+must be relative to the root of
+.Ar dataset .
+This option can be combined with
+.Fl v
+for increasing verbosity.
+.It Xo
+.Fl R Ar poolname vdev Ns \&: Ns Ar offset Ns \&: Ns Ar size Ns Op : Ns Ar flags
+.Xc
+Read and display a block from the specified device.
+By default the block is displayed as a hex dump, but see the description of the
+.Sy r
+flag, below.
+.Pp
+The block is specified in terms of a colon-separated tuple
+.Ar vdev
+.Pq an integer vdev identifier
+.Ar offset
+.Pq the offset within the vdev
+.Ar size
+.Pq the size of the block to read
+and, optionally,
+.Ar flags
+.Pq a set of flags, described below .
+.Pp
+.Bl -tag -compact -width "b offset"
+.It Sy b Ar offset
+Print block pointer
+.It Sy d
+Decompress the block
+.It Sy e
+Byte swap the block
+.It Sy g
+Dump gang block header
+.It Sy i
+Dump indirect block
+.It Sy r
+Dump raw uninterpreted block data
+.El
+.It Fl s
+Report statistics on
+.Nm zdb
+I/O.
+Display operation counts, bandwidth, and error counts of I/O to the pool from
+.Nm .
+.It Fl S
+Simulate the effects of deduplication, constructing a DDT and then display
+that DDT as with
+.Fl DD .
+.It Fl u
+Display the current uberblock.
+.El
+.Pp
+Other options:
+.Bl -tag -width Ds
+.It Fl A
+Do not abort should any assertion fail.
+.It Fl AA
+Enable panic recovery, certain errors which would otherwise be fatal are
+demoted to warnings.
+.It Fl AAA
+Do not abort if asserts fail and also enable panic recovery.
+.It Fl e Op Fl p Ar path ...
+Operate on an exported pool, not present in
+.Pa /boot/zfs/zpool.cache .
+The
+.Fl p
+flag specifies the path under which devices are to be searched.
+.It Fl x Ar dumpdir
+All blocks accessed will be copied to files in the specified directory.
+The blocks will be placed in sparse files whose name is the same as
+that of the file or device read.
+.Nm
+can be then run on the generated files.
+Note that the
+.Fl bbc
+flags are sufficient to access
+.Pq and thus copy
+all metadata on the pool.
+.It Fl F
+Attempt to make an unreadable pool readable by trying progressively older
+transactions.
+.It Fl G
+Dump the contents of the zfs_dbgmsg buffer before exiting
+.Nm .
+zfs_dbgmsg is a buffer used by ZFS to dump advanced debug information.
+.It Fl I Ar inflight I/Os
+Limit the number of outstanding checksum I/Os to the specified value.
+The default value is 200.
+This option affects the performance of the
+.Fl c
+option.
+.It Fl o Ar var Ns = Ns Ar value ...
+Set the given global libzpool variable to the provided value.
+The value must be an unsigned 32-bit integer.
+Currently only little-endian systems are supported to avoid accidentally setting
+the high 32 bits of 64-bit variables.
+.It Fl P
+Print numbers in an unscaled form more amenable to parsing, eg. 1000000 rather
+than 1M.
+.It Fl t Ar transaction
+Specify the highest transaction to use when searching for uberblocks.
+See also the
+.Fl u
+and
+.Fl l
+options for a means to see the available uberblocks and their associated
+transaction numbers.
+.It Fl U Ar cachefile
+Use a cache file other than
+.Pa /boot/zfs/zpool.cache .
+.It Fl v
+Enable verbosity.
+Specify multiple times for increased verbosity.
+.It Fl V
+Attempt verbatim import.
+This mimics the behavior of the kernel when loading a pool from a cachefile.
+Only usable with
+.Fl e .
+.It Fl X
+Attempt
+.Qq extreme
+transaction rewind, that is attempt the same recovery as
+.Fl F
+but read transactions otherwise deemed too old.
+.El
+.Pp
+Specifying a display option more than once enables verbosity for only that
+option, with more occurrences enabling more verbosity.
+.Pp
+If no options are specified, all information about the named pool will be
+displayed at default verbosity.
+.Sh EXAMPLES
+.Bl -tag -width Ds
+.It Xo
+.Sy Example 1
+Display the configuration of imported pool
+.Pa rpool
+.Xc
+.Bd -literal
+# zdb -C rpool
+
+MOS Configuration:
+        version: 28
+        name: 'rpool'
+ ...
+.Ed
+.It Xo
+.Sy Example 2
+Display basic dataset information about
+.Pa rpool
+.Xc
+.Bd -literal
+# zdb -d rpool
+Dataset mos [META], ID 0, cr_txg 4, 26.9M, 1051 objects
+Dataset rpool/swap [ZVOL], ID 59, cr_txg 356, 486M, 2 objects
+ ...
+.Ed
+.It Xo
+.Sy Example 3
+Display basic information about object 0 in
+.Pa rpool/export/home
+.Xc
+.Bd -literal
+# zdb -d rpool/export/home 0
+Dataset rpool/export/home [ZPL], ID 137, cr_txg 1546, 32K, 8 objects
+
+    Object  lvl   iblk   dblk  dsize  lsize   %full  type
+         0    7    16K    16K  15.0K    16K   25.00  DMU dnode
+.Ed
+.It Xo
+.Sy Example 4
+Display the predicted effect of enabling deduplication on
+.Pa rpool
+.Xc
+.Bd -literal
+# zdb -S rpool
+Simulated DDT histogram:
+
+bucket              allocated                       referenced
+______   ______________________________   ______________________________
+refcnt   blocks   LSIZE   PSIZE   DSIZE   blocks   LSIZE   PSIZE   DSIZE
+------   ------   -----   -----   -----   ------   -----   -----   -----
+     1     694K   27.1G   15.0G   15.0G     694K   27.1G   15.0G   15.0G
+     2    35.0K   1.33G    699M    699M    74.7K   2.79G   1.45G   1.45G
+ ...
+dedup = 1.11, compress = 1.80, copies = 1.00, dedup * compress / copies = 2.00
+.Ed
+.El
+.Sh SEE ALSO
+.Xr zfs 8 ,
+.Xr zpool 8

@@ -1,0 +1,27 @@
+
+Authors of XZ Utils
+===================
+
+    XZ Utils is developed and maintained by Lasse Collin
+    <lasse.collin@tukaani.org>.
+
+    Major parts of liblzma are based on code written by Igor Pavlov,
+    specifically the LZMA SDK <http://7-zip.org/sdk.html>. Without
+    this code, XZ Utils wouldn't exist.
+
+    The SHA-256 implementation in liblzma is based on the code found from
+    7-Zip <http://7-zip.org/>, which has a modified version of the SHA-256
+    code found from Crypto++ <http://www.cryptopp.com/>. The SHA-256 code
+    in Crypto++ was written by Kevin Springle and Wei Dai.
+
+    Some scripts have been adapted from gzip. The original versions
+    were written by Jean-loup Gailly, Charles Levert, and Paul Eggert.
+    Andrew Dudman helped adapting the scripts and their man pages for
+    XZ Utils.
+
+    The GNU Autotools-based build system contains files from many authors,
+    which I'm not trying to list here.
+
+    Several people have contributed fixes or reported bugs. Most of them
+    are mentioned in the file THANKS.
+

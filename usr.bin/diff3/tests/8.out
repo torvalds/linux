@@ -1,0 +1,19 @@
+4a
+>>>>>>> 3
+.
+4a
+<<<<<<< 2
+New line
+=======
+.
+3a
+||||||| 2
+which multiple lines
+and a few typos to fix
+=======
+and a few typ0s to fix
+>>>>>>> 3
+.
+1a
+<<<<<<< 1
+.

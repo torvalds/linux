@@ -1,0 +1,375 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd November 17, 2018
+.Dt DUMPON 8
+.Os
+.Sh NAME
+.Nm dumpon
+.Nd "specify a device for crash dumps"
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Op Fl k Ar pubkey
+.Op Fl Z
+.Op Fl z
+.Ar device
+.Nm
+.Op Fl v
+.Op Fl k Ar pubkey
+.Op Fl Z
+.Op Fl z
+.Op Fl g Ar gateway
+.Fl s Ar server
+.Fl c Ar client
+.Ar iface
+.Nm
+.Op Fl v
+.Cm off
+.Nm
+.Op Fl v
+.Fl l
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to configure where the kernel can save a crash dump in the case
+of a panic.
+.Pp
+System administrators should typically configure
+.Nm
+in a persistent fashion using the
+.Xr rc.conf 5
+variables
+.Va dumpdev
+and
+.Va dumpon_flags .
+For more information on this usage, see
+.Xr rc.conf 5 .
+.Ss General options
+.Bl -tag -width _k_pubkey
+.It Fl k Ar pubkey
+Configure encrypted kernel dumps.
+.Pp
+A random, one-time symmetric key is automatically generated for bulk kernel
+dump encryption every time
+.Nm
+is used.
+The provided
+.Ar pubkey
+is used to encrypt a copy of the symmetric key.
+The encrypted dump contents consist of a standard dump header, the
+pubkey-encrypted symmetric key contents, and the symmetric key encrypted core
+dump contents.
+.Pp
+As a result, only someone with the corresponding private key can decrypt the symmetric key.
+The symmetric key is necessary to decrypt the kernel core.
+The goal of the mechanism is to provide confidentiality.
+.Pp
+The
+.Va pubkey
+file should be a PEM-formatted RSA key of at least 1024 bits.
+.It Fl l
+List the currently configured dump device, or /dev/null if no device is
+configured.
+.It Fl v
+Enable verbose mode.
+.It Fl Z
+Enable compression (Zstandard).
+.It Fl z
+Enable compression (gzip).
+Only one compression method may be enabled at a time, so
+.Fl z
+is incompatible with
+.Fl Z .
+.Pp
+Zstandard provides superior compression ratio and performance.
+.El
+.Ss Netdump
+.Nm
+may also configure the kernel to dump to a remote
+.Xr netdumpd 8
+server.
+(The
+.Xr netdumpd 8
+server is available in ports.)
+.Xr netdump 4
+eliminates the need to reserve space for crash dumps.
+It is especially useful in diskless environments.
+When
+.Nm
+is used to configure netdump, the
+.Ar device
+(or
+.Ar iface )
+parameter should specify a network interface (e.g.,
+.Va igb1 ) .
+The specified NIC must be up (online) to configure netdump.
+.Pp
+.Xr netdump 4
+specific options include:
+.Bl -tag -width _g_gateway
+.It Fl c Ar client
+The local IP address of the
+.Xr netdump 4
+client.
+.It Fl g Ar gateway
+The first-hop router between
+.Ar client
+and
+.Ar server .
+If the
+.Fl g
+option is not specified and the system has a default route, the default
+router is used as the
+.Xr netdump 4
+gateway.
+If the
+.Fl g
+option is not specified and the system does not have a default route,
+.Ar server
+is assumed to be on the same link as
+.Ar client .
+.It Fl s Ar server
+The IP address of the
+.Xr netdumpd 8
+server.
+.El
+.Pp
+All of these options can be specified in the
+.Xr rc.conf 5
+variable
+.Va dumpon_flags .
+.Ss Minidumps
+The default type of kernel crash dump is the mini crash dump.
+Mini crash dumps hold only memory pages in use by the kernel.
+Alternatively, full memory dumps can be enabled by setting the
+.Va debug.minidump
+.Xr sysctl 8
+variable to 0.
+.Ss Full dumps
+For systems using full memory dumps, the size of the specified dump
+device must be at least the size of physical memory.
+Even though an additional 64 kB header is added to the dump, the BIOS for a
+platform typically holds back some memory, so it is not usually
+necessary to size the dump device larger than the actual amount of RAM
+available in the machine.
+Also, when using full memory dumps, the
+.Nm
+utility will refuse to enable a dump device which is smaller than the
+total amount of physical memory as reported by the
+.Va hw.physmem
+.Xr sysctl 8
+variable.
+.Sh IMPLEMENTATION NOTES
+Because the file system layer is already dead by the time a crash dump
+is taken, it is not possible to send crash dumps directly to a file.
+.Pp
+The
+.Xr loader 8
+variable
+.Va dumpdev
+may be used to enable early kernel core dumps for system panics which occur
+before userspace starts.
+.Sh EXAMPLES
+In order to generate an RSA private key, a user can use the
+.Xr genrsa 1
+tool:
+.Pp
+.Dl # openssl genrsa -out private.pem 4096
+.Pp
+A public key can be extracted from the private key using the
+.Xr rsa 1
+tool:
+.Pp
+.Dl # openssl rsa -in private.pem -out public.pem -pubout
+.Pp
+Once the RSA keys are created in a safe place, the public key may be moved to
+the untrusted netdump client machine.
+Now
+.Pa public.pem
+can be used by
+.Nm
+to configure encrypted kernel crash dumps:
+.Pp
+.Dl # dumpon -k public.pem /dev/ada0s1b
+.Pp
+It is recommended to test if the kernel saves encrypted crash dumps using the
+current configuration.
+The easiest way to do that is to cause a kernel panic using the
+.Xr ddb 4
+debugger:
+.Pp
+.Dl # sysctl debug.kdb.panic=1
+.Pp
+In the debugger the following commands should be typed to write a core dump and
+reboot:
+.Pp
+.Dl db> call doadump(0)
+.Dl db> reset
+.Pp
+After reboot
+.Xr savecore 8
+should be able to save the core dump in the
+.Va Dq dumpdir
+directory, which is
+.Pa /var/crash
+by default:
+.Pp
+.Dl # savecore /dev/ada0s1b
+.Pp
+Three files should be created in the core directory:
+.Pa info.# ,
+.Pa key.#
+and
+.Pa vmcore_encrypted.#
+(where
+.Dq #
+is the number of the last core dump saved by
+.Xr savecore 8 ) .
+The
+.Pa vmcore_encrypted.#
+can be decrypted using the
+.Xr decryptcore 8
+utility:
+.Pp
+.Dl # decryptcore -p private.pem -k key.# -e vmcore_encrypted.# -c vmcore.#
+.Pp
+or shorter:
+.Pp
+.Dl # decryptcore -p private.pem -n #
+.Pp
+The
+.Pa vmcore.#
+can be now examined using
+.Xr kgdb 1 :
+.Pp
+.Dl # kgdb /boot/kernel/kernel vmcore.#
+.Pp
+or shorter:
+.Pp
+.Dl # kgdb -n #
+.Pp
+The core was decrypted properly if
+.Xr kgdb 1
+does not print any errors.
+Note that the live kernel might be at a different path
+which can be examined by looking at the
+.Va kern.bootfile
+.Xr sysctl 8 .
+.Sh SEE ALSO
+.Xr gzip 1 ,
+.Xr kgdb 1 ,
+.Xr zstd 1 ,
+.Xr ddb 4 ,
+.Xr netdump 4 ,
+.Xr fstab 5 ,
+.Xr rc.conf 5 ,
+.Xr config 8 ,
+.Xr decryptcore 8 ,
+.Xr init 8 ,
+.Xr loader 8 ,
+.Xr rc 8 ,
+.Xr savecore 8 ,
+.Xr swapon 8 ,
+.Xr panic 9
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 2.0.5 .
+.Pp
+Support for encrypted kernel core dumps and netdump was added in
+.Fx 12.0 .
+.Sh AUTHORS
+The
+.Nm
+manual page was written by
+.An Mark Johnston Aq Mt markj@FreeBSD.org ,
+.An Conrad Meyer Aq Mt cem@FreeBSD.org ,
+.An Konrad Witaszczyk Aq Mt def@FreeBSD.org ,
+and countless others.
+.Sh CAVEATS
+To configure encrypted kernel core dumps, the running kernel must have been
+compiled with the
+.Dv EKCD
+option.
+.Pp
+Netdump does not automatically update the configured
+.Ar gateway
+if routing topology changes.
+.Pp
+The size of a compressed dump or a minidump is not a fixed function of RAM
+size.
+Therefore, when at least one of these options is enabled, the
+.Nm
+utility cannot verify that the
+.Ar device
+has sufficient space for a dump.
+.Nm
+is also unable to verify that a configured
+.Xr netdumpd 8
+server has sufficient space for a dump.
+.Pp
+.Fl Z
+requires a kernel compiled with the
+.Dv ZSTDIO
+kernel option.
+Similarly,
+.Fl z
+requires the
+.Dv GZIO
+option.
+.Sh BUGS
+It is currently not possible to configure both compression and encryption.
+The encrypted dump format assumes that the kernel dump size is a multiple
+of the cipher block size, which may not be true when the dump is compressed.
+.Pp
+Netdump only supports IPv4 at this time.
+.Sh SECURITY CONSIDERATIONS
+The current encrypted kernel core dump scheme does not provide integrity nor
+authentication.
+That is, the recipient of an encrypted kernel core dump cannot know if they
+received an intact core dump, nor can they verify the provenance of the dump.
+.Pp
+RSA keys smaller than 1024 bits are practical to factor and therefore weak.
+Even 1024 bit keys may not be large enough to ensure privacy for many
+years, so NIST recommends a minimum of 2048 bit RSA keys.
+As a seatbelt,
+.Nm
+prevents users from configuring encrypted kernel dumps with extremely weak RSA
+keys.
+If you do not care for cryptographic privacy guarantees, just use
+.Nm
+without specifying a
+.Fl k Ar pubkey
+option.
+.Pp
+This process is sandboxed using
+.Xr capsicum 4 .

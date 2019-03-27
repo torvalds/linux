@@ -1,0 +1,182 @@
+if [ ! "$_MEDIA_NETWORK_SUBR" ]; then _MEDIA_NETWORK_SUBR=1
+#
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." media/network.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/media/tcpip.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+############################################################ GLOBALS
+
+NETWORK_INITIALIZED=
+
+############################################################ FUNCTIONS
+
+# f_media_init_network $device
+#
+# Initialize a network device (such as `fxp0', `em0', etc.). Returns success if
+# able to successfully initialize the device. If not running as init (basically
+# from the FreeBSD install media) then assume that the network has already been
+# initialized and returns success.
+#
+# The variables (from variable.subr) used to initialize the network are as
+# follows (all of which are configured either automatically or manaully):
+#
+# 	VAR_IFCONFIG + device_name (e.g., `ifconfig_em0')
+# 		Automatically populated but can be overridden in a script. This
+# 		defines the ifconfig(8) properties specific to a chosen network
+# 		interface device. Optional if VAR_IPV6ADDR is set.
+# 	VAR_IPV6ADDR [Optional]
+# 		If not running as init (and setting up RTSOL connections for
+# 		the interface), then must be set manually. If set, used as the
+# 		IPv6 configuration for the given network interface device.
+# 	VAR_GATEWAY [Optional]
+# 		If not running as init (and setting up a static connection for
+# 		the interface) then must be set (usually via rc.conf(5), but
+# 		can be set manually to override). If unset, the user is warned
+# 		but not prevented from proceeding (as most connections need a
+# 		default route but not everyone).
+#
+f_media_init_network()
+{
+	local dev="$1"
+
+	f_dprintf "Init routine called for network device \`%s'." "$dev"
+	if [ "$NETWORK_INITIALIZED" ]; then
+		f_dprintf "Network already initialized."
+		return $SUCCESS
+	elif ! f_running_as_init; then
+		f_dprintf "Not running as init -- calling the deed done."
+		NETWORK_INITIALIZED=1
+		return $SUCCESS
+	fi
+
+	if [ ! -e "$RESOLV_CONF" ]; then
+		if ! f_config_resolv; then
+			f_show_msg "$msg_cant_seem_to_write_out_resolv_conf" \
+			           "$RESOLV_CONF"
+			return $FAILURE
+		fi
+	fi
+
+	local cp
+	if f_getvar $VAR_IFCONFIG$dev cp; then
+		#
+		# If this interface isn't a DHCP one, bring it up.
+		# If it is, then it's already up.
+		#
+		case "$cp" in
+		*DHCP*)
+			f_dprintf "A DHCP interface.  Should already be up."
+			;;
+		*)
+			f_dprintf "Not a DHCP interface."
+			if ! f_quietly ifconfig "$dev" $cp; then
+				f_show_msg "$msg_unable_to_configure_device" \
+				           "$dev"
+				return $FAILURE
+			fi
+			local rp
+			f_getvar $VAR_GATEWAY rp
+			if [ ! "$rp" ]; then
+				f_show_msg "$msg_no_gateway_has_been_set"
+			else
+				#
+				# Explicitly flush all routes to get back to a
+				# known sane state. We don't need to check this
+				# exit code because if anything fails it will
+				# show up in the route add below.
+				#
+				f_quietly route -n flush
+				f_dprintf "Adding default route to %s." "$rp"
+				if ! f_quietly route -n add default "$rp"; then
+					f_show_msg \
+					    "$msg_failed_to_add_default_route"
+					return $FAILURE
+				fi
+			fi
+		esac
+	elif ! { f_getvar $VAR_IPV6ADDR cp && [ "$cp" ]; }; then
+		f_show_msg "$msg_device_is_not_configured" "$dev"
+		return $FAILURE
+	fi
+
+	f_dprintf "Network initialized successfully."
+	NETWORK_INITIALIZED=1
+	return $SUCCESS
+}
+
+# f_media_shutdown_network $device
+#
+# Shuts down the configured network device (e.g., `fxp0', `em0', etc.) and
+# deletes the default route (if configured). Returns failure if the device
+# passed has not been configured. If not running as init (basically from the
+# FreeBSD install media) then does nothing and returns success.
+#
+f_media_shutdown_network()
+{
+	local dev="$1" cp
+
+	f_dprintf "Shutdown called for network device %s" "$dev"
+	if [ ! "$NETWORK_INITIALIZED" ]; then
+		f_dprintf "Network not initialized -- nothing to do."
+		return $SUCCESS
+	fi
+
+	unset NETWORK_INITIALIZED
+	unset $VAR_NETWORK_DEVICE
+
+	if ! f_running_as_init; then
+		f_dprintf "Not running as init -- calling the deed done."
+		return $SUCCESS
+	fi
+
+	f_getvar $VAR_IFCONFIG$dev cp || return $FAILURE
+	f_dprintf "ifconfig %s down" "$dev"
+	f_quietly ifconfig $dev down ||
+		f_show_msg "$msg_unable_to_down_the_interface_properly" "$dev"
+
+	if f_getvar $VAR_GATEWAY cp; then
+		f_dprintf "Deleting default route."
+		f_quietly route -n delete default
+	fi
+
+	return $SUCCESS
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." media/network.subr
+
+fi # ! $_MEDIA_NETWORK_SUBR

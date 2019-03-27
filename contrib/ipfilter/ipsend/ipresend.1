@@ -1,0 +1,108 @@
+.\"	$FreeBSD$
+.\"
+.TH IPRESEND 1
+.SH NAME
+ipresend \- resend IP packets out to network
+.SH SYNOPSIS
+.B ipresend
+[
+.B \-EHPRSTX
+] [
+.B \-d
+<device>
+] [
+.B \-g
+<\fIgateway\fP>
+] [
+.B \-m
+<\fIMTU\fP>
+] [
+.B \-r
+<\fIfilename\fP>
+]
+.SH DESCRIPTION
+.PP
+\fBipresend\fP was designed to allow packets to be resent, once captured,
+back out onto the network for use in testing.  \fIipresend\fP supports a
+number of different file formats as input, including saved snoop/tcpdump
+binary data.
+.SH OPTIONS
+.TP
+.BR \-d \0<interface>
+Set the interface name to be the name supplied.  This is useful with the
+\fB\-P, \-S, \-T\fP and \fB\-E\fP options, where it is not otherwise possible
+to associate a packet with an interface.  Normal "text packets" can override
+this setting.
+.TP
+.BR \-g \0<gateway>
+Specify the hostname of the gateway through which to route packets.  This
+is required whenever the destination host isn't directly attached to the
+same network as the host from which you're sending.
+.TP
+.BR \-m \0<MTU>
+Specify the MTU to be used when sending out packets.  This option allows you
+to set a fake MTU, allowing the simulation of network interfaces with small
+MTU's without setting them so.
+.TP
+.BR \-r \0<filename>
+Specify the filename from which to take input.  Default is stdin.
+.TP
+.B \-E
+The input file is to be text output from etherfind.  The text formats which
+are currently supported are those which result from the following etherfind
+option combinations:
+.PP
+.nf
+		etherfind -n
+		etherfind -n -t
+.fi
+.LP
+.TP
+.B \-H
+The input file is to be hex digits, representing the binary makeup of the
+packet.  No length correction is made, if an incorrect length is put in
+the IP header.
+.TP
+.B \-P
+The input file specified by \fB\-i\fP is a binary file produced using libpcap
+(i.e., tcpdump version 3).  Packets are read from this file as being input
+(for rule purposes).
+.TP
+.B \-R
+When sending packets out, send them out "raw" (the way they came in).  The
+only real significance here is that it will expect the link layer (i.e.
+ethernet) headers to be prepended to the IP packet being output.
+.TP
+.B \-S
+The input file is to be in "snoop" format (see RFC 1761).  Packets are read
+from this file and used as input from any interface.  This is perhaps the
+most useful input type, currently.
+.TP
+.B \-T
+The input file is to be text output from tcpdump.  The text formats which
+are currently supported are those which result from the following tcpdump
+option combinations:
+.PP
+.nf
+		tcpdump -n
+		tcpdump -nq
+		tcpdump -nqt
+		tcpdump -nqtt
+		tcpdump -nqte
+.fi
+.LP
+.TP
+.B \-X
+The input file is composed of text descriptions of IP packets.
+.DT
+.SH SEE ALSO
+snoop(1m), tcpdump(8), etherfind(8c), ipftest(1), ipresend(1), iptest(1), bpf(4), dlpi(7p)
+.SH DIAGNOSTICS
+.PP
+Needs to be run as root.
+.SH BUGS
+.PP
+Not all of the input formats are sufficiently capable of introducing a
+wide enough variety of packets for them to be all useful in testing.
+If you find any, please send email to me at darrenr@pobox.com
+

@@ -1,0 +1,64 @@
+# $FreeBSD$
+#
+# Please see the file src/etc/mtree/README before making changes to this file.
+#
+
+/set type=dir uname=root gname=wheel mode=0755
+.
+    debug
+        bin
+        ..
+        boot
+            kernel
+            ..
+            modules
+            ..
+        ..
+        lib
+            casper
+            ..
+            geom
+            ..
+            nvmecontrol
+            ..
+        ..
+        libexec
+        ..
+        sbin
+        ..
+        usr
+            bin
+            ..
+            lib
+                clang
+                    8.0.0
+                        lib
+                            freebsd
+                            ..
+                        ..
+                    ..
+                ..
+                engines
+                ..
+                i18n
+                ..
+            ..
+            libexec
+                bsdinstall
+                ..
+                lpr
+                    ru
+                    ..
+                ..
+                sendmail
+                ..
+                sm.bin
+                ..
+            ..
+            sbin
+            ..
+            tests
+            ..
+        ..
+    ..
+..

@@ -1,0 +1,391 @@
+.\" Copyright (c) 2011-2016, Chelsio Inc
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Chelsio Inc nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Sep 24, 2018
+.Dt CXGBE 4
+.Os
+.Sh NAME
+.Nm cxgbe
+.Nd "Chelsio T4-, T5-, and T6-based 100Gb, 40Gb, 25Gb, 10Gb, and 1Gb Ethernet adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device cxgbe"
+.Ed
+.Pp
+To load the driver as a
+module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+t4fw_cfg_load="YES"
+t5fw_cfg_load="YES"
+t6fw_cfg_load="YES"
+if_cxgbe_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Express Ethernet adapters based on
+the Chelsio Terminator 4, Terminator 5, and Terminator 6 ASICs (T4, T5, and T6).
+The driver supports Jumbo Frames, Transmit/Receive checksum offload,
+TCP segmentation offload (TSO), Large Receive Offload (LRO), VLAN
+tag insertion/extraction, VLAN checksum offload, VLAN TSO, and
+Receive Side Steering (RSS).
+For further hardware information and questions related to hardware
+requirements, see
+.Pa http://www.chelsio.com/ .
+.Pp
+The
+.Nm
+driver uses different names for devices based on the associated ASIC:
+.Bl -column -offset indent "ASIC" "Port Name" "Parent Device"
+.It Sy ASIC Ta Sy Port Name Ta Sy Parent Device Ta Sy Virtual Interface
+.It T4 Ta cxgbe Ta t4nex Ta vcxgbe
+.It T5 Ta cxl Ta t5nex Ta vcxl
+.It T6 Ta cc Ta t6nex Ta vcc
+.El
+.Pp
+Loader tunables with the hw.cxgbe prefix apply to all cards.
+The driver provides sysctl MIBs for both ports and parent devices using
+the names above.
+For example, a T5 adapter provides port MIBs under dev.cxl and
+adapter-wide MIBs under dev.t5nex.
+References to sysctl MIBs in the remainder of this page use
+dev.<port> for port MIBs and dev.<nexus> for adapter-wide MIBs.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports 100Gb and 25Gb Ethernet adapters based on the T6 ASIC:
+.Pp
+.Bl -bullet -compact
+.It
+Chelsio T6225-CR
+.It
+Chelsio T6225-SO-CR
+.It
+Chelsio T62100-LP-CR
+.It
+Chelsio T62100-SO-CR
+.It
+Chelsio T62100-CR
+.El
+.Pp
+The
+.Nm
+driver supports 40Gb, 10Gb and 1Gb Ethernet adapters based on the T5 ASIC:
+.Pp
+.Bl -bullet -compact
+.It
+Chelsio T580-CR
+.It
+Chelsio T580-LP-CR
+.It
+Chelsio T580-LP-SO-CR
+.It
+Chelsio T560-CR
+.It
+Chelsio T540-CR
+.It
+Chelsio T540-LP-CR
+.It
+Chelsio T522-CR
+.It
+Chelsio T520-LL-CR
+.It
+Chelsio T520-CR
+.It
+Chelsio T520-SO
+.It
+Chelsio T520-BT
+.It
+Chelsio T504-BT
+.El
+.Pp
+The
+.Nm
+driver supports 10Gb and 1Gb Ethernet adapters based on the T4 ASIC:
+.Pp
+.Bl -bullet -compact
+.It
+Chelsio T420-CR
+.It
+Chelsio T422-CR
+.It
+Chelsio T440-CR
+.It
+Chelsio T420-BCH
+.It
+Chelsio T440-BCH
+.It
+Chelsio T440-CH
+.It
+Chelsio T420-SO
+.It
+Chelsio T420-CX
+.It
+Chelsio T420-BT
+.It
+Chelsio T404-BT
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+There are multiple tunables that control the number of queues of various
+types.
+A negative value for such a tunable instructs the driver to create
+up to that many queues if there are enough CPU cores available.
+.Bl -tag -width indent
+.It Va hw.cxgbe.ntxq
+Number of NIC tx queues used for a port.
+The default is 16 or the number
+of CPU cores in the system, whichever is less.
+.It Va hw.cxgbe.nrxq
+Number of NIC rx queues used for a port.
+The default is 8 or the number
+of CPU cores in the system, whichever is less.
+.It Va hw.cxgbe.nofldtxq
+Number of TOE tx queues used for a port.
+The default is 8 or the
+number of CPU cores in the system, whichever is less.
+.It Va hw.cxgbe.nofldrxq
+Number of TOE rx queues used for a port.
+The default is 2 or the
+number of CPU cores in the system, whichever is less.
+.It Va hw.cxgbe.num_vis
+Number of virtual interfaces (VIs) created for each port.
+Each virtual interface creates a separate network interface.
+The first virtual interface on each port is required and represents
+the primary network interface on the port.
+Additional virtual interfaces on a port are named using the Virtual Interface
+name from the table above.
+Additional virtual interfaces use a single pair of queues
+for rx and tx as well an additional pair of queues for TOE rx and tx.
+The default is 1.
+.It Va hw.cxgbe.holdoff_timer_idx
+.It Va hw.cxgbe.holdoff_timer_idx_ofld
+Timer index value used to delay interrupts.
+The holdoff timer list has the values 1, 5, 10, 50, 100, and 200
+by default (all values are in microseconds) and the index selects a
+value from this list.
+holdoff_timer_idx_ofld applies to queues used for TOE rx.
+The default value is 1 which means the timer value is 5us.
+Different interfaces can be assigned different values at any time via the
+dev.<port>.X.holdoff_tmr_idx and dev.<port>.X.holdoff_tmr_idx_ofld sysctls.
+.It Va hw.cxgbe.holdoff_pktc_idx
+.It Va hw.cxgbe.holdoff_pktc_idx_ofld
+Packet-count index value used to delay interrupts.
+The packet-count list has the values 1, 8, 16, and 32 by default,
+and the index selects a value from this list.
+holdoff_pktc_idx_ofld applies to queues used for TOE rx.
+The default value is -1 which means packet counting is disabled and interrupts
+are generated based solely on the holdoff timer value.
+Different interfaces can be assigned different values via the
+dev.<port>.X.holdoff_pktc_idx and dev.<port>.X.holdoff_pktc_idx_ofld sysctls.
+These sysctls work only when the interface has never been marked up (as done by
+ifconfig up).
+.It Va hw.cxgbe.qsize_txq
+Number of entries in a transmit queue's descriptor ring.
+A buf_ring of the same size is also allocated for additional
+software queuing.
+See
+.Xr ifnet 9 .
+The default value is 1024.
+Different interfaces can be assigned different values via the
+dev.<port>.X.qsize_txq sysctl.
+This sysctl works only when the interface has never been marked up (as done by
+ifconfig up).
+.It Va hw.cxgbe.qsize_rxq
+Number of entries in a receive queue's descriptor ring.
+The default value is 1024.
+Different interfaces can be assigned different values via the
+dev.<port>.X.qsize_rxq sysctl.
+This sysctl works only when the interface has never been marked up (as done by
+ifconfig up).
+.It Va hw.cxgbe.interrupt_types
+Permitted interrupt types.
+Bit 0 represents INTx (line interrupts), bit 1 MSI, and bit 2 MSI-X.
+The default is 7 (all allowed).
+The driver selects the best possible type out of the allowed types.
+.It Va hw.cxgbe.pcie_relaxed_ordering
+PCIe Relaxed Ordering.
+-1 indicates the driver should determine whether to enable or disable PCIe RO.
+0 disables PCIe RO.
+1 enables PCIe RO.
+2 indicates the driver should not modify the PCIe RO setting.
+The default is -1.
+.It Va hw.cxgbe.fw_install
+0 prohibits the driver from installing a firmware on the card.
+1 allows the driver to install a new firmware if internal driver
+heuristics indicate that the new firmware is preferable to the one
+already on the card.
+2 instructs the driver to always install the new firmware on the card as
+long as it is compatible with the driver and is a different version than
+the one already on the card.
+The default is 1.
+.It Va hw.cxgbe.fl_pktshift
+Number of padding bytes inserted before the beginning of an Ethernet
+frame in the receive buffer.
+The default value is 0.
+A value of of 2 would ensure that the Ethernet payload (usually the IP header)
+is at a 4 byte aligned address.
+0-7 are all valid values.
+.It Va hw.cxgbe.fl_pad
+A non-zero value ensures that writes from the hardware to a receive buffer are
+padded up to the specified boundary.
+The default is -1 which lets the driver pick a pad boundary.
+0 disables trailer padding completely.
+.It Va hw.cxgbe.cong_drop
+Controls the hardware response to congestion.
+-1 disables congestion feedback and is not recommended.
+0 instructs the hardware to backpressure its pipeline on congestion.
+This usually results in the port emitting PAUSE frames.
+1 instructs the hardware to drop frames destined for congested queues.
+.It Va hw.cxgbe.pause_settings
+PAUSE frame settings.
+Bit 0 is rx_pause, bit 1 is tx_pause, bit 2 is pause_autoneg.
+rx_pause = 1 instructs the hardware to heed incoming PAUSE frames, 0 instructs
+it to ignore them.
+tx_pause = 1 allows the hardware to emit PAUSE frames when its receive FIFO
+reaches a high threshold, 0 prohibits the hardware from emitting PAUSE frames.
+pause_autoneg = 1 overrides the rx_pause and tx_pause bits and instructs the
+hardware to negotiate PAUSE settings with the link peer.
+The default is 7 (all three = 1).
+This tunable establishes the default PAUSE settings for all ports.
+Settings can be displayed and controlled on a per-port basis via the
+dev.<port>.X.pause_settings sysctl.
+.It Va hw.cxgbe.fec
+FEC (Forward Error Correction) settings.
+0 diables FEC.
+Bit 0 enables RS FEC, bit 1 enables BASE-R FEC (aka Firecode FEC).
+The default is -1 which lets the driver pick a value.
+This tunable establishes the default FEC settings for all ports.
+Settings can be displayed and controlled on a per-port basis via the
+dev.<port>.X.fec sysctl.
+.It Va hw.cxgbe.autoneg
+Link autonegotiation settings.
+This tunable establishes the default autonegotiation settings for all ports.
+Settings can be displayed and controlled on a per-port basis via the
+dev.<port>.X.autoneg sysctl.
+0 disables autonegotiation.
+1 enables autonegotiation.
+The default is -1 which lets the driver pick a value.
+dev.<port>.X.autoneg is -1 for port and module combinations that do not support
+autonegotiation.
+.It Va hw.cxgbe.buffer_packing
+Allow the hardware to deliver multiple frames in the same receive buffer
+opportunistically.
+The default is -1 which lets the driver decide.
+0 or 1 explicitly disable or enable this feature.
+.It Va hw.cxgbe.allow_mbufs_in_cluster
+1 allows the driver to lay down one or more mbufs within the receive buffer
+opportunistically.
+This is the default.
+0 prohibits the driver from doing so.
+.It Va hw.cxgbe.largest_rx_cluster
+.It Va hw.cxgbe.safest_rx_cluster
+Sizes of rx clusters.
+Each of these must be set to one of the sizes available
+(usually 2048, 4096, 9216, and 16384) and largest_rx_cluster must be greater
+than or equal to safest_rx_cluster.
+The defaults are 16384 and 4096 respectively.
+The driver never attempts to allocate a receive buffer larger than
+largest_rx_cluster and falls back to allocating buffers of
+safest_rx_cluster size if an allocation larger than safest_rx_cluster fails.
+Note that largest_rx_cluster merely establishes a ceiling -- the driver is
+allowed to allocate buffers of smaller sizes.
+.It Va hw.cxgbe.config_file
+Select a pre-packaged device configuration file.
+A configuration file contains a recipe for partitioning and configuring the
+hardware resources on the card.
+This tunable is for specialized applications only and should not be used in
+normal operation.
+The configuration profile currently in use is available in the dev.<nexus>.X.cf
+and dev.<nexus>.X.cfcsum sysctls.
+.It Va hw.cxgbe.linkcaps_allowed
+.It Va hw.cxgbe.niccaps_allowed
+.It Va hw.cxgbe.toecaps_allowed
+.It Va hw.cxgbe.rdmacaps_allowed
+.It Va hw.cxgbe.iscsicaps_allowed
+.It Va hw.cxgbe.fcoecaps_allowed
+Disallowing capabilities provides a hint to the driver and firmware to not
+reserve hardware resources for that feature.
+Each of these is a bit field with a bit for each sub-capability within the
+capability.
+This tunable is for specialized applications only and should not be used in
+normal operation.
+The capabilities for which hardware resources have been reserved are listed in
+dev.<nexus>.X.*caps sysctls.
+.El
+.Sh SUPPORT
+For general information and support,
+go to the Chelsio support website at:
+.Pa http://www.chelsio.com/ .
+.Pp
+If an issue is identified with this driver with a supported adapter,
+email all the specific information related to the issue to
+.Aq Mt support@chelsio.com .
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr ccr 4 ,
+.Xr cxgb 4 ,
+.Xr cxgbev 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 9.0 .
+Support for T5 cards first appeared in
+.Fx 9.2
+and
+.Fx 10.0 .
+Support for T6 cards first appeared in
+.Fx 11.1
+and
+.Fx 12.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Navdeep Parhar Aq Mt np@FreeBSD.org .

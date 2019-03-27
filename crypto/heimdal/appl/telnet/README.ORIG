@@ -1,0 +1,743 @@
+
+This is a distribution of both client and server telnet.  These programs
+have been compiled on:
+			telnet	telnetd
+	4.4 BSD-Lite	  x	  x
+	4.3 BSD Reno	  X	  X
+	UNICOS 9.1	  X	  X
+	UNICOS 9.0	  X	  X
+	UNICOS 8.0	  X	  X
+	BSDI 2.0	  X	  X
+	Solaris 2.4       x       x (no linemode in server)
+	SunOs 4.1.4	  X	  X (no linemode in server)
+	Ultrix 4.3	  X	  X (no linemode in server)
+	Ultrix 4.1	  X	  X (no linemode in server)
+
+In addition, previous versions have been compiled on the following
+machines, but were not available for testing this version.
+			telnet	telnetd
+	Next1.0		  X	  X
+	UNICOS 8.3	  X	  X
+	UNICOS 7.C	  X	  X
+	UNICOS 7.0	  X	  X
+	SunOs 4.0.3c	  X	  X (no linemode in server)
+	4.3 BSD		  X  	  X (no linemode in server)
+	DYNIX V3.0.12	  X	  X (no linemode in server)
+	Ultrix 3.1	  X	  X (no linemode in server)
+	Ultrix 4.0	  X	  X (no linemode in server)
+	SunOs 3.5	  X	  X (no linemode in server)
+	SunOs 4.1.3	  X	  X (no linemode in server)
+	Solaris 2.2       x       x (no linemode in server)
+	Solaris 2.3       x       x (no linemode in server)
+	BSDI 1.0	  X	  X
+	BSDI 1.1	  X	  X
+	DYNIX V3.0.17.9	  X	  X (no linemode in server)
+	HP-UX 8.0	  x       x (no linemode in server)
+
+This code should work, but there are no guarantees.
+
+May 30, 1995
+
+This release represents what is on the 4.4BSD-Lite2 release, which
+should be the final BSD release.  I will continue to support of
+telnet, The code (without encryption) is available via anonymous ftp
+from ftp.cray.com, in src/telnet/telnet.YY.MM.DD.NE.tar.Z, where
+YY.MM.DD is replaced with the year, month and day of the release.
+If you can't find it at one of these places, at some point in the
+near future information about the latest releases should be available
+from ftp.borman.com.
+
+In addition, the version with the encryption code is available via
+ftp from net-dist.mit.edu, in the directory /pub/telnet.  There
+is a README file there that gives further information on how
+to get the distribution.
+
+Questions, comments, bug reports and bug fixes can be sent to
+one of these addresses:
+		dab@borman.com
+		dab@cray.com
+		dab@bsdi.com
+
+This release is mainly bug fixes and code cleanup.
+
+	Replace all calls to bcopy()/bzero() with calls to
+	memmove()/memset() and all calls to index()/rindex()
+	with calls to strchr()/strrchr().
+
+	Add some missing diagnostics for option tracing
+	to telnetd.
+
+	Add support for BSDI 2.0 and Solaris 2.4.
+
+	Add support for UNICOS 8.0
+
+	Get rid of expanded tabs and trailing white spaces.
+
+	From Paul Vixie:
+		Fix for telnet going into an endless spin
+		when the session dies abnormally.
+
+	From Jef Poskanzer:
+		Changes to allow telnet to compile
+		under SunOS 3.5.
+
+	From Philip Guenther:
+		makeutx() doesn't expand utmpx,
+		use pututxline() instead.
+
+	From Chris Torek:
+		Add a sleep(1) before execing login
+		to avoid race condition that can eat
+		up the login prompt.
+		Use terminal speed directly if it is
+		not an encoded value.
+
+	From Steve Parker:
+		Fix to realloc() call.  Fix for execing
+		login on solaris with no user name.
+
+January 19, 1994
+
+This is a list of some of the changes since the last tar release
+of telnet/telnetd.  There are probably other changes that aren't
+listed here, but this should hit a lot of the main ones.
+
+   General:
+	Changed #define for AUTHENTICATE to AUTHENTICATION
+	Changed #define for ENCRYPT to ENCRYPTION
+	Changed #define for DES_ENCRYPT to DES_ENCRYPTION
+
+	Added support for SPX authentication: -DSPX
+
+	Added support for Kerberos Version 5 authentication: -DKRB5
+
+	Added support for ANSI C function prototypes
+
+	Added support for the NEW-ENVIRON option (RFC-1572)
+	including support for USERVAR.
+
+	Made support for the old Environment Option (RFC-1408)
+	conditional on -DOLD_ENVIRON
+
+	Added #define ENV_HACK - support for RFC 1571
+
+	The encryption code is removed from the public distributions.
+	Domestic 4.4 BSD distributions contain the encryption code.
+
+	ENV_HACK: Code to deal with systems that only implement
+		the old ENVIRON option, and have reversed definitions
+		of ENV_VAR and ENV_VAL.  Also fixes ENV processing in
+		client to handle things besides just the default set...
+
+	NO_BSD_SETJMP: UNICOS configuration for
+		UNICOS 6.1/6.0/5.1/5.0 systems.
+
+	STREAMSPTY: Use /dev/ptmx to get a clean pty.  This
+		is for SVr4 derivatives (Like Solaris)
+
+	UTMPX: For systems that have /etc/utmpx. This is for
+		SVr4 derivatives (Like Solaris)
+
+	Definitions for BSDI 1.0
+
+	Definitions for 4.3 Reno and 4.4 BSD.
+
+	Definitions for UNICOS 8.0 and UNICOS 7.C
+
+	Definitions for Solaris 2.0
+
+	Definitions for HP-UX 8.0
+
+	Latest Copyright notices from Berkeley.
+
+	FLOW-CONTROL: support for RFC-XXXx
+
+
+   Client Specific:
+
+	Fix the "send" command to not send garbage...
+
+	Fix status message for "skiprc"
+
+	Make sure to send NAWS after telnet has been suspended
+	or an external command has been run, if the window size
+	has changed.
+
+	sysV88 support.
+
+   Server Specific:
+
+	Support flowcontrol option in non-linemode servers.
+
+	-k Server supports Kludge Linemode, but will default to
+	   either single character mode or real Linemode support.
+	   The user will have to explicitly ask to switch into
+	   kludge linemode. ("stty extproc", or escape back to
+	   to telnet and say "mode line".)
+
+	-u Specify the length of the hostname field in the utmp
+	   file.  Hostname longer than this length will be put
+	   into the utmp file in dotted decimal notation, rather
+	   than putting in a truncated hostname.
+	
+	-U Registered hosts only.  If a reverse hostname lookup
+	   fails, the connection will be refused.
+
+	-f/-F
+	   Allows forwarding of credentials for KRB5.
+
+Februrary 22, 1991:
+
+    Features:
+
+	This version of telnet/telnetd has support for both
+	the AUTHENTICATION and ENCRYPTION options.  The
+	AUTHENTICATION option is fairly well defined, and
+	an option number has been assigned to it.  The
+	ENCRYPTION option is still in a state of flux; an
+	option number has been assigned to, but it is still
+	subject to change.  The code is provided in this release
+	for experimental and testing purposes.
+
+	The telnet "send" command can now be used to send
+	do/dont/will/wont commands, with any telnet option
+	name.  The rules for when do/dont/will/wont are sent
+	are still followed, so just because the user requests
+	that one of these be sent doesn't mean that it will
+	be sent...
+
+	The telnet "getstatus" command no longer requires
+	that option printing be enabled to see the response
+	to the "DO STATUS" command.
+
+	A -n flag has been added to telnetd to disable
+	keepalives.
+
+	A new telnet command, "auth" has been added (if
+	AUTHENTICATE is defined).  It has four sub-commands,
+	"status", "disable", "enable" and "help".
+
+	A new telnet command, "encrypt" has been added (if
+	ENCRYPT is defined).  It has many sub-commands:
+	"enable", "type", "start", "stop", "input",
+	"-input", "output", "-output", "status", and "help".
+
+	The LOGOUT option is now supported by both telnet
+	and telnetd, a new command, "logout", was added
+	to support this.
+
+	Several new toggle options were added:
+	    "autoencrypt", "autodecrypt", "autologin", "authdebug",
+	    "encdebug", "skiprc", "verbose_encrypt"
+
+	An "rlogin" interface has been added.  If the program
+	is named "rlogin", or the "-r" flag is given, then
+	an rlogin type of interface will be used.
+		~.	Terminates the session
+		~<susp> Suspend the session
+		~^]	Escape to telnet command mode
+		~~	Pass through the ~.
+	    BUG: If you type the rlogin escape character
+		 in the middle of a line while in rlogin
+		 mode, you cannot erase it or any characters
+		 before it.  Hopefully this can be fixed
+		 in a future release...
+
+    General changes:
+
+	A "libtelnet.a" has now been created.  This libraray
+	contains code that is common to both telnet and
+	telnetd.  This is also where library routines that
+	are needed, but are not in the standard C library,
+	are placed.
+
+	The makefiles have been re-done.  All of the site
+	specific configuration information has now been put
+	into a single "Config.generic" file, in the top level
+	directory.  Changing this one file will take care of
+	all three subdirectories.  Also, to add a new/local
+	definition, a "Config.local" file may be created
+	at the top level; if that file exists, the subdirectories
+	will use that file instead of "Config.generic".
+
+	Many 1-2 line functions in commands.c have been
+	removed, and just inserted in-line, or replaced
+	with a macro.
+
+    Bug Fixes:
+
+	The non-termio code in both telnet and telnetd was
+	setting/clearing CTLECH in the sg_flags word.  This
+	was incorrect, and has been changed to set/clear the
+	LCTLECH bit in the local mode word.
+
+	The SRCRT #define has been removed.  If IP_OPTIONS
+	and IPPROTO_IP are defined on the system, then the
+	source route code is automatically enabled.
+
+	The NO_GETTYTAB #define has been removed; there
+	is a compatability routine that can be built into
+	libtelnet to achive the same results.
+
+	The server, telnetd, has been switched to use getopt()
+	for parsing the argument list.
+
+	The code for getting the input/output speeds via
+	cfgetispeed()/cfgetospeed() was still not quite
+	right in telnet.  Posix says if the ispeed is 0,
+	then it is really equal to the ospeed.
+
+	The suboption processing code in telnet now has
+	explicit checks to make sure that we received
+	the entire suboption (telnetd was already doing this).
+
+	The telnet code for processing the terminal type
+	could cause a core dump if an existing connection
+	was closed, and a new connection opened without
+	exiting telnet.
+
+	Telnetd was doing a TCSADRAIN when setting the new
+	terminal settings;  This is not good, because it means
+	that the tcsetattr() will hang waiting for output to
+	drain, and telnetd is the only one that will drain
+	the output...  The fix is to use TCSANOW which does
+	not wait.
+
+	Telnetd was improperly setting/clearing the ISTRIP
+	flag in the c_lflag field, it should be using the
+	c_iflag field. 
+
+	When the child process of telnetd was opening the
+	slave side of the pty, it was re-setting the EXTPROC
+	bit too early, and some of the other initialization
+	code was wiping it out.  This would cause telnetd
+	to go out of linemode and into single character mode.
+
+	One instance of leaving linemode in telnetd forgot
+	to send a WILL ECHO to the client, the net result
+	would be that the user would see double character
+	echo.
+
+	If the MODE was being changed several times very
+	quickly, telnetd could get out of sync with the
+	state changes and the returning acks; and wind up
+	being left in the wrong state.
+
+September 14, 1990:
+
+	Switch the client to use getopt() for parsing the
+	argument list.  The 4.3Reno getopt.c is included for
+	systems that don't have getopt().
+
+	Use the posix _POSIX_VDISABLE value for what value
+	to use when disabling special characters.  If this
+	is undefined, it defaults to 0x3ff.
+
+	For non-termio systems, TIOCSETP was being used to
+	change the state of the terminal.  This causes the
+	input queue to be flushed, which we don't want.  This
+	is now changed to TIOCSETN.
+
+	Take out the "#ifdef notdef" around the code in the
+	server that generates a "sync" when the pty oputput
+	is flushed.  The potential problem is that some older
+	telnet clients may go into an infinate loop when they
+	receive a "sync", if so, the server can be compiled
+	with "NO_URGENT" defined.
+
+	Fix the client where it was setting/clearing the OPOST
+	bit in the c_lflag field, not the c_oflag field.
+
+	Fix the client where it was setting/clearing the ISTRIP
+	bit in the c_lflag field, not the c_iflag field.  (On
+	4.3Reno, this is the ECHOPRT bit in the c_lflag field.)
+	The client also had its interpretation of WILL BINARY
+	and DO BINARY reversed.
+
+	Fix a bug in client that would cause a core dump when
+	attempting to remove the last environment variable.
+
+	In the client, there were a few places were switch()
+	was being passed a character, and if it was a negative
+	value, it could get sign extended, and not match
+	the 8 bit case statements.  The fix is to and the
+	switch value with 0xff.
+
+	Add a couple more printoption() calls in the client, I
+	don't think there are any more places were a telnet
+	command can be received and not printed out when
+	"options" is on.
+
+	A new flag has been added to the client, "-a".  Currently,
+	this just causes the USER name to be sent across, in
+	the future this may be used to signify that automatic
+	authentication is requested.
+
+	The USER variable is now only sent by the client if
+	the "-a" or "-l user" options are explicity used, or
+	if the user explicitly asks for the "USER" environment
+	variable to be exported.  In the server, if it receives
+	the "USER" environment variable, it won't print out the
+	banner message, so that only "Password:" will be printed.
+	This makes the symantics more like rlogin, and should be
+	more familiar to the user.  (People are not used to
+	getting a banner message, and then getting just a
+	"Password:" prompt.)
+
+	Re-vamp the code for starting up the child login
+	process.  The code was getting ugly, and it was
+	hard to tell what was really going on.  What we
+	do now is after the fork(), in the child:
+		1) make sure we have no controlling tty
+		2) open and initialize the tty
+		3) do a setsid()/setpgrp()
+		4) makes the tty our controlling tty.
+	On some systems, #2 makes the tty our controlling
+	tty, and #4 is a no-op.  The parent process does
+	a gets rid of any controlling tty after the child
+	is fork()ed.
+
+	Use the strdup() library routine in telnet, instead
+	of the local savestr() routine.  If you don't have
+	strdup(), you need to define NO_STRDUP.
+
+	Add support for ^T (SIGINFO/VSTATUS), found in the
+	4.3Reno distribution.  This maps to the AYT character.
+	You need a 4-line bugfix in the kernel to get this
+	to work properly:
+
+	> *** tty_pty.c.ORG	Tue Sep 11 09:41:53 1990
+	> --- tty_pty.c	Tue Sep 11 17:48:03 1990
+	> ***************
+	> *** 609,613 ****
+	> 			if ((tp->t_lflag&NOFLSH) == 0)
+	> 				ttyflush(tp, FREAD|FWRITE);
+	> ! 			pgsignal(tp->t_pgrp, *(unsigned int *)data);
+	> 			return(0);
+	> 		}
+	> --- 609,616 ----
+	> 			if ((tp->t_lflag&NOFLSH) == 0)
+	> 				ttyflush(tp, FREAD|FWRITE);
+	> ! 			pgsignal(tp->t_pgrp, *(unsigned int *)data, 1);
+	> ! 			if ((*(unsigned int *)data == SIGINFO) &&
+	> ! 			    ((tp->t_lflag&NOKERNINFO) == 0))
+	> ! 				ttyinfo(tp);
+	> 			return(0);
+	> 		}
+
+	The client is now smarter when setting the telnet escape
+	character; it only sets it to one of VEOL and VEOL2 if
+	one of them is undefined, and the other one is not already
+	defined to the telnet escape character.
+
+	Handle TERMIOS systems that have seperate input and output
+	line speed settings imbedded in the flags.
+
+	Many other minor bug fixes.
+
+June 20, 1990:
+	Re-organize makefiles and source tree.  The telnet/Source
+	directory is now gone, and all the source that was in
+	telnet/Source is now just in the telnet directory.
+
+	Seperate makefile for each system are now gone.  There
+	are two makefiles, Makefile and Makefile.generic.
+	The "Makefile" has the definitions for the various
+	system, and "Makefile.generic" does all the work.
+	There is a variable called "WHAT" that is used to
+	specify what to make.  For example, in the telnet
+	directory, you might say:
+		make 4.4bsd WHAT=clean
+	to clean out the directory.
+
+	Add support for the ENVIRON and XDISPLOC options.
+	In order for the server to work, login has to have
+	the "-p" option to preserve environment variables.
+
+	Add the SOFT_TAB and LIT_ECHO modes in the LINEMODE support.
+
+	Add the "-l user" option to command line and open command
+	(This is passed through the ENVIRON option).
+
+	Add the "-e" command line option, for setting the escape
+	character.
+
+	Add the "-D", diagnostic, option to the server.  This allows
+	the server to print out debug information, which is very
+	useful when trying to debug a telnet that doesn't have any
+	debugging ability.
+
+	Turn off the literal next character when not in LINEMODE.
+
+	Don't recognize ^Y locally, just pass it through.
+
+	Make minor modifications for Sun4.0 and Sun4.1
+
+	Add support for both FORW1 and FORW2 characters.  The
+	telnet escpape character is set to whichever of the
+	two is not being used.  If both are in use, the escape
+	character is not set, so when in linemode the user will
+	have to follow the escape character with a <CR> or <EOF)
+	to get it passed through.
+
+	Commands can now be put in single and double quotes, and
+	a backslash is now an escape character.  This is needed
+	for allowing arbitrary strings to be assigned to environment
+	variables.
+
+	Switch telnetd to use macros like telnet for keeping
+	track of the state of all the options.
+
+	Fix telnetd's processing of options so that we always do
+	the right processing of the LINEMODE option, regardless
+	of who initiates the request to turn it on.  Also, make
+	sure that if the other side went "WILL ECHO" in response
+	to our "DO ECHO", that we send a "DONT ECHO" to get the
+	option turned back off!
+
+	Fix the TERMIOS setting of the terminal speed to handle both
+	BSD's seperate fields, and the SYSV method of CBAUD bits.
+
+	Change how we deal with the other side refusing to enable
+	an option.  The sequence used to be: send DO option; receive
+	WONT option; send DONT option.  Now, the sequence is: send
+	DO option; receive WONT option.  Both should be valid
+	according to the spec, but there has been at least one
+	client implementation of telnet identified that can get
+	really confused by this.  (The exact sequence, from a trace
+	on the server side, is (numbers are number of responses that
+	we expect to get after that line...):
+
+		send WILL ECHO	1 (initial request)
+		send WONT ECHO	2 (server is changing state)
+		recv DO ECHO	1 (first reply, ok.  expect DONT ECHO next)
+		send WILL ECHO	2 (server changes state again)
+		recv DONT ECHO	1 (second reply, ok.  expect DO ECHO next)
+		recv DONT ECHO	0 (third reply, wrong answer. got DONT!!!)
+	***	send WONT ECHO	  (send WONT to acknowledge the DONT)
+		send WILL ECHO	1 (ask again to enable option)
+		recv DO ECHO	0
+
+		recv DONT ECHO	0
+		send WONT ECHO	1
+		recv DONT ECHO	0
+		recv DO ECHO	1
+		send WILL ECHO	0
+		(and the last 5 lines loop forever)
+
+	The line with the "***" is last of the WILL/DONT/WONT sequence.
+	The change to the server to not generate that makes this same
+	example become:
+
+		send will ECHO	1
+		send wont ECHO	2
+		recv do ECHO	1
+		send will ECHO	2
+		recv dont ECHO	1
+		recv dont ECHO	0
+		recv do ECHO	1
+		send will ECHO	0
+
+	There is other option negotiation going on, and not sending
+	the third part changes some of the timings, but this specific
+	example no longer gets stuck in a loop.  The "telnet.state"
+	file has been modified to reflect this change to the algorithm.
+
+	A bunch of miscellaneous bug fixes and changes to make
+	lint happier.
+
+	This version of telnet also has some KERBEROS stuff in
+	it. This has not been tested, it uses an un-authorized
+	telnet option number, and uses an out-of-date version
+	of the (still being defined) AUTHENTICATION option.
+	There is no support for this code, do not enable it.
+
+
+March 1, 1990:
+CHANGES/BUGFIXES SINCE LAST RELEASE:
+	Some support for IP TOS has been added.  Requires that the
+	kernel support the IP_TOS socket option (currently this
+	is only in UNICOS 6.0).
+
+	Both telnet and telnetd now use the cc_t typedef.  typedefs are
+	included for systems that don't have it (in termios.h).
+
+	SLC_SUSP was not supported properly before.  It is now.
+
+	IAC EOF was not translated  properly in telnetd for SYSV_TERMIO
+	when not in linemode.  It now saves a copy of the VEOF character,
+	so that when ICANON is turned off and we can't trust it anymore
+	(because it is now the VMIN character) we use the saved value.
+
+	There were two missing "break" commands in the linemode
+	processing code in telnetd.
+
+	Telnetd wasn't setting the kernel window size information
+	properly.  It was using the rows for both rows and columns...
+
+Questions/comments go to
+		David Borman
+		Cray Research, Inc.
+		655F Lone Oak Drive
+		Eagan, MN 55123
+		dab@cray.com.
+
+README:	You are reading it.
+
+Config.generic:
+	This file contains all the OS specific definitions.  It
+	has pre-definitions for many common system types, and is
+	in standard makefile fromat.  See the comments at the top
+	of the file for more information.
+
+Config.local:
+	This is not part of the distribution, but if this file exists,
+	it is used instead of "Config.generic".  This allows site
+	specific configuration without having to modify the distributed
+	"Config.generic" file.
+
+kern.diff:
+	This file contains the diffs for the changes needed for the
+	kernel to support LINEMODE is the server.  These changes are
+	for a 4.3BSD system.  You may need to make some changes for
+	your particular system.
+
+	There is a new bit in the terminal state word, TS_EXTPROC.
+	When this bit is set, several aspects of the terminal driver
+	are disabled.  Input line editing, character echo, and
+	mapping of signals are all disabled.  This allows the telnetd
+	to turn of these functions when in linemode, but still keep
+	track of what state the user wants the terminal to be in.
+
+	New ioctl()s:
+
+		TIOCEXT		Turn on/off the TS_EXTPROC bit
+		TIOCGSTATE	Get t_state of tty to look at TS_EXTPROC bit
+		TIOCSIG		Generate a signal to processes in the
+				current process group of the pty.
+
+	There is a new mode for packet driver, the TIOCPKT_IOCTL bit.
+	When packet mode is turned on in the pty, and the TS_EXTPROC
+	bit is set, then whenever the state of the pty is changed, the
+	next read on the master side of the pty will have the TIOCPKT_IOCTL
+	bit set, and the data will contain the following:
+		struct xx {
+			struct sgttyb a;
+			struct tchars b;
+			struct ltchars c;
+			int t_state;
+			int t_flags;
+		}
+	This allows the process on the server side of the pty to know
+	when the state of the terminal has changed, and what the new
+	state is.
+
+	However, if you define USE_TERMIO or SYSV_TERMIO, the code will
+	expect that the structure returned in the TIOCPKT_IOCTL is
+	the termio/termios structure.
+
+stty.diff:
+	This file contains the changes needed for the stty(1) program
+	to report on the current status of the TS_EXTPROC bit.  It also
+	allows the user to turn on/off the TS_EXTPROC bit.  This is useful
+	because it allows the user to say "stty -extproc", and the
+	LINEMODE option will be automatically disabled, and saying "stty
+	extproc" will re-enable the LINEMODE option.
+
+telnet.state:
+	Both the client and server have code in them to deal
+	with option negotiation loops.  The algorithm that is
+	used is described in this file.
+
+telnet:
+	This directory contains the client code.  No kernel changes are
+	needed to use this code.
+
+telnetd:
+	This directory contains the server code.  If LINEMODE or KLUDGELINEMODE
+	are defined, then the kernel modifications listed above are needed.
+
+libtelnet:
+	This directory contains code that is common to both the client
+	and the server.
+
+arpa:
+	This directory has a new <arpa/telnet.h>
+
+libtelnet/Makefile.4.4:
+telnet/Makefile.4.4:
+telnetd/Makefile.4.4:
+	These are the makefiles that can be used on a 4.3Reno
+	system when this software is installed in /usr/src/lib/libtelnet,
+	/usr/src/libexec/telnetd, and /usr/src/usr.bin/telnet.
+
+
+The following TELNET options are supported:
+	
+	LINEMODE:
+		The LINEMODE option is supported as per RFC1116.  The
+		FORWARDMASK option is not currently supported.
+
+	BINARY: The client has the ability to turn on/off the BINARY
+		option in each direction.  Turning on BINARY from
+		server to client causes the LITOUT bit to get set in
+		the terminal driver on both ends,  turning on BINARY
+		from the client to the server causes the PASS8 bit
+		to get set in the terminal driver on both ends.
+
+	TERMINAL-TYPE:
+		This is supported as per RFC1091.  On the server side,
+		when a terminal type is received, termcap/terminfo
+		is consulted to determine if it is a known terminal
+		type.  It keeps requesting terminal types until it
+		gets one that it recongnizes, or hits the end of the
+		list.  The server side looks up the entry in the
+		termcap/terminfo data base, and generates a list of
+		names which it then passes one at a time to each
+		request for a terminal type, duplicating the last
+		entry in the list before cycling back to the beginning.
+
+	NAWS:	The Negotiate about Window Size, as per RFC 1073.
+
+	TERMINAL-SPEED:
+		Implemented as per RFC 1079
+
+	TOGGLE-FLOW-CONTROL:
+		Implemented as per RFC 1080
+
+	TIMING-MARK:
+		As per RFC 860
+
+	SGA:	As per RFC 858
+
+	ECHO:	As per RFC 857
+
+	LOGOUT: As per RFC 727
+
+	STATUS:
+		The server will send its current status upon
+		request.  It does not ask for the clients status.
+		The client will request the servers current status
+		from the "send getstatus" command.
+
+	ENVIRON:
+		This option is currently being defined by the IETF
+		Telnet Working Group, and an RFC has not yet been
+		issued, but should be in the near future...
+
+	X-DISPLAY-LOCATION:
+		This functionality can be done through the ENVIRON
+		option, it is added here for completeness.
+
+	AUTHENTICATION:
+		This option is currently being defined by the IETF
+		Telnet Working Group, and an RFC has not yet been
+		issued.  The basic framework is pretty much decided,
+		but the definitions for the specific authentication
+		schemes is still in a state of flux.
+
+	ENCRYPTION:
+		This option is currently being defined by the IETF
+		Telnet Working Group, and an RFC has not yet been
+		issued.  The draft RFC is still in a state of flux,
+		so this code may change in the future.

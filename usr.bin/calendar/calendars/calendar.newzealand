@@ -1,0 +1,25 @@
+/*
+ * New Zealand holidays
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _calendar_newzealand_
+#define _calendar_newzealand_
+
+Jan 02	New Year Holiday (NZ)
+Jan 14	Anniversary Day (Southland)
+Jan 21	Anniversary Day (Wellington)
+Jan 28	Anniversary Day (Auckland)
+Feb 06	Waitangi Day (NZ)
+Mar 11	Anniversary Day (Taranaki)
+Mar 25	Anniversary Day (Otago)
+Jun 03	Queen's Birthday (NZ)
+Sep 23	Anniversary Day (South Canterbury)
+Oct 25	Anniversary Day (Hawke's Bay)
+Oct 28	Labour Day (NZ)
+Nov 04	Anniversary Day (Marlborough)
+Nov 15	Anniversary Day (Canterbury)
+Dec 02	Anniversary Day (Chatham Islands)
+
+#endif

@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Copyright 2013 Freescale Semiconductor, Inc.
+
+#include "vfxxx.dtsi"
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	chosen { };
+	aliases { };
+	memory { device_type = "memory"; };
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		a5_cpu: cpu@0 {
+			compatible = "arm,cortex-a5";
+			device_type = "cpu";
+			reg = <0x0>;
+		};
+	};
+
+	soc {
+		aips-bus@40000000 {
+
+			intc: interrupt-controller@40003000 {
+				compatible = "arm,cortex-a9-gic";
+				#interrupt-cells = <3>;
+				interrupt-controller;
+				interrupt-parent = <&intc>;
+				reg = <0x40003000 0x1000>,
+				      <0x40002100 0x100>;
+			};
+
+			global_timer: timer@40002200 {
+				compatible = "arm,cortex-a9-global-timer";
+				reg = <0x40002200 0x20>;
+				interrupts = <GIC_PPI 11 IRQ_TYPE_EDGE_RISING>;
+				interrupt-parent = <&intc>;
+				clocks = <&clks VF610_CLK_PLATFORM_BUS>;
+			};
+		};
+
+		aips-bus@40080000 {
+			pmu@40089000 {
+				compatible = "arm,cortex-a5-pmu";
+				interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-affinity = <&a5_cpu>;
+				reg = <0x40089000 0x1000>;
+			};
+		};
+
+	};
+};
+
+&mscm_ir {
+	interrupt-parent = <&intc>;
+};
+
+&wdoga5 {
+	status = "okay";
+};

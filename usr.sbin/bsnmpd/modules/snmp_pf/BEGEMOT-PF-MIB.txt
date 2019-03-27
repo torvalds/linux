@@ -1,0 +1,1347 @@
+--
+-- ----------------------------------------------------------------------------
+-- "THE BEER-WARE LICENSE" (Revision 42):
+-- <philip@FreeBSD.org> wrote this file.  As long as you retain this notice you
+-- can do whatever you want with this stuff. If we meet some day, and you think
+-- this stuff is worth it, you can buy me a beer in return.   -Philip Paeps
+-- ----------------------------------------------------------------------------
+--
+-- $FreeBSD$
+--
+
+BEGEMOT-PF-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, Counter64, Integer32,
+    TimeTicks, Unsigned32
+	FROM SNMPv2-SMI
+    TruthValue
+	FROM SNMPv2-TC
+    InetAddress, InetAddressType, InetAddressPrefixLength
+	FROM INET-ADDRESS-MIB
+    begemot
+	FROM BEGEMOT-MIB;
+
+begemotPf MODULE-IDENTITY
+    LAST-UPDATED "201003180000Z"
+    ORGANIZATION "NixSys BVBA"
+    CONTACT-INFO
+	    "		Philip Paeps
+
+	     Postal:	NixSys BVBA
+			Louizastraat 14
+			BE-2800 Mechelen
+			Belgium
+
+	     E-Mail:	philip@FreeBSD.org"
+    DESCRIPTION
+	    "The Begemot MIB for the pf packet filter."
+    REVISION	"201003180000Z"
+    DESCRIPTION
+		"Modified pfTablesAddrEntry to support IPv6
+		addresses - added pfTablesAddrNetType column
+		and modified type of pfTablesAddrNet to
+		InetAddress."
+    REVISION	"200912050000Z"
+    DESCRIPTION
+	    "Added support for retrieving counters of labeled
+	    pf filter rules via pfLabelspfLabels subtree."
+    REVISION	"200501240000Z"
+    DESCRIPTION
+	    "Initial revision."
+
+    ::= { begemot 200 }
+
+begemotPfObjects	OBJECT IDENTIFIER ::= { begemotPf 1 }
+
+-- --------------------------------------------------------------------------
+
+pfStatus		OBJECT IDENTIFIER ::= { begemotPfObjects 1 }
+pfCounter		OBJECT IDENTIFIER ::= { begemotPfObjects 2 }
+pfStateTable		OBJECT IDENTIFIER ::= { begemotPfObjects 3 }
+pfSrcNodes		OBJECT IDENTIFIER ::= { begemotPfObjects 4 }
+pfLimits		OBJECT IDENTIFIER ::= { begemotPfObjects 5 }
+pfTimeouts		OBJECT IDENTIFIER ::= { begemotPfObjects 6 }
+pfLogInterface		OBJECT IDENTIFIER ::= { begemotPfObjects 7 }
+pfInterfaces		OBJECT IDENTIFIER ::= { begemotPfObjects 8 }
+pfTables		OBJECT IDENTIFIER ::= { begemotPfObjects 9 }
+pfAltq			OBJECT IDENTIFIER ::= { begemotPfObjects 10 }
+pfLabels		OBJECT IDENTIFIER ::= { begemotPfObjects 11 }
+
+-- --------------------------------------------------------------------------
+
+--
+-- status information
+--
+
+pfStatusRunning OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"True if pf is currently enabled."
+    ::= { pfStatus 1 }
+
+pfStatusRuntime OBJECT-TYPE
+    SYNTAX	TimeTicks
+    UNITS	"1/100th of a Second"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Indicates how long pf has been enabled.  If pf is not currently
+	enabled, indicates how long it has been disabled.  If pf has not
+	been enabled or disabled since the system was started, the value
+	will be 0."
+    ::= { pfStatus 2 }
+
+pfStatusDebug OBJECT-TYPE
+    SYNTAX	INTEGER { none(0), urgent(1), misc(2), loud(3) }
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Indicates the debug level at which pf is running."
+    ::= { pfStatus 3 }
+
+pfStatusHostId OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The (unique) host identifier of the machine running pf."
+    ::= { pfStatus 4 }
+
+-- --------------------------------------------------------------------------
+
+--
+-- counters
+--
+
+pfCounterMatch OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of packets that matched a filter rule."
+    ::= { pfCounter 1 }
+
+pfCounterBadOffset OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of packets with bad offset."
+    ::= { pfCounter 2 }
+
+pfCounterFragment OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of fragmented packets."
+    ::= { pfCounter 3 }
+
+pfCounterShort OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of short packets."
+    ::= { pfCounter 4 }
+
+pfCounterNormalize OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of normalized packets."
+    ::= { pfCounter 5 }
+
+pfCounterMemDrop OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of packets dropped due to memory limitations."
+    ::= { pfCounter 6 }
+
+-- --------------------------------------------------------------------------
+
+--
+-- state table
+--
+
+pfStateTableCount OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of entries in the state table."
+    ::= { pfStateTable 1 }
+
+pfStateTableSearches OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of searches against the state table."
+    ::= { pfStateTable 2 }
+
+pfStateTableInserts OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of entries inserted into the state table."
+    ::= { pfStateTable 3 }
+
+pfStateTableRemovals OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of entries removed from the state table."
+    ::= { pfStateTable 4 }
+
+-- --------------------------------------------------------------------------
+
+--
+-- source nodes
+--
+
+pfSrcNodesCount OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of entries in the source tracking table."
+    ::= { pfSrcNodes 1 }
+
+pfSrcNodesSearches OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of searches against the source tracking table."
+    ::= { pfSrcNodes 2 }
+
+pfSrcNodesInserts OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of entries inserted into the source tracking table."
+    ::= { pfSrcNodes 3 }
+
+pfSrcNodesRemovals OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of entries removed from the source tracking table."
+    ::= { pfSrcNodes 4 }
+
+-- --------------------------------------------------------------------------
+
+--
+-- limits
+--
+
+pfLimitsStates OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Maximum number of 'keep state' rules in the ruleset."
+    ::= { pfLimits 1 }
+
+pfLimitsSrcNodes OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Maximum number of 'sticky-address' or 'source-track' rules
+	in the ruleset."
+    ::= { pfLimits 2 }
+
+pfLimitsFrags OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Maximum number of 'scrub' rules in the ruleset."
+    ::= { pfLimits 3 }
+
+-- --------------------------------------------------------------------------
+
+--
+-- timeouts
+--
+
+pfTimeoutsTcpFirst OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"State after the first packet in a connection."
+    ::= { pfTimeouts 1 }
+
+pfTimeoutsTcpOpening OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"State before the destination host ever sends a packet."
+    ::= { pfTimeouts 2 }
+
+pfTimeoutsTcpEstablished OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The fully established state."
+    ::= { pfTimeouts 3 }
+
+pfTimeoutsTcpClosing OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"State after the first FIN has been sent."
+    ::= { pfTimeouts 4 }
+
+pfTimeoutsTcpFinWait OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"State after both FINs have been exchanged and the
+	connection is closed."
+    ::= { pfTimeouts 5 }
+
+pfTimeoutsTcpClosed OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"State after one endpoint sends an RST."
+    ::= { pfTimeouts 6 }
+
+pfTimeoutsUdpFirst OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"State after the first packet."
+    ::= { pfTimeouts 7 }
+
+pfTimeoutsUdpSingle OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"State if the source host sends more than one packet but
+	the destination host has never sent one back."
+    ::= { pfTimeouts 8 }
+
+pfTimeoutsUdpMultiple OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"State if both hosts have sent packets."
+    ::= { pfTimeouts 9 }
+
+pfTimeoutsIcmpFirst OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"State after the first packet."
+    ::= { pfTimeouts 10 }
+
+pfTimeoutsIcmpError OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"State after an ICMP error came back in response to an
+	ICMP packet."
+    ::= { pfTimeouts 11 }
+
+pfTimeoutsOtherFirst OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"State after the first packet."
+    ::= { pfTimeouts 12 }
+
+pfTimeoutsOtherSingle OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"State if the source host sends more than one packet but
+	the destination host has never sent one back."
+    ::= { pfTimeouts 13 }
+
+pfTimeoutsOtherMultiple OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"State if both hosts have sent packets."
+    ::= { pfTimeouts 14 }
+
+pfTimeoutsFragment OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Seconds before an unassembled fragment is expired."
+    ::= { pfTimeouts 15 }
+
+pfTimeoutsInterval OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Interval between purging expired states and fragments."
+    ::= { pfTimeouts 16 }
+
+pfTimeoutsAdaptiveStart OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"When the number of state entries exceeds this value,
+	adaptive scaling begins."
+    ::= { pfTimeouts 17 }
+
+pfTimeoutsAdaptiveEnd OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"When reaching this number of state entries, all timeout
+	values become zero, effectively purging all state entries
+	immediately."
+    ::= { pfTimeouts 18 }
+
+pfTimeoutsSrcNode OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Length of time to retain a source tracking entry after
+	the last state expires."
+    ::= { pfTimeouts 19 }
+
+-- --------------------------------------------------------------------------
+
+--
+-- log interface
+--
+
+pfLogInterfaceName OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The name of the interface configured with 'set loginterface'.
+	If no interface has been configured, the object will be empty."
+    ::= { pfLogInterface 1 }
+
+pfLogInterfaceIp4BytesIn OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of IPv4 bytes passed in on the loginterface."
+    ::= { pfLogInterface 2 }
+
+pfLogInterfaceIp4BytesOut OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of IPv4 bytes passed out on the loginterface."
+    ::= { pfLogInterface 3 }
+
+pfLogInterfaceIp4PktsInPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of IPv4 packets passed in on the loginterface."
+    ::= { pfLogInterface 4 }
+
+pfLogInterfaceIp4PktsInDrop OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of IPv4 packets dropped coming in on the loginterface."
+    ::= { pfLogInterface 5 }
+
+pfLogInterfaceIp4PktsOutPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of IPv4 packets passed out on the loginterface."
+    ::= { pfLogInterface 6 }
+
+pfLogInterfaceIp4PktsOutDrop OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of IPv4 packets dropped going out on the loginterface."
+    ::= { pfLogInterface 7 }
+
+pfLogInterfaceIp6BytesIn OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of IPv6 bytes passed in on the loginterface."
+    ::= { pfLogInterface 8 }
+
+pfLogInterfaceIp6BytesOut OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of IPv6 bytes passed out on the loginterface."
+    ::= { pfLogInterface 9 }
+
+pfLogInterfaceIp6PktsInPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of IPv6 packets passed in on the loginterface."
+    ::= { pfLogInterface 10 }
+
+pfLogInterfaceIp6PktsInDrop OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of IPv6 packets dropped coming in on the loginterface."
+    ::= { pfLogInterface 11 }
+
+pfLogInterfaceIp6PktsOutPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of IPv6 packets passed out on the loginterface."
+    ::= { pfLogInterface 12 }
+
+pfLogInterfaceIp6PktsOutDrop OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of IPv6 packets dropped going out on the loginterface."
+    ::= { pfLogInterface 13 }
+
+-- --------------------------------------------------------------------------
+
+--
+-- interfaces
+--
+
+pfInterfacesIfNumber OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of network interfaces on this system."
+    ::= { pfInterfaces 1 }
+
+pfInterfacesIfTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF PfInterfacesIfEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Table of network interfaces, indexed on pfInterfacesIfNumber."
+    ::= { pfInterfaces 2 }
+
+pfInterfacesIfEntry OBJECT-TYPE
+    SYNTAX	PfInterfacesIfEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"An entry in the pfInterfacesIfTable containing information
+	about a particular network interface in the machine."
+    INDEX	{ pfInterfacesIfIndex }
+    ::= { pfInterfacesIfTable 1 }
+
+PfInterfacesIfEntry ::= SEQUENCE {
+    pfInterfacesIfIndex		    Integer32,
+    pfInterfacesIfDescr		    OCTET STRING,
+    pfInterfacesIfType		    INTEGER,
+    pfInterfacesIfTZero		    TimeTicks,
+    pfInterfacesIfRefsState	    Null,
+    pfInterfacesIfRefsRule	    Unsigned32,
+    pfInterfacesIf4BytesInPass	    Counter64,
+    pfInterfacesIf4BytesInBlock	    Counter64,
+    pfInterfacesIf4BytesOutPass	    Counter64,
+    pfInterfacesIf4BytesOutBlock    Counter64,
+    pfInterfacesIf4PktsInPass	    Counter64,
+    pfInterfacesIf4PktsInBlock	    Counter64,
+    pfInterfacesIf4PktsOutPass	    Counter64,
+    pfInterfacesIf4PktsOutBlock	    Counter64,
+    pfInterfacesIf6BytesInPass	    Counter64,
+    pfInterfacesIf6BytesInBlock	    Counter64,
+    pfInterfacesIf6BytesOutPass	    Counter64,
+    pfInterfacesIf6BytesOutBlock    Counter64,
+    pfInterfacesIf6PktsInPass	    Counter64,
+    pfInterfacesIf6PktsInBlock	    Counter64,
+    pfInterfacesIf6PktsOutPass	    Counter64,
+    pfInterfacesIf6PktsOutBlock	    Counter64
+}
+
+pfInterfacesIfIndex OBJECT-TYPE
+    SYNTAX	Integer32 (1..2147483647)
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A unique value, greater than zero, for each interface."
+    ::= { pfInterfacesIfEntry 1 }
+
+pfInterfacesIfDescr OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The name of the interface."
+    ::= { pfInterfacesIfEntry 2 }
+
+pfInterfacesIfType OBJECT-TYPE
+    SYNTAX	INTEGER { group(0), instance(1), detached(2) }
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Indicates whether the interface is a group inteface, an
+	interface instance, or whether it has been removed or
+	destroyed."
+    ::= { pfInterfacesIfEntry 3 }
+
+pfInterfacesIfTZero OBJECT-TYPE
+    SYNTAX	TimeTicks
+    UNITS	"1/100th of a Second"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Time since statistics were last reset or since the
+	interface was loaded."
+    ::= { pfInterfacesIfEntry 4 }
+
+pfInterfacesIfRefsState OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of state and/or source track entries referencing
+	this interface."
+    ::= { pfInterfacesIfEntry 5 }
+
+pfInterfacesIfRefsRule OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of rules referencing this interface."
+    ::= { pfInterfacesIfEntry 6 }
+
+pfInterfacesIf4BytesInPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv4 bytes passed coming in on this interface."
+    ::= { pfInterfacesIfEntry 7 }
+
+pfInterfacesIf4BytesInBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv4 bytes blocked coming in on this interface."
+    ::= { pfInterfacesIfEntry 8 }
+
+pfInterfacesIf4BytesOutPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv4 bytes passed going out on this interface."
+    ::= { pfInterfacesIfEntry 9 }
+
+pfInterfacesIf4BytesOutBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv4 bytes blocked going out on this interface."
+    ::= { pfInterfacesIfEntry 10 }
+
+pfInterfacesIf4PktsInPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv4 packets passed coming in on this interface."
+    ::= { pfInterfacesIfEntry 11 }
+
+pfInterfacesIf4PktsInBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv4 packets blocked coming in on this interface."
+    ::= { pfInterfacesIfEntry 12 }
+
+pfInterfacesIf4PktsOutPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv4 packets passed going out on this interface."
+    ::= { pfInterfacesIfEntry 13 }
+
+pfInterfacesIf4PktsOutBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv4 packets blocked going out on this interface."
+    ::= { pfInterfacesIfEntry 14 }
+
+pfInterfacesIf6BytesInPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv6 bytes passed coming in on this interface."
+    ::= { pfInterfacesIfEntry 15 }
+
+pfInterfacesIf6BytesInBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv6 bytes blocked coming in on this interface."
+    ::= { pfInterfacesIfEntry 16 }
+
+pfInterfacesIf6BytesOutPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv6 bytes passed going out on this interface."
+    ::= { pfInterfacesIfEntry 17 }
+
+pfInterfacesIf6BytesOutBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv6 bytes blocked going out on this interface."
+    ::= { pfInterfacesIfEntry 18 }
+
+
+pfInterfacesIf6PktsInPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv6 packets passed coming in on this interface."
+    ::= { pfInterfacesIfEntry 19 }
+
+pfInterfacesIf6PktsInBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv6 packets blocked coming in on this interface."
+    ::= { pfInterfacesIfEntry 20 }
+
+pfInterfacesIf6PktsOutPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv6 packets passed going out on this interface."
+    ::= { pfInterfacesIfEntry 21 }
+
+pfInterfacesIf6PktsOutBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of IPv6 packets blocked going out on this interface."
+    ::= { pfInterfacesIfEntry 22 }
+
+-- --------------------------------------------------------------------------
+
+--
+-- tables
+--
+
+pfTablesTblNumber OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of tables on this system."
+    ::= { pfTables 1 }
+
+pfTablesTblTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF PfTablesTblEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Table of tables, index on pfTablesTblIndex."
+    ::= { pfTables 2 }
+
+pfTablesTblEntry OBJECT-TYPE
+    SYNTAX	PfTablesTblEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Any entry in the pfTablesTblTable containing information
+	about a particular table on the system."
+    INDEX	{ pfTablesTblIndex }
+    ::= { pfTablesTblTable 1 }
+
+PfTablesTblEntry ::= SEQUENCE {
+    pfTablesTblIndex		    Integer32,
+    pfTablesTblDescr		    OCTET STRING,
+    pfTablesTblCount		    Integer32,
+    pfTablesTblTZero		    TimeTicks,
+    pfTablesTblRefsAnchor	    Integer32,
+    pfTablesTblRefsRule		    Integer32,
+    pfTablesTblEvalMatch	    Counter64,
+    pfTablesTblEvalNoMatch	    Counter64,
+    pfTablesTblBytesInPass	    Counter64,
+    pfTablesTblBytesInBlock	    Counter64,
+    pfTablesTblBytesInXPass	    Counter64,
+    pfTablesTblBytesOutPass	    Counter64,
+    pfTablesTblBytesOutBlock	    Counter64,
+    pfTablesTblBytesOutXPass	    Counter64,
+    pfTablesTblPktsInPass	    Counter64,
+    pfTablesTblPktsInBlock	    Counter64,
+    pfTablesTblPktsInXPass	    Counter64,
+    pfTablesTblPktsOutPass	    Counter64,
+    pfTablesTblPktsOutBlock	    Counter64,
+    pfTablesTblPktsOutXPass	    Counter64
+}
+
+pfTablesTblIndex OBJECT-TYPE
+    SYNTAX	Integer32 (1..2147483647)
+    MAX-ACCESS  not-accessible
+    STATUS	current
+    DESCRIPTION
+        "A unique value, greater than zero, for each table."
+    ::= { pfTablesTblEntry 1 }
+
+pfTablesTblDescr OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The name of the table."
+    ::= { pfTablesTblEntry 2 }
+
+pfTablesTblCount OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of addresses in the table."
+    ::= { pfTablesTblEntry 3 }
+
+pfTablesTblTZero OBJECT-TYPE
+    SYNTAX	TimeTicks
+    UNITS	"1/100th of a Second"
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The time passed since the statistics of this table were last
+        cleared or the time since this table was loaded, whichever is
+        sooner."
+    ::= { pfTablesTblEntry 4 }
+
+pfTablesTblRefsAnchor OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of anchors referencing this table."
+    ::= { pfTablesTblEntry 5 }
+
+pfTablesTblRefsRule OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of rules referencing this table."
+    ::= { pfTablesTblEntry 6 }
+
+pfTablesTblEvalMatch OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of evaluations returning a match."
+    ::= { pfTablesTblEntry 7 }
+
+pfTablesTblEvalNoMatch OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of evaluations not returning a match."
+    ::= { pfTablesTblEntry 8 }
+
+pfTablesTblBytesInPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of bytes passed in matching the table."
+    ::= { pfTablesTblEntry 9 }
+
+pfTablesTblBytesInBlock	OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of bytes blocked coming in matching the table."
+    ::= { pfTablesTblEntry 10 }
+
+pfTablesTblBytesInXPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of bytes statefully passed in where the state
+        entry refers to the table, but the table no longer contains
+	the address in question."
+    ::= { pfTablesTblEntry 11 }
+
+pfTablesTblBytesOutPass	OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of bytes passed out matching the table."
+    ::= { pfTablesTblEntry 12 }
+
+pfTablesTblBytesOutBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of bytes blocked going out matching the table."
+    ::= { pfTablesTblEntry 13 }
+
+pfTablesTblBytesOutXPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of bytes statefully passed out where the state
+        entry refers to the table, but the table no longer contains
+	the address in question."
+    ::= { pfTablesTblEntry 14 }
+
+pfTablesTblPktsInPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of packets passed in matching the table."
+    ::= { pfTablesTblEntry 15 }
+
+pfTablesTblPktsInBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of packets blocked coming in matching the table."
+    ::= { pfTablesTblEntry 16 }
+
+pfTablesTblPktsInXPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of packets statefully passed in where the state
+        entry refers to the table, but the table no longer contains
+	the address in question."
+    ::= { pfTablesTblEntry 17 }
+
+pfTablesTblPktsOutPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of packets passed out matching the table."
+    ::= { pfTablesTblEntry 18 }
+
+pfTablesTblPktsOutBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of packets blocked going out matching the table."
+    ::= { pfTablesTblEntry 19 }
+
+pfTablesTblPktsOutXPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of packets statefully passed out where the state
+        entry refers to the table, but the table no longer contains
+	the address in question."
+    ::= { pfTablesTblEntry 20 }
+
+pfTablesAddrTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF PfTablesAddrEntry
+    MAX-ACCESS  not-accessible
+    STATUS	current
+    DESCRIPTION
+        "Table of addresses from every table on the system."
+    ::= { pfTables 3 }
+
+pfTablesAddrEntry OBJECT-TYPE
+    SYNTAX	PfTablesAddrEntry
+    MAX-ACCESS  not-accessible
+    STATUS	current
+    DESCRIPTION
+        "An entry in the pfTablesAddrTable containing information
+        about a particular entry in a table."
+    INDEX	{ pfTablesAddrIndex }
+    ::= { pfTablesAddrTable 1 }
+
+PfTablesAddrEntry ::= SEQUENCE {
+    pfTablesAddrIndex		    Integer32,
+    pfTablesAddrNetType		    InetAddressType,
+    pfTablesAddrNet		    InetAddress,
+    pfTablesAddrPrefix		    InetAddressPrefixLength,
+    pfTablesAddrTZero		    TimeTicks,
+    pfTablesAddrBytesInPass	    Counter64,
+    pfTablesAddrBytesInBlock	    Counter64,
+    pfTablesAddrBytesOutPass	    Counter64,
+    pfTablesAddrBytesOutBlock	    Counter64,
+    pfTablesAddrPktsInPass	    Counter64,
+    pfTablesAddrPktsInBlock	    Counter64,
+    pfTablesAddrPktsOutPass	    Counter64,
+    pfTablesAddrPktsOutBlock	    Counter64
+}
+
+pfTablesAddrIndex OBJECT-TYPE
+    SYNTAX	Integer32 (1..2147483647)
+    MAX-ACCESS  not-accessible
+    STATUS	current
+    DESCRIPTION
+        "A unique value, greater than zero, for each address."
+    ::= { pfTablesAddrEntry 1 }
+
+pfTablesAddrNetType OBJECT-TYPE
+    SYNTAX	InetAddressType
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The type of address in the corresponding pfTablesAddrNet object."
+    ::= { pfTablesAddrEntry 2 }
+
+pfTablesAddrNet OBJECT-TYPE
+    SYNTAX	InetAddress
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The IP address of this particular table entry."
+    ::= { pfTablesAddrEntry 3 }
+
+pfTablesAddrPrefix OBJECT-TYPE
+    SYNTAX	InetAddressPrefixLength
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The CIDR netmask of this particular table entry."
+    ::= { pfTablesAddrEntry 4 }
+
+pfTablesAddrTZero OBJECT-TYPE
+    SYNTAX	TimeTicks
+    UNITS	"1/100th of a Second"
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The time passed since this entry's statistics were last
+	cleared, or the time passed since this entry was loaded
+	into the table, whichever is sooner."
+    ::= { pfTablesAddrEntry 5 }
+
+pfTablesAddrBytesInPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of inbound bytes passed as a result of this entry."
+    ::= { pfTablesAddrEntry 6 }
+
+pfTablesAddrBytesInBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of inbound bytes blocked as a result of this entry."
+    ::= { pfTablesAddrEntry 7 }
+
+pfTablesAddrBytesOutPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of outbound bytes passed as a result of this entry."
+    ::= { pfTablesAddrEntry 8 }
+
+pfTablesAddrBytesOutBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of outbound bytes blocked as a result of this entry."
+    ::= { pfTablesAddrEntry 9 }
+
+pfTablesAddrPktsInPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of inbound packets passed as a result of this entry."
+    ::= { pfTablesAddrEntry 10 }
+
+pfTablesAddrPktsInBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of inbound packets blocked as a result of this entry."
+    ::= { pfTablesAddrEntry 11 }
+
+pfTablesAddrPktsOutPass OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of outbound packets passed as a result of this entry."
+    ::= { pfTablesAddrEntry 12 }
+
+pfTablesAddrPktsOutBlock OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS  read-only
+    STATUS	current
+    DESCRIPTION
+        "The number of outbound packets blocked as a result of this
+        entry."
+    ::= { pfTablesAddrEntry 13 }
+
+-- --------------------------------------------------------------------------
+
+--
+-- Altq information
+--
+
+pfAltqQueueNumber OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of queues in the active set."
+    ::= { pfAltq 1 }
+
+pfAltqQueueTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF PfAltqQueueEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Table containing the rules that are active on this system."
+    ::= { pfAltq 2 }
+
+pfAltqQueueEntry OBJECT-TYPE
+    SYNTAX	PfAltqQueueEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"An entry in the pfAltqQueueTable table."
+    INDEX	{ pfAltqQueueIndex }
+    ::= { pfAltqQueueTable 1 }
+
+PfAltqQueueEntry ::= SEQUENCE {
+    pfAltqQueueIndex		    Integer32,
+    pfAltqQueueDescr		    OCTET STRING,
+    pfAltqQueueParent		    OCTET STRING,
+    pfAltqQueueScheduler	    INTEGER,
+    pfAltqQueueBandwidth	    Unsigned32,
+    pfAltqQueuePriority		    Integer32,
+    pfAltqQueueLimit		    Integer32
+}
+
+pfAltqQueueIndex OBJECT-TYPE
+    SYNTAX	Integer32 (1..2147483647)
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A unique value, greater than zero, for each queue."
+    ::= { pfAltqQueueEntry 1 }
+
+pfAltqQueueDescr OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The name of the queue."
+    ::= { pfAltqQueueEntry 2 }
+
+pfAltqQueueParent OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Name of the queue's parent if it has one."
+    ::= { pfAltqQueueEntry 3 }
+
+pfAltqQueueScheduler OBJECT-TYPE
+    SYNTAX	INTEGER { cbq(1), hfsc(8), priq(11) }
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Scheduler algorithm implemented by this queue."
+    ::= { pfAltqQueueEntry 4 }
+
+pfAltqQueueBandwidth OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Bandwitch assigned to this queue."
+    ::= { pfAltqQueueEntry 5 }
+
+pfAltqQueuePriority OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Priority level of the queue."
+    ::= { pfAltqQueueEntry 6 }
+
+pfAltqQueueLimit OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Maximum number of packets in the queue."
+    ::= { pfAltqQueueEntry 7 }
+
+pfLabelsLblNumber OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of labeled filter rules on this system."
+    ::= { pfLabels 1 }
+
+pfLabelsLblTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF PfLabelsLblEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Table of filter rules, index on pfLabelsLblIndex."
+    ::= { pfLabels 2 }
+
+pfLabelsLblEntry OBJECT-TYPE
+    SYNTAX	PfLabelsLblEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Any entry in the pfLabelsLblTable containing information
+	about a particular filter rule on the system."
+    INDEX	{ pfLabelsLblIndex }
+    ::= { pfLabelsLblTable 1 }
+
+PfLabelsLblEntry ::= SEQUENCE {
+    pfLabelsLblIndex		Integer32,
+    pfLabelsLblName		OCTET STRING,
+    pfLabelsLblEvals		Counter64,
+    pfLabelsLblBytesIn		Counter64,
+    pfLabelsLblBytesOut		Counter64,
+    pfLabelsLblPktsIn		Counter64,
+    pfLabelsLblPktsOut		Counter64
+}
+
+pfLabelsLblIndex OBJECT-TYPE
+    SYNTAX	Integer32 (1..2147483647)
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A unique value, greater than zero, for each label."
+    ::= { pfLabelsLblEntry 1 }
+
+pfLabelsLblName OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The name of the rule label."
+    ::= { pfLabelsLblEntry 2 }
+
+pfLabelsLblEvals OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of rule evaluations."
+    ::= { pfLabelsLblEntry 3 }
+
+pfLabelsLblBytesIn OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of incoming bytes matched by the rule."
+    ::= { pfLabelsLblEntry 4 }
+
+pfLabelsLblBytesOut OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of outgoing bytes matched by the rule."
+    ::= { pfLabelsLblEntry 5 }
+
+pfLabelsLblPktsIn OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of incoming packets matched by the rule."
+    ::= { pfLabelsLblEntry 6 }
+
+pfLabelsLblPktsOut OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of outgoing packets matched by the rule."
+    ::= { pfLabelsLblEntry 7 }
+
+END

@@ -1,0 +1,162 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getcwd.3	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd April 17, 2010
+.Dt GETCWD 3
+.Os
+.Sh NAME
+.Nm getcwd ,
+.Nm getwd
+.Nd get working directory pathname
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft char *
+.Fn getcwd "char *buf" "size_t size"
+.Ft char *
+.Fn getwd "char *buf"
+.Sh DESCRIPTION
+The
+.Fn getcwd
+function copies the absolute pathname of the current working directory
+into the memory referenced by
+.Fa buf
+and returns a pointer to
+.Fa buf .
+The
+.Fa size
+argument is the size, in bytes, of the array referenced by
+.Fa buf .
+.Pp
+If
+.Fa buf
+is
+.Dv NULL ,
+space is allocated as necessary to store the pathname.
+This space may later be
+.Xr free 3 Ns 'd .
+.Pp
+The function
+.Fn getwd
+is a compatibility routine which calls
+.Fn getcwd
+with its
+.Fa buf
+argument and a size of
+.Dv MAXPATHLEN
+(as defined in the include
+file
+.In sys/param.h ) .
+Obviously,
+.Fa buf
+should be at least
+.Dv MAXPATHLEN
+bytes in length.
+.Pp
+These routines have traditionally been used by programs to save the
+name of a working directory for the purpose of returning to it.
+A much faster and less error-prone method of accomplishing this is to
+open the current directory
+.Pq Ql .\&
+and use the
+.Xr fchdir 2
+function to return.
+.Sh RETURN VALUES
+Upon successful completion, a pointer to the pathname is returned.
+Otherwise a
+.Dv NULL
+pointer is returned and the global variable
+.Va errno
+is set to indicate the error.
+In addition,
+.Fn getwd
+copies the error message associated with
+.Va errno
+into the memory referenced by
+.Fa buf .
+.Sh ERRORS
+The
+.Fn getcwd
+function
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa size
+argument is zero.
+.It Bq Er ENOENT
+A component of the pathname no longer exists.
+.It Bq Er ENOMEM
+Insufficient memory is available.
+.It Bq Er ERANGE
+The
+.Fa size
+argument is greater than zero but smaller than the length of the pathname
+plus 1.
+.El
+.Pp
+The
+.Fn getcwd
+function
+may fail if:
+.Bl -tag -width Er
+.It Bq Er EACCES
+Read or search permission was denied for a component of the pathname.
+This is only checked in limited cases, depending on implementation details.
+.El
+.Sh SEE ALSO
+.Xr chdir 2 ,
+.Xr fchdir 2 ,
+.Xr malloc 3 ,
+.Xr strerror 3
+.Sh STANDARDS
+The
+.Fn getcwd
+function
+conforms to
+.St -p1003.1-90 .
+The ability to specify a
+.Dv NULL
+pointer and have
+.Fn getcwd
+allocate memory as necessary is an extension.
+.Sh HISTORY
+The
+.Fn getwd
+function appeared in
+.Bx 4.0 .
+.Sh BUGS
+The
+.Fn getwd
+function
+does not do sufficient error checking and is not able to return very
+long, but valid, paths.
+It is provided for compatibility.

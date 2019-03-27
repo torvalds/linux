@@ -1,0 +1,40 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH IBV_DEVINFO 1 "August 30, 2005" "libibverbs" "USER COMMANDS"
+
+.SH NAME
+ibv_devinfo \- query RDMA devices
+
+.SH SYNOPSIS
+.B ibv_devinfo
+[\-d device] [\-i port] [\-l] [\-v]
+
+.SH DESCRIPTION
+.PP
+Print information about RDMA devices available for use from userspace.
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-d\fR, \fB\-\-ib\-dev\fR=\fIDEVICE\fR
+use IB device \fIDEVICE\fR (default first device found)
+
+\fB\-i\fR, \fB\-\-ib\-port\fR=\fIPORT\fR
+query port \fIPORT\fR (default all ports)
+
+\fB\-l\fR, \fB\-\-list\fR
+only list names of RDMA devices
+
+\fB\-v\fR, \fB\-\-verbose\fR
+print all available information about RDMA devices
+
+.SH SEE ALSO
+.BR ibv_devices (1)
+
+.SH AUTHORS
+.TP
+Dotan Barak
+.RI < dotanba@gmail.com >
+.TP
+Roland Dreier
+.RI < rolandd@cisco.com >

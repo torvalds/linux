@@ -1,0 +1,79 @@
+att.o: att.c config.h mandoc.h roff.h mdoc.h libmdoc.h
+catman.o: catman.c config.h compat_fts.h
+cgi.o: cgi.c config.h mandoc_aux.h mandoc.h roff.h mdoc.h man.h main.h manconf.h mansearch.h cgi.h
+chars.o: chars.c config.h mandoc.h mandoc_aux.h mandoc_ohash.h compat_ohash.h libmandoc.h
+compat_err.o: compat_err.c config.h
+compat_fts.o: compat_fts.c config.h compat_fts.h
+compat_getline.o: compat_getline.c config.h
+compat_getsubopt.o: compat_getsubopt.c config.h
+compat_isblank.o: compat_isblank.c config.h
+compat_mkdtemp.o: compat_mkdtemp.c config.h
+compat_ohash.o: compat_ohash.c config.h compat_ohash.h
+compat_progname.o: compat_progname.c config.h
+compat_reallocarray.o: compat_reallocarray.c config.h
+compat_recallocarray.o: compat_recallocarray.c config.h
+compat_strcasestr.o: compat_strcasestr.c config.h
+compat_stringlist.o: compat_stringlist.c config.h compat_stringlist.h
+compat_strlcat.o: compat_strlcat.c config.h
+compat_strlcpy.o: compat_strlcpy.c config.h
+compat_strndup.o: compat_strndup.c config.h
+compat_strsep.o: compat_strsep.c config.h
+compat_strtonum.o: compat_strtonum.c config.h
+compat_vasprintf.o: compat_vasprintf.c config.h
+dba.o: dba.c config.h mandoc_aux.h mandoc_ohash.h compat_ohash.h mansearch.h dba_write.h dba_array.h dba.h
+dba_array.o: dba_array.c mandoc_aux.h dba_write.h dba_array.h
+dba_read.o: dba_read.c mandoc_aux.h mansearch.h dba_array.h dba.h dbm.h
+dba_write.o: dba_write.c config.h dba_write.h
+dbm.o: dbm.c config.h mansearch.h dbm_map.h dbm.h
+dbm_map.o: dbm_map.c config.h mansearch.h dbm_map.h dbm.h
+demandoc.o: demandoc.c config.h mandoc.h roff.h man.h mdoc.h
+eqn.o: eqn.c config.h mandoc_aux.h mandoc.h roff.h libmandoc.h libroff.h
+eqn_html.o: eqn_html.c config.h mandoc.h out.h html.h
+eqn_term.o: eqn_term.c config.h mandoc.h out.h term.h
+html.o: html.c config.h mandoc_aux.h mandoc_ohash.h compat_ohash.h mandoc.h roff.h out.h html.h manconf.h main.h
+lib.o: lib.c config.h mandoc.h roff.h mdoc.h libmdoc.h lib.in
+main.o: main.c config.h mandoc_aux.h mandoc.h mandoc_xr.h roff.h mdoc.h man.h tag.h main.h manconf.h mansearch.h
+man.o: man.c config.h mandoc_aux.h mandoc.h roff.h man.h libmandoc.h roff_int.h libman.h
+man_html.o: man_html.c config.h mandoc_aux.h mandoc.h roff.h man.h out.h html.h main.h
+man_macro.o: man_macro.c config.h mandoc.h roff.h man.h libmandoc.h roff_int.h libman.h
+man_term.o: man_term.c config.h mandoc_aux.h mandoc.h roff.h man.h out.h term.h main.h
+man_validate.o: man_validate.c config.h mandoc_aux.h mandoc.h roff.h man.h libmandoc.h roff_int.h libman.h
+mandoc.o: mandoc.c config.h mandoc_aux.h mandoc.h roff.h libmandoc.h
+mandoc_aux.o: mandoc_aux.c config.h mandoc.h mandoc_aux.h
+mandoc_ohash.o: mandoc_ohash.c mandoc_aux.h mandoc_ohash.h compat_ohash.h
+mandoc_xr.o: mandoc_xr.c mandoc_aux.h mandoc_ohash.h compat_ohash.h mandoc_xr.h
+mandocd.o: mandocd.c config.h mandoc.h roff.h mdoc.h man.h main.h manconf.h
+mandocdb.o: mandocdb.c config.h compat_fts.h mandoc_aux.h mandoc_ohash.h compat_ohash.h mandoc.h roff.h mdoc.h man.h manconf.h mansearch.h dba_array.h dba.h
+manpath.o: manpath.c config.h mandoc_aux.h manconf.h
+mansearch.o: mansearch.c config.h mandoc.h mandoc_aux.h mandoc_ohash.h compat_ohash.h manconf.h mansearch.h dbm.h
+mdoc.o: mdoc.c config.h mandoc_aux.h mandoc.h roff.h mdoc.h libmandoc.h roff_int.h libmdoc.h
+mdoc_argv.o: mdoc_argv.c config.h mandoc_aux.h mandoc.h roff.h mdoc.h libmandoc.h roff_int.h libmdoc.h
+mdoc_html.o: mdoc_html.c config.h mandoc_aux.h mandoc.h roff.h mdoc.h out.h html.h main.h
+mdoc_macro.o: mdoc_macro.c config.h mandoc.h roff.h mdoc.h libmandoc.h roff_int.h libmdoc.h
+mdoc_man.o: mdoc_man.c config.h mandoc_aux.h mandoc.h roff.h mdoc.h man.h out.h main.h
+mdoc_markdown.o: mdoc_markdown.c mandoc_aux.h mandoc.h roff.h mdoc.h main.h
+mdoc_state.o: mdoc_state.c mandoc.h roff.h mdoc.h libmandoc.h libmdoc.h
+mdoc_term.o: mdoc_term.c config.h mandoc_aux.h mandoc.h roff.h mdoc.h out.h term.h tag.h main.h
+mdoc_validate.o: mdoc_validate.c config.h mandoc_aux.h mandoc.h mandoc_xr.h roff.h mdoc.h libmandoc.h roff_int.h libmdoc.h
+msec.o: msec.c config.h mandoc.h libmandoc.h msec.in
+out.o: out.c config.h mandoc_aux.h mandoc.h out.h
+preconv.o: preconv.c config.h mandoc.h libmandoc.h
+read.o: read.c config.h mandoc_aux.h mandoc.h roff.h mdoc.h man.h libmandoc.h
+roff.o: roff.c config.h mandoc.h mandoc_aux.h mandoc_ohash.h compat_ohash.h roff.h libmandoc.h roff_int.h libroff.h predefs.in
+roff_html.o: roff_html.c mandoc.h roff.h out.h html.h
+roff_term.o: roff_term.c mandoc.h roff.h out.h term.h
+roff_validate.o: roff_validate.c mandoc.h roff.h libmandoc.h roff_int.h
+soelim.o: soelim.c config.h compat_stringlist.h
+st.o: st.c config.h mandoc.h roff.h mdoc.h libmdoc.h st.in
+tag.o: tag.c config.h mandoc_aux.h mandoc_ohash.h compat_ohash.h tag.h
+tbl.o: tbl.c config.h mandoc.h mandoc_aux.h libmandoc.h libroff.h
+tbl_data.o: tbl_data.c config.h mandoc.h mandoc_aux.h libmandoc.h libroff.h
+tbl_html.o: tbl_html.c config.h mandoc.h out.h html.h
+tbl_layout.o: tbl_layout.c config.h mandoc.h mandoc_aux.h libmandoc.h libroff.h
+tbl_opts.o: tbl_opts.c config.h mandoc.h libmandoc.h libroff.h
+tbl_term.o: tbl_term.c config.h mandoc.h out.h term.h
+term.o: term.c config.h mandoc.h mandoc_aux.h out.h term.h main.h
+term_ascii.o: term_ascii.c config.h mandoc.h mandoc_aux.h out.h term.h manconf.h main.h
+term_ps.o: term_ps.c config.h mandoc_aux.h out.h term.h manconf.h main.h
+term_tab.o: term_tab.c mandoc_aux.h out.h term.h
+tree.o: tree.c config.h mandoc.h roff.h mdoc.h man.h main.h

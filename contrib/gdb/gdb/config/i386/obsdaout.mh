@@ -1,0 +1,5 @@
+# Host: OpenBSD/i386 a.out
+NATDEPFILES= fork-child.o infptrace.o inftarg.o i386bsd-nat.o i386obsd-nat.o \
+	solib.o solib-sunos.o
+NAT_FILE= nm-obsd.h
+XM_FILE= xm-i386.h

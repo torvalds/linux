@@ -1,0 +1,117 @@
+.\" Copyright (c) 1986, 1993 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)Title	8.2 (Berkeley) 4/19/94
+.\"	$FreeBSD$
+.\"
+.ps 18
+.vs 22
+.sp 2.75i
+.ft B
+.ce 2
+UNIX User's Supplementary Documents
+(USD)
+.ps 14
+.vs 16
+.sp |4i
+.ce 2
+4.4 Berkeley Software Distribution
+.sp |5.75i
+.ft R
+.ps 12
+.vs 16
+.ce
+June, 1993
+.sp |8.2i
+.ce 5
+Computer Systems Research Group
+Computer Science Division
+Department of Electrical Engineering and Computer Science
+University of California
+Berkeley, California  94720
+.bp
+\&
+.sp |1i
+.hy 0
+.ps 10
+.vs 12p
+Copyright 1979, 1980, 1983, 1986, 1993
+The Regents of the University of California.  All rights reserved.
+.sp 2
+Other than the specific documents listed below as copyrighted by AT&T,
+redistribution and use of this manual in source and binary forms,
+with or without modification, are permitted provided that the
+following conditions are met:
+.sp 0.5
+.in +0.2i
+.ta 0.2i
+.ti -0.2i
+1)	Redistributions of this manual must retain the copyright
+notices on this page, this list of conditions and the following disclaimer.
+.ti -0.2i
+2)	Software or documentation that incorporates part of this manual must
+reproduce the copyright notices on this page, this list of conditions and
+the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+.ti -0.2i
+3)	All advertising materials mentioning features or use of this software
+must display the following acknowledgement:
+``This product includes software developed by the University of
+California, Berkeley and its contributors.''
+.ti -0.2i
+4)	Neither the name of the University nor the names of its contributors
+may be used to endorse or promote products derived from this software
+without specific prior written permission.
+.in -0.2i
+.sp
+\fB\s-1THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.\s+1\fP
+.sp 2
+Documents USD:1, 2, 3, 5, 6, 9, 10, 15, 16, 17, 21, 22, 23, 24, 25, 26, 27,
+and 29 are copyright 1979, AT&T Bell Laboratories, Incorporated.
+Holders of \x'-1p'UNIX\v'-4p'\s-3TM\s0\v'4p'/32V,
+System III, or System V software licenses are
+permitted to copy these documents, or any portion of them,
+as necessary for licensed use of the software,
+provided this copyright notice and statement of permission
+are included.
+.sp 2
+Documents USD:8, 14, and 28 are part of the
+user contributed software.
+.sp 2
+The views and conclusions contained in this manual are those of the
+authors and should not be interpreted as representing official policies,
+either expressed or implied, of the Regents of the University of California.

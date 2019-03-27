@@ -1,0 +1,32 @@
+# $FreeBSD$
+
+# TODO: Add attachment elsewhere in the tree
+# for USB 1.1 OHCI, Ethernet and IPSEC cores
+# which are believed to be devices we have drivers for
+# which just need to be tweaked for attachment to an BHND system bus.
+mips/broadcom/bcm_machdep.c		standard
+mips/broadcom/bcm_bmips.c		optional siba_nexus siba
+mips/broadcom/bcm_mips74k.c		optional bcma_nexus bcma
+mips/broadcom/bcm_mips.c		optional siba_nexus siba | \
+						 bcma_nexus bcma
+mips/broadcom/bcm_nvram_cfe.c		optional bhnd siba_nexus cfe | \
+						 bhnd bcma_nexus cfe
+mips/broadcom/bcm_pmu.c			standard
+
+mips/broadcom/bhnd_nexus.c		optional bhnd siba_nexus | \
+						 bhnd bcma_nexus
+mips/broadcom/bcma_nexus.c		optional bcma_nexus bcma bhnd
+mips/broadcom/siba_nexus.c		optional siba_nexus siba bhnd
+
+mips/mips/tick.c			standard
+
+mips/broadcom/uart_cpu_chipc.c		optional uart
+mips/broadcom/uart_bus_chipc.c		optional uart
+
+# TODO: Replace with BCM47xx/57xx/etc-aware geom_map
+geom/geom_flashmap.c			standard
+
+# USB bits
+dev/bhnd/cores/usb/bhnd_usb.c		optional usb
+dev/bhnd/cores/usb/bhnd_ehci.c		optional ehci
+dev/bhnd/cores/usb/bhnd_ohci.c		optional ohci

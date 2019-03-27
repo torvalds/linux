@@ -1,0 +1,313 @@
+.\"
+.\" Copyright 2000 Massachusetts Institute of Technology
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby
+.\" granted, provided that both the above copyright notice and this
+.\" permission notice appear in all copies, that both the above
+.\" copyright notice and this permission notice appear in all
+.\" supporting documentation, and that the name of M.I.T. not be used
+.\" in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.  M.I.T. makes
+.\" no representations about the suitability of this software for any
+.\" purpose.  It is provided "as is" without express or implied
+.\" warranty.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+.\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+.\" SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 20, 2017
+.Dt SHM_OPEN 2
+.Os
+.Sh NAME
+.Nm shm_open , shm_unlink
+.Nd "shared memory object operations"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/mman.h
+.In fcntl.h
+.Ft int
+.Fn shm_open "const char *path" "int flags" "mode_t mode"
+.Ft int
+.Fn shm_unlink "const char *path"
+.Sh DESCRIPTION
+The
+.Fn shm_open
+system call opens (or optionally creates) a
+.Tn POSIX
+shared memory object named
+.Fa path .
+The
+.Fa flags
+argument contains a subset of the flags used by
+.Xr open 2 .
+An access mode of either
+.Dv O_RDONLY
+or
+.Dv O_RDWR
+must be included in
+.Fa flags .
+The optional flags
+.Dv O_CREAT ,
+.Dv O_EXCL ,
+and
+.Dv O_TRUNC
+may also be specified.
+.Pp
+If
+.Dv O_CREAT
+is specified,
+then a new shared memory object named
+.Fa path
+will be created if it does not exist.
+In this case,
+the shared memory object is created with mode
+.Fa mode
+subject to the process' umask value.
+If both the
+.Dv O_CREAT
+and
+.Dv O_EXCL
+flags are specified and a shared memory object named
+.Fa path
+already exists,
+then
+.Fn shm_open
+will fail with
+.Er EEXIST .
+.Pp
+Newly created objects start off with a size of zero.
+If an existing shared memory object is opened with
+.Dv O_RDWR
+and the
+.Dv O_TRUNC
+flag is specified,
+then the shared memory object will be truncated to a size of zero.
+The size of the object can be adjusted via
+.Xr ftruncate 2
+and queried via
+.Xr fstat 2 .
+.Pp
+The new descriptor is set to close during
+.Xr execve 2
+system calls;
+see
+.Xr close 2
+and
+.Xr fcntl 2 .
+.Pp
+As a FreeBSD extension,
+the constant
+.Dv SHM_ANON
+may be used for the
+.Fa path
+argument to
+.Fn shm_open .
+In this case, an anonymous, unnamed shared memory object is created.
+Since the object has no name,
+it cannot be removed via a subsequent call to
+.Fn shm_unlink .
+Instead,
+the shared memory object will be garbage collected when the last reference to
+the shared memory object is removed.
+The shared memory object may be shared with other processes by sharing the
+file descriptor via
+.Xr fork 2
+or
+.Xr sendmsg 2 .
+Attempting to open an anonymous shared memory object with
+.Dv O_RDONLY
+will fail with
+.Er EINVAL .
+All other flags are ignored.
+.Pp
+The
+.Fn shm_unlink
+system call removes a shared memory object named
+.Fa path .
+.Sh RETURN VALUES
+If successful,
+.Fn shm_open
+returns a non-negative integer,
+and
+.Fn shm_unlink
+returns zero.
+Both functions return -1 on failure, and set
+.Va errno
+to indicate the error.
+.Sh COMPATIBILITY
+The
+.Fa path
+argument does not necessarily represent a pathname (although it does in
+most other implementations).
+Two processes opening the same
+.Fa path
+are guaranteed to access the same shared memory object if and only if
+.Fa path
+begins with a slash
+.Pq Ql \&/
+character.
+.Pp
+Only the
+.Dv O_RDONLY ,
+.Dv O_RDWR ,
+.Dv O_CREAT ,
+.Dv O_EXCL ,
+and
+.Dv O_TRUNC
+flags may be used in portable programs.
+.Pp
+.Tn POSIX
+specifications state that the result of using
+.Xr open 2 ,
+.Xr read 2 ,
+or
+.Xr write 2
+on a shared memory object, or on the descriptor returned by
+.Fn shm_open ,
+is undefined.
+However, the
+.Fx
+kernel implementation explicitly includes support for
+.Xr read 2
+and
+.Xr write 2 .
+.Pp
+.Fx
+also supports zero-copy transmission of data from shared memory
+objects with
+.Xr sendfile 2 .
+.Pp
+Neither shared memory objects nor their contents persist across reboots.
+.Pp
+Writes do not extend shared memory objects, so
+.Xr ftruncate 2
+must be called before any data can be written.
+See
+.Sx EXAMPLES .
+.Sh EXAMPLES
+This example fails without the call to
+.Xr ftruncate 2 :
+.Bd -literal -compact
+
+        uint8_t buffer[getpagesize()];
+        ssize_t len;
+        int fd;
+
+        fd = shm_open(SHM_ANON, O_RDWR | O_CREAT, 0600);
+        if (fd < 0)
+                err(EX_OSERR, "%s: shm_open", __func__);
+        if (ftruncate(fd, getpagesize()) < 0)
+                err(EX_IOERR, "%s: ftruncate", __func__);
+        len = pwrite(fd, buffer, getpagesize(), 0);
+        if (len < 0)
+                err(EX_IOERR, "%s: pwrite", __func__);
+        if (len != getpagesize())
+                errx(EX_IOERR, "%s: pwrite length mismatch", __func__);
+.Ed
+.Sh ERRORS
+.Fn shm_open
+fails with these error codes for these conditions:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+A flag other than
+.Dv O_RDONLY ,
+.Dv O_RDWR ,
+.Dv O_CREAT ,
+.Dv O_EXCL ,
+or
+.Dv O_TRUNC
+was included in
+.Fa flags .
+.It Bq Er EMFILE
+The process has already reached its limit for open file descriptors.
+.It Bq Er ENFILE
+The system file table is full.
+.It Bq Er EINVAL
+.Dv O_RDONLY
+was specified while creating an anonymous shared memory object via
+.Dv SHM_ANON .
+.It Bq Er EFAULT
+The
+.Fa path
+argument points outside the process' allocated address space.
+.It Bq Er ENAMETOOLONG
+The entire pathname exceeded 1023 characters.
+.It Bq Er EINVAL
+The
+.Fa path
+does not begin with a slash
+.Pq Ql \&/
+character.
+.It Bq Er ENOENT
+.Dv O_CREAT
+is specified and the named shared memory object does not exist.
+.It Bq Er EEXIST
+.Dv O_CREAT
+and
+.Dv O_EXCL
+are specified and the named shared memory object does exist.
+.It Bq Er EACCES
+The required permissions (for reading or reading and writing) are denied.
+.El
+.Pp
+.Fn shm_unlink
+fails with these error codes for these conditions:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa path
+argument points outside the process' allocated address space.
+.It Bq Er ENAMETOOLONG
+The entire pathname exceeded 1023 characters.
+.It Bq Er ENOENT
+The named shared memory object does not exist.
+.It Bq Er EACCES
+The required permissions are denied.
+.Fn shm_unlink
+requires write permission to the shared memory object.
+.El
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr fstat 2 ,
+.Xr ftruncate 2 ,
+.Xr mmap 2 ,
+.Xr munmap 2 ,
+.Xr sendfile 2
+.Sh STANDARDS
+The
+.Fn shm_open
+and
+.Fn shm_unlink
+functions are believed to conform to
+.St -p1003.1b-93 .
+.Sh HISTORY
+The
+.Fn shm_open
+and
+.Fn shm_unlink
+functions first appeared in
+.Fx 4.3 .
+The functions were reimplemented as system calls using shared memory objects
+directly rather than files in
+.Fx 8.0 .
+.Sh AUTHORS
+.An Garrett A. Wollman Aq Mt wollman@FreeBSD.org
+(C library support and this manual page)
+.Pp
+.An Matthew Dillon Aq Mt dillon@FreeBSD.org
+.Pq Dv MAP_NOSYNC

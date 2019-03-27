@@ -1,0 +1,4 @@
+.\" $FreeBSD$
+Set to not build
+.Xr ppp 8
+and related programs.

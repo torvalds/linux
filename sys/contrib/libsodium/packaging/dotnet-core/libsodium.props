@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>netstandard1.1</TargetFramework>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+    <NoBuild>true</NoBuild>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <PackageOutputPath>$(MSBuildProjectDirectory)</PackageOutputPath>
+    <ProjectFileToPack>$(MSBuildProjectFullPath)</ProjectFileToPack>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>libsodium</PackageId>
+    <Version><!-- set by prepare.py --></Version>
+    <Authors>Frank Denis</Authors>
+    <Description>Internal implementation package not meant for direct consumption. Please do not reference directly.</Description>
+    <Copyright>&#169; 2013-2017 Frank Denis</Copyright>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <PackageLicenseUrl>https://raw.githubusercontent.com/jedisct1/libsodium/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://libsodium.org/</PackageProjectUrl>
+    <MinClientVersion>4.0</MinClientVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETCore.Platforms" Version="1.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="LICENSE" PackagePath="" />
+    <Content Include="AUTHORS" PackagePath="" />
+    <Content Include="ChangeLog" PackagePath="" />
+    <Content Include="runtimes\**\*.*" PackagePath="runtimes\" />
+  </ItemGroup>
+
+</Project>

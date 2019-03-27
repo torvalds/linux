@@ -1,0 +1,1242 @@
+.\"	$FreeBSD$
+.\"	$OpenBSD: bc,v 1.9 2004/07/09 10:23:05 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)bc	6.2 (Berkeley) 4/17/91
+.\"
+.if n \{\
+.nr PO 5n
+.nr LL 70n
+.\}
+.EH 'USD:6-%''BC \- An Arbitrary Precision Desk-Calculator Language'
+.OH 'BC \- An Arbitrary Precision Desk-Calculator Language''USD:6-%'
+.\".RP
+.ND
+.TL
+BC \- An Arbitrary Precision Desk-Calculator Language
+.AU
+Lorinda Cherry
+.AU
+Robert Morris
+.AI
+.\" .MH
+.AB
+BC is a language and a compiler for doing arbitrary precision arithmetic
+on the PDP-11 under the
+.UX
+time-sharing
+system.  The output of the compiler is interpreted and executed by
+a collection of routines which can input, output, and do
+arithmetic on indefinitely large integers and on scaled fixed-point
+numbers.
+.PP
+These routines are themselves based on a dynamic storage allocator.
+Overflow does not occur until all available core storage
+is exhausted.
+.PP
+The language has a complete control structure as well as immediate-mode
+operation.  Functions can be defined and saved for later execution.
+.PP
+Two five hundred-digit numbers can be multiplied to give a
+thousand digit result in about ten seconds.
+.PP
+A small collection of library functions is also available,
+including sin, cos, arctan, log, exponential, and Bessel functions of
+integer order.
+.PP
+Some of the uses of this compiler are
+.IP \-
+to do computation with large integers,
+.IP \-
+to do computation accurate to many decimal places,
+.IP \-
+conversion of numbers from one base to another base.
+.AE
+.PP
+.SH
+Introduction
+.PP
+BC is a language and a compiler for doing arbitrary precision
+arithmetic on the
+.UX
+time-sharing system [1].
+The compiler was written to make conveniently available a
+collection of routines (called DC [5]) which are capable of doing
+arithmetic on integers of arbitrary size.  The compiler
+is by no means intended to provide a complete programming
+language.
+It is a minimal language facility.
+.PP
+There is a scaling provision that permits the
+use of decimal point notation.
+Provision is made for input and output in bases other than
+decimal.  Numbers can be converted from decimal to octal by
+simply setting the output base to equal 8.
+.PP
+The actual limit on the number of digits that can
+be handled depends on the amount of storage available on the machine.
+Manipulation of numbers with many hundreds of digits
+is possible even on the smallest versions of
+.UX .
+.PP
+The syntax of BC has been deliberately selected to agree
+substantially with the C language [2].  Those who
+are familiar with C will find few surprises in this language.
+.SH
+Simple Computations with Integers
+.PP
+The simplest kind of statement is an arithmetic expression
+on a line by itself.
+For instance, if you type in the line:
+.DS
+.ft B
+142857 + 285714
+.ft P
+.DE
+the program responds immediately with the line
+.DS
+.ft B
+428571
+.ft P
+.DE
+The operators \-, *, /, %, and ^ can also be used; they
+indicate subtraction, multiplication, division, remaindering, and
+exponentiation, respectively.  Division of integers produces an
+integer result truncated toward zero.
+Division by zero produces an error
+comment.
+.PP
+Any term in an expression may be prefixed by a minus sign to
+indicate that it is to be negated (the `unary' minus sign).
+The expression
+.DS
+.ft B
+7+\-3
+.ft P
+.DE
+is interpreted to mean that \-3 is to be added to 7.
+.PP
+More complex expressions with several operators and with
+parentheses are interpreted just as in
+Fortran, with ^ having the greatest binding
+power, then * and % and /, and finally + and \-.
+Contents of parentheses are evaluated before material
+outside the parentheses.
+Exponentiations are
+performed from right to left and the other operators
+from left to right.
+The two expressions
+.DS
+.ft B
+a^b^c  and  a^(b^c)
+.ft P
+.DE
+are equivalent, as are the two expressions
+.DS
+.ft B
+a*b*c  and  (a*b)*c
+.ft P
+.DE
+BC shares with Fortran and C the undesirable convention that
+.DS
+\fBa/b*c\fP  is equivalent to  \fB(a/b)*c\fP
+.ft P
+.DE
+.PP
+Internal storage registers to hold numbers have single lower-case
+letter names.  The value of an expression can be assigned to
+a register in the usual way.  The statement
+.DS
+.ft B
+x = x + 3
+.ft P
+.DE
+has the effect of increasing by three the value of the contents of the
+register named x.
+When, as in this case, the outermost operator is an =, the
+assignment is performed but the result is not printed.
+Only 26 of these named storage registers are available.
+.PP
+There is a built-in square root function whose
+result is truncated to an integer (but see scaling below).
+The lines
+.DS
+.ft B
+x = sqrt(191)
+x
+.ft P
+.DE
+produce the printed result
+.DS
+.ft B
+13
+.ft P
+.DE
+.SH
+Bases
+.PP
+There are special internal quantities, called `ibase' and `obase'.
+The contents of `ibase', initially set to 10,
+determines the base used for interpreting numbers read in.
+For example, the lines
+.DS
+.ft B
+ibase = 8
+11
+.ft P
+.DE
+will produce the output line
+.DS
+.ft B
+9
+.ft P
+.DE
+and you are all set up to do octal to decimal conversions.
+Beware, however of trying to change the input base back
+to decimal by typing
+.DS
+.ft B
+ibase = 10
+.ft P
+.DE
+Because the number 10 is interpreted as octal, this statement will
+have no effect.
+For those who deal in hexadecimal notation,
+the characters A\-F are permitted in numbers
+(no matter what base is in effect)
+and are
+interpreted as digits having values 10\-15 respectively.
+The statement
+.DS
+.ft B
+ibase = A
+.ft P
+.DE
+will change you back to decimal input base no matter what the
+current input base is.
+Negative and large positive input bases are
+permitted but useless.
+No mechanism has been provided for the input of arbitrary
+numbers in bases less than 1 and greater than 16.
+.PP
+The contents of `obase', initially set to 10, are used as the base for output
+numbers.  The lines
+.DS
+.ft B
+obase = 16
+1000
+.ft P
+.DE
+will produce the output line
+.DS
+.ft B
+3E8
+.ft P
+.DE
+which is to be interpreted as a 3-digit hexadecimal number.
+Very large output bases are permitted, and they are sometimes useful.
+For example, large numbers can be output in groups of five digits
+by setting `obase' to 100000.
+Strange (i.e. 1, 0, or negative) output bases are
+handled appropriately.
+.PP
+Very large numbers are split across lines with 70 characters per line.
+Lines which are continued end with \\.
+Decimal output conversion is practically instantaneous, but output
+of very large numbers (i.e., more than 100 digits) with other bases
+is rather slow.
+Non-decimal output conversion of
+a one hundred digit number takes about
+three seconds.
+.PP
+It is best to remember that `ibase' and `obase' have no effect
+whatever on the course of internal computation or
+on the evaluation of expressions, but only affect input and
+output conversion, respectively.
+.SH
+Scaling
+.PP
+A third special internal quantity called `scale' is
+used to determine the scale of calculated
+quantities.
+Numbers may have
+up to a specific number of decimal digits after the decimal point.
+This fractional part is retained in further computations.
+We refer to the number of digits after the decimal point of
+a number as its scale.
+The current implementation allows scales to be as large as can be
+represented by a 32-bit unsigned number minus one.
+This is a non-portable extension.
+The original implementation allowed for a maximum scale of 99.
+.PP
+When two scaled numbers are combined by
+means of one of the arithmetic operations, the result
+has a scale determined by the following rules.  For
+addition and subtraction, the scale of the result is the larger
+of the scales of the two operands.  In this case,
+there is never any truncation of the result.
+For multiplications, the scale of the result is never
+less than the maximum of the two scales of the operands,
+never more than the sum of the scales of the operands
+and, subject to those two restrictions,
+the scale of the result is set equal to the contents of the internal
+quantity `scale'.
+The scale of a quotient is the contents of the internal
+quantity `scale'.  The scale of a remainder is
+the sum of the scales of the quotient and the divisor.
+The result of an exponentiation is scaled as if
+the implied multiplications were performed.
+An exponent must be an integer.
+The scale of a square root is set to the maximum of the scale
+of the argument and the contents of `scale'.
+.PP
+All of the internal operations are actually carried out in terms
+of integers, with digits being discarded when necessary.
+In every case where digits are discarded, truncation and
+not rounding is performed.
+.PP
+The contents of
+`scale' must be no greater than
+4294967294 and no less than 0.  It is initially set to 0.
+.PP
+The internal quantities `scale', `ibase', and `obase' can be
+used in expressions just like other variables.
+The line
+.DS
+.ft B
+scale = scale + 1
+.ft P
+.DE
+increases the value of `scale' by one, and the line
+.DS
+.ft B
+scale
+.ft P
+.DE
+causes the current value of `scale' to be printed.
+.PP
+The value of `scale' retains its meaning as a
+number of decimal digits to be retained in internal
+computation even when `ibase' or `obase' are not equal to 10.
+The internal computations (which are still conducted in decimal,
+regardless of the bases) are performed to the specified number
+of decimal digits, never hexadecimal or octal or any
+other kind of digits.
+.SH
+Functions
+.PP
+The name of a function is a single lower-case letter.
+Function names are permitted to collide with simple
+variable names.
+Twenty-six different defined functions are permitted
+in addition to the twenty-six variable names.
+The line
+.DS
+.ft B
+	define a(x){
+.ft P
+.DE
+begins the definition of a function with one argument.
+This line must be followed by one or more statements,
+which make up the body of the function, ending
+with a right brace }.
+Return of control from a function occurs when a return
+statement is executed or when the end of the function is reached.
+The return statement can take either
+of the two forms
+.DS
+.ft B
+return
+return(x)
+.ft P
+.DE
+In the first case, the value of the function is 0, and in
+the second, the value of the expression in parentheses.
+.PP
+Variables used in the function can be declared as automatic
+by a statement of the form
+.DS
+.ft B
+auto x,y,z
+.ft P
+.DE
+There can be only one `auto' statement in a function and it must
+be the first statement in the definition.
+These automatic variables are allocated space and initialized
+to zero on entry to the function and thrown away on return.  The
+values of any variables with the same names outside the function
+are not disturbed.
+Functions may be called recursively and the automatic variables
+at each level of call are protected.
+The parameters named in a function definition are treated in
+the same way as the automatic variables of that function
+with the single exception that they are given a value
+on entry to the function.
+An example of a function definition is
+.DS
+.ft B
+	define a(x,y){
+		auto z
+		z = x*y
+		return(z)
+	}
+.ft P
+.DE
+The value of this function, when called, will be the
+product of its
+two arguments.
+.PP
+A function is called by the appearance of its name
+followed by a string of arguments enclosed in
+parentheses and separated by commas.
+The result
+is unpredictable if the wrong number of arguments is used.
+.PP
+Functions with no arguments are defined and called using
+parentheses with nothing between them: b().
+.PP
+If the function
+.ft I
+a
+.ft
+above has been defined, then the line
+.DS
+.ft B
+a(7,3.14)
+.ft P
+.DE
+would cause the result 21.98 to be printed and the line
+.DS
+.ft B
+x = a(a(3,4),5)
+.ft P
+.DE
+would cause the value of x to become 60.
+.SH
+Subscripted Variables
+.PP
+A single lower-case letter variable name
+followed by an expression in brackets is called a subscripted
+variable (an array element).
+The variable name is called the array name and the expression
+in brackets is called the subscript.
+Only one-dimensional arrays are
+permitted.  The names of arrays are permitted to
+collide with the names of simple variables and function names.
+Any fractional
+part of a subscript is discarded before use.
+Subscripts must be greater than or equal to zero and 
+less than or equal to 2047.
+.PP
+Subscripted variables may be freely used in expressions, in
+function calls, and in return statements.
+.PP
+An array name may be used as an argument to a function,
+or may be declared as automatic in
+a function definition by the use of empty brackets:
+.DS
+.ft B
+f(a[\|])
+define f(a[\|])
+auto a[\|]
+.ft P
+.DE
+When an array name is so used, the whole contents of the array
+are copied for the use of the function, and thrown away on exit
+from the function.
+Array names which refer to whole arrays cannot be used
+in any other contexts.
+.SH
+Control Statements
+.PP
+The `if', the `while', and the `for' statements
+may be used to alter the flow within programs or to cause iteration.
+The range of each of them is a statement or
+a compound statement consisting of a collection of
+statements enclosed in braces.
+They are written in the following way
+.DS
+.ft B
+if(relation) statement
+if(relation) statement else statement
+while(relation) statement
+for(expression1; relation; expression2) statement
+.ft P
+.DE
+or
+.DS
+.ft B
+if(relation) {statements}
+if(relation) {statements} else {statements}
+while(relation) {statements}
+for(expression1; relation; expression2) {statements}
+.ft P
+.DE
+.PP
+A relation in one of the control statements is an expression of the form
+.DS
+.ft B
+x>y
+.ft P
+.DE
+where  two expressions are related by one of the six relational
+operators `<', `>', `<=', `>=', `==', or `!='.
+The relation `=='
+stands for `equal to' and `!=' stands for `not equal to'.
+The meaning of the remaining relational operators is
+clear.
+.PP
+BEWARE of using `=' instead of `==' in a relational.  Unfortunately,
+both of them are legal, so you will not get a diagnostic
+message, but `=' really will not do a comparison.
+.PP
+The `if' statement causes execution of its range
+if and only if the relation is true.
+Then control passes to the next statement in sequence.
+If an `else' branch is present, the statements in this branch are
+executed if the relation is false.
+The `else' keyword is a non-portable extension.
+.PP
+The `while' statement causes execution of its range
+repeatedly as long as the relation
+is true.  The relation is tested before each execution
+of its range and if the relation
+is false, control passes to the next statement beyond the range
+of the while.
+.PP
+The `for' statement begins
+by executing `expression1'.  Then the relation is tested
+and, if true, the statements in the range of the `for' are executed.
+Then `expression2' is executed.  The relation is tested, and so on.
+The typical use of the `for' statement is for a controlled iteration,
+as in the statement
+.DS
+.ft B
+for(i=1; i<=10; i=i+1) i
+.ft P
+.DE
+which will print the integers from 1 to 10.
+Here are some examples of the use of the control statements.
+.DS
+.ft B
+define f(n){
+auto i, x
+x=1
+for(i=1; i<=n; i=i+1) x=x*i
+return(x)
+}
+.ft P
+.DE
+The line
+.DS
+.ft B
+	f(a)
+.ft P
+.DE
+will print
+.ft I
+a
+.ft
+factorial if
+.ft I
+a
+.ft
+is a positive integer.
+Here is the definition of a function which will
+compute values of the binomial coefficient
+(m and n are assumed to be positive integers).
+.DS
+.ft B
+define b(n,m){
+auto x, j
+x=1
+for(j=1; j<=m; j=j+1) x=x*(n\-j+1)/j
+return(x)
+}
+.ft P
+.DE
+The following function computes values of the exponential function
+by summing the appropriate series
+without regard for possible truncation errors:
+.DS
+.ft B
+scale = 20
+define e(x){
+	auto a, b, c, d, n
+	a = 1
+	b = 1
+	c = 1
+	d = 0
+	n = 1
+	while(1==1){
+		a = a*x
+		b = b*n
+		c = c + a/b
+		n = n + 1
+		if(c==d) return(c)
+		d = c
+	}
+}
+.ft P
+.DE
+.SH
+Some Details
+.PP
+There are some language features that every user should know
+about even if he will not use them.
+.PP
+Normally statements are typed one to a line.  It is also permissible
+to type several statements on a line separated by semicolons.
+.PP
+If an assignment statement is parenthesized, it then has
+a value and it can be used anywhere that an expression can.
+For example, the line
+.DS
+.ft B
+(x=y+17)
+.ft P
+.DE
+not only makes the indicated assignment, but also prints the
+resulting value.
+.PP
+Here is an example of a use of the value of an
+assignment statement even when it is not parenthesized.
+.DS
+.ft B
+x = a[i=i+1]
+.ft P
+.DE
+causes a value to be assigned to x and also increments i
+before it is used as a subscript.
+.PP
+The following constructs work in BC in exactly the same manner
+as they do in the C language.  Consult the appendix or the
+C manuals [2] for their exact workings.
+.DS
+.ft B
+.ta 2i
+x=y=z  is the same as	x=(y=z)
+x += y	x = x+y
+x \-= y	x = x\-y
+x *= y	x = x*y
+x /= y	x = x/y
+x %= y	x = x%y
+x ^= y	x = x^y
+x++	(x=x+1)\-1
+x\-\-	(x=x\-1)+1
+++x	x = x+1
+\-\-x	x = x\-1
+.ft P
+.DE
+Even if you don't intend to use the constructs,
+if you type one inadvertently, something correct but unexpected
+may happen.
+.SH
+Three Important Things
+.PP
+1.  To exit a BC program, type `quit'.
+.PP
+2. There is a comment convention identical to that of C and
+of PL/I.  Comments begin with `/*' and end with `*/'.
+As a non-portable extension, comments may also start with a `#' and end with
+a newline.
+The newline is not part of the comment.
+.PP
+3. There is a library of math functions which may be obtained by
+typing at command level
+.DS
+.ft B
+bc \-l
+.ft P
+.DE
+This command will load a set of library functions
+which, at the time of writing, consists of sine (named `s'),
+cosine (`c'), arctangent (`a'), natural logarithm (`l'),
+exponential (`e') and Bessel functions of integer order (`j(n,x)').  Doubtless more functions will be added
+in time.
+The library sets the scale to 20.  You can reset it to something
+else if you like.
+The design of these mathematical library routines
+is discussed elsewhere [3].
+.PP
+If you type
+.DS
+.ft B
+bc file ...
+.ft P
+.DE
+BC will read and execute the named file or files before accepting
+commands from the keyboard.  In this way, you may load your
+favorite programs and function definitions.
+.SH
+Acknowledgement
+.PP
+The compiler is written in YACC [4]; its original
+version  was written by S. C. Johnson.
+.SH
+References
+.IP [1]
+K. Thompson and D. M. Ritchie,
+.ft I
+UNIX Programmer's Manual,
+.ft
+Bell Laboratories,
+1978.
+.IP [2]
+B. W. Kernighan and
+D. M. Ritchie,
+.ft I
+The C Programming Language,
+.ft
+Prentice-Hall, 1978.
+.IP [3]
+R. Morris,
+.ft I
+A Library of Reference Standard Mathematical Subroutines,
+.ft
+Bell Laboratories internal memorandum, 1975.
+.IP [4]
+S. C. Johnson,
+.ft I
+YACC \(em Yet Another Compiler-Compiler.
+.ft
+Bell Laboratories Computing Science Technical Report #32, 1978.
+.IP [5]
+R. Morris and L. L. Cherry,
+.ft I
+DC \- An Interactive Desk Calculator.
+.ft
+.LP
+.bp
+.ft B
+.DS C
+Appendix
+.DE
+.ft
+.NH
+Notation
+.PP
+In the following pages syntactic categories are in \fIitalics\fP;
+literals are in \fBbold\fP; material in brackets [\|] is optional.
+.NH
+Tokens
+.PP
+Tokens consist of keywords, identifiers, constants, operators,
+and separators.
+Token separators may be blanks, tabs or comments.
+Newline characters or semicolons separate statements.
+.NH 2
+Comments
+.PP
+Comments are introduced by the characters /* and terminated by
+*/.
+As a non-portable extension, comments may also start with a # and
+end with a newline.
+The newline is not part of the comment.
+.NH 2
+Identifiers
+.PP
+There are three kinds of identifiers \- ordinary identifiers, array identifiers
+and function identifiers.
+All three types consist of single lower-case letters.
+Array identifiers are followed by square brackets, possibly
+enclosing an expression describing a subscript.
+Arrays are singly dimensioned and may contain up to 2048
+elements.
+Indexing begins at zero so an array may be indexed from 0 to 2047.
+Subscripts are truncated to integers.
+Function identifiers are followed by parentheses, possibly enclosing arguments.
+The three types of identifiers do not conflict;
+a program can have a variable named \fBx\fP,
+an array named \fBx\fP and a function named \fBx\fP, all of which are separate and
+distinct.
+.NH 2
+Keywords
+.PP
+The following are reserved keywords:
+.ft B
+.ta .5i 1.0i
+.nf
+	ibase	if
+	obase	break
+	scale	define
+	sqrt	auto
+	length	return
+	while	quit
+	for	continue
+	else	last
+	print
+.fi
+.ft
+.NH 2
+Constants
+.PP
+Constants consist of arbitrarily long numbers
+with an optional decimal point.
+The hexadecimal digits \fBA\fP\-\fBF\fP are also recognized as digits with
+values 10\-15, respectively.
+.NH 1
+Expressions
+.PP
+The value of an expression is printed unless the main
+operator is an assignment.
+The value printed is assigned to the special variable \fBlast\fP.
+A single dot may be used as a synonym for \fBlast\fP.
+This is a non-portable extension.
+Precedence is the same as the order
+of presentation here, with highest appearing first.
+Left or right associativity, where applicable, is
+discussed with each operator.
+.bp
+.NH 2
+Primitive expressions
+.NH 3
+Named expressions
+.PP
+Named expressions are
+places where values are stored.
+Simply stated,
+named expressions are legal on the left
+side of an assignment.
+The value of a named expression is the value stored in the place named.
+.NH 4
+\fIidentifiers\fR
+.PP
+Simple identifiers are named expressions.
+They have an initial value of zero.
+.NH 4
+\fIarray-name\fP\|[\|\fIexpression\fP\|]
+.PP
+Array elements are named expressions.
+They have an initial value of zero.
+.NH 4
+\fBscale\fR, \fBibase\fR and \fBobase\fR
+.PP
+The internal registers
+\fBscale\fP, \fBibase\fP and \fBobase\fP are all named expressions.
+\fBscale\fP is the number of digits after the decimal point to be
+retained in arithmetic operations.
+\fBscale\fR has an initial value of zero.
+\fBibase\fP and \fBobase\fP are the input and output number
+radix respectively.
+Both \fBibase\fR and \fBobase\fR have initial values of 10.
+.NH 3
+Function calls
+.NH 4
+\fIfunction-name\fB\|(\fR[\fIexpression\fR\|[\fB,\|\fIexpression\|\fR.\|.\|.\|]\|]\fB)
+.PP
+A function call consists of a function name followed by parentheses
+containing a comma-separated list of
+expressions, which are the function arguments.
+A whole array passed as an argument is specified by the
+array name followed by empty square brackets.
+All function arguments are passed by
+value.
+As a result, changes made to the formal parameters have
+no effect on the actual arguments.
+If the function terminates by executing a return
+statement, the value of the function is
+the value of the expression in the parentheses of the return
+statement or is zero if no expression is provided
+or if there is no return statement.
+.NH 4
+sqrt\|(\|\fIexpression\fP\|)
+.PP
+The result is the square root of the expression.
+The result is truncated in the least significant decimal place.
+The scale of the result is
+the scale of the expression or the
+value of
+.ft B
+scale,
+.ft
+whichever is larger.
+.NH 4
+length\|(\|\fIexpression\fP\|)
+.PP
+The result is the total number of significant decimal digits in the expression.
+The scale of the result is zero.
+.NH 4
+scale\|(\|\fIexpression\fP\|)
+.PP
+The result is the scale of the expression.
+The scale of the result is zero.
+.NH 3
+Constants
+.PP
+Constants are primitive expressions.
+.NH 3
+Parentheses
+.PP
+An expression surrounded by parentheses is
+a primitive expression.
+The parentheses are used to alter the
+normal precedence.
+.NH 2
+Unary operators
+.PP
+The unary operators
+bind right to left.
+.NH 3
+\-\|\fIexpression\fP
+.PP
+The result is the negative of the expression.
+.NH 3
+++\|\fInamed-expression\fP
+.PP
+The named expression is
+incremented by one.
+The result is the value of the named expression after
+incrementing.
+.NH 3
+\-\-\|\fInamed-expression\fP
+.PP
+The named expression is
+decremented by one.
+The result is the value of the named expression after
+decrementing.
+.NH 3
+\fInamed-expression\fP\|++
+.PP
+The named expression is
+incremented by one.
+The result is the value of the named expression before
+incrementing.
+.NH 3
+\fInamed-expression\fP\|\-\-
+.PP
+The named expression is
+decremented by one.
+The result is the value of the named expression before
+decrementing.
+.NH 2
+Exponentiation operator
+.PP
+The exponentiation operator binds right to left.
+.NH 3
+\fIexpression\fP ^ \fIexpression\fP
+.PP
+The result is the first
+expression raised to the power of the
+second expression.
+The second expression must be an integer.
+If \fIa\fP
+is the scale of the left expression
+and \fIb\fP is the absolute value
+of the right expression,
+then the scale of the result is:
+.PP
+min\|(\|\fIa\(mub\fP,\|max\|(\|\fBscale\fP,\|\fIa\fP\|)\|)
+.NH 2
+Multiplicative operators
+.PP
+The operators *, /, % bind left to right.
+.NH 3
+\fIexpression\fP * \fIexpression\fP
+.PP
+The result is the product
+of the two expressions.
+If \fIa\fP and \fIb\fP are the
+scales of the two expressions,
+then the scale of the result is:
+.PP
+min\|(\|\fIa+b\fP,\|max\|(\|\fBscale\fP,\|\fIa\fP,\|\fIb\fP\|)\|)
+.NH 3
+\fIexpression\fP / \fIexpression\fP
+.PP
+The result is the quotient of the two expressions.
+The scale of the result is the value of \fBscale\fR.
+.NH 3
+\fIexpression\fP % \fIexpression\fP
+.PP
+The % operator produces the remainder of the division
+of the two expressions.
+More precisely,
+\fIa\fP%\fIb\fP is \fIa\fP\-\fIa\fP/\fIb\fP*\fIb\fP.
+.PP
+The scale of the result is the sum of the scale of
+the divisor and the value of
+.ft B
+scale
+.ft
+.NH 2
+Additive operators
+.PP
+The additive operators bind left to right.
+.NH 3
+\fIexpression\fP + \fIexpression\fP
+.PP
+The result is the sum of the two expressions.
+The scale of the result is
+the maximum of the scales of the expressions.
+.NH 3
+\fIexpression\fP \- \fIexpression\fP
+.PP
+The result is the difference of the two expressions.
+The scale of the result is the
+maximum of the scales of the expressions.
+.NH 2
+assignment operators
+.PP
+The assignment operators bind right to left.
+.NH 3
+\fInamed-expression\fP = \fIexpression\fP
+.PP
+This expression results in assigning the value of the expression
+on the right
+to the named expression on the left.
+.NH 3
+\fInamed-expression\fP += \fIexpression\fP
+.NH 3
+\fInamed-expression\fP \-= \fIexpression\fP
+.NH 3
+\fInamed-expression\fP *= \fIexpression\fP
+.NH 3
+\fInamed-expression\fP /= \fIexpression\fP
+.NH 3
+\fInamed-expression\fP %= \fIexpression\fP
+.NH 3
+\fInamed-expression\fP ^= \fIexpression\fP
+.PP
+The result of the above expressions is equivalent
+to ``named expression = named expression OP expression'',
+where OP is the operator after the = sign.
+.NH 1
+Relations
+.PP
+Unlike all other operators, the relational operators
+are only valid as the object of an \fBif\fP, \fBwhile\fP,
+or inside a \fBfor\fP statement.
+.NH 2
+\fIexpression\fP < \fIexpression\fP
+.NH 2
+\fIexpression\fP > \fIexpression\fP
+.NH 2
+\fIexpression\fP <= \fIexpression\fP
+.NH 2
+\fIexpression\fP >= \fIexpression\fP
+.NH 2
+\fIexpression\fP == \fIexpression\fP
+.NH 2
+\fIexpression\fP != \fIexpression\fP
+.NH 1
+Storage classes
+.PP
+There are only two storage classes in BC, global and automatic
+(local).
+Only identifiers that are to be local to a function need be 
+declared with the \fBauto\fP command.
+The arguments to a function
+are local to the function.
+All other identifiers are assumed to be global
+and available to all functions.
+All identifiers, global and local, have initial values
+of zero.
+Identifiers declared as \fBauto\fP are allocated on entry to the function 
+and released on returning from the function.
+They therefore do not retain values between function calls.
+\fBauto\fP arrays are specified by the array name followed by empty square brackets.
+.PP
+Automatic variables in BC do not work in exactly the same way
+as in either C or PL/I.  On entry to a function, the old values of
+the names that appear as parameters and as automatic
+variables are pushed onto a stack.  
+Until return is made from the function, reference to these
+names refers only to the new values.
+.NH 1
+Statements
+.PP
+Statements must be separated by semicolon or newline.
+Except where altered by control statements, execution
+is sequential.
+.NH 2
+Expression statements
+.PP
+When a statement is an expression, unless
+the main operator is an assignment, the value
+of the expression is printed, followed by a newline character.
+.NH 2
+Compound statements
+.PP
+Statements may be grouped together and used when one statement is expected
+by surrounding them with { }.
+.NH 2
+Quoted string statements
+.PP
+"any string"
+.sp .5
+This statement prints the string inside the quotes.
+.NH 2
+If statements
+.sp .5
+\fBif\|(\|\fIrelation\fB\|)\|\fIstatement\fR
+.PP
+The substatement is executed if the relation is true.
+.NH 2
+If-else statements
+.sp .5
+\fBif\|(\|\fIrelation\fB\|)\|\fIstatement\fB\|else\|\fIstatement\fR
+.PP
+The first substatement is executed if the relation is true, the second
+substatement if the relation is false.
+The \fBif-else\fR statement is a non-portable extension.
+.NH 2
+While statements
+.sp .5
+\fBwhile\|(\|\fIrelation\fB\|)\|\fIstatement\fR
+.PP
+The statement is executed while the relation
+is true.
+The test occurs before each execution of the statement.
+.NH 2
+For statements
+.sp .5
+\fBfor\|(\|\fIexpression\fB; \fIrelation\fB; \fIexpression\fB\|)\|\fIstatement\fR
+.PP
+The \fBfor\fR statement is the same as
+.nf
+.ft I
+	first-expression
+	\fBwhile\|(\fPrelation\|\fB) {\fP
+		statement
+		last-expression
+	}
+.ft R
+.fi
+.PP
+All three expressions may be left out.
+This is a non-portable extension.
+.NH 2
+Break statements
+.sp .5
+\fBbreak\fP
+.PP
+\fBbreak\fP causes termination of a \fBfor\fP or \fBwhile\fP statement.
+.NH 2
+Continue statements
+.sp .5
+\fBcontinue\fP
+.PP
+\fBcontinue\fP causes the next iteration of a \fBfor\fP or \fBwhile\fP
+statement to start, skipping the remainder of the loop.
+For a \fBwhile\fP statement, execution continues with the evaluation
+of the condition.
+For a \fBfor\fP statement, execution continues with evaluation of
+the last-expression.
+The \fBcontinue\fP statement is a non-portable extension.
+.NH 2
+Auto statements
+.sp .5
+\fBauto \fIidentifier\fR\|[\|\fB,\fIidentifier\fR\|]
+.PP
+The \fBauto\fR statement causes the values of the identifiers to be pushed down.
+The identifiers can be ordinary identifiers or array identifiers.
+Array identifiers are specified by following the array name by empty square
+brackets.
+The auto statement must be the first statement
+in a function definition.
+.NH 2
+Define statements
+.sp .5
+.nf
+\fBdefine(\|\fR[\fIparameter\|\fR[\fB\|,\|\fIparameter\|.\|.\|.\|\fR]\|]\|\fB)\|{\fI
+	statements\|\fB}\fR
+.fi
+.PP
+The \fBdefine\fR statement defines a function.
+The parameters may
+be ordinary identifiers or array names.
+Array names must be followed by empty square brackets.
+As a non-portable extension, the opening brace may also appear on the
+next line.
+.NH 2
+Return statements
+.sp .5
+\fBreturn\fP
+.sp .5
+\fBreturn(\fI\|expression\|\fB)\fR
+.PP
+The \fBreturn\fR statement causes termination of a function,
+popping of its auto variables, and
+specifies the result of the function.
+The first form is equivalent to \fBreturn(0)\fR.
+The result of the function is the result of the expression
+in parentheses.
+Leaving out the expression between parentheses is equivalent to
+\fBreturn(0)\fR.
+As a non-portable extension, the parentheses may be left out.
+.NH 2
+Print
+.PP
+The \fBprint\fR statement takes a list of comma-separated expressions.
+Each expression in the list is evaluated and the computed
+value is printed and assigned to the variable `last'.
+No trailing newline is printed.
+The expression may also be a string enclosed in double quotes.
+Within these strings the following escape sequences may be used:
+\ea 
+for bell (alert),
+`\eb'
+for backspace,
+`\ef'
+for formfeed,
+`\en'
+for newline,   
+`\er'
+for carriage return,
+`\et'
+`for tab,
+`\eq'
+for double quote and
+`\e\e'
+for backslash.
+Any other character following a backslash will be ignored.
+Strings will not be assigned to `last'.
+The \fBprint\fR statement is a non-portable extension.
+.NH 2
+Quit
+.PP
+The \fBquit\fR statement stops execution of a BC program and returns
+control to UNIX when it is first encountered.
+Because it is not treated as an executable statement,
+it cannot be used
+in a function definition or in an 
+.ft B
+if, for,
+.ft
+or
+.ft B
+while
+.ft
+statement.

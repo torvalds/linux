@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+set -e
+
+cd /
+dummy=$(cd /bin)
+[ "$(pwd)" = / ]
+
+v=1
+dummy=$(eval v=2)
+[ "$v" = 1 ]

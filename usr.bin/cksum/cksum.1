@@ -1,0 +1,177 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)cksum.1	8.2 (Berkeley) 4/28/95
+.\" $FreeBSD$
+.\"
+.Dd April 28, 1995
+.Dt CKSUM 1
+.Os
+.Sh NAME
+.Nm cksum ,
+.Nm sum
+.Nd display file checksums and block counts
+.Sh SYNOPSIS
+.Nm
+.Op Fl o Ar 1 | 2 | 3
+.Op Ar
+.Nm sum
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility writes to the standard output three whitespace separated
+fields for each input file.
+These fields are a checksum
+.Tn CRC ,
+the total number of octets in the file and the file name.
+If no file name is specified, the standard input is used and no file name
+is written.
+.Pp
+The
+.Nm sum
+utility is identical to the
+.Nm
+utility, except that it defaults to using historic algorithm 1, as
+described below.
+It is provided for compatibility only.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl o
+Use historic algorithms instead of the (superior) default one.
+.Pp
+Algorithm 1 is the algorithm used by historic
+.Bx
+systems as the
+.Xr sum 1
+algorithm and by historic
+.At V
+systems as the
+.Xr sum 1
+algorithm when using the
+.Fl r
+option.
+This is a 16-bit checksum, with a right rotation before each addition;
+overflow is discarded.
+.Pp
+Algorithm 2 is the algorithm used by historic
+.At V
+systems as the
+default
+.Xr sum 1
+algorithm.
+This is a 32-bit checksum, and is defined as follows:
+.Bd -unfilled -offset indent
+s = sum of all bytes;
+r = s % 2^16 + (s % 2^32) / 2^16;
+cksum = (r % 2^16) + r / 2^16;
+.Ed
+.Pp
+Algorithm 3 is what is commonly called the
+.Ql 32bit CRC
+algorithm.
+This is a 32-bit checksum.
+.Pp
+Both algorithm 1 and 2 write to the standard output the same fields as
+the default algorithm except that the size of the file in bytes is
+replaced with the size of the file in blocks.
+For historic reasons, the block size is 1024 for algorithm 1 and 512
+for algorithm 2.
+Partial blocks are rounded up.
+.El
+.Pp
+The default
+.Tn CRC
+used is based on the polynomial used for
+.Tn CRC
+error checking
+in the networking standard
+.St -iso8802-3 .
+The
+.Tn CRC
+checksum encoding is defined by the generating polynomial:
+.Bd -unfilled -offset indent
+G(x) = x^32 + x^26 + x^23 + x^22 + x^16 + x^12 +
+     x^11 + x^10 + x^8 + x^7 + x^5 + x^4 + x^2 + x + 1
+.Ed
+.Pp
+Mathematically, the
+.Tn CRC
+value corresponding to a given file is defined by
+the following procedure:
+.Bd -ragged -offset indent
+The
+.Ar n
+bits to be evaluated are considered to be the coefficients of a mod 2
+polynomial M(x) of degree
+.Ar n Ns \-1 .
+These
+.Ar n
+bits are the bits from the file, with the most significant bit being the most
+significant bit of the first octet of the file and the last bit being the least
+significant bit of the last octet, padded with zero bits (if necessary) to
+achieve an integral number of octets, followed by one or more octets
+representing the length of the file as a binary value, least significant octet
+first.
+The smallest number of octets capable of representing this integer are used.
+.Pp
+M(x) is multiplied by x^32 (i.e., shifted left 32 bits) and divided by
+G(x) using mod 2 division, producing a remainder R(x) of degree <= 31.
+.Pp
+The coefficients of R(x) are considered to be a 32-bit sequence.
+.Pp
+The bit sequence is complemented and the result is the CRC.
+.Ed
+.Sh EXIT STATUS
+.Ex -std cksum sum
+.Sh SEE ALSO
+.Xr md5 1
+.Pp
+The default calculation is identical to that given in pseudo-code
+in the following
+.Tn ACM
+article.
+.Rs
+.%T "Computation of Cyclic Redundancy Checks Via Table Lookup"
+.%A Dilip V. Sarwate
+.%J "Communications of the" Tn ACM
+.%D "August 1988"
+.Re
+.Sh STANDARDS
+The
+.Nm
+utility is expected to conform to
+.St -p1003.2-92 .
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.4 .

@@ -1,0 +1,190 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ss2	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+2: Actions
+.PP
+With each grammar rule, the user may associate actions to be performed each time
+the rule is recognized in the input process.
+These actions may return values, and may obtain the values returned by previous
+actions.
+Moreover, the lexical analyzer can return values
+for tokens, if desired.
+.PP
+An action is an arbitrary C statement, and as such can do
+input and output, call subprograms, and alter
+external vectors and variables.
+An action is specified by
+one or more statements, enclosed in curly braces ``{'' and ``}''.
+For example,
+.DS
+A	:	\'(\'  B  \')\'
+			{	hello( 1, "abc" );  }
+.DE
+and
+.DS
+XXX	:	YYY  ZZZ
+			{	printf("a message\en");
+				flag = 25;   }
+.DE
+are grammar rules with actions.
+.PP
+To facilitate easy communication between the actions and the parser, the action statements are altered
+slightly.
+The symbol ``dollar sign'' ``$'' is used as a signal to Yacc in this context.
+.PP
+To return a value, the action normally sets the
+pseudo-variable ``$$'' to some value.
+For example, an action that does nothing but return the value 1 is
+.DS
+	{  $$ = 1;  }
+.DE
+.PP
+To obtain the values returned by previous actions and the lexical analyzer, the
+action may use the pseudo-variables $1, $2, . . .,
+which refer to the values returned by the
+components of the right side of a rule, reading from left to right.
+Thus, if the rule is
+.DS
+A	:	B  C  D   ;
+.DE
+for example, then $2 has the value returned by C, and $3 the value returned by D.
+.PP
+As a more concrete example, consider the rule
+.DS
+expr	:	\'(\'  expr  \')\'   ;
+.DE
+The value returned by this rule is usually the value of the
+.I expr
+in parentheses.
+This can be indicated by
+.DS
+expr	:	 \'(\'  expr  \')\'		{  $$ = $2 ;  }
+.DE
+.PP
+By default, the value of a rule is the value of the first element in it ($1).
+Thus, grammar rules of the form
+.DS
+A	:	B    ;
+.DE
+frequently need not have an explicit action.
+.PP
+In the examples above, all the actions came at the end of their rules.
+Sometimes, it is desirable to get control before a rule is fully parsed.
+Yacc permits an action to be written in the middle of a rule as well
+as at the end.
+This rule is assumed to return a value, accessible
+.\" XXX What does this mean?  Nobody seems to understand it.
+.\" through the usual \$ mechanism by the actions to
+through the usual mechanism by the actions to
+the right of it.
+In turn, it may access the values
+returned by the symbols to its left.
+Thus, in the rule
+.DS
+A	:	B
+			{  $$ = 1;  }
+		C
+			{   x = $2;   y = $3;  }
+	;
+.DE
+the effect is to set
+.I x
+to 1, and
+.I y
+to the value returned by C.
+.PP
+Actions that do not terminate a rule are actually
+handled by Yacc by manufacturing a new nonterminal
+symbol name, and a new rule matching this
+name to the empty string.
+The interior action is the action triggered off by recognizing
+this added rule.
+Yacc actually treats the above example as if
+it had been written:
+.DS
+$ACT	:	/* empty */
+			{  $$ = 1;  }
+	;
+
+A	:	B  $ACT  C
+			{   x = $2;   y = $3;  }
+	;
+.DE
+.PP
+In many applications, output is not done directly by the actions;
+rather, a data structure, such as a parse tree, is constructed in memory,
+and transformations are applied to it before output is generated.
+Parse trees are particularly easy to
+construct, given routines to build and maintain the tree
+structure desired.
+For example, suppose there is a C function
+.I node ,
+written so that the call
+.DS
+node( L, n1, n2 )
+.DE
+creates a node with label L, and descendants n1 and n2, and returns the index of
+the newly created node.
+Then parse tree can be built by supplying actions such as:
+.DS
+expr	:	expr  \'+\'  expr  
+			{  $$ = node( \'+\', $1, $3 );  }
+.DE
+in the specification.
+.PP
+The user may define other variables to be used by the actions.
+Declarations and definitions can appear in
+the declarations section,
+enclosed in the marks ``%{'' and ``%}''.
+These declarations and definitions have global scope, 
+so they are known to the action statements and the lexical analyzer.
+For example,
+.DS
+%{   int variable = 0;   %}
+.DE
+could be placed in the declarations section,
+making
+.I variable
+accessible to all of the actions.
+The Yacc parser uses only names beginning in ``yy'';
+the user should avoid such names.
+.PP
+In these examples, all the values are integers: a discussion of
+values of other types will be found in Section 10.

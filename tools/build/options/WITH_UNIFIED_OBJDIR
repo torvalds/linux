@@ -1,0 +1,12 @@
+.\" $FreeBSD$
+Set to use the unified object directory format for
+.Xr build 7
+targets.
+For cross-builds, native-builds, and sub-directory builds, the format of
+.Pa ${MAKEOBJDIRPREFIX}/${.CURDIR}/${TARGET}.${TARGET_ARCH}
+is used.
+.Pp
+This option is transitional and will be removed before the 12.0 release,
+at which time
+.va WITH_UNIFIED_OBJDIR
+will be enabled permanently.

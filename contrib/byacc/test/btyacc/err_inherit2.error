@@ -1,0 +1,5 @@
+YACC: w - line 64 of "./err_inherit2.y", number of arguments of namelist doesn't agree with previous declaration
+YACC: w - line 64 of "./err_inherit2.y", type of argument 1 to namelist doesn't agree with previous declaration
+YACC: e - line 64 of "./err_inherit2.y", bad formal argument list
+namelist($<tval>c, $t, extra): namelist NAME
+                             ^

@@ -1,0 +1,102 @@
+.\" Copyright (c) 2003 David Schultz <das@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 12, 2003
+.Dt ISGREATER 3
+.Os
+.Sh NAME
+.Nm isgreater , isgreaterequal , isless , islessequal ,
+.Nm islessgreater , isunordered
+.Nd "compare two floating-point numbers"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In math.h
+.Ft int
+.Fn isgreater "real-floating x" "real-floating y"
+.Ft int
+.Fn isgreaterequal "real-floating x" "real-floating y"
+.Ft int
+.Fn isless "real-floating x" "real-floating y"
+.Ft int
+.Fn islessequal "real-floating x" "real-floating y"
+.Ft int
+.Fn islessgreater "real-floating x" "real-floating y"
+.Ft int
+.Fn isunordered "real-floating x" "real-floating y"
+.Sh DESCRIPTION
+Each of the macros
+.Fn isgreater ,
+.Fn isgreaterequal ,
+.Fn isless ,
+.Fn islessequal ,
+and
+.Fn islessgreater
+take arguments
+.Fa x
+and
+.Fa y
+and return a non-zero value if and only if its nominal
+relation on
+.Fa x
+and
+.Fa y
+is true.
+These macros always return zero if either
+argument is not a number (NaN), but unlike the corresponding C
+operators, they never raise a floating point exception.
+.Pp
+The
+.Fn isunordered
+macro takes arguments
+.Fa x
+and
+.Fa y
+and returns non-zero if and only if any of
+.Fa x
+or
+.Fa y
+are NaNs.
+For any pair of floating-point values, one
+of the relationships (less, greater, equal, unordered) holds.
+.Sh SEE ALSO
+.Xr fpclassify 3 ,
+.Xr math 3 ,
+.Xr signbit 3
+.Sh STANDARDS
+The
+.Fn isgreater ,
+.Fn isgreaterequal ,
+.Fn isless ,
+.Fn islessequal ,
+.Fn islessgreater ,
+and
+.Fn isunordered
+macros conform to
+.St -isoC-99 .
+.Sh HISTORY
+The relational macros described above first appeared in
+.Fx 5.1 .

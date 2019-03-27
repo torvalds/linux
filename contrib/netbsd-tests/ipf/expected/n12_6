@@ -1,0 +1,28 @@
+6000 0000 002c 0640 c0a8 0100 0000 0000 0000 0000 0000 00bc c0a8 0300 0000 0000 0000 0000 0000 0003 2710 0017 4e33 298e 0000 0000 b002 4000 6ff8 0000 0204 05b4 0101 0402 0103 0300 0101 080a 0c72 549e 0000 0000 
+
+6000 0000 0028 06fe c0a8 0300 0000 0000 0000 0000 0000 0003 c0a8 7e00 0000 0000 0000 0000 0000 0053 0017 12c2 f674 e02c 4e33 298f a012 2798 7ace 0000 0101 080a 2c05 b797 0c72 549e 0103 0300 0204 05b4 
+
+6000 0000 0020 0640 c0a8 0100 0000 0000 0000 0000 0000 00bc c0a8 0300 0000 0000 0000 0000 0000 0003 2710 0017 4e33 298f f674 e02d 8010 4000 f673 0000 0101 080a 0c72 549e 2c05 b797 
+
+List of active MAP/Redirect filters:
+map le0 inet6 c0a8:7e00::/112 -> ::/128 portmap tcp/udp 10000:20000
+
+List of active sessions:
+MAP c0a8:7e00::53 4802  <- -> c0a8:100::bc 10000 [c0a8:300::3 23]
+
+Hostmap table:
+c0a8:7e00::53,c0a8:300::3 -> any,any (use = 1)
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

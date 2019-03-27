@@ -1,0 +1,116 @@
+#------------------------------------------------------------------------------
+# $File: der,v 1.2 2017/03/17 21:35:28 christos Exp $
+# der: file(1) magic for DER encoded files
+#
+
+# Certificate information piece
+0	name	certinfo
+>0	der	seq
+>>&0	der	set
+>>>&0	der	seq
+>>>>&0	der	obj_id3=550406
+>>>>&0	der	prt_str=x	\b, countryName=%s
+>>&0	der	set
+>>>&0	der	seq
+>>>>&0	der	obj_id3=550408
+>>>>&0	der	utf8_str=x	\b, stateOrProvinceName=%s
+>>&0	der	set
+>>>&0	der	seq
+>>>>&0	der	obj_id3=55040a
+>>>>&0	der	utf8_str=x	\b, organizationName=%s
+>>&0	der	set
+>>>&0	der	seq
+>>>>&0	der	obj_id3=550403
+>>>>&0	der	utf8_str=x	\b, commonName=%s
+>>&0	der	seq
+
+# Certificate requests
+0	der	seq
+>&0	der	seq
+>>&0	der	int1=00		DER Encoded Certificate request
+>>&0	use	certinfo
+
+# Key Pairs
+0	der	seq
+>&0	der	int1=00
+>&0	der	int65=x
+>&0	der	int3=010001	DER Encoded Key Pair, 512 bits
+
+0	der	seq
+>&0	der	int1=00
+>&0	der	int129=x
+>&0	der	int3=010001	DER Encoded Key Pair, 1024 bits
+
+0	der	seq
+>&0	der	int1=00
+>&0	der	int257=x
+>&0	der	int3=010001	DER Encoded Key Pair, 2048 bits
+
+0	der	seq
+>&0	der	int1=00
+>&0	der	int513=x
+>&0	der	int3=010001	DER Encoded Key Pair, 4096 bits
+
+0	der	seq
+>&0	der	int1=00
+>&0	der	int1025=x
+>&0	der	int3=010001	DER Encoded Key Pair, 8192 bits
+
+0	der	seq
+>&0	der	int1=00
+>&0	der	int2049=x
+>&0	der	int3=010001	DER Encoded Key Pair, 16k bits
+
+0	der	seq
+>&0	der	int1=00
+>&0	der	int4097=x
+>&0	der	int3=010001	DER Encoded Key Pair, 32k bits
+
+# Certificates
+0	der	seq
+>&0	der	seq
+>>&0	der	int2=0dfa	DER Encoded Certificate, 512 bits
+>>&0	der	int2=0dfb	DER Encoded Certificate, 1024 bits
+>>&0	der	int2=0dfc	DER Encoded Certificate, 2048 bits
+>>&0	der	int2=0dfd	DER Encoded Certificate, 4096 bits
+>>&0	der	int2=0dfe	DER Encoded Certificate, 8192 bits
+>>&0	der	int2=0dff	DER Encoded Certificate, 16k bits
+>>&0	der	int2=0e04	DER Encoded Certificate, 32k bits
+>>&0	der	int2=x		DER Encoded Certificate, ? bits (%s)
+>>&0	der	seq
+>>>&0	der	obj_id9=2a864886f70d010105	\b, sha1WithRSAEncryption
+>>>&0	der	obj_id9=x			\b, ? Encryption (%s)
+>>>&0	der	null
+>>&0	der	seq
+>>>&0	der	set
+>>>>&0	der	seq
+>>>>>&0	der	obj_id3=550406
+>>>>>&0	der	prt_str=x	\b, countryName=%s
+>>>&0	der	set
+>>>>&0	der	seq
+>>>>>&0	der	obj_id3=550408
+>>>>>&0	der	prt_str=x	\b, stateOrProvinceName=%s
+>>>&0	der	set
+>>>>&0	der	seq
+>>>>>&0	der	obj_id3=550407
+>>>>>&0	der	prt_str=x	\b, localityName=%s
+>>>&0	der	set
+>>>>&0	der	seq
+>>>>>&0	der	obj_id3=55040a
+>>>>>&0	der	prt_str=x	\b, organizationName=%s
+>>>&0	der	set
+>>>>&0	der	seq
+>>>>>&0	der	obj_id3=55040b
+>>>>>&0	der	prt_str=x	\b, organizationUnitName=%s
+>>>&0	der	set
+>>>>&0	der	seq
+>>>>>&0	der	obj_id3=550403
+>>>>>&0	der	prt_str=x	\b, commonName=%s
+>>>&0	der	set
+>>>>&0	der	seq
+>>>>>&0	der	obj_id9=2a864886f70d010901
+>>>>>&0	der	ia5_str=x	\b, emailAddress=%s
+>>&0	der	seq
+>>>&0	der	utc_time=x	\b, utcTime=%s
+>>>&0	der	utc_time=x	\b, utcTime=%s
+>>&0	use	certinfo

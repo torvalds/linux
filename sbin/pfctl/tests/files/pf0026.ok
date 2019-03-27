@@ -1,0 +1,2 @@
+block drop in on lo0 inet from ! (lo0) to any
+block drop out on lo0 inet from any to ! (lo0)

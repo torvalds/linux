@@ -1,0 +1,191 @@
+.\" Copyright (c) 1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_bpf.8,v 1.2 1999/12/03 01:57:12 archie Exp $
+.\"
+.Dd November 13, 2012
+.Dt NG_BPF 4
+.Os
+.Sh NAME
+.Nm ng_bpf
+.Nd Berkeley packet filter netgraph node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In net/bpf.h
+.In netgraph.h
+.In netgraph/ng_bpf.h
+.Sh DESCRIPTION
+The
+.Nm bpf
+node type allows Berkeley Packet Filter (see
+.Xr bpf 4 )
+filters to be applied to data travelling through a Netgraph network.
+Each node allows an arbitrary number of connections to arbitrarily
+named hooks.
+With each hook is associated a
+.Xr bpf 4
+filter program which is applied to incoming data only, a destination hook
+for matching packets, a destination hook for non-matching packets,
+and various statistics counters.
+.Pp
+A
+.Xr bpf 4
+program returns an unsigned integer, which is normally interpreted as
+the length of the prefix of the packet to return.
+In the context of this
+node type, returning zero is considered a non-match, in which case the
+entire packet is delivered out the non-match destination hook.
+Returning a value greater than zero causes the packet to be truncated
+to that length and delivered out the match destination hook.
+Either or both destination hooks may be the empty string, or may
+not exist, in which case the packet is dropped.
+.Pp
+New hooks are initially configured to drop all packets.
+A new filter program may be installed using the
+.Dv NGM_BPF_SET_PROGRAM
+control message.
+.Sh HOOKS
+This node type supports any number of hooks having arbitrary names.
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_BPF_SET_PROGRAM Pq Ic setprogram
+This command sets the filter program that will be applied to incoming
+data on a hook.
+The following structure must be supplied as an argument:
+.Bd -literal -offset 4n
+struct ng_bpf_hookprog {
+  char            thisHook[NG_HOOKSIZ];     /* name of hook */
+  char            ifMatch[NG_HOOKSIZ];      /* match dest hook */
+  char            ifNotMatch[NG_HOOKSIZ];   /* !match dest hook */
+  int32_t         bpf_prog_len;             /* #insns in program */
+  struct bpf_insn bpf_prog[];               /* bpf program */
+};
+.Ed
+.Pp
+The hook to be updated is specified in
+.Dv thisHook .
+The BPF program is the sequence of instructions in the
+.Dv bpf_prog
+array; there must be
+.Dv bpf_prog_len
+of them.
+Matching and non-matching incoming packets are delivered out the hooks named
+.Dv ifMatch
+and
+.Dv ifNotMatch ,
+respectively.
+The program must be a valid
+.Xr bpf 4
+program or else
+.Er EINVAL
+is returned.
+.It Dv NGM_BPF_GET_PROGRAM Pq Ic getprogram
+This command takes an
+.Tn ASCII
+string argument, the hook name, and returns the
+corresponding
+.Dv "struct ng_bpf_hookprog"
+as shown above.
+.It Dv NGM_BPF_GET_STATS Pq Ic getstats
+This command takes an
+.Tn ASCII
+string argument, the hook name, and returns the
+statistics associated with the hook as a
+.Dv "struct ng_bpf_hookstat" .
+.It Dv NGM_BPF_CLR_STATS Pq Ic clrstats
+This command takes an
+.Tn ASCII
+string argument, the hook name, and clears the
+statistics associated with the hook.
+.It Dv NGM_BPF_GETCLR_STATS Pq Ic getclrstats
+This command is identical to
+.Dv NGM_BPF_GET_STATS ,
+except that the statistics are also atomically cleared.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh EXAMPLES
+It is possible to configure a node from the command line, using
+.Xr tcpdump 1
+to generate raw BPF instructions which are then fed into an
+.Xr awk 1
+script to create the ASCII form of a
+.Dv NGM_BPF_SET_PROGRAM
+control message, as demonstrated here:
+.Bd -literal -offset 4n
+#!/bin/sh
+
+PATTERN="tcp dst port 80"
+NODEPATH="my_node:"
+INHOOK="hook1"
+MATCHHOOK="hook2"
+NOTMATCHHOOK="hook3"
+
+BPFPROG=$( tcpdump -s 8192 -p -ddd ${PATTERN} | \\
+           ( read len ; \\
+             echo -n "bpf_prog_len=$len" ; \\
+             echo -n "bpf_prog=[" ; \\
+             while read code jt jf k ; do \\
+                 echo -n " { code=$code jt=$jt jf=$jf k=$k }" ; \\
+             done ; \\
+             echo " ]" ) )
+
+ngctl msg ${NODEPATH} setprogram { thisHook=\\"${INHOOK}\\" \\
+  ifMatch=\\"${MATCHHOOK}\\" \\
+  ifNotMatch=\\"${NOTMATCHHOOK}\\" \\
+  ${BPFPROG} }
+.Ed
+.Sh SEE ALSO
+.Xr bpf 4 ,
+.Xr netgraph 4 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Archie Cobbs Aq Mt archie@FreeBSD.org
+.Sh BUGS
+When built as a loadable kernel module, this module includes the file
+.Pa net/bpf_filter.c .
+Although loading the module should fail if
+.Pa net/bpf_filter.c
+already exists in the kernel, currently it does not, and the duplicate
+copies of the file do not interfere.
+However, this may change in the future.

@@ -1,0 +1,2 @@
+pass in from 10.0.0.1 to no-route label "$srcaddr:$dstaddr"
+

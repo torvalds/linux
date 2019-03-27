@@ -1,0 +1,29 @@
+@(#) $Id: README,v 1.9 2000/09/16 05:32:01 leres Exp $ (LBL)
+
+TRACEROUTE 1.4
+Lawrence Berkeley National Laboratory
+Network Research Group
+traceroute@ee.lbl.gov
+ftp://ftp.ee.lbl.gov/traceroute.tar.gz
+
+Traceroute is a system administrators utility to trace the route
+ip packets from the current system take in getting to some
+destination system.  See the comments at the front of the
+program for a description of its use.
+
+This program uses raw ip sockets and must be run as root (or installed
+setuid to root).
+
+A couple of awk programs to massage the traceroute output are
+included.  "mean.awk" and "median.awk" compute the mean and median time
+to each hop, respectively.  I've found that something like
+
+    traceroute -q 7 foo.somewhere >t
+    awk -f median.awk t | xgraph
+
+can give you a quick picture of the bad spots on a long path (median is
+usually a better noise filter than mean).
+
+Problems, bugs, questions, desirable enhancements, source code
+contributions, etc., should be sent to the email address
+"traceroute@ee.lbl.gov".

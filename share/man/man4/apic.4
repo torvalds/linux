@@ -1,0 +1,78 @@
+.\" Copyright (c) 2011 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 20, 2011
+.Dt APIC 4
+.Os
+.Sh NAME
+.Nm apic
+.Nd Advanced Programmable Interrupt Controller (APIC) driver
+.Sh SYNOPSIS
+This driver is a mandatory part of amd64 kernel.
+To compile this driver into i386 kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device apic"
+.Ed
+.Pp
+The following tunable is settable from the
+.Xr loader 8 :
+.Bl -ohang
+.It Va hint.apic. Ns Ar X Ns Va .clock
+controls event timers functionality support.
+Setting to 0, disables it.
+Default value is 1.
+.It Va hint.apic. Ns Ar X Ns Va .disabled
+Set this to 1 to disable APIC support, falling back to the legacy PIC.
+.El
+.Sh DESCRIPTION
+There are two components in the Intel APIC system, the local APIC (LAPIC)
+and the I/O APIC.
+There is one local APIC in each CPU in the system.
+There is typically one I/O APIC for each peripheral bus in the system.
+.Pp
+Local APICs manage all external interrupts for a specific processor.
+In addition, they are able to accept and generate inter-processor interrupts
+(IPIs).
+.Pp
+I/O APICs contain a redirection table, which is used to route the interrupts
+they receive from peripheral buses to one or more local APICs.
+.Pp
+Each local APIC includes one 32-bit programmable timer.
+This driver uses them to supply kernel with one event timer named "LAPIC".
+Event timer provided by the driver supports both one-shot an periodic modes.
+Because of local APIC nature it is per-CPU.
+The timer frequency is not reported by the platform and so automatically
+measured by the driver on the first use.
+Depending on CPU model this timer may stop in C3 and deeper CPU sleep states.
+Driver automatically adjusts event timer priority and reports it to prevent
+entering dangerous sleep states when it is used.
+.Sh SEE ALSO
+.Xr atrtc 4 ,
+.Xr attimer 4 ,
+.Xr eventtimers 4 ,
+.Xr hpet 4

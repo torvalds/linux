@@ -1,0 +1,241 @@
+
+CURSES TESTFRAME
+----------------
+
+1. Introduction
+
+The curses library is a complex piece of software and, often, changes
+made to the library may introduce subtle bugs that are hidden by other
+actions so a visual check of the curses output may look correct in
+some circumstances and the bug only show itself after a certain
+sequence of actions.  To assist with validating that changes made to
+the curses library have no undesired effects an automated test is
+needed to detect and highlight any changes in the curses application
+output stream.  The programmer can then analyse the output changes and
+either correct a bug or update the automated test to accept the new
+output as valid.
+
+2. Architecture
+
+The curses testframe consists of two separate programs connected by a
+number of pipes and a pseudo-tty (pty).  The programs are called the
+director and the slave.  The director reads a configuration file of
+tests to perform, passes these commands to the slave over a pipe and
+reads the pty for any output from the slave.  Data from the slave is
+compared against expected output held in a file and any differences
+are highlighted to the tester.  The slave is a curses application that
+is forked by the director on start up.  It reads commands from the
+director over a pipe, these commands are calls to curses routines
+along with the parameters required for the call.  The slave takes the
+parameters and uses them as arguments for the requested curses routine
+call.  The return value from the curses routine is passed back to the
+director over another pipe, if the curses routine updates any passed
+by reference arguments then these are also passed back to the director
+for analysis.
+
+3. Director
+
+The director has the following optional command line options:
+
+    -v	     	     enables verbose output to assist debugging
+    -s slave_path    the director will execute slave_path as the slave
+       		     process.  The default is ./slave
+    -t term	     Sets the TERM environment variable to term when
+       		     executing the slave.  The default is atf
+
+There is one mandatory command line parameter, that is a file name
+that contains the test command file.  The test command file holds the
+calls required to exercise a particular curses routine and validate
+both the return codes from the routines and the output from the
+slave.  The test language has a small number of commands, they are:
+
+assign:
+      Assign a value to a variable.  The syntax is:
+
+      	     assign var_name value
+
+      Where var_name is the name of the variable.  Variable names are
+      an arbitrary sequence of alphanumeric characters, the variable
+      name must start with an alphabetic character. Value is the value
+      to be assigned.  The value can either be a numeric or a string
+      type.  Variables are created on first use and will be
+      overwritten on each subsequent use.
+
+call, call2, call3, call4:
+      All these are used to call curses routines, the only difference
+      between then is the number of expected return values.  Call
+      expects one return value, call2 expects 2, call3 expects 3 and
+      call4 expects four.  Any parameters that are passed by reference
+      and updated by the call are treated like returns.  So, for
+      example, calling the function getyx() which has three
+      parameters, the window, a pointer to storage for y and a pointer
+      to storage for x would be called like this:
+
+      	 	 call3 OK 4 5 getyx $win1
+
+      Which calls getyx, the first (and possibly only) return is the
+      return status of the function call, in this case we expect "OK"
+      indicating that the call succeeded.  The next two returns are
+      the values of y and x respectively, the parameter $win1 is a
+      variable that was assigned by a previous call.  Any return can
+      be assigned to a variable by including the variable name in a
+      call return list.  Variables are referenced in a call parameter
+      list by prefixing the name with a $ character.  All returns are
+      validated against the expected values and an error raised if
+      there is a mismatch.  The only exception to this is when the
+      return is assigned to a variable.  Valid values for the returns
+      list are:
+
+      	  	  variable - assign the return to the given variable
+		             name.
+      	  	  numeric  - the value of the return must match the
+      	  	  	     number given.
+		  string   - an arbitrary sequence of characters
+      	  	  	     enclosed in double quotes.
+		  ERR      - expect an ERR return
+		  OK	   - expect an OK return
+		  NULL	   - expect a NULL pointer return
+		  NON_NULL - expect a pointer that is not NULL valued
+
+      There is one special parameter that can be passed to a call,
+      that is the label STDSCR.  This parameter will be substituted by
+      the value of stdscr when the function call is made.
+
+check:
+      Validate the value of a variable.  This allows a variable to be
+      checked for an expected return after it has been assigned in a
+      previous call.  The syntax is:
+
+      	       check var_name expected_result
+
+      Where var_name is a variable previously assigned and
+      expected_result is one of the valid return values listed in the
+      above call section.
+
+compare:
+      Compares the output stream from the slave against the contents
+      of a file that contains the expected
+      output.  The syntax is:
+
+      	       compare filename
+
+      Where filename is the name of the file containing the expected
+      output.  The file can either be an absolute path or relative
+      path.  In the latter case the value of the environment variable
+      CHECK_PATH will be prepended to the argument to provide the path
+      to the file.  The contents of this file will be compared byte by
+      byte against the output from the slave, any differences in the
+      output will be flagged.  If the director is not in verbose mode
+      then the first mismatch in the byte stream will cause the
+      director to exit.
+
+comparend:
+      Performs the same function as the above compare except that
+      excess output from the slave is not discarded if there is more
+      data from the slave than there is in the check file.  This
+      allows chaining of multiple check files.
+
+delay:
+      Defines an inter-character delay to be inserted between
+      characters being fed into the input of the slave.  The syntax
+      is:
+
+		delay time
+
+      Where time is the amount of time to delay in milliseconds.
+
+include:
+      Include the contents of another test file, the parser will
+      suspend reading the current file and read commands from the
+      include file until the end of file of the include file is
+      reached at which point it will continue reading the original
+      file.  Include files may be nested.  The syntax is:
+
+      	     	include filename
+
+      Where filename is the name of the file to include.  If the
+      filename is not an absolute path then the contents of the
+      environment variable INCLUDE_PATH are prepended to the file
+      name.
+
+input:
+      Defines a string of characters that will be fed to the slave
+      when a call requires input.  Any unused input will be discarded
+      after the call that required the input is called.  The syntax
+      is:
+
+		input "string to pass"
+
+noinput:
+      Normally the director will error if an input function is called
+      without input being previously defined, this is to prevent input
+      functions causing the test to hang waiting for input that never
+      comes.  If it is known that there is pending input for the slave
+      then the noinput keyword can be used to flag that the input
+      function has data available for it to read.  The noinput command
+      only applies to the next function call then behaviour reverts to
+      the default.
+
+The testframe can define different types of strings, the type of string
+depends on the type of enclosing quotes.  A null terminated string is
+indicated by enclosing double (") quotes.  A byte string, one that is
+not null terminated and may contain the nul character within it is
+indicated by enclosing single (') quotes.  A string of chtype
+character which are a combined attribute and character value is
+indicated by enclosing backticks (`), for this type of string pairs of
+bytes between the backticks are converted to an array of chtype, the
+first byte is the attribute and the second is the character.
+
+All strings defined will have a simple set of character substitutions
+performed on them when they are parsed.  This allows the tester to
+embed some control characters into the string.  Valid substitutions
+are:
+
+	\e	escape
+	\n	new line
+	\r	carriage return
+	\t	tab
+	\\	\ character
+	\nnn	Where nnn is three octal digits, the character
+		represented by the octal number will be inserted into
+		the string.
+
+Any other invalid conversions will have the \ stripped and the
+subsequent characters inserted into the string.
+
+Integers may be specified by either a plain numeric (e.g. 12345) or by
+hexadecimal notation by prefixing the number with 0x (e.g. 0x3039).
+Internally, no distinction is made between the two formats and they
+can be freely intermixed.
+
+Integers and variables containing integers can have operations
+performed on them.  Currently only bitwise ORing numbers together is
+supported.  This can be done by separating a list of integers and
+variables with the pipe (|) symbol and enclosing the entire list in
+round brackets "()" like this:
+
+      ( $var1 | 0x0100 | $var2 | 512 )
+
+Variables and integer constants may be freely intermixed.  The result
+of the operation can either be used as an argument for a call or can
+be used as an expected result for a call.
+
+In addition to all the curses calls being supported by the slave,
+there is one more special call called "drain".  This call repeatedly
+called getch() until there are no more characters in stdin.  The call
+assumes that the curses input is either in no delay or timed input
+mode otherwise the test will time out and fail.  This call can be used
+to clear any pending input when testing testing a timed read to
+prevent the input being used in a later test.
+
+4. Slave
+
+The user has no direct interaction with the slave process.  The slave
+is forked off by the director communicates to the director over a set
+of pipes and a pseudo-tty connected to its standard i/o file
+descriptors.  The slave executes the passed curses calls and passes
+back return values to the director.  The slave automatically calls
+initscr() on start up.
+
+
+

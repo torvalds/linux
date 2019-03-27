@@ -1,0 +1,3 @@
+# 64-bit libraries can only be built in Darwin 8.x or later.
+MULTILIB_OPTIONS = m64
+MULTILIB_DIRNAMES = ppc64

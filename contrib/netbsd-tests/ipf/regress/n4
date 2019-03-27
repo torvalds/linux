@@ -1,0 +1,6 @@
+rdr zx0 10.1.1.1/32 port 23 -> 10.2.2.1 port 10023 tcp
+rdr zx0 10.1.1.0/24 port 23 -> 10.2.2.1 port 10023 tcp
+rdr zx0 0/0 port 23 -> 10.2.2.1 port 10023 tcp
+rdr zx0 10.1.1.0/24 port 53 -> 10.2.2.1 port 10053 udp
+rdr zx0 10.1.1.0/24 port 0 -> 10.2.2.1 port 0 tcp
+rdr zx0 10.1.1.0/24 port 0 -> 10.2.2.1 port 0 ip

@@ -1,0 +1,299 @@
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)syslog.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd November 25, 2018
+.Dt SYSLOG 3
+.Os
+.Sh NAME
+.Nm syslog ,
+.Nm vsyslog ,
+.Nm openlog ,
+.Nm closelog ,
+.Nm setlogmask
+.Nd control system log
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In syslog.h
+.Ft void
+.Fn syslog "int priority" "const char *message" "..."
+.Ft void
+.Fn openlog "const char *ident" "int logopt" "int facility"
+.Ft void
+.Fn closelog void
+.Ft int
+.Fn setlogmask "int maskpri"
+.In syslog.h
+.In stdarg.h
+.Ft void
+.Fn vsyslog "int priority" "const char *message" "va_list args"
+.Sh DESCRIPTION
+The
+.Fn syslog
+function
+writes
+.Fa message
+to the system message logger.
+The message is then written to the system console, log files,
+logged-in users, or forwarded to other machines as appropriate.
+(See
+.Xr syslogd 8 . )
+.Pp
+The message is identical to a
+.Xr printf 3
+format string, except that
+.Ql %m
+is replaced by the current error
+message.
+(As denoted by the global variable
+.Va errno ;
+see
+.Xr strerror 3 . )
+A trailing newline is added if none is present.
+.Pp
+The
+.Fn vsyslog
+function
+is an alternate form in which the arguments have already been captured
+using the variable-length argument facilities of
+.Xr stdarg 3 .
+.Pp
+The message is tagged with
+.Fa priority .
+Priorities are encoded as a
+.Fa facility
+and a
+.Em level .
+The facility describes the part of the system
+generating the message.
+The level is selected from the following
+.Em ordered
+(high to low) list:
+.Bl -tag -width LOG_AUTHPRIV
+.It Dv LOG_EMERG
+A panic condition.
+This is normally broadcast to all users.
+.It Dv LOG_ALERT
+A condition that should be corrected immediately, such as a corrupted
+system database.
+.It Dv LOG_CRIT
+Critical conditions, e.g., hard device errors.
+.It Dv LOG_ERR
+Errors.
+.It Dv LOG_WARNING
+Warning messages.
+.It Dv LOG_NOTICE
+Conditions that are not error conditions,
+but should possibly be handled specially.
+.It Dv LOG_INFO
+Informational messages.
+.It Dv LOG_DEBUG
+Messages that contain information
+normally of use only when debugging a program.
+.El
+.Pp
+The
+.Fn openlog
+function
+provides for more specialized processing of the messages sent
+by
+.Fn syslog
+and
+.Fn vsyslog .
+The
+.Fa ident
+argument
+is a string that will be prepended to every message.
+The
+.Fa logopt
+argument
+is a bit field specifying logging options, which is formed by
+.Tn OR Ns 'ing
+one or more of the following values:
+.Bl -tag -width LOG_AUTHPRIV
+.It Dv LOG_CONS
+If
+.Fn syslog
+cannot pass the message to
+.Xr syslogd 8
+it will attempt to write the message to the console
+.Pq Dq Pa /dev/console .
+.It Dv LOG_NDELAY
+Open the connection to
+.Xr syslogd 8
+immediately.
+Normally the open is delayed until the first message is logged.
+Useful for programs that need to manage the order in which file
+descriptors are allocated.
+.It Dv LOG_PERROR
+Write the message to standard error output as well to the system log.
+.It Dv LOG_PID
+Log the process id with each message: useful for identifying
+instantiations of daemons.
+On
+.Fx ,
+this option is enabled by default.
+.El
+.Pp
+The
+.Fa facility
+argument encodes a default facility to be assigned to all messages
+that do not have an explicit facility encoded:
+.Bl -tag -width LOG_AUTHPRIV
+.It Dv LOG_AUTH
+The authorization system:
+.Xr login 1 ,
+.Xr su 1 ,
+.Xr getty 8 ,
+etc.
+.It Dv LOG_AUTHPRIV
+The same as
+.Dv LOG_AUTH ,
+but logged to a file readable only by
+selected individuals.
+.It Dv LOG_CONSOLE
+Messages written to
+.Pa /dev/console
+by the kernel console output driver.
+.It Dv LOG_CRON
+The cron daemon:
+.Xr cron 8 .
+.It Dv LOG_DAEMON
+System daemons, such as
+.Xr routed 8 ,
+that are not provided for explicitly by other facilities.
+.It Dv LOG_FTP
+The file transfer protocol daemons:
+.Xr ftpd 8 ,
+.Xr tftpd 8 .
+.It Dv LOG_KERN
+Messages generated by the kernel.
+These cannot be generated by any user processes.
+.It Dv LOG_LPR
+The line printer spooling system:
+.Xr lpr 1 ,
+.Xr lpc 8 ,
+.Xr lpd 8 ,
+etc.
+.It Dv LOG_MAIL
+The mail system.
+.It Dv LOG_NEWS
+The network news system.
+.It Dv LOG_NTP
+The network time protocol system.
+.It Dv LOG_SECURITY
+Security subsystems, such as
+.Xr ipfw 4 .
+.It Dv LOG_SYSLOG
+Messages generated internally by
+.Xr syslogd 8 .
+.It Dv LOG_USER
+Messages generated by random user processes.
+This is the default facility identifier if none is specified.
+.It Dv LOG_UUCP
+The uucp system.
+.It Dv LOG_LOCAL0
+Reserved for local use.
+Similarly for
+.Dv LOG_LOCAL1
+through
+.Dv LOG_LOCAL7 .
+.El
+.Pp
+The
+.Fn closelog
+function
+can be used to close the log file.
+.Pp
+The
+.Fn setlogmask
+function
+sets the log priority mask to
+.Fa maskpri
+and returns the previous mask.
+Calls to
+.Fn syslog
+with a priority not set in
+.Fa maskpri
+are rejected.
+The mask for an individual priority
+.Fa pri
+is calculated by the macro
+.Fn LOG_MASK pri ;
+the mask for all priorities up to and including
+.Fa toppri
+is given by the macro
+.Fn LOG_UPTO toppri ; .
+The default allows all priorities to be logged.
+.Sh RETURN VALUES
+The routines
+.Fn closelog ,
+.Fn openlog ,
+.Fn syslog
+and
+.Fn vsyslog
+return no value.
+.Pp
+The routine
+.Fn setlogmask
+always returns the previous log mask level.
+.Sh EXAMPLES
+.Bd -literal -offset indent -compact
+syslog(LOG_ALERT, "who: internal error 23");
+
+openlog("ftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
+
+setlogmask(LOG_UPTO(LOG_ERR));
+
+syslog(LOG_INFO, "Connection from host %d", CallingHost);
+
+syslog(LOG_ERR|LOG_LOCAL2, "foobar error: %m");
+.Ed
+.Sh SEE ALSO
+.Xr logger 1 ,
+.Xr syslogd 8
+.Sh HISTORY
+These
+functions appeared in
+.Bx 4.2 .
+.Sh BUGS
+Never pass a string with user-supplied data as a format without using
+.Ql %s .
+An attacker can put format specifiers in the string to mangle your stack,
+leading to a possible security hole.
+This holds true even if the string was built using a function like
+.Fn snprintf ,
+as the resulting string may still contain user-supplied conversion specifiers
+for later interpolation by
+.Fn syslog .
+.Pp
+Always use the proper secure idiom:
+.Pp
+.Dl syslog(priority, \*q%s\*q, string);

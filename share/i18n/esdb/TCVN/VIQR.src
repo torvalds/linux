@@ -1,0 +1,8 @@
+# $FreeBSD$ 
+# $NetBSD: VIQR.src,v 1.1 2006/11/13 15:16:30 tnozaki Exp $
+
+NAME		"VIQR"
+ENCODING	"VIQR"
+VARIABLE	""
+DEFCSID		"VISCII"		0
+INVALID		0x3F # '?'

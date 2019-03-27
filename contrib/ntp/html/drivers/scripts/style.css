@@ -1,0 +1,64 @@
+body {background: #FDF1E1;
+      color: #006600;
+      font-family: "verdana", sans-serif;
+      text-align: justify;
+      margin-left: 5px;}
+
+p, h4, hr, li {margin-top: .6em; margin-bottom: .6em}
+li.inline {text-align: left; margin-top: 0; margin-bottom: 0}
+
+ul, dl, ol, {margin-top: .6em; margin-bottom: .6em; margin-left 5em}
+
+dt {margin-top: .6em}
+dd {margin-bottom: .6em}
+
+div.header {text-align: center;
+            font-style: italic;}
+
+div.footer {text-align: center;         
+            font-size: 60%;}
+
+img.cell {align: left;}
+
+td.sidebar {width: 40px; align: center; valign: top;}
+img.sidebar {align: center; margin-top: 5px;}
+h4.sidebar {align: center;}
+
+p.top {background: #FDF1E1;
+       color: #006600;
+       position: absolute;
+       margin-left: -90px;
+       text-align: center;}
+
+a:link.sidebar {background: transparent;
+                color: #990033;
+                font-weight: bold;}
+
+a:visited.sidebar {background: transparent;
+                   color: #990033;
+                   font-weight: bold;}
+
+a:hover.sidebar {background: #FDF1E1;
+                 color: #006600;}
+
+img {margin: 5px;}
+
+div {text-align: center;}
+
+h1 {text-align: center;
+    font-size: 250%;}
+
+caption {background: #EEEEEE;
+         color: #339999;}
+         
+tx {text-align: center;}
+
+th {background: #FFFFCC;
+    color: #006600;
+    text-align: center;
+    text-decoration: underline;
+    padding-top: 5px;}
+
+th.caption {background: #EEEEEE;
+            color: #006600;
+            text-align: center;}

@@ -1,0 +1,43 @@
+$Id: TODO,v 1.1 2002/11/24 19:47:06 max Exp $
+$FreeBSD$
+
+FIXME/TODO list
+
+0) Ping itself. Should L2CAP layer loopback data?
+
+1) Locking/SMP
+
+	External code now uses ng_send_fn to inject data into Netgraph, so
+	it should be fine as long as Netgraph is SMP safe. Just need to
+	verify it.
+
+2) Understand and implement L2CAP QoS
+
+	Will fix later. I only have CSR based hardware and it does not
+	support QoS.
+
+3) Better functions to manage CIDs and command ident's.
+
+	Resource manager is not good because it uses MTX_DEF mutexes,
+	(i.e. could block/sleep)
+
+4) Implement group channels (multicast)
+
+	Will fix later
+
+5) Add bytes/packets counters and commands to get/reset them
+
+	Will fix later. What to count?
+
+6) Better way to get information about channels
+
+	L2CAP can support about 65000 channels. Need define some good way
+	to get data from kernel to user space. For example if we need to pass
+	1K of information for every channel, then worst case is that we need
+	to pass 65Mbytes of data from kernel to user space. Not good.
+
+7) Deal properly with "shutdown"s and hook "disconnect"s
+
+	For now we destroy all channels when upstream hook is disconnected.
+	Is there a better way to handle this?
+

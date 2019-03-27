@@ -1,0 +1,136 @@
+.\"
+.\" Copyright (c) 1996, Fred Gray
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"     This product includes software developed by David Greenman.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 24, 2018
+.Dt VX 4 i386
+.Os
+.Sh NAME
+.Nm vx
+.Nd "3Com EtherLink III / Fast EtherLink III (3c59x) Ethernet driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device vx"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_vx_load="YES"
+.Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the 3Com
+.Dq Vortex
+chipset.
+.Pp
+The medium selection
+can be influenced by the following link flags to the
+.Xr ifconfig 8
+command:
+.Pp
+.Bl -tag -width LINK0X -compact
+.It Em link0
+Use the AUI port.
+.It Em link1
+Use the BNC port.
+.It Em link2
+Use the UTP port.
+.El
+.Sh HARDWARE
+The
+.Nm
+driver supports the following cards:
+.Pp
+.Bl -bullet -compact
+.It
+3Com 3c590 EtherLink III PCI
+.It
+3Com 3c595 Fast EtherLink III PCI in 10 Mbps mode
+.El
+.Sh DIAGNOSTICS
+All other diagnostics indicate either a hardware problem or a bug in the
+driver.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 2.1 .
+It was derived from the
+.Nm ep
+driver, from which it inherits most of its limitations.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver and this manual page were written by
+.An Fred Gray Aq Mt fgray@rice.edu ,
+based on the work of
+.An Herb Peyerl
+and with the assistance of numerous others.
+.Sh CAVEATS
+Some early-revision 3c590 cards are defective and suffer from many receive
+overruns, which cause lost packets.
+The author has attempted to implement
+a test for it based on the information supplied by 3Com, but the test resulted
+mostly in spurious warnings.
+.Pp
+The performance of this driver is somewhat limited by the fact that it uses
+only polled-mode I/O and does not make use of the bus-mastering capability
+of the cards.
+.Sh BUGS
+The
+.Nm
+driver is known not to reset the adapter correctly following a warm boot
+on some systems.
+.Pp
+The
+.Nm
+driver has not been exhaustively tested with all the models of cards that it
+claims to support.

@@ -1,0 +1,51 @@
+   0  $accept : expr $end
+
+   1  expr : '(' recur ')'
+
+state 0
+	$accept : . expr $end  (0)
+
+	'('  shift 1
+	.  error
+
+	expr  goto 2
+
+
+state 1
+	expr : '(' . recur ')'  (1)
+
+	recur  shift 3
+	.  error
+
+
+state 2
+	$accept : expr . $end  (0)
+
+	$end  accept
+
+
+state 3
+	expr : '(' recur . ')'  (1)
+
+	')'  shift 4
+	.  error
+
+
+state 4
+	expr : '(' recur ')' .  (1)
+
+	.  reduce 1
+
+
+5 terminals, 2 nonterminals
+2 grammar rules, 5 states
+
+grammar parser grammar
+symbol# value# symbol
+     0      0  $end
+     1    256  error
+     2    257  recur
+     3     40  '('
+     4     41  ')'
+     5    258  $accept
+     6    259  expr

@@ -1,0 +1,138 @@
+#!/usr/bin/perl -w
+
+# $Id: cidrexpand,v 8.8 2006-08-07 17:18:37 ca Exp $
+#
+# v 0.4
+#
+# 17 July 2000 Derek J. Balling (dredd@megacity.org)
+# 
+# Acts as a preparser on /etc/mail/access_db to allow you to use address/bit
+# notation. 
+#
+# If you have two overlapping CIDR blocks with conflicting actions
+# e.g.   10.2.3.128/25 REJECT and 10.2.3.143 ACCEPT
+# make sure that the exceptions to the more general block are specified
+# later in the access_db.
+#
+# the -r flag to makemap will make it "do the right thing"
+#
+# Modifications
+# -------------
+# 26 Jul 2001 Derek Balling (dredd@megacity.org)
+#     Now uses Net::CIDR because it makes life a lot easier.
+#
+#  5 Nov 2002 Richard Rognlie (richard@sendmail.com)
+#     Added code to deal with the prefix tags that may now be included in
+#     the access_db
+#
+#     Added clarification in the notes for what to do if you have 
+#     exceptions to a larger CIDR block.
+#
+#  26 Jul 2006 Richard Rognlie (richard@sendmail.com>
+#     Added code to strip "comments" (anything after a non-escaped #)
+#     # characters after a \ or within quotes (single and double) are
+#     left intact. 
+#
+#     e.g.
+#	From:1.2.3.4	550 Die spammer # spammed us 2006.07.26
+#     becomes
+#	From:1.2.3.4	550 Die spammer 
+#
+#  3 August 2006
+#
+#     Corrected a bug to have it handle the special case of "0.0.0.0/0"
+#     since Net::CIDR doesn't handle it properly.
+#
+# usage: 
+#  cidrexpand < /etc/mail/access | makemap -r hash /etc/mail/access
+#
+#
+# Report bugs to: <dredd@megacity.org>
+#
+
+
+use strict;
+use Net::CIDR;
+use Getopt::Std;
+
+our ($opt_c,$opt_t);
+getopts('ct:');
+
+my $spaceregex = '\s+';
+if ($opt_t)
+{
+    $spaceregex = $opt_t;
+}
+
+while (<>)
+{
+    chomp;
+    my ($prefix,$left,$right,$space);
+
+    if ( (/\#/) && $opt_c )
+    {
+	# print "checking...\n";
+	my $i;
+	my $qtype='';
+	for ($i=0 ; $i<length($_) ; $i++) 
+	{
+	    my $ch = substr($_,$i,1);
+	    if ($ch eq '\\') 
+	    {
+		$i++;
+		next;
+	    }
+	    elsif ($qtype eq '' && $ch eq '#') 
+	    {
+		substr($_,$i) = '';
+		last;
+	    }
+	    elsif ($qtype ne '' && $ch eq $qtype) 
+	    {
+		$qtype = '';
+	    }
+	    elsif ($qtype eq '' && $ch =~ /[\'\"]/) 
+	    {
+		$qtype = $ch;
+	    }
+	}
+    } 
+    
+    if (! /^(|\S\S*:)(\d+\.){3}\d+\/\d\d?$spaceregex.*/ )
+    {
+	print "$_\n";
+    }
+    else
+    {
+	($prefix,$left,$space,$right) = 
+	    /^(|\S\S*:)((?:\d+\.){3}\d+\/\d\d?)($spaceregex)(.*)$/;
+	
+	my @new_lefts = expand_network($left);
+	foreach my $nl (@new_lefts)
+	{
+	    print "$prefix$nl$space$right\n";
+	}
+    }
+}
+    
+sub expand_network
+{
+    my $left_input = shift;
+    my @rc = ($left_input);
+    my ($network,$mask) = split /\//, $left_input;
+    if (defined $mask)
+    {
+	return (0..255)	if $mask == 0;
+
+	my @parts = split /\./, $network;
+	while ($#parts < 3)
+	{
+	    push @parts, "0";
+	}
+	my $clean_input = join '.', @parts;
+	$clean_input .= "/$mask";
+	my @octets = Net::CIDR::cidr2octets($clean_input);
+	@rc = @octets;
+    }
+    return @rc;
+}

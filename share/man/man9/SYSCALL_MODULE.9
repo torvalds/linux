@@ -1,0 +1,99 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2001 Alexander Langer
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 24, 2015
+.Dt SYSCALL_MODULE 9
+.Os
+.Sh NAME
+.Nm SYSCALL_MODULE
+.Nd syscall kernel module declaration macro
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/kernel.h
+.In sys/proc.h
+.In sys/module.h
+.In sys/sysent.h
+.Fn SYSCALL_MODULE name "int *offset" "struct sysent *new_sysent" "modeventhand_t evh" "void *arg"
+.Sh DESCRIPTION
+The
+.Fn SYSCALL_MODULE
+macro declares a new syscall.
+.Fn SYSCALL_MODULE
+expands into a kernel module declaration with name
+.Ql sys/ Ns Fa name .
+.Pp
+The rest of the arguments expected by this macro are:
+.Bl -tag -width ".Fa new_sysent"
+.It Fa offset
+A pointer to an
+.Vt int
+which saves the offset in
+.Vt "struct sysent"
+where the syscall is allocated.
+If the location pointed to by
+.Fa offset
+holds a non 0 number it will be used if possible.
+If it holds 0 then one will be assigned.
+.It Fa new_sysent
+is a pointer to a structure that specifies the function implementing
+the syscall and the number of arguments this function needs (see
+.In sys/sysent.h ) .
+.It Fa evh
+A pointer to the kernel module event handler function with the argument
+.Fa arg .
+Please refer to
+.Xr module 9
+for more information.
+.It Fa arg
+The argument passed to the callback functions of the
+.Fa evh
+event handler when it is called.
+.El
+.Pp
+The syscall number assigned to the module can be retrieved using the
+.Xr modstat 3
+and
+.Xr modfind 3
+library functions in libc.
+The MACRO
+.Fn SYSCALL_MODULE_HELPER
+includes
+.Fn SYSCALL_MODULE
+and much of its boilerplate code.
+.Sh EXAMPLES
+A minimal example for a syscall module can be found in
+.Pa /usr/share/examples/kld/syscall/module/syscall.c .
+.Sh SEE ALSO
+.Xr module 9
+.Pp
+.Pa /usr/share/examples/kld/syscall/module/syscall.c
+.Sh AUTHORS
+This manual page was written by
+.An Alexander Langer Aq Mt alex@FreeBSD.org .

@@ -1,0 +1,108 @@
+# $FreeBSD$ 
+# $NetBSD: ISO646.alias,v 1.2 2006/07/05 15:31:50 tnozaki Exp $
+
+BASIC:1983	iso_646.basic:1983 ref
+BASIC:1983	ref
+
+CA		ca
+CA		csa_z243.4-1985-1
+CA		csa7-1
+CA		iso-ir-121
+
+CA2		csa_z243.4-1985-2
+CA2		csa7-2
+CA2		iso-ir-122
+
+CN		cn
+CN		csiso57gb1988
+CN		gb_1988-80
+CN		iso-ir-57
+
+CU		cuba
+CU		iso-ir-151
+CU		nc_nc00-10:81
+
+DE		de
+DE		din_66003
+DE		iso-ir-21
+
+DK		dk
+DK		ds_2089
+DK		ds2089
+
+ES		es
+ES		iso-ir-17
+
+ES2		es2
+ES2		iso-ir-85
+
+FR		fr
+FR		iso-ir-69
+FR		nf_z_62-010
+
+FR1		iso-ir-25
+FR1		nf_z_62-010_(1973)
+
+GB		bs_4730
+GB		iso-ir-4
+
+HU		hu
+HU		iso-ir-86
+HU		msz_7795.3
+
+IRV:1983	irv
+IRV:1983	iso-ir-2
+
+IT		iso-ir-15
+IT		it
+
+JP		csiso14jisc6220ro
+JP		iso-ir-14
+JP		jis_c6220-1969-ro
+JP		jp
+
+JP-OCR-B	iso-ir-92
+JP-OCR-B	jis_c6229-1984-b
+JP-OCR-B	jp-ocr-b
+
+KR		ksc5636
+
+NO		iso-ir-60
+NO		no
+NO		ns_4551-1
+
+NO2		iso-ir-61
+NO2		no2
+NO2		ns_4551-2
+
+PT		iso-ir-16
+PT		pt
+
+PT2		iso-ir-84
+PT2		pt2
+
+SE		fi
+SE		iso-ir-10
+SE		iso646-fi
+SE		se
+SE		sen_850200_b
+
+SE2		iso-ir-11
+SE2		se2
+SE2		sen_850200_c
+
+US		csascii
+US		646
+US		ansi_x3.4-1968
+US		ansi_x3.4-1986
+US		ascii
+US		cp367
+US		ibm367
+US		iso-ir-6
+US		iso_646.irv:1991
+US		us
+US		us-ascii
+
+YU		iso-ir-141
+YU		jus_i.b1.002
+YU		js

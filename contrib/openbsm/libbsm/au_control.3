@@ -1,0 +1,272 @@
+.\"-
+.\" Copyright (c) 2005-2006 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 2, 2016
+.Dt AU_CONTROL 3
+.Os
+.Sh NAME
+.Nm setac ,
+.Nm endac ,
+.Nm getacdir ,
+.Nm getacdist ,
+.Nm getacexpire ,
+.Nm getacfilesz ,
+.Nm getacflg ,
+.Nm getachost ,
+.Nm getacmin ,
+.Nm getacna ,
+.Nm getacpol ,
+.Nm au_poltostr ,
+.Nm au_strtopol
+.Nd "look up information from the audit_control database"
+.Sh LIBRARY
+.Lb libbsm
+.Sh SYNOPSIS
+.In bsm/libbsm.h
+.Ft void
+.Fn setac void
+.Ft void
+.Fn endac void
+.Ft int
+.Fn getacdir "char *name" "int len"
+.Ft int
+.Fn getacdist "void"
+.Ft int
+.Fn getacexpire "int *andflg" "time_t *age" "size_t *size"
+.Ft int
+.Fn getacfilesz "size_t *size_val"
+.Ft int
+.Fn getacflg "char *auditstr" "int len"
+.Ft int
+.Fn getachost "char *auditstr" "int len"
+.Ft int
+.Fn getacmin "int *min_val"
+.Ft int
+.Fn getacna "char *auditstr" "int len"
+.Ft int
+.Fn getacpol "char *auditstr" "size_t len"
+.Ft int
+.Fn getacqsize "int *size_val"
+.Ft ssize_t
+.Fn au_poltostr "int policy" "size_t maxsize" "char *buf"
+.Ft int
+.Fn au_strtopol "const char *polstr" "int *policy"
+.Sh DESCRIPTION
+These interfaces may be used to look up information from the
+.Xr audit_control 5
+database, which contains various audit-related administrative parameters.
+.Pp
+The
+.Fn setac
+function
+resets the database iterator to the beginning of the database; see the
+.Sx BUGS
+section for more information.
+.Pp
+The
+.Fn endac
+function
+closes the
+.Xr audit_control 5
+database.
+.Pp
+The
+.Fn getacdir
+function
+returns the name of the directory where log data is stored via the passed
+character buffer
+.Fa name
+of length
+.Fa len .
+.Pp
+The
+.Fn getacdist
+function returns a value that allows to decide if trail files distribution is
+turned on or off.
+.Pp
+The
+.Fn getacexpire
+function
+returns the audit trail file expiration parameters in the passed
+.Vt int
+buffer
+.Fa andflg ,
+.Vt time_t
+buffer
+.Fa age
+and
+.Vt size_t
+buffer
+.Fa size .
+If the parameter is not specified in the
+.Xr audit_control 5
+file it is set to zero.
+.Pp
+The
+.Fn getacfilesz
+function
+returns the audit trail rotation size in the passed
+.Vt size_t
+buffer
+.Fa size_val .
+.Pp
+The
+.Fn getacflg
+function
+returns the audit system flags via the the passed character buffer
+.Fa auditstr
+of length
+.Fa len .
+.Pp
+The
+.Fn getachost
+function
+returns the local systems's audit host information via the the passed character
+buffer
+.Fa auditstr
+of length
+.Fa len .
+.Pp
+The
+.Fn getacmin
+function
+returns the minimum free disk space for the audit log target file system via
+the passed
+.Fa min_val
+variable.
+.Pp
+The
+.Fn getacna
+function
+returns the non-attributable flags via the passed character buffer
+.Fa auditstr
+of length
+.Fa len .
+.Pp
+The
+.Fn getacpol
+function
+returns the audit policy flags via the passed character buffer
+.Fa auditstr
+of length
+.Fa len .
+.Pp
+The
+.Fn getacqsize
+function returns the size of the audit post-commit queue in the passed
+.Fa size_val
+buffer.
+If the parameter is not specified in the
+.Xr audit_control 5
+file it is set to
+.Dv -1 ,
+indicating that the kernel's default queue size is being used.
+.Pp
+The
+.Fn au_poltostr
+function
+converts a numeric audit policy mask,
+.Fa policy ,
+to a string in the passed character buffer
+.Fa buf
+of lenth
+.Fa maxsize .
+.Pp
+The
+.Fn au_strtopol
+function
+converts an audit policy flags string,
+.Fa polstr ,
+to a numeric audit policy mask returned via
+.Fa policy .
+.Sh RETURN VALULES
+The
+.Fn getacfilesz ,
+.Fn getacdir ,
+.Fn getacexpire ,
+.Fn getacflg ,
+.Fn getachost ,
+.Fn getacmin ,
+.Fn getacna ,
+.Fn getacpol ,
+.Fn getacqsize ,
+and
+.Fn au_strtopol
+functions
+return 0 on success, or a negative value on failure, along with error
+information in
+.Va errno .
+.Pp
+The
+.Fn au_poltostr
+function
+returns a string length of 0 or more on success, or a negative value on
+if there is a failure.
+.Pp
+The
+.Fn getacdist
+function returns 1 if trail files distribution is turned on, 0 if it is turned
+off or negative value on failure.
+.Pp
+Functions that return a string value will return a failure if there is
+insufficient room in the passed character buffer for the full string.
+.Sh SEE ALSO
+.Xr libbsm 3 ,
+.Xr audit_control 5
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer, Inc., in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Sh AUTHORS
+.An -nosplit
+This software was created by
+.An Robert Watson ,
+.An Wayne Salamon ,
+and
+.An Suresh Krishnaswamy
+for McAfee Research, the security research division of McAfee,
+Inc., under contract to Apple Computer, Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
+.Sh BUGS
+These routines cannot currently distinguish between an entry not being found
+and an error accessing the database.
+The implementation should be changed to return an error via
+.Va errno
+when
+.Dv NULL
+is returned.
+.Pp
+There is no reason for the
+.Fn setac
+interface to be exposed as part of the public API, as it is called implicitly
+by other access functions and iteration is not supported.
+.Pp
+These interfaces inconsistently return various negative values depending on
+the failure mode, and do not always set
+.Va errno
+on failure.

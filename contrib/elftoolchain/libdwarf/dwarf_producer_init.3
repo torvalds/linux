@@ -1,0 +1,296 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_producer_init.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd August 20, 2011
+.Dt DWARF_PRODUCER_INIT 3
+.Os
+.Sh NAME
+.Nm dwarf_producer_init ,
+.Nm dwarf_producer_init_b
+.Nd allocate a DWARF producer descriptor
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft Dwarf_P_Debug
+.Fo dwarf_producer_init
+.Fa "Dwarf_Unsigned flags"
+.Fa "Dwarf_Callback_Func func"
+.Fa "Dwarf_Handler errhand"
+.Fa "Dwarf_Ptr errarg"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft Dwarf_P_Debug
+.Fo dwarf_producer_init_b
+.Fa "Dwarf_Unsigned flags"
+.Fa "Dwarf_Callback_Func_b func"
+.Fa "Dwarf_Handler errhand"
+.Fa "Dwarf_Ptr errarg"
+.Fa "Dwarf_Error *error"
+.Fc
+.Sh DESCRIPTION
+These functions allocate and return a
+.Vt Dwarf_P_Debug
+descriptor representing a DWARF producer instance.
+.Pp
+The argument
+.Ar errhand
+should contain the address of a function to be called in case of an
+error.
+If this argument is
+.Dv NULL ,
+the default error handling scheme is used, see
+.Xr dwarf 3 .
+.Pp
+The argument
+.Ar errarg
+will be passed to the error handler function when it is invoked.
+.Pp
+The argument
+.Ar err
+references a memory location that would hold a
+.Vt Dwarf_Error
+descriptor in case of an error.
+.Pp
+The argument
+.Ar flags
+specifies additional characteristics of the DWARF producer instance.
+The following flags are recognized:
+.Bl -tag -width "Dv DW_DLC_ISA_MIPS"
+.It Dv DW_DLC_ISA_IA64
+.Pq Deprecated
+The target instruction set architecture is IA64.
+This flag is deprecated.
+Application code should use the
+.Xr dwarf_producer_set_isa 3
+function to specify target instruction set architecture.
+.It Dv DW_DLC_ISA_MIPS
+.Pq Deprecated
+The target instruction set architecture is MIPS.
+This flag is deprecated.
+Application code should use the
+.Xr dwarf_producer_set_isa 3
+function to specify target instruction set architecture.
+.It Dv DW_DLC_SIZE_32
+.Pq Default
+The target address size is 32-bit.
+.It Dv DW_DLC_SIZE_64
+The target address size is 64-bit.
+.It Dv DW_DLC_STREAM_RELOCATIONS
+.Pq Default
+Generate stream relocations.
+.It Dv DW_DLC_SYMBOLIC_RELOCATIONS
+Generate symbolic relocations.
+.It Dv DW_DLC_TARGET_BIGENDIAN
+The target is big endian.
+.It Dv DW_DLC_TARGET_LITTLEENDIAN
+The target is little endian.
+.It Dv DW_DLC_WRITE
+.Pq Required
+Permit writing of DWARF information.
+.El
+.Pp
+The following flags are mutually exclusive.
+.Bl -bullet -compact
+.It
+Flags
+.Dv DW_DLC_ISA_IA64
+and
+.Dv DW_DLC_ISA_MIPS .
+.It
+Flags
+.Dv DW_DLC_SIZE_32
+and
+.Dv DW_DLC_SIZE_64 .
+.It
+Flags
+.Dv DW_DLC_STREAM_RELOCATIONS
+and
+.Dv DW_DLC_SYMBOLIC_RELOCATIONS .
+.It
+Flags
+.Dv DW_DLC_TARGET_BIGENDIAN
+and
+.Dv DW_DLC_TARGET_LITTLEENDIAN .
+.El
+If neither of the flags
+.Dv DW_DLC_TARGET_BIGENDIAN
+and
+.Dv DW_DLC_TARGET_LITTLEENDIAN
+is set, the target's endianness is assumed to be the same as the host's
+endianness.
+.Pp
+Argument
+.Ar func
+should point to an application-provided callback function of type
+.Vt Dwarf_Callback_Func_b .
+The type
+.Vt Dwarf_Callback_Func_b
+is defined in the header file
+.In libdwarf.h
+as:
+.Bd -literal -offset indent
+typedef int (*Dwarf_Callback_Func_b)(char *name, int size,
+    Dwarf_Unsigned type, Dwarf_Unsigned flags, Dwarf_Unsigned link,
+    Dwarf_Unsigned info, Dwarf_Unsigned *index, int *error);
+.Ed
+.Pp
+This function is called by the
+.Lb libdwarf
+once for each section in the object file that the library needs to
+create.
+The arguments to this callback function specify the values in the ELF
+section header for the section being created:
+.Pp
+.Bl -tag -width indent -compact -offset indent
+.It Ar name
+The name of the section being created.
+.It Ar size
+The
+.Va sh_size
+value in the section header.
+.It Ar type
+The
+.Va sh_type
+value in the section header.
+.It Ar flags
+The
+.Va sh_flags
+value in the section header.
+.It Ar link
+The
+.Va sh_link
+value in the section header.
+.It Ar info
+The
+.Va sh_info
+value in the section header.
+.El
+.Pp
+On success, the callback function should return the section index
+value of the created section, and set the location pointed to by
+argument
+.Ar index
+to the symbol table index of the symbol that associated with the newly
+created section.
+This symbol table index will be used in relocation entries
+referring to the created section.
+.Pp
+In case of failure, the callback function should return -1 and set the
+location pointed to by argument
+.Ar error
+to an application-defined error code.
+This application returned error code is currently ignored by the
+library.
+.Pp
+Function
+.Fn dwarf_producer_init
+is deprecated.
+Function
+.Fn dwarf_producer_init
+is identical to function
+.Fn dwarf_producer_init_b
+except that the callback function it expects can not properly handle
+arbitrary section symbol index values.
+.Ss Memory Management
+The
+.Vt Dwarf_P_Debug
+instance returned by these functions should be freed using the
+function
+.Fn dwarf_producer_finish .
+.Sh RETURN VALUES
+On success, these functions return the created DWARF producer
+descriptor.
+In case of an error, they return
+.Dv DW_DLV_BADADDR
+and set the argument
+.Ar err .
+.Sh EXAMPLES
+To initialize a
+.Vt Dwarf_P_Debug
+instance for a MIPS32 big endian object, use:
+.Bd -literal -offset indent
+Dwarf_P_Debug dbg;
+Dwarf_Unsigned flags;
+Dwarf_Error de;
+
+/* ... assume cb_func points to the callback function ... */
+
+flags = DW_DLC_WRITE | DW_DLC_SIZE_32 | DW_DLC_ISA_MIPS |
+    DW_DLC_STREAM_RELOCATIONS | DW_DLC_TARGET_BIGENDIAN;
+if ((dbg = dwarf_producer_init(flags, cb_func, NULL, NULL, &de)) ==
+    DW_DLV_BADADDR)
+	warnx("dwarf_producer_init failed: %s", dwarf_errmsg(-1));
+.Ed
+.Sh ERRORS
+These functions can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Ar func
+was NULL.
+.It Bq Er DW_DLE_ARGUMENT
+The flag
+.Dv DW_DLC_WRITE
+was not set in argument
+.Ar flags .
+.It Bq Er DW_DLE_ARGUMENT
+The flags
+.Dv DW_DLC_SIZE_32
+and
+.Dv DW_DLC_SIZE_64
+were both set in argument
+.Ar flags .
+.It Bq Er DW_DLE_ARGUMENT
+The flags
+.Dv DW_DLC_ISA_IA64
+and
+.Dv DW_DLC_ISA_MIPS
+were both set in argument
+.Ar flags .
+.It Bq Er DW_DLE_ARGUMENT
+The flags
+.Dv DW_DLC_TARGET_BIGENDIAN
+and
+.Dv DW_DLC_TARGET_LITTLEENDIAN
+were both set in argument
+.Ar flags .
+.It Bq Er DW_DLE_ARGUMENT
+The flags
+.Dv DW_DLC_STREAM_RELOCATIONS
+and
+.Dv DW_DLC_SYMBOLIC_RELOCATIONS
+were both set in argument
+.Ar flags .
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_errmsg 3 ,
+.Xr dwarf_producer_finish 3 ,
+.Xr dwarf_producer_set_isa 3 ,
+.Xr dwarf_transform_to_disk_form 3

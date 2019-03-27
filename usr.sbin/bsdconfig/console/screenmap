@@ -1,0 +1,155 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="080.console"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local prompt="$msg_screenmap_menu_text"
+	local menu_list="
+		'1 $msg_none'                 '$msg_none_screenmap_desc'
+		'2 $msg_iso_8859_1_to_ibm437' '$msg_iso_8859_1_to_ibm437_desc'
+		'3 $msg_iso_8859_7_to_ibm437' '$msg_iso_8859_7_to_ibm437_desc'
+		'4 $msg_us_ascii_to_ibm327'   '$msg_us_ascii_to_ibm327_desc'
+		'5 $msg_koi8_r_to_ibm866'     '$msg_koi8_r_to_ibm866_desc'
+		'6 $msg_koi8_u_to_ibm866u'    '$msg_koi8_u_to_ibm866u_desc'
+	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_choose_a_screen_map"
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	case "$( f_sysrc_get scrnmap )" in
+	[Nn][Oo]|'')         defaultitem="1 $msg_none"                 ;;
+	iso-8859-1_to_cp437) defaultitem="2 $msg_iso_8859_1_to_ibm437" ;;
+	iso-8859-7_to_cp437) defaultitem="3 $msg_iso_8859_7_to_ibm437" ;;
+	us-ascii_to_cp437)   defaultitem="4 $msg_us_ascii_to_ibm327"   ;;
+	koi8-r2cp866)        defaultitem="5 $msg_koi8_r_to_ibm866"     ;;
+	koi8-u2cp866u)       defaultitem="6 $msg_koi8_u_to_ibm866u"    ;;
+	esac
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_menutag_store -s "$menu_choice"
+	return $retval
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts h$GETOPTS_STDARGS flag; do
+	case "$flag" in
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Initialize
+#
+f_dialog_title "$msg_system_console_screenmap"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+
+#
+# Launch application main menu
+#
+dialog_menu_main || f_die
+f_dialog_menutag_fetch mtag
+
+scrnmap_to_set=
+case "$mtag" in
+"1 $msg_none") # No screenmap, don't touch font
+	scrnmap_to_set="NO" ;;
+"2 $msg_iso_8859_1_to_ibm437") # W-Europe ISO 8859-1 to IBM 437 scrnmap
+	scrnmap_to_set="iso-8859-1_to_cp437" ;;
+"3 $msg_iso_8859_7_to_ibm437") # Greek ISO 8859-7 to IBM 437 screenmap
+	scrnmap_to_set="iso-8859-7_to_cp437" ;;
+"4 $msg_us_ascii_to_ibm327") # US-ASCII to IBM 437 screenmap
+	scrnmap_to_set="us-ascii_to_cp437" ;;
+"5 $msg_koi8_r_to_ibm866") # Russian KOI8-R to IBM 866 screenmap
+	scrnmap_to_set="koi8-r2cp866" ;;
+"6 $msg_koi8_u_to_ibm866u") # Ukrainian KOI8-U to IBM 866u screenmap
+	scrnmap_to_set="koi8-u2cp866u" ;;
+esac
+
+if [ "$scrnmap_to_set" ]; then
+	f_eval_catch "$0" f_sysrc_set \
+		'f_sysrc_set scrnmap "%s"' "$scrnmap_to_set" || f_die
+	break
+else
+	f_die 1 "$msg_unknown_screenmap_selection"
+fi
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

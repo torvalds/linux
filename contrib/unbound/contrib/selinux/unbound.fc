@@ -1,0 +1,4 @@
+/etc/unbound(/.*)?			system_u:object_r:unbound_conf_t:s0
+/etc/rc\.d/init\.d/unbound	--	system_u:object_r:unbound_initrc_exec_t:s0
+/usr/sbin/unbound		--	system_u:object_r:unbound_exec_t:s0
+/var/run/unbound(/.*)?			system_u:object_r:unbound_var_run_t:s0

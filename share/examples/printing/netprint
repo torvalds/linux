@@ -1,0 +1,24 @@
+#!/usr/bin/perl
+#
+#  netprint - Text filter for printer attached to network
+#  Installed in /usr/local/libexec/netprint
+#
+
+$#ARGV eq 1 || die "Usage: $0 <printer-hostname> <port-number>";
+
+$printer_host = $ARGV[0];
+$printer_port = $ARGV[1];
+
+require 'sys/socket.ph';
+
+($ignore, $ignore, $protocol) = getprotobyname('tcp');
+($ignore, $ignore, $ignore, $ignore, $address)
+    = gethostbyname($printer_host);
+
+$sockaddr = pack('S n a4 x8', &AF_INET, $printer_port, $address);
+
+socket(PRINTER, &PF_INET, &SOCK_STREAM, $protocol)
+    || die "Can't create TCP/IP stream socket: $!";
+connect(PRINTER, $sockaddr) || die "Can't contact $printer_host: $!";
+while (<STDIN>) { print PRINTER; }
+exit 0;

@@ -1,0 +1,573 @@
+.\"-
+.\" Copyright (c) 2011-2013 Nathan Whitehorn <nwhitehorn@FreeBSD.org> All rights reserved.
+.\" Copyright (c) 2018 Roberto Fernandez Cueto <roberfern@gmail.com>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 4, 2018
+.Dt BSDINSTALL 8
+.Os
+.Sh NAME
+.Nm bsdinstall
+.Nd system installer
+.Sh SYNOPSIS
+.Nm
+.Op Ar options
+.Op Ar target
+.Op Ar ...
+.Sh DESCRIPTION
+.Nm
+is used for installation of new systems, both for system setup from
+installation media, e.g., CD-ROMs, and for use on live systems to prepare
+VM images and jails.
+.Pp
+Much like
+.Xr make 1 , Nm
+takes a target and possible parameters of the target as arguments.
+If invoked with no arguments, it will invoke the
+.Cm auto
+target, which provides a standard interactive installation, invoking the
+others in sequence.
+To perform a scripted installation,
+these subtargets can be invoked separately by an installation script.
+.Sh OPTIONS
+.Nm
+supports the following options, global to all targets:
+.Bl -tag -width indent+
+.It Fl D Ar file
+Provide a path for the installation log file
+.Pq overrides Ev BSDINSTALL_LOG .
+See
+.Sx ENVIRONMENT VARIABLES
+for more information on
+.Ev BSDINSTALL_LOG .
+.El
+.Sh TARGETS
+Most of the following targets are only useful for scripting the installer.
+For interactive use, most users will be interested only in the
+.Cm auto ,
+.Cm jail ,
+and
+.Cm script
+targets.
+.Bl -tag -width ".Cm jail Ar destination"
+.It Cm auto
+Run the standard interactive installation, including disk partitioning.
+.It Cm jail Ar destination
+Sets up a new chroot system at
+.Pa destination ,
+suitable for use with
+.Xr jail 8 .
+Behavior is generally similar to
+.Cm auto ,
+except that disk partitioning and network setup are skipped and a kernel is
+not installed into the new system.
+.It Cm script Ar script
+Runs the installation script at
+.Pa script .
+See
+.Sx SCRIPTING
+for more information on this target.
+.It Cm keymap
+If the current controlling TTY is a
+.Xr syscons 4
+or
+.Xr vt 4
+console, asks the user to set the current keymap, and saves the result to the
+new system's
+.Pa rc.conf .
+.It Cm hostname
+Prompts the user for a host name for the new system and saves the result to the
+new system's
+.Pa rc.conf .
+If
+.Ev BSDINSTALL_CONFIGCURRENT
+is set, also sets the host name of the current system.
+.It Cm netconfig
+Interactively configures network interfaces (first invoking
+.Cm wlanconfig
+on wireless interfaces), saving the result to the new system's
+.Pa rc.conf
+and
+.Pa resolv.conf .
+If
+.Ev BSDINSTALL_CONFIGCURRENT
+is set, also configures the network interfaces of the current system to match.
+.It Cm autopart
+Provides the installer's interactive guided disk partitioner for single-disk
+installations.
+Defaults to UFS.
+.It Cm zfsboot
+Provides an alternative ZFS-only automatic interactive disk partitioner.
+Creates a single
+.Ic zpool
+with separate datasets for
+.Pa /tmp ,
+.Pa /usr ,
+.Pa /usr/home ,
+.Pa /usr/ports ,
+.Pa /usr/src ,
+and
+.Pa /var .
+Optionally can set up
+.Xr geli 8
+to encrypt the disk.
+.It Cm partedit
+Provides the installer's interactive manual disk partitioner with an interface
+identical to
+.Xr sade 8 .
+Supports multiple disks as well as UFS, ZFS, and FAT file systems.
+ZFS is set up with one pool and dataset per partition.
+.It Cm scriptedpart Ar parameters
+Sets up disks like
+.Cm autopart
+and
+.Cm partedit ,
+but non-interactively according to the disk setup specified in
+.Ar parameters .
+Each disk setup is specified by a three-part argument:
+.Pp
+.Ar disk
+.Op Ar scheme
+.Op Ar {partitions}
+.Pp
+Multiple disk setups are separated by semicolons.
+The
+.Ar disk
+argument specifies the disk on which to operate (which will be erased),
+while the
+.Ar scheme
+argument specifies the
+.Xr gpart 8
+partition scheme to apply to the disk.
+If
+.Ar scheme
+is unspecified,
+.Cm scriptedpart
+will apply the default bootable scheme on your platform.
+The
+.Ar partitions
+argument is also optional and specifies how to partition
+.Ar disk .
+It consists of a comma-separated list of partitions to create enclosed in
+curly braces.
+Each partition declaration takes the form
+.Pp
+.Ar size
+.Ar type
+.Op Ar mount point
+.Pp
+.Ar size
+specifies the partition size to create in bytes (K, M, and G suffixes
+can be appended to specify kilobytes, megabytes, and gigabytes respectively),
+while the
+.Em auto
+keyword causes the partition to take all the remaining space on the disk.
+The
+.Ar type
+option chooses the
+.Xr gpart 8
+filesystem type, e.g., freebsd-ufs, freebsd-zfs, or freebsd-swap.
+The optional
+.Ar mount point
+argument sets where the created partition is to be mounted in the installed
+system.
+As an example, a typical invocation looks like:
+.Pp
+bsdinstall scriptedpart ada0 { 20G freebsd-ufs /, 4G freebsd-swap, 20G freebsd-ufs /var, auto freebsd-ufs /usr }
+.Pp
+A shorter invocation to use the default partitioning (as
+.Cm autopart
+would have used) on the same disk:
+.Pp
+bsdinstall scriptedpart ada0
+.It Cm mount
+Mounts the file systems previously configured by
+.Cm autopart ,
+.Cm partedit ,
+or
+.Cm scriptedpart
+under
+.Ev BSDINSTALL_CHROOT .
+.It Cm distfetch
+Fetches the distributions in
+.Ev DISTRIBUTIONS
+to
+.Ev BSDINSTALL_DISTDIR
+from
+.Ev BSDINSTALL_DISTSITE .
+.It Cm checksum
+Verifies the checksums of the distributions listed in
+.Ev DISTRIBUTIONS
+against the distribution manifest.
+.It Cm distextract
+Extracts the distributions listed in
+.Ev DISTRIBUTIONS
+into
+.Ev BSDINSTALL_CHROOT .
+.It Cm rootpass
+Interactively invokes
+.Xr passwd 1
+in the new system to set the root user's password.
+.It Cm adduser
+Interactively invokes
+.Xr adduser 8
+in the new system.
+.It Cm time
+Interactively sets the time, date, and time zone of the new system.
+.It Cm services
+Queries the user for the system daemons to begin at system startup,
+writing the result into the new system's
+.Pa rc.conf .
+.It Cm entropy
+Reads a small amount of data from
+.Pa /dev/random
+and stores it in a file in the new system's root directory.
+.It Cm config
+Installs the configuration files destined for the new system, e.g.,
+.Xr rc.conf 5
+fragments generated by
+.Cm netconfig ,
+etc.) onto the new system.
+.El
+.Sh ENVIRONMENT VARIABLES
+The following environment variables control various aspects of the installation
+process.
+Many are used internally during installation and have reasonable default values
+for most installation scenarios.
+Others are set by various interactive user prompts, and can be usefully
+overridden when making scripted or customized installers.
+.Bl -tag -width ".Ev BSDINSTALL_DISTSITE"
+.It Ev DISTRIBUTIONS
+The set of distributions to install, e.g., "base kernel ports".
+Default: unset
+.It Ev BSDINSTALL_DISTDIR
+The directory in which the distribution files can be found (or to which they
+should be downloaded).
+Default:
+.Dq Pa /usr/freebsd-dist
+.It Ev BSDINSTALL_DISTSITE
+URL from which the distribution files should be downloaded if they are not
+already present in the directory defined by
+.Ev BSDINSTALL_DISTDIR .
+This should be a full path to the files, including architecture and release
+names.
+Most targets, e.g.,
+.Cm auto
+and
+.Cm jail ,
+that prompt for a
+.Fx
+mirror will skip that step if this variable is already defined in the
+environment.
+Example:
+.Pa ftp://ftp.freebsd.org/pub/FreeBSD/releases/powerpc/powerpc64/9.1-RELEASE
+.It Ev BSDINSTALL_CHROOT
+The directory into which the distribution files should be unpacked and the
+directory at which the root file system of the new system should be mounted.
+Default:
+.Dq Pa /mnt
+.It Ev BSDINSTALL_LOG
+Path to a log file for the installation.
+Default:
+.Dq Pa /tmp/bsdinstall_log
+.It Ev BSDINSTALL_TMPETC
+Directory where files destined for the new system's
+.Pa /etc
+will be stored until the
+.Cm config
+target is executed.
+If this directory does not already exist, it will be created.
+Default:
+.Dq Pa /tmp/bsdinstall_etc
+.It Ev BSDINSTALL_TMPBOOT
+Directory where files destined for the new system's
+.Pa /boot
+will be stored until the
+.Cm config
+target is executed.
+If this directory does not already exist, it will be created.
+Default:
+.Dq Pa /tmp/bsdinstall_boot
+.It Ev ZFSBOOT_POOL_NAME
+Name for the pool containing the base system.
+Default:
+.Dq zroot
+.It Ev ZFSBOOT_POOL_CREATE_OPTIONS
+Options to be used when creating the base system's pool.
+Each option must be followed by the -O flag to be taken into consideration
+or the pool will not be created due to errors using the command
+.Cm zpool .
+Default:
+.Dq Li "-O compress=lz4 -O atime=off"
+.It Ev ZFSBOOT_BEROOT_NAME
+Name for the boot environment parent dataset.
+This is a non-mountable dataset meant to be a parent dataset where different
+boot environment are going to be created.
+Default:
+.Dq ROOT
+.It Ev ZFSBOOT_BOOTFS_NAME
+Name for the primary boot environment, which will be the default boot
+environment for the system.
+Default:
+.Dq default
+.It Ev ZFSBOOT_VDEV_TYPE
+The type of pool to be created for the base system.
+This variable can take one of this values: stripe (No redundacy),
+mirror (n-Way mirroring), raid10 (RAID 1+0 - n x 2-Way Mirrors),
+raidz1 (RAID-Z1 - Single Redundacy RAID), raidz2 (RAID-Z2 - Double Redundacy RAID)
+or raidz3 (RAID-Z3 Triple Redundacy RAID).
+Default:
+.Dq stripe
+.It Ev ZFSBOOT_FORCE_4K_SECTORS
+Indicates either the pool will use 4K or 512 sectors.
+If this variable is not empty, 4K sectors will be used.
+Default:
+.Dq 1
+.It Ev ZFSBOOT_GELI_ENCRYPTION
+If this variable is not empty, it will use
+.Xr geli 8
+to encrypt the root pool, enabling automatically the
+.Ev ZFSBOOT_BOOT_POOL
+variable.
+Default:
+.Dq ""
+.It Ev ZFSBOOT_GELI_KEY_FILE
+Path to the
+.Xr geli 8
+keyfile used to encrypt the pool where the base system is stored.
+Default:
+.Dq Pa /boot/encryption.key
+.It Ev ZFSBOOT_BOOT_POOL
+If set a separated boot pool will be created for the kernel of the
+system and
+.Xr loader 8 .
+Default: unset
+.It Ev ZFSBOOT_BOOT_POOL_CREATE_OPTIONS
+Options to use when creating the boot pool, when enabled (See
+.Ev ZFSBOOT_BOOT_POOL ).
+Default: unset
+.It Ev ZFSBOOT_BOOT_POOL_NAME
+Name for the optional boot pool when it is enabled, (See
+.Ev ZFSBOOT_BOOT_POOL ).
+Default:
+.Dq bootpool
+.It Ev ZFSBOOT_BOOT_POOL_SIZE
+Size of the boot pool when it is enabled (See
+.Ev ZFSBOOT_BOOT_POOL ).
+Default:
+.Dq 2g
+.It Ev ZFSBOOT_DISKS
+Disks to be used for the base system, including the boot pool.
+This variable must only be used on a scripted installation.
+See
+.Sx SCRIPTING
+for more information.
+Default: unset
+.It Ev ZFSBOOT_SWAP_SIZE
+Size of the swap partition on each block device.
+This variable will be passed to
+.Xr gpart 8 ;
+which supports SI unit suffixes.
+Default:
+.Dq 2g
+.It Ev ZFSBOOT_SWAP_ENCRYPTION
+If set, enables the encryption of the swap partition using
+.Xr geli 8 .
+Default: ""
+.It Ev ZFSBOOT_SWAP_MIRROR
+If set, enables a swap mirroring using
+.Xr gmirror 8 .
+Default:
+unset
+.It Ev ZFSBOOT_DATASETS
+ZFS datasets to be created on the root zpool, it requires the
+following datasets:
+.Pa /tmp ,
+.Pa /var/tmp ,
+.Pa /$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME .
+See
+.Sx ZFS DATASETS
+for more information about who to write this variable and to
+take a look into the default value of it.
+.It Ev ZFSBOOT_CONFIRM_LAYOUT
+If set and the installation is interactive, allow the user to confirm
+the layout before continuing with the installation.
+Default:
+.Dq 1
+.El
+.Sh SCRIPTING
+.Nm
+scripts consist of two parts: a
+.Em preamble
+and a
+.Em setup script .
+The preamble sets up the options for the installation (how to partition the
+disk[s], which distributions to install, etc.) and the optional second part is
+a shell script run under
+.Xr chroot 8
+in the newly installed system before
+.Nm
+exits.
+The two parts are separated by the usual script header (#!), which also sets
+the interpreter for the setup script.
+.Pp
+A typical bsdinstall script looks like this:
+.Bd -literal -offset indent
+PARTITIONS=ada0
+DISTRIBUTIONS="kernel.txz base.txz"
+
+#!/bin/sh
+sysrc ifconfig_em0=DHCP
+sysrc sshd_enable=YES
+pkg install puppet
+.Ed
+.Pp
+For a ZFS scripted installation, the script looks like this:
+.Bd -literal -offset indent
+DISTRIBUTIONS="kernel.txz base.txz"
+export ZFSBOOT_VDEV_TYPE=stripe
+export ZFSBOOT_DISKS=ada0
+export nonInteractive="YES"
+
+#!/bin/sh
+echo "ifconfig_em0=DHCP" >> /etc/rc.conf
+echo "sshd_enable=YES" >> /etc/rc.conf
+pkg install puppet
+.Ed
+.Pp
+On
+.Fx
+release media, such a script placed at
+.Pa /etc/installerconfig
+will be run at boot time and the system will be rebooted automatically after
+the installation has completed.
+This can be used for unattended network installation of new systems; see
+.Xr diskless 8
+for details.
+.Ss PREAMBLE
+The preamble consists of installer settings.
+These control global installation parameters (see
+.Sx ENVIRONMENT VARIABLES )
+as well as disk partitioning.
+The preamble is interpreted as a
+.Xr sh 1
+script run at the very beginning of the install.
+If more complicated behavior than setting these variables is desired,
+arbitrary commands can be run here to extend the installer.
+In addition to the variables in
+.Sx ENVIRONMENT VARIABLES ,
+in particular
+.Ev DISTRIBUTIONS ,
+the preamble can contain a variable
+.Ev PARTITIONS
+which is passed to the
+.Cm scriptedpart
+target to control disk setup.
+Alternatively,
+to use
+.Cm zfsboot
+instead of
+.Cm partedit ,
+the preamble can contain the variable
+.Ev ZFSBOOT_DATASETS
+instead of
+.Ev PARTITIONS ,
+and setting the variables
+.Ev ZFSBOOT_DISKS
+and
+.Ev ZFSBOOT_VDEV_TYPE
+to create the pool of disks for the base system.
+Usually, for a mirrored booting disk, this two variables looks like this:
+.Bd -literal -offset indent
+ZFSBOOT_DISKS="ada0 ada1"
+ZFSBOOT_VDEV_TYPE=mirror
+.Ed
+.Pp
+Remenber to export all the variables for the
+.Cm zfsboot
+command, otherwise it will not get set.
+.Ss SETUP SCRIPT
+Following the preamble is an optional shell script, beginning with a #!
+declaration.
+This script will be run at the end of the installation process inside a
+.Xr chroot 8
+environment in the newly installed system and can be used to set up
+configuration files, install packages, etc.
+Note that newly configured system services, e.g., networking have not
+been started in the installed system at this time and only installation
+host services are available.
+.Ss ZFS DATASETS
+The
+.Cm zfsboot
+partitioning takes the
+.Ev ZFSBOOT_DATASETS
+variable to create the datasets on the base system.
+This variable can get pretty huge if the pool contains a lot of datasets.
+The default value of the
+.Ev ZFSBOOT_DATASETS
+looks like this:
+.Bd -literal -offset indent
+# DATASET	OPTIONS (comma or space separated; or both)
+
+# Boot Environment [BE] root and default boot dataset
+/$ZFSBOOT_BEROOT_NAME				mountpoint=none
+/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME	mountpoint=/
+
+# Compress /tmp, allow exec but not setuid
+/tmp		mountpoint=/tmp,exec=on,setuid=off
+
+# Do not mount /usr so that 'base' files go to the BEROOT
+/usr		mountpoint=/usr,canmount=off
+
+# Home directories separated so they are common to all BEs
+/usr/home	# NB: /home is a symlink to /usr/home
+
+# Ports tree
+/usr/ports	setuid=off
+
+# Source tree (compressed)
+/usr/src
+
+# Create /var and friends
+/var		mountpoint=/var,canmount=off
+/var/audit	exec=off,setuid=off
+/var/crash	exec=off,setuid=off
+/var/log	exec=off,setuid=off
+/var/mail	atime=on
+/var/tmp	setuid=off
+.Ed
+.Pp
+The first column if the dataset to be created on the top of the
+.Ev ZFSBOOT_POOL_NAME
+and the rest of the columns are the options to be set on each dataset.
+The options must be written on a coma or space separated list, or both.
+And everything behind a pound/hash character is ignored as a comment.
+.Sh HISTORY
+This version of
+.Nm
+first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An Nathan Whitehorn Aq Mt nwhitehorn@FreeBSD.org

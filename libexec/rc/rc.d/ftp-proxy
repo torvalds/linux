@@ -1,0 +1,76 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ftp-proxy
+# REQUIRE: DAEMON pf
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="ftpproxy"
+desc="Internet File Transfer Protocol proxy daemon"
+rcvar="ftpproxy_enable"
+command="/usr/sbin/ftp-proxy"
+
+load_rc_config $name
+
+#
+# manage_pid argument
+#	Create or remove a pidfile manually, for daemons that can't be bothered
+#	to do it themselves. Takes one argument, which is the argument provided
+#	to the rc script. The pidfile will be named /var/run/<$name>.pid,
+#	unless $pidfile is defined.
+#
+#	The method used to determine the pid is rather hacky; grep ps output to
+#	find '$procname|$command', then grep for ${name}_flags. If at all
+#	possible, use another method if at all possible, to avoid that dirty-
+#	code feeling.
+#
+manage_pid() {
+	local search_string ps_pid
+	case $1 in
+		*start)
+			cmd_string=`basename ${procname:-${command}}`
+			eval flag_string=\"\$${name}_flags\"
+			# Determine the pid.
+			ps_pid=`ps ax -o pid= -o command= | grep $cmd_string | grep -e "$flag_string" | grep -v grep | awk '{ print $1 }'`
+			# Write the pidfile depending on $pidfile status.
+			echo $ps_pid > ${pidfile:-"/var/run/$name.pid"}
+	       		;;
+		stop)
+	       		rm $pidfile
+	       		;;
+	esac
+}
+
+# Allow ftp-proxy to start up in two different ways. The typical behavior
+# is to start up one instance of ftp-proxy by setting ftpproxy_enable and
+# ftpproxy_flags. The alternate behavior allows multiple instances of ftp-
+# proxy to be started, allowing different types of proxy behavior. To use the
+# new behavior, a list of instances must be defined, and a list of flags for
+# each instance. For example, if we want to start two instances of ftp-proxy,
+# foo and bar, we would set the following vars.
+#	ftpproxy_enable="YES"
+#	ftpproxy_instances="foo bar"
+#	ftpproxy_foo="<arguments for foo>"
+#	ftpproxy_bar="<arguments for bar>"
+#
+# Starting more than one ftp-proxy?
+if [ "$ftpproxy_instances" ] && [ -n "${ftpproxy_instances}" ]; then
+	# Iterate through instance list.
+	for i in $ftpproxy_instances; do
+		#eval ftpproxy_${i}_flags=\$ftpproxy_${i}
+		#eval name=ftpproxy_${i}
+		# Set flags for this instance.
+		eval ftpproxy_flags=\$ftpproxy_${i}
+		# Define a unique pid file name.
+		pidfile="/var/run/ftp-proxy.$i.pid"
+		run_rc_command "$1"
+		manage_pid $1
+	done
+else
+	# Traditional single-instance behavior
+	run_rc_command "$1"
+fi

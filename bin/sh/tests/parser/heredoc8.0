@@ -1,0 +1,20 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if ! eval "[ $* ]"; then
+		echo "Failed: $*"
+		: $((failures += 1))
+	fi
+}
+
+s='ast*que?non' sq=\' dq=\"
+
+# This is possibly useful but differs from other shells.
+check '"$(cat <<EOF
+${s+"x"}
+EOF
+)" = ${dq}x${dq}'
+
+exit $((failures != 0))

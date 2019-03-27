@@ -1,0 +1,436 @@
+.\" Copyright (c) 2004-2009 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 30, 2017
+.Dt GMIRROR 8
+.Os
+.Sh NAME
+.Nm gmirror
+.Nd "control utility for mirrored devices"
+.Sh SYNOPSIS
+.Nm
+.Cm label
+.Op Fl Fhnv
+.Op Fl b Ar balance
+.Op Fl s Ar slice
+.Ar name
+.Ar prov ...
+.Nm
+.Cm clear
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm create
+.Op Fl Fnv
+.Op Fl b Ar balance
+.Op Fl s Ar slice
+.Ar name
+.Ar prov ...
+.Nm
+.Cm configure
+.Op Fl adfFhnv
+.Op Fl b Ar balance
+.Op Fl s Ar slice
+.Ar name
+.Nm
+.Cm configure
+.Op Fl v
+.Fl p Ar priority
+.Ar name
+.Ar prov
+.Nm
+.Cm rebuild
+.Op Fl v
+.Ar name
+.Ar prov ...
+.Nm
+.Cm resize
+.Op Fl v
+.Op Fl s Ar size
+.Ar name
+.Nm
+.Cm insert
+.Op Fl hiv
+.Op Fl p Ar priority
+.Ar name
+.Ar prov ...
+.Nm
+.Cm remove
+.Op Fl v
+.Ar name
+.Ar prov ...
+.Nm
+.Cm activate
+.Op Fl v
+.Ar name
+.Ar prov ...
+.Nm
+.Cm deactivate
+.Op Fl v
+.Ar name
+.Ar prov ...
+.Nm
+.Cm destroy
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm forget
+.Op Fl v
+.Ar name ...
+.Nm
+.Cm stop
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm dump
+.Ar prov ...
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
+.Sh DESCRIPTION
+The
+.Nm
+utility is used for mirror (RAID1) configurations.
+After a mirror's creation, all components are detected and configured
+automatically.
+All operations like failure detection, stale component detection, rebuild
+of stale components, etc.\& are also done automatically.
+The
+.Nm
+utility uses on-disk metadata (stored in the provider's last sector) to store all needed
+information.
+Since the last sector is used for this purpose, it is possible to place a root
+file system on a mirror.
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm deactivate"
+.It Cm label
+Create a mirror.
+The order of components is important, because a component's priority is based on its position
+(starting from 0 to 255).
+The component with the biggest priority is used by the
+.Cm prefer
+balance algorithm
+and is also used as a master component when resynchronization is needed,
+e.g.\& after a power failure when the device was open for writing.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl b Ar balance"
+.It Fl b Ar balance
+Specifies balance algorithm to use, one of:
+.Bl -tag -width ".Cm round-robin"
+.It Cm load
+Read from the component with the lowest load.
+This is the default balance algorithm.
+.It Cm prefer
+Read from the component with the biggest priority.
+.It Cm round-robin
+Use round-robin algorithm when choosing component to read.
+.It Cm split
+Split read requests, which are bigger than or equal to slice size on N pieces,
+where N is the number of active components.
+.El
+.It Fl F
+Do not synchronize after a power failure or system crash.
+Assumes device is in consistent state.
+.It Fl h
+Hardcode providers' names in metadata.
+.It Fl n
+Turn off autosynchronization of stale components.
+.It Fl s Ar slice
+When using the
+.Cm split
+balance algorithm and an I/O READ request is bigger than or equal to this value,
+the I/O request will be split into N pieces, where N is the number of active
+components.
+Defaults to 4096 bytes.
+.El
+.It Cm clear
+Clear metadata on the given providers.
+.It Cm create
+Similar to
+.Cm label ,
+but creates mirror without storing on-disk metadata in last sector.
+This special "manual" operation mode assumes some external control to manage
+mirror detection after reboot, device hot-plug and other external events.
+.It Cm configure
+Configure the given device.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl p Ar priority"
+.It Fl a
+Turn on autosynchronization of stale components.
+.It Fl b Ar balance
+Specifies balance algorithm to use.
+.It Fl d
+Do not hardcode providers' names in metadata.
+.It Fl f
+Synchronize device after a power failure or system crash.
+.It Fl F
+Do not synchronize after a power failure or system crash.
+Assumes device is in consistent state.
+.It Fl h
+Hardcode providers' names in metadata.
+.It Fl n
+Turn off autosynchronization of stale components.
+.It Fl p Ar priority
+Specifies priority for the given component
+.Ar prov .
+.It Fl s Ar slice
+Specifies slice size for
+.Cm split
+balance algorithm.
+.El
+.It Cm rebuild
+Rebuild the given mirror components forcibly.
+If autosynchronization was not turned off for the given device, this command
+should be unnecessary.
+.It Cm resize
+Change the size of the given mirror.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl s Ar size"
+.It Fl s Ar size
+New size of the mirror is expressed in logical block numbers.
+This option can be omitted, then it will be automatically calculated to
+maximum available size.
+.El
+.It Cm insert
+Add the given component(s) to the existing mirror.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl p Ar priority"
+.It Fl h
+Hardcode providers' names in metadata.
+.It Fl i
+Mark component(s) as inactive immediately after insertion.
+.It Fl p Ar priority
+Specifies priority of the given component(s).
+.El
+.It Cm remove
+Remove the given component(s) from the mirror and clear metadata on it.
+.It Cm activate
+Activate the given component(s), which were marked as inactive before.
+.It Cm deactivate
+Mark the given component(s) as inactive, so it will not be automatically
+connected to the mirror.
+.It Cm destroy
+Stop the given mirror and clear metadata on all its components.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Stop the given mirror even if it is opened.
+.El
+.It Cm forget
+Forget about components which are not connected.
+This command is useful when a disk has failed and cannot be reconnected, preventing the
+.Cm remove
+command from being used to remove it.
+.It Cm stop
+Stop the given mirror.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Stop the given mirror even if it is opened.
+.El
+.It Cm dump
+Dump metadata stored on the given providers.
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl v"
+.It Fl v
+Be more verbose.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
+.Sh EXAMPLES
+Use 3 disks to setup a mirror.
+Choose split balance algorithm, split only
+requests which are bigger than or equal to 2kB.
+Create file system,
+mount it, then unmount it and stop device:
+.Bd -literal -offset indent
+gmirror label -v -b split -s 2048 data da0 da1 da2
+newfs /dev/mirror/data
+mount /dev/mirror/data /mnt
+\&...
+umount /mnt
+gmirror stop data
+gmirror unload
+.Ed
+.Pp
+Create a mirror on disk with valid data (note that the last sector of the disk
+will be overwritten).
+Add another disk to this mirror,
+so it will be synchronized with existing disk:
+.Bd -literal -offset indent
+gmirror label -v -b round-robin data da0
+gmirror insert data da1
+.Ed
+.Pp
+Create a mirror, but do not use automatic synchronization feature.
+Add another disk and rebuild it:
+.Bd -literal -offset indent
+gmirror label -v -n -b load data da0 da1
+gmirror insert data da2
+gmirror rebuild data da2
+.Ed
+.Pp
+One disk failed.
+Replace it with a brand new one:
+.Bd -literal -offset indent
+gmirror forget data
+gmirror insert data da1
+.Ed
+.Pp
+Create a mirror, deactivate one component, do the backup and connect it again.
+It will not be resynchronized, if there is no need to do so (there were no writes in
+the meantime):
+.Bd -literal -offset indent
+gmirror label data da0 da1
+gmirror deactivate data da1
+dd if=/dev/da1 of=/backup/data.img bs=1m
+gmirror activate data da1
+.Ed
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to configure behavior for all mirrors.
+.Bl -tag -width indent
+.It Va kern.geom.mirror.debug
+Control the verbosity of kernel logging related to mirrors.
+A value larger than 0 will enable debug logging.
+.It Va kern.geom.mirror.timeout
+The amount of time, in seconds, to wait for all copies of a mirror to
+appear before starting the mirror.
+Disks that appear after the mirror has been started are not automatically
+added to the mirror.
+.It Va kern.geom.mirror.idletime
+The amount of time, in seconds, which must elapse after the last write to
+a mirror before that mirror is marked clean.
+Clean mirrors do not need to be synchronized after a power failure or
+system crash.
+A small value may result in frequent overwrites of the disks' metadata
+sectors, and thus may reduce the longevity of the disks.
+.It Va kern.geom.mirror.disconnect_on_failure
+Determine whether a disk is automatically removed from its mirror when an
+I/O request to that disk fails.
+.It Va kern.geom.mirror.sync_requests
+The number of parallel I/O requests used while synchronizing a mirror.
+This parameter may only be configured as a
+.Xr loader.conf 5
+tunable.
+.It Va kern.geom.mirror.sync_update_period
+The period, in seconds, at which a synchronizing mirror's metadata is
+updated.
+Periodic updates are used to record a synchronization's progress so that
+an interrupted synchronization may be resumed starting at the recorded
+offset, rather than at the beginning.
+A smaller value results in more accurate progress tracking, but also
+increases the number of non-sequential writes to the disk being synchronized.
+If the sysctl value is 0, no updates are performed until the synchronization
+is complete.
+.El
+.Sh NOTES
+Doing kernel dumps to
+.Nm
+providers is possible, but some conditions have to be met.
+First of all, a kernel dump will go only to one component and
+.Nm
+always chooses the component with the highest priority.
+Reading a dump from the mirror on boot will only work if the
+.Cm prefer
+balance algorithm is used (that way
+.Nm
+will read only from the component with the highest priority).
+If you use a different balance algorithm, you should add:
+.Bd -literal -offset indent
+gmirror configure -b prefer data
+.Ed
+.Pp
+to the
+.Pa /etc/rc.early
+script and:
+.Bd -literal -offset indent
+gmirror configure -b round-robin data
+.Ed
+.Pp
+to the
+.Pa /etc/rc.local
+script.
+The decision which component to choose for dumping is made when
+.Xr dumpon 8
+is called.
+If on the next boot a component with a higher priority will be available,
+the prefer algorithm will choose to read from it and
+.Xr savecore 8
+will find nothing.
+If on the next boot a component with the highest priority will be synchronized,
+the prefer balance algorithm will read from the next one, thus will find nothing
+there.
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr dumpon 8 ,
+.Xr geom 8 ,
+.Xr gvinum 8 ,
+.Xr mount 8 ,
+.Xr newfs 8 ,
+.Xr savecore 8 ,
+.Xr sysctl 8 ,
+.Xr umount 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org
+.Sh BUGS
+There should be a way to change a component's priority inside a running mirror.
+.Pp
+There should be a section with an implementation description.

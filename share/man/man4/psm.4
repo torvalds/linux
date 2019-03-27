@@ -1,0 +1,866 @@
+.\"
+.\" Copyright (c) 1997
+.\" Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 26, 2016
+.Dt PSM 4
+.Os
+.Sh NAME
+.Nm psm
+.Nd PS/2 mouse style pointing device driver
+.Sh SYNOPSIS
+.Cd "options KBD_RESETDELAY=N"
+.Cd "options KBD_MAXWAIT=N"
+.Cd "options PSM_DEBUG=N"
+.Cd "options KBDIO_DEBUG=N"
+.Cd "device psm"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.psm.0.at="atkbdc"
+.Cd hint.psm.0.irq="12"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the PS/2 mouse style pointing device.
+Currently there can be only one
+.Nm
+device node in the system.
+As the PS/2 mouse port is located
+at the auxiliary port of the keyboard controller,
+the keyboard controller driver,
+.Nm atkbdc ,
+must also be configured in the kernel.
+Note that there is currently no provision of changing the
+.Em irq
+number.
+.Pp
+Basic PS/2 style pointing device has two or three buttons.
+Some devices may have a roller or a wheel and/or additional buttons.
+.Ss Device Resolution
+The PS/2 style pointing device usually has several grades of resolution,
+that is, sensitivity of movement.
+They are typically 25, 50, 100 and 200
+pulse per inch.
+Some devices may have finer resolution.
+The current resolution can be changed at runtime.
+The
+.Nm
+driver allows the user to initially set the resolution
+via the driver flag
+(see
+.Sx "DRIVER CONFIGURATION" )
+or change it later via the
+.Xr ioctl 2
+command
+.Dv MOUSE_SETMODE
+(see
+.Sx IOCTLS ) .
+.Ss Report Rate
+Frequency, or report rate, at which the device sends movement
+and button state reports to the host system is also configurable.
+The PS/2 style pointing device typically supports 10, 20, 40, 60, 80, 100
+and 200 reports per second.
+60 or 100 appears to be the default value for many devices.
+Note that when there is no movement and no button has changed its state,
+the device will not send anything to the host system.
+The report rate can be changed via an ioctl call.
+.Ss Operation Levels
+The
+.Nm
+driver has three levels of operation.
+The current operation level can be set via an ioctl call.
+.Pp
+At the level zero the basic support is provided; the device driver will report
+horizontal and vertical movement of the attached device
+and state of up to three buttons.
+The movement and status are encoded in a series of fixed-length data packets
+(see
+.Sx "Data Packet Format" ) .
+This is the default level of operation and the driver is initially
+at this level when opened by the user program.
+.Pp
+The operation level one, the `extended' level, supports a roller (or wheel),
+if any, and up to 11 buttons.
+The movement of the roller is reported as movement along the Z axis.
+8 byte data packets are sent to the user program at this level.
+.Pp
+At the operation level two, data from the pointing device is passed to the
+user program as is.
+Conversely, command from the user program is passed
+to the pointing device as is and the user program is responsible for
+status validation and error recovery.
+Modern PS/2 type pointing devices often use proprietary data format.
+Therefore, the user program is expected to have
+intimate knowledge about the format from a particular device when operating
+the driver at this level.
+This level is called `native' level.
+.Ss Data Packet Format
+Data packets read from the
+.Nm
+driver are formatted differently at each operation level.
+.Pp
+A data packet from the PS/2 mouse style pointing device
+is three bytes long at the operation level zero:
+.Pp
+.Bl -tag -width Byte_1 -compact
+.It Byte 1
+.Bl -tag -width bit_7 -compact
+.It bit 7
+One indicates overflow in the vertical movement count.
+.It bit 6
+One indicates overflow in the horizontal movement count.
+.It bit 5
+Set if the vertical movement count is negative.
+.It bit 4
+Set if the horizontal movement count is negative.
+.It bit 3
+Always one.
+.\" The ALPS GlidePoint clears this bit when the user `taps' the surface of
+.\" the pad, otherwise the bit is set.
+.\" Most, if not all, other devices always set this bit.
+.It bit 2
+Middle button status; set if pressed.
+For devices without the middle
+button, this bit is always zero.
+.It bit 1
+Right button status; set if pressed.
+.It bit 0
+Left button status; set if pressed.
+.El
+.It Byte 2
+Horizontal movement count in two's complement;
+-256 through 255.
+Note that the sign bit is in the first byte.
+.It Byte 3
+Vertical movement count in two's complement;
+-256 through 255.
+Note that the sign bit is in the first byte.
+.El
+.Pp
+At the level one, a data packet is encoded
+in the standard format
+.Dv MOUSE_PROTO_SYSMOUSE
+as defined in
+.Xr mouse 4 .
+.Pp
+At the level two, native level, there is no standard on the size and format
+of the data packet.
+.Ss Acceleration
+The
+.Nm
+driver can somewhat `accelerate' the movement of the pointing device.
+The faster you move the device, the further the pointer
+travels on the screen.
+The driver has an internal variable which governs the effect of
+the acceleration.
+Its value can be modified via the driver flag
+or via an ioctl call.
+.Sh DRIVER CONFIGURATION
+.Ss Kernel Configuration Options
+There are following kernel configuration options to control the
+.Nm
+driver.
+They may be set in the kernel configuration file
+(see
+.Xr config 8 ) .
+.Bl -tag -width MOUSE
+.It Em KBD_RESETDELAY=X , KBD_MAXWAIT=Y
+The
+.Nm
+driver will attempt to reset the pointing device during the boot process.
+It sometimes takes a long while before the device will respond after
+reset.
+These options control how long the driver should wait before
+it eventually gives up waiting.
+The driver will wait
+.Fa X
+*
+.Fa Y
+msecs at most.
+If the driver seems unable to detect your pointing
+device, you may want to increase these values.
+The default values are
+200 msec for
+.Fa X
+and 5
+for
+.Fa Y .
+.It Em PSM_DEBUG=N , KBDIO_DEBUG=N
+Sets the debug level to
+.Fa N .
+The default debug level is zero.
+See
+.Sx DIAGNOSTICS
+for debug logging.
+.El
+.Ss Driver Flags
+The
+.Nm
+driver accepts the following driver flags.
+Set them in
+.Pa /boot/device.hints
+(see
+.Sx EXAMPLES
+below).
+.Bl -tag -width MOUSE
+.It bit 0..3 RESOLUTION
+This flag specifies the resolution of the pointing device.
+It must be zero through four.
+The greater the value
+is, the finer resolution the device will select.
+Actual resolution selected by this field varies according to the model
+of the device.
+Typical resolutions are:
+.Pp
+.Bl -tag -width 0_(medium_high)__ -compact
+.It Em 1 (low)
+25 pulse per inch (ppi)
+.It Em 2 (medium low)
+50 ppi
+.It Em 3 (medium high)
+100 ppi
+.It Em 4 (high)
+200 ppi
+.El
+.Pp
+Leaving this flag zero will selects the default resolution for the
+device (whatever it is).
+.It bit 4..7 ACCELERATION
+This flag controls the amount of acceleration effect.
+The smaller the value of this flag is, more sensitive the movement becomes.
+The minimum value allowed, thus the value for the most sensitive setting,
+is one.
+Setting this flag to zero will completely disables the
+acceleration effect.
+.It bit 8 NOCHECKSYNC
+The
+.Nm
+driver tries to detect the first byte of the data packet by checking
+the bit pattern of that byte.
+Although this method should work with most
+PS/2 pointing devices, it may interfere with some devices which are not
+so compatible with known devices.
+If you think your pointing device is not functioning as expected,
+and the kernel frequently prints the following message to the console,
+.Bd -literal -offset indent
+psmintr: out of sync (xxxx != yyyy).
+.Ed
+.Pp
+set this flag to disable synchronization check and see if it helps.
+.It bit 9 NOIDPROBE
+The
+.Nm
+driver will not try to identify the model of the pointing device and
+will not carry out model-specific initialization.
+The device should always act like a standard PS/2 mouse without such
+initialization.
+Extra features, such as wheels and additional buttons, will not be
+recognized by the
+.Nm
+driver.
+.It bit 10 NORESET
+When this flag is set, the
+.Nm
+driver will not reset the pointing device when initializing the device.
+If the
+.Fx
+kernel
+is started after another OS has run, the pointing device will inherit
+settings from the previous OS.
+However, because there is no way for the
+.Nm
+driver to know the settings, the device and the driver may not
+work correctly.
+The flag should never be necessary under normal circumstances.
+.It bit 11 FORCETAP
+Some pad devices report as if the fourth button is pressed
+when the user `taps' the surface of the device (see
+.Sx CAVEATS ) .
+This flag will make the
+.Nm
+driver assume that the device behaves this way.
+Without the flag, the driver will assume this behavior
+for ALPS GlidePoint models only.
+.It bit 12 IGNOREPORTERROR
+This flag makes
+.Nm
+driver ignore certain error conditions when probing the PS/2 mouse port.
+It should never be necessary under normal circumstances.
+.It bit 13 HOOKRESUME
+The built-in PS/2 pointing device of some laptop computers is somehow
+not operable immediately after the system `resumes' from
+the power saving mode,
+though it will eventually become available.
+There are reports that
+stimulating the device by performing I/O will help
+waking up the device quickly.
+This flag will enable a piece of code in the
+.Nm
+driver to hook
+the `resume' event and exercise some harmless I/O operations on the
+device.
+.It bit 14 INITAFTERSUSPEND
+This flag adds more drastic action for the above problem.
+It will cause the
+.Nm
+driver to reset and re-initialize the pointing device
+after the `resume' event.
+.El
+.Sh LOADER TUNABLES
+Extended support for Synaptics touchpads can be enabled by setting
+.Va hw.psm.synaptics_support
+to
+.Em 1
+at boot-time.
+This will enable
+.Nm
+to handle packets from guest devices (sticks) and extra buttons.
+Similarly, extended support for IBM/Lenovo TrackPoint and Elantech touchpads
+can be enabled by setting
+.Va hw.psm.trackpoint_support
+or
+.Va hw.psm.elantech_support,
+respectively, to
+.Em 1
+at boot-time.
+.Pp
+Tap and drag gestures can be disabled by setting
+.Va hw.psm.tap_enabled
+to
+.Em 0
+at boot-time.
+Currently, this is only supported on Synaptics touchpads with Extended
+support disabled.
+The behaviour may be changed after boot by setting
+the sysctl with the same name and by restarting
+.Xr moused 8
+using
+.Pa /etc/rc.d/moused .
+.Sh IOCTLS
+There are a few
+.Xr ioctl 2
+commands for mouse drivers.
+These commands and related structures and constants are defined in
+.In sys/mouse.h .
+General description of the commands is given in
+.Xr mouse 4 .
+This section explains the features specific to the
+.Nm
+driver.
+.Pp
+.Bl -tag -width MOUSE -compact
+.It Dv MOUSE_GETLEVEL Ar int *level
+.It Dv MOUSE_SETLEVEL Ar int *level
+These commands manipulate the operation level of the
+.Nm
+driver.
+.Pp
+.It Dv MOUSE_GETHWINFO Ar mousehw_t *hw
+Returns the hardware information of the attached device in the following
+structure.
+.Bd -literal
+typedef struct mousehw {
+    int buttons;    /* number of buttons */
+    int iftype;     /* I/F type */
+    int type;       /* mouse/track ball/pad... */
+    int model;      /* I/F dependent model ID */
+    int hwid;       /* I/F dependent hardware ID */
+} mousehw_t;
+.Ed
+.Pp
+The
+.Dv buttons
+field holds the number of buttons on the device.
+The
+.Nm
+driver currently can detect the 3 button mouse from Logitech and report
+accordingly.
+The 3 button mouse from the other manufacturer may or may not be
+reported correctly.
+However, it will not affect the operation of
+the driver.
+.Pp
+The
+.Dv iftype
+is always
+.Dv MOUSE_IF_PS2 .
+.Pp
+The
+.Dv type
+tells the device type:
+.Dv MOUSE_MOUSE ,
+.Dv MOUSE_TRACKBALL ,
+.Dv MOUSE_STICK ,
+.Dv MOUSE_PAD ,
+or
+.Dv MOUSE_UNKNOWN .
+The user should not heavily rely on this field, as the
+driver may not always, in fact it is very rarely able to, identify
+the device type.
+.Pp
+The
+.Dv model
+is always
+.Dv MOUSE_MODEL_GENERIC
+at the operation level 0.
+It may be
+.Dv MOUSE_MODEL_GENERIC
+or one of
+.Dv MOUSE_MODEL_XXX
+constants at higher operation levels.
+Again the
+.Nm
+driver may or may not set an appropriate value in this field.
+.Pp
+The
+.Dv hwid
+is the ID value returned by the device.
+Known IDs include:
+.Pp
+.Bl -tag -width 0__ -compact
+.It Em 0
+Mouse (Microsoft, Logitech and many other manufacturers)
+.It Em 2
+Microsoft Ballpoint mouse
+.It Em 3
+Microsoft IntelliMouse
+.El
+.Pp
+.It Dv MOUSE_SYN_GETHWINFO Ar synapticshw_t *synhw
+Retrieves extra information associated with Synaptics Touchpad.
+Only available when a supported device has been detected.
+.Bd -literal
+typedef struct synapticshw {
+    int infoMajor;	/* major hardware revision */
+    int infoMinor;	/* minor hardware revision */
+    int infoRot180;	/* touchpad is rotated */
+    int infoPortrait;	/* touchpad is a portrait */
+    int infoSensor;	/* sensor model */
+    int infoHardware;	/* hardware model */
+    int infoNewAbs;	/* supports the newabs format */
+    int capPen;		/* can detect a pen */
+    int infoSimplC;	/* supports simple commands */
+    int infoGeometry;	/* touchpad dimensions */
+    int capExtended;	/* supports extended packets */
+    int capSleep;	/* can be suspended/resumed */
+    int capFourButtons;	/* has four buttons */
+    int capMultiFinger;	/* can detect multiple fingers */
+    int capPalmDetect;	/* can detect a palm */
+    int capPassthrough;	/* can passthrough guest packets */
+    int capMiddle;	/* has a physical middle button */
+    int nExtendedButtons; /* has N additional buttons */
+    int nExtendedQueries; /* supports N extended queries */
+} synapticshw_t;
+.Ed
+.Pp
+See the
+.Em Synaptics TouchPad Interfacing Guide
+for more information about the fields in this structure.
+.Pp
+.It Dv MOUSE_GETMODE Ar mousemode_t *mode
+The command gets the current operation parameters of the mouse
+driver.
+.Bd -literal
+typedef struct mousemode {
+    int protocol;    /* MOUSE_PROTO_XXX */
+    int rate;        /* report rate (per sec), -1 if unknown */
+    int resolution;  /* MOUSE_RES_XXX, -1 if unknown */
+    int accelfactor; /* acceleration factor */
+    int level;       /* driver operation level */
+    int packetsize;  /* the length of the data packet */
+    unsigned char syncmask[2]; /* sync. bits */
+} mousemode_t;
+.Ed
+.Pp
+The
+.Dv protocol
+is
+.Dv MOUSE_PROTO_PS2
+at the operation level zero and two.
+.Dv MOUSE_PROTO_SYSMOUSE
+at the operation level one.
+.Pp
+The
+.Dv rate
+is the status report rate (reports/sec) at which the device will send
+movement report to the host computer.
+Typical supported values are 10, 20, 40, 60, 80, 100 and 200.
+Some mice may accept other arbitrary values too.
+.Pp
+The
+.Dv resolution
+of the pointing device must be one of
+.Dv MOUSE_RES_XXX
+constants or a positive value.
+The greater the value
+is, the finer resolution the mouse will select.
+Actual resolution selected by the
+.Dv MOUSE_RES_XXX
+constant varies according to the model of mouse.
+Typical resolutions are:
+.Pp
+.Bl -tag -width MOUSE_RES_MEDIUMHIGH__ -compact
+.It Dv MOUSE_RES_LOW
+25 ppi
+.It Dv MOUSE_RES_MEDIUMLOW
+50 ppi
+.It Dv MOUSE_RES_MEDIUMHIGH
+100 ppi
+.It Dv MOUSE_RES_HIGH
+200 ppi
+.El
+.Pp
+The
+.Dv accelfactor
+field holds a value to control acceleration feature
+(see
+.Sx Acceleration ) .
+It must be zero or greater.
+If it is zero, acceleration is disabled.
+.Pp
+The
+.Dv packetsize
+field specifies the length of the data packet.
+It depends on the
+operation level and the model of the pointing device.
+.Pp
+.Bl -tag -width level_0__ -compact
+.It Em level 0
+3 bytes
+.It Em level 1
+8 bytes
+.It Em level 2
+Depends on the model of the device
+.El
+.Pp
+The array
+.Dv syncmask
+holds a bit mask and pattern to detect the first byte of the
+data packet.
+.Dv syncmask[0]
+is the bit mask to be ANDed with a byte.
+If the result is equal to
+.Dv syncmask[1] ,
+the byte is likely to be the first byte of the data packet.
+Note that this detection method is not 100% reliable,
+thus, should be taken only as an advisory measure.
+.Pp
+.It Dv MOUSE_SETMODE Ar mousemode_t *mode
+The command changes the current operation parameters of the mouse driver
+as specified in
+.Ar mode .
+Only
+.Dv rate ,
+.Dv resolution ,
+.Dv level
+and
+.Dv accelfactor
+may be modifiable.
+Setting values in the other field does not generate
+error and has no effect.
+.Pp
+If you do not want to change the current setting of a field, put -1
+there.
+You may also put zero in
+.Dv resolution
+and
+.Dv rate ,
+and the default value for the fields will be selected.
+.Pp
+.It Dv MOUSE_READDATA Ar mousedata_t *data
+.\" The command reads the raw data from the device.
+.\" .Bd -literal
+.\" typedef struct mousedata {
+.\"     int len;        /* # of data in the buffer */
+.\"     int buf[16];    /* data buffer */
+.\" } mousedata_t;
+.\" .Ed
+.\" .Pp
+.\" Upon returning to the user program, the driver will place the number
+.\" of valid data bytes in the buffer in the
+.\" .Dv len
+.\" field.
+.\" .Pp
+.It Dv MOUSE_READSTATE Ar mousedata_t *state
+.\" The command reads the hardware settings from the device.
+.\" Upon returning to the user program, the driver will place the number
+.\" of valid data bytes in the buffer in the
+.\" .Dv len
+.\" field. It is usually 3 bytes.
+.\" The buffer is formatted as follows:
+.\" .Pp
+.\" .Bl -tag -width Byte_1 -compact
+.\" .It Byte 1
+.\" .Bl -tag -width bit_6 -compact
+.\" .It bit 7
+.\" Reserved.
+.\" .It bit 6
+.\" 0 - stream mode, 1 - remote mode.
+.\" In the stream mode, the pointing device sends the device status
+.\" whenever its state changes. In the remote mode, the host computer
+.\" must request the status to be sent.
+.\" The
+.\" .Nm
+.\" driver puts the device in the stream mode.
+.\" .It bit 5
+.\" Set if the pointing device is currently enabled. Otherwise zero.
+.\" .It bit 4
+.\" 0 - 1:1 scaling, 1 - 2:1 scaling.
+.\" 1:1 scaling is the default.
+.\" .It bit 3
+.\" Reserved.
+.\" .It bit 2
+.\" Left button status; set if pressed.
+.\" .It bit 1
+.\" Middle button status; set if pressed.
+.\" .It bit 0
+.\" Right button status; set if pressed.
+.\" .El
+.\" .It Byte 2
+.\" .Bl -tag -width bit_6_0 -compact
+.\" .It bit 7
+.\" Reserved.
+.\" .It bit 6..0
+.\" Resolution code: zero through three. Actual resolution for
+.\" the resolution code varies from one device to another.
+.\" .El
+.\" .It Byte 3
+.\" The status report rate (reports/sec) at which the device will send
+.\" movement report to the host computer.
+.\" .El
+These commands are not currently supported by the
+.Nm
+driver.
+.Pp
+.It Dv MOUSE_GETSTATUS Ar mousestatus_t *status
+The command returns the current state of buttons and
+movement counts as described in
+.Xr mouse 4 .
+.El
+.Sh FILES
+.Bl -tag -width /dev/npsm0 -compact
+.It Pa /dev/psm0
+`non-blocking' device node
+.It Pa /dev/bpsm0
+`blocking' device node
+.El
+.Sh EXAMPLES
+In order to install the
+.Nm
+driver, you need to add
+.Pp
+.Dl "device atkbdc"
+.Dl "device psm"
+.Pp
+to your kernel configuration file, and put the following lines to
+.Pa /boot/device.hints .
+.Pp
+.Dl hint.atkbdc.0.at="isa"
+.Dl hint.atkbdc.0.port="0x060"
+.Dl hint.psm.0.at="atkbdc"
+.Dl hint.psm.0.irq="12"
+.Pp
+If you add the following statement to
+.Pa /boot/device.hints ,
+.Pp
+.Dl hint.psm.0.flags="0x2000"
+.Pp
+you will add the optional code to stimulate the pointing device
+after the `resume' event.
+.Pp
+.Dl hint.psm.0.flags="0x24"
+.Pp
+The above line will set the device resolution high (4)
+and the acceleration factor to 2.
+.Sh DIAGNOSTICS
+At debug level 0, little information is logged except for the following
+line during boot process:
+.Bd -literal -offset indent
+psm0: device ID X
+.Ed
+.Pp
+where
+.Fa X
+the device ID code returned by the found pointing device.
+See
+.Dv MOUSE_GETINFO
+for known IDs.
+.Pp
+At debug level 1 more information will be logged
+while the driver probes the auxiliary port (mouse port).
+Messages are logged with the LOG_KERN facility at the LOG_DEBUG level
+(see
+.Xr syslogd 8 ) .
+.Bd -literal -offset indent
+psm0: current command byte:xxxx
+kbdio: TEST_AUX_PORT status:0000
+kbdio: RESET_AUX return code:00fa
+kbdio: RESET_AUX status:00aa
+kbdio: RESET_AUX ID:0000
+[...]
+psm: status 00 02 64
+psm0 irq 12 on isa
+psm0: model AAAA, device ID X, N buttons
+psm0: config:00000www, flags:0000uuuu, packet size:M
+psm0: syncmask:xx, syncbits:yy
+.Ed
+.Pp
+The first line shows the command byte value of the keyboard
+controller just before the auxiliary port is probed.
+It usually is 40, 45, 47 or 65, depending on how the motherboard BIOS
+initialized the keyboard controller upon power-up.
+.Pp
+The second line shows the result of the keyboard controller's
+test on the auxiliary port interface, with zero indicating
+no error; note that some controllers report no error even if
+the port does not exist in the system, however.
+.Pp
+The third through fifth lines show the reset status of the pointing device.
+The functioning device should return the sequence of FA AA <ID>.
+The ID code is described above.
+.Pp
+The seventh line shows the current hardware settings.
+.\" See
+.\" .Dv MOUSE_READSTATE
+.\" for definitions.
+These bytes are formatted as follows:
+.Pp
+.Bl -tag -width Byte_1 -compact
+.It Byte 1
+.Bl -tag -width bit_6 -compact
+.It bit 7
+Reserved.
+.It bit 6
+0 - stream mode, 1 - remote mode.
+In the stream mode, the pointing device sends the device status
+whenever its state changes.
+In the remote mode, the host computer
+must request the status to be sent.
+The
+.Nm
+driver puts the device in the stream mode.
+.It bit 5
+Set if the pointing device is currently enabled.
+Otherwise zero.
+.It bit 4
+0 - 1:1 scaling, 1 - 2:1 scaling.
+1:1 scaling is the default.
+.It bit 3
+Reserved.
+.It bit 2
+Left button status; set if pressed.
+.It bit 1
+Middle button status; set if pressed.
+.It bit 0
+Right button status; set if pressed.
+.El
+.It Byte 2
+.Bl -tag -width bit_6_0 -compact
+.It bit 7
+Reserved.
+.It bit 6..0
+Resolution code: zero through three.
+Actual resolution for
+the resolution code varies from one device to another.
+.El
+.It Byte 3
+The status report rate (reports/sec) at which the device will send
+movement report to the host computer.
+.El
+.Pp
+Note that the pointing device will not be enabled until the
+.Nm
+driver is opened by the user program.
+.Pp
+The rest of the lines show the device ID code, the number of detected
+buttons and internal variables.
+.Pp
+At debug level 2, much more detailed information is logged.
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr syslog 3 ,
+.Xr atkbdc 4 ,
+.Xr mouse 4 ,
+.Xr sysmouse 4 ,
+.Xr moused 8 ,
+.Xr syslogd 8
+.Rs
+.%T Synaptics TouchPad Interfacing Guide
+.%U http://www.synaptics.com/
+.Re
+.\".Sh HISTORY
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver is based on the work done by quite a number of people, including
+.An Eric Forsberg ,
+.An Sandi Donno ,
+.An Rick Macklem ,
+.An Andrew Herbert ,
+.An Charles Hannum ,
+.An Shoji Yuen
+and
+.An Kazutaka Yokota
+to name the few.
+.Pp
+This manual page was written by
+.An Kazutaka Yokota Aq Mt yokota@FreeBSD.org .
+.Sh CAVEATS
+Many pad devices behave as if the first (left) button were pressed if
+the user `taps' the surface of the pad.
+In contrast, some pad products, e.g.\& some versions of ALPS GlidePoint
+and Interlink VersaPad, treat the tapping action
+as fourth button events.
+.Pp
+It is reported that ALPS GlidePoint, Synaptics Touchpad, IBM/Lenovo
+TrackPoint, and Interlink VersaPad require
+.Em INITAFTERSUSPEND
+flag in order to recover from suspended state.
+This flag is automatically set when one of these devices is detected by the
+.Nm
+driver.
+.Pp
+Some PS/2 mouse models from MouseSystems require to be put in the
+high resolution mode to work properly.
+Use the driver flag to
+set resolution.
+.Pp
+There is not a guaranteed way to re-synchronize with the first byte
+of the packet once we are out of synchronization with the data
+stream.
+However, if you are using the \fIXFree86\fP server and experiencing
+the problem, you may be able to make the X server synchronize with the mouse
+by switching away to a virtual terminal and getting back to the X server,
+unless the X server is accessing the mouse via
+.Xr moused 8 .
+Clicking any button without moving the mouse may also work.
+.Sh BUGS
+Enabling the extended support for Synaptics touchpads has been reported to
+cause problems with responsivity on some (newer) models of Synaptics
+hardware, particularly those with guest devices.

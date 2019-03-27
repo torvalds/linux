@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to not build GNU
+.Xr diff 1
+and
+.Xr diff3 1 .

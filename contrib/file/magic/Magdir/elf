@@ -1,0 +1,328 @@
+
+#------------------------------------------------------------------------------
+# $File: elf,v 1.74 2018/06/23 16:39:53 christos Exp $
+# elf:  file(1) magic for ELF executables
+#
+# We have to check the byte order flag to see what byte order all the
+# other stuff in the header is in.
+#
+# What're the correct byte orders for the nCUBE and the Fujitsu VPP500?
+#
+# Created by: unknown
+# Modified by (1): Daniel Quinlan <quinlan@yggdrasil.com>
+# Modified by (2): Peter Tobias <tobias@server.et-inf.fho-emden.de> (core support)
+# Modified by (3): Christian 'Dr. Disk' Hechelmann <drdisk@ds9.au.s.shuttle.de> (fix of core support)
+# Modified by (4): <gerardo.cacciari@gmail.com> (VMS Itanium)
+# Modified by (5): Matthias Urlichs <smurf@debian.org> (Listing of many architectures)
+
+0	name		elf-mips
+>0	lelong&0xf0000000	0x00000000	MIPS-I
+>0	lelong&0xf0000000	0x10000000	MIPS-II
+>0	lelong&0xf0000000	0x20000000	MIPS-III
+>0	lelong&0xf0000000	0x30000000	MIPS-IV
+>0	lelong&0xf0000000	0x40000000	MIPS-V
+>0	lelong&0xf0000000	0x50000000	MIPS32
+>0	lelong&0xf0000000	0x60000000	MIPS64
+>0	lelong&0xf0000000	0x70000000	MIPS32 rel2
+>0	lelong&0xf0000000	0x80000000	MIPS64 rel2
+>0	lelong&0xf0000000	0x90000000	MIPS32 rel6
+>0	lelong&0xf0000000	0xa0000000	MIPS64 rel6
+
+0	name		elf-sparc
+>0	lelong&0x00ffff00	0x00000100	V8+ Required,
+>0	lelong&0x00ffff00	0x00000200	Sun UltraSPARC1 Extensions Required,
+>0	lelong&0x00ffff00	0x00000400	HaL R1 Extensions Required,
+>0	lelong&0x00ffff00	0x00000800	Sun UltraSPARC3 Extensions Required,
+>0	lelong&0x3		0		total store ordering,
+>0	lelong&0x3		1		partial store ordering,
+>0	lelong&0x3		2		relaxed memory ordering,
+
+0	name		elf-pa-risc
+>2	leshort		0x0214		2.0
+>0	leshort		&0x0008		(LP64)
+
+0	name		elf-le
+>16	leshort		0		no file type,
+!:mime	application/octet-stream
+>16	leshort		1		relocatable,
+!:mime	application/x-object
+>16	leshort		2		executable,
+!:mime	application/x-executable
+>16	leshort		3		shared object,
+!:mime	application/x-sharedlib
+>16	leshort		4		core file,
+!:mime	application/x-coredump
+# OS-specific
+>7	byte		202
+>>16	leshort		0xFE01		executable,
+!:mime	application/x-executable
+# Core file detection is not reliable.
+#>>>(0x38+0xcc) string	>\0		of '%s'
+#>>>(0x38+0x10) lelong	>0		(signal %d),
+>16	leshort		&0xff00		processor-specific,
+>18	clear		x
+>18	leshort		0		no machine,
+>18	leshort		1		AT&T WE32100,
+>18	leshort		2		SPARC,
+>18	leshort		3		Intel 80386,
+>18	leshort		4		Motorola m68k,
+>>4	byte		1
+>>>36	lelong		&0x01000000	68000,
+>>>36	lelong		&0x00810000	CPU32,
+>>>36	lelong		0		68020,
+>18	leshort		5		Motorola m88k,
+>18	leshort		6		Intel 80486,
+>18	leshort		7		Intel 80860,
+# The official e_machine number for MIPS is now #8, regardless of endianness.
+# The second number (#10) will be deprecated later. For now, we still
+# say something if #10 is encountered, but only gory details for #8.
+>18	leshort		8		MIPS,
+>>4	byte		1
+>>>36	lelong		&0x20		N32
+>18	leshort		10		MIPS,
+>>4	byte		1
+>>>36	lelong		&0x20		N32
+>18	leshort		8
+# only for 32-bit
+>>4	byte		1
+>>>36	use		elf-mips
+# only for 64-bit
+>>4	byte		2
+>>>48	use		elf-mips
+>18	leshort		9		Amdahl,
+>18	leshort		10		MIPS (deprecated),
+>18	leshort		11		RS6000,
+>18	leshort		15		PA-RISC,
+# only for 32-bit
+>>4	byte		1
+>>>36	use		elf-pa-risc
+# only for 64-bit
+>>4	byte		2
+>>>48	use		elf-pa-risc
+>18	leshort		16		nCUBE,
+>18	leshort		17		Fujitsu VPP500,
+>18	leshort		18		SPARC32PLUS,
+# only for 32-bit
+>>4	byte		1
+>>>36	use		elf-sparc
+>18	leshort		19		Intel 80960,
+>18	leshort		20		PowerPC or cisco 4500,
+>18	leshort		21		64-bit PowerPC or cisco 7500,
+>18	leshort		22		IBM S/390,
+>18	leshort		23		Cell SPU,
+>18	leshort		24		cisco SVIP,
+>18	leshort		25		cisco 7200,
+>18	leshort		36		NEC V800 or cisco 12000,
+>18	leshort		37		Fujitsu FR20,
+>18	leshort		38		TRW RH-32,
+>18	leshort		39		Motorola RCE,
+>18	leshort		40		ARM,
+>>4	byte		1
+>>>36	lelong&0xff000000	0x04000000	EABI4
+>>>36	lelong&0xff000000	0x05000000	EABI5
+>>>36	lelong		&0x00800000	BE8
+>>>36	lelong		&0x00400000	LE8
+>18	leshort		41		Alpha,
+>18	leshort		42		Renesas SH,
+>18	leshort		43		SPARC V9,
+>>4	byte		2
+>>>48	use		elf-sparc
+>18	leshort		44		Siemens Tricore Embedded Processor,
+>18	leshort		45		Argonaut RISC Core, Argonaut Technologies Inc.,
+>18	leshort		46		Renesas H8/300,
+>18	leshort		47		Renesas H8/300H,
+>18	leshort		48		Renesas H8S,
+>18	leshort		49		Renesas H8/500,
+>18	leshort		50		IA-64,
+>18	leshort		51		Stanford MIPS-X,
+>18	leshort		52		Motorola Coldfire,
+>18	leshort		53		Motorola M68HC12,
+>18	leshort		54		Fujitsu MMA,
+>18	leshort		55		Siemens PCP,
+>18	leshort		56		Sony nCPU,
+>18	leshort		57		Denso NDR1,
+>18	leshort		58		Start*Core,
+>18	leshort		59		Toyota ME16,
+>18	leshort		60		ST100,
+>18	leshort		61		Tinyj emb.,
+>18	leshort		62		x86-64,
+>18	leshort		63		Sony DSP,
+>18	leshort		64		DEC PDP-10,
+>18	leshort		65		DEC PDP-11,
+>18	leshort		66		FX66,
+>18	leshort		67		ST9+ 8/16 bit,
+>18	leshort		68		ST7 8 bit,
+>18	leshort		69		MC68HC16,
+>18	leshort		70		MC68HC11,
+>18	leshort		71		MC68HC08,
+>18	leshort		72		MC68HC05,
+>18	leshort		73		SGI SVx or Cray NV1,
+>18	leshort		74		ST19 8 bit,
+>18	leshort		75		Digital VAX,
+>18	leshort		76		Axis cris,
+>18	leshort		77		Infineon 32-bit embedded,
+>18	leshort		78		Element 14 64-bit DSP,
+>18	leshort		79		LSI Logic 16-bit DSP,
+>18	leshort		80		MMIX,
+>18	leshort		81		Harvard machine-independent,
+>18	leshort		82		SiTera Prism,
+>18	leshort		83		Atmel AVR 8-bit,
+>18	leshort		84		Fujitsu FR30,
+>18	leshort		85		Mitsubishi D10V,
+>18	leshort		86		Mitsubishi D30V,
+>18	leshort		87		NEC v850,
+>18	leshort		88		Renesas M32R,
+>18	leshort		89		Matsushita MN10300,
+>18	leshort		90		Matsushita MN10200,
+>18	leshort		91		picoJava,
+>18	leshort		92		OpenRISC,
+>18	leshort		93		ARC Cores Tangent-A5,
+>18	leshort		94		Tensilica Xtensa,
+>18	leshort		95		Alphamosaic VideoCore,
+>18	leshort		96		Thompson Multimedia,
+>18	leshort		97		NatSemi 32k,
+>18	leshort		98		Tenor Network TPC,
+>18	leshort		99		Trebia SNP 1000,
+>18	leshort		100		STMicroelectronics ST200,
+>18	leshort		101		Ubicom IP2022,
+>18	leshort		102		MAX Processor,
+>18	leshort		103		NatSemi CompactRISC,
+>18	leshort		104		Fujitsu F2MC16,
+>18	leshort		105		TI msp430,
+>18	leshort		106		Analog Devices Blackfin,
+>18	leshort		107		S1C33 Family of Seiko Epson,
+>18	leshort		108		Sharp embedded,
+>18	leshort		109		Arca RISC,
+>18	leshort		110		PKU-Unity Ltd.,
+>18	leshort		111		eXcess: 16/32/64-bit,
+>18	leshort		112		Icera Deep Execution Processor,
+>18	leshort		113		Altera Nios II,
+>18	leshort		114		NatSemi CRX,
+>18	leshort		115		Motorola XGATE,
+>18	leshort		116		Infineon C16x/XC16x,
+>18	leshort		117		Renesas M16C series,
+>18	leshort		118		Microchip dsPIC30F,
+>18	leshort		119		Freescale RISC core,
+>18	leshort		120		Renesas M32C series,
+>18	leshort		131		Altium TSK3000 core,
+>18	leshort		132		Freescale RS08,
+>18	leshort		134		Cyan Technology eCOG2,
+>18	leshort		135		Sunplus S+core7 RISC,
+>18	leshort		136		New Japan Radio (NJR) 24-bit DSP,
+>18	leshort		137		Broadcom VideoCore III,
+>18	leshort		138		LatticeMico32,
+>18	leshort		139		Seiko Epson C17 family,
+>18	leshort		140		TI TMS320C6000 DSP family,
+>18	leshort		141		TI TMS320C2000 DSP family,
+>18	leshort		142		TI TMS320C55x DSP family,
+>18	leshort		160		STMicroelectronics 64bit VLIW DSP,
+>18	leshort		161		Cypress M8C,
+>18	leshort		162		Renesas R32C series,
+>18	leshort		163		NXP TriMedia family,
+>18	leshort		164		QUALCOMM DSP6,
+>18	leshort		165		Intel 8051 and variants,
+>18	leshort		166		STMicroelectronics STxP7x family,
+>18	leshort		167		Andes embedded RISC,
+>18	leshort		168		Cyan eCOG1X family,
+>18	leshort		169		Dallas MAXQ30,
+>18	leshort		170		New Japan Radio (NJR) 16-bit DSP,
+>18	leshort		171		M2000 Reconfigurable RISC,
+>18	leshort		172		Cray NV2 vector architecture,
+>18	leshort		173		Renesas RX family,
+>18	leshort		174		META,
+>18	leshort		175		MCST Elbrus,
+>18	leshort		176		Cyan Technology eCOG16 family,
+>18	leshort		177		NatSemi CompactRISC,
+>18	leshort		178		Freescale Extended Time Processing Unit,
+>18	leshort		179		Infineon SLE9X,
+>18	leshort		180		Intel L1OM,
+>18	leshort		181		Intel K1OM,
+>18	leshort		183		ARM aarch64,
+>18	leshort		185		Atmel 32-bit family,
+>18	leshort		186		STMicroeletronics STM8 8-bit,
+>18	leshort		187		Tilera TILE64,
+>18	leshort		188		Tilera TILEPro,
+>18	leshort		189		Xilinx MicroBlaze 32-bit RISC,
+>18	leshort		190		NVIDIA CUDA architecture,
+>18	leshort		191		Tilera TILE-Gx,
+>18	leshort		197		Renesas RL78 family,
+>18	leshort		199		Renesas 78K0R,
+>18	leshort		200		Freescale 56800EX,
+>18	leshort		201		Beyond BA1,
+>18	leshort		202		Beyond BA2,
+>18	leshort		203		XMOS xCORE,
+>18	leshort		204		Microchip 8-bit PIC(r),
+>18	leshort		210		KM211 KM32,
+>18	leshort		211		KM211 KMX32,
+>18	leshort		212		KM211 KMX16,
+>18	leshort		213		KM211 KMX8,
+>18	leshort		214		KM211 KVARC,
+>18	leshort		215		Paneve CDP,
+>18	leshort		216		Cognitive Smart Memory,
+>18	leshort		217		iCelero CoolEngine,
+>18	leshort		218		Nanoradio Optimized RISC,
+>18	leshort		243		UCB RISC-V,
+>18	leshort		0x1057		AVR (unofficial),
+>18	leshort		0x1059		MSP430 (unofficial),
+>18	leshort		0x1223		Adapteva Epiphany (unofficial),
+>18	leshort		0x2530		Morpho MT (unofficial),
+>18	leshort		0x3330		FR30 (unofficial),
+>18	leshort		0x3426		OpenRISC (obsolete),
+>18	leshort		0x4688		Infineon C166 (unofficial),
+>18	leshort		0x5441		Cygnus FRV (unofficial),
+>18	leshort		0x5aa5		DLX (unofficial),
+>18	leshort		0x7650		Cygnus D10V (unofficial),
+>18	leshort		0x7676		Cygnus D30V (unofficial),
+>18	leshort		0x8217		Ubicom IP2xxx (unofficial),
+>18	leshort		0x8472		OpenRISC (obsolete),
+>18	leshort		0x9025		Cygnus PowerPC (unofficial),
+>18	leshort		0x9026		Alpha (unofficial),
+>18	leshort		0x9041		Cygnus M32R (unofficial),
+>18	leshort		0x9080		Cygnus V850 (unofficial),
+>18	leshort		0xa390		IBM S/390 (obsolete),
+>18	leshort		0xabc7		Old Xtensa (unofficial),
+>18	leshort		0xad45		xstormy16 (unofficial),
+>18	leshort		0xbaab		Old MicroBlaze (unofficial),,
+>18	leshort		0xbeef		Cygnus MN10300 (unofficial),
+>18	leshort		0xdead		Cygnus MN10200 (unofficial),
+>18	leshort		0xf00d		Toshiba MeP (unofficial),
+>18	leshort		0xfeb0		Renesas M32C (unofficial),
+>18	leshort		0xfeba		Vitesse IQ2000 (unofficial),
+>18	leshort		0xfebb		NIOS (unofficial),
+>18	leshort		0xfeed		Moxie (unofficial),
+>18	default		x
+>>18	leshort		x		*unknown arch 0x%x*
+>20	lelong		0		invalid version
+>20	lelong		1		version 1
+
+0	string		\177ELF		ELF
+!:strength *2
+>4	byte		0		invalid class
+>4	byte		1		32-bit
+>4	byte		2		64-bit
+>5	byte		0		invalid byte order
+>5	byte		1		LSB
+>>0	use		elf-le
+>5	byte		2		MSB
+>>0	use		\^elf-le
+>7	byte		0		(SYSV)
+>7	byte		1		(HP-UX)
+>7	byte		2		(NetBSD)
+>7	byte		3		(GNU/Linux)
+>7	byte		4		(GNU/Hurd)
+>7	byte		5		(86Open)
+>7	byte		6		(Solaris)
+>7	byte		7		(Monterey)
+>7	byte		8		(IRIX)
+>7	byte		9		(FreeBSD)
+>7	byte		10		(Tru64)
+>7	byte		11		(Novell Modesto)
+>7	byte		12		(OpenBSD)
+>7	byte		13		(OpenVMS)
+>7	byte		14		(HP NonStop Kernel)
+>7	byte		15		(AROS Research Operating System)
+>7	byte		16		(FenixOS)
+>7	byte		17		(Nuxi CloudABI)
+>7	byte		97		(ARM)
+>7	byte		202		(Cafe OS)
+>7	byte		255		(embedded)

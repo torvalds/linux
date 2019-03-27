@@ -1,0 +1,96 @@
+.\" Copyright (c) 2004 Benno Rice <benno@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 8, 2004
+.Dt NG_ATMLLC 4
+.Os
+.Sh NAME
+.Nm ng_atmllc
+.Nd ATM LLC netgraph node type
+.Sh SYNOPSIS
+.In netgraph/ng_atmllc.h
+.Sh DESCRIPTION
+The
+.Nm atmllc
+node type translates frames in to and out of ATM LLC encapsulation,
+as specified by RFC 1483.
+In LLC encapsulation the protocol of a given protocol data unit (PDU) is
+specified by an IEEE 802.2 LLC header, possibly followed by an IEEE 802.1a
+SubNetwork Attachment Point (SNAP) header.
+This node currently handles the Ethernet and FDDI protocols.
+.Pp
+The node transmits and receives ATM PDUs on the
+.Va atm
+hook.
+Received PDUs are decoded and forwarded to the
+.Va ether
+or
+.Va fddi
+hooks as appropriate.
+Data received on the
+.Va ether
+or
+.Va fddi
+hooks are assumed to be full Ethernet or FDDI packets as appropriate and are
+encapsulated into a PDU and transmitted via the
+.Va atm
+hook.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va ether"
+.It Va atm
+ATM connection.
+Typically, this hook would be connected to a
+.Xr ng_atm 4
+node, which handles transmission of ATM PDUs over an ATM device.
+.It Va ether
+Ethernet connection.
+This hook sends and receives Ethernet frames.
+This would normally be connected to an
+.Xr ng_eiface 4
+node if in use.
+.It Va fddi
+FDDI connection.
+This hook sends and receives FDDI frames.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages.
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_atm 4 ,
+.Xr ng_eiface 4 ,
+.Xr ngctl 8
+.Rs
+.%A J. Heinanen
+.%T "Multiprotocol Encapsulation over ATM Adaptation Layer 5"
+.%O RFC 1483
+.Re
+.Sh AUTHORS
+.An Benno Rice Aq Mt benno@FreeBSD.org

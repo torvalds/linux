@@ -1,0 +1,19 @@
+# $FreeBSD$
+
+unset LC_ALL
+LC_CTYPE=en_US.ISO8859-1
+export LC_CTYPE
+
+e=
+for i in 0 1 2 3 4 5 6 7 8 9 a b c d e f; do
+	for j in 0 1 2 3 4 5 6 7 8 9 a b c d e f; do
+		case $i$j in
+		00) continue ;;
+		esac
+		e="$e\x$i$j"
+	done
+done
+
+# Start a new shell so the locale change is picked up.
+ee="$(${SH} -c "printf %s \$'$e'")"
+[ "${#ee}" = 255 ] || echo length bad

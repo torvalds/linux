@@ -1,0 +1,141 @@
+.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by John-Mark Gurney under
+.\" the sponsorship of the FreeBSD Foundation and
+.\" Rubicon Communications, LLC (Netgate).
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1.  Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\" 2.  Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 2, 2015
+.Dt CRYPTO 7
+.Os
+.Sh NAME
+.Nm crypto
+.Nd OpenCrypto algorithms
+.Sh SYNOPSIS
+In the kernel configuration file:
+.Cd "device crypto"
+.Pp
+Or load the crypto.ko module.
+.Sh DESCRIPTION
+The following cryptographic algorithms that are part of the OpenCrypto
+framework have the following requirements.
+.Pp
+Cipher algorithms:
+.Bl -tag -width ".Dv CRYPTO_AES_CBC"
+.It Dv CRYPTO_AES_CBC
+.Bl -tag -width "Block size :" -compact -offset indent
+.It IV size :
+16
+.It Block size :
+16
+.It Key size :
+16, 24 or 32
+.El
+.Pp
+This algorithm implements Cipher-block chaining.
+.It Dv CRYPTO_AES_NIST_GCM_16
+.Bl -tag -width "Block size :" -compact -offset indent
+.It IV size :
+12
+.It Block size :
+1
+.It Key size :
+16, 24 or 32
+.It Digest size :
+16
+.El
+.Pp
+This algorithm implements Galois/Counter Mode.
+This is the cipher part of an AEAD
+.Pq Authenticated Encryption with Associated Data
+mode.
+This requires use of the use of a proper authentication mode, one of
+.Dv CRYPTO_AES_128_NIST_GMAC ,
+.Dv CRYPTO_AES_192_NIST_GMAC
+or
+.Dv CRYPTO_AES_256_NIST_GMAC ,
+that corresponds with the number of bits in the key that you are using.
+.Pp
+The associated data (if any) must be provided by the authentication mode op.
+The authentication tag will be read/written from/to the offset crd_inject
+specified in the descriptor for the authentication mode.
+.Pp
+Note: You must provide an IV on every call.
+.It Dv CRYPTO_AES_ICM
+.Bl -tag -width "Block size :" -compact -offset indent
+.It IV size :
+16
+.It Block size :
+1 (aesni), 16 (software)
+.It Key size :
+16, 24 or 32
+.El
+.Pp
+This algorithm implements Integer Counter Mode.
+This is similar to what most people call counter mode, but instead of the
+counter being split into a nonce and a counter part, then entire nonce is
+used as the initial counter.
+This does mean that if a counter is required that rolls over at 32 bits,
+the transaction need to be split into two parts where the counter rolls over.
+The counter incremented as a 128-bit big endian number.
+.Pp
+Note: You must provide an IV on every call.
+.It Dv CRYPTO_AES_XTS
+.Bl -tag -width "Block size :" -compact -offset indent
+.It IV size :
+8
+.It Block size :
+16
+.It Key size :
+32 or 64
+.El
+.Pp
+This algorithm implements XEX Tweakable Block Cipher with Ciphertext Stealing
+as defined in NIST SP 800-38E.
+.Pp
+NOTE: The ciphertext stealing part is not implemented which is why this cipher
+is listed as having a block size of 16 instead of 1.
+.El
+.Pp
+Authentication algorithms:
+.Bl -tag -width ".Dv CRYPTO_AES_256_NIST_GMAC"
+.It CRYPTO_AES_128_NIST_GMAC
+See
+.Dv CRYPTO_AES_NIST_GCM_16
+in the cipher mode section.
+.It CRYPTO_AES_192_NIST_GMAC
+See
+.Dv CRYPTO_AES_NIST_GCM_16
+in the cipher mode section.
+.It CRYPTO_AES_256_NIST_GMAC
+See
+.Dv CRYPTO_AES_NIST_GCM_16
+in the cipher mode section.
+.El
+.Sh SEE ALSO
+.Xr crypto 4 ,
+.Xr crypto 9
+.Sh BUGS
+Not all the implemented algorithms are listed.

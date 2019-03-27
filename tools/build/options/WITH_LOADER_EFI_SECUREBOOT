@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Enable building
+.Xr loader 8
+with support for verification based on certificates obtained from UEFI.
+.Pp

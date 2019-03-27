@@ -1,0 +1,91 @@
+#!/bin/sh -
+#
+# Copyright (c) 1991, 1993
+#	The Regents of the University of California.  All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. All advertising materials mentioning features or use of this software
+#    must display the following acknowledgement:
+#	This product includes software developed by the University of
+#	California, Berkeley and its contributors.
+# 4. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)tck	8.1 (Berkeley) 6/8/93
+#
+
+# Look for default (and termcap-only?) capabilities.
+# Defaults should be removed to save space.
+
+showtc $* | \
+sed	-n				\
+	-e 's/ bc=^H$/DEFAULT &/p'	\
+	-e 's/ bc=\\h$/DEFAULT &/p'	\
+	-e 's/ bc=\\10$/DEFAULT &/p'	\
+	-e 's/ bc=\\010$/DEFAULT &/p'	\
+	-e 's/ bl=^G$/DEFAULT &/p'	\
+	-e 's/ bl=\\7$/DEFAULT &/p'	\
+	-e 's/ bl=\\07$/DEFAULT &/p'	\
+	-e 's/ bl=\\007$/DEFAULT &/p'	\
+	-e 's/ cr=^M$/DEFAULT &/p'	\
+	-e 's/ cr=\\r$/DEFAULT &/p'	\
+	-e 's/ cr=\\15$/DEFAULT &/p'	\
+	-e 's/ cr=\\015$/DEFAULT &/p'	\
+	-e 's/ ff=^L$/DEFAULT &/p'	\
+	-e 's/ ff=^L$/DEFAULT &/p'	\
+	-e 's/ ff=\\14$/DEFAULT &/p'	\
+	-e 's/ ff=\\014$/DEFAULT &/p'	\
+	-e 's/ nl=^J$/DEFAULT &/p'	\
+	-e 's/ nl=\\n$/DEFAULT &/p'	\
+	-e 's/ nl=\\12$/DEFAULT &/p'	\
+	-e 's/ nl=\\012$/DEFAULT &/p'	\
+	-e 's/ ta=^I$/DEFAULT &/p'	\
+	-e 's/ ta=\\t$/DEFAULT &/p'	\
+	-e 's/ ta=\\11$/DEFAULT &/p'	\
+	-e 's/ ta=\\011$/DEFAULT &/p'	\
+					\
+	-e 's/ bc$/TERMCAP ONLY &/p'	\
+	-e 's/ bs$/TERMCAP ONLY &/p'	\
+	-e 's/ dB$/TERMCAP ONLY &/p'	\
+	-e 's/ dC$/TERMCAP ONLY &/p'	\
+	-e 's/ dF$/TERMCAP ONLY &/p'	\
+	-e 's/ dN$/TERMCAP ONLY &/p'	\
+	-e 's/ dT$/TERMCAP ONLY &/p'	\
+	-e 's/ dV$/TERMCAP ONLY &/p'	\
+	-e 's/ EP$/TERMCAP ONLY &/p'	\
+	-e 's/ HD$/TERMCAP ONLY &/p'	\
+	-e 's/ kn$/TERMCAP ONLY &/p'	\
+	-e 's/ ko$/TERMCAP ONLY &/p'	\
+	-e 's/ LC$/TERMCAP ONLY &/p'	\
+	-e 's/ ma$/TERMCAP ONLY &/p'	\
+	-e 's/ ml$/TERMCAP ONLY &/p'	\
+	-e 's/ mu$/TERMCAP ONLY &/p'	\
+	-e 's/ nc$/TERMCAP ONLY &/p'	\
+	-e 's/ NL$/TERMCAP ONLY &/p'	\
+	-e 's/ nl$/TERMCAP ONLY &/p'	\
+	-e 's/ ns$/TERMCAP ONLY &/p'	\
+	-e 's/ OP$/TERMCAP ONLY &/p'	\
+	-e 's/ pt$/TERMCAP ONLY &/p'	\
+	-e 's/ UC$/TERMCAP ONLY &/p'	\
+	-e 's/ xr$/TERMCAP ONLY &/p'	\
+	-e 's/ xx$/TERMCAP ONLY &/p'	\

@@ -1,0 +1,250 @@
+.\" Copyright (c) 1988, 1990, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)su.1	8.2 (Berkeley) 4/18/94
+.\" $FreeBSD$
+.\"
+.Dd August 11, 2013
+.Dt SU 1
+.Os
+.Sh NAME
+.Nm su
+.Nd substitute user identity
+.Sh SYNOPSIS
+.Nm
+.Op Fl
+.Op Fl c Ar class
+.Op Fl flms
+.Op Ar login Op Ar args
+.Sh DESCRIPTION
+The
+.Nm
+utility requests appropriate user credentials via PAM
+and switches to that user ID
+(the default user is the superuser).
+A shell is then executed.
+.Pp
+PAM is used to set the policy
+.Xr su 1
+will use.
+In particular, by default only users in the
+.Dq Li wheel
+group can switch to UID 0
+.Pq Dq Li root .
+This group requirement may be changed by modifying the
+.Dq Li pam_group
+section of
+.Pa /etc/pam.d/su .
+See
+.Xr pam_group 8
+for details on how to modify this setting.
+.Pp
+By default, the environment is unmodified with the exception of
+.Ev USER ,
+.Ev HOME ,
+and
+.Ev SHELL .
+.Ev HOME
+and
+.Ev SHELL
+are set to the target login's default values.
+.Ev USER
+is set to the target login, unless the target login has a user ID of 0,
+in which case it is unmodified.
+The invoked shell is the one belonging to the target login.
+This is the traditional behavior of
+.Nm .
+Resource limits and session priority applicable to the original user's
+login class (see
+.Xr login.conf 5 )
+are also normally retained unless the target login has a user ID of 0.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl c Ar class
+Use the settings of the specified login class.
+The login class must be defined in
+.Xr login.conf 5 .
+Only allowed for the super-user.
+.It Fl f
+If the invoked shell is
+.Xr csh 1 ,
+this option prevents it from reading the
+.Dq Pa .cshrc
+file.
+.It Fl l
+Simulate a full login.
+The environment is discarded except for
+.Ev HOME ,
+.Ev SHELL ,
+.Ev PATH ,
+.Ev TERM ,
+and
+.Ev USER .
+.Ev HOME
+and
+.Ev SHELL
+are modified as above.
+.Ev USER
+is set to the target login.
+.Ev PATH
+is set to
+.Dq Pa /bin:/usr/bin .
+.Ev TERM
+is imported from your current environment.
+Environment variables may be set or overridden from the login class
+capabilities database according to the class of the target login.
+The invoked shell is the target login's, and
+.Nm
+will change directory to the target login's home directory.
+Resource limits and session priority are modified to that for the
+target account's login class.
+.It Fl
+(no letter) The same as
+.Fl l .
+.It Fl m
+Leave the environment unmodified.
+The invoked shell is your login shell, and no directory changes are made.
+As a security precaution, if the target user's shell is a non-standard
+shell (as defined by
+.Xr getusershell 3 )
+and the caller's real uid is
+non-zero,
+.Nm
+will fail.
+.It Fl s
+Set the MAC label to the user's default label as part of the user
+credential setup.
+Setting the MAC label may fail if the MAC label of the invoking process
+is not sufficient to transition to the user's default MAC label.
+If the label cannot be set,
+.Nm
+will fail.
+.El
+.Pp
+The
+.Fl l
+(or
+.Fl )
+and
+.Fl m
+options are mutually exclusive; the last one specified
+overrides any previous ones.
+.Pp
+If the optional
+.Ar args
+are provided on the command line, they are passed to the login shell of
+the target login.
+Note that all command line arguments before the target login name are
+processed by
+.Nm
+itself, everything after the target login name gets passed to the login
+shell.
+.Pp
+By default (unless the prompt is reset by a startup file) the super-user
+prompt is set to
+.Dq Sy \&#
+to remind one of its awesome power.
+.Sh ENVIRONMENT
+Environment variables used by
+.Nm :
+.Bl -tag -width HOME
+.It Ev HOME
+Default home directory of real user ID unless modified as
+specified above.
+.It Ev PATH
+Default search path of real user ID unless modified as specified above.
+.It Ev TERM
+Provides terminal type which may be retained for the substituted
+user ID.
+.It Ev USER
+The user ID is always the effective ID (the target user ID) after an
+.Nm
+unless the user ID is 0 (root).
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/pam.d/su" -compact
+.It Pa /etc/pam.d/su
+PAM configuration for
+.Nm .
+.El
+.Sh EXAMPLES
+.Bl -tag -width 5n -compact
+.It Li "su -m operator -c poweroff"
+Starts a shell as user
+.Li operator ,
+and runs the command
+.Li poweroff .
+You will be asked for operator's password unless your real UID is 0.
+Note that the
+.Fl m
+option is required since user
+.Dq operator
+does not have a valid shell by default.
+In this example,
+.Fl c
+is passed to the shell of the user
+.Dq operator ,
+and is not interpreted as an argument to
+.Nm .
+.It Li "su -m operator -c 'shutdown -p now'"
+Same as above, but the target command consists of more than a
+single word and hence is quoted for use with the
+.Fl c
+option being passed to the shell.
+(Most shells expect the argument to
+.Fl c
+to be a single word).
+.It Li "su -m -c staff operator -c 'shutdown -p now'"
+Same as above, but the target command is run with the resource limits of
+the login class
+.Dq staff .
+Note: in this example, the first
+.Fl c
+option applies to
+.Nm
+while the second is an argument to the shell being invoked.
+.It Li "su -l foo"
+Simulate a login for user foo.
+.It Li "su - foo"
+Same as above.
+.It Li "su -"
+Simulate a login for root.
+.El
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr sh 1 ,
+.Xr group 5 ,
+.Xr login.conf 5 ,
+.Xr passwd 5 ,
+.Xr environ 7 ,
+.Xr pam_group 8
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .

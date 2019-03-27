@@ -1,0 +1,397 @@
+.\"
+.\" Copyright (c) 2008 Yahoo!, Inc.
+.\" All rights reserved.
+.\" Written by: John Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 16, 2009
+.Dt MPTUTIL 8
+.Os
+.Sh NAME
+.Nm mptutil
+.Nd Utility for managing LSI Fusion-MPT controllers
+.Sh SYNOPSIS
+.Nm
+.Cm version
+.Nm
+.Op Fl u Ar unit
+.Cm show adapter
+.Nm
+.Op Fl u Ar unit
+.Cm show config
+.Nm
+.Op Fl u Ar unit
+.Cm show drives
+.Nm
+.Op Fl u Ar unit
+.Cm show events
+.Nm
+.Op Fl u Ar unit
+.Cm show volumes
+.Nm
+.Op Fl u Ar unit
+.Cm fail Ar drive
+.Nm
+.Op Fl u Ar unit
+.Cm online Ar drive
+.Nm
+.Op Fl u Ar unit
+.Cm offline Ar drive
+.Nm
+.Op Fl u Ar unit
+.Cm name Ar volume Ar name
+.Nm
+.Op Fl u Ar unit
+.Cm volume status Ar volume
+.Nm
+.Op Fl u Ar unit
+.Cm volume cache Ar volume
+.Ar enable|disable
+.Nm
+.Op Fl u Ar unit
+.Cm clear
+.Nm
+.Op Fl u Ar unit
+.Cm create Ar type
+.Op Fl q
+.Op Fl v
+.Op Fl s Ar stripe_size
+.Ar drive Ns Op \&, Ns Ar drive Ns Op ",..."
+.Nm
+.Op Fl u Ar unit
+.Cm delete Ar volume
+.Nm
+.Op Fl u Ar unit
+.Cm add Ar drive Op Ar volume
+.Nm
+.Op Fl u Ar unit
+.Cm remove Ar drive
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to display or modify various parameters on LSI
+Fusion-MPT controllers.
+Each invocation of
+.Nm
+consists of zero or more global options followed by a command.
+Commands may support additional optional or required arguments after the
+command.
+.Pp
+Currently one global option is supported:
+.Bl -tag -width indent
+.It Fl u Ar unit
+.Ar unit
+specifies the unit of the controller to work with.
+If no unit is specified,
+then unit 0 is used.
+.El
+.Pp
+Volumes may be specified in two forms.
+First,
+a volume may be identified by its location as
+.Sm off
+.Op Ar xx Ns \&:
+.Ar yy
+.Sm on
+where
+.Ar xx
+is the bus ID and
+.Ar yy
+is the target ID.
+If the bus ID is omitted,
+the volume is assumed to be on bus 0.
+Second,
+on the volume may be specified by the corresponding
+.Em daX
+device,
+such as
+.Em da0 .
+.Pp
+The
+.Xr mpt 4
+controller divides drives up into two categories.
+Configured drives belong to a RAID volume either as a member drive or as a hot
+spare.
+Each configured drive is assigned a unique device ID such as 0 or 1 that is
+show in
+.Cm show config ,
+and in the first column of
+.Cm show drives .
+Any drive not associated with a RAID volume as either a member or a hot spare
+is a standalone drive.
+Standalone drives are visible to the operating system as SCSI disk devices.
+As a result, drives may be specified in three forms.
+First,
+a configured drive may be identified by its device ID.
+Second,
+any drive may be identified by its location as
+.Sm off
+.Ar xx Ns \&:
+.Ar yy
+.Sm on
+where
+.Ar xx
+is the bus ID and
+.Ar yy
+is the target ID for each drive as displayed in
+.Cm show drives .
+Note that unlike volumes,
+a drive location always requires the bus ID to avoid confusion with device IDs.
+Third,
+a standalone drive that is not part of a volume may be identified by its
+corresponding
+.Em daX
+device as displayed in
+.Cm show drives .
+.Pp
+The
+.Nm
+utility supports several different groups of commands.
+The first group of commands provide information about the controller,
+the volumes it manages, and the drives it controls.
+The second group of commands are used to manage the physical drives
+attached to the controller.
+The third group of commands are used to manage the logical volumes
+managed by the controller.
+The fourth group of commands are used to manage the drive configuration for
+the controller.
+.Pp
+The informational commands include:
+.Bl -tag -width indent
+.It Cm version
+Displays the version of
+.Nm .
+.It Cm show adapter
+Displays information about the RAID controller such as the model number.
+.It Cm show config
+Displays the volume and drive configuration for the controller.
+Each volume is listed along with the physical drives that the volume spans.
+If any hot spare drives are configured, then they are listed as well.
+.It Cm show drives
+Lists all of the physical drives attached to the controller.
+.It Cm show events
+Display all the entries from the controller's event log.
+Due to lack of documentation this command is not very useful currently and
+just dumps each log entry in hex.
+.It Cm show volumes
+Lists all of the logical volumes managed by the controller.
+.El
+.Pp
+The physical drive management commands include:
+.Bl -tag -width indent
+.It Cm fail Ar drive
+Mark
+.Ar drive
+as
+.Dq failed requested .
+Note that this state is different from the
+.Dq failed
+state that is used when the firmware fails a drive.
+.Ar Drive
+must be a configured drive.
+.It Cm online Ar drive
+Mark
+.Ar drive
+as an online drive.
+.Ar Drive
+must be part a configured drive in either the
+.Dq offline
+or
+.Dq failed requested
+states.
+.It Cm offline Ar drive
+Mark
+.Ar drive
+as offline.
+.Ar Drive
+must be a configured, online drive.
+.El
+.Pp
+The logical volume management commands include:
+.Bl -tag -width indent
+.It Cm name Ar volume Ar name
+Sets the name of
+.Ar volume
+to
+.Ar name .
+.It Cm volume cache Ar volume Ar enable|disable
+Enables or disables the drive write cache for the member drives of
+.Ar volume .
+.It Cm volume status Ar volume
+Display more detailed status about a single volume including the current
+progress of a rebuild operation if one is being performed.
+.El
+.Pp
+The configuration commands include:
+.Bl -tag -width indent
+.It Cm clear
+Delete the entire configuration including all volumes and spares.
+All drives will become standalone drives.
+.It Xo Cm create Ar type
+.Op Fl q
+.Op Fl v
+.Op Fl s Ar stripe_size
+.Ar drive Ns Op \&, Ns Ar drive Ns Op ",..."
+.Xc
+Create a new volume.
+The
+.Ar type
+specifies the type of volume to create.
+Currently supported types include:
+.Bl -tag -width indent
+.It Cm raid0
+Creates one RAID0 volume spanning the drives listed in the single drive list.
+.It Cm raid1
+Creates one RAID1 volume spanning the drives listed in the single drive list.
+.It Cm raid1e
+Creates one RAID1E volume spanning the drives listed in the single drive list.
+.El
+.Pp
+.Sy Note:
+Not all volume types are supported by all controllers.
+.Pp
+If the
+.Fl q
+flag is specified after
+.Ar type ,
+then a
+.Dq quick
+initialization of the volume will be done.
+This is useful when the drives do not contain any existing data that need
+to be preserved.
+.Pp
+If the
+.Fl v
+flag is specified after
+.Ar type ,
+then more verbose output will be enabled.
+Currently this just provides notification as drives are added to volumes
+when building the configuration.
+.Pp
+The
+.Fl s
+.Ar stripe_size
+parameter allows the stripe size of the array to be set.
+By default a stripe size of 64K is used.
+The list of valid values for a given
+.Ar type
+are listed in the output of
+.Cm show adapter .
+.It Cm delete Ar volume
+Delete the volume
+.Ar volume .
+Member drives will become standalone drives.
+.It Cm add Ar drive Op Ar volume
+Mark
+.Ar drive
+as a hot spare.
+.Ar Drive
+must not be a member of a volume.
+If
+.Ar volume
+is specified,
+then the hot spare will be dedicated to that volume.
+Otherwise,
+.Ar drive
+will be used as a global hot spare backing all volumes for this controller.
+Note that
+.Ar drive
+must be as large as the smallest drive in all of the volumes it is going to
+back.
+.It Cm remove Ar drive
+Remove the hot spare
+.Ar drive
+from service.
+It will become a standalone drive.
+.El
+.Sh EXAMPLES
+Mark the drive at bus 0 target 4 as offline:
+.Pp
+.Dl Nm Cm offline 0:4
+.Pp
+Create a RAID1 array from the two standalone drives
+.Va da1
+and
+.Va da2 :
+.Pp
+.Dl Nm Cm create raid1 da1,da2
+.Pp
+Mark standalone drive
+.Va da3
+as a global hot spare:
+.Pp
+.Dl Nm Cm add da3
+.Sh SEE ALSO
+.Xr mpt 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 8.0 .
+.Sh BUGS
+The handling of spare drives appears to be unreliable.
+The
+.Xr mpt 4
+firmware manages spares via spare drive
+.Dq pools .
+There are eight pools numbered 0 through 7.
+Each spare drive can only be assigned to a single pool.
+Each volume can be backed by any combination of zero or more spare pools.
+The
+.Nm
+utility attempts to use the following algorithm for managing spares.
+Global spares are always assigned to pool 0,
+and all volumes are always backed by pool 0.
+For dedicated spares,
+.Nm
+assigns one of the remaining 7 pools to each volume and
+assigns dedicated drives to that pool.
+In practice however, it seems that assigning a drive as a spare does not
+take effect until the box has been rebooted.
+Also, the firmware renumbers the spare pool assignments after a reboot
+which undoes the effects of the algorithm above.
+Simple cases such as assigning global spares seem to work ok
+.Pq albeit requiring a reboot to take effect
+but more
+.Dq exotic
+configurations may not work reliably.
+.Pp
+Drive configuration commands result in an excessive flood of messages on the
+console.
+.Pp
+The mpt version 1 API that is used by
+.Nm
+and
+.Xr mpt 4
+does not support volumes above two terabytes.
+This is a limitation of the API.
+If you are using this adapter with volumes larger than two terabytes, use the adapter in JBOD mode.
+Utilize
+.Xr geom 8 ,
+.Xr zfs 8 ,
+or another software volume manager to work around this limitation.

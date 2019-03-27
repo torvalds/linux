@@ -1,0 +1,8 @@
+  start   size  index  contents
+      0      1         PMBR
+      1      1         Pri GPT header
+      2     32         Pri GPT table
+     34   1024      1  GPT part - potato
+   1058   9150      2  GPT part - tomato
+  10208     32         Sec GPT table
+  10240      1         Sec GPT header

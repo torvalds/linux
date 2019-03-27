@@ -1,0 +1,290 @@
+# $FreeBSD$
+# $NetBSD: UCS%ROMAN.src,v 1.2 2006/04/08 15:47:40 tnozaki Exp $
+
+TYPE		ROWCOL
+NAME		UCS/ROMAN
+SRC_ZONE	0x0000-0xFB02
+OOB_MODE	INVALID
+DST_INVALID	0x100
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#
+# This mapping data is made from the mapping data provided by Unicode, Inc.
+# Original notice:
+#
+#=======================================================================
+#   File name:  ROMAN.TXT
+#
+#   Contents:   Map (external version) from Mac OS Roman
+#               character set to Unicode 2.1 and later.
+#
+#   Copyright:  (c) 1994-2002, 2005 by Apple Computer, Inc., all rights
+#               reserved.
+#
+#   Contact:    charsets@apple.com
+#
+#   Changes:
+#
+#       c02  2005-Apr-05    Update header comments. Matches internal xml
+#                           <c1.1> and Text Encoding Converter 2.0.
+#      b4,c1 2002-Dec-19    Update URLs, notes. Matches internal
+#                           utom<b5>.
+#       b03  1999-Sep-22    Update contact e-mail address. Matches
+#                           internal utom<b4>, ufrm<b3>, and Text
+#                           Encoding Converter version 1.5.
+#       b02  1998-Aug-18    Encoding changed for Mac OS 8.5; change
+#                           mapping of 0xDB from CURRENCY SIGN to
+#                           EURO SIGN. Matches internal utom<b3>,
+#                           ufrm<b3>.
+#       n08  1998-Feb-05    Minor update to header comments
+#       n06  1997-Dec-14    Add warning about future changes to 0xDB
+#                           from CURRENCY SIGN to EURO SIGN. Clarify
+#                           some header information
+#       n04  1997-Dec-01    Update to match internal utom<n3>, ufrm<n22>:
+#                           Change standard mapping for 0xBD from U+2126
+#                           to its canonical decomposition, U+03A9.
+#       n03  1995-Apr-15    First version (after fixing some typos).
+#                           Matches internal ufrm<n9>.
+#
+# Standard header:
+# ----------------
+#
+#   Apple, the Apple logo, and Macintosh are trademarks of Apple
+#   Computer, Inc., registered in the United States and other countries.
+#   Unicode is a trademark of Unicode Inc. For the sake of brevity,
+#   throughout this document, "Macintosh" can be used to refer to
+#   Macintosh computers and "Unicode" can be used to refer to the
+#   Unicode standard.
+#
+#   Apple Computer, Inc. ("Apple") makes no warranty or representation,
+#   either express or implied, with respect to this document and the
+#   included data, its quality, accuracy, or fitness for a particular
+#   purpose. In no event will Apple be liable for direct, indirect,
+#   special, incidental, or consequential damages resulting from any
+#   defect or inaccuracy in this document or the included data.
+#
+#   These mapping tables and character lists are subject to change.
+#   The latest tables should be available from the following:
+#
+#   <http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/>
+#
+#   For general information about Mac OS encodings and these mapping
+#   tables, see the file "README.TXT".
+#
+# Format:
+# -------
+#
+#   Three tab-separated columns;
+#   '#' begins a comment which continues to the end of the line.
+#     Column #1 is the Mac OS Roman code (in hex as 0xNN)
+#     Column #2 is the corresponding Unicode (in hex as 0xNNNN)
+#     Column #3 is a comment containing the Unicode name
+#
+#   The entries are in Mac OS Roman code order.
+#
+#   One of these mappings requires the use of a corporate character.
+#   See the file "CORPCHAR.TXT" and notes below.
+#
+#   Control character mappings are not shown in this table, following
+#   the conventions of the standard UTC mapping tables. However, the
+#   Mac OS Roman character set uses the standard control characters at
+#   0x00-0x1F and 0x7F.
+#
+# Notes on Mac OS Roman:
+# ----------------------
+#
+#   This is a legacy Mac OS encoding; in the Mac OS X Carbon and Cocoa
+#   environments, it is only supported directly in programming
+#   interfaces for QuickDraw Text, the Script Manager, and related
+#   Text Utilities. For other purposes it is supported via transcoding
+#   to and from Unicode.
+#
+#   This character set is used for at least the following Mac OS
+#   localizations: U.S., British, Canadian French, French, Swiss
+#   French, German, Swiss German, Italian, Swiss Italian, Dutch,
+#   Swedish, Norwegian, Danish, Finnish, Spanish, Catalan,
+#   Portuguese, Brazilian, and the default International system.
+#
+#   Variants of Mac OS Roman are used for Croatian, Icelandic,
+#   Turkish, Romanian, and other encodings. Separate mapping tables
+#   are available for these encodings.
+#
+#   Before Mac OS 8.5, code point 0xDB was CURRENCY SIGN, and was
+#   mapped to U+00A4. In Mac OS 8.5 and later versions, code point
+#   0xDB is changed to EURO SIGN and maps to U+20AC; the standard
+#   Apple fonts are updated for Mac OS 8.5 to reflect this. There is
+#   a "currency sign" variant of the Mac OS Roman encoding that still
+#   maps 0xDB to U+00A4; this can be used for older fonts.
+#
+#   Before Mac OS 8.5, the ROM bitmap versions of the fonts Chicago,
+#   New York, Geneva, and Monaco did not implement the full Mac OS
+#   Roman character set; they only supported character codes up to
+#   0xD8. The TrueType versions of these fonts have always implemented
+#   the full character set, as with the bitmap and TrueType versions
+#   of the other standard Roman fonts.
+#
+#   In all Mac OS encodings, fonts such as Chicago which are used
+#   as "system" fonts (for menus, dialogs, etc.) have four glyphs
+#   at code points 0x11-0x14 for transient use by the Menu Manager.
+#   These glyphs are not intended as characters for use in normal
+#   text, and the associated code points are not generally
+#   interpreted as associated with these glyphs; they are usually
+#   interpreted (if at all) as the control codes DC1-DC4.
+#
+# Unicode mapping issues and notes:
+# ---------------------------------
+#
+#   The following corporate zone Unicode character is used in this
+#   mapping:
+#
+#     0xF8FF  Apple logo
+#
+#   NOTE: The graphic image associated with the Apple logo character
+#   is not authorized for use without permission of Apple, and
+#   unauthorized use might constitute trademark infringement.
+#
+# Details of mapping changes in each version:
+# -------------------------------------------
+#
+#   Changes from version n08 to version b02:
+#
+#   - Encoding changed for Mac OS 8.5; change mapping of 0xDB from
+#   CURRENCY SIGN (U+00A4) to EURO SIGN (U+20AC).
+#
+#   Changes from version n03 to version n04:
+#
+#   - Change mapping of 0xBD from U+2126 to its canonical
+#     decomposition, U+03A9.
+#
+##################
+0x0000 - 0x007E = 0x00 -
+0x00A0 = 0xCA
+0x00A1 = 0xC1
+0x00A2 = 0xA2
+0x00A3 = 0xA3
+0x00A5 = 0xB4
+0x00A7 = 0xA4
+0x00A8 = 0xAC
+0x00A9 = 0xA9
+0x00AA = 0xBB
+0x00AB = 0xC7
+0x00AC = 0xC2
+0x00AE = 0xA8
+0x00AF = 0xF8
+0x00B0 = 0xA1
+0x00B1 = 0xB1
+0x00B4 = 0xAB
+0x00B5 = 0xB5
+0x00B6 = 0xA6
+0x00B7 = 0xE1
+0x00B8 = 0xFC
+0x00BA = 0xBC
+0x00BB = 0xC8
+0x00BF = 0xC0
+0x00C0 = 0xCB
+0x00C1 = 0xE7
+0x00C2 = 0xE5
+0x00C3 = 0xCC
+0x00C4 = 0x80
+0x00C5 = 0x81
+0x00C6 = 0xAE
+0x00C7 = 0x82
+0x00C8 = 0xE9
+0x00C9 = 0x83
+0x00CA = 0xE6
+0x00CB = 0xE8
+0x00CC = 0xED
+0x00CD = 0xEA
+0x00CE = 0xEB
+0x00CF = 0xEC
+0x00D1 = 0x84
+0x00D2 = 0xF1
+0x00D3 = 0xEE
+0x00D4 = 0xEF
+0x00D5 = 0xCD
+0x00D6 = 0x85
+0x00D8 = 0xAF
+0x00D9 = 0xF4
+0x00DA = 0xF2
+0x00DB = 0xF3
+0x00DC = 0x86
+0x00DF = 0xA7
+0x00E0 = 0x88
+0x00E1 = 0x87
+0x00E2 = 0x89
+0x00E3 = 0x8B
+0x00E4 = 0x8A
+0x00E5 = 0x8C
+0x00E6 = 0xBE
+0x00E7 = 0x8D
+0x00E8 = 0x8F
+0x00E9 = 0x8E
+0x00EA = 0x90
+0x00EB = 0x91
+0x00EC = 0x93
+0x00ED = 0x92
+0x00EE = 0x94
+0x00EF = 0x95
+0x00F1 = 0x96
+0x00F2 = 0x98
+0x00F3 = 0x97
+0x00F4 = 0x99
+0x00F5 = 0x9B
+0x00F6 = 0x9A
+0x00F7 = 0xD6
+0x00F8 = 0xBF
+0x00F9 = 0x9D
+0x00FA = 0x9C
+0x00FB = 0x9E
+0x00FC = 0x9F
+0x00FF = 0xD8
+0x0131 = 0xF5
+0x0152 = 0xCE
+0x0153 = 0xCF
+0x0178 = 0xD9
+0x0192 = 0xC4
+0x02C6 = 0xF6
+0x02C7 = 0xFF
+0x02D8 = 0xF9
+0x02D9 = 0xFA
+0x02DA = 0xFB
+0x02DB = 0xFE
+0x02DC = 0xF7
+0x02DD = 0xFD
+0x03A9 = 0xBD
+0x03C0 = 0xB9
+0x2013 = 0xD0
+0x2014 = 0xD1
+0x2018 = 0xD4
+0x2019 = 0xD5
+0x201A = 0xE2
+0x201C = 0xD2
+0x201D = 0xD3
+0x201E = 0xE3
+0x2020 = 0xA0
+0x2021 = 0xE0
+0x2022 = 0xA5
+0x2026 = 0xC9
+0x2030 = 0xE4
+0x2039 = 0xDC
+0x203A = 0xDD
+0x2044 = 0xDA
+0x20AC = 0xDB
+0x2122 = 0xAA
+0x2202 = 0xB6
+0x2206 = 0xC6
+0x220F = 0xB8
+0x2211 = 0xB7
+0x221A = 0xC3
+0x221E = 0xB0
+0x222B = 0xBA
+0x2248 = 0xC5
+0x2260 = 0xAD
+0x2264 = 0xB2
+0x2265 = 0xB3
+0x25CA = 0xD7
+0xF8FF = 0xF0
+0xFB01 = 0xDE
+0xFB02 = 0xDF
+END_MAP

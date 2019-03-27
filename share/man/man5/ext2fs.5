@@ -1,0 +1,106 @@
+.\"
+.\" Copyright (c) 2006 Craig Rodrigues
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS DOCUMENTATION IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 30, 2018
+.Dt EXT2FS 5
+.Os
+.Sh NAME
+.Nm ext2fs
+.Nd "ext2/ext3/ext4 file system"
+.Sh SYNOPSIS
+To link into the kernel:
+.Bd -ragged -offset indent
+.Cd "options EXT2FS"
+.Ed
+.Pp
+To load as a kernel loadable module:
+.Pp
+.Dl "kldload ext2fs"
+.Sh DESCRIPTION
+The
+.Nm
+driver will permit the
+.Fx
+kernel to access
+ext2
+file systems and its derivatives.
+It currently implements most of the features required by
+.Em ext3
+and
+.Em ext4
+file systems.
+Support for Extended Attributes in
+.Em ext4
+is experimental.
+Journalling and encryption are currently not supported.
+.Sh EXAMPLES
+To mount a
+.Nm
+volume located on
+.Pa /dev/ada1s1 :
+.Pp
+.Dl "mount -t ext2fs /dev/ada1s1 /mnt"
+.Sh SEE ALSO
+.Xr nmount 2 ,
+.Xr unmount 2 ,
+.Xr fstab 5 ,
+.Xr mount 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+kernel implementation is derived from code written,
+or modified,
+by
+.An Godmar Back
+using the UFS CSRG sources for CMU Mach.
+.Pp
+.An John Dyson
+did the initial port to
+.Fx .
+.An Aditya Sarawgi
+merged important parts of the allocation code from a clean-room
+.Nx
+implementation.
+.An Zheng Liu
+and
+.An Fedor Upurov
+implemented the read and write support respectively for
+.Em ext4
+filesystems.
+The
+.Fx
+community has contributed a huge amount of modifications.
+.Pp
+The initial version of this manual page was written by
+.An Craig Rodrigues Aq Mt rodrigc@FreeBSD.org .

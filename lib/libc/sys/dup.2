@@ -1,0 +1,171 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)dup.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2017
+.Dt DUP 2
+.Os
+.Sh NAME
+.Nm dup ,
+.Nm dup2
+.Nd duplicate an existing file descriptor
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn dup "int oldd"
+.Ft int
+.Fn dup2 "int oldd" "int newd"
+.Sh DESCRIPTION
+The
+.Fn dup
+system call
+duplicates an existing object descriptor and returns its value to
+the calling process
+.Fa ( newd
+=
+.Fn dup oldd ) .
+The argument
+.Fa oldd
+is a small non-negative integer index in
+the per-process descriptor table.
+The new descriptor returned by the call
+is the lowest numbered descriptor
+currently not in use by the process.
+.Pp
+The object referenced by the descriptor does not distinguish
+between
+.Fa oldd
+and
+.Fa newd
+in any way.
+Thus if
+.Fa newd
+and
+.Fa oldd
+are duplicate references to an open
+file,
+.Xr read 2 ,
+.Xr write 2
+and
+.Xr lseek 2
+calls all move a single pointer into the file,
+and append mode, non-blocking I/O and asynchronous I/O options
+are shared between the references.
+If a separate pointer into the file is desired, a different
+object reference to the file must be obtained by issuing an
+additional
+.Xr open 2
+system call.
+The close-on-exec flag on the new file descriptor is unset.
+.Pp
+In
+.Fn dup2 ,
+the value of the new descriptor
+.Fa newd
+is specified.
+If this descriptor is already in use and
+.Fa oldd
+\*(Ne
+.Fa newd ,
+the descriptor is first deallocated as if the
+.Xr close 2
+system call had been used.
+If
+.Fa oldd
+is not a valid descriptor, then
+.Fa newd
+is not closed.
+If
+.Fa oldd
+==
+.Fa newd
+and
+.Fa oldd
+is a valid descriptor, then
+.Fn dup2
+is successful, and does nothing.
+.Sh RETURN VALUES
+These calls return the new file descriptor if successful;
+otherwise the value -1 is returned and
+the external variable
+.Va errno
+is set to indicate the cause of the error.
+.Sh ERRORS
+The
+.Fn dup
+system call fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa oldd
+argument
+is not a valid active descriptor
+.It Bq Er EMFILE
+Too many descriptors are active.
+.El
+.Pp
+The
+.Fn dup2
+system call fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa oldd
+argument is not a valid active descriptor or the
+.Fa newd
+argument is negative or exceeds the maximum allowable descriptor number
+.El
+.Sh SEE ALSO
+.Xr accept 2 ,
+.Xr close 2 ,
+.Xr fcntl 2 ,
+.Xr getdtablesize 2 ,
+.Xr open 2 ,
+.Xr pipe 2 ,
+.Xr socket 2 ,
+.Xr socketpair 2 ,
+.Xr dup3 3
+.Sh STANDARDS
+The
+.Fn dup
+and
+.Fn dup2
+system calls are expected to conform to
+.St -p1003.1-90 .
+.Sh HISTORY
+The
+.Fn dup
+function appeared in
+.At v3 .
+The
+.Fn dup2
+function appeared in
+.At v7 .

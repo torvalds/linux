@@ -1,0 +1,206 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ss9	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+9: Hints for Preparing Specifications
+.PP
+This section contains miscellaneous hints on preparing efficient, easy to change,
+and clear specifications.
+The individual subsections are more or less
+independent.
+.SH
+Input Style
+.PP
+It is difficult to
+provide rules with substantial actions
+and still have a readable specification file.
+The following style hints owe much to Brian Kernighan.
+.IP a.
+Use all capital letters for token names, all lower case letters for
+nonterminal names.
+This rule comes under the heading of ``knowing who to blame when
+things go wrong.''
+.IP b.
+Put grammar rules and actions on separate lines.
+This allows either to be changed without
+an automatic need to change the other.
+.IP c.
+Put all rules with the same left hand side together.
+Put the left hand side in only once, and let all
+following rules begin with a vertical bar.
+.IP d.
+Put a semicolon only after the last rule with a given left hand side,
+and put the semicolon on a separate line.
+This allows new rules to be easily added.
+.IP e.
+Indent rule bodies by two tab stops, and action bodies by three
+tab stops.
+.PP
+The example in Appendix A is written following this style, as are
+the examples in the text of this paper (where space permits).
+The user must make up his own mind about these stylistic questions;
+the central problem, however, is to make the rules visible through
+the morass of action code.
+.SH
+Left Recursion
+.PP
+The algorithm used by the Yacc parser encourages so called ``left recursive''
+grammar rules: rules of the form
+.DS
+name	:	name  rest_of_rule  ;
+.DE
+These rules frequently arise when
+writing specifications of sequences and lists:
+.DS
+list	:	item
+	|	list  \',\'  item
+	;
+.DE
+and
+.DS
+seq	:	item
+	|	seq  item
+	;
+.DE
+In each of these cases, the first rule
+will be reduced for the first item only, and the second rule
+will be reduced for the second and all succeeding items.
+.PP
+With right recursive rules, such as
+.DS
+seq	:	item
+	|	item  seq
+	;
+.DE
+the parser would be a bit bigger, and the items would be seen, and reduced,
+from right to left.
+More seriously, an internal stack in the parser
+would be in danger of overflowing if a very long sequence were read.
+Thus, the user should use left recursion wherever reasonable.
+.PP
+It is worth considering whether a sequence with zero
+elements has any meaning, and if so, consider writing
+the sequence specification with an empty rule:
+.DS
+seq	:	/* empty */
+	|	seq  item
+	;
+.DE
+Once again, the first rule would always be reduced exactly once, before the
+first item was read,
+and then the second rule would be reduced once for each item read.
+Permitting empty sequences
+often leads to increased generality.
+However, conflicts might arise if Yacc is asked to decide
+which empty sequence it has seen, when it hasn't seen enough to
+know!
+.SH
+Lexical Tie-ins
+.PP
+Some lexical decisions depend on context.
+For example, the lexical analyzer might want to
+delete blanks normally, but not within quoted strings.
+Or names might be entered into a symbol table in declarations,
+but not in expressions.
+.PP
+One way of handling this situation is
+to create a global flag that is
+examined by the lexical analyzer, and set by actions.
+For example, suppose a program
+consists of 0 or more declarations, followed by 0 or more statements.
+Consider:
+.DS
+%{
+	int dflag;
+%}
+  ...  other declarations ...
+
+%%
+
+prog	:	decls  stats
+	;
+
+decls	:	/* empty */
+			{	dflag = 1;  }
+	|	decls  declaration
+	;
+
+stats	:	/* empty */
+			{	dflag = 0;  }
+	|	stats  statement
+	;
+
+    ...  other rules ...
+.DE
+The flag
+.I dflag
+is now 0 when reading statements, and 1 when reading declarations,
+.ul
+except for the first token in the first statement.
+This token must be seen by the parser before it can tell that
+the declaration section has ended and the statements have
+begun.
+In many cases, this single token exception does not
+affect the lexical scan.
+.PP
+This kind of ``backdoor'' approach can be elaborated
+to a noxious degree.
+Nevertheless, it represents a way of doing some things
+that are difficult, if not impossible, to
+do otherwise.
+.SH
+Reserved Words
+.PP
+Some programming languages
+permit the user to
+use words like ``if'', which are normally reserved,
+as label or variable names, provided that such use does not
+conflict with the legal use of these names in the programming language.
+This is extremely hard to do in the framework of Yacc;
+it is difficult to pass information to the lexical analyzer
+telling it ``this instance of `if' is a keyword, and that instance is a variable''.
+The user can make a stab at it, using the
+mechanism described in the last subsection,
+but it is difficult.
+.PP
+A number of ways of making this easier are under advisement.
+Until then, it is better that the keywords be
+.I reserved \|;
+that is, be forbidden for use as variable names.
+There are powerful stylistic reasons for preferring this, anyway.

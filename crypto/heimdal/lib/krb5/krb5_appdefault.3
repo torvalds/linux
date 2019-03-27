@@ -1,0 +1,88 @@
+.\" Copyright (c) 2000 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd July 25, 2000
+.Dt KRB5_APPDEFAULT 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_appdefault_boolean ,
+.Nm krb5_appdefault_string ,
+.Nm krb5_appdefault_time
+.Nd get application configuration value
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Ft void
+.Fn krb5_appdefault_boolean "krb5_context context" "const char *appname" "krb5_realm realm" "const char *option" "krb5_boolean def_val" "krb5_boolean *ret_val"
+.Ft void
+.Fn krb5_appdefault_string "krb5_context context" "const char *appname" "krb5_realm realm" "const char *option" "const char *def_val" "char **ret_val"
+.Ft void
+.Fn krb5_appdefault_time "krb5_context context" "const char *appname" "krb5_realm realm" "const char *option" "time_t def_val" "time_t *ret_val"
+.Sh DESCRIPTION
+These functions get application defaults from the
+.Dv appdefaults
+section of the
+.Xr krb5.conf 5
+configuration file. These defaults can be specified per application,
+and/or per realm.
+.Pp
+These values will be looked for in
+.Xr krb5.conf 5 ,
+in order of descending importance.
+.Bd -literal -offset indent
+[appdefaults]
+	appname = {
+		realm = {
+			option = value
+		}
+	}
+	appname = {
+		option = value
+	}
+	realm = {
+		option = value
+	}
+	option = value
+.Ed
+.Fa appname
+is the name of the application, and
+.Fa realm
+is the realm name. If the realm is omitted it will not be used for
+resolving values.
+.Fa def_val
+is the value to return if no value is found in
+.Xr krb5.conf 5 .
+.Sh SEE ALSO
+.Xr krb5_config 3 ,
+.Xr krb5.conf 5

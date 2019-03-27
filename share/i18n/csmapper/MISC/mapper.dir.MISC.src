@@ -1,0 +1,17 @@
+# $FreeBSD$ 
+# $NetBSD: mapper.dir.MISC.src,v 1.12 2007/07/15 14:44:37 tnozaki Exp $
+
+ATARIST/UCS			mapper_std	MISC/ATARIST%UCS.mps
+DECMCS/UCS			mapper_std	MISC/DECMCS%UCS.mps
+HP-ROMAN8/UCS			mapper_std	MISC/HP-ROMAN8%UCS.mps
+MULELAO-1/UCS			mapper_std	MISC/MULELAO-1%UCS.mps
+NEXTSTEP/UCS			mapper_std	MISC/NEXTSTEP%UCS.mps
+RISCOS-LATIN1/UCS		mapper_std	MISC/RISCOS-LATIN1%UCS.mps
+TDS565/UCS			mapper_std	MISC/TDS565%UCS.mps
+UCS/ATARIST			mapper_std	MISC/UCS%ATARIST.mps
+UCS/DECMCS			mapper_std	MISC/UCS%DECMCS.mps
+UCS/HP-ROMAN8			mapper_std	MISC/UCS%HP-ROMAN8.mps
+UCS/MULELAO-1			mapper_std	MISC/UCS%MULELAO-1.mps
+UCS/NEXTSTEP			mapper_std	MISC/UCS%NEXTSTEP.mps
+UCS/RISCOS-LATIN1		mapper_std	MISC/UCS%RISCOS-LATIN1.mps
+UCS/TDS565			mapper_std	MISC/UCS%TDS565.mps

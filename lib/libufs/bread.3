@@ -1,0 +1,99 @@
+.\" Author:	Juli Mallett <jmallett@FreeBSD.org>
+.\" Date:	June 04, 2003
+.\" Description:
+.\" 	Manual page for libufs functions:
+.\"		bread(3)
+.\"		bwrite(3)
+.\"
+.\" This file is in the public domain.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 4, 2003
+.Dt BREAD 3
+.Os
+.Sh NAME
+.Nm bread , bwrite
+.Nd read and write blocks of a UFS file system
+.Sh LIBRARY
+.Lb libufs
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.In ufs/ufs/ufsmount.h
+.In ufs/ufs/dinode.h
+.In ufs/ffs/fs.h
+.In libufs.h
+.Ft ssize_t
+.Fn bread "struct uufsd *disk" "ufs2_daddr_t blockno" "void *data" "size_t size"
+.Ft ssize_t
+.Fo bwrite
+.Fa "struct uufsd *disk" "ufs2_daddr_t blockno"
+.Fa "const void *data" "size_t size"
+.Fc
+.Ft int
+.Fo berase
+.Fa "struct uufsd *disk" "ufs2_daddr_t blockno" "ufs2_daddr_t size"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn bread ,
+.Fn bwrite
+and
+.Fn berase
+functions provide a block read, write and erase API for
+.Xr libufs 3
+consumers.
+They operate on a userland UFS disk structure, and perform the read
+and write at a given block address, which uses the current
+.Va d_bsize
+value of the structure.
+.Sh RETURN VALUES
+The
+.Fn bread
+and
+.Fn bwrite
+functions return the amount read or written, or \-1 in case of any error,
+including short read.
+.Pp
+The
+.Fn berase
+function returns non-zero on error.
+.Sh ERRORS
+The function
+.Fn bread
+may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr ufs_disk_write 3
+or
+.Xr pread 2 .
+.Pp
+The function
+.Fn bwrite
+may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr pwrite 2 .
+.Pp
+The function
+.Fn berase
+may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr ioctl 2 .
+.Pp
+Additionally all three functions may follow the
+.Xr libufs 3
+error methodologies in situations where the amount of data written
+is not equal to the amount requested, or in case of a device error.
+.Sh SEE ALSO
+.Xr libufs 3 ,
+.Xr ufs_disk_write 3
+.Sh HISTORY
+These functions first appeared as part of
+.Xr libufs 3
+in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Juli Mallett Aq Mt jmallett@FreeBSD.org

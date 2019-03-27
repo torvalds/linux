@@ -1,0 +1,42 @@
+#
+# Atheros PB47 reference board.
+#
+# * one MiniPCI+ slot (modified to allow two idsel lines
+#   on the one slot, for a specific kind of internal-only
+#   NIC;
+# * one XMII slot
+# * One ethernet PHY
+# * Akros Silicon AS1834
+# * 8MB NOR SPI flash
+# * 64MB RAM
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+include		"AR71XX_BASE"
+ident		"PB47"
+hints		"PB47.hints"
+
+# Enable the uboot environment stuff rather then the
+# redboot stuff.
+options 	AR71XX_ENV_UBOOT
+
+# XXX TODO: add uboot boot parameter parsing to extract MAC, RAM.
+# Right now it will just detect 32mb out of 64mb, as well as
+# return a garbage MAC address.
+options 	AR71XX_REALMEM=64*1024*1024
+
+# For DOS - enable if required
+options 	MSDOSFS
+
+# uncompress - to boot read-only lzma natively from flash
+device		xz
+options 	GEOM_UZIP
+
+# Used for the static uboot partition map
+device		geom_map
+
+# Boot off of the rootfs, as defined in the geom_map setup.
+options 	ROOTDEVNAME=\"ufs:map/rootfs.uzip\"

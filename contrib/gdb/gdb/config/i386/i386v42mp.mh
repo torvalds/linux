@@ -1,0 +1,20 @@
+# Host: Intel 386 running SVR4
+
+XM_FILE= xm-i386v4.h
+# for network communication
+XM_CLIBS= -lsocket -lnsl
+
+# we don't want nm-i386v4.h since that defines LOSING_POLL which isn't
+# appropriate for i386v42mp
+NAT_FILE= nm-i386v42mp.h
+
+# NATDEPFILES must remain entirely on one line.  When building a cross
+# debugger, configure will cause this line to be commented out in the
+# Makefile.  Many non-GNU versions of make don't permit the use of a
+# continuation character (backslash) to extend a commented line.  As a
+# consequence, make considers subsequent tab-indented lines to be
+# some sort of error.
+NATDEPFILES= corelow.o core-regset.o fork-child.o i386v4-nat.o \
+	gcore.o solib.o solib-svr4.o solib-legacy.o procfs.o proc-api.o \
+	proc-events.o proc-flags.o proc-why.o uw-thread.o
+

@@ -1,0 +1,6 @@
+subshell start
+before dotcmd
+before break
+after break, return value: 0
+after dotcmd, return value: 0
+subshell end

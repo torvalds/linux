@@ -1,0 +1,61 @@
+=pod
+
+=head1 NAME
+
+BN_add_word, BN_sub_word, BN_mul_word, BN_div_word, BN_mod_word - arithmetic
+functions on BIGNUMs with integers
+
+=head1 SYNOPSIS
+
+ #include <openssl/bn.h>
+
+ int BN_add_word(BIGNUM *a, BN_ULONG w);
+
+ int BN_sub_word(BIGNUM *a, BN_ULONG w);
+
+ int BN_mul_word(BIGNUM *a, BN_ULONG w);
+
+ BN_ULONG BN_div_word(BIGNUM *a, BN_ULONG w);
+
+ BN_ULONG BN_mod_word(const BIGNUM *a, BN_ULONG w);
+
+=head1 DESCRIPTION
+
+These functions perform arithmetic operations on BIGNUMs with unsigned
+integers. They are much more efficient than the normal BIGNUM
+arithmetic operations.
+
+BN_add_word() adds B<w> to B<a> (C<a+=w>).
+
+BN_sub_word() subtracts B<w> from B<a> (C<a-=w>).
+
+BN_mul_word() multiplies B<a> and B<w> (C<a*=w>).
+
+BN_div_word() divides B<a> by B<w> (C<a/=w>) and returns the remainder.
+
+BN_mod_word() returns the remainder of B<a> divided by B<w> (C<a%w>).
+
+For BN_div_word() and BN_mod_word(), B<w> must not be 0.
+
+=head1 RETURN VALUES
+
+BN_add_word(), BN_sub_word() and BN_mul_word() return 1 for success, 0
+on error. The error codes can be obtained by L<ERR_get_error(3)>.
+
+BN_mod_word() and BN_div_word() return B<a>%B<w> on success and
+B<(BN_ULONG)-1> if an error occurred.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<BN_add(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

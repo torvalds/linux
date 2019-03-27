@@ -1,0 +1,107 @@
+/dts-v1/;
+
+#include "rt3050.dtsi"
+
+/ {
+	compatible = "NW718", "ralink,rt3050-soc";
+	model = "Netcore NW718";
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		cpu {
+			label = "nw718:amber:cpu";
+			gpios = <&gpio0 13 1>;
+		};
+
+		usb {
+			label = "nw718:amber:usb";
+			gpios = <&gpio0 8 1>;
+		};
+
+		wps {
+			label = "nw718:amber:wps";
+			gpios = <&gpio0 14 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 10 1>;
+			linux,code = <0x198>;
+		};
+
+		wps {
+			label = "wps";
+			gpios = <&gpio0 0 1>;
+			linux,code = <0x211>;
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "mx25l3205d";
+		spi-max-frequency = <25000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "config";
+			reg = <0x30000 0x20000>;
+			read-only;
+		};
+
+		factory: partition@50000 {
+			label = "factory";
+			reg = <0x50000 0x10000>;
+			read-only;
+		};
+
+		partition@60000 {
+			label = "firmware";
+			reg = <0x60000 0x3a0000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "jtag", "rgmii", "mdio", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x4>;
+};
+
+&esw {
+	mediatek,portmap = <0x2f>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&otg {
+	status = "okay";
+};

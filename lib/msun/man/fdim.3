@@ -1,0 +1,86 @@
+.\" Copyright (c) 2004 David Schultz <das@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 29, 2004
+.Dt FDIM 3
+.Os
+.Sh NAME
+.Nm fdim ,
+.Nm fdimf ,
+.Nm fdiml
+.Nd positive difference functions
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn fdim "double x" "double y"
+.Ft float
+.Fn fdimf "float x" "float y"
+.Ft long double
+.Fn fdiml "long double x" "long double y"
+.Sh DESCRIPTION
+The
+.Fn fdim ,
+.Fn fdimf ,
+and
+.Fn fdiml
+functions return the positive difference between
+.Fa x
+and
+.Fa y .
+That is, if
+.Fa x\- Ns Fa y
+is positive, then
+.Fa x\- Ns Fa y
+is returned.
+If either
+.Fa x
+or
+.Fa y
+is an \*(Na, then an \*(Na is returned.
+Otherwise, the result is
+.Li +0.0 .
+.Pp
+Overflow or underflow may occur if the exact result is not
+representable in the return type.
+No other exceptions are raised.
+.Sh SEE ALSO
+.Xr fabs 3 ,
+.Xr fmax 3 ,
+.Xr fmin 3 ,
+.Xr math 3
+.Sh STANDARDS
+The
+.Fn fdim ,
+.Fn fdimf ,
+and
+.Fn fdiml
+functions conform to
+.St -isoC-99 .
+.Sh HISTORY
+These routines first appeared in
+.Fx 5.3 .

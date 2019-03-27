@@ -1,0 +1,93 @@
+<HTML>
+<HEAD><TITLE>smfi_setconn</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_setconn.html,v 1.18 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_setconn</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_setconn(
+	char *oconn;
+);
+</PRE>
+Set the socket through which this filter should communicate with sendmail.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>smfi_setconn must be called once before <A href="smfi_main.html">smfi_main</A>.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>Sets the socket through which the filter communicates with sendmail.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>oconn</TD>
+	<TD>The address of the desired communication socket.  
+	The address should be a NULL-terminated string in "proto:address" 
+	format:
+	<UL>
+	<LI><CODE>{unix|local}:/path/to/file</CODE> -- A named pipe.
+	<LI><CODE>inet:port@{hostname|ip-address}</CODE> -- An IPV4 socket.
+	<LI><CODE>inet6:port@{hostname|ip-address}</CODE> -- An IPV6 socket.
+	</UL>
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>smfi_setconn will not fail on an invalid address.
+The failure will only be detected in <A href="smfi_main.html">smfi_main</A>.
+Nevertheless, smfi_setconn may fail for other reasons, e.g.,
+due to a lack of memory.
+</TD>
+</TR>
+
+<TR>
+<TH valign="top" align=left>NOTES</TH> 
+
+<TD>
+<UL>
+  <LI>If possible, filters should not run as root when communicating
+	over unix/local domain sockets.
+  <LI>Unix/local sockets should have their permissions set to
+	0600 (read/write permission only for the socket's owner) or
+	0660 (read/write permission for the socket's owner and group)
+	which is useful if the sendmail RunAsUser option is used.
+	The permissions for a unix/local domain socket are determined as
+	usual by <CODE>umask</CODE>, which should be set to 007 or 077.
+        Note some operating systems (e.g, Solaris) don't use the
+        permissions of the socket.  On those systems, place the socket in a
+        protected directory.
+</UL>
+</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000, 2003 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

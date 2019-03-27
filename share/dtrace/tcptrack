@@ -1,0 +1,83 @@
+#!/usr/sbin/dtrace -s
+/*
+ * Copyright (c) 2015 George V. Neville-Neil
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *
+ * The tcptrack D script shows various information about TCP
+ * connections including acceptance and refusal of inbound and
+ * outbound connections as well as state changes.
+ *
+ * Usage: tcptrack
+ */
+
+#pragma D option quiet
+tcp:kernel::accept-established
+{
+	printf("Accept connection from %s:%d\tto %s:%d\n",
+		       args[2]->ip_saddr,
+		       args[4]->tcp_sport,
+		       args[2]->ip_daddr,
+		       args[4]->tcp_dport);
+
+}
+
+tcp:kernel::accept-refused
+{
+	printf("Refused connection from %s:%d\tto %s:%d\n", 
+		       args[2]->ip_daddr,
+		       args[4]->tcp_dport,
+		       args[2]->ip_saddr,
+		       args[4]->tcp_sport);
+
+}
+
+tcp:kernel::connect-established
+{
+	printf("Connection established to %s:%d from %s:%d\n",
+		       args[2]->ip_saddr,
+		       args[4]->tcp_sport,
+		       args[2]->ip_daddr,
+		       args[4]->tcp_dport);
+
+}
+
+tcp:kernel::connect-refused
+{
+	printf("Connection refused by %s:%d from %s:%d\n", 
+		       args[2]->ip_saddr,
+		       args[4]->tcp_sport,
+		       args[2]->ip_daddr,
+		       args[4]->tcp_dport);
+}
+
+tcp:kernel::state-change
+{
+	newstate = args[3]->tcps_state;
+	oldstate = args[5]->tcps_state;
+	printf("State changed from %s\t\t%s\n", tcp_state_string[oldstate],
+				     tcp_state_string[newstate]);
+}
+

@@ -1,0 +1,92 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+#
+# XML RELAX NG schema for Subversion command-line client output
+# For "svn status"
+
+# The DTD compatibility annotations namespace, used for adding default
+# attribute values.
+namespace a = "http://relaxng.org/ns/compatibility/annotations/1.0"
+
+include "common.rnc"
+
+start = status
+
+status = element status { (target | changelist)* }
+
+target = element target { attlist.target, entry*, against? }
+attlist.target &=
+  ## The target path.
+  attribute path { string }
+
+changelist = element changelist { attlist.changelist, entry*, against? }
+attlist.changelist &=
+  ## The changelist name.
+  attribute name { string }
+
+## Status information for a path under the target.
+entry = element entry { attlist.entry, wc-status, repos-status? }
+attlist.entry &=
+  ## Path inside the target.
+  attribute path { text }
+
+## Status of the entry in the working copy.
+wc-status = element wc-status { attlist.wc-status, commit?, lock? }
+
+attlist.wc-status &=
+  ## Item/text status.
+  attribute item {
+    "added" | "conflicted" | "deleted" | "external" | "ignored" |
+    "incomplete" | "merged" | "missing" | "modified" | "none" |
+    "normal" | "obstructed" | "replaced" | "unversioned"
+  },
+  ## Properties status.
+  attribute props { "conflicted" | "modified" | "normal" | "none" },
+  ## Base revision number.
+  attribute revision { revnum.type }?,
+  ## WC directory locked.
+  [ a:defaultValue = "false" ]
+  attribute wc-locked { "true" | "false" }?,
+  ## Add with history.
+  [ a:defaultValue = "false" ]
+  attribute copied { "true" | "false" }?,
+  # Item switched relative to its parent.
+  [ a:defaultValue = "false" ]
+  attribute switched { "true" | "false" }?,
+  ## Tree-conflict status of the item.
+  [ a:defaultValue = "false" ]
+  attribute tree-conflicted { "true" | "false" }?,
+  ## If root of a move-here, the local path to the move source.
+  attribute moved-from { text }?,
+  ## If root of a move-away, the local path to the move destination.
+  attribute moved-to { text }?
+
+## Status in repository (if --update was specified).
+repos-status = element repos-status { attlist.repos-status, lock? }
+attlist.repos-status &=
+  ## Text/item status in the repository.
+  attribute item {
+    "added" | "deleted" | "modified" | "replaced" | "none"
+  },
+  ## Properties status in repository.
+  attribute props { "modified" | "none" }
+
+against = element against { attlist.against, empty }
+attlist.against &=
+  ## Revision number at which the repository information was obtained.
+  attribute revision { revnum.type }

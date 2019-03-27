@@ -1,0 +1,49 @@
+
+#------------------------------------------------------------------------------
+# $File: meteorological,v 1.2 2017/03/17 21:35:28 christos Exp $
+# rinex:  file(1) magic for RINEX files
+# http://igscb.jpl.nasa.gov/igscb/data/format/rinex210.txt
+# ftp://cddis.gsfc.nasa.gov/pub/reports/formats/rinex300.pdf
+# data for testing: ftp://cddis.gsfc.nasa.gov/pub/gps/data
+60	string		RINEX
+>80	search/256	XXRINEXB	RINEX Data, GEO SBAS Broadcast
+>>&32	string		x		\b, date %15.15s
+>>5	string		x		\b, version %6.6s
+!:mime	rinex/broadcast
+>80	search/256	XXRINEXD	RINEX Data, Observation (Hatanaka comp)
+>>&32	string		x		\b, date %15.15s
+>>5	string		x		\b, version %6.6s
+!:mime	rinex/observation
+>80	search/256	XXRINEXC	RINEX Data, Clock
+>>&32	string		x		\b, date %15.15s
+>>5	string		x		\b, version %6.6s
+!:mime	rinex/clock
+>80	search/256	XXRINEXH	RINEX Data, GEO SBAS Navigation
+>>&32	string		x		\b, date %15.15s
+>>5	string		x		\b, version %6.6s
+!:mime	rinex/navigation
+>80	search/256	XXRINEXG	RINEX Data, GLONASS Navigation
+>>&32	string		x		\b, date %15.15s
+>>5	string		x		\b, version %6.6s
+!:mime	rinex/navigation
+>80	search/256	XXRINEXL	RINEX Data, Galileo Navigation
+>>&32	string		x		\b, date %15.15s
+>>5	string		x		\b, version %6.6s
+!:mime	rinex/navigation
+>80	search/256	XXRINEXM	RINEX Data, Meteorological
+>>&32	string		x		\b, date %15.15s
+>>5	string		x		\b, version %6.6s
+!:mime	rinex/meteorological
+>80	search/256	XXRINEXN	RINEX Data, Navigation
+>>&32	string		x		\b, date %15.15s
+>>5	string		x		\b, version %6.6s
+!:mime	rinex/navigation
+>80	search/256	XXRINEXO	RINEX Data, Observation
+>>&32	string		x		\b, date %15.15s
+>>5	string		x		\b, version %6.6s
+!:mime	rinex/observation
+
+# https://en.wikipedia.org/wiki/GRIB
+0	string	GRIB
+>7	byte	=1	Gridded binary (GRIB) version 1
+>7	byte	=2	Gridded binary (GRIB) version 2

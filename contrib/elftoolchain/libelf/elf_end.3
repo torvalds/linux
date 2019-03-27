@@ -1,0 +1,76 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_end.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd June 29, 2006
+.Dt ELF_END 3
+.Os
+.Sh NAME
+.Nm elf_end
+.Nd release an ELF descriptor
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft int
+.Fn elf_end "Elf *elf"
+.Sh DESCRIPTION
+Function
+.Fn elf_end
+is used to release the resources associated with an ELF descriptor
+pointed to by argument
+.Ar elf .
+This descriptor must have been allocated by a previous call to
+.Xr elf_begin 3
+or
+.Xr elf_memory 3 .
+For programming convenience, a NULL value is permitted for argument
+.Ar elf .
+.Pp
+A call to
+.Fn elf_end
+decrements the activation count for descriptor
+.Ar elf
+by one.
+The resources associated with the descriptor are only released
+with its activation count goes to zero.
+.Pp
+Once function
+.Fn elf_end
+returns zero, the ELF descriptor
+.Ar elf
+will no longer be valid and should not be used further.
+.Sh RETURN VALUES
+Function
+.Fn elf_end
+returns the current value of the ELF descriptor
+.Ar elf Ap s
+activation count, or zero if argument
+.Ar elf
+was NULL.
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_begin 3 ,
+.Xr elf_memory 3 ,
+.Xr gelf 3

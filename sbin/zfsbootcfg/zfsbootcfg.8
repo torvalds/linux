@@ -1,0 +1,112 @@
+.\" Copyright (c) 2016 Andriy Gapon
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 24, 2017
+.Dt ZFSBOOTCFG 8
+.Os
+.Sh NAME
+.Nm zfsbootcfg
+.Nd "specify zfsboot options for the next boot"
+.Sh SYNOPSIS
+.Nm
+.Ao Ar options Ac
+.Sh DESCRIPTION
+.Nm
+is used to set
+.Xr boot.config 5 Ns -style
+options to be used by
+.Xr zfsboot 8
+or
+.Xr gptzfsboot 8
+the next time the machine is booted.
+Once
+.Xr zfsboot 8
+or
+.Xr gptzfsboot 8
+reads the information, it is deleted.
+If booting fails, the machine automatically reverts to the previous
+boot configuration.
+The information is stored in a special reserved area of a ZFS pool.
+.Xr zfsboot 8
+or
+.Xr gptzfsboot 8
+read the boot option information from the first disk found in the first
+ZFS pool found.
+.Sh ENVIRONMENT
+.Bl -tag -width vfs.zfs.boot.primary_pool -compact
+.It Ev vfs.zfs.boot.primary_pool
+The
+.Xr kenv 1
+variable that identifies a pool for which the options are written.
+.It Ev vfs.zfs.boot.primary_vdev
+The
+.Xr kenv 1
+variable that identifies a disk within the pool where the options
+are written.
+.El
+.Sh EXAMPLES
+Try to boot to a new
+.Em boot environment
+without changing the
+.Cm bootfs
+property of a pool:
+.Pp
+.Dl "zfsbootcfg ""zfs:tank/ROOT/newbe:""
+.Pp
+To clear the boot options:
+.Pp
+.Dl "zfsbootcfg """"
+.Sh SEE ALSO
+.Xr boot.config 5 ,
+.Xr gptzfsboot 8 ,
+.Xr zfsboot 8
+.Sh HISTORY
+.Nm
+appeared in
+.Fx 11.1 .
+.Sh AUTHORS
+This manual page was written by
+.An Andriy Gapon Aq Mt avg@FreeBSD.org .
+.Sh CAVEATS
+At the moment,
+.Nm
+uses the
+.Ev vfs.zfs.boot.primary_pool
+and
+.Ev vfs.zfs.boot.primary_vdev
+.Xr kenv 1
+variables to determine a ZFS pool and a disk in it where the options
+are to be stored.
+The variables are set by the ZFS boot chain, so there is an assumption
+that the same boot disk is going to be used for the next reboot.
+There is no
+.Nm
+option to specify a different pool or a different disk.
+.Pp
+.Nm
+should be extended to install new
+.Xr zfsboot 8
+blocks in a ZFS pool.

@@ -1,0 +1,152 @@
+#! /bin/sh
+
+args=`getopt d:f:v $*`
+set -- $args
+
+HF=
+V=": "
+
+for i
+do
+    case "$i" in
+     -d) sdir="$2" ; shift 2 ;;
+     -f) hardenfile="$2" ; shift 2 ;;
+     -v) V= ; shift ;;
+     --) shift ; break ;;
+    esac
+done
+
+case "$sdir" in
+ '')
+    sdir=.
+esac
+
+case "$hardenfile" in
+ */*)
+    HF=$hardenfile
+    ;;
+ '')
+    ;;
+ *)
+    hf=harden/$hardenfile
+    if test -f $hf
+    then
+	HF=$hf
+    fi
+    ;;
+esac
+
+# If we have a file to use (ie, HF is not empty) then look for one.
+case "$HF" in
+ '')
+    PATH=$PATH:libevent/build-aux
+    export PATH
+    set `scripts/cvo.sh @osname@ @osver@` || exit 1
+
+    CVO_OSNAME=$1
+    CVO_OSVER=$2
+
+    x=$CVO_OSVER
+
+    while true
+    do
+	case "$x" in
+	 '') break ;;
+	esac
+hf=harden/$CVO_OSNAME$x
+${V}echo "Looking for <$hf>" >&2
+	if test -f $hf
+	then
+	    HF=$hf
+	    break
+	fi
+	case "$x" in
+	 *.*) x=`echo $x | sed -e 's/\.[^.]*$//'` ;;
+	 *) x= ;;
+	esac
+    done
+    case "$HF" in
+     '')
+	hf=harden/$CVO_OSNAME
+${V}echo "Looking for <$hf>" >&2
+	if test -f $hf
+	then
+	    HF=$hf
+	fi
+	;;
+    esac
+    # Handle some "aliases"
+    case "$HF" in
+     '')
+	case "$CVO_OSNAME" in
+	 raspbian*)
+	    hf=harden/debian
+${V}echo "Looking for <$hf>" >&2
+	    if test -f $hf
+	    then
+		HF=$hf
+	    fi
+	    ;;
+	 redhat* | fedora*)
+	    hf=harden/redhat
+${V}echo "Looking for <$hf>" >&2
+	    if test -f $hf
+	    then
+		HF=$hf
+	    fi
+	    ;;
+	esac
+	;;
+    esac
+
+    # This might be a good place to see if uname returns "Linux",
+    # and if so, use a generic file for that.
+    case "$HF" in
+     '')
+	case "`uname`" in
+	 Linux)
+	    hf=harden/linux
+${V}echo "Looking for <$hf>" >&2
+	    if test -f $hf
+	    then
+		HF=$hf
+	    fi
+	    ;;
+	esac
+	;;
+    esac
+
+    # Finally, 'default'
+    case "$HF" in
+     '')
+	hf=harden/default
+${V}echo "Looking for <$hf>" >&2
+	if test -f $hf
+	then
+	    HF=$hf
+	fi
+	;;
+    esac
+
+    case "$HF" in
+     '')
+	echo "No harden/XXX file found!" >&2
+	exit 1
+	;;
+    esac
+    ;;
+esac
+
+${V}echo "Using <$HF>" >&2
+echo "GENHARDFLAGFILE=$HF"
+
+###
+
+. $HF
+
+echo "NTP_HARD_CFLAGS='$NTP_HARD_CFLAGS'"
+echo "NTP_HARD_CPPFLAGS='$NTP_HARD_CPPFLAGS'"
+echo "NTP_HARD_LDFLAGS='$NTP_HARD_LDFLAGS'"
+echo GENHARDFLAG=OK
+
+exit 0

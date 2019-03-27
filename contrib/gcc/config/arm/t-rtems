@@ -1,0 +1,10 @@
+# Custom rtems multilibs
+
+MULTILIB_OPTIONS     = marm/mthumb
+MULTILIB_DIRNAMES    = arm thumb
+MULTILIB_EXCEPTIONS  = 
+MULTILIB_MATCHES     = marm=mno-thumb
+
+MULTILIB_OPTIONS    += msoft-float/mhard-float
+MULTILIB_DIRNAMES   += soft fpu
+MULTILIB_EXCEPTIONS += *mthumb/*mhard-float*

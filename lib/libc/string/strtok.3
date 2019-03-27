@@ -1,0 +1,176 @@
+.\" Copyright (c) 1998 Softweyr LLC.  All rights reserved.
+.\"
+.\" strtok_r, from Berkeley strtok
+.\" Oct 13, 1998 by Wes Peters <wes@softweyr.com>
+.\"
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notices, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above
+.\"    copyright notices, this list of conditions and the following
+.\"    disclaimer in the documentation and/or other materials provided
+.\"    with the distribution.
+.\"
+.\" 3. Neither the name of Softweyr LLC, the University nor the names
+.\"    of its contributors may be used to endorse or promote products
+.\"    derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY SOFTWEYR LLC, THE REGENTS AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL SOFTWEYR LLC, THE REGENTS, OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strtok.3	8.2 (Berkeley) 2/3/94
+.\" $FreeBSD$
+.\"
+.Dd January 22, 2016
+.Dt STRTOK 3
+.Os
+.Sh NAME
+.Nm strtok , strtok_r
+.Nd string tokens
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In string.h
+.Ft char *
+.Fn strtok "char *str" "const char *sep"
+.Ft char *
+.Fn strtok_r "char *str" "const char *sep" "char **last"
+.Sh DESCRIPTION
+.Bf -symbolic
+This interface is obsoleted by
+.Xr strsep 3 .
+.Ef
+.Pp
+The
+.Fn strtok
+function
+is used to isolate sequential tokens in a null-terminated string,
+.Fa str .
+These tokens are separated in the string by at least one of the
+characters in
+.Fa sep .
+The first time that
+.Fn strtok
+is called,
+.Fa str
+should be specified; subsequent calls, wishing to obtain further tokens
+from the same string, should pass a null pointer instead.
+The separator string,
+.Fa sep ,
+must be supplied each time, and may change between calls.
+.Pp
+The implementation will behave as if no library function calls
+.Fn strtok .
+.Pp
+The
+.Fn strtok_r
+function is a reentrant version of
+.Fn strtok .
+The context pointer
+.Fa last
+must be provided on each call.
+The
+.Fn strtok_r
+function
+may also be used to nest two parsing loops within one another, as
+long as separate context pointers are used.
+.Pp
+The
+.Fn strtok
+and
+.Fn strtok_r
+functions
+return a pointer to the beginning of each subsequent token in the string,
+after replacing the token itself with a
+.Dv NUL
+character.
+When no more tokens remain, a null pointer is returned.
+.Sh EXAMPLES
+The following uses
+.Fn strtok_r
+to parse two strings using separate contexts:
+.Bd -literal
+char test[80], blah[80];
+char *sep = "\e\e/:;=-";
+char *word, *phrase, *brkt, *brkb;
+
+strcpy(test, "This;is.a:test:of=the/string\e\etokenizer-function.");
+
+for (word = strtok_r(test, sep, &brkt);
+     word;
+     word = strtok_r(NULL, sep, &brkt))
+{
+    strcpy(blah, "blah:blat:blab:blag");
+
+    for (phrase = strtok_r(blah, sep, &brkb);
+         phrase;
+         phrase = strtok_r(NULL, sep, &brkb))
+    {
+        printf("So far we're at %s:%s\en", word, phrase);
+    }
+}
+.Ed
+.Sh SEE ALSO
+.Xr memchr 3 ,
+.Xr strchr 3 ,
+.Xr strcspn 3 ,
+.Xr strpbrk 3 ,
+.Xr strrchr 3 ,
+.Xr strsep 3 ,
+.Xr strspn 3 ,
+.Xr strstr 3 ,
+.Xr wcstok 3
+.Sh STANDARDS
+The
+.Fn strtok
+function
+conforms to
+.St -isoC .
+The
+.Fn strtok_r
+function
+conforms to
+.St -p1003.1-2001 .
+.Sh AUTHORS
+.An Wes Peters Aq Mt wes@softweyr.com ,
+Softweyr LLC
+.Pp
+Based on the
+.Fx 3.0
+implementation.
+.Sh BUGS
+The System V
+.Fn strtok ,
+if handed a string containing only delimiter characters,
+will not alter the next starting point, so that a call to
+.Fn strtok
+with a different (or empty) delimiter string
+may return a
+.Pf non- Dv NULL
+value.
+Since this implementation always alters the next starting point,
+such a sequence of calls would always return
+.Dv NULL .

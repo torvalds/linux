@@ -1,0 +1,17 @@
+#
+# Common configuration settings for mesh test scripts.
+#
+# $FreeBSD$
+#
+
+NODE1_IP=10.0.1.100
+NODE2_IP=10.0.1.101
+NODE3_IP=10.0.1.102
+NODE4_IP=10.0.1.103
+NODE5_IP=10.0.1.104
+
+NODE1_MAC=00:0b:6b:2d:dc:d8
+NODE2_MAC=00:0b:6b:2d:db:ac
+NODE3_MAC=00:0b:6b:2d:dd:17
+NODE4_MAC=00:0b:6b:87:1c:f0
+NODE5_MAC=00:14:a5:33:33:a7

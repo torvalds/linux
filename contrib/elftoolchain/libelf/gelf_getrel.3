@@ -1,0 +1,121 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: gelf_getrel.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd August 29, 2006
+.Dt GELF_GETREL 3
+.Os
+.Sh NAME
+.Nm gelf_getrel ,
+.Nm gelf_update_rel
+.Nd read and update ELF relocation entries
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In gelf.h
+.Ft "GElf_Rel *"
+.Fn gelf_getrel "Elf_Data *data" "int ndx" "GElf_Rel *rel"
+.Ft int
+.Fn gelf_update_rel "Elf_Data *data" "int ndx" "GElf_Rel *rel"
+.Sh DESCRIPTION
+These convenience functions are used to retrieve and update class-dependent
+.Vt Elf32_Rel
+or
+.Vt Elf64_Rel
+structures in an ELF object.
+.Pp
+Argument
+.Ar data
+is an
+.Vt Elf_Data
+descriptor associated with a section of type
+.Dv SHT_REL .
+Argument
+.Ar ndx
+is the index of the entry being retrieved or updated.
+The class-independent
+.Vt GElf_Rel
+structure is described in
+.Xr gelf 3 .
+.Pp
+Function
+.Fn gelf_getrel
+retrieves the class-dependent entry at index
+.Ar ndx
+in data buffer
+.Ar data
+and copies it to the destination pointed to by argument
+.Ar rel
+after translation to class-independent form.
+.Pp
+Function
+.Fn gelf_update_rel
+converts the class-independent entry pointed to
+by argument
+.Ar rel
+to class-dependent form, and writes it to the entry at index
+.Ar ndx
+in the data buffer described by argument
+.Ar data .
+Function
+.Fn gelf_update_rel
+signals an error if any of the values in the class-independent
+representation exceeds the representable limits of the target
+type.
+.Sh RETURN VALUES
+Function
+.Fn gelf_getrel
+returns the value of argument
+.Ar rel
+if successful, or NULL in case of an error.
+Function
+.Fn gelf_update_rel
+returns a non-zero value if successful, or zero in case of an error.
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+Arguments
+.Ar data
+or
+.Ar rel
+were NULL.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar ndx
+was less than zero or larger than the number of entries in the data
+descriptor.
+.It Bq Er ELF_E_ARGUMENT
+Data descriptor
+.Ar data
+was not associated with a section of type
+.Dv SHT_REL .
+.It Bq Er ELF_E_RANGE
+A value was not representable in the target type.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_getdata 3 ,
+.Xr elf_getscn 3 ,
+.Xr gelf 3

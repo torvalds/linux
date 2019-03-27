@@ -1,0 +1,11 @@
+$ $tcsh: set6,v 1.3 2011/02/04 18:19:34 christos Exp $
+$ ed.inputl.c
+$set 6
+1 VIKA: Virheellinen komento näppäimeltä 0%o\r\n
+2 kyllä\n
+3 muokkaa\n
+4 keskeytä\n
+5 ei\n
+6 Ei malliin sopivaa komentoa\n
+7 Tulkinnanvarainen komento\n
+8 *** kohtalokas VIKA tekstinkäsittelyssä ***\r\n\n

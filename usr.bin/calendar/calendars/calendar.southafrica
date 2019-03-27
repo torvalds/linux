@@ -1,0 +1,23 @@
+/*
+ * South African holidays
+ * Note:  The Public Holidays Act (Act No 36 of 1994) determines whenever
+ * any public holiday falls on a Sunday, the Monday following on it shall
+ * be an unnamed public holiday in addition to the named holiday the day
+ * before. This file format is not complex enough to reflect this, but
+ * if it ever is, the change should be made.
+ * $FreeBSD$
+ */
+
+#ifndef _calendar_southafrica_
+#define _calendar_southafrica_
+
+03/01	Human Rights Day in South Africa
+04/27	Freedom Day in South Africa
+05/01	Workers Day in South Africa
+06/16	Youth Day in South Africa
+08/09	National Women's Day in South Africa
+09/24	Heritage Day in South Africa
+12/16	Day of Reconciliation in South Africa
+12/26	Day of Goodwill in South Africa
+
+#endif

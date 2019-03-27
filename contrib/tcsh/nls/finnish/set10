@@ -1,0 +1,8 @@
+$ $tcsh: set10,v 1.3 2011/02/04 18:19:34 christos Exp $
+$ ma.setp.c
+$set 10 
+1 setpath: Virheellinen komento '%s'.\n
+2 setpath: Argumentit ovat riittämättömiä komennolle '%s'.\n
+3 setpath: Arvoa ei löydy hakupolusta '%s'\n
+4 setpath: %s ei löydy paikasta %s\n
+5 setpath: %d ei ole hyväksyttävä sijainti paikassa %s\n

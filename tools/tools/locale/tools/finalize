@@ -1,0 +1,182 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+# This is a helper script for the Makefile in the parent directory.
+# When the localization definitions are generated in the draft area,
+# this script will copy base ones that others symlink to, and rearrange
+# the generate makefile to pull the LOCALES first.
+#
+
+set -e
+
+usage ()
+{
+	echo "finalize <type>' to package standard localization"
+	echo "type must be one of { monetdef, msgdef, numericdef, timedef, colldef, ctypedef }"
+	exit 1
+}
+
+[ $# -ne 1 ] && usage
+[ $1 = "monetdef" -o $1 = "msgdef" -o $1 = "colldef" -o \
+  $1 = "numericdef" -o $1 = "timedef" -o $1 = "ctypedef" ] || usage
+
+self=$(realpath $0)
+base=$(dirname ${self})
+old=${base}/../${1}.draft
+new=${base}/../${1}
+TEMP=/tmp/${1}.locales
+TEMP2=/tmp/${1}.hashes
+TEMP3=/tmp/${1}.symlinks
+TEMP4=/tmp/${1}.mapped
+FULLMAP=/tmp/utf8-map
+FULLEXTRACT=/tmp/extracted-names
+AWKCMD="/## PLACEHOLDER/ { \
+	  while ( getline line < \"${TEMP}\" ) {print line} } \
+	/## SYMPAIRS/ { \
+	  while ( getline line < \"${TEMP3}\" ) {print line} } \
+	/## LOCALES_MAPPED/ { \
+	  while ( getline line < \"${TEMP4}\" ) {print line} } \
+	!/## / { print \$0 }"
+
+# Rename the sources with 3 components name into the POSIX version of the name using @modifier
+cd $old
+pwd
+for i in *_*_*.*.src; do
+	if [ "$i" = "*_*_*.*.src" ]; then
+		break
+	fi
+	oldname=${i%.*}
+	nname=`echo $oldname | awk '{ split($0, a, "_"); print a[1]"_"a[3]"@"a[2];} '`
+	mv -f ${oldname}.src ${nname}.src
+	sed -i '' -e "s/${oldname}/${nname}/g" Makefile
+	COLLATIONS_SPECIAL=$(echo ${COLLATIONS_SPECIAL} | sed -e "s/${oldname}/${nname}/g")
+done
+
+# For variable without @modifier ambiguity do not keep the @modifier
+for i in *@*.src; do
+	if [ "$i" = "*@*.src" ]; then
+		break
+	fi
+	oldname=${i%.*}
+	shortname=${oldname%@*}
+	if [ $(ls ${shortname}@* | wc -l) -eq 1 ] ; then
+		mv -f $i ${shortname}.src
+		sed -i '' -e "s/${oldname}/${shortname}/g" Makefile
+		COLLATIONS_SPECIAL=$(echo ${COLLATIONS_SPECIAL} | sed -e "s/${oldname}/${shortname}/g")
+	fi
+done
+
+# Rename the modifiers into non abbreviated version
+for i in *@Latn.src; do
+	if [ "$i" = "*@Latn.src" ]; then
+		break
+	fi
+	mv -f ${i} ${i%@*}@latin.src
+	sed -i '' -e "s/${i%.*}/${i%@*}@latin/g" Makefile
+	COLLATIONS_SPECIAL=$(echo ${COLLATIONS_SPECIAL} | sed -e "s/${i%.*}/${i%@*}@latin/g")
+done
+
+for i in *@Cyrl.src; do
+	if [ "$i" = "*@Cyrl.src" ]; then
+		break
+	fi
+	mv -f ${i} ${i%@*}@cyrillic.src
+	sed -i '' -e "s/${i%.*}/${i%@*}@cyrillic/g" Makefile
+	COLLATIONS_SPECIAL=$(echo ${COLLATIONS_SPECIAL} | sed -e "s/${i%.*}/${i%@*}@cyrillic/g")
+done
+
+# On locales with multiple modifiers rename the "default" version without the @modifier
+default_locales="sr_RS@cyrillic"
+for i in ${default_locales}; do
+	localename=${i%@*}
+	mod=${i#*@}
+	for l in ${localename}.*@${mod}.src; do
+		if [ "$l" = "${localename}.*@${mod}.src" ]; then
+			break
+		fi
+		mv -f ${l} ${l%@*}.src
+		sed -i '' -e "s/${l%.*}/${l%@*}/g" Makefile
+	done
+done
+cd -
+
+grep '^LOCALES+' ${old}/Makefile > ${TEMP}
+
+if [ $1 = "ctypedef" ]
+then
+	keep=$(cat ${TEMP} | awk '{ print $2 ".src" }')
+	(cd ${old} && md5 -r ${keep} | sort) > ${TEMP2}
+	keep=$(awk '{ if ($1 != last1) print $2; last1 = $1; }' ${TEMP2})
+	for original in ${keep}
+	do
+		cp ${old}/${original} ${new}/
+	done
+	awk '{ if ($1 == last1) { print "SYMPAIRS+=\t" last2 " " $2 } \
+	else {last1 = $1; last2 = $2}}' ${TEMP2} > ${TEMP3}
+	rm -f ${TEMP2}
+	/usr/bin/sed -E -e 's/[ ]+/ /g' \
+		${UNIDIR}/posix/UTF-8.cm \
+		> ${base}/../etc/final-maps/map.UTF-8
+	/usr/bin/sed -E -e 's/[ ]+/ /g' \
+		${UNIDIR}/posix/eucCN.cm \
+		> ${base}/../etc/final-maps/map.eucCN
+	/usr/bin/sed -E -e 's/[ ]+/ /g' \
+		${UNIDIR}/posix/eucCN.cm \
+		> ${base}/../etc/final-maps/map.GB2312
+	CHARMAPS="ARMSCII-8 Big5 CP1131 CP1251 \
+		CP866 GBK ISCII-DEV ISO8859-1 \
+		ISO8859-13 ISO8859-15 ISO8859-2 ISO8859-4 \
+		ISO8859-5 ISO8859-7 ISO8859-9 KOI8-R KOI8-U \
+		PT154 SJIS US-ASCII eucJP eucKR"
+
+	# GB18030 blows up, use pre-generate Illumos version
+
+	for map in ${CHARMAPS}
+	do
+		encoding=${map}
+		/usr/local/bin/perl ${base}/convert_map.pl \
+			${base}/../etc/charmaps/${map}.TXT ${encoding} \
+			| /usr/bin/sed -E -e 's/	+/ /g' \
+		> ${base}/../etc/final-maps/map.${map}
+		echo map ${map} converted.
+	done
+
+elif [ $1 = "colldef" ]
+then
+	awk -v tmp4=${TEMP4} '$1 == "SAME+=" && $0 !~ /legacy/ {
+		orig=$2
+		dest=$3
+		gsub(/.*\./, "", orig)
+		gsub(/.*\./, "", dest)
+		if (orig != dest )
+			print "LOCALES_MAPPED+=\t"$2 " "$3 > tmp4
+		}' ${old}/Makefile
+
+	for line in $(awk '{ print $3 }' ${TEMP4}); do
+		sed -i '' "/^SAME.*$line$/d" ${old}/Makefile
+	done
+	echo "" >> ${TEMP4}
+	for enc in ${COLLATIONS_SPECIAL}; do
+		sed -i '' "/^.*${enc}$/d" ${TEMP4}
+		echo "LOCALES+=	${enc}" >> ${TEMP4}
+	done
+
+	keep=$(cat ${TEMP} | awk '{ print $2 }')
+	for original in ${keep} ${COLLATIONS_SPECIAL}
+	do
+		cp ${old}/${original}.src ${new}/
+	done
+else  # below is everything but ctypedef
+
+	keep=$(cat ${TEMP} | awk '{ print $2 }')
+	for original in ${keep}
+	do
+		cp ${old}/${original}.src ${new}/
+	done
+
+fi
+
+grep -v '^LOCALES+' ${old}/Makefile | awk "${AWKCMD}" > ${new}/Makefile
+
+rm -f ${TEMP} ${TEMP3} ${TEMP4}

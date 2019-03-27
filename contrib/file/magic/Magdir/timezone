@@ -1,0 +1,32 @@
+
+#------------------------------------------------------------------------------
+# $File: timezone,v 1.11 2009/09/19 16:28:12 christos Exp $
+# timezone:  file(1) magic for timezone data
+#
+# from Daniel Quinlan (quinlan@yggdrasil.com)
+# this should work on Linux, SunOS, and maybe others
+# Added new official magic number for recent versions of the Olson code
+0	string	TZif	timezone data
+>4	byte	0	\b, old version
+>4	byte	>0	\b, version %c
+>20	belong	0	\b, no gmt time flags
+>20	belong	1	\b, 1 gmt time flag
+>20	belong	>1	\b, %d gmt time flags
+>24	belong	0	\b, no std time flags
+>20	belong	1	\b, 1 std time flag
+>24	belong	>1	\b, %d std time flags
+>28	belong	0	\b, no leap seconds
+>28	belong	1	\b, 1 leap second
+>28	belong  >1	\b, %d leap seconds
+>32	belong	0	\b, no transition times
+>32	belong	1	\b, 1 transition time
+>32	belong  >1	\b, %d transition times
+>36	belong	0	\b, no abbreviation chars
+>36	belong	1	\b, 1 abbreviation char
+>36	belong	>1	\b, %d abbreviation chars
+0	string	\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1\0	old timezone data
+0	string	\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\2\0	old timezone data
+0	string  \0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\3\0	old timezone data
+0	string	\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\4\0	old timezone data
+0	string	\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\5\0	old timezone data
+0	string	\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\6\0	old timezone data

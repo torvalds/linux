@@ -1,0 +1,9 @@
+## Path:	Network/Remote access/SSH
+## Description:	SSH server settings
+## Type:	string
+## Default:	""
+## ServiceRestart: sshd
+#
+# Options for sshd
+#
+SSHD_OPTS=""

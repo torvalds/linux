@@ -1,0 +1,9 @@
+# $FreeBSD$
+set -e
+
+unalias -a
+alias foo=bar
+alias bar=
+alias quux="1 2 3"
+alias
+alias foo

@@ -1,0 +1,33 @@
+#
+# Makefile for libiberty under openVMS/Alpha
+#
+# For use with gnu-make for vms
+#
+# Created by Klaus K"ampf, kkaempf@progis.de
+#
+#
+
+OBJS=bcopy.obj,bcmp.obj,getopt.obj,obstack.obj,xexit.obj,xmalloc.obj,hex.obj,\
+   getopt1.obj,cplus-dem.obj,strncasecmp.obj,strcasecmp.obj,strdup.obj,\
+   concat.obj,getruntime.obj,getpagesize.obj,alloca.obj,xstrerror.obj,\
+   xmemdup.obj,xstrdup.obj,xatexit.obj,choose-temp.obj,fnmatch.obj,objalloc.obj
+
+ifeq ($(CC),gcc)
+CFLAGS=/include=([],[-.include])
+else
+# assume dec c
+CFLAGS=/noopt/debug/include=([],[-.include])/define=("const=")/warnings=disable=(missingreturn,implicitfunc)
+endif
+
+libiberty.olb: config.h alloca-conf.h $(OBJS)
+	purge
+	lib/create libiberty *.obj
+
+config.h: config.h-vms
+	$(CP) $< $@
+
+clean:
+	$$ purge
+	$(RM) config.h;
+	$(RM) *.obj;
+	$(RM) libiberty.olb;

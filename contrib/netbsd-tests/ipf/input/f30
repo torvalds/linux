@@ -1,0 +1,16 @@
+in on hme0 udp 1.1.1.1,53 2.1.1.1,53 opt lsrr
+in on hme1 udp 2.1.1.1,53 1.1.1.1,53 opt ts,lsrr
+in on hme1 udp 2.1.1.1,53 1.1.1.1,53 opt lsrr
+in on hme0 udp 1.1.1.1,53 2.1.1.1,53
+in on hme1 udp 2.1.1.1,53 1.1.1.1,53
+in on hme0 tcp 1.1.1.1,12345 2.1.1.1,22 S opt rr
+in on hme0 tcp 1.1.1.1,12345 2.1.1.1,22 S
+in on hme1 tcp 2.1.1.1,22 1.1.1.1,12345 SA opt rr,ts
+in on hme1 tcp 2.1.1.1,22 1.1.1.1,12345 SA opt rr
+in on hme1 tcp 2.1.1.1,22 1.1.1.1,12345 SA
+in on hme0 tcp 1.1.1.1,12346 2.1.1.1,22 S opt sec-class=secret
+in on hme0 tcp 1.1.1.1,12346 2.1.1.1,22 S
+in on hme1 tcp 2.1.1.1,22 1.1.1.1,12346 SA opt sec-class=topsecret
+in on hme1 tcp 2.1.1.1,22 1.1.1.1,12346 SA opt ts,sec-class=secret
+in on hme1 tcp 2.1.1.1,22 1.1.1.1,12346 SA opt sec-class=secret
+in on hme1 tcp 2.1.1.1,22 1.1.1.1,12346 SA

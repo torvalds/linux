@@ -1,0 +1,242 @@
+.\"
+.\" Copyright (c) 2016 John Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 16, 2018
+.Dt sysdecode_mask 3
+.Os
+.Sh NAME
+.Nm sysdecode_mask ,
+.Nm sysdecode_accessmode ,
+.Nm sysdecode_atflags ,
+.Nm sysdecode_capfcntlrights ,
+.Nm sysdecode_fcntl_fileflags ,
+.Nm sysdecode_fileflags ,
+.Nm sysdecode_filemode ,
+.Nm sysdecode_flock_operation ,
+.Nm sysdecode_mlockall_flags ,
+.Nm sysdecode_mmap_flags ,
+.Nm sysdecode_mmap_prot ,
+.Nm sysdecode_mount_flags ,
+.Nm sysdecode_msg_flags ,
+.Nm sysdecode_msync_flags ,
+.Nm sysdecode_open_flags ,
+.Nm sysdecode_pipe2_flags ,
+.Nm sysdecode_reboot_howto ,
+.Nm sysdecode_rfork_flags ,
+.Nm sysdecode_semget_flags ,
+.Nm sysdecode_sendfile_flags ,
+.Nm sysdecode_shmat_flags ,
+.Nm sysdecode_sctp_nxt_flags ,
+.Nm sysdecode_sctp_rcv_flags ,
+.Nm sysdecode_sctp_snd_flags ,
+.Nm sysdecode_socket_type ,
+.Nm sysdecode_thr_create_flags ,
+.Nm sysdecode_umtx_cvwait_flags ,
+.Nm sysdecode_umtx_rwlock_flags ,
+.Nm sysdecode_vmprot ,
+.Nm sysdecode_wait4_options ,
+.Nm sysdecode_wait6_options
+.Nd print name of various bitmask values
+.Sh LIBRARY
+.Lb libsysdecode
+.Sh SYNOPSIS
+.In sys/types.h
+.In stdbool.h
+.In stdio.h
+.In sysdecode.h
+.Ft bool
+.Fn sysdecode_access_mode "FILE *fp" "int mode" "int *rem"
+.Ft bool
+.Fn sysdecode_atflags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_cap_fcntlrights "FILE *fp" "uint32_t rights" "uint32_t *rem"
+.Ft bool
+.Fn sysdecode_fcntl_fileflags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_fileflags "FILE *fp" "fflags_t flags" "fflags_t *rem"
+.Ft bool
+.Fn sysdecode_filemode "FILE *fp" "int mode" "int *rem"
+.Ft bool
+.Fn sysdecode_flock_operation "FILE *fp" "int operation" "int *rem"
+.Ft bool
+.Fn sysdecode_mlockall_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_mmap_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_mmap_prot "FILE *fp" "int prot" "int *rem"
+.Ft bool
+.Fn sysdecode_mount_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_msg_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_msync_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_open_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_pipe2_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_reboot_howto "FILE *fp" "int howto" "int *rem"
+.Ft bool
+.Fn sysdecode_rfork_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_sctp_nxt_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_sctp_rcv_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_sctp_snd_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_semget_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_sendfile_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_shmat_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_socket_type "FILE *fp" "int type" "int *rem"
+.Ft bool
+.Fn sysdecode_thr_create_flags "FILE *fp" "int flags" "int *rem"
+.Ft bool
+.Fn sysdecode_umtx_cvwait_flags "FILE *fp" "u_long flags" "u_long *rem"
+.Ft bool
+.Fn sysdecode_umtx_rwlock_flags "FILE *fp" "u_long flags" "u_long *rem"
+.Ft bool
+.Fn sysdecode_vmprot "FILE *fp" "int type" "int *rem"
+.Ft bool
+.Fn sysdecode_wait4_options "FILE *fp" "int options" "int *rem"
+.Ft bool
+.Fn sysdecode_wait6_options "FILE *fp" "int options" "int *rem"
+.Sh DESCRIPTION
+The
+.Nm
+functions are used to generate a text description of an integer value
+built from a mask of bitfields.
+The text description lists the C macros for field values joined by pipe
+.Sq |
+characters matching the format used in C source code.
+Most of the values decoded by these functions are passed as arguments to
+system calls,
+though some of these values are used internally in the kernel.
+.Pp
+Each function writes the text description to
+.Fa fp .
+The second argument should contain the integer value to be decoded.
+The
+.Fa rem
+argument is set to the value of any bits that were not decoded
+.Pq bit fields that do not have a corresponding C macro .
+.Fa rem
+may be set to
+.Dv NULL
+if the caller does not need this value.
+Each function returns
+.Dv true
+if any bit fields in the value were decoded and
+.Dv false
+if no bit fields were decoded.
+.Pp
+Most of these functions decode an argument passed to a system call:
+.Bl -column "Fn sysdecode_flock_operation" "Xr cap_fcntls_limit 2"
+.It Sy Function Ta Sy System Call Ta Sy Argument
+.It Fn sysdecode_access_mode Ta Xr access 2 Ta Fa mode
+.It Fn sysdecode_atflags Ta Xr chflagsat 2 , Xr fstatat 2 Ta Fa atflag , Fa flag
+.It Fn sysdecode_cap_fcntlrights Ta Xr cap_fcntls_limit 2 Ta Fa fcntlrights
+.It Fn sysdecode_fileflags Ta Xr chflags 2 Ta Fa flags
+.It Fn sysdecode_filemode Ta Xr chmod 2 , Xr open 2 Ta mode
+.It Fn sysdecode_flock_operation Ta Xr flock 2 Ta Fa operation
+.It Fn sysdecode_mlockall_flags Ta Xr mlockall 2 Ta Fa flags
+.It Fn sysdecode_mmap_flags Ta Xr mmap 2 Ta Fa flags
+.It Fn sysdecode_mmap_prot Ta Xr mmap 2 Ta Fa prot
+.It Fn sysdecode_mount_flags Ta Xr mount 2 Ta Fa flags
+.It Fn sysdecode_msg_flags Ta Xr recv 2 , Xr send 2 Ta Fa flags
+.It Fn sysdecode_msync_flags Ta Xr msync 2 Ta Fa flags
+.It Fn sysdecode_open_flags Ta Xr open 2 Ta Fa flags
+.It Fn sysdecode_pipe2_flags Ta Xr pipe2 Ta Fa flags
+.It Fn sysdecode_reboot_howto Ta Xr reboot 2 Ta Fa howto
+.It Fn sysdecode_rfork_flags Ta Xr rfork 2 Ta Fa flags
+.It Fn sysdecode_semget_flags Ta Xr semget 2 Ta Fa flags
+.It Fn sysdecode_sendfile_flags Ta Xr sendfile 2 Ta Fa flags
+.It Fn sysdecode_shmat_flags Ta Xr shmat 2 Ta Fa flags
+.It Fn sysdecode_socket_type Ta Xr socket 2 Ta Fa type
+.It Fn sysdecode_thr_create_flags Ta Xr thr_create 2 Ta Fa flags
+.It Fn sysdecode_wait4_options Ta Xr wait4 2 Ta Fa options
+.It Fn sysdecode_wait6_options Ta Xr wait6 2 Ta Fa options
+.El
+.Pp
+Other functions decode the values described below:
+.Bl -tag -width ".Fn sysdecode_umtx_cvwait_flags"
+.It Fn sysdecode_fcntl_fileflags
+The file flags used with the
+.Dv F_GETFL
+and
+.Dv F_SETFL
+.Xr fcntl 2
+commands.
+.It Fn sysdecode_sctp_nxt_flags
+The 
+.Fa nxt_flags
+member of a
+.Vt struct sctp_nxtinfo .
+.It Fn sysdecode_sctp_rcv_flags
+The 
+.Fa rcv_flags
+member of a
+.Vt struct sctp_rcvinfo .
+.It Fn sysdecode_sctp_snd_flags
+The 
+.Fa snd_flags
+member of a
+.Vt struct sctp_sndinfo .
+.It Fn sysdecode_umtx_cvwait_flags
+The
+.Fa val
+argument to
+.Xr _umtx_op 2
+for
+.Dv UMTX_OP_CV_WAIT
+operations.
+.It Fn sysdecode_umtx_rwlock_flags
+The
+.Fa val
+argument to
+.Xr _umtx_op 2
+for
+.Dv UMTX_OP_RW_RDLOCK
+operations.
+.It Fn sysdecode_vmprot
+The memory protection flags stored in
+.Vt vm_prot_t
+variables.
+.El
+.Sh RETURN VALUES
+The
+.Nm
+functions return
+.Dv true
+if any bit fields in the value were decoded and
+.Dv false
+if no bit fields were decoded.
+.Sh SEE ALSO
+.Xr sysdecode 3 ,
+.Xr sysdecode_enum 3

@@ -1,0 +1,352 @@
+.\" $FreeBSD$
+.\" Copyright (c) 1996
+.\"	Julian Elischer <julian@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 14, 1998
+.Dt CH 4
+.Os
+.Sh NAME
+.Nm ch
+.Nd SCSI media-changer (juke box) driver
+.Sh SYNOPSIS
+.Cd device ch
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for a
+.Em SCSI
+media changer.
+It allows many slots of media to be multiplexed between
+a number of drives.
+The changer device may optionally be equipped
+with a bar code reader, which reads label information attached to
+the media.
+.Pp
+A SCSI adapter must also be separately configured into the system
+before a SCSI changer can be configured.
+.Pp
+As the SCSI adapter is probed during boot, the
+.Em SCSI
+bus is scanned for devices.
+Any devices found which answer as 'Changer'
+type devices will be 'attached' to the
+.Nm
+driver.
+In
+.Fx
+releases prior to 2.1, the first found will be attached as
+.Em ch0
+and the next,
+.Em ch1
+etc.
+Beginning in 2.1 it is possible to specify what ch unit a device should
+come on line as; refer to
+.Xr scsi 4
+for details on kernel configuration.
+.Sh KERNEL CONFIGURATION
+It is only necessary to explicitly configure one
+.Nm
+device; data structures are dynamically allocated as media changes are found
+on the
+.Tn SCSI
+bus.
+.Sh IOCTLS
+User mode programs communicate with the changer driver through a
+number of ioctls which are described below.
+Changer element addresses
+used in the communication between the kernel and the changer device are
+mapped to zero-based logical addresses.
+Element types are specified as follows:
+.Bl -tag -width CHET_MT
+.It Dv CHET_MT
+Medium transport element (picker).
+.It Dv CHET_ST
+Storage element (slot).
+.It Dv CHET_IE
+Import/export element (portal).
+.It Dv CHET_DT
+Data transfer element (drive).
+.El
+.Pp
+The following
+.Xr ioctl 2
+calls apply to the changer.
+They are defined
+in the header file
+.In sys/chio.h .
+.Bl -tag -width CHIOEXCHANGE
+.It Dv CHIOMOVE
+.Pq Vt "struct changer_move"
+Move a medium from one element to another
+.Pq Sy "MOVE MEDIUM"
+using the current picker.
+The source and destination elements are specified
+in a changer_move structure, which includes at least the following
+fields:
+.Bd -literal -offset indent
+u_int cm_fromtype; /* element type to move from */
+u_int cm_fromunit; /* logical unit of from element */
+u_int cm_totype;   /* element type to move to */
+u_int cm_tounit;   /* logical unit of to element */
+u_int cm_flags;	   /* misc. flags */
+.Ed
+If the
+.Dv CM_INVERT
+in the
+.Va cm_flags
+field is set, the medium
+changer is instructed to flip the medium while moving it.
+.It Dv CHIOEXCHANGE
+.Pq Vt "struct changer_exchange"
+Move the medium located in the source element to the first destination
+element, and move the medium that had been in the first destination
+element to the second destination element.
+In case of a simple
+exchange, the source and second destination elements should be the
+same.
+The current picker is used to perform the operation.
+The addresses of the affected elements is specified to the ioctl in a
+.Vt changer_exchange
+structure which includes at least the following
+fields:
+.Bd -literal -offset indent
+u_int ce_srctype;	 /* element type of source */
+u_int ce_srcunit;	 /* logical unit of source */
+u_int ce_fdsttype; /* element type of first destination */
+u_int ce_fdstunit; /* logical unit of first destination */
+u_int ce_sdsttype; /* element type of second destination */
+u_int ce_sdstunit; /* logical unit of second destination */
+u_int ce_flags;	 /* misc. flags */
+.Ed
+In
+.Va ce_flags ,
+.Dv CM_INVERT1
+and/or
+.Dv CM_INVERT2
+may be set
+to flip the first or second medium during the exchange operation,
+respectively.
+.Pp
+.Em This operation is untested .
+.It Dv CHIOPOSITION
+.Pq Vt "struct changer_position"
+Position the current picker in front of the specified element.
+The element is specified with a changer_position structure, which includes
+at least the following elements:
+.Bd -literal -offset indent
+u_int cp_type;  /* element type */
+u_int cp_unit;  /* logical unit of element */
+u_int cp_flags; /* misc. flags */
+.Ed
+The
+.Va cp_flags
+field may be set to
+.Dv CP_INVERT
+to invert the picker during the operation.
+.It Dv CHIOGPICKER
+.Pq Vt int
+Return the logical address of the current picker.
+.It Dv CHIOSPICKER
+.Pq Vt int
+Select the picker specified by the given logical address.
+.It Dv CHIOGPARAMS
+.Pq Vt "struct changer_params"
+Return the configuration parameters for the media changer.
+This ioctl
+fills the changer_params structure passed by the user with at least the
+following fields:
+.Bd -literal -offset indent
+u_int cp_npickers; /* number of pickers */
+u_int cp_nslots;   /* number of slots */
+u_int cp_nportals; /* number of import/export portals */
+u_int cp_ndrives;  /* number of drives */
+.Ed
+.Pp
+This call can be used by applications to query the dimensions of
+the jukebox before using the
+.Dv CHIGSTATUS
+ioctl to query the jukebox status.
+.It Dv CHIOIELEM
+Perform the
+.Sy INITIALIZE ELEMENT STATUS
+call on the media changer device.
+This forces the media changer to update its internal status
+information with respect to loaded media.
+It also scans any barcode labels provided that it has a label reader.
+The
+.Nm
+driver's status is not affected by this call.
+.It Dv CHIOGSTATUS
+.Pq Vt "struct changer_element_status_request"
+Perform the
+.Sy READ ELEMENT STATUS
+call on the media changer device.
+This call reads the element status information of the media
+changer and converts it to an array of
+.Vt changer_element_status
+structures.
+.Pp
+With each call to
+.Dv CHIOGSTATUS ,
+the status of one or more elements of one type may be queried.
+.Pp
+The application passes a
+.Vt changer_element_status_request
+structure to the
+.Nm
+driver which contains the following fields:
+.Bd -literal -offset indent
+u_int                          cesr_element_type;
+u_int                          cesr_element_base;
+u_int                          cesr_element_count;
+u_int                          cesr_flags;
+struct changer_element_status *cesr_element_status;
+.Ed
+.Pp
+This structure is read by the driver to determine the type, logical
+base address and number of elements for which information is to be
+returned in the array of
+.Vt changer_element_status
+structures pointed to by the
+.Va cesr_element_status
+field.
+The application must allocate enough
+memory for
+.Va cesr_element_count
+status structures (see below).
+The
+.Va cesr_flags
+can optionally be set to
+.Dv CESR_VOLTAGS
+to indicate that volume tag (bar code) information is to be read from
+the jukebox and returned.
+.Pp
+The
+.Va cesr_element_base
+and
+.Va cesr_element_count
+fields must be valid with respect to the physical configuration of the changer.
+If they are not, the
+.Dv CHIOGSTATUS
+ioctl returns the
+.Er EINVAL
+error code.
+.Pp
+The information about the elements is returned in an array of
+.Vt changer_element_status
+structures.
+This structure include at least the following fields:
+.Bd -literal -offset indent
+u_int            ces_addr;      /* element address in media changer */
+u_char           ces_flags;     /* see CESTATUS definitions below */
+u_char           ces_sensecode; /* additional sense code for element */
+u_char           ces_sensequal; /* additional sense code qualifier */
+u_char           ces_invert;    /* invert bit */
+u_char           ces_svalid;    /* source address (ces_source) valid */
+u_short          ces_source;    /* source address of medium */
+changer_voltag_t ces_pvoltag;   /* primary volume tag */
+changer_voltag_t ces_avoltag;   /* alternate volume tag */
+u_char           ces_idvalid;   /* ces_scsi_id is valid */
+u_char           ces_scsi_id;   /* SCSI id of element (if ces_idvalid is nonzero) */
+u_char           ces_lunvalid;  /* ces_scsi_lun is valid */
+u_char           ces_scsi_lun;  /* SCSI lun of element (if ces_lunvalid is nonzero) */
+.Ed
+.Pp
+The
+.Va ces_addr
+field contains the address of the element in the
+coordinate system of the media changer.
+It is not used by the driver,
+and should be used for diagnostic purposes only.
+.Pp
+The following flags are defined for the
+.Va ces_flags
+field:
+.Bl -tag -width CESTATUS_IMPEXP
+.It Dv CESTATUS_FULL
+A medium is present.
+.It Dv CESTATUS_IMPEXP
+The medium has been deposited by the operator (and not by a picker).
+.It Dv CESTATUS_EXCEPT
+The element is in an exceptional state (e.g.\& invalid barcode label,
+barcode not yet scanned).
+.It Dv CESTATUS_ACCESS
+The element is accessible by the picker.
+.It Dv CESTATUS_EXENAB
+The element supports medium export.
+.It Dv CESTATUS_INENAB
+The element supports medium import.
+.El
+.Pp
+Note that not all flags are valid for all element types.
+.El
+.Sh NOTES
+This version of the
+.Nm
+driver has been tested with a DEC TZ875 (5 slot, one DLT drive)
+and a Breece Hill Q47 (60 slot, four DLT drives, barcode reader).
+.Pp
+Many of the features the
+.Nm
+driver supports are not thoroughly tested due to the fact that the
+devices available for testing do not support the necessary commands.
+This is true for alternate volume tags, media flipping, import/export
+element handling, multiple picker operation and other things.
+.Sh FILES
+.Bl -tag -width /dev/ch[0-9] -compact
+.It Pa /dev/ch[0-9]
+device entries
+.El
+.Sh DIAGNOSTICS
+If the media changer does not support features requested by the
+.Nm
+driver, it will produce both console error messages and failure return
+codes to the ioctls described here.
+.Sh SEE ALSO
+.Xr chio 1 ,
+.Xr cam 4 ,
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr sa 4
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Bx 386 0.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jason R. Thorpe Aq Mt thorpej@and.com
+for And Communications,
+.Pa http://www.and.com/ .
+It was added to the system by
+.An Stefan Grefen Aq Mt grefen@goofy.zdv.uni-mainz.de
+who apparently had such a device.
+It was ported to CAM by
+.An Kenneth Merry Aq Mt ken@FreeBSD.org .
+It was updated to support volume tags by
+.An Hans Huebner Aq Mt hans@artcom.de .

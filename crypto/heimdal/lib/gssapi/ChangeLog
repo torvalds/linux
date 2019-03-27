@@ -1,0 +1,2970 @@
+2008-08-14  Love Hornquist Astrand  <lha@10a140laptop.local>
+
+	* krb5/accept_sec_context.c: If there is a initiator subkey, copy
+	that to acceptor subkey to match windows behavior. From Metze.
+
+2008-08-02  Love Hörnquist Åstrand  <lha@h5l.org>
+
+	* ntlm/init_sec_context.c: Catch error
+
+	* krb5/inquire_sec_context_by_oid.c: Catch store failure.
+
+	* mech/gss_canonicalize_name.c: Not init m, return never
+	used (overwritten later).
+
+2008-07-25  Love Hörnquist Åstrand  <lha@kth.se>
+
+	* ntlm/init_sec_context.c: Use krb5_cc_get_config.
+
+2008-07-25  Love Hörnquist Åstrand  <lha@kth.se>
+
+	* krb5/init_sec_context.c: Match the orignal patch I got from
+	metze, seems that DCE-STYLE is even more weirer then what I though
+	when I merged the patch.
+
+2008-06-02  Love Hörnquist Åstrand  <lha@kth.se>
+
+	* krb5/init_sec_context.c: Don't add asn1 wrapping to token when
+	using DCE_STYLE.  Patch from Stefan Metzmacher.
+
+2008-05-27  Love Hörnquist Åstrand  <lha@kth.se>
+	
+	* ntlm/init_sec_context.c: use krb5_get_error_message
+
+2008-05-05  Love Hörnquist Åstrand  <lha@kth.se>
+	
+	* spnego/spnego_locl.h: Add back "mech/utils.h", its needed for
+	oid/buffer functions.
+
+2008-05-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* spnego: Changes from doug barton to make spnego indepedant of
+	the heimdal version of the plugin system.
+
+2008-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* krb5: use DES_set_key_unchecked()
+
+2008-04-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* add __declspec() for windows.
+
+2008-04-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* krb5/import_sec_context.c: Use tmp to read ac->flags value to
+	avoid warning.
+
+2008-04-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* mech/gss_mech_switch.c: Use unsigned where appropriate.
+
+2008-03-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_context.c: Add test for gsskrb5_register_acceptor_identity.
+
+2008-03-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* krb5/init_sec_context.c (init_auth): use right variable to
+	detect if we want to free or not.
+
+2008-02-26  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: add missing \
+
+	* Makefile.am: reshuffle depenencies
+
+	* Add flag to krb5 to not add GSS-API INT|CONF to the negotiation
+
+2008-02-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* make the SPNEGO mech store the error itself instead, works for
+	everything except other stackable mechs
+
+2008-02-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* spnego/init_sec_context.c (spnego_reply): if the reply token was
+	of length 0, make it the same as no token. Pointed out by Zeqing
+	Xia.
+
+	* krb5/acquire_cred.c (acquire_initiator_cred): handle the
+	credential cache better, use destroy/close when appriate and for
+	all cases. Thanks to Michael Allen for point out the memory-leak
+	that I also fixed.
+
+2008-02-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* spnego/accept_sec_context.c: Make error reporting somewhat more
+	correct for SPNEGO.
+
+2008-01-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_common.c: Improve the error message.
+
+2008-01-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/accept_sec_context.c: Avoid free-ing type1 message before
+	its allocated.
+	
+2008-01-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_ntlm.c: Test source name (and make the acceptor in ntlm gss
+	mech useful).
+
+2007-12-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/init_sec_context.c: Don't confuse target name and source
+	name, make regressiont tests pass again.
+	
+2007-12-29  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* ntlm: clean up name handling
+
+2007-12-04  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/init_sec_context.c: Use credential if it was passed in.
+
+	* ntlm/acquire_cred.c: Check if there is initial creds with
+	_gss_ntlm_get_user_cred().
+
+	* ntlm/init_sec_context.c: Add _gss_ntlm_get_user_info() that
+	return the user info so it can be used by external modules.
+
+	* ntlm/inquire_cred.c: use the right error code.
+
+	* ntlm/inquire_cred.c: Return GSS_C_NO_CREDENTIAL if there is no
+	credential, ntlm have (not yet) a default credential.
+	
+	* mech/gss_release_oid_set.c: Avoid trying to deref NULL, from
+	Phil Fisher.
+
+2007-12-03  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* test_acquire_cred.c: Always try to fetch cred (even with
+	GSS_C_NO_NAME).
+
+2007-08-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* mech/gss_krb5.c: Readd gss_krb5_get_tkt_flags.
+
+2007-08-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* spnego/compat.c (_gss_spnego_internal_delete_sec_context):
+	release ctx->target_name too From Rafal Malinowski.
+
+2007-07-26  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* mech/gss_mech_switch.c: Don't try to do dlopen if system doesn't
+	have dlopen. From Rune of Chalmers.
+
+2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* mech/gss_duplicate_name.c: New signature of _gss_find_mn.
+
+	* mech/gss_init_sec_context.c: New signature of _gss_find_mn.
+
+	* mech/gss_acquire_cred.c: New signature of _gss_find_mn.
+
+	* mech/name.h: New signature of _gss_find_mn.
+
+	* mech/gss_canonicalize_name.c: New signature of _gss_find_mn.
+
+	* mech/gss_compare_name.c: New signature of _gss_find_mn.
+
+	* mech/gss_add_cred.c: New signature of _gss_find_mn.
+
+	* mech/gss_names.c (_gss_find_mn): Return an error code for
+	caller.
+
+	* spnego/accept_sec_context.c: remove checks that are done by the
+	previous function.
+
+	* Makefile.am: New library version.
+
+2007-07-04  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* mech/gss_oid_to_str.c: Refuse to print GSS_C_NULL_OID, from
+	Rafal Malinowski.
+
+	* spnego/spnego.asn1: Indent and make NegTokenInit and
+	NegTokenResp extendable.
+
+2007-06-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/inquire_cred.c: Implement _gss_ntlm_inquire_cred.
+
+	* mech/gss_display_status.c: Provide message for GSS_S_COMPLETE.
+	
+	* mech/context.c: If the canned string is "", its no use to the
+	user, make it fall back to the default error string.
+	
+2007-06-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* mech/gss_display_name.c (gss_display_name): no name ->
+	fail. From Rafal Malinswski.
+
+	* spnego/accept_sec_context.c: Wrap name in a spnego_name instead
+	of just a copy of the underlaying object. From Rafal Malinswski.
+
+	* spnego/accept_sec_context.c: Handle underlaying mech not
+	returning mn.
+
+	* mech/gss_accept_sec_context.c: Handle underlaying mech not
+	returning mn.
+
+	* spnego/accept_sec_context.c: Make sure src_name is always set to
+	GSS_C_NO_NAME when returning.
+
+	* krb5/acquire_cred.c (acquire_acceptor_cred): don't claim
+	everything is well on failure.  From Phil Fisher.
+
+	* mech/gss_duplicate_name.c: catch error (and ignore it)
+
+	* ntlm/init_sec_context.c: Use heim_ntlm_calculate_ntlm2_sess.
+
+	* mech/gss_accept_sec_context.c: Only wrap the delegated cred if
+	we got a delegated mech cred.  From Rafal Malinowski.
+
+	* spnego/accept_sec_context.c: Only wrap the delegated cred if we
+	are going to return it to the consumer.  From Rafal Malinowski.
+
+	* spnego/accept_sec_context.c: Fixed memory leak pointed out by
+	Rafal Malinowski, also while here moved to use NegotiationToken
+	for decoding.
+
+2007-06-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* krb5/prf.c (_gsskrb5_pseudo_random): add missing break.
+
+	* krb5/release_name.c: Set *minor_status unconditionallty, its
+	done later anyway.
+
+	* spnego/accept_sec_context.c: Init get_mic to 0.
+
+	* mech/gss_set_cred_option.c: Free memory in failure case, found
+	by beam.
+
+	* mech/gss_inquire_context.c: Handle mech_type being NULL.
+
+	* mech/gss_inquire_cred_by_mech.c: Handle cred_name being NULL.
+
+	* mech/gss_krb5.c: Free memory in error case, found by beam.
+
+2007-06-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/inquire_context.c: Use ctx->gssflags for flags.
+
+	* krb5/display_name.c: Use KRB5_PRINCIPAL_UNPARSE_DISPLAY, this is
+	not ment for machine consumption.
+
+2007-06-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/digest.c (kdc_alloc): free memory on failure, pointed out
+	by Rafal Malinowski.
+	
+	* ntlm/digest.c (kdc_destroy): free context when done, pointed out
+	by Rafal Malinowski.
+
+	* spnego/context_stubs.c (_gss_spnego_display_name): if input_name
+	is null, fail.  From Rafal Malinowski.
+	
+2007-06-04  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* ntlm/digest.c: Free memory when done.
+	
+2007-06-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_ntlm.c: Test both with and without keyex.
+
+	* ntlm/digest.c: If we didn't set session key, don't expect one
+	back.
+
+	* test_ntlm.c: Set keyex flag and calculate session key.
+	
+2007-05-31  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* spnego/accept_sec_context.c: Use the return value before is
+	overwritten by later calls.  From Rafal Malinowski
+
+	* krb5/release_cred.c: Give an minor_status argument to
+	gss_release_oid_set.  From Rafal Malinowski
+	
+2007-05-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/accept_sec_context.c: Catch errors and return the up the
+	stack.
+
+	* test_kcred.c: more testing of lifetimes
+	
+2007-05-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Drop the gss oid_set function for the krb5 mech,
+	use the mech glue versions instead. Pointed out by Rafal
+	Malinowski.
+
+	* krb5: Use gss oid_set functions from mechglue
+
+2007-05-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/accept_sec_context.c: Set session key only if we are
+	returned a session key. Found by David Love.
+	
+2007-05-13  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* krb5/prf.c: switched MIN to min to make compile on solaris,
+	pointed out by David Love.
+	
+2007-05-09 Love Hörnquist Åstrand <lha@it.su.se>
+
+	* krb5/inquire_cred_by_mech.c: Fill in all of the variables if
+	they are passed in. Pointed out by Phil Fisher.
+	
+2007-05-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* krb5/inquire_cred.c: Fix copy and paste error, bug spotted by
+	from Phil Fisher.
+
+	* mech: dont keep track of gc_usage, just figure it out at
+	gss_inquire_cred() time
+
+	* mech/gss_mech_switch.c (add_builtin): ok for
+	__gss_mech_initialize() to return NULL
+
+	* test_kcred.c: more correct tests
+
+	* spnego/cred_stubs.c (gss_inquire_cred*): wrap the name with a
+	spnego_name.
+
+	* ntlm/inquire_cred.c: make ntlm gss_inquire_cred fail for now,
+	need to find default cred and friends.
+
+	* krb5/inquire_cred_by_mech.c: reimplement
+	
+2007-05-07  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* ntlm/acquire_cred.c: drop unused variable.
+
+	* ntlm/acquire_cred.c: Reimplement.
+
+	* Makefile.am: add ntlm/digest.c
+
+	* ntlm: split out backend ntlm server processing
+
+2007-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/delete_sec_context.c (_gss_ntlm_delete_sec_context): free
+	credcache when done
+	
+2007-04-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/init_sec_context.c: ntlm-key credential entry is prefix with @
+	
+	* ntlm/init_sec_context.c (get_user_ccache): pick up the ntlm
+	creds from the krb5 credential cache.
+	
+2007-04-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/delete_sec_context.c: free the key stored in the context
+
+	* ntlm/ntlm.h: switch password for a key
+
+	* test_oid.c: Switch oid to one that is exported.
+	
+2007-04-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/init_sec_context.c: move where hash is calculated to make
+	it easier to add ccache support.
+
+	* Makefile.am: Add version-script.map to EXTRA_DIST.
+	
+2007-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Unconfuse newer versions of automake that doesn't
+	know the diffrence between depenences and setting variables. foo:
+	vs foo=.
+
+	* test_ntlm.c: delete sec context when done.
+
+	* version-script.map: export more symbols.
+	
+	* Makefile.am: add version script if ld supports it
+	
+	* version-script.map: add version script if ld supports it
+	
+2007-04-18  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: test_acquire_cred need test_common.[ch]
+
+	* test_acquire_cred.c: add more test options.
+
+	* krb5/external.c: add GSS_KRB5_CCACHE_NAME_X
+
+	* gssapi/gssapi_krb5.h: add GSS_KRB5_CCACHE_NAME_X
+
+	* krb5/set_sec_context_option.c: refactor code, implement
+	GSS_KRB5_CCACHE_NAME_X
+
+	* mech/gss_krb5.c: reimplement gss_krb5_ccache_name
+	
+2007-04-17  Love Hörnquist Åstrand <lha@it.su.se>
+	
+	* spnego/cred_stubs.c: Need to import spnego name before we can
+	use it as a gss_name_t.
+
+	* test_acquire_cred.c: use this test as part of the regression
+	suite.
+
+	* mech/gss_acquire_cred.c (gss_acquire_cred): dont init
+	cred->gc_mc every time in the loop.
+	
+2007-04-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: add test_common.h
+	
+2007-02-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: Add link for
+	gsskrb5_register_acceptor_identity.
+
+2007-02-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* krb5/copy_ccache.c: Try to leak less memory in the failure case.
+	
+2007-01-31  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* mech/gss_display_status.c: Use right printf formater.
+
+	* test_*.[ch]: split out the error printing function and try to
+	return better errors
+
+2007-01-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* krb5/init_sec_context.c: revert 1.75: (init_auth): only turn on
+	GSS_C_CONF_FLAG and GSS_C_INT_FLAG if the caller requseted it.
+	
+	This is because Kerberos always support INT|CONF, matches behavior
+	with MS and MIT. The creates problems for the GSS-SPNEGO mech.
+	
+2007-01-24  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* krb5/prf.c: constrain desired_output_len
+
+	* krb5/external.c (krb5_mech): add _gsskrb5_pseudo_random
+
+	* mech/gss_pseudo_random.c: Catch error from underlaying mech on
+	failure.
+
+	* Makefile.am: Add krb5/prf.c
+
+	* krb5/prf.c: gss_pseudo_random for krb5
+
+	* test_context.c: Checks for gss_pseudo_random.
+
+	* krb5/gkrb5_err.et: add KG_INPUT_TOO_LONG
+
+	* Makefile.am: Add mech/gss_pseudo_random.c
+
+	* gssapi/gssapi.h: try to load pseudo_random
+
+	* mech/gss_mech_switch.c: try to load pseudo_random
+
+	* mech/gss_pseudo_random.c: Add gss_pseudo_random.
+
+	* gssapi_mech.h: Add hook for gm_pseudo_random.
+	
+2007-01-17  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* test_context.c: Don't assume bufer from gss_display_status is
+	ok.
+
+	* mech/gss_wrap_size_limit.c: Reset out variables.
+
+	* mech/gss_wrap.c: Reset out variables.
+
+	* mech/gss_verify_mic.c: Reset out variables.
+
+	* mech/gss_utils.c: Reset out variables.
+
+	* mech/gss_release_oid_set.c: Reset out variables.
+
+	* mech/gss_release_cred.c: Reset out variables.
+
+	* mech/gss_release_buffer.c: Reset variables.
+
+	* mech/gss_oid_to_str.c: Reset out variables.
+
+	* mech/gss_inquire_sec_context_by_oid.c: Fix reset out variables.
+
+	* mech/gss_mech_switch.c: Reset out variables.
+
+	* mech/gss_inquire_sec_context_by_oid.c: Reset out variables.
+
+	* mech/gss_inquire_names_for_mech.c: Reset out variables.
+
+	* mech/gss_inquire_cred_by_oid.c: Reset out variables.
+
+	* mech/gss_inquire_cred_by_oid.c: Reset out variables.
+
+	* mech/gss_inquire_cred_by_mech.c: Reset out variables.
+
+	* mech/gss_inquire_cred.c: Reset out variables, fix memory leak.
+
+	* mech/gss_inquire_context.c: Reset out variables.
+
+	* mech/gss_init_sec_context.c: Zero out outbuffer on failure.
+
+	* mech/gss_import_name.c: Reset out variables.
+
+	* mech/gss_import_name.c: Reset out variables.
+
+	* mech/gss_get_mic.c: Reset out variables.
+
+	* mech/gss_export_name.c: Reset out variables.
+
+	* mech/gss_encapsulate_token.c: Reset out variables.
+
+	* mech/gss_duplicate_oid.c: Reset out variables.
+
+	* mech/gss_duplicate_oid.c: Reset out variables.
+
+	* mech/gss_duplicate_name.c: Reset out variables.
+
+	* mech/gss_display_status.c: Reset out variables.
+
+	* mech/gss_display_name.c: Reset out variables.
+
+	* mech/gss_delete_sec_context.c: Reset out variables using propper
+	macros.
+
+	* mech/gss_decapsulate_token.c: Reset out variables using propper
+	macros.
+
+	* mech/gss_add_cred.c: Reset out variables.
+
+	* mech/gss_acquire_cred.c: Reset out variables.
+
+	* mech/gss_accept_sec_context.c: Reset out variables using propper
+	macros.
+
+	* mech/gss_init_sec_context.c: Reset out variables.
+
+	* mech/mech_locl.h (_mg_buffer_zero): new macro that zaps a
+	gss_buffer_t
+
+2007-01-16  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* mech: sprinkel _gss_mg_error
+
+	* mech/gss_display_status.c (gss_display_status): use
+	_gss_mg_get_error to fetch the error from underlaying mech, if it
+	failes, let do the regular dance for GSS-CODE version and a
+	generic print-the-error code for MECH-CODE.
+
+	* mech/gss_oid_to_str.c: Don't include the NUL in the length of
+	the string.
+
+	* mech/context.h: Protoypes for _gss_mg_.
+
+	* mech/context.c: Glue to catch the error from the lower gss-api
+	layer and save that for later so gss_display_status() can show the
+	error.
+
+	* gss.c: Detect NTLM.
+	
+2007-01-11  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* mech/gss_accept_sec_context.c: spelling
+	
+2007-01-04  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: Include build (private) prototypes header files.
+
+	* Makefile.am (ntlmsrc): add ntlm/ntlm-private.h
+	
+2006-12-28  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* ntlm/accept_sec_context.c: Pass signseal argument to
+	_gss_ntlm_set_key.
+
+	* ntlm/init_sec_context.c: Pass signseal argument to
+	_gss_ntlm_set_key.
+
+	* ntlm/crypto.c (_gss_ntlm_set_key): add signseal argument
+
+	* test_ntlm.c: add ntlmv2 test
+
+	* ntlm/ntlm.h: break out struct ntlmv2_key;
+
+	* ntlm/crypto.c (_gss_ntlm_set_key): set ntlm v2 keys.
+
+	* ntlm/accept_sec_context.c: Set dummy ntlmv2 keys and Check TI.
+
+	* ntlm/ntlm.h: NTLMv2 keys.
+
+	* ntlm/crypto.c: NTLMv2 sign and verify.
+	
+2006-12-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/accept_sec_context.c: Don't send targetinfo now.
+	
+	* ntlm/init_sec_context.c: Build ntlmv2 answer buffer.
+
+	* ntlm/init_sec_context.c: Leak less memory.
+
+	* ntlm/init_sec_context.c: Announce that we support key exchange.
+
+	* ntlm/init_sec_context.c: Add NTLM_NEG_NTLM2_SESSION, NTLMv2
+	session security (disable because missing sign and seal).
+	
+2006-12-19  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* ntlm/accept_sec_context.c: split RC4 send and recv keystreams
+
+	* ntlm/init_sec_context.c: split RC4 send and recv keystreams
+
+	* ntlm/ntlm.h: split RC4 send and recv keystreams
+
+	* ntlm/crypto.c: Implement SEAL.
+
+	* ntlm/crypto.c: move gss_wrap/gss_unwrap here
+
+	* test_context.c: request INT and CONF from the gss layer, test
+	get and verify MIC.
+
+	* ntlm/ntlm.h: add crypto bits.
+
+	* ntlm/accept_sec_context.c: Save session master key.
+
+	* Makefile.am: Move get and verify mic to the same file (crypto.c)
+	since they share code.
+
+	* ntlm/crypto.c: Move get and verify mic to the same file since
+	they share code, implement NTLM v1 and dummy signatures.
+
+	* ntlm/init_sec_context.c: pass on GSS_C_CONF_FLAG and
+	GSS_C_INTEG_FLAG, save the session master key
+	
+	* spnego/accept_sec_context.c: try using gss_accept_sec_context()
+	on the opportunistic token instead of guessing the acceptor name
+	and do gss_acquire_cred, this make SPNEGO work like before.
+	
+2006-12-18  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* ntlm/init_sec_context.c: Calculate the NTLM version 1 "master"
+	key.
+
+	* spnego/accept_sec_context.c: Resurect negHints for the acceptor
+	sends first packet.
+	
+	* Makefile.am: Add "windows" versions of the NegTokenInitWin and
+	friends.
+
+	* test_context.c: add --wrapunwrap flag
+
+	* spnego/compat.c: move _gss_spnego_indicate_mechtypelist() to
+	compat.c, use the sequence types of MechTypeList, make
+	add_mech_type() static.
+
+	* spnego/accept_sec_context.c: move
+	_gss_spnego_indicate_mechtypelist() to compat.c
+
+	* Makefile.am: Generate sequence code for MechTypeList
+
+	* spnego: check that the generated acceptor mechlist is acceptable too
+
+	* spnego/init_sec_context.c: Abstract out the initiator filter
+	function, it will be needed for the acceptor too.
+
+	* spnego/accept_sec_context.c: Abstract out the initiator filter
+	function, it will be needed for the acceptor too. Remove negHints.
+
+	* test_context.c: allow asserting return mech
+
+	* ntlm/accept_sec_context.c: add _gss_ntlm_allocate_ctx
+
+	* ntlm/acquire_cred.c: Check that the KDC seem to there and
+	answering us, we can't do better then that wen checking if we will
+	accept the credential.
+
+	* ntlm/get_mic.c: return GSS_S_UNAVAILABLE
+
+	* mech/utils.h: add _gss_free_oid, reverse of _gss_copy_oid
+
+	* mech/gss_utils.c: add _gss_free_oid, reverse of _gss_copy_oid
+
+	* spnego/spnego.asn1: Its very sad, but NegHints its are not part
+	of the NegTokenInit, this makes SPNEGO acceptor life a lot harder.
+	
+	* spnego: try harder to handle names better. handle missing
+	acceptor and initator creds better (ie dont propose/accept mech
+	that there are no credentials for) split NegTokenInit and
+	NegTokenResp in acceptor
+
+2006-12-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/import_name.c: Allocate the buffer from the right length.
+	
+2006-12-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm/init_sec_context.c (init_sec_context): Tell the other side
+	what domain we think we are talking to.
+
+	* ntlm/delete_sec_context.c: free username and password
+
+	* ntlm/release_name.c (_gss_ntlm_release_name): free name.
+
+	* ntlm/import_name.c (_gss_ntlm_import_name): add support for
+	GSS_C_NT_HOSTBASED_SERVICE names
+
+	* ntlm/ntlm.h: Add ntlm_name.
+
+	* test_context.c: allow testing of ntlm.
+
+	* gssapi_mech.h: add __gss_ntlm_initialize
+
+	* ntlm/accept_sec_context.c (handle_type3): verify that the kdc
+	approved of the ntlm exchange too
+
+	* mech/gss_mech_switch.c: Add the builtin ntlm mech
+
+	* test_ntlm.c: NTLM test app.
+
+	* mech/gss_accept_sec_context.c: Add detection of NTLMSSP.
+
+	* gssapi/gssapi.h: add ntlm mech oid
+
+	* ntlm/external.c: Switch OID to the ms ntlmssp oid
+
+	* Makefile.am: Add ntlm gss-api module.
+
+	* ntlm/accept_sec_context.c: Catch more error errors.
+
+	* ntlm/accept_sec_context.c: Check after a credential to use.
+	
+2006-12-14  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* krb5/set_sec_context_option.c (GSS_KRB5_SET_DEFAULT_REALM_X):
+	don't fail on success.  Bug report from Stefan Metzmacher.
+	
+2006-12-13  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* krb5/init_sec_context.c (init_auth): only turn on
+	GSS_C_CONF_FLAG and GSS_C_INT_FLAG if the caller requseted it.
+	From Stefan Metzmacher.
+	
+2006-12-11  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am (libgssapi_la_OBJECTS): depends on gssapi_asn1.h
+	spnego_asn1.h.
+
+2006-11-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* krb5/acquire_cred.c: Make krb5_get_init_creds_opt_free take a
+	context argument.
+	
+2006-11-16  Love Hörnquist Åstrand <lha@it.su.se>
+	
+	* test_context.c: Test that token keys are the same, return
+	actual_mech.
+	
+2006-11-15  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* spnego/spnego_locl.h: Make bitfields unsigned, add maybe_open.
+
+	* spnego/accept_sec_context.c: Use ASN.1 encoder functions to
+	encode CHOICE structure now that we can handle it.
+
+	* spnego/init_sec_context.c: Use ASN.1 encoder functions to encode
+	CHOICE structure now that we can handle it.
+
+	* spnego/accept_sec_context.c (_gss_spnego_accept_sec_context):
+	send back ad accept_completed when the security context is ->open,
+	w/o this the client doesn't know that the server have completed
+	the transaction.
+
+	* test_context.c: Add delegate flag and check that the delegated
+	cred works.
+
+	* spnego/init_sec_context.c: Keep track of the opportunistic token
+	in the inital message, it might be a complete gss-api context, in
+	that case we'll get back accept_completed without any token. With
+	this change, krb5 w/o mutual authentication works.
+
+	* spnego/accept_sec_context.c: Use ASN.1 encoder functions to
+	encode CHOICE structure now that we can handle it.
+
+	* spnego/accept_sec_context.c: Filter out SPNEGO from the out
+	supported mechs list and make sure we don't select that for the
+	preferred mechamism.
+	
+2006-11-14  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* mech/gss_init_sec_context.c (_gss_mech_cred_find): break out the
+	cred finding to its own function
+
+	* krb5/wrap.c: Better error strings, from Andrew Bartlet.
+	
+2006-11-13  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* test_context.c: Create our own krb5_context.
+
+	* krb5: Switch from using a specific error message context in the
+	TLS to have a whole krb5_context in TLS. This have some
+	interestion side-effekts for the configruration setting options
+	since they operate on per-thread basis now.
+
+	* mech/gss_set_cred_option.c: When calling ->gm_set_cred_option
+	and checking for success, use GSS_S_COMPLETE. From Andrew Bartlet.
+	
+2006-11-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Help solaris make even more.
+
+	* Makefile.am: Help solaris make.
+	
+2006-11-09  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: remove include $(srcdir)/Makefile-digest.am for now
+
+	* mech/gss_accept_sec_context.c: Try better guessing what is mech
+	we are going to select by looking harder at the input_token, idea
+	from Luke Howard's mechglue branch.
+
+	* Makefile.am: libgssapi_la_OBJECTS: add depency on gkrb5_err.h
+
+	* gssapi/gssapi_krb5.h: add GSS_KRB5_SET_ALLOWABLE_ENCTYPES_X
+
+	* mech/gss_krb5.c: implement gss_krb5_set_allowable_enctypes
+
+	* gssapi/gssapi.h: GSS_KRB5_S_
+
+	* krb5/gsskrb5_locl.h: Include <gkrb5_err.h>.
+
+	* gssapi/gssapi_krb5.h: Add gss_krb5_set_allowable_enctypes.
+
+	* Makefile.am: Build and install gkrb5_err.h
+
+	* krb5/gkrb5_err.et: Move the GSS_KRB5_S error here.
+	
+2006-11-08  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* mech/gss_krb5.c: Add gsskrb5_set_default_realm.
+
+	* krb5/set_sec_context_option.c: Support
+	GSS_KRB5_SET_DEFAULT_REALM_X.
+
+	* gssapi/gssapi_krb5.h: add GSS_KRB5_SET_DEFAULT_REALM_X
+
+	* krb5/external.c: add GSS_KRB5_SET_DEFAULT_REALM_X
+	
+2006-11-07  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* test_context.c: rename krb5_[gs]et_time_wrap to
+	krb5_[gs]et_max_time_skew
+
+	* krb5/copy_ccache.c: _gsskrb5_extract_authz_data_from_sec_context
+	no longer used, bye bye
+
+	* mech/gss_krb5.c: No depenency of the krb5 gssapi mech.
+
+	* mech/gss_krb5.c (gsskrb5_extract_authtime_from_sec_context): use
+	_gsskrb5_decode_om_uint32. From Andrew Bartlet.
+
+	* mech/gss_krb5.c: Add dummy gss_krb5_set_allowable_enctypes for
+	now.
+
+	* spnego/spnego_locl.h: Include <roken.h> for compatiblity.
+
+	* krb5/arcfour.c: Use IS_DCE_STYLE flag. There is no padding in
+	DCE-STYLE, don't try to use to.  From Andrew Bartlett.
+
+	* test_context.c: test wrap/unwrap, add flag for dce-style and
+	mutual auth, also support multi-roundtrip sessions
+
+	* krb5/gsskrb5_locl.h: Add IS_DCE_STYLE macro.
+
+	* krb5/accept_sec_context.c (gsskrb5_acceptor_start): use
+	krb5_rd_req_ctx
+
+	* mech/gss_krb5.c (gsskrb5_get_subkey): return the per message
+	token subkey
+
+	* krb5/inquire_sec_context_by_oid.c: check if there is any key at
+	all
+	
+2006-11-06  Love Hörnquist Åstrand <lha@it.su.se>
+	
+	* krb5/inquire_sec_context_by_oid.c: Set more error strings, use
+	right enum for acceptor subkey.  From Andrew Bartlett.
+	
+2006-11-04  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_context.c: Test gsskrb5_extract_service_keyblock, needed in
+	PAC valication.  From Andrew Bartlett
+
+	* mech/gss_krb5.c: Add gsskrb5_extract_authz_data_from_sec_context
+	and keyblock extraction functions.
+
+	* gssapi/gssapi_krb5.h: Add extraction of keyblock function, from
+	Andrew Bartlett.
+
+	* krb5/external.c: Add GSS_KRB5_GET_SERVICE_KEYBLOCK_X
+	
+2006-11-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_context.c: Rename various routines and constants from
+	canonize to canonicalize.  From Andrew Bartlett
+
+	* mech/gss_krb5.c: Rename various routines and constants from
+	canonize to canonicalize.  From Andrew Bartlett
+
+	* krb5/set_sec_context_option.c: Rename various routines and
+	constants from canonize to canonicalize.  From Andrew Bartlett
+
+	* krb5/external.c: Rename various routines and constants from
+	canonize to canonicalize.  From Andrew Bartlett
+	
+	* gssapi/gssapi_krb5.h: Rename various routines and constants from
+	canonize to canonicalize.  From Andrew Bartlett
+	
+2006-10-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* krb5/accept_sec_context.c (gsskrb5_accept_delegated_token): need
+	to free ccache
+	
+2006-10-24  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* test_context.c (loop): free target_name
+
+	* mech/gss_accept_sec_context.c: SLIST_INIT the ->gc_mc'
+	
+	* mech/gss_acquire_cred.c : SLIST_INIT the ->gc_mc' 
+
+	* krb5/init_sec_context.c: Avoid leaking memory.
+
+	* mech/gss_buffer_set.c (gss_release_buffer_set): don't leak the
+	->elements memory.
+
+	* test_context.c: make compile
+
+	* krb5/cfx.c (_gssapi_verify_mic_cfx): always free crypto context.
+
+	* krb5/set_cred_option.c (import_cred): free sp
+	
+2006-10-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* mech/gss_add_oid_set_member.c: Use old implementation of
+	gss_add_oid_set_member, it leaks less memory.
+
+	* krb5/test_cfx.c: free krb5_crypto.
+
+	* krb5/test_cfx.c: free krb5_context
+
+	* mech/gss_release_name.c (gss_release_name): free input_name
+	it-self.
+	
+2006-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_context.c: Call setprogname.
+
+	* mech/gss_krb5.c: Add gsskrb5_extract_authtime_from_sec_context.
+
+	* gssapi/gssapi_krb5.h: add
+	gsskrb5_extract_authtime_from_sec_context
+	
+2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* krb5/inquire_sec_context_by_oid.c: Add get_authtime.
+
+	* krb5/external.c: add GSS_KRB5_GET_AUTHTIME_X
+
+	* gssapi/gssapi_krb5.h: add GSS_KRB5_GET_AUTHTIME_X
+
+	* krb5/set_sec_context_option.c: Implement GSS_KRB5_SEND_TO_KDC_X.
+
+	* mech/gss_krb5.c: Add gsskrb5_set_send_to_kdc
+
+	* gssapi/gssapi_krb5.h: Add GSS_KRB5_SEND_TO_KDC_X and
+	gsskrb5_set_send_to_kdc
+
+	* krb5/external.c: add GSS_KRB5_SEND_TO_KDC_X
+
+	* Makefile.am: more files
+	
+2006-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: remove spnego/gssapi_spnego.h, its now in gssapi/
+
+	* test_context.c: Allow specifing mech.
+
+	* krb5/external.c: add GSS_SASL_DIGEST_MD5_MECHANISM (for now)
+
+	* gssapi/gssapi.h: Rename GSS_DIGEST_MECHANISM to
+	GSS_SASL_DIGEST_MD5_MECHANISM
+	
+2006-10-18  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* mech/gssapi.asn1: Make it into a heim_any_set, its doesn't
+	except a tag.
+
+	* mech/gssapi.asn1: GSSAPIContextToken is IMPLICIT SEQUENCE
+
+	* gssapi/gssapi_krb5.h: add GSS_KRB5_GET_ACCEPTOR_SUBKEY_X
+
+	* krb5/external.c: Add GSS_KRB5_GET_ACCEPTOR_SUBKEY_X.
+
+	* gssapi/gssapi_krb5.h: add GSS_KRB5_GET_INITIATOR_SUBKEY_X and
+	GSS_KRB5_GET_SUBKEY_X
+
+	* krb5/external.c: add GSS_KRB5_GET_INITIATOR_SUBKEY_X,
+	GSS_KRB5_GET_SUBKEY_X
+	
+2006-10-17  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* test_context.c: Support switching on name type oid's
+
+	* test_context.c: add test for dns canon flag
+
+	* mech/gss_krb5.c: Add gsskrb5_set_dns_canonlize.
+
+	* gssapi/gssapi_krb5.h: remove gss_krb5_compat_des3_mic
+
+	* gssapi/gssapi_krb5.h: Add gsskrb5_set_dns_canonlize.
+
+	* krb5/set_sec_context_option.c: implement
+	GSS_KRB5_SET_DNS_CANONIZE_X
+
+	* gssapi/gssapi_krb5.h: add GSS_KRB5_SET_DNS_CANONIZE_X
+
+	* krb5/external.c: add GSS_KRB5_SET_DNS_CANONIZE_X
+
+	* mech/gss_krb5.c: add bits to make lucid context work
+	
+2006-10-14  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* mech/gss_oid_to_str.c: Prefix der primitives with der_.
+
+	* krb5/inquire_sec_context_by_oid.c: Prefix der primitives with
+	der_.
+
+	* krb5/encapsulate.c: Prefix der primitives with der_.
+
+	* mech/gss_oid_to_str.c: New der_print_heim_oid signature.
+	
+2006-10-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: add test_context
+
+	* krb5/inquire_sec_context_by_oid.c: Make it work.
+
+	* test_oid.c: Test lucid oid.
+
+	* gssapi/gssapi.h: Add OM_uint64_t.
+
+	* krb5/inquire_sec_context_by_oid.c: Add lucid interface.
+
+	* krb5/external.c: Add lucid interface, renumber oids to my
+	delegated space.
+
+	* mech/gss_krb5.c: Add lucid interface.
+
+	* gssapi/gssapi_krb5.h: Add lucid interface.
+
+	* spnego/spnego_locl.h: Maybe include <netdb.h>.
+	
+2006-10-09  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* mech/gss_mech_switch.c: define RTLD_LOCAL to 0 if not defined.
+	
+2006-10-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: install gssapi_krb5.H and gssapi_spnego.h
+
+	* gssapi/gssapi_krb5.h: Move krb5 stuff to <gssapi/gssapi_krb5.h>.
+
+	* gssapi/gssapi.h: Move krb5 stuff to <gssapi/gssapi_krb5.h>.
+
+	* Makefile.am: Drop some -I no longer needed.
+
+	* gssapi/gssapi_spnego.h: Move gssapi_spengo.h over here.
+
+	* krb5: reference all include files using 'krb5/'
+
+2006-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.h: Add file inclusion protection.
+
+	* gssapi/gssapi.h: Correct header file inclusion protection.
+
+	* gssapi/gssapi.h: Move the gssapi.h from lib/gssapi/ to
+	lib/gssapi/gssapi/ to please automake.
+	
+	* spnego/spnego_locl.h: Maybe include <sys/types.h>.
+
+	* mech/mech_locl.h: Include <roken.h>.
+
+	* Makefile.am: split build files into dist_ and noinst_ SOURCES
+	
+2006-10-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss.c: #if 0 out unused code.
+
+	* mech/gss_mech_switch.c: Cast argument to ctype(3) functions
+	to (unsigned char).
+	
+2006-10-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* mech/name.h: remove <sys/queue.h>
+
+	* mech/mech_switch.h: remove <sys/queue.h>
+	
+	* mech/cred.h: remove <sys/queue.h>
+
+2006-10-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* krb5/arcfour.c: Thinker more with header lengths.
+
+	* krb5/arcfour.c: Improve the calcucation of header
+	lengths. DCE-STYLE data is also padded so remove if (1 || ...)
+	code.
+
+	* krb5/wrap.c (_gsskrb5_wrap_size_limit): use
+	_gssapi_wrap_size_arcfour for arcfour
+
+	* krb5/arcfour.c: Move _gssapi_wrap_size_arcfour here.
+
+	* Makefile.am: Split all mech to diffrent mechsrc variables.
+
+	* spnego/context_stubs.c: Make internal function static (and
+	rename).
+	
+2006-10-01  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* krb5/inquire_cred.c: Fix "if (x) lock(y)" bug. From Harald
+	Barth.
+
+	* spnego/spnego_locl.h: Include <sys/param.h> for MAXHOSTNAMELEN.
+	
+2006-09-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* krb5/arcfour.c: Add wrap support, interrop with itself but not
+	w2k3s-sp1
+
+	* krb5/gsskrb5_locl.h: move the arcfour specific stuff to the
+	arcfour header.
+
+	* krb5/arcfour.c: Support DCE-style unwrap, tested with
+	w2k3server-sp1.
+
+	* mech/gss_accept_sec_context.c (gss_accept_sec_context): if the
+	token doesn't start with [APPLICATION 0] SEQUENCE, lets assume its
+	a DCE-style kerberos 5 connection. XXX this needs to be made
+	better in cause we get another GSS-API protocol violating
+	protocol. It should be possible to detach the Kerberos DCE-style
+	since it starts with a AP-REQ PDU, but that have to wait for now.
+	
+2006-09-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.h: Add GSS_C flags from
+	draft-brezak-win2k-krb-rc4-hmac-04.txt.
+
+	* krb5/delete_sec_context.c: Free service_keyblock and fwd_data,
+	indent.
+
+	* krb5/accept_sec_context.c: Merge of the acceptor part from the
+	samba patch by Stefan Metzmacher and Andrew Bartlet.
+
+	* krb5/init_sec_context.c: Add GSS_C_DCE_STYLE.
+
+	* krb5/{init_sec_context.c,gsskrb5_locl.h}: merge most of the
+	initiator part from the samba patch by Stefan Metzmacher and
+	Andrew Bartlet (still missing DCE/RPC support)
+
+2006-08-28  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss.c (help): use sl_slc_help().
+	
+2006-07-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss-commands.in: rename command to supported-mechanisms
+
+	* Makefile.am: Make gss objects depend on the slc built
+	gss-commands.h
+	
+2006-07-20  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* gss-commands.in: add slc commands for gss
+
+	* krb5/gsskrb5_locl.h: Remove dup prototype of _gsskrb5_init()
+
+	* Makefile.am: Add test_cfx
+
+	* krb5/external.c: add GSS_KRB5_REGISTER_ACCEPTOR_IDENTITY_X
+
+	* krb5/set_sec_context_option.c: catch
+	GSS_KRB5_REGISTER_ACCEPTOR_IDENTITY_X
+
+	* krb5/accept_sec_context.c: reimplement
+	gsskrb5_register_acceptor_identity
+
+	* mech/gss_krb5.c: implement gsskrb5_register_acceptor_identity
+
+	* mech/gss_inquire_mechs_for_name.c: call _gss_load_mech
+
+	* mech/gss_inquire_cred.c (gss_inquire_cred): call _gss_load_mech
+
+	* mech/gss_mech_switch.c: Make _gss_load_mech() atomic and run
+	only once, this have the side effect that _gss_mechs and
+	_gss_mech_oids is only initialized once, so if just the users of
+	these two global variables calls _gss_load_mech() first, it will
+	act as a barrier and make sure the variables are never changed and
+	we don't need to lock them.
+
+	* mech/utils.h: no need to mark functions extern.
+
+	* mech/name.h: no need to mark _gss_find_mn extern.
+	
+2006-07-19  Love Hörnquist Åstrand <lha@it.su.se>
+	
+	* krb5/cfx.c: Redo the wrap length calculations.
+
+	* krb5/test_cfx.c: test max_wrap_size in cfx.c
+
+	* mech/gss_display_status.c: Handle more error codes.
+	
+2006-07-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* mech/mech_locl.h: Include <krb5-types.h> and "mechqueue.h"
+
+	* mech/mechqueue.h: Add SLIST macros.
+
+	* krb5/inquire_context.c: Don't free return values on success.
+
+	* krb5/inquire_cred.c (_gsskrb5_inquire_cred): When cred provided
+	is the default cred, acquire the acceptor cred and initator cred
+	in two diffrent steps and then query them for the information,
+	this way, the code wont fail if there are no keytab, but there is
+	a credential cache.
+
+	* mech/gss_inquire_cred.c: move the check if we found any cred
+	where it matter for both cases
+	(default cred and provided cred)
+
+	* mech/gss_init_sec_context.c: If the desired mechanism can't
+	convert the name to a MN, fail with GSS_S_BAD_NAME rather then a
+	NULL de-reference.
+	
+2006-07-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* spnego/external.c: readd gss_spnego_inquire_names_for_mech
+
+	* spnego/spnego_locl.h: reimplement
+	gss_spnego_inquire_names_for_mech add support function
+	_gss_spnego_supported_mechs
+
+	* spnego/context_stubs.h: reimplement
+	gss_spnego_inquire_names_for_mech add support function
+	_gss_spnego_supported_mechs
+
+	* spnego/context_stubs.c: drop gss_spnego_indicate_mechs
+	
+	* mech/gss_indicate_mechs.c: if the underlaying mech doesn't
+	support gss_indicate_mechs, use the oid in the mechswitch
+	structure
+
+	* spnego/external.c: let the mech glue layer implement
+	gss_indicate_mechs
+
+	* spnego/cred_stubs.c (gss_spnego_acquire_cred): don't care about
+	desired_mechs, get our own list with indicate_mechs and remove
+	ourself.
+	
+2006-07-05 Love Hörnquist Åstrand <lha@it.su.se>
+
+	* spnego/external.c: remove gss_spnego_inquire_names_for_mech, let
+	the mechglue layer implement it
+	
+	* spnego/context_stubs.c: remove gss_spnego_inquire_names_for_mech, let
+	the mechglue layer implement it
+
+	* spnego/spnego_locl.c: remove gss_spnego_inquire_names_for_mech, let
+	the mechglue layer implement it
+
+2006-07-01  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* mech/gss_set_cred_option.c: fix argument to gss_release_cred
+	
+2006-06-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* krb5/init_sec_context.c: Make work on compilers that are
+	somewhat more picky then gcc4 (like gcc2.95)
+
+	* krb5/init_sec_context.c (do_delegation): use KDCOptions2int to
+	convert fwd_flags to an integer, since otherwise int2KDCOptions in
+	krb5_get_forwarded_creds wont do the right thing.
+
+	* mech/gss_set_cred_option.c (gss_set_cred_option): free memory on
+	failure
+
+	* krb5/set_sec_context_option.c (_gsskrb5_set_sec_context_option):
+	init global kerberos context
+
+	* krb5/set_cred_option.c (_gsskrb5_set_cred_option): init global
+	kerberos context
+
+	* mech/gss_accept_sec_context.c: Insert the delegated sub cred on
+	the delegated cred handle, not cred handle
+
+	* mech/gss_accept_sec_context.c (gss_accept_sec_context): handle
+	the case where ret_flags == NULL
+
+	* mech/gss_mech_switch.c (add_builtin): set
+	_gss_mech_switch->gm_mech_oid
+
+	* mech/gss_set_cred_option.c (gss_set_cred_option): laod mechs
+
+	* test_cred.c (gss_print_errors): don't try to print error when
+	gss_display_status failed
+
+	* Makefile.am: Add mech/gss_release_oid.c
+	
+	* mech/gss_release_oid.c: Add gss_release_oid, reverse of
+	gss_duplicate_oid
+
+	* spnego/compat.c: preferred_mech_type was allocated with
+	gss_duplicate_oid in one place and assigned static varianbles a
+	the second place. change that static assignement to
+	gss_duplicate_oid and bring back gss_release_oid.
+
+	* spnego/compat.c (_gss_spnego_delete_sec_context): don't release
+	preferred_mech_type and negotiated_mech_type, they where never
+	allocated from the begining.
+	
+2006-06-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* mech/gss_import_name.c (gss_import_name): avoid
+	type-punned/strict aliasing rules
+
+	* mech/gss_add_cred.c: avoid type-punned/strict aliasing rules
+
+	* gssapi.h: Make gss_name_t an opaque type.
+	
+	* krb5: make gss_name_t an opaque type
+
+	* krb5/set_cred_option.c: Add
+
+	* mech/gss_set_cred_option.c (gss_set_cred_option): support the
+	case where *cred_handle == NULL
+
+	* mech/gss_krb5.c (gss_krb5_import_cred): make sure cred is
+	GSS_C_NO_CREDENTIAL on failure.
+
+	* mech/gss_acquire_cred.c (gss_acquire_cred): if desired_mechs is
+	NO_OID_SET, there is a need to load the mechs, so always do that.
+	
+2006-06-28  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* krb5/inquire_cred_by_oid.c: Reimplement GSS_KRB5_COPY_CCACHE_X
+	to instead pass a fullname to the credential, then resolve and
+	copy out the content, and then close the cred.
+
+	* mech/gss_krb5.c: Reimplement GSS_KRB5_COPY_CCACHE_X to instead
+	pass a fullname to the credential, then resolve and copy out the
+	content, and then close the cred.
+	
+	* krb5/inquire_cred_by_oid.c: make "work", GSS_KRB5_COPY_CCACHE_X
+	interface needs to be re-done, currently its utterly broken.
+
+	* mech/gss_set_cred_option.c: Make work.
+
+	* krb5/external.c: Add _gsskrb5_set_{sec_context,cred}_option
+
+	* mech/gss_krb5.c (gss_krb5_import_cred): implement
+
+	* Makefile.am: Add gss_set_{sec_context,cred}_option and sort
+	
+	* mech/gss_set_{sec_context,cred}_option.c: add
+
+	* gssapi.h: Add GSS_KRB5_IMPORT_CRED_X
+
+	* test_*.c: make compile again
+
+	* Makefile.am: Add lib dependencies and test programs
+
+	* spnego: remove dependency on libkrb5
+
+	* mech: Bug fixes, cleanup, compiler warnings, restructure code.
+
+	* spnego: Rename gss_context_id_t and gss_cred_id_t to local names
+
+	* krb5: repro copy the krb5 files here
+
+	* mech: import Doug Rabson mechglue from freebsd
+	
+	* spnego: Import Luke Howard's SPNEGO from the mechglue branch
+
+2006-06-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.h: Add oid_to_str.
+
+	* Makefile.am: add oid_to_str and test_oid
+	
+	* oid_to_str.c: Add gss_oid_to_str
+
+	* test_oid.c: Add test for gss_oid_to_str()
+	
+2006-05-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* verify_mic.c: Less pointer signedness warnings.
+
+	* unwrap.c: Less pointer signedness warnings.
+
+	* arcfour.c: Less pointer signedness warnings.
+
+	* gssapi_locl.h: Use const void * to instead of unsigned char * to
+	avoid pointer signedness warnings.
+
+	* encapsulate.c: Use const void * to instead of unsigned char * to
+	avoid pointer signedness warnings.
+
+	* decapsulate.c: Use const void * to instead of unsigned char * to
+	avoid pointer signedness warnings.
+
+	* decapsulate.c: Less pointer signedness warnings.
+
+	* cfx.c: Less pointer signedness warnings.
+
+	* init_sec_context.c: Less pointer signedness warnings (partly by
+	using the new asn.1 CHOICE decoder)
+
+	* import_sec_context.c: Less pointer signedness warnings.
+
+2006-05-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* accept_sec_context.c (gsskrb5_is_cfx): always set is_cfx. From
+	Andrew Abartlet.
+	
+2006-05-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* get_mic.c (mic_des3): make sure message_buffer doesn't point to
+	free()ed memory on failure. Pointed out by IBM checker.
+	
+2006-05-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Rename u_intXX_t to uintXX_t
+	
+2006-05-04 Love Hörnquist Åstrand <lha@it.su.se>
+
+	* cfx.c: Less pointer signedness warnings.
+
+	* arcfour.c: Avoid pointer signedness warnings.
+
+	* gssapi_locl.h (gssapi_decode_*): make data argument const void *
+	
+	* 8003.c (gssapi_decode_*): make data argument const void *
+	
+2006-04-12  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* export_sec_context.c: Export sequence order element. From Wynn
+	Wilkes <wynn.wilkes@quest.com>.
+
+	* import_sec_context.c: Import sequence order element. From Wynn
+	Wilkes <wynn.wilkes@quest.com>.
+
+	* sequence.c (_gssapi_msg_order_import,_gssapi_msg_order_export):
+	New functions, used by {import,export}_sec_context.  From Wynn
+	Wilkes <wynn.wilkes@quest.com>.
+
+	* test_sequence.c: Add test for import/export sequence.
+	
+2006-04-09  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* add_cred.c: Check that cred != GSS_C_NO_CREDENTIAL, this is a
+	standard conformance failure, but much better then a crash.
+	
+2006-04-02  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* get_mic.c (get_mic*)_: make sure message_token is cleaned on
+	error, found by IBM checker.
+
+	* wrap.c (wrap*): Reset output_buffer on error, found by IBM
+	checker.
+	
+2006-02-15  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* import_name.c: Accept both GSS_C_NT_HOSTBASED_SERVICE and
+	GSS_C_NT_HOSTBASED_SERVICE_X as nametype for hostbased names.
+	
+2006-01-16  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* delete_sec_context.c (gss_delete_sec_context): if the context
+	handle is GSS_C_NO_CONTEXT, don't fall over.
+
+2005-12-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: Replace gss_krb5_import_ccache with
+	gss_krb5_import_cred and add more references
+	
+2005-12-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.h: Change gss_krb5_import_ccache to gss_krb5_import_cred,
+	it can handle keytabs too.
+
+	* add_cred.c (gss_add_cred): avoid deadlock
+
+	* context_time.c (gssapi_lifetime_left): define the 0 lifetime as
+	GSS_C_INDEFINITE.
+	
+2005-12-01  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* acquire_cred.c (acquire_acceptor_cred): only check if principal
+	exists if we got called with principal as an argument.
+
+	* acquire_cred.c (acquire_acceptor_cred): check that the acceptor
+	exists in the keytab before returning ok.
+	
+2005-11-29  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* copy_ccache.c (gss_krb5_import_cred): fix buglet, from Andrew
+	Bartlett.
+	
+2005-11-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_kcred.c: Rename gss_krb5_import_ccache to
+	gss_krb5_import_cred.
+	
+	* copy_ccache.c: Rename gss_krb5_import_ccache to
+	gss_krb5_import_cred and let it grow code to handle keytabs too.
+	
+2005-11-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* init_sec_context.c: Change sematics of ok-as-delegate to match
+	windows if
+	[gssapi]realm/ok-as-delegate=true is set, otherwise keep old
+	sematics.
+	
+	* release_cred.c (gss_release_cred): use
+	GSS_CF_DESTROY_CRED_ON_RELEASE to decide if the cache should be
+	krb5_cc_destroy-ed
+	
+	* acquire_cred.c (acquire_initiator_cred):
+	GSS_CF_DESTROY_CRED_ON_RELEASE on created credentials.
+
+	* accept_sec_context.c (gsskrb5_accept_delegated_token): rewrite
+	to use gss_krb5_import_ccache
+	
+2005-11-01  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* arcfour.c: Remove signedness warnings.
+	
+2005-10-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: Document that gss_krb5_import_ccache is copy
+	by reference.
+
+	* copy_ccache.c (gss_krb5_import_ccache): Instead of making a copy
+	of the ccache, make a reference by getting the name and resolving
+	the name. This way the cache is shared, this flipp side is of
+	course that if someone calls krb5_cc_destroy the cache is lost for
+	everyone.
+	
+	* test_kcred.c: Remove memory leaks.
+	
+2005-10-26  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: build test_kcred
+	
+	* gss_acquire_cred.3: Document gss_krb5_import_ccache
+
+	* gssapi.3: Sort and add gss_krb5_import_ccache.
+	
+	* acquire_cred.c (_gssapi_krb5_ccache_lifetime): break out code
+	used to extract lifetime from a credential cache
+
+	* gssapi_locl.h: Add _gssapi_krb5_ccache_lifetime, used to extract
+	lifetime from a credential cache.
+
+	* gssapi.h: add gss_krb5_import_ccache, reverse of
+	gss_krb5_copy_ccache
+
+	* copy_ccache.c: add gss_krb5_import_ccache, reverse of
+	gss_krb5_copy_ccache
+
+	* test_kcred.c: test gss_krb5_import_ccache
+	
+2005-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* acquire_cred.c (acquire_initiator_cred): use krb5_cc_cache_match
+	to find a matching creditial cache, if that failes, fallback to
+	the default cache.
+	
+2005-10-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi_locl.h: Add gssapi_krb5_set_status and
+	gssapi_krb5_clear_status
+	
+	* init_sec_context.c (spnego_reply): Don't pass back raw Kerberos
+	errors, use GSS-API errors instead. From Michael B Allen.
+
+	* display_status.c: Add gssapi_krb5_clear_status,
+	gssapi_krb5_set_status for handling error messages.
+	
+2005-08-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* external.c: Use rk_UNCONST to avoid const warning.
+	
+	* display_status.c: Constify strings to avoid warnings.
+	
+2005-08-11 Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* init_sec_context.c: avoid warnings, update (c)
+
+2005-07-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* init_sec_context.c (spnego_initial): use NegotiationToken
+	encoder now that we have one with the new asn1. compiler.
+	
+	* Makefile.am: the new asn.1 compiler includes the modules name in
+	the depend file
+
+2005-06-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* decapsulate.c: use rk_UNCONST
+
+	* ccache_name.c: rename to avoid shadowing
+
+	* gssapi_locl.h: give kret in GSSAPI_KRB5_INIT a more unique name
+	
+	* process_context_token.c: use rk_UNCONST to unconstify
+	
+	* test_cred.c: rename optind to optidx
+
+2005-05-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* init_sec_context.c (init_auth): honor ok-as-delegate if local
+	configuration approves
+
+	* gssapi_locl.h: prototype for _gss_check_compat
+
+	* compat.c: export check_compat as _gss_check_compat
+
+2005-05-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* init_sec_context.c: Prefix Der_class with ASN1_C_ to avoid
+	problems with system headerfiles that pollute the name space.
+
+	* accept_sec_context.c: Prefix Der_class with ASN1_C_ to avoid
+	problems with system headerfiles that pollute the name space.
+
+2005-05-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* init_sec_context.c (init_auth): set
+	KRB5_AUTH_CONTEXT_CLEAR_FORWARDED_CRED (for java compatibility),
+	also while here, use krb5_auth_con_addflags
+
+2005-05-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* arcfour.c (_gssapi_wrap_arcfour): fix calculating the encap
+	length. From: Tom Maher <tmaher@eecs.berkeley.edu>
+
+2005-05-02  Dave Love  <fx@gnu.org>
+
+	* test_cred.c (main): Call setprogname.
+
+2005-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* prefix all sequence symbols with _, they are not part of the
+	GSS-API api. By comment from Wynn Wilkes <wynnw@vintela.com>
+
+2005-04-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* accept_sec_context.c: break out the processing of the delegated
+	credential to a separate function to make error handling easier,
+	move the credential handling to after other setup is done
+	
+	* test_sequence.c: make less verbose in case of success
+
+	* Makefile.am: add test_sequence to TESTS
+
+2005-04-01  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* 8003.c (gssapi_krb5_verify_8003_checksum): check that cksum
+	isn't NULL From: Nicolas Pouvesle <npouvesle@tenablesecurity.com>
+
+2005-03-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: use $(LIB_roken)
+
+2005-03-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* display_status.c (gssapi_krb5_set_error_string): pass in the
+	krb5_context to krb5_free_error_string
+	
+2005-03-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* display_status.c (gssapi_krb5_set_error_string): don't misuse
+	the krb5_get_error_string api
+
+2005-03-01  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* compat.c (_gss_DES3_get_mic_compat): don't unlock mutex
+	here. Bug reported by Stefan Metzmacher <metze@samba.org>
+
+2005-02-21  Luke Howard  <lukeh@padl.com>
+
+	* init_sec_context.c: don't call krb5_get_credentials() with
+	  KRB5_TC_MATCH_KEYTYPE, it can lead to the credentials cache
+	  growing indefinitely as no key is found with KEYTYPE_NULL
+
+	* compat.c: remove GSS_C_EXPECTING_MECH_LIST_MIC_FLAG, it is
+	  no longer used (however the mechListMIC behaviour is broken,
+	  rfc2478bis support requires the code in the mechglue branch)
+
+	* init_sec_context.c: remove GSS_C_EXPECTING_MECH_LIST_MIC_FLAG
+
+	* gssapi.h: remove GSS_C_EXPECTING_MECH_LIST_MIC_FLAG
+
+2005-01-05  Luke Howard  <lukeh@padl.com>
+
+	* 8003.c: use symbolic name for checksum type
+
+	* accept_sec_context.c: allow client to indicate
+	  that subkey should be used
+
+	* acquire_cred.c: plug leak
+
+	* get_mic.c: use gss_krb5_get_subkey() instead
+	  of gss_krb5_get_{local,remote}key(), support
+	  KEYTYPE_ARCFOUR_56
+
+	* gssapi_local.c: use gss_krb5_get_subkey(),
+	  support KEYTYPE_ARCFOUR_56
+
+	* import_sec_context.c: plug leak
+
+	* unwrap.c: use gss_krb5_get_subkey(),
+	  support KEYTYPE_ARCFOUR_56
+
+	* verify_mic.c: use gss_krb5_get_subkey(),
+	  support KEYTYPE_ARCFOUR_56
+
+	* wrap.c: use gss_krb5_get_subkey(),
+	  support KEYTYPE_ARCFOUR_56
+
+2004-11-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* inquire_cred.c: Reverse order of HEIMDAL_MUTEX_unlock and
+	gss_release_cred to avoid deadlock, from Luke Howard
+	<lukeh@padl.com>.
+
+2004-09-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: gss_krb5_extract_authz_data_from_sec_context
+	was renamed to gsskrb5_extract_authz_data_from_sec_context
+	
+2004-08-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* unwrap.c: mutex buglet, From: Luke Howard <lukeh@PADL.COM>
+	
+	* arcfour.c: mutex buglet, From: Luke Howard <lukeh@PADL.COM>
+	
+2004-05-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.3: spelling from Josef El-Rayes <josef@FreeBSD.org> while
+	here, write some text about the SPNEGO situation
+	
+2004-04-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* cfx.c: s/CTXAcceptorSubkey/CFXAcceptorSubkey/
+	
+2004-04-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.h: add GSS_C_EXPECTING_MECH_LIST_MIC_FLAG From: Luke
+	Howard <lukeh@padl.com>
+	
+	* init_sec_context.c (spnego_reply): use
+	_gss_spnego_require_mechlist_mic to figure out if we need to check
+	MechListMIC; From: Luke Howard <lukeh@padl.com>
+
+	* accept_sec_context.c (send_accept): use
+	_gss_spnego_require_mechlist_mic to figure out if we need to send
+	MechListMIC; From: Luke Howard <lukeh@padl.com>
+
+	* gssapi_locl.h: add _gss_spnego_require_mechlist_mic
+	From: Luke Howard <lukeh@padl.com>
+
+	* compat.c: add _gss_spnego_require_mechlist_mic for compatibility
+	with MS SPNEGO, From: Luke Howard <lukeh@padl.com>
+	
+2004-04-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* accept_sec_context.c (gsskrb5_is_cfx): krb5_keyblock->keytype is
+	an enctype, not keytype
+
+	* accept_sec_context.c: use ASN1_MALLOC_ENCODE
+	
+	* init_sec_context.c: avoid the malloc loop and just allocate the
+	propper amount of data
+
+	* init_sec_context.c (spnego_initial): handle mech_token better
+	
+2004-03-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.h: add gss_krb5_get_tkt_flags
+	
+	* Makefile.am: add ticket_flags.c
+	
+	* ticket_flags.c: Get ticket-flags from acceptor ticket From: Luke
+	Howard <lukeh@PADL.COM>
+	
+	* gss_acquire_cred.3: document gss_krb5_get_tkt_flags
+	
+2004-03-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* acquire_cred.c (gss_acquire_cred): check usage before even
+	bothering to process it, add both keytab and initial tgt if
+	requested
+
+	* wrap.c: support cfx, try to handle acceptor asserted subkey
+	
+	* unwrap.c: support cfx, try to handle acceptor asserted subkey
+	
+	* verify_mic.c: support cfx
+	
+	* get_mic.c: support cfx
+	
+	* test_sequence.c: handle changed signature of
+	gssapi_msg_order_create
+
+	* import_sec_context.c: handle acceptor asserted subkey
+	
+	* init_sec_context.c: handle acceptor asserted subkey
+	
+	* accept_sec_context.c: handle acceptor asserted subkey
+	
+	* sequence.c: add dummy use_64 argument to gssapi_msg_order_create
+	
+	* gssapi_locl.h: add partial support for CFX
+	
+	* Makefile.am (noinst_PROGRAMS) += test_cred
+	
+	* test_cred.c: gssapi credential testing
+
+	* test_acquire_cred.c: fix comment
+	
+2004-03-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* arcfour.h: drop structures for message formats, no longer used
+	
+	* arcfour.c: comment describing message formats
+
+	* accept_sec_context.c (spnego_accept_sec_context): make sure the
+	length of the choice element doesn't overrun us
+	
+	* init_sec_context.c (spnego_reply): make sure the length of the
+	choice element doesn't overrun us
+	
+	* spnego.asn1: move NegotiationToken to avoid warning
+	
+	* spnego.asn1: uncomment NegotiationToken
+	
+	* Makefile.am: spnego_files += asn1_NegotiationToken.x
+	
+2004-01-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.h: add gss_krb5_ccache_name
+	
+	* Makefile.am (libgssapi_la_SOURCES): += ccache_name.c
+	
+	* ccache_name.c (gss_krb5_ccache_name): help function enable to
+	set krb5 name, using out_name argument makes function no longer
+	thread-safe
+
+	* gssapi.3: add missing gss_krb5_ references
+	
+	* gss_acquire_cred.3: document gss_krb5_ccache_name
+	
+2003-12-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* cfx.c: make rrc a modulus operation if its longer then the
+	length of the message, noticed by Sam Hartman
+
+2003-12-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* accept_sec_context.c: use krb5_auth_con_addflags
+	
+2003-12-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* cfx.c: Wrap token id was in wrong order, found by Sam Hartman
+	
+2003-12-04  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* cfx.c: add AcceptorSubkey (but no code understand it yet) ignore
+	unknown token flags
+	
+2003-11-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* accept_sec_context.c: Don't require timestamp to be set on
+	delegated token, its already protected by the outer token (and
+	windows doesn't alway send it) Pointed out by Zi-Bin Yang
+	<zbyang@decru.com> on heimdal-discuss
+
+2003-11-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* cfx.c: fix {} error, pointed out by Liqiang Zhu
+	
+2003-11-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* cfx.c: Sequence number should be stored in bigendian order From:
+	Luke Howard <lukeh@padl.com>
+	
+2003-11-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* delete_sec_context.c (gss_delete_sec_context): don't free
+	ticket, krb5_free_ticket does that now
+
+2003-11-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* cfx.c: checksum the header last in MIC token, update to -03
+	From: Luke Howard <lukeh@padl.com>
+	
+2003-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* add_cred.c: If its a MEMORY cc, make a copy. We need to do this
+	since now gss_release_cred will destroy the cred. This should be
+	really be solved a better way.
+
+	* acquire_cred.c (gss_release_cred): if its a mcc, destroy it
+	rather the just release it Found by: "Zi-Bin Yang"
+	<zbyang@decru.com>
+
+	* acquire_cred.c (acquire_initiator_cred): use kret instead of ret
+	where appropriate
+
+2003-09-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: spelling
+	From: jmc <jmc@prioris.mini.pw.edu.pl>
+	
+2003-09-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* cfx.c: - EC and RRC are big-endian, not little-endian - The
+	default is now to rotate regardless of GSS_C_DCE_STYLE. There are
+	no longer any references to GSS_C_DCE_STYLE.  - rrc_rotate()
+	avoids allocating memory on the heap if rrc <= 256
+	From: Luke Howard <lukeh@padl.com>
+	
+2003-09-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* cfx.[ch]: rrc_rotate() was untested and broken, fix it.
+	Set and verify wrap Token->Filler.
+	Correct token ID for wrap tokens, 
+	were accidentally swapped with delete tokens.
+	From: Luke Howard <lukeh@PADL.COM>
+
+2003-09-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* cfx.[ch]: no ASN.1-ish header on per-message tokens
+	From: Luke Howard <lukeh@PADL.COM>
+	
+2003-09-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* arcfour.h: remove depenency on gss_arcfour_mic_token and
+	gss_arcfour_warp_token
+
+	* arcfour.c: remove depenency on gss_arcfour_mic_token and
+	gss_arcfour_warp_token
+
+2003-09-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* 8003.c: remove #if 0'ed code
+	
+2003-09-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* accept_sec_context.c (gsskrb5_accept_sec_context): set sequence
+	number when not requesting mutual auth From: Luke Howard
+	<lukeh@PADL.COM>
+
+	* init_sec_context.c (init_auth): set sequence number when not
+	requesting mutual auth From: Luke Howard <lukeh@PADL.COM>
+	
+2003-09-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* arcfour.c (*): set minor_status
+	(gss_wrap): set conf_state to conf_req_flags on success
+	From: Luke Howard <lukeh@PADL.COM>
+	
+	* wrap.c (gss_wrap_size_limit): use existing function From: Luke
+	Howard <lukeh@PADL.COM>
+	
+2003-09-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* indicate_mechs.c (gss_indicate_mechs): in case of error, free
+	mech_set
+
+	* indicate_mechs.c (gss_indicate_mechs): add SPNEGO
+
+2003-09-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* init_sec_context.c (spnego_initial): catch errors and return
+	them
+
+	* init_sec_context.c (spnego_initial): add #if 0 out version of
+	the CHOICE branch encoding, also where here, free no longer used
+	memory
+
+2003-09-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: support GSS_SPNEGO_MECHANISM
+	
+	* accept_sec_context.c: SPNEGO doesn't include gss wrapping on
+	SubsequentContextToken like the Kerberos 5 mech does.
+	
+	* init_sec_context.c (spnego_reply): SPNEGO doesn't include gss
+	wrapping on SubsequentContextToken like the Kerberos 5 mech
+	does. Lets check for it anyway.
+	
+	* accept_sec_context.c: Add support for SPNEGO on the initator
+	side.  Implementation initially from Assar Westerlund, passes
+	though quite a lot of hands before I commited it.
+	
+	* init_sec_context.c: Add support for SPNEGO on the initator side.
+	Tested with ldap server on a Windows 2000 DC. Implementation
+	initially from Assar Westerlund, passes though quite a lot of
+	hands before I commited it.
+	
+	* gssapi.h: export GSS_SPNEGO_MECHANISM
+	
+	* gssapi_locl.h: include spnego_as.h add prototype for
+	gssapi_krb5_get_mech
+	
+	* decapsulate.c (gssapi_krb5_get_mech): make non static
+	
+	* Makefile.am: build SPNEGO file
+	
+2003-09-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* external.c: SPENGO and IAKERB oids
+	
+	* spnego.asn1: SPENGO ASN1
+	
+2003-09-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* cfx.c: RRC also need to be zero before wraping them
+	From: Luke Howard <lukeh@PADL.COM>
+	
+2003-09-04  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* encapsulate.c (gssapi_krb5_encap_length): don't return void
+	
+2003-09-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* verify_mic.c: switch from the des_ to the DES_ api
+	
+	* get_mic.c: switch from the des_ to the DES_ api
+	
+	* unwrap.c: switch from the des_ to the DES_ api
+	
+	* wrap.c: switch from the des_ to the DES_ api
+	
+	* cfx.c: EC is not included in the checksum since the length might
+	change depending on the data.  From: Luke Howard <lukeh@PADL.COM>
+	
+	* acquire_cred.c: use
+	krb5_get_init_creds_opt_alloc/krb5_get_init_creds_opt_free
+
+2003-09-01  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* copy_ccache.c: rename
+	gss_krb5_extract_authz_data_from_sec_context to
+	gsskrb5_extract_authz_data_from_sec_context
+
+	* gssapi.h: rename gss_krb5_extract_authz_data_from_sec_context to
+	gsskrb5_extract_authz_data_from_sec_context
+	
+2003-08-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* copy_ccache.c (gss_krb5_extract_authz_data_from_sec_context):
+	check that we have a ticket before we start to use it
+	
+	* gss_acquire_cred.3: document
+	gss_krb5_extract_authz_data_from_sec_context
+	
+	* gssapi.h (gss_krb5_extract_authz_data_from_sec_context):
+	return the kerberos authorizationdata, from idea of Luke Howard
+
+	* copy_ccache.c (gss_krb5_extract_authz_data_from_sec_context):
+	return the kerberos authorizationdata, from idea of Luke Howard
+	
+	* verify_mic.c (gss_verify_mic_internal): switch type and key
+	argument
+
+2003-08-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* cfx.[ch]: draft-ietf-krb-wg-gssapi-cfx-01.txt implemetation
+	From: Luke Howard <lukeh@PADL.COM>
+	
+2003-08-28  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* arcfour.c (arcfour_mic_cksum): use free_Checksum to free the
+	checksum
+
+	* arcfour.h: swap two last arguments to verify_mic for consistency
+	with des3
+
+	* wrap.c,unwrap.c,get_mic.c,verify_mic.c,cfx.c,cfx.h:
+	prefix cfx symbols with _gssapi_
+
+	* arcfour.c: release the right buffer
+	
+	* arcfour.c: rename token structure in consistency with rest of
+	GSS-API From: Luke Howard <lukeh@PADL.COM>
+	
+	* unwrap.c (unwrap_des3): use _gssapi_verify_pad
+	(unwrap_des): use _gssapi_verify_pad
+
+	* arcfour.c (_gssapi_wrap_arcfour): set the correct padding
+	(_gssapi_unwrap_arcfour): verify and strip padding
+
+	* gssapi_locl.h: added _gssapi_verify_pad
+	
+	* decapsulate.c (_gssapi_verify_pad): verify padding of a gss
+	wrapped message and return its length
+	
+	* arcfour.c: support KEYTYPE_ARCFOUR_56 keys, from Luke Howard
+	<lukeh@PADL.COM>
+	
+	* arcfour.c: use right seal alg, inherit keytype from parent key
+	
+	* arcfour.c: include the confounder in the checksum use the right
+	key usage number for warped/unwraped tokens
+	
+	* gssapi.h: add gss_krb5_nt_general_name as an mit compat glue
+	(same as GSS_KRB5_NT_PRINCIPAL_NAME)
+
+	* unwrap.c: hook in arcfour unwrap
+	
+	* wrap.c: hook in arcfour wrap
+	
+	* verify_mic.c: hook in arcfour verify_mic
+	
+	* get_mic.c: hook in arcfour get_mic
+	
+	* arcfour.c: implement wrap/unwarp
+	
+	* gssapi_locl.h: add gssapi_{en,de}code_be_om_uint32
+	
+	* 8003.c: add gssapi_{en,de}code_be_om_uint32
+	
+2003-08-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* arcfour.c (_gssapi_verify_mic_arcfour): Do the checksum on right
+	area. Swap filler check, it was reversed.
+	
+	* Makefile.am (libgssapi_la_SOURCES): += arcfour.c
+	
+	* gssapi_locl.h: include "arcfour.h"
+	
+	* arcfour.c: arcfour gss-api mech, get_mic/verify_mic working
+
+	* arcfour.h: arcfour gss-api mech, get_mic/verify_mic working
+	
+2003-08-26  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi_locl.h: always include cfx.h add prototype for
+	_gssapi_decapsulate
+
+	* cfx.[ch]: Implementation of draft-ietf-krb-wg-gssapi-cfx-00.txt
+	from Luke Howard <lukeh@PADL.COM>
+
+	* decapsulate.c: add _gssapi_decapsulate, from Luke Howard
+	<lukeh@PADL.COM>
+	
+2003-08-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* unwrap.c: encap/decap now takes a oid if the enctype/keytype is
+	arcfour, return error add hook for cfx
+	
+	* verify_mic.c: encap/decap now takes a oid if the enctype/keytype
+	is arcfour, return error add hook for cfx
+	
+	* get_mic.c: encap/decap now takes a oid if the enctype/keytype is
+	arcfour, return error add hook for cfx
+	
+	* accept_sec_context.c: encap/decap now takes a oid
+	
+	* init_sec_context.c: encap/decap now takes a oid
+	
+	* gssapi_locl.h: include cfx.h if we need it lifetime is a
+	OM_uint32, depend on gssapi interface add all new encap/decap
+	functions
+	
+	* decapsulate.c: add decap functions that doesn't take the token
+	type also make all decap function take the oid mech that they
+	should use
+
+	* encapsulate.c: add encap functions that doesn't take the token
+	type also make all encap function take the oid mech that they
+	should use
+
+	* sequence.c (elem_insert): fix a off by one index counter
+	
+	* inquire_cred.c (gss_inquire_cred): handle cred_handle being
+	GSS_C_NO_CREDENTIAL and use the default cred then.
+	
+2003-08-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: break out extensions and document
+	gsskrb5_register_acceptor_identity
+
+2003-08-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_acquire_cred.c (print_time): time is returned in seconds
+	from now, not unix time
+
+2003-08-17  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* compat.c (check_compat): avoid leaking principal when finding a
+	match
+
+	* address_to_krb5addr.c: sa_size argument to krb5_addr2sockaddr is
+	a krb5_socklen_t
+
+	* acquire_cred.c (gss_acquire_cred): 4th argument to
+	gss_test_oid_set_member is a int
+
+2003-07-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* init_sec_context.c (repl_mutual): don't set kerberos error where
+	there was no kerberos error
+
+	* gssapi_locl.h: Add destruction/creation prototypes and structure
+	for the thread specific storage.
+
+	* display_status.c: use thread specific storage to set/get the
+	kerberos error message
+
+	* init.c: Provide locking around the creation of the global
+	krb5_context. Add destruction/creation functions for the thread
+	specific storage that the error string handling is using.
+	
+2003-07-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: add missing prototype and missing .Ft
+	arguments
+
+2003-06-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* verify_mic.c: reorder code so sequence numbers can can be used
+	
+	* unwrap.c: reorder code so sequence numbers can can be used
+	
+	* sequence.c: remove unused function, indent, add
+	gssapi_msg_order_f that filter gss flags to gss_msg_order flags
+	
+	* gssapi_locl.h: prototypes for
+	gssapi_{encode_om_uint32,decode_om_uint32} add sequence number
+	verifier prototypes
+
+	* delete_sec_context.c: destroy sequence number verifier
+	
+	* init_sec_context.c: remember to free data use sequence number
+	verifier
+	
+	* accept_sec_context.c: don't clear output_token twice remember to
+	free data use sequence number verifier
+	
+	* 8003.c: export and rename encode_om_uint32/decode_om_uint32 and
+	start to use them
+
+2003-06-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: can't have sequence.c in two different places
+
+2003-06-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_sequence.c: check rollover, print summery
+	
+	* wrap.c (sub_wrap_size): gss_wrap_size_limit() has
+	req_output_size and max_input_size around the wrong way -- it
+	returns the output token size for a given input size, rather than
+	the maximum input size for a given output token size.
+	
+	From: Luke Howard <lukeh@PADL.COM>
+	
+2003-06-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi_locl.h: add prototypes for sequence.c
+	
+	* Makefile.am (libgssapi_la_SOURCES): add sequence.c
+	(test_sequence): build
+
+	* sequence.c: sequence number checks, order and replay
+	* test_sequence.c: sequence number checks, order and replay
+
+2003-06-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* accept_sec_context.c (gss_accept_sec_context): make sure time is
+	returned in seconds from now, not in kerberos time
+	
+	* acquire_cred.c (gss_aquire_cred): make sure time is returned in
+	seconds from now, not in kerberos time
+	
+	* init_sec_context.c (init_auth): if the cred is expired before we
+	tries to create a token, fail so the peer doesn't need reject us
+	(*): make sure time is returned in seconds from now, 
+	not in kerberos time
+	(repl_mutual): remember to unlock the context mutex
+
+	* context_time.c (gss_context_time): remove unused variable
+	
+	* verify_mic.c: make sure minor_status is always set, pointed out
+	by Luke Howard <lukeh@PADL.COM>
+
+2003-05-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* *.[ch]: do some basic locking (no reference counting so contexts 
+	  can be removed while still used)
+	- don't export gss_ctx_id_t_desc_struct and gss_cred_id_t_desc_struct
+	- make sure all lifetime are returned in seconds left until expired,
+	  not in unix epoch
+
+	* gss_acquire_cred.3: document argument lifetime_rec to function
+	gss_inquire_context
+
+2003-05-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_acquire_cred.c: test gss_add_cred more then once
+	
+2003-05-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.h: if __cplusplus, wrap the extern variable (just to be
+	safe) and functions in extern "C" { }
+	
+2003-04-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.3: more about the des3 mic mess
+	
+	* verify_mic.c (verify_mic_des3): always check if the mic is the
+	correct mic or the mic that old heimdal would have generated
+	
+2003-04-28  Jacques Vidrine  <nectar@kth.se>
+
+	* verify_mic.c (verify_mic_des3): If MIC verification fails,
+	retry using the `old' MIC computation (with zero IV).
+
+2003-04-26  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: more about difference between comparing IN
+	and MN
+
+	* gss_acquire_cred.3: more about name type and access control
+	
+2003-04-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: document gss_context_time
+	
+	* context_time.c: if lifetime of context have expired, set
+	time_rec to 0 and return GSS_S_CONTEXT_EXPIRED
+	
+	* gssapi.3: document [gssapi]correct_des3_mic
+	[gssapi]broken_des3_mic
+
+	* gss_acquire_cred.3: document gss_krb5_compat_des3_mic
+	
+	* compat.c (gss_krb5_compat_des3_mic): enable turning on/off des3
+	mic compat
+	(_gss_DES3_get_mic_compat): handle [gssapi]correct_des3_mic too
+
+	* gssapi.h (gss_krb5_compat_des3_mic): new function, turn on/off
+	des3 mic compat
+	(GSS_C_KRB5_COMPAT_DES3_MIC): cpp symbol that exists if
+	gss_krb5_compat_des3_mic exists
+	
+2003-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am:  (libgssapi_la_LDFLAGS): update major
+	version of gssapi for incompatiblity in 3des getmic support
+	
+2003-04-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: test_acquire_cred_LDADD: use libgssapi.la not
+	./libgssapi.la (make make -jN work)
+
+2003-04-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.3: spelling
+	
+	* gss_acquire_cred.3: Change .Fd #include <header.h> to .In
+	header.h, from Thomas Klausner <wiz@netbsd.org>
+
+	
+2003-04-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: spelling
+	
+	* Makefile.am: remove stuff that sneaked in with last commit
+	
+	* acquire_cred.c (acquire_initiator_cred): if the requested name
+	isn't in the ccache, also check keytab.  Extact the krbtgt for the
+	default realm to check how long the credentials will last.
+	
+	* add_cred.c (gss_add_cred): don't create a new ccache, just open
+	the old one; better check if output handle is compatible with new
+	(copied) handle
+
+	* test_acquire_cred.c: test gss_add_cred too
+	
+2003-04-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: build test_acquire_cred
+	
+	* test_acquire_cred.c: simple gss_acquire_cred test
+	
+2003-04-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: s/gssapi/GSS-API/
+	
+2003-03-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: document v1 interface (and that they are
+	obsolete)
+
+2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_acquire_cred.3: list supported mechanism and nametypes
+	
+2003-03-16  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* gss_acquire_cred.3: text about gss_display_name
+
+	* Makefile.am (libgssapi_la_LDFLAGS): bump to 3:6:2
+	(libgssapi_la_SOURCES): add all new functions
+
+	* gssapi.3: now that we have a functions, uncomment the missing
+	ones
+
+	* gss_acquire_cred.3: now that we have a functions, uncomment the
+	missing ones
+
+	* process_context_token.c: implement gss_process_context_token
+	
+	* inquire_names_for_mech.c: implement gss_inquire_names_for_mech
+	
+	* inquire_mechs_for_name.c: implement gss_inquire_mechs_for_name
+	
+	* inquire_cred_by_mech.c: implement gss_inquire_cred_by_mech
+	
+	* add_cred.c: implement gss_add_cred
+	
+	* acquire_cred.c (gss_acquire_cred): more testing of input
+	argument, make sure output arguments are ok, since we don't know
+	the time_rec (for now), set it to time_req
+	
+	* export_sec_context.c: send lifetime, also set minor_status
+	
+	* get_mic.c: set minor_status
+	
+	* import_sec_context.c (gss_import_sec_context): add error
+	checking, pick up lifetime (if there is no lifetime, use
+	GSS_C_INDEFINITE)
+
+	* init_sec_context.c: take care to set export value to something
+	sane before we start so caller will have harmless values in them
+	if then function fails
+
+	* release_buffer.c (gss_release_buffer): set minor_status
+	
+	* wrap.c: make sure minor_status get set
+	
+	* verify_mic.c (gss_verify_mic_internal): rename verify_mic to
+	gss_verify_mic_internal and let it take the type as an argument,
+	(gss_verify_mic): call gss_verify_mic_internal
+	set minor_status
+	
+	* unwrap.c: set minor_status
+	
+	* test_oid_set_member.c (gss_test_oid_set_member): use
+	gss_oid_equal
+
+	* release_oid_set.c (gss_release_oid_set): set minor_status
+	
+	* release_name.c (gss_release_name): set minor_status
+	
+	* release_cred.c (gss_release_cred): set minor_status
+	
+	* add_oid_set_member.c (gss_add_oid_set_member): set minor_status
+	
+	* compare_name.c (gss_compare_name): set minor_status
+	
+	* compat.c (check_compat): make sure ret have a defined value
+	
+	* context_time.c (gss_context_time): set minor_status
+	
+	* copy_ccache.c (gss_krb5_copy_ccache): set minor_status
+	
+	* create_emtpy_oid_set.c (gss_create_empty_oid_set): set
+	minor_status
+
+	* delete_sec_context.c (gss_delete_sec_context): set minor_status
+	
+	* display_name.c (gss_display_name): set minor_status
+	
+	* display_status.c (gss_display_status): use gss_oid_equal, handle
+	supplementary errors
+
+	* duplicate_name.c (gss_duplicate_name): set minor_status
+	
+	* inquire_context.c (gss_inquire_context): set lifetime_rec now
+	when we know it, set minor_status
+
+	* inquire_cred.c (gss_inquire_cred): take care to set export value
+	to something sane before we start so caller will have harmless
+	values in them if the function fails
+	
+	* accept_sec_context.c (gss_accept_sec_context): take care to set
+	export value to something sane before we start so caller will have
+	harmless values in them if then function fails, set lifetime from
+	ticket expiration date
+
+	* indicate_mechs.c (gss_indicate_mechs): use
+	gss_create_empty_oid_set and gss_add_oid_set_member
+
+	* gssapi.h (gss_ctx_id_t_desc): store the lifetime in the cred,
+	since there is no ticket transfered in the exported context
+	
+	* export_name.c (gss_export_name): export name with
+	GSS_C_NT_EXPORT_NAME wrapping, not just the principal
+	
+	* import_name.c (import_export_name): new function, parses a
+	GSS_C_NT_EXPORT_NAME
+	(import_krb5_name): factor out common code of parsing krb5 name
+	(gss_oid_equal): rename from oid_equal
+
+	* gssapi_locl.h: add prototypes for gss_oid_equal and
+	gss_verify_mic_internal
+
+	* gssapi.h: comment out the argument names
+	
+2003-03-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gssapi.3: add LIST OF FUNCTIONS and copyright/license
+
+	* Makefile.am: s/gss_aquire_cred.3/gss_acquire_cred.3/
+	
+	* Makefile.am: man_MANS += gss_aquire_cred.3
+	
+2003-03-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* gss_aquire_cred.3: the gssapi api manpage
+	
+2003-03-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* inquire_context.c: (gss_inquire_context): rename argument open
+	to open_context
+
+	* gssapi.h (gss_inquire_context): rename argument open to open_context
+
+2003-02-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* init_sec_context.c (do_delegation): remove unused variable
+	subkey
+
+	* gssapi.3: all 0.5.x version had broken token delegation
+	
+2003-02-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* (init_auth): only generate one subkey
+
+2003-01-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* verify_mic.c (verify_mic_des3): fix 3des verify_mic to conform
+	to rfc (and mit kerberos), provide backward compat hook
+	
+	* get_mic.c (mic_des3): fix 3des get_mic to conform to rfc (and
+	mit kerberos), provide backward compat hook
+	
+	* init_sec_context.c (init_auth): check if we need compat for
+	older get_mic/verify_mic
+
+	* gssapi_locl.h: add prototype for _gss_DES3_get_mic_compat
+	
+	* gssapi.h (more_flags): add COMPAT_OLD_DES3
+	
+	* Makefile.am: add gssapi.3 and compat.c
+	
+	* gssapi.3: add gssapi COMPATIBILITY documentation
+	
+	* accept_sec_context.c (gss_accept_sec_context): check if we need
+	compat for older get_mic/verify_mic
+
+	* compat.c: check for compatiblity with other heimdal's 3des
+	get_mic/verify_mic
+
+2002-10-31  Johan Danielsson  <joda@pdc.kth.se>
+
+	* check return value from gssapi_krb5_init
+	
+	* 8003.c (gssapi_krb5_verify_8003_checksum): check size of input
+
+2002-09-03  Johan Danielsson  <joda@pdc.kth.se>
+
+	* wrap.c (wrap_des3): use ETYPE_DES3_CBC_NONE
+
+	* unwrap.c (unwrap_des3): use ETYPE_DES3_CBC_NONE
+
+2002-09-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* init_sec_context.c: we need to generate a local subkey here
+
+2002-08-20  Jacques Vidrine <n@nectar.com>
+
+	* acquire_cred.c, inquire_cred.c, release_cred.c: Use default
+	  credential resolution if gss_acquire_cred is called with
+	  GSS_C_NO_NAME.
+
+2002-06-20  Jacques Vidrine <n@nectar.com>
+
+	* import_name.c: Compare name types by value if pointers do
+	  not match.  Reported by: "Douglas E. Engert" <deengert@anl.gov>
+
+2002-05-20  Jacques Vidrine <n@nectar.com>
+
+	* verify_mic.c (gss_verify_mic), unwrap.c (gss_unwrap): initialize
+	  the qop_state parameter.  from Doug Rabson <dfr@nlsystems.com>
+
+2002-05-09  Jacques Vidrine <n@nectar.com>
+
+	* acquire_cred.c: handle GSS_C_INITIATE/GSS_C_ACCEPT/GSS_C_BOTH
+
+2002-05-08  Jacques Vidrine <n@nectar.com>
+
+	* acquire_cred.c: initialize gssapi; handle null desired_name
+
+2002-03-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: remove non-functional stuff accidentally committed
+
+2002-03-11  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): bump version to 3:5:2
+	* 8003.c (gssapi_krb5_verify_8003_checksum): handle zero channel
+	bindings
+
+2001-10-31  Jacques Vidrine <n@nectar.com>
+
+	* get_mic.c (mic_des3): MIC computation using DES3/SHA1
+	was bogusly appending the message buffer to the result,
+	overwriting a heap buffer in the process.
+
+2001-08-29  Assar Westerlund  <assar@sics.se>
+
+	* 8003.c (gssapi_krb5_verify_8003_checksum,
+	gssapi_krb5_create_8003_checksum): make more consistent by always
+	returning an gssapi error and setting minor status.  update
+	callers
+
+2001-08-28  Jacques Vidrine  <n@nectar.com>
+
+	* accept_sec_context.c: Create a cache for delegated credentials
+	  when needed.
+
+2001-08-28  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): set version to 3:4:2
+
+2001-08-23  Assar Westerlund  <assar@sics.se>
+
+	*  *.c: handle minor_status more consistently
+
+	* display_status.c (gss_display_status): handle krb5_get_err_text
+	failing
+
+2001-08-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* gssapi_locl.h: fix prototype for gssapi_krb5_init
+
+2001-08-13  Johan Danielsson  <joda@pdc.kth.se>
+
+	* accept_sec_context.c (gsskrb5_register_acceptor_identity): init
+	context and check return value from kt_resolve
+
+	* init.c: return error code
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): update to 3:3:2
+
+2001-07-12  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LIBADD): add required library
+	dependencies
+
+2001-07-06  Assar Westerlund  <assar@sics.se>
+
+	* accept_sec_context.c (gsskrb5_register_acceptor_identity): set
+	the keytab to be used for gss_acquire_cred too'
+
+2001-07-03  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): set version to 3:2:2
+
+2001-06-18  Assar Westerlund  <assar@sics.se>
+
+	* wrap.c: replace gss_krb5_getsomekey with gss_krb5_get_localkey
+	and gss_krb5_get_remotekey
+	* verify_mic.c: update krb5_auth_con function names use
+	gss_krb5_get_remotekey
+	* unwrap.c: replace gss_krb5_getsomekey with gss_krb5_get_localkey
+	and gss_krb5_get_remotekey
+	* gssapi_locl.h (gss_krb5_get_remotekey, gss_krb5_get_localkey):
+	add prototypes
+	* get_mic.c: update krb5_auth_con function names. use
+	gss_krb5_get_localkey
+	* accept_sec_context.c: update krb5_auth_con function names
+
+2001-05-17  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 3:1:2
+
+2001-05-14  Assar Westerlund  <assar@sics.se>
+
+	* address_to_krb5addr.c: adapt to new address functions
+
+2001-05-11  Assar Westerlund  <assar@sics.se>
+
+	* try to return the error string from libkrb5 where applicable
+
+2001-05-08  Assar Westerlund  <assar@sics.se>
+
+	* delete_sec_context.c (gss_delete_sec_context): remember to free
+	the memory used by the ticket itself. from <tmartin@mirapoint.com>
+
+2001-05-04  Assar Westerlund  <assar@sics.se>
+
+	* gssapi_locl.h: add config.h for completeness
+	* gssapi.h: remove config.h, this is an installed header file
+	sys/types.h is not needed either
+	
+2001-03-12  Assar Westerlund  <assar@sics.se>
+
+	* acquire_cred.c (gss_acquire_cred): remove memory leaks.  from
+	Jason R Thorpe <thorpej@zembu.com>
+
+2001-02-18  Assar Westerlund  <assar@sics.se>
+
+	* accept_sec_context.c (gss_accept_sec_context): either return
+	gss_name NULL-ed or set
+
+	* import_name.c: set minor_status in some cases where it was not
+	done
+
+2001-02-15  Assar Westerlund  <assar@sics.se>
+
+	* wrap.c: use krb5_generate_random_block for the confounders
+
+2001-01-30  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): bump version to 3:0:2
+	* acquire_cred.c, init_sec_context.c, release_cred.c: add support
+	for getting creds from a keytab, from fvdl@netbsd.org
+
+	* copy_ccache.c: add gss_krb5_copy_ccache
+
+2001-01-27  Assar Westerlund  <assar@sics.se>
+
+	* get_mic.c: cast parameters to des function to non-const pointers
+ 	to handle the case where these functions actually take non-const
+ 	des_cblock *
+
+2001-01-09  Assar Westerlund  <assar@sics.se>
+
+	* accept_sec_context.c (gss_accept_sec_context): use krb5_rd_cred2
+	instead of krb5_rd_cred
+
+2000-12-11  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): bump to 2:3:1
+
+2000-12-08  Assar Westerlund  <assar@sics.se>
+
+	* wrap.c (wrap_des3): use the checksum as ivec when encrypting the
+	sequence number
+	* unwrap.c (unwrap_des3): use the checksum as ivec when encrypting
+	the sequence number
+	* init_sec_context.c (init_auth): always zero fwd_data
+
+2000-12-06  Johan Danielsson  <joda@pdc.kth.se>
+
+	* accept_sec_context.c: de-pointerise auth_context parameter to
+	krb5_mk_rep
+
+2000-11-15  Assar Westerlund  <assar@sics.se>
+
+	* init_sec_context.c (init_auth): update to new
+	krb5_build_authenticator
+
+2000-09-19  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): bump to 2:2:1
+
+2000-08-27  Assar Westerlund  <assar@sics.se>
+
+	* init_sec_context.c: actually pay attention to `time_req'
+	* init_sec_context.c: re-organize.  leak less memory.
+	* gssapi_locl.h (gssapi_krb5_encapsulate, gss_krb5_getsomekey):
+	update prototypes add assert.h
+	* gssapi.h (GSS_KRB5_CONF_C_QOP_DES, GSS_KRB5_CONF_C_QOP_DES3_KD):
+	add
+	* verify_mic.c: re-organize and add 3DES code
+	* wrap.c: re-organize and add 3DES code
+	* unwrap.c: re-organize and add 3DES code
+	* get_mic.c: re-organize and add 3DES code
+	* encapsulate.c (gssapi_krb5_encapsulate): do not free `in_data',
+	let the caller do that.  fix the callers.
+
+2000-08-16  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 2:1:1
+
+2000-07-29  Assar Westerlund  <assar@sics.se>
+
+	* decapsulate.c (gssapi_krb5_verify_header): sanity-check length
+
+2000-07-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: bump version to 2:0:1
+
+2000-07-22  Assar Westerlund  <assar@sics.se>
+
+	* gssapi.h: update OID for GSS_C_NT_HOSTBASED_SERVICE and other
+	details from rfc2744
+
+2000-06-29  Assar Westerlund  <assar@sics.se>
+
+	* address_to_krb5addr.c (gss_address_to_krb5addr): actually use
+	`int' instead of `sa_family_t' for the address family.
+
+2000-06-21  Assar Westerlund  <assar@sics.se>
+
+	* add support for token delegation.  From Daniel Kouril
+	<kouril@ics.muni.cz> and Miroslav Ruda <ruda@ics.muni.cz>
+
+2000-05-15  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): set version to 1:1:1
+
+2000-04-12  Assar Westerlund  <assar@sics.se>
+
+	* release_oid_set.c (gss_release_oid_set): clear set for
+	robustness.  From GOMBAS Gabor <gombasg@inf.elte.hu>
+	* release_name.c (gss_release_name): reset input_name for
+	robustness.  From GOMBAS Gabor <gombasg@inf.elte.hu>
+	* release_buffer.c (gss_release_buffer): set value to NULL to be
+	more robust.  From GOMBAS Gabor <gombasg@inf.elte.hu>
+	* add_oid_set_member.c (gss_add_oid_set_member): actually check if
+	the oid is a member first.  leave the oid_set unchanged if realloc
+	fails.
+
+2000-02-13  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 1:0:1
+
+2000-02-12  Assar Westerlund  <assar@sics.se>
+
+	* gssapi_locl.h: add flags for import/export
+	* import_sec_context.c (import_sec_context: add flags for what
+	fields are included.  do not include the authenticator for now.
+	* export_sec_context.c (export_sec_context: add flags for what
+	fields are included.  do not include the authenticator for now.
+	* accept_sec_context.c (gss_accept_sec_context): set target in
+	context_handle
+
+2000-02-11  Assar Westerlund  <assar@sics.se>
+
+	* delete_sec_context.c (gss_delete_sec_context): set context to
+	GSS_C_NO_CONTEXT
+
+	* Makefile.am: add {export,import}_sec_context.c
+	* export_sec_context.c: new file
+	* import_sec_context.c: new file
+	* accept_sec_context.c (gss_accept_sec_context): set trans flag
+
+2000-02-07  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 0:5:0
+
+2000-01-26  Assar Westerlund  <assar@sics.se>
+
+	* delete_sec_context.c (gss_delete_sec_context): handle a NULL
+	output_token
+
+	* wrap.c: update to pseudo-standard APIs for md4,md5,sha.  some
+	changes to libdes calls to make them more portable.
+	* verify_mic.c: update to pseudo-standard APIs for md4,md5,sha.
+	some changes to libdes calls to make them more portable.
+	* unwrap.c: update to pseudo-standard APIs for md4,md5,sha.  some
+	changes to libdes calls to make them more portable.
+	* get_mic.c: update to pseudo-standard APIs for md4,md5,sha.  some
+	changes to libdes calls to make them more portable.
+	* 8003.c: update to pseudo-standard APIs for md4,md5,sha.
+
+2000-01-06  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 0:4:0
+
+1999-12-26  Assar Westerlund  <assar@sics.se>
+
+	* accept_sec_context.c (gss_accept_sec_context): always set
+ 	`output_token'
+	* init_sec_context.c (init_auth): always initialize `output_token'
+	* delete_sec_context.c (gss_delete_sec_context): always set
+ 	`output_token'
+
+1999-12-06  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 0:3:0
+
+1999-10-20  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 0:2:0
+
+1999-09-21  Assar Westerlund  <assar@sics.se>
+
+	* init_sec_context.c (gss_init_sec_context): initialize `ticket'
+
+	* gssapi.h (gss_ctx_id_t_desc): add ticket in here.  ick.
+
+	* delete_sec_context.c (gss_delete_sec_context): free ticket
+
+	* accept_sec_context.c (gss_accept_sec_context): stove away
+ 	`krb5_ticket' in context so that ugly programs such as
+ 	gss_nt_server can get at it.  uck.
+
+1999-09-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* accept_sec_context.c: set minor_status
+
+1999-08-04  Assar Westerlund  <assar@sics.se>
+
+	* display_status.c (calling_error, routine_error): right shift the
+ 	code to make it possible to index into the arrays
+
+1999-07-28  Assar Westerlund  <assar@sics.se>
+
+	* gssapi.h (GSS_C_AF_INET6): add
+
+	* import_name.c (import_hostbased_name): set minor_status
+
+1999-07-26  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 0:1:0
+
+Wed Apr  7 14:05:15 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* display_status.c: set minor_status
+
+	* init_sec_context.c: set minor_status
+
+	* lib/gssapi/init.c: remove donep (check gssapi_krb5_context
+ 	directly)
+

@@ -1,0 +1,207 @@
+.\" Copyright (c) 2001 Mark R V Murray
+.\" All rights reserved.
+.\" Copyright (c) 2001 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by ThinkSec AS and
+.\" NAI Labs, the Security Research Division of Network Associates, Inc.
+.\" under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 20, 2009
+.Dt PAM_UNIX 8
+.Os
+.Sh NAME
+.Nm pam_unix
+.Nd UNIX PAM module
+.Sh SYNOPSIS
+.Op Ar service-name
+.Ar module-type
+.Ar control-flag
+.Pa pam_unix
+.Op Ar options
+.Sh DESCRIPTION
+The
+.Ux
+authentication service module for PAM,
+.Nm
+provides functionality for three PAM categories:
+authentication, account management, and password management.
+In terms of the
+.Ar module-type
+parameter, they are the
+.Dq Li auth ,
+.Dq Li account ,
+and
+.Dq Li password
+features.
+It also provides a null function for session management.
+.Ss Ux Ss Authentication Module
+The
+.Ux
+authentication component provides functions to verify the identity of
+a user
+.Pq Fn pam_sm_authenticate ,
+which obtains the relevant
+.Xr passwd 5
+entry.
+It prompts the user for a password and verifies that this is correct with
+.Xr crypt 3 .
+.Pp
+The following options may be passed to the authentication module:
+.Bl -tag -width ".Cm use_first_pass"
+.It Cm debug
+.Xr syslog 3
+debugging information at
+.Dv LOG_DEBUG
+level.
+.It Cm use_first_pass
+If the authentication module is not the first in the stack, and a
+previous module obtained the user's password, that password is used to
+authenticate the user.
+If this fails, the authentication module returns failure without
+prompting the user for a password.
+This option has no effect if the authentication module is the first in
+the stack, or if no previous modules obtained the user's password.
+.It Cm try_first_pass
+This option is similar to the
+.Cm use_first_pass
+option, except that if the previously obtained password fails, the
+user is prompted for another password.
+.It Cm auth_as_self
+This option will require the user to authenticate themselves as
+themselves, not as the account they are attempting to access.
+This is primarily for services like
+.Xr su 1 ,
+where the user's ability to retype their own password might be deemed
+sufficient.
+.It Cm nullok
+If the password database has no password for the entity being
+authenticated, then this option will forgo password prompting, and
+silently allow authentication to succeed.
+.Pp
+.Sy NOTE:
+If
+.Nm
+is invoked by a process that does not have the privileges required to
+access the password database (in most cases, this means root
+privileges), the
+.Cm nullok
+option may cause
+.Nm
+to allow any user to log in with any password.
+.It Cm local_pass
+Use only the local password database, even if NIS is in use.
+This will cause an authentication failure if the system is configured
+to only use NIS.
+.It Cm nis_pass
+Use only the NIS password database.
+This will cause an authentication failure if the system is not
+configured to use NIS.
+.El
+.Ss Ux Ss Account Management Module
+The
+.Ux
+account management component provides a function to perform account
+management,
+.Fn pam_sm_acct_mgmt .
+The function verifies that the authenticated user is allowed to log
+into the local user account by checking the following criteria:
+.Bl -dash -offset indent
+.It
+locked status of the account compatible with
+.Xr pw 8
+.Cm lock ;
+.It
+the password expiry date from
+.Xr passwd 5 ;
+.It
+.Xr login.conf 5
+restrictions on the remote host, login time, and tty.
+.El
+.Pp
+The following options may be passed to the management module:
+.Bl -tag -width ".Cm use_first_pass"
+.It Cm debug
+.Xr syslog 3
+debugging information at
+.Dv LOG_DEBUG
+level.
+.El
+.Ss Ux Ss Password Management Module
+The
+.Ux
+password management component provides a function to perform password
+management,
+.Fn pam_sm_chauthtok .
+The function changes
+the user's password.
+.Pp
+The following options may be passed to the password module:
+.Bl -tag -width ".Cm use_first_pass"
+.It Cm debug
+.Xr syslog 3
+debugging information at
+.Dv LOG_DEBUG
+level.
+.It Cm no_warn
+suppress warning messages to the user.
+These messages include reasons why the user's authentication attempt
+was declined.
+.It Cm local_pass
+forces the password module to change a local password in favour of a
+NIS one.
+.It Cm nis_pass
+forces the password module to change a NIS password in favour of a
+local one.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/master.passwd" -compact
+.It Pa /etc/master.passwd
+default
+.Ux
+password database.
+.El
+.Sh SEE ALSO
+.Xr passwd 1 ,
+.Xr getlogin 2 ,
+.Xr crypt 3 ,
+.Xr getpwent 3 ,
+.Xr syslog 3 ,
+.Xr nsswitch.conf 5 ,
+.Xr passwd 5 ,
+.Xr pam 8 ,
+.Xr pw 8 ,
+.Xr yp 8
+.Sh BUGS
+The
+.Nm
+module ignores the
+.Dv PAM_CHANGE_EXPIRED_AUTHTOK
+flag.

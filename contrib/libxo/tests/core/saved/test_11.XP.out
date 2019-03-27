@@ -1,0 +1,18 @@
+{{<14>1 2015-06-23T13:47:09.123-0500 worker-host test-program 222 animal-status [animal-status@42 animal="snake" state="loose"] ﻿The snake is loose}}
+{{test-program: }}
+{{The snake is loose}}
+
+{{<22>1 2015-06-23T13:47:09.123-0500 worker-host test-program 222 animal-consumed [animal-consumed@42 animal="snake" pet="hamster"] ﻿My snake ate your hamster}}
+{{test-program: }}
+{{My snake ate your hamster}}
+
+{{<29>1 2015-06-23T13:47:09.123-0500 worker-host test-program 222 animal-talk [animal-talk@42 count="1" animal="owl" quote="\"e=m\\c[2\]\""] ﻿1 owl said "e=m\c[2]"}}
+{{test-program: }}
+{{1 owl said "e=m\c[2]"}}
+
+{{<165>1 2015-06-23T13:47:09.123-0500 worker-host test-program 222 ID47 [ID47@32473 iut="3" event-source="application" event-id="1011"] ﻿An application 1011 log entry}}
+{{test-program: }}
+{{An application 1011 log entry}}
+
+<top version="3.1.4">
+</top>

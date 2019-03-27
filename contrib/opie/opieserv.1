@@ -1,0 +1,82 @@
+.\" opieserv.1: Manual page for the opieserv(1) program.
+.\"
+.\" %%% portions-copyright-cmetz-96
+.\" Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
+.\" Reserved. The Inner Net License Version 2 applies to these portions of
+.\" the software.
+.\" You should have received a copy of the license with this software. If
+.\" you didn't get a copy, you may request one from <license@inner.net>.
+.\"
+.\" Portions of this software are Copyright 1995 by Randall Atkinson and Dan
+.\" McDonald, All Rights Reserved. All Rights under this copyright are assigned
+.\" to the U.S. Naval Research Laboratory (NRL). The NRL Copyright Notice and
+.\" License Agreement applies to this software.
+.\"
+.\"	History:
+.\"
+.\"     Created by cmetz for OPIE 2.2 from opiegen.1.
+.\"
+.ll 6i
+.pl 10.5i
+.lt 6.0i
+.TH OPIEKEY 1 "February 20, 1996"
+.AT 3
+.SH NAME
+opieserv \- Example OPIE-based OTP server
+
+.SH SYNOPSIS
+.B opieserv
+.sp 0
+[
+.I principal
+]
+.sp 0
+
+.SH DESCRIPTION
+.I opieserv
+takes an OTP principal (e.g., a user name) from either the command line or
+standard input and returns a current OTP challenge for that principal. It then 
+reads an OTP response to that challenge from standard input and displays a
+message and returns a value to indicate either success (exit value = 0) or
+failure (exit value = 1). It is intended as an example for programmers
+of how a simple OTP server can be built.
+
+.SH EXAMPLE
+.sp 0
+wintermute$ opieserv kebe
+.sp 0
+otp-md5 495 wi01309
+.sp 0
+Response: 
+.sp 0
+User verified.
+.sp 0
+wintermute$
+.LP
+
+.SH SEE ALSO
+.BR opiegen (1),
+.BR opiekey (1),
+.BR opie (4),
+.BR opiepasswd (1),
+.BR opieinfo (1),
+.BR opiesu (1),
+.BR opielogin (1),
+.BR opieftpd (8),
+.BR opiekeys (5),
+.BR opieaccess (5)
+
+.SH AUTHOR
+The opieserv1) program was created by Craig Metz for OPIE 2.2.
+
+Bellcore's S/Key was written by Phil Karn, Neil M. Haller, and John S. Walden
+of Bellcore. OPIE was created at NRL by Randall Atkinson, Dan McDonald, and
+Craig Metz.
+
+S/Key is a trademark of Bell Communications Research (Bellcore).
+
+.SH CONTACT
+OPIE is discussed on the Bellcore "S/Key Users" mailing list. To join,
+send an email request to:
+.sp
+skey-users-request@thumper.bellcore.com

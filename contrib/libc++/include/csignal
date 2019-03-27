@@ -1,0 +1,58 @@
+// -*- C++ -*-
+//===--------------------------- csignal ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CSIGNAL
+#define _LIBCPP_CSIGNAL
+
+/*
+    csignal synopsis
+
+Macros:
+
+    SIG_DFL
+    SIG_ERR
+    SIG_IGN
+    SIGABRT
+    SIGFPE
+    SIGILL
+    SIGINT
+    SIGSEGV
+    SIGTERM
+
+namespace std
+{
+
+Types:
+
+    sig_atomic_t
+
+void (*signal(int sig, void (*func)(int)))(int);
+int raise(int sig);
+
+}  // std
+
+*/
+
+#include <__config>
+#include <signal.h>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::sig_atomic_t;
+using ::signal;
+using ::raise;
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_CSIGNAL

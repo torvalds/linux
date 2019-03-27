@@ -1,0 +1,834 @@
+\input texinfo   @c -*-texinfo-*-
+@c %**start of header
+@setfilename annotate.info
+
+@c This is a dir.info fragment to support semi-automated addition of
+@c manuals to an info tree.
+@dircategory Software development
+@direntry
+* Annotate: (annotate).                 The obsolete annotation interface.
+@end direntry
+
+@c
+@include gdb-cfg.texi
+@c
+@settitle @value{GDBN}'s Obsolete Annotations
+@setchapternewpage off
+@c %**end of header
+
+@set EDITION 1.0
+@set DATE July 2003
+
+@c NOTE: cagney/2003-07-28:
+@c Don't make this migration doccument an appendix of GDB's user guide.
+@c By keeping this separate, the size of the user guide is contained. If
+@c the user guide to get much bigger it would need to switch to a larger,
+@c more expensive, form factor and would drive up the manuals publication
+@c cost.  Having a smaller cheaper manual helps the GNU Press with its sales.
+
+@ifinfo
+This file documents @value{GDBN}'s obsolete annotations.
+
+Copyright 1994, 1995, 2000, 2001, 2003 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, with no Front-Cover Texts, and with no Back-Cover
+Texts.  A copy of the license is included in the section entitled ``GNU
+Free Documentation License''.
+
+@end ifinfo
+
+@titlepage
+@title @value{GDBN}'s Obsolete Annotations
+@subtitle Edition @value{EDITION}
+@subtitle @value{DATE}
+@author Free Software Foundation
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1994, 1995, 2000, 2001, 2003 Free Software
+Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, with no Front-Cover Texts, and with no Back-Cover
+Texts.  A copy of the license is included in the section entitled ``GNU
+Free Documentation License''.
+@end titlepage
+
+@ifinfo
+@node Top
+@top GDB Annotations
+
+This document describes the obsolete level two annotation interface
+implemented in older @value{GDBN} versions.
+
+@ignore
+This is Edition @value{EDITION}, @value{DATE}.
+@end ignore
+@end ifinfo
+
+@menu
+* Annotations Overview::  What annotations are; the general syntax.
+* Limitations::           Limitations of the annotation interface.
+* Migrating to GDB/MI::   Migrating to GDB/MI
+* Server Prefix::       Issuing a command without affecting user state.
+* Value Annotations::   Values are marked as such.
+* Frame Annotations::   Stack frames are annotated.
+* Displays::            @value{GDBN} can be told to display something periodically.
+* Prompting::           Annotations marking @value{GDBN}'s need for input.
+* Errors::              Annotations for error messages.
+* Breakpoint Info::     Information on breakpoints.
+* Invalidation::        Some annotations describe things now invalid.
+* Annotations for Running::
+                        Whether the program is running, how it stopped, etc.
+* Source Annotations::  Annotations describing source code.
+
+* GNU Free Documentation License::
+@end menu
+
+@contents
+
+@node Annotations Overview
+@chapter What is an Annotation?
+@cindex annotations
+
+To produce obsolete level two annotations, start @value{GDBN} with the
+@code{--annotate=2} option.
+
+Annotations start with a newline character, two @samp{control-z}
+characters, and the name of the annotation.  If there is no additional
+information associated with this annotation, the name of the annotation
+is followed immediately by a newline.  If there is additional
+information, the name of the annotation is followed by a space, the
+additional information, and a newline.  The additional information
+cannot contain newline characters.
+
+Any output not beginning with a newline and two @samp{control-z}
+characters denotes literal output from @value{GDBN}.  Currently there is
+no need for @value{GDBN} to output a newline followed by two
+@samp{control-z} characters, but if there was such a need, the
+annotations could be extended with an @samp{escape} annotation which
+means those three characters as output.
+
+A simple example of starting up @value{GDBN} with annotations is:
+
+@smallexample
+$ gdb --annotate=2
+GNU GDB 5.0
+Copyright 2000 Free Software Foundation, Inc.
+GDB is free software, covered by the GNU General Public License,
+and you are welcome to change it and/or distribute copies of it
+under certain conditions.
+Type "show copying" to see the conditions.
+There is absolutely no warranty for GDB.  Type "show warranty"
+for details.
+This GDB was configured as "sparc-sun-sunos4.1.3"
+
+^Z^Zpre-prompt
+(gdb) 
+^Z^Zprompt
+quit
+
+^Z^Zpost-prompt
+$ 
+@end smallexample
+
+Here @samp{quit} is input to @value{GDBN}; the rest is output from
+@value{GDBN}.  The three lines beginning @samp{^Z^Z} (where @samp{^Z}
+denotes a @samp{control-z} character) are annotations; the rest is
+output from @value{GDBN}.
+
+@node Limitations
+@chapter Limitations of the Annotation Interface
+
+The level two annotations mechanism is known to have a number of
+technical and architectural limitations.  As a consequence, in 2001,
+with the release of @value{GDBN} 5.1 and the addition of @sc{gdb/mi},
+the annotation interface was marked as deprecated.
+
+This chapter discusses the known problems.
+
+@section Dependant on @sc{cli} output
+
+The annotation interface works by interspersing markups with
+@value{GDBN} normal command-line interpreter output.  Unfortunately, this
+makes the annotation client dependant on not just the annotations, but
+also the @sc{cli} output.  This is because the client is forced to
+assume that specific @value{GDBN} commands provide specific information.
+Any change to @value{GDBN}'s @sc{cli} output modifies or removes that
+information and, consequently, likely breaks the client.
+
+Since the @sc{gdb/mi} output is independant of the @sc{cli}, it does not
+have this problem.
+
+@section Scalability
+
+The annotation interface relies on value annotations (@pxref{Value
+Annotations}) and the display mechanism as a way of obtaining up-to-date
+value information.  These mechanisms are not scalable.
+
+In a graphical environment, where many values can be displayed
+simultaneously, a serious performance problem occurs when the client
+tries to first extract from @value{GDBN}, and then re-display, all those
+values.  The client should instead only request and update the values
+that changed.
+
+The @sc{gdb/mi} Variable Objects provide just that mechanism.
+
+@section Correctness
+
+The annotation interface assumes that a variable's value can only be
+changed when the target is running.  This assumption is not correct.  A
+single assignment to a single variable can result in the entire target,
+and all displayed values, needing an update.
+
+The @sc{gdb/mi} Variable Objects include a mechanism for efficiently
+reporting such changes.
+
+@section Reliability
+
+The @sc{gdb/mi} interface includes a dedicated test directory
+(@file{gdb/gdb.mi}), and any addition or fix to @sc{gdb/mi} must include
+testsuite changes.
+
+@section Maintainability
+
+The annotation mechanism was implemented by interspersing @sc{cli} print
+statements with various annotations.  As a consequence, any @sc{cli}
+output change can alter the annotation output.
+
+Since the @sc{gdb/mi} output is independant of the @sc{cli}, and the
+@sc{gdb/mi} is increasingly implemented independant of the @sc{cli}
+code, its long term maintenance is much easier.
+
+@node Migrating to GDB/MI
+@chapter Migrating to @sc{gdb/mi}
+
+By using the @samp{interp mi} command, it is possible for annotation
+clients to invoke @sc{gdb/mi} commands, and hence access the
+@sc{gdb/mi}.  By doing this, existing annotation clients have a
+migration path from this obsolete interface to @sc{gdb/mi}.
+
+@node Server Prefix
+@chapter The Server Prefix
+@cindex server prefix for annotations
+
+To issue a command to @value{GDBN} without affecting certain aspects of
+the state which is seen by users, prefix it with @samp{server }.  This
+means that this command will not affect the command history, nor will it
+affect @value{GDBN}'s notion of which command to repeat if @key{RET} is
+pressed on a line by itself.
+
+The server prefix does not affect the recording of values into the value
+history; to print a value without recording it into the value history,
+use the @code{output} command instead of the @code{print} command.
+
+@node Value Annotations
+@chapter Values
+
+@emph{Value Annotations have been removed.  @sc{gdb/mi} instead provides
+Variable Objects.}
+
+@cindex annotations for values
+When a value is printed in various contexts, @value{GDBN} uses
+annotations to delimit the value from the surrounding text.
+
+@findex value-history-begin
+@findex value-history-value
+@findex value-history-end
+If a value is printed using @code{print} and added to the value history,
+the annotation looks like
+
+@smallexample
+^Z^Zvalue-history-begin @var{history-number} @var{value-flags}
+@var{history-string}
+^Z^Zvalue-history-value
+@var{the-value}
+^Z^Zvalue-history-end
+@end smallexample
+
+@noindent
+where @var{history-number} is the number it is getting in the value
+history, @var{history-string} is a string, such as @samp{$5 = }, which
+introduces the value to the user, @var{the-value} is the output
+corresponding to the value itself, and @var{value-flags} is @samp{*} for
+a value which can be dereferenced and @samp{-} for a value which cannot.
+
+@findex value-begin
+@findex value-end
+If the value is not added to the value history (it is an invalid float
+or it is printed with the @code{output} command), the annotation is similar:
+
+@smallexample
+^Z^Zvalue-begin @var{value-flags}
+@var{the-value}
+^Z^Zvalue-end
+@end smallexample
+
+@findex arg-begin
+@findex arg-name-end
+@findex arg-value
+@findex arg-end
+When @value{GDBN} prints an argument to a function (for example, in the output
+from the @code{backtrace} command), it annotates it as follows:
+
+@smallexample
+^Z^Zarg-begin
+@var{argument-name}
+^Z^Zarg-name-end
+@var{separator-string}
+^Z^Zarg-value @var{value-flags}
+@var{the-value}
+^Z^Zarg-end
+@end smallexample
+
+@noindent
+where @var{argument-name} is the name of the argument,
+@var{separator-string} is text which separates the name from the value
+for the user's benefit (such as @samp{=}), and @var{value-flags} and
+@var{the-value} have the same meanings as in a
+@code{value-history-begin} annotation.
+
+@findex field-begin
+@findex field-name-end
+@findex field-value
+@findex field-end
+When printing a structure, @value{GDBN} annotates it as follows:
+
+@smallexample
+^Z^Zfield-begin @var{value-flags}
+@var{field-name}
+^Z^Zfield-name-end
+@var{separator-string}
+^Z^Zfield-value
+@var{the-value}
+^Z^Zfield-end
+@end smallexample
+
+@noindent
+where @var{field-name} is the name of the field, @var{separator-string}
+is text which separates the name from the value for the user's benefit
+(such as @samp{=}), and @var{value-flags} and @var{the-value} have the
+same meanings as in a @code{value-history-begin} annotation.
+
+When printing an array, @value{GDBN} annotates it as follows:
+
+@smallexample
+^Z^Zarray-section-begin @var{array-index} @var{value-flags}
+@end smallexample
+
+@noindent
+where @var{array-index} is the index of the first element being
+annotated and @var{value-flags} has the same meaning as in a
+@code{value-history-begin} annotation.  This is followed by any number
+of elements, where is element can be either a single element:
+
+@findex elt
+@smallexample
+@samp{,} @var{whitespace}         ; @r{omitted for the first element}
+@var{the-value}
+^Z^Zelt
+@end smallexample
+
+or a repeated element
+
+@findex elt-rep
+@findex elt-rep-end
+@smallexample
+@samp{,} @var{whitespace}         ; @r{omitted for the first element}
+@var{the-value}
+^Z^Zelt-rep @var{number-of-repetitions}
+@var{repetition-string}
+^Z^Zelt-rep-end
+@end smallexample
+
+In both cases, @var{the-value} is the output for the value of the
+element and @var{whitespace} can contain spaces, tabs, and newlines.  In
+the repeated case, @var{number-of-repetitions} is the number of
+consecutive array elements which contain that value, and
+@var{repetition-string} is a string which is designed to convey to the
+user that repetition is being depicted.
+
+@findex array-section-end
+Once all the array elements have been output, the array annotation is
+ended with
+
+@smallexample
+^Z^Zarray-section-end
+@end smallexample
+
+@node Frame Annotations
+@chapter Frames
+
+@emph{Value Annotations have been removed.  @sc{gdb/mi} instead provides
+a number of frame commands.}
+
+@emph{Frame annotations are no longer available.  The @sc{gdb/mi}
+provides @samp{-stack-list-arguments}, @samp{-stack-list-locals}, and
+@samp{-stack-list-frames} commands.}
+
+@cindex annotations for frames
+Whenever @value{GDBN} prints a frame, it annotates it.  For example, this applies
+to frames printed when @value{GDBN} stops, output from commands such as
+@code{backtrace} or @code{up}, etc.
+
+@findex frame-begin
+The frame annotation begins with
+
+@smallexample
+^Z^Zframe-begin @var{level} @var{address}
+@var{level-string}
+@end smallexample
+
+@noindent
+where @var{level} is the number of the frame (0 is the innermost frame,
+and other frames have positive numbers), @var{address} is the address of
+the code executing in that frame, and @var{level-string} is a string
+designed to convey the level to the user.  @var{address} is in the form
+@samp{0x} followed by one or more lowercase hex digits (note that this
+does not depend on the language).  The frame ends with
+
+@findex frame-end
+@smallexample
+^Z^Zframe-end
+@end smallexample
+
+Between these annotations is the main body of the frame, which can
+consist of
+
+@itemize @bullet
+@item
+@findex function-call
+@smallexample
+^Z^Zfunction-call
+@var{function-call-string}
+@end smallexample
+
+where @var{function-call-string} is text designed to convey to the user
+that this frame is associated with a function call made by @value{GDBN} to a
+function in the program being debugged.
+
+@item
+@findex signal-handler-caller
+@smallexample
+^Z^Zsignal-handler-caller
+@var{signal-handler-caller-string}
+@end smallexample
+
+where @var{signal-handler-caller-string} is text designed to convey to
+the user that this frame is associated with whatever mechanism is used
+by this operating system to call a signal handler (it is the frame which
+calls the signal handler, not the frame for the signal handler itself).
+
+@item
+A normal frame.
+
+@findex frame-address
+@findex frame-address-end
+This can optionally (depending on whether this is thought of as
+interesting information for the user to see) begin with
+
+@smallexample
+^Z^Zframe-address
+@var{address}
+^Z^Zframe-address-end
+@var{separator-string}
+@end smallexample
+
+where @var{address} is the address executing in the frame (the same
+address as in the @code{frame-begin} annotation, but printed in a form
+which is intended for user consumption---in particular, the syntax varies
+depending on the language), and @var{separator-string} is a string
+intended to separate this address from what follows for the user's
+benefit.
+
+@findex frame-function-name
+@findex frame-args
+Then comes
+
+@smallexample
+^Z^Zframe-function-name
+@var{function-name}
+^Z^Zframe-args
+@var{arguments}
+@end smallexample
+
+where @var{function-name} is the name of the function executing in the
+frame, or @samp{??} if not known, and @var{arguments} are the arguments
+to the frame, with parentheses around them (each argument is annotated
+individually as well, @pxref{Value Annotations}).
+
+@findex frame-source-begin
+@findex frame-source-file
+@findex frame-source-file-end
+@findex frame-source-line
+@findex frame-source-end
+If source information is available, a reference to it is then printed:
+
+@smallexample
+^Z^Zframe-source-begin
+@var{source-intro-string}
+^Z^Zframe-source-file
+@var{filename}
+^Z^Zframe-source-file-end
+:
+^Z^Zframe-source-line
+@var{line-number}
+^Z^Zframe-source-end
+@end smallexample
+
+where @var{source-intro-string} separates for the user's benefit the
+reference from the text which precedes it, @var{filename} is the name of
+the source file, and @var{line-number} is the line number within that
+file (the first line is line 1).
+
+@findex frame-where
+If @value{GDBN} prints some information about where the frame is from (which
+library, which load segment, etc.; currently only done on the RS/6000),
+it is annotated with
+
+@smallexample
+^Z^Zframe-where
+@var{information}
+@end smallexample
+
+Then, if source is to actually be displayed for this frame (for example,
+this is not true for output from the @code{backtrace} command), then a
+@code{source} annotation (@pxref{Source Annotations}) is displayed.  Unlike
+most annotations, this is output instead of the normal text which would be
+output, not in addition.
+@end itemize
+
+@node Displays
+@chapter Displays
+
+@emph{Display Annotations have been removed.  @sc{gdb/mi} instead
+provides Variable Objects.}
+
+@findex display-begin
+@findex display-number-end
+@findex display-format
+@findex display-expression
+@findex display-expression-end
+@findex display-value
+@findex display-end
+@cindex annotations for display
+When @value{GDBN} is told to display something using the @code{display} command,
+the results of the display are annotated:
+
+@smallexample
+^Z^Zdisplay-begin
+@var{number}
+^Z^Zdisplay-number-end
+@var{number-separator}
+^Z^Zdisplay-format
+@var{format}
+^Z^Zdisplay-expression
+@var{expression}
+^Z^Zdisplay-expression-end
+@var{expression-separator}
+^Z^Zdisplay-value
+@var{value}
+^Z^Zdisplay-end
+@end smallexample
+
+@noindent
+where @var{number} is the number of the display, @var{number-separator}
+is intended to separate the number from what follows for the user,
+@var{format} includes information such as the size, format, or other
+information about how the value is being displayed, @var{expression} is
+the expression being displayed, @var{expression-separator} is intended
+to separate the expression from the text that follows for the user,
+and @var{value} is the actual value being displayed.
+
+@node Prompting
+@chapter Annotation for @value{GDBN} Input
+
+@cindex annotations for prompts
+When @value{GDBN} prompts for input, it annotates this fact so it is possible
+to know when to send output, when the output from a given command is
+over, etc.
+
+Different kinds of input each have a different @dfn{input type}.  Each
+input type has three annotations: a @code{pre-} annotation, which
+denotes the beginning of any prompt which is being output, a plain
+annotation, which denotes the end of the prompt, and then a @code{post-}
+annotation which denotes the end of any echo which may (or may not) be
+associated with the input.  For example, the @code{prompt} input type
+features the following annotations:
+
+@smallexample
+^Z^Zpre-prompt
+^Z^Zprompt
+^Z^Zpost-prompt
+@end smallexample
+
+The input types are
+
+@table @code
+@findex pre-prompt
+@findex prompt
+@findex post-prompt
+@item prompt
+When @value{GDBN} is prompting for a command (the main @value{GDBN} prompt).
+
+@findex pre-commands
+@findex commands
+@findex post-commands
+@item commands
+When @value{GDBN} prompts for a set of commands, like in the @code{commands}
+command.  The annotations are repeated for each command which is input.
+
+@findex pre-overload-choice
+@findex overload-choice
+@findex post-overload-choice
+@item overload-choice
+When @value{GDBN} wants the user to select between various overloaded functions.
+
+@findex pre-query
+@findex query
+@findex post-query
+@item query
+When @value{GDBN} wants the user to confirm a potentially dangerous operation.
+
+@findex pre-prompt-for-continue
+@findex prompt-for-continue
+@findex post-prompt-for-continue
+@item prompt-for-continue
+When @value{GDBN} is asking the user to press return to continue.  Note: Don't
+expect this to work well; instead use @code{set height 0} to disable
+prompting.  This is because the counting of lines is buggy in the
+presence of annotations.
+@end table
+
+@node Errors
+@chapter Errors
+@cindex annotations for errors, warnings and interrupts
+
+@findex quit
+@smallexample
+^Z^Zquit
+@end smallexample
+
+This annotation occurs right before @value{GDBN} responds to an interrupt.
+
+@findex error
+@smallexample
+^Z^Zerror
+@end smallexample
+
+This annotation occurs right before @value{GDBN} responds to an error.
+
+Quit and error annotations indicate that any annotations which @value{GDBN} was
+in the middle of may end abruptly.  For example, if a
+@code{value-history-begin} annotation is followed by a @code{error}, one
+cannot expect to receive the matching @code{value-history-end}.  One
+cannot expect not to receive it either, however; an error annotation
+does not necessarily mean that @value{GDBN} is immediately returning all the way
+to the top level.
+
+@findex error-begin
+A quit or error annotation may be preceded by
+
+@smallexample
+^Z^Zerror-begin
+@end smallexample
+
+Any output between that and the quit or error annotation is the error
+message.
+
+Warning messages are not yet annotated.
+@c If we want to change that, need to fix warning(), type_error(),
+@c range_error(), and possibly other places.
+
+@node Breakpoint Info
+@chapter Information on Breakpoints
+
+@emph{Breakpoint Annotations have been removed.  @sc{gdb/mi} instead
+provides breakpoint commands.}
+
+@cindex annotations for breakpoints
+The output from the @code{info breakpoints} command is annotated as follows:
+
+@findex breakpoints-headers
+@findex breakpoints-table
+@smallexample
+^Z^Zbreakpoints-headers
+@var{header-entry}
+^Z^Zbreakpoints-table
+@end smallexample
+
+@noindent
+where @var{header-entry} has the same syntax as an entry (see below) but
+instead of containing data, it contains strings which are intended to
+convey the meaning of each field to the user.  This is followed by any
+number of entries.  If a field does not apply for this entry, it is
+omitted.  Fields may contain trailing whitespace.  Each entry consists
+of:
+
+@findex record
+@findex field
+@smallexample
+^Z^Zrecord
+^Z^Zfield 0
+@var{number}
+^Z^Zfield 1
+@var{type}
+^Z^Zfield 2
+@var{disposition}
+^Z^Zfield 3
+@var{enable}
+^Z^Zfield 4
+@var{address}
+^Z^Zfield 5
+@var{what}
+^Z^Zfield 6
+@var{frame}
+^Z^Zfield 7
+@var{condition}
+^Z^Zfield 8
+@var{ignore-count}
+^Z^Zfield 9
+@var{commands}
+@end smallexample
+
+Note that @var{address} is intended for user consumption---the syntax
+varies depending on the language.
+
+The output ends with
+
+@findex breakpoints-table-end
+@smallexample
+^Z^Zbreakpoints-table-end
+@end smallexample
+
+@node Invalidation
+@chapter Invalidation Notices
+
+@cindex annotations for invalidation messages
+The following annotations say that certain pieces of state may have
+changed.
+
+@table @code
+@findex frames-invalid
+@item ^Z^Zframes-invalid
+
+The frames (for example, output from the @code{backtrace} command) may
+have changed.
+
+@findex breakpoints-invalid
+@item ^Z^Zbreakpoints-invalid
+
+The breakpoints may have changed.  For example, the user just added or
+deleted a breakpoint.
+@end table
+
+@node Annotations for Running
+@chapter Running the Program
+@cindex annotations for running programs
+
+@findex starting
+@findex stopping
+When the program starts executing due to a @value{GDBN} command such as
+@code{step} or @code{continue}, 
+
+@smallexample
+^Z^Zstarting
+@end smallexample
+
+is output.  When the program stops, 
+
+@smallexample
+^Z^Zstopped
+@end smallexample
+
+is output.  Before the @code{stopped} annotation, a variety of
+annotations describe how the program stopped.
+
+@table @code
+@findex exited
+@item ^Z^Zexited @var{exit-status}
+The program exited, and @var{exit-status} is the exit status (zero for
+successful exit, otherwise nonzero).
+
+@findex signalled
+@findex signal-name
+@findex signal-name-end
+@findex signal-string
+@findex signal-string-end
+@item ^Z^Zsignalled
+The program exited with a signal.  After the @code{^Z^Zsignalled}, the
+annotation continues:
+
+@smallexample
+@var{intro-text}
+^Z^Zsignal-name
+@var{name}
+^Z^Zsignal-name-end
+@var{middle-text}
+^Z^Zsignal-string
+@var{string}
+^Z^Zsignal-string-end
+@var{end-text}
+@end smallexample
+
+@noindent
+where @var{name} is the name of the signal, such as @code{SIGILL} or
+@code{SIGSEGV}, and @var{string} is the explanation of the signal, such
+as @code{Illegal Instruction} or @code{Segmentation fault}.
+@var{intro-text}, @var{middle-text}, and @var{end-text} are for the
+user's benefit and have no particular format.
+
+@findex signal
+@item ^Z^Zsignal
+The syntax of this annotation is just like @code{signalled}, but @value{GDBN} is
+just saying that the program received the signal, not that it was
+terminated with it.
+
+@findex breakpoint
+@item ^Z^Zbreakpoint @var{number}
+The program hit breakpoint number @var{number}.
+
+@findex watchpoint
+@item ^Z^Zwatchpoint @var{number}
+The program hit watchpoint number @var{number}.
+@end table
+
+@node Source Annotations
+@chapter Displaying Source
+@cindex annotations for source display
+
+@findex source
+The following annotation is used instead of displaying source code:
+
+@smallexample
+^Z^Zsource @var{filename}:@var{line}:@var{character}:@var{middle}:@var{addr}
+@end smallexample
+
+where @var{filename} is an absolute file name indicating which source
+file, @var{line} is the line number within that file (where 1 is the
+first line in the file), @var{character} is the character position
+within the file (where 0 is the first character in the file) (for most
+debug formats this will necessarily point to the beginning of a line),
+@var{middle} is @samp{middle} if @var{addr} is in the middle of the
+line, or @samp{beg} if @var{addr} is at the beginning of the line, and
+@var{addr} is the address in the target program associated with the
+source which is being displayed.  @var{addr} is in the form @samp{0x}
+followed by one or more lowercase hex digits (note that this does not
+depend on the language).
+
+@raisesections
+@include fdl.texi
+@lowersections
+
+@ignore
+@node Index
+@unnumbered Index
+
+@printindex fn
+@end ignore
+
+@bye

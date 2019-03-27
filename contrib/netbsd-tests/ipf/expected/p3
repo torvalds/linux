@@ -1,0 +1,45 @@
+pass
+nomatch
+nomatch
+nomatch
+nomatch
+pass
+block
+nomatch
+nomatch
+pass
+nomatch
+block
+List of active MAP/Redirect filters:
+
+List of active sessions:
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+group-map out role=ipf number=2010 size=5
+	{ 2.2.2.2/32, group=2020; 4.4.0.0/16, group=2020; 5.0.0.0/8, group=2040; };
+group-map in role=ipf number=1010 size=3
+	{ 1.1.1.1/32, group=1020; 3.3.0.0/16, group=1030; };
+List of groups configured (set 0)
+Dev.0. Group 1020 Ref 2 Flags 0x8000
+2 pass in all group 1020
+Dev.0. Group 1030 Ref 2 Flags 0x8000
+2 block in all group 1030
+Dev.0. Group 2020 Ref 3 Flags 0x4000
+4 pass out all group 2020
+Dev.0. Group 2040 Ref 2 Flags 0x4000
+2 block out all group 2040
+List of groups configured (set 1)
+Rules configured (set 0, in)
+6 call now srcgrpmap/1010 in all
+Rules configured (set 0, out)
+6 call now dstgrpmap/2010 out all
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

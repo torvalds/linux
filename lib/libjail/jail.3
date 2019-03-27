@@ -1,0 +1,283 @@
+.\" Copyright (c) 2009 James Gritton.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 31, 2010
+.Dt JAIL 3
+.Os
+.Sh NAME
+.Nm jail_getid ,
+.Nm jail_getname ,
+.Nm jail_setv ,
+.Nm jail_getv ,
+.Nm jailparam_all ,
+.Nm jailparam_init ,
+.Nm jailparam_import ,
+.Nm jailparam_import_raw ,
+.Nm jailparam_set ,
+.Nm jailparam_get ,
+.Nm jailparam_export ,
+.Nm jailparam_free
+.Nd create and manage system jails
+.Sh LIBRARY
+.Lb libjail
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/jail.h
+.In jail.h
+.Vt extern char jail_errmsg[] ;
+.Ft int
+.Fn jail_getid "const char *name"
+.Ft char *
+.Fn jail_getname "int jid"
+.Ft int
+.Fn jail_setv "int flags" ...
+.Ft int
+.Fn jail_getv "int flags" ...
+.Ft int
+.Fn jailparam_all "struct jailparam **jpp"
+.Ft int
+.Fn jailparam_init "struct jailparam *jp" "const char *name"
+.Ft int
+.Fn jailparam_import "struct jailparam *jp" "const char *value"
+.Ft int
+.Fn jailparam_import_raw "struct jailparam *jp" "void *value" "size_t valuelen"
+.Ft int
+.Fn jailparam_set "struct jailparam *jp" "unsigned njp" "int flags"
+.Ft int
+.Fn jailparam_get "struct jailparam *jp" "unsigned njp" "int flags"
+.Ft char *
+.Fn jailparam_export "struct jailparam *jp"
+.Ft void
+.Fn jailparam_free "struct jailparam *jp" "unsigned njp"
+.Sh DESCRIPTION
+The
+.Nm jail
+library is an interface to the
+.Xr jail_set 2
+and
+.Xr jail_get 2
+system calls, and the
+.Va security.jail.param
+MIB entries.
+It simplifies the conversion of prison parameters between internal and
+string formats, allowing the setting and querying of prisons without
+knowing the parameter formats.
+.Pp
+The
+.Fn jail_getid
+function returns the JID of the jail identified by
+.Fa name ,
+or \-1 if the jail does not exist.
+.Pp
+The
+.Fn jail_getname
+function returns the name of the jail identified by
+.Fa jid ,
+or
+.Dv NULL
+if the jail does not exist.
+.Pp
+The
+.Fn jail_setv
+function takes a null-terminated list of name and value strings,
+and passes it to
+.Xr jail_set 2 .
+.Pp
+The
+.Fn jail_getv
+function takes a null-terminated list of name and value strings,
+and passes it to
+.Xr jail_get 2 .
+It is the caller's responsibility to ensure that the value strings point
+to buffers large enough to hold the string representation of the
+returned parameters.
+.Pp
+The
+.Fn jailparam_all
+function sets
+.Fa jpp
+to a list of all known jail parameters, and returns the number of
+parameters.
+The list should later be freed with
+.Fn jailparam_free
+and
+.Xr free 3 .
+.Pp
+The
+.Fn jailparam_init
+function clears a parameter record and copies the
+.Fa name
+to it.
+After use, it should be freed with
+.Fn jailparam_free .
+.Pp
+The
+.Fn jailparam_import
+function adds a
+.Fa value
+to a parameter record, converting it from a string to its native form.
+The
+.Fn jailparam_import_raw
+function adds a value without performing any conversion.
+.Pp
+The
+.Fn jailparam_set
+function passes a list of parameters to
+.Xr jail_set 2 .
+The parameters are assumed to have been created with
+.Fn jailparam_init
+and
+.Fn jailparam_import .
+.Pp
+The
+.Fn jailparam_get
+function passes a list of parameters to
+.Xr jail_get 2 .
+The parameters are assumed to have been created with
+.Fn jailparam_init
+or
+.Fn jailparam_list ,
+with one parameter (the key) having been given a value with
+.Fn jailparam_import .
+.Pp
+The
+.Fn jailparam_export
+function returns the string equivalent of a parameter value.
+The returned string should be freed after use.
+.Pp
+The
+.Fn jailparam_free
+function frees the stored names and values in a parameter list.
+If the list itself came from
+.Fn jailparam_all ,
+it should be freed as well.
+.Sh RETURN VALUES
+The
+.Fn jail_getid ,
+.Fn jail_setv ,
+.Fn jail_getv ,
+.Fn jailparam_set
+and
+.Fn jailparam_get
+functions return a JID on success, or \-1 on error.
+.Pp
+The
+.Fn jail_getname
+and
+.Fn jailparam_export
+functions return a dynamically allocated string on success, or
+.Dv NULL
+on error.
+.Pp
+The
+.Fn jailparam_all
+function returns the number of parameters on success, or \-1 on error.
+.Pp
+The
+.Fn jailparam_init ,
+.Fn jailparam_import
+and
+.Fn jailparam_import_raw
+functions return 0 on success, or \-1 on error.
+.Pp
+Whenever an error is returned,
+.Va errno
+is set, and the global string
+.Va jail_errmsg
+contains a description of the error, possibly from
+.Xr jail_set 2
+or
+.Xr jail_get 2 .
+.Sh EXAMPLES
+Set the hostname of jail
+.Dq foo
+to
+.Dq foo.bar :
+.Bd -literal -offset indent
+jail_setv(JAIL_UPDATE, "name", "foo", "host.hostname", "foo.bar",
+    NULL);
+.Ed
+.Pp
+OR:
+.Bd -literal -offset indent
+struct jailparam params[2];
+jailparam_init(&params[0], "name");
+jailparam_import(&params[0], "foo");
+jailparam_init(&params[1], "host.hostname");
+jailparam_import(&params[1], "foo.bar");
+jailparam_set(params, 2, JAIL_UPDATE);
+jailparam_free(params, 2);
+.Ed
+.Pp
+Retrieve the hostname of jail
+.Dq foo :
+.Bd -literal -offset indent
+char hostname[MAXHOSTNAMELEN];
+jail_getv(0, "name", "foo", "host.hostname", hostname, NULL);
+.Ed
+.Pp
+OR:
+.Bd -literal -offset indent
+struct jailparam params[2];
+jailparam_init(&params[0], "name");
+jailparam_import(&params[0], "foo");
+jailparam_init(&params[1], "host.hostname");
+jailparam_get(params, 2, 0);
+hostname = jailparam_export(&params[1]);
+jailparam_free(params, 2);
+\&...
+free(hostname);
+.Ed
+.Sh ERRORS
+The
+.Nm jail
+functions may return errors from
+.Xr jail_set 2 ,
+.Xr jail_get 2 ,
+.Xr malloc 3
+or
+.Xr sysctl 3 .
+In addition, the following errors are possible:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+A parameter value cannot be converted from the passed string to its
+internal form.
+.It Bq Er ENOENT
+The named parameter does not exist.
+.It Bq Er ENOENT
+A parameter is of an unknown type.
+.El
+.Sh SEE ALSO
+.Xr jail 2 ,
+.Xr sysctl 3 ,
+.Xr jail 8
+.Sh HISTORY
+The
+.Nm jail
+library first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An James Gritton

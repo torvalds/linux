@@ -1,0 +1,43 @@
+.\" $OpenBSD: ssh-pkcs11-helper.8,v 1.4 2013/07/16 00:07:52 schwarze Exp $
+.\"
+.\" Copyright (c) 2010 Markus Friedl.  All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 16 2013 $
+.Dt SSH-PKCS11-HELPER 8
+.Os
+.Sh NAME
+.Nm ssh-pkcs11-helper
+.Nd ssh-agent helper program for PKCS#11 support
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+.Nm
+is used by
+.Xr ssh-agent 1
+to access keys provided by a PKCS#11 token.
+.Pp
+.Nm
+is not intended to be invoked by the user, but from
+.Xr ssh-agent 1 .
+.Sh SEE ALSO
+.Xr ssh 1 ,
+.Xr ssh-add 1 ,
+.Xr ssh-agent 1
+.Sh HISTORY
+.Nm
+first appeared in
+.Ox 4.7 .
+.Sh AUTHORS
+.An Markus Friedl Aq Mt markus@openbsd.org

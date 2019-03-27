@@ -1,0 +1,135 @@
+#!/bin/sh
+#echo "run $@" 1>&2
+#set -x
+# $1 command
+# $2 rulename
+# $3 protocol
+# $4 address
+# $5 mask
+# $6 port
+# $7 id
+
+pf=
+if [ -f "/etc/ipfw-blacklist.rc" ]; then
+	pf="ipfw"
+	. /etc/ipfw-blacklist.rc
+	ipfw_offset=${ipfw_offset:-2000}
+fi
+
+if [ -z "$pf" ]; then
+	for f in npf pf ipf; do
+		if [ -f "/etc/$f.conf" ]; then
+			pf="$f"
+			break
+		fi
+	done
+fi
+
+if [ -z "$pf" ]; then
+	echo "$0: Unsupported packet filter" 1>&2
+	exit 1
+fi
+
+if [ -n "$3" ]; then
+	proto="proto $3"
+fi
+
+if [ -n "$6" ]; then
+	port="port $6"
+fi
+
+addr="$4"
+mask="$5"
+case "$4" in
+::ffff:*.*.*.*)
+	if [ "$5" = 128 ]; then
+		mask=32
+		addr=${4#::ffff:}
+	fi;;
+esac
+
+case "$1" in
+add)
+	case "$pf" in
+	ipf)
+		/sbin/ipfstat -io | /sbin/ipf -I -f - >/dev/null 2>&1
+		echo block in quick $proto from $addr/$mask to \
+		    any port=$6 head port$6 | \
+		    /sbin/ipf -I -f - -s >/dev/null 2>&1 && echo OK
+		;;
+	ipfw)
+		# use $ipfw_offset+$port for rule number
+		rule=$(($ipfw_offset + $6))
+		tname="port$6"
+		/sbin/ipfw table $tname create type addr 2>/dev/null
+		/sbin/ipfw -q table $tname add "$addr/$mask"
+		# if rule number $rule does not already exist, create it
+		/sbin/ipfw show $rule >/dev/null 2>&1 || \
+			/sbin/ipfw add $rule drop $3 from \
+			table"("$tname")" to any dst-port $6 >/dev/null && \
+			echo OK
+		;;
+	npf)
+		/sbin/npfctl rule "$2" add block in final $proto from \
+		    "$addr/$mask" to any $port
+		;;
+	pf)
+		# if the filtering rule does not exist, create it
+		/sbin/pfctl -a "$2/$6" -sr 2>/dev/null | \
+		    grep -q "<port$6>" || \
+		    echo "block in quick $proto from <port$6> to any $port" | \
+		    /sbin/pfctl -a "$2/$6" -f -
+		# insert $ip/$mask into per-protocol/port anchored table
+		/sbin/pfctl -qa "$2/$6" -t "port$6" -T add "$addr/$mask" && \
+		    /sbin/pfctl -q -k $addr && echo OK
+		;;
+	esac
+	;;
+rem)
+	case "$pf" in
+	ipf)
+		/sbin/ipfstat -io | /sbin/ipf -I -f - >/dev/null 2>&1
+		echo block in quick $proto from $addr/$mask to \
+		    any port=$6 head port$6 | \
+		    /sbin/ipf -I -r -f - -s >/dev/null 2>&1 && echo OK
+		;;
+	ipfw)
+		/sbin/ipfw table "port$6" delete "$addr/$mask" 2>/dev/null && \
+		    echo OK
+		;;
+	npf)
+		/sbin/npfctl rule "$2" rem-id "$7"
+		;;
+	pf)
+		/sbin/pfctl -qa "$2/$6" -t "port$6" -T delete "$addr/$mask" && \
+		    echo OK
+		;;
+	esac
+	;;
+flush)
+	case "$pf" in
+	ipf)
+		/sbin/ipf -Z -I -Fi -s > /dev/null && echo OK
+		;;
+	ipfw)
+		/sbin/ipfw table "port$6" flush 2>/dev/null && echo OK
+		;;
+	npf)
+		/sbin/npfctl rule "$2" flush
+		;;
+	pf)
+		# dynamically determine which anchors exist
+		anchors=$(/sbin/pfctl -a $2 -s Anchors)
+		for anchor in $anchors; do
+			/sbin/pfctl -a $anchor -t "port${anchor##*/}" -T flush
+			/sbin/pfctl -a $anchor -F rules
+		done
+		echo OK
+		;;
+	esac
+	;;
+*)
+	echo "$0: Unknown command '$1'" 1>&2
+	exit 1
+	;;
+esac

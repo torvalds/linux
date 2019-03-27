@@ -1,0 +1,149 @@
+.\" Copyright 2018 Yuri Pankov <yuripv@yuripv.net>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 18, 2018
+.Dt SET_CONSTRAINT_HANDLER_S 3
+.Os
+.Sh NAME
+.Nm set_constraint_handler_s ,
+.Nm abort_handler_s ,
+.Nm ignore_handler_s
+.Nd runtime-constraint violation handling
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Fd #define __STDC_WANT_LIB_EXT1__ 1
+.In stdlib.h
+.Ft constraint_handler_t
+.Fo set_constraint_handler_s
+.Fa "constraint_handler_t handler"
+.Fc
+.Ss Handler Prototype
+.Ft typedef void
+.Fo (*constraint_handler_t)
+.Fa "const char * restrict msg"
+.Fa "void * restrict ptr"
+.Fa "errno_t error"
+.Fc
+.Ss Predefined Handlers
+.Ft void
+.Fo abort_handler_s
+.Fa "const char * restrict msg"
+.Fa "void * restrict ptr"
+.Fa "errno_t error"
+.Fc
+.Ft void
+.Fo ignore_handler_s
+.Fa "const char * restrict msg"
+.Fa "void * restrict ptr"
+.Fa "errno_t error"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn set_constraint_handler_s
+function sets the runtime-constraint violation handler to be
+.Fa handler .
+.Pp
+The runtime-constraint handler is the callback function invoked when a library
+function detects a runtime-constraint violation.
+.Pp
+The arguments are as follows:
+.Bl -tag -width "error"
+.It Fa msg
+A pointer to a character string describing the runtime-constraint violation.
+.It Fa ptr
+A
+.Dv NULL
+pointer.
+.It Fa error
+If the function calling the handler has a return type declared as
+.Vt errno_t ,
+the return value of the function is passed.
+Otherwise, a positive value of type
+.Vt errno_t
+is passed.
+.El
+.Pp
+Only the most recent handler registered with
+.Fn set_constraint_handler_s
+is called when a runtime-constraint violation occurs.
+.Pp
+The implementation has a default constraint handler that is used if no calls to
+the
+.Fn set_constraint_handler_s
+function have been made.
+If the
+.Fa handler
+argument to
+.Fn set_constraint_handler_s
+is a
+.Dv NULL
+pointer, the default handler becomes the current constraint handler.
+.Pp
+The
+.Fn abort_handler_s
+and
+.Fn ignore_handler_s
+are the standard-defined runtime-constraint handlers provided by the C library.
+.Pp
+The
+.Fn abort_handler_s
+function writes the error message including the
+.Fa msg
+to
+.Dv stderr
+and calls the
+.Xr abort 3
+function.
+The
+.Fn abort_handler_s
+is currently the default runtime-constraint handler.
+.Pp
+The
+.Fn ignore_handler_s
+simply returns to its caller.
+.Sh RETURN VALUES
+The
+.Fn set_constraint_handler_s
+function returns a pointer to the previously registered handler, or
+.Dv NULL
+if none was previously registered.
+.Pp
+The
+.Fn abort_handler_s
+function does not return to its caller.
+.Pp
+The
+.Fn ignore_handler_s
+function returns no value.
+.Sh STANDARDS
+The
+.Fn set_constraint_handler_s
+function conforms to
+.St -isoC-2011
+K.3.6.1.1.
+.Sh AUTHORS
+This manual page was written by
+.An Yuri Pankov Aq Mt yuripv@yuripv.net .

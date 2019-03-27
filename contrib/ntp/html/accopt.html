@@ -1,0 +1,187 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Access Control Commands and Options</title> <!-- Changed by: Harlan
+&, 13-Nov-2014 -->
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+<style type="text/css">
+<!--
+<style1 {
+color: #FF0000; font-weight: bold; } -->
+</style>
+</head>
+<body>
+<h3>Access Control Commands and Options</h3>
+<img src="pic/pogo6.gif" alt="gif"
+align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Pogo</i>,
+Walt Kelly</a>
+<p>The skunk watches for intruders and sprays.</p>
+<p>Last update: <!-- #BeginDate format:En2m -->7-Jan-2018 23:56<!-- #EndDate
+  --> UTC</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript"
+src="scripts/command.txt"></script>
+<script type="text/javascript" language="javascript"
+src="scripts/accopt.txt"></script>
+<hr>
+<h4>Commands and Options</h4>
+<p>Unless noted otherwise, further information about these ccommands is on
+the <a href="accopt.html">Access Control Support</a> page.</p>
+<dl>
+  <dt id="discard"><tt>discard [ average <i>avg</i> ][ minimum <i>min</i> ]
+      [ monitor <i>prob</i> ]</tt></dt>
+  <dd>Set the parameters of the rate control facility which protects the
+    server from client abuse. If the <tt>limited</tt> flag is present in the
+    ACL, packets that violate these limits are discarded. If, in addition,
+    the <tt>kod</tt> flag is present, a kiss-o'-death packet is
+    returned. See the <a href="rate.html">Rate Management</a> page for
+    further information. The options are:
+    <dl>
+      <dt><tt>average <i>avg</i></tt></dt>
+      <dd>Specify the minimum average interpacket spacing (minimum average
+        headway time) in log<sub>2</sub> s with default 3.</dd>
+      <dt><tt>minimum <i>min</i></tt></dt>
+      <dd>Specify the minimum interpacket spacing (guard time) in seconds
+	with default 2.</dd>
+      <dt><tt>monitor</tt></dt>
+      <dd>Specify the probability of being recorded for packets that
+	overflow the MRU list size limit set by <tt>mru maxmem</tt>
+	or <tt>mru maxdepth</tt>. This is a performance optimization for
+	servers with aggregate arrivals of 1000 packets per second or
+	more.</dd>
+    </dl>
+  </dd>
+  <dt id="restrict"><tt>restrict [-4 | -6] default [ippeerlimit <i>num</i>]
+      [<i>flag</i>][...]<br>  restrict source [ippeerlimit <i>num</i>]
+      [<i>flag</i>][...]<br>  restrict <i>address</i> [mask <i>mask</i>]
+      [ippeerlimit <i>num</i>] [<i>flag</i>][...]</tt></dt>
+  <dd>The <tt><i>address</i></tt> argument expressed in IPv4 or IPv6 numeric
+    address form is the address of a host or network. Alternatively,
+    the <tt><i>address</i></tt> argument can be a valid host DNS
+    name. The <tt><i>mask</i></tt> argument expressed in IPv4 or IPv6
+    numeric address form defaults to all mask bits on, meaning that
+    the <tt><i>address</i></tt> is treated as the address of an individual
+    host. A default entry (address 0.0.0.0, mask 0.0.0.0 for IPv4 and
+    address :: mask :: for IPv6) is always the first entry in the
+    list. <tt>restrict default</tt>, with no mask option, modifies both IPv4
+    and IPv6 default entries. <tt>restrict source</tt> configures a template
+    restriction automatically added at runtime for each association, whether
+    configured, ephemeral, or preemptible, and removed when the association
+    is demobilized.</dd>
+  <dd>The optional <tt>ippeerlimit</tt> takes a numeric argument that
+    indicates how many incoming (at present) peer requests will be permitted
+    for each IP, regardless of whether or not the request comes from an
+    authenticated source.  A value of -1 means "unlimited", which is the
+    current default.  A value of 0 means "none".  Ordinarily one would
+    expect at most 1 of these sessions to exist per IP, however if the
+    remote side is operating thru a proxy there would be one association for
+    each remote peer at that IP.</dd>
+  <dd>Some flags have the effect to deny service, some have the effect to
+    enable service and some are conditioned by other flags. The flags are
+    not orthogonal, in that more restrictive flags will often make less
+    restrictive ones redundant. The flags that deny service are classed in
+    two categories, those that restrict time service and those that restrict
+    informational queries and attempts to do run-time reconfiguration of the
+    server. One or more of the following flags may be specified:</dd>
+  <dd>
+    <dl>
+      <dt><tt>flake</tt></dt>
+      <dd>Discard received NTP packets with probability 0.1; that is, on
+	average drop one packet in ten. This is for testing and
+	amusement. The name comes from Bob Braden's <i>flakeway</i>, which
+	once did a similar thing for early Internet testing.</dd>
+      <dt><tt>ignore</tt></dt>
+      <dd>Deny packets of all kinds, including <tt>ntpq</tt>
+	and <tt>ntpdc</tt> queries.</dd>
+      <dt><tt>kod</tt></dt>
+      <dd>Send a kiss-o'-death (KoD) packet if the <tt>limited</tt> flag is
+	present and a packet violates the rate limits established by
+	the <tt>discard</tt> command. KoD packets are themselves rate
+	limited for each source address separately. If the <tt>kod</tt> flag
+	is used in a restriction which does not have the <tt>limited</tt>
+	flag, no KoD responses will result.</dd>
+      <dt id="limited"><tt>limited</tt></dt>
+      <dd>Deny time service if the packet violates the rate limits
+	established by the <tt>discard</tt> command. This does not apply
+	to <tt>ntpq</tt> and <tt>ntpdc</tt> queries.</dd>
+      <dt><tt>lowpriotrap</tt></dt>
+      <dd>Declare traps set by matching hosts to be low priority. The number
+	of traps a server can maintain is limited (the current limit is
+	3). Traps are usually assigned on a first come, first served basis,
+	with later trap requestors being denied service. This flag modifies
+	the assignment algorithm by allowing low priority traps to be
+	overridden by later requests for normal priority traps.</dd>
+      <dt><tt>mssntp</tt></dt>
+      <dd>Enable Microsoft Windows MS-SNTP authentication using Active
+	Directory services. <span class="style1"><b>Note: Potential users
+	should be aware that these services involve a TCP connection to
+	another process that could potentially block, denying services to
+	other users. Therefore, this flag should be used only for a
+	dedicated server with no clients other than MS-SNTP.</b></span></dd>
+      <dt><tt>noepeer</tt></dt>
+      <dd>Deny packets that would mobilize an ephemeral peering association,
+	even if authenticated.</dd>
+      <dt><tt>nomodify</tt></dt>
+      <dd>Deny <tt>ntpq</tt> and <tt>ntpdc</tt> queries which attempt to
+	modify the state of the server (i.e., run time
+	reconfiguration). Queries which return information are
+	permitted.</dd>
+      <dt><tt>noquery</tt></dt>
+      <dd>Deny <tt>ntpq</tt> and <tt>ntpdc</tt> queries. Time service is not
+	affected.</dd>
+      <dt><tt>nopeer</tt></dt>
+      <dd>Deny packets that might mobilize an association unless
+	authenticated. This includes broadcast, symmetric-active and
+	manycast server packets when a configured association does not
+	exist. It also includes <tt>pool</tt> associations, so if you want
+	to use servers from a <tt>pool</tt> directive and also want to
+	use <tt>nopeer</tt> by default, you'll want a <tt>"restrict source
+	..."</tt> line as well that does <i>not</i> include
+	the <tt>nopeer</tt> directive.  Note that this flag does not apply
+	to packets that do not attempt to mobilize an association. </dd>
+      <dt><tt>noserve</tt></dt>
+      <dd>Deny all packets except <tt>ntpq</tt> and <tt>ntpdc</tt>
+	queries.</dd>
+      <dt><tt>notrap</tt></dt>
+      <dd>Decline to provide mode 6 control message trap service to matching
+	hosts. The trap service is a subsystem of the <tt>ntpdc</tt> control
+	message protocol which is intended for use by remote event logging
+	programs.</dd>
+      <dt><tt>notrust</tt></dt>
+      <dd>Deny packets that are not cryptographically authenticated. Note
+	carefully how this flag interacts with the <tt>auth</tt> option of
+	the <tt>enable</tt> and <tt>disable</tt> commands. If <tt>auth</tt>
+	is enabled, which is the default, authentication is required for all
+	packets that might mobilize an association. If <tt>auth</tt> is
+	disabled, but the <tt>notrust</tt> flag is not present, an
+	association can be mobilized whether or not
+	authenticated. If <tt>auth</tt> is disabled, but
+	the <tt>notrust</tt> flag is present, authentication is required
+	only for the specified address/mask range. </dd>
+      <dt><tt>ntpport</tt></dt>
+      <dd>This is actually a match algorithm modifier, rather than a
+        restriction flag. Its presence causes the restriction entry to be
+        matched only if the source port in the packet is the standard NTP
+        UDP port (123). A restrict line containing <tt>ntpport</tt> is
+        considered more specific than one with the same address and mask,
+        but lacking <tt>ntpport</tt>.</dd>
+      <dt><tt>version</tt></dt>
+      <dd>Deny packets that do not match the current NTP version.</dd>
+    </dl>
+  </dd>
+  <dd>Default restriction list entries with the flags <tt>ignore,
+      ntpport</tt>, for each of the local host's interface addresses are
+      inserted into the table at startup to prevent the server from
+      attempting to synchronize to its own time. A default entry is also
+      always present, though if it is otherwise unconfigured; no flags are
+      associated with the default entry (i.e., everything besides your own
+      NTP server is unrestricted).</dd>
+</dl>
+<hr>
+<script type="text/javascript" language="javascript"
+src="scripts/footer.txt"></script>
+</body>
+</html>

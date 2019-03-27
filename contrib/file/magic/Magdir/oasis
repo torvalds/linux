@@ -1,0 +1,12 @@
+
+#------------------------------------------------------------------------------
+# $File: oasis,v 1.2 2014/06/03 19:17:27 christos Exp $
+# OASIS
+# Summary: OASIS stream file
+# Long description: Open Artwork System Interchange Standard
+# File extension: .oas
+# Full name:	Ben Cowley (bcowley@broadcom.com)
+#		Philip Dixon (pdixon@broadcom.com)
+# Reference: http://www.wrcad.com/oasis/oasis-3626-042303-draft.pdf
+#		(see page 3)
+0	string	%SEMI-OASIS\r\n		OASIS Stream file

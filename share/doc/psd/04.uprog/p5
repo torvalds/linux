@@ -1,0 +1,577 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.\"	@(#)p5	8.1 (Berkeley) 6/8/93
+.\"
+.NH
+PROCESSES
+.PP
+It is often easier to use a program written
+by someone else than to invent one's own.
+This section describes how to
+execute a program from within another.
+.NH 2
+The ``System'' Function
+.PP
+The easiest way to execute a program from another
+is to use
+the standard library routine
+.UL system .
+.UL system
+takes one argument, a command string exactly as typed
+at the terminal
+(except for the newline at the end)
+and executes it.
+For instance, to time-stamp the output of a program,
+.P1
+main()
+{
+	system("date");
+	/* rest of processing */
+}
+.P2
+If the command string has to be built from pieces,
+the in-memory formatting capabilities of
+.UL sprintf
+may be useful.
+.PP
+Remember than
+.UL getc
+and
+.UL putc
+normally buffer their input;
+terminal I/O will not be properly synchronized unless
+this buffering is defeated.
+For output, use 
+.UL fflush ;
+for input, see
+.UL setbuf 
+in the appendix.
+.NH 2
+Low-Level Process Creation \(em Execl and Execv
+.PP
+If you're not using the standard library,
+or if you need finer control over what
+happens,
+you will have to construct calls to other programs
+using the more primitive routines that the standard
+library's
+.UL system
+routine is based on.
+.PP
+The most basic operation is to execute another program
+.ul
+without
+.IT returning ,
+by using the routine
+.UL execl  .
+To print the date as the last action of a running program,
+use
+.P1
+execl("/bin/date", "date", NULL);
+.P2
+The first argument to
+.UL execl
+is the
+.ul
+file name
+of the command; you have to know where it is found
+in the file system.
+The second argument is conventionally
+the program name
+(that is, the last component of the file name),
+but this is seldom used except as a place-holder.
+If the command takes arguments, they are strung out after
+this;
+the end of the list is marked by a 
+.UL NULL
+argument.
+.PP
+The
+.UL execl
+call
+overlays the existing program with
+the new one,
+runs that, then exits.
+There is
+.ul
+no
+return to the original program.
+.PP
+More realistically,
+a program might fall into two or more phases
+that communicate only through temporary files.
+Here it is natural to make the second pass
+simply an
+.UL execl
+call from the first.
+.PP
+The one exception to the rule that the original program never gets control
+back occurs when there is an error, for example if the file can't be found
+or is not executable.
+If you don't know where
+.UL date
+is located, say
+.P1
+execl("/bin/date", "date", NULL);
+execl("/usr/bin/date", "date", NULL);
+fprintf(stderr, "Someone stole 'date'\en");
+.P2
+.PP
+A variant of
+.UL execl
+called
+.UL execv
+is useful when you don't know in advance how many arguments there are going to be.
+The call is
+.P1
+execv(filename, argp);
+.P2
+where
+.UL argp
+is an array of pointers to the arguments;
+the last pointer in the array must be 
+.UL NULL
+so
+.UL execv
+can tell where the list ends.
+As with
+.UL execl ,
+.UL filename
+is the file in which the program is found, and
+.UL argp[0]
+is the name of the program.
+(This arrangement is identical to the
+.UL argv
+array for program arguments.)
+.PP
+Neither of these routines provides the niceties of normal command execution.
+There is no automatic search of multiple directories \(em
+you have to know precisely where the command is located.
+Nor do you get the expansion of metacharacters like
+.UL < ,
+.UL > ,
+.UL * ,
+.UL ? ,
+and
+.UL []
+in the argument list.
+If you want these, use
+.UL execl
+to invoke the shell
+.UL sh ,
+which then does all the work.
+Construct a string
+.UL commandline
+that contains the complete command as it would have been typed
+at the terminal, then say
+.P1
+execl("/bin/sh", "sh", "-c", commandline, NULL);
+.P2
+The shell is assumed to be at a fixed place,
+.UL /bin/sh .
+Its argument
+.UL -c
+says to treat the next argument
+as a whole command line, so it does just what you want.
+The only problem is in constructing the right information
+in
+.UL commandline .
+.NH 2
+Control of Processes \(em Fork and Wait
+.PP
+So far what we've talked about isn't really all that useful by itself.
+Now we will show how to regain control after running
+a program with
+.UL execl
+or
+.UL execv .
+Since these routines simply overlay the new program on the old one,
+to save the old one requires that it first be split into
+two copies;
+one of these can be overlaid, while the other waits for the new,
+overlaying program to finish.
+The splitting is done by a routine called
+.UL fork :
+.P1
+proc_id = fork();
+.P2
+splits the program into two copies, both of which continue to run.
+The only difference between the two is the value of
+.UL proc_id ,
+the ``process id.''
+In one of these processes (the ``child''),
+.UL proc_id
+is zero.
+In the other
+(the ``parent''),
+.UL proc_id
+is non-zero; it is the process number of the child.
+Thus the basic way to call, and return from,
+another program is
+.P1
+if (fork() == 0)
+	execl("/bin/sh", "sh", "-c", cmd, NULL);	/* in child */
+.P2
+And in fact, except for handling errors, this is sufficient.
+The
+.UL fork
+makes two copies of the program.
+In the child, the value returned by
+.UL fork
+is zero, so it calls
+.UL execl
+which does the
+.UL command
+and then dies.
+In the parent,
+.UL fork
+returns non-zero
+so it skips the
+.UL execl.
+(If there is any error,
+.UL fork
+returns
+.UL -1 ).
+.PP
+More often, the parent wants to wait for the child to terminate
+before continuing itself.
+This can be done with
+the function
+.UL wait :
+.P1
+int status;
+
+if (fork() == 0)
+	execl(...);
+wait(&status);
+.P2
+This still doesn't handle any abnormal conditions, such as a failure
+of the
+.UL execl
+or
+.UL fork ,
+or the possibility that there might be more than one child running simultaneously.
+(The
+.UL wait
+returns the
+process id
+of the terminated child, if you want to check it against the value
+returned by
+.UL fork .)
+Finally, this fragment doesn't deal with any
+funny behavior on the part of the child
+(which is reported in
+.UL status ).
+Still, these three lines
+are the heart of the standard library's
+.UL system
+routine,
+which we'll show in a moment.
+.PP
+The
+.UL  status 
+returned by
+.UL wait
+encodes in its low-order eight bits
+the system's idea of the child's termination status;
+it is 0 for normal termination and non-zero to indicate
+various kinds of problems.
+The next higher eight bits are taken from the argument
+of the call to
+.UL exit
+which caused a normal termination of the child process.
+It is good coding practice
+for all programs to return meaningful
+status.
+.PP
+When a program is called by the shell,
+the three file descriptors
+0, 1, and 2 are set up pointing at the right files,
+and all other possible file descriptors
+are available for use.
+When this program calls another one,
+correct etiquette suggests making sure the same conditions
+hold.
+Neither
+.UL fork
+nor the
+.UL exec
+calls affects open files in any way.
+If the parent is buffering output
+that must come out before output from the child,
+the parent must flush its buffers
+before the
+.UL execl .
+Conversely,
+if a caller buffers an input stream,
+the called program will lose any information
+that has been read by the caller.
+.NH 2
+Pipes
+.PP
+A
+.ul
+pipe
+is an I/O channel intended for use
+between two cooperating processes:
+one process writes into the pipe,
+while the other reads.
+The system looks after buffering the data and synchronizing
+the two processes.
+Most pipes are created by the shell,
+as in
+.P1
+ls | pr
+.P2
+which connects the standard output of
+.UL ls
+to the standard input of
+.UL pr .
+Sometimes, however, it is most convenient
+for a process to set up its own plumbing;
+in this section, we will illustrate how
+the pipe connection is established and used.
+.PP
+The system call
+.UL pipe
+creates a pipe.
+Since a pipe is used for both reading and writing,
+two file descriptors are returned;
+the actual usage is like this:
+.P1
+int	fd[2];
+
+stat = pipe(fd);
+if (stat == -1)
+	/* there was an error ... */
+.P2
+.UL fd
+is an array of two file descriptors, where
+.UL fd[0]
+is the read side of the pipe and
+.UL fd[1] 
+is for writing.
+These may be used in
+.UL read ,
+.UL write
+and
+.UL close
+calls just like any other file descriptors.
+.PP
+If a process reads a pipe which is empty,
+it will wait until data arrives;
+if a process writes into a pipe which
+is too full, it will wait until the pipe empties somewhat.
+If the write side of the pipe is closed,
+a subsequent
+.UL  read 
+will encounter end of file.
+.PP
+To illustrate the use of pipes in a realistic setting,
+let us write a function called
+.UL popen(cmd,\ mode) ,
+which creates a process
+.UL cmd
+(just as
+.UL system 
+does),
+and returns a file descriptor that will either
+read or write that process, according to 
+.UL mode .
+That is,
+the call
+.P1
+fout = popen("pr", WRITE);
+.P2
+creates a process that executes
+the
+.UL pr
+command;
+subsequent
+.UL write
+calls using the file descriptor
+.UL fout
+will send their data to that process
+through the pipe.
+.PP
+.UL popen
+first creates the
+the pipe with a
+.UL pipe
+system call;
+it then
+.UL fork s
+to create two copies of itself.
+The child decides whether it is supposed to read or write,
+closes the other side of the pipe,
+then calls the shell (via
+.UL execl )
+to run the desired process.
+The parent likewise closes the end of the pipe it does not use.
+These closes are necessary to make end-of-file tests work properly.
+For example, if a child that intends to read
+fails to close the write end of the pipe, it will never
+see the end of the pipe file, just because there is one writer
+potentially active.
+.P1
+#include <stdio.h>
+
+#define	READ	0
+#define	WRITE	1
+#define	tst(a, b)	(mode == READ ? (b) : (a))
+static	int	popen_pid;
+
+popen(cmd, mode)
+char	*cmd;
+int	mode;
+{
+	int p[2];
+
+	if (pipe(p) < 0)
+		return(NULL);
+	if ((popen_pid = fork()) == 0) {
+		close(tst(p[WRITE], p[READ]));
+		close(tst(0, 1));
+		dup(tst(p[READ], p[WRITE]));
+		close(tst(p[READ], p[WRITE]));
+		execl("/bin/sh", "sh", "-c", cmd, 0);
+		_exit(1);	/* disaster has occurred if we get here */
+	}
+	if (popen_pid == -1)
+		return(NULL);
+	close(tst(p[READ], p[WRITE]));
+	return(tst(p[WRITE], p[READ]));
+}
+.P2
+The sequence of
+.UL close s
+in the child
+is a bit tricky.
+Suppose
+that the task is to create a child process that will read data from the parent.
+Then the first
+.UL close
+closes the write side of the pipe,
+leaving the read side open.
+The lines
+.P1
+close(tst(0, 1));
+dup(tst(p[READ], p[WRITE]));
+.P2
+are the conventional way to associate the pipe descriptor
+with the standard input of the child.
+The 
+.UL close
+closes file descriptor 0,
+that is, the standard input.
+.UL dup
+is a system call that
+returns a duplicate of an already open file descriptor.
+File descriptors are assigned in increasing order
+and the first available one is returned,
+so
+the effect of the
+.UL dup
+is to copy the file descriptor for the pipe (read side)
+to file descriptor 0;
+thus the read side of the pipe becomes the standard input.
+(Yes, this is a bit tricky, but it's a standard idiom.)
+Finally, the old read side of the pipe is closed.
+.PP
+A similar sequence of operations takes place
+when the child process is supposed to write
+from the parent instead of reading.
+You may find it a useful exercise to step through that case.
+.PP
+The job is not quite done,
+for we still need a function
+.UL pclose
+to close the pipe created by
+.UL popen .
+The main reason for using a separate function rather than
+.UL close
+is that it is desirable to wait for the termination of the child process.
+First, the return value from
+.UL pclose
+indicates whether the process succeeded.
+Equally important when a process creates several children
+is that only a bounded number of unwaited-for children
+can exist, even if some of them have terminated;
+performing the
+.UL wait
+lays the child to rest.
+Thus:
+.P1
+#include <signal.h>
+
+pclose(fd)	/* close pipe fd */
+int fd;
+{
+	register r, (*hstat)(), (*istat)(), (*qstat)();
+	int	 status;
+	extern int popen_pid;
+
+	close(fd);
+	istat = signal(SIGINT, SIG_IGN);
+	qstat = signal(SIGQUIT, SIG_IGN);
+	hstat = signal(SIGHUP, SIG_IGN);
+	while ((r = wait(&status)) != popen_pid && r != -1);
+	if (r == -1)
+		status = -1;
+	signal(SIGINT, istat);
+	signal(SIGQUIT, qstat);
+	signal(SIGHUP, hstat);
+	return(status);
+}
+.P2
+The calls to
+.UL signal
+make sure that no interrupts, etc.,
+interfere with the waiting process;
+this is the topic of the next section.
+.PP
+The routine as written has the limitation that only one pipe may
+be open at once, because of the single shared variable
+.UL popen_pid ;
+it really should be an array indexed by file descriptor.
+A
+.UL popen
+function, with slightly different arguments and return value is available
+as part of the standard I/O library discussed below.
+As currently written, it shares the same limitation.

@@ -1,0 +1,207 @@
+This is tcsh version 6.20.00.  Tcsh is a version of the Berkeley
+C-Shell, with the addition of: a command line editor, command and file
+name completion, listing, etc. and a bunch of small additions to the
+shell itself.
+
+Tcsh has been ported to most unix variants, and can be tinkered to work
+in unix systems that it has not ported yet. See the Ported file for
+a more complete list of ported systems and in the config directory for
+a configuration file that matches your system.
+Tcsh also runs under VMS/POSIX and OS/2+emx; the OS/2 port is not
+complete yet.
+
+Feel free to use it.  These changes to csh may only be included in a
+commercial product if the inclusion or exclusion does not change the
+purchase price, level of support, etc.  Please respect the individual
+authors by giving credit where credit is due (in other words, don't
+claim that you wrote portions that you haven't, and don't delete the
+names of the authors from the source code or documentation).  
+
+To install tcsh:
+
+0)  Try running "./configure".  If that doesn't work, goto step 1.
+    Run "./configure --help" to see possible options.  After running
+    configure, goto step 3.
+
+1)  Otherwise copy Makefile.std to Makefile. Look at the Makefile and
+    make sure that you are using the right compilation flags.
+
+2)  Copy the appropriate for your machine and OS config file from the
+    config subdirectory into config.h.  Consult the file "Ported" for
+    settings known to work on various machines.  If you are trying to
+    compile tcsh on a machine for which there is no config file yet,
+    you will need to create a config file using as a template one of
+    the supplied ones.  If you get tcsh working on a new machine, I'd
+    appreciate a copy of the config file plus additional information
+    about the architecture/OS.  If you are creating a new config file,
+    look very hard at BSDJOBS and BSDTIMES if you are running
+    a non-BSD machine.  For vanila SysV, these would all be #undef-ed,
+    but others may vary (such as A/UX or HPUX).  On a pyramid, compile
+    in the UCB universe even if you are running under the ATT universe
+    usually; it will work anyway, and you get job control for free.
+
+3)  Look at config_f.h, and enable or disable any features you want.
+    It is configured the way I like it, but you may disagree.
+
+4)  Look at host.defs to make sure that you have the right defines to set
+    the environment variables "HOSTTYPE", "MACHTYPE", "OSTYPE" and 
+    "VENDOR" correctly.  If you need to make changes, PLEASE SEND THEM 
+    BACK TO ME.
+
+5)  You may want to adjust the DESTBIN and DESTMAN entries in
+    the Makefile.  These are the directories that tcsh, and the tcsh.1
+    man entry will be placed in when you do a "make install" and "make
+    install.man" respectively.  If you decide to install tcsh somewhere
+    other than in /usr/local/bin/tcsh, you should #define _PATH_TCSHELL
+    "/your/installation/directory/tcsh" in pathnames.h.
+
+6)  make
+
+7)  Read the documentation while you are waiting.  The file tcsh.man
+    is in standard [nt]roff -man format. If you like, you can run the
+    tcsh.man2html script (requires Perl) to generate an HTML version of
+    the manpage which you can read with Mosaic, lynx or other HTML browser.
+
+8)  Test tcsh by typing ./tcsh to see that it has compiled correctly.
+    The history command should give a time stamp on every entry.
+    Typing normal characters should echo each exactly once.  Control-A
+    should put the cursor at the beginning of the input line, but after
+    the prompt.  Typing characters after that should insert them into
+    the line.  If you have job control make sure that stopping and
+    restarting jobs works. Make sure you can ^C in the middle of the
+    input line.  Also make sure that pipelines work correctly and there
+    are no races. Try 'echo | cat | cat | cat | cat | more' a couple of
+    times. If you have job control, try this command in the background
+    and bring it in the foreground when it stops for tty output.  Also
+    make sure that the ioctl() modes are preserved.  Get into vi, enter
+    and exit input mode and suspend it, background it and foreground it
+    again. After all that, lastly make sure that the tty process group
+    manipulation is happening correctly. Try ftp to some host. If your
+    passwd appears on the screen, you have lost /dev/tty. Otherwise
+    everything is fine.
+
+9)  Once satisfied that tcsh is working correctly, complete the installation
+    by typing "make install" to install the binary, and "make install.man" to
+    install the documentation. Don't forget to look at complete.tcsh for
+    useful completions...
+
+10) Enjoy.
+
+11) PLEASE file any bug reports (and fixes), code for new features at:
+
+	http://bugs.gw.com/
+
+    Comments, questions, etc. (even flames) are welcome via email to:
+
+	The tcsh bugs mailing list
+	tcsh-bugs@mx.gw.com
+
+Various:
+
+***************************************************************************
+
+On sysv versions < 3.0 (not hpux) Doug Gwyn's public domain directory 
+manipulation library has to be installed. This library is available
+for anonymous ftp from prep.ai.mit.edu:/pub/gnu/dirent.tar.Z
+If the network is not installed, then there is a gethostname()
+routine is tc.os.c
+
+***************************************************************************
+
+On BSDreno, in ttyname() closedir() is called twice and so the same
+pointer gets free'd twice. tcsh's malloc is picky and it prints an
+error message to that effect. If you don't like the message:
+
+1. Apply the following patch:
+
+*** /usr/src/lib/libc/gen/ttyname.c.orig	Fri Jun  1 17:17:15 1990
+--- /usr/src/lib/libc/gen/ttyname.c	Tue Oct 29 16:33:12 1991
+***************
+*** 51,57 ****
+  		if (stat(buf, &sb2) < 0 || sb1.st_dev != sb2.st_dev ||
+  		    sb1.st_ino != sb2.st_ino)
+  			continue;
+- 		closedir(dp);
+  		rval = buf;
+  		break;
+  	}
+--- 51,56 ----
+
+Or: Comment the error printing out in tc.alloc.c
+Or: Compile -DSYSMALLOC
+
+
+***************************************************************************
+
+From: Scott Krotz <krotz@honey.rtsg.mot.com>
+
+Tcsh has been ported to minix by  Scott Krotz (krotz@honey.rtsg.mot.com).
+Unfortunately the minix sed is broken, so you'll have to find a way to
+make tc.const.h, sh.err.h, ed.defns.h which are automatically generated.
+The easiest way to create them is to make a copy from unix, copying 
+minix to config.h, and then 'make sh.err.h tc.const.h ed.defns.h'
+
+The OS/dependent files are in mi.termios.h, mi.wait.h, mi.varargs.h
+
+You will get some warnings, but dont worry about them, just ignore
+them.  After tcsh has compiled and the gcc binary is converted to a
+minix binary, remember to chmem it to give it more memory - it will
+need it!  How much you need depends on how many aliases you have, etc..
+Add at least 50000 to it.
+
+One last thing.  You might have to make some links for include files so
+that they are in the directories that tcsh is expecting while compiling.
+I forget if I had to do this or not, but it should be fairly easy to sort
+out.  If it cant find any include files this is probably the reason.
+
+If you have any problems, please tell me.  I can be contacted through
+e-mail at:
+
+krotz@honey.rtsg.mot.com
+
+I also read comp.os.minix on a regular basis, so a note there will get
+my attention also.
+
+Have fun!
+
+ps.  The termios functions are provided by Magnus Doell and Bruce Evans.
+     Thanks, guys!
+
+
+From: Bob Byrnes <byrnes@ee.cornell.edu>
+
+This is for minix 1.5 (straight out of the box from P-H) plus the i386
+patches from Bruce Evans.
+
+I cross-compiled on a Sun using gcc 2.1 with a target of i386-bsd
+(using the minix include files instead of the bsd versions), and then
+linked the resulting object files with similarly compiled crtso.o and
+libc.a on vax (little endian) using a hacked version of ld which I put
+together to generate minix executables instead of bsd a.out format.
+What a kludge ...
+
+I compiled with -O2 -Wall ...  So far I haven't noticed any problems
+with the optimizer.
+
+In case anyone is contemplating compiling tcsh with bcc (Bruce Evan's
+i386 compiler that comes with the minix386 upgrade package), don't bother.
+It is some serious bugs that kill tcsh when compiled for 16-bit characters.
+I can provide more details of bugs that I noticed for brave souls who want
+to try, but it would be hard (and why bother if you can get gcc?).
+
+I can make the binary available to anyone who wants it (for example people
+who can't get access to a cross-compiling environment, and who don't yet
+have gcc running under minix).
+
+
+***************************************************************************
+
+If your compiler cannot handle long symbol names, add 
+
+#include "snames.h" 
+
+to your config.h file
+
+	     -- Christos Zoulas
+		christos@zoulas.com
+

@@ -1,0 +1,74 @@
+=pod
+
+=head1 NAME
+
+RSA_private_encrypt, RSA_public_decrypt - low level signature operations
+
+=head1 SYNOPSIS
+
+ #include <openssl/rsa.h>
+
+ int RSA_private_encrypt(int flen, unsigned char *from,
+                         unsigned char *to, RSA *rsa, int padding);
+
+ int RSA_public_decrypt(int flen, unsigned char *from,
+                        unsigned char *to, RSA *rsa, int padding);
+
+=head1 DESCRIPTION
+
+These functions handle RSA signatures at a low level.
+
+RSA_private_encrypt() signs the B<flen> bytes at B<from> (usually a
+message digest with an algorithm identifier) using the private key
+B<rsa> and stores the signature in B<to>. B<to> must point to
+B<RSA_size(rsa)> bytes of memory.
+
+B<padding> denotes one of the following modes:
+
+=over 4
+
+=item RSA_PKCS1_PADDING
+
+PKCS #1 v1.5 padding. This function does not handle the
+B<algorithmIdentifier> specified in PKCS #1. When generating or
+verifying PKCS #1 signatures, L<RSA_sign(3)> and L<RSA_verify(3)> should be
+used.
+
+=item RSA_NO_PADDING
+
+Raw RSA signature. This mode should I<only> be used to implement
+cryptographically sound padding modes in the application code.
+Signing user data directly with RSA is insecure.
+
+=back
+
+RSA_public_decrypt() recovers the message digest from the B<flen>
+bytes long signature at B<from> using the signer's public key
+B<rsa>. B<to> must point to a memory section large enough to hold the
+message digest (which is smaller than B<RSA_size(rsa) -
+11>). B<padding> is the padding mode that was used to sign the data.
+
+=head1 RETURN VALUES
+
+RSA_private_encrypt() returns the size of the signature (i.e.,
+RSA_size(rsa)). RSA_public_decrypt() returns the size of the
+recovered message digest.
+
+On error, -1 is returned; the error codes can be
+obtained by L<ERR_get_error(3)>.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>,
+L<RSA_sign(3)>, L<RSA_verify(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

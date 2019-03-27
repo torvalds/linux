@@ -1,0 +1,145 @@
+.\"-
+.\" Copyright (c) 2001 Chris D. Faulhaber
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 13, 2001
+.Dt ACL_GET_ENTRY 3
+.Os
+.Sh NAME
+.Nm acl_get_entry
+.Nd retrieve an ACL entry from an ACL
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/acl.h
+.Ft int
+.Fn acl_get_entry "acl_t acl" "int entry_id" "acl_entry_t *entry_p"
+.Sh DESCRIPTION
+The
+.Fn acl_get_entry
+function
+is a POSIX.1e call that retrieves a descriptor for an ACL entry
+specified by the argument
+.Fa entry_d
+within the ACL indicated by the argument
+.Fa acl .
+.Pp
+If the value of
+.Fa entry_id
+is
+.Dv ACL_FIRST_ENTRY ,
+then the function will return in
+.Fa entry_p
+a descriptor for the first ACL entry within
+.Fa acl .
+If a call is made to
+.Fn acl_get_entry
+with
+.Fa entry_id
+set to
+.Dv ACL_NEXT_ENTRY
+when there has not been either an initial successful call to
+.Fn acl_get_entry ,
+or a previous successful call to
+.Fn acl_create_entry ,
+.Fn acl_delete_entry ,
+.Fn acl_dup ,
+.Fn acl_from_text ,
+.Fn acl_get_fd ,
+.Fn acl_get_file ,
+.Fn acl_set_fd ,
+.Fn acl_set_file ,
+or
+.Fn acl_valid ,
+then the result is unspecified.
+.Sh RETURN VALUES
+If the
+.Fn acl_get_entry
+function successfully obtains an ACL entry, a value of 1 is returned.
+If the ACL has no ACL entries, the
+.Fn acl_get_entry
+returns a value of 0.
+If the value of
+.Fa entry_id
+is
+.Dv ACL_NEXT_ENTRY
+and the last ACL entry in the ACL has already been returned by a
+previous call to
+.Fn acl_get_entry ,
+a value of 0 will be returned until a successful call with
+.Fa entry_id
+of
+.Dv ACL_FIRST_ENTRY
+is made.
+Otherwise, a value of -1 will be returned and
+the global variable
+.Va errno
+will be set to indicate the error.
+.Sh ERRORS
+The
+.Fn acl_get_entry
+fails if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Argument
+.Fa acl
+does not point to a valid ACL.
+Argument
+.Fa entry_id
+is neither
+.Dv ACL_FIRST_ENTRY
+nor
+.Dv ACL_NEXT_ENTRY .
+.El
+.Sh SEE ALSO
+.Xr acl 3 ,
+.Xr acl_calc_mask 3 ,
+.Xr acl_create_entry 3 ,
+.Xr acl_delete_entry 3 ,
+.Xr acl_dup 3 ,
+.Xr acl_from_text 3 ,
+.Xr acl_get_fd 3 ,
+.Xr acl_get_file 3 ,
+.Xr acl_init 3 ,
+.Xr acl_set_fd 3 ,
+.Xr acl_set_file 3 ,
+.Xr acl_valid 3 ,
+.Xr posix1e 3
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+.Sh HISTORY
+POSIX.1e support was introduced in
+.Fx 4.0 .
+The
+.Fn acl_get_entry
+function was added in
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Fn acl_get_entry
+function was written by
+.An Chris D. Faulhaber Aq Mt jedgar@fxp.org .

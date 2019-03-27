@@ -1,0 +1,87 @@
+.\" Copyright (c) 2002 Tim J. Robbins
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 17, 2004
+.Dt WCWIDTH 3
+.Os
+.Sh NAME
+.Nm wcwidth
+.Nd "number of column positions of a wide-character code"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In wchar.h
+.Ft int
+.Fn wcwidth "wchar_t wc"
+.Sh DESCRIPTION
+The
+.Fn wcwidth
+function determines the number of column positions required to
+display the wide character
+.Fa wc .
+.Sh RETURN VALUES
+The
+.Fn wcwidth
+function returns 0 if the
+.Fa wc
+argument is a null wide character (L'\e0'),
+\-1 if
+.Fa wc
+is not printable,
+otherwise it returns the number of column positions the
+character occupies.
+.Sh EXAMPLES
+This code fragment reads text from standard input and
+breaks lines that are more than 20 column positions wide,
+similar to the
+.Xr fold 1
+utility:
+.Bd -literal -offset indent
+wint_t ch;
+int column, w;
+
+column = 0;
+while ((ch = getwchar()) != WEOF) {
+	w = wcwidth(ch);
+	if (w > 0 && column + w >= 20) {
+		putwchar(L'\en');
+		column = 0;
+	}
+	putwchar(ch);
+	if (ch == L'\en')
+		column = 0;
+	else if (w > 0)
+		column += w;
+}
+.Ed
+.Sh SEE ALSO
+.Xr iswprint 3 ,
+.Xr wcswidth 3
+.Sh STANDARDS
+The
+.Fn wcwidth
+function conforms to
+.St -p1003.1-2001 .

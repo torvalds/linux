@@ -1,0 +1,256 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)tt10	8.1 (Berkeley) 6/8/93
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.NH
+Number Registers and Arithmetic
+.PP
+.UL troff
+has a facility for doing arithmetic,
+and for defining and using variables with numeric values,
+called
+.ul
+number registers.
+Number registers, like strings and macros, can be useful in setting up a document
+so it is easy to change later.
+And of course they serve for any sort of arithmetic computation.
+.PP
+Like strings, number registers have one or two character names.
+They are set by the
+.BD .nr
+command,
+and are referenced anywhere by
+.BD \enx
+(one character name) or
+.BD \en(xy
+(two character name).
+.PP
+There are quite a few pre-defined number registers maintained by
+.UL troff ,
+among them
+.BD %
+for the current page number;
+.BD nl
+for the current vertical position on the page;
+.BD dy ,
+.BD mo
+and
+.BD yr
+for the current day, month and year; and
+.BD .s
+and
+.BD .f
+for the current size and font.
+(The font is a number from 1 to 4.)
+Any of these can be used in computations like any other register,
+but some, like
+.BD .s
+and
+.BD .f ,
+cannot be changed with
+.BD .nr .
+.PP
+As an example of the use of number registers,
+in the
+.BD \-ms
+macro package [4],
+most significant parameters are defined in terms of the values
+of a handful of number registers.
+These include the point size for text, the vertical spacing,
+and the line and title lengths.
+To set the point size and vertical spacing for the following paragraphs, for example, a user may say
+.P1
+^nr PS 9
+^nr VS 11
+.P2
+The paragraph macro
+.BD .PP
+is defined (roughly) as follows:
+.P1
+.ta  1i
+^de PP
+^ps \e\en(PS	\e" reset size
+^vs \e\en(VSp	\e" spacing
+^ft R	\e" font
+^sp 0.5v	\e" half a line
+^ti +3m
+^^
+.P2
+This sets the font to Roman and the point size and line spacing
+to whatever values are stored in the number registers
+.BD PS
+and
+.BD VS .
+.PP
+Why are there two backslashes?
+This is the eternal problem of how to quote a quote.
+When
+.UL troff
+originally reads the macro definition,
+it peels off one backslash
+to see what's coming next.
+To ensure that another is left in the definition when the 
+macro is
+.ul
+used,
+we have to put in two backslashes in the definition.
+If only one backslash is used, 
+point size and vertical spacing will be frozen at the time the macro
+is defined, not when it is used.
+.PP
+Protecting by an extra layer of backslashes
+is only needed for
+.BD \en ,
+.BD \e* ,
+.BD \e$
+(which we haven't come to yet),
+and
+.BD \e
+itself.
+Things like
+.BD \es ,
+.BD \ef ,
+.BD \eh ,
+.BD \ev ,
+and so on do not need an extra backslash,
+since they are converted by
+.UL troff
+to an internal code immediately upon being seen.
+.WS
+.PP
+Arithmetic expressions can appear anywhere that
+a number is expected.
+As a trivial example,
+.P1
+^nr PS \e\en(PS\-2
+.P2
+decrements PS by 2.
+Expressions can use the arithmetic operators +, \-, *, /, % (mod),
+the relational operators >, >=, <, <=, =, and != (not equal),
+and parentheses.
+.PP
+Although the arithmetic we have done so far
+has been straightforward,
+more complicated things are somewhat tricky.
+First,
+number registers hold only integers.
+.UL troff
+arithmetic uses truncating integer division, just like Fortran.
+Second, in the absence of parentheses,
+evaluation is done left-to-right
+without any operator precedence
+(including relational operators).
+Thus
+.P1
+7*\-4+3/13
+.P2
+becomes `\-1'.
+Number registers can occur anywhere in an expression,
+and so can scale indicators like
+.BD p ,
+.BD i ,
+.BD m ,
+and so on (but no spaces).
+Although integer division causes truncation,
+each number and its scale indicator is converted
+to machine units (1/432 inch) before any arithmetic is done,
+so
+1i/2u
+evaluates to
+0.5i
+correctly.
+.PP
+The scale indicator
+.BD u
+often has to appear
+when you wouldn't expect it _
+in particular, when arithmetic is being done
+in a context that implies horizontal or vertical dimensions.
+For example,
+.P1
+^ll 7/2i
+.P2
+would seem obvious enough _
+3\(12 inches.
+Sorry.
+Remember that the default units for horizontal parameters like
+.BD .ll
+are ems.
+That's really `7 ems / 2 inches',
+and when translated into machine units, it becomes zero.
+How about
+.P1
+^ll 7i/2
+.P2
+Sorry, still no good _
+the `2' is `2 ems', so `7i/2' is small,
+although not zero.
+You
+.ul
+must
+use
+.P1
+^ll 7i/2u
+.P2
+So again, a safe rule is to
+attach a scale indicator to every number,
+even constants.
+.PP
+For arithmetic done within a
+.BD .nr
+command,
+there is no implication of horizontal or vertical dimension,
+so the default units are `units',
+and 7i/2 and 7i/2u
+mean the same thing.
+Thus
+.P1
+^nr ll 7i/2
+^ll \e\en(llu
+.P2
+does just what you want,
+so long as you
+don't forget the
+.BD u
+on the
+.BD .ll
+command.

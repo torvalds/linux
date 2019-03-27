@@ -1,0 +1,39 @@
+
+#------------------------------------------------------------------------------
+# $File: blender,v 1.7 2017/03/17 21:35:28 christos Exp $
+# blender: file(1) magic for Blender 3D related files
+#
+# Native format rule v1.2. For questions use the developers list
+# http://lists.blender.org/mailman/listinfo/bf-committers
+# GLOB chunk was moved near start and provides subversion info since 2.42
+
+0		string	=BLENDER	Blender3D,
+>7		string	=_		saved as 32-bits
+>>8		string	=v		little endian
+>>>9		byte	x		with version %c.
+>>>10		byte	x		\b%c
+>>>11		byte	x		\b%c
+>>>0x40		string	=GLOB		\b.
+>>>>0x58	leshort	x		\b%.4d
+>>8		string	=V		big endian
+>>>9		byte	x		with version %c.
+>>>10		byte	x		\b%c
+>>>11		byte	x		\b%c
+>>>0x40		string	=GLOB		\b.
+>>>>0x58	beshort	x		\b%.4d
+>7		string	=-		saved as 64-bits
+>>8		string	=v		little endian
+>>9		byte	x		with version %c.
+>>10		byte	x		\b%c
+>>11		byte	x		\b%c
+>>0x44		string	=GLOB		\b.
+>>>0x60		leshort	x		\b%.4d
+>>8		string	=V		big endian
+>>>9		byte	x		with version %c.
+>>>10		byte	x		\b%c
+>>>11		byte	x		\b%c
+>>>0x44		string	=GLOB		\b.
+>>>>0x60	beshort	x		\b%.4d
+
+# Scripts that run in the embedded Python interpreter
+0		string	#!BPY		Blender3D BPython script

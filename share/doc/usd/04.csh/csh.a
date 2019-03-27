@@ -1,0 +1,93 @@
+.\"-
+.\" Copyright (c) 1980, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)csh.a	8.1 (Berkeley) 6/8/93
+.\" $FreeBSD$
+.\"
+.SH
+Appendix \- Special characters
+.LP
+The following table lists the special characters of
+.I csh
+and the \s-2UNIX\s0 system, giving for each the section(s) in which it
+is discussed.
+A number of these characters also have special meaning in expressions.
+See the
+.I csh
+manual section
+for a complete list.
+.ta .75i 1.5i 2.25i
+.LP
+Syntactic metacharacters
+.DS
+;	2.4	separates commands to be executed sequentially
+|	1.5	separates commands in a pipeline
+( )	2.2,3.6	brackets expressions and variable values
+&	2.5	follows commands to be executed without waiting for completion
+.DE
+.LP
+Filename metacharacters
+.DS
+/	1.6	separates components of a file's pathname
+\&.	1.6	separates root parts of a file name from extensions
+?	1.6	expansion character matching any single character
+*	1.6	expansion character matching any sequence of characters
+[ ]	1.6	expansion sequence matching any single character from a set
+~	1.6	used at the beginning of a filename to indicate home directories
+{ }	4.2	used to specify groups of arguments with common parts
+.DE
+.LP
+Quotation metacharacters
+.DS
+\e	1.7	prevents meta-meaning of following single character
+\'	1.7	prevents meta-meaning of a group of characters
+"	4.3	like \', but allows variable and command expansion
+.DE
+.LP
+Input/output metacharacters
+.DS
+<	1.5	indicates redirected input
+>	1.3	indicates redirected output
+.DE
+.LP
+Expansion/substitution metacharacters
+.DS
+$	3.4	indicates variable substitution
+!	2.3	indicates history substitution
+:	3.6	precedes substitution modifiers
+^	2.3	used in special forms of history substitution
+\`	4.3	indicates command substitution
+.DE
+.LP
+Other metacharacters
+.DS
+#	1.3,3.6	begins scratch file names; indicates shell comments
+\-	1.2	prefixes option (flag) arguments to commands
+%	2.6	prefixes job name specifications
+.DE
+.bp

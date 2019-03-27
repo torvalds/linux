@@ -1,0 +1,255 @@
+.\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\" 	All rights reserved.
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\" 	All rights reserved.
+.\"
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Begemot: libunimsg/man/unifunc.3,v 1.6 2005/06/15 11:37:09 brandt_h Exp $
+.\"
+.Dd June 14, 2005
+.Dt UNIFUNC 3
+.Os
+.Sh NAME
+.Nm libngatm ,
+.Nm uni_decode ,
+.Nm uni_decode_head ,
+.Nm uni_decode_body ,
+.Nm uni_decode_ie_hdr ,
+.Nm uni_decode_ie_body ,
+.Nm uni_encode ,
+.Nm uni_encode_msg_hdr ,
+.Nm uni_encode_ie ,
+.Nm uni_encode_ie_hdr ,
+.Nm uni_check_ie ,
+.Nm uni_print_cref ,
+.Nm uni_print_msghdr ,
+.Nm uni_print ,
+.Nm uni_print_ie ,
+.Nm uni_initcx ,
+.Nm uni_print_cx
+.Nd "ATM signalling library - message handling functions"
+.Sh LIBRARY
+Begemot ATM signalling library
+.Pq libngatm, -lngatm
+.Sh SYNOPSIS
+.In netnatm/msg/unistruct.h
+.In netnatm/msg/unimsglib.h
+.Ft int
+.Fn uni_decode "struct uni_msg *buf" "struct uni_all *msg" "struct unicx *cx"
+.Ft int
+.Fn uni_decode_head "struct uni_msg *buf" "struct uni_all *msg" "struct unicx *cx"
+.Ft int
+.Fn uni_decode_body "struct uni_msg *buf" "struct uni_all *msg" "struct unicx *cx"
+.Ft int
+.Fn uni_decode_ie_hdr "enum uni_ietype *type" "struct uni_iehdr *hdr" "struct uni_msg *buf" "struct unicx *cx" "u_int *ielen"
+.Ft int
+.Fn uni_decode_ie_body "enum uni_ietype type" "union uni_ieall *ie" "struct uni_msg *buf" "u_int ielen" "struct unicx *cx"
+.Ft int
+.Fn uni_encode "struct uni_msg *buf" "struct uni_all *msg" "struct unicx *cx"
+.Ft int
+.Fn uni_encode_msg_hdr "struct uni_msg *buf" "struct uni_msghdr *hdr" "enum uni_msgtype type" "struct unicx *cx" "int *mlen"
+.Ft int
+.Fn uni_encode_ie "enum uni_ietype type" "struct uni_msg *buf" "union uni_ieall *ie" "struct unicx *cx"
+.Ft int
+.Fn uni_encode_ie_hdr "struct uni_msg *buf" "enum uni_ietype type" "struct uni_iehdr *hdr" "u_int len" "struct unicx *cx"
+.Ft int
+.Fn uni_check_ie "enum uni_ietype type" "union uni_ieall *ie" "struct unicx *cx"
+.Ft void
+.Fn uni_print_cref "char *buf" "size_t buflen" "struct uni_cref *cref" "struct unicx *cx"
+.Ft void
+.Fn uni_print_msghdr "char *buf" "size_t buflen" "struct uni_msghdr *hdr" "struct unicx *cx"
+.Ft void
+.Fn uni_print "char *buf" "size_t buflen" "struct uni_all *msg" "struct unicx *cx"
+.Ft void
+.Fn uni_print_ie "char *buf" "size_t buflen" "enum uni_ietype type" "union uni_ieall *ie" "struct unicx *cx"
+.Ft void
+.Fn uni_initcx "struct unicx *cx"
+.Ft void
+.Fn uni_print_cx "char *buf" "size_t buflen" "struct unicx *cx"
+.Sh DESCRIPTION
+The
+.Nm
+library handles UNI 4.0 messages.
+For each information element and message
+type the header files contain a structure definition.
+Additionally there
+are a number of help structures and a global context structure for some
+of the library functions.
+This document describes the functions that are
+used to handle messages.
+.Ss DECODING
+Decoding is the process of taking an octet stream containing a UNI message
+or IE, parsing it and filling in a message or IE structure.
+.Pp
+The function
+.Fn uni_decode
+takes a message buffer, interprets it as a UNI message and fills in the
+structure pointed to by
+.Fa msg .
+It also takes a context argument and may fill the error array in the context.
+It returns -1 if there is an error decoding the message header and
+-2 if there is an error decoding the message body.
+The function returns 0 on success.
+.Pp
+The process of decoding a message can be split up by calling
+.Fn uni_decode_head
+and
+.Fn uni_decode_body .
+The first of these functions decodes only the message header and the second
+one decodes only the information elements.
+.Fn uni_decode_head
+returns 0 if it could decode the message header
+and -1 if the message could not be decoded (bad protocol
+identifier, bad length or broken call reference).
+.Fn uni_decode_body
+return 0 on success and -1 for unknown message types or if any
+IE had an error.
+.Pp
+The function
+.Fn uni_decode_ie_hdr
+decodes the next information element header.
+It returns the IE type and its length
+in the variables pointed to by
+.Va type
+and
+.Va ielen
+and stores the decoded header in the structure pointed to by
+.Va hdr .
+The function returns 0 on success and -1 if there were not enough bytes
+in the buffer left for a complete IE header.
+.Pp
+The function
+.Fn uni_decode_ie_body
+decodes the body of an information element.
+It is passed the buffer with the message
+.Fa buf ,
+the information element type
+.Fa type
+and length
+.Fa ielen .
+The IE is stored in the union pointed to by
+.Fa ie .
+The function returns -1 on errors and 0 on success.
+In any case the most correct
+number of bytes is consumed from the input buffer.
+.Ss ENCODING
+Encoding is the process of taking a message or IE structure and producing
+an octet stream from it.
+.Pp
+The function
+.Fn uni_encode
+encodes a UNI message.
+It returns -1 if the message type is out of bounds, -3
+if the message type is unknown.
+The encoding functions for the message types
+can return their own error codes.
+The function returns 0 on success.
+.Pp
+The function
+.Fn uni_encode_msg_hdr
+encodes a message header.
+The variable pointed to by
+.Fa mlen
+is set to the offset of the message length field from the begin of the
+byte stream.
+This is needed because the length of the message body will
+be known only after all the IEs have been encoded.
+Then the length
+has to be inserted into this place.
+The function returns -1 if the call reference
+was bad and 0 on success.
+.Pp
+The function
+.Fn uni_encode_ie
+encodes one information element.
+The function returns 0 on success or -1
+on errors.
+The function
+.Fn uni_encode_ie_hdr
+encodes the four byte IE header.
+The argument
+.Fa len
+is the maximum expected length of the information element, not the real length.
+The function inserts a 0 in the real length field.
+This must be
+fixed up by the caller after encoding the IE contents.
+The function
+return -1 if an empty IE is to be encoded (in this case the length field will
+have been set to 4) or 0 otherwise.
+.Ss CHECKING
+There exists a number of function that do consistency checks on information
+elements.
+Note, that these functions do not check inter-IE consistency, but
+each IE by itself.
+.Pp
+The function
+.Fn uni_check_ie
+check an information element for consistency.
+It returns 0 if the IE seems
+ok, -1 otherwise.
+.Ss PRINTING
+A number of functions can be used to print decoded messages and IEs in
+a human readable form.
+This is intended mainly for debugging.
+Some fields of the library context are used to control how the printing is done
+(see
+.Xr unistruct 3 ) .
+Each of the function takes a
+.Fa buf
+and a
+.Fa buflen
+argument.
+The string that is generated in the buffer pointed to by
+.Fa buf
+is guaranteed to be NUL terminated.
+.Pp
+The function
+.Fn uni_print_cref
+formats a call reference taking into account special call references.
+The function
+.Fn uni_print_msg_hdr
+formats a message header.
+The functions
+.Fn uni_print
+and
+.Fn uni_print_ie
+print messages and information elements.
+.Ss CONTEXTS
+There are two functions for context handling.
+.Fn uni_initcx
+initializes a context with default values and
+.Fn uni_print_cx
+prints a context to the given buffer.
+.Sh SEE ALSO
+.Xr libngatm 3
+.Sh STANDARDS
+This implementation conforms to the applicable ITU-T
+recommendations and ATM Forum standards with the exception of some limitations
+(see the Configuration section).
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@FreeBSD.org

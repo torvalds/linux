@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+machine	arm armv6
+cpu	CPU_ARM1176
+makeoptions	CONF_CFLAGS="-mcpu=arm1176jzf-s"
+options 	SOC_BCM2835
+
+files	"../broadcom/bcm2835/files.bcm2835"
+files	"../broadcom/bcm2835/files.bcm283x"
+

@@ -1,0 +1,341 @@
+.\" Copyright (c) 1999 - 2002 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.Dd September 24, 1999
+.Dt GETARG 3
+.Os ROKEN
+.Sh NAME
+.Nm getarg ,
+.Nm arg_printusage
+.Nd collect command line options
+.Sh SYNOPSIS
+.In getarg.h
+.Ft int
+.Fn getarg "struct getargs *args" "size_t num_args" "int argc" "char **argv" "int *optind"
+.Ft void
+.Fn arg_printusage "struct getargs *args" "size_t num_args" "const char *progname" "const char *extra_string"
+.Sh DESCRIPTION
+.Fn getarg
+collects any command line options given to a program in an easily used way.
+.Fn arg_printusage
+pretty-prints the available options, with a short help text.
+.Pp
+.Fa args
+is the option specification to use, and it's an array of
+.Fa struct getargs
+elements.
+.Fa num_args
+is the size of
+.Fa args
+(in elements).
+.Fa argc
+and
+.Fa argv
+are the argument count and argument vector to extract option from.
+.Fa optind
+is a pointer to an integer where the index to the last processed
+argument is stored, it must be initialised to the first index (minus
+one) to process (normally 0) before the first call.
+.Pp
+.Fa arg_printusage
+take the same
+.Fa args
+and
+.Fa num_args
+as getarg;
+.Fa progname
+is the name of the program (to be used in the help text), and
+.Fa extra_string
+is a string to print after the actual options to indicate more
+arguments. The usefulness of this function is realised only be people
+who has used programs that has help strings that doesn't match what
+the code does.
+.Pp
+The
+.Fa getargs
+struct has the following elements.
+.Bd -literal
+struct getargs{
+    const char *long_name;
+    char short_name;
+    enum { arg_integer,
+	   arg_string,
+	   arg_flag,
+	   arg_negative_flag,
+	   arg_strings,
+	   arg_double,
+           arg_collect
+    } type;
+    void *value;
+    const char *help;
+    const char *arg_help;
+};
+.Ed
+.Pp
+.Fa long_name
+is the long name of the option, it can be
+.Dv NULL ,
+if you don't want a long name.
+.Fa short_name
+is the characted to use as short option, it can be zero. If the option
+has a value the
+.Fa value
+field gets filled in with that value interpreted as specified by the
+.Fa type
+field.
+.Fa help
+is a longer help string for the option as a whole, if it's
+.Dv NULL
+the help text for the option is omitted (but it's still displayed in
+the synopsis).
+.Fa arg_help
+is a description of the argument, if
+.Dv NULL
+a default value will be used, depending on the type of the option:
+.Pp
+.Bl -hang -width arg_negative_flag
+.It arg_integer
+the argument is a signed integer, and
+.Fa value
+should point to an
+.Fa int .
+.It Fa arg_string
+the argument is a string, and
+.Fa value
+should point to a
+.Fa char* .
+.It Fa arg_flag
+the argument is a flag, and
+.Fa value
+should point to a
+.Fa int .
+It gets filled in with either zero or one, depending on how the option
+is given, the normal case being one. Note that if the option isn't
+given, the value isn't altered, so it should be initialised to some
+useful default.
+.It Fa arg_negative_flag
+this is the same as
+.Fa arg_flag
+but it reverses the meaning of the flag (a given short option clears
+the flag), and the synopsis of a long option is negated.
+.It Fa arg_strings
+the argument can be given multiple times, and the values are collected
+in an array;
+.Fa value
+should be a pointer to a
+.Fa struct getarg_strings
+structure, which holds a length and a string pointer.
+.It Fa arg_double
+argument is a double precision floating point value, and
+.Fa value
+should point to a
+.Fa double .
+.It Fa arg_collect
+allows more fine-grained control of the option parsing process.
+.Fa value
+should be a pointer to a
+.Fa getarg_collect_info
+structure:
+.Bd -literal
+typedef int (*getarg_collect_func)(int short_opt,
+				   int argc,
+				   char **argv,
+				   int *optind,
+				   int *optarg,
+				   void *data);
+
+typedef struct getarg_collect_info {
+    getarg_collect_func func;
+    void *data;
+} getarg_collect_info;
+.Ed
+.Pp
+With the
+.Fa func
+member set to a function to call, and
+.Fa data
+to some application specific data. The parameters to the collect function are:
+.Bl -inset
+.It Fa short_flag
+non-zero if this call is via a short option flag, zero otherwise
+.It Fa argc , argv
+the whole argument list
+.It Fa optind
+pointer to the index in argv where the flag is
+.It Fa optarg
+pointer to the index in argv[*optind] where the flag name starts
+.It Fa data
+application specific data
+.El
+.Pp
+You can modify
+.Fa *optind ,
+and
+.Fa *optarg ,
+but to do this correct you (more or less) have to know about the inner
+workings of getarg.
+.Pp
+You can skip parts of arguments by increasing
+.Fa *optarg
+(you could
+implement the
+.Fl z Ns Ar 3
+set of flags from
+.Nm gzip
+with this), or whole argument strings by increasing
+.Fa *optind
+(let's say you want a flag
+.Fl c Ar x y z
+to specify a coordinate); if you also have to set
+.Fa *optarg
+to a sane value.
+.Pp
+The collect function should return one of
+.Dv ARG_ERR_NO_MATCH , ARG_ERR_BAD_ARG , ARG_ERR_NO_ARG, ENOMEM
+on error, zero otherwise.
+.Pp
+For your convenience there is a function,
+.Fn getarg_optarg ,
+that returns the traditional argument string, and you pass it all
+arguments, sans data, that where given to the collection function.
+.Pp
+Don't use this more this unless you absolutely have to.
+.El
+.Pp
+Option parsing is similar to what
+.Xr getopt
+uses. Short options without arguments can be compressed
+.Pf ( Fl xyz
+is the same as
+.Fl x y z ) ,
+and short
+options with arguments take these as either the rest of the
+argv-string or as the next option
+.Pf ( Fl o Ns Ar foo ,
+or
+.Fl o Ar foo ) .
+.Pp
+Long option names are prefixed with -- (double dash), and the value
+with a = (equal),
+.Fl Fl foo= Ns Ar bar .
+Long option flags can either be specified as they are
+.Pf ( Fl Fl help ) ,
+or with an (boolean parsable) option
+.Pf ( Fl Fl help= Ns Ar yes ,
+.Fl Fl help= Ns Ar true ,
+or similar), or they can also be negated
+.Pf ( Fl Fl no-help
+is the same as
+.Fl Fl help= Ns no ) ,
+and if you're really confused you can do it multiple times
+.Pf ( Fl Fl no-no-help= Ns Ar false ,
+or even
+.Fl Fl no-no-help= Ns Ar maybe ) .
+.Sh EXAMPLE
+.Bd -literal
+#include <stdio.h>
+#include <string.h>
+#include <getarg.h>
+
+char *source = "Ouagadougou";
+char *destination;
+int weight;
+int include_catalog = 1;
+int help_flag;
+
+struct getargs args[] = {
+    { "source",      's', arg_string,  &source,
+      "source of shippment", "city" },
+    { "destination", 'd', arg_string,  &destination,
+      "destination of shippment", "city" },
+    { "weight",      'w', arg_integer, &weight,
+      "weight of shippment", "tons" },
+    { "catalog",     'c', arg_negative_flag, &include_catalog,
+      "include product catalog" },
+    { "help",        'h', arg_flag, &help_flag }
+};
+
+int num_args = sizeof(args) / sizeof(args[0]); /* number of elements in args */
+
+const char *progname = "ship++";
+
+int
+main(int argc, char **argv)
+{
+    int optind = 0;
+    if (getarg(args, num_args, argc, argv, &optind)) {
+	arg_printusage(args, num_args, progname, "stuff...");
+	exit (1);
+    }
+    if (help_flag) {
+	arg_printusage(args, num_args, progname, "stuff...");
+	exit (0);
+    }
+    if (destination == NULL) {
+	fprintf(stderr, "%s: must specify destination\en", progname);
+	exit(1);
+    }
+    if (strcmp(source, destination) == 0) {
+	fprintf(stderr, "%s: destination must be different from source\en");
+	exit(1);
+    }
+    /* include more stuff here ... */
+    exit(2);
+}
+.Ed
+.Pp
+The output help output from this program looks like this:
+.Bd -literal
+$ ship++ --help
+Usage: ship++ [--source=city] [-s city] [--destination=city] [-d city]
+   [--weight=tons] [-w tons] [--no-catalog] [-c] [--help] [-h] stuff...
+-s city, --source=city      source of shippment
+-d city, --destination=city destination of shippment
+-w tons, --weight=tons      weight of shippment
+-c, --no-catalog            include product catalog
+.Ed
+.Sh BUGS
+It should be more flexible, so it would be possible to use other more
+complicated option syntaxes, such as what
+.Xr ps 1 ,
+and
+.Xr tar 1 ,
+uses, or the AFS model where you can skip the flag names as long as
+the options come in the correct order.
+.Pp
+Options with multiple arguments should be handled better.
+.Pp
+Should be integreated with SL.
+.Pp
+It's very confusing that the struct you pass in is called getargS.
+.Sh SEE ALSO
+.Xr getopt 3

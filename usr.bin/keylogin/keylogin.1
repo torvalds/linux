@@ -1,0 +1,30 @@
+.\" @(#)keylogin.1 1.5 91/03/11 TIRPC 1.0;
+.\" Copyright (c) 1988 Sun Microsystems, Inc. - All Rights Reserved.
+.\" $FreeBSD$
+.\"
+.Dd September 9, 1987
+.Dt KEYLOGIN 1
+.Os
+.Sh NAME
+.Nm keylogin
+.Nd decrypt and store secret key
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+The
+.Nm
+utility prompts the user for their login password, and uses it to decrypt
+the user's secret key stored in the
+.Xr publickey 5
+database.
+Once decrypted, the user's key is stored by the local
+key server process
+.Xr keyserv 8
+to be used by any secure network services, such as NFS.
+.Sh SEE ALSO
+.Xr chkey 1 ,
+.Xr keylogout 1 ,
+.Xr login 1 ,
+.Xr publickey 5 ,
+.Xr keyserv 8 ,
+.Xr newkey 8

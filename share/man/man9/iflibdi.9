@@ -1,0 +1,238 @@
+.\" $FreeBSD$
+.Dd May 24, 2017
+.Dt IFLIBDI 9
+.Os
+.Sh NAME
+.Nm iflibdi
+.Nd Device Independent Configuration Functions
+.Sh SYNOPSIS
+.In "ifdi_if.h"
+.Ss "Device Independent Functions"
+.Ft int
+.Fo iflib_device_attach
+.Fa "device_t dev"
+.Fc
+.Ft int
+.Fo iflib_device_detach
+.Fa "device_t dev"
+.Fc
+.Ft int
+.Fo iflib_device_suspend
+.Fa "device_t dev"
+.Fc
+.Ft int
+.Fo iflib_device_resume
+.Fa "device_t dev"
+.Fc
+.Ft int
+.Fo iflib_device_register
+.Fa "device_t dev"
+.Fa "void *softc"
+.Fa "if_shared_ctx_t sctx"
+.Fa "if_ctx_t *ctxp"
+.Fc
+.Ft int
+.Fo iflib_device_deregister
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft int
+.Fo iflib_irq_alloc
+.Fa "if_ctx_t ctx"
+.Fa "if_irq_t irq_info"
+.Fa "int rid"
+.Fa "driver_filter_t filter"
+.Fa "void *filter_arg"
+.Fa "driver_intr_t handler"
+.Fa "void *arg"
+.Fa "char *name"
+.Fc
+.Ft int
+.Fo iflib_irq_alloc_generic
+.Fa "if_ctx_t ctx"
+.Fa "if_irq_t irq"
+.Fa "int rid"
+.Fa "intr_type_t type"
+.Fa "driver_filter_t *filter"
+.Fa "void *filter_arg"
+.Fa "int qid"
+.Fa "char *name"
+.Fc
+.Ft void
+.Fo iflib_led_create
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft void
+.Fo iflib_tx_intr_deferred
+.Fa "if_ctx_t ctx"
+.Fa "int txqid"
+.Fc
+.Ft void
+.Fo iflib_rx_intr_deferred
+.Fa "if_ctx_t ctx"
+.Fa "int rxqid"
+.Fc
+.Ft void
+.Fo iflib_link_intr_deferred
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft void
+.Fo iflib_link_state_change
+.Fa "if_ctx_t ctx"
+.Fa "int linkstate"
+.Fc
+.Ft void
+.Fo iflib_add_int_delay_sysctl
+.Fa "if_ctx_t ctx"
+.Fa "const char *"
+.Fa "const char *"
+.Fa "if_int_delay_info_t"
+.Fa "int"
+.Fa "int"
+.Fc
+.Ss "Global Variables"
+.Vt extern struct if_txrx
+.Sh DATA STRUCTURES
+The \fIif_ctx_t\fP Structure is the device independent data structure that
+contains statistics and identifying information used to transmit and receive
+data packets.
+The interface is associated with an array of queues assigned sequentially.
+Each queue has its own transmit (iflib_txq_t) and receive (iflib_rxq_t) queue.
+The transmit queue is used to hold packets while the interface is in the
+process of sending another.
+The receive queue is used to receive packets that are awaiting processing.
+.Pp
+.Ss The if_ctx_t Structure
+The fields of
+.Vt "struct if_ctx_t"
+are as follows:
+.Bl -tag -width ".Va if_capabilities" -offset indent
+.It Va if_softc
+.Pq Vt "void"
+A pointer to the driver's private state block.
+.It Va ifc_dev
+.Pq Vt "device_t"
+The underlying device structure.
+.It Va ifc_ip
+.Pq Vt "if_t"
+A link back to the interface structure
+.It Va ifc_cpus
+.Pq Vt "cpuset_t"
+.It Va ifc_mutex
+.Pq Vt "struct mtx"
+Mutex lock used to maintain data integrity
+.It Va ifc_mtx_name
+.Pq Vt "char *"
+The name of the mutex
+.It Va ifc_txqs
+.Pq Vt "iflib_txq_t"
+Device independent transmit queue maintained internally by iflib
+.It Va ifc_rxqs
+.Pq Vt "iflib_rxq_t"
+Device independent receive queue maintained internally by iflib
+.It Va ifc_qsets
+.Pq Vt "iflib_qset_t"
+Output queue that contains a single transmit (ifc_txq_t) and receive
+(ifc_rxq_t) queue
+.It Va ifc_if_flags
+.Pq Vt "uint32_t"
+Flags describing the operational parameter of the interface
+.It Va ifc_in_detach
+.Pq Vt "int"
+.It Va ifc_link_state
+.Pq Vt "int"
+Describes the current link state of the Ethernet interface.
+Its possible values are either active or inactive.
+.It Va ifc_link_irq
+.Pq Vt "int"
+.It Va ifc_vlan_attach_event
+.Pq Vt "eventhandler_tag"
+.It Va ifc_vlan_detach_event
+.Pq Vt "eventhandler_tag"
+.It Va ifc_pause_frames
+.Pq Vt "int"
+.It Va ifc_watchdog_events
+.Pq Vt "int"
+.It Va ifc_mac
+.Pq Vt "uint8_t"
+.It Va ifc_msix_mem
+.Pq Vt "struct resource *"
+.It Va ifc_legacy_irq
+.Pq Vt "struct if_irq"
+.It Va ifc_admin_task
+.Pq Vt "struct grouptask"
+Taskqueue task scheduled for link state change events of the interface
+.It Va ifc_filter_info
+.Pq Vt "struct iflib_filter_info"
+Statistics and information relating to the interface device filter
+.It Va ifc_media
+.Pq Vt "struct ifmedia"
+.It Va ifc_txrx
+.Pq Vt "struct if_txrx"
+.El
+.Sh FUNCTIONS
+The above named functions are found exclusively in iflib.
+They are independent of the underlying hardware type or configuration.
+.Ss Device Independent Functions
+.Bl -ohang -offset indent
+.It Fn iflib_device_attach
+Function initiates a device registration with the iflib framework.
+It calls the iflib_register function, which is responsible for allocating
+and initializing the \fIif_ctx_t\fP structure.
+.It Fn iflib_device_detach
+Shutdown and detach the device.
+Unregister vlan events, drain any dependent tasks, and release irq, pci, and
+msix memory.
+.It Fn iflib_device_suspend
+Suspend a device by calling the device dependent suspend function and
+bus_generic_suspend.
+.It Fn iflib_device_resume
+Resume a device by calling the device dependent resume function, the
+iflib_init_locked function, and bus_generic_resume.
+.It Fn iflib_device_register
+Register a device with the iflib framework.
+Allocate and initialize the
+\fIif_ctx_t\fP structure.
+Setup and initialize the MSI or MSI/X interrupt queues if necessary.
+Allocate memory for queues and qset structure setup.
+.It Fn iflib_device_irq_alloc
+Allocate an interrupt resource for a given rid value with an associated filter
+and handler function.
+.It Fn iflib_device_irq_alloc_generic
+Performs the same function as iflib_device_irq_alloc along with the additional
+functionality of adding a taskgroup.
+The data fields and callback function are determined by the type of interrupt,
+such as
+.Dv IFLIB_INTR_TX ,
+.Dv IFLIB_INTR_RX ,
+and
+.Dv IFLIB_INTR_ADMIN .
+.It Fn iflib_led_create
+Calls led_create to initialize the ctx->ifc_led_dev field
+.It Fn iflib_tx_intr_deferred
+Calls GROUPTASK_ENQUEUE to enqueue the transfer queues ift_task.
+.It Fn iflib_rx_intr_deferred
+Calls GROUPTASK_ENQUEUE to enqueue the receive queues ifr_task.
+.It Fn iflib_link_intr_deferred
+Calls GROUPTASK_ENQUEUE to enqueue the link task
+.It Fn iflib_link_state_change
+Change the interface link status to either
+.Dv LINK_STATE_UP
+or
+.Dv LINK_STATE_DOWN
+as specified by the second argument to the function.
+.Pp
+.Em Interface Link States
+The following link states are currently defined:
+.It Dv LINK_STATE_UP
+The link is up.
+.It Dv LINK_STATE_DOWN
+The link is down.
+.It Fn iflib_add_int_delay_sysctl
+Modifies settings to user defined values for a given set of variables.
+.El
+.Sh SEE ALSO
+.Xr iflibdd 9 ,
+.Xr iflibtxrx 9
+.Sh AUTHORS
+This manual page was written by
+.An Nicole Graziano

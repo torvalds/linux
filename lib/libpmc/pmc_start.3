@@ -1,0 +1,77 @@
+.\" Copyright (c) 2007-2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 22, 2008
+.Dt PMC_START 3
+.Os
+.Sh NAME
+.Nm pmc_start ,
+.Nm pmc_stop
+.Nd start and stop a PMC
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Ft int
+.Fn pmc_start "pmc_id_t pmc"
+.Ft int
+.Fn pmc_stop "pmc_id_t pmc"
+.Sh DESCRIPTION
+These functions are used to start and stop a PMC.
+.Pp
+Function
+.Fn pmc_start
+starts the PMC specified by argument
+.Fa pmc .
+If the specified PMC has process scope and has not been attached
+to any targets, it will be attached to the current process.
+.Pp
+Function
+.Fn pmc_stop
+stops the PMC specified by argument
+.Fa pmc .
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+A call to these functions may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er EDOOFUS
+Function
+.Fn pmc_start
+specified a PMC that requires a log file and no log file was
+configured.
+.It Bq Er EINVAL
+The specified PMC is in the process of being deleted.
+.It Bq Er EINVAL
+Function
+.Fn pmc_stop
+specified a PMC that was never started.
+.It Bq Er ENXIO
+The specified PMC had system scope and its associated CPU was disabled or
+absent.
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr hwpmc 4

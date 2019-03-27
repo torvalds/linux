@@ -1,0 +1,115 @@
+.\" Copyright (c) 2018 Ian Lepore <ian@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 20, 2018
+.Dt MAC_NTPD 4
+.Os
+.Sh NAME
+.Nm mac_ntpd
+.Nd "policy allowing ntpd to run as non-root user"
+.Sh SYNOPSIS
+To compile the ntpd policy into your kernel, place the following lines
+in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Cd "options MAC_NTPD"
+.Ed
+.Pp
+Alternately, to load the ntpd policy module at boot time,
+place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Ed
+.Pp
+and in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mac_ntpd_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+policy grants any process running as user
+.Sq ntpd
+(uid 123) the privileges needed to manipulate
+system time, and to (re-)bind to the privileged NTP port.
+.Pp
+When
+.Xr ntpd 8
+is started with
+.Sq Fl u Ar <user>[:group]
+on the command line, it performs all initializations requiring root
+privileges, then drops root privileges by switching to the given user id.
+From that point on, the only privileges it requires are the ability
+to manipulate system time, and the ability to re-bind a UDP socket
+to the NTP port (port 123) after a network interface change.
+.Pp
+With the
+.Nm
+policy active, it may also be possible to start ntpd as a non-root user,
+because the default ntpd options don't require any additional root
+privileges beyond those granted by the policy.
+.Pp
+.Ss Privileges Granted
+The exact set of kernel privileges granted to any process running
+with the configured uid is:
+.Bl -inset -compact -offset indent
+.It Dv PRIV_ADJTIME
+.It Dv PRIV_CLOCK_SETTIME
+.It Dv PRIV_NTP_ADJTIME
+.It Dv PRIV_NETINET_RESERVEDPORT
+.It Dv PRIV_NETINET_REUSEPORT
+.El
+.Pp
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+MIBs are available for fine-tuning this MAC policy.
+All
+.Xr sysctl 8
+variables can also be set as
+.Xr loader 8
+tunables in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va security.mac.ntpd.enabled
+Enable the
+.Nm
+policy.
+(Default: 1).
+.It Va security.mac.ntpd.uid
+The numeric uid of the ntpd user.
+(Default: 123).
+.El
+.Sh SEE ALSO
+.Xr mac 4 ,
+.Xr ntpd 8
+.Sh HISTORY
+MAC first appeared in
+.Fx 5.0
+and
+.Nm
+first appeared in
+.Fx 12.0 .

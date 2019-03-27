@@ -1,0 +1,1118 @@
+.\"
+.\" Copyright (c) 1997-2014 Erez Zadok
+.\" Copyright (c) 1990 Jan-Simon Pendry
+.\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
+.\" Copyright (c) 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry at Imperial College, London.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.\" File: am-utils/scripts/amd.conf.5
+.\" $FreeBSD$
+.\"
+.Dd February 26, 2016
+.Dt AMD.CONF 5
+.Os
+.Sh NAME
+.Nm amd.conf
+.Nd
+.Xr amd 8
+configuration file
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+.Bf -symbolic
+This configuration file is obsolete.
+Users are advised to use
+.Xr autofs 5
+instead.
+.Ef
+.Pp
+The
+.Nm
+file is the configuration file for
+.Xr amd 8 ,
+as part of the am-utils suite.
+.Pp
+The
+.Nm
+file
+contains runtime configuration information for the
+.Xr amd 8
+automounter program.
+.Sh FILE FORMAT
+The file consists of sections and parameters.
+A section begins with the
+name of the section in square brackets and continues until the next section
+begins or the end of the file is reached.
+Sections contain parameters of the
+form
+.Dq Ar name No = Ar value .
+.Pp
+The file is line-based \[em] that is, each newline-terminated line represents
+either a comment, a section name or a parameter.
+No line-continuation
+syntax is available.
+.Pp
+Section, parameter names and their values are case sensitive.
+.Pp
+Only the first equals sign in a parameter is significant.
+Whitespace before
+or after the first equals sign is discarded.
+Leading, trailing and
+internal whitespace in section and parameter names is irrelevant.
+Leading
+and trailing whitespace in a parameter value is discarded.
+Internal
+whitespace within a parameter value is not allowed, unless the whole
+parameter value is quoted with double quotes as in
+.Dq Ar name No = Qq Li "some\ value" .
+.Pp
+Any line beginning with a pound sign (#) is ignored, as are lines containing
+only whitespace.
+.Pp
+The values following the equals sign in parameters are all either a string
+(no quotes needed if string does not include spaces) or a boolean, which may
+be given as
+.Dq Li yes/no .
+Case is significant in all values.
+Some items such as
+cache timeouts are numeric.
+.Sh SECTIONS
+.Ss "The [global] section"
+Parameters in this section either apply to
+.Nm amd
+as a whole, or to all other
+regular map sections which follow.
+There should be only one global section
+defined in one configuration file.
+.Pp
+It is highly recommended that this section be specified first in the
+configuration file.
+If it is not, then regular map sections which precede
+it will not use global values defined later.
+.Ss "Regular [/map] sections"
+Parameters in regular (non-global) sections apply to a single map entry.
+For example, if the map section
+.Bq Pa /homes
+is defined, then all parameters following it will be applied to the
+.Pa /homes
+.Nm amd Ns
+-managed mount point.
+.Sh PARAMETERS
+.Ss "Parameters common to all sections"
+These parameters can be specified either in the global or a map specific
+section.
+Entries specified in a map-specific section override the default
+value or one defined in the global section.
+If such a common parameter is
+specified only in the global section, it is applicable to all regular map
+sections that follow.
+.Bl -tag -width 4n
+.It Va browsable_dirs Pq string, default=no
+If
+.Dq Li yes ,
+then
+.Nm amd Ns 's
+top-level mount points will be browsable to
+.Xr readdir 3
+calls.
+This means you could run for example
+.Xr ls 1
+and see what keys are available to mount in that directory.
+Not all entries
+are made visible to
+.Xr readdir 3 :
+the
+.Dq Li /default
+entry, wildcard entries, and those with a
+.Ql /
+in them are not included.
+If you specify
+.Dq Li full
+to this option, all but
+.Dq Li /default
+will be visible.
+Note that if you run a command which will attempt to
+.Xr stat 2
+the entries, such as often done by
+.Dq Li "ls -l"
+or
+.Dq Li "ls -F" ,
+.Xr amd 8
+will attempt to mount
+.Em every
+entry in that map.
+This is often called a
+.Dq "mount storm" .
+.It Va map_defaults Pq string, default no empty
+This option sets a string to be used as the map's /defaults entry,
+overriding any /defaults specified in the map.
+This allows local users to
+override map defaults without modifying maps globally.
+.It Va map_options Pq string, default no options
+This option is the same as specifying map options on the command line to
+.Xr amd 8 ,
+such as
+.Dq Li "cache:=all" .
+.It Va map_type Pq string, default search all map types
+If specified,
+.Xr amd 8
+will initialize the map only for the type given.
+This is
+useful to avoid the default map search type used by
+.Xr amd 8
+which takes longer
+and can have undesired side-effects such as initializing
+.Tn NIS
+even if not
+used.
+Possible values are:
+.Pp
+.Bl -tag -width ".Cm nisplus" -compact
+.It Cm exec
+executable maps
+.It Cm file
+plain files
+.It Cm hesiod
+Hesiod name service from MIT
+.It Cm ldap
+Lightweight Directory Access Protocol
+.It Cm ndbm
+(New) dbm style hash files
+.It Cm nis
+Network Information Services (version 2)
+.It Cm nisplus
+Network Information Services Plus (version 3)
+.It Cm passwd
+local password files
+.It Cm union
+union maps
+.El
+.It Va mount_type Pq string, default=nfs
+All
+.Xr amd 8
+mount types default to
+.Tn NFS .
+That is,
+.Xr amd 8
+is an
+.Tn NFS
+server on the
+map mount points, for the local host it is running on.
+If
+.Dq Li autofs
+is specified,
+.Xr amd 8
+will be an autofs server for those mount points.
+.It Va autofs_use_lofs Pq string, default=yes
+When set to
+.Dq Li yes
+and using Autofs,
+.Xr amd 8
+will use lofs-type (loopback) mounts
+for type:=link mounts.
+This has the advantage of mounting in place, and
+users get to the see the same pathname that they chdir'ed into.
+If this
+option is set to
+.Dq Li no ,
+then
+.Xr amd 8
+will use symlinks instead: that code is more
+tested, but negates autofs's big advantage of in-place mounts.
+.It Va search_path Pq string, default no search path
+This provides a (colon-delimited) search path for file maps.
+Using a search
+path, sites can allow for local map customizations and overrides, and can
+query
+distributed maps in several locations as needed.
+.It Va selectors_in_defaults Pq boolean, default=no
+If
+.Dq Li yes ,
+then the /defaults entry of maps will search for and process any
+selectors before setting defaults for all other keys in that map.
+Useful
+when you want to set different options for a complete map based on some
+parameters.
+For example, you may want to better the NFS performance over
+slow slip-based networks as follows:
+.Bd -literal
+/defaults \\
+	wire==slip-net;opts:=intr,rsize=1024,wsize=1024 \\
+	wire!=slip-net;opts:=intr,rsize=8192,wsize=8192
+.Ed
+Deprecated form: selectors_on_default
+.TP
+.BR sun_map_syntax " (boolean, default=no)"
+If "yes," then Amd will parse the map according to the Sun Automount syntax.
+
+.\" **************************************************************************
+.El
+.Ss "Parameters applicable to the global section only"
+
+.Bl -tag -width 4n
+.It Va arch Pq string, default to compiled in value
+Same as the
+.Fl A
+option to
+.Xr amd 8 .
+Allows you to override the value of the
+.Va arch
+.Xr amd 8
+variable.
+.It Va auto_attrcache Pq numeric, default=0
+Specify in seconds (or units of 0.1 seconds, depending on the OS), what is
+the (kernel-side) NFS attribute cache timeout for
+.Nm amd Ns 's
+own automount
+points.
+A value of 0 is supposed to turn off attribute caching, meaning
+that
+.Xr amd 8
+will be consulted via a kernel-RPC each time someone stat()'s
+the mount point (which could be abused as a denial-of-service attack).
+Warning: some OSs are incapable of turning off the NFS attribute cache
+reliably.
+On such systems,
+.Nm amd
+may not work reliably under heavy load.
+See
+the
+.Pa README.attrcache
+document in the Am-utils distribution for more details.
+.It Va auto_dir Pq string, default= Ns Pa /a
+Same as the
+.Fl a
+option to
+.Xr amd 8 .
+This sets the private directory where
+.Nm amd
+will create
+sub-directories for its real mount points.
+.It Va cache_duration Pq numeric, default=300
+Same as the
+.Fl c
+option to
+.Xr amd 8 .
+Sets the duration in seconds that looked-up or mounted map
+entries remain in the cache.
+.It Va cluster Pq string, default no cluster
+Same as the
+.Fl C
+option to
+.Xr amd 8 .
+Specifies the alternate
+.Tn HP-UX
+cluster to use.
+.It Va debug_mtab_file Pq string, default= Ns Pa /tmp/mnttab
+Path to mtab file that is used by
+.Xr amd 8
+to store a list of mounted
+file systems during debug-mtab mode.
+This option only applies
+to systems that store mtab information on disk.
+.It Va debug_options Pq string, default no debug options
+Same as the
+.Fl D
+option to
+.Xr amd 8 .
+Specify any debugging options for
+.Xr amd 8 .
+Works only if
+Works only if
+am-utils was configured for debugging using the
+.Fl Fl enable-debug
+option.
+The
+.Cm mem
+option, as well as all other options, can be turned on via
+.Fl Fl enable-debug Ns = Ns Cm mem .
+Otherwise debugging options are ignored.
+Options are
+comma delimited, and can be preceded by the string
+.Dq Li no
+to negate their
+meaning.
+You can get the list of supported debugging options by running
+.Nm amd Fl v .
+Possible values are:
+.Pp
+.Bl -tag -width ".Cm xdrtrace" -compact
+.It Cm all
+all options (excludes hrtime and mtab)
+.It Cm defaults
+"sensible" default options (all--excluding hrtime, mtab, and xdrtrace)
+.It Cm amq
+register for
+.Xr amq 8
+.It Cm daemon
+enter daemon mode
+.It Cm fork
+fork server
+.It Cm full
+program trace
+.It Cm hrtime
+print high resolution time stamps (only if syslog(3) is not used)
+.It Cm info
+info service specific debugging
+(hesiod, nis, etc.)
+.It Cm mem
+trace memory allocations
+.It Cm mtab
+use local
+.Pa ./mtab
+file
+\fBreaddir\fR   show browsable_dirs progress
+.It Cm str
+debug string munging
+.It Cm test
+full debug options plus mtab,nodaemon,nofork,noamq
+.It Cm trace
+trace protocol and NFS mount arguments
+.It Cm xdrtrace
+trace XDR routines
+.BR dismount_interval " (numeric, default=120)"
+.El
+.It Va dismount_interval Pq numeric, default=120
+Same as the
+.Fl w
+option to
+.Xr amd 8 .
+Specify, in seconds, the time between attempts to dismount
+file systems that have exceeded their cached times.
+.It Va domain_strip Pq boolean, default=yes
+If
+.Dq Li yes ,
+then the domain
+name part referred to by ${rhost} is stripped off.
+This is
+useful to keep logs and smaller.
+If
+.Dq Li no ,
+then the domain name
+part is left changed.
+This is useful when using multiple domains with
+the same maps (as you may have hosts whose domain-stripped name is
+identical).
+.It Va exec_map_timeout Pq numeric, default=10
+The timeout in seconds that
+.Xr amd 8
+will wait for an executable map program before an answer is returned from
+that program (or script).
+This value should be set to as small as possible
+while still allowing normal replies to be returned before the timer expires,
+because during the time that the executable map program is queried,
+.Xr amd 8
+is essentially waiting and is thus not responding to any other queries.
+.It Va forced_unmounts Pq boolean, default=no
+If set to
+.Dq Li yes ,
+and the client OS supports forced or lazy unmounts, then
+.Xr amd 8
+will attempt to use them if it gets any of three serious error conditions
+when trying to unmount an existing mount point or mount on top of one:
+.Er EIO , ESTALE ,
+or
+.Er EBUSY .
+.Pp
+This could be useful to recover from serious conditions such as hardware
+failure of mounted disks, or NFS servers which are down permanently, were
+migrated, or changed their IP address.
+Only
+.Dq Li type:=toplvl
+mounts hung with
+.Er EBUSY
+are forcibly unmounted using this option, which is useful to recover
+from a hung
+.Xr amd 8 ) .
+.It Va full_os Pq string, default to compiled in value
+The full name of the operating system, along with its version.
+Allows you
+to override the compiled-in full name and version of the operating system.
+Useful when the compiled-in name is not desired.
+For example, the full
+operating system name on Linux comes up as
+.Dq Li linux ,
+but you can override it to
+.Dq Li linux-2.2.5 .
+.It Va fully_qualified_hosts Pq string, default=no
+If
+.Dq Li yes ,
+.Xr amd 8
+will perform RPC authentication using fully-qualified host names.
+This is
+necessary for some systems, and especially when performing cross-domain
+mounting.
+For this function to work, the
+.Xr amd 8
+variable ${hostd} is used, requiring that ${domain} not be null.
+.It Va hesiod_base Pq string, default=automount
+Specify the base name for hesiod maps.
+.It Va karch Pq string, default to karch of the system
+Same as the
+.Fl k
+option to
+.Xr amd 8 .
+Allows you to override the kernel-architecture of your
+system.
+Useful for example on Sun (Sparc) machines, where you can build one
+.Nm amd
+binary and run it on multiple machines, yet you want each one to get
+the correct
+.Va karch
+variable set (for example, sun4c, sun4m, sun4u, etc.)
+Note that if not
+specified,
+.Xr amd 8
+will use
+.Xr uname 3
+to figure out the kernel architecture of
+the machine.
+.It Va ldap_base Pq string, default not set
+Specify the base name for LDAP.
+This often includes LDAP-specific
+values such as country and organization.
+.It Va ldap_cache_maxmem Pq numeric, default=131072
+Specify the maximum memory
+.Xr amd 8
+should use to cache LDAP entries.
+.It Va ldap_cache_seconds Pq numeric, default=0
+Specify the number of seconds to keep entries in the cache.
+.It Va ldap_hostports Pq string, default not set
+Specify the LDAP host and port values.
+.It Va ldap_proto_version Pq numeric, default=2
+Specify the version of the LDAP protocol to use.
+.It Va local_domain Pq string, default no sub-domain
+Same as the
+.Fl d
+option to
+.Xr amd 8 .
+Specify the local domain name.
+If this option is not given
+the domain name is determined from the hostname by removing the first
+component of the fully-qualified host name.
+.It Va localhost_address Pq string, default to localhost or 127.0.0.1
+Specify the name or IP address for
+.Xr amd 8
+to use when connecting the sockets
+for the local NFS server and the RPC server.
+This defaults to 127.0.0.1 or
+whatever the host reports as its local address.
+This parameter is useful on
+hosts with multiple addresses where you want to force
+.Xr amd 8
+to connect to a
+specific address.
+.It Va log_file Pq string, default= Ns Pa /dev/stderr
+Same as the
+.Fl l
+option to
+.Xr amd 8 .
+Specify a file name to log
+.Xr amd 8
+events to.
+If the string
+.Pa /dev/stderr
+is specified,
+.Xr amd 8
+will send its events to the standard error file descriptor.
+If the string
+.Pa syslog
+is given,
+.Xr amd 8
+will record its events with the system logger
+.Xr syslogd 8 .
+The default syslog facility used is
+.Dv LOG_DAEMON .
+If you
+wish to change it, append its name to the log file name, delimited by a
+single colon.
+For example, if
+.Pa logfile
+is the string
+.Dq Li syslog:local7
+then
+.Xr amd 8
+will log messages via
+.Xr syslog 3
+using the
+.Dv LOG_LOCAL7
+facility (if it exists on the system).
+.It Va log_options Pq string, default no logging options
+Same as the
+.Fl x
+option to
+.Xr amd 8 .
+Specify any logging options for
+.Xr amd 8 .
+Options are comma
+delimited, and can be preceded by the string
+.Dq Li no
+to negate their meaning.
+The
+.Dq Li debug
+logging option is only available if am-utils was configured with
+.Fl Fl enable-debug .
+You can get the list of supported debugging and logging
+options by running
+.Nm amd Fl H .
+Possible values are:
+.Pp
+.Bl -tag -width ".Cm warning" -compact
+.It Cm all
+all messages
+.It Cm defaults
+default messages (fatal,error,user,warning,info)
+.It Cm debug
+debug messages
+.It Cm error
+non-fatal system errors (cannot be turned off)
+.It Cm fatal
+fatal errors (cannot be turned off)
+.It Cm info
+information
+.It Cm map
+map errors
+.It Cm stats
+additional statistical information
+.It Cm user
+non-fatal user errors
+.It Cm warn
+warnings
+\fBwarning\fR   warnings
+.It Cm warning
+warnings
+.El
+.It Va map_reload_interval Pq numeric, default=3600
+The number of seconds that
+.Xr amd 8
+will wait before it checks to see if any maps
+have changed at their source (NIS servers, LDAP servers, files, etc.).
+.Xr amd 8
+will reload only those maps that have changed.
+.It Va nfs_allow_any_interface Pq string, default=no
+Normally
+.Xr amd 8
+accepts local NFS packets only from 127.0.0.1.
+If this
+parameter is set to
+.Dq Li yes
+then
+.Xr amd 8
+will accept local NFS packets from any
+local interface; this is useful on hosts that may have multiple interfaces
+where the system is forced to send all outgoing packets (even those bound to
+the same host) via an address other than 127.0.0.1.
+.It Va nfs_allow_insecure_port Pq string, default=no
+Normally
+.Xr amd 8
+will refuse requests coming from unprivileged ports (i.e.\&
+ports >= 1024 on Unix systems), so that only privileged users and the kernel
+can send NFS requests to it.
+However, some kernels (certain versions of
+Darwin, MacOS X, and Linux) have bugs that cause them to use unprivileged
+ports in certain situations, which causes
+.Xr amd 8
+to stop dead in its tracks.
+This parameter allows
+.Xr amd 8
+to operate normally even on such systems, at the
+expense of a slight decrease in the security of its operations.
+If you see
+messages like
+.Dq Li "ignoring request from foo:1234, port not reserved"
+in your
+.Xr amd 8
+log, try enabling this parameter and give it another go.
+.It Va nfs_proto Pq string, default to trying version tcp then udp
+By default,
+.Xr amd 8
+tries TCP and then UDP.
+This option forces the overall
+.Tn NFS
+protocol used to TCP or UDP.
+It overrides what is in the
+.Xr amd 8
+maps, and is
+useful when
+.Nm amd
+is compiled with NFSv3 support that may not be stable.
+With
+this option you can turn off the complete usage of NFSv3 dynamically
+(without having to recompile
+.Nm amd )
+until such time as NFSv3 support is
+desired again.
+.It Va nfs_retransmit_counter Pq numeric, default=11
+Same as the
+.Ar retransmit
+counter
+part of the
+.Fl t Ar timeout.retransmit
+option to
+.Xr amd 8 .
+Specifies the number of NFS retransmissions that the kernel will use to
+communicate with
+.Xr amd 8 .
+.It Va nfs_retransmit_counter_udp Pq numeric, default=11
+Same as the
+.Va nfs_retransmit_counter
+option, but for all UDP mounts only.
+.It Va nfs_retransmit_counter_tcp Pq numeric, default=11
+Same as the
+.Va nfs_retransmit_counter
+option, but for all TCP mounts only.
+.It Va nfs_retransmit_counter_toplvl Pq numeric, default=11
+Same as the
+.Va nfs_retransmit_counter
+option, but only for
+.Nm amd Ns 's
+top-level UDP mounts.
+.It Va nfs_retry_interval Pq numeric, default=8
+Same as the
+.Ar timeout
+interval
+part of the
+.Fl t Ar timeout.retransmit
+option to
+.Xr amd 8 .
+Specifies the
+.Tn NFS
+timeout interval, in
+.Em tenths
+of seconds, between NFS/RPC retries (for UDP and TCP).
+This is the value that the kernel will use to
+communicate with
+.Xr amd 8 .
+.Pp
+.Xr amd 8
+relies on the kernel RPC retransmit mechanism to trigger mount retries.
+The values of the
+.Va nfs_retransmit_counter
+and the
+.Va nfs_retry_interval
+parameters change the overall retry interval.
+Too long an interval gives
+poor interactive response; too short an interval causes excessive retries.
+.It Va nfs_retry_interval_udp Pq numeric, default=8
+Same as the
+.Va nfs_retry_interval
+option, but for all UDP mounts only.
+.It Va nfs_retry_interval_tcp Pq numeric, default=8
+Same as the
+.It nfs_retry_interval
+option, but for all TCP mounts only.
+.It Va nfs_retry_interval_toplvl Pq numeric, default=8
+Same as the
+.It nfs_retry_interval
+option, but only for
+.Nm amd Ns 's
+top-level UDP mounts.
+.It Va nfs_vers Pq numeric, default to trying version 3 then 2
+By default,
+.Xr amd 8
+tries version 3 and then version 2.
+This option forces the
+overall
+.Tn NFS
+protocol used to version 3 or 2.
+It overrides what is in the
+.Xr amd 8
+maps, and is useful when
+.Nm amd
+is compiled with NFSv3 support that may not
+be stable.
+With this option you can turn off the complete usage of NFSv3
+dynamically (without having to recompile
+.Nm amd )
+until such time as NFSv3
+support is desired again.
+.It Va nis_domain Pq string, default to local Tn NIS domain name
+Same as the
+.Fl y
+option to
+.Xr amd 8 .
+Specify an alternative
+.Tn NIS
+domain from which to fetch the
+.Tn NIS
+maps.
+The default is the system domain name.
+This option is ignored if
+.Tn NIS
+support is not available.
+.It Va normalize_hostnames Pq boolean, default=no
+Same as the
+.Fl n
+option to
+.Xr amd 8 .
+If
+.Dq Li yes ,
+then the name referred to by
+.Va ${rhost}
+is normalized relative to the host database before being used.
+The effect is
+to translate aliases into
+.Dq official
+names.
+.It Va normalize_slashes Pq boolean, default=yes
+If
+.Dq Li yes ,
+then
+.Xr amd 8
+will condense all multiple
+.Ql /
+(slash) characters into
+one and remove all trailing slashes.
+If
+.Dq Li no ,
+then
+.Xr amd 8
+will not touch
+strings that may contain repeated or trailing slashes.
+The latter is
+sometimes useful with SMB mounts, which often require multiple slash
+characters in pathnames.
+.It Va os Pq string, default to compiled in value
+Same as the
+.Fl O
+option to
+.Xr amd 8 .
+Allows you to override the compiled-in name of the operating
+system.
+Useful when the built-in name is not desired for backward
+compatibility reasons.
+For example, if the build in name is
+.Dq Li sunos5 ,
+you can override it to
+.Dq Li sos5 ,
+and use older maps which were written with the
+latter in mind.
+.It Va osver Pq string, default to compiled in value
+Same as the
+.Fl o
+option to
+.Xr amd 8 .
+Overrides the compiled-in version number of the operating
+system.
+Useful when the built in version is not desired for backward
+compatibility reasons.
+For example, if the build in version is
+.Dq Li 2.5.1 ,
+you can override it to
+.Dq Li 5.5.1 ,
+and use older maps that were written with
+the latter in mind.
+.It Va pid_file Pq string, default= Ns Pa /dev/stdout
+Specify a file to store the process ID of the running daemon into.
+If not
+specified,
+.Xr amd 8
+will print its process ID onto the standard output.
+Useful
+for killing
+.Xr amd 8
+after it had run.
+Note that the PID of a running
+.Nm amd
+can
+also be retrieved via
+.Nm amq Fl p .
+This file is used only if the
+.Va print_pid
+option is on.
+.It Va plock Pq boolean, default=yes
+Same as the
+.Fl S
+option to
+.Xr amd 8 .
+If
+.Dq Li yes ,
+lock the running executable pages of
+.Nm amd
+into memory.
+To improve
+.Nm amd Ns 's
+performance, systems that support the
+.Xr plock 3
+or
+.Xr mlockall 2
+call can lock the
+.Nm amd
+process into memory.
+This way there is less chance that
+the operating system will schedule, page out, and swap the
+.Nm amd
+process as needed.
+This improves
+.Nm amd Ns 's
+performance, at the cost of reserving the
+memory used by the
+.Nm amd
+process (making it unavailable for other processes).
+.It Va portmap_program Pq numeric, default=300019
+Specify an alternate Port-mapper RPC program number, other than the official
+number.
+This is useful when running multiple
+.Nm amd
+processes.
+For example,
+you can run another
+.Xr amd 8
+in
+.Dq test
+mode, without affecting the primary
+.Nm amd
+process in any way.
+For safety reasons, the alternate program numbers that
+can be specified must be in the range 300019-300029, inclusive.
+The
+.Xr amq 8
+utility
+has an option
+.Fl P
+which can be used to specify an alternate program number of an
+.Nm amd
+to contact.
+In this way,
+.Nm amq
+can fully control any number of
+.Nm amd
+processes running on the same host.
+.It Va preferred_amq_port Pq numeric, default=0
+Specify an alternate Port-mapper RPC port number for
+.Nm amd Ns 's
+.Xr amq 8
+service.
+This is used for both UDP and TCP.
+Setting this value to 0 (or
+not defining it) will cause
+.Xr amd 8
+to select an arbitrary port number.
+Setting the
+.Xr amq 8
+RPC service port to a specific number is useful in firewalled or NAT'ed
+environments, where you need to know which port
+.Xr amd 8
+will listen on.
+.It Va print_pid Pq boolean, default=no
+Same as the
+.Fl p
+option to
+.Xr amd 8 .
+If
+.Dq Li yes ,
+.Nm amd
+will print its process ID upon starting.
+.It Va print_version Pq boolean, default=no
+Same as the
+.Fl v
+option to
+.Xr amd 8 ,
+but the version prints and
+.Nm amd
+continues to run.
+If
+.Dq Li yes ,
+.Nm amd
+will print its version information string, which includes some
+configuration and compilation values.
+.It Va restart_mounts Pq boolean, default=no
+Same as the
+.Fl r
+option to
+.Xr amd 8 .
+If
+.Dq Li yes ,
+.Nm amd
+will scan the mount table to determine which file systems are currently
+mounted.
+Whenever one of these would have been auto-mounted,
+.Nm amd
+inherits it.
+.It Va show_statfs_entries Pq boolean, default=no
+If
+.Dq Li yes ,
+then all maps which are browsable will also show the number of
+entries (keys) they have when
+.Xr df 1
+runs.
+(This is accomplished by returning
+non-zero values to the
+.Xr statfs 2
+system call.)
+.It Va truncate_log Pq boolean, default=no
+If
+.Dq Li yes ,
+then the log file (if it is a regular file), will be truncated
+upon startup.
+.It Va unmount_on_exit Pq boolean, default=no
+If
+.Dq Li yes ,
+then
+.Xr amd 8
+will attempt to unmount all file systems which it knows
+about.
+Normally
+.Nm amd
+leaves all
+(esp.\&
+.Tn NFS )
+mounted file systems intact.
+Note that
+.Nm amd
+does not know about file systems mounted before it starts up,
+unless the
+.Va restart_mounts
+option or
+.Fl r
+flag are used.
+.It Va use_tcpwrappers Pq boolean, default=yes
+If
+.Dq Li yes ,
+then
+.Xr amd 8
+will use the tcpd/libwrap tcpwrappers library
+(if available) to control
+access to
+.Nm amd
+via the
+.Pa /etc/hosts.allow
+and
+.Pa /etc/hosts.deny
+files.
+.It Va vendor Pq string, default to compiled in value
+The name of the vendor of the operating system.
+Overrides the compiled-in
+vendor name.
+Useful when the compiled-in name is not desired.
+For example,
+most Intel based systems set the vendor name to
+.Dq Li unknown ,
+but you can set it to
+.Dq Li redhat .
+.El
+.Ss "Parameters applicable to regular map sections"
+.Bl -tag -width 4n
+.It Va map_name Pq string, must be specified
+Name of the map where the keys are located.
+.It Va tag Pq string, default no tag
+Each map entry in the configuration file can be tagged.
+If no tag is
+specified, that map section will always be processed by
+.Xr amd 8 .
+If it is
+specified, then
+.Nm amd
+will process the map if the
+.Fl T
+option was given to
+.Xr amd 8 ,
+and the value given to that command-line option
+matches that in the map section.
+.El
+.Sh EXAMPLES
+Here is a real
+.Xr amd 8
+configuration I use daily.
+.Bd -literal
+# GLOBAL OPTIONS SECTION
+[ global ]
+normalize_hostnames =    no
+print_pid =              no
+restart_mounts =         yes
+auto_dir =               /n
+log_file =               /var/log/amd
+log_options =            all
+#debug_options =         all
+plock =                  no
+selectors_in_defaults =  yes
+# config.guess picks up "sunos5" and I don't want to edit my maps yet
+os =                     sos5
+# if you print_version after setting up "os", it will show it.
+print_version =          no
+map_type =               file
+search_path =            /etc/amdmaps:/usr/lib/amd:/usr/local/AMD/lib
+browsable_dirs =         yes
+
+# DEFINE AN AMD MOUNT POINT
+[ /u ]
+map_name =               amd.u
+
+[ /proj ]
+map_name =               amd.proj
+
+[ /src ]
+map_name =               amd.src
+
+[ /misc ]
+map_name =               amd.misc
+
+[ /import ]
+map_name =               amd.import
+
+[ /tftpboot/.amd ]
+tag =                    tftpboot
+map_name =               amd.tftpboot
+.Ed
+.Sh SEE ALSO
+.Xr hosts_access 5 ,
+.Xr amd 8 ,
+.Xr amq 8 ,
+.xr automount 8 ,
+.Xr ctl-amd 8 .
+.Pp
+.Dq am-utils
+.Xr info 1
+entry.
+.Rs
+.%A Erez Zadok
+.%B "Linux NFS and Automounter Administration"
+.%O ISBN 0-7821-2739-8
+.%I Sybex
+.%D 2001
+.Re
+.Pp
+.Pa http://www.am-utils.org/
+.Rs
+.%T Amd \- The 4.4 BSD Automounter
+.Re
+.Sh HISTORY
+The
+.Xr amd 8
+utility first appeared in
+.Bx 4.4 .
+.Sh AUTHORS
+.An Erez Zadok Aq ezk@cs.sunysb.edu ,
+Computer Science Department, Stony Brook University, Stony Brook, New York, USA.
+.Pp
+Other authors and contributors to am-utils are listed in the
+.Pa AUTHORS
+file distributed with am-utils.

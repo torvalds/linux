@@ -1,0 +1,16 @@
+# Add the bpabi.S functions.
+LIB1ASMFUNCS += _aeabi_lcmp _aeabi_ulcmp _aeabi_ldivmod _aeabi_uldivmod
+
+# Add the BPABI C functions.
+LIB2FUNCS_EXTRA = $(srcdir)/config/arm/bpabi.c \
+		  $(srcdir)/config/arm/unaligned-funcs.c
+
+UNWIND_H = $(srcdir)/config/arm/unwind-arm.h
+LIB2ADDEH = $(srcdir)/config/arm/unwind-arm.c \
+  $(srcdir)/config/arm/libunwind.S \
+  $(srcdir)/config/arm/pr-support.c $(srcdir)/unwind-c.c
+LIB2ADDEHDEP = $(UNWIND_H) $(srcdir)/config/$(LIB1ASMSRC)
+
+# Add the BPABI names.
+SHLIB_MAPFILES += $(srcdir)/config/arm/libgcc-bpabi.ver
+

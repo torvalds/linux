@@ -1,0 +1,565 @@
+# Chelsio T4 Factory Default configuration file.
+#
+# Copyright (C) 2010-2017 Chelsio Communications.  All rights reserved.
+#
+#   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF
+#   THIS FILE WILL RESULT IN A NON-FUNCTIONAL T4 ADAPTER AND MAY RESULT
+#   IN PHYSICAL DAMAGE TO T4 ADAPTERS.
+
+# This file provides the default, power-on configuration for 4-port T4-based
+# adapters shipped from the factory.  These defaults are designed to address
+# the needs of the vast majority of T4 customers.  The basic idea is to have
+# a default configuration which allows a customer to plug a T4 adapter in and
+# have it work regardless of OS, driver or application except in the most
+# unusual and/or demanding customer applications.
+#
+# Many of the T4 resources which are described by this configuration are
+# finite.  This requires balancing the configuration/operation needs of
+# device drivers across OSes and a large number of customer application.
+#
+# Some of the more important resources to allocate and their constaints are:
+#  1. Virtual Interfaces: 128.
+#  2. Ingress Queues with Free Lists: 1024.  PCI-E SR-IOV Virtual Functions
+#     must use a power of 2 Ingress Queues.
+#  3. Egress Queues: 128K.  PCI-E SR-IOV Virtual Functions must use a
+#     power of 2 Egress Queues.
+#  4. MSI-X Vectors: 1088.  A complication here is that the PCI-E SR-IOV
+#     Virtual Functions based off of a Physical Function all get the
+#     same umber of MSI-X Vectors as the base Physical Function.
+#     Additionally, regardless of whether Virtual Functions are enabled or
+#     not, their MSI-X "needs" are counted by the PCI-E implementation.
+#     And finally, all Physical Funcations capable of supporting Virtual
+#     Functions (PF0-3) must have the same number of configured TotalVFs in
+#     their SR-IOV Capabilities.
+#  5. Multi-Port Support (MPS) TCAM: 336 entries to support MAC destination
+#     address matching on Ingress Packets.
+#
+# Some of the important OS/Driver resource needs are:
+#  6. Some OS Drivers will manage all resources through a single Physical
+#     Function (currently PF0 but it could be any Physical Function).  Thus,
+#     this "Unified PF"  will need to have enough resources allocated to it
+#     to allow for this.  And because of the MSI-X resource allocation
+#     constraints mentioned above, this probably means we'll either have to
+#     severely limit the TotalVFs if we continue to use PF0 as the Unified PF
+#     or we'll need to move the Unified PF into the PF4-7 range since those
+#     Physical Functions don't have any Virtual Functions associated with
+#     them.
+#  7. Some OS Drivers will manage different ports and functions (NIC,
+#     storage, etc.) on different Physical Functions.  For example, NIC
+#     functions for ports 0-3 on PF0-3, FCoE on PF4, iSCSI on PF5, etc.
+#
+# Some of the customer application needs which need to be accommodated:
+#  8. Some customers will want to support large CPU count systems with
+#     good scaling.  Thus, we'll need to accommodate a number of
+#     Ingress Queues and MSI-X Vectors to allow up to some number of CPUs
+#     to be involved per port and per application function.  For example,
+#     in the case where all ports and application functions will be
+#     managed via a single Unified PF and we want to accommodate scaling up
+#     to 8 CPUs, we would want:
+#
+#         4 ports *
+#         3 application functions (NIC, FCoE, iSCSI) per port *
+#         8 Ingress Queue/MSI-X Vectors per application function
+#
+#     for a total of 96 Ingress Queues and MSI-X Vectors on the Unified PF.
+#     (Plus a few for Firmware Event Queues, etc.)
+#
+#  9. Some customers will want to use T4's PCI-E SR-IOV Capability to allow
+#     Virtual Machines to directly access T4 functionality via SR-IOV
+#     Virtual Functions and "PCI Device Passthrough" -- this is especially
+#     true for the NIC application functionality.  (Note that there is
+#     currently no ability to use the TOE, FCoE, iSCSI, etc. via Virtual
+#     Functions so this is in fact solely limited to NIC.)
+#
+
+
+# Global configuration settings.
+#
+[global]
+	rss_glb_config_mode = basicvirtual
+	rss_glb_config_options = tnlmapen,hashtoeplitz,tnlalllkp
+
+	# The following Scatter Gather Engine (SGE) settings assume a 4KB Host
+	# Page Size and a 64B L1 Cache Line Size. It programs the
+	# EgrStatusPageSize and IngPadBoundary to 64B and the PktShift to 2.
+	# If a Master PF Driver finds itself on a machine with different
+	# parameters, then the Master PF Driver is responsible for initializing
+	# these parameters to appropriate values.
+	#
+	# Notes:
+	#  1. The Free List Buffer Sizes below are raw and the firmware will
+	#     round them up to the Ingress Padding Boundary.
+	#  2. The SGE Timer Values below are expressed below in microseconds.
+	#     The firmware will convert these values to Core Clock Ticks when
+	#     it processes the configuration parameters.
+	#
+	reg[0x1008] = 0x40810/0x21c70	# SGE_CONTROL
+	reg[0x100c] = 0x22222222	# SGE_HOST_PAGE_SIZE
+	reg[0x10a0] = 0x01040810	# SGE_INGRESS_RX_THRESHOLD
+	reg[0x1044] = 4096		# SGE_FL_BUFFER_SIZE0
+	reg[0x1048] = 65536		# SGE_FL_BUFFER_SIZE1
+	reg[0x104c] = 1536		# SGE_FL_BUFFER_SIZE2
+	reg[0x1050] = 9024		# SGE_FL_BUFFER_SIZE3
+	reg[0x1054] = 9216		# SGE_FL_BUFFER_SIZE4
+	reg[0x1058] = 2048		# SGE_FL_BUFFER_SIZE5
+	reg[0x105c] = 128		# SGE_FL_BUFFER_SIZE6
+	reg[0x1060] = 8192		# SGE_FL_BUFFER_SIZE7
+	reg[0x1064] = 16384		# SGE_FL_BUFFER_SIZE8
+	reg[0x10a4] = 0xa000a000/0xf000f000 # SGE_DBFIFO_STATUS
+	reg[0x10a8] = 0x2000/0x2000	# SGE_DOORBELL_CONTROL
+	sge_timer_value = 5, 10, 20, 50, 100, 200 # SGE_TIMER_VALUE* in usecs
+
+	# enable TP_OUT_CONFIG.IPIDSPLITMODE
+	reg[0x7d04] = 0x00010000/0x00010000
+
+	# disable TP_PARA_REG3.RxFragEn
+	reg[0x7d6c] = 0x00000000/0x00007000
+
+	reg[0x7dc0] = 0x0e2f8849		# TP_SHIFT_CNT
+
+	# TP_VLAN_PRI_MAP to select filter tuples
+	# filter tuples : fragmentation, mpshittype, macmatch, ethertype,
+	#		  protocol, tos, vlan, vnic_id, port, fcoe
+	# valid filterModes are described the Terminator 4 Data Book
+	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
+
+	# filter tuples enforced in LE active region (equal to or subset of filterMode)
+	filterMask = protocol, fcoe
+
+	# Percentage of dynamic memory (in either the EDRAM or external MEM)
+	# to use for TP RX payload
+	tp_pmrx = 34 
+
+	# TP RX payload page size
+	tp_pmrx_pagesize = 64K
+
+	# TP number of RX channels
+	tp_nrxch = 0		# 0 (auto) = 1
+
+	# Percentage of dynamic memory (in either the EDRAM or external MEM)
+	# to use for TP TX payload
+	tp_pmtx = 32
+
+	# TP TX payload page size
+	tp_pmtx_pagesize = 64K
+
+	# TP number of TX channels
+	tp_ntxch = 0		# 0 (auto) = equal number of ports
+
+	# TP OFLD MTUs
+	tp_mtus = 88, 256, 512, 576, 808, 1024, 1280, 1488, 1500, 2002, 2048, 4096, 4352, 8192, 9000, 9600
+
+	# ULPRX iSCSI Page Sizes
+	reg[0x19168] = 0x04020100 # 64K, 16K, 8K and 4K 
+
+# Some "definitions" to make the rest of this a bit more readable.  We support
+# 4 ports, 3 functions (NIC, FCoE and iSCSI), scaling up to 8 "CPU Queue Sets"
+# per function per port ...
+#
+# NMSIX = 1088			# available MSI-X Vectors
+# NVI = 128			# available Virtual Interfaces
+# NMPSTCAM = 336		# MPS TCAM entries
+#
+# NPORTS = 4			# ports
+# NCPUS = 8			# CPUs we want to support scalably
+# NFUNCS = 3			# functions per port (NIC, FCoE, iSCSI)
+
+# Breakdown of Virtual Interface/Queue/Interrupt resources for the "Unified
+# PF" which many OS Drivers will use to manage most or all functions.
+#
+# Each Ingress Queue can use one MSI-X interrupt but some Ingress Queues can
+# use Forwarded Interrupt Ingress Queues.  For these latter, an Ingress Queue
+# would be created and the Queue ID of a Forwarded Interrupt Ingress Queue
+# will be specified as the "Ingress Queue Asynchronous Destination Index."
+# Thus, the number of MSI-X Vectors assigned to the Unified PF will be less
+# than or equal to the number of Ingress Queues ...
+#
+# NVI_NIC = 4			# NIC access to NPORTS
+# NFLIQ_NIC = 32		# NIC Ingress Queues with Free Lists
+# NETHCTRL_NIC = 32		# NIC Ethernet Control/TX Queues
+# NEQ_NIC = 64			# NIC Egress Queues (FL, ETHCTRL/TX)
+# NMPSTCAM_NIC = 16		# NIC MPS TCAM Entries (NPORTS*4)
+# NMSIX_NIC = 32		# NIC MSI-X Interrupt Vectors (FLIQ)
+# 
+# NVI_OFLD = 0			# Offload uses NIC function to access ports
+# NFLIQ_OFLD = 16		# Offload Ingress Queues with Free Lists
+# NETHCTRL_OFLD = 0		# Offload Ethernet Control/TX Queues
+# NEQ_OFLD = 16			# Offload Egress Queues (FL)
+# NMPSTCAM_OFLD = 0		# Offload MPS TCAM Entries (uses NIC's)
+# NMSIX_OFLD = 16		# Offload MSI-X Interrupt Vectors (FLIQ)
+#
+# NVI_RDMA = 0			# RDMA uses NIC function to access ports
+# NFLIQ_RDMA = 4		# RDMA Ingress Queues with Free Lists
+# NETHCTRL_RDMA = 0		# RDMA Ethernet Control/TX Queues
+# NEQ_RDMA = 4			# RDMA Egress Queues (FL)
+# NMPSTCAM_RDMA = 0		# RDMA MPS TCAM Entries (uses NIC's)
+# NMSIX_RDMA = 4		# RDMA MSI-X Interrupt Vectors (FLIQ)
+#
+# NEQ_WD = 128			# Wire Direct TX Queues and FLs
+# NETHCTRL_WD = 64		# Wire Direct TX Queues
+# NFLIQ_WD = 64	`		# Wire Direct Ingress Queues with Free Lists
+#
+# NVI_ISCSI = 4			# ISCSI access to NPORTS
+# NFLIQ_ISCSI = 4		# ISCSI Ingress Queues with Free Lists
+# NETHCTRL_ISCSI = 0		# ISCSI Ethernet Control/TX Queues
+# NEQ_ISCSI = 4			# ISCSI Egress Queues (FL)
+# NMPSTCAM_ISCSI = 4		# ISCSI MPS TCAM Entries (NPORTS)
+# NMSIX_ISCSI = 4		# ISCSI MSI-X Interrupt Vectors (FLIQ)
+#
+# NVI_FCOE = 4			# FCOE access to NPORTS
+# NFLIQ_FCOE = 34		# FCOE Ingress Queues with Free Lists
+# NETHCTRL_FCOE = 32		# FCOE Ethernet Control/TX Queues
+# NEQ_FCOE = 66			# FCOE Egress Queues (FL)
+# NMPSTCAM_FCOE = 32 		# FCOE MPS TCAM Entries (NPORTS)
+# NMSIX_FCOE = 34		# FCOE MSI-X Interrupt Vectors (FLIQ)
+
+# Two extra Ingress Queues per function for Firmware Events and Forwarded
+# Interrupts, and two extra interrupts per function for Firmware Events (or a
+# Forwarded Interrupt Queue) and General Interrupts per function.
+#
+# NFLIQ_EXTRA = 6		# "extra" Ingress Queues 2*NFUNCS (Firmware and
+# 				#   Forwarded Interrupts
+# NMSIX_EXTRA = 6		# extra interrupts 2*NFUNCS (Firmware and
+# 				#   General Interrupts
+
+# Microsoft HyperV resources.  The HyperV Virtual Ingress Queues will have
+# their interrupts forwarded to another set of Forwarded Interrupt Queues.
+#
+# NVI_HYPERV = 16		# VMs we want to support
+# NVIIQ_HYPERV = 2		# Virtual Ingress Queues with Free Lists per VM
+# NFLIQ_HYPERV = 40		# VIQs + NCPUS Forwarded Interrupt Queues
+# NEQ_HYPERV = 32		# VIQs Free Lists
+# NMPSTCAM_HYPERV = 16		# MPS TCAM Entries (NVI_HYPERV)
+# NMSIX_HYPERV = 8		# NCPUS Forwarded Interrupt Queues
+
+# Adding all of the above Unified PF resource needs together: (NIC + OFLD +
+# RDMA + ISCSI + FCOE + EXTRA + HYPERV)
+#
+# NVI_UNIFIED = 28
+# NFLIQ_UNIFIED = 106
+# NETHCTRL_UNIFIED = 32
+# NEQ_UNIFIED = 124
+# NMPSTCAM_UNIFIED = 40
+#
+# The sum of all the MSI-X resources above is 74 MSI-X Vectors but we'll round
+# that up to 128 to make sure the Unified PF doesn't run out of resources.
+#
+# NMSIX_UNIFIED = 128
+#
+# The Storage PFs could need up to NPORTS*NCPUS + NMSIX_EXTRA MSI-X Vectors
+# which is 34 but they're probably safe with 32.
+#
+# NMSIX_STORAGE = 32
+
+# Note: The UnifiedPF is PF4 which doesn't have any Virtual Functions
+# associated with it.  Thus, the MSI-X Vector allocations we give to the
+# UnifiedPF aren't inherited by any Virtual Functions.  As a result we can
+# provision many more Virtual Functions than we can if the UnifiedPF were
+# one of PF0-3.
+#
+
+# All of the below PCI-E parameters are actually stored in various *_init.txt
+# files.  We include them below essentially as comments.
+#
+# For PF0-3 we assign 8 vectors each for NIC Ingress Queues of the associated
+# ports 0-3.
+#
+# For PF4, the Unified PF, we give it an MSI-X Table Size as outlined above.
+#
+# For PF5-6 we assign enough MSI-X Vectors to support FCoE and iSCSI
+# storage applications across all four possible ports.
+#
+# Additionally, since the UnifiedPF isn't one of the per-port Physical
+# Functions, we give the UnifiedPF and the PF0-3 Physical Functions
+# different PCI Device IDs which will allow Unified and Per-Port Drivers
+# to directly select the type of Physical Function to which they wish to be
+# attached.
+#
+# Note that the actual values used for the PCI-E Intelectual Property will be
+# 1 less than those below since that's the way it "counts" things.  For
+# readability, we use the number we actually mean ...
+#
+# PF0_INT = 8			# NCPUS
+# PF1_INT = 8			# NCPUS
+# PF2_INT = 8			# NCPUS
+# PF3_INT = 8			# NCPUS
+# PF0_3_INT = 32		# PF0_INT + PF1_INT + PF2_INT + PF3_INT
+# 
+# PF4_INT = 128			# NMSIX_UNIFIED
+# PF5_INT = 32			# NMSIX_STORAGE
+# PF6_INT = 32			# NMSIX_STORAGE
+# PF7_INT = 0			# Nothing Assigned
+# PF4_7_INT = 192		# PF4_INT + PF5_INT + PF6_INT + PF7_INT
+# 
+# PF0_7_INT = 224		# PF0_3_INT + PF4_7_INT
+# 
+# With the above we can get 17 VFs/PF0-3 (limited by 336 MPS TCAM entries)
+# but we'll lower that to 16 to make our total 64 and a nice power of 2 ...
+#
+# NVF = 16
+
+# For those OSes which manage different ports on different PFs, we need
+# only enough resources to support a single port's NIC application functions
+# on PF0-3.  The below assumes that we're only doing NIC with NCPUS "Queue
+# Sets" for ports 0-3.  The FCoE and iSCSI functions for such OSes will be
+# managed on the "storage PFs" (see below).
+#
+[function "0"]
+	nvf = 16		# NVF on this function
+	wx_caps = all		# write/execute permissions for all commands
+	r_caps = all		# read permissions for all commands
+	nvi = 1			# 1 port
+	niqflint = 8		# NCPUS "Queue Sets"
+	nethctrl = 8		# NCPUS "Queue Sets"
+	neq = 16		# niqflint + nethctrl Egress Queues
+	nexactf = 8		# number of exact MPSTCAM MAC filters
+	cmask = all		# access to all channels
+	pmask = 0x1		# access to only one port
+
+[function "1"]
+	nvf = 16		# NVF on this function
+	wx_caps = all		# write/execute permissions for all commands
+	r_caps = all		# read permissions for all commands
+	nvi = 1			# 1 port
+	niqflint = 8		# NCPUS "Queue Sets"
+	nethctrl = 8		# NCPUS "Queue Sets"
+	neq = 16		# niqflint + nethctrl Egress Queues
+	nexactf = 8		# number of exact MPSTCAM MAC filters
+	cmask = all		# access to all channels
+	pmask = 0x2		# access to only one port
+
+[function "2"]
+	nvf = 16		# NVF on this function
+	wx_caps = all		# write/execute permissions for all commands
+	r_caps = all		# read permissions for all commands
+	nvi = 1			# 1 port
+	niqflint = 8		# NCPUS "Queue Sets"
+	nethctrl = 8		# NCPUS "Queue Sets"
+	neq = 16		# niqflint + nethctrl Egress Queues
+	nexactf = 8		# number of exact MPSTCAM MAC filters
+	cmask = all		# access to all channels
+	pmask = 0x4		# access to only one port
+
+[function "3"]
+	nvf = 16		# NVF on this function
+	wx_caps = all		# write/execute permissions for all commands
+	r_caps = all		# read permissions for all commands
+	nvi = 1			# 1 port
+	niqflint = 8		# NCPUS "Queue Sets"
+	nethctrl = 8		# NCPUS "Queue Sets"
+	neq = 16		# niqflint + nethctrl Egress Queues
+	nexactf = 8		# number of exact MPSTCAM MAC filters
+	cmask = all		# access to all channels
+	pmask = 0x8		# access to only one port
+
+# Some OS Drivers manage all application functions for all ports via PF4.
+# Thus we need to provide a large number of resources here.  For Egress
+# Queues we need to account for both TX Queues as well as Free List Queues
+# (because the host is responsible for producing Free List Buffers for the
+# hardware to consume).
+#
+[function "4"]
+	wx_caps = all		# write/execute permissions for all commands
+	r_caps = all		# read permissions for all commands
+	nvi = 28		# NVI_UNIFIED
+	niqflint = 170		# NFLIQ_UNIFIED + NLFIQ_WD
+	nethctrl = 100		# NETHCTRL_UNIFIED + NETHCTRL_WD
+	neq = 256		# NEQ_UNIFIED + NEQ_WD
+	nexactf = 40		# NMPSTCAM_UNIFIED
+	cmask = all		# access to all channels
+	pmask = all		# access to all four ports ...
+	nethofld = 1024		# number of user mode ethernet flow contexts
+	nroute = 32		# number of routing region entries
+	nclip = 32		# number of clip region entries
+	nfilter = 496		# number of filter region entries
+	nserver = 496		# number of server region entries
+	nhash = 12288		# number of hash region entries
+	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu
+	tp_l2t = 3072
+	tp_ddp = 3
+	tp_ddp_iscsi = 2
+	tp_stag = 3
+	tp_pbl = 10
+	tp_rq = 13
+
+# We have FCoE and iSCSI storage functions on PF5 and PF6 each of which may
+# need to have Virtual Interfaces on each of the four ports with up to NCPUS
+# "Queue Sets" each.
+#
+[function "5"]
+	wx_caps = all		# write/execute permissions for all commands
+	r_caps = all		# read permissions for all commands
+	nvi = 4			# NPORTS
+	niqflint = 34		# NPORTS*NCPUS + NMSIX_EXTRA
+	nethctrl = 32		# NPORTS*NCPUS
+	neq = 64		# NPORTS*NCPUS * 2 (FL, ETHCTRL/TX)
+	nexactf = 4		# NPORTS
+	cmask = all		# access to all channels
+	pmask = all		# access to all four ports ...
+	nserver = 16
+	nhash = 2048
+	tp_l2t = 1020
+	protocol = iscsi_initiator_fofld
+	tp_ddp_iscsi = 2
+	iscsi_ntask = 2048
+	iscsi_nsess = 2048
+	iscsi_nconn_per_session = 1
+	iscsi_ninitiator_instance = 64
+
+[function "6"]
+	wx_caps = all		# write/execute permissions for all commands
+	r_caps = all		# read permissions for all commands
+	nvi = 4			# NPORTS
+	niqflint = 34		# NPORTS*NCPUS + NMSIX_EXTRA
+	nethctrl = 32		# NPORTS*NCPUS
+	neq = 66		# NPORTS*NCPUS * 2 (FL, ETHCTRL/TX) + 2 (EXTRA)
+	nexactf = 32		# NPORTS + adding 28 exact entries for FCoE
+				# which is OK since < MIN(SUM PF0..3, PF4)
+				# and we never load PF0..3 and PF4 concurrently
+	cmask = all		# access to all channels
+	pmask = all		# access to all four ports ...
+	nhash = 2048
+	tp_l2t = 4
+	protocol = fcoe_initiator
+	tp_ddp = 1
+	fcoe_nfcf = 16
+	fcoe_nvnp = 32
+	fcoe_nssn = 1024
+
+# The following function, 1023, is not an actual PCIE function but is used to
+# configure and reserve firmware internal resources that come from the global
+# resource pool.
+#
+[function "1023"]
+	wx_caps = all		# write/execute permissions for all commands
+	r_caps = all		# read permissions for all commands
+	nvi = 4			# NVI_UNIFIED
+	cmask = all		# access to all channels
+	pmask = all		# access to all four ports ...
+	nexactf = 8		# NPORTS + DCBX +
+	nfilter = 16		# number of filter region entries
+
+# For Virtual functions, we only allow NIC functionality and we only allow
+# access to one port (1 << PF).  Note that because of limitations in the
+# Scatter Gather Engine (SGE) hardware which checks writes to VF KDOORBELL
+# and GTS registers, the number of Ingress and Egress Queues must be a power
+# of 2.
+#
+[function "0/*"]		# NVF
+	wx_caps = 0x82		# DMAQ | VF
+	r_caps = 0x86		# DMAQ | VF | PORT
+	nvi = 1			# 1 port
+	niqflint = 4		# 2 "Queue Sets" + NXIQ
+	nethctrl = 2		# 2 "Queue Sets"
+	neq = 4			# 2 "Queue Sets" * 2
+	nexactf = 4
+	cmask = all		# access to all channels
+	pmask = 0x1		# access to only one port ...
+
+[function "1/*"]		# NVF
+	wx_caps = 0x82		# DMAQ | VF
+	r_caps = 0x86		# DMAQ | VF | PORT
+	nvi = 1			# 1 port
+	niqflint = 4		# 2 "Queue Sets" + NXIQ
+	nethctrl = 2		# 2 "Queue Sets"
+	neq = 4			# 2 "Queue Sets" * 2
+	nexactf = 4
+	cmask = all		# access to all channels
+	pmask = 0x2		# access to only one port ...
+
+[function "2/*"]		# NVF
+	wx_caps = 0x82		# DMAQ | VF
+	r_caps = 0x86		# DMAQ | VF | PORT
+	nvi = 1			# 1 port
+	niqflint = 4		# 2 "Queue Sets" + NXIQ
+	nethctrl = 2		# 2 "Queue Sets"
+	neq = 4			# 2 "Queue Sets" * 2
+	nexactf = 4
+	cmask = all		# access to all channels
+	pmask = 0x4		# access to only one port ...
+
+[function "3/*"]		# NVF
+	wx_caps = 0x82		# DMAQ | VF
+	r_caps = 0x86		# DMAQ | VF | PORT
+	nvi = 1			# 1 port
+	niqflint = 4		# 2 "Queue Sets" + NXIQ
+	nethctrl = 2		# 2 "Queue Sets"
+	neq = 4			# 2 "Queue Sets" * 2
+	nexactf = 4
+	cmask = all		# access to all channels
+	pmask = 0x8		# access to only one port ...
+
+# MPS features a 196608 bytes ingress buffer that is used for ingress buffering
+# for packets from the wire as well as the loopback path of the L2 switch. The
+# folling params control how the buffer memory is distributed and the L2 flow
+# control settings:
+#
+# bg_mem:	%-age of mem to use for port/buffer group
+# lpbk_mem:	%-age of port/bg mem to use for loopback
+# hwm:		high watermark; bytes available when starting to send pause
+#		frames (in units of 0.1 MTU)
+# lwm:		low watermark; bytes remaining when sending 'unpause' frame
+#		(in inuits of 0.1 MTU)
+# dwm:		minimum delta between high and low watermark (in units of 100
+#		Bytes)
+#
+#
+
+[port "0"]
+	dcb = ppp, dcbx		# configure for DCB PPP and enable DCBX offload
+	bg_mem = 25
+	lpbk_mem = 25
+	hwm = 30
+	lwm = 15
+	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
+
+[port "1"]
+	dcb = ppp, dcbx
+	bg_mem = 25
+	lpbk_mem = 25
+	hwm = 30
+	lwm = 15
+	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
+
+[port "2"]
+	dcb = ppp, dcbx
+	bg_mem = 25
+	lpbk_mem = 25
+	hwm = 30
+	lwm = 15
+	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
+
+[port "3"]
+	dcb = ppp, dcbx
+	bg_mem = 25
+	lpbk_mem = 25
+	hwm = 30
+	lwm = 15
+	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
+
+[fini]
+	version = 0x01000028
+	checksum = 0x5ceab421
+
+# Total resources used by above allocations:
+#   Virtual Interfaces: 104
+#   Ingress Queues/w Free Lists and Interrupts: 526
+#   Egress Queues: 702
+#   MPS TCAM Entries: 336
+#   MSI-X Vectors: 736
+#   Virtual Functions: 64
+#
+# $FreeBSD$
+#

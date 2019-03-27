@@ -1,0 +1,188 @@
+.\"
+.\" Copyright (c) 2014 Luiz Otavio O Souza <loos@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 26, 2017
+.Dt LM75 4
+.Os
+.Sh NAME
+.Nm lm75
+.Nd lm75 i2c digital temperature sensor driver
+.Sh SYNOPSIS
+.Cd "device iic"
+.Cd "device iicbus"
+.Cd "device lm75"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to sensor data and configuration over the
+.Xr iicbus 4 .
+.Pp
+It provides an easy and simple way to check the functionality of an i2c bus
+as it provides read and write access to the
+.Nm
+configuration register.
+.Pp
+The access to
+.Nm
+data is made via the
+.Xr sysctl 8
+interface:
+.Bd -literal
+dev.lm75.0.%desc: LM75 temperature sensor
+dev.lm75.0.%driver: lm75
+dev.lm75.0.%location: addr=0x49
+dev.lm75.0.%pnpinfo: name=lm750 compat=national,lm75
+dev.lm75.0.%parent: iicbus3
+dev.lm75.0.temperature: 27.1C
+dev.lm75.0.thyst: 75.0C
+dev.lm75.0.tos: 80.0C
+dev.lm75.0.faults: 1
+dev.lm75.0.mode: comparator
+dev.lm75.0.polarity: active-low
+dev.lm75.0.shutdown: 0
+.Ed
+.Bl -tag -width ".Va dev.lm75.%d.temperature"
+.It Va dev.lm75.%d.temperature
+Is the read-only value of the current temperature read by the sensor.
+.It Va dev.lm75.%d.thyst
+Sets the hysteresis temperature.
+Once the temperature gets over the overtemperature shutdown value (tos)
+it needs to drop below the hysteresis temperature to disable the output
+(interrupt) pin again.
+.It Va dev.lm75.%d.tos
+Sets the overtemperature shutdown value.
+Once the temperature gets over this value the output pin will be enabled.
+The way the output (interrupt) pin works, depends on the mode configuration.
+.It Va dev.lm75.%d.faults
+Is the number of faults that must occur consecutively to activate the
+interrupt (output) pin.
+It can be set to 1, 2, 4, and 6.
+.It Va dev.lm75.%d.mode
+Sets the operation mode for the sensor interrupt pin.
+It can be set to 'comparator' (default) or 'interrupt'.
+.It Va dev.lm75.%d.polarity
+Sets the polarity of the sensor interrupt pin.
+It can be set to 'active-low' (default) or 'active-high'.
+Please note that the output pin is an open-drain output and it needs a
+proper pull-up resistor to work.
+.It Va dev.lm75.%d.shutdown
+When set to '1' it shuts down the sensor.
+The temperature conversion stops but the sensor remains with its i2c bus
+active, i.e., it can be woken up by setting this option to '0' again.
+.El
+.Pp
+Please check the
+.Nm
+datasheet for more details.
+.Pp
+When used together with
+.Xr snmp_lm75 3
+it allows the monitoring of
+.Nm
+temperature data over SNMP.
+.Pp
+The
+.Nm
+driver supports both the low and the high resolution models.
+.Pp
+The low resolution model (lm75) provides a 9 bit output with the LSB
+representing 0.5C.
+.Pp
+The high resolution model (lm75a) provides an 11 bit output with the LSB
+representing 0.125C.
+.Pp
+The driver tries to auto-detect the
+.Nm
+model, but the detection of some
+.Nm
+clones may not work reliably.
+.Pp
+On a
+.Xr device.hints 5
+based system, such as
+.Li MIPS ,
+these values are configurable for
+.Nm :
+.Bl -tag -width ".Va hint.lm75.%d.addr"
+.It Va hint.lm75.%d.at
+Is the
+.Xr iicbus 4
+you are attaching to.
+.It Va hint.lm75.%d.addr
+Is the
+.Nm
+i2c address on the
+.Xr iicbus 4 .
+.El
+.Pp
+On a
+.Xr FDT 4
+based system, such as
+.Li ARM ,
+the DTS part for a
+.Nm
+device usually looks like:
+.Bd -literal
+i2c {
+	/* Properties describing the controller appear here. */
+	...
+	lm750@49 {
+		compatible = "national,lm75";
+		reg = <0x49>;
+	};
+};
+.Ed
+.Pp
+Where:
+.Bl -tag -width ".Va compatible"
+.It Va compatible
+Should always be set to "national,lm75".
+.It Va reg
+Indicates which 7-bit i2c address the
+.Nm
+is wired at.
+.Nm
+temperature sensors can be wired to 8 different addresses, allowing up to 8
+sensors on the same
+.Xr iicbus 4 .
+.El
+.Sh SEE ALSO
+.Xr snmp_lm75 3 ,
+.Xr fdt 4 ,
+.Xr iic 4 ,
+.Xr iicbus 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver and this manual page were written by
+.An Luiz Otavio O Souza Aq Mt loos@FreeBSD.org .

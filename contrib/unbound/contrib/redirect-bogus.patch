@@ -1,0 +1,344 @@
+Index: daemon/worker.c
+===================================================================
+--- daemon/worker.c	(revision 4191)
++++ daemon/worker.c	(working copy)
+@@ -663,8 +663,21 @@
+ 		if(!inplace_cb_reply_servfail_call(&worker->env, qinfo, NULL, rep,
+ 			LDNS_RCODE_SERVFAIL, edns, worker->scratchpad))
+ 			goto bail_out;
+-		error_encode(repinfo->c->buffer, LDNS_RCODE_SERVFAIL, 
+-			qinfo, id, flags, edns);
++		if (qinfo->qtype == LDNS_RR_TYPE_A &&
++			worker->env.cfg->redirect_bogus_ipv4) {
++			/* BAD cached */
++			fixed_address_encode(repinfo->c->buffer,
++				LDNS_RCODE_NOERROR, qinfo, id, flags, edns,
++				worker->env.cfg->redirect_bogus_ipv4);
++		} else if (qinfo->qtype == LDNS_RR_TYPE_AAAA &&
++			worker->env.cfg->redirect_bogus_ipv6) {
++			fixed_address_encode(repinfo->c->buffer,
++				LDNS_RCODE_NOERROR, qinfo, id, flags, edns,
++				worker->env.cfg->redirect_bogus_ipv6);
++		} else {
++			error_encode(repinfo->c->buffer, LDNS_RCODE_SERVFAIL, 
++ 			qinfo, id, flags, edns);
++		}
+ 		rrset_array_unlock_touch(worker->env.rrset_cache, 
+ 			worker->scratchpad, rep->ref, rep->rrset_count);
+ 		if(worker->stats.extended) {
+Index: doc/unbound.conf.5.in
+===================================================================
+--- doc/unbound.conf.5.in	(revision 4191)
++++ doc/unbound.conf.5.in	(working copy)
+@@ -1244,6 +1244,18 @@
+ This can make ordinary queries complete (if repeatedly queried for),
+ and enter the cache, whilst also mitigating the traffic flow by the
+ factor given.
++.TP 5
++.B redirect-bogus-ipv4: \fI<IPv4 address>
++Set a fixed address for DNSSEC failures that are cached
++Instead of responding to A queries with SERVFAIL, respond
++with NOERROR and the address specified here
++The TTL of the response will be 5 seconds
++.TP 5
++.B redirect-bogus-ipv6: \fI<IPv4 address>
++Set a fixed address for DNSSEC failures that are cached
++Instead of responding to AAAA queries with SERVFAIL, respond
++with NOERROR and the address specified here
++The TTL of the response will be 5 seconds
+ .SS "Remote Control Options"
+ In the
+ .B remote\-control:
+Index: services/mesh.c
+===================================================================
+--- services/mesh.c	(revision 4191)
++++ services/mesh.c	(working copy)
+@@ -1006,6 +1006,7 @@
+ 	struct timeval end_time;
+ 	struct timeval duration;
+ 	int secure;
++	int bogus_override = 0;
+ 	/* Copy the client's EDNS for later restore, to make sure the edns
+ 	 * compare is with the correct edns options. */
+ 	struct edns_data edns_bak = r->edns;
+@@ -1016,6 +1017,7 @@
+ 		rcode = LDNS_RCODE_SERVFAIL;
+ 		if(m->s.env->cfg->stat_extended) 
+ 			m->s.env->mesh->ans_bogus++;
++		bogus_override = 1;
+ 	}
+ 	if(rep && rep->security == sec_status_secure)
+ 		secure = 1;
+@@ -1047,17 +1049,34 @@
+ 	} else if(rcode) {
+ 		m->s.qinfo.qname = r->qname;
+ 		m->s.qinfo.local_alias = r->local_alias;
+-		if(rcode == LDNS_RCODE_SERVFAIL) {
+-			if(!inplace_cb_reply_servfail_call(m->s.env, &m->s.qinfo, &m->s,
+-				rep, rcode, &r->edns, m->s.region))
+-					r->edns.opt_list = NULL;
+-		} else { 
+-			if(!inplace_cb_reply_call(m->s.env, &m->s.qinfo, &m->s, rep, rcode,
+-				&r->edns, m->s.region))
+-					r->edns.opt_list = NULL;
++		if(bogus_override && m->s.qinfo.qtype == LDNS_RR_TYPE_A &&
++			m->s.env->cfg->redirect_bogus_ipv4) {
++			fixed_address_encode(r->query_reply.c->buffer,
++				LDNS_RCODE_NOERROR, &m->s.qinfo, r->qid,
++				r->qflags, &r->edns,
++				m->s.env->cfg->redirect_bogus_ipv4);
++		} else if(bogus_override &&
++			m->s.qinfo.qtype == LDNS_RR_TYPE_AAAA &&
++			m->s.env->cfg->redirect_bogus_ipv6) {
++			fixed_address_encode(r->query_reply.c->buffer,
++				LDNS_RCODE_NOERROR, &m->s.qinfo, r->qid,
++				r->qflags, &r->edns,
++				m->s.env->cfg->redirect_bogus_ipv6);
++		} else {
++			if(rcode == LDNS_RCODE_SERVFAIL) {
++				if(!inplace_cb_reply_servfail_call(m->s.env,
++					&m->s.qinfo, &m->s,
++					rep, rcode, &r->edns, m->s.region))
++						r->edns.opt_list = NULL;
++			} else { 
++				if(!inplace_cb_reply_call(m->s.env, &m->s.qinfo,
++					&m->s, rep, rcode, &r->edns,
++					m->s.region))
++						r->edns.opt_list = NULL;
++			}
++			error_encode(r->query_reply.c->buffer, rcode,
++				&m->s.qinfo, r->qid, r->qflags, &r->edns);
+ 		}
+-		error_encode(r->query_reply.c->buffer, rcode, &m->s.qinfo,
+-			r->qid, r->qflags, &r->edns);
+ 		comm_point_send_reply(&r->query_reply);
+ 	} else {
+ 		size_t udp_size = r->edns.udp_size;
+Index: util/config_file.c
+===================================================================
+--- util/config_file.c	(revision 4191)
++++ util/config_file.c	(working copy)
+@@ -273,6 +273,8 @@
+ 	cfg->ratelimit_factor = 10;
+ 	cfg->qname_minimisation = 0;
+ 	cfg->qname_minimisation_strict = 0;
++	cfg->redirect_bogus_ipv4 = NULL;
++	cfg->redirect_bogus_ipv6 = NULL;
+ 	cfg->shm_enable = 0;
+ 	cfg->shm_key = 11777;
+ 	cfg->dnscrypt = 0;
+@@ -602,6 +604,10 @@
+ 		}
+ 		oi[cfg->num_out_ifs++] = d;
+ 		cfg->out_ifs = oi;
++	} else if (strcmp(opt, "redirect-bogus-ipv4:") == 0) {
++		cfg->redirect_bogus_ipv4 = strdup(val);
++	} else if (strcmp(opt, "redirect-bogus-ipv6:") == 0) {
++		cfg->redirect_bogus_ipv6 = strdup(val);
+ 	} else {
+ 		/* unknown or unsupported (from the set_option interface):
+ 		 * interface, outgoing-interface, access-control,
+@@ -1250,6 +1256,12 @@
+ 	free(cfg->dnstap_version);
+ 	config_deldblstrlist(cfg->ratelimit_for_domain);
+ 	config_deldblstrlist(cfg->ratelimit_below_domain);
++	if (cfg->redirect_bogus_ipv4) {
++		free(cfg->redirect_bogus_ipv4);
++	}
++	if (cfg->redirect_bogus_ipv6) {
++		free(cfg->redirect_bogus_ipv6);
++	}
+ #ifdef USE_IPSECMOD
+ 	free(cfg->ipsecmod_hook);
+ 	config_delstrlist(cfg->ipsecmod_whitelist);
+Index: util/config_file.h
+===================================================================
+--- util/config_file.h	(revision 4191)
++++ util/config_file.h	(working copy)
+@@ -444,6 +444,9 @@
+ 	/** minimise QNAME in strict mode, minimise according to RFC.
+ 	 *  Do not apply fallback */
+ 	int qname_minimisation_strict;
++	/** construct fake responses for DNSSEC failures */
++	char *redirect_bogus_ipv4;
++	char *redirect_bogus_ipv6;
+ 	/** SHM data - true if shm is enabled */
+ 	int shm_enable;
+ 	/** SHM data - key for the shm */
+Index: util/configlexer.lex
+===================================================================
+--- util/configlexer.lex	(revision 4191)
++++ util/configlexer.lex	(working copy)
+@@ -410,6 +410,8 @@
+ response-ip-tag{COLON}		{ YDVAR(2, VAR_RESPONSE_IP_TAG) }
+ response-ip{COLON}		{ YDVAR(2, VAR_RESPONSE_IP) }
+ response-ip-data{COLON}		{ YDVAR(2, VAR_RESPONSE_IP_DATA) }
++redirect-bogus-ipv4{COLON}	{ YDVAR(1, VAR_REDIRECT_BOGUS_IPV4) }
++redirect-bogus-ipv6{COLON}	{ YDVAR(1, VAR_REDIRECT_BOGUS_IPV6) }
+ dnscrypt{COLON}			{ YDVAR(0, VAR_DNSCRYPT) }
+ dnscrypt-enable{COLON}		{ YDVAR(1, VAR_DNSCRYPT_ENABLE) }
+ dnscrypt-port{COLON}		{ YDVAR(1, VAR_DNSCRYPT_PORT) }
+Index: util/configparser.y
+===================================================================
+--- util/configparser.y	(revision 4191)
++++ util/configparser.y	(working copy)
+@@ -44,6 +44,7 @@
+ #include <stdlib.h>
+ #include <assert.h>
+ 
++#include "sldns/str2wire.h"
+ #include "util/configyyrename.h"
+ #include "util/config_file.h"
+ #include "util/net_help.h"
+@@ -141,6 +142,7 @@
+ %token VAR_ACCESS_CONTROL_TAG_DATA VAR_VIEW VAR_ACCESS_CONTROL_VIEW
+ %token VAR_VIEW_FIRST VAR_SERVE_EXPIRED VAR_FAKE_DSA VAR_FAKE_SHA1
+ %token VAR_LOG_IDENTITY VAR_HIDE_TRUSTANCHOR VAR_TRUST_ANCHOR_SIGNALING
++%token VAR_REDIRECT_BOGUS_IPV4 VAR_REDIRECT_BOGUS_IPV6
+ %token VAR_USE_SYSTEMD VAR_SHM_ENABLE VAR_SHM_KEY
+ %token VAR_DNSCRYPT VAR_DNSCRYPT_ENABLE VAR_DNSCRYPT_PORT VAR_DNSCRYPT_PROVIDER
+ %token VAR_DNSCRYPT_SECRET_KEY VAR_DNSCRYPT_PROVIDER_CERT
+@@ -228,6 +230,7 @@
+ 	server_access_control_tag_data | server_access_control_view |
+ 	server_qname_minimisation_strict | server_serve_expired |
+ 	server_fake_dsa | server_log_identity | server_use_systemd |
++	server_redirect_bogus_ipv4 | server_redirect_bogus_ipv6 |
+ 	server_response_ip_tag | server_response_ip | server_response_ip_data |
+ 	server_shm_enable | server_shm_key | server_fake_sha1 |
+ 	server_hide_trustanchor | server_trust_anchor_signaling |
+@@ -1873,6 +1876,34 @@
+ 	#endif
+ 	}
+ 	;
++server_redirect_bogus_ipv4: VAR_REDIRECT_BOGUS_IPV4 STRING_ARG
++	{
++		uint8_t data[4];
++		size_t data_len = 4;
++		OUTYY(("P(name:%s)\n", $2));
++		if(cfg_parser->cfg->redirect_bogus_ipv4) {
++			yyerror("redirect-bogus-ipv4, can only use one address");
++		}
++		if(sldns_str2wire_a_buf($2, data, &data_len) != LDNS_WIREPARSE_ERR_OK) {
++			yyerror("redirect-bogus-ipv4, not a valid IPv4 address");
++		}
++		free(cfg_parser->cfg->redirect_bogus_ipv4);
++		cfg_parser->cfg->redirect_bogus_ipv4 = $2;
++	}
++server_redirect_bogus_ipv6: VAR_REDIRECT_BOGUS_IPV6 STRING_ARG
++	{
++		uint8_t data[16];
++		size_t data_len = 16;
++		OUTYY(("P(name:%s)\n", $2));
++		if(cfg_parser->cfg->redirect_bogus_ipv6) {
++			yyerror("redirect-bogus-ipv6, can only use one address");
++		}
++		if(sldns_str2wire_aaaa_buf($2, data, &data_len) != LDNS_WIREPARSE_ERR_OK) {
++			yyerror("redirect-bogus-ipv6, not a valid IPv6 address");
++		}
++		free(cfg_parser->cfg->redirect_bogus_ipv6);
++		cfg_parser->cfg->redirect_bogus_ipv6 = $2;
++	}
+ stub_name: VAR_NAME STRING_ARG
+ 	{
+ 		OUTYY(("P(name:%s)\n", $2));
+Index: util/data/msgencode.c
+===================================================================
+--- util/data/msgencode.c	(revision 4191)
++++ util/data/msgencode.c	(working copy)
+@@ -48,6 +48,7 @@
+ #include "util/regional.h"
+ #include "util/net_help.h"
+ #include "sldns/sbuffer.h"
++#include "sldns/str2wire.h"
+ #include "services/localzone.h"
+ 
+ /** return code that means the function ran out of memory. negative so it does
+@@ -914,3 +915,63 @@
+ 		attach_edns_record(buf, &es);
+ 	}
+ }
++
++void 
++fixed_address_encode(sldns_buffer* buf, int r, struct query_info* qinfo,
++	uint16_t qid, uint16_t qflags, struct edns_data* edns, char* data)
++{
++	uint16_t flags;
++	uint8_t addr_data[16];
++	size_t addr_len = 16;
++	if (qinfo->qtype == LDNS_RR_TYPE_A) {
++		sldns_str2wire_a_buf(data, addr_data, &addr_len);
++	} else if (qinfo->qtype == LDNS_RR_TYPE_AAAA) {
++		sldns_str2wire_aaaa_buf(data, addr_data, &addr_len);
++	} else {
++		return error_encode(buf, LDNS_RCODE_NOERROR, qinfo, qid, qflags, edns);
++	}
++	sldns_buffer_clear(buf);
++	sldns_buffer_write(buf, &qid, sizeof(uint16_t));
++	flags = (uint16_t)(BIT_QR | BIT_RA | r); /* QR and retcode*/
++	flags |= (qflags & (BIT_RD|BIT_CD)); /* copy RD and CD bit */
++	sldns_buffer_write_u16(buf, flags);
++	if(qinfo) flags = 1;
++	else	flags = 0;
++	sldns_buffer_write_u16(buf, flags);
++	sldns_buffer_write_u16(buf, 1);
++	flags = 0;
++	sldns_buffer_write(buf, &flags, sizeof(uint16_t));
++	sldns_buffer_write(buf, &flags, sizeof(uint16_t));
++	if(qinfo) {
++		// query
++		if(sldns_buffer_current(buf) == qinfo->qname)
++			sldns_buffer_skip(buf, (ssize_t)qinfo->qname_len);
++		else	sldns_buffer_write(buf, qinfo->qname, qinfo->qname_len);
++		sldns_buffer_write_u16(buf, qinfo->qtype);
++		sldns_buffer_write_u16(buf, qinfo->qclass);
++		// faked answer
++		if(sldns_buffer_current(buf) == qinfo->qname)
++			sldns_buffer_skip(buf, (ssize_t)qinfo->qname_len);
++		else	sldns_buffer_write(buf, qinfo->qname, qinfo->qname_len);
++		sldns_buffer_write_u16(buf, qinfo->qtype);
++		sldns_buffer_write_u16(buf, qinfo->qclass);
++		sldns_buffer_write_u16(buf, 0);
++		// TTL. Should we make this configurable too?
++		sldns_buffer_write_u16(buf, 5);
++		sldns_buffer_write_u16(buf, addr_len);
++		sldns_buffer_write(buf, addr_data, addr_len);
++		fflush(stderr);
++	}
++	sldns_buffer_flip(buf);
++	if(edns) {
++		struct edns_data es = *edns;
++		es.edns_version = EDNS_ADVERTISED_VERSION;
++		es.udp_size = EDNS_ADVERTISED_SIZE;
++		es.ext_rcode = 0;
++		es.bits &= EDNS_DO;
++		if(sldns_buffer_limit(buf) + calc_edns_field_size(&es) >
++			edns->udp_size)
++			return;
++		attach_edns_record(buf, &es);
++	}
++}
+Index: util/data/msgencode.h
+===================================================================
+--- util/data/msgencode.h	(revision 4191)
++++ util/data/msgencode.h	(working copy)
+@@ -128,4 +128,20 @@
+ void error_encode(struct sldns_buffer* pkt, int r, struct query_info* qinfo,
+ 	uint16_t qid, uint16_t qflags, struct edns_data* edns);
+ 
++/**
++ * Encode a fixed address response.
++ * This is a fake answer to either an A or AAA query
++ *
++ * It will answer with that address
++ *
++ * @param pkt: where to store the packet.
++ * @param r: RCODE value to encode.
++ * @param qinfo: if not NULL, the query is included.
++ * @param qid: query ID to set in packet. network order.
++ * @param qflags: original query flags (to copy RD and CD bits). host order.
++ * @param edns: if not NULL, this is the query edns info,
++ * 	and an edns reply is attached. Only attached if EDNS record fits reply.
++ */
++void fixed_address_encode(struct sldns_buffer* pkt, int r, struct query_info* qinfo,
++	uint16_t qid, uint16_t qflags, struct edns_data* edns, char* address);
+ #endif /* UTIL_DATA_MSGENCODE_H */

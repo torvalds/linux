@@ -1,0 +1,144 @@
+.\" Copyright (c) 1997, 1998, 1999, 2000
+.\"	Bill Paul <wpaul@ee.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 24, 2015
+.Dt KUE 4
+.Os
+.Sh NAME
+.Nm kue
+.Nd "Kawasaki LSI KL5KUSB101B USB Ethernet driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device miibus"
+.Cd "device uether"
+.Cd "device kue"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_kue_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Ethernet adapters based on the Kawasaki
+LSI KL5KLUSB101B chipset.
+.Pp
+The KL5KLUSB101B supports a 128-entry multicast filter, single perfect
+filter entry for the station address and promiscuous mode.
+Packets are
+received and transmitted over separate USB bulk transfer endpoints.
+.Pp
+The Kawasaki chipset supports only 10Mbps half-duplex mode, hence there
+are no
+.Xr ifmedia 4
+modes to select.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Kawasaki LSI KL5KLUSB101B based USB Ethernet
+adapters including:
+.Pp
+.Bl -bullet -compact
+.It
+3Com 3c19250
+.It
+3Com 3c460 HomeConnect Ethernet USB Adapter
+.It
+ADS Technologies USB-10BT
+.It
+AOX USB101
+.It
+ATen UC10T
+.It
+Abocom URE 450
+.It
+Corega USB-T
+.It
+D-Link DSB-650C
+.It
+Entrega NET-USB-E45, NET-HUB-3U1E
+.It
+I/O Data USB ETT
+.It
+Kawasaki DU-H3E
+.It
+LinkSys USB10T
+.It
+Netgear EA101
+.It
+Peracom USB Ethernet Adapter
+.It
+Psion Gold Port USB Ethernet adapter
+.It
+SMC 2102USB, 2104USB
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "kue%d: watchdog timeout"
+A packet was queued for transmission and a transmit command was
+issued, however the device failed to acknowledge the transmission
+before a timeout expired.
+.It "kue%d: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ee.columbia.edu .
+.Sh BUGS
+The
+.Nm
+driver does not accumulate Ethernet collisions statistics because the
+Kawasaki firmware does not appear to maintain any internal statistics.

@@ -1,0 +1,932 @@
+#
+# NOTES -- Lines that can be cut/pasted into kernel and hints configs.
+#
+# This file contains machine dependent kernel configuration notes.  For
+# machine independent notes, look in /sys/conf/NOTES.
+#
+# $FreeBSD$
+#
+
+#
+# We want LINT to cover profiling as well.
+profile         2
+
+#
+# Enable the kernel DTrace hooks which are required to load the DTrace
+# kernel modules.
+#
+options 	KDTRACE_HOOKS
+
+# DTrace core
+# NOTE: introduces CDDL-licensed components into the kernel
+#device		dtrace
+
+# DTrace modules
+#device		dtrace_profile
+#device		dtrace_sdt
+#device		dtrace_fbt
+#device		dtrace_systrace
+#device		dtrace_prototype
+#device		dtnfscl
+#device		dtmalloc
+
+# Alternatively include all the DTrace modules
+#device		dtraceall
+
+
+#####################################################################
+# SMP OPTIONS:
+#
+# The apic device enables the use of the I/O APIC for interrupt delivery.
+# The apic device can be used in both UP and SMP kernels, but is required
+# for SMP kernels.  Thus, the apic device is not strictly an SMP option,
+# but it is a prerequisite for SMP.
+#
+# Notes:
+#
+# HTT CPUs should only be used if they are enabled in the BIOS.  For
+# the ACPI case, ACPI only correctly tells us about any HTT CPUs if
+# they are enabled.  However, most HTT systems do not list HTT CPUs
+# in the MP Table if they are enabled, thus we guess at the HTT CPUs
+# for the MP Table case.  However, we shouldn't try to guess and use
+# these CPUs if HTT is disabled.  Thus, HTT guessing is only enabled
+# for the MP Table if the user explicitly asks for it via the
+# MPTABLE_FORCE_HTT option.  Do NOT use this option if you have HTT
+# disabled in your BIOS.
+#
+# IPI_PREEMPTION instructs the kernel to preempt threads running on other
+# CPUS if needed.  Relies on the PREEMPTION option
+
+# Mandatory:
+device		apic			# I/O apic
+
+# Optional:
+options 	MPTABLE_FORCE_HTT	# Enable HTT CPUs with the MP Table
+options 	IPI_PREEMPTION
+
+#
+# Watchdog routines.
+#
+options 	MP_WATCHDOG
+
+# Debugging options.
+#
+options 	COUNT_XINVLTLB_HITS	# Counters for TLB events
+options 	COUNT_IPIS		# Per-CPU IPI interrupt counters
+
+
+
+#####################################################################
+# CPU OPTIONS
+
+#
+# You must specify at least one CPU (the one you intend to run on);
+# deleting the specification for CPUs you don't need to use may make
+# parts of the system run faster.
+#
+cpu		I486_CPU
+cpu		I586_CPU		# aka Pentium(tm)
+cpu		I686_CPU		# aka Pentium Pro(tm)
+
+#
+# Options for CPU features.
+#
+# CPU_ATHLON_SSE_HACK tries to enable SSE instructions when the BIOS has
+# forgotten to enable them.
+#
+# CPU_BLUELIGHTNING_3X enables triple-clock mode on IBM Blue Lightning
+# CPU if CPU supports it.  The default is double-clock mode on
+# BlueLightning CPU box.
+#
+# CPU_BLUELIGHTNING_FPU_OP_CACHE enables FPU operand cache on IBM
+# BlueLightning CPU.  It works only with Cyrix FPU, and this option
+# should not be used with Intel FPU.
+#
+# CPU_BTB_EN enables branch target buffer on Cyrix 5x86 (NOTE 1).
+#
+# CPU_CYRIX_NO_LOCK enables weak locking for the entire address space
+# of Cyrix 6x86 and 6x86MX CPUs by setting the NO_LOCK bit of CCR1.
+# Otherwise, the NO_LOCK bit of CCR1 is cleared.  (NOTE 3)
+#
+# CPU_DIRECT_MAPPED_CACHE sets L1 cache of Cyrix 486DLC CPU in direct
+# mapped mode.  Default is 2-way set associative mode.
+#
+# CPU_DISABLE_5X86_LSSER disables load store serialize (i.e., enables
+# reorder).  This option should not be used if you use memory mapped
+# I/O device(s).
+#
+# CPU_ELAN enables support for AMDs ElanSC520 CPU.
+#    CPU_ELAN_PPS enables precision timestamp code.
+#    CPU_ELAN_XTAL sets the clock crystal frequency in Hz.
+#
+# CPU_ENABLE_LONGRUN enables support for Transmeta Crusoe LongRun
+# technology which allows to restrict power consumption of the CPU by
+# using group of hw.crusoe.* sysctls.
+#
+# CPU_FASTER_5X86_FPU enables faster FPU exception handler.
+#
+# CPU_GEODE is for the SC1100 Geode embedded processor.  This option
+# is necessary because the i8254 timecounter is toast.
+#
+# CPU_I486_ON_386 enables CPU cache on i486 based CPU upgrade products
+# for i386 machines.
+#
+# CPU_IORT defines I/O clock delay time (NOTE 1).  Default values of
+# I/O clock delay time on Cyrix 5x86 and 6x86 are 0 and 7,respectively
+# (no clock delay).
+#
+# CPU_L2_LATENCY specifies the L2 cache latency value.  This option is used
+# only when CPU_PPRO2CELERON is defined and Mendocino Celeron is detected.
+# The default value is 5.
+#
+# CPU_LOOP_EN prevents flushing the prefetch buffer if the destination
+# of a jump is already present in the prefetch buffer on Cyrix 5x86(NOTE
+# 1).
+#
+# CPU_PPRO2CELERON enables L2 cache of Mendocino Celeron CPUs.  This option
+# is useful when you use Socket 8 to Socket 370 converter, because most Pentium
+# Pro BIOSs do not enable L2 cache of Mendocino Celeron CPUs.
+#
+# CPU_RSTK_EN enables return stack on Cyrix 5x86 (NOTE 1).
+#
+# CPU_SOEKRIS enables support www.soekris.com hardware.
+#
+# CPU_SUSP_HLT enables suspend on HALT.  If this option is set, CPU
+# enters suspend mode following execution of HALT instruction.
+#
+# CPU_UPGRADE_HW_CACHE eliminates unneeded cache flush instruction(s).
+#
+# CPU_WT_ALLOC enables write allocation on Cyrix 6x86/6x86MX and AMD
+# K5/K6/K6-2 CPUs.
+#
+# CYRIX_CACHE_WORKS enables CPU cache on Cyrix 486 CPUs with cache
+# flush at hold state.
+#
+# CYRIX_CACHE_REALLY_WORKS enables (1) CPU cache on Cyrix 486 CPUs
+# without cache flush at hold state, and (2) write-back CPU cache on
+# Cyrix 6x86 whose revision < 2.7 (NOTE 2).
+#
+# NO_F00F_HACK disables the hack that prevents Pentiums (and ONLY
+# Pentiums) from locking up when a LOCK CMPXCHG8B instruction is
+# executed.  This option is only needed if I586_CPU is also defined,
+# and should be included for any non-Pentium CPU that defines it.
+#
+# NO_MEMORY_HOLE is an optimisation for systems with AMD K6 processors
+# which indicates that the 15-16MB range is *definitely* not being
+# occupied by an ISA memory hole.
+#
+# NOTE 1: The options, CPU_BTB_EN, CPU_LOOP_EN, CPU_IORT,
+# CPU_LOOP_EN and CPU_RSTK_EN should not be used because of CPU bugs.
+# These options may crash your system.
+#
+# NOTE 2: If CYRIX_CACHE_REALLY_WORKS is not set, CPU cache is enabled
+# in write-through mode when revision < 2.7.  If revision of Cyrix
+# 6x86 >= 2.7, CPU cache is always enabled in write-back mode.
+#
+# NOTE 3: This option may cause failures for software that requires
+# locked cycles in order to operate correctly.
+#
+options 	CPU_ATHLON_SSE_HACK
+options 	CPU_BLUELIGHTNING_3X
+options 	CPU_BLUELIGHTNING_FPU_OP_CACHE
+options 	CPU_BTB_EN
+options 	CPU_DIRECT_MAPPED_CACHE
+options 	CPU_DISABLE_5X86_LSSER
+options 	CPU_ELAN
+options 	CPU_ELAN_PPS
+options 	CPU_ELAN_XTAL=32768000
+options 	CPU_ENABLE_LONGRUN
+options 	CPU_FASTER_5X86_FPU
+options 	CPU_GEODE
+options 	CPU_I486_ON_386
+options 	CPU_IORT
+options 	CPU_L2_LATENCY=5
+options 	CPU_LOOP_EN
+options 	CPU_PPRO2CELERON
+options 	CPU_RSTK_EN
+options 	CPU_SOEKRIS
+options 	CPU_SUSP_HLT
+options 	CPU_UPGRADE_HW_CACHE
+options 	CPU_WT_ALLOC
+options 	CYRIX_CACHE_WORKS
+options 	CYRIX_CACHE_REALLY_WORKS
+#options 	NO_F00F_HACK
+
+# Debug options
+options 	NPX_DEBUG	# enable npx debugging
+
+#
+# PERFMON causes the driver for Pentium/Pentium Pro performance counters
+# to be compiled.  See perfmon(4) for more information.
+#
+options 	PERFMON
+
+
+#####################################################################
+# NETWORKING OPTIONS
+
+#
+# DEVICE_POLLING adds support for mixed interrupt-polling handling
+# of network device drivers, which has significant benefits in terms
+# of robustness to overloads and responsivity, as well as permitting
+# accurate scheduling of the CPU time between kernel network processing
+# and other activities.  The drawback is a moderate (up to 1/HZ seconds)
+# potential increase in response times.
+# It is strongly recommended to use HZ=1000 or 2000 with DEVICE_POLLING
+# to achieve smoother behaviour.
+# Additionally, you can enable/disable polling at runtime with help of
+# the ifconfig(8) utility, and select the CPU fraction reserved to
+# userland with the sysctl variable kern.polling.user_frac
+# (default 50, range 0..100).
+#
+# Not all device drivers support this mode of operation at the time of
+# this writing.  See polling(4) for more details.
+
+options 	DEVICE_POLLING
+
+# BPF_JITTER adds support for BPF just-in-time compiler.
+
+options 	BPF_JITTER
+
+# OpenFabrics Enterprise Distribution (Infiniband).
+options 	OFED
+options 	OFED_DEBUG_INIT
+
+# Sockets Direct Protocol
+options 	SDP
+options 	SDP_DEBUG
+
+# IP over Infiniband
+options 	IPOIB
+options 	IPOIB_DEBUG
+options 	IPOIB_CM
+
+
+#####################################################################
+# CLOCK OPTIONS
+
+# Provide read/write access to the memory in the clock chip.
+device		nvram		# Access to rtc cmos via /dev/nvram
+
+
+#####################################################################
+# MISCELLANEOUS DEVICES AND OPTIONS
+
+device		speaker		#Play IBM BASIC-style noises out your speaker
+hint.speaker.0.at="isa"
+hint.speaker.0.port="0x61"
+device		gzip		#Exec gzipped a.out's.  REQUIRES COMPAT_AOUT!
+device		apm_saver	# Requires APM
+
+
+#####################################################################
+# HARDWARE BUS CONFIGURATION
+
+#
+# ISA bus
+#
+device		isa
+
+#
+# Options for `isa':
+#
+# AUTO_EOI_1 enables the `automatic EOI' feature for the master 8259A
+# interrupt controller.  This saves about 0.7-1.25 usec for each interrupt.
+# This option breaks suspend/resume on some portables.
+#
+# AUTO_EOI_2 enables the `automatic EOI' feature for the slave 8259A
+# interrupt controller.  This saves about 0.7-1.25 usec for each interrupt.
+# Automatic EOI is documented not to work for for the slave with the
+# original i8259A, but it works for some clones and some integrated
+# versions.
+#
+# MAXMEM specifies the amount of RAM on the machine; if this is not
+# specified, FreeBSD will first read the amount of memory from the CMOS
+# RAM, so the amount of memory will initially be limited to 64MB or 16MB
+# depending on the BIOS.  If the BIOS reports 64MB, a memory probe will
+# then attempt to detect the installed amount of RAM.  If this probe
+# fails to detect >64MB RAM you will have to use the MAXMEM option.
+# The amount is in kilobytes, so for a machine with 128MB of RAM, it would
+# be 131072 (128 * 1024).
+#
+# BROKEN_KEYBOARD_RESET disables the use of the keyboard controller to
+# reset the CPU for reboot.  This is needed on some systems with broken
+# keyboard controllers.
+
+options 	AUTO_EOI_1
+#options 	AUTO_EOI_2
+
+options 	MAXMEM=(128*1024)
+#options 	BROKEN_KEYBOARD_RESET
+
+#
+# AGP GART support
+device		agp
+
+# AGP debugging.
+options 	AGP_DEBUG
+
+
+#####################################################################
+# HARDWARE DEVICE CONFIGURATION
+
+# To include support for VGA VESA video modes
+options 	VESA
+
+# Turn on extra debugging checks and output for VESA support.
+options 	VESA_DEBUG
+
+device		dpms		# DPMS suspend & resume via VESA BIOS
+
+# x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
+options 	X86BIOS
+
+#
+# Hints for the non-optional Numeric Processing eXtension driver.
+hint.npx.0.flags="0x0"
+hint.npx.0.irq="13"
+
+#
+# `flags' for npx0:
+#	0x01	don't use the npx registers to optimize bcopy.
+#	0x02	don't use the npx registers to optimize bzero.
+#	0x04	don't use the npx registers to optimize copyin or copyout.
+# The npx registers are normally used to optimize copying and zeroing when
+# all of the following conditions are satisfied:
+#	I586_CPU is an option
+#	the cpu is an i586 (perhaps not a Pentium)
+#	the probe for npx0 succeeds
+#	INT 16 exception handling works.
+# Then copying and zeroing using the npx registers is normally 30-100% faster.
+# The flags can be used to control cases where it doesn't work or is slower.
+# Setting them at boot time using hints works right (the optimizations
+# are not used until later in the bootstrap when npx0 is attached).
+# Flag 0x08 automatically disables the i586 optimized routines.
+#
+
+#
+# Optional devices:
+#
+
+# PS/2 mouse
+device		psm
+hint.psm.0.at="atkbdc"
+hint.psm.0.irq="12"
+
+# Options for psm:
+options 	PSM_HOOKRESUME		#hook the system resume event, useful
+					#for some laptops
+options 	PSM_RESETAFTERSUSPEND	#reset the device at the resume event
+
+# The keyboard controller; it controls the keyboard and the PS/2 mouse.
+device		atkbdc
+hint.atkbdc.0.at="isa"
+hint.atkbdc.0.port="0x060"
+
+# The AT keyboard
+device		atkbd
+hint.atkbd.0.at="atkbdc"
+hint.atkbd.0.irq="1"
+
+# Options for atkbd:
+options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
+makeoptions	ATKBD_DFLT_KEYMAP=fr.dvorak
+
+# `flags' for atkbd:
+#       0x01    Force detection of keyboard, else we always assume a keyboard
+#       0x02    Don't reset keyboard, useful for some newer ThinkPads
+#	0x03	Force detection and avoid reset, might help with certain
+#		dockingstations
+#       0x04    Old-style (XT) keyboard support, useful for older ThinkPads
+
+# Video card driver for VGA adapters.
+device		vga
+hint.vga.0.at="isa"
+
+# Options for vga:
+# Try the following option if the mouse pointer is not drawn correctly
+# or font does not seem to be loaded properly.  May cause flicker on
+# some systems.
+options 	VGA_ALT_SEQACCESS
+
+# If you can dispense with some vga driver features, you may want to
+# use the following options to save some memory.
+#options 	VGA_NO_FONT_LOADING	# don't save/load font
+#options 	VGA_NO_MODE_CHANGE	# don't change video modes
+
+# Older video cards may require this option for proper operation.
+options 	VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
+
+# The following option probably won't work with the LCD displays.
+options 	VGA_WIDTH90		# support 90 column modes
+
+# Debugging.
+options 	VGA_DEBUG
+
+# vt(4) drivers.
+device		vt_vga
+
+# Linear framebuffer driver for S3 VESA 1.2 cards. Works on top of VESA.
+device		s3pci
+
+# 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support.  This will create
+# the /dev/3dfx0 device to work with glide implementations.  This should get
+# linked to /dev/3dfx and /dev/voodoo.  Note that this is not the same as
+# the tdfx DRI module from XFree86 and is completely unrelated.
+#
+# To enable Linuxulator support, one must also include COMPAT_LINUX in the
+# config as well.  The other option is to load both as modules.
+
+device		tdfx			# Enable 3Dfx Voodoo support
+device		tdfx_linux		# Enable Linuxulator support
+
+#
+# ACPI support using the Intel ACPI Component Architecture reference
+# implementation.
+#
+# ACPI_DEBUG enables the use of the debug.acpi.level and debug.acpi.layer
+# kernel environment variables to select initial debugging levels for the
+# Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
+# defined when it is built).
+
+device		acpi
+options 	ACPI_DEBUG
+options 	ACPI_DMAR
+
+# ACPI WMI Mapping driver
+device		acpi_wmi
+
+# ACPI Asus Extras (LCD backlight/brightness, video output, etc.)
+device		acpi_asus
+
+# ACPI Fujitsu Extras (Buttons)
+device		acpi_fujitsu
+
+# ACPI extras driver for HP laptops
+device		acpi_hp
+
+# ACPI extras driver for IBM laptops
+device		acpi_ibm
+
+# ACPI Panasonic Extras (LCD backlight/brightness, video output, etc.)
+device		acpi_panasonic
+
+# ACPI Sony extra (LCD brightness)
+device		acpi_sony
+
+# ACPI Toshiba Extras (LCD backlight/brightness, video output, etc.)
+device		acpi_toshiba
+
+# ACPI Video Extensions (LCD backlight/brightness, video output, etc.)
+device		acpi_video
+
+# ACPI Docking Station
+device		acpi_dock
+
+# ACPI ASOC ATK0110 ASUSTeK AI Booster (voltage, temperature and fan sensors)
+device		aibs
+
+# The cpufreq(4) driver provides support for non-ACPI CPU frequency control
+device		cpufreq
+
+#
+# Network interfaces:
+#
+
+# bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
+#       adapters.
+# ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
+#       with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
+#       NETGRAPH_CRONYX is configured)
+# cp:   Cronyx Tau-PCI sync single/dual/four port
+#       V.35/RS-232/RS-530/RS-449/X.21/G.703/E1/E3/T3/STS-1
+#       serial adaptor (requires sppp (default), or NETGRAPH if
+#       NETGRAPH_CRONYX is configured)
+# cs:   IBM Etherjet and other Crystal Semi CS89x0-based adapters
+# ctau: Cronyx Tau sync dual port V.35/RS-232/RS-530/RS-449/X.21/G.703/E1
+#       serial adaptor (requires sppp (default), or NETGRAPH if
+#       NETGRAPH_CRONYX is configured)
+# ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
+#       HP PC Lan+, various PC Card devices
+#       (requires miibus)
+# ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
+# iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
+#	Requires the iwi firmware module
+# iwn:	Intel Wireless WiFi Link 1000/105/135/2000/4965/5000/6000/6050 abgn
+#	802.11 network adapters
+#	Requires the iwn firmware module
+# mthca: Mellanox HCA InfiniBand
+# mlx4ib: Mellanox ConnectX HCA InfiniBand
+# mlx4en: Mellanox ConnectX HCA Ethernet
+# nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
+# sbni: Granch SBNI12-xx ISA and PCI adapters
+# vmx:	VMware VMXNET3 Ethernet (BSD open source)
+# wpi:	Intel 3945ABG Wireless LAN controller
+#	Requires the wpi firmware module
+
+# Order for ISA/EISA devices is important here
+
+device          bxe             # Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
+device		ce
+device		cp
+device		cs		# Crystal Semiconductor CS89x0 NIC
+hint.cs.0.at="isa"
+hint.cs.0.port="0x300"
+device		ctau
+hint.ctau.0.at="isa"
+hint.ctau.0.port="0x240"
+hint.ctau.0.irq="15"
+hint.ctau.0.drq="7"
+#options 	NETGRAPH_CRONYX		# Enable NETGRAPH support for Cronyx adapter(s)
+device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
+options 	ED_3C503
+options 	ED_HPP
+options 	ED_SIC
+hint.ed.0.at="isa"
+hint.ed.0.port="0x280"
+hint.ed.0.irq="5"
+hint.ed.0.maddr="0xd8000"
+device		ipw		# Intel 2100 wireless NICs.
+device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
+device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
+# Hint for the i386-only ISA front-end of le(4).
+hint.le.0.at="isa"
+hint.le.0.port="0x280"
+hint.le.0.irq="10"
+hint.le.0.drq="0"
+device  	mthca		# Mellanox HCA InfiniBand
+device		mlx4		# Shared code module between IB and Ethernet
+device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
+device  	mlx4en		# Mellanox ConnectX HCA Ethernet
+device		nfe		# nVidia nForce MCP on-board Ethernet
+device		sbni
+hint.sbni.0.at="isa"
+hint.sbni.0.port="0x210"
+hint.sbni.0.irq="0xefdead"
+hint.sbni.0.flags="0"
+device		vmx		# VMware VMXNET3 Ethernet
+device		wpi		# Intel 3945ABG wireless NICs.
+
+# IEEE 802.11 adapter firmware modules
+
+# Intel PRO/Wireless 2100 firmware:
+#   ipwfw:		BSS/IBSS/monitor mode firmware
+#   ipwbssfw:		BSS mode firmware
+#   ipwibssfw:		IBSS mode firmware
+#   ipwmonitorfw:	Monitor mode firmware
+# Intel PRO/Wireless 2200BG/2225BG/2915ABG firmware:
+#   iwifw:		BSS/IBSS/monitor mode firmware
+#   iwibssfw:		BSS mode firmware
+#   iwiibssfw:		IBSS mode firmware
+#   iwimonitorfw:	Monitor mode firmware
+# Intel Wireless WiFi Link 4965/1000/5000/6000 series firmware:
+#   iwnfw:		Single module to support all devices
+#   iwn1000fw:		Specific module for the 1000 only
+#   iwn105fw:		Specific module for the 105 only
+#   iwn135fw:		Specific module for the 135 only
+#   iwn2000fw:		Specific module for the 2000 only
+#   iwn2030fw:		Specific module for the 2030 only
+#   iwn4965fw:		Specific module for the 4965 only
+#   iwn5000fw:		Specific module for the 5000 only
+#   iwn5150fw:		Specific module for the 5150 only
+#   iwn6000fw:		Specific module for the 6000 only
+#   iwn6000g2afw:	Specific module for the 6000g2a only
+#   iwn6000g2bfw:	Specific module for the 6000g2b only
+#   iwn6050fw:		Specific module for the 6050 only
+# wpifw:	Intel 3945ABG Wireless LAN Controller firmware
+
+device		iwifw
+device		iwibssfw
+device		iwiibssfw
+device		iwimonitorfw
+device		ipwfw
+device		ipwbssfw
+device		ipwibssfw
+device		ipwmonitorfw
+device		iwnfw
+device		iwn1000fw
+device		iwn105fw
+device		iwn135fw
+device		iwn2000fw
+device		iwn2030fw
+device		iwn4965fw
+device		iwn5000fw
+device		iwn5150fw
+device		iwn6000fw
+device		iwn6000g2afw
+device		iwn6000g2bfw
+device		iwn6050fw
+device		wpifw
+
+#
+# Non-Transparent Bridge (NTB) drivers
+#
+device		if_ntb		# Virtual NTB network interface
+device		ntb_transport	# NTB packet transport driver
+device		ntb		# NTB hardware interface
+device		ntb_hw_intel	# Intel NTB hardware driver
+device		ntb_hw_plx	# PLX NTB hardware driver
+
+#
+# ATA raid adapters
+#
+device		pst
+
+#
+# Areca 11xx and 12xx series of SATA II RAID controllers.
+# CAM is required.
+#
+device		arcmsr		# Areca SATA II RAID
+
+#
+# 3ware 9000 series PATA/SATA RAID controller driver and options.
+# The driver is implemented as a SIM, and so, needs the CAM infrastructure.
+#
+options 	TWA_DEBUG		# 0-10; 10 prints the most messages.
+device		twa			# 3ware 9000 series PATA/SATA RAID
+
+#
+# Adaptec FSA RAID controllers, including integrated DELL controllers,
+# the Dell PERC 2/QC and the HP NetRAID-4M
+device		aac
+device		aacp	# SCSI Passthrough interface (optional, CAM required)
+
+#
+# Adaptec by PMC RAID controllers, Series 6/7/8 and upcoming families
+device		aacraid		# Container interface, CAM required
+
+#
+# Highpoint RocketRAID 27xx.
+device		hpt27xx
+
+#
+# Highpoint RocketRAID 182x.
+device		hptmv
+
+#
+# Highpoint DC7280 and R750.
+device		hptnr
+
+#
+# Highpoint RocketRAID.  Supports RR172x, RR222x, RR2240, RR232x, RR2340,
+# RR2210, RR174x, RR2522, RR231x, RR230x.
+device		hptrr
+
+#
+# Highpoint RocketRaid 3xxx series SATA RAID
+device		hptiop
+
+#
+# Intel integrated Memory Controller (iMC) SMBus controller
+#	Sandybridge-Xeon, Ivybridge-Xeon, Haswell-Xeon, Broadwell-Xeon
+device		imcsmb
+
+#
+# IBM (now Adaptec) ServeRAID controllers
+device		ips
+
+#
+# Intel C600 (Patsburg) integrated SAS controller
+device		isci
+options 	ISCI_LOGGING	# enable debugging in isci HAL
+
+#
+# NVM Express (NVMe) support
+device         nvme    # base NVMe driver
+device         nvd     # expose NVMe namespaces as disks, depends on nvme
+
+#
+# PMC-Sierra SAS/SATA controller
+device		pmspcv
+#
+# SafeNet crypto driver: can be moved to the MI NOTES as soon as
+# it's tested on a big-endian machine
+#
+device		safe		# SafeNet 1141
+options 	SAFE_DEBUG	# enable debugging support: hw.safe.debug
+options 	SAFE_RNDTEST	# enable rndtest support
+
+#
+# glxiic is an I2C driver for the AMD Geode LX CS5536 System Management Bus
+# controller.  Requires 'device iicbus'.
+#
+device		glxiic		# AMD Geode LX CS5536 System Management Bus
+
+#
+# glxsb is a driver for the Security Block in AMD Geode LX processors.
+# Requires 'device crypto'.
+#
+device		glxsb		# AMD Geode LX Security Block
+
+#
+# VirtIO support
+#
+# The virtio entry provides a generic bus for use by the device drivers.
+# It must be combined with an interface that communicates with the host.
+# Multiple such interfaces defined by the VirtIO specification. FreeBSD
+# only has support for PCI. Therefore, virtio_pci must be statically
+# compiled in or loaded as a module for the device drivers to function.
+#
+device		virtio		# Generic VirtIO bus (required)
+device		virtio_pci	# VirtIO PCI Interface
+device		vtnet		# VirtIO Ethernet device
+device		virtio_blk	# VirtIO Block device
+device		virtio_scsi	# VirtIO SCSI device
+device		virtio_balloon	# VirtIO Memory Balloon device
+device		virtio_random	# VirtIO Entropy device
+device		virtio_console	# VirtIO Console device
+
+device 		hyperv		# HyperV drivers
+
+#####################################################################
+
+#
+# Miscellaneous hardware:
+#
+# apm: Laptop Advanced Power Management (experimental)
+# ipmi: Intelligent Platform Management Interface
+# smapi: System Management Application Program Interface driver
+# smbios: DMI/SMBIOS entry point
+# vpd: Vital Product Data kernel interface
+# pbio: Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
+# asmc: Apple System Management Controller
+# si: Specialix International SI/XIO or SX intelligent serial card driver
+# tpm: Trusted Platform Module
+
+# Notes on APM
+#  The flags takes the following meaning for apm0:
+#    0x0020  Statclock is broken.
+
+# Notes on the Specialix SI/XIO driver:
+#  The host card is memory, not IO mapped.
+#  The Rev 1 host cards use a 64K chunk, on a 32K boundary.
+#  The Rev 2 host cards use a 32K chunk, on a 32K boundary.
+#  The cards can use an IRQ of 11, 12 or 15.
+
+# Notes on the Sony Programmable I/O controller
+#  This is a temporary driver that should someday be replaced by something
+#  that hooks into the ACPI layer.  The device is hooked to the PIIX4's
+#  General Device 10 decoder, which means you have to fiddle with PCI
+#  registers to map it in, even though it is otherwise treated here as
+#  an ISA device.  At the moment, the driver polls, although the device
+#  is capable of generating interrupts.  It largely undocumented.
+#  The port location in the hint is where you WANT the device to be
+#  mapped.  0x10a0 seems to be traditional.  At the moment the jogdial
+#  is the only thing truly supported, but apparently a fair percentage
+#  of the Vaio extra features are controlled by this device.
+
+device		apm
+hint.apm.0.flags="0x20"
+device		ipmi
+device		smapi
+device		smbios
+device		vpd
+device		pbio
+hint.pbio.0.at="isa"
+hint.pbio.0.port="0x360"
+device		asmc
+device		tpm
+device		padlock_rng	# VIA Padlock RNG
+device		rdrand_rng	# Intel Bull Mountain RNG
+device		aesni		# AES-NI OpenCrypto module
+
+#
+# Laptop/Notebook options:
+#
+# See also:
+#  apm under `Miscellaneous hardware'
+# above.
+
+# For older notebooks that signal a powerfail condition (external
+# power supply dropped, or battery state low) by issuing an NMI:
+
+options 	POWERFAIL_NMI	# make it beep instead of panicing
+
+#
+# I2C Bus
+#
+# Philips i2c bus support is provided by the `iicbus' device.
+#
+# Supported interfaces:
+# pcf	Philips PCF8584 ISA-bus controller
+#
+device		pcf
+hint.pcf.0.at="isa"
+hint.pcf.0.port="0x320"
+hint.pcf.0.irq="5"
+
+#
+# Hardware watchdog timers:
+#
+# ichwd: Intel ICH watchdog timer
+# amdsbwd: AMD SB7xx watchdog timer
+# viawd: VIA south bridge watchdog timer
+# wbwd: Winbond watchdog timer
+#
+device		ichwd
+device		amdsbwd
+device		viawd
+device		wbwd
+
+#
+# Temperature sensors:
+#
+# coretemp: on-die sensor on Intel Core and newer CPUs
+# amdtemp: on-die sensor on AMD K8/K10/K11 CPUs
+#
+device		coretemp
+device		amdtemp
+
+#
+# CPU control pseudo-device. Provides access to MSRs, CPUID info and
+# microcode update feature.
+#
+device		cpuctl
+
+#
+# System Management Bus (SMB)
+#
+options 	ENABLE_ALART		# Control alarm on Intel intpm driver
+
+#
+# Set the number of PV entries per process.  Increasing this can
+# stop panics related to heavy use of shared memory.  However, that can
+# (combined with large amounts of physical memory) cause panics at
+# boot time due the kernel running out of VM space.
+#
+# If you're tweaking this, you might also want to increase the sysctls
+# "vm.v_free_min", "vm.v_free_reserved", and "vm.v_free_target".
+#
+# The value below is the one more than the default.
+#
+options 	PMAP_SHPGPERPROC=201
+
+#
+# Number of initial kernel page table pages used for early bootstrap.
+# This number should include enough pages to map the kernel, any
+# modules or other data loaded with the kernel by the loader, and data
+# structures allocated before the VM system is initialized such as the
+# vm_page_t array.  Each page table page maps 4MB (2MB with PAE).
+#
+options 	NKPT=31
+
+
+#####################################################################
+# ABI Emulation
+
+# Enable (32-bit) a.out binary support
+options 	COMPAT_AOUT
+
+# Enable 32-bit runtime support for CloudABI binaries.
+options 	COMPAT_CLOUDABI32
+
+# Enable Linux ABI emulation
+options 	COMPAT_LINUX
+
+# Enable the linux-like proc filesystem support (requires COMPAT_LINUX
+# and PSEUDOFS)
+options 	LINPROCFS
+
+#Enable the linux-like sys filesystem support (requires COMPAT_LINUX
+# and PSEUDOFS)
+options 	LINSYSFS
+
+# Enable NDIS binary driver support
+options 	NDISAPI
+device		ndis
+
+
+#####################################################################
+# VM OPTIONS
+
+# KSTACK_PAGES is the number of memory pages to assign to the kernel
+# stack of each thread.
+
+options 	KSTACK_PAGES=5
+
+# Enable detailed accounting by the PV entry allocator.
+
+options 	PV_STATS
+
+#####################################################################
+
+# More undocumented options for linting.
+# Note that documenting these are not considered an affront.
+
+options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
+
+options 	I586_PMC_GUPROF=0x70000
+options 	KBDIO_DEBUG=2
+options 	KBD_MAXRETRY=4
+options 	KBD_MAXWAIT=6
+options 	KBD_RESETDELAY=201
+
+options 	PSM_DEBUG=1
+
+options 	TIMER_FREQ=((14318182+6)/12)
+
+options 	VM_KMEM_SIZE
+options 	VM_KMEM_SIZE_MAX
+options 	VM_KMEM_SIZE_SCALE
+
+

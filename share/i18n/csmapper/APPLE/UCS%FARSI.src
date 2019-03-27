@@ -1,0 +1,411 @@
+# $FreeBSD$
+
+TYPE		ROWCOL
+NAME		UCS/FARSI
+SRC_ZONE	0x0000-0xF8FF
+OOB_MODE	INVALID
+DST_INVALID	0x100
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#=======================================================================
+#   File name:  FARSI.TXT
+#
+#   Contents:   Map (external version) from Mac OS Farsi
+#               character set to Unicode 2.1 and later.
+#
+#   Copyright:  (c) 1997-2002, 2005 by Apple Computer, Inc., all rights
+#               reserved.
+#
+#   Contact:    charsets@apple.com
+#
+#   Changes:
+#
+#       c02  2005-Apr-05    Update header comments. Matches internal xml
+#                           <c1.1> and Text Encoding Converter 2.0.
+#      b3,c1 2002-Dec-19    Add comments about character display and
+#                           direction overrides. Update URLs, notes.
+#                           Matches internal utom<b3>.
+#       b02  1999-Sep-22    Update contact e-mail address. Matches
+#                           internal utom<b1>, ufrm<b1>, and Text
+#                           Encoding Converter version 1.5.
+#       n04  1998-Feb-05    Show required Unicode character
+#                           directionality in a different way. Matches
+#                           internal utom<n3>, ufrm<n9>, and Text
+#                           Encoding Converter version 1.3. Update
+#                           header comments; include information on
+#                           loose mapping of digits, and changes to
+#                           mapping for the TrueType variant.
+#       n01  1997-Jul-17    First version. Matches internal utom<n1>,
+#                           ufrm<n2>.
+#
+# Standard header:
+# ----------------
+#
+#   Apple, the Apple logo, and Macintosh are trademarks of Apple
+#   Computer, Inc., registered in the United States and other countries.
+#   Unicode is a trademark of Unicode Inc. For the sake of brevity,
+#   throughout this document, "Macintosh" can be used to refer to
+#   Macintosh computers and "Unicode" can be used to refer to the
+#   Unicode standard.
+#
+#   Apple Computer, Inc. ("Apple") makes no warranty or representation,
+#   either express or implied, with respect to this document and the
+#   included data, its quality, accuracy, or fitness for a particular
+#   purpose. In no event will Apple be liable for direct, indirect,
+#   special, incidental, or consequential damages resulting from any
+#   defect or inaccuracy in this document or the included data.
+#
+#   These mapping tables and character lists are subject to change.
+#   The latest tables should be available from the following:
+#
+#   <http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/>
+#
+#   For general information about Mac OS encodings and these mapping
+#   tables, see the file "README.TXT".
+#
+# Format:
+# -------
+#
+#   Three tab-separated columns;
+#   '#' begins a comment which continues to the end of the line.
+#     Column #1 is the Mac OS Farsi code (in hex as 0xNN)
+#     Column #2 is the corresponding Unicode (in hex as 0xNNNN),
+#       possibly preceded by a tag indicating required directionality
+#       (i.e. <LR>+0xNNNN or <RL>+0xNNNN).
+#     Column #3 is a comment containing the Unicode name.
+#
+#   The entries are in Mac OS Farsi code order.
+#
+#   Control character mappings are not shown in this table, following
+#   the conventions of the standard UTC mapping tables. However, the
+#   Mac OS Farsi character set uses the standard control characters at
+#   0x00-0x1F and 0x7F.
+#
+# Notes on Mac OS Farsi:
+# ----------------------
+#
+#   This is a legacy Mac OS encoding; in the Mac OS X Carbon and Cocoa
+#   environments, it is only supported via transcoding to and from
+#   Unicode.
+#
+#   1. General
+#
+#   The Mac OS Farsi character set is based on the Mac OS Arabic
+#   character set. The main difference is in the right-to-left digits
+#   0xB0-0xB9: For Mac OS Arabic these correspond to right-left
+#   versions of the Unicode ARABIC-INDIC DIGITs 0660-0669; for
+#   Mac OS Farsi these correspond to right-left versions of the
+#   Unicode EXTENDED ARABIC-INDIC DIGITs 06F0-06F9. The other
+#   difference is in the nature of the font variants.
+#
+#   For more information, see the comments in the mapping table for
+#   Mac OS Arabic.
+#
+#   Mac OS Farsi characters 0xEB-0xF2 are non-spacing/combining marks.
+#
+#   2. Directional characters and roundtrip fidelity
+#
+#   The Mac OS Arabic character set (on which Mac OS Farsi is based)
+#   was developed in 1986-1987. At that time the bidirectional line
+#   layout algorithm used in the Mac OS Arabic system was fairly simple;
+#   it used only a few direction classes (instead of the 19 now used in
+#   the Unicode bidirectional algorithm). In order to permit users to
+#   handle some tricky layout problems, certain punctuation and symbol
+#   characters were encoded twice, one with a left-right direction
+#   attribute and the other with a right-left direction attribute. This
+#   is the case in Mac OS Farsi too.
+#
+#   For example, plus sign is encoded at 0x2B with a left-right
+#   attribute, and at 0xAB with a right-left attribute. However, there
+#   is only one PLUS SIGN character in Unicode. This leads to some
+#   interesting problems when mapping between Mac OS Farsi and Unicode;
+#   see below.
+#
+#   A related problem is that even when a particular character is
+#   encoded only once in Mac OS Farsi, it may have a different
+#   direction attribute than the corresponding Unicode character.
+#
+#   For example, the Mac OS Farsi character at 0x93 is HORIZONTAL
+#   ELLIPSIS with strong right-left direction. However, the Unicode
+#   character HORIZONTAL ELLIPSIS has direction class neutral.
+#
+#   3. Behavior of ASCII-range numbers in WorldScript
+#
+#   Mac OS Farsi also has two sets of digit codes.
+
+#   The digits at 0x30-0x39 may be displayed using either European
+#   digit forms or Persian digit forms, depending on context. If there
+#   is a "strong European" character such as a Latin letter on either
+#   side of a sequence consisting of digits 0x30-0x39 and possibly comma
+#   0x2C or period 0x2E, then the characters will be displayed using
+#   European forms (This will happen even if there are neutral characters
+#   between the digits and the strong European character). Otherwise, the
+#   digits will be displayed using Persian forms, the comma will be
+#   displayed as Arabic thousands separator, and the period as Arabic
+#   decimal separator. In any case, 0x2C, 0x2E, and 0x30-0x39 are always
+#   left-right.
+#
+#   The digits at 0xB0-0xB9 are always displayed using Persian digit
+#   shapes, and moreover, these digits always have strong right-left
+#   directionality. These are mainly intended for special layout
+#   purposes such as part numbers, etc.
+#
+#   4. Font variants
+#
+#   The table in this file gives the Unicode mappings for the standard
+#   Mac OS Farsi encoding. This encoding is supported by the Tehran font
+#   (the system font for Farsi), and is the encoding supported by the
+#   text processing utilities. However, the other Farsi fonts actually
+#   implement a somewhat different encoding; this affects nine code
+#   points including 0xAA and 0xC0 (which are also affected by font
+#   variants in Mac OS Arabic). For these nine code points the standard
+#   Mac OS Farsi encoding has the following mappings:
+#       0x8B -> 0x06BA ARABIC LETTER NOON GHUNNA (Urdu)
+#       0xA4 -> <RL>+0x0024 DOLLAR SIGN, right-left
+#       0xAA -> <RL>+0x002A ASTERISK, right-left
+#       0xC0 -> <RL>+0x274A EIGHT TEARDROP-SPOKED PROPELLER ASTERISK,
+#               right-left
+#       0xF4 -> 0x0679 ARABIC LETTER TTEH (Urdu)
+#       0xF7 -> 0x06A4 ARABIC LETTER VEH (for transliteration)
+#       0xF9 -> 0x0688 ARABIC LETTER DDAL (Urdu)
+#       0xFA -> 0x0691 ARABIC LETTER RREH (Urdu)
+#       0xFF -> 0x06D2 ARABIC LETTER YEH BARREE (Urdu)
+#
+#   The TrueType variant is used for the Farsi TrueType fonts: Ashfahan,
+#   Amir, Kamran, Mashad, NadeemFarsi. It differs from the standard
+#   variant in the following ways:
+#       0x8B -> 0xF882 Arabic ligature "peace on him" (corporate char.)
+#       0xA4 -> 0xFDFC RIAL SIGN (added in Unicode 3.2)
+#       0xAA -> <RL>+0x00D7 MULTIPLICATION SIGN, right-left
+#       0xC0 -> <RL>+0x002A ASTERISK, right-left
+#       0xF4 -> <RL>+0x00B0 DEGREE SIGN, right-left
+#       0xF7 -> 0xFDFA ARABIC LIGATURE SALLALLAHOU ALAYHE WASALLAM
+#       0xF9 -> <RL>+0x25CF BLACK CIRCLE, right-left
+#       0xFA -> <RL>+0x25A0 BLACK SQUARE, right-left
+#       0xFF -> <RL>+0x25B2 BLACK UP-POINTING TRIANGLE, right-left
+#
+# Unicode mapping issues and notes:
+# ---------------------------------
+#
+#   1. Matching the direction of Mac OS Farsi characters
+#
+#   When Mac OS Farsi encodes a character twice but with different
+#   direction attributes for the two code points - as in the case of
+#   plus sign mentioned above - we need a way to map both Mac OS Farsi
+#   code points to Unicode and back again without loss of information.
+#   With the plus sign, for example, mapping one of the Mac OS Farsi
+#   characters to a code in the Unicode corporate use zone is
+#   undesirable, since both of the plus sign characters are likely to
+#   be used in text that is interchanged.
+#
+#   The problem is solved with the use of direction override characters
+#   and direction-dependent mappings. When mapping from Mac OS Farsi
+#   to Unicode, we use direction overrides as necessary to force the
+#   direction of the resulting Unicode characters.
+#
+#   The required direction is indicated by a direction tag in the
+#   mappings. A tag of <LR> means the corresponding Unicode character
+#   must have a strong left-right context, and a tag of <RL> indicates
+#   a right-left context.
+#
+#   For example, the mapping of 0x2B is given as <LR>+0x002B; the
+#   mapping of 0xAB is given as <RL>+0x002B. If we map an isolated
+#   instance of 0x2B to Unicode, it should be mapped as follows (LRO
+#   indicates LEFT-RIGHT OVERRIDE, PDF indicates POP DIRECTION
+#   FORMATTING):
+#
+#     0x2B ->  0x202D (LRO) + 0x002B (PLUS SIGN) + 0x202C (PDF)
+#
+#   When mapping several characters in a row that require direction
+#   forcing, the overrides need only be used at the beginning and end.
+#   For example:
+#
+#     0x24 0x20 0x28 0x29 -> 0x202D 0x0024 0x0020 0x0028 0x0029 0x202C
+#
+#   If neutral characters that require direction forcing are already
+#   between strong-direction characters with matching directionality,
+#   then direction overrides need not be used. Direction overrides are
+#   always needed to map the right-left digits at 0xB0-0xB9.
+#
+#   When mapping from Unicode to Mac OS Farsi, the Unicode
+#   bidirectional algorithm should be used to determine resolved
+#   direction of the Unicode characters. The mapping from Unicode to
+#   Mac OS Farsi can then be disambiguated by the use of the resolved
+#   direction:
+#
+#     Unicode 0x002B -> Mac OS Farsi 0x2B (if L) or 0xAB (if R)
+#
+#   However, this also means the direction override characters should
+#   be discarded when mapping from Unicode to Mac OS Farsi (after
+#   they have been used to determine resolved direction), since the
+#   direction override information is carried by the code point itself.
+#
+#   Even when direction overrides are not needed for roundtrip
+#   fidelity, they are sometimes used when mapping Mac OS Farsi
+#   characters to Unicode in order to achieve similar text layout with
+#   the resulting Unicode text. For example, the single Mac OS Farsi
+#   ellipsis character has direction class right-left,and there is no
+#   left-right version. However, the Unicode HORIZONTAL ELLIPSIS
+#   character has direction class neutral (which means it may end up
+#   with a resolved direction of left-right if surrounded by left-right
+#   characters). When mapping the Mac OS Farsi ellipsis to Unicode, it
+#   is surrounded with a direction override to help preserve proper
+#   text layout. The resolved direction is not needed or used when
+#   mapping the Unicode HORIZONTAL ELLIPSIS back to Mac OS Farsi.
+#
+#   2. Mapping the Mac OS Farsi digits
+#
+#   The main table below contains mappings that should be used when
+#   strict round-trip fidelity is required. However, for numeric
+#   values, the mappings in that table will produce Unicode characters
+#   that may appear different than the Mac OS Farsi text displayed on
+#   a Mac OS system using WorldScript. This is because WorldScript
+#   uses context-dependent display for the 0x30-0x39 digits.
+#
+#   If roundtrip fidelity is not required, then the following
+#   alternate mappings should be used when a sequence of 0x30-0x39
+#   digits - possibly including 0x2C and 0x2E - occurs in an Arabic
+#   context (that is, when the first "strong" character on either side
+#   of the digit sequence is Arabic, or there is no strong character):
+#
+#     0x2C	0x066C	# ARABIC THOUSANDS SEPARATOR
+#     0x2E	0x066B	# ARABIC DECIMAL SEPARATOR
+#     0x30	0x06F0	# EXTENDED ARABIC-INDIC DIGIT ZERO
+#     0x31	0x06F1	# EXTENDED ARABIC-INDIC DIGIT ONE
+#     0x32	0x06F2	# EXTENDED ARABIC-INDIC DIGIT TWO
+#     0x33	0x06F3	# EXTENDED ARABIC-INDIC DIGIT THREE
+#     0x34	0x06F4	# EXTENDED ARABIC-INDIC DIGIT FOUR
+#     0x35	0x06F5	# EXTENDED ARABIC-INDIC DIGIT FIVE
+#     0x36	0x06F6	# EXTENDED ARABIC-INDIC DIGIT SIX
+#     0x37	0x06F7	# EXTENDED ARABIC-INDIC DIGIT SEVEN
+#     0x38	0x06F8	# EXTENDED ARABIC-INDIC DIGIT EIGHT
+#     0x39	0x06F9	# EXTENDED ARABIC-INDIC DIGIT NINE
+#
+#   3. Use of corporate-zone Unicodes (mapping the TrueType variant)
+#
+#   The following corporate zone Unicode character is used in this
+#   mapping:
+#
+#     0xF882  Arabic ligature "peace on him"
+#
+# Details of mapping changes in each version:
+# -------------------------------------------
+#
+#   Changes from version b02 to version b03/c01:
+#
+#   - Update mapping of 0xA4 in TrueType variant to use new Unicode
+#     character U+FDFC RIAL SIGN addded for Unicode 3.2
+#
+#   Changes from version n01 to version n04:
+#
+#   - Change mapping of 0xA4 in TrueType variant (just described in
+#     header comment) from single corporate character to use
+#     grouping hint
+#
+##################
+
+0x0000 - 0x007F = 0x00 -
+0x00A0 = 0x81
+0x00AB = 0x8C
+0x00BB = 0x98
+0x00C4 = 0x80
+0x00C7 = 0x82
+0x00C9 = 0x83
+0x00D1 = 0x84
+0x00D6 = 0x85
+0x00DC = 0x86
+0x00E0 = 0x88
+0x00E1 = 0x87
+0x00E2 = 0x89
+0x00E4 = 0x8A
+0x00E7 = 0x8D
+0x00E8 = 0x8F
+0x00E9 = 0x8E
+0x00EA = 0x90
+0x00EB = 0x91
+0x00ED = 0x92
+0x00EE = 0x94
+0x00EF = 0x95
+0x00F1 = 0x96
+0x00F3 = 0x97
+0x00F4 = 0x99
+0x00F6 = 0x9A
+0x00F7 = 0x9B
+0x00F9 = 0x9D
+0x00FA = 0x9C
+0x00FB = 0x9E
+0x00FC = 0x9F
+0x060C = 0xAC
+0x061B = 0xBB
+0x061F = 0xBF
+0x0621 = 0xC1
+0x0622 = 0xC2
+0x0623 = 0xC3
+0x0624 = 0xC4
+0x0625 = 0xC5
+0x0626 = 0xC6
+0x0627 = 0xC7
+0x0628 = 0xC8
+0x0629 = 0xC9
+0x062A = 0xCA
+0x062B = 0xCB
+0x062C = 0xCC
+0x062D = 0xCD
+0x062E = 0xCE
+0x062F = 0xCF
+0x0630 = 0xD0
+0x0631 = 0xD1
+0x0632 = 0xD2
+0x0633 = 0xD3
+0x0634 = 0xD4
+0x0635 = 0xD5
+0x0636 = 0xD6
+0x0637 = 0xD7
+0x0638 = 0xD8
+0x0639 = 0xD9
+0x063A = 0xDA
+0x0640 = 0xE0
+0x0641 = 0xE1
+0x0642 = 0xE2
+0x0643 = 0xE3
+0x0644 = 0xE4
+0x0645 = 0xE5
+0x0646 = 0xE6
+0x0647 = 0xE7
+0x0648 = 0xE8
+0x0649 = 0xE9
+0x064A = 0xEA
+0x064B = 0xEB
+0x064C = 0xEC
+0x064D = 0xED
+0x064E = 0xEE
+0x064F = 0xEF
+0x0650 = 0xF0
+0x0651 = 0xF1
+0x0652 = 0xF2
+0x066A = 0xA5
+0x0679 = 0xF4
+0x067E = 0xF3
+0x0686 = 0xF5
+0x0688 = 0xF9
+0x0691 = 0xFA
+0x0698 = 0xFE
+0x06A4 = 0xF7
+0x06AF = 0xF8
+0x06BA = 0x8B
+0x06D2 = 0xFF
+0x06D5 = 0xF6
+0x06F0 = 0xB0
+0x06F1 = 0xB1
+0x06F2 = 0xB2
+0x06F3 = 0xB3
+0x06F4 = 0xB4
+0x06F5 = 0xB5
+0x06F6 = 0xB6
+0x06F7 = 0xB7
+0x06F8 = 0xB8
+0x06F9 = 0xB9
+0x2026 = 0x93
+0x274A = 0xC0
+END_MAP

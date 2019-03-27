@@ -1,0 +1,118 @@
+.\"-
+.\" Copyright (c) 2000, 2009 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 25, 2016
+.Dt POSIX1E 3
+.Os
+.Sh NAME
+.Nm posix1e
+.Nd introduction to the POSIX.1e security API
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/acl.h
+.In sys/mac.h
+.Sh DESCRIPTION
+POSIX.1e describes five security extensions to the POSIX.1 API: Access
+Control Lists (ACLs), Auditing, Capabilities, Mandatory Access Control, and
+Information Flow Labels.
+While IEEE POSIX.1e D17 specification has not been standardized, several of
+its interfaces are widely used.
+.Pp
+.Fx
+implements POSIX.1e interface for access control lists, described in
+.Xr acl 3 ,
+and supports ACLs on the
+.Xr ffs 7
+file system; ACLs must be administratively enabled using
+.Xr tunefs 8 .
+.Pp
+.Fx
+implements a POSIX.1e-like mandatory access control interface, described in
+.Xr mac 3 ,
+although with a number of extensions and important semantic differences.
+.Pp
+.Fx
+does not implement the POSIX.1e audit, privilege (capability), or information
+flow label APIs.
+However,
+.Fx
+does implement the
+.Xr libbsm 3
+audit API.
+It also provides
+.Xr capsicum 4 ,
+a lightweight OS capability and sandbox framework implementing a
+hybrid capability system model.
+.Sh ENVIRONMENT
+POSIX.1e assigns security attributes to all objects, extending the security
+functionality described in POSIX.1.
+These additional attributes store fine-grained discretionary access control
+information and mandatory access control labels; for files, they are stored
+in extended attributes, described in
+.Xr extattr 3 .
+.Pp
+POSIX.2c describes
+a set of userland utilities for manipulating these attributes, including
+.Xr getfacl 1
+and
+.Xr setfacl 1
+for access control lists, and
+.Xr getfmac 8
+and
+.Xr setfmac 8
+for mandatory access control labels.
+.Sh SEE ALSO
+.Xr getfacl 1 ,
+.Xr setfacl 1 ,
+.Xr extattr 2 ,
+.Xr acl 3 ,
+.Xr extattr 3 ,
+.Xr libbsm 3 ,
+.Xr libcasper 3 ,
+.Xr mac 3 ,
+.Xr capsicum 4 ,
+.Xr ffs 7 ,
+.Xr getfmac 8 ,
+.Xr setfmac 8 ,
+.Xr tunefs 8 ,
+.Xr acl 9 ,
+.Xr extattr 9 ,
+.Xr mac 9
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+.Sh HISTORY
+POSIX.1e support was introduced in
+.Fx 4.0 ;
+most features were available as of
+.Fx 5.0 .
+.Sh AUTHORS
+.An Robert N M Watson
+.An Chris D. Faulhaber
+.An Thomas Moestl
+.An Ilmar S Habibulin

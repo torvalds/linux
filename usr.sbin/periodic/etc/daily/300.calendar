@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+# `calendar -a' needs to die. Why? Because it's a bad idea, particular
+# with networked home directories, but also in general.  If you want the
+# output of `calendar' mailed to you, set up a cron job to do it,
+# or run it from your ~/.profile or ~/.login.
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_calendar_enable" in
+    [Yy][Ee][Ss])
+	echo ""
+	echo "Running calendar:"
+
+	calendar -a && rc=0 || rc=3;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

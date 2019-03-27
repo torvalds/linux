@@ -1,0 +1,62 @@
+dnl Process this file with 'autoconf' to produce a 'configure' script
+dnl $Id: configure.in,v 1.21 2015/07/05 22:07:36 tom Exp $
+AC_PREREQ(2.52.20011201)
+AC_REVISION($Revision: 1.21 $)
+AC_INIT(main.c)
+AC_CONFIG_HEADER(config.h:config_h.in)
+
+CF_CHECK_CACHE([AC_CANONICAL_SYSTEM])
+
+AC_ARG_PROGRAM
+CF_PROG_CC
+AC_PROG_MAKE_SET
+AC_PROG_INSTALL
+CF_MAKE_TAGS
+CF_PROG_AWK
+CF_PROG_LINT
+
+CF_XOPEN_SOURCE
+AC_CHECK_HEADERS(fcntl.h)
+CF_MKSTEMP
+AC_HAVE_FUNCS(vsnprintf)
+
+AC_MSG_CHECKING(for maximum table size)
+AC_ARG_WITH([max-table-size],
+  [AC_HELP_STRING([--with-max-table-size=N],
+    [set the maximum table size = N (no default)])])
+if test -n "$with_max_table_size"
+then
+	AC_MSG_RESULT($with_max_table_size)
+	check=`expr "$with_max_table_size" + 0`
+	if test "x$check" != "x$with_max_table_size"
+	then
+		AC_MSG_ERROR([invalid value for --with-max-table-size: $with_max_table_size])
+	fi
+	AC_DEFINE_UNQUOTED(MAXTABLE,$with_max_table_size,[Define to maximum table size (default: 32500)])
+else
+	AC_MSG_RESULT(default)
+fi
+
+AC_MSG_CHECKING(if backtracking extension is wanted)
+AC_ARG_ENABLE([btyacc],
+  [AC_HELP_STRING([--enable-btyacc],
+     [turn on support for the btyacc backtracking extension (default: no)])])
+AC_MSG_RESULT($enable_btyacc)
+if test "$enable_btyacc" = "yes"; then
+	AC_DEFINE(YYBTYACC,1,[Define to 1 to enable backtracking extension])
+	SKELETON=btyaccpar
+else
+	SKELETON=yaccpar
+fi
+AC_SUBST(SKELETON)
+
+CF_WITH_WARNINGS(Wwrite-strings)
+CF_DISABLE_ECHO
+CF_DISABLE_LEAKS
+CF_WITH_MAN2HTML
+
+AC_TYPE_MODE_T
+
+###	output makefile
+AC_OUTPUT(makefile)
+CF_MAKE_DOCS(yacc,1)

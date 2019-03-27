@@ -1,0 +1,408 @@
+-*- text -*-
+* Added support for National Semicondutor CompactRISC (ie CR16) target.
+
+* -l:foo now searches the library path for a filename called foo,
+  without converting it to libfoo.a or libfoo.so.
+
+* Add a new command line option '--default-script=FILE' or '-dT FILE'
+  which specifies a replacement for the built in, default linker
+  script.
+
+* ELF: Add -Bsymbolic-functions, --dynamic-list-cpp-new, which puts C++
+  operator new and delete on the dynamic list, and --dynamic-list-data,
+  builtin list for --dynamic-list, which puts global data symbols on the
+  dynamic list.
+
+* Add support for x86_64 PE+ target.
+
+* Add support for Score target.
+
+* ELF: Add --dynamic-list option to specify a list of global symbols
+  whose references shouldn't be bound to the definition within the
+  shared library, or a list of symbols which should be added to the
+  symbol table in the executable.
+
+* The default output section LMA has changed for allocatable sections from
+  being equal to VMA, to keeping the difference between LMA and VMA the same as
+  the previous output section in the same region.  This is a more useful
+  default when using overlays and other cases where you specify an LMA
+  differing from the VMA for some sections.
+
+* New switch: --print-gc-sections to list any sections removed by garabge
+  collection.
+
+* ARM: Added --vfp11-denorm-fix option to work around an erratum in current
+VFP11 coprocessors.
+
+Changes in 2.17:
+
+* Support for the Infineon XC16X has been added by KPIT Cummins Infosystems.
+
+* Modify the Linux linker search order to better match ld.so search order.
+  Look for DT_NEEDED libraries in paths specified by ld.so.conf before
+  searching the default directories, rather than vice versa.
+  Use $prefix/etc/ld.so.conf if it exists, otherwise /etc/ld.so.conf.
+
+* PE-COFF: Forward exports from DLL's can now be specified in .def files
+  passed directly to ld.
+
+* Support for the Z80 processor family has been added.
+
+* Add support for the "@<file>" syntax to the command line, so that extra
+  switches can be read from <file>.
+
+Changes in 2.16:
+
+* Support for the R_ARM_V4BX relocation as defined in the ARM AAELF
+  specification has been added via the --fix-v4bx command-line option.
+
+* New linker script construct AS_NEEDED(), which sets the --as-needed flag
+  for input files listed inside of it.
+
+* A new command-line option, --sysroot, can be used to override the
+  default sysroot location.  It only applies to toolchains that were
+  configured using --with-sysroot.
+
+* New linker script functions: ORIGIN() and LENGTH() which return information
+  about a specified memory region.
+
+* Port to MAXQ processor contributed by HCL Tech.
+
+* Added SEGMENT_START to the linker script language to permit the user to
+  override the base address for a segment from the command-line.
+
+* ELF: --warn-shared-textrel option to warn if adding a DT_TEXTREL to a shared
+  object.
+
+* Added SORT_BY_NAME and SORT_BY_ALIGNMENT to the linker script
+  language to permit sorting sections by section name or section
+  maximum alignment.
+
+* Added a new linker command line switch, --sort-section name|alignment,
+  to sort sections by section name or maximum alignment.
+
+* ELF: --add-needed/--no-add-needed options to control if a DT_NEEDED tag
+  should be added when a shared library comes from DT_NEEDED tags.
+
+* Support for the crx-elf target added.
+
+* Support for the sh-symbianelf target added.
+
+* A new linker command line switch has been added which allows the hash table
+  size to be set to a suitable prime value near to its argument.  This switch
+  is --hash-size=<NUMBER>.  Also if the switch --reduce-memory-overheads is
+  used, and --hash-size has not been used, then the default value will be set
+  to 1021.
+
+* Linker map files are now generated with an O(N) algorithm for finding symbols
+  that are defined in each section.  This uses about 40% more memory for
+  symbols than the old O(N^2) algorithm.  You can use the new
+  --reduce-memory-overheads option to select the old algorithm; this option
+  might also be used in the future to select similar tradeoffs.
+
+Changes in 2.15:
+
+* ELF: --as-needed/--no-as-needed options to control if a DT_NEEDED tag should
+  be added only when a shared library is referenced.
+  
+* PE: --large-address-aware option to indicate executables support virtual
+  addresses greater than 2 gigabytes.
+
+* DWARF 2 support for i386pe added.
+
+* The linker script operator DEFINED() will now yield 1 only for a symbol that
+  is defined before the statement where DEFINED is used.
+
+* The MIPS --embedded-relocs (used to embed relocations into binaries for
+  Embedded-PIC code) is deprecated and will be removed in a future release.
+
+* cr16c support added by NSC.
+
+* m32r Linux (ELF) support added by Renesas.
+
+* Improved linker's handling of unresolved symbols.  The switch
+  --unresolved-symbols=<method> has been added to tell the linker when it
+  should report them and the switch --warn-unresolved-symbols has been added to
+  make reports be issued as warning messages rather than errors.
+
+Changes in 2.14:
+
+* Added support for Xtensa architecture.
+
+* Added --with-sysroot configure switch to specify a target system root, for
+  linking against a target filesystem image.
+
+* Added --accept-unknown-linker-format to restore old linker behaviour (pre
+  2.14) of silently accepting and linking in any files in an unknown binary
+  file format.
+
+* Added --no-omagic to undo the effects of the -N option.
+
+* Support for Texas Instruments TMS320C4x and TMS320C3x series of
+  DSP's contributed by Michael Hayes and Svein E. Seldal.
+  
+* Added --with-lib-path configure switch to specify default value for
+  LIB_PATH.
+
+* ARM port to QNX operating system added by Graeme Peterson.
+
+* IP2K support added by Denis Chertykov.
+
+Changes in 2.13:
+
+* Support for the Fujitsu FRV architecture added by Red Hat. Models for FR400
+  and FR500 included.
+
+Changes in version 2.13:
+
+* DEC VAX ELF support, by Matt Thomas.
+
+Changes in version 2.12:
+
+* Support for Don Knuth's MMIX, by Hans-Peter Nilsson.
+
+* Support for the OpenRISC 32-bit embedded processor by OpenCores.
+
+* Support for -z nocopyreloc in the x86 ELF linker, which disables
+  production of copy relocs.  Warning: using this option may result in
+  non-sharable applications.
+
+* Support for -z combreloc in the ELF linker, which puts dynamic
+  relocations against the same symbol together, so that dynamic linker
+  can use an one-entry symbol lookup cache.
+
+* Support for ELF SHF_MERGE section merging, by Jakub Jelinek.
+
+Changes in version 2.11:
+
+* Support for AMD x86-64 architecture, by Jan Hubicka, SuSE Labs.
+
+* Support added for eliminating duplicate DWARF2 debug information by
+  having the compiler generate the information in sections called
+  .gnu.linkonce.wi.XXXX where XXXX is a checksum for the contents.  The
+  linker then merges these sections together into the normal .debug_info
+  section.
+
+* The native ELF linker now searches the directories in DT_RUNPATH or
+  DT_RPATH of a shared library for shared libraries needed by it.
+
+* TI C54x support, by Timothy Wall.
+
+* Added command line switch --section-start to set the start address of any
+  specified section. 
+
+* Added ability to emit full relocation information in linked executables,
+  enabled by --emit-relocs.  Some post-linkage optimization tools need
+  this information in order to be able to correctly identify and perform
+  symbol relative addressing in the event of changes in section contents
+  (instructions being added or deleted, extending data sections, etc.)
+
+* Support for i860, by Jason Eckhardt (preliminary, alpha quality).
+
+* Support for CRIS (Axis Communications ETRAX series).
+
+* Support for PDP-11 and 2.11BSD a.out format, by Lars Brinkhoff.
+
+Changes in version 2.10:
+
+* Added AT> to the linker script language to allow load-time allocation of 
+  sections into regions.
+
+* Added garbage collection of unused sections, enabled by --gc-sections. 
+  It does require a bit of backend support; currently implemented are
+  arm-elf, avr-elf, d10v-elf, fr30-elf, i386-elf, m32r-elf, m68k-elf,
+  mcore-elf, mips-elf, mn10300-elf, ppc-elf, sh-elf, sparc-elf, and v850-elf.
+  Others will ignore the option.
+
+* Added SORT to the linker script language to permit sorting sections by file
+  name or section name.
+
+* Added EXTERN to the linker script language as an equivalent to the -u
+  command-line option.
+
+* Added ASSERT to the linker script language.
+
+* Added EXCLUDE_FILE to the linker script language for further control over
+  wildcard file names.
+
+* Added -O option to optimize linker output (as of this writing, this only
+  affects ELF shared library generation).
+
+* The -e option now accepts a number as well as a symbol name.
+
+* Added --no-undefined option to disallow undefined symbols when creating a
+  shared library.
+
+* The linker now issues a warning, not an error, for an undefined symbol when
+  using -Bsymbolic; use the new --no-undefined option to get the old
+  behaviour.
+
+* Added --demangle and --no-demangle options.
+
+Changes in version 2.9:
+
+* Added SQUAD to the linker script language.
+
+* New option --no-warn-mismatch.
+
+* The MEMORY command now parses the attributes to determine where sections that
+  are not placed in a specific memory region are placed.
+
+Changes in version 2.8:
+
+* Linker scripts may now contain shell wildcard characters for file and section
+  names.
+
+* The linker now supports symbol versions in ELF.
+
+* The NOCROSSREFS command was added to the linker script language.
+
+* The LOADADDR expression was added to the linker script language.
+
+* MAX and MIN functions were added to the linker script language.
+
+* The OVERLAY construct was added to the linker script language.
+
+* New option --warn-section-align to warn when the address of an output section
+  changes due to alignment of an input section.
+
+* New options --filter/-F and --auxiliary/-f.
+
+Changes in version 2.7:
+
+* New option --cref to print out a cross reference table.
+
+* New option --wrap SYMBOL.
+
+* New option --no-whole-archive, to turn off the effect of --whole-archive.
+
+* Input sections assigned to the output section /DISCARD/ in the linker script
+  are not included in the output file.
+
+* The SunOS and ELF linkers now merge stabs debugging information which uses
+  the N_BINCL and N_EINCL stab types.  This reduces the amount of debugging
+  information generated.
+
+Changes in version 2.6:
+
+* When an ELF section name is representable as a C identifier (this is not true
+of most ELF section names), the linker will automatically define symbols
+__start_SECNAME and __stop_SECNAME, where SECNAME is the section name, at the
+beginning and the end of the section.  This is used by glibc.
+
+* When an ELF section named .gnu.warning is encountered in an input file, the
+contents of the section are displayed as an error message, and the section is
+not copied into the output file.  This is used by glibc.
+
+* When an ELF section named .gnu.warning.SYMBOL is encountered in an input
+file, and the symbol SYMBOL is referenced by some object file, the contents of
+the section are displayed as an error message.  The section is not copied into
+the output file, unless doing a relocatable or shared link.  This is used by
+glibc.
+
+* New options -split-by-reloc and -split-by-file.
+
+* The linker now supports linking PIC compiled code on SPARC SunOS.  It can
+also create SPARC SunOS shared libraries, and, like the native SunOS linker,
+will do so whenever there is an undefined symbol in the link and neither the -e
+nor the -r option was used.
+
+* The -rpath option may be used on SunOS to set the list of directories to be
+searched at run time.  This overrides the default of building the list from the
+-L options.
+
+* The COFF linker now combines debugging information for structs, unions, and
+enums, so that even if the same type is defined in multiple input files it will
+only be defined once in the output file.  The --traditional-format switch will
+prevent this optimization.
+
+Changes in version 2.5:
+
+* The linker now supports linking against SunOS shared libraries.  It still can
+not link SunOS PIC (Position Independent Code) files, so it can not be used to
+generate shared libraries.
+
+* The linker now supports linking against ELF shared libraries for the i386
+(UnixWare) and SPARC (Solaris).  It can also link ELF PIC files, and can be
+used to generate shared libraries.  Shared library generation is not well
+tested; please report any problems encountered.  The linker is now enabled for
+Solaris again.
+
+* Eric Youngdale has contributed Linux support code, including linking against
+Linux a.out shared libraries.  The linker produces Linux QMAGIC binaries.
+
+* The ELF backend has been converted to the new linker code.  To use the new
+ELF linker, each particular target requires a relocation function.  So far,
+this function has been written for i386 (UnixWare), SPARC (Solaris) MIPS (Irix
+5), and HPPA ELF targets.
+
+* The -( (--start-group) and -) (--end-group) options have been added to
+support searching a group of archives as though they were a single archive.
+This can also be used in a linker script, as GROUP ( files ).
+
+* When a file is named on the command line, and the linker does not recognize
+it as an object file, the linker will now treat the file as a linker script
+file.  A linker script named in this way augments, but does not replace, the
+default linker script.
+
+* The -warn-once option was added.  It causes the linker to only warn once per
+undefined symbol, rather than once per reference.
+
+* The COFF backend has been converted to the new linker code.  As with ELF, to
+use the new linker, each particular target requires a relocation function.  So
+far, this function has been written for the i386, m68k, a29k and SH targets.
+
+* The -V flag was made a synonym for -v, for SVR4 compatibility.  The old -V
+behaviour is available via --verbose.
+
+Changes in version 2.4:
+
+* New linker code, by Steve Chamberlain and Ian Taylor.  For a.out and ecoff
+  formats (so far), this should result in considerable savings in time
+  and memory used while linking; slightly poorer performance than
+  before for formats not converted yet.
+
+* Command-line parsing is no longer done with flex.  This means
+  oddball characters in filenames won't get treated as argument
+  separators.
+
+* HP-PA ELF support, by Jeff Law.  (No SOM support yet.)
+
+* Mach i386 support, by David Mackenzie.
+
+* Irix 4 shared libraries are now supported (Irix 5 uses ELF, and ELF shared
+  libraries are not yet supported).
+
+* COFF shared libraries (as on SCO) should work as well.
+
+* The linker is disabled for Solaris.  (Actually, it was in 2.3 also, I just
+  forgot to note it.)  Some of their C library routines don't work when
+  statically linked, and the GNU linker doesn't support dynamic linking yet.
+
+Changes in version 2.3:
+
+* Weak symbols are now supported.
+
+* ELF support has been added.  The linker has been bootstrapped on
+  UnixWare and Solaris.
+
+* Alpha OSF/1 support has been added (non dynamic linking only).
+
+Changes in version 2.2:
+
+* The `bfd' library has been updated to reduce a.out-format string
+  table size.  The effect of this is that files linked from many input
+  files with duplicate symbols (`-g' debugging records, or identical
+  static symbols) should be much smaller.
+
+Changes in version 2.1:
+
+* The ld -ySYMBOL flag (to trace references to SYMBOL) is now implemented.
+
+* There is now support for writing ECOFF files, so ld and the
+  other utilities should work on Risc/Ultrix and Irix.
+
+
+Local variables:
+fill-column: 79
+End:

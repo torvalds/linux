@@ -1,0 +1,714 @@
+.\"-
+.\" Copyright (c) 2000 Poul-Henning Kamp and Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 23, 2018
+.Dt SBUF 9
+.Os
+.Sh NAME
+.Nm sbuf ,
+.Nm sbuf_new ,
+.Nm sbuf_new_auto ,
+.Nm sbuf_new_for_sysctl ,
+.Nm sbuf_clear ,
+.Nm sbuf_get_flags ,
+.Nm sbuf_set_flags ,
+.Nm sbuf_clear_flags ,
+.Nm sbuf_setpos ,
+.Nm sbuf_bcat ,
+.Nm sbuf_bcopyin ,
+.Nm sbuf_bcpy ,
+.Nm sbuf_cat ,
+.Nm sbuf_copyin ,
+.Nm sbuf_cpy ,
+.Nm sbuf_printf ,
+.Nm sbuf_vprintf ,
+.Nm sbuf_putc ,
+.Nm sbuf_set_drain ,
+.Nm sbuf_trim ,
+.Nm sbuf_error ,
+.Nm sbuf_finish ,
+.Nm sbuf_data ,
+.Nm sbuf_len ,
+.Nm sbuf_done ,
+.Nm sbuf_delete ,
+.Nm sbuf_start_section ,
+.Nm sbuf_end_section ,
+.Nm sbuf_hexdump ,
+.Nm sbuf_putbuf
+.Nd safe string composition
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/sbuf.h
+.Ft typedef\ int ( sbuf_drain_func ) ( void\ *arg, const\ char\ *data, int\ len ) ;
+.Pp
+.Ft struct sbuf *
+.Fo sbuf_new
+.Fa "struct sbuf *s"
+.Fa "char *buf"
+.Fa "int length"
+.Fa "int flags"
+.Fc
+.Ft struct sbuf *
+.Fo sbuf_new_auto
+.Fa "void"
+.Fc
+.Ft void
+.Fo sbuf_clear
+.Fa "struct sbuf *s"
+.Fc
+.Ft int
+.Fo sbuf_get_flags
+.Fa "struct sbuf *s"
+.Fc
+.Ft void
+.Fo sbuf_set_flags
+.Fa "struct sbuf *s"
+.Fa "int flags"
+.Fc
+.Ft void
+.Fo sbuf_clear_flags
+.Fa "struct sbuf *s"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo sbuf_setpos
+.Fa "struct sbuf *s"
+.Fa "int pos"
+.Fc
+.Ft int
+.Fo sbuf_bcat
+.Fa "struct sbuf *s"
+.Fa "const void *buf"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo sbuf_bcpy
+.Fa "struct sbuf *s"
+.Fa "const void *buf"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo sbuf_cat
+.Fa "struct sbuf *s"
+.Fa "const char *str"
+.Fc
+.Ft int
+.Fo sbuf_cpy
+.Fa "struct sbuf *s"
+.Fa "const char *str"
+.Fc
+.Ft int
+.Fo sbuf_printf
+.Fa "struct sbuf *s"
+.Fa "const char *fmt" "..."
+.Fc
+.Ft int
+.Fo sbuf_vprintf
+.Fa "struct sbuf *s"
+.Fa "const char *fmt"
+.Fa "va_list ap"
+.Fc
+.Ft int
+.Fo sbuf_putc
+.Fa "struct sbuf *s"
+.Fa "int c"
+.Fc
+.Ft void
+.Fo sbuf_set_drain
+.Fa "struct sbuf *s"
+.Fa "sbuf_drain_func *func"
+.Fa "void *arg"
+.Fc
+.Ft int
+.Fo sbuf_trim
+.Fa "struct sbuf *s"
+.Fc
+.Ft int
+.Fo sbuf_error
+.Fa "struct sbuf *s"
+.Fc
+.Ft int
+.Fo sbuf_finish
+.Fa "struct sbuf *s"
+.Fc
+.Ft char *
+.Fo sbuf_data
+.Fa "struct sbuf *s"
+.Fc
+.Ft ssize_t
+.Fo sbuf_len
+.Fa "struct sbuf *s"
+.Fc
+.Ft int
+.Fo sbuf_done
+.Fa "struct sbuf *s"
+.Fc
+.Ft void
+.Fo sbuf_delete
+.Fa "struct sbuf *s"
+.Fc
+.Ft void
+.Fo sbuf_start_section
+.Fa "struct sbuf *s"
+.Fa "ssize_t *old_lenp"
+.Fc
+.Ft ssize_t
+.Fo sbuf_end_section
+.Fa "struct sbuf *s"
+.Fa "ssize_t old_len"
+.Fa "size_t pad"
+.Fa "int c"
+.Fc
+.Ft void
+.Fo sbuf_hexdump
+.Fa "struct sbuf *sb"
+.Fa "void *ptr"
+.Fa "int length"
+.Fa "const char *hdr"
+.Fa "int flags"
+.Fc
+.Ft void
+.Fo sbuf_putbuf
+.Fa "struct sbuf *s"
+.Fc
+.Fd #ifdef _KERNEL
+.In sys/types.h
+.In sys/sbuf.h
+.Ft int
+.Fo sbuf_bcopyin
+.Fa "struct sbuf *s"
+.Fa "const void *uaddr"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo sbuf_copyin
+.Fa "struct sbuf *s"
+.Fa "const void *uaddr"
+.Fa "size_t len"
+.Fc
+.In sys/sysctl.h
+.Ft struct sbuf *
+.Fo sbuf_new_for_sysctl
+.Fa "struct sbuf *s"
+.Fa "char *buf"
+.Fa "int length"
+.Fa "struct sysctl_req *req"
+.Fc
+.Fd #endif	/* _KERNEL */
+.Sh DESCRIPTION
+The
+.Nm
+family of functions allows one to safely allocate, compose and
+release strings in kernel or user space.
+.Pp
+Instead of arrays of characters, these functions operate on structures
+called
+.Fa sbufs ,
+defined in
+.In sys/sbuf.h .
+.Pp
+Any errors encountered during the allocation or composition of the
+string will be latched in the data structure,
+making a single error test at the end of the composition
+sufficient to determine success or failure of the entire process.
+.Pp
+The
+.Fn sbuf_new
+function initializes the
+.Fa sbuf
+pointed to by its first argument.
+If that pointer is
+.Dv NULL ,
+.Fn sbuf_new
+allocates a
+.Vt struct sbuf
+using
+.Xr malloc 9 .
+The
+.Fa buf
+argument is a pointer to a buffer in which to store the actual string;
+if it is
+.Dv NULL ,
+.Fn sbuf_new
+will allocate one using
+.Xr malloc 9 .
+The
+.Fa length
+is the initial size of the storage buffer.
+The fourth argument,
+.Fa flags ,
+may be comprised of the following flags:
+.Bl -tag -width ".Dv SBUF_AUTOEXTEND"
+.It Dv SBUF_FIXEDLEN
+The storage buffer is fixed at its initial size.
+Attempting to extend the sbuf beyond this size results in an overflow condition.
+.It Dv SBUF_AUTOEXTEND
+This indicates that the storage buffer may be extended as necessary, so long
+as resources allow, to hold additional data.
+.It Dv SBUF_INCLUDENUL
+This causes the final nulterm byte to be counted in the length of the data.
+.It Dv SBUF_DRAINTOEOR
+Treat top-level sections started with
+.Fn sbuf_start_section
+as a record boundary marker that will be used during drain operations to avoid
+records being split.
+If a record grows sufficiently large such that it fills the
+.Fa sbuf
+and therefore cannot be drained without being split, an error of EDEADLK is set.
+.El
+.Pp
+Note that if
+.Fa buf
+is not
+.Dv NULL ,
+it must point to an array of at least
+.Fa length
+characters.
+The result of accessing that array directly while it is in use by the
+sbuf is undefined.
+.Pp
+The
+.Fn sbuf_new_auto
+function is a shortcut for creating a completely dynamic
+.Nm .
+It is the equivalent of calling
+.Fn sbuf_new
+with values
+.Dv NULL ,
+.Dv NULL ,
+.Dv 0 ,
+and
+.Dv SBUF_AUTOEXTEND .
+.Pp
+The
+.Fn sbuf_new_for_sysctl
+function will set up an sbuf with a drain function to use
+.Fn SYSCTL_OUT
+when the internal buffer fills.
+Note that if the various functions which append to an sbuf are used while
+a non-sleepable lock is held, the user buffer should be wired using
+.Fn sysctl_wire_old_buffer .
+.Pp
+The
+.Fn sbuf_delete
+function clears the
+.Fa sbuf
+and frees any memory allocated for it.
+There must be a call to
+.Fn sbuf_delete
+for every call to
+.Fn sbuf_new .
+Any attempt to access the sbuf after it has been deleted will fail.
+.Pp
+The
+.Fn sbuf_clear
+function invalidates the contents of the
+.Fa sbuf
+and resets its position to zero.
+.Pp
+The
+.Fn sbuf_get_flags
+function returns the current user flags.
+The
+.Fn sbuf_set_flags
+and
+.Fn sbuf_get_flags
+functions set or clear one or more user flags, respectively.
+The user flags are described under the
+.Fn sbuf_new
+function.
+.Pp
+The
+.Fn sbuf_setpos
+function sets the
+.Fa sbuf Ns 's
+end position to
+.Fa pos ,
+which is a value between zero and one less than the size of the
+storage buffer.
+This effectively truncates the sbuf at the new position.
+.Pp
+The
+.Fn sbuf_bcat
+function appends the first
+.Fa len
+bytes from the buffer
+.Fa buf
+to the
+.Fa sbuf .
+.Pp
+The
+.Fn sbuf_bcopyin
+function copies
+.Fa len
+bytes from the specified userland address into the
+.Fa sbuf .
+.Pp
+The
+.Fn sbuf_bcpy
+function replaces the contents of the
+.Fa sbuf
+with the first
+.Fa len
+bytes from the buffer
+.Fa buf .
+.Pp
+The
+.Fn sbuf_cat
+function appends the NUL-terminated string
+.Fa str
+to the
+.Fa sbuf
+at the current position.
+.Pp
+The
+.Fn sbuf_set_drain
+function sets a drain function
+.Fa func
+for the
+.Fa sbuf ,
+and records a pointer
+.Fa arg
+to be passed to the drain on callback.
+The drain function cannot be changed while
+.Fa sbuf_len
+is non-zero.
+.Pp
+The registered drain function
+.Vt sbuf_drain_func
+will be called with the argument
+.Fa arg
+provided to
+.Fn sbuf_set_drain ,
+a pointer
+.Fa data
+to a byte string that is the contents of the sbuf, and the length
+.Fa len
+of the data.
+If the drain function exists, it will be called when the sbuf internal
+buffer is full, or on behalf of
+.Fn sbuf_finish .
+The drain function may drain some or all of the data, but must drain
+at least 1 byte.
+The return value from the drain function, if positive, indicates how
+many bytes were drained.
+If negative, the return value indicates the negative error code which
+will be returned from this or a later call to
+.Fn sbuf_finish .
+The returned drained length cannot be zero.
+To do unbuffered draining, initialize the sbuf with a two-byte buffer.
+The drain will be called for every byte added to the sbuf.
+The
+.Fn sbuf_bcopyin ,
+.Fn sbuf_copyin ,
+.Fn sbuf_trim ,
+and
+.Fn sbuf_data
+functions cannot be used on an sbuf with a drain.
+.Pp
+The
+.Fn sbuf_copyin
+function copies a NUL-terminated string from the specified userland
+address into the
+.Fa sbuf .
+If the
+.Fa len
+argument is non-zero, no more than
+.Fa len
+characters (not counting the terminating NUL) are copied; otherwise
+the entire string, or as much of it as can fit in the
+.Fa sbuf ,
+is copied.
+.Pp
+The
+.Fn sbuf_cpy
+function replaces the contents of the
+.Fa sbuf
+with those of the NUL-terminated string
+.Fa str .
+This is equivalent to calling
+.Fn sbuf_cat
+with a fresh
+.Fa sbuf
+or one which position has been reset to zero with
+.Fn sbuf_clear
+or
+.Fn sbuf_setpos .
+.Pp
+The
+.Fn sbuf_printf
+function formats its arguments according to the format string pointed
+to by
+.Fa fmt
+and appends the resulting string to the
+.Fa sbuf
+at the current position.
+.Pp
+The
+.Fn sbuf_vprintf
+function behaves the same as
+.Fn sbuf_printf
+except that the arguments are obtained from the variable-length argument list
+.Fa ap .
+.Pp
+The
+.Fn sbuf_putc
+function appends the character
+.Fa c
+to the
+.Fa sbuf
+at the current position.
+.Pp
+The
+.Fn sbuf_trim
+function removes trailing whitespace from the
+.Fa sbuf .
+.Pp
+The
+.Fn sbuf_error
+function returns any error value that the
+.Fa sbuf
+may have accumulated, either from the drain function, or ENOMEM if the
+.Fa sbuf
+overflowed.
+This function is generally not needed and instead the error code from
+.Fn sbuf_finish
+is the preferred way to discover whether an sbuf had an error.
+.Pp
+The
+.Fn sbuf_finish
+function will call the attached drain function if one exists until all
+the data in the
+.Fa sbuf
+is flushed.
+If there is no attached drain,
+.Fn sbuf_finish
+NUL-terminates the
+.Fa sbuf .
+In either case it marks the
+.Fa sbuf
+as finished, which means that it may no longer be modified using
+.Fn sbuf_setpos ,
+.Fn sbuf_cat ,
+.Fn sbuf_cpy ,
+.Fn sbuf_printf
+or
+.Fn sbuf_putc ,
+until
+.Fn sbuf_clear
+is used to reset the sbuf.
+.Pp
+The
+.Fn sbuf_data
+function returns the actual string;
+.Fn sbuf_data
+only works on a finished
+.Fa sbuf .
+The
+.Fn sbuf_len
+function returns the length of the string.
+For an
+.Fa sbuf
+with an attached drain,
+.Fn sbuf_len
+returns the length of the un-drained data.
+.Fn sbuf_done
+returns non-zero if the
+.Fa sbuf
+is finished.
+.Pp
+The
+.Fn sbuf_start_section
+and
+.Fn sbuf_end_section
+functions may be used for automatic section alignment.
+The arguments
+.Fa pad
+and
+.Fa c
+specify the padding size and a character used for padding.
+The arguments
+.Fa old_lenp
+and
+.Fa old_len
+are to save and restore the current section length when nested sections
+are used.
+For the top level section
+.Dv NULL
+and \-1 can be specified for
+.Fa old_lenp
+and
+.Fa old_len
+respectively.
+.Pp
+The
+.Fn sbuf_hexdump
+function prints an array of bytes to the supplied sbuf, along with an ASCII
+representation of the bytes if possible.
+See the
+.Xr hexdump 3
+man page for more details on the interface.
+.Pp
+The
+.Fn sbuf_putbuf
+function printfs the sbuf to stdout if in userland, and to the console
+and log if in the kernel.
+It does not drain the buffer or update any pointers.
+.Sh NOTES
+If an operation caused an
+.Fa sbuf
+to overflow, most subsequent operations on it will fail until the
+.Fa sbuf
+is finished using
+.Fn sbuf_finish
+or reset using
+.Fn sbuf_clear ,
+or its position is reset to a value between 0 and one less than the
+size of its storage buffer using
+.Fn sbuf_setpos ,
+or it is reinitialized to a sufficiently short string using
+.Fn sbuf_cpy .
+.Pp
+Drains in user-space will not always function as indicated.
+While the drain function will be called immediately on overflow from
+the
+.Fa sbuf_putc ,
+.Fa sbuf_bcat ,
+.Fa sbuf_cat
+functions,
+.Fa sbuf_printf
+and
+.Fa sbuf_vprintf
+currently have no way to determine whether there will be an overflow
+until after it occurs, and cannot do a partial expansion of the format
+string.
+Thus when using libsbuf the buffer may be extended to allow completion
+of a single printf call, even though a drain is attached.
+.Sh RETURN VALUES
+The
+.Fn sbuf_new
+function returns
+.Dv NULL
+if it failed to allocate a storage buffer, and a pointer to the new
+.Fa sbuf
+otherwise.
+.Pp
+The
+.Fn sbuf_setpos
+function returns \-1 if
+.Fa pos
+was invalid, and zero otherwise.
+.Pp
+The
+.Fn sbuf_bcat ,
+.Fn sbuf_cat ,
+.Fn sbuf_cpy ,
+.Fn sbuf_printf ,
+.Fn sbuf_putc ,
+and
+.Fn sbuf_trim
+functions
+all return \-1 if the buffer overflowed, and zero otherwise.
+.Pp
+The
+.Fn sbuf_error
+function returns a non-zero value if the buffer has an overflow or
+drain error, and zero otherwise.
+.Pp
+The
+.Fn sbuf_len
+function returns \-1 if the buffer overflowed.
+.Pp
+The
+.Fn sbuf_copyin
+function
+returns \-1 if copying string from userland failed, and number of bytes
+copied otherwise.
+.Pp
+The
+.Fn sbuf_end_section
+function returns the section length or \-1 if the buffer has an error.
+.Pp
+The
+.Fn sbuf_finish 9
+function (the kernel version) returns ENOMEM if the sbuf overflowed before
+being finished,
+or returns the error code from the drain if one is attached.
+.Pp
+The
+.Fn sbuf_finish 3
+function (the userland version)
+will return zero for success and \-1 and set errno on error.
+.Sh EXAMPLES
+.Bd -literal -compact
+#include <sys/types.h>
+#include <sys/sbuf.h>
+
+struct sbuf *sb;
+
+sb = sbuf_new_auto();
+sbuf_cat(sb, "Customers found:\en");
+TAILQ_FOREACH(foo, &foolist, list) {
+	sbuf_printf(sb, "   %4d %s\en", foo->index, foo->name);
+	sbuf_printf(sb, "      Address: %s\en", foo->address);
+	sbuf_printf(sb, "      Zip: %s\en", foo->zipcode);
+}
+if (sbuf_finish(sb) != 0) /* Check for any and all errors */
+	err(1, "Could not generate message");
+transmit_msg(sbuf_data(sb), sbuf_len(sb));
+sbuf_delete(sb);
+.Ed
+.Sh SEE ALSO
+.Xr hexdump 3 ,
+.Xr printf 3 ,
+.Xr strcat 3 ,
+.Xr strcpy 3 ,
+.Xr copyin 9 ,
+.Xr copyinstr 9 ,
+.Xr printf 9
+.Sh HISTORY
+The
+.Nm
+family of functions first appeared in
+.Fx 4.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+family of functions was designed by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org
+and implemented by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .
+Additional improvements were suggested by
+.An Justin T. Gibbs Aq Mt gibbs@FreeBSD.org .
+Auto-extend support added by
+.An Kelly Yancey Aq Mt kbyanc@FreeBSD.org .
+Drain functionality added by
+.An Matthew Fleming Aq Mt mdf@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

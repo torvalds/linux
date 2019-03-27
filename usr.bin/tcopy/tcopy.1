@@ -1,0 +1,125 @@
+.\" Copyright (c) 1985, 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)tcopy.1	8.2 (Berkeley) 4/17/94
+.\" $FreeBSD$
+.\"
+.Dd December 20, 2006
+.Dt TCOPY 1
+.Os
+.Sh NAME
+.Nm tcopy
+.Nd copy and/or verify mag tapes
+.Sh SYNOPSIS
+.Nm
+.Op Fl cvx
+.Op Fl s Ar maxblk
+.Oo Ar src Op Ar dest
+.Oc
+.Sh DESCRIPTION
+The
+.Nm
+utility is designed to copy magnetic tapes.
+The only assumption made
+about the tape layout is that there are two sequential EOF marks
+at the end.
+By default, the
+.Nm
+utility will print
+information about the sizes of records and files found
+on the
+.Pa /dev/sa0
+tape, or on the tape specified by the
+.Ar src
+argument.
+If a destination tape is also specified by the
+.Ar dest
+argument, a copy of the source tape will be made.
+The blocking on the
+destination tape will be identical to that used on the source tape.
+Copying
+a tape will yield the same program output as if just printing the sizes.
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl s Ar maxblk"
+.It Fl c
+Copy
+.Ar src
+to
+.Ar dest
+and then verify that the two tapes are identical.
+.It Fl s Ar maxblk
+Specify a maximum block size,
+.Ar maxblk .
+.It Fl v
+Given the two tapes
+.Ar src
+and
+.Ar dest ,
+verify that they are identical.
+.It Fl x
+Output all informational messages to the standard error
+instead of the standard output.
+This option is useful when
+.Ar dest
+is given as
+.Pa /dev/stdout .
+.El
+.Sh SEE ALSO
+.Xr mt 1 ,
+.Xr mtio 4
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 .
+.Sh BUGS
+.Bl -item
+.It
+Writing an image of a tape to a file does not preserve much more than
+the raw data.
+Block size(s) and tape EOF marks are lost which would
+otherwise be preserved in a tape-to-tape copy.
+.It
+End of data (EOD) is determined by two sequential EOF marks
+with no data between them.
+There used to be old systems which typically wrote three EOF's between tape
+files.
+The
+.Nm
+utility will erroneously stop copying early in this case.
+.It
+When using the copy/verify option
+.Fl c ,
+.Nm
+does not rewind the tapes prior to start.
+A rewind is performed
+after writing, prior to the verification stage.
+If one does not start
+at the beginning-of-tape (BOT) then the comparison
+may not be of the intended data.
+.El

@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to use LLVM's libunwind stack unwinder (instead of GCC's unwinder).

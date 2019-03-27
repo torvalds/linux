@@ -1,0 +1,42 @@
+.\" $FreeBSD$
+.\"
+.Dd May 21, 1993
+.Dt ACCTON 8
+.Os
+.Sh NAME
+.Nm accton
+.Nd enable/disable system accounting
+.Sh SYNOPSIS
+.Nm
+.Op Ar acctfile
+.Sh DESCRIPTION
+The
+.Nm
+utility is used
+for switching system accounting on or off.
+If called with the argument
+.Ar acctfile ,
+system accounting is enabled.
+The
+.Ar acctfile
+specified must exist prior to starting system accounting, or
+.Nm
+will return an error.
+A record of every process that is started by the
+.Xr execve 2
+system call and then later exits the system is stored in
+.Ar acctfile .
+The
+.Xr sa 8
+command may be used to examine the accounting records.
+If no arguments are given, system accounting is disabled.
+.Sh FILES
+.Bl -tag -width /var/account/acct
+.It Pa /var/account/acct
+default accounting file
+.El
+.Sh SEE ALSO
+.Xr lastcomm 1 ,
+.Xr acct 2 ,
+.Xr acct 5 ,
+.Xr sa 8

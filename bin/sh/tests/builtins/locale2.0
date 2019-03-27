@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+$SH -c 'LC_ALL=C true; kill -INT $$; echo continued'
+r=$?
+[ "$r" -gt 128 ] && [ "$(kill -l "$r")" = INT ]

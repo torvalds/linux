@@ -1,0 +1,672 @@
+Sun Jun 30 13:48:26 EDT 1991:
+  dtoa.c: adjust dtoa to allow negative ndigits for modes 3,5,7,9
+(fixed-point mode); fix rounding bug in these modes when the input
+d (to be converted) satisfies 10^-(ndigits+1) <= |d| < 10^-ndigits ,
+i.e., when the result, before rounding, would be empty but might
+round to one digit.  Adjust the decpt returned in these modes when
+the result is empty (i.e., when |d| <= 5 * 10^-ndigits).
+
+Tue Jul  2 21:44:00 EDT 1991
+  Correct an inefficiency introduced 2 days ago in dtoa's handling of
+integers in modes 0, 1.
+
+Mon Sep  9 23:29:38 EDT 1991
+  dtoa.c: remove superfluous declaration of size_t.
+
+Sun Oct  6 15:34:15 EDT 1991
+  dtoa.c: fix another bug in modes 3,5,7,9 when the result, before
+rounding, would be empty, but rounds to one digit: *decpt was low by
+one.
+
+Sat Jan 18 12:30:04 EST 1992
+  dtoa.c: add some #ifdef KR_headers lines relevant only if IBM is
+defined; for input decimal strings representing numbers too large, have
+strtod return HUGE_VAL only if __STDC__ is defined; otherwise have it
+return +-Infinity for IEEE arithmetic, +- the largest machine number
+for IBM and VAX arithmetic.  (If __STDC__ is not defined, HUGE_VAL may
+not be defined either, or it may be wrong.)
+
+Mon Apr 27 23:13:43 EDT 1992
+  dtoa.c: tweak strtod (one-line addition) so the end-pointer = start
+pointer when the input has, e.g., only white space.
+
+Thu May  7 18:04:46 EDT 1992
+  dtoa.c: adjust treatment of exponent field (in strtod) to behave
+reasonably with huge numbers and 16-bit ints.
+
+Fri Jun 19 08:29:02 EDT 1992
+  dtoa.c: fix a botch in placement of #ifdef __cplusplus (which only
+matters if you're using a C++ compiler).
+
+Wed Oct 21 11:23:07 EDT 1992
+  dtoa.c: add #ifdef Bad_float_h lines for systems with missing or
+inferior float.h .
+
+Thu Apr 22 07:54:48 EDT 1993
+  dtoa.c: change < to <= in line 2059:
+<	for(result_k = 0; sizeof(Bigint) - sizeof(unsigned long) + j < i;
+---
+>	for(result_k = 0; sizeof(Bigint) - sizeof(unsigned long) + j <= i;
+With 32-bit ints, the former could give too small a block for the return
+value when, e.g., mode = 2 or 4 and ndigits = 24 (16 for 16-bit ints).
+
+Mon Jun 21 12:56:42 EDT 1993
+  dtoa.c: tweak to work with 32-bit ints and 64-bit longs
+when compiled with -DLong=int .
+
+Wed Jan 26 11:09:16 EST 1994
+  dtoa.c: fix bug in strtod's handling of numbers with very
+negative exponents (e.g. 1.8826e-512), which should underflow to 0;
+fix storage leak in strtod with underflows and overflows near
+the underflow and overflow thresholds.
+
+Mon Feb 28 11:37:30 EST 1994
+  dtoa.c:
+85a86,89
+>  * #define MALLOC your_malloc, where your_malloc(n) acts like malloc(n)
+>  *	if memory is available and otherwise does something you deem
+>  *	appropriate.  If MALLOC is undefined, malloc will be invoked
+>  *	directly -- and assumed always to succeed.
+87a92,95
+> #ifndef MALLOC
+> #define MALLOC malloc
+> #endif
+>
+352c360
+< 		rv = (Bigint *)malloc(sizeof(Bigint) + (x-1)*sizeof(Long));
+---
+> 		rv = (Bigint *)MALLOC(sizeof(Bigint) + (x-1)*sizeof(Long));
+
+Thu Mar  3 16:56:39 EST 1994
+  dtoa.c: if MALLOC is #defined, declare it.
+
+Wed Jan  4 15:45:34 EST 1995
+  dtoa.c: add CONST qualification to tens, bigtens, tinytens (for use
+on embedded systems with little spare RAM).
+
+Fri Mar  1 08:55:39 EST 1996
+  g_fmt.c: honor the sign of 0 and return the first argument (buf).
+
+Sat Jul  6 07:59:28 EDT 1996
+  dtoa.c: cosmetic changes: "ULong" rather than "unsigned Long";
+update comments to reflect AT&T breakup.
+
+Mon Aug  5 23:31:24 EDT 1996
+  dtoa.c: add comment about invoking _control87(PC_53, MCW_PC)
+(or the equivalent) on 80x87 machines before calling strtod or dtoa.
+
+Tue Dec 17 15:01:56 EST 1996
+  dtoa.c: new #define possibilities: #define INFNAN_CHECK to have
+strtod check (case insensitively) for "Infinity" and "NaN" on machines
+with IEEE arithmetic; #define MULTIPLE_THREADS if the system offers
+preemptively scheduled multiple threads, in which case you must supply
+routines ACQUIRE_DTOA_LOCK(n) and FREE_DTOA_LOCK(n) (n = 0 or 1).
+New void freedtoa(char*) for freeing values returned by dtoa; use of
+freedtoa() is required if MULTIPLE_THREADS is #defined, and is merely
+recommended otherwise.
+  g_fmt.c: adjusted to invoke freedtoa().
+
+Wed Feb 12 00:40:01 EST 1997
+  dtoa.c: strtod: on IEEE systems, scale to avoid intermediate
+underflows when the result does not underflow; compiling with
+-DNO_IEEE_Scale restores the old logic.  Fix a bug, revealed by
+input string 2.2250738585072012e-308, in treating input just less
+than the smallest normalized number.  (The bug introduced an extra
+ULP of error in this special case.)
+
+Tue May 12 11:13:04 EDT 1998
+  dtoa.c: strtod: fix a glitch introduced with the scaling of 19970212
+that caused one-bit rounding errors in certain denormal numbers, such
+as 8.44291197326099e-309, which was read as 8.442911973260987e-309.
+Remove #ifdef Unsigned_Shifts logic in favor of unsigned arithmetic.
+Unless compiled with -DNO_LONG_LONG, use 64-bit arithmetic where
+possible.
+
+Fri May 15 07:49:07 EDT 1998
+  dtoa.c: strtod: fix another glitch with scaling to avoid underflow
+with IEEE arithmetic, again revealed by the input string
+2.2250738585072012e-308, which was rounded to the largest denormal
+rather than the smallest normal double precision number.
+
+Wed Aug  5 23:27:26 EDT 1998
+  gdtoa.tar.gz: tweaks in response to comments from Shawn C. Sheridan
+(with no effect on the resulting .o files except when strtod.c is
+compiled with -DNO_ERRNO); bigtens --> bigtens_D2A (a symbol meant
+to be private to gdtoa.a).
+
+Sat Sep 12 17:05:15 EDT 1998
+  gdtoa.tar.gz: more changes in response to comments from Shawn C.
+Sheridan (including repair of a glitch in g_ffmt.c).  For consistency
+and possible convenience, there are some new functions and some name
+changes to existing ones:
+	Old	New
+	---	g_xLfmt
+	strtoQ	strtopQ
+	---	strtopd
+	strtodd	strtopdd
+	---	strtopf
+	strtox	strtopx
+	---	strtopxL
+	---	strtorxL
+	---	strtoIxL
+Functions strtopd and strtopf are variations of strtod and strtof,
+respectively, which write their results to their final (pointer)
+arguments.  Functions strtorf and strtord are now analogous to the
+other strtor* functions in that they now have a final pointer
+argument to which they write their results, and they return the
+int value they get from strtodg.
+  The xL family (g_xLfmt, strto[Irp]xL) is a variation of the old x
+family (for 80-bit IEEE double-extended precision) that assumes the
+storage layout of the Motorola 68881's double-extended format:  80
+interesting bits stored in 3 unsigned 32-bit ints (with a "hole", 16
+zero bits, in the word that holds the sign and exponent).  The x
+family now deals with 80-bit (5 unsigned 16-bit ints) rather than
+96-bit arrays (3 unsigned 32-bit ints) that hold its 80-bit
+double-extended values.  (This relaxes the alignment requirements of
+the x family and results in strto[Ipr]x writing 80 rather than 96 bits
+to their final arguments.)
+  Each g_*fmt routine now returns a pointer to the null character
+that terminates the strings it writes, rather than a pointer to
+the beginning of that string (the first argument).  These routines
+still return 0 (NULL) if the first argument is too short.
+  The second argument to g_dfmt is now pointer (to a double) rather
+than a double value.
+
+Thu Oct 29 21:54:00 EST 1998
+  dtoa.c: Fix bug in strtod under -DSudden_Underflow and (the default)
+-DAvoid_Underflow: some numbers that should have suffered sudden
+underflow were scaled inappropriately (giving nonzero return values).
+Example: "1e-320" gave -3.6304123742133376e+280 rather than 0.
+
+Mon Nov  2 15:41:16 EST 1998
+  dtoa.c: tweak to remove LL suffixes from numeric constants (for
+compilers that offer a 64-bit long long type but do not recognize the
+LL constants prescribed by C9x, the proposed update to the ANSI/ISO C
+standard).  Thanks to Earl Chew for pointing out the existence of such
+compilers.
+  gdtoa.tar.gz: renamed gdtoa.tgz and updated to incorporate the above
+changes (of 29 Oct. and 2 Nov. 1998) to dtoa.c.
+
+Thu Mar 25 17:56:44 EST 1999
+  dtoa.c, gdtoa.tgz: fix a bug in strtod's reading of 4.9e-324:
+it returned 0 rather than the smallest denormal.
+
+Mon Apr 12 10:39:25 EDT 1999
+  gdtoa.tgz: test/ftest.c: change %.7g to %.8g throughout.
+
+Fri Aug 20 19:17:52 EDT 1999
+  gdtoa.tgz: gdtoa.c: fix two bugs reported by David Chase (thanks!):
+1. An adjustment for denormalized numbers around 503 was off by one.
+2. A check for "The special case" around line 551 omitted the condition
+that we not be at the bottom of the exponent range.
+
+Mon Sep 13 10:53:34 EDT 1999
+  dtoa.c: computationally invisible tweak for the benefit of people
+who actually read the code:
+
+2671c2671
+< 		 && word0(d) & Exp_mask
+---
+> 		 && word0(d) & (Exp_mask & Exp_mask << 1)
+
+I.e., in dtoa(), the "special case" does not arise for the smallest
+normalized IEEE double.  Thanks to Waldemar Horwat for pointing this
+out and suggesting the modified test above.  Also, some tweaks for
+compilation with -DKR_headers.
+  gdtoa.tgz: gdtoa.c: analogous change:
+
+552c552
+< 		if (bbits == 1 && be0 > fpi->emin) {
+---
+> 		if (bbits == 1 && be0 > fpi->emin + 1) {
+
+This has no effect on the g*fmt.c routines, but might affect the
+computation of the shortest decimal string that rounds to the
+smallest normalized floating-point number of other precisions.
+  gdota.tgz: test/d.out test/dI.out test/dd.out: updated to reflect
+previous changes (of 19990820); test/*.c: most test programs modified
+to permit #hex input.  See the comments.
+
+Fri Sep 17 01:39:25 EDT 1999
+  Try again to update dtoa.c: somehow dtoa.c got put back to a version
+from 3 years ago after this "changes" file was updated on 13 Sept. 1999.
+One more tweak to omit a warning on some systems:
+2671c2671
+<		 && word0(d) & (Exp_mask & Exp_mask << 1)
+---
+>		 && word0(d) & (Exp_mask & ~Exp_msk1)
+Plus changes to avoid trouble with aggressively optimizing compilers
+(e.g., gcc 2.95.1 under -O2).  On some systems, these changes do not
+affect the resulting machine code; on others, the old way of viewing
+a double as a pair of ULongs is available with -DYES_ALIAS.
+
+Tue Sep 21 09:21:25 EDT 1999
+  gdtoa.tgz: changes analogous to those of 17 Sept. 1999 to dtoa.c to
+avoid trouble with aggressively optimizing compilers.
+
+Wed Dec 15 13:14:38 EST 1999
+  dtoa.c: tweak to bypass a bug with HUGE_VAL on HP systems.
+
+Mon Jan 17 18:32:52 EST 2000
+  dtoa.c and gdtoa.tgz: strtod: set errno = ERANGE on all inputs that
+underflow to zero (not just those sufficiently less than the smallest
+positive denormalized number).
+  gdtoa.tgz: README: point out that compiling with -DNO_ERRNO inhibits
+errno assignments (by strtod and the core converter, strtodg).
+
+Tue Jan 18 16:35:31 EST 2000
+  dtoa.c and gdtoa.tgz: strtod: modify the test inserted yesterday so
+it may work correctly with buggy 80x87 compilers.  (The change matters,
+e.g., to Microsoft Visual C++ 4.2 and 6.0.)
+
+Thu Nov  2 21:00:45 EST 2000
+  dtoa.c and gdtoa.tgz:
+1. Fix bug in test for exact half-way cases of denormalized numbers
+   (without -DNO_IEEE_Scale).
+2. Compilation with -DNO_ERRNO prevents strtod from assigning
+   errno = ERANGE when the result overflows or underflows to 0.
+3. With IEEE arithmetic and no -DNO_IEEE_Scale, adjust scaling so
+   ulp(d) never returns a denormalized number.  This and other tweaks
+   permit strtod and dtoa to work correctly on machines that flush
+   underflows to zero but otherwise use IEEE arithmetic without
+   Sudden_Underflow being #defined (and with strtod simply returning 0
+   instead of denormalized numbers).
+4. Compilations with -DUSE_LOCALE causes strtod to use the current
+   locale's decimal_point value.
+5. Under compilations with -DINFNAN_CHECK, strtod and strtodg (case
+   insensitively) treat "inf" the same as "infinity" and, unless
+   compiled with -DNo_Hex_NaN, accept "nan(x)", where x is a string of
+   hexadecimal digits and spaces, as a NaN whose value is constructed
+   from x (as explained in comments near the top of dtoa.c and in
+   gdtoaimp.h).
+6. The default PRIVATE_MEM is increased slightly (to 2304), and comments
+   near the top of dtoa.c provide more discussion of PRIVATE_MEM.
+7. Meanings of dtoa modes 4,5,8,9 changed.  See comments in dtoa.c and
+   gdtoa.c; modes 4 and 5 may now provide shorter strings that round
+   (in round-nearest mode) to the given double value.  (Paxson's
+   testbase program is unhappy with this new rounding, as it can
+   introduce an error of more than one base-10 ulp when 17 or more
+   decimal digits are requested.)
+8. With IEEE arithmetic, compilation with -DHonor_FLT_ROUNDS causes
+   strtod and dtoa to round according to FLT_ROUNDS:
+	0 ==> towards 0,
+	1 ==> nearest,
+	2 ==> towards +Infinity,
+	3 ==> towards -Infinity.
+9. With IEEE arithmetic, compilation with -DSET_INEXACT causes extra
+   computation (and sometimes slower conversions in dtoa and strtod,
+   particularly for dtoa in cases where otherwise some simple floating-
+   point computations would suffice) to set the IEEE inexact flag
+   correctly.  As comments in dtoa.c explain in more detail, this
+   requires compilation in an environment (such as #include "dtoa.c"
+   in suitable source) that provides
+		int get_inexact(void);
+		void clear_inexact(void);
+10. On input "-x", return 0 rather than -0.
+
+gdtoa.tgz: gethex.c: adjust logic for reading hex constants to accord
+with current wording of the C99 standard.  Previously, I thought hex
+constants read by strtod and friends had to have either a decimal point
+or an exponent field; p. 307 of the C99 standard states that both are
+optional.  Because of the complexity of this reading, it is available
+only in the variant of strtod that appears in gdtoa.tgz.
+
+strtodg (gdtoa.tgz): New return value STRTOG_NaNbits (with
+STRTOG_NoNumber renumbered).  Allow STRTOG_Neg bit in strtodg returns
+for STRTOG_NaN and STRTOG_NaNbits.
+
+gdtoa.tgz: Fix uninitialized variable bug in g_Qfmt.c's handling of NaNs.
+
+Mon Nov 13 14:00:05 EST 2000
+  gdtoa.tgz: strtodg:  fix a storage leak and an apparently rare infinite
+loop with a boundary case of directed rounding.  Example input to
+gdtoa/test/Qtest where the loop bug bit:
+	r 3
+	35184372088831.999999999999999999999999999999999999
+This was revealed by testbase for quad precision Solaris arithmetic;
+it did not show up in several other testbase configurations.
+
+Wed Feb  7 12:56:11 EST 2001
+  dtoa.c:  fix bug (possible infinite loop, e.g., with
+2.47032822920623272e-324) introduced 20001113 in handling the special
+case of a power of 2 to be rounded down one ulp.  Add test (required
+by changes of 20001113) for the extra special case of 2^-1075 (half
+the smallest denormal).
+  gdtoa.tgz: corresponding adjustments to strtod.c and strtodg.c.
+
+Tue Mar 13 00:46:09 EST 2001
+  gdtoa.tgz: gdtoa/strtodg.c: fix bug in handling values exactly half
+an ulp less than the smallest normal floating-point number;
+gdtoa/*test.c: fix glitch in handling "n ..." lines (intended to
+change "ndig").
+
+Wed Mar  6 10:13:52 EST 2002
+  gdtoa.tgz:  add gdtoa/test/strtodt.c and gdtoa/test/testnos3 to test
+strtod on hard cases posted by Fred Tydeman to comp.arch.arithmetic on
+26 Feb. 1996.  Add comment to gdtoa/README about strtod requiring true
+IEEE arithmetic (with 53-bit rounding precision on 80x87 chips).
+In gdtoa/test, automate selection of expected output files [xQ]*.out.
+
+Wed Mar  5 10:35:41 EST 2003
+  gdtoa.tgz:  fix a bug in strtod's handling of 0-valued 0x... "decimal"
+strings.  A fault was possible.  Thanks to David Shultz for reporting
+this bug.
+
+Tue Mar 18 09:38:28 EST 2003
+  gdtoa.tgz:  fix a glitch in strtodg.c with -DUSE_LOCALE; add #ifdef
+USE_LOCALE lines to g__fmt.c (to affect binary --> decimal conversions
+via the g*fmt routines), and add comments about -DUSE_LOCALE to README.
+In short, compiling strtod.c, strtodg.c, and g__fmt.c with -DUSE_LOCALE
+causes them to determine the decimal-point character from the current
+locale.  (Otherwise it is '.'.)
+
+Fri Mar 21 16:36:27 EST 2003
+  gdtoa.tgz:  gethex.c: add #ifdef USE_LOCAL logic; strtod.c: fix a
+glitch in handling 0x... input (the return from gethex was ignored).
+
+Wed Mar 26 15:35:10 EST 2003
+  gdtoa.tgz:  gethex.c:  pedantic (and normally invisible) change:
+use unsigned char for decimalpoint variable (under -DUSE_LOCALE).
+
+Sat Jan 17 23:58:52 MST 2004
+  gdtoa.tgz:  gethex.c:  supply missing parens in test for whether a
+denormal result should be zero, correct logic for rounding up when the
+result is denormal, and when returning zero or Infinity, set *bp = 0;
+strtod.c:  switch on gethex(...)  & STRTOG_Retmask rather than just on
+gethex(), and only copybits(..., bb) when bb is nonzero.  This
+mattered for underflows and overflows in 0x notation.
+
+Thu Mar 25 22:34:56 MST 2004
+ dtoa.c and gdtoa.c/misc.c:  change "(!x & 1)" to "(!x)" to avoid
+confusion by human readers -- the object code is unaffected (with
+reasonable compilers).
+
+Mon Apr 12 00:44:22 MDT 2004
+ dtoa.c and gdtoa.tar.gz:  update contact info. for dmg and correct
+page numbers in comment on Steele & White (1990).
+ gdtoa.tgz:  add strtodnrp.c for a variant of strtod that is slower
+but does not require 53-bit rounding precision on Intel IA32 systems.
+
+Tue Apr 13 00:28:14 MDT 2004
+ gdtoa.tgz: strtod.c: fix glitch when both INFNAN_CHECK and No_Hex_NaN
+are #defined.  Thanks to David Mendenhall for pointing this bug out.
+
+Wed Jan  5 22:39:17 MST 2005
+  gdtoa.tgz:
+    gethex.c:  fix the bug reported by Stefan Farfeleder of ignoring a
+binary-exponent-part if the converted number is zero.
+    strto[pr]x.c: fix bug reported by Stefan Farfeleder in setting the
+exponent of denormals (which should be 0, not 1).
+    g_xfmt.c: fix a corresponding bug with denormals.
+    strtodg.c: fix a bug under IBM (base 16) arithemtic reported
+by Greg Alexander:  a correction to the binary exponent for changes to
+the exponent of a native double value for avoiding overflow had to be
+multiplied by 4 ("e2 <<= 2;").
+    Various files: minor tweaks for portability.
+
+Sat Jan 15 15:36:03 MST 2005
+  gdtoa.tgz: gethex.c:  fix a glitch introduced last week (and reported
+by Stefan Farfelder) with 0x forms with no nonzero digits before the "."
+character, e.g., 0x.1 (which was rendered as 0 rather than .0625).
+  gdtoa.tgz: many files: add automatic computation of gd_qnan.h for
+giving the system-dependent format of a quiet NaN (the one generated
+for Infinity - Infinity).  Tweak test/makefile so differences in the
+spelling of Infinity ("INF" or "Inf" on some systems) do not matter.
+Fix bug in strtod.c and strtodg.c under which, e.g., -.nan was read
+as NaN rather than unacceptable input (causing return 0).  Adjust
+comments in README about nan(...).  Fix glitch in test/dt.c.
+
+Sun Jan 16 18:22:13 MST 2005
+  gdtoa.tgz: strtodg.c: fix long-standing bug in handling input
+that rounds up to 2^nbits, e.g., strtof("16777215.5").  Thanks to
+Edward Moy for reporting this problem.
+  gdtoa.tgz: Fix some bugs with -DJust_16.
+
+Thu Sep 22 22:40:16 MDT 2005
+gdtoa.tgz:
+  strtod.c: unless prevented by -DNO_FENV_H, include C99's fenv.h
+and with hex input, get the current rounding mode from fegetround().
+With decimal input, strtod honors the rounding mode automatically.
+Thanks to David Schultz (das at FreeBSD dot ORG) for pointing
+  strtodg.c: fix a bug with handling numbers very near the largest
+possible one, which were sometimes incorrectly converted to Infinity.
+Thanks to Edward Moy (emoy at apple dot com) for pointing this out.
+  g_Qfmt.c: change strcpy to strcp.  Thanks to J. T. Conklin
+(jtc at acorntoolworks dot com) for pointing this out.
+  test/xtest.c:  fix some subscript bugs.
+  test/x.ou0, test/x.ou1, test/xL.: update in response to the above fix to
+test/xtest.c.
+  test/makefile:  add -lm to some link lines (needed for fegetround).
+
+Sun Jan 21 20:26:44 MST 2007
+gdtoa.tgz:
+  strtodg.c:  fix a botch in the test of whether to increase rvbits
+before terminating the big for(;;) loop with dsign true:  change
+	if (hi0bits(rvb->x[(rvb->wds - 1) >> kshift])
+			!= j)
+		rvbits++;
+to
+	if (hi0bits(rvb->x[rvb->wds - 1]) != j)
+		rvbits++;
+Example of input where this bug bit:  1.9e27.  Thanks to Edward Moy
+<emoy@apple.com> for providing this example.  Also, simplify the
+preceding computation of j.
+  test/README:  add comment that strtodt needs to operate with 53-bit
+rounding precision on Intel x86 systems, and add a pointer to Paxson's
+paper.
+
+Sat Mar 15 11:44:31 MDT 2008
+  dtoa.c and gdtoa.tgz:  with -DINFNAN_CHECK and without
+-DGDOTA_NON_PEDANTIC_NANCHECK, conform to the ill-advised prescription
+in the C99 standard of consuming (...)  in "nan(...)"  even when ...
+is not of the expected form.  Allow an optional 0x or 0X to precede
+the string of hex digits in the expected form of ... .
+  gdtoa.tgz: gethex.c: have, e.g., strtod("0xyz",&se) set se to "xyz".
+Previously it was incorrectly set to "0xyz".
+
+Thu Aug 28 22:37:35 MDT 2008
+  dtoa.c and gdtoa.tgz:  Fix a bug in strtod when compiled with
+-DHonor_FLT_ROUNDS:  in rounding modes other than "to nearest",
+strtod looped on input larger than and within a factor of 2 of
+the largest finite floating-point number.  Since FLT_ROUNDS is buggy
+on some (Linux) systems in that it does not reflect calls on
+fesetround(), when Honor_FLT_ROUNDS is #defined, get the curren
+rounding mode from fegetround() rather than FLT_ROUNDS, unless
+Trust_FLT_ROUNDS is also #defined.
+  gdtoa/test/getround.c in gdtoa.tgz: simply report the current
+rounding mode when the input line is "r" by itself.  (Previously it
+did so, but also complained of invalid input.)
+  gdtoa/gethex.c: fix an off-by-one bug in a rounding test; detect and
+deal with huge exponents (positive or negative).  This affected the
+reading of hexadecimal floating-point values (0x...).  Also set errno
+to ERANGE on out-of-range values (unless compiled with -DNO_ERRNO).
+  gdtoa/strtod.c: adjust scaling of tinytens[4] (as in dtoa.c) to
+avoid double rounding when dealing with numbers near the bottom of
+the exponent range.
+
+Sat Aug 30 23:37:07 MDT 2008
+  gdtoa/gethex.c: ensure *bp is set to something (NULL if nothing else).
+  Bring gdtoa/xsum0.out and gdtoa/test/xsum0.out up to date.
+
+Tue Sep  9 22:08:30 MDT 2008
+  gdtoa/strto*.c and gdtoa/*fmt.c:  if compiled with -DUSE_LOCALE, use
+the current locale's decimal point character string.
+  gdtoa/gdtoa.c: trim trailing zeros in a missed case (e.g., ndigits = 6
+on 1020302).
+  dtoa.c and gdtoa/strtod.c: on systems with IEEE arithmetic (and without
+NO_ERRNO being defined) set ERANGE for denormal values as well as real
+underflows.
+  gdtoa/strtodg.c:  fix an off-by-one bug in rounding to the largest
+representable magnitude when nbits is a multiple of 32.
+  gdtoa/*fmt.c and gdtoa/gdtoa.h:  bufsize changed from unsigned to size_t.
+  gdtoaimp.h, *fmt.c:  change in calling sequence to internal g__fmt(),
+which now explicitly checks bufsize.
+  Relevant routines (see README) honor the current rounding mode if
+compiled with -DHonor_FLT_ROUNDS on IEEE-arithmetic systems that provide
+the C99 fegetround() function.
+  gdtoa/test/getround.c can optionally be compiled with
+-DHonor_FLT_ROUNDS and/or -DUSE_MY_LOCALE for manual testing of gdtoa.a
+compiled with -DHonor_FLT_ROUNDS or -DUSE_LOCALE.
+
+Fri Oct 10 20:07:15 MDT 2008
+  gdtoa/gethex.c:  fix a bug reading hexadecimal floating-point values
+starting with "0xd" for a nonzero digit d (such as "0x1.0002p3").  The
+bug caused the values to be read as zero with endptr set incorrectly.
+
+Tue Oct 28 00:14:08 MDT 2008
+  gdtoa/strtod.c: fix a comment glitch (with commented {}).
+
+Tue Nov 11 23:05:25 MST 2008
+  gdtoa:  fix a glitch in the strto* routines when compiled with
+-DUSE_LOCALE and the locale's decimal-point string is two or more
+characters long.  Wrong conversions were then possible.
+
+Fri Dec  5 18:20:36 MST 2008
+  gdtoa.tgz: fix bugs with reading C99-style hexadecimal floating-point
+values when compiled with -DPack_16; on IEEE-arithmetic systems, make
+INFNAN_CHECK the default unless NO_INFNAN_CHECK is #defined.  (This is
+consistent with dtoa.c, which has worked this way for a while.)
+  dtoa.c:  add recognition of C99-style hexadecimal floating-point
+values (unless compiled with NO_HEX_FP is #defined).
+
+Thu Dec 11 23:10:23 MST 2008
+  dtoa.c: omit an unused variable.
+
+Fri Jan  2 22:45:33 MST 2009
+  dtoa.c: tweak to banish some compiler warnings.
+
+Sun Mar  1 20:57:22 MST 2009
+  dtoa.c, gdtoa/{g__fmt.c, gethex.c, strtod.c, strtodg.c}: change malloc
+to MALLOC.
+  dtoa.c and gdtoa/gdtoaimp.h and gdtoa/misc.c:  reduce Kmax, and use
+MALLOC and FREE or free for huge blocks, which are possible only in
+pathological cases, such as dtoa calls in mode 3 with thousands of
+digits requested, or strtod() calls with thousand of digits.  For the
+latter case, I have an alternate approach that runs much faster
+and uses less memory, but finding time to get it ready for distribution
+may take a while.
+
+Mon Mar 16 00:32:43 MDT 2009
+  dtoa.c:  Fix a bug under -DUSE_LOCALE in handling "decimal point"
+strings more than one character long.
+  dtoa.c and gdtoa/misc.c:  Remove a buggy test activated with
+-DDEBUG.
+  dtoa.c and gdtoa/gdtoa.c: simplify logic for "4 leading 0 bits".
+  dtoa.c:  Add logic (that can be disabled with -DNO_STRTOD_BIGCOMP
+and that) to strtod for more efficiently handling a very long input
+string.  It proceeds by initially truncating the input string, then if
+necessary comparing the whole string with a decimal expansion to
+decide close cases.  This logic is only used for input more than
+STRTOD_DIGLIM digits long (default 40), and for now only applies to
+IEEE arithmetic (for want of other kinds of platforms on which to run
+tests).  This only appears worthwhile for absurdly long input strings,
+so a corresponding update to gdtoa does not seem warranted.
+  dtoa.c, gdtoa.tgz:  tweaks (mostly adding unnecessary parens) to
+silence "gcc -Wall" warnings.  Aside from a couple of minor changes
+to banish erroneous warnings about uninitialized variables, the tweaks
+do not affect the generated object code.
+
+Sat Apr 11 23:25:58 MDT 2009
+  dtoa.c: fix glitch in compiling with -DNo_Hex_NaN and the bug of
+accepting (e.g.) ".nan" or ".inf" as NaN or Infinity.
+  gdtoa.tgz: tweaks to silence warnings from "gcc -Wstrict-aliasing=2";
+update xsum0.out files.
+
+Sun Apr 19 23:40:24 MDT 2009
+  dtoa.c, gdtoa/misc.c:  do not attempt to allocate large memory blocks
+from the private memory pool (which was an unlikely event, but a bug).
+  gdtoa/strtopx.c, gdtoa/strtopxL.c, gdtoa/strtorx.c, gdtoa/strtorxL.c:
+supply explicit bit for Infinity.  Note that the Q routines (which do
+not supply this bit) are appropriate for Sparc quad precision (probably
+known as long double with most current compilers).
+
+Wed Dec  9 08:14:52 MST 2009
+  gdtoa.tgz:  add gdtoa/printf.c* and modify makefile so "make Printf"
+adds a printf to gdtoa.a (to be accessed with #include "stdio1.h" to
+get gdtoa/stdio1.h, which you might install in some standard place).
+On Intel/AMD i386, x86_64, and Sparc systems, this adds formats %La,
+%Le, %Lf and %Lg to handle long double.  On x86_64 systems, it also
+adds %Lqa, %Lqe, %Lqf and %Lqg to handle 128-bit bit types (called
+__float128 by gcc and _Quad by the Intel compiler).  In gdtoa/test,
+"make pf_test" tests this printf (provided the system is an i386,
+x86_64, or Sparc system).  On x86_64 systems, "make pf_testLq" tests
+the %Lq...  formats (briefly).
+
+Mon Jan 11 22:25:17 MST 2010
+  dtoa.c: fix a minor performance bug and, under compilation with -DDEBUG,
+an erroneous error message "oversize b in quorem" in strtod's processing
+of some input that underflows to zero.  Also fix a bug in bigcomp()'s
+handling of numbers that will scale to denormal values.  The increments
+that bigcomp applied were ignoring the effects of denormalization.
+
+Sat Jan 23 00:25:54 MST 2010
+  dtoa.c:  Fix some glitches in recently introduced changes meant to
+speed up returns in pedantic cases.  In quorem, adjust #ifdef DEBUG
+stuff so it does not complain when bigcomp() calls quorem on input
+near the smallest representable number and rounding up by a bit causes
+a quorem return > 9 (which in this case is not a bug).  Fix a memory
+leak in the unlikely case of overflow only being detected after some
+high-precision integer computations.  Fix an off-by-one bug in
+handling a large number of digits with a few nonzero digits, followed
+by many zeros, and then some nonzero digits.  (This does not happen
+with sensible input.)  Fix an off-by-one bug in a recently introduced
+quick test for underflow (i.e., zero result) on input at the bottom of
+the exponent range.  Thanks to Mark Dickinson for pointing these bugs
+out.
+
+  dtoa.c and gdtoa/strtod.c:  Fix an obscure bug in strtod's handling
+of some inputs of many digits at the bottom of the exponent range:
+results were sometimes off by a bit when gdtoa/strtod.c or dtoa.c was
+compiled without -DNO_IEEE_SCALE and, for dtoa.c, when compiled with
+-DNO_STRTOD_BIGCOMP.
+
+  gdtoa/test/testnos3: add some examples that went wrong before
+the present changes.
+
+Sat Jan 23 23:29:02 MST 2010
+  dtoa.c: more tweaks relevant only to absurd input.
+
+Tue Feb  2 23:05:34 MST 2010
+  dtoa.c: add test for setting errno = ERANGE when input of many digits
+is rounded to Infinity or underflows to zero.  Fix a memory leak in
+such instances.
+  gdtoa/strtod.c: make some corresponding changes.
+
+Wed Jul  7 09:25:46 MDT 2010
+  dtoa.c:  adjust to use bigcomp when necessary when compiled with
+-DHonor_FLT_ROUNDS (and without -DNO_STRTOD_BIGCOMP), and the rounding
+mode is torwards +Infinity.  An input (supplied by Rick Regan
+<exploringbinary@gmail.com>) where this matters is
+1.100000000000000088817841970012523233890533447265626
+  gdtoa/strtod.c:  fix errors (introduced 20090411) when compiled
+with -DHonor_FLT_ROUNDS.
+
+Wed Sep 15 09:00:26 MDT 2010
+  dtoa.c, gdtoa/dtoa.c, gdtoa/gdtoa.c:  fix bugs with -DROUND_BIASED
+pointed out by Jay Foad.
+
+Mon Sep 27 13:43:30 MDT 2010
+  gdtoa/gdtoa.c: fix a glitch (not revealed by compilation) in the
+changes of 15 Sept. 2010.
+
+Fri Nov  5 13:02:41 MDT 2010
+  dtoa.c:  fix a bug related to bigcomp:  decimal strings with all
+zeros before the decimal point more than 40 significant digits that
+required use of bigcomp might be converted very incorrectly.
+Example: .010000000000000000057612911342378542997169 .
+Thanks to Rick Regan <exploringbinary@gmail.com> for reporting the
+symptoms and providing an example.
+
+20110403:
+  dtoa.c, gdtoa/gdtoaimp.h, gdtoa/strtod.c:  if
+ROUND_BIASED_without_Round_Up is #defined, assume ROUND_BIASED and
+omit the quick computation that would use ordinary arithmetic to
+compute the correctly rounded result with one rounding error.  If you
+want biased rounding with IEEE-style format "double" and will operate
+with rounding toward +Infinity, it suffices to #define ROUND_BIASED
+(and thus retain the quick computation when it is appropriate).
+  gdtoa/gdtoa.h: change default Long from long to int (with the goal
+of portability when compiling without -DLong=... specified).  On some
+64-bit systems, long is a 64-bit type; we need a 32-bit type here.
+  dtoa.c, gdtoa/gdtoa.c: fix a glith with ndigits with mode = 4 at
+the bottom of the exponent range, e.g., 1e-323.

@@ -1,0 +1,115 @@
+.\"
+.\" Copyright (c) 2012 Intel Corporation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    substantially similar to the "NO WARRANTY" disclaimer below
+.\"    ("Disclaimer") and any redistribution must be conditioned upon
+.\"    including a substantially similar Disclaimer requirement for further
+.\"    binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" isci driver man page.
+.\"
+.\" Author: Jim Harris <jimharris@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 23, 2012
+.Dt ISCI 4
+.Os
+.Sh NAME
+.Nm isci
+.Nd Intel C600 Serial Attached SCSI driver
+.Sh SYNOPSIS
+To compile this driver into your kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device isci"
+.Ed
+.Pp
+Or, to load the driver as a module at boot, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+isci_load="YES"
+.Ed
+.Sh HARDWARE
+The
+.Nm
+driver provides support for Intel C600
+.Tn SAS
+controllers.
+.Sh CONFIGURATION
+To force legacy interrupts for all
+.Nm
+driver instances, set the following tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.isci.force_legacy_interrupts=1
+.Ed
+.Sh DEBUGGING
+To enable debugging prints from the
+.Nm
+driver, set the
+.Bd -literal -offset indent
+hw.isci.debug_level
+.Ed
+.Pp
+variable to a value between 1 and 4 in
+.Xr loader.conf 5 .
+.Pp
+The hardware layer in the
+.Nm
+driver has extensive logging capabilities
+which are disabled by default for performance reasons.
+These can be enabled by adding
+.Bd -literal -offset indent
+options ISCI_LOGGING
+.Ed
+.Pp
+to the kernel configuration file.
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr da 4 ,
+.Xr pci 4 ,
+.Xr sa 4 ,
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 8.3
+and 9.1.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was developed by Intel and originally written by
+.An Jim Harris Aq Mt jimharris@FreeBSD.org
+with contributions from
+.An Sohaib Ahsan
+and input from
+.An Scott Long Aq Mt scottl@FreeBSD.org .
+.Pp
+This man page was written by
+.An Jim Harris Aq Mt jimharris@FreeBSD.org .

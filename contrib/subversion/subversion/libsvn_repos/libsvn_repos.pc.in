@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libsvn_repos
+Description: Subversion Repository Library
+Version: @PACKAGE_VERSION@
+Requires:  apr-@SVN_APR_MAJOR_VERSION@
+Requires.private:  libsvn_fs libsvn_delta libsvn_subr
+Libs: -L${libdir}  -lsvn_repos
+Cflags: -I${includedir}

@@ -1,0 +1,480 @@
+.\" Copyright (c) 1983, 1986, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd July 2, 2018
+.Dt SYSLOGD 8
+.Os
+.Sh NAME
+.Nm syslogd
+.Nd log systems messages
+.Sh SYNOPSIS
+.Nm
+.Op Fl 468ACcdFHkNnosTuv
+.Op Fl a Ar allowed_peer
+.Op Fl b Ar bind_address
+.Op Fl f Ar config_file
+.Op Fl l Oo Ar mode Ns \&: Oc Ns Ar path
+.Op Fl m Ar mark_interval
+.Op Fl O Ar format
+.Op Fl P Ar pid_file
+.Op Fl p Ar log_socket
+.Op Fl S Ar logpriv_socket
+.Sh DESCRIPTION
+The
+.Nm
+utility reads and logs messages to the system console,
+log files,
+other
+machines and/or users as specified by its configuration file.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl 4
+Force
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Force
+.Nm
+to use IPv6 addresses only.
+.It Fl 8
+Tells
+.Nm
+not to interfere with 8-bit data.
+Normally
+.Nm
+will replace C1 control characters
+.Pq ISO 8859 and Unicode characters
+with their
+.Dq M- Ns Em x
+equivalent.
+Note, this option does not change the way
+.Nm
+alters control characters
+.Pq see Xr iscntrl 3 .
+They will always be replaced with their
+.Dq ^ Ns Em x
+equivalent.
+.It Fl A
+Ordinarily,
+.Nm
+tries to send the message to only one address
+even if the host has more than one A or AAAA record.
+If this option is specified,
+.Nm
+tries to send the message to all addresses.
+.It Fl a Ar allowed_peer
+Allow
+.Ar allowed_peer
+to log to this
+.Nm
+using UDP datagrams.
+Multiple
+.Fl a
+options may be specified.
+.Pp
+The
+.Ar allowed_peer
+option may be any of the following:
+.Bl -tag -width "ipaddr[/prefixlen][:service]XX"
+.It Xo
+.Sm off
+.Ar ipaddr
+.Op / Ar masklen
+.Op \&: Ar service
+.Pp
+.Ar ipaddr
+.Op / Ar prefixlen
+.Op \&: Ar service
+.Sm on
+.Xc
+Accept datagrams from
+.Ar ipaddr ,
+.Ar ipaddr
+can be specified as an IPv4 address or as an IPv6
+address enclosed with
+.Ql \&[
+and
+.Ql \&] .
+If specified,
+.Ar service
+is the name or number of an UDP service (see
+.Xr services 5 )
+the source packet must belong to.
+A
+.Ar service
+of
+.Ql \&*
+accepts UDP packets from any source port.
+The default
+.Ar service
+is
+.Ql syslog .
+If
+.Ar ipaddr
+is IPv4 address, a missing
+.Ar masklen
+will be substituted by the historic class A or class B netmasks if
+.Ar ipaddr
+belongs into the address range of class A or B,
+respectively,
+or by 24 otherwise.
+If
+.Ar ipaddr
+is IPv6 address,
+a missing
+.Ar masklen
+will be substituted by 128.
+.It Xo
+.Sm off
+.Ar domainname Op \&: Ar service
+.Sm on
+.Xc
+Accept datagrams where the reverse address lookup yields
+.Ar domainname
+for the sender address.
+The meaning of
+.Ar service
+is as explained above.
+.Ar domainname
+can contain special characters of a shell-style pattern such as
+.Ql Li \&* .
+.El
+.Pp
+The
+.Fl a
+options are ignored if the
+.Fl s
+option is also specified.
+.It Xo
+.Fl b
+.Sm off
+.Ar bind_address Op \&: Ar service
+.Sm on
+.Xc
+.It Xo
+.Fl b
+.Sm off
+.Li \&: Ar service
+.Sm on
+.Xc
+Bind to a specific address and/or port.
+The address can be specified as a hostname,
+and the port as a service name.
+If an IPv6 address is specified, it should be enclosed with
+.Ql \&[
+and
+.Ql \&] .
+The default
+.Ar service
+is
+.Ql syslog .
+This option can be specified multiple times to bind to
+multiple addresses and/or ports.
+.It Fl C
+Create log files that do not exist
+.Pq permission is set to Ql Li 0600 .
+.It Fl c
+Disable the compression of repeated instances of the same line
+into a single line of the form
+.Dq Li "last message repeated N times"
+when the output is a pipe to another program.
+If specified twice,
+disable this compression in all cases.
+.It Fl d
+Put
+.Nm
+into debugging mode.
+This is probably only of use to developers working on
+.Nm .
+.It Fl f Ar config_file
+Specify the pathname of an alternate configuration file;
+the default is
+.Pa /etc/syslog.conf .
+.It Fl F
+Run
+.Nm
+in the foreground,
+rather than going into daemon mode.
+This is useful if some other process uses
+.Xr fork 2
+and
+.Xr exec 3
+to run
+.Nm ,
+and wants to monitor when and how it exits.
+.It Fl H
+When logging remote messages use hostname from the message (if supplied)
+instead of using address from which the message was received.
+.It Fl k
+Disable the translation of
+messages received with facility
+.Dq kern
+to facility
+.Dq user .
+Usually the
+.Dq kern
+facility is reserved for messages read directly from
+.Pa /dev/klog .
+.It Fl m Ar mark_interval
+Select the number of minutes between
+.Dq mark
+messages;
+the default is 20 minutes.
+.It Fl N
+Disable binding on UDP sockets.
+RFC 3164 recommends that outgoing
+.Nm
+messages should originate from the privileged port,
+this option
+.Em disables
+the recommended behavior.
+This option inherits
+.Fl s .
+.It Fl n
+Disable DNS query for every request.
+.It Fl O Ar format
+Select the output format of generated log messages.
+The values
+.Ar bsd
+and
+.Ar rfc3164
+are used to generate RFC 3164 log messages.
+The values
+.Ar syslog
+and
+.Ar rfc5424
+are used to generate RFC 5424 log messages,
+having RFC 3339 timestamps with microsecond precision.
+The default is to generate RFC 3164 log messages.
+.It Fl o
+Prefix kernel messages with the full kernel boot file as determined by
+.Xr getbootfile 3 .
+Without this, the kernel message prefix is always
+.Dq Li kernel: .
+.It Fl p Ar log_socket
+Specify the pathname of an alternate log socket to be used instead;
+the default is
+.Pa /var/run/log .
+When a single
+.Fl p
+option is specified,
+the default pathname is replaced with the specified one.
+When two or more
+.Fl p
+options are specified,
+the remaining pathnames are treated as additional log sockets.
+.It Fl P Ar pid_file
+Specify an alternative file in which to store the process ID.
+The default is
+.Pa /var/run/syslog.pid .
+.It Fl S Ar logpriv_socket
+Specify the pathname of an alternate log socket for privileged
+applications to be used instead;
+the default is
+.Pa /var/run/logpriv .
+When a single
+.Fl S
+option is specified,
+the default pathname is replaced with the specified one.
+When two or more
+.Fl S
+options are specified,
+the remaining pathnames are treated as additional log sockets.
+.It Fl l Oo Ar mode Ns \&: Oc Ns Ar path
+Specify a location where
+.Nm
+should place an additional log socket.
+The primary use for this is to place additional log sockets in
+.Pa /var/run/log
+of various chroot filespaces.
+File permissions for socket can be specified in octal representation in
+.Ar mode ,
+delimited with a colon.
+The socket location must be specified as an absolute pathname in
+.Ar path .
+.It Fl s
+Operate in secure mode.
+Do not log messages from remote machines.
+If specified twice,
+no network socket will be opened at all,
+which also disables logging to remote machines.
+.It Fl T
+Always use the local time and date for messages received from the network,
+instead of the timestamp field supplied in the message by the remote host.
+This is useful if some of the originating hosts cannot keep time properly
+or are unable to generate a correct timestamp.
+.It Fl u
+Unique priority logging.
+Only log messages at the specified priority.
+Without this option,
+messages at the stated priority or higher are logged.
+This option changes the default comparison from
+.Dq =>
+to
+.Dq = .
+.It Fl v
+Verbose logging.
+If specified once,
+the numeric facility and priority are
+logged with each locally-written message.
+If specified more than once,
+the names of the facility and priority are logged with each locally-written
+message.
+.Pp
+This option only affects the formatting of RFC 3164 messages.
+Messages formatted according to RFC 5424 always include a
+facility/priority number.
+.El
+.Pp
+The
+.Nm
+utility reads its configuration file when it starts up and whenever it
+receives a hangup signal.
+For information on the format of the configuration file,
+see
+.Xr syslog.conf 5 .
+.Pp
+The
+.Nm
+utility reads messages from the
+.Ux
+domain sockets
+.Pa /var/run/log
+and
+.Pa /var/run/logpriv ,
+from an Internet domain socket specified in
+.Pa /etc/services ,
+and from the special device
+.Pa /dev/klog
+.Pq to read kernel messages .
+.Pp
+The
+.Nm
+utility creates its process ID file,
+by default
+.Pa /var/run/syslog.pid ,
+and stores its process
+ID there.
+This can be used to kill or reconfigure
+.Nm .
+.Pp
+The message sent to
+.Nm
+should consist of a single line.
+The message can contain a priority code,
+which should be a preceding
+decimal number in angle braces,
+for example,
+.Sq Aq 5 .
+This priority code should map into the priorities defined in the
+include file
+.In sys/syslog.h .
+.Pp
+For security reasons,
+.Nm
+will not append to log files that do not exist
+.Po unless Fl C
+option is specified
+.Pc ;
+therefore, they must be created manually before running
+.Nm .
+.Pp
+The date and time are taken from the received message.
+If the format of the timestamp field is incorrect,
+time obtained from the local host is used instead.
+This can be overridden by the
+.Fl T
+flag.
+.Sh FILES
+.Bl -tag -width /var/run/syslog.pid -compact
+.It Pa /etc/syslog.conf
+configuration file
+.It Pa /var/run/syslog.pid
+default process ID file
+.It Pa /var/run/log
+name of the
+.Ux
+domain datagram log socket
+.It Pa /var/run/logpriv
+.Ux
+socket for privileged applications
+.It Pa /dev/klog
+kernel log device
+.El
+.Sh SEE ALSO
+.Xr logger 1 ,
+.Xr syslog 3 ,
+.Xr services 5 ,
+.Xr syslog.conf 5 ,
+.Xr newsyslog 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.3 .
+.Pp
+The
+.Fl a ,
+.Fl s ,
+.Fl u ,
+and
+.Fl v
+options are
+.Fx 2.2
+extensions.
+.Sh BUGS
+The ability to log messages received in UDP packets is equivalent to
+an unauthenticated remote disk-filling service,
+and should probably be disabled by default.
+Some sort of
+.No inter- Ns Nm syslogd
+authentication mechanism ought to be worked out.
+To prevent the worst abuse,
+use of the
+.Fl a
+option is therefore highly recommended.
+.Pp
+The
+.Fl a
+matching algorithm does not pretend to be very efficient;
+use of numeric IP addresses is faster than domain name comparison.
+Since the allowed peer list is being walked linearly,
+peer groups where frequent messages are being anticipated
+from should be put early into the
+.Fl a
+list.
+.Pp
+The log socket was moved from
+.Pa /dev
+to ease the use of a read-only root file system.
+This may confuse
+some old binaries so that a symbolic link might be used for a
+transitional period.

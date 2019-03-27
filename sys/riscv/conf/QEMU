@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+#NO_UNIVERSE
+
+include "GENERIC"
+
+ident QEMU
+
+options 	HZ=100
+options 	ROOTDEVNAME=\"ufs:/dev/vtbd0\"

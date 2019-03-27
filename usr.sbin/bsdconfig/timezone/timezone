@@ -1,0 +1,457 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011-2015 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/timezone/continents.subr
+f_include $BSDCFG_SHARE/timezone/countries.subr
+f_include $BSDCFG_SHARE/timezone/iso3166.subr
+f_include $BSDCFG_SHARE/timezone/menus.subr
+f_include $BSDCFG_SHARE/timezone/zones.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="090.timezone"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
+
+############################################################ CONFIGURATION
+
+#
+# Standard pathnames
+#
+_PATH_DB="/var/db/zoneinfo"
+_PATH_WALL_CMOS_CLOCK="/etc/wall_cmos_clock"
+
+############################################################ GLOBALS
+
+#
+# Options
+#
+REALLYDOIT=1
+REINSTALL=
+USEDIALOG=1
+SKIPUTC= # See MAIN
+VERBOSE=
+TZ_OR_FAIL=
+CHROOTENV=
+
+#
+# Dummy vars (populated dynamically)
+#
+COUNTRIES= # list of 2-character country codes created by f_read_iso3166_table
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt="$msg_select_region"
+	local defaultitem= # Calculated below
+	local hline=
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$title\"  \
+	                        \"\$btitle\" \
+	                        \"\$prompt\" \
+	                        \"\$hline\"  \
+	                        $continent_menu_list
+
+	# Obtain default-item from previously stored selection
+	f_dialog_default_fetch defaultitem
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$title\"              \
+		--backtitle \"\$btitle\"         \
+		--hline \"\$hline\"              \
+		--ok-label \"\$msg_ok\"          \
+		--cancel-label \"\$msg_cancel\"  \
+		--default-item \"\$defaultitem\" \
+		--menu \"\$prompt\"              \
+		$height $width $rows             \
+		$continent_menu_list             \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	f_dialog_default_store "$menu_choice"
+	return $retval
+}
+
+############################################################ MAIN
+
+# Skip initial question regarding UTC v. Wall-Clock time if run in VM
+[ "$( sysctl -n kern.vm_guest 2> /dev/null )" = "none" ] || SKIPUTC=1
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts C:ehnrsv$GETOPTS_STDARGS flag; do
+	case "$flag" in
+	C) CHROOTENV="$OPTARG" ;;
+	e) TZ_OR_FAIL=1 ;;
+	n) REALLYDOIT= ;;
+	r) REINSTALL=1
+	   USEDIALOG= ;;
+	s) SKIPUTC=1 ;;
+	v) VERBOSE=1 ;;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Initialize
+#
+f_dialog_title "$msg_time_zone"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+
+#
+# Process `-C chroot_directory' command-line argument
+#
+if [ "$CHROOTENV" ]; then
+	_PATH_ZONETAB="$CHROOTENV$_PATH_ZONETAB"
+	_PATH_ISO3166="$CHROOTENV$_PATH_ISO3166"
+	_PATH_ZONEINFO="$CHROOTENV$_PATH_ZONEINFO"
+	_PATH_LOCALTIME="$CHROOTENV$_PATH_LOCALTIME"
+	_PATH_DB="$CHROOTENV$_PATH_DB"
+	_PATH_WALL_CMOS_CLOCK="$CHROOTENV$_PATH_WALL_CMOS_CLOCK"
+fi
+
+#
+# Process `-r' command-line option
+#
+if [ "$REINSTALL" ]; then
+	[ -f "$_PATH_DB" -a -r "$_PATH_DB" ] ||
+		f_die 1 "$msg_cannot_open_for_reading" "$_PATH_DB"
+	f_eval_catch -dk zoneinfo "$0" cat 'cat "%s"' "$_PATH_DB" ||
+		f_die 1 "$msg_error_reading" "$_PATH_DB"
+	[ "$zoneinfo" ] ||
+		f_die 1 "$msg_unable_to_determine_name_from_db" "$_PATH_DB"
+	f_install_zoneinfo "$zoneinfo"
+	exit $?
+fi
+
+#
+# If the arguments on the command-line do not specify a file,
+# then interpret it as a zoneinfo name
+#
+if [ $# -ge 1 ]; then
+	zoneinfo="$1"
+
+	if [ ! -f "$zoneinfo" ]; then
+		USEDIALOG=
+		f_install_zoneinfo "$zoneinfo"
+		exit $?
+	fi
+
+	# FALLTHROUGH
+fi
+
+#
+# Process the UTC option
+#
+if [ "$_PATH_WALL_CMOS_CLOCK" -a ! "$SKIPUTC" ]; then
+	f_dialog_title "$msg_select_local_or_utc"
+	title="$DIALOG_TITLE"
+	btitle="$DIALOG_BACKTITLE"
+	f_dialog_title_restore
+	msg="$msg_is_machine_clock_utc"
+
+	if [ "$USE_XDIALOG" ]; then
+		defaultno="default-no"
+		height=10 width=77
+	else
+		defaultno="defaultno"
+		height=7 width=73
+	fi
+
+	if [ "$USE_XDIALOG" ]; then
+		$DIALOG \
+			--title "$title"         \
+			--backtitle "$btitle"    \
+			--$defaultno             \
+			--ok-label "$msg_yes"    \
+			--cancel-label "$msg_no" \
+			--yesno "$msg" $height $width
+		result=$?
+	else
+		$DIALOG \
+			--title "$title"       \
+			--backtitle "$btitle"  \
+			--$defaultno           \
+			--yes-label "$msg_yes" \
+			--no-label "$msg_no"   \
+			--yesno "$msg" $height $width
+		result=$?
+	fi
+
+	if [ $result -eq $DIALOG_OK ]; then
+		# User chose YES
+		[ "$REALLYDOIT" ] &&
+			f_quietly rm -f "$_PATH_WALL_CMOS_CLOCK"
+	else
+		# User chose NO, pressed ESC (or Ctrl-C), or closed box
+		[ "$REALLYDOIT" ] &&
+			( umask 222 && :> "$_PATH_WALL_CMOS_CLOCK" )
+	fi
+fi
+
+#
+# Process optional default zone argument
+#
+if [ $# -ge 1 ]; then
+	default="$1"
+
+	f_dialog_title "$msg_default_zone_provided"
+	f_sprintf msg "\n$msg_use_default_zone" "$default"
+	hline=
+	f_dialog_yesno "$msg" "$hline"
+	result=$?
+	f_dialog_title_restore
+
+	if [ $result -eq $DIALOG_OK ]; then
+		# User chose YES
+		f_install_zoneinfo_file "$default"
+		result=$?
+		[ ! "$USE_XDIALOG" ] && f_dialog_clear
+		exit $result
+	fi
+
+	[ ! "$USE_XDIALOG" ] && f_dialog_clear
+fi
+
+#
+# Override the user-supplied umask
+#
+umask 022
+
+#
+# Read databases and perform initialization
+#
+f_read_iso3166_table # creates $COUNTRIES and $country_*_name
+f_read_zones         # creates $country_*_{descr,cont,filename}
+f_sort_countries     # sorts the countries listed for each continent
+f_make_menus         # creates $continent_menu_list and $continent_*_menu_list
+
+#
+# Launch application main menu
+#
+defaultctry=
+defaultzone=
+NEED_CONTINENT=1
+NEED_COUNTRY=1
+while :; do
+	if [ "$NEED_CONTINENT" ]; then
+		dialog_menu_main # prompt the user to select a continent/ocean
+		retval=$?
+		f_dialog_menutag_fetch mtag
+
+		if [ $retval -ne $DIALOG_OK ]; then
+			[ "$TZ_OR_FAIL" ] && f_die
+			exit $SUCCESS
+		fi
+
+		NEED_CONTINENT=
+
+		continent=$( eval f_dialog_menutag2item \"\$mtag\" \
+		                  	$continent_menu_list )
+		f_find_continent "$continent" cont
+		f_continent $cont title cont_title
+		f_continent $cont nitems nitems
+		f_OCEANP $cont isocean
+	fi
+
+	if [ "$NEED_COUNTRY" ]; then
+		if [ "$cont_title" = "$continent_utc_title" ]; then
+			if f_set_zone_utc; then
+				break
+			else
+				NEED_CONTINENT=1
+				continue
+			fi
+		fi
+
+		#
+		# Short cut -- if there's only one country, don't post a menu.
+		#
+		if [ $nitems -eq 1 ]; then
+			tag=1
+		else
+			#
+			# It's amazing how much good grammar really matters...
+			#
+			if [ ! "$isocean" ]; then
+				f_sprintf title "$msg_country_title" \
+				                "$cont_title"
+				f_dialog_title "$title"
+				title="$DIALOG_TITLE"
+				btitle="$DIALOG_BACKTITLE"
+				f_dialog_title_restore
+				prompt="$msg_select_country"
+			else
+				f_sprintf title "$msg_island_and_group_title" \
+				                "$cont_title"
+				f_dialog_title "$title"
+				title="$DIALOG_TITLE"
+				btitle="$DIALOG_BACKTITLE"
+				f_dialog_title_restore
+				prompt="$msg_select_island_or_group"
+			fi
+
+			#
+			# Calculate size of menu
+			#
+			f_continent $cont menu_list menu_list
+			eval f_dialog_menu_size height width rows \
+			                        \"\$title\"  \
+			                        \"\$btitle\" \
+			                        \"\$prompt\" \
+			                        \"\"         \
+			                        $menu_list
+
+			#
+			# Launch the country selection menu
+			#
+			tag=$( eval $DIALOG \
+				--title \"\$title\"              \
+				--backtitle \"\$btitle\"         \
+				--ok-label \"\$msg_ok\"          \
+				--cancel-label \"\$msg_cancel\"  \
+				--default-item \"\$defaultctry\" \
+				--menu \"\$prompt\"              \
+				$height $width $rows             \
+				$menu_list                       \
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
+			retval=$?
+			f_dialog_data_sanitize tag
+			defaultctry="$tag"
+
+			if [ $retval -ne $DIALOG_OK ]; then
+				NEED_CONTINENT=1
+				continue # back to main menu
+			fi
+		fi
+
+		# Get the country code from the user's selection 
+		f_continent $cont tlc_$tag tlc
+
+		NEED_COUNTRY=
+	fi
+
+	#
+	# If the selection has only one zone (nzones == -1),
+	# just set it.
+	#
+	f_country $tlc nzones nzones
+	if [ $nzones -lt 0 ]; then
+		f_country $tlc cont real_cont
+		f_continent $real_cont name real_continent
+		f_country $tlc name name
+		f_country $tlc filename filename
+
+		if ! f_confirm_zone "$real_continent/$filename"; then
+			[ $nitems -eq 1 ] && NEED_CONTINENT=1
+			NEED_COUNTRY=1
+			continue
+		fi
+	else
+		f_country $tlc name name
+		f_sprintf title "$msg_country_time_zones" "$name"
+		f_dialog_title "$title"
+		title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
+		f_dialog_title_restore
+		prompt="$msg_select_zone"
+		f_country $tlc menu_list menu_list
+		eval f_dialog_menu_size height width rows \
+			\"\$title\"  \"\$btitle\" \"\$prompt\" \"\" $menu_list
+
+		#
+		# Launch the zone selection menu
+		# NOTE: This is as deep as we go
+		#
+		n=$( eval $DIALOG \
+			--title \"\$title\"              \
+			--backtitle \"\$btitle\"         \
+			--ok-label \"\$msg_ok\"          \
+			--cancel-label \"\$msg_cancel\"  \
+			--default-item \"\$defaultzone\" \
+			--menu \"\$prompt\"              \
+			$height $width $rows             \
+			$menu_list                       \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
+		retval=$?
+		f_dialog_data_sanitize n
+		defaultzone="$n"
+
+		if [ $retval -ne $DIALOG_OK ]; then
+			[ $nitems -eq 1 ] && NEED_CONTINENT=1
+			NEED_COUNTRY=1
+			continue
+		fi
+
+		f_country $tlc cont_$n real_cont
+		f_continent $real_cont name real_continent
+		f_country $tlc name name
+		f_country $tlc filename_$n filename
+
+		f_confirm_zone "$real_continent/$filename" || continue
+	fi
+
+	[ $retval -eq $DIALOG_OK ] || continue # back to main menu
+
+	if ! f_install_zoneinfo "$real_continent/$filename"; then
+		[ $nzones -lt 0 ] && NEED_COUNTRY=1
+	else
+		break
+	fi
+done
+
+################################################################################
+# END
+################################################################################

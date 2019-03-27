@@ -1,0 +1,57 @@
+#!/usr/sbin/dtrace -s
+/*-
+ * Copyright (c) 2015 Pawel Jakub Dawidek <pawel@dawidek.net>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *
+ * This little script is for use with programs that use event loop and should
+ * sleep only when waiting for events (eg. via kevent(2)). When a program is
+ * going to sleep in the kernel, the script will show its name, PID, kernel
+ * stack trace and userland stack trace. Sleeping in kevent(2) is ignored.
+ *
+ * usage: blocking <execname>
+ */
+
+#pragma D option quiet
+
+syscall::kevent:entry
+/execname == $$1/
+{
+	self->inkevent = 1;
+}
+
+fbt::sleepq_add:entry
+/!self->inkevent && execname == $$1/
+{
+	printf("\n%s(%d) is blocking...\n", execname, pid);
+	stack();
+	ustack();
+}
+
+syscall::kevent:return
+/execname == $$1/
+{
+	self->inkevent = 0;
+}

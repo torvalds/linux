@@ -1,0 +1,84 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 24, 1996
+.Dt VOP_FSYNC 9
+.Os
+.Sh NAME
+.Nm VOP_FSYNC
+.Nd flush file system buffers for a file
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn VOP_FSYNC "struct vnode *vp" "int waitfor" "struct thread *td"
+.Sh DESCRIPTION
+This call flushes any dirty file system buffers for the file.
+It is used to implement the
+.Xr sync 2
+and
+.Xr fsync 2
+system calls.
+.Pp
+Its arguments are:
+.Bl -tag -width waitfor
+.It Fa vp
+The vnode of the file.
+.It Fa waitfor
+Whether the function should wait for I/O to complete.
+Possible values are:
+.Bl -tag -width MNT_NOWAIT
+.It Dv MNT_WAIT
+Synchronously wait for I/O to complete.
+.It Dv MNT_NOWAIT
+Start all I/O, but do not wait for it.
+.It Dv MNT_LAZY
+Push data not written by file system syncer.
+.El
+.It Fa td
+The calling thread.
+.El
+.Sh LOCKS
+The file should be locked on entry.
+.Sh RETURN VALUES
+Zero is returned if the call is successful, otherwise an appropriate
+error code is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ENOSPC
+The file system is full.
+.It Bq Er EDQUOT
+Quota exceeded.
+.El
+.Sh SEE ALSO
+.Xr vnode 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

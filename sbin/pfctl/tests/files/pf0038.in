@@ -1,0 +1,5 @@
+# test
+
+pass in on tun1000000 proto tcp from any to any user bin
+pass in on tun1000000 proto tcp from any to any group bin
+pass in on tun1000000 proto tcp from any to any group wheel user root user bin

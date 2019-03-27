@@ -1,0 +1,89 @@
+.\" Copyright (c) 1985, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)ieee.3	6.4 (Berkeley) 5/6/91
+.\" $FreeBSD$
+.\"
+.Dd November 6, 2005
+.Dt IEEE_TEST 3
+.Os
+.Sh NAME
+.Nm scalb ,
+.Nm scalbf ,
+.Nm significand ,
+.Nm significandf
+.Nd IEEE test functions
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn scalb "double x" "double n"
+.Ft float
+.Fn scalbf "float x" "float n"
+.Ft double
+.Fn significand "double x"
+.Ft float
+.Fn significandf "float x"
+.Sh DESCRIPTION
+These functions allow users to test conformance to
+.St -ieee754 .
+Their use is not otherwise recommended.
+.Pp
+.Fn scalb x n
+and
+.Fn scalbf x n
+return
+.Fa x Ns \(**(2** Ns Fa n )
+computed by exponent manipulation.
+If
+.Fa n
+is not an integer, \*(Pm\*(If, or an \*(Na, the result is unspecified.
+.Pp
+.Fn significand x
+and
+.Fn significandf x
+return
+.Fa sig ,
+where
+.Fa x
+:=
+.Fa sig No \(** 2** Ns Fa n
+with 1 \(<=
+.Fa sig
+< 2.
+.Fn significand x
+and
+.Fn significandf x
+are not defined when
+.Fa x
+is 0, \*(Pm\*(If, or \*(Na.
+.Sh SEE ALSO
+.Xr ieee 3 ,
+.Xr math 3
+.Sh STANDARDS
+.St -ieee754

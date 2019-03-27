@@ -1,0 +1,72 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_insch.3x,v 1.13 2010/12/04 18:38:55 tom Exp $
+.TH curs_insch 3X ""
+.SH NAME
+\fBinsch\fR,
+\fBwinsch\fR,
+\fBmvinsch\fR,
+\fBmvwinsch\fR \- insert a character before cursor in a \fBcurses\fR window
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint insch(chtype ch);\fR
+.br
+\fBint winsch(WINDOW *win, chtype ch);\fR
+.br
+\fBint mvinsch(int y, int x, chtype ch);\fR
+.br
+\fBint mvwinsch(WINDOW *win, int y, int x, chtype ch);\fR
+.br
+.SH DESCRIPTION
+These routines insert the character \fIch\fR before the character under the
+cursor.  All characters to the right of the cursor are moved one space to the
+right, with the possibility of the rightmost character on the line being lost.
+The insertion operation does not change the cursor position.
+.SH RETURN VALUE
+All routines that return an integer return \fBERR\fR upon failure and OK (SVr4
+specifies only "an integer value other than \fBERR\fR") upon successful
+completion, unless otherwise noted in the preceding routine descriptions.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+These routines do not necessarily imply use of a hardware insert character
+feature.
+.PP
+Note that \fBinsch\fR, \fBmvinsch\fR, and \fBmvwinsch\fR may be macros.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.
+.SH SEE ALSO
+\fBcurses\fR(3X).
+.PP
+Comparable functions in the wide-character (ncursesw) library are
+described in
+\fBcurs_ins_wch\fR(3X).

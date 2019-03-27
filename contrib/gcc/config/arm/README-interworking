@@ -1,0 +1,742 @@
+		Arm / Thumb Interworking
+		========================
+
+The Cygnus GNU Pro Toolkit for the ARM7T processor supports function
+calls between code compiled for the ARM instruction set and code
+compiled for the Thumb instruction set and vice versa.  This document
+describes how that interworking support operates and explains the
+command line switches that should be used in order to produce working
+programs.
+
+Note:  The Cygnus GNU Pro Toolkit does not support switching between
+compiling for the ARM instruction set and the Thumb instruction set
+on anything other than a per file basis.  There are in fact two
+completely separate compilers, one that produces ARM assembler
+instructions and one that produces Thumb assembler instructions.  The
+two compilers share the same assembler, linker and so on.
+
+
+1. Explicit interworking support for C and C++ files
+====================================================
+
+By default if a file is compiled without any special command line
+switches then the code produced will not support interworking.
+Provided that a program is made up entirely from object files and
+libraries produced in this way and which contain either exclusively
+ARM instructions or exclusively Thumb instructions then this will not
+matter and a working executable will be created.  If an attempt is
+made to link together mixed ARM and Thumb object files and libraries,
+then warning messages will be produced by the linker and a non-working
+executable will be created.
+
+In order to produce code which does support interworking it should be
+compiled with the
+
+	-mthumb-interwork
+
+command line option.  Provided that a program is made up entirely from
+object files and libraries built with this command line switch a
+working executable will be produced, even if both ARM and Thumb
+instructions are used by the various components of the program.  (No
+warning messages will be produced by the linker either).
+
+Note that specifying -mthumb-interwork does result in slightly larger,
+slower code being produced.  This is why interworking support must be
+specifically enabled by a switch.
+
+
+2. Explicit interworking support for assembler files
+====================================================
+
+If assembler files are to be included into an interworking program
+then the following rules must be obeyed:
+
+	* Any externally visible functions must return by using the BX
+	instruction.
+
+	* Normal function calls can just use the BL instruction.  The
+	linker will automatically insert code to switch between ARM
+	and Thumb modes as necessary.
+
+	* Calls via function pointers should use the BX instruction if
+	the call is made in ARM mode:
+
+		.code 32
+		mov lr, pc
+		bx  rX
+
+	This code sequence will not work in Thumb mode however, since
+	the mov instruction will not set the bottom bit of the lr
+	register.  Instead a branch-and-link to the _call_via_rX
+	functions should be used instead:
+
+		.code 16
+		bl  _call_via_rX
+
+	where rX is replaced by the name of the register containing
+	the function address.
+
+	* All externally visible functions which should be entered in
+	Thumb mode must have the .thumb_func pseudo op specified just
+	before their entry point.  e.g.:
+
+			.code 16
+			.global function
+			.thumb_func
+		function:
+			...start of function....
+
+	* All assembler files must be assembled with the switch
+	-mthumb-interwork specified on the command line.  (If the file
+	is assembled by calling gcc it will automatically pass on the
+	-mthumb-interwork switch to the assembler, provided that it
+	was specified on the gcc command line in the first place.) 
+
+
+3. Support for old, non-interworking aware code.
+================================================
+
+If it is necessary to link together code produced by an older,
+non-interworking aware compiler, or code produced by the new compiler
+but without the -mthumb-interwork command line switch specified, then
+there are two command line switches that can be used to support this.
+
+The switch
+
+	-mcaller-super-interworking
+
+will allow calls via function pointers in Thumb mode to work,
+regardless of whether the function pointer points to old,
+non-interworking aware code or not.  Specifying this switch does
+produce slightly slower code however.
+
+Note:  There is no switch to allow calls via function pointers in ARM
+mode to be handled specially.  Calls via function pointers from
+interworking aware ARM code to non-interworking aware ARM code work
+without any special considerations by the compiler.  Calls via
+function pointers from interworking aware ARM code to non-interworking
+aware Thumb code however will not work.  (Actually under some
+circumstances they may work, but there are no guarantees).  This is
+because only the new compiler is able to produce Thumb code, and this
+compiler already has a command line switch to produce interworking
+aware code.
+
+
+The switch
+
+	-mcallee-super-interworking
+
+will allow non-interworking aware ARM or Thumb code to call Thumb
+functions, either directly or via function pointers.  Specifying this
+switch does produce slightly larger, slower code however.
+
+Note:  There is no switch to allow non-interworking aware ARM or Thumb
+code to call ARM functions.  There is no need for any special handling
+of calls from non-interworking aware ARM code to interworking aware
+ARM functions, they just work normally.  Calls from non-interworking
+aware Thumb functions to ARM code however, will not work.  There is no
+option to support this, since it is always possible to recompile the
+Thumb code to be interworking aware.
+
+As an alternative to the command line switch
+-mcallee-super-interworking, which affects all externally visible
+functions in a file, it is possible to specify an attribute or
+declspec for individual functions, indicating that that particular
+function should support being called by non-interworking aware code.
+The function should be defined like this:
+
+	int __attribute__((interfacearm)) function 
+	{
+		... body of function ...
+	}
+
+or
+
+	int __declspec(interfacearm) function
+	{
+		... body of function ...
+	}
+
+
+
+4. Interworking support in dlltool
+==================================
+
+It is possible to create DLLs containing mixed ARM and Thumb code.  It
+is also possible to call Thumb code in a DLL from an ARM program and
+vice versa.  It is even possible to call ARM DLLs that have been compiled
+without interworking support (say by an older version of the compiler),
+from Thumb programs and still have things work properly.
+
+   A version of the `dlltool' program which supports the `--interwork'
+command line switch is needed, as well as the following special
+considerations when building programs and DLLs:
+
+*Use `-mthumb-interwork'*
+     When compiling files for a DLL or a program the `-mthumb-interwork'
+     command line switch should be specified if calling between ARM and
+     Thumb code can happen.  If a program is being compiled and the
+     mode of the DLLs that it uses is not known, then it should be
+     assumed that interworking might occur and the switch used.
+
+*Use `-m thumb'*
+     If the exported functions from a DLL are all Thumb encoded then the
+     `-m thumb' command line switch should be given to dlltool when
+     building the stubs.  This will make dlltool create Thumb encoded
+     stubs, rather than its default of ARM encoded stubs.
+
+     If the DLL consists of both exported Thumb functions and exported
+     ARM functions then the `-m thumb' switch should not be used.
+     Instead the Thumb functions in the DLL should be compiled with the
+     `-mcallee-super-interworking' switch, or with the `interfacearm'
+     attribute specified on their prototypes.  In this way they will be
+     given ARM encoded prologues, which will work with the ARM encoded
+     stubs produced by dlltool.
+
+*Use `-mcaller-super-interworking'*
+     If it is possible for Thumb functions in a DLL to call
+     non-interworking aware code via a function pointer, then the Thumb
+     code must be compiled with the `-mcaller-super-interworking'
+     command line switch.  This will force the function pointer calls
+     to use the _interwork_call_via_rX stub functions which will
+     correctly restore Thumb mode upon return from the called function.
+
+*Link with `libgcc.a'*
+     When the dll is built it may have to be linked with the GCC
+     library (`libgcc.a') in order to extract the _call_via_rX functions
+     or the _interwork_call_via_rX functions.  This represents a partial
+     redundancy since the same functions *may* be present in the
+     application itself, but since they only take up 372 bytes this
+     should not be too much of a consideration.
+
+*Use `--support-old-code'*
+     When linking a program with an old DLL which does not support
+     interworking, the `--support-old-code' command line switch to the
+     linker should be used.   This causes the linker to generate special
+     interworking stubs which can cope with old, non-interworking aware
+     ARM code, at the cost of generating bulkier code.  The linker will
+     still generate a warning message along the lines of:
+       "Warning: input file XXX does not support interworking, whereas YYY does."
+     but this can now be ignored because the --support-old-code switch
+     has been used.
+
+
+
+5. How interworking support works
+=================================
+
+Switching between the ARM and Thumb instruction sets is accomplished
+via the BX instruction which takes as an argument a register name.
+Control is transfered to the address held in this register (with the
+bottom bit masked out), and if the bottom bit is set, then Thumb
+instruction processing is enabled, otherwise ARM instruction
+processing is enabled.
+
+When the -mthumb-interwork command line switch is specified, gcc
+arranges for all functions to return to their caller by using the BX
+instruction.  Thus provided that the return address has the bottom bit
+correctly initialized to indicate the instruction set of the caller,
+correct operation will ensue.
+
+When a function is called explicitly (rather than via a function
+pointer), the compiler generates a BL instruction to do this.  The
+Thumb version of the BL instruction has the special property of
+setting the bottom bit of the LR register after it has stored the
+return address into it, so that a future BX instruction will correctly
+return the instruction after the BL instruction, in Thumb mode.
+
+The BL instruction does not change modes itself however, so if an ARM
+function is calling a Thumb function, or vice versa, it is necessary
+to generate some extra instructions to handle this.  This is done in
+the linker when it is storing the address of the referenced function
+into the BL instruction.  If the BL instruction is an ARM style BL
+instruction, but the referenced function is a Thumb function, then the
+linker automatically generates a calling stub that converts from ARM
+mode to Thumb mode, puts the address of this stub into the BL
+instruction, and puts the address of the referenced function into the
+stub.  Similarly if the BL instruction is a Thumb BL instruction, and
+the referenced function is an ARM function, the linker generates a
+stub which converts from Thumb to ARM mode, puts the address of this
+stub into the BL instruction, and the address of the referenced
+function into the stub.
+
+This is why it is necessary to mark Thumb functions with the
+.thumb_func pseudo op when creating assembler files.  This pseudo op
+allows the assembler to distinguish between ARM functions and Thumb
+functions.  (The Thumb version of GCC automatically generates these
+pseudo ops for any Thumb functions that it generates).
+
+Calls via function pointers work differently.  Whenever the address of
+a function is taken, the linker examines the type of the function
+being referenced.  If the function is a Thumb function, then it sets
+the bottom bit of the address.  Technically this makes the address
+incorrect, since it is now one byte into the start of the function,
+but this is never a problem because:
+
+	a. with interworking enabled all calls via function pointer
+	   are done using the BX instruction and this ignores the
+	   bottom bit when computing where to go to.
+
+	b. the linker will always set the bottom bit when the address
+	   of the function is taken, so it is never possible to take
+	   the address of the function in two different places and
+	   then compare them and find that they are not equal.
+
+As already mentioned any call via a function pointer will use the BX
+instruction (provided that interworking is enabled).  The only problem
+with this is computing the return address for the return from the
+called function.  For ARM code this can easily be done by the code
+sequence:
+
+	mov	lr, pc
+	bx	rX
+
+(where rX is the name of the register containing the function
+pointer).  This code does not work for the Thumb instruction set,
+since the MOV instruction will not set the bottom bit of the LR
+register, so that when the called function returns, it will return in
+ARM mode not Thumb mode.  Instead the compiler generates this
+sequence:
+
+	bl	_call_via_rX
+
+(again where rX is the name if the register containing the function
+pointer).  The special call_via_rX functions look like this:
+
+	.thumb_func
+_call_via_r0:
+	bx	r0
+	nop
+
+The BL instruction ensures that the correct return address is stored
+in the LR register and then the BX instruction jumps to the address
+stored in the function pointer, switch modes if necessary.
+
+
+6. How caller-super-interworking support works
+==============================================
+
+When the -mcaller-super-interworking command line switch is specified
+it changes the code produced by the Thumb compiler so that all calls
+via function pointers (including virtual function calls) now go via a
+different stub function.  The code to call via a function pointer now
+looks like this:
+
+	bl _interwork_call_via_r0
+
+Note: The compiler does not insist that r0 be used to hold the
+function address.  Any register will do, and there are a suite of stub
+functions, one for each possible register.  The stub functions look
+like this:
+
+	.code 16
+	.thumb_func
+_interwork_call_via_r0
+	bx 	pc
+	nop
+	
+	.code 32
+	tst	r0, #1
+	stmeqdb	r13!, {lr}
+	adreq	lr, _arm_return
+	bx	r0
+
+The stub first switches to ARM mode, since it is a lot easier to
+perform the necessary operations using ARM instructions.  It then
+tests the bottom bit of the register containing the address of the
+function to be called.  If this bottom bit is set then the function
+being called uses Thumb instructions and the BX instruction to come
+will switch back into Thumb mode before calling this function.  (Note
+that it does not matter how this called function chooses to return to
+its caller, since the both the caller and callee are Thumb functions,
+and mode switching is necessary).  If the function being called is an
+ARM mode function however, the stub pushes the return address (with
+its bottom bit set) onto the stack, replaces the return address with
+the address of the a piece of code called '_arm_return' and then
+performs a BX instruction to call the function.
+
+The '_arm_return' code looks like this:
+
+	.code 32
+_arm_return:		
+	ldmia 	r13!, {r12}
+	bx 	r12
+	.code 16
+
+
+It simply retrieves the return address from the stack, and then
+performs a BX operation to return to the caller and switch back into
+Thumb mode.
+
+
+7. How callee-super-interworking support works
+==============================================
+
+When -mcallee-super-interworking is specified on the command line the
+Thumb compiler behaves as if every externally visible function that it
+compiles has had the (interfacearm) attribute specified for it.  What
+this attribute does is to put a special, ARM mode header onto the
+function which forces a switch into Thumb mode:
+
+  without __attribute__((interfacearm)):
+
+		.code 16
+		.thumb_func
+	function:
+		... start of function ...
+
+  with __attribute__((interfacearm)):
+
+		.code 32
+	function:
+		orr	r12, pc, #1
+		bx	r12
+
+		.code 16
+                .thumb_func
+        .real_start_of_function:
+
+		... start of function ...
+
+Note that since the function now expects to be entered in ARM mode, it
+no longer has the .thumb_func pseudo op specified for its name.
+Instead the pseudo op is attached to a new label .real_start_of_<name>
+(where <name> is the name of the function) which indicates the start
+of the Thumb code.  This does have the interesting side effect in that
+if this function is now called from a Thumb mode piece of code
+outside of the current file, the linker will generate a calling stub
+to switch from Thumb mode into ARM mode, and then this is immediately
+overridden by the function's header which switches back into Thumb
+mode. 
+
+In addition the (interfacearm) attribute also forces the function to
+return by using the BX instruction, even if has not been compiled with
+the -mthumb-interwork command line flag, so that the correct mode will
+be restored upon exit from the function.
+
+
+8. Some examples
+================
+
+   Given these two test files:
+
+             int arm (void) { return 1 + thumb (); }
+
+             int thumb (void) { return 2 + arm (); }
+
+   The following pieces of assembler are produced by the ARM and Thumb
+version of GCC depending upon the command line options used:
+
+   `-O2':
+             .code 32                               .code 16
+             .global _arm                           .global _thumb
+                                                    .thumb_func
+     _arm:                                    _thumb:
+             mov     ip, sp
+             stmfd   sp!, {fp, ip, lr, pc}          push    {lr}
+             sub     fp, ip, #4
+             bl      _thumb                          bl      _arm
+             add     r0, r0, #1                      add     r0, r0, #2
+             ldmea   fp, {fp, sp, pc}                pop     {pc}
+
+   Note how the functions return without using the BX instruction.  If
+these files were assembled and linked together they would fail to work
+because they do not change mode when returning to their caller.
+
+   `-O2 -mthumb-interwork':
+
+             .code 32                               .code 16
+             .global _arm                           .global _thumb
+                                                    .thumb_func
+     _arm:                                    _thumb:
+             mov     ip, sp
+             stmfd   sp!, {fp, ip, lr, pc}          push    {lr}
+             sub     fp, ip, #4
+             bl      _thumb                         bl       _arm
+             add     r0, r0, #1                     add      r0, r0, #2
+             ldmea   fp, {fp, sp, lr}               pop      {r1}
+             bx      lr                             bx       r1
+
+   Now the functions use BX to return their caller.  They have grown by
+4 and 2 bytes respectively, but they can now successfully be linked
+together and be expect to work.  The linker will replace the
+destinations of the two BL instructions with the addresses of calling
+stubs which convert to the correct mode before jumping to the called
+function.
+
+   `-O2 -mcallee-super-interworking':
+
+             .code 32                               .code 32
+             .global _arm                           .global _thumb
+     _arm:                                    _thumb:
+                                                    orr      r12, pc, #1
+                                                    bx       r12
+             mov     ip, sp                         .code 16
+             stmfd   sp!, {fp, ip, lr, pc}          push     {lr}
+             sub     fp, ip, #4
+             bl      _thumb                         bl       _arm
+             add     r0, r0, #1                     add      r0, r0, #2
+             ldmea   fp, {fp, sp, lr}               pop      {r1}
+             bx      lr                             bx       r1
+
+   The thumb function now has an ARM encoded prologue, and it no longer
+has the `.thumb-func' pseudo op attached to it.  The linker will not
+generate a calling stub for the call from arm() to thumb(), but it will
+still have to generate a stub for the call from thumb() to arm().  Also
+note how specifying `--mcallee-super-interworking' automatically
+implies `-mthumb-interworking'.
+
+
+9. Some Function Pointer Examples
+=================================
+
+   Given this test file:
+
+     	int func (void) { return 1; }
+     
+     	int call (int (* ptr)(void)) { return ptr (); }
+
+   The following varying pieces of assembler are produced by the Thumb
+version of GCC depending upon the command line options used:
+
+   `-O2':
+     		.code	16
+     		.globl	_func
+     		.thumb_func
+     	_func:
+     		mov	r0, #1
+     		bx	lr
+     
+     		.globl	_call
+     		.thumb_func
+     	_call:
+     		push	{lr}
+     		bl	__call_via_r0
+     		pop	{pc}
+
+   Note how the two functions have different exit sequences.  In
+particular call() uses pop {pc} to return, which would not work if the
+caller was in ARM mode.  func() however, uses the BX instruction, even
+though `-mthumb-interwork' has not been specified, as this is the most
+efficient way to exit a function when the return address is held in the
+link register.
+
+   `-O2 -mthumb-interwork':
+
+     		.code	16
+     		.globl	_func
+     		.thumb_func
+     	_func:
+     		mov	r0, #1
+     		bx	lr
+     
+     		.globl	_call
+     		.thumb_func
+     	_call:
+     		push	{lr}
+     		bl	__call_via_r0
+     		pop	{r1}
+     		bx	r1
+
+   This time both functions return by using the BX instruction.  This
+means that call() is now two bytes longer and several cycles slower
+than the previous version.
+
+   `-O2 -mcaller-super-interworking':
+     		.code	16
+     		.globl	_func
+     		.thumb_func
+     	_func:
+     		mov	r0, #1
+     		bx	lr
+     
+     		.globl	_call
+     		.thumb_func
+     	_call:
+     		push	{lr}
+     		bl	__interwork_call_via_r0
+     		pop	{pc}
+
+   Very similar to the first (non-interworking) version, except that a
+different stub is used to call via the function pointer.  This new stub
+will work even if the called function is not interworking aware, and
+tries to return to call() in ARM mode.  Note that the assembly code for
+call() is still not interworking aware itself, and so should not be
+called from ARM code.
+
+   `-O2 -mcallee-super-interworking':
+
+     		.code	32
+     		.globl	_func
+     	_func:
+     		orr	r12, pc, #1
+     		bx	r12
+     
+     		.code	16
+     		.globl .real_start_of_func
+     		.thumb_func
+     	.real_start_of_func:
+     		mov	r0, #1
+     		bx	lr
+     
+     		.code	32
+     		.globl	_call
+     	_call:
+     		orr	r12, pc, #1
+     		bx	r12
+     
+     		.code	16
+     		.globl .real_start_of_call
+     		.thumb_func
+     	.real_start_of_call:
+     		push	{lr}
+     		bl	__call_via_r0
+     		pop	{r1}
+     		bx	r1
+
+   Now both functions have an ARM coded prologue, and both functions
+return by using the BX instruction.  These functions are interworking
+aware therefore and can safely be called from ARM code.  The code for
+the call() function is now 10 bytes longer than the original, non
+interworking aware version, an increase of over 200%.
+
+   If a prototype for call() is added to the source code, and this
+prototype includes the `interfacearm' attribute:
+
+     	int __attribute__((interfacearm)) call (int (* ptr)(void));
+
+   then this code is produced (with only -O2 specified on the command
+line):
+
+     		.code	16
+     		.globl	_func
+     		.thumb_func
+     	_func:
+     		mov	r0, #1
+     		bx	lr
+     
+     		.globl	_call
+     		.code	32
+     	_call:
+     		orr	r12, pc, #1
+     		bx	r12
+     
+     		.code	16
+     		.globl .real_start_of_call
+     		.thumb_func
+     	.real_start_of_call:
+     		push	{lr}
+     		bl	__call_via_r0
+     		pop	{r1}
+     		bx	r1
+
+   So now both call() and func() can be safely called via
+non-interworking aware ARM code.  If, when such a file is assembled,
+the assembler detects the fact that call() is being called by another
+function in the same file, it will automatically adjust the target of
+the BL instruction to point to .real_start_of_call.  In this way there
+is no need for the linker to generate a Thumb-to-ARM calling stub so
+that call can be entered in ARM mode.
+
+
+10. How to use dlltool to build ARM/Thumb DLLs
+==============================================
+   Given a program (`prog.c') like this:
+
+             extern int func_in_dll (void);
+     
+             int main (void) { return func_in_dll(); }
+
+   And a DLL source file (`dll.c') like this:
+
+             int func_in_dll (void) { return 1; }
+
+   Here is how to build the DLL and the program for a purely ARM based
+environment:
+
+*Step One
+     Build a `.def' file describing the DLL:
+
+             ; example.def
+             ; This file describes the contents of the DLL
+             LIBRARY     example
+             HEAPSIZE    0x40000, 0x2000
+             EXPORTS
+                          func_in_dll  1
+
+*Step Two
+     Compile the DLL source code:
+
+            arm-pe-gcc -O2 -c dll.c
+
+*Step Three
+     Use `dlltool' to create an exports file and a library file:
+
+            dlltool --def example.def --output-exp example.o --output-lib example.a
+
+*Step Four
+     Link together the complete DLL:
+
+            arm-pe-ld dll.o example.o -o example.dll
+
+*Step Five
+     Compile the program's source code:
+
+            arm-pe-gcc -O2 -c prog.c
+
+*Step Six
+     Link together the program and the DLL's library file:
+
+            arm-pe-gcc prog.o example.a -o prog
+
+   If instead this was a Thumb DLL being called from an ARM program, the
+steps would look like this.  (To save space only those steps that are
+different from the previous version are shown):
+
+*Step Two
+     Compile the DLL source code (using the Thumb compiler):
+
+            thumb-pe-gcc -O2 -c dll.c -mthumb-interwork
+
+*Step Three
+     Build the exports and library files (and support interworking):
+
+            dlltool -d example.def -z example.o -l example.a --interwork -m thumb
+
+*Step Five
+     Compile the program's source code (and support interworking):
+
+            arm-pe-gcc -O2 -c prog.c -mthumb-interwork
+
+   If instead, the DLL was an old, ARM DLL which does not support
+interworking, and which cannot be rebuilt, then these steps would be
+used.
+
+*Step One
+     Skip.  If you do not have access to the sources of a DLL, there is
+     no point in building a `.def' file for it.
+
+*Step Two
+     Skip.  With no DLL sources there is nothing to compile.
+
+*Step Three
+     Skip.  Without a `.def' file you cannot use dlltool to build an
+     exports file or a library file.
+
+*Step Four
+     Skip.  Without a set of DLL object files you cannot build the DLL.
+     Besides it has already been built for you by somebody else.
+
+*Step Five
+     Compile the program's source code, this is the same as before:
+
+            arm-pe-gcc -O2 -c prog.c
+
+*Step Six
+     Link together the program and the DLL's library file, passing the
+     `--support-old-code' option to the linker:
+
+            arm-pe-gcc prog.o example.a -Wl,--support-old-code -o prog
+
+     Ignore the warning message about the input file not supporting
+     interworking as the --support-old-code switch has taken care if this.

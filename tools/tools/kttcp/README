@@ -1,0 +1,24 @@
+$FreeBSD$
+
+This is a port of Jason Thorpe's kttcp tool for testing network
+performance for in-kernel applications (like NFS).  The tool consists
+of a loadable module and a small user-mode application.  Beware
+that you should match the kernel module to the kernel it is to be
+used with.  By default SYSDIR is set to /usr/src/sys in Makefile.
+You may want to change that.
+
+To use the tool do something like on each of two machines:
+
+1. make
+2. su; make install (installs module and kttcp in /usr/local/bin)
+3. kldload kttcp
+
+Then:
+
+4. kttcp -r on one machine
+5. kttcp -t foo on the other machine, where foo is the
+   machine where #4 was done.
+
+kttcp w/o arguments gives usage.  Otherwise the source is your
+friend.  Beware that the kernel code must mimic soreceive and sosend
+for results to be meaningful.

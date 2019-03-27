@@ -1,0 +1,194 @@
+.\" Copyright (c) 2010,2014 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_highpc.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd July 22, 2014
+.Dt DWARF_HIGHPC 3
+.Os
+.Sh NAME
+.Nm dwarf_arrayorder ,
+.Nm dwarf_bitoffset ,
+.Nm dwarf_bitsize ,
+.Nm dwarf_bytesize ,
+.Nm dwarf_highpc ,
+.Nm dwarf_highpc_b ,
+.Nm dwarf_lowpc ,
+.Nm dwarf_srclang
+.Nd retrieve the value of a DWARF attribute
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_arrayorder
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Unsigned *ret_order"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_bitoffset
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Unsigned *ret_size"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_bitsize
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Unsigned *ret_size"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_bytesize
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Unsigned *ret_size"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_highpc
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Addr *ret_highpc"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_highpc_b
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Addr *ret_highpc"
+.Fa "Dwarf_Half *ret_form"
+.Fa "enum Dwarf_Form_Class *ret_class"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_lowpc
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Addr *ret_lowpc"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_srclang
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Unsigned *ret_lang"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+These convenience functions are used to retrieve DWARF attribute
+values associated with a Debugging Information Entry (DIE) descriptor
+denoted by argument
+.Ar die .
+These functions store the value of the requested attribute into the
+location pointed to by their second argument, provided that the requested
+attribute exists in the debugging information entry.
+.Pp
+The list of functions and the DWARF attribute that they retrieve are:
+.Pp
+.Bl -tag -width ".Fn dwarf_arrayorder" -compact
+.It Fn dwarf_arrayorder
+Retrieve the
+.Dv DW_AT_ordering
+attribute value.
+.It Fn dwarf_bitoffset
+Retrieve the
+.Dv DW_AT_bit_offset
+attribute value.
+.It Fn dwarf_bitsize
+Retrieve the
+.Dv DW_AT_bit_size
+attribute value.
+.It Fn dwarf_bytesize
+Retrieve the
+.Dv DW_AT_byte_size
+attribute value.
+.It Fn dwarf_highpc
+Retrieve the
+.Dv DW_AT_high_pc
+attribute value.
+.It Fn dwarf_highpc_b
+Retrieve the
+.Dv DW_AT_high_pc
+attribute value.
+.It Fn dwarf_lowpc
+Retrieve the
+.Dv DW_AT_low_pc
+attribute value.
+.It Fn dwarf_srclang
+Retrieve the
+.Dv DW_AT_language
+attribute value.
+.El
+.Pp
+Function
+.Fn dwarf_highpc_b
+is an enhanced version of function
+.Fn dwarf_highpc .
+It sets the location specified by argument
+.Ar ret_form
+to the form code of the attribute
+.Dv DW_AT_high_pc ,
+and sets the location specified by argument
+.Ar ret_class
+to the class of that form.
+A value of NULL may be used for either of the arguments
+.Ar ret_form
+or
+.Ar ret_class
+if the caller is not interested in the respective value.
+.Sh RETURN VALUES
+These functions return
+.Dv DW_DLV_OK
+on success.
+.Pp
+If the debugging information entry descriptor denoted by argument
+.Ar die
+does not contain the requested attribute, these functions return
+.Dv DW_DLV_NO_ENTRY
+and set argument
+.Ar err .
+For other errors, they return
+.Dv DW_DLV_ERROR
+and set argument
+.Ar err .
+.Sh ERRORS
+These functions can fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Arguments
+.Ar die ,
+.Ar ret_highpc ,
+.Ar ret_lowpc ,
+.Ar ret_size ,
+.Ar ret_lang
+or
+.Ar ret_order
+were NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+Argument
+.Ar die
+had no requested attribute.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_attr 3 ,
+.Xr dwarf_attrlist 3 ,
+.Xr dwarf_get_form_class 3 ,
+.Xr dwarf_hasattr 3

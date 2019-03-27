@@ -1,6 +1,0 @@
-ToDo list (incomplete, unordered)
-	- add compile as module support
-	- move half of the nvec init stuff to i2c-tegra.c
-	- move event handling to nvec_events
-	- finish suspend/resume support
-	- add support for more device implementations

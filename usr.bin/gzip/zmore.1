@@ -1,0 +1,110 @@
+.\"	$NetBSD: zmore.1,v 1.4 2013/11/12 21:58:37 pettai Exp $
+.\"	$OpenBSD: zmore.1,v 1.10 2009/08/16 09:41:08 sobrado Exp $
+.\"
+.\" Copyright (c) 2003 Todd C. Miller <Todd.Miller@courtesan.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" Sponsored in part by the Defense Advanced Research Projects
+.\" Agency (DARPA) and Air Force Research Laboratory, Air Force
+.\" Materiel Command, USAF, under agreement number F39502-99-1-0512.
+.\"
+.\" $FreeBSD$
+.Dd October 22, 2014
+.Dt ZMORE 1
+.Os
+.Sh NAME
+.Nm zmore ,
+.Nm zless
+.Nd view compressed files
+.Sh SYNOPSIS
+.Nm zmore
+.Op Ar flags
+.Op Ar
+.Nm zless
+.Op Ar flags
+.Op Ar
+.Sh DESCRIPTION
+.Nm
+is a filter that allows the viewing of files compressed with Lempel-Ziv
+encoding.
+Such files generally have a
+.Dq Z
+or
+.Dq gz
+extension (both the
+.Xr compress 1
+and
+.Xr gzip 1
+formats are supported).
+Any
+.Ar flags
+that are specified are passed to the user's preferred
+.Ev PAGER
+(which is
+.Pa /usr/bin/more
+by default).
+.Pp
+.Nm zless
+is equivalent to
+.Nm zmore
+but uses
+.Xr less 1
+as a pager instead of
+.Xr more 1 .
+.Pp
+When multiple files are specified,
+.Nm
+will pause at the end of each file and present the following prompt to the user:
+.Bd -literal -offset indent
+prev_file (END) - Next: next_file
+.Ed
+.Pp
+Where
+.Sy prev_file
+is the file that was just displayed and
+.Sy next_file
+is the next file to be displayed.
+The following keys are recognized at the prompt:
+.Bl -tag -width "e or q" -offset indent
+.It Ic e No or Ic q
+quit
+.Nm zmore .
+.It Ic s
+skip the next file (or exit if the next file is the last).
+.El
+.Pp
+If no files are specified,
+.Nm
+will read from the standard input.
+In this mode
+.Nm
+will assume
+.Xr gzip 1
+style compression since there is no suffix on which to make a decision.
+.Sh ENVIRONMENT
+.Bl -tag -width "PAGER"
+.It Ev PAGER
+Program used to display files.
+If unset,
+.Pa /usr/bin/more
+is used
+.Pq Nm zmore
+or
+.Pa /usr/bin/less
+.Pq Nm zless .
+.El
+.Sh SEE ALSO
+.Xr compress 1 ,
+.Xr less 1 ,
+.Xr more 1

@@ -1,0 +1,771 @@
+This file describes the design, layouts, and file formats of a
+libsvn_fs_fs repository.
+
+Design
+------
+
+In FSFS, each committed revision is represented as an immutable file
+containing the new node-revisions, contents, and changed-path
+information for the revision, plus a second, changeable file
+containing the revision properties.
+
+In contrast to the BDB back end, the contents of recent revision of
+files are stored as deltas against earlier revisions, instead of the
+other way around.  This is less efficient for common-case checkouts,
+but brings greater simplicity and robustness, as well as the
+flexibility to make commits work without write access to existing
+revisions.  Skip-deltas and delta combination mitigate the checkout
+cost.
+
+In-progress transactions are represented with a prototype rev file
+containing only the new text representations of files (appended to as
+changed file contents come in), along with a separate file for each
+node-revision, directory representation, or property representation
+which has been changed or added in the transaction.  During the final
+stage of the commit, these separate files are marshalled onto the end
+of the prototype rev file to form the immutable revision file.
+
+Layout of the FS directory
+--------------------------
+
+The layout of the FS directory (the "db" subdirectory of the
+repository) is:
+
+  revs/               Subdirectory containing revs
+    <shard>/          Shard directory, if sharding is in use (see below)
+      <revnum>        File containing rev <revnum>
+    <shard>.pack/     Pack directory, if the repo has been packed (see below)
+      pack            Pack file, if the repository has been packed (see below)
+      manifest        Pack manifest file, if a pack file exists (see below)
+  revprops/           Subdirectory containing rev-props
+    <shard>/          Shard directory, if sharding is in use (see below)
+      <revnum>        File containing rev-props for <revnum>
+    <shard>.pack/     Pack directory, if the repo has been packed (see below)
+      <rev>.<count>   Pack file, if the repository has been packed (see below)
+      manifest        Pack manifest file, if a pack file exists (see below)
+    revprops.db       SQLite database of the packed revprops (format 5 only)
+  transactions/       Subdirectory containing transactions
+    <txnid>.txn/      Directory containing transaction <txnid>
+  txn-protorevs/      Subdirectory containing transaction proto-revision files
+    <txnid>.rev       Proto-revision file for transaction <txnid>
+    <txnid>.rev-lock  Write lock for proto-rev file
+  txn-current         File containing the next transaction key
+  locks/              Subdirectory containing locks
+    <partial-digest>/ Subdirectory named for first 3 letters of an MD5 digest
+      <digest>        File containing locks/children for path with <digest>
+  node-origins/       Lazy cache of origin noderevs for nodes
+    <partial-nodeid>  File containing noderev ID of origins of nodes
+  current             File specifying current revision and next node/copy id
+  fs-type             File identifying this filesystem as an FSFS filesystem
+  write-lock          Empty file, locked to serialise writers
+  pack-lock           Empty file, locked to serialise 'svnadmin pack' (f. 7+)
+  txn-current-lock    Empty file, locked to serialise 'txn-current'
+  uuid                File containing the repository IDs
+  format              File containing the format number of this filesystem
+  fsfs.conf           Configuration file
+  min-unpacked-rev    File containing the oldest revision not in a pack file
+  min-unpacked-revprop Same for revision properties (format 5 only)
+  rep-cache.db        SQLite database mapping rep checksums to locations
+
+Files in the revprops directory are in the hash dump format used by
+svn_hash_write.
+
+The format of the "current" file is:
+
+ * Format 3 and above: a single line of the form
+   "<youngest-revision>\n" giving the youngest revision for the
+   repository.
+
+ * Format 2 and below: a single line of the form "<youngest-revision>
+   <next-node-id> <next-copy-id>\n" giving the youngest revision, the
+   next unique node-ID, and the next unique copy-ID for the
+   repository.
+
+The "write-lock" file is an empty file which is locked before the
+final stage of a commit and unlocked after the new "current" file has
+been moved into place to indicate that a new revision is present.  It
+is also locked during a revprop propchange while the revprop file is
+read in, mutated, and written out again.  Furthermore, it will be used
+to serialize the repository structure changes during 'svnadmin pack'
+(see also next section).  Note that readers are never blocked by any
+operation - writers must ensure that the filesystem is always in a
+consistent state.
+
+The "pack-lock" file is an empty file which is locked before an 'svnadmin
+pack' operation commences.  Thus, only one process may attempt to modify
+the repository structure at a time while other processes may still read
+and write (commit) to the repository during most of the pack procedure.
+It is only available with format 7 and newer repositories.  Older formats
+use the global write-lock instead which disables commits completely
+for the duration of the pack process.
+
+The "txn-current" file is a file with a single line of text that
+contains only a base-36 number.  The current value will be used in the
+next transaction name, along with the revision number the transaction
+is based on.  This sequence number ensures that transaction names are
+not reused, even if the transaction is aborted and a new transaction
+based on the same revision is begun.  The only operation that FSFS
+performs on this file is "get and increment"; the "txn-current-lock"
+file is locked during this operation.
+
+"fsfs.conf" is a configuration file in the standard Subversion/Python
+config format.  It is automatically generated when you create a new
+repository; read the generated file for details on what it controls.
+
+When representation sharing is enabled, the filesystem tracks
+representation checksum and location mappings using a SQLite database in
+"rep-cache.db".  The database has a single table, which stores the sha1
+hash text as the primary key, mapped to the representation revision, offset,
+size and expanded size.  This file is only consulted during writes and never
+during reads.  Consequently, it is not required, and may be removed at an
+abritrary time, with the subsequent loss of rep-sharing capabilities for
+revisions written thereafter.
+
+Filesystem formats
+------------------
+
+The "format" file defines what features are permitted within the
+filesystem, and indicates changes that are not backward-compatible.
+It serves the same purpose as the repository file of the same name.
+
+The filesystem format file was introduced in Subversion 1.2, and so
+will not be present if the repository was created with an older
+version of Subversion.  An absent format file should be interpreted as
+indicating a format 1 filesystem.
+
+The format file is a single line of the form "<format number>\n",
+followed by any number of lines specifying 'format options' -
+additional information about the filesystem's format.  Each format
+option line is of the form "<option>\n" or "<option> <parameters>\n".
+
+Clients should raise an error if they encounter an option not
+permitted by the format number in use.
+
+The formats are:
+
+  Format 1, understood by Subversion 1.1+
+  Format 2, understood by Subversion 1.4+
+  Format 3, understood by Subversion 1.5+
+  Format 4, understood by Subversion 1.6+
+  Format 5, understood by Subversion 1.7-dev, never released
+  Format 6, understood by Subversion 1.8
+  Format 7, understood by Subversion 1.9
+  Format 8, understood by Subversion 1.10
+
+The differences between the formats are:
+
+Delta representation in revision files
+  Format 1:    svndiff0 only
+  Formats 2-7: svndiff0 or svndiff1
+  Formats 8:   svndiff0, svndiff1 or svndiff2
+
+Format options
+  Formats 1-2: none permitted
+  Format 3+:   "layout" option
+  Format 7+:   "addressing" option
+
+Transaction name reuse
+  Formats 1-2: transaction names may be reused
+  Format 3+:   transaction names generated using txn-current file
+
+Location of proto-rev file and its lock
+  Formats 1-2: transactions/<txnid>/rev and
+    transactions/<txnid>/rev-lock.
+  Format 3+:   txn-protorevs/<txnid>.rev and
+    txn-protorevs/<txnid>.rev-lock.
+
+Node-ID and copy-ID generation
+  Formats 1-2: Node-IDs and copy-IDs are guaranteed to form a
+    monotonically increasing base36 sequence using the "current"
+    file.
+  Format 3+:   Node-IDs and copy-IDs use the new revision number to
+    ensure uniqueness and the "current" file just contains the
+    youngest revision.
+
+Mergeinfo metadata:
+  Format 1-2: minfo-here and minfo-count node-revision fields are not
+    stored.  svn_fs_get_mergeinfo returns an error.
+  Format 3+:  minfo-here and minfo-count node-revision fields are
+    maintained.  svn_fs_get_mergeinfo works.
+
+Revision changed paths list:
+  Format 1-3: Does not contain the node's kind.
+  Format 4+:  Contains the node's kind.
+  Format 7+:  Contains the mergeinfo-mod flag.
+
+Shard packing:
+  Format 4:   Applied to revision data only.
+  Format 5:   Revprops would be packed independently of revision data.
+  Format 6+:  Applied equally to revision data and revprop data
+    (i.e. same min packed revision)
+
+Addressing:
+  Format 1+: Physical addressing; uses fixed positions within a rev file
+  Format 7+:  Logical addressing; uses item index that will be translated
+    on-the-fly to the actual rev / pack file location (default for 7+ created)
+
+Repository IDs:
+  Format 1+:  The first line of db/uuid contains the repository UUID
+  Format 7+:  The second line contains the instance ID (in UUID formatting)
+
+# Incomplete list.  See SVN_FS_FS__MIN_*_FORMAT
+
+
+Filesystem format options
+-------------------------
+
+Currently, the only recognised format options are "layout" and "addressing".
+The first specifies the paths that will be used to store the revision
+files and revision property files.  The second specifies that logical to
+physical address translation is required.
+
+The "layout" option is followed by the name of the filesystem layout
+and any required parameters.  The default layout, if no "layout"
+keyword is specified, is the 'linear' layout.
+
+The known layouts, and the parameters they require, are as follows:
+
+"linear"
+  Revision files and rev-prop files are named after the revision they
+  represent, and are placed directly in the revs/ and revprops/
+  directories.  r1234 will be represented by the revision file
+  revs/1234 and the rev-prop file revprops/1234.
+
+"sharded <max-files-per-directory>"
+  Revision files and rev-prop files are named after the revision they
+  represent, and are placed in a subdirectory of the revs/ and
+  revprops/ directories named according to the 'shard' they belong to.
+
+  Shards are numbered from zero and contain between one and the
+  maximum number of files per directory specified in the layout's
+  parameters.
+
+  For the "sharded 1000" layout, r1234 will be represented by the
+  revision file revs/1/1234 and rev-prop file revprops/1/1234.  The
+  revs/0/ directory will contain revisions 0-999, revs/1/ will contain
+  1000-1999, and so on.
+
+The "addressing" option is followed by the name of the addressing mode
+and any required parameters.  The default addressing, if no "addressing"
+keyword is specified, is the 'physical' addressing.
+
+The supported modes, and the parameters they require, are as follows:
+
+"physical"
+  All existing and future revision files will use the traditional
+  physical addressing scheme.  All references are given as rev/offset
+  pairs with "offset" being the byte offset relative to the beginning of
+  the revision in the respective rev or pack file.
+
+"logical"
+  All existing and future revision files will use logical
+  addressing. It is illegal to use logical addressing on non-sharded
+  repositories.
+
+
+Addressing modes
+----------------
+
+Two addressing modes are supported in format 7: physical and logical
+addressing.  Both use the same address format but apply a different
+interpretation to it.  Older formats only support physical addressing.
+
+All items are addressed using <rev> <item_index> pairs.  In physical
+addressing mode, item_index is the (ASCII decimal) number of bytes from
+the start of the revision file to the start of the respective item.  For
+non-packed files that is also the absolute file offset.  Revision pack
+files simply concatenate multiple rev files, i.e. the absolute file offset
+is determined as
+
+  absolute offset = rev offset taken from manifest + item_index
+  
+This simple addressing scheme makes it hard to change the location of
+any item since that may break references from later revisions.
+  
+Logical addressing uses an index file to translate the rev / item_index
+pairs into absolute file offsets.  There is one such index for every rev /
+pack file using logical addressing and both are created in sync.  That
+makes it possible to reorder items during pack file creation, particularly
+to mix items from different revisions.
+
+Some item_index values are pre-defined and apply to every revision:
+
+  0 ... not used / invalid
+  1 ... changed path list
+  2 ... root node revision
+
+A reverse index (phys-to-log) is being created as well that allows for
+translating arbitrary file locations into item descriptions (type, rev,
+item_index, on-disk length).  Known item types
+
+  0 ... unused / empty section
+  1 ... file representation
+  2 ... directory representation
+  3 ... file property representation
+  4 ... directory property representation
+  5 ... node revision
+  6 ... changed paths list
+
+The various representation types all share the same morphology.  The
+distinction is only made to allow for more effective reordering heuristics.
+Zero-length items are allowed.
+
+
+Packing revisions
+-----------------
+
+A filesystem can optionally be "packed" to conserve space on disk.  The
+packing process concatenates all the revision files in each full shard to
+create a pack file.  The original shard is removed, and reads are
+redirected to the pack file.
+
+With physical addressing, a manifest file is created for each shard which
+records the indexes of the corresponding revision files in the pack file.
+The manifest file consists of a list of offsets, one for each revision in
+the pack file.  The offsets are stored as ASCII decimal, and separated by
+a newline character.
+
+Revision pack files using logical addressing don't use manifest files but
+appends index data to the revision contents.  The revisions inside a pack
+file will also get interleaved to reduce I/O for typical access patterns.
+There is no structural difference between packed and non-packed revision
+files in that mode.
+
+
+Packing revision properties (format 5: SQLite)
+---------------------------
+
+This was supported by 1.7-dev builds but never included in a blessed release.
+
+See r1143829 of this file:
+http://svn.apache.org/viewvc/subversion/trunk/subversion/libsvn_fs_fs/structure?view=markup&pathrev=1143829
+
+
+Packing revision properties (format 6+)
+---------------------------
+
+Similarly to the revision data, packing will concatenate multiple
+revprops into a single file.  Since they are mutable data, we put an
+upper limit to the size of these files:  We will concatenate the data
+up to the limit and then use a new file for the following revisions.
+
+The limit can be set and changed at will in the configuration file. 
+It is 64kB by default.  Because a pack file must contain at least one
+complete property list, files containing just one revision may exceed
+that limit.
+
+Furthermore, pack files can be compressed which saves about 75% of
+disk space.  A configuration file flag enables the compression; it is
+off by default and may be switched on and off at will.  The pack size
+limit is always applied to the uncompressed data.  For this reason,
+the default is 256kB while compression has been enabled.
+
+Files are named after their start revision as "<rev>.<counter>" where
+counter will be increased whenever we rewrite a pack file due to a
+revprop change.  The manifest file contains the list of pack file
+names, one line for each revision.
+
+Many tools track repository global data in revision properties at 
+revision 0.  To minimize I/O overhead for those applications,  we
+will never pack that revision, i.e. its data is always being kept
+in revprops/0/0.
+
+Pack file format
+
+  Top level: <packed container>
+
+  We always apply data compression to the pack file - using the
+  SVN_DELTA_COMPRESSION_LEVEL_NONE level if compression is disabled.
+  (Note that compression at SVN_DELTA_COMPRESSION_LEVEL_NONE is not
+  a no-op stream transformation although most of the data will remain
+  human readable.)
+
+  container := header '\n' (revprops)+
+  header    := start_rev '\n' rev_count '\n' (size '\n')+
+
+  All numbers in the header are given as ASCII decimals.  rev_count
+  is the number of revisions packed into this container.  There must
+  be exactly as many "size" and serialized "revprops".  The "size"
+  values in the list are the length in bytes of the serialized
+  revprops of the respective revision.
+
+Writing to packed revprops
+
+  The old pack file is being read and the new revprops serialized.
+  If they fit into the same pack file, a temp file with the new
+  content gets written and moved into place just like an non-packed
+  revprop file would. No name change or manifest update required.
+
+  If they don't fit into the same pack file,  i.e. exceed the pack
+  size limit,  the pack will be split into 2 or 3 new packs just
+  before and / or after the modified revision.
+
+  In the current implementation, they will never be merged again.
+  To minimize fragmentation, the initial packing process will only
+  use about 90% of the limit, i.e. leave some room for growth.
+
+  When a pack file gets split, its counter is being increased
+  creating a new file and leaving the old content in place and
+  available for concurrent readers.  Only after the new manifest
+  file got moved into place, will the old pack files be deleted. 
+
+  Write access to revprops is being serialized by the global
+  filesystem write lock.  We only need to build a few retries into
+  the reader code to gracefully handle manifest changes and pack
+  file deletions.
+
+
+Node-revision IDs
+-----------------
+
+A node-rev ID consists of the following three fields:
+
+    node_revision_id ::= node_id '.' copy_id '.' txn_id
+
+At this level, the form of the ID is the same as for BDB - see the
+section called "ID's" in <../libsvn_fs_base/notes/structure>.
+
+In order to support efficient lookup of node-revisions by their IDs
+and to simplify the allocation of fresh node-IDs during a transaction,
+we treat the fields of a node-rev ID in new and interesting ways.
+
+Within a new transaction:
+
+  New node-revision IDs assigned within a transaction have a txn-id
+  field of the form "t<txnid>".
+
+  When a new node-id or copy-id is assigned in a transaction, the ID
+  used is a "_" followed by a base36 number unique to the transaction.
+
+Within a revision:
+
+  Within a revision file, node-revs have a txn-id field of the form
+  "r<rev>/<item_index>", to support easy lookup.  See addressing modes
+  for details.
+
+  During the final phase of a commit, node-revision IDs are rewritten
+  to have repository-wide unique node-ID and copy-ID fields, and to have
+  "r<rev>/<item_index>" txn-id fields.
+
+  In Format 3 and above, this uniqueness is done by changing a temporary
+  id of "_<base36>" to "<base36>-<rev>".  Note that this means that the
+  originating revision of a line of history or a copy can be determined
+  by looking at the node ID.
+
+  In Format 2 and below, the "current" file contains global base36
+  node-ID and copy-ID counters; during the commit, the counter value is
+  added to the transaction-specific base36 ID, and the value in
+  "current" is adjusted.
+
+  (It is legal for Format 3 repositories to contain Format 2-style IDs;
+  this just prevents I/O-less node-origin-rev lookup for those nodes.)
+
+The temporary assignment of node-ID and copy-ID fields has
+implications for svn_fs_compare_ids and svn_fs_check_related.  The ID
+_1.0.t1 is not related to the ID _1.0.t2 even though they have the
+same node-ID, because temporary node-IDs are restricted in scope to
+the transactions they belong to.
+
+There is a lazily created cache mapping from node-IDs to the full
+node-revision ID where they are created.  This is in the node-origins
+directory; the file name is the node-ID without its last character (or
+"0" for single-character node IDs) and the contents is a serialized
+hash mapping from node-ID to node-revision ID.  This cache is only
+used for node-IDs of the pre-Format 3 style.
+
+Copy-IDs and copy roots
+-----------------------
+
+Copy-IDs are assigned in the same manner as they are in the BDB
+implementation:
+
+  * A node-rev resulting from a creation operation (with no copy
+    history) receives the copy-ID of its parent directory.
+
+  * A node-rev resulting from a copy operation receives a fresh
+    copy-ID, as one would expect.
+
+  * A node-rev resulting from a modification operation receives a
+    copy-ID depending on whether its predecessor derives from a
+    copy operation or whether it derives from a creation operation
+    with no intervening copies:
+
+      - If the predecessor does not derive from a copy, the new
+        node-rev receives the copy-ID of its parent directory.  If the
+        node-rev is being modified through its created-path, this will
+        be the same copy-ID as the predecessor node-rev has; however,
+        if the node-rev is being modified through a copied ancestor
+        directory (i.e. we are performing a "lazy copy"), this will be
+        a different copy-ID.
+
+      - If the predecessor derives from a copy and the node-rev is
+        being modified through its created-path, the new node-rev
+        receives the copy-ID of the predecessor.
+
+      - If the predecessor derives from a copy and the node-rev is not
+        being modified through its created path, the new node-rev
+        receives a fresh copy-ID.  This is called a "soft copy"
+        operation, as distinct from a "true copy" operation which was
+        actually requested through the svn_fs interface.  Soft copies
+        exist to ensure that the same <node-ID,copy-ID> pair is not
+        used twice within a transaction.
+
+Unlike the BDB implementation, we do not have a "copies" table.
+Instead, each node-revision record contains a "copyroot" field
+identifying the node-rev resulting from the true copy operation most
+proximal to the node-rev.  If the node-rev does not itself derive from
+a copy operation, then the copyroot field identifies the copy of an
+ancestor directory; if no ancestor directories derive from a copy
+operation, then the copyroot field identifies the root directory of
+rev 0.
+
+Revision file format
+--------------------
+
+A revision file contains a concatenation of various kinds of data:
+
+  * Text and property representations
+  * Node-revisions
+  * The changed-path data
+  * Two offsets at the very end (physical addressing only)
+  * Index data (logical addressing only)
+  * Revision / pack file footer (logical addressing only)
+
+A representation begins with a line containing either "PLAIN\n" or
+"DELTA\n" or "DELTA <rev> <item_index> <length>\n", where <rev>,
+<item_index>, and <length> give the location of the delta base of the
+representation and the amount of data it contains (not counting the header
+or trailer).  If no base location is given for a delta, the base is the
+empty stream.  After the initial line comes raw svndiff data, followed
+by a cosmetic trailer "ENDREP\n".
+
+If the representation is for the text contents of a directory node,
+the expanded contents are in hash dump format mapping entry names to
+"<type> <id>" pairs, where <type> is "file" or "dir" and <id> gives
+the ID of the child node-rev.
+
+If a representation is for a property list, the expanded contents are
+in the form of a dumped hash map mapping property names to property
+values.
+
+The marshalling syntax for node-revs is a series of fields terminated
+by a blank line.  Fields have the syntax "<name>: <value>\n", where
+<name> is a symbolic field name (each symbolic name is used only once
+in a given node-rev) and <value> is the value data.  Unrecognized
+fields are ignored, for extensibility.  The following fields are
+defined:
+
+  id        The ID of the node-rev
+  type      "file" or "dir"
+  pred      The ID of the predecessor node-rev
+  count     Count of node-revs since the base of the node
+  text      "<rev> <item_index> <length> <size> <digest>" for text rep
+  props     "<rev> <item_index> <length> <size> <digest>" for props rep
+            <rev> and <item_index> give location of rep
+            <length> gives length of rep, sans header and trailer
+            <size> gives size of expanded rep (*)
+            <digest> gives hex MD5 digest of expanded rep
+            ### in formats >=4, also present:
+            <sha1-digest> gives hex SHA1 digest of expanded rep
+            <uniquifier> see representation_t->uniquifier in fs.h
+            ### Starting from format 8, a special notation "-"
+            can be used for optional values that are not present
+            (<sha1-digest> and <uniquifier>).
+  cpath     FS pathname node was created at
+  copyfrom  "<rev> <path>" of copyfrom data
+  copyroot  "<rev> <created-path>" of the root of this copy
+  minfo-cnt The number of nodes under (and including) this node
+             which have svn:mergeinfo.
+  minfo-here Exists if this node itself has svn:mergeinfo.
+
+(*) Earlier versions of this document would state that <size> may be 0
+    if the actual value matches <length>.  This is only true for property
+    and directory representations and should be avoided in general.  File
+    representations may not be handled correctly by SVN before 1.7.20,
+    1.8.12 and 1.9.0, if they have 0 <size> fields for non-empty contents.
+    Releases 1.8.0 through 1.8.11 may have falsely created instances of
+    that (see issue #4554).  Finally, 0 <size> fields are only ever legal
+    for DELTA representations if the reconstructed full-text is actually
+    empty.
+
+The predecessor of a node-rev crosses both soft and true copies;
+together with the count field, it allows efficient determination of
+the base for skip-deltas.  The first node-rev of a node contains no
+"pred" field.  A node-revision with no properties may omit the "props"
+field.  A node-revision with no contents (a zero-length file or an
+empty directory) may omit the "text" field.  In a node-revision
+resulting from a true copy operation, the "copyfrom" field gives the
+copyfrom data.  The "copyroot" field identifies the root node-revision
+of the copy; it may be omitted if the node-rev is its own copy root
+(as is the case for node-revs with copy history, and for the root node
+of revision 0).  Copy roots are identified by revision and
+created-path, not by node-rev ID, because a copy root may be a
+node-rev which exists later on within the same revision file, meaning
+its location is not yet known.
+
+The changed-path data is represented as a series of changed-path
+items, each consisting of two lines.  The first line has the format
+"<id> <action> <text-mod> <prop-mod> <mergeinfo-mod> <path>\n",
+where <id> is the node-rev ID of the new node-rev, <action> is "add",
+"delete", "replace", or "modify", <text-mod>, <prop-mod>, and
+<mergeinfo-mod>  are "true" or "false" indicating whether the text,
+properties and/or mergeinfo changed, and <path> is the changed pathname.
+For deletes, <id> is the node-rev ID of the deleted node-rev, and
+<text-mod> and <prop-mod> are always "false".  The second line has the
+format "<rev> <path>\n" containing the node-rev's copyfrom information
+if it has any; if it does not, the second line is blank.
+
+Starting with FS format 4, <action> may contain the kind ("file" or
+"dir") of the node, after a hyphen; for example, an added directory
+may be represented as "add-dir".
+
+Prior to FS format 7, <mergeinfo-mod> flag is not available.  It may
+also be missing in revisions upgraded from pre-f7 formats.
+
+In physical addressing mode, at the very end of a rev file is a pair of
+lines containing "\n<root-offset> <cp-offset>\n", where <root-offset> is
+the offset of the root directory node revision and <cp-offset> is the
+offset of the changed-path data.
+
+In logical addressing mode, the revision footer has the form
+
+  <l2p offset> <l2p checksum> <p2l offset> <p2l checksum><terminal byte>
+
+The terminal byte contains the length (as plain 8 bit value) of the footer
+excluding that length byte.  The first offset is the start of the log-to-
+phys index, followed by the digest of the MD5 checksum over its content.
+The other pair gives the same of for the phys-to-log index.
+
+All numbers in the rev file format are unsigned and are represented as
+ASCII decimal.
+
+Transaction layout
+------------------
+
+A transaction directory has the following layout:
+
+  props                      Transaction props
+  props-final                Final transaction props (optional)
+  next-ids                   Next temporary node-ID and copy-ID
+  changes                    Changed-path information so far
+  node.<nid>.<cid>           New node-rev data for node
+  node.<nid>.<cid>.props     Props for new node-rev, if changed
+  node.<nid>.<cid>.children  Directory contents for node-rev
+  <sha1>                     Text representation of that sha1
+
+In FS formats 1 and 2, it also contains:
+
+  rev                        Prototype rev file with new text reps
+  rev-lock                   Lockfile for writing to the above
+
+(In newer formats, these files are in the txn-protorevs/ directory.)
+
+In format 7+ logical addressing mode, it contains two additional index
+files (see structure-indexes for a detailed description) and one more
+counter file:
+
+  itemidx                    Next item_index value as decimal integer
+  index.l2p                  Log-to-phys proto-index
+  index.p2l                  Phys-to-log proto-index
+
+The prototype rev file is used to store the text representations as
+they are received from the client.  To ensure that only one client is
+writing to the file at a given time, the "rev-lock" file is locked for
+the duration of each write.
+
+The three kinds of props files are all in hash dump format.  The "props"
+file will always be present.  The "node.<nid>.<cid>.props" file will
+only be present if the node-rev properties have been changed.  The
+"props-final" only exists while converting the transaction into a revision.
+
+
+The <sha1> files have been introduced in FS format 6. Their content
+is that of text rep references: "<rev> <item_offset> <length> <size> <digest>"
+They will be written for text reps in the current transaction and be
+used to eliminate duplicate reps within that transaction.
+
+The "next-ids" file contains a single line "<next-temp-node-id>
+<next-temp-copy-id>\n" giving the next temporary node-ID and copy-ID
+assignments (without the leading underscores).  The next node-ID is
+also used as a uniquifier for representations which may share the same
+underlying rep.
+
+The "children" file for a node-revision begins with a copy of the hash
+dump representation of the directory entries from the old node-rev (or
+a dump of the empty hash for new directories), and then an incremental
+hash dump entry for each change made to the directory.
+
+The "changes" file contains changed-path entries in the same form as
+the changed-path entries in a rev file, except that <id> and <action>
+may both be "reset" (in which case <text-mod> and <prop-mod> are both
+always "false") to indicate that all changes to a path should be
+considered undone.  Reset entries are only used during the final merge
+phase of a transaction.  Actions in the "changes" file always contain
+a node kind, even if the FS format is older than format 4.
+
+The node-rev files have the same format as node-revs in a revision
+file, except that the "text" and "props" fields are augmented as
+follows:
+
+  * The "props" field may have the value "-1" if properties have
+    been changed and are contained in a "props" file within the
+    node-rev subdirectory.
+
+  * For directory node-revs, the "text" field may have the value
+    "-1" if entries have been changed and are contained in a
+    "contents" file in the node-rev subdirectory.
+
+  * For the directory node-rev representing the root of the
+    transaction, the "is-fresh-txn-root" field indicates that it has
+    not been made mutable yet (see Issue #2608).
+
+  * For file node-revs, the "text" field may have the value "-1
+    <offset> <length> <size> <digest>" if the text representation is
+    within the prototype rev file.
+
+  * The "copyroot" field may have the value "-1 <created-path>" if the
+    copy root of the node-rev is part of the transaction in process.
+
+Locks layout
+------------
+
+Locks in FSFS are stored in serialized hash format in files whose
+names are MD5 digests of the FS path which the lock is associated
+with.  For the purposes of keeping directory inode usage down, these
+digest files live in subdirectories of the main lock directory whose
+names are the first 3 characters of the digest filename.
+
+Also stored in the digest file for a given FS path are pointers to
+other digest files which contain information associated with other FS
+paths that are beneath our path (an immediate child thereof, or a
+grandchild, or a great-grandchild, ...).
+
+To answer the question, "Does path FOO have a lock associated with
+it?", one need only generate the MD5 digest of FOO's
+absolute-in-the-FS path (say, 3b1b011fed614a263986b5c4869604e8), look
+for a file located like so:
+
+   /path/to/repos/locks/3b1/3b1b011fed614a263986b5c4869604e8
+
+And then see if that file contains lock information.
+
+To inquire about locks on children of the path FOO, you would
+reference the same path as above, but look for a list of children in
+that file (instead of lock information).  Children are listed as MD5
+digests, too, so you would simply iterate over those digests and
+consult the files they reference for lock information.
+
+
+Index Data
+----------
+
+Format 7 introduces logical addressing that requires item indexes
+to be translated / mapped to physical rev / pack file offsets.
+These indexes are appended to the respective rev / pack file.
+
+The indexes map (revision number, item-index) pairs to absolute file offsets
+and absolute file offsets to (revision number, item-index, item metadata).
+
+Details of the binary format used by these index files can be
+found in structure-indexes.
+

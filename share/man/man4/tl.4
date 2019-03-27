@@ -1,0 +1,193 @@
+.\" Copyright (c) 1997, 1998
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 24, 2018
+.Dt TL 4
+.Os
+.Sh NAME
+.Nm tl
+.Nd "Texas Instruments ThunderLAN Ethernet device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device tl"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_tl_load="YES"
+.Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Ethernet adapters based on the Texas
+Instruments ThunderLAN Ethernet controller chip.
+.Pp
+The ThunderLAN controller has a standard MII interface that supports
+up to 32 physical interface devices (PHYs).
+It also has a built-in
+10baseT PHY hardwired at MII address 31, which may be used in some
+10Mbps-only hardware configurations.
+In 100Mbps configurations, a
+National Semiconductor DP83840A or other MII-compliant PHY may be
+attached to the ThunderLAN's MII bus.
+If a DP83840A or equivalent
+is available, the ThunderLAN chip can operate at either 100Mbps or
+10Mbps in either half-duplex or full-duplex modes.
+The ThunderLAN's
+built-in PHY and the DP83840A also support autonegotiation.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It autoselect
+Enable autoselection of the media type and options.
+Note that this
+option is only available on those PHYs that support autonegotiation.
+Also, the PHY will not advertise those modes that have been explicitly
+disabled using the following media options.
+.It 10baseT/UTP
+Set 10Mbps operation.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+.It 10base5/AUI
+Enable AUI/BNC interface (useful only with the built-in PHY).
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It full-duplex
+Force full duplex operation.
+.It half-duplex
+Force half duplex operation.
+.It hw-loopback
+Enable hardware loopback mode.
+.El
+.Pp
+Note that the 100baseTX media type is only available if supported
+by the PHY.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Texas Instruments ThunderLAN based
+Ethernet and Fast Ethernet adapters including a large
+number of Compaq PCI Ethernet adapters.
+Also supported are:
+.Pp
+.Bl -bullet -compact
+.It
+Olicom OC-2135/2138 10/100 TX UTP adapter
+.It
+Olicom OC-2325/OC-2326 10/100 TX UTP adapter
+.It
+Racore 8148 10baseT/100baseTX/100baseFX adapter
+.It
+Racore 8165 10/100baseTX adapter
+.El
+.Pp
+The
+.Nm
+driver also supports the built-in Ethernet adapters of
+various Compaq Prosignia servers and Compaq Deskpro desktop
+machines including:
+.Pp
+.Bl -bullet -compact
+.It
+Compaq Netelligent 10
+.It
+Compaq Netelligent 10 T PCI UTP/Coax
+.It
+Compaq Netelligent 10/100
+.It
+Compaq Netelligent 10/100 Dual-Port
+.It
+Compaq Netelligent 10/100 Proliant
+.It
+Compaq Netelligent 10/100 TX Embedded UTP
+.It
+Compaq Netelligent 10/100 TX UTP
+.It
+Compaq NetFlex 3P
+.It
+Compaq NetFlex 3P Integrated
+.It
+Compaq NetFlex 3P w/BNC
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "tl%d: couldn't map memory"
+A fatal initialization error has occurred.
+.It "tl%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "tl%d: device timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.It "tl%d: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.It "tl%d: no memory for tx list"
+The driver failed to allocate an mbuf for the transmitter ring when
+allocating a pad buffer or collapsing an mbuf chain into a cluster.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu .

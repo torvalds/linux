@@ -1,0 +1,401 @@
+*** Changes in GCC 3.4:
+
+* Changes in GCC 3.4 are described in 'gcc-3.4/changes.html'
+
+*** Changes in GCC 3.3:
+
+* The "new X = 3" extension has been removed; you must now use "new X(3)".
+
+* G++ no longer allows in-class initializations of static data members
+  that do not have arithmetic or enumeration type.  For example:
+
+    struct S {
+      static const char* const p = "abc";
+    };
+
+  is no longer accepted.
+
+  Use the standards-conformant form:
+
+    struct S {
+      static const char* const p;
+    };
+
+    const char* const S::p = "abc";
+
+  instead.
+
+  (ISO C++ is even stricter; it does not allow in-class
+  initializations of floating-point types.)
+
+*** Changes in GCC 3.1:
+
+* -fhonor-std and -fno-honor-std have been removed. -fno-honor-std was
+  a workaround to allow std compliant code to work with the non-std
+  compliant libstdc++-v2. libstdc++-v3 is std compliant.
+
+* The C++ ABI has been fixed so that `void (A::*)() const' is mangled as
+  "M1AKFvvE", rather than "MK1AFvvE" as before.  This change only affects
+  pointer to cv-qualified member function types.
+
+* The C++ ABI has been changed to correctly handle this code:
+
+    struct A {
+      void operator delete[] (void *, size_t);
+    };
+
+    struct B : public A {
+    };
+
+    new B[10];
+
+  The amount of storage allocated for the array will be greater than
+  it was in 3.0, in order to store the number of elements in the
+  array, so that the correct size can be passed to `operator delete[]'
+  when the array is deleted.  Previously, the value passed to
+  `operator delete[]' was unpredictable.
+
+  This change will only affect code that declares a two-argument
+  `operator delete[]' with a second parameter of type `size_t'
+  in a base class, and does not override that definition in a
+  derived class.
+
+* The C++ ABI has been changed so that:
+
+    struct A {
+      void operator delete[] (void *, size_t);
+      void operator delete[] (void *);
+    };
+
+  does not cause unnecessary storage to be allocated when an array of
+  `A' objects is allocated.
+
+  This change will only affect code that declares both of these
+  forms of `operator delete[]', and declared the two-argument form
+  before the one-argument form.
+
+* The C++ ABI has been changed so that when a parameter is passed by value,
+  any cleanup for that parameter is performed in the caller, as specified
+  by the ia64 C++ ABI, rather than the called function as before.  As a
+  result, classes with a non-trivial destructor but a trivial copy
+  constructor will be passed and returned by invisible reference, rather
+  than by bitwise copy as before.
+
+* G++ now supports the "named return value optimization":  for code like
+
+    A f () {
+      A a;
+      ...
+      return a;
+    }
+
+  G++ will allocate 'a' in the return value slot, so that the return
+  becomes a no-op.  For this to work, all return statements in the function
+  must return the same variable.
+
+*** Changes in GCC 3.0:
+
+* Support for guiding declarations has been removed.
+
+* G++ now supports importing member functions from base classes with a
+  using-declaration.
+
+* G++ now enforces access control for nested types.
+
+* In some obscure cases, functions with the same type could have the
+  same mangled name.  This bug caused compiler crashes, link-time clashes,
+  and debugger crashes.  Fixing this bug required breaking ABI
+  compatibility for the functions involved.  The functions in questions
+  are those whose types involve non-type template arguments whose
+  mangled representations require more than one digit.
+
+* Support for assignment to `this' has been removed.  This idiom
+  was used in the very early days of C++, before users were allowed
+  to overload `operator new'; it is no longer allowed by the C++
+  standard.
+
+* Support for signatures, a G++ extension, have been removed.
+
+* Certain invalid conversions that were previously accepted will now
+  be rejected.  For example, assigning function pointers of one type
+  to function pointers of another type now requires a cast, whereas
+  previously g++ would sometimes accept the code even without the
+  cast.
+
+* G++ previously allowed `sizeof (X::Y)' where Y was a non-static
+  member of X, even if the `sizeof' expression occurred outside
+  of a non-static member function of X (or one of its derived classes,
+  or a member-initializer for X or one of its derived classes.)   This
+  extension has been removed.
+
+* G++ no longer allows you to overload the conditional operator (i.e.,
+  the `?:' operator.)
+
+* The "named return value" extension:
+
+    int f () return r { r = 3; }
+
+  has been deprecated, and will be removed in a future version of G++.
+
+*** Changes in GCC 2.95:
+
+* Messages about non-conformant code that we can still handle ("pedwarns")
+  are now errors by default, rather than warnings.  This can be reverted
+  with -fpermissive, and is overridden by -pedantic or -pedantic-errors.
+
+* String constants are now of type `const char[n]', rather than `char[n]'.
+  This can be reverted with -fno-const-strings.
+
+* References to functions are now supported.
+
+* Lookup of class members during class definition now works in all cases.
+
+* In overload resolution, type conversion operators are now properly
+  treated as always coming from the most derived class.
+
+* C9x-style restricted pointers are supported, using the `__restrict'
+  keyword.
+
+* You can now use -fno-implicit-inline-templates to suppress writing out
+  implicit instantiations of inline templates.  Normally we do write them
+  out, even with -fno-implicit-templates, so that optimization doesn't
+  affect which instantiations are needed.
+
+* -fstrict-prototype now also suppresses implicit declarations.
+
+* Many obsolete options have been removed: -fall-virtual, -fmemoize-lookups,
+  -fsave-memoized, +e?, -fenum-int-equivalence, -fno-nonnull-objects.
+
+* Unused virtual functions can be discarded on some targets by specifying
+  -ffunction-sections -fvtable-gc to the compiler and --gc-sections to the
+  linker.  Unfortunately, this only works on Linux if you're linking
+  statically.
+
+* Lots of bugs stomped.
+
+*** Changes in EGCS 1.1:
+
+* Namespaces are fully supported.  The library has not yet been converted
+  to use namespace std, however, and the old std-faking code is still on by
+  default.  To turn it off, you can use -fhonor-std.
+
+* Massive template improvements:
+  + member template classes are supported.
+  + template friends are supported.
+  + template template parameters are supported.
+  + local classes in templates are supported.
+  + lots of bugs fixed.
+
+* operator new now throws bad_alloc where appropriate.
+
+* Exception handling is now thread safe, and supports nested exceptions and
+  placement delete.  Exception handling overhead on x86 is much lower with
+  GNU as 2.9.
+
+* protected virtual inheritance is now supported.
+
+* Loops are optimized better; we now move the test to the end in most
+  cases, like the C frontend does.
+
+* For class D derived from B which has a member 'int i', &D::i is now of
+  type 'int B::*' instead of 'int D::*'.
+
+* An _experimental_ new ABI for g++ can be turned on with -fnew-abi.  The
+  current features of this are more efficient allocation of base classes
+  (including the empty base optimization), and more compact mangling of C++
+  symbol names (which can be turned on separately with -fsquangle).  This
+  ABI is subject to change without notice, so don't use it for anything
+  that you don't want to rebuild with every release of the compiler.
+
+  As with all ABI-changing flags, this flag is for experts only, as all
+  code (including the library code in libgcc and libstdc++) must be
+  compiled with the same ABI.
+
+*** Changes in EGCS 1.0:
+
+* A public review copy of the December 1996 Draft of the ISO/ANSI C++
+  standard is now available. See
+
+	http://www.cygnus.com/misc/wp/
+
+  for more information.
+
+* g++ now uses a new implementation of templates. The basic idea is that
+  now templates are minimally parsed when seen and then expanded later.
+  This allows conformant early name binding and instantiation controls,
+  since instantiations no longer have to go through the parser.
+
+  What you get:
+
+     + Inlining of template functions works without any extra effort or
+       modifications.
+     + Instantiations of class templates and methods defined in the class
+       body are deferred until they are actually needed (unless
+       -fexternal-templates is specified).
+     + Nested types in class templates work.
+     + Static data member templates work.
+     + Member function templates are now supported.
+     + Partial specialization of class templates is now supported.
+     + Explicit specification of template parameters to function templates
+       is now supported.
+
+  Things you may need to fix in your code:
+
+     + Syntax errors in templates that are never instantiated will now be
+       diagnosed.
+     + Types and class templates used in templates must be declared
+       first, or the compiler will assume they are not types, and fail.
+     + Similarly, nested types of template type parameters must be tagged
+       with the 'typename' keyword, except in base lists.  In many cases,
+       but not all, the compiler will tell you where you need to add
+       'typename'.  For more information, see
+
+	    http://www.cygnus.com/misc/wp/dec96pub/template.html#temp.res
+
+     + Guiding declarations are no longer supported.  Function declarations,
+       including friend declarations, do not refer to template instantiations.
+       You can restore the old behavior with -fguiding-decls until you fix
+       your code.
+
+  Other features:
+
+     + Default function arguments in templates will not be evaluated (or
+       checked for semantic validity) unless they are needed.  Default
+       arguments in class bodies will not be parsed until the class
+       definition is complete.
+     + The -ftemplate-depth-NN flag can be used to increase the maximum
+       recursive template instantiation depth, which defaults to 17. If you
+       need to use this flag, the compiler will tell you.
+     + Explicit instantiation of template constructors and destructors is
+       now supported.  For instance:
+
+	    template A<int>::A(const A&);
+
+  Still not supported:
+
+     + Member class templates.
+     + Template friends.
+
+* Exception handling support has been significantly improved and is on by
+  default.  The compiler supports two mechanisms for walking back up the
+  call stack; one relies on static information about how registers are
+  saved, and causes no runtime overhead for code that does not throw
+  exceptions.  The other mechanism uses setjmp and longjmp equivalents, and
+  can result in quite a bit of runtime overhead.  You can determine which
+  mechanism is the default for your target by compiling a testcase that
+  uses exceptions and doing an 'nm' on the object file; if it uses __throw,
+  it's using the first mechanism.  If it uses __sjthrow, it's using the
+  second.
+
+  You can turn EH support off with -fno-exceptions.
+
+* RTTI support has been rewritten to work properly and is now on by default.
+  This means code that uses virtual functions will have a modest space
+  overhead.  You can use the -fno-rtti flag to disable RTTI support.
+
+* On ELF systems, duplicate copies of symbols with 'initialized common'
+  linkage (such as template instantiations, vtables, and extern inlines)
+  will now be discarded by the GNU linker, so you don't need to use -frepo.
+  This support requires GNU ld from binutils 2.8 or later.
+
+* The overload resolution code has been rewritten to conform to the latest
+  C++ Working Paper.  Built-in operators are now considered as candidates
+  in operator overload resolution.  Function template overloading chooses
+  the more specialized template, and handles base classes in type deduction
+  and guiding declarations properly.  In this release the old code can
+  still be selected with -fno-ansi-overloading, although this is not
+  supported and will be removed in a future release.
+
+* Standard usage syntax for the std namespace is supported; std is treated
+  as an alias for global scope.  General namespaces are still not supported.
+
+* New flags:
+
+     + New warning -Wno-pmf-conversion (don't warn about
+       converting from a bound member function pointer to function
+       pointer).
+
+     + A flag -Weffc++ has been added for violations of some of the style
+       guidelines in Scott Meyers' _Effective C++_ books.
+
+     + -Woverloaded-virtual now warns if a virtual function in a base
+       class is hidden in a derived class, rather than warning about
+       virtual functions being overloaded (even if all of the inherited
+       signatures are overridden) as it did before.
+
+     + -Wall no longer implies -W.  The new warning flag, -Wsign-compare,
+	included in -Wall, warns about dangerous comparisons of signed and
+	unsigned values. Only the flag is new; it was previously part of
+	-W.
+
+     + The new flag, -fno-weak, disables the use of weak symbols.
+
+* Synthesized methods are now emitted in any translation units that need
+  an out-of-line copy. They are no longer affected by #pragma interface
+  or #pragma implementation.
+
+* __FUNCTION__ and __PRETTY_FUNCTION__ are now treated as variables by the
+  parser; previously they were treated as string constants.  So code like
+  `printf (__FUNCTION__ ": foo")' must be rewritten to
+  `printf ("%s: foo", __FUNCTION__)'.  This is necessary for templates.
+
+* local static variables in extern inline functions will be shared between
+  translation units.
+
+* -fvtable-thunks is supported for all targets, and is the default for
+  Linux with glibc 2.x (also called libc 6.x).
+
+* bool is now always the same size as another built-in type. Previously,
+  a 64-bit RISC target using a 32-bit ABI would have 32-bit pointers and a
+  64-bit bool. This should only affect Irix 6, which was not supported in
+  2.7.2.
+
+* new (nothrow) is now supported.
+
+* Synthesized destructors are no longer made virtual just because the class
+  already has virtual functions, only if they override a virtual destructor
+  in a base class.  The compiler will warn if this affects your code.
+
+* The g++ driver now only links against libstdc++, not libg++; it is
+  functionally identical to the c++ driver.
+
+* (void *)0 is no longer considered a null pointer constant; NULL in
+  <stddef.h> is now defined as __null, a magic constant of type (void *)
+  normally, or (size_t) with -ansi.
+
+* The name of a class is now implicitly declared in its own scope; A::A
+  refers to A.
+
+* Local classes are now supported.
+
+* __attribute__ can now be attached to types as well as declarations.
+
+* The compiler no longer emits a warning if an ellipsis is used as a
+  function's argument list.
+
+* Definition of nested types outside of their containing class is now
+  supported.  For instance:
+
+       struct A {
+	      struct B;
+	      B* bp;
+       };
+
+       struct A::B {
+	      int member;
+       };
+
+* On the HPPA, some classes that do not define a copy constructor
+  will be passed and returned in memory again so that functions
+  returning those types can be inlined.
+
+*** The g++ team thanks everyone that contributed to this release,
+    but especially:
+
+* Joe Buck <jbuck@synopsys.com>, the maintainer of the g++ FAQ.
+* Brendan Kehoe <brendan@cygnus.com>, who coordinates testing of g++.
+* Jason Merrill <jason@cygnus.com>, the g++ maintainer.
+* Mark Mitchell <mmitchell@usa.net>, who implemented member function
+  templates and explicit qualification of function templates.
+* Mike Stump <mrs@wrs.com>, the previous g++ maintainer, who did most of
+  the exception handling work.

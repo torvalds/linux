@@ -1,0 +1,143 @@
+/*-
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Developed by Damjan Marion <damjan.marion@gmail.com>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * 
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+
+/ {
+	model = "CompuLab TrimSlice";
+	compatible = "compulab,trimslice", "nvidia,tegra20";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	interrupt-parent = <&GIC>;
+
+	aliases {
+		serial0 = &serial0;
+		soc = &SOC;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = < 0x00000000 0x40000000 >;	/* 1GB RAM at 0x0 */
+	};
+
+
+	SOC: tegra20@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+		bus-frequency = <0>;
+
+		GIC: interrupt-controller@50041000 {
+			compatible = "arm,gic";
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg =	< 0x50041000 0x1000 >,	/* Distributor Registers */
+				< 0x50040100 0x0100 >;	/* CPU Interface Registers */
+		};
+		mp_tmr@50040200 {
+			compatible = "arm,mpcore-timers";
+			clock-frequency = < 50040200 >;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg =   < 0x50040200 0x100 >, /* Global Timer Registers */
+				< 0x50040600 0x100 >; /* Private Timer Registers */
+			interrupts = < 27 29 >;
+			interrupt-parent = < &GIC >;
+		};
+
+		tmr1@60005000 {
+			compatible = "nvidia,tegra2-timer";
+			reg = <0x60005000 0x8>;
+			interrupts = < 32 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		tmr2@60005008 {
+			compatible = "nvidia,tegra2-timer";
+			reg = <0x60005008 0x8>;
+			interrupts = < 33 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		tmrus@60005010 {
+			compatible = "nvidia,tegra2-timestamp";
+			reg = <0x60005010 0x8>;
+		};
+
+		tmr3@60005050 {
+			compatible = "nvidia,tegra2-timer";
+			reg = <0x60005050 0x8>;
+			interrupts = < 73 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		tmr4@60005058 {
+			compatible = "nvidia,tegra2-timer";
+			reg = <0x60005058 0x8>;
+			interrupts = < 74 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		serial0: serial@70006000 {
+			compatible = "ns16550";
+			reg = <0x70006000 0x40>;
+			reg-shift = <2>;
+			interrupts = < 68 >;
+			interrupt-parent = <&GIC>;
+			clock-frequency = < 215654400 >;
+		};
+
+		serial1: serial@70006040 {
+			compatible = "ns16550";
+			reg = <0x70006040 0x40>;
+			reg-shift = <2>;
+			interrupts = < 69 >;
+			interrupt-parent = <&GIC>;
+			clock-frequency = < 215654400 >;
+		};
+
+		serial2: serial@70006200 {
+			compatible = "ns16550";
+			reg = <0x70006200 0x100>;
+			reg-shift = <2>;
+			interrupts = < 78 >;
+			interrupt-parent = <&GIC>;
+			clock-frequency = < 215654400 >;
+		};
+	};
+
+	chosen {
+		stdin = "serial0";
+		stdout = "serial0";
+	};
+};

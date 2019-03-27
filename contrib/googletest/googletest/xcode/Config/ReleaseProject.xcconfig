@@ -1,0 +1,32 @@
+//
+//  ReleaseProject.xcconfig
+//
+//  These are Release Configuration project settings for the gtest framework
+//  and examples. It is set in the "Based On:" dropdown in the "Project" info
+//  dialog.
+//  This file is based on the Xcode Configuration files in:
+//  https://github.com/google/google-toolbox-for-mac
+// 
+
+#include "General.xcconfig"
+
+// subconfig/Release.xcconfig
+
+// Optimize for space and size (Apple recommendation)
+GCC_OPTIMIZATION_LEVEL = s
+
+// Deploment postprocessing is what triggers Xcode to strip
+DEPLOYMENT_POSTPROCESSING = YES
+
+// No symbols
+GCC_GENERATE_DEBUGGING_SYMBOLS = NO
+
+// Dead code strip does not affect ObjC code but can help for C
+DEAD_CODE_STRIPPING = YES
+
+// NDEBUG is used by things like assert.h, so define it for general compat.
+// ASSERT going away in release tends to create unused vars.
+OTHER_CFLAGS = $(OTHER_CFLAGS) -DNDEBUG=1 -Wno-unused-variable
+
+// When we strip we want to strip all symbols in release, but save externals.
+STRIP_STYLE = all

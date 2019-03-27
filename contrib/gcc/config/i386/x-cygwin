@@ -1,0 +1,4 @@
+host-cygwin.o : $(srcdir)/config/i386/host-cygwin.c $(CONFIG_H) $(SYSTEM_H) \
+  coretypes.h hosthooks.h $(HOSTHOOKS_DEF_H) toplev.h diagnostic.h
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+		$(srcdir)/config/i386/host-cygwin.c

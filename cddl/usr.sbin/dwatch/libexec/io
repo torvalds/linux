@@ -1,0 +1,108 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for dtrace_io(4) $
+# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $FreeBSD$
+#
+############################################################ DESCRIPTION
+#
+# Display activity related to disk I/O
+#
+############################################################ PROBE
+
+case "$PROFILE" in
+io) : ${PROBE:=io:::start, io:::done} ;;
+ *) : ${PROBE:=io:::${PROFILE#io-}}
+esac
+
+############################################################ EVENT ACTION
+
+[ "$CUSTOM_TEST" ] || EVENT_TEST='this->devinfo.dev_name != ""'
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+this bufinfo_t	bufinfo;
+this devinfo_t	devinfo;
+this int	b_flags;
+this long	bio_length;
+this string	bio_cmd;
+this string	bio_flags;
+this string	device_entry;
+this string	device_if;
+this string	device_type;
+this string	flow;
+
+inline string append_bio_flag[int flags, int flag] = this->bio_flags =
+	strjoin(this->bio_flags,
+	strjoin(this->bio_flags == "" ? "" : (flags & flag) == flag ? "|" : "",
+		bio_flag_string[flags & flag]));
+
+$PROBE /(struct bio *)args[0] != NULL/ /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");
+}
+	/*
+	 * dtrace_io(4)
+	 */
+	this->flow = probefunc == "done" ? "<-" : "->";
+
+	/*
+	 * struct bio *
+	 */
+	this->bufinfo = xlate <bufinfo_t> ((struct bio *)args[0]);
+	this->bio_cmd = bio_cmd_string[(int)this->bufinfo.b_cmd];
+	this->b_flags = (int)this->bufinfo.b_flags;
+	this->bio_flags = bio_flag_string[this->b_flags & BIO_ERROR];
+	this->bio_flags = strjoin(this->bio_flags, this->bufinfo.b_error ?
+		strjoin(this->bio_flags == "" ?
+			bio_flag_string[BIO_ERROR] : "",
+			strjoin("#", lltostr(this->bufinfo.b_error))) :
+		"");
+	append_bio_flag[this->b_flags, BIO_DONE];
+	append_bio_flag[this->b_flags, BIO_ONQUEUE];
+	append_bio_flag[this->b_flags, BIO_ORDERED];
+	append_bio_flag[this->b_flags, BIO_UNMAPPED];
+	append_bio_flag[this->b_flags, BIO_TRANSIENT_MAPPING];
+	append_bio_flag[this->b_flags, BIO_VLIST];
+	this->bio_flags = this->bio_flags == "" ? "-" : this->bio_flags;
+	this->bio_length = (long)this->bufinfo.b_bcount;
+
+	/*
+	 * struct devstat *
+	 */
+	this->devinfo = xlate <devinfo_t> ((struct devstat *)args[1]);
+	this->device_type = device_type[(int)this->devinfo.dev_type];
+	this->device_if = device_if[(int)this->devinfo.dev_type];
+	this->device_entry = strjoin(this->devinfo.dev_name,
+		lltostr(this->devinfo.dev_minor));
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 1 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print disk I/O details
+	 */
+	printf("%s %s %s %s %s %s %d byte%s",
+		this->flow,
+		this->device_type,
+		this->device_if,
+		this->device_entry,
+		this->bio_cmd,
+		this->bio_flags,
+		this->bio_length,
+		this->bio_length == 1 ? "" : "s");
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

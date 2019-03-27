@@ -1,0 +1,33 @@
+
+#------------------------------------------------------------------------------
+# $File: ole2compounddocs,v 1.5 2017/10/27 21:43:23 christos Exp $
+# Microsoft OLE 2 Compound Documents : file(1) magic for Microsoft Structured
+# storage (https://en.wikipedia.org/wiki/Compound_File_Binary_Format)
+# Additional tests for OLE 2 Compound Documents should be under this recipe.
+
+0   string  \320\317\021\340\241\261\032\341      OLE 2 Compound Document
+# - Microstation V8 DGN files (www.bentley.com)
+#   Last update on 10/23/2006 by Lester Hightower
+> 0x480  string  D\000g\000n\000~\000H                : Microstation V8 DGN
+# - Visio documents
+#   Last update on 10/23/2006 by Lester Hightower
+> 0x480  string  V\000i\000s\000i\000o\000D\000o\000c : Visio Document
+
+# Note: moved & merged Microsoft Office parts from ./msdos Oct 2017
+# Update: Joerg Jenderek
+# from http://filext.com by Derek M Jones <derek@knosof.co.uk>
+# False positive with PPT (also currently this string is too long)
+#0	string/b	\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3E\x00\x03\x00\xFE\xFF\x09\x00\x06	Microsoft Installer
+#0	string/b	\320\317\021\340\241\261\032\341	Microsoft Office Document
+#>48	byte	0x1B					Excel Document
+#!:mime application/vnd.ms-excel
+>546	string	bjbj			: Microsoft Word Document
+!:mime	application/msword
+# https://www.macdisk.com/macsigen.php
+!:apple	MSWDWDBN
+!:ext	doc/dot
+>546	string	jbjb			: Microsoft Word Document
+!:mime	application/msword
+!:apple	MSWDWDBN
+!:ext	doc
+

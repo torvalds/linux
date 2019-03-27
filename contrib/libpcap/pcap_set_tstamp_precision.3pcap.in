@@ -1,0 +1,61 @@
+.\"Copyright (c) 2013, Michal Sekletar
+.\"All rights reserved.
+.\"
+.\"Redistribution and use in source and binary forms, with or without
+.\"modification, are permitted provided that the following conditions
+.\"are met:
+.\"
+.\"  1. Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\"  2. Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in
+.\"     the documentation and/or other materials provided with the
+.\"     distribution.
+.\"  3. The names of the authors may not be used to endorse or promote
+.\"     products derived from this software without specific prior
+.\"     written permission.
+.\"
+.\"THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\"IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\"WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PCAP_SET_TSTAMP_PRECISION 3PCAP "5 February 2015"
+.SH NAME
+pcap_set_tstamp_precision \- set the time stamp precision returned in
+captures
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.ft B
+int pcap_set_tstamp_precision(pcap_t *p, int tstamp_precision);
+.ft
+.fi
+.SH DESCRIPTION
+.B pcap_set_tstamp_precision()
+sets the precision of the time stamp desired for packets captured on the pcap
+descriptor to the type specified by
+.IR tstamp_precision .
+It must be called on a pcap descriptor created by
+.B pcap_create()
+that has not yet been activated by
+.BR pcap_activate() .
+Two time stamp precisions are supported, microseconds and nanoseconds. One can
+use options
+.B PCAP_TSTAMP_PRECISION_MICRO and
+.B PCAP_TSTAMP_PRECISION_NANO
+to request desired precision. By default, time stamps are in microseconds.
+.SH RETURN VALUE
+.B pcap_set_tstamp_precision()
+returns 0 on success if the specified time stamp precision is expected to be
+supported by the operating system,
+.B PCAP_ERROR_TSTAMP_PRECISION_NOTSUP
+if operating system does not support requested time stamp precision,
+.B PCAP_ERROR_ACTIVATED
+if called on a capture handle that has been activated.
+.SH SEE ALSO
+pcap(3PCAP),
+pcap_get_tstamp_precision(3PCAP),
+pcap-tstamp(@MAN_MISC_INFO@)

@@ -1,0 +1,416 @@
+/*
+ * Copyright 2015 Endless Mobile, Inc.
+ * Author: Carlo Caione <carlo@endlessm.com>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This library is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This library is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#include <dt-bindings/clock/meson8b-clkc.h>
+#include <dt-bindings/gpio/meson8b-gpio.h>
+#include <dt-bindings/reset/amlogic,meson8b-reset.h>
+#include <dt-bindings/reset/amlogic,meson8b-clkc-reset.h>
+#include "meson.dtsi"
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@200 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a5";
+			next-level-cache = <&L2>;
+			reg = <0x200>;
+			enable-method = "amlogic,meson8b-smp";
+			resets = <&clkc CLKC_RESET_CPU0_SOFT_RESET>;
+		};
+
+		cpu1: cpu@201 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a5";
+			next-level-cache = <&L2>;
+			reg = <0x201>;
+			enable-method = "amlogic,meson8b-smp";
+			resets = <&clkc CLKC_RESET_CPU1_SOFT_RESET>;
+		};
+
+		cpu2: cpu@202 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a5";
+			next-level-cache = <&L2>;
+			reg = <0x202>;
+			enable-method = "amlogic,meson8b-smp";
+			resets = <&clkc CLKC_RESET_CPU2_SOFT_RESET>;
+		};
+
+		cpu3: cpu@203 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a5";
+			next-level-cache = <&L2>;
+			reg = <0x203>;
+			enable-method = "amlogic,meson8b-smp";
+			resets = <&clkc CLKC_RESET_CPU3_SOFT_RESET>;
+		};
+	};
+
+	pmu {
+		compatible = "arm,cortex-a5-pmu";
+		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* 2 MiB reserved for Hardware ROM Firmware? */
+		hwrom@0 {
+			reg = <0x0 0x200000>;
+			no-map;
+		};
+	};
+
+	scu@c4300000 {
+		compatible = "arm,cortex-a5-scu";
+		reg = <0xc4300000 0x100>;
+	};
+}; /* end of / */
+
+&aobus {
+	pmu: pmu@e0 {
+		compatible = "amlogic,meson8b-pmu", "syscon";
+		reg = <0xe0 0x18>;
+	};
+
+	pinctrl_aobus: pinctrl@84 {
+		compatible = "amlogic,meson8b-aobus-pinctrl";
+		reg = <0x84 0xc>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gpio_ao: ao-bank@14 {
+			reg = <0x14 0x4>,
+				<0x2c 0x4>,
+				<0x24 0x8>;
+			reg-names = "mux", "pull", "gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl_aobus 0 0 16>;
+		};
+
+		uart_ao_a_pins: uart_ao_a {
+			mux {
+				groups = "uart_tx_ao_a", "uart_rx_ao_a";
+				function = "uart_ao";
+			};
+		};
+
+		ir_recv_pins: remote {
+			mux {
+				groups = "remote_input";
+				function = "remote";
+			};
+		};
+	};
+};
+
+&cbus {
+	clkc: clock-controller@4000 {
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+		compatible = "amlogic,meson8b-clkc";
+		reg = <0x8000 0x4>, <0x4000 0x400>;
+	};
+
+	reset: reset-controller@4404 {
+		compatible = "amlogic,meson8b-reset";
+		reg = <0x4404 0x9c>;
+		#reset-cells = <1>;
+	};
+
+	analog_top: analog-top@81a8 {
+		compatible = "amlogic,meson8b-analog-top", "syscon";
+		reg = <0x81a8 0x14>;
+	};
+
+	pwm_ef: pwm@86c0 {
+		compatible = "amlogic,meson8b-pwm";
+		reg = <0x86c0 0x10>;
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	pinctrl_cbus: pinctrl@9880 {
+		compatible = "amlogic,meson8b-cbus-pinctrl";
+		reg = <0x9880 0x10>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gpio: banks@80b0 {
+			reg = <0x80b0 0x28>,
+				<0x80e8 0x18>,
+				<0x8120 0x18>,
+				<0x8030 0x38>;
+			reg-names = "mux", "pull", "pull-enable", "gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl_cbus 0 0 83>;
+		};
+
+		eth_rgmii_pins: eth-rgmii {
+			mux {
+				groups = "eth_tx_clk",
+					 "eth_tx_en",
+					 "eth_txd1_0",
+					 "eth_txd1_1",
+					 "eth_txd0_0",
+					 "eth_txd0_1",
+					 "eth_rx_clk",
+					 "eth_rx_dv",
+					 "eth_rxd1",
+					 "eth_rxd0",
+					 "eth_mdio_en",
+					 "eth_mdc",
+					 "eth_ref_clk",
+					 "eth_txd2",
+					 "eth_txd3";
+				function = "ethernet";
+			};
+		};
+
+		eth_rmii_pins: eth-rmii {
+			mux {
+				groups = "eth_tx_en",
+					 "eth_txd1_0",
+					 "eth_txd0_0",
+					 "eth_rx_clk",
+					 "eth_rx_dv",
+					 "eth_rxd1",
+					 "eth_rxd0",
+					 "eth_mdio_en",
+					 "eth_mdc";
+				function = "ethernet";
+			};
+		};
+
+		i2c_a_pins: i2c-a {
+			mux {
+				groups = "i2c_sda_a", "i2c_sck_a";
+				function = "i2c_a";
+			};
+		};
+
+		sd_b_pins: sd-b {
+			mux {
+				groups = "sd_d0_b", "sd_d1_b", "sd_d2_b",
+					"sd_d3_b", "sd_clk_b", "sd_cmd_b";
+				function = "sd_b";
+			};
+		};
+
+		pwm_c1_pins: pwm-c1 {
+			mux {
+				groups = "pwm_c1";
+				function = "pwm_c";
+			};
+		};
+
+		uart_b0_pins: uart-b0 {
+			mux {
+				groups = "uart_tx_b0",
+				       "uart_rx_b0";
+				function = "uart_b";
+			};
+		};
+
+		uart_b0_cts_rts_pins: uart-b0-cts-rts {
+			mux {
+				groups = "uart_cts_b0",
+				       "uart_rts_b0";
+				function = "uart_b";
+			};
+		};
+	};
+};
+
+&ahb_sram {
+	smp-sram@1ff80 {
+		compatible = "amlogic,meson8b-smp-sram";
+		reg = <0x1ff80 0x8>;
+	};
+};
+
+
+&efuse {
+	compatible = "amlogic,meson8b-efuse";
+	clocks = <&clkc CLKID_EFUSE>;
+	clock-names = "core";
+};
+
+&ethmac {
+	compatible = "amlogic,meson8b-dwmac", "snps,dwmac-3.70a", "snps,dwmac";
+
+	reg = <0xc9410000 0x10000
+	       0xc1108140 0x4>;
+
+	clocks = <&clkc CLKID_ETH>,
+		 <&clkc CLKID_MPLL2>,
+		 <&clkc CLKID_MPLL2>;
+	clock-names = "stmmaceth", "clkin0", "clkin1";
+
+	resets = <&reset RESET_ETHERNET>;
+	reset-names = "stmmaceth";
+};
+
+&gpio_intc {
+	compatible = "amlogic,meson-gpio-intc",
+		     "amlogic,meson8b-gpio-intc";
+	status = "okay";
+};
+
+&hwrng {
+	compatible = "amlogic,meson8b-rng", "amlogic,meson-rng";
+	clocks = <&clkc CLKID_RNG0>;
+	clock-names = "core";
+};
+
+&i2c_AO {
+	clocks = <&clkc CLKID_CLK81>;
+};
+
+&i2c_A {
+	clocks = <&clkc CLKID_I2C>;
+};
+
+&i2c_B {
+	clocks = <&clkc CLKID_I2C>;
+};
+
+&L2 {
+	arm,data-latency = <3 3 3>;
+	arm,tag-latency = <2 2 2>;
+	arm,filter-ranges = <0x100000 0xc0000000>;
+	prefetch-data = <1>;
+	prefetch-instr = <1>;
+	arm,shared-override;
+};
+
+&pwm_ab {
+	compatible = "amlogic,meson8b-pwm";
+};
+
+&pwm_cd {
+	compatible = "amlogic,meson8b-pwm";
+};
+
+&saradc {
+	compatible = "amlogic,meson8b-saradc", "amlogic,meson-saradc";
+	clocks = <&clkc CLKID_XTAL>,
+		<&clkc CLKID_SAR_ADC>;
+	clock-names = "clkin", "core";
+};
+
+&sdio {
+	compatible = "amlogic,meson8b-sdio", "amlogic,meson-mx-sdio";
+	clocks = <&clkc CLKID_SDIO>, <&clkc CLKID_CLK81>;
+	clock-names = "core", "clkin";
+};
+
+&uart_AO {
+	compatible = "amlogic,meson8b-uart", "amlogic,meson-uart";
+	clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_XTAL>, <&clkc CLKID_CLK81>;
+	clock-names = "baud", "xtal", "pclk";
+};
+
+&uart_A {
+	compatible = "amlogic,meson8b-uart", "amlogic,meson-uart";
+	clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_XTAL>, <&clkc CLKID_UART0>;
+	clock-names = "baud", "xtal", "pclk";
+};
+
+&uart_B {
+	compatible = "amlogic,meson8b-uart", "amlogic,meson-uart";
+	clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_XTAL>, <&clkc CLKID_UART1>;
+	clock-names = "baud", "xtal", "pclk";
+};
+
+&uart_C {
+	compatible = "amlogic,meson8b-uart", "amlogic,meson-uart";
+	clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_XTAL>, <&clkc CLKID_UART2>;
+	clock-names = "baud", "xtal", "pclk";
+};
+
+&usb0 {
+	compatible = "amlogic,meson8b-usb", "snps,dwc2";
+	clocks = <&clkc CLKID_USB0_DDR_BRIDGE>;
+	clock-names = "otg";
+};
+
+&usb1 {
+	compatible = "amlogic,meson8b-usb", "snps,dwc2";
+	clocks = <&clkc CLKID_USB1_DDR_BRIDGE>;
+	clock-names = "otg";
+};
+
+&usb0_phy {
+	compatible = "amlogic,meson8b-usb2-phy", "amlogic,meson-mx-usb2-phy";
+	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB0>;
+	clock-names = "usb_general", "usb";
+	resets = <&reset RESET_USB_OTG>;
+};
+
+&usb1_phy {
+	compatible = "amlogic,meson8b-usb2-phy", "amlogic,meson-mx-usb2-phy";
+	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB1>;
+	clock-names = "usb_general", "usb";
+	resets = <&reset RESET_USB_OTG>;
+};
+
+&wdt {
+	compatible = "amlogic,meson8b-wdt";
+};

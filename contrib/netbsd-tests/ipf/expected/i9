@@ -1,0 +1,17 @@
+pass in inet from 127.0.0.1/32 to 127.0.0.1/32 with short,frag
+block in from any to any with ipopts
+pass in inet from any to any with opt nop,rr,zsu
+pass in inet from any to any with opt nop,rr,zsu not opt lsrr,ssrr
+pass in inet from 127.0.0.1/32 to 127.0.0.1/32 with not frag
+pass in inet from 127.0.0.1/32 to 127.0.0.1/32 with frag,frag-body
+pass in proto tcp from any to any flags S/FSRPAU with not oow keep state # count 0
+block in proto tcp from any to any with oow
+pass in proto tcp from any to any flags S/FSRPAU with not bad,bad-src,bad-nat
+block in proto tcp from any to any flags S/FSRPAU with bad,not bad-src,not bad-nat
+pass in quick from any to any with not short
+block in quick from any to any with not nat
+pass in quick from any to any with not frag-body
+block in quick from any to any with not lowttl
+pass in from any to any with not ipopts,mbcast,not bcast,mcast,not state
+block in from any to any with not mbcast,bcast,not mcast,state
+pass in inet from any to any with opt mtup,mtur,encode,ts,tr,sec,e-sec,cipso,satid,ssrr,addext,visa,imitd,eip,finn,dps,sdb,nsapa,rtralrt,ump

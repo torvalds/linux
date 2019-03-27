@@ -1,0 +1,75 @@
+#
+# Copyright (c) 2000-2003
+#	Fraunhofer Institut for Open Communication Systems (FOKUS).
+#	All rights reserved.
+# Copyright (c) 2004
+#	Hartmut Brandt.
+#	All rights reserved.
+#
+# Author: Hartmut Brandt <harti@freebsd.org>
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $Begemot: libunimsg/snmp_atm/atm_tree.def,v 1.3 2004/08/06 14:50:27 brandt Exp $
+#
+# SNMP module for ATM hardware interfaces.
+#
+# $Begemot: libunimsg/snmp_atm/atm_tree.def,v 1.3 2004/08/06 14:50:27 brandt Exp $
+#
+(1 internet
+  (4 private
+    (1 enterprises
+      (12325 fokus
+        (1 begemot
+          (101 begemotAtm
+            (1 begemotAtmObjects
+              (1 begemotAtmIfTable
+                (1 begemotAtmIfEntry : INTEGER op_atmif
+                  (1 begemotAtmIfName OCTETSTRING GET)
+                  (2 begemotAtmIfPcr UNSIGNED32 GET)
+                  (3 begemotAtmIfMedia INTEGER GET)
+                  (4 begemotAtmIfVpiBits UNSIGNED32 GET)
+                  (5 begemotAtmIfVciBits UNSIGNED32 GET)
+                  (6 begemotAtmIfMaxVpcs UNSIGNED32 GET)
+                  (7 begemotAtmIfMaxVccs UNSIGNED32 GET)
+                  (8 begemotAtmIfEsi OCTETSTRING GET)
+                  (9 begemotAtmIfCarrierStatus INTEGER GET)
+		  (10 begemotAtmIfMode INTEGER GET SET)
+              ))
+              (2 begemotAtmIfTableLastChange TIMETICKS op_atm GET)
+              (3 begemotAtmHWTable
+                (1 begemotAtmHWEntry : INTEGER op_atmhw
+                  (1 begemotAtmHWVendor OCTETSTRING GET)
+                  (2 begemotAtmHWDevice OCTETSTRING GET)
+                  (3 begemotAtmHWSerial UNSIGNED32 GET)
+                  (4 begemotAtmHWVersion UNSIGNED32 GET)
+                  (5 begemotAtmHWSoftVersion UNSIGNED32 GET)
+              ))
+              (4 begemotAtmSysGroup
+                (1 begemotAtmFreeBSDGroup
+                )
+              )
+            )
+        ))
+      )
+    )
+))

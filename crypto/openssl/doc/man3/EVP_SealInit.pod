@@ -1,0 +1,89 @@
+=pod
+
+=head1 NAME
+
+EVP_SealInit, EVP_SealUpdate, EVP_SealFinal - EVP envelope encryption
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ int EVP_SealInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
+                  unsigned char **ek, int *ekl, unsigned char *iv,
+                  EVP_PKEY **pubk, int npubk);
+ int EVP_SealUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out,
+                    int *outl, unsigned char *in, int inl);
+ int EVP_SealFinal(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl);
+
+=head1 DESCRIPTION
+
+The EVP envelope routines are a high level interface to envelope
+encryption. They generate a random key and IV (if required) then
+"envelope" it by using public key encryption. Data can then be
+encrypted using this key.
+
+EVP_SealInit() initializes a cipher context B<ctx> for encryption
+with cipher B<type> using a random secret key and IV. B<type> is normally
+supplied by a function such as EVP_aes_256_cbc(). The secret key is encrypted
+using one or more public keys, this allows the same encrypted data to be
+decrypted using any of the corresponding private keys. B<ek> is an array of
+buffers where the public key encrypted secret key will be written, each buffer
+must contain enough room for the corresponding encrypted key: that is
+B<ek[i]> must have room for B<EVP_PKEY_size(pubk[i])> bytes. The actual
+size of each encrypted secret key is written to the array B<ekl>. B<pubk> is
+an array of B<npubk> public keys.
+
+The B<iv> parameter is a buffer where the generated IV is written to. It must
+contain enough room for the corresponding cipher's IV, as determined by (for
+example) EVP_CIPHER_iv_length(type).
+
+If the cipher does not require an IV then the B<iv> parameter is ignored
+and can be B<NULL>.
+
+EVP_SealUpdate() and EVP_SealFinal() have exactly the same properties
+as the EVP_EncryptUpdate() and EVP_EncryptFinal() routines, as
+documented on the L<EVP_EncryptInit(3)> manual
+page.
+
+=head1 RETURN VALUES
+
+EVP_SealInit() returns 0 on error or B<npubk> if successful.
+
+EVP_SealUpdate() and EVP_SealFinal() return 1 for success and 0 for
+failure.
+
+=head1 NOTES
+
+Because a random secret key is generated the random number generator
+must be seeded before calling EVP_SealInit().
+
+The public key must be RSA because it is the only OpenSSL public key
+algorithm that supports key transport.
+
+Envelope encryption is the usual method of using public key encryption
+on large amounts of data, this is because public key encryption is slow
+but symmetric encryption is fast. So symmetric encryption is used for
+bulk encryption and the small random symmetric key used is transferred
+using public key encryption.
+
+It is possible to call EVP_SealInit() twice in the same way as
+EVP_EncryptInit(). The first call should have B<npubk> set to 0
+and (after setting any cipher parameters) it should be called again
+with B<type> set to NULL.
+
+=head1 SEE ALSO
+
+L<evp(7)>, L<RAND_bytes(3)>,
+L<EVP_EncryptInit(3)>,
+L<EVP_OpenInit(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,120 @@
+/dts-v1/;
+
+#include "mt7620n.dtsi"
+
+/ {
+	compatible = "mlwg2", "ralink,mt7620n-soc";
+	model = "Kingston MLWG2";
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		system {
+			label = "mlwg2:blue:system";
+			gpios = <&gpio2 3 1>;
+		};
+
+		wifi {
+			label = "mlwg2:blue:wifi";
+			gpios = <&gpio3 0 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 1 1>;
+			linux,code = <0x198>;
+		};
+
+		system {
+			label = "system";
+			gpios = <&gpio0 2 1>;
+			linux,code = <0x211>;
+		};
+	};
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+&gpio3 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0xf60000>;
+		};
+
+		partition@fb0000 {
+			label = "user-config";
+			reg = <0xfb0000 0x50000>;
+		};
+	};
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x4>;
+	mediatek,portmap = "wllll";
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		default {
+			ralink,group = "i2c", "ephy", "wled";
+			ralink,function = "gpio";
+		};
+	};
+};

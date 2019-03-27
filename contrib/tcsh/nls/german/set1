@@ -1,0 +1,140 @@
+$ $tcsh: set1,v 1.8 2015/05/26 17:38:25 christos Exp $
+$ Error messages
+$set 1
+1 Syntaxfehler
+2 %s nicht erlaubt
+3 Word zu lang
+4 $< Zeile zu lang
+5 Keine Datei für $0
+6 Unvollständiger [] Modifizierer
+7 $ Ausweitung muß vor ] enden
+8 Falscher : Modifizierer in $ '%c'
+9 Indexfehler
+10 Falsche Nummer
+11 Keine Worte mehr
+12 Dateiname fehlt
+13 Interner Fehler (glob)
+14 Befehl nicht gefunden
+15 Zu wenig Argumente
+16 Zu viele Argumente
+17 Zu gefährlich für ein Alias
+18 Leeres If
+19 Unpassendes Then
+20 Worte nicht in Klammern
+21 %s nicht gefunden
+22 Ungeeignete Maske
+23 Keine bekannte Begrenzung
+24 Argument zu groß
+25 Ungeeigneter oder unbekannter Vergrößerungsfaktor
+26 Undefinierte Variable
+27 Verzeichnisstapel nicht so tief
+28 Falscher Signalname
+29 Unbekanntes Signal; kill -l listet Signale auf
+30 Variablenname muß mit einem Buchstaben beginnen
+31 Variablenname zu lang
+32 Variablenname muß Buchstaben oder Ziffern enthalten
+33 Keine Jobkontrolle in dieser Shell
+34 Ausdruck nicht korrekt
+35 Kein Startverzeichnis
+36 Kann nicht in das Startverzeichnis wechseln
+37 Ungültiger leerer Befehl
+38 Zuweisung ohne Ausdruck
+39 Unbekannter Operator
+40 Mehrdeutig
+41 %s: Datei existiert
+42 Argument für -c endet mit einem Backslash (\\)
+43 Abgebrochen
+44 Index nicht im gültigen Bereich
+45 Zeilenüberlauf
+46 Kein solcher Job
+47 Kann nicht vom Terminal
+48 Nicht in while/foreach
+49 Keine Prozesse mehr
+50 Kein Treffer
+51 Fehlendes '%c'
+52 Überflüssiges '%c'
+53 Kein Speicher mehr
+54 Kann keine Pipe erzeugen
+55 %s: %s
+56 %s
+57 Benutzung: jobs [ -l ]
+58 Argumente können Job- oder Prozeß-ID's sein
+59 Kein aktueller Job
+60 Kein vorhergehender Job
+61 Kein Job entspricht dem Muster
+62 Fork-Ebene > %d; evtl. `...` Schleife?
+63 Keine Jobkontrolle in Unter-Shells
+64 Sync-Fehler: Prozeß %d nicht gefunden
+65 %sEs gibt noch angehaltene Jobs
+66 %sEs gibt noch angehaltene Jobs
+67 Kein anderes Verzeichnis
+68 Verzeichnisstapel leer
+69 Ungültiges Verzeichnis
+70 Benutzung: %s [-%s]%s
+71 Kein Operand für -h
+72 Nicht in einer Login-Shell
+73 Division durch 0
+74 Mod durch 0
+75 Bad scaling; did you mean "%s"?
+76 Kann Login-Shell (noch) nicht anhalten
+77 Unbekannter Benutzer: %s
+78 Keine $home-Variable gesetzt
+79 Benutzung: history [-%s] [# Anzahl der Befehle]
+80 $, ! oder < nicht erlaubt mit $# or $?
+81 Zeilenumbruch in Variablenname
+82 * nicht erlaubt bei $# or $?
+83 $?<digit> or $#<digit> nicht erlaubt
+84 Ungültiger Variablenname
+85 Zeilenumbruch in Variablenindex
+86 Überlauf des Erweiterungspuffers
+87 Variablen-Syntax
+88 Falsche ! Form
+89 Keine vorhergehende Ersetzung
+90 Falsche Ersetzung
+91 Keine vorhergehende linke Seite
+92 Rechte Seite zu lang
+93 Falscher ! Modifizierer: '%c'
+94 Modifizierer fehlgeschlagen
+95 Überlauf des Ersetzungspuffers
+96 Falscher ! Argumentbezeichner
+97 Keine vorhergehende Suche
+98 %s: Befehl nicht gefunden
+99 Zu viele ')'
+100 Zu viele '('
+101 Falsch plazierte '('
+102 Fehlender Name für Umlenkung
+103 Mehrdeutige Ausgabeumlenkung
+104 Kann keine << innerhalb von ()
+105 Mehrdeutige Eingabeumlenkung
+106 Falsch plazierte ()
+107 Alias-Schleife
+108 Keine $watch-Variable gesetzt
+109 Keine vorgemerkten Befehle
+110 Benutzung: sched -<item#>.\nBenutzung: sched [+]hh:mm <Befehl>
+111 Nicht so viele vorgemerkte Befehle
+112 Kein auszuführender Befehl
+113 Ungültige Zeit für Befehl
+114 Relative Zeit inkonsistent mit am/pm
+115 Kein Platz mehr für Termcap-Eintrag
+116 Benutzung: settc %s [yes|no]
+117 Unbekannte Fähigkeit `%s'
+118 Unbekannter Termcap-Parameter '%%%c'
+119 Zu viele Argumente für `%s' (%d)
+120 `%s' erfordert %d Argumente
+121 Benutzung: echotc [-v|-s] [<Fähigkeit> [<Argumente>]]
+122 %s: %s. Falsche Architektur
+123 !# History-Schleife
+124 Falsche Dateianforderung
+125 Selector-Überlauf
+126 Unbekannte Option: `-%s'\nBenutzung: %s [ -bcdefilmnqstvVxX -Dname[=Wert] ] [ Argument ... ]
+127 Unbekannte Option: `-%s'\nBenutzung: %s [ -bcdefFilmnqstvVxX ] [ Argument ... ]
+128 Unbekannte Option: `-%s'\nBenutzung: %s [ -bcdefilmnqstvVxX ] [ Argument ... ]
+129 \nUngültige Vervollständigung: "%s"
+130 \nUngültiger %s: '%c'
+131 \nFehlende Trennung '%c' nach %s "%s"
+132 \nUnvollständiger/-ges %s: "%s"
+133 Kein Operand für -m Option
+134 Benutzung: unlimit [-fh] [Grenzen]
+135 $%S ist nur lesbar
+136 Kein solcher Job
+137 Unknown colorls variable '%c%c'

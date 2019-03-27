@@ -1,0 +1,145 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" $Whistle: nghook.8,v 1.4 1999/01/20 03:19:45 archie Exp $
+.\"
+.Dd October 24, 2003
+.Dt NGHOOK 8
+.Os
+.Sh NAME
+.Nm nghook
+.Nd connect to a
+.Xr netgraph 4
+node
+.Sh SYNOPSIS
+.Nm
+.Op Fl adlnSs
+.Op Fl m Ar msg
+.Ar path
+.Op Ar hookname
+.Nm
+.Fl e
+.Op Fl n
+.Op Fl m Ar msg
+.Ar path
+.Ar hookname
+.Ar program
+.Op Ar args ...
+.Sh DESCRIPTION
+The
+.Nm
+utility creates a
+.Xr ng_socket 4
+socket type node and connects it to hook
+.Ar hookname
+of the node found at
+.Ar path .
+If
+.Ar hookname
+is omitted,
+.Dq Li debug
+is assumed.
+.Pp
+If the
+.Fl e
+option is given, the third argument is interpreted as the path to a program,
+and this program is executed with the remaining arguments as its arguments.
+Before executing, the program Netgraph messages (specified by the
+.Fl m
+option) are sent to the node.
+The program is executed with its standard input (unless closed by
+.Fl n )
+and output connected to the hook.
+.Pp
+If the
+.Fl e
+option is not given, all data written to standard input is sent
+to the node, and all data received from the node is relayed
+to standard output.
+Messages specified with
+.Fl m
+are sent to the node before the loop is entered.
+The
+.Nm
+utility exits when
+.Dv EOF
+is detected on standard input in this case.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a
+Output each packet read in human-readable decoded
+.Tn ASCII
+form instead of raw binary.
+.It Fl d
+Increase the debugging verbosity level.
+.It Fl e
+Execute the program specified by the third argument.
+.It Fl l
+Loops all received data back to the hook in addition to writing it
+to standard output.
+.It Fl m Ar msg
+Before executing the program (in
+.Fl e
+mode) send the given ASCII control message to the node.
+This option may be given more than once.
+.It Fl n
+Do not attempt to read any data from standard input.
+The
+.Nm
+utility will continue reading from the node until stopped by a signal.
+.It Fl S
+Use file descriptor 0 for output instead of the default 1.
+.It Fl s
+Use file descriptor 1 for input instead of the default 0.
+.El
+.Sh SEE ALSO
+.Xr netgraph 3 ,
+.Xr netgraph 4 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm netgraph
+system was designed and first implemented at Whistle Communications, Inc.\&
+in a version of
+.Fx 2.2
+customized for the Whistle InterJet.
+.Sh AUTHORS
+.An Archie Cobbs Aq Mt archie@whistle.com
+.Sh BUGS
+Although all input is read in unbuffered mode,
+there is no way to control the packetization of the input.
+.Pp
+If the node sends a response to a message (specified by
+.Fl m ) ,
+this response is lost.

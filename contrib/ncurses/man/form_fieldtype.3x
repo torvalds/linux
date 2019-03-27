@@ -1,0 +1,142 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: form_fieldtype.3x,v 1.16 2010/12/04 18:40:45 tom Exp $
+.TH form_fieldtype 3X ""
+.SH NAME
+\fBform_fieldtype\fR \- define validation-field types
+.SH SYNOPSIS
+\fB#include <form.h>\fR
+.br
+FIELDTYPE *new_fieldtype(
+    bool (* const field_check)(FIELD *, const void *),
+    bool (* const char_check)(int, const void *));
+.br
+int free_fieldtype(FIELDTYPE *fieldtype);
+.br
+int set_fieldtype_arg(
+    FIELDTYPE *fieldtype,
+    void *(* const make_arg)(va_list *),
+    void *(* const copy_arg)(const void *),
+    void  (* const free_arg)(void *));
+.br
+int set_fieldtype_choice(
+    FIELDTYPE *fieldtype,
+    bool (* const next_choice)(FIELD *, const void *),
+    bool (* const prev_choice)(FIELD *, const void *));
+.br
+FIELDTYPE *link_fieldtype(FIELDTYPE *type1,
+                          FIELDTYPE *type2);
+.br
+.SH DESCRIPTION
+The function \fBnew_fieldtype\fR creates a new field type usable for data
+validation.  You supply it with \fIfield_check\fR, a predicate to check the
+validity of an entered data string whenever the user attempts to leave a field.
+The (FIELD *) argument is passed in so the validation predicate can see the
+field's buffer, sizes and other attributes; the second argument is an
+argument-block structure, about which more below.
+.PP
+You also supply \fBnew_fieldtype\fR with \fIchar_check\fR,
+a function to validate input characters as they are entered; it will be passed
+the character to be checked and a pointer to an argument-block structure.
+.PP
+The function \fBfree_fieldtype\fR frees the space allocated for a given
+validation type.
+.PP
+The function \fBset_fieldtype_arg\fR associates three storage-management functions
+with a field type.
+The \fImake_arg\fR function is automatically applied to the
+list of arguments you give \fBset_field_type\fR when attaching validation
+to a field; its job is to bundle these into an allocated argument-block
+object which can later be passed to validation predicated.
+The other two hook arguments should copy and free argument-block structures.
+They will be used by the forms-driver code.
+You must supply the \fImake_arg\fR function,
+the other two are optional, you may supply NULL for them.
+In this case it is assumed
+that \fImake_arg\fR does not allocate memory but simply loads the
+argument into a single scalar value.
+.PP
+The function \fBlink_fieldtype\fR creates
+a new field type from the two given types.
+They are connected by an logical 'OR'.
+.PP
+The form driver requests \fBREQ_NEXT_CHOICE\fR and \fBREQ_PREV_CHOICE\fR assume
+that the possible values of a field form an ordered set, and provide the forms
+user with a way to move through the set.
+The \fBset_fieldtype_choice\fR
+function allows forms programmers to define successor and predecessor functions
+for the field type.
+These functions take the field pointer and an
+argument-block structure as arguments.
+.SH RETURN VALUE
+The pointer-valued routines return NULL on error.
+They set errno according to their success:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred, e.g., malloc failure.
+.PP
+The integer-valued routines return one of the following codes on
+error:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_CONNECTED
+The field is already connected to a form.
+.TP 5
+.B E_CURRENT
+The field is the current field.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.SH SEE ALSO
+\fBcurses\fR(3X), \fBform\fR(3X).
+.SH NOTES
+The header file \fB<form.h>\fR automatically includes the header file
+\fB<curses.h>\fR.
+.PP
+All of the \fB(char *)\fR arguments of these functions should actually be
+\fB(void *)\fR.  The type has been left uncorrected for strict compatibility
+with System V.
+.SH PORTABILITY
+These routines emulate the System V forms library.  They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
+S. Raymond.

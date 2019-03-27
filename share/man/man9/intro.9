@@ -1,0 +1,105 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 13, 1995
+.Dt INTRO 9
+.Os
+.Sh NAME
+.Nm intro
+.Nd "introduction to system kernel interfaces"
+.Sh DESCRIPTION
+This section contains information about the interfaces and
+subroutines in the kernel.
+.Sh PROTOTYPES ANSI-C AND ALL THAT
+Yes please.
+.Pp
+We would like all code to be fully prototyped.
+.Pp
+If your code compiles cleanly with
+.Nm cc
+.Ar -Wall
+we would feel happy about it.
+It is important to understand that this is not a question of just shutting up
+.Nm cc ,
+it is a question about avoiding the things it complains about.
+To put it bluntly, do not hide the problem by casting and other
+obfuscating practices, solve the problem.
+.Sh INDENTATION AND STYLE
+Believe it or not, there actually exists a guide for indentation and style.
+It is not generally applied though.
+.Pp
+We would appreciate if people would pay attention to it, and at least not
+violate it blatantly.
+.Pp
+We do not mind it too badly if you have your own style, but please make
+sure we can read it too.
+.Pp
+Please take time to read
+.Xr style 9
+for more information.
+.Sh NAMING THINGS
+Some general rules exist:
+.Bl -enum
+.It
+If a function is meant as a debugging aid in DDB, it should be enclosed
+in
+.Bd -literal -offset indent
+#ifdef DDB
+
+#endif /* DDB */
+.Ed
+.Pp
+And the name of the procedure should start with the prefix
+.Li DDB_
+to clearly identify the procedure as a debugger routine.
+.El
+.Sh SCOPE OF SYMBOLS
+It is important to carefully consider the scope of symbols in the kernel.
+The default is to make everything static, unless some reason requires
+the opposite.
+.Pp
+There are several reasons for this policy,
+the main one is that the kernel is one monolithic name-space,
+and pollution is not a good idea here either.
+.Pp
+For device drivers and other modules that do not add new internal interfaces
+to the kernel, the entire source should be in one file if possible.
+That way all symbols can be made static.
+.Pp
+If for some reason a module is split over multiple source files, then try
+to split the module along some major fault-line and consider using the
+number of global symbols as your guide.
+The fewer the better.
+.Sh SEE ALSO
+.Xr style 9
+.Sh HISTORY
+The
+.Nm
+section manual page appeared in
+.Fx 2.2 .

@@ -1,0 +1,63 @@
+$FreeBSD$
+
+This is the test harness for libarchive.
+
+It compiles into a single program "libarchive_test" that is intended
+to exercise as much of the library as possible.  It is, of course,
+very much a work in progress.
+
+Each test is a function named test_foo in a file named test_foo.c.
+Note that the file name is the same as the function name.
+Each file must start with this line:
+
+  #include "test.h"
+
+The test function must be declared with a line of this form
+
+  DEFINE_TEST(test_foo)
+
+Nothing else should appear on that line.
+
+When you add a test, please update the top-level Makefile.am and the
+CMakeLists.txt in this directory to add your file to the list of
+tests.  The Makefile and main.c use various macro trickery to
+automatically collect a list of test functions to be invoked.
+
+Each test function can rely on the following:
+
+  * The current directory will be a freshly-created empty directory
+    suitable for that test.  (The top-level main() creates a
+    directory for each separate test and chdir()s to that directory
+    before running the test.)
+
+  * The test function should use assert(), assertA() and similar macros
+    defined in test.h.  If you need to add new macros of this form, feel
+    free to do so.  The current macro set includes assertEqualInt() and
+    assertEqualString() that print out additional detail about their
+    arguments if the assertion does fail.  'A' versions also accept
+    a struct archive * and display any error message from there on
+    failure.
+
+  * You are encouraged to document each assertion with a failure() call
+    just before the assert.  The failure() function is a printf-like
+    function whose text is displayed only if the assertion fails.  It
+    can be used to display additional information relevant to the failure:
+
+       failure("The data read from file %s did not match the data written to that file.", filename);
+       assert(strcmp(buff1, buff2) == 0);
+
+  * Tests are encouraged to be economical with their memory and disk usage,
+    though this is not essential.  The test is occasionally run under
+    a memory debugger to try to locate memory leaks in the library;
+    as a result, tests should be careful to release any memory they
+    allocate.
+
+  * Disable tests on specific platforms as necessary.  Please avoid
+    using config.h to adjust feature requirements, as I want the tests
+    to also serve as a check on the configure process.  The following
+    form is usually more appropriate:
+
+#if !defined(__PLATFORM) && !defined(__Platform2__)
+    assert(xxxx)
+#endif
+

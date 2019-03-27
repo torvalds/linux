@@ -1,0 +1,69 @@
+		    Am-utils Frequently Asked Questions
+
+Note: we started this FAQ only on March 15, 2005; so it's not long or
+comprehensive, yet.  Amd is much older than that, and so there's a lot of
+information that's already available in other forms.  If this FAQ doesn't
+answer your questions, see information in the following sources:
+
+1. The Am-utils book: http://www.am-utils.org/docs/amd-book/
+
+2. The Am-utils user manual, which is part of the distribution and is also
+   available from www.am-utils.org.
+
+3. The www.am-utils.org Web site resources, especially the "am-utils" mailing
+   list (and its archives).
+
+4. In the am-utils distribution (always use the latest ones), see all of the
+   various README files (README, README.autofs, README.ldap, README.osx, and
+   README.y2k).  The "BUGS" file also lists useful information about bugs
+   and problems with specific OSs which affect Amd.  All of these text files
+   are also available from www.am-utils.org.
+
+5. Some FAQ questions (including newbie questions) are available here:
+   http://www.kernelcorp.com/resources_faqs.html
+
+6. Some problems are known bugs but have not been fixed yet: this are
+   listed in bugzilla in https://bugzilla.am-utils.org/
+
+If you have additions to this FAQ, please let us know at
+the am-utils list (see www.am-utils.org).
+
+Thank you,
+The Am-utils development team.
+
+<FAQ>
+
+*** Linux Questions
+
+Q1. When I use Amd with Autofs and I restart Amd, how come it cannot remount
+    the Autofs partitions?
+
+A1. This is a limitation of the Linux Autofs kernel module (for both autofs
+    v2. and v3).  The Linux Autofs does not allow restarting automounted
+    points.  There's nothing Amd can do about this.  In fact, the same
+    problem exists if you use the userland "automount" daemon instead of
+    Amd.  Hopefully Autofs-v4 or the separate effort of Autofs-NG will
+    address this serious problem.
+
+    Note that Amd itself can restart autofs automounted points just fine on
+    OSs that support it, for example Solaris.
+
+
+Q2. When I use Amd, I get this console message frequently: "mount version
+    older than kernel."  Is it a problem?
+
+A2. No, it's a harmless warning message that the Linux kernel prints for NFS
+    mounts.  The intent was to alert administrators that the kernel has
+    supposedly a different version of the mount(2) code than a userland
+    program used.  This happens if you compile Amd against kernel headers
+    that are different than the kernel you're running.  If the message
+    really bothers you, then one way to "fix" the problem is to recompile
+    Amd against the same kernel headers as the running kernel.
+
+    Nevertheless, it is a relatively useless message because as far as we
+    know, the NFS v2 and v3 mount codes have been in perfect sync between
+    the userland and kernel sides, and were "standardized" for years
+    already.  This warning message caused more unnecessary worry among
+    administrators than helping alert them to legitimate problems.
+
+</FAQ>

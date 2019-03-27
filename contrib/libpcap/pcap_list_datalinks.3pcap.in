@@ -1,0 +1,73 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_LIST_DATALINKS 3PCAP "8 March 2015"
+.SH NAME
+pcap_list_datalinks, pcap_free_datalinks \- get a list of link-layer header
+types supported by a capture device, and free that list
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.ft B
+int pcap_list_datalinks(pcap_t *p, int **dlt_buf);
+void pcap_free_datalinks(int *dlt_list);
+.ft
+.fi
+.SH DESCRIPTION
+.B pcap_list_datalinks()
+is used to get a list of the supported link-layer header types of the
+interface associated with the pcap descriptor.
+.B pcap_list_datalinks()
+allocates an array to hold the list and sets
+.IR *dlt_buf
+to point to that array.
+.LP
+The caller is responsible for freeing the array with
+.BR pcap_free_datalinks() ,
+which frees the list of link-layer header types pointed to by
+.IR dlt_list .
+.LP
+It must not be called on a pcap descriptor created by
+.B pcap_create()
+that has not yet been activated by
+.BR pcap_activate() .
+.SH RETURN VALUE
+.B pcap_list_datalinks()
+returns the number of link-layer header types in the array on success,
+.B PCAP_ERROR_NOT_ACTIVATED
+if called on a capture handle that has been created but not activated,
+and
+.B PCAP_ERROR
+(\-1) on other errors.
+If
+.B PCAP_ERROR
+is returned,
+.B pcap_geterr()
+or
+.B pcap_perror()
+may be called with
+.I p
+as an argument to fetch or display the error text.
+.SH SEE ALSO
+pcap(3PCAP), pcap_geterr(3PCAP),
+pcap_datalink_val_to_name(3PCAP),
+pcap-linktype(@MAN_MISC_INFO@)

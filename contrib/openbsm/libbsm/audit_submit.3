@@ -1,0 +1,151 @@
+.\"
+.\" Copyright (c) 2006 Christian S.J. Peron
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1.  Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\" 2.  Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL APPLE OR ITS CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd January 18, 2008
+.Dt AUDIT_SUBMIT 3
+.Os
+.Sh NAME
+.Nm audit_submit
+.Nd "general purpose audit record submission"
+.Sh LIBRARY
+.Lb libbsm
+.Sh SYNOPSIS
+.In bsm/libbsm.h
+.Ft int
+.Fo audit_submit
+.Fa "short au_event" "au_id_t auid" "char status"
+.Fa "int reterr" "const char * restrict format" ...
+.Fc
+.Sh DESCRIPTION
+The
+.Fn audit_submit
+function provides a generic programming interface for audit record submission.
+This audit record will contain a header, subject token, an optional text token,
+return token, and a trailer.
+The header will contain the event class specified by
+.Fa au_event .
+The subject token will be generated based on
+.Fa auid .
+The return token is dependent on the
+.Fa status
+and
+.Fa reterr
+arguments; unlike the argument to
+.Xr au_to_return ,
+.Fa reterr
+should be a local rather than BSM error number.
+Optionally, a text token will be created as a part of this record.
+.Pp
+Text token output is under the control of a
+.Fa format
+string that specifies how subsequent arguments (or arguments accessed via the
+variable-length argument facilities of
+.Xr stdarg 3 )
+are converted for output.
+If
+.Fa format
+is
+.Dv NULL ,
+then no text token is created in the audit record.
+.Pp
+It should be noted that
+.Fn audit_submit
+assumes that
+.Xr setaudit 2 ,
+or
+.Xr setaudit_addr 2
+has already been called.
+As a direct result, the terminal ID for the
+subject will be retrieved from the kernel via
+.Xr getaudit 2 ,
+or
+.Xr getaudit_addr 2 .
+.Sh RETURN VALUES
+If successful,
+.Nm
+will return zero.
+Otherwise a -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+#include <bsm/audit.h>
+#include <bsm/libbsm.h>
+#include <bsm/audit_uevents.h>
+
+#include <stdio.h>
+#include <stdarg.h>
+#include <errno.h>
+
+void
+audit_bad_su(char *from_login, char *to_login)
+{
+	struct auditinfo_addr aia;
+	struct auditinfo ai;
+	au_id_t aid;
+	int error;
+
+	error = getaudit_addr(&aia, sizeof(aia));
+	if (error < 0 && errno == ENOSYS) {
+		error = getaudit(&ai);
+		if (error < 0)
+			err(1, "getaudit");
+		aid = ai.ai_auid;
+	} else if (error < 0)
+		err(1, "getaudit_addr");
+	else
+		aid = aia.ai_auid;
+	error = audit_submit(AUE_su, aid, EPERM, 1,
+	    "bad su from %s to %s", from_login, to_login);
+	if (error != 0)
+		err(1, "audit_submit");
+}
+.Ed
+.Pp
+Will generate the following audit record:
+.Bd -literal -offset indent
+header,94,1,su(1),0,Mon Apr 17 23:23:59 2006, + 271 msec
+subject,root,root,wheel,root,wheel,652,652,0,0.0.0.0
+text,bad su from from csjp to root
+return,failure : Operation not permitted,1
+trailer,94
+.Ed
+.Sh SEE ALSO
+.Xr auditon 2 ,
+.Xr getaudit 2 ,
+.Xr libbsm 3 ,
+.Xr stdarg 3
+.Sh HISTORY
+The
+.Fn audit_submit
+function first appeared in OpenBSM version 1.0.
+OpenBSM 1.0 was introduced in
+.Fx 7.0 .
+.Sh AUTHORS
+The
+.Fn audit_submit
+function was written by
+.An Christian S.J. Peron Aq csjp@FreeBSD.org .

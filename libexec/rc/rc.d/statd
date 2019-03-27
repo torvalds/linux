@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# FreeBSD History: src/etc/rc.d/nfslocking,v 1.11 2004/10/07 13:55:26 mtm Exp
+# $FreeBSD$
+#
+
+# PROVIDE: statd
+# REQUIRE: nfsclient nfsd rpcbind
+# BEFORE:  DAEMON
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="statd"
+desc="host status monitoring daemon"
+rcvar=rpc_statd_enable
+command="/usr/sbin/rpc.${name}"
+start_precmd='statd_precmd'
+
+# Make sure that we are either an NFS client or server, and that we get
+# the correct flags from rc.conf(5).
+#
+statd_precmd()
+{
+	force_depend rpcbind || return 1
+	
+	rc_flags=${rpc_statd_flags}
+}
+
+load_rc_config $name
+run_rc_command $1

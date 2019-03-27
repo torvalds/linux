@@ -1,0 +1,28 @@
+
+#------------------------------------------------------------------------------
+# $File: hitachi-sh,v 1.8 2017/03/17 21:35:28 christos Exp $
+# hitach-sh: file(1) magic for Hitachi Super-H
+#
+# Super-H COFF
+#
+# updated by Joerg Jenderek at Oct 2015
+# https://en.wikipedia.org/wiki/COFF
+# https://de.wikipedia.org/wiki/Common_Object_File_Format
+# http://www.delorie.com/djgpp/doc/coff/filhdr.html
+# below test line conflicts with 2nd NTFS filesystem sector
+# 2nd NTFS filesystem sector often starts with 0x05004e00 for unicode string 5 NTLDR
+# and Portable Gaming Notation Compressed format (*.WID http://pgn.freeservers.com/)
+0	beshort		0x0500
+# test for unused flag bits (0x8000,0x0800,0x0400,0x0200,x0080) in f_flags
+>18	ubeshort&0x8E80	0
+# use big endian variant of subroutine to display name+variables+flags
+# for common object formated files
+>>0	use				\^display-coff
+
+0	leshort		0x0550
+# test for unused flag bits in f_flags
+>18	uleshort&0x8E80	0
+# use little endian variant of subroutine to
+# display name+variables+flags for common object formated files
+>>0	use				display-coff
+

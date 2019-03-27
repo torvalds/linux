@@ -1,0 +1,474 @@
+#! @PATH_PERL@ -w
+
+# Copyright (C) 2015, 2017 Network Time Foundation
+# Author: Harlan Stenn
+#
+# General cleanup and https support: Paul McMath
+#
+# Original shell version:
+# Copyright (C) 2014 Timothe Litt litt at acm dot org
+#
+# This script may be freely copied, used and modified providing that
+# this notice and the copyright statement are included in all copies
+# and derivative works.  No warranty is offered, and use is entirely at
+# your own risk.  Bugfixes and improvements would be appreciated by the
+# author.
+
+######## BEGIN #########
+use strict;
+
+# Core modules
+use Digest::SHA qw(sha1_hex);
+use File::Basename;
+use File::Copy qw(move);
+use File::Temp qw(tempfile);
+use Getopt::Long qw(:config auto_help no_ignore_case bundling);
+use Sys::Syslog qw(:standard :macros);
+
+# External modules
+use HTTP::Tiny 0.056;
+use Net::SSLeay 1.49;
+use IO::Socket::SSL 1.56;
+
+my $VERSION = '1.004';
+
+my $RUN_DIR = '/tmp';
+my $RUN_UID = 0;
+my $TMP_FILE;
+my $TMP_FH;
+my $FILE_MODE = 0644;
+
+######## DEFAULT CONFIGURATION ##########
+# LEAP FILE SRC URIS
+#    HTTPS - (default)
+#    	https://www.ietf.org/timezones/data/leap-seconds
+#    HTTP - No TLS/SSL - (not recommended)
+#	http://www.ietf.org/timezones/data/leap-seconds.list
+
+my $LEAPSRC = 'https://www.ietf.org/timezones/data/leap-seconds.list';
+my $LEAPFILE;
+
+# How many times to try to download new file
+my $MAXTRIES = 6;
+my $INTERVAL = 10;
+
+my $NTPCONF='/etc/ntp.conf';
+
+# How long (in days) before expiration to get updated file
+my $PREFETCH = 60;
+my $EXPIRES;
+my $FORCE;
+
+# Output Flags
+my $QUIET;
+my $DEBUG;
+my $SYSLOG;
+my $TOTERM;
+my $LOGFAC = 'LOG_USER';
+
+######### PARSE/SET OPTIONS #########
+my %SSL_OPTS;
+my %SSL_ATTRS = (
+    verify_SSL => 1,  
+    SSL_options => \%SSL_OPTS,
+);
+
+our(%opt);
+
+GetOptions(\%opt,	
+	'C=s',
+	'D=s',
+	'e:60',
+	'F',
+	'f=s',
+	'h|help',
+	'i:10',
+	'L=s',
+	'l=s',
+	'q',
+	'r:6',
+	's',
+	't',
+	'u=s',
+	'v',
+	);
+
+$LOGFAC   = $opt{l} if defined $opt{l};
+$LEAPSRC  = $opt{u} if defined $opt{u};
+$LEAPFILE = $opt{L} if defined $opt{L};
+$PREFETCH = $opt{e} if defined $opt{e};
+$NTPCONF  = $opt{f} if defined $opt{f};
+$MAXTRIES = $opt{r} if defined $opt{r};
+$INTERVAL = $opt{i} if defined $opt{i};
+
+$FORCE   = 1 if defined $opt{F};
+$DEBUG	 = 1 if defined $opt{v};
+$QUIET   = 1 if defined $opt{q};
+$SYSLOG  = 1 if defined $opt{s};
+$TOTERM  = 1 if defined $opt{t};
+
+$SSL_OPTS{SSL_ca_file} = $opt{C} if (defined($opt{C}));
+$SSL_OPTS{SSL_ca_path} = $opt{D} if (defined($opt{D}));
+
+###############
+## START MAIN
+###############
+my $PROG = basename($0);
+
+# Logging - Default is to use syslog(3) if STDOUT isn't 
+# connected to a tty.
+if ($SYSLOG || !-t STDOUT) {
+    $SYSLOG = 1;
+    openlog($PROG, 'pid', $LOGFAC);
+} 
+else {
+    $TOTERM = 1;
+}
+
+if (defined $opt{q} && defined $opt{v}) {
+    log_fatal(LOG_ERR, '-q and -v options mutually exclusive');
+}
+
+if (defined $opt{L} && defined $opt{f}) {
+    log_fatal(LOG_ERR, '-L and -f options mutually exclusive');
+}
+
+$SIG{INT} = \&signal_catcher;
+$SIG{TERM} = \&signal_catcher;
+$SIG{QUIT} = \&signal_catcher;
+
+# Take some security precautions
+close STDIN;
+
+# Show help
+if (defined $opt{h}) {
+    show_help();
+    exit 0;
+}
+
+if ($< != $RUN_UID) {
+    log_fatal(LOG_ERR, 'User ' . getpwuid($<) . " (UID $<) tried to run $PROG");
+}
+
+chdir $RUN_DIR || log_fatal("Failed to change dir to $RUN_DIR");
+
+# Parse ntp.conf for path to leapfile if not set by user
+if (! $LEAPFILE) {
+
+    open my $LF, '<', $NTPCONF || log_fatal(LOG_ERR, "Can't open <$NTPCONF>: $!");
+
+    while (<$LF>) {
+	chomp;
+	$LEAPFILE = $1 if /^ *leapfile\s+"(\S+)"/;
+    }
+    close $LF;
+
+    if (! $LEAPFILE) {
+	log_fatal(LOG_ERR, "No leapfile directive in $NTPCONF; leapfile location not known"); 
+    }
+}
+
+-s $LEAPFILE || logger(LOG_DEBUG, "Leapfile $LEAPFILE is empty");
+
+# Download new file if:
+#   1. file doesn't exist
+#   2. invoked w/ force flag (-F)
+#   3. current file isn't valid
+#   4. current file expired or expires soon
+
+if ( !-e $LEAPFILE || $FORCE || ! verifySHA($LEAPFILE) || 
+	( $EXPIRES lt ( $PREFETCH * 86400 + time() ) )) {
+
+    for (my $try = 1; $try <= $MAXTRIES; $try++) {
+	logger(LOG_DEBUG, "Attempting download from $LEAPSRC, try $try..");
+
+	($TMP_FH, $TMP_FILE) = tempfile(UNLINK => 1, SUFFIX => '.list');
+
+	if (retrieve_file($TMP_FH)) {
+
+            if ( verifySHA($TMP_FILE) ) {
+		move_file($TMP_FILE, $LEAPFILE);
+		chmod $FILE_MODE, $LEAPFILE; 
+		logger(LOG_INFO, "Installed new $LEAPFILE from $LEAPSRC");
+	    }
+	    else {
+                logger(LOG_ERR, "Downloaded file $TMP_FILE rejected -- saved for diagnosis");
+		move_file($TMP_FILE, 'leap-seconds.list_corrupt');
+		exit 1;
+            }
+	    # Fall through
+            exit 0;
+	}
+
+	# Failure
+	unlink $TMP_FILE;
+	logger(LOG_INFO, "Download failed. Waiting $INTERVAL minutes before retrying...");
+        sleep $INTERVAL * 60 ;
+    }
+
+    # Failed and out of retries
+    log_fatal(LOG_ERR, "Download from $LEAPSRC failed after $MAXTRIES attempts");
+}
+
+logger(LOG_INFO, "Not time to replace $LEAPFILE");
+
+exit 0;
+
+######## SUB ROUTINES #########
+sub move_file {
+
+    (my $src, my $dst) = @_;
+
+    if ( move($src, $dst) ) {
+	logger(LOG_DEBUG, "Moved $src to $dst");
+    } 
+    else {
+	log_fatal(LOG_ERR, "Moving $src to $dst failed: $!");
+    }
+}
+
+# Removes temp file if terminating signal recv'd
+sub signal_catcher {
+    my $signame = shift;
+
+    close $TMP_FH;
+    unlink $TMP_FILE;
+    log_fatal(LOG_INFO, "Recv'd SIG${signame}. Terminating.");
+}	    
+
+sub log_fatal {
+    my ($p, $msg) = @_;
+    logger($p, $msg);
+    exit 1;
+}
+
+sub logger {
+    my ($p, $msg) = @_;
+
+    # Suppress LOG_DEBUG msgs unless $DEBUG set
+    return if (!$DEBUG && $p eq LOG_DEBUG);
+
+    # Suppress all but LOG_ERR msgs if $QUIET set
+    return if ($QUIET && $p ne LOG_ERR);
+
+    if ($TOTERM) {
+        if ($p eq LOG_ERR) {	# errors should go to STDERR
+	    print STDERR "$msg\n";
+	}
+	else {
+	    print STDOUT "$msg\n";
+	}
+    }
+
+    if ($SYSLOG) {
+	syslog($p, $msg)
+    }
+}
+
+#################################
+# Connect to server and retrieve file
+#
+# Since we make as many as $MAXTRIES attempts to connect to the remote
+# server to download the file, the network socket should be closed after
+# each attempt, rather than let it be reused (because it may be in some
+# unknown state).
+#
+# HTTP::Tiny doesn't export a method to explicitly close a connected
+# socket, therefore, we instantiate the lexically scoped $http object in
+# a function; when the function returns, the object goes out of scope
+# and is destroyed, closing the socket.
+sub retrieve_file {
+
+    my $fh = shift;
+    my $http;
+
+    if ($LEAPSRC =~ /^https\S+/) {
+	$http = HTTP::Tiny->new(%SSL_ATTRS);
+	(my $ok, my $why) = $http->can_ssl;
+	log_fatal(LOG_ERR, "TLS/SSL config error: $why") if ! $ok;
+    } 
+    else {
+	$http = HTTP::Tiny->new();
+    }
+
+    my $reply = $http->get($LEAPSRC);
+
+    if ($reply->{success}) {
+	logger(LOG_DEBUG, "Download of $LEAPSRC succeeded");
+	print $fh $reply->{content} || 
+	    log_fatal(LOG_ERR, "Couldn't write new file contents to temp file: $!");
+	close $fh;
+	return 1;
+    } 
+    else {
+	close $fh;
+	return 0;
+    }
+}
+
+########################
+# Validate a leap-seconds file checksum
+#
+# File format: (full description in file)
+# Pound sign (#) marks comments, EXCEPT:
+# 	#$ number : the NTP date of the last update
+# 	#@ number : the NTP date that the file expires
+# 	#h hex hex hex hex hex : the SHA-1 checksum of the data & dates, 
+#	   excluding whitespace w/o leading zeroes
+#
+# Date (seconds since 1900) leaps : leaps is the # of seconds to add
+#  for times >= Date 
+# Date lines have comments.
+#
+# Returns:
+#   0	Invalid Checksum/Expired
+#   1	File is valid
+
+sub verifySHA {
+
+    my $file = shift;
+    my $fh;
+    my $data;
+    my $FSHA;
+
+    open $fh, '<', $file || log_fatal(LOG_ERR, "Can't open $file: $!");
+
+    # Remove comments, except those that are markers for last update,
+    # expires and hash
+    while (<$fh>) {
+	if (/^#\$/) {
+	    s/^..//;
+	    $data .= $_;
+	}
+	elsif (/^#\@/) {
+	    s/^..//;
+	    $data .= $_;
+	    s/\s+//g;
+	    $EXPIRES = $_ - 2208988800;
+	}
+	elsif (/^#h\s+([[:xdigit:]]+)\s+([[:xdigit:]]+)\s+([[:xdigit:]]+)\s+([[:xdigit:]]+)\s+([[:xdigit:]]+)/) {
+	    chomp;
+	    $FSHA = sprintf("%08s%08s%08s%08s%08s", $1, $2, $3, $4, $5);
+	}
+	elsif (/^#/) {
+	    # ignore it
+	}
+	elsif (/^\d/) {
+	    s/#.*$//;
+	    $data .= $_;
+	} 
+	else {
+	    chomp;
+	    print "Unexpected line: <$_>\n";
+	}
+    }
+    close $fh;
+
+    if ( $EXPIRES < time() ) {
+        logger(LOG_DEBUG, 'File expired on ' . gmtime($EXPIRES));
+        return 0;
+    }
+
+    if (! $FSHA) {
+	logger(LOG_NOTICE, "no checksum record found in file");
+	return 0;
+    }
+
+    # Remove all white space
+    $data =~ s/\s//g;
+
+    # Compute the SHA hash of the data, removing the marker and filename
+    # Computed in binary mode, which shouldn't matter since whitespace has been removed
+    my $DSHA = sha1_hex($data);
+
+    if ($FSHA eq $DSHA) {
+	logger(LOG_DEBUG, "Checksum of $file validated");
+	return 1;
+    } 
+    else {
+        logger(LOG_NOTICE, "Checksum of $file is invalid EXPECTED: $FSHA COMPUTED: $DSHA");
+        return 0;
+    }
+}
+
+sub show_help {
+print <<EOF
+
+Usage: $PROG [options]
+
+Verifies and if necessary, updates leap-second definition file
+
+All arguments are optional:  Default (or current value) shown:
+    -C    Absolute path to CA Cert (see SSL/TLS Considerations)
+    -D    Path to a CAdir (see SSL/TLS Considerations)
+    -e    Specify how long (in days) before expiration the file is to be
+    	  refreshed.  Note that larger values imply more frequent refreshes.
+          $PREFETCH
+    -F    Force update even if current file is OK and not close to expiring.
+    -f    Absolute path ntp.conf file (default /etc/ntp.conf)
+          $NTPCONF
+    -h    show help
+    -i    Specify number of minutes between retries
+          $INTERVAL
+    -L    Absolute path to leapfile on the local system
+	  (overrides value in ntp.conf)
+    -l    Specify the syslog(3) facility for logging
+          $LOGFAC
+    -q    Only report errors (cannot be used with -v)
+    -r    Specify number of attempts to retrieve file
+          $MAXTRIES
+    -s    Send output to syslog(3) - implied if STDOUT has no tty or redirected
+    -t    Send output to terminal - implied if STDOUT attached to terminal
+    -u    Specify the URL of the master copy to download
+          $LEAPSRC
+    -v    Verbose - show debug messages (cannot be used with -q)
+
+The following options are not (yet) implemented in the perl version:
+    -4    Use only IPv4
+    -6    Use only IPv6
+    -c    Command to restart NTP after installing a new file
+          <none> - ntpd checks file daily
+    -p 4|6
+          Prefer IPv4 or IPv6 (as specified) addresses, but use either
+
+$PROG will validate the file currently on the local system.
+
+Ordinarily, the leapfile is found using the 'leapfile' directive in
+$NTPCONF.  However, an alternate location can be specified on the
+command line with the -L flag.
+
+If the leapfile does not exist, is not valid, has expired, or is
+expiring soon, a new copy will be downloaded.  If the new copy is
+valid, it is installed.
+
+If the current file is acceptable, no download or restart occurs.
+
+This can be run as a cron job.  As the file is rarely updated, and
+leap seconds are announced at least one month in advance (usually
+longer), it need not be run more frequently than about once every
+three weeks.
+
+SSL/TLS Considerations
+-----------------------
+The perl modules can usually locate the CA certificate used to verify
+the peer's identity.
+
+On BSDs, the default is typically the file /etc/ssl/certs.pem.  On
+Linux, the location is typically a path to a CAdir - a directory of
+symlinks named according to a hash of the certificates' subject names.
+
+The -C or -D options are available to pass in a location if no CA cert
+is found in the default location.
+
+External Dependencies
+---------------------
+The following perl modules are required:
+HTTP::Tiny 	- version >= 0.056
+IO::Socket::SSL - version >= 1.56
+NET::SSLeay 	- version >= 1.49
+
+Version: $VERSION
+
+EOF
+}
+

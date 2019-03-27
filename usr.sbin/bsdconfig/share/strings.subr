@@ -1,0 +1,577 @@
+if [ ! "$_STRINGS_SUBR" ]; then _STRINGS_SUBR=1
+#
+# Copyright (c) 2006-2016 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+############################################################ GLOBALS
+
+#
+# A Literal newline (for use with f_replace_all(), or IFS, or whatever)
+#
+NL="
+" # END-QUOTE
+
+#
+# Valid characters that can appear in an sh(1) variable name
+#
+# Please note that the character ranges A-Z and a-z should be avoided because
+# these can include accent characters (which are not valid in a variable name).
+# For example, A-Z matches any character that sorts after A but before Z,
+# including A and Z. Although ASCII order would make more sense, that is not
+# how it works.
+#
+VALID_VARNAME_CHARS="0-9ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
+
+############################################################ FUNCTIONS
+
+# f_isinteger $arg
+#
+# Returns true if argument is a positive/negative whole integer.
+#
+f_isinteger()
+{
+	local arg="${1#-}"
+	[ "${arg:-x}" = "${arg%[!0-9]*}" ]
+}
+
+# f_substr [-v $var_to_set] $string $start [$length]
+#
+# Similar to awk(1)'s substr(), return length substring of string that begins
+# at start position counted from 1.
+#
+case "$BASH_VERSION" in
+*?*)
+	f_substr()
+	{
+		local __var_to_set=
+		case "$1" in
+		-v) __var_to_set="$2"; shift 2 ;;
+		-v?*) __var_to_set="${2#-v}"; shift 1 ;;
+		esac
+		local __tmp="$1" __start="${2:-1}"  __len="$3"
+		[ "$__start" -gt 0 ] 2> /dev/null &&
+			__start=$(( $__start - 1 ))
+		if [ ! "$__var_to_set" ]; then
+			eval echo \"\${__tmp:\$__start${__len:+:\$__len}}\"
+			return $?
+		fi
+		if [ "$__len" ]; then
+			eval $__var_to_set=\"\${__tmp:\$__start:\$__len}\"
+		else
+			eval $__var_to_set=\"\${__tmp:\$__start}\"
+		fi
+	}
+	;;
+*)
+	# NB: On FreeBSD, sh(1) runs this faster than bash(1) runs the above
+	f_substr()
+	{
+		local OPTIND=1 OPTARG __flag __var_to_set=
+		while getopts v: __flag; do
+			case "$__flag" in
+			v) __var_to_set="$OPTARG" ;;
+			esac
+		done
+		shift $(( $OPTIND - 1 ))
+
+		local __tmp="$1" __start="${2:-1}" __size="$3"
+		local __tbuf __tbuf_len __trim __trimq
+
+		if [ ! "$__tmp" ]; then
+			[ "$__var_to_set" ] && setvar "$__var_to_set" ""
+			return ${SUCCESS:-0}
+		fi
+		[ "$__start" -ge 1 ] 2> /dev/null || __start=1
+		if ! [ "${__size:-1}" -ge 1 ] 2> /dev/null; then
+			[ "$__var_to_set" ] && setvar "$__var_to_set" ""
+			return ${FAILURE:-1}
+		fi
+
+		__trim=$(( $__start - 1 ))
+		while [ $__trim -gt 0 ]; do
+			__tbuf="?"
+			__tbuf_len=1
+			while [ $__tbuf_len -lt $(( $__trim / $__tbuf_len )) ]
+			do
+				__tbuf="$__tbuf?"
+				__tbuf_len=$(( $__tbuf_len + 1 ))
+			done
+			__trimq=$(( $__trim / $__tbuf_len ))
+			__trim=$(( $__trim - $__tbuf_len * $__trimq ))
+			while [ $__trimq -gt 0 ]; do
+				__tmp="${__tmp#$__tbuf}"
+				__trimq=$(( $__trimq - 1 ))
+			done
+		done
+
+		local __tmp_size=${#__tmp}
+		local __mask __mask_len
+		__trim=$(( $__tmp_size - ${__size:-$__tmp_size} ))
+		while [ $__trim -gt 0 ]; do
+			__tbuf="?"
+			__tbuf_len=1
+			if [ $__trim -le $__size ]; then
+				while [ $__tbuf_len -lt $((
+					$__trim / $__tbuf_len
+				)) ]; do
+					__tbuf="$__tbuf?"
+					__tbuf_len=$(( $__tbuf_len + 1 ))
+				done
+				__trimq=$(( $__trim / $__tbuf_len ))
+				__trim=$(( $__trim - $__tbuf_len * $__trimq ))
+				while [ $__trimq -gt 0 ]; do
+					__tmp="${__tmp%$__tbuf}"
+					__trimq=$(( $__trimq - 1 ))
+				done
+			else
+				__mask="$__tmp"
+				while [ $__tbuf_len -lt $((
+					$__size / $__tbuf_len
+				)) ]; do
+					__tbuf="$__tbuf?"
+					__tbuf_len=$(( $__tbuf_len + 1 ))
+				done
+				__trimq=$(( $__size / $__tbuf_len ))
+				if [ $__size -ne $((
+					$__trimq * $__tbuf_len
+				)) ]; then
+					__tbuf="$__tbuf?"
+					__tbuf_len=$(( $__tbuf_len + 1 ))
+				fi
+				__mask_len=$((
+					$__tmp_size - $__tbuf_len * $__trimq
+				))
+				__trim=$((
+					$__tmp_size - $__mask_len - $__size
+				))
+				while [ $__trimq -gt 0 ]; do
+					__mask="${__mask#$__tbuf}"
+					__trimq=$(( $__trimq - 1 ))
+				done
+				__tmp="${__tmp%"$__mask"}"
+			fi
+		done
+
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" "$__tmp"
+		else
+			echo "$__tmp"
+		fi
+	}
+esac
+
+# f_sprintf $var_to_set $format [$arguments ...]
+#
+# Similar to sprintf(3), write a string into $var_to_set using printf(1) syntax
+# (`$format [$arguments ...]').
+#
+case "$BASH_VERSION" in
+3.1*|4.*)
+	f_sprintf()
+	{
+		local __var_to_set="$1" __tmp
+		shift 1 # var_to_set
+		printf -v __tmp "$@"
+		eval "$__var_to_set"=\"\${__tmp%\$NL}\"
+	}
+	;;
+*)
+	# NB: On FreeBSD, sh(1) runs this faster than bash(1) runs the above
+	f_sprintf()
+	{
+		local __var_to_set="$1"
+		shift 1 # var_to_set
+		eval "$__var_to_set"=\$\( printf -- \"\$@\" \)
+	}
+esac
+
+# f_vsprintf $var_to_set $format $format_args
+#
+# Similar to vsprintf(3), write a string into $var_to_set using printf(1)
+# syntax (`$format $format_args').
+#
+f_vsprintf()
+{
+	eval f_sprintf \"\$1\" \"\$2\" $3
+}
+
+# f_snprintf $var_to_set $size $format [$arguments ...]
+#
+# Similar to snprintf(3), write at most $size number of bytes into $var_to_set
+# using printf(1) syntax (`$format [$arguments ...]').
+#
+f_snprintf()
+{
+	local __var_to_set="$1" __size="$2"
+	shift 2 # var_to_set size
+
+	local __f_snprintf_tmp
+	f_sprintf __f_snprintf_tmp "$@"
+	f_substr "$__var_to_set" "$__f_snprintf_tmp" 1 "$__size"
+}
+
+# f_vsnprintf $var_to_set $size $format $format_args
+#
+# Similar to vsnprintf(3), write at most $size number of bytes into $var_to_set
+# using printf(1) syntax (`$format $format_args'). The value of $var_to_set is
+# NULL unless at-least one byte is stored from the output.
+#
+# Example 1:
+#
+# 	limit=7 format="%s"
+# 	format_args="'abc   123'" # 3-spaces between abc and 123
+# 	f_vsnprintf foo $limit "$format" "$format_args" # foo=[abc   1]
+#
+# Example 2:
+#
+# 	limit=12 format="%s %s"
+# 	format_args="   'doghouse'      'fox'   "
+# 		# even more spaces added to illustrate escape-method
+# 	f_vsnprintf foo $limit "$format" "$format_args" # foo=[doghouse fox]
+#
+# Example 3:
+#
+# 	limit=13 format="%s %s"
+# 	f_shell_escape arg1 'aaa"aaa' # arg1=[aaa"aaa] (no change)
+# 	f_shell_escape arg2 "aaa'aaa" # arg2=[aaa'\''aaa] (escaped s-quote)
+# 	format_args="'$arg1' '$arg2'" # use single-quotes to surround args
+# 	f_vsnprintf foo $limit "$format" "$format_args" # foo=[aaa"aaa aaa'a]
+#
+# In all of the above examples, the call to f_vsnprintf() does not change. Only
+# the contents of $limit, $format, and $format_args changes in each example.
+#
+f_vsnprintf()
+{
+	eval f_snprintf \"\$1\" \"\$2\" \"\$3\" $4
+}
+
+# f_replaceall $string $find $replace [$var_to_set]
+#
+# Replace all occurrences of $find in $string with $replace. If $var_to_set is
+# either missing or NULL, the variable name is produced on standard out for
+# capturing in a sub-shell (which is less recommended due to performance
+# degradation).
+#
+# To replace newlines or a sequence containing the newline character, use $NL
+# as `\n' is not supported.
+#
+f_replaceall()
+{
+	local __left="" __right="$1"
+	local __find="$2" __replace="$3" __var_to_set="$4"
+	while :; do
+		case "$__right" in *$__find*)
+			__left="$__left${__right%%$__find*}$__replace"
+			__right="${__right#*$__find}"
+			continue
+		esac
+		break
+	done
+	__left="$__left${__right#*$__find}"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__left"
+	else
+		echo "$__left"
+	fi
+}
+
+# f_str2varname $string [$var_to_set]
+#
+# Convert a string into a suitable value to be used as a variable name
+# by converting unsuitable characters into the underscrore [_]. If $var_to_set
+# is either missing or NULL, the variable name is produced on standard out for
+# capturing in a sub-shell (which is less recommended due to performance
+# degradation).
+#
+f_str2varname()
+{
+	local __string="$1" __var_to_set="$2"
+	f_replaceall "$__string" "[!$VALID_VARNAME_CHARS]" "_" "$__var_to_set"
+}
+
+# f_shell_escape $string [$var_to_set]
+#
+# Escape $string for shell eval statement(s) by replacing all single-quotes
+# with a special sequence that creates a compound string when interpolated
+# by eval with surrounding single-quotes.
+#
+# For example:
+#
+# 	foo="abc'123"
+# 	f_shell_escape "$foo" bar # bar=[abc'\''123]
+# 	eval echo \'$bar\' # produces abc'123
+#
+# This is helpful when processing an argument list that has to retain its
+# escaped structure for later evaluations.
+#
+# WARNING: Surrounding single-quotes are not added; this is the responsibility
+# of the code passing the escaped values to eval (which also aids readability).
+#
+f_shell_escape()
+{
+	local __string="$1" __var_to_set="$2"
+	f_replaceall "$__string" "'" "'\\''" "$__var_to_set"
+}
+
+# f_shell_unescape $string [$var_to_set]
+#
+# The antithesis of f_shell_escape(), this function takes an escaped $string
+# and expands it.
+#
+# For example:
+#
+# 	foo="abc'123"
+# 	f_shell_escape "$foo" bar # bar=[abc'\''123]
+# 	f_shell_unescape "$bar" # produces abc'123
+#
+f_shell_unescape()
+{
+	local __string="$1" __var_to_set="$2"
+	f_replaceall "$__string" "'\\''" "'" "$__var_to_set"
+}
+
+# f_expand_number $string [$var_to_set]
+#
+# Unformat $string into a number, optionally to be stored in $var_to_set. This
+# function follows the SI power of two convention.
+#
+# The prefixes are:
+#
+# 	Prefix	Description	Multiplier
+# 	k	kilo		1024
+# 	M	mega		1048576
+# 	G	giga		1073741824
+# 	T	tera		1099511627776
+# 	P	peta		1125899906842624
+# 	E	exa		1152921504606846976
+#
+# NOTE: Prefixes are case-insensitive.
+#
+# Upon successful completion, success status is returned; otherwise the number
+# -1 is produced ($var_to_set set to -1 or if $var_to_set is NULL or missing)
+# on standard output. In the case of failure, the error status will be one of:
+#
+# 	Status	Reason
+# 	1	Given $string contains no digits
+# 	2	An unrecognized prefix was given
+# 	3	Result too large to calculate
+#
+f_expand_number()
+{
+	local __string="$1" __var_to_set="$2"
+	local __cp __num __bshift __maxinput
+
+	# Remove any leading non-digits
+	__string="${__string#${__string%%[0-9]*}}"
+
+	# Store the numbers (no trailing suffix)
+	__num="${__string%%[!0-9]*}"
+
+	# Produce `-1' if string didn't contain any digits
+	if [ ! "$__num" ]; then
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" -1
+		else
+			echo -1
+		fi
+		return 1 # 1 = "Given $string contains no digits"
+	fi
+
+	# Remove all the leading numbers from the string to get at the prefix
+	__string="${__string#"$__num"}"
+
+	#
+	# Test for invalid prefix (and determine bitshift length)
+	#
+	case "$__string" in
+	""|[[:space:]]*) # Shortcut
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" $__num
+		else
+			echo $__num
+		fi
+		return $SUCCESS ;;
+	[Kk]*) __bshift=10 ;;
+	[Mm]*) __bshift=20 ;;
+	[Gg]*) __bshift=30 ;;
+	[Tt]*) __bshift=40 ;;
+	[Pp]*) __bshift=50 ;;
+	[Ee]*) __bshift=60 ;;
+	*)
+		# Unknown prefix
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" -1
+		else
+			echo -1
+		fi
+		return 2 # 2 = "An unrecognized prefix was given"
+	esac
+
+	# Determine if the wheels fall off
+	__maxinput=$(( 0x7fffffffffffffff >> $__bshift ))
+	if [ $__num -gt $__maxinput ]; then
+		# Input (before expanding) would exceed 64-bit signed int
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" -1
+		else
+			echo -1
+		fi
+		return 3 # 3 = "Result too large to calculate"
+	fi
+
+	# Shift the number out and produce it
+	__num=$(( $__num << $__bshift ))
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" $__num
+	else
+		echo $__num
+	fi
+}
+
+# f_longest_line_length
+#
+# Simple wrapper to an awk(1) script to print the length of the longest line of
+# input (read from stdin). Supports the newline escape-sequence `\n' for
+# splitting a single line into multiple lines.
+#
+f_longest_line_length_awk='
+BEGIN { longest = 0 }
+{
+	if (split($0, lines, /\\n/) > 1)
+	{
+		for (n in lines)
+		{
+			len = length(lines[n])
+			longest = ( len > longest ? len : longest )
+		}
+	}
+	else
+	{
+		len = length($0)
+		longest = ( len > longest ? len : longest )
+	}
+}
+END { print longest }
+'
+f_longest_line_length()
+{
+	awk "$f_longest_line_length_awk"
+}
+
+# f_number_of_lines
+#
+# Simple wrapper to an awk(1) script to print the number of lines read from
+# stdin. Supports newline escape-sequence `\n' for splitting a single line into
+# multiple lines.
+#
+f_number_of_lines_awk='
+BEGIN { num_lines = 0 }
+{
+	num_lines += split(" "$0, unused, /\\n/)
+}
+END { print num_lines }
+'
+f_number_of_lines()
+{
+	awk "$f_number_of_lines_awk"
+}
+
+# f_uriencode [$text]
+#
+# Encode $text for the purpose of embedding safely into a URL. Non-alphanumeric
+# characters are converted to `%XX' sequence where XX represents the hexa-
+# decimal ordinal of the non-alphanumeric character. If $text is missing, data
+# is instead read from standard input.
+#
+f_uriencode_awk='
+BEGIN {
+	output = ""
+	for (n = 0; n < 256; n++) pack[sprintf("%c", n)] = sprintf("%%%02x", n)
+}
+{
+	sline = ""
+	slen = length($0)
+	for (n = 1; n <= slen; n++) {
+		char = substr($0, n, 1)
+		if ( char !~ /^[[:alnum:]_]$/ ) char = pack[char]
+		sline = sline char
+	}
+	output = output ( output ? "%0a" : "" ) sline
+}
+END { print output }
+'
+f_uriencode()
+{
+	if [ $# -gt 0 ]; then
+		echo "$1" | awk "$f_uriencode_awk"
+	else
+		awk "$f_uriencode_awk"
+	fi
+}
+
+# f_uridecode [$text]
+#
+# Decode $text from a URI. Encoded characters are converted from their `%XX'
+# sequence into original unencoded ASCII sequences. If $text is missing, data
+# is instead read from standard input.
+#
+f_uridecode_awk='
+BEGIN { for (n = 0; n < 256; n++) chr[n] = sprintf("%c", n) }
+{
+	sline = ""
+	slen = length($0)
+	for (n = 1; n <= slen; n++)
+	{
+		seq = substr($0, n, 3)
+		if ( seq ~ /^%[[:xdigit:]][[:xdigit:]]$/ ) {
+			hex = substr(seq, 2, 2)
+			sline = sline chr[sprintf("%u", "0x"hex)]
+			n += 2
+		} else
+			sline = sline substr(seq, 1, 1)
+	}
+	print sline
+}
+'
+f_uridecode()
+{
+	if [ $# -gt 0 ]; then
+		echo "$1" | awk "$f_uridecode_awk"
+	else
+		awk "$f_uridecode_awk"
+	fi
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." strings.subr
+
+fi # ! $_STRINGS_SUBR

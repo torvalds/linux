@@ -1,0 +1,148 @@
+.\"
+.\" Copyright (c) 2000 Michael Smith
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 10, 2000
+.Dt MLXCONTROL 8
+.Os
+.Sh NAME
+.Nm mlxcontrol
+.Nd Mylex DAC-family RAID management utility
+.Sh SYNOPSIS
+.Nm
+.Aq command
+.Op args
+.Nm
+status
+.Op Fl qv
+.Op Ar drive
+.Nm
+rescan
+.Ar controller
+.Op Ar controller ...
+.Nm
+detach
+.Ar drive
+.Op Ar drive ...
+.Nm
+detach
+.Fl a
+.Nm
+check
+.Ar drive
+.Nm
+config
+.Ar controller
+.Nm
+help
+.Ar command
+.Sh DESCRIPTION
+The
+.Nm
+utility provides status monitoring and management functions
+for devices attached
+to the
+.Xr mlx 4
+driver.
+.Pp
+Controller names are of the form "mlxN"
+where N is the unit number of the controller.
+Drive names are of the form "mlxdN"
+where N is the unit number of the drive.
+Do not specify the path to a device node.
+.Bl -tag -width rebuild
+.It status
+Print the status of controllers and system drives.
+If one or more drives are specified,
+only print information about these drives,
+otherwise print information
+about all controllers and drives in the system.
+With the
+.Fl v
+flag, display much more verbose information.
+With the
+.Fl q
+flag, do not print any output.
+This command returns
+0 if all drives tested are online,
+1 if one or more drives are critical and
+2 if one or more are offline.
+.It rescan
+Rescan one or more controllers for non-attached system drives
+(e.g.\& drives that have been
+detached or created subsequent to driver initialisation).
+If the
+.Fl a
+flag is supplied, rescan all controllers in the system.
+.It detach
+Detach one or more system drives.
+Drives must be unmounted
+and not opened by any other utility for this command to succeed.
+If the
+.Fl a
+flag is supplied, detach all system drives from the nominated controller.
+.It check
+Initiate a consistency check and repair pass on a redundant system drive
+(e.g.\& RAID1 or RAID5).
+The controller will scan the system drive and repair any inconsistencies.
+This command returns immediately;
+use the
+.Ar status
+command to monitor the progress of the check.
+.It rebuild
+Requires two arguments,
+.Ar controller
+and
+.Ar physdrive
+as specified in the
+output of the
+.Ar status
+command.
+All system drives using space on the physical drive
+.Ar physdrive
+are rebuilt, reconstructing all data on the drive.
+Note that each controller can only perform one rebuild at a time.
+This command returns immediately; use the
+.Ar status
+command to monitor the progress of the rebuild.
+.It config
+Print the current configuration from the nominated controller.
+This command will be updated
+to allow addition/deletion of system drives from a configuration
+in a future release.
+.It help
+Print usage information for
+.Ar command .
+.El
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Michael Smith Aq Mt msmith@FreeBSD.org .
+.Sh BUGS
+The
+.Ar config
+command does not yet support modifying system drive configuration.
+.Pp
+Error log extraction is not yet supported.

@@ -1,0 +1,178 @@
+.\"
+.\" Copyright (c) 1996 David E. O'Brien, Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 20, 1996
+.Dt INTRO 4
+.Os
+.Sh NAME
+.Nm intro
+.Nd introduction to devices and device drivers
+.Sh DESCRIPTION
+This section contains information related to devices, device drivers
+and miscellaneous hardware.
+.Ss The device abstraction
+Device is a term used mostly for hardware-related stuff that belongs
+to the system, like disks, printers, or a graphics display with its
+keyboard.
+There are also so-called
+.Em pseudo-devices
+where a device driver emulates the behaviour of a device in software
+without any particular underlying hardware.
+A typical example for
+the latter class is
+.Pa /dev/mem ,
+a loophole where the physical memory can be accessed using the regular
+file access semantics.
+.Pp
+The device abstraction generally provides a common set of system calls
+layered on top of them, which are dispatched to the corresponding
+device driver by the upper layers of the kernel.
+The set of system
+calls available for devices is chosen from
+.Xr open 2 ,
+.Xr close 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr ioctl 2 ,
+.Xr select 2 ,
+and
+.Xr mmap 2 .
+Not all drivers implement all system calls, for example, calling
+.Xr mmap 2
+on terminal devices is likely to be not useful at all.
+.Ss Accessing Devices
+Most of the devices in a
+.Ux Ns
+-like operating system are accessed
+through so-called
+.Em device nodes ,
+sometimes also called
+.Em special files .
+They are usually located under the directory
+.Pa /dev
+in the file system hierarchy
+(see also
+.Xr hier 7 ) .
+.Pp
+Note that this could lead to an inconsistent state, where either there
+are device nodes that do not have a configured driver associated with
+them, or there may be drivers that have successfully probed for their
+devices, but cannot be accessed since the corresponding device node is
+still missing.
+In the first case, any attempt to reference the device
+through the device node will result in an error, returned by the upper
+layers of the kernel, usually
+.Er ENXIO .
+In the second case, the device node needs to be created before the
+driver and its device will be usable.
+.Pp
+Some devices come in two flavors:
+.Em block
+and
+.Em character
+devices, or to use better terms, buffered and unbuffered
+(raw)
+devices.
+The traditional names are reflected by the letters
+.Ql b
+and
+.Ql c
+as the file type identification in the output of
+.Ql ls -l .
+Buffered devices are being accessed through the buffer cache of the
+operating system, and they are solely intended to layer a file system
+on top of them.
+They are normally implemented for disks and disk-like
+devices only and, for historical reasons, for tape devices.
+.Pp
+Raw devices are available for all drivers, including those that also
+implement a buffered device.
+For the latter group of devices, the
+differentiation is conventionally done by prepending the letter
+.Ql r
+to the path name of the device node, for example
+.Pa /dev/rda0
+denotes the raw device for the first SCSI disk, while
+.Pa /dev/da0
+is the corresponding device node for the buffered device.
+.Pp
+Unbuffered devices should be used for all actions that are not related
+to file system operations, even if the device in question is a disk
+device.
+This includes making backups of entire disk partitions, or
+to
+.Em raw
+floppy disks
+(i.e., those used like tapes).
+.Pp
+Access restrictions to device nodes are usually subject to the regular
+file permissions of the device node entry, instead of being enforced
+directly by the drivers in the kernel.
+.Ss Drivers without device nodes
+Drivers for network devices do not use device nodes in order to be
+accessed.
+Their selection is based on other decisions inside the
+kernel, and instead of calling
+.Xr open 2 ,
+use of a network device is generally introduced by using the system
+call
+.Xr socket 2 .
+.Ss Configuring a driver into the kernel
+For each kernel, there is a configuration file that is used as a base
+to select the facilities and drivers for that kernel, and to tune
+several options.
+See
+.Xr config 8
+for a detailed description of the files involved.
+The individual manual pages in this section provide a sample line for the
+configuration file in their synopsis portion.
+See also the sample config file
+.Pa /sys/i386/conf/LINT
+(for the
+.Em i386
+architecture).
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr ioctl 2 ,
+.Xr mmap 2 ,
+.Xr open 2 ,
+.Xr read 2 ,
+.Xr select 2 ,
+.Xr socket 2 ,
+.Xr write 2 ,
+.Xr devfs 5 ,
+.Xr hier 7 ,
+.Xr config 8
+.Sh HISTORY
+This manual page first appeared in
+.Fx 2.1 .
+.Sh AUTHORS
+.An -nosplit
+This man page has been written by
+.An J\(:org Wunsch
+with initial input by
+.An David E. O'Brien .

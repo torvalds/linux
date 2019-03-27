@@ -1,0 +1,146 @@
+.\"	$NetBSD: rpc.lockd.8,v 1.5 2000/06/09 18:51:47 cgd Exp $
+.\"
+.\" Copyright (c) 1995 A.R.Gordon, andrew.gordon@net-tel.co.uk
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 2, 2007
+.Dt RPC.LOCKD 8
+.Os
+.Sh NAME
+.Nm rpc.lockd
+.Nd NFS file locking daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl d Ar debug_level
+.Op Fl g Ar grace period
+.Op Fl h Ar bindip
+.Op Fl p Ar port
+.Sh DESCRIPTION
+The
+.Nm
+utility provides monitored and unmonitored file and record locking services
+in an NFS environment.
+To monitor the status of hosts requesting locks,
+the locking daemon typically operates in conjunction
+with
+.Xr rpc.statd 8 .
+.Pp
+Options and operands available for
+.Nm :
+.Bl -tag -width indent
+.It Fl d
+The
+.Fl d
+option causes debugging information to be written to syslog, recording
+all RPC transactions to the daemon.
+These messages are logged with level
+.Dv LOG_DEBUG
+and facility
+.Dv LOG_DAEMON .
+Specifying a
+.Ar debug_level
+of 1 results
+in the generation of one log line per protocol operation.
+Higher
+debug levels can be specified, causing display of operation arguments
+and internal operations of the daemon.
+.It Fl g
+The
+.Fl g
+option allow to specify the
+.Ar grace period ,
+in seconds.
+During the grace period
+.Nm
+only accepts requests from hosts which are reinitialising locks which
+existed before the server restart.
+Default is 30 seconds.
+.It Fl h Ar bindip
+Specify specific IP addresses to bind to.
+This option may be specified multiple times.
+If no
+.Fl h
+option is specified,
+.Nm
+will bind to
+.Dv INADDR_ANY .
+Note that when specifying IP addresses with
+.Fl h ,
+.Nm
+will automatically add
+.Li 127.0.0.1
+and if IPv6 is enabled,
+.Li ::1
+to the list.
+.It Fl p
+The
+.Fl p
+option allow to force the daemon to bind to the specified
+.Ar port ,
+for both AF_INET and AF_INET6 address families.
+.El
+.Pp
+Error conditions are logged to syslog, irrespective of the debug level,
+using log level
+.Dv LOG_ERR
+and facility
+.Dv LOG_DAEMON .
+.Pp
+The
+.Nm
+utility must NOT be invoked by
+.Xr inetd 8
+because the protocol assumes that the daemon will run from system start time.
+Instead, it should be configured in
+.Xr rc.conf 5
+to run at system startup.
+.Sh FILES
+.Bl -tag -width /usr/include/rpcsvc/nlm_prot.x -compact
+.It Pa /usr/include/rpcsvc/nlm_prot.x
+RPC protocol specification for the network lock manager protocol.
+.El
+.Sh SEE ALSO
+.Xr syslog 3 ,
+.Xr rc.conf 5 ,
+.Xr rpc.statd 8
+.Sh STANDARDS
+The implementation is based on the specification in
+.Rs
+.%B "X/Open CAE Specification C218"
+.%T "Protocols for X/Open PC Interworking: XNFS, Issue 4"
+.%O ISBN 1 872630 66 9
+.Re
+.Sh HISTORY
+A version of
+.Nm
+appeared in
+.Tn SunOS
+4.
+.Sh BUGS
+The current implementation serialises locks requests that could be shared.

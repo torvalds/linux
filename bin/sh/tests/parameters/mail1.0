@@ -1,0 +1,15 @@
+# $FreeBSD$
+# Test that a non-interactive shell does not access $MAIL.
+
+goodfile=/var/empty/sh-test-goodfile
+mailfile=/var/empty/sh-test-mailfile
+T=$(mktemp sh-test.XXXXXX) || exit
+MAIL=$mailfile ktrace -i -f "$T" ${SH} -c "[ -s $goodfile ]" 2>/dev/null
+if ! grep -q $goodfile "$T"; then
+	# ktrace problem
+	rc=0
+elif ! grep -q $mailfile "$T"; then
+	rc=0
+fi
+rm "$T"
+exit ${rc:-3}

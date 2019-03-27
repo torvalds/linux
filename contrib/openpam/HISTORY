@@ -1,0 +1,496 @@
+OpenPAM Tabebuia						2019-02-24
+
+ - BUGFIX: Fix off-by-one bug in pam_getenv(3) which was introduced in
+   OpenPAM Radula.
+
+ - ENHANCE: Add unit tests for pam_{get,put,set}env(3).
+============================================================================
+OpenPAM Resedacea						2017-04-30
+
+ - BUGFIX: Reinstore the NULL check in pam_end(3) which was removed in
+   OpenPAM Radula, as it breaks common error-handling constructs.
+
+ - BUGFIX: Return PAM_SYMBOL_ERR instead of PAM_SYSTEM_ERR from the
+   dispatcher when the required service function could not be found.
+
+ - ENHANCE: Introduce the PAM_BAD_HANDLE error code for when pamh is
+   NULL in API functions that have a NULL check.
+
+ - ENHANCE: Introduce the PAM_BAD_ITEM, PAM_BAD_FEATURE and
+   PAM_BAD_CONSTANT error codes for situations where we previously
+   incorrectly used PAM_SYMBOL_ERR to denote that an invalid constant
+   had been passed to an API function.
+
+ - ENHANCE: Improve the RETURN VALUES section in API man pages,
+   especially for functions that cannot fail, which were incorrectly
+   documented as returning -1 on failure.
+============================================================================
+OpenPAM Radula							2017-02-19
+
+ - BUGFIX: Fix an inverted test which prevented pam_get_authtok(3) and
+   pam_get_user(3) from using application-provided custom prompts.
+
+ - BUGFIX: Plug a memory leak in pam_set_item(3).
+
+ - BUGFIX: Plug a potential memory leak in openpam_readlinev(3).
+
+ - BUGFIX: In openpam_readword(3), support line continuations within
+   whitespace.
+
+ - ENHANCE: Add a feature flag to control fallback to "other" policy.
+
+ - ENHANCE: Add a pam_return(8) module which returns an arbitrary
+   code specified in the module options.
+
+ - ENHANCE: More and better unit tests.
+============================================================================
+OpenPAM Ourouparia						2014-09-12
+
+ - ENHANCE: When executing a chain, require at least one service
+   function to succeed.  This mitigates fail-open scenarios caused by
+   misconfigurations or missing modules.
+
+ - ENHANCE: Make sure to overwrite buffers which may have contained an
+   authentication token when they're no longer needed.
+
+ - BUGFIX: Under certain circumstances, specifying a non-existent
+   module (or misspelling the name of a module) in a policy could
+   result in a fail-open scenario.  (CVE-2014-3879)
+
+ - FEATURE: Add a search path for modules.  This was implemented in
+   Nummularia but inadvertently left out of the release notes.
+
+ - BUGFIX: The is_upper() predicate only accepted the letter A as an
+   upper-case character instead of the entire A-Z range.  As a result,
+   service and module names containing upper-case letters other than A
+   would be rejected.
+============================================================================
+OpenPAM Nummularia						2013-09-07
+
+ - ENHANCE: Rewrite the dynamic loader to improve readability and
+   reliability.  Modules can now be listed without the ".so" suffix in
+   the policy file; OpenPAM will automatically add it, just like it
+   will automatically add the version number if required.
+
+ - ENHANCE: Allow openpam_straddch(3) to be called without a character
+   so it can be used to preallocate a string.
+
+ - ENHANCE: Improve portability by adding simple asprintf(3) and
+   vasprintf(3) implementations for platforms that don't have them.
+
+ - ENHANCE: Move the libpam sources into a separate subdirectory.
+
+ - ENHANCE: Substantial documentation improvements.
+
+ - BUGFIX: When openpam_readword(3) encountered an opening quote, it
+   would set the first byte in the buffer to '\0', discarding all
+   existing text and, unless the buffer was empty to begin with, all
+   subsequent text as well.  This went unnoticed because none of the
+   unit tests for quoted strings had any text preceding the opening
+   quote.
+
+ - BUGFIX: make --with-modules-dir work the way it was meant to work
+   (but never did).
+============================================================================
+OpenPAM Micrampelis						2012-05-26
+
+ - FEATURE: Add an openpam_readword(3) function which reads the next
+   word from an input stream, applying shell quoting and escaping
+   rules.  Add numerous unit tests for openpam_readword(3).
+
+ - FEATURE: Add an openpam_readlinev(3) function which uses the
+   openpam_readword(3) function to read words from an input stream one
+   at a time until it reaches an unquoted, unescaped newline, and
+   returns an array of those words.  Add several unit tests for
+   openpam_readlinev(3).
+
+ - FEATURE: Add a PAM_HOST item which pam_start(3) initializes to the
+   machine's hostname.  This was implemented in Lycopsida but
+   inadvertantly left out of the release notes.
+
+ - FEATURE: In pam_get_authtok(3), if neither the application nor the
+   module have specified a prompt and PAM_HOST and PAM_RHOST are both
+   defined but not equal, use a different default prompt that includes
+   PAM_USER and PAM_HOST.
+
+ - ENHANCE: Rewrite the policy parser to used openpam_readlinev(),
+   which greatly simplifies the code.
+
+ - ENHANCE: The previous implementation of the policy parser relied on
+   the openpam_readline(3) function, which (by design) munges
+   whitespace and understands neither quotes nor backslash escapes.
+   As a result of the aforementioned rewrite, whitespace, quotes and
+   backslash escapes in policy files are now handled in a consistent
+   and predictable manner.
+
+ - ENHANCE: On platforms that have it, use fdlopen(3) to load modules.
+   This closes the race between the ownership / permission check and
+   the dlopen(3) call.
+
+ - ENHANCE: Reduce the amount of pointless error messages generated
+   while searching for a module.
+
+ - ENHANCE: Numerous documentation improvements, both in content and
+   formatting.
+
+ - BUGFIX: A patch incorporated in Lycopsida inadvertantly changed
+   OpenPAM's behavior when several policies exist for the same
+   service, from ignoring all but the first to concatenating them all.
+   Revert to the original behavior.
+
+ - BUGFIX: Plug a memory leak in the policy parser.
+============================================================================
+OpenPAM Lycopsida						2011-12-18
+
+ - ENHANCE: removed static build autodetection, which didn't work
+   anyway.  Use an explicit, user-specified preprocessor variable
+   instead.
+
+ - ENHANCE: cleaned up the documentation a bit.
+
+ - ENHANCE: added openpam_subst(3), allowing certain PAM items to be
+   embedded in strings such as prompts.  Apply it to the prompts used
+   by pam_get_user(3) and pam_get_authtok(3).
+
+ - ENHANCE: added support for the user_prompt, authtok_prompt and
+   oldauthtok_prompt module options, which override the prompts passed
+   by the module to pam_set_user(3) and pam_get_authtok(3).
+
+ - ENHANCE: rewrote the policy parser to support quoted option values.
+
+ - ENHANCE: added pamtest(1), a tool for testing modules and policies.
+
+ - ENHANCE: added code to check the ownership and permissions of a
+   module before loading it.
+
+ - ENHANCE: added / improved input validation in many cases, including
+   the policy file and some function arguments.  (CVE-2011-4122)
+============================================================================
+OpenPAM Hydrangea						2007-12-21
+
+ - ENHANCE: when compiling with GCC, mark up API functions with GCC
+   attributes where appropriate.
+
+ - BUGFIX: fixed numerous warnings uncovered by GCC 4.
+
+ - ENHANCE: building the documentation is now optional.
+
+ - ENHANCE: corrected a number of mistakes and style issues in the
+   build system.
+
+ - ENHANCE: API function arguments are now const where appropriate, to
+   match corresponding changes in the Solaris PAM and Linux-PAM APIs.
+
+ - ENHANCE: corrected a number of C namespace violations.
+
+ - ENHANCE: the module cache has been removed, allowing long-lived
+   applications to pick up module changes.  This also allows multiple
+   threads to use PAM simultaneously (as long as they use separate PAM
+   contexts), since the module cache was the only part of OpenPAM that
+   was not thread-safe.
+============================================================================
+OpenPAM Figwort							2005-06-16
+
+ - BUGFIX: Correct several small signedness and initialization bugs
+   discovered during review by the NetBSD team.
+
+ - BUGFIX: Modify gendoc.pl to sort cross-references in dictionary
+   order within each section.
+
+ - ENHANCE: if a policy specifies a relative module path, prepend the
+   module directory so we never call dlopen(3) with a relative path.
+
+ - ENHANCE: add a pam.conf(5) manual page.
+============================================================================
+OpenPAM Feterita						2005-02-01
+
+ - BUGFIX: Correct numerous markup errors, invalid cross-references,
+   and other issues in the manual pages, with kind assistance from
+   Ruslan Ermilov <ru@freebsd.org>.
+
+ - BUGFIX: Avoid multiple evaluation of macro arguments in ENTERX()
+   and RETURNX() macros.
+
+ - BUGFIX: Remove an unnecessary and non-portable pointer cast in
+   pam_get_data(3).
+
+ - BUGFIX: Fix identical typos in PAM_ACCT_EXPIRED case in
+   pam_strerror(3) and gendoc.pl.
+
+ - ENHANCE: Minor overhaul of the autoconf / build system.
+
+ - ENHANCE: Add openpam_free_envlist(3).
+============================================================================
+OpenPAM Eelgrass						2004-02-10
+
+ - BUGFIX: Correct array handling bugs in conversation code.
+
+ - BUGFIX: In openpam_ttyconv(3), don't strip trailing linear
+   whitespace from the user's response.
+
+ - BUGFIX: Many constness issues addressed.
+============================================================================
+OpenPAM Dogwood							2003-07-15
+
+ - ENHANCE: Use the GNU autotools.
+
+ - ENHANCE: Constify the msg field in struct pam_message.
+
+ - BUGFIX: Remove left-over debugging output
+
+ - BUGFIX: Avoid side effects in arguments to the FREE() macro
+
+ - ENHANCE: Make openpam_ttyconv(3) use read(2) rather than fgets(3).
+
+ - BUGFIX: Staticize some variables which shouldn't be global.
+
+ - BUGFIX: Correcly anticipate a NULL user in pam_get_user(3).
+
+ - ENHANCE: Various minor documentation improvements.
+
+Thanks to Dmitry V. Levin <ldv@altlinux.org> for considerable
+assistance with this release.
+============================================================================
+OpenPAM Digitalis						2003-06-01
+
+ - ENHANCE: Completely rewrite the configuration parser and add
+   support for the "include" control flag.
+
+ - ENHANCE: Improve portability to NetBSD, OpenBSD and Linux.
+
+ - ENHANCE: Lots of additional paranoia.
+
+ - BUGFIX: The sample su(1) application dropped privileges before
+   forking instead of after.
+
+ - ENHANCE: Document openpam_log(3).
+
+ - ENHANCE: Other minor documentation fixes.
+
+Thanks to Dmitry V. Levin <ldv@altlinux.org> for considerable
+assistance with this release.
+============================================================================
+OpenPAM Dianthus						2003-05-02
+
+ - BUGFIX: Initialize some potentially uninitialized variables.
+
+ - BUGFIX: Silence some warnings emitted by gcc -std=iso9899:1999.
+
+ - BUGFIX: In pam_getenv(), return a pointer to the stored variable
+   instead of a freshly allocated copy.
+
+ - ENHANCE: Detect recursion in openpam_borrow_cred()
+
+ - ENHANCE: Make borrowing one's own credentials a no-op.
+
+ - ENHANCE: Further improve debugging support.
+
+ - ENHANCE: Clean up some variable names.
+============================================================================
+OpenPAM Daffodil						2003-01-06
+
+ - ENHANCE: Document dependency on <sys/types.h> (for size_t)
+
+ - ENHANCE: Slightly improve error detection in openpam_ttyconv().
+
+ - BUGFIX: Fix several typos in debugging macros.
+============================================================================
+OpenPAM Cyclamen						2002-12-12
+
+ - ENHANCE: Improve recursion detection in openpam_dispatch().
+
+ - ENHANCE: Add debugging messages at entry and exit points of most
+   functions.
+
+ - ENHANCE: Fix some minor style issues.
+
+ - BUGFIX: Add default cases to the switches in openpam_log.c.
+
+ - ENHANCE: Add /usr/local/etc/pam.conf to policy search path.
+
+ - BUGFIX: In openpam_ttyconv(3), print the prompt to stdout rather
+   than stderr.
+============================================================================
+OpenPAM Citronella						2002-06-30
+
+ - ENHANCE: Add the "binding" control flag (from Solaris 9).
+
+ - ENHANCE: Define struct pam_repository and PAM_REPOSITORY (from
+   Solaris 9).
+
+ - ENHANCE: Flesh out the pam(3) man page.
+
+ - ENHANCE: Add an openpam(3) page with cross-references to all the
+   documented OpenPAM API extensions.
+
+ - ENHANCE: Add a pam_conv(3) man page describing the conversation
+   system.
+
+ - ENHANCE: Improved sample application.
+
+ - ENHANCE: Added sample pam_unix module.
+
+ - BUGFIX: Various documentation nits.
+============================================================================
+OpenPAM Cinquefoil						2002-05-24
+
+ - BUGFIX: Various warnings uncovered by gcc 3.1.
+
+ - ENHANCE: Add a null conversation function, openpam_nullconv(3).
+
+ - BUGFIX: Initialize the "other" chain to all zeroes.
+
+ - ENHANCE: Document openpam_ttyconv(3).
+============================================================================
+OpenPAM Cinnamon						2002-05-02
+
+ - ENHANCE: Add a null conversation function, openpam_nullconv().
+
+ - BUGFIX: Various markup bugs in the documentation.
+
+ - BUGFIX: Document <security/openpam.h>.
+
+ - BUGFIX: Duplicate expansion of openpam_log() macro arguments.
+
+ - ENHANCE: Restructure the policy-loading code and align our use of
+   the "other" policy with Solaris and Linux-PAM.
+
+ - ENHANCE: Log dlopen() and dlsym() failures.
+
+ - ENHANCE: In openpam_ttyconv(), emit a newline after error and info
+   messages unless the message contains one already.
+
+ - BUGFIX: In pam_vprompt(), initialize the response pointer to NULL
+   so we can detect whether the conversation function touched it.
+============================================================================
+OpenPAM Cineraria						2002-04-14
+
+ - BUGFIX: Fix confusion between token and prompt in
+   pam_get_authtok(3).
+
+ - ENHANCE: Improved documentation.
+
+ - ENHANCE: Adopt the same preprocessor tricks that were used in
+   FreeBSD's version of Linux-PAM to simplify static linking without
+   requiring dummy primitives.
+
+ - ENHANCE: Move the policy-loading code out of pam_start.c.
+
+ - BUGFIX: Fix typo in one of the versions of the openpam_log macro.
+
+ - ENHANCE: Add versioning macros.
+============================================================================
+OpenPAM Cinchona						2002-04-08
+
+ - ENHANCE: Improved documentation for several API functions.
+
+ - BUGFIX: Fix bug in pam_set_data() that would result in corruption
+   of the module data list.
+
+ - BUGFIX: Allocate the correct amount of memory for the environment
+   list in pam_putenv().
+
+ - ENHANCE: Change pam_get_authtok()'s prototype so the caller can
+   specify what token it wants.  Also introduce PAM_OLDAUTHTOK_PROMPT.
+
+ - BUGFIX: Plug memory leak in pam_get_user() / pam_get_authtok(), and
+   reduce differences between these very similar functions.
+
+ - ENHANCE: Check flags carefully in pam_authenticate() and
+   pam_chauthtok().
+
+ - BUGFIX: Fix bugs in portability code; libpam now builds on NetBSD.
+
+ - ENHANCE: In pam_get_authtok(), if PAM_OLDAUTHTOK is set, we're
+   asked for PAM_AUTHTOK, and we have to prompt the user, prompt her
+   twice and compare the responses.
+
+ - ENHANCE: Add openpam_{borrow,restore}_cred(), for temporarily
+   switching to user credentials.
+
+ - ENHANCE: Add openpam_free_data(), a generic cleanup function for
+   pam_set_data() consumers.
+============================================================================
+OpenPAM Centaury						2002-03-14
+
+ - BUGFIX: Add missing #include <string.h> to openpam_log.c.
+
+ - BUGFIX: s/PAM_REINITIALISE_CRED/PAM_REINITIALIZE_CRED/.  XSSO uses
+   the former, but Solaris and Linux-PAM use the latter.
+
+ - BUGFIX: The dynamic loader and the module cache contained a number
+   of bugs which would cause a segmentation fault if pam_start(3) was
+   called again after pam_end(3), as happens in login(1), xdm(1) etc.
+   after a failed login.
+
+ - BUGFIX: Refer to a module by the name used in the policy file, even
+   if the module that was actually loaded was versioned.
+
+ - ENHANCE: Suppress debugging logs, unless compiled with -DDEBUG.
+============================================================================
+OpenPAM Celandine						2002-03-05
+
+ - BUGFIX: PAM_TRY_AGAIN is a valid return value for pam_chauthtok().
+
+ - BUGFIX: Run passwd chain twice, first with the PAM_PRELIM_CHECK
+   flag set, then with the PAM_UPDATE_AUTHTOK flag set.
+
+ - BUGFIX: Failure of a "sufficient" module should not terminate the
+   passwd chain if the PAM_PRELIM_CHECK flag is set.
+
+ - BUGFIX: Clear PAM_AUTHTOK after running the service modules.
+
+ - ENHANCE: Prevent applications from specifying the PAM_PRELIM_CHECK
+   or PAM_UPDATE_AUTHTOK flags themselves.
+
+ - BUGFIX: openpam_set_option() did not support changing the value of
+   an existing option.
+
+ - ENHANCE: Add support for module versioning.  OpenPAM will prefer a
+   module with the same version number as the library itself to one
+   with no version number at all.
+============================================================================
+OpenPAM Cantaloupe						2002-02-22
+
+ - BUGFIX: The proper use of PAM_SYMBOL_ERR is to indicate an invalid
+   argument to pam_[gs]et_item(3), not to indicate dlsym(3) failures.
+
+ - ENHANCE: Add in-line documentation in most source files, and a Perl
+   script that generates mdoc code from that.
+
+ - BUGFIX: The environment list was not properly NULL-terminated.
+
+ - ENHANCE: Allow the PAM_AUTHTOK_PROMPT item to override the prompt
+   specified by the module.
+
+ - BUGFIX: PAM_NUM_ITEMS was set too low.  It has been moved to
+   pam_constants.h to avoid it going stale again.
+
+ - ENHANCE: Move all code related to static modules into a separate
+   file.
+
+ - ENHANCE: openpam_ttyconv() now masks most signals while prompting the
+   user, and supports setting a timeout (which defaults to off).
+
+ - BUGFIX: Some manual pages referenced XSSO even though they
+   documented OpenPAM-specific functions.
+
+ - ENHANCE: Added openpam_get_option() and openpam_set_option().
+
+ - ENHANCE: openpam_get_authtok() now respects the echo_pass,
+   try_first_pass, and use_first_pass options.
+============================================================================
+OpenPAM Caliopsis						2002-02-13
+
+Fixed a number of bugs in the previous release, including:
+  - a number of bugs in and related to pam_[gs]et_item(3)
+  - off-by-one bug in pam_start.c would trim last character off certain
+    configuration lines
+  - incorrect ordering of an array in openpam_load.c would cause service
+    module functions to get mixed up
+  - missing 'continue' in openpam_dispatch.c caused successes to be
+    counted as failures
+============================================================================
+OpenPAM Calamite						2002-02-09
+
+First (beta) release.

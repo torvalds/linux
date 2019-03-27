@@ -1,0 +1,103 @@
+.\"***************************************************************************
+.\" Copyright (c) 2002-2010,2012 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_addwstr.3x,v 1.11 2012/11/03 22:57:31 tom Exp $
+.TH curs_addwstr 3X ""
+.de bP
+.IP \(bu 4
+..
+.na
+.hy 0
+.SH NAME
+\fBaddwstr\fR,
+\fBaddnwstr\fR,
+\fBwaddwstr\fR,
+\fBwaddnwstr\fR,
+\fBmvaddwstr\fR,
+\fBmvaddnwstr\fR,
+\fBmvwaddwstr\fR,
+\fBmvwaddnwstr\fR \- add a string of wide characters to a \fBcurses\fR window and advance cursor
+.ad
+.hy
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>\fR
+.PP
+\fBint addwstr(const wchar_t *\fR\fIwstr\fR\fB);\fR
+.br
+\fBint addnwstr(const wchar_t *\fR\fIwstr\fR\fB, int \fR\fIn\fR\fB);\fR
+.br
+\fBint waddwstr(WINDOW *\fR\fIwin\fR\fB, const wchar_t *\fR\fIwstr\fR\fB);\fR
+.br
+\fBint waddnwstr(WINDOW *\fR\fIwin\fR\fB, const wchar_t *\fR\fIwstr\fR\fB, int \fR\fIn\fR\fB);\fR
+.br
+\fBint mvaddwstr(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const wchar_t *\fR\fIwstr\fR\fB);\fR
+.br
+\fBint mvaddnwstr(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const wchar_t *\fR\fIwstr\fR\fB, int \fR\fIn\fR\fB);\fR
+.br
+\fBint mvwaddwstr(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const wchar_t *\fR\fIwstr\fR\fB);\fR
+.br
+\fBint mvwaddnwstr(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const wchar_t *\fR\fIwstr\fR\fB, int \fR\fIn\fR\fB);\fR
+.fi
+.SH DESCRIPTION
+These functions write the characters of the
+(null-terminated) \fBwchar_t\fR character string
+\fIwstr\fR on the given window.
+It is similar to constructing a \fBcchar_t\fR for each wchar_t in the string,
+then calling \fBwadd_wch\fR for the resulting \fBcchar_t\fR.
+.PP
+The \fImv\fR functions perform cursor movement once, before writing any
+characters.
+Thereafter, the cursor is advanced as a side-effect of writing to the window.
+.PP
+The four functions with \fIn\fR as the last argument
+write at most \fIn\fR \fBwchar_t\fR characters,
+or until a terminating null is reached.
+If \fIn\fR is \-1, then the entire string will be added.
+.SH RETURN VALUE
+All functions return the integer \fBERR\fR upon failure and \fBOK\fR on success.
+.PP
+X/Open does not define any error conditions.
+This implementation returns an error
+.bP
+if the window pointer is null or
+.bP
+if the string pointer is null or
+.bP
+if the corresponding calls to \fBwadd_wch\fP return an error.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+All of these functions except \fBwaddnwstr\fR may be macros.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_add_wch\fR(3X)

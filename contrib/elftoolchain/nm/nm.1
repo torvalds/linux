@@ -1,0 +1,340 @@
+.\" Copyright (c) 2007 Hyogeol Lee <hyogeollee@gmail.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Id: nm.1 3642 2018-10-14 14:24:28Z jkoshy $
+.\"
+.Dd September 13, 2017
+.Dt NM 1
+.Os
+.Sh NAME
+.Nm nm
+.Nd display symbolic information in object files
+.Sh SYNOPSIS
+.Nm
+.Op Fl -debug-syms
+.Op Fl -defined-only
+.Op Fl -demangle Ns Op = Ns style
+.Op Fl -dynamic
+.Op Fl -extern-only
+.Op Fl -help
+.Op Fl -line-numbers
+.Op Fl -no-demangle
+.Op Fl -no-sort
+.Op Fl -numeric-sort
+.Op Fl -print-armap
+.Op Fl -print-file-name
+.Op Fl -print-size
+.Op Fl -radix= Ns Ar format
+.Op Fl -reverse-sort
+.Op Fl -size-sort
+.Op Fl -undefined-only
+.Op Fl -version
+.Op Fl A
+.Op Fl B
+.Op Fl C Op Ar style
+.Op Fl D
+.Op Fl P
+.Op Fl V
+.Op Fl a
+.Op Fl e
+.Op Fl g
+.Op Fl h
+.Op Fl l
+.Op Fl n
+.Op Fl o
+.Op Fl p
+.Op Fl r
+.Op Fl S
+.Op Fl s
+.Op Fl t Ar format
+.Op Fl u
+.Op Fl x
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility displays symbolic information in the object files,
+executables, and object library files named by its arguments.
+Lack of symbolic information in an otherwise valid input
+file, is not considered to be an error.
+If no files are specified on the command line,
+.Nm
+will attempt to read
+.Pa a.out .
+.Pp
+The
+.Nm
+utility recognizes the following options:
+.Bl -tag -width ".Fl d Ar argument"
+.It Fl -debug-syms
+Display all symbols, including debugger-only symbols.
+.It Fl -defined-only
+Display only defined symbols.
+.It Fl -demangle Ns Op = Ns Ar style
+Decode (demangle) low-level symbol names into human-readable names.
+Supported values for argument
+.Ar style
+are
+.Sq auto ,
+.Sq gnu-v2 ,
+.Sq gnu-v3
+and
+.Sq arm.
+If argument
+.Ar style
+is not specified, it is taken to be
+.Sq auto .
+.It Fl -dynamic
+Only display dynamic symbols.
+This option is only meaningful for shared libraries.
+.It Fl -extern-only
+Only display information about global (external) symbols.
+.It Fl -help
+Display a help message and exit.
+.It Fl -format Ns = Ns Ar format
+Display output in the format specified by argument
+.Ar format .
+Supported values for the format argument are
+.Sq bsd ,
+.Sq sysv ,
+and
+.Sq posix .
+The default output format is
+.Sq bsd .
+.It Fl -line-numbers
+Display the filename and line number associated a symbol using
+any debugging information present in the input file.
+For defined symbols, look up the line number associated with
+the address of the symbol.
+For undefined symbols, look up the line number associated with
+a relocation entry that refers to the symbol.
+If line number information can be determined, it is displayed after
+other symbol information.
+.It Fl -no-demangle
+Do not demangle symbol names (default).
+.It Fl -no-sort
+Do not sort symbols.
+.It Fl -numeric-sort
+Sort symbols numerically by address instead of alphabetically by name.
+.It Fl -print-armap
+For
+.Xr ar 1
+archives, include the index of the archive's members.
+.It Fl -print-file-name
+Write the full pathname or library name of an object on each line,
+before the rest of the information for a symbol.
+If this option is not specified,
+.Nm
+will only identify an input file once, before its symbols are
+listed.
+.It Fl -print-size
+Print the size of each symbol instead of its value.
+.It Fl -radix Ns = Ns Ar radix
+Print numeric values using the specified radix.
+Supported values for argument
+.Ar radix
+are
+.Sq d
+for decimal,
+.Sq o
+for octal, and
+.Sq x
+for hexadecimal.
+.It Fl -reverse-sort
+Reverse the order of the sort.
+.It Fl -size-sort
+Sort symbols by size instead of alphabetically by name.
+.It Fl -undefined-only
+Display only undefined symbols.
+.It Fl -version
+Display the version identifier for
+.Nm
+and exit.
+.It Fl A
+Equivalent to specifying option
+.Fl -print-file-name .
+.It Fl B
+Equivalent to specifying option
+.Fl -format= Ns Ar bsd .
+.It Fl C Op Ar style
+Equivalent to specifying option
+.Fl -demangle Ns Op = Ns Ar style .
+.It Fl D
+Equivalent to specifying option
+.Fl -dynamic .
+.It Fl F Ar format
+Equivalent to specifying option
+.Fl -format Ns = Ns Ar format .
+.It Fl P
+Equivalent to specifying option
+.Fl -format Ns = Ns Ar posix .
+.It Fl S
+Equivalent to specifying option
+.Fl -print-size .
+.It Fl V
+Equivalent to specifying option
+.Fl -version .
+.It Fl a
+Equivalent to specifying option
+.Fl -debug-syms .
+.It Fl e
+Only display information for global and static symbols.
+.It Fl f
+Produce full output (default).
+.It Fl g
+Equivalent to specifying option
+.Fl -extern-only .
+.It Fl h
+Equivalent to specifying option
+.Fl -help .
+.It Fl l
+Equivalent to specifying option
+.Fl -line-numbers .
+.It Fl n
+Equivalent to specifying option
+.Fl -numeric-sort .
+.It Fl o
+If POSIX output was specified using the
+.Fl F Ar posix
+or
+.Fl P
+options, this option is equivalent to specifying
+.Fl -radix Ns = Ns Sq Ar o .
+If POSIX output was not specified, this option
+acts as a synonym for the
+.Fl -print-file-name
+option.
+.It Fl p
+Equivalent to specifying option
+.Fl -no-sort .
+.It Fl v
+Equivalent to option
+.Fl n .
+.It Fl r
+Equivalent to specifying option
+.Fl -reverse-sort
+.It Fl s
+Equivalent to specifying option
+.Fl -print-armap .
+.It Fl t Ar radix
+Equivalent to specifying option
+.Fl -radix= Ns Ar radix .
+.It Fl u
+Equivalent to specifying option
+.Fl -undefined-only .
+.It Fl x
+Write numeric values in hexadecimal (equivalent to -t x).
+.El
+.Sh OUTPUT FORMAT
+.Pp
+The
+.Nm
+utility can present its information in a number of formats, numeric
+radices and sort orders.
+By default
+.Nm
+uses BSD style output, a hexadecimal radix, without output sorted
+alphabetically by name and without demangling of names.
+.Pp
+For each symbol listed,
+.Nm
+presents the following information:
+.Bl -bullet -compact
+.It
+The library or object name, if options
+.Fl A
+or
+.Fl -print-file-name
+were specified.
+.It
+The symbol name.
+.It
+The type of the symbol denoted by a single character as below:
+.Bl -tag -compact -width indent
+.It A
+A global, absolute symbol.
+.It B
+A global
+.Dq bss
+(uninitialized data) symbol.
+.It C
+A
+.Dq common
+symbol, representing uninitialized data.
+.It D
+A global symbol naming initialized data.
+.It N
+A debugger symbol.
+.It R
+A read-only data symbol.
+.It T
+A global text symbol.
+.It U
+An undefined symbol.
+.It V
+A weak object.
+.It W
+A weak reference.
+.It a
+A local absolute symbol.
+.It b
+A local
+.Dq bss
+(uninitialized data) symbol.
+.It d
+A local data symbol.
+.It r
+A local read-only data symbol.
+.It t
+A local text symbol.
+.It v
+A weak object that is undefined.
+.It w
+A weak symbol that is undefined.
+.It ?
+None of the above.
+.El
+.It
+The value of the symbol.
+.It
+The size of the symbol if applicable.
+.It
+Line number information, if available and if options
+.Fl l
+or
+.Fl -line-numbers
+were specified.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr objdump 1 ,
+.Xr ranlib 1 ,
+.Xr elf 3
+.Sh AUTHORS
+The
+.Nm
+utility and this manual page were written by
+.An Hyogeol Lee Aq Mt hyogeollee@gmail.com .

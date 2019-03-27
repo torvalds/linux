@@ -1,0 +1,11 @@
+# $FreeBSD$
+#
+# Map one or all usernames at a source hostname to a specific (or the same)
+# username at another target hostname.  Remember to add the source hostname
+# to /etc/mail/local-host-names so that sendmail will accept mail for the
+# source hostname.
+#
+username@a.sample.hostname	localuser
+username@a.sample.hostname	specificuser@a.possibly.different.hostname
+@another.sample.hostname	specificuser@a.possibly.different.hostname
+@yet.another.sample.hostname	%1@a.possibly.different.hostname

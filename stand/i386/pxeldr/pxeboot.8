@@ -1,0 +1,160 @@
+.\" Copyright (c) 1999 Doug White
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 25, 2018
+.Dt PXEBOOT 8
+.Os
+.Sh NAME
+.Nm pxeboot
+.Nd Preboot Execution Environment (PXE) bootloader
+.Sh DESCRIPTION
+The
+.Nm
+bootloader is a modified version of the system third-stage bootstrap
+.Xr loader 8
+configured to run under Intel's Preboot Execution Environment (PXE) system.
+PXE is a form of smart boot ROM, built into Intel EtherExpress Pro/100 and
+3Com 3c905c Ethernet cards, and Ethernet-equipped Intel motherboards.
+PXE supports DHCP configuration and provides low-level NIC access services.
+.Pp
+The DHCP client will set a DHCP user class named
+.Va FreeBSD
+to allow flexible configuration of the DHCP server.
+.Pp
+The
+.Nm
+bootloader retrieves the kernel, modules,
+and other files either via NFS over UDP or by TFTP,
+selectable through compile-time options.
+In combination with a memory file system image or NFS-mounted root file system,
+.Nm
+allows for easy,
+EEPROM-burner free construction of diskless machines.
+.Pp
+The
+.Nm
+binary is loaded just like any other boot file,
+by specifying it in the DHCP server's configuration file.
+Below is a sample configuration for the ISC DHCP v3 server:
+.Bd -literal -offset indent
+option domain-name "example.com";
+option routers 10.0.0.1;
+option subnet-mask 255.255.255.0;
+option broadcast-address 10.0.0.255;
+option domain-name-servers 10.0.0.1;
+server-name "DHCPserver";
+server-identifier 10.0.0.1;
+next-server 10.0.0.1;
+
+default-lease-time 120;
+max-lease-time 120;
+
+subnet 10.0.0.0 netmask 255.255.255.0 {
+       filename "pxeboot";
+       range 10.0.0.10 10.0.0.254;
+       if exists user-class and option user-class = "FreeBSD" {
+            option root-path "tftp://10.0.0.1/FreeBSD";
+       }
+}
+
+.Ed
+.Va next-server
+is the IP address of the next server in the bootstrap process, i.e.
+your TFTP server or NFS server.
+.Nm
+recognizes
+.Va option root-path
+directives as the server and path to NFS mount for file requests,
+respectively, or the server to make TFTP requests to.
+Note that
+.Nm
+expects to fetch
+.Pa /boot/loader.rc
+from the specified server before loading any other files.
+.Pp
+Valid
+.Va option root-path
+Syntax is the following
+.Bl -tag -width <scheme>://ip/path indent
+.It /path
+path to the root filesystem on the NFS server
+.It ip:/path
+path to the root filesystem on the NFS server
+.Ar ip
+.It nfs:/path
+path to the root filesystem on the NFS server
+.It nfs://ip/path
+path to the root filesystem on the NFS server
+.Ar ip
+.It tftp:/path
+path to the root filesystem on the TFTP server
+.It tftp://ip/path
+path to the root filesystem on the TFTP server
+.Ar ip
+.El
+.Pp
+.Nm
+defaults to a conservative 1024 byte NFS data packet size.
+This may be changed by setting the
+.Va nfs.read_size
+variable in
+.Pa /boot/loader.conf .
+Valid values range from 1024 to 16384 bytes.
+.Pp
+In all other respects,
+.Nm
+acts just like
+.Xr loader 8 .
+.Pp
+As PXE is still in its infancy, some firmware versions may not work
+properly.
+The
+.Nm
+bootloader has been extensively tested on version 0.99 of Intel firmware;
+pre-release versions of the newer 2.0 firmware are known to have
+problems.
+Check with the device's manufacturer for their latest stable release.
+.Pp
+For further information on Intel's PXE specifications and Wired for
+Management (WfM) systems, see
+.Li http://www.intel.com/design/archives/wfm/ .
+.Sh SEE ALSO
+.Xr loader 8
+.Sh HISTORY
+The
+.Nm
+bootloader first appeared in
+.Fx 4.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+bootloader was written by
+.An John Baldwin Aq jhb@FreeBSD.org
+and
+.An Paul Saab Aq ps@FreeBSD.org .
+This manual page was written by
+.An Doug White Aq dwhite@FreeBSD.org .

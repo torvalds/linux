@@ -1,0 +1,182 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_expand_frame_instructions.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd November 9, 2011
+.Dt DWARF_EXPAND_FRAME_INSTRUCTIONS 3
+.Os
+.Sh NAME
+.Nm dwarf_expand_frame_instructions
+.Nd expand frame instructions
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_expand_frame_instructions
+.Fa "Dwarf_Cie cie"
+.Fa "Dwarf_Ptr instructions"
+.Fa "Dwarf_Unsigned len"
+.Fa "Dwarf_Frame_Op **ret_ops"
+.Fa "Dwarf_Signed *ret_opcnt"
+.Fa "Dwarf_Error *error"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_expand_frame_instructions
+translates DWARF frame instruction bytes into an array of
+.Vt Dwarf_Frame_Op
+descriptors.
+.Pp
+Argument
+.Ar cie
+should reference the CIE descriptor associated with the instructions
+to be translated.
+.Pp
+Arugment
+.Ar instructions
+should point to an array of frame instruction bytes, as
+returned by the functions
+.Xr dwarf_get_cie_info 3
+or
+.Xr dwarf_get_fde_instr_bytes 3 .
+.Pp
+Argument
+.Ar len
+should specify the number of the frame instruction bytes to be
+translated.
+.Pp
+Argument
+.Ar ret_ops
+should point to a location that will be set to a pointer to
+an array of translated
+.Vt Dwarf_Frame_Op
+descriptors.
+.Pp
+Argument
+.Ar ret_opcnt
+should point to a location that will hold the total number of the
+returned descriptors.
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case of an
+error.
+.Ss Memory Management
+The memory area used for the descriptor array returned in argument
+.Ar ret_ops
+is allocated by
+.Lb libdwarf .
+Application code should use function
+.Xr dwarf_dealloc 3
+with type
+.Dv DW_DLA_FRAME_BLOCK
+to free the memory area when the descriptor array is no longer needed.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_expand_frame_instructions
+returns
+.Dv DW_DLV_OK
+when it succeeds.
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh EXAMPLES
+To retrieve and expand the frame instructions for a given FDE
+descriptor, use:
+.Bd -literal -offset indent
+Dwarf_Dbg dbg;
+Dwarf_Cie cie;
+Dwarf_Fde fde;
+Dwarf_Ptr fde_inst;
+Dwarf_Unsigned fde_instlen;
+Dwarf_Frame_Op *ops;
+Dwarf_Signed opcnt;
+Dwarf_Error de;
+
+/* ... assuming `dbg` references a valid DWARF debugging context,
+  `fde` references a valid FDE descriptor and `cie` holds the CIE
+  descriptor associated with the FDE descriptor ... */
+
+if (dwarf_get_fde_instr_bytes(fde, &fde_inst, &fde_instlen,
+    &de) != DW_DLV_OK)
+	errx(EXIT_FAILURE, "dwarf_get_fde_instr_bytes failed: %s",
+	    dwarf_errmsg(de));
+
+if (dwarf_expand_frame_instructions(cie, fde_inst, fde_instlen,
+    &ops, &opcnt, &de) != DW_DLV_OK)
+	errx(EXIT_FAILURE,
+	    "dwarf_expand_frame_instructions failed: %s",
+	    dwarf_errmsg(de));
+
+for (i = 0; i < opcnt; i++) {
+	/* ... use ops[i] ... */
+}
+
+/* Free the memory area when no longer needed. */
+dwarf_dealloc(dbg, ops, DW_DLA_FRAME_BLOCK);
+.Ed
+.Sh ERRORS
+Function
+.Fn dwarf_expand_frame_instructions
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar cie ,
+.Ar instructions ,
+.Ar ret_ops
+or
+.Ar ret_opcnt
+was NULL.
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Ar len
+was 0.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of
+this function.
+.It Bq Er DW_DLE_FRAME_INSTR_EXEC_ERROR
+An unknown instruction was found in the instruction bytes provided
+in argument
+.Ar instructions .
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_frame_instructions_dealloc 3 ,
+.Xr dwarf_get_cie_index 3 ,
+.Xr dwarf_get_cie_info 3 ,
+.Xr dwarf_get_cie_of_fde 3 ,
+.Xr dwarf_get_fde_at_pc 3 ,
+.Xr dwarf_get_fde_info_for_all_regs 3 ,
+.Xr dwarf_get_fde_info_for_all_regs3 3 ,
+.Xr dwarf_get_fde_info_for_cfa_reg3 3 ,
+.Xr dwarf_get_fde_info_for_reg 3 ,
+.Xr dwarf_get_fde_info_for_reg3 3 ,
+.Xr dwarf_get_fde_instr_bytes 3 ,
+.Xr dwarf_get_fde_list 3 ,
+.Xr dwarf_get_fde_list_eh 3 ,
+.Xr dwarf_get_fde_n 3

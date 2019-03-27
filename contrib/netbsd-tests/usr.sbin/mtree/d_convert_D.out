@@ -1,0 +1,14 @@
+type=dir .
+type=link link=a.file.1 ./a.symlink.1
+type=link link=nonexistent ./top.dangling
+type=link link=b ./top.symlink.b
+type=dir ./b
+type=file ./b/b.file.2
+type=file ./b/b.file.1
+type=file ./top.file.1
+type=dir ./a
+type=file ./a/a.file.2
+type=dir ./a/1
+type=file ./a/1/a1.file.1
+type=file ./a/a.file.1
+type=dir ./a/2

@@ -1,0 +1,123 @@
+.\" Copyright (c) 1997
+.\"	John-Mark Gurney.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY John-Mark Gurney AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 25, 2014
+.Dt CD 9
+.Os
+.Sh NAME
+.Nm cd
+.Nd CDROM driver for the CAM SCSI subsystem
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides a read-only interface for CDROM drives
+.Tn ( SCSI
+type 5)
+and WORM drives
+.Tn ( SCSI
+type 4)
+that support CDROM type commands.
+Some drives do not behave as the driver expects.
+See the
+.Sx QUIRKS
+section for information on possible flags.
+.Sh QUIRKS
+Each
+.Tn CD-ROM
+device can have different interpretations of the
+.Tn SCSI
+spec.
+This can lead to drives requiring special handling in the driver.
+The following is a list of quirks that the driver recognize.
+.Bl -tag -width CD_Q_BCD_TRACKS
+.It Dv CD_Q_NO_TOUCH
+This flag tells the driver not to probe the drive at attach time to see if
+there is a disk in the drive and find out what size it is.
+This flag is currently unimplemented in the CAM
+.Nm
+driver.
+.It Dv CD_Q_BCD_TRACKS
+This flag is for broken drives that return the track numbers in packed BCD
+instead of straight decimal.
+If the drive seems to skip tracks
+(tracks 10-15 are skipped)
+then you have a drive that is in need of this flag.
+.It Dv CD_Q_NO_CHANGER
+This flag tells the driver that the device in question is not a changer.
+This is only necessary for a CDROM device with multiple luns that are not a
+part of a changer.
+.It Dv CD_Q_CHANGER
+This flag tells the driver that the given device is a multi-lun changer.
+In general, the driver will figure this out automatically when it sees a
+LUN greater than 0.
+Setting this flag only has the effect of telling the
+driver to run the initial read capacity command for LUN 0 of the changer
+through the changer scheduling code.
+.It Dv CD_Q_10_BYTE_ONLY
+This flag tells the driver that the given device only accepts 10 byte MODE
+SENSE/MODE SELECT commands.
+In general these types of quirks should not be
+added to the
+.Xr cd 4
+driver.
+The reason is that the driver does several things to attempt to
+determine whether the drive in question needs 10 byte commands.
+First, it
+issues a CAM Path Inquiry command to determine whether the protocol that
+the drive speaks typically only allows 10 byte commands.
+(ATAPI and USB
+are two prominent examples of protocols where you generally only want to
+send 10 byte commands.)
+Then, if it gets an ILLEGAL REQUEST error back
+from a 6 byte MODE SENSE or MODE SELECT command, it attempts to send the 10
+byte version of the command instead.
+The only reason you would need a
+quirk is if your drive uses a protocol (e.g.,
+.Tn SCSI )
+that typically does not have a problem with 6 byte commands.
+.El
+.Sh FILES
+.Bl -tag -width /sys/cam/scsi/scsi_cd.c -compact
+.It Pa /sys/cam/scsi/scsi_cd.c
+is the driver source file.
+.El
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An -nosplit
+This
+manual page was written by
+.An John-Mark Gurney Aq Mt jmg@FreeBSD.org .
+It was updated for CAM and
+.Fx 3.0
+by
+.An Kenneth Merry Aq Mt ken@FreeBSD.org .

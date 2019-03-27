@@ -1,0 +1,200 @@
+.\"	$OpenBSD: nfe.4,v 1.7 2006/02/28 08:13:47 jsg Exp $
+.\"
+.\" Copyright (c) 2006 Jonathan Gray <jsg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 15, 2011
+.Dt NFE 4
+.Os
+.Sh NAME
+.Nm nfe
+.Nd "NVIDIA nForce MCP Ethernet driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device nfe"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_nfe_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports PCI Ethernet adapters based on the NVIDIA
+nForce Media and Communications Processors (MCP), such as
+the nForce, nForce 2, nForce 3, CK804, MCP04, MCP51, MCP55,
+MCP61, MCP65, MCP67, MCP73, MCP77 and MCP79 Ethernet
+controller chips.
+.Pp
+Supported features include (hardware support provided):
+.Pp
+.Bl -bullet -compact
+.It
+Receive/Transmit IP/TCP/UDP checksum offload
+.It
+Hardware VLAN tag insertion/stripping
+.It
+TCP segmentation offload (TSO)
+.It
+MSI/MSI-X
+.It
+Jumbo Frames
+.El
+.Pp
+Support for Jumbo Frames is provided via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit Jumbo Frames.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width "10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+.It Cm 1000baseT
+Set 1000Mbps (Gigabit Ethernet) operation (recent models only).
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm half-duplex
+Force half duplex operation.
+.It Cm full-duplex
+Force full duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the following NVIDIA MCP onboard adapters:
+.Pp
+.Bl -bullet -compact
+.It
+NVIDIA nForce MCP Networking Adapter
+.It
+NVIDIA nForce MCP04 Networking Adapter
+.It
+NVIDIA nForce 430 MCP12 Networking Adapter
+.It
+NVIDIA nForce 430 MCP13 Networking Adapter
+.It
+NVIDIA nForce MCP51 Networking Adapter
+.It
+NVIDIA nForce MCP55 Networking Adapter
+.It
+NVIDIA nForce MCP61 Networking Adapter
+.It
+NVIDIA nForce MCP65 Networking Adapter
+.It
+NVIDIA nForce MCP67 Networking Adapter
+.It
+NVIDIA nForce MCP73 Networking Adapter
+.It
+NVIDIA nForce MCP77 Networking Adapter
+.It
+NVIDIA nForce MCP79 Networking Adapter
+.It
+NVIDIA nForce2 MCP2 Networking Adapter
+.It
+NVIDIA nForce2 400 MCP4 Networking Adapter
+.It
+NVIDIA nForce2 400 MCP5 Networking Adapter
+.It
+NVIDIA nForce3 MCP3 Networking Adapter
+.It
+NVIDIA nForce3 250 MCP6 Networking Adapter
+.It
+NVIDIA nForce3 MCP7 Networking Adapter
+.It
+NVIDIA nForce4 CK804 MCP8 Networking Adapter
+.It
+NVIDIA nForce4 CK804 MCP9 Networking Adapter
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.nfe.msi_disable
+Whether or not MSI support is enabled in the driver.
+The default value is 0.
+.It Va hw.nfe.msix_disable
+Whether or not MSI-X support is enabled in the driver.
+The default value is 0.
+.El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to modify or monitor
+.Nm
+behavior.
+.Bl -tag -width indent
+.It Va dev.nfe.%d.process_limit
+Maximum number of Rx events to be processed in the event loop
+before rescheduling a taskqueue.
+The accepted range is 50 to 255, the default value is 192.
+The interface does not need to be brought down and up again
+before a change takes effect.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr intro 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
+.Xr polling 4 ,
+.Xr rgephy 4 ,
+.Xr ifconfig 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 3.9 ,
+and then in
+.Fx 7.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jonathan Gray Aq Mt jsg@openbsd.org
+and
+.An Damien Bergamini Aq Mt damien@openbsd.org .
+The
+.Nm
+driver was ported to
+.Fx
+by
+.An Shigeaki Tagashira Aq Mt shigeaki@se.hiroshima-u.ac.jp .

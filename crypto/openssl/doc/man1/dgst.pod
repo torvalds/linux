@@ -1,0 +1,245 @@
+=pod
+
+=head1 NAME
+
+openssl-dgst,
+dgst - perform digest operations
+
+=head1 SYNOPSIS
+
+B<openssl dgst>
+[B<-I<digest>>]
+[B<-help>]
+[B<-c>]
+[B<-d>]
+[B<-hex>]
+[B<-binary>]
+[B<-r>]
+[B<-out filename>]
+[B<-sign filename>]
+[B<-keyform arg>]
+[B<-passin arg>]
+[B<-verify filename>]
+[B<-prverify filename>]
+[B<-signature filename>]
+[B<-hmac key>]
+[B<-fips-fingerprint>]
+[B<-rand file...>]
+[B<-engine id>]
+[B<-engine_impl>]
+[B<file...>]
+
+B<openssl> I<digest> [B<...>]
+
+=head1 DESCRIPTION
+
+The digest functions output the message digest of a supplied file or files
+in hexadecimal.  The digest functions also generate and verify digital
+signatures using message digests.
+
+The generic name, B<dgst>, may be used with an option specifying the
+algorithm to be used.
+The default digest is I<sha256>.
+A supported I<digest> name may also be used as the command name.
+To see the list of supported algorithms, use the I<list --digest-commands>
+command.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-I<digest>>
+
+Specifies name of a supported digest to be used. To see the list of
+supported digests, use the command I<list --digest-commands>.
+
+=item B<-c>
+
+Print out the digest in two digit groups separated by colons, only relevant if
+B<hex> format output is used.
+
+=item B<-d>
+
+Print out BIO debugging information.
+
+=item B<-hex>
+
+Digest is to be output as a hex dump. This is the default case for a "normal"
+digest as opposed to a digital signature.  See NOTES below for digital
+signatures using B<-hex>.
+
+=item B<-binary>
+
+Output the digest or signature in binary form.
+
+=item B<-r>
+
+Output the digest in the "coreutils" format used by programs like B<sha1sum>.
+
+=item B<-out filename>
+
+Filename to output to, or standard output by default.
+
+=item B<-sign filename>
+
+Digitally sign the digest using the private key in "filename". Note this option
+does not support Ed25519 or Ed448 private keys. Use the B<pkeyutl> command
+instead for this.
+
+=item B<-keyform arg>
+
+Specifies the key format to sign digest with. The DER, PEM, P12,
+and ENGINE formats are supported.
+
+=item B<-sigopt nm:v>
+
+Pass options to the signature algorithm during sign or verify operations.
+Names and values of these options are algorithm-specific.
+
+=item B<-passin arg>
+
+The private key password source. For more information about the format of B<arg>
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
+
+=item B<-verify filename>
+
+Verify the signature using the public key in "filename".
+The output is either "Verification OK" or "Verification Failure".
+
+=item B<-prverify filename>
+
+Verify the signature using the private key in "filename".
+
+=item B<-signature filename>
+
+The actual signature to verify.
+
+=item B<-hmac key>
+
+Create a hashed MAC using "key".
+
+=item B<-mac alg>
+
+Create MAC (keyed Message Authentication Code). The most popular MAC
+algorithm is HMAC (hash-based MAC), but there are other MAC algorithms
+which are not based on hash, for instance B<gost-mac> algorithm,
+supported by B<ccgost> engine. MAC keys and other options should be set
+via B<-macopt> parameter.
+
+=item B<-macopt nm:v>
+
+Passes options to MAC algorithm, specified by B<-mac> key.
+Following options are supported by both by B<HMAC> and B<gost-mac>:
+
+=over 4
+
+=item B<key:string>
+
+Specifies MAC key as alphanumeric string (use if key contain printable
+characters only). String length must conform to any restrictions of
+the MAC algorithm for example exactly 32 chars for gost-mac.
+
+=item B<hexkey:string>
+
+Specifies MAC key in hexadecimal form (two hex digits per byte).
+Key length must conform to any restrictions of the MAC algorithm
+for example exactly 32 chars for gost-mac.
+
+=back
+
+=item B<-rand file...>
+
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
+The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
+all others.
+
+=item [B<-writerand file>]
+
+Writes random data to the specified I<file> upon exit.
+This can be used with a subsequent B<-rand> flag.
+
+=item B<-fips-fingerprint>
+
+Compute HMAC using a specific key for certain OpenSSL-FIPS operations.
+
+=item B<-engine id>
+
+Use engine B<id> for operations (including private key storage).
+This engine is not used as source for digest algorithms, unless it is
+also specified in the configuration file or B<-engine_impl> is also
+specified.
+
+=item B<-engine_impl>
+
+When used with the B<-engine> option, it specifies to also use
+engine B<id> for digest operations.
+
+=item B<file...>
+
+File or files to digest. If no files are specified then standard input is
+used.
+
+=back
+
+
+=head1 EXAMPLES
+
+To create a hex-encoded message digest of a file:
+ openssl dgst -md5 -hex file.txt
+
+To sign a file using SHA-256 with binary file output:
+ openssl dgst -sha256 -sign privatekey.pem -out signature.sign file.txt
+
+To verify a signature:
+ openssl dgst -sha256 -verify publickey.pem \
+ -signature signature.sign \
+ file.txt
+
+
+=head1 NOTES
+
+The digest mechanisms that are available will depend on the options
+used when building OpenSSL.
+The B<list digest-commands> command can be used to list them.
+
+New or agile applications should use probably use SHA-256. Other digests,
+particularly SHA-1 and MD5, are still widely used for interoperating
+with existing formats and protocols.
+
+When signing a file, B<dgst> will automatically determine the algorithm
+(RSA, ECC, etc) to use for signing based on the private key's ASN.1 info.
+When verifying signatures, it only handles the RSA, DSA, or ECDSA signature
+itself, not the related data to identify the signer and algorithm used in
+formats such as x.509, CMS, and S/MIME.
+
+A source of random numbers is required for certain signing algorithms, in
+particular ECDSA and DSA.
+
+The signing and verify options should only be used if a single file is
+being signed or verified.
+
+Hex signatures cannot be verified using B<openssl>.  Instead, use "xxd -r"
+or similar program to transform the hex signature into a binary signature
+prior to verification.
+
+=head1 HISTORY
+
+The default digest was changed from MD5 to SHA256 in OpenSSL 1.1.0.
+The FIPS-related options were removed in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

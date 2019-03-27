@@ -1,0 +1,88 @@
+.\" Copyright (c) 1999 Chris Costello <chris@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 21, 2018
+.Dt SYSCTL.CONF 5
+.Os
+.Sh NAME
+.Nm sysctl.conf
+.Nd kernel state defaults
+.Sh DESCRIPTION
+The
+.Pa /etc/sysctl.conf
+file is read in when the system goes into multi-user mode to set default
+settings for the kernel.
+The
+.Pa /etc/sysctl.conf
+file is in the format of the
+.Xr sysctl 8
+command, i.e.,
+.Bd -literal -offset indent
+sysctl_mib=value
+.Ed
+.Pp
+Comments are denoted by a
+.Dq #
+at the beginning of a line.
+Comments can also exist at the end of a line,
+as seen in the
+.Sx EXAMPLES
+section, below.
+.Sh FILES
+.Bl -tag -width /etc/sysctl.conf -compact
+.It Pa /etc/sysctl.conf
+Initial settings for
+.Xr sysctl 8 .
+.El
+.Sh EXAMPLES
+To turn off logging of programs that exit due to fatal signals you may use
+a configuration like
+.Bd -literal -offset indent
+# Configure logging.
+kern.logsigexit=0	# Do not log fatal signal exits (e.g., sig 11)
+.Ed
+.Sh SEE ALSO
+.Xr rc.conf 5 ,
+.Xr rc 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+file appeared in
+.Fx 4.0 .
+.Sh BUGS
+If loadable kernel modules are used to introduce additional kernel
+functionality and sysctls to manage that functionality,
+.Nm
+may be processed too early in the boot process to set those sysctls.
+For example, sysctls to manage the Linux compatibility layer
+.Po
+.Xr linux 4
+.Pc
+cannot be set in
+.Nm
+if the Linux compatibility layer is loaded as a module rather than
+compiled into the kernel.

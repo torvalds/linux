@@ -1,0 +1,12 @@
+# tzdb data for noncommittal factory settings
+
+# This file is in the public domain, so clarified as of
+# 2009-05-17 by Arthur David Olson.
+
+# For distributors who don't want to specify a timezone in their
+# installation procedures.  Users who run 'date' will get the
+# time zone abbreviation "-00", indicating that the actual time zone
+# is unknown.
+
+# Zone	NAME	GMTOFF	RULES	FORMAT
+Zone	Factory	0	- "Local time zone must be set--use tzsetup"

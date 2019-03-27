@@ -1,0 +1,64 @@
+.\" $FreeBSD$
+.\"
+.\" bootpef.8
+.Dd December 4, 1993
+.Dt BOOTPEF 8
+.Os
+.Sh NAME
+.Nm bootpef
+.Nd "BOOTP Extension File compiler"
+.Sh SYNOPSIS
+.Bk -words
+.Nm
+.Op Fl c Ar chdir\-path
+.Op Fl d Ar debug\-level
+.Op Fl f Ar config\-file
+.Op Ar client\-name ...
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+utility builds the
+.Em "Extension Path"
+files described by
+.%T "RFC 1497"
+(tag 18).
+If any
+.Ar client\-name
+arguments are specified, then
+.Nm
+compiles the extension files for only those clients.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl c Ar chdir\-path
+Sets the current directory used by
+.Nm
+while creating extension files.
+This is useful when the
+extension file names are specified as relative pathnames, and
+.Nm
+needs to use the same current directory as the TFTP server
+(typically
+.Pa /tftpboot ) .
+.It Fl d Ar debug\-level
+Sets the
+.Ar debug\-level
+variable that controls the amount of debugging messages generated.
+For example,
+.Fl d Ar 4
+will set the debugging level to 4.
+.It Fl f Ar config\-file
+Set the name of the config file that specifies the option
+data to be sent to each client.
+.El
+.Sh SEE ALSO
+.Xr bootpd 8 ,
+.Xr tftpd 8
+.Rs
+.%O RFC951
+.%T "BOOTSTRAP PROTOCOL (BOOTP)"
+.Re
+.Rs
+.%O RFC1497
+.%T "BOOTP Vendor Information Extensions"
+.Re

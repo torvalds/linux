@@ -1,0 +1,15 @@
+Some missing tests:
+0) g/./s^@^@	- okay: NULs in commands
+1) g/./s/^@/	- okay: NULs in patterns
+2) a
+   hello^V^Jworld	
+   .		- okay: embedded newlines in insert mode
+3) ed ""	- error: invalid filename
+4) red ..	- error: restricted
+5) red /	- error: restricted
+5) red !xx	- error: restricted
+6) ed -x 	- verify: 8-bit clean
+7) ed		- verify: long-line support
+8) ed		- verify: interactive/help mode
+9) G/pat/	- verify: global interactive command
+10) V/pat/	- verify: global interactive command

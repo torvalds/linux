@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+v=abcd
+[ "$\
+v.$\
+{v}.${\
+v}.${v\
+}" = abcd.abcd.abcd.abcd ]

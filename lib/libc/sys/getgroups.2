@@ -1,0 +1,107 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getgroups.2	8.2 (Berkeley) 4/16/94
+.\" $FreeBSD$
+.\"
+.Dd January 21, 2011
+.Dt GETGROUPS 2
+.Os
+.Sh NAME
+.Nm getgroups
+.Nd get group access list
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn getgroups "int gidsetlen" "gid_t *gidset"
+.Sh DESCRIPTION
+The
+.Fn getgroups
+system call
+gets the current group access list of the user process
+and stores it in the array
+.Fa gidset .
+The
+.Fa gidsetlen
+argument
+indicates the number of entries that may be placed in
+.Fa gidset .
+The
+.Fn getgroups
+system call
+returns the actual number of groups returned in
+.Fa gidset .
+At least one and as many as {NGROUPS_MAX}+1 values may be returned.
+If
+.Fa gidsetlen
+is zero,
+.Fn getgroups
+returns the number of supplementary group IDs associated with
+the calling process without modifying the array pointed to by
+.Fa gidset .
+.Pp
+The value of
+.Dv {NGROUPS_MAX}
+should be obtained using
+.Xr sysconf 3
+to avoid hard-coding it into the executable.
+.Sh RETURN VALUES
+A successful call returns the number of groups in the group set.
+A value of -1 indicates that an error occurred, and the error
+code is stored in the global variable
+.Va errno .
+.Sh ERRORS
+The possible errors for
+.Fn getgroups
+are:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The argument
+.Fa gidsetlen
+is smaller than the number of groups in the group set.
+.It Bq Er EFAULT
+The argument
+.Fa gidset
+specifies
+an invalid address.
+.El
+.Sh SEE ALSO
+.Xr setgroups 2 ,
+.Xr initgroups 3 ,
+.Xr sysconf 3
+.Sh STANDARDS
+The
+.Fn getgroups
+system call conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn getgroups
+system call appeared in
+.Bx 4.2 .

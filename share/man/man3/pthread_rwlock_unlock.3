@@ -1,0 +1,82 @@
+.\" Copyright (c) 1998 Alex Nash
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 4, 1998
+.Dt PTHREAD_RWLOCK_UNLOCK 3
+.Os
+.Sh NAME
+.Nm pthread_rwlock_unlock
+.Nd release a read/write lock
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_rwlock_unlock "pthread_rwlock_t *lock"
+.Sh DESCRIPTION
+The
+.Fn pthread_rwlock_unlock
+function is used to release the read/write lock previously obtained by
+.Fn pthread_rwlock_rdlock ,
+.Fn pthread_rwlock_wrlock ,
+.Fn pthread_rwlock_tryrdlock ,
+or
+.Fn pthread_rwlock_trywrlock .
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_rwlock_unlock
+function will return zero.
+Otherwise an error number will be returned
+to indicate the error.
+.Pp
+The results are undefined if
+.Fa lock
+is not held by the calling thread.
+.Sh ERRORS
+The
+.Fn pthread_rwlock_unlock
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa lock
+is invalid.
+.It Bq Er EPERM
+The current thread does not own the read/write lock.
+.El
+.Sh SEE ALSO
+.Xr pthread_rwlock_rdlock 3 ,
+.Xr pthread_rwlock_wrlock 3
+.Sh STANDARDS
+The
+.Fn pthread_rwlock_unlock
+function is expected to conform to
+.St -susv2 .
+.Sh HISTORY
+The
+.Fn pthread_rwlock_unlock
+function first appeared in
+.Fx 3.0 .

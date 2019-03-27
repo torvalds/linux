@@ -1,0 +1,4 @@
+.\" $FreeBSD$
+Build and install
+.Xr sendmail 8
+and related programs.

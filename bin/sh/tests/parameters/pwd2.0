@@ -1,0 +1,24 @@
+# $FreeBSD$
+# Check that PWD is exported and accepted from the environment.
+set -e
+
+T=$(mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXX)
+trap 'rm -rf $T' 0
+cd -P $T
+TP=$(pwd)
+mkdir test1
+ln -s test1 link
+cd link
+[ "$PWD" = "$TP/link" ]
+[ "$(pwd)" = "$TP/link" ]
+[ "$(pwd -P)" = "$TP/test1" ]
+[ "$(${SH} -c pwd)" = "$TP/link" ]
+[ "$(${SH} -c pwd\ -P)" = "$TP/test1" ]
+cd ..
+[ "$(pwd)" = "$TP" ]
+cd -P link
+[ "$PWD" = "$TP/test1" ]
+[ "$(pwd)" = "$TP/test1" ]
+[ "$(pwd -P)" = "$TP/test1" ]
+[ "$(${SH} -c pwd)" = "$TP/test1" ]
+[ "$(${SH} -c pwd\ -P)" = "$TP/test1" ]

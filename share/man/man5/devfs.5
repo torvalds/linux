@@ -1,0 +1,148 @@
+.\" Copyright (c) 1996
+.\"	Mike Pritchard <mpp@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Copyright (c) 1992, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software donated to Berkeley by
+.\" Jan-Simon Pendry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 9, 2012
+.Dt DEVFS 5
+.Os
+.Sh NAME
+.Nm devfs
+.Nd device file system
+.Sh SYNOPSIS
+.Bd -literal
+devfs	/dev	devfs rw 0 0
+.Ed
+.Sh DESCRIPTION
+The device file system, or
+.Nm ,
+provides access to kernel's device
+namespace in the global file system namespace.
+The conventional mount point is
+.Pa /dev .
+.Pp
+The file system includes several directories, links, symbolic links
+and devices, some of which can also be written.
+In a chroot'ed
+environment,
+.Nm
+can be used to create a new
+.Pa /dev
+mount point.
+.Pp
+The
+.Xr mknod 8
+tool can be used to recover deleted device entries under
+.Nm .
+.Pp
+The
+.Xr fdescfs 5
+filesystem is an alternate means for populating
+.Pa /dev/fd .
+The character devices that both
+.Nm
+and
+.Xr fdescfs 5
+present in
+.Pa /dev/fd
+correspond to the open file descriptors of the process
+accessing the directory.
+.Nm
+only creates files for the standard file descriptors
+.Pa 0 ,
+.Pa 1
+and
+.Pa 2 .
+.Xr fdescfs 5
+creates files for all open descriptors.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl o Ar options
+Use the specified mount
+.Ar options ,
+as described in
+.Xr mount 8 .
+The following devfs file system-specific options are available:
+.Bl -tag -width indent
+.It Cm ruleset Ns No = Ns Ar ruleset
+Set ruleset number
+.Ar ruleset
+as the current ruleset for the mount-point and apply all its rules.
+If the ruleset number
+.Ar ruleset
+does not exist, an empty ruleset with the number
+.Ar ruleset
+is created.
+See
+.Xr devfs 8
+for more information on working with devfs rulesets.
+.El
+.El
+.Sh FILES
+.Bl -tag -width /dev/XXXX -compact
+.It Pa /dev
+The normal
+.Nm
+mount point.
+.El
+.Sh EXAMPLES
+To mount a
+.Nm
+volume located on
+.Pa /mychroot/dev :
+.Pp
+.Dl "mount -t devfs devfs /mychroot/dev"
+.Sh SEE ALSO
+.Xr fdescfs 5 ,
+.Xr devfs 8 ,
+.Xr mount 8
+.Sh HISTORY
+The
+.Nm
+file system first appeared in
+.Fx 2.0 .
+It became the preferred method for accessing devices in
+.Fx 5.0
+and the only method in
+.Fx 6.0 .
+The
+.Nm
+manual page first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+The
+.Nm
+manual page was written by
+.An Mike Pritchard Aq Mt mpp@FreeBSD.org .

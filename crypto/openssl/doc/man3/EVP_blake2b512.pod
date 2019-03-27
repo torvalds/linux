@@ -1,0 +1,65 @@
+=pod
+
+=head1 NAME
+
+EVP_blake2b512,
+EVP_blake2s256
+- BLAKE2 For EVP
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ const EVP_MD *EVP_blake2b512(void);
+ const EVP_MD *EVP_blake2s256(void);
+
+=head1 DESCRIPTION
+
+BLAKE2 is an improved version of BLAKE, which was submitted to the NIST SHA-3
+algorithm competition. The BLAKE2s and BLAKE2b algorithms are described in
+RFC 7693.
+
+=over 4
+
+=item EVP_blake2s256()
+
+The BLAKE2s algorithm that produces a 256-bit output from a given input.
+
+=item EVP_blake2b512()
+
+The BLAKE2b algorithm that produces a 512-bit output from a given input.
+
+=back
+
+=head1 RETURN VALUES
+
+These functions return a B<EVP_MD> structure that contains the
+implementation of the symmetric cipher. See L<EVP_MD_meth_new(3)> for
+details of the B<EVP_MD> structure.
+
+=head1 CONFORMING TO
+
+RFC 7693.
+
+=head1 NOTES
+
+While the BLAKE2b and BLAKE2s algorithms supports a variable length digest,
+this implementation outputs a digest of a fixed length (the maximum length
+supported), which is 512-bits for BLAKE2b and 256-bits for BLAKE2s.
+
+=head1 SEE ALSO
+
+L<evp(7)>,
+L<EVP_DigestInit(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut
+

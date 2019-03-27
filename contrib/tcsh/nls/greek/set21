@@ -1,0 +1,5 @@
+$ $tcsh: set21,v 1.3 2011/02/04 18:19:37 christos Exp $
+$ tc.disc.c
+$set 21 
+1 Δε μπορώ να διαβάσω τα local chars.\n
+2 Δε μπορώ να γράψω τα local chars.\n

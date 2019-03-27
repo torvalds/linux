@@ -1,0 +1,66 @@
+.TH "Heimdal Kerberos 5 PAC handling functions" 3 "11 Jan 2012" "Version 1.5.2" "HeimdalKerberos5library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+Heimdal Kerberos 5 PAC handling functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_pac_get_buffer\fP (krb5_context context, krb5_pac p, uint32_t type, krb5_data *data)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_pac_verify\fP (krb5_context context, const krb5_pac pac, time_t authtime, krb5_const_principal principal, const krb5_keyblock *server, const krb5_keyblock *privsvr)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_pac_get_buffer (krb5_context context, krb5_pac p, uint32_t type, krb5_data * data)"
+.PP
+Get the PAC buffer of specific type from the pac.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIp\fP the pac structure returned by krb5_pac_parse(). 
+.br
+\fItype\fP type of buffer to get 
+.br
+\fIdata\fP return data, free with \fBkrb5_data_free()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_pac_verify (krb5_context context, const krb5_pac pac, time_t authtime, krb5_const_principal principal, const krb5_keyblock * server, const krb5_keyblock * privsvr)"
+.PP
+Verify the PAC.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIpac\fP the pac structure returned by krb5_pac_parse(). 
+.br
+\fIauthtime\fP The time of the ticket the PAC belongs to. 
+.br
+\fIprincipal\fP the principal to verify. 
+.br
+\fIserver\fP The service key, most always be given. 
+.br
+\fIprivsvr\fP The KDC key, may be given.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+

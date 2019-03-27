@@ -1,0 +1,145 @@
+#-
+# Copyright (c) 1991, 1993
+#	The Regents of the University of California.  All rights reserved.
+#
+# This code is derived from software contributed to Berkeley by
+# Kenneth Almquist.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)nodetypes	8.2 (Berkeley) 5/4/95
+# $FreeBSD$
+
+# This file describes the nodes used in parse trees.  Unindented lines
+# contain a node type followed by a structure tag.  Subsequent indented
+# lines specify the fields of the structure.  Several node types can share
+# the same structure, in which case the fields of the structure should be
+# specified only once.
+#
+# A field of a structure is described by the name of the field followed
+# by a type.  The currently implemented types are:
+#	nodeptr - a pointer to a node
+#	nodelist - a pointer to a list of nodes
+#	string - a pointer to a nul terminated string
+#	int - an integer
+#	other - any type that can be copied by assignment
+#	temp - a field that doesn't have to be copied when the node is copied
+# The last two types should be followed by the text of a C declaration for
+# the field.
+
+NSEMI nbinary			# two commands separated by a semicolon
+	type	  int
+	ch1	  nodeptr		# the first child
+	ch2	  nodeptr		# the second child
+
+NCMD ncmd			# a simple command
+	type	  int
+	args	  nodeptr		# the arguments
+	redirect  nodeptr		# list of file redirections
+
+NPIPE npipe			# a pipeline
+	type	  int
+	backgnd	  int			# set to run pipeline in background
+	cmdlist	  nodelist		# the commands in the pipeline
+
+NREDIR nredir			# redirection (of a compex command)
+	type	  int
+	n	  nodeptr		# the command
+	redirect  nodeptr		# list of file redirections
+
+NBACKGND nredir			# run command in background
+NSUBSHELL nredir		# run command in a subshell
+
+NAND nbinary			# the && operator
+NOR nbinary			# the || operator
+
+NIF nif				# the if statement.  Elif clauses are handled
+	type	  int		    # using multiple if nodes.
+	test	  nodeptr		# if test
+	ifpart	  nodeptr		# then ifpart
+	elsepart  nodeptr		# else elsepart
+
+NWHILE nbinary			# the while statement.  First child is the test
+NUNTIL nbinary			# the until statement
+
+NFOR nfor			# the for statement
+	type	  int
+	args	  nodeptr		# for var in args
+	body	  nodeptr		# do body; done
+	var	  string		# the for variable
+
+NCASE ncase			# a case statement
+	type	  int
+	expr	  nodeptr		# the word to switch on
+	cases	  nodeptr		# the list of cases (NCLIST nodes)
+
+NCLIST nclist			# a case ending with ;;
+	type	  int
+	next	  nodeptr		# the next case in list
+	pattern	  nodeptr		# list of patterns for this case
+	body	  nodeptr		# code to execute for this case
+
+NCLISTFALLTHRU nclist		# a case ending with ;&
+
+NDEFUN narg			# define a function.  The "next" field contains
+				# the body of the function.
+
+NARG narg			# represents a word
+	type	  int
+	next	  nodeptr		# next word in list
+	text	  string		# the text of the word
+	backquote nodelist		# list of commands in back quotes
+
+NTO nfile			# fd> fname
+NFROM nfile			# fd< fname
+NFROMTO nfile			# fd<> fname
+NAPPEND nfile			# fd>> fname
+NCLOBBER nfile			# fd>| fname
+	type	  int
+	fd	  int			# file descriptor being redirected
+	next	  nodeptr		# next redirection in list
+	fname	  nodeptr		# file name, in a NARG node
+	expfname  temp	char *expfname	# actual file name
+
+NTOFD ndup			# fd<&dupfd
+NFROMFD ndup			# fd>&dupfd
+	type	  int
+	fd	  int			# file descriptor being redirected
+	next	  nodeptr		# next redirection in list
+	dupfd	  int			# file descriptor to duplicate
+	vname	  nodeptr		# file name if fd>&$var
+
+
+NHERE nhere			# fd<<\!
+NXHERE nhere			# fd<<!
+	type	  int
+	fd	  int			# file descriptor being redirected
+	next	  nodeptr		# next redirection in list
+	doc	  nodeptr		# input to command (NARG node)
+	expdoc    temp	const char *expdoc	# actual document (for NXHERE)
+
+NNOT nnot			# ! command  (actually pipeline)
+	type	int
+	com	nodeptr

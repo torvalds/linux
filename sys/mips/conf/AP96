@@ -1,0 +1,47 @@
+#
+# Specific board setup for the Atheros AP96 reference board.
+#
+# The AP96 has the following hardware:
+#
+# + AR7161 CPU SoC
+# + AR9223 2.4GHz 11n
+# + AR9220 5GHz 11n
+# + AR8316 10/100/1000 switch
+# + m25p64 based 8MB flash
+# + 64mb RAM
+# + uboot environment
+
+# $FreeBSD$
+
+#NO_UNIVERSE
+
+include		"AR71XX_BASE"
+ident		"AP96"
+hints		"AP96.hints"
+
+options 	AR71XX_REALMEM=64*1024*1024
+
+options 	AR71XX_ENV_UBOOT
+
+# For DOS - enable if required
+options 	MSDOSFS
+
+# uncompress - to boot read-only lzma natively from flash
+device		xz
+options 	GEOM_UZIP
+options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uzip\"
+
+# Used for the static uboot partition map
+device          geom_map
+
+# Options needed for the EEPROM based calibration/PCI configuration data.
+options 	AR71XX_ATH_EEPROM	# Fetch EEPROM/PCI config from flash
+options 	ATH_EEPROM_FIRMWARE	# Use EEPROM from flash
+device		firmware		# Used by the above
+
+# Options required for miiproxy and mdiobus
+options 	ARGE_MDIO		# Export an MDIO bus separate from arge
+device		miiproxy		# MDIO bus <-> MII PHY rendezvous
+
+device		etherswitch
+device		arswitch

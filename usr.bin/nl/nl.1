@@ -1,0 +1,249 @@
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Klaus Klein.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd May 4, 2014
+.Dt NL 1
+.Os
+.Sh NAME
+.Nm nl
+.Nd line numbering filter
+.Sh SYNOPSIS
+.Nm
+.Op Fl p
+.Bk -words
+.Op Fl b Ar type
+.Ek
+.Bk -words
+.Op Fl d Ar delim
+.Ek
+.Bk -words
+.Op Fl f Ar type
+.Ek
+.Bk -words
+.Op Fl h Ar type
+.Ek
+.Bk -words
+.Op Fl i Ar incr
+.Ek
+.Bk -words
+.Op Fl l Ar num
+.Ek
+.Bk -words
+.Op Fl n Ar format
+.Ek
+.Bk -words
+.Op Fl s Ar sep
+.Ek
+.Bk -words
+.Op Fl v Ar startnum
+.Ek
+.Bk -words
+.Op Fl w Ar width
+.Ek
+.Op Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility reads lines from the named
+.Ar file ,
+applies a configurable line numbering filter operation,
+and writes the result to the standard output.
+If
+.Ar file
+is a single dash
+.Pq Sq Fl
+or absent,
+.Nm
+reads from the standard input.
+.Pp
+The
+.Nm
+utility treats the text it reads in terms of logical pages.
+Unless specified otherwise, line numbering is reset at the start of each
+logical page.
+A logical page consists of a header, a body and a footer
+section; empty sections are valid.
+Different line numbering options are
+independently available for header, body and footer sections.
+.Pp
+The starts of logical page sections are signalled by input lines containing
+nothing but one of the following sequences of delimiter characters:
+.Bl -column "\e:\e:\e:" "Start of" -offset indent
+.Em "Line	Start of"
+.It "\e:\e:\e:	header"
+.It "\e:\e:	body"
+.It "\e:	footer"
+.El
+.Pp
+If the input does not contain any logical page section signalling directives,
+the text being read is assumed to consist of a single logical page body.
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl v Ar startnum"
+.It Fl b Ar type
+Specify the logical page body lines to be numbered.
+Recognized
+.Ar type
+arguments are:
+.Bl -tag -width indent
+.It Cm a
+Number all lines.
+.It Cm t
+Number only non-empty lines.
+.It Cm n
+No line numbering.
+.It Cm p Ns Ar expr
+Number only those lines that contain the basic regular expression specified
+by
+.Ar expr .
+.El
+.Pp
+The default
+.Ar type
+for logical page body lines is
+.Cm t .
+.It Fl d Ar delim
+Specify the delimiter characters used to indicate the start of a logical
+page section in the input file.
+At most two characters may be specified;
+if only one character is specified, the first character is replaced and the
+second character remains unchanged.
+The default
+.Ar delim
+characters are
+.Dq Li \e: .
+.It Fl f Ar type
+Specify the same as
+.Fl b Ar type
+except for logical page footer lines.
+The default
+.Ar type
+for logical page footer lines is
+.Cm n .
+.It Fl h Ar type
+Specify the same as
+.Fl b Ar type
+except for logical page header lines.
+The default
+.Ar type
+for logical page header lines is
+.Cm n .
+.It Fl i Ar incr
+Specify the increment value used to number logical page lines.
+The default
+.Ar incr
+value is 1.
+.It Fl l Ar num
+If numbering of all lines is specified for the current logical section
+using the corresponding
+.Fl b Cm a ,
+.Fl f Cm a
+or
+.Fl h Cm a
+option,
+specify the number of adjacent blank lines to be considered as one.
+For example,
+.Fl l
+2 results in only the second adjacent blank line being numbered.
+The default
+.Ar num
+value is 1.
+.It Fl n Ar format
+Specify the line numbering output format.
+Recognized
+.Ar format
+arguments are:
+.Bl -tag -width indent -compact
+.It Cm ln
+Left justified.
+.It Cm rn
+Right justified, leading zeros suppressed.
+.It Cm rz
+Right justified, leading zeros kept.
+.El
+.Pp
+The default
+.Ar format
+is
+.Cm rn .
+.It Fl p
+Specify that line numbering should not be restarted at logical page delimiters.
+.It Fl s Ar sep
+Specify the characters used in separating the line number and the corresponding
+text line.
+The default
+.Ar sep
+setting is a single tab character.
+.It Fl v Ar startnum
+Specify the initial value used to number logical page lines; see also the
+description of the
+.Fl p
+option.
+The default
+.Ar startnum
+value is 1.
+.It Fl w Ar width
+Specify the number of characters to be occupied by the line number;
+in case the
+.Ar width
+is insufficient to hold the line number, it will be truncated to its
+.Ar width
+least significant digits.
+The default
+.Ar width
+is 6.
+.El
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL , LC_CTYPE
+and
+.Ev LC_COLLATE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr jot 1 ,
+.Xr pr 1
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.At V.2 .
+.Sh BUGS
+Input lines are limited to
+.Dv LINE_MAX
+(2048) bytes in length.

@@ -1,0 +1,178 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)udp.4	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd February 6, 2017
+.Dt UDP 4
+.Os
+.Sh NAME
+.Nm udp
+.Nd Internet User Datagram Protocol
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netinet/in.h
+.Ft int
+.Fn socket AF_INET SOCK_DGRAM 0
+.Sh DESCRIPTION
+.Tn UDP
+is a simple, unreliable datagram protocol which is used
+to support the
+.Dv SOCK_DGRAM
+abstraction for the Internet
+protocol family.
+.Tn UDP
+sockets are connectionless, and are
+normally used with the
+.Xr sendto 2
+and
+.Xr recvfrom 2
+calls, though the
+.Xr connect 2
+call may also be used to fix the destination for future
+packets (in which case the
+.Xr recv 2
+or
+.Xr read 2
+and
+.Xr send 2
+or
+.Xr write 2
+system calls may be used).
+.Pp
+.Tn UDP
+address formats are identical to those used by
+.Tn TCP .
+In particular
+.Tn UDP
+provides a port identifier in addition
+to the normal Internet address format.
+Note that the
+.Tn UDP
+port
+space is separate from the
+.Tn TCP
+port space (i.e., a
+.Tn UDP
+port
+may not be
+.Dq connected
+to a
+.Tn TCP
+port).
+In addition broadcast
+packets may be sent (assuming the underlying network supports
+this) by using a reserved
+.Dq broadcast address ;
+this address
+is network interface dependent.
+.Pp
+Options at the
+.Tn IP
+transport level may be used with
+.Tn UDP ;
+see
+.Xr ip 4 .
+.Tn UDP_ENCAP
+socket option may be used at the
+.Tn IPPROTO_UDP
+level to encapsulate
+.Tn ESP
+packets in
+.Tn UDP .
+Only one value is supported for this option:
+.Tn UDP_ENCAP_ESPINUDP
+from RFC 3948, defined in
+.In netinet/udp.h .
+.Sh MIB VARIABLES
+The
+.Nm
+protocol implements a number of variables in the
+.Li net.inet
+branch of the
+.Xr sysctl 3
+MIB.
+.Bl -tag -width UDPCTL_RECVSPACEX
+.It UDPCTL_CHECKSUM
+.Pq udp.checksum
+Enable udp checksums (enabled by default).
+.It UDPCTL_MAXDGRAM
+.Pq udp.maxdgram
+Maximum outgoing UDP datagram size
+.It UDPCTL_RECVSPACE
+.Pq udp.recvspace
+Maximum space for incoming UDP datagrams
+.It udp.log_in_vain
+For all udp datagrams, to ports on which there is no socket
+listening, log the connection attempt (disabled by default).
+.It udp.blackhole
+When a datagram is received on a port where there is no socket
+listening, do not return an ICMP port unreachable message.
+(Disabled by default.
+See
+.Xr blackhole 4 . )
+.El
+.Sh ERRORS
+A socket operation may fail with one of the following errors returned:
+.Bl -tag -width Er
+.It Bq Er EISCONN
+when trying to establish a connection on a socket which
+already has one, or when trying to send a datagram with the destination
+address specified and the socket is already connected;
+.It Bq Er ENOTCONN
+when trying to send a datagram, but
+no destination address is specified, and the socket has not been
+connected;
+.It Bq Er ENOBUFS
+when the system runs out of memory for
+an internal data structure;
+.It Bq Er EADDRINUSE
+when an attempt
+is made to create a socket with a port which has already been
+allocated;
+.It Bq Er EADDRNOTAVAIL
+when an attempt is made to create a
+socket with a network address for which no network interface
+exists.
+.El
+.Sh SEE ALSO
+.Xr getsockopt 2 ,
+.Xr recv 2 ,
+.Xr send 2 ,
+.Xr socket 2 ,
+.Xr blackhole 4 ,
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr ip 4 ,
+.Xr udplite 4
+.Sh HISTORY
+The
+.Nm
+protocol appeared in
+.Bx 4.2 .

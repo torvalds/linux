@@ -1,0 +1,146 @@
+.\"-
+.\" Copyright (c) 2012 Bjoern A. Zeeb <bz@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 24, 2016
+.Dt WBWD 4
+.Os
+.Sh NAME
+.Nm wbwd
+.Nd device driver for Winbond/Nuvoton Super I/O chips watchdog timer
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device wbwd"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the following
+line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+wbwd_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides
+.Xr watchdog 4
+support for the watchdog interrupt timer present on at least the following
+Super I/O chips:
+.Bl -bullet -compact
+.It
+Winbond 83627HF/F/HG/G
+.It
+Winbond 83627S
+.It
+Winbond 83697HF
+.It
+Winbond 83697UG
+.It
+Winbond 83637HF
+.It
+Winbond 83627THF
+.It
+Winbond 83687THF
+.It
+Winbond 83627EHF
+.It
+Winbond 83627DHG
+.It
+Winbond 83627UHG
+.It
+Winbond 83667HG
+.It
+Winbond 83627DHG-P
+.It
+Winbond 83667HG-B
+.It
+Nuvoton NCT6775
+.It
+Nuvoton NCT6776
+.It
+Nuvoton NCT6102
+.It
+Nuvoton NCT6779
+.It
+Nuvoton NCT6791
+.It
+Nuvoton NCT6792
+.El
+.Pp
+Driver may be forced to attach to unknown chips by adding to
+.Pa /boot/device.hints :
+.Cd hint.wbwd.0.at="isa"
+.Sh SYSCTL VARIABLES
+The
+.Nm
+driver provides the following options as
+.Xr sysctl 8
+variables.
+.Bl -tag -width "xxxxxx"
+.It Va dev.wbwd.0.timeout_override
+This variable allows to program the timer to a value independent on the one
+provided by the
+.Xr watchdog 4
+framework while still relying on the regular updates from e.g.
+.Xr watchdogd 8 .
+This is particularly useful if your system provides multiple watchdogs and
+you want them to fire in a special sequence to trigger an NMI after a shorter
+period than the reset timeout for example.
+The value set must not be lower than the sleep time of
+.Xr watchdogd 8 .
+A value of 0 disables this feature and the timeout value provided by
+.Xr watchdog 4
+will be used.
+.It Va dev.wbwd.0.debug_verbose
+If set this sysctl will tell the driver to log its current state before and
+after the timer reset on each invocation from
+.Xr watchdog 9
+to the kernel message buffer for debugging.
+.It Va dev.wbwd.0.debug
+This read-only value gives the state of some registers on last update.
+.El
+.Pp
+The
+.Nm
+driver also provides further sysctl options that are hidden by default.
+See the source code for more information.
+.Sh SEE ALSO
+.Xr watchdog 4 ,
+.Xr device.hints 5 ,
+.Xr watchdog 8 ,
+.Xr watchdogd 8 ,
+.Xr watchdog 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Bjoern A. Zeeb Aq Mt bz@FreeBSD.org .

@@ -1,0 +1,88 @@
+Using BPF:
+
+(1) AIX 4.x's version of BPF is undocumented and somewhat unstandard; the
+    current BPF support code includes changes that should work around
+    that; it appears to compile and work on at least one AIX 4.3.3
+    machine.
+
+    Note that the BPF driver and the "/dev/bpf" devices might not exist
+    on your machine; AIX's tcpdump loads the driver and creates the
+    devices if they don't already exist.  Our libpcap should do the
+    same, and the configure script should detect that it's on an AIX
+    system and choose BPF even if the devices aren't there.
+
+    Also note that tcpdump _binary_ compiled on AIX 4 may have a problem
+    doing the initial loading of the BPF driver if copied to AIX 5 and
+    run there (GH #52). tcpdump binary natively compiled on AIX 5 should
+    not have this issue.
+
+(2) If libpcap doesn't compile on your machine when configured to use
+    BPF, or if the workarounds fail to make it work correctly, you
+    should send to tcpdump-workers@lists.tcpdump.org a detailed bug
+    report (if the compile fails, send us the compile error messages;
+    if it compiles but fails to work correctly, send us as detailed as
+    possible a description of the symptoms, including indications of the
+    network link-layer type being wrong or time stamps being wrong).
+
+    If you fix the problems yourself, please submit a patch by forking
+    the branch at
+
+	https://github.com/the-tcpdump-group/libpcap/issues
+
+    and issuing a pull request, so we can incorporate the fixes into the
+    next release.
+
+    If you don't fix the problems yourself, you can, as a workaround,
+    make libpcap use DLPI instead of BPF.
+
+    This can be done by specifying the flag:
+
+       --with-pcap=dlpi
+
+    to the "configure" script for libpcap.
+
+If you use DLPI:
+
+(1) It is a good idea to have the latest version of the DLPI driver on
+    your system, since certain versions may be buggy and cause your AIX
+    system to crash.  DLPI is included in the fileset bos.rte.tty.  I
+    found that the DLPI driver that came with AIX 4.3.2 was buggy, and
+    had to upgrade to bos.rte.tty 4.3.2.4:
+
+	    lslpp -l bos.rte.tty
+
+	    bos.rte.tty     4.3.2.4  COMMITTED  Base TTY Support and Commands
+
+    Updates for AIX filesets can be obtained from:
+    ftp://service.software.ibm.com/aix/fixes/
+
+    These updates can be installed with the smit program.
+
+(2) After compiling libpcap, you need to make sure that the DLPI driver
+    is loaded.  Type:
+
+	    strload -q -d dlpi
+
+    If the result is:
+
+	    dlpi: yes
+
+    then the DLPI driver is loaded correctly.
+
+    If it is:
+
+	    dlpi: no
+
+    Then you need to type:
+
+	    strload -f /etc/dlpi.conf
+
+    Check again with strload -q -d dlpi that the dlpi driver is loaded.
+
+    Alternatively, you can uncomment the lines for DLPI in
+    /etc/pse.conf and reboot the machine; this way DLPI will always
+    be loaded when you boot your system.
+
+(3) There appears to be a problem in the DLPI code in some versions of
+    AIX, causing a warning about DL_PROMISC_MULTI failing; this might
+    be responsible for DLPI not being able to capture outgoing packets.

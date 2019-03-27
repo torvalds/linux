@@ -1,0 +1,14 @@
+/*
+ * Укра╖нський календар
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _uk_UA_KOI8_U_all_
+#define _uk_UA_KOI8_U_all_
+
+#include <uk_UA.KOI8-U/calendar.holiday>
+#include <uk_UA.KOI8-U/calendar.orthodox>
+#include <uk_UA.KOI8-U/calendar.misc>
+
+#endif /* !_uk_UA_KOI8_U_all_ */

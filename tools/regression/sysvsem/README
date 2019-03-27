@@ -1,0 +1,13 @@
+$FreeBSD$
+
+SysV IPC Semaphore Regression Utility.
+
+This regression utility will test the SysV semaphore functionality
+in FreeBSD.  You can start the test by running ``make regress'', after
+running ``make''.
+
+Obtained from: NetBSD Foundation Inc.
+Date of port: 13 August 2002
+
+  -- Hiten Pandya
+  -- hiten@uk.FreeBSD.org

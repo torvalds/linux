@@ -1,0 +1,131 @@
+.\" Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: hcsecd.conf.5,v 1.1 2003/05/26 22:49:23 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd May 26, 2003
+.Dt HCSECD.CONF 5
+.Os
+.Sh NAME
+.Nm hcsecd.conf
+.Nd
+.Xr hcsecd 8
+configuration file
+.Sh DESCRIPTION
+The
+.Nm
+file is the configuration file for the
+.Xr hcsecd 8
+Bluetooth link keys/PIN codes management daemon.
+.Pp
+The
+.Nm
+file is a free-form
+.Tn ASCII
+text file.
+It is parsed by the recursive-descent parser built into
+.Xr hcsecd 8 .
+The file may contain extra tabs and newlines for formatting purposes.
+Keywords in the file are case-sensitive.
+Comments may be placed anywhere within the file (except within quotes).
+Comments begin with the
+.Ql #
+character and end at the end of the line.
+.Sh FILE FORMAT
+The
+.Nm
+file consists of a list of
+.Cm device
+entries.
+Each
+.Cm device
+entry defines a link key or PIN code for a remote Bluetooth device.
+Each remote Bluetooth device is identified by its unique BD_ADDR.
+.Pp
+The
+.Cm device
+entry
+.Pp
+.Cm device
+{
+.Cm option Ar argument ;
+.Oo
+.Cm option Ar argument ;
+.Oc
+}
+.Pp
+The following section describes all supported options and arguments.
+.Bl -tag -width indent
+.It Cm bdaddr Ar BD_ADDR
+Specify remote device BD_ADDR for the entry.
+.It Cm name Ar device_name
+Specify user friendly name for the entry.
+Name is a string in straight double quotes.
+.It Cm key Ar link_key
+Specify link key for the entry.
+Link key is hexadecimal string up to 32 characters in length starting with
+.Ql 0x .
+.It Cm key nokey
+Specify no link key for the entry.
+.It Cm pin Ar PIN_code
+Specify PIN code for the entry.
+PIN code is a string up to 16 characters in length in straight double quotes.
+.It Cm pin nopin
+Specify no PIN code for the entry.
+.El
+.Sh EXAMPLES
+A sample
+.Nm
+file:
+.Bd -literal
+# Default entry is applied if no better match found
+# It MUST have 00:00:00:00:00:00 as bdaddr
+device {
+        bdaddr  00:00:00:00:00:00;
+        name    "Default entry";
+        key     nokey;
+        pin     nopin;
+}
+
+# Ericsson T68 phone
+device {
+        bdaddr  00:80:37:5e:4d:d4;
+        name    "Ericsson T68 phone";
+        key     nokey;
+        pin     "0000"; # PIN code
+}
+
+# Dummy device
+device {
+        bdaddr  00:11:22:33:44:55;
+        name    "Dummy";
+        key     0x00112233445566778899aabbccddeeff; # 16 bytes key
+        pin     nopin;
+}
+.Ed
+.Sh SEE ALSO
+.Xr hcsecd 8
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com

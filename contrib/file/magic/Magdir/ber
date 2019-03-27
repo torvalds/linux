@@ -1,0 +1,65 @@
+
+#------------------------------------------------------------------------------
+# $File: ber,v 1.1 2016/06/05 00:21:30 christos Exp $
+# ber:  file(1) magic for several BER formats used in the mobile
+# telecommunications industry (Georg Sauthoff)
+
+# The file formats are standardized by the GSMA (GSM association).
+# They are specified via ASN.1 schemas and some prose. Basic encoding
+# rules (BER) is the used encoding. The formats are used for exchanging
+# call data records (CDRs) between mobile operators and associated
+# parties for roaming clearing purposes and fraud detection.
+
+# The magic file covers:
+
+# - TAP files (TD.57) - CDR batches and notifications
+# - RAP files (TD.32) - return batches and acknowledgements
+# - NRT files (TD.35) - CDR batches for 'near real time' processing
+
+#
+# TAP 3 Files
+# TAP -> Transferred Account Procedure
+# cf. http://www.gsma.com/newsroom/wp-content/uploads/TD.57-v32.31.pdf
+# TransferBatch short tag
+0	byte	0x61
+# BatchControlInfo short tag
+>&1	search/b5	\x64
+# Sender long tag #TAP 3.x (BER encoded)
+>>&1	search/b8	\x5f\x81\x44
+# <SpecificationVersionNumber>3</><ReleaseVersionNumber> block
+>>>&64	search/b64	\x5f\x81\x49\x01\x03\x5f\x81\x3d\x01
+>>>>&0	byte	x	TAP 3.%d Batch (TD.57, Transferred Account)
+
+# Notification short tag
+0	byte	0x62
+# Sender long tag
+>2	search/b8	\x5f\x81\x44
+# <SpecificationVersionNumber>3</><ReleaseVersionNumber> block
+>>&64	search/b64	\x5f\x81\x49\x01\x03\x5f\x81\x3d\x01
+>>>&0	byte	x	TAP 3.%d Notification (TD.57, Transferred Account)
+
+
+# NRT Files
+# NRT a.k.a. NRTRDE
+0	byte	0x61
+# <SpecificationVersionNumber>2</><ReleaseVersionNumber> block
+>&1	search/b8 \x5f\x29\x01\x02\x5f\x25\x01
+>>&0	byte	x	NRT 2.%d (TD.35, Near Real Time Roaming Data Exchange)
+
+# RAP Files
+# cf. http://www.gsma.com/newsroom/wp-content/uploads/TD.32-v6.11.pdf
+# Long ReturnBatch tag
+0	string	\x7f\x84\x16
+# Long RapBatchControlInfo tag
+>&1	search/b8	\x7f\x84\x19
+# <SpecificationVersionNumber>3</><ReleaseVersionNumber> block
+>>&64	search/b64	\x5f\x81\x49\x01\x03\x5f\x81\x3d\x01
+# <RapSpecificationVersionNumber>1</><RapReleaseVersionNumber> block
+>>>&1	string/b	\x5f\x84\x20\x01\x01\x5f\x84\x1f\x01
+>>>>&0	byte	x	RAP 1.%d Batch (TD.32, Returned Account Procedure),
+>>>&0	byte	x	TAP 3.%d
+
+# Long Acknowledgement tag
+0	string \x7f\x84\x17
+# Long Sender tag
+>&1	search/b5	\x5f\x81\x44	RAP Acknowledgement (TD.32, Returned Account Procedure)

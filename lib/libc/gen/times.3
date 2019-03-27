@@ -1,0 +1,145 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)times.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2008
+.Dt TIMES 3
+.Os
+.Sh NAME
+.Nm times
+.Nd process times
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/times.h
+.Ft clock_t
+.Fn times "struct tms *tp"
+.Sh DESCRIPTION
+.Bf -symbolic
+This interface is obsoleted by
+.Xr getrusage 2
+and
+.Xr gettimeofday 2 .
+.Ef
+.Pp
+The
+.Fn times
+function returns the value of time in
+.Dv CLK_TCK Ns 's
+of a second since the system startup time.
+The current value of
+.Dv CLK_TCK ,
+the frequency of the statistics clock in ticks per second, may be
+obtained through the
+.Xr sysconf 3
+interface.
+.Pp
+It also fills in the structure pointed to by
+.Fa tp
+with time-accounting information.
+.Pp
+The
+.Vt tms
+structure is defined as follows:
+.Bd -literal -offset indent
+struct tms {
+	clock_t tms_utime;
+	clock_t tms_stime;
+	clock_t tms_cutime;
+	clock_t tms_cstime;
+};
+.Ed
+.Pp
+The elements of this structure are defined as follows:
+.Bl -tag -width ".Va tms_cutime"
+.It Va tms_utime
+The
+.Tn CPU
+time charged for the execution of user instructions.
+.It Va tms_stime
+The
+.Tn CPU
+time charged for execution by the system on behalf of
+the process.
+.It Va tms_cutime
+The sum of the
+.Va tms_utime Ns s
+and
+.Va tms_cutime Ns s
+of the child processes.
+.It Va tms_cstime
+The sum of the
+.Fa tms_stime Ns s
+and
+.Fa tms_cstime Ns s
+of the child processes.
+.El
+.Pp
+All times are in
+.Dv CLK_TCK Ns 's
+of a second.
+.Pp
+The times of a terminated child process are included in the
+.Va tms_cutime
+and
+.Va tms_cstime
+elements of the parent when one of the
+.Xr wait 2
+functions returns the process ID of the terminated child to the parent.
+If an error occurs,
+.Fn times
+returns the value
+.Pq Po Vt clock_t Pc Ns \-1 ,
+and sets
+.Va errno
+to indicate the error.
+.Sh ERRORS
+The
+.Fn times
+function
+may fail and set the global variable
+.Va errno
+for any of the errors specified for the library
+routines
+.Xr getrusage 2
+and
+.Xr gettimeofday 2 .
+.Sh SEE ALSO
+.Xr time 1 ,
+.Xr getrusage 2 ,
+.Xr gettimeofday 2 ,
+.Xr wait 2 ,
+.Xr sysconf 3 ,
+.Xr clocks 7
+.Sh STANDARDS
+The
+.Fn times
+function
+conforms to
+.St -p1003.1-88 .

@@ -1,0 +1,50 @@
+# $FreeBSD$
+
+	A Network Address Translation Daemon for FreeBSD
+
+
+1. WHAT IS NATD ?
+
+	This is a simple daemon based on FreeBSD divert sockets
+	which performs network address translation (or masquerading)
+	for IP packets (see related RFCs 1631 and 1918).
+	It is based on packet aliasing package (see README.alias)
+	written by Charles Mott <cm@linktel.net>.
+
+	This package works with any network interface (doesn't have
+	to be ppp). I run it on a computer having two ethernet cards,
+	one connected to internet and the other one to local network.
+
+2. GETTING IT RUNNING
+
+	1) Get FreeBSD 2.2 - I think the divert sockets are
+	   not available on earlier versions,
+
+	2) Compile this software by executing "make".
+
+	3) Install the software by executing "make install".
+
+	4) See man natd for further instructions.
+
+3. FTP SITES FOR NATD
+
+	This package is available at ftp://ftp.suutari.iki.fi/pub/natd.
+
+4. AUTHORS
+
+	This program is the result of the efforts of many people
+	at different times:
+
+	Archie Cobbs <archie@whistle.com>	Divert sockets
+	Charles Mott <cm@linktel.net>		Packet aliasing engine
+	Eivind Eklund <eivind@dimaga.com>	Packet aliasing engine
+	Ari Suutari <suutari@iki.fi>		Natd
+	Brian Somers <brian@awfulhak.org>	Manual page, glue and
+						bunch of good ideas.
+				
+	Happy Networking - comments and fixes are welcome!
+
+	Ari S.	(suutari@iki.fi)
+   
+	
+

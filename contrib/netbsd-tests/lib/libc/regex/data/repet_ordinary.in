@@ -1,0 +1,10 @@
+# ordinary repetitions
+ab*c		&	abc	abc
+ab+c		-	abc	abc
+ab?c		-	abc	abc
+a\(*\)b		b	a*b	a*b
+a\(**\)b	b	ab	ab
+a\(***\)b	bC	BADRPT
+*a		b	*a	*a
+**a		b	a	a
+***a		bC	BADRPT

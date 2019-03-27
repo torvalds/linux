@@ -1,0 +1,147 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)userquota_common.kshlib	1.1	09/06/22 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/userquota/userquota.cfg
+
+
+#
+# Check if the test box support userquota or not.
+#
+function is_userquota_supported
+{
+	if ! fs_prop_exist "userquota@..."; then
+	 	return 1
+	fi
+	
+	return 0
+}
+
+#
+# reset the userquota and groupquota and delete temporary files
+#
+function cleanup_quota
+{
+	if datasetexists $QFS; then
+		log_must $ZFS set userquota@$QUSER1=none $QFS
+		log_must $ZFS set userquota@$QUSER2=none $QFS
+		log_must $ZFS set groupquota@$QGROUP=none $QFS
+		recovery_writable $QFS
+	fi
+	
+	[[ -f $QFILE ]] && log_must $RM -f $QFILE
+	[[ -f $OFILE ]] && log_must $RM -f $OFILE
+	 
+	 return 0
+}
+
+#
+# delete user and group that created during the test
+# 
+function clean_user_group
+{
+	for usr in $QUSER1 $QUSER2; do
+		log_must del_user $usr
+	done
+	
+	log_must del_group $QGROUP
+
+	return 0
+}
+
+#
+#  make the $QFS's mountpoint writable for all users
+#
+function mkmount_writable
+{
+	typeset fs=$1
+	typeset mntp=$(get_prop mountpoint $fs)
+	log_must $CHMOD 0777 $mntp
+} 
+
+#
+# recovery the directory permission for $QFS
+#
+function recovery_writable
+{
+	typeset fs=$1
+	typeset mntp=$(get_prop mountpoint $fs)
+	log_must $CHMOD 0755 $mntp
+} 
+
+#
+# run command as specific user
+#
+function user_run
+{
+        typeset user=$1
+        typeset group=$($GROUPS $user)
+
+        shift
+
+        eval \$RUNWATTR -u \$user -g \$group \"$@\" > /dev/null 2>&1
+        return $?
+}
+
+#
+# check the quota value of a specific FS
+#
+function check_quota
+{
+	typeset fs=$2
+	typeset prop=$1
+	typeset expected=$3
+	typeset value=$(get_prop $prop $fs)
+
+	if (( $value != $expected )); then
+		return 1
+	fi
+}
+
+#
+# zfs get prop, which return raw value not -p value.
+#
+function get_value # property dataset
+{
+        typeset prop_val
+        typeset prop=$1
+        typeset dataset=$2
+
+        prop_val=$($ZFS get -H -o value $prop $dataset 2>/dev/null)
+        if [[ $? -ne 0 ]]; then
+                log_note "Unable to get $prop property for dataset " \
+                "$dataset"
+                return 1
+        fi
+
+        $ECHO $prop_val
+        return 0
+}

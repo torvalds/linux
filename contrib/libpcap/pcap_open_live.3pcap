@@ -1,0 +1,90 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_OPEN_LIVE 3PCAP "20 January 2017"
+.SH NAME
+pcap_open_live \- open a device for capturing
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.nf
+.ft B
+char errbuf[PCAP_ERRBUF_SIZE];
+.ft
+.LP
+.ft B
+pcap_t *pcap_open_live(const char *device, int snaplen,
+.ti +8
+int promisc, int to_ms, char *errbuf);
+.ft
+.fi
+.SH DESCRIPTION
+.B pcap_open_live()
+is used to obtain a packet capture handle to look
+at packets on the network.
+.I device
+is a string that specifies the network device to open; on Linux systems
+with 2.2 or later kernels, a
+.I device
+argument of "any" or
+.B NULL
+can be used to capture packets from all interfaces.
+.PP
+.I snaplen
+specifies the snapshot length to be set on the handle.
+.PP
+.I promisc
+specifies if the interface is to be put into promiscuous mode.
+.PP
+.I to_ms
+specifies the packet buffer timeout, as a non-negative value, in
+milliseconds.  (See
+.BR pcap (3PCAP)
+for an explanation of the packet buffer timeout.)
+.SH RETURN VALUE
+.B pcap_open_live()
+returns a
+.I pcap_t *
+on success and
+.B NULL
+on failure.
+If
+.B NULL
+is returned,
+.I errbuf
+is filled in with an appropriate error message.
+.I errbuf
+may also be set to warning text when
+.B pcap_open_live()
+succeeds; to detect this case the caller should store a zero-length string in
+.I errbuf
+before calling
+.B pcap_open_live()
+and display the warning to the user if
+.I errbuf
+is no longer a zero-length string.
+.I errbuf
+is assumed to be able to hold at least
+.B PCAP_ERRBUF_SIZE
+chars.
+.SH SEE ALSO
+pcap(3PCAP), pcap_create(3PCAP), pcap_activate(3PCAP)

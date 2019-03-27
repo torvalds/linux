@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+# a umlaut
+s=$(printf '\303\244')
+# euro sign
+s=$s$(printf '\342\202\254')
+
+# Start a new shell so the locale change is picked up.
+ss="$(LC_ALL=en_US.UTF-8 ${SH} -c "printf %s \$'\u00e4\u20ac'")"
+[ "$s" = "$ss" ]

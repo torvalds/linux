@@ -1,0 +1,198 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
+.\" $FreeBSD$
+.\"
+.Dd October 24, 2016
+.Dt MOUNTD 8
+.Os
+.Sh NAME
+.Nm mountd
+.Nd service remote
+.Tn NFS
+mount requests
+.Sh SYNOPSIS
+.Nm
+.Op Fl 2delnrS
+.Op Fl h Ar bindip
+.Op Fl p Ar port
+.Op Ar exportsfile ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is the server for
+.Tn NFS
+mount requests from other client machines.
+It listens for service requests at the port indicated in the
+.Tn NFS
+server specification; see
+.%T "Network File System Protocol Specification" ,
+RFC1094, Appendix A and
+.%T "NFS: Network File System Version 3 Protocol Specification" ,
+Appendix I.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl 2
+Allow the administrator to force clients to use only the
+version 2
+.Tn NFS
+protocol to mount file systems from this server.
+.It Fl d
+Output debugging information.
+.Nm
+will not detach from the controlling terminal and will print
+debugging messages to stderr.
+.It Fl e
+Ignored; included for backward compatibility.
+.It Fl h Ar bindip
+Specify specific IP addresses to bind to for TCP and UDP requests.
+This option may be specified multiple times.
+If no
+.Fl h
+option is specified,
+.Nm
+will bind to
+.Dv INADDR_ANY .
+Note that when specifying IP addresses with
+.Fl h ,
+.Nm
+will automatically add
+.Li 127.0.0.1
+and if IPv6 is enabled,
+.Li ::1
+to the list.
+.It Fl l
+Cause all succeeded
+.Nm
+requests to be logged.
+.It Fl n
+Allow non-root mount requests to be served.
+This should only be specified if there are clients such as PC's,
+that require it.
+It will automatically clear the vfs.nfsd.nfs_privport sysctl flag, which
+controls if the kernel will accept NFS requests from reserved ports only.
+.It Fl p Ar port
+Force
+.Nm
+to bind to the specified port, for both
+.Dv AF_INET
+and
+.Dv AF_INET6
+address families.
+This is typically done to ensure that the port which
+.Nm
+binds to is a known quantity which can be used in firewall rulesets.
+If
+.Nm
+cannot bind to this port, an appropriate error will be recorded in
+the system log, and the daemon will then exit.
+.It Fl r
+Allow mount RPCs requests for regular files to be served.
+Although this seems to violate the mount protocol specification,
+some diskless workstations do mount requests for
+their swapfiles and expect them to be regular files.
+Since a regular file cannot be specified in
+.Pa /etc/exports ,
+the entire file system in which the swapfiles resides
+will have to be exported with the
+.Fl alldirs
+flag.
+.It Ar exportsfile
+Specify an alternate location
+for the exports file.
+More than one exports file can be specified.
+.It Fl S
+Tell mountd to suspend/resume execution of the nfsd threads whenever
+the exports list is being reloaded.
+This avoids intermittent access
+errors for clients that do NFS RPCs while the exports are being
+reloaded, but introduces a delay in RPC response while the reload
+is in progress.
+If
+.Nm
+crashes while an exports load is in progress,
+.Nm
+must be restarted to get the nfsd threads running again, if this
+option is used.
+.El
+.Pp
+When
+.Nm
+is started,
+it loads the export host addresses and options into the kernel
+using the
+.Xr mount 2
+system call.
+After changing the exports file,
+a hangup signal should be sent to the
+.Nm
+daemon
+to get it to reload the export information.
+After sending the SIGHUP
+(kill \-s HUP `cat /var/run/mountd.pid`),
+check the syslog output to see if
+.Nm
+logged any parsing
+errors in the exports file.
+.Pp
+If
+.Nm
+detects that the running kernel does not include
+.Tn NFS
+support, it will attempt to load a loadable kernel module containing
+.Tn NFS
+code, using
+.Xr kldload 2 .
+If this fails, or no
+.Tn NFS
+KLD was available,
+.Nm
+exits with an error.
+.Sh FILES
+.Bl -tag -width /var/run/mountd.pid -compact
+.It Pa /etc/exports
+the list of exported file systems
+.It Pa /var/run/mountd.pid
+the pid of the currently running mountd
+.It Pa /var/db/mountdtab
+the current list of remote mounted file systems
+.El
+.Sh SEE ALSO
+.Xr nfsstat 1 ,
+.Xr kldload 2 ,
+.Xr nfsv4 4 ,
+.Xr exports 5 ,
+.Xr nfsd 8 ,
+.Xr rpcbind 8 ,
+.Xr showmount 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.4 .

@@ -1,0 +1,93 @@
+$FreeBSD$
+###############################################################################
+# Tfdt Dfdt manipulation commands
+
+	fdt <subcommand> <arguments>
+
+	Facilities for loading and manipulating device tree data.
+
+###############################################################################
+# Tfdt Saddr Dload fdt from an address in memory
+
+	fdt addr <address>
+
+	Copies compiled device tree from a particular location
+	in memory.
+
+###############################################################################
+# Tfdt Salias DXXX
+
+	fdt alias <address>
+
+	Not Yet Implemented
+
+###############################################################################
+# Tfdt Scd DSelect a particular node for future commands
+
+	fdt cd <path>
+
+	Changes the current node to the node specified by the path.
+	Path elements are separated by '/'; a leading '/' represents
+	the root node.
+
+###############################################################################
+# Tfdt Sheader DDump the header of the compiled device tree
+
+	fdt header
+
+	Dumps DTB size, format and other key values.
+
+###############################################################################
+# Tfdt Sls DList subnodes of the current node
+
+	fdt ls <path>
+
+	Lists the nodes under the specified path.
+	If no path is specified, lists nodes under the current path.
+
+###############################################################################
+# Tfdt Smknode DCreate a new node in the device tree
+
+	fdt mknode <name>
+
+	Creates a new node with the specified name.
+
+###############################################################################
+# Tfdt Smkprop DAdd a new property to the current node
+
+	fdt mkprop <name> <value> ...
+
+	Creates a new property with the specified name and values.
+	Multiple values can be specified and will be concatenated.
+
+###############################################################################
+# Tfdt Smres DXXX
+
+	fdt mres
+
+	Dumps the list of reserved memory regions.
+
+###############################################################################
+# Tfdt Sprop DDump value of a particular property
+
+	fdt prop <name> <value> ...
+
+	If value is specified, set the given property to the indicated value.
+	Otherwise, print the value of the property.
+
+###############################################################################
+# Tfdt Spwd DPrint path to current node in device tree
+
+	fdt pwd
+
+	Print path to the current node in the device tree.
+	The current node can be changed with "fdt cd".
+
+###############################################################################
+# Tfdt Srm DRemove node or property from device tree
+
+	fdt rm <name>
+
+	The named node or property will be removed from the device tree.
+
+###############################################################################

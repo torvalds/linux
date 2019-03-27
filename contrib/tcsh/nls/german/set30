@@ -1,0 +1,16 @@
+$ $tcsh: set30,v 1.5 2011/02/04 18:19:37 christos Exp $
+$ tw.parse.c
+$set 30
+1 Anfangsbefehl %d\n
+2 vervollständige %d 
+3 vervollständige %d %S\n
+4 %s: Interner Abgleichsfehler.\n
+5 Objekte
+6 Spalten
+7 Es gibt %d %s, trotzdem anzeigen? [n/j] 
+8 looking = %d\n
+9 \n%s interner Fehler: Ich weiß nicht, wonach ich suche!\n
+10 kein Verzeichnis
+11 nicht gefunden
+12 nicht lesbar
+13 jJyY

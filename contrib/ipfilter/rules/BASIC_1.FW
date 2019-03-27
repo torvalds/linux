@@ -1,0 +1,99 @@
+#!/sbin/ipf -f -
+#
+# SAMPLE: RESTRICTIVE FILTER RULES
+#
+# THIS EXAMPLE IS WRITTEN FOR IP FILTER 3.3
+#
+# ppp0 - (external) PPP connection to ISP, address a.b.c.d/32
+#
+# ed0 - (internal) network interface, address w.x.y.z/32
+#
+# This file contains the basic rules needed to construct a firewall for the
+# above situation.
+#
+#-------------------------------------------------------
+# *Nasty* packets we don't want to allow near us at all!
+# short packets which are packets fragmented too short to be real.
+block in log quick all with short
+#-------------------------------------------------------
+# Group setup.
+# ============
+# By default, block and log everything.  This maybe too much logging
+# (especially for ed0) and needs to be further refined.
+#
+block in log on ppp0 all head 100
+block in log proto tcp all flags S/SA head 101 group 100
+block out log on ppp0 all head 150
+block in log on ed0 from w.x.y.z/24 to any head 200
+block in log proto tcp all flags S/SA head 201 group 200
+block in log proto udp all head 202 group 200
+block out log on ed0 all head 250
+#-------------------------------------------------------
+# Localhost packets.
+# ==================
+# packets going in/out of network interfaces that aren't on the loopback
+# interface should *NOT* exist.
+block in log quick from 127.0.0.0/8 to any group 100
+block in log quick from any to 127.0.0.0/8 group 100
+block in log quick from 127.0.0.0/8 to any group 200
+block in log quick from any to 127.0.0.0/8 group 200
+# And of course, make sure the loopback allows packets to traverse it.
+pass in quick on lo0 all
+pass out quick on lo0 all
+#-------------------------------------------------------
+# Invalid Internet packets.
+# =========================
+#
+# Deny reserved addresses.
+#
+block in log quick from 10.0.0.0/8 to any group 100
+block in log quick from 192.168.0.0/16 to any group 100
+block in log quick from 172.16.0.0/12 to any group 100
+#
+# Prevent IP spoofing.
+#
+block in log quick from a.b.c.d/24 to any group 100
+#
+#-------------------------------------------------------
+# Allow outgoing DNS requests (no named on firewall)
+#
+pass in quick proto udp from any to any port = 53 keep state group 202
+#
+# If we were running named on the firewall and all internal hosts talked to
+# it, we'd use the following:
+#
+#pass in quick proto udp from any to w.x.y.z/32 port = 53 keep state group 202
+#pass out quick on ppp0 proto udp from a.b.c.d/32 to any port = 53 keep state
+#
+# Allow outgoing FTP from any internal host to any external FTP server.
+#
+pass in quick proto tcp from any to any port = ftp keep state group 201
+pass in quick proto tcp from any to any port = ftp-data keep state group 201
+pass in quick proto tcp from any port = ftp-data to any port > 1023 keep state group 101
+#
+# Allow NTP from any internal host to any external NTP server.
+#
+pass in quick proto udp from any to any port = ntp keep state group 202
+#
+# Allow outgoing connections: SSH, TELNET, WWW
+#
+pass in quick proto tcp from any to any port = 22 keep state group 201
+pass in quick proto tcp from any to any port = telnet keep state group 201
+pass in quick proto tcp from any to any port = www keep state group 201
+#
+#-------------------------------------------------------
+block in log proto tcp from any to a.b.c.d/32 flags S/SA head 110 group 100
+#
+# Allow incoming to the external firewall interface: mail, WWW, DNS
+#
+pass in log quick proto tcp from any to any port = smtp keep state group 110
+pass in log quick proto tcp from any to any port = www keep state group 110
+pass in log quick proto tcp from any to any port = 53 keep state group 110
+pass in log quick proto udp from any to any port = 53 keep state group 100
+#-------------------------------------------------------
+# Log these:
+# ==========
+# * return RST packets for invalid SYN packets to help the other end close
+block return-rst in log proto tcp from any to any flags S/SA group 100
+# * return ICMP error packets for invalid UDP packets
+block return-icmp(net-unr) in proto udp all group 100

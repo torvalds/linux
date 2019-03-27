@@ -1,0 +1,34 @@
+$FreeBSD$
+
+Sources:
+
+unicode.org:	http://unicode.org/Public/MAPPINGS
+IANA:		http://www.iana.org/assignments/charset-reg/
+haible.de:	http://haible.de/bruno/charsets/conversion-tables/
+
+    ARMSCII-8	haible.de: Armenian.html
+    Big5	unicodeorg: OBSOLETE/EASTASIA/OTHER
+    CP1131	haible.de: CP1131.html / aix-4.3.2/IBM-1131.TXT
+    CP1251	unicode.org: VENDORS/MICSFT/WINDOWS
+    CP866	unicode.org: VENDORS/MICSFT/PC
+    CP949	unicode.org: VENDORS/MICSFT/WINDOWS
+    GB18030	haible.de: GB18030.html
+    GB2312	haible.de: GB2312.html / unicode.org-mappings/EASTASIA/GB/GB2312.TXT
+    GBK
+    ISCII-DEV	unicode.org: VENDORS/APPLE/DEVANAGA i/ haible.de: Indic.html
+    ISO8859-1	unicode.org: ISO8859/
+    ISO8859-2	unicode.org: ISO8859/
+    ISO8859-4	unicode.org: ISO8859/
+    ISO8859-5	unicode.org: ISO8859/
+    ISO8859-7	unicode.org: ISO8859/
+    ISO8859-9	unicode.org: ISO8859/
+    ISO8859-13	unicode.org: ISO8859/
+    ISO8859-15	unicode.org: ISO8859/
+    KOI8-R	unicode.org: VENDORS/MISC
+    KOI8-U	unicode.org: VENDORS/MISC
+    PT154	IANA: PTCP154
+    SJIS	haible.de: Shift_JIS.html
+    US-ASCII	From ISO8859-1.TXT
+    eucCN	haible.de: GB2312.html / unicode.org-mappings/EASTASIA/GB/GB2312.TXT
+    eucJP	haible.de: EUC-JP.html / libiconv 1.13
+    eucKR	haible.de: EUC-KR.html

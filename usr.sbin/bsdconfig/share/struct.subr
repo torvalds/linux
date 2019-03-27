@@ -1,0 +1,206 @@
+if [ ! "$_STRUCT_SUBR" ]; then _STRUCT_SUBR=1
+#
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+############################################################ FUNCTIONS
+
+# f_struct_define $type $member_name1 ...
+#
+# Define a new `structure' type $type made up of the properties $member_name1
+# $member_name2 and so-on. Properties are not typed and can hold any type of
+# data (including names of other structs).
+#
+# Before creating instances of a struct (using f_struct_new $type $name) you
+# should use this function to define $type.
+#
+# Both $type and member names should consist only of alpha-numeric letters or
+# the underscore.
+#
+f_struct_define()
+{
+	local type="$1"
+	[ "$type" ] || return $FAILURE
+	shift
+	setvar "_struct_typedef_$type" "$*"
+}
+
+# f_struct_new $type $name
+#
+# Create a new `structure' named $name of type $type.  There are two ways to
+# access properties of a struct, but they are not equal (each method has its
+# own unique benefits, discussed below).
+#
+# The primary method of accessing (both setting and getting) properties of any
+# struct is through the f_struct() function below.
+#
+# The secondary method of accessing data is by using $name as a function.
+#
+# Both access methods are cross-platform compatible with any version of sh(1).
+# Below is an example of the primary access method:
+#
+# 	f_struct_new MY_STRUCT_TYPE my_struct
+# 	f_struct my_struct set abc 123
+# 	f_struct my_struct get abc # prints 123 to stdout
+# 	f_struct my_struct get abc abc # sets local variable $abc to 123
+#
+# Alternatively, the secondary access method (details below):
+#
+# 	f_struct_new MY_STRUCT_TYPE my_struct
+# 	my_struct set abc 123
+# 	my_struct get abc # prints 123 to stdout
+# 	my_struct get abc abc # sets local variable $abc to 123
+#
+# The secondary form should only be used if/when:
+# 	+ You are certain that the structure already exists
+# 	+ You want a syntax error if/when the struct does not exist
+#
+# The primary benefit to the secondary form is syntax cleanliness and read-
+# ability. If you are unsure if a given struct exists (which would cause a
+# syntax error when using this form), you can use the primary access method to
+# first test for the existence of the struct. For example:
+#
+# 	if f_struct my_struct; then
+# 		my_struct get abc # only executed if my_struct exists
+# 	fi
+#
+# For more information, see the f_struct() function.
+#
+f_struct_new()
+{
+	local type="$1" name="$2"
+	f_dprintf "f_struct_new: type=[%s] name=[%s]" "$type" "$name"
+	[ "$name" ] || return $FAILURE
+	setvar "_struct_type_$name" "$type" || return $FAILURE
+	# OK to use bare $name at this point
+	eval $name\(\){ f_struct $name \"\$@\"\; }
+}
+
+# f_struct $name
+# f_struct $name get $property [$var_to_set]
+# f_struct $name set $property $new_value
+# f_struct $name unset $property
+#
+# Access routine for getting, setting, unsetting, and testing properties of
+# `structures'.
+#
+# If only given $name, returns success if struct $name has been created (using
+# the f_struct_new() function above).
+#
+# For getting properties of a struct (versus setting) there are two methods of
+# access. If $var_to_set is missing or NULL, the value of the property is
+# printed to standard output for capturing in a sub-shell (which is less-
+# recommended because of performance degredation; for example, when called in a
+# loop). Returns success unless the property is unset.
+#
+# For setting properties of a struct, sets the value of $property to $new_value
+# and returns success.
+#
+# For unsetting, the underlying environment variable associated with the given
+# $property is unset.
+#
+f_struct()
+{
+	local __name="$1" __action="$2" __property="$3"
+	case $# in
+	0) return $FAILURE ;;
+	1) f_have "$__name" ;;
+	*) case "$__action" in
+	   get) local __var_to_set="$4"
+	        f_getvar "_struct_value_${__name}_$__property" "$__var_to_set"
+	        ;;
+	   set) local new_value="$4"
+	        setvar "_struct_value_${__name}_$__property" "$new_value" ;;
+	   unset) unset "_struct_value_${__name}_$__property" ;;
+	   esac
+	esac
+	# Return the status of the last command above
+}
+
+# f_struct_free $name
+#
+# Unset the collection of environment variables and accessor-function
+# associated with struct $name.
+#
+f_struct_free()
+{
+	local name="$1" type member members
+	f_getvar "_struct_type_$name" type
+	f_dprintf "f_struct_free: name=[%s] type=[%s]" "$name" "$type"
+	[ "$name" ] || return $FAILURE
+	f_getvar "_struct_typedef_$type" members
+	for member in $members; do
+		f_struct "$name" unset $member
+	done
+	unset -f "$name"
+	unset "_struct_type_$name"
+}
+
+# f_struct_copy $from_name $to_name
+#
+# Copy the properties of one struct to another. If struct $to_name does not
+# exist, it is created. If struct $from_name does not exist, nothing is done
+# and struct $to_name remains unmodified.
+#
+# Returns success unless struct $to_name did not exist and f_struct_new() was
+# unable to create it.
+#
+f_struct_copy()
+{
+	local from_name="$1" to_name="$2" type
+	f_dprintf "f_struct_copy: from_name=[%s] to_name=[%s]" \
+	          "$from_name" "$to_name"
+	f_getvar "_struct_type_$from_name" type
+	f_struct "$to_name" ||
+		f_struct_new "$type" "$to_name" || return $FAILURE
+	f_struct "$from_name" || return $SUCCESS
+	f_dprintf "f_struct_copy: copying properties from %s to %s" \
+	          "$from_name" "$to_name"
+	local property properties from_value n=0 k=0
+	f_getvar "_struct_typedef_$type" properties
+	for property in $properties; do
+		k=$(( $k + 1 ))
+		if f_struct "$from_name" get $property from_value; then
+			f_struct "$to_name" set $property "$from_value"
+			n=$(( $n + 1 ))
+		else
+			f_struct "$to_name" unset $property
+		fi
+	done
+	f_dprintf "f_struct_copy: copied %u of %u properties from %s to %s" \
+	          "$n" "$k" "$from_name" "$to_name"
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." struct.subr
+
+fi # ! $_STRUCT_SUBR

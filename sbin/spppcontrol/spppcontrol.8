@@ -1,0 +1,275 @@
+.\" Copyright (C) 1997, 2001 by Joerg Wunsch, Dresden
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 30, 2001
+.Dt SPPPCONTROL 8
+.Os
+.Sh NAME
+.Nm spppcontrol
+.Nd display or set parameters for an sppp interface
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Ar ifname
+.Op Ar parameter Ns Op Li = Ns Ar value
+.Op Ar ...
+.Sh DESCRIPTION
+The
+.Xr sppp 4
+driver might require a number of additional arguments or optional
+parameters besides the settings that can be adjusted with
+.Xr ifconfig 8 .
+These are things like authentication protocol parameters, but also
+other tunable configuration variables.
+The
+.Nm
+utility can be used to display the current settings, or adjust these
+parameters as required.
+.Pp
+For whatever intent
+.Nm
+is being called, at least the parameter
+.Ar ifname
+needs to be specified, naming the interface for which the settings
+are to be performed or displayed.
+Use
+.Xr ifconfig 8 ,
+or
+.Xr netstat 1
+to see which interfaces are available.
+.Pp
+If no other parameter is given,
+.Nm
+will just list the current settings for
+.Ar ifname
+and exit.
+The reported settings include the current PPP phase the
+interface is in, which can be one of the names
+.Em dead ,
+.Em establish ,
+.Em authenticate ,
+.Em network ,
+or
+.Em terminate .
+If an authentication protocol is configured for the interface, the
+name of the protocol to be used, as well as the system name to be used
+or expected will be displayed, plus any possible options to the
+authentication protocol if applicable.
+Note that the authentication
+secrets (sometimes also called
+.Em keys )
+are not being returned by the underlying system call, and are thus not
+displayed.
+.Pp
+If any additional parameter is supplied, superuser privileges are
+required, and the command works in the
+.Dq set
+mode.
+This is normally done quietly, unless the option
+.Fl v
+is also enabled, which will cause a final printout of the settings as
+described above once all other actions have been taken.
+Use of this
+mode will be rejected if the interface is currently in any other phase
+than
+.Em dead .
+Note that you can force an interface into
+.Em dead
+phase by calling
+.Xr ifconfig 8
+with the parameter
+.Cm down .
+.Pp
+The currently supported parameters include:
+.Bl -tag -offset indent -width indent
+.It Va authproto Ns Li = Ns Ar protoname
+Set both, his and my authentication protocol to
+.Ar protoname .
+The protocol name can be one of
+.Dq Li chap ,
+.Dq Li pap ,
+or
+.Dq Li none .
+In the latter case, the use of an authentication protocol will be
+turned off for the named interface.
+This has the side-effect of
+clearing the other authentication-related parameters for this
+interface as well (i.e., system name and authentication secret will
+be forgotten).
+.It Va myauthproto Ns Li = Ns Ar protoname
+Same as above, but only for my end of the link.
+I.e., this is the
+protocol when remote is authenticator, and I am the peer required to
+authenticate.
+.It Va hisauthproto Ns Li = Ns Ar protoname
+Same as above, but only for his end of the link.
+.It Va myauthname Ns Li = Ns Ar name
+Set my system name for the authentication protocol.
+.It Va hisauthname Ns Li = Ns Ar name
+Set his system name for the authentication protocol.
+For CHAP, this
+will only be used as a hint, causing a warning message if remote did
+supply a different name.
+For PAP, it is the name remote must use to
+authenticate himself (in connection with his secret).
+.It Va myauthsecret Ns Li = Ns Ar secret
+Set my secret (key, password) for use in the authentication phase.
+For CHAP, this will be used to compute the response hash value, based
+on remote's challenge.
+For PAP, it will be transmitted as plain text
+together with the system name.
+Do not forget to quote the secrets from
+the shell if they contain shell metacharacters (or white space).
+.It Va myauthkey Ns Li = Ns Ar secret
+Same as above.
+.It Va hisauthsecret Ns Li = Ns Ar secret
+Same as above, to be used if we are an authenticator and the remote peer
+needs to authenticate.
+.It Va hisauthkey Ns Li = Ns Va secret
+Same as above.
+.It Va callin
+Require remote to authenticate himself only when he is calling in, but
+not when we are caller.
+This is required for some peers that do not
+implement the authentication protocols symmetrically (like Ascend
+routers, for example).
+.It Va always
+The opposite of
+.Va callin .
+Require remote to always authenticate, regardless of which side is
+placing the call.
+This is the default, and will not be explicitly
+displayed in the
+.Dq list
+mode.
+.It Va norechallenge
+Only meaningful with CHAP.
+Do not re-challenge peer once the initial
+CHAP handshake was successful.
+Used to work around broken peer
+implementations that cannot grok being re-challenged once the
+connection is up.
+.It Ar rechallenge
+With CHAP, send re-challenges at random intervals while the connection
+is in network phase.
+(The intervals are currently in the range of 300
+through approximately 800 seconds.)
+This is the default, and will not
+be explicitly displayed in the
+.Dq list
+mode.
+.It Va lcp-timeout Ns Li = Ns Ar timeout-value
+Allows to change the value of the LCP restart timer.
+Values are
+specified in milliseconds.
+The value must be between 10 and 20000 ms,
+defaulting to 3000 ms.
+.It Va enable-vj
+Enable negotiation of Van Jacobsen header compression.
+(Enabled by default.)
+.It Va disable-vj
+Disable negotiation of Van Jacobsen header compression.
+.It Va enable-ipv6
+Enable negotiation of the IPv6 network control protocol.
+(Enabled by default if the kernel has IPv6 enabled.)
+.It Va disable-ipv6
+Disable negotiation of the IPv6 network control protocol.
+Since every
+IPv4 interface in an IPv6-enabled kernel automatically gets an IPv6
+address assigned, this option provides for a way to administratively
+prevent the link from attempting to negotiate IPv6.
+Note that
+initialization of an IPv6 interface causes a multicast packet to be
+sent, which can cause unwanted traffic costs (for dial-on-demand
+interfaces).
+.El
+.Sh EXAMPLES
+.Bd -literal
+# spppcontrol bppp0
+bppp0:	phase=dead
+	myauthproto=chap myauthname="uriah"
+	hisauthproto=chap hisauthname="ifb-gw" norechallenge
+	lcp-timeout=3000
+	enable-vj
+	enable-ipv6
+.Ed
+.Pp
+Display the settings for
+.Li bppp0 .
+The interface is currently in
+.Em dead
+phase, i.e., the LCP layer is down, and no traffic is possible.
+Both
+ends of the connection use the CHAP protocol, my end tells remote the
+system name
+.Dq Li uriah ,
+and remote is expected to authenticate by the name
+.Dq Li ifb-gw .
+Once the initial CHAP handshake was successful, no further CHAP
+challenges will be transmitted.
+There are supposedly some known CHAP
+secrets for both ends of the link which are not being shown.
+.Bd -literal
+# spppcontrol bppp0 \e
+	authproto=chap \e
+	myauthname=uriah myauthsecret='some secret' \e
+	hisauthname=ifb-gw hisauthsecret='another' \e
+	norechallenge
+.Ed
+.Pp
+A possible call to
+.Nm
+that could have been used to bring the interface into the state shown
+by the previous example.
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr sppp 4 ,
+.Xr ifconfig 8
+.Rs
+.%A B. Lloyd
+.%A W. Simpson
+.%T "PPP Authentication Protocols"
+.%O RFC 1334
+.Re
+.Rs
+.%A W. Simpson, Editor
+.%T "The Point-to-Point Protocol (PPP)"
+.%O RFC 1661
+.Re
+.Rs
+.%A W. Simpson
+.%T "PPP Challenge Handshake Authentication Protocol (CHAP)"
+.%O RFC 1994
+.Re
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+The program was written by
+.An J\(:org Wunsch ,
+Dresden.

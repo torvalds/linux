@@ -1,0 +1,225 @@
+.\" Copyright (c) 2004
+.\"	Bill Paul <wpaul@windriver.com>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 29, 2011
+.Dt VGE 4
+.Os
+.Sh NAME
+.Nm vge
+.Nd "VIA Networking Technologies Velocity Gigabit Ethernet adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device vge"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_vge_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various NICs and embedded Ethernet interfaces
+based on the VIA Technologies VT6120, VT6122, VT6130 and VT6132 Velocity
+Family Gigabit Ethernet controller chips.
+.Pp
+The VT6120/VT6122 is a 33/66MHz 64-bit PCI device which combines a tri-speed
+MAC with an integrated 10/100/1000 copper PHY.
+(Some older cards use an external PHY.)
+The VT6130/VT6132 is the PCI express version of Velocity family.
+The MAC supports TCP/IP hardware
+checksums (IPv4 only), TCP large send, VLAN tag insertion and stripping,
+as well as VLAN filtering, a 64-entry CAM filter and a 64-entry VLAN filter,
+64-bit multicast hash filter, 4 separate transmit DMA queues, flow control
+and jumbo frames (not on VT6130/VT6132) up to 16K in size.
+The Velocity family controllers have a 16K receive FIFO and 48K transmit FIFO.
+.Pp
+The
+.Nm
+driver takes advantage of the controller's checksum offload and VLAN
+tagging features, as well as the jumbo frame (except VT6130/VT6132) and CAM
+filter support.
+The CAM filter is used for multicast address filtering to provide
+64 perfect multicast address filter support.
+If it is necessary for the interface to join more than 64 multicast
+groups, the driver will switch over to using the hash filter.
+.Pp
+The jumbo frame support can be enabled by setting the interface MTU
+to any value larger than the default of 1500 bytes, up to a maximum
+of 9000 bytes.
+Jumbo frames are disabled on the VT6130/VT6132 controllers because the TX
+MAC will hang when trying to send a frame that is larger than 4K.
+The receive and transmit checksum offload support
+can be toggled on and off using the
+.Xr ifconfig 8
+utility.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to
+.Xr rc.conf 5 .
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 1000baseTX
+Set 1000baseTX operation over twisted pair.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports VIA Networking VT6120, VT6122, VT6130 and VT6132 based
+Gigabit Ethernet adapters including:
+.Pp
+.Bl -bullet -compact
+.It
+VIA Networking LAN-on-motherboard Gigabit Ethernet
+.It
+ZyXEL GN650-T 64-bit PCI Gigabit Ethernet NIC (ZX1701)
+.It
+ZyXEL GN670-T 32-bit PCI Gigabit Ethernet NIC (ZX1702)
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "xxxxxx"
+.It Va hw.vge.msi_disable
+This tunable disables MSI support on the Ethernet hardware.
+The default value is 0.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width "xxxxxx"
+.It Va dev.vge.%d.int_holdoff
+Maximum number of time to delay interrupts.
+The valid range is 0 to 5100 in units of 1us, the default is
+150 (150us).
+The resolution of timer is about 20us so finer tuning than
+20us wouldn't be available.
+The interface should be brought down and up again before a change
+takes effect.
+.It Va dev.vge.%d.rx_coal_pkt
+Maximum number of packets to fire Rx completion interrupt.
+The valid range is 1 to 255, the default is 64.
+.It Va dev.vge.%d.tx_coal_pkt
+Maximum number of packets to fire Tx completion interrupt.
+The valid range is 1 to 255, the default is 128.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "vge%d: couldn't map memory"
+A fatal initialization error has occurred.
+.It "vge%d: couldn't map ports"
+A fatal initialization error has occurred.
+.It "vge%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "vge%d: failed to enable memory mapping!"
+The driver failed to initialize PCI shared memory mapping.
+This might
+happen if the card is not in a bus-master slot.
+.It "vge%d: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr polling 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@windriver.com .

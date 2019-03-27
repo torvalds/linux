@@ -1,0 +1,1026 @@
+.\"
+.\" Copyright (c) 2006 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 25, 2019
+.Dt SYSCTL 9
+.Os
+.Sh NAME
+.Nm SYSCTL_DECL ,
+.Nm SYSCTL_ADD_BOOL ,
+.Nm SYSCTL_ADD_COUNTER_U64 ,
+.Nm SYSCTL_ADD_COUNTER_U64_ARRAY ,
+.Nm SYSCTL_ADD_INT ,
+.Nm SYSCTL_ADD_LONG ,
+.Nm SYSCTL_ADD_NODE ,
+.Nm SYSCTL_ADD_NODE_WITH_LABEL ,
+.Nm SYSCTL_ADD_OPAQUE ,
+.Nm SYSCTL_ADD_PROC ,
+.Nm SYSCTL_ADD_QUAD ,
+.Nm SYSCTL_ADD_ROOT_NODE ,
+.Nm SYSCTL_ADD_S8 ,
+.Nm SYSCTL_ADD_S16 ,
+.Nm SYSCTL_ADD_S32 ,
+.Nm SYSCTL_ADD_S64 ,
+.Nm SYSCTL_ADD_SBINTIME_MSEC ,
+.Nm SYSCTL_ADD_SBINTIME_USEC ,
+.Nm SYSCTL_ADD_STRING ,
+.Nm SYSCTL_ADD_CONST_STRING ,
+.Nm SYSCTL_ADD_STRUCT ,
+.Nm SYSCTL_ADD_U8 ,
+.Nm SYSCTL_ADD_U16 ,
+.Nm SYSCTL_ADD_U32 ,
+.Nm SYSCTL_ADD_U64 ,
+.Nm SYSCTL_ADD_UAUTO ,
+.Nm SYSCTL_ADD_UINT ,
+.Nm SYSCTL_ADD_ULONG ,
+.Nm SYSCTL_ADD_UQUAD ,
+.Nm SYSCTL_ADD_UMA_CUR ,
+.Nm SYSCTL_ADD_UMA_MAX ,
+.Nm SYSCTL_CHILDREN ,
+.Nm SYSCTL_STATIC_CHILDREN ,
+.Nm SYSCTL_NODE_CHILDREN ,
+.Nm SYSCTL_PARENT ,
+.Nm SYSCTL_BOOL ,
+.Nm SYSCTL_COUNTER_U64 ,
+.Nm SYSCTL_COUNTER_U64_ARRAY ,
+.Nm SYSCTL_INT ,
+.Nm SYSCTL_INT_WITH_LABEL ,
+.Nm SYSCTL_LONG ,
+.Nm SYSCTL_NODE ,
+.Nm SYSCTL_NODE_WITH_LABEL ,
+.Nm SYSCTL_OPAQUE ,
+.Nm SYSCTL_PROC ,
+.Nm SYSCTL_QUAD ,
+.Nm SYSCTL_ROOT_NODE ,
+.Nm SYSCTL_S8 ,
+.Nm SYSCTL_S16 ,
+.Nm SYSCTL_S32 ,
+.Nm SYSCTL_S64 ,
+.Nm SYSCTL_SBINTIME_MSEC ,
+.Nm SYSCTL_SBINTIME_USEC ,
+.Nm SYSCTL_STRING ,
+.Nm SYSCTL_CONST_STRING ,
+.Nm SYSCTL_STRUCT ,
+.Nm SYSCTL_U8 ,
+.Nm SYSCTL_U16 ,
+.Nm SYSCTL_U32 ,
+.Nm SYSCTL_U64 ,
+.Nm SYSCTL_UINT ,
+.Nm SYSCTL_ULONG ,
+.Nm SYSCTL_UQUAD ,
+.Nm SYSCTL_UMA_CUR ,
+.Nm SYSCTL_UMA_MAX
+.Nd Dynamic and static sysctl MIB creation functions
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/sysctl.h
+.Fn SYSCTL_DECL name
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_BOOL
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "bool *ptr"
+.Fa "uint8_t val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_COUNTER_U64
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "counter_u64_t *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_COUNTER_U64_ARRAY
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "counter_u64_t *ptr"
+.Fa "intmax_t len"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_INT
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "int *ptr"
+.Fa "int val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_LONG
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "long *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_NODE
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "int (*handler)(SYSCTL_HANDLER_ARGS)"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_NODE_WITH_LABEL
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "int (*handler)(SYSCTL_HANDLER_ARGS)"
+.Fa "const char *descr"
+.Fa "const char *label"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_OPAQUE
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "void *ptr"
+.Fa "intptr_t len"
+.Fa "const char *format"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_PROC
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "void *arg1"
+.Fa "intptr_t arg2"
+.Fa "int (*handler) (SYSCTL_HANDLER_ARGS)"
+.Fa "const char *format"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_QUAD
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "int64_t *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_ROOT_NODE
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "int (*handler)(SYSCTL_HANDLER_ARGS)"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_S8
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "int8_t *ptr"
+.Fa "int8_t val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_S16
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "int16_t *ptr"
+.Fa "int16_t val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_S32
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "int32_t *ptr"
+.Fa "int32_t val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_S64
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "int64_t *ptr"
+.Fa "int64_t val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_SBINTIME_MSEC
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "sbintime_t *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_SBINTIME_USEC
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "sbintime_t *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_STRING
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "char *ptr"
+.Fa "intptr_t len"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_CONST_STRING
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "const char *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_STRUCT
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "void *ptr"
+.Fa struct_type
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_U8
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "uint8_t *ptr"
+.Fa "uint8_t val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_U16
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "uint16_t *ptr"
+.Fa "uint16_t val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_U32
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "uint32_t *ptr"
+.Fa "uint32_t val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_U64
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "uint64_t *ptr"
+.Fa "uint64_t val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_UINT
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "unsigned int *ptr"
+.Fa "unsigned int val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_ULONG
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "unsigned long *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_UQUAD
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "uint64_t *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_UMA_CUR
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "uma_zone_t ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_UMA_MAX
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "uma_zone_t ptr"
+.Fa "const char *descr"
+.Fc
+.Fa "const char *descr"
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_UAUTO
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "void *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid_list *
+.Fo SYSCTL_CHILDREN
+.Fa "struct sysctl_oid *oidp"
+.Fc
+.Ft struct sysctl_oid_list *
+.Fo SYSCTL_STATIC_CHILDREN
+.Fa "struct sysctl_oid_list OID_NAME"
+.Fc
+.Ft struct sysctl_oid_list *
+.Fo SYSCTL_NODE_CHILDREN
+.Fa "parent"
+.Fa "name"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_PARENT
+.Fa "struct sysctl_oid *oid"
+.Fc
+.Fn SYSCTL_BOOL parent number name ctlflags ptr val descr
+.Fn SYSCTL_COUNTER_U64 parent number name ctlflags ptr descr
+.Fn SYSCTL_COUNTER_U64_ARRAY parent number name ctlflags ptr len descr
+.Fn SYSCTL_INT parent number name ctlflags ptr val descr
+.Fn SYSCTL_INT_WITH_LABEL parent number name ctlflags ptr val descr label
+.Fn SYSCTL_LONG parent number name ctlflags ptr val descr
+.Fn SYSCTL_NODE parent number name ctlflags handler descr
+.Fn SYSCTL_NODE_WITH_LABEL parent number name ctlflags handler descr label
+.Fn SYSCTL_OPAQUE parent number name ctlflags ptr len format descr
+.Fn SYSCTL_PROC parent number name ctlflags arg1 arg2 handler format descr
+.Fn SYSCTL_QUAD parent number name ctlflags ptr val descr
+.Fn SYSCTL_ROOT_NODE number name ctlflags handler descr
+.Fn SYSCTL_S8 parent number name ctlflags ptr val descr
+.Fn SYSCTL_S16 parent number name ctlflags ptr val descr
+.Fn SYSCTL_S32 parent number name ctlflags ptr val descr
+.Fn SYSCTL_S64 parent number name ctlflags ptr val descr
+.Fn SYSCTL_SBINTIME_MSEC parent number name ctlflags ptr descr
+.Fn SYSCTL_SBINTIME_USEC parent number name ctlflags ptr descr
+.Fn SYSCTL_STRING parent number name ctlflags arg len descr
+.Fn SYSCTL_CONST_STRING parent number name ctlflags arg descr
+.Fn SYSCTL_STRUCT parent number name ctlflags ptr struct_type descr
+.Fn SYSCTL_U8 parent number name ctlflags ptr val descr
+.Fn SYSCTL_U16 parent number name ctlflags ptr val descr
+.Fn SYSCTL_U32 parent number name ctlflags ptr val descr
+.Fn SYSCTL_U64 parent number name ctlflags ptr val descr
+.Fn SYSCTL_UINT parent number name ctlflags ptr val descr
+.Fn SYSCTL_ULONG parent number name ctlflags ptr val descr
+.Fn SYSCTL_UQUAD parent number name ctlflags ptr val descr
+.Fn SYSCTL_UMA_MAX parent number name ctlflags ptr descr
+.Fn SYSCTL_UMA_CUR parent number name ctlflags ptr descr
+.Sh DESCRIPTION
+The
+.Nm SYSCTL
+kernel interface allows dynamic or static creation of
+.Xr sysctl 8
+MIB entries.
+All static sysctls are automatically destroyed when the module which
+they are part of is unloaded.
+Most top level categories are created statically and are available to
+all kernel code and its modules.
+.Sh DESCRIPTION OF ARGUMENTS
+.Bl -tag -width ctlflags
+.It Fa ctx
+Pointer to sysctl context or NULL, if no context.
+See
+.Xr sysctl_ctx_init 9
+for how to create a new sysctl context.
+Programmers are strongly advised to use contexts to organize the
+dynamic OIDs which they create because when a context is destroyed all
+belonging sysctls are destroyed as well.
+This makes the sysctl cleanup code much simpler.
+Else deletion of all created OIDs is required at module unload.
+.It Fa parent
+A pointer to a
+.Li struct sysctl_oid_list ,
+which is the head of the parent's list of children.
+This pointer is retrieved using the
+.Fn SYSCTL_STATIC_CHILDREN
+macro for static sysctls and the
+.Fn SYSCTL_CHILDREN
+macro for dynamic sysctls.
+The
+.Fn SYSCTL_PARENT
+macro can be used to get the parent of an OID.
+The macro returns NULL if there is no parent.
+.It Fa number
+The OID number that will be assigned to this OID.
+In almost all cases this should be set to
+.Dv OID_AUTO ,
+which will result in the assignment of the next available OID number.
+.It Fa name
+The name of the OID.
+The newly created OID will contain a copy of the name.
+.It Fa ctlflags
+A bit mask of sysctl control flags.
+See the section below describing all the control flags.
+.It Fa arg1
+First callback argument for procedure sysctls.
+.It Fa arg2
+Second callback argument for procedure sysctls.
+.It Fa len
+The length of the data pointed to by the
+.Fa ptr
+argument.
+For string type OIDs a length of zero means that
+.Xr strlen 3
+will be used to get the length of the string at each access to the OID.
+For array type OIDs the length must be greater than zero.
+.It Fa ptr
+Pointer to sysctl variable or string data.
+For sysctl values the pointer can be SYSCTL_NULL_XXX_PTR which means the OID is read-only and the returned value should be taken from the
+.Fa val
+argument.
+.It Fa val
+If the
+.Fa ptr
+argument is SYSCTL_NULL_XXX_PTR, gives the constant value returned by this OID.
+Else this argument is not used.
+.It Fa struct_type
+Name of structure type.
+.It Fa handler
+A pointer to the function
+that is responsible for handling read and write requests
+to this OID.
+There are several standard handlers
+that support operations on nodes,
+integers, strings and opaque objects.
+It is possible to define custom handlers using the
+.Fn SYSCTL_PROC
+macro or the
+.Fn SYSCTL_ADD_PROC
+function.
+.It Fa format
+A pointer to a string
+which specifies the format of the OID in a symbolic way.
+This format is used as a hint by
+.Xr sysctl 8
+to apply proper data formatting for display purposes.
+.Pp
+Current formats:
+.Bl -tag -width "S,TYPE" -compact -offset indent
+.It Cm N
+node
+.It Cm A
+.Li "char *"
+.It Cm I
+.Li "int"
+.It Cm IK Ns Op Ar n
+temperature in Kelvin, multiplied by an optional single digit
+power of ten scaling factor: 1 (default) gives deciKelvin, 0 gives Kelvin, 3
+gives milliKelvin
+.It Cm IU
+.Li "unsigned int"
+.It Cm L
+.Li "long"
+.It Cm LU
+.Li "unsigned long"
+.It Cm Q
+.Li "quad_t"
+.It Cm QU
+.Li "u_quad_t"
+.It Cm "S,TYPE"
+.Li "struct TYPE"
+structures
+.El
+.It Fa descr
+A pointer to a textual description of the OID.
+.It Fa label
+A pointer to an aggregation label for this component of the OID.
+To make it easier to export sysctl data to monitoring systems that
+support aggregations through labels (e.g., Prometheus),
+this argument can be used to attach a label name to an OID.
+The label acts as a hint that this component's name should not be part
+of the metric's name,
+but attached to the metric as a label instead.
+.Pp
+Labels should only be applied to siblings that are structurally similar
+and encode the same type of value,
+as aggregation is of no use otherwise.
+.El
+.Sh CREATING ROOT NODES
+Sysctl MIBs or OIDs are created in a hierarchical tree.
+The nodes at the bottom of the tree are called root nodes, and have no
+parent OID.
+To create bottom tree nodes the
+.Fn SYSCTL_ROOT_NODE
+macro or the
+.Fn SYSCTL_ADD_ROOT_NODE
+function needs to be used.
+By default all static sysctl node OIDs are global and need a
+.Fn SYSCTL_DECL
+statement prior to their
+.Fn SYSCTL_NODE
+definition statement, typically in a so-called header file.
+.Sh CREATING SYSCTL STRINGS
+Zero terminated character strings sysctls are created either using the
+.Fn SYSCTL_STRING
+macro or the
+.Fn SYSCTL_ADD_STRING
+function.
+If the
+.Fa len
+argument in zero, the string length is computed at every access to the OID using
+.Xr strlen 3 .
+Use the
+.Fn SYSCTL_CONST_STRING
+macro or the
+.Fn SYSCTL_ADD_CONST_STRING
+function to add a sysctl for a constant string.
+.Sh CREATING OPAQUE SYSCTLS
+The
+.Fn SYSCTL_OPAQUE
+or
+.Fn SYSCTL_STRUCT
+macros or the
+.Fn SYSCTL_ADD_OPAQUE
+or
+.Fn SYSCTL_ADD_STRUCT
+functions create an OID that handle any chunk of data
+of the size specified by the
+.Fa len
+argument and data pointed to by the
+.Fa ptr
+argument.
+When using the structure version the type is encoded as part of the
+created sysctl.
+.Sh CREATING CUSTOM SYSCTLS
+The
+.Fn SYSCTL_PROC
+macro and the
+.Fn SYSCTL_ADD_PROC
+function
+create OIDs with the specified
+.Pa handler
+function.
+The handler is responsible for handling all read and write requests to
+the OID.
+This OID type is especially useful if the kernel data is not easily
+accessible, or needs to be processed before exporting.
+.Sh CREATING A STATIC SYSCTL
+Static sysctls are declared using one of the
+.Fn SYSCTL_BOOL ,
+.Fn SYSCTL_COUNTER_U64 ,
+.Fn SYSCTL_COUNTER_U64_ARRAY ,
+.Fn SYSCTL_INT ,
+.Fn SYSCTL_INT_WITH_LABEL ,
+.Fn SYSCTL_LONG ,
+.Fn SYSCTL_NODE ,
+.Fn SYSCTL_NODE_WITH_LABEL ,
+.Fn SYSCTL_OPAQUE ,
+.Fn SYSCTL_PROC ,
+.Fn SYSCTL_QUAD ,
+.Fn SYSCTL_ROOT_NODE ,
+.Fn SYSCTL_S8 ,
+.Fn SYSCTL_S16 ,
+.Fn SYSCTL_S32 ,
+.Fn SYSCTL_S64 ,
+.Fn SYSCTL_SBINTIME_MSEC ,
+.Fn SYSCTL_SBINTIME_USEC ,
+.Fn SYSCTL_STRING ,
+.Fn SYSCTL_CONST_STRING ,
+.Fn SYSCTL_STRUCT ,
+.Fn SYSCTL_U8 ,
+.Fn SYSCTL_U16 ,
+.Fn SYSCTL_U32 ,
+.Fn SYSCTL_U64 ,
+.Fn SYSCTL_UINT ,
+.Fn SYSCTL_ULONG ,
+.Fn SYSCTL_UQUAD ,
+.Fn SYSCTL_UMA_CUR
+or
+.Fn SYSCTL_UMA_MAX
+macros.
+.Sh CREATING A DYNAMIC SYSCTL
+Dynamic nodes are created using one of the
+.Fn SYSCTL_ADD_BOOL ,
+.Fn SYSCTL_ADD_COUNTER_U64 ,
+.Fn SYSCTL_ADD_COUNTER_U64_ARRAY ,
+.Fn SYSCTL_ADD_INT ,
+.Fn SYSCTL_ADD_LONG ,
+.Fn SYSCTL_ADD_NODE ,
+.Fn SYSCTL_ADD_NODE_WITH_LABEL ,
+.Fn SYSCTL_ADD_OPAQUE ,
+.Fn SYSCTL_ADD_PROC ,
+.Fn SYSCTL_ADD_QUAD ,
+.Fn SYSCTL_ADD_ROOT_NODE ,
+.Fn SYSCTL_ADD_S8 ,
+.Fn SYSCTL_ADD_S16 ,
+.Fn SYSCTL_ADD_S32 ,
+.Fn SYSCTL_ADD_S64 ,
+.Fn SYSCTL_ADD_SBINTIME_MSEC ,
+.Fn SYSCTL_ADD_SBINTIME_USEC ,
+.Fn SYSCTL_ADD_STRING ,
+.Fn SYSCTL_ADD_CONST_STRING ,
+.Fn SYSCTL_ADD_STRUCT ,
+.Fn SYSCTL_ADD_U8 ,
+.Fn SYSCTL_ADD_U16 ,
+.Fn SYSCTL_ADD_U32 ,
+.Fn SYSCTL_ADD_U64 ,
+.Fn SYSCTL_ADD_UAUTO ,
+.Fn SYSCTL_ADD_UINT ,
+.Fn SYSCTL_ADD_ULONG ,
+.Fn SYSCTL_ADD_UQUAD ,
+.Fn SYSCTL_ADD_UMA_CUR
+or
+.Fn SYSCTL_ADD_UMA_MAX
+functions.
+See
+.Xr sysctl_remove_oid 9
+or
+.Xr sysctl_ctx_free 9
+for more information on how to destroy a dynamically created OID.
+.Sh CONTROL FLAGS
+For most of the above functions and macros, declaring a type as part
+of the access flags is not necessary \[em] however, when declaring a
+sysctl implemented by a function, including a type in the access mask
+is required:
+.Bl -tag -width ".Dv CTLTYPE_NOFETCH"
+.It Dv CTLTYPE_NODE
+This is a node intended to be a parent for other nodes.
+.It Dv CTLTYPE_INT
+This is a signed integer.
+.It Dv CTLTYPE_STRING
+This is a nul-terminated string stored in a character array.
+.It Dv CTLTYPE_S8
+This is an 8-bit signed integer.
+.It Dv CTLTYPE_S16
+This is a 16-bit signed integer.
+.It Dv CTLTYPE_S32
+This is a 32-bit signed integer.
+.It Dv CTLTYPE_S64
+This is a 64-bit signed integer.
+.It Dv CTLTYPE_OPAQUE
+This is an opaque data structure.
+.It Dv CTLTYPE_STRUCT
+Alias for
+.Dv CTLTYPE_OPAQUE .
+.It Dv CTLTYPE_U8
+This is an 8-bit unsigned integer.
+.It Dv CTLTYPE_U16
+This is a 16-bit unsigned integer.
+.It Dv CTLTYPE_U32
+This is a 32-bit unsigned integer.
+.It Dv CTLTYPE_U64
+This is a 64-bit unsigned integer.
+.It Dv CTLTYPE_UINT
+This is an unsigned integer.
+.It Dv CTLTYPE_LONG
+This is a signed long.
+.It Dv CTLTYPE_ULONG
+This is an unsigned long.
+.El
+.Pp
+All sysctl types except for new node declarations require one of the following
+flags to be set indicating the read and write disposition of the sysctl:
+.Bl -tag -width ".Dv CTLFLAG_ANYBODY"
+.It Dv CTLFLAG_RD
+This is a read-only sysctl.
+.It Dv CTLFLAG_RDTUN
+This is a read-only sysctl and tunable which is tried fetched once
+from the system environment early during module load or system boot.
+.It Dv CTLFLAG_WR
+This is a writable sysctl.
+.It Dv CTLFLAG_RW
+This sysctl is readable and writable.
+.It Dv CTLFLAG_RWTUN
+This is a readable and writeable sysctl and tunable which is tried
+fetched once from the system environment early during module load or
+system boot.
+.It Dv CTLFLAG_NOFETCH
+In case the node is marked as a tunable using the CTLFLAG_[XX]TUN,
+this flag will prevent fetching the initial value from the system
+environment.
+Typically this flag should only be used for very early
+low level system setup code, and not by common drivers and modules.
+.It Dv CTLFLAG_MPSAFE
+This
+.Xr sysctl 9
+handler is MP safe.
+Do not grab Giant around calls to this handler.
+This should only be used for
+.Fn SYSCTL_PROC
+entries.
+.El
+.Pp
+Additionally, any of the following optional flags may also be specified:
+.Bl -tag -width ".Dv CTLFLAG_ANYBODY"
+.It Dv CTLFLAG_ANYBODY
+Any user or process can write to this sysctl.
+.It Dv CTLFLAG_CAPRD
+A process in capability mode can read from this sysctl.
+.It Dv CTLFLAG_CAPWR
+A process in capability mode can write to this sysctl.
+.It Dv CTLFLAG_SECURE
+This sysctl can be written to only if the effective securelevel of the
+process is \[<=] 0.
+.It Dv CTLFLAG_PRISON
+This sysctl can be written to by processes in
+.Xr jail 2 .
+.It Dv CTLFLAG_SKIP
+When iterating the sysctl name space, do not list this sysctl.
+.It Dv CTLFLAG_TUN
+Advisory flag that a system tunable also exists for this variable.
+The initial sysctl value is tried fetched once from the system
+environment early during module load or system boot.
+.It Dv CTLFLAG_DYN
+Dynamically created OIDs automatically get this flag set.
+.It Dv CTLFLAG_VNET
+OID references a VIMAGE-enabled variable.
+.El
+.Sh EXAMPLES
+Sample use of
+.Fn SYSCTL_DECL
+to declare the
+.Va security
+sysctl tree for use by new nodes:
+.Bd -literal -offset indent
+SYSCTL_DECL(_security);
+.Ed
+.Pp
+Examples of integer, opaque, string, and procedure sysctls follow:
+.Bd -literal -offset indent
+/*
+ * Example of a constant integer value.  Notice that the control
+ * flags are CTLFLAG_RD, the variable pointer is SYSCTL_NULL_INT_PTR,
+ * and the value is declared.
+ */
+SYSCTL_INT(_debug_sizeof, OID_AUTO, bio, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
+    sizeof(struct bio), "sizeof(struct bio)");
+
+/*
+ * Example of a variable integer value.  Notice that the control
+ * flags are CTLFLAG_RW, the variable pointer is set, and the
+ * value is 0.
+ */
+static int	doingcache = 1;		/* 1 => enable the cache */
+SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0,
+    "Enable name cache");
+
+/*
+ * Example of a variable string value.  Notice that the control
+ * flags are CTLFLAG_RW, that the variable pointer and string
+ * size are set.  Unlike newer sysctls, this older sysctl uses a
+ * static oid number.
+ */
+char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
+SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile, CTLFLAG_RW,
+    kernelname, sizeof(kernelname), "Name of kernel file booted");
+
+/*
+ * Example of an opaque data type exported by sysctl.  Notice that
+ * the variable pointer and size are provided, as well as a format
+ * string for sysctl(8).
+ */
+static l_fp pps_freq;	/* scaled frequency offset (ns/s) */
+SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD,
+    &pps_freq, sizeof(pps_freq), "I", "");
+
+/*
+ * Example of a procedure based sysctl exporting string
+ * information.  Notice that the data type is declared, the NULL
+ * variable pointer and 0 size, the function pointer, and the
+ * format string for sysctl(8).
+ */
+SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING |
+    CTLFLAG_RW, NULL, 0, sysctl_kern_timecounter_hardware, "A",
+    "");
+.Ed
+.Pp
+The following is an example of
+how to create a new top-level category
+and how to hook up another subtree to an existing static node.
+This example does not use contexts,
+which results in tedious management of all intermediate oids,
+as they need to be freed later on:
+.Bd -literal -offset indent
+#include <sys/sysctl.h>
+ ...
+/*
+ * Need to preserve pointers to newly created subtrees,
+ * to be able to free them later:
+ */
+static struct sysctl_oid *root1;
+static struct sysctl_oid *root2;
+static struct sysctl_oid *oidp;
+static int a_int;
+static char *string = "dynamic sysctl";
+ ...
+
+root1 = SYSCTL_ADD_ROOT_NODE(NULL,
+	OID_AUTO, "newtree", CTLFLAG_RW, 0, "new top level tree");
+oidp = SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(root1),
+	OID_AUTO, "newint", CTLFLAG_RW, &a_int, 0, "new int leaf");
+ ...
+root2 = SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_debug),
+	OID_AUTO, "newtree", CTLFLAG_RW, 0, "new tree under debug");
+oidp = SYSCTL_ADD_STRING(NULL, SYSCTL_CHILDREN(root2),
+	OID_AUTO, "newstring", CTLFLAG_RD, string, 0, "new string leaf");
+.Ed
+.Pp
+This example creates the following subtrees:
+.Bd -literal -offset indent
+debug.newtree.newstring
+newtree.newint
+.Ed
+.Pp
+.Em "Care should be taken to free all OIDs once they are no longer needed!"
+.Sh SYSCTL NAMING
+When adding, modifying, or removing sysctl names, it is important to be
+aware that these interfaces may be used by users, libraries, applications,
+or documentation (such as published books), and are implicitly published application interfaces.
+As with other application interfaces, caution must be taken not to break
+existing applications, and to think about future use of new name spaces so as
+to avoid the need to rename or remove interfaces that might be depended on in
+the future.
+.Pp
+The semantics chosen for a new sysctl should be as clear as possible,
+and the name of the sysctl must closely reflect its semantics.
+Therefore the sysctl name deserves a fair amount of consideration.
+It should be short but yet representative of the sysctl meaning.
+If the name consists of several words, they should be separated by
+underscore characters, as in
+.Va compute_summary_at_mount .
+Underscore characters may be omitted only if the name consists of not more
+than two words, each being not longer than four characters, as in
+.Va bootfile .
+For boolean sysctls, negative logic should be totally avoided.
+That is, do not use names like
+.Va no_foobar
+or
+.Va foobar_disable .
+They are confusing and lead to configuration errors.
+Use positive logic instead:
+.Va foobar ,
+.Va foobar_enable .
+.Pp
+A temporary sysctl node OID that should not be relied upon must be designated
+as such by a leading underscore character in its name.
+For example:
+.Va _dirty_hack .
+.Sh SEE ALSO
+.Xr sysctl 3 ,
+.Xr sysctl 8 ,
+.Xr sysctl_add_oid 9 ,
+.Xr sysctl_ctx_free 9 ,
+.Xr sysctl_ctx_init 9 ,
+.Xr sysctl_remove_oid 9
+.Sh HISTORY
+The
+.Xr sysctl 8
+utility first appeared in
+.Bx 4.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm sysctl
+implementation originally found in
+.Bx
+has been extensively rewritten by
+.An Poul-Henning Kamp
+in order to add support for name lookups, name space iteration, and dynamic
+addition of MIB nodes.
+.Pp
+This man page was written by
+.An Robert N. M. Watson .
+.Sh SECURITY CONSIDERATIONS
+When creating new sysctls, careful attention should be paid to the security
+implications of the monitoring or management interface being created.
+Most sysctls present in the kernel are read-only or writable only by the
+superuser.
+Sysctls exporting extensive information on system data structures and
+operation, especially those implemented using procedures, will wish to
+implement access control to limit the undesired exposure of information about
+other processes, network connections, etc.
+.Pp
+The following top level sysctl name spaces are commonly used:
+.Bl -tag -width ".Va regression"
+.It Va compat
+Compatibility layer information.
+.It Va debug
+Debugging information.
+Various name spaces exist under
+.Va debug .
+.It Va hw
+Hardware and device driver information.
+.It Va kern
+Kernel behavior tuning; generally deprecated in favor of more specific
+name spaces.
+.It Va machdep
+Machine-dependent configuration parameters.
+.It Va net
+Network subsystem.
+Various protocols have name spaces under
+.Va net .
+.It Va regression
+Regression test configuration and information.
+.It Va security
+Security and security-policy configuration and information.
+.It Va sysctl
+Reserved name space for the implementation of sysctl.
+.It Va user
+Configuration settings relating to user application behavior.
+Generally, configuring applications using kernel sysctls is discouraged.
+.It Va vfs
+Virtual file system configuration and information.
+.It Va vm
+Virtual memory subsystem configuration and information.
+.El

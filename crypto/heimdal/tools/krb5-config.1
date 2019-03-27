@@ -1,0 +1,88 @@
+.\" Copyright (c) 2000 - 2001 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd November 30, 2000
+.Dt KRB5-CONFIG 1
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5-config
+.Nd "give information on how to link code against Heimdal libraries"
+.Sh SYNOPSIS
+.Nm
+.Op Fl Fl prefix Ns Op = Ns Ar dir
+.Op Fl Fl exec-prefix Ns Op = Ns Ar dir
+.Op Fl Fl libs
+.Op Fl Fl cflags
+.Op Ar libraries
+.Sh DESCRIPTION
+.Nm
+tells the application programmer what special flags to use to compile
+and link programs against the libraries installed by Heimdal.
+.Pp
+Options supported:
+.Bl -tag -width Ds
+.It Fl Fl prefix Ns Op = Ns Ar dir
+Print the prefix if no
+.Ar dir
+is specified, otherwise set prefix to
+.Ar dir .
+.It Fl Fl exec-prefix Ns Op = Ns Ar dir
+Print the exec-prefix if no
+.Ar dir
+is specified, otherwise set exec-prefix to
+.Ar dir .
+.It Fl Fl libs
+Output the set of libraries that should be linked against.
+.It Fl Fl cflags
+Output the set of flags to give to the C compiler when using the
+Heimdal libraries.
+.El
+.Pp
+By default
+.Nm
+will output the set of flags and libraries to be used by a normal
+program using the krb5 API.  The user can also supply a library to be
+used, the supported ones are:
+.Bl -tag -width Ds
+.It krb5
+(the default)
+.It gssapi
+use the krb5 gssapi mechanism
+.It kadm-client
+use the client-side kadmin libraries
+.It kadm-server
+use the server-side kadmin libraries
+.El
+.Sh SEE ALSO
+.Xr cc 1
+.Sh HISTORY
+.Nm
+appeared in Heimdal 0.3d.

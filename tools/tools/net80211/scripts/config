@@ -1,0 +1,71 @@
+#
+# Common configuration settings for vap test scripts.
+#
+# $FreeBSD$
+#
+
+media_type()
+{
+	ifconfig $1 2>/dev/null | while read line; do
+		case "$line" in
+		*media:?Ethernet*)
+			echo 802.3
+			;;
+		*media:?IEEE?802.11*)
+			echo 802.11
+			;;
+		esac
+	done
+}
+
+#
+# Auto-detect WIRED and WIRELESS.
+# NB: takes first device of each type; to fix
+#     either specify them before . config.
+#
+for i in `ifconfig -l`; do
+	case `media_type $i`  in
+	802.3)
+		test -z "$WIRED" && WIRED=$i
+		;;
+	802.11)
+		test -z "$WIRELESS" && WIRELESS=$i
+		;;
+	esac
+done
+test -z "$WIRED" && { echo "No wired device detected!"; exit; }
+test -z "$WIRELESS" && { echo "No wireless device detected!"; exit; }
+
+# fixed channel
+#CHANNEL=${1:-36:a}
+#CHANNEL=${1:-36:ht/20}
+CHANNEL=${1:-36}
+#CHANNEL=${1:-6:g}
+#CHANNEL=${1:-6:b}
+
+# default WPA passphrase
+test -z "$WPA_PASSPHRASE" && WPA_PASSPHRASE='I am not a geek'
+
+# default ssid for ap vaps
+test -z "$SSID"		&& SSID=freebsd-ap
+
+# default meshid for mesh vaps
+test -z "$MESHID"	&& MESHID=freebsd-mesh
+
+# directory to create files like hostapd.conf
+test -z "$TMPDIR"	&& TMPDIR=.
+
+test -z "$HOSTAPD_CTRL_INTERFACE" && HOSTAPD_CTRL_INTERFACE=/var/run/hostapd
+
+# applications (may want ../ for wlan test apps)
+test -z "$HOSTAPD"	&& HOSTAPD=/usr/sbin/hostapd
+test -z "$WLANWATCH"	&& WLANWATCH=/usr/local/bin/wlanwatch
+test -z "$WLANWDS"	&& WLANWDS=/usr/local/bin/wlanwds
+
+start_hostapd()
+{
+	for m in wlan_xauth wlan_ccmp wlan_tkip wlan_wep; do
+		kldstat -q -m $m || kldload $m
+	done
+	$HOSTAPD $*
+}

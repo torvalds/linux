@@ -1,0 +1,155 @@
+.\" Copyright (c) March 1995 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd July 3, 2002
+.Dt KBDMAP 1
+.Os
+.Sh NAME
+.Nm kbdmap ,
+.Nm vidfont
+.Nd front end for syscons and vt
+.Sh SYNOPSIS
+.Nm
+.Op Fl K
+.Op Fl V
+.Op Fl d | default
+.Op Fl h | help
+.Op Fl l | lang Ar language
+.Op Fl p | print
+.Op Fl r | restore
+.Op Fl s | show
+.Op Fl v | verbose
+.Sh DESCRIPTION
+The
+.Nm
+utility allows easy setting of available keymaps.
+The
+.Nm vidfont
+command allows the setting of fonts.
+Both examine a database for the keymaps and fonts.
+Descriptions are in English by default, but may also be
+in other languages.
+These programs are interactive and expect to run
+in a terminal to get required input (e.g., a keymap selection)
+from the user.
+.Pp
+It is strongly recommended to not choose
+.Tn MSDOS
+codepage keymaps
+or fonts.
+Use the
+.Tn ISO
+standard version if available!
+.Tn X11
+does not
+support
+.Tn MSDOS
+codepage.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl K
+Run as command
+.Nm .
+.It Fl V
+Run as command
+.Nm vidfont .
+.It Fl d , default
+Use default language.
+Ignore
+.Ev LANG
+environment variable.
+.It Fl h , help
+Print options and exit.
+.It Fl l , lang Ar language
+Use
+.Ar language
+for description and menu.
+.It Fl p , print
+Print description of available keymaps or fonts
+to stdout and exit.
+.It Fl r , restore
+Load default font from
+.Pa /etc/rc.conf .
+.It Fl s , show
+Show currently supported languages and exit.
+.It Fl v , verbose
+More warnings.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width LANG -compact
+.It Ev LANG
+preferred language
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/syscons/keymaps/INDEX.keymaps" -compact
+.It Pa /usr/share/syscons/keymaps/INDEX.keymaps
+.It Pa /usr/share/vt/keymaps/INDEX.keymaps
+database for keymaps
+.It Pa /usr/share/syscons/fonts/INDEX.fonts
+.It Pa /usr/share/vt/fonts/INDEX.fonts
+database for fonts
+.It Pa /etc/rc.conf
+default font
+.It Pa /usr/local/share/locale/locale.alias
+describe common
+.Ev LANG
+values
+.El
+.Sh SEE ALSO
+.Xr dialog 1 ,
+.Xr kbdcontrol 1 ,
+.Xr vidcontrol 1 ,
+.Xr syscons 4 ,
+.Xr vt 4 ,
+.Xr kbdmap 5 ,
+.Xr rc.conf 5
+.Sh HISTORY
+The
+.Nm
+and
+.Nm vidfont
+commands appeared in
+.Fx 2.1 .
+.Sh AUTHORS
+.An -nosplit
+.An Wolfram Schneider Aq Mt wosch@FreeBSD.org
+wrote the original Perl version.
+The current version was rewritten in C by
+.An Jonathan Belson Aq Mt jon@witchspace.com
+for
+.Fx 5.0 .
+.Sh BUGS
+.\" .Nm kbdmap/vidfont
+.\" does not know which font is in use. E.g. if the current font
+.\" is iso-8859-1 and you chose lang 'ru' (for Russian)
+.\" you get funny latin1 characters and not russkij shrift.
+.\"
+The
+.Nm
+and
+.Nm vidfont
+utilities work only on a (virtual) console and not with
+.Tn X11 .

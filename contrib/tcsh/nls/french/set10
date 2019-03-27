@@ -1,0 +1,8 @@
+$ $tcsh: set10,v 1.3 2011/02/04 18:19:35 christos Exp $
+$ ma.setp.c
+$set 10 
+1 setpath: commande incorrecte '%s'.\n
+2 setpath: pas assez d'arguments pour la commande '%s'.\n
+3 setpath: donnée manquante dans le chemin '%s'\n
+4 setpath: %s pas trouvé dans %s\n
+5 setpath: %d pas une position correcte dans %s\n

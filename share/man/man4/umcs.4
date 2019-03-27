@@ -1,0 +1,114 @@
+.\"
+.\" Copyright (c) 2010 Lev Serebryakov <lev@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 26, 2017
+.Dt UMCS 4
+.Os
+.Sh NAME
+.Nm umcs
+.Nd USB support for serial adapters based on the MCS7820 and MCS7840 chips
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device ucom"
+.Cd "device umcs"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+umcs_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various multiport serial adapters based on the MosCom
+MCS7820 and MCS7840 chips.
+They are 2- or 4-port adapters with full-featured
+16550-compatible UARTs and very flexible baud generators.
+Also, these chips
+support RS422/RS485 and IrDA operations.
+.Pp
+The device is accessed through the
+.Xr ucom 4
+driver which makes it behave like a
+.Xr tty 4 .
+.Pp
+Different ports on device are presented as sub-units, like
+.Pa /dev/ttyU0.1
+and
+.Pa /dev/ttyU0.2 .
+.Sh HARDWARE
+The
+.Nm
+driver was tested on the following adapters:
+.Pp
+.Bl -bullet -compact
+.It
+ST Lab U-360 two-port serial USB adapter
+.It
+ST Lab U-400 four-port serial USB adapter
+.El
+.Sh FILES
+.Bl -tag -width "/dev/ttyU*.*.init" -compact
+.It Pa /dev/ttyU*.*
+for callin ports
+.It Pa /dev/ttyU*.*.init
+.It Pa /dev/ttyU*.*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*.*
+for callout ports
+.It Pa /dev/cuaU*.*.init
+.It Pa /dev/cuaU*.*.lock
+corresponding callout initial-state and lock-state devices
+.El
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in ports since December of 2010.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Lev Serebryakov Aq Mt lev@FreeBSD.org .
+.Sh BUGS
+This driver doesn't support access to any fine tunes of
+chip, like RS522/RS485 mode, non-standard baudrates, etc.

@@ -1,0 +1,128 @@
+.\"
+.\" Copyright (c) 2003 Mike Barcroft <mike@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 20, 2012
+.Dt JLS 8
+.Os
+.Sh NAME
+.Nm jls
+.Nd "list jails"
+.Sh SYNOPSIS
+.Nm
+.Op Fl -libxo
+.Op Fl dhNnqsv
+.Op Fl j Ar jail
+.Op Ar parameter ...
+.Sh DESCRIPTION
+The
+.Nm
+utility lists all active jails, or the specified jail.
+Each jail is represented by one row which contains space-separated values of
+the listed
+.Ar parameters ,
+including the pseudo-parameter
+.Va all
+which will show all available jail parameters.
+A list of available parameters can be retrieved via
+.Dq Nm sysctl Fl d Va security.jail.param .
+See
+.Xr jail 8
+for a description of some core parameters.
+.Pp
+If no
+.Ar parameters
+or any of the options
+.Fl hns
+are given, the following four columns will be printed:
+jail identifier (jid), IP address (ip4.addr), hostname (host.hostname),
+and path (path).
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
+.It Fl d
+List
+.Va dying
+as well as active jails.
+.It Fl h
+Print a header line containing the parameters listed.
+If no parameters are given on the command line,
+.Va all
+is assumed.
+.It Fl N
+In the standard display mode, print each jail's name instead of its
+numeric ID.
+If the jail does not have a name, the numeric ID is printed instead.
+.It Fl n
+Print parameters in
+.Dq name=value
+format, where each parameter is preceded by its name.
+If no parameters are given on the command line,
+.Va all
+is assumed.
+.It Fl q
+Put quotes around parameters if they contain spaces or quotes, or are
+the empty string.
+.It Fl s
+Print parameters suitable for passing to
+.Xr jail 8 ,
+skipping read-only and unused parameters.
+Implies
+.Fl nq .
+.It Fl v
+Extend the standard display with a multiple-line summary per jail,
+containing the following parameters:
+jail identifier (jid), hostname (host.hostname), path (path),
+jail name (name), jail state (dying), cpuset ID (cpuset),
+IP address(es) (ip4.addr and ip6.addr).
+.It Fl j Ar jail
+The jid or name of the
+.Ar jail
+to list.
+Without this option, all active jails will be listed.
+.El
+.Sh SEE ALSO
+.Xr jail_get 2 ,
+.Xr libxo 3 ,
+.Xr xo_parse_args 3 ,
+.Xr jail 8 ,
+.Xr jexec 8
+.Sh HISTORY
+The
+.Nm
+utility was added in
+.Fx 5.1 .
+Extensible jail parameters were introduced in
+.Fx 8.0 .
+libxo support was added in
+.Fx 11.0 .

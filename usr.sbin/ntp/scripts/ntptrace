@@ -1,0 +1,62 @@
+#! /usr/local/bin/perl -w
+#
+# $FreeBSD$
+
+# John Hay -- John.Hay@icomtek.csir.co.za / jhay@FreeBSD.org
+
+use Socket;
+use Getopt::Std;
+use vars qw($opt_n);
+
+$ntpq = "ntpq";
+
+getopts('n');
+
+$dodns = 1;
+$dodns = 0 if (defined($opt_n));
+
+$host = shift;
+$host ||= "127.0.0.1";
+
+for (;;) {
+	$stratum = 255;
+	$cmd = "$ntpq -n -c rv $host";
+	open(PH, $cmd . "|") || die "failed to start command $cmd: $!";
+	while (<PH>) {
+		$stratum = $1 if (/stratum=(\d+)/);
+		$peer = $1 if (/peer=(\d+)/);
+		# Very old servers report phase and not offset.
+		$offset = $1 if (/(?:offset|phase)=([^\s,]+)/);
+		$rootdelay = $1 if (/rootdelay=([^\s,]+)/);
+		$refid = $1 if (/refid=([^\s,]+)/);
+	}
+	close(PH) || die "$cmd failed";
+	last if ($stratum == 255);
+	$offset /= 1000;
+	$rootdelay /= 1000;
+	$dhost = $host;
+	# Only do lookups of IPv4 addresses. The standard lookup functions
+	# of perl only do IPv4 and I don't know if we should require extras.
+	if ($dodns && $host =~ /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/) {
+		$iaddr = inet_aton($host);
+		$name = (gethostbyaddr($iaddr, AF_INET))[0];
+		$dhost = $name if (defined($name));
+	}
+	printf("%s: stratum %d, offset %f, root distance %f",
+	    $dhost, $stratum, $offset, $rootdelay);
+	printf(", refid '%s'", $refid) if ($stratum == 1);
+	printf("\n");
+	last if ($stratum == 0 || $stratum == 1 || $stratum == 16);
+	last if ($refid =~ /^127\.127\.\d{1,3}\.\d{1,3}$/);
+
+	$cmd = "$ntpq -n -c \"pstat $peer\" $host";
+	open(PH, $cmd . "|") || die "failed to start command $cmd: $!";
+	$thost = "";
+	while (<PH>) {
+		$thost = $1, last if (/srcadr=(\S+),/);
+	}
+	close(PH) || die "$cmd failed";
+	last if ($thost eq "");
+	$host = $thost;
+}
+

@@ -1,0 +1,57 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=windows-1252">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Building and Installing the Distribution</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>Building and Installing the Distribution</h3>
+<img src="pic/beaver.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html">from <i>Pogo</i>, Walt Kelly</a>
+<p>For putting out compiler fires.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->1-Apr-2015  02:57<!-- #EndDate -->
+</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/install.txt"></script>
+<h4>Table of Contents</h4>
+<ul>
+  <li class="inline"><a href="#build">Building and Installing the Distribution</a></li>
+  <li class="inline"><a href="#unix">Building and Installing for Unix</a></li>
+  <li class="inline"><a href="#win">Building and Installing for Windows</a></li>
+  <li class="inline"><a href="#conf">Configuration</a></li>
+  <li class="inline"><a href="#prob">If You Have Problems</a></li>
+  <li class="inline"><a href="#make">Additional <tt>make</tt> Commands</a></li>
+</ul>
+<hr>
+<h4 id="build">Building and Installing the Distribution</h4>
+<p>It is not possible in a software distribution such as this to support every individual computer and operating system with a common executable, even with the same system but different versions and options. Therefore, it is necessary to configure, build and install for each system and version. In almost all cases, these procedures are completely automatic, The user types <tt>./configure</tt>, and <tt>make install</tt> in that order and the autoconfigure system does the rest. There are some exceptions, as noted below and on the <a href="hints.html">Hints and Kinks</a> pages.</p>
+<p>If available, the OpenSSL library from <a href="http://www.openssl.org">http://www.openssl.org</a> is used to support public key cryptography. The library must be built and installed prior to building NTP. The procedures for doing that are included in the OpenSSL documentation. The library is found during the normal NTP configure phase and the interface routines compiled automatically. Only the <tt>libcrypto.a</tt> library file and <tt>openssl</tt> header files are needed. If the library is not available or disabled, this step is not required.</p>
+<p>The <a href="config.html">Build Options</a> page describes a number of options that determine whether debug support is included, whether and which reference clock drivers are included and the locations of the executables and library files, if not the default. By default debugging options and all reference clock drivers are included.</p>
+<h4 id="unix">Building and Installing for Unix</h4>
+<p>This distribution uses common compilers and tools that come with most Unix distributions. Not all of these tools exist in the standard distribution of modern Unix versions (compilers are likely to be an add-on product). If this is the case, consider using the GNU tools and <tt>gcc</tt> compiler included as freeware in some systems. For a successful build, all of these tools should be accessible via the current path.</p>
+<p>The first thing to do is uncompress the distribution and extract the source tree. In the distribution base directory use the <tt>./configure </tt>command to perform an automatic configuration procedure. This command inspects the hardware and software environment and configures the build process accordingly. Use the <tt>make</tt> command to compile and link the distribution and the <tt>install</tt> command to install the executables by default in <tt>/usr/local/bin</tt>.</p>
+<p>If your site supports multiple architectures and uses NFS to share files, you can use a single source tree to build executables for multiple architectures. While running on a particular architecture, change to the base directory and create a subdirectory using a command like <tt>mkdir A.machine, </tt>which will create an architecture-specific directory, then change to this directory and mumble <tt>../configure</tt>. The remaining steps are the same whether building in the base directory or in the subdirectory.</p>
+<h4 id="win">Building and Installing for Windows</h4>
+<p>NTP supports Windows 2000 and later. See the <a href="hints/winnt.html">NTP 4.x for Windows NT</a> page for directions to compile the sources and install the executables. A precompiled executable is available.</p>
+<h4 id="conf">Configuration</h4>
+<p>You are now ready to configure the daemon. You will need to create a NTP configuration file by default in <tt>/etc/ntp.conf.</tt> Newbies should see the <a href="quick.html">Quick Start</a> page for orientation. Seasoned veterans can start with the <a href="ntpd.html"><tt>ntpd</tt> - Network Time Protocol (NTP) daemon</a> page and move on to the specific configuration option pages from there.</p>
+<h4 id="prob">If You Have Problems</h4>
+<p>If you have problems with your hardware and software environment (e.g. operating system-specific issues), browse the <a href="hints.html">Hints and Kinks</a> pages. For other problems a tutorial on debugging technique is in the <a href="debug.html">NTP Debugging Technique</a> page. A list of important system log messages is on the <a href="msyslog.html"><tt>ntpd</tt> System Log Messages</a> page.</p>
+<p>The first line of general assistance is the NTP web site <a href="http://www.ntp.org">www.ntp.org</a> and the helpful documents resident there. Requests for assistance of a general nature and of interest to other timekeepers should be sent to the NTP newsgroup comp.protocols.time.ntp.</p>
+<p>Users are invited to report bugs and offer suggestions via the <a href="bugs.html">NTP Bug Reporting Procedures</a> page.</p>
+<h4 id="make">Additional <tt>make</tt> commands</h4>
+<dl>
+  <dt><tt>make clean</tt></dt>
+  <dd>Cleans out object files, programs and temporary files.</dd>
+  <dt><tt>make distclean</tt></dt>
+  <dd>Does the work of <tt>clean</tt>, but cleans out all directories in preparation for a new distribution release.</dd>
+  <dt><tt>make dist</tt></dt>
+  <dd>Does the work of <tt>make distclean</tt>, but constructs compressed tar files for distribution. You must have GNU automake to perform this function.</dd>
+</dl>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

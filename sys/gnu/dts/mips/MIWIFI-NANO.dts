@@ -1,0 +1,88 @@
+/dts-v1/;
+
+#include "mt7628an.dtsi"
+
+/ {
+	compatible = "xiaomi,MiWifi Nano", "mediatek,mt7628an-soc";
+	model = "MiWiFi Nano";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x4000000>;
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		wifi {
+			label = "miwifi-nano:blue:wifi";
+			gpios = <&gpio0 11 1>;
+			default-state = "1";
+		};
+		status {
+			label = "miwifi-nano:red:status";
+			gpios = <&gpio1 5 1>;
+			default-state = "on";
+		};
+		radio {
+			label = "miwifi-nano:amber:radio";
+			gpios = <&gpio1 12 1>;
+			default-state = "1";
+
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "refclk", "wled", "gpio";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&wmac {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80";
+		spi-max-frequency = <10000000>;
+		m25p,chunked-io = <32>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x7b0000>;
+		};
+	};
+};

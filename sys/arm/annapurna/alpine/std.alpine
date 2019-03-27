@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+cpu		CPU_CORTEXA
+machine 	arm armv7
+makeoptions	CONF_CFLAGS="-march=armv7a -DAL_HAVE_TYPES"
+
+makeoptions	KERNVIRTADDR=0xa0200000
+options 	KERNVIRTADDR=0xa0200000
+
+makeoptions	KERNBASE=0xa0000000
+options 	KERNBASE=0xa0000000
+
+files		"../annapurna/alpine/files.alpine"

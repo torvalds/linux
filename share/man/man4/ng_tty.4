@@ -1,0 +1,129 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_tty.8,v 1.5 1999/01/25 23:46:28 archie Exp $
+.\"
+.Dd December 25, 2008
+.Dt NG_TTY 4
+.Os
+.Sh NAME
+.Nm ng_tty
+.Nd netgraph node type that is also a TTY hook
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/ttycom.h
+.In netgraph/ng_tty.h
+.Sh DESCRIPTION
+The
+.Nm tty
+node type is both a netgraph node type and a TTY hook.
+.Pp
+The node has a single hook called
+.Dv hook .
+Incoming bytes received on the tty device are sent out on this hook,
+and frames received on
+.Dv hook
+are transmitted out on the tty device.
+No modification to the data is performed in either direction.
+While the hook is installed on a tty, the normal read and write
+operations are unavailable, returning
+.Er EIO .
+.Pp
+Incoming data is delivered directly to ng_tty via the tty bypass hook as a
+buffer pointer and length, this is converted to a mbuf and passed to the peer.
+.Pp
+The node supports an optional
+.Dq hot character .
+If the driver can not deliver data directly to the tty bypass hook then each
+character is input one at a time.
+If set to non-zero and bypass mode is unavailable, incoming
+data from the tty device is queued until this character is seen.
+This avoids sending lots of mbufs containing a small number of bytes,
+but introduces potentially infinite latency.
+The default hot character is 0x7e, consistent with
+.Dv hook
+being connected to a
+.Xr ng_async 4
+type node.
+The hot character has no effect on the transmission of data.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va hook"
+.It Va hook
+.Xr tty 4
+serial data contained in
+.Dv mbuf
+structures, with arbitrary inter-frame boundaries.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_TTY_SET_HOTCHAR
+This command takes an integer argument and sets the hot character
+from the lower 8 bits.
+A hot character of zero disables queueing,
+so that all received data is forwarded immediately.
+.It Dv NGM_TTY_GET_HOTCHAR
+Returns an integer containing the current hot character in the lower
+eight bits.
+.It Dv NGM_TTY_SET_TTY
+This command takes integer process ID and file descriptor of open tty
+and registers the tty hooks.
+.El
+.Sh SHUTDOWN
+This node shuts down when the corresponding device is closed.
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr netgraph 4 ,
+.Xr ng_async 4 ,
+.Xr tty 4 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Archie Cobbs Aq Mt archie@FreeBSD.org
+.An Andrew Thompson Aq Mt thompsa@FreeBSD.org
+.Sh BUGS
+The serial driver code also has a notion of a
+.Dq hot character .
+Unfortunately, this value is statically defined in terms of the
+line discipline and cannot be changed.
+Therefore, if a hot character other than 0x7e (the default) is set for the
+.Nm
+node, the node has no way to convey this information to the
+serial driver, and sub-optimal performance may result.

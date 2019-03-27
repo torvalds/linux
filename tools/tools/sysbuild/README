@@ -1,0 +1,152 @@
+$FreeBSD$
+
+About sysbuild.sh
+=================
+
+I have been running -current on my laptop since before FreeBSD 2.0 was
+released and along the way developed this little trick to making the
+task easier.
+
+sysbuild.sh is a way to build a new FreeBSD system on a computer from
+a specification, while leaving the current installation intact.
+
+sysbuild.sh assume you have two partitions that can hold your rootfs
+and can be booted, and roughly speaking, all it does is build a new
+system into the one you don't use, from the one you do use.
+
+A partition named /freebsd is assumed to be part of your layout, and
+that is where the sources and ports will be found.
+
+If you know how nanobsd works, you will find a lot of similarity.
+
+HOWTO
+=====
+
+In all likelihood, it is easier if we imagine you start with a blank
+computer.
+
+Grab a FreeBSD install ISO and boot it.
+
+Create four disk slices:
+
+	ad0s1 = 5GB
+	ad0s2 = 5GB
+	ad0s3 = 5GB
+	ad0s4 = the rest
+
+Create a root filesystem in s1a filling the entire ad0s1 slice.
+
+Create a swap partition, if you want one, in ad0s4b.
+
+Install the boot0 bootmanager.
+
+Install the "Minimal" FreeBSD system into ad0s1a.
+
+Reboot from the newly installed system.
+
+Run these commands to set up the other partitions sysbuild.sh cares about:
+
+	# /freebsd filesystem
+	newfs -b 4096 -f 512 -O2 -U /dev/ad0s3
+	echo "/dev/ad0s3 /freebsd ufs rw 2 2" >> /etc/fstab
+	mkdir /freebsd
+	mount /freebsd
+
+	# deputy rootfilesystem
+	bsdlabel -B -w /dev/ad0s2
+	newfs -O2 -U /dev/ad0s2a
+
+Next, install ports and sources:
+
+	cd /usr
+	rm -rf ports src
+	ln -s /freebsd/src
+	ln -s /freebsd/ports
+	cd /freebsd
+	mkdir ports src packages
+
+	svn co https://svn0.us-east.FreeBSD.org/base/stable/10 src
+	svn co https://svn0.us-east.FreeBSD.org/ports/head ports
+
+And we should be ready to try a shot:
+
+	cd /root
+	cp /usr/src/tools/tools/sysbuild/sysbuild.sh .
+	sh sysbuild.sh |& tee _.sb
+
+If it succeeds, you should be able to:
+
+	boot0cfg -s 2 -v /dev/ad0
+	reboot
+
+And come up with your newly built system.
+
+	Next time you want a new system, you just run sysbuild.sh again
+	and boot slice 1 when it's done.
+
+TWEAKS
+======
+
+The sysbuild.sh script takes various parameters:
+
+	-c specfile	# configure stuff, see below.
+	-w		# skip buildworld, assume it was done earlier.
+	-k		# skip buildkernel, ---//---
+	-b		# skip both buildworld & buildkernel
+	-p		# install cached packacges if found.
+
+The specfile is a shellscript where you can override or set a number of
+shell variables and functions.
+
+A partial example:
+
+	# use a kernel different from GENERIC
+	KERNCONF=SMP
+
+	# Cache built packages, so we can use -p
+	PKG_DIR=/freebsd/packages
+
+	# Mount ports distfiles from another machine
+	REMOTEDISTFILES=fs:/rdonly/distfiles
+
+	# Fetch distfiles through a proxy
+	FTP_PROXY=http://127.0.0.1:3128/
+	HTTP_PROXY=http://127.0.0.1:3128/
+	export FTP_PROXY HTTP_PROXY
+
+	# We want these ports
+	PORTS_WE_WANT='
+		/usr/ports/archivers/unzip
+		/usr/ports/archivers/zip
+		/usr/ports/cad/linux-eagle
+		/usr/ports/comms/lrzsz
+		/usr/ports/databases/rrdtool 
+		/usr/ports/devel/subversion-freebsd
+	'
+
+	# Files to move over
+	CONFIGFILES='
+		/root/.ssh
+		/etc/X11/xorg.conf
+		/etc/ssh/ssh_host*
+		/etc/rc.conf
+		/etc/rc.local
+	'
+
+	# Shell functions to tweak things
+	# (This makes commits to /etc mostly painless)
+	final_chroot() (
+		chpass -p "\$1\$IgMjWs2L\$Nu12OCsjfiwHHj0I7TmUN1" root
+
+		pw useradd phk -u 488 -d /home/phk -c "Poul-Henning Kamp" \
+		    -G "wheel,operator,dialer" -s /bin/csh -w none
+
+		chpass -p "\$1\$VcM.9Ow8\$IcXHs0h9jsk27b8N64lOm/" phk
+
+		sed -i "" -e 's/^DS/DSorigo.freebsd.dk/' /etc/mail/sendmail.cf
+		sed -i "" -e '/console/s/^/#/' /etc/syslog.conf
+		echo "beastie_disable=YES" >> /boot/loader.conf
+		touch /root/.hushlogin
+	)
+
+

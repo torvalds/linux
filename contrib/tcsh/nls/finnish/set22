@@ -1,0 +1,17 @@
+$ $tcsh: set22,v 1.4 2011/02/04 18:19:34 christos Exp $
+$ tc.func.c
+$set 22 
+1 %S: \t on alias komennolle 
+2 \nTunnussana ei ole käyttäjän %s\n
+3 Virheellinen alias 'precmd' poistettu.\n
+4 Virheellinen alias 'cwdcmd' poistettu.\n
+5 Virheellinen alias 'beepcmd' poistettu.\n
+6 Virheellinen alias 'periodic' poistettu.\n
+7 Jäsennetään komentoriviä\n
+8 Haluatko todella tuhota kaikki tiedostot? [e/k] 
+9 Ohitetaan tiedostojen tuhoaminen!\n
+10 Komentorivi on nyt:\n
+11 Jäsennetään komentoriviä\n
+12 on yhdellä listoista\n
+13 Komentorivi on nyt:\n
+14 YyKk

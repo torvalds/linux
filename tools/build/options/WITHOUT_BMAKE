@@ -1,0 +1,8 @@
+.\" $FreeBSD$
+Set to not build and install the portable BSD make (bmake) as
+.Xr make 1
+instead of the traditional FreeBSD make.
+This build option is temporary.
+It allows developers to switch to the traditional FreeBSD make in order to
+work out any remaining kinks or issues.
+This option will be removed in due time.

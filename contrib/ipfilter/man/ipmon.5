@@ -1,0 +1,226 @@
+.\"	$FreeBSD$
+.\"
+.TH IPMON 5
+.SH NAME
+ipmon, ipmon.conf \- ipmon configuration file format
+.SH DESCRIPTION
+The
+.B ipmon.conf
+file is optionally loaded by
+.B ipmon
+when it starts.  Its primary purpose is to direct
+.B ipmon
+to do extra actions when it sees a specific log entry from the kernel.
+.PP
+A line in the
+.B ipmon.conf
+file is either a comment or a
+.B match
+line.  Each line must have a matching segment and an action segment.
+These are to the left and right of the word "do", respectively.
+A comment line is any line that starts with a #.
+.PP
+.B NOTE:
+This file differs from all other IPFilter configuration files because it
+attempts to match every line with every log record received.  It does
+.B not
+stop at the
+.B first
+match or only use the
+.B last
+match.
+.PP
+For the action segment, a
+.B match
+line can delivery output to one of three destinations:
+\fBfile\fR, \fBemail\fR or \fBcommand\fR.  For example:
+.nf
+
+match { type = ipf; } do { save("file:///var/log/ipf-log"); };
+match { type = nat; } do { syslog; };
+match { type = state; } do { execute("/bin/mail root"); };
+.fi
+.PP
+and is roughly described like this:
+.PP
+match { \fImatch-it ,match-it, ...\fP } do { \fIaction, action, ...\fP};
+.PP
+where there can be a list of matching expressions and a list of actions
+to perform if all of the matching expressions are matched up with by
+the current log entry.
+.PP
+The lines above would save all ipf log entries to /var/log/ipf-log, send
+all of the entries for NAT (ipnat related) to syslog and generate an email
+to root for each log entry from the state tables.
+.SH SYNTAX - MATCHING
+.PP
+In the above example, the matching segment was confined to matching on
+the type of log entry generated.  The full list of fields that can be
+used here is:
+.TP
+direction <in|out>
+This option is used to match on log records generated for packets going
+in or out.
+.TP
+dstip <address/mask>
+This option is used to match against the destination address associated
+with the packet being logged.  A "/mask" must be given and given in CIDR
+notation (/0-/32) so to specify host 192.2.2.1, 192.2.2.1/32 must be given.
+.TP
+dstport <portnumber>
+This option is used to match against the destination port in log entries.
+A number must be given, symbolic names (such as those from /etc/services)
+are not recognised by the parser.
+.TP
+every <second|# seconds|packet|# packets>
+This option is used to regulate how often an \fBipmon.conf\fR entry is
+actioned in response to an otherwise matching log record from the kernel.
+.TP
+group <name|number>
+.TP
+interface <interface-name>
+This option is used to match against the network interface name associated
+with the action causing the logging to happen.  In general this will be the
+network interface where the packet is seen by IPFilter.
+.TP
+logtag <number>
+This option is used to match against tags set by ipf rules in \fBipf.conf\fR.
+These tags are set with "set-tag(log=100)" appended to filter rules.
+.TP
+nattag <string>
+This option is used to match against tags set by NAT rules in \fBipnat.conf\fR.
+.TP
+protocol <name|number>
+This option is used to match against the IP protocol field in the packet
+being logged.
+.TP
+result <pass|block|nomatch|log>
+This option is used to match against the result of packet matching in the
+kernel.  If a packet is logged, using a \fBlog\fR rule in \fBipf.conf\fR
+then it will match "log" here.  The "nomatch" option is for use with
+matching log records generated for all packets as the default.
+.TP
+rule <number>
+This option is used to match against the \fInumber\fR of the rule
+causing the record to be generated.  The \fInumber\fR of a rule can be
+observed using "ipfstat -ion".
+.TP
+srcip <address/mask>
+This option is used to match against the source address associated
+with the packet being logged.  A "/mask" must be given and given in CIDR
+notation (/0-/32) so to specify host 192.2.2.1, 192.2.2.1/32 must be given.
+.TP
+srcport <portnumber>
+This option is used to match against the source port in log entries.
+A number must be given, symbolic names (such as those from /etc/services)
+are not recognised by the parser.
+.TP
+type <ipf|nat|state>
+The format for files accepted by ipmon is described by the following grammar:
+.B NOTE:
+At present, only IPv4 matching is available for source/destination address
+matching.
+.SH SYNTAX - ACTIONS
+The list of actions supported is as follows:
+.TP
+save("file://<filename>")
+save("raw://<filename>")
+Write out the log record to the filename given.  This file will be closed
+and reopened on receipt of a SIGHUP.  If the \fIraw\fP target is used,
+binary log data, as read from the kernel, is written out rather than a
+text log record. The filename should be an absolute target, including
+the root directory. Thus, saving to /var/log/ipmon.log would be, as an
+example, save("file:///var/log/ipmon.log").
+.TP
+syslog("<facility>.<priority>")
+syslog("<facility>.")
+syslog(".<priority>")
+To log a text record via syslog, the \fBsyslog\fP action word is used.
+The facility used by default is determined at first by the default
+compiled into \fBipmon\fP (usually LOG_LOCAL0), which can be changed
+via the command line (-L <facility>) or in an \fBipf.conf\fP rule
+using the \fIlevel\fP option with logging.  If the facility is
+specified here, it takes precedence over all other settings.
+The same applies to the syslog priority. By default, ipmon will
+determine a priority for the packet, depending on whether or not it
+has been blocked, passed, etc. It is possible to force the complete
+facility/priority value for each log entry or to choose to replace
+only one of them.
+.TP
+execute("<command string>")
+The
+.B execute
+action runs the specified command each time the log entry matches
+and feeds the log entry, as text, to the command being executed.
+The command string given is executed using /bin/sh.
+.TP
+nothing
+Literally, do nothing.  Use this if you want to be verbose in your config
+file about doing nothing for a particular log record.
+.SH PLUGIN ACTIONS
+It is possible to configure
+.B ipmon
+to use externally supplied modules to save log entries with.
+These are added to
+.B ipmon
+using the
+.I load_action
+configuration line. The syntax of this line is:
+.nf
+
+load_action <name> <path>;
+.fi
+.TP
+name
+is a short name for the action. It does not need to correspond to the
+name of the library file, but inside the library file, the functions
+.B <name>destroy
+,
+.B <name>parse
+and
+.B <name>store
+must be present.
+.TP
+path
+specifies the path in the filesystem to the shared object
+that contains the implementation of the new action. After the new
+action has been declared using
+.I load_action
+it can then be used in any
+.I do
+statement.
+.SH EXAMPLES
+.PP
+Some further examples are:
+.nf
+
+#
+# log everything to syslog local4, regardless
+#
+match { ; } do { syslog("local4."); };
+#
+# keep a local copy of things packets to/from port 80
+#
+match { srcport = 80; } do { save("file:///var/log/web"); };
+match { dstport = 80; } do { save("file:///var/log/web"); };
+#
+load_action local "/usr/lib/libmyaction.so";
+match { dstip 127.0.0.1; } do { local("local options"); };
+#
+.fi
+.SH MATCHING
+.PP
+All entries of the rules present in the file are
+compared for matches - there is no first or last rule match.
+.SH FILES
+/dev/ipl
+.br
+/dev/ipf
+.br
+/dev/ipnat
+.br
+/dev/ipstate
+.br
+/etc/ipmon.conf
+.SH SEE ALSO
+ipmon(8), ipl(4)

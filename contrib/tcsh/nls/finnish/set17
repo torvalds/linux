@@ -1,0 +1,17 @@
+$ $tcsh: set17,v 1.4 2011/02/04 18:19:34 christos Exp $
+$ sh.proc.c
+$set 17 
+1 VIKA: taustatyötä!\n
+2 Paluuarvo %d\n
+3 VIKA: prosessi on hävitetty jo kertaalleen
+4 Ajossa 
+5 Signaali 
+6 Paluuarvo %-25d
+7 Valmis
+8 VIKA: status=%-9o
+9 \040(muistin tila talletettu)
+10 \040(hakemisto:
+11 hakemisto nyt: 
+12 %S: On jo keskeytetty\n
+13 %S: On jo pysäytetty\n
+14 %S: Badly formed number\n

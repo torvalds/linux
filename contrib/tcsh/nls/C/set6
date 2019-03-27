@@ -1,0 +1,11 @@
+$ $tcsh: set6,v 1.3 2006/03/02 18:46:45 christos Exp $
+$ ed.inputl.c
+$set 6
+1 ERROR: illegal command from key 0%o\r\n
+2 yes\n
+3 edit\n
+4 abort\n
+5 no\n
+6 No matching command\n
+7 Ambiguous command\n
+8 *** editor fatal ERROR ***\r\n\n

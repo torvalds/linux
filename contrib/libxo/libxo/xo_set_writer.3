@@ -1,0 +1,66 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_set_writer
+.Nd set custom writer functions for a libxo handle
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Sy typedef int (*xo_write_func_t)(void *, const char *);
+.Pp
+.Sy typedef void (*xo_close_func_t)(void *);
+.Pp
+.Sy typedef int (*xo_flush_func_t)(void *);
+.Fn xo_set_writer "xo_handle_t *handle" "void *opaque"
+                        "xo_write_func_t write_func"
+                        "xo_close_func_t close_func"
+                        "xo_flush_func_t flush_func"
+.Sh DESCRIPTION
+The
+.Fn xo_set_writer
+function allows custom
+.Dq write
+functions
+which can tailor how
+.Nm libxo
+writes data.
+An
+.Fa opaque
+argument is
+recorded and passed back to the
+.Fa write_func
+function, allowing the function
+to acquire context information.
+The
+.Fa close_func
+function can
+release this opaque data and any other resources as needed.
+The
+.Fa flush_func
+function should
+flush any pending data associated with the opaque pointer.
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

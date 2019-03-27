@@ -1,0 +1,227 @@
+.\" Copyright (c) 2001 Tobias Weingartner
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"     $OpenBSD: hash.9,v 1.5 2003/04/17 05:08:39 jmc Exp $
+.\" $FreeBSD$
+.\"
+.Dd June 30, 2015
+.Dt HASH 9
+.Os
+.Sh NAME
+.Nm hash ,
+.Nm hash32 ,
+.Nm hash32_buf ,
+.Nm hash32_str ,
+.Nm hash32_strn ,
+.Nm hash32_stre ,
+.Nm hash32_strne ,
+.Nm jenkins_hash ,
+.Nm jenkins_hash32 ,
+.Nm murmur3_32_hash ,
+.Nm murmur3_32_hash32
+.Nd general kernel hashing functions
+.Sh SYNOPSIS
+.In sys/hash.h
+.Ft uint32_t
+.Fn hash32_buf "const void *buf" "size_t len" "uint32_t hash"
+.Ft uint32_t
+.Fn hash32_str "const void *buf" "uint32_t hash"
+.Ft uint32_t
+.Fn hash32_strn "const void *buf" "size_t len" "uint32_t hash"
+.Ft uint32_t
+.Fn hash32_stre "const void *buf" "int end" "const char **ep" "uint32_t hash"
+.Ft uint32_t
+.Fn hash32_strne "const void *buf" "size_t len" "int end" "const char **ep" "uint32_t hash"
+.Ft uint32_t
+.Fn jenkins_hash "const void *buf" "size_t len" "uint32_t hash"
+.Ft uint32_t
+.Fn jenkins_hash32 "const uint32_t *buf" "size_t count" "uint32_t hash"
+.Ft uint32_t
+.Fn murmur3_32_hash "const void *buf" "size_t len" "uint32_t hash"
+.Ft uint32_t
+.Fn murmur3_32_hash32 "const uint32_t *buf" "size_t count" "uint32_t hash"
+.Sh DESCRIPTION
+The
+.Fn hash32
+functions are used to give a consistent and general interface to
+a decent hashing algorithm within the kernel.
+These functions can be used to hash
+.Tn ASCII
+.Dv NUL
+terminated strings, as well as blocks of memory.
+.Pp
+A
+.Fa len
+argument is the length of the buffer in bytes.
+A
+.Fa count
+argument is the length of the buffer in 32-bit words.
+.Pp
+The
+.Fn hash32_buf
+function is used as a general buffer hashing function.
+The argument
+.Fa buf
+is used to pass in the location, and
+.Fa len
+is the length of the buffer in bytes.
+The argument
+.Fa hash
+is used to extend an existing hash, or is passed the initial value
+.Dv HASHINIT
+to start a new hash.
+.Pp
+The
+.Fn hash32_str
+function is used to hash a
+.Dv NUL
+terminated string passed in
+.Fa buf
+with initial hash value given in
+.Fa hash .
+.Pp
+The
+.Fn hash32_strn
+function is like the
+.Fn hash32_str
+function, except it also takes a
+.Fa len
+argument, which is the maximal length of the expected string.
+.Pp
+The
+.Fn hash32_stre
+and
+.Fn hash32_strne
+functions are helper functions used by the kernel to hash pathname
+components.
+These functions have the additional termination condition
+of terminating when they find a character given by
+.Fa end
+in the string to be hashed.
+If the argument
+.Fa ep
+is not
+.Dv NULL ,
+it is set to the point in the buffer at which the hash function
+terminated hashing.
+.Pp
+The
+.Fn jenkins_hash
+function has same semantics as the
+.Fn hash32_buf ,
+but provides more advanced hashing algorithm with better distribution.
+.Pp
+The
+.Fn jenkins_hash32
+uses same hashing algorithm as the
+.Fn jenkins_hash
+function, but works only on
+.Ft uint32_t
+sized arrays, thus is simpler and faster.
+It accepts an array of
+.Ft uint32_t
+values in its first argument and size of this array in the second argument.
+.Pp
+The
+.Fn murmur3_32_hash
+and
+.Fn murmur3_32_hash32
+functions are similar to
+.Fn jenkins_hash
+and
+.Fn jenkins_hash32 ,
+but implement the 32-bit version of MurmurHash3.
+.Sh RETURN VALUES
+The
+.Fn hash32
+functions return a 32 bit hash value of the buffer or string.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+LIST_HEAD(head, cache) *hashtbl = NULL;
+u_long mask = 0;
+
+void
+sample_init(void)
+{
+
+        hashtbl = hashinit(numwanted, type, flags, &mask);
+}
+
+void
+sample_use(char *str, int len)
+{
+        uint32_t hash;
+
+        hash = hash32_str(str, HASHINIT);
+        hash = hash32_buf(&len, sizeof(len), hash);
+        hashtbl[hash & mask] = len;
+}
+.Ed
+.Sh SEE ALSO
+.Xr free 9 ,
+.Xr hashinit 9 ,
+.Xr malloc 9
+.Sh LIMITATIONS
+The
+.Fn hash32
+functions are only 32 bit functions.
+They will prove to give poor 64 bit performance, especially for the
+top 32 bits.
+At the current time, this is not seen as a great limitation, as these
+hash values are usually used to index into an array.
+Should these hash values be used for other means, this limitation should
+be revisited.
+.Sh HISTORY
+The
+.Nm
+functions first appeared in
+.Nx 1.6 .
+The current implementation of
+.Nm hash32
+functions was first committed to
+.Ox 3.2 ,
+and later imported to
+.Fx 6.1 .
+The
+.Nm jenkins_hash
+functions were added in
+.Fx 10.0 .
+The
+.Nm murmur3_32_hash
+functions were added in
+.Fx 10.1 .
+.Sh AUTHORS
+The
+.Nm hash32
+functions were written by
+.An Tobias Weingartner .
+The
+.Nm jenkins_hash
+functions were written by
+.An Bob Jenkins .
+The
+.Nm murmur3_32_hash
+functions were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

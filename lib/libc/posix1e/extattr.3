@@ -1,0 +1,100 @@
+.\"
+.\" Copyright (c) 2001 Dima Dorfman <dd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 24, 2001
+.Dt EXTATTR 3
+.Os
+.Sh NAME
+.Nm extattr_namespace_to_string ,
+.Nm extattr_string_to_namespace
+.Nd convert an extended attribute namespace identifier to a string and
+vice versa
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/extattr.h
+.In libutil.h
+.Ft int
+.Fn extattr_namespace_to_string "int attrnamespace" "char **string"
+.Ft int
+.Fn extattr_string_to_namespace "const char *string" "int *attrnamespace"
+.Sh DESCRIPTION
+The
+.Fn extattr_namespace_to_string
+function converts a VFS extended attribute identifier to a human-readable
+string;
+the
+.Fn extattr_string_to_namespace
+function undoes the aforementioned operation,
+and converts a human-readable string representing a namespace to a
+namespace identifier.
+Although a file system may implement arbitrary namespaces,
+these functions only support the
+.Dv EXTATTR_NAMESPACE_USER
+.Pq Dq user
+and
+.Dv EXTATTR_NAMESPACE_SYSTEM
+.Pq Dq system
+namespaces,
+which are defined in
+.Xr extattr 9 .
+.Pp
+These functions are meant to be used in error reporting and other
+interactive tasks.
+For example,
+instead of printing the integer identifying an extended attribute in
+an error message,
+a program might use
+.Fn extattr_namespace_to_string
+to obtain a human-readable representation.
+Likewise,
+instead of requiring a user to enter the integer representing a namespace,
+an interactive program might ask for a name and use
+.Fn extattr_string_to_namespace
+to get the desired identifier.
+.Sh RETURN VALUES
+If any of the calls are unsuccessful, the value \-1 is returned
+and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The requested namespace could not be identified.
+.El
+.Sh SEE ALSO
+.Xr extattr 2 ,
+.Xr getextattr 8 ,
+.Xr setextattr 8 ,
+.Xr extattr 9
+.Sh HISTORY
+Extended attribute support was developed as part of the
+.Tn TrustedBSD
+Project, and introduced in
+.Fx 5.0 .
+It was developed to support security extensions requiring additional labels
+to be associated with each file or directory.

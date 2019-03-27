@@ -1,0 +1,358 @@
+.\" Copyright (c) 2004-2005 Gleb Smirnoff <glebius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 10, 2012
+.Dt NG_NETFLOW 4
+.Os
+.Sh NAME
+.Nm ng_netflow
+.Nd Cisco's NetFlow implementation
+.Sh SYNOPSIS
+.In sys/types.h
+.In netinet/in.h
+.In netgraph/netflow/ng_netflow.h
+.Sh DESCRIPTION
+The
+.Nm
+node implements Cisco's NetFlow export protocol on a router running
+.Fx .
+The
+.Nm
+node listens for incoming traffic and identifies unique flows in it.
+Flows are distinguished by endpoint IP addresses, TCP/UDP port numbers,
+ToS and input interface.
+Expired flows are exported out of the node in NetFlow version 5/9 UDP datagrams.
+Expiration reason can be one of the following:
+.Bl -dash
+.It
+RST or FIN TCP segment.
+.It
+Active timeout.
+Flows cannot live more than the specified period of time.
+The default is 1800 seconds (30 minutes).
+.It
+Inactive timeout.
+A flow was inactive for the specified period of time.
+The default is 15 seconds.
+.El
+.Pp
+Node supports IPv6 accounting (NetFlow v9 only) and is aware of multiple fibs.
+Different fibs are mapped to different domain_id in NetFlow V9 and different engine_id in NetFlow V5.
+.Sh HOOKS
+This node type supports up to
+.Dv NG_NETFLOW_MAXIFACES
+(default 65536) hooks named
+.Va iface0 , iface1 ,
+etc.,
+and the same number of hooks named
+.Va out0 , out1 ,
+etc.,
+plus two export hooks:
+.Va export
+(for NetFlow version 5) and
+.Va export9
+(for NetFlow version 9).
+Export can be done simultaneously for all supported export hooks.
+By default (ingress NetFlow enabled) node does NetFlow accounting of data
+received on
+.Va iface*
+hooks.
+If corresponding
+.Va out
+hook is connected, unmodified data is bypassed to it, otherwise data is freed.
+If data is received on
+.Va out
+hook, it is bypassed to corresponding
+.Va iface
+hook without any processing (egress NetFlow disabled by default).
+When full export datagram for an export protocol is built it is sent to the
+.Va export
+or
+.Va export9
+hook.
+In normal operation, one (or more) export hook is connected to the
+.Va inet/dgram/udp
+hook of the
+.Xr ng_ksocket 4
+node.
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_NETFLOW_INFO Pq Ic info
+Returns some node statistics and the current timeout values in a
+.Vt "struct ng_netflow_info" .
+.It Dv NGM_NETFLOW_IFINFO Pq Ic ifinfo
+Returns information about the
+.Va iface Ns Ar N
+hook.
+The hook number is passed as an argument.
+.It Dv NGM_NETFLOW_SETDLT Pq Ic setdlt
+Sets data link type on the
+.Va iface Ns Ar N
+hook.
+Currently, supported types are
+.Cm DLT_RAW
+(raw IP datagrams) and
+.Cm DLT_EN10MB
+(Ethernet).
+DLT_ definitions can be found in
+.In net/bpf.h
+header.
+Currently used values are 1 for
+.Cm DLT_EN10MB
+and 12 for
+.Cm DLT_RAW .
+This message type uses
+.Vt "struct ng_netflow_setdlt"
+as an argument:
+.Bd -literal -offset 4n
+struct ng_netflow_setdlt {
+	uint16_t iface;		/* which iface dlt change */
+	uint8_t  dlt;		/* DLT_XXX from bpf.h */
+};
+.Ed
+.Pp
+The requested
+.Va iface Ns Ar N
+hook must already be connected, otherwise message send operation will
+return an error.
+.It Dv NGM_NETFLOW_SETIFINDEX Pq Ic setifindex
+In some cases,
+.Nm
+may be unable to determine the input interface index of a packet.
+This can happen if traffic enters the
+.Nm
+node before it comes to the system interface's input queue.
+An example of such a setup is capturing a traffic
+.Em between
+synchronous data line and
+.Xr ng_iface 4 .
+In this case, the input index should be associated with a given hook.
+The interface's index can be determined via
+.Xr if_nametoindex 3
+from userland.
+This message requires
+.Vt "struct ng_netflow_setifindex"
+as an argument:
+.Bd -literal -offset 4n
+struct ng_netflow_setifindex {
+	uint16_t iface;		/* which iface index change */
+	uint16_t index;		/* new index */
+};
+.Ed
+.Pp
+The requested
+.Va iface Ns Ar N
+hook must already be connected, otherwise the message
+send operation will return an error.
+.It Dv NGM_NETFLOW_SETTIMEOUTS Pq Ic settimeouts
+Sets values in seconds for NetFlow active/inactive timeouts.
+This message requires
+.Vt "struct ng_netflow_settimeouts"
+as an argument:
+.Bd -literal -offset 4n
+struct ng_netflow_settimeouts {
+	uint32_t inactive_timeout;	/* flow inactive timeout */
+	uint32_t active_timeout;	/* flow active timeout */
+};
+.Ed
+.It Dv NGM_NETFLOW_SETCONFIG Pq Ic setconfig
+Sets configuration for the specified interface.
+This message requires
+.Vt "struct ng_netflow_setconfig"
+as an argument:
+.Bd -literal -offset 4n
+struct ng_netflow_setconfig {
+	uint16_t iface;		/* which iface config change */
+	uint32_t conf;		/* new config */
+#define NG_NETFLOW_CONF_INGRESS		1
+#define NG_NETFLOW_CONF_EGRESS		2
+#define NG_NETFLOW_CONF_ONCE		4
+#define NG_NETFLOW_CONF_THISONCE	8
+#define NG_NETFLOW_CONF_NOSRCLOOKUP	16
+#define NG_NETFLOW_CONF_NODSTLOOKUP	32
+};
+.Ed
+.Pp
+Configuration is a bitmask of several options.
+Option NG_NETFLOW_CONF_INGRESS
+enabled by default enables ingress NetFlow generation (for data coming from
+ifaceX hook).
+Option
+.Va NG_NETFLOW_CONF_EGRESS
+enables egress NetFlow (for data coming from outX hook).
+Option
+.Va NG_NETFLOW_CONF_ONCE
+defines that packet should be accounted only once if it several times passes
+via netflow node.
+Option
+.Va NG_NETFLOW_CONF_THISONCE
+defines that packet should be accounted only once if it several times passes
+via exactly this netflow node.
+These two options are important to avoid duplicate accounting when both ingress
+and egress NetFlow are enabled.
+Option
+.Va NG_NETFLOW_CONF_NOSRCLOOKUP
+skips radix lookup on flow source address used to fill in network mask.
+Option
+.Va NG_NETFLOW_CONF_NODSTLOOKUP
+skips radix lookup on destination (which fills egress interface id, destination
+mask and gateway).
+If one doesn't need data provided by lookups, he/she can disable them, to reduce
+load on routers.
+.It Dv NGM_NETFLOW_SETTEMPLATE Pq Ic settemplate
+Sets various timeouts to announce data flow templates
+(NetFlow v9-specific). This message requires
+.Vt "struct ng_netflow_settemplate"
+as an argument:
+.Bd -literal -offset 4n
+struct ng_netflow_settemplate {
+	uint16_t time;		/* max time between announce */
+	uint16_t packets;	/* max packets between announce */
+};
+.Ed
+.Pp
+Value of time field represents time in seconds to re-announce data templates.
+Value of packets field represents maximum packets count between
+re-announcing data templates.
+.It Dv NGM_NETFLOW_SETMTU Pq Ic setmtu
+Sets export interface MTU to build packets of specified size (NetFlow v9-specific).
+This message requires
+.Vt "struct ng_netflow_setmtu"
+as an argument:
+.Bd -literal -offset 4n
+struct ng_netflow_setemtu {
+	uint16_t mtu;		/* MTU for packet */
+};
+.Ed
+.Pp
+Default is 1500 bytes.
+.It Dv NGM_NETFLOW_SHOW
+This control message asks a node to dump the entire contents of the flow cache.
+It is called from
+.Xr flowctl 8 ,
+not directly from
+.Xr ngctl 8 .
+.It Dv NGM_NETFLOW_V9INFO Pq Ic v9info
+Returns some NetFlow v9 related values in a
+.Bd -literal -offset 4n
+struct ng_netflow_v9info {
+    uint16_t        templ_packets;  /* v9 template packets */
+    uint16_t        templ_time;     /* v9 template time */
+    uint16_t        mtu;            /* v9 MTU */
+};
+.Ed
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh EXAMPLES
+The simplest possible configuration is one Ethernet interface, where
+flow collecting is enabled.
+.Bd -literal -offset indent
+/usr/sbin/ngctl -f- <<-SEQ
+	mkpeer fxp0: netflow lower iface0
+	name fxp0:lower netflow
+	connect fxp0: netflow: upper out0
+	mkpeer netflow: ksocket export inet/dgram/udp
+	msg netflow:export connect inet/10.0.0.1:4444
+SEQ
+.Ed
+.Pp
+This is a more complicated example of a router with 2 NetFlow-enabled
+interfaces
+.Li fxp0
+and
+.Li ng0 .
+Note that the
+.Va ng0:
+node in this example is connected to
+.Xr ng_tee 4 .
+The latter sends us a copy of IP packets, which we analyze and free.
+On
+.Va fxp0:
+we do not use tee, but send packets back to either node.
+.Bd -literal -offset indent
+/usr/sbin/ngctl -f- <<-SEQ
+	# connect ng0's tee to iface0 hook
+	mkpeer ng0:inet netflow right2left iface0
+	name ng0:inet.right2left netflow
+	# set DLT to raw mode
+	msg netflow: setdlt { iface=0 dlt=12 }
+	# set interface index (5 in this example)
+	msg netflow: setifindex { iface=0 index=5 }
+
+	# Connect fxp0: to iface1 and out1 hook
+	connect fxp0: netflow: lower iface1
+	connect fxp0: netflow: upper out1
+
+	# Create ksocket node on export hook, and configure it
+	# to send exports to proper destination
+	mkpeer netflow: ksocket export inet/dgram/udp
+	msg netflow:export connect inet/10.0.0.1:4444
+SEQ
+.Ed
+.Sh SEE ALSO
+.Xr setfib 2 ,
+.Xr netgraph 4 ,
+.Xr ng_ether 4 ,
+.Xr ng_iface 4 ,
+.Xr ng_ksocket 4 ,
+.Xr ng_tee 4 ,
+.Xr flowctl 8 ,
+.Xr ngctl 8
+.Rs
+.%A B. Claise, Ed
+.%T "Cisco Systems NetFlow Services Export Version 9"
+.%O RFC 3954
+.Re
+.Pp
+.Pa http://www.cisco.com/en/US/docs/ios/solutions_docs/netflow/nfwhite.html
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+node type was written by
+.An Gleb Smirnoff Aq Mt glebius@FreeBSD.org ,
+.An Alexander Motin Aq Mt mav@FreeBSD.org ,
+.An Alexander Chernikov Aq Mt melifaro@ipfw.ru .
+The initial code was based on
+.Nm ng_ipacct
+written by
+.An Roman V. Palagin Aq Mt romanp@unshadow.net .
+.Sh BUGS
+Cache snapshot obtained via
+.Dv NGM_NETFLOW_SHOW
+command may lack some percentage of entries under severe load.
+.Pp
+The
+.Nm
+node type does not fill in AS numbers.
+This is due to the lack of necessary information in the kernel routing table.
+However, this information can be injected into the kernel from a routing daemon
+such as GNU Zebra.
+This functionality may become available in future releases.

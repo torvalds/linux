@@ -1,0 +1,52 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_OPEN_QP 3 2011-08-12 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_open_qp \- open a shareable queue pair (QP)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "struct ibv_qp *ibv_open_qp(struct ibv_context " "*context" ,
+.BI "                           struct ibv_qp_open_attr " "*qp_open_attr" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_open_qp()
+opens an existing queue pair (QP) associated with the extended protection domain
+.I xrcd\fR.
+The argument
+.I qp_open_attr
+is an ibv_qp_open_attr struct, as defined in <infiniband/verbs.h>.
+.PP
+.nf
+struct ibv_qp_open_attr {
+.in +8
+uint32_t          comp_mask;  /* Identifies valid fields */
+uint32_t          qp_num;     /* QP number */
+struct            *ibv_xrcd;  /* XRC domain */
+void             *qp_context; /* User defined opaque value */
+enum ibv_qp_type  qp_type;    /* QP transport service type */
+.fi
+.PP
+.B ibv_destroy_qp()
+closes the opened QP and destroys the underlying QP if it has no
+other references.
+.I qp\fR.
+.SH "RETURN VALUE"
+.B ibv_open_qp()
+returns a pointer to the opened QP, or NULL if the request fails.
+Check the QP number (\fBqp_num\fR) in the returned QP.
+.SH "NOTES"
+.B ibv_open_qp()
+will fail if a it is asked to open a QP that does not exist within
+the xrcd with the specified qp_num and qp_type.
+.SH "SEE ALSO"
+.BR ibv_alloc_pd (3),
+.BR ibv_create_qp (3),
+.BR ibv_create_qp_ex (3),
+.BR ibv_modify_qp (3),
+.BR ibv_query_qp (3)
+.SH "AUTHORS"
+.TP
+Sean Hefty <sean.hefty@intel.com>

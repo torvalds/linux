@@ -1,0 +1,17 @@
+# config variables for PicoBSD floppies.
+# This file is sourced by the main build script. It should
+# only contain assignment to shell variables.
+#
+# The type-specific "config" file is sourced after this one, so
+# you can override things there.
+
+# STAND_LINKS contains the list of links to be created on the mfs image.
+# o_no_devfs is set to an empty string to inform the build script that
+# we are using devfs (this need to be done in a less confusing way sometime...)
+
+STAND_LINKS=${STAND_LINKS:-"bin sbin usr/bin usr/sbin usr/libexec \
+	usr/local/bin"}
+
+o_no_devfs="" # we have devfs.
+
+# fd_size="2880"  # use this variable to set floppy sizes (in KBytes)

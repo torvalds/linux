@@ -1,0 +1,384 @@
+#!/bin/sh
+#
+# $OpenBSD: dhclient-script,v 1.6 2004/05/06 18:22:41 claudio Exp $
+# $FreeBSD$
+#
+# Copyright (c) 2003 Kenneth R Westerback <krw@openbsd.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+#
+
+ARP=/usr/sbin/arp
+HOSTNAME=/bin/hostname
+IFCONFIG='/sbin/ifconfig -n'
+
+LOCALHOST=127.0.0.1
+
+if [ -x /usr/bin/logger ]; then
+	LOGGER="/usr/bin/logger -s -p user.notice -t dhclient"
+else
+	LOGGER=echo
+fi
+
+#
+# Helper functions that implement common actions.
+#
+
+check_hostname() {
+	current_hostname=`$HOSTNAME`
+	if [ -z "$current_hostname" ]; then
+		$LOGGER "New Hostname ($interface): $new_host_name"
+		$HOSTNAME $new_host_name
+	elif [ "$current_hostname" = "$old_host_name" -a \
+	       "$new_host_name" != "$old_host_name" ]; then
+		$LOGGER "New Hostname ($interface): $new_host_name"
+		$HOSTNAME $new_host_name
+	fi
+}
+
+arp_flush() {
+	arp -an -i $interface | \
+		sed -n -e 's/^.*(\(.*\)) at .*$/arp -d \1/p' | \
+		sh >/dev/null 2>&1
+}
+
+delete_old_address() {
+	eval "$IFCONFIG $interface inet -alias $old_ip_address $medium"
+}
+
+add_new_address() {
+	eval "$IFCONFIG $interface \
+		inet $new_ip_address \
+		netmask $new_subnet_mask \
+		broadcast $new_broadcast_address \
+		$medium"
+
+	$LOGGER "New IP Address ($interface): $new_ip_address"
+	$LOGGER "New Subnet Mask ($interface): $new_subnet_mask"
+	$LOGGER "New Broadcast Address ($interface): $new_broadcast_address"
+	$LOGGER "New Routers ($interface): $new_routers"
+}
+
+delete_old_alias() {
+	if [ -n "$alias_ip_address" ]; then
+		$IFCONFIG $interface inet -alias $alias_ip_address > /dev/null 2>&1
+		#route delete $alias_ip_address $LOCALHOST > /dev/null 2>&1
+	fi
+}
+
+add_new_alias() {
+	if [ -n "$alias_ip_address" ]; then
+		$IFCONFIG $interface inet alias $alias_ip_address netmask \
+		    $alias_subnet_mask
+		#route add $alias_ip_address $LOCALHOST
+	fi
+}
+
+fill_classless_routes() {
+	set $1
+	while [ $# -ge 5 ]; do
+		if [ $1 -eq 0 ]; then
+			route="default"
+		elif [ $1 -le 8 ]; then
+			route="$2.0.0.0/$1"
+			shift
+		elif [ $1 -le 16 ]; then
+			route="$2.$3.0.0/$1"
+			shift; shift
+		elif [ $1 -le 24 ]; then
+			route="$2.$3.$4.0/$1"
+			shift; shift; shift
+		else
+			route="$2.$3.$4.$5/$1"
+			shift; shift; shift; shift
+		fi
+		shift
+		router="$1.$2.$3.$4"
+		classless_routes="$classless_routes $route $router"
+		shift; shift; shift; shift
+	done
+}
+
+delete_old_routes() {
+	#route delete "$old_ip_address" $LOCALHOST >/dev/null 2>&1
+	if [ -n "$old_classless_routes" ]; then
+		fill_classless_routes "$old_classless_routes"
+		set $classless_routes
+		while [ $# -gt 1 ]; do
+			route delete "$1" "$2"
+			shift; shift
+		done
+		return 0;
+	fi
+
+	# If we supported multiple default routes, we'd be removing each
+	# one here.  We don't so just delete the default route if it's
+	# through our interface.
+	if is_default_interface; then
+		route delete default >/dev/null 2>&1
+	fi
+
+	if [ -n "$old_static_routes" ]; then
+		set $old_static_routes
+		while [ $# -gt 1 ]; do
+			route delete "$1" "$2"
+			shift; shift
+		done
+	fi
+
+	arp_flush
+}
+
+add_new_routes() {
+	#route add $new_ip_address $LOCALHOST >/dev/null 2>&1
+
+	# RFC 3442: If the DHCP server returns both a Classless Static
+	# Routes option and a Router option, the DHCP client MUST ignore
+	# the Router option.
+	#
+	# DHCP clients that support this option (Classless Static Routes)
+	# MUST NOT install the routes specified in the Static Routes
+	# option (option code 33) if both a Static Routes option and the
+	# Classless Static Routes option are provided.
+
+	if [ -n "$new_classless_routes" ]; then
+		fill_classless_routes "$new_classless_routes"
+		$LOGGER "New Classless Static Routes ($interface): $classless_routes"
+		set $classless_routes
+		while [ $# -gt 1 ]; do
+			if [ "0.0.0.0" = "$2" ]; then
+				route add "$1" -iface "$interface"
+			else
+				route add "$1" "$2"
+			fi
+			shift; shift
+		done
+		return
+	fi
+
+	for router in $new_routers; do
+		if is_default_interface; then
+
+			if [ "$new_ip_address" = "$router" ]; then
+				route add default -iface $router >/dev/null 2>&1
+			else
+				route add default $router >/dev/null 2>&1
+			fi
+		fi
+		# 2nd and subsequent default routers error out, so explicitly
+		# stop processing the list after the first one.
+		break
+	done
+
+	if [ -n "$new_static_routes" ]; then
+		$LOGGER "New Static Routes ($interface): $new_static_routes"
+		set $new_static_routes
+		while [ $# -gt 1 ]; do
+			route add $1 $2
+			shift; shift
+		done
+	fi
+}
+
+add_new_resolv_conf() {
+	# XXX Old code did not create/update resolv.conf unless both
+	# $new_domain_name and $new_domain_name_servers were provided.  PR
+	# #3135 reported some ISP's only provide $new_domain_name_servers and
+	# thus broke the script. This code creates the resolv.conf if either
+	# are provided.
+
+	local tmpres=/var/run/resolv.conf.${interface}
+	rm -f $tmpres
+
+	if [ -n "$new_domain_name" ]; then
+		echo "search $new_domain_name" >>$tmpres
+	fi
+
+	if [ -n "$new_domain_name_servers" ]; then
+		for nameserver in $new_domain_name_servers; do
+			echo "nameserver $nameserver" >>$tmpres
+		done
+	fi
+
+	if [ -f $tmpres ]; then
+		if [ -f /etc/resolv.conf.tail ]; then
+			cat /etc/resolv.conf.tail >>$tmpres
+		fi
+
+		# When resolv.conf is not changed actually, we don't
+		# need to update it.
+		# If /usr is not mounted yet, we cannot use cmp, then
+		# the following test fails.  In such case, we simply
+		# ignore an error and do update resolv.conf.
+		if cmp -s $tmpres /etc/resolv.conf; then
+			rm -f $tmpres
+			return 0
+		fi 2>/dev/null
+
+		# In case (e.g. during OpenBSD installs) /etc/resolv.conf
+		# is a symbolic link, take care to preserve the link and write
+		# the new data in the correct location.
+
+		if [ -f /etc/resolv.conf ]; then
+			cat /etc/resolv.conf > /etc/resolv.conf.save
+		fi
+		cat $tmpres > /etc/resolv.conf
+		rm -f $tmpres
+
+		# Try to ensure correct ownership and permissions.
+		chown -RL root:wheel /etc/resolv.conf
+		chmod -RL 644 /etc/resolv.conf
+
+		return 0
+	fi
+
+	return 1
+}
+
+# Must be used on exit.   Invokes the local dhcp client exit hooks, if any.
+exit_with_hooks() {
+	exit_status=$1
+	if [ -f /etc/dhclient-exit-hooks ]; then
+		. /etc/dhclient-exit-hooks
+	fi
+	# probably should do something with exit status of the local script
+	exit $exit_status
+}
+
+# Get the interface with the current ipv4 default route on it using only
+# commands that are available prior to /usr being mounted.
+is_default_interface()
+{
+	routeget="`route -n get -inet default`"
+	oldifs="$IFS"
+	IFS="
+"
+	defif=
+	for line in $routeget ; do
+		case $line in
+		*interface:*)
+			defif=${line##*: }
+			;;
+		esac
+	done
+	IFS=${oldifs}
+
+	if [ -z "$defif" -o "$defif" = "$interface" ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+#
+# Start of active code.
+#
+
+# Invoke the local dhcp client enter hooks, if they exist.
+if [ -f /etc/dhclient-enter-hooks ]; then
+	exit_status=0
+	. /etc/dhclient-enter-hooks
+	# allow the local script to abort processing of this state
+	# local script must set exit_status variable to nonzero.
+	if [ $exit_status -ne 0 ]; then
+		exit $exit_status
+	fi
+fi
+
+case $reason in
+MEDIUM)
+	eval "$IFCONFIG $interface $medium"
+	eval "$IFCONFIG $interface inet -alias 0.0.0.0 $medium" >/dev/null 2>&1
+	sleep 1
+	;;
+
+PREINIT)
+	delete_old_alias
+	$IFCONFIG $interface inet alias 0.0.0.0 netmask 0.0.0.0 broadcast 255.255.255.255 up
+	;;
+
+ARPCHECK|ARPSEND)
+	;;
+
+BOUND|RENEW|REBIND|REBOOT)
+	check_hostname
+	if [ -n "$old_ip_address" ]; then
+		if [ "$old_ip_address" != "$alias_ip_address" ]; then
+			delete_old_alias
+		fi
+		if [ "$old_ip_address" != "$new_ip_address" ]; then
+			delete_old_address
+			delete_old_routes
+		fi
+	fi
+	if [ "$reason" = BOUND ] || \
+	   [ "$reason" = REBOOT ] || \
+	   [ -z "$old_ip_address" ] || \
+	   [ "$old_ip_address" != "$new_ip_address" ]; then
+		add_new_address
+		add_new_routes
+	fi
+	if [ "$new_ip_address" != "$alias_ip_address" ]; then
+		add_new_alias
+	fi
+	if is_default_interface; then
+		add_new_resolv_conf
+	fi
+	;;
+
+EXPIRE|FAIL)
+	delete_old_alias
+	if [ -n "$old_ip_address" ]; then
+		delete_old_address
+		delete_old_routes
+	fi
+	if [ -x $ARP ]; then
+		$ARP -d -a -i $interface
+	fi
+	# XXX Why add alias we just deleted above?
+	add_new_alias
+	if is_default_interface; then
+		if [ -f /etc/resolv.conf.save ]; then
+			cat /etc/resolv.conf.save > /etc/resolv.conf
+		fi
+	fi
+	;;
+
+TIMEOUT)
+	delete_old_alias
+	add_new_address
+	sleep 1
+	if [ -n "$new_routers" ]; then
+		$LOGGER "New Routers ($interface): $new_routers"
+		set "$new_routers"
+		if ping -q -c 1 -t 1 "$1"; then
+			if [ "$new_ip_address" != "$alias_ip_address" ]; then
+				add_new_alias
+			fi
+			add_new_routes
+			if ! is_default_interface; then
+				exit_with_hooks 0
+			fi
+			if add_new_resolv_conf; then
+				exit_with_hooks 0
+			fi
+		fi
+	fi
+	eval "$IFCONFIG $interface inet -alias $new_ip_address $medium"
+	delete_old_routes
+	exit_with_hooks 1
+	;;
+esac
+
+exit_with_hooks 0

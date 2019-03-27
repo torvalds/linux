@@ -1,0 +1,192 @@
+.\" $FreeBSD$
+.\"
+.Dd December 17, 2004
+.Dt DIVERT 4
+.Os
+.Sh NAME
+.Nm divert
+.Nd kernel packet diversion mechanism
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netinet/in.h
+.Ft int
+.Fn socket PF_INET SOCK_RAW IPPROTO_DIVERT
+.Pp
+To enable support for divert sockets, place the following lines in the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options IPFIREWALL"
+.Cd "options IPDIVERT"
+.Ed
+.Pp
+Alternatively, to load
+the driver
+as a module at boot time, add the following lines into the
+.Xr loader.conf 5
+file:
+.Bd -literal -offset indent
+ipfw_load="YES"
+ipdivert_load="YES"
+.Ed
+.Sh DESCRIPTION
+Divert sockets are similar to raw IP sockets, except that they
+can be bound to a specific
+.Nm
+port via the
+.Xr bind 2
+system call.
+The IP address in the bind is ignored; only the port
+number is significant.
+A divert socket bound to a divert port will receive all packets diverted
+to that port by some (here unspecified) kernel mechanism(s).
+Packets may also be written to a divert port, in which case they
+re-enter kernel IP packet processing.
+.Pp
+Divert sockets are normally used in conjunction with
+.Fx Ns 's
+packet filtering implementation and the
+.Xr ipfw 8
+program.
+By reading from and writing to a divert socket, matching packets
+can be passed through an arbitrary ``filter'' as they travel through
+the host machine, special routing tricks can be done, etc.
+.Sh READING PACKETS
+Packets are diverted either as they are ``incoming'' or ``outgoing.''
+Incoming packets are diverted after reception on an IP interface,
+whereas outgoing packets are diverted before next hop forwarding.
+.Pp
+Diverted packets may be read unaltered via
+.Xr read 2 ,
+.Xr recv 2 ,
+or
+.Xr recvfrom 2 .
+In the latter case, the address returned will have its port set to
+some tag supplied by the packet diverter, (usually the ipfw rule number)
+and the IP address set to the (first) address of
+the interface on which the packet was received (if the packet
+was incoming) or
+.Dv INADDR_ANY
+(if the packet was outgoing).
+The interface name (if defined
+for the packet) will be placed in the 8 bytes following the address,
+if it fits.
+.Sh WRITING PACKETS
+Writing to a divert socket is similar to writing to a raw IP socket;
+the packet is injected ``as is'' into the normal kernel IP packet
+processing using
+.Xr sendto 2
+and minimal error checking is done.
+Packets are distinguished as either incoming or outgoing.
+If
+.Xr sendto 2
+is used with a destination IP address of
+.Dv INADDR_ANY ,
+then the packet is treated as if it were outgoing, i.e., destined
+for a non-local address.
+Otherwise, the packet is assumed to be
+incoming and full packet routing is done.
+.Pp
+In the latter case, the
+IP address specified must match the address of some local interface,
+or an interface name
+must be found after the IP address.
+If an interface name is found,
+that interface will be used and the value of the IP address will be
+ignored (other than the fact that it is not
+.Dv INADDR_ANY ) .
+This is to indicate on which interface the packet
+.Dq arrived .
+.Pp
+Normally, packets read as incoming should be written as incoming;
+similarly for outgoing packets.
+When reading and then writing back
+packets, passing the same socket address supplied by
+.Xr recvfrom 2
+unmodified to
+.Xr sendto 2
+simplifies things (see below).
+.Pp
+The port part of the socket address passed to the
+.Xr sendto 2
+contains a tag that should be meaningful to the diversion module.
+In the
+case of
+.Xr ipfw 8
+the tag is interpreted as the rule number
+.Em after which
+rule processing should restart.
+.Sh LOOP AVOIDANCE
+Packets written into a divert socket
+(using
+.Xr sendto 2 )
+re-enter the packet filter at the rule number
+following the tag given in the port part of the socket address, which
+is usually already set at the rule number that caused the diversion
+(not the next rule if there are several at the same number).
+If the 'tag'
+is altered to indicate an alternative re-entry point, care should be taken
+to avoid loops, where the same packet is diverted more than once at the
+same rule.
+.Sh DETAILS
+If a packet is diverted but no socket is bound to the
+port, or if
+.Dv IPDIVERT
+is not enabled or loaded in the kernel, the packet is dropped.
+.Pp
+Incoming packet fragments which get diverted are fully reassembled
+before delivery; the diversion of any one fragment causes the entire
+packet to get diverted.
+If different fragments divert to different ports,
+then which port ultimately gets chosen is unpredictable.
+.Pp
+Note that packets arriving on the divert socket by the
+.Xr ipfw 8
+.Cm tee
+action are delivered as-is and packet fragments do not get reassembled
+in this case.
+.Pp
+Packets are received and sent unchanged, except that
+packets read as outgoing have invalid IP header checksums, and
+packets written as outgoing have their IP header checksums overwritten
+with the correct value.
+Packets written as incoming and having incorrect checksums will be dropped.
+Otherwise, all header fields are unchanged (and therefore in network order).
+.Pp
+Binding to port numbers less than 1024 requires super-user access, as does
+creating a socket of type SOCK_RAW.
+.Sh ERRORS
+Writing to a divert socket can return these errors, along with
+the usual errors possible when writing raw packets:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The packet had an invalid header, or the IP options in the packet
+and the socket options set were incompatible.
+.It Bq Er EADDRNOTAVAIL
+The destination address contained an IP address not equal to
+.Dv INADDR_ANY
+that was not associated with any interface.
+.El
+.Sh SEE ALSO
+.Xr bind 2 ,
+.Xr recvfrom 2 ,
+.Xr sendto 2 ,
+.Xr socket 2 ,
+.Xr ipfw 4 ,
+.Xr ipfw 8
+.Sh AUTHORS
+.An Archie Cobbs Aq Mt archie@FreeBSD.org ,
+Whistle Communications Corp.
+.Sh BUGS
+This is an attempt to provide a clean way for user mode processes
+to implement various IP tricks like address translation, but it
+could be cleaner, and it is too dependent on
+.Xr ipfw 8 .
+.Pp
+It is questionable whether incoming fragments should be reassembled
+before being diverted.
+For example, if only some fragments of a
+packet destined for another machine do not get routed through the
+local machine, the packet is lost.
+This should probably be
+a settable socket option in any case.

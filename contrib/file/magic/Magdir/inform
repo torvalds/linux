@@ -1,0 +1,9 @@
+
+#------------------------------------------------------------------------------
+# $File: inform,v 1.5 2009/09/19 16:28:09 christos Exp $
+# inform:  file(1) magic for Inform interactive fiction language
+
+# URL:  http://www.inform-fiction.org/
+# From: Reuben Thomas <rrt@sc3d.org>
+
+0	search/100/cW	constant\ story		Inform source text

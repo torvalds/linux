@@ -1,0 +1,216 @@
+#ifndef DYNAMIC_TAG
+#error "DYNAMIC_TAG must be defined"
+#endif
+
+// Add separate macros for the architecture specific tags and the markers
+// such as DT_HIOS, etc. to allow using this file to in other contexts.
+// For example we can use it to generate a stringification switch statement.
+
+#ifndef HEXAGON_DYNAMIC_TAG
+#define HEXAGON_DYNAMIC_TAG(name, value) DYNAMIC_TAG(name, value)
+#define HEXAGON_DYNAMIC_TAG_DEFINED
+#endif
+
+#ifndef MIPS_DYNAMIC_TAG
+#define MIPS_DYNAMIC_TAG(name, value) DYNAMIC_TAG(name, value)
+#define MIPS_DYNAMIC_TAG_DEFINED
+#endif
+
+#ifndef PPC64_DYNAMIC_TAG
+#define PPC64_DYNAMIC_TAG(name, value) DYNAMIC_TAG(name, value)
+#define PPC64_DYNAMIC_TAG_DEFINED
+#endif
+
+#ifndef DYNAMIC_TAG_MARKER
+#define DYNAMIC_TAG_MARKER(name, value) DYNAMIC_TAG(name, value)
+#define DYNAMIC_TAG_MARKER_DEFINED
+#endif
+
+DYNAMIC_TAG(NULL, 0)        // Marks end of dynamic array.
+DYNAMIC_TAG(NEEDED, 1)      // String table offset of needed library.
+DYNAMIC_TAG(PLTRELSZ, 2)    // Size of relocation entries in PLT.
+DYNAMIC_TAG(PLTGOT, 3)      // Address associated with linkage table.
+DYNAMIC_TAG(HASH, 4)        // Address of symbolic hash table.
+DYNAMIC_TAG(STRTAB, 5)      // Address of dynamic string table.
+DYNAMIC_TAG(SYMTAB, 6)      // Address of dynamic symbol table.
+DYNAMIC_TAG(RELA, 7)        // Address of relocation table (Rela entries).
+DYNAMIC_TAG(RELASZ, 8)      // Size of Rela relocation table.
+DYNAMIC_TAG(RELAENT, 9)     // Size of a Rela relocation entry.
+DYNAMIC_TAG(STRSZ, 10)      // Total size of the string table.
+DYNAMIC_TAG(SYMENT, 11)     // Size of a symbol table entry.
+DYNAMIC_TAG(INIT, 12)       // Address of initialization function.
+DYNAMIC_TAG(FINI, 13)       // Address of termination function.
+DYNAMIC_TAG(SONAME, 14)     // String table offset of a shared objects name.
+DYNAMIC_TAG(RPATH, 15)      // String table offset of library search path.
+DYNAMIC_TAG(SYMBOLIC, 16)   // Changes symbol resolution algorithm.
+DYNAMIC_TAG(REL, 17)        // Address of relocation table (Rel entries).
+DYNAMIC_TAG(RELSZ, 18)      // Size of Rel relocation table.
+DYNAMIC_TAG(RELENT, 19)     // Size of a Rel relocation entry.
+DYNAMIC_TAG(PLTREL, 20)     // Type of relocation entry used for linking.
+DYNAMIC_TAG(DEBUG, 21)      // Reserved for debugger.
+DYNAMIC_TAG(TEXTREL, 22)    // Relocations exist for non-writable segments.
+DYNAMIC_TAG(JMPREL, 23)     // Address of relocations associated with PLT.
+DYNAMIC_TAG(BIND_NOW, 24)   // Process all relocations before execution.
+DYNAMIC_TAG(INIT_ARRAY, 25) // Pointer to array of initialization functions.
+DYNAMIC_TAG(FINI_ARRAY, 26) // Pointer to array of termination functions.
+DYNAMIC_TAG(INIT_ARRAYSZ, 27) // Size of DT_INIT_ARRAY.
+DYNAMIC_TAG(FINI_ARRAYSZ, 28) // Size of DT_FINI_ARRAY.
+DYNAMIC_TAG(RUNPATH, 29)      // String table offset of lib search path.
+DYNAMIC_TAG(FLAGS, 30)        // Flags.
+DYNAMIC_TAG_MARKER(ENCODING, 32) // Values from here to DT_LOOS follow the rules
+                                 // for the interpretation of the d_un union.
+
+DYNAMIC_TAG(PREINIT_ARRAY, 32)   // Pointer to array of preinit functions.
+DYNAMIC_TAG(PREINIT_ARRAYSZ, 33) // Size of the DT_PREINIT_ARRAY array.
+
+DYNAMIC_TAG(SYMTAB_SHNDX, 34) // Address of the SHT_SYMTAB_SHNDX section.
+
+// Experimental support for SHT_RELR sections. For details, see proposal
+// at https://groups.google.com/forum/#!topic/generic-abi/bX460iggiKg
+DYNAMIC_TAG(RELRSZ, 35)  // Size of Relr relocation table.
+DYNAMIC_TAG(RELR, 36)    // Address of relocation table (Relr entries).
+DYNAMIC_TAG(RELRENT, 37) // Size of a Relr relocation entry.
+
+DYNAMIC_TAG_MARKER(LOOS, 0x60000000)   // Start of environment specific tags.
+DYNAMIC_TAG_MARKER(HIOS, 0x6FFFFFFF)   // End of environment specific tags.
+DYNAMIC_TAG_MARKER(LOPROC, 0x70000000) // Start of processor specific tags.
+DYNAMIC_TAG_MARKER(HIPROC, 0x7FFFFFFF) // End of processor specific tags.
+
+// Android packed relocation section tags.
+// https://android.googlesource.com/platform/bionic/+/6f12bfece5dcc01325e0abba56a46b1bcf991c69/tools/relocation_packer/src/elf_file.cc#31
+DYNAMIC_TAG(ANDROID_REL, 0x6000000F)
+DYNAMIC_TAG(ANDROID_RELSZ, 0x60000010)
+DYNAMIC_TAG(ANDROID_RELA, 0x60000011)
+DYNAMIC_TAG(ANDROID_RELASZ, 0x60000012)
+
+// Android's experimental support for SHT_RELR sections.
+// https://android.googlesource.com/platform/bionic/+/b7feec74547f84559a1467aca02708ff61346d2a/libc/include/elf.h#253
+DYNAMIC_TAG(ANDROID_RELR, 0x6FFFE000)      // Address of relocation table (Relr entries).
+DYNAMIC_TAG(ANDROID_RELRSZ, 0x6FFFE001)    // Size of Relr relocation table.
+DYNAMIC_TAG(ANDROID_RELRENT, 0x6FFFE003)   // Size of a Relr relocation entry.
+
+DYNAMIC_TAG(GNU_HASH, 0x6FFFFEF5)    // Reference to the GNU hash table.
+DYNAMIC_TAG(TLSDESC_PLT, 0x6FFFFEF6) // Location of PLT entry for TLS
+                                     // descriptor resolver calls.
+DYNAMIC_TAG(TLSDESC_GOT, 0x6FFFFEF7) // Location of GOT entry used by TLS
+                                     // descriptor resolver PLT entry.
+DYNAMIC_TAG(RELACOUNT, 0x6FFFFFF9)   // ELF32_Rela count.
+DYNAMIC_TAG(RELCOUNT, 0x6FFFFFFA)    // ELF32_Rel count.
+
+DYNAMIC_TAG(FLAGS_1, 0X6FFFFFFB) // Flags_1.
+
+DYNAMIC_TAG(VERSYM, 0x6FFFFFF0)     // The address of .gnu.version section.
+DYNAMIC_TAG(VERDEF, 0X6FFFFFFC)     // The address of the version definition
+                                    // table.
+DYNAMIC_TAG(VERDEFNUM, 0X6FFFFFFD)  // The number of entries in DT_VERDEF.
+DYNAMIC_TAG(VERNEED, 0X6FFFFFFE)    // The address of the version dependency
+                                    // table.
+DYNAMIC_TAG(VERNEEDNUM, 0X6FFFFFFF) // The number of entries in DT_VERNEED.
+
+// Hexagon specific dynamic table entries
+HEXAGON_DYNAMIC_TAG(HEXAGON_SYMSZ, 0x70000000)
+HEXAGON_DYNAMIC_TAG(HEXAGON_VER, 0x70000001)
+HEXAGON_DYNAMIC_TAG(HEXAGON_PLT, 0x70000002)
+
+// Mips specific dynamic table entry tags.
+
+MIPS_DYNAMIC_TAG(MIPS_RLD_VERSION, 0x70000001)  // 32 bit version number for
+                                                // runtime linker interface.
+MIPS_DYNAMIC_TAG(MIPS_TIME_STAMP, 0x70000002)   // Time stamp.
+MIPS_DYNAMIC_TAG(MIPS_ICHECKSUM, 0x70000003)    // Checksum of external strings
+                                                // and common sizes.
+MIPS_DYNAMIC_TAG(MIPS_IVERSION, 0x70000004)     // Index of version string
+                                                // in string table.
+MIPS_DYNAMIC_TAG(MIPS_FLAGS, 0x70000005)        // 32 bits of flags.
+MIPS_DYNAMIC_TAG(MIPS_BASE_ADDRESS, 0x70000006) // Base address of the segment.
+MIPS_DYNAMIC_TAG(MIPS_MSYM, 0x70000007)         // Address of .msym section.
+MIPS_DYNAMIC_TAG(MIPS_CONFLICT, 0x70000008)     // Address of .conflict section.
+MIPS_DYNAMIC_TAG(MIPS_LIBLIST, 0x70000009)      // Address of .liblist section.
+MIPS_DYNAMIC_TAG(MIPS_LOCAL_GOTNO, 0x7000000a)  // Number of local global offset
+                                                // table entries.
+MIPS_DYNAMIC_TAG(MIPS_CONFLICTNO, 0x7000000b)   // Number of entries
+                                                // in the .conflict section.
+MIPS_DYNAMIC_TAG(MIPS_LIBLISTNO, 0x70000010)    // Number of entries
+                                                // in the .liblist section.
+MIPS_DYNAMIC_TAG(MIPS_SYMTABNO, 0x70000011)     // Number of entries
+                                                // in the .dynsym section.
+MIPS_DYNAMIC_TAG(MIPS_UNREFEXTNO, 0x70000012)   // Index of first external dynamic
+                                                // symbol not referenced locally.
+MIPS_DYNAMIC_TAG(MIPS_GOTSYM, 0x70000013)       // Index of first dynamic symbol
+                                                // in global offset table.
+MIPS_DYNAMIC_TAG(MIPS_HIPAGENO, 0x70000014)     // Number of page table entries
+                                                // in global offset table.
+MIPS_DYNAMIC_TAG(MIPS_RLD_MAP, 0x70000016)      // Address of run time loader map
+                                                // used for debugging.
+MIPS_DYNAMIC_TAG(MIPS_DELTA_CLASS, 0x70000017)    // Delta C++ class definition.
+MIPS_DYNAMIC_TAG(MIPS_DELTA_CLASS_NO, 0x70000018) // Number of entries
+                                                  // in DT_MIPS_DELTA_CLASS.
+MIPS_DYNAMIC_TAG(MIPS_DELTA_INSTANCE, 0x70000019) // Delta C++ class instances.
+MIPS_DYNAMIC_TAG(MIPS_DELTA_INSTANCE_NO, 0x7000001A) // Number of entries
+                                                     // in DT_MIPS_DELTA_INSTANCE.
+MIPS_DYNAMIC_TAG(MIPS_DELTA_RELOC, 0x7000001B)       // Delta relocations.
+MIPS_DYNAMIC_TAG(MIPS_DELTA_RELOC_NO, 0x7000001C)    // Number of entries
+                                                     // in DT_MIPS_DELTA_RELOC.
+MIPS_DYNAMIC_TAG(MIPS_DELTA_SYM, 0x7000001D)         // Delta symbols that Delta
+                                                     // relocations refer to.
+MIPS_DYNAMIC_TAG(MIPS_DELTA_SYM_NO, 0x7000001E)      // Number of entries
+                                                     // in DT_MIPS_DELTA_SYM.
+MIPS_DYNAMIC_TAG(MIPS_DELTA_CLASSSYM, 0x70000020)    // Delta symbols that hold
+                                                     // class declarations.
+MIPS_DYNAMIC_TAG(MIPS_DELTA_CLASSSYM_NO, 0x70000021) // Number of entries
+                                                     // in DT_MIPS_DELTA_CLASSSYM.
+
+MIPS_DYNAMIC_TAG(MIPS_CXX_FLAGS, 0x70000022)         // Flags indicating information
+                                                     // about C++ flavor.
+MIPS_DYNAMIC_TAG(MIPS_PIXIE_INIT, 0x70000023)        // Pixie information.
+MIPS_DYNAMIC_TAG(MIPS_SYMBOL_LIB, 0x70000024)        // Address of .MIPS.symlib
+MIPS_DYNAMIC_TAG(MIPS_LOCALPAGE_GOTIDX, 0x70000025)  // The GOT index of the first PTE
+                                                     // for a segment
+MIPS_DYNAMIC_TAG(MIPS_LOCAL_GOTIDX, 0x70000026)      // The GOT index of the first PTE
+                                                     // for a local symbol
+MIPS_DYNAMIC_TAG(MIPS_HIDDEN_GOTIDX, 0x70000027)     // The GOT index of the first PTE
+                                                     // for a hidden symbol
+MIPS_DYNAMIC_TAG(MIPS_PROTECTED_GOTIDX, 0x70000028)  // The GOT index of the first PTE
+                                                        // for a protected symbol
+MIPS_DYNAMIC_TAG(MIPS_OPTIONS, 0x70000029)               // Address of `.MIPS.options'.
+MIPS_DYNAMIC_TAG(MIPS_INTERFACE, 0x7000002A)             // Address of `.interface'.
+MIPS_DYNAMIC_TAG(MIPS_DYNSTR_ALIGN, 0x7000002B)          // Unknown.
+MIPS_DYNAMIC_TAG(MIPS_INTERFACE_SIZE, 0x7000002C)        // Size of the .interface section.
+MIPS_DYNAMIC_TAG(MIPS_RLD_TEXT_RESOLVE_ADDR, 0x7000002D) // Size of rld_text_resolve
+                                                         // function stored in the GOT.
+MIPS_DYNAMIC_TAG(MIPS_PERF_SUFFIX, 0x7000002E)  // Default suffix of DSO to be added
+                                                // by rld on dlopen() calls.
+MIPS_DYNAMIC_TAG(MIPS_COMPACT_SIZE, 0x7000002F) // Size of compact relocation
+                                                // section (O32).
+MIPS_DYNAMIC_TAG(MIPS_GP_VALUE, 0x70000030)     // GP value for auxiliary GOTs.
+MIPS_DYNAMIC_TAG(MIPS_AUX_DYNAMIC, 0x70000031)  // Address of auxiliary .dynamic.
+MIPS_DYNAMIC_TAG(MIPS_PLTGOT, 0x70000032)       // Address of the base of the PLTGOT.
+MIPS_DYNAMIC_TAG(MIPS_RWPLT, 0x70000034)        // Points to the base
+                                                // of a writable PLT.
+MIPS_DYNAMIC_TAG(MIPS_RLD_MAP_REL, 0x70000035)  // Relative offset of run time loader
+                                                // map, used for debugging.
+
+// PPC64 specific dynamic table entries.
+PPC64_DYNAMIC_TAG(PPC64_GLINK, 0x70000000) // Address of 32 bytes before the
+                                           // first glink lazy resolver stub.
+
+// Sun machine-independent extensions.
+DYNAMIC_TAG(AUXILIARY, 0x7FFFFFFD) // Shared object to load before self
+DYNAMIC_TAG(FILTER, 0x7FFFFFFF)    // Shared object to get values from
+
+
+#ifdef DYNAMIC_TAG_MARKER_DEFINED
+#undef DYNAMIC_TAG_MARKER
+#endif
+#ifdef MIPS_DYNAMIC_TAG_DEFINED
+#undef MIPS_DYNAMIC_TAG
+#undef MIPS_DYNAMIC_TAG_DEFINED
+#endif
+#ifdef HEXAGON_DYNAMIC_TAG_DEFINED
+#undef HEXAGON_DYNAMIC_TAG
+#undef HEXAGON_DYNAMIC_TAG_DEFINED
+#endif
+#ifdef PPC64_DYNAMIC_TAG_DEFINED
+#undef PPC64_DYNAMIC_TAG
+#undef PPC64_DYNAMIC_TAG_DEFINED
+#endif

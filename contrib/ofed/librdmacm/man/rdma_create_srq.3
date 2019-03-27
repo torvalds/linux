@@ -1,0 +1,45 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_CREATE_SRQ" 3 "2011-06-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_create_srq \- Allocate a shared receive queue.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_verbs.h>"
+.P
+.B "int" rdma_create_srq
+.BI "(struct rdma_cm_id *" id ","
+.BI "struct ibv_pd *" pd ","
+.BI "struct ibv_srq_init_attr *" attr ");"
+.SH ARGUMENTS
+.IP "id" 12
+RDMA identifier.
+.IP "pd" 12
+Optional protection domain for the SRQ.
+.IP "attr" 12
+Initial SRQ attributes.
+.SH "DESCRIPTION"
+Allocate a SRQ associated with the specified rdma_cm_id.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+The rdma_cm_id must be bound to a local RDMA device before calling this
+function, and the protection domain, if provided, must be for that same device.
+After being allocated, the SRQ will be ready to handle posting of receives.
+.P
+If a protection domain is not given - pd parameter is NULL - then
+the rdma_cm_id will be created using a default protection domain.  One
+default protection domain is allocated per RDMA device.
+.P
+The initial SRQ attributes are specified by the attr parameter.  The
+ext.xrc.cq fields in the ibv_srq_init_attr is optional.  If
+a completion queue is not specified for an XRC SRQ, then a CQ will be
+allocated by the rdma_cm for the SRQ, along with corresponding completion
+channels.  Completion channels and CQ data created by the rdma_cm are
+exposed to the user through the rdma_cm_id structure.
+.P
+The actual capabilities and properties of the created SRQ will be
+returned to the user through the attr parameter.  An rdma_cm_id
+may only be associated with a single SRQ.
+.SH "SEE ALSO"
+rdma_bind_addr(3), rdma_resolve_addr(3), rdma_create_ep(3),
+rdma_destroy_srq(3), ibv_create_srq(3), ibv_create_xsrq(3)

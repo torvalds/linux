@@ -1,0 +1,7 @@
+# $FreeBSD$
+set -e
+if false; then
+	:
+elif false; false; then
+	:
+fi

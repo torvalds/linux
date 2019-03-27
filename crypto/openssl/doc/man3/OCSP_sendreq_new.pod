@@ -1,0 +1,122 @@
+=pod
+
+=head1 NAME
+
+OCSP_sendreq_new, OCSP_sendreq_nbio, OCSP_REQ_CTX_free,
+OCSP_set_max_response_length, OCSP_REQ_CTX_add1_header,
+OCSP_REQ_CTX_set1_req, OCSP_sendreq_bio - OCSP responder query functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/ocsp.h>
+
+ OCSP_REQ_CTX *OCSP_sendreq_new(BIO *io, const char *path, OCSP_REQUEST *req,
+                                int maxline);
+
+ int OCSP_sendreq_nbio(OCSP_RESPONSE **presp, OCSP_REQ_CTX *rctx);
+
+ void OCSP_REQ_CTX_free(OCSP_REQ_CTX *rctx);
+
+ void OCSP_set_max_response_length(OCSP_REQ_CTX *rctx, unsigned long len);
+
+ int OCSP_REQ_CTX_add1_header(OCSP_REQ_CTX *rctx,
+                              const char *name, const char *value);
+
+ int OCSP_REQ_CTX_set1_req(OCSP_REQ_CTX *rctx, OCSP_REQUEST *req);
+
+ OCSP_RESPONSE *OCSP_sendreq_bio(BIO *io, const char *path, OCSP_REQUEST *req,
+                                 int maxline);
+
+=head1 DESCRIPTION
+
+The function OCSP_sendreq_new() returns an B<OCSP_CTX> structure using the
+responder B<io>, the URL path B<path>, the OCSP request B<req> and with a
+response header maximum line length of B<maxline>. If B<maxline> is zero a
+default value of 4k is used. The OCSP request B<req> may be set to B<NULL>
+and provided later if required.
+
+OCSP_sendreq_nbio() performs non-blocking I/O on the OCSP request context
+B<rctx>. When the operation is complete it returns the response in B<*presp>.
+
+OCSP_REQ_CTX_free() frees up the OCSP context B<rctx>.
+
+OCSP_set_max_response_length() sets the maximum response length for B<rctx>
+to B<len>. If the response exceeds this length an error occurs. If not
+set a default value of 100k is used.
+
+OCSP_REQ_CTX_add1_header() adds header B<name> with value B<value> to the
+context B<rctx>. It can be called more than once to add multiple headers.
+It B<MUST> be called before any calls to OCSP_sendreq_nbio(). The B<req>
+parameter in the initial to OCSP_sendreq_new() call MUST be set to B<NULL> if
+additional headers are set.
+
+OCSP_REQ_CTX_set1_req() sets the OCSP request in B<rctx> to B<req>. This
+function should be called after any calls to OCSP_REQ_CTX_add1_header().
+
+OCSP_sendreq_bio() performs an OCSP request using the responder B<io>, the URL
+path B<path>, the OCSP request B<req> and with a response header maximum line
+length of B<maxline>. If B<maxline> is zero a default value of 4k is used.
+
+=head1 RETURN VALUES
+
+OCSP_sendreq_new() returns a valid B<OCSP_REQ_CTX> structure or B<NULL> if
+an error occurred.
+
+OCSP_sendreq_nbio() returns B<1> if the operation was completed successfully,
+B<-1> if the operation should be retried and B<0> if an error occurred.
+
+OCSP_REQ_CTX_add1_header() and OCSP_REQ_CTX_set1_req() return B<1> for success
+and B<0> for failure.
+
+OCSP_sendreq_bio() returns the B<OCSP_RESPONSE> structure sent by the
+responder or B<NULL> if an error occurred.
+
+OCSP_REQ_CTX_free() and OCSP_set_max_response_length() do not return values.
+
+=head1 NOTES
+
+These functions only perform a minimal HTTP query to a responder. If an
+application wishes to support more advanced features it should use an
+alternative more complete HTTP library.
+
+Currently only HTTP POST queries to responders are supported.
+
+The arguments to OCSP_sendreq_new() correspond to the components of the URL.
+For example if the responder URL is B<http://ocsp.com/ocspreq> the BIO
+B<io> should be connected to host B<ocsp.com> on port 80 and B<path>
+should be set to B<"/ocspreq">
+
+The headers added with OCSP_REQ_CTX_add1_header() are of the form
+"B<name>: B<value>" or just "B<name>" if B<value> is B<NULL>. So to add
+a Host header for B<ocsp.com> you would call:
+
+ OCSP_REQ_CTX_add1_header(ctx, "Host", "ocsp.com");
+
+If OCSP_sendreq_nbio() indicates an operation should be retried the
+corresponding BIO can be examined to determine which operation (read or
+write) should be retried and appropriate action taken (for example a select()
+call on the underlying socket).
+
+OCSP_sendreq_bio() does not support retries and so cannot handle non-blocking
+I/O efficiently. It is retained for compatibility and its use in new
+applications is not recommended.
+
+=head1 SEE ALSO
+
+L<crypto(7)>,
+L<OCSP_cert_to_id(3)>,
+L<OCSP_request_add1_nonce(3)>,
+L<OCSP_REQUEST_new(3)>,
+L<OCSP_resp_find_status(3)>,
+L<OCSP_response_status(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

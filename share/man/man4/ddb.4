@@ -1,0 +1,1597 @@
+.\"
+.\" Mach Operating System
+.\" Copyright (c) 1991,1990 Carnegie Mellon University
+.\" Copyright (c) 2007 Robert N. M. Watson
+.\" All Rights Reserved.
+.\"
+.\" Permission to use, copy, modify and distribute this software and its
+.\" documentation is hereby granted, provided that both the copyright
+.\" notice and this permission notice appear in all copies of the
+.\" software, derivative works or modified versions, and any portions
+.\" thereof, and that both notices appear in supporting documentation.
+.\"
+.\" CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+.\" CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
+.\" ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
+.\"
+.\" Carnegie Mellon requests users of this software to return to
+.\"
+.\"  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
+.\"  School of Computer Science
+.\"  Carnegie Mellon University
+.\"  Pittsburgh PA 15213-3890
+.\"
+.\" any improvements or extensions that they make and grant Carnegie Mellon
+.\" the rights to redistribute these changes.
+.\"
+.\" changed a \# to #, since groff choked on it.
+.\"
+.\" HISTORY
+.\" ddb.4,v
+.\" Revision 1.1  1993/07/15  18:41:02  brezak
+.\" Man page for DDB
+.\"
+.\" Revision 2.6  92/04/08  08:52:57  rpd
+.\" 	Changes from OSF.
+.\" 	[92/01/17  14:19:22  jsb]
+.\" 	Changes for OSF debugger modifications.
+.\" 	[91/12/12            tak]
+.\"
+.\" Revision 2.5  91/06/25  13:50:22  rpd
+.\" 	Added some watchpoint explanation.
+.\" 	[91/06/25            rpd]
+.\"
+.\" Revision 2.4  91/06/17  15:47:31  jsb
+.\" 	Added documentation for continue/c, match, search, and watchpoints.
+.\" 	I've not actually explained what a watchpoint is; maybe Rich can
+.\" 	do that (hint, hint).
+.\" 	[91/06/17  10:58:08  jsb]
+.\"
+.\" Revision 2.3  91/05/14  17:04:23  mrt
+.\" 	Correcting copyright
+.\"
+.\" Revision 2.2  91/02/14  14:10:06  mrt
+.\" 	Changed to new Mach copyright
+.\" 	[91/02/12  18:10:12  mrt]
+.\"
+.\" Revision 2.2  90/08/30  14:23:15  dbg
+.\" 	Created.
+.\" 	[90/08/30            dbg]
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 30, 2018
+.Dt DDB 4
+.Os
+.Sh NAME
+.Nm ddb
+.Nd interactive kernel debugger
+.Sh SYNOPSIS
+In order to enable kernel debugging facilities include:
+.Bd -ragged -offset indent
+.Cd options KDB
+.Cd options DDB
+.Ed
+.Pp
+To prevent activation of the debugger on kernel
+.Xr panic 9 :
+.Bd -ragged -offset indent
+.Cd options KDB_UNATTENDED
+.Ed
+.Pp
+In order to print a stack trace of the current thread on the console
+for a panic:
+.Bd -ragged -offset indent
+.Cd options KDB_TRACE
+.Ed
+.Pp
+To print the numerical value of symbols in addition to the symbolic
+representation, define:
+.Bd -ragged -offset indent
+.Cd options DDB_NUMSYM
+.Ed
+.Pp
+To enable the
+.Xr gdb 1
+backend, so that remote debugging with
+.Xr kgdb 1
+is possible, include:
+.Bd -ragged -offset indent
+.Cd options GDB
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+kernel debugger is an interactive debugger with a syntax inspired by
+.Xr gdb 1 .
+If linked into the running kernel,
+it can be invoked locally with the
+.Ql debug
+.Xr keymap 5
+action, usually mapped to Ctrl+Alt+Esc, or by setting the
+.Va debug.kdb.enter
+sysctl to 1.
+The debugger is also invoked on kernel
+.Xr panic 9
+if the
+.Va debug.debugger_on_panic
+.Xr sysctl 8
+MIB variable is set non-zero,
+which is the default
+unless the
+.Dv KDB_UNATTENDED
+option is specified.
+.Pp
+The current location is called
+.Va dot .
+The
+.Va dot
+is displayed with
+a hexadecimal format at a prompt.
+The commands
+.Ic examine
+and
+.Ic write
+update
+.Va dot
+to the address of the last line
+examined or the last location modified, and set
+.Va next
+to the address of
+the next location to be examined or changed.
+Other commands do not change
+.Va dot ,
+and set
+.Va next
+to be the same as
+.Va dot .
+.Pp
+The general command syntax is:
+.Ar command Ns Op Li / Ns Ar modifier
+.Oo Ar addr Oc Ns Op , Ns Ar count
+.Pp
+A blank line repeats the previous command from the address
+.Va next
+with
+count 1 and no modifiers.
+Specifying
+.Ar addr
+sets
+.Va dot
+to the address.
+Omitting
+.Ar addr
+uses
+.Va dot .
+A missing
+.Ar count
+is taken
+to be 1 for printing commands or infinity for stack traces.
+A
+.Ar count
+of -1 is equivalent to a missing
+.Ar count .
+Options that are supplied but not supported by the given
+.Ar command
+are usually ignored.
+.Pp
+The
+.Nm
+debugger has a pager feature (like the
+.Xr more 1
+command)
+for the output.
+If an output line exceeds the number set in the
+.Va lines
+variable, it displays
+.Dq Li --More--
+and waits for a response.
+The valid responses for it are:
+.Pp
+.Bl -tag -compact -width ".Li SPC"
+.It Li SPC
+one more page
+.It Li RET
+one more line
+.It Li q
+abort the current command, and return to the command input mode
+.El
+.Pp
+Finally,
+.Nm
+provides a small (currently 10 items) command history, and offers
+simple
+.Nm emacs Ns -style
+command line editing capabilities.
+In addition to
+the
+.Nm emacs
+control keys, the usual
+.Tn ANSI
+arrow keys may be used to
+browse through the history buffer, and move the cursor within the
+current line.
+.Sh COMMANDS
+.Bl -tag -width indent -compact
+.It Xo
+.Ic examine Ns Op Li / Ns Cm AISabcdghilmorsuxz ...
+.Oo Ar addr Oc Ns Op , Ns Ar count
+.Xc
+.It Xo
+.Ic x       Ns Op Li / Ns Cm AISabcdghilmorsuxz ...
+.Oo Ar addr Oc Ns Op , Ns Ar count
+.Xc
+Display the addressed locations according to the formats in the modifier.
+Multiple modifier formats display multiple locations.
+If no format is specified, the last format specified for this command
+is used.
+.Pp
+The format characters are:
+.Bl -tag -compact -width indent
+.It Cm b
+look at by bytes (8 bits)
+.It Cm h
+look at by half words (16 bits)
+.It Cm l
+look at by long words (32 bits)
+.It Cm g
+look at by quad words (64 bits)
+.It Cm a
+print the location being displayed
+.It Cm A
+print the location with a line number if possible
+.It Cm x
+display in unsigned hex
+.It Cm z
+display in signed hex
+.It Cm o
+display in unsigned octal
+.It Cm d
+display in signed decimal
+.It Cm u
+display in unsigned decimal
+.It Cm r
+display in current radix, signed
+.It Cm c
+display low 8 bits as a character.
+Non-printing characters are displayed as an octal escape code (e.g.,
+.Ql \e000 ) .
+.It Cm s
+display the null-terminated string at the location.
+Non-printing characters are displayed as octal escapes.
+.It Cm m
+display in unsigned hex with character dump at the end of each line.
+The location is also displayed in hex at the beginning of each line.
+.It Cm i
+display as a disassembled instruction
+.It Cm I
+display as an disassembled instruction with possible alternate formats depending on the
+machine.
+On i386, this selects the alternate format for the instruction decoding
+(16 bits in a 32-bit code segment and vice versa).
+.It Cm S
+display a symbol name for the pointer stored at the address
+.El
+.Pp
+.It Ic xf
+Examine forward:
+execute an
+.Ic examine
+command with the last specified parameters to it
+except that the next address displayed by it is used as the start address.
+.Pp
+.It Ic xb
+Examine backward:
+execute an
+.Ic examine
+command with the last specified parameters to it
+except that the last start address subtracted by the size displayed by it
+is used as the start address.
+.Pp
+.It Ic print Ns Op Li / Ns Cm acdoruxz
+.It Ic p Ns Op Li / Ns Cm acdoruxz
+Print
+.Ar addr Ns s
+according to the modifier character (as described above for
+.Cm examine ) .
+Valid formats are:
+.Cm a , x , z , o , d , u , r ,
+and
+.Cm c .
+If no modifier is specified, the last one specified to it is used.
+The argument
+.Ar addr
+can be a string, in which case it is printed as it is.
+For example:
+.Bd -literal -offset indent
+print/x "eax = " $eax "\enecx = " $ecx "\en"
+.Ed
+.Pp
+will print like:
+.Bd -literal -offset indent
+eax = xxxxxx
+ecx = yyyyyy
+.Ed
+.Pp
+.It Xo
+.Ic write Ns Op Li / Ns Cm bhl
+.Ar addr expr1 Op Ar expr2 ...
+.Xc
+.It Xo
+.Ic w Ns Op Li / Ns Cm bhl
+.Ar addr expr1 Op Ar expr2 ...
+.Xc
+Write the expressions specified after
+.Ar addr
+on the command line at succeeding locations starting with
+.Ar addr .
+The write unit size can be specified in the modifier with a letter
+.Cm b
+(byte),
+.Cm h
+(half word) or
+.Cm l
+(long word) respectively.
+If omitted,
+long word is assumed.
+.Pp
+.Sy Warning :
+since there is no delimiter between expressions, strange
+things may happen.
+It is best to enclose each expression in parentheses.
+.Pp
+.It Ic set Li $ Ns Ar variable Oo Li = Oc Ar expr
+Set the named variable or register with the value of
+.Ar expr .
+Valid variable names are described below.
+.Pp
+.It Ic break Ns Oo Li / Ns Cm u Oc Oo Ar addr Oc Ns Op , Ns Ar count
+.It Ic b     Ns Oo Li / Ns Cm u Oc Oo Ar addr Oc Ns Op , Ns Ar count
+Set a break point at
+.Ar addr .
+If
+.Ar count
+is supplied, the
+.Ic continue
+command will not stop at this break point on the first
+.Ar count
+\- 1 times that it is hit.
+If the break point is set, a break point number is
+printed with
+.Ql # .
+This number can be used in deleting the break point
+or adding conditions to it.
+.Pp
+If the
+.Cm u
+modifier is specified, this command sets a break point in user
+address space.
+Without the
+.Cm u
+option, the address is considered to be in the kernel
+space, and a wrong space address is rejected with an error message.
+This modifier can be used only if it is supported by machine dependent
+routines.
+.Pp
+.Sy Warning :
+If a user text is shadowed by a normal user space debugger,
+user space break points may not work correctly.
+Setting a break
+point at the low-level code paths may also cause strange behavior.
+.Pp
+.It Ic delete Op Ar addr
+.It Ic d      Op Ar addr
+.It Ic delete Li # Ns Ar number
+.It Ic d      Li # Ns Ar number
+Delete the specified break point.
+The break point can be specified by a
+break point number with
+.Ql # ,
+or by using the same
+.Ar addr
+specified in the original
+.Ic break
+command, or by omitting
+.Ar addr
+to get the default address of
+.Va dot .
+.Pp
+.It Ic watch Oo Ar addr Oc Ns Op , Ns Ar size
+Set a watchpoint for a region.
+Execution stops when an attempt to modify the region occurs.
+The
+.Ar size
+argument defaults to 4.
+If you specify a wrong space address, the request is rejected
+with an error message.
+.Pp
+.Sy Warning :
+Attempts to watch wired kernel memory
+may cause unrecoverable error in some systems such as i386.
+Watchpoints on user addresses work best.
+.Pp
+.It Ic hwatch Oo Ar addr Oc Ns Op , Ns Ar size
+Set a hardware watchpoint for a region if supported by the
+architecture.
+Execution stops when an attempt to modify the region occurs.
+The
+.Ar size
+argument defaults to 4.
+.Pp
+.Sy Warning :
+The hardware debug facilities do not have a concept of separate
+address spaces like the watch command does.
+Use
+.Ic hwatch
+for setting watchpoints on kernel address locations only, and avoid
+its use on user mode address spaces.
+.Pp
+.It Ic dhwatch Oo Ar addr Oc Ns Op , Ns Ar size
+Delete specified hardware watchpoint.
+.Pp
+.It Ic step Ns Oo Li / Ns Cm p Oc Ns Op , Ns Ar count
+.It Ic s    Ns Oo Li / Ns Cm p Oc Ns Op , Ns Ar count
+Single step
+.Ar count
+times.
+If the
+.Cm p
+modifier is specified, print each instruction at each step.
+Otherwise, only print the last instruction.
+.Pp
+.Sy Warning :
+depending on machine type, it may not be possible to
+single-step through some low-level code paths or user space code.
+On machines with software-emulated single-stepping (e.g., pmax),
+stepping through code executed by interrupt handlers will probably
+do the wrong thing.
+.Pp
+.It Ic continue Ns Op Li / Ns Cm c
+.It Ic c Ns Op Li / Ns Cm c
+Continue execution until a breakpoint or watchpoint.
+If the
+.Cm c
+modifier is specified, count instructions while executing.
+Some machines (e.g., pmax) also count loads and stores.
+.Pp
+.Sy Warning :
+when counting, the debugger is really silently single-stepping.
+This means that single-stepping on low-level code may cause strange
+behavior.
+.Pp
+.It Ic until Ns Op Li / Ns Cm p
+Stop at the next call or return instruction.
+If the
+.Cm p
+modifier is specified, print the call nesting depth and the
+cumulative instruction count at each call or return.
+Otherwise,
+only print when the matching return is hit.
+.Pp
+.It Ic next Ns Op Li / Ns Cm p
+.It Ic match Ns Op Li / Ns Cm p
+Stop at the matching return instruction.
+If the
+.Cm p
+modifier is specified, print the call nesting depth and the
+cumulative instruction count at each call or return.
+Otherwise, only print when the matching return is hit.
+.Pp
+.It Xo
+.Ic trace Ns Op Li / Ns Cm u
+.Op Ar pid | tid Ns
+.Op , Ns Ar count
+.Xc
+.It Xo
+.Ic t Ns Op Li / Ns Cm u
+.Op Ar pid | tid Ns
+.Op , Ns Ar count
+.Xc
+.It Xo
+.Ic where Ns Op Li / Ns Cm u
+.Op Ar pid | tid Ns
+.Op , Ns Ar count
+.Xc
+.It Xo
+.Ic bt Ns Op Li / Ns Cm u
+.Op Ar pid | tid Ns
+.Op , Ns Ar count
+.Xc
+Stack trace.
+The
+.Cm u
+option traces user space; if omitted,
+.Ic trace
+only traces
+kernel space.
+The optional argument
+.Ar count
+is the number of frames to be traced.
+If
+.Ar count
+is omitted, all frames are printed.
+.Pp
+.Sy Warning :
+User space stack trace is valid
+only if the machine dependent code supports it.
+.Pp
+.It Xo
+.Ic search Ns Op Li / Ns Cm bhl
+.Ar addr
+.Ar value
+.Op Ar mask Ns
+.Op , Ns Ar count
+.Xc
+Search memory for
+.Ar value .
+The optional
+.Ar count
+argument limits the search.
+.\"
+.Pp
+.It Xo
+.Ic findstack
+.Ar addr
+.Xc
+Prints the thread address for a thread kernel-mode stack of which contains the
+specified address.
+If the thread is not found, search the thread stack cache and prints the
+cached stack address.
+Otherwise, prints nothing.
+.Pp
+.It Ic show Cm all procs Ns Op Li / Ns Cm a
+.It Ic ps Ns Op Li / Ns Cm a
+Display all process information.
+The process information may not be shown if it is not
+supported in the machine, or the bottom of the stack of the
+target process is not in the main memory at that time.
+The
+.Cm a
+modifier will print command line arguments for each process.
+.\"
+.Pp
+.It Ic show Cm all trace
+.It Ic alltrace
+Show a stack trace for every thread in the system.
+.Pp
+.It Ic show Cm all ttys
+Show all TTY's within the system.
+Output is similar to
+.Xr pstat 8 ,
+but also includes the address of the TTY structure.
+.\"
+.Pp
+.It Ic show Cm all vnets
+Show the same output as "show vnet" does, but lists all
+virtualized network stacks within the system.
+.\"
+.Pp
+.It Ic show Cm allchains
+Show the same information like "show lockchain" does, but
+for every thread in the system.
+.\"
+.Pp
+.It Ic show Cm alllocks
+Show all locks that are currently held.
+This command is only available if
+.Xr witness 4
+is included in the kernel.
+.\"
+.Pp
+.It Ic show Cm allpcpu
+The same as "show pcpu", but for every CPU present in the system.
+.\"
+.Pp
+.It Ic show Cm allrman
+Show information related with resource management, including
+interrupt request lines, DMA request lines, I/O ports, I/O memory
+addresses, and Resource IDs.
+.\"
+.Pp
+.It Ic show Cm apic
+Dump data about APIC IDT vector mappings.
+.\"
+.Pp
+.It Ic show Cm breaks
+Show breakpoints set with the "break" command.
+.\"
+.Pp
+.It Ic show Cm bio Ar addr
+Show information about the bio structure
+.Vt struct bio
+present at
+.Ar addr .
+See the
+.Pa sys/bio.h
+header file and
+.Xr g_bio 9
+for more details on the exact meaning of the structure fields.
+.\"
+.Pp
+.It Ic show Cm buffer Ar addr
+Show information about the buf structure
+.Vt struct buf
+present at
+.Ar addr .
+See the
+.Pa sys/buf.h
+header file for more details on the exact meaning of the structure fields.
+.\"
+.Pp
+.It Ic show Cm callout Ar addr
+Show information about the callout structure
+.Vt struct callout
+present at
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm cbstat
+Show brief information about the TTY subsystem.
+.\"
+.Pp
+.It Ic show Cm cdev
+Without argument, show the list of all created cdev's, consisting of devfs
+node name and struct cdev address.
+When address of cdev is supplied, show some internal devfs state of the cdev.
+.\"
+.Pp
+.It Ic show Cm conifhk
+Lists hooks currently waiting for completion in
+run_interrupt_driven_config_hooks().
+.\"
+.Pp
+.It Ic show Cm cpusets
+Print numbered root and assigned CPU affinity sets.
+See
+.Xr cpuset 2
+for more details.
+.\"
+.Pp
+.It Ic show Cm cyrixreg
+Show registers specific to the Cyrix processor.
+.\"
+.Pp
+.It Ic show Cm devmap
+Prints the contents of the static device mapping table.
+Currently only available on the
+ARM
+architecture.
+.\"
+.Pp
+.It Ic show Cm domain Ar addr
+Print protocol domain structure
+.Vt struct domain
+at address
+.Ar addr .
+See the
+.Pa sys/domain.h
+header file for more details on the exact meaning of the structure fields.
+.\"
+.Pp
+.It Ic show Cm ffs Op Ar addr
+Show brief information about ffs mount at the address
+.Ar addr ,
+if argument is given.
+Otherwise, provides the summary about each ffs mount.
+.\"
+.Pp
+.It Ic show Cm file Ar addr
+Show information about the file structure
+.Vt struct file
+present at address
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm files
+Show information about every file structure in the system.
+.\"
+.Pp
+.It Ic show Cm freepages
+Show the number of physical pages in each of the free lists.
+.\"
+.Pp
+.It Ic show Cm geom Op Ar addr
+If the
+.Ar addr
+argument is not given, displays the entire GEOM topology.
+If
+.Ar addr
+is given, displays details about the given GEOM object (class, geom,
+provider or consumer).
+.\"
+.Pp
+.It Ic show Cm idt
+Show IDT layout.
+The first column specifies the IDT vector.
+The second one is the name of the interrupt/trap handler.
+Those functions are machine dependent.
+.\"
+.Pp
+.It Ic show Cm igi_list Ar addr
+Show information about the IGMP structure
+.Vt struct igmp_ifsoftc
+present at
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm inodedeps Op Ar addr
+Show brief information about each inodedep structure.
+If
+.Ar addr
+is given, only inodedeps belonging to the fs located at the
+supplied address are shown.
+.\"
+.Pp
+.It Ic show Cm inpcb Ar addr
+Show information on IP Control Block
+.Vt struct in_pcb
+present at
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm intr
+Dump information about interrupt handlers.
+.\"
+.Pp
+.It Ic show Cm intrcnt
+Dump the interrupt statistics.
+.\"
+.Pp
+.It Ic show Cm irqs
+Show interrupt lines and their respective kernel threads.
+.\"
+.Pp
+.It Ic show Cm jails
+Show the list of
+.Xr jail 8
+instances.
+In addition to what
+.Xr jls 8
+shows, also list kernel internal details.
+.\"
+.Pp
+.It Ic show Cm lapic
+Show information from the local APIC registers for this CPU.
+.\"
+.Pp
+.It Ic show Cm lock Ar addr
+Show lock structure.
+The output format is as follows:
+.Bl -tag -width "flags"
+.It Ic class:
+Class of the lock.
+Possible types include
+.Xr mutex 9 ,
+.Xr rmlock 9 ,
+.Xr rwlock 9 ,
+.Xr sx 9 .
+.It Ic name:
+Name of the lock.
+.It Ic flags:
+Flags passed to the lock initialization function.
+.Em flags
+values are lock class specific.
+.It Ic state:
+Current state of a lock.
+.Em state
+values are lock class specific.
+.It Ic owner:
+Lock owner.
+.El
+.\"
+.Pp
+.It Ic show Cm lockchain Ar addr
+Show all threads a particular thread at address
+.Ar addr
+is waiting on based on non-spin locks.
+.\"
+.Pp
+.It Ic show Cm lockedbufs
+Show the same information as "show buf", but for every locked
+.Vt struct buf
+object.
+.\"
+.Pp
+.It Ic show Cm lockedvnods
+List all locked vnodes in the system.
+.\"
+.Pp
+.It Ic show Cm locks
+Prints all locks that are currently acquired.
+This command is only available if
+.Xr witness 4
+is included in the kernel.
+.\"
+.Pp
+.It Ic show Cm locktree
+.\"
+.Pp
+.It Ic show Cm malloc
+Prints
+.Xr malloc 9
+memory allocator statistics.
+The output format is as follows:
+.Pp
+.Bl -tag -compact -offset indent -width "Requests"
+.It Ic Type
+Specifies a type of memory.
+It is the same as a description string used while defining the
+given memory type with
+.Xr MALLOC_DECLARE 9 .
+.It Ic InUse
+Number of memory allocations of the given type, for which
+.Xr free 9
+has not been called yet.
+.It Ic MemUse
+Total memory consumed by the given allocation type.
+.It Ic Requests
+Number of memory allocation requests for the given
+memory type.
+.El
+.Pp
+The same information can be gathered in userspace with
+.Dq Nm vmstat Fl m .
+.\"
+.Pp
+.It Ic show Cm map Ns Oo Li / Ns Cm f Oc Ar addr
+Prints the VM map at
+.Ar addr .
+If the
+.Cm f
+modifier is specified the
+complete map is printed.
+.\"
+.Pp
+.It Ic show Cm msgbuf
+Print the system's message buffer.
+It is the same output as in the
+.Dq Nm dmesg
+case.
+It is useful if you got a kernel panic, attached a serial cable
+to the machine and want to get the boot messages from before the
+system hang.
+.\"
+.It Ic show Cm mount
+Displays short info about all currently mounted file systems.
+.Pp
+.It Ic show Cm mount Ar addr
+Displays details about the given mount point.
+.\"
+.Pp
+.It Ic show Cm object Ns Oo Li / Ns Cm f Oc Ar addr
+Prints the VM object at
+.Ar addr .
+If the
+.Cm f
+option is specified the
+complete object is printed.
+.\"
+.Pp
+.It Ic show Cm panic
+Print the panic message if set.
+.\"
+.Pp
+.It Ic show Cm page
+Show statistics on VM pages.
+.\"
+.Pp
+.It Ic show Cm pageq
+Show statistics on VM page queues.
+.\"
+.Pp
+.It Ic show Cm pciregs
+Print PCI bus registers.
+The same information can be gathered in userspace by running
+.Dq Nm pciconf Fl lv .
+.\"
+.Pp
+.It Ic show Cm pcpu
+Print current processor state.
+The output format is as follows:
+.Pp
+.Bl -tag -compact -offset indent -width "spin locks held:"
+.It Ic cpuid
+Processor identifier.
+.It Ic curthread
+Thread pointer, process identifier and the name of the process.
+.It Ic curpcb
+Control block pointer.
+.It Ic fpcurthread
+FPU thread pointer.
+.It Ic idlethread
+Idle thread pointer.
+.It Ic APIC ID
+CPU identifier coming from APIC.
+.It Ic currentldt
+LDT pointer.
+.It Ic spin locks held
+Names of spin locks held.
+.El
+.\"
+.Pp
+.It Ic show Cm pgrpdump
+Dump process groups present within the system.
+.\"
+.Pp
+.It Ic show Cm proc Op Ar addr
+If no
+.Op Ar addr
+is specified, print information about the current process.
+Otherwise, show information about the process at address
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm procvm
+Show process virtual memory layout.
+.\"
+.Pp
+.It Ic show Cm protosw Ar addr
+Print protocol switch structure
+.Vt struct protosw
+at address
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm registers Ns Op Li / Ns Cm u
+Display the register set.
+If the
+.Cm u
+modifier is specified, it displays user registers instead of
+kernel registers or the currently saved one.
+.Pp
+.Sy Warning :
+The support of the
+.Cm u
+modifier depends on the machine.
+If not supported, incorrect information will be displayed.
+.\"
+.Pp
+.It Ic show Cm rman Ar addr
+Show resource manager object
+.Vt struct rman
+at address
+.Ar addr .
+Addresses of particular pointers can be gathered with "show allrman"
+command.
+.\"
+.Pp
+.It Ic show Cm rtc
+Show real time clock value.
+Useful for long debugging sessions.
+.\"
+.Pp
+.It Ic show Cm sleepchain
+Deprecated.
+Now an alias for
+.Ic show Cm lockchain .
+.\"
+.Pp
+.It Ic show Cm sleepq
+.It Ic show Cm sleepqueue
+Both commands provide the same functionality.
+They show sleepqueue
+.Vt struct sleepqueue
+structure.
+Sleepqueues are used within the
+.Fx
+kernel to implement sleepable
+synchronization primitives (thread holding a lock might sleep or
+be context switched), which at the time of writing are:
+.Xr condvar 9 ,
+.Xr sx 9
+and standard
+.Xr msleep 9
+interface.
+.\"
+.Pp
+.It Ic show Cm sockbuf Ar addr
+.It Ic show Cm socket Ar addr
+Those commands print
+.Vt struct sockbuf
+and
+.Vt struct socket
+objects placed at
+.Ar addr .
+Output consists of all values present in structures mentioned.
+For exact interpretation and more details, visit
+.Pa sys/socket.h
+header file.
+.\"
+.Pp
+.It Ic show Cm sysregs
+Show system registers (e.g.,
+.Li cr0-4
+on i386.)
+Not present on some platforms.
+.\"
+.Pp
+.It Ic show Cm tcpcb Ar addr
+Print TCP control block
+.Vt struct tcpcb
+lying at address
+.Ar addr .
+For exact interpretation of output, visit
+.Pa netinet/tcp.h
+header file.
+.\"
+.Pp
+.It Ic show Cm thread Op Ar addr | tid
+If no
+.Ar addr
+or
+.Ar tid
+is specified, show detailed information about current thread.
+Otherwise, print information about the thread with ID
+.Ar tid
+or kernel address
+.Ar addr .
+(If the argument is a decimal number, it is assumed to be a tid.)
+.\"
+.Pp
+.It Ic show Cm threads
+Show all threads within the system.
+Output format is as follows:
+.Pp
+.Bl -tag -compact -offset indent -width "Second column"
+.It Ic First column
+Thread identifier (TID)
+.It Ic Second column
+Thread structure address
+.It Ic Third column
+Backtrace.
+.El
+.\"
+.Pp
+.It Ic show Cm tty Ar addr
+Display the contents of a TTY structure in a readable form.
+.\"
+.Pp
+.It Ic show Cm turnstile Ar addr
+Show turnstile
+.Vt struct turnstile
+structure at address
+.Ar addr .
+Turnstiles are structures used within the
+.Fx
+kernel to implement
+synchronization primitives which, while holding a specific type of lock, cannot
+sleep or context switch to another thread.
+Currently, those are:
+.Xr mutex 9 ,
+.Xr rwlock 9 ,
+.Xr rmlock 9 .
+.\"
+.Pp
+.It Ic show Cm uma
+Show UMA allocator statistics.
+Output consists five columns:
+.Pp
+.Bl -tag -compact -offset indent -width "Requests"
+.It Cm "Zone"
+Name of the UMA zone.
+The same string that was passed to
+.Xr uma_zcreate 9
+as a first argument.
+.It Cm "Size"
+Size of a given memory object (slab).
+.It Cm "Used"
+Number of slabs being currently used.
+.It Cm "Free"
+Number of free slabs within the UMA zone.
+.It Cm "Requests"
+Number of allocations requests to the given zone.
+.El
+.Pp
+The very same information might be gathered in the userspace
+with the help of
+.Dq Nm vmstat Fl z .
+.\"
+.Pp
+.It Ic show Cm unpcb Ar addr
+Shows UNIX domain socket private control block
+.Vt struct unpcb
+present at the address
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm vmochk
+Prints, whether the internal VM objects are in a map somewhere
+and none have zero ref counts.
+.\"
+.Pp
+.It Ic show Cm vmopag
+This is supposed to show physical addresses consumed by a
+VM object.
+Currently, it is not possible to use this command when
+.Xr witness 4
+is compiled in the kernel.
+.\"
+.Pp
+.It Ic show Cm vnet Ar addr
+Prints virtualized network stack
+.Vt struct vnet
+structure present at the address
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm vnode Op Ar addr
+Prints vnode
+.Vt struct vnode
+structure lying at
+.Op Ar addr .
+For the exact interpretation of the output, look at the
+.Pa sys/vnode.h
+header file.
+.\"
+.Pp
+.It Ic show Cm vnodebufs Ar addr
+Shows clean/dirty buffer lists of the vnode located at
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm vpath Ar addr
+Walk the namecache to lookup the pathname of the vnode located at
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm watches
+Displays all watchpoints.
+Shows watchpoints set with "watch" command.
+.\"
+.Pp
+.It Ic show Cm witness
+Shows information about lock acquisition coming from the
+.Xr witness 4
+subsystem.
+.\"
+.Pp
+.It Ic gdb
+Toggles between remote GDB and DDB mode.
+In remote GDB mode, another machine is required that runs
+.Xr gdb 1
+using the remote debug feature, with a connection to the serial
+console port on the target machine.
+Currently only available on the
+i386
+architecture.
+.Pp
+.It Ic halt
+Halt the system.
+.Pp
+.It Ic kill Ar sig pid
+Send signal
+.Ar sig
+to process
+.Ar pid .
+The signal is acted on upon returning from the debugger.
+This command can be used to kill a process causing resource contention
+in the case of a hung system.
+See
+.Xr signal 3
+for a list of signals.
+Note that the arguments are reversed relative to
+.Xr kill 2 .
+.Pp
+.It Ic reboot Op Ar seconds
+.It Ic reset Op Ar seconds
+Hard reset the system.
+If the optional argument
+.Ar seconds
+is given, the debugger will wait for this long, at most a week,
+before rebooting.
+.Pp
+.It Ic help
+Print a short summary of the available commands and command
+abbreviations.
+.Pp
+.It Ic capture on
+.It Ic capture off
+.It Ic capture reset
+.It Ic capture status
+.Nm
+supports a basic output capture facility, which can be used to retrieve the
+results of debugging commands from userspace using
+.Xr sysctl 3 .
+.Ic capture on
+enables output capture;
+.Ic capture off
+disables capture.
+.Ic capture reset
+will clear the capture buffer and disable capture.
+.Ic capture status
+will report current buffer use, buffer size, and disposition of output
+capture.
+.Pp
+Userspace processes may inspect and manage
+.Nm
+capture state using
+.Xr sysctl 8 :
+.Pp
+.Va debug.ddb.capture.bufsize
+may be used to query or set the current capture buffer size.
+.Pp
+.Va debug.ddb.capture.maxbufsize
+may be used to query the compile-time limit on the capture buffer size.
+.Pp
+.Va debug.ddb.capture.bytes
+may be used to query the number of bytes of output currently in the capture
+buffer.
+.Pp
+.Va debug.ddb.capture.data
+returns the contents of the buffer as a string to an appropriately privileged
+process.
+.Pp
+This facility is particularly useful in concert with the scripting and
+.Xr textdump 4
+facilities, allowing scripted debugging output to be captured and
+committed to disk as part of a textdump for later analysis.
+The contents of the capture buffer may also be inspected in a kernel core dump
+using
+.Xr kgdb 1 .
+.Pp
+.It Ic run
+.It Ic script
+.It Ic scripts
+.It Ic unscript
+Run, define, list, and delete scripts.
+See the
+.Sx SCRIPTING
+section for more information on the scripting facility.
+.Pp
+.It Ic textdump dump
+.It Ic textdump set
+.It Ic textdump status
+.It Ic textdump unset
+Use the
+.Ic textdump dump
+command to immediately perform a textdump.
+More information may be found in
+.Xr textdump 4 .
+The
+.Ic textdump set
+command may be used to force the next kernel core dump to be a textdump
+rather than a traditional memory dump or minidump.
+.Ic textdump status
+reports whether a textdump has been scheduled.
+.Ic textdump unset
+cancels a request to perform a textdump as the next kernel core dump.
+.Pp
+.It Ic thread Ar addr | tid
+Switch the debugger to the thread with ID
+.Ar tid ,
+if the argument is a decimal number, or address
+.Ar addr ,
+otherwise.
+.El
+.Sh VARIABLES
+The debugger accesses registers and variables as
+.Li $ Ns Ar name .
+Register names are as in the
+.Dq Ic show Cm registers
+command.
+Some variables are suffixed with numbers, and may have some modifier
+following a colon immediately after the variable name.
+For example, register variables can have a
+.Cm u
+modifier to indicate user register (e.g.,
+.Dq Li $eax:u ) .
+.Pp
+Built-in variables currently supported are:
+.Pp
+.Bl -tag -width ".Va tabstops" -compact
+.It Va radix
+Input and output radix.
+.It Va maxoff
+Addresses are printed as
+.Dq Ar symbol Ns Li + Ns Ar offset
+unless
+.Ar offset
+is greater than
+.Va maxoff .
+.It Va maxwidth
+The width of the displayed line.
+.It Va lines
+The number of lines.
+It is used by the built-in pager.
+Setting it to 0 disables paging.
+.It Va tabstops
+Tab stop width.
+.It Va work Ns Ar xx
+Work variable;
+.Ar xx
+can take values from 0 to 31.
+.El
+.Sh EXPRESSIONS
+Most expression operators in C are supported except
+.Ql ~ ,
+.Ql ^ ,
+and unary
+.Ql & .
+Special rules in
+.Nm
+are:
+.Bl -tag -width ".No Identifiers"
+.It Identifiers
+The name of a symbol is translated to the value of the symbol, which
+is the address of the corresponding object.
+.Ql \&.
+and
+.Ql \&:
+can be used in the identifier.
+If supported by an object format dependent routine,
+.Sm off
+.Oo Ar filename : Oc Ar func : lineno ,
+.Sm on
+.Oo Ar filename : Oc Ns Ar variable ,
+and
+.Oo Ar filename : Oc Ns Ar lineno
+can be accepted as a symbol.
+.It Numbers
+Radix is determined by the first two letters:
+.Ql 0x :
+hex,
+.Ql 0o :
+octal,
+.Ql 0t :
+decimal; otherwise, follow current radix.
+.It Li \&.
+.Va dot
+.It Li +
+.Va next
+.It Li ..
+address of the start of the last line examined.
+Unlike
+.Va dot
+or
+.Va next ,
+this is only changed by
+.Ic examine
+or
+.Ic write
+command.
+.It Li '
+last address explicitly specified.
+.It Li $ Ns Ar variable
+Translated to the value of the specified variable.
+It may be followed by a
+.Ql \&:
+and modifiers as described above.
+.It Ar a Ns Li # Ns Ar b
+A binary operator which rounds up the left hand side to the next
+multiple of right hand side.
+.It Li * Ns Ar expr
+Indirection.
+It may be followed by a
+.Ql \&:
+and modifiers as described above.
+.El
+.Sh SCRIPTING
+.Nm
+supports a basic scripting facility to allow automating tasks or responses to
+specific events.
+Each script consists of a list of DDB commands to be executed sequentially,
+and is assigned a unique name.
+Certain script names have special meaning, and will be automatically run on
+various
+.Nm
+events if scripts by those names have been defined.
+.Pp
+The
+.Ic script
+command may be used to define a script by name.
+Scripts consist of a series of
+.Nm
+commands separated with the
+.Ql \&;
+character.
+For example:
+.Bd -literal -offset indent
+script kdb.enter.panic=bt; show pcpu
+script lockinfo=show alllocks; show lockedvnods
+.Ed
+.Pp
+The
+.Ic scripts
+command lists currently defined scripts.
+.Pp
+The
+.Ic run
+command execute a script by name.
+For example:
+.Bd -literal -offset indent
+run lockinfo
+.Ed
+.Pp
+The
+.Ic unscript
+command may be used to delete a script by name.
+For example:
+.Bd -literal -offset indent
+unscript kdb.enter.panic
+.Ed
+.Pp
+These functions may also be performed from userspace using the
+.Xr ddb 8
+command.
+.Pp
+Certain scripts are run automatically, if defined, for specific
+.Nm
+events.
+The follow scripts are run when various events occur:
+.Bl -tag -width kdb.enter.powerfail
+.It Va kdb.enter.acpi
+The kernel debugger was entered as a result of an
+.Xr acpi 4
+event.
+.It Va kdb.enter.bootflags
+The kernel debugger was entered at boot as a result of the debugger boot
+flag being set.
+.It Va kdb.enter.break
+The kernel debugger was entered as a result of a serial or console break.
+.It Va kdb.enter.cam
+The kernel debugger was entered as a result of a
+.Xr CAM 4
+event.
+.It Va kdb.enter.mac
+The kernel debugger was entered as a result of an assertion failure in the
+.Xr mac_test 4
+module of the
+TrustedBSD MAC Framework.
+.It Va kdb.enter.ndis
+The kernel debugger was entered as a result of an
+.Xr ndis 4
+breakpoint event.
+.It Va kdb.enter.netgraph
+The kernel debugger was entered as a result of a
+.Xr netgraph 4
+event.
+.It Va kdb.enter.panic
+.Xr panic 9
+was called.
+.It Va kdb.enter.powerfail
+The kernel debugger was entered as a result of a powerfail NMI on the sparc64
+platform.
+.It Va kdb.enter.powerpc
+The kernel debugger was entered as a result of an unimplemented interrupt
+type on the powerpc platform.
+.It Va kdb.enter.sysctl
+The kernel debugger was entered as a result of the
+.Va debug.kdb.enter
+sysctl being set.
+.It Va kdb.enter.trapsig
+The kernel debugger was entered as a result of a trapsig event on the sparc64
+platform.
+.It Va kdb.enter.unionfs
+The kernel debugger was entered as a result of an assertion failure in the
+union file system.
+.It Va kdb.enter.unknown
+The kernel debugger was entered, but no reason has been set.
+.It Va kdb.enter.vfslock
+The kernel debugger was entered as a result of a VFS lock violation.
+.It Va kdb.enter.watchdog
+The kernel debugger was entered as a result of a watchdog firing.
+.It Va kdb.enter.witness
+The kernel debugger was entered as a result of a
+.Xr witness 4
+violation.
+.El
+.Pp
+In the event that none of these scripts is found,
+.Nm
+will attempt to execute a default script:
+.Bl -tag -width kdb.enter.powerfail
+.It Va kdb.enter.default
+The kernel debugger was entered, but a script exactly matching the reason for
+entering was not defined.
+This can be used as a catch-all to handle cases not specifically of interest;
+for example,
+.Va kdb.enter.witness
+might be defined to have special handling, and
+.Va kdb.enter.default
+might be defined to simply panic and reboot.
+.El
+.Sh HINTS
+On machines with an ISA expansion bus, a simple NMI generation card can be
+constructed by connecting a push button between the A01 and B01 (CHCHK# and
+GND) card fingers.
+Momentarily shorting these two fingers together may cause the bridge chipset to
+generate an NMI, which causes the kernel to pass control to
+.Nm .
+Some bridge chipsets do not generate a NMI on CHCHK#, so your mileage may vary.
+The NMI allows one to break into the debugger on a wedged machine to
+diagnose problems.
+Other bus' bridge chipsets may be able to generate NMI using bus specific
+methods.
+There are many PCI and PCIe add-in cards which can generate NMI for
+debugging.
+Modern server systems typically use IPMI to generate signals to enter the
+debugger.
+The
+.Va devel/ipmitool
+port can be used to send the
+.Cd chassis power diag
+command which delivers an NMI to the processor.
+Embedded systems often use JTAG for debugging, but rarely use it in
+combination with
+.Nm .
+.Pp
+For serial consoles, you can enter the debugger by sending a BREAK
+condition on the serial line if
+.Cd options BREAK_TO_DEBUGGER
+is specified in the kernel.
+Most terminal emulation programs can send a break sequence with a
+special key sequence or via a menu item.
+However, in some setups, sending the break can be difficult to arrange
+or happens spuriously, so if the kernel contains
+.Cd options ALT_BREAK_TO_DEBUGGER
+then the sequence of CR TILDE CTRL-B enters the debugger;
+CR TILDE CTRL-P causes a panic instead of entering the
+debugger; and
+CR TILDE CTRL-R causes an immediate reboot.
+In all the above sequences, CR is a Carriage Return and is usually
+sent by hitting the Enter or Return key.
+TILDE is the ASCII tilde character (~).
+CTRL-x is Control x created by hitting the control key and then x
+and then releasing both.
+.Pp
+The break to enter the debugger behavior may be enabled at run-time
+by setting the
+.Xr sysctl 8
+.Va debug.kdb.break_to_debugger
+to 1.
+The alternate sequence to enter the debugger behavior may be enabled
+at run-time by setting the
+.Xr sysctl 8
+.Va debug.kdb.alt_break_to_debugger
+to 1.
+The debugger may be entered by setting the
+.Xr sysctl 8
+.Va debug.kdb.enter
+to 1.
+.Sh FILES
+Header files mentioned in this manual page can be found below
+.Pa /usr/include
+directory.
+.Pp
+.Bl -dash -compact
+.It
+.Pa sys/buf.h
+.It
+.Pa sys/domain.h
+.It
+.Pa netinet/in_pcb.h
+.It
+.Pa sys/socket.h
+.It
+.Pa sys/vnode.h
+.El
+.Sh SEE ALSO
+.Xr gdb 1 ,
+.Xr kgdb 1 ,
+.Xr acpi 4 ,
+.Xr CAM 4 ,
+.Xr mac_test 4 ,
+.Xr ndis 4 ,
+.Xr netgraph 4 ,
+.Xr textdump 4 ,
+.Xr witness 4 ,
+.Xr ddb 8 ,
+.Xr sysctl 8 ,
+.Xr panic 9
+.Sh HISTORY
+The
+.Nm
+debugger was developed for Mach, and ported to
+.Bx 386 0.1 .
+This manual page translated from
+.Xr man 7
+macros by
+.An Garrett Wollman .
+.Pp
+.An Robert N. M. Watson
+added support for
+.Nm
+output capture,
+.Xr textdump 4
+and scripting in
+.Fx 7.1 .

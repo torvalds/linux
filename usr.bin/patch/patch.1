@@ -1,0 +1,690 @@
+.\"-
+.\" Copyright 1986, Larry Wall
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following condition
+.\" is met:
+.\"  1. Redistributions of source code must retain the above copyright
+.\"     notice, this condition and the following disclaimer.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $OpenBSD: patch.1,v 1.27 2014/04/15 06:26:54 jmc Exp $
+.\" $FreeBSD$
+.Dd August 15, 2015
+.Dt PATCH 1
+.Os
+.Sh NAME
+.Nm patch
+.Nd apply a diff file to an original
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl bCcEeflNnRstuv
+.Op Fl B Ar backup-prefix
+.Op Fl D Ar symbol
+.Op Fl d Ar directory
+.Op Fl F Ar max-fuzz
+.Op Fl i Ar patchfile
+.Op Fl o Ar out-file
+.Op Fl p Ar strip-count
+.Op Fl r Ar rej-name
+.Op Fl V Cm t | nil | never | none
+.Op Fl x Ar number
+.Op Fl z Ar backup-ext
+.Op Fl Fl posix
+.Op Ar origfile Op Ar patchfile
+.Ek
+.Nm
+.Pf \*(Lt Ar patchfile
+.Sh DESCRIPTION
+.Nm
+will take a patch file containing any of the four forms of difference
+listing produced by the
+.Xr diff 1
+program and apply those differences to an original file,
+producing a patched version.
+If
+.Ar patchfile
+is omitted, or is a hyphen, the patch will be read from the standard input.
+.Pp
+.Nm
+will attempt to determine the type of the diff listing, unless overruled by a
+.Fl c ,
+.Fl e ,
+.Fl n ,
+or
+.Fl u
+option.
+Context diffs (old-style, new-style, and unified) and
+normal diffs are applied directly by the
+.Nm
+program itself, whereas ed diffs are simply fed to the
+.Xr ed 1
+editor via a pipe.
+.Pp
+If the
+.Ar patchfile
+contains more than one patch,
+.Nm
+will try to apply each of them as if they came from separate patch files.
+This means, among other things, that it is assumed that the name of the file
+to patch must be determined for each diff listing, and that the garbage before
+each diff listing will be examined for interesting things such as file names
+and revision level (see the section on
+.Sx Filename Determination
+below).
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Xo
+.Fl B Ar backup-prefix ,
+.Fl Fl prefix Ar backup-prefix
+.Xc
+Causes the next argument to be interpreted as a prefix to the backup file
+name.
+If this argument is specified, any argument to
+.Fl z
+will be ignored.
+.It Fl b , Fl Fl backup
+Save a backup copy of the file before it is modified.
+By default the original file is saved with a backup extension of
+.Qq .orig
+unless the file already has a numbered backup, in which case a numbered
+backup is made.
+This is equivalent to specifying
+.Qo Fl V Cm existing Qc .
+This option is currently the default, unless
+.Fl -posix
+is specified.
+.It Fl C , Fl Fl check , Fl Fl dry-run
+Checks that the patch would apply cleanly, but does not modify anything.
+.It Fl c , Fl Fl context
+Forces
+.Nm
+to interpret the patch file as a context diff.
+.It Xo
+.Fl D Ar symbol ,
+.Fl Fl ifdef Ar symbol
+.Xc
+Causes
+.Nm
+to use the
+.Qq #ifdef...#endif
+construct to mark changes.
+The argument following will be used as the differentiating symbol.
+Note that, unlike the C compiler, there must be a space between the
+.Fl D
+and the argument.
+.It Xo
+.Fl d Ar directory ,
+.Fl Fl directory Ar directory
+.Xc
+Causes
+.Nm
+to interpret the next argument as a directory,
+and change the working directory to it before doing anything else.
+.It Fl E , Fl Fl remove-empty-files
+Causes
+.Nm
+to remove output files that are empty after the patches have been applied.
+This option is useful when applying patches that create or remove files.
+.It Fl e , Fl Fl ed
+Forces
+.Nm
+to interpret the patch file as an
+.Xr ed 1
+script.
+.It Xo
+.Fl F Ar max-fuzz ,
+.Fl Fl fuzz Ar max-fuzz
+.Xc
+Sets the maximum fuzz factor.
+This option only applies to context diffs, and causes
+.Nm
+to ignore up to that many lines in looking for places to install a hunk.
+Note that a larger fuzz factor increases the odds of a faulty patch.
+The default fuzz factor is 2, and it may not be set to more than
+the number of lines of context in the context diff, ordinarily 3.
+.It Fl f , Fl Fl force
+Forces
+.Nm
+to assume that the user knows exactly what he or she is doing, and to not
+ask any questions.
+It assumes the following:
+skip patches for which a file to patch cannot be found;
+patch files even though they have the wrong version for the
+.Qq Prereq:
+line in the patch;
+and assume that patches are not reversed even if they look like they are.
+This option does not suppress commentary; use
+.Fl s
+for that.
+.It Xo
+.Fl i Ar patchfile ,
+.Fl Fl input Ar patchfile
+.Xc
+Causes the next argument to be interpreted as the input file name
+(i.e., a patchfile).
+This option may be specified multiple times.
+.It Fl l , Fl Fl ignore-whitespace
+Causes the pattern matching to be done loosely, in case the tabs and
+spaces have been munged in your input file.
+Any sequence of whitespace in the pattern line will match any sequence
+in the input file.
+Normal characters must still match exactly.
+Each line of the context must still match a line in the input file.
+.It Fl N , Fl Fl forward
+Causes
+.Nm
+to ignore patches that it thinks are reversed or already applied.
+See also
+.Fl R .
+.It Fl n , Fl Fl normal
+Forces
+.Nm
+to interpret the patch file as a normal diff.
+.It Xo
+.Fl o Ar out-file ,
+.Fl Fl output Ar out-file
+.Xc
+Causes the next argument to be interpreted as the output file name.
+.It Xo
+.Fl p Ar strip-count ,
+.Fl Fl strip Ar strip-count
+.Xc
+Sets the pathname strip count,
+which controls how pathnames found in the patch file are treated,
+in case you keep your files in a different directory than the person who sent
+out the patch.
+The strip count specifies how many slashes are to be stripped from
+the front of the pathname.
+(Any intervening directory names also go away.)
+For example, supposing the file name in the patch file was
+.Pa /u/howard/src/blurfl/blurfl.c :
+.Pp
+Setting
+.Fl p Ns Ar 0
+gives the entire pathname unmodified.
+.Pp
+.Fl p Ns Ar 1
+gives
+.Pp
+.D1 Pa u/howard/src/blurfl/blurfl.c
+.Pp
+without the leading slash.
+.Pp
+.Fl p Ns Ar 4
+gives
+.Pp
+.D1 Pa blurfl/blurfl.c
+.Pp
+Not specifying
+.Fl p
+at all just gives you
+.Pa blurfl.c ,
+unless all of the directories in the leading path
+.Pq Pa u/howard/src/blurfl
+exist and that path is relative,
+in which case you get the entire pathname unmodified.
+Whatever you end up with is looked for either in the current directory,
+or the directory specified by the
+.Fl d
+option.
+.It Fl R , Fl Fl reverse
+Tells
+.Nm
+that this patch was created with the old and new files swapped.
+(Yes, I am afraid that does happen occasionally, human nature being what it
+is.)
+.Nm
+will attempt to swap each hunk around before applying it.
+Rejects will come out in the swapped format.
+The
+.Fl R
+option will not work with ed diff scripts because there is too little
+information to reconstruct the reverse operation.
+.Pp
+If the first hunk of a patch fails,
+.Nm
+will reverse the hunk to see if it can be applied that way.
+If it can, you will be asked if you want to have the
+.Fl R
+option set.
+If it cannot, the patch will continue to be applied normally.
+(Note: this method cannot detect a reversed patch if it is a normal diff
+and if the first command is an append (i.e., it should have been a delete)
+since appends always succeed, due to the fact that a null context will match
+anywhere.
+Luckily, most patches add or change lines rather than delete them, so most
+reversed normal diffs will begin with a delete, which will fail, triggering
+the heuristic.)
+.It Xo
+.Fl r Ar rej-name ,
+.Fl Fl reject-file Ar rej-name
+.Xc
+Causes the next argument to be interpreted as the reject file name.
+.It Xo
+.Fl s , Fl Fl quiet ,
+.Fl Fl silent
+.Xc
+Makes
+.Nm
+do its work silently, unless an error occurs.
+.It Fl t , Fl Fl batch
+Similar to
+.Fl f ,
+in that it suppresses questions, but makes some different assumptions:
+skip patches for which a file to patch cannot be found (the same as
+.Fl f ) ;
+skip patches for which the file has the wrong version for the
+.Qq Prereq:
+line in the patch;
+and assume that patches are reversed if they look like they are.
+.It Fl u , Fl Fl unified
+Forces
+.Nm
+to interpret the patch file as a unified context diff (a unidiff).
+.It Xo
+.Fl V Cm t | nil | never | none ,
+.Fl Fl version-control Cm t | nil | never | none
+.Xc
+Causes the next argument to be interpreted as a method for creating
+backup file names.
+The type of backups made can also be given in the
+.Ev PATCH_VERSION_CONTROL
+or
+.Ev VERSION_CONTROL
+environment variables, which are overridden by this option.
+The
+.Fl B
+option overrides this option, causing the prefix to always be used for
+making backup file names.
+The values of the
+.Ev PATCH_VERSION_CONTROL
+and
+.Ev VERSION_CONTROL
+environment variables and the argument to the
+.Fl V
+option are like the GNU Emacs
+.Dq version-control
+variable; they also recognize synonyms that are more descriptive.
+The valid values are (unique abbreviations are accepted):
+.Bl -tag -width Ds -offset indent
+.It Cm t , numbered
+Always make numbered backups.
+.It Cm nil , existing
+Make numbered backups of files that already have them,
+simple backups of the others.
+.It Cm never , simple
+Always make simple backups.
+.It Cm none
+Do not make backups.
+.El
+.It Fl v , Fl Fl version
+Causes
+.Nm
+to print out its revision header and patch level.
+.It Xo
+.Fl x Ar number ,
+.Fl Fl debug Ar number
+.Xc
+Sets internal debugging flags, and is of interest only to
+.Nm
+patchers.
+.It Xo
+.Fl z Ar backup-ext ,
+.Fl Fl suffix Ar backup-ext
+.Xc
+Causes the next argument to be interpreted as the backup extension, to be
+used in place of
+.Qq .orig .
+.It Fl Fl posix
+Enables strict
+.St -p1003.1-2008
+conformance, specifically:
+.Bl -enum
+.It
+Backup files are not created unless the
+.Fl b
+option is specified.
+.It
+If unspecified, the file name used is the first of the old, new and
+index files that exists.
+.El
+.El
+.Ss Patch Application
+.Nm
+will try to skip any leading garbage, apply the diff,
+and then skip any trailing garbage.
+Thus you could feed an article or message containing a
+diff listing to
+.Nm ,
+and it should work.
+If the entire diff is indented by a consistent amount,
+this will be taken into account.
+.Pp
+With context diffs, and to a lesser extent with normal diffs,
+.Nm
+can detect when the line numbers mentioned in the patch are incorrect,
+and will attempt to find the correct place to apply each hunk of the patch.
+As a first guess, it takes the line number mentioned for the hunk, plus or
+minus any offset used in applying the previous hunk.
+If that is not the correct place,
+.Nm
+will scan both forwards and backwards for a set of lines matching the context
+given in the hunk.
+First
+.Nm
+looks for a place where all lines of the context match.
+If no such place is found, and it is a context diff, and the maximum fuzz factor
+is set to 1 or more, then another scan takes place ignoring the first and last
+line of context.
+If that fails, and the maximum fuzz factor is set to 2 or more,
+the first two and last two lines of context are ignored,
+and another scan is made.
+.Pq The default maximum fuzz factor is 2.
+.Pp
+If
+.Nm
+cannot find a place to install that hunk of the patch, it will put the hunk
+out to a reject file, which normally is the name of the output file plus
+.Qq .rej .
+(Note that the rejected hunk will come out in context diff form whether the
+input patch was a context diff or a normal diff.
+If the input was a normal diff, many of the contexts will simply be null.)
+The line numbers on the hunks in the reject file may be different than
+in the patch file: they reflect the approximate location patch thinks the
+failed hunks belong in the new file rather than the old one.
+.Pp
+As each hunk is completed, you will be told whether the hunk succeeded or
+failed, and which line (in the new file)
+.Nm
+thought the hunk should go on.
+If this is different from the line number specified in the diff,
+you will be told the offset.
+A single large offset MAY be an indication that a hunk was installed in the
+wrong place.
+You will also be told if a fuzz factor was used to make the match, in which
+case you should also be slightly suspicious.
+.Ss Filename Determination
+If no original file is specified on the command line,
+.Nm
+will try to figure out from the leading garbage what the name of the file
+to edit is.
+When checking a prospective file name, pathname components are stripped
+as specified by the
+.Fl p
+option and the file's existence and writability are checked relative
+to the current working directory (or the directory specified by the
+.Fl d
+option).
+.Pp
+If the diff is a context or unified diff,
+.Nm
+is able to determine the old and new file names from the diff header.
+For context diffs, the
+.Dq old
+file is specified in the line beginning with
+.Qq ***
+and the
+.Dq new
+file is specified in the line beginning with
+.Qq --- .
+For a unified diff, the
+.Dq old
+file is specified in the line beginning with
+.Qq ---
+and the
+.Dq new
+file is specified in the line beginning with
+.Qq +++ .
+If there is an
+.Qq Index:
+line in the leading garbage (regardless of the diff type),
+.Nm
+will use the file name from that line as the
+.Dq index
+file.
+.Pp
+.Nm
+will choose the file name by performing the following steps, with the first
+match used:
+.Bl -enum
+.It
+If
+.Nm
+is operating in strict
+.St -p1003.1-2008
+mode, the first of the
+.Dq old ,
+.Dq new
+and
+.Dq index
+file names that exist is used.
+Otherwise,
+.Nm
+will examine either the
+.Dq old
+and
+.Dq new
+file names or, for a non-context diff, the
+.Dq index
+file name, and choose the file name with the fewest path components,
+the shortest basename, and the shortest total file name length (in that order).
+.It
+If no suitable file was found to patch, the patch file is a context or
+unified diff, and the old file was zero length, the new file name is
+created and used.
+.It
+If the file name still cannot be determined,
+.Nm
+will prompt the user for the file name to use.
+.El
+.Pp
+Additionally, if the leading garbage contains a
+.Qq Prereq:\ \&
+line,
+.Nm
+will take the first word from the prerequisites line (normally a version
+number) and check the input file to see if that word can be found.
+If not,
+.Nm
+will ask for confirmation before proceeding.
+.Pp
+The upshot of all this is that you should be able to say, while in a news
+interface, the following:
+.Pp
+.Dl | patch -d /usr/src/local/blurfl
+.Pp
+and patch a file in the blurfl directory directly from the article containing
+the patch.
+.Ss Backup Files
+By default, the patched version is put in place of the original, with
+the original file backed up to the same name with the extension
+.Qq .orig ,
+or as specified by the
+.Fl B ,
+.Fl V ,
+or
+.Fl z
+options.
+The extension used for making backup files may also be specified in the
+.Ev SIMPLE_BACKUP_SUFFIX
+environment variable, which is overridden by the options above.
+.Pp
+If the backup file is a symbolic or hard link to the original file,
+.Nm
+creates a new backup file name by changing the first lowercase letter
+in the last component of the file's name into uppercase.
+If there are no more lowercase letters in the name,
+it removes the first character from the name.
+It repeats this process until it comes up with a
+backup file that does not already exist or is not linked to the original file.
+.Pp
+You may also specify where you want the output to go with the
+.Fl o
+option; if that file already exists, it is backed up first.
+.Ss Notes For Patch Senders
+There are several things you should bear in mind if you are going to
+be sending out patches:
+.Pp
+First, you can save people a lot of grief by keeping a
+.Pa patchlevel.h
+file which is patched to increment the patch level as the first diff in the
+patch file you send out.
+If you put a
+.Qq Prereq:
+line in with the patch, it will not let them apply
+patches out of order without some warning.
+.Pp
+Second, make sure you have specified the file names right, either in a
+context diff header, or with an
+.Qq Index:
+line.
+If you are patching something in a subdirectory, be sure to tell the patch
+user to specify a
+.Fl p
+option as needed.
+.Pp
+Third, you can create a file by sending out a diff that compares a
+null file to the file you want to create.
+This will only work if the file you want to create does not exist already in
+the target directory.
+.Pp
+Fourth, take care not to send out reversed patches, since it makes people wonder
+whether they already applied the patch.
+.Pp
+Fifth, while you may be able to get away with putting 582 diff listings into
+one file, it is probably wiser to group related patches into separate files in
+case something goes haywire.
+.Sh ENVIRONMENT
+.Bl -tag -width "PATCH_VERSION_CONTROL" -compact
+.It Ev POSIXLY_CORRECT
+When set,
+.Nm
+behaves as if the
+.Fl Fl posix
+option has been specified.
+.It Ev SIMPLE_BACKUP_SUFFIX
+Extension to use for backup file names instead of
+.Qq .orig .
+.It Ev TMPDIR
+Directory to put temporary files in; default is
+.Pa /tmp .
+.It Ev PATCH_VERSION_CONTROL
+Selects when numbered backup files are made.
+.It Ev VERSION_CONTROL
+Same as
+.Ev PATCH_VERSION_CONTROL .
+.El
+.Sh FILES
+.Bl -tag -width "$TMPDIR/patch*" -compact
+.It Pa $TMPDIR/patch*
+.Nm
+temporary files
+.It Pa /dev/tty
+used to read input when
+.Nm
+prompts the user
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 0
+Successful completion.
+.It 1
+One or more lines were written to a reject file.
+.It \*(Gt1
+An error occurred.
+.El
+.Pp
+When applying a set of patches in a loop it behooves you to check this
+exit status so you do not apply a later patch to a partially patched file.
+.Sh DIAGNOSTICS
+Too many to list here, but generally indicative that
+.Nm
+couldn't parse your patch file.
+.Pp
+The message
+.Qq Hmm...
+indicates that there is unprocessed text in the patch file and that
+.Nm
+is attempting to intuit whether there is a patch in that text and, if so,
+what kind of patch it is.
+.Sh SEE ALSO
+.Xr diff 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification,
+except as detailed above for the
+.Fl -posix
+option.
+.Pp
+The flags
+.Op Fl BCEFfstVvxz
+and
+.Op Fl -posix
+are extensions to that specification.
+.Sh AUTHORS
+.An Larry Wall
+with many other contributors.
+.Sh CAVEATS
+.Nm
+cannot tell if the line numbers are off in an ed script, and can only detect
+bad line numbers in a normal diff when it finds a
+.Qq change
+or a
+.Qq delete
+command.
+A context diff using fuzz factor 3 may have the same problem.
+Until a suitable interactive interface is added, you should probably do
+a context diff in these cases to see if the changes made sense.
+Of course, compiling without errors is a pretty good indication that the patch
+worked, but not always.
+.Pp
+.Nm
+usually produces the correct results, even when it has to do a lot of
+guessing.
+However, the results are guaranteed to be correct only when the patch is
+applied to exactly the same version of the file that the patch was
+generated from.
+.Sh BUGS
+Could be smarter about partial matches, excessively deviant offsets and
+swapped code, but that would take an extra pass.
+.Pp
+Check patch mode
+.Pq Fl C
+will fail if you try to check several patches in succession that build on
+each other.
+The entire
+.Nm
+code would have to be restructured to keep temporary files around so that it
+can handle this situation.
+.Pp
+If code has been duplicated (for instance with #ifdef OLDCODE ... #else ...
+#endif),
+.Nm
+is incapable of patching both versions, and, if it works at all, will likely
+patch the wrong one, and tell you that it succeeded to boot.
+.Pp
+If you apply a patch you have already applied,
+.Nm
+will think it is a reversed patch, and offer to un-apply the patch.
+This could be construed as a feature.

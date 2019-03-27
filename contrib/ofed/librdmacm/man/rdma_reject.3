@@ -1,0 +1,33 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_REJECT" 3 "2007-05-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_reject \- Called to reject a connection request.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "int" rdma_reject
+.BI "(struct rdma_cm_id *" id ","
+.BI "const void *" private_data ","
+.BI "uint8_t " private_data_len ");"
+.SH ARGUMENTS
+.IP "id" 12
+Connection identifier associated with the request.
+.IP "private_data" 12
+Optional private data to send with the reject message.
+.IP "private_data_len" 12
+Specifies the size of the user-controlled data buffer.  Note that the actual
+amount of data transferred to the remote side is transport dependent and may
+be larger than that requested.
+.SH "DESCRIPTION"
+Called from the listening side to reject a connection or datagram
+service lookup request.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+After receiving a connection request event, a user may call rdma_reject
+to reject the request.  If the underlying RDMA transport supports
+private data in the reject message, the specified data will be passed to
+the remote side.
+.SH "SEE ALSO"
+rdma_listen(3), rdma_accept(3), rdma_get_cm_event(3)

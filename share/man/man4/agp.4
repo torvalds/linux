@@ -1,0 +1,177 @@
+.\" Copyright (c) 2001 Yar Tikhiy
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 28, 2007
+.Dt AGP 4
+.Os
+.Sh NAME
+.Nm agp
+.Nd "generic interface to the Accelerated Graphics Port (AGP)"
+.Sh SYNOPSIS
+.Cd "device agp"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides uniform, abstract methods for controlling
+the following devices:
+.Pp
+.Bl -tag -width "NVIDIA:" -compact
+.It Ali:
+M1541, M1621 and M1671 host to AGP bridges
+.It AMD:
+751, 761 and 762 host to AGP bridges
+.It ATI:
+RS100, RS200, RS250 and RS300 AGP bridges
+.It Intel:
+i820, i840, i845, i850, and i860 host to AGP bridges
+.It Intel:
+i810, i810-DC100, i810E, i815, 830M, 845G, 845M, 852GM, 852GME, 855GM, 855GME, 865G, 915G and 915GM SVGA controllers
+.It Intel:
+82443BX, 82443GX, 82443LX, 82815, 82820, 82830, 82840, 82845, 82845G, 82850, 82855, 82855GM, 82860, 82865, 82875P, E7205 and E7505 host to AGP bridges
+.It NVIDIA:
+nForce and nForce2 AGP controllers
+.It SiS:
+530, 540, 550, 620, 630, 645, 645DX, 648, 650, 651, 655, 661, 730, 735, 740, 741, 745, 746, 760 and 5591 host to AGP bridges
+.It VIA:
+3296, 82C597, 82C598, 82C691, 82C694X, 82C8363, 8235, 8237, 8361, 8367, 8371, 8377, 8501, 8601, 862x, 8633, 8653, 8703, 8753, 8754, 8763, 8783, KT880, PM800, PM880, PN800, PN880, PT880, XM266 and XN266 host to PCI bridges
+.El
+.Pp
+The most common application of
+.Nm
+is for running
+.Xr X 7
+on the Intel i81x controllers.
+.Sh IOCTLS
+The following
+.Xr ioctl 2
+operations can be performed on
+.Pa /dev/agpgart ,
+which are defined in
+.In sys/agpio.h :
+.Bl -tag -width indent
+.It Dv AGPIOC_INFO
+Returns state of the
+.Nm
+system.
+The result is a pointer to the following structure:
+.Bd -literal
+typedef struct _agp_info {
+	agp_version version;  /* version of the driver        */
+	uint32_t bridge_id;   /* bridge vendor/device         */
+	uint32_t agp_mode;    /* mode info of bridge          */
+	off_t aper_base;      /* base of aperture             */
+	size_t aper_size;     /* size of aperture             */
+	size_t pg_total;      /* max pages (swap + system)    */
+	size_t pg_system;     /* max pages (system)           */
+	size_t pg_used;       /* current pages used           */
+} agp_info;
+.Ed
+.It Dv AGPIOC_ACQUIRE
+Acquire control of the AGP chipset for use by this client.
+Returns
+.Er EBUSY
+if the AGP chipset is already acquired by another client.
+.It Dv AGPIOC_RELEASE
+Release control of the AGP chipset.
+This does not unbind or free any allocated memory, which is the
+responsibility of the client to handle if necessary.
+.It Dv AGPIOC_SETUP
+Enable the AGP hardware with the relevant mode.
+This
+.Xr ioctl 2
+takes the following structure:
+.Bd -literal
+typedef struct _agp_setup {
+	uint32_t agp_mode;    /* mode info of bridge */
+} agp_setup;
+.Ed
+.Pp
+The mode bits are defined in
+.In sys/agpio.h .
+.It Dv AGPIOC_ALLOCATE
+Allocate physical memory suitable for mapping into the AGP aperture.
+This
+.Xr ioctl 2
+takes the following structure:
+.Bd -literal
+typedef struct _agp_allocate {
+	int key;              /* tag of allocation            */
+	size_t pg_count;      /* number of pages              */
+	uint32_t type;        /* 0 == normal, other devspec   */
+	uint32_t physical;    /* device specific (some devices
+			       * need a phys address of the
+			       * actual page behind the gatt
+			       * table)                       */
+} agp_allocate;
+.Ed
+.Pp
+Returns a handle to the allocated memory.
+.It Dv AGPIOC_DEALLOCATE
+Free the previously allocated memory associated with the handle passed.
+.It Dv AGPIOC_BIND
+Bind the allocated memory at given offset with the AGP aperture.
+Returns
+.Er EINVAL
+if the memory is already bound or the offset is not at AGP page boundary.
+This
+.Xr ioctl 2
+takes the following structure:
+.Bd -literal
+typedef struct _agp_bind {
+	int key;         /* tag of allocation            */
+	off_t pg_start;  /* starting page to populate    */
+} agp_bind;
+.Ed
+.Pp
+The tag of allocation is the handle returned by
+.Dv AGPIOC_ALLOCATE .
+.It Dv AGPIOC_UNBIND
+Unbind memory from the AGP aperture.
+Returns
+.Er EINVAL
+if the memory is not bound.
+This
+.Xr ioctl 2
+takes the following structure:
+.Bd -literal
+typedef struct _agp_unbind {
+	int key;                /* tag of allocation         */
+	uint32_t priority;      /* priority for paging out   */
+} agp_unbind;
+.Ed
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/agpgart" -compact
+.It Pa /dev/agpgart
+AGP device node.
+.El
+.Sh SEE ALSO
+.Xr X 7 Pq Pa ports/x11/xorg
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.1 .

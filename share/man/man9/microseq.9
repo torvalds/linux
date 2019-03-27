@@ -1,0 +1,493 @@
+.\" Copyright (c) 1998, 1999, Nicolas Souchu
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 6, 1998
+.Dt MICROSEQ 9
+.Os
+.Sh NAME
+.Nm microseq
+.Nd ppbus microsequencer developer's guide
+.Sh SYNOPSIS
+.In sys/types.h
+.In dev/ppbus/ppbconf.h
+.In dev/ppbus/ppb_msq.h
+.Sh DESCRIPTION
+See
+.Xr ppbus 4
+for ppbus description and general info about the microsequencer.
+.Pp
+The purpose of this document is to encourage developers to use the
+microsequencer mechanism in order to have:
+.Bl -enum -offset indent
+.It
+a uniform programming model
+.It
+efficient code
+.El
+.Pp
+Before using microsequences, you are encouraged to look at
+.Xr ppc 4
+microsequencer implementation and an example of how using it in
+.Xr vpo 4 .
+.Sh PPBUS register model
+.Ss Background
+The parallel port model chosen for ppbus is the PC parallel port model.
+Thus, any register described later has the same semantic than its counterpart
+in a PC parallel port.
+For more info about ISA/ECP programming, get the
+Microsoft standard referenced as "Extended Capabilities Port Protocol and
+ISA interface Standard".
+Registers described later are standard parallel port
+registers.
+.Pp
+Mask macros are defined in the standard ppbus include files for each valid
+bit of parallel port registers.
+.Ss Data register
+In compatible or nibble mode, writing to this register will drive data to the
+parallel port data lines.
+In any other mode, drivers may be tri-stated by
+setting the direction bit (PCD) in the control register.
+Reads to this register
+return the value on the data lines.
+.Ss Device status register
+This read-only register reflects the inputs on the parallel port interface.
+.Pp
+.Bl -column "Bit" "Name" "Description" -compact
+.It Em Bit Ta Em Name Ta Em Description
+.It 7 Ta nBUSY Ta "inverted version of parallel port Busy signal"
+.It 6 Ta nACK Ta "version of parallel port nAck signal"
+.It 5 Ta PERROR Ta "version of parallel port PERROR signal"
+.It 4 Ta SELECT Ta "version of parallel port Select signal"
+.It 3 Ta nFAULT Ta "version of parallel port nFault signal"
+.El
+.Pp
+Others are reserved and return undefined result when read.
+.Ss Device control register
+This register directly controls several output signals as well as enabling
+some functions.
+.Pp
+.Bl -column "Bit" "Name    " "Description" -compact
+.It Em Bit Ta Em Name Ta Em Description
+.It 5 Ta PCD Ta "direction bit in extended modes"
+.It 4 Ta IRQENABLE Ta "1 enables an interrupt on the rising edge of nAck"
+.It 3 Ta SELECTIN Ta "inverted and driven as parallel port nSelectin signal"
+.It 2 Ta nINIT Ta "driven as parallel port nInit signal"
+.It 1 Ta AUTOFEED Ta "inverted and driven as parallel port nAutoFd signal"
+.It 0 Ta STROBE Ta "inverted and driven as parallel port nStrobe signal"
+.El
+.Sh MICROINSTRUCTIONS
+.Ss Description
+.Em Microinstructions
+are either parallel port accesses, program iterations, submicrosequence or
+C calls.
+The parallel port must be considered as the logical model described in
+.Xr ppbus 4 .
+.Pp
+Available microinstructions are:
+.Bd -literal
+#define MS_OP_GET       0	/* get <ptr>, <len>			*/
+#define MS_OP_PUT       1	/* put <ptr>, <len>			*/
+#define MS_OP_RFETCH	2	/* rfetch <reg>, <mask>, <ptr>		*/
+#define MS_OP_RSET	3	/* rset <reg>, <mask>, <mask>		*/
+#define MS_OP_RASSERT	4	/* rassert <reg>, <mask>		*/
+#define MS_OP_DELAY     5	/* delay <val>				*/
+#define MS_OP_SET       6	/* set <val>				*/
+#define MS_OP_DBRA      7	/* dbra <offset>			*/
+#define MS_OP_BRSET     8	/* brset <mask>, <offset>		*/
+#define MS_OP_BRCLEAR   9	/* brclear <mask>, <offset>		*/
+#define MS_OP_RET       10	/* ret <retcode>			*/
+#define MS_OP_C_CALL	11	/* c_call <function>, <parameter>	*/
+#define MS_OP_PTR	12	/* ptr <pointer>			*/
+#define MS_OP_ADELAY	13	/* adelay <val>				*/
+#define MS_OP_BRSTAT	14	/* brstat <mask>, <mask>, <offset>	*/
+#define MS_OP_SUBRET	15	/* subret <code>			*/
+#define MS_OP_CALL	16	/* call <microsequence>			*/
+#define MS_OP_RASSERT_P	17	/* rassert_p <iter>, <reg>		*/
+#define MS_OP_RFETCH_P	18	/* rfetch_p <iter>, <reg>, <mask>	*/
+#define MS_OP_TRIG	19	/* trigger <reg>, <len>, <array>	*/
+.Ed
+.Ss Execution context
+The
+.Em execution context
+of microinstructions is:
+.Bl -bullet -offset indent
+.It
+the
+.Em program counter
+which points to the next microinstruction to execute either in the main
+microsequence or in a subcall
+.It
+the current value of
+.Em ptr
+which points to the next char to send/receive
+.It
+the current value of the internal
+.Em branch register
+.El
+.Pp
+This data is modified by some of the microinstructions, not all.
+.Ss MS_OP_GET and MS_OP_PUT
+are microinstructions used to do either predefined standard IEEE1284-1994
+transfers or programmed non-standard io.
+.Ss MS_OP_RFETCH - Register FETCH
+is used to retrieve the current value of a parallel port register, apply a
+mask and save it in a buffer.
+.Pp
+Parameters:
+.Bl -enum -offset indent
+.It
+register
+.It
+character mask
+.It
+pointer to the buffer
+.El
+.Pp
+Predefined macro: MS_RFETCH(reg,mask,ptr)
+.Ss MS_OP_RSET - Register SET
+is used to assert/clear some bits of a particular parallel port register,
+two masks are applied.
+.Pp
+Parameters:
+.Bl -enum -offset indent
+.It
+register
+.It
+mask of bits to assert
+.It
+mask of bits to clear
+.El
+.Pp
+Predefined macro: MS_RSET(reg,assert,clear)
+.Ss MS_OP_RASSERT - Register ASSERT
+is used to assert all bits of a particular parallel port register.
+.Pp
+Parameters:
+.Bl -enum -offset indent
+.It
+register
+.It
+byte to assert
+.El
+.Pp
+Predefined macro: MS_RASSERT(reg,byte)
+.Ss MS_OP_DELAY - microsecond DELAY
+is used to delay the execution of the microsequence.
+.Pp
+Parameter:
+.Bl -enum -offset indent
+.It
+delay in microseconds
+.El
+.Pp
+Predefined macro: MS_DELAY(delay)
+.Ss MS_OP_SET - SET internal branch register
+is used to set the value of the internal branch register.
+.Pp
+Parameter:
+.Bl -enum -offset indent
+.It
+integer value
+.El
+.Pp
+Predefined macro: MS_SET(accum)
+.Ss MS_OP_DBRA - \&Do BRAnch
+is used to branch if internal branch register decremented by one result value
+is positive.
+.Pp
+Parameter:
+.Bl -enum -offset indent
+.It
+integer offset in the current executed (sub)microsequence.
+Offset is added to
+the index of the next microinstruction to execute.
+.El
+.Pp
+Predefined macro: MS_DBRA(offset)
+.Ss MS_OP_BRSET - BRanch on SET
+is used to branch if some of the status register bits of the parallel port
+are set.
+.Pp
+Parameter:
+.Bl -enum -offset indent
+.It
+bits of the status register
+.It
+integer offset in the current executed (sub)microsequence.
+Offset is added to
+the index of the next microinstruction to execute.
+.El
+.Pp
+Predefined macro: MS_BRSET(mask,offset)
+.Ss MS_OP_BRCLEAR - BRanch on CLEAR
+is used to branch if some of the status register bits of the parallel port
+are cleared.
+.Pp
+Parameter:
+.Bl -enum -offset indent
+.It
+bits of the status register
+.It
+integer offset in the current executed (sub)microsequence.
+Offset is added to
+the index of the next microinstruction to execute.
+.El
+.Pp
+Predefined macro: MS_BRCLEAR(mask,offset)
+.Ss MS_OP_RET - RETurn
+is used to return from a microsequence.
+This instruction is mandatory.
+This
+is the only way for the microsequencer to detect the end of the microsequence.
+The return code is returned in the integer pointed by the (int *) parameter
+of the ppb_MS_microseq().
+.Pp
+Parameter:
+.Bl -enum -offset indent
+.It
+integer return code
+.El
+.Pp
+Predefined macro: MS_RET(code)
+.Ss MS_OP_C_CALL - C function CALL
+is used to call C functions from microsequence execution.
+This may be useful
+when a non-standard i/o is performed to retrieve a data character from the
+parallel port.
+.Pp
+Parameter:
+.Bl -enum -offset indent
+.It
+the C function to call
+.It
+the parameter to pass to the function call
+.El
+.Pp
+The C function shall be declared as a
+.Ft int(*)(void *p, char *ptr) .
+The ptr parameter is the current position in the buffer currently scanned.
+.Pp
+Predefined macro: MS_C_CALL(func,param)
+.Ss MS_OP_PTR - initialize internal PTR
+is used to initialize the internal pointer to the currently scanned buffer.
+This pointer is passed to any C call (see above).
+.Pp
+Parameter:
+.Bl -enum -offset indent
+.It
+pointer to the buffer that shall be accessed by xxx_P() microsequence calls.
+Note that this pointer is automatically incremented during xxx_P() calls
+.El
+.Pp
+Predefined macro: MS_PTR(ptr)
+.Ss MS_OP_ADELAY - do an Asynchronous DELAY
+is used to make a tsleep() during microsequence execution.
+The tsleep is
+executed at PPBPRI level.
+.Pp
+Parameter:
+.Bl -enum -offset indent
+.It
+delay in ms
+.El
+.Pp
+Predefined macro: MS_ADELAY(delay)
+.Ss MS_OP_BRSTAT - BRanch on STATe
+is used to branch on status register state condition.
+.Pp
+Parameter:
+.Bl -enum -offset indent
+.It
+mask of asserted bits.
+Bits that shall be asserted in the status register
+are set in the mask
+.It
+mask of cleared bits.
+Bits that shall be cleared in the status register
+are set in the mask
+.It
+integer offset in the current executed (sub)microsequence.
+Offset is added
+to the index of the next microinstruction to execute.
+.El
+.Pp
+Predefined macro: MS_BRSTAT(asserted_bits,clear_bits,offset)
+.Ss MS_OP_SUBRET - SUBmicrosequence RETurn
+is used to return from the submicrosequence call.
+This action is mandatory
+before a RET call.
+Some microinstructions (PUT, GET) may not be callable
+within a submicrosequence.
+.Pp
+No parameter.
+.Pp
+Predefined macro: MS_SUBRET()
+.Ss MS_OP_CALL - submicrosequence CALL
+is used to call a submicrosequence.
+A submicrosequence is a microsequence with
+a SUBRET call.
+Parameter:
+.Bl -enum -offset indent
+.It
+the submicrosequence to execute
+.El
+.Pp
+Predefined macro: MS_CALL(microseq)
+.Ss MS_OP_RASSERT_P - Register ASSERT from internal PTR
+is used to assert a register with data currently pointed by the internal PTR
+pointer.
+Parameter:
+.Bl -enum -offset indent
+.It
+amount of data to write to the register
+.It
+register
+.El
+.Pp
+Predefined macro: MS_RASSERT_P(iter,reg)
+.Ss MS_OP_RFETCH_P - Register FETCH to internal PTR
+is used to fetch data from a register.
+Data is stored in the buffer currently
+pointed by the internal PTR pointer.
+Parameter:
+.Bl -enum -offset indent
+.It
+amount of data to read from the register
+.It
+register
+.It
+mask applied to fetched data
+.El
+.Pp
+Predefined macro: MS_RFETCH_P(iter,reg,mask)
+.Ss MS_OP_TRIG - TRIG register
+is used to trigger the parallel port.
+This microinstruction is intended to
+provide a very efficient control of the parallel port.
+Triggering a register
+is writing data, wait a while, write data, wait a while...
+This allows to
+write magic sequences to the port.
+Parameter:
+.Bl -enum -offset indent
+.It
+amount of data to read from the register
+.It
+register
+.It
+size of the array
+.It
+array of unsigned chars.
+Each couple of u_chars define the data to write to
+the register and the delay in us to wait.
+The delay is limited to 255 us to
+simplify and reduce the size of the array.
+.El
+.Pp
+Predefined macro: MS_TRIG(reg,len,array)
+.Sh MICROSEQUENCES
+.Ss C structures
+.Bd -literal
+union ppb_insarg {
+     int     i;
+     char    c;
+     void    *p;
+     int     (* f)(void *, char *);
+};
+
+struct ppb_microseq {
+     int                     opcode;         /* microins. opcode */
+     union ppb_insarg        arg[PPB_MS_MAXARGS];    /* arguments */
+};
+.Ed
+.Ss Using microsequences
+To instantiate a microsequence, just declare an array of ppb_microseq
+structures and initialize it as needed.
+You may either use predefined macros
+or code directly your microinstructions according to the ppb_microseq
+definition.
+For example,
+.Bd -literal
+     struct ppb_microseq select_microseq[] = {
+
+	     /* parameter list
+	      */
+	     #define SELECT_TARGET    MS_PARAM(0, 1, MS_TYP_INT)
+	     #define SELECT_INITIATOR MS_PARAM(3, 1, MS_TYP_INT)
+
+	     /* send the select command to the drive */
+	     MS_DASS(MS_UNKNOWN),
+	     MS_CASS(H_nAUTO | H_nSELIN |  H_INIT | H_STROBE),
+	     MS_CASS( H_AUTO | H_nSELIN |  H_INIT | H_STROBE),
+	     MS_DASS(MS_UNKNOWN),
+	     MS_CASS( H_AUTO | H_nSELIN | H_nINIT | H_STROBE),
+
+	     /* now, wait until the drive is ready */
+	     MS_SET(VP0_SELTMO),
+/* loop: */     MS_BRSET(H_ACK, 2 /* ready */),
+	     MS_DBRA(-2 /* loop */),
+/* error: */    MS_RET(1),
+/* ready: */    MS_RET(0)
+     };
+.Ed
+.Pp
+Here, some parameters are undefined and must be filled before executing
+the microsequence.
+In order to initialize each microsequence, one
+should use the ppb_MS_init_msq() function like this:
+.Bd -literal
+     ppb_MS_init_msq(select_microseq, 2,
+		     SELECT_TARGET, 1 << target,
+		     SELECT_INITIATOR, 1 << initiator);
+.Ed
+.Pp
+and then execute the microsequence.
+.Ss The microsequencer
+The microsequencer is executed either at ppbus or adapter level (see
+.Xr ppbus 4
+for info about ppbus system layers).
+Most of the microsequencer is executed
+at ppc level to avoid ppbus to adapter function call overhead.
+But some
+actions like deciding whereas the transfer is IEEE1284-1994 compliant are
+executed at ppbus layer.
+.Sh SEE ALSO
+.Xr ppbus 4 ,
+.Xr ppc 4 ,
+.Xr vpo 4
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Nicolas Souchu .
+.Sh BUGS
+Only one level of submicrosequences is allowed.
+.Pp
+When triggering the port, maximum delay allowed is 255 us.

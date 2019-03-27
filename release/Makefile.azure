@@ -1,0 +1,53 @@
+#
+# $FreeBSD$
+#
+#
+# Makefile for uploading Microsoft Azure disk images.
+#
+
+AZURE_IMG?=		${.OBJDIR}/azure.vhdf
+AZURE_UPLOAD_TGTS=	azure-check-depends \
+			azure-do-upload
+CLEANFILES+=		${AZURE_UPLOAD_TGTS}
+
+.if defined(AZURE_UPLOAD_CONF) && !empty(AZURE_UPLOAD_CONF)
+. for VAR in _STORAGE _ACCOUNT _KEY
+AZURE${VAR}!=	grep -E ^AZURE${VAR} ${AZURE_UPLOAD_CONF} | awk -F'	' '{print $$2}'
+. endfor
+.endif
+
+.if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
+SNAPSHOT_DATE!=		date +-%Y-%m-%d
+.endif
+
+AZURE_TARGET:=		${OSRELEASE}${SNAPSHOT_DATE}.vhd
+
+azure-upload:		${AZURE_UPLOAD_TGTS}
+
+azure-check-depends:
+.for VAR in _STORAGE _ACCOUNT _KEY
+. if !defined(AZURE${VAR}) || empty(AZURE${VAR})
+	@echo "Variable AZURE${VAR} cannot be empty."
+	@false
+. endif
+.endfor
+.if !exists(/usr/local/bin/azure)
+. if !exists(/usr/local/bin/npm)
+.  if !exists(${PORTSDIR}/www/npm/Makefile)
+.   if !exists(/usr/local/sbin/pkg-static)
+	env ASSUME_ALWAYS_YES=yes pkg bootstrap -yf
+.   endif
+	env ASSUME_ALWAYS_YES=yes pkg install -y www/npm
+.  else
+	make -C ${PORTSDIR}/www/npm BATCH=1 all install clean
+.  endif
+. endif
+	npm install -g azure-cli
+.endif
+
+azure-do-upload:
+	/usr/local/bin/azure storage blob upload \
+		${AZURE_IMG} ${AZURE_STORAGE} ${AZURE_TARGET} \
+		-t page -a ${AZURE_ACCOUNT} -k "${AZURE_KEY}"
+	touch ${.OBJDIR}/${.TARGET}
+

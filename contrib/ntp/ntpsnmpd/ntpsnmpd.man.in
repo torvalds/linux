@@ -1,0 +1,203 @@
+.de1 NOP
+.  it 1 an-trap
+.  if \\n[.$] \,\\$*\/
+..
+.ie t \
+.ds B-Font [CB]
+.ds I-Font [CI]
+.ds R-Font [CR]
+.el \
+.ds B-Font B
+.ds I-Font I
+.ds R-Font R
+.TH ntpsnmpd @NTPSNMPD_MS@ "20 Feb 2019" "4.2.8p13" "User Commands"
+.\"
+.\" EDIT THIS FILE WITH CAUTION (in-mem file)
+.\"
+.\" It has been AutoGen-ed February 20, 2019 at 09:57:08 AM by AutoGen 5.18.5
+.\" From the definitions ntpsnmpd-opts.def
+.\" and the template file agman-cmd.tpl
+.SH NAME
+\f\*[B-Font]ntpsnmpd\fP
+\- NTP SNMP MIB agent
+.SH SYNOPSIS
+\f\*[B-Font]ntpsnmpd\fP
+.\" Mixture of short (flag) options and long options
+[\f\*[B-Font]\-flags\f[]]
+[\f\*[B-Font]\-flag\f[] [\f\*[I-Font]value\f[]]]
+[\f\*[B-Font]\-\-option-name\f[][[=| ]\f\*[I-Font]value\f[]]]
+.sp \n(Ppu
+.ne 2
+
+All arguments must be options.
+.sp \n(Ppu
+.ne 2
+
+.SH DESCRIPTION
+\f\*[B-Font]ntpsnmpd\fP
+is an SNMP MIB agent designed to interface with
+\fCntpd\f[]\fR(@NTPD_MS@)\f[].
+.SH "OPTIONS"
+.TP
+.NOP \f\*[B-Font]\-n\f[], \f\*[B-Font]\-\-nofork\f[]
+Do not fork.
+.sp
+.TP
+.NOP \f\*[B-Font]\-p\f[], \f\*[B-Font]\-\-syslog\f[]
+Log to syslog().
+.sp
+.TP
+.NOP \f\*[B-Font]\-\-agentxsocket\f[]=\f\*[I-Font]string\f[]
+The socket address ntpsnmpd uses to connect to net-snmpd.
+The default
+\f\*[I-Font]string\f[]
+for this option is:
+.ti +4
+ unix:/var/agentx/master
+.sp
+[<transport-specifier>:]<transport-address>
+The default "agent X socket" is the Unix Domain socket
+\fIunix:/var/agentx/master\fP.
+Another common alternative is \fItcp:localhost:705\fP.
+.TP
+.NOP \f\*[B-Font]\-\&?\f[], \f\*[B-Font]\-\-help\f[]
+Display usage information and exit.
+.TP
+.NOP \f\*[B-Font]\-\&!\f[], \f\*[B-Font]\-\-more-help\f[]
+Pass the extended usage information through a pager.
+.TP
+.NOP \f\*[B-Font]\->\f[] [\f\*[I-Font]cfgfile\f[]], \f\*[B-Font]\-\-save-opts\f[] [=\f\*[I-Font]cfgfile\f[]]
+Save the option state to \fIcfgfile\fP.  The default is the \fIlast\fP
+configuration file listed in the \fBOPTION PRESETS\fP section, below.
+The command will exit after updating the config file.
+.TP
+.NOP \f\*[B-Font]\-<\f[] \f\*[I-Font]cfgfile\f[], \f\*[B-Font]\-\-load-opts\f[]=\f\*[I-Font]cfgfile\f[], \f\*[B-Font]\-\-no-load-opts\f[]
+Load options from \fIcfgfile\fP.
+The \fIno-load-opts\fP form will disable the loading
+of earlier config/rc/ini files.  \fI\-\-no-load-opts\fP is handled early,
+out of order.
+.TP
+.NOP \f\*[B-Font]\-\-version\f[] [{\f\*[I-Font]v|c|n\f[]}]
+Output version of program and exit.  The default mode is `v', a simple
+version.  The `c' mode will print copyright information and `n' will
+print the full copyright notice.
+.PP
+.SH "OPTION PRESETS"
+Any option that is not marked as \fInot presettable\fP may be preset
+by loading values from configuration ("RC" or ".INI") file(s) and values from
+environment variables named:
+.nf
+  \fBNTPSNMPD_<option-name>\fP or \fBNTPSNMPD\fP
+.fi
+.ad
+The environmental presets take precedence (are processed later than)
+the configuration files.
+The \fIhomerc\fP files are "\fI$HOME\fP", and "\fI.\fP".
+If any of these are directories, then the file \fI.ntprc\fP
+is searched for within those directories.
+.SH USAGE
+\f\*[B-Font]ntpsnmpd\fP
+currently uses a private MIB OID,
+\[oq]enterprises.5597\[cq],
+which is the Meinberg top level OEM OID, and
+\[oq]99\[cq]
+is the temporary working space for this project. 
+The final OID has to be registered with IANA
+and this is done by the RFC Editor
+when the NTPv4 MIB RFC is standardized. 
+.sp \n(Ppu
+.ne 2
+
+If you have
+\fCsnmpwalk\f[]\fR(1)\f[]
+installed you can run
+.Dl % snmpwalk \-v2c \-c public localhost enterprises.5597.99
+to see a list of all currently supported NTP MIB objects
+and their current values.
+.SH "ENVIRONMENT"
+See \fBOPTION PRESETS\fP for configuration environment variables.
+.SH "FILES"
+See \fBOPTION PRESETS\fP for configuration files.
+.SH "EXIT STATUS"
+One of the following exit values will be returned:
+.TP
+.NOP 0 " (EXIT_SUCCESS)"
+Successful program execution.
+.TP
+.NOP 1 " (EXIT_FAILURE)"
+The operation failed or the command syntax was not valid.
+.TP
+.NOP 66 " (EX_NOINPUT)"
+A specified configuration file could not be loaded.
+.TP
+.NOP 70 " (EX_SOFTWARE)"
+libopts had an internal operational error.  Please report
+it to autogen-users@lists.sourceforge.net.  Thank you.
+.PP
+.SH AUTHORS
+.NOP  "Heiko Gerstung" 
+.br
+.SH "COPYRIGHT"
+Copyright (C) 1992-2017 The University of Delaware and Network Time Foundation all rights reserved.
+This program is released under the terms of the NTP license, <http://ntp.org/license>.
+.SH "BUGS"
+Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
+.SH NOTES
+The following objects are currently supported:
+.sp \n(Ppu
+.ne 2
+
+.TP 29
+.NOP \f[C]ntpEntSoftwareName\f[]
+please fill me in...
+.br
+.ns
+.TP 29
+.NOP \f[C]ntpEntSoftwareVersion\f[]
+please fill me in...
+.br
+.ns
+.TP 29
+.NOP \f[C]ntpEntSoftwareVersionVal\f[]
+please fill me in...
+.br
+.ns
+.TP 29
+.NOP \f[C]ntpEntSoftwareVendor\f[]
+please fill me in...
+.br
+.ns
+.TP 29
+.NOP \f[C]ntpEntSystemType\f[]
+please fill me in...
+.br
+.ns
+.TP 29
+.NOP \f[C]ntpEntTimeResolution\f[]
+please fill me in...
+.br
+.ns
+.TP 29
+.NOP \f[C]ntpEntTimeResolutionVal\f[]
+please fill me in...
+.br
+.ns
+.TP 29
+.NOP \f[C]ntpEntTimePrecision\f[]
+please fill me in...
+.br
+.ns
+.TP 29
+.NOP \f[C]ntpEntTimePrecisionVal\f[]
+please fill me in...
+.br
+.ns
+.TP 29
+.NOP \f[C]ntpEntTimeDistance\f[]
+please fill me in...
+.PP
+.sp \n(Ppu
+.ne 2
+
+This manual page was \fIAutoGen\fP-erated from the \fBntpsnmpd\fP
+option definitions.

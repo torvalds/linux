@@ -1,0 +1,88 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+# Delay processing of debug flags as the parent until MAIN. export'd to disable
+# re-processing of flags (all children log to the parent's log file).
+#
+export DEBUG_SELF_INITIALIZE=
+export DEBUG_INITIALIZE_FILE=
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+############################################################ GLOBALS
+
+: ${BSDINSTALL_TMPETC="/tmp/bsdinstall_etc"}; export BSDINSTALL_TMPETC
+: ${BSDINSTALL_TMPBOOT="/tmp/bsdinstall_boot"}; export BSDINSTALL_TMPBOOT
+: ${PATH_FSTAB="$BSDINSTALL_TMPETC/fstab"}; export PATH_FSTAB
+: ${BSDINSTALL_DISTDIR="/usr/freebsd-dist"}; export BSDINSTALL_DISTDIR
+: ${BSDINSTALL_CHROOT="/mnt"}; export BSDINSTALL_CHROOT
+
+export debugFile="${debugFile-${BSDINSTALL_LOG-/tmp/bsdinstall_log}}"
+
+############################################################ MAIN
+
+#
+# Process command-line arguments
+#
+while getopts $GETOPTS_STDARGS ignored; do
+	: just skipping known flags
+done
+shift $(( $OPTIND - 1 ))
+
+# What are we here to do?
+VERB="${1:-auto}"; shift
+
+[ -d "$BSDINSTALL_TMPETC" ] || mkdir -p "$BSDINSTALL_TMPETC"
+[ -d "$BSDINSTALL_TMPBOOT" ] || mkdir -p "$BSDINSTALL_TMPBOOT"
+
+# Only enable debugging if debugFile is non-NULL and can be initialized
+f_quietly f_debug_init
+f_isset debugFile || debug=
+
+f_dprintf "Running installation step: %s %s" "$VERB" "$*"
+if [ "$debug" ]; then
+	case "$debugFile" in
+	# If NULL, send errors to the bit-bucket
+	"") exec "/usr/libexec/bsdinstall/$VERB" "$@" 2> /dev/null ;;
+	# If begins with `+', send errors to both terminal and file (no `+')
+	+*) exec "/usr/libexec/bsdinstall/$VERB" "$@" \
+		2>&1 >&$TERMINAL_STDOUT_PASSTHRU | tee "${debugFile#+}" ;;
+	# Otherwise, just send errors to the file specified
+	*) exec "/usr/libexec/bsdinstall/$VERB" "$@" 2>> "$debugFile"
+	esac
+else
+	exec "/usr/libexec/bsdinstall/$VERB" "$@" 2> /dev/null
+fi
+
+################################################################################
+# END
+################################################################################

@@ -1,0 +1,101 @@
+#!/bin/sh
+#
+# $NetBSD: t_link,v 1.5 2006/11/09 16:20:06 jmmv Exp $
+#
+# Copyright (c) 2005, 2006 The NetBSD Foundation, Inc.
+# All rights reserved.
+#
+# This code is derived from software contributed to The NetBSD Foundation
+# by Julio M. Merino Vidal, developed as part of Google's Summer of Code
+# 2005 program.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#
+# Verifies that the link operation works.
+#
+
+test_run() {
+	test_mount
+
+	test_name "Link operation works"
+	touch a || die
+	touch z || die
+	eval $(stat -s a | sed -e 's|st_|sta_|g')
+	eval $(stat -s z | sed -e 's|st_|stz_|g')
+	test ${sta_ino} != ${stz_ino} || die
+	test ${sta_nlink} -eq 1 || die
+	ln a b || die
+	test_name "Link count is correct after links are created"
+	eval $(stat -s a | sed -e 's|st_|sta_|g')
+	eval $(stat -s b | sed -e 's|st_|stb_|g')
+	test ${sta_ino} = ${stb_ino} || die
+	test ${sta_nlink} -eq 2 || die
+	test ${stb_nlink} -eq 2 || die
+	test_name "Link count is correct after links are deleted"
+	rm a || die
+	eval $(stat -s b | sed -e 's|st_|stb_|g')
+	test ${stb_nlink} -eq 1 || die
+	rm b || die
+
+	test_name "Link operation works in subdirectories"
+	touch a || die
+	mkdir c || die
+	ln a c/b || die
+	test_name "Link count is correct after links are created"
+	eval $(stat -s a | sed -e 's|st_|sta_|g')
+	eval $(stat -s c/b | sed -e 's|st_|stb_|g')
+	test ${sta_ino} = ${stb_ino} || die
+	test ${sta_nlink} -eq 2 || die
+	test ${stb_nlink} -eq 2 || die
+	test_name "Link count is correct after links are deleted"
+	rm a || die
+	eval $(stat -s c/b | sed -e 's|st_|stb_|g')
+	test ${stb_nlink} -eq 1 || die
+	rm c/b || die
+	rmdir c || die
+
+	mkdir dir || die
+	touch dir/a || die
+	echo 'ln dir/a dir/b' | kqueue_monitor 2 dir dir/a || die
+	test_name "Creating a link raises NOTE_LINK on the source file"
+	kqueue_check dir/a NOTE_LINK || die
+	test_name "Creating a link raises NOTE_WRITE on the parent directory"
+	kqueue_check dir NOTE_WRITE || die
+
+	echo 'rm dir/a' | kqueue_monitor 2 dir dir/b || die
+	# XXX According to the (short) kqueue(2) documentation, the following
+	# should raise a NOTE_LINK but FFS raises a NOTE_DELETE...
+	test_name "Deleting a link raises NOTE_DELETE on one other link"
+	kqueue_check dir/b NOTE_DELETE || die
+	test_name "Deleting a link raises NOTE_WRITE on the parent directory"
+	kqueue_check dir NOTE_WRITE || die
+	rm dir/b || die
+	rmdir dir || die
+
+	test_unmount
+}
+
+. ${SUBRDIR}/h_funcs.subr

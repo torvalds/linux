@@ -1,0 +1,214 @@
+.\" Copyright (c) 2014
+.\"	Konstantin Belousov <kib@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 7, 2018
+.Dt FPU_KERN 9
+.Os
+.Sh NAME
+.Nm fpu_kern
+.Nd "facility to use the FPU in the kernel"
+.Sh SYNOPSIS
+.Ft struct fpu_kern_ctx *
+.Fn fpu_kern_alloc_ctx "u_int flags"
+.Ft void
+.Fn fpu_kern_free_ctx "struct fpu_kern_ctx *ctx"
+.Ft void
+.Fn fpu_kern_enter "struct thread *td" "struct fpu_kern_ctx *ctx" "u_int flags"
+.Ft int
+.Fn fpu_kern_leave "struct thread *td" "struct fpu_kern_ctx *ctx"
+.Ft int
+.Fn fpu_kern_thread "u_int flags"
+.Ft int
+.Fn is_fpu_kern_thread "u_int flags"
+.Sh DESCRIPTION
+The
+.Nm
+family of functions allows the use of FPU hardware in kernel code.
+Modern FPUs are not limited to providing hardware implementation for
+floating point arithmetic; they offer advanced accelerators for cryptography
+and other computational-intensive algorithms.
+These facilities share registers with the FPU hardware.
+.Pp
+Typical kernel code does not need access to the FPU.
+Saving a large register file on each entry to the kernel would waste
+time.
+When kernel code uses the FPU, the current FPU state must be saved to
+avoid corrupting the user-mode state, and vice versa.
+.Pp
+The management of the save and restore is automatic.
+The processor catches accesses to the FPU registers
+when the non-current context tries to access them.
+Explicit calls are required for the allocation of the save area and
+the notification of the start and end of the code using the FPU.
+.Pp
+The
+.Fn fpu_kern_alloc_ctx
+function allocates the memory used by
+.Nm
+to track the use of the FPU hardware state and the related software state.
+The
+.Fn fpu_kern_alloc_ctx
+function requires the
+.Fa flags
+argument, which currently accepts the following flags:
+.Bl -tag -width ".Dv FPU_KERN_NOWAIT" -offset indent
+.It Dv FPU_KERN_NOWAIT
+Do not wait for the available memory if the request could not be satisfied
+without sleep.
+.It 0
+No special handling is required.
+.El
+.Pp
+The function returns the allocated context area, or
+.Va NULL
+if the allocation failed.
+.Pp
+The
+.Fn fpu_kern_free_ctx
+function frees the context previously allocated by
+.Fn fpu_kern_alloc_ctx .
+.Pp
+The
+.Fn fpu_kern_enter
+function designates the start of the region of kernel code where the
+use of the FPU is allowed.
+Its arguments are:
+.Bl -tag -width ".Fa ctx" -offset indent
+.It Fa td
+Currently must be
+.Va curthread .
+.It Fa ctx
+The context save area previously allocated by
+.Fn fpu_kern_alloc_ctx
+and not currently in use by another call to
+.Fn fpu_kern_enter .
+.It Fa flags
+This argument currently accepts the following flags:
+.Bl -tag -width ".Dv FPU_KERN_NORMAL" -offset indent
+.It Dv FPU_KERN_NORMAL
+Indicates that the caller intends to access the full FPU state.
+Must be specified currently.
+.It Dv FPU_KERN_KTHR
+Indicates that no saving of the current FPU state should be performed,
+if the thread called
+.Xr fpu_kern_thread 9
+function.
+This is intended to minimize code duplication in callers which
+could be used from both kernel thread and syscall contexts.
+The
+.Fn fpu_kern_leave
+function correctly handles such contexts.
+.It Dv FPU_KERN_NOCTX
+Avoid nesting save area.
+If the flag is specified, the
+.Fa ctx
+must be passed as
+.Va NULL .
+The flag should only be used for really short code blocks
+which can be executed in a critical section.
+It avoids the need to allocate the FPU context by the cost
+of increased system latency.
+.El
+.El
+.Pp
+The function does not sleep or block.
+It could cause an FPU trap during execution, and on the first FPU access
+after the function returns, as well as after each context switch.
+On i386 and amd64 this will be the
+.Nm Device Not Available
+exception (see Intel Software Developer Manual for the reference).
+.Pp
+The
+.Fn fpu_kern_leave
+function ends the region started by
+.Fn fpu_kern_enter .
+It is erroneous to use the FPU in the kernel before
+.Fn fpu_kern_enter
+or after
+.Fn fpu_kern_leave .
+The function takes the
+.Fa td
+thread argument, which currently must be
+.Va curthread ,
+and the
+.Fa ctx
+context pointer, previously passed to
+.Fn fpu_kern_enter .
+After the function returns, the context may be freed or reused
+by another invocation of
+.Fn fpu_kern_enter .
+The function always returns 0.
+.Pp
+The
+.Fn fpu_kern_thread
+function enables an optimization for threads which never leave to
+the usermode.
+The current thread will reuse the usermode save area for the kernel FPU state
+instead of requiring an explicitly allocated context.
+There are no flags defined for the function, and no error states
+that the function returns.
+Once this function has been called, neither
+.Fn fpu_kern_enter
+nor
+.Fn fpu_kern_leave
+is required to be called and the fpu is available for use in the calling thread.
+.Pp
+The
+.Fn is_fpu_kern_thread
+function returns the boolean indicating whether the current thread
+entered the mode enabled by
+.Fn fpu_kern_thread .
+There is currently no flags defined for the function, the return
+value is true if the current thread have the permanent FPU save area,
+and false otherwise.
+.Sh NOTES
+The
+.Nm
+is currently implemented only for the i386, amd64, and arm64 architectures.
+.Pp
+There is no way to handle floating point exceptions raised from
+kernel mode.
+.Pp
+The unused
+.Fa flags
+arguments
+to the
+.Nm
+functions are to be extended to allow specification of the
+set of the FPU hardware state used by the code region.
+This would allow optimizations of saving and restoring the state.
+.Sh AUTHORS
+The
+.Nm
+facitily and this manual page were written by
+.An Konstantin Belousov Aq Mt kib@FreeBSD.org .
+The arm64 support was added by
+.An Andrew Turner Aq Mt andrew@FreeBSD.org .
+.Sh BUGS
+.Fn fpu_kern_leave
+should probably have type
+.Ft void
+(like
+.Fn fpu_kern_enter ) .

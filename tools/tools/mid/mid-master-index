@@ -1,0 +1,21 @@
+#!/bin/sh
+
+if [ $# -le 2 ]; then
+	echo "usage $0 parallel_processes command [comand_options]"
+	exit 1
+fi
+
+count=$1; shift
+command=$1; shift
+file=$1; shift
+filelistmid=`perl -e "for(0 .. $count -1) {print qq{$file.temp.\\$_.mid }}"`
+filelistirt=`perl -e "for(0 .. $count -1) {print qq{$file.temp.\\$_.irt }}"`
+
+if mid-master $count $command $file.temp; then
+    sort -u -m -o $file.temp.mid $filelistmid && 
+	rm -f $filelistmid && mv $file.temp.mid $file.mid || exit 1
+    sort -u -m -o $file.temp.irt $filelistirt && 
+	rm -f $filelistirt && mv $file.temp.irt $file.irt || exit 1
+else
+    exit 1
+fi

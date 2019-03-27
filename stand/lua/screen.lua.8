@@ -1,0 +1,102 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 19, 2018
+.Dt SCREEN.LUA 8
+.Os
+.Sh NAME
+.Nm screen.lua
+.Nd FreeBSD screen manipulation module
+.Sh DESCRIPTION
+.Nm
+contains functionality for manipulating the screen.
+This includes functionality such as clearing the screen, moving the cursor, and
+setting foreground/background colors using sequences provided by
+.Xr color.lua 8 .
+.Pp
+Before using the functionality provided by
+.Nm ,
+it must be included with a statement such as the following:
+.Pp
+.Dl local screen = require("screen")
+.Pp
+The following variables are exported from
+.Nm :
+.Bl -tag -width "Ic screen.default_x" -offset indent
+.It Ic screen.default_x
+The x component of the default cursor position.
+.It Ic screen.default_y
+The y component of the default cursor position.
+.El
+.Pp
+The following functions are exported from
+.Nm :
+.Bl -tag -width "Fn screen.clear" -offset indent
+.It Fn screen.clear
+Clears the screen.
+.Fn screen.clear
+will do nothing if a serial boot is detected.
+.It Fn screen.setcursor x y
+Sets the cursor position to
+.Fa x ,
+.Fa y .
+.Fn screen.setcursor
+will do nothing if a serial boot is detected.
+.It Fn screen.setforeground color_value
+Sets the foreground color to
+.Fa color_value ,
+which should be a constant defined in
+.Xr color.lua 8 .
+.Fn screen.setforeground
+will do nothing if color is disabled.
+.It Fn screen.setbackground color_value
+Sets the background color to
+.Fa color_value ,
+which should be a constant defined in
+.Xr color.lua 8 .
+.Fn screen.setbackground
+will do nothing if color is disabled.
+.It Fn screen.defcolor
+Sets the default color scheme, as defined by
+.Fn color.default .
+.Fn screen.defcolor
+will do nothing if color is disabled.
+.It Fn screen.defcursor
+Sets the default cursor position to that defined by
+.Ic screen.default_x ,
+.Ic screen.default_y .
+.El
+.Sh SEE ALSO
+.Xr color.lua 8
+.Sh AUTHORS
+The
+.Nm
+file was originally written by
+.An Pedro Souza Aq Mt pedrosouza@FreeBSD.org .
+Later work and this manual page was done by
+.An Kyle Evans Aq Mt kevans@FreeBSD.org .

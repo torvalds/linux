@@ -1,0 +1,211 @@
+#!/bin/sh
+
+# $FreeBSD$
+
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
+#  Copyright(c) 2018 Intel Corporation.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#  1. Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#  2. Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+#  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+#  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+#  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+#  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+#  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+#  SUCH DAMAGE.
+
+# This is the codified version of what was/is on the wiki page for using git in
+# your workflow. It sets up proper repositories, with the correct remotes.
+
+# Environment variables which can be overridden if desired. Not worth
+# parameterizing them.
+GIT_IN_PATH=$(which git)
+GIT=${GIT-${GIT_IN_PATH}}
+
+GIT_DOCS_REPO=${GIT_DOCS_REPO-git://github.com/freebsd/freebsd-doc.git}
+GIT_SVN_DOCS_ROOT_URI=${GIT_SVN_DOCS_ROOT_URI-svn.freebsd.org/doc}
+GIT_SVN_DOCS_URI=${GIV_SVN_DOCS_URI-repo.freebsd.org/doc}
+
+GIT_PORTS_REPO=${GIT_PORTS_REPO-git://github.com/freebsd/freebsd-ports.git}
+GIT_SVN_PORTS_ROOT_URI=${GIT_SVN_PORTS_ROOT_URI-svn.freebsd.org/ports}
+GIT_SVN_PORTS_URI=${GIT_SVN_PORTS_URI-repo.freebsd.org/ports}
+
+GIT_SRC_REPO=${GIT_SRC_REPO-git://github.com/freebsd/freebsd.git}
+GIT_SVN_SRC_ROOT_URI=${GIT_SVN_SRC_ROOT_URI-svn.freebsd.org/base}
+GIT_SVN_SRC_URI=${GIT_SVN_SRC_URI-repo.freebsd.org/base}
+
+GIT_SVN_DOCS_PUSH_URI=$GIT_SVN_DOCS_URI
+GIT_SVN_PORTS_PUSH_URI=$GIT_SVN_PORTS_URI
+GIT_SVN_SRC_PUSH_URI=$GIT_SVN_SRC_URI
+
+usage()
+{
+	cat <<EOF
+Usage: git-svn-init: [-b base_path] [-n] [-p] [-s]
+
+git-svn-init will instantiate git repositories for src, and ports and connect
+them to the upstream SVN repository. By default it will attempt to do this for
+both ports and src under freebsd in the current working directory.
+-b	Base path for the clone operation (default: freebsd)
+-n	Dry run
+-p	Exclude ports
+-s	Exclude src
+-d	Exclude docs
+
+EOF
+}
+
+clone()
+{
+	echo "Cloning ${3}"
+	${GIT} clone "$repo" -o upstream "$base"/${3}
+}
+
+svn_init()
+{
+	# init git-svn to point to the subversion repo:
+	${GIT} svn init -Thead --rewrite-root=svn+ssh://$1 svn+ssh://$2 .
+
+	# Replace to use upstream instead of the default origin
+	# TODO: Do this from git svn init
+	${GIT} config svn-remote.svn.fetch head:refs/remotes/upstream/trunk
+
+	# Committers need to use proper URL for dcommit
+	${GIT} config svn-remote.svn.pushurl svn+ssh://$3
+
+}
+
+svn_check()
+{
+	cat <<EOF
+[svn-remote "svn"]
+	url = svn+ssh://repo.freebsd.org/base
+	rewriteRoot = svn+ssh://svn.freebsd.org/base
+	pushurl = svn+ssh://repo.freebsd.org/base
+	fetch = head:refs/remotes/upstream/trunk
+EOF
+	[ -z ${DRY_RUN} ] && grep -A4 'svn-remote "svn"' .git/config
+}
+
+svn_connect()
+{
+	# Now make a git branch 'trunk' for git-svn to follow. What we want to
+	# do it set it to point to the final commit in upstream/svn_head.
+	local svn_head_sha=$(git show-ref upstream/svn_head|cut -d" " -f1)
+	${GIT} update-ref refs/remotes/upstream/trunk $svn_head_sha # git-svn really needs this branch
+}
+
+svn_fetch()
+{
+	${GIT} svn fetch
+}
+
+git_pulls()
+{
+	# Get pull requests from the repos:
+	${GIT} config --add remote.upstream.fetch '+refs/pull/*:refs/remotes/upstream/pull/*'
+	${GIT} fetch
+}
+
+git_checkout()
+{
+	# Arrange to have 'master' reference 'trunk'
+	${GIT} checkout trunk
+
+	# Make master reference trunk
+	${GIT} branch --force master trunk
+	${GIT} checkout master
+}
+
+rebase()
+{
+	${GIT} svn rebase
+}
+
+doit()
+{
+	local repo=${1}
+	local base=${2}
+
+	if [ "$3" = "src" ] ; then
+		local svn_root_uri=$GIT_SVN_SRC_ROOT_URI
+		local svn_uri=$GIT_SVN_SRC_URI
+		local svn_push_uri=$GIT_SVN_SRC_PUSH_URI
+	elif [ "$3" = "docs" ] ; then
+		local svn_root_uri=$GIT_SVN_DOCS_ROOT_URI
+		local svn_uri=$GIT_SVN_DOCS_URI
+		local svn_push_uri=$GIT_SVN_DOCS_PUSH_URI
+	elif [ "$3" = "ports" ] ; then
+		local svn_root_uri=$GIT_SVN_PORTS_ROOT_URI
+		local svn_uri=$GIT_SVN_PORTS_URI
+		local svn_push_uri=$GIT_SVN_PORTS_PUSH_URI
+	fi
+
+	clone ${repo} ${base} ${3}
+
+	cd "$base"/${3}
+	svn_init $svn_root_uri $svn_uri $svn_push_uri
+	svn_check $(basename $svn_uri) # get base or ports, not src/ports.
+	svn_connect
+	svn_fetch
+	git_pulls
+	git_checkout
+	rebase
+
+	cd -
+}
+
+ports=1
+source=1
+docs=1
+while getopts "hb:nr:sdp" opt; do
+	case "$opt" in
+		b)
+			base_path="$OPTARG"
+			;;
+		n)
+			DRY_RUN=1
+			;;
+		p)
+			ports=0
+			;;
+		s)
+			source=0
+			;;
+		d)
+			docs=0
+			;;
+		h|*)
+			usage
+			exit 0
+	esac
+done
+
+if [ ! -z "${DRY_RUN}" ] ; then
+	GIT='echo git'
+fi
+
+if [ "$source" -eq 1 ]; then
+	doit ${GIT_SRC_REPO} ${base_path:-freebsd} "src"
+fi
+
+if [ "$ports" -eq 1 ]; then
+	doit ${GIT_PORTS_REPO} ${base_path:-freebsd} "ports"
+fi
+
+if [ "$docs" -eq 1 ]; then
+	doit ${GIT_DOCS_REPO} ${base_path:-freebsd} "docs"
+fi

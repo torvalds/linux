@@ -1,0 +1,36 @@
+# $FreeBSD$
+--- beastie.eps.ref	Sun Feb 11 22:46:59 2001
++++ beastie.eps	Sun Feb 11 23:01:43 2001
+@@ -19,6 +19,23 @@
+ %
+ /$F2psDict 200 dict def
+ $F2psDict begin
++
++% This controls the linethickness.  I think large posters look better if
++% you use a value of 2.  Small daemons looks better with a value of 1.
++/linethickness 1 def
++
++% If you want to fiddle the colors:
++% col0  below is black (the lines)
++% col3  below is cyan (the shoelaces)
++% col7  below is white (eyes, shoes)
++% col13 below is green (the shooes)
++% col20 below is red (the daemon)
++% col31 below is gold (the pitchfork)
++
++% This sets round ends on the lines, this looks better than sharp edges
++% but I have not found a way to convince xfig to do this.
++1 setlinecap
++
+ $F2psDict /mtrx matrix put
+ /col-1 {0 setgray} bind def
+ /col0 {0.000 0.000 0.000 srgb} bind def
+@@ -74,7 +91,7 @@
+ /sh {show} bind def
+ /slc {setlinecap} bind def
+ /slj {setlinejoin} bind def
+-/slw {setlinewidth} bind def
++/slw {linethickness mul setlinewidth} bind def
+ /srgb {setrgbcolor} bind def
+ /rot {rotate} bind def
+ /sc {scale} bind def

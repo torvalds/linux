@@ -1,0 +1,185 @@
+.\" Copyright (c) 2006, Myricom Inc
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Myricom Inc nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 13, 2008
+.Dt MXGE 4
+.Os
+.Sh NAME
+.Nm mxge
+.Nd "Myricom Myri10GE 10 Gigabit Ethernet adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device firmware"
+.Cd "device mxge"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_mxge_load="YES"
+mxge_ethp_z8e_load="YES"
+mxge_eth_z8e_load="YES"
+mxge_rss_ethp_z8e_load="YES"
+mxge_rss_eth_z8e_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Express 10 Gigabit Ethernet adapters based on
+the Myricom LANai Z8E chip.
+The driver supports Transmit/Receive checksum offload,
+Jumbo Frames, TCP segmentation offload (TSO) as well
+as Large Receive Offload (LRO).
+For further hardware information, see
+.Pa http://www.myri.com/ .
+.Pp
+For questions related to hardware requirements,
+refer to the documentation supplied with your Myri10GE adapter.
+All hardware requirements listed apply to use with
+.Fx .
+.Pp
+Support for Jumbo Frames is provided via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit Jumbo Frames.
+The maximum MTU size for Jumbo Frames is 9000.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports 10 Gigabit Ethernet adapters based on the
+Myricom LANai Z8E chips:
+.Pp
+.Bl -bullet -compact
+.It
+Myricom 10GBase-CX4 (10G-PCIE-8A-C, 10G-PCIE-8AL-C)
+.It
+Myricom 10GBase-R (10G-PCIE-8A-R, 10G-PCIE-8AL-R)
+.It
+Myricom 10G XAUI over ribbon fiber (10G-PCIE-8A-Q, 10G-PCIE-8AL-Q)
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.mxge.flow_control_enabled
+Whether or not hardware flow control is enabled on the adapter.
+The default value is 1.
+.It Va hw.mxge.intr_coal_delay
+This value delays the generation of all interrupts in units of
+1 microsecond.
+The default value is 30.
+.It Va hw.mxge.skip_pio_read
+This value determines whether or not the driver may omit doing a
+PIO read in the interrupt handler which ensures that the interrupt
+line has been deasserted when using xPIC interrupts.
+A non-zero value
+may result in lower CPU overhead, however it may also result in
+spurious interrupts.
+The default value is 0.
+This tunable has no effect when the device is
+using MSI or MSI-X interrupts.
+.It Va hw.mxge.max_slices
+This value determines the maximum number of slices the driver
+will attempt to use.
+The default value is 1.
+A slice is comprised
+of a set of receive queues and an associated interrupt thread.
+When using multiple slices, the NIC hashes traffic to different slices
+based on the value of
+.Va hw.mxge.rss_hashtype .
+Using multiple slices requires that your motherboard and Myri10GE NIC
+both be capable of MSI-X.
+Older Myri10GE NICs can be field upgraded to add
+MSI-X using the "10G NIC Tool Kit" for FreeBSD which is available from
+.Pa http://www.myri.com/scs/download-10g-tools.html .
+.It Va hw.mxge.rss_hashtype
+This value determines how incoming traffic is steered to different
+slices.
+This tunable is ignored when using just a single slice.
+The legal values for this tunable are:
+.Bl -tag -width "XXXX"
+.It 1
+Hash on the source and destination IPv4 addresses.
+.It 2
+Hash on source and destination IPv4 addresses and if the packet
+is TCP, then also hash on the TCP source and destination ports.
+.It 4
+Hash on the TCP or UDP source ports.
+This is the default value.
+.El
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "mxge%d: Unable to allocate bus resource: memory"
+A fatal initialization error has occurred.
+.It "mxge%d: Unable to allocate bus resource: interrupt"
+A fatal initialization error has occurred.
+.It "mxge%d: Could not find firmware image %s"
+The appropriate firmware kld module was not installed.
+This is a non-fatal initialization error, but will
+result in running in a reduced performance mode.
+.El
+.Sh SUPPORT
+For general information and support,
+go to the Myricom support website at:
+.Pa http://www.myri.com/scs/ .
+.Pp
+If an issue is identified with the released source code on the supported kernel
+with a supported adapter, email the specific information related to the
+issue to
+.Aq Mt help@myri.com .
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 6.3 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Andrew Gallatin Aq Mt gallatin@FreeBSD.org .

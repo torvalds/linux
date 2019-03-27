@@ -1,0 +1,8 @@
+.\" $FreeBSD$
+Set to not build
+.Xr c++ 1
+and related libraries.
+It will also prevent building of
+.Xr gperf 1
+and
+.Xr devd 8 .

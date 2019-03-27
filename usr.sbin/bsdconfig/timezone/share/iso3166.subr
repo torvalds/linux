@@ -1,0 +1,202 @@
+if [ ! "$_TIMEZONE_ISO3166_SUBR" ]; then _TIMEZONE_ISO3166_SUBR=1
+#
+# Copyright (c) 2011-2012 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." timezone/iso3166.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="090.timezone"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ CONFIGURATION
+
+#
+# Standard pathnames
+#
+_PATH_ISO3166="/usr/share/misc/iso3166"
+
+#
+# Export required i18n messages for awk(1) ENVIRON visibility
+#
+export msg_country_code_multiply_defined
+export msg_invalid_code
+export msg_invalid_format
+
+############################################################ FUNCTIONS
+
+# f_read_iso3166_table
+#
+# Read the ISO 3166 country code database in _PATH_ISO3166:
+# 	/usr/share/misc/iso3166 on FreeBSD
+# 	/usr/share/zoneinfo/iso3166.tab on Linux, Mac OS X, and Cygwin
+#
+# The format of this file on FreeBSD is:
+# 	two	three	number	name
+#
+# The format of this file on Linux, Mac OS X, and Cygwin is:
+# 	two	name
+#
+# With each of the following elements (described below) being separated by a
+# single tab character:
+#
+# 	two      ISO 3166 2-character country code
+# 	three    ISO 3166 3-character country code (if provided)
+# 	number   ISO 3166 numeric country code (if provided)
+# 	name     Human-readable country name (may contain spaces)
+#
+# Variables created by this function:
+#
+# 	COUNTRIES
+# 		A space-separated list of 2-character country codes.
+# 	country_CODE_name
+# 		The country `name' (as described above).
+#
+# where CODE is the 2-character country code.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_read_iso3166_table_awk='
+# Variables that should be defined on the invocation line:
+# 	-v progname="progname"
+#
+BEGIN {
+	lineno = 0
+	failed = 0
+}
+function die(fmt, argc, argv)
+{
+	printf "f_die 1 \"%%s: %s\" \"%s\"", fmt, progname
+	for (n = 1; n <= argc; n++)
+		printf " \"%s\"", argv[n]
+	print ""
+	failed++
+	exit 1
+}
+function add_country(tlc, name)
+{
+	if (country_name[tlc])
+	{
+		argv[1] = FILENAME
+		argv[2] = lineno
+		argv[3] = tlc
+		argv[4] = name
+		die(ENVIRON["msg_country_code_multiply_defined"], 4, argv)
+	}
+
+	country_name[tlc] = name
+}
+function print_country_name(tlc)
+{
+	name = country_name[tlc]
+	gsub(/"/, "\\\"", name)
+	printf "country_%s_name=\"%s\"\n", tlc, name
+	printf "export country_%s_name\n", tlc
+}
+/^#/ {
+	lineno++
+	next
+}
+!/^#/ {
+	lineno++
+
+	# Split the current record (on TAB) into an array
+	split($0, line, /\t/)
+
+	# Get the ISO3166-1 (Alpha 1) 2-letter country code
+	tlc = line[1]
+
+	#
+	# Validate the two-character country code
+	#
+	if (length(tlc) != 2)
+	{
+		argv[1] = FILENAME
+		argv[2] = lineno
+		die(ENVIRON["msg_invalid_format"], 2, argv)
+	}
+	if (!match(tlc, /^[A-Z][A-Z]$/))
+	{
+		argv[1] = FILENAME
+		argv[2] = lineno
+		argv[3] = tlc
+		die(ENVIRON["msg_invalid_code"], 3, argv)
+	}
+
+	#
+	# Calculate the substr start-position of the name
+	#
+	name_start = 0
+	n = 4
+	if (FILENAME ~ /\.tab$/)
+		n = 2
+	while (--n)
+	{
+		#
+		# Validate field-length of 2nd/3rd columns while we are here
+		#
+		if (n > 1  && length(line[n]) != 3)
+		{
+			argv[1] = FILENAME
+			argv[2] = lineno
+			die(ENVIRON["msg_invalid_format"], 2, argv)
+		}
+
+		name_start += length(line[n]) + 1
+	}
+
+	# Get the name field
+	name = substr($0, name_start + 1)
+
+	add_country(tlc, name)
+}
+END {
+	list = ""
+	for (tlc in country_name)
+	{
+		list = list (length(list) > 0 ? " " : "") tlc
+		print_country_name(tlc)
+	}
+	printf "COUNTRIES=\"%s\"\n", list
+	print "export COUNTRIES"
+}
+'
+f_read_iso3166_table()
+{
+	eval $( awk -v progname="$pgm"          \
+	            "$f_read_iso3166_table_awk" \
+	            "$_PATH_ISO3166"            )
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." timezone/iso3166.subr
+
+fi # ! $_TIMEZONE_ISO3166_SUBR

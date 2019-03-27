@@ -1,0 +1,115 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: gelf_getshdr.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd August 27, 2006
+.Dt GELF_GETSHDR 3
+.Os
+.Sh NAME
+.Nm elf32_getshdr ,
+.Nm elf64_getshdr ,
+.Nm gelf_getshdr
+.Nd retrieve the class-dependent section header
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft "Elf32_Shdr *"
+.Fn elf32_getshdr "Elf_Scn *scn"
+.Ft "Elf64_Shdr *"
+.Fn elf64_getshdr "Elf_Scn *scn"
+.In gelf.h
+.Ft "GElf_Shdr *"
+.Fn gelf_getshdr "Elf_Scn *scn" "GElf_Shdr *shdr"
+.Sh DESCRIPTION
+These functions return a pointer to the ELF Section Header data
+structure associated with section descriptor
+.Ar scn .
+.Pp
+Function
+.Fn elf32_getshdr
+retrieves a pointer to an
+.Vt Elf32_Shdr
+structure.
+Section descriptor
+.Ar scn
+must be associated with an ELF descriptor of class
+.Dv ELFCLASS32 .
+.Pp
+Function
+.Fn elf64_getshdr
+retrieves a pointer to an
+.Vt Elf64_Shdr
+structure.
+Section descriptor
+.Ar scn
+must be associated with an ELF descriptor of class
+.Dv ELFCLASS64 .
+.Pp
+Function
+.Fn gelf_getshdr
+copies the values in the section header associated with argument
+.Ar scn
+to the structure pointed to be argument
+.Ar dst .
+The
+.Vt GElf_Shdr
+data structure is described in
+.Xr gelf 3 .
+.Sh RETURN VALUES
+Functions
+.Fn elf32_getshdr
+and
+.Fn elf64_getshdr
+return a valid pointer to the appropriate section header on success
+or NULL if an error was encountered.
+.Pp
+Function
+.Fn gelf_getshdr
+returns argument
+.Ar dst
+if successful, or NULL if an error was encountered.
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+Arguments
+.Ar scn
+or
+.Ar shdr
+were NULL.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar scn
+was not associated a descriptor for an ELF object.
+.It Bq Er ELF_E_CLASS
+The ELF class associated with the section descriptor
+.Ar scn
+did not match the class expected by the API.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_getscn 3 ,
+.Xr gelf 3 ,
+.Xr gelf_update_shdr 3

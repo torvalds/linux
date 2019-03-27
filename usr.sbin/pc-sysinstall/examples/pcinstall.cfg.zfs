@@ -1,0 +1,59 @@
+# Auto-Generated pc-sysinstall configuration
+#$FreeBSD$
+installInteractive=no
+installMode=fresh
+installType=FreeBSD
+packageType=tar
+installMedium=dvd
+netSaveDev=AUTO-DHCP
+
+# Timezone
+timeZone=America/New_York
+enableNTP=yes
+
+# Keyboard Layout Options
+localizeKeyModel=pc104
+localizeKeyLayout=us
+ 
+# Disk Setup for ad0
+disk0=ad0
+partition=ALL
+bootManager=none
+commitDiskPart
+
+# Partition Setup for ad0(ALL)
+# All sizes are expressed in MB
+# Avail FS Types, UFS, UFS+S, UFS+J, ZFS, SWAP
+# UFS.eli, UFS+S.eli, UFS+J.eli, ZFS.eli, SWAP.eli
+disk0-part=ZFS 0 /,/usr,/var,/data (mirror: ad1)
+commitDiskLabel
+
+# Disk Setup for ad3
+disk1=ad3
+partition=ALL
+bootManager=none
+commitDiskPart
+
+# Partition Setup for ad3(ALL)
+# All sizes are expressed in MB
+# Avail FS Types, UFS, UFS+S, UFS+J, ZFS, SWAP
+# UFS.eli, UFS+S.eli, UFS+J.eli, ZFS.eli, SWAP.eli
+disk1-part=SWAP 0 none
+commitDiskLabel
+
+# Optional Components
+installComponents=
+
+# Root Password
+rootPass=mypass
+
+# Users
+userName=kris
+userComment=Kris Moore
+userPass=mypass
+userShell=/bin/csh
+userHome=/home/kris
+userGroups=wheel,operator
+autoLoginUser=kris
+commitUser
+

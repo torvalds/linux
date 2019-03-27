@@ -1,0 +1,101 @@
+.\" @(#)rpc_xdr.3n 1.24 93/08/31 SMI; from SVr4
+.\" Copyright 1989 AT&T
+.\" @(#)rpc_xdr.new 1.1 89/04/06 SMI;
+.\" Copyright (c) 1988 Sun Microsystems, Inc. - All Rights Reserved.
+.\" $FreeBSD$
+.Dd May 3, 1993
+.Dt RPC_XDR 3
+.Os
+.Sh NAME
+.Nm xdr_accepted_reply ,
+.Nm xdr_authsys_parms ,
+.Nm xdr_callhdr ,
+.Nm xdr_callmsg ,
+.Nm xdr_opaque_auth ,
+.Nm xdr_rejected_reply ,
+.Nm xdr_replymsg
+.Nd XDR library routines for remote procedure calls
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In rpc/rpc.h
+.Ft bool_t
+.Fn xdr_accepted_reply "XDR *xdrs" "struct accepted_reply *ar"
+.Ft bool_t
+.Fn xdr_authsys_parms "XDR *xdrs" "struct authsys_parms *aupp"
+.Ft bool_t
+.Fn xdr_callhdr "XDR *xdrs" "struct rpc_msg *chdr"
+.Ft bool_t
+.Fn xdr_callmsg "XDR *xdrs" "struct rpc_msg *cmsg"
+.Ft bool_t
+.Fn xdr_opaque_auth "XDR *xdrs" "struct opaque_auth *ap"
+.Ft bool_t
+.Fn xdr_rejected_reply "XDR *xdrs" "struct rejected_reply *rr"
+.Ft bool_t
+.Fn xdr_replymsg "XDR *xdrs" "struct rpc_msg *rmsg"
+.Sh DESCRIPTION
+These routines are used for describing the
+RPC messages in XDR language.
+They should normally be used by those who do not
+want to use the RPC
+package directly.
+These routines return
+.Dv TRUE
+if they succeed,
+.Dv FALSE
+otherwise.
+.Sh Routines
+See
+.Xr rpc 3
+for the definition of the
+.Vt XDR
+data structure.
+.Bl -tag -width XXXXX
+.It Fn xdr_accepted_reply
+Used to translate between RPC
+reply messages and their external representation.
+It includes the status of the RPC
+call in the XDR language format.
+In the case of success, it also includes the call results.
+.It Fn xdr_authsys_parms
+Used for describing
+.Ux
+operating system credentials.
+It includes machine-name, uid, gid list, etc.
+.It Fn xdr_callhdr
+Used for describing
+RPC
+call header messages.
+It encodes the static part of the call message header in the
+XDR language format.
+It includes information such as transaction
+ID, RPC version number, program and version number.
+.It Fn xdr_callmsg
+Used for describing
+RPC call messages.
+This includes all the RPC
+call information such as transaction
+ID, RPC version number, program number, version number,
+authentication information, etc.
+This is normally used by servers to determine information about the client
+RPC call.
+.It Fn xdr_opaque_auth
+Used for describing RPC
+opaque authentication information messages.
+.It Fn xdr_rejected_reply
+Used for describing RPC reply messages.
+It encodes the rejected RPC message in the XDR language format.
+The message could be rejected either because of version
+number mis-match or because of authentication errors.
+.It Fn xdr_replymsg
+Used for describing RPC
+reply messages.
+It translates between the
+RPC reply message and its external representation.
+This reply could be either an acceptance,
+rejection or
+.Dv NULL .
+.El
+.Sh SEE ALSO
+.Xr rpc 3 ,
+.Xr xdr 3

@@ -1,0 +1,1298 @@
+/* -*- Mode: Text -*- */
+
+autogen definitions options;
+
+#include copyright.def
+#include homerc.def
+#include autogen-version.def
+
+prog-name      = "ntp-keygen";
+prog-title     = "Create a NTP host key";
+package        = ntp;
+
+include        = '#include <stdlib.h>';
+#include       version.def
+
+flag = {
+    value     = b;
+    name      = imbits;
+    arg-type  = number;
+    arg-name  = imbits;
+    arg-range = '256->2048';
+    ifdef     = AUTOKEY;
+    descrip   = "identity modulus bits";
+    doc = <<-  _EndOfDoc_
+	The number of bits in the identity modulus.  The default is 256.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = c;
+    name      = certificate;
+    arg-type  = string;
+    arg-name  = scheme;
+    ifdef     = AUTOKEY;
+    descrip   = "certificate scheme";
+    doc = <<-  _EndOfDoc_
+	scheme is one of
+	RSA-MD2, RSA-MD5, RSA-MDC2, RSA-SHA, RSA-SHA1, RSA-RIPEMD160,
+	DSA-SHA, or DSA-SHA1.
+
+	Select the certificate signature encryption/message digest scheme.
+	Note that RSA schemes must be used with a RSA sign key and DSA
+	schemes must be used with a DSA sign key.  The default without
+	this option is RSA-MD5.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = C;
+    name      = cipher;
+    arg-type  = string;
+    arg-name  = cipher;
+    ifdef     = AUTOKEY;
+    descrip   = "privatekey cipher";
+    doc = <<-  _EndOfDoc_
+	Select the cipher which is used to encrypt the files containing
+	private keys.  The default is three-key triple DES in CBC mode,
+	equivalent to "@code{-C des-ede3-cbc}".  The openssl tool lists ciphers
+	available in "@code{openssl -h}" output.
+	_EndOfDoc_;
+};
+
+#include       debug-opt.def
+
+flag = {
+    value     = e;
+    name      = id-key;
+    ifdef     = AUTOKEY;
+    descrip   = "Write IFF or GQ identity keys";
+    doc = <<-  _EndOfDoc_
+	Write the public parameters from the IFF or GQ client keys to
+	the standard output.
+	This is intended for automatic key distribution by email.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = G;
+    name      = gq-params;
+    ifdef     = AUTOKEY;
+    descrip   = "Generate GQ parameters and keys";
+    doc = <<-  _EndOfDoc_
+	Generate parameters and keys for the GQ identification scheme,
+	obsoleting any that may exist.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = H;
+    name      = host-key;
+    ifdef     = AUTOKEY;
+    descrip   = "generate RSA host key";
+    doc = <<-  _EndOfDoc_
+	Generate new host keys, obsoleting any that may exist.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = I;
+    name      = iffkey;
+    ifdef     = AUTOKEY;
+    descrip   = "generate IFF parameters";
+    doc = <<-  _EndOfDoc_
+	Generate parameters for the IFF identification scheme, obsoleting
+	any that may exist.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = i;
+    name      = ident;
+    ifdef     = AUTOKEY;
+    arg-type  = string;
+    arg-name  = group;
+    descrip   = "set Autokey group name";
+    doc = <<-  _EndOfDoc_
+	Set the optional Autokey group name to name.  This is used in
+	the file name of IFF, GQ, and MV client parameters files.  In
+	that role, the default is the host name if this option is not
+	provided.  The group name, if specified using @code{-i/--ident} or
+	using @code{-s/--subject-name} following an '@code{@@}' character,
+	is also a part of the self-signed host certificate subject and
+	issuer names in the form @code{host@@group} and should match the
+	'@code{crypto ident}' or '@code{server ident}' configuration in the
+	@code{ntpd} configuration file.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = l;
+    name      = lifetime;
+    ifdef     = AUTOKEY;
+    arg-type  = number;
+    arg-name  = lifetime;
+    descrip   = "set certificate lifetime";
+    doc = <<-  _EndOfDoc_
+	Set the certificate expiration to lifetime days from now.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = m;
+    name      = modulus;
+    arg-type  = number;
+    arg-name  = modulus;
+    arg-range = '256->2048';
+    ifdef     = AUTOKEY;
+    descrip   = "prime modulus";
+    doc = <<-  _EndOfDoc_
+	The number of bits in the prime modulus.  The default is 512.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = M;
+    name      = md5key;
+    descrip   = "generate symmetric keys";
+    doc = <<-  _EndOfDoc_
+	Generate symmetric keys, obsoleting any that may exist.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = P;
+    name      = pvt-cert;
+    ifdef     = AUTOKEY;
+    descrip   = "generate PC private certificate";
+    doc = <<-  _EndOfDoc_
+	Generate a private certificate.  By default, the program generates
+	public certificates.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = p;
+    name      = password;	// was: pvt-passwd;
+    ifdef     = AUTOKEY;
+    arg-type  = string;
+    arg-name  = passwd;
+    descrip   = "local private password";
+    doc = <<-  _EndOfDoc_
+	Local files containing private data are encrypted with the
+	DES-CBC algorithm and the specified password.  The same password
+	must be specified to the local ntpd via the "crypto pw password"
+	configuration command.  The default password is the local
+	hostname.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = q;
+    name      = export-passwd;	// Was: get-pvt-passwd;
+    ifdef     = AUTOKEY;
+    arg-type  = string;
+    arg-name  = passwd;
+    descrip   = "export IFF or GQ group keys with password";
+    doc = <<-  _EndOfDoc_
+	Export IFF or GQ identity group keys to the standard output,
+	encrypted with the DES-CBC algorithm and the specified password.
+	The same password must be specified to the remote ntpd via the
+	"crypto pw password" configuration command.  See also the option
+	--id-key (-e) for unencrypted exports.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = s;
+    name      = subject-name;
+    arg-type  = string;
+    arg-name  = host@group;
+    ifdef     = AUTOKEY;
+    descrip   = "set host and optionally group name";
+    doc = <<-  _EndOfDoc_
+	Set the Autokey host name, and optionally, group name specified
+	following an '@code{@@}' character.  The host name is used in the file
+	name of generated host and signing certificates, without the
+	group name.  The host name, and if provided, group name are used
+	in @code{host@@group} form for the host certificate subject and issuer
+	fields.  Specifying '@code{-s @@group}' is allowed, and results in
+	leaving the host name unchanged while appending @code{@@group} to the
+	subject and issuer fields, as with @code{-i group}.  The group name, or
+	if not provided, the host name are also used in the file names
+	of IFF, GQ, and MV client parameter files.
+		_EndOfDoc_;
+};
+
+flag = {
+    value     = S;
+    name      = sign-key;
+    arg-type  = string;
+    arg-name  = sign;
+    ifdef     = AUTOKEY;
+    descrip   = "generate sign key (RSA or DSA)";
+    doc = <<-  _EndOfDoc_
+	Generate a new sign key of the designated type, obsoleting any
+	that may exist.  By default, the program uses the host key as the
+	sign key.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = T;
+    name      = trusted-cert;
+    ifdef     = AUTOKEY;
+    descrip   = "trusted certificate (TC scheme)";
+    doc = <<-  _EndOfDoc_
+	Generate a trusted certificate.  By default, the program generates
+	a non-trusted certificate.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = V;
+    name      = mv-params;
+    arg-type  = number;
+    arg-name  = num;
+    ifdef     = AUTOKEY;
+    descrip   = "generate <num> MV parameters";
+    doc = <<-  _EndOfDoc_
+	Generate parameters and keys for the Mu-Varadharajan (MV)
+	identification scheme.
+	_EndOfDoc_;
+};
+
+flag = {
+    value     = v;
+    name      = mv-keys;
+    arg-type  = number;
+    arg-name  = num;
+    ifdef     = AUTOKEY;
+    descrip   = "update <num> MV keys";
+};
+
+/* explain: Additional information whenever the usage routine is invoked */
+explain = <<- _END_EXPLAIN
+	_END_EXPLAIN;
+
+doc-section	= {
+  ds-type	= 'DESCRIPTION';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_PROG_MDOC_DESCRIP
+This program generates cryptographic data files used by the NTPv4
+authentication and identification schemes.
+It can generate message digest keys used in symmetric key cryptography and,
+if the OpenSSL software library has been installed, it can generate host keys,
+signing keys, certificates, and identity keys and parameters used in Autokey
+public key cryptography.
+These files are used for cookie encryption,
+digital signature, and challenge/response identification algorithms
+compatible with the Internet standard security infrastructure.
+.Pp
+The message digest symmetric keys file is generated in a format
+compatible with NTPv3.
+All other files are in PEM-encoded printable ASCII format,
+so they can be embedded as MIME attachments in email to other sites
+and certificate authorities.
+By default, files are not encrypted.
+.Pp
+When used to generate message digest symmetric keys, the program
+produces a file containing ten pseudo-random printable ASCII strings
+suitable for the MD5 message digest algorithm included in the
+distribution.
+If the OpenSSL library is installed, it produces an additional ten
+hex-encoded random bit strings suitable for SHA1, AES-128-CMAC, and
+other message digest algorithms.
+The message digest symmetric keys file must be distributed and stored
+using secure means beyond the scope of NTP itself.
+Besides the keys used for ordinary NTP associations, additional keys
+can be defined as passwords for the
+.Xr ntpq 1ntpqmdoc
+and
+.Xr ntpdc 1ntpdcmdoc
+utility programs.
+.Pp
+The remaining generated files are compatible with other OpenSSL
+applications and other Public Key Infrastructure (PKI) resources.
+Certificates generated by this program are compatible with extant
+industry practice, although some users might find the interpretation of
+X509v3 extension fields somewhat liberal.
+However, the identity keys are probably not compatible with anything
+other than Autokey.
+.Pp
+Some files used by this program are encrypted using a private password.
+The
+.Fl p
+option specifies the read password for local encrypted files and the
+.Fl q
+option the write password for encrypted files sent to remote sites.
+If no password is specified, the host name returned by the Unix
+.Xr hostname 1
+command, normally the DNS name of the host, is used as the the default read
+password, for convenience.
+The
+.Nm
+program prompts for the password if it reads an encrypted file
+and the password is missing or incorrect.
+If an encrypted file is read successfully and
+no write password is specified, the read password is used
+as the write password by default.
+.Pp
+The
+.Cm pw
+option of the
+.Ic crypto
+.Xr ntpd 1ntpdmdoc
+configuration command specifies the read
+password for previously encrypted local files.
+This must match the local read password used by this program.
+If not specified, the host name is used.
+Thus, if files are generated by this program without an explicit password,
+they can be read back by
+.Xr ntpd 1ntpdmdoc
+without specifying an explicit password but only on the same host.
+If the write password used for encryption is specified as the host name,
+these files can be read by that host with no explicit password.
+.Pp
+Normally, encrypted files for each host are generated by that host and
+used only by that host, although exceptions exist as noted later on
+this page.
+The symmetric keys file, normally called
+.Pa ntp.keys ,
+is usually installed in
+.Pa /etc .
+Other files and links are usually installed in
+.Pa /usr/local/etc ,
+which is normally in a shared filesystem in
+NFS-mounted networks and cannot be changed by shared clients.
+In these cases, NFS clients can specify the files in another
+directory such as
+.Pa /etc
+using the
+.Ic keysdir
+.Xr ntpd 1ntpdmdoc
+configuration file command.
+.Pp
+This program directs commentary and error messages to the standard
+error stream
+.Pa stderr
+and remote files to the standard output stream
+.Pa stdout
+where they can be piped to other applications or redirected to files.
+The names used for generated files and links all begin with the
+string
+.Pa ntpkey\&*
+and include the file type, generating host and filestamp,
+as described in the
+.Sx "Cryptographic Data Files"
+section below.
+
+.Ss Running the Program
+The safest way to run the
+.Nm
+program is logged in directly as root.
+The recommended procedure is change to the
+.Ar keys
+directory, usually
+.Pa /usr/local/etc ,
+then run the program.
+.Pp
+To test and gain experience with Autokey concepts, log in as root and
+change to the
+.Ar keys
+directory, usually
+.Pa /usr/local/etc .
+When run for the first time, or if all files with names beginning with
+.Pa ntpkey\&*
+have been removed, use the
+.Nm
+command without arguments to generate a default
+.Cm RSA
+host key and matching
+.Cm RSA-MD5
+certificate file with expiration date one year hence,
+which is all that is necessary in many cases.
+The program also generates soft links from the generic names
+to the respective files.
+If run again without options, the program uses the
+existing keys and parameters and generates a new certificate file with
+new expiration date one year hence, and soft link.
+.Pp
+The host key is used to encrypt the cookie when required and so must be
+.Cm RSA
+type.
+By default, the host key is also the sign key used to encrypt signatures.
+When necessary, a different sign key can be specified and this can be
+either
+.Cm RSA
+or
+.Cm DSA
+type.
+By default, the message digest type is
+.Cm MD5 ,
+but any combination
+of sign key type and message digest type supported by the OpenSSL library
+can be specified, including those using the
+.Cm AES128CMAC , MD2 , MD5 , MDC2 , SHA , SHA1
+and
+.Cm RIPE160
+message digest algorithms.
+However, the scheme specified in the certificate must be compatible
+with the sign key.
+Certificates using any digest algorithm are compatible with
+.Cm RSA
+sign keys;
+however, only
+.Cm SHA
+and
+.Cm SHA1
+certificates are compatible with
+.Cm DSA
+sign keys.
+.Pp
+Private/public key files and certificates are compatible with
+other OpenSSL applications and very likely other libraries as well.
+Certificates or certificate requests derived from them should be compatible
+with extant industry practice, although some users might find
+the interpretation of X509v3 extension fields somewhat liberal.
+However, the identification parameter files, although encoded
+as the other files, are probably not compatible with anything other than Autokey.
+.Pp
+Running the program as other than root and using the Unix
+.Xr su 1
+command
+to assume root may not work properly, since by default the OpenSSL library
+looks for the random seed file
+.Pa .rnd
+in the user home directory.
+However, there should be only one
+.Pa .rnd ,
+most conveniently
+in the root directory, so it is convenient to define the
+.Ev RANDFILE
+environment variable used by the OpenSSL library as the path to
+.Pa .rnd .
+.Pp
+Installing the keys as root might not work in NFS-mounted
+shared file systems, as NFS clients may not be able to write
+to the shared keys directory, even as root.
+In this case, NFS clients can specify the files in another
+directory such as
+.Pa /etc
+using the
+.Ic keysdir
+.Xr ntpd 1ntpdmdoc
+configuration file command.
+There is no need for one client to read the keys and certificates
+of other clients or servers, as these data are obtained automatically
+by the Autokey protocol.
+.Pp
+Ordinarily, cryptographic files are generated by the host that uses them,
+but it is possible for a trusted agent (TA) to generate these files
+for other hosts; however, in such cases files should always be encrypted.
+The subject name and trusted name default to the hostname
+of the host generating the files, but can be changed by command line options.
+It is convenient to designate the owner name and trusted name
+as the subject and issuer fields, respectively, of the certificate.
+The owner name is also used for the host and sign key files,
+while the trusted name is used for the identity files.
+.Pp
+All files are installed by default in the keys directory
+.Pa /usr/local/etc ,
+which is normally in a shared filesystem
+in NFS-mounted networks.
+The actual location of the keys directory
+and each file can be overridden by configuration commands,
+but this is not recommended.
+Normally, the files for each host are generated by that host
+and used only by that host, although exceptions exist
+as noted later on this page.
+.Pp
+Normally, files containing private values,
+including the host key, sign key and identification parameters,
+are permitted root read/write-only;
+while others containing public values are permitted world readable.
+Alternatively, files containing private values can be encrypted
+and these files permitted world readable,
+which simplifies maintenance in shared file systems.
+Since uniqueness is insured by the
+.Ar hostname
+and
+.Ar filestamp
+file name extensions, the files for an NTP server and
+dependent clients can all be installed in the same shared directory.
+.Pp
+The recommended practice is to keep the file name extensions
+when installing a file and to install a soft link
+from the generic names specified elsewhere on this page
+to the generated files.
+This allows new file generations to be activated simply
+by changing the link.
+If a link is present,
+.Xr ntpd 1ntpdmdoc
+follows it to the file name to extract the
+.Ar filestamp .
+If a link is not present,
+.Xr ntpd 1ntpdmdoc
+extracts the
+.Ar filestamp
+from the file itself.
+This allows clients to verify that the file and generation times
+are always current.
+The
+.Nm
+program uses the same
+.Ar filestamp
+extension for all files generated
+at one time, so each generation is distinct and can be readily
+recognized in monitoring data.
+.Pp
+Run the command on as many hosts as necessary.
+Designate one of them as the trusted host (TH) using
+.Nm
+with the
+.Fl T
+option and configure it to synchronize from reliable Internet servers.
+Then configure the other hosts to synchronize to the TH directly or
+indirectly.
+A certificate trail is created when Autokey asks the immediately
+ascendant host towards the TH to sign its certificate, which is then
+provided to the immediately descendant host on request.
+All group hosts should have acyclic certificate trails ending on the TH.
+.Pp
+The host key is used to encrypt the cookie when required and so must be
+RSA type.
+By default, the host key is also the sign key used to encrypt
+signatures.
+A different sign key can be assigned using the
+.Fl S
+option and this can be either
+.Cm RSA
+or
+.Cm DSA
+type.
+By default, the signature
+message digest type is
+.Cm MD5 ,
+but any combination of sign key type and
+message digest type supported by the OpenSSL library can be specified
+using the
+.Fl c
+option.
+.Pp
+The rules say cryptographic media should be generated with proventic
+filestamps, which means the host should already be synchronized before
+this program is run.
+This of course creates a chicken-and-egg problem
+when the host is started for the first time.
+Accordingly, the host time
+should be set by some other means, such as eyeball-and-wristwatch, at
+least so that the certificate lifetime is within the current year.
+After that and when the host is synchronized to a proventic source, the
+certificate should be re-generated.
+.Pp
+Additional information on trusted groups and identity schemes is on the
+.Dq Autokey Public-Key Authentication
+page.
+.Pp
+File names begin with the prefix
+.Pa ntpkey Ns _
+and end with the suffix
+.Pa _ Ns Ar hostname . Ar filestamp ,
+where
+.Ar hostname
+is the owner name, usually the string returned
+by the Unix
+.Xr hostname 1
+command, and
+.Ar filestamp
+is the NTP seconds when the file was generated, in decimal digits.
+This both guarantees uniqueness and simplifies maintenance
+procedures, since all files can be quickly removed
+by a
+.Ic rm Pa ntpkey\&*
+command or all files generated
+at a specific time can be removed by a
+.Ic rm Pa \&* Ns Ar filestamp
+command.
+To further reduce the risk of misconfiguration,
+the first two lines of a file contain the file name
+and generation date and time as comments.
+
+.Ss Trusted Hosts and Groups
+Each cryptographic configuration involves selection of a signature scheme
+and identification scheme, called a cryptotype,
+as explained in the
+.Sx Authentication Options
+section of
+.Xr ntp.conf 5 .
+The default cryptotype uses
+.Cm RSA
+encryption,
+.Cm MD5
+message digest
+and
+.Cm TC
+identification.
+First, configure a NTP subnet including one or more low-stratum
+trusted hosts from which all other hosts derive synchronization
+directly or indirectly.
+Trusted hosts have trusted certificates;
+all other hosts have nontrusted certificates.
+These hosts will automatically and dynamically build authoritative
+certificate trails to one or more trusted hosts.
+A trusted group is the set of all hosts that have, directly or indirectly,
+a certificate trail ending at a trusted host.
+The trail is defined by static configuration file entries
+or dynamic means described on the
+.Sx Automatic NTP Configuration Options
+section of
+.Xr ntp.conf 5 .
+.Pp
+On each trusted host as root, change to the keys directory.
+To insure a fresh fileset, remove all
+.Pa ntpkey
+files.
+Then run
+.Nm
+.Fl T
+to generate keys and a trusted certificate.
+On all other hosts do the same, but leave off the
+.Fl T
+flag to generate keys and nontrusted certificates.
+When complete, start the NTP daemons beginning at the lowest stratum
+and working up the tree.
+It may take some time for Autokey to instantiate the certificate trails
+throughout the subnet, but setting up the environment is completely automatic.
+.Pp
+If it is necessary to use a different sign key or different digest/signature
+scheme than the default, run
+.Nm
+with the
+.Fl S Ar type
+option, where
+.Ar type
+is either
+.Cm RSA
+or
+.Cm DSA .
+The most frequent need to do this is when a
+.Cm DSA Ns -signed
+certificate is used.
+If it is necessary to use a different certificate scheme than the default,
+run
+.Nm
+with the
+.Fl c Ar scheme
+option and selected
+.Ar scheme
+as needed.
+If
+.Nm
+is run again without these options, it generates a new certificate
+using the same scheme and sign key, and soft link.
+.Pp
+After setting up the environment it is advisable to update certificates
+from time to time, if only to extend the validity interval.
+Simply run
+.Nm
+with the same flags as before to generate new certificates
+using existing keys, and soft links.
+However, if the host or sign key is changed,
+.Xr ntpd 1ntpdmdoc
+should be restarted.
+When
+.Xr ntpd 1ntpdmdoc
+is restarted, it loads any new files and restarts the protocol.
+Other dependent hosts will continue as usual until signatures are refreshed,
+at which time the protocol is restarted.
+
+.Ss Identity Schemes
+As mentioned on the Autonomous Authentication page,
+the default
+.Cm TC
+identity scheme is vulnerable to a middleman attack.
+However, there are more secure identity schemes available,
+including
+.Cm PC , IFF , GQ
+and
+.Cm MV
+schemes described below.
+These schemes are based on a TA, one or more trusted hosts
+and some number of nontrusted hosts.
+Trusted hosts prove identity using values provided by the TA,
+while the remaining hosts prove identity using values provided
+by a trusted host and certificate trails that end on that host.
+The name of a trusted host is also the name of its sugroup
+and also the subject and issuer name on its trusted certificate.
+The TA is not necessarily a trusted host in this sense, but often is.
+.Pp
+In some schemes there are separate keys for servers and clients.
+A server can also be a client of another server,
+but a client can never be a server for another client.
+In general, trusted hosts and nontrusted hosts that operate
+as both server and client have parameter files that contain
+both server and client keys.
+Hosts that operate
+only as clients have key files that contain only client keys.
+.Pp
+The PC scheme supports only one trusted host in the group.
+On trusted host alice run
+.Nm
+.Fl P
+.Fl p Ar password
+to generate the host key file
+.Pa ntpkey Ns _ Cm RSA Pa key_alice. Ar filestamp
+and trusted private certificate file
+.Pa ntpkey Ns _ Cm RSA-MD5 _ Pa cert_alice. Ar filestamp ,
+and soft links.
+Copy both files to all group hosts;
+they replace the files which would be generated in other schemes.
+On each host
+.Ar bob
+install a soft link from the generic name
+.Pa ntpkey_host_ Ns Ar bob
+to the host key file and soft link
+.Pa ntpkey_cert_ Ns Ar bob
+to the private certificate file.
+Note the generic links are on bob, but point to files generated
+by trusted host alice.
+In this scheme it is not possible to refresh
+either the keys or certificates without copying them
+to all other hosts in the group, and recreating the soft links.
+.Pp
+For the
+.Cm IFF
+scheme proceed as in the
+.Cm TC
+scheme to generate keys
+and certificates for all group hosts, then for every trusted host in the group,
+generate the
+.Cm IFF
+parameter file.
+On trusted host alice run
+.Nm
+.Fl T
+.Fl I
+.Fl p Ar password
+to produce her parameter file
+.Pa ntpkey_IFFpar_alice. Ns Ar filestamp ,
+which includes both server and client keys.
+Copy this file to all group hosts that operate as both servers
+and clients and install a soft link from the generic
+.Pa ntpkey_iff_alice
+to this file.
+If there are no hosts restricted to operate only as clients,
+there is nothing further to do.
+As the
+.Cm IFF
+scheme is independent
+of keys and certificates, these files can be refreshed as needed.
+.Pp
+If a rogue client has the parameter file, it could masquerade
+as a legitimate server and present a middleman threat.
+To eliminate this threat, the client keys can be extracted
+from the parameter file and distributed to all restricted clients.
+After generating the parameter file, on alice run
+.Nm
+.Fl e
+and pipe the output to a file or email program.
+Copy or email this file to all restricted clients.
+On these clients install a soft link from the generic
+.Pa ntpkey_iff_alice
+to this file.
+To further protect the integrity of the keys,
+each file can be encrypted with a secret password.
+.Pp
+For the
+.Cm GQ
+scheme proceed as in the
+.Cm TC
+scheme to generate keys
+and certificates for all group hosts, then for every trusted host
+in the group, generate the
+.Cm IFF
+parameter file.
+On trusted host alice run
+.Nm
+.Fl T
+.Fl G
+.Fl p Ar password
+to produce her parameter file
+.Pa ntpkey_GQpar_alice. Ns Ar filestamp ,
+which includes both server and client keys.
+Copy this file to all group hosts and install a soft link
+from the generic
+.Pa ntpkey_gq_alice
+to this file.
+In addition, on each host
+.Ar bob
+install a soft link
+from generic
+.Pa ntpkey_gq_ Ns Ar bob
+to this file.
+As the
+.Cm GQ
+scheme updates the
+.Cm GQ
+parameters file and certificate
+at the same time, keys and certificates can be regenerated as needed.
+.Pp
+For the
+.Cm MV
+scheme, proceed as in the
+.Cm TC
+scheme to generate keys
+and certificates for all group hosts.
+For illustration assume trish is the TA, alice one of several trusted hosts
+and bob one of her clients.
+On TA trish run
+.Nm
+.Fl V Ar n
+.Fl p Ar password ,
+where
+.Ar n
+is the number of revokable keys (typically 5) to produce
+the parameter file
+.Pa ntpkeys_MVpar_trish. Ns Ar filestamp
+and client key files
+.Pa ntpkeys_MVkey Ns Ar d _ Pa trish. Ar filestamp
+where
+.Ar d
+is the key number (0 \&<
+.Ar d
+\&<
+.Ar n ) .
+Copy the parameter file to alice and install a soft link
+from the generic
+.Pa ntpkey_mv_alice
+to this file.
+Copy one of the client key files to alice for later distribution
+to her clients.
+It does not matter which client key file goes to alice,
+since they all work the same way.
+Alice copies the client key file to all of her clients.
+On client bob install a soft link from generic
+.Pa ntpkey_mvkey_bob
+to the client key file.
+As the
+.Cm MV
+scheme is independent of keys and certificates,
+these files can be refreshed as needed.
+
+.Ss Command Line Options
+.Bl -tag -width indent
+.It Fl b Fl -imbits Ns = Ar modulus
+Set the number of bits in the identity modulus for generating identity keys to
+.Ar modulus
+bits.
+The number of bits in the identity modulus defaults to 256, but can be set to
+values from 256 to 2048 (32 to 256 octets).
+Use the larger moduli with caution, as this can consume considerable computing
+resources and increases the size of authenticated packets.
+.It Fl c Fl -certificate Ns = Ar scheme
+Select certificate signature encryption/message digest scheme.
+The
+.Ar scheme
+can be one of the following:
+.Cm RSA-MD2 , RSA-MD5 , RSA-MDC2 , RSA-SHA , RSA-SHA1 , RSA-RIPEMD160 , DSA-SHA ,
+or
+.Cm DSA-SHA1 .
+Note that
+.Cm RSA
+schemes must be used with an
+.Cm RSA
+sign key and
+.Cm DSA
+schemes must be used with a
+.Cm DSA
+sign key.
+The default without this option is
+.Cm RSA-MD5 .
+If compatibility with FIPS 140-2 is required, either the
+.Cm DSA-SHA
+or
+.Cm DSA-SHA1
+scheme must be used.
+.It Fl C Fl -cipher Ns = Ar cipher
+Select the OpenSSL cipher to encrypt the files containing private keys.
+The default without this option is three-key triple DES in CBC mode,
+.Cm des-ede3-cbc .
+The
+.Ic openssl Fl h
+command provided with OpenSSL displays available ciphers.
+.It Fl d Fl -debug-level
+Increase debugging verbosity level.
+This option displays the cryptographic data produced in eye-friendly billboards.
+.It Fl D Fl -set-debug-level Ns = Ar level
+Set the debugging verbosity to
+.Ar level .
+This option displays the cryptographic data produced in eye-friendly billboards.
+.It Fl e Fl -id-key
+Write the
+.Cm IFF
+or
+.Cm GQ
+public parameters from the
+.Ar IFFkey or GQkey
+client keys file previously specified
+as unencrypted data to the standard output stream
+.Pa stdout .
+This is intended for automatic key distribution by email.
+.It Fl G Fl -gq-params
+Generate a new encrypted
+.Cm GQ
+parameters and key file for the Guillou-Quisquater (GQ) identity scheme.
+This option is mutually exclusive with the
+.Fl I
+and
+.Fl V
+options.
+.It Fl H Fl -host-key
+Generate a new encrypted
+.Cm RSA
+public/private host key file.
+.It Fl I Fl -iffkey
+Generate a new encrypted
+.Cm IFF
+key file for the Schnorr (IFF) identity scheme.
+This option is mutually exclusive with the
+.Fl G
+and
+Fl V
+options.
+.It Fl i Fl -ident Ns = Ar group
+Set the optional Autokey group name to
+.Ar group .
+This is used in the identity scheme parameter file names of
+.Cm IFF , GQ ,
+and
+.Cm MV
+client parameters files.
+In that role, the default is the host name if no group is provided.
+The group name, if specified using
+.Fl i
+or
+.Fl s
+following an
+.Ql @@
+character, is also used in certificate subject and issuer names in the form
+.Ar host @@ group
+and should match the group specified via
+.Ic crypto Cm ident
+or
+.Ic server Cm ident
+in the ntpd configuration file.
+.It Fl l Fl -lifetime Ns = Ar days
+Set the lifetime for certificate expiration to
+.Ar days .
+The default lifetime is one year (365 days).
+.It Fl m Fl -modulus Ns = Ar bits
+Set the number of bits in the prime modulus for generating files to
+.Ar bits .
+The modulus defaults to 512, but can be set from 256 to 2048 (32 to 256 octets).
+Use the larger moduli with caution, as this can consume considerable computing
+resources and increases the size of authenticated packets.
+.It Fl M Fl -md5key
+Generate a new symmetric keys file containing 10
+.Cm MD5
+keys, and if OpenSSL is available, 10
+.Cm SHA
+keys.
+An
+.Cm MD5
+key is a string of 20 random printable ASCII characters, while a
+.Cm SHA
+key is a string of 40 random hex digits.
+The file can be edited using a text editor to change the key type or key content.
+This option is mutually exclusive with all other options.
+.It Fl p Fl -password Ns = Ar passwd
+Set the password for reading and writing encrypted files to
+.Ar passwd .
+These include the host, sign and identify key files.
+By default, the password is the string returned by the Unix
+.Ic hostname
+command.
+.It Fl P Fl -pvt-cert
+Generate a new private certificate used by the
+.Cm PC
+identity scheme.
+By default, the program generates public certificates.
+Note: the PC identity scheme is not recommended for new installations.
+.It Fl q Fl -export-passwd Ns = Ar passwd
+Set the password for writing encrypted
+.Cm IFF , GQ and MV
+identity files redirected to
+.Pa stdout
+to
+.Ar passwd .
+In effect, these files are decrypted with the
+.Fl p
+password, then encrypted with the
+.Fl q
+password.
+By default, the password is the string returned by the Unix
+.Ic hostname
+command.
+.It Fl s Fl -subject-key Ns = Ar Oo host Oc Op @@ Ar group
+Specify the Autokey host name, where
+.Ar host
+is the optional host name and
+.Ar group
+is the optional group name.
+The host name, and if provided, group name are used in
+.Ar host @@ group
+form as certificate subject and issuer.
+Specifying
+.Fl s @@ Ar group
+is allowed, and results in leaving the host name unchanged, as with
+.Fl i Ar group .
+The group name, or if no group is provided, the host name are also used in the
+file names of
+.Cm IFF , GQ ,
+and
+.Cm MV
+identity scheme client parameter files.
+If
+.Ar host
+is not specified, the default host name is the string returned by the Unix
+.Ic hostname
+command.
+.It Fl S Fl -sign-key Ns = Op Cm RSA | DSA
+Generate a new encrypted public/private sign key file of the specified type.
+By default, the sign key is the host key and has the same type.
+If compatibility with FIPS 140-2 is required, the sign key type must be
+.Cm DSA .
+.It Fl T Fl -trusted-cert
+Generate a trusted certificate.
+By default, the program generates a non-trusted certificate.
+.It Fl V Fl -mv-params Ar nkeys
+Generate
+.Ar nkeys
+encrypted server keys and parameters for the Mu-Varadharajan (MV)
+identity scheme.
+This option is mutually exclusive with the
+.Fl I
+and
+.Fl G
+options.
+Note: support for this option should be considered a work in progress.
+.El
+
+.Ss Random Seed File
+All cryptographically sound key generation schemes must have means
+to randomize the entropy seed used to initialize
+the internal pseudo-random number generator used
+by the library routines.
+The OpenSSL library uses a designated random seed file for this purpose.
+The file must be available when starting the NTP daemon and
+.Nm
+program.
+If a site supports OpenSSL or its companion OpenSSH,
+it is very likely that means to do this are already available.
+.Pp
+It is important to understand that entropy must be evolved
+for each generation, for otherwise the random number sequence
+would be predictable.
+Various means dependent on external events, such as keystroke intervals,
+can be used to do this and some systems have built-in entropy sources.
+Suitable means are described in the OpenSSL software documentation,
+but are outside the scope of this page.
+.Pp
+The entropy seed used by the OpenSSL library is contained in a file,
+usually called
+.Pa .rnd ,
+which must be available when starting the NTP daemon
+or the
+.Nm
+program.
+The NTP daemon will first look for the file
+using the path specified by the
+.Cm randfile
+subcommand of the
+.Ic crypto
+configuration command.
+If not specified in this way, or when starting the
+.Nm
+program,
+the OpenSSL library will look for the file using the path specified
+by the
+.Ev RANDFILE
+environment variable in the user home directory,
+whether root or some other user.
+If the
+.Ev RANDFILE
+environment variable is not present,
+the library will look for the
+.Pa .rnd
+file in the user home directory.
+Since both the
+.Nm
+program and
+.Xr ntpd 1ntpdmdoc
+daemon must run as root, the logical place to put this file is in
+.Pa /.rnd
+or
+.Pa /root/.rnd .
+If the file is not available or cannot be written,
+the daemon exits with a message to the system log and the program
+exits with a suitable error message.
+
+.Ss Cryptographic Data Files
+All file formats begin with two nonencrypted lines.
+The first line contains the file name, including the generated host name
+and filestamp, in the format
+.Pa ntpkey_ Ns Ar key _ Ar name . Ar filestamp ,
+where
+.Ar key
+is the key or parameter type,
+.Ar name
+is the host or group name and
+.Ar filestamp
+is the filestamp (NTP seconds) when the file was created.
+By convention,
+.Ar key
+names in generated file names include both upper and lower case
+characters, while
+.Ar key
+names in generated link names include only lower case characters.
+The filestamp is not used in generated link names.
+The second line contains the datestamp in conventional Unix
+.Pa date
+format.
+Lines beginning with
+.Ql #
+are considered comments and ignored by the
+.Nm
+program and
+.Xr ntpd 1ntpdmdoc
+daemon.
+.Pp
+The remainder of the file contains cryptographic data, encoded first using ASN.1
+rules, then encrypted if necessary, and finally written in PEM-encoded
+printable ASCII text, preceded and followed by MIME content identifier lines.
+.Pp
+The format of the symmetric keys file, ordinarily named
+.Pa ntp.keys ,
+is somewhat different than the other files in the interest of backward compatibility.
+Ordinarily, the file is generated by this program, but it can be constructed
+and edited using an ordinary text editor.
+.Bd -literal -unfilled -offset center
+# ntpkey_MD5key_bk.ntp.org.3595864945
+# Thu Dec 12 19:22:25 2013
+
+1  MD5 L";Nw<\`.I<f4U0)247"i  # MD5 key
+2  MD5 &>l0%XXK9O'51VwV<xq~  # MD5 key
+3  MD5 lb4zLW~d^!K:]RsD'qb6  # MD5 key
+4  MD5 Yue:tL[+vR)M\`n~bY,'?  # MD5 key
+5  MD5 B;fx'Kgr/&4ZTbL6=RxA  # MD5 key
+6  MD5 4eYwa\`o@}3i@@@@V@@..R9!l  # MD5 key
+7  MD5 \`A.([h+;wTQ|xfi%Sn_!  # MD5 key
+8  MD5 45:V,r4]l6y^JH6"Sh?F  # MD5 key
+9  MD5 3-5vcn*6l29DS?Xdsg)*  # MD5 key
+10 MD5 2late4Me              # MD5 key
+11 SHA1 a27872d3030a9025b8446c751b4551a7629af65c  # SHA1 key
+12 SHA1 21bc3b4865dbb9e920902abdccb3e04ff97a5e74  # SHA1 key
+13 SHA1 2b7736fe24fef5ba85ae11594132ab5d6f6daba9  # SHA1 key
+14 SHA  a5332809c8878dd3a5b918819108a111509aeceb  # SHA  key
+15 MD2  2fe16c88c760ff2f16d4267e36c1aa6c926e6964  # MD2  key
+16 MD4  b2691811dc19cfc0e2f9bcacd74213f29812183d  # MD4  key
+17 MD5  e4d6735b8bdad58ec5ffcb087300a17f7fef1f7c  # MD5  key
+18 MDC2 a8d5e2315c025bf3a79174c87fbd10477de2eabc  # MDC2 key
+19 RIPEMD160 77ca332cafb30e3cafb174dcd5b80ded7ba9b3d2  # RIPEMD160 key
+20 AES128CMAC f92ff73eee86c1e7dc638d6489a04e4e555af878  # AES128CMAC key
+.Ed
+.D1 Figure 1. Typical Symmetric Key File
+.Pp
+Figure 1 shows a typical symmetric keys file used by the reference
+implementation.
+Following the header the keys are entered one per line in the format
+.D1 Ar keyno Ar type Ar key
+where
+.Ar keyno
+is a positive integer in the range 1-65535;
+.Ar type
+is the key type for the message digest algorithm, which in the absence of the
+OpenSSL library must be
+.Cm MD5
+to designate the MD5 message digest algorithm;
+if the OpenSSL library is installed, the key type can be any
+message digest algorithm supported by that library;
+however, if compatibility with FIPS 140-2 is required,
+the key type must be either
+.Cm SHA
+or
+.Cm SHA1 ;
+.Ar key
+is the key itself,
+which is a printable ASCII string 20 characters or less in length:
+each character is chosen from the 93 printable characters
+in the range 0x21 through 0x7e (
+.Ql !
+through
+.Ql ~
+\&) excluding space and the
+.Ql #
+character, and terminated by whitespace or a
+.Ql #
+character.
+An OpenSSL key consists of a hex-encoded ASCII string of 40 characters, which
+is truncated as necessary.
+.Pp
+Note that the keys used by the
+.Xr ntpq 1ntpqmdoc
+and
+.Xr ntpdc 1ntpdcmdoc
+programs
+are checked against passwords requested by the programs
+and entered by hand, so it is generally appropriate to specify these keys
+in human readable ASCII format.
+.Pp
+The
+.Nm
+program generates a symmetric keys file
+.Pa ntpkey_MD5key_ Ns Ar hostname Ns . Ns Ar filestamp .
+Since the file contains private shared keys,
+it should be visible only to root and distributed by secure means
+to other subnet hosts.
+The NTP daemon loads the file
+.Pa ntp.keys ,
+so
+.Nm
+installs a soft link from this name to the generated file.
+Subsequently, similar soft links must be installed by manual
+or automated means on the other subnet hosts.
+While this file is not used with the Autokey Version 2 protocol,
+it is needed to authenticate some remote configuration commands
+used by the
+.Xr ntpq 1ntpqmdoc
+and
+.Xr ntpdc 1ntpdcmdoc
+utilities.
+	_END_PROG_MDOC_DESCRIP;
+};
+
+doc-section	= {
+  ds-type	= 'USAGE';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_USAGE
+	_END_MDOC_USAGE;
+};
+
+doc-section	= {
+  ds-type	= 'NOTES';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_NOTES
+Portions of this document came from FreeBSD.
+	_END_MDOC_NOTES;
+};
+
+doc-section	= {
+  ds-type	= 'BUGS';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_BUGS
+It can take quite a while to generate some cryptographic values.
+.Pp
+Please report bugs to http://bugs.ntp.org .
+	_END_MDOC_BUGS;
+};

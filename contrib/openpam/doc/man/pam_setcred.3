@@ -1,0 +1,93 @@
+.\" Generated from pam_setcred.c by gendoc.pl
+.\" $OpenPAM: pam_setcred.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_SETCRED 3
+.Os
+.Sh NAME
+.Nm pam_setcred
+.Nd modify / delete user credentials for an authentication service
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.Ft "int"
+.Fn pam_setcred "pam_handle_t *pamh" "int flags"
+.Sh DESCRIPTION
+The
+.Fn pam_setcred
+function manages the application's credentials.
+.Pp
+The
+.Fa flags
+argument is the binary or of zero or more of the following
+values:
+.Bl -tag -width 18n
+.It Dv PAM_SILENT
+Do not emit any messages.
+.It Dv PAM_ESTABLISH_CRED
+Establish the credentials of the target user.
+.It Dv PAM_DELETE_CRED
+Revoke all established credentials.
+.It Dv PAM_REINITIALIZE_CRED
+Fully reinitialise credentials.
+.It Dv PAM_REFRESH_CRED
+Refresh credentials.
+.El
+.Pp
+The latter four are mutually exclusive.
+.Pp
+If any other bits are set,
+.Fn pam_setcred
+will return
+.Dv PAM_BAD_CONSTANT .
+.Sh RETURN VALUES
+The
+.Fn pam_setcred
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_ABORT
+General failure.
+.It Bq Er PAM_BAD_CONSTANT
+Bad constant.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_CRED_ERR
+Failed to set user credentials.
+.It Bq Er PAM_CRED_EXPIRED
+User credentials have expired.
+.It Bq Er PAM_CRED_UNAVAIL
+Failed to retrieve user credentials.
+.It Bq Er PAM_PERM_DENIED
+Permission denied.
+.It Bq Er PAM_SERVICE_ERR
+Error in service module.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.It Bq Er PAM_USER_UNKNOWN
+Unknown user.
+.El
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The
+.Fn pam_setcred
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

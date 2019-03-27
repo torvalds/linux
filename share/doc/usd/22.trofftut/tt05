@@ -1,0 +1,130 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)tt05	8.1 (Berkeley) 6/8/93
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.NH
+Tabs
+.PP
+Tabs
+(the \s8ASCII\s0 `horizontal tab' character)
+can be used to produce output in columns,
+or to set the horizontal position of output.
+Typically
+tabs are used only in unfilled text.
+Tab stops are set by default every half inch from the
+current indent,
+but
+can be changed by the
+.BD .ta
+command.
+To set stops every inch, for example,
+.P1
+^ta 1i 2i 3i 4i 5i 6i
+.P2
+.PP
+Unfortunately the stops are left-justified only
+(as on a typewriter),
+so lining up columns of right-justified numbers can be painful.
+If you have many numbers,
+or if you need more complicated table layout,
+.ul
+don't
+use
+.UL troff 
+directly;
+use the
+.UL tbl
+program described in [3].
+.PP
+For a handful of numeric columns, you can do it this way:
+Precede every number by enough blanks to make it line up
+when typed.
+.P1
+^nf
+^ta 1i 2i 3i
+\0\01\0\fItab\fR\0\0\02\0\fItab\fR\0\0\03
+\040\0\fItab\fR\0\050\0\fItab\fR\0\060
+700\0\fItab\fR\0800\0\fItab\fR\0900
+^fi
+.P2
+Then change each leading blank into the string
+.BD \e0 .
+This is a character that does not print, but that has
+the same width as a digit.
+When printed, this will produce
+.P1
+.ta 1i 2i 3i
+\0\01	\0\02	\0\03
+\040	\050	\060
+700	800	900
+.P2
+.PP
+It is also possible to fill up tabbed-over space with
+some character other than blanks by setting the `tab replacement character'
+with the
+.BD .tc
+command:
+.P1
+^ta 1.5i 2.5i
+^tc \e(ru	(\e(ru is "\(ru")
+Name \fItab\fR Age \fItab\fR 
+.P2
+produces
+.P1 3
+.ta 1.5i 2.5i
+.tc \(ru
+Name	 Age 	
+.tc
+.P2
+To reset the tab replacement character to a blank, use
+.BD .tc
+with no argument.
+(Lines can also be drawn with the
+.BD \el
+command, described in Section 6.)
+.PP
+.UL troff
+also provides a very general mechanism called `fields'
+for setting up complicated columns.
+(This is used by
+.UL tbl ).
+We will not go into it in this paper.

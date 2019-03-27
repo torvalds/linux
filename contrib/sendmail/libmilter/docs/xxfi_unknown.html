@@ -1,0 +1,84 @@
+<HTML>
+<HEAD><TITLE>xxfi_unknown</TITLE></HEAD>
+<BODY>
+<!--
+$Id: xxfi_unknown.html,v 1.5 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>xxfi_unknown</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+sfsistat (*xxfi_unknown)(
+	SMFICTX *ctx,
+	const char *arg
+);
+</PRE>
+Handle unknown and unimplemented SMTP commands.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>xxfi_unknown is called when the client uses an SMTP command
+that is either unknown or not implemented by the MTA.
+</TR>
+<TR align="left" valign=top>
+<TH>Default Behavior</TH>
+<TD>Do nothing; return SMFIS_CONTINUE.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>ctx</TD>
+	<TD>Opaque context structure.
+	</TD></TR>
+    <TR valign="top"><TD>arg</TD>
+	<TD>SMTP command including all arguments.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>SPECIAL RETURN VALUES</TH>
+<TD><TABLE border="1" cellspacing=0>
+  <TR bgcolor="#dddddd"><TH>Return value</TH><TH>Description</TH></TR>
+  <TR valign="top">
+     <TD>SMFIS_TEMPFAIL</TD>
+     <TD>Reject this command with a temporary error.
+     </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_REJECT</TD>
+     <TD>Reject this command.
+     </TD>
+  </TR>
+</TABLE>
+</TR>
+
+<!----------- Notes ---------->
+<TR>
+<TH valign="top" align=left>NOTES</TH> 
+<TD>The SMTP command will always be rejected by the server,
+it is only possible to return a different error code.
+</TR>
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2006 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

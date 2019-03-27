@@ -1,0 +1,239 @@
+# $FreeBSD$
+#	from: @(#)gettytab	5.14 (Berkeley) 3/27/91
+#
+# Most of the table entries here are just copies of the old getty table,
+# it is by no means certain, or even likely, that any of them are optimal
+# for any purpose whatever.  Nor is it likely that more than a couple are
+# even correct.
+#
+# The default gettytab entry, used to set defaults for all other
+# entries, and in cases where getty is called with no table name.
+#
+# cb, ce and ck are desirable on most crt's.  The non-crt entries need to
+# be changed to turn them off (:cb@:ce@:ck@:).
+#
+# lc should always be on; it's a remainder of some stone age when there
+# have been terminals around not being able of handling lower-case
+# characters. Those terminals aren't supported any longer, but getty is
+# `smart' about them by default.
+#
+# Parity defaults to even, but the Pc entry and all the `std' entries
+# specify no parity.   The different parities are:
+#     (none): same as ep for getty.  login will use terminal as is.
+#     ep:     getty will use raw mode (cs8 -parenb) (unless rw is set) and
+#             fake parity.  login will use even parity (cs7 parenb -parodd).
+#     op:     same as ep except odd parity (cs7 parenb parodd) for login.
+#             getty will fake odd parity as well.
+#     ap:     same as ep except -inpck instead of inpck for login.
+#             ap overrides op and ep.
+#     np:     1. don't fake parity in getty.  The fake parity garbles
+#                characters on non-terminals (like pccons) that don't
+#                support parity.  It would probably better for getty not to
+#                try to fake parity.  It could just use cbreak mode so as
+#                not to force cs8 and let the hardware handle the parity.
+#                login has to be rely on the hardware anyway.
+#             2. set cs8 -parenb -istrip -inpck.
+#     ep:op:  same as ap.
+#
+default:\
+	:cb:ce:ck:lc:fd#1000:im=\r\n%s/%m (%h) (%t)\r\n\r\n:sp#1200:\
+	:if=/etc/issue:
+
+#
+# Fixed speed entries
+#
+#	The "std.NNN" names are known to the special case
+#	portselector code in getty, however they can
+#	be assigned to any table desired.
+#	The "NNN-baud" names are known to the special case
+#	autobaud code in getty, and likewise can
+#	be assigned to any table desired (hopefully the same speed).
+#
+std:\
+	:np:sp#0:
+a|std.110|110-baud:\
+	:np:nd#1:cd#1:uc:sp#110:
+b|std.134|134.5-baud:\
+	:np:nd#1:cd#2:ff#1:td#1:sp#134:ht:nl:
+1|std.150|150-baud:\
+	:np:nd#1:cd#2:td#1:fd#1:sp#150:ht:nl:lm=\E\72\6\6\17login\72 :
+c|std.300|300-baud:\
+	:np:nd#1:cd#1:sp#300:
+d|std.600|600-baud:\
+	:np:nd#1:cd#1:sp#600:
+f|std.1200|1200-baud:\
+	:np:fd#1:sp#1200:
+6|std.2400|2400-baud:\
+	:np:sp#2400:
+7|std.4800|4800-baud:\
+	:np:sp#4800:
+2|std.9600|9600-baud:\
+	:np:sp#9600:
+g|std.19200|19200-baud:\
+	:np:sp#19200:
+std.38400|38400-baud:\
+	:np:sp#38400:
+std.57600|57600-baud:\
+	:np:sp#57600:
+std.115200|115200-baud:\
+	:np:sp#115200:
+std.230400|230400-baud:\
+	:np:sp#230400:
+
+#
+# Entry specifying explicit device settings.  See termios(4) and
+# /usr/include/termios.h, too.  The entry forces the tty into
+# CLOCAL mode (so no DCD is required), and uses Xon/Xoff flow control.
+#
+# cflags: CLOCAL | HUPCL | CREAD | CS8
+# oflags: OPOST | ONLCR | OXTABS
+# iflags: IXOFF | IXON | ICRNL | IGNPAR
+# lflags: IEXTEN | ICANON | ISIG | ECHOCTL | ECHO | ECHOK | ECHOE | ECHOKE
+#
+# The `0' flags don't have input enabled.  The `1' flags don't echo.
+# (Echoing is done inside getty itself.)
+#
+local.9600|CLOCAL tty @ 9600 Bd:\
+	:c0#0x0000c300:c1#0x0000cb00:c2#0x0000cb00:\
+	:o0#0x00000007:o1#0x00000002:o2#0x00000007:\
+	:i0#0x00000704:i1#0x00000000:i2#0x00000704:\
+	:l0#0x000005cf:l1#0x00000000:l2#0x000005cf:\
+	:sp#9600:np:
+
+#
+# Dial in rotary tables, speed selection via 'break'
+#
+0|d300|Dial-300:\
+	:nx=d1200:cd#2:sp#300:
+d1200|Dial-1200:\
+	:nx=d150:fd#1:sp#1200:
+d150|Dial-150:\
+	:nx=d110:lm@:tc=150-baud:
+d110|Dial-110:\
+	:nx=d300:tc=300-baud:
+
+#
+# Fast dialup terminals, 2400/1200/300 rotary (can start either way)
+#
+D2400|d2400|Fast-Dial-2400:\
+	:nx=D1200:tc=2400-baud:
+3|D1200|Fast-Dial-1200:\
+	:nx=D300:tc=1200-baud:
+5|D300|Fast-Dial-300:\
+	:nx=D2400:tc=300-baud:
+
+#
+#telebit (19200)
+#
+t19200:\
+	:nx=t2400:tc=19200-baud:
+t2400:\
+	:nx=t1200:tc=2400-baud:
+t1200:\
+	:nx=t19200:tc=1200-baud:
+
+#
+#telebit (9600)
+#
+t9600:\
+	:nx=t2400a:tc=9600-baud:
+t2400a:\
+	:nx=t1200a:tc=2400-baud:
+t1200a:\
+	:nx=t9600:tc=1200-baud:
+
+#
+# Odd special case terminals
+#
+-|tty33|asr33|Pity the poor user of this beast:\
+	:tc=110-baud:
+
+4|Console|Console Decwriter II:\
+	:nd@:cd@:rw:tc=300-baud:
+
+e|Console-1200|Console Decwriter III:\
+	:fd@:nd@:cd@:rw:tc=1200-baud:
+
+i|Interdata console:\
+	:uc:sp#0:
+
+l|lsi chess terminal:\
+	:sp#300:
+
+X|Xwindow|X window system:\
+	:fd@:nd@:cd@:rw:sp#9600:
+
+P|Pc|Pc console:\
+	:ht:np:sp#9600:
+
+#
+# Weirdo special case for fast crt's with hardcopy devices
+#
+8|T9600|CRT with hardcopy:\
+	:nx=T300:tc=9600-baud:
+9|T300|CRT with hardcopy (300):\
+	:nx=T9600:tc=300-baud:
+
+#
+# Plugboard, and misc other terminals
+#
+plug-9600|Plugboard-9600:\
+	:pf#1:tc=9600-baud:
+p|P9600|Plugboard-9600-rotary:\
+	:pf#1:nx=P300:tc=9600-baud:
+q|P300|Plugboard-300:\
+	:pf#1:nx=P1200:tc=300-baud:
+r|P1200|Plugboard-1200:\
+	:pf#1:nx=P9600:tc=1200-baud:
+
+#
+# XXXX Port selector
+#
+s|DSW|Port Selector:\
+	:ps:sp#2400:
+
+#
+# Auto-baud speed detect entry for Micom 600.
+# Special code in getty will switch this out
+# to one of the NNN-baud entries.
+#
+A|Auto-baud:\
+	:ab:sp#2400:f0#040:
+
+#
+# autologin - automatically log in as root
+#
+
+autologin|al.9600:\
+	:al=root:tc=std.9600:
+al.19200:\
+	:al=root:tc=std.19200:
+al.38400:\
+	:al=root:tc=std.38400:
+al.57600:\
+	:al=root:tc=std.57600:
+al.115200:\
+	:al=root:tc=std.115200:
+al.230400:\
+	:al=root:tc=std.230400:
+al.Pc:\
+	:al=root:tc=Pc
+
+#
+# Entries for 3-wire serial terminals.  These don't supply carrier, so
+# clocal needs to be set, and crtscts needs to be unset.
+#
+3wire:\
+	:np:nc:sp#0:
+3wire.9600|9600-3wire:\
+	:np:nc:sp#9600:
+3wire.19200|19200-3wire:\
+	:np:nc:sp#19200:
+3wire.38400|38400-3wire:\
+	:np:nc:sp#38400:
+3wire.57600|57600-3wire:\
+	:np:nc:sp#57600:
+3wire.115200|115200-3wire:\
+	:np:nc:sp#115200:
+3wire.230400|230400-3wire:\
+	:np:nc:sp#230400:

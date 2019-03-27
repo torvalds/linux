@@ -1,0 +1,200 @@
+.\" Copyright (c) 2010-2011 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elftc_bfd_find_target.3 3645 2018-10-15 20:17:14Z jkoshy $
+.\"
+.Dd November 30, 2011
+.Dt ELFTC_BFD_FIND_TARGET 3
+.Os
+.Sh NAME
+.Nm elftc_bfd_find_target ,
+.Nm elftc_bfd_target_byteorder ,
+.Nm elftc_bfd_target_class ,
+.Nm elftc_bfd_target_flavor ,
+.Nm elftc_bfd_target_machine
+.Nd binary object descriptor handling
+.Sh LIBRARY
+.Lb libelftc
+.Sh SYNOPSIS
+.In libelftc.h
+.Vt struct Elftc_Bfd_Target;
+.Ft "Elftc_Bfd_Target *"
+.Fn elftc_bfd_find_target "const char *target_name"
+.Ft "unsigned int"
+.Fn elftc_bfd_target_class "Elftc_Bfd_Target *target"
+.Ft "unsigned int"
+.Fn elftc_bfd_target_byteorder "Elftc_Bfd_Target *target"
+.Ft Elftc_Bfd_Target_Flavor
+.Fn elftc_bfd_target_flavor "Elftc_Bfd_Target *target"
+.Ft "unsigned int"
+.Fn elftc_bfd_target_machine "Elftc_Bfd_Target *target"
+.Sh DESCRIPTION
+Function
+.Fn elftc_bfd_find_target
+locates a binary object descriptor corresponding to the descriptor
+name in argument
+.Ar "target_name" .
+Binary object descriptors encapsulate properties of an object format
+such as its file representation, ELF class, and byte endianness.
+.Pp
+Known descriptor names and their properties include:
+.Bl -column -offset "XXXX" ".Li elf32-x86-64-freebsd" "Object format" "Byte Order" "Bit Width"
+.It Em Name Ta Em "Object Format" Ta Em "Byte Order" Ta Em "Bit Width"
+.It Li binary Ta Binary Ta - Ta -
+.It Li efi-app-ia32 Ta PE Ta LSB Ta 32
+.It Li efi-app-x86_64 Ta PE Ta LSB Ta 64
+.It Li elf32-avr Ta ELF Ta LSB Ta 32
+.It Li elf32-big Ta ELF Ta MSB Ta 32
+.It Li elf32-bigarm Ta ELF Ta MSB Ta 32
+.It Li elf32-bigmips Ta ELF Ta MSB Ta 32
+.It Li elf32-i386 Ta ELF Ta LSB Ta 32
+.It Li elf32-i386-freebsd Ta ELF Ta LSB Ta 32
+.It Li elf32-ia64-big Ta ELF Ta MSB Ta 32
+.It Li elf32-little Ta ELF Ta LSB Ta 32
+.It Li elf32-littlearm Ta ELF Ta LSB Ta 32
+.It Li elf32-littlemips Ta ELF Ta LSB Ta 32
+.It Li elf32-powerpc Ta ELF Ta MSB Ta 32
+.It Li elf32-powerpc-freebsd Ta ELF Ta MSB Ta 32
+.It Li elf32-powerpcle Ta ELF Ta LSB Ta 32
+.It Li elf32-sh Ta ELF Ta MSB Ta 32
+.It Li elf32-shl Ta ELF Ta LSB Ta 32
+.It Li elf32-sh-nbsd Ta ELF Ta MSB Ta 32
+.It Li elf32-shl-nbsd Ta ELF Ta LSB Ta 32
+.It Li elf32-shbig-linux Ta ELF Ta MSB Ta 32
+.It Li elf32-shl-linux Ta ELF Ta LSB Ta 32
+.It Li elf32-sparc Ta ELF Ta MSB Ta 32
+.It Li elf32-tradbigmips Ta ELF Ta MSB Ta 32
+.It Li elf32-tradlittlemips Ta ELF Ta LSB Ta 32
+.It Li elf64-alpha Ta ELF Ta LSB Ta 64
+.It Li elf64-alpha-freebsd Ta ELF Ta LSB Ta 64
+.It Li elf64-big Ta ELF Ta MSB Ta 64
+.It Li elf64-bigmips Ta ELF Ta MSB Ta 64
+.It Li elf64-ia64-big Ta ELF Ta MSB Ta 64
+.It Li elf64-ia64-little Ta ELF Ta LSB Ta 64
+.It Li elf64-little Ta ELF Ta LSB Ta 64
+.It Li elf64-littleaarch64 Ta ELF Ta LSB Ta 64
+.It Li elf64-littlemips Ta ELF Ta LSB Ta 64
+.It Li elf64-powerpc Ta ELF Ta MSB Ta 64
+.It Li elf64-powerpc-freebsd Ta ELF Ta MSB Ta 64
+.It Li elf64-powerpcle Ta ELF Ta LSB Ta 64
+.It Li elf64-sh64 Ta ELF Ta MSB Ta 64
+.It Li elf64-sh64l Ta ELF Ta LSB Ta 64
+.It Li elf64-sh64-nbsd Ta ELF Ta MSB Ta 64
+.It Li elf64-sh64l-nbsd Ta ELF Ta LSB Ta 64
+.It Li elf64-sh64big-linux Ta ELF Ta MSB Ta 64
+.It Li elf64-sh64-linux Ta ELF Ta LSB Ta 64
+.It Li elf64-sparc Ta ELF Ta MSB Ta 64
+.It Li elf64-sparc-freebsd Ta ELF Ta MSB Ta 64
+.It Li elf64-tradbigmips Ta ELF Ta MSB Ta 64
+.It Li elf64-tradlittlemips Ta ELF Ta LSB Ta 64
+.It Li elf64-x86-64 Ta ELF Ta LSB Ta 64
+.It Li elf64-x86-64-freebsd Ta ELF Ta LSB Ta 64
+.It Li ihex Ta IHEX Ta - Ta -
+.It Li pei-i386 Ta PE Ta LSB Ta 32
+.It Li pei-x86-64 Ta PE Ta LSB Ta 64
+.It Li srec Ta SREC Ta - Ta -
+.It Li symbolsrec Ta SREC Ta - Ta -
+.El
+.Pp
+Function
+.Fn elftc_bfd_target_byteorder
+returns the ELF byte order associated with target descriptor
+.Ar target .
+.Pp
+Function
+.Fn elftc_bfd_target_class
+returns the ELF class associated with target descriptor
+.Ar target .
+.Pp
+Function
+.Fn elftc_bfd_target_flavor
+returns the object format associated with target descriptor
+.Ar target .
+The known object formats are:
+.Bl -tag -offset "XXXX" -width ".Dv ETF_BINARY" -compact
+.It Dv ETF_ELF
+An ELF object.
+.It Dv ETF_BINARY
+Raw binary.
+.It Dv ETF_IHEX
+An object encoded in
+.Tn Intel
+hex format.
+.It Dv ETF_NONE
+An unknown object format.
+.It Dv ETF_SREC
+An object encoded as S-records.
+.El
+.Sh RETURN VALUES
+Function
+.Fn elftc_bfd_find_target
+returns a valid pointer to an opaque binary target descriptor if
+successful, or NULL in case of an error.
+.Pp
+Function
+.Fn elftc_bfd_target_byteorder
+returns the ELF byte order associated with the target descriptor; one of
+.Dv ELFDATA2MSB
+or
+.Dv ELFDATA2LSB .
+.Pp
+Function
+.Fn elftc_bfd_target_class
+returns the ELF class associated with the target descriptor; one of
+.Dv ELFCLASS32
+or
+.Dv ELFCLASS64 .
+.Pp
+Function
+.Fn elftc_bfd_target_machine
+returns the ELF architecture associated with the target descriptor.
+.Pp
+Function
+.Fn elftc_bfd_target_flavor
+returns one of
+.Dv ETF_BINARY ,
+.Dv ETF_ELF ,
+.Dv ETF_IHEX
+or
+.Dv ETF_SREC
+if successful or
+.Dv ETF_NONE
+in case of error.
+.Sh EXAMPLES
+To return descriptor information associated with target name
+.Dq elf64-big
+use:
+.Bd -literal -offset indent
+struct Elftc_Bfd_Target *t;
+
+if ((t = elftc_bfd_find_target("elf64-big")) == NULL)
+	errx(EXIT_FAILURE, "Cannot find target descriptor");
+
+printf("Class: %s\\n", elftc_bfd_target_class(t) == ELFCLASS32 ?
+    "ELFCLASS32" : "ELFCLASS64");
+printf("Byteorder: %s\\n",
+    elftc_bfd_target_byteorder(t) == ELFDATA2LSB ? "LSB" : "MSB");
+printf("Flavor: %d\\n", elftc_bfd_target_flavor(t));
+.Ed
+.Sh SEE ALSO
+.Xr elf 3

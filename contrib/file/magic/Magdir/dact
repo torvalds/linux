@@ -1,0 +1,11 @@
+
+#------------------------------------------------------------------------------
+# $File: dact,v 1.4 2009/09/19 16:28:08 christos Exp $
+# dact:  file(1) magic for DACT compressed files
+#
+0	long		0x444354C3	DACT compressed data
+>4	byte		>-1		(version %i.
+>5	byte		>-1		$BS%i.
+>6	byte		>-1		$BS%i)
+>7	long		>0		$BS, original size: %i bytes
+>15	long		>30		$BS, block size: %i bytes

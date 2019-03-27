@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to not build gcc and g++ as part of the bootstrap process.
+You must enable either gcc or clang bootstrap to be able to build the system,
+unless an alternative compiler is provided via
+XCC.

@@ -1,0 +1,726 @@
+2002-12-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/mk_rep.c: free allocated storage; reported by Howard
+	Chu
+
+2002-12-08  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kdc/kdc_locl.h: remove old encrypt_v4_ticket prototype
+
+2002-12-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kpasswd/kpasswdd.c (doit): initialise sa_size to size of
+	sockaddr_storage
+
+	* kdc/connect.c (init_socket): initialise sa_size to size of
+	sockaddr_storage
+
+2002-11-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/krb5.h: remove trailing comma in enum
+
+2002-11-07  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kdc/524.c: implement crude b2 style (non-)conversion for use
+	with afs
+
+	* kdc/kerberos4.c: move encrypt_v4_ticket to 524.c, since that's
+	where it's used
+
+2002-10-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/keytab_keyfile.c: more strcspn
+
+	* lib/krb5/store_emem.c (emem_store): limit how much we allocate
+	(from Olaf Kirch)
+
+	* lib/krb5/principal.c: don't allow trailing backslashes in
+	components
+
+	* kdc/connect.c: check that %-quotes are followed by two hex
+	digits
+
+	* lib/krb5/keytab_any.c: properly close the open keytabs (from
+	Larry Greenfield)
+
+	* kdc/kaserver.c: make sure life is positive (from John Godehn)
+
+2002-10-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kuser/klist.c (display_tokens): allow tokens up to size of
+	buffer (from Magnus Holmberg)
+
+2002-09-29  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/changepw.c (process_reply): fix reply length check
+	calculation (reported by various people)
+
+2002-09-24  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/keytab_file.c (fkt_remove_entry): check return value
+	from start_seq_get (from Wynn Wilkes)
+
+2002-09-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/context.c (krb5_set_config_files): return ENXIO instead
+	of ENOENT when "unconfigured"
+
+2002-09-16  Jacques Vidrine  <nectar@kth.se>
+
+	* lib/krb5/kuserok.c, lib/krb5/prompter_posix.c: use strcspn
+	to convert the newline to NUL in fgets results.
+
+2002-09-13  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kuser/kinit.1: remove unneeded Ns
+
+	* lib/krb5/krb5_appdefault.3: remove extra "application"
+
+	* fix-export: remove autom4ate.cache
+
+2002-09-10  Johan Danielsson  <joda@pdc.kth.se>
+
+	* include/make_crypto.c: don't use function macros if possible
+
+	* lib/krb5/krb5_locl.h: get limits.h for UINT_MAX
+
+	* include/Makefile.am: use make_crypto to create crypto-headers.h
+
+	* include/make_crypto.c: crypto header generation tool
+
+	* configure.in: move crypto test to just after testing for krb4,
+	and move roken tests to after both, this speeds up various failure
+	cases with krb4
+
+	* lib/krb5/config_file.c: don't use NULL when we mean 0
+
+	* configure.in: we don't set package_libdir anymore, so no point
+	in testing for it
+
+	* tools/Makefile.am: subst INCLUDE_des
+
+	* tools/krb5-config.in: add INCLUDE_des to cflags
+
+	* configure.in: use AC_CONFIG_SRCDIR
+
+	* fix-export: remove some unneeded stuff
+
+	* kuser/kinit.c (do_524init): free principals
+
+2002-09-09  Jacques Vidrine  <nectar@kth.se>
+
+	* kdc/kerberos5.c (get_pa_etype_info, fix_transited_encoding),
+	kdc/kaserver.c (krb5_ret_xdr_data),
+	lib/krb5/transited.c (krb5_domain_x500_decode): Validate some
+	counts: Check that they are non-negative, and that they are small
+	enough to avoid integer overflow when used in memory allocation
+	calculations.  Potential problem areas pointed out by 
+	Sebastian Krahmer <krahmer@suse.de>.
+
+	* lib/krb5/keytab_keyfile.c (akf_add_entry): Use O_EXCL when
+	creating a new keyfile.
+
+2002-09-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* configure.in: don't try to build pam module
+
+2002-09-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* appl/kf/kf.c: fix warning string
+
+	* lib/krb5/log.c (krb5_vlog_msg): delay message formating till we
+	know we need it
+
+2002-09-04  Assar Westerlund  <assar@kth.se>
+
+	* kdc/kerberos5.c (encode_reply): correct error logging
+
+2002-09-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/sendauth.c: close ccache if we opened it
+
+	* appl/kf/kf.c: handle new protocol
+
+	* appl/kf/kfd.c: use krb5_err instead of sysloging directly,
+	handle the new protocol, and bail out if an old client tries to
+	connect
+
+	* appl/kf/kf_locl.h: we need a protocol version string
+
+	* lib/hdb/hdb-ldap.c: use ASN1_MALLOC_ENCODE
+
+	* kdc/kerberos5.c: use ASN1_MALLOC_ENCODE
+
+	* kdc/hprop.c: set AP_OPTS_USE_SUBKEY
+
+	* lib/hdb/common.c: use ASN1_MALLOC_ENCODE
+
+	* lib/asn1/gen.c: add convenience macro that allocates a buffer
+	and encoded into that
+
+	* lib/krb5/get_cred.c (init_tgs_req): use
+	in_creds->session.keytype literally instead of trying to convert
+	to a list of enctypes (it should already be an enctype)
+	
+	* lib/krb5/get_cred.c (init_tgs_req): init ret
+
+2002-09-03  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/asn1/k5.asn1: remove ETYPE_DES3_CBC_NONE_IVEC
+
+	* lib/krb5/krb5.h: remove ENCTYPE_DES3_CBC_NONE_IVEC
+
+	* lib/krb5/crypto.c: get rid of DES3_CBC_encrypt_ivec, just use
+	zero ivec in DES3_CBC_encrypt if passed ivec is NULL
+
+	* lib/krb5/Makefile.am: back out 1.144, since it will re-create
+	krb5-protos.h at build-time, which requires perl, which is bad
+
+	* lib/krb5/get_for_creds.c (krb5_get_forwarded_creds): don't
+	blindly use the local subkey
+
+	* lib/krb5/crypto.c: add function krb5_crypto_getblocksize that
+	extracts the required blocksize from a crypto context
+
+	* lib/krb5/build_auth.c: just get the length of the encoded
+	authenticator instead of trying to grow a buffer
+
+2002-09-03  Assar Westerlund  <assar@kth.se>
+
+	* configure.in: add --disable-mmap option, and tests for
+	sys/mman.h and mmap
+
+2002-09-03  Jacques Vidrine  <nectar@kth.se>
+
+	* lib/krb5/changepw.c: verify lengths in response
+
+	* lib/asn1/der_get.c (decode_integer, decode_unsigned): check for
+	truncated integers
+
+2002-09-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/mk_req_ext.c: generate a local subkey if
+	AP_OPTS_USE_SUBKEY is set
+
+	* lib/krb5/build_auth.c: we don't have enough information about
+	whether to generate a local subkey here, so don't try to
+
+	* lib/krb5/auth_context.c: new function
+	krb5_auth_con_generatelocalsubkey
+
+	* lib/krb5/get_in_tkt.c: only set kdc_sec_offset if looking at an
+	initial ticket
+
+	* lib/krb5/context.c (init_context_from_config_file): simplify
+	initialisation of srv_lookup
+
+	* lib/krb5/changepw.c (send_request): set AP_OPTS_USE_SUBKEY
+
+	* lib/krb5/krb5.h: add AP_OPTS_USE_SUBKEY
+
+2002-08-30  Assar Westerlund  <assar@kth.se>
+
+	* lib/krb5/name-45-test.c: also test krb5_524_conv_principal
+	* lib/krb5/Makefile.am (TESTS): add name-45-test
+	* lib/krb5/name-45-test.c: add testcases for
+	krb5_425_conv_principal
+
+2002-08-29  Assar Westerlund  <assar@kth.se>
+
+	* lib/krb5/parse-name-test.c: also test unparse_short functions
+	* lib/asn1/asn1_print.c: use com_err/error_message API
+	* lib/krb5/Makefile.am: add parse-name-test
+	* lib/krb5/parse-name-test.c: add a program for testing parsing
+	and unparsing principal names
+
+2002-08-28  Assar Westerlund  <assar@kth.se>
+
+	* kdc/config.c: add missing ifdef DAEMON
+
+2002-08-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* configure.in: use rk_SUNOS
+
+	* kdc/config.c: add detach options
+
+	* kdc/main.c: maybe detach from console?
+
+	* kdc/kdc.8: markup changes
+
+	* configure.in: AC_TEST_PACKAGE_NEW -> rk_TEST_PACKAGE
+
+	* configure.in: use rk_TELNET, rename some other macros, and don't
+	add -ldes to krb4 link command
+
+	* kuser/kinit.1: whitespace fix (from NetBSD)
+
+	* include/bits.c: we may need unistd.h for ssize_t
+
+2002-08-26  Assar Westerlund  <assar@kth.se>
+
+	* lib/krb5/principal.c (krb5_425_conv_principal_ext): lookup AAAA
+	rrs before A ones when using the resolver to verify a mapping,
+	also use getaddrinfo when resolver is not available
+
+	* lib/hdb/keytab.c (find_db): const-correctness in parameters to
+	krb5_config_get_next
+
+	* lib/asn1/gen.c: include <string.h> in the generated files (for
+	memset)
+
+2002-08-22  Assar Westerlund  <assar@kth.se>
+
+	* lib/krb5/test_get_addrs.c, lib/krb5/krbhst-test.c: make it use
+	getarg so that it can handle --help and --version (and thus make
+	check can pass)
+
+	* lib/asn1/check-der.c: make this build again
+
+2002-08-22  Assar Westerlund <assar@kth.se>
+
+	* lib/asn1/der_get.c (der_get_int): handle len == 0.  based on a
+	patch from Love <lha@stacken.kth.se>
+
+2002-08-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/krb5.h: we seem to call KRB5KDC_ERR_KEY_EXP
+	KRB5KDC_ERR_KEY_EXPIRED, so define the former to the latter
+	
+	* kdc/kdc.8: add blurb about adding and removing addresses; update
+	kdc.conf section to match reality
+
+	* configure.in: KRB_SENDAUTH_VLEN seems to always have existed, so
+	don't define it
+	
+2002-08-21  Assar Westerlund  <assar@kth.se>
+	
+	* lib/asn1/asn1_print.c: print OIDs too, based on a patch from
+	Love <lha@stacken.kth.se>
+
+2002-08-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kuser/kinit.c (do_v4_fallback): don't use krb_get_pw_in_tkt2
+	since it might not exist, and we don't actually care about the key
+	
+2002-08-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/krb5.conf.5: correct documentation for
+	verify_ap_req_nofail
+
+	* lib/krb5/log.c: rename syslog_data to avoid name conflicts (from
+	Mattias Amnefelt)
+
+	* kuser/klist.c (display_tokens): increase token buffer size, and
+	add more checks of the kernel data (from Love)
+
+2002-08-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* fix-export: use make to parse Makefile.am instead of perl
+
+	* configure.in: use argument-less AM_INIT_AUTOMAKE, now that it
+	groks AC_INIT with package name etc.
+
+	* kpasswd/kpasswdd.c: include <kadm5/private.h>
+
+	* lib/asn1/asn1_print.c: include com_right.h
+
+	* lib/krb5/addr_families.c: socklen_t -> krb5_socklen_t
+
+	* include/bits.c: define krb5_socklen_t type; this should really
+	go someplace else, but this was easy
+
+	* lib/krb5/verify_krb5_conf.c: don't bail out if parsing of a file
+	fails, just warn about it
+
+	* kdc/log.c (kdc_openlog): no need for a config_file parameter
+
+	* kdc/config.c: just treat kdc.conf like any other config file
+
+	* lib/krb5/context.c (krb5_get_default_config_files): ignore
+	duplicate files
+
+2002-08-16  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/krb5.h: turn strings into pointers, so we can assign to
+	them
+
+	* lib/krb5/constants.c: turn strings into pointers, so we can
+	assign to them
+
+	* lib/krb5/get_addrs.c (get_addrs_int): initialise res if
+	SCAN_INTERFACES is not set
+
+	* lib/krb5/context.c: fix various borked stuff in previous commits
+
+2002-08-16  Jacques Vidrine <n@nectar.com>
+
+	* lib/krb5/krbhst.c (kpasswd_get_next): if we fall back to using
+	the `admin_server' entry for kpasswd, override the `proto' result
+	to be UDP.
+
+2002-08-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/auth_context.c: check return value of
+	krb5_sockaddr2address
+
+	* lib/krb5/addr_families.c: check return value of
+	krb5_sockaddr2address
+
+	* lib/krb5/context.c: get the default keytab from KRB5_KTNAME
+
+2002-08-14  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/verify_krb5_conf.c: allow parsing of more than one file
+
+	* lib/krb5/context.c: allow changing config files with the
+	function krb5_set_config_files, there are also related functions
+	krb5_get_default_config_files and krb5_free_config_files; these
+	should work similar to their MIT counterparts
+
+	* lib/krb5/config_file.c: allow the use of more than one config
+	file by using the new function krb5_config_parse_file_multi
+
+2002-08-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* use sysconfdir instead of /etc
+
+	* configure.in: require autoconf 2.53; rename dpagaix_LDFLAGS etc
+	to appease automake; force sysconfdir and localstatedir to /etc
+	and /var/heimdal for now
+
+	* kdc/connect.c (addr_to_string): check return value of
+	sockaddr2address
+
+2002-08-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/rd_cred.c: if the remote address isn't an addrport,
+	don't try comparing to one; this should make old clients work with
+	new servers
+
+	* lib/asn1/gen_decode.c: remove unused variable
+
+2002-07-31  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kdc/{kerberos5,524}.c: ENOENT -> HDB_ERR_NOENTRY (from Derrick
+	Brashear)
+
+	* lib/krb5/principal.c: actually lower case the lower case
+	instance name (spotted by Derrick Brashear)
+
+2002-07-24  Johan Danielsson  <joda@pdc.kth.se>
+
+	* fix-export: if DATEDVERSION is set, change the version to
+	current date
+
+	* configure.in: don't use AC_PROG_RANLIB, and use magic foo to set
+	LTLIBOBJS
+
+2002-07-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kdc/connect.c: add some cache-control-foo to the http responses
+	(from Gombas Gabor)
+
+	* lib/krb5/addr_families.c (krb5_print_address): don't copy size
+	if ret_len == NULL
+
+2002-06-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kuser/klist.c (display_tokens): don't bail out before we get
+	EDOM (signaling the end of the tokens), the kernel can also return
+	ENOTCONN, meaning that the index does not exist anymore (for
+	example if the token has expired)
+
+2002-06-06  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/changepw.c: make sure we return an error if there are
+	no changepw hosts found; from Wynn Wilkes
+
+2002-05-29  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/cache.c (krb5_cc_register): break out of loop when the
+	same type is found; spotted by Wynn Wilkes
+
+2002-05-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/keytab_file.c: check size of entry before trying to
+	read 32-bit kvno; also fix typo in previous
+
+2002-05-24  Johan Danielsson  <joda@pdc.kth.se>
+
+	* include/Makefile.am: only add to INCLUDES
+
+	* lib/45/mk_req.c: fix for storage change
+
+	* lib/hdb/print.c: fix for storage change
+
+2002-05-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kdc/kerberos5.c: don't free encrypted padata until we're really
+	done with it
+
+2002-05-07  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kdc/kerberos5.c: when decrypting pa-data, try all keys matching
+	enctype
+
+	* kuser/kinit.1: document -a
+
+	* kuser/kinit.c: add command line switch for extra addresses
+
+2002-04-30  Johan Danielsson  <joda@blubb.pdc.kth.se>
+
+	* configure.in: remove some duplicate tests
+
+	* configure.in: use AC_HELP_STRING
+
+2002-04-29  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/crypto.c (usage2arcfour): don't abort if the usage is
+	unknown
+
+2002-04-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* configure.in: use rk_DESTDIRS
+
+2002-04-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/krb5_verify_user.3: make it clear that _lrealm modifies
+	the principal
+
+2002-04-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/verify_init.c: fix typo in error string
+
+2002-04-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* acconfig.h: remove some stuff that is defined elsewhere
+
+	* lib/krb5/krb5_locl.h: include <sys/file.h>
+
+	* lib/krb5/acl.c: rename acl_string parameter
+
+	* lib/krb5/Makefile.am: remove __P from protos, and put parameter
+	names in comments
+
+	* kuser/klist.c: better align some headers
+
+	* kdc/kerberos4.c: storage tweaks
+
+	* kdc/kaserver.c: storage tweaks
+
+	* kdc/524.c: storage tweaks
+
+	* lib/krb5/keytab_krb4.c: storage tweaks
+
+	* lib/krb5/keytab_keyfile.c: storage tweaks
+
+	* lib/krb5/keytab_file.c: storage tweaks; also try to handle zero
+	sized keytab files
+
+	* lib/krb5/keytab_any.c: use KRB5_KT_END instead of KRB5_CC_END
+
+	* lib/krb5/fcache.c: storage tweaks
+
+	* lib/krb5/store_mem.c: make the krb5_storage opaque, and add
+	function wrappers for store/fetch/seek, and also make the eof-code
+	configurable
+
+	* lib/krb5/store_fd.c: make the krb5_storage opaque, and add
+	function wrappers for store/fetch/seek, and also make the eof-code
+	configurable
+
+	* lib/krb5/store_emem.c: make the krb5_storage opaque, and add
+	function wrappers for store/fetch/seek, and also make the eof-code
+	configurable
+
+	* lib/krb5/store.c: make the krb5_storage opaque, and add function
+	wrappers for store/fetch/seek, and also make the eof-code
+	configurable
+
+	* lib/krb5/store-int.h: make the krb5_storage opaque, and add
+	function wrappers for store/fetch/seek, and also make the eof-code
+	configurable
+
+	* lib/krb5/krb5.h: make the krb5_storage opaque, and add function
+	wrappers for store/fetch/seek, and also make the eof-code
+	configurable
+
+	* include/bits.c: include <sys/socket.h> to get socklen_t
+
+	* kdc/kerberos5.c (get_pa_etype_info): sort ETYPE-INFOs by
+	requested KDC-REQ etypes
+
+	* kdc/hpropd.c: constify
+
+	* kdc/hprop.c: constify
+
+	* kdc/string2key.c: constify
+
+	* kdc/kdc_locl.h: make port_str const
+
+	* kdc/config.c: constify
+
+	* lib/krb5/config_file.c: constify
+
+	* kdc/kstash.c: constify
+
+	* lib/krb5/verify_user.c: remove unnecessary cast
+
+	* lib/krb5/recvauth.c: constify
+
+	* lib/krb5/principal.c (krb5_parse_name): const qualify
+
+	* lib/krb5/mcache.c (mcc_get_name): constify return type
+
+	* lib/krb5/context.c (krb5_free_context): don't try to free the
+	ccache prefix
+
+	* lib/krb5/cache.c (krb5_cc_register): don't make a copy of the
+	prefix
+
+	* lib/krb5/krb5.h: constify some struct members
+
+	* lib/krb5/log.c: constify
+
+	* lib/krb5/init_creds_pw.c (krb5_get_init_creds_password): const
+	qualify
+
+	* lib/krb5/get_in_tkt.c (krb5_init_etype): constify
+
+	* lib/krb5/crypto.c: constify some
+
+	* lib/krb5/config_file.c: constify
+
+	* lib/krb5/aname_to_localname.c (krb5_aname_to_localname):
+	constify local variable
+
+	* lib/krb5/addr_families.c (ipv4_sockaddr2port): constify
+
+2002-04-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/verify_krb5_conf.c: add some log checking
+	
+	* lib/krb5/log.c (krb5_addlog_dest): reorganise syslog parsing
+
+2002-04-16  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/crypto.c (krb5_crypto_init): check that the key size
+	matches the expected length
+
+2002-03-27  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/send_to_kdc.c: rename send parameter to send_data
+
+	* lib/krb5/mk_error.c: rename ctime parameter to client_time
+
+2002-03-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kdc/kerberos5.c (find_etype): unsigned -> krb5_enctype (from
+	Reinoud Zandijk)
+
+2002-03-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/asn1/k5.asn1: add the GSS-API checksum type here
+
+2002-03-11  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/Makefile.am (libkrb5_la_LDFLAGS): bump version to
+	18:3:1
+	* lib/hdb/Makefile.am (libhdb_la_LDFLAGS): bump version to 7:5:0
+	* lib/asn1/Makefile.am (libasn1_la_LDFLAGS): bump version to 6:0:0
+	
+2002-03-10  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/rd_cred.c: handle addresses with port numbers
+
+	* lib/krb5/keytab_file.c, lib/krb5/keytab.c:
+	store the kvno % 256 as the byte and the complete 32 bit kvno after
+	the end of the current keytab entry
+
+	* lib/krb5/init_creds_pw.c:
+	handle LR_PW_EXPTIME and LR_ACCT_EXPTIME in the same way
+
+	* lib/krb5/get_for_creds.c (krb5_get_forwarded_creds):
+	handle ports giving for the remote address
+
+	* lib/krb5/get_cred.c:
+	get a ticket with no addresses if no-addresses is set
+
+	* lib/krb5/crypto.c:
+	rename functions DES_* to krb5_* to avoid colliding with modern
+	openssl
+
+	* lib/krb5/addr_families.c:
+	make all functions taking 'struct sockaddr' actually take a socklen_t
+	instead of int and that acts as an in-out parameter (indicating the
+	maximum length of the sockaddr to be written)
+
+	* kdc/kerberos4.c:
+	make the kvno's in the krb4 universe by the real one % 256, since they
+	cannot only be 8 bit, and the v5 ones are actually 32 bits
+
+2002-02-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/keytab_keyfile.c (akf_add_entry): don't create the file
+	before we need to write to it
+	(from Åke Sandgren)
+
+2002-02-14  Johan Danielsson  <joda@pdc.kth.se>
+
+	* configure.in: rk_RETSIGTYPE and rk_BROKEN_REALLOC are called via
+	rk_ROKEN (from Gombas Gabor); find inttypes by CHECK_TYPES
+	directly
+
+	* lib/krb5/rd_safe.c: actually use the correct key (from Daniel
+	Kouril)
+
+2002-02-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/context.c (krb5_get_err_text): protect against NULL
+	context
+
+2002-02-11  Johan Danielsson  <joda@pdc.kth.se>
+
+	* admin/ktutil.c: no need to use the "modify" keytab anymore
+
+	* lib/krb5/keytab_any.c: implement add and remove
+
+	* lib/krb5/keytab_krb4.c: implement add and remove
+
+	* lib/krb5/store_emem.c (emem_free): clear memory before freeing
+	(this should perhaps be selectable with a flag)
+
+2002-02-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kdc/config.c (get_dbinfo): if there are database specifications
+	in the config file, don't automatically try to use the default
+	values (from Gombas Gabor)
+
+	* lib/krb5/log.c (krb5_closelog): don't pass pointer to pointer
+	(from Gombas Gabor)
+
+2002-01-30  Johan Danielsson  <joda@pdc.kth.se>
+
+	* admin/list.c: get the default keytab from krb5.conf, and list
+	all parts of an ANY type keytab
+
+	* lib/krb5/context.c: default default_keytab_modify to NULL
+
+	* lib/krb5/keytab.c (krb5_kt_default_modify_name): if no modify
+	name is specified take it from the first component of the default
+	keytab name
+
+2002-01-29  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/keytab.c: compare keytab types case insensitively
+
+2002-01-07  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/crypto.c (create_checksum): make usage `unsigned' (it's
+	not really a krb5_key_usage).  From Ben Harris <bjh21@netbsd.org>
+	* lib/krb5/get_in_tkt.c: use krb5_enctype consistently.  From Ben
+	Harris <bjh21@netbsd.org>
+	* lib/krb5/crypto.c: use krb5_enctype consistently.  From Ben
+	Harris <bjh21@netbsd.org>
+	* kdc/kerberos5.c: use krb5_enctype consistently.  From Ben Harris
+	<bjh21@netbsd.org>

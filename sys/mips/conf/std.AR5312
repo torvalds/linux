@@ -1,0 +1,81 @@
+#
+# AR5312 -- Kernel configuration file for FreeBSD/MIPS for Atheros 5312 systems
+#
+# This includes all the common drivers for the AR5312 boards
+#
+# $FreeBSD$
+#
+
+machine		mips mips
+#ident		AR5312_BASE
+cpu		CPU_MIPS4KC
+makeoptions	KERNLOADADDR=0x80050000
+options 	HZ=1000
+
+makeoptions	MODULES_OVERRIDE=""
+
+files		"../atheros/ar531x/files.ar5315"
+
+options 	INTRNG
+options 	AR531X_1ST_GENERATION
+
+# For now, hints are per-board.
+
+hints		"AR5312_BASE.hints"
+
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+
+# For small memory footprints
+options VM_KMEM_SIZE_SCALE=1
+
+options 	DDB
+options 	KDB
+
+options 	SCHED_4BSD		#4BSD scheduler
+options 	INET			#InterNETworking
+options 	INET6			# IPv6
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+
+# options 	NFSCL		#Network Filesystem Client
+
+options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+
+# options 	NFS_LEGACYRPC
+# Debugging for use in -current
+options 	INVARIANTS
+options 	INVARIANT_SUPPORT
+options 	WITNESS
+options 	WITNESS_SKIPSPIN
+options 	DEBUG_REDZONE
+options 	DEBUG_MEMGUARD
+
+options         FFS                     #Berkeley Fast Filesystem
+# options         SOFTUPDATES             #Enable FFS soft updates support
+# options         UFS_ACL                 #Support for access control lists
+# options         UFS_DIRHASH             #Improve performance on big directories
+# options 	MSDOSFS			# Read MSDOS filesystems; useful for USB/CF
+
+device		mii
+device		are
+
+device		cfi
+options		CFI_HARDWAREBYTESWAP
+device		geom_redboot
+
+device		ar5315_wdog
+
+device		uart
+device		uart_ar5315
+
+device		loop
+device		ether
+device		md
+device		bpf
+device		random
+
+options 	ARGE_DEBUG	# Enable if_arge debugging for now
+
+# Enable GPIO
+device		gpio
+device		gpioled

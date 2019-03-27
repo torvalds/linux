@@ -1,0 +1,66 @@
+=pod
+
+=head1 NAME
+
+ERR_GET_LIB, ERR_GET_FUNC, ERR_GET_REASON, ERR_FATAL_ERROR
+- get information from error codes
+
+=head1 SYNOPSIS
+
+ #include <openssl/err.h>
+
+ int ERR_GET_LIB(unsigned long e);
+
+ int ERR_GET_FUNC(unsigned long e);
+
+ int ERR_GET_REASON(unsigned long e);
+
+ int ERR_FATAL_ERROR(unsigned long e);
+
+=head1 DESCRIPTION
+
+The error code returned by ERR_get_error() consists of a library
+number, function code and reason code. ERR_GET_LIB(), ERR_GET_FUNC()
+and ERR_GET_REASON() can be used to extract these.
+
+ERR_FATAL_ERROR() indicates whether a given error code is a fatal error.
+
+The library number and function code describe where the error
+occurred, the reason code is the information about what went wrong.
+
+Each sub-library of OpenSSL has a unique library number; function and
+reason codes are unique within each sub-library.  Note that different
+libraries may use the same value to signal different functions and
+reasons.
+
+B<ERR_R_...> reason codes such as B<ERR_R_MALLOC_FAILURE> are globally
+unique. However, when checking for sub-library specific reason codes,
+be sure to also compare the library number.
+
+ERR_GET_LIB(), ERR_GET_FUNC(), ERR_GET_REASON(), and ERR_FATAL_ERROR()
+ are macros.
+
+=head1 RETURN VALUES
+
+The library number, function code, reason code, and whether the error
+is fatal, respectively.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>
+
+=head1 HISTORY
+
+ERR_GET_LIB(), ERR_GET_FUNC() and ERR_GET_REASON() are available in
+all versions of OpenSSL.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

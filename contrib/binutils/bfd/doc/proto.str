@@ -1,0 +1,135 @@
+
+: SYNOPSIS
+	skip_past_newline
+	get_stuff_in_command	
+	paramstuff
+	indent
+	maybecatstr
+;
+
+: ignore
+	skip_past_newline 
+	get_stuff_in_command
+	outputdots
+	maybecatstr
+	;
+
+: CODE_FRAGMENT
+	ignore ;
+
+: external
+	0 internalmode ignore ;
+
+: internal 
+	1 internalmode ignore ;
+
+- input stack { a b } output b if internal, a if external
+: ifinternal
+	"" swap 1 internalmode maybecatstr
+	swap
+	"" swap 0 internalmode maybecatstr
+	catstr
+	;
+
+- Put note in output string, regardless of internal mode.
+: COMMENT
+	skip_past_newline
+	get_stuff_in_command
+	translatecomments
+	catstr
+	;
+
+- SENUM    enum-type-name
+- ENUM     enum-name
+- ENUMX    addl-enum-name
+- ENUMDOC  doc for preceding enums
+- ENDSENUM max-enum-name
+
+: make_enum_header
+	dup
+	"enum " swap catstr
+	" {\n" catstr
+	swap "  _dummy_first_" swap catstr catstr
+	",\n" catstr
+	;
+: make_string_table_header
+	dup
+	"#ifdef _BFD_MAKE_TABLE_" swap catstr swap
+	"\n\nstatic const char *const " swap catstr catstr
+	"_names[] = { \"@@uninitialized@@\",\n" catstr
+	;
+: SENUM
+	skip_past_newline
+	copy_past_newline
+	remchar
+	dup
+	make_enum_header
+	swap
+	make_string_table_header
+	ifinternal
+	catstr
+	get_stuff_in_command catstr
+	translatecomments ;
+: ENDSENUM
+	skip_past_newline
+	copy_past_newline strip_trailing_newlines
+	dup
+	"  " swap catstr " };\n" catstr	swap
+	" \"@@overflow: " swap catstr "@@\",\n};\n#endif\n\n" catstr
+	ifinternal
+	catstr
+	;
+: make_enumerator
+	"  " swap catstr
+	",\n" catstr
+	;
+: make_enumerator_string
+	"  \"" swap catstr
+	"\",\n" catstr
+	;
+: ENUM
+	skip_past_newline
+	copy_past_newline
+	remchar
+	dup
+	make_enumerator
+	swap
+	make_enumerator_string
+	ifinternal
+	;
+: ENUMX ENUM catstr ;
+: ENUMEQ
+	skip_past_newline
+	"#define "
+	copy_past_newline remchar
+	catstr
+	" "
+	catstr
+	copy_past_newline
+	catstr
+	"" swap 0 internalmode maybecatstr
+	;
+: ENUMEQX ENUMEQ catstr ;
+: ENUMDOC
+	skip_past_newline
+	get_stuff_in_command
+	strip_trailing_newlines
+	"\n{* " swap catstr "  *}\n" catstr
+	translatecomments
+	- discard it if we're doing internal mode
+	"" swap 0 internalmode maybecatstr
+	swap
+	catstr catstr
+	;
+: ENDDD external ;
+: SECTION ignore ;
+: SUBSECTION ignore ;
+: SUBSUBSECTION ignore ;
+: INTERNAL_DEFINITION internal ;
+: DESCRIPTION ignore ;
+: FUNCTION external ;
+: RETURNS ignore ;
+: TYPEDEF external ;
+: INTERNAL_FUNCTION internal ;
+: INTERNAL internal ;
+: INODE ignore ;

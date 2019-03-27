@@ -1,0 +1,162 @@
+.\" Copyright (c) 2004 Stefan Farfeleder
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 4, 2012
+.Dt TGMATH 3
+.Os
+.Sh NAME
+.Nm tgmath
+.Nd "type-generic macros"
+.Sh SYNOPSIS
+.In tgmath.h
+.Sh DESCRIPTION
+The header
+.In tgmath.h
+provides type-generic macros
+for
+.In math.h
+and
+.In complex.h
+functions that have
+.Vt float
+(suffixed with
+.Sy f ) ,
+.Vt double
+and
+.Vt "long double"
+(suffixed with
+.Sy l )
+versions.
+The arguments that vary across the three functions and have type
+.Vt float , double
+and
+.Vt "long double" ,
+respectively, are called
+.Em "generic arguments" .
+.Pp
+The following rules describe which function is actually called if a
+type-generic macro is invoked.
+If any generic argument has type
+.Vt "long double"
+or
+.Vt "long double complex" ,
+the
+.Vt "long double"
+function is called.
+Else, if any generic argument has type
+.Vt double , "double complex"
+or an integer type, the
+.Vt double
+version is invoked.
+Otherwise, the macro expands to the
+.Vt float
+implementation.
+.Pp
+For the macros in the following table, both real and complex functions
+exist.
+The real functions are prototyped in
+.In math.h
+and the complex equivalents in
+.In complex.h .
+The complex function is called if any of the generic arguments is a
+complex value.
+Otherwise, the real equivalent is called.
+.Bl -column -offset indent ".Fn acosh" "Sy real function" ".Sy complex function"
+.It Sy Macro Ta Sy real function Ta Sy complex function
+.It Fn acos Ta Fn acos Ta Fn cacos
+.It Fn asin Ta Fn asin Ta Fn casin
+.It Fn atan Ta Fn atan Ta Fn catan
+.It Fn acosh Ta Fn acosh Ta Fn cacosh
+.It Fn asinh Ta Fn asinh Ta Fn casinh
+.It Fn atanh Ta Fn atanh Ta Fn catanh
+.It Fn cos Ta Fn cos Ta Fn ccos
+.It Fn sin Ta Fn sin Ta Fn csin
+.It Fn tan  Ta Fn tan Ta Fn ctan
+.It Fn cosh Ta Fn cosh Ta Fn ccosh
+.It Fn sinh Ta Fn sinh Ta Fn csinh
+.It Fn tanh Ta Fn tanh Ta Fn ctanh
+.It Fn exp Ta Fn exp Ta Fn cexp
+.It Fn log Ta Fn log Ta Fn clog
+.It Fn pow Ta Fn pow Ta Fn cpow
+.It Fn sqrt Ta Fn sqrt Ta Fn csqrt
+.It Fn fabs Ta Fn fabs Ta Fn cabs
+.El
+.Pp
+No complex functions exist for the following macros, so passing a
+complex value to a generic argument invokes undefined behaviour:
+.Bl -column -offset indent ".Fn nexttoward" ".Fn nexttoward" ".Fn nexttoward" ".Fn nexttoward"
+.It Fn atan2 Ta Fn fma Ta Fn llround Ta Fn remainder
+.It Fn cbrt Ta Fn fmax Ta Fn log10 Ta Fn remquo
+.It Fn ceil Ta Fn fmin Ta Fn log1p Ta Fn rint
+.It Fn copysign Ta Fn fmod Ta Fn log2 Ta Fn round
+.It Fn erf Ta Fn frexp Ta Fn logb Ta Fn scalbn
+.It Fn erfc Ta Fn hypot Ta Fn lrint Ta Fn scalbln
+.It Fn exp2 Ta Fn ilogb Ta Fn lround Ta Fn tgamma
+.It Fn expm1 Ta Fn ldexp Ta Fn nearbyint Ta Fn trunc
+.It Fn fdim Ta Fn lgamma Ta Fn nextafter Ta \&
+.It Fn floor Ta Fn llrint Ta Fn nexttoward Ta \&
+.El
+.Pp
+The following macros always expand to a complex function:
+.Bl -column -offset indent ".Fn cimag" ".Fn cimag" ".Fn cimag" ".Fn cimag" ".Fn cimag"
+.It Fn carg Ta Fn cimag Ta Fn conj Ta Fn cproj Ta Fn creal
+.El
+.Pp
+This header includes
+.In complex.h
+and
+.In math.h .
+.Sh STANDARDS
+The header
+.In tgmath.h
+conforms to
+.St -isoC-99 .
+.Sh HISTORY
+The header
+.In tgmath.h
+first appeared in
+.Fx 5.3 .
+.Sh COMPILER SUPPORT
+Before
+.St -isoC-2011 ,
+the header
+.In tgmath.h
+could not be implemented with strictly conforming C code and needed
+special compiler support.
+As of
+.St -isoC-2011 ,
+this header file can be implemented using the
+.Fn _Generic
+language keyword.
+In addition to compilers that support this keyword, this header file
+works with GCC.
+.Sh BUGS
+Many of the functions mentioned here are not prototyped in
+.In math.h
+or
+.In complex.h
+as they are not yet implemented.
+This prevents the corresponding type-generic macro from working at all.

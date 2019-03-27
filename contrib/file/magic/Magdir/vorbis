@@ -1,0 +1,155 @@
+
+#------------------------------------------------------------------------------
+# $File: vorbis,v 1.24 2018/03/14 04:38:44 christos Exp $
+# vorbis:  file(1) magic for Ogg/Vorbis files
+#
+# From Felix von Leitner <leitner@fefe.de>
+# Extended by Beni Cherniavsky <cben@crosswinds.net>
+# Further extended by Greg Wooledge <greg@wooledge.org>
+#
+# Most (everything but the number of channels and bitrate) is commented
+# out with `##' as it's not interesting to the average user.  The most
+# probable things advanced users would want to uncomment are probably
+# the number of comments and the encoder version.
+#
+# FIXME: The first match has been made a search, so that it can skip
+# over prepended ID3 tags. This will work for MIME type detection, but
+# won't work for detecting other properties of the file (they all need
+# to be made relative to the search). In any case, if the file has ID3
+# tags, the ID3 information will be printed, not the Ogg information,
+# so until that's fixed, this doesn't matter.
+# FIXME[2]: Disable the above for now, since search assumes text mode.
+#
+# --- Ogg Framing ---
+#0		search/1000	OggS		Ogg data
+0		string	OggS		Ogg data
+>4		byte		!0		UNKNOWN REVISION %u
+##>4		byte		0		revision 0
+>4		byte		0
+##>>14		lelong		x		(Serial %lX)
+# non-Vorbis content: FLAC (Free Lossless Audio Codec, http://flac.sourceforge.net)
+>>28		string		\x7fFLAC	\b, FLAC audio
+# non-Vorbis content: Theora
+!:mime		audio/ogg
+>>28		string		\x80theora	\b, Theora video
+!:mime		video/ogg
+# non-Vorbis content: Kate
+>>28		string		\x80kate\0\0\0\0	\b, Kate (Karaoke and Text)
+!:mime		application/ogg
+>>>37		ubyte		x		v%u
+>>>38		ubyte		x		\b.%u,
+>>>40		byte		0		utf8 encoding,
+>>>40		byte		!0		unknown character encoding,
+>>>60		string		>\0		language %s,
+>>>60		string		\0		no language set,
+>>>76		string		>\0		category %s
+>>>76		string		\0		no category set
+# non-Vorbis content: Skeleton
+>>28		string		fishead\0	\b, Skeleton
+!:mime		video/ogg
+>>>36		leshort		x		v%u
+>>>40		leshort		x		\b.%u
+# non-Vorbis content: Speex
+>>28		string		Speex\ \ \ 	\b, Speex audio
+!:mime		audio/ogg
+# non-Vorbis content: OGM
+>>28		string		\x01video\0\0\0	\b, OGM video
+!:mime		video/ogg
+>>>37		string/c	div3		(DivX 3)
+>>>37		string/c	divx		(DivX 4)
+>>>37		string/c	dx50		(DivX 5)
+>>>37		string/c	xvid		(XviD)
+# --- First vorbis packet - general header ---
+>>28		string		\x01vorbis	\b, Vorbis audio,
+!:mime		audio/ogg
+>>>35		lelong		!0		UNKNOWN VERSION %u,
+##>>>35		lelong		0		version 0,
+>>>35		lelong		0
+>>>>39		ubyte		1		mono,
+>>>>39		ubyte		2		stereo,
+>>>>39		ubyte		>2		%u channels,
+>>>>40		lelong		x		%u Hz
+# Minimal, nominal and maximal bitrates specified when encoding
+>>>>48		string		<\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff	\b,
+# The above tests if at least one of these is specified:
+>>>>>52		lelong		!-1
+# Vorbis RC2 has a bug which puts -1000 in the min/max bitrate fields
+# instead of -1.
+# Vorbis 1.0 uses 0 instead of -1.
+>>>>>>52	lelong		!0
+>>>>>>>52	lelong		!-1000
+>>>>>>>>52	lelong		x		<%u
+>>>>>48		lelong		!-1
+>>>>>>48	lelong		x		~%u
+>>>>>44		lelong		!-1
+>>>>>>44	lelong		!-1000
+>>>>>>>44	lelong		!0
+>>>>>>>>44	lelong		x		>%u
+>>>>>48		string		<\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff	bps
+# -- Second vorbis header packet - the comments
+# A kludge to read the vendor string.  It's a counted string, not a
+# zero-terminated one, so file(1) can't read it in a generic way.
+# libVorbis is the only one existing currently, so I detect specifically
+# it.  The interesting value is the cvs date (8 digits decimal).
+# Post-RC1 Ogg files have the second header packet (and thus the version)
+# in a different place, so we must use an indirect offset.
+>>>(84.b+85)		string		\x03vorbis
+>>>>(84.b+96)		string/c	Xiphophorus\ libVorbis\ I	\b, created by: Xiphophorus libVorbis I
+>>>>>(84.b+120)		string		>00000000
+# Map to beta version numbers:
+>>>>>>(84.b+120)	string		<20000508	(<beta1, prepublic)
+>>>>>>(84.b+120)	string		20000508	(1.0 beta 1 or beta 2)
+>>>>>>(84.b+120)	string		>20000508
+>>>>>>>(84.b+120)	string		<20001031	(beta2-3)
+>>>>>>(84.b+120)	string		20001031	(1.0 beta 3)
+>>>>>>(84.b+120)	string		>20001031
+>>>>>>>(84.b+120)	string		<20010225	(beta3-4)
+>>>>>>(84.b+120)	string		20010225	(1.0 beta 4)
+>>>>>>(84.b+120)	string		>20010225
+>>>>>>>(84.b+120)	string		<20010615	(beta4-RC1)
+>>>>>>(84.b+120)	string		20010615	(1.0 RC1)
+>>>>>>(84.b+120)	string		20010813	(1.0 RC2)
+>>>>>>(84.b+120)	string		20010816	(RC2 - Garf tuned v1)
+>>>>>>(84.b+120)	string		20011014	(RC2 - Garf tuned v2)
+>>>>>>(84.b+120)	string		20011217	(1.0 RC3)
+>>>>>>(84.b+120)	string		20011231	(1.0 RC3)
+# Some pre-1.0 CVS snapshots still had "Xiphphorus"...
+>>>>>>(84.b+120)	string		>20011231	(pre-1.0 CVS)
+# For the 1.0 release, Xiphophorus is replaced by Xiph.Org
+>>>>(84.b+96)		string/c	Xiph.Org\ libVorbis\ I	\b, created by: Xiph.Org libVorbis I
+>>>>>(84.b+117)		string		>00000000
+>>>>>>(84.b+117)	string		<20020717	(pre-1.0 CVS)
+>>>>>>(84.b+117)	string		20020717	(1.0)
+>>>>>>(84.b+117)	string		20030909	(1.0.1)
+>>>>>>(84.b+117)	string		20040629	(1.1.0 RC1)
+>>>>>>(84.b+117)	string		20050304	(1.1.2)
+>>>>>>(84.b+117)	string		20070622	(1.2.0)
+>>>>>>(84.b+117)	string		20090624	(1.2.2)
+>>>>>>(84.b+117)	string		20090709	(1.2.3)
+>>>>>>(84.b+117)	string		20100325	(1.3.1)
+>>>>>>(84.b+117)	string		20101101	(1.3.2)
+>>>>>>(84.b+117)	string		20120203	(1.3.3)
+>>>>>>(84.b+117)	string		20140122	(1.3.4)
+>>>>>>(84.b+117)	string		20150105	(1.3.5)
+
+# non-Vorbis content: Opus https://tools.ietf.org/html/draft-ietf-codec-oggopus-06#section-5
+>>28		string		OpusHead	\b, Opus audio,
+!:mime		audio/ogg
+>>>36		ubyte		>0x0F		UNKNOWN VERSION %u,
+>>>36		ubyte		&0x0F		version 0.%d
+>>>>46		ubyte		>1
+>>>>>46		ubyte		!255		unknown channel mapping family %u,
+>>>>>37		ubyte		x		%u channels
+>>>>46		ubyte		0
+>>>>>37		ubyte		1		mono
+>>>>>37		ubyte		2		stereo
+>>>>46		ubyte		1
+>>>>>37		ubyte		1		mono
+>>>>>37		ubyte		2		stereo
+>>>>>37		ubyte		3		linear surround
+>>>>>37		ubyte		4		quadraphonic
+>>>>>37		ubyte		5		5.0 surround
+>>>>>37		ubyte		6		5.1 surround
+>>>>>37		ubyte		7		6.1 surround
+>>>>>37		ubyte		8		7.1 surround
+>>>>40		lelong		!0		\b, %u Hz

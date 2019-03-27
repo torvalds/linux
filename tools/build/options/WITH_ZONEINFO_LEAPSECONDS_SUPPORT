@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to build leapsecond information in to the timezone database.

@@ -1,0 +1,389 @@
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 2010-2013 Hans Petter Selasky
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 5, 2017
+.Dt CUSE 3
+.Os
+.Sh NAME
+.Nm libcuse
+.Nd "Userland character device library"
+.Sh LIBRARY
+.Lb libcuse
+.Sh SYNOPSIS
+To load the required kernel module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+cuse_load="YES"
+.Ed
+.Pp
+.In cuse.h
+.Sh DESCRIPTION
+The
+.Nm
+library contains functions to create a character device in userspace.
+The
+.Nm
+library is thread safe.
+.Sh LIBRARY INITIALISATION / DEINITIALISATION
+.Ft "int"
+.Fn "cuse_init" "void"
+This function initialises
+.Nm .
+Must be called at the beginning of the program.
+This function returns 0 on success or a negative value on failure.
+See
+.Dv CUSE_ERR_XXX
+for known error codes.
+If the cuse kernel module is not loaded,
+.Dv CUSE_ERR_NOT_LOADED
+is returned.
+.Pp
+.Ft "int"
+.Fn "cuse_uninit" "void"
+Deinitialise
+.Nm .
+Can be called at the end of the application.
+This function returns 0 on success or a negative value on failure.
+See
+.Dv CUSE_ERR_XXX
+for known error codes.
+.Sh UNIT MANAGEMENT
+.Ft "int"
+.Fn "cuse_alloc_unit_number" "int *"
+This function stores a uniq system unit number at the pointed
+integer loation.
+This function returns 0 on success or a negative value on failure.
+See
+.Dv CUSE_ERR_XXX
+for known error codes.
+.Pp
+.Ft "int"
+.Fn "cuse_alloc_unit_number_by_id" "int *" "int id"
+This function stores a unique system unit number at the pointed
+integer loation.
+The returned unit number is uniq within the given ID.
+Valid ID values are defined by the cuse include file.
+See the
+.Fn CUSE_ID_XXX
+macros for more information.
+This function returns 0 on success or a negative value on failure.
+See
+.Dv CUSE_ERR_XXX
+for known error codes.
+.Pp
+.Ft "int"
+.Fn "cuse_free_unit_number" "int"
+This function frees the given allocated system unit number.
+This function returns 0 on success or a negative value on failure.
+See
+.Dv CUSE_ERR_XXX
+for known error codes.
+.Pp
+.Ft "int"
+.Fn "cuse_free_unit_number_by_id" "int unit" "int id"
+This function frees the given allocated system unit number belonging
+to the given ID.
+If both the unit and id argument is -1, all allocated units will be freed.
+This function returns 0 on success or a negative value on failure.
+See
+.Dv CUSE_ERR_XXX
+for known error codes.
+.Sh LIBRARY USAGE
+.Ft "void *"
+.Fn "cuse_vmalloc" "int size"
+This function allocates
+.Ar size
+bytes of memory.
+Only memory allocated by this function can be memory
+mapped by
+.Xr mmap 2 .
+This function returns a valid data pointer on success or
+.Dv NULL
+on failure.
+.Pp
+.Ft "int"
+.Fn "cuse_is_vmalloc_addr" "void *"
+This function returns non-zero if the passed pointer points to a valid
+and non-freed allocation, as returned by
+.Fn cuse_vmalloc .
+Else this function returns zero.
+.Pp
+.Ft "void"
+.Fn "cuse_vmfree" "void *"
+This function frees memory allocated by
+.Fn cuse_vmalloc .
+Note that the
+cuse library will internally not free the memory until the
+.Fn cuse_uninit
+function is called and that the number of unique
+allocations is limited.
+.Pp
+.Ft "unsigned long"
+.Fn "cuse_vmoffset" "void *"
+This function returns the mmap offset that the client must use to
+access the allocated memory.
+.Pp
+.Ft "struct cuse_dev *"
+.Fn "cuse_dev_create" "const struct cuse_methods *mtod" "void *priv0" "void *priv1" "uid_t" "gid_t" "int permission" "const char *fmt" "..."
+This function creates a new character device according to the given
+parameters.
+This function returns a valid cuse_dev structure pointer
+on success or
+.Dv NULL
+on failure.
+The device name can only contain a-z,
+A-Z, 0-9, dot, / and underscore characters.
+.Pp
+.Ft "void"
+.Fn "cuse_dev_destroy" "struct cuse_dev *"
+This functions destroys a previously created character device.
+.Pp
+.Ft "void *"
+.Fn "cuse_dev_get_priv0" "struct cuse_dev *" ,
+.Ft "void *"
+.Fn "cuse_dev_get_priv1" "struct cuse_dev *" ,
+.Ft "void"
+.Fn "cuse_dev_set_priv0" "struct cuse_dev *" "void *" ,
+.Ft "void"
+.Fn "cuse_dev_set_priv1" "struct cuse_dev *" "void *"
+These functions are used to set and get the private data of the given
+cuse device.
+.Pp
+.Ft "int"
+.Fn "cuse_wait_and_process" "void"
+This function will block and do event processing.
+If parallel I/O is
+required multiple threads must be created looping on this
+function.
+This function returns 0 on success or a negative value on failure.
+See
+.Dv CUSE_ERR_XXX
+for known error codes.
+.Pp
+.Ft "void *"
+.Fn "cuse_dev_get_per_file_handle" "struct cuse_dev *" ,
+.Ft "void"
+.Fn "cuse_dev_set_per_file_handle" "struct cuse_dev *" "void *"
+These functions are used to set and get the per-file-open specific handle
+and should only be used inside the cuse file operation callbacks.
+.Pp
+.Ft "void"
+.Fn "cuse_set_local" "int"
+This function instructs
+.Fn cuse_copy_out
+and
+.Fn cuse_copy_in
+that the
+user pointer is local, if the argument passed to it is non-zero.
+Else the user pointer is assumed to be at the peer application.
+This function should only be used inside the cuse file operation callbacks.
+The value is reset to zero when the given file operation returns, and
+does not affect any other file operation callbacks.
+.Pp
+.Ft "int"
+.Fn "cuse_get_local" "void"
+Returns the current local state.
+See
+.Fn cuse_set_local .
+.Pp
+.Ft "int"
+.Fn "cuse_copy_out" "const void *src" "void *peer_dst" "int len" ,
+.Ft "int"
+.Fn "cuse_copy_in" "const void *peer_src" "void *dst" "int len"
+These functions are used to transfer data between the local
+application and the peer application.
+These functions must be used
+when operating on the data pointers passed to the
+.Fn cm_read ,
+.Fn cm_write ,
+and
+.Fn cm_ioctl
+callback functions.
+These functions return 0 on success or a negative value on failure.
+See
+.Dv CUSE_ERR_XXX
+for known error codes.
+.Pp
+.Ft "int"
+.Fn "cuse_got_peer_signal" "void"
+This function is used to check if a signal has been delivered to the
+peer application and should only be used inside the cuse file
+operation callbacks.
+This function returns 0 if a signal has been
+delivered to the caller.
+Else it returns a negative value.
+See
+.Dv CUSE_ERR_XXX
+for known error codes.
+.Pp
+.Ft "struct cuse_dev *"
+.Fn "cuse_dev_get_current" "int *pcmd"
+This function is used to get the current cuse device pointer and the
+currently executing command, by
+.Dv CUSE_CMD_XXX
+value.
+The
+.Ar pcmd
+argument
+is allowed to be
+.Dv NULL .
+This function should only be used inside the
+cuse file operation callbacks.
+On success a valid cuse device pointer
+is returned.
+On failure
+.Dv NULL
+is returned.
+.Pp
+.Ft "void"
+.Fn "cuse_poll_wakeup" "void"
+This function will wake up any file pollers.
+.Sh LIBRARY LIMITATIONS
+Transfer lengths for
+.Fn read ,
+.Fn write ,
+.Fn cuse_copy_in ,
+and
+.Fn cuse_copy_out
+should not exceed what can fit into a 32-bit signed integer and is
+defined by the
+.Fn CUSE_LENGTH_MAX
+macro.
+Transfer lengths for ioctls should not exceed what is defined by the
+.Fn CUSE_BUFFER_MAX
+macro.
+.Sh LIBRARY CALLBACK METHODS
+In general fflags are defined by
+.Dv CUSE_FFLAG_XXX
+and errors are defined by
+.Dv CUSE_ERR_XXX .
+.Bd -literal -offset indent
+enum {
+  CUSE_ERR_NONE
+  CUSE_ERR_BUSY
+  CUSE_ERR_WOULDBLOCK
+  CUSE_ERR_INVALID
+  CUSE_ERR_NO_MEMORY
+  CUSE_ERR_FAULT
+  CUSE_ERR_SIGNAL
+  CUSE_ERR_OTHER
+  CUSE_ERR_NOT_LOADED
+  CUSE_ERR_NO_DEVICE
+
+  CUSE_POLL_NONE
+  CUSE_POLL_READ
+  CUSE_POLL_WRITE
+  CUSE_POLL_ERROR
+
+  CUSE_FFLAG_NONE
+  CUSE_FFLAG_READ
+  CUSE_FFLAG_WRITE
+  CUSE_FFLAG_NONBLOCK
+
+  CUSE_CMD_NONE
+  CUSE_CMD_OPEN
+  CUSE_CMD_CLOSE
+  CUSE_CMD_READ
+  CUSE_CMD_WRITE
+  CUSE_CMD_IOCTL
+  CUSE_CMD_POLL
+  CUSE_CMD_SIGNAL
+  CUSE_CMD_SYNC
+  CUSE_CMD_MAX
+};
+.Ed
+.Pp
+.Ft "int"
+.Fn "cuse_open_t" "struct cuse_dev *" "int fflags"
+This function returns a
+.Dv CUSE_ERR_XXX
+value.
+.Pp
+.Ft "int"
+.Fn "cuse_close_t" "struct cuse_dev *" "int fflags"
+This function returns a
+.Dv CUSE_ERR_XXX
+value.
+.Pp
+.Ft "int"
+.Fn "cuse_read_t" "struct cuse_dev *" "int fflags" "void *peer_ptr" "int len"
+This function returns a
+.Dv CUSE_ERR_XXX
+value in case of failure or the
+actually transferred length in case of success.
+.Fn cuse_copy_in
+and
+.Fn cuse_copy_out
+must be used to transfer data to and from the
+.Ar peer_ptr .
+.Pp
+.Ft "int"
+.Fn "cuse_write_t" "struct cuse_dev *" "int fflags" "const void *peer_ptr" "int len"
+This function returns a
+.Dv CUSE_ERR_XXX
+value in case of failure or the
+actually transferred length in case of success.
+.Fn cuse_copy_in
+and
+.Fn cuse_copy_out
+must be used to transfer data to and from the
+.Ar peer_ptr .
+.Pp
+.Ft "int"
+.Fn "cuse_ioctl_t" "struct cuse_dev *" "int fflags" "unsigned long cmd" "void *peer_data"
+This function returns a
+.Dv CUSE_ERR_XXX
+value in case of failure or zero
+in case of success.
+.Fn cuse_copy_in
+and
+.Fn cuse_copy_out
+must be used to
+transfer data to and from the
+.Ar peer_data .
+.Pp
+.Ft "int"
+.Fn "cuse_poll_t" "struct cuse_dev *" "int fflags" "int events"
+This function returns a mask of
+.Dv CUSE_POLL_XXX
+values in case of failure and success.
+The events argument is also a mask of
+.Dv CUSE_POLL_XXX
+values.
+.Bd -literal -offset indent
+struct cuse_methods {
+  cuse_open_t *cm_open;
+  cuse_close_t *cm_close;
+  cuse_read_t *cm_read;
+  cuse_write_t *cm_write;
+  cuse_ioctl_t *cm_ioctl;
+  cuse_poll_t *cm_poll;
+};
+.Ed
+.Sh HISTORY
+.Nm
+was written by Hans Petter Selasky.

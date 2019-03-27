@@ -1,0 +1,37 @@
+#
+# Please use only iso-latin character set, which available
+# at console *and* X11 (IBM cp850 does not)
+#
+# missing: Norwegian, Russian, Danish, Swedish
+#
+
+1. Chose your keyboard font
+
+2. Codepage
+
+3. English
+
+4. thin
+
+5. Multilingual Latin I
+
+6. Norwegian
+
+7. Russian
+
+8. West European
+
+9. Chose your keyboard language
+
+10. Danish
+
+11. French
+
+12. German
+
+13. Swedish
+
+14. United Kingdom
+
+15. United States of America
+

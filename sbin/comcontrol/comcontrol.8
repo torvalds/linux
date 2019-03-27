@@ -1,0 +1,65 @@
+.\" $FreeBSD$
+.Dd May 15, 1994
+.Dt COMCONTROL 8
+.Os
+.Sh NAME
+.Nm comcontrol
+.Nd control a special tty device
+.Sh SYNOPSIS
+.Nm
+.Ar special_device
+.Op dtrwait Ar number
+.Op drainwait Ar number
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to examine and modify some of the special characteristics
+of the specified tty device.
+If no arguments other than the device (or "-" for stdin)
+are specified,
+it prints the settings of all controllable characteristics.
+This usage requires only read access on the device.
+Only the superuser can change the settings.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Cm dtrwait Ar number
+Set the time to wait after dropping DTR
+to the given number.
+The units are hundredths of a second.
+The default is 300 hundredths, i.e., 3 seconds.
+This option needed mainly to set proper recover time after
+modem reset.
+.It Cm drainwait Ar number
+Set the time to wait for output drain
+to the given number.
+The units are seconds.
+The default is 5 minutes, 0 means
+waiting forever.
+This option needed mainly to specify upper limit of minutes
+to prevent modem hanging.
+.El
+.Pp
+The standard way to use
+.Nm
+is to put invocations of it in the
+.Pa /etc/rc.d/serial
+startup script.
+.Sh FILES
+.Bl -tag -width /dev/ttyd? -compact
+.It Pa /dev/ttyd?
+dialin devices, hardwired terminals
+.It Pa /dev/cuau?
+dialout devices
+.El
+.Sh SEE ALSO
+.Xr stty 1 ,
+.Xr sio 4
+.Sh HISTORY
+Originally part of cgd's com package patches, version 0.2.1, to
+.Bx 386 0.1 .
+Once controlled bidirectional capabilities.
+Little is left to control now
+that these capabilities are standard.
+.Sh AUTHORS
+.An Christopher G. Demetriou

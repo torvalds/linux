@@ -1,0 +1,124 @@
+$ $tcsh: set3,v 1.4 2011/02/04 18:19:33 christos Exp $
+$ Editor function descriptions
+$set 3 
+1 Liigu sümbol tagasi
+2 Kustuta sümbol kursori tagant
+3 Lõika jooksva sõna algusest kursorini - salvesta lõikepuhvris
+4 Lõika rea algusest kursorini - salvesta lõikepuhvris
+5 Liigu jooksva sõna algusse
+6 Liigu rea algusse
+7 Tähed kursorist kuni sõnalõpuni suurteks
+8 Vi muuda kursori aluse sümboli suurust ja liigu sümbol edasi
+9 Vi muuda realõpuni
+10 Puhasta ekraan jättes jooksva rea ülemiseks
+11 Täienda jooksev sõna
+12 Vali täiendusi liikudes nimekirjas edasi
+13 Vali täiendusi liikudes nimekirjas tagasi
+14 Täienda jooksev sõna, ignoreeri programmeeritud täiendusi
+15 Kopeeri jooksev sõna kursorini
+16 Kopeeri ala märgist kursorini lõikepuhvrisse
+17 Avalda eelneva sõnani, millele see on prefiks
+18 Kustuta sümbol kursori alt
+19 Kustuta sümbol kursori alt või teata tühja rea korral faililõpust
+20 Kustuta sümbol kursori alt või rea lõpu korral näita täiendusi
+21 Kustuta sümbol kursori alt, näita täiendusi või teata faililõpust
+22 Lõika kursorist jooksva sõna lõpuni - salvesta lõikepuhvris
+23 Kui alustatud, lisab argumendile, muidu lisab numbri
+24 Number, mis alustab argumenti
+25 Liigu järgmisele ajaloo reale
+26 Sümbolid väiketähtedeks kursorist jooksva sõna lõpuni
+27 Näita faililõppu
+28 Kursor realõppu
+29 Vaheta kursor ja märk
+30 Avalda faili nimes metasümbolid
+31 Avalda ajaloo käsud
+32 Avalda real ajaloo käsud
+33 Avalda muutujad
+34 Liigu sümbol edasi
+35 Liigu edasi jooksva sõna lõppu
+36 Vaheta kursori ees kaks sümbolit
+37 Otsi ajaloos tagasi jooksva rea algusega rida
+38 Otsi ajaloos edasi jooksva rea algusega rida
+39 Lisa eelmise käsu viimane element
+40 Inkrementaalne edaspidi otsing
+41 Inkrementaalne tagurpidi otsing
+42 Puhasta rida
+43 Lõika realõpuni ja salvesta lõikepuhvris
+44 Lõika ala märgist kursorini ja salvesta lõikepuhvris
+45 Lõika kogu rida ja salvesta lõikepuhvris
+46 Näita täiendamise valikud
+47 Näita täiendamise valikuid ignoreerides programmeeritud täiendusi
+48 Näita faili nimes metasümbolite leide
+49 Näita täiendamise valikuid või teavita tühja rea korral faililõpust
+50 Näita masina koormust ja jooksva protsessi olekut
+51 Avalda ajaloo käsud ja lisa tühik
+52 Täida käsklus
+53 Avalda failiteed, eemaldades algusest . ja ..
+54 Avalda käsk failiteeks või aliaseks
+55 Lülita lisamis- või ülekirjutamismood
+56 Lisa järgmisele kirjutatavale sümbolile kaheksas bitt
+57 Lisa järgmine kirjutatav sümbol reale kvoodituna
+58 Näita kõik uuesti
+59 Taaskäivita peatatud toimeti
+60 Esita jooksva käsu abiinfo
+61 See sümbol lisatakse reale
+62 See sümbol on sümboljärjendis esimene
+63 Sea märk
+64 Paranda jooksva sõna õigekirja
+65 Paranda terve rea õigekirja
+66 Saada sümbol terminalile vahendusmoodis
+67 Lülita ajaloo literaalne või leksiline mood
+68 Vaheta kursori alune ja kursorist vasakul asuvad sümbolid
+69 Vaheta kursori ees kaks sümbolit
+70 Tty viivitusega peatamine sümbol
+71 Tty tühjenda väljund sümbol
+72 Tty katkesta sümbol
+73 Tty välju sümbol
+74 Tty peata sümbol
+75 Tty luba väljund sümbol
+76 Tty keela väljund sümbol
+77 Tähistab sidumata sümbolit
+78 Emacsi universaalne argument (argument korda 4)
+79 Liigu eelmisele ajaloo reale
+80 Sümbolid suurtähtedeks kursorist jooksva sõna lõpuni
+81 Vi liigu järgmise sõna algusse
+82 Vi sisene peale kursorit lisamismoodi
+83 Vi sisene rea lõpus lisamismoodi
+84 Vi muuda kursori aluse sümboli suurust ja liigu ühe sümboli võrra edasi
+85 Vi muuda prefiks käsklust
+86 Vi muuda realõpuni
+87 Sisene vi käsumoodi (kasuta alternatiivseid klahvi seoseid)
+88 Vi käsu mood täienda jooksev sõna
+89 Vi liigu eelmisele sümbolile (backspace)
+90 Vi kustuta prefiks käsklus
+91 Vi liigu jooksva tühikuga eraldatud sõna lõppu
+92 Vi liigu jooksva sõna lõppu
+93 Vi liigu tagasi määratud sümbolini
+94 Vi liigu edasi määratud sümbolini
+95 Vi liigu tagasi määratud sümbolile
+96 Vi liigu edasi määratud sümbolile
+97 Sisene vi lisamismoodi
+98 Sisene rea alguses vi lisamismoodi
+99 Vi korda antud sümboli otsimist samas suunas
+100 Vi korda antud sümboli otsimist vastupidises suunas
+101 Vi korda antud otsimist samas suunas
+102 Vi korda antud otsimist vastupidises suunas
+103 Vi asenda kursori alt sümbol järgmisena kirjutatava sümboliga
+104 Vi asendusre¸iim 
+105 Vi otsi ajaloost tagurpidi
+106 Vi otsi ajaloost edaspidi
+107 Vi asenda kursori alune sümbol ja mine sisesamisre¸iimi
+108 Vi asenda kogu rida
+109 Vi mine eelmise sõna juurde
+110 Vi mine järgmise sõna juurde
+111 Vi taasta viimane muutus
+112 Vi mine rea algusse
+113 Käivita jooksval sõnal käsk which
+114 Kleebi lõikepuhver alates kursori positsioonist
+115 Replace just-yanked text with yank from earlier kill
+116 (WIN32 only) Copy cut buffer to system clipboard
+117 (WIN32 only) Paste clipboard buffer at cursor position
+118 (WIN32 only) Convert each '/' in next word to '\\\\'
+119 (WIN32 only) Convert each '/' in previous word to '\\\\'
+120 (WIN32 only) Page visible console window up
+121 (WIN32 only) Page visible console window down

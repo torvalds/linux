@@ -1,0 +1,101 @@
+.\" Copyright (C) 2000 Jason Evans <jasone@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 9, 2010
+.Dt SEM_INIT 3
+.Os
+.Sh NAME
+.Nm sem_init
+.Nd initialize an unnamed semaphore
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In semaphore.h
+.Ft int
+.Fn sem_init "sem_t *sem" "int pshared" "unsigned int value"
+.Sh DESCRIPTION
+The
+.Fn sem_init
+function initializes the unnamed semaphore pointed to by
+.Fa sem
+to have the value
+.Fa value .
+.Pp
+A non-zero value for
+.Fa pshared
+specifies a shared semaphore that can be used by multiple processes,
+the semaphore should be located in shared memory region (see
+.Xr mmap 2 ,
+.Xr shm_open 2 ,
+and
+.Xr shmget 2 ) ,
+any process having read and write access to address
+.Fa sem
+can perform semaphore operations on
+.Fa sem .
+.Pp
+Following a successful call to
+.Fn sem_init ,
+.Fa sem
+can be used as an argument in subsequent calls to
+.Xr sem_wait 3 ,
+.Xr sem_trywait 3 ,
+.Xr sem_post 3 ,
+and
+.Xr sem_destroy 3 .
+The
+.Fa sem
+argument is no longer valid after a successful call to
+.Xr sem_destroy 3 .
+.Sh RETURN VALUES
+.Rv -std sem_init
+.Sh ERRORS
+The
+.Fn sem_init
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa value
+argument exceeds
+.Dv SEM_VALUE_MAX .
+.It Bq Er ENOSPC
+Memory allocation error.
+.El
+.Sh SEE ALSO
+.Xr sem_destroy 3 ,
+.Xr sem_getvalue 3 ,
+.Xr sem_post 3 ,
+.Xr sem_trywait 3 ,
+.Xr sem_wait 3
+.Sh STANDARDS
+The
+.Fn sem_init
+function conforms to
+.St -p1003.1-96 .

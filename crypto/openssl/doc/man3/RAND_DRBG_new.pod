@@ -1,0 +1,127 @@
+=pod
+
+=head1 NAME
+
+RAND_DRBG_new,
+RAND_DRBG_secure_new,
+RAND_DRBG_set,
+RAND_DRBG_set_defaults,
+RAND_DRBG_instantiate,
+RAND_DRBG_uninstantiate,
+RAND_DRBG_free
+- initialize and cleanup a RAND_DRBG instance
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand_drbg.h>
+
+
+ RAND_DRBG *RAND_DRBG_new(int type,
+                          unsigned int flags,
+                          RAND_DRBG *parent);
+
+ RAND_DRBG *RAND_DRBG_secure_new(int type,
+                                 unsigned int flags,
+                                 RAND_DRBG *parent);
+
+ int RAND_DRBG_set(RAND_DRBG *drbg,
+                   int type, unsigned int flags);
+
+ int RAND_DRBG_set_defaults(int type, unsigned int flags);
+
+ int RAND_DRBG_instantiate(RAND_DRBG *drbg,
+                           const unsigned char *pers, size_t perslen);
+
+ int RAND_DRBG_uninstantiate(RAND_DRBG *drbg);
+
+ void RAND_DRBG_free(RAND_DRBG *drbg);
+
+
+=head1 DESCRIPTION
+
+RAND_DRBG_new() and RAND_DRBG_secure_new()
+create a new DRBG instance of the given B<type>, allocated from the heap resp.
+the secure heap
+(using OPENSSL_zalloc() resp. OPENSSL_secure_zalloc()).
+
+RAND_DRBG_set() initializes the B<drbg> with the given B<type> and B<flags>.
+
+RAND_DRBG_set_defaults() sets the default B<type> and B<flags> for new DRBG
+instances.
+
+Currently, all DRBG types are based on AES-CTR, so B<type> can be one of the
+following values: NID_aes_128_ctr, NID_aes_192_ctr, NID_aes_256_ctr.
+Before the DRBG can be used to generate random bits, it is necessary to set
+its type and to instantiate it.
+
+The optional B<flags> argument specifies a set of bit flags which can be
+joined using the | operator. Currently, the only flag is
+RAND_DRBG_FLAG_CTR_NO_DF, which disables the use of a the derivation function
+ctr_df. For an explanation, see [NIST SP 800-90A Rev. 1].
+
+If a B<parent> instance is specified then this will be used instead of
+the default entropy source for reseeding the B<drbg>. It is said that the
+B<drbg> is I<chained> to its B<parent>.
+For more information, see the NOTES section.
+
+
+RAND_DRBG_instantiate()
+seeds the B<drbg> instance using random input from trusted entropy sources.
+Optionally, a personalization string B<pers> of length B<perslen> can be
+specified.
+To omit the personalization string, set B<pers>=NULL and B<perslen>=0;
+
+RAND_DRBG_uninstantiate()
+clears the internal state of the B<drbg> and puts it back in the
+uninstantiated state.
+
+=head1 RETURN VALUES
+
+
+RAND_DRBG_new() and RAND_DRBG_secure_new() return a pointer to a DRBG
+instance allocated on the heap, resp. secure heap.
+
+RAND_DRBG_set(),
+RAND_DRBG_instantiate(), and
+RAND_DRBG_uninstantiate()
+return 1 on success, and 0 on failure.
+
+RAND_DRBG_free() does not return a value.
+
+=head1 NOTES
+
+The DRBG design supports I<chaining>, which means that a DRBG instance can
+use another B<parent> DRBG instance instead of the default entropy source
+to obtain fresh random input for reseeding, provided that B<parent> DRBG
+instance was properly instantiated, either from a trusted entropy source,
+or from yet another parent DRBG instance.
+For a detailed description of the reseeding process, see L<RAND_DRBG(7)>.
+
+The default DRBG type and flags are applied only during creation of a DRBG
+instance.
+To ensure that they are applied to the global and thread-local DRBG instances
+(<master>, resp. <public> and <private>), it is necessary to call
+RAND_DRBG_set_defaults() before creating any thread and before calling any
+cryptographic routines that obtain random data directly or indirectly.
+
+=head1 HISTORY
+
+The RAND_DRBG functions were added in OpenSSL 1.1.1.
+
+=head1 SEE ALSO
+
+L<OPENSSL_zalloc(3)>,
+L<OPENSSL_secure_zalloc(3)>,
+L<RAND_DRBG_generate(3)>,
+L<RAND_DRBG(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

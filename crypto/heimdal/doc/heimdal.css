@@ -1,0 +1,53 @@
+body {
+	color: black;
+	background-color: #fdfdfd;
+	font-family: serif;
+	max-width: 40em;
+}
+h1, h2, h3 {
+	font-family: sans-serif;
+	font-weight: bold;
+}
+h1 {
+    padding: 0.5em 0 0.5em 5%;
+    color: white;
+    background: #3366cc;
+    border-bottom: solid 1px black;
+}
+h1 {
+	font-size: 200%;
+}
+h2 {
+	font-size: 150%;
+}
+h3 {
+	font-size: 120%;
+}
+h4 {
+	font-weight: bold;
+}
+pre.example {
+	margin-left: 2em;
+	padding: 1em 0em;
+	border: 2px dashed #c0c0c0;
+	background: #f0f0f0;
+}
+a:link {
+  color: blue;
+  text-decoration: none;
+}
+a:visited {
+  color: red;
+  text-decoration: none
+}
+a:hover {
+  text-decoration: underline
+}
+span.literal {
+	font-family: monospace;
+}
+hr {
+	border-style: none;
+	background-color: black;
+	height: 1px;
+}

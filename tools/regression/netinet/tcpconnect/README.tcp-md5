@@ -1,0 +1,30 @@
+# $FreeBSD$
+
+To test tcp-md5 do:
+
+* compile and install kernel with TCP_SIGNATURE support
+
+* add this to /etc/ipsec.conf (the md5 'secret' is just a sample)
+	add 127.0.0.1 127.0.0.1 tcp 0x1000 -A tcp-md5 "0e3a9ac42ceca8260f1d6fbc46a9707c";
+
+* enable it in /etc/rc.conf with
+	ipsec_enable="YES"
+  and apply it with sh /etc/rc.d/ipsec start
+
+ [ off course you can also manually add it using setkey(8) ]
+
+* compile tcpconnect in here running:
+    make
+
+* start tcpdump (secret as above, port is just a sample):
+    tcpdump -l -n -i lo0 -s 0 -M "0e3a9ac42ceca8260f1d6fbc46a9707c" tcp and port 2345
+
+* run the server (use same port as given to tcpdump):
+    ./tcpconnect server 2345
+
+* run the client (use same port as given to tcpdump):
+    ./tcpconnect client 127.0.0.1 2345 1 tcpmd5
+
+* check tcpdump output
+
+# end

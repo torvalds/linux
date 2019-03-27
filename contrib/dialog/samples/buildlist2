@@ -1,0 +1,42 @@
+#!/bin/sh
+# $Id: buildlist2,v 1.6 2012/12/23 22:28:12 tom Exp $
+
+. ./setup-vars
+
+. ./setup-edit
+
+count=0
+ls -1 | while true
+do
+	read filename
+	test -z "$filename" && break
+	case $filename in
+	*.*)
+		state=off
+		;;
+	*-*)
+		state=on
+		;;
+	*)
+		continue
+		;;
+	esac
+	case "x$DIALOGOPTS" in
+	*--no-items*|*--noitem*)
+		echo $filename $state >>$input
+		;;
+	*)
+		echo $count $filename $state >>$input
+		;;
+	esac
+	count=`expr $count + 1`
+done
+
+$DIALOG --title "BUILDLIST DEMO" --backtitle "A user-built list" \
+	--visit-items --scrollbar --separator "|" \
+	--buildlist "hello, this is a --buildlist..." 0 0 10 `cat $input` 2> $output
+
+retval=$?
+
+tempfile=$output
+. ./report-tempfile

@@ -1,0 +1,204 @@
+=pod
+
+=head1 NAME
+
+OSSL_STORE_INFO, OSSL_STORE_INFO_get_type, OSSL_STORE_INFO_get0_NAME,
+OSSL_STORE_INFO_get0_NAME_description, OSSL_STORE_INFO_get0_PARAMS,
+OSSL_STORE_INFO_get0_PKEY, OSSL_STORE_INFO_get0_CERT, OSSL_STORE_INFO_get0_CRL,
+OSSL_STORE_INFO_get1_NAME, OSSL_STORE_INFO_get1_NAME_description,
+OSSL_STORE_INFO_get1_PARAMS, OSSL_STORE_INFO_get1_PKEY,
+OSSL_STORE_INFO_get1_CERT,
+OSSL_STORE_INFO_get1_CRL, OSSL_STORE_INFO_type_string, OSSL_STORE_INFO_free,
+OSSL_STORE_INFO_new_NAME, OSSL_STORE_INFO_set0_NAME_description,
+OSSL_STORE_INFO_new_PARAMS, OSSL_STORE_INFO_new_PKEY, OSSL_STORE_INFO_new_CERT,
+OSSL_STORE_INFO_new_CRL - Functions to manipulate OSSL_STORE_INFO objects
+
+=head1 SYNOPSIS
+
+ #include <openssl/store.h>
+
+ typedef struct ossl_store_info_st OSSL_STORE_INFO;
+
+ int OSSL_STORE_INFO_get_type(const OSSL_STORE_INFO *store_info);
+ const char *OSSL_STORE_INFO_get0_NAME(const OSSL_STORE_INFO *store_info);
+ char *OSSL_STORE_INFO_get1_NAME(const OSSL_STORE_INFO *store_info);
+ const char *OSSL_STORE_INFO_get0_NAME_description(const OSSL_STORE_INFO
+                                                   *store_info);
+ char *OSSL_STORE_INFO_get1_NAME_description(const OSSL_STORE_INFO *store_info);
+ EVP_PKEY *OSSL_STORE_INFO_get0_PARAMS(const OSSL_STORE_INFO *store_info);
+ EVP_PKEY *OSSL_STORE_INFO_get1_PARAMS(const OSSL_STORE_INFO *store_info);
+ EVP_PKEY *OSSL_STORE_INFO_get0_PKEY(const OSSL_STORE_INFO *store_info);
+ EVP_PKEY *OSSL_STORE_INFO_get1_PKEY(const OSSL_STORE_INFO *store_info);
+ X509 *OSSL_STORE_INFO_get0_CERT(const OSSL_STORE_INFO *store_info);
+ X509 *OSSL_STORE_INFO_get1_CERT(const OSSL_STORE_INFO *store_info);
+ X509_CRL *OSSL_STORE_INFO_get0_CRL(const OSSL_STORE_INFO *store_info);
+ X509_CRL *OSSL_STORE_INFO_get1_CRL(const OSSL_STORE_INFO *store_info);
+
+ const char *OSSL_STORE_INFO_type_string(int type);
+
+ void OSSL_STORE_INFO_free(OSSL_STORE_INFO *store_info);
+
+ OSSL_STORE_INFO *OSSL_STORE_INFO_new_NAME(char *name);
+ int OSSL_STORE_INFO_set0_NAME_description(OSSL_STORE_INFO *info, char *desc);
+ OSSL_STORE_INFO *OSSL_STORE_INFO_new_PARAMS(DSA *dsa_params);
+ OSSL_STORE_INFO *OSSL_STORE_INFO_new_PKEY(EVP_PKEY *pkey);
+ OSSL_STORE_INFO *OSSL_STORE_INFO_new_CERT(X509 *x509);
+ OSSL_STORE_INFO *OSSL_STORE_INFO_new_CRL(X509_CRL *crl);
+
+=head1 DESCRIPTION
+
+These functions are primarily useful for applications to retrieve
+supported objects from B<OSSL_STORE_INFO> objects and for scheme specific
+loaders to create B<OSSL_STORE_INFO> holders.
+
+=head2 Types
+
+B<OSSL_STORE_INFO> is an opaque type that's just an intermediary holder for
+the objects that have been retrieved by OSSL_STORE_load() and similar
+functions.
+Supported OpenSSL type object can be extracted using one of
+STORE_INFO_get0_TYPE().
+The life time of this extracted object is as long as the life time of
+the B<OSSL_STORE_INFO> it was extracted from, so care should be taken not
+to free the latter too early.
+As an alternative, STORE_INFO_get1_TYPE() extracts a duplicate (or the
+same object with its reference count increased), which can be used
+after the containing B<OSSL_STORE_INFO> has been freed.
+The object returned by STORE_INFO_get1_TYPE() must be freed separately
+by the caller.
+See L</SUPPORTED OBJECTS> for more information on the types that are
+supported.
+
+=head2 Functions
+
+OSSL_STORE_INFO_get_type() takes a B<OSSL_STORE_INFO> and returns the STORE
+type number for the object inside.
+STORE_INFO_get_type_string() takes a STORE type number and returns a
+short string describing it.
+
+OSSL_STORE_INFO_get0_NAME(), OSSL_STORE_INFO_get0_NAME_description(),
+OSSL_STORE_INFO_get0_PARAMS(), OSSL_STORE_INFO_get0_PKEY(),
+OSSL_STORE_INFO_get0_CERT() and OSSL_STORE_INFO_get0_CRL() all take a
+B<OSSL_STORE_INFO> and return the held object of the appropriate OpenSSL
+type provided that's what's held.
+
+OSSL_STORE_INFO_get1_NAME(), OSSL_STORE_INFO_get1_NAME_description(),
+OSSL_STORE_INFO_get1_PARAMS(), OSSL_STORE_INFO_get1_PKEY(),
+OSSL_STORE_INFO_get1_CERT() and OSSL_STORE_INFO_get1_CRL() all take a
+B<OSSL_STORE_INFO> and return a duplicate of the held object of the
+appropriate OpenSSL type provided that's what's held.
+
+OSSL_STORE_INFO_free() frees a B<OSSL_STORE_INFO> and its contained type.
+
+OSSL_STORE_INFO_new_NAME() , OSSL_STORE_INFO_new_PARAMS(),
+OSSL_STORE_INFO_new_PKEY(), OSSL_STORE_INFO_new_CERT() and
+OSSL_STORE_INFO_new_CRL() create a B<OSSL_STORE_INFO>
+object to hold the given input object.
+Additionally, for B<OSSL_STORE_INFO_NAME>` objects,
+OSSL_STORE_INFO_set0_NAME_description() can be used to add an extra
+description.
+This description is meant to be human readable and should be used for
+information printout.
+
+=head1 SUPPORTED OBJECTS
+
+Currently supported object types are:
+
+=over 4
+
+=item OSSL_STORE_INFO_NAME
+
+A name is exactly that, a name.
+It's like a name in a directory, but formatted as a complete URI.
+For example, the path in URI C<file:/foo/bar/> could include a file
+named C<cookie.pem>, and in that case, the returned B<OSSL_STORE_INFO_NAME>
+object would have the URI C<file:/foo/bar/cookie.pem>, which can be
+used by the application to get the objects in that file.
+This can be applied to all schemes that can somehow support a listing
+of object URIs.
+
+For C<file:> URIs that are used without the explicit scheme, the
+returned name will be the path of each object, so if C</foo/bar> was
+given and that path has the file C<cookie.pem>, the name
+C</foo/bar/cookie.pem> will be returned.
+
+The returned URI is considered canonical and must be unique and permanent
+for the storage where the object (or collection of objects) resides.
+Each loader is responsible for ensuring that it only returns canonical
+URIs.
+However, it's possible that certain schemes allow an object (or collection
+thereof) to be reached with alternative URIs; just because one URI is
+canonical doesn't mean that other variants can't be used.
+
+At the discretion of the loader that was used to get these names, an
+extra description may be attached as well.
+
+=item OSSL_STORE_INFO_PARAMS
+
+Key parameters.
+
+=item OSSL_STORE_INFO_PKEY
+
+A private/public key of some sort.
+
+=item OSSL_STORE_INFO_CERT
+
+An X.509 certificate.
+
+=item OSSL_STORE_INFO_CRL
+
+A X.509 certificate revocation list.
+
+=back
+
+=head1 RETURN VALUES
+
+OSSL_STORE_INFO_get_type() returns the STORE type number of the given
+B<OSSL_STORE_INFO>.
+There is no error value.
+
+OSSL_STORE_INFO_get0_NAME(), OSSL_STORE_INFO_get0_NAME_description(),
+OSSL_STORE_INFO_get0_PARAMS(), OSSL_STORE_INFO_get0_PKEY(),
+OSSL_STORE_INFO_get0_CERT() and OSSL_STORE_INFO_get0_CRL() all return
+a pointer to the OpenSSL object on success, NULL otherwise.
+
+OSSL_STORE_INFO_get0_NAME(), OSSL_STORE_INFO_get0_NAME_description(),
+OSSL_STORE_INFO_get0_PARAMS(), OSSL_STORE_INFO_get0_PKEY(),
+OSSL_STORE_INFO_get0_CERT() and OSSL_STORE_INFO_get0_CRL() all return
+a pointer to a duplicate of the OpenSSL object on success, NULL otherwise.
+
+OSSL_STORE_INFO_type_string() returns a string on success, or B<NULL> on
+failure.
+
+OSSL_STORE_INFO_new_NAME(), OSSL_STORE_INFO_new_PARAMS(),
+OSSL_STORE_INFO_new_PKEY(), OSSL_STORE_INFO_new_CERT() and
+OSSL_STORE_INFO_new_CRL() return a B<OSSL_STORE_INFO>
+pointer on success, or B<NULL> on failure.
+
+OSSL_STORE_INFO_set0_NAME_description() returns 1 on success, or 0 on
+failure.
+
+=head1 SEE ALSO
+
+L<ossl_store(7)>, L<OSSL_STORE_open(3)>, L<OSSL_STORE_register_loader(3)>
+
+=head1 HISTORY
+
+OSSL_STORE_INFO(), OSSL_STORE_INFO_get_type(), OSSL_STORE_INFO_get0_NAME(),
+OSSL_STORE_INFO_get0_PARAMS(), OSSL_STORE_INFO_get0_PKEY(),
+OSSL_STORE_INFO_get0_CERT(), OSSL_STORE_INFO_get0_CRL(),
+OSSL_STORE_INFO_type_string(), OSSL_STORE_INFO_free(), OSSL_STORE_INFO_new_NAME(),
+OSSL_STORE_INFO_new_PARAMS(), OSSL_STORE_INFO_new_PKEY(),
+OSSL_STORE_INFO_new_CERT() and OSSL_STORE_INFO_new_CRL()
+were added in OpenSSL 1.1.1.
+
+=head1 COPYRIGHT
+
+Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

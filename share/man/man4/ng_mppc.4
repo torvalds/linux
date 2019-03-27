@@ -1,0 +1,186 @@
+.\" Copyright (c) 1996-2000 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $Whistle: ng_mppc.8,v 1.1 1999/12/08 20:20:39 archie Exp $
+.\" $FreeBSD$
+.\"
+.Dd June 7, 2016
+.Dt NG_MPPC 4
+.Os
+.Sh NAME
+.Nm ng_mppc
+.Nd Microsoft MPPC/MPPE compression and encryption netgraph node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph/ng_mppc.h
+.Sh DESCRIPTION
+The
+.Nm mppc
+node type implements the Microsoft Point-to-Point Compression (MPPC)
+and Microsoft Point-to-Point Encryption (MPPE) sub-protocols of
+the PPP protocol.
+These protocols are often used in conjunction with the Point-to-Point
+Tunneling Protocol (PPTP).
+.Pp
+The node has two hooks,
+.Dv "comp"
+for compression and
+.Dv "decomp"
+for decompression.
+Typically one or both of these hooks would be connected to the
+.Xr ng_ppp 4
+node type hook of the same name.
+Each direction of traffic flow is independent of the other.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va decomp"
+.It Va comp
+Connection to
+.Xr ng_ppp 4
+.Dv "comp"
+hook.
+Incoming frames are compressed and/or encrypted, and sent
+back out the same hook.
+.It Va decomp
+Connection to
+.Xr ng_ppp 4
+.Dv "decomp"
+hook.
+Incoming frames are decompressed and/or decrypted, and sent
+back out the same hook.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_MPPC_CONFIG_COMP
+This command resets and configures the node for a session in the
+outgoing traffic direction (i.e., for compression and/or encryption).
+This command takes a
+.Dv "struct ng_mppc_config"
+as an argument:
+.Bd -literal -offset 0n
+/* Length of MPPE key */
+#define MPPE_KEY_LEN      16
+
+/* MPPC/MPPE PPP negotiation bits */
+#define MPPC_BIT          0x00000001      /* mppc compression bits */
+#define MPPE_40           0x00000020      /* use 40 bit key */
+#define MPPE_56           0x00000080      /* use 56 bit key */
+#define MPPE_128          0x00000040      /* use 128 bit key */
+#define MPPE_BITS         0x000000e0      /* mppe encryption bits */
+#define MPPE_STATELESS    0x01000000      /* use stateless mode */
+#define MPPC_VALID_BITS   0x010000e1      /* possibly valid bits */
+
+/* Configuration for a session */
+struct ng_mppc_config {
+    u_char    enable;                 /* enable */
+    uint32_t  bits;                   /* config bits */
+    u_char    startkey[MPPE_KEY_LEN]; /* start key */
+};
+
+.Ed
+The
+.Dv enabled
+field enables traffic flow through the node.
+The
+.Dv bits
+field contains the bits as negotiated by the Compression Control Protocol
+(CCP) in PPP.
+The
+.Dv startkey
+is only necessary if MPPE was negotiated, and must be equal to the
+session start key as defined for MPPE.
+This key is based on the MS-CHAP credentials used at link authentication time.
+.It Dv NGM_MPPC_CONFIG_DECOMP
+This command resets and configures the node for a session in the
+incoming traffic direction (i.e., for decompression and/or decryption).
+This command takes a
+.Dv "struct ng_mppc_config"
+as an argument.
+.It Dv NGM_MPPC_RESETREQ
+This message contains no arguments, and is bi-directional.
+If an error is detected during decompression, this message is sent by the
+node to the originator of the
+.Dv NGM_MPPC_CONFIG_DECOMP
+message that initiated the session.
+The receiver should respond by sending a PPP CCP Reset-Request to the peer.
+.Pp
+This message may also be received by this node type when a CCP Reset-Request
+is received by the local PPP entity.
+The node will respond by flushing its outgoing compression and encryption
+state so the remote side can resynchronize.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when both hooks have been disconnected.
+.Sh COMPILATION
+The kernel options
+.Dv NETGRAPH_MPPC_COMPRESSION
+and
+.Dv NETGRAPH_MPPC_ENCRYPTION
+are supplied to selectively compile in either or both capabilities.
+At least one of these must be defined, or else this node type is useless.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_ppp 4 ,
+.Xr ngctl 8
+.Rs
+.%A G. Pall
+.%T "Microsoft Point-To-Point Compression (MPPC) Protocol"
+.%O RFC 2118
+.Re
+.Rs
+.%A G. S. Pall
+.%A G. Zorn
+.%T "Microsoft Point-To-Point Encryption (MPPE) Protocol"
+.%O draft-ietf-pppext-mppe-04.txt
+.Re
+.Rs
+.%A K. Hamzeh
+.%A G. Pall
+.%A W. Verthein
+.%A J. Taarud
+.%A W. Little
+.%A G. Zorn
+.%T "Point-to-Point Tunneling Protocol (PPTP)"
+.%O RFC 2637
+.Re
+.Sh AUTHORS
+.An Archie Cobbs Aq Mt archie@FreeBSD.org
+.Sh BUGS
+In PPP, encryption should be handled by the Encryption Control Protocol (ECP)
+rather than CCP.
+However, Microsoft combined both compression and encryption into their
+``compression'' algorithm, which is confusing.

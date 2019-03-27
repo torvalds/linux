@@ -1,0 +1,21 @@
+// -*- C++ -*-
+//===------------------------ string_view ---------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+#ifndef _LIBCPP_EXPERIMENTAL_STRING_VIEW
+#define _LIBCPP_EXPERIMENTAL_STRING_VIEW
+
+#include <__config>
+
+#ifdef _LIBCPP_WARNING
+_LIBCPP_WARNING("<experimental/string_view> has been removed. Use <string_view> instead.")
+#else
+# warning "<experimental/string_view> has been removed. Use <string_view> instead."
+#endif
+
+#endif // _LIBCPP_EXPERIMENTAL_STRING_VIEW

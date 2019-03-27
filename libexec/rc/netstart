@@ -1,0 +1,57 @@
+#!/bin/sh -
+#
+# Copyright (c) 1993  The FreeBSD Project
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#	From: @(#)netstart	5.9 (Berkeley) 3/30/91
+#
+
+# This file is NOT called by any of the other scripts - it has been
+# obsoleted by /etc/rc.d/* and is provided here only for user
+# convenience (if you're sitting in single user mode and wish to start
+# the network by hand, this script will do it for you).
+#
+
+_start=quietstart
+
+/etc/rc.d/devd ${_start}
+/etc/rc.d/hostid ${_start}
+/etc/rc.d/hostname ${_start}
+/etc/rc.d/ipmon ${_start}
+/etc/rc.d/ipfilter ${_start}
+/etc/rc.d/ipnat ${_start}
+/etc/rc.d/ipfs ${_start}
+/etc/rc.d/sppp ${_start}
+/etc/rc.d/netif ${_start}
+/etc/rc.d/ipsec ${_start}
+/etc/rc.d/ppp ${_start}
+/etc/rc.d/ipfw ${_start}
+/etc/rc.d/routing ${_start}
+/etc/rc.d/route6d ${_start}
+/etc/rc.d/routed ${_start}
+/etc/rc.d/rtsold ${_start}
+/etc/rc.d/nisdomain ${_start}
+
+exit 0

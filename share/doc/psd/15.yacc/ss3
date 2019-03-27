@@ -1,0 +1,141 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ss3	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+3: Lexical Analysis
+.PP
+The user must supply a lexical analyzer to read the input stream and communicate tokens
+(with values, if desired) to the parser.
+The lexical analyzer is an integer-valued function called
+.I yylex .
+The function returns an integer, the
+.I "token number" ,
+representing the kind of token read.
+If there is a value associated with that token, it should be assigned
+to the external variable
+.I yylval .
+.PP
+The parser and the lexical analyzer must agree on these token numbers in order for
+communication between them to take place.
+The numbers may be chosen by Yacc, or chosen by the user.
+In either case, the ``# define'' mechanism of C is used to allow the lexical analyzer
+to return these numbers symbolically.
+For example, suppose that the token name DIGIT has been defined in the declarations section of the
+Yacc specification file.
+The relevant portion of the lexical analyzer might look like:
+.DS
+yylex(){
+	extern int yylval;
+	int c;
+	. . .
+	c = getchar();
+	. . .
+	switch( c ) {
+		. . .
+	case \'0\':
+	case \'1\':
+	  . . .
+	case \'9\':
+		yylval = c\-\'0\';
+		return( DIGIT );
+		. . .
+		}
+	. . .
+.DE
+.PP
+The intent is to return a token number of DIGIT, and a value equal to the numerical value of the
+digit.
+Provided that the lexical analyzer code is placed in the programs section of the specification file,
+the identifier DIGIT will be defined as the token number associated
+with the token DIGIT.
+.PP
+This mechanism leads to clear,
+easily modified lexical analyzers; the only pitfall is the need
+to avoid using any token names in the grammar that are reserved
+or significant in C or the parser; for example, the use of
+token names
+.I if
+or
+.I while
+will almost certainly cause severe
+difficulties when the lexical analyzer is compiled.
+The token name
+.I error
+is reserved for error handling, and should not be used naively
+(see Section 7).
+.PP
+As mentioned above, the token numbers may be chosen by Yacc or by the user.
+In the default situation, the numbers are chosen by Yacc.
+The default token number for a literal
+character is the numerical value of the character in the local character set.
+Other names are assigned token numbers
+starting at 257.
+.PP
+To assign a token number to a token (including literals),
+the first appearance of the token name or literal
+.I
+in the declarations section
+.R
+can be immediately followed by
+a nonnegative integer.
+This integer is taken to be the token number of the name or literal.
+Names and literals not defined by this mechanism retain their default definition.
+It is important that all token numbers be distinct.
+.PP
+For historical reasons, the endmarker must have token
+number 0 or negative.
+This token number cannot be redefined by the user; thus, all
+lexical analyzers should be prepared to return 0 or negative as a token number
+upon reaching the end of their input.
+.PP
+A very useful tool for constructing lexical analyzers is
+the
+.I Lex
+program developed by Mike Lesk.
+.[
+Lesk Lex
+.]
+These lexical analyzers are designed to work in close
+harmony with Yacc parsers.
+The specifications for these lexical analyzers
+use regular expressions instead of grammar rules.
+Lex can be easily used to produce quite complicated lexical analyzers,
+but there remain some languages (such as FORTRAN) which do not
+fit any theoretical framework, and whose lexical analyzers
+must be crafted by hand.

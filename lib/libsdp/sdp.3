@@ -1,0 +1,435 @@
+.\" Copyright (c) 2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: sdp.3,v 1.1 2003/09/07 20:34:19 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd April 30, 2018
+.Dt SDP 3
+.Os
+.Sh NAME
+.Nm SDP_GET8 ,
+.Nm SDP_GET16 ,
+.Nm SDP_GET32 ,
+.Nm SDP_GET64 ,
+.Nm SDP_GET128 ,
+.Nm SDP_GET_UUID128 ,
+.Nm SDP_PUT8 ,
+.Nm SDP_PUT16 ,
+.Nm SDP_PUT32 ,
+.Nm SDP_PUT64 ,
+.Nm SDP_PUT128 ,
+.Nm SDP_PUT_UUID128 ,
+.Nm sdp_open ,
+.Nm sdp_open_local ,
+.Nm sdp_close ,
+.Nm sdp_error ,
+.Nm sdp_get_lcaddr ,
+.Nm sdp_search ,
+.Nm sdp_attr2desc ,
+.Nm sdp_uuid2desc
+.Nd Bluetooth SDP routines
+.Sh LIBRARY
+.Lb libsdp
+.Sh SYNOPSIS
+.In bluetooth.h
+.In sdp.h
+.Fn SDP_GET8 "b" "cp"
+.Fn SDP_GET16 "s" "cp"
+.Fn SDP_GET32 "l" "cp"
+.Fn SDP_GET64 "l" "cp"
+.Fn SDP_GET128 "l" "cp"
+.Fn SDP_GET_UUID128 "l" "cp"
+.Fn SDP_PUT8 "b" "cp"
+.Fn SDP_PUT16 "s" "cp"
+.Fn SDP_PUT32 "l" "cp"
+.Fn SDP_PUT64 "l" "cp"
+.Fn SDP_PUT128 "l" "cp"
+.Fn SDP_PUT_UUID128 "l" "cp"
+.Ft "void *"
+.Fn sdp_open "bdaddr_t const *l" "bdaddr_t const *r"
+.Ft "void *"
+.Fn sdp_open_local "char const *control"
+.Ft int32_t
+.Fn sdp_close "void *xs"
+.Ft int32_t
+.Fn sdp_error "void *xs"
+.Ft int32_t
+.Fn sdp_get_lcaddr "void *xs" "bdaddr_t *l"
+.Ft int32_t
+.Fo sdp_search
+.Fa "void *xs" "uint32_t plen" "uint16_t const *pp" "uint32_t alen"
+.Fa "uint32_t const *ap" "uint32_t vlen" "sdp_attr_t *vp"
+.Fc
+.Ft "char const * const"
+.Fn sdp_attr2desc "uint16_t attr"
+.Ft "char const * const"
+.Fn sdp_uuid2desc "uint16_t uuid"
+.Ft int32_t
+.Fo sdp_register_service
+.Fa "void *xss" "uint16_t uuid" "bdaddr_p const bdaddr" "uint8_t const *data"
+.Fa "uint32_t datalen" "uint32_t *handle"
+.Fc
+.Ft int32_t
+.Fn sdp_unregister_service "void *xss" "uint32_t handle"
+.Ft int32_t
+.Fo sdp_change_service
+.Fa "void *xss" "uint32_t handle" "uint8_t const *data" "uint32_t datalen"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn SDP_GET8 ,
+.Fn SDP_GET16 ,
+.Fn SDP_GET32 ,
+.Fn SDP_GET64
+and
+.Fn SDP_GET128
+macros are used to get byte, short, long, long long and 128-bit integer
+from the buffer pointed by
+.Fa cp
+pointer.
+The pointer is automatically advanced.
+.Pp
+The
+.Fn SDP_PUT8 ,
+.Fn SDP_PUT16 ,
+.Fn SDP_PUT32 ,
+.Fn SDP_PUT64
+and
+.Fn SDP_PUT128
+macros are used to put byte, short, long, long long and 128-bit integer
+into the buffer pointed by
+.Fa cp
+pointer.
+The pointer is automatically advanced.
+.Pp
+.Fn SDP_GET_UUID128
+and
+.Fn SDP_PUT_UUID128
+macros are used to get and put 128-bit UUID into the buffer pointed by
+.Fa cp
+pointer.
+The pointer is automatically advanced.
+.Pp
+The
+.Fn sdp_open
+and
+.Fn sdp_open_local
+functions each return a pointer to an opaque object describing SDP session.
+The
+.Fa l
+argument passed to
+.Fn sdp_open
+function should point to a source BD_ADDR.
+If source BD_ADDR is
+.Dv NULL
+then source address
+.Dv NG_HCI_BDADDR_ANY
+is used.
+The
+.Fa r
+argument passed to
+.Fn sdp_open
+function should point to a
+.Pf non- Dv NULL
+remote BD_ADDR.
+Remote BD_ADDR cannot be
+.Dv NG_HCI_BDADDR_ANY .
+The
+.Fn sdp_open_local
+function takes path to the control socket and opens a connection to a local
+SDP server.
+If path to the control socket is
+.Dv NULL
+then default
+.Pa /var/run/sdp
+path will be used.
+.Pp
+The
+.Fn sdp_close
+function terminates active SDP session and deletes SDP session object.
+The
+.Fa xs
+parameter should point to a valid SDP session object created with
+.Fn sdp_open
+or
+.Fn sdp_open_local .
+.Pp
+The
+.Fn sdp_error
+function returns last error that is stored inside SDP session object.
+The
+.Fa xs
+parameter should point to a valid SDP session object created with
+.Fn sdp_open
+or
+.Fn sdp_open_local .
+The error value returned can be converted to a human readable message by
+calling
+.Xr strerror 3
+function.
+.Pp
+The
+.Fn sdp_get_lcaddr
+function returns the SDP session actual source BD_ADDR.
+The
+.Fa xs
+parameter should point to a valid SDP session object created with
+.Fn sdp_open .
+The
+.Fa l
+parameter should point to a buffer in which the value for the requested BD_ADDR
+is to be returned.
+.Fn sdp_get_lcaddr
+function is useful if the current SDP session has been opened with the
+.Dv NG_HCI_BDADDR_ANY
+value passed as a source address.
+.Pp
+The
+.Fn sdp_search
+function is used to perform SDP Service Search Attribute Request.
+The
+.Fa xs
+parameter should point to a valid SDP session object created with
+.Fn sdp_open
+or
+.Fn sdp_open_local .
+The
+.Fa pp
+parameter is a Service Search Pattern - an array of one or more Service
+Class IDs.
+The maximum number of Service Class IDs in the array is 12.
+The
+.Fa plen
+parameter is the length of the Service Search pattern.
+The
+.Fa ap
+parameter is an Attribute ID Range List - an array of one or more SDP Attribute
+ID Range.
+Each attribute ID Range is encoded as a 32-bit unsigned integer data
+element, where the high order 16 bits are interpreted as the beginning
+attribute ID of the range and the low order 16 bits are interpreted as the
+ending attribute ID of the range.
+The attribute IDs contained in the Attribute ID Ranges List must be listed in
+ascending order without duplication of any attribute ID values.
+Note that all attributes may be requested by specifying a range of
+0x0000-0xFFFF.
+The
+.Fa alen
+parameter is the length of the Attribute ID Ranges List.
+The
+.Fn SDP_ATTR_RANGE "lo" "hi"
+macro can be used to prepare Attribute ID Range.
+The
+.Fa vp
+parameter should be an array of
+.Vt sdp_attr_t
+structures.
+Each
+.Vt sdp_attr_t
+structure describes single SDP attribute and defined as follows:
+.Bd -literal -offset indent
+struct sdp_attr {
+        uint16_t        flags;
+#define SDP_ATTR_OK             (0 << 0)
+#define SDP_ATTR_INVALID        (1 << 0)
+#define SDP_ATTR_TRUNCATED      (1 << 1)
+        uint16_t        attr;  /* SDP_ATTR_xxx */
+        uint32_t        vlen;  /* length of the value[] in bytes */
+        uint8_t        *value; /* base pointer */
+};
+typedef struct sdp_attr         sdp_attr_t;
+typedef struct sdp_attr *       sdp_attr_p;
+.Ed
+.Pp
+The caller of the
+.Fn sdp_search
+function is expected to prepare the array of
+.Vt sdp_attr
+structures and for each element of the array both
+.Va vlen
+and
+.Va value
+must be set.
+The
+.Fn sdp_search
+function will fill each
+.Vt sdp_attr_t
+structure with attribute and value, i.e., it will set
+.Va flags ,
+.Va attr
+and
+.Va vlen
+fields.
+The actual value of the attribute will be copied into
+.Va value
+buffer.
+Note: attributes are returned in the order they appear in the Service Search
+Attribute Response.
+SDP server could return several attributes for the same record.
+In this case the order of the attributes will be: all attributes for the first
+records, then all attributes for the second record etc.
+.Pp
+The
+.Fn sdp_attr2desc
+and
+.Fn sdp_uuid2desc
+functions each take a numeric attribute ID/UUID value and convert it to a
+human readable description.
+.Pp
+The
+.Fn sdp_register_service
+function
+is used to register service with the local SDP server.
+The
+.Fa xss
+parameter should point to a valid SDP session object obtained from
+.Fn sdp_open_local .
+The
+.Fa uuid
+parameter is a SDP Service Class ID for the service to be registered.
+The
+.Fa bdaddr
+parameter should point to a valid BD_ADDR.
+The service will be only advertised if request was received by the local device
+with
+.Fa bdaddr .
+If
+.Fa bdaddr
+is set to
+.Dv NG_HCI_BDADDR_ANY
+then the service will be advertised to any remote devices that queries for it.
+The
+.Fa data
+and
+.Fa datalen
+parameters specify data and size of the data for the service.
+Upon successful return
+.Fn sdp_register_service
+will populate
+.Fa handle
+with the SDP record handle.
+This parameter is optional and can be set to
+.Dv NULL .
+.Pp
+The
+.Fn sdp_unregister_service
+function
+is used to unregister service with the local SDP server.
+The
+.Fa xss
+parameter should point to a valid SDP session object obtained from
+.Fn sdp_open_local .
+The
+.Fa handle
+parameter should contain a valid SDP record handle of the service to be
+unregistered.
+.Pp
+The
+.Fn sdp_change_service
+function is used to change data associated with the existing service on
+the local SDP server.
+The
+.Fa xss
+parameter should point to a valid SDP session object obtained from
+.Fn sdp_open_local .
+The
+.Fa handle
+parameter should contain a valid SDP record handle of the service to be changed.
+The
+.Fa data
+and
+.Fa datalen
+parameters specify data and size of the data for the service.
+.Sh CAVEAT
+When registering services with the local SDP server the application must
+keep the SDP session open.
+If SDP session is closed then the local SDP server will remove all services
+that were registered over the session.
+The application is allowed to change or unregister service if it was registered
+over the same session.
+.Sh EXAMPLES
+The following example shows how to get
+.Dv SDP_ATTR_PROTOCOL_DESCRIPTOR_LIST
+attribute for the
+.Dv SDP_SERVICE_CLASS_SERIAL_PORT
+service from the remote device.
+.Bd -literal -offset indent
+bdaddr_t       remote;
+uint8_t        buffer[1024];
+void          *ss    = NULL;
+uint16_t       serv  = SDP_SERVICE_CLASS_SERIAL_PORT;
+uint32_t       attr  = SDP_ATTR_RANGE(
+                            SDP_ATTR_PROTOCOL_DESCRIPTOR_LIST,
+                            SDP_ATTR_PROTOCOL_DESCRIPTOR_LIST);
+sdp_attr_t     proto = { SDP_ATTR_INVALID,0,sizeof(buffer),buffer };
+
+/* Obtain/set remote BDADDR here */
+
+if ((ss = sdp_open(NG_HCI_BDADDR_ANY, remote)) == NULL)
+        /* exit ENOMEM */
+if (sdp_error(ss) != 0)
+        /* exit sdp_error(ss) */
+
+if (sdp_search(ss, 1, &serv, 1, &attr, 1, &proto) != 0)
+        /* exit sdp_error(ss) */
+
+if (proto.flags != SDP_ATTR_OK)
+        /* exit see proto.flags for details */
+
+/* If we got here then we have attribute value in proto.value */
+.Ed
+.Sh DIAGNOSTICS
+Both
+.Fn sdp_open
+and
+.Fn sdp_open_local
+will return
+.Dv NULL
+if memory allocation for the new SDP session object fails.
+If the new SDP object was created then caller is still expected to call
+.Fn sdp_error
+to check if there was connection error.
+.Pp
+The
+.Fn sdp_get_lcaddr ,
+.Fn sdp_search ,
+.Fn sdp_register_service ,
+.Fn sdp_unregister_service ,
+and
+.Fn sdp_change_service
+functions return non-zero value on error.
+The caller is expected to call
+.Fn sdp_error
+to find out more about error.
+.Sh SEE ALSO
+.Xr bluetooth 3 ,
+.Xr strerror 3 ,
+.Xr sdpcontrol 8 ,
+.Xr sdpd 8
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh BUGS
+Most likely.
+Please report bugs if found.

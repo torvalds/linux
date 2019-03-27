@@ -1,0 +1,10 @@
+$ $tcsh: set11,v 1.2 2006/03/02 18:46:48 christos Exp $
+$ sh.c
+$set 11 
+1 Aviso: no se puede acceder a la tty (%s).\n
+2 Por ello no hay control de trabajos en esta shell.\n
+3 Tiene %d mensajes de correo.\n
+4 Tiene %d mensajes de correo en %s.\n
+5 Tiene correo%s.\n
+6  nuevo
+7 Tiene correo%s en %s.\n

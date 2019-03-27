@@ -1,0 +1,49 @@
+=pod
+
+=head1 NAME
+
+CTLOG_STORE_get0_log_by_id -
+Get a Certificate Transparency log from a CTLOG_STORE
+
+=head1 SYNOPSIS
+
+ #include <openssl/ct.h>
+
+ const CTLOG *CTLOG_STORE_get0_log_by_id(const CTLOG_STORE *store,
+                                         const uint8_t *log_id,
+                                         size_t log_id_len);
+
+=head1 DESCRIPTION
+
+A Signed Certificate Timestamp (SCT) identifies the Certificate Transparency
+(CT) log that issued it using the log's LogID (see RFC 6962, Section 3.2).
+Therefore, it is useful to be able to look up more information about a log
+(e.g. its public key) using this LogID.
+
+CTLOG_STORE_get0_log_by_id() provides a way to do this. It will find a CTLOG
+in a CTLOG_STORE that has a given LogID.
+
+=head1 RETURN VALUES
+
+B<CTLOG_STORE_get0_log_by_id> returns a CTLOG with the given LogID, if it
+exists in the given CTLOG_STORE, otherwise it returns NULL.
+
+=head1 SEE ALSO
+
+L<ct(7)>,
+L<CTLOG_STORE_new(3)>
+
+=head1 HISTORY
+
+The CTLOG_STORE_get0_log_by_id() function was added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

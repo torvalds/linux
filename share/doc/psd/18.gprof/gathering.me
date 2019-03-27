@@ -1,0 +1,227 @@
+.\" Copyright (c) 1982, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)gathering.me	8.1 (Berkeley) 6/8/93
+.\"
+.sh 1 "Gathering Profile Data"
+.pp
+Routine calls or statement executions can be measured by having a
+compiler augment the code at strategic points.
+The additions can be inline increments to counters [Knuth71]
+[Satterthwaite72] [Joy79] or calls to
+monitoring routines [Unix].
+The counter increment overhead is low, and is suitable for
+profiling statements.
+A call of the monitoring routine has an overhead comparable with a
+call of a regular routine, and is therefore only suited
+to profiling on a routine by routine basis.
+However, the monitoring routine solution has certain advantages.
+Whatever counters are needed by the monitoring routine can be
+managed by the monitoring routine itself, rather than being
+distributed around the code.
+In particular, a monitoring routine can easily be called from separately
+compiled programs.
+In addition, different monitoring routines can be linked into the
+program
+being measured
+to assemble different profiling data without having to
+change the compiler or recompile the program.
+We have exploited this approach;
+our compilers for C, Fortran77, and Pascal can insert calls to a
+monitoring routine in the prologue for each routine.
+Use of the monitoring routine requires no planning on part of a
+programmer other than to request that augmented routine
+prologues be produced during compilation.
+.pp
+We are interested in gathering three pieces of information during
+program execution: call counts and execution times for 
+each profiled routine, and the arcs of the dynamic call graph
+traversed by this execution of the program.
+By post-processing of this data we can build the dynamic call
+graph for this execution of the program and propagate times along
+the edges of this graph to attribute times for routines to the
+routines that invoke them.
+.pp
+Gathering of the profiling information should not greatly
+interfere with the running of the program.
+Thus, the monitoring routine must not produce trace output each
+time it is invoked.
+The volume of data thus produced would be unmanageably large,
+and the time required to record it would overwhelm the running
+time of most programs.
+Similarly, the monitoring routine can not do the analysis of
+the profiling data (e.g. assembling the call graph, propagating
+times around it, discovering cycles, etc.) during program
+execution.
+Our solution is to gather profiling data in memory during program
+execution and to condense it to a file as the profiled
+program exits.
+This file is then processed by a separate program to produce the
+listing of the profile data.
+An advantage of this approach is that the profile data for
+several executions of a program can be combined by the
+post-processing to provide a profile of many
+executions.
+.pp
+The execution time monitoring consists of three parts.
+The first part allocates and initializes the runtime monitoring data
+structures before the program begins execution.
+The second part is the monitoring routine invoked from the
+prologue of each profiled routine.
+The third part condenses the data structures and writes them
+to a file as the program terminates.
+The monitoring routine is discussed in detail in the following sections.
+.sh 2 "Execution Counts"
+.pp
+The \fBgprof\fP monitoring routine counts the number of times
+each profiled routine is called.
+The monitoring routine also records the arc in the call graph
+that activated the profiled routine.
+The count is associated with the arc in the call graph
+rather than with the routine.
+Call counts for routines can then be determined by summing the counts
+on arcs directed into that routine.
+In a machine-dependent fashion, the monitoring routine notes its
+own return address.
+This address is in the prologue of some profiled routine that is
+the destination of an arc in the dynamic call graph.
+The monitoring routine also discovers the return address for that
+routine, thus identifying the call site, or source of the arc.
+The source of the arc is in the \fIcaller\fP, and the destination is in
+the \fIcallee\fP.
+For example, if a routine A calls a routine B, A is the caller, 
+and B is the callee.
+The prologue of B will include a call to the monitoring routine
+that will note the arc from A to B and either initialize or
+increment a counter for that arc.
+.pp
+One can not afford to have the monitoring routine output tracing
+information as each arc is identified.
+Therefore, the monitoring routine maintains a table of all the
+arcs discovered, with counts of the numbers of times each is
+traversed during execution.
+This table is accessed once per routine call.
+Access to it
+must be as fast as possible so as not to overwhelm the time
+required to execute the program.
+.pp
+Our solution is to access the table through a hash table.
+We use the call site as the primary key with the callee
+address being the secondary key.
+Since each call site typically calls only one callee, we can
+reduce (usually to one) the number of minor lookups based on the callee.
+Another alternative would use the callee as the primary key and the
+call site as the secondary key.
+Such an organization has the advantage of associating callers with
+callees, at the expense of longer lookups in the monitoring
+routine.
+We are fortunate to be running in a virtual memory environment,
+and (for the sake of speed) were able to allocate enough space
+for the primary hash table to allow a one-to-one mapping from
+call site addresses to the primary hash table.
+Thus our hash function is trivial to calculate and collisions
+occur only for call sites that call multiple
+destinations (e.g. functional parameters and functional variables).
+A one level hash function using both call site and callee would
+result in an unreasonably large hash table.
+Further, the number of dynamic call sites and callees is not known during
+execution of the profiled program.
+.pp
+Not all callers and callees can be identified by the monitoring
+routine.
+Routines that were compiled without the profiling augmentations
+will not call the monitoring routine as part of their prologue,
+and thus no arcs will be recorded whose destinations are in these
+routines.
+One need not profile all the routines in a program.
+Routines that are not profiled run at full speed.
+Certain routines, notably exception handlers, are invoked by
+non-standard calling sequences.
+Thus the monitoring routine may know the destination of an arc
+(the callee),
+but find it difficult or
+impossible to determine the source of the arc (the caller).
+Often in these cases the apparent source of the arc is not a call
+site at all.
+Such anomalous invocations are declared ``spontaneous''.
+.sh 2 "Execution Times"
+.pp
+The execution times for routines can be gathered in at least two
+ways.
+One method measures the execution time of a routine by measuring
+the elapsed time from routine entry to routine exit.
+Unfortunately, time measurement is complicated on time-sharing
+systems by the time-slicing of the program.
+A second method samples the value of the program counter at some
+interval, and infers execution time from the distribution of the
+samples within the program.
+This technique is particularly suited to time-sharing systems,
+where the time-slicing can serve as the basis for sampling
+the program counter.
+Notice that, whereas the first method could provide exact timings,
+the second is inherently a statistical approximation.
+.pp
+The sampling method need not require support from the operating
+system:  all that is needed is the ability to set and respond to
+``alarm clock'' interrupts that run relative to program time.
+It is imperative that the intervals be uniform since the
+sampling of the program counter rather than the duration of the
+interval is the basis of the distribution.
+If sampling is done too often, the interruptions to sample the
+program counter will overwhelm the running of the profiled program.
+On the other hand, the program must run for enough sampled
+intervals that the distribution of the samples accurately
+represents the distribution of time for the execution of the
+program.
+As with routine call tracing, the monitoring routine can not
+afford to output information for each program counter
+sample.
+In our computing environment, the operating system can provide a
+histogram of the location of the program counter at the end of
+each clock tick (1/60th of a second) in which a program runs.
+The histogram is assembled in memory as the program runs.
+This facility is enabled by our monitoring routine.
+We have adjusted the granularity of the histogram so that
+program counter values map one-to-one onto the histogram.
+We make the simplifying assumption that all calls to a specific
+routine require the same amount of time to execute.
+This assumption may disguise that some calls
+(or worse, some call sites) always invoke a routine
+such that its execution is faster (or slower)
+than the average time for that routine.
+.pp
+When the profiled program terminates, 
+the arc table and the histogram of
+program counter samples is written to a file.
+The arc table is condensed to consist of the source and destination
+addresses of the arc and the count of the number of times the arc
+was traversed by this execution of the program.
+The recorded histogram consists of counters of the number of
+times the program counter was found to be in each of the ranges covered
+by the histogram.
+The ranges themselves are summarized as a
+lower and upper bound and a step size.

@@ -1,0 +1,45 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>tickadj - set time-related kernel variables</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3><tt>tickadj</tt> - set time-related kernel variables</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->10-Mar-2014  05:24<!-- #EndDate -->
+    UTC</p>
+<hr>
+<h4>Synopsis</h4>
+<tt>tickadj [ -Aqs ] [ -a <i>tickadj</i> ] [ -t <i>tick</i> ]</tt>
+<h4>Description</h4>
+<p>The <tt>tickadj</tt> program reads, and optionally modifies, several timekeeping-related variables in older kernels that do not have support for precision timekeeping, including HP-UX, SunOS, Ultrix, SGI and probably others. Those machines provide means to patch the kernel <tt>/dev/kmem</tt>. Newer machines with kernel time support, including Solaris, Tru64, FreeBSD and Linux, should NOT use the program, even if it appears to work, as it will destabilize the kernel time support. Use the <a href="ntptime.html"><tt>ntptime</tt></a> program instead.</p>
+<p>The particular variables that can be changed with <tt>tickadj</tt> include <tt>tick</tt>, which is the number of microseconds added to the system time for a clock interrupt, <tt>tickadj</tt>, which sets the slew rate and resolution used by the <tt>adjtime</tt> system call, and <tt>dosynctodr</tt>, which indicates to the kernels on some machines whether they should internally adjust the system clock to keep it in line with time-of-day clock or not.</p>
+<p>By default, with no arguments, <tt>tickadj</tt> reads the variables of interest in the kernel and displays them. At the same time, it determines an &quot;optimal&quot; value for the value of the <tt>tickadj</tt> variable if the intent is to run the <tt>ntpd</tt> Network Time Protocol (NTP) daemon, and prints this as well. Since the operation of <tt>tickadj</tt> when reading the kernel mimics the operation of similar parts of the <tt>ntpd</tt> program fairly closely, this can be useful when debugging problems with <tt>ntpd</tt>.</p>
+<p>Note that <tt>tickadj</tt> should be run with some caution when being used for the first time on different types of machines. The operations which <tt>tickadj</tt> tries to perform are not guaranteed to work on all Unix machines and may in rare cases cause the kernel to crash.</p>
+<h4>Command Line Options</h4>
+<dl>
+  <dt><tt>-a <i>tickadj</i></tt></dt>
+  <dd>Set the kernel variable <tt>tickadj</tt> to the value <i><tt>tickadj specified.</tt></i></dd>
+  <dt><tt>-A</tt></dt>
+  <dd>Set the kernel variable <tt>tickadj</tt> to an internally computed &quot;optimal&quot; value.</dd>
+  <dt><tt>-t <i>tick</i></tt></dt>
+  <dd>Set the kernel variable <tt>tick</tt> to the value <i><tt>tick</tt></i> specified.</dd>
+  <dt><tt>-s</tt></dt>
+  <dd>Set the kernel variable <tt>dosynctodr</tt> to zero, which disables the hardware time-of-year clock, a prerequisite for running the <tt>ntpd</tt> daemon under SunOS 4.x.</dd>
+  <dt><tt>-q</tt></dt>
+  <dd>Normally, <tt>tickadj</tt> is quite verbose about what it is doing. The <tt>-q</tt> flag tells it to shut up about everything except errors.</dd>
+</dl>
+<h4>Files</h4>
+<tt>/vmunix<br>
+/unix<br>
+/dev/kmem<br>
+</tt>
+<h4>Bugs</h4>
+Fiddling with kernel variables at run time as a part of ordinary operations is a hideous practice which is only necessary to make up for deficiencies in the implementation of <tt>adjtime</tt> in many kernels and/or brokenness of the system clock in some vendors' kernels. It would be much better if the kernels were fixed and the <tt>tickadj</tt> program went away.
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

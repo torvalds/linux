@@ -1,0 +1,136 @@
+.\"
+.\" Copyright (c) 2011, 2013 Robert N. M. Watson
+.\" Copyright (c) 2011 Jonathan Anderson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 18, 2017
+.Dt CAPSICUM 4
+.Os
+.Sh NAME
+.Nm Capsicum
+.Nd lightweight OS capability and sandbox framework
+.Sh SYNOPSIS
+.Cd "options CAPABILITY_MODE"
+.Cd "options CAPABILITIES"
+.Sh DESCRIPTION
+.Nm
+is a lightweight OS capability and sandbox framework implementing a hybrid
+capability system model.
+.Nm
+can be used for application and library compartmentalisation, the
+decomposition of larger bodies of software into isolated (sandboxed)
+components in order to implement security policies and limit the impact of
+software vulnerabilities.
+.Pp
+.Nm
+provides two core kernel primitives:
+.Bl -tag -width indent
+.It capability mode
+A process mode, entered by invoking
+.Xr cap_enter 2 ,
+in which access to global OS namespaces (such as the file system and PID
+namespaces) is restricted; only explicitly delegated rights, referenced by
+memory mappings or file descriptors, may be used.
+Once set, the flag is inherited by future children processes, and may not be
+cleared.
+.It capabilities
+Limit operations that can be called on file descriptors.
+For example, a file descriptor returned by
+.Xr open 2
+may be refined using
+.Xr cap_rights_limit 2
+so that only
+.Xr read 2
+and
+.Xr write 2
+can be called, but not
+.Xr fchmod 2 .
+The complete list of the capability rights can be found in the
+.Xr rights 4
+manual page.
+.El
+.Pp
+In some cases,
+.Nm
+requires use of alternatives to traditional POSIX APIs in order to name
+objects using capabilities rather than global namespaces:
+.Bl -tag -width indent
+.It process descriptors
+File descriptors representing processes, allowing parent processes to manage
+child processes without requiring access to the PID namespace; described in
+greater detail in
+.Xr procdesc 4 .
+.It anonymous shared memory
+An extension to the POSIX shared memory API to support anonymous swap objects
+associated with file descriptors; described in greater detail in
+.Xr shm_open 2 .
+.El
+.Pp
+In some cases,
+.Nm
+limits the valid values of some parameters to traditional APIs in order to
+restrict access to global namespaces:
+.Bl -tag -width indent
+.It process IDs
+Processes can only act upon their own process ID with syscalls such as
+.Xr cpuset_setaffinity 2 .
+.El
+.Sh SEE ALSO
+.Xr cap_enter 2 ,
+.Xr cap_fcntls_limit 2 ,
+.Xr cap_getmode 2 ,
+.Xr cap_ioctls_limit 2 ,
+.Xr cap_rights_limit 2 ,
+.Xr fchmod 2 ,
+.Xr open 2 ,
+.Xr pdfork 2 ,
+.Xr pdgetpid 2 ,
+.Xr pdkill 2 ,
+.Xr pdwait4 2 ,
+.Xr read 2 ,
+.Xr shm_open 2 ,
+.Xr write 2 ,
+.Xr cap_rights_get 3 ,
+.Xr libcasper 3 ,
+.Xr procdesc 4
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 9.0 ,
+and was developed at the University of Cambridge.
+.Sh AUTHORS
+.Nm
+was developed by
+.An -nosplit
+.An Robert Watson Aq Mt rwatson@FreeBSD.org
+and
+.An Jonathan Anderson Aq Mt jonathan@FreeBSD.org
+at the University of Cambridge, and
+.An Ben Laurie Aq Mt benl@FreeBSD.org
+and
+.An Kris Kennaway Aq Mt kris@FreeBSD.org
+at Google, Inc., and
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net .

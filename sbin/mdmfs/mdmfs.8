@@ -1,0 +1,445 @@
+.\"
+.\" Copyright (c) 2001 Dima Dorfman.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 9, 2017
+.Dt MDMFS 8
+.Os
+.Sh NAME
+.Nm mdmfs ,
+.Nm mount_mfs
+.Nd configure and mount an in-memory file system using the
+.Xr md 4
+driver or the
+.Xr tmpfs 5
+filesystem
+.Sh SYNOPSIS
+.Nm
+.Op Fl DLlMNnPStTUX
+.Op Fl a Ar maxcontig
+.Op Fl b Ar block-size
+.Op Fl c Ar blocks-per-cylinder-group
+.Op Fl d Ar max-extent-size
+.Op Fl E Ar path-mdconfig
+.Op Fl e Ar maxbpg
+.Op Fl F Ar file
+.Op Fl f Ar frag-size
+.Op Fl i Ar bytes
+.Op Fl m Ar percent-free
+.Op Fl O Ar optimization
+.Op Fl o Ar mount-options
+.Op Fl p Ar permissions
+.Op Fl s Ar size
+.Op Fl T Ar fstype
+.Op Fl v Ar version
+.Op Fl w Ar user : Ns Ar group
+.Ar md-device
+.Ar mount-point
+.Sh DESCRIPTION
+The
+.Nm
+utility is designed to be a work-alike and look-alike of the deprecated
+.Xr mount_mfs 8 .
+The end result is essentially the same,
+but is accomplished in a completely different way.
+Based on
+.Ar md-device ,
+the
+.Nm
+utility either creates a 
+.Xr tmpfs 5
+filesystem, or it configures an
+.Xr md 4
+disk using
+.Xr mdconfig 8 ,
+puts a UFS file system on it (unless
+.Fl P
+was specified) using
+.Xr newfs 8 ,
+and mounts it using
+.Xr mount 8 .
+It can handle
+.Xr geom_uzip 4
+compressed disk images, as long as the kernel supports this GEOM class.
+All the command line options are passed to the appropriate program
+at the appropriate stage in order to achieve the desired effect.
+.Pp
+When
+.Ar md-device
+is `auto',
+.Nm
+uses
+.Xr tmpfs 5
+if it is present in the kernel or can be loaded as a module,
+otherwise it falls back to using
+.Xr md 4
+auto-unit as if `md' had been specified.
+.Pp
+When
+.Ar md-device
+is `tmpfs',
+.Nm
+mounts a
+.Xr tmpfs 5
+filesystem, translating the
+.Fl s
+size option, if present, into a `-o size=' mount option.
+Any
+.Fl o
+options on the command line are passed through to the
+.Xr tmpfs 5
+mount.
+Options specific to
+.Xr mdconfig 8
+or
+.Xr newfs 8
+are ignored.
+.Pp
+When
+.Ar md-device
+does not result in
+.Xr tmpfs 5
+being used, then an
+.Xr md 4
+device is configured instead.
+By default,
+.Nm
+creates a swap-based
+.Pq Dv MD_SWAP
+disk with soft-updates enabled
+and mounts it on
+.Ar mount-point .
+It uses the
+.Xr md 4
+device specified by
+.Ar md-device .
+If
+.Ar md-device
+is
+.Ql md
+(no unit number),
+it will use
+.Xr md 4 Ns 's
+auto-unit feature to automatically select an unused device.
+Unless otherwise specified with one of the options below,
+it uses the default arguments to all the helper programs.
+.Pp
+The following options are available.
+Where possible,
+the option letter matches the one used by
+.Xr mount_mfs 8
+for the same thing.
+.Bl -tag -width indent
+.It Fl a Ar maxcontig
+Specify the maximum number of contiguous blocks that will be laid
+out before forcing a rotational delay
+(see the
+.Fl d
+option).
+.It Fl b Ar block-size
+The block size of the file system, in bytes.
+.It Fl c Ar blocks-per-cylinder-group
+The number of blocks per cylinder group in the file system.
+.It Fl D
+If not using auto-unit,
+do not run
+.Xr mdconfig 8
+to try to detach the unit before attaching it.
+.It Fl d Ar max-extent-size
+The file system may choose to store large files using extents.
+This parameter specifies the largest extent size that may be
+used.
+It is presently limited to its default value which is 16
+times the file system blocksize.
+.It Fl E Ar path-mdconfig
+Use
+.Ar path-mdconfig
+as a location of the
+.Xr mdconfig 8
+utility.
+.It Fl e Ar maxbpg
+Indicate the maximum number of blocks any single file can allocate
+out of a cylinder group before it is forced to begin allocating
+blocks from another cylinder group.
+.It Fl F Ar file
+Create a vnode-backed
+.Pq Dv MD_VNODE
+memory disk backed by
+.Ar file .
+.It Fl f Ar frag-size
+The fragment size of the file system in bytes.
+.It Fl i Ar bytes
+Number of bytes per inode.
+.It Fl l
+Enable multilabel MAC on the new file system.
+.It Fl L
+Show the output of the helper programs.
+By default,
+it is sent to
+.Pa /dev/null .
+.It Fl M
+Create a
+.Xr malloc 9
+backed disk
+.Pq Dv MD_MALLOC
+instead of a swap-backed disk.
+.It Fl m Ar percent-free
+The percentage of space reserved for the superuser.
+.It Fl N
+Do not actually run the helper programs.
+This is most useful in conjunction with
+.Fl X .
+.It Fl n
+Do not create a
+.Pa .snap
+directory on the new file system.
+.It Fl O Ar optimization
+Select the optimization preference;
+valid choices are
+.Cm space
+and
+.Cm time ,
+which will optimize for minimum space fragmentation and
+minimum time spent allocating blocks,
+respectively.
+.It Fl o Ar mount-options
+Specify the mount options with which to mount the file system.
+See
+.Xr mount 8
+for more information.
+.It Fl P
+Preserve the existing file system;
+do not run
+.Xr newfs 8 .
+This only makes sense if
+.Fl F
+is specified to create a vnode-backed disk.
+.It Fl p Ar permissions
+Set the file (directory) permissions of the mount point
+.Ar mount-point
+to
+.Ar permissions .
+The
+.Ar permissions
+argument can be in any of the mode formats recognized by
+.Xr chmod 1 .
+If symbolic permissions are specified,
+the operation characters
+.Dq +
+and
+.Dq -
+are interpreted relative to the initial permissions of
+.Dq a=rwx .
+.It Fl S
+Do not enable soft-updates on the file system.
+.It Fl s Ar size
+Specify the size of the disk to create.
+This only makes sense if
+.Fl F
+is
+.Em not
+specified.
+That is,
+this will work when the backing storage is some form of
+memory, as opposed to a fixed-size file.
+The size may include the usual SI suffixes (k, m, g, t, p).
+A number without a suffix is interpreted as a count of 512-byte sectors.
+.It Fl t
+Turn on the TRIM enable flag for
+.Xr newfs 8 .
+When used with a file system that issue BIO_DELETE bio requests,
+.Xr md 4
+returns deleted blocks to the system memory pool.
+.It Fl T Ar fstype
+Specify a file system type for a vnode-backed memory disk.
+Any file system supported by
+.Xr mount 8
+command can be specified.
+This option only makes sense when
+.Fl F
+and
+.Fl P
+are used.
+.It Fl U
+Enable soft-updates on the file system.
+This is the default, and is accepted only
+for compatibility.
+It is only really useful to negate the
+.Fl S
+flag, should such a need occur.
+.It Fl v Ar version
+Specify the UFS version number for use on the file system; it may be
+either
+.Dv 1
+or
+.Dv 2 .
+The default is derived from the default of the
+.Xr newfs 8
+command.
+.It Fl w Ar user : Ns Ar group
+Set the owner and group to
+.Ar user
+and
+.Ar group ,
+respectively.
+The arguments have the same semantics as with
+.Xr chown 8 ,
+but specifying just a
+.Ar user
+or just a
+.Ar group
+is not supported.
+.It Fl X
+Print what command will be run before running it, and
+other assorted debugging information.
+.El
+.Pp
+The
+.Fl F
+and
+.Fl s
+options are passed to
+.Xr mdconfig 8
+as
+.Fl f
+and
+.Fl s ,
+respectively.
+The
+.Fl a , b , c , d , e , f , i , m
+and
+.Fl n
+options are passed to
+.Xr newfs 8
+with the same letter.
+The
+.Fl O
+option is passed to
+.Xr newfs 8
+as
+.Fl o .
+The
+.Fl o
+option is passed to
+.Xr mount 8
+with the same letter.
+The
+.Fl T
+option is passed to
+.Xr mount 8
+as
+.Fl t .
+For information on semantics, refer to the documentation of the programs
+that the options are passed to.
+.Sh EXAMPLES
+Create and mount a 32 megabyte swap-backed file system on
+.Pa /tmp :
+.Pp
+.Dl "mdmfs -s 32m md /tmp"
+.Pp
+The same file system created as an entry in
+.Pa /etc/fstab :
+.Pp
+.Dl "md /tmp mfs rw,-s32m 2 0"
+.Pp
+Create and mount a 16 megabyte malloc-backed file system on
+.Pa /tmp
+using the
+.Pa /dev/md1
+device;
+furthermore,
+do not use soft-updates on it and mount it
+.Cm async :
+.Pp
+.Dl "mdmfs -M -S -o async -s 16m md1 /tmp"
+.Pp
+Create and mount a
+.Xr geom_uzip 4
+based compressed disk image:
+.Pp
+.Dl "mdmfs -P -F foo.uzip -oro md.uzip /tmp/"
+.Pp
+Mount the same image, specifying the
+.Pa /dev/md1
+device:
+.Pp
+.Dl "mdmfs -P -F foo.uzip -oro md1.uzip /tmp/"
+.Pp
+Configure a vnode-backed file system and mount its first partition,
+using automatic device numbering:
+.Pp
+.Dl "mdmfs -P -F foo.img mds1a /tmp/"
+.Pp
+Mount a vnode-backed cd9660 file system using automatic device numbering:
+.Pp
+.Dl "mdmfs -T cd9660 -P -F foo.iso md /tmp"
+.Sh COMPATIBILITY
+The
+.Nm
+utility, while designed to be compatible with
+.Xr mount_mfs 8 ,
+can be useful by itself.
+Since
+.Xr mount_mfs 8
+had some silly defaults, a
+.Dq compatibility
+mode is provided for the case where bug-to-bug compatibility is desired.
+.Pp
+Compatibility is enabled by starting
+.Nm
+with the name
+.Li mount_mfs
+or
+.Li mfs
+(as returned by
+.Xr getprogname 3 ) .
+In this mode, the following behavior, as done by
+.Xr mount_mfs 8 ,
+is duplicated:
+.Bl -bullet -offset indent
+.It
+The file mode of
+.Ar mount-point
+is set by default to
+.Li 01777
+as if
+.Fl p Ar 1777
+was given on the command line.
+.El
+.Sh SEE ALSO
+.Xr md 4 ,
+.Xr fstab 5 ,
+.Xr tmpfs 5 ,
+.Xr mdconfig 8 ,
+.Xr mount 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Dima Dorfman

@@ -1,0 +1,1282 @@
+.\" Copyright (c) 1986, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\"	@(#)implement	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.EH 'PSD:2-%''UNIX Implementation'
+.OH 'UNIX Implementation''PSD:2-%'
+.de P1
+.DS
+..
+.de P2
+.DE
+..
+.de UL
+.lg 0
+.if n .ul
+\%\&\\$3\f3\\$1\fR\&\\$2
+.lg
+..
+.de UC
+\&\\$3\s-1\\$1\\s0\&\\$2
+..
+.de IT
+.lg 0
+.if n .ul
+\%\&\\$3\f2\\$1\fR\&\\$2
+.lg
+..
+.de SP
+.sp \\$1
+..
+.hw device
+.TL
+UNIX Implementation
+.AU "MH 2C-523" 2394
+K. Thompson
+.AI
+AT&T Bell Laboratories
+Murray Hill, NJ
+.AB
+This paper describes in high-level terms the
+implementation of the resident
+.UX
+kernel.
+This discussion is broken into three parts.
+The first part describes
+how the
+.UX
+system views processes, users, and programs.
+The second part describes the I/O system.
+The last part describes the
+.UX
+file system.
+.AE
+.NH
+INTRODUCTION
+.PP
+The
+.UX
+kernel consists of about 10,000
+lines of C code and about 1,000 lines of assembly code.
+The assembly code can be further broken down into
+200 lines included for
+the sake of efficiency
+(they could have been written in C)
+and 800 lines to perform hardware
+functions not possible in C.
+.PP
+This code represents 5 to 10 percent of what has
+been lumped into the broad expression
+``the
+.UX
+operating system.''
+The kernel is the only
+.UX
+code that
+cannot be substituted by a user to his
+own liking.
+For this reason,
+the kernel should make as few real
+decisions as possible.
+This does not mean to allow the user
+a million options to do the same thing.
+Rather, it means to allow only one way to
+do one thing,
+but have that way be the least-common divisor
+of all the options that might have been provided.
+.PP
+What is or is not implemented in the kernel
+represents both a great responsibility and a great power.
+It is a soap-box platform on
+``the way things should be done.''
+Even so, if
+``the way'' is too radical,
+no one will follow it.
+Every important decision was weighed
+carefully.
+Throughout,
+simplicity has been substituted for efficiency.
+Complex algorithms are used only if
+their complexity can be localized.
+.NH
+PROCESS CONTROL
+.PP
+In the
+.UX
+system,
+a user executes programs in an
+environment called a user process.
+When a system function is required,
+the user process calls the system
+as a subroutine.
+At some point in this call,
+there is a distinct switch of environments.
+After this,
+the process is said to be a system process.
+In the normal definition of processes,
+the user and system processes are different
+phases of the same process
+(they never execute simultaneously).
+For protection,
+each system process has its own stack.
+.PP
+The user process may execute
+from a read-only text segment,
+which is shared by all processes
+executing the same code.
+There is no
+.IT functional
+benefit
+from shared-text segments.
+An
+.IT efficiency
+benefit comes from the fact
+that there is no need to swap read-only
+segments out because the original
+copy on secondary memory is still current.
+This is a great benefit to interactive
+programs that tend to be swapped while
+waiting for terminal input.
+Furthermore,
+if two processes are
+executing
+simultaneously
+from the same copy of a read-only segment,
+only one copy needs to reside in
+primary memory.
+This is a secondary effect,
+because
+simultaneous execution of a program
+is not common.
+It is ironic that this effect,
+which reduces the use of primary memory,
+only comes into play when there is
+an overabundance of primary memory,
+that is,
+when there is enough memory
+to keep waiting processes loaded.
+.PP
+All current read-only text segments in the
+system are maintained from the
+.IT "text table" .
+A text table entry holds the location of the
+text segment on secondary memory.
+If the segment is loaded,
+that table also holds the primary memory location
+and the count of the number of processes
+sharing this entry.
+When this count is reduced to zero,
+the entry is freed along with any
+primary and secondary memory holding the segment.
+When a process first executes a shared-text segment,
+a text table entry is allocated and the
+segment is loaded onto secondary memory.
+If a second process executes a text segment
+that is already allocated,
+the entry reference count is simply incremented.
+.PP
+A user process has some strictly private
+read-write data
+contained in its
+data segment.
+As far as possible,
+the system does not use the user's
+data segment to hold system data.
+In particular,
+there are no I/O buffers in the
+user address space.
+.PP
+The user data segment has two growing boundaries.
+One, increased automatically by the system
+as a result of memory faults,
+is used for a stack.
+The second boundary is only grown (or shrunk) by
+explicit requests.
+The contents of newly allocated primary memory
+is initialized to zero.
+.PP
+Also associated and swapped with
+a process is a small fixed-size
+system data segment.
+This segment contains all
+the data about the process
+that the system needs only when the
+process is active.
+Examples of the kind of data contained
+in the system data segment are:
+saved central processor registers,
+open file descriptors,
+accounting information,
+scratch data area,
+and the stack for the system phase
+of the process.
+The system data segment is not
+addressable from the user process
+and is therefore protected.
+.PP
+Last,
+there is a process table with
+one entry per process.
+This entry contains all the data
+needed by the system when the process
+is
+.IT not
+active.
+Examples are
+the process's name,
+the location of the other segments,
+and scheduling information.
+The process table entry is allocated
+when the process is created, and freed
+when the process terminates.
+This process entry is always directly
+addressable by the kernel.
+.PP
+Figure 1 shows the relationships
+between the various process control
+data.
+In a sense,
+the process table is the
+definition of all processes,
+because
+all the data associated with a process
+may be accessed
+starting from the process table entry.
+.KF
+.if t .in .375i
+.so fig1.pic
+.if t .in -.375i
+.sp 2v
+.ce
+Fig. 1\(emProcess control data structure.
+.KE
+.NH 2
+Process creation and program execution
+.PP
+Processes are created by the system primitive
+.UL fork .
+The newly created process (child) is a copy of the original process (parent).
+There is no detectable sharing of primary memory between the two processes.
+(Of course,
+if the parent process was executing from a read-only
+text segment,
+the child will share the text segment.)
+Copies of all writable data segments
+are made for the child process.
+Files that were open before the
+.UL fork
+are
+truly shared after the
+.UL fork .
+The processes are informed as to their part in the
+relationship to
+allow them to select their own
+(usually non-identical)
+destiny.
+The parent may
+.UL wait
+for the termination of
+any of its children.
+.PP
+A process may
+.UL exec
+a file.
+This consists of exchanging the current text and data
+segments of the process for new text and data
+segments specified in the file.
+The old segments are lost.
+Doing an
+.UL exec
+does
+.IT not
+change processes;
+the process that did the
+.UL exec
+persists,
+but
+after the
+.UL exec
+it is executing a different program.
+Files that were open
+before the
+.UL exec
+remain open after the
+.UL exec .
+.PP
+If a program,
+say the first pass of a compiler,
+wishes to overlay itself with another program,
+say the second pass,
+then it simply
+.UL exec s
+the second program.
+This is analogous
+to a ``goto.''
+If a program wishes to regain control
+after
+.UL exec ing
+a second program,
+it should
+.UL fork
+a child process,
+have the child
+.UL exec
+the second program, and
+have the parent
+.UL wait
+for the child.
+This is analogous to a ``call.''
+Breaking up the call into a binding followed by
+a transfer is similar to the subroutine linkage in
+SL-5.
+.[
+griswold hanson sl5 overview
+.]
+.NH 2
+Swapping
+.PP
+The major data associated with a process
+(the user data segment,
+the system data segment, and
+the text segment)
+are swapped to and from secondary
+memory, as needed.
+The user data segment and the system data segment
+are kept in contiguous primary memory to reduce
+swapping latency.
+(When low-latency devices, such as bubbles,
+.UC CCD s,
+or scatter/gather devices,
+are used,
+this decision will have to be reconsidered.)
+Allocation of both primary
+and secondary memory is performed
+by the same simple first-fit algorithm.
+When a process grows,
+a new piece of primary memory is allocated.
+The contents of the old memory is copied to the new memory.
+The old memory is freed
+and the tables are updated.
+If there is not enough primary memory,
+secondary memory is allocated instead.
+The process is swapped out onto the
+secondary memory,
+ready to be swapped in with
+its new size.
+.PP
+One separate process in the kernel,
+the swapping process,
+simply swaps the other
+processes in and out of primary memory.
+It examines the
+process table looking for a process
+that is swapped out and is
+ready to run.
+It allocates primary memory for that
+process and
+reads its segments into
+primary memory, where that process competes for the
+central processor with other loaded processes.
+If no primary memory is available,
+the swapping process makes memory available
+by examining the process table for processes
+that can be swapped out.
+It selects a process to swap out,
+writes it to secondary memory,
+frees the primary memory,
+and then goes back to look for a process
+to swap in.
+.PP
+Thus there are two specific algorithms
+to the swapping process.
+Which of the possibly many processes that
+are swapped out is to be swapped in?
+This is decided by secondary storage residence
+time.
+The one with the longest time out is swapped in first.
+There is a slight penalty for larger processes.
+Which of the possibly many processes that
+are loaded is to be swapped out?
+Processes that are waiting for slow events
+(i.e., not currently running or waiting for
+disk I/O)
+are picked first,
+by age in primary memory,
+again with size penalties.
+The other processes are examined
+by the same age algorithm,
+but are not taken out unless they are
+at least of some age.
+This adds
+hysteresis to the swapping and
+prevents total thrashing.
+.PP
+These swapping algorithms are the
+most suspect in the system.
+With limited primary memory,
+these algorithms cause total swapping.
+This is not bad in itself, because
+the swapping does not impact the
+execution of the resident processes.
+However, if the swapping device must
+also be used for file storage,
+the swapping traffic severely
+impacts the file system traffic.
+It is exactly these small systems
+that tend to double usage of limited disk
+resources.
+.NH 2
+Synchronization and scheduling
+.PP
+Process synchronization is accomplished by having processes
+wait for events.
+Events are represented by arbitrary integers.
+By convention,
+events are chosen to be addresses of
+tables associated with those events.
+For example, a process that is waiting for
+any of its children to terminate will wait
+for an event that is the address of
+its own process table entry.
+When a process terminates,
+it signals the event represented by
+its parent's process table entry.
+Signaling an event on which no process
+is waiting has no effect.
+Similarly,
+signaling an event on which many processes
+are waiting will wake all of them up.
+This differs considerably from
+Dijkstra's P and V
+synchronization operations,
+.[
+dijkstra sequential processes 1968
+.]
+in that
+no memory is associated with events.
+Thus there need be no allocation of events
+prior to their use.
+Events exist simply by being used.
+.PP
+On the negative side,
+because there is no memory associated with events,
+no notion of ``how much''
+can be signaled via the event mechanism.
+For example,
+processes that want memory might
+wait on an event associated with
+memory allocation.
+When any amount of memory becomes available,
+the event would be signaled.
+All the competing processes would then wake
+up to fight over the new memory.
+(In reality,
+the swapping process is the only process
+that waits for primary memory to become available.)
+.PP
+If an event occurs
+between the time a process decides
+to wait for that event and the
+time that process enters the wait state,
+then
+the process will wait on an event that has
+already happened (and may never happen again).
+This race condition happens because there is no memory associated with
+the event to indicate that the event has occurred;
+the only action of an event is to change a set of processes
+from wait state to run state.
+This problem is relieved largely
+by the fact that process switching can
+only occur in the kernel by explicit calls
+to the event-wait mechanism.
+If the event in question is signaled by another
+process,
+then there is no problem.
+But if the event is signaled by a hardware
+interrupt,
+then special care must be taken.
+These synchronization races pose the biggest
+problem when
+.UX
+is adapted to multiple-processor configurations.
+.[
+hawley meyer multiprocessing unix
+.]
+.PP
+The event-wait code in the kernel
+is like a co-routine linkage.
+At any time,
+all but one of the processes has called event-wait.
+The remaining process is the one currently executing.
+When it calls event-wait,
+a process whose event has been signaled
+is selected and that process
+returns from its call to event-wait.
+.PP
+Which of the runable processes is to run next?
+Associated with each process is a priority.
+The priority of a system process is assigned by the code
+issuing the wait on an event.
+This is roughly equivalent to the response
+that one would expect on such an event.
+Disk events have high priority,
+teletype events are low,
+and time-of-day events are very low.
+(From observation,
+the difference in system process priorities
+has little or no performance impact.)
+All user-process priorities are lower than the
+lowest system priority.
+User-process priorities are assigned
+by an algorithm based on the
+recent ratio of the amount of compute time to real time consumed
+by the process.
+A process that has used a lot of
+compute time in the last real-time
+unit is assigned a low user priority.
+Because interactive processes are characterized
+by low ratios of compute to real time,
+interactive response is maintained without any
+special arrangements.
+.PP
+The scheduling algorithm simply picks
+the process with the highest priority,
+thus
+picking all system processes first and
+user processes second.
+The compute-to-real-time ratio is updated
+every second.
+Thus,
+all other things being equal,
+looping user processes will be
+scheduled round-robin with a
+1-second quantum.
+A high-priority process waking up will
+preempt a running, low-priority process.
+The scheduling algorithm has a very desirable
+negative feedback character.
+If a process uses its high priority
+to hog the computer,
+its priority will drop.
+At the same time, if a low-priority
+process is ignored for a long time,
+its priority will rise.
+.NH
+I/O SYSTEM
+.PP
+The I/O system
+is broken into two completely separate systems:
+the block I/O system and the character I/O system.
+In retrospect,
+the names should have been ``structured I/O''
+and ``unstructured I/O,'' respectively;
+while the term ``block I/O'' has some meaning,
+``character I/O'' is a complete misnomer.
+.PP
+Devices are characterized by a major device number,
+a minor device number, and
+a class (block or character).
+For each class,
+there is an array of entry points into the device drivers.
+The major device number is used to index the array
+when calling the code for a particular device driver.
+The minor device number is passed to the
+device driver as an argument.
+The minor number has no significance other
+than that attributed to it by the driver.
+Usually,
+the driver uses the minor number to access
+one of several identical physical devices.
+.PP
+The use of the array of entry points
+(configuration table)
+as the only connection between the
+system code and the device drivers is
+very important.
+Early versions of the system had a much
+less formal connection with the drivers,
+so that it was extremely hard to handcraft
+differently configured systems.
+Now it is possible to create new
+device drivers in an average of a few hours.
+The configuration table in most cases
+is created automatically by a program
+that reads the system's parts list.
+.NH 2
+Block I/O system
+.PP
+The model block I/O device consists
+of randomly addressed, secondary
+memory blocks of 512 bytes each.
+The blocks are uniformly addressed
+0, 1, .\|.\|. up to the size of the device.
+The block device driver has the job of
+emulating this model on a
+physical device.
+.PP
+The block I/O devices are accessed
+through a layer of buffering software.
+The system maintains a list of buffers
+(typically between 10 and 70)
+each assigned a device name and
+a device address.
+This buffer pool constitutes a data cache
+for the block devices.
+On a read request,
+the cache is searched for the desired block.
+If the block is found,
+the data are made available to the
+requester without any physical I/O.
+If the block is not in the cache,
+the least recently used block in the cache is renamed,
+the correct device driver is called to
+fill up the renamed buffer, and then the
+data are made available.
+Write requests are handled in an analogous manner.
+The correct buffer is found
+and relabeled if necessary.
+The write is performed simply by marking
+the buffer as ``dirty.''
+The physical I/O is then deferred until
+the buffer is renamed.
+.PP
+The benefits in reduction of physical I/O
+of this scheme are substantial,
+especially considering the file system implementation.
+There are,
+however,
+some drawbacks.
+The asynchronous nature of the
+algorithm makes error reporting
+and meaningful user error handling
+almost impossible.
+The cavalier approach to I/O error
+handling in the
+.UX
+system is partly due to the asynchronous
+nature of the block I/O system.
+A second problem is in the delayed writes.
+If the system stops unexpectedly,
+it is almost certain that there is a
+lot of logically complete,
+but physically incomplete,
+I/O in the buffers.
+There is a system primitive to
+flush all outstanding I/O activity
+from the buffers.
+Periodic use of this primitive helps,
+but does not solve, the problem.
+Finally,
+the associativity in the buffers
+can alter the physical I/O sequence
+from that of the logical I/O sequence.
+This means that there are times
+when data structures on disk are inconsistent,
+even though the software is careful
+to perform I/O in the correct order.
+On non-random devices,
+notably magnetic tape,
+the inversions of writes can be disastrous.
+The problem with magnetic tapes is ``cured'' by
+allowing only one outstanding write request
+per drive.
+.NH 2
+Character I/O system
+.PP
+The character I/O system consists of all
+devices that do not fall into the block I/O model.
+This includes the ``classical'' character devices
+such as communications lines, paper tape, and
+line printers.
+It also includes magnetic tape and disks when
+they are not used in a stereotyped way,
+for example, 80-byte physical records on tape
+and track-at-a-time disk copies.
+In short,
+the character I/O interface
+means ``everything other than block.''
+I/O requests from the user are sent to the
+device driver essentially unaltered.
+The implementation of these requests is, of course,
+up to the device driver.
+There are guidelines and conventions
+to help the implementation of
+certain types of device drivers.
+.NH 3
+Disk drivers
+.PP
+Disk drivers are implemented
+with a queue of transaction records.
+Each record holds a read/write flag,
+a primary memory address,
+a secondary memory address, and
+a transfer byte count.
+Swapping is accomplished by passing
+such a record to the swapping device driver.
+The block I/O interface is implemented by
+passing such records with requests to
+fill and empty system buffers.
+The character I/O interface to the disk
+drivers create a transaction record that
+points directly into the user area.
+The routine that creates this record also insures
+that the user is not swapped during this
+I/O transaction.
+Thus by implementing the general disk driver,
+it is possible to use the disk
+as a block device,
+a character device, and a swap device.
+The only really disk-specific code in normal
+disk drivers is the pre-sort of transactions to
+minimize latency for a particular device, and
+the actual issuing of the I/O request.
+.NH 3
+Character lists
+.PP
+Real character-oriented devices may
+be implemented using the common
+code to handle character lists.
+A character list is a queue of characters.
+One routine puts a character on a queue.
+Another gets a character from a queue.
+It is also possible to ask how many
+characters are currently on a queue.
+Storage for all queues in the system comes
+from a single common pool.
+Putting a character on a queue will allocate
+space from the common pool and link the
+character onto the data structure defining the queue.
+Getting a character from a queue returns
+the corresponding space to the pool.
+.PP
+A typical character-output device
+(paper tape punch, for example)
+is implemented by passing characters
+from the user onto a character queue until
+some maximum number of characters is on the queue.
+The I/O is prodded to start as
+soon as there is anything on the queue
+and, once started,
+it is sustained by hardware completion interrupts.
+Each time there is a completion interrupt,
+the driver gets the next character from the queue
+and sends it to the hardware.
+The number of characters on the queue is checked and,
+as the count falls through some intermediate level,
+an event (the queue address) is signaled.
+The process that is passing characters from
+the user to the queue can be waiting on the event, and
+refill the queue to its maximum
+when the event occurs.
+.PP
+A typical character input device
+(for example, a paper tape reader)
+is handled in a very similar manner.
+.PP
+Another class of character devices is the terminals.
+A terminal is represented by three
+character queues.
+There are two input queues (raw and canonical)
+and an output queue.
+Characters going to the output of a terminal
+are handled by common code exactly as described
+above.
+The main difference is that there is also code
+to interpret the output stream as
+.UC  ASCII
+characters and to perform some translations,
+e.g., escapes for deficient terminals.
+Another common aspect of terminals is code
+to insert real-time delay after certain control characters.
+.PP
+Input on terminals is a little different.
+Characters are collected from the terminal and
+placed on a raw input queue.
+Some device-dependent code conversion and
+escape interpretation is handled here.
+When a line is complete in the raw queue,
+an event is signaled.
+The code catching this signal then copies a
+line from the raw queue to a canonical queue
+performing the character erase and line kill editing.
+User read requests on terminals can be
+directed at either the raw or canonical queues.
+.NH 3
+Other character devices
+.PP
+Finally,
+there are devices that fit no general category.
+These devices are set up as character I/O drivers.
+An example is a driver that reads and writes
+unmapped primary memory as an I/O device.
+Some devices are too
+fast to be treated a character at time,
+but do not fit the disk I/O mold.
+Examples are fast communications lines and
+fast line printers.
+These devices either have their own buffers
+or ``borrow'' block I/O buffers for a while and
+then give them back.
+.NH
+THE FILE SYSTEM
+.PP
+In the
+.UX
+system,
+a file is a (one-dimensional) array of bytes.
+No other structure of files is implied by the
+system.
+Files are attached anywhere
+(and possibly multiply)
+onto a hierarchy of directories.
+Directories are simply files that
+users cannot write.
+For a further discussion
+of the external view of files and directories,
+see Ref.\0
+.[
+ritchie thompson unix bstj 1978
+%Q This issue
+.].
+.PP
+The
+.UX
+file system is a disk data structure
+accessed completely through
+the block I/O system.
+As stated before,
+the canonical view of a ``disk'' is
+a randomly addressable array of
+512-byte blocks.
+A file system breaks the disk into
+four self-identifying regions.
+The first block (address 0)
+is unused by the file system.
+It is left aside for booting procedures.
+The second block (address 1)
+contains the so-called ``super-block.''
+This block,
+among other things,
+contains the size of the disk and
+the boundaries of the other regions.
+Next comes the i-list,
+a list of file definitions.
+Each file definition is
+a 64-byte structure, called an i-node.
+The offset of a particular i-node
+within the i-list is called its i-number.
+The combination of device name
+(major and minor numbers) and i-number
+serves to uniquely name a particular file.
+After the i-list,
+and to the end of the disk,
+come free storage blocks that
+are available for the contents of files.
+.PP
+The free space on a disk is maintained
+by a linked list of available disk blocks.
+Every block in this chain contains a disk address
+of the next block in the chain.
+The remaining space contains the address of up to
+50 disk blocks that are also free.
+Thus with one I/O operation,
+the system obtains 50 free blocks and a
+pointer where to find more.
+The disk allocation algorithms are
+very straightforward.
+Since all allocation is in fixed-size
+blocks and there is strict accounting of
+space,
+there is no need to compact or garbage collect.
+However,
+as disk space becomes dispersed,
+latency gradually increases.
+Some installations choose to occasionally compact
+disk space to reduce latency.
+.PP
+An i-node contains 13 disk addresses.
+The first 10 of these addresses point directly at
+the first 10 blocks of a file.
+If a file is larger than 10 blocks (5,120 bytes),
+then the eleventh address points at a block
+that contains the addresses of the next 128 blocks of the file.
+If the file is still larger than this
+(70,656 bytes),
+then the twelfth block points at up to 128 blocks,
+each pointing to 128 blocks of the file.
+Files yet larger
+(8,459,264 bytes)
+use the thirteenth address for a ``triple indirect'' address.
+The algorithm ends here with the maximum file size
+of 1,082,201,087 bytes.
+.PP
+A logical directory hierarchy is added
+to this flat physical structure simply
+by adding a new type of file, the directory.
+A directory is accessed exactly as an ordinary file.
+It contains 16-byte entries consisting of
+a 14-byte name and an i-number.
+The root of the hierarchy is at a known i-number
+(\fIviz.,\fR 2).
+The file system structure allows an arbitrary, directed graph
+of directories with regular files linked in
+at arbitrary places in this graph.
+In fact,
+very early
+.UX
+systems used such a structure.
+Administration of such a structure became so
+chaotic that later systems were restricted
+to a directory tree.
+Even now,
+with regular files linked multiply
+into arbitrary places in the tree,
+accounting for space has become a problem.
+It may become necessary to restrict the entire
+structure to a tree,
+and allow a new form of linking that
+is subservient to the tree structure.
+.PP
+The file system allows
+easy creation,
+easy removal,
+easy random accessing,
+and very easy space allocation.
+With most physical addresses confined
+to a small contiguous section of disk,
+it is also easy to dump, restore, and
+check the consistency of the file system.
+Large files suffer from indirect addressing,
+but the cache prevents most of the implied physical I/O
+without adding much execution.
+The space overhead properties of this scheme are quite good.
+For example,
+on one particular file system,
+there are 25,000 files containing 130M bytes of data-file content.
+The overhead (i-node, indirect blocks, and last block breakage)
+is about 11.5M bytes.
+The directory structure to support these files
+has about 1,500 directories containing 0.6M bytes of directory content
+and about 0.5M bytes of overhead in accessing the directories.
+Added up any way,
+this comes out to less than a 10 percent overhead for actual
+stored data.
+Most systems have this much overhead in
+padded trailing blanks alone.
+.NH 2
+File system implementation
+.PP
+Because the i-node defines a file,
+the implementation of the file system centers
+around access to the i-node.
+The system maintains a table of all active
+i-nodes.
+As a new file is accessed,
+the system locates the corresponding i-node,
+allocates an i-node table entry, and reads
+the i-node into primary memory.
+As in the buffer cache,
+the table entry is considered to be the current
+version of the i-node.
+Modifications to the i-node are made to
+the table entry.
+When the last access to the i-node goes
+away,
+the table entry is copied back to the
+secondary store i-list and the table entry is freed.
+.KF
+.if t .in .25i
+.so fig2.pic
+.if t .in -.25i
+.sp 2v
+.ce
+Fig. 2\(emFile system data structure.
+.sp
+.KE
+.PP
+All I/O operations on files are carried out
+with the aid of the corresponding i-node table entry.
+The accessing of a file is a straightforward
+implementation of the algorithms mentioned previously.
+The user is not aware of i-nodes and i-numbers.
+References to the file system are made in terms of
+path names of the directory tree.
+Converting a path name into an i-node table entry
+is also straightforward.
+Starting at some known i-node
+(the root or the current directory of some process),
+the next component of the path name is
+searched by reading the directory.
+This gives an i-number and an implied device
+(that of the directory).
+Thus the next i-node table entry can be accessed.
+If that was the last component of the path name,
+then this i-node is the result.
+If not,
+this i-node is the directory needed to look up
+the next component of the path name, and the
+algorithm is repeated.
+.PP
+The user process accesses the file system with
+certain primitives.
+The most common of these are
+.UL open ,
+.UL create ,
+.UL read ,
+.UL write ,
+.UL seek ,
+and
+.UL close .
+The data structures maintained are shown in Fig. 2.
+In the system data segment associated with a user,
+there is room for some (usually between 10 and 50) open files.
+This open file table consists of pointers that can be used to access
+corresponding i-node table entries.
+Associated with each of these open files is
+a current I/O pointer.
+This is a byte offset of
+the next read/write operation on the file.
+The system treats each read/write request
+as random with an implied seek to the
+I/O pointer.
+The user usually thinks of the file as
+sequential with the I/O pointer
+automatically counting the number of bytes
+that have been read/written from the file.
+The user may,
+of course,
+perform random I/O by setting the I/O pointer
+before reads/writes.
+.PP
+With file sharing,
+it is necessary to allow related
+processes to share a common I/O pointer
+and yet have separate I/O pointers
+for independent processes
+that access the same file.
+With these two conditions,
+the I/O pointer cannot reside
+in the i-node table nor can
+it reside in the list of
+open files for the process.
+A new table
+(the open file table)
+was invented for the sole purpose
+of holding the I/O pointer.
+Processes that share the same open
+file
+(the result of
+.UL fork s)
+share a common open file table entry.
+A separate open of the same file will
+only share the i-node table entry,
+but will have distinct open file table entries.
+.PP
+The main file system primitives are implemented as follows.
+.UL \&open
+converts a file system path name into an i-node
+table entry.
+A pointer to the i-node table entry is placed in a
+newly created open file table entry.
+A pointer to the file table entry is placed in the
+system data segment for the process.
+.UL \&create
+first creates a new i-node entry,
+writes the i-number into a directory, and
+then builds the same structure as for an
+.UL open .
+.UL \&read
+and
+.UL write
+just access the i-node entry as described above.
+.UL \&seek
+simply manipulates the I/O pointer.
+No physical seeking is done.
+.UL \&close
+just frees the structures built by
+.UL open
+and
+.UL create .
+Reference counts are kept on the open file table entries and
+the i-node table entries to free these structures after
+the last reference goes away.
+.UL \&unlink
+simply decrements the count of the
+number of directories pointing at the given i-node.
+When the last reference to an i-node table entry
+goes away,
+if the i-node has no directories pointing to it,
+then the file is removed and the i-node is freed.
+This delayed removal of files prevents
+problems arising from removing active files.
+A file may be removed while still open.
+The resulting unnamed file vanishes
+when the file is closed.
+This is a method of obtaining temporary files.
+.PP
+There is a type of unnamed
+.UC  FIFO
+file called a
+.UL pipe.
+Implementation of
+.UL pipe s
+consists of implied
+.UL seek s
+before each
+.UL read
+or
+.UL write
+in order to implement
+first-in-first-out.
+There are also checks and synchronization
+to prevent the
+writer from grossly outproducing the
+reader and to prevent the reader from
+overtaking the writer.
+.NH 2
+Mounted file systems
+.PP
+The file system of a
+.UX
+system
+starts with some designated block device
+formatted as described above to contain
+a hierarchy.
+The root of this structure is the root of
+the
+.UX
+file system.
+A second formatted block device may be
+mounted
+at any leaf of
+the current hierarchy.
+This logically extends the current hierarchy.
+The implementation of
+mounting
+is trivial.
+A mount table is maintained containing
+pairs of designated leaf i-nodes and
+block devices.
+When converting a path name into an i-node,
+a check is made to see if the new i-node is a
+designated leaf.
+If it is,
+the i-node of the root
+of the block device replaces it.
+.PP
+Allocation of space for a file is taken
+from the free pool on the device on which the
+file lives.
+Thus a file system consisting of many
+mounted devices does not have a common pool of
+free secondary storage space.
+This separation of space on different
+devices is necessary to allow easy
+unmounting
+of a device.
+.NH 2
+Other system functions
+.PP
+There are some other things that the system
+does for the user\-a
+little accounting,
+a little tracing/debugging,
+and a little access protection.
+Most of these things are not very
+well developed
+because our use of the system in computing science research
+does not need them.
+There are some features that are missed in some
+applications, for example, better inter-process communication.
+.PP
+The
+.UX
+kernel is an I/O multiplexer more than
+a complete operating system.
+This is as it should be.
+Because of this outlook,
+many features are
+found in most
+other operating systems that are missing from the
+.UX
+kernel.
+For example,
+the
+.UX
+kernel does not support
+file access methods,
+file disposition,
+file formats,
+file maximum size,
+spooling,
+command language,
+logical records,
+physical records,
+assignment of logical file names,
+logical file names,
+more than one character set,
+an operator's console,
+an operator,
+log-in,
+or log-out.
+Many of these things are symptoms rather than features.
+Many of these things are implemented
+in user software
+using the kernel as a tool.
+A good example of this is the command language.
+.[
+bourne shell 1978 bstj
+%Q This issue
+.]
+Each user may have his own command language.
+Maintenance of such code is as easy as
+maintaining user code.
+The idea of implementing ``system'' code with general
+user primitives
+comes directly from
+.UC  MULTICS .
+.[
+organick multics 1972
+.]
+.LP
+.[
+$LIST$
+.]

@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+x='!@#$%^&*()[]'
+[ ${#x} = 12 ] || echo bad 1
+[ "${#x}" = 12 ] || echo bad 2
+IFS=2
+[ ${#x} = 1 ] || echo bad 3
+[ "${#x}" = 12 ] || echo bad 4

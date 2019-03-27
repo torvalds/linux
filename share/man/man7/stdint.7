@@ -1,0 +1,136 @@
+.\" Copyright (c) 2002 Mike Barcroft <mike@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 15, 2002
+.Dt STDINT 7
+.Os
+.Sh NAME
+.Nm stdint
+.Nd "standard integer types"
+.Sh SYNOPSIS
+.In stdint.h
+.Sh DESCRIPTION
+The
+.In stdint.h
+header provides source-portable integer types of a specific
+size, smallest memory footprint with a minimum size, fastest
+access speed with a minimum size, largest integer size, and
+those capable of storing pointers.
+.Pp
+The types
+.Vt int8_t ,
+.Vt int16_t ,
+.Vt int32_t ,
+and
+.Vt int64_t
+provide a signed integer type of width 8, 16, 32, or 64 bits, respectively.
+The types
+.Vt uint8_t ,
+.Vt uint16_t ,
+.Vt uint32_t ,
+and
+.Vt uint64_t
+provide an unsigned integer type of width 8, 16, 32, or 64 bits, respectively.
+These integer types should be used when a specific size is required.
+.Pp
+The types
+.Vt int_fast8_t ,
+.Vt int_fast16_t ,
+.Vt int_fast32_t ,
+and
+.Vt int_fast64_t
+provide the fastest signed integer type with a width
+of at least 8, 16, 32, or 64 bits, respectively.
+The types
+.Vt uint_fast8_t ,
+.Vt uint_fast16_t ,
+.Vt uint_fast32_t ,
+and
+.Vt uint_fast64_t
+provide the fastest unsigned integer type with a width
+of at least 8, 16, 32, or 64 bits, respectively.
+These types should be used when access speed is
+paramount, and when a specific size is not required.
+.Pp
+The types
+.Vt int_least8_t ,
+.Vt int_least16_t ,
+.Vt int_least32_t ,
+and
+.Vt int_least64_t
+provide the smallest memory footprint signed integer type with
+a width of at least 8, 16, 32, or 64 bits, respectively.
+The types
+.Vt uint_least8_t ,
+.Vt uint_least16_t ,
+.Vt uint_least32_t ,
+and
+.Vt uint_least64_t
+provide the smallest memory footprint unsigned integer type with
+a width of at least 8, 16, 32, or 64 bits, respectively.
+These types should be used when memory storage is of
+concern, and when a specific size is not required.
+.Pp
+The type
+.Vt intmax_t
+provides a signed integer type large
+enough to hold any other signed integer.
+The type
+.Vt uintmax_t
+provides an unsigned integer type large
+enough to hold any other unsigned integer.
+These types are generally the largest signed and unsigned
+integer types available on a specific architecture.
+.Pp
+The type
+.Vt intptr_t
+provides a signed integer type with the ability to hold a pointer to
+.Vt void ,
+that can later be converted back to a pointer to
+.Vt void .
+.Pp
+The type
+.Vt uintptr_t
+provides an unsigned integer type with the ability to hold a pointer to
+.Vt void ,
+that can later be converted back to a pointer to
+.Vt void .
+.Pp
+Additionally, the
+.In stdint.h
+header defines some macros, but none of them are documented here.
+.Sh STANDARDS
+The
+.In stdint.h
+header conforms to
+.St -isoC-99
+and
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.In stdint.h
+header was first introduced in
+.Fx 5.0 .

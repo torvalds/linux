@@ -1,0 +1,112 @@
+<HTML>
+<HEAD><TITLE>smfi_setsymlist</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_setsymlist.html,v 1.7 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_setsymlist</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_setsymlist(
+        SMFICTX    *ctx, 
+	int        stage,
+	char       *macros
+);
+</PRE>
+Set the list of macros that the milter wants to receive from the MTA
+for a protocol stage.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>This function must only be called during
+<A HREF="xxfi_negotiate.html">xxfi_negotiate()</A>.
+</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>This function can be used to override the list of macros that the
+milter wants to receive from the MTA.
+</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+
+    <TR><TD>ctx</TD>
+	<TD>the opaque context structure.
+	</TD></TR>
+
+    <TR><TD>stage</TD>
+	<TD>the protocol stage during which the macro list should be used.
+	See the file
+	<CODE>include/libmilter/mfapi.h</CODE> for legal values,
+	look for the C macros with the prefix
+	<CODE>SMFIM_</CODE>.
+	Available protocol stages are at least
+	the initial connection, HELO/EHLO, MAIL, RCPT, DATA,
+	end of header, and
+	the end of a message.
+	</TD></TR>
+
+    <TR><TD>macros</TD>
+	<TD>list of macros (separated by space).
+	Example: "{rcpt_mailer} {rcpt_host}"
+	<BR>
+	An empty string ("", not NULL) can be used to specify that no macros
+	should be sent.
+	</TD></TR>
+
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>MI_FAILURE is returned if
+<UL>
+<LI>there is not enough free memory to make a copy of the macro list,
+<LI><CODE>macros</CODE> is <CODE>NULL</CODE>,
+<LI><CODE>stage</CODE> is not a valid protocol stage,
+<LI>the macro list for
+<CODE>stage</CODE> has been set before.
+</UL>
+Otherwise MI_SUCCESS is returned.
+</TD>
+</TR>
+
+<!----------- Notes ---------->
+<TR align="left" valign=top>
+<TH>NOTES</TH> 
+<TD>There is an internal limit on the number of macros
+that can be set
+<!-- XREF: MAXFILTERMACROS -->
+(currently 50),
+however, this limit is not enforced by libmilter, only by the MTA,
+but a possible violation of this restriction is not communicated back to
+the milter.</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2006, 2012 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

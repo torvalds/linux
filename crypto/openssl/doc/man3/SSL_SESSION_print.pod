@@ -1,0 +1,47 @@
+=pod
+
+=head1 NAME
+
+SSL_SESSION_print,
+SSL_SESSION_print_fp,
+SSL_SESSION_print_keylog
+- printf information about a session
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_SESSION_print(BIO *fp, const SSL_SESSION *ses);
+ int SSL_SESSION_print_fp(FILE *fp, const SSL_SESSION *ses);
+ int SSL_SESSION_print_keylog(BIO *bp, const SSL_SESSION *x);
+
+=head1 DESCRIPTION
+
+SSL_SESSION_print() prints summary information about the session provided in
+B<ses> to the BIO B<fp>.
+
+SSL_SESSION_print_fp() does the same as SSL_SESSION_print() except it prints it
+to the FILE B<fp>.
+
+SSL_SESSION_print_keylog() prints session information to the provided BIO <bp>
+in NSS keylog format.
+
+=head1 RETURN VALUES
+
+SSL_SESSION_print(), SSL_SESSION_print_fp() and SSL_SESSION_print_keylog return
+1 on success or 0 on error.
+
+=head1 SEE ALSO
+
+L<ssl(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,13 @@
+100 pass in all
+200 pass in proto tcp all
+110 pass in proto udp all
+110 pass in from localhost to any
+pass in all
+pass in from localhost to any
+@0 100 pass in from localhost to any
+@1 pass in from any to localhost
+@0 pass in from 1.1.1.1 to any
+@1 110 pass in from 2.2.2.2 to any
+@2 pass in from 3.3.3.3 to any
+call srcgrpmap/100 out from 10.1.0.0/16 to any
+call now dstgrpmap/200 in from 10.2.0.0/16 to any

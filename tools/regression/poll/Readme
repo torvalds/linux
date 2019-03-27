@@ -1,0 +1,18 @@
+$FreeBSD$
+
+The directory contains poll(2) and select(2) compliance (and more) tests
+from Bruce Evans, together with canned test results from several systems
+for reference.
+
+Citing Bruce Evans:
+The subdirectories contain results of old runs:
+
+{4,7}: FreeBSD-{4,7} with old tests (only state 0 and 6b have different
+expectations; state 0 fails in FreeBSD-4 so the above is wrong
+about at least when it was broken.  I thought that I fixed it
+completely for select() in FreeBSD-1.  One or both of these states
+were very broken in Net/2 and maybe in 4.4BSD-Lite*).
+
+l: Linux-2.6.10 with old tests (only state 0 has different expectations)
+m: my current version of FreeBSD with old tests (0 and 6b)
+n: my previous version of FreeBSD with old tests (0 and 6b)

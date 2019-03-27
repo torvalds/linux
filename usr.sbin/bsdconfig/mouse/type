@@ -1,0 +1,170 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="110.mouse"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local prompt="$msg_protocol_menu_text"
+	local menu_list="
+		'1 $msg_auto'          '$msg_auto_desc'
+		'2 $msg_glidepoint'    '$msg_glidepoint_desc'
+		'3 $msg_hitachi'       '$msg_hitachi_desc'
+		'4 $msg_intellimouse'  '$msg_intellimouse_desc'
+		'5 $msg_logitech'      '$msg_logitech_desc'
+		'6 $msg_microsoft'     '$msg_microsoft_desc'
+		'7 $msg_mm_series'     '$msg_mm_series_desc'
+		'8 $msg_mouseman'      '$msg_mouseman_desc'
+		'9 $msg_mousesystems'  '$msg_mousesystems_desc'
+		'A $msg_thinkingmouse' '$msg_thinkingmouse_desc'
+	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline=
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	case "$( f_sysrc_get moused_type )" in
+	auto)          defaultitem="1 $msg_auto"          ;;
+	glidepoint)    defaultitem="2 $msg_glidepoint"    ;;
+	mmhittab)      defaultitem="3 $msg_hitachi"       ;;
+	intellimouse)  defaultitem="4 $msg_intellimouse"  ;;
+	logitech)      defaultitem="5 $msg_logitech"      ;;
+	microsoft)     defaultitem="6 $msg_microsoft"     ;;
+	mmseries)      defaultitem="7 $msg_mm_series"     ;;
+	mouseman)      defaultitem="8 $msg_mouseman"      ;;
+	mousesystems)  defaultitem="9 $msg_mousesystems"  ;;
+	thinkingmouse) defaultitem="A $msg_thinkingmouse" ;;
+	esac
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_menutag_store -s "$menu_choice"
+	return $retval
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts h$GETOPTS_STDARGS flag; do
+	case "$flag" in
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Initialize
+#
+f_dialog_title "$msg_select_a_protocol_type_for_your_mouse"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+
+#
+# Launch application main menu
+#
+dialog_menu_main || f_die
+f_dialog_menutag_fetch mtag
+
+moused_type_to_set=
+case "$mtag" in
+"1 $msg_auto") # Bus mouse, PS/2 style mouse or PnP serial mouse
+	moused_type_to_set="auto" ;;
+"2 $msg_glidepoint") # ALPS GlidePoint pad (serial)
+	moused_type_to_set="glidepoint" ;;
+"3 $msg_hitachi") # Hitachi tablet (serial)
+	moused_type_to_set="mmhittab" ;;
+"4 $msg_intellimouse") # Microsoft Intellimouse (serial)
+	moused_type_to_set="intellimouse" ;;
+"5 $msg_logitech") # Logitech protocol (old models) (serial)
+	moused_type_to_set="logitech" ;;
+"6 $msg_microsoft") # Microsoft protocol (serial)
+	moused_type_to_set="microsoft" ;;
+"7 $msg_mm_series") # MM Series protocol (serial)
+	moused_type_to_set="mmseries" ;;
+"8 $msg_mouseman") # Logitech MouseMan/TrackMan models (serial)
+	moused_type_to_set="mouseman" ;;
+"9 $msg_mousesystems") # MouseSystems protocol (serial)
+	moused_type_to_set="mousesystems" ;;
+"A $msg_thinkingmouse") # Kensignton ThinkingMouse (serial)
+	moused_type_to_set="thinkingmouse" ;;
+esac
+
+if [ "$moused_type_to_set" ]; then
+	f_eval_catch "$0" f_sysrc_set \
+		'f_sysrc_set moused_type "%s"' "$moused_type_to_set" || f_die
+else
+	f_die 1 "$msg_unknown_mouse_protocol_selection"
+fi
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

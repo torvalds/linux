@@ -1,0 +1,2189 @@
+# $NetBSD: rc.subr,v 1.67 2006/10/07 11:25:15 elad Exp $
+# $FreeBSD$
+#
+# Copyright (c) 1997-2004 The NetBSD Foundation, Inc.
+# All rights reserved.
+#
+# This code is derived from software contributed to The NetBSD Foundation
+# by Luke Mewburn.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# rc.subr
+#	functions used by various rc scripts
+#
+
+: ${RC_PID:=$$}; export RC_PID
+
+#
+#	Operating System dependent/independent variables
+#
+
+if [ -n "${_rc_subr_loaded}" ]; then
+	return
+fi
+
+_rc_subr_loaded="YES"
+
+SYSCTL="/sbin/sysctl"
+SYSCTL_N="${SYSCTL} -n"
+SYSCTL_W="${SYSCTL}"
+PROTECT="/usr/bin/protect"
+ID="/usr/bin/id"
+IDCMD="if [ -x $ID ]; then $ID -un; fi"
+PS="/bin/ps -ww"
+JID=0
+# rc_service provides the path to the service script that we are executing.
+# This is not being set here in an execution context, necessarily, so it's
+# really just a reasonable guess, and it will get overwritten later if
+# we are executing from some other means than direct execution by service(8)
+# or manual invocation of the service script.  The prime example of this is
+# during system startup, all rc scripts will be invoked via /etc/rc, so
+# run_rc_script will overwrite rc_service with the file being sourced.
+rc_service="$0"
+
+#
+#	functions
+#	---------
+
+# list_vars pattern
+#	List variables matching glob pattern.
+# 
+list_vars()
+{
+	# Localize 'set' option below.
+	local -
+	local IFS=$'\n' line varname
+
+	# Disable path expansion in unquoted 'for' parameters below.
+	set -o noglob
+
+	for line in $(set); do
+		varname="${line%%=*}"
+
+		case "$varname" in
+		"$line"|*[!a-zA-Z0-9_]*)
+			continue
+			;;
+		$1)
+			echo $varname
+			;;
+		esac
+	done
+}
+
+# set_rcvar [var] [defval] [desc]
+#
+#	Echo or define a rc.conf(5) variable name.  Global variable
+#	$rcvars is used.
+#
+#	If no argument is specified, echo "${name}_enable".
+#
+#	If only a var is specified, echo "${var}_enable".
+#
+#	If var and defval are specified, the ${var} is defined as
+#	rc.conf(5) variable and the default value is ${defvar}.  An
+#	optional argument $desc can also be specified to add a
+#	description for that.
+#
+set_rcvar()
+{
+	local _var
+
+	case $# in
+	0)	echo ${name}_enable ;;
+	1)	echo ${1}_enable ;;
+	*)
+		debug "set_rcvar: \$$1=$2 is added" \
+		    " as a rc.conf(5) variable."
+		_var=$1
+		rcvars="${rcvars# } $_var"
+		eval ${_var}_defval=\"$2\"
+		shift 2
+		eval ${_var}_desc=\"$*\"
+	;;
+	esac
+}
+
+# set_rcvar_obsolete oldvar [newvar] [msg]
+#	Define obsolete variable.
+#	Global variable $rcvars_obsolete is used.
+#
+set_rcvar_obsolete()
+{
+	local _var
+	_var=$1
+	debug "set_rcvar_obsolete: \$$1(old) -> \$$2(new) is defined"
+
+	rcvars_obsolete="${rcvars_obsolete# } $1"
+	eval ${1}_newvar=\"$2\"
+	shift 2
+	eval ${_var}_obsolete_msg=\"$*\"
+}
+
+#
+# force_depend script [rcvar]
+#	Force a service to start. Intended for use by services
+#	to resolve dependency issues.
+#	$1 - filename of script, in /etc/rc.d, to run
+#	$2 - name of the script's rcvar (minus the _enable)
+#
+force_depend()
+{
+	local _depend _dep_rcvar
+
+	_depend="$1"
+	_dep_rcvar="${2:-$1}_enable"
+
+	[ -n "$rc_fast" ] && ! checkyesno always_force_depends &&
+	    checkyesno $_dep_rcvar && return 0
+
+	/etc/rc.d/${_depend} forcestatus >/dev/null 2>&1 && return 0
+
+	info "${name} depends on ${_depend}, which will be forced to start."
+	if ! /etc/rc.d/${_depend} forcestart; then
+		warn "Unable to force ${_depend}. It may already be running."
+		return 1
+	fi
+}
+
+#
+# checkyesno var
+#	Test $1 variable, and warn if not set to YES or NO.
+#	Return 0 if it's "yes" (et al), nonzero otherwise.
+#
+checkyesno()
+{
+	eval _value=\$${1}
+	debug "checkyesno: $1 is set to $_value."
+	case $_value in
+
+		#	"yes", "true", "on", or "1"
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		return 0
+		;;
+
+		#	"no", "false", "off", or "0"
+	[Nn][Oo]|[Ff][Aa][Ll][Ss][Ee]|[Oo][Ff][Ff]|0)
+		return 1
+		;;
+	*)
+		warn "\$${1} is not set properly - see rc.conf(5)."
+		return 1
+		;;
+	esac
+}
+
+#
+# reverse_list list
+#	print the list in reverse order
+#
+reverse_list()
+{
+	_revlist=
+	for _revfile; do
+		_revlist="$_revfile $_revlist"
+	done
+	echo $_revlist
+}
+
+# stop_boot always
+#	If booting directly to multiuser or $always is enabled,
+#	send SIGTERM to the parent (/etc/rc) to abort the boot.
+#	Otherwise just exit.
+#
+stop_boot()
+{
+	local always
+
+	case $1 in
+		#	"yes", "true", "on", or "1"
+        [Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		always=true
+		;;
+	*)
+		always=false
+		;;
+	esac
+	if [ "$autoboot" = yes -o "$always" = true ]; then
+		echo "ERROR: ABORTING BOOT (sending SIGTERM to parent)!"
+		kill -TERM ${RC_PID}
+	fi
+	exit 1
+}
+
+#
+# mount_critical_filesystems type
+#	Go through the list of critical filesystems as provided in
+#	the rc.conf(5) variable $critical_filesystems_${type}, checking
+#	each one to see if it is mounted, and if it is not, mounting it.
+#
+mount_critical_filesystems()
+{
+	eval _fslist=\$critical_filesystems_${1}
+	for _fs in $_fslist; do
+		mount | (
+			_ismounted=false
+			while read what _on on _type type; do
+				if [ $on = $_fs ]; then
+					_ismounted=true
+				fi
+			done
+			if $_ismounted; then
+				:
+			else
+				mount $_fs >/dev/null 2>&1
+			fi
+		)
+	done
+}
+
+#
+# check_pidfile pidfile procname [interpreter]
+#	Parses the first line of pidfile for a PID, and ensures
+#	that the process is running and matches procname.
+#	Prints the matching PID upon success, nothing otherwise.
+#	interpreter is optional; see _find_processes() for details.
+#
+check_pidfile()
+{
+	_pidfile=$1
+	_procname=$2
+	_interpreter=$3
+	if [ -z "$_pidfile" -o -z "$_procname" ]; then
+		err 3 'USAGE: check_pidfile pidfile procname [interpreter]'
+	fi
+	if [ ! -f $_pidfile ]; then
+		debug "pid file ($_pidfile): not readable."
+		return
+	fi
+	read _pid _junk < $_pidfile
+	if [ -z "$_pid" ]; then
+		debug "pid file ($_pidfile): no pid in file."
+		return
+	fi
+	_find_processes $_procname ${_interpreter:-.} '-p '"$_pid"
+}
+
+#
+# check_process procname [interpreter]
+#	Ensures that a process (or processes) named procname is running.
+#	Prints a list of matching PIDs.
+#	interpreter is optional; see _find_processes() for details.
+#
+check_process()
+{
+	_procname=$1
+	_interpreter=$2
+	if [ -z "$_procname" ]; then
+		err 3 'USAGE: check_process procname [interpreter]'
+	fi
+	_find_processes $_procname ${_interpreter:-.} '-ax'
+}
+
+#
+# _find_processes procname interpreter psargs
+#	Search for procname in the output of ps generated by psargs.
+#	Prints the PIDs of any matching processes, space separated.
+#
+#	If interpreter == ".", check the following variations of procname
+#	against the first word of each command:
+#		procname
+#		`basename procname`
+#		`basename procname` + ":"
+#		"(" + `basename procname` + ")"
+#		"[" + `basename procname` + "]"
+#
+#	If interpreter != ".", read the first line of procname, remove the
+#	leading #!, normalise whitespace, append procname, and attempt to
+#	match that against each command, either as is, or with extra words
+#	at the end.  As an alternative, to deal with interpreted daemons
+#	using perl, the basename of the interpreter plus a colon is also
+#	tried as the prefix to procname.
+#
+_find_processes()
+{
+	if [ $# -ne 3 ]; then
+		err 3 'USAGE: _find_processes procname interpreter psargs'
+	fi
+	_procname=$1
+	_interpreter=$2
+	_psargs=$3
+
+	_pref=
+	if [ $_interpreter != "." ]; then	# an interpreted script
+		_script="${_chroot}${_chroot:+/}$_procname"
+		if [ -r "$_script" ]; then
+			read _interp < $_script	# read interpreter name
+			case "$_interp" in
+			\#!*)
+				_interp=${_interp#\#!}	# strip #!
+				set -- $_interp
+				case $1 in
+				*/bin/env)
+					shift	# drop env to get real name
+					;;
+				esac
+				if [ $_interpreter != $1 ]; then
+					warn "\$command_interpreter $_interpreter != $1"
+				fi
+				;;
+			*)
+				warn "no shebang line in $_script"
+				set -- $_interpreter
+				;;
+			esac
+		else
+			warn "cannot read shebang line from $_script"
+			set -- $_interpreter
+		fi
+		_interp="$* $_procname"		# cleanup spaces, add _procname
+		_interpbn=${1##*/}
+		_fp_args='_argv'
+		_fp_match='case "$_argv" in
+		    ${_interp}|"${_interp} "*|"[${_interpbn}]"|"${_interpbn}: ${_procname}"*)'
+	else					# a normal daemon
+		_procnamebn=${_procname##*/}
+		_fp_args='_arg0 _argv'
+		_fp_match='case "$_arg0" in
+		    $_procname|$_procnamebn|${_procnamebn}:|"(${_procnamebn})"|"[${_procnamebn}]")'
+	fi
+
+	_proccheck="\
+		$PS 2>/dev/null -o pid= -o jid= -o command= $_psargs"' |
+		while read _npid _jid '"$_fp_args"'; do
+			'"$_fp_match"'
+				if [ "$JID" -eq "$_jid" ];
+				then echo -n "$_pref$_npid";
+				_pref=" ";
+				fi
+				;;
+			esac
+		done'
+
+#	debug "in _find_processes: proccheck is ($_proccheck)."
+	eval $_proccheck
+}
+
+# sort_lite [-b] [-n] [-k POS] [-t SEP]
+#	A lite version of sort(1) (supporting a few options) that can be used
+#	before the real sort(1) is available (e.g., in scripts that run prior
+#	to mountcritremote). Requires only shell built-in functionality.
+#
+sort_lite()
+{
+	local funcname=sort_lite
+	local sort_sep="$IFS" sort_ignore_leading_space=
+	local sort_field=0 sort_strict_fields= sort_numeric=
+	local nitems=0 skip_leading=0 trim=
+
+	local OPTIND flag
+	while getopts bnk:t: flag; do
+		case "$flag" in
+		b) sort_ignore_leading_space=1 ;;
+		n) sort_numeric=1 sort_ignore_leading_space=1 ;;
+		k) sort_field="${OPTARG%%,*}" ;; # only up to first comma
+			# NB: Unlike sort(1) only one POS allowed
+		t) sort_sep="$OPTARG"
+		   if [ ${#sort_sep} -gt 1 ]; then
+		   	echo "$funcname: multi-character tab \`$sort_sep'" >&2
+		   	return 1
+		   fi
+		   sort_strict_fields=1
+		   ;;
+		\?) return 1 ;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+
+	# Create transformation pattern to trim leading text if desired
+	case "$sort_field" in
+	""|[!0-9]*|*[!0-9.]*)
+		echo "$funcname: invalid sort field \`$sort_field'" >&2
+		return 1
+		;;
+	*.*)
+		skip_leading=${sort_field#*.} sort_field=${sort_field%%.*}
+		while [ ${skip_leading:-0} -gt 1 ] 2> /dev/null; do
+			trim="$trim?" skip_leading=$(( $skip_leading - 1 ))
+		done
+	esac
+
+	# Copy input to series of local numbered variables
+	# NB: IFS of NULL preserves leading whitespace
+	local LINE
+	while IFS= read -r LINE || [ "$LINE" ]; do
+		nitems=$(( $nitems + 1 ))
+		local src_$nitems="$LINE"
+	done
+
+	#
+	# Sort numbered locals using insertion sort
+	#
+	local curitem curitem_orig curitem_mod curitem_haskey
+	local dest dest_orig dest_mod dest_haskey
+	local d gt n
+	local i=1 
+	while [ $i -le $nitems ]; do
+		curitem_haskey=1 # Assume sort field (-k POS) exists
+		eval curitem=\"\$src_$i\"
+		curitem_mod="$curitem" # for modified comparison
+		curitem_orig="$curitem" # for original comparison
+
+		# Trim leading whitespace if desired
+		if [ "$sort_ignore_leading_space" ]; then
+			while case "$curitem_orig" in
+				[$IFS]*) : ;; *) false; esac
+			do
+				curitem_orig="${curitem_orig#?}"
+			done
+			curitem_mod="$curitem_orig"
+		fi
+
+		# Shift modified comparison value if sort field (-k POS) is > 1
+		n=$sort_field
+		while [ $n -gt 1 ]; do
+			case "$curitem_mod" in
+			*[$sort_sep]*)
+				# Cut text up-to (and incl.) first separator
+				curitem_mod="${curitem_mod#*[$sort_sep]}"
+
+				# Skip NULLs unless strict field splitting
+				[ "$sort_strict_fields" ] ||
+					[ "${curitem_mod%%[$sort_sep]*}" ] ||
+					[ $n -eq 2 ] ||
+					continue
+				;;
+			*)
+				# Asked for a field that doesn't exist
+				curitem_haskey= break
+			esac
+			n=$(( $n - 1 ))
+		done
+
+		# Trim trailing words if sort field >= 1
+		[ $sort_field -ge 1 -a "$sort_numeric" ] &&
+			curitem_mod="${curitem_mod%%[$sort_sep]*}"
+
+		# Apply optional trim (-k POS.TRIM) to cut leading characters
+		curitem_mod="${curitem_mod#$trim}"
+
+		# Determine the type of modified comparison to use initially
+		# NB: Prefer numerical if requested but fallback to standard
+		case "$curitem_mod" in
+		""|[!0-9]*) # NULL or begins with non-number
+			gt=">"
+			[ "$sort_numeric" ] && curitem_mod=0
+			;;
+		*)
+			if [ "$sort_numeric" ]; then
+				gt="-gt"
+				curitem_mod="${curitem_mod%%[!0-9]*}"
+					# NB: trailing non-digits removed
+					# otherwise numeric comparison fails
+			else
+				gt=">"
+			fi
+		esac
+
+		# If first time through, short-circuit below position-search
+		if [ $i -le 1 ]; then
+			d=0
+		else
+			d=1
+		fi
+
+		#
+		# Find appropriate element position
+		#
+		while [ $d -gt 0 ]
+		do
+			dest_haskey=$curitem_haskey
+			eval dest=\"\$dest_$d\"
+			dest_mod="$dest" # for modified comparison
+			dest_orig="$dest" # for original comparison
+
+			# Trim leading whitespace if desired
+			if [ "$sort_ignore_leading_space" ]; then
+				while case "$dest_orig" in
+					[$IFS]*) : ;; *) false; esac
+				do
+					dest_orig="${dest_orig#?}"
+				done
+				dest_mod="$dest_orig"
+			fi
+
+			# Shift modified value if sort field (-k POS) is > 1
+			n=$sort_field
+			while [ $n -gt 1 ]; do
+				case "$dest_mod" in
+				*[$sort_sep]*)
+					# Cut text up-to (and incl.) 1st sep
+					dest_mod="${dest_mod#*[$sort_sep]}"
+
+					# Skip NULLs unless strict fields
+					[ "$sort_strict_fields" ] ||
+					    [ "${dest_mod%%[$sort_sep]*}" ] ||
+					    [ $n -eq 2 ] ||
+					    continue
+					;;
+				*)
+					# Asked for a field that doesn't exist
+					dest_haskey= break
+				esac
+				n=$(( $n - 1 ))
+			done
+
+			# Trim trailing words if sort field >= 1
+			[ $sort_field -ge 1 -a "$sort_numeric" ] &&
+				dest_mod="${dest_mod%%[$sort_sep]*}"
+
+			# Apply optional trim (-k POS.TRIM), cut leading chars
+			dest_mod="${dest_mod#$trim}"
+
+			# Determine type of modified comparison to use
+			# NB: Prefer numerical if requested, fallback to std
+			case "$dest_mod" in
+			""|[!0-9]*) # NULL or begins with non-number
+				gt=">"
+				[ "$sort_numeric" ] && dest_mod=0
+				;;
+			*)
+				if [ "$sort_numeric" ]; then
+					gt="-gt"
+					dest_mod="${dest_mod%%[!0-9]*}"
+						# NB: kill trailing non-digits
+						# for numeric comparison safety
+				else
+					gt=">"
+				fi
+			esac
+
+			# Break if we've found the proper element position
+			if [ "$curitem_haskey" -a "$dest_haskey" ]; then
+				if [ "$dest_mod" = "$curitem_mod" ]; then
+					[ "$dest_orig" ">" "$curitem_orig" ] &&
+						break
+				elif [ "$dest_mod" $gt "$curitem_mod" ] \
+					2> /dev/null
+				then
+					break
+				fi
+			else
+				[ "$dest_orig" ">" "$curitem_orig" ] && break
+			fi
+
+			# Break if we've hit the end
+			[ $d -ge $i ] && break
+
+			d=$(( $d + 1 ))
+		done
+
+		# Shift remaining positions forward, making room for new item
+		n=$i
+		while [ $n -ge $d ]; do
+			# Shift destination item forward one placement
+			eval dest_$(( $n + 1 ))=\"\$dest_$n\"
+			n=$(( $n - 1 ))
+		done
+
+		# Place the element
+		if [ $i -eq 1 ]; then
+			local dest_1="$curitem"
+		else
+			local dest_$d="$curitem"
+		fi
+
+		i=$(( $i + 1 ))
+	done
+
+	# Print sorted results
+	d=1
+	while [ $d -le $nitems ]; do
+		eval echo \"\$dest_$d\"
+		d=$(( $d + 1 ))
+	done
+}
+
+#
+# wait_for_pids pid [pid ...]
+#	spins until none of the pids exist
+#
+wait_for_pids()
+{
+	local _list _prefix _nlist _j
+
+	_list="$@"
+	if [ -z "$_list" ]; then
+		return
+	fi
+	_prefix=
+	while true; do
+		_nlist="";
+		for _j in $_list; do
+			if kill -0 $_j 2>/dev/null; then
+				_nlist="${_nlist}${_nlist:+ }$_j"
+				[ -n "$_prefix" ] && sleep 1
+			fi
+		done
+		if [ -z "$_nlist" ]; then
+			break
+		fi
+		_list=$_nlist
+		echo -n ${_prefix:-"Waiting for PIDS: "}$_list
+		_prefix=", "
+		pwait $_list 2>/dev/null
+	done
+	if [ -n "$_prefix" ]; then
+		echo "."
+	fi
+}
+
+#
+# get_pidfile_from_conf string file
+#
+#	Takes a string to search for in the specified file.
+#	Ignores lines with traditional comment characters.
+#
+# Example:
+#
+# if get_pidfile_from_conf string file; then
+#	pidfile="$_pidfile_from_conf"
+# else
+#	pidfile='appropriate default'
+# fi
+#
+get_pidfile_from_conf()
+{
+	if [ -z "$1" -o -z "$2" ]; then
+		err 3 "USAGE: get_pidfile_from_conf string file ($name)"
+	fi
+
+	local string file line
+
+	string="$1" ; file="$2"
+
+	if [ ! -s "$file" ]; then
+		err 3 "get_pidfile_from_conf: $file does not exist ($name)"
+	fi
+
+	while read line; do
+		case "$line" in
+		*[#\;]*${string}*)	continue ;;
+		*${string}*)		break ;;
+		esac
+	done < $file
+
+	if [ -n "$line" ]; then
+		line=${line#*/}
+		_pidfile_from_conf="/${line%%[\"\;]*}"
+	else
+		return 1
+	fi
+}
+
+#
+# check_startmsgs
+#	If rc_quiet is set (usually as a result of using faststart at
+#	boot time) check if rc_startmsgs is enabled.
+#
+check_startmsgs()
+{
+	if [ -n "$rc_quiet" ]; then
+		checkyesno rc_startmsgs
+	else
+		return 0
+	fi
+}
+
+#
+# run_rc_command argument
+#	Search for argument in the list of supported commands, which is:
+#		"start stop restart rcvar status poll ${extra_commands}"
+#	If there's a match, run ${argument}_cmd or the default method
+#	(see below).
+#
+#	If argument has a given prefix, then change the operation as follows:
+#		Prefix	Operation
+#		------	---------
+#		fast	Skip the pid check, and set rc_fast=yes, rc_quiet=yes
+#		force	Set ${rcvar} to YES, and set rc_force=yes
+#		one	Set ${rcvar} to YES
+#		quiet	Don't output some diagnostics, and set rc_quiet=yes
+#
+#	The following globals are used:
+#
+#	Name		Needed	Purpose
+#	----		------	-------
+#	name		y	Name of script.
+#
+#	command		n	Full path to command.
+#				Not needed if ${rc_arg}_cmd is set for
+#				each keyword.
+#
+#	command_args	n	Optional args/shell directives for command.
+#
+#	command_interpreter n	If not empty, command is interpreted, so
+#				call check_{pidfile,process}() appropriately.
+#
+#	desc		n	Description of script.
+#
+#	extra_commands	n	List of extra commands supported.
+#
+#	pidfile		n	If set, use check_pidfile $pidfile $command,
+#				otherwise use check_process $command.
+#				In either case, only check if $command is set.
+#
+#	procname	n	Process name to check for instead of $command.
+#
+#	rcvar		n	This is checked with checkyesno to determine
+#				if the action should be run.
+#
+#	${name}_program	n	Full path to command.
+#				Meant to be used in /etc/rc.conf to override
+#				${command}.
+#
+#	${name}_chroot	n	Directory to chroot to before running ${command}
+#				Requires /usr to be mounted.
+#
+#	${name}_chdir	n	Directory to cd to before running ${command}
+#				(if not using ${name}_chroot).
+#
+#	${name}_flags	n	Arguments to call ${command} with.
+#				NOTE:	$flags from the parent environment
+#					can be used to override this.
+#
+#	${name}_env	n	Environment variables to run ${command} with.
+#
+#	${name}_env_file n	File to source variables to run ${command} with.
+#
+#	${name}_fib	n	Routing table number to run ${command} with.
+#
+#	${name}_nice	n	Nice level to run ${command} at.
+#
+#	${name}_oomprotect n	Don't kill ${command} when swap space is exhausted.
+#
+#	${name}_user	n	User to run ${command} as, using su(1) if not
+#				using ${name}_chroot.
+#				Requires /usr to be mounted.
+#
+#	${name}_group	n	Group to run chrooted ${command} as.
+#				Requires /usr to be mounted.
+#
+#	${name}_groups	n	Comma separated list of supplementary groups
+#				to run the chrooted ${command} with.
+#				Requires /usr to be mounted.
+#
+#	${name}_prepend	n	Command added before ${command}.
+#
+#	${name}_login_class n	Login class to use, else "daemon".
+#
+#	${name}_limits	n	limits(1) to apply to ${command}.
+#
+#	${rc_arg}_cmd	n	If set, use this as the method when invoked;
+#				Otherwise, use default command (see below)
+#
+#	${rc_arg}_precmd n	If set, run just before performing the
+#				${rc_arg}_cmd method in the default
+#				operation (i.e, after checking for required
+#				bits and process (non)existence).
+#				If this completes with a non-zero exit code,
+#				don't run ${rc_arg}_cmd.
+#
+#	${rc_arg}_postcmd n	If set, run just after performing the
+#				${rc_arg}_cmd method, if that method
+#				returned a zero exit code.
+#
+#	required_dirs	n	If set, check for the existence of the given
+#				directories before running a (re)start command.
+#
+#	required_files	n	If set, check for the readability of the given
+#				files before running a (re)start command.
+#
+#	required_modules n	If set, ensure the given kernel modules are
+#				loaded before running a (re)start command.
+#				The check and possible loads are actually
+#				done after start_precmd so that the modules
+#				aren't loaded in vain, should the precmd
+#				return a non-zero status to indicate a error.
+#				If a word in the list looks like "foo:bar",
+#				"foo" is the KLD file name and "bar" is the
+#				module name.  If a word looks like "foo~bar",
+#				"foo" is the KLD file name and "bar" is a
+#				egrep(1) pattern matching the module name.
+#				Otherwise the module name is assumed to be
+#				the same as the KLD file name, which is most
+#				common.  See load_kld().
+#
+#	required_vars	n	If set, perform checkyesno on each of the
+#				listed variables before running the default
+#				(re)start command.
+#
+#	Default behaviour for a given argument, if no override method is
+#	provided:
+#
+#	Argument	Default behaviour
+#	--------	-----------------
+#	start		if !running && checkyesno ${rcvar}
+#				${command}
+#
+#	stop		if ${pidfile}
+#				rc_pid=$(check_pidfile $pidfile $command)
+#			else
+#				rc_pid=$(check_process $command)
+#			kill $sig_stop $rc_pid
+#			wait_for_pids $rc_pid
+#			($sig_stop defaults to TERM.)
+#
+#	reload		Similar to stop, except use $sig_reload instead,
+#			and doesn't wait_for_pids.
+#			$sig_reload defaults to HUP.
+#			Note that `reload' isn't provided by default,
+#			it should be enabled via $extra_commands.
+#
+#	restart		Run `stop' then `start'.
+#
+#	status		Show if ${command} is running, etc.
+#
+#	poll		Wait for ${command} to exit.
+#
+#	rcvar		Display what rc.conf variable is used (if any).
+#
+#	enabled		Return true if the service is enabled.
+#
+#	describe	Show the service's description
+#
+#	extracommands	Show the service's extra commands
+#
+#	Variables available to methods, and after run_rc_command() has
+#	completed:
+#
+#	Variable	Purpose
+#	--------	-------
+#	rc_arg		Argument to command, after fast/force/one processing
+#			performed
+#
+#	rc_flags	Flags to start the default command with.
+#			Defaults to ${name}_flags, unless overridden
+#			by $flags from the environment.
+#			This variable may be changed by the precmd method.
+#
+#       rc_service      Path to the service being executed, in case the service
+#                       needs to re-invoke itself.
+#
+#	rc_pid		PID of command (if appropriate)
+#
+#	rc_fast		Not empty if "fast" was provided (q.v.)
+#
+#	rc_force	Not empty if "force" was provided (q.v.)
+#
+#	rc_quiet	Not empty if "quiet" was provided
+#
+#
+run_rc_command()
+{
+	_return=0
+	rc_arg=$1
+	if [ -z "$name" ]; then
+		err 3 'run_rc_command: $name is not set.'
+	fi
+
+	# Don't repeat the first argument when passing additional command-
+	# line arguments to the command subroutines.
+	#
+	shift 1
+	rc_extra_args="$*"
+
+	_rc_prefix=
+	case "$rc_arg" in
+	fast*)				# "fast" prefix; don't check pid
+		rc_arg=${rc_arg#fast}
+		rc_fast=yes
+		rc_quiet=yes
+		;;
+	force*)				# "force" prefix; always run
+		rc_force=yes
+		_rc_prefix=force
+		rc_arg=${rc_arg#${_rc_prefix}}
+		if [ -n "${rcvar}" ]; then
+			eval ${rcvar}=YES
+		fi
+		;;
+	one*)				# "one" prefix; set ${rcvar}=yes
+		_rc_prefix=one
+		rc_arg=${rc_arg#${_rc_prefix}}
+		if [ -n "${rcvar}" ]; then
+			eval ${rcvar}=YES
+		fi
+		;;
+	quiet*)				# "quiet" prefix; omit some messages
+		_rc_prefix=quiet
+		rc_arg=${rc_arg#${_rc_prefix}}
+		rc_quiet=yes
+		;;
+	esac
+
+	eval _override_command=\$${name}_program
+	command=${_override_command:-$command}
+
+	_keywords="start stop restart rcvar enable disable delete enabled describe extracommands $extra_commands"
+	rc_pid=
+	_pidcmd=
+	_procname=${procname:-${command}}
+
+					# setup pid check command
+	if [ -n "$_procname" ]; then
+		if [ -n "$pidfile" ]; then
+			_pidcmd='rc_pid=$(check_pidfile '"$pidfile $_procname $command_interpreter"')'
+		else
+			_pidcmd='rc_pid=$(check_process '"$_procname $command_interpreter"')'
+		fi
+		_keywords="${_keywords} status poll"
+	fi
+
+	if [ -z "$rc_arg" ]; then
+		rc_usage $_keywords
+	fi
+
+	if [ "$rc_arg" = "enabled" ] ; then
+		checkyesno ${rcvar}
+		return $?
+	fi
+
+	if [ -n "$flags" ]; then	# allow override from environment
+		rc_flags=$flags
+	else
+		eval rc_flags=\$${name}_flags
+	fi
+	eval _chdir=\$${name}_chdir	_chroot=\$${name}_chroot \
+	    _nice=\$${name}_nice	_user=\$${name}_user \
+	    _group=\$${name}_group	_groups=\$${name}_groups \
+	    _fib=\$${name}_fib		_env=\$${name}_env \
+	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon} \
+	    _limits=\$${name}_limits    _oomprotect=\$${name}_oomprotect \
+	    _env_file=\$${name}_env_file
+
+	if [ -n "$_env_file" ] && [ -r "${_env_file}" ]; then	# load env from file
+		set -a
+		. $_env_file
+		set +a
+	fi
+
+	if [ -n "$_user" ]; then	# unset $_user if running as that user
+		if [ "$_user" = "$(eval $IDCMD)" ]; then
+			unset _user
+		fi
+	fi
+
+	[ -z "$autoboot" ] && eval $_pidcmd	# determine the pid if necessary
+
+	for _elem in $_keywords; do
+		if [ "$_elem" != "$rc_arg" ]; then
+			continue
+		fi
+					# if ${rcvar} is set, $1 is not "rcvar", "describe",
+					# "enable" or "delete", and ${rc_pid} is not set, run:
+					#	checkyesno ${rcvar}
+					# and return if that failed
+					#
+		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a "$rc_arg" != "stop" \
+		    -a "$rc_arg" != "delete" -a "$rc_arg" != "enable" \
+		    -a "$rc_arg" != "describe" ] ||
+		    [ -n "${rcvar}" -a "$rc_arg" = "stop" -a -z "${rc_pid}" ]; then
+			if ! checkyesno ${rcvar}; then
+				if [ -n "${rc_quiet}" ]; then
+					return 0
+				fi
+				echo -n "Cannot '${rc_arg}' $name. Set ${rcvar} to "
+				echo -n "YES in /etc/rc.conf or use 'one${rc_arg}' "
+				echo "instead of '${rc_arg}'."
+				return 0
+			fi
+		fi
+
+		if [ $rc_arg = "start" -a -z "$rc_fast" -a -n "$rc_pid" ]; then
+			if [ -z "$rc_quiet" ]; then
+				echo 1>&2 "${name} already running? " \
+				    "(pid=$rc_pid)."
+			fi
+			return 1
+		fi
+
+					# if there's a custom ${XXX_cmd},
+					# run that instead of the default
+					#
+		eval _cmd=\$${rc_arg}_cmd \
+		     _precmd=\$${rc_arg}_precmd \
+		     _postcmd=\$${rc_arg}_postcmd
+
+		if [ -n "$_cmd" ]; then
+			_run_rc_precmd || return 1
+			_run_rc_doit "$_cmd $rc_extra_args" || return 1
+			_run_rc_postcmd
+			return $_return
+		fi
+
+		case "$rc_arg" in	# default operations...
+
+		describe)
+			if [ -n "$desc" ]; then
+				echo "$desc"
+			fi
+			;;
+	
+		extracommands)
+			echo "$extra_commands"
+			;;
+
+		enable)
+			_out=$(/usr/sbin/sysrc -vs "$name" "$rcvar=YES") &&
+				echo "$name enabled in ${_out%%:*}"	
+			;;
+
+		disable)
+			_out=$(/usr/sbin/sysrc -vs "$name" "$rcvar=NO") &&
+				echo "$name disabled in ${_out%%:*}"	
+			;;
+
+		delete)
+			_files=
+			for _file in $(sysrc -lEs "$name"); do
+				_out=$(sysrc -Fif $_file "$rcvar") && _files="$_files $_file"
+			done
+			/usr/sbin/sysrc -x "$rcvar" && echo "$rcvar deleted in ${_files# }"
+				# delete file in rc.conf.d if desired and empty.
+			checkyesno service_delete_empty || _files=
+			for _file in $_files; do
+				[ "$_file" = "${_file#*/rc.conf.d/}" ] && continue
+				[ $(/usr/bin/stat -f%z $_file) -gt 0 ] && continue
+				/bin/rm "$_file" && echo "Empty file $_file removed"
+			done
+			;;
+
+		status)
+			_run_rc_precmd || return 1
+			if [ -n "$rc_pid" ]; then
+				echo "${name} is running as pid $rc_pid."
+			else
+				echo "${name} is not running."
+				return 1
+			fi
+			_run_rc_postcmd
+			;;
+
+		start)
+			if [ ! -x "${_chroot}${_chroot:+/}${command}" ]; then
+				warn "run_rc_command: cannot run $command"
+				return 1
+			fi
+
+			if ! _run_rc_precmd; then
+				warn "failed precmd routine for ${name}"
+				return 1
+			fi
+
+					# setup the full command to run
+					#
+			check_startmsgs && echo "Starting ${name}."
+			if [ -n "$_chroot" ]; then
+				_cd=
+				_doit="\
+${_nice:+nice -n $_nice }\
+${_fib:+setfib -F $_fib }\
+${_env:+env $_env }\
+chroot ${_user:+-u $_user }${_group:+-g $_group }${_groups:+-G $_groups }\
+$_chroot $command $rc_flags $command_args"
+			else
+				_cd="${_chdir:+cd $_chdir && }"
+				_doit="\
+${_fib:+setfib -F $_fib }\
+${_env:+env $_env }\
+$command $rc_flags $command_args"
+				if [ -n "$_user" ]; then
+				    _doit="su -m $_user -c 'sh -c \"$_doit\"'"
+				fi
+				if [ -n "$_nice" ]; then
+					if [ -z "$_user" ]; then
+						_doit="sh -c \"$_doit\""
+					fi
+					_doit="nice -n $_nice $_doit"
+				fi
+				if [ -n "$_prepend" ]; then
+					_doit="$_prepend $_doit"
+				fi
+			fi
+
+					# Prepend default limits
+			_doit="$_cd limits -C $_login_class $_limits $_doit"
+
+					# run the full command
+					#
+			if ! _run_rc_doit "$_doit"; then
+				warn "failed to start ${name}"
+				return 1
+			fi
+
+					# finally, run postcmd
+					#
+			_run_rc_postcmd
+			;;
+
+		stop)
+			if [ -z "$rc_pid" ]; then
+				[ -n "$rc_fast" ] && return 0
+				_run_rc_notrunning
+				return 1
+			fi
+
+			_run_rc_precmd || return 1
+
+					# send the signal to stop
+					#
+			echo "Stopping ${name}."
+			_doit=$(_run_rc_killcmd "${sig_stop:-TERM}")
+			_run_rc_doit "$_doit" || return 1
+
+					# wait for the command to exit,
+					# and run postcmd.
+			wait_for_pids $rc_pid
+
+			_run_rc_postcmd
+			;;
+
+		reload)
+			if [ -z "$rc_pid" ]; then
+				_run_rc_notrunning
+				return 1
+			fi
+
+			_run_rc_precmd || return 1
+
+			_doit=$(_run_rc_killcmd "${sig_reload:-HUP}")
+			_run_rc_doit "$_doit" || return 1
+
+			_run_rc_postcmd
+			;;
+
+		restart)
+					# prevent restart being called more
+					# than once by any given script
+					#
+			if ${_rc_restart_done:-false}; then
+				return 0
+			fi
+			_rc_restart_done=true
+
+			_run_rc_precmd || return 1
+
+			# run those in a subshell to keep global variables
+			( run_rc_command ${_rc_prefix}stop $rc_extra_args )
+			( run_rc_command ${_rc_prefix}start $rc_extra_args )
+			_return=$?
+			[ $_return -ne 0 ] && [ -z "$rc_force" ] && return 1
+
+			_run_rc_postcmd
+			;;
+
+		poll)
+			_run_rc_precmd || return 1
+			if [ -n "$rc_pid" ]; then
+				wait_for_pids $rc_pid
+			fi
+			_run_rc_postcmd
+			;;
+
+		rcvar)
+			echo -n "# $name"
+			if [ -n "$desc" ]; then
+				echo " : $desc"
+			else
+				echo ""
+			fi
+			echo "#"
+			# Get unique vars in $rcvar $rcvars
+			for _v in $rcvar $rcvars; do
+				case $v in
+				$_v\ *|\ *$_v|*\ $_v\ *) ;;
+				*)	v="${v# } $_v" ;;
+				esac
+			done
+
+			# Display variables.
+			for _v in $v; do
+				if [ -z "$_v" ]; then
+					continue
+				fi
+
+				eval _desc=\$${_v}_desc
+				eval _defval=\$${_v}_defval
+				_h="-"
+
+				eval echo \"$_v=\\\"\$$_v\\\"\"
+				# decode multiple lines of _desc
+				while [ -n "$_desc" ]; do
+					case $_desc in
+					*^^*)
+						echo "# $_h ${_desc%%^^*}"
+						_desc=${_desc#*^^}
+						_h=" "
+						;;
+					*)
+						echo "# $_h ${_desc}"
+						break
+						;;
+					esac
+				done
+				echo "#   (default: \"$_defval\")"
+			done
+			echo ""
+			;;
+
+		*)
+			rc_usage $_keywords
+			;;
+
+		esac
+
+		# Apply protect(1) to the PID if ${name}_oomprotect is set.
+		case "$rc_arg" in
+		start)
+			# We cannot use protect(1) inside jails.
+			if [ -n "$_oomprotect" ] && [ -f "${PROTECT}" ] &&
+			    [ "$(sysctl -n security.jail.jailed)" -eq 0 ]; then
+				pid=$(check_process $command)
+				case $_oomprotect in
+				[Aa][Ll][Ll])
+					${PROTECT} -i -p ${pid}
+					;;
+				[Yy][Ee][Ss])
+					${PROTECT} -p ${pid}
+					;;
+				esac
+			fi	
+		;;
+		esac
+
+		return $_return
+	done
+
+	echo 1>&2 "$0: unknown directive '$rc_arg'."
+	rc_usage $_keywords
+	# not reached
+}
+
+#
+# Helper functions for run_rc_command: common code.
+# They use such global variables besides the exported rc_* ones:
+#
+#	name	       R/W
+#	------------------
+#	_precmd		R
+#	_postcmd	R
+#	_return		W
+#
+_run_rc_precmd()
+{
+	check_required_before "$rc_arg" || return 1
+
+	if [ -n "$_precmd" ]; then
+		debug "run_rc_command: ${rc_arg}_precmd: $_precmd $rc_extra_args"
+		eval "$_precmd $rc_extra_args"
+		_return=$?
+
+		# If precmd failed and force isn't set, request exit.
+		if [ $_return -ne 0 ] && [ -z "$rc_force" ]; then
+			return 1
+		fi
+	fi
+
+	check_required_after "$rc_arg" || return 1
+
+	return 0
+}
+
+_run_rc_postcmd()
+{
+	if [ -n "$_postcmd" ]; then
+		debug "run_rc_command: ${rc_arg}_postcmd: $_postcmd $rc_extra_args"
+		eval "$_postcmd $rc_extra_args"
+		_return=$?
+	fi
+	return 0
+}
+
+_run_rc_doit()
+{
+	debug "run_rc_command: doit: $*"
+	eval "$@"
+	_return=$?
+
+	# If command failed and force isn't set, request exit.
+	if [ $_return -ne 0 ] && [ -z "$rc_force" ]; then
+		return 1
+	fi
+
+	return 0
+}
+
+_run_rc_notrunning()
+{
+	local _pidmsg
+
+	if [ -n "$pidfile" ]; then
+		_pidmsg=" (check $pidfile)."
+	else
+		_pidmsg=
+	fi
+	echo 1>&2 "${name} not running?${_pidmsg}"
+}
+
+_run_rc_killcmd()
+{
+	local _cmd
+
+	_cmd="kill -$1 $rc_pid"
+	if [ -n "$_user" ]; then
+		_cmd="su -m ${_user} -c 'sh -c \"${_cmd}\"'"
+	fi
+	echo "$_cmd"
+}
+
+#
+# run_rc_script file arg
+#	Start the script `file' with `arg', and correctly handle the
+#	return value from the script.
+#	If `file' ends with `.sh' and lives in /etc/rc.d, ignore it as it's
+#	an old-style startup file.
+#	If `file' ends with `.sh' and does not live in /etc/rc.d, it's sourced
+#	into the current environment if $rc_fast_and_loose is set; otherwise
+#	it is run as a child process.
+#	If `file' appears to be a backup or scratch file, ignore it.
+#	Otherwise if it is executable run as a child process.
+#
+run_rc_script()
+{
+	_file=$1
+	_arg=$2
+	if [ -z "$_file" -o -z "$_arg" ]; then
+		err 3 'USAGE: run_rc_script file arg'
+	fi
+
+	unset	name command command_args command_interpreter \
+		extra_commands pidfile procname \
+		rcvar rcvars rcvars_obsolete required_dirs required_files \
+		required_vars
+	eval unset ${_arg}_cmd ${_arg}_precmd ${_arg}_postcmd
+
+	rc_service="$_file"
+	case "$_file" in
+	/etc/rc.d/*.sh)			# no longer allowed in the base
+		warn "Ignoring old-style startup script $_file"
+		;;
+	*[~#]|*.OLD|*.bak|*.orig|*,v)	# scratch file; skip
+		warn "Ignoring scratch file $_file"
+		;;
+	*)				# run in subshell
+		if [ -x $_file ]; then
+			if [ -n "$rc_fast_and_loose" ]; then
+				set $_arg; . $_file
+			else
+				( trap "echo Script $_file interrupted >&2 ; kill -QUIT $$" 3
+				  trap "echo Script $_file interrupted >&2 ; exit 1" 2
+				  trap "echo Script $_file running >&2" 29
+				  set $_arg; . $_file )
+			fi
+		fi
+		;;
+	esac
+}
+
+#
+# load_rc_config [service]
+#	Source in the configuration file(s) for a given service.
+#	If no service is specified, only the global configuration
+#	file(s) will be loaded.
+#
+load_rc_config()
+{
+	local _name _rcvar_val _var _defval _v _msg _new _d
+	_name=$1
+
+	if ${_rc_conf_loaded:-false}; then
+		:
+	else
+		if [ -r /etc/defaults/rc.conf ]; then
+			debug "Sourcing /etc/defaults/rc.conf"
+			. /etc/defaults/rc.conf
+			source_rc_confs
+		elif [ -r /etc/rc.conf ]; then
+			debug "Sourcing /etc/rc.conf (/etc/defaults/rc.conf doesn't exist)."
+			. /etc/rc.conf
+		fi
+		_rc_conf_loaded=true
+	fi
+
+	# If a service name was specified, attempt to load
+	# service-specific configuration
+	if [ -n "$_name" ] ; then
+		for _d in /etc ${local_startup}; do
+			_d=${_d%/rc.d}
+			if [ -f ${_d}/rc.conf.d/"$_name" ]; then
+				debug "Sourcing ${_d}/rc.conf.d/$_name"
+				. ${_d}/rc.conf.d/"$_name"
+			elif [ -d ${_d}/rc.conf.d/"$_name" ] ; then
+				local _rc
+				for _rc in ${_d}/rc.conf.d/"$_name"/* ; do
+					if [ -f "$_rc" ] ; then
+						debug "Sourcing $_rc"
+						. "$_rc"
+					fi
+				done
+			fi
+		done
+	fi
+
+	# Set defaults if defined.
+	for _var in $rcvar $rcvars; do
+		eval _defval=\$${_var}_defval
+		if [ -n "$_defval" ]; then
+			eval : \${$_var:=\$${_var}_defval}
+		fi
+	done
+
+	# check obsolete rc.conf variables
+	for _var in $rcvars_obsolete; do
+		eval _v=\$$_var
+		eval _msg=\$${_var}_obsolete_msg
+		eval _new=\$${_var}_newvar
+		case $_v in
+		"")
+			;;
+		*)
+			if [ -z "$_new" ]; then
+				_msg="Ignored."
+			else
+				eval $_new=\"\$$_var\"
+				if [ -z "$_msg" ]; then
+					_msg="Use \$$_new instead."
+				fi
+			fi
+			warn "\$$_var is obsolete.  $_msg"
+			;;
+		esac
+	done
+}
+
+#
+# load_rc_config_var name var
+#	Read the rc.conf(5) var for name and set in the
+#	current shell, using load_rc_config in a subshell to prevent
+#	unwanted side effects from other variable assignments.
+#
+load_rc_config_var()
+{
+	if [ $# -ne 2 ]; then
+		err 3 'USAGE: load_rc_config_var name var'
+	fi
+	eval $(eval '(
+		load_rc_config '$1' >/dev/null;
+                if [ -n "${'$2'}" -o "${'$2'-UNSET}" != "UNSET" ]; then
+			echo '$2'=\'\''${'$2'}\'\'';
+		fi
+	)' )
+}
+
+#
+# rc_usage commands
+#	Print a usage string for $0, with `commands' being a list of
+#	valid commands.
+#
+rc_usage()
+{
+	echo -n 1>&2 "Usage: $0 [fast|force|one|quiet]("
+
+	_sep=
+	for _elem; do
+		echo -n 1>&2 "$_sep$_elem"
+		_sep="|"
+	done
+	echo 1>&2 ")"
+	exit 1
+}
+
+#
+# err exitval message
+#	Display message to stderr and log to the syslog, and exit with exitval.
+#
+err()
+{
+	exitval=$1
+	shift
+
+	if [ -x /usr/bin/logger ]; then
+		logger "$0: ERROR: $*"
+	fi
+	echo 1>&2 "$0: ERROR: $*"
+	exit $exitval
+}
+
+#
+# warn message
+#	Display message to stderr and log to the syslog.
+#
+warn()
+{
+	if [ -x /usr/bin/logger ]; then
+		logger "$0: WARNING: $*"
+	fi
+	echo 1>&2 "$0: WARNING: $*"
+}
+
+#
+# info message
+#	Display informational message to stdout and log to syslog.
+#
+info()
+{
+	case ${rc_info} in
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		if [ -x /usr/bin/logger ]; then
+			logger "$0: INFO: $*"
+		fi
+		echo "$0: INFO: $*"
+		;;
+	esac
+}
+
+#
+# debug message
+#	If debugging is enabled in rc.conf output message to stderr.
+#	BEWARE that you don't call any subroutine that itself calls this
+#	function.
+#
+debug()
+{
+	case ${rc_debug} in
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		if [ -x /usr/bin/logger ]; then
+			logger "$0: DEBUG: $*"
+		fi
+		echo 1>&2 "$0: DEBUG: $*"
+		;;
+	esac
+}
+
+#
+# backup_file action file cur backup
+#	Make a backup copy of `file' into `cur', and save the previous
+#	version of `cur' as `backup'.
+#
+#	The `action' keyword can be one of the following:
+#
+#	add		`file' is now being backed up (and is possibly
+#			being reentered into the backups system).  `cur'
+#			is created.
+#
+#	update		`file' has changed and needs to be backed up.
+#			If `cur' exists, it is copied to `back'
+#			and then `file' is copied to `cur'.
+#
+#	remove		`file' is no longer being tracked by the backups
+#			system.  `cur' is moved `back'.
+#
+#
+backup_file()
+{
+	_action=$1
+	_file=$2
+	_cur=$3
+	_back=$4
+
+	case $_action in
+	add|update)
+		if [ -f $_cur ]; then
+			cp -p $_cur $_back
+		fi
+		cp -p $_file $_cur
+		chown root:wheel $_cur
+		;;
+	remove)
+		mv -f $_cur $_back
+		;;
+	esac
+}
+
+# make_symlink src link
+#	Make a symbolic link 'link' to src from basedir. If the
+#	directory in which link is to be created does not exist
+#	a warning will be displayed and an error will be returned.
+#	Returns 0 on success, 1 otherwise.
+#
+make_symlink()
+{
+	local src link linkdir _me
+	src="$1"
+	link="$2"
+	linkdir="`dirname $link`"
+	_me="make_symlink()"
+
+	if [ -z "$src" -o -z "$link" ]; then
+		warn "$_me: requires two arguments."
+		return 1
+	fi
+	if [ ! -d "$linkdir" ]; then
+		warn "$_me: the directory $linkdir does not exist."
+		return 1
+	fi
+	if ! ln -sf $src $link; then
+		warn "$_me: unable to make a symbolic link from $link to $src"
+		return 1
+	fi
+	return 0
+}
+
+# devfs_rulesets_from_file file
+#	Reads a set of devfs commands from file, and creates
+#	the specified rulesets with their rules. Returns non-zero
+#	if there was an error.
+#
+devfs_rulesets_from_file()
+{
+	local file _err _me _opts
+	file="$1"
+	_me="devfs_rulesets_from_file"
+	_err=0
+
+	if [ -z "$file" ]; then
+		warn "$_me: you must specify a file"
+		return 1
+	fi
+	if [ ! -e "$file" ]; then
+		debug "$_me: no such file ($file)"
+		return 0
+	fi
+
+	# Disable globbing so that the rule patterns are not expanded
+	# by accident with matching filesystem entries.
+	_opts=$-; set -f
+
+	debug "reading rulesets from file ($file)"
+	{ while read line
+	do
+		case $line in
+		\#*)
+			continue
+			;;
+		\[*\]*)
+			rulenum=`expr "$line" : "\[.*=\([0-9]*\)\]"`
+			if [ -z "$rulenum" ]; then
+				warn "$_me: cannot extract rule number ($line)"
+				_err=1
+				break
+			fi
+			rulename=`expr "$line" : "\[\(.*\)=[0-9]*\]"`
+			if [ -z "$rulename" ]; then
+				warn "$_me: cannot extract rule name ($line)"
+				_err=1
+				break;
+			fi
+			eval $rulename=\$rulenum
+			debug "found ruleset: $rulename=$rulenum"
+			if ! /sbin/devfs rule -s $rulenum delset; then
+				_err=1
+				break
+			fi
+			;;
+		*)
+			rulecmd="${line%%"\#*"}"
+			# evaluate the command incase it includes
+			# other rules
+			if [ -n "$rulecmd" ]; then
+				debug "adding rule ($rulecmd)"
+				if ! eval /sbin/devfs rule -s $rulenum $rulecmd
+				then
+					_err=1
+					break
+				fi
+			fi
+			;;
+		esac
+		if [ $_err -ne 0 ]; then
+			debug "error in $_me"
+			break
+		fi
+	done } < $file
+	case $_opts in *f*) ;; *) set +f ;; esac
+	return $_err
+}
+
+# devfs_init_rulesets
+#	Initializes rulesets from configuration files. Returns
+#	non-zero if there was an error.
+#
+devfs_init_rulesets()
+{
+	local file _me
+	_me="devfs_init_rulesets"
+
+	# Go through this only once
+	if [ -n "$devfs_rulesets_init" ]; then
+		debug "$_me: devfs rulesets already initialized"
+		return
+	fi
+	for file in $devfs_rulesets; do
+		if ! devfs_rulesets_from_file $file; then
+			warn "$_me: could not read rules from $file"
+			return 1
+		fi
+	done
+	devfs_rulesets_init=1
+	debug "$_me: devfs rulesets initialized"
+	return 0
+}
+
+# devfs_set_ruleset ruleset [dir]
+#	Sets the default ruleset of dir to ruleset. The ruleset argument
+#	must be a ruleset name as specified in devfs.rules(5) file.
+#	Returns non-zero if it could not set it successfully.
+#
+devfs_set_ruleset()
+{
+	local devdir rs _me
+	[ -n "$1" ] && eval rs=\$$1 || rs=
+	[ -n "$2" ] && devdir="-m "$2"" || devdir=
+	_me="devfs_set_ruleset"
+
+	if [ -z "$rs" ]; then
+		warn "$_me: you must specify a ruleset number"
+		return 1
+	fi
+	debug "$_me: setting ruleset ($rs) on mount-point (${devdir#-m })"
+	if ! /sbin/devfs $devdir ruleset $rs; then
+		warn "$_me: unable to set ruleset $rs to ${devdir#-m }"
+		return 1
+	fi
+	return 0
+}
+
+# devfs_apply_ruleset ruleset [dir]
+#	Apply ruleset number $ruleset to the devfs mountpoint $dir.
+#	The ruleset argument must be a ruleset name as specified
+#	in a devfs.rules(5) file.  Returns 0 on success or non-zero
+#	if it could not apply the ruleset.
+#
+devfs_apply_ruleset()
+{
+	local devdir rs _me
+	[ -n "$1" ] && eval rs=\$$1 || rs=
+	[ -n "$2" ] && devdir="-m "$2"" || devdir=
+	_me="devfs_apply_ruleset"
+
+	if [ -z "$rs" ]; then
+		warn "$_me: you must specify a ruleset"
+		return 1
+	fi
+	debug "$_me: applying ruleset ($rs) to mount-point (${devdir#-m })"
+	if ! /sbin/devfs $devdir rule -s $rs applyset; then
+		warn "$_me: unable to apply ruleset $rs to ${devdir#-m }"
+		return 1
+	fi
+	return 0
+}
+
+# devfs_domount dir [ruleset]
+#	Mount devfs on dir. If ruleset is specified it is set
+#	on the mount-point. It must also be a ruleset name as specified
+#	in a devfs.rules(5) file. Returns 0 on success.
+#
+devfs_domount()
+{
+	local devdir rs _me
+	devdir="$1"
+	[ -n "$2" ] && rs=$2 || rs=
+	_me="devfs_domount()"
+
+	if [ -z "$devdir" ]; then
+		warn "$_me: you must specify a mount-point"
+		return 1
+	fi
+	debug "$_me: mount-point is ($devdir), ruleset is ($rs)"
+	if ! mount -t devfs dev "$devdir"; then
+		warn "$_me: Unable to mount devfs on $devdir"
+		return 1
+	fi
+	if [ -n "$rs" ]; then
+		devfs_init_rulesets
+		devfs_set_ruleset $rs $devdir
+		devfs -m $devdir rule applyset
+	fi
+	return 0
+}
+
+# Provide a function for normalizing the mounting of memory
+# filesystems.  This should allow the rest of the code here to remain
+# as close as possible between 5-current and 4-stable.
+#   $1 = size
+#   $2 = mount point
+#   $3 = (optional) extra mdmfs flags
+mount_md()
+{
+	if [ -n "$3" ]; then
+		flags="$3"
+	fi
+	/sbin/mdmfs $flags -s $1 ${mfs_type} $2
+}
+
+# Code common to scripts that need to load a kernel module
+# if it isn't in the kernel yet. Syntax:
+#   load_kld [-e regex] [-m module] file
+# where -e or -m chooses the way to check if the module
+# is already loaded:
+#   regex is egrep'd in the output from `kldstat -v',
+#   module is passed to `kldstat -m'.
+# The default way is as though `-m file' were specified.
+load_kld()
+{
+	local _loaded _mod _opt _re
+
+	while getopts "e:m:" _opt; do
+		case "$_opt" in
+		e) _re="$OPTARG" ;;
+		m) _mod="$OPTARG" ;;
+		*) err 3 'USAGE: load_kld [-e regex] [-m module] file' ;;
+		esac
+	done
+	shift $(($OPTIND - 1))
+	if [ $# -ne 1 ]; then
+		err 3 'USAGE: load_kld [-e regex] [-m module] file'
+	fi
+	_mod=${_mod:-$1}
+	_loaded=false
+	if [ -n "$_re" ]; then
+		if kldstat -v | egrep -q -e "$_re"; then
+			_loaded=true
+		fi
+	else
+		if kldstat -q -m "$_mod"; then
+			_loaded=true
+		fi
+	fi
+	if ! $_loaded; then
+		if ! kldload "$1"; then
+			warn "Unable to load kernel module $1"
+			return 1
+		else
+			info "$1 kernel module loaded."
+		fi
+	else
+		debug "load_kld: $1 kernel module already loaded."
+	fi
+	return 0
+}
+
+# ltr str src dst [var]
+#	Change every $src in $str to $dst.
+#	Useful when /usr is not yet mounted and we cannot use tr(1), sed(1) nor
+#	awk(1). If var is non-NULL, set it to the result.
+ltr()
+{
+	local _str _src _dst _out _com _var
+	_str="$1"
+	_src="$2"
+	_dst="$3"
+	_var="$4"
+	_out=""
+
+	local IFS="${_src}"
+	for _com in ${_str}; do
+		if [ -z "${_out}" ]; then
+			_out="${_com}"
+		else
+			_out="${_out}${_dst}${_com}"
+		fi
+	done
+	if [ -n "${_var}" ]; then
+		setvar "${_var}" "${_out}"
+	else
+		echo "${_out}"
+	fi
+}
+
+# Creates a list of providers for GELI encryption.
+geli_make_list()
+{
+	local devices devices2
+	local provider mountpoint type options rest
+
+	# Create list of GELI providers from fstab.
+	while read provider mountpoint type options rest ; do
+		case ":${options}" in
+		:*noauto*)
+			noauto=yes
+			;;
+		*)
+			noauto=no
+			;;
+		esac
+
+		case ":${provider}" in
+		:#*)
+			continue
+			;;
+		*.eli)
+			# Skip swap devices.
+			if [ "${type}" = "swap" -o "${options}" = "sw" -o "${noauto}" = "yes" ]; then
+				continue
+			fi
+			devices="${devices} ${provider}"
+			;;
+		esac
+	done < /etc/fstab
+
+	# Append providers from geli_devices.
+	devices="${devices} ${geli_devices}"
+
+	for provider in ${devices}; do
+		provider=${provider%.eli}
+		provider=${provider#/dev/}
+		devices2="${devices2} ${provider}"
+	done
+
+	echo ${devices2}
+}
+
+# Originally, root mount hold had to be released before mounting
+# the root filesystem.  This delayed the boot, so it was changed
+# to only wait if the root device isn't readily available.  This
+# can result in rc scripts executing before all the devices - such
+# as graid(8), or USB disks - can be accessed.  This function can
+# be used to explicitly wait for root mount holds to be released.
+root_hold_wait()
+{
+	local wait waited holders
+
+	waited=0
+	while true; do
+		holders="$(sysctl -n vfs.root_mount_hold)"
+		if [ -z "${holders}" ]; then
+			break;
+		fi
+		if [ ${waited} -eq 0 ]; then
+			echo -n "Waiting ${root_hold_delay}s" \
+			"for the root mount holders: ${holders}"
+		else
+			echo -n .
+		fi
+		if [ ${waited} -ge ${root_hold_delay} ]; then
+			echo
+			break
+		fi
+		sleep 1
+		waited=$(($waited + 1))
+	done
+}
+
+# Find scripts in local_startup directories that use the old syntax
+#
+find_local_scripts_old() {
+	zlist=''
+	slist=''
+	for dir in ${local_startup}; do
+		if [ -d "${dir}" ]; then
+			for file in ${dir}/[0-9]*.sh; do
+				grep '^# PROVIDE:' $file >/dev/null 2>&1 &&
+				    continue
+				zlist="$zlist $file"
+			done
+			for file in ${dir}/[!0-9]*.sh; do
+				grep '^# PROVIDE:' $file >/dev/null 2>&1 &&
+				    continue
+				slist="$slist $file"
+			done
+		fi
+	done
+}
+
+find_local_scripts_new() {
+	local_rc=''
+	for dir in ${local_startup}; do
+		if [ -d "${dir}" ]; then
+			for file in `grep -l '^# PROVIDE:' ${dir}/* 2>/dev/null`; do
+				case "$file" in
+				*.sample) ;;
+				*)	if [ -x "$file" ]; then
+						local_rc="${local_rc} ${file}"
+					fi
+					;;
+				esac
+			done
+		fi
+	done
+}
+
+# check_required_{before|after} command
+#	Check for things required by the command before and after its precmd,
+#	respectively.  The two separate functions are needed because some
+#	conditions should prevent precmd from being run while other things
+#	depend on precmd having already been run.
+#
+check_required_before()
+{
+	local _f
+
+	case "$1" in
+	start)
+		for _f in $required_vars; do
+			if ! checkyesno $_f; then
+				warn "\$${_f} is not enabled."
+				if [ -z "$rc_force" ]; then
+					return 1
+				fi
+			fi
+		done
+
+		for _f in $required_dirs; do
+			if [ ! -d "${_f}/." ]; then
+				warn "${_f} is not a directory."
+				if [ -z "$rc_force" ]; then
+					return 1
+				fi
+			fi
+		done
+
+		for _f in $required_files; do
+			if [ ! -r "${_f}" ]; then
+				warn "${_f} is not readable."
+				if [ -z "$rc_force" ]; then
+					return 1
+				fi
+			fi
+		done
+		;;
+	esac
+
+	return 0
+}
+
+check_required_after()
+{
+	local _f _args
+
+	case "$1" in
+	start)
+		for _f in $required_modules; do
+			case "${_f}" in
+				*~*)	_args="-e ${_f#*~} ${_f%%~*}" ;;
+				*:*)	_args="-m ${_f#*:} ${_f%%:*}" ;;
+				*)	_args="${_f}" ;;
+			esac
+			if ! load_kld ${_args}; then
+				if [ -z "$rc_force" ]; then
+					return 1
+				fi
+			fi
+		done
+		;;
+	esac
+
+	return 0
+}
+
+# check_jail mib
+#	Return true if security.jail.$mib exists and set to 1.
+
+check_jail()
+{
+	local _mib _v
+
+	_mib=$1
+	if _v=$(${SYSCTL_N} "security.jail.$_mib" 2> /dev/null); then
+		case $_v in
+		1)	return 0;;
+		esac
+	fi
+	return 1
+}
+
+# check_kern_features mib
+#	Return existence of kern.features.* sysctl MIB as true or
+#	false.  The result will be cached in $_rc_cache_kern_features_
+#	namespace.  "0" means the kern.features.X exists.
+
+check_kern_features()
+{
+	local _v
+
+	[ -n "$1" ] || return 1;
+	eval _v=\$_rc_cache_kern_features_$1
+	[ -n "$_v" ] && return "$_v";
+
+	if ${SYSCTL_N} kern.features.$1 > /dev/null 2>&1; then
+		eval _rc_cache_kern_features_$1=0
+		return 0
+	else
+		eval _rc_cache_kern_features_$1=1
+		return 1
+	fi
+}
+
+# check_namevarlist var
+#	Return "0" if ${name}_var is reserved in rc.subr.
+
+_rc_namevarlist="program chroot chdir env flags fib nice user group groups prepend"
+check_namevarlist()
+{
+	local _v
+
+	for _v in $_rc_namevarlist; do
+	case $1 in
+	$_v)	return 0 ;;
+	esac
+	done
+
+	return 1
+}
+
+# _echoonce var msg mode
+#	mode=0: Echo $msg if ${$var} is empty.
+#	        After doing echo, a string is set to ${$var}.
+#
+#	mode=1: Echo $msg if ${$var} is a string with non-zero length.
+#
+_echoonce()
+{
+	local _var _msg _mode
+	eval _var=\$$1
+	_msg=$2
+	_mode=$3
+
+	case $_mode in
+	1)	[ -n "$_var" ] && echo "$_msg" ;;
+	*)	[ -z "$_var" ] && echo -n "$_msg" && eval "$1=finished" ;;
+	esac
+}
+
+# If the loader env variable rc.debug is set, turn on debugging. rc.conf will
+# still override this, but /etc/defaults/rc.conf can't unconditionally set this
+# since it would undo what we've done here.
+if kenv -q rc.debug > /dev/null ; then
+	rc_debug=YES
+fi

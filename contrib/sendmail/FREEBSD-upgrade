@@ -1,0 +1,101 @@
+$FreeBSD$
+
+sendmail 8.15.2
+	originals can be found at: ftp://ftp.sendmail.org/pub/sendmail/
+
+For the import of sendmail, the following directories were renamed:
+
+	sendmail -> src
+
+Imported using the instructions at:
+
+http://www.freebsd.org/doc/en_US.ISO8859-1/articles/committers-guide/subversion-primer.html
+
+Then merged using:
+
+% set FSVN=svn+ssh://svn.freebsd.org/base
+% svn checkout $FSVN/head/contrib/sendmail head
+% cd head
+% svn merge --accept=postpone $FSVN/vendor/sendmail/dist .
+% svn rm --force */Build [e-v]*/*.0 cf/cf/generic-*.cf cf/cf/Build
+% svn rm --force Build devtools doc/op/op.ps src/makesendmail src/sysexits.h
+% svn propset -R svn:keywords FreeBSD=%H .
+% svn propdel svn:keywords libmilter/docs/*.jpg
+% svn diff --no-diff-deleted --old=$FSVN/vendor/sendmail/dist --new=.
+% svn status
+% svn diff
+% svn commit
+
+After importing, bump the version of src/etc/sendmail/freebsd*mc
+so mergemaster will merge /etc/mail/freebsd*cf by making a minor
+change and committing.
+
+To make local changes to sendmail, simply patch and commit to the head.
+Never make local changes in the vendor area (/vendor/sendmail/).
+
+All local changes should be submitted to the Sendmail Consortium
+<sendmail@sendmail.org> for inclusion in the next vendor release.
+
+The following files make up the sendmail build/install/runtime
+infrastructure in FreeBSD:
+
+	Makefile.inc1
+	bin/Makefile
+	bin/rmail/Makefile
+	contrib/sendmail/
+	etc/Makefile
+	etc/defaults/make.conf (obsolete)
+	etc/defaults/periodic.conf
+	etc/defaults/rc.conf
+	etc/mail/Makefile
+	etc/mail/README
+	etc/mail/access.sample
+	etc/mail/aliases
+	etc/mail/mailer.conf
+	etc/mail/mailertable.sample
+	etc/mail/virtusertable.sample
+	etc/mtree/BSD.include.dist
+	etc/mtree/BSD.sendmail.dist
+	etc/mtree/BSD.usr.dist
+	etc/mtree/BSD.var.dist
+	etc/periodic/daily/440.status-mailq
+	etc/periodic/daily/500.queuerun
+	etc/rc
+	etc/rc.sendmail
+	etc/sendmail/Makefile
+	etc/sendmail/freebsd.mc
+	etc/sendmail/freebsd.submit.mc
+	etc/sendmail/freefall.mc
+	lib/Makefile
+	lib/libmilter/Makefile
+	lib/libsm/Makefile
+	lib/libsmdb/Makefile
+	lib/libsmutil/Makefile
+	libexec/Makefile
+	libexec/mail.local/Makefile
+	libexec/smrsh/Makefile
+	share/Makefile
+	share/doc/smm/Makefile
+	share/doc/smm/08.sendmailop/Makefile
+	share/examples/etc/make.conf
+	share/man/man5/make.conf.5
+	share/man/man5/periodic.conf.5
+	share/man/man5/rc.conf.5
+	share/man/man7/hier.7
+	share/man/man8/Makefile
+	share/man/man8/rc.sendmail.8
+	share/mk/bsd.libnames.mk
+	share/sendmail/Makefile
+	tools/build/mk/OptionalObsoleteFiles.inc
+	usr.bin/Makefile
+	usr.bin/vacation/Makefile
+	usr.sbin/Makefile
+	usr.sbin/editmap/Makefile
+	usr.sbin/mailstats/Makefile
+	usr.sbin/makemap/Makefile
+	usr.sbin/praliases/Makefile
+	usr.sbin/sendmail/Makefile
+	usr.sbin/mailwrapper/Makefile
+
+gshapiro@FreeBSD.org
+06-July-2015

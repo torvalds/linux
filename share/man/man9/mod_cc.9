@@ -1,0 +1,350 @@
+.\"
+.\" Copyright (c) 2008-2009 Lawrence Stewart <lstewart@FreeBSD.org>
+.\" Copyright (c) 2010-2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Portions of this documentation were written at the Centre for Advanced
+.\" Internet Architectures, Swinburne University of Technology, Melbourne,
+.\" Australia by David Hayes and Lawrence Stewart under sponsorship from the
+.\" FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 21, 2016
+.Dt MOD_CC 9
+.Os
+.Sh NAME
+.Nm mod_cc ,
+.Nm DECLARE_CC_MODULE ,
+.Nm CCV
+.Nd Modular Congestion Control
+.Sh SYNOPSIS
+.In netinet/tcp.h
+.In netinet/cc/cc.h
+.In netinet/cc/cc_module.h
+.Fn DECLARE_CC_MODULE "ccname" "ccalgo"
+.Fn CCV "ccv" "what"
+.Sh DESCRIPTION
+The
+.Nm
+framework allows congestion control algorithms to be implemented as dynamically
+loadable kernel modules via the
+.Xr kld 4
+facility.
+Transport protocols can select from the list of available algorithms on a
+connection-by-connection basis, or use the system default (see
+.Xr mod_cc 4
+for more details).
+.Pp
+.Nm
+modules are identified by an
+.Xr ascii 7
+name and set of hook functions encapsulated in a
+.Vt "struct cc_algo" ,
+which has the following members:
+.Bd -literal -offset indent
+struct cc_algo {
+	char	name[TCP_CA_NAME_MAX];
+	int	(*mod_init) (void);
+	int	(*mod_destroy) (void);
+	int	(*cb_init) (struct cc_var *ccv);
+	void	(*cb_destroy) (struct cc_var *ccv);
+	void	(*conn_init) (struct cc_var *ccv);
+	void	(*ack_received) (struct cc_var *ccv, uint16_t type);
+	void	(*cong_signal) (struct cc_var *ccv, uint32_t type);
+	void	(*post_recovery) (struct cc_var *ccv);
+	void	(*after_idle) (struct cc_var *ccv);
+	int	(*ctl_output)(struct cc_var *, struct sockopt *, void *);
+};
+.Ed
+.Pp
+The
+.Va name
+field identifies the unique name of the algorithm, and should be no longer than
+TCP_CA_NAME_MAX-1 characters in length (the TCP_CA_NAME_MAX define lives in
+.In netinet/tcp.h
+for compatibility reasons).
+.Pp
+The
+.Va mod_init
+function is called when a new module is loaded into the system but before the
+registration process is complete.
+It should be implemented if a module needs to set up some global state prior to
+being available for use by new connections.
+Returning a non-zero value from
+.Va mod_init
+will cause the loading of the module to fail.
+.Pp
+The
+.Va mod_destroy
+function is called prior to unloading an existing module from the kernel.
+It should be implemented if a module needs to clean up any global state before
+being removed from the kernel.
+The return value is currently ignored.
+.Pp
+The
+.Va cb_init
+function is called when a TCP control block
+.Vt struct tcpcb
+is created.
+It should be implemented if a module needs to allocate memory for storing
+private per-connection state.
+Returning a non-zero value from
+.Va cb_init
+will cause the connection set up to be aborted, terminating the connection as a
+result.
+.Pp
+The
+.Va cb_destroy
+function is called when a TCP control block
+.Vt struct tcpcb
+is destroyed.
+It should be implemented if a module needs to free memory allocated in
+.Va cb_init .
+.Pp
+The
+.Va conn_init
+function is called when a new connection has been established and variables are
+being initialised.
+It should be implemented to initialise congestion control algorithm variables
+for the newly established connection.
+.Pp
+The
+.Va ack_received
+function is called when a TCP acknowledgement (ACK) packet is received.
+Modules use the
+.Fa type
+argument as an input to their congestion management algorithms.
+The ACK types currently reported by the stack are CC_ACK and CC_DUPACK.
+CC_ACK indicates the received ACK acknowledges previously unacknowledged data.
+CC_DUPACK indicates the received ACK acknowledges data we have already received
+an ACK for.
+.Pp
+The
+.Va cong_signal
+function is called when a congestion event is detected by the TCP stack.
+Modules use the
+.Fa type
+argument as an input to their congestion management algorithms.
+The congestion event types currently reported by the stack are CC_ECN, CC_RTO,
+CC_RTO_ERR and CC_NDUPACK.
+CC_ECN is reported when the TCP stack receives an explicit congestion notification
+(RFC3168).
+CC_RTO is reported when the retransmission time out timer fires.
+CC_RTO_ERR is reported if the retransmission time out timer fired in error.
+CC_NDUPACK is reported if N duplicate ACKs have been received back-to-back,
+where N is the fast retransmit duplicate ack threshold (N=3 currently as per
+RFC5681).
+.Pp
+The
+.Va post_recovery
+function is called after the TCP connection has recovered from a congestion event.
+It should be implemented to adjust state as required.
+.Pp
+The
+.Va after_idle
+function is called when data transfer resumes after an idle period.
+It should be implemented to adjust state as required.
+.Pp
+The
+.Va ctl_output
+function is called when
+.Xr getsockopt 2
+or
+.Xr setsockopt 2
+is called on a
+.Xr tcp 4
+socket with the
+.Va struct sockopt
+pointer forwarded unmodified from the TCP control, and a
+.Va void *
+pointer to algorithm specific argument.
+.Pp
+The
+.Fn DECLARE_CC_MODULE
+macro provides a convenient wrapper around the
+.Xr DECLARE_MODULE 9
+macro, and is used to register a
+.Nm
+module with the
+.Nm
+framework.
+The
+.Fa ccname
+argument specifies the module's name.
+The
+.Fa ccalgo
+argument points to the module's
+.Vt struct cc_algo .
+.Pp
+.Nm
+modules must instantiate a
+.Vt struct cc_algo ,
+but are only required to set the name field, and optionally any of the function
+pointers.
+The stack will skip calling any function pointer which is NULL, so there is no
+requirement to implement any of the function pointers.
+Using the C99 designated initialiser feature to set fields is encouraged.
+.Pp
+Each function pointer which deals with congestion control state is passed a
+pointer to a
+.Vt struct cc_var ,
+which has the following members:
+.Bd -literal -offset indent
+struct cc_var {
+	void		*cc_data;
+	int		bytes_this_ack;
+	tcp_seq		curack;
+	uint32_t	flags;
+	int		type;
+	union ccv_container {
+		struct tcpcb		*tcp;
+		struct sctp_nets	*sctp;
+	} ccvc;
+};
+.Ed
+.Pp
+.Vt struct cc_var
+groups congestion control related variables into a single, embeddable structure
+and adds a layer of indirection to accessing transport protocol control blocks.
+The eventual goal is to allow a single set of
+.Nm
+modules to be shared between all congestion aware transport protocols, though
+currently only
+.Xr tcp 4
+is supported.
+.Pp
+To aid the eventual transition towards this goal, direct use of variables from
+the transport protocol's data structures is strongly discouraged.
+However, it is inevitable at the current time to require access to some of these
+variables, and so the
+.Fn CCV
+macro exists as a convenience accessor.
+The
+.Fa ccv
+argument points to the
+.Vt struct cc_var
+passed into the function by the
+.Nm
+framework.
+The
+.Fa what
+argument specifies the name of the variable to access.
+.Pp
+Apart from the
+.Va type
+and
+.Va ccv_container
+fields, the remaining fields in
+.Vt struct cc_var
+are for use by
+.Nm
+modules.
+.Pp
+The
+.Va cc_data
+field is available for algorithms requiring additional per-connection state to
+attach a dynamic memory pointer to.
+The memory should be allocated and attached in the module's
+.Va cb_init
+hook function.
+.Pp
+The
+.Va bytes_this_ack
+field specifies the number of new bytes acknowledged by the most recently
+received ACK packet.
+It is only valid in the
+.Va ack_received
+hook function.
+.Pp
+The
+.Va curack
+field specifies the sequence number of the most recently received ACK packet.
+It is only valid in the
+.Va ack_received ,
+.Va cong_signal
+and
+.Va post_recovery
+hook functions.
+.Pp
+The
+.Va flags
+field is used to pass useful information from the stack to a
+.Nm
+module.
+The CCF_ABC_SENTAWND flag is relevant in
+.Va ack_received
+and is set when appropriate byte counting (RFC3465) has counted a window's worth
+of bytes has been sent.
+It is the module's responsibility to clear the flag after it has processed the
+signal.
+The CCF_CWND_LIMITED flag is relevant in
+.Va ack_received
+and is set when the connection's ability to send data is currently constrained
+by the value of the congestion window.
+Algorithms should use the absence of this flag being set to avoid accumulating
+a large difference between the congestion window and send window.
+.Sh SEE ALSO
+.Xr cc_cdg 4 ,
+.Xr cc_chd 4 ,
+.Xr cc_cubic 4 ,
+.Xr cc_hd 4 ,
+.Xr cc_htcp 4 ,
+.Xr cc_newreno 4 ,
+.Xr cc_vegas 4 ,
+.Xr mod_cc 4 ,
+.Xr tcp 4
+.Sh ACKNOWLEDGEMENTS
+Development and testing of this software were made possible in part by grants
+from the FreeBSD Foundation and Cisco University Research Program Fund at
+Community Foundation Silicon Valley.
+.Sh FUTURE WORK
+Integrate with
+.Xr sctp 4 .
+.Sh HISTORY
+The modular Congestion Control (CC) framework first appeared in
+.Fx 9.0 .
+.Pp
+The framework was first released in 2007 by James Healy and Lawrence Stewart
+whilst working on the NewTCP research project at Swinburne University of
+Technology's Centre for Advanced Internet Architectures, Melbourne, Australia,
+which was made possible in part by a grant from the Cisco University Research
+Program Fund at Community Foundation Silicon Valley.
+More details are available at:
+.Pp
+http://caia.swin.edu.au/urp/newtcp/
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+framework was written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org ,
+.An James Healy Aq Mt jimmy@deefa.com
+and
+.An David Hayes Aq Mt david.hayes@ieee.org .
+.Pp
+This manual page was written by
+.An David Hayes Aq Mt david.hayes@ieee.org
+and
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org .

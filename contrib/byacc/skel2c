@@ -1,0 +1,112 @@
+# vile: awkmode
+function noident(given) {
+	gsub(/\$/,"@", given);
+	return given;
+}
+BEGIN { havesection = 0;
+	version = "$Id: skel2c,v 1.4 2016/06/07 00:26:09 tom Exp $";
+	nsec = 0;
+	ifdef = "";
+	printf  "/* This file generated automatically using\n * %s\n */\n\n",
+		noident(version);
+      }
+/[$]Id[:][^$]*[$]/ {
+	printf "%s\n", noident($0);
+	next;
+      }
+/^%% *insert *VERSION *here/ {
+	printf "    CONCAT1(\"#define YYMAJOR \", YYMAJOR),\n";
+	printf "    CONCAT1(\"#define YYMINOR \", YYMINOR),\n";
+	printf "#ifdef YYPATCH\n";
+	printf "    CONCAT1(\"#define YYPATCH \", YYPATCH),\n";
+	printf "#endif\n";
+	next;
+      }
+/^%%ifdef/ {
+	if (NF >= 2) {
+	    printf "#if defined(%s)\n", $2;
+	    printf "    \"#if %s\",\n", $2;
+	} else {
+	    _abort_exit = 1;
+	    printf "skel2c: ill-formed %%ifdef in skeleton file on line %d\n", FNR > "/dev/stderr";
+	    exit 2;
+	}
+	if (ifdef != "") {
+	    printf "skel2c: nested %%ifdef in skeleton file on line %d\n", FNR > "/dev/stderr";
+	    exit 2;
+	}
+	ifdef = $2;
+	next;
+      }
+/^%%endif/ {
+	if (ifdef != "") {
+	    if (NF >= 2) {
+		printf "    \"#endif /* %s */\",\n", $2;
+		printf "#endif\t\t\t/* defined(%s) */\n", $2;
+	    } else {
+		printf "    \"#endif /* %s */\",\n", ifdef;
+		printf "#endif\t\t\t/* defined(%s) */\n", ifdef;
+	    }
+	    ifdef = "";
+	} else {
+	    printf "    \"#endif\",\n";
+	    printf "#endif\n";
+	    printf "skel2c: unmatched %endif in skeleton file on line %d\n", FNR > "/dev/stderr";
+	    exit 2;
+	}
+	next;
+      }
+/^%%/ { if (havesection) {
+	    printf "    0\n};\n\n";
+	}
+	if (NF >= 2) {
+	    havesection = 1;
+	    section = $2;
+	    seclist[nsec] = section;
+	    nsec = nsec + 1;
+	    printf "const char *const %s[] =\n{\n", $2;
+	} else {
+	    havesection = 0;
+	}
+	next;
+      }
+      { if (havesection) {
+	    # Could use 'gsub(/\\/, "\\\\")' instead of the following
+	    # two lines, but there's a bug in mawk and the original
+	    # awk (not in gawk) which is triggered by that.
+	    gsub(/\\/, "\\\1");
+	    gsub(/\1/, "\\");
+#	    gsub(/\t/, "\\t"); # change '\t' to "\\t"
+	    gsub(/\"/, "\\\"");
+	    printf "    \"%s\",\n", $0;
+	} else {
+	    print $0;
+	}
+      }
+END   { if (_abort_exit)
+	    exit 2;
+	if (havesection) {
+	    print "    0\n};\n";
+	}
+	if (nsec > 0) {
+	    print "void";
+	    print "write_section(FILE * fp, const char *const section[])";
+	    print "{";
+	    print "    int i;";
+	    print "    const char *s;\n";
+	    print "    for (i = 0; (s = section[i]) != 0; ++i)";
+	    print "    {";
+	    print "\tif (fp == code_file)";
+	    print "\t    ++outline;";
+	    print "\tfprintf(fp, \"%s\\n\", s);";
+	    print "    }";
+	    print "}";
+	} else {
+	    print "skel2c: no sections defined in skeleton file" > "/dev/stderr";
+	    exit 2;
+	}
+	if (ifdef != "") {
+	    printf "skel2c: unmatched %%ifdef %s at end of skeleton file\n", $ifdef > "/dev/stderr";
+	    exit 2;
+	}
+      }

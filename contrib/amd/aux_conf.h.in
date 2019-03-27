@@ -1,0 +1,58 @@
+/*
+ * aux_conf.h:
+ * This file gets "filled in" for each architecture.
+ * @configure_input@
+ */
+
+#ifndef _AUX_CONF_H
+#define _AUX_CONF_H
+
+/*
+ * The next line is a literal inclusion of a file which includes a
+ * definition for the MOUNT_TRAP macro for a particular architecture.
+ * If it defines the wrong entry, check the AC_CHECK_MOUNT_TRAP m4 macro
+ * in $srcdir/m4/macros.
+ */
+@am_utils_mount_trap@
+/* End of included MOUNT_TRAP macro definition file */
+
+/*
+ * The next line is a literal replacement of a variable which defines the
+ * the UNMOUNT_TRAP macro for a particular architecture.
+ * If it defines the wrong entry, check the AC_CHECK_UNMOUNT_CALL m4 macro
+ * in $srcdir/aclocal.m4.  If the arguments are being defined wrong, check
+ * the macro AC_CHECK_UNMOUNT_ARGS in $srcdir/m4/macros.
+ */
+#define UNMOUNT_TRAP(mnt)	@am_utils_unmount_call@(@am_utils_unmount_args@)
+/* End of replaced UNMOUNT_TRAP macro definition */
+/* umount(8) executable path, for type:=program */
+#define UNMOUNT_PROGRAM		"@UNMOUNT_PROGRAM@"
+
+/*
+ * The next line is a literal inclusion of a file which includes a
+ * definition for the NFS_FH_DREF macro for a particular architecture.
+ * If it defines the wrong entry, check the AC_CHECK_NFS_FH_DREF m4 macro
+ * in $srcdir/m4/macros.
+ */
+@am_utils_nfs_fh_dref@
+/* End of included NFS_FH_DREF macro definition file */
+
+/*
+ * The next line is a literal inclusion of a file which includes a
+ * definition for the NFS_SA_DREF macro for a particular architecture.
+ * If it defines the wrong entry, check the AC_CHECK_NFS_SA_DREF m4 macro
+ * in $srcdir/m4/macros.
+ */
+@am_utils_nfs_sa_dref@
+/* End of included NFS_SA_DREF macro definition file */
+
+/*
+ * The next line is a literal inclusion of a file which includes a
+ * definition for the NFS_HN_DREF macro for a particular architecture.
+ * If it defines the wrong entry, check the AC_CHECK_NFS_HN_DREF m4 macro
+ * in $srcdir/m4/macros.
+ */
+@am_utils_nfs_hn_dref@
+/* End of included NFS_HN_DREF macro definition file */
+
+#endif /* not _AUX_CONF_H */

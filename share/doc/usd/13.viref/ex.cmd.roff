@@ -1,0 +1,1924 @@
+.\" Copyright (c) 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 1994, 1995, 1996
+.\"	Keith Bostic.  All rights reserved.
+.\"
+.\" See the LICENSE file for redistribution information.
+.\"
+.\"	@(#)ex.cmd.roff	8.41 (Berkeley) 8/17/96
+.\"
+.SH 1 "Ex Description"
+.pp
+The following words have special meanings for
+.CO ex
+commands.
+.KY "<end-of-file>"
+.IP "<end-of-file>"
+The end-of-file character is used to scroll the screen in the
+.CO ex
+editor.
+This character is normally
+.LI <control-D> .
+However, whatever character is set for the current terminal is supported
+as well as
+.LI <control-D> .
+.KY "line"
+.IP "line"
+A single-line address, given in any of the forms described in the
+section entitled
+.QB "Ex Addressing" .
+The default for
+.LI line
+is the current line.
+.KY "range"
+.IP "range"
+A line, or a pair of line addresses, separated by a comma or semicolon.
+(See the section entitled
+.QB "Ex Addressing"
+for more information.)
+The default for range is the current line
+.i only ,
+i.e.
+.QT \&.,. .
+A percent sign
+.PQ %
+stands for the range
+.QT 1,$ .
+The starting address must be less than, or equal to, the ending address.
+.KY "count"
+.IP "count"
+A positive integer, specifying the number of lines to be affected by
+the command; the default is 1.
+Generally, a count past the end-of-file may be specified, e.g. the
+command
+.QT "p 3000"
+in a 10 line file is acceptable, and will print from the current line
+through the last line in the file.
+.KY "flags"
+.IP "flags"
+One or more of the characters
+.QQ # ,
+.QQ p ,
+and
+.QQ l .
+When a command that accepts these flags completes, the addressed line(s)
+are written out as if by the corresponding
+.CO # ,
+.CO l
+or
+.CO p
+commands.
+In addition, any number of
+.QT +
+or
+.QT \-
+characters can be specified before, after, or during the flags, in which
+case the line written is not necessarily the one affected by the command,
+but rather the line addressed by the offset address specified.
+The default for
+.LI flags
+is none.
+.KY "file"
+.IP "file"
+A pattern used to derive a pathname; the default is the current file.
+File names are subjected to normal
+.XR sh 1
+word expansions.
+.pp
+Anywhere a file name is specified, it is also possible to use
+the special string
+.QT /tmp .
+This will be replaced with a temporary file name which can be used
+for temporary work, e.g.
+.QT ":e /tmp"
+creates and edits a new file.
+.pp
+If both a count and a range are specified for commands that use either,
+the starting line for the command is the
+.i last
+line addressed by the range, and
+.LI count - 1
+subsequent lines are affected by the command, e.g. the command
+.QT 2,3p4
+prints out lines 3, 4, 5 and 6.
+.pp
+When only a line or range is specified, with no command, the implied
+command is either a
+.CO list ,
+.CO number
+or
+.CO print
+command.
+The command used is the most recent of the three commands to have been
+used (including any use as a flag).
+If none of these commands have been used before, the
+.CO print
+command is the implied command.
+When no range or count is specified and the command line is a blank line,
+the current line is incremented by 1 and then the current line is displayed.
+.pp
+Zero or more whitespace characters may precede or follow the addresses,
+count, flags, or command name.
+Any object following a command name (such as buffer, file, etc.),
+that begins with an alphabetic character,
+should be separated from the command name by at least one whitespace
+character.
+.pp
+Any character, including
+.LI <carriage-return> ,
+.QT %
+and
+.QT #
+retain their literal value when preceded by a backslash.
+.SH 1 "Ex Commands"
+.pp
+The following section describes the commands available in the
+.CO ex
+editor.
+In each entry below, the tag line is a usage synopsis for the command.
+.pp
+Each command can be entered as the abbreviation
+(those characters in the synopsis command word preceding the
+.QQ [
+character),
+the full command (all characters shown for the command word,
+omitting the
+.QQ [
+and
+.QQ ]
+characters),
+or any leading subset of the full command down to the abbreviation.
+For example, the args command (shown as
+.QT ar[gs]
+in the synopsis)
+can be entered as
+.QT ar ,
+.QT arg
+or
+.QT args .
+.pp
+Each
+.CO ex
+command described below notes the new current line after it
+is executed, as well as any options that affect the command.
+.\" I cannot get a double quote to print to save my life.  The ONLY way
+.\" I've been able to get this to work is with the .tr command.
+.tr Q"
+.ds ms Q
+.KY DOUBLEQUOTE
+.IP "\*(ms"
+.tr QQ
+A comment.
+Command lines beginning with the double-quote character
+.PQ """"
+are ignored.
+This permits comments in editor scripts and startup files.
+.KY "<control-D>"
+.KY "<end-of-file>"
+.IP "<control-D>"
+.IP "<end-of-file>"
+Scroll the screen.
+Write the next N lines, where N is the value of the
+.OP scroll
+option.
+The command is the end-of-file terminal character, which may be
+different on different terminals.
+Traditionally, it is the
+.LI <control-D>
+key.
+.sp
+Historically, the
+.CO eof
+command ignored any preceding count, and the
+.LI <end-of-file>
+character was ignored unless it was entered as the first character
+of the command.
+This implementation treats it as a command
+.i only
+if entered as the first character of the command line, and otherwise
+treats it as any other character.
+.SS
+.SP Line:
+Set to the last line written.
+.SP Options:
+Affected by the
+.OP scroll
+option.
+.SE
+.KY "!"
+.IP "! argument(s)"
+.Ip "[range]! argument(s)"
+Execute a shell command, or filter lines through a shell command.
+In the first synopsis, the remainder of the line after the
+.QT !
+character is passed to the program named by the
+.OP shell
+option, as a single argument.
+.sp
+Within the rest of the line,
+.QT %
+and
+.QT #
+are expanded into the current and alternate pathnames, respectively.
+The character
+.QT !
+is expanded with the command text of the previous
+.CO !
+command.
+(Therefore, the command
+.CO !!
+repeats the previous
+.CO !
+command.)
+The special meanings of
+.QT % ,
+.QT # ,
+and
+.QT !
+can be overridden by escaping them with a backslash.
+If no
+.CO !
+or
+.CO :!
+command has yet been executed, it is an error to use an unescaped
+.QT !
+character.
+The
+.CO !
+command does
+.i not
+do shell expansion on the strings provided as arguments.
+If any of the above expansions change the command the user entered,
+the command is redisplayed at the bottom of the screen.
+.sp
+.CO Ex
+then executes the program named by the
+.OP shell
+option, with a
+.b \-c
+flag followed by the arguments (which are bundled into a single argument).
+.sp
+The
+.CO !
+command is permitted in an empty file.
+.sp
+If the file has been modified since it was last completely written,
+the
+.Co !
+command will warn you.
+.sp
+A single
+.QT !
+character is displayed when the command completes.
+.sp
+In the second form of the
+.CO !
+command, the remainder of the line after the
+.QT !
+is passed to the program named by the
+.OP shell
+option, as described above.
+The specified lines are passed to the program as standard input,
+and the standard and standard error output of the program replace
+the original lines.
+.SS
+.SP Line:
+Unchanged if no range was specified, otherwise set to the first
+line of the range.
+.SP Options:
+Affected by the
+.OP shell
+and
+.OP warn
+options.
+.SE
+.KY "#"
+.IP "[range] # [count] [flags]"
+.KY "number"
+.Ip "[range] nu[mber] [count] [flags]"
+Display the selected lines, each preceded with its line number.
+.sp
+The line number format is
+.QQ %6d ,
+followed by two spaces.
+.SS
+.SP Line:
+Set to the last line displayed.
+.SP Options:
+Affected by the
+.OP list
+option.
+.SE
+.KY "@"
+.IP "@ buffer"
+.KY "*"
+.Ip "* buffer"
+Execute a buffer.
+Each line in the named buffer is executed as an
+.CO ex
+command.
+If no buffer is specified, or if the specified buffer is
+.QT @
+or
+.QT * ,
+the last buffer executed is used.
+.KY <
+.IP "[range] <[< ...] [count] [flags]"
+Shift lines left or right.
+The specified lines are shifted to the left (for the
+.CO <
+command) or right (for the
+.CO >
+command), by the number of columns specified by the
+.OP shiftwidth
+option.
+Only leading whitespace characters are deleted when shifting left;
+once the first column of the line contains a nonblank character,
+the
+.CO shift
+command will succeed, but the line will not be modified.
+.sp
+If the command character
+.CO <
+or
+.CO >
+is repeated more than once, the command is repeated once for each
+additional command character.
+.SS
+.SP Line:
+If the current line is set to one of the lines that are affected
+by the command, it is unchanged.
+Otherwise, it is set to the first nonblank character of the lowest
+numbered line shifted.
+.SP Options:
+Affected by the
+.OP shiftwidth
+option.
+.SE
+.KY =
+.IP "[line] = [flags]"
+Display the line number of
+.LI line
+(which defaults to the last line in the file).
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY >
+.IP "[range] >[> ...] [count] [flags]"
+Shift right.
+The specified lines are shifted to the right by the number of columns
+specified by the
+.OP shiftwidth
+option, by inserting tab and space characters.
+Empty lines are not changed.
+.sp
+If the command character
+.QT >
+is repeated more than once, the command is repeated once for each
+additional command character.
+.SS
+.SP Line:
+Set to the last line modified by the command.
+.SP Options:
+Affected by the
+.OP shiftwidth
+option.
+.SE
+.KY abbrev
+.IP "ab[brev] lhs rhs"
+Add an abbreviation to the current abbreviation list.
+When inserting text in
+.CO vi ,
+each time a non-word character is entered after a word character,
+a set of characters ending at the word character are checked for
+a match with
+.LI lhs .
+If a match is found, they are replaced with
+.LI rhs .
+The set of characters that are checked for a match are defined as follows,
+for inexplicable historical reasons.
+If only one or two characters were entered before the non-word character
+that triggered the check,
+and after the beginning of the insertion,
+or the beginning of the line or the file,
+or the last
+.LI <blank>
+character that was entered,
+then the one or the both characters are checked for a match.
+Otherwise, the set includes both characters,
+as well as the characters that precede them that are the same word
+class (i.e. word or non-word) as the
+.b second
+to last character entered before the non-word character that triggered
+the check,
+back to the first
+.LI <blank> character,
+the beginning of the insertion,
+or the beginning of the line or the file.
+.sp
+For example, the abbreviations:
+.sp
+.ne 3v
+.ft C
+.TS
+r l l.
+:abbreviate	abc	ABC
+:abbreviate	#i	#include
+:abbreviate	/*#i	/*#include
+.TE
+.ft R
+will all work, while the abbreviations:
+.sp
+.ne 2v
+.ft C
+.TS
+r l l.
+:abbreviate	a#i	A#include
+:abbreviate	/*	/********************
+.TE
+.ft R
+will not work, and are not permitted by
+.CO nvi .
+.sp
+To keep the abbreviation expansion from happening,
+the character immediately following the
+.LI lhs
+characters should be quoted with a
+.LI <literal-next>
+character.
+.sp
+The replacement
+.LI rhs
+is itself subject to both further abbreviation expansion and further
+map expansion.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY append
+.IP "[line] a[ppend][!]"
+The input text is appended to the specified line.
+If line 0 is specified, the text is inserted at the beginning of the file.
+Set to the last line input.
+If no lines are input, then set to
+.LI line ,
+or to the first line of the file if a
+.LI line
+of 0 was specified.
+Following the command name with a
+.QT !
+character causes the
+.OP autoindent
+option to be toggled for the duration of the command.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+Affected by the
+.OP autoindent
+and
+.OP number
+options.
+.SE
+.KY args
+.IP "ar[gs]"
+Display the argument list.
+The current argument is displayed inside of
+.QT [
+and
+.QT ]
+characters.
+The argument list is the list of operands specified on startup,
+which can be replaced using the
+.CO next
+command.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY bg
+.IP bg
+.CO Vi
+mode only.
+Background the current screen.
+The screen is unchanged,
+but is no longer accessible and disappears from the display.
+Use the
+.CO fg
+command to bring the screen back to the display foreground.
+.SS
+.SP Line:
+Set to the current line when the screen was last edited.
+.SP Options:
+None.
+.SE
+.KY change
+.IP "[range] c[hange][!] [count]"
+Replace the lines with input text.
+Following the command name with a
+.QT !
+character causes the
+.OP autoindent
+option to be toggled for the duration of the command.
+.SS
+.SP Line:
+Set to the last line input, or, if no lines were input,
+set to the line before the target line, or to the first
+line of the file if there are no lines preceding the target line.
+.SP Options:
+Affected by the
+.OP autoindent
+and
+.OP number
+options.
+.SE
+.KY cd
+.KY chdir
+.IP "chd[ir][!] [directory]"
+.Ip "cd[!] [directory]"
+Change the current working directory.
+The
+.LI directory
+argument is subjected to
+.XR sh 1
+word expansions.
+When invoked with no directory argument and the
+.LI HOME
+environment variable is set, the directory named by the
+.LI HOME
+environment variable becomes the new current directory.
+Otherwise, the new current directory becomes the directory returned
+by the
+.XR getpwent 3
+routine.
+.sp
+The
+.CO chdir
+command will fail if the file has been modified since the last complete
+write of the file.
+You can override this check by appending a
+.QT !
+character to the command.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+Affected by the
+.OP cdpath
+option.
+.SE
+.KY copy
+.KY t
+.IP "[range] co[py] line [flags]"
+.Ip "[range] t line [flags]"
+Copy the specified lines (range) after the destination line.
+Line 0 may be specified to insert the lines at the beginning of
+the file.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY cscope
+.IP "cs[cope] command [args]"
+Execute a
+.CO cscope
+command.
+For more information, see the section of the reference manual entitled
+.QB "Tags, Tag Stacks, and Cscope" .
+.KY delete
+.IP "[range] d[elete] [buffer] [count] [flags]"
+Delete the lines from the file.
+The deleted text is saved in the specified buffer, or, if no buffer
+is specified, in the unnamed buffer.
+If the command name is followed by a letter that could be interpreted
+as either a buffer name or a flag value (because neither a
+.LI count
+or
+.LI flags
+values were given),
+.CO ex
+treats the letter as a
+.LI flags
+value if the letter immediately follows the command name,
+without any whitespace separation.
+If the letter is preceded by whitespace characters,
+it treats it as a buffer name.
+.SS
+.SP Line:
+Set to the line following the deleted lines,
+or to the last line if the deleted lines were at the end.
+.SP Options:
+None.
+.SE
+.KY display
+.IP "di[splay] b[uffers] | c[onnections] | s[creens] | t[ags]"
+Display buffers,
+.CO cscope
+connections, screens or tags.
+The
+.CO display
+command takes one of three additional arguments, which are as follows:
+.SS
+.SP b[uffers]
+Display all buffers (including named, unnamed, and numeric)
+that contain text.
+.SP c[onnections]
+Display the source directories for all attached
+.CO cscope
+databases.
+.SP s[creens]
+Display the file names of all background screens.
+.SP t[ags]
+Display the tags stack.
+.SE
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY edit
+.IP "e[dit][!] [+cmd] [file]"
+.Ip "ex[!] [+cmd] [file]"
+Edit a different file.
+If the current buffer has been modified since the last complete write,
+the command will fail.
+You can override this by appending a
+.QT !
+character to the command name.
+.sp
+If the
+.QT +cmd
+option is specified, that
+.CO ex
+command will be executed in the new file.
+Any
+.CO ex
+command may be used, although the most common use of this feature is
+to specify a line number or search pattern to set the initial location
+in the new file.
+.sp
+Capitalizing the first letter of the command, i.e.
+.CO Edit
+or
+.CO Ex ,
+while in
+.CO vi
+mode, will edit the file in a new screen.
+In this case, any modifications to the current file are ignored.
+.SS
+.SP Line:
+If you have previously edited the file, the current line will be set
+to your last position in the file.
+If that position does not exist, or you have not previously edited the
+file, the current line will be set to the first line of the file if
+you are in
+.CO vi
+mode, and the last line of the file if you are in
+.CO ex .
+.SP Options:
+None.
+.SE
+.KY exusage
+.IP "exu[sage] [command]"
+Display usage for an
+.CO ex
+command.
+If
+.LI command
+is specified, a usage statement for that command is displayed.
+Otherwise, usage statements for all
+.CO ex
+commands are displayed.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY file
+.IP "f[ile] [file]"
+Display and optionally change the file name.
+If a file name is specified, the current pathname is changed to the
+specified name.
+The current pathname, the number of lines, and the current position
+in the file are displayed.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY fg
+.IP "fg [name]"
+.CO Vi
+mode only.
+Foreground the specified screen.
+If the argument name doesn't exactly match the name of a file displayed
+by a background screen,
+it is compared against the last component of each of the file names.
+If no background screen is specified,
+the first background screen is foregrounded.
+.sp
+By default,
+foregrounding causes the current screen to be swapped with the backgrounded
+screen.
+Capitalizing the first letter of the command, i.e.
+.CO Fg ,
+will foreground the backgrounded screen in a new screen instead of
+swapping it with the current screen.
+.SS
+.SP Line:
+Set to the current line when the screen was last edited.
+.SP Options:
+None.
+.SE
+.KY global
+.IP "[range] g[lobal] /pattern/ [commands]"
+.KY v
+.Ip "[range] v /pattern/ [commands]"
+Apply commands to lines matching (or not matching) a pattern.
+The lines within the given range that match
+.PQ g[lobal] ,
+or do not match
+.PQ v
+the given pattern are selected.
+Then, the specified
+.CO ex
+command(s) are executed with the current line
+.PQ \&.
+set to each selected line.
+If no range is specified, the entire file is searched for matching,
+or not matching, lines.
+.sp
+Multiple commands can be specified, one per line, by escaping each
+.LI <newline>
+character with a backslash, or by separating commands with a
+.QT |
+character.
+If no commands are specified, the command defaults to the
+.CO print
+command.
+.sp
+For the
+.CO append ,
+.CO change
+and
+.CO insert
+commands, the input text must be part of the global command line.
+In this case, the terminating period can be omitted if it ends the commands.
+.sp
+The
+.CO visual
+command may also be specified as one of the
+.CO ex
+commands.
+In this mode, input is taken from the terminal.
+Entering a
+.CO Q
+command in
+.CO vi
+mode causes the next line matching the pattern to be selected and
+.CO vi
+to be reentered, until the list is exhausted.
+.sp
+The
+.CO global ,
+.CO v
+and
+.CO undo
+commands cannot be used as part of these commands.
+.sp
+The editor options
+.OP autoindent ,
+.OP autoprint
+and
+.OP report
+are turned off for the duration of the
+.CO global
+and
+.CO v
+commands.
+.SS
+.SP Line:
+The last line modified.
+.SP Options:
+Affected by the
+.OP ignorecase
+and
+.OP magic
+options.
+Turns off the
+.OP autoindent ,
+.OP autoprint
+and
+.OP report
+options.
+.SE
+.KY help
+.IP "he[lp]"
+Display a help message.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY insert
+.IP "[line] i[nsert][!]"
+The input text is inserted before the specified line.
+Following the command name with a
+.QT !
+character causes the
+.OP autoindent
+option setting to be toggled for the duration of this command.
+.SS
+.SP Line:
+Set to the last line input; if no lines were input,
+set to the line before the target line, or to the first line
+of the file if there are no lines preceding the target line.
+Affected by the
+.OP autoindent
+and
+.OP number
+options.
+.SE
+.KY join
+.IP "[range] j[oin][!] [count] [flags]"
+Join lines of text together.
+.sp
+A
+.LI count
+specified to the
+.Sy join
+command specifies that the last line of the
+.LI range
+plus
+.LI count
+subsequent lines will be joined.
+(Note, this differs by one from the general rule where only
+.LI count - 1
+subsequent lines are affected.)
+.sp
+If the current line ends with a whitespace character, all whitespace
+is stripped from the next line.
+Otherwise, if the next line starts with a open parenthesis
+.PQ ( ,
+do nothing.
+Otherwise, if the current line ends with a question mark
+.PQ ? ,
+period
+.PQ \&.
+or exclamation point
+.PQ ! ,
+insert two spaces.
+Otherwise, insert a single space.
+.sp
+Appending a
+.QT !
+character to the command name causes a simpler join with no
+white-space processing.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY list
+.IP "[range] l[ist] [count] [flags]"
+Display the lines unambiguously.
+Tabs are displayed as
+.QT ^I ,
+and the end of the line is marked with a
+.QT $
+character.
+.SS
+.SP Line:
+Set to the last line displayed.
+.SP Options:
+Affected by the
+.OP number
+option.
+.SE
+.KY map
+.IP "map[!] [lhs rhs]"
+Define or display maps (for
+.CO vi
+only).
+.sp
+If
+.QT lhs
+and
+.QT rhs
+are not specified, the current set of command mode maps are displayed.
+If a
+.QT !
+character is appended to to the command,
+the text input mode maps are displayed.
+.sp
+Otherwise, when the
+.QT lhs
+character sequence is entered in
+.CO vi ,
+the action is as if the corresponding
+.QT rhs
+had been entered.
+If a
+.QT !
+character is appended to the command name,
+the mapping is effective during text input mode,
+otherwise, it is effective during command mode.
+This allows
+.QT lhs
+to have two different macro definitions at the same time: one for command
+mode and one for input mode.
+.sp
+Whitespace characters require escaping with a
+.LI <literal-next>
+character to be entered in the
+.LI lhs
+string in visual mode.
+.sp
+Normally, keys in the
+.LI rhs
+string are remapped (see the
+.OP remap
+option),
+and it is possible to create infinite loops.
+However, keys which map to themselves are not further remapped,
+regardless of the setting of the
+.OP remap
+option.
+For example, the command
+.QT ":map n nz."
+maps the
+.QT n
+key to the
+.CO n
+and
+.CO z
+commands.
+.sp
+To exit an infinitely looping map, use the terminal
+.LI <interrupt>
+character.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+Affected by the
+.OP remap
+option.
+.SE
+.KY mark
+.KY k
+.IP "[line] ma[rk] <character>"
+.Ip "[line] k <character>"
+Mark the line with the mark
+.LI <character> .
+The expressions
+.QT '<character>
+and
+.QT `<character>
+can then be used as an address in any command that uses one.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY move
+.IP "[range] m[ove] line"
+Move the specified lines after the target line.
+A target line of 0 places the lines at the beginning of the file.
+.SS
+.SP Line:
+Set to the first of the moved lines.
+.SP Options:
+None.
+.SE
+.KY mkexrc
+.IP "mk[exrc][!] file"
+Write the abbreviations, editor options and maps to the specified
+file.
+Information is written in a form which can later be read back in
+using the
+.CO ex
+.CO source
+command.
+If
+.LI file
+already exists, the
+.CO mkexrc
+command will fail.
+This check can be overridden by appending a
+.QT !
+character to the command.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY next
+.IP "n[ext][!] [file ...]"
+Edit the next file from the argument list.
+The
+.CO next
+command will fail if the file has been modified since the last complete
+write.
+This check can be overridden by appending the
+.QT !
+character to the command name.
+The argument list can optionally be replaced by specifying a new one
+as arguments to this command.
+In this case, editing starts with the first file on the new list.
+.sp
+Capitalizing the first letter of the command, i.e.
+.CO Next ,
+while in
+.CO vi
+mode, will set the argument list and edit the file in a new screen.
+In this case, any modifications to the current file are ignored.
+.SS
+.SP Line:
+Set as described for the
+.CO edit
+command.
+.SP Options:
+Affected by the options
+.OP autowrite
+and
+.OP writeany .
+.SE
+.KY open
+.IP "[line] o[pen] /pattern/ [flags]"
+Enter open mode.
+Open mode is the same as being in
+.CO vi ,
+but with a one-line window.
+All the standard
+.CO vi
+commands are available.
+If a match is found for the optional RE argument,
+the cursor is set to the start of the matching pattern.
+.sp
+.i "This command is not yet implemented."
+.SS
+.SP Line:
+Unchanged, unless the optional RE is specified, in which case it is
+set to the line where the matching pattern is found.
+.SP Options:
+Affected by the
+.OP open
+option.
+.SE
+.KY preserve
+.IP "pre[serve]"
+Save the file in a form that can later be recovered using the
+.CO ex
+.b \-r
+option.
+When the file is preserved, an email message is sent to the user.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY previous
+.IP "prev[ious][!]"
+Edit the previous file from the argument list.
+The
+.CO previous
+command will fail if the file has been modified since the last complete
+write.
+This check can be overridden by appending the
+.QT !
+character to the command name.
+.sp
+Capitalizing the first letter of the command, i.e.
+.CO Previous ,
+while in
+.CO vi
+mode, will edit the file in a new screen.
+In this case, any modifications to the current file are ignored.
+.SS
+.SP Line:
+Set as described for the
+.CO edit
+command.
+.SP Options:
+Affected by the options
+.OP autowrite
+and
+.OP writeany .
+None.
+.SE
+.KY print
+.IP "[range] p[rint] [count] [flags]"
+Display the specified lines.
+.SS
+.SP Line:
+Set to the last line displayed.
+.SP Options:
+Affected by the
+.OP list
+and
+.OP number
+option.
+.SE
+.KY put
+.IP "[line] pu[t] [buffer]"
+Append buffer contents to the current line.
+If a buffer is specified, its contents are appended to the line,
+otherwise, the contents of the unnamed buffer are used.
+.SS
+.SP Line:
+Set to the line after the current line.
+.SP Options:
+None.
+.SE
+.KY quit
+.IP "q[uit][!]"
+End the editing session.
+If the file has been modified since the last complete write, the
+.CO quit
+command will fail.
+This check may be overridden by appending a
+.QT !
+character to the command.
+.sp
+If there are more files to edit, the
+.CO quit
+command will fail.
+Appending a
+.QT !
+character to the command name or entering two
+.CO quit
+commands (i.e.
+.CO wq ,
+.CO quit ,
+.CO xit
+or
+.CO ZZ )
+in a row) will override this check and the editor will exit.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY read
+.IP "[line] r[ead][!] [file]"
+Read a file.
+A copy of the specified file is appended to the line.
+If
+.LI line
+is 0, the copy is inserted at the beginning of the file.
+If no file is specified, the current file is read; if there is no
+current file, then
+.LI file
+becomes the current file.
+If there is no current file and no
+.LI file
+is specified, then the
+.CO read
+command will fail.
+.sp
+If
+.LI file
+is preceded by a
+.QT !
+character,
+.LI file
+is treated as if it were a shell command, and passed to the program
+named by the
+.OP shell
+edit option.
+The standard and standard error outputs of that command are read into
+the file after the specified line.
+The special meaning of the
+.QT !
+character can be overridden by escaping it with a backslash
+.PQ \e
+character.
+.SS
+.SP Line:
+When executed from
+.CO ex ,
+the current line is set to the last line read.
+When executed from
+.CO vi ,
+the current line is set to the first line read.
+.SP Options:
+None.
+.SE
+.KY recover
+.IP "rec[over] file"
+Recover
+.LI file
+if it was previously saved.
+If no saved file by that name exists, the
+.CO recover
+command behaves equivalently to the
+.CO edit
+command.
+.SS
+.SP Line:
+Set as described for the
+.CO edit
+command.
+.SP Options:
+None.
+.SE
+.KY resize
+.IP "res[ize] [+|-]size"
+.CO Vi
+mode only.
+Grow or shrink the current screen.
+If
+.LI size
+is a positive, signed number, the current screen is grown by that many lines.
+If
+.LI size
+is a negative, signed number, the current screen is shrunk by that many lines.
+If
+.LI size
+is not signed, the current screen is set to the specified
+.LI size .
+Applicable only to split screens.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY rewind
+.IP "rew[ind][!]"
+Rewind the argument list.
+If the current file has been modified since the last complete write,
+the
+.CO rewind
+command will fail.
+This check may be overridden by appending the
+.QT !
+character to the command.
+.sp
+Otherwise, the current file is set to the first file in the argument
+list.
+.SS
+.SP Line:
+Set as described for the
+.CO edit
+command.
+.SP Options:
+Affected by the
+.OP autowrite
+and
+.OP writeany
+options.
+.SE
+.KY set
+.IP "se[t] [option[=[value]] ...] [nooption ...] [option? ...] [all]"
+Display or set editor options.
+When no arguments are specified, the editor option
+.OP term ,
+and any editor options whose values have been changed from the
+default settings are displayed.
+If the argument
+.LI all
+is specified, the values of all of editor options are displayed.
+.sp
+Specifying an option name followed by the character
+.QT ?
+causes the current value of that option to be displayed.
+The
+.QT ?
+can be separated from the option name by whitespace characters.
+The
+.QT ?
+is necessary only for Boolean valued options.
+Boolean options can be given values by the form
+.QT "set option"
+to turn them on, or
+.QT "set nooption"
+to turn them off.
+String and numeric options can be assigned by the form
+.QT "set option=value" .
+Any whitespace characters in strings can be included literally by preceding
+each with a backslash.
+More than one option can be set or listed by a single set command,
+by specifying multiple arguments, each separated from the next by
+whitespace characters.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY shell
+.IP "sh[ell]"
+Run the shell program.
+The program named by the
+.OP shell
+option is run with a
+.b \-i
+(for interactive) flag.
+Editing is resumed when that program exits.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+Affected by the
+.OP shell
+option.
+.SE
+.KY source
+.IP "so[urce] file"
+Read and execute
+.CO ex
+commands from a file.
+.CO Source
+commands may be nested.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY substitute
+.IP "[range] s[ubstitute] [/pattern/replace/] [options] [count] [flags]"
+.KY &
+.Ip "[range] & [options] [count] [flags]"
+.KY ~
+.Ip "[range] ~ [options] [count] [flags]"
+Make substitutions.
+Replace the first instance of
+.LI pattern
+with the string
+.LI replace
+on the specified line(s).
+If the
+.QT /pattern/repl/
+argument is not specified, the
+.QT /pattern/repl/
+from the previous
+.CO substitute
+command is used.
+Any character other than an alphabetic, numeric, <blank> or backslash
+character may be used as the delimiter.
+.sp
+If
+.LI options
+includes the letter
+.QT c
+(confirm), you will be prompted for confirmation before each replacement
+is done.
+An affirmative response (in English, a
+.QT y
+character) causes the replacement to be made.
+A quit response (in English, a
+.QT q
+character) causes the
+.CO substitute
+command to be terminated.
+Any other response causes the replacement not to be made, and the
+.CO substitute
+command continues.
+If
+.LI options
+includes the letter
+.QT g
+(global), all nonoverlapping instances of
+.LI pattern
+in the line are replaced.
+.sp
+The
+.CO &
+version of the command is the same as not specifying a pattern
+or replacement string to the
+.CO substitute
+command, and the
+.QT &
+is replaced by the pattern and replacement information from the
+previous substitute command.
+.sp
+The
+.CO ~
+version of the command is the same as
+.CO &
+and
+.CO s ,
+except that the search pattern used is the last RE used in
+.i any
+command, not necessarily the one used in the last
+.CO substitute
+command.
+.sp
+For example, in the sequence
+.ft C
+.(b
+s/red/blue/
+/green
+~
+.)b
+.ft R
+the
+.QT ~
+is equivalent to
+.QT s/green/blue/ .
+.sp
+The
+.CO substitute
+command may be interrupted, using the terminal interrupt character.
+All substitutions completed before the interrupt are retained.
+.SS
+.SP Line:
+Set to the last line upon which a substitution was made.
+.SP Options:
+Affected by the
+.OP ignorecase
+and
+.OP magic
+option.
+.SE
+.KY suspend
+.IP "su[spend][!]"
+.KY stop
+.Ip "st[op][!]"
+.KY <control-Z>
+.Ip <control-Z>
+Suspend the edit session.
+Appending a
+.QT !
+character to these commands turns off the
+.OP autowrite
+option for the command.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+Affected by the
+.OP autowrite
+and
+.OP writeany
+options.
+.SE
+.KY tag
+.IP "ta[g][!] tagstring"
+Edit the file containing the specified tag.
+If the tag is in a different file, then the new file is edited.
+If the current file has been modified since the last complete write,
+the
+.CO tag
+command will fail.
+This check can be overridden by appending the
+.QT !
+character to the command name.
+.sp
+The
+.CO tag
+command searches for
+.LI tagstring
+in the tags file(s) specified by the
+.Op tags
+option.
+(See
+.XR ctags 1
+for more information on tags files.)
+.sp
+Capitalizing the first letter of the command, i.e.
+.CO Tag ,
+while in
+.CO vi
+mode, will edit the file in a new screen.
+In this case, any modifications to the current file are ignored.
+.SS
+.SP Line:
+Set to the line indicated by the tag.
+.SP Options:
+Affected by the
+.OP autowrite ,
+.OP taglength ,
+.OP tags
+and
+.OP writeany
+options.
+.SE
+.KY tagnext
+.IP "tagn[ext][!]"
+Edit the file containing the next context for the current tag.
+If the context is in a different file, then the new file is edited.
+If the current file has been modified since the last complete write,
+the
+.CO tagnext
+command will fail.
+This check can be overridden by appending the
+.QT !
+character to the command name.
+.sp
+Capitalizing the first letter of the command, i.e.
+.CO Tagnext ,
+while in 
+.CO vi 
+mode, will edit the file in a new screen.
+In this case, any modifications to the current file are ignored.
+.SS 
+.SP Line:
+Set to the line indicated by the tag.
+.SP Options:
+Affected by the 
+.OP autowrite
+and
+.OP writeany
+options.
+.SE
+.KY tagpop
+.IP "tagp[op][!] [file | number]"
+Pop to the specified tag in the tags stack.
+If neither
+.LI file
+or
+.LI number
+is specified, the
+.CO tagpop
+command pops to the most recent entry on the tags stack.
+If
+.LI file
+or
+.LI number
+is specified, the
+.CO tagpop
+command pops to the most recent entry in the tags stack for that file,
+or numbered entry in the tags stack, respectively.
+(See the
+.CO display
+command for information on displaying the tags stack.)
+.sp
+If the file has been modified since the last complete write, the
+.CO tagpop
+command will fail.
+This check may be overridden by appending a
+.QT !
+character to the command name.
+.SS
+.SP Line:
+Set to the line indicated by the tag.
+.SP Options:
+Affected by the
+.OP autowrite
+and
+.OP writeany
+options.
+.SE
+.KY tagprev
+.IP "tagp[rev][!]"
+Edit the file containing the previous context for the current tag.
+If the context is in a different file, then the new file is edited.
+If the current file has been modified since the last complete write,
+the
+.CO tagprev
+command will fail.
+This check can be overridden by appending the
+.QT !
+character to the command name.
+.sp
+Capitalizing the first letter of the command, i.e.
+.CO Tagprev ,
+while in 
+.CO vi 
+mode, will edit the file in a new screen.
+In this case, any modifications to the current file are ignored.
+.SS 
+.SP Line:
+Set to the line indicated by the tag.
+.SP Options:
+Affected by the 
+.OP autowrite
+and
+.OP writeany
+options.
+.SE
+.KY tagtop
+.IP "tagt[op][!]"
+Pop to the least recent tag on the tags stack, clearing the tags stack.
+.sp
+If the file has been modified since the last complete write, the
+.CO tagtop
+command will fail.
+This check may be overridden by appending a
+.QT !
+character to the command name.
+.SS
+.SP Line:
+Set to the line indicated by the tag.
+.SP Options:
+Affected by the
+.OP autowrite
+and
+.OP writeany
+options.
+.SE
+.KY unabbrev
+.IP "una[bbrev] lhs"
+Delete an abbreviation.
+Delete
+.LI lhs
+from the current list of abbreviations.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY undo
+.IP "u[ndo]"
+Undo the last change made to the file.
+Changes made by
+.CO global ,
+.CO v ,
+.CO visual
+and map sequences are considered a single command.
+If repeated, the
+.CO u
+command alternates between these two states, and is its own inverse.
+.SS
+.SP Line:
+Set to the last line modified by the command.
+.SP Options:
+None.
+.SE
+.KY unmap
+.IP "unm[ap][!] lhs"
+Unmap a mapped string.
+Delete the command mode map definition for
+.LI lhs .
+If a
+.QT !
+character is appended to the command name, delete the text input mode
+map definition instead.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY version
+.IP "ve[rsion]"
+Display the version of the
+.CO ex/vi
+editor.
+.KY visual
+.IP "[line] vi[sual] [type] [count] [flags]"
+.CO Ex
+mode only.
+Enter
+.CO vi .
+The
+.LI type
+is optional, and can be
+.QT \- ,
+.QT +
+or
+.QT ^ ,
+as in the
+.CO ex
+.CO z
+command, to specify the position of the specified line in the screen
+window.
+(The default is to place the line at the top of the screen window.)
+A
+.LI count
+specifies the number of lines that will initially be displayed.
+(The default is the value of the
+.OP window
+editor option.)
+.SS
+.SP Line:
+Unchanged unless
+.LI line
+is specified, in which case it is set to that line.
+.SP Options:
+None.
+.SE
+.KY visual
+.IP "vi[sual][!] [+cmd] [file]"
+.CO Vi
+mode only.
+Edit a new file.
+Identical to the
+.QT "edit[!] [+cmd] [file]"
+command.
+.sp
+Capitalizing the first letter of the command, i.e.
+.CO Visual ,
+will edit the file in a new screen.
+In this case, any modifications to the current file are ignored.
+.KY viusage
+.IP "viu[sage] [command]"
+Display usage for a
+.CO vi
+command.
+If
+.LI command
+is specified, a usage statement for that command is displayed.
+Otherwise, usage statements for all
+.CO vi
+commands are displayed.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY write
+.IP "[range] w[rite][!] [>>] [file]"
+.Ip "[range] w[rite] [!] [file]"
+.KY wn
+.Ip "[range] wn[!] [>>] [file]"
+.KY wq
+.Ip "[range] wq[!] [>>] [file]"
+Write the file.
+The specified lines (the entire file, if no range is given) is written
+to
+.LI file .
+If
+.LI file
+is not specified, the current pathname is used.
+If
+.LI file
+is specified, and it exists, or if the current pathname was set using the
+.CO file
+command, and the file already exists, these commands will fail.
+Appending a
+.QT !
+character to the command name will override this check and the write
+will be attempted, regardless.
+.sp
+Specifying the optional
+.QT >>
+string will cause the write to be appended to the file, in which case
+no tests are made for the file already existing.
+.sp
+If the file is preceded by a
+.QT !
+character, the program named by the shell edit option is
+invoked with file as its second argument, and the specified
+lines are passed as standard input to that command.
+The
+.QT !
+in this usage must be separated from command name by at least one
+whitespace character.
+The special meaning of the
+.QT !
+may be overridden by escaping it with a backslash
+.PQ \e
+character.
+.sp
+The
+.CO wq
+version of the write command will exit the editor after writing the file,
+if there are no further files to edit.
+Appending a
+.QT !
+character to the command name or entering two
+.QQ quit
+commands (i.e.
+.CO wq ,
+.CO quit ,
+.CO xit
+or
+.CO ZZ )
+in a row) will override this check and the editor will exit,
+ignoring any files that have not yet been edited.
+.sp
+The
+.CO wn
+version of the write command will move to the next file after writing
+the file, unless the write fails.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+Affected by the
+.OP readonly
+and
+.OP writeany
+options.
+.SE
+.KY xit
+.IP "[range] x[it][!] [file]"
+Write the file if it has been modified.
+The specified lines are written to
+.LI file ,
+if the file has been modified since the last complete write to any
+file.
+If no
+.LI range
+is specified, the entire file is written.
+.sp
+The
+.CO xit
+command will exit the editor after writing the file,
+if there are no further files to edit.
+Appending a
+.QT !
+character to the command name or entering two
+.QQ quit
+commands (i.e.
+.CO wq ,
+.CO quit ,
+.CO xit
+or
+.CO ZZ )
+in a row) will override this check and the editor will exit,
+ignoring any files that have not yet been edited.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+Affected by the
+.OP readonly
+and
+.OP writeany
+options.
+.SE
+.KY yank
+.IP "[range] ya[nk] [buffer] [count]"
+Copy the specified lines to a buffer.
+If no buffer is specified, the unnamed buffer is used.
+.SS
+.SP Line:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY z
+.IP "[line] z [type] [count] [flags]"
+Adjust the window.
+If no
+.LI type
+is specified, then
+.LI count
+lines following the specified line are displayed.
+The default
+.LI count
+is the value of the
+.OP window
+option.
+The
+.LI type
+argument changes the position at which
+.LI line
+is displayed on the screen by changing the number of lines
+displayed before and after
+.LI line .
+The following
+.LI type
+characters may be used:
+.SS
+.SP \-
+Place the line at the bottom of the screen.
+.SP +
+Place the line at the top of the screen.
+.SP \&.
+Place the line in the middle of the screen.
+.SP ^
+Write out count lines starting
+.LI "count * 2"
+lines before
+.LI line ;
+the net effect of this is that a
+.QT z^
+command following a
+.CO z
+command writes the previous page.
+.SP =
+Center
+.LI line
+on the screen with a line of hyphens displayed immediately before and
+after it.
+The number of preceding and following lines of text displayed are
+reduced to account for those lines.
+.SE
+.SS
+.SP Line:
+Set to the last line displayed, with the exception of the
+.Dq Li \&=
+.LI type ,
+where the current line is set to the line specified by the command.
+.SP Options:
+Affected by the
+.OP scroll
+option.
+.SE

@@ -1,0 +1,6 @@
+include "arch/regress/conf/std.regress"
+maxusers 4
+
+master0		at root
+
+config regress root on ?

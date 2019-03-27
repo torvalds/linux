@@ -1,0 +1,1046 @@
+if [ ! "$_COMMON_SUBR" ]; then _COMMON_SUBR=1
+#
+# Copyright (c) 2012 Ron McDowell
+# Copyright (c) 2012-2016 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ CONFIGURATION
+
+#
+# Default file descriptors to link to stdout/stderr for passthru allowing
+# redirection within a sub-shell to bypass directly to the terminal.
+#
+: ${TERMINAL_STDOUT_PASSTHRU:=3}
+: ${TERMINAL_STDERR_PASSTHRU:=4}
+
+############################################################ GLOBALS
+
+#
+# Program name
+#
+pgm="${0##*/}"
+
+#
+# Program arguments
+#
+ARGC="$#"
+ARGV="$@"
+
+#
+# Global exit status variables
+#
+SUCCESS=0
+FAILURE=1
+
+#
+# Operating environment details
+#
+export UNAME_S="$( uname -s )" # Operating System (i.e. FreeBSD)
+export UNAME_P="$( uname -p )" # Processor Architecture (i.e. i386)
+export UNAME_M="$( uname -m )" # Machine platform (i.e. i386)
+export UNAME_R="$( uname -r )" # Release Level (i.e. X.Y-RELEASE)
+
+#
+# Default behavior is to call f_debug_init() automatically when loaded.
+#
+: ${DEBUG_SELF_INITIALIZE=1}
+
+#
+# Default behavior of f_debug_init() is to truncate $debugFile (set to NULL to
+# disable truncating the debug file when initializing). To get child processes
+# to append to the same log file, export this variarable (with a NULL value)
+# and also export debugFile with the desired value.
+# 
+: ${DEBUG_INITIALIZE_FILE=1}
+
+#
+# Define standard optstring arguments that should be supported by all programs
+# using this include (unless DEBUG_SELF_INITIALIZE is set to NULL to prevent
+# f_debug_init() from autamatically processing "$@" for the below arguments):
+#
+# 	d	Sets $debug to 1
+# 	D:	Sets $debugFile to $OPTARG
+#
+GETOPTS_STDARGS="dD:"
+
+#
+# The getopts builtin will return 1 either when the end of "$@" or the first
+# invalid flag is reached. This makes it impossible to determine if you've
+# processed all the arguments or simply have hit an invalid flag. In the cases
+# where we want to tolerate invalid flags (f_debug_init() for example), the
+# following variable can be appended to your optstring argument to getopts,
+# preventing it from prematurely returning 1 before the end of the arguments.
+#
+# NOTE: This assumes that all unknown flags are argument-less.
+#
+GETOPTS_ALLFLAGS="abcdefghijklmnopqrstuvwxyz"
+GETOPTS_ALLFLAGS="${GETOPTS_ALLFLAGS}ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+GETOPTS_ALLFLAGS="${GETOPTS_ALLFLAGS}0123456789"
+
+#
+# When we get included, f_debug_init() will fire (unless $DEBUG_SELF_INITIALIZE
+# is set to disable automatic initialization) and process "$@" for a few global
+# options such as `-d' and/or `-D file'. However, if your program takes custom
+# flags that take arguments, this automatic processing may fail unexpectedly.
+#
+# The solution to this problem is to pre-define (before including this file)
+# the following variable (which defaults to NULL) to indicate that there are
+# extra flags that should be considered when performing automatic processing of
+# globally persistent flags.
+#
+: ${GETOPTS_EXTRA:=}
+
+############################################################ FUNCTIONS
+
+# f_dprintf $format [$arguments ...]
+#
+# Sensible debug function. Override in ~/.bsdconfigrc if desired.
+# See /usr/share/examples/bsdconfig/bsdconfigrc for example.
+#
+# If $debug is set and non-NULL, prints DEBUG info using printf(1) syntax:
+# 	+ To $debugFile, if set and non-NULL
+# 	+ To standard output if $debugFile is either NULL or unset
+# 	+ To both if $debugFile begins with a single plus-sign (`+')
+#
+f_dprintf()
+{
+	[ "$debug" ] || return $SUCCESS
+	local fmt="$1"; shift
+	case "$debugFile" in ""|+*)
+	printf "DEBUG: $fmt${fmt:+\n}" "$@" >&${TERMINAL_STDOUT_PASSTHRU:-1}
+	esac
+	[ "${debugFile#+}" ] &&
+		printf "DEBUG: $fmt${fmt:+\n}" "$@" >> "${debugFile#+}"
+	return $SUCCESS
+}
+
+# f_debug_init
+#
+# Initialize debugging. Truncates $debugFile to zero bytes if set.
+#
+f_debug_init()
+{
+	#
+	# Process stored command-line arguments
+	#
+	set -- $ARGV
+	local OPTIND OPTARG flag
+	f_dprintf "f_debug_init: ARGV=[%s] GETOPTS_STDARGS=[%s]" \
+	          "$ARGV" "$GETOPTS_STDARGS"
+	while getopts "$GETOPTS_STDARGS$GETOPTS_EXTRA$GETOPTS_ALLFLAGS" flag \
+	> /dev/null; do
+		case "$flag" in
+		d) debug=1 ;;
+		D) debugFile="$OPTARG" ;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+	f_dprintf "f_debug_init: debug=[%s] debugFile=[%s]" \
+	          "$debug" "$debugFile"
+
+	#
+	# Automagically enable debugging if debugFile is set (and non-NULL)
+	#
+	[ "$debugFile" ] && { [ "${debug+set}" ] || debug=1; }
+
+	#
+	# Make debugging persistent if set
+	#
+	[ "$debug" ] && export debug
+	[ "$debugFile" ] && export debugFile
+
+	#
+	# Truncate debug file unless requested otherwise. Note that we will
+	# trim a leading plus (`+') from the value of debugFile to support
+	# persistent meaning that f_dprintf() should print both to standard
+	# output and $debugFile (minus the leading plus, of course).
+	#
+	local _debug_file="${debugFile#+}"
+	if [ "$_debug_file" -a "$DEBUG_INITIALIZE_FILE" ]; then
+		if ( umask 022 && :> "$_debug_file" ); then
+			f_dprintf "Successfully initialized debugFile \`%s'" \
+			          "$_debug_file"
+			f_isset debug || debug=1 # turn debugging on if not set
+		else
+			unset debugFile
+			f_dprintf "Unable to initialize debugFile \`%s'" \
+			          "$_debug_file"
+		fi
+	fi
+}
+
+# f_err $format [$arguments ...]
+#
+# Print a message to stderr (fd=2).
+#
+f_err()
+{
+	printf "$@" >&2
+}
+
+# f_quietly $command [$arguments ...]
+#
+# Run a command quietly (quell any output to stdout or stderr)
+#
+f_quietly()
+{
+	"$@" > /dev/null 2>&1
+}
+
+# f_have $anything ...
+#
+# A wrapper to the `type' built-in. Returns true if argument is a valid shell
+# built-in, keyword, or externally-tracked binary, otherwise false.
+#
+f_have()
+{
+	f_quietly type "$@"
+}
+
+# setvar $var_to_set [$value]
+#
+# Implement setvar for shells unlike FreeBSD sh(1).
+#
+if ! f_have setvar; then
+setvar()
+{
+	[ $# -gt 0 ] || return $SUCCESS
+	local __setvar_var_to_set="$1" __setvar_right="$2" __setvar_left=
+	case $# in
+	1) unset "$__setvar_var_to_set"
+	   return $? ;;
+	2) : fall through ;;
+	*) f_err "setvar: too many arguments\n"
+	   return $FAILURE
+	esac
+	case "$__setvar_var_to_set" in *[!0-9A-Za-z_]*)
+		f_err "setvar: %s: bad variable name\n" "$__setvar_var_to_set"
+		return 2
+	esac
+	while case "$__setvar_r" in *\'*) : ;; *) false ; esac
+	do
+		__setvar_left="$__setvar_left${__setvar_right%%\'*}'\\''"
+		__setvar_right="${__setvar_right#*\'}"
+	done
+	__setvar_left="$__setvar_left${__setvar_right#*\'}"
+	eval "$__setvar_var_to_set='$__setvar_left'"
+}
+fi
+
+# f_which $anything [$var_to_set]
+#
+# A fast built-in replacement for syntaxes such as foo=$( which bar ). In a
+# comparison of 10,000 runs of this function versus which, this function
+# completed in under 3 seconds, while `which' took almost a full minute.
+#
+# If $var_to_set is missing or NULL, output is (like which) to standard out.
+# Returns success if a match was found, failure otherwise.
+#
+f_which()
+{
+	local __name="$1" __var_to_set="$2"
+	case "$__name" in */*|'') return $FAILURE; esac
+	local __p __exec IFS=":" __found=
+	for __p in $PATH; do
+		__exec="$__p/$__name"
+		[ -f "$__exec" -a -x "$__exec" ] && __found=1 break
+	done
+	if [ "$__found" ]; then
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" "$__exec"
+		else
+			echo "$__exec"
+		fi
+		return $SUCCESS
+	fi
+	return $FAILURE
+}
+
+# f_getvar $var_to_get [$var_to_set]
+#
+# Utility function designed to go along with the already-builtin setvar.
+# Allows clean variable name indirection without forking or sub-shells.
+#
+# Returns error status if the requested variable ($var_to_get) is not set.
+#
+# If $var_to_set is missing or NULL, the value of $var_to_get is printed to
+# standard output for capturing in a sub-shell (which is less-recommended
+# because of performance degredation; for example, when called in a loop).
+#
+f_getvar()
+{
+	local __var_to_get="$1" __var_to_set="$2"
+	[ "$__var_to_set" ] || local value
+	eval [ \"\${$__var_to_get+set}\" ]
+	local __retval=$?
+	eval ${__var_to_set:-value}=\"\${$__var_to_get}\"
+	eval f_dprintf '"f_getvar: var=[%s] value=[%s] r=%u"' \
+		\"\$__var_to_get\" \"\$${__var_to_set:-value}\" \$__retval
+	[ "$__var_to_set" ] || { [ "$value" ] && echo "$value"; }
+	return $__retval
+}
+
+# f_isset $var
+#
+# Check if variable $var is set. Returns success if variable is set, otherwise
+# returns failure.
+#
+f_isset()
+{
+	eval [ \"\${${1%%[$IFS]*}+set}\" ]
+}
+
+# f_die [$status [$format [$arguments ...]]]
+#
+# Abruptly terminate due to an error optionally displaying a message in a
+# dialog box using printf(1) syntax.
+#
+f_die()
+{
+	local status=$FAILURE
+
+	# If there is at least one argument, take it as the status
+	if [ $# -gt 0 ]; then
+		status=$1
+		shift 1 # status
+	fi
+
+	# If there are still arguments left, pass them to f_show_msg
+	[ $# -gt 0 ] && f_show_msg "$@"
+
+	# Optionally call f_clean_up() function if it exists
+	f_have f_clean_up && f_clean_up
+
+	exit $status
+}
+
+# f_interrupt
+#
+# Interrupt handler.
+#
+f_interrupt()
+{
+	exec 2>&1 # fix sh(1) bug where stderr gets lost within async-trap
+	f_die
+}
+
+# f_show_info $format [$arguments ...]
+#
+# Display a message in a dialog infobox using printf(1) syntax.
+#
+f_show_info()
+{
+	local msg
+	msg=$( printf "$@" )
+
+	#
+	# Use f_dialog_infobox from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_info; then
+		f_dialog_info "$msg"
+	else
+		dialog --infobox "$msg" 0 0
+	fi
+}
+
+# f_show_msg $format [$arguments ...]
+#
+# Display a message in a dialog box using printf(1) syntax.
+#
+f_show_msg()
+{
+	local msg
+	msg=$( printf "$@" )
+
+	#
+	# Use f_dialog_msgbox from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_msgbox; then
+		f_dialog_msgbox "$msg"
+	else
+		dialog --msgbox "$msg" 0 0
+	fi
+}
+
+# f_show_err $format [$arguments ...]
+#
+# Display a message in a dialog box with ``Error'' i18n title (overridden by
+# setting msg_error) using printf(1) syntax.
+#
+f_show_err()
+{
+	local msg
+	msg=$( printf "$@" )
+
+	: ${msg:=${msg_an_unknown_error_occurred:-An unknown error occurred}}
+
+	if [ "$_DIALOG_SUBR" ]; then
+		f_dialog_title "${msg_error:-Error}"
+		f_dialog_msgbox "$msg"
+		f_dialog_title_restore
+	else
+		dialog --title "${msg_error:-Error}" --msgbox "$msg" 0 0
+	fi
+	return $SUCCESS
+}
+
+# f_yesno $format [$arguments ...]
+#
+# Display a message in a dialog yes/no box using printf(1) syntax.
+#
+f_yesno()
+{
+	local msg
+	msg=$( printf "$@" )
+
+	#
+	# Use f_dialog_yesno from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_yesno; then
+		f_dialog_yesno "$msg"
+	else
+		dialog --yesno "$msg" 0 0
+	fi
+}
+
+# f_noyes $format [$arguments ...]
+#
+# Display a message in a dialog yes/no box using printf(1) syntax.
+# NOTE: THis is just like the f_yesno function except "No" is default.
+#
+f_noyes()
+{
+	local msg
+	msg=$( printf "$@" )
+
+	#
+	# Use f_dialog_noyes from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_noyes; then
+		f_dialog_noyes "$msg"
+	else
+		dialog --defaultno --yesno "$msg" 0 0
+	fi
+}
+
+# f_show_help $file
+#
+# Display a language help-file. Automatically takes $LANG and $LC_ALL into
+# consideration when displaying $file (suffix ".$LC_ALL" or ".$LANG" will
+# automatically be added prior to loading the language help-file).
+#
+# If a language has been requested by setting either $LANG or $LC_ALL in the
+# environment and the language-specific help-file does not exist we will fall
+# back to $file without-suffix.
+#
+# If the language help-file does not exist, an error is displayed instead.
+#
+f_show_help()
+{
+	local file="$1"
+	local lang="${LANG:-$LC_ALL}"
+
+	[ -f "$file.$lang" ] && file="$file.$lang"
+
+	#
+	# Use f_dialog_textbox from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_textbox; then
+		f_dialog_textbox "$file"
+	else
+		dialog --msgbox "$( cat "$file" 2>&1 )" 0 0
+	fi
+}
+
+# f_include $file
+#
+# Include a shell subroutine file.
+#
+# If the subroutine file exists but returns error status during loading, exit
+# is called and execution is prematurely terminated with the same error status.
+#
+f_include()
+{
+	local file="$1"
+	f_dprintf "f_include: file=[%s]" "$file"
+	. "$file" || exit $?
+}
+
+# f_include_lang $file
+#
+# Include a language file. Automatically takes $LANG and $LC_ALL into
+# consideration when including $file (suffix ".$LC_ALL" or ".$LANG" will
+# automatically by added prior to loading the language file).
+#
+# No error is produced if (a) a language has been requested (by setting either
+# $LANG or $LC_ALL in the environment) and (b) the language file does not
+# exist -- in which case we will fall back to loading $file without-suffix.
+#
+# If the language file exists but returns error status during loading, exit
+# is called and execution is prematurely terminated with the same error status.
+#
+f_include_lang()
+{
+	local file="$1"
+	local lang="${LANG:-$LC_ALL}"
+
+	f_dprintf "f_include_lang: file=[%s] lang=[%s]" "$file" "$lang"
+	if [ -f "$file.$lang" ]; then
+		. "$file.$lang" || exit $?
+	else
+		. "$file" || exit $?
+	fi
+}
+
+# f_usage $file [$key1 $value1 ...]
+#
+# Display USAGE file with optional pre-processor macro definitions. The first
+# argument is the template file containing the usage text to be displayed. If
+# $LANG or $LC_ALL (in order of preference, respectively) is set, ".encoding"
+# will automatically be appended as a suffix to the provided $file pathname.
+#
+# When processing $file, output begins at the first line containing that is
+# (a) not a comment, (b) not empty, and (c) is not pure-whitespace. All lines
+# appearing after this first-line are output, including (a) comments (b) empty
+# lines, and (c) lines that are purely whitespace-only.
+#
+# If additional arguments appear after $file, substitutions are made while
+# printing the contents of the USAGE file. The pre-processor macro syntax is in
+# the style of autoconf(1), for example:
+#
+# 	f_usage $file "FOO" "BAR"
+#
+# Will cause instances of "@FOO@" appearing in $file to be replaced with the
+# text "BAR" before being printed to the screen.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_usage_awk='
+BEGIN { found = 0 }
+{
+	if ( !found && $0 ~ /^[[:space:]]*($|#)/ ) next
+	found = 1
+	print
+}
+'
+f_usage()
+{
+	local file="$1"
+	local lang="${LANG:-$LC_ALL}"
+
+	f_dprintf "f_usage: file=[%s] lang=[%s]" "$file" "$lang"
+
+	shift 1 # file
+
+	local usage
+	if [ -f "$file.$lang" ]; then
+		usage=$( awk "$f_usage_awk" "$file.$lang" ) || exit $FAILURE
+	else
+		usage=$( awk "$f_usage_awk" "$file" ) || exit $FAILURE
+	fi
+
+	while [ $# -gt 0 ]; do
+		local key="$1"
+		export value="$2"
+		usage=$( echo "$usage" | awk \
+			"{ gsub(/@$key@/, ENVIRON[\"value\"]); print }" )
+		shift 2
+	done
+
+	f_err "%s\n" "$usage"
+
+	exit $FAILURE
+}
+
+# f_index_file $keyword [$var_to_set]
+#
+# Process all INDEX files known to bsdconfig and return the path to first file
+# containing a menu_selection line with a keyword portion matching $keyword.
+#
+# If $LANG or $LC_ALL (in order of preference, respectively) is set,
+# "INDEX.encoding" files will be searched first.
+#
+# If no file is found, error status is returned along with the NULL string.
+#
+# If $var_to_set is NULL or missing, output is printed to stdout (which is less
+# recommended due to performance degradation; in a loop for example).
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_index_file_awk='
+# Variables that should be defined on the invocation line:
+# 	-v keyword="keyword"
+BEGIN { found = 0 }
+( $0 ~ "^menu_selection=\"" keyword "\\|" ) {
+	print FILENAME
+	found++
+	exit
+}
+END { exit ! found }
+'
+f_index_file()
+{
+	local __keyword="$1" __var_to_set="$2"
+	local __lang="${LANG:-$LC_ALL}"
+	local __indexes="$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX"
+
+	f_dprintf "f_index_file: keyword=[%s] lang=[%s]" "$__keyword" "$__lang"
+
+	if [ "$__lang" ]; then
+		if [ "$__var_to_set" ]; then
+			eval "$__var_to_set"='"$( awk -v keyword="$__keyword" \
+				"$f_index_file_awk" $__indexes.$__lang
+			)"' && return $SUCCESS
+		else
+			awk -v keyword="$__keyword" "$f_index_file_awk" \
+				$__indexes.$__lang && return $SUCCESS
+		fi
+		# No match, fall-thru to non-i18n sources
+	fi
+	if [ "$__var_to_set" ]; then
+		eval "$__var_to_set"='"$( awk -v keyword="$__keyword" \
+			"$f_index_file_awk" $__indexes )"' && return $SUCCESS
+	else
+		awk -v keyword="$__keyword" "$f_index_file_awk" $__indexes &&
+			return $SUCCESS
+	fi
+
+	# No match? Fall-thru to `local' libexec sources (add-on modules)
+
+	[ "$BSDCFG_LOCAL_LIBE" ] || return $FAILURE
+	__indexes="$BSDCFG_LOCAL_LIBE/*/INDEX"
+	if [ "$__lang" ]; then
+		if [ "$__var_to_set" ]; then
+			eval "$__var_to_set"='"$( awk -v keyword="$__keyword" \
+				"$f_index_file_awk" $__indexes.$__lang
+			)"' && return $SUCCESS
+		else
+			awk -v keyword="$__keyword" "$f_index_file_awk" \
+				$__indexes.$__lang && return $SUCCESS
+		fi
+		# No match, fall-thru to non-i18n sources
+	fi
+	if [ "$__var_to_set" ]; then
+		eval "$__var_to_set"='$( awk -v keyword="$__keyword" \
+			"$f_index_file_awk" $__indexes )"'
+	else
+		awk -v keyword="$__keyword" "$f_index_file_awk" $__indexes
+	fi
+}
+
+# f_index_menusel_keyword $indexfile $pgm [$var_to_set]
+#
+# Process $indexfile and return only the keyword portion of the menu_selection
+# line with a command portion matching $pgm.
+#
+# This function is for internationalization (i18n) mapping of the on-disk
+# scriptname ($pgm) into the localized language (given language-specific
+# $indexfile). If $LANG or $LC_ALL (in orderder of preference, respectively) is
+# set, ".encoding" will automatically be appended as a suffix to the provided
+# $indexfile pathname.
+#
+# If, within $indexfile, multiple $menu_selection values map to $pgm, only the
+# first one will be returned. If no mapping can be made, the NULL string is
+# returned.
+#
+# If $indexfile does not exist, error status is returned with NULL.
+#
+# If $var_to_set is NULL or missing, output is printed to stdout (which is less
+# recommended due to performance degradation; in a loop for example).
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_index_menusel_keyword_awk='
+# Variables that should be defined on the invocation line:
+# 	-v pgm="program_name"
+#
+BEGIN {
+	prefix = "menu_selection=\""
+	plen = length(prefix)
+	found = 0
+}
+{
+	if (!match($0, "^" prefix ".*\\|.*\"")) next
+
+	keyword = command = substr($0, plen + 1, RLENGTH - plen - 1)
+	sub(/^.*\|/, "", command)
+	sub(/\|.*$/, "", keyword)
+
+	if ( command == pgm )
+	{
+		print keyword
+		found++
+		exit
+	}
+}
+END { exit ! found }
+'
+f_index_menusel_keyword()
+{
+	local __indexfile="$1" __pgm="$2" __var_to_set="$3"
+	local __lang="${LANG:-$LC_ALL}" __file="$__indexfile"
+
+	[ -f "$__indexfile.$__lang" ] && __file="$__indexfile.$__lang"
+	f_dprintf "f_index_menusel_keyword: index=[%s] pgm=[%s] lang=[%s]" \
+	          "$__file" "$__pgm" "$__lang"
+
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$( awk \
+		    -v pgm="$__pgm" "$f_index_menusel_keyword_awk" "$__file"
+		)"
+	else
+		awk -v pgm="$__pgm" "$f_index_menusel_keyword_awk" "$__file"
+	fi
+}
+
+# f_index_menusel_command $indexfile $keyword [$var_to_set]
+#
+# Process $indexfile and return only the command portion of the menu_selection
+# line with a keyword portion matching $keyword.
+#
+# This function is for mapping [possibly international] keywords into the
+# command to be executed. If $LANG or $LC_ALL (order of preference) is set,
+# ".encoding" will automatically be appended as a suffix to the provided
+# $indexfile pathname.
+#
+# If, within $indexfile, multiple $menu_selection values map to $keyword, only
+# the first one will be returned. If no mapping can be made, the NULL string is
+# returned.
+#
+# If $indexfile doesn't exist, error status is returned with NULL.
+#
+# If $var_to_set is NULL or missing, output is printed to stdout (which is less
+# recommended due to performance degradation; in a loop for example).
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_index_menusel_command_awk='
+# Variables that should be defined on the invocation line:
+# 	-v key="keyword"
+#
+BEGIN {
+	prefix = "menu_selection=\""
+	plen = length(prefix)
+	found = 0
+}
+{
+	if (!match($0, "^" prefix ".*\\|.*\"")) next
+
+	keyword = command = substr($0, plen + 1, RLENGTH - plen - 1)
+	sub(/^.*\|/, "", command)
+	sub(/\|.*$/, "", keyword)
+
+	if ( keyword == key )
+	{
+		print command
+		found++
+		exit
+	}
+}
+END { exit ! found }
+'
+f_index_menusel_command()
+{
+	local __indexfile="$1" __keyword="$2" __var_to_set="$3" __command
+	local __lang="${LANG:-$LC_ALL}" __file="$__indexfile"
+
+	[ -f "$__indexfile.$__lang" ] && __file="$__indexfile.$__lang"
+	f_dprintf "f_index_menusel_command: index=[%s] key=[%s] lang=[%s]" \
+	          "$__file" "$__keyword" "$__lang"
+
+	[ -f "$__file" ] || return $FAILURE
+	__command=$( awk -v key="$__keyword" \
+		"$f_index_menusel_command_awk" "$__file" ) || return $FAILURE
+
+	#
+	# If the command pathname is not fully qualified fix-up/force to be
+	# relative to the $indexfile directory.
+	#
+	case "$__command" in
+	/*) : already fully qualified ;;
+	*)
+		local __indexdir="${__indexfile%/*}"
+		[ "$__indexdir" != "$__indexfile" ] || __indexdir="."
+		__command="$__indexdir/$__command"
+	esac
+
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__command"
+	else
+		echo "$__command"
+	fi
+}
+
+# f_running_as_init
+#
+# Returns true if running as init(1).
+#
+f_running_as_init()
+{
+	#
+	# When a custom init(8) performs an exec(3) to invoke a shell script,
+	# PID 1 becomes sh(1) and $PPID is set to 1 in the executed script.
+	#
+	[ ${PPID:-0} -eq 1 ] # Return status
+}
+
+# f_mounted $local_directory
+# f_mounted -b $device
+#
+# Return success if a filesystem is mounted on a particular directory. If `-b'
+# is present, instead check that the block device (or a partition thereof) is
+# mounted.
+#
+f_mounted()
+{
+	local OPTIND OPTARG flag use_device=
+	while getopts b flag; do
+		case "$flag" in
+		b) use_device=1 ;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+	if [ "$use_device" ]; then
+		local device="$1"
+		mount | grep -Eq \
+			"^$device([[:space:]]|p[0-9]|s[0-9]|\.nop|\.eli)"
+	else
+		[ -d "$dir" ] || return $FAILURE
+		mount | grep -Eq " on $dir \([^)]+\)$"
+	fi
+	# Return status is that of last grep(1)
+}
+
+# f_eval_catch [-de] [-k $var_to_set] $funcname $utility \
+#              $format [$arguments ...]
+#
+# Silently evaluate a command in a sub-shell and test for error. If debugging
+# is enabled a copy of the command and its output is sent to debug (either
+# stdout or file depending on environment). If an error occurs, output of the
+# command is displayed in a dialog(1) msgbox using the [above] f_show_err()
+# function (unless optional `-d' flag is given, then no dialog).
+#
+# The $funcname argument is sent to debugging while the $utility argument is
+# used in the title of the dialog box. The command that is executed as well as
+# sent to debugging with $funcname is the product of the printf(1) syntax
+# produced by $format with optional $arguments.
+#
+# The following options are supported:
+#
+# 	-d	Do not use dialog(1).
+# 	-e	Produce error text from failed command on stderr.
+# 	-k var	Save output from the command in var.
+#
+# Example 1:
+#
+# 	debug=1
+# 	f_eval_catch myfunc echo 'echo "%s"' "Hello, World!"
+#
+# 	Produces the following debug output:
+#
+# 		DEBUG: myfunc: echo "Hello, World!"
+# 		DEBUG: myfunc: retval=0 <output below>
+# 		Hello, World!
+#
+# Example 2:
+#
+# 	debug=1
+# 	f_eval_catch -k contents myfunc cat 'cat "%s"' /some/file
+# 	# dialog(1) Error ``cat: /some/file: No such file or directory''
+# 	# contents=[cat: /some/file: No such file or directory]
+#
+# 	Produces the following debug output:
+#
+# 		DEBUG: myfunc: cat "/some/file"
+# 		DEBUG: myfunc: retval=1 <output below>
+# 		cat: /some/file: No such file or directory
+#
+# Example 3:
+#
+# 	debug=1
+# 	echo 123 | f_eval_catch myfunc rev rev
+#
+# 	Produces the following debug output:
+#
+# 		DEBUG: myfunc: rev
+# 		DEBUG: myfunc: retval=0 <output below>
+# 		321
+#
+# Example 4:
+#
+# 	debug=1
+# 	f_eval_catch myfunc true true
+#
+# 	Produces the following debug output:
+#
+# 		DEBUG: myfunc: true
+# 		DEBUG: myfunc: retval=0 <no output>
+#
+# Example 5:
+#
+# 	f_eval_catch -de myfunc ls 'ls "%s"' /some/dir
+# 	# Output on stderr ``ls: /some/dir: No such file or directory''
+#
+# Example 6:
+#
+# 	f_eval_catch -dek contents myfunc ls 'ls "%s"' /etc
+# 	# Output from `ls' sent to stderr and also saved in $contents
+#
+f_eval_catch()
+{
+	local __no_dialog= __show_err= __var_to_set=
+
+	#
+	# Process local function arguments
+	#
+	local OPTIND OPTARG __flag
+	while getopts "dek:" __flag > /dev/null; do
+		case "$__flag" in
+		d) __no_dialog=1 ;;
+		e) __show_err=1 ;;
+		k) __var_to_set="$OPTARG" ;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+
+	local __funcname="$1" __utility="$2"; shift 2
+	local __cmd __output __retval
+
+	__cmd=$( printf -- "$@" )
+	f_dprintf "%s: %s" "$__funcname" "$__cmd" # Log command *before* eval
+	__output=$( exec 2>&1; eval "$__cmd" )
+	__retval=$?
+	if [ "$__output" ]; then
+		[ "$__show_err" ] && echo "$__output" >&2
+		f_dprintf "%s: retval=%i <output below>\n%s" "$__funcname" \
+		          $__retval "$__output"
+	else
+		f_dprintf "%s: retval=%i <no output>" "$__funcname" $__retval
+	fi
+
+	! [ "$__no_dialog" -o "$nonInteractive" -o $__retval -eq $SUCCESS ] &&
+		msg_error="${msg_error:-Error}${__utility:+: $__utility}" \
+			f_show_err "%s" "$__output"
+		# NB: f_show_err will handle NULL output appropriately
+
+	[ "$__var_to_set" ] && setvar "$__var_to_set" "$__output"
+
+	return $__retval
+}
+
+# f_count $var_to_set arguments ...
+#
+# Sets $var_to_set to the number of arguments minus one (the effective number
+# of arguments following $var_to_set).
+#
+# Example:
+# 	f_count count dog house # count=[2]
+#
+f_count()
+{
+	setvar "$1" $(( $# - 1 ))
+}
+
+# f_count_ifs $var_to_set string ...
+#
+# Sets $var_to_set to the number of words (split by the internal field
+# separator, IFS) following $var_to_set.
+#
+# Example 1:
+#
+# 	string="word1   word2   word3"
+# 	f_count_ifs count "$string" # count=[3]
+# 	f_count_ifs count $string # count=[3]
+#
+# Example 2:
+#
+# 	IFS=. f_count_ifs count www.freebsd.org # count=[3]
+#
+# NB: Make sure to use double-quotes if you are using a custom value for IFS
+# and you don't want the current value to effect the result. See example 3.
+#
+# Example 3:
+#
+# 	string="a-b c-d"
+# 	IFS=- f_count_ifs count "$string" # count=[3]
+# 	IFS=- f_count_ifs count $string # count=[4]
+#
+f_count_ifs()
+{
+	local __var_to_set="$1"
+	shift 1
+	set -- $*
+	setvar "$__var_to_set" $#
+}
+
+############################################################ MAIN
+
+#
+# Trap signals so we can recover gracefully
+#
+trap 'f_interrupt' INT
+trap 'f_die' TERM PIPE XCPU XFSZ FPE TRAP ABRT SEGV
+trap '' ALRM PROF USR1 USR2 HUP VTALRM
+
+#
+# Clone terminal stdout/stderr so we can redirect to it from within sub-shells
+#
+eval exec $TERMINAL_STDOUT_PASSTHRU\>\&1
+eval exec $TERMINAL_STDERR_PASSTHRU\>\&2
+
+#
+# Self-initialize unless requested otherwise
+#
+f_dprintf "%s: DEBUG_SELF_INITIALIZE=[%s]" \
+          dialog.subr "$DEBUG_SELF_INITIALIZE"
+case "$DEBUG_SELF_INITIALIZE" in
+""|0|[Nn][Oo]|[Oo][Ff][Ff]|[Ff][Aa][Ll][Ss][Ee]) : do nothing ;;
+*) f_debug_init
+esac
+
+#
+# Log our operating environment for debugging purposes
+#
+f_dprintf "UNAME_S=[%s] UNAME_P=[%s] UNAME_R=[%s]" \
+          "$UNAME_S" "$UNAME_P" "$UNAME_R"
+
+f_dprintf "%s: Successfully loaded." common.subr
+
+fi # ! $_COMMON_SUBR

@@ -1,0 +1,164 @@
+.\" Copyright (c) 1985, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)j0.3	6.7 (Berkeley) 4/19/91
+.\" $FreeBSD$
+.\"
+.Dd March 10, 2015
+.Dt J0 3
+.Os
+.Sh NAME
+.Nm j0 ,
+.Nm j0f ,
+.Nm j1 ,
+.Nm j1f ,
+.Nm jn ,
+.Nm jnf ,
+.Nm y0 ,
+.Nm y0f ,
+.Nm y1 ,
+.Nm y1f ,
+.Nm yn ,
+.Nm ynf
+.Nd Bessel functions of first and second kind
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn j0 "double x"
+.Ft float
+.Fn j0f "float x"
+.Ft double
+.Fn j1 "double x"
+.Ft float
+.Fn j1f "float x"
+.Ft double
+.Fn jn "int n" "double x"
+.Ft float
+.Fn jnf "int n" "float x"
+.Ft double
+.Fn y0 "double x"
+.Ft float
+.Fn y0f "float x"
+.Ft double
+.Fn y1 "double x"
+.Ft float
+.Fn y1f "float x"
+.Ft double
+.Fn yn "int n" "double x"
+.Ft float
+.Fn ynf "int n" "float x"
+.Sh DESCRIPTION
+The functions
+.Fn j0 ,
+.Fn j0f ,
+.Fn j1 ,
+and
+.Fn j1f
+compute the Bessel function of the first kind of orders
+0 and 1 for the real value
+.Fa x ;
+the functions
+.Fn jn
+and
+.Fn jnf
+compute the Bessel function of the first kind of the integer order
+.Fa n
+for the real value
+.Fa x .
+.Pp
+The functions
+.Fn y0 ,
+.Fn y0f ,
+.Fn y1 ,
+and
+.Fn y1f
+compute the linearly independent Bessel function of the second kind
+of orders 0 and 1 for the positive
+.Em real
+value
+.Fa x ;
+the functions
+.Fn yn
+and
+.Fn ynf
+compute the Bessel function of the second kind for the integer order
+.Fa n
+for the positive
+.Em real
+value
+.Fa x .
+.Sh RETURN VALUES
+These routines return values of their respective Bessel functions.
+For large positive inputs, they may underflow and return \*(Pm0.
+.Pp
+The following applies to
+.Fn y0 ,
+.Fn y0f ,
+.Fn y1 ,
+.Fn y1f ,
+.Fn yn ,
+and
+.Fn ynf .
+If
+.Fa x
+is negative, including -\*(If, these routines will generate an invalid
+exception and return \*(Na.
+If
+.Fa x
+is \*(Pm0, these routines
+will generate a divide-by-zero exception and return -\*(If.
+If
+.Fa x
+is a sufficiently small positive number, then
+.Fn y1 ,
+.Fn y1f ,
+.Fn yn ,
+and
+.Fn ynf
+will generate an overflow exception and return -\*(If.
+.Sh SEE ALSO
+.Xr math 3
+.Sh STANDARDS
+The
+.Fn j0 ,
+.Fn j1 ,
+.Fn jn ,
+.Fn y0 ,
+.Fn y1 ,
+and
+.Fn yn
+functions conform to
+.St -p1003.1-2001 .
+The
+.Ft float
+versions are extensions.
+.Sh HISTORY
+This set of functions
+appeared in
+.At v7 .

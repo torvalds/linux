@@ -1,0 +1,10 @@
+$ $tcsh: set11,v 1.3 2011/02/04 18:19:34 christos Exp $
+$ sh.c
+$set 11 
+1 Varoitus: ei yhteyttä päätteeseen (%s).\n
+2 Niinpä tässä komentotulkissa ei ole töiden hallintaa.\n
+3 Sinulla on %d sähköpostiviestiä.\n
+4 Sinulla on %d viestiä tiedostossa %s.\n
+5 Sinulla on %spostia.\n
+6 uutta 
+7 Sinulla on %spostia tiedostossa %s.\n

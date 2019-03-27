@@ -1,0 +1,25 @@
+// -*- C++ -*-
+//===-------------------------- cassert -----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+/*
+    cassert synopsis
+
+Macros:
+
+    assert
+
+*/
+
+#include <__config>
+#include <assert.h>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif

@@ -1,0 +1,410 @@
+.\"
+.\" Copyright (c) 2010 Spectra Logic Corporation
+.\" Copyright (c) 2014 LSI Corp
+.\" Copyright (c) 2015-2017 Avago Technologies
+.\" Copyright (c) 2015-2017 Broadcom Ltd.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    substantially similar to the "NO WARRANTY" disclaimer below
+.\"    ("Disclaimer") and any redistribution must be conditioned upon
+.\"    including a substantially similar Disclaimer requirement for further
+.\"    binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" mpr driver man page.
+.\"
+.\" Author: Ken Merry <ken@FreeBSD.org>
+.\" Author: Stephen McConnell <slm@FreeBSD.org>
+.\"
+.\" $Id$
+.\" $FreeBSD$
+.\"
+.Dd May 25, 2017
+.Dt MPR 4
+.Os
+.Sh NAME
+.Nm mpr
+.Nd "LSI Fusion-MPT 3/3.5 IT/IR 12Gb/s Serial Attached SCSI/SATA/PCIe driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place these lines in the kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device mpr"
+.Ed
+.Pp
+The driver can be loaded as a module at boot time by placing this line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mpr_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Broadcom Ltd./Avago Tech (LSI)
+Fusion-MPT 3/3.5 IT/IR
+.Tn SAS/PCIe
+controllers.
+.Sh HARDWARE
+These controllers are supported by the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3004 (4 Port SAS)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3008 (8 Port SAS)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3108 (8 Port SAS)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3216 (16 Port SAS)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3224 (24 Port SAS)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3316 (16 Port SAS)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3324 (24 Port SAS)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3408 (8 Port SAS/PCIe)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3416 (16 Port SAS/PCIe)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3508 (8 Port SAS/PCIe)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3516 (16 Port SAS/PCIe)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3616 (16 Port SAS/PCIe)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3708 (8 Port SAS/PCIe)
+.It
+Broadcom Ltd./Avago Tech (LSI) SAS 3716 (16 Port SAS/PCIe)
+.El
+.Sh CONFIGURATION
+In all tunable descriptions below, X represents the adapter number.
+.Pp
+To disable MSI interrupts for all
+.Nm
+driver instances, set this tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.mpr.disable_msi=1
+.Ed
+.Pp
+To disable MSI interrupts for a specific
+.Nm
+driver instance, set this tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mpr.X.disable_msi=1
+.Ed
+.Pp
+To disable MSI-X interrupts for all
+.Nm
+driver instances, set this tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.mpr.disable_msix=1
+.Ed
+.Pp
+To disable MSI-X interrupts for a specific
+.Nm
+driver instance, set this tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mpr.X.disable_msix=1
+.Ed
+.Pp
+To set the maximum number of DMA chains allocated for all adapters, set
+this tunable in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.mpr.max_chains=NNNN
+.Ed
+.Pp
+To set the maximum number of DMA chains allocated for a specific adapter,
+set this tunable in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mpr.X.max_chains=NNNN
+.Ed
+.Pp
+The default max_chains value is 2048.
+.Pp
+The current number of free chain frames is stored in the
+dev.mpr.X.chain_free
+.Xr sysctl 8
+variable.
+.Pp
+The lowest number of free chain frames seen since boot is stored in the
+dev.mpr.X.chain_free_lowwater
+.Xr sysctl 8
+variable.
+.Pp
+The number of times that chain frame allocations have failed since boot is
+stored in the
+dev.mpr.X.chain_alloc_fail
+.Xr sysctl 8
+variable.
+This can be used to determine whether the max_chains tunable should be
+increased to help performance.
+.Pp
+The current number of active I/O commands is shown in the
+dev.mpr.X.io_cmds_active
+.Xr sysctl 8
+variable.
+.Pp
+The current number of free PRP pages is stored in the
+dev.mpr.X.prp_pages_free
+.Xr sysctl 8
+variable.
+PRP pages are used by NVMe devices for I/O transfers, much like Scatter/Gather
+lists.
+.Pp
+The lowest number of free PRP pages seen since boot is stored in the
+dev.mpr.X.prp_pages_free_lowwater
+.Xr sysctl 8
+variable.
+.Pp
+The number of times that PRP page allocations have failed since boot is
+stored in the
+dev.mpr.X.prp_page_alloc_fail
+.Xr sysctl 8
+variable.
+.Pp
+To set the maximum number of pages that will be used per I/O for all adapters,
+set this tunable in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.mpr.max_io_pages=NNNN
+.Ed
+.Pp
+To set the maximum number of pages that will be used per I/O for a specific
+adapter, set this tunable in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mpr.X.max_io_pages=NNNN
+.Ed
+.Pp
+The default max_io_pages value is -1, meaning that the maximum I/O size that
+will be used per I/O will be calculated using the IOCFacts values stored in
+the controller.
+The lowest value that the driver will use for max_io_pages is 1, otherwise
+IOCFacts will be used to calculate the maximum I/O size.
+The smaller I/O size calculated from either max_io_pages or IOCFacts will be the
+maximum I/O size used by the driver.
+.Pp
+The highest number of active I/O commands seen since boot is stored in the
+dev.mpr.X.io_cmds_highwater
+.Xr sysctl 8
+variable.
+.Pp
+Devices can be excluded from
+.Nm
+control for all adapters by setting this tunable in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.mpr.exclude_ids=Y
+.Ed
+.Pp
+Y represents the target ID of the device.
+If more than one device is to be excluded, target IDs are separated by commas.
+.Pp
+Devices can be excluded from
+.Nm
+control for a specific adapter by setting this tunable in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mpr.X.exclude_ids=Y
+.Ed
+.Pp
+Y represents the target ID of the device.
+If more than one device is to be excluded, target IDs are separated by commas.
+.Pp
+The adapter can issue the
+.Sy StartStopUnit
+SCSI command to SATA direct-access devices during shutdown.
+This allows the device to quiesce powering down.
+To control this feature for all adapters, set the
+.Bd -literal -offset indent
+hw.mpr.enable_ssu
+.Ed
+.Pp
+tunable in
+.Xr loader.conf 5
+to one of these values:
+.Bl -tag -width 6n -offset indent
+.It 0
+Do not send SSU to either HDDs or SSDs.
+.It 1
+Send SSU to SSDs, but not to HDDs.
+This is the default value.
+.It 2
+Send SSU to HDDs, but not to SSDs.
+.It 3
+Send SSU to both HDDs and SSDs.
+.El
+.Pp
+To control this feature for a specific adapter, set this tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mpr.X.enable_ssu
+.Ed
+.Pp
+The same set of values are valid as when setting this tunable for all adapters.
+.Pp
+SATA disks that take several seconds to spin up and fail the SATA Identify
+command might not be discovered by the driver.
+This problem can sometimes be overcome by increasing the value of the spinup
+wait time in
+.Xr loader.conf 5
+with the
+.Bd -literal -offset indent
+hw.mpr.spinup_wait_time=NNNN
+.Ed
+.Pp
+tunable.
+NNNN represents the number of seconds to wait for SATA devices to spin up when
+the device fails the initial SATA Identify command.
+.Pp
+Spinup wait times can be set for specific adapters in
+.Xr loader.conf 5 :
+with the
+.Bd -literal -offset indent
+dev.mpr.X.spinup_wait_time=NNNN
+.Ed
+.Pp
+tunable.
+NNNN is the number of seconds to wait for SATA devices to spin up when they fail
+the initial SATA Identify command.
+.Pp
+The driver can map devices discovered by the adapter so that target IDs
+corresponding to a specific device persist across resets and reboots.
+In some cases it is possible for devices to lose their mapped IDs due to
+unexpected behavior from certain hardware, such as some types of enclosures.
+To overcome this problem, a tunable is provided that will force the driver to
+map devices using the Phy number associated with the device.
+This feature is not recommended if the topology includes multiple
+enclosures/expanders.
+If multiple enclosures/expanders are present in the topology, Phy numbers are
+repeated, causing all devices at these Phy numbers except the first device to
+fail enumeration.
+To control this feature for all adapters, set the
+.Bd -literal -offset indent
+hw.mpr.use_phy_num
+.Ed
+.Pp
+tunable in
+.Xr loader.conf 5
+to one of these values:
+.Bl -tag -width 6n -offset indent
+.It -1
+Only use Phy numbers to map devices and bypass the driver's mapping logic.
+.It 0
+Never use Phy numbers to map devices.
+.It 1
+Use Phy numbers to map devices, but only if the driver's mapping logic fails
+to map the device that is being enumerated.
+This is the default value.
+.El
+.Pp
+To control this feature for a specific adapter, set this tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mpr.X.use_phy_num
+.Ed
+.Pp
+The same set of values are valid as when setting this tunable for all adapters.
+.Pp
+.Sh DEBUGGING
+Driver diagnostic printing is controlled in
+.Xr loader.conf 5
+by using the global
+.Va hw.mpr.debug_level
+and per-device
+.Va dev.mpr.X.debug_level
+tunables.
+One can alter the debug level for any adapter at run-time using the
+.Xr sysctl 8
+variable
+.Va dev.mpr.X.debug_level .
+.Pp
+All
+.Va debug_level
+variables can be named by either an integer value or a text string.
+Multiple values can be specified together by either ORing the
+integer values or by providing a comma-separated list of names.
+A text string prefixed by
+.Qq +
+adds the specified debug levels to the existing set, while the prefix
+.Qq -
+removes them from the existing set.
+The current
+.Va debug_level
+status is reported in both formats for convenience.
+The following levels are available:
+.Bl -column "FlagXX" "NameXXXX" "Description" -offset indent
+.It Em Flag Ta Em Name Ta Em Description
+.It 0x0001 Ta info Ta Basic information (enabled by default)
+.It 0x0002 Ta fault Ta Driver faults (enabled by default)
+.It 0x0004 Ta event Ta Controller events
+.It 0x0008 Ta log Ta Logging data from controller
+.It 0x0010 Ta recovery Ta Tracing of recovery operations
+.It 0x0020 Ta error Ta Parameter errors and programming bugs
+.It 0x0040 Ta init Ta System initialization operations
+.It 0x0080 Ta xinfo Ta More detailed information
+.It 0x0100 Ta user Ta Tracing of user-generated commands (IOCTL)
+.It 0x0200 Ta mapping Ta Tracing of device mapping
+.It 0x0400 Ta trace Ta Tracing through driver functions
+.El
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr da 4 ,
+.Xr mps 4 ,
+.Xr mpt 4 ,
+.Xr pci 4 ,
+.Xr sa 4 ,
+.Xr scsi 4 ,
+.Xr targ 4 ,
+.Xr loader.conf 5 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 9.3 .
+.Sh AUTHORS
+The
+.Nm
+driver was originally written by
+.An -nosplit
+.An Scott Long Aq Mt scottl@FreeBSD.org .
+It has been improved and tested by LSI Corporation,
+Avago Technologies (formally LSI), and Broadcom Ltd. (formally Avago).
+.Pp
+This man page was written by
+.An Ken Merry Aq Mt ken@FreeBSD.org
+with additional input from
+.An Stephen McConnell Aq Mt slm@FreeBSD.org .

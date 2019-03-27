@@ -1,0 +1,25 @@
+# Default result files
+_*
+example.*
+example_zstd.*
+example_gz.*
+fitblk.*
+fitblk_zstd.*
+zwrapbench.*
+foo.gz
+
+minigzip
+minigzip_zstd
+example
+example_zstd
+fitblk
+fitblk_zstd
+zwrapbench
+
+# Misc files
+*.bat
+*.zip
+*.txt
+
+# Directories
+minizip/

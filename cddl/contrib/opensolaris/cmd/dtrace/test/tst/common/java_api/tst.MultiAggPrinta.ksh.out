@@ -1,0 +1,78 @@
+org.opensolaris.os.dtrace.ProbeData[epid = 1, enabledProbeDescription = dtrace:::BEGIN, flow = null, records = [org.opensolaris.os.dtrace.PrintaRecord[aggregations = [org.opensolaris.os.dtrace.Aggregation[name = , id = 1, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [], value = 1]]], formattedStrings = {[]=
+                1
+}, tuples = [[]], output = 
+                1
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [org.opensolaris.os.dtrace.Aggregation[name = , id = 1, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [], value = 1]]], formattedStrings = {[]=count: 1
+}, tuples = [[]], output = count: 1
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [], formattedStrings = {[]= }, tuples = [[]], output =  ], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [org.opensolaris.os.dtrace.Aggregation[name = a, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 2], value = 1], org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 3], value = 3]]], formattedStrings = {[1, 3]=
+        1        3                3
+, [1, 2]=        1        2                1
+}, tuples = [[1, 3], [1, 2]], output = 
+        1        3                3
+        1        2                1
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [org.opensolaris.os.dtrace.Aggregation[name = a, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 2], value = 1], org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 3], value = 3], org.opensolaris.os.dtrace.AggregationRecord[tuple = [2, 3], value = 0]], org.opensolaris.os.dtrace.Aggregation[name = b, id = 3, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 2], value = 2], org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 3], value = 0], org.opensolaris.os.dtrace.AggregationRecord[tuple = [2, 3], value = 4]]], formattedStrings = {[2, 3]=
+        2        3                0                4
+, [1, 3]=        1        3                3                0
+, [1, 2]=        1        2                1                2
+}, tuples = [[2, 3], [1, 2], [1, 3]], output = 
+        2        3                0                4
+        1        2                1                2
+        1        3                3                0
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [org.opensolaris.os.dtrace.Aggregation[name = c, id = 4, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [], value = 3]], org.opensolaris.os.dtrace.Aggregation[name = d, id = 5, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [], value = 4]]], formattedStrings = {[]=3 4
+}, tuples = [[]], output = 3 4
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [org.opensolaris.os.dtrace.Aggregation[name = c, id = 4, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [], value = 3]], org.opensolaris.os.dtrace.Aggregation[name = d, id = 5, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [], value = 4]]], formattedStrings = {[]=3 4
+}, tuples = [[]], output = 3 4
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [org.opensolaris.os.dtrace.Aggregation[name = c, id = 4, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [], value = 3]]], formattedStrings = {[]=3
+}, tuples = [[]], output = 3
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [org.opensolaris.os.dtrace.Aggregation[name = a, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 2], value = 1], org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 3], value = 3], org.opensolaris.os.dtrace.AggregationRecord[tuple = [2, 3], value = 0]], org.opensolaris.os.dtrace.Aggregation[name = b, id = 3, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 2], value = 2], org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 3], value = 0], org.opensolaris.os.dtrace.AggregationRecord[tuple = [2, 3], value = 4]]], formattedStrings = {[2, 3]=[2, 3] 0 4
+, [1, 3]=[1, 3] 3 0
+, [1, 2]=[1, 2] 1 2
+}, tuples = [[2, 3], [1, 2], [1, 3]], output = [2, 3] 0 4
+[1, 2] 1 2
+[1, 3] 3 0
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [org.opensolaris.os.dtrace.Aggregation[name = a, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 2], value = 1], org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 3], value = 3], org.opensolaris.os.dtrace.AggregationRecord[tuple = [2, 3], value = 0]], org.opensolaris.os.dtrace.Aggregation[name = b, id = 3, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 2], value = 2], org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 3], value = 0], org.opensolaris.os.dtrace.AggregationRecord[tuple = [2, 3], value = 4]]], formattedStrings = {[2, 3]=[2, 3] 0 4
+, [1, 3]=[1, 3] 3 0
+, [1, 2]=[1, 2] 1 2
+}, tuples = [[2, 3], [1, 3], [1, 2]], output = [2, 3] 0 4
+[1, 3] 3 0
+[1, 2] 1 2
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [org.opensolaris.os.dtrace.Aggregation[name = a, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 2], value = 1], org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 3], value = 3], org.opensolaris.os.dtrace.AggregationRecord[tuple = [2, 3], value = 0]], org.opensolaris.os.dtrace.Aggregation[name = b, id = 3, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 2], value = 2], org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 3], value = 0], org.opensolaris.os.dtrace.AggregationRecord[tuple = [2, 3], value = 4]]], formattedStrings = {[2, 3]=[2, 3] 0 4
+, [1, 3]=[1, 3] 3 0
+, [1, 2]=[1, 2] 1 2
+}, tuples = [[2, 3], [1, 3], [1, 2]], output = [2, 3] 0 4
+[1, 3] 3 0
+[1, 2] 1 2
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [org.opensolaris.os.dtrace.Aggregation[name = a, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 2], value = 1], org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 3], value = 3], org.opensolaris.os.dtrace.AggregationRecord[tuple = [2, 3], value = 0]], org.opensolaris.os.dtrace.Aggregation[name = b, id = 3, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 2], value = 2], org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 3], value = 0], org.opensolaris.os.dtrace.AggregationRecord[tuple = [2, 3], value = 4]]], formattedStrings = {[2, 3]=0 4 [2, 3]
+, [1, 3]=3 0 [1, 3]
+, [1, 2]=1 2 [1, 2]
+}, tuples = [[2, 3], [1, 3], [1, 2]], output = 0 4 [2, 3]
+3 0 [1, 3]
+1 2 [1, 2]
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [], formattedStrings = {[2, 3]=[2, 3]
+, [1, 3]=[1, 3]
+, [1, 2]=[1, 2]
+}, tuples = [[2, 3], [1, 3], [1, 2]], output = [2, 3]
+[1, 3]
+[1, 2]
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [], formattedStrings = {}, tuples = [], output = [2]
+[1]
+[1]
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [], formattedStrings = {}, tuples = [], output = [2] 0 4
+[1] 3 0
+[1] 1 2
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [], formattedStrings = {}, tuples = [], output = 0 4
+3 0
+1 2
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [], formattedStrings = {}, tuples = [], output = 0 4 4
+3 0 0
+1 2 2
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [], formattedStrings = {}, tuples = [], output = [2] 0 4 4
+[1] 3 0 0
+[1] 1 2 2
+], org.opensolaris.os.dtrace.PrintaRecord[aggregations = [org.opensolaris.os.dtrace.Aggregation[name = a, id = 2, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 2], value = 1], org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 3], value = 3], org.opensolaris.os.dtrace.AggregationRecord[tuple = [2, 3], value = 0]], org.opensolaris.os.dtrace.Aggregation[name = b, id = 3, records = [org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 2], value = 2], org.opensolaris.os.dtrace.AggregationRecord[tuple = [1, 3], value = 0], org.opensolaris.os.dtrace.AggregationRecord[tuple = [2, 3], value = 4]]], formattedStrings = {[2, 3]=[2, 3] 0 4 4
+, [1, 3]=[1, 3] 3 0 0
+, [1, 2]=[1, 2] 1 2 2
+}, tuples = [[2, 3], [1, 3], [1, 2]], output = [2, 3] 0 4 4
+[1, 3] 3 0 0
+[1, 2] 1 2 2
+], 0]

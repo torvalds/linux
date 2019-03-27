@@ -1,0 +1,94 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2001 Alexander Langer
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 15, 2017
+.Dt DEVICE_IDENTIFY 9
+.Os
+.Sh NAME
+.Nm DEVICE_IDENTIFY
+.Nd identify a device, register it
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Ft void
+.Fn DEVICE_IDENTIFY "driver_t *driver" "device_t parent"
+.Sh DESCRIPTION
+The identify function for a device is only needed for devices on buses
+that cannot identify their children independently, e.g.\& the ISA bus.
+It is used to recognize the device (usually done by accessing non-ambiguous
+registers in the hardware) and to tell the kernel about it and thus
+creating a new device instance.
+.Pp
+.Xr BUS_ADD_CHILD 9
+is used to register the device as a child of the bus.
+The device's resources (such as IRQ and I/O ports) are registered
+with the kernel by calling
+.Fn bus_set_resource
+for each resource (refer to
+.Xr bus_set_resource 9
+for more information).
+.Pp
+Since the device tree and the device driver tree are disjoint, the
+.Fn DEVICE_IDENTIFY
+routine needs to take this into account.
+If you load and unload your device driver that has the identify
+routine, the child node has the potential for adding the same node
+multiple times unless specific measure are taken to preclude that
+possibility.
+.Sh EXAMPLES
+The following pseudo-code shows an example of a function that
+probes for a piece of hardware and registers it and its resource
+(an I/O port) with the kernel.
+.Bd -literal
+void
+foo_identify(driver_t *driver, device_t parent)
+{
+	device_t child;
+
+	retrieve_device_information;
+	if (devices matches one of your supported devices &&
+	    not already in device tree) {
+		child = BUS_ADD_CHILD(parent, 0, "foo", -1);
+		bus_set_resource(child, SYS_RES_IOPORT, 0, FOO_IOADDR, 1);
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr BUS_ADD_CHILD 9 ,
+.Xr bus_set_resource 9 ,
+.Xr device 9 ,
+.Xr device_add_child 9 ,
+.Xr DEVICE_ATTACH 9 ,
+.Xr DEVICE_DETACH 9 ,
+.Xr DEVICE_PROBE 9 ,
+.Xr DEVICE_SHUTDOWN 9
+.Sh AUTHORS
+This manual page was written by
+.An Alexander Langer Aq Mt alex@FreeBSD.org .

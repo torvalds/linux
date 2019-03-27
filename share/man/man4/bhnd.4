@@ -1,0 +1,83 @@
+.\" Copyright (c) 2015 Landon Fuller
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 3, 2016
+.Dt BHND 4
+.Os
+.Sh NAME
+.Nm bhnd
+.Nd Broadcom Home Networking Division interconnect bus
+.Sh SYNOPSIS
+To compile this driver into the kernel, add the following lines to the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device bhnd"
+.Ed
+.Pp
+To load the driver as a module at boot, add this line to
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+bhnd_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a unified kernel bus interface to the on-chip
+interconnects used in Broadcom Home Networking Division (HND)
+devices.
+.Pp
+The Broadcom HND device family consists of SoCs (System On a Chip)
+and host-connected chipsets based on a common library of Broadcom IP
+cores connected via an internal hardware bus architecture.
+Drivers for these cores are implemented against the unified
+.Nm
+interface.
+.Pp
+The Sonic Inc. Silicon Backplane used in earlier HND devices is supported
+by the
+.Xr siba 4
+BHND driver.
+.Pp
+The ARM AMBA-based interconnect used in later HND devices is supported by
+the
+.Xr bcma 4
+BHND driver.
+.Sh SEE ALSO
+.Xr bcma 4 ,
+.Xr bhndb 4 ,
+.Xr intro 4 ,
+.Xr siba 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Landon Fuller Aq Mt landonf@FreeBSD.org .

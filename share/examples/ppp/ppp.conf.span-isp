@@ -1,0 +1,194 @@
+# $FreeBSD$
+
+# This advanced ppp configuration file explains how to implement
+# the following:
+#
+#    -------------       -------------       -------------
+#    |   host1   |       |   host2   |       |   host3   |
+#    -------------       -------------       -------------
+#          |                       |               |
+#     |---------------------- LAN ----------------------|
+#                          |
+#                        -------------
+#                        |  Gateway  |
+#                        -------------
+#                              |
+#             -----------------------------------
+#             |          |           |          |
+#            isp1       isp2       isp3       ispN
+#             |          |           |          |
+#             -----------------------------------
+#                              |
+#                         ------------
+#                         | Receiver |
+#                         ------------
+#                              |
+#                          Internet
+#
+# The connection is implemented so that any ISP connection can go down
+# without loss of connectivity between the LAN and the Internet.  It is
+# of course also possible to shut down any link manually.
+#
+# There is a working example in ppp.*.span-isp.working that can be tested
+# on a single machine !
+#
+#
+# Prerequisites:
+#
+# o The Receiver machine must be in the outside world and must be willing
+#   to accept a multilink ppp connection over UDP, assigning a routable IP
+#   number to the Gateway machine.  This probably means that it must be
+#   a *BSD box as I know of no other ppp implementations that can use UDP
+#   as a transport.
+#
+# o The Receiver machine must be multi-homed with at least N+1 addresses
+#   where N is the maximun number of ISPs that you wish to use
+#   simultaneously.  We assume the IP numbers to be RIP1, RIP2 ... RIPN.
+#   REAL-LOCAL-IP is the real IP number of the Receiver machine (and must
+#   not be the same as any of the RIP* numbers).
+#
+# o Both the Gateway and the Receiver machines must have several tun
+#   interfaces configured into the kernel (see below).
+#
+# o Both the Gateway and the Receiver machines must have the following
+#   entry in /etc/services:
+#
+#      ppp 6671/udp
+#
+#   The port number isn't important, but it must be consistent across
+#   machines.
+#
+# o The Receiver machine must have the following entry in
+#   /etc/inetd.conf:
+#
+#      ppp dgram udp wait root /usr/sbin/ppp ppp -direct vpn-in
+#
+#   Note: Because inetd ``wait''s for ppp to finish, a single ppp
+#         invocation receives all incoming packets.  This creates
+#         havoc with LQR magic number checks, so LQR *must not* be
+#         enabled.
+#         Also, -direct invocations of ppp do sendto()s using the
+#         address that was last recvfrom()d.  This means that the
+#         returning traffic is a bit unbalanced.  Perhaps ppp should
+#         be smart enough to automatically clone an existing link
+#         when it detects a new incoming address.... tricky !
+#
+# If you use ppp to connect to your ISPs, the isp* profiles shold be used,
+# resulting in the vpn* profiles being called from ppp.linkup.span-isp.
+# These invocations will bond together into a MP ppp invocation.
+#
+# If the link to your ISP is via another type of interface (cable modem
+# etc), simply configure the interface with a netmask of 0xffffffff and
+# add a route to RIPN via the interface address (no default).  You can
+# then start ppp using the vpn-nic label.
+#
+# The Receiver machine should have N tun interfaces (where N is the maximum
+# number of ISPs that you wish to use simultaneously).  The Gateway machine
+# requires N interfaces plus an additional N interfaces (total 2 * N) if
+# you're using ppp to talk to the ISPs.
+
+# Using ppp to connect to your ISPs (PPP over UDP over PPP):
+#
+# When we connect to our ISPs using ppp, we start the MP ppp invocation
+# from ppp.linkup (see ppp.linkup.span-isp) for each link.  We also remove
+# the link from ppp.linkdown (see ppp.linkdown.span-isp).  This is necessary
+# because relying on our LQR strategy (dropping the link after 5 missing
+# replies) is just too slow to be practical in this environment.
+#
+# This works because the MP invocations are smart enough to recognise that
+# another process is already running and to pass the link over to that
+# running version.
+#
+# Only the ISP links should be started manually.  When they come up, they'll
+# start the MP invocation.
+
+default:
+  set speed 115200
+  set device /dev/cuau0 /dev/cuau1 /dev/cuau2 /dev/cuau3
+  set dial "ABORT BUSY ABORT NO\\sCARRIER ABORT NO\\sDIAL\\sTONE TIMEOUT 4 \
+            \"\" ATZ OK-ATZ-OK ATDT\\T TIMEOUT 60 CONNECT \\c \\n"
+  set login
+  set redial 3 5
+  set timeout 0
+  enable lqr echo
+  set lqrperiod 15
+
+isp1:
+  set phone "1234567"
+  set authname "isp1name"
+  set authkey "isp1key"
+  add! RIP1/32 HISADDR
+
+isp2:
+  set phone "2345678"
+  set authname "isp2name"
+  set authkey "isp2key"
+  add! RIP2/32 HISADDR
+
+ispN:
+  set phone "3456789"
+  set authname "ispNname"
+  set authkey "ispNkey"
+  add! RIPN/32 HISADDR
+
+
+# Our MP version of ppp.  vpn is a generic label used by each of the
+# other vpn invocations by envoking ppp with both labels (see
+# ppp.linkup.span-isp).
+# Each ``set device'' command tells ppp to use UDP packets destined for
+# the given IP/port as the link (transport).  The routing table will
+# ensure that these UDP packets use the correct ISP connection.
+
+vpn:
+  set enddisc LABEL
+  set speed sync
+  set mrru 1500
+  set mru 1504			# Room for the MP header
+  nat enable yes
+  set authname "vpnname"
+  set authkey "vpnkey"
+  add! default HISADDR
+  disable deflate pred1 lqr
+  deny deflate pred1
+ 
+vpn1:
+  rename 1
+  set device RIP1:ppp/udp
+ 
+vpn2:
+  rename 2
+  set device RIP2:ppp/udp
+ 
+vpnN:
+  rename N
+  set device RIPN:ppp/udp
+
+vpn-nic:
+  load vpn
+  clone 1 2 N
+  link deflink rm
+  link 1 set device RIP1:ppp/udp
+  link 2 set device RIP2:ppp/udp
+  link N set device RIPN:ppp/udp
+
+# The Receiver profile is a bit more straight forward, as it doesn't need
+# to get bogged down with sublinks.  Replace REAL-ASSIGNED-IP with the
+# IP number to be assigned to the Gateway machine.  Replace REAL-LOCAL-IP
+# with the real IP number of the Receiver machine.
+#
+# No other entries are required on the Receiver machine, and this entry
+# is not required on the Gateway machine.  The Receiver machine also
+# requires the contents of ppp.secret.span-isp.
+#
+# Of course it's simple to assign an IP block to the client with a simple
+# ``add'' command, and then have the client use those IP numbers on its
+# LAN rather than using ``nat enable yes''.
+
+vpn-in:
+  set enddisc label
+  set speed sync
+  set mrru 1500
+  set mru 1504			# Room for the MP header
+  enable chap
+  disable lqr
+  set ifaddr REAL-LOCAL-IP REAL-ASSIGNED-IP

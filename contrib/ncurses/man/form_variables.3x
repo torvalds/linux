@@ -1,0 +1,80 @@
+.\"***************************************************************************
+.\" Copyright (c) 2010,2013 Free Software Foundation, Inc.                   *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: form_variables.3x,v 1.4 2013/06/22 17:58:32 tom Exp $
+.TH form_variables 3X ""
+.ds n 5
+.na
+.hy 0
+.SH NAME
+\fBTYPE_ALNUM\fR,
+\fBTYPE_ALPHA\fR,
+\fBTYPE_ENUM\fR,
+\fBTYPE_INTEGER\fR,
+\fBTYPE_IPV4\fR,
+\fBTYPE_NUMERIC\fR,
+\fBTYPE_REGEXP\fR
+\- form system global variables
+.ad
+.hy
+.SH SYNOPSIS
+.nf
+\fB#include <form.h>\fR
+.PP
+\fBFIELDTYPE * TYPE_ALNUM;\fR
+\fBFIELDTYPE * TYPE_ALPHA;\fR
+\fBFIELDTYPE * TYPE_ENUM;\fR
+\fBFIELDTYPE * TYPE_INTEGER;\fR
+\fBFIELDTYPE * TYPE_IPV4;\fR
+\fBFIELDTYPE * TYPE_NUMERIC;\fR
+\fBFIELDTYPE * TYPE_REGEXP;\fR
+.fi
+.SH DESCRIPTION
+These are building blocks for the form library,
+defining fields that can be created using \fBset_fieldtype\fP(3X).
+Each provides functions for field- and character-validation,
+according to the given datatype.
+.SS TYPE_ALNUM
+This holds alphanumeric data.
+.SS TYPE_ALPHA
+This holds alphabetic data.
+.SS TYPE_ENUM
+This holds an enumerated type.
+.SS TYPE_INTEGER
+This holds a decimal integer.
+.SS TYPE_IPV4
+This holds an IPv4 internet address, e.g., "127.0.0.1".
+.SS TYPE_NUMERIC
+This holds a decimal number, with optional sign and decimal point.
+.SS TYPE_REGEXP
+This holds a regular expression.
+.SH PORTABILITY
+The \fBTYPE_IPV4\fP variable is an extension not provided by older
+implementations of the form library.
+.SH SEE ALSO
+\fBform\fR(3X).

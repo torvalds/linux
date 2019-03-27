@@ -1,0 +1,130 @@
+.\" Copyright (c) 2000 - 2004 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd December  8, 2004
+.Dt HPROP 8
+.Os HEIMDAL
+.Sh NAME
+.Nm hprop
+.Nd propagate the KDC database
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Oo Fl m Ar file \*(Ba Xo
+.Fl Fl master-key= Ns Pa file
+.Xc
+.Oc
+.Oo Fl d Ar file \*(Ba Xo
+.Fl Fl database= Ns Pa file
+.Xc
+.Oc
+.Op Fl Fl source= Ns Ar heimdal|mit-dump
+.Oo Fl r Ar string \*(Ba Xo
+.Fl Fl v4-realm= Ns Ar string
+.Xc
+.Oc
+.Oo Fl c Ar cell \*(Ba Xo
+.Fl Fl cell= Ns Ar cell
+.Xc
+.Oc
+.Oo Fl k Ar keytab \*(Ba Xo
+.Fl Fl keytab= Ns Ar keytab
+.Xc
+.Oc
+.Oo Fl R Ar string \*(Ba Xo
+.Fl Fl v5-realm= Ns Ar string
+.Xc
+.Oc
+.Op Fl D | Fl Fl decrypt
+.Op Fl E | Fl Fl encrypt
+.Op Fl n | Fl Fl stdout
+.Op Fl v | Fl Fl verbose
+.Op Fl Fl version
+.Op Fl h | Fl Fl help
+.Op Ar host Ns Op : Ns Ar port
+.Ar ...
+.Ek
+.Sh DESCRIPTION
+.Nm
+takes a principal database in a specified format and converts it into
+a stream of Heimdal database records. This stream can either be
+written to standard out, or (more commonly) be propagated to a
+.Xr hpropd 8
+server running on a different machine.
+.Pp
+If propagating, it connects to all
+.Ar hosts
+specified on the command by opening a TCP connection to port 754
+(service hprop) and sends the database in encrypted form.
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Fl m Ar file , Fl Fl master-key= Ns Pa file
+Where to find the master key to encrypt or decrypt keys with.
+.It Fl d Ar file , Fl Fl database= Ns Pa file
+The database to be propagated.
+.It Fl Fl source= Ns Ar heimdal|mit-dump|krb4-dump|kaserver
+Specifies the type of the source database. Alternatives include:
+.Pp
+.Bl -tag -width mit-dump -compact -offset indent
+.It heimdal
+a Heimdal database
+.It mit-dump
+a MIT Kerberos 5 dump file
+.El
++.It Fl k Ar keytab , Fl Fl keytab= Ns Ar keytab
+The keytab to use for fetching the key to be used for authenticating
+to the propagation daemon(s). The key
+.Pa hprop/hostname
+is used from this keytab.  The default is to fetch the key from the
+KDC database.
+.It Fl R Ar string , Fl Fl v5-realm= Ns Ar string
+Local realm override.
+.It Fl D , Fl Fl decrypt
+The encryption keys in the database can either be in clear, or
+encrypted with a master key. This option transmits the database with
+unencrypted keys.
+.It Fl E , Fl Fl encrypt
+This option transmits the database with encrypted keys.
+.It Fl n , Fl Fl stdout
+Dump the database on stdout, in a format that can be fed to hpropd.
+.El
+.Sh EXAMPLES
+The following will propagate a database to another machine (which
+should run
+.Xr hpropd 8 ) :
+.Bd -literal -offset indent
+$ hprop slave-1 slave-2
+.Ed
+.Sh SEE ALSO
+.Xr hpropd 8

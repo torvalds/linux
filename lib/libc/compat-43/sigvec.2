@@ -1,0 +1,342 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)sigvec.2	8.2 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\"
+.Dd April 19, 1994
+.Dt SIGVEC 2
+.Os
+.Sh NAME
+.Nm sigvec
+.Nd software signal facilities
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In signal.h
+.Bd -literal
+struct sigvec {
+        void     (*sv_handler)();
+	int      sv_mask;
+	int      sv_flags;
+};
+.Ed
+.Ft int
+.Fn sigvec "int sig" "struct sigvec *vec" "struct sigvec *ovec"
+.Sh DESCRIPTION
+.Bf -symbolic
+This interface is made obsolete by
+.Xr sigaction 2 .
+.Ef
+.Pp
+The system defines a set of signals that may be delivered to a process.
+Signal delivery resembles the occurrence of a hardware interrupt:
+the signal is blocked from further occurrence, the current process
+context is saved, and a new one is built.
+A process may specify a
+.Em handler
+to which a signal is delivered, or specify that a signal is to be
+.Em blocked
+or
+.Em ignored .
+A process may also specify that a default action is to be taken
+by the system when a signal occurs.
+Normally, signal handlers execute on the current stack
+of the process.
+This may be changed, on a per-handler basis,
+so that signals are taken on a special
+.Em "signal stack" .
+.Pp
+All signals have the same
+.Em priority .
+Signal routines execute with the signal that caused their
+invocation
+.Em blocked ,
+but other signals may yet occur.
+A global
+.Em "signal mask"
+defines the set of signals currently blocked from delivery
+to a process.
+The signal mask for a process is initialized
+from that of its parent (normally 0).
+It
+may be changed with a
+.Xr sigblock 2
+or
+.Xr sigsetmask 2
+call, or when a signal is delivered to the process.
+.Pp
+When a signal
+condition arises for a process, the signal is added to a set of
+signals pending for the process.
+If the signal is not currently
+.Em blocked
+by the process then it is delivered to the process.
+When a signal
+is delivered, the current state of the process is saved,
+a new signal mask is calculated (as described below),
+and the signal handler is invoked.
+The call to the handler
+is arranged so that if the signal handling routine returns
+normally the process will resume execution in the context
+from before the signal's delivery.
+If the process wishes to resume in a different context, then it
+must arrange to restore the previous context itself.
+.Pp
+When a signal is delivered to a process a new signal mask is
+installed for the duration of the process' signal handler
+(or until a
+.Xr sigblock 2
+or
+.Xr sigsetmask 2
+call is made).
+This mask is formed by taking the current signal mask,
+adding the signal to be delivered, and
+.Em or Ns 'ing
+in the signal mask associated with the handler to be invoked.
+.Pp
+The
+.Fn sigvec
+function
+assigns a handler for a specific signal.
+If
+.Fa vec
+is non-zero, it
+specifies a handler routine and mask
+to be used when delivering the specified signal.
+Further, if the
+.Dv SV_ONSTACK
+bit is set in
+.Fa sv_flags ,
+the system will deliver the signal to the process on a
+.Em "signal stack" ,
+specified with
+.Xr sigaltstack 2 .
+If
+.Fa ovec
+is non-zero, the previous handling information for the signal
+is returned to the user.
+.Pp
+The following is a list of all signals
+with names as in the include file
+.In signal.h :
+.Bl -column SIGVTALARMXX "create core imagexxx"
+.It Sy "NAME	Default Action	Description"
+.It Dv SIGHUP No "	terminate process" "	terminal line hangup"
+.It Dv SIGINT No "	terminate process" "	interrupt program"
+.It Dv SIGQUIT No "	create core image" "	quit program"
+.It Dv SIGILL No "	create core image" "	illegal instruction"
+.It Dv SIGTRAP No "	create core image" "	trace trap"
+.It Dv SIGABRT No "	create core image" Ta Xr abort 3
+call (formerly
+.Dv SIGIOT )
+.It Dv SIGEMT No "	create core image" "	emulate instruction executed"
+.It Dv SIGFPE No "	create core image" "	floating-point exception"
+.It Dv SIGKILL No "	terminate process" "	kill program"
+.It Dv SIGBUS No "	create core image" "	bus error"
+.It Dv SIGSEGV No "	create core image" "	segmentation violation"
+.It Dv SIGSYS No "	create core image" "	non-existent system call invoked"
+.It Dv SIGPIPE No "	terminate process" "	write on a pipe with no reader"
+.It Dv SIGALRM No "	terminate process" "	real-time timer expired"
+.It Dv SIGTERM No "	terminate process" "	software termination signal"
+.It Dv SIGURG No "	discard signal" "	urgent condition present on socket"
+.It Dv SIGSTOP No "	stop process" "	stop (cannot be caught or ignored)"
+.It Dv SIGTSTP No "	stop process" "	stop signal generated from keyboard"
+.It Dv SIGCONT No "	discard signal" "	continue after stop"
+.It Dv SIGCHLD No "	discard signal" "	child status has changed"
+.It Dv SIGTTIN No "	stop process" "	background read attempted from control terminal"
+.It Dv SIGTTOU No "	stop process" "	background write attempted to control terminal"
+.It Dv SIGIO No "	discard signal" Tn "	I/O"
+is possible on a descriptor (see
+.Xr fcntl 2 )
+.It Dv SIGXCPU No "	terminate process" "	cpu time limit exceeded (see"
+.Xr setrlimit 2 )
+.It Dv SIGXFSZ No "	terminate process" "	file size limit exceeded (see"
+.Xr setrlimit 2 )
+.It Dv SIGVTALRM No "	terminate process" "	virtual time alarm (see"
+.Xr setitimer 2 )
+.It Dv SIGPROF No "	terminate process" "	profiling timer alarm (see"
+.Xr setitimer 2 )
+.It Dv SIGWINCH No "	discard signal" "	Window size change"
+.It Dv SIGINFO No "	discard signal" "	status request from keyboard"
+.It Dv SIGUSR1 No "	terminate process" "	User defined signal 1"
+.It Dv SIGUSR2 No "	terminate process" "	User defined signal 2"
+.El
+.Pp
+Once a signal handler is installed, it remains installed
+until another
+.Fn sigvec
+call is made, or an
+.Xr execve 2
+is performed.
+A signal-specific default action may be reset by
+setting
+.Fa sv_handler
+to
+.Dv SIG_DFL .
+The defaults are process termination, possibly with core dump;
+no action; stopping the process; or continuing the process.
+See the above signal list for each signal's default action.
+If
+.Fa sv_handler
+is
+.Dv SIG_IGN
+current and pending instances
+of the signal are ignored and discarded.
+.Pp
+If a signal is caught during the system calls listed below,
+the call is normally restarted.
+The call can be forced to terminate prematurely with an
+.Er EINTR
+error return by setting the
+.Dv SV_INTERRUPT
+bit in
+.Fa sv_flags .
+The affected system calls include
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr sendto 2 ,
+.Xr recvfrom 2 ,
+.Xr sendmsg 2
+and
+.Xr recvmsg 2
+on a communications channel or a slow device (such as a terminal,
+but not a regular file)
+and during a
+.Xr wait 2
+or
+.Xr ioctl 2 .
+However, calls that have already committed are not restarted,
+but instead return a partial success (for example, a short read count).
+.Pp
+After a
+.Xr fork 2
+or
+.Xr vfork 2
+all signals, the signal mask, the signal stack,
+and the restart/interrupt flags are inherited by the child.
+.Pp
+The
+.Xr execve 2
+system call reinstates the default
+action for all signals which were caught and
+resets all signals to be caught on the user stack.
+Ignored signals remain ignored;
+the signal mask remains the same;
+signals that interrupt system calls continue to do so.
+.Sh NOTES
+The mask specified in
+.Fa vec
+is not allowed to block
+.Dv SIGKILL
+or
+.Dv SIGSTOP .
+This is done silently by the system.
+.Pp
+The
+.Dv SV_INTERRUPT
+flag is not available in
+.Bx 4.2 ,
+hence it should not be used if backward compatibility is needed.
+.Sh RETURN VALUES
+.Rv -std sigvec
+.Sh EXAMPLES
+On the
+.Tn VAX\-11
+The handler routine can be declared:
+.Bd -literal -offset indent
+void handler(sig, code, scp)
+int sig, code;
+struct sigcontext *scp;
+.Ed
+.Pp
+Here
+.Fa sig
+is the signal number, into which the hardware faults and traps are
+mapped as defined below.
+The
+.Fa code
+argument
+is either a constant
+as given below or, for compatibility mode faults, the code provided by
+the hardware (Compatibility mode faults are distinguished from the
+other
+.Dv SIGILL
+traps by having
+.Dv PSL_CM
+set in the psl).
+The
+.Fa scp
+argument
+is a pointer to the
+.Fa sigcontext
+structure (defined in
+.In signal.h ) ,
+used to restore the context from before the signal.
+.Sh ERRORS
+The
+.Fn sigvec
+function
+will fail and no new signal handler will be installed if one
+of the following occurs:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+Either
+.Fa vec
+or
+.Fa ovec
+points to memory that is not a valid part of the process
+address space.
+.It Bq Er EINVAL
+The
+.Fa sig
+argument
+is not a valid signal number.
+.It Bq Er EINVAL
+An attempt is made to ignore or supply a handler for
+.Dv SIGKILL
+or
+.Dv SIGSTOP .
+.El
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr kill 2 ,
+.Xr ptrace 2 ,
+.Xr sigaction 2 ,
+.Xr sigaltstack 2 ,
+.Xr sigblock 2 ,
+.Xr sigpause 2 ,
+.Xr sigprocmask 2 ,
+.Xr sigsetmask 2 ,
+.Xr sigsuspend 2 ,
+.Xr setjmp 3 ,
+.Xr siginterrupt 3 ,
+.Xr signal 3 ,
+.Xr sigsetops 3 ,
+.Xr tty 4
+.Sh BUGS
+This manual page is still confusing.

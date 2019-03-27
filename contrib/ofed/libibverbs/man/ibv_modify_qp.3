@@ -1,0 +1,182 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_MODIFY_QP 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_modify_qp \- modify the attributes of a queue pair (QP)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_modify_qp(struct ibv_qp " "*qp" ", struct ibv_qp_attr " "*attr" ,
+.BI "                  int " "attr_mask" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_modify_qp()
+modifies the attributes of QP
+.I qp
+with the attributes in
+.I attr
+according to the mask
+.I attr_mask\fR.
+The argument \fIattr\fR is an ibv_qp_attr struct, as defined in <infiniband/verbs.h>.
+.PP
+.nf
+struct ibv_qp_attr {
+.in +8
+enum ibv_qp_state       qp_state;               /* Move the QP to this state */
+enum ibv_qp_state       cur_qp_state;           /* Assume this is the current QP state */
+enum ibv_mtu            path_mtu;               /* Path MTU (valid only for RC/UC QPs) */
+enum ibv_mig_state      path_mig_state;         /* Path migration state (valid if HCA supports APM) */
+uint32_t                qkey;                   /* Q_Key for the QP (valid only for UD QPs) */
+uint32_t                rq_psn;                 /* PSN for receive queue (valid only for RC/UC QPs) */
+uint32_t                sq_psn;                 /* PSN for send queue (valid only for RC/UC QPs) */
+uint32_t                dest_qp_num;            /* Destination QP number (valid only for RC/UC QPs) */
+int                     qp_access_flags;        /* Mask of enabled remote access operations (valid only for RC/UC QPs) */
+struct ibv_qp_cap       cap;                    /* QP capabilities (valid if HCA supports QP resizing) */
+struct ibv_ah_attr      ah_attr;                /* Primary path address vector (valid only for RC/UC QPs) */
+struct ibv_ah_attr      alt_ah_attr;            /* Alternate path address vector (valid only for RC/UC QPs) */
+uint16_t                pkey_index;             /* Primary P_Key index */
+uint16_t                alt_pkey_index;         /* Alternate P_Key index */
+uint8_t                 en_sqd_async_notify;    /* Enable SQD.drained async notification (Valid only if qp_state is SQD) */
+uint8_t                 sq_draining;            /* Is the QP draining? Irrelevant for ibv_modify_qp() */
+uint8_t                 max_rd_atomic;          /* Number of outstanding RDMA reads & atomic operations on the destination QP (valid only for RC QPs) */
+uint8_t                 max_dest_rd_atomic;     /* Number of responder resources for handling incoming RDMA reads & atomic operations (valid only for RC QPs) */
+uint8_t                 min_rnr_timer;          /* Minimum RNR NAK timer (valid only for RC QPs) */
+uint8_t                 port_num;               /* Primary port number */
+uint8_t                 timeout;                /* Local ack timeout for primary path (valid only for RC QPs) */
+uint8_t                 retry_cnt;              /* Retry count (valid only for RC QPs) */
+uint8_t                 rnr_retry;              /* RNR retry (valid only for RC QPs) */
+uint8_t                 alt_port_num;           /* Alternate port number */
+uint8_t                 alt_timeout;            /* Local ack timeout for alternate path (valid only for RC QPs) */
+uint32_t                rate_limit;             /* Rate limit in kbps for packet pacing */
+.in -8
+};
+.fi
+.PP
+For details on struct ibv_qp_cap see the description of 
+.B ibv_create_qp()\fR.
+For details on struct ibv_ah_attr see the description of
+.B ibv_create_ah()\fR.
+.PP
+The argument
+.I attr_mask
+specifies the QP attributes to be modified.
+The argument is either 0 or the bitwise OR of one or more of the following flags:
+.PP
+.TP
+.B IBV_QP_STATE \fR Modify qp_state
+.TP
+.B IBV_QP_CUR_STATE \fR Set cur_qp_state
+.TP
+.B IBV_QP_EN_SQD_ASYNC_NOTIFY \fR Set en_sqd_async_notify
+.TP
+.B IBV_QP_ACCESS_FLAGS \fR Set qp_access_flags
+.TP
+.B IBV_QP_PKEY_INDEX \fR Set pkey_index
+.TP
+.B IBV_QP_PORT \fR Set port_num
+.TP
+.B IBV_QP_QKEY \fR Set qkey
+.TP
+.B IBV_QP_AV \fR Set ah_attr
+.TP
+.B IBV_QP_PATH_MTU \fR Set path_mtu
+.TP
+.B IBV_QP_TIMEOUT \fR Set timeout
+.TP
+.B IBV_QP_RETRY_CNT \fR Set retry_cnt
+.TP
+.B IBV_QP_RNR_RETRY \fR Set rnr_retry
+.TP
+.B IBV_QP_RQ_PSN \fR Set rq_psn
+.TP
+.B IBV_QP_MAX_QP_RD_ATOMIC \fR Set max_rd_atomic
+.TP
+.B IBV_QP_ALT_PATH \fR Set the alternative path via: alt_ah_attr, alt_pkey_index, alt_port_num, alt_timeout
+.TP
+.B IBV_QP_MIN_RNR_TIMER \fR Set min_rnr_timer
+.TP
+.B IBV_QP_SQ_PSN \fR Set sq_psn
+.TP
+.B IBV_QP_MAX_DEST_RD_ATOMIC \fR Set max_dest_rd_atomic
+.TP
+.B IBV_QP_PATH_MIG_STATE \fR Set path_mig_state
+.TP
+.B IBV_QP_CAP \fR Set cap
+.TP
+.B IBV_QP_DEST_QPN \fR Set dest_qp_num
+.B IBV_QP_RATE_LIMIT \fR Set rate_limit
+.SH "RETURN VALUE"
+.B ibv_modify_qp()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+If any of the modify attributes or the modify mask are invalid, none
+of the attributes will be modified (including the QP state).
+.PP
+Not all devices support resizing QPs.  To check if a device supports it, check if the
+.B IBV_DEVICE_RESIZE_MAX_WR
+bit is set in the device capabilities flags.
+.PP
+Not all devices support alternate paths.  To check if a device supports it, check if the
+.B IBV_DEVICE_AUTO_PATH_MIG
+bit is set in the device capabilities flags.
+.PP
+The following tables indicate for each QP Transport Service Type, the
+minimum list of attributes that must be changed upon transitioning QP
+state from: Reset \-\-> Init \-\-> RTR \-\-> RTS.
+.PP
+.nf
+For QP Transport Service Type \fB IBV_QPT_UD\fR:
+.sp
+Next state     Required attributes
+\-\-\-\-\-\-\-\-\-\-     \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+Init \fB          IBV_QP_STATE, IBV_QP_PKEY_INDEX, IBV_QP_PORT, \fR
+     \fB          IBV_QP_QKEY \fR
+RTR  \fB          IBV_QP_STATE \fR
+RTS  \fB          IBV_QP_STATE, IBV_QP_SQ_PSN \fR
+.fi
+.PP
+.nf
+For QP Transport Service Type \fB IBV_QPT_UC\fR:
+.sp
+Next state     Required attributes
+\-\-\-\-\-\-\-\-\-\-     \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+Init \fB          IBV_QP_STATE, IBV_QP_PKEY_INDEX, IBV_QP_PORT, \fR
+     \fB          IBV_QP_ACCESS_FLAGS \fR
+RTR  \fB          IBV_QP_STATE, IBV_QP_AV, IBV_QP_PATH_MTU, \fR
+     \fB          IBV_QP_DEST_QPN, IBV_QP_RQ_PSN \fR
+RTS  \fB          IBV_QP_STATE, IBV_QP_SQ_PSN \fR
+.fi
+.PP
+.nf
+For QP Transport Service Type \fB IBV_QPT_RC\fR:
+.sp
+Next state     Required attributes
+\-\-\-\-\-\-\-\-\-\-     \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+Init \fB          IBV_QP_STATE, IBV_QP_PKEY_INDEX, IBV_QP_PORT, \fR
+     \fB          IBV_QP_ACCESS_FLAGS \fR
+RTR  \fB          IBV_QP_STATE, IBV_QP_AV, IBV_QP_PATH_MTU, \fR
+     \fB          IBV_QP_DEST_QPN, IBV_QP_RQ_PSN, \fR
+     \fB          IBV_QP_MAX_DEST_RD_ATOMIC, IBV_QP_MIN_RNR_TIMER \fR
+RTS  \fB          IBV_QP_STATE, IBV_QP_SQ_PSN, IBV_QP_MAX_QP_RD_ATOMIC, \fR
+     \fB          IBV_QP_RETRY_CNT, IBV_QP_RNR_RETRY, IBV_QP_TIMEOUT \fR
+.fi
+.PP
+.nf
+For QP Transport Service Type \fB IBV_QPT_RAW_PACKET\fR:
+.sp
+Next state     Required attributes
+\-\-\-\-\-\-\-\-\-\-     \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+Init \fB          IBV_QP_STATE, IBV_QP_PORT\fR
+RTR  \fB          IBV_QP_STATE\fR
+RTS  \fB          IBV_QP_STATE\fR
+.fi
+.SH "SEE ALSO"
+.BR ibv_create_qp (3),
+.BR ibv_destroy_qp (3),
+.BR ibv_query_qp (3),
+.BR ibv_create_ah (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

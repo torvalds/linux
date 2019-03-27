@@ -1,0 +1,125 @@
+.\" Copyright (c) 1999
+.\"	Nick Hibma <n_hibma@FreeBSD.org>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 24, 2018
+.Dt UMS 4
+.Os
+.Sh NAME
+.Nm ums
+.Nd USB mouse driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ums"
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ums_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for mice that attach to the USB port.
+Supported are
+mice with any number of buttons and mice with a wheel.
+.Pp
+The
+.Pa /dev/ums0
+device presents the mouse as a
+.Ar sysmouse
+or
+.Ar mousesystems
+type device.
+See
+.Xr moused 8
+for an explanation of these mouse types.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.ums.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.El
+.Sh FILES
+.Bl -tag -width /dev/ums0 -compact
+.It Pa /dev/ums0
+blocking device node
+.El
+.Sh EXAMPLES
+Use the first
+USB mouse on the system as your console mouse:
+.Pp
+.Dl moused -p /dev/ums0 -t auto
+.Pp
+To be able to use the USB mouse under X, change the "Pointer" section in
+.Nm xorg.conf
+to the following:
+.Pp
+.Dl Device "/dev/ums0"
+.Dl Protocol "Auto"
+.Pp
+If you want to be able to use the mouse in both virtual consoles as well
+as in X change it to:
+.Pp
+.Dl Device "/dev/sysmouse"
+.Dl Protocol "Auto"
+.Sh SEE ALSO
+.Xr ohci 4 ,
+.Xr sysmouse 4 ,
+.Xr uhci 4 ,
+.Xr usb 4 ,
+.Xr xorg.conf 5 Pq Pa ports/x11/xorg ,
+.Xr moused 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Lennart Augustsson Aq Mt augustss@cs.chalmers.se
+for
+.Nx
+and was adopted for
+.Fx
+by
+.An MAEKAWA Masahide Aq Mt bishop@rr.iij4u.or.jp .
+.Pp
+This manual page was written by
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org
+with input from
+.An Kazutaka YOKOTA Aq Mt yokota@zodiac.mech.utsunomiya-u.ac.jp .

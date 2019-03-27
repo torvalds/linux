@@ -1,0 +1,367 @@
+.\"	$Id: mandoc_escape.3,v 1.4 2017/07/04 23:40:01 schwarze Exp $
+.\"
+.\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 4 2017 $
+.Dt MANDOC_ESCAPE 3
+.Os
+.Sh NAME
+.Nm mandoc_escape
+.Nd parse roff escape sequences
+.Sh SYNOPSIS
+.In sys/types.h
+.In mandoc.h
+.Ft "enum mandoc_esc"
+.Fo mandoc_escape
+.Fa "const char **end"
+.Fa "const char **start"
+.Fa "int *sz"
+.Fc
+.Sh DESCRIPTION
+This function scans a
+.Xr roff 7
+escape sequence.
+.Pp
+An escape sequence consists of
+.Bl -dash -compact -width 2n
+.It
+an initial backslash character
+.Pq Sq \e ,
+.It
+a single ASCII character called the escape sequence identifier,
+.It
+and, with only a few exceptions, an argument.
+.El
+.Pp
+Arguments can be given in the following forms; some escape sequence
+identifiers only accept some of these forms as specified below.
+The first three forms are called the standard forms.
+.Bl -tag -width 2n
+.It \&In brackets: Ic \&[ Ns Ar argument Ns Ic \&]
+The argument starts after the initial
+.Sq \&[ ,
+ends before the final
+.Sq \&] ,
+and the escape sequence ends with the final
+.Sq \&] .
+.It Two-character argument short form: Ic \&( Ns Ar ar
+This form can only be used for arguments
+consisting of exactly two characters.
+It has the same effect as
+.Ic \&[ Ns Ar ar Ns Ic \&] .
+.It One-character argument short form: Ar a
+This form can only be used for arguments
+consisting of exactly one character.
+It has the same effect as
+.Ic \&[ Ns Ar a Ns Ic \&] .
+.It Delimited form: Ar C Ns Ar argument Ns Ar C
+The argument starts after the initial delimiter character
+.Ar C ,
+ends before the next occurrence of the delimiter character
+.Ar C ,
+and the escape sequence ends with that second
+.Ar C .
+Some escape sequences allow arbitrary characters
+.Ar C
+as quoting characters, some restrict the range of characters
+that can be used as quoting characters.
+.El
+.Pp
+Upon function entry,
+.Fa end
+is expected to point to the escape sequence identifier.
+The values passed in as
+.Fa start
+and
+.Fa sz
+are ignored and overwritten.
+.Pp
+By design, this function cannot handle those
+.Xr roff 7
+escape sequences that require in-place expansion, in particular
+user-defined strings
+.Ic \e* ,
+number registers
+.Ic \en ,
+width measurements
+.Ic \ew ,
+and numerical expression control
+.Ic \eB .
+These are handled by
+.Fn roff_res ,
+a private preprocessor function called from
+.Fn roff_parseln ,
+see the file
+.Pa roff.c .
+.Pp
+The function
+.Fn mandoc_escape
+is used
+.Bl -dash -compact -width 2n
+.It
+recursively by itself, because some escape sequence arguments can
+in turn contain other escape sequences,
+.It
+for error detection internally by the
+.Xr roff 7
+parser part of the
+.Xr mandoc 3
+library, see the file
+.Pa roff.c ,
+.It
+above all externally by the
+.Xr mandoc 1
+formatting modules, in particular
+.Fl Tascii
+and
+.Fl Thtml ,
+for formatting purposes, see the files
+.Pa term.c
+and
+.Pa html.c ,
+.It
+and rarely externally by high-level utilities using the mandoc library,
+for example
+.Xr makewhatis 8 ,
+to purge escape sequences from text.
+.El
+.Sh RETURN VALUES
+Upon function return, the pointer
+.Fa end
+is set to the character after the end of the escape sequence,
+such that the calling higher-level parser can easily continue.
+.Pp
+For escape sequences taking an argument, the pointer
+.Fa start
+is set to the beginning of the argument and
+.Fa sz
+is set to the length of the argument.
+For escape sequences not taking an argument,
+.Fa start
+is set to the character after the end of the sequence and
+.Fa sz
+is set to 0.
+Both
+.Fa start
+and
+.Fa sz
+may be
+.Dv NULL ;
+in that case, the argument and the length are not returned.
+.Pp
+For sequences taking an argument, the function
+.Fn mandoc_escape
+returns one of the following values:
+.Bl -tag -width 2n
+.It Dv ESCAPE_FONT
+The escape sequence
+.Ic \ef
+taking an argument in standard form:
+.Ic \ef[ , \ef( , \ef Ns Ar a .
+Two-character arguments starting with the character
+.Sq C
+are reduced to one-character arguments by skipping the
+.Sq C .
+More specific values are returned for the most commonly used arguments:
+.Bl -column "argument" "ESCAPE_FONTITALIC"
+.It argument Ta return value
+.It Cm R No or Cm 1 Ta Dv ESCAPE_FONTROMAN
+.It Cm I No or Cm 2 Ta Dv ESCAPE_FONTITALIC
+.It Cm B No or Cm 3 Ta Dv ESCAPE_FONTBOLD
+.It Cm P Ta Dv ESCAPE_FONTPREV
+.It Cm BI Ta Dv ESCAPE_FONTBI
+.El
+.It Dv ESCAPE_SPECIAL
+The escape sequence
+.Ic \eC
+taking an argument delimited with the single quote character
+and, as a special exception, the escape sequences
+.Em not
+having an identifier, that is, those where the argument, in standard
+form, directly follows the initial backslash:
+.Ic \eC' , \e[ , \e( , \e Ns Ar a .
+Note that the one-character argument short form can only be used for
+argument characters that do not clash with escape sequence identifiers.
+.Pp
+If the argument matches one of the forms described below under
+.Dv ESCAPE_UNICODE ,
+that value is returned instead.
+.Pp
+The
+.Dv ESCAPE_SPECIAL
+special character escape sequences can be rendered using the functions
+.Fn mchars_spec2cp
+and
+.Fn mchars_spec2str
+described in the
+.Xr mchars_alloc 3
+manual.
+.It Dv ESCAPE_UNICODE
+Escape sequences of the same format as described above under
+.Dv ESCAPE_SPECIAL ,
+but with an argument of the forms
+.Ic u Ns Ar XXXX ,
+.Ic u Ns Ar YXXXX ,
+or
+.Ic u10 Ns Ar XXXX
+where
+.Ar X
+and
+.Ar Y
+are hexadecimal digits and
+.Ar Y
+is not zero:
+.Ic \eC'u , \e[u .
+As a special exception,
+.Fa start
+is set to the character after the
+.Ic u ,
+and the
+.Fa sz
+return value does not include the
+.Ic u
+either.
+.Pp
+Such Unicode character escape sequences can be rendered using the function
+.Fn mchars_num2uc
+described in the
+.Xr mchars_alloc 3
+manual.
+.It Dv ESCAPE_NUMBERED
+The escape sequence
+.Ic \eN
+followed by a delimited argument.
+The delimiter character is arbitrary except that digits cannot be used.
+If a digit is encountered instead of the opening delimiter, that
+digit is considered to be the argument and the end of the sequence, and
+.Dv ESCAPE_IGNORE
+is returned.
+.Pp
+Such ASCII character escape sequences can be rendered using the function
+.Fn mchars_num2char
+described in the
+.Xr mchars_alloc 3
+manual.
+.It Dv ESCAPE_OVERSTRIKE
+The escape sequence
+.Ic \eo
+followed by an argument delimited by an arbitrary character.
+.It Dv ESCAPE_IGNORE
+.Bl -bullet -width 2n
+.It
+The escape sequence
+.Ic \es
+followed by an argument in standard form or by an argument delimited
+by the single quote character:
+.Ic \es' , \es[ , \es( , \es Ns Ar a .
+As a special exception, an optional
+.Sq +
+or
+.Sq \-
+character is allowed after the
+.Sq s
+for all forms.
+.It
+The escape sequences
+.Ic \eF ,
+.Ic \eg ,
+.Ic \ek ,
+.Ic \eM ,
+.Ic \em ,
+.Ic \en ,
+.Ic \eV ,
+and
+.Ic \eY
+followed by an argument in standard form.
+.It
+The escape sequences
+.Ic \eA ,
+.Ic \eb ,
+.Ic \eD ,
+.Ic \eR ,
+.Ic \eX ,
+and
+.Ic \eZ
+followed by an argument delimited by an arbitrary character.
+.It
+The escape sequences
+.Ic \eH ,
+.Ic \eh ,
+.Ic \eL ,
+.Ic \el ,
+.Ic \eS ,
+.Ic \ev ,
+and
+.Ic \ex
+followed by an argument delimited by a character that cannot occur
+in numerical expressions.
+However, if any character that can occur in numerical expressions
+is found instead of a delimiter, the sequence is considered to end
+with that character, and
+.Dv ESCAPE_ERROR
+is returned.
+.El
+.It Dv ESCAPE_ERROR
+Escape sequences taking an argument but not matching any of the above patterns.
+In particular, that happens if the end of the logical input line
+is reached before the end of the argument.
+.El
+.Pp
+For sequences that do not take an argument, the function
+.Fn mandoc_escape
+returns one of the following values:
+.Bl -tag -width 2n
+.It Dv ESCAPE_SKIPCHAR
+The escape sequence
+.Qq \ez .
+.It Dv ESCAPE_NOSPACE
+The escape sequence
+.Qq \ec .
+.It Dv ESCAPE_IGNORE
+The escape sequences
+.Qq \ed
+and
+.Qq \eu .
+.El
+.Sh FILES
+This function is implemented in
+.Pa mandoc.c .
+.Sh SEE ALSO
+.Xr mchars_alloc 3 ,
+.Xr mandoc_char 7 ,
+.Xr roff 7
+.Sh HISTORY
+This function has been available since mandoc 1.11.2.
+.Sh AUTHORS
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org
+.Sh BUGS
+The function doesn't cleanly distinguish between sequences that are
+valid and supported, valid and ignored, valid and unsupported,
+syntactically invalid, or undefined.
+For sequences that are ignored or unsupported, it doesn't tell
+whether that deficiency is likely to cause major formatting problems
+and/or loss of document content.
+The function is already rather complicated and still parses some
+sequences incorrectly.
+.
+.ig
+For these sequences, the list given below specifies a starting string
+and either the length of the argument or an ending character.
+The argument starts after the starting string.
+In the former case, the sequence ends with the end of the argument.
+In the latter case, the argument ends before the ending character,
+and the sequence ends with the ending character.
+..

@@ -1,0 +1,76 @@
+.\"	$FreeBSD$
+.\"
+.TH IPNAT 8
+.SH NAME
+ipnat \- user interface to the NAT subsystem
+.SH SYNOPSIS
+.B ipnat
+[
+.B \-dhlnrsvCF
+]
+[
+.B \-M core
+]
+[
+.B \-N system
+]
+.B \-f <\fIfilename\fP>
+.SH DESCRIPTION
+.PP
+\fBipnat\fP opens the filename given (treating "\-" as stdin) and parses the
+file for a set of rules which are to be added or removed from the IP NAT.
+.PP
+Each rule processed by \fBipnat\fP
+is added to the kernels internal lists if there are no parsing problems.
+Rules are added to the end of the internal lists, matching the order in
+which they appear when given to \fBipnat\fP.
+.PP
+Note that if
+\fBipf(8)\fP
+is not enabled when NAT is configured, it will be enabled
+automatically, as the same kernel facilities are used for
+NAT functionality.  In addition, packet forwarding must be
+enabled.
+.SH OPTIONS
+.TP
+.B \-C
+delete all entries in the current NAT rule listing (NAT rules)
+.TP
+.B \-d
+Enable printing of some extra debugging information.
+.TP
+.B \-F
+delete all active entries in the current NAT translation table (currently
+active NAT mappings)
+.TP
+.B \-h
+Print number of hits for each MAP/Redirect filter.
+.TP
+.B \-l
+Show the list of current NAT table entry mappings.
+.TP
+.B \-n
+This flag (no-change) prevents \fBipf\fP from actually making any ioctl
+calls or doing anything which would alter the currently running kernel.
+.TP
+.B \-p
+This flag is used with the \fB-r\fP flag to cause any active NAT
+sessions that were created by the rules being removed and that are
+currently active to also be removed.
+.TP
+.B \-r
+Remove matching NAT rules rather than add them to the internal lists.
+.TP
+.B \-s
+Retrieve and display NAT statistics.
+.TP
+.B \-v
+Turn verbose mode on.  Displays information relating to rule processing
+and active rules/table entries.
+.DT
+.SH FILES
+/dev/ipnat
+.br
+/usr/share/examples/ipfilter  Directory with examples.
+.SH SEE ALSO
+ipnat(5), ipf(8), ipfstat(8)

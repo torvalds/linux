@@ -1,0 +1,94 @@
+/dts-v1/;
+
+#include "rt2880.dtsi"
+
+/ {
+	compatible = "MZK-WNH", "ralink,rt2880-soc";
+	model = "Planex MZK-WNH";
+
+/*
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x2000000>;
+	};
+*/
+
+	cfi@1f000000 {
+		compatible = "cfi-flash";
+		reg = <0x1f000000 0x800000>;
+		bank-width = <2>;
+		device-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "Bootloader";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		devdata: partition@30000 {
+			label = "Config";
+			reg = <0x00030000 0x00010000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "Factory";
+			reg = <0x00040000 0x00010000>;
+			read-only;
+		};
+		kernel: partition@50000 {
+			label = "kernel";
+			reg = <0x00050000 0x000f0000>;
+			read-only;
+		};
+		rootfs: partition@160000 {
+			label = "rootfs";
+			reg = <0x00140000 0x002c0000>;
+			read-only;
+		};
+		upgrade: partition@400000 {
+			label = "upgrade";
+			reg = <0x00050000 0x003b0000>;
+			read-only;
+		};
+
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		status {
+			label = "status";
+			gpios = <&gpio0 12 0>;
+		};
+
+	};
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 10 1>;
+			linux,code = <0x198>;
+		};
+
+	};
+
+	ip17x@0 {
+		compatible = "icplus,ip17x";
+	};
+
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x28>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};

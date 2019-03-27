@@ -1,0 +1,31 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if ! eval "[ $* ]"; then
+		echo "Failed: $*"
+		: $((failures += 1))
+	fi
+}
+
+builtin : || echo "Bad return code at $LINENO"
+builtin true || echo "Bad return code at $LINENO"
+builtin ls 2>/dev/null && echo "Bad return code at $LINENO"
+check '"$(builtin pwd)" = "$(pwd)"'
+check '-z "$(builtin :)"'
+check '-z "$(builtin true)"'
+check '-z "$( (builtin nosuchtool) 2>/dev/null)"'
+check '-z "$(builtin nosuchtool 2>/dev/null)"'
+check '-z "$(builtin nosuchtool 2>/dev/null; :)"'
+check '-z "$( (builtin ls) 2>/dev/null)"'
+check '-z "$(builtin ls 2>/dev/null)"'
+check '-z "$(builtin ls 2>/dev/null; :)"'
+check '-n "$( (builtin nosuchtool) 2>&1)"'
+check '-n "$(builtin nosuchtool 2>&1)"'
+check '-n "$(builtin nosuchtool 2>&1; :)"'
+check '-n "$( (builtin ls) 2>&1)"'
+check '-n "$(builtin ls 2>&1)"'
+check '-n "$(builtin ls 2>&1; :)"'
+
+exit $((failures > 0))

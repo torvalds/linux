@@ -1,0 +1,4 @@
+make: "error.mk" line 3: just FYI
+make: "error.mk" line 4: warning: this could be serious
+make: "error.mk" line 5: this is fatal
+exit status 1

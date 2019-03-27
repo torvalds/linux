@@ -1,0 +1,14 @@
+file tests
+==========
+
+This directory contains tests for file. It is highly encouraged to add
+one each time a bug is found, and each time new magic is added. Each
+test consists of two files:
+
+  TEST.testfile
+  TEST.result
+
+where TEST is the base name of the test, TEST.testfile is the input,
+and TEST.result is the desired output from file.
+
+To add a new test just add the test files to the directory.

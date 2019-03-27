@@ -1,0 +1,91 @@
+.\" Copyright (c) 2014 Baptiste Daroussin <bapt@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 7, 2015
+.Dt SOELIM 1
+.Os
+.Sh NAME
+.Nm soelim
+.Nd interpret .so requests in manpages
+.Sh SYNOPSIS
+.Nm
+.Op Fl Crtv
+.Op Fl I Ar dir
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility
+reads the specified files or the standard input and performs the textual
+inclusion implied by the
+.Xr nroff 1
+directives of the form:
+.Pp
+.Dl \&.so anotherfile
+.Pp
+If a line starts with:
+.Dq .so anotherfile
+it replaces the line by processing
+.Dq anotherfile .
+Otherwise the line is printed to stdout.
+.Bl -tag -width "-I dir"
+.It Fl C
+Recognise
+.Em .so
+when it is not followed by a space character.
+.It Fl r
+Compatibility with groff's
+.Xr soelim 1
+(does nothing).
+.It Fl t
+Compatibility with groff's
+.Xr soelim 1
+(does nothing).
+.It Fl v
+Compatibility with groff's
+.Xr soelim 1
+(does nothing).
+.It Fl I Ar dir
+This option specifies directories where
+.Nm
+searches for files (both those on the command line and those named in
+.Dq .so
+directive.)
+This option may be specified multiple times.
+The directories will be searched in the order specified.
+.El
+.Pp
+The files are always searched first in the current directory.
+.Pp
+A file specified with an absolute path will be opened directly without
+performing a search.
+.Sh SEE ALSO
+.Xr mandoc 1
+.Sh AUTHORS
+This version of the
+.Nm
+utility was written by
+.An Baptiste Daroussin Aq Mt bapt@freebsd.org .

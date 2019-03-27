@@ -1,0 +1,161 @@
+.\"
+.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 12, 2013
+.Dt VM_MAP_FIND 9
+.Os
+.Sh NAME
+.Nm vm_map_find
+.Nd find a free region within a map, and optionally map a vm_object
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_map.h
+.Ft int
+.Fo vm_map_find
+.Fa "vm_map_t map" "vm_object_t object" "vm_ooffset_t offset"
+.Fa "vm_offset_t *addr" "vm_size_t length" "vm_offset_t max_addr"
+.Fa "int find_space" "vm_prot_t prot" "vm_prot_t max" "int cow"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn vm_map_find
+function attempts to find a free region in the target
+.Fa map ,
+with the given
+.Fa length.
+If a free region is found,
+.Fn vm_map_find
+creates a mapping of
+.Fa object
+via a call to
+.Xr vm_map_insert 9 .
+.Pp
+The arguments
+.Fa offset ,
+.Fa prot ,
+.Fa max ,
+and
+.Fa cow
+are passed unchanged to
+.Xr vm_map_insert 9
+when creating the mapping, if and only if a free region is found.
+.Pp
+If
+.Fa object
+is
+.Pf non- Dv NULL ,
+the reference count on the object must be incremented
+by the caller before calling this function to account for the new entry.
+.Pp
+If
+.Fa max_addr
+is non-zero,
+it specifies an upper bound on the mapping.
+The mapping will only succeed if a free region can be found that resides
+entirely below
+.Fa max_addr .
+.Pp
+The
+.Fa find_space
+argument specifies the strategy to use when searching for a free region of
+the requested length.
+For all values other than
+.Dv VMFS_NO_SPACE ,
+.Xr vm_map_findspace 9
+is called to locate a free region of the requested length with a starting
+address at or above
+.Fa *addr .
+The following strategies are supported:
+.Bl -tag -width "Dv VMFS_ALIGNED_SPACE Ns"
+.It Dv VMFS_NO_SPACE
+The mapping will only succeed if there is a free region of the requested
+length at the given address
+.Fa *addr .
+.It Dv VMFS_ANY_SPACE
+The mapping will succeed as long as there is a free region.
+.It Dv VMFS_SUPER_SPACE
+The mapping will succeed as long as there is a free region that begins on
+a superpage boundary.
+If
+.Fa object
+is
+.Pf non- Dv NULL
+and is already backed by superpages,
+then the mapping will require a free region that aligns relative to the
+existing superpages rather than one beginning on a superpage boundary.
+.It Dv VMFS_OPTIMAL_SPACE
+The mapping will succeed as long as there is a free region.
+However, if
+.Fa object
+is
+.Pf non- Dv NULL
+and is already backed by superpages,
+this strategy will attempt to find a free region aligned relative to
+the existing superpages.
+.It Dv VMFS_ALIGNED_SPACE Ns Pq Fa n
+The mapping will succeed as long as there is a free region that aligns on
+a
+.Pf 2^ Fa n
+boundary.
+.El
+.Sh IMPLEMENTATION NOTES
+This function acquires a lock on
+.Fa map
+by calling
+.Xr vm_map_lock 9 ,
+and holds it until the function returns.
+.Pp
+The search for a free region is defined to be first-fit, from the address
+.Fa addr
+onwards.
+.Sh RETURN VALUES
+The
+.Fn vm_map_find
+function returns
+.Dv KERN_SUCCESS
+if the mapping was successfully created.
+If space could not be found or
+.Fa find_space
+was
+.Dv VMFS_NO_SPACE
+and the given address,
+.Fa addr ,
+was already mapped,
+.Dv KERN_NO_SPACE
+will be returned.
+If the discovered range turned out to be bogus,
+.Dv KERN_INVALID_ADDRESS
+will be returned.
+.Sh SEE ALSO
+.Xr vm_map 9 ,
+.Xr vm_map_findspace 9 ,
+.Xr vm_map_insert 9 ,
+.Xr vm_map_lock 9
+.Sh AUTHORS
+This manual page was written by
+.An Bruce M Simpson Aq Mt bms@spc.org .

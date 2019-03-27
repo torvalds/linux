@@ -1,0 +1,95 @@
+.\" Copyright (c) 2005 Pascal Gloor <pascal.gloor@spale.com>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 17, 2017
+.Dt MEMMEM 3
+.Os
+.Sh NAME
+.Nm memmem
+.Nd "locate a byte substring in a byte string"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In string.h
+.Ft "void *"
+.Fo memmem
+.Fa "const void *big" "size_t big_len"
+.Fa "const void *little" "size_t little_len"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn memmem
+function
+locates the first occurrence of the byte string
+.Fa little
+in the byte string
+.Fa big .
+.Sh RETURN VALUES
+If
+.Fa little_len
+is zero
+.Fa big
+is returned (that is, an empty little is deemed to match at the beginning of
+big);
+if
+.Fa little
+occurs nowhere in
+.Fa big ,
+.Dv NULL
+is returned;
+otherwise a pointer to the first character of the first occurrence of
+.Fa little
+is returned.
+.Sh SEE ALSO
+.Xr memchr 3 ,
+.Xr strchr 3 ,
+.Xr strstr 3
+.Sh CONFORMING TO
+.Fn memmem
+is a GNU extension.
+.Sh HISTORY
+The
+.Fn memmem
+function first appeared in
+.Fx 6.0 .
+It was replaced with an optimized O(n) implementation from the musl libc
+project in
+.Fx 12.0 .
+.An Pascal Gloor Aq Mt pascal.gloor@spale.com
+provided this man page along with the previous implementation.
+.Sh BUGS
+This function was broken in Linux libc up to and including version 5.0.9
+and in GNU libc prior to version 2.1.
+Prior to
+.Fx 11.0
+.Nm
+returned
+.Dv NULL
+when
+.Fa little_len
+equals 0.

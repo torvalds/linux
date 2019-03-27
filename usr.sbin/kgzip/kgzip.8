@@ -1,0 +1,156 @@
+.\" Copyright (c) 1999 Global Technology Associates, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+.\" OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 2, 2016
+.Dt KGZIP 8
+.Os
+.Sh NAME
+.Nm kgzip
+.Nd compress a kernel
+.Sh SYNOPSIS
+.Nm
+.Op Fl cv
+.Op Fl f Ar format
+.Op Fl l Ar loader
+.Op Fl o Ar output
+.Ar file
+.Sh DESCRIPTION
+.Bf -symbolic
+This utility is deprecated.
+Users are advised to use
+.Xr loader 8
+and compress the kernel with
+.Xr gzip 1 .
+.Ef
+.Pp
+The
+.Nm
+utility compresses a kernel or some other bootable binary.
+Operation
+is in two phases as follows:
+.Bl -enum
+.It
+A load image of the executable file is built which omits all but
+the
+.Sq text
+and
+.Sq data
+segments.
+This image is compressed using
+.Xr gzip 1
+and output as data in relocatable object format.
+.It
+The object file is linked with a special self-hosting loader, producing
+an executable suitable for booting with either the second- or
+third-level bootstraps.
+.El
+.Pp
+Supported object formats are 32-bit ELF and a.out ZMAGIC.
+.Pp
+If the
+.Ar file
+operand has a
+.Sq .o
+suffix, input is assumed to be for the link phase, and the first phase
+is omitted.
+.Pp
+The options are:
+.Bl -tag -width Fl
+.It Fl c
+Omit the link phase.
+.It Fl v
+Display object file information.
+.It Fl f Ar format
+Use
+.Ar format
+as the output format, where
+.Ar format
+is
+.Sq aout
+or
+.Sq elf .
+The default format is ELF.
+.It Fl l Ar loader
+Link
+.Ar loader
+as the loader.
+.It Fl o Ar output
+Name the output file
+.Ar output .
+The default is to use the input name with the suffix
+.Sq .o
+(for relocatables) or
+.Sq .kgz
+(for executables).
+.El
+.Sh NOTES
+Global variables equivalent to the following are defined in the output:
+.Bd -literal
+struct kgz_hdr {
+    char	ident[4];	/* identification: "KGZ" */
+    uint32_t	dload;		/* decoded image load address */
+    uint32_t	dsize;		/* decoded image size */
+    uint32_t	isize;		/* image size in memory */
+    uint32_t	entry;		/* entry point */
+    uint32_t	nsize;		/* encoded image size */
+} kgz;
+
+uint8_t kgz_ndata[];		/* encoded data */
+.Ed
+.Pp
+The encoded data is simply
+.Xr gzip 1
+output: a header (with no optional fields); compressed data; and 32-bit
+CRC and size values.
+.Sh FILES
+.Bl -tag -width /usr/lib/kgzldr.o -compact
+.It Pa /usr/lib/kgzldr.o
+The default loader
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr gzip 1 ,
+.Xr ld 1 ,
+.Xr a.out 5 ,
+.Xr elf 5 ,
+.Xr boot 8 ,
+.Xr loader 8
+.Sh AUTHORS
+.An Robert Nordier Aq Mt rnordier@FreeBSD.org
+.Sh BUGS
+As symbols are lost, the usefulness of this utility for compressing
+kernels is limited to situations where
+.Xr loader 8
+cannot be used.
+.Pp
+.Pa kgzldr.o
+is only available for the i386 architecture.
+.Pp
+The preferred method of compressing a kernel
+is simply to
+.Xr gzip 1
+it.

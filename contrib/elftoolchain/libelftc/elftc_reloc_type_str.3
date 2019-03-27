@@ -1,0 +1,72 @@
+.\" Copyright (c) 2016 The FreeBSD Foundation.  All rights reserved.
+.\"
+.\" This documentation was written by Ed Maste under sponsorship of
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by the author and contributors ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  In no event shall the author or contributors be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id$
+.\"
+.Dd February 19, 2016
+.Dt ELFTC_RELOC_TYPE_STR 3
+.Os
+.Sh NAME
+.Nm elftc_reloc_type_str
+.Nd return the type name for an ELF relocation
+.Sh LIBRARY
+.Lb libelftc
+.Sh SYNOPSIS
+.In libelftc.h
+.Ft const char *
+.Fo elftc_reloc_type_str
+.Fa "unsigned int mach"
+.Fa "unsigned int type"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn elftc_reloc_type_str
+returns the name for specified relocation type.
+.Pp
+Argument
+.Ar mach
+specifies the machine (architecture) type.
+Argument
+.Ar type
+specifies the relocation value.
+.Sh RETURN VALUES
+Function
+.Fn elftc_program_version
+returns a pointer to a string constant, or to an internal character buffer
+if the relocation type is unknown.
+.Sh EXAMPLES
+To print ARM relocation type 7, use:
+.Bd -literal -offset indent
+#include <sys/types.h>
+#include <libelftc.h>
+#include <stdio.h>
+
+(void) printf("%s\en", elftc_reloc_type_str(EM_ARM, 7));
+.Ed
+.Sh ERRORS
+Function
+.Fn elftc_reloc_type_str
+always succeeds.

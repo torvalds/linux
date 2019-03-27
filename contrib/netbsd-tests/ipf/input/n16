@@ -1,0 +1,40 @@
+[in,vlan0]
+4520 0068 17e4 0000 6b11 3539 c05b ac33 45f8 4fc1
+1194 94f8 0054 0000
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+
+[out,vlan2]
+4520 0068 17e4 0000 6a11 ccba c05b ac33 ac1f 5318
+1194 07dd 0054 0000
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+
+[in,vlan2]
+4500 0084 ee0f 0000 8001 e0a2 ac1f 5318 c05b ac33
+0303 4ca1 0000 0000
+4520 0068 17e4 0000 6a11 ccba c05b ac33 ac1f 5318
+1194 07dd 0054 0000
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+
+[out,vlan0]
+4500 0084 ee0f 0000 8001 e0a2 ac1f 5318 c05b ac33
+0303 4ca1 0000 0000
+4520 0068 17e4 0000 6a11 ccba c05b ac33 ac1f 5318
+1194 07dd 0054 0000
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+a5a5 a5a5 a5a5 a5a5 a5a5 a5a5
+

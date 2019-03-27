@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: local
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="local"
+desc="Run /etc/rc.local and /etc/shutdown.local"
+start_cmd="local_start"
+stop_cmd="local_stop"
+
+local_start()
+{
+	if [ -f /etc/rc.local ]; then
+		echo -n 'Starting local daemons:'
+		. /etc/rc.local
+		echo '.'
+	fi
+}
+
+local_stop()
+{
+	if [ -f /etc/rc.shutdown.local ]; then
+		echo -n 'Shutting down local daemons:'
+		. /etc/rc.shutdown.local
+		echo '.'
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

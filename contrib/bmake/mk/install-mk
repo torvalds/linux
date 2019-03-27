@@ -1,0 +1,185 @@
+:
+# NAME:
+#	install-mk - install mk files
+#
+# SYNOPSIS:
+#	install-mk [options] [var=val] [dest]
+#
+# DESCRIPTION:
+#	This tool installs mk files in a semi-intelligent manner into
+#	"dest".
+#
+#	Options:
+#
+#	-n	just say what we want to do, but don't touch anything.
+#
+#	-f	use -f when copying sys,mk.
+#
+#	-v	be verbose
+#
+#	-q	be quiet
+#
+#	-m "mode"
+#		Use "mode" for installed files (444).
+#
+#	-o "owner"
+#		Use "owner" for installed files.
+#
+#	-g "group"
+#		Use "group" for installed files.
+#
+#	var=val
+#		Set "var" to "val".  See below.
+#
+#	All our *.mk files are copied to "dest" with appropriate
+#	ownership and permissions.
+#	
+#	By default if a sys.mk can be found in a standard location
+#	(that bmake will find) then no sys.mk will be put in "dest".
+#
+#	SKIP_SYS_MK:
+#		If set, we will avoid installing our 'sys.mk'
+#		This is probably a bad idea.
+#
+#	SKIP_BSD_MK:
+#		If set, we will skip making bsd.*.mk links to *.mk
+#
+#	sys.mk:
+#
+#	By default (and provided we are not installing to the system
+#	mk dir - '/usr/share/mk') we install our own 'sys.mk' which
+#	includes a sys specific file, or a generic one.
+#
+#
+# AUTHOR:
+#       Simon J. Gerraty <sjg@crufty.net>
+
+# RCSid:
+#	$Id: install-mk,v 1.160 2018/09/20 00:07:19 sjg Exp $
+#
+#	@(#) Copyright (c) 1994 Simon J. Gerraty
+#
+#	This file is provided in the hope that it will
+#	be of use.  There is absolutely NO WARRANTY.
+#	Permission to copy, redistribute or otherwise
+#	use this file is hereby granted provided that 
+#	the above copyright notice and this notice are
+#	left intact. 
+#      
+#	Please send copies of changes and bug-fixes to:
+#	sjg@crufty.net
+#
+
+MK_VERSION=20180919
+OWNER=
+GROUP=
+MODE=444
+BINMODE=555
+ECHO=:
+SKIP=
+cp_f=-f
+
+while :
+do
+	case "$1" in
+	*=*) eval "$1"; shift;;
+	+f) cp_f=; shift;;
+	-f) cp_f=-f; shift;;
+	-m) MODE=$2; shift 2;;
+	-o) OWNER=$2; shift 2;;
+	-g) GROUP=$2; shift 2;;
+	-v) ECHO=echo; shift;;
+	-q) ECHO=:; shift;;
+	-n) ECHO=echo SKIP=:; shift;;
+	--) shift; break;;
+	*) break;;
+	esac
+done
+
+case $# in
+0)	echo "$0 [options] <destination> [<os>]"
+	echo "eg."
+	echo "$0 -o bin -g bin -m 444 /usr/local/share/mk"
+	exit 1
+	;;
+esac
+dest=$1
+os=${2:-`uname`}
+osrel=${3:-`uname -r`}
+
+Do() {
+	$ECHO "$@"
+	$SKIP "$@"
+}
+
+Error() {
+	echo "ERROR: $@" >&2
+	exit 1
+}
+
+Warning() {
+	echo "WARNING: $@" >&2
+}
+
+[ "$FORCE_SYS_MK" ] && Warning "ignoring: FORCE_{BSD,SYS}_MK (no longer supported)"
+
+SYS_MK_DIR=${SYS_MK_DIR:-/usr/share/mk}
+SYS_MK=${SYS_MK:-$SYS_MK_DIR/sys.mk}
+
+realpath() {
+	[ -d $1 ] && cd $1 && 'pwd' && return
+	echo $1
+}
+
+if [ -s $SYS_MK -a -d $dest ]; then
+	# if this is a BSD system we don't want to touch $SYS_MK
+	dest=`realpath $dest`
+	sys_mk_dir=`realpath $SYS_MK_DIR`
+	if [ $dest = $sys_mk_dir ]; then
+		case "$os" in
+		*BSD*)	SKIP_SYS_MK=: 
+			SKIP_BSD_MK=:
+			;;
+		*)	# could be fake?
+			if [ ! -d $dest/sys -a ! -s $dest/Generic.sys.mk ]; then
+				SKIP_SYS_MK=: # play safe
+				SKIP_BSD_MK=:
+			fi
+			;;
+		esac
+	fi
+fi
+
+[ -d $dest/sys ] || Do mkdir -p $dest/sys
+[ -d $dest/sys ] || Do mkdir $dest/sys || exit 1
+[ -z "$SKIP" ] && dest=`realpath $dest`
+
+cd `dirname $0`
+mksrc=`'pwd'`
+if [ $mksrc = $dest ]; then
+	SKIP_MKFILES=:
+else
+	# we do not install the examples
+	mk_files=`grep '^[a-z].*\.mk' FILES | egrep -v '(examples/|^sys\.mk|sys/)'`
+	mk_scripts=`egrep '^[a-z].*\.(sh|py)' FILES | egrep -v '/'`
+	sys_mk_files=`grep 'sys/.*\.mk' FILES`
+	SKIP_MKFILES=
+	[ -z "$SKIP_SYS_MK" ] && mk_files="sys.mk $mk_files"
+fi
+$SKIP_MKFILES Do cp $cp_f $mk_files $dest
+$SKIP_MKFILES Do cp $cp_f $sys_mk_files $dest/sys
+$SKIP_MKFILES Do cp $cp_f $mk_scripts $dest
+$SKIP cd $dest
+$SKIP_MKFILES Do chmod $MODE $mk_files $sys_mk_files
+$SKIP_MKFILES Do chmod $BINMODE $mk_scripts
+[ "$GROUP" ] && $SKIP_MKFILES Do chgrp $GROUP $mk_files $sys_mk_files
+[ "$OWNER" ] && $SKIP_MKFILES Do chown $OWNER $mk_files $sys_mk_files
+# if this is a BSD system the bsd.*.mk should exist and be used.
+if [ -z "$SKIP_BSD_MK" ]; then
+	for f in dep doc files inc init lib links man nls obj own prog subdir
+	do
+		b=bsd.$f.mk
+		[ -s $b ] || Do ln -s $f.mk $b
+	done
+fi
+exit 0

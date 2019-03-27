@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+.if ${TARGET_ARCH:Marm*eb} != ""
+NATIVE_EMULATION= armelfb_fbsd
+.else
+NATIVE_EMULATION= armelf_fbsd
+.endif
+
+SRCS+=		e${NATIVE_EMULATION}.c
+CLEANFILES+=	e${NATIVE_EMULATION}.c
+e${NATIVE_EMULATION}.c: ${.CURDIR}/${NATIVE_EMULATION}.sh emultempl/elf32.em \
+    scripttempl/elf.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSEARCHPATH} \
+	    ${TOOLS_PREFIX}/usr \
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    ${NATIVE_EMULATION} "" no ${NATIVE_EMULATION} ${TARGET_TUPLE} \
+	    ${.CURDIR}/${NATIVE_EMULATION}.sh

@@ -1,0 +1,4 @@
+This is an example of how to determine the version of FreeBSD that
+a program was compiled on, and maybe running on (if 2.0 or better).
+
+This program is in the public domain.

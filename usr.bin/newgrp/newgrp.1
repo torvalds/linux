@@ -1,0 +1,104 @@
+.\" Copyright (c) 2002 Tim J. Robbins.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 2013
+.Dt NEWGRP 1
+.Os
+.Sh NAME
+.Nm newgrp
+.Nd change to a new group
+.Sh SYNOPSIS
+.Nm
+.Op Fl l
+.Op Ar group
+.Sh DESCRIPTION
+The
+.Nm
+utility creates a new shell execution environment with modified
+real and effective group IDs.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl l
+Simulate a full login.
+The environment and umask are set to what would be expected if the user
+actually logged in again.
+.El
+.Pp
+If the
+.Ar group
+operand is present, a new shell is started with the specified effective
+and real group IDs.
+The user will be prompted for a password if they are not a member of the
+specified group.
+.Pp
+Otherwise, the real, effective and supplementary group IDs are restored to
+those from the current user's password database entry.
+.Sh EXIT STATUS
+The
+.Nm
+utility attempts to start the shell regardless of whether group IDs
+were successfully changed.
+.Pp
+If an error occurs and the shell cannot be started,
+.Nm
+exits >0.
+Otherwise, the exit status of
+.Nm
+is the exit status of the shell.
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr groups 1 ,
+.Xr login 1 ,
+.Xr sh 1 ,
+.Xr su 1 ,
+.Xr umask 1 ,
+.Xr group 5 ,
+.Xr passwd 5 ,
+.Xr environ 7
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v6 .
+.Sh BUGS
+For security reasons, the
+.Nm
+utility is normally installed without the setuid bit.
+To enable it, run the following command:
+.Bd -literal -offset indent
+chmod u+s /usr/bin/newgrp
+.Ed
+.Pp
+Group passwords are inherently insecure as there is no way to stop
+users obtaining the password hash from the group database.
+Their use is discouraged.
+Instead, users should simply be added to the necessary groups.

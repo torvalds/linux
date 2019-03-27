@@ -1,0 +1,81 @@
+# $FreeBSD$
+
+machine	arm
+
+cpu	CPU_ARM9E
+
+files	"../mv/files.mv"
+files	"../mv/discovery/files.db78xxx"
+files	"../mv/kirkwood/files.kirkwood"
+files	"../mv/orion/files.db88f5xxx"
+files	"../mv/orion/files.ts7800"
+
+makeoptions	CONF_CFLAGS+="-march=armv5te"
+makeoptions	LDFLAGS="-zmuldefs"
+makeoptions	KERNPHYSADDR=0x00000000
+
+options 	FDT
+
+options 	SOC_MV_DISCOVERY
+options 	SOC_MV_KIRKWOOD
+options 	SOC_MV_ORION
+
+options 	ARM_MANY_BOARD
+device		nand
+
+# IIC
+device		twsi
+
+nooptions	SMP
+nooptions	MAXCPU
+
+nooptions	COMPAT_FREEBSD4
+nooptions	COMPAT_FREEBSD5
+nooptions	COMPAT_FREEBSD6
+nooptions	COMPAT_FREEBSD7
+nooptions	COMPAT_FREEBSD9
+nooption	PPC_PROBE_CHIPSET
+
+nodevice	fdc
+nodevice	sym
+nodevice	ukbd
+
+nodevice	sc
+nodevice	blank_saver
+nodevice	daemon_saver
+nodevice	dragon_saver
+nodevice	fade_saver
+nodevice	fire_saver
+nodevice	green_saver
+nodevice	logo_saver
+nodevice	rain_saver
+nodevice	snake_saver
+nodevice	star_saver
+nodevice	warp_saver
+
+nodevice	ccr
+nodevice	cxgbe
+nodevice	cxgbev
+nodevice	snd_cmi
+
+#
+# Enable the kernel DTrace hooks which are required to load the DTrace
+# kernel modules.
+#
+options 	KDTRACE_HOOKS
+
+# DTrace core
+# NOTE: introduces CDDL-licensed components into the kernel
+#device		dtrace
+
+# DTrace modules
+#device		dtrace_profile
+#device		dtrace_sdt
+#device		dtrace_fbt
+#device		dtrace_systrace
+#device		dtrace_prototype
+#device		dtnfscl
+#device		dtmalloc
+
+# Alternatively include all the DTrace modules
+#device		dtraceall

@@ -1,0 +1,276 @@
+.\" Copyright (c) 2000 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 13, 2012
+.Dt NG_ONE2MANY 4
+.Os
+.Sh NAME
+.Nm ng_one2many
+.Nd packet multiplexing netgraph node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph/ng_one2many.h
+.Sh DESCRIPTION
+The
+.Nm one2many
+provides a simple mechanism for routing packets over several links
+in a one-to-many (and in the reverse direction, many-to-one) fashion.
+There is a single hook named
+.Dv one ,
+and multiple hooks named
+.Dv many0 ,
+.Dv many1 ,
+etc.
+Packets received on any of the
+.Dv many
+hooks are forwarded out the
+.Dv one
+hook.
+Packets received on the
+.Dv one
+hook are forwarded out one or more of the
+.Dv many
+hooks; which hook(s) is determined by the node's configured
+transmit algorithm.
+Packets are not altered in any way.
+.Pp
+Each of the connected many links may be considered to be up or down.
+Packets are never delivered out a many hook that is down.
+How a link is determined to be up or down depends on the node's
+configured link failure detection algorithm.
+.Pp
+Before an interface or link can be plumbed into a group, its status
+must be marked as being
+.Dq up .
+This is normally setup during the initial boot stages by
+.Xr rc.conf 5 .
+It is also possible to change an interface's status to
+.Dq up
+by using the
+.Xr ifconfig 8
+utility.
+.Sh TRANSMIT ALGORITHMS
+.Bl -tag -width foo
+.It Dv NG_ONE2MANY_XMIT_ROUNDROBIN
+Packets are delivered out the many hooks in sequential order.
+Each packet goes out on a different
+.Dv many
+hook.
+.It Dv NG_ONE2MANY_XMIT_ALL
+Packets are delivered out all the
+.Dv many
+hooks.
+Each packet goes out each
+.Dv many
+hook.
+.It Dv NG_ONE2MANY_XMIT_FAILOVER
+Packets are delivered out the first active
+.Dv many
+hook.
+.El
+.Pp
+In the future other algorithms may be added as well.
+.Sh LINK FAILURE DETECTION
+The node distinguishes between active and failed links.
+Data is sent only to active links.
+The following link failure detection algorithms are available:
+.Bl -tag -width foo
+.It Dv NG_ONE2MANY_FAIL_MANUAL
+The node is explicitly told which of the links are up via the
+.Dv NGM_ONE2MANY_SET_CONFIG
+control message (see below).
+Newly connected links are down until configured otherwise.
+.It Dv NG_ONE2MANY_FAIL_NOTIFY
+The node listens to flow control message from
+.Va many
+hooks, and considers link failed if
+.Dv NGM_LINK_IS_DOWN
+is received.
+If the
+.Dv NGM_LINK_IS_UP
+message is received, node considers link active.
+.El
+.Pp
+In the future other algorithms may be added as well.
+.Pp
+When all links are considered failed, node sends the
+.Dv NGM_LINK_IS_DOWN
+message towards the
+.Va one
+hook.
+When at least one link comes up, node sends the
+.Dv NGM_LINK_IS_UP
+message towards the
+.Va one
+hook.
+.Sh HOOKS
+This node type supports up to
+.Dv NG_ONE2MANY_MAX_LINKS
+hooks named
+.Dv many0 ,
+.Dv many1 ,
+etc.,
+plus a single hook named
+.Dv one .
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the
+following:
+.Bl -tag -width foo
+.It Dv NGM_ONE2MANY_SET_CONFIG Pq Ic setconfig
+Sets the node configuration using a
+.Dv "struct ng_one2many_link_config"
+as the control message argument:
+.Bd -literal
+/* Node configuration structure */
+struct ng_one2many_config {
+  uint32_t    xmitAlg;        /* how to distribute packets */
+  uint32_t    failAlg;        /* how to detect link failure */
+  u_char      enabledLinks[NG_ONE2MANY_MAX_LINKS];
+};
+.Ed
+.Pp
+Currently, the valid settings for the
+.Dv xmitAlg
+field are
+.Dv NG_ONE2MANY_XMIT_ROUNDROBIN
+(default) or
+.Dv NG_ONE2MANY_XMIT_ALL .
+The valid settings for
+.Dv failAlg
+are
+.Dv NG_ONE2MANY_FAIL_MANUAL
+(default) or
+.Dv NG_ONE2MANY_FAIL_NOTIFY .
+.It Dv NGM_ONE2MANY_GET_CONFIG Pq Ic getconfig
+Returns the current node configuration in a
+.Dv "struct ng_one2many_link_config" .
+.It Dv NGM_ONE2MANY_GET_STATS Pq Ic getstats
+This command takes a 32 bit link number as an argument and
+returns a
+.Dv "struct ng_one2many_link_stats"
+containing statistics for the corresponding
+.Dv many
+link, which may or may not be currently connected:
+.Bd -literal
+/* Statistics structure (one for each link) */
+struct ng_one2many_link_stats {
+  uint64_t   recvOctets;     /* total octets rec'd on link */
+  uint64_t   recvPackets;    /* total pkts rec'd on link */
+  uint64_t   xmitOctets;     /* total octets xmit'd on link */
+  uint64_t   xmitPackets;    /* total pkts xmit'd on link */
+  uint64_t   memoryFailures; /* times couldn't get mem or mbuf */
+};
+.Ed
+.Pp
+To access statistics for the
+.Dv one
+link, use the link number
+.Dv -1 .
+.It Dv NGM_ONE2MANY_CLR_STATS Pq Ic clrstats
+This command takes a 32 bit link number as an argument and
+clears the statistics for that link.
+.It Dv NGM_ONE2MANY_GETCLR_STATS Pq Ic getclrstats
+Same as
+.Dv NGM_ONE2MANY_GET_STATS ,
+but also atomically clears the statistics for the link as well.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh EXAMPLES
+The following commands will set up Ethernet interfaces
+.Dv fxp0
+to deliver packets alternating over the physical interfaces
+corresponding to networking interfaces
+.Dv fxp0
+through
+.Dv fxp3 :
+.Bd -literal
+  # Plumb nodes together
+
+  ngctl mkpeer fxp0: one2many upper one
+  ngctl connect fxp0: fxp0:upper lower many0
+  ngctl connect fxp1: fxp0:upper lower many1
+  ngctl connect fxp2: fxp0:upper lower many2
+  ngctl connect fxp3: fxp0:upper lower many3
+
+  # Allow fxp1 through fxp3 to xmit/recv fxp0 frames
+
+  ngctl msg fxp1: setpromisc 1
+  ngctl msg fxp2: setpromisc 1
+  ngctl msg fxp3: setpromisc 1
+  ngctl msg fxp1: setautosrc 0
+  ngctl msg fxp2: setautosrc 0
+  ngctl msg fxp3: setautosrc 0
+
+  # Configure all four links as up
+
+  ngctl msg fxp0:upper \\
+    setconfig "{ xmitAlg=1 failAlg=1 enabledLinks=[ 1 1 1 1 ] }"
+
+  # Bring up interface
+
+  ifconfig fxp0 192.168.1.1 netmask 0xfffffffc
+.Ed
+.Pp
+With a similar setup on a peer machine (using the address
+192.168.1.2), a point-to-point
+Ethernet connection with four times normal bandwidth is
+achieved.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_bridge 4 ,
+.Xr ng_ether 4 ,
+.Xr ng_hub 4 ,
+.Xr ifconfig 8 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm one2many
+netgraph node (with round-robin algorithm) was written by
+.An Archie Cobbs Aq Mt archie@FreeBSD.org .
+The all algorithm was added by
+.An Rogier R. Mulhuijzen Aq Mt drwilco@drwilco.net .
+.Sh BUGS
+More transmit and link failure algorithms should be supported.
+A good candidate is Cisco's Etherchannel.

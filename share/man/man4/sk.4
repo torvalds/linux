@@ -1,0 +1,241 @@
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 29, 2012
+.Dt SK 4
+.Os
+.Sh NAME
+.Nm sk
+.Nd "SysKonnect SK-984x and SK-982x PCI Gigabit Ethernet adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device sk"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_sk_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the SysKonnect SK-984x and SK-982x series PCI
+Gigabit Ethernet adapters.
+.Pp
+The SysKonnect adapters consist of two main components: the XaQti Corp.
+XMAC II gigabit MAC and the SysKonnect GEnesis controller ASIC.
+The
+XMAC provides the gigabit MAC and PHY support while the GEnesis
+provides an interface to the PCI bus, DMA support, packet buffering
+and arbitration.
+The GEnesis can control up to two XMACs simultaneously,
+allowing dual-port NIC configurations.
+.Pp
+The SK-982x 1000baseT adapters also include a Broadcom BCM5400 1000baseTX
+PHY which is used in place of the XMAC's internal PHY.
+The Broadcom PHY is connected to the XMAC via its GMII port.
+.Pp
+The
+.Nm
+driver configures dual port SysKonnect adapters such that each XMAC
+is treated as a separate logical network interface.
+Both ports can
+operate independently of each other and can be connected to separate
+networks.
+The SysKonnect driver software currently only uses the
+second port on dual port adapters for failover purposes: if the link
+on the primary port fails, the SysKonnect driver will automatically
+switch traffic onto the second port.
+.Pp
+Also supported is the Marvell Semiconductor 88E100* gigabit PHY.
+.Pp
+The XaQti XMAC II supports full and half duplex operation with
+autonegotiation.
+The XMAC also supports unlimited frame sizes.
+Support for jumbo frames is provided via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit jumbo frames.
+Using jumbo frames can greatly improve performance for certain tasks,
+such as file transfers and data streaming.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the
+.Pa /etc/rc.conf
+file.
+.It 1000baseTX
+Set 1000baseTX operation over twisted pair.
+This is only available
+for SK-982x series adapters with 1000baseT ports.
+Both
+.Ar full-duplex
+and
+.Ar half-duplex
+modes are supported.
+.It 1000baseSX
+Set 1000Mbps (Gigabit Ethernet) operation.
+Both
+.Ar full-duplex
+and
+.Ar half-duplex
+modes are supported.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It full-duplex
+Force full duplex operation.
+.It half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+Adapters supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+3Com 3C940 single port, 1000baseT adapter
+.It
+3Com 3C2000-T single port, 1000baseT adapter
+.It
+Belkin F5D5005 single port, 1000baseT adapter
+.It
+D-Link DGE-530T single port, 1000baseT adapter
+.It
+Linksys (revision 2) single port, 1000baseT adapter
+.It
+SK-9521 SK-NET GE-T single port, 1000baseT adapter
+.It
+SK-9821 SK-NET GE-T single port, 1000baseT adapter
+.It
+SK-9822 SK-NET GE-T dual port, 1000baseT adapter
+.It
+SK-9841 SK-NET GE-LX single port, single mode fiber adapter
+.It
+SK-9842 SK-NET GE-LX dual port, single mode fiber adapter
+.It
+SK-9843 SK-NET GE-SX single port, multimode fiber adapter
+.It
+SK-9844 SK-NET GE-SX dual port, multimode fiber adapter
+.It
+SMC 9452TX single port, 1000baseT adapter
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width xxxxxx
+.It Va hw.skc.jumbo_disable
+Disable jumbo frame support.
+Systems with less memory can set it to a non-zero value to save memory.
+The default value is 0.
+.El
+.Sh SYSCTL VARIABLES
+The following variable is available as both
+.Xr sysctl 8
+variable and
+.Xr loader 8
+tunable:
+.Bl -tag -width xxxxxx
+.It Va dev.skc.%d.int_mod
+This variable controls interrupt moderation.
+The accepted range is 10 to 10000.
+The default value is 100 microseconds.
+The interface has to be brought down and up again before a change takes effect.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "sk%d: couldn't map memory"
+A fatal initialization error has occurred.
+.It "sk%d: couldn't map ports"
+A fatal initialization error has occurred.
+.It "sk%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "sk%d: no memory for softc struct!"
+The driver failed to allocate memory for per-device instance information
+during initialization.
+.It "sk%d: failed to enable memory mapping!"
+The driver failed to initialize PCI shared memory mapping.
+This might
+happen if the card is not in a bus-master slot.
+.It "sk%d: no memory for jumbo buffers!"
+The driver failed to allocate memory for jumbo frames during
+initialization.
+.It "sk%d: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Rs
+.%T XaQti XMAC II datasheet
+.%U http://people.freebsd.org/~wpaul/SysKonnect/xmacii_datasheet_rev_c_9-29.pdf
+.Re
+.Rs
+.%T SysKonnect GEnesis programming manual
+.%U http://www.syskonnect.com
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu .

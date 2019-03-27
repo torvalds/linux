@@ -1,0 +1,131 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ferror.3	8.2 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\"
+.Dd January 28, 2009
+.Dt FERROR 3
+.Os
+.Sh NAME
+.Nm clearerr ,
+.Nm clearerr_unlocked ,
+.Nm feof ,
+.Nm feof_unlocked ,
+.Nm ferror ,
+.Nm ferror_unlocked ,
+.Nm fileno ,
+.Nm fileno_unlocked
+.Nd check and reset stream status
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Ft void
+.Fn clearerr "FILE *stream"
+.Ft void
+.Fn clearerr_unlocked "FILE *stream"
+.Ft int
+.Fn feof "FILE *stream"
+.Ft int
+.Fn feof_unlocked "FILE *stream"
+.Ft int
+.Fn ferror "FILE *stream"
+.Ft int
+.Fn ferror_unlocked "FILE *stream"
+.Ft int
+.Fn fileno "FILE *stream"
+.Ft int
+.Fn fileno_unlocked "FILE *stream"
+.Sh DESCRIPTION
+The function
+.Fn clearerr
+clears the end-of-file and error indicators for the stream pointed
+to by
+.Fa stream .
+.Pp
+The function
+.Fn feof
+tests the end-of-file indicator for the stream pointed to by
+.Fa stream ,
+returning non-zero if it is set.
+The end-of-file indicator may be cleared by explicitly calling
+.Fn clearerr ,
+or as a side-effect of other operations, e.g.\&
+.Fn fseek .
+.Pp
+The function
+.Fn ferror
+tests the error indicator for the stream pointed to by
+.Fa stream ,
+returning non-zero if it is set.
+.Pp
+The function
+.Fn fileno
+examines the argument
+.Fa stream
+and returns its integer descriptor.
+.Pp
+The
+.Fn clearerr_unlocked ,
+.Fn feof_unlocked ,
+.Fn ferror_unlocked ,
+and
+.Fn fileno_unlocked
+functions are equivalent to
+.Fn clearerr ,
+.Fn feof ,
+.Fn ferror ,
+and
+.Fn fileno
+respectively, except that the caller is responsible for locking the stream
+with
+.Xr flockfile 3
+before calling them.
+These functions may be used to avoid the overhead of locking the stream
+and to prevent races when multiple threads are operating on the same stream.
+.Sh ERRORS
+These functions should not fail and do not set the external
+variable
+.Va errno .
+.Sh SEE ALSO
+.Xr open 2 ,
+.Xr fdopen 3 ,
+.Xr flockfile 3 ,
+.Xr stdio 3
+.Sh STANDARDS
+The functions
+.Fn clearerr ,
+.Fn feof ,
+and
+.Fn ferror
+conform to
+.St -isoC .

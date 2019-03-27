@@ -1,0 +1,79 @@
+=pod
+
+=head1 NAME
+
+BN_CTX_new, BN_CTX_secure_new, BN_CTX_free - allocate and free BN_CTX structures
+
+=head1 SYNOPSIS
+
+ #include <openssl/bn.h>
+
+ BN_CTX *BN_CTX_new(void);
+
+ BN_CTX *BN_CTX_secure_new(void);
+
+ void BN_CTX_free(BN_CTX *c);
+
+=head1 DESCRIPTION
+
+A B<BN_CTX> is a structure that holds B<BIGNUM> temporary variables used by
+library functions. Since dynamic memory allocation to create B<BIGNUM>s
+is rather expensive when used in conjunction with repeated subroutine
+calls, the B<BN_CTX> structure is used.
+
+BN_CTX_new() allocates and initializes a B<BN_CTX> structure.
+BN_CTX_secure_new() allocates and initializes a B<BN_CTX> structure
+but uses the secure heap (see L<CRYPTO_secure_malloc(3)>) to hold the
+B<BIGNUM>s.
+
+BN_CTX_free() frees the components of the B<BN_CTX> and the structure itself.
+Since BN_CTX_start() is required in order to obtain B<BIGNUM>s from the
+B<BN_CTX>, in most cases BN_CTX_end() must be called before the B<BN_CTX> may
+be freed by BN_CTX_free().  If B<c> is NULL, nothing is done.
+
+A given B<BN_CTX> must only be used by a single thread of execution.  No
+locking is performed, and the internal pool allocator will not properly handle
+multiple threads of execution.
+
+=head1 RETURN VALUES
+
+BN_CTX_new() and BN_CTX_secure_new() return a pointer to the B<BN_CTX>.
+If the allocation fails,
+they return B<NULL> and sets an error code that can be obtained by
+L<ERR_get_error(3)>.
+
+BN_CTX_free() has no return values.
+
+=head1 REMOVED FUNCTIONALITY
+
+ void BN_CTX_init(BN_CTX *c);
+
+BN_CTX_init() is no longer available as of OpenSSL 1.1.0. Applications should
+replace use of BN_CTX_init with BN_CTX_new instead:
+
+ BN_CTX *ctx;
+ ctx = BN_CTX_new();
+ if (!ctx)
+     /* error */
+ ...
+ BN_CTX_free(ctx);
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<BN_add(3)>,
+L<BN_CTX_start(3)>
+
+=head1 HISTORY
+
+BN_CTX_init() was removed in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

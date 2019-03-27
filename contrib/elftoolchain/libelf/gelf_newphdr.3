@@ -1,0 +1,142 @@
+.\" Copyright (c) 2006-2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: gelf_newphdr.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd October 22, 2007
+.Dt GELF_NEWPHDR 3
+.Os
+.Sh NAME
+.Nm elf32_newphdr ,
+.Nm elf64_newphdr ,
+.Nm gelf_newphdr
+.Nd allocate an ELF program header table
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft "Elf32_Phdr *"
+.Fn elf32_newphdr "Elf *elf" "size_t count"
+.Ft "Elf64_Phdr *"
+.Fn elf64_newphdr "Elf *elf" "size_t count"
+.In gelf.h
+.Ft "void *"
+.Fn gelf_newphdr "Elf *elf" "size_t count"
+.Sh DESCRIPTION
+These functions allocate an ELF Program Header table
+for an ELF descriptor.
+.Vt Elf32_Phdr
+and
+.Vt Elf64_Phdr
+descriptors are described further in
+.Xr elf 5 .
+.Pp
+Functions
+.Fn elf32_newphdr
+and
+.Fn elf64_newphdr
+allocate a table of
+.Ar count
+.Vt Elf32_Phdr
+and
+.Vt Elf64_Phdr
+descriptors respectively,
+discarding any existing program header table
+already present in the ELF descriptor
+.Ar elf .
+A value of zero for argument
+.Ar count
+may be used to delete an existing program header table
+from an ELF descriptor.
+.Pp
+Function
+.Fn gelf_newphdr
+will return a table of
+.Vt Elf32_Phdr
+or
+.Vt Elf64_Phdr
+with
+.Ar count
+elements depending on the ELF class of ELF descriptor
+.Ar elf .
+.Pp
+The functions set the
+.Dv ELF_F_DIRTY
+flag on the program header table.
+All members of the returned array of Phdr structures
+will be initialized to zero.
+.Pp
+After a successful call to these functions, the pointer returned
+by a prior call to
+.Fn elf32_getphdr
+or
+.Fn elf64_getphdr
+on the same descriptor
+.Ar elf
+will no longer be valid.
+.Sh RETURN VALUES
+The functions a valid pointer if successful, or NULL in case an error
+was encountered.
+.Sh COMPATIBILITY
+The
+.Fn gelf_newphdr
+function uses a type of
+.Ft "void *"
+for its returned value.
+This differs from some other implementations of the ELF(3) API, which use an
+.Ft "unsigned long"
+return type.
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was NULL.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was not a descriptor for an ELF object.
+.It Bq Er ELF_E_CLASS
+ELF descriptor
+.Ar elf
+was of an unrecognized class.
+.It Bq Er ELF_E_RESOURCE
+An out of memory condition was detected.
+.It Bq Er ELF_E_SEQUENCE
+An executable header was not allocated for ELF descriptor
+.Ar elf
+before using these APIs.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf32_getphdr 3 ,
+.Xr elf32_newehdr 3 ,
+.Xr elf64_getphdr 3 ,
+.Xr elf64_newehdr 3 ,
+.Xr elf_flagphdr 3 ,
+.Xr elf_getphnum 3 ,
+.Xr gelf 3 ,
+.Xr gelf_getphdr 3 ,
+.Xr gelf_newehdr 3 ,
+.Xr elf 5

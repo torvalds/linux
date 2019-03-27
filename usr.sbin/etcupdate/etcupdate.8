@@ -1,0 +1,901 @@
+.\" Copyright (c) 2010-2013 Hudson River Trading LLC
+.\" Written by: John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 27, 2018
+.Dt ETCUPDATE 8
+.Os
+.Sh NAME
+.Nm etcupdate
+.Nd "manage updates to system files not updated by installworld"
+.Sh SYNOPSIS
+.Nm
+.Op Fl npBF
+.Op Fl d Ar workdir
+.Op Fl r | Fl s Ar source | Fl t Ar tarball
+.Op Fl A Ar patterns
+.Op Fl D Ar destdir
+.Op Fl I Ar patterns
+.Op Fl L Ar logfile
+.Op Fl M Ar options
+.Nm
+.Cm build
+.Op Fl B
+.Op Fl d Ar workdir
+.Op Fl s Ar source
+.Op Fl L Ar logfile
+.Op Fl M Ar options
+.Ar tarball
+.Nm
+.Cm diff
+.Op Fl d Ar workdir
+.Op Fl D Ar destdir
+.Op Fl I Ar patterns
+.Op Fl L Ar logfile
+.Nm
+.Cm extract
+.Op Fl B
+.Op Fl d Ar workdir
+.Op Fl s Ar source | Fl t Ar tarball
+.Op Fl L Ar logfile
+.Op Fl M Ar options
+.Nm
+.Cm resolve
+.Op Fl p
+.Op Fl d Ar workdir
+.Op Fl D Ar destdir
+.Op Fl L Ar logfile
+.Nm
+.Cm status
+.Op Fl d Ar workdir
+.Op Fl D Ar destdir
+.Sh DESCRIPTION
+The
+.Nm
+utility is a tool for managing updates to files that are not updated as
+part of
+.Sq make installworld
+such as files in
+.Pa /etc .
+It manages updates by doing a three-way merge of changes made to these
+files against the local versions.
+It is also designed to minimize the amount of user intervention with
+the goal of simplifying upgrades for clusters of machines.
+.Pp
+To perform a three-way merge,
+.Nm
+keeps copies of the current and previous versions of files that it manages.
+These copies are stored in two trees known as the
+.Dq current
+and
+.Dq previous
+trees.
+During a merge,
+.Nm
+compares the
+.Dq current
+and
+.Dq previous
+copies of each file to determine which changes need to be merged into the
+local version of each file.
+If a file can be updated without generating a conflict,
+.Nm
+will update the file automatically.
+If the local changes to a file conflict with the changes made to a file in
+the source tree,
+then a merge conflict is generated.
+The conflict must be resolved after the merge has finished.
+The
+.Nm
+utility will not perform a new merge until all conflicts from an earlier
+merge are resolved.
+.Sh MODES
+The
+.Nm
+utility supports several modes of operation.
+The mode is specified via an optional command argument.
+If present, the command must be the first argument on the command line.
+If a command is not specified, the default mode is used.
+.Ss Default Mode
+The default mode merges changes from the source tree to the destination
+directory.
+First,
+it updates the
+.Dq current
+and
+.Dq previous
+trees.
+Next,
+it compares the two trees merging changes into the destination directory.
+Finally,
+it displays warnings for any conditions it could not handle automatically.
+.Pp
+If the
+.Fl r
+option is not specified,
+then the first step taken is to update the
+.Dq current
+and
+.Dq previous
+trees.
+If a
+.Dq current
+tree already exists,
+then that tree is saved as the
+.Dq previous
+tree.
+An older
+.Dq previous
+tree is removed if it exists.
+By default the new
+.Dq current
+tree is built from a source tree.
+However,
+if a tarball is specified via the
+.Fl t
+option,
+then the tree is extracted from that tarball instead.
+.Pp
+Next,
+.Nm
+compares the files in the
+.Dq current
+and
+.Dq previous
+trees.
+If a file was removed from the
+.Dq current
+tree,
+then it will be removed from the destination directory only if it
+does not have any local modifications.
+If a file was added to the
+.Dq current
+tree,
+then it will be copied to the destination directory only if it
+would not clobber an existing file.
+If a file is changed in the
+.Dq current
+tree,
+then
+.Nm
+will attempt to merge the changes into the version of the file in the
+destination directory.
+If the merge encounters conflicts,
+then a version of the file with conflict markers will be saved for
+future resolution.
+If the merge does not encounter conflicts,
+then the merged version of the file will be saved in the destination
+directory.
+If
+.Nm
+is not able to safely merge in changes to a file other than a merge conflict,
+it will generate a warning.
+.Pp
+For each file that is updated a line will be output with a leading character
+to indicate the action taken.
+The possible actions follow:
+.Pp
+.Bl -tag -width "A" -compact -offset indent
+.It A
+Added
+.It C
+Conflict
+.It D
+Deleted
+.It M
+Merged
+.It U
+Updated
+.El
+.Pp
+Finally,
+if any warnings were encountered they are displayed after the merge has
+completed.
+.Pp
+Note that for certain files
+.Nm
+will perform post-install actions any time that the file is updated.
+Specifically,
+.Xr pwd_mkdb 8
+is invoked if
+.Pa /etc/master.passwd
+is changed,
+.Xr cap_mkdb 1
+is invoked to update
+.Pa /etc/login.conf.db
+if
+.Pa /etc/login.conf
+is changed,
+.Xr newaliases 1
+is invoked if
+.Pa /etc/mail/aliases
+is changed,
+.Xr services_mkdb 8
+is invoked if
+.Pa /etc/services
+is changed,
+.Xr tzsetup 8
+is invoked if
+.Pa /etc/localtime
+is changed and if
+.Fa /var/db/zoneinfo
+exists,
+and
+.Pa /etc/rc.d/motd
+is invoked if
+.Pa /etc/motd
+is changed.
+One exception is that if
+.Pa /etc/mail/aliases
+is changed and the destination directory is not the default,
+then a warning will be issued instead.
+This is due to a limitation of the
+.Xr newaliases 1
+command.
+Similarly,
+if
+.Pa /etc/motd
+is changed and the destination directory is not the default,
+then
+.Pa /etc/rc.d/motd
+will not be executed due to a limitation of that script.
+In this case no warning is issued as the result of
+.Pa /etc/rc.d/motd
+is merely cosmetic and will be corrected on the next reboot.
+.Ss Build Mode
+The
+.Cm build
+mode is used to build a tarball that contains a snapshot of a
+.Dq current
+tree.
+This tarball can be used by the default and extract modes.
+Using a tarball can allow
+.Nm
+to perform a merge without requiring a source tree that matches the
+currently installed world.
+The
+.Fa tarball
+argument specifies the name of the file to create.
+The file will be a
+.Xr tar 5
+file compressed with
+.Xr bzip2 1 .
+.Ss Diff Mode
+The
+.Cm diff
+mode compares the versions of files in the destination directory to the
+.Dq current
+tree and generates a unified format diff of the changes.
+This can be used to determine which files have been locally modified and how.
+Note that
+.Nm
+does not manage files that are not maintained in the source tree such as
+.Pa /etc/fstab
+and
+.Pa /etc/rc.conf .
+.Ss Extract Mode
+The
+.Cm extract
+mode generates a new
+.Dq current
+tree.
+Unlike the default mode,
+it does not save any existing
+.Dq current
+tree and does not modify any existing
+.Dq previous
+tree.
+The new
+.Dq current
+tree can either be built from a source tree or extracted from a tarball.
+.Ss Resolve Mode
+The
+.Cm resolve
+mode is used to resolve any conflicts encountered during a merge.
+In this mode,
+.Nm
+iterates over any existing conflicts prompting the user for actions to take
+on each conflicted file.
+For each file, the following actions are available:
+.Pp
+.Bl -tag -width "(tf) theirs-full" -compact
+.It (p)  postpone
+Ignore this conflict for now.
+.It (df) diff-full
+Show all changes made to the merged file as a unified diff.
+.It (e)  edit
+Change the merged file in an editor.
+.It (r)  resolved
+Install the merged version of the file into the destination directory.
+.It (mf) mine-full
+Use the version of the file in the destination directory and ignore any
+changes made to the file in the
+.Dq current
+tree.
+.It (tf) theirs-full
+Use the version of the file from the
+.Dq current
+tree and discard any local changes made to the file.
+.It (h)  help
+Display the list of commands.
+.El
+.Ss Status Mode
+The
+.Cm status
+mode shows a summary of the results of the most recent merge.
+First it lists any files for which there are unresolved conflicts.
+Next it lists any warnings generated during the last merge.
+If the last merge did not generate any conflicts or warnings,
+then nothing will be output.
+.Sh OPTIONS
+The following options are available.
+Note that most options do not apply to all modes.
+.Bl -tag -width ".Fl A Ar patterns"
+.It Fl A Ar patterns
+Always install the new version of any files that match any of the patterns
+listed in
+.Ar patterns .
+Each pattern is evaluated as an
+.Xr sh 1
+shell pattern.
+This option may be specified multiple times to specify multiple patterns.
+Multiple space-separated patterns may also be specified in a single
+option.
+Note that ignored files specified via the
+.Ev IGNORE_FILES
+variable or the
+.Fl I
+option will not be installed.
+.It Fl B
+Do not build generated files in a private object tree.
+Instead,
+reuse the generated files from a previously built object tree that matches
+the source tree.
+This can be useful to avoid gratuitous conflicts in
+.Xr sendmail 8
+configuration
+files when bootstrapping.
+It can also be useful for building a tarball that matches a specific
+world build.
+.It Fl D Ar destdir
+Specify an alternate destination directory as the target of a merge.
+This is analogous to the
+.Dv DESTDIR
+variable used with
+.Sq make installworld .
+The default destination directory is an empty string which results in
+merges updating
+.Pa /etc
+on the local machine.
+.It Fl d Ar workdir
+Specify an alternate directory to use as the work directory.
+The work directory is used to store the
+.Dq current
+and
+.Dq previous
+trees as well as unresolved conflicts.
+The default work directory is
+.Pa <destdir>/var/db/etcupdate .
+.It Fl F
+Ignore changes in the FreeBSD ID string when comparing files in the
+destination directory to files in either of the
+.Dq current
+or
+.Dq previous
+trees.
+In
+.Cm diff
+mode,
+this reduces noise due to FreeBSD ID string changes in the output.
+During an update this can simplify handling for harmless conflicts caused
+by FreeBSD ID string changes.
+.Pp
+Specifically,
+if a file in the destination directory is identical to the same file in the
+.Dq previous
+tree modulo the FreeBSD ID string,
+then the file is treated as if it was unmodified and the
+.Dq current
+version of the file will be installed.
+Similarly,
+if a file in the destination directory is identical to the same file in the
+.Dq current
+tree modulo the FreeBSD ID string,
+then the
+.Dq current
+version of the file will be installed to update the ID string.
+If the
+.Dq previous
+and
+.Dq current
+versions of the file are identical,
+then
+.Nm
+will not change the file in the destination directory.
+.Pp
+Due to limitations in the
+.Xr diff 1
+command,
+this option may not have an effect if there are other changes in a file that
+are close to the FreeBSD ID string.
+.It Fl I Ar patterns
+Ignore any files that match any of the patterns listed in
+.Ar patterns .
+No warnings or other messages will be generated for those files during a
+merge.
+Each pattern is evaluated as an
+.Xr sh 1
+shell pattern.
+This option may be specified multiple times to specify multiple patterns.
+Multiple space-separated patterns may also be specified in a single
+option.
+.It Fl L Ar logfile
+Specify an alternate path for the log file.
+The
+.Nm
+utility logs each command that it invokes along with the standard output
+and standard error to this file.
+By default the log file is stored in a file named
+.Pa log
+in the work directory.
+.It Fl M Ar options
+Pass
+.Ar options
+as additional parameters to
+.Xr make 1
+when building a
+.Dq current
+tree.
+This can be used for to set the
+.Dv TARGET
+or
+.Dv TARGET_ARCH
+variables for a cross-build.
+.It Fl n
+Enable
+.Dq dry-run
+mode.
+Do not merge any changes to the destination directory.
+Instead,
+report what actions would be taken during a merge.
+Note that the existing
+.Dq current
+and
+.Dq previous
+trees will not be changed.
+If the
+.Fl r
+option is not specified,
+then a temporary
+.Dq current
+tree will be extracted to perform the comparison.
+.It Fl p
+Enable
+.Dq pre-world
+mode.
+Only merge changes to files that are necessary to successfully run
+.Sq make installworld
+or
+.Sq make installkernel .
+When this flag is enabled,
+the existing
+.Dq current
+and
+.Dq previous
+trees are left alone.
+Instead,
+a temporary tree is populated with the necessary files.
+This temporary tree is compared against the
+.Dq current
+tree.
+This allows a normal update to be run after
+.Sq make installworld
+has completed.
+Any conflicts generated during a
+.Dq pre-world
+update should be resolved by a
+.Dq pre-world
+.Cm resolve .
+.It Fl r
+Do not update the
+.Dq current
+and
+.Dq previous
+trees during a merge.
+This can be used to
+.Dq re-run
+a previous merge operation.
+.It Fl s Ar source
+Specify an alternate source tree to use when building or extracting a
+.Dq current
+tree.
+The default source tree is
+.Pa /usr/src .
+.It Fl t Ar tarball
+Extract a new
+.Dq current
+tree from a tarball previously generated by the
+.Cm build
+command rather than building the tree from a source tree.
+.El
+.Sh CONFIG FILE
+The
+.Nm
+utility can also be configured by setting variables in an optional
+configuration file named
+.Pa /etc/etcupdate.conf .
+Note that command line options override settings in the configuration file.
+The configuration file is executed by
+.Xr sh 1 ,
+so it uses that syntax to set configuration variables.
+The following variables can be set:
+.Bl -tag -width ".Ev ALWAYS_INSTALL"
+.It Ev ALWAYS_INSTALL
+Always install files that match any of the patterns listed in this variable
+similar to the
+.Fl A
+option.
+.It Ev DESTDIR
+Specify an alternate destination directory similar to the
+.Fl D
+option.
+.It Ev EDITOR
+Specify a program to edit merge conflicts.
+.It Ev FREEBSD_ID
+Ignore changes in the FreeBSD ID string similar to the
+.Fl F
+option.
+This is enabled by setting the variable to a non-empty value.
+.It Ev IGNORE_FILES
+Ignore files that match any of the patterns listed in this variable
+similar to the
+.Fl I
+option.
+.It Ev LOGFILE
+Specify an alternate path for the log file similar to the
+.Fl L
+option.
+.It Ev MAKE_OPTIONS
+Pass additional options to
+.Xr make 1
+when building a
+.Dq current
+tree similar to the
+.Fl M
+option.
+.It Ev SRCDIR
+Specify an alternate source tree similar to the
+.Fl s
+option.
+.It Ev WORKDIR
+Specify an alternate work directory similar to the
+.Fl d
+option.
+.El
+.Sh ENVIRONMENT
+The
+.Nm
+utility uses the program identified in the
+.Ev EDITOR
+environment variable to edit merge conflicts.
+If
+.Ev EDITOR
+is not set,
+.Xr vi 1
+is used as the default editor.
+.Sh FILES
+.Bl -tag -width ".Pa /var/db/etcupdate/log" -compact
+.It Pa /etc/etcupdate.conf
+Optional config file.
+.It Pa /var/db/etcupdate
+Default work directory used to store trees and other data.
+.It Pa /var/db/etcupdate/log
+Default log file.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+To compare the files in
+.Pa /etc
+with the stock versions:
+.Pp
+.Dl "etcupdate diff"
+.Pp
+To merge changes after an upgrade via the buildworld and installworld process:
+.Pp
+.Dl "etcupdate"
+.Pp
+To resolve any conflicts generated during a merge:
+.Pp
+.Dl "etcupdate resolve"
+.Ss Bootstrapping
+The
+.Nm
+utility may need to be bootstrapped before it can be used.
+The
+.Cm diff
+command will fail with an error about a missing reference tree if
+bootstrapping is needed.
+.Pp
+Bootstrapping
+.Nm
+requires a source tree that matches the currently installed world.
+The easiest way to ensure this is to bootstrap
+.Nm
+before updating the source tree to start the next world upgrade cycle.
+First,
+generate a reference tree:
+.Pp
+.Dl "etcupdate extract"
+.Pp
+Second,
+use the
+.Cm diff
+command to compare the reference tree to your current files in
+.Pa /etc .
+Undesired differences should be removed using an editor,
+.Xr patch 1 ,
+or by copying files from the reference tree
+.Po
+located at
+.Pa /var/db/etcupdate/current
+by default
+.Pc
+.
+.Pp
+If the tree at
+.Pa /usr/src
+is already newer than the currently installed world,
+a new tree matching the currently installed world can be checked out to
+a temporary location.
+The reference tree for
+.Nm
+can then be generated via:
+.Pp
+.Dl "etcupdate extract -s /path/to/tree"
+.Pp
+The
+.Cm diff
+command can be used as above to remove undesired differences.
+Afterwards,
+the changes in the tree at
+.Pa /usr/src
+can be merged via a regular merge.
+.Sh DIAGNOSTICS
+The following warning messages may be generated during a merge.
+Note that several of these warnings cover obscure cases that should occur
+rarely if at all in practice.
+For example,
+if a file changes from a file to a directory in the
+.Dq current
+tree
+and the file was modified in the destination directory,
+then a warning will be triggered.
+In general,
+when a warning references a pathname,
+the corresponding file in the destination directory is not changed by a
+merge operation.
+.Bl -diag
+.It "Directory mismatch: <path> (<type>)"
+An attempt was made to create a directory at
+.Pa path
+but an existing file of type
+.Dq type
+already exists for that path name.
+.It "Modified link changed: <file> (<old> became <new>)"
+The target of a symbolic link named
+.Pa file
+was changed from
+.Dq old
+to
+.Dq new
+in the
+.Dq current
+tree.
+The symbolic link has been modified to point to a target that is neither
+.Dq old
+nor
+.Dq new
+in the destination directory.
+.It "Modified mismatch: <file> (<new> vs <dest>)"
+A file named
+.Pa file
+of type
+.Dq new
+was modified in the
+.Dq current
+tree,
+but the file exists as a different type
+.Dq dest
+in the destination directory.
+.It "Modified <type> changed: <file> (<old> became <new>)"
+A file named
+.Pa file
+changed type from
+.Dq old
+in the
+.Dq previous
+tree to type
+.Dq new
+in the
+.Dq current
+tree.
+The file in the destination directory of type
+.Dq type
+has been modified,
+so it could not be merged automatically.
+.It "Modified <type> remains: <file>"
+The file of type
+.Dq type
+named
+.Pa file
+has been removed from the
+.Dq current
+tree,
+but it has been locally modified.
+The modified version of the file remains in the destination directory.
+.It "Needs update: /etc/localtime (required manual update via tzsetup(8))"
+The
+.Fa /var/db/zoneinfo
+file does not exist,
+so
+.Nm
+was not able to refresh
+.Fa /etc/localtime
+from its source file in
+.Fa /usr/share/zoneinfo .
+Running
+.Xr tzsetup 8
+will both refresh
+.Fa /etc/localtime
+and generate
+.Fa /var/db/zoneinfo
+permitting future updates to refresh
+.Fa /etc/localtime
+automatically.
+.It "Needs update: /etc/mail/aliases.db (required manual update via newaliases(1))"
+The file
+.Pa /etc/mail/aliases
+was updated during a merge with a non-empty destination directory.
+Due to a limitation of the
+.Xr newaliases 1
+command,
+.Nm
+was not able to automatically update the corresponding aliases database.
+.It "New file mismatch: <file> (<new> vs <dest>)"
+A new file named
+.Pa file
+of type
+.Dq new
+has been added to the
+.Dq current
+tree.
+A file of that name already exists in the destination directory,
+but it is of a different type
+.Dq dest .
+.It "New link conflict: <file> (<new> vs <dest>)"
+A symbolic link named
+.Pa file
+has been added to the
+.Dq current
+tree that links to
+.Dq new .
+A symbolic link of the same name already exists in the destination
+directory,
+but it links to a different target
+.Dq dest .
+.It "Non-empty directory remains: <file>"
+The directory
+.Pa file
+was removed from the
+.Dq current
+tree,
+but it contains additional files in the destination directory.
+These additional files as well as the directory remain.
+.It "Remove mismatch: <file> (<old> became <new>)"
+A file named
+.Pa file
+changed from type
+.Dq old
+in the
+.Dq previous
+tree to type
+.Dq new
+in the
+.Dq current
+tree,
+but it has been removed in the destination directory.
+.It "Removed file changed: <file>"
+A file named
+.Pa file
+was modified in the
+.Dq current
+tree,
+but it has been removed in the destination directory.
+.It "Removed link changed: <file> (<old> became <new>)"
+The target of a symbolic link named
+.Pa file
+was changed from
+.Dq old
+to
+.Dq new
+in the
+.Dq current
+tree,
+but it has been removed in the destination directory.
+.El
+.Sh SEE ALSO
+.Xr cap_mkdb 1 ,
+.Xr diff 1 ,
+.Xr make 1 ,
+.Xr newaliases 1 ,
+.Xr sh 1 ,
+.Xr mergemaster 8 ,
+.Xr pwd_mkdb 8 ,
+.Xr services_mkdb 8 ,
+.Xr tzsetup 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An John Baldwin Aq Mt jhb@FreeBSD.org .
+.Sh BUGS
+Rerunning a merge does not automatically delete conflicts left over from a
+previous merge.
+Any conflicts must be resolved before the merge can be rerun.
+It is not clear if this is a feature or a bug.
+.Pp
+There is no way to easily automate conflict resolution for specific files.
+For example, one can imagine a syntax along the lines of
+.Pp
+.Dl "etcupdate resolve tf /some/file"
+.Pp
+to resolve a specific conflict in an automated fashion.
+.Pp
+It might be nice to have something like a
+.Sq revert
+command to replace a locally modified version of a file with the stock
+version of the file.
+For example:
+.Pp
+.Dl "etcupdate revert /etc/mail/freebsd.cf"
+.Pp
+Bootstrapping
+.Nm
+often results in gratuitous diffs in
+.Pa /etc/mail/*.cf
+that cause conflicts in the first merge.
+If an object tree that matches the source tree is present when bootstrapping,
+then passing the
+.Fl B
+flag to the
+.Cm extract
+command can work around this.

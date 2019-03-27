@@ -1,0 +1,205 @@
+.\" $Id: mount_smbfs.8,v 1.10 2002/04/16 02:47:41 bp Exp $
+.\" $FreeBSD$
+.Dd November 1, 2018
+.Dt MOUNT_SMBFS 8
+.Os
+.Sh NAME
+.Nm mount_smbfs
+.Nd "mount a shared resource from an SMB file server"
+.Sh SYNOPSIS
+.Nm
+.Op Fl E Ar cs1 Ns Cm \&: Ns Ar cs2
+.Op Fl I Ar host
+.Op Fl L Ar locale
+.Op Fl M Ar crights Ns Cm \&: Ns Ar srights
+.Op Fl N
+.Op Fl O Ar cowner Ns Cm \&: Ns Ar cgroup Ns Cm \&/ Ns Ar sowner Ns Cm \&: Ns Ar sgroup
+.Op Fl R Ar retrycount
+.Op Fl T Ar timeout
+.Op Fl U Ar username
+.Op Fl W Ar workgroup
+.Op Fl c Ar case
+.Op Fl d Ar mode
+.Op Fl f Ar mode
+.Op Fl g Ar gid
+.Op Fl n Ar opt
+.Op Fl u Ar uid
+.Sm off
+.Cm \&// Ns Ar user Cm \&@ Ar server
+.Op Cm \&: Ar port1 Op Cm \&: Ar port2
+.Cm \&/ Ar share
+.Sm on
+.Ar node
+.Sh DESCRIPTION
+The
+.Nm
+command mounts a share from a remote server using SMB/CIFS protocol.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl E Ar cs1 Ns Cm \&: Ns Ar cs2
+Specifies local
+.Pq Ar cs1
+and server's
+.Pq Ar cs2
+character sets.
+.It Fl I Ar host
+Do not use NetBIOS name resolver and connect directly to
+.Ar host ,
+which can be either a valid DNS name or an IP address.
+.It Fl L Ar locale
+Use
+.Ar locale
+for lower/upper case conversion routines.
+Set the locale for case conversion.
+By default,
+.Nm
+tries to use an environment variable
+.Ev LC_*
+to determine it.
+.It Fl M Ar crights Ns Cm \&: Ns Ar srights
+Assign access rights to the newly created connection.
+.It Fl N
+Do not ask for a password.
+At run time,
+.Nm
+reads the
+.Pa ~/.nsmbrc
+file for additional configuration parameters and a password.
+If no password is found,
+.Nm
+prompts for it.
+.It Fl O Ar cowner Ns Cm \&: Ns Ar cgroup Ns Cm \&/ Ns Ar sowner Ns Cm \&: Ns Ar sgroup
+Assign owner/group attributes to the newly created connection.
+.It Fl R Ar retrycount
+How many retries should be done before the SMB requester decides to drop
+the connection.
+Default is 4.
+.It Fl T Ar timeout
+Timeout in seconds for each request.
+Default is 15.
+.It Fl U Ar username
+Username to authenticate with.
+.It Fl W Ar workgroup
+This option specifies the workgroup to be used in the authentication request.
+.It Fl c Ar case
+Set a
+.Ar case
+option which affects name representation.
+.Ar case
+can be one of the following:
+.Bl -tag -width ".Em Value"
+.It Em Value
+.Em Meaning
+.It Cm l
+All existing file names are converted to lower case.
+Newly created file gets a lower case.
+.It Cm u
+All existing file names are converted to upper case.
+Newly created file gets an upper case.
+.El
+.It Fl f Ar mode , Fl d Ar mode
+Specify permissions that should be assigned to files and directories.
+The values must be specified as octal numbers.
+Default value for the file mode
+is taken from mount point, default value for the directory mode adds execute
+permission where the file mode gives read permission.
+.Pp
+Note that these permissions can differ from the rights granted by SMB
+server.
+.It Fl u Ar uid , Fl g Ar gid
+User ID and group ID assigned to files.
+The default are owner and group IDs from
+the directory where the volume is mounted.
+.It Cm \&// Ns Ar user Ns Cm \&@ Ns Ar server Ns Oo Cm \&: Ns Ar port1 Ns Oo Cm \&: Ns Ar port2 Oc Oc Ns Cm \&/ Ns Ar share
+The
+.Nm
+command will use
+.Ar server
+as the NetBIOS name of remote computer,
+.Ar user
+as the remote user name and
+.Ar share
+as the resource name on a remote server.
+Optional
+.Ar port1
+and
+.Ar port2
+arguments can be used to override default values of port numbers used
+by communication protocols.
+For SMB over NetBIOS default value for
+.Ar port1
+are 139, and
+.Ar port2
+are 137.
+.It Ar node
+Path to mount point.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/nsmb.conf" -compact
+.It Pa ~/.nsmbrc
+Keeps user-specific static parameters for connections and other information.
+See
+.Pa /usr/share/examples/smbfs/dot.nsmbrc
+for details.
+.It Pa /etc/nsmb.conf
+Keeps system-wide static parameters for connections and other information.
+.El
+.Sh EXAMPLES
+The following example illustrates how to connect to SMB server
+.Dq SAMBA
+as user
+.Dq GUEST ,
+and mount shares
+.Dq PUBLIC
+and
+.Dq TMP :
+.Bd -literal -offset indent
+mount_smbfs -I samba.mydomain.com //guest@samba/public /smb/public
+mount_smbfs -I 192.168.20.3 -E koi8-r:cp866 //guest@samba/tmp /smb/tmp
+.Ed
+.Pp
+It is also possible to use
+.Xr fstab 5
+for smbfs mounts (the example below does not prompt for a password):
+.Pp
+.Dl "//guest@samba/public    /smb/public     smbfs  rw,noauto,-N 0   0"
+.Sh SEE ALSO
+.Xr smbutil 1 ,
+.Xr nsmb.conf 5
+.Pp
+Other resources:
+.Bl -dash -compact
+.It
+Chapter dedicated to Samba configuration in the
+.Fx
+Handbook:
+.Lk "https://www.freebsd.org/doc/handbook/network-samba.html"
+.El
+.Sh STANDARDS
+.Nm
+offers support for SMB/CIFS/SMB1.
+It does not support newer versions of the protocol like SMB2 and SMB3.
+SMB2 and SMB3 are supported by software available in the
+.Xr ports 7
+collection.
+.Pp
+The list of supported SMB servers includes:
+.Bl -dash -compact
+.It
+Samba
+.It
+Windows 95/98/ME/2000/NT4.0 (SPs 4, 5, 6)
+.It
+IBM LanManager
+.It
+NetApp
+.El
+.Sh HISTORY
+SMB/CIFS protocol and SMB/CIFS file system implementation first appeared in
+.Fx 4.5 .
+.Sh AUTHORS
+.An Boris Popov Aq bp@butya.kz ,
+.Aq bp@FreeBSD.org
+.Sh BUGS
+Please report bugs to the author.

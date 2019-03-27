@@ -1,0 +1,69 @@
+@c Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gcc.texi.
+
+@c Version number and development mode.
+@c version-GCC is @set to the base GCC version number.
+@c DEVELOPMENT is @set for an in-development version, @clear for a
+@c release version (corresponding to ``experimental''/anything else
+@c in gcc/DEV-PHASE).
+
+@include gcc-vers.texi
+
+@c Common macros to support generating man pages:
+
+@macro gcctabopt{body}
+@code{\body\}
+@end macro
+@macro gccoptlist{body}
+@smallexample
+\body\
+@end smallexample
+@end macro
+@c Makeinfo handles the above macro OK, TeX needs manual line breaks;
+@c they get lost at some point in handling the macro.  But if @macro is
+@c used here rather than @alias, it produces double line breaks.
+@iftex
+@alias gol = *
+@end iftex
+@ifnottex
+@macro gol
+@end macro
+@end ifnottex
+
+@c For FSF printing, define FSFPRINT.  Also update the ISBN and last
+@c printing date for the manual being printed.
+@c @set FSFPRINT
+@ifset FSFPRINT
+@smallbook
+@finalout
+@c Cause even numbered pages to be printed on the left hand side of
+@c the page and odd numbered pages to be printed on the right hand
+@c side of the page.  Using this, you can print on both sides of a
+@c sheet of paper and have the text on the same part of the sheet.
+
+@c The text on right hand pages is pushed towards the right hand
+@c margin and the text on left hand pages is pushed toward the left
+@c hand margin.
+@c (To provide the reverse effect, set bindingoffset to -0.75in.)
+@tex
+\global\bindingoffset=0.75in
+\global\normaloffset =0.75in
+@end tex
+@end ifset
+
+@c Macro to generate a "For the N.N.N version" subtitle on the title
+@c page of TeX documentation.  This macro should be used in the
+@c titlepage environment after the title and any other subtitles have
+@c been placed, and before any authors are placed.
+@macro versionsubtitle
+@ifclear DEVELOPMENT
+@subtitle For @sc{gcc} version @value{version-GCC}
+@end ifclear
+@ifset DEVELOPMENT
+@subtitle For @sc{gcc} version @value{version-GCC} (pre-release)
+@end ifset
+@c Even if there are no authors, the second titlepage line should be
+@c forced to the bottom of the page.
+@vskip 0pt plus 1filll
+@end macro

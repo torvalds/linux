@@ -1,0 +1,350 @@
+.\" Copyright (c) 2001 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 25, 2006
+.Dt ITHREAD 9
+.Os
+.Sh NAME
+.Nm ithread_add_handler ,
+.Nm ithread_create ,
+.Nm ithread_destroy ,
+.Nm ithread_priority ,
+.Nm ithread_remove_handler ,
+.Nm ithread_schedule
+.Nd kernel interrupt threads
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.In sys/interrupt.h
+.Ft int
+.Fo ithread_add_handler
+.Fa "struct ithd *ithread"
+.Fa "const char *name"
+.Fa "driver_intr_t handler"
+.Fa "void *arg"
+.Fa "u_char pri"
+.Fa "enum intr_type flags"
+.Fa "void **cookiep"
+.Fc
+.Ft int
+.Fo ithread_create
+.Fa "struct ithd **ithread"
+.Fa "int vector"
+.Fa "int flags"
+.Fa "void (*disable)(int)"
+.Fa "void (*enable)(int)"
+.Fa "const char *fmt"
+.Fa "..."
+.Fc
+.Ft int
+.Fn ithread_destroy "struct ithd *ithread"
+.Ft u_char
+.Fn ithread_priority "enum intr_type flags"
+.Ft int
+.Fn ithread_remove_handler "void *cookie"
+.Ft int
+.Fn ithread_schedule "struct ithd *ithread" "int do_switch"
+.Sh DESCRIPTION
+Interrupt threads are kernel threads that run a list of handlers when
+triggered by either a hardware or software interrupt.
+Each interrupt handler has a name, handler function, handler argument,
+priority, and various flags.
+Each interrupt thread maintains a list of handlers sorted by priority.
+This results in higher priority handlers being executed prior to lower
+priority handlers.
+Each thread assumes the priority of its highest priority handler for its
+process priority, or
+.Dv PRIO_MAX
+if it has no handlers.
+Interrupt threads are also associated with a single interrupt source,
+represented as a vector number.
+.Pp
+The
+.Fn ithread_create
+function creates a new interrupt thread.
+The
+.Fa ithread
+argument points to an
+.Vt struct ithd
+pointer that will point to the newly created thread upon success.
+The
+.Fa vector
+argument specifies the interrupt source to associate this thread with.
+The
+.Fa flags
+argument is a mask of properties of this thread.
+The only valid flag currently for
+.Fn ithread_create
+is
+.Dv IT_SOFT
+to specify that this interrupt thread is a software interrupt.
+The
+.Fa enable
+and
+.Fa disable
+arguments specify optional functions used to enable and disable this
+interrupt thread's interrupt source.
+The functions receive the vector corresponding to the thread's interrupt
+source as their only argument.
+The remaining arguments form a
+.Xr printf 9
+argument list that is used to build the base name of the new ithread.
+The full name of an interrupt thread is formed by concatenating the base
+name of an interrupt thread with the names of all of its interrupt handlers.
+.Pp
+The
+.Fn ithread_destroy
+function destroys a previously created interrupt thread by releasing its
+resources and arranging for the backing kernel thread to terminate.
+An interrupt thread can only be destroyed if it has no handlers remaining.
+.Pp
+The
+.Fn ithread_add_handler
+function adds a new handler to an existing interrupt thread specified by
+.Fa ithread .
+The
+.Fa name
+argument specifies a name for this handler.
+The
+.Fa handler
+and
+.Fa arg
+arguments provide the function to execute for this handler and an argument
+to pass to it.
+The
+.Fa pri
+argument specifies the priority of this handler and is used both in sorting
+it in relation to the other handlers for this thread and to specify the
+priority of the backing kernel thread.
+The
+.Fa flags
+argument can be used to specify properties of this handler as defined in
+.In sys/bus.h .
+If
+.Fa cookiep
+is not
+.Dv NULL ,
+then it will be assigned a cookie that can be used later to remove this
+handler.
+.Pp
+The
+.Fn ithread_remove_handler
+removes a handler from an interrupt thread.
+The
+.Fa cookie
+argument specifies the handler to remove from its thread.
+.Pp
+The
+.Fn ithread_schedule
+function schedules an interrupt thread to run.
+If the
+.Fa do_switch
+argument is non-zero and the interrupt thread is idle, then a context switch
+will be forced after putting the interrupt thread on the run queue.
+.Pp
+The
+.Fn ithread_priority
+function translates the
+.Dv INTR_TYPE_*
+interrupt flags into interrupt handler priorities.
+.Pp
+The interrupt flags not related to the type of a particular interrupt
+.Pq Dv INTR_TYPE_*
+can be used to specify additional properties of both hardware and software
+interrupt handlers.
+The
+.Dv INTR_EXCL
+flag specifies that this handler cannot share an interrupt thread with
+another handler.
+The
+.Dv INTR_MPSAFE
+flag specifies that this handler is MP safe in that it does not need the
+Giant mutex to be held while it is executed.
+The
+.Dv INTR_ENTROPY
+flag specifies that the interrupt source this handler is tied to is a good
+source of entropy, and thus that entropy should be gathered when an interrupt
+from the handler's source triggers.
+Presently, the
+.Dv INTR_ENTROPY
+flag is not valid for software interrupt handlers.
+.Pp
+It is not permitted to sleep in an interrupt thread; hence, any memory
+or zone allocations in an interrupt thread should be specified with the
+.Dv M_NOWAIT
+flag set.
+Any allocation errors must be handled thereafter.
+.Sh RETURN VALUES
+The
+.Fn ithread_add_handler ,
+.Fn ithread_create ,
+.Fn ithread_destroy ,
+.Fn ithread_remove_handler ,
+and
+.Fn ithread_schedule
+functions return zero on success and non-zero on failure.
+The
+.Fn ithread_priority
+function returns a process priority corresponding to the passed in interrupt
+flags.
+.Sh EXAMPLES
+The
+.Fn swi_add
+function demonstrates the use of
+.Fn ithread_create
+and
+.Fn ithread_add_handler .
+.Bd -literal -offset indent
+int
+swi_add(struct ithd **ithdp, const char *name, driver_intr_t handler,
+	    void *arg, int pri, enum intr_type flags, void **cookiep)
+{
+	struct proc *p;
+	struct ithd *ithd;
+	int error;
+
+	if (flags & INTR_ENTROPY)
+		return (EINVAL);
+
+	ithd = (ithdp != NULL) ? *ithdp : NULL;
+
+	if (ithd != NULL) {
+		if ((ithd->it_flags & IT_SOFT) == 0)
+			return(EINVAL);
+	} else {
+		error = ithread_create(&ithd, pri, IT_SOFT, NULL, NULL,
+		    "swi%d:", pri);
+		if (error)
+			return (error);
+
+		if (ithdp != NULL)
+			*ithdp = ithd;
+	}
+	return (ithread_add_handler(ithd, name, handler, arg, pri + PI_SOFT,
+		    flags, cookiep));
+}
+.Ed
+.Sh ERRORS
+The
+.Fn ithread_add_handler
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Any of the
+.Fa ithread ,
+.Fa handler ,
+or
+.Fa name
+arguments are
+.Dv NULL .
+.It Bq Er EINVAL
+The
+.Dv INTR_EXCL
+flag is specified and the interrupt thread
+.Fa ithread
+already has at least one handler, or the interrupt thread
+.Fa ithread
+already has an exclusive handler.
+.It Bq Er ENOMEM
+Could not allocate needed memory for this handler.
+.El
+.Pp
+The
+.Fn ithread_create
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The system-imposed limit on the total
+number of processes under execution would be exceeded.
+The limit is given by the
+.Xr sysctl 3
+MIB variable
+.Dv KERN_MAXPROC .
+.It Bq Er EINVAL
+A flag other than
+.Dv IT_SOFT
+was specified in the
+.Fa flags
+parameter.
+.It Bq Er ENOMEM
+Could not allocate needed memory for this interrupt thread.
+.El
+.Pp
+The
+.Fn ithread_destroy
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa ithread
+argument is
+.Dv NULL .
+.It Bq Er EINVAL
+The interrupt thread pointed to by
+.Fa ithread
+has at least one handler.
+.El
+.Pp
+The
+.Fn ithread_remove_handler
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa cookie
+argument is
+.Dv NULL .
+.El
+.Pp
+The
+.Fn ithread_schedule
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa ithread
+argument is
+.Dv NULL .
+.It Bq Er EINVAL
+The interrupt thread pointed to by
+.Fa ithread
+has no interrupt handlers.
+.El
+.Sh SEE ALSO
+.Xr kthread 9 ,
+.Xr malloc 9 ,
+.Xr swi 9 ,
+.Xr uma 9
+.Sh HISTORY
+Interrupt threads and their corresponding API first appeared in
+.Fx 5.0 .
+.Sh BUGS
+Currently
+.Vt struct ithd
+represents both an interrupt source and an interrupt thread.
+There should be a separate
+.Vt struct isrc
+that contains a vector number, enable and disable functions, etc.\& that
+an ithread holds a reference to.

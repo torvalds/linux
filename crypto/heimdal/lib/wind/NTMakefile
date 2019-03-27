@@ -1,0 +1,159 @@
+########################################################################
+#
+# Copyright (c) 2009, Secure Endpoints Inc.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+# - Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# 
+# - Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in
+#   the documentation and/or other materials provided with the
+#   distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# 
+
+RELDIR=lib\wind
+
+!include ../../windows/NTMakefile.w32
+
+libwind_OBJs=	\
+	$(OBJ)\bidi.obj				\
+	$(OBJ)\bidi_table.obj		\
+	$(OBJ)\combining.obj		\
+	$(OBJ)\combining_table.obj	\
+	$(OBJ)\errorlist.obj		\
+	$(OBJ)\errorlist_table.obj	\
+	$(OBJ)\map.obj				\
+	$(OBJ)\map_table.obj		\
+	$(OBJ)\ldap.obj				\
+	$(OBJ)\normalize.obj		\
+	$(OBJ)\normalize_table.obj	\
+	$(OBJ)\punycode.obj			\
+	$(OBJ)\stringprep.obj		\
+	$(OBJ)\wind_err.obj			\
+	$(OBJ)\utf8.obj
+
+$(LIBWIND): $(libwind_OBJs)
+	$(LIBCON)
+
+INCFILES=	\
+	$(INCDIR)\wind.h	\
+	$(INCDIR)\wind_err.h	\
+	$(INCDIR)\map_table.h	\
+	$(INCDIR)\errorlist_table.h	\
+	$(INCDIR)\normalize_table.h	\
+	$(INCDIR)\combining_table.h	\
+	$(INCDIR)\bidi_table.h	\
+	$(INCDIR)\punycode_examples.h
+
+$(OBJ)\map_table.h $(OBJ)\map_table.c: rfc3454.txt gen-map.py stringprep.py
+	cd $(OBJ)
+	$(PYTHON) $(SRCDIR)\gen-map.py $(SRCDIR)\rfc3454.txt $(OBJ)
+	cd $(SRCDIR)
+
+$(OBJ)\errorlist_table.h $(OBJ)\errorlist_table.c: rfc3454.txt gen-errorlist.py stringprep.py
+	cd $(OBJ)
+	$(PYTHON) $(SRCDIR)\gen-errorlist.py $(SRCDIR)\rfc3454.txt $(OBJ)
+	cd $(SRCDIR)
+
+$(OBJ)\normalize_table.h $(OBJ)\normalize_table.c: UnicodeData.txt CompositionExclusions-3.2.0.txt gen-normalize.py
+	cd $(OBJ)
+	$(PYTHON) $(SRCDIR)\gen-normalize.py $(SRCDIR)\UnicodeData.txt $(SRCDIR)\CompositionExclusions-3.2.0.txt $(OBJ)
+	cd $(SRCDIR)
+
+$(OBJ)\combining_table.h $(OBJ)\combining_table.c: UnicodeData.txt gen-combining.py
+	cd $(OBJ)
+	$(PYTHON) $(SRCDIR)\gen-combining.py $(SRCDIR)\UnicodeData.txt $(OBJ)
+	cd $(SRCDIR)
+
+$(OBJ)\bidi_table.h $(OBJ)\bidi_table.c: rfc3454.txt gen-bidi.py
+	cd $(OBJ)
+	$(PYTHON) $(SRCDIR)\gen-bidi.py $(SRCDIR)\rfc3454.txt $(OBJ)
+	cd $(SRCDIR)
+
+$(OBJ)\punycode_examples.h $(OBJ)\punycode_examples.c: gen-punycode-examples.py rfc3492.txt
+	cd $(OBJ)
+	$(PYTHON) $(SRCDIR)\gen-punycode-examples.py $(SRCDIR)\rfc3492.txt $(OBJ)
+	cd $(SRCDIR)
+
+$(OBJ)\wind_err.c $(OBJ)\wind_err.h: wind_err.et
+	cd $(OBJ)
+	$(BINDIR)\compile_et.exe $(SRCDIR)\wind_err.et
+	cd $(SRCDIR)
+
+TEST_BINARIES=\
+	$(OBJ)\test-bidi.exe	\
+	$(OBJ)\test-map.exe		\
+	$(OBJ)\test-rw.exe		\
+	$(OBJ)\test-normalize.exe	\
+	$(OBJ)\test-prohibited.exe	\
+	$(OBJ)\test-punycode.exe	\
+	$(OBJ)\test-ldap.exe	\
+	$(OBJ)\test-utf8.exe
+
+{$(OBJ)}.c{$(OBJ)}.obj::
+	$(C2OBJ_P) -I$(SRCDIR)
+
+{$(OBJ)}.obj{$(OBJ)}.exe:
+	$(EXECONLINK) $(LIBHEIMDAL) $(LIBROKEN)
+	$(EXEPREP_NODIST)
+
+$(OBJ)\test-bidi.exe: $(OBJ)\test-bidi.obj
+
+$(OBJ)\test-map.exe: $(OBJ)\test-map.obj
+
+$(OBJ)\test-rw.exe: $(OBJ)\test-rw.obj
+
+$(OBJ)\test-normalize.exe: $(OBJ)\test-normalize.obj
+
+$(OBJ)\test-prohibited.exe: $(OBJ)\test-prohibited.obj
+
+$(OBJ)\test-punycode.exe: $(OBJ)\test-punycode.obj $(OBJ)\punycode_examples.obj
+
+$(OBJ)\test-ldap.exe: $(OBJ)\test-ldap.obj
+
+$(OBJ)\test-utf8.exe: $(OBJ)\test-utf8.obj
+
+test-binaries: $(TEST_BINARIES)
+
+test-run:
+	cd $(OBJ)
+	test-bidi.exe
+	test-map.exe
+	test-rw.exe
+	test-normalize.exe $(SRCDIR)\NormalizationTest.txt
+	test-prohibited.exe
+	test-punycode.exe
+	test-ldap.exe
+	test-utf8.exe
+	cd $(SRCDIR)
+
+all:: $(INCFILES) $(LIBWIND)
+
+clean::
+	-$(RM) $(LIBWIND)
+	-$(RM) $(INCFILES)
+
+test:: test-binaries test-run
+
+test-exports:
+	$(PERL) ..\..\cf\w32-check-exported-symbols.pl --vs version-script.map --def libwind-exports.def
+
+test:: test-exports

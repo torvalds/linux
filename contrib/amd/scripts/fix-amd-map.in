@@ -1,0 +1,52 @@
+#!@PERL@
+#
+# fix an old-syntax amd map to new one
+#
+# takes any number of files on the command line, and produces
+# a fixed map on stdout.
+#
+# Package:	am-utils-6.x
+# Author:	Erez Zadok <ezk@cs.columbia.edu>
+#
+
+##############################################################################
+### MAINTAINER EDITABLE SECTION
+
+# Mappings of old names to new ones:
+# Update when needed, do not forget commas but not on the last entry!
+# For your convenience, this is the complete list of all OSs that were
+# supported by amd-upl102, in their old names:
+#
+#	386bsd acis43 aix3 aoi aux bsd43 bsd44 bsdi11
+#	concentrix dgux fpx4 freebsd hcx hlh42 hpux irix3 irix4 irix5 isc3
+#	linux mach2 mach3 netbsd news4 next osf1 pyrOSx riscix riscos
+#	rtu6 sos3 sos4 sos5 stellix svr4 u2_2 u3_0 u4_0 u4_2 u4_3 u4_4
+#	umax43 utek utx32 xinu43
+#
+%mappings = (
+	"sos4",		"sunos4",
+	"sos5",		"sunos5",
+	"freebsd",	"freebsd2"
+);
+
+##############################################################################
+### DO NOT EDIT ANYTHING BELOW
+
+# This is a trivial parser and works as follows:
+# (1) read each line
+# (2) search of regexps that start with '=', continue with a word to replace
+#     and end with a non-value name (whitespace, ';', or newline
+while (<>) {
+    # skip trivial lines
+    if ($_ =~ /^$/  ||  $_ =~ /^#/) {
+	print;
+	next;
+    }
+    # modify the line if needed
+    foreach $m (keys %mappings) {
+	$val = $mappings{$m};
+	$_ =~ s/=$m([^a-zA-Z0-9_])/=$val$1/g;
+    }
+    # print the (possibly) modified line
+    print;
+}

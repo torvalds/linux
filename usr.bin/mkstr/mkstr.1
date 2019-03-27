@@ -1,0 +1,136 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)mkstr.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd June 6, 2015
+.Dt MKSTR 1
+.Os
+.Sh NAME
+.Nm mkstr
+.Nd create an error message file by massaging C source
+.Sh SYNOPSIS
+.Nm
+.Op Fl
+.Ar mesgfile
+.Ar prefix Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility creates a file containing error messages extracted from C source,
+and restructures the same C source, to utilize the created error message
+file.
+The intent of
+.Nm
+was to reduce the size of large programs and
+reduce swapping (see
+.Sx BUGS
+section below).
+.Pp
+The
+.Nm
+utility processes each of the specified files,
+placing a restructured version of the input in a file whose name
+consists of the specified
+.Ar prefix
+and the original name.
+A typical usage of
+.Nm
+is
+.Pp
+.Dl "mkstr pistrings xx *.c"
+.Pp
+This command causes all the error messages from the C source
+files in the current directory to be placed in the file
+.Pa pistrings
+and restructured copies of the sources to be placed in
+files whose names are prefixed with
+.Dq Li xx .
+.Pp
+Options:
+.Bl -tag -width indent
+.It Fl
+Error messages are placed at the end of the specified
+message file for recompiling part of a large
+.Nm Ns ed
+program.
+.El
+.Pp
+The
+.Nm
+utility finds error messages in the source by
+searching for the string
+.Sq Li error("
+in the input stream.
+Each time it occurs, the C string starting at the
+.Ql \&"
+is stored
+in the message file followed by a null character and a new-line character;
+The new source is restructured with
+.Xr lseek 2
+pointers into the error message file for retrieval.
+.Bd -literal -offset indent
+char efilname = "/usr/lib/pi_strings";
+int efil = -1;
+
+error(a1, a2, a3, a4)
+{
+	char buf[256];
+
+	if (efil < 0) {
+		efil = open(efilname, 0);
+		if (efil < 0)
+			err(1, "%s", efilname);
+	}
+	if (lseek(efil, (off_t)a1, SEEK_SET) < 0 ||
+	    read(efil, buf, 256) <= 0)
+		err(1, "%s", efilname);
+	printf(buf, a2, a3, a4);
+}
+.Ed
+.Sh SEE ALSO
+.Xr gencat 1 ,
+.Xr xstr 1 ,
+.Xr lseek 2
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 1 .
+.Sh AUTHORS
+.An -nosplit
+.An Bill Joy
+and
+.An Chuck Haley ,
+1977.
+.Sh BUGS
+The
+.Nm
+utility was intended for the limited architecture of the PDP 11 family.
+Very few programs actually use it.
+The memory savings are negligible in modern computers.

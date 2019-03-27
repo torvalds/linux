@@ -1,0 +1,159 @@
+.\"
+.\" Author: Alexander Motin <mav@alkar.net>
+.\"
+.\" Copyright (c) 2006, Alexander Motin <mav@alkar.net>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice unmodified, this list of conditions, and the following
+.\"    disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 23, 2006
+.Dt NG_DEFLATE 4
+.Os
+.Sh NAME
+.Nm ng_deflate
+.Nd Deflate PPP compression (RFC 1979) netgraph node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph/ng_deflate.h
+.Sh DESCRIPTION
+The
+.Nm deflate
+node type implements the Deflate sub-protocols of the Compression Control
+Protocol (CCP).
+.Pp
+The node has two hooks,
+.Va comp
+for compression and
+.Va decomp
+for decompression.
+Only one of them can be connected at the same time, specifying node's
+operation mode.
+Typically that hooks would be connected to the
+.Xr ng_ppp 4
+node type hook of the same name.
+Corresponding
+.Xr ng_ppp 4
+node hook must be switched to
+.Dv NG_PPP_DECOMPRESS_FULL
+mode to permit sending uncompressed frames.
+.Sh HOOKS
+This node type supports the following hooks:
+.Pp
+.Bl -tag -compact -width ".Va decomp"
+.It Va comp
+Connection to
+.Xr ng_ppp 4
+.Va comp
+hook.
+Incoming frames are compressed (if possible) and sent back out the same hook.
+.It Va decomp
+Connection to
+.Xr ng_ppp 4
+.Va decomp
+hook.
+Incoming frames are decompressed (if they are compressed), and sent
+back out the same hook.
+.El
+.Pp
+Only one hook can be connected at the same time, specifying node's
+operation mode.
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_DEFLATE_CONFIG Pq Ic config
+This command resets and configures the node for a session
+(i.e., for compression or decompression).
+This command takes a
+.Vt "struct ng_deflate_config"
+as an argument:
+.Bd -literal -offset 0n
+struct ng_deflate_config {
+	u_char	enable;			/* node enabled */
+	u_char	windowBits;		/* log2(Window size) */
+};
+.Ed
+The
+.Fa enabled
+field enables traffic flow through the node.
+The
+.Fa windowBits
+specify compression windows size as negotiated by the
+Compression Control Protocol (CCP) in PPP.
+.It Dv NGM_DEFLATE_RESETREQ Pq Ic resetreq
+This message contains no arguments, and is bi-directional.
+If an error is detected during decompression, this message is sent by the
+node to the originator of the
+.Dv NGM_DEFLATE_CONFIG
+message that initiated the session.
+The receiver should respond by sending a PPP CCP Reset-Request to the peer.
+.Pp
+This message may also be received by this node type when a CCP Reset-Request
+or Reset-Ack is received by the local PPP entity.
+The node will respond by flushing its compression state so the sides
+can resynchronize.
+.It Dv NGM_DEFLATE_GET_STATS Pq Ic getstats
+This control message obtains statistics for a given hook.
+The statistics are returned in
+.Vt "struct ng_deflate_stats" :
+.Bd -literal
+struct ng_deflate_stats {
+	uint64_t	FramesPlain;
+	uint64_t	FramesComp;
+	uint64_t	FramesUncomp;
+	uint64_t	InOctets;
+	uint64_t	OutOctets;
+	uint64_t	Errors;
+};
+.Ed
+.It Dv NGM_DEFLATE_CLR_STATS Pq Ic clrstats
+This control message clears statistics for a given hook.
+.It Dv NGM_DEFLATE_GETCLR_STATS Pq Ic getclrstats
+This control message obtains and clears statistics for a given hook.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when hook have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_ppp 4 ,
+.Xr ngctl 8
+.Rs
+.%A J. Woods
+.%T "PPP Deflate Protocol"
+.%O RFC 1979
+.Re
+.Rs
+.%A W. Simpson
+.%T "The Point-to-Point Protocol (PPP)"
+.%O RFC 1661
+.Re
+.Sh AUTHORS
+.An Alexander Motin Aq Mt mav@alkar.net
+.Sh BUGS
+Due to nature of netgraph PPP implementation there are possible race conditions
+between data packet and ResetAck CCP packet in case of packet loss.
+As result,
+packet loss can produce bigger performance degradation than supposed by protocol.

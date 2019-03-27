@@ -1,0 +1,29 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<title>Debugging Reference Clock Drivers</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>Debugging Reference Clock Drivers</h3>
+<img src="pic/oz2.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>The Wizard of Oz</i>, L. Frank Baum</a>
+<p>Call the girls and they'll sweep your bugs.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->10-Mar-2014  05:19<!-- #EndDate -->
+    UTC</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/refclock.txt"></script>
+<script type="text/javascript" language="javascript" src="scripts/install.txt"></script>
+<hr>
+<p>The <a href="ntpq.html"><tt>ntpq</tt></a> and <a href="ntpdc.html"><tt>ntpdc</tt></a> utility programs can be used to debug reference clocks, either on the server itself or from another machine elsewhere in the network. The server is compiled, installed and started using the configuration file described in the <a href="ntpd.html"><tt>ntpd</tt></a> page and its dependencies. If the clock appears in the <tt>ntpq</tt> utility and <tt>pe</tt> command, no errors have occurred and the daemon has started, opened the devices specified and waiting for peers and radios to come up. If not, the first thing to look for are error messages on the system log. These are usually due to improper configuration, missing links or multiple instances of the daemon.</p>
+<p>It normally takes a minute or so for evidence to appear that the clock is running and the driver is operating correctly. The first indication is a nonzero value in the <tt>reach</tt> column in the <tt>pe</tt> billboard. If nothing appears after a few minutes, the next step is to be sure the RS232 messages, if used, are getting to and from the clock. The most reliable way to do this is with an RS232 tester and to look for data flashes as the driver polls the clock and/or as data arrive from the clock. Our experience is that the overwhelming fraction of problems occurring during installation are due to problems such as miswired connectors or improperly configured device links at this stage.</p>
+<p>If RS232 messages are getting to and from the clock, the variables of interest can be inspected using the <tt>ntpq</tt> program and various commands described on the documentation page. First, use the <tt>pe</tt> and <tt>as</tt> commands to display billboards showing the peer configuration and association IDs for all peers, including the radio clock. The assigned clock address should appear in the <tt>pe</tt> billboard and the association ID for it at the same relative line position in the <tt>as</tt> billboard.</p>
+<p>Additional information is available with the <tt>rv</tt> and <tt>clockvar</tt> commands, which take as argument the association ID shown in the <tt>as</tt> billboard. The <tt>rv</tt> command with no argument shows the system variables, while the <tt>rv</tt> command with association ID argument shows the peer variables for the clock, as well as other peers of interest. The <tt>clockvar</tt> command with argument shows the peer variables specific to reference clock peers, including the clock status, device name, last received timecode (if relevant), and various event counters. In addition, a subset of the <tt>fudge</tt> parameters is included. The poll and error counters in the <tt>clockvar</tt> billboard are useful debugging aids. The <tt>poll</tt> counts the poll messages sent to the clock, while the <tt>noreply</tt>, <tt>badformat</tt> and <tt>baddate</tt> count various errors. Check the timecode to be sure it matches what the driver expects. This may require consulting the clock hardware reference manual, which is probably pretty dusty at this stage.</p>
+<p>The <tt>ntpdc</tt> utility program can be used for detailed inspection of the clock driver status. The most useful are the <tt>clockstat</tt> and <tt>clkbug</tt> commands described in the document page. While these commands permit getting quite personal with the particular driver involved, their use is seldom necessary, unless an implementation bug shows up. If all else fails, turn on the debugging trace using two <tt>-d</tt> flags in the <tt>ntpd</tt> startup command line. Most drivers will dump status at every received message in this case. While the displayed trace can be intimidating, this provides the most detailed and revealing indicator of how the driver and clock are performing and where bugs might lurk.</p>
+<p>Most drivers write a message to the <tt>clockstats</tt> file as each timecode or surrogate is received from the radio clock. By convention, this is the last ASCII timecode (or ASCII gloss of a binary-coded one) received from the radio clock. This file is managed by the <tt>filegen</tt> facility described in the <tt>ntpd</tt> page and requires specific commands in the configuration file. This forms a highly useful record to discover anomalies during regular operation of the clock. The scripts included in the <tt>./scripts/stats</tt> directory can be run from a <tt>cron</tt> job to collect and summarize these data on a daily or weekly basis. The summary files have proven inspirational to detect infrequent misbehavior due to clock implementation bugs in some radios.</p>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

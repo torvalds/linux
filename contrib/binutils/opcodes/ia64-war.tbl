@@ -1,0 +1,2 @@
+Resource Name;	Readers;	Writers;	Semantics of Dependency
+PR63;	IC:pr-readers-br+1;	IC:mod-sched-brs;	stop

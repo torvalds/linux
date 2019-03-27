@@ -1,0 +1,497 @@
+# $FreeBSD$
+#
+# Quirks for ACPI tables can be added here.
+#
+# Comments start with '#'. Any number of spaces/tabs are ok within a line.
+# Be sure to include a reference to a PR when adding new quirks.  Quirks
+# that do not contain a PR were discovered by reliable sources with no
+# supporting info (i.e., other OS's).
+#
+
+# ABit BP6
+name:		ABit_BP6
+oem:		FADT "AWARD " "AWRDACPI"
+oem_rev:	FADT <= 0x30302e31
+quirks:		ACPI_Q_BROKEN
+
+# AMI INT 01/18/00
+name:		AMI_INT
+oem:		FADT "AMIINT" ""
+oem_rev:	FADT <= 10
+quirks:		ACPI_Q_BROKEN
+
+# ASUS P2B-D
+name:		ASUS_P2B_D
+oem:		FADT "ASUS  " "P2B-D   "
+oem_rev:	FADT <= 0x58582e32
+quirks:		ACPI_Q_BROKEN
+
+# ASUS P2B-F
+name:		ASUS_P2B_F
+oem:		FADT "ASUS  " "P2B-F   "
+oem_rev:	FADT <= 0x58582e31
+quirks:		ACPI_Q_BROKEN
+
+# ASUS P2B-DS 02/03/99
+name:		ASUS_P2B_DS
+oem:		FADT "ASUS  " "P2B-DS  "
+oem_rev:	FADT <= 0x58582e31
+creator_rev:	FADT <= 0x31303030
+quirks:		ACPI_Q_BROKEN
+
+# ASUS P2B-DS 10/21/99
+name:		ASUS_P2B_2
+oem:		FADT "ASUS  " "P2B-DS  "
+oem_rev:	FADT <= 0x58582e32
+creator_rev:	FADT <= 0x31303030
+quirks:		ACPI_Q_BROKEN
+
+# ASUS P2L97-DS 02/02/99
+name:		ASUS_P2L97_DS
+oem:		FADT "ASUS  " "P2L97-DS"
+oem_rev:	FADT <= 0x58582e31
+creator_rev:	FADT <= 0x31303030
+quirks:		ACPI_Q_BROKEN
+
+# ASUS P5A and P5A-B 03/12/99
+# PR:	i386/72450
+# Testing indicates that the ACPI timer runs twice as fast but otherwise
+# this system works normally.
+name:		ASUS_P5A
+oem:		FADT "ASUS  " "P5A     "
+oem_rev:	FADT <= 0x58582e31
+quirks:		ACPI_Q_TIMER
+
+# Compaq Armada 3500
+name:		Compaq_Armada_3500
+oem:		FADT "COMPAQ" "CPQB05E "
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# Compaq Armada 6500
+name:		Compaq_Armada_6500
+oem:		FADT "PTLTD "  "  FACP  "
+oem_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN
+
+# Compaq M500
+name:		Compaq_M500
+oem:		FADT "COMPAQ" "CPQB151 "
+oem_rev:	FADT <= 0x19990722
+quirks:		ACPI_Q_BROKEN
+
+# Compaq Panther
+name:		Compaq_Panther
+oem:		FADT "COMPAQ" "PANTHER "
+oem_rev:	FADT <= 1
+creator_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN
+
+# Compaq Presario 1692
+name:		Compaq_Presario_1692
+oem:		FADT "COMPAQ" "VIPER II"
+oem_rev:	FADT <= 0x06040000
+creator:	FADT "PTL "
+creator_rev:	FADT <= 0xF4240
+quirks:		ACPI_Q_BROKEN
+
+# Compaq Presario 1925
+name:		Compaq_Presario_1925
+oem:		FADT "PTLTD " "  FACP  "
+oem_rev:	FADT <= 0x06040000
+quirks:		ACPI_Q_BROKEN
+
+# Compaq R3000Z
+name:		Compaq_R3000Z
+oem:		FADT "NVIDIA" "CK8     "
+oem_rev:	FADT = 0x6040000
+creator:	FADT "PTL_"
+quirks:		ACPI_Q_MADT_IRQ0
+
+# Compaq Thunder 05/18/99
+# XXX Note creator rev should be "=", I think
+name:		Compaq_Thunder
+oem:		FADT "COMPAQ" "THUNDER "
+oem_rev:	FADT <= 1
+creator_rev:	FADT <= 0
+quirks:		ACPI_Q_BROKEN
+
+# Compaq RaceBait 12/06/99
+name:		Compaq_RaceBait
+oem:		FADT "COMPAQ" "RACEBAIT"
+oem_rev:	FADT <= 2
+quirks:		ACPI_Q_BROKEN
+
+# Dell CP??? 01/27/99
+name:		Dell_CPxxx
+oem:		FADT "Dell  " "CP???  "
+oem_rev:	FADT <= 0x27cf011b
+quirks:		ACPI_Q_BROKEN
+
+# Dell CPt
+# XXX Is ">=" correct?
+name:		Dell_CPt
+oem:		FADT "DELL  " "CPt C  "
+oem_rev:	FADT >= 0x27cf090e
+quirks:		ACPI_Q_BROKEN
+
+# Dell CPt A02
+# XXX Is ">=" correct?
+name:		Dell_CPt_A02
+oem:		FADT "DELL  " "CPt C  "
+oem_rev:	FADT >= 0x27cf090f
+quirks:		ACPI_Q_BROKEN
+
+# Dell Latitude LT
+name:		Dell_Latitude_LT
+oem:		FADT "SHARP " "        "
+quirks:		ACPI_Q_BROKEN
+
+# Dell Inspiron 3500
+name:		Dell_Inspiron_3500
+oem:		FADT "Dell  " "I 3500 "
+quirks:		ACPI_Q_BROKEN
+
+# Dell PE1300
+name:		Dell_PE1300
+oem:		FADT "Dell  " "PE1300  "
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# Dell Personal Workstation 1300
+name:		Dell_PE1300_2
+oem:		FADT "DELL  " "PE1300  "
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# FIC PA2013
+name:		FIC_PA2013
+oem:		FADT "FIC   " "PA2013  "
+oem_rev:	FADT <= 0x30302e31
+quirks:		ACPI_Q_BROKEN
+
+# FIC VB601
+name:		FIC_VB601
+oem:		FADT "FIC   " "VB601   "
+oem_rev:	FADT <= 0x30302e31
+quirks:		ACPI_Q_BROKEN
+
+# Fujitsu Capricorn
+name:		Fujitsu_Capricorn
+oem:		FADT "FUJ   " "CAPRICOR"
+quirks:		ACPI_Q_BROKEN
+
+# Fujitsu M63E
+name:		Fujitsu_M63E
+oem:		FADT "FUJ000" "M63E    "
+quirks:		ACPI_Q_BROKEN
+
+# Fujitsu M65
+name:		Fujitsu_M65
+oem:		FADT "FUJ   " "M65     "
+quirks:		ACPI_Q_BROKEN
+
+# Fujitsu Sprint
+name:		Fujitsu_Sprint
+oem:		XSDT "FUJ   " "SPRINT  "
+quirks:		ACPI_Q_BROKEN
+
+# Fujitsu Tandem
+name:		Fujitsu_Tandem
+oem:		FADT "FUJ   " "TANDEM  "
+quirks:		ACPI_Q_BROKEN
+
+# Fujitsu Elm
+name:		Fujitsu_Elm
+oem:		FADT "FUJ   " "M19A/XA "
+oem_rev:	FADT = 1
+creator:	FADT "ACER"
+creator_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN
+
+# Fujitsu Maple
+name:		Fujitsu_Maple
+oem:		FADT "FUJ   " "M9D     "
+oem_rev:	FADT = 1
+creator:	FADT "ACER"
+creator_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN
+
+# Fujitsu Sycamore
+name:		Fujitsu_Sycamore
+oem:		FADT "Fuj   " "M11EJ   "
+oem_rev:	FADT = 1
+creator:	FADT "ACER"
+creator_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN
+
+# Fujitsu V66NAS
+name:		Fujitsu_V66NAS
+oem:		FADT "FUJ   " "V66NAS  "
+quirks:		ACPI_Q_BROKEN
+
+# Gateway E1200
+name:		Gateway_E1200
+oem:		FADT "INTEL " "MAUI    "
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# Gateway E1400
+name:		Gateway_E1400
+oem:		FADT "SUMATR" "SU81010A"
+oem_rev:	FADT <= 0x1999072
+quirks:		ACPI_Q_BROKEN
+
+# Gateway Profile
+name:		Gateway_Profile
+oem:		FADT "GATEWA" "PROFILE "
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# Gateway Solo
+name:		Gateway_Solo
+oem:		FADT "GATEWA" "SOLO9300"
+oem_rev:	FADT <= 0x06040000
+quirks:		ACPI_Q_BROKEN
+
+# Gigabyte
+name:		Gigabyte_Award
+oem:		FADT "GBT" "AWRDACPI"
+oem_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN
+
+# GA-5AX (Rev 4)
+# Testing indicates that the ACPI timer runs twice as fast but otherwise
+# this system works normally.
+name:		GBT_AWRDACPI
+oem:		FADT "GBT   " "AWRDACPI"
+oem_rev:	FADT <= 0x42302e31
+quirks:		ACPI_Q_TIMER
+
+# Hitachi Flora 220CX
+name:		Hitachi_Flora_220CX
+oem:		FADT "HTCLTD" "HTC2041 "
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# Hitachi Flora 220MP
+name:		Hitachi_Flora_220MP
+oem:		FADT "HTCLTD" "        "
+quirks:		ACPI_Q_BROKEN
+
+# Hitachi Flora 270EX
+name:		Hitachi_Flora_270EX
+oem:		FADT "HTCLTD" "270-EX  "
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# Hitachi Flora 270VX-NH7
+name:		Hitachi_Flora_270VX_NH7
+oem:		FADT "HTCLTD" "HTC2051 "
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# HP Ashaki 02/24/99
+name:		HP_Ashaki
+oem:		FADT "HP    " "ASHAKI  "
+oem_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN
+
+# HP HPBDD
+name:		HP_HPBDD
+oem:		FADT "HP    " "HPBDD_IO"
+oem_rev:	FADT <= 0x1006
+quirks:		ACPI_Q_BROKEN
+
+# HP HPCCD HX
+name:		HP_HPCCD_HX
+oem:		FADT "HP    " "HPCCD HX"
+oem_rev:	FADT <= 0x10000
+quirks:		ACPI_Q_BROKEN
+
+# HP Kayak XUMP
+name:		HP_Kayak_XUMP
+oem:		FADT "HP    " "COGNAC  "
+oem_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN
+
+# HP LH 4
+name:		HP_LH_4
+oem:		FADT "HP    " "LH 4    "
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# HP Puma 02/12/99
+name:		HP_Puma
+oem:		FADT "HP    " "Puma    "
+oem_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN
+
+# HP Scimitar
+name:		HP_Scimitar
+oem:		FADT "HP    " "HWPC203 "
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# IBM Aptiva 145
+name:		IBM_Aptiva_145
+oem:		FADT "XXXXXX" "AWRDACPI"
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# IBM TP240 SandShark
+name:		IBM_TP240_SandShark
+oem:		FADT "IBM   " "SShark-1"
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# Intel Kauai
+name:		Intel_Kauai
+oem:		FADT "INTEL " "KAUAI   "
+quirks:		ACPI_Q_BROKEN
+
+# Intel L440GX
+name:		Intel_L440GX
+oem:		FADT "Intel " "L440GX  "
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# Intel OR840 09/14/99
+name:		Intel_OR840
+oem:		FADT "Intel " "OR840   "
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# Intel Seattle2
+name:		Intel_Seattle2
+oem:		FADT "INTEL " "SEATTLE2"
+oem_rev:	FADT <= 0x19990216
+quirks:		ACPI_Q_BROKEN
+
+# Iwill DBS100
+name:		Iwill_DBS100
+oem:		FADT "AWARD " "AWRDACPI"
+oem_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN
+
+# Micron Atlanta
+name:		Micron_Atlanta
+oem:		FADT "MICRON" "ATLANTA "
+oem_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN
+
+# Micron Trek 2U375
+name:		Micron_Trek_2U375
+oem:		FADT "MICRON" "Trek2AGP"
+oem_rev:	FADT = 1
+quirks:		ACPI_Q_BROKEN
+
+# NCR S20GX
+name:		NCR_S20GX
+oem:		FADT "Intel " "L440GX  "
+oem_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN
+
+# NEC PowerMate 8100
+name:		NEC_PowerMate_8100
+oem:		FADT "INTEL " "JN440BX1"
+oem_rev:	FADT >= 0x19990203
+oem_rev:	FADT <= 0x19990810
+creator_rev:	FADT = 0xf4240
+quirks:		ACPI_Q_BROKEN
+
+# NEC VersaNote
+name:		NEC_VersaNote
+oem:		FADT "INTEL " "440BX   "
+oem_rev:	FADT = 0
+creator:	FADT "PTL "
+creator_rev:	FADT = 0xf4240
+quirks:		ACPI_Q_BROKEN
+
+# NEC VersaNote C2
+name:		NEC_VersaNote_C2
+oem:		FADT "NEC   " "ND000011"
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# NEC Versa LXAGP
+name:		NEC_VersaNote_LXAGP
+oem:		FADT "NEC   " "ND000010"
+oem_rev:	FADT <= 0x97
+quirks:		ACPI_Q_BROKEN
+
+# NEC Z1
+name:		NEC_Z1
+oem:		FADT "AMIINT" ""
+oem_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN
+
+# QDIGRP 01/05/99
+name:		QDIGRP_Award
+oem:		FADT "QDIGRP" "AWRDACPI"
+oem_rev:	FADT <= 0
+quirks:		ACPI_Q_BROKEN
+
+# Siemens Mobile 750
+name:		Siemens_Mobile_750
+oem:		FADT "TSANYO" "        "
+oem_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN
+
+# Sony F290
+name:		Sony_F290
+oem:		FADT "SONY  " "K0      "
+oem_rev:	FADT <= 0x13108b4
+quirks:		ACPI_Q_BROKEN
+
+# Sony N505
+name:		Sony_N505
+oem:		FADT "SONY " "H0       "
+oem_rev:	FADT <= 0x06040000
+quirks:		ACPI_Q_BROKEN
+
+# Sony PCG-777
+# Sony PCG-888
+# Sony PCG-F16
+# Sony Z505DX
+name:		Sony_PCG_xxx
+oem:		FADT "SONY  " "        "
+quirks:		ACPI_Q_BROKEN
+
+# Sony PCV-L300
+name:		Sony_PCV_L300
+oem:		FADT "ASUS  " "SHACHI  "
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# Sony PCV-S520
+# Sony PCV-S720
+name:		Sony_PCV_Sx20
+oem:		FADT "SONY  " "440BX CR"
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# SuperMicro
+name:		SuperMicro_MTB
+oem:		FADT "SUPERM" "SUPERMTB"
+oem_rev:	FADT <= 2
+quirks:		ACPI_Q_BROKEN
+
+# Toshiba Portege 3300
+# Toshiba Satellite 4030XCDT
+name:		Toshiba_750
+oem:		FADT "TOSHIB" "750     "
+oem_rev:	FADT <= 1
+quirks:		ACPI_Q_BROKEN
+
+# Tyan
+name:		Tyan_TBLE
+oem:		FADT "TYANCP" "TYANTBLE"
+oem_rev:	FADT <= 9
+quirks:		ACPI_Q_BROKEN
+
+# VIA VP3A
+name:		VIA_VP3A
+oem:		FADT "VIAVP3" "AWRDACPI"
+oem_rev:	FADT = 0
+quirks:		ACPI_Q_BROKEN

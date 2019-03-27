@@ -1,0 +1,79 @@
+#!/bin/sh
+# $FreeBSD$
+#
+
+# PROVIDE: stf
+# REQUIRE: netif
+# KEYWORD: nojail
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="stf"
+desc="6to4 tunnel interface"
+start_cmd="stf_up"
+stop_cmd="stf_down"
+
+stf_up()
+{
+	case ${stf_interface_ipv4addr} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		# assign IPv6 addr and interface route for 6to4 interface
+		stf_prefixlen=$((16+${stf_interface_ipv4plen:-0}))
+		OIFS="$IFS"
+		IFS=".$IFS"
+		set ${stf_interface_ipv4addr}
+		IFS="$OIFS"
+		hexfrag1=`hexprint $(($1*256 + $2))`
+		hexfrag2=`hexprint $(($3*256 + $4))`
+		ipv4_in_hexformat="${hexfrag1}:${hexfrag2}"
+		case ${stf_interface_ipv6_ifid} in
+		[Aa][Uu][Tt][Oo] | '')
+			for i in ${ipv6_network_interfaces}; do
+				laddr=`network6_getladdr ${i}`
+				case ${laddr} in
+				'')
+					;;
+				*)
+					break
+					;;
+				esac
+			done
+			stf_interface_ipv6_ifid=`expr "${laddr}" : \
+						      'fe80::\(.*\)%\(.*\)'`
+			case ${stf_interface_ipv6_ifid} in
+			'')
+				stf_interface_ipv6_ifid=0:0:0:1
+				;;
+			esac
+			;;
+		esac
+		echo "Configuring 6to4 tunnel interface: stf0."
+		ifconfig stf0 create >/dev/null 2>&1
+		ifconfig stf0 inet6 2002:${ipv4_in_hexformat}:${stf_interface_ipv6_slaid:-0}:${stf_interface_ipv6_ifid} \
+			prefixlen ${stf_prefixlen}
+		check_startmsgs && /sbin/ifconfig stf0
+
+		# disallow packets to malicious 6to4 prefix
+		route add -inet6 2002:e000:: -prefixlen 20 ::1 -reject
+		route add -inet6 2002:7f00:: -prefixlen 24 ::1 -reject
+		route add -inet6 2002:0000:: -prefixlen 24 ::1 -reject
+		route add -inet6 2002:ff00:: -prefixlen 24 ::1 -reject
+		;;
+	esac
+}
+
+stf_down()
+{
+	echo "Removing 6to4 tunnel interface: stf0."
+	ifconfig stf0 destroy
+	route delete -inet6 2002:e000:: -prefixlen 20 ::1
+	route delete -inet6 2002:7f00:: -prefixlen 24 ::1
+	route delete -inet6 2002:0000:: -prefixlen 24 ::1
+	route delete -inet6 2002:ff00:: -prefixlen 24 ::1
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,6 @@
+## includes.mf - automake fragment
+
+SNTP_INCS  = -I$(top_srcdir)/../include
+SNTP_INCS += -I$(top_srcdir)/../lib/isc/include
+SNTP_INCS += -I$(top_srcdir)/../lib/isc/$(LIBISC_PTHREADS_NOTHREADS)/include
+SNTP_INCS += -I$(top_srcdir)/../lib/isc/unix/include

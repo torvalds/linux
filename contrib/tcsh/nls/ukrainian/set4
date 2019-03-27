@@ -1,0 +1,45 @@
+$ $tcsh: set4,v 1.3 2006/03/02 18:46:48 christos Exp $
+$ Termcap strings
+$set 4
+1 add new blank line
+2 audible bell
+3 clear to bottom
+4 clear to end of line
+5 cursor to horiz pos
+6 clear screen
+7 delete a character
+8 delete a line
+9 start delete mode
+10 end delete mode
+11 end insert mode
+12 cursor from status line
+13 home cursor
+14 insert character
+15 start insert mode
+16 insert padding
+17 sends cursor down
+18 sends cursor left
+19 sends cursor right
+20 sends cursor up
+21 begin bold
+22 end attributes
+23 non destructive space
+24 end standout
+25 begin standout
+26 cursor to status line
+27 cursor up one
+28 begin underline
+29 end underline
+30 visible bell
+31 delete multiple chars
+32 cursor down multiple
+33 insert multiple chars
+34 cursor left multiple
+35 cursor right multiple
+36 cursor up multiple
+37 Has automatic margins
+38 Can use physical tabs
+39 Number of lines
+40 Number of columns
+41 Has meta key
+42 Newline ignored at right margin

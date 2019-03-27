@@ -1,0 +1,144 @@
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ee.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 16, 2005
+.Dt AN 4
+.Os
+.Sh NAME
+.Nm an
+.Nd "Aironet Communications 4500/4800 wireless network adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device an"
+.Cd "device wlan"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_an_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Aironet Communications 4500 and 4800
+wireless network adapters and variants, including the following:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Aironet Communications 4500 and 4800 series
+.It
+Cisco Aironet 340 and 350 series
+.It
+Xircom Wireless Ethernet Adapter
+.El
+.Pp
+Support for these devices include the ISA, PCI and PCMCIA
+varieties.
+The Aironet 4500 series adapters operate at 1 and 2Mbps while
+the Aironet 4800 series and Cisco adapters can operate at 1, 2, 5.5 and 11Mbps.
+The ISA, PCI
+and PCMCIA devices are all based on the same core PCMCIA modules
+and all have the same programming interface, however unlike the
+Lucent WaveLAN/IEEE cards, the ISA and PCI cards appear to the
+host as normal ISA and PCI devices and do not require any PCCARD
+support.
+.Pp
+The PCMCIA Aironet cards require PC Card support, including the
+kernel
+.Xr pccard 4
+driver.
+ISA cards can either be configured to use ISA Plug and Play
+or to use a particular I/O address and IRQ
+by properly setting the DIP switches on the board.
+(The default
+switch setting is for Plug and Play.)
+The
+.Nm
+driver has Plug and Play support and will work in either configuration,
+however when using a hard-wired I/O address and IRQ, the driver
+configuration and the NIC's switch settings must agree.
+PCI cards
+require no switch settings of any kind and will be automatically
+probed and attached.
+.Pp
+All host/device interaction with the Aironet cards is via programmed I/O.
+The Aironet devices support 802.11 and 802.3 frames, power management,
+BSS (infrastructure) and IBSS (ad-hoc) operation modes.
+The
+.Nm
+driver encapsulates all IP and ARP traffic as 802.11 frames, however
+it can receive either 802.11 or 802.3 frames.
+Transmit speed is
+selectable between 1Mbps, 2Mbps, 5.5Mbps, 11Mbps or
+"auto" (the NIC automatically chooses the best speed).
+.Pp
+By default, the
+.Nm
+driver configures the Aironet card for infrastructure operation.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "an%d: init failed"
+The Aironet card failed to become ready after an initialization command was
+issued.
+.It "an%d: failed to allocate %d bytes on NIC"
+The driver was unable to allocate memory for transmit frames in the
+NIC's on-board RAM.
+.It "an%d: device timeout"
+The Aironet card failed to generate an interrupt to acknowledge a transmit
+command.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr wlan 4 ,
+.Xr ancontrol 8 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ee.columbia.edu .

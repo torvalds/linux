@@ -1,0 +1,15 @@
+in icmp 1.1.1.1 2.1.1.1 echo
+in icmp 1.1.1.1 2.1.1.1 echo,1
+in icmp 1.1.1.1 2.1.1.1 echo,3
+in icmp 1.1.1.1 2.1.1.1 unreach
+in icmp 1.1.1.1 2.1.1.1 unreach,1
+in icmp 1.1.1.1 2.1.1.1 unreach,3
+in icmp 1.1.1.1 2.1.1.1 echorep
+in icmp 1.1.1.1 2.1.1.1 echorep,1
+in icmp 1.1.1.1 2.1.1.1 echorep,3
+in icmp 2.2.2.2 3.3.3.3 maskreq
+out icmp 3.3.3.3 2.2.2.2 maskrep
+in icmp 4.4.4.4 5.5.5.5 timest
+out icmp 5.5.5.5 4.4.4.4 timestrep
+in icmp 6.6.6.6 7.7.7.7 inforeq
+out icmp 7.7.7.7 6.6.6.6 inforep

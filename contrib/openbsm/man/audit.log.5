@@ -1,0 +1,670 @@
+.\"-
+.\" Copyright (c) 2005-2006 Robert N. M. Watson
+.\" Copyright (c) 2008 Apple Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd November 5, 2006
+.Dt AUDIT.LOG 5
+.Os
+.Sh NAME
+.Nm audit
+.Nd "Basic Security Module (BSM) file format"
+.Sh DESCRIPTION
+The
+.Nm
+file format is based on Sun's Basic Security Module (BSM) file format, a
+token-based record stream to represent system audit data.
+This file format is both flexible and extensible, able to describe a broad
+range of data types, and easily extended to describe new data types in a
+moderately backward and forward compatible way.
+.Pp
+BSM token streams typically begin and end with a
+.Dq file
+token, which provides time stamp and file name information for the stream;
+when processing a BSM token stream from a stream as opposed to a single file
+source, file tokens may be seen at any point between ordinary records
+identifying when particular parts of the stream begin and end.
+All other tokens will appear in the context of a complete BSM audit record,
+which begins with a
+.Dq header
+token, and ends with a
+.Dq trailer
+token, which describe the audit record.
+Between these two tokens will appear a variety of data tokens, such as
+process information, file path names, IPC object information, MAC labels,
+socket information, and so on.
+.Pp
+The BSM file format defines specific token orders for each record event type;
+however, some variation may occur depending on the operating system in use,
+what system options, such as mandatory access control, are present.
+.Pp
+This manual page documents the common token types and their binary format, and
+is intended for reference purposes only.
+It is recommended that application programmers use the
+.Xr libbsm 3
+interface to read and write tokens, rather than parsing or constructing
+records by hand.
+.Ss File Token
+The
+.Dq file
+token is used at the beginning and end of an audit log file to indicate
+when the audit log begins and ends.
+It includes a pathname so that, if concatenated together, original file
+boundaries are still observable, and gaps in the audit log can be identified.
+A
+.Dq file
+token can be created using
+.Xr au_to_file 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Seconds	4 bytes	File time stamp"
+.It "Microseconds	4 bytes	File time stamp"
+.It "File name length	2 bytes	File name of audit trail"
+.It "File pathname	N bytes + 1 NUL	File name of audit trail"
+.El
+.Ss Header Token
+The
+.Dq header
+token is used to mark the beginning of a complete audit record, and includes
+the length of the total record in bytes, a version number for the record
+layout, the event type and subtype, and the time at which the event occurred.
+A 32-bit
+.Dq header
+token can be created using
+.Xr au_to_header32 3 ;
+a 64-bit
+.Dq header
+token can be created using
+.Xr au_to_header64 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Record Byte Count	4 bytes	Number of bytes in record"
+.It "Version Number	2 bytes	Record version number"
+.It "Event Type	2 bytes	Event type"
+.It "Event Modifier	2 bytes	Event sub-type"
+.It "Seconds	4/8 bytes	Record time stamp (32/64-bits)"
+.It "Nanoseconds	4/8 bytes	Record time stamp (32/64-bits)"
+.El
+.Ss Expanded Header Token
+The
+.Dq expanded header
+token is an expanded version of the
+.Dq header
+token, with the addition of a machine IPv4 or IPv6 address.
+A 32-bit extended
+.Dq header
+token can be created using
+.Xr au_to_header32_ex 3 ;
+a 64-bit extended
+.Dq header
+token can be created using
+.Xr au_to_header64_ex 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Record Byte Count	4 bytes	Number of bytes in record"
+.It "Version Number	2 bytes	Record version number"
+.It "Event Type	2 bytes	Event type"
+.It "Event Modifier	2 bytes	Event sub-type"
+.It "Address Type/Length	1 byte	Host address type and length"
+.It "Machine Address	4/16 bytes	IPv4 or IPv6 address"
+.It "Seconds	4/8 bytes	Record time stamp (32/64-bits)"
+.It "Nanoseconds	4/8 bytes	Record time stamp (32/64-bits)"
+.El
+.Ss Trailer Token
+The
+.Dq trailer
+terminates a BSM audit record, and contains a magic number,
+.Dv AUT_TRAILER_MAGIC
+and length that can be used to validate that the record was read properly.
+A
+.Dq trailer
+token can be created using
+.Xr au_to_trailer 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Trailer Magic	2 bytes	Trailer magic number"
+.It "Record Byte Count	4 bytes	Number of bytes in record"
+.El
+.Ss Arbitrary Data Token
+The
+.Dq arbitrary data
+token contains a byte stream of opaque (untyped) data.
+The size of the data is calculated as the size of each unit of data
+multiplied by the number of units of data.
+A
+.Dq How to print
+field is present to specify how to print the data, but interpretation of
+that field is not currently defined.
+An
+.Dq arbitrary data
+token can be created using
+.Xr au_to_data 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "How to Print	1 byte	User-defined printing information"
+.It "Basic Unit	1 byte	Size of a unit in bytes"
+.It "Unit Count	1 byte	Number of units of data present"
+.It "Data Items	Variable	User data"
+.El
+.Ss in_addr Token
+The
+.Dq in_addr
+token holds a network byte order IPv4 address.
+An
+.Dq in_addr
+token can be created using
+.Xr au_to_in_addr 3
+for an IPv4 address.
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "IP Address	4 bytes	IPv4 address"
+.El
+.Ss Expanded in_addr Token
+The
+.Dq in_addr_ex
+token holds a network byte order IPv4 or IPv6 address.
+An
+.Dq in_addr_ex
+token can be created using
+.Xr au_to_in_addr_ex 3
+for an IPv6 address.
+.Pp
+See the
+.Sx BUGS
+section for information on the storage of this token.
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "IP Address Type	1 byte	Type of address"
+.It "IP Address	4/16 bytes	IPv4 or IPv6 address"
+.El
+.Ss ip Token
+The
+.Dq ip
+token contains an IP packet header in network byte order.
+An
+.Dq ip
+token can be created using
+.Xr au_to_ip 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Version and IHL	1 byte	Version and IP header length"
+.It "Type of Service	1 byte	IP TOS field"
+.It "Length	2 bytes	IP packet length in network byte order"
+.It "ID	2 bytes	IP header ID for reassembly"
+.It "Offset	2 bytes	IP fragment offset and flags, network byte order"
+.It "TTL	1 byte	IP Time-to-Live"
+.It "Protocol	1 byte	IP protocol number"
+.It "Checksum	2 bytes	IP header checksum, network byte order"
+.It "Source Address	4 bytes	IPv4 source address"
+.It "Destination Address	4 bytes	IPv4 destination address"
+.El
+.Ss iport Token
+The
+.Dq iport
+token stores an IP port number in network byte order.
+An
+.Dq iport
+token can be created using
+.Xr au_to_iport 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Port Number	2 bytes	Port number in network byte order"
+.El
+.Ss Path Token
+The
+.Dq path
+token contains a pathname.
+A
+.Dq path
+token can be created using
+.Xr au_to_path 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Path Length	2 bytes	Length of path in bytes"
+.It "Path	N bytes + 1 NUL	Path name"
+.El
+.Ss path_attr Token
+The
+.Dq path_attr
+token contains a set of NUL-terminated path names.
+The
+.Xr libbsm 3
+API cannot currently create a
+.Dq path_attr
+token.
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Count	2 bytes	Number of NUL-terminated string(s) in token"
+.It "Path	Variable	count NUL-terminated string(s)"
+.El
+.Ss Process Token
+The
+.Dq process
+token contains a description of the security properties of a process
+involved as the target of an auditable event, such as the destination for
+signal delivery.
+It should not be confused with the
+.Dq subject
+token, which describes the subject performing an auditable event.
+This includes both the traditional
+.Ux
+security properties, such as user IDs and group IDs, but also audit
+information such as the audit user ID and session.
+A
+.Dq process
+token can be created using
+.Xr au_to_process32 3
+or
+.Xr au_to_process64 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Audit ID	4 bytes	Audit user ID"
+.It "Effective User ID	4 bytes	Effective user ID"
+.It "Effective Group ID	4 bytes	Effective group ID"
+.It "Real User ID	4 bytes	Real user ID"
+.It "Real Group ID	4 bytes	Real group ID"
+.It "Process ID	4 bytes	Process ID"
+.It "Session ID	4 bytes	Audit session ID"
+.It "Terminal Port ID	4/8 bytes	Terminal port ID (32/64-bits)"
+.It "Terminal Machine Address	4 bytes	IP address of machine"
+.El
+.Ss Expanded Process Token
+The
+.Dq expanded process
+token contains the contents of the
+.Dq process
+token, with the addition of a machine address type and variable length
+address storage capable of containing IPv6 addresses.
+An
+.Dq expanded process
+token can be created using
+.Xr au_to_process32_ex 3
+or
+.Xr au_to_process64_ex 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Audit ID	4 bytes	Audit user ID"
+.It "Effective User ID	4 bytes	Effective user ID"
+.It "Effective Group ID	4 bytes	Effective group ID"
+.It "Real User ID	4 bytes	Real user ID"
+.It "Real Group ID	4 bytes	Real group ID"
+.It "Process ID	4 bytes	Process ID"
+.It "Session ID	4 bytes	Audit session ID"
+.It "Terminal Port ID	4/8 bytes	Terminal port ID (32/64-bits)"
+.It "Terminal Address Type/Length	1 byte	Length of machine address"
+.It "Terminal Machine Address	4 bytes	IPv4 or IPv6 address of machine"
+.El
+.Ss Return Token
+The
+.Dq return
+token contains a system call or library function return condition, including
+return value and error number associated with the global variable
+.Er errno .
+A
+.Dq return
+token can be created using
+.Xr au_to_return32 3
+or
+.Xr au_to_return64 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Error Number	1 byte	Errno value, or 0 if undefined"
+.It "Return Value	4/8 bytes	Return value (32/64-bits)"
+.El
+.Ss Subject Token
+The
+.Dq subject
+token contains information on the subject performing the operation described
+by an audit record, and includes similar information to that found in the
+.Dq process
+and
+.Dq expanded process
+tokens.
+However, those tokens are used where the process being described is the
+target of the operation, not the authorizing party.
+A
+.Dq subject
+token can be created using
+.Xr au_to_subject32 3
+and
+.Xr au_to_subject64 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Audit ID	4 bytes	Audit user ID"
+.It "Effective User ID	4 bytes	Effective user ID"
+.It "Effective Group ID	4 bytes	Effective group ID"
+.It "Real User ID	4 bytes	Real user ID"
+.It "Real Group ID	4 bytes	Real group ID"
+.It "Process ID	4 bytes	Process ID"
+.It "Session ID	4 bytes	Audit session ID"
+.It "Terminal Port ID	4/8 bytes	Terminal port ID (32/64-bits)"
+.It "Terminal Machine Address	4 bytes	IP address of machine"
+.El
+.Ss Expanded Subject Token
+The
+.Dq expanded subject
+token consists of the same elements as the
+.Dq subject
+token, with the addition of type/length and variable size machine address
+information in the terminal ID.
+An
+.Dq expanded subject
+token can be created using
+.Xr au_to_subject32_ex 3
+or
+.Xr au_to_subject64_ex 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Audit ID	4 bytes	Audit user ID"
+.It "Effective User ID	4 bytes	Effective user ID"
+.It "Effective Group ID	4 bytes	Effective group ID"
+.It "Real User ID	4 bytes	Real user ID"
+.It "Real Group ID	4 bytes	Real group ID"
+.It "Process ID	4 bytes	Process ID"
+.It "Session ID	4 bytes	Audit session ID"
+.It "Terminal Port ID	4/8 bytes	Terminal port ID (32/64-bits)"
+.It "Terminal Address Type/Length	1 byte	Length of machine address"
+.It "Terminal Machine Address	4 bytes	IPv4 or IPv6 address of machine"
+.El
+.Ss System V IPC Token
+The
+.Dq System V IPC
+token contains the System V IPC message handle, semaphore handle or shared
+memory handle.
+A System V IPC token may be created using
++.Xr au_to_ipc 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Object ID type	1 byte	Object ID"
+.It "Object ID	4 bytes	Object ID"
+.El
+.Ss Text Token
+The
+.Dq text
+token contains a single NUL-terminated text string.
+A
+.Dq text
+token may be created using
+.Xr au_to_text 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Text Length	2 bytes	Length of text string including NUL"
+.It "Text	N bytes + 1 NUL	Text string including NUL"
+.El
+.Ss Attribute Token
+The
+.Dq attribute
+token describes the attributes of a file associated with the audit event.
+As files may be identified by 0, 1, or many path names, a path name is not
+included with the attribute block for a file; optional
+.Dq path
+tokens may also be present in an audit record indicating which path, if any,
+was used to reach the object.
+An
+.Dq attribute
+token can be created using
+.Xr au_to_attr32 3
+or
+.Xr au_to_attr64 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "File Access Mode	1 byte	mode_t associated with file"
+.It "Owner User ID	4 bytes	uid_t associated with file"
+.It "Owner Group ID	4 bytes	gid_t associated with file"
+.It "File System ID	4 bytes	fsid_t associated with file"
+.It "File System Node ID	8 bytes	ino_t associated with file"
+.It "Device	4/8 bytes	Device major/minor number (32/64-bit)"
+.El
+.Ss Groups Token
+The
+.Dq groups
+token contains a list of group IDs associated with the audit event.
+A
+.Dq groups
+token can be created using
+.Xr au_to_groups 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Number of Groups	2 bytes	Number of groups in token"
+.It "Group List	N * 4 bytes	List of N group IDs"
+.El
+.Ss System V IPC Permission Token
+The
+.Dq System V IPC permission
+token contains a System V IPC access permissions.
+A System V IPC permission token may be created using
+.Xr au_to_ipc_perm 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It Li "Owner user ID" Ta "4 bytes" Ta "User ID of IPC owner"
+.It Li "Owner group ID" Ta "4 bytes" Ta "Group ID of IPC owner"
+.It Li "Creator user ID" Ta "4 bytes" Ta "User ID of IPC creator"
+.It Li "Creator group ID" Ta "4 bytes" Ta "Group ID of IPC creator"
+.It Li "Access mode" Ta "4 bytes" Ta "Access mode"
+.It Li "Sequence number" Ta "4 bytes" Ta "Sequence number"
+.It Li "Key" Ta "4 bytes" Ta "IPC key"
+.El
+.Ss Arg Token
+The
+.Dq arg
+token contains information about arguments of the system call.
+Depending on the size of the desired argument value, an Arg token may be
+created using
+.Xr au_to_arg32 3
+or
+.Xr au_to_arg64 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It Li "Argument ID" Ta "1 byte" Ta "Argument ID"
+.It Li "Argument value" Ta "4/8 bytes" Ta "Argument value"
+.It Li "Length" Ta "2 bytes" Ta "Length of the text"
+.It Li "Text" Ta "N bytes + 1 nul" Ta "The string including nul"
+.El
+.Ss exec_args Token
+The
+.Dq exec_args
+token contains information about arguments of the exec() system call.
+An exec_args token may be created using
+.Xr au_to_exec_args 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It Li "Count" Ta "4 bytes" Ta "Number of arguments"
+.It Li "Text" Ta "* bytes" Ta "Count nul-terminated strings"
+.El
+.Ss exec_env Token
+The
+.Dq exec_env
+token contains current environment variables to an exec() system call.
+An exec_args token may be created using
+.Xr au_to_exec_env 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It Li "Count ID" Ta "4 bytes" Ta "Number of variables"
+.It Li "Text" Ta "* bytes" Ta "Count nul-terminated strings"
+.El
+.Ss Exit Token
+The
+.Dq exit
+token contains process exit/return code information.
+An
+.Dq exit
+token can be created using
+.Xr au_to_exit 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Status	4 bytes	Process status on exit"
+.It "Return Value	4 bytes	Process return value on exit"
+.El
+.Ss Socket Token
+The
+.Dq socket
+token contains information about UNIX domain and Internet sockets.
+Each token has four or eight fields.
+Depending on the type of socket, a socket token may be created using
+.Xr au_to_sock_unix 3 ,
+.Xr au_to_sock_inet32 3
+or
+.Xr au_to_sock_inet128 3 .
+.Bl -column -offset 3n ".Sy Field Name Width XX" ".Sy XX Bytes XXXX" ".Sy Description"
+.It Sy "Field" Ta Sy Bytes Ta Sy Description
+.It Li "Token ID" Ta "1 byte" Ta "Token ID"
+.It Li "Socket family" Ta "2 bytes" Ta "Socket family"
+.It Li "Local port" Ta "2 bytes" Ta "Local port"
+.It Li "Socket address" Ta "4 bytes" Ta "Socket address"
+.El
+.Ss Expanded Socket Token
+The
+.Dq expanded socket
+token contains information about IPv4 and IPv6 sockets.
+A
+.Dq expanded socket
+token can be created using
+.Xr au_to_socket_ex 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It Li "Token ID" Ta "1 byte" Ta "Token ID"
+.It Li "Socket domain" Ta "2 bytes" Ta "Socket domain"
+.It Li "Socket type" Ta "2 bytes" Ta "Socket type"
+.It Li "Address type" Ta "2 byte" Ta "Address type (IPv4/IPv6)"
+.It Li "Local port" Ta "2 bytes" Ta "Local port"
+.It Li "Local IP address" Ta "4/16 bytes" Ta "Local IP address"
+.It Li "Remote port" Ta "2 bytes" Ta "Remote port"
+.It Li "Remote IP address" Ta "4/16 bytes" Ta "Remote IP address"
+.El
+.Ss Seq Token
+The
+.Dq seq
+token contains a unique and monotonically increasing audit event sequence ID.
+Due to the limited range of 32 bits, serial number arithmetic and caution
+should be used when comparing sequence numbers.
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Sequence Number	4 bytes	Audit event sequence number"
+.El
+.Ss privilege Token
+The
+.Dq privilege
+token ...
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.El
+.Ss Use-of-auth Token
+The
+.Dq use-of-auth
+token ...
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.El
+.Ss Command Token
+The
+.Dq command
+token ...
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.El
+.Ss ACL Token
+The
+.Dq ACL
+token ...
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.El
+.Ss Zonename Token
+The
+.Dq zonename
+token holds a NUL-terminated string with the name of the zone or jail from
+which the record originated.
+A
+.Dq zonename
+token can be created using
+.Xr au_to_zonename 3 .
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Zonename length	2 bytes	Length of zonename string including NUL"
+.It "Zonename	N bytes + 1 NUL	Zonename string including NUL"
+.El
+.Sh SEE ALSO
+.Xr auditreduce 1 ,
+.Xr praudit 1 ,
+.Xr libbsm 3 ,
+.Xr audit 4 ,
+.Xr auditpipe 4 ,
+.Xr audit 8
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Sh AUTHORS
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
+.Pp
+This manual page was written by
+.An Robert Watson Aq rwatson@FreeBSD.org .
+.Sh BUGS
+The
+.Dq How to print
+field in the
+.Dq arbitrary data
+token has undefined values.
+.Pp
+The
+.Dq in_addr
+and
+.Dq in_addr_ex
+token layout documented here appears to be in conflict with the
+.Xr libbsm 3
+implementation of
+.Xr au_to_in_addr_ex 3 .

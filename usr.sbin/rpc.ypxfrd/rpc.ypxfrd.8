@@ -1,0 +1,153 @@
+.\" Copyright (c) 1995, 1996
+.\"	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 2, 1996
+.Dt RPC.YPXFRD 8
+.Os
+.Sh NAME
+.Nm rpc.ypxfrd
+.Nd "NIS map transfer server"
+.Sh SYNOPSIS
+.Nm
+.Op Fl p Ar path
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to speed up the distribution of very large NIS maps
+from NIS master to NIS slave servers.
+The normal method for transferring
+maps involves several steps:
+.Bl -bullet -offset indent
+.It
+The master server calls
+.Xr yppush 8
+to inform the slave servers to start a transfer.
+.It
+The slave servers invoke
+.Xr ypxfr 8 ,
+which reads the entire contents of a map from the master server
+using the yp_all() function.
+.It
+The
+.Xr ypxfr 8
+program then creates a new map database file by using the
+.Xr db 3
+library hash method to store the data that it receives from the server.
+.It
+When all the data has been retrieved,
+.Xr ypxfr 8
+moves the new file into place and sends
+.Xr ypserv 8
+on the local machine a YPPROC_CLEAR to tell it to refresh its
+database handles.
+.El
+.Pp
+This process can take several minutes when there are very large
+maps involved.
+For example: a passwd database with several tens of
+thousands of entries can consume several megabytes of disk space,
+and it can take the
+.Xr db 3
+library package a long time to sort and store all the records
+in a hash database.
+Consider also that there are two sets of map
+files:
+.Pa master.passwd.by{name,uid}
+and
+.Pa passwd.by{name,uid} .
+.Pp
+The
+.Nm
+utility speeds up the transfer process by allowing NIS slave servers to
+simply copy the master server's map files rather than building their
+own from scratch.
+Simply put,
+.Nm
+implements an RPC-based file transfer protocol.
+Transferring even
+a multi-megabyte file in this fashion takes only a few seconds compared
+to the several minutes it would take even a reasonably fast slave server
+to build a new map from scratch.
+.Pp
+The
+.Nm
+utility uses the same access restriction mechanism as
+.Xr ypserv 8 .
+This means that slave servers will only be permitted to transfer
+files if the rules in the
+.Pa securenets
+database permit it (see
+.Xr ypserv 8
+for more information on
+.Pa securenets ) .
+Furthermore, only slave servers using reserved
+ports will be allowed to transfer the
+.Pa master.passwd
+maps.
+.Sh OPTIONS
+The following option is available:
+.Bl -tag -width indent
+.It Fl p Ar path
+This option can be used to override the default path to
+the location of the NIS
+map databases.
+The compiled-in default path is
+.Pa /var/yp .
+.El
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /var/yp/[domainname]/[maps]
+The NIS maps for a particular NIS domain.
+.El
+.Sh SEE ALSO
+.Xr yp 8 ,
+.Xr yppush 8 ,
+.Xr ypserv 8 ,
+.Xr ypxfr 8
+.Sh AUTHORS
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu
+.Sh BUGS
+The
+.Fx
+.Nm ypxfrd
+protocol is not compatible with that used by SunOS.
+This is unfortunate
+but unavoidable: Sun's protocol is not freely available, and even if it
+were it would probably not be useful since the SunOS NIS v2 implementation
+uses the original ndbm package for its map databases whereas the
+.Fx
+implementation uses Berkeley DB.
+These two packages use vastly different
+file formats.
+Furthermore, ndbm is byte-order sensitive and not very
+smart about it, meaning that am ndbm database created on a big endian
+system cannot be read on a little endian system.

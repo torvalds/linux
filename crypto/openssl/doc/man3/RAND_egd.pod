@@ -1,0 +1,61 @@
+=pod
+
+=head1 NAME
+
+RAND_egd, RAND_egd_bytes, RAND_query_egd_bytes - query entropy gathering daemon
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand.h>
+
+ int RAND_egd_bytes(const char *path, int num);
+ int RAND_egd(const char *path);
+
+ int RAND_query_egd_bytes(const char *path, unsigned char *buf, int num);
+
+=head1 DESCRIPTION
+
+On older platforms without a good source of randomness such as C</dev/urandom>,
+it is possible to query an Entropy Gathering Daemon (EGD) over a local
+socket to obtain randomness and seed the OpenSSL RNG.
+The protocol used is defined by the EGDs available at
+L<http://egd.sourceforge.net/> or L<http://prngd.sourceforge.net>.
+
+RAND_egd_bytes() requests B<num> bytes of randomness from an EGD at the
+specified socket B<path>, and passes the data it receives into RAND_add().
+RAND_egd() is equivalent to RAND_egd_bytes() with B<num> set to 255.
+
+RAND_query_egd_bytes() requests B<num> bytes of randomness from an EGD at
+the specified socket B<path>, where B<num> must be less than 256.
+If B<buf> is B<NULL>, it is equivalent to RAND_egd_bytes().
+If B<buf> is not B<NULL>, then the data is copied to the buffer and
+RAND_add() is not called.
+
+OpenSSL can be configured at build time to try to use the EGD for seeding
+automatically.
+
+=head1 RETURN VALUES
+
+RAND_egd() and RAND_egd_bytes() return the number of bytes read from the
+daemon on success, or -1 if the connection failed or the daemon did not
+return enough data to fully seed the PRNG.
+
+RAND_query_egd_bytes() returns the number of bytes read from the daemon on
+success, or -1 if the connection failed.
+
+=head1 SEE ALSO
+
+L<RAND_add(3)>,
+L<RAND_bytes(3)>,
+L<RAND(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

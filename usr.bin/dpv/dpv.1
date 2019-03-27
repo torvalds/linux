@@ -1,0 +1,433 @@
+.\" Copyright (c) 2013-2016 Devin Teske
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 26, 2016
+.Dt DPV 1
+.Os
+.Sh NAME
+.Nm dpv
+.Nd stream data from stdin or multiple paths with dialog progress view
+.Sh SYNOPSIS
+.Nm
+.Op options
+.Ar [bytes:]label
+.Nm
+.Op options
+.Fl m
+.Ar [bytes1:]label1
+.Ar path1
+.Op Ar [bytes2:]label2 path2 ...
+.Sh DESCRIPTION
+.Nm
+provides a dialog progress view, allowing a user to see current throughput rate
+and total data transferred for one or more streams.
+.Pp
+The
+.Nm
+utility has two main modes for processing input.
+.Pp
+The default input mode, without
+.Ql Fl m ,
+.Nm
+reads bytes from standard input.
+A label for the data must be provided.
+.Pp
+The secondary input mode, with
+.Ql Fl m ,
+.Nm
+reads multiple paths
+.Pq up to 2047 or Dq ARG_MAX/2-1 ,
+sequentially.
+.Pp
+Data read in either mode is either thrown away
+.Pq default ,
+sent to a spawned instance of the program specified via
+.Ql Fl x Ar cmd ,
+or sent to a unique file specified by
+.Ql Fl o Ar file .
+.Pp
+With or without
+.Ql Fl m ,
+progress is displayed using one of
+.Xr dialog 3
+.Pq default ,
+.Xr dialog 1
+.Pq see Ql Fl D ,
+or instead
+.Xr Xdialog 1
+.Pq see Ql Fl X .
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl b Ar backtitle"
+.It Fl a Ar text
+Display
+.Ar text
+below the file progress indicator(s).
+.It Fl b Ar backtitle
+Display
+.Ar backtitle
+on the backdrop, at top-left, behind the dialog widget.
+When using
+.Xr Xdialog 1 ,
+this is displayed inside the window
+.Pq at the top
+followed by a separator line.
+.It Fl d
+Debug mode.
+Print dialog prompt data to standard out and provide additional debugging on
+standard error.
+.It Fl D
+Do not use the default interface of
+.Xr dialog 3 ,
+but instead spawn an instance of
+.Xr dialog 1 .
+The path to
+.Xr dialog 1
+is taken from the
+.Ev DIALOG
+environment variable or simply
+.Dq Li dialog
+if unset or NULL.
+.It Fl h
+Produce a short syntax usage with brief option descriptions and exit.
+Output is produced on standard error.
+.It Fl i Ar format
+Customize the single-file format string used to update the status line.
+Ignored when using either
+.Ql Fl D
+or
+.Ql Fl X
+which lack the ability to display the status line
+.Pq containing bytes/rate/thread information .
+Default value
+is
+.Dq Li %'10lli bytes read @ %'9.1f bytes/sec. .
+This format is used when handling one file.
+.It Fl I Ar format
+Customize the multi-file format string used to update the status line.
+Ignored when using either
+.Ql Fl D
+or
+.Ql Fl X
+which lack the ability to display the status line
+.Pq containing bytes/rate/thread information .
+Default value
+is
+.Dq Li %'10lli bytes read @ %'9.1f bytes/sec. [%i/%i busy/wait] .
+This format is used when handling more than one file.
+.It Fl k
+Keep tite.
+Prevent visually distracting initialization/exit routines for scripts running
+.Xr dialog 1
+several times.
+.It Fl l
+Line mode. Read lines from input instead of bytes.
+.It Fl L Ar size
+Label size.
+If negative, shrink to longest label width.
+.It Fl m
+Multi-input mode.
+Instead of reading bytes from standard input, read from a set of paths
+.Pq one for each label .
+By default, each path is processed sequentially in the order given.
+.It Fl n Ar num
+Display at-most
+.Ar num
+progress indicators per screen.
+If zero, display as many as possible.
+If negative, only display the main progress indicator.
+Default is 0.
+Maximum value is 10.
+.It Fl N
+No overrun.
+If enabled, stop reading known-length inputs when input reaches stated length.
+.It Fl o Ar file
+Output data to
+.Ar file .
+The first occurrence of
+.Ql %s
+.Pq if any
+in
+.Ql Ar file
+will be replaced with the
+.Ar label
+text.
+.It Fl p Ar text
+Display
+.Ar text
+above the file progress indicator(s).
+.It Fl P Ar size
+Mini-progressbar size.
+If negative, don't display mini-progressbars
+.Pq only the large overall progress indicator is shown .
+If zero, auto-adjust based on number of files to read.
+When zero and only one file to read, defaults to -1.
+When zero and more than one file to read, defaults to 17.
+.It Fl t Ar title
+Display
+.Ar title
+atop the dialog box.
+Note that if you use this option at the same time as
+.Ql Fl X
+and
+.Ql Fl b Ar backtitle ,
+the
+.Ar backtitle
+and
+.Ar title
+are effectively switched
+.Pq see BUGS section below .
+.It Fl T
+Test mode.
+Simulate reading a number of bytes, divided evenly across the number of files,
+while stepping through each percent value of each file to process.
+Appends
+.Dq Li [TEST MODE]
+to the status line
+.Pq to override, use Ql Fl u Ar format .
+No data is actually read.
+.It Fl U Ar num
+Update status line
+.Ar num
+times per-second.
+Default value is
+.Ql Li 2 .
+A value of
+.Ql Li 0
+disables status line updates.
+If negative, update the status line as fast as possible.
+Ignored when using either
+.Ql Fl D
+or
+.Ql Fl X
+which lack the ability to display the status line
+.Pq containing bytes/rate/thread information .
+.It Fl w
+Wide mode.
+Allows long
+.Ar text
+arguments used with
+.Ql Fl p
+and
+.Ql Fl a
+to bump the dialog width.
+Prompts wider than the maximum width will wrap
+.Pq unless using Xr Xdialog 1 ; see BUGS section below .
+.It Fl x Ar cmd
+Execute
+.Ar cmd
+.Pq via Xr sh 1
+and send it data that has been read.
+Data is available to
+.Ar cmd
+on standard input.
+With
+.Ql Fl m ,
+.Ar cmd
+is executed once for each
+.Ar path
+argument.
+The first occurrence of
+.Ql %s
+.Pq if any
+in
+.Ql Ar cmd
+will be replaced with the
+.Ar label
+text.
+.It Fl X
+Enable X11 mode by using
+.Xr Xdialog 1
+instead of
+.Xr dialog 1
+or
+.Xr dialog 3 .
+.El
+.Sh ENVIRONMENT
+The following environment variables are referenced by
+.Nm :
+.Bl -tag -width ".Ev USE_COLOR"
+.It Ev DIALOG
+Override command string used to launch
+.Xr dialog 1
+.Pq requires Ql Fl D
+or
+.Xr Xdialog 1
+.Pq requires Ql Fl X ;
+default is either
+.Ql dialog
+.Pq for Ql Fl D
+or
+.Ql Xdialog
+.Pq for Ql Fl X .
+.It Ev DIALOGRC
+If set and non-NULL, path to
+.Ql .dialogrc
+file.
+.It Ev HOME
+If
+.Ql Ev $DIALOGRC
+is either not set or NULL, used as a prefix to
+.Ql .dialogrc
+.Pq i.e., Ql $HOME/.dialogrc .
+.It Ev USE_COLOR
+If set and NULL, disables the use of color when using
+.Xr dialog 1
+.Pq does not apply to Xr Xdialog 1 .
+.El
+.Sh DEPENDENCIES
+If using
+.Ql Fl D ,
+.Xr dialog 1
+is required.
+.Pp
+If using
+.Ql Fl X ,
+.Xr Xdialog 1
+is required.
+.Sh FILES
+.Bl -tag -width ".Pa $HOME/.dialogrc" -compact
+.It Pa $HOME/.dialogrc
+.El
+.Sh EXAMPLES
+Simple example to show how fast
+.Xr yes 1
+produces lines
+.Pq usually about ten-million per-second; your results may vary :
+.Bd -literal -offset indent
+yes | dpv -l yes
+.Ed
+.Pp
+Display progress while timing how long it takes
+.Xr yes 1
+to produce a half-billion lines
+.Pq usually under one minute; your results may vary :
+.Bd -literal -offset indent
+time yes | dpv -Nl 500000000:yes
+.Ed
+.Pp
+An example to watch how quickly a file is transferred using
+.Xr nc 1 :
+.Bd -literal -offset indent
+dpv -x "nc -w 1 somewhere.com 3000" -m label file
+.Ed
+.Pp
+A similar example, transferring a file from another process and passing the
+expected size to
+.Nm :
+.Bd -literal -offset indent
+cat file | dpv -x "nc -w 1 somewhere.com 3000" 12345:label
+.Ed
+.Pp
+A more complicated example:
+.Bd -literal -offset indent
+tar cf - . | dpv -x "gzip -9 > out.tgz" \\
+	$( du -s . | awk '{print $1 * 1024}' ):label
+.Ed
+.Pp
+Taking an image of a disk:
+.Bd -literal -offset indent
+dpv -o disk-image.img -m label /dev/ada0
+.Ed
+.Pp
+Writing an image back to a disk:
+.Bd -literal -offset indent
+dpv -o /dev/ada0 -m label disk-image.img
+.Ed
+.Pp
+Zeroing a disk:
+.Bd -literal -offset indent
+dpv -o /dev/md42 < /dev/zero
+.Ed
+.Sh SEE ALSO
+.Xr dialog 1 ,
+.Xr sh 1 ,
+.Xr Xdialog 1 ,
+.Xr dialog 3
+.Sh HISTORY
+A
+.Nm
+utility first appeared in
+.Fx 10.2 .
+.Sh AUTHORS
+.An Devin Teske Aq dteske@FreeBSD.org
+.Sh BUGS
+.Xr Xdialog 1 ,
+when given both
+.Ql Fl -title Ar title
+.Pq see above Ql Fl t Ar title
+and
+.Ql Fl -backtitle Ar backtitle
+.Pq see above Ql Fl b Ar backtitle ,
+displays the backtitle in place of the title and vice-versa.
+.Pp
+.Xr Xdialog 1
+does not wrap long prompt texts received after initial launch.
+This is a known issue with the
+.Ql --gauge
+widget in
+.Xr Xdialog 1 .
+.Pp
+.Xr dialog 1
+does not display the first character after a series of escaped escape-sequences
+(e.g., ``\\\\n'' produces ``\\'' instead of ``\\n'').
+This is a known issue with
+.Xr dialog 1
+and does not affect
+.Xr dialog 3
+or
+.Xr Xdialog 1 .
+.Pp
+If your application ignores
+.Ev USE_COLOR
+when set and NULL before calling
+.Xr dpv 1
+with color escape sequences anyway,
+.Xr dialog 3
+and
+.Xr dialog 1
+may not render properly.
+Workaround is to detect when
+.Ev USE_COLOR
+is set and NULL and either not use color escape sequences at that time or use
+.Xr unset 1
+.Xr [ sh 1 ]
+or
+.Xr unsetenv 1
+.Xr [ csh 1 ]
+to unset
+.Ev USE_COLOR ,
+forcing interpretation of color sequences.
+This does not effect
+.Xr Xdialog 1 ,
+which renders the color escape sequences as plain text.
+See
+.Do
+embedded "\\Z" sequences
+.Dc
+in
+.Xr dialog 1
+for additional information.

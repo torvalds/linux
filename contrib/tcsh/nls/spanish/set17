@@ -1,0 +1,17 @@
+$ $tcsh: set17,v 1.4 2011/02/04 18:19:43 christos Exp $
+$ sh.proc.c
+$set 17 
+1 BUG: ¡en espera de un trabajo en segundo plano!\n
+2 Finalizó %d\n
+3 BUG: Se ha aplicado "flush" al proceso por segunda vez
+4 Ejecutando 
+5 Señal 
+6 Finalizado %-25d
+7 Fin
+8 BUG: status=%-9o
+9 \040(se ha creado un `core')
+10 \040(dt:
+11 dt actual: 
+12 %S: Ya ha sido suspendido\n
+13 %S: Ya ha sido parado\n
+14 %S: Badly formed number\n

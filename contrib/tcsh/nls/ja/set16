@@ -1,0 +1,13 @@
+$ $tcsh: set16,v 1.4 2011/02/04 18:19:40 christos Exp $
+$ sh.lex.c
+$set 16 
+1 tty pgrp を %d から %dに再設定します\n
+2 \nログアウトは"logout"を使用して下さい\n
+3 \n%s終了は"exit"を使用して下さい\n
+4 seek to eval %x %x\n
+5 seek to alias %x %x\n
+6 seek to file %x\n
+7 間違った seek タイプです %d\n
+8 tell eval %x %x\n
+9 tell alias %x %x\n
+10 tell file %x\n

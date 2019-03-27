@@ -1,0 +1,274 @@
+@c -*- mode: texinfo -*-
+@deftypefn Extension {struct pex_obj *} pex_init (int @var{flags}, const char *@var{pname}, const char *@var{tempbase})
+
+Prepare to execute one or more programs, with standard output of each
+program fed to standard input of the next.  This is a system
+independent interface to execute a pipeline.
+
+@var{flags} is a bitwise combination of the following:
+
+@table @code
+
+@vindex PEX_RECORD_TIMES
+@item PEX_RECORD_TIMES
+Record subprocess times if possible.
+
+@vindex PEX_USE_PIPES
+@item PEX_USE_PIPES
+Use pipes for communication between processes, if possible.
+
+@vindex PEX_SAVE_TEMPS
+@item PEX_SAVE_TEMPS
+Don't delete temporary files used for communication between
+processes.
+
+@end table
+
+@var{pname} is the name of program to be executed, used in error
+messages.  @var{tempbase} is a base name to use for any required
+temporary files; it may be @code{NULL} to use a randomly chosen name.
+
+@end deftypefn
+
+@deftypefn Extension {const char *} pex_run (struct pex_obj *@var{obj}, int @var{flags}, const char *@var{executable}, char * const *@var{argv}, const char *@var{outname}, const char *@var{errname}, int *@var{err})
+
+Execute one program in a pipeline.  On success this returns
+@code{NULL}.  On failure it returns an error message, a statically
+allocated string.
+
+@var{obj} is returned by a previous call to @code{pex_init}.
+
+@var{flags} is a bitwise combination of the following:
+
+@table @code
+
+@vindex PEX_LAST
+@item PEX_LAST
+This must be set on the last program in the pipeline.  In particular,
+it should be set when executing a single program.  The standard output
+of the program will be sent to @var{outname}, or, if @var{outname} is
+@code{NULL}, to the standard output of the calling program.  Do @emph{not}
+set this bit if you want to call @code{pex_read_output}
+(described below).  After a call to @code{pex_run} with this bit set,
+@var{pex_run} may no longer be called with the same @var{obj}.
+
+@vindex PEX_SEARCH
+@item PEX_SEARCH
+Search for the program using the user's executable search path.
+
+@vindex PEX_SUFFIX
+@item PEX_SUFFIX
+@var{outname} is a suffix.  See the description of @var{outname},
+below.
+
+@vindex PEX_STDERR_TO_STDOUT
+@item PEX_STDERR_TO_STDOUT
+Send the program's standard error to standard output, if possible.
+
+@vindex PEX_BINARY_INPUT
+@vindex PEX_BINARY_OUTPUT
+@item PEX_BINARY_INPUT
+@itemx PEX_BINARY_OUTPUT
+The standard input (output) of the program should be read (written) in
+binary mode rather than text mode.  These flags are ignored on systems
+which do not distinguish binary mode and text mode, such as Unix.  For
+proper behavior these flags should match appropriately---a call to
+@code{pex_run} using @code{PEX_BINARY_OUTPUT} should be followed by a
+call using @code{PEX_BINARY_INPUT}.
+@end table
+
+@var{executable} is the program to execute.  @var{argv} is the set of
+arguments to pass to the program; normally @code{@var{argv}[0]} will
+be a copy of @var{executable}.
+
+@var{outname} is used to set the name of the file to use for standard
+output.  There are two cases in which no output file will be used:
+
+@enumerate
+@item
+if @code{PEX_LAST} is not set in @var{flags}, and @code{PEX_USE_PIPES}
+was set in the call to @code{pex_init}, and the system supports pipes
+
+@item
+if @code{PEX_LAST} is set in @var{flags}, and @var{outname} is
+@code{NULL}
+@end enumerate
+
+@noindent
+Otherwise the code will use a file to hold standard
+output.  If @code{PEX_LAST} is not set, this file is considered to be
+a temporary file, and it will be removed when no longer needed, unless
+@code{PEX_SAVE_TEMPS} was set in the call to @code{pex_init}.
+
+There are two cases to consider when setting the name of the file to
+hold standard output.
+
+@enumerate
+@item
+@code{PEX_SUFFIX} is set in @var{flags}.  In this case
+@var{outname} may not be @code{NULL}.  If the @var{tempbase} parameter
+to @code{pex_init} was not @code{NULL}, then the output file name is
+the concatenation of @var{tempbase} and @var{outname}.  If
+@var{tempbase} was @code{NULL}, then the output file name is a random
+file name ending in @var{outname}.
+
+@item
+@code{PEX_SUFFIX} was not set in @var{flags}.  In this
+case, if @var{outname} is not @code{NULL}, it is used as the output
+file name.  If @var{outname} is @code{NULL}, and @var{tempbase} was
+not NULL, the output file name is randomly chosen using
+@var{tempbase}.  Otherwise the output file name is chosen completely
+at random.
+@end enumerate
+
+@var{errname} is the file name to use for standard error output.  If
+it is @code{NULL}, standard error is the same as the caller's.
+Otherwise, standard error is written to the named file.
+
+On an error return, the code sets @code{*@var{err}} to an @code{errno}
+value, or to 0 if there is no relevant @code{errno}.
+
+@end deftypefn
+
+@deftypefn Extension {const char *} pex_run_in_environment (struct pex_obj *@var{obj}, int @var{flags}, const char *@var{executable}, char * const *@var{argv}, char * const *@var{env}, int @var{env_size}, const char *@var{outname}, const char *@var{errname}, int *@var{err})
+
+Execute one program in a pipeline, permitting the environment for the
+program to be specified.  Behaviour and parameters not listed below are
+as for @code{pex_run}.
+
+@var{env} is the environment for the child process, specified as an array of
+character pointers.  Each element of the array should point to a string of the
+form @code{VAR=VALUE}, with the exception of the last element that must be
+@code{NULL}.
+
+@end deftypefn
+
+@deftypefn Extension {FILE *} pex_input_file (struct pex_obj *@var{obj}, int @var{flags}, const char *@var{in_name})
+
+Return a stream for a temporary file to pass to the first program in
+the pipeline as input.
+
+The name of the input file is chosen according to the same rules
+@code{pex_run} uses to choose output file names, based on
+@var{in_name}, @var{obj} and the @code{PEX_SUFFIX} bit in @var{flags}.
+
+Don't call @code{fclose} on the returned stream; the first call to
+@code{pex_run} closes it automatically.
+
+If @var{flags} includes @code{PEX_BINARY_OUTPUT}, open the stream in
+binary mode; otherwise, open it in the default mode.  Including
+@code{PEX_BINARY_OUTPUT} in @var{flags} has no effect on Unix.
+@end deftypefn
+
+@deftypefn Extension {FILE *} pex_input_pipe (struct pex_obj *@var{obj}, int @var{binary})
+
+Return a stream @var{fp} for a pipe connected to the standard input of
+the first program in the pipeline; @var{fp} is opened for writing.
+You must have passed @code{PEX_USE_PIPES} to the @code{pex_init} call
+that returned @var{obj}.
+
+You must close @var{fp} using @code{fclose} yourself when you have
+finished writing data to the pipeline.
+
+The file descriptor underlying @var{fp} is marked not to be inherited
+by child processes.
+
+On systems that do not support pipes, this function returns
+@code{NULL}, and sets @code{errno} to @code{EINVAL}.  If you would
+like to write code that is portable to all systems the @code{pex}
+functions support, consider using @code{pex_input_file} instead.
+
+There are two opportunities for deadlock using
+@code{pex_input_pipe}:
+
+@itemize @bullet
+@item
+Most systems' pipes can buffer only a fixed amount of data; a process
+that writes to a full pipe blocks.  Thus, if you write to @file{fp}
+before starting the first process, you run the risk of blocking when
+there is no child process yet to read the data and allow you to
+continue.  @code{pex_input_pipe} makes no promises about the
+size of the pipe's buffer, so if you need to write any data at all
+before starting the first process in the pipeline, consider using
+@code{pex_input_file} instead.
+
+@item
+Using @code{pex_input_pipe} and @code{pex_read_output} together
+may also cause deadlock.  If the output pipe fills up, so that each
+program in the pipeline is waiting for the next to read more data, and
+you fill the input pipe by writing more data to @var{fp}, then there
+is no way to make progress: the only process that could read data from
+the output pipe is you, but you are blocked on the input pipe.
+
+@end itemize
+
+@end deftypefn
+
+@deftypefn Extension {FILE *} pex_read_output (struct pex_obj *@var{obj}, int @var{binary})
+
+Returns a @code{FILE} pointer which may be used to read the standard
+output of the last program in the pipeline.  When this is used,
+@code{PEX_LAST} should not be used in a call to @code{pex_run}.  After
+this is called, @code{pex_run} may no longer be called with the same
+@var{obj}.  @var{binary} should be non-zero if the file should be
+opened in binary mode.  Don't call @code{fclose} on the returned file;
+it will be closed by @code{pex_free}.
+
+@end deftypefn
+
+@deftypefn Extension int pex_get_status (struct pex_obj *@var{obj}, int @var{count}, int *@var{vector})
+
+Returns the exit status of all programs run using @var{obj}.
+@var{count} is the number of results expected.  The results will be
+placed into @var{vector}.  The results are in the order of the calls
+to @code{pex_run}.  Returns 0 on error, 1 on success.
+
+@end deftypefn
+
+@deftypefn Extension int pex_get_times (struct pex_obj *@var{obj}, int @var{count}, struct pex_time *@var{vector})
+
+Returns the process execution times of all programs run using
+@var{obj}.  @var{count} is the number of results expected.  The
+results will be placed into @var{vector}.  The results are in the
+order of the calls to @code{pex_run}.  Returns 0 on error, 1 on
+success.
+
+@code{struct pex_time} has the following fields of the type
+@code{unsigned long}: @code{user_seconds},
+@code{user_microseconds}, @code{system_seconds},
+@code{system_microseconds}.  On systems which do not support reporting
+process times, all the fields will be set to @code{0}.
+
+@end deftypefn
+
+@deftypefn Extension void pex_free (struct pex_obj @var{obj})
+
+Clean up and free all data associated with @var{obj}.
+
+@end deftypefn
+
+@deftypefn Extension {const char *} pex_one (int @var{flags}, const char *@var{executable}, char * const *@var{argv}, const char *@var{pname}, const char *@var{outname}, const char *@var{errname}, int *@var{status}, int *@var{err})
+
+An interface to permit the easy execution of a
+single program.  The return value and most of the parameters are as
+for a call to @code{pex_run}.  @var{flags} is restricted to a
+combination of @code{PEX_SEARCH}, @code{PEX_STDERR_TO_STDOUT}, and
+@code{PEX_BINARY_OUTPUT}.  @var{outname} is interpreted as if
+@code{PEX_LAST} were set.  On a successful return, @code{*@var{status}} will
+be set to the exit status of the program.
+
+@end deftypefn
+
+@deftypefn Extension int pexecute (const char *@var{program}, char * const *@var{argv}, const char *@var{this_pname}, const char *@var{temp_base}, char **@var{errmsg_fmt}, char **@var{errmsg_arg}, int flags)
+
+This is the old interface to execute one or more programs.  It is
+still supported for compatibility purposes, but is no longer
+documented.
+
+@end deftypefn
+
+@deftypefn Extension int pwait (int @var{pid}, int *@var{status}, int @var{flags})
+
+Another part of the old execution interface.
+
+@end deftypefn

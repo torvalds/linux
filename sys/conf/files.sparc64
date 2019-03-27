@@ -1,0 +1,152 @@
+# This file tells config what files go into building a kernel,
+# files marked standard are always included.
+#
+# $FreeBSD$
+#
+# The long compile-with and dependency lines are required because of
+# limitations in config: backslash-newline doesn't work in strings, and
+# dependency lines other than the first are silently ignored.
+#
+atkbdmap.h			optional	atkbd_dflt_keymap	\
+	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"atkbdmap.h"
+#
+sunkbdmap.h			optional	sunkbd_dflt_keymap	\
+	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${SUNKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > sunkbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"sunkbdmap.h"
+#
+ukbdmap.h			optional	ukbd_dflt_keymap	\
+	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"ukbdmap.h"
+#
+cddl/contrib/opensolaris/common/atomic/sparc64/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
+crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
+dev/atkbdc/atkbd.c		optional	atkbd atkbdc
+dev/atkbdc/atkbd_atkbdc.c	optional	atkbd atkbdc
+dev/atkbdc/atkbdc.c		optional	atkbdc
+dev/atkbdc/atkbdc_ebus.c	optional	atkbdc ebus
+dev/atkbdc/atkbdc_isa.c		optional	atkbdc isa
+dev/atkbdc/atkbdc_subr.c	optional	atkbdc
+dev/atkbdc/psm.c		optional	psm atkbdc
+dev/auxio/auxio.c		optional	auxio sbus | auxio ebus
+dev/esp/esp_sbus.c		optional	esp sbus
+dev/fb/creator.c		optional	creator sc
+dev/fb/creator_vt.c		optional	creator vt
+dev/fb/fb.c			optional	sc
+dev/fb/gallant12x22.c		optional	sc
+dev/fb/machfb.c			optional	machfb sc
+dev/hwpmc/hwpmc_sparc64.c	optional	hwpmc
+dev/le/if_le_lebuffer.c		optional	le sbus
+dev/le/if_le_ledma.c		optional	le sbus
+dev/le/lebuffer_sbus.c		optional	le sbus
+dev/ofw/ofw_bus_if.m		standard
+dev/ofw/ofw_bus_subr.c		standard
+dev/ofw/ofw_console.c		optional	ofw_console
+dev/ofw/ofw_if.m		standard
+dev/ofw/ofw_standard.c		standard
+dev/ofw/openfirm.c		standard
+dev/ofw/openfirmio.c		standard
+dev/ofw/openpromio.c		standard
+dev/pcf/envctrl.c		optional	pcf ebus
+dev/pcf/pcf_ebus.c		optional	pcf ebus
+dev/sound/sbus/cs4231.c		optional	snd_audiocs ebus | \
+						snd_audiocs sbus
+dev/syscons/scgfbrndr.c		optional	sc
+dev/uart/uart_cpu_sparc64.c	optional	uart
+dev/uart/uart_kbd_sun.c		optional	uart sc | vt
+dev/vt/hw/ofwfb/ofwfb.c		optional	vt
+kern/kern_clocksource.c		standard
+kern/subr_dummy_vdso_tc.c	standard
+kern/syscalls.c			optional	ktr
+kern/subr_sfbuf.c		standard
+libkern/ffs.c			standard
+libkern/ffsl.c			standard
+libkern/ffsll.c			standard
+libkern/fls.c			standard
+libkern/flsl.c			standard
+libkern/flsll.c			standard
+libkern/memcmp.c		standard
+sparc64/central/central.c	optional	central
+sparc64/ebus/ebus.c		optional	ebus
+sparc64/ebus/epic.c		optional	epic ebus
+sparc64/fhc/clkbrd.c		optional	fhc
+sparc64/fhc/fhc.c		optional	fhc
+sparc64/isa/isa.c		optional	isa
+sparc64/isa/isa_dma.c		optional	isa
+sparc64/isa/ofw_isa.c		optional	ebus | isa
+sparc64/pci/apb.c		optional	pci
+sparc64/pci/fire.c		optional	pci
+sparc64/pci/ofw_pci.c		optional	pci
+sparc64/pci/ofw_pcib.c		optional	pci
+sparc64/pci/ofw_pcib_subr.c	optional	pci
+sparc64/pci/ofw_pcibus.c	optional	pci
+sparc64/pci/ofw_pci_if.m	optional	pci
+sparc64/pci/psycho.c		optional	pci
+sparc64/pci/sbbc.c		optional	sbbc uart
+sparc64/pci/schizo.c		optional	pci
+sparc64/sbus/dma_sbus.c		optional	sbus
+sparc64/sbus/sbus.c		optional	sbus
+sparc64/sbus/lsi64854.c		optional	sbus
+sparc64/sparc64/ata_machdep.c	optional	ada | da
+sparc64/sparc64/autoconf.c	standard
+sparc64/sparc64/bus_machdep.c	standard
+sparc64/sparc64/cache.c		standard
+sparc64/sparc64/cam_machdep.c	optional	scbus
+sparc64/sparc64/cheetah.c	standard
+sparc64/sparc64/clock.c		standard
+sparc64/sparc64/counter.c	standard
+sparc64/sparc64/db_disasm.c	optional	ddb
+sparc64/sparc64/db_interface.c	optional	ddb
+sparc64/sparc64/db_trace.c	optional	ddb
+sparc64/sparc64/db_hwwatch.c	optional	ddb
+sparc64/sparc64/dump_machdep.c	standard
+sparc64/sparc64/elf_machdep.c	standard
+sparc64/sparc64/exception.S	standard	no-obj			\
+	compile-with "${NORMAL_S} -mcpu=ultrasparc"
+sparc64/sparc64/eeprom.c	optional	eeprom ebus | eeprom fhc | \
+						eeprom sbus
+sparc64/sparc64/gdb_machdep.c	optional	gdb
+sparc64/sparc64/identcpu.c	standard
+sparc64/sparc64/in_cksum.c	optional	inet | inet6
+sparc64/sparc64/interrupt.S	standard	no-obj			\
+	compile-with "${NORMAL_S} -mcpu=ultrasparc"
+sparc64/sparc64/intr_machdep.c	standard
+sparc64/sparc64/iommu.c		standard
+sparc64/sparc64/jbusppm.c	standard
+sparc64/sparc64/locore.S	standard	no-obj
+sparc64/sparc64/machdep.c	standard
+sparc64/sparc64/mem.c		optional	mem
+sparc64/sparc64/mp_exception.S	optional	smp			\
+	compile-with "${NORMAL_S} -mcpu=ultrasparc"
+sparc64/sparc64/mp_locore.S	optional	smp
+sparc64/sparc64/mp_machdep.c	optional	smp
+sparc64/sparc64/nexus.c		standard
+sparc64/sparc64/ofw_machdep.c	standard
+sparc64/sparc64/pmap.c		standard
+sparc64/sparc64/prof_machdep.c	optional	profiling-routine
+sparc64/sparc64/rtc.c		optional	rtc ebus | rtc isa
+sparc64/sparc64/rwindow.c	standard
+sparc64/sparc64/sc_machdep.c	optional	sc
+sparc64/sparc64/schppm.c	standard
+sparc64/sparc64/spitfire.c	standard
+sparc64/sparc64/ssm.c		standard
+sparc64/sparc64/stack_machdep.c	optional	ddb | stack
+sparc64/sparc64/support.S	standard				\
+	compile-with "${NORMAL_S} -mcpu=ultrasparc"
+sparc64/sparc64/sys_machdep.c	standard
+sparc64/sparc64/swtch.S		standard
+sparc64/sparc64/tick.c		standard
+sparc64/sparc64/tlb.c		standard
+sparc64/sparc64/trap.c		standard
+sparc64/sparc64/tsb.c		standard
+sparc64/sparc64/uio_machdep.c	standard
+sparc64/sparc64/upa.c		optional	creator
+sparc64/sparc64/vm_machdep.c	standard
+sparc64/sparc64/zeus.c		standard
+
+# Zstd
+contrib/zstd/lib/freebsd/zstd_kfreebsd.c		optional zstdio compile-with ${ZSTD_C}

@@ -1,0 +1,72 @@
+.\" Copyright (c) 2018 VMware, Inc.
+.\"
+.\" SPDX-License-Identifier: (BSD-2-Clause OR GPL-2.0)
+.\"
+.\" $FreeBSD$
+.Dd February 10, 2018
+.Dt VMCI 4
+.Os
+.Sh NAME
+.Nm vmci
+.Nd VMware Virtual Machine Communication Interface
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device vmci"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_vmci_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the VMware Virtual Machine Communication Interface
+(VMCI) in virtual machines by VMware.
+.Pp
+VMCI allows virtual machines to communicate with host kernel modules and the
+VMware hypervisors.
+User level applications in a virtual machine can use VMCI through vSockets
+(also known as VMCI Sockets and not included in this kernel module), a socket
+address family designed to be compatible with UDP and TCP at the interface
+level.
+Today, VMCI and vSockets are used by various VMware Tools components inside
+the guest for zero-config, network-less access to VMware host services.
+In addition to this, VMware's users are using vSockets for various
+applications, where network access of the virtual machine is restricted
+or non-existent.
+Examples of this are VMs communicating with device proxies for proprietary
+hardware running as host applications and automated testing of applications
+running within virtual machines.
+.Pp
+In a virtual machine, VMCI is exposed as a regular PCI device.
+The primary communication mechanisms supported are a point-to-point
+bidirectional transport based on a pair of memory-mapped queues, and
+asynchronous notifications in the form of datagrams and doorbells.
+These features are available to kernel level components such as vSockets
+through the VMCI kernel API.
+In addition to this, the VMCI kernel API provides support for receiving
+events related to the state of the VMCI communication channels, and the
+virtual machine itself.
+.Sh SEE ALSO
+.Xr socket 2 ,
+.Xr pci 9
+.Rs
+.%T "VMware vSockets Documentation"
+.%U https://www.vmware.com/support/developer/vmci-sdk/
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+The
+.Nm
+driver and man page were written by
+.An Vishnu Dasa Aq Mt vdasahar@gmail.com .

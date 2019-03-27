@@ -1,0 +1,187 @@
+.\"
+.\" Copyright (c) 2004 Philip Paeps <philip@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 2010
+.Dt ACPI_ASUS 4
+.Os
+.Sh NAME
+.Nm acpi_asus
+.Nd Asus Laptop Extras
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device acpi_asus"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+acpi_asus_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the extra ACPI-controlled gadgets, such as hotkeys
+and leds, found on recent Asus (and Medion) laptops.
+It allows one to use the
+.Xr sysctl 8
+interface to manipulate the brightness of the LCD panel and the display output
+state.
+Hotkey events are passed to
+.Xr devd 8
+for easy handling in userspace with the default configuration in
+.Pa /etc/devd/asus.conf .
+.Pp
+Currently, the following Asus laptops are fully supported:
+.Pp
+.Bl -item -offset indent -compact
+.It
+xxN
+.It
+A1x
+.It
+A2x
+.It
+A3N
+.It
+A4D
+.It
+A6VM
+.It
+D1x
+.It
+J1x
+.It
+L2B
+.It
+L2D
+.It
+L2E
+.It
+L3C
+.It
+L3D
+.It
+L3H
+.It
+L4E
+.It
+L4R
+.It
+L5x
+.It
+L8x
+.It
+M1A
+.It
+M2E
+.It
+M6N
+.It
+M6R
+.It
+S1x
+.It
+S2x
+.It
+V6V
+.It
+W5A
+.It
+Eee PC
+.El
+.Pp
+Additionally,
+.Nm
+also supports the Asus-compatible
+.Em ATK0100
+interface found in
+.Em Samsung P30/P35
+laptops.
+.Sh SYSCTL VARIABLES
+The following sysctls are currently implemented:
+.Bl -tag -width indent
+.It Va hw.acpi.asus.lcd_brightness
+Makes the LCD backlight brighter or dimmer (higher values are brighter).
+.It Va hw.acpi.asus.lcd_backlight
+Turns the LCD backlight on or off.
+.It Va hw.acpi.asus.video_output
+Sets the active display to use according to a bitwise OR of the following:
+.Pp
+.Bl -tag -width indent -compact
+.It Li 0
+No display
+.It Li 1
+LCD
+.It Li 2
+CRT
+.It Li 4
+TV-Out
+.El
+.Pp
+Some models also support video switching via the generic
+.Xr acpi_video 4
+driver.
+Most models do not, however.
+.El
+.Pp
+Defaults for these variables can be set in
+.Xr sysctl.conf 5 ,
+which is parsed at boot-time.
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr acpi_asus_wmi 4 ,
+.Xr acpi_video 4 ,
+.Xr sysctl.conf 5 ,
+.Xr sysctl 8
+.Rs
+.%T The acpi4asus Project
+.%U http://sourceforge.net/projects/acpi4asus/
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver and this manual page were written by
+.An Philip Paeps Aq Mt philip@FreeBSD.org .
+.Pp
+Inspiration came from the
+.Em acpi4asus project
+started by
+.An Julien Lerouge
+which maintains a driver implementing this
+functionality in the
+.Tn Linux
+kernel.

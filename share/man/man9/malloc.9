@@ -1,0 +1,323 @@
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
+.\" $FreeBSD$
+.\"
+.Dd October 30, 2018
+.Dt MALLOC 9
+.Os
+.Sh NAME
+.Nm malloc ,
+.Nm free ,
+.Nm realloc ,
+.Nm reallocf ,
+.Nm MALLOC_DEFINE ,
+.Nm MALLOC_DECLARE
+.Nd kernel memory management routines
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/malloc.h
+.Ft void *
+.Fn malloc "size_t size" "struct malloc_type *type" "int flags"
+.Ft void *
+.Fn mallocarray "size_t nmemb" "size_t size" "struct malloc_type *type" "int flags"
+.Ft void
+.Fn free "void *addr" "struct malloc_type *type"
+.Ft void *
+.Fn realloc "void *addr" "size_t size" "struct malloc_type *type" "int flags"
+.Ft void *
+.Fn reallocf "void *addr" "size_t size" "struct malloc_type *type" "int flags"
+.Fn MALLOC_DECLARE type
+.In sys/param.h
+.In sys/malloc.h
+.In sys/kernel.h
+.Fn MALLOC_DEFINE type shortdesc longdesc
+.In sys/param.h
+.In sys/domainset.h
+.Ft void *
+.Fn malloc_domainset "size_t size" "struct malloc_type *type" "struct domainset *ds" "int flags"
+.Ft void
+.Fn free_domain "void *addr" "struct malloc_type *type"
+.Sh DESCRIPTION
+The
+.Fn malloc
+function allocates uninitialized memory in kernel address space for an
+object whose size is specified by
+.Fa size .
+.Pp
+The
+.Fn malloc_domainset
+variant allocates memory from a specific
+.Xr numa 4
+domain using the specified domain selection policy.
+See
+.Xr domainset 9
+for some example policies.
+Memory allocated with this function should be returned with
+.Fn free_domain .
+.Pp
+The
+.Fn mallocarray
+function allocates uninitialized memory in kernel address space for an
+array of
+.Fa nmemb
+entries whose size is specified by
+.Fa size .
+.Pp
+The
+.Fn free
+function releases memory at address
+.Fa addr
+that was previously allocated by
+.Fn malloc
+for re-use.
+The memory is not zeroed.
+If
+.Fa addr
+is
+.Dv NULL ,
+then
+.Fn free
+does nothing.
+.Pp
+The
+.Fn realloc
+function changes the size of the previously allocated memory referenced by
+.Fa addr
+to
+.Fa size
+bytes.
+The contents of the memory are unchanged up to the lesser of the new and
+old sizes.
+Note that the returned value may differ from
+.Fa addr .
+If the requested memory cannot be allocated,
+.Dv NULL
+is returned and the memory referenced by
+.Fa addr
+is valid and unchanged.
+If
+.Fa addr
+is
+.Dv NULL ,
+the
+.Fn realloc
+function behaves identically to
+.Fn malloc
+for the specified size.
+.Pp
+The
+.Fn reallocf
+function is identical to
+.Fn realloc
+except that it
+will free the passed pointer when the requested memory cannot be allocated.
+.Pp
+Unlike its standard C library counterpart
+.Pq Xr malloc 3 ,
+the kernel version takes two more arguments.
+The
+.Fa flags
+argument further qualifies
+.Fn malloc Ns 's
+operational characteristics as follows:
+.Bl -tag -width indent
+.It Dv M_ZERO
+Causes the allocated memory to be set to all zeros.
+.It Dv M_NODUMP
+For allocations greater than page size, causes the allocated
+memory to be excluded from kernel core dumps.
+.It Dv M_NOWAIT
+Causes
+.Fn malloc ,
+.Fn realloc ,
+and
+.Fn reallocf
+to return
+.Dv NULL
+if the request cannot be immediately fulfilled due to resource shortage.
+Note that
+.Dv M_NOWAIT
+is required when running in an interrupt context.
+.It Dv M_WAITOK
+Indicates that it is OK to wait for resources.
+If the request cannot be immediately fulfilled, the current process is put
+to sleep to wait for resources to be released by other processes.
+The
+.Fn malloc ,
+.Fn mallocarray ,
+.Fn realloc ,
+and
+.Fn reallocf
+functions cannot return
+.Dv NULL
+if
+.Dv M_WAITOK
+is specified.
+If the multiplication of
+.Fa nmemb
+and
+.Fa size
+would cause an integer overflow, the
+.Fn mallocarray
+function induces a panic.
+.It Dv M_USE_RESERVE
+Indicates that the system can use its reserve of memory to satisfy the
+request.
+This option should only be used in combination with
+.Dv M_NOWAIT
+when an allocation failure cannot be tolerated by the caller without
+catastrophic effects on the system.
+.It Dv M_EXEC
+Indicates that the system should allocate executable memory.
+If this flag is not set, the system will not allocate executable memory.
+Not all platforms enforce a distinction between executable and
+non-executable memory.
+.El
+.Pp
+Exactly one of either
+.Dv M_WAITOK
+or
+.Dv M_NOWAIT
+must be specified.
+.Pp
+The
+.Fa type
+argument is used to perform statistics on memory usage, and for
+basic sanity checks.
+It can be used to identify multiple allocations.
+The statistics can be examined by
+.Sq vmstat -m .
+.Pp
+A
+.Fa type
+is defined using
+.Vt "struct malloc_type"
+via the
+.Fn MALLOC_DECLARE
+and
+.Fn MALLOC_DEFINE
+macros.
+.Bd -literal -offset indent
+/* sys/something/foo_extern.h */
+
+MALLOC_DECLARE(M_FOOBUF);
+
+/* sys/something/foo_main.c */
+
+MALLOC_DEFINE(M_FOOBUF, "foobuffers", "Buffers to foo data into the ether");
+
+/* sys/something/foo_subr.c */
+
+\&...
+buf = malloc(sizeof(*buf), M_FOOBUF, M_NOWAIT);
+
+.Ed
+.Pp
+In order to use
+.Fn MALLOC_DEFINE ,
+one must include
+.In sys/param.h
+(instead of
+.In sys/types.h )
+and
+.In sys/kernel.h .
+.Sh CONTEXT
+.Fn malloc ,
+.Fn realloc
+and
+.Fn reallocf
+may not be called from fast interrupts handlers.
+When called from threaded interrupts,
+.Fa flags
+must contain
+.Dv M_NOWAIT .
+.Pp
+.Fn malloc ,
+.Fn realloc
+and
+.Fn reallocf
+may sleep when called with
+.Dv M_WAITOK .
+.Fn free
+never sleeps.
+However,
+.Fn malloc ,
+.Fn realloc ,
+.Fn reallocf
+and
+.Fn free
+may not be called in a critical section or while holding a spin lock.
+.Pp
+Any calls to
+.Fn malloc
+(even with
+.Dv M_NOWAIT )
+or
+.Fn free
+when holding a
+.Xr vnode 9
+interlock, will cause a LOR (Lock Order Reversal) due to the
+intertwining of VM Objects and Vnodes.
+.Sh IMPLEMENTATION NOTES
+The memory allocator allocates memory in chunks that have size a power
+of two for requests up to the size of a page of memory.
+For larger requests, one or more pages is allocated.
+While it should not be relied upon, this information may be useful for
+optimizing the efficiency of memory use.
+.Sh RETURN VALUES
+The
+.Fn malloc ,
+.Fn realloc ,
+and
+.Fn reallocf
+functions return a kernel virtual address that is suitably aligned for
+storage of any type of object, or
+.Dv NULL
+if the request could not be satisfied (implying that
+.Dv M_NOWAIT
+was set).
+.Sh DIAGNOSTICS
+A kernel compiled with the
+.Dv INVARIANTS
+configuration option attempts to detect memory corruption caused by
+such things as writing outside the allocated area and imbalanced calls to the
+.Fn malloc
+and
+.Fn free
+functions.
+Failing consistency checks will cause a panic or a system console
+message.
+.Sh SEE ALSO
+.Xr numa 4 ,
+.Xr vmstat 8 ,
+.Xr contigmalloc 9 ,
+.Xr domainset 9 ,
+.Xr memguard 9 ,
+.Xr vnode 9

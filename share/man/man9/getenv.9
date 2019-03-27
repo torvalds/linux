@@ -1,0 +1,222 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2013 Hudson River Trading LLC
+.\" Written by: John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 1, 2017
+.Dt GETENV 9
+.Os
+.Sh NAME
+.Nm freeenv ,
+.Nm kern_getenv ,
+.Nm getenv_int ,
+.Nm getenv_long ,
+.Nm getenv_string ,
+.Nm getenv_quad ,
+.Nm getenv_uint ,
+.Nm getenv_ulong ,
+.Nm kern_setenv ,
+.Nm testenv ,
+.Nm kern_unsetenv
+.Nd kernel environment variable functions
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/systm.h
+.Ft void
+.Fn freeenv "char *env"
+.Ft char *
+.Fn kern_getenv "const char *name"
+.Ft int
+.Fn getenv_int "const char *name" "int *data"
+.Ft int
+.Fn getenv_long "const char *name" "long *data"
+.Ft int
+.Fn getenv_string "const char *name" "char *data" "int size"
+.Ft int
+.Fn getenv_quad "const char *name" "quad_t *data"
+.Ft int
+.Fn getenv_uint "const char *name" "unsigned int *data"
+.Ft int
+.Fn getenv_ulong "const char *name" "unsigned long *data"
+.Ft int
+.Fn kern_setenv "const char *name" "const char *value"
+.Ft int
+.Fn testenv "const char *name"
+.Ft int
+.Fn kern_unsetenv "const char *name"
+.Sh DESCRIPTION
+These functions set, unset, fetch, and parse variables from the kernel's
+environment.
+.Pp
+The
+.Fn kern_getenv
+function obtains the current value of the kernel environment variable
+.Fa name
+and returns a pointer to the string value.
+The caller should not modify the string pointed to by the return value.
+The
+.Fn kern_getenv
+function may allocate temporary storage,
+so the
+.Fn freeenv
+function must be called to release any allocated resources when the value
+returned by
+.Fn kern_getenv
+is no longer needed.
+.Pp
+The
+.Fn freeenv
+function is used to release the resources allocated by a previous call to
+.Fn kern_getenv .
+The
+.Fa env
+argument passed to
+.Fn freeenv
+is the pointer returned by the earlier call to
+.Fn kern_getenv .
+Like
+.Xr free 3 ,
+the
+.Fa env
+argument can be
+.Va NULL ,
+in which case no action occurs.
+.Pp
+The
+.Fn kern_setenv
+function inserts or resets the kernel environment variable
+.Fa name
+to
+.Fa value .
+If the variable
+.Fa name
+already exists,
+its value is replaced.
+This function can fail if an internal limit on the number of environment
+variables is exceeded.
+.Pp
+The
+.Fn kern_unsetenv
+function deletes the kernel environment variable
+.Fa name .
+.Pp
+The
+.Fn testenv
+function is used to determine if a kernel environment variable exists.
+It returns a non-zero value if the variable
+.Fa name
+exists and zero if it does not.
+.Pp
+The
+.Fn getenv_int ,
+.Fn getenv_long ,
+.Fn getenv_quad ,
+.Fn getenv_uint ,
+and
+.Fn getenv_ulong
+functions look for a kernel environment variable
+.Fa name
+and parse it as a signed integer,
+long integer,
+signed 64-bit integer,
+unsigned integer,
+or an unsigned long integer,
+respectively.
+These functions fail and return zero if
+.Fa name
+does not exist or if any invalid characters are present in its value.
+On success,
+these function store the parsed value in the integer variable pointed to
+by
+.Fa data .
+If the parsed value overflows the integer type,
+a truncated value is stored in
+.Fa data
+and zero is returned.
+If the value begins with a prefix of
+.Dq 0x
+it is interpreted as hexadecimal.
+If it begins with a prefix of
+.Dq 0
+it is interpreted as octal.
+Otherwise,
+the value is interpreted as decimal.
+The value may contain a single character suffix specifying a unit for
+the value.
+The interpreted value is multiplied by the unit's magnitude before being
+returned.
+The following unit suffixes are supported:
+.Bl -column -offset indent ".Sy Unit" ".Sy Magnitude"
+.It Sy Unit Ta Sy Magnitude
+.It k Ta 2^10
+.It m Ta 2^20
+.It g Ta 2^30
+.It t Ta 2^40
+.El
+.Pp
+The
+.Fn getenv_string
+function stores a copy of the kernel environment variable
+.Fa name
+in the buffer described by
+.Fa data
+and
+.Fa size.
+If the variable does not exist,
+zero is returned.
+If the variable exists,
+up to
+.Fa size - 1
+characters of its value are copied to the buffer pointed to by
+.Fa data
+followed by a null character and a non-zero value is returned.
+.Sh RETURN VALUES
+The
+.Fn kern_getenv
+function returns a pointer to an environment variable's value on success or
+.Dv NULL
+if the variable does not exist.
+.Pp
+The
+.Fn kern_setenv
+and
+.Fn kern_unsetenv
+functions return zero on success and -1 on failure.
+.Pp
+The
+.Fn testenv
+function returns zero if the specified environment variable does not exist and
+a non-zero value if it does exist.
+The
+.Fn getenv_int ,
+.Fn getenv_long ,
+.Fn getenv_string ,
+.Fn getenv_quad ,
+.Fn getenv_uint ,
+and
+.Fn getenv_ulong
+functions return a non-zero value on success and zero on failure.

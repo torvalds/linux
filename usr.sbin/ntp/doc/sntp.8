@@ -1,0 +1,319 @@
+.Dd August 14 2018
+.Dt SNTP 8 User Commands
+.Os
+.\"  EDIT THIS FILE WITH CAUTION  (sntp-opts.mdoc)
+.\"
+.\" $FreeBSD$
+.\"
+.\"  It has been AutoGen-ed  August 14, 2018 at 08:27:40 AM by AutoGen 5.18.5
+.\"  From the definitions    sntp-opts.def
+.\"  and the template file   agmdoc-cmd.tpl
+.Sh NAME
+.Nm sntp
+.Nd standard Simple Network Time Protocol client program
+.Sh SYNOPSIS
+.Nm
+.\" Mixture of short (flag) options and long options
+.Op Fl flags
+.Op Fl flag Op Ar value
+.Op Fl \-option\-name Ns Oo Oo Ns "=| " Oc Ns Ar value Oc
+[ hostname\-or\-IP ...]
+.Pp
+.Sh DESCRIPTION
+.Nm
+can be used as an SNTP client to query a NTP or SNTP server and either display
+the time or set the local system's time (given suitable privilege).  It can be
+run as an interactive command or from a
+.Ic cron
+job.
+NTP (the Network Time Protocol) and SNTP (the Simple Network Time Protocol)
+are defined and described by RFC 5905.
+.Pp
+The default is to write the estimated correct local date and time (i.e. not
+UTC) to the standard output in a format like:
+.Ic "'1996\-10\-15 20:17:25.123 (+0800) +4.567 +/\- 0.089 [host] IP sN'"
+where the
+.Ic "'(+0800)'"
+means that to get to UTC from the reported local time one must
+add 8 hours and 0 minutes,
+the
+.Ic "'+4.567'"
+indicates the local clock is 4.567 seconds behind the correct time
+(so 4.567 seconds must be added to the local clock to get it to be correct).
+Note that the number of decimals printed for this value will change
+based on the reported precision of the server.
+.Ic "'+/\- 0.089'"
+is the reported
+.Em synchronization distance
+(in seconds), which represents the maximum error due to all causes.
+If the server does not report valid data needed to calculate the
+synchronization distance, this will be reported as
+.Ic "'+/\- ?'" .
+If the
+.Em host
+is different from the
+.Em IP ,
+both will be displayed.
+Otherwise, only the 
+.Em IP
+is displayed.
+Finally, the
+.Em stratum
+of the host is reported
+and the leap indicator is decoded and displayed.
+.Sh "OPTIONS"
+.Bl -tag
+.It  Fl 4 , Fl \-ipv4 
+Force IPv4 DNS name resolution.
+This option must not appear in combination with any of the following options:
+ipv6.
+.sp
+Force DNS resolution of the following host names on the command line
+to the IPv4 namespace.
+.It  Fl 6 , Fl \-ipv6 
+Force IPv6 DNS name resolution.
+This option must not appear in combination with any of the following options:
+ipv4.
+.sp
+Force DNS resolution of the following host names on the command line
+to the IPv6 namespace.
+.It  Fl a Ar auth\-keynumber , Fl \-authentication Ns = Ns Ar auth\-keynumber 
+Enable authentication with the key \fBauth\-keynumber\fP.
+This option takes an integer number as its argument.
+.sp
+Enable authentication using the key specified in this option's
+argument.  The argument of this option is the \fBkeyid\fP, a
+number specified in the \fBkeyfile\fP as this key's identifier.
+See the \fBkeyfile\fP option (\fB\-k\fP) for more details.
+.It  Fl b Ar broadcast\-address , Fl \-broadcast Ns = Ns Ar broadcast\-address 
+Listen to the address specified for broadcast time sync.
+This option may appear an unlimited number of times.
+.sp
+If specified \fBsntp\fP will listen to the specified address
+for NTP broadcasts.  The default maximum wait time
+can (and probably should) be modified with \fB\-t\fP.
+.It  Fl c Ar host\-name , Fl \-concurrent Ns = Ns Ar host\-name 
+Concurrently query all IPs returned for host\-name.
+This option may appear an unlimited number of times.
+.sp
+Requests from an NTP "client" to a "server" should never be sent
+more rapidly than one every 2 seconds.  By default, any IPs returned
+as part of a DNS lookup are assumed to be for a single instance of
+\fBntpd\fP, and therefore \fBsntp\fP will send queries to these IPs
+one after another, with a 2\-second gap in between each query.
+.sp
+The \fB\-c\fP or \fB\-\-concurrent\fP flag says that any IPs
+returned for the DNS lookup of the supplied host\-name are on
+different machines, so we can send concurrent queries.
+.It  Fl d , Fl \-debug\-level 
+Increase debug verbosity level.
+This option may appear an unlimited number of times.
+.sp
+.It  Fl D Ar number , Fl \-set\-debug\-level Ns = Ns Ar number 
+Set the debug verbosity level.
+This option may appear an unlimited number of times.
+This option takes an integer number as its argument.
+.sp
+.It  Fl g Ar milliseconds , Fl \-gap Ns = Ns Ar milliseconds 
+The gap (in milliseconds) between time requests.
+This option takes an integer number as its argument.
+The default
+.Ar milliseconds
+for this option is:
+.ti +4
+ 50
+.sp
+Since we're only going to use the first valid response we get and
+there is benefit to specifying a good number of servers to query,
+separate the queries we send out by the specified number of
+milliseconds.
+.It  Fl K Ar file\-name , Fl \-kod Ns = Ns Ar file\-name 
+KoD history filename.
+The default
+.Ar file\-name
+for this option is:
+.ti +4
+ /var/db/ntp\-kod
+.sp
+Specifies the filename to be used for the persistent history of KoD
+responses received from servers.  If the file does not exist, a
+warning message will be displayed.  The file will not be created.
+.It  Fl k Ar file\-name , Fl \-keyfile Ns = Ns Ar file\-name 
+Look in this file for the key specified with \fB\-a\fP.
+The default
+.Ar file\-name
+for this option is:
+.ti +4
+ /etc/ntp.keys
+.sp
+This option specifies the keyfile.
+\fBsntp\fP will search for the key specified with \fB\-a\fP
+\fIkeyno\fP in this file.  See \fBntp.keys(5)\fP for more
+information.
+.It  Fl l Ar file\-name , Fl \-logfile Ns = Ns Ar file\-name 
+Log to specified logfile.
+.sp
+This option causes the client to write log messages to the specified
+\fIlogfile\fP.
+.It  Fl M Ar number , Fl \-steplimit Ns = Ns Ar number 
+Adjustments less than \fBsteplimit\fP msec will be slewed.
+This option takes an integer number as its argument.
+The value of
+.Ar number
+is constrained to being:
+.in +4
+.nf
+.na
+greater than or equal to 0
+.fi
+.in -4
+.sp
+If the time adjustment is less than \fIsteplimit\fP milliseconds,
+slew the amount using \fBadjtime(2)\fP.  Otherwise, step the
+correction using \fBsettimeofday(2)\fP.  The default value is 0,
+which means all adjustments will be stepped.  This is a feature, as
+different situations demand different values.
+.It  Fl o Ar number , Fl \-ntpversion Ns = Ns Ar number 
+Send \fBint\fP as our NTP protocol version.
+This option takes an integer number as its argument.
+The value of
+.Ar number
+is constrained to being:
+.in +4
+.nf
+.na
+in the range  0 through 7
+.fi
+.in -4
+The default
+.Ar number
+for this option is:
+.ti +4
+ 4
+.sp
+When sending requests to a remote server, tell them we are running
+NTP protocol version \fIntpversion\fP .
+.It  Fl r , Fl \-usereservedport 
+Use the NTP Reserved Port (port 123).
+.sp
+Use port 123, which is reserved for NTP, for our network
+communications.
+.It  Fl S , Fl \-step 
+OK to 'step' the time with \fBsettimeofday(2)\fP.
+.sp
+.It  Fl s , Fl \-slew 
+OK to 'slew' the time with \fBadjtime(2)\fP.
+.sp
+.It  Fl t Ar seconds , Fl \-timeout Ns = Ns Ar seconds 
+The number of seconds to wait for responses.
+This option takes an integer number as its argument.
+The default
+.Ar seconds
+for this option is:
+.ti +4
+ 5
+.sp
+When waiting for a reply, \fBsntp\fP will wait the number
+of seconds specified before giving up.  The default should be
+more than enough for a unicast response.  If \fBsntp\fP is
+only waiting for a broadcast response a longer timeout is
+likely needed.
+.It  Fl \-wait , Fl \-no\-wait
+Wait for pending replies (if not setting the time).
+The \fIno\-wait\fP form will disable the option.
+This option is enabled by default.
+.sp
+If we are not setting the time, wait for all pending responses.
+.It Fl \&? , Fl \-help
+Display usage information and exit.
+.It Fl \&! , Fl \-more\-help
+Pass the extended usage information through a pager.
+.It Fl > Oo Ar cfgfile Oc , Fl \-save\-opts Oo Ns = Ns Ar cfgfile Oc
+Save the option state to \fIcfgfile\fP.  The default is the \fIlast\fP
+configuration file listed in the \fBOPTION PRESETS\fP section, below.
+The command will exit after updating the config file.
+.It Fl < Ar cfgfile , Fl \-load\-opts Ns = Ns Ar cfgfile , Fl \-no\-load\-opts
+Load options from \fIcfgfile\fP.
+The \fIno\-load\-opts\fP form will disable the loading
+of earlier config/rc/ini files.  \fI\-\-no\-load\-opts\fP is handled early,
+out of order.
+.It Fl \-version Op Brq Ar v|c|n
+Output version of program and exit.  The default mode is `v', a simple
+version.  The `c' mode will print copyright information and `n' will
+print the full copyright notice.
+.El
+.Sh "OPTION PRESETS"
+Any option that is not marked as \fInot presettable\fP may be preset
+by loading values from configuration ("RC" or ".INI") file(s) and values from
+environment variables named:
+.nf
+  \fBSNTP_<option\-name>\fP or \fBSNTP\fP
+.fi
+.ad
+The environmental presets take precedence (are processed later than)
+the configuration files.
+The \fIhomerc\fP files are "\fI$HOME\fP", and "\fI.\fP".
+If any of these are directories, then the file \fI.ntprc\fP
+is searched for within those directories.
+.Sh USAGE
+.Bl -tag -width indent
+.It Li "sntp ntpserver.somewhere"
+is the simplest use of this program
+and can be run as an unprivileged command
+to check the current time and error in the local clock.
+.It Li "sntp \-Ss \-M 128 ntpserver.somewhere"
+With suitable privilege,
+run as a command
+or from a
+.Xr cron 8
+job,
+.Ic "sntp \-Ss \-M 128 ntpserver.somewhere"
+will request the time from the server,
+and if that server reports that it is synchronized
+then if the offset adjustment is less than 128 milliseconds
+the correction will be slewed,
+and if the correction is more than 128 milliseconds
+the correction  will be stepped.
+.It Li "sntp \-S ntpserver.somewhere"
+With suitable privilege,
+run as a command
+or from a
+.Xr cron 8
+job,
+.Ic "sntp \-S ntpserver.somewhere"
+will set (step) the local clock from a synchronized specified server,
+like the (deprecated)
+.Xr ntpdate 8 ,
+or
+.Xr rdate 8
+commands.
+.El
+.Sh "ENVIRONMENT"
+See \fBOPTION PRESETS\fP for configuration environment variables.
+.Sh "FILES"
+See \fBOPTION PRESETS\fP for configuration files.
+.Sh "EXIT STATUS"
+One of the following exit values will be returned:
+.Bl -tag
+.It 0 " (EXIT_SUCCESS)"
+Successful program execution.
+.It 1 " (EXIT_FAILURE)"
+The operation failed or the command syntax was not valid.
+.It 66 " (EX_NOINPUT)"
+A specified configuration file could not be loaded.
+.It 70 " (EX_SOFTWARE)"
+libopts had an internal operational error.  Please report
+it to autogen\-users@lists.sourceforge.net.  Thank you.
+.El
+.Sh AUTHORS
+.An "Johannes Maximilian Kuehn"
+.An "Harlan Stenn"
+.An "Dave Hart"
+.Sh "COPYRIGHT"
+Copyright (C) 1992\-2017 The University of Delaware and Network Time Foundation all rights reserved.
+This program is released under the terms of the NTP license, <http://ntp.org/license>.
+.Sh "BUGS"
+Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
+.Sh "NOTES"
+This manual page was \fIAutoGen\fP\-erated from the \fBsntp\fP
+option definitions.

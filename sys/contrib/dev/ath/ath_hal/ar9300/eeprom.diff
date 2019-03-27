@@ -1,0 +1,281 @@
+/*
+ * Copyright (c) 2013 Qualcomm Atheros, Inc.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+ * OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+diff --git a/hal/ar9300/ar9300_eeprom.c b/hal/ar9300/ar9300_eeprom.c
+index 2fe5506..628026f 100644
+--- a/hal/ar9300/ar9300_eeprom.c
++++ b/hal/ar9300/ar9300_eeprom.c
+@@ -342,6 +342,8 @@ ar9300_otp_read(struct ath_hal *ah, u_int off, u_int32_t *data, HAL_BOOL is_wifi
+     int status = 0;
+     u_int32_t addr;
+ 
++    //ath_hal_printf(ah, "%s: reading offset 0x%x\n", __func__, off);
++
+     addr = (AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah))?
+         OTP_MEM_START_ADDRESS_WASP : OTP_MEM_START_ADDRESS;
+ 	if (!is_wifi) {
+@@ -372,6 +374,7 @@ ar9300_otp_read(struct ath_hal *ah, u_int off, u_int32_t *data, HAL_BOOL is_wifi
+         addr = BTOTP_STATUS1_EFUSE_READ_DATA;
+     }
+     *data = OS_REG_READ(ah, addr);
++    //ath_hal_printf(ah, "%s:  data=0x%x\n", __func__, *data);
+     return AH_TRUE;
+ }
+ 
+@@ -603,6 +606,8 @@ ar9300_eeprom_attach(struct ath_hal *ah)
+     systime_t current_system_time = OS_GET_TIMESTAMP();
+ #endif    
+ #endif
++
++    ath_hal_printf(ah, "%s: starting\n", __func__);
+     ahp->try_dram = 1;
+     ahp->try_eeprom = 1;
+     ahp->try_otp = 1;
+@@ -679,10 +684,14 @@ ar9300_eeprom_attach(struct ath_hal *ah)
+ #endif
+ #endif
+     
++    ath_hal_printf(ah, "%s: calling ar9300_fill_eeprom\n", __func__);
+     if (!ar9300_fill_eeprom(ah)) {
+         return HAL_EIO;
+     }
+ 
++    ath_hal_printf(ah, "%s: calibration data type = %d\n", __func__,
++      AH9300(ah)->calibration_data_source);
++
+     return HAL_OK;
+     /* return ar9300_check_eeprom(ah); */
+ #endif
+@@ -704,6 +713,7 @@ ar9300_eeprom_attach(struct ath_hal *ah)
+     ahp->ah_eeprom.mac_addr[4] = 0xD0;
+     ahp->ah_eeprom.mac_addr[5] = 0x00;
+ #endif
++    ath_hal_printf(ah, "%s: %s:%d\n", __func__, __FILE__, __LINE__);
+     return HAL_OK;
+ #else
+ #if ATH_DRIVER_SIM
+@@ -764,13 +774,17 @@ ar9300_eeprom_attach(struct ath_hal *ah)
+         return HAL_OK;
+     }
+ #endif
++    ath_hal_printf(ah, "%s: %s:%d\n", __func__, __FILE__, __LINE__);
+     if (AR_SREV_HORNET(ah) || AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah)) {
+         ahp->try_eeprom = 0;
+     }
+ 
++    ath_hal_printf(ah, "%s: %s:%d\n", __func__, __FILE__, __LINE__);
+     if (!ar9300_eeprom_restore(ah)) {
++    	ath_hal_printf(ah, "%s: %s:%d\n", __func__, __FILE__, __LINE__);
+         return HAL_EIO;
+     }
++    ath_hal_printf(ah, "%s: %s:%d\n", __func__, __FILE__, __LINE__);
+     return HAL_OK;
+ #endif
+ #endif
+@@ -3743,6 +3757,12 @@ ar9300_calibration_data_read_otp(struct ath_hal *ah, long address,
+     unsigned long byte_addr;
+     u_int32_t svalue;
+ 
++    ath_hal_printf(ah, "%s: called: address=%d, many=%d, is_wifi=%d\n",
++        __func__,
++	(int) address,
++	many,
++	is_wifi);
++
+     if (((address) < 0) || ((address + many) > 0x400)) {
+         return AH_FALSE;
+     }
+@@ -3802,6 +3822,8 @@ ar9300_calibration_data_read_array(struct ath_hal *ah, int address,
+ {
+     int it;
+ 
++    ath_hal_printf(ah, "%s: address=%d, many=%d\n", __func__, address, many);
++
+     for (it = 0; it < many; it++) {
+         (void)ar9300_calibration_data_read(ah, address - it, buffer + it, 1);
+     }
+@@ -4001,13 +4023,24 @@ ar9300_eeprom_restore_internal_address(struct ath_hal *ah,
+     int restored;
+     u_int16_t checksum, mchecksum;
+ 
++    ath_hal_printf(ah, "%s: called, cptr=0x%x, mdata_size=%d, blank=%d\n",
++      __func__, cptr, mdata_size, blank);
++
+     restored = 0;
+     for (it = 0; it < MSTATE; it++) {            
+         (void) ar9300_calibration_data_read_array(
+             ah, cptr, word, compression_header_length);
++        ath_hal_printf(ah, "%s:  word = 0x%x, 0x%x, 0x%x, 0x%x\n",
++          __func__,
++          word[0],
++          word[1],
++          word[2],
++          word[3]);
+         if (word[0] == blank && word[1] == blank && word[2] == blank && word[3] == blank)
+         {
+-            break;
++            ath_hal_printf(ah, "%s: word=blank, skipping\n", __func__);
++            cptr -= compression_header_length;
++            continue;
+         }
+         ar9300_compression_header_unpack(
+             word, &code, &reference, &length, &major, &minor);
+@@ -4143,19 +4176,18 @@ static int
+ ar9300_eeprom_restore_from_dram(struct ath_hal *ah, ar9300_eeprom_t *mptr,
+     int mdata_size)
+ {
+-#if 0
+     struct ath_hal_9300 *ahp = AH9300(ah);
+     char *cal_ptr;
+-#endif
+ 
++#if 0
+     /* cal data in flash / DRAM isn't currently supported */
+     ath_hal_printf(ah, "%s: Cal data from DRAM isn't supported\n",
+       __func__);
+ 
+     return -1;
++#endif
+ 
+ #ifndef WIN32
+-#if 0
+     HALASSERT(mdata_size > 0);
+ 
+     /* if cal_in_flash is true, the address sent by LMAC to HAL
+@@ -4164,14 +4196,17 @@ ar9300_eeprom_restore_from_dram(struct ath_hal *ah, ar9300_eeprom_t *mptr,
+     if(ar9300_eep_data_in_flash(ah))
+         return -1;
+ 
++#if 0
+     /* check if LMAC sent DRAM address is valid */
+     if (!(uintptr_t)(AH_PRIVATE(ah)->ah_st)) {
+         return -1;
+     }
++#endif
+ 
+     /* When calibration data is from host, Host will copy the 
+        compressed data to the predefined DRAM location saved at ah->ah_st */
+     ath_hal_printf(ah, "Restoring Cal data from DRAM\n");
++#if 0
+ #ifdef __NetBSD__
+     ahp->ah_cal_mem = OS_REMAP(ah, (uintptr_t)(AH_PRIVATE(ah)->ah_st), 
+ 							HOST_CALDATA_SIZE);
+@@ -4184,6 +4219,20 @@ ar9300_eeprom_restore_from_dram(struct ath_hal *ah, ar9300_eeprom_t *mptr,
+        HALDEBUG(ah, HAL_DEBUG_EEPROM,"%s: can't remap dram region\n", __func__);
+        return -1;
+     }
++#endif
++
++    /*
++     * The atheros HAL passes in this buffer anyway, and we copy things
++     * into it.  However, the FreeBSD driver doesn't supply this
++     * particular memory.  So, let's just assume attach/detach will
++     * provide us with a 16 kilobyte buffer for now, and hope the whole
++     * OTP path works.
++     */
++    if (! ahp->ah_cal_mem) {
++        ath_hal_printf(ah, "%s: FreeBSD: ah_cal_mem isn't set\n", __func__);
++        return -1;
++    }
++
+     cal_ptr = &((char *)(ahp->ah_cal_mem))[AR9300_FLASH_CAL_START_OFFSET];
+     OS_MEMCPY(mptr, cal_ptr, mdata_size);
+ 
+@@ -4201,7 +4250,6 @@ ar9300_eeprom_restore_from_dram(struct ath_hal *ah, ar9300_eeprom_t *mptr,
+     }
+ 
+     return mdata_size;
+-#endif
+ #else
+     return -1;
+ #endif
+@@ -4290,6 +4338,11 @@ ar9300_eeprom_restore_from_flash(struct ath_hal *ah, ar9300_eeprom_t *mptr,
+     }
+ 
+ #endif
++    ath_hal_printf(ah, "%s: eeprom version=%d, template version=%d\n",
++        __func__,
++        (int) mptr->eeprom_version,
++        (int) mptr->template_version);
++
+     if (mptr->eeprom_version   == 0xff ||
+         mptr->template_version == 0xff ||
+         mptr->eeprom_version   == 0    ||
+@@ -4321,10 +4374,11 @@ ar9300_eeprom_restore_internal(struct ath_hal *ah, ar9300_eeprom_t *mptr,
+ 
+     nptr = -1;    
+ 
+-    if ((AH9300(ah)->calibration_data_try == calibration_data_none ||
++    if (0 && (AH9300(ah)->calibration_data_try == calibration_data_none ||
+          AH9300(ah)->calibration_data_try == calibration_data_dram) &&
+          AH9300(ah)->try_dram && nptr < 0)
+     {   
++        ath_hal_printf(ah, "%s: trying dram\n", __func__);
+         AH9300(ah)->calibration_data_source = calibration_data_dram;
+         AH9300(ah)->calibration_data_source_address = 0;
+         nptr = ar9300_eeprom_restore_from_dram(ah, mptr, mdata_size);
+@@ -4334,7 +4388,7 @@ ar9300_eeprom_restore_internal(struct ath_hal *ah, ar9300_eeprom_t *mptr,
+         }
+     }
+     
+-    if ((AH9300(ah)->calibration_data_try == calibration_data_none ||
++    if (0 && (AH9300(ah)->calibration_data_try == calibration_data_none ||
+          AH9300(ah)->calibration_data_try == calibration_data_eeprom) &&
+         AH9300(ah)->try_eeprom && nptr < 0)
+     {
+@@ -4343,6 +4397,7 @@ ar9300_eeprom_restore_internal(struct ath_hal *ah, ar9300_eeprom_t *mptr,
+          * base_address=0x3ff where we used to write the data
+          */
+         AH9300(ah)->calibration_data_source = calibration_data_eeprom;
++        ath_hal_printf(ah, "%s: trying eeprom\n", __func__);
+         if (AH9300(ah)->calibration_data_try_address != 0) {
+             AH9300(ah)->calibration_data_source_address =
+                 AH9300(ah)->calibration_data_try_address;
+@@ -4374,7 +4429,7 @@ ar9300_eeprom_restore_internal(struct ath_hal *ah, ar9300_eeprom_t *mptr,
+      * ##### should be an ifdef test for any AP usage,
+      * either in driver or in nart
+      */
+-    if ((AH9300(ah)->calibration_data_try == calibration_data_none ||
++    if (0 && (AH9300(ah)->calibration_data_try == calibration_data_none ||
+          AH9300(ah)->calibration_data_try == calibration_data_flash) &&
+         AH9300(ah)->try_flash && nptr < 0)
+     {
+@@ -4388,10 +4443,17 @@ ar9300_eeprom_restore_internal(struct ath_hal *ah, ar9300_eeprom_t *mptr,
+         }
+     }
+ 
++    /* XXX FreeBSD? */
++    AH9300(ah)->calibration_data_try = calibration_data_otp;
++    AH9300(ah)->calibration_data_try_address = 0x2ff;
++
+     if ((AH9300(ah)->calibration_data_try == calibration_data_none ||
+          AH9300(ah)->calibration_data_try == calibration_data_otp) &&
+         AH9300(ah)->try_otp && nptr < 0)
+     {
++        ath_hal_printf(ah, "%s: trying OTP, try_address=0x%x\n",
++            __func__,
++            AH9300(ah)->calibration_data_try_address);
+         AH9300(ah)->calibration_data_source = calibration_data_otp;
+         if (AH9300(ah)->calibration_data_try_address != 0) {
+             AH9300(ah)->calibration_data_source_address =
+@@ -4526,6 +4588,8 @@ ar9300_eeprom_restore(struct ath_hal *ah)
+     int mdata_size;
+     HAL_BOOL status = AH_FALSE;
+ 
++    ath_hal_printf(ah, "%s: called\n", __func__);
++
+     mptr = &ahp->ah_eeprom;
+     mdata_size = ar9300_eeprom_struct_size();
+ 

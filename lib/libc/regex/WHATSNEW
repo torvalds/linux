@@ -1,0 +1,94 @@
+# @(#)WHATSNEW	8.3 (Berkeley) 3/18/94
+
+New in alpha3.4:  The complex bug alluded to below has been fixed (in a
+slightly kludgey temporary way that may hurt efficiency a bit; this is
+another "get it out the door for 4.4" release).  The tests at the end of
+the tests file have accordingly been uncommented.  The primary sign of
+the bug was that something like a?b matching ab matched b rather than ab.
+(The bug was essentially specific to this exact situation, else it would
+have shown up earlier.)
+
+New in alpha3.3:  The definition of word boundaries has been altered
+slightly, to more closely match the usual programming notion that "_"
+is an alphabetic.  Stuff used for pre-ANSI systems is now in a subdir,
+and the makefile no longer alludes to it in mysterious ways.  The
+makefile has generally been cleaned up some.  Fixes have been made
+(again!) so that the regression test will run without -DREDEBUG, at
+the cost of weaker checking.  A workaround for a bug in some folks'
+<assert.h> has been added.  And some more things have been added to
+tests, including a couple right at the end which are commented out
+because the code currently flunks them (complex bug; fix coming).
+Plus the usual minor cleanup.
+
+New in alpha3.2:  Assorted bits of cleanup and portability improvement
+(the development base is now a BSDI system using GCC instead of an ancient
+Sun system, and the newer compiler exposed some glitches).  Fix for a
+serious bug that affected REs using many [] (including REG_ICASE REs
+because of the way they are implemented), *sometimes*, depending on
+memory-allocation patterns.  The header-file prototypes no longer name
+the parameters, avoiding possible name conflicts.  The possibility that
+some clot has defined CHAR_MIN as (say) `-128' instead of `(-128)' is
+now handled gracefully.  "uchar" is no longer used as an internal type
+name (too many people have the same idea).  Still the same old lousy
+performance, alas.
+
+New in alpha3.1:  Basically nothing, this release is just a bookkeeping
+convenience.  Stay tuned.
+
+New in alpha3.0:  Performance is no better, alas, but some fixes have been
+made and some functionality has been added.  (This is basically the "get
+it out the door in time for 4.4" release.)  One bug fix:  regfree() didn't
+free the main internal structure (how embarrassing).  It is now possible
+to put NULs in either the RE or the target string, using (resp.) a new
+REG_PEND flag and the old REG_STARTEND flag.  The REG_NOSPEC flag to
+regcomp() makes all characters ordinary, so you can match a literal
+string easily (this will become more useful when performance improves!).
+There are now primitives to match beginnings and ends of words, although
+the syntax is disgusting and so is the implementation.  The REG_ATOI
+debugging interface has changed a bit.  And there has been considerable
+internal cleanup of various kinds.
+
+New in alpha2.3:  Split change list out of README, and moved flags notes
+into Makefile.  Macro-ized the name of regex(7) in regex(3), since it has
+to change for 4.4BSD.  Cleanup work in engine.c, and some new regression
+tests to catch tricky cases thereof.
+
+New in alpha2.2:  Out-of-date manpages updated.  Regerror() acquires two
+small extensions -- REG_ITOA and REG_ATOI -- which avoid debugging kludges
+in my own test program and might be useful to others for similar purposes.
+The regression test will now compile (and run) without REDEBUG.  The
+BRE \$ bug is fixed.  Most uses of "uchar" are gone; it's all chars now.
+Char/uchar parameters are now written int/unsigned, to avoid possible
+portability problems with unpromoted parameters.  Some unsigned casts have
+been introduced to minimize portability problems with shifting into sign
+bits.
+
+New in alpha2.1:  Lots of little stuff, cleanup and fixes.  The one big
+thing is that regex.h is now generated, using mkh, rather than being
+supplied in the distribution; due to circularities in dependencies,
+you have to build regex.h explicitly by "make h".  The two known bugs
+have been fixed (and the regression test now checks for them), as has a
+problem with assertions not being suppressed in the absence of REDEBUG.
+No performance work yet.
+
+New in alpha2:  Backslash-anything is an ordinary character, not an
+error (except, of course, for the handful of backslashed metacharacters
+in BREs), which should reduce script breakage.  The regression test
+checks *where* null strings are supposed to match, and has generally
+been tightened up somewhat.  Small bug fixes in parameter passing (not
+harmful, but technically errors) and some other areas.  Debugging
+invoked by defining REDEBUG rather than not defining NDEBUG.
+
+New in alpha+3:  full prototyping for internal routines, using a little
+helper program, mkh, which extracts prototypes given in stylized comments.
+More minor cleanup.  Buglet fix:  it's CHAR_BIT, not CHAR_BITS.  Simple
+pre-screening of input when a literal string is known to be part of the
+RE; this does wonders for performance.
+
+New in alpha+2:  minor bits of cleanup.  Notably, the number "32" for the
+word width isn't hardwired into regexec.c any more, the public header
+file prototypes the functions if __STDC__ is defined, and some small typos
+in the manpages have been fixed.
+
+New in alpha+1:  improvements to the manual pages, and an important
+extension, the REG_STARTEND option to regexec().

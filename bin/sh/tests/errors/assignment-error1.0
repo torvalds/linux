@@ -1,0 +1,30 @@
+# $FreeBSD$
+IFS=,
+
+SPECIAL="break,\
+	:,\
+	continue,\
+	. /dev/null,\
+	eval,\
+	exec,\
+	export -p,\
+	readonly -p,\
+	set,\
+	shift,\
+	times,\
+	trap,\
+	unset foo"
+
+# If there is no command word, the shell must abort on an assignment error.
+${SH} -c "readonly a=0; a=2; exit 0" 2>/dev/null && exit 1
+
+# Special built-in utilities must abort on an assignment error.
+set -- ${SPECIAL}
+for cmd in "$@"
+do
+	${SH} -c "readonly a=0; a=2 ${cmd}; exit 0" 2>/dev/null && exit 1
+done
+
+# Other utilities must not abort; we currently still execute them.
+${SH} -c 'readonly a=0; a=1 true; exit $a' 2>/dev/null || exit 1
+${SH} -c 'readonly a=0; a=1 command :; exit $a' 2>/dev/null || exit 1

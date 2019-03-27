@@ -1,0 +1,25 @@
+Things that still need to be done: -*- Text -*-
+
+ o - A source of space lossage is that all the target-dependent code
+     is in a single bfd_target structure.  Hence all the code for
+     *writing* object files is still pulled into all the applications
+     that only care about *reading* (gdb, nm, objdump), while gas has
+     to carry along all the unneeded baggage for reading objects.  And
+     so on.  This would be a substantial change, and the payoff would
+     not all that great (essentially none if bfd is used as a shared
+     library).
+
+ o - The storage needed by BFD data structures is also larger than strictly
+     needed.  This may be difficult to do much about.
+
+ o - implement bfd_abort, which should close the bfd but not alter the
+     filesystem.
+
+ o - update the bfd doc; write a how-to-write-a-backend doc, take out
+     the stupid quips and fill in all the blanks.
+
+ o - upgrade the reloc handling as per Steve's suggestion.
+
+
+
+

@@ -1,0 +1,23 @@
+.include "$CURDIR/9.inc"
+.include "$CURDIR/9-comment.inc"
+#.include "$CURDIR/9.inc"
+.include "$CURDIR/9.inc"
+
+key = value;
+.include "$CURDIR/9.inc"
+
+#.try_include "$CURDIR/9.incorrect.inc"
+# 9.incorrect.inc contains '{}}'
+#key = value;
+prefix1 = {
+	key = value	
+}
+array = [10]
+array1 = [10]
+.include(prefix=true; key="prefix") "$CURDIR/9.inc"
+.include(prefix=true; key="prefix2"; target="array"; glob=true) "$CURDIR/9.inc"
+.include(prefix=true; key="prefix1"; target="array"; glob=true) "$CURDIR/9.inc"
+.include(prefix=true; key="array"; target="array"; glob=true) "$CURDIR/9.inc"
+.include(prefix=true; key="array1"; glob=true) "$CURDIR/9.inc"
+.include(prefix=true; key="prefix"; glob=true) "$CURDIR/9.inc"
+.try_include "/non/existent"

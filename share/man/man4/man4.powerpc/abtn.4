@@ -1,0 +1,115 @@
+.\"-
+.\" Copyright (c) 2011 Justin Hibbits
+.\" Copyright (c) 2009 Nathan Whitehorn <nwhitehorn@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 16, 2011
+.Dt ABTN 4
+.Os
+.Sh NAME
+.Nm abtn
+.Nd ADB Keyboard Special Keys Driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device adb"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the extended Fn keys on Apple notebooks with an ADB
+interface.
+.Sh HARDWARE
+The
+.Nm
+driver supports extended keyboard keys (special F-keys) on the following devices:
+.Pp
+.Bl -bullet -compact
+.It
+Apple iBook Keyboard
+.It
+Apple PowerBook Keyboard
+.El
+.Sh EVENTS
+The
+.Nm
+driver sends events to
+.Xr devd 8
+for the following events under the
+.Cd PMU
+system, and
+.Cd keys
+subsystem:
+.Pp
+.Bl -bullet -compact
+.It
+.Cd brightness
+- Generates
+.Cd up
+and
+.Cd down
+notify types matching the pressed key.
+.It
+.Cd mute
+.It
+.Cd volume
+- Generates
+.Cd up
+and
+.Cd down
+notify types matching the pressed key.
+.It
+.Cd eject
+.El
+.Pp
+Examples are included in /etc/devd/apple.conf.
+.Sh SEE ALSO
+.Xr adb 4 ,
+.Xr akbd 4 ,
+.Xr cuda 4 ,
+.Xr pmu 4 ,
+.Xr devd 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Nx 5.0
+and was ported to
+.Fx 10.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Tsubai Masanari
+for
+.Nx
+and ported to
+.Fx
+by
+.An Justin Hibbits .

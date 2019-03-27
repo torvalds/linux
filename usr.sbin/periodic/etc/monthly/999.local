@@ -1,0 +1,40 @@
+#!/bin/sh -
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+rc=0
+for script in $monthly_local
+do
+    echo ''
+    case "$script" in
+	/*)
+	    if [ -x "$script" ]
+	    then
+		echo "Running $script:"
+
+		$script || rc=3
+	    elif [ -f "$script" ]
+	    then
+		echo "Running $script:"
+
+		sh $script || rc=3
+	    else
+		echo "$script: No such file"
+		[ $rc -lt 2 ] && rc=2
+	    fi;;
+	*)
+	    echo "$script: Not an absolute path"
+	    [ $rc -lt 2 ] && rc=2;;
+    esac
+done
+
+exit $rc

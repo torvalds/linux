@@ -1,0 +1,29 @@
+# $FreeBSD$
+
+unset LC_ALL
+LC_COLLATE=en_US.US-ASCII
+export LC_COLLATE
+
+failures=0
+
+check() {
+	testcase=$1
+	expect=$2
+	eval "set -- $testcase"
+	actual="$*"
+	if [ "$actual" != "$expect" ]; then
+		failures=$((failures+1))
+		printf '%s\n' "For $testcase, expected $expect actual $actual"
+	fi
+}
+
+set -e
+T=$(mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXX)
+trap 'rm -rf $T' 0
+cd -P $T
+
+touch A B a b
+
+check '*' 'a A b B'
+
+exit $((failures != 0))

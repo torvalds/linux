@@ -1,0 +1,99 @@
+.\" Copyright (c) 2007 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd March 2, 2014
+.Dt ATF-TEST-PROGRAM 1
+.Os
+.Sh NAME
+.Nm atf-test-program
+.Nd common interface to ATF test programs
+.Sh SYNOPSIS
+.Nm
+.Op Fl r Ar resfile
+.Op Fl s Ar srcdir
+.Op Fl v Ar var1=value1 Op .. Fl v Ar varN=valueN
+.Ar test_case
+.Nm
+.Fl l
+.Sh DESCRIPTION
+Test programs written using the ATF libraries all share a common user
+interface, which is what this manual page describes.
+.Em NOTE: There is no binary known as
+.Nm ;
+.Em what is described in this manual page is the command-line interface
+.Em exposed by the atf-c, atf-c++ and atf-sh bindings .
+.Pp
+In the first synopsis form, the test program will execute the provided
+test case and print its results to the standard output, unless otherwise
+stated by the
+.Fl r
+flag.
+Optionally, the test case name can be suffixed by
+.Sq :cleanup ,
+in which case the cleanup routine of the test case will be executed
+instead of the test case body; see
+.Xr atf-test-case 4 .
+Note that the test case is
+.Em executed without isolation ,
+so it can and probably will create and modify files in the current directory.
+To execute test cases in a controller manner, you need a runtime engine
+that understands the ATF interface.
+The recommended runtime engine is
+.Xr kyua 1 .
+You should only execute test cases by hand for debugging purposes.
+.Pp
+In the second synopsis form, the test program will list all available
+test cases alongside their meta-data properties in a format that is
+machine parseable.
+This list is processed by
+.Xr kyua 1
+to know how to execute the test cases of a given test program.
+.Pp
+The following options are available:
+.Bl -tag -width XvXvarXvalueXX
+.It Fl l
+Lists available test cases alongside a brief description for each of them.
+.It Fl r Ar resfile
+Specifies the file that will receive the test case result.
+If not specified, the test case prints its results to stdout.
+If the result of a test case needs to be parsed by another program, you must
+use this option to redirect the result to a file and then read the resulting
+file from the other program.
+Note:
+.Em do not try to process the stdout of the test case
+because your program may break in the future.
+.It Fl s Ar srcdir
+The path to the directory where the test program is located.
+This is needed in all cases, except when the test program is being executed
+from the current directory.
+The test program will use this path to locate any helper data files or
+utilities.
+.It Fl v Ar var=value
+Sets the configuration variable
+.Ar var
+to the value
+.Ar value .
+.El
+.Sh SEE ALSO
+.Xr kyua 1

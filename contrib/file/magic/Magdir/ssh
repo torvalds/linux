@@ -1,0 +1,13 @@
+# Type:	OpenSSH key files
+# From:	Nicolas Collignon <tsointsoin@gmail.com>
+
+0	string	SSH\ PRIVATE\ KEY	OpenSSH RSA1 private key,
+>28	string	>\0			version %s
+0	string	-----BEGIN\ OPENSSH\ PRIVATE\ KEY-----	OpenSSH private key
+
+0	string	ssh-dss\ 		OpenSSH DSA public key
+0	string	ssh-rsa\ 		OpenSSH RSA public key
+0	string	ecdsa-sha2-nistp256	OpenSSH ECDSA public key
+0	string	ecdsa-sha2-nistp384	OpenSSH ECDSA public key
+0	string	ecdsa-sha2-nistp521	OpenSSH ECDSA public key
+0	string	ssh-ed25519		OpenSSH ED25519 public key

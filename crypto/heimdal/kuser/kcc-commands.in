@@ -1,0 +1,239 @@
+/*
+ * Copyright (c) 2010 Kungliga Tekniska Högskolan
+ * (Royal Institute of Technology, Stockholm, Sweden). 
+ * All rights reserved. 
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met: 
+ *
+ * 1. Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright 
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the distribution. 
+ *
+ * 3. Neither the name of the Institute nor the names of its contributors 
+ *    may be used to endorse or promote products derived from this software 
+ *    without specific prior written permission. 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+ * SUCH DAMAGE. 
+ */
+
+command = {
+	name = "klist"
+	name = "list"
+	help = "List kerberos tickets"
+	option = {
+		long = "cache"
+		short = "c"
+		type = "string"
+		help = "credential cache to list"
+	}
+	option = {
+		name = "flags"
+		short = "f"
+		type = "flag"
+		help = "list flags"
+	}
+	option = {
+		long = "test"
+		short = "t"
+		type = "flag"
+		help = "test for having tickets"
+	}
+	option = {
+		name = "s"
+		short = "s"
+		type = "flag"
+	}
+	option = {
+		long = "tokens"
+		short = "T"
+		type = "flag"
+		help = "display AFS tokens"
+	}
+	option = {
+		long = "v5"
+		short = "5"
+		type = "flag"
+		default = "1"
+		help = "display v5 credential tokens"
+	}
+	option = {
+		long = "all-content"
+		short = "A"
+		type = "flag"
+		help = "List all caches with their content"
+	}
+	option = {
+		long = "list-all"
+		short = "l"
+		type = "flag"
+		help = "List all caches"
+	}
+	option = {
+		long = "verbose"
+		short = "v"
+		type = "flag"
+		help = "Verbose output"
+	}
+	option = {
+		name = "a"
+		short = "a"
+		type = "flag"
+	}
+	option = {
+		name = "n"
+		short = "n"
+		type = "flag"
+	}
+	option = {
+		long = "hidden"
+		type = "flag"
+		help = "Verbose output"
+	}
+}
+command = {
+	name = "kgetcred"
+	help = "Acquire a Kerberos ticket"
+	option = {
+	       long = "enctype"
+	       short = "e"
+	       type = "string"
+	       argument = "enctype"
+	       help = "Encryption type to use"
+	}
+	option = {
+	       long = "cache"
+	       short = "c"
+	       type = "string"
+	       argument = "cachename"
+	       help = "Credentials cache"
+	}
+}
+command = {
+	name = "kswitch"
+	name = "switch"
+	help = "Switch default kerberos cache"
+	option = {
+		long = "type"
+		short = "t"
+		type = "string"
+		help = "type of credential cache"
+	}
+	option = {
+		long = "cache"
+		short = "c"
+		type = "string"
+		help = "name of credential cache"
+	}
+	option = {
+		long = "principal"
+		short = "p"
+		type = "string"
+		help = "name of principal"
+	}
+	option = {
+		long = "interactive"
+		short = "i"
+		type = "flag"
+		help = "interactive selection"
+	}
+};
+command = {
+	name = "kvno"
+	help = "Acquire a Kerberos ticket"
+	option = {
+	       long = "enctype"
+	       short = "e"
+	       type = "string"
+	       argument = "enctype"
+	       help = "Encryption type to use"
+	}
+	option = {
+	       long = "cache"
+	       short = "c"
+	       type = "string"
+	       argument = "cachename"
+	       help = "Credentials cache"
+	}
+	option = {
+	       long = "keytab"
+	       short = "k"
+	       type = "string"
+	       argument = "keytabname"
+	       help = "Keytab to use"
+	}
+	option = {
+	       long = "server"
+	       short = "S"
+	       type = "string"
+	       argument = "principal"
+	       help = "Server to get ticket for"
+	}
+	option = {
+	       long = "quiet"
+	       short = "q"
+	       type = "flag"
+	       help = "Quiet"
+	}
+}
+command = {
+	name = "copy_cred_cache"
+	option = {
+	       long = "krbtgt-only"
+	       type = "flag"
+	       help = "only copy local krbtgt"
+	}
+	option = {
+	       long = "service"
+	       type = "string"
+	       help = "limit to this service"
+	       argument = "service"
+	}
+	option = {
+	       long = "enctype"
+	       type = "string"
+	       help = "limit to this enctype"
+	       argument = "enctype"
+	}
+	option = {
+	       long = "flags"
+	       type = "string"
+	       help = "limit to these flags"
+	}
+	option = {
+	       long = "valid-for"
+	       type = "string"
+	       help = "limit to creds valid for at least this long"
+	       argument =  "time"
+	}
+	option = {
+	       long = "fcache-version"
+	       type = "integer"
+	       help = "file cache version to create"
+	}
+	min_args = "1"
+	max_args = "2"
+	help = "Copies credential caches"
+}
+command = {
+	name = "help"
+	name = "?"
+	argument = "[command]"
+	min_args = "0"
+	max_args = "1"
+	help = "Help! I need somebody."
+}

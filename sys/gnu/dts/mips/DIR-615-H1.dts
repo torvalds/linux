@@ -1,0 +1,123 @@
+/dts-v1/;
+
+#include "rt3352.dtsi"
+
+/ {
+	compatible = "DIR-615-H1", "ralink,rt3352-soc";
+	model = "D-Link DIR-615 H1";
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		status {
+			label = "dir-615-h1:amber:status";
+			gpios = <&gpio0 7 0>;
+		};
+
+		status2 {
+			label = "dir-615-h1:green:status";
+			gpios = <&gpio0 9 0>;
+		};
+
+		wan {
+			label = "dir-615-h1:amber:wan";
+			gpios = <&gpio0 12 1>;
+		};
+
+		wan2 {
+			label = "dir-615-h1:green:wan";
+			gpios = <&gpio0 13 1>;
+		};
+
+		wps {
+			label = "dir-615-h1:blue:wps";
+			gpios = <&gpio0 14 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 10 1>;
+			linux,code = <0x198>;
+		};
+
+		wps {
+			label = "wps";
+			gpios = <&gpio0 0 1>;
+			linux,code = <0x211>;
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "mx25l3205d";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x3b0000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "jtag", "uartf";
+			ralink,function = "gpio";
+		};
+
+		rgmii {
+			ralink,group = "rgmii";
+			ralink,function = "rgmii";
+		};
+
+		mdio {
+			ralink,group = "mdio";
+			ralink,function = "mdio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x28>;
+};
+
+&esw {
+	mediatek,portmap = <0x2f>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};

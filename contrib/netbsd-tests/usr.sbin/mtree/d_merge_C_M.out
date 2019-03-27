@@ -1,0 +1,13 @@
+. type=dir
+./a type=dir
+./a/change-dir-to-link type=link mode=0755
+./b type=dir
+./b/change-link-to-dir type=dir mode=0755
+./c type=dir
+./c/aaa type=file
+./c/zzz type=file
+./c/change-dir-to-link type=link mode=0755
+./d type=dir
+./d/aaa type=file
+./d/zzz type=file
+./d/change-link-to-dir type=dir mode=0755

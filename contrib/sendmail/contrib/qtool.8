@@ -1,0 +1,228 @@
+.\" Copyright (c) 1999, 2001-2002 Proofpoint, Inc. and its suppliers.
+.\"	 All rights reserved.
+.\"
+.\" By using this file, you agree to the terms and conditions set
+.\" forth in the LICENSE file which can be found at the top level of
+.\" the sendmail distribution.
+.\"
+.\"
+.\"     $Id: qtool.8,v 8.21 2013-11-22 20:51:18 ca Exp $
+.\"
+.TH QTOOL 8 "$Date: 2013-11-22 20:51:18 $"
+.SH NAME
+qtool
+\- manipulate sendmail queues
+.SH SYNOPSIS
+.B qtool.pl
+.RB [options]
+target_directory source [source ...]
+.PP
+.B qtool.pl [-Q][-d|-b]
+.RB [options]
+source [source ...]
+.SH DESCRIPTION
+.B Qtool
+moves the queue files used by sendmail between queues. It uses the same
+locking mechanism as sendmail so can be safely used while sendmail is
+running.
+However, it should not be used when queue groups have been configured
+to move queue files into directories to which they do not belong according
+to the queue group selections made in the sendmail.cf file.
+Unless you are absolutely sure you do not interfere with the queue group
+selection mechanism, do not move queue files around.
+.PP
+With no options,
+.B qtool
+will move any queue files as specified by \fIsource\fP into
+\fItarget_directory\fP. \fISource\fP can be either an individual
+queue control file, a queue file id, or a queue directory.
+.PP
+If the -d option is specified, qtool will delete the messages specified by
+source instead of moving them.
+.PP
+If the -b option is specified, the selected messages will be bounced by
+running sendmail with the -OTimeout.queuereturn=now option.
+.SS Options
+.TP
+\fB\-b\fP
+Bounce all of the messages specified by source. The messages will be bounced
+immediately. No attempt will be made to deliver the messages.
+.TP
+\fB\-C\fP configfile
+Specify the sendmail config file.
+Defaults to /etc/mail/sendmail.cf.
+.TP
+\fB\-d\fP
+Delete all of the messages specified by source.
+.TP
+\fB\-e\fP \fIperl_expression\fP
+Evaluate \fIperl_expression\fP for each queue file as specified
+by \fIsource\fP. If \fIperl_expression\fP evaluates to true, then that
+queue file is moved. See below for more detail on \fIperl_expression\fP.
+.TP
+\fB\-Q\fP
+Operate on quarantined items
+(queue control file begins with hf instead of qf).
+.TP
+\fB\-s\fP \fIseconds\fP
+Move only the queue files specified by \fIsource\fP that have a
+modification time older than \fIseconds\fP.
+.SS Perl Expressions
+You can use any valid perl expression. Inside the expression you have
+access to a hash that contains many of the fields in the control file as
+well as some other data about that queued message. The hash is called
+\fI%msg\fP. If a field has multiple values (e.g. 'Recipient'), it will be
+returned as an array, otherwise it will be returned as a scalar. Through
+\fI%msg\fP, you can access the following variables:
+.TP
+\fBauth\fP
+AUTH= parameter.
+.TP
+\fBbody_type\fP
+Body type (\fB8BITMIME\fP, \fB7BIT\fP, or undefined).
+.TP
+\fBbody_last_mod_time\fP
+The last time the body was modified since the epoch in seconds.
+.TP
+\fBbody_size\fP
+The size of the body file in bytes.
+.TP
+\fBcontent-length\fP
+Content-Length: header value (Solaris sendmail only).
+.TP
+\fBcontrolling_user\fP
+The controlling user.
+.TP
+\fBcontrol_last_mod_time\fP
+The last time the control file was modified since the epoch in seconds.
+.TP
+\fBcontrol_size\fP
+The size of the control file in bytes.
+.TP
+\fBcreation_time\fP
+The time when the control file was created.
+.TP
+\fBdata_file_name\fP
+The data file name (deprecated).
+.TP
+\fBdeliver_by\fP
+Deliver by flag and deadline for DELIVERBY ESMTP extension.
+.TP
+\fBenvid\fP
+Original envelope id form ESMTP.
+.TP
+\fBerror_recipient\fP
+The error recipient (deprecated).
+.TP
+\fBfinal_recipient\fP
+Final recipient (for DSNs).
+.TP
+\fBflags\fP
+Array of characters that can be the following values:
+.PD 0
+.RS +8
+.TP 8
+w
+warning message has been sent
+.TP 8
+r
+This is an error response or DSN
+.TP 8
+8
+has 8 bit data in body
+.TP 8
+b
+delete Bcc: headers
+.TP 8
+d
+envelope has DSN RET= parameter
+.TP 8
+n
+don't return body
+.PD
+.RE
+.TP
+\fBheaders\fP
+This is a Perl hash where the keys are rfc822 field names and the values
+are rfc822 field values. If a field has only one value it will be returned
+as a string. If a field has more than one value (e.g. 'Received') it will
+be returned as a list of strings.
+.TP
+\fBinode_number\fP
+The inode number for the data (body) file.
+.TP
+\fBnext_delivery_time\fP
+Earliest time of next delivery attempt.
+.TP
+\fBnum_delivery_attempts\fP
+Number of delivery attempts that have been made.
+.TP
+\fBmacro\fP
+Defined macro.
+.TP
+\fBmessage\fP
+Envelope status message.
+.TP
+\fBoriginal_recipient\fP
+Original recipient (ORCPT= parameter).
+.TP
+\fBpriority\fP
+Adjusted priority of message.
+.TP
+\fBquarantine_reason\fP
+Quarantine reason for quarantined (held) envelopes.
+.TP
+\fBrecipient\fP
+Array of character flags followed by colon and recipient name. Flags:
+.PD 0
+.RS +8
+.TP 8
+N
+Has NOTIFY= parameter.
+.TP 8
+S
+Success DSN requested.
+.TP 8
+F
+Failure DSN requested.
+.TP 8
+D
+Delay DSN requested.
+.TP 8
+P
+Primary address (not the result of alias/forward expansion).
+.PD
+.RE
+.TP
+\fBsender\fP
+Sender
+.TP
+\fBversion\fP
+Version of control file.
+.SH EXAMPLES
+.TP
+\fBqtool.pl q2 q1\fP
+Moves all of the queue files in queue q1 to queue q2.
+.TP
+\fBqtool.pl q2 q1/d6CLQh100847\fP
+Moves the message with id d6CLQh100847 in queue q1 to queue q2.
+.TP
+\fBqtool.pl q2 q1/qfd6CLQh100847\fP
+Moves the message with id d6CLQh100847 in queue q1 to queue q2.
+.TP
+\fBqtool.pl -e '$msg{num_delivery_attempts} == 3' /q2 /q1\fP
+Moves all of the queue files that have had three attempted deliveries from
+queue q1 to queue q2.
+.SH BUGS
+In sendmail 8.12, it is possible for a message's queue and data files (df)
+to be stored in different queues.
+In this situation, you must give qtool the pathname of the queue file,
+not of the data file (df).
+To be safe, never feed qtool the pathname of a data file (df).
+.SH SEE ALSO
+sendmail(8)
+.SH HISTORY
+The
+.B qtool
+command appeared in
+sendmail 8.10.

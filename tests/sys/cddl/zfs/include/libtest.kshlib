@@ -1,0 +1,3480 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)libtest.kshlib	1.15	09/08/06 SMI"
+#
+
+. ${STF_SUITE}/include/logapi.kshlib
+
+ZFS=${ZFS:-/sbin/zfs}
+ZPOOL=${ZPOOL:-/sbin/zpool}
+os_name=`uname -s`
+
+# Determine if a test has the necessary requirements to run
+
+function test_requires
+{
+        integer unsupported=0
+        unsupported_list=""
+        until [[ $# -eq 0 ]];do
+                var_name=$1
+                cmd=$(eval echo \$${1})
+                if [[ ! "$cmd" != "" ]] ; then
+                        print $var_name is not set
+                        unsupported_list="$var_name $unsupported_list"
+                        ((unsupported=unsupported+1))
+                fi
+                shift
+        done
+        if [[ unsupported -gt 0 ]] ; then
+                log_unsupported "$unsupported_list commands are unsupported"
+        else
+                log_note "All commands are supported"
+        fi
+}
+
+# Determine whether a dataset is mounted
+#
+# $1 dataset name
+# $2 filesystem type; optional - defaulted to zfs
+#
+# Return 0 if dataset is mounted; 1 if unmounted; 2 on error
+
+function ismounted
+{
+	typeset fstype=$2
+	[[ -z $fstype ]] && fstype=zfs
+	typeset out dir name ret
+	
+	case $fstype in
+		zfs)
+			if [[ "$1" == "/"* ]] ; then
+				for out in $($ZFS mount | $AWK '{print $2}') ; do
+					[[ $1 == $out ]] && return 0
+				done
+			else
+				for out in $($ZFS mount | $AWK '{print $1}') ; do
+					[[ $1 == $out ]] && return 0
+				done
+			fi
+		;;
+		ufs|nfs)
+			# a = device, b = "on", c = mount point", d = flags
+			$MOUNT | $GREP $fstype | while read a b c d
+			do
+				[[ "$1" == "$a" || "$1" == "$c" ]] && return 0
+			done
+		;;
+	esac
+
+	return 1
+}
+
+# Return 0 if a dataset is mounted; 1 otherwise
+#
+# $1 dataset name
+# $2 filesystem type; optional - defaulted to zfs
+
+function mounted
+{
+	ismounted $1 $2
+	(( $? == 0 )) && return 0
+	return 1
+}
+
+# Return 0 if a dataset is unmounted; 1 otherwise
+#
+# $1 dataset name
+# $2 filesystem type; optional - defaulted to zfs
+
+function unmounted
+{
+	ismounted $1 $2
+	(( $? == 1 )) && return 0
+	return 1
+}
+
+# split line on "," 
+#
+# $1 - line to split
+
+function splitline
+{
+	$ECHO $1 | $SED "s/,/ /g"
+}
+
+function default_setup
+{
+	default_setup_noexit "$@"
+
+	log_pass
+}
+
+#
+# Given a list of disks, setup storage pools and datasets.
+#
+function default_setup_noexit
+{
+	typeset disklist=$1
+	typeset container=$2
+	typeset volume=$3
+
+	if is_global_zone; then
+		if poolexists $TESTPOOL ; then
+			destroy_pool $TESTPOOL
+		fi
+		[[ -d /$TESTPOOL ]] && $RM -rf /$TESTPOOL
+		log_must $ZPOOL create -f $TESTPOOL $disklist
+	else
+		reexport_pool
+	fi
+
+	$RM -rf $TESTDIR  || log_unresolved Could not remove $TESTDIR
+	$MKDIR -p $TESTDIR || log_unresolved Could not create $TESTDIR
+
+	log_must $ZFS create $TESTPOOL/$TESTFS
+	log_must $ZFS set mountpoint=$TESTDIR $TESTPOOL/$TESTFS
+
+	if [[ -n $container ]]; then
+		$RM -rf $TESTDIR1  || \
+			log_unresolved Could not remove $TESTDIR1
+		$MKDIR -p $TESTDIR1 || \
+			log_unresolved Could not create $TESTDIR1
+
+		log_must $ZFS create $TESTPOOL/$TESTCTR
+		log_must $ZFS set canmount=off $TESTPOOL/$TESTCTR
+		log_must $ZFS create $TESTPOOL/$TESTCTR/$TESTFS1
+		log_must $ZFS set mountpoint=$TESTDIR1 \
+		    $TESTPOOL/$TESTCTR/$TESTFS1
+	fi
+
+	if [[ -n $volume ]]; then
+		if is_global_zone ; then
+			log_must $ZFS create -V $VOLSIZE $TESTPOOL/$TESTVOL
+		else
+			log_must $ZFS create $TESTPOOL/$TESTVOL
+		fi
+			
+	fi
+}
+
+#
+# Given a list of disks, setup a storage pool, file system and
+# a container.
+#
+function default_container_setup
+{
+	typeset disklist=$1
+
+	default_setup "$disklist" "true"
+}
+
+#
+# Given a list of disks, setup a storage pool,file system
+# and a volume.
+#
+function default_volume_setup
+{
+	typeset disklist=$1
+
+	default_setup "$disklist" "" "true"
+}
+
+#
+# Given a list of disks, setup a storage pool,file system,
+# a container and a volume.
+#
+function default_container_volume_setup
+{
+	typeset disklist=$1
+
+	default_setup "$disklist" "true" "true"
+}
+
+#
+# Create a snapshot on a filesystem or volume. Defaultly create a snapshot on
+# filesystem
+#
+# $1 Existing filesystem or volume name. Default, $TESTFS
+# $2 snapshot name. Default, $TESTSNAP
+#
+function create_snapshot
+{
+	typeset fs_vol=${1:-$TESTFS}
+	typeset snap=${2:-$TESTSNAP}
+
+	[[ -z $fs_vol ]] && log_fail "Filesystem or volume's name is undefined."
+	[[ -z $snap ]] && log_fail "Snapshot's name is undefined."
+
+	if snapexists $fs_vol@$snap; then
+		log_fail "$fs_vol@$snap already exists."
+	fi
+	datasetexists $fs_vol || \
+		log_fail "$fs_vol must exist."
+
+	log_must $ZFS snapshot $fs_vol@$snap
+}
+
+#
+# Create a clone from a snapshot, default clone name is $TESTCLONE.
+#
+# $1 Existing snapshot, $TESTPOOL/$TESTFS@$TESTSNAP is default.
+# $2 Clone name, $TESTPOOL/$TESTCLONE is default.
+#
+function create_clone   # snapshot clone
+{
+	typeset snap=${1:-$TESTPOOL/$TESTFS@$TESTSNAP}
+	typeset clone=${2:-$TESTPOOL/$TESTCLONE}
+
+	[[ -z $snap ]] && \
+		log_fail "Snapshot name is undefined."
+	[[ -z $clone ]] && \
+		log_fail "Clone name is undefined."
+
+	log_must $ZFS clone $snap $clone
+}
+
+function default_mirror_setup
+{
+	default_mirror_setup_noexit $1 $2 $3
+
+	log_pass
+}
+
+#
+# Given a pair of disks, set up a storage pool and dataset for the mirror
+# @parameters: $1 the primary side of the mirror
+#   $2 the secondary side of the mirror
+# @uses: ZPOOL ZFS TESTPOOL TESTFS
+function default_mirror_setup_noexit
+{
+	readonly func="default_mirror_setup_noexit"
+	typeset primary=$1
+	typeset secondary=$2
+
+	[[ -z $primary ]] && \
+		log_fail "$func: No parameters passed"
+	[[ -z $secondary ]] && \
+		log_fail "$func: No secondary partition passed"
+	[[ -d /$TESTPOOL ]] && $RM -rf /$TESTPOOL
+	log_must $ZPOOL create -f $TESTPOOL mirror $@
+	log_must $ZFS create $TESTPOOL/$TESTFS
+	log_must $ZFS set mountpoint=$TESTDIR $TESTPOOL/$TESTFS
+}
+
+#
+# create a number of mirrors.
+# We create a number($1) of 2 way mirrors using the pairs of disks named
+# on the command line. These mirrors are *not* mounted
+# @parameters: $1 the number of mirrors to create
+#  $... the devices to use to create the mirrors on
+# @uses: ZPOOL ZFS TESTPOOL
+function setup_mirrors
+{
+	typeset -i nmirrors=$1
+
+	shift
+	while (( nmirrors > 0 )); do
+		log_must test -n "$1" -a -n "$2"
+		[[ -d /$TESTPOOL$nmirrors ]] && $RM -rf /$TESTPOOL$nmirrors
+		log_must $ZPOOL create -f $TESTPOOL$nmirrors mirror $1 $2
+		shift 2
+		(( nmirrors = nmirrors - 1 ))
+	done
+}
+
+#
+# create a number of raidz pools.
+# We create a number($1) of 2 raidz pools  using the pairs of disks named
+# on the command line. These pools are *not* mounted
+# @parameters: $1 the number of pools to create
+#  $... the devices to use to create the pools on
+# @uses: ZPOOL ZFS TESTPOOL
+function setup_raidzs
+{
+	typeset -i nraidzs=$1
+
+	shift
+	while (( nraidzs > 0 )); do
+		log_must test -n "$1" -a -n "$2"
+		[[ -d /$TESTPOOL$nraidzs ]] && $RM -rf /$TESTPOOL$nraidzs
+		log_must $ZPOOL create -f $TESTPOOL$nraidzs raidz $1 $2
+		shift 2
+		(( nraidzs = nraidzs - 1 ))
+	done
+}
+
+#
+# Destroy the configured testpool mirrors.
+# the mirrors are of the form ${TESTPOOL}{number}
+# @uses: ZPOOL ZFS TESTPOOL
+function destroy_mirrors
+{
+	default_cleanup_noexit
+
+	log_pass
+}
+
+#
+# Given a minimum of two disks, set up a storage pool and dataset for the raid-z
+# $1 the list of disks
+#
+function default_raidz_setup
+{
+	typeset disklist="$*"
+	set -A disks $disklist
+
+	if [[ ${#disks[*]} -lt 2 ]]; then
+		log_fail "A raid-z requires a minimum of two disks."
+	fi
+
+	[[ -d /$TESTPOOL ]] && $RM -rf /$TESTPOOL
+	log_must $ZPOOL create -f $TESTPOOL raidz $1 $2 $3
+	log_must $ZFS create $TESTPOOL/$TESTFS
+	log_must $ZFS set mountpoint=$TESTDIR $TESTPOOL/$TESTFS
+
+	log_pass
+}
+
+#
+# Common function used to cleanup storage pools and datasets.
+#
+# Invoked at the start of the test suite to ensure the system
+# is in a known state, and also at the end of each set of
+# sub-tests to ensure errors from one set of tests doesn't
+# impact the execution of the next set.
+
+function default_cleanup
+{
+	default_cleanup_noexit
+
+	log_pass
+}
+
+function all_pools
+{
+	cmd="$ZPOOL list -H -o name | $GREP 'testpool'"
+	eval $cmd
+}
+
+#
+# Returns 0 if the system contains any pools that must not be modified by the
+# ZFS tests.
+#
+function other_pools_exist
+{
+	typeset pool_count=`$ZPOOL list -H | $GREP -v '^testpool' | $WC -l`
+	[ "$pool_count" -ne 0 ]
+}
+
+function default_cleanup_noexit
+{
+	typeset exclude=""
+	typeset pool=""
+	#
+	# Destroying the pool will also destroy any
+	# filesystems it contains.
+	#
+	if is_global_zone; then
+		# Here, we loop through the pools we're allowed to
+		# destroy, only destroying them if it's safe to do
+		# so.
+		for pool in $(all_pools); do
+			if safe_to_destroy_pool $pool; then
+				destroy_pool $pool
+			fi
+		done
+	else
+		typeset fs=""
+		for fs in $($ZFS list -H -o name \
+		    | $GREP "^$ZONE_POOL/$ZONE_CTR[01234]/"); do
+			datasetexists $fs && \
+				log_must $ZFS destroy -Rf $fs
+		done
+
+		# Need cleanup here to avoid garbage dir left.
+		for fs in $($ZFS list -H -o name \
+		    ); do
+			[[ $fs == /$ZONE_POOL ]] && continue
+			[[ -d $fs ]] && log_must $RM -rf $fs/*
+		done
+
+		#
+		# Reset the $ZONE_POOL/$ZONE_CTR[01234] file systems property to
+		# the default value
+		#
+		for fs in $($ZFS list -H -o name \
+		    ); do
+			if [[ $fs == $ZONE_POOL/$ZONE_CTR[01234] ]]; then
+				log_must $ZFS set reservation=none $fs
+				log_must $ZFS set recordsize=128K $fs
+				log_must $ZFS set mountpoint=/$fs $fs
+				typeset enc=""
+				enc=$(get_prop encryption $fs)
+				if [[ $? -ne 0 ]] || [[ -z "$enc" ]] || \
+					[[ "$enc" == "off" ]]; then
+					log_must $ZFS set checksum=on $fs
+				fi
+				log_must $ZFS set compression=off $fs
+				log_must $ZFS set atime=on $fs
+				log_must $ZFS set devices=off $fs
+				log_must $ZFS set exec=on $fs
+				log_must $ZFS set setuid=on $fs
+				log_must $ZFS set readonly=off $fs
+				log_must $ZFS set snapdir=hidden $fs
+				log_must $ZFS set aclmode=groupmask $fs
+				log_must $ZFS set aclinherit=secure $fs
+			fi
+		done
+	fi
+
+	[[ -d $TESTDIR ]] && \
+		log_must $RM -rf $TESTDIR
+}
+
+
+#
+# Common function used to cleanup storage pools, file systems 
+# and containers.
+#
+function default_container_cleanup
+{
+	if ! is_global_zone; then
+		reexport_pool
+	fi
+
+	ismounted $TESTPOOL/$TESTCTR/$TESTFS1
+	[[ $? -eq 0 ]] && \
+	    log_must $ZFS unmount $TESTPOOL/$TESTCTR/$TESTFS1
+
+	datasetexists $TESTPOOL/$TESTCTR/$TESTFS1 && \
+	    log_must $ZFS destroy -R $TESTPOOL/$TESTCTR/$TESTFS1
+
+	datasetexists $TESTPOOL/$TESTCTR && \
+	    log_must $ZFS destroy -Rf $TESTPOOL/$TESTCTR
+
+	[[ -e $TESTDIR1 ]] && \
+	    log_must $RM -rf $TESTDIR1 > /dev/null 2>&1
+
+	default_cleanup
+}
+
+#
+# Common function used to cleanup snapshot of file system or volume. Default to
+# delete the file system's snapshot
+#
+# $1 snapshot name
+#
+function destroy_snapshot
+{
+	typeset snap=${1:-$TESTPOOL/$TESTFS@$TESTSNAP}	
+	
+	if ! snapexists $snap; then
+		log_fail "'$snap' does not existed."
+	fi
+
+	#
+	# For the sake of the value which come from 'get_prop' is not equal 
+	# to the really mountpoint when the snapshot is unmounted. So, firstly
+	# check and make sure this snapshot's been mounted in current system.
+	#
+	typeset mtpt=""
+	if ismounted $snap; then
+		mtpt=$(get_prop mountpoint $snap)
+		(( $? != 0 )) && \
+			log_fail "get_prop mountpoint $snap failed."
+	fi
+
+	log_must $ZFS destroy $snap
+	[[ $mtpt != "" && -d $mtpt ]] && \
+		log_must $RM -rf $mtpt
+}
+
+#
+# Common function used to cleanup clone. 
+#
+# $1 clone name
+#
+function destroy_clone
+{
+	typeset clone=${1:-$TESTPOOL/$TESTCLONE}
+
+	if ! datasetexists $clone; then
+		log_fail "'$clone' does not existed."
+	fi
+
+	# With the same reason in destroy_snapshot
+	typeset mtpt=""
+	if ismounted $clone; then
+		mtpt=$(get_prop mountpoint $clone)
+		(( $? != 0 )) && \
+			log_fail "get_prop mountpoint $clone failed."
+	fi
+
+	log_must $ZFS destroy $clone
+	[[ $mtpt != "" && -d $mtpt ]] && \
+		log_must $RM -rf $mtpt
+}
+
+# Return 0 if a snapshot exists; $? otherwise
+#
+# $1 - snapshot name
+
+function snapexists
+{
+	$ZFS list -H -t snapshot "$1" > /dev/null 2>&1
+	return $?
+}
+
+#
+# Set a property to a certain value on a dataset.
+# Sets a property of the dataset to the value as passed in.
+# @param:
+#	$1 dataset who's property is being set
+# 	$2 property to set
+#	$3 value to set property to
+# @return:
+#	0 if the property could be set.
+#	non-zero otherwise.
+# @use: ZFS
+#
+function dataset_setprop
+{
+	typeset fn=dataset_setprop
+
+	if (( $# < 3 )); then
+		log_note "$fn: Insufficient parameters (need 3, had $#)"
+		return 1
+	fi
+	typeset output=
+	output=$($ZFS set $2=$3 $1 2>&1)
+	typeset rv=$?
+	if (( rv != 0 )); then
+		log_note "Setting property on $1 failed."
+		log_note "property $2=$3"
+		log_note "Return Code: $rv"
+		log_note "Output: $output"
+		return $rv
+	fi
+	return 0
+}
+
+#
+# Assign suite defined dataset properties.
+# This function is used to apply the suite's defined default set of
+# properties to a dataset.
+# @parameters: $1 dataset to use
+# @uses: ZFS COMPRESSION_PROP CHECKSUM_PROP
+# @returns:
+#   0 if the dataset has been altered.
+#   1 if no pool name was passed in.
+#   2 if the dataset could not be found.
+#   3 if the dataset could not have it's properties set.
+#
+function dataset_set_defaultproperties
+{
+	typeset dataset="$1"
+
+	[[ -z $dataset ]] && return 1
+
+	typeset confset=
+	typeset -i found=0
+	for confset in $($ZFS list); do
+		if [[ $dataset = $confset ]]; then
+			found=1
+			break
+		fi
+	done
+	[[ $found -eq 0 ]] && return 2
+	if [[ -n $COMPRESSION_PROP ]]; then
+		dataset_setprop $dataset compression $COMPRESSION_PROP || \
+			return 3
+		log_note "Compression set to '$COMPRESSION_PROP' on $dataset"
+	fi
+	if [[ -n $CHECKSUM_PROP && $WRAPPER != *"crypto"* ]]; then
+		dataset_setprop $dataset checksum $CHECKSUM_PROP || \
+			return 3
+		log_note "Checksum set to '$CHECKSUM_PROP' on $dataset"
+	fi
+	return 0
+}
+
+#
+# Check a numeric assertion
+# @parameter: $@ the assertion to check
+# @output: big loud notice if assertion failed
+# @use: log_fail
+#
+function assert
+{
+	(( $@ )) || log_fail $@
+}
+
+function wipe_partition_table #<whole_disk_name> [<whole_disk_name> ...]
+{
+	while [[ -n $* ]]; do
+		typeset diskname=$1
+		[ ! -e $diskname ] && log_fail "ERROR: $diskname doesn't exist"
+		if gpart list ${diskname#/dev/} >/dev/null 2>&1; then
+			wait_for 5 1 $GPART destroy -F $diskname
+		else
+			log_note "No GPT partitions detected on $diskname"
+		fi
+		log_must $GPART create -s gpt $diskname
+		shift
+	done
+}
+
+#
+# Given a slice, size and disk, this function 
+# formats the slice to the specified size.
+# Size should be specified with units as per
+# the `format` command requirements eg. 100mb 3gb
+#
+function set_partition #<slice_num> <slice_start> <size_plus_units>  <whole_disk_name>
+{
+	typeset -i slicenum=$1
+	typeset start=$2
+	typeset size=$3
+	typeset disk=$4 
+	set -A devmap a b c d e f g h
+	[[ -z $slicenum || -z $size || -z $disk ]] && \
+		log_fail "The slice, size or disk name is unspecified."
+
+	size=`$ECHO $size| sed s/mb/M/`
+	size=`$ECHO $size| sed s/m/M/`
+	size=`$ECHO $size| sed s/gb/G/`
+	size=`$ECHO $size| sed s/g/G/`
+	[[ -n $start ]] && start="-b $start"
+	log_must $GPART add -t efi $start -s $size -i $slicenum $disk
+	return 0
+}
+
+function get_disk_size #<disk>
+{
+	typeset disk=$1
+	diskinfo $disk | awk '{print $3}'
+}
+
+function get_available_disk_size #<disk>
+{
+	typeset disk=$1
+	raw_size=`get_disk_size $disk`
+	(( available_size = raw_size * 95 / 100 ))
+	echo $available_size
+}
+
+#
+# Get the end cyl of the given slice
+# #TODO: fix this to be GPT-compatible if we want to use the SMI WRAPPER.  This
+# function is not necessary on FreeBSD
+#
+function get_endslice #<disk> <slice>
+{
+	log_fail "get_endslice has not been updated for GPT partitions"
+}
+
+#
+# Get the first LBA that is beyond the end of the given partition
+function get_partition_end #<disk> <partition_index>
+{
+	typeset disk=$1
+	typeset partition_index=$2
+	export partition_index
+	$GPART show $disk | $AWK \
+		'/^[ \t]/ && $3 ~ ENVIRON["partition_index"] {print $1 + $2}'
+}
+
+
+#
+# Given a size,disk and total number of partitions,  this function formats the
+# disk partitions from 0 to the total partition number with the same specified
+# size.
+#
+function partition_disk	#<part_size> <whole_disk_name>	<total_parts> 
+{
+	typeset -i i=1
+	typeset part_size=$1
+	typeset disk_name=$2
+	typeset total_parts=$3
+	typeset cyl
+
+	wipe_partition_table $disk_name
+	while (( i <= $total_parts )); do
+		set_partition $i "" $part_size $disk_name
+		(( i = i+1 ))
+	done
+}
+
+function size_of_file # fname
+{
+	typeset fname=$1
+	sz=`stat -f '%z' $fname`
+	[[ -z "$sz" ]] && log_fail "stat($fname) failed"
+	$ECHO $sz
+	return 0
+}
+
+#
+# This function continues to write to a filenum number of files into dirnum
+# number of directories until either $FILE_WRITE returns an error or the
+# maximum number of files per directory have been written. 
+#
+# Usage:
+# fill_fs [destdir] [dirnum] [filenum] [bytes] [num_writes] [data]
+#
+# Return value: 0 on success
+#		non 0 on error
+#
+# Where :
+#	destdir:    is the directory where everything is to be created under
+#	dirnum:	    the maximum number of subdirectories to use, -1 no limit
+#	filenum:    the maximum number of files per subdirectory
+#	blocksz:    number of bytes per block
+#	num_writes: number of blocks to write
+#	data:	    the data that will be written
+#
+#	E.g.
+#	file_fs /testdir 20 25 1024 256 0
+#
+# Note: blocksz * num_writes equals the size of the testfile
+#
+function fill_fs # destdir dirnum filenum blocksz num_writes data
+{
+	typeset destdir=${1:-$TESTDIR}
+	typeset -i dirnum=${2:-50}
+	typeset -i filenum=${3:-50}
+	typeset -i blocksz=${4:-8192}
+	typeset -i num_writes=${5:-10240}
+	typeset -i data=${6:-0}
+
+	typeset -i retval=0
+	typeset -i dn=0 # current dir number
+	typeset -i fn=0 # current file number
+	while (( retval == 0 )); do
+		(( dirnum >= 0 && dn >= dirnum )) && break
+		typeset curdir=$destdir/$dn
+		log_must $MKDIR -p $curdir
+		for (( fn = 0; $fn < $filenum && $retval == 0; fn++ )); do
+			log_cmd $FILE_WRITE -o create -f $curdir/$TESTFILE.$fn \
+			    -b $blocksz -c $num_writes -d $data
+			retval=$?
+		done
+		(( dn = dn + 1 ))
+	done
+	return $retval
+}
+
+#
+# Simple function to get the specified property. If unable to
+# get the property then exits.
+#
+# Note property is in 'parsable' format (-p)
+#
+function get_prop # property dataset
+{
+	typeset prop_val
+	typeset prop=$1
+	typeset dataset=$2
+
+	prop_val=$($ZFS get -pH -o value $prop $dataset 2>/dev/null)
+	if [[ $? -ne 0 ]]; then
+		log_note "Unable to get $prop property for dataset $dataset"
+		return 1
+	fi
+
+	$ECHO $prop_val
+	return 0
+}
+
+#
+# Simple function to return the lesser of two values.
+#
+function min
+{
+	typeset first_arg=$1
+	typeset second_arg=$2
+
+	if (( first_arg < second_arg )); then
+		$ECHO $first_arg
+	else
+		$ECHO $second_arg
+	fi
+	return 0
+}
+
+#
+# Simple function to get the specified property of pool. If unable to
+# get the property then exits.
+#
+function get_pool_prop # property pool
+{
+	typeset prop_val
+	typeset prop=$1
+	typeset pool=$2
+
+	if poolexists $pool ; then
+		prop_val=$($ZPOOL get $prop $pool 2>/dev/null | $TAIL -1 | \
+			$AWK '{print $3}')
+		if [[ $? -ne 0 ]]; then
+			log_note "Unable to get $prop property for pool " \
+			"$pool"
+			return 1
+		fi
+	else
+		log_note "Pool $pool not exists."
+		return 1
+	fi
+
+	$ECHO $prop_val
+	return 0
+}
+
+# Return 0 if a pool exists; $? otherwise
+#
+# $1 - pool name
+
+function poolexists
+{
+	typeset pool=$1
+
+	if [[ -z $pool ]]; then
+		log_note "No pool name given."
+		return 1
+	fi
+
+	$ZPOOL list -H "$pool" > /dev/null 2>&1
+	return $?
+}
+
+# Return 0 if all the specified datasets exist; $? otherwise
+#
+# $1-n  dataset name
+function datasetexists
+{
+	if (( $# == 0 )); then 
+		log_note "No dataset name given."
+		return 1
+	fi
+
+	while (( $# > 0 )); do
+		$ZFS list -H -t filesystem,snapshot,volume $1 > /dev/null 2>&1 || \
+			return $?
+		shift
+	done
+
+	return 0
+}
+
+# return 0 if none of the specified datasets exists, otherwise return 1.
+#
+# $1-n  dataset name
+function datasetnonexists
+{
+	if (( $# == 0 )); then 
+		log_note "No dataset name given."
+		return 1
+	fi
+
+	while (( $# > 0 )); do
+		$ZFS list -H -t filesystem,snapshot,volume $1 > /dev/null 2>&1 && \
+			return 1
+		shift
+	done
+
+	return 0
+}
+
+#
+# Given a mountpoint, or a dataset name, determine if it is shared.
+#
+# Returns 0 if shared, 1 otherwise.
+#
+function is_shared
+{
+	typeset fs=$1
+	typeset mtpt
+
+	if [[ $fs != "/"* ]] ; then
+		if datasetnonexists "$fs" ; then
+			return 1
+		else
+			mtpt=$(get_prop mountpoint "$fs")
+			case $mtpt in
+				none|legacy|-) return 1
+					;;
+				*)	fs=$mtpt
+					;;
+			esac
+		fi
+	fi
+		
+	for mtpt in `$SHARE | $AWK '{print $2}'` ; do
+		if [[ $mtpt == $fs ]] ; then
+			return 0
+		fi
+	done
+
+	typeset stat=$($SVCS -H -o STA nfs/server:default)
+	if [[ $stat != "ON" ]]; then
+		log_note "Current nfs/server status: $stat"
+	fi
+
+	return 1
+}
+
+#
+# Given a mountpoint, determine if it is not shared.
+#
+# Returns 0 if not shared, 1 otherwise.
+#
+function not_shared
+{
+	typeset fs=$1
+
+	is_shared $fs
+	if (( $? == 0)); then
+		return 1
+	fi
+
+	return 0
+}
+
+#
+# Helper function to unshare a mountpoint.
+#
+function unshare_fs #fs
+{
+	typeset fs=$1
+
+	is_shared $fs
+	if (( $? == 0 )); then
+		log_must $ZFS unshare $fs
+	fi
+
+	return 0
+}
+
+#
+# Check NFS server status and trigger it online.
+#
+function setup_nfs_server
+{
+	# Cannot share directory in non-global zone.
+	#
+	if ! is_global_zone; then
+		log_note "Cannot trigger NFS server by sharing in LZ."
+		return
+	fi
+
+	typeset nfs_fmri="svc:/network/nfs/server:default"
+	if [[ $($SVCS -Ho STA $nfs_fmri) != "ON" ]]; then
+		#
+		# Only really sharing operation can enable NFS server 
+		# to online permanently.
+		#
+		typeset dummy=$TMPDIR/dummy
+
+		if [[ -d $dummy ]]; then
+			log_must $RM -rf $dummy
+		fi
+
+		log_must $MKDIR $dummy
+		log_must $SHARE $dummy
+
+		#
+		# Waiting for fmri's status to be the final status.
+		# Otherwise, in transition, an asterisk (*) is appended for 
+		# instances, unshare will reverse status to 'DIS' again. 
+		#
+		# Waiting for 1's at least.
+		#
+		log_must $SLEEP 1
+		timeout=10
+		while [[ timeout -ne 0 && $($SVCS -Ho STA $nfs_fmri) == *'*' ]]
+		do
+			log_must $SLEEP 1
+
+			(( timeout -= 1 ))
+		done
+
+		log_must $UNSHARE $dummy
+		log_must $RM -rf $dummy
+	fi
+
+	log_note "Current NFS status: '$($SVCS -Ho STA,FMRI $nfs_fmri)'"
+}
+
+#
+# To verify whether calling process is in global zone
+#
+# Return 0 if in global zone, 1 in non-global zone 
+#
+function is_global_zone
+{
+	typeset cur_zone=$($ZONENAME 2>/dev/null)
+
+	# Zones are not supported on FreeBSD.
+	if [[ $os_name == "FreeBSD" ]]; then
+		return 0
+	fi
+
+	if [[ $cur_zone != "global" ]]; then
+		return 1
+	fi
+	return 0
+}
+
+#
+# Verify whether test is permit to run from 
+# global zone, local zone, or both
+#
+# $1 zone limit, could be "global", "local", or "both"(no limit)
+#
+# Return 0 if permit, otherwise exit with log_unsupported
+#
+function verify_runnable # zone limit
+{
+	typeset limit=$1
+
+	[[ -z $limit ]] && return 0
+
+	if is_global_zone ; then
+		case $limit in
+			global|both)
+				break
+				;;
+			local)  log_unsupported "Test is unable to run from \
+					global zone."
+				break
+				;;
+			*)      log_note "Warning: unknown limit $limit - use both."
+				;;
+		esac
+	else
+		case $limit in
+			local|both)
+				break
+				;;
+			global) log_unsupported "Test is unable to run from \
+					local zone."
+				break
+				;;
+			*)      log_note "Warning: unknown limit $limit - use both."
+				;;
+		esac
+
+		reexport_pool
+	fi
+
+	return 0
+}
+
+# Return 0 if create successfully or the pool exists; $? otherwise
+# Note: In local zones, this function should return 0 silently.
+#
+# $1 - pool name
+# $2-n - [keyword] devs_list
+
+function create_pool #pool devs_list
+{
+	typeset pool=${1%%/*}
+
+	shift
+
+	if [[ -z $pool ]]; then
+		log_note "Missing pool name."
+		return 1
+	fi
+
+	if poolexists $pool ; then
+		destroy_pool $pool
+	fi
+
+	if is_global_zone ; then
+		[[ -d /$pool ]] && $RM -rf /$pool
+		log_must $ZPOOL create -f $pool $@
+	fi
+
+	return 0
+}
+
+# Return 0 if destroy successfully or the pool exists; $? otherwise
+# Note: In local zones, this function should return 0 silently.
+#
+# $1 - pool name
+# Destroy pool with the given parameters.
+
+function destroy_pool #pool
+{
+	typeset pool=${1%%/*}
+	typeset mtpt
+
+	if [[ -z $pool ]]; then
+		log_note "No pool name given."
+		return 1
+	fi
+
+	if is_global_zone ; then
+		if poolexists "$pool" ; then
+			mtpt=$(get_prop mountpoint "$pool")
+			log_must $ZPOOL destroy -f $pool
+
+			[[ -d $mtpt ]] && \
+				log_must $RM -rf $mtpt
+		else
+			log_note "Pool $pool does not exist, skipping destroy."
+			return 1
+		fi
+	fi
+
+	return 0
+}
+
+#
+# Create file vdevs.
+# By default this generates sparse vdevs 10GB in size, for performance.
+#
+function create_vdevs # vdevs
+{
+	typeset vdsize=10G
+
+	[ -n "$VDEV_SIZE" ] && vdsize=$VDEV_SIZE
+	rm -f $@ || return 1
+	truncate -s $vdsize $@
+}
+
+#
+# Firstly, create a pool with 5 datasets. Then, create a single zone and 
+# export the 5 datasets to it. In addition, we also add a ZFS filesystem
+# and a zvol device to the zone.
+#
+# $1 zone name
+# $2 zone root directory prefix
+# $3 zone ip
+#
+function zfs_zones_setup #zone_name zone_root zone_ip
+{
+	typeset zone_name=${1:-$(hostname)-z}
+	typeset zone_root=${2:-"/zone_root"}
+	typeset zone_ip=${3:-"10.1.1.10"}
+	typeset prefix_ctr=$ZONE_CTR
+	typeset pool_name=$ZONE_POOL
+	typeset -i cntctr=5
+	typeset -i i=0
+
+	# Create pool and 5 container within it
+	#
+	[[ -d /$pool_name ]] && $RM -rf /$pool_name
+	log_must $ZPOOL create -f $pool_name $DISKS
+	while (( i < cntctr )); do
+		log_must $ZFS create $pool_name/$prefix_ctr$i
+		(( i += 1 ))
+	done
+
+	# create a zvol
+	log_must $ZFS create -V 1g $pool_name/zone_zvol
+
+	#
+	# If current system support slog, add slog device for pool
+	#
+	typeset sdevs="$TMPDIR/sdev1 $TMPDIR/sdev2"
+	log_must create_vdevs $sdevs
+	log_must $ZPOOL add $pool_name log mirror $sdevs
+
+	# this isn't supported just yet.
+	# Create a filesystem. In order to add this to
+	# the zone, it must have it's mountpoint set to 'legacy'
+	# log_must $ZFS create $pool_name/zfs_filesystem
+	# log_must $ZFS set mountpoint=legacy $pool_name/zfs_filesystem
+
+	[[ -d $zone_root ]] && \
+		log_must $RM -rf $zone_root/$zone_name
+	[[ ! -d $zone_root ]] && \
+		log_must $MKDIR -p -m 0700 $zone_root/$zone_name
+
+	# Create zone configure file and configure the zone
+	#
+	typeset zone_conf=$TMPDIR/zone_conf.${TESTCASE_ID}
+	$ECHO "create" > $zone_conf
+	$ECHO "set zonepath=$zone_root/$zone_name" >> $zone_conf
+	$ECHO "set autoboot=true" >> $zone_conf
+	i=0
+	while (( i < cntctr )); do
+		$ECHO "add dataset" >> $zone_conf
+		$ECHO "set name=$pool_name/$prefix_ctr$i" >> \
+			$zone_conf
+		$ECHO "end" >> $zone_conf
+		(( i += 1 ))
+	done
+
+	# add our zvol to the zone
+	$ECHO "add device" >> $zone_conf
+	$ECHO "set match=/dev/zvol/$pool_name/zone_zvol" >> $zone_conf
+	$ECHO "end" >> $zone_conf
+
+	# add a corresponding zvol to the zone
+	$ECHO "add device" >> $zone_conf
+	$ECHO "set match=/dev/zvol/$pool_name/zone_zvol" >> $zone_conf
+	$ECHO "end" >> $zone_conf
+	
+	# once it's supported, we'll add our filesystem to the zone
+	# $ECHO "add fs" >> $zone_conf
+	# $ECHO "set type=zfs" >> $zone_conf
+	# $ECHO "set special=$pool_name/zfs_filesystem" >> $zone_conf
+	# $ECHO "set dir=/export/zfs_filesystem" >> $zone_conf
+	# $ECHO "end" >> $zone_conf
+
+	$ECHO "verify" >> $zone_conf
+	$ECHO "commit" >> $zone_conf
+	log_must $ZONECFG -z $zone_name -f $zone_conf
+	log_must $RM -f $zone_conf
+
+	# Install the zone
+	$ZONEADM -z $zone_name install
+	if (( $? == 0 )); then
+		log_note "SUCCESS: $ZONEADM -z $zone_name install"
+	else
+		log_fail "FAIL: $ZONEADM -z $zone_name install"
+	fi
+
+	# Install sysidcfg file
+	#
+	typeset sysidcfg=$zone_root/$zone_name/root/etc/sysidcfg
+  	$ECHO "system_locale=C" > $sysidcfg
+  	$ECHO  "terminal=dtterm" >> $sysidcfg
+  	$ECHO  "network_interface=primary {" >> $sysidcfg
+  	$ECHO  "hostname=$zone_name" >> $sysidcfg
+  	$ECHO  "}" >> $sysidcfg
+  	$ECHO  "name_service=NONE" >> $sysidcfg
+  	$ECHO  "root_password=mo791xfZ/SFiw" >> $sysidcfg
+  	$ECHO  "security_policy=NONE" >> $sysidcfg
+  	$ECHO  "timezone=US/Eastern" >> $sysidcfg
+
+	# Boot this zone
+	log_must $ZONEADM -z $zone_name boot
+}
+
+#
+# Reexport TESTPOOL & TESTPOOL(1-4)
+#
+function reexport_pool
+{
+	typeset -i cntctr=5
+	typeset -i i=0
+
+	while (( i < cntctr )); do
+		if (( i == 0 )); then
+			TESTPOOL=$ZONE_POOL/$ZONE_CTR$i
+			if ! ismounted $TESTPOOL; then
+				log_must $ZFS mount $TESTPOOL
+			fi
+		else
+			eval TESTPOOL$i=$ZONE_POOL/$ZONE_CTR$i
+			if eval ! ismounted \$TESTPOOL$i; then
+				log_must eval $ZFS mount \$TESTPOOL$i
+			fi
+		fi
+		(( i += 1 ))
+	done
+}
+
+#
+# Wait for something to return true, checked by the caller.
+#
+function wait_for_checked # timeout dt <method> [args...]
+{
+	typeset timeout=$1
+	typeset dt=$2
+	shift; shift
+	typeset -i start=$(date '+%s')
+	typeset -i endtime
+
+	log_note "Waiting $timeout seconds (checked every $dt seconds) for: $*"
+	((endtime = start + timeout))
+	while :; do
+		$*
+		[ $? -eq 0 ] && return
+		curtime=$(date '+%s')
+		[ $curtime -gt $endtime ] && return 1
+		sleep $dt
+	done
+	return 0
+}
+
+#
+# Wait for something to return true.
+#
+function wait_for # timeout dt <method> [args...]
+{
+	typeset timeout=$1
+	typeset dt=$2
+	shift; shift
+
+	wait_for_checked $timeout $dt $* || \
+		log_fail "ERROR: Timed out waiting for: $*"
+}
+
+#
+# Verify a given disk is online or offline
+#
+# Return 0 is pool/disk matches expected state, 1 otherwise
+# stateexpr is a regex like ONLINE or REMOVED|UNAVAIL
+#
+function check_state # pool disk stateexpr
+{
+	typeset pool=$1
+	typeset disk=${2#/dev/}
+	disk=${disk#/dev/}
+	disk=${disk#/dev/}
+	typeset stateexpr=$3
+
+	$ZPOOL status -v $pool | grep "$disk"  \
+	    | egrep -i "$stateexpr" > /dev/null 2>&1
+
+	return $?
+}
+
+#
+# Wait for a given disk to leave a state
+#
+function wait_for_state_exit
+{
+	typeset pool=$1
+	typeset disk=$2
+	typeset state=$3
+
+	while check_state "$pool" "$disk" "$state"; do
+		$SLEEP 1
+	done
+}
+
+#
+# Wait for a given disk to enter a state
+#
+function wait_for_state_enter
+{
+	typeset -i timeout=$1
+	typeset pool=$2
+	typeset disk=$3
+	typeset state=$4
+
+	log_note "Waiting up to $timeout seconds for $disk to become $state ..."
+	for ((; $timeout > 0; timeout=$timeout-1)); do
+		check_state $pool "$disk" "$state"
+		[ $? -eq 0 ] && return
+		$SLEEP 1
+	done
+	log_must $ZPOOL status $pool
+	log_fail "ERROR: Disk $disk not marked as $state in $pool"
+}
+
+#
+# Get the mountpoint of snapshot
+# as its mountpoint
+#
+function snapshot_mountpoint
+{
+	typeset dataset=${1:-$TESTPOOL/$TESTFS@$TESTSNAP}	
+
+	if [[ $dataset != *@* ]]; then	
+		log_fail "Error name of snapshot '$dataset'."
+	fi
+
+	typeset fs=${dataset%@*}
+	typeset snap=${dataset#*@}
+
+	if [[ -z $fs || -z $snap ]]; then
+		log_fail "Error name of snapshot '$dataset'."
+	fi
+
+	$ECHO $(get_prop mountpoint $fs)/$(get_snapdir_name)/$snap
+}
+
+function pool_maps_intact # pool
+{
+	typeset pool="$1"
+
+	if ! $ZDB -bcv $pool; then
+		return 1
+	fi
+	return 0
+}
+
+function filesys_has_zil # filesystem
+{
+	typeset filesys="$1"
+
+	if ! $ZDB -ivv $filesys | $GREP "ZIL header"; then
+		return 1
+	fi
+	return 0
+}
+
+#
+# Given a pool and file system, this function will verify the file system
+# using the zdb internal tool. Note that the pool is exported and imported
+# to ensure it has consistent state.
+#
+function verify_filesys # pool filesystem dir
+{
+	typeset pool="$1"
+	typeset filesys="$2"
+	typeset zdbout="$TMPDIR/zdbout.${TESTCASE_ID}"
+
+	shift
+	shift
+	typeset dirs=$@
+	typeset search_path=""
+
+	log_note "Calling $ZDB to verify filesystem '$filesys'"
+	log_must $ZPOOL export $pool
+
+	if [[ -n $dirs ]] ; then
+		for dir in $dirs ; do
+			search_path="$search_path -d $dir"
+		done
+	fi
+				
+	log_must $ZPOOL import $search_path $pool
+
+	$ZDB -cudi $filesys > $zdbout 2>&1
+	if [[ $? != 0 ]]; then
+		log_note "Output: $ZDB -cudi $filesys"
+		$CAT $zdbout
+		log_fail "$ZDB detected errors with: '$filesys'"
+	fi
+
+	log_must $RM -rf $zdbout
+}
+
+#
+# Given a pool, and this function list all disks in the pool
+#
+function get_disklist # pool
+{
+	typeset disklist=""
+
+	disklist=$($ZPOOL iostat -v $1 | $NAWK '(NR >4 ) {print $1}' | \
+ 		$GREP -v "\-\-\-\-\-" | \
+		$EGREP -v -e "^(mirror|raidz1|raidz2|spare|log|cache)$" )
+
+	$ECHO $disklist
+}
+
+#
+# Destroy all existing metadevices and state database
+#
+function destroy_metas
+{
+	typeset metad
+
+	for metad in $($METASTAT -p | $AWK '{print $1}'); do
+		log_must $METACLEAR -rf $metad
+	done
+
+	for metad in $($METADB | $CUT -f6 | $GREP dev | $UNIQ); do
+		log_must $METADB -fd $metad
+	done
+}
+
+# /**
+#  This function kills a given list of processes after a time period. We use
+#  this in the stress tests instead of STF_TIMEOUT so that we can have processes
+#  run for a fixed amount of time, yet still pass. Tests that hit STF_TIMEOUT
+#  would be listed as FAIL, which we don't want : we're happy with stress tests
+#  running for a certain amount of time, then finishing.
+#
+# @param $1 the time in seconds after which we should terminate these processes
+# @param $2..$n the processes we wish to terminate.
+# */
+function stress_timeout
+{
+	typeset -i TIMEOUT=$1
+	shift 
+	typeset cpids="$@"
+	
+	log_note "Waiting for child processes($cpids). " \
+		"It could last dozens of minutes, please be patient ..."
+	log_must $SLEEP $TIMEOUT
+
+	log_note "Killing child processes after ${TIMEOUT} stress timeout."
+	typeset pid
+	for pid in $cpids; do
+		$PS -p $pid > /dev/null 2>&1
+		if (( $? == 0 )); then
+			log_must $KILL -USR1 $pid
+		fi
+	done
+}
+
+#
+# Check whether current OS support a specified feature or not
+#
+# return 0 if current OS version is in unsupported list, 1 otherwise
+#
+# $1 unsupported target OS versions
+#
+function check_version # <OS version>
+{
+	typeset unsupported_vers="$@"
+	typeset ver
+	typeset cur_ver=`$UNAME -r`
+
+	for ver in $unsupported_vers; do
+		[[ "$cur_ver" == "$ver" ]] && return 0
+	done
+
+	return 1
+}
+
+#
+# Verify a given hotspare disk is inuse or avail
+#
+# Return 0 is pool/disk matches expected state, 1 otherwise
+#
+function check_hotspare_state # pool disk state{inuse,avail}
+{
+	typeset pool=$1
+	typeset disk=${2#/dev/}
+	disk=${disk#/dev/}
+	disk=${disk#/dev/}
+	typeset state=$3
+
+	cur_state=$(get_device_state $pool $disk "spares")
+
+	if [[ $state != ${cur_state} ]]; then
+		return 1
+	fi
+	return 0
+}
+
+#
+# Verify a given slog disk is inuse or avail
+#
+# Return 0 is pool/disk matches expected state, 1 otherwise
+#
+function check_slog_state # pool disk state{online,offline,unavail}
+{
+	typeset pool=$1
+	typeset disk=${2#/dev/}
+	disk=${disk#/dev/}
+	disk=${disk#/dev/}
+	typeset state=$3
+
+	cur_state=$(get_device_state $pool $disk "logs")
+
+	if [[ $state != ${cur_state} ]]; then
+		return 1
+	fi
+	return 0
+}
+
+#
+# Verify a given vdev disk is inuse or avail
+#
+# Return 0 is pool/disk matches expected state, 1 otherwise
+#
+function check_vdev_state # pool disk state{online,offline,unavail}
+{
+	typeset pool=$1
+	typeset disk=${2#/dev/}
+	disk=${disk#/dev/}
+	disk=${disk#/dev/}
+	typeset state=$3
+
+	if [[ $WRAPPER == *"smi"* ]]; then
+		$ECHO $disk | $EGREP "^c[0-F]+([td][0-F]+)+$" > /dev/null 2>&1
+		if (( $? == 0 )); then
+			disk=${disk}s2
+		fi
+	fi
+
+	cur_state=$(get_device_state $pool $disk)
+
+	if [[ $state != ${cur_state} ]]; then
+		return 1
+	fi
+	return 0
+}
+
+# 
+# Check the output of 'zpool status -v <pool>',
+# and to see if the content of <token> contain the <keyword> specified.
+#
+# Return 0 is contain, 1 otherwise
+#
+function check_pool_status # pool token keyword
+{
+	typeset pool=$1
+	typeset token=$2
+	typeset keyword=$3
+
+	$ZPOOL status -v "$pool" 2>/dev/null | \
+		$NAWK -v token="$token:" '($1==token) {print $0}' | \
+		$GREP -i "$keyword" >/dev/null 2>&1
+
+	return $?
+}
+
+function vdev_pool_error_count
+{
+	typeset errs=$1
+	if [ -z "$2" ]; then
+		test $errs -gt 0; ret=$?
+	else
+		test $errs -eq $2; ret=$?
+	fi
+	log_debug "vdev_pool_error_count: errs='$errs' \$2='$2' ret='$ret'"
+	return $ret
+}
+
+#
+# Generate a pool status error file suitable for pool_errors_from_file.
+# If the pool is healthy, returns 0.  Otherwise, the caller must handle the
+# returned temporarily file appropriately.
+#
+function pool_error_file # <pool>
+{
+	typeset pool="$1"
+
+	typeset tmpfile=$TMPDIR/pool_status.${TESTCASE_ID}
+	$ZPOOL status -x $pool > ${tmpfile}
+	echo $tmpfile
+}
+
+#
+# Evaluates <file> counting the number of errors.  If vdev specified, only
+# that vdev's errors are counted.  Returns the total number.  <file> will be
+# deleted on exit.
+#
+function pool_errors_from_file # <file> [vdev]
+{
+	typeset file=$1
+	shift
+	typeset checkvdev="$2"
+
+	typeset line
+	typeset -i fetchbegin=1
+	typeset -i errnum=0
+	typeset -i c_read=0
+	typeset -i c_write=0
+	typeset -i c_cksum=0
+
+	cat ${file} | $EGREP -v "pool:" | while read line; do 
+	 	if (( $fetchbegin != 0 )); then
+                        $ECHO $line | $GREP "NAME" >/dev/null 2>&1
+                        (( $? == 0 )) && (( fetchbegin = 0 ))
+                         continue
+                fi
+
+		if [[ -n $checkvdev ]]; then 
+			$ECHO $line | $GREP $checkvdev >/dev/null 2>&1
+			(( $? != 0 )) && continue
+			c_read=`$ECHO $line | $AWK '{print $3}'`
+			c_write=`$ECHO $line | $AWK '{print $4}'`
+			c_cksum=`$ECHO $line | $AWK '{print $5}'`
+			if [ $c_read != 0 ] || [ $c_write != 0 ] || \
+		   	   [ $c_cksum != 0 ]
+			then
+				(( errnum = errnum + 1 ))
+			fi
+			break
+		fi
+
+		c_read=`$ECHO $line | $AWK '{print $3}'`
+		c_write=`$ECHO $line | $AWK '{print $4}'`
+		c_cksum=`$ECHO $line | $AWK '{print $5}'`
+		if [ $c_read != 0 ] || [ $c_write != 0 ] || \
+		    [ $c_cksum != 0 ]
+		then
+			(( errnum = errnum + 1 ))
+		fi
+	done
+
+	rm -f $file
+	echo $errnum
+}
+
+#
+# Returns whether the vdev has the given number of errors.
+# If the number is unspecified, any non-zero number returns true.
+#
+function vdev_has_errors # pool vdev [errors]
+{
+	typeset pool=$1
+	typeset vdev=$2
+	typeset tmpfile=$(pool_error_file $pool)
+	log_note "Original pool status:"
+	cat $tmpfile
+
+	typeset -i errs=$(pool_errors_from_file $tmpfile $vdev)
+	vdev_pool_error_count $errs $3
+}
+
+#
+# Returns whether the pool has the given number of errors.
+# If the number is unspecified, any non-zero number returns true.
+#
+function pool_has_errors # pool [errors]
+{
+	typeset pool=$1
+	typeset tmpfile=$(pool_error_file $pool)
+	log_note "Original pool status:"
+	cat $tmpfile
+
+	typeset -i errs=$(pool_errors_from_file $tmpfile)
+	vdev_pool_error_count $errs $2
+}
+
+#
+# Returns whether clearing $pool at $vdev (if given) succeeds.
+#
+function pool_clear_succeeds
+{
+	typeset pool="$1"
+	typeset vdev=$2
+
+	$ZPOOL clear $pool $vdev
+	! pool_has_errors $pool
+}
+
+#
+# Return whether the pool is healthy
+#
+function is_pool_healthy # pool
+{
+	typeset pool=$1
+
+	typeset healthy_output="pool '$pool' is healthy"
+	typeset real_output=$($ZPOOL status -x $pool)
+
+	if [[ "$real_output" == "$healthy_output" ]]; then
+		return 0
+	else
+		typeset -i ret
+		$ZPOOL status -x $pool | $GREP "state:" | \
+			$GREP "FAULTED" >/dev/null 2>&1
+		ret=$?
+		(( $ret == 0 )) && return 1
+		typeset l_scan
+		typeset errnum
+		l_scan=$($ZPOOL status -x $pool | $GREP "scan:")
+		l_scan=${l_scan##*"with"}
+		errnum=$($ECHO $l_scan | $AWK '{print $1}')
+		if [ "$errnum" != "0" ]; then
+		 	return 1
+		else
+			return 0
+		fi
+	fi
+}
+
+#
+# These 5 following functions are instance of check_pool_status()
+#	is_pool_resilvering - to check if the pool is resilver in progress
+#	is_pool_resilvered - to check if the pool is resilver completed
+#	is_pool_scrubbing - to check if the pool is scrub in progress
+#	is_pool_scrubbed - to check if the pool is scrub completed
+#	is_pool_scrub_stopped - to check if the pool is scrub stopped
+#
+function is_pool_resilvering #pool
+{
+	check_pool_status "$1" "scan" "resilver in progress"
+	return $?
+}
+
+function is_pool_resilvered #pool
+{
+	check_pool_status "$1" "scan" "resilvered"
+	return $?
+}
+
+function resilver_happened # pool
+{
+	typeset pool=$1
+	is_pool_resilvering "$pool" || is_pool_resilvered "$pool"
+}
+
+function is_pool_scrubbing #pool
+{
+	check_pool_status "$1" "scan" "scrub in progress"
+	return $?
+}
+
+function is_pool_scrubbed #pool
+{
+	check_pool_status "$1" "scan" "scrub repaired"
+	return $?
+}
+
+function is_pool_scrub_stopped #pool
+{
+	check_pool_status "$1" "scan" "scrub canceled"
+	return $?
+}
+
+function is_pool_state # pool state
+{
+	check_pool_status "$1" "state" "$2"
+	return $?
+}
+
+#
+# Erase the partition tables and destroy any zfs labels
+# 
+function cleanup_devices #vdevs
+{
+	for device in $@; do
+		# Labelclear must happen first, otherwise it may interfere
+		# with the teardown/setup of GPT labels.
+		$ZPOOL labelclear -f $device
+		# Only wipe partition tables for arguments that are disks,
+		# as opposed to slices (which are valid arguments here).
+		if camcontrol inquiry $device >/dev/null 2>&1; then
+			wipe_partition_table $device
+		fi
+	done
+	return 0
+}
+
+#
+# Verify the rsh connectivity to each remote host in RHOSTS.
+#
+# Return 0 if remote host is accessible; otherwise 1.
+# $1 remote host name
+# $2 username
+#
+function verify_rsh_connect #rhost, username
+{
+	typeset rhost=$1
+	typeset username=$2
+	typeset rsh_cmd="$RSH -n"
+	typeset cur_user=
+
+	$GETENT hosts $rhost >/dev/null 2>&1
+	if (( $? != 0 )); then
+		log_note "$rhost cannot be found from" \
+			"administrative database."
+		return 1
+	fi
+
+	$PING $rhost 3 >/dev/null 2>&1
+	if (( $? != 0 )); then
+		log_note "$rhost is not reachable."
+		return 1
+	fi
+
+	if (( ${#username} != 0 )); then
+		rsh_cmd="$rsh_cmd -l $username"
+		cur_user="given user \"$username\""
+	else
+		cur_user="current user \"`$LOGNAME`\""
+	fi
+
+	 if ! $rsh_cmd $rhost $TRUE; then
+		log_note "$RSH to $rhost is not accessible" \
+			"with $cur_user."
+		return 1
+	fi
+
+	return 0
+}
+
+#
+# Verify the remote host connection via rsh after rebooting
+# $1 remote host
+#
+function verify_remote
+{
+	rhost=$1
+
+	#
+	# The following loop waits for the remote system rebooting.
+	# Each iteration will wait for 150 seconds. there are
+	# total 5 iterations, so the total timeout value will
+	# be 12.5  minutes for the system rebooting. This number
+	# is an approxiate number.
+	#
+	typeset -i count=0
+	while ! verify_rsh_connect $rhost; do
+		sleep 150
+		(( count = count + 1 ))
+		if (( count > 5 )); then
+			return 1
+		fi
+	done
+	return 0
+}
+
+#
+# Replacement function for /usr/bin/rsh. This function will include
+# the /usr/bin/rsh and meanwhile return the execution status of the
+# last command.
+#
+# $1 usrname passing down to -l option of /usr/bin/rsh
+# $2 remote machine hostname
+# $3... command string
+#
+
+function rsh_status
+{
+	typeset ruser=$1
+	typeset rhost=$2
+	typeset -i ret=0
+	typeset cmd_str=""
+	typeset rsh_str=""
+
+	shift; shift
+	cmd_str="$@"
+
+	err_file=$TMPDIR/${rhost}.${TESTCASE_ID}.err
+	if (( ${#ruser} == 0 )); then
+		rsh_str="$RSH -n"
+	else
+		rsh_str="$RSH -n -l $ruser"
+	fi
+
+	$rsh_str $rhost /usr/local/bin/ksh93 -c "'$cmd_str; \
+		print -u 2 \"status=\$?\"'" \
+		>/dev/null 2>$err_file
+	ret=$?
+	if (( $ret != 0 )); then
+		$CAT $err_file
+		$RM -f $std_file $err_file
+		log_fail  "$RSH itself failed with exit code $ret..."
+	fi
+
+	 ret=$($GREP -v 'print -u 2' $err_file | $GREP 'status=' | \
+		$CUT -d= -f2)
+	(( $ret != 0 )) && $CAT $err_file >&2
+
+	$RM -f $err_file >/dev/null 2>&1
+	return $ret
+}
+
+#
+# Get the SUNWstc-fs-zfs package installation path in a remote host
+# $1 remote host name
+#
+function get_remote_pkgpath
+{
+	typeset rhost=$1
+	typeset pkgpath=""
+
+	pkgpath=$($RSH -n $rhost "$PKGINFO -l SUNWstc-fs-zfs | $GREP BASEDIR: |\
+			$CUT -d: -f2")
+
+	$ECHO $pkgpath
+}
+
+#/**
+# A function to find and locate free disks on a system or from given
+# disks as the parameter.  Since the conversion to ATF, this function is
+# superfluous; it is assumed that the user will supply an accurate list of
+# disks to use.  So we just return the arguments.
+#
+# $@ given disks to find which are free
+#
+# @return a string containing the list of available disks
+#*/
+function find_disks
+{
+	(( first=0 ))
+	for disk in $@; do
+		[[ $first == 1 ]] && echo -n " "
+		(( first=1 ))
+		case $disk in
+		/dev/*)	echo -n "$disk" ;;
+		*)	echo -n "/dev/$disk" ;;
+		esac
+	done
+}
+
+# A function to set convenience variables for disks.
+function set_disks
+{
+	set -A disk_array $(find_disks $DISKS)
+	[[ -z "$DISK_ARRAY_LIMIT" ]] && typeset -i DISK_ARRAY_LIMIT=5
+
+	export DISK=""
+	typeset -i i=0
+	while (( i < ${#disk_array[*]} && i <= $DISK_ARRAY_LIMIT )); do
+		export DISK${i}="${disk_array[$i]}"
+		DISKSARRAY="$DISKSARRAY ${disk_array[$i]}"
+		(( i = i + 1 ))
+	done
+	export DISK_ARRAY_NUM=$i
+	export DISKSARRAY
+	export disk=$DISK0
+}
+
+#
+# Add specified user to specified group
+#
+# $1 group name
+# $2 user name
+#
+function add_user #<group_name> <user_name>
+{
+	typeset gname=$1
+	typeset uname=$2
+
+	if (( ${#gname} == 0 || ${#uname} == 0 )); then
+		log_fail "group name or user name are not defined."
+	fi
+
+	# Check to see if the user exists.
+	$ID $uname > /dev/null 2>&1 && return 0
+
+	# Assign 1000 as the base uid
+	typeset -i uid=1000
+	while true; do
+		typeset -i ret
+		$USERADD -u $uid -g $gname -d /var/tmp/$uname -m $uname
+		ret=$?
+		case $ret in
+			0) return 0 ;;
+			# The uid is not unique
+			65) ((uid += 1)) ;;
+			*) return 1 ;;
+		esac
+		if [[ $uid == 65000 ]]; then
+			log_fail "No user id available under 65000 for $uname"
+		fi
+	done
+
+	return 0
+}
+
+#
+# Delete the specified user.
+#
+# $1 login name
+#
+function del_user #<logname>
+{
+	typeset user=$1
+
+	if (( ${#user} == 0 )); then
+		log_fail "login name is necessary."
+	fi
+
+	if $ID $user > /dev/null 2>&1; then
+		log_must $USERDEL $user
+	fi
+
+	return 0
+}
+
+#
+# Select valid gid and create specified group.
+#
+# $1 group name
+#
+function add_group #<group_name>
+{
+	typeset group=$1
+
+	if (( ${#group} == 0 )); then
+		log_fail "group name is necessary."
+	fi
+
+	# See if the group already exists.
+	$GROUPSHOW $group >/dev/null 2>&1
+	[[ $? == 0 ]] && return 0
+
+	# Assign 100 as the base gid
+	typeset -i gid=100
+	while true; do
+		$GROUPADD -g $gid $group > /dev/null 2>&1
+		typeset -i ret=$?
+		case $ret in
+			0) return 0 ;;
+			# The gid is not  unique
+			65) ((gid += 1)) ;;
+			*) return 1 ;;
+		esac
+		if [[ $gid == 65000 ]]; then
+			log_fail "No user id available under 65000 for $group"
+		fi
+	done
+}
+
+#
+# Delete the specified group.
+#
+# $1 group name
+#
+function del_group #<group_name>
+{
+	typeset grp=$1
+	if (( ${#grp} == 0 )); then
+		log_fail "group name is necessary."
+	fi
+
+	$GROUPDEL -n $grp > /dev/null 2>&1
+	typeset -i ret=$?
+	case $ret in
+		# Group does not exist, or was deleted successfully.
+		0|6|65) return 0 ;;
+		# Name already exists as a group name
+		9) log_must $GROUPDEL $grp ;;
+		*) return 1 ;;
+	esac
+
+	return 0
+}
+
+#
+# This function will return true if it's safe to destroy the pool passed
+# as argument 1. It checks for pools based on zvols and files, and also
+# files contained in a pool that may have a different mountpoint.
+#
+function safe_to_destroy_pool { # $1 the pool name
+
+	typeset pool=""
+	typeset DONT_DESTROY=""
+
+	# We check that by deleting the $1 pool, we're not
+	# going to pull the rug out from other pools. Do this
+	# by looking at all other pools, ensuring that they
+	# aren't built from files or zvols contained in this pool.
+
+	for pool in $($ZPOOL list -H -o name)
+	do
+		ALTMOUNTPOOL=""
+
+		# this is a list of the top-level directories in each of the files
+		# that make up the path to the files the pool is based on
+		FILEPOOL=$($ZPOOL status -v $pool | $GREP /$1/ | \
+			$AWK '{print $1}')
+
+		# this is a list of the zvols that make up the pool
+		ZVOLPOOL=$($ZPOOL status -v $pool | $GREP "/dev/zvol/$1$" | \
+			$AWK '{print $1}')
+
+		# also want to determine if it's a file-based pool using an
+		# alternate mountpoint...
+		POOL_FILE_DIRS=$($ZPOOL status -v $pool | \
+					$GREP / | $AWK '{print $1}' | \
+					$AWK -F/ '{print $2}' | $GREP -v "dev")
+
+		for pooldir in $POOL_FILE_DIRS
+		do
+			OUTPUT=$($ZFS list -H -r -o mountpoint $1 | \
+					$GREP "${pooldir}$" | $AWK '{print $1}')
+
+			ALTMOUNTPOOL="${ALTMOUNTPOOL}${OUTPUT}"
+		done
+
+
+		if [ ! -z "$ZVOLPOOL" ]
+		then
+			DONT_DESTROY="true"
+			log_note "Pool $pool is built from $ZVOLPOOL on $1"
+		fi
+
+		if [ ! -z "$FILEPOOL" ]
+		then
+			DONT_DESTROY="true"
+			log_note "Pool $pool is built from $FILEPOOL on $1"
+		fi
+
+		if [ ! -z "$ALTMOUNTPOOL" ]
+		then
+			DONT_DESTROY="true"
+			log_note "Pool $pool is built from $ALTMOUNTPOOL on $1"
+		fi
+	done
+
+	if [ -z "${DONT_DESTROY}" ]
+	then
+		return 0
+	else
+		log_note "Warning: it is not safe to destroy $1!"
+		return 1
+	fi
+}
+
+#
+# Get IP address of hostname
+# $1 hostname
+#
+function getipbyhost
+{
+	typeset ip
+	ip=`$ARP $1 2>/dev/null | $AWK -F\) '{print $1}' \
+		| $AWK -F\( '{print $2}'`
+	$ECHO $ip
+}
+
+#
+# Setup iSCSI initiator to target
+# $1 target hostname
+#
+function iscsi_isetup
+{
+	# check svc:/network/iscsi_initiator:default state, try to enable it 
+	# if the state is not ON
+	typeset ISCSII_FMRI="svc:/network/iscsi_initiator:default"
+	if [[ "ON" != $($SVCS -H -o sta $ISCSII_FMRI) ]]; then
+		log_must $SVCADM enable $ISCSII_FMRI
+
+		typeset -i retry=20
+		while [[ "ON" != $($SVCS -H -o sta $ISCSII_FMRI) && \
+			( $retry -ne 0 ) ]]
+		do
+			(( retry = retry - 1 ))
+			$SLEEP 1
+		done
+
+		if [[ "ON" != $($SVCS -H -o sta $ISCSII_FMRI) ]]; then
+			log_fail "$ISCSII_FMRI service can not be enabled!"
+		fi
+	fi
+
+	log_must $ISCSIADM add discovery-address $(getipbyhost $1) 
+	log_must $ISCSIADM modify discovery --sendtargets enable
+	log_must $DEVFSADM -i iscsi
+}
+
+#
+# Check whether iscsi parameter is set as remote
+#
+# return 0 if iscsi is set as remote, otherwise 1
+#
+function check_iscsi_remote 
+{
+	if [[ $iscsi == "remote" ]] ; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+#
+# Check if a volume is a valide iscsi target 
+# $1 volume name
+# return 0 if suceeds, otherwise, return 1
+# 
+function is_iscsi_target
+{
+	typeset dataset=$1
+	typeset target targets
+
+	[[ -z $dataset ]] && return 1
+
+	targets=$($ISCSITADM list target | $GREP "Target:" | $AWK '{print $2}')
+	[[ -z $targets ]] && return 1
+	
+	for target in $targets; do
+		[[ $dataset == $target ]] && return 0
+	done
+
+	return 1
+}
+
+#
+# Get the iSCSI name of a target
+# $1 target name
+#
+function iscsi_name
+{
+	typeset target=$1
+	typeset name
+
+	[[ -z $target ]] && log_fail "No parameter."
+
+	if ! is_iscsi_target $target ; then
+		log_fail "Not a target."
+	fi
+
+	name=$($ISCSITADM list target $target | $GREP "iSCSI Name:" \
+		| $AWK '{print $2}')
+
+	return $name
+}
+
+#
+# check svc:/system/iscsitgt:default state, try to enable it if the state 
+# is not ON
+#
+function iscsitgt_setup
+{
+	log_must $RM -f $ISCSITGTFILE
+	if [[ "ON" == $($SVCS -H -o sta $ISCSITGT_FMRI) ]]; then
+		log_note "iscsitgt is already enabled"
+		return
+	fi
+
+    	log_must $SVCADM enable -t $ISCSITGT_FMRI
+
+	typeset -i retry=20
+	while [[ "ON" != $($SVCS -H -o sta $ISCSITGT_FMRI) && \
+		( $retry -ne 0 ) ]]
+	do
+		$SLEEP 1
+		(( retry = retry - 1 ))
+	done
+
+	if [[ "ON" != $($SVCS -H -o sta $ISCSITGT_FMRI) ]]; then
+		log_fail "$ISCSITGT_FMRI service can not be enabled!"
+	fi
+
+	log_must $TOUCH $ISCSITGTFILE
+}
+
+#
+# set DISABLED state of svc:/system/iscsitgt:default 
+# which is the most suiteable state if $ISCSITGTFILE exists
+#
+function iscsitgt_cleanup
+{
+	if [[ -e $ISCSITGTFILE ]]; then
+		log_must $SVCADM disable $ISCSITGT_FMRI
+		log_must $RM -f $ISCSITGTFILE
+	fi
+}
+
+#
+# Close iSCSI initiator to target
+# $1 target hostname
+#
+function iscsi_iclose
+{
+	log_must $ISCSIADM modify discovery --sendtargets disable
+	log_must $ISCSIADM remove discovery-address $(getipbyhost $1) 
+	$DEVFSADM -Cv
+}
+
+#
+# Get the available ZFS compression options
+# $1 option type zfs_set|zfs_compress
+# 
+function get_compress_opts
+{
+	typeset COMPRESS_OPTS
+	typeset GZIP_OPTS="gzip gzip-1 gzip-2 gzip-3 gzip-4 gzip-5 \
+			gzip-6 gzip-7 gzip-8 gzip-9"
+
+	if [[ $1 == "zfs_compress" ]] ; then
+		COMPRESS_OPTS="on lzjb"
+	elif [[ $1 == "zfs_set" ]] ; then 
+		COMPRESS_OPTS="on off lzjb"
+	fi
+	typeset valid_opts="$COMPRESS_OPTS"
+	$ZFS get 2>&1 | $GREP gzip >/dev/null 2>&1 
+	if [[ $? -eq 0 ]]; then       
+		valid_opts="$valid_opts $GZIP_OPTS"
+	fi
+	$ECHO "$valid_opts"
+}
+
+#
+# Check the subcommand/option is supported
+#
+function check_opt_support #command, option 
+{
+	typeset command=$1
+	typeset option=$2
+
+	if [[ -z $command ]]; then
+		return 0
+	elif [[ -z $option ]]; then
+		eval "$ZFS 2>&1 | $GREP '$command' > /dev/null 2>&1"
+	else
+		eval "$ZFS $command 2>&1 | $GREP -- '$option' | \
+			$GREP -v -- 'User-defined' > /dev/null 2>&1"
+	fi
+	return $?
+}
+
+#
+# Check the zpool subcommand/option is supported
+#
+function check_zpool_opt_support #command, option 
+{
+	typeset command=$1
+	typeset option=$2
+
+	if [[ -z $command ]]; then
+		return 0
+	elif [[ -z $option ]]; then
+		eval "$ZPOOL 2>&1 | $GREP '$command' > /dev/null 2>&1"
+	else
+		eval "$ZPOOL $command 2>&1 | $GREP -- '$option' > /dev/null 2>&1"
+	fi
+	return $?
+}
+
+#
+# Verify zfs operation with -p option work as expected
+# $1 operation, value could be create, clone or rename
+# $2 dataset type, value could be fs or vol
+# $3 dataset name
+# $4 new dataset name
+#
+function verify_opt_p_ops
+{
+	typeset ops=$1
+	typeset datatype=$2
+	typeset dataset=$3
+	typeset newdataset=$4
+
+	if [[ $datatype != "fs" && $datatype != "vol" ]]; then
+		log_fail "$datatype is not supported."
+	fi
+
+	# check parameters accordingly
+	case $ops in
+		create)
+			newdataset=$dataset
+			dataset=""
+			if [[ $datatype == "vol" ]]; then
+				ops="create -V $VOLSIZE"
+			fi
+			;;
+		clone)
+			if [[ -z $newdataset ]]; then
+				log_fail "newdataset should not be empty" \
+					"when ops is $ops."
+			fi
+			log_must datasetexists $dataset
+			log_must snapexists $dataset
+			;;
+		rename)
+			if [[ -z $newdataset ]]; then
+				log_fail "newdataset should not be empty" \
+					"when ops is $ops."
+			fi
+			log_must datasetexists $dataset
+			log_mustnot snapexists $dataset
+			;;
+		*)
+			log_fail "$ops is not supported."
+			;;
+	esac
+
+	# make sure the upper level filesystem does not exist
+	if datasetexists ${newdataset%/*} ; then
+		log_must $ZFS destroy -rRf ${newdataset%/*}
+	fi
+
+	# without -p option, operation will fail
+	log_mustnot $ZFS $ops $dataset $newdataset
+	log_mustnot datasetexists $newdataset ${newdataset%/*}
+
+	# with -p option, operation should succeed
+	log_must $ZFS $ops -p $dataset $newdataset
+	if ! datasetexists $newdataset ; then
+		log_fail "-p option does not work for $ops"
+	fi
+
+	# when $ops is create or clone, redo the operation still return zero
+	if [[ $ops != "rename" ]]; then
+		log_must $ZFS $ops -p $dataset $newdataset
+	fi
+
+	return 0
+}
+
+function get_disk_guid
+{
+	typeset diskname=$1
+	lastcwd=$(pwd)
+	cd /dev
+	guid=$($ZDB -l ${diskname} | ${AWK} '/^    guid:/ {print $2}' | head -1)
+	cd $lastcwd
+	echo $guid
+}
+
+#
+# Get cachefile for a pool.
+# Prints the cache file, if there is one.
+# Returns 0 for a default zpool.cache, 1 for an explicit one, and 2 for none.
+#
+function cachefile_for_pool
+{
+	typeset pool=$1
+
+	cachefile=$(get_pool_prop cachefile $pool)
+	[[ $? != 0 ]] && return 1
+
+	case "$cachefile" in
+		none)	ret=2 ;;
+		"-")
+			ret=2
+			for dir in /boot/zfs /etc/zfs; do
+				if [[ -f "${dir}/zpool.cache" ]]; then
+					cachefile="${dir}/zpool.cache"
+					ret=0
+					break
+				fi
+			done
+			;;
+		*)	ret=1;
+	esac
+	[[ $ret -eq 0 || $ret -eq 1 ]] && print "$cachefile"
+	return $ret
+}
+
+#
+# Assert that the pool is in the appropriate cachefile.
+#
+function assert_pool_in_cachefile
+{
+	typeset pool=$1
+
+	cachefile=$(cachefile_for_pool $pool)
+	[ $? -ne 0 ] && log_fail "ERROR: Cachefile not created for '$pool'?"
+	log_must test -e "${cachefile}"
+	log_must zdb -U ${cachefile} -C ${pool}
+}
+
+#
+# Get the zdb options given the cachefile state of the pool.
+#
+function zdb_cachefile_opts
+{
+	typeset pool=$1
+	typeset vdevdir=$2
+	typeset opts
+
+	if poolexists "$pool"; then
+		cachefile=$(cachefile_for_pool $pool)
+		typeset -i ret=$?
+		case $ret in
+			0)	opts="-C" ;;
+			1)	opts="-U $cachefile -C" ;;
+			2)	opts="-eC" ;;
+			*)	log_fail "Unknown return '$ret'" ;;
+		esac
+	else
+		opts="-eC"
+		[[ -n "$vdevdir" ]] && opts="$opts -p $vdevdir"
+	fi
+	echo "$opts"
+}
+
+#
+# Get configuration of pool
+# $1 pool name
+# $2 config name
+#
+function get_config
+{
+	typeset pool=$1
+	typeset config=$2
+	typeset vdevdir=$3
+	typeset alt_root
+	typeset zdb_opts
+
+	zdb_opts=$(zdb_cachefile_opts $pool $vdevdir)
+	value=$($ZDB $zdb_opts $pool | $GREP "$config:" | $AWK -F: '{print $2}')
+	if [[ -n $value ]] ; then
+		value=${value#'}
+		value=${value%'}
+	else
+		return 1
+	fi
+	echo $value
+
+	return 0
+}
+
+#
+# Privated function. Random select one of items from arguments.
+#
+# $1 count
+# $2-n string
+#
+function _random_get
+{
+	typeset cnt=$1	
+	shift
+
+	typeset str="$@"
+	typeset -i ind
+	((ind = RANDOM % cnt + 1))
+
+	typeset ret=$($ECHO "$str" | $CUT -f $ind -d ' ')
+	$ECHO $ret
+}
+
+#
+# Random select one of item from arguments which include NONE string
+#
+function random_get_with_non
+{
+	typeset -i cnt=$#
+	((cnt =+ 1))
+
+	_random_get "$cnt" "$@"
+}
+
+#
+# Random select one of item from arguments which doesn't include NONE string
+#
+function random_get
+{
+	_random_get "$#" "$@"
+}
+
+#
+# The function will generate a dataset name with specific length
+# $1, the length of the name
+# $2, the base string to construct the name
+#
+function gen_dataset_name
+{
+	typeset -i len=$1
+	typeset basestr="$2"
+	typeset -i baselen=${#basestr}
+	typeset -i iter=0
+	typeset l_name=""
+
+	if (( len % baselen == 0 )); then
+		(( iter = len / baselen ))
+	else
+		(( iter = len / baselen + 1 ))
+	fi
+	while (( iter > 0 )); do
+		l_name="${l_name}$basestr"
+
+		(( iter -= 1 ))
+	done
+
+	$ECHO $l_name
+}
+
+#
+# Ensure that a given path has been synced, not just ZIL committed.
+#
+# XXX The implementation currently requires calling 'zpool history'.  On
+#     FreeBSD, the sync(8) command (via $SYNC) calls zfs_sync() which just
+#     does a zil_commit(), as opposed to a txg_wait_synced().  For things that
+#     require writing to their final destination (e.g. for intentional
+#     corruption purposes), zil_commit() is not good enough.
+#
+function force_sync_path # path
+{
+	typeset path="$1"
+
+	zfspath=$($DF $path 2>/dev/null | tail -1 | cut -d" " -f1 | cut -d/ -f1)
+	[ -z "$zfspath" ] && return false
+	log_note "Force syncing ${zfspath} for ${path} ..."
+	$ZPOOL history $zfspath >/dev/null 2>&1
+}
+
+#
+# Get cksum tuple of dataset
+# $1 dataset name
+#
+# zdb output is like below
+# " Dataset pool/fs [ZPL], ID 978, cr_txg 2277, 19.0K, 5 objects, 
+# rootbp [L0 DMU objset] 400L/200P DVA[0]=<0:1880c00:200> 
+# DVA[1]=<0:341880c00:200> fletcher4 lzjb LE contiguous birth=2292 fill=5 
+# cksum=989930ccf:4014fe00c83:da5e388e58b4:1f7332052252ac "
+#
+function datasetcksum
+{
+	typeset cksum
+	$SYNC
+	cksum=$($ZDB -vvv $1 | $GREP "^Dataset $1 \[" | $GREP "cksum" \
+		| $AWK -F= '{print $6}')
+	$ECHO $cksum
+}
+
+#
+# Get cksum of file
+# #1 file path
+#
+function checksum
+{
+	typeset cksum
+	cksum=$($CKSUM $1 | $AWK '{print $1}')
+	$ECHO $cksum
+}
+
+#
+# Get the given disk/slice state from the specific field of the pool
+#
+function get_device_state #pool disk field("", "spares","logs")
+{
+	typeset pool=$1
+	typeset disk=${2#/dev/}
+	disk=${disk#/dev/}
+	disk=${disk#/dev/}
+	typeset field=${3:-$pool}
+
+	state=$($ZPOOL status -v "$pool" 2>/dev/null | \
+		$NAWK -v device=$disk -v pool=$pool -v field=$field \
+		'BEGIN {startconfig=0; startfield=0; }
+		/config:/ {startconfig=1}
+		(startconfig==1)&&($1==field) {startfield=1; next;}
+		(startfield==1)&&($1==device) {print $2; exit;}
+		(startfield==1)&&(NF>=3)&&($(NF-1)=="was")&&($NF==device) {print $2; exit;}
+		(startfield==1)&&($1==field || $1 ~ "^spares$" || $1 ~ "^logs$") {startfield=0}')
+	print $state
+}
+
+
+#
+# print the given directory filesystem type
+#
+# $1 directory name
+#
+function get_fstype
+{
+	typeset dir=$1
+
+	if [[ -z $dir ]]; then
+		log_fail "Usage: get_fstype <directory>"
+	fi
+
+	$DF -T $dir | $AWK '{print $2}'
+}
+
+#
+# Given a disk, label it to VTOC regardless what label was on the disk
+# $1 disk
+#
+function labelvtoc
+{
+	typeset disk=$1
+	if [[ -z $disk ]]; then
+		log_fail "The disk name is unspecified."
+	fi
+	typeset label_file=$TMPDIR/labelvtoc.${TESTCASE_ID}
+	typeset arch=$($UNAME -p)
+	
+	if [[ $arch == "i386" ]]; then
+		 $ECHO "label" > $label_file
+		 $ECHO "0" >> $label_file
+		 $ECHO "" >> $label_file
+		 $ECHO "q" >> $label_file
+		 $ECHO "q" >> $label_file
+
+		 $FDISK -B $disk >/dev/null 2>&1
+		 # wait a while for fdisk finishes
+		 $SLEEP 60
+	elif [[ $arch == "sparc" ]]; then
+	     	 $ECHO "label" > $label_file
+		 $ECHO "0" >> $label_file
+		 $ECHO "" >> $label_file
+		 $ECHO "" >> $label_file	
+		 $ECHO "" >> $label_file
+		 $ECHO "q" >> $label_file		 		
+	else
+		log_fail "unknown arch type"
+	fi
+
+	$FORMAT -e -s -d $disk -f $label_file
+	typeset -i ret_val=$?
+	$RM -f $label_file
+	#
+	# wait the format to finish
+	#
+	$SLEEP 60
+	if (( ret_val != 0 )); then
+		log_fail "unable to label $disk as VTOC."
+	fi
+
+	return 0
+}
+
+#
+# Detect if the given filesystem property is supported in this release
+#
+# 0	Yes, it is supported
+# !0	No, it is not supported
+#
+function fs_prop_exist
+{
+	typeset prop=$1
+
+	if [[ -z $prop ]]; then
+		log_fail "Usage: fs_prop_exist <property>"
+
+		return 1
+	fi
+
+	#
+	# If the property is shortened column name,
+	# convert it to the standard name
+	#
+	case $prop in
+		avail)		prop=available		;;
+		refer)		prop=referenced		;;
+		volblock)	prop=volblocksize	;;
+		compress)	prop=compression	;;
+		rdonly)		prop=readonly		;;
+		recsize)	prop=recordsize		;;
+		reserv)		prop=reservation	;;
+		refreserv)	prop=refreservation	;;
+	esac
+
+	#
+	# The zfs get output looks like the following
+	#
+
+	#
+	# The following properties are supported:
+	#
+	#	PROPERTY       EDIT  INHERIT   VALUES
+	#
+	#	available	NO	NO	<size>
+	#	compressratio	NO	NO	<1.00x or higher if compressed>
+	#	creation	NO	NO	<date>
+	#	 ... ...
+	#	zoned		YES	YES	on | off
+	#
+	# Sizes are specified in bytes with standard units such as K, M, G, etc.
+	#
+
+	#
+	# Start to extract property from the first blank line after 'PROPERTY'
+	# and stop at the next blank line
+	#
+	$ZFS get 2>&1 | \
+		$AWK '/PROPERTY/ {start=1; next}
+			/Sizes/ {start=0}
+		  	start==1 {print $1}' | \
+		$GREP -w "$prop" > /dev/null 2>&1
+
+	return $?
+}
+
+#
+# Detect if the given pool property is supported in this release
+#
+# 0	Yes, it is supported
+# !0	No, it is not supported
+#
+function pool_prop_exist
+{
+	typeset prop=$1
+	if [[ -z $prop ]]; then
+		log_fail "Usage: pool_prop_exist <property>"
+
+		return 1
+	fi
+	#
+	# If the property is shortened column name,
+	# convert it to the standard name
+	#
+	case $prop in
+		avail)		prop=available		;;
+		cap)		prop=capacity		;;
+		replace)	prop=autoreplace	;;
+	esac
+
+	#
+	# The zpool get output looks like the following
+	#
+
+	# usage:
+	#	get <"all" | property[,...]> <pool> ...
+	#
+	# the following properties are supported:
+	#
+	#	PROPERTY       EDIT  VALUES
+	#
+	#	available	NO	<size>
+	#	capacity	NO	<size>
+	#	guid		NO	<guid>
+	#	health		NO	<state>
+	#	size		NO	<size>
+	#	used		NO	<size>
+	#	altroot		YES	<path>
+	#	autoreplace	YES	on | off
+	#	bootfs		YES	<filesystem>
+	#	cachefile       YES	<file> | none
+	#	delegation      YES	on | off
+	#	failmode	YES	wait | continue | panic
+	#	version		YES	<version>
+
+	$ZPOOL get 2>&1 | \
+		$AWK '/PROPERTY/ {start=1; next}
+			start==1 {print $1}' | \
+		$GREP -w "$prop" > /dev/null 2>&1
+
+	return $?
+}
+
+#
+# check if the system was installed as zfsroot or not
+# return: 0 ture, otherwise false
+#
+function is_zfsroot
+{
+	$DF -T / | $GREP -q zfs
+}
+
+#
+# get the root filesystem name if it's zfsroot system.
+#
+# return: root filesystem name
+function get_rootfs
+{
+	typeset rootfs=""
+	rootfs=$($MOUNT | $AWK '$3 == "\/" && $4~/zfs/ {print $1}')
+	if [[ -z "$rootfs" ]]; then
+		log_fail "Can not get rootfs"
+	fi
+	$ZFS list $rootfs > /dev/null 2>&1
+	if (( $? == 0 )); then
+		$ECHO $rootfs
+	else
+		log_fail "This is not a zfsroot system."
+	fi
+}
+
+#
+# get the rootfs's pool name
+# return:
+#       rootpool name
+#
+function get_rootpool
+{
+	typeset rootfs=""
+	typeset rootpool=""
+	rootfs=$(get_rootfs)
+	rootpool=`$ECHO $rootfs | awk -F\/ '{print $1}'`
+	echo $rootpool
+}
+
+#
+# Get the sub string from specified source string
+#
+# $1 source string
+# $2 start position. Count from 1
+# $3 offset
+#
+function get_substr #src_str pos offset
+{
+	typeset pos offset
+
+	$ECHO $1 | \
+		$NAWK -v pos=$2 -v offset=$3 '{print substr($0, pos, offset)}'
+}
+
+#
+# Get the directory path of given device
+#
+function get_device_dir #device
+{
+	typeset device=$1
+
+	$ECHO "/dev"
+}
+
+#
+# Get the package name 
+#
+function get_package_name
+{
+	typeset dirpath=${1:-$STC_NAME}
+
+	print "SUNWstc-${dirpath}" | /usr/bin/sed -e "s/\//-/g"
+}
+
+#
+# Get the word numbers from a string separated by white space
+#
+function get_word_count
+{
+	$ECHO $1 | $WC -w
+}
+
+#
+# To verify if the require numbers of disks is given
+#
+function verify_disk_count
+{
+	typeset -i min=${2:-1}
+
+	typeset -i count=$(get_word_count "$1")
+
+	if (( count < min )); then
+		atf_skip "A minimum of $min disks is required to run." \
+			" You specified $count disk(s)"
+	fi
+}
+
+#
+# Verify that vfs.zfs.vol.recursive is set, so pools can be created using zvols
+# as backing stores.
+#
+function verify_zvol_recursive
+{
+	if [ "`sysctl -n vfs.zfs.vol.recursive`" -ne 1 ]; then
+		atf_skip "Recursive ZVOLs not enabled"
+	fi
+}
+
+#
+# bsdmap disk/slice number to a device path
+#
+function bsddevmap
+{
+	typeset arg=$1 
+	echo $arg | egrep "*s[0-9]$" > /dev/null 2>&1
+	if [ $? -eq 0 ]
+	then
+		n=`echo $arg| wc -c`
+		set -A map a b c d e f g h i j
+		s=`echo $arg | cut -c $((n-1))`
+		arg=${arg%s[0-9]}${map[$s]}
+	fi
+	echo $arg
+}
+
+#
+# Get the name of the snapshots directory.  Traditionally .zfs/snapshots
+#
+function get_snapdir_name
+{
+	echo ".zfs/snapshot"
+}
+
+#
+# Unmount all ZFS filesystems except for those that are in the KEEP variable
+#
+function unmount_all_safe
+{
+	echo $(all_pools) | \
+		$XARGS -n 1 $ZFS list -H -o name -t all -r | \
+		$XARGS -n 1 $ZFS unmount
+}
+
+#
+# Return the highest pool version that this OS can create
+#
+function get_zpool_version
+{
+	# We assume output from zpool upgrade -v of the form:
+	#
+	# This system is currently running ZFS version 2.
+	# .
+	# .
+	typeset ZPOOL_VERSION=$($ZPOOL upgrade -v | $HEAD -1 | \
+		$AWK '{print $NF}' | $SED -e 's/\.//g')
+	# Starting with version 5000, the output format changes to:
+	# This system supports ZFS pool feature flags.
+	# .
+	# .
+	if [[ $ZPOOL_VERSION = "flags" ]]; then
+		ZPOOL_VERSION=5000
+	fi
+	echo $ZPOOL_VERSION
+}
+
+# Ensures that zfsd is running, starting it if necessary.  Every test that
+# interacts with zfsd must call this at startup.  This is intended primarily
+# to eliminate interference from outside the test suite.
+function ensure_zfsd_running
+{
+	if ! service zfsd status > /dev/null 2>&1; then
+		service zfsd start || service zfsd onestart
+		service zfsd status > /dev/null 2>&1 ||
+			log_unsupported "Test requires zfsd"
+	fi
+}
+
+# Temporarily stops ZFSD, because it can interfere with some tests.  If this
+# function is used, then restart_zfsd _must_ be called in the cleanup routine.
+function stop_zfsd
+{
+	$RM -f $TMPDIR/.zfsd_enabled_during_stf_zfs_tests
+	if [[ -n "$ZFSD" && -x "$ZFSD" ]]; then
+		if /etc/rc.d/zfsd status > /dev/null; then
+			log_note "Stopping zfsd"
+			$TOUCH $TMPDIR/.zfsd_enabled_during_stf_zfs_tests
+			/etc/rc.d/zfsd stop || /etc/rc.d/zfsd onestop
+		fi
+	fi
+}
+
+# Restarts zfsd after it has been stopped by stop_zfsd.  Intelligently restarts
+# only iff zfsd was running at the time stop_zfsd was called.
+function restart_zfsd
+{
+	if [[ -f $TMPDIR/.zfsd_enabled_during_stf_zfs_tests ]]; then
+		log_note "Restarting zfsd"
+		/etc/rc.d/zfsd start || /etc/rc.d/zfsd onestart
+	fi
+	$RM -f $TMPDIR/.zfsd_enabled_during_stf_zfs_tests
+}
+
+#
+# Using the given <vdev>, obtain the value of the property <propname> for
+# the given <tvd> identified by numeric id.
+#
+function get_tvd_prop # vdev tvd propname
+{
+	typeset vdev=$1
+	typeset -i tvd=$2
+	typeset propname=$3
+
+	$ZDB -l $vdev | $AWK -v tvd=$tvd -v prop="${propname}:" '
+		BEGIN { start = 0; }
+		/^        id:/ && ($2==tvd) { start = 1; next; }
+		(start==0) { next; }
+		/^        [a-z]+/ && ($1==prop) { print $2; exit; }
+		/^        children/ { exit; }
+		'
+}
+
+#
+# Convert a DVA into a physical block address.  Prints number of blocks.
+# This takes the usual printed form, in which offsets are left shifted so
+# they represent bytes rather than the native sector count.
+#
+function dva_to_block_addr # dva
+{
+	typeset dva=$1
+
+	typeset offcol=$(echo $dva | cut -f2 -d:)
+	typeset -i offset="0x${offcol}"
+	# First add 4MB to skip the boot blocks and first two vdev labels,
+	# then convert to 512 byte blocks (for use with dd).  Note that this
+	# differs from simply adding 8192 blocks, since the input offset is
+	# given in bytes and has the actual ashift baked in.
+	(( offset += 4*1024*1024 ))
+	(( offset >>= 9 ))
+	echo "$offset"
+}
+
+#
+# Convert a RAIDZ DVA into a physical block address.  This has the same
+# output as dva_to_block_addr (number of blocks from beginning of device), but
+# is more complicated due to RAIDZ.  ashift is normally always 9, but RAIDZ
+# uses the actual tvd ashift instead.  Furthermore, the number of vdevs changes
+# the actual block for each device.
+#
+function raidz_dva_to_block_addr # dva ncols ashift
+{
+	typeset dva=$1
+	typeset -i ncols=$2
+        typeset -i ashift=$3
+
+	typeset -i offset=0x$(echo $dva | cut -f2 -d:)
+	(( offset >>= ashift ))
+
+	typeset -i ioff=$(( (offset + ncols - 1) / ncols  ))
+
+	# Now add the front 4MB and return.
+	(( ioff += ( 4194304 >> $ashift ) ))
+	echo "$ioff"
+}
+
+#
+# Return the vdevs for the given toplevel vdev number.
+# Child vdevs will only be included if they are ONLINE.  Output format:
+#
+#   <toplevel vdev type> <nchildren> <child1>[:<child2> ...]
+#
+# Valid toplevel vdev types are mirror, raidz[1-3], leaf (which can be a
+# disk or a file).  Note that 'nchildren' can be larger than the number of
+# returned children; it represents the number of children regardless of how
+# many are actually online.
+#
+function vdevs_for_tvd # pool tvd
+{
+	typeset pool=$1
+	typeset -i tvd=$2
+
+	$ZPOOL status $pool | $AWK -v want_tvd=$tvd '
+		BEGIN {
+			 start = 0; tvd = -1; lvd = -1;
+			 type = "UNKNOWN"; disks = ""; disk = "";
+			 nchildren = 0;
+		}
+		/NAME.*STATE/ { start = 1; next; }
+		(start==0) { next; }
+
+		(tvd > want_tvd) { exit; }
+		END { print type " " nchildren " " disks; }
+
+		length(disk) > 0 {
+			if (length(disks) > 0) { disks = disks " "; }
+			if (substr(disk, 0, 1) == "/") {
+				disks = disks disk;
+			} else {
+				disks = disks "/dev/" disk;
+			}
+			disk = "";
+		}
+
+		/^\t(spares|logs)/ { tvd = want_tvd + 1; next; }
+		/^\t  (mirror|raidz[1-3])-[0-9]+/ { 
+			tvd += 1;
+			(tvd == want_tvd) && type = substr($1, 0, 6);
+			next;
+		}
+		/^\t  [\/A-Za-z]+/ {
+			tvd += 1;
+			if (tvd == want_tvd) {
+				(( nchildren += 1 ))
+				type = "leaf";
+				($2 == "ONLINE") && disk = $1;
+			}
+			next;
+		}
+
+		(tvd < want_tvd) { next; }
+
+		/^\t    spare-[0-9]+/ { next; }
+		/^\t      [\/A-Za-z]+/ {
+			(( nchildren += 1 ))
+			($2 == "ONLINE") && disk = $1;
+			next;
+		}
+
+		/^\t    [\/A-Za-z]+/ {
+			(( nchildren += 1 ))
+			($2 == "ONLINE") && disk = $1;
+			next;
+		}
+		'
+}
+
+#
+# Get a vdev path, ashift & offset for a given pool/dataset and DVA.
+# If desired, can also select the toplevel vdev child number.
+#
+function dva_to_vdev_ashift_off # pool/dataset dva [leaf_vdev_num]
+{
+	typeset poollike=$1
+	typeset dva=$2
+	typeset -i leaf_vdev_num=$3
+
+	# vdevs are normally 0-indexed while arguments are 1-indexed.
+	(( leaf_vdev_num += 1 ))
+
+	# Strip any child datasets or snapshots.
+	pool=$(echo $poollike | sed -e 's,[/@].*,,g')
+	tvd=$(echo $dva | cut -d: -f1)
+
+	set -- $(vdevs_for_tvd $pool $tvd)
+	log_debug "vdevs_for_tvd: $* <EOM>"
+	tvd_type=$1; shift
+	nchildren=$1; shift
+
+	lvd=$(eval echo \$$leaf_vdev_num)
+	log_debug "type='$tvd_type' children='$nchildren' lvd='$lvd' dva='$dva'"
+	case $tvd_type in
+	raidz*)
+		ashift=$(get_tvd_prop $lvd $tvd ashift)
+		log_debug "raidz: ashift='${ashift}'"
+		off=$(raidz_dva_to_block_addr $dva $nchildren $ashift)
+		;;
+	*)
+		ashift=9
+		off=$(dva_to_block_addr $dva)
+		;;
+	esac
+	echo "${lvd}:${ashift}:${off}"
+}
+
+#
+# Get the DVA for the specified dataset's given filepath.
+#
+function file_dva # dataset filepath [level] [offset] [dva_num]
+{
+	typeset dataset=$1
+	typeset filepath=$2
+	typeset -i level=$3
+	typeset -i offset=$4
+	typeset -i dva_num=$5
+
+	typeset -li blksz=0
+	typeset -li blknum=0
+	typeset -li startoff
+	typeset -li inode
+
+	eval `$STAT -s "$filepath"`
+	inode="$st_ino"
+
+	# The inner match is for 'DVA[0]=<0:1b412600:200>', in which the
+	# text surrounding the actual DVA is a fixed size with 8 characters
+	# before it and 1 after.
+	$ZDB -P -vvvvv $dataset $inode | \
+	    $AWK -v level=${level} -v dva_num=${dva_num} '
+		BEGIN { stage = 0; }
+		(stage == 0) && ($1=="Object") { stage = 1; next; }
+
+		(stage == 1) {
+			print $3 " " $4;
+			stage = 2; next;
+		}
+
+		(stage == 2) && /^Indirect blocks/ { stage=3; next; }
+		(stage < 3) { next; }
+
+		match($2, /L[0-9]/) {
+			if (substr($2, RSTART+1, RLENGTH-1) != level) { next; }
+		}
+		match($3, /DVA\[.*>/) {
+			dva = substr($3, RSTART+8, RLENGTH-9);
+			if (substr($3, RSTART+4, 1) == dva_num) {
+				print $1 " " dva;
+			}
+		}
+		' | \
+	while read line; do
+		log_debug "params='$blksz/$blknum/$startoff' line='$line'"
+		if (( blksz == 0 )); then
+			typeset -i iblksz=$(echo $line | cut -d " " -f1)
+			typeset -i dblksz=$(echo $line | cut -d " " -f2)
+
+			# Calculate the actual desired block starting offset.
+			if (( level > 0 )); then
+				typeset -i nbps_per_level
+				typeset -i indsz
+				typeset -i i=0
+
+				(( nbps_per_level = iblksz / 128 ))
+				(( blksz = dblksz ))
+				for (( i = 0; $i < $level; i++ )); do
+					(( blksz *= nbps_per_level ))
+				done
+			else
+				blksz=$dblksz
+			fi
+
+			(( blknum = offset / blksz ))
+			(( startoff = blknum * blksz ))
+			continue
+		fi
+
+		typeset lineoffstr=$(echo $line | cut -d " " -f1)
+		typeset -i lineoff=$(printf "%d" "0x${lineoffstr}")
+		typeset dva="$(echo $line | cut -d " " -f2)"
+		log_debug "str='$lineoffstr' lineoff='$lineoff' dva='$dva'"
+		if [[ -n "$dva" ]] && (( lineoff == startoff )); then
+			echo $line | cut -d " " -f2
+			return 0
+		fi
+	done
+	return 1
+}
+
+#
+# Corrupt the given dataset's filepath file.  This will obtain the first
+# level 0 block's DVA and scribble random bits on it.
+#
+function corrupt_file # dataset filepath [leaf_vdev_num]
+{
+	typeset dataset=$1
+	typeset filepath=$2
+	typeset -i leaf_vdev_num="$3"
+
+	dva=$(file_dva $dataset $filepath)
+	[ $? -ne 0 ] && log_fail "ERROR: Can't find file $filepath on $dataset"
+
+	vdoff=$(dva_to_vdev_ashift_off $dataset $dva $leaf_vdev_num)
+	vdev=$(echo $vdoff | cut -d: -f1)
+	ashift=$(echo $vdoff | cut -d: -f2)
+	off=$(echo $vdoff | cut -d: -f3)
+	blocksize=$(( 1 << $ashift ))
+
+	log_note "Corrupting ${dataset}'s $filepath on $vdev at DVA $dva with ashift $ashift"
+	log_must $DD if=/dev/urandom bs=$blocksize of=$vdev seek=$off count=1 conv=notrunc
+}
+
+#
+# Given a number of files, this function will iterate through
+# the loop creating the specified number of files, whose names
+# will start with <basename>.
+#
+# The <data> argument is special: it can be "ITER", in which case
+# the -d argument will be the value of the current iteration.  It
+# can be 0, in which case it will always be 0.  Otherwise, it will
+# always be the given value.
+#
+# If <snapbase> is specified, a snapshot will be taken using the
+# argument as the snapshot basename.
+#
+function populate_dir # basename num_files write_count blocksz data snapbase
+{
+	typeset basename=$1
+	typeset -i num_files=$2
+	typeset -i write_count=$3
+	typeset -i blocksz=$4
+	typeset -i i
+	typeset data=$5
+	typeset snapbase="$6"
+
+	log_note "populate_dir: data='$data'"
+	for (( i = 0; i < num_files; i++ )); do
+		case "$data" in
+		0)	d=0	;;
+		ITER)	d=$i ;;
+		*)	d=$data	;;
+		esac
+
+        	log_must $FILE_WRITE -o create -c $write_count \
+		    -f ${basename}.$i -b $blocksz -d $d
+
+		[ -n "$snapbase" ] && log_must $ZFS snapshot ${snapbase}.${i}
+	done
+}
+
+# Reap all children registered in $child_pids.
+function reap_children
+{
+	[ -z "$child_pids" ] && return
+	for wait_pid in $child_pids; do
+		log_must $KILL $wait_pid
+	done
+	child_pids=""
+}
+
+# Busy a path.  Expects to be reaped via reap_children.  Tries to run as
+# long and slowly as possible.  [num] is taken as a hint; if such a file
+# already exists a different one will be chosen.
+function busy_path # <path> [num]
+{
+	typeset busypath=$1
+	typeset -i num=$2
+
+	while :; do
+		busyfile="$busypath/busyfile.${num}"
+		[ ! -f "$busyfile" ] && break
+	done
+
+	cmd="$DD if=/dev/urandom of=$busyfile bs=512"
+	( cd $busypath && $cmd ) &
+	typeset pid=$!
+	$SLEEP 1
+	log_must $PS -p $pid
+	child_pids="$child_pids $pid"
+}

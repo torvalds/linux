@@ -1,0 +1,354 @@
+.\" Copyright (c) 2001-2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: rfcomm_pppd.8,v 1.7 2003/09/07 18:32:11 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd February 4, 2003
+.Dt RFCOMM_PPPD 8
+.Os
+.Sh NAME
+.Nm rfcomm_pppd
+.Nd RFCOMM PPP daemon
+.Sh SYNOPSIS
+.Nm
+.Fl c
+.Op Fl dh
+.Fl a Ar address
+.Fl C Ar channel
+.Fl l Ar label
+.Fl u Ar N
+.Nm
+.Fl s
+.Op Fl dDhS
+.Op Fl a Ar address
+.Fl C Ar channel
+.Fl l Ar label
+.Sh DESCRIPTION
+The
+.Nm
+daemon is a simple wrapper daemon that allows the use of
+.Xr ppp 8
+via an RFCOMM connection.
+It can operate in two modes: client and server.
+.Pp
+In client mode,
+.Nm
+opens an RFCOMM connection to the specified server's
+.Ar BD_ADRR
+and
+.Ar channel .
+Once the RFCOMM connection is established,
+.Nm
+executes
+.Xr ppp 8
+in
+.Fl direct
+mode with the specified
+.Ar label .
+Likewise,
+.Xr ppp 8
+operates over the RFCOMM connection just like it would over a standard serial
+port, thus allowing a user to
+.Dq "dial out"
+and connect to the Internet.
+.Pp
+In server mode,
+.Nm
+opens an RFCOMM socket and listens for incoming connections from remote clients.
+Once the new incoming connection is accepted,
+.Nm
+forks and executes
+.Xr ppp 8
+in
+.Fl direct
+mode with the specified
+.Ar label .
+Likewise,
+.Xr ppp 8
+operates over the RFCOMM connection just like it would over a standard serial
+port, thus providing network connectivity to remote clients.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a Ar address
+In client mode, this required option specifies the address of the remote
+RFCOMM server.
+In server mode, this option can be used to specify the local
+address to listen on.
+By default, in server mode, the daemon will listen on
+.Dv ANY
+address.
+The address can be specified as BD_ADDR or name.
+If a name was specified, the
+.Nm
+utility will attempt to resolve the name via
+.Xr bt_gethostbyname 3 .
+.It Fl C Ar channel
+In both client and server mode, this required option specifies the RFCOMM
+channel to connect to or listen on.
+In server mode, the channel should be a number between 1 and 30.
+In client mode, the channel could either be a number between 1 and 30
+or a service name.
+Supported service names are:
+.Cm DUN
+(Dial-Up Networking) and
+.Cm LAN
+(LAN Access Using PPP).
+If a service name is used instead of a numeric channel number, then
+.Nm
+will try to obtain an RFCOMM channel number via SDP
+(Service Discovery Protocol).
+.It Fl c
+Act as an RFCOMM client.
+This is the default mode.
+.It Fl d
+Do not detach from the controlling terminal, i.e., run in foreground.
+.It Fl D
+In server mode, register the
+.Cm DUN
+(Dial-Up Networking) service in addition to the
+.Cm LAN
+(LAN Access Using PPP) service.
+AT-command exchange can be faked with
+.Xr ppp 8
+chat script.
+.It Fl h
+Display usage message and exit.
+.It Fl l Ar label
+In both client and server mode, this required option specifies which
+.Xr ppp 8
+label will be used.
+.It Fl S
+In server mode, register the
+.Cm SP
+(Serial Port) service in addition to the
+.Cm LAN
+(LAN Access Using PPP) service.
+.Pp
+It appears that some cell phones are using the so-called
+.Dq "callback mechanism" .
+In this scenario, the user is trying to connect his cell phone to the Internet,
+while the user's host computer is acting as the gateway server.
+It seems that it is not possible to tell the phone to just connect and start
+using the
+.Cm LAN
+service.
+Instead, the user's host computer must
+.Dq "jump start"
+the phone by connecting to the phone's
+.Cm SP
+service.
+What happens next is the phone kills the existing connection and opens another
+connection back to the user's host computer.
+The phone really wants to use the
+.Cm LAN
+service, but for whatever reason it looks for the
+.Cm SP
+service on the user's host computer.
+This brain-damaged behavior was reported for the Nokia 6600 and the
+Sony/Ericsson P900.
+.It Fl s
+Act as an RFCOMM server.
+.It Fl u Ar N
+This option maps directly to the
+.Fl unit
+.Xr ppp 8
+command-line option and tells
+.Nm
+to instruct
+.Xr ppp 8
+to only attempt to open
+.Pa /dev/tun Ns Ar N .
+This option only works in client mode.
+.El
+.Sh PPP CONFIGURATION
+.Ss Important Notes on PPP Configuration
+Special attention is required when adding new RFCOMM configurations to the
+existing PPP configuration.
+Please keep in mind that PPP will
+.Em always
+execute commands in the
+.Dq Li default
+label of your
+.Pa /etc/ppp/ppp.conf
+file.
+Please make sure that the
+.Dq Li default
+label
+.Em only
+contains commands that apply to
+.Em every
+other label.
+If you need to use PPP for both dialing out and accepting incoming
+RFCOMM connections, please make sure you have moved all commands related to
+dialing out from the
+.Dq Li default
+section into an appropriate outgoing label.
+.Ss RFCOMM Server
+One of the typical examples is the LAN access.
+In this example, an RFCOMM connection
+is used as a null-modem connection between a client and a server.
+Both client and server will start talking PPP right after the RFCOMM
+connection has been established.
+.Bd -literal -offset indent
+rfcomm-server:
+ set timeout 0
+ set lqrperiod 10
+ set ifaddr 10.0.0.1 10.0.0.2 255.255.255.0
+ enable lqr
+ accept lqr
+ accept dns
+ # Do not use PPP authentication. Assume that
+ # Bluetooth connection was authenticated already
+ disable pap
+ deny pap
+ disable chap
+ deny chap
+.Ed
+.Ss RFCOMM Client
+The
+.Nm
+utility supports both
+.Cm LAN
+(LAN Access Using PPP) and
+.Cm DUN
+(Dial-Up Networking) access.
+The client's configuration for
+.Cm LAN
+access is very similar to the server's and might look like this:
+.Bd -literal -offset indent
+rfcomm-client:
+ enable lqr
+ accept lqr
+ set dial
+ set timeout 0
+ disable iface-alias
+ set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0 0.0.0.0
+ # Do not use PPP authentication. Assume that
+ # Bluetooth connection was authenticated already
+ deny pap
+ disable pap
+ deny chap
+ disable chap
+.Ed
+.Pp
+The client's configuration for
+.Cm DUN
+access is different.
+In this scenario, the client gets connected to the virtual serial port on the
+server.
+To open a PPP session, the client must dial a number.
+Note that by default
+.Xr ppp 8
+will not execute any configured chat scripts.
+The
+.Ic force-scripts
+option can be used to override this behavior.
+An example configuration is shown below:
+.Bd -literal -offset indent
+rfcomm-dialup:
+ # This is IMPORTANT option
+ enable force-scripts
+
+ # You might want to change these
+ set authname
+ set authkey
+ set phone "*99***1#"
+
+ # You might want to adjust dial string as well
+ set dial "ABORT BUSY ABORT NO\\\\sCARRIER TIMEOUT 5 \\
+           \\"\\" AT OK-AT-OK ATE1Q0 OK \\\\dATDT\\\\T TIMEOUT 40 CONNECT"
+ set login
+ set timeout 30
+ enable dns
+ resolv rewrite
+
+ set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0 0.0.0.0
+ add default HISADDR
+.Ed
+.Pp
+Note that by adjusting the initialization string, one can make a CSD (Circuit
+Switched Data), HSCSD (High Speed Circuit Switched Data) or GPRS (General
+Packet Radio Service) connection.
+The availability of the particular connection
+type depends on the phone model and service plan activated on the phone.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+.Dl "rfcomm_pppd -s -a 00:01:02:03:04:05 -C 1 -l rfcomm-server"
+.Pp
+This command will start
+.Nm
+in the server mode.
+The RFCOMM server will listen on local address
+.Li 00:01:02:03:04:05
+and channel
+.Li 1 .
+Once the incoming connection has been accepted,
+.Nm
+will execute
+.Xr ppp 8
+in
+.Fl direct
+mode with the
+.Dq Li rfcomm-server
+label.
+.Pp
+.Dl "rfcomm_pppd -c -a 00:01:02:03:04:05 -C 1 -l rfcomm-client"
+.Pp
+This command will start
+.Nm
+in the client mode.
+.Nm
+will try to connect to the RFCOMM server at
+.Li 00:01:02:03:04:05
+address and channel
+.Li 1 .
+Once connected,
+.Nm
+will execute
+.Xr ppp 8
+in
+.Fl direct
+mode with the
+.Dq Li rfcomm-client
+label.
+.Sh SEE ALSO
+.Xr rfcomm_sppd 1 ,
+.Xr bluetooth 3 ,
+.Xr ng_btsocket 4 ,
+.Xr ppp 8 ,
+.Xr sdpcontrol 8 ,
+.Xr sdpd 8
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh CAVEATS
+The
+.Nm
+utility in server mode will try to register the Bluetooth LAN Access Over PPP
+service with the local SDP daemon.
+If the local SDP daemon is not running,
+.Nm
+will exit with an error.

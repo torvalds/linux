@@ -1,0 +1,76 @@
+<div class="line">
+  <div class="text">Item </div>
+  <div class="data" data-tag="name" data-xpath="/top/item/name">one</div>
+  <div class="text"> is </div>
+  <div class="label">number</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="value" data-xpath="/top/item[name = 'one']/value">001</div>
+  <div class="text">, </div>
+  <div class="label">color</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="color" data-xpath="/top/item[name = 'one']/color">red</div>
+</div>
+<div class="line">
+  <div class="text">Item </div>
+  <div class="data" data-tag="name" data-xpath="/top/item/name">two</div>
+  <div class="text"> is </div>
+  <div class="label">number</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="value" data-xpath="/top/item[name = 'two']/value">002</div>
+  <div class="text">, </div>
+  <div class="label">color</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="color" data-xpath="/top/item[name = 'two']/color">blue</div>
+</div>
+<div class="line">
+  <div class="text">Item </div>
+  <div class="data" data-tag="name" data-xpath="/top/item/name">three</div>
+  <div class="text"> is </div>
+  <div class="label">number</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="value" data-xpath="/top/item[name = 'three']/value">003</div>
+  <div class="text">, </div>
+  <div class="label">color</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="color" data-xpath="/top/item[name = 'three']/color">green</div>
+</div>
+<div class="line">
+  <div class="text">Item </div>
+  <div class="data" data-tag="name" data-xpath="/top/item/name">four</div>
+  <div class="text"> is </div>
+  <div class="label">number</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="value" data-xpath="/top/item[name = 'four']/value">004</div>
+  <div class="text">, </div>
+  <div class="label">color</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="color" data-xpath="/top/item[name = 'four']/color">yellow</div>
+</div>
+  <div class="padding">     </div>
+<div class="line">
+  <div class="data" data-tag="address" data-xpath="/anchor/address">0xdeadbeef</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="foo" data-xpath="/anchor/foo">1</div>
+</div>
+  <div class="padding">     </div>
+<div class="line">
+  <div class="data" data-tag="address" data-xpath="/anchor/address">0xdeadbeef</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="foo" data-xpath="/anchor/foo">1</div>
+</div>
+  <div class="padding">     </div>
+<div class="line">
+  <div class="data" data-tag="address" data-xpath="/anchor/address">0xdeadbeef</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="foo" data-xpath="/anchor/foo">1</div>
+</div>
+  <div class="padding">     </div>
+<div class="line">
+  <div class="data" data-tag="address" data-xpath="/anchor/address">0xdeadbeef</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="foo" data-xpath="/anchor/foo">1</div>
+</div>

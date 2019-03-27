@@ -1,0 +1,380 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software written and contributed
+.\" to Berkeley by William Jolitz.
+.\"
+.\" Almost completely rewritten for FreeBSD 2.1 by Joerg Wunsch.
+.\"
+.\" Substantially revised for FreeBSD 3.1 by Robert Nordier.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)boot_i386.8	8.2 (Berkeley) 4/19/94
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 15, 2018
+.Dt BOOT 8 i386
+.Os
+.Sh NAME
+.Nm boot
+.Nd system bootstrapping procedures
+.Sh DESCRIPTION
+.Sy Power fail and crash recovery .
+Normally, the system will reboot itself at power-up or after crashes.
+An automatic consistency check of the file systems will be performed,
+and unless this fails, the system will resume multi-user operations.
+.Pp
+.Sy Cold starts .
+Most i386 PCs attempt to boot first from floppy disk drive 0 (sometimes
+known as drive A:) and, failing that, from hard disk drive 0 (sometimes
+known as drive C:, or as drive 0x80 to the BIOS).
+Some BIOSes allow
+you to change this default sequence, and may also include a CD-ROM
+drive as a boot device.
+.Pp
+Some newer PCs boot using UEFI firmware, not BIOS.
+That process is described
+in
+.Xr uefi 8 .
+.Pp
+By default, a three-stage bootstrap is employed, and control is
+automatically passed from the boot blocks (bootstrap stages one and
+two) to a separate third-stage bootstrap program,
+.Xr loader 8 .
+This third stage provides more sophisticated control over the booting
+process than it is possible to achieve in the boot blocks, which are
+constrained by occupying limited fixed space on a given disk or slice.
+.Pp
+However, it is possible to dispense with the third stage altogether,
+either by specifying a kernel name in the boot block parameter
+file,
+.Pa /boot.config ,
+or, unless option
+.Fl n
+is set, by hitting a key during a brief pause (while one of the characters
+.Sy - ,
+.Sy \e ,
+.Sy \&| ,
+or
+.Sy /
+is displayed) before
+.Xr loader 8
+is invoked.
+Booting will also be attempted at stage two, if the
+third stage cannot be loaded.
+.Pp
+The remainder of this subsection deals only with the boot blocks.
+The
+.Xr loader 8
+program is documented separately.
+.Pp
+After the boot blocks have been loaded,
+you should see a prompt similar to the following:
+.Bd -literal
+>> FreeBSD/i386 BOOT
+Default: 0:ad(0,a)/boot/loader
+boot:
+.Ed
+.Pp
+The automatic boot will attempt to load
+.Pa /boot/loader
+from partition
+.Ql a
+of either the floppy or the hard disk.
+This boot may be aborted by typing any character on the keyboard
+at the
+.Ql boot:
+prompt.
+At this time, the following input will be accepted:
+.Bl -tag -width indent
+.It Ic \&?
+Give a short listing of the files in the root directory of the default
+boot device, as a hint about available boot files.
+(A
+.Ic ?\&
+may also be specified as the last segment of a path, in which case
+the listing will be of the relevant subdirectory.)
+.It Xo
+.Sm off
+.Ar bios_drive : interface ( unit , Oo Ar slice , Oc Ar part )
+.Ar filename
+.Sm on
+.Op Fl aCcDdghmnPprsv
+.Op Fl S Ns Ar speed
+.Xc
+Specify boot file and flags.
+.Bl -tag -width indent
+.It Ar bios_drive
+The drive number as recognized by the BIOS.
+0 for the first drive, 1 for the second drive, etc.
+.It Ar interface
+The type of controller to boot from.
+Note that the controller is required
+to have BIOS support since the BIOS services are used to load the
+boot file image.
+.Pp
+The supported interfaces are:
+.Pp
+.Bl -tag -width "adXX" -compact
+.It ad
+ST506, IDE, ESDI, RLL disks on a WD100[2367] or lookalike
+controller
+.It fd
+5 1/4" or 3 1/2" High density floppies
+.It da
+SCSI disk on any supported SCSI controller
+.\".It cd
+.\"boot from CDROM
+.El
+.It Ar unit
+The unit number of the drive on the interface being used.
+0 for the first drive, 1 for the second drive, etc.
+.It Oo Ar slice , Oc Ns Ar part
+The partition letter inside the
+.Bx
+portion of the disk.
+See
+.Xr bsdlabel 8 .
+By convention, only partition
+.Ql a
+contains a bootable image.
+If sliced disks are used
+.Pq Dq fdisk partitions ,
+any
+.Ar slice
+(1 for the first slice, 2 for the second slice, etc.\&)
+can be booted from, with the default (if not specified) being the active slice
+or, otherwise, the first
+.Fx
+slice.
+If
+.Ar slice
+is specified as 0, the first
+.Fx
+slice (also known as
+.Dq compatibility
+slice) is booted from.
+.It Ar filename
+The pathname of the file to boot (relative to the root directory
+on the specified partition).
+Defaults to
+.Pa /boot/kernel/kernel .
+Symbolic links are not supported (hard links are).
+.It Xo Op Fl aCcDdghmnPpqrsv
+.Op Fl S Ns Ar speed
+.Xc
+Boot flags:
+.Pp
+.Bl -tag -width "-CXX" -compact
+.It Fl a
+during kernel initialization,
+ask for the device to mount as the root file system.
+.It Fl C
+try to mount root file system from a CD-ROM.
+.It Fl c
+this flag is currently a no-op.
+.It Fl D
+boot with the dual console configuration.
+In the single
+configuration, the console will be either the internal display
+or the serial port, depending on the state of the
+.Fl h
+option below.
+In the dual console configuration,
+both the internal display and the serial port will become the console
+at the same time, regardless of the state of the
+.Fl h
+option.
+.It Fl d
+enter the DDB kernel debugger
+(see
+.Xr ddb 4 )
+as early as possible in kernel initialization.
+.It Fl g
+use the GDB remote debugging protocol.
+.It Fl h
+force the serial console.
+For instance, if you boot from the internal console,
+you can use the
+.Fl h
+option to force the kernel to use the serial port as its
+console device.
+The serial port driver
+.Xr sio 4
+(but not
+.Xr uart 4 )
+has a flag (0x20) to override this option.
+If that flag is set, the serial port will always be used as the console,
+regardless of the
+.Fl h
+option described here.
+.It Fl m
+mute the console to suppress all kernel console input and output during the
+boot.
+.It Fl n
+ignore key press to interrupt boot before
+.Xr loader 8
+is invoked.
+.It Fl P
+probe the keyboard.
+If no keyboard is found, the
+.Fl D
+and
+.Fl h
+options are automatically set.
+.It Fl p
+pause after each attached device during the device probing phase.
+.It Fl q
+be quiet,
+do not write anything to the console unless automatic boot fails or
+is disabled.
+This option only affects second-stage bootstrap,
+to prevent next stages from writing to the console use in
+combination with the
+.Fl m
+option.
+.It Fl r
+use the statically configured default for the device containing the
+root file system
+(see
+.Xr config 8 ) .
+Normally, the root file system is on the device
+that the kernel was loaded from.
+.It Fl s
+boot into single-user mode; if the console is marked as
+.Dq insecure
+(see
+.Xr ttys 5 ) ,
+the root password must be entered.
+.It Fl S Ns Ar speed
+set the speed of the serial console to
+.Ar speed .
+The default is 9600 unless it has been overridden by setting
+.Va BOOT_COMCONSOLE_SPEED
+in
+.Xr make.conf 5
+and recompiling and reinstalling the boot blocks.
+.It Fl v
+be verbose during device probing (and later).
+.El
+.El
+.El
+.Pp
+Use the
+.Pa /boot.config
+file to set the default configuration options for the boot block code.
+See
+.Xr boot.config 5
+for more information about the
+.Pa /boot.config
+file.
+.Sh FILES
+.Bl -tag -width /boot/loader -compact
+.It Pa /boot.config
+parameters for the boot blocks (optional)
+.It Pa /boot/boot1
+first stage bootstrap file
+.It Pa /boot/boot2
+second stage bootstrap file
+.It Pa /boot/loader
+third stage bootstrap
+.It Pa /boot/kernel/kernel
+default kernel
+.It Pa /boot/kernel.old/kernel
+typical non-default kernel (optional)
+.El
+.Sh DIAGNOSTICS
+When disk-related errors occur, these are reported by the second-stage
+bootstrap using the same error codes returned by the BIOS, for example
+.Dq Disk error 0x1 (lba=0x12345678) .
+Here is a partial list of these error codes:
+.Pp
+.Bl -tag -width "0x80" -compact
+.It 0x1
+Invalid argument
+.It 0x2
+Address mark not found
+.It 0x4
+Sector not found
+.It 0x8
+DMA overrun
+.It 0x9
+DMA attempt across 64K boundary
+.It 0xc
+Invalid media
+.It 0x10
+Uncorrectable CRC/ECC error
+.It 0x20
+Controller failure
+.It 0x40
+Seek failed
+.It 0x80
+Timeout
+.El
+.Pp
+.Sy "NOTE" :
+On older machines, or otherwise where EDD support (disk packet
+interface support) is not available, all boot-related files and
+structures (including the kernel) that need to be accessed during the
+boot phase must reside on the disk at or below cylinder 1023 (as the
+BIOS understands the geometry).
+When a
+.Dq Disk error 0x1
+is reported by the second-stage bootstrap, it generally means that this
+requirement has not been adhered to.
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr boot.config 5 ,
+.Xr make.conf 5 ,
+.Xr mount.conf 5 ,
+.Xr ttys 5 ,
+.Xr boot0cfg 8 ,
+.Xr btxld 8 ,
+.Xr config 8 ,
+.Xr gpart 8 ,
+.Xr gptboot 8 ,
+.Xr halt 8 ,
+.Xr loader 8 ,
+.Xr nextboot 8 ,
+.Xr reboot 8 ,
+.Xr shutdown 8 ,
+.Xr uefi 8
+.Sh BUGS
+The bsdlabel format used by this version of
+.Bx
+is quite
+different from that of other architectures.
+.Pp
+Due to space constraints, the keyboard probe initiated by the
+.Fl P
+option is simply a test that the BIOS has detected an
+.Dq extended
+keyboard.
+If an
+.Dq XT/AT
+keyboard (with no F11 and F12 keys, etc.) is attached, the probe will
+fail.

@@ -1,0 +1,522 @@
+.\"
+.\" Copyright (c) 1997 Kenneth D. Merry.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)iostat.8	8.1 (Berkeley) 6/6/93
+.\"
+.Dd May 22, 2015
+.Dt IOSTAT 8
+.Os
+.Sh NAME
+.Nm iostat
+.Nd report
+.Tn I/O
+statistics
+.Sh SYNOPSIS
+.Nm
+.Op Fl CdhIKoTxz?\&
+.Op Fl c Ar count
+.Op Fl M Ar core
+.Op Fl n Ar devs
+.Op Fl N Ar system
+.Oo
+.Fl t
+.Sm off
+.Ar type , if , pass
+.Sm on
+.Oc
+.Op Fl w Ar wait
+.Op Ar drives
+.Sh DESCRIPTION
+The
+.Nm
+utility displays kernel
+.Tn I/O
+statistics on terminal, device and cpu operations.
+The first statistics that are printed are averaged over the system uptime.
+To get information about the current activity, a suitable wait time should
+be specified, so that the subsequent sets of printed statistics will be
+averaged over that time.
+.Pp
+The options are as follows:
+.Bl -tag -width flag
+.It Fl c
+Repeat the display
+.Ar count
+times.
+If no repeat
+.Ar count
+is specified, the default depends on whether
+.Fl w
+is specified.
+With
+.Fl w
+the default repeat count is infinity, otherwise it is 1.
+.It Fl C
+Display CPU statistics.
+This is on by default, unless
+.Fl d
+or
+.Fl x
+is specified.
+.It Fl d
+Display only device statistics.
+If this flag is turned on, only device statistics will be displayed, unless
+.Fl C
+or
+.Fl T
+is also specified to enable the display of CPU or TTY statistics.
+.It Fl h
+Put
+.Nm
+in
+.Sq top
+mode.
+In this mode,
+.Nm
+will show devices in order from highest to lowest bytes
+per measurement cycle.
+.It Fl I
+Display total statistics for a given time period, rather than average
+statistics for each second during that time period.
+.It Fl K
+In the blocks transferred display (-o), display block count in kilobytes rather
+then the device native block size.
+.It Fl M
+Extract values associated with the name list from the specified core
+instead of the default
+.Dq Pa /dev/kmem .
+.It Fl n
+Display up to
+.Ar devs
+number of devices.
+The
+.Nm
+utility will display fewer devices if there are not
+.Ar devs
+devices present.
+.It Fl N
+Extract the name list from the specified system instead of the default
+.Dq Pa /boot/kernel/kernel .
+.It Fl o
+Display old-style
+.Nm
+device statistics.
+Sectors per second, transfers per second, and milliseconds per seek are
+displayed.
+If
+.Fl I
+is specified, total blocks/sectors, total transfers, and
+milliseconds per seek are displayed.
+.It Fl t
+Specify which types of devices to display.
+There are three different categories of devices:
+.Pp
+.Bl -tag -width indent -compact
+.It device type:
+.Bl -tag -width 9n -compact
+.It da
+Direct Access devices
+.It sa
+Sequential Access devices
+.It printer
+Printers
+.It proc
+Processor devices
+.It worm
+Write Once Read Multiple devices
+.It cd
+CD devices
+.It scanner
+Scanner devices
+.It optical
+Optical Memory devices
+.It changer
+Medium Changer devices
+.It comm
+Communication devices
+.It array
+Storage Array devices
+.It enclosure
+Enclosure Services devices
+.It floppy
+Floppy devices
+.El
+.Pp
+.It interface:
+.Bl -tag -width 9n -compact
+.It IDE
+Integrated Drive Electronics devices
+.It SCSI
+Small Computer System Interface devices
+.It other
+Any other device interface
+.El
+.Pp
+.It passthrough:
+.Bl -tag -width 9n -compact
+.It pass
+Passthrough devices
+.El
+.El
+.Pp
+The user must specify at least one device type, and may specify at most
+one device type from each category.
+Multiple device types in a single device type statement must be separated by
+commas.
+.Pp
+Any number of
+.Fl t
+arguments may be specified on the command line.
+All
+.Fl t
+arguments are ORed together to form a matching expression against which
+all devices in the system are compared.
+Any device that fully matches any
+.Fl t
+argument will be included in the
+.Nm
+output, up to the number of devices that can be displayed in
+80 columns, or the maximum number of devices specified by the user.
+.It Fl T
+Display TTY statistics.
+This is on by default, unless
+.Fl d
+or
+.Fl x
+is specified.
+.It Fl w
+Pause
+.Ar wait
+seconds between each display.
+If no
+.Ar wait
+interval is specified, the default is 1 second.
+.Pp
+The
+.Nm
+command will accept and honor a non-integer number of seconds.
+Note that the interval only has millisecond granularity.
+Finer values will be truncated.
+E.g.,
+.Dq Li -w1.0001
+is the same as
+.Dq Li -w1.000 .
+The interval will also suffer from modifications to
+.Va kern.hz
+so your mileage may vary.
+.It Fl x
+Show extended disk statistics.
+Each disk is displayed on a line of its own with all available statistics.
+If this flag is turned on, only disk statistics will be displayed, unless
+.Fl C
+or
+.Fl T
+is also specified to enable the display of CPU or TTY statistics.
+.It Fl z
+If
+.Fl x
+is specified, omit lines for devices with no activity.
+.It Fl ?\&
+Display a usage statement and exit.
+.El
+.Pp
+The
+.Nm
+utility displays its information in the following format:
+.Bl -tag -width flag
+.It tty
+.Bl -tag -width indent -compact
+.It tin
+characters read from terminals
+.It tout
+characters written to terminals
+.El
+.It devices
+Device operations.
+The header of the field is the device name and unit number.
+The
+.Nm
+utility
+will display as many devices as will fit in a standard 80 column screen, or
+the maximum number of devices in the system, whichever is smaller.
+If
+.Fl n
+is specified on the command line,
+.Nm
+will display the smaller of the
+requested number of devices, and the maximum number of devices in the system.
+To force
+.Nm
+to display specific drives, their names may be supplied on the command
+line.
+The
+.Nm
+utility
+will not display more devices than will fit in an 80 column screen, unless
+the
+.Fl n
+argument is given on the command line to specify a maximum number of
+devices to display.
+If fewer devices are specified on the command line than will fit in an 80
+column screen,
+.Nm
+will show only the specified devices.
+.Pp
+The standard
+.Nm
+device display shows the following statistics:
+.Pp
+.Bl -tag -width indent -compact
+.It KB/t
+kilobytes per transfer
+.It tps
+transfers per second
+.It MB/s
+megabytes per second
+.El
+.Pp
+The standard
+.Nm
+device display, with the
+.Fl I
+flag specified, shows the following statistics:
+.Pp
+.Bl -tag -width indent -compact
+.It KB/t
+kilobytes per transfer
+.It xfrs
+total number of transfers
+.It MB
+total number of megabytes transferred
+.El
+.Pp
+The extended
+.Nm
+device display, with the
+.Fl x
+flag specified, shows the following statistics:
+.Pp
+.Bl -tag -width indent -compact
+.It r/s
+read operations per second
+.It w/s
+write operations per second
+.It kr/s
+kilobytes read per second
+.It kw/s
+kilobytes write per second
+.It qlen
+transactions queue length
+.It ms/r
+average duration of read transactions, in milliseconds
+.It ms/w
+average duration of write transactions, in milliseconds
+.It ms/o
+average duration of all other transactions, in milliseconds
+.It ms/t
+average duration of all transactions, in milliseconds
+.It %b
+% of time the device had one or more outstanding transactions
+.El
+.Pp
+The extended
+.Nm
+device display, with the
+.Fl x
+and
+.Fl I
+flags specified, shows the following statistics:
+.Pp
+.Bl -tag -width indent -compact
+.It r/i
+read operations per time period
+.It w/i
+write operations per time period
+.It kr/i
+kilobytes read per time period
+.It kw/i
+kilobytes write per time period
+.It qlen
+transactions queue length
+.It tsvc_t/i
+total duration of transactions per time period, in seconds
+.It sb/i
+total time the device had one or more outstanding transactions per
+time period, in seconds
+.El
+.Pp
+The old-style
+.Nm
+display (using
+.Fl o )
+shows the following statistics:
+.Pp
+.Bl -tag -width indent -compact
+.It sps
+sectors transferred per second
+.It tps
+transfers per second
+.It msps
+average milliseconds per transaction
+.El
+.Pp
+The old-style
+.Nm
+display, with the
+.Fl I
+flag specified, shows the following statistics:
+.Pp
+.Bl -tag -width indent -compact
+.It blk
+total blocks/sectors transferred
+.It xfr
+total transfers
+.It msps
+average milliseconds per transaction
+.El
+.It cpu
+.Bl -tag -width indent -compact
+.It \&us
+% of cpu time in user mode
+.It \&ni
+% of cpu time in user mode running niced processes
+.It \&sy
+% of cpu time in system mode
+.It \&in
+% of cpu time in interrupt mode
+.It \&id
+% of cpu time in idle mode
+.El
+.El
+.Sh FILES
+.Bl -tag -width /boot/kernel/kernel -compact
+.It Pa /boot/kernel/kernel
+Default kernel namelist.
+.It Pa /dev/kmem
+Default memory file.
+.El
+.Sh EXAMPLES
+.Dl iostat -w 1 da0 da1 cd0
+.Pp
+Display statistics for the first two Direct Access devices and the first
+CDROM device every second ad infinitum.
+.Pp
+.Dl iostat -c 2
+.Pp
+Display the statistics for the first four devices in the system twice, with
+a one second display interval.
+.Pp
+.Dl iostat -t da -t cd -w 1
+.Pp
+Display statistics for all CDROM and Direct Access devices every second
+ad infinitum.
+.Pp
+.Dl iostat -t da,scsi,pass -t cd,scsi,pass
+.Pp
+Display statistics once for all SCSI passthrough devices that provide access
+to either Direct Access or CDROM devices.
+.Pp
+.Dl iostat -h -n 8 -w 1
+.Pp
+Display up to 8 devices with the most I/O every second ad infinitum.
+.Pp
+.Dl iostat -dh -t da -w 1
+.Pp
+Omit the TTY and CPU displays, show devices in order of performance and
+show only Direct Access devices every second ad infinitum.
+.Pp
+.Dl iostat -Iw 3
+.Pp
+Display total statistics every three seconds ad infinitum.
+.Pp
+.Dl iostat -odICTw 2 -c 9
+.Pp
+Display total statistics using the old-style output format 9 times, with
+a two second interval between each measurement/display.
+The
+.Fl d
+flag generally disables the TTY and CPU displays, but since the
+.Fl T
+and
+.Fl C
+flags are given, the TTY and CPU displays will be displayed.
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr netstat 1 ,
+.Xr nfsstat 1 ,
+.Xr ps 1 ,
+.Xr systat 1 ,
+.Xr devstat 3 ,
+.Xr ctlstat 8 ,
+.Xr gstat 8 ,
+.Xr pstat 8 ,
+.Xr vmstat 8
+.Pp
+The sections starting with ``Interpreting system activity'' in
+.%T "Installing and Operating 4.3BSD" .
+.Sh HISTORY
+This version of
+.Nm
+first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An Kenneth Merry Aq Mt ken@FreeBSD.org
+.Sh BUGS
+The use of
+.Nm
+as a debugging tool for crash dumps is probably limited because there is
+currently no way to get statistics that only cover the time immediately before
+the crash.

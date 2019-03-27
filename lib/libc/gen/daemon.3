@@ -1,0 +1,142 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)daemon.3	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd December 23, 2017
+.Dt DAEMON 3
+.Os
+.Sh NAME
+.Nm daemon
+.Nd run in the background
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft int
+.Fn daemon "int nochdir" "int noclose"
+.Ft int
+.Fn daemonfd "int chdirfd" "int nullfd"
+.Sh DESCRIPTION
+The
+.Fn daemon
+function is for programs wishing to detach themselves from the
+controlling terminal and run in the background as system daemons.
+.Pp
+Unless the argument
+.Fa nochdir
+is non-zero,
+.Fn daemon
+changes the current working directory to the root
+.Pq Pa / .
+.Pp
+Unless the argument
+.Fa noclose
+is non-zero,
+.Fn daemon
+will redirect standard input, standard output, and standard error to
+.Pa /dev/null .
+.Pp
+The
+.Fn daemonfd
+function is equivalent to the
+.Fn daemon
+function except that arguments are the descriptors for the current working
+directory and to the descriptor to
+.Pa /dev/null .
+.Pp
+If
+.Fa chdirfd
+is equal to
+.Pq -1
+the current working directory is not changed.
+.Pp
+If
+.Fa nullfd
+is equals to
+.Pq -1
+the redirection of standard input, standard output, and standard error is not
+closed.
+.Sh RETURN VALUES
+.Rv -std daemon daemonfd
+.Sh ERRORS
+The
+.Fn daemon
+and
+.Fn daemonfd
+function may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr fork 2
+.Xr open 2,
+and
+.Xr setsid 2 .
+.Sh SEE ALSO
+.Xr fork 2 ,
+.Xr setsid 2 ,
+.Xr sigaction 2
+.Sh HISTORY
+The
+.Fn daemon
+function first appeared in
+.Bx 4.4 .
+The
+.Fn daemonfd
+function first appeared in
+.Fx 12.0 .
+.Sh CAVEATS
+Unless the
+.Fa noclose
+argument is non-zero,
+.Fn daemon
+will close the first three file descriptors and redirect them to
+.Pa /dev/null .
+Normally, these correspond to standard input, standard output, and
+standard error.
+However, if any of those file descriptors refer to something else, they
+will still be closed, resulting in incorrect behavior of the calling program.
+This can happen if any of standard input, standard output, or standard
+error have been closed before the program was run.
+Programs using
+.Fn daemon
+should therefore either call
+.Fn daemon
+before opening any files or sockets, or verify that any file
+descriptors obtained have values greater than 2.
+.Pp
+The
+.Fn daemon
+function temporarily ignores
+.Dv SIGHUP
+while calling
+.Xr setsid 2
+to prevent a parent session group leader's calls to
+.Xr fork 2
+and then
+.Xr _exit 2
+from prematurely terminating the child process.

@@ -1,0 +1,16 @@
+#! /bin/sh
+#
+# Script for testing traffic to the local host (as opposed to bridged).
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+WLAN=`ifconfig wlan create wlanmode hostap wlandev $WIRELESS`
+ifconfig $WLAN ssid $SSID channel $CHANNEL mtu 1500
+ifconfig $WIRED down delete
+route flush
+wlandebug -i $WLAN state+scan+assoc+11n
+#mwldebug tso
+ifconfig $WLAN 192.168.0.21/24

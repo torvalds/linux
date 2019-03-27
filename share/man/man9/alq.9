@@ -1,0 +1,441 @@
+.\"
+.\" Copyright (c) 2003 Hiten Pandya <hmp@FreeBSD.org>
+.\" Copyright (c) 2009-2010 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Portions of this software were developed at the Centre for Advanced
+.\" Internet Architectures, Swinburne University of Technology, Melbourne,
+.\" Australia by Lawrence Stewart under sponsorship from the FreeBSD
+.\" Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 26, 2010
+.Dt ALQ 9
+.Os
+.Sh NAME
+.Nm alq ,
+.Nm alq_open_flags ,
+.Nm alq_open ,
+.Nm alq_writen ,
+.Nm alq_write ,
+.Nm alq_flush ,
+.Nm alq_close ,
+.Nm alq_getn ,
+.Nm alq_get ,
+.Nm alq_post_flags ,
+.Nm alq_post
+.Nd Asynchronous Logging Queues
+.Sh SYNOPSIS
+.In sys/alq.h
+.Ft int
+.Fo alq_open_flags
+.Fa "struct alq **app"
+.Fa "const char *file"
+.Fa "struct ucred *cred"
+.Fa "int cmode"
+.Fa "int size"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo alq_open
+.Fa "struct alq **app"
+.Fa "const char *file"
+.Fa "struct ucred *cred"
+.Fa "int cmode"
+.Fa "int size"
+.Fa "int count"
+.Fc
+.Ft int
+.Fn alq_writen "struct alq *alq" "void *data" "int len" "int flags"
+.Ft int
+.Fn alq_write "struct alq *alq" "void *data" "int flags"
+.Ft void
+.Fn alq_flush "struct alq *alq"
+.Ft void
+.Fn alq_close "struct alq *alq"
+.Ft struct ale *
+.Fn alq_getn "struct alq *alq" "int len" "int flags"
+.Ft struct ale *
+.Fn alq_get "struct alq *alq" "int flags"
+.Ft void
+.Fn alq_post_flags "struct alq *alq" "struct ale *ale" "int flags"
+.Ft void
+.Fn alq_post "struct alq *alq" "struct ale *ale"
+.Sh DESCRIPTION
+The
+.Nm
+facility provides an asynchronous fixed or variable length recording
+mechanism, known as Asynchronous Logging Queues.
+It can record to any
+.Xr vnode 9 ,
+thus providing the ability to journal logs to character
+devices as well as regular files.
+All functions accept a
+.Vt "struct alq"
+argument, which is an opaque type that maintains state information
+for an Asynchronous Logging Queue.
+The logging facility runs in a separate kernel thread, which services
+all log entry requests.
+.Pp
+An
+.Dq asynchronous log entry
+is defined as
+.Vt "struct ale" ,
+which has the following members:
+.Bd -literal -offset indent
+struct ale {
+	intptr_t	ae_bytesused;	/* # bytes written to ALE. */
+	char		*ae_data;	/* Write ptr. */
+	int		ae_pad;		/* Unused, compat. */
+};
+.Ed
+.Pp
+An
+.Nm
+can be created in either fixed or variable length mode.
+A variable length
+.Nm
+accommodates writes of varying length using
+.Fn alq_writen
+and
+.Fn alq_getn .
+A fixed length
+.Nm
+accommodates a fixed number of writes using
+.Fn alq_write
+and
+.Fn alq_get ,
+each of fixed size (set at queue creation time).
+Fixed length mode is deprecated in favour of variable length mode.
+.Sh FUNCTIONS
+The
+.Fn alq_open_flags
+function creates a new variable length asynchronous logging queue.
+The
+.Fa file
+argument is the name of the file to open for logging.
+If the file does not yet exist,
+.Fn alq_open
+will attempt to create it.
+The
+.Fa cmode
+argument will be passed to
+.Fn vn_open
+as the requested creation mode, to be used if the file will be created by
+.Fn alq_open .
+Consumers of this API may wish to pass
+.Dv ALQ_DEFAULT_CMODE ,
+a default creation mode suitable for most applications.
+The
+.Fa cred
+argument specifies the credentials to use when opening and performing I/O on the file.
+The
+.Fa size
+argument sets the size (in bytes) of the underlying queue.
+The ALQ_ORDERED flag may be passed in via
+.Fa flags
+to indicate that the ordering of writer threads waiting for a busy
+.Nm
+to free up resources should be preserved.
+.Pp
+The deprecated
+.Fn alq_open
+function is implemented as a wrapper around
+.Fn alq_open_flags
+to provide backwards compatibility to consumers that have not been updated to
+utilise the newer
+.Fn alq_open_flags
+function.
+It passes all arguments through to
+.Fn alq_open_flags
+untouched except for
+.Fa size
+and
+.Fa count ,
+and sets
+.Fa flags
+to 0.
+To create a variable length mode
+.Nm ,
+the
+.Fa size
+argument should be set to the size (in bytes) of the underlying queue and the
+.Fa count
+argument should be set to 0.
+To create a fixed length mode
+.Nm ,
+the
+.Fa size
+argument should be set to the size (in bytes) of each write and the
+.Fa count
+argument should be set to the number of
+.Fa size
+byte chunks to reserve capacity for.
+.Pp
+The
+.Fn alq_writen
+function writes
+.Fa len
+bytes from
+.Fa data
+to the designated variable length mode queue
+.Fa alq .
+If
+.Fn alq_writen
+could not write the entry immediately and
+.Dv ALQ_WAITOK
+is set in
+.Fa flags ,
+the function will be allowed to
+.Xr msleep_spin 9
+with the
+.Dq Li alqwnord
+or
+.Dq Li alqwnres
+wait message.
+A write will automatically schedule the queue
+.Fa alq
+to be flushed to disk.
+This behaviour can be controlled by passing ALQ_NOACTIVATE via
+.Fa flags
+to indicate that the write should not schedule
+.Fa alq
+to be flushed to disk.
+.Pp
+The deprecated
+.Fn alq_write
+function is implemented as a wrapper around
+.Fn alq_writen
+to provide backwards compatibility to consumers that have not been updated to
+utilise variable length mode queues.
+The function will write
+.Fa size
+bytes of data (where
+.Fa size
+was specified at queue creation time) from the
+.Fa data
+buffer to the
+.Fa alq .
+Note that it is an error to call
+.Fn alq_write
+on a variable length mode queue.
+.Pp
+The
+.Fn alq_flush
+function is used for flushing
+.Fa alq
+to the log medium that was passed to
+.Fn alq_open .
+If
+.Fa alq
+has data to flush and is not already in the process of being flushed, the
+function will block doing IO.
+Otherwise, the function will return immediately.
+.Pp
+The
+.Fn alq_close
+function will close the asynchronous logging queue
+.Fa alq
+and flush all pending write requests to the log medium.
+It will free all resources that were previously allocated.
+.Pp
+The
+.Fn alq_getn
+function returns an asynchronous log entry from
+.Fa alq ,
+initialised to point at a buffer capable of receiving
+.Fa len
+bytes of data.
+This function leaves
+.Fa alq
+in a locked state, until a subsequent
+.Fn alq_post
+or
+.Fn alq_post_flags
+call is made.
+If
+.Fn alq_getn
+could not obtain
+.Fa len
+bytes of buffer immediately and
+.Dv ALQ_WAITOK
+is set in
+.Fa flags ,
+the function will be allowed to
+.Xr msleep_spin 9
+with the
+.Dq Li alqgnord
+or
+.Dq Li alqgnres
+wait message.
+The caller can choose to write less than
+.Fa len
+bytes of data to the returned asynchronous log entry by setting the entry's
+ae_bytesused field to the number of bytes actually written.
+This must be done prior to calling
+.Fn alq_post .
+.Pp
+The deprecated
+.Fn alq_get
+function is implemented as a wrapper around
+.Fn alq_getn
+to provide backwards compatibility to consumers that have not been updated to
+utilise variable length mode queues.
+The asynchronous log entry returned will be initialised to point at a buffer
+capable of receiving
+.Fa size
+bytes of data (where
+.Fa size
+was specified at queue creation time).
+Note that it is an error to call
+.Fn alq_get
+on a variable length mode queue.
+.Pp
+The
+.Fn alq_post_flags
+function schedules the asynchronous log entry
+.Fa ale
+(obtained from
+.Fn alq_getn
+or
+.Fn alq_get )
+for writing to
+.Fa alq .
+The ALQ_NOACTIVATE flag may be passed in via
+.Fa flags
+to indicate that the queue should not be immediately scheduled to be flushed to
+disk.
+This function leaves
+.Fa alq
+in an unlocked state.
+.Pp
+The
+.Fn alq_post
+function is implemented as a wrapper around
+.Fn alq_post_flags
+to provide backwards compatibility to consumers that have not been updated to
+utilise the newer
+.Fn alq_post_flags
+function.
+It simply passes all arguments through to
+.Fn alq_post_flags
+untouched, and sets
+.Fa flags
+to 0.
+.Sh IMPLEMENTATION NOTES
+The
+.Fn alq_writen
+and
+.Fn alq_write
+functions both perform a
+.Xr bcopy 3
+from the supplied
+.Fa data
+buffer into the underlying
+.Nm
+buffer.
+Performance critical code paths may wish to consider using
+.Fn alq_getn
+(variable length queues) or
+.Fn alq_get
+(fixed length queues) to avoid the extra memory copy.
+Note that a queue remains locked between calls to
+.Fn alq_getn
+or
+.Fn alq_get
+and
+.Fn alq_post
+or
+.Fn alq_post_flags ,
+so this method of writing to a queue is unsuitable for situations where the
+time between calls may be substantial.
+.Sh LOCKING
+Each asynchronous logging queue is protected by a spin mutex.
+.Pp
+Functions
+.Fn alq_flush
+and
+.Fn alq_open
+may attempt to acquire an internal sleep mutex, and should
+consequently not be used in contexts where sleeping is
+not allowed.
+.Sh RETURN VALUES
+The
+.Fn alq_open
+function returns one of the error codes listed in
+.Xr open 2 ,
+if it fails to open
+.Fa file ,
+or else it returns 0.
+.Pp
+The
+.Fn alq_writen
+and
+.Fn alq_write
+functions return
+.Er EWOULDBLOCK
+if
+.Dv ALQ_NOWAIT
+was set in
+.Fa flags
+and either the queue is full or the system is shutting down.
+.Pp
+The
+.Fn alq_getn
+and
+.Fn alq_get
+functions return
+.Dv NULL
+if
+.Dv ALQ_NOWAIT
+was set in
+.Fa flags
+and either the queue is full or the system is shutting down.
+.Pp
+NOTE: invalid arguments to non-void functions will result in
+undefined behaviour.
+.Sh SEE ALSO
+.Xr syslog 3 ,
+.Xr kproc 9 ,
+.Xr ktr 9 ,
+.Xr msleep_spin 9 ,
+.Xr vnode 9
+.Sh HISTORY
+The
+Asynchronous Logging Queues (ALQ) facility first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+facility was written by
+.An Jeffrey Roberson Aq Mt jeff@FreeBSD.org
+and extended by
+.An Lawrence Stewart Aq Mt lstewart@freebsd.org .
+.Pp
+This manual page was written by
+.An Hiten Pandya Aq Mt hmp@FreeBSD.org
+and revised by
+.An Lawrence Stewart Aq Mt lstewart@freebsd.org .

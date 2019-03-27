@@ -1,0 +1,123 @@
+.\"
+.\" Copyright (c) 2006-2007 Daniel Roethlisberger <daniel@roe.ch>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice unmodified, this list of conditions, and the following
+.\"    disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 7, 2007
+.Dt CMX 4
+.Os
+.Sh NAME
+.Nm cmx
+.Nd Omnikey CardMan 4040 smartcard reader device driver
+.Sh SYNOPSIS
+.Cd device cmx
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the PCCARD based
+.Em Omnikey CardMan 4040
+smartcard reader.
+The driver provides a character device special file based
+.Em Chip/Smart Card Interface Devices (CCID)
+interface.
+The driver implements what the vendor calls the
+.Em Synchronous API
+onto the smartcard reader device.
+.Pp
+Reading and writing is synchronous, meaning that a call to
+.Xr write 2
+directly corresponds to a complete CCID command sent to the
+device, while the following
+.Xr read 2
+will return the complete answer from the reader.
+There is no support for partial reads or writes.
+There is no upper limit on
+CCID request or response sizes, but the complete CCID request
+must be sent to the driver in
+.Xr write 2
+and the complete CCID response must fit into the buffer
+supplied to
+.Xr read 2 .
+.Pp
+Non-blocking I/O,
+.Xr select 2
+and
+.Xr poll 2
+are supported and work as expected.
+An open file descriptor
+will always be ready for writing, but only ready for reading
+if the device indicates that it has data available.
+.Sh FILES
+.Bl -tag -width /usr/ports/security/openct -compact
+.It Pa /dev/cmx\fBn\fP
+Character device special file.
+.It Pa /usr/ports/security/openct
+OpenCT, a userspace smartcard daemon containing a
+.Em CCID
+driver which directly supports
+.Nm
+devices.
+.\".It Pa /usr/ports/devel/pcsc-lite
+.\"PC/SC-Lite, a userspace smartcard daemon.
+.\".It Pa /usr/ports/devel/libccid
+.\"libccid, a generic
+.\".Em CCID
+.\"driver for use by PC/SC-Lite to interface to
+.\".Nm
+.\"devices.
+.El
+.Sh COMPATIBILITY
+Userland smartcard code written for the vendor's Linux drivers
+should work with the
+.Nm
+driver without modification.
+.Sh SEE ALSO
+.Xr pccard 4
+.Sh HISTORY
+The
+.Nm cmx
+driver first appeared in
+.Fx 7.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Daniel Roethlisberger Aq Mt daniel@roe.ch ,
+originally based on the Linux driver v1.1.0 by
+.An Omnikey GmbH Lk www.omnikey.com .
+Early testing and bug fixes by
+.An Marcin Cieslak Aq Mt saper@system.pl .
+.Sh BUGS
+.An -nosplit
+The way the
+.Nm
+driver talks to the CardMan 4040 is a bit rough.
+Due to the complete lack of hardware documentation other than vendor drivers
+for other operating systems, the gory details of the device's
+I/O registers are not understood very well.
+There may be error conditions which can only be solved by physically
+reinserting the reader.

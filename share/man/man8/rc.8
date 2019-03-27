@@ -1,0 +1,564 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Portions of this manual page are Copyrighted by
+.\"	The NetBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd December 29, 2018
+.Dt RC 8
+.Os
+.Sh NAME
+.Nm rc
+.Nd command scripts for auto-reboot and daemon startup
+.Sh SYNOPSIS
+.Nm
+.Nm rc.conf
+.Nm rc.conf.local
+.Nm rc.d/
+.Nm rc.firewall
+.Nm rc.local
+.Nm rc.resume
+.Nm rc.shutdown
+.Nm rc.subr
+.Sh DESCRIPTION
+The
+.Nm
+utility is the command script which controls the automatic boot process
+after being called by
+.Xr init 8 .
+The
+.Nm rc.local
+script contains commands which are pertinent only
+to a specific site.
+Typically, the
+.Pa /usr/local/etc/rc.d/
+mechanism is used instead of
+.Nm rc.local
+these days but if
+you want to use
+.Nm rc.local ,
+it is still supported.
+In this case, it should source
+.Pa /etc/rc.conf
+and contain additional custom startup code for your system.
+The best way to handle
+.Nm rc.local ,
+however, is to separate it out into
+.Nm rc.d/
+style scripts and place them under
+.Pa /usr/local/etc/rc.d/ .
+The
+.Nm rc.conf
+file contains the global system configuration information referenced
+by the startup scripts, while
+.Nm rc.conf.local
+contains the local system configuration.
+See
+.Xr rc.conf 5
+for more information.
+.Pp
+The
+.Nm rc.d/
+directories contain scripts which will be automatically
+executed at boot time and shutdown time.
+.Pp
+The sysrc(8) command provides a scripting interface to modify system
+config files.
+.Ss Operation of Nm
+.Bl -enum
+.It
+If autobooting, set
+.Va autoboot Ns = Ns Li yes
+and enable a flag
+.Pq Va rc_fast Ns = Ns Li yes ,
+which prevents the
+.Nm rc.d/
+scripts from performing the check for already running processes
+(thus speeding up the boot process).
+This
+.Va rc_fast Ns = Ns Li yes
+speedup will not occur when
+.Nm
+is started up after exiting the single-user shell.
+.It
+Determine whether the system is booting diskless,
+and if so run the
+.Pa /etc/rc.initdiskless
+script.
+.It
+Source
+.Pa /etc/rc.subr
+to load various
+.Xr rc.subr 8
+shell functions to use.
+.It
+Load the configuration files.
+.It
+Determine if booting in a jail,
+and add
+.Dq Li nojail
+(no jails allowed) or
+.Dq Li nojailvnet
+(only allow vnet-enabled jails) to the list of KEYWORDS to skip in
+.Xr rcorder 8 .
+.It
+If the file
+.Va ${firstboot_sentinel}
+does not exist, add
+.Dq Li firstboot
+to the list of KEYWORDS to skip in
+.Xr rcorder 8 .
+.It
+Invoke
+.Xr rcorder 8
+to order the files in
+.Pa /etc/rc.d/
+that do not have a
+.Dq Li nostart
+KEYWORD (refer to
+.Xr rcorder 8 Ns 's
+.Fl s
+flag).
+.It
+Call each script in turn using
+.Fn run_rc_script
+(from
+.Xr rc.subr 8 ) ,
+which sets
+.Va $1
+to
+.Dq Li start ,
+and sources the script in a subshell.
+Stop processing when the script that is the value of the
+.Va $early_late_divider
+has been run.
+.It
+Check again to see if the file
+.Va ${firstboot_sentinel}
+exists (in case it is located on a newly mounted file system)
+and adjust the list of KEYWORDs to skip appropriately.
+.It
+Re-run
+.Xr rcorder 8 ,
+this time including the scripts in the
+.Va $local_startup
+directories.
+Ignore everything up to the
+.Va $early_late_divider ,
+then start executing the scripts as described above.
+.It
+If the file
+.Va ${firstboot_sentinel}
+exists, delete it.
+If the file
+.Va ${firstboot_sentinel}-reboot
+also exists (because it was created by a script), then delete it and reboot.
+.El
+.Ss Operation of Nm rc.shutdown
+.Bl -enum
+.It
+Source
+.Pa /etc/rc.subr
+to load various
+.Xr rc.subr 8
+shell functions to use.
+.It
+Load the configuration files.
+.It
+Invoke
+.Xr rcorder 8
+to order the files in
+.Pa /etc/rc.d/
+and the
+.Va $local_startup
+directories
+that have a
+.Dq Li shutdown
+KEYWORD (refer to
+.Xr rcorder 8 Ns 's
+.Fl k
+flag),
+reverse that order, and assign the result to a variable.
+.It
+Call each script in turn using
+.Fn run_rc_script
+(from
+.Xr rc.subr 8 ) ,
+which sets
+.Va $1
+to
+.Dq Li stop ,
+and sources the script in a subshell.
+.El
+.Ss Contents of Nm rc.d/
+.Nm rc.d/
+is located in
+.Pa /etc/rc.d/ .
+The following file naming conventions are currently used in
+.Nm rc.d/ :
+.Bl -tag -width ".Pa ALLUPPERCASE" -offset indent
+.It Pa ALLUPPERCASE
+Scripts that are
+.Dq placeholders
+to ensure that certain operations are performed before others.
+In order of startup, these are:
+.Bl -tag -width ".Pa NETWORKING"
+.It Pa NETWORKING
+Ensure basic network services are running, including general
+network configuration.
+.It Pa SERVERS
+Ensure basic services
+exist for services that start early (such as
+.Pa nisdomain ) ,
+because they are required by
+.Pa DAEMON
+below.
+.It Pa DAEMON
+Check-point before all general purpose daemons such as
+.Pa lpd
+and
+.Pa ntpd .
+.It Pa LOGIN
+Check-point before user login services
+.Pa ( inetd
+and
+.Pa sshd ) ,
+as well as services which might run commands as users
+.Pa ( cron
+and
+.Pa sendmail ) .
+.El
+.It Pa bar
+Scripts that are sourced in a subshell.
+The boot does not stop if such a script terminates with a non-zero status,
+but a script can stop the boot if necessary by invoking the
+.Fn stop_boot
+function (from
+.Xr rc.subr 8 ) .
+.El
+.Pp
+Each script should contain
+.Xr rcorder 8
+keywords, especially an appropriate
+.Dq Li PROVIDE
+entry, and if necessary
+.Dq Li REQUIRE
+and
+.Dq Li BEFORE
+keywords.
+.Pp
+Each script is expected to support at least the following arguments, which
+are automatically supported if it uses the
+.Fn run_rc_command
+function:
+.Bl -tag -width ".Cm restart" -offset indent
+.It Cm start
+Start the service.
+This should check that the service is to be started as specified by
+.Xr rc.conf 5 .
+Also checks if the service is already running and refuses to start if
+it is.
+This latter check is not performed by standard
+.Fx
+scripts if the system is starting directly to multi-user mode, to
+speed up the boot process.
+If
+.Cm forcestart
+is given, ignore the
+.Xr rc.conf 5
+check and start anyway.
+.It Cm stop
+If the service is to be started as specified by
+.Xr rc.conf 5 ,
+stop the service.
+This should check that the service is running and complain if it is not.
+If
+.Cm forcestop
+is given, ignore the
+.Xr rc.conf 5
+check and attempt to stop.
+.It Cm restart
+Perform a
+.Cm stop
+then a
+.Cm start .
+.It Cm status
+If the script starts a process (rather than performing a one-off
+operation), show the status of the process.
+Otherwise it is not necessary to support this argument.
+Defaults to displaying the process ID of the program (if running).
+.It Cm enable
+Enable the service in
+.Xr rc.conf 5 .
+.It Cm disable
+Disable the service in
+.Xr rc.conf 5 .
+.It Cm delete
+Remove the service from
+.Xr rc.conf 5 .
+If
+.Ql Li service_delete_empty
+is set to
+.Dq Li YES ,
+.Pa /etc/rc.conf.d/$servicename
+will be deleted if empty after modification.
+.It Cm describe
+Print a short description of what the script does.
+.It Cm extracommands
+Print the script's non-standard commands.
+.It Cm poll
+If the script starts a process (rather than performing a one-off
+operation), wait for the command to exit.
+Otherwise it is not necessary to support this argument.
+.It Cm enabled
+Return 0 if the service is enabled and 1 if it is not.
+This command does not print anything.
+.It Cm rcvar
+Display which
+.Xr rc.conf 5
+variables are used to control the startup of the service (if any).
+.El
+.Pp
+If a script must implement additional commands it can list them in
+the
+.Va extra_commands
+variable, and define their actions in a variable constructed from
+the command name (see the
+.Sx EXAMPLES
+section).
+.Pp
+The following key points apply to old-style scripts in
+.Pa /usr/local/etc/rc.d/ :
+.Bl -bullet
+.It
+Scripts are only executed if their
+.Xr basename 1
+matches the shell globbing pattern
+.Pa *.sh ,
+and they are executable.
+Any other files or directories present within the directory are silently
+ignored.
+.It
+When a script is executed at boot time, it is passed the string
+.Dq Li start
+as its first and only argument.
+At shutdown time, it is passed the string
+.Dq Li stop
+as its first and only argument.
+All
+.Nm rc.d/
+scripts are expected to handle these arguments appropriately.
+If no action needs to be taken at a given time
+(either boot time or shutdown time),
+the script should exit successfully and without producing an error message.
+.It
+The scripts within each directory are executed in lexicographical order.
+If a specific order is required,
+numbers may be used as a prefix to the existing filenames,
+so for example
+.Pa 100.foo
+would be executed before
+.Pa 200.bar ;
+without the numeric prefixes the opposite would be true.
+.It
+The output from each script is traditionally a space character,
+followed by the name of the software package being started or shut down,
+.Em without
+a trailing newline character (see the
+.Sx EXAMPLES
+section).
+.El
+.Sh SCRIPTS OF INTEREST
+When an automatic reboot is in progress,
+.Nm
+is invoked with the argument
+.Cm autoboot .
+One of the scripts run from
+.Pa /etc/rc.d/
+is
+.Pa /etc/rc.d/fsck .
+This script runs
+.Xr fsck 8
+with option
+.Fl p
+and
+.Fl F
+to
+.Dq preen
+all the disks of minor inconsistencies resulting
+from the last system shutdown.
+If this fails, then checks/repairs of serious inconsistencies
+caused by hardware or software failure will be performed
+in the background at the end of the booting process.
+If
+.Cm autoboot
+is not set, when going from single-user to multi-user mode for example,
+the script does not do anything.
+.Pp
+The
+.Pa /etc/rc.d/local
+script can execute scripts from multiple
+.Nm rc.d/
+directories.
+The default location includes
+.Pa /usr/local/etc/rc.d/ ,
+but these may be overridden with the
+.Va local_startup
+.Xr rc.conf 5
+variable.
+.Pp
+The
+.Pa /etc/rc.d/serial
+script is used to set any special configurations for serial devices.
+.Pp
+The
+.Nm rc.firewall
+script is used to configure rules for the kernel based firewall
+service.
+It has several possible options:
+.Pp
+.Bl -tag -width ".Ar filename" -compact -offset indent
+.It Cm open
+will allow anyone in
+.It Cm client
+will try to protect just this machine
+.It Cm simple
+will try to protect a whole network
+.It Cm closed
+totally disables IP services except via
+.Pa lo0
+interface
+.It Cm UNKNOWN
+disables the loading of firewall rules
+.It Ar filename
+will load the rules in the given filename (full path required).
+.El
+.Pp
+Most daemons, including network related daemons, have their own script in
+.Pa /etc/rc.d/ ,
+which can be used to start, stop, and check the status of the service.
+.Pp
+Any architecture specific scripts, such as
+.Pa /etc/rc.d/apm
+for example, specifically check that they are on that architecture
+before starting the daemon.
+.Pp
+Following tradition, all startup files reside in
+.Pa /etc .
+.Sh FILES
+.Bl -tag -compact -width Pa
+.It Pa /etc/rc
+.It Pa /etc/rc.conf
+.It Pa /etc/rc.conf.local
+.It Pa /etc/rc.d/
+.It Pa /etc/rc.firewall
+.It Pa /etc/rc.local
+.It Pa /etc/rc.shutdown
+.It Pa /etc/rc.subr
+.It Pa /var/run/dmesg.boot
+.Xr dmesg 8
+results soon after the
+.Nm
+process begins.
+Useful when
+.Xr dmesg 8
+buffer in the kernel no longer has this information.
+.El
+.Sh EXAMPLES
+The following is a minimal
+.Nm rc.d/
+style script.
+Most scripts require little more than the following.
+.Bd -literal -offset indent
+#!/bin/sh
+#
+
+# PROVIDE: foo
+# REQUIRE: bar_service_required_to_precede_foo
+
+\&. /etc/rc.subr
+
+name="foo"
+rcvar=foo_enable
+command="/usr/local/bin/foo"
+
+load_rc_config $name
+run_rc_command "$1"
+.Ed
+.Pp
+Certain scripts may want to provide enhanced functionality.
+The user may access this functionality through additional commands.
+The script may list and define as many commands at it needs.
+.Bd -literal -offset indent
+#!/bin/sh
+#
+
+# PROVIDE: foo
+# REQUIRE: bar_service_required_to_precede_foo
+# BEFORE:  baz_service_requiring_foo_to_precede_it
+
+\&. /etc/rc.subr
+
+name="foo"
+rcvar=foo_enable
+command="/usr/local/bin/foo"
+extra_commands="nop hello"
+hello_cmd="echo Hello World."
+nop_cmd="do_nop"
+
+do_nop()
+{
+	echo "I do nothing."
+}
+
+load_rc_config $name
+run_rc_command "$1"
+.Ed
+.Pp
+As all processes are killed by
+.Xr init 8
+at shutdown, the explicit
+.Xr kill 1
+is unnecessary, but is often included.
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr rc.conf 5 ,
+.Xr init 8 ,
+.Xr rc.resume 8 ,
+.Xr rc.subr 8 ,
+.Xr rcorder 8 ,
+.Xr reboot 8 ,
+.Xr savecore 8 ,
+.Xr sysrc 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.0 .

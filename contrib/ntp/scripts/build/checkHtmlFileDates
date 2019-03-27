@@ -1,0 +1,16 @@
+#! /bin/sh
+
+bk version > /dev/null 2>&1 || exit 0
+
+for i in `find * -type f -name '*.html' -print | grep -v SCCS/`
+do
+    # echo $i
+    set `bk diffs $i | wc -l`
+    lines=$1
+    case "$lines" in
+     0) ;;
+     *) echo "Processing <$i>"
+        ../scripts/build/updateBEDate $i
+	;;
+    esac
+done

@@ -1,0 +1,57 @@
+Right now there is no documentation for the GCC tree -> rtl interfaces
+(or more generally the interfaces for adding new languages).
+
+Such documentation would be of great benefit to the project.  Until such
+time as we can formally start documenting the interface this file will
+serve as a repository for information on these interface and any incompatable
+changes we've made.
+
+2004-09-09:
+  In an effort to decrease execution time, single char tree code
+  classes were changed to enumerated values.
+
+  Old way:
+
+    DEFTREECODE (CLASS_METHOD_DECL, "class_method_decl", 'd', 0)
+
+  New way:
+
+    DEFTREECODE (CLASS_METHOD_DECL, "class_method_decl", tcc_declaration, 0)
+
+2001-02-26:
+  A DECL_INITIAL of NULL_TREE or error_mark_node in a VAR_DECL is no longer
+  taken to signify a tentative definition which should not be emitted until
+  end-of-file.  Frontends which want that behavior should set
+  DECL_DEFER_OUTPUT before calling rest_of_decl_compilation.
+
+Feb 1, 1998:
+
+  GCC used to store structure sizes & offsets to elements as bitsize
+  quantities.  This causes problems because a structure can only be
+  (target memsize / 8) bytes long (this may effect arrays too).  This
+  is particularly problematical on machines with small address spaces.
+
+  So:
+
+    All trees that represent sizes in bits should have a TREE_TYPE of
+    bitsizetype (rather than sizetype).
+
+    Accordingly, when such values are computed / initialized, care has to
+    be takes to use / compute the proper type.
+
+    When a size in bits is converted into a size in bytes, which is expressed
+    in trees, care should be taken to change the tree's type again to sizetype.
+
+?? 1997:
+
+  In an effort to decrease cache thrashing and useless loads we've changed the
+  third argument to the DEFTREECODE macro to be a single char.  This will
+  affect languages that defined their own tree codes (usually in a .def file).
+
+  Old way:
+
+    DEFTREECODE (CLASS_METHOD_DECL, "class_method_decl", "d", 0)
+
+  New way:
+
+    DEFTREECODE (CLASS_METHOD_DECL, "class_method_decl", 'd', 0)

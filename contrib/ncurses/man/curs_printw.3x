@@ -1,0 +1,92 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_printw.3x,v 1.20 2010/12/04 18:40:45 tom Exp $
+.TH curs_printw 3X ""
+.na
+.hy 0
+.SH NAME
+\fBprintw\fR,
+\fBwprintw\fR,
+\fBmvprintw\fR,
+\fBmvwprintw\fR,
+\fBvwprintw\fR, \fBvw_printw\fR \- print formatted output in \fBcurses\fR windows
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint printw(const char *fmt, ...);\fR
+.br
+\fBint wprintw(WINDOW *win, const char *fmt, ...);\fR
+.br
+\fBint mvprintw(int y, int x, const char *fmt, ...);\fR
+.br
+\fBint mvwprintw(WINDOW *win, int y, int x, const char *fmt, ...);\fR
+.br
+\fBint vwprintw(WINDOW *win, const char *fmt, va_list varglist);\fR
+.br
+\fBint vw_printw(WINDOW *win, const char *fmt, va_list varglist);\fR
+.br
+.SH DESCRIPTION
+The \fBprintw\fR, \fBwprintw\fR, \fBmvprintw\fR and \fBmvwprintw\fR
+routines are analogous to \fBprintf\fR [see \fBprintf\fR(3)].  In
+effect, the string that would be output by \fBprintf\fR is output
+instead as though \fBwaddstr\fR were used on the given window.
+.PP
+The \fBvwprintw\fR and \fBwv_printw\fR routines are analogous
+to \fBvprintf\fR [see \fBprintf\fR(3)]
+and perform a \fBwprintw\fR using a variable argument list.
+The third argument is a \fBva_list\fR, a pointer to a
+list of arguments, as defined in \fB<stdarg.h>\fR.
+.SH RETURN VALUE
+Routines that return an integer return \fBERR\fR upon failure and \fBOK\fR
+(SVr4 only specifies "an integer value other than \fBERR\fR") upon successful
+completion.
+.PP
+X/Open defines no error conditions.
+In this implementation,
+an error may be returned if it cannot allocate enough memory for the
+buffer used to format the results.
+It will return an error if the window pointer is null.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH PORTABILITY
+The XSI Curses standard, Issue 4 describes these functions.  The function
+\fBvwprintw\fR is marked TO BE WITHDRAWN, and is to be replaced by a function
+\fBvw_printw\fR using the \fB<stdarg.h>\fR interface.
+The Single Unix Specification, Version 2 states that
+\fBvw_printw\fR  is preferred to \fBvwprintw\fR since the latter requires
+including \fB<varargs.h>\fR, which
+cannot be used in the same file as \fB<stdarg.h>\fR.
+This implementation uses \fB<stdarg.h>\fR for both, because that header
+is included in \fB<curses.h\fR>.
+.SH SEE ALSO
+\fBcurses\fR(3X), \fBprintf\fR(3), \fBvprintf(3)\fR

@@ -1,0 +1,178 @@
+.\" Copyright (c) 2007-2010 Daniel Braniss <danny@cs.huji.ac.il>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 6, 2016
+.Dt ISCSI.CONF 5
+.Os
+.Sh NAME
+.Nm iscsi.conf
+.Nd iSCSI initiator configuration file
+.Sh DESCRIPTION
+The
+.Nm
+configuration file is used by the
+.Xr iscsictl 8
+and
+.Xr iscontrol 8
+utilities.
+The general syntax is:
+.Bf Li
+.Bd -literal
+	# this is a comment
+	nickname_1 {
+	   variable = value;
+	   ...
+	}
+	nickname_2 {
+	   variable = value;
+	   ...
+	}
+	...
+.Ed
+.Ef
+.Bl -tag -width MaxConnections
+.It Cm AuthMethod
+Sets the authentication type.
+Type can be either
+.Qq Ar None ,
+or
+.Qq Ar CHAP .
+Default is
+.Qq Ar None .
+When set to
+.Cm CHAP ,
+both
+.Cm chapIName
+and
+.Cm chapSecret
+must be defined.
+.It Cm chapIName
+Login for CHAP authentication.
+.It Cm chapSecret
+Secret for CHAP authentication.
+.It Cm tgtChapName
+Target login for Mutual CHAP authentication.
+.It Cm tgtChapSecret
+Target secret for Mutual CHAP authentication.
+.It Cm HeaderDigest
+Sets the header digest; a checksum calculated over the header of iSCSI
+PDUs, and verified on receive.
+Digest can be either
+.Qq Ar None ,
+or
+.Qq Ar CRC32C .
+Default is
+.Qq Ar None .
+.It Cm DataDigest
+Sets the data digest; a checksum calculated over the Data Section of iSCSI
+PDUs, and verified on receive.
+Digest can be either
+.Qq Ar None ,
+or
+.Qq Ar CRC32C .
+Default is
+.Qq Ar None .
+.It Cm InitiatorName
+Sets the initiator name.
+By default, the name is concatenation of
+.Qq Ar iqn.1994-09.org.freebsd:
+with the hostname.
+.It Cm TargetName
+Sets the target name.
+Not required for discovery sessions.
+.It Cm TargetAddress
+Sets the target address and port, in
+.Sy address[:port]
+format.
+The
+.Sy address
+can be either an IP address, or hostname.
+The optional port defaults to 3260.
+.It Cm SessionType
+Sets the session type.
+Type can be either
+.Qq Ar Discovery ,
+or
+.Qq Ar Normal .
+Default is
+.Qq Ar Normal .
+For normal sessions, the
+.Sy TargetName
+must be defined.
+Discovery sessions result in the initiator connecting to all the targets
+returned by SendTargets iSCSI discovery with the defined
+.Sy TargetAddress .
+.It Cm Enable
+Enable or disable the session.
+State can be either
+.Qq Ar On ,
+or
+.Qq Ar Off .
+Default is
+.Qq Ar On .
+.It Cm Offload
+Name of selected iSCSI hardware offload driver.
+Default is
+.Qq Ar None .
+.It Cm Protocol
+Name of selected protocol.
+It can be either
+.Qq Ar iSER ,
+for iSCSI over RDMA, or
+.Qq Ar iSCSI .
+Default is
+.Qq Ar iSCSI .
+.El
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /etc/iscsi.conf
+.El
+.Sh EXAMPLES
+.Bd -literal
+myiscsi { # nickname
+   targetaddress = iscsi1
+   targetname    = iqn.1900.com.com:sn.123456
+}
+
+myiscsi6 { # nickname
+   targetaddress = [2001:db8::de:ef]:3260
+   targetname    = iqn.1900.com.com:sn.123456
+}
+
+chaptest {
+   targetaddress = 10.0.0.1;
+   targetname    = iqn.1900.com.com:sn.123456;
+   initiatorname = iqn.2005-01.il.ac.huji.cs:nobody;
+   authmethod    = CHAP;
+   chapiname     = iqn.2005-01.il.ac.huji.cs:nobody;
+   chapsecret    = "secretsecret";
+}
+.Ed
+.Sh SEE ALSO
+.Xr iscontrol 8 ,
+.Xr iscsictl 8
+.\"Sh HISTORY
+.\"Sh AUTHORS

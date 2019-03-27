@@ -1,0 +1,208 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2000 Alexander Langer
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 20, 2016
+.Dt BUS_ALLOC_RESOURCE 9
+.Os
+.Sh NAME
+.Nm bus_alloc_resource ,
+.Nm bus_alloc_resource_any ,
+.Nm bus_alloc_resource_anywhere
+.Nd allocate resources from a parent bus
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Pp
+.In machine/bus.h
+.In sys/rman.h
+.In machine/resource.h
+.Ft struct resource *
+.Fo bus_alloc_resource
+.Fa "device_t dev" "int type" "int *rid" "rman_res_t start" "rman_res_t end"
+.Fa "rman_res_t count" "u_int flags"
+.Fc
+.Ft struct resource *
+.Fn bus_alloc_resource_any "device_t dev" "int type" "int *rid" "u_int flags"
+.Ft struct resource *
+.Fo bus_alloc_resource_anywhere
+.Fa "device_t dev" "int type" "int *rid" "rman_res_t count" "u_int flags"
+.Fc
+.Sh DESCRIPTION
+This is an easy interface to the resource-management functions.
+It hides the indirection through the parent's method table.
+This function generally should be called in attach, but (except in some
+rare cases) never earlier.
+.Pp
+The
+.Fn bus_alloc_resource_any
+and
+.Fn bus_alloc_resource_anywhere
+functions are convenience wrappers for
+.Fn bus_alloc_resource .
+.Fn bus_alloc_resource_any
+sets
+.Fa start ,
+.Fa end ,
+and
+.Fa count
+to the default resource (see description of
+.Fa start
+below).
+.Fn bus_alloc_resource_anywhere
+sets
+.Fa start
+and
+.Fa end
+to the default resource and uses the provided
+.Fa count
+argument.
+.Pp
+The arguments are as follows:
+.Bl -item
+.It
+.Fa dev
+is the device that requests ownership of the resource.
+Before allocation, the resource is owned by the parent bus.
+.It
+.Fa type
+is the type of resource you want to allocate.
+It is one of:
+.Bl -tag -width SYS_RES_MEMORY
+.It Dv PCI_RES_BUS
+for PCI bus numbers
+.It Dv SYS_RES_IRQ
+for IRQs
+.It Dv SYS_RES_DRQ
+for ISA DMA lines
+.It Dv SYS_RES_IOPORT
+for I/O ports
+.It Dv SYS_RES_MEMORY
+for I/O memory
+.El
+.It
+.Fa rid
+points to a bus specific handle that identifies the resource being allocated.
+For ISA this is an index into an array of resources that have been setup
+for this device by either the PnP mechanism, or via the hints mechanism.
+For PCCARD, this is an index into the array of resources described by the PC Card's
+CIS entry.
+For PCI, the offset into PCI config space which has the BAR to use to access
+the resource.
+The bus methods are free to change the RIDs that they are given as a parameter.
+You must not depend on the value you gave it earlier.
+.It
+.Fa start
+and
+.Fa end
+are the start/end addresses of the resource.
+If you specify values of 0ul for
+.Fa start
+and ~0ul for
+.Fa end
+and 1 for
+.Fa count ,
+the default values for the bus are calculated.
+.It
+.Fa count
+is the size of the resource.
+For example, the size of an I/O port is usually 1 byte (but some devices
+override this).
+If you specified the default values for
+.Fa start
+and
+.Fa end ,
+then the default value of the bus is used if
+.Fa count
+is smaller than the default value and
+.Fa count
+is used, if it is bigger than the default value.
+.It
+.Fa flags
+sets the flags for the resource.
+You can set one or more of these flags:
+.Bl -tag -width RF_SHAREABLE
+.It Dv RF_ALLOCATED
+resource has been reserved.
+The resource still needs to be activated with
+.Xr bus_activate_resource 9 .
+.It Dv RF_ACTIVE
+activate resource atomically.
+.It Dv RF_PREFETCHABLE
+resource is prefetchable.
+.It Dv RF_SHAREABLE
+resource permits contemporaneous sharing.
+It should always be set unless you know that the resource cannot be shared.
+It is the bus driver's task to filter out the flag if the bus does not
+support sharing.
+For example,
+.Xr pccard 4
+cannot share IRQs while
+.Xr cardbus 4
+can.
+.It Dv RF_UNMAPPED
+do not establish implicit mapping when activated via
+.Xr bus_activate_resource 9 .
+.El
+.El
+.Sh RETURN VALUES
+A pointer to
+.Va struct resource
+is returned on success, a null pointer otherwise.
+.Sh EXAMPLES
+This is some example code that allocates a 32 byte I/O port range and an IRQ.
+The values of
+.Va portid
+and
+.Va irqid
+should be saved in the softc of the device after these calls.
+.Bd -literal
+	struct resource *portres, *irqres;
+	int portid, irqid;
+
+	portid = 0;
+	irqid = 0;
+	portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &portid,
+			0ul, ~0ul, 32, RF_ACTIVE);
+	irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &irqid,
+			RF_ACTIVE | RF_SHAREABLE);
+.Ed
+.Sh SEE ALSO
+.Xr bus_activate_resource 9 ,
+.Xr bus_adjust_resource 9 ,
+.Xr bus_map_resource 9 ,
+.Xr bus_release_resource 9 ,
+.Xr device 9 ,
+.Xr driver 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Alexander Langer Aq Mt alex@big.endian.de
+with parts by
+.An Warner Losh Aq Mt imp@FreeBSD.org .

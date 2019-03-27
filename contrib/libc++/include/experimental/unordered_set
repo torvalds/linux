@@ -1,0 +1,59 @@
+// -*- C++ -*-
+//===------------------------- unordered_set ------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXPERIMENTAL_UNORDERED_SET
+#define _LIBCPP_EXPERIMENTAL_UNORDERED_SET
+/*
+    experimental/unordered_set synopsis
+
+// C++1z
+namespace std {
+namespace experimental {
+inline namespace fundamentals_v1 {
+namespace pmr {
+
+  template <class T, class Hash = hash<T>, class Pred = equal_to<T>>
+  using unordered_set = std::unordered_set<T, Hash, Pred,
+                       polymorphic_allocator<T>>;
+
+  template <class T, class Hash = hash<T>, class Pred = equal_to<T>>
+  using unordered_multiset = std::unordered_multiset<T, Hash, Pred,
+                       polymorphic_allocator<T>>;
+
+} // namespace pmr
+} // namespace fundamentals_v1
+} // namespace experimental
+} // namespace std
+
+ */
+
+#include <experimental/__config>
+#include <unordered_set>
+#include <experimental/memory_resource>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_LFTS_PMR
+
+template <class _Value,
+          class _Hash = hash<_Value>, class _Pred = equal_to<_Value>>
+using unordered_set = _VSTD::unordered_set<_Value, _Hash, _Pred,
+                        polymorphic_allocator<_Value>>;
+
+template <class _Value,
+          class _Hash = hash<_Value>, class _Pred = equal_to<_Value>>
+using unordered_multiset = _VSTD::unordered_multiset<_Value, _Hash, _Pred,
+                        polymorphic_allocator<_Value>>;
+
+_LIBCPP_END_NAMESPACE_LFTS_PMR
+
+#endif /* _LIBCPP_EXPERIMENTAL_UNORDERED_SET */

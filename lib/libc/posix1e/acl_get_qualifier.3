@@ -1,0 +1,140 @@
+.\"-
+.\" Copyright (c) 2001 Chris D. Faulhaber
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 13, 2001
+.Dt ACL_GET_QUALIFIER 3
+.Os
+.Sh NAME
+.Nm acl_get_qualifier
+.Nd retrieve the qualifier from an ACL entry
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/acl.h
+.Ft void *
+.Fn acl_get_qualifier "acl_entry_t entry_d"
+.Sh DESCRIPTION
+The
+.Fn acl_get_qualifier
+function
+is a POSIX.1e call that retrieves the qualifier of the tag for
+the ACL entry indicated by the argument
+.Fa entry_d
+into working storage and returns a pointer to that storage.
+.Pp
+If the value of the tag type in the ACL entry referred to by
+.Fa entry_d
+is
+.Dv ACL_USER ,
+then the value returned by
+.Fn acl_get_qualifier
+will be a pointer to type
+.Vt uid_t .
+.Pp
+If the value of the tag type in
+the ACL entry referred to by
+.Fa entry_d
+is
+.Dv ACL_GROUP ,
+then the value returned by
+.Fn acl_get_qualifier
+will be a pointer to type
+.Vt gid_t .
+.Pp
+If the value of the tag type in the ACL entry referred to by
+.Fa entry_d
+is
+.Dv ACL_UNDEFINED_TAG , ACL_USER_OBJ , ACL_GROUP_OBJ ,
+.Dv ACL_OTHER , ACL_MASK ,
+or an implementation-defined value for which a qualifier
+is not supported, then
+.Fn acl_get_qualifier
+will return a value of
+.Vt ( void * ) Ns Dv NULL
+and the function will fail.
+.Pp
+This function may cause memory to be allocated.
+The caller should
+free any releasable memory, when the new qualifier is no longer
+required, by calling
+.Fn acl_free
+with
+.Vt void *
+as the argument.
+.Sh RETURN VALUES
+The
+.Fn acl_get_qualifier
+function returns a pointer to the allocated storage if successful;
+otherwise a
+.Dv NULL
+pointer is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn acl_get_qualifier
+fails if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Argument
+.Fa entry_d
+does not point to a valid descriptor for an ACL entry.
+The
+value of the tag type in the ACL entry referenced by argument
+.Fa entry_d
+is not
+.Dv ACL_USER
+or
+.Dv ACL_GROUP .
+.It Bq Er ENOMEM
+The value to be returned requires more memory than is allowed
+by the hardware or system-imposed memory management constraints.
+.El
+.Sh SEE ALSO
+.Xr acl 3 ,
+.Xr acl_create_entry 3 ,
+.Xr acl_free 3 ,
+.Xr acl_get_entry 3 ,
+.Xr acl_get_tag_type 3 ,
+.Xr acl_set_qualifier 3 ,
+.Xr acl_set_tag_type 3 ,
+.Xr posix1e 3
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+.Sh HISTORY
+POSIX.1e support was introduced in
+.Fx 4.0 .
+The
+.Fn acl_get_qualifier
+function was added in
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Fn acl_get_qualifier
+function was written by
+.An Chris D. Faulhaber Aq Mt jedgar@fxp.org .

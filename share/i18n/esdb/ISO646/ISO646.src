@@ -1,0 +1,7 @@
+# $FreeBSD$ 
+# $NetBSD: ISO646.src,v 1.1 2003/06/27 08:40:57 tshiozak Exp $
+
+NAME		"ISO646-x"
+ENCODING	"NONE"
+DEFCSID		"ISO646-x"	0
+INVALID		0x3F	# '?'

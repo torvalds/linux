@@ -1,0 +1,346 @@
+.\" Copyright (c) 2006-2009 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 17, 2009
+.Dt GJOURNAL 8
+.Os
+.Sh NAME
+.Nm gjournal
+.Nd "control utility for journaled devices"
+.Sh SYNOPSIS
+.Nm
+.Cm label
+.Op Fl cfhv
+.Op Fl s Ar jsize
+.Ar dataprov
+.Op Ar jprov
+.Nm
+.Cm stop
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm sync
+.Op Fl v
+.Nm
+.Cm clear
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm dump
+.Ar prov ...
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
+.Sh DESCRIPTION
+The
+.Nm
+utility is used for journal configuration on the given GEOM provider.
+The Journal and data may be stored on the same provider or on two separate
+providers.
+This is block level journaling, not file system level journaling, which means
+everything gets logged, e.g.\& for file systems, it journals both data and
+metadata.
+The
+.Nm
+GEOM class can talk to file systems, which allows the use of
+.Nm
+for file system journaling and to keep file systems in a consistent state.
+At this time, only UFS file system is supported.
+.Pp
+To configure journaling on the UFS file system using
+.Nm ,
+one should first create a
+.Nm
+provider using the
+.Nm
+utility, then run
+.Xr newfs 8
+or
+.Xr tunefs 8
+on it with the
+.Fl J
+flag which instructs UFS to cooperate with the
+.Nm
+provider below.
+There are important differences in how journaled UFS works.
+The most important one is that
+.Xr sync 2
+and
+.Xr fsync 2
+system calls do not work as expected anymore.
+To ensure that data is stored on the data provider, the
+.Nm Cm sync
+command should be used after calling
+.Xr sync 2 .
+For the best performance possible, soft-updates should be disabled when
+.Nm
+is used.
+It is also safe and recommended to use the
+.Cm async
+.Xr mount 8
+option.
+.Pp
+When
+.Nm
+is configured on top of
+.Xr gmirror 8
+or
+.Xr graid3 8
+providers, it also keeps them in a consistent state, thus
+automatic synchronization on power failure or system crash may be disabled
+on those providers.
+.Pp
+The
+.Nm
+utility uses on-disk metadata, stored in the provider's last sector,
+to store all needed information.
+This could be a problem when an existing file system is converted to use
+.Nm .
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm status"
+.It Cm label
+Configures
+.Nm
+on the given provider(s).
+If only one provider is given, both data and journal are stored on the same
+provider.
+If two providers are given, the first one will be used as data provider and the
+second will be used as the journal provider.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl s Ar jsize"
+.It Fl c
+Checksum journal records.
+.It Fl f
+May be used to convert an existing file system to use
+.Nm ,
+but only if the journal will be configured on a separate provider and if the
+last sector in the data provider is not used by the existing file system.
+If
+.Nm
+detects that the last sector is used, it will refuse to overwrite it
+and return an error.
+This behavior may be forced by using the
+.Fl f
+flag, which will force
+.Nm
+to overwrite the last sector.
+.It Fl h
+Hardcode provider names in metadata.
+.It Fl s Ar jsize
+Specifies size of the journal if only one provider is used for both data and
+journal.
+The default is one gigabyte.
+Size should be chosen based on provider's load, and not on its size;
+recommended minimum is twice the size of the physical memory installed.
+It is not recommended to use
+.Nm
+for small file systems (e.g.: only few gigabytes big).
+.El
+.It Cm clear
+Clear metadata on the given providers.
+.It Cm stop
+Stop the given provider.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Stop the given provider even if it is opened.
+.El
+.It Cm sync
+Trigger journal switch and enforce sending data to the data provider.
+.It Cm dump
+Dump metadata stored on the given providers.
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl v"
+.It Fl v
+Be more verbose.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
+.Sh EXAMPLES
+Create a
+.Nm
+based UFS file system and mount it:
+.Bd -literal -offset indent
+gjournal load
+gjournal label da0
+newfs -J /dev/da0.journal
+mount -o async /dev/da0.journal /mnt
+.Ed
+.Pp
+Configure journaling on an existing file system, but only if
+.Nm
+allows this (i.e., if the last sector is not already used by the file system):
+.Bd -literal -offset indent
+umount /dev/da0s1d
+gjournal label da0s1d da0s1e && \e
+    tunefs -J enable -n disable da0s1d.journal && \e
+    mount -o async /dev/da0s1d.journal /mnt || \e
+    mount /dev/da0s1d /mnt
+.Ed
+.Sh SYSCTLS
+Gjournal adds the sysctl level kern.geom.journal.
+The string and integer information available is detailed below.
+The changeable column shows whether a process with appropriate privilege may
+change the value.
+.Bl -column "accept_immediatelyXXXXXX" integerXXX -offset indent
+.It Sy "sysctl name	Type	Changeable"
+.It "debug	integer	yes"
+.It "switch_time	integer	yes"
+.It "force_switch	integer	yes"
+.It "parallel_flushes	integer	yes"
+.It "accept_immediately	integer	yes"
+.It "parallel_copies	integer	yes"
+.It "record_entries	integer	yes"
+.It "optimize	integer	yes"
+.El
+.Bl -tag -width 6n
+.It Li debug
+Setting a non-zero value enables debugging at various levels.
+Debug level 1 will record actions at a journal level, relating to journal
+switches, metadata updates, etc.
+Debug level 2 will record actions at a higher level, relating to the numbers of
+entries in journals, access requests, etc.
+Debug level 3 will record verbose detail, including insertion of I/Os to the
+journal.
+.It Li switch_time
+The maximum number of seconds a journal is allowed to remain open before
+switching to a new journal.
+.It Li force_switch
+Force a journal switch when the journal uses more than N% of the free journal
+space.
+.It Li parallel_flushes
+The number of flush I/O requests to be sent in parallel when flushing the
+journal to the data provider.
+.It Li accept_immediately
+The maximum number of I/O requests accepted at the same time.
+.It Li parallel_copies
+The number of copy I/O requests to send in parallel.
+.It Li record_entries
+The maximum number of record entries to allow in a single journal.
+.It Li optimize
+Controls whether entries in a journal will be optimized by combining overlapping
+I/Os into a single I/O and reordering the entries in a journal.
+This can be disabled by setting the sysctl to 0.
+.El
+.Ss cache
+The string and integer information available for the cache level
+is detailed below.
+The changeable column shows whether a process with appropriate
+privilege may change the value.
+.Bl -column "alloc_failuresXXXXXX" integerXXX -offset indent
+.It Sy "sysctl name	Type	Changeable"
+.It "used	integer	no"
+.It "limit	integer	yes"
+.It "divisor	integer	no"
+.It "switch	integer	yes"
+.It "misses	integer	yes"
+.It "alloc_failures	integer	yes"
+.El
+.Bl -tag -width 6n
+.It Li used
+The number of bytes currently allocated to the cache.
+.It Li limit
+The maximum number of bytes to be allocated to the cache.
+.It Li divisor
+Sets the cache size to be used as a proportion of kmem_size.
+A value of 2 (the default) will cause the cache size to be set to 1/2 of the
+kmem_size.
+.It Li switch
+Force a journal switch when this percentage of cache has been used.
+.It Li misses
+The number of cache misses, when data has been read, but was not found in the
+cache.
+.It Li alloc_failures
+The number of times memory failed to be allocated to the cache because the cache
+limit was hit.
+.El
+.Ss stats
+The string and integer information available for the statistics level
+is detailed below.
+The changeable column shows whether a process with appropriate
+privilege may change the value.
+.Bl -column "skipped_bytesXXXXXX" integerXXX -offset indent
+.It Sy "sysctl name	Type	Changeable"
+.It "skipped_bytes	integer	yes"
+.It "combined_ios	integer	yes"
+.It "switches	integer	yes"
+.It "wait_for_copy	integer	yes"
+.It "journal_full	integer	yes"
+.It "low_mem	integer	yes"
+.El
+.Bl -tag -width 6n
+.It Li skipped_bytes
+The number of bytes skipped.
+.It Li combined_ios
+The number of I/Os which were combined by journal optimization.
+.It Li switches
+The number of journal switches.
+.It Li wait_for_copy
+The number of times the journal switch process had to wait for the previous
+journal copy to complete.
+.It Li journal_full
+The number of times the journal was almost full, forcing a journal switch.
+.It Li low_mem
+The number of times the low_mem hook was called.
+.El
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr geom 8 ,
+.Xr mount 8 ,
+.Xr newfs 8 ,
+.Xr tunefs 8 ,
+.Xr umount 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org

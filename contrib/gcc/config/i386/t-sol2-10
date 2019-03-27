@@ -1,0 +1,11 @@
+MULTILIB_OPTIONS = m32/m64
+MULTILIB_DIRNAMES = 32 amd64
+MULTILIB_OSDIRNAMES = . amd64
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib
+
+# GCC contains i386 assembler sources for some of the startfiles
+# which aren't appropriate for amd64.  Just use the installed
+# versions of: crt1.o crti.o crtn.o gcrt1.o
+EXTRA_MULTILIB_PARTS=gmon.o crtbegin.o crtend.o

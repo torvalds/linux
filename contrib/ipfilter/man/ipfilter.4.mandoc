@@ -1,0 +1,267 @@
+.Dd December 8, 2000
+.Dt IP\ FILTER 4
+.Os
+.Sh NAME
+.Nm IP Filter
+.Nd Introduction to IP packet filtering
+.Sh DESCRIPTION
+IP Filter is a TCP/IP packet filter, suitable for use in a firewall
+environment. To use, it can either be used as a loadable kernel module or
+incorporated into your UNIX kernel; use as a loadable kernel module where
+possible is highly recommended. Scripts are provided to install and patch
+system files, as required.
+.Sh FEATURES
+The IP packet filter can:
+.Bl -bullet -offset indent -compact
+.It
+explicitly deny/permit any packet from passing through
+.It
+distinguish between various interfaces
+.It
+filter by IP networks or hosts
+.It
+selectively filter any IP protocol
+.It
+selectively filter fragmented IP packets
+.It
+selectively filter packets with IP options
+.It
+send back an ICMP error/TCP reset for blocked packets
+.It
+keep packet state information for TCP, UDP and ICMP packet flows
+.It
+keep fragment state information for any IP packet, applying the same rule
+to all fragments.
+.It
+act as a Network Address Translator (NAT)
+.It
+use redirection to setup true transparent proxy connections
+.It
+provide packet header details to a user program for authentication
+.It
+in addition, supports temporary storage of pre-authenticated rules for passing packets through
+.El
+.Pp
+Special provision is made for the three most common Internet protocols, TCP,
+UDP and ICMP. The IP Packet filter allows filtering of:
+.Bl -bullet -offset indent -compact
+.It
+Inverted host/net matchingTCP/UDP packets by port number or a port number
+range
+.It
+ICMP packets by type/code
+.It
+"established" TCP packets
+.It
+On any arbitrary combination of TCP flags
+.It
+"short" (fragmented) IP packets with incomplete headers can be filtered
+.It
+any of the 19 IP options or 8 registered IP security classes TOS (Type of
+Service) field in packets
+.El
+.Pp
+To keep track of the performance of the IP packet filter, a logging device
+is used which supports logging of:
+.Bl -bullet -offset indent -compact
+.It
+the TCP/UDP/ICMP and IP packet headers
+.It
+the first 128 bytes of the packet (including headers)
+.El
+.Pp
+A packet can be logged when:
+.Bl -bullet -offset indent -compact
+.It
+it is successfully passed through
+.It
+it is blocked from passing through
+.It
+it matches a rule setup to look for suspicious packets
+.El
+.Pp
+IP Filter keeps its own set of statistics on:
+.Bl -bullet -offset indent -compact
+.It
+packets blocked
+.It
+packets (and bytes!) used for accounting
+.It
+packets passed
+.li
+packets logged
+.It
+attempts to log which failed (buffer full)
+.El
+and much more, for packets going both in and out.
+
+.Sh Tools
+The current implementation provides a small set of tools, which can easily
+be used and integrated with regular unix shells and tools. A brief description
+of the tools provided:
+.Pp
+.Xr ipf 8
+reads in a set of rules, from either stdin or a file, and adds them to
+the kernels current list (appending them). It can also be used to flush the
+current filter set or delete individual filter rules. The file format is
+described in
+.Xr ipf 5 .
+.Pp
+.Xr ipfs 8
+is a utility to temporarily lock the IP Filter kernel tables (state tables
+and NAT mappings) and write them to disk. After that the system can be
+rebooted, and ipfs can be used to read these tables from disk and restore
+them into the kernel. This way the system can be rebooted without the
+connections being terminated.
+.Pp
+.Xr ipfstat 8
+interrogates the kernel for statistics on packet filtering, so
+far, and retrieves the list of filters in operation for inbound and outbound
+packets.
+.Pp
+.Xr ipftest 1
+reads in a filter rule file and then applies sample IP packets to
+the rule file. This allows for testing of filter list and examination of how
+a packet is passed along through it.
+.Pp
+.Xr ipmon 8
+reads buffered data from the logging device (default is /dev/ipl)
+for output to either:
+.Bl  -bullet -offset indent -compact
+.It
+screen (standard output)
+.It
+file
+.It
+syslog
+.El
+.Pp
+.Xr ipsend 1
+generates arbitary IP packets for ethernet connected machines.
+.Pp
+.Xr ipresend 1
+reads in a data file of saved IP packets (ie
+snoop/tcpdump/etherfind output) and sends it back across the network.
+.Pp
+.Xr iptest 1
+contains a set of test "programs" which send out a series of IP
+packets, aimed at testing the strength of the TCP/IP stack at which it is
+aimed at. WARNING: this may crash machine(s) targeted!
+.Pp
+.Xr ipnat 8
+reads in a set of rules, from either stdin or a file and adds them
+to the kernels current list of active NAT rules. NAT rules can also be
+deleted using ipnat. The format of the configuration file to be used
+with ipnat is described in
+.Xr ipnat 5 .
+.Pp
+For use in your own programs (e.g. for writing of transparent application
+proxies), the programming interface and the associated ioctl's are
+documented in
+.Xr ipf 4 .
+
+Documentation on ioctl's and the format of data saved
+to the logging character device is provided in
+.Xr ipl 4
+so that you may develop your own applications to work with or in place of any
+of the above.
+
+Similar, the interface to the NAT code is documented in
+.Xr ipnat 4 .
+
+.Sh PACKET PROCESSING FLOW
+The following diagram illustrates the flow of TCP/IP packets through the
+various stages introduced by IP Filter.
+.Pp
+.nf
+                                   IN
+                                    |
+                                    V
+          +-------------------------+--------------------------+
+          |                         |                          |
+          |                         V                          |
+          |            Network Address Translation             |
+          |                         |                          |
+          |         authenticated   |                          |
+          |       +-------<---------+                          |
+          |       |                 |                          |
+          |       |                 V                          |
+          |       V           IP Accounting                    |
+          |       |                 |                          |
+          |       |                 V                          |
+          |       |        Fragment Cache Check--+             |
+          |       |                 |            |             |
+          |       V                 V            V             |
+          |       |         Packet State Check-->+             |
+          |       |                 |            |             |
+          |       |       +->--+    |            |             |
+          |       |       |    |    V            |             |
+          |       V   groups   IP Filtering      V             |
+          |       |       |    |    |            |             |
+          |       |       +--<-+    |            |             |
+          |       |                 |            |             |
+          |       +---------------->|<-----------+             |
+          |                         |                          |
+          |                         V                          |
+          |                +---<----+                          |
+          |                |        |                          |
+          |            function     |                          |
+          |                |        V                          |
+          |                +--->----+                          |
+          |                         |                          |
+          |                         V                          |
+       +--|---<--- fast-route ---<--+                          |
+       |  |                         |                          |
+       |  |                         V                          |
+       |  +-------------------------+--------------------------+
+       |                            |
+       |                        pass only
+       |                            |
+       |                            V
+       V               [KERNEL TCP/IP Processing]
+       |                            |
+       |  +-------------------------+--------------------------+
+       |  |                         |                          |
+       |  |                         V                          |
+       |  |                Fragment Cache Check--+             |
+       |  |                         |            |             |
+       |  |                         V            V             |
+       |  |                 Packet State Check-->+             |
+       |  |                         |            |             |
+       |  |                         V            |             |
+       V  |                    IP Filtering      |             |
+       |  |                         |            V             |
+       |  |                         |<-----------+             |
+       |  |                         V                          |
+       |  |                   IP Accounting                    |
+       |  |                         |                          |
+       |  |                         V                          |
+       |  |            Network Address Translation             |
+       |  |                         |                          |
+       |  |                         V                          |
+       |  +-------------------------+--------------------------+
+       |                            |
+       |                        pass only
+       V                            |
+       +--------------------------->|
+                                    V
+                                   OUT
+.fi
+
+.Sh MORE INFORMATION
+More information (including pointers to the FAQ and the mailing list) can be
+obtained from the sofware's official homepage: www.ipfilter.org
+
+.Sh SEE ALSO
+.Xr ipf 4 ,
+.Xr ipf 5 ,
+.Xr ipf 8 ,
+.Xr ipfilter 5 ,
+.Xr ipfs 8 ,
+.Xr ipfstat 8 ,
+.Xr ipftest 1 ,
+.Xr ipl 4 ,
+.Xr ipmon 8 ,
+.Xr ipnat 4 ,
+.Xr ipnat 8 ,
+

@@ -1,0 +1,232 @@
+##
+##  config.layout -- Pre-defined Installation Path Layouts
+##
+##  Hints:
+##  - layouts can be loaded with configure's --enable-layout=ID option
+##  - when no --enable-layout option is given, the default layout is `apr'
+##  - a trailing plus character (`+') on paths is replaced with a 
+##    `/<target>' suffix where <target> is currently hardcoded to 'apr'.
+##    (This may become a configurable parameter at some point.)
+##
+
+#   Classical APR-util path layout designed for parallel installs.
+<Layout apr-util>
+    prefix:        /usr/local/apr
+    exec_prefix:   ${prefix}
+    bindir:        ${exec_prefix}/bin
+    sbindir:       ${exec_prefix}/bin
+    libdir:        ${exec_prefix}/lib
+    libexecdir:    ${exec_prefix}/modules
+    mandir:        ${prefix}/man
+    sysconfdir:    ${prefix}/conf
+    datadir:       ${prefix}
+    installbuilddir: ${datadir}/build
+    includedir:    ${prefix}/include/apr-${APRUTIL_MAJOR_VERSION}
+    localstatedir: ${prefix}
+    libsuffix:     -${APRUTIL_MAJOR_VERSION}
+</Layout>
+
+#   Classical single-installation APR path layout.
+<Layout classic>
+    prefix:        /usr/local/apr
+    exec_prefix:   ${prefix}
+    bindir:        ${exec_prefix}/bin
+    sbindir:       ${exec_prefix}/bin
+    libdir:        ${exec_prefix}/lib
+    libexecdir:    ${exec_prefix}/modules
+    mandir:        ${prefix}/man
+    sysconfdir:    ${prefix}/conf
+    datadir:       ${prefix}
+    installbuilddir: ${datadir}/build
+    includedir:    ${prefix}/include
+    localstatedir: ${prefix}
+</Layout>
+
+#   GNU standards conforming path layout.
+#   See FSF's GNU project `make-stds' document for details.
+<Layout GNU>
+    prefix:        /usr/local
+    exec_prefix:   ${prefix}
+    bindir:        ${exec_prefix}/bin
+    sbindir:       ${exec_prefix}/sbin
+    libdir:        ${exec_prefix}/lib
+    libexecdir:    ${exec_prefix}/libexec
+    mandir:        ${prefix}/man
+    sysconfdir:    ${prefix}/etc+
+    datadir:       ${prefix}/share+
+    installbuilddir: ${datadir}/build
+    includedir:    ${prefix}/include+
+    localstatedir: ${prefix}/var+
+    runtimedir:    ${localstatedir}/run
+</Layout>
+
+#   Mac OS X Server (Rhapsody)
+<Layout Mac OS X Server>
+    prefix:        /Local/Library/WebServer
+    exec_prefix:   /usr
+    bindir:        ${exec_prefix}/bin
+    sbindir:       ${exec_prefix}/sbin
+    libdir:        ${exec_prefix}/lib
+    libexecdir:    /System/Library/apr/Modules
+    mandir:        ${exec_prefix}/share/man
+    sysconfdir:    ${prefix}/Configuration
+    datadir:       ${prefix}
+    installbuilddir: /System/Library/apr/Build
+    includedir:    /System/Library/Frameworks/apr.framework/Versions/2.0/Headers
+    localstatedir: /var
+    runtimedir:    ${prefix}/Logs
+</Layout>
+
+#   Darwin/Mac OS Layout
+<Layout Darwin>
+    prefix:        /usr
+    exec_prefix:   ${prefix}
+    bindir:        ${exec_prefix}/bin
+    sbindir:       ${exec_prefix}/sbin
+    libdir:        ${exec_prefix}/lib
+    libexecdir:    ${exec_prefix}/libexec+
+    mandir:        ${prefix}/share/man
+    datadir:       /Library/WebServer
+    sysconfdir:    /etc+
+    installbuilddir: ${prefix}/share/httpd/build
+    includedir:    ${prefix}/include+
+    localstatedir: /var
+    runtimedir:    ${localstatedir}/run
+</Layout>
+
+#   Red Hat Linux 7.x layout
+<Layout RedHat>
+    prefix:        /usr
+    exec_prefix:   ${prefix}
+    bindir:        ${prefix}/bin
+    sbindir:       ${prefix}/sbin
+    libdir:        ${prefix}/lib
+    libexecdir:    ${prefix}/lib/apr
+    mandir:        ${prefix}/man
+    sysconfdir:    /etc/httpd/conf
+    datadir:       /var/www
+    installbuilddir: ${datadir}/build
+    includedir:    ${prefix}/include/apr
+    localstatedir: /var
+    runtimedir:    ${localstatedir}/run
+</Layout>     
+
+#   According to the /opt filesystem conventions
+<Layout opt>
+    prefix:        /opt/apr
+    exec_prefix:   ${prefix}
+    bindir:        ${exec_prefix}/bin
+    sbindir:       ${exec_prefix}/sbin
+    libdir:        ${exec_prefix}/lib
+    libexecdir:    ${exec_prefix}/libexec
+    mandir:        ${prefix}/man
+    sysconfdir:    /etc${prefix}
+    datadir:       ${prefix}/share
+    installbuilddir: ${datadir}/build
+    includedir:    ${prefix}/include
+    localstatedir: /var${prefix}
+    runtimedir:    ${localstatedir}/run
+</Layout>
+
+#  BeOS layout...
+<Layout beos>
+    prefix:        /boot/home/apr
+    exec_prefix:   ${prefix}
+    bindir:        ${exec_prefix}/bin
+    sbindir:       ${exec_prefix}/bin
+    libdir:        ${exec_prefix}/lib
+    libexecdir:    ${exec_prefix}/libexec
+    mandir:        ${prefix}/man
+    sysconfdir:    ${prefix}/conf
+    datadir:       ${prefix}
+    installbuilddir: ${datadir}/build
+    includedir:    ${prefix}/include
+    localstatedir: ${prefix}
+    runtimedir:    ${localstatedir}/logs
+</Layout>
+
+#   SuSE 6.x layout
+<Layout SuSE>
+    prefix:        /usr
+    exec_prefix:   ${prefix}
+    bindir:        ${prefix}/bin
+    sbindir:       ${prefix}/sbin
+    libdir:        ${prefix}/lib
+    libexecdir:    ${prefix}/lib/apr
+    mandir:        ${prefix}/share/man
+    sysconfdir:    /etc/httpd
+    datadir:       /usr/local/httpd
+    installbuilddir: ${datadir}/build
+    includedir:    ${prefix}/include/apr
+    localstatedir: /var/lib/httpd
+    runtimedir:    /var/run
+</Layout>
+
+#   BSD/OS layout
+<Layout BSDI>
+    prefix:        /var/www
+    exec_prefix:   /usr/contrib
+    bindir:        ${exec_prefix}/bin
+    sbindir:       ${exec_prefix}/bin
+    libdir:        ${exec_prefix}/lib
+    libexecdir:    ${exec_prefix}/libexec/apr
+    mandir:        ${exec_prefix}/man
+    sysconfdir:    ${prefix}/conf
+    datadir:       ${prefix}
+    installbuilddir: ${datadir}/build
+    includedir:    ${exec_prefix}/include/apr
+    localstatedir: /var
+    runtimedir:    ${localstatedir}/run
+</Layout>
+
+#   Solaris 8 Layout
+<Layout Solaris>
+    prefix:        /usr/apr
+    exec_prefix:   ${prefix}
+    bindir:        ${exec_prefix}/bin
+    sbindir:       ${exec_prefix}/bin
+    libdir:        ${exec_prefix}/lib
+    libexecdir:    ${exec_prefix}/libexec
+    mandir:        ${exec_prefix}/man
+    sysconfdir:    /etc/apr
+    datadir:       /var/apr
+    installbuilddir: ${datadir}/build
+    includedir:    ${exec_prefix}/include
+    localstatedir: ${prefix}
+    runtimedir:    /var/run
+</Layout>
+
+#   OpenBSD Layout
+<Layout OpenBSD>
+    prefix:        /var/www
+    exec_prefix:   /usr
+    bindir:        ${exec_prefix}/bin
+    sbindir:       ${exec_prefix}/sbin
+    libdir:        ${exec_prefix}/lib
+    libexecdir:    ${exec_prefix}/lib/apr/modules
+    mandir:        ${exec_prefix}/share/man
+    sysconfdir:    ${prefix}/conf
+    datadir:       ${prefix}
+    installbuilddir: ${prefix}/build
+    includedir:    ${exec_prefix}/lib/apr/include
+    localstatedir: ${prefix}
+    runtimedir:    ${prefix}/logs
+</Layout>
+
+# Debian layout
+<Layout Debian>
+    prefix:        
+    exec_prefix:   ${prefix}/usr
+    bindir:        ${exec_prefix}/bin
+    sbindir:       ${exec_prefix}/sbin
+    libdir:        ${exec_prefix}/lib
+    libexecdir:    ${exec_prefix}/lib/apr/modules
+    mandir:        ${exec_prefix}/share/man
+    datadir:       ${exec_prefix}/share/apr
+    includedir:    ${exec_prefix}/include/apr-${APRUTIL_MAJOR_VERSION}
+    localstatedir: ${prefix}/var/run
+    runtimedir:    ${prefix}/var/run
+    infodir:       ${exec_prefix}/share/info
+    libsuffix:     -${APRUTIL_MAJOR_VERSION}
+    installbuilddir: ${prefix}/usr/share/apache2/build
+</Layout>

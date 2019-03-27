@@ -1,0 +1,135 @@
+#!/bin/sh
+# Script to test the attribute cache behavior of the local OS client.
+# If this script fails, it means that Amd cannot turn off the attrcache
+# reliably on this host, and Amd therefore may not run reliably.  See
+# the README.attrcache file distributed with this am-utils.
+#	-Erez Zadok, September 29, 2005
+
+# set PATH (must install am-utils first)
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+PATH=@sbindir@:@bindir@:/usr/ucb:/usr/bin:/bin:${PATH}
+export PATH
+
+# test if amd is running
+amq -p > /dev/null 2>&1
+if test $? = 0
+then
+	echo "### Amd already running... please shutdown Amd first"
+	exit 1
+fi
+
+mapfile="/tmp/amd.testmap.$$"
+logfile="/var/log/amd"
+delay=1
+a=/a
+
+CreateMap1 () {
+	echo "### Creating correct map"
+	cat - >$mapfile <<EOF
+a	type:=link;fs:=/tmp/a
+EOF
+}
+
+CreateMap2 () {
+	echo "### Creating weird map"
+	cat - >$mapfile <<EOF
+a	type:=link;fs:=/tmp/b
+EOF
+}
+
+StopAMD () {
+	ctl-amd stop
+# do not delete files we may need to use to debug Amd
+#	rm -f /tmp/a /tmp/b $mapfile $logfile
+}
+
+touch /tmp/a
+touch /tmp/b
+
+CreateMap1
+echo amd -x all -D all -r -l $logfile $a $mapfile -cache:=mapdefault,sync
+amd -x all -D all -r -l $logfile $a $mapfile -cache:=mapdefault,sync
+sleep 3				# give amd chance to start properly
+amq
+inode_a=`ls -lLi /tmp/a | awk '{print $1}'`
+inode_b=`ls -lLi /tmp/b | awk '{print $1}'`
+ls -lLi $a/a
+ls -lLi $a/b
+ls -l $mapfile
+
+# how many times to try until we call it a success...
+maxtry=10
+while test $maxtry -gt 0
+do
+	echo "$maxtry tries left ..."
+	let maxtry=maxtry-1
+	amq
+	CreateMap1
+	sleep $delay
+
+	ls -l $mapfile
+	echo "### looking at a... should get a"
+	ino=`ls -lLi $a/a | awk '{print $1}'`
+	if test -z "$ino"
+	then
+		ls -li $a/a
+		amq
+		amq -m
+		stat $a
+		echo "a link does not exist!"
+		StopAMD
+		exit 1
+	fi
+	if test $ino -ne $inode_a
+	then
+		ls -li $a/a
+		amq
+		amq -m
+		stat $a
+		echo "a link does not point to A!"
+		StopAMD
+		exit 1
+	fi
+
+# Here is the main trick we try: force amd to flush one entry, then
+# change the amd map on disk, and then see if the kernel will have
+# flushed the attribute cache; if it did, then Amd will see the
+# correctly changed map entry.
+
+	amq -u $a/a
+	sleep $delay
+	stat $a
+
+	CreateMap2
+	sleep $delay
+
+	ls -l $mapfile
+	echo "### looking at a... should get b"
+	ino=`ls -lLi $a/a | awk '{print $1}'`
+	if test -z "$ino"
+	then
+		ls -li $a/a
+		amq
+		amq -m
+		stat $a
+		echo "a link does not exist!"
+		StopAMD
+		exit 1
+	fi
+	if test $ino -ne $inode_b
+	then
+		ls -li $a/a
+		amq
+		amq -m
+		stat $a
+		echo "a link does not point to B!"
+		StopAMD
+		exit 1
+	fi
+
+	amq -u $a/a
+	sleep $delay
+	stat $a
+done
+StopAMD

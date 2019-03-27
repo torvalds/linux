@@ -1,0 +1,102 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)uuencode.format.5	8.2 (Berkeley) 1/12/94
+.\" $FreeBSD$
+.\"
+.Dd January 12, 1994
+.Dt UUENCODE 5
+.Os
+.Sh NAME
+.Nm uuencode
+.Nd format of an encoded uuencode file
+.Sh DESCRIPTION
+Files output by
+.Xr uuencode 1
+consist of a header line,
+followed by a number of body lines,
+and a trailer line.
+The
+.Xr uudecode 1
+command
+will ignore any lines preceding the header or
+following the trailer.
+Lines preceding a header must not, of course,
+look like a header.
+.Pp
+The header line is distinguished by having the first
+6 characters
+.Dq begin\ \&
+(note the trailing space).
+The word
+.Em begin
+is followed by a mode (in octal),
+and a string which names the remote file.
+A space separates the three items in the header line.
+.Pp
+The body consists of a number of lines, each at most 62 characters
+long (including the trailing newline).
+These consist of a character count,
+followed by encoded characters,
+followed by a newline.
+The character count is a single printing character,
+and represents an integer, the number of bytes
+the rest of the line represents.
+Such integers are always in the range from 1 to 45 or 64 and can
+be determined by subtracting the character space (octal 40)
+from the character.
+Character 64 represents a count of zero.
+.Pp
+Groups of 3 bytes are stored in 4 characters, 6 bits per character.
+All characters are always in range from 1 to 64 and are offset by a
+space (octal 40) to make the characters printing.
+Character
+64 represents a count of zero.
+The last line may be shorter than the normal 45 bytes.
+If the size is not a multiple of 3, this fact can be determined
+by the value of the count on the last line.
+Extra null characters will be included to make the character count a multiple
+of 4.
+The body is terminated by a line with a count of zero.
+This line consists of one
+.Tn ASCII
+backquote (octal 140) character.
+.Pp
+The trailer line consists of
+.Dq end
+on a line by itself.
+.Sh SEE ALSO
+.Xr mail 1 ,
+.Xr uucp 1 ,
+.Xr uudecode 1 ,
+.Xr uuencode 1
+.Sh HISTORY
+The
+.Nm
+file format appeared in
+.Bx 4.0 .
+.\" It was named uuencode.5 prior to 4.3

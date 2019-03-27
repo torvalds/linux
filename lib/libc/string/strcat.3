@@ -1,0 +1,165 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strcat.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2009
+.Dt STRCAT 3
+.Os
+.Sh NAME
+.Nm strcat ,
+.Nm strncat
+.Nd concatenate strings
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In string.h
+.Ft char *
+.Fn strcat "char * restrict s" "const char * restrict append"
+.Ft char *
+.Fn strncat "char * restrict s" "const char * restrict append" "size_t count"
+.Sh DESCRIPTION
+The
+.Fn strcat
+and
+.Fn strncat
+functions
+append a copy of the null-terminated string
+.Fa append
+to the end of the null-terminated string
+.Fa s ,
+then add a terminating
+.Ql \e0 .
+The string
+.Fa s
+must have sufficient space to hold the result.
+If
+.Fa s
+and
+.Fa append
+overlap, the results are undefined.
+.Pp
+The
+.Fn strncat
+function
+appends not more than
+.Fa count
+characters from
+.Fa append ,
+and then adds a terminating
+.Ql \e0 .
+If
+.Fa s
+and
+.Fa append
+overlap, the results are undefined.
+.Sh RETURN VALUES
+The
+.Fn strcat
+and
+.Fn strncat
+functions
+return the pointer
+.Fa s .
+.Sh SEE ALSO
+.Xr bcopy 3 ,
+.Xr memccpy 3 ,
+.Xr memcpy 3 ,
+.Xr memmove 3 ,
+.Xr strcpy 3 ,
+.Xr strlcat 3 ,
+.Xr strlcpy 3 ,
+.Xr wcscat 3
+.Sh STANDARDS
+The
+.Fn strcat
+and
+.Fn strncat
+functions
+conform to
+.St -isoC .
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn strcat
+function is easily misused in a manner
+which enables malicious users to arbitrarily change
+a running program's functionality through a buffer overflow attack.
+.Pp
+Avoid using
+.Fn strcat .
+Instead, use
+.Fn strncat
+or
+.Fn strlcat
+and ensure that no more characters are copied to the destination buffer
+than it can hold.
+.Pp
+Note that
+.Fn strncat
+can also be problematic.
+It may be a security concern for a string to be truncated at all.
+Since the truncated string will not be as long as the original,
+it may refer to a completely different resource
+and usage of the truncated resource
+could result in very incorrect behavior.
+Example:
+.Bd -literal
+void
+foo(const char *arbitrary_string)
+{
+	char onstack[8];
+
+#if defined(BAD)
+	/*
+	 * This first strcat is bad behavior.  Do not use strcat!
+	 */
+	(void)strcat(onstack, arbitrary_string);	/* BAD! */
+#elif defined(BETTER)
+	/*
+	 * The following two lines demonstrate better use of
+	 * strncat().
+	 */
+	(void)strncat(onstack, arbitrary_string,
+	    sizeof(onstack) - strlen(onstack) - 1);
+#elif defined(BEST)
+	/*
+	 * These lines are even more robust due to testing for
+	 * truncation.
+	 */
+	if (strlen(arbitrary_string) + 1 >
+	    sizeof(onstack) - strlen(onstack))
+		err(1, "onstack would be truncated");
+	(void)strncat(onstack, arbitrary_string,
+	    sizeof(onstack) - strlen(onstack) - 1);
+#endif
+}
+.Ed

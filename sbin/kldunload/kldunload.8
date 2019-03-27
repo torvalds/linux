@@ -1,0 +1,81 @@
+.\"
+.\" Copyright (c) 1997 Doug Rabson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 27, 2006
+.Dt KLDUNLOAD 8
+.Os
+.Sh NAME
+.Nm kldunload
+.Nd unload a file from the kernel
+.Sh SYNOPSIS
+.Nm
+.Op Fl fv
+.Fl i Ar id ...
+.Nm
+.Op Fl fv
+.Op Fl n
+.Ar name ...
+.Sh DESCRIPTION
+The
+.Nm
+utility unloads a file which was previously loaded with
+.Xr kldload 8 .
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl n Ar name"
+.It Fl f
+Force the unload.
+This ignores error returns to
+.Dv MOD_QUIESCE
+from the module and implies
+that the module should be unloaded even if it is currently in use.
+The users are left to cope as best they can.
+.It Fl v
+Be more verbose.
+.It Fl i Ar id
+Unload the file with this ID.
+.It Fl n Ar name
+Unload the file with this name.
+.It Ar name
+Unload the file with this name.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr kldunload 2 ,
+.Xr kldload 8 ,
+.Xr kldstat 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 3.0 ,
+replacing the
+.Nm lkm
+interface.
+.Sh AUTHORS
+.An Doug Rabson Aq Mt dfr@FreeBSD.org

@@ -1,0 +1,47 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_backup_aliases_enable" in
+    [Yy][Ee][Ss])
+	if [ ! -f /etc/mail/aliases ]
+	then
+	    echo '$daily_backup_aliases_enable is enabled but' \
+		"/etc/mail/aliases doesn't exist"
+	    rc=2
+	else
+	    bak=/var/backups
+	    rc=0
+
+	    echo ""
+	    echo "Backing up mail aliases:"
+
+	    if [ ! -f $bak/aliases.bak ]
+	    then
+		echo "no $bak/aliases.bak"
+		cp -p /etc/mail/aliases $bak/aliases.bak || rc=3
+	    fi
+
+	    if ! cmp -s $bak/aliases.bak /etc/mail/aliases
+	    then
+		[ $rc -lt 1 ] && rc=1
+		echo "$host aliases diffs:"
+		diff -u $bak/aliases.bak /etc/mail/aliases
+		mv $bak/aliases.bak $bak/aliases.bak2
+		cp -p /etc/mail/aliases $bak/aliases.bak || rc=3
+	    fi
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

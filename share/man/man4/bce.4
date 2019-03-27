@@ -1,0 +1,432 @@
+.\" Copyright (c) 2006-2014 QLogic Corporation
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 4, 2012
+.Dt BCE 4
+.Os
+.Sh NAME
+.Nm bce
+.Nd "QLogic NetXtreme II (BCM5706/5708/5709/5716) PCI/PCIe Gigabit Ethernet adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device bce"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_bce_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports QLogic's NetXtreme II product family, including the
+BCM5706, BCM5708, BCM5709 and BCM5716 Ethernet controllers.
+.Pp
+The NetXtreme II product family is composed of various Converged NIC (or CNIC)
+Ethernet controllers which support a TCP Offload Engine (TOE), Remote DMA (RDMA),
+and iSCSI acceleration, in addition to standard L2 Ethernet traffic, all on the
+same controller.
+.Pp
+The following features are supported in the
+.Nm
+driver under
+.Fx :
+.Pp
+.Bl -item -offset indent -compact
+.It
+IP/TCP/UDP checksum offload
+.It
+Jumbo frames (up to 9022 bytes)
+.It
+VLAN tag stripping
+.It
+Interrupt coalescing
+.It
+10/100/1000Mbps operation in full-duplex mode
+.It
+10/100Mbps operation in half-duplex mode
+.El
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to
+.Xr rc.conf 5 .
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 1000baseSX
+Sets 1000Mbps operation.
+Only
+.Cm full-duplex
+mode is supported at this speed.
+.It Cm 1000baseT
+Set 1000baseT operation over twisted pair.
+Only
+.Cm full-duplex
+mode is supported.
+.It Cm 2500BaseSX
+Set 2500Mbps operation.
+Only
+.Cm full-duplex
+mode is supported.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver provides support for various NICs based on the QLogic NetXtreme II
+family of Gigabit Ethernet controllers, including the
+following:
+.Pp
+.Bl -bullet -compact
+.It
+QLogic NetXtreme II BCM5706 1000Base-SX
+.It
+QLogic NetXtreme II BCM5706 1000Base-T
+.It
+QLogic NetXtreme II BCM5708 1000Base-SX
+.It
+QLogic NetXtreme II BCM5708 1000Base-T
+.It
+QLogic NetXtreme II BCM5709 1000Base-SX
+.It
+QLogic NetXtreme II BCM5709 1000Base-T
+.It
+QLogic NetXtreme II BCM5716 1000Base-T
+.It
+Dell PowerEdge 1950 integrated BCM5708 NIC
+.It
+Dell PowerEdge 2950 integrated BCM5708 NIC
+.It
+Dell PowerEdge R710 integrated BCM5709 NIC
+.It
+HP NC370F Multifunction Gigabit Server Adapter
+.It
+HP NC370T Multifunction Gigabit Server Adapter
+.It
+HP NC370i Multifunction Gigabit Server Adapter
+.It
+HP NC371i Multifunction Gigabit Server Adapter
+.It
+HP NC373F PCIe Multifunc Giga Server Adapter
+.It
+HP NC373T PCIe Multifunction Gig Server Adapter
+.It
+HP NC373i Multifunction Gigabit Server Adapter
+.It
+HP NC373m Multifunction Gigabit Server Adapter
+.It
+HP NC374m PCIe Multifunction Adapter
+.It
+HP NC380T PCIe DP Multifunc Gig Server Adapter
+.It
+HP NC382T PCIe DP Multifunction Gigabit Server Adapter
+.It
+HP NC382i DP Multifunction Gigabit Server Adapter
+.It
+HP NC382m DP 1GbE Multifunction BL-c Adapter
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.bce.verbose
+Enable/Disable verbose logging and output to the console.
+Useful for debugging (default 0).
+.It Va hw.bce.msi_enable
+Enable/Disable MSI support (default 1).
+.It Va hw.bce.tso_enable
+Enable/Disable TSO support (default 1).
+.It Va hw.bce.strict_rx_mtu
+Enable/Disable strict RX frame size checking (default 0).
+.It Va hw.bce.hdr_split
+Enable/Disable frame header/payload splitting (default 1).
+.It Va hw.bce.rx_pages
+Set the number of memory pages assigned to receive packets by the driver.
+Due to alignment issues, this value can only be of the set
+1, 2, 4 or 8 (default 2).
+.It Va hw.bce.tx_pages
+Set the number of memory pages assigned to transmit packets
+by the driver.
+Due to alignment issues, this value can only be of the set
+1, 2, 4 or 8 (default 2).
+.It Va hw.bce.rx_ticks
+Time in microsecond ticks to wait before generating a status
+block updates due to RX processing activity.
+Values from 0-100 are valid.
+A value of 0 disables this status block update.
+Cannot be set to 0 if hw.bce.rx_quick_cons_trip is also 0
+(default 18).
+.It Va hw.bce.rx_ticks_int
+Time in microsecond ticks to wait during RX interrupt
+processing before generating a status block update.
+Values from 0-100 are valid.
+Valid values are in the range from 0-100.
+A value of 0 disables this status block update (default 18).
+.It Va hw.bce.rx_quick_cons_trip
+Number of RX Quick BD Chain entries that must be completed
+before a status block is generated.
+Values from 0-256 are valid.
+A value of 0 disables this status block update.
+Cannot be set to 0 if hw.bce.rx_ticks is also 0 (default 6).
+.It Va hw.bce.rx_quick_cons_trip_int
+Number of RX quick BD entries that must be completed before
+a status block is generated duing interrupt processing.
+Values from 0-256 are valid.
+A value of 0 disables this status block update (default 6).
+.It Va hw.bce.tx_ticks
+Time in microsecond ticks to wait before a status block
+update is generated due to TX activitiy.
+Values from 0-100 are valid.
+A value of 0 disables this status block update.
+Cannot be set to 0 if hw.bce.tx_quick_cons_trip is also 0
+(default 80).
+.It Va hw.bce.tx_ticks_int
+Time in microsecond ticks to wait in interrupt processing
+before a status block update is generated due to TX activity
+Values from 0-100 are valid.
+A value of 0 disables this status block update (default 80).
+.It Va hw.bce.tx_cons_trip
+How many TX Quick BD Chain entries that must be completed
+before a status block is generated.
+Values from 0-100 are valid.
+A value of 0 disables this status block update.
+Cannot be set to 0 if hw.bce.tx_ticks is also 0 (default 20).
+.It Va hw.bce.tx_cons_trip_int
+How many TX Quick BD Chain entries that must be completed
+before a status block is generated during an interrupt.
+Values from 0-100 are valid.
+A value of 0 disables this status block update (default 20).
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "bce%d: PCI memory allocation failed!"
+The driver has encountered a fatal initialization error.
+.It "bce%d: PCI map interrupt failed!"
+The driver has encountered a fatal initialization error.
+.It "bce%d: Unsupported controller revision (%c%d)"
+The driver does not support the controller revision in use.
+.It "bce%d: Controller initialization failed!"
+The driver has encountered a fatal initialization error.
+.It "bce%d: NVRAM test failed!"
+The driver could not access the controller NVRAM correctly.
+.It "bce%d: DMA resource allocation failed!"
+The driver could not allocate DMA memory to setup the controllers
+host memory data structures.
+.It "bce%d: Interface allocation failed!"
+The driver could not create a network interface for the controller.
+.It "bce%d: PHY probe failed!"
+The driver could not access the PHY used by the controller.
+.It "bce%d: Failed to setup IRQ!"
+The driver could not initialize the IRQ handler.
+.It "bce%d: Error: PHY read timeout!"
+The driver could not read a PHY register before the timeout period expired.
+.It "bce%d: PHY write timeout!"
+The driver could not write to the PHY register because a timeout occurred.
+.It "bce%d: Timeout error reading NVRAM at offset 0x%08X!"
+The driver could not write to NVRAM because a timeout occurred.
+.It "bce%d: Unknown Flash NVRAM found!"
+The driver does not recognize the NVRAM device being used and therefore
+cannot access it correctly.
+.It "bce%d: Invalid NVRAM magic value!"
+The driver cannot read NVRAM or the NVRAM is corrupt.
+.It "bce%d: Invalid Manufacturing Information NVRAM CRC!"
+The driver cannot read NVRAM or the NVRAM is corrupt.
+.It "bce%d: Invalid Feature Configuration Information NVRAM CRC!"
+The driver cannot read NVRAM or the NVRAM is corrupt.
+.It "bce%d: DMA mapping error!"
+The driver was unable to map memory into DMA addressable space required
+by the controller.
+.It "bce%d: Could not allocate parent DMA tag!"
+The driver could not allocate a PCI compatible DMA tag.
+.It "bce%d: Could not allocate status block DMA tag!"
+The driver could not allocate a DMA tag for the controller's
+status block.
+.It "bce%d: Could not allocate status block DMA memory!"
+The driver could not allocate DMA addressable memory for the controller's
+status block.
+.It "bce%d: Could not map status block DMA memory!"
+The driver could not map the status block memory into the controller's DMA
+address space.
+.It "bce%d: Could not allocate statistics block DMA tag!"
+The driver could not allocate a DMA tag for the controller's
+statistics block.
+.It "bce%d: Could not allocate statistics block DMA memory!"
+The driver could not allocate DMA addressable memory for the controller's
+statistics block.
+.It "bce%d: Could not map statistics block DMA memory!"
+The driver could not map the statistics block memory into the controller's DMA
+address space.
+.It "bce%d: Could not allocate TX descriptor chain DMA tag!"
+The driver could not allocate a DMA tag for the controller's
+TX chain.
+.It "bce%d: Could not allocate TX descriptor chain DMA memory!"
+The driver could not allocate DMA addressable memory for the controller's
+TX chain.
+.It "bce%d: Could not map TX descriptor chain DMA memory!"
+The driver could not map the TX descriptor chain memory into the controller's DMA
+address space.
+.It "bce%d: Could not allocate TX mbuf DMA tag!"
+The driver could not allocate a DMA tag for the controller's
+TX mbuf memory.
+.It "bce%d: Unable to create TX mbuf DMA map!"
+The driver could not map the TX mbuf memory into the controller's DMA
+address space.
+.It "bce%d: Could not allocate RX descriptor chain DMA tag!"
+The driver could not allocate a DMA tag for the controller's
+RX chain.
+.It "bce%d: Could not allocate RX descriptor chain "
+The driver could not allocate DMA addressable memory for the controller's
+RX chain.
+.It "bce%d: Could not map RX descriptor chain DMA memory!"
+The driver could not map the RX descriptor chain memory into the controller's DMA
+address space.
+.It "bce%d: Could not allocate RX mbuf DMA tag!"
+The driver could not allocate a DMA tag for the controller's
+RX mbuf memory.
+.It "bce%d: Unable to create RX mbuf DMA map!"
+The driver could not map the RX mbuf memory into the controller's DMA
+address space.
+.It "bce%d: Firmware synchronization timeout!"
+The driver was not able to synchronize with the firmware running on the
+controller.
+The firmware may be stopped or hung.
+.It "bce%d: Invalid Ethernet address!"
+The driver was not able to read a valid Ethernet MAC address from NVRAM.
+.It "bce%d: Reset failed!"
+The driver has encountered a fatal initialization error.
+.It "bce%d: Byte swap is incorrect!"
+The driver has encountered a fatal initialization error.
+Contact the author
+with details of the CPU architecture and system chipset in use.
+.It "bce%d: Firmware did not complete initialization!"
+The driver has encountered a fatal initialization error.
+.It "bce%d: Bootcode not running!"
+The driver has encountered a fatal initialization error.
+.It "bce%d: Error mapping mbuf into RX chain!"
+The driver could not map a RX mbuf into DMA addressable memory.
+.It "bce%d: Error filling RX chain: rx_bd[0x%04X]!"
+The driver was unable to allocate enough mbufs to fill the RX chain
+during initialization.
+Try increasing the number of mbufs available in
+the system, increase system memory, or if using jumbo frames, make sure
+enough 9KB mbufs are available.
+.It "bce%d: Failed to allocate new mbuf, incoming frame dropped!"
+The driver was unable to allocate a new mbuf for the RX chain and reused
+the mbuf for the received frame, dropping the incoming frame in the process.
+Try increasing the number of mbufs available in the system or increase system
+memory.
+.It "bce%d: Controller reset failed!"
+A fatal initialization error has occurred.
+.It "bce%d: Controller initialization failed!"
+A fatal initialization error has occurred.
+.It "bce%d: Block initialization failed!"
+A fatal initialization error has occurred.
+.It "bce%d: Error mapping mbuf into TX chain!"
+The driver could not map a TX mbuf into DMA addressable memory.
+.It "bce%d: Error registering poll function!"
+The driver received an error while attempting to register the poll function.
+.It "bce%d: Changing VLAN_MTU not supported."
+Changing the VLAN MTU is not currently supported by the driver.
+.It "bce%d: Cannot change VLAN_HWTAGGING while management firmware (ASF/IPMI/UMP) is running!"
+Management firmware to support ASF/IPMI/UMP requires that VLAN
+tag stripping be enabled in the controller.
+.It "bce%d: Changing VLAN_HWTAGGING not supported!"
+Disabling VLAN tag stripping is not currently supported by the driver.
+.It "bce%d: Watchdog timeout occurred, resetting!"
+The device has stopped responding to the network, there is a problem
+with the cable connection, or a driver logic problem has occurred..
+.It "bce%d: Fatal attention detected: 0x%08X!"
+A controller hardware failure has occurred.
+If the problem continues replace the controller.
+.El
+.Sh SUPPORT
+For support questions please contact your QLogic approved reseller or
+QLogic Technical Support at
+.Pa http://support.qlogic.com ,
+or by E-mail at
+.Aq Mt support@qlogic.com .
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 6.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An David Christensen Aq Mt davidch@broadcom.com .

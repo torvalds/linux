@@ -1,0 +1,173 @@
+\ #if (FICL_WANT_OOP)
+\ ** ficl/softwords/classes.fr
+\ ** F I C L   2 . 0   C L A S S E S
+\ john sadler  1 sep 98
+\ Needs oop.fr
+\
+\ $FreeBSD$
+
+also oop definitions
+
+\ REF subclass holds a pointer to an object. It's
+\ mainly for aggregation to help in making data structures.
+\
+object subclass c-ref
+    cell: .class
+    cell: .instance
+
+	: get   ( inst class -- refinst refclass )
+		drop 2@ ;
+	: set   ( refinst refclass inst class -- )
+		drop 2! ;
+end-class
+
+object subclass c-byte
+	char: .payload
+
+	: get  drop c@ ;
+	: set  drop c! ;
+end-class
+
+object subclass c-2byte
+	2 chars: .payload
+
+	: get  drop w@ ;
+	: set  drop w! ;
+end-class
+
+object subclass c-4byte
+	4 chars: .payload
+
+	: get  drop q@ ;
+	: set  drop q! ;
+end-class
+
+
+object subclass c-cell
+	cell: .payload
+
+	: get  drop @ ;
+	: set  drop ! ;
+end-class
+
+
+\ ** C - P T R 
+\ Base class for pointers to scalars (not objects).
+\ Note: use c-ref to make references to objects. C-ptr
+\ subclasses refer to untyped quantities of various sizes.
+
+\ Derived classes must specify the size of the thing
+\ they point to, and supply get and set methods.
+
+\ All derived classes must define the @size method:
+\ @size ( inst class -- addr-units )
+\ Returns the size in address units of the thing the pointer
+\ refers to.
+object subclass c-ptr
+    c-cell obj: .addr
+
+    \ get the value of the pointer
+    : get-ptr   ( inst class -- addr )
+        c-ptr  => .addr  
+        c-cell => get  
+    ;
+
+    \ set the pointer to address supplied
+    : set-ptr   ( addr inst class -- )
+        c-ptr  => .addr  
+        c-cell => set  
+    ;
+
+    \ force the pointer to be null
+	: clr-ptr
+	    0 -rot  c-ptr => .addr  c-cell => set
+	;
+
+    \ return flag indicating null-ness
+	: ?null     ( inst class -- flag )
+	    c-ptr => get-ptr 0= 
+	;
+
+    \ increment the pointer in place
+    : inc-ptr   ( inst class -- )
+        2dup 2dup                   ( i c i c i c )
+        c-ptr => get-ptr  -rot      ( i c addr i c )
+        --> @size  +  -rot          ( addr' i c )
+        c-ptr => set-ptr
+    ;
+
+    \ decrement the pointer in place
+    : dec-ptr    ( inst class -- )
+        2dup 2dup                   ( i c i c i c )
+        c-ptr => get-ptr  -rot      ( i c addr i c )
+        --> @size  -  -rot          ( addr' i c )
+        c-ptr => set-ptr
+    ;
+
+    \ index the pointer in place
+    : index-ptr   { index 2:this -- }
+        this --> get-ptr              ( addr )
+        this --> @size  index *  +    ( addr' )
+        this --> set-ptr
+    ;
+
+end-class
+
+
+\ ** C - C E L L P T R 
+\ Models a pointer to cell (a 32 or 64 bit scalar). 
+c-ptr subclass c-cellPtr
+    : @size   2drop  1 cells ;
+    \ fetch and store through the pointer
+	: get   ( inst class -- cell )
+        c-ptr => get-ptr @  
+    ;
+	: set   ( value inst class -- )
+        c-ptr => get-ptr !  
+    ;
+end-class
+
+
+\ ** C - 4 B Y T E P T R
+\ Models a pointer to a quadbyte scalar 
+c-ptr subclass c-4bytePtr
+    : @size   2drop  4  ;
+    \ fetch and store through the pointer
+	: get   ( inst class -- value )
+        c-ptr => get-ptr q@  
+    ;
+	: set   ( value inst class -- )
+        c-ptr => get-ptr q!  
+    ;
+ end-class
+ 
+\ ** C - 2 B Y T E P T R 
+\ Models a pointer to a 16 bit scalar
+c-ptr subclass c-2bytePtr
+    : @size   2drop  2  ;
+    \ fetch and store through the pointer
+	: get   ( inst class -- value )
+        c-ptr => get-ptr w@  
+    ;
+	: set   ( value inst class -- )
+        c-ptr => get-ptr w!  
+    ;
+end-class
+
+
+\ ** C - B Y T E P T R 
+\ Models a pointer to an 8 bit scalar
+c-ptr subclass c-bytePtr
+    : @size   2drop  1  ;
+    \ fetch and store through the pointer
+	: get   ( inst class -- value )
+        c-ptr => get-ptr c@  
+    ;
+	: set   ( value inst class -- )
+        c-ptr => get-ptr c!  
+    ;
+end-class
+
+
+previous definitions
+\ #endif

@@ -1,0 +1,98 @@
+.\" Copyright (c) 1998-2004 Proofpoint, Inc. and its suppliers.
+.\"	 All rights reserved.
+.\" Copyright (c) 1993 Eric P. Allman.  All rights reserved.
+.\" Copyright (c) 1993
+.\"     The Regents of the University of California.  All rights reserved.
+.\"
+.\" By using this file, you agree to the terms and conditions set
+.\" forth in the LICENSE file which can be found at the top level of
+.\" the sendmail distribution.
+.\"
+.\"
+.\"     $Id: smrsh.8,v 8.23 2013-11-22 20:52:00 ca Exp $
+.\"
+.TH SMRSH 8 "$Date: 2013-11-22 20:52:00 $"
+.SH NAME
+smrsh \- restricted shell for sendmail
+.SH SYNOPSIS
+.B smrsh
+.B \-c
+command
+.SH DESCRIPTION
+The
+.I smrsh
+program is intended as a replacement for
+.I sh
+for use in the ``prog'' mailer in
+.IR sendmail (8)
+configuration files.
+It sharply limits the commands that can be run using the
+``|program'' syntax of
+.I sendmail
+in order to improve the over all security of your system.
+Briefly, even if a ``bad guy'' can get sendmail to run a program
+without going through an alias or forward file,
+.I smrsh
+limits the set of programs that he or she can execute.
+.PP
+Briefly,
+.I smrsh
+limits programs to be in a single directory,
+by default
+/usr/libexec/sm.bin,
+allowing the system administrator to choose the set of acceptable commands,
+and to the shell builtin commands ``exec'', ``exit'', and ``echo''.
+It also rejects any commands with the characters
+`\`', `<', `>', `;', `$', `(', `)', `\er' (carriage return),
+or `\en' (newline)
+on the command line to prevent ``end run'' attacks.
+It allows ``||'' and ``&&'' to enable commands like:
+``"|exec /usr/local/bin/filter || exit 75"''
+.PP
+Initial pathnames on programs are stripped,
+so forwarding to ``/usr/bin/vacation'',
+``/home/server/mydir/bin/vacation'',
+and
+``vacation''
+all actually forward to
+``/usr/libexec/sm.bin/vacation''.
+.PP
+System administrators should be conservative about populating
+the sm.bin directory.
+For example, a reasonable additions is
+.IR vacation (1),
+and the like.
+No matter how brow-beaten you may be,
+never include any shell or shell-like program
+(such as
+.IR perl (1))
+in the
+sm.bin
+directory.
+Note that this does not restrict the use of shell or perl scripts
+in the sm.bin directory (using the ``#!'' syntax);
+it simply disallows execution of arbitrary programs.
+Also, including mail filtering programs such as
+.IR procmail (1)
+is a very bad idea.
+.IR procmail (1)
+allows users to run arbitrary programs in their
+.IR procmailrc (5).
+.SH COMPILATION
+Compilation should be trivial on most systems.
+You may need to use \-DSMRSH_PATH=\e"\fIpath\fP\e"
+to adjust the default search path
+(defaults to ``/bin:/usr/bin'')
+and/or \-DSMRSH_CMDDIR=\e"\fIdir\fP\e"
+to change the default program directory
+(defaults to ``/usr/libexec/sm.bin'').
+.SH FILES
+/usr/adm/sm.bin \- default directory for restricted programs on most OSs
+.PP
+/var/adm/sm.bin \- directory for restricted programs on HP UX and Solaris
+.PP
+/usr/libexec/sm.bin \- directory for restricted programs on FreeBSD (>= 3.3) and DragonFly BSD
+
+.SH SEE ALSO
+sendmail(8)
+.\" $FreeBSD$

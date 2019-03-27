@@ -1,0 +1,89 @@
+#-
+# Copyright (C) 2010 The FreeBSD Foundation
+# All rights reserved.
+#
+# This software was developed by Shteryana Sotirova Shopova under
+# sponsorship from the FreeBSD Foundation.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#   documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+include "tc.def"
+
+(1 internet
+  (6 snmpV2
+    (3 snmpModules
+      (16 snmpVacmMIB
+        (1 vacmMIBObjects
+          (1 vacmContextTable
+            (1 vacmContextEntry : OCTETSTRING op_vacm_context
+              (1 vacmContextName OCTETSTRING GET)
+            )
+          )
+          (2 vacmSecurityToGroupTable
+            (1 vacmSecurityToGroupEntry : INTEGER OCTETSTRING op_vacm_security_to_group
+              (1 vacmSecurityModel INTEGER)
+              (2 vacmSecurityName OCTETSTRING)
+              (3 vacmGroupName OCTETSTRING GET SET)
+              (4 vacmSecurityToGroupStorageType StorageType GET SET)
+              (5 vacmSecurityToGroupStatus RowStatus GET SET)
+            )
+          )
+          (4 vacmAccessTable
+            (1 vacmAccessEntry : OCTETSTRING OCTETSTRING INTEGER ENUM ( 1 noAuthNoPriv 2 authNoPriv 3 authPriv ) op_vacm_access
+              (1 vacmAccessContextPrefix OCTETSTRING)
+              (2 vacmAccessSecurityModel INTEGER)
+              (3 vacmAccessSecurityLevel ENUM ( 1 noAuthNoPriv 2 authNoPriv 3 authPriv ))
+              (4 vacmAccessContextMatch ENUM ( 1 exact 2 prefix ) GET SET)
+              (5 vacmAccessReadViewName OCTETSTRING GET SET)
+              (6 vacmAccessWriteViewName OCTETSTRING GET SET)
+              (7 vacmAccessNotifyViewName OCTETSTRING GET SET)
+              (8 vacmAccessStorageType StorageType GET SET)
+              (9 vacmAccessStatus RowStatus GET SET)
+            )
+          )
+          (5 vacmMIBViews
+            (1 vacmViewSpinLock INTEGER op_vacm_view_lock GET SET)
+            (2 vacmViewTreeFamilyTable
+              (1 vacmViewTreeFamilyEntry : OCTETSTRING OID op_vacm_view
+                (1 vacmViewTreeFamilyViewName OCTETSTRING)
+                (2 vacmViewTreeFamilySubtree OID)
+                (3 vacmViewTreeFamilyMask OCTETSTRING GET SET)
+                (4 vacmViewTreeFamilyType ENUM ( 1 included 2 excluded ) GET SET)
+                (5 vacmViewTreeFamilyStorageType StorageType GET SET)
+                (6 vacmViewTreeFamilyStatus RowStatus GET SET)
+              )
+            )
+          )
+        )
+        (2 vacmMIBConformance
+          (1 vacmMIBCompliances
+          )
+          (2 vacmMIBGroups
+          )
+        )
+      )
+    )
+  )
+)

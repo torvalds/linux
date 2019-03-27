@@ -1,0 +1,178 @@
+.\" Copyright (C) 1995 by Joerg Wunsch, Dresden
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 30, 2013
+.Dt KILLALL 1
+.Os
+.Sh NAME
+.Nm killall
+.Nd kill processes by name
+.Sh SYNOPSIS
+.Nm
+.Op Fl delmsvz
+.Op Fl help
+.Op Fl I
+.Op Fl j Ar jail
+.Op Fl u Ar user
+.Op Fl t Ar tty
+.Op Fl c Ar procname
+.Op Fl Ar SIGNAL
+.Op Ar procname ...
+.Sh DESCRIPTION
+The
+.Nm
+utility kills processes selected by name, as opposed to the selection by PID
+as done by
+.Xr kill 1 .
+By default, it will send a
+.Dv TERM
+signal to all processes with a real UID identical to the
+caller of
+.Nm
+that match the name
+.Ar procname .
+The super-user is allowed to kill any process.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl c Ar procname"
+.It Fl d | v
+Be more verbose about what will be done.
+For a single
+.Fl d
+option, a list of the processes that will be sent the signal will be
+printed, or a message indicating that no matching processes have been
+found.
+.It Fl e
+Use the effective user ID instead of the (default) real user ID for matching
+processes specified with the
+.Fl u
+option.
+.It Fl help
+Give a help on the command usage and exit.
+.It Fl I
+Request confirmation before attempting to signal each
+process.
+.It Fl l
+List the names of the available signals and exit, like in
+.Xr kill 1 .
+.It Fl m
+Match the argument
+.Ar procname
+as a (case sensitive) regular expression against the names
+of processes found.
+CAUTION!
+This is dangerous, a single dot will match any process
+running under the real UID of the caller.
+.It Fl s
+Show only what would be done, but do not send any signal.
+.It Fl Ar SIGNAL
+Send a different signal instead of the default
+.Dv TERM .
+The signal may be specified either as a name
+(with or without a leading
+.Dq Li SIG ) ,
+or numerically.
+.It Fl j Ar jail
+Kill processes in the specified
+.Ar jail .
+.It Fl u Ar user
+Limit potentially matching processes to those belonging to
+the specified
+.Ar user .
+.It Fl t Ar tty
+Limit potentially matching processes to those running on
+the specified
+.Ar tty .
+.It Fl c Ar procname
+Limit potentially matching processes to those matching
+the specified
+.Ar procname .
+.It Fl q
+Suppress error message if no processes are matched.
+.It Fl z
+Do not skip zombies.
+This should not have any effect except to print a few error messages
+if there are zombie processes that match the specified pattern.
+.El
+.Sh ALL PROCESSES
+Sending a signal to all processes with the given UID
+is already supported by
+.Xr kill 1 .
+So use
+.Xr kill 1
+for this job (e.g.\&
+.Dq Li "kill -TERM -1"
+or as root
+.Dq Li "echo kill -TERM -1 | su -m <user>" ) .
+.Sh IMPLEMENTATION NOTES
+This
+.Fx
+implementation of
+.Nm
+has completely different semantics as compared to the traditional
+.Ux
+System V behavior of
+.Nm .
+The latter will kill all processes that the current user is able to
+kill, and is intended to be used by the system shutdown process only.
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 if some processes have been found and
+signalled successfully.
+Otherwise, a status of 1 will be
+returned.
+.Sh DIAGNOSTICS
+Diagnostic messages will only be printed if requested by
+.Fl d
+options.
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr pkill 1 ,
+.Xr sysctl 3 ,
+.Xr jail 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 2.1 .
+It has been modeled after the
+.Nm
+command as available on other platforms.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+program was originally written in Perl and was contributed by
+.An Wolfram Schneider ,
+this manual page has been written by
+.An J\(:org Wunsch .
+The current version of
+.Nm
+was rewritten in C by
+.An Peter Wemm
+using
+.Xr sysctl 3 .

@@ -1,0 +1,283 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2005 Doug Rabson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.\"
+.\" The following commands are required for all man pages.
+.Dd January 26, 2010
+.Dt GSS_INQUIRE_CONTEXT 3 PRM
+.Os
+.Sh NAME
+.Nm gss_inquire_context
+.Nd Obtain information about a security context
+.\" This next command is for sections 2 and 3 only.
+.\" .Sh LIBRARY
+.Sh SYNOPSIS
+.In "gssapi/gssapi.h"
+.Ft OM_uint32
+.Fo gss_inquire_context
+.Fa "OM_uint32 *minor_status"
+.Fa "const gss_ctx_id_t context_handle"
+.Fa "gss_name_t *src_name"
+.Fa "gss_name_t *targ_name"
+.Fa "OM_uint32 *lifetime_rec"
+.Fa "gss_OID *mech_type"
+.Fa "OM_uint32 *ctx_flags"
+.Fa "int *locally_initiated"
+.Fa "int *open"
+.Fc
+.Sh DESCRIPTION
+Obtains information about a security context.
+The caller must already have obtained a handle that refers to the
+context,
+although the context need not be fully established.
+.Sh PARAMETERS
+.Bl -tag -width ".It locally_initiated"
+.It minor_status
+Mechanism specific status code.
+.It context_handle
+A handle that refers to the security context.
+.It src_name
+The name of the context initiator.
+If the context was established using anonymous authentication,
+and if the application invoking
+.Fn gss_inquire_context
+is the context acceptor,
+an anonymous name will be returned.
+Storage associated with this name must be freed by the application
+after use with a call to
+.Fn gss_release_name .
+Specify
+.Dv NULL
+if not required.
+.It targ_name
+The name of the context acceptor.
+Storage associated with this name must be freed by the application
+after use with a call to
+.Fn gss_release_name .
+If the context acceptor did not authenticate itself,
+and if the initiator did not specify a target name in its call to
+.Fn gss_init_sec_context ,
+the value
+.Dv GSS_C_NO_NAME
+will be returned.
+Specify
+.Dv NULL
+if not required.
+.It lifetime_rec
+The number of seconds for which the context will remain valid.
+If the context has expired,
+this parameter will be set to zero.
+If the implementation does not support context expiration,
+the value
+.Dv GSS_C_INDEFINITE
+will be returned.
+Specify
+.Dv NULL
+if not required.
+.It mech_type
+The security mechanism providing the context.
+The returned OID will be a pointer to static storage that should be
+treated as read-only by the application;
+in particular the application should not attempt to free it.
+Specify
+.Dv NULL
+if not required.
+.It ctx_flags
+Contains various independent flags,
+each of which indicates that the context supports
+(or is expected to support, if
+.Fa open
+is false)
+a specific service option.
+If not needed, specify
+.Dv NULL .
+Symbolic names are provided for each flag,
+and the symbolic names corresponding to the required flags should be
+logically-ANDed with the
+.Fa ctx_flags
+value to test whether a given option is supported by the context.
+The flags are:
+.Bl -tag -width "WW"
+.It GSS_C_DELEG_FLAG
+.Bl -tag -width "False"
+.It True
+Credentials were delegated from the initiator to the acceptor.
+.It False
+No credentials were delegated.
+.El
+.It GSS_C_MUTUAL_FLAG
+.Bl -tag -width "False"
+.It True
+The acceptor was authenticated to the initiator.
+.It False
+The acceptor did not authenticate itself.
+.El
+.It GSS_C_REPLAY_FLAG
+.Bl -tag -width "False"
+.It True
+Replay of protected messages will be detected.
+.It False
+Replayed messages will not be detected.
+.El
+.It GSS_C_SEQUENCE_FLAG
+.Bl -tag -width "False"
+.It True
+Out-of-sequence protected messages will be detected.
+.It False
+Out-of-sequence messages will not be detected.
+.El
+.It GSS_C_CONF_FLAG
+.Bl -tag -width "False"
+.It True
+Confidentiality service may be invoked by calling
+.Fn gss_wrap
+routine.
+.It False
+No confidentiality service
+(via
+.Fn gss_wrap )
+available.
+.Fn gss_wrap
+will provide message encapsulation,
+data-origin authentication and integrity services only.
+.El
+.It GSS_C_INTEG_FLAG
+.Bl -tag -width "False"
+.It True
+Integrity service may be invoked by calling either
+.Fn gss_get_mic
+or
+.Fn gss_wrap
+routines.
+.It False
+Per-message integrity service unavailable.
+.El
+.It GSS_C_ANON_FLAG
+.Bl -tag -width "False"
+.It True
+The initiator's identity will not be revealed to the acceptor.
+The
+.Fa src_name
+parameter (if requested) contains an anonymous internal name.
+.It False
+The initiator has been authenticated normally.
+.El
+.It GSS_C_PROT_READY_FLAG
+.Bl -tag -width "False"
+.It True
+Protection services
+(as specified by the states of the
+.Dv GSS_C_CONF_FLAG
+and
+.Dv GSS_C_INTEG_FLAG )
+are available for use.
+.It False
+Protection services
+(as specified by the states of the
+.Dv GSS_C_CONF_FLAG
+and
+.Dv GSS_C_INTEG_FLAG )
+are available only if the context is fully established
+(i.e. if the
+.Fa open
+parameter is non-zero).
+.El
+.It GSS_C_TRANS_FLAG
+.Bl -tag -width "False"
+.It True
+The security context may be transferred to other processes via a call to
+.Fn gss_export_sec_context .
+.It False
+The security context is not transferable.
+.El
+.El
+.It locally_initiated
+Non-zero if the invoking application is the context initiator.
+Specify
+.Dv NULL
+if not required.
+.It open
+Non-zero if the context is fully established;
+Zero if a context-establishment token is expected from the peer
+application.
+Specify
+.Dv NULL
+if not required.
+.El
+.Sh RETURN VALUES
+.Bl -tag -width ".It GSS_S_NO_CONTEXT"
+.It GSS_S_COMPLETE
+Successful completion
+.It GSS_S_NO_CONTEXT
+The referenced context could not be accessed
+.El
+.Sh SEE ALSO
+.Xr gss_export_sec_context 3 ,
+.Xr gss_get_mic 3 ,
+.Xr gss_init_sec_context 3 ,
+.Xr gss_release_name 3 ,
+.Xr gss_wrap 3
+.Sh STANDARDS
+.Bl -tag -width ".It RFC 2743"
+.It RFC 2743
+Generic Security Service Application Program Interface Version 2, Update 1
+.It RFC 2744
+Generic Security Service API Version 2 : C-bindings
+.El
+.Sh HISTORY
+The
+.Nm
+function first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+John Wray, Iris Associates
+.Sh COPYRIGHT
+Copyright (C) The Internet Society (2000).  All Rights Reserved.
+.Pp
+This document and translations of it may be copied and furnished to
+others, and derivative works that comment on or otherwise explain it
+or assist in its implementation may be prepared, copied, published
+and distributed, in whole or in part, without restriction of any
+kind, provided that the above copyright notice and this paragraph are
+included on all such copies and derivative works.  However, this
+document itself may not be modified in any way, such as by removing
+the copyright notice or references to the Internet Society or other
+Internet organizations, except as needed for the purpose of
+developing Internet standards in which case the procedures for
+copyrights defined in the Internet Standards process must be
+followed, or as required to translate it into languages other than
+English.
+.Pp
+The limited permissions granted above are perpetual and will not be
+revoked by the Internet Society or its successors or assigns.
+.Pp
+This document and the information contained herein is provided on an
+"AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.

@@ -1,0 +1,21 @@
+# $FreeBSD$
+
+DEFAULT_VECTOR=	bfd_elf32_i386_freebsd_vec
+
+SRCS+=	cofflink.c \
+	cpu-i386.c \
+	efi-app-ia32.c \
+	elf32-i386.c \
+	elf32-target.h \
+	elf32.c \
+	elflink.c \
+	peigen.c
+
+VECS=	${DEFAULT_VECTOR} \
+	bfd_elf32_i386_vec \
+	bfd_efi_app_ia32_vec
+
+peigen.c: peXXigen.c
+	sed -e s/XX/pe/g ${.ALLSRC} > ${.TARGET}
+
+CLEANFILES+=	peigen.c

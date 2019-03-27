@@ -1,0 +1,138 @@
+.\"
+.\" Copyright (c) 2010-2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written at the Centre for Advanced Internet
+.\" Architectures, Swinburne University of Technology, Melbourne, Australia by
+.\" David Hayes and Lawrence Stewart under sponsorship from the FreeBSD
+.\" Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 19, 2018
+.Dt MOD_CC 4
+.Os
+.Sh NAME
+.Nm mod_cc
+.Nd Modular congestion control
+.Sh DESCRIPTION
+The modular congestion control framework allows the TCP implementation to
+dynamically change the congestion control algorithm used by new and existing
+connections.
+Algorithms are identified by a unique
+.Xr ascii 7
+name.
+Algorithm modules can be compiled into the kernel or loaded as kernel modules
+using the
+.Xr kld 4
+facility.
+.Pp
+The default algorithm is NewReno, and all connections use the default unless
+explicitly overridden using the
+.Dv TCP_CONGESTION
+socket option (see
+.Xr tcp 4
+for details).
+The default can be changed using a
+.Xr sysctl 3
+MIB variable detailed in the
+.Sx MIB Variables
+section below.
+.Pp
+Algorithm specific parameters can be set or queried using the
+.Dv TCP_CCALGOOPT
+socket option (see
+.Xr tcp 4
+for details).
+Callers must pass a pointer to an algorithm specific data, and specify
+its size.
+.Sh MIB Variables
+The framework exposes the following variables in the
+.Va net.inet.tcp.cc
+branch of the
+.Xr sysctl 3
+MIB:
+.Bl -tag -width ".Va abe_frlossreduce"
+.It Va available
+Read-only list of currently available congestion control algorithms by name.
+.It Va algorithm
+Returns the current default congestion control algorithm when read, and changes
+the default when set.
+When attempting to change the default algorithm, this variable should be set to
+one of the names listed by the
+.Va net.inet.tcp.cc.available
+MIB variable.
+.It Va abe
+Enable support for draft-ietf-tcpm-alternativebackoff-ecn,
+which alters the window decrease factor applied to the congestion window in
+response to an ECN congestion signal.
+Refer to individual congestion control man pages to determine if they implement
+support for ABE and for configuration details.
+.It Va abe_frlossreduce
+If non-zero, apply standard beta instead of ABE-beta during ECN-signalled
+congestion recovery episodes if loss also needs to be repaired.
+.El
+.Sh SEE ALSO
+.Xr cc_cdg 4 ,
+.Xr cc_chd 4 ,
+.Xr cc_cubic 4 ,
+.Xr cc_dctcp 4 ,
+.Xr cc_hd 4 ,
+.Xr cc_htcp 4 ,
+.Xr cc_newreno 4 ,
+.Xr cc_vegas 4 ,
+.Xr tcp 4 ,
+.Xr mod_cc 9
+.Sh ACKNOWLEDGEMENTS
+Development and testing of this software were made possible in part by grants
+from the FreeBSD Foundation and Cisco University Research Program Fund at
+Community Foundation Silicon Valley.
+.Sh HISTORY
+The
+.Nm
+modular congestion control framework first appeared in
+.Fx 9.0 .
+.Pp
+The framework was first released in 2007 by James Healy and Lawrence Stewart
+whilst working on the NewTCP research project at Swinburne University of
+Technology's Centre for Advanced Internet Architectures, Melbourne, Australia,
+which was made possible in part by a grant from the Cisco University Research
+Program Fund at Community Foundation Silicon Valley.
+More details are available at:
+.Pp
+http://caia.swin.edu.au/urp/newtcp/
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+facility was written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org ,
+.An James Healy Aq Mt jimmy@deefa.com
+and
+.An David Hayes Aq Mt david.hayes@ieee.org .
+.Pp
+This manual page was written by
+.An David Hayes Aq Mt david.hayes@ieee.org
+and
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org .

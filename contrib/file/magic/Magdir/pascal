@@ -1,0 +1,10 @@
+#------------------------------------------------------------------------------
+# $File: pascal,v 1.2 2014/07/14 14:21:33 rrt Exp $
+# pascal:  file(1) magic for Pascal source
+#
+0	search/8192	(input,		Pascal source text
+!:mime	text/x-pascal
+#0	regex		\^program	Pascal source text
+#!:mime	text/x-pascal
+#0	regex           	\^record		Pascal source text
+#!:mime	text/x-pascal

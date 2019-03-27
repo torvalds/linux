@@ -1,0 +1,57 @@
+# Copyright (c) 2012 Ron McDowell
+# Copyright (c) 2012 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+#
+# Title that will be shown in the bsdconfig menu.
+#
+menu_title="Ttys"
+
+#
+# A short descriptive line shown at the bottom of the bsdconfig menu. keep it
+# short because any line longer than the terminal width will be truncated.
+#
+menu_help="Configure Ttys"
+
+#
+# Two-part variable that defines an action to take when `keyword' is passed on
+# a bsdconfig command line. Variable takes the form "keyword|command" and
+# multiple occurrences of the variable (with different `keyword's, or different
+# `keyword's AND `command's) are allowed.  If `command' begins with a '/' then
+# the full path to the program is needed. If `command' begins with anything
+# else it is a path relative to the directory this INDEX file is in. `keyword'
+# can be i18n'ed but `command' is the name of a script.
+#
+menu_selection="ttys|ttys"
+
+#
+# ------------ Items below this line do NOT need i18n translation ------------
+#
+# Name of the program to be run when this menu choice is selected. If it begins
+# with a '/' then the full path to the program is needed. If it begins with
+# anything else it is a path relative to the directory this INDEX file is in.
+#
+menu_program="ttys"

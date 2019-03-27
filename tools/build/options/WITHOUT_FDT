@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to not build Flattened Device Tree support as part of the base system.
+This includes the device tree compiler (dtc) and libfdt support library.

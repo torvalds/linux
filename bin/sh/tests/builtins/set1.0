@@ -1,0 +1,32 @@
+# $FreeBSD$
+
+set +C
+set +f
+set -e
+
+settings=$(set +o)
+set -C
+set -f
+set +e
+case $- in
+*C*) ;;
+*) echo missing C ;;
+esac
+case $- in
+*f*) ;;
+*) echo missing C ;;
+esac
+case $- in
+*e*) echo bad e ;;
+esac
+eval "$settings"
+case $- in
+*C*) echo bad C ;;
+esac
+case $- in
+*f*) echo bad f ;;
+esac
+case $- in
+*e*) ;;
+*) echo missing e ;;
+esac

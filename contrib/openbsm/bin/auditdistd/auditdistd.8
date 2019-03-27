@@ -1,0 +1,106 @@
+.\" Copyright (c) 2012 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Pawel Jakub Dawidek under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 5, 2012
+.Dt AUDITDISTD 8
+.Os
+.Sh NAME
+.Nm auditdistd
+.Nd "Audit trail files distribution daemon"
+.Sh SYNOPSIS
+.Nm
+.Op Fl dFhl
+.Op Fl c Ar config
+.Op Fl P Ar pidfile
+.Sh DESCRIPTION
+The
+.Nm
+daemon is responsible for distributing audit trail files over a TCP/IP network in
+a secure and reliable way.
+.Pp
+The
+.Nm
+daemon can be started with the following command line arguments:
+.Bl -tag -width ".Fl P Ar pidfile"
+.It Fl c Ar config
+Specify an alternative location of the configuration file.
+The default location is
+.Pa /etc/security/auditdistd.conf .
+Note: the configuration file may contain passwords.
+Care should be taken to configure proper permissions on this file
+.Li ( eg. 0600 ) .
+.It Fl d
+Print or log debugging information.
+This option can be specified multiple times to raise the verbosity
+level.
+.It Fl F
+Start the
+.Nm
+daemon in the foreground.
+By default
+.Nm
+starts in the background.
+.It Fl h
+Print the
+.Nm
+usage message.
+.It Fl l
+Start in a launchd-friendly mode, ie. do not use
+.Xr daemon 3 .
+.It Fl P Ar pidfile
+Specify an alternative location of a file where main process PID will be
+stored.
+The default location is
+.Pa /var/run/auditdistd.pid .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/security/auditdistd.conf" -compact
+.It Pa /etc/security/auditdistd.conf
+The configuration file for
+.Nm .
+.It Pa /var/run/auditdistd.pid
+The default location of the
+.Nm
+PID file.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, or one of the values described in
+.Xr sysexits 3
+on failure.
+.Sh SEE ALSO
+.Xr sysexits 3 ,
+.Xr audit 4 ,
+.Xr auditdistd.conf 5 ,
+.Xr auditd 8
+.Sh AUTHORS
+The
+.Nm
+was developed by
+.An Pawel Jakub Dawidek Aq pawel@dawidek.net
+under sponsorship of the FreeBSD Foundation.

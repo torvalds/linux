@@ -1,0 +1,195 @@
+.\" Copyright (c) 2002, 2003 Marko Zec <zec@fer.hr>
+.\" Copyright (c) 2009 University of Zagreb
+.\" Copyright (c) 2009 FreeBSD Foundation
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 25, 2009
+.Dt VIMAGE 8
+.Os
+.Sh NAME
+.Nm vimage
+.Nd manage virtual network stacks
+.Sh SYNOPSIS
+.Nm
+.Op Fl c | m
+.Ar vname
+.Op Ar param=value ...
+.Nm
+.Fl d
+.Ar vname
+.Nm
+.Fl l
+.Op Fl rvj
+.Op Ar vname
+.Nm
+.Fl i
+.Ar vname ifname
+.Op Ar newifname
+.Nm
+.Ar vi_name
+.Op command ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is an alternative user interface for controlling virtual network
+stacks in FreeBSD, aimed primarily at supporting legacy applications
+which are not yet converted to using
+.Xr jail 8 ,
+.Xr jexec 8 ,
+and
+.Xr jls 8 .
+.
+.Ss Overview
+A virtual image or vimage is a jail with its own independent network
+stack instance.  Every process, socket and network interface present
+in the system is always attached to one, and only one, virtual network
+stack instance (vnet).
+During system bootup sequence a default vnet
+is created to which all the configured interfaces and user processes
+are initially attached.
+Assuming that enough system resources are
+are available, a user with sufficient privileges can create and manage
+a hierarchy of subordinated virtual images.
+The
+.Nm
+command allows for creation, deletion and monitoring of virtual images,
+as well as for execution of arbitrary processes in a targeted virtual
+image.
+.Ss Invocation
+If invoked with no modifiers, the
+.Nm
+command spawns a new interactive shell in virtual image
+.Ar vname .
+If optional additional arguments following
+.Ar vname
+are provided, the first of those will be executed in place of the
+interactive shell, and the rest of the arguments will be passed as
+arguments to the executed command.
+.Pp
+The following modifiers are available:
+.Bl -tag -width indent
+.It Fl c
+Create a new virtual image named
+.Ar vname .
+Additional arguments, if provided, may be used to specify operating
+parameters different from defaults, in format
+.Ar param=value .
+See
+.Xr jail 8
+for an extensive list of available parameters.
+.It Fl m
+Modify the parameters of a virtual image named
+.Ar vname ,
+using the same syntax as with the -c form of the command.
+.It Fl d
+Delete the virtual image
+.Ar vname .
+No processes and/or sockets should exist in the target virtual image
+in order for the delete request to succeed.  Non-loopback interfaces
+residing in the target virtual image will be reassigned to the virtual
+image's parent.
+.It Fl l
+List the properties and statistics for virtual images one level
+below the current one in the hierarchy. If an optional argument
+.Ar vname
+is provided, only the information regarding the target virtual image
+.Ar vname
+is displayed.
+With the optional
+.Op Ar -r
+switch enabled the list will include all virtual images below the
+current level in the vimage hierarchy.
+Enabling the optional
+.Op Ar -v
+or
+.Op Ar -j
+switches results in a more detailed output.
+.It Fl i
+Move interface
+.Ar ifname
+to the target virtual image
+.Ar vname .
+Interfaces will be automatically renamed to
+.So
+ethXX
+.Sc ,
+unless an optional argument specifying the desired interface name
+.Op Ar newifname
+is provided.
+.El
+.Sh EXAMPLES
+Create a new virtual image named
+.So v1
+.Sc ,
+which is allowed to create and manage an own subhierarchy of vimages:
+.Pp
+.Dl vimage -c v1 children.max=100
+.Pp
+Execute the
+.So ifconfig
+.Sc command in the virtual image
+.So v1
+.Sc :
+.Pp
+.Dl vimage v1 ifconfig
+.Pp
+Move the interface
+.So vlan0
+.Sc to the virtual image
+.So v1
+.Sc while renaming the interface as
+.So
+ve0
+.Sc :
+.Pp
+.Dl vimage -i v1 vlan0 ve0
+.Pp
+Show the status information for virtual image
+.So v1
+.Sc :
+.Pp
+.Dl vimage -lv v1
+.Sh DIAGNOSTICS
+The
+.Nm
+command exits 0 on success, and >0 if an error occurs.
+.Sh SEE ALSO
+.Xr jail 8 ,
+.Xr jexec 8 ,
+.Xr jls 8
+.Sh HISTORY
+Network stack virtualization framework first appeared as a patchset
+against the FreeBSD 4.7 kernel in 2002, and was maintained outside
+of the main FreeBSD tree.
+As a result of a project sponsored by the FreeBSD Foundation and
+Stiching NLNet, integrated virtualized network stack first appeared
+in FreeBSD 8.0.
+.Sh AUTHORS
+.An Marko Zec Aq Mt zec@fer.hr
+.Sh BUGS
+Deletion of vimages / vnets is known to leak kernel memory and fail at
+stopping various timers, hence may lead to system crashes.

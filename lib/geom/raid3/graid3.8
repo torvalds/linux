@@ -1,0 +1,257 @@
+.\" Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 15, 2012
+.Dt GRAID3 8
+.Os
+.Sh NAME
+.Nm graid3
+.Nd "control utility for RAID3 devices"
+.Sh SYNOPSIS
+.Nm
+.Cm label
+.Op Fl Fhnrvw
+.Op Fl s Ar blocksize
+.Ar name
+.Ar prov prov prov ...
+.Nm
+.Cm clear
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm configure
+.Op Fl adfFhnrRvwW
+.Ar name
+.Nm
+.Cm rebuild
+.Op Fl v
+.Ar name
+.Ar prov
+.Nm
+.Cm insert
+.Op Fl hv
+.Op Fl n Ar number
+.Ar name
+.Ar prov
+.Nm
+.Cm remove
+.Op Fl v
+.Fl n Ar number
+.Ar name
+.Nm
+.Cm stop
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
+.Sh DESCRIPTION
+The
+.Nm
+utility is used for RAID3 array configuration.
+After a device is created, all components are detected and configured
+automatically.
+All operations such as failure detection, stale component detection, rebuild
+of stale components, etc.\& are also done automatically.
+The
+.Nm
+utility uses on-disk metadata (the provider's last sector) to store all needed
+information.
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm configure"
+.It Cm label
+Create a RAID3 device.
+The last given component will contain parity data, whilst the others
+will all contain regular data.
+The number of components must be equal to 3, 5, 9, 17, etc.\& (2^n + 1).
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl h"
+.It Fl F
+Do not synchronize after a power failure or system crash.
+Assumes device is in consistent state.
+.It Fl h
+Hardcode providers' names in metadata.
+.It Fl n
+Turn off autosynchronization of stale components.
+.It Fl r
+Use parity component for reading in round-robin fashion.
+Without this option the parity component is not used at all for reading operations
+when the device is in a complete state.
+With this option specified random I/O read operations are even 40% faster,
+but sequential reads are slower.
+One cannot use this option if the
+.Fl w
+option is also specified.
+.It Fl s
+Manually specify array block size. Block size will be set equal to least
+common multiple of all component's sector sizes and specified value.
+Note that array sector size calculated as multiple of block size and number
+of regular data components. Big values may decrease performance and compatibility,
+as all I/O requests have to be multiple of sector size.
+.It Fl w
+Use verify reading feature.
+When reading from a device in a complete state, also read data from the parity component
+and verify the data by comparing XORed regular data with parity data.
+If verification fails, an
+.Er EIO
+error is returned and the value of the
+.Va kern.geom.raid3.stat.parity_mismatch
+sysctl is increased.
+One cannot use this option if the
+.Fl r
+option is also specified.
+.El
+.It Cm clear
+Clear metadata on the given providers.
+.It Cm configure
+Configure the given device.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl a"
+.It Fl a
+Turn on autosynchronization of stale components.
+.It Fl d
+Do not hardcode providers' names in metadata.
+.It Fl f
+Synchronize device after a power failure or system crash.
+.It Fl F
+Do not synchronize after a power failure or system crash.
+Assumes device is in consistent state.
+.It Fl h
+Hardcode providers' names in metadata.
+.It Fl n
+Turn off autosynchronization of stale components.
+.It Fl r
+Turn on round-robin reading.
+.It Fl R
+Turn off round-robin reading.
+.It Fl w
+Turn on verify reading.
+.It Fl W
+Turn off verify reading.
+.El
+.It Cm rebuild
+Rebuild the given component forcibly.
+If autosynchronization was not turned off for the given device, this command
+should be unnecessary.
+.It Cm insert
+Add the given component to the existing array, if one of the components was
+removed previously with the
+.Cm remove
+command or if one component is missing and will not be connected again.
+If no number is given, new component will be added instead of first missed
+component.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl h"
+.It Fl h
+Hardcode providers' names in metadata.
+.El
+.It Cm remove
+Remove the given component from the given array and clear metadata on it.
+.It Cm stop
+Stop the given arrays.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Stop the given array even if it is opened.
+.El
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl v"
+.It Fl v
+Be more verbose.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
+.Sh EXAMPLES
+Use 3 disks to setup a RAID3 array (with the round-robin reading feature).
+Create a file system, mount it, then unmount it and stop device:
+.Bd -literal -offset indent
+graid3 label -v -r data da0 da1 da2
+newfs /dev/raid3/data
+mount /dev/raid3/data /mnt
+\&...
+umount /mnt
+graid3 stop data
+graid3 unload
+.Ed
+.Pp
+Create a RAID3 array, but do not use the automatic synchronization feature.
+Rebuild parity component:
+.Bd -literal -offset indent
+graid3 label -n data da0 da1 da2
+graid3 rebuild data da2
+.Ed
+.Pp
+Replace one data disk with a brand new one:
+.Bd -literal -offset indent
+graid3 remove -n 0 data
+graid3 insert -n 0 data da5
+.Ed
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr geom 8 ,
+.Xr gvinum 8 ,
+.Xr mount 8 ,
+.Xr newfs 8 ,
+.Xr umount 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org
+.Sh BUGS
+There should be a section with an implementation description.
+.Pp
+Documentation for sysctls
+.Va kern.geom.raid3.*
+is missing.

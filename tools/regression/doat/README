@@ -1,0 +1,7 @@
+$FreeBSD$
+
+This is a simple testing program for *at family of syscalls. It creates
+"tmp" subdirectory in a current directory and creates files etc. in it.
+
+It prints OK for every successful test. This testing program only covers
+correct error values.

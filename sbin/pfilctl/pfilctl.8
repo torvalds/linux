@@ -1,0 +1,117 @@
+.\" Copyright (c) 2019 Gleb Smirnoff <glebius@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 28, 2019
+.Dt PFILCTL 8
+.Os
+.Sh NAME
+.Nm pfilctl
+.Nd pfil(9) control utility
+.Sh SYNOPSIS
+.Nm
+.Cm heads
+.Nm
+.Cm hooks
+.Nm
+.Cm link
+.Aq Fl i | Fl o
+.Op Fl a
+.Ar hook Ar head
+.Nm
+.Cm unlink
+.Aq Fl i | Fl o
+.Ar hook Ar head
+.Sh DESCRIPTION
+The
+.Nm
+utility is intended to view and change configuration of the
+.Xr pfil 9
+packet filtering hooks and filters on them.
+.Sh COMMANDS
+.Bl -tag -width "unlink"
+.It Cm heads
+List available packet filtering points.
+.It Cm hooks
+List available packet filters.
+.It Xo
+.Cm link
+.Aq Fl i | Fl o
+.Op Fl a
+.Ar hook Ar head
+.Xc
+Link
+.Ar hook
+to
+.Ar head .
+With the
+.Fl i
+flag the hook will be connected as input and with
+.Fl o
+as output hook.
+At least one of
+.Fl i
+or
+.Fl o
+is required.
+By default
+.Nm
+will prepend the hook in front of other hooks if any present:
+new hook will be as close to the wire as possible, so that on input
+it will be the first filter and on output it will be the last.
+Adding the
+.Fl a
+flag switches to appending new hook instead of prepending.
+.It Xo
+.Cm unlink
+.Aq Fl i | Fl o
+.Ar hook Ar head
+.Xc
+Unlink
+.Ar hook
+on
+.Ar head .
+At least one of
+.Fl i
+or
+.Fl o
+is required.
+With the
+.Fl i
+flag the hook will be removed from the input list of hooks
+and with
+.Fl o
+on output list.
+.El
+.Sh SEE ALSO
+.Xr ipfilter 4 ,
+.Xr ipfw 4 ,
+.Xr pf 4 ,
+.Xr pfil 9
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An Gleb Smirnoff Aq Mt glebius@FreeBSD.org .

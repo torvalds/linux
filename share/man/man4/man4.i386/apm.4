@@ -1,0 +1,158 @@
+.\" LP (Laptop Package)
+.\"
+.\" Copyright (c) 1994 by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+.\"
+.\" This software may be used, modified, copied, and distributed, in
+.\" both source and binary form provided that the above copyright and
+.\" these terms are retained. Under no circumstances is the author
+.\" responsible for the proper functioning of this software, nor does
+.\" the author assume any responsibility for damages incurred with its
+.\" use.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 1, 1994
+.Dt APM 4 i386
+.Os
+.Sh NAME
+.Nm apm
+.Nd APM BIOS interface
+.Sh SYNOPSIS
+.Cd device apm
+.Sh DESCRIPTION
+.Nm
+is an interface to the Intel / Microsoft APM (Advanced Power Management) BIOS
+on laptop PCs.
+.Pp
+.Nm
+provides the following power management functions.
+.Bl -enum -offset indent
+.It
+When the system wakes up from suspended mode,
+.Nm
+adjusts the system clock to RTC.
+.It
+When the system wakes up from suspended mode,
+.Nm
+passes a message to
+.Xr syslogd 8
+comprising of system wakeup time and elapsed time during suspended mode.
+.It
+.Nm
+slows CPU clock when there are no system activities (runnable processes,
+interrupts, etc.).
+This function is available only on systems whose APM
+supports CPU idling.
+.It
+.Nm
+exports an application interface as a character device.
+Applications
+can control APM, or retrieve APM status information via this interface.
+.Nm
+exports the following interfaces.
+These symbols are defined in
+.In machine/apm_bios.h .
+.Bl -tag -width 4n -offset indent
+.It Sy APMIO_SUSPEND
+Suspend system.
+.It Sy APMIO_GET
+Get power management information.
+.It Sy APMIO_ENABLE
+.It Sy APMIO_DISABLE
+Enable / Disable power management.
+.It Sy APMIO_HALTCPU
+.It Sy APMIO_NOTHALTCPU
+Control execution of HLT in the kernel context switch routine.
+.It Sy APMIO_GETPWSTATUS
+Get per battery information.
+.Pp
+Some APM implementations execute the HLT
+(Halt CPU until an interrupt occurs)
+instruction in the
+.Dq Em Idle CPU
+call, while others do not.
+Thus enabling this may result in
+redundant HLT executions because
+.Dq Em Idle CPU
+is called from the kernel context switch routine that inherently executes
+HLT.
+This may reduce peak system performance.
+.Pp
+Also the system hangs up if HLT instruction is disabled in the kernel
+context switch routine, and if the APM implementation of the machine
+does not execute HLT in
+.Dq Em Idle CPU .
+On some implementations that do not support CPU clock slowdown, APM
+might not execute HLT.
+.Nm
+disables
+.Sy APMIO_NOTHALTCPU
+operation on such machines.
+.Pp
+The current version of
+.Nm
+does not call
+.Dq Em Idle CPU
+from the kernel context switch routine if clock slowdown is not supported,
+and it executes HLT instruction by default.
+Therefore, there is
+no need to use these two operations in most cases.
+.El
+.Pp
+These interfaces are used by
+.Xr apm 8 .
+.It
+.Nm
+polls APM events and handles the following events.
+.Bl -column "xxxxxxxxxxxxxxxxx" "xxxxxxxxxxxxx" "xxxxxxxx"
+.It Sy "Name" Ta Sy "Action" Ta Sy "Description"
+.It Dv "PMEV_STANDBYREQ" Ta No "suspend system" Ta "standby request"
+.It Dv "PMEV_SUSPENDREQ" Ta No "suspend system" Ta "suspend request"
+.It Dv "PMEV_USERSUSPENDREQ" Ta No "suspend system" Ta "user suspend request"
+.It Dv "PMEV_CRITSUSPEND" Ta No "suspend system" Ta "critical suspend request"
+.It Dv "PMEV_NORMRESUME" Ta No "resume system" Ta "normal resume"
+.It Dv "PMEV_CRITRESUME" Ta No "resume system" Ta "critical resume"
+.It Dv "PMEV_STANDBYRESUME" Ta No "resume system" Ta "standby resume"
+.It Dv "PMEV_BATTERYLOW" Ta No "notify message" Ta "battery low"
+.It Dv "PMEV_UPDATETIME" Ta No "adjust clock" Ta "update time"
+.El
+.El
+.Sh SEE ALSO
+.Xr apm 8 ,
+.Xr zzz 8
+.Sh AUTHORS
+.An Tatsumi Hosokawa Aq Mt hosokawa@jp.FreeBSD.org
+.Sh BUGS
+WARNING!
+Many, if not most, of the implementations of APM-bios in laptops
+today are buggy.
+You may be putting your LCD-display and batteries at
+a risk by using this interface.
+(The reason this is not a problem for
+MS-Windows is that they use the real-mode interface.)
+If you see any
+weird behavior from your system with this code in use, unplug the
+power and batteries ASAP, if not immediately, and disable this code.
+.Pp
+We are very interested in getting this code working, so please send your
+observations of any anomalous behavior to us.
+.Pp
+When
+.Nm
+is active, calling the BIOS setup routine by using hot-keys,
+may cause serious trouble when resuming the system.
+BIOS setup programs should be called during bootstrap, or from DOS.
+.Pp
+Some APM implementations cannot handle events such as pushing the
+power button or closing the cover.
+On such implementations, the system
+.Ar must
+be suspended
+.Ar only
+by using
+.Xr apm 8
+or
+.Xr zzz 8 .
+.Pp
+Disk spin-down, LCD backlight control, and power on demand have not
+been supported on the current version.

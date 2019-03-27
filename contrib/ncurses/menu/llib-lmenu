@@ -1,0 +1,551 @@
+/****************************************************************************
+ * Copyright (c) 1999-2005,2010 Free Software Foundation, Inc.              *
+ *                                                                          *
+ * Permission is hereby granted, free of charge, to any person obtaining a  *
+ * copy of this software and associated documentation files (the            *
+ * "Software"), to deal in the Software without restriction, including      *
+ * without limitation the rights to use, copy, modify, merge, publish,      *
+ * distribute, distribute with modifications, sublicense, and/or sell       *
+ * copies of the Software, and to permit persons to whom the Software is    *
+ * furnished to do so, subject to the following conditions:                 *
+ *                                                                          *
+ * The above copyright notice and this permission notice shall be included  *
+ * in all copies or substantial portions of the Software.                   *
+ *                                                                          *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+ * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+ * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+ *                                                                          *
+ * Except as contained in this notice, the name(s) of the above copyright   *
+ * holders shall not be used in advertising or otherwise to promote the     *
+ * sale, use or other dealings in this Software without prior written       *
+ * authorization.                                                           *
+ ****************************************************************************/
+
+/****************************************************************************
+ *  Author: Thomas E. Dickey        1996-2005,2010                          *
+ ****************************************************************************/
+/* LINTLIBRARY */
+
+/* ./m_attribs.c */
+
+#include <menu.priv.h>
+
+#undef set_menu_fore
+int	set_menu_fore(
+		MENU	*menu, 
+		chtype	attr)
+		{ return(*(int *)0); }
+
+#undef menu_fore
+chtype	menu_fore(
+		const MENU *menu)
+		{ return(*(chtype *)0); }
+
+#undef set_menu_back
+int	set_menu_back(
+		MENU	*menu, 
+		chtype	attr)
+		{ return(*(int *)0); }
+
+#undef menu_back
+chtype	menu_back(
+		const MENU *menu)
+		{ return(*(chtype *)0); }
+
+#undef set_menu_grey
+int	set_menu_grey(
+		MENU	*menu, 
+		chtype	attr)
+		{ return(*(int *)0); }
+
+#undef menu_grey
+chtype	menu_grey(
+		const MENU *menu)
+		{ return(*(chtype *)0); }
+
+/* ./m_cursor.c */
+
+#undef _nc_menu_cursor_pos
+int	_nc_menu_cursor_pos(
+		const MENU *menu, 
+		const ITEM *item, 
+		int	*pY, 
+		int	*pX)
+		{ return(*(int *)0); }
+
+#undef pos_menu_cursor
+int	pos_menu_cursor(
+		const MENU *menu)
+		{ return(*(int *)0); }
+
+/* ./m_driver.c */
+
+#undef _nc_Match_Next_Character_In_Item_Name
+int	_nc_Match_Next_Character_In_Item_Name(
+		MENU	*menu, 
+		int	ch, 
+		ITEM	**item)
+		{ return(*(int *)0); }
+
+#undef menu_driver
+int	menu_driver(
+		MENU	*menu, 
+		int	c)
+		{ return(*(int *)0); }
+
+/* ./m_format.c */
+
+#undef set_menu_format
+int	set_menu_format(
+		MENU	*menu, 
+		int	rows, 
+		int	cols)
+		{ return(*(int *)0); }
+
+#undef menu_format
+void	menu_format(
+		const MENU *menu, 
+		int	*rows, 
+		int	*cols)
+		{ /* void */ }
+
+/* ./m_global.c */
+
+#undef _nc_Default_Menu
+MENU	_nc_Default_Menu;
+#undef _nc_Default_Item
+ITEM	_nc_Default_Item;
+
+#undef _nc_Connect_Items
+NCURSES_BOOL _nc_Connect_Items(
+		MENU	*menu, 
+		ITEM	**items)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef _nc_Disconnect_Items
+void	_nc_Disconnect_Items(
+		MENU	*menu)
+		{ /* void */ }
+
+#undef _nc_Calculate_Text_Width
+int	_nc_Calculate_Text_Width(
+		const TEXT *item)
+		{ return(*(int *)0); }
+
+#undef _nc_Calculate_Item_Length_and_Width
+void	_nc_Calculate_Item_Length_and_Width(
+		MENU	*menu)
+		{ /* void */ }
+
+#undef _nc_Link_Items
+void	_nc_Link_Items(
+		MENU	*menu)
+		{ /* void */ }
+
+#undef _nc_Show_Menu
+void	_nc_Show_Menu(
+		const MENU *menu)
+		{ /* void */ }
+
+#undef _nc_New_TopRow_and_CurrentItem
+void	_nc_New_TopRow_and_CurrentItem(
+		MENU	*menu, 
+		int	new_toprow, 
+		ITEM	*new_current_item)
+		{ /* void */ }
+
+/* ./m_hook.c */
+
+#undef set_menu_init
+int	set_menu_init(
+		MENU	*menu, 
+		Menu_Hook func)
+		{ return(*(int *)0); }
+
+#undef menu_init
+Menu_Hook menu_init(
+		const MENU *menu)
+		{ return(*(Menu_Hook *)0); }
+
+#undef set_menu_term
+int	set_menu_term(
+		MENU	*menu, 
+		Menu_Hook func)
+		{ return(*(int *)0); }
+
+#undef menu_term
+Menu_Hook menu_term(
+		const MENU *menu)
+		{ return(*(Menu_Hook *)0); }
+
+#undef set_item_init
+int	set_item_init(
+		MENU	*menu, 
+		Menu_Hook func)
+		{ return(*(int *)0); }
+
+#undef item_init
+Menu_Hook item_init(
+		const MENU *menu)
+		{ return(*(Menu_Hook *)0); }
+
+#undef set_item_term
+int	set_item_term(
+		MENU	*menu, 
+		Menu_Hook func)
+		{ return(*(int *)0); }
+
+#undef item_term
+Menu_Hook item_term(
+		const MENU *menu)
+		{ return(*(Menu_Hook *)0); }
+
+/* ./m_item_cur.c */
+
+#undef set_current_item
+int	set_current_item(
+		MENU	*menu, 
+		ITEM	*item)
+		{ return(*(int *)0); }
+
+#undef current_item
+ITEM	*current_item(
+		const MENU *menu)
+		{ return(*(ITEM **)0); }
+
+#undef item_index
+int	item_index(
+		const ITEM *item)
+		{ return(*(int *)0); }
+
+/* ./m_item_nam.c */
+
+#undef item_name
+const char *item_name(
+		const ITEM *item)
+		{ return(*(const char **)0); }
+
+#undef item_description
+const char *item_description(
+		const ITEM *item)
+		{ return(*(const char **)0); }
+
+/* ./m_item_new.c */
+
+#undef new_item
+ITEM	*new_item(
+		const char *name, 
+		const char *description)
+		{ return(*(ITEM **)0); }
+
+#undef free_item
+int	free_item(
+		ITEM	*item)
+		{ return(*(int *)0); }
+
+#undef set_menu_mark
+int	set_menu_mark(
+		MENU	*menu, 
+		const char *mark)
+		{ return(*(int *)0); }
+
+#undef menu_mark
+const char *menu_mark(
+		const MENU *menu)
+		{ return(*(const char **)0); }
+
+/* ./m_item_opt.c */
+
+#undef set_item_opts
+int	set_item_opts(
+		ITEM	*item, 
+		Item_Options opts)
+		{ return(*(int *)0); }
+
+#undef item_opts_off
+int	item_opts_off(
+		ITEM	*item, 
+		Item_Options opts)
+		{ return(*(int *)0); }
+
+#undef item_opts_on
+int	item_opts_on(
+		ITEM	*item, 
+		Item_Options opts)
+		{ return(*(int *)0); }
+
+#undef item_opts
+Item_Options item_opts(
+		const ITEM *item)
+		{ return(*(Item_Options *)0); }
+
+/* ./m_item_top.c */
+
+#undef set_top_row
+int	set_top_row(
+		MENU	*menu, 
+		int	row)
+		{ return(*(int *)0); }
+
+#undef top_row
+int	top_row(
+		const MENU *menu)
+		{ return(*(int *)0); }
+
+/* ./m_item_use.c */
+
+#undef set_item_userptr
+int	set_item_userptr(
+		ITEM	*item, 
+		void	*userptr)
+		{ return(*(int *)0); }
+
+#undef item_userptr
+void	*item_userptr(
+		const ITEM *item)
+		{ return(*(void **)0); }
+
+/* ./m_item_val.c */
+
+#undef set_item_value
+int	set_item_value(
+		ITEM	*item, 
+		NCURSES_BOOL value)
+		{ return(*(int *)0); }
+
+#undef item_value
+NCURSES_BOOL item_value(
+		const ITEM *item)
+		{ return(*(NCURSES_BOOL *)0); }
+
+/* ./m_item_vis.c */
+
+#undef item_visible
+NCURSES_BOOL item_visible(
+		const ITEM *item)
+		{ return(*(NCURSES_BOOL *)0); }
+
+/* ./m_items.c */
+
+#undef set_menu_items
+int	set_menu_items(
+		MENU	*menu, 
+		ITEM	**items)
+		{ return(*(int *)0); }
+
+#undef menu_items
+ITEM	**menu_items(
+		const MENU *menu)
+		{ return(*(ITEM ***)0); }
+
+#undef item_count
+int	item_count(
+		const MENU *menu)
+		{ return(*(int *)0); }
+
+/* ./m_new.c */
+
+#undef new_menu_sp
+MENU	*new_menu_sp(
+		SCREEN	*sp, 
+		ITEM	**items)
+		{ return(*(MENU **)0); }
+
+#undef new_menu
+MENU	*new_menu(
+		ITEM	**items)
+		{ return(*(MENU **)0); }
+
+#undef free_menu
+int	free_menu(
+		MENU	*menu)
+		{ return(*(int *)0); }
+
+/* ./m_opts.c */
+
+#undef set_menu_opts
+int	set_menu_opts(
+		MENU	*menu, 
+		Menu_Options opts)
+		{ return(*(int *)0); }
+
+#undef menu_opts_off
+int	menu_opts_off(
+		MENU	*menu, 
+		Menu_Options opts)
+		{ return(*(int *)0); }
+
+#undef menu_opts_on
+int	menu_opts_on(
+		MENU	*menu, 
+		Menu_Options opts)
+		{ return(*(int *)0); }
+
+#undef menu_opts
+Menu_Options menu_opts(
+		const MENU *menu)
+		{ return(*(Menu_Options *)0); }
+
+/* ./m_pad.c */
+
+#undef set_menu_pad
+int	set_menu_pad(
+		MENU	*menu, 
+		int	pad)
+		{ return(*(int *)0); }
+
+#undef menu_pad
+int	menu_pad(
+		const MENU *menu)
+		{ return(*(int *)0); }
+
+/* ./m_pattern.c */
+
+#undef menu_pattern
+char	*menu_pattern(
+		const MENU *menu)
+		{ return(*(char **)0); }
+
+#undef set_menu_pattern
+int	set_menu_pattern(
+		MENU	*menu, 
+		const char *p)
+		{ return(*(int *)0); }
+
+/* ./m_post.c */
+
+#undef _nc_Post_Item
+void	_nc_Post_Item(
+		const MENU *menu, 
+		const ITEM *item)
+		{ /* void */ }
+
+#undef _nc_Draw_Menu
+void	_nc_Draw_Menu(
+		const MENU *menu)
+		{ /* void */ }
+
+#undef post_menu
+int	post_menu(
+		MENU	*menu)
+		{ return(*(int *)0); }
+
+#undef unpost_menu
+int	unpost_menu(
+		MENU	*menu)
+		{ return(*(int *)0); }
+
+/* ./m_req_name.c */
+
+#undef menu_request_name
+const char *menu_request_name(
+		int	request)
+		{ return(*(const char **)0); }
+
+#undef menu_request_by_name
+int	menu_request_by_name(
+		const char *str)
+		{ return(*(int *)0); }
+
+/* ./m_scale.c */
+
+#undef scale_menu
+int	scale_menu(
+		const MENU *menu, 
+		int	*rows, 
+		int	*cols)
+		{ return(*(int *)0); }
+
+/* ./m_spacing.c */
+
+#undef set_menu_spacing
+int	set_menu_spacing(
+		MENU	*menu, 
+		int	s_desc, 
+		int	s_row, 
+		int	s_col)
+		{ return(*(int *)0); }
+
+#undef menu_spacing
+int	menu_spacing(
+		const MENU *menu, 
+		int	*s_desc, 
+		int	*s_row, 
+		int	*s_col)
+		{ return(*(int *)0); }
+
+/* ./m_sub.c */
+
+#undef set_menu_sub
+int	set_menu_sub(
+		MENU	*menu, 
+		WINDOW	*win)
+		{ return(*(int *)0); }
+
+#undef menu_sub
+WINDOW	*menu_sub(
+		const MENU *menu)
+		{ return(*(WINDOW **)0); }
+
+/* ./m_trace.c */
+
+#undef _nc_retrace_item
+ITEM	*_nc_retrace_item(
+		ITEM	*code)
+		{ return(*(ITEM **)0); }
+
+#undef _nc_retrace_item_ptr
+ITEM	**_nc_retrace_item_ptr(
+		ITEM	**code)
+		{ return(*(ITEM ***)0); }
+
+#undef _nc_retrace_item_opts
+Item_Options _nc_retrace_item_opts(
+		Item_Options code)
+		{ return(*(Item_Options *)0); }
+
+#undef _nc_retrace_menu
+MENU	*_nc_retrace_menu(
+		MENU	*code)
+		{ return(*(MENU **)0); }
+
+#undef _nc_retrace_menu_hook
+Menu_Hook _nc_retrace_menu_hook(
+		Menu_Hook code)
+		{ return(*(Menu_Hook *)0); }
+
+#undef _nc_retrace_menu_opts
+Menu_Options _nc_retrace_menu_opts(
+		Menu_Options code)
+		{ return(*(Menu_Options *)0); }
+
+/* ./m_userptr.c */
+
+#undef set_menu_userptr
+int	set_menu_userptr(
+		MENU	*menu, 
+		void	*userptr)
+		{ return(*(int *)0); }
+
+#undef menu_userptr
+void	*menu_userptr(
+		const MENU *menu)
+		{ return(*(void **)0); }
+
+/* ./m_win.c */
+
+#undef set_menu_win
+int	set_menu_win(
+		MENU	*menu, 
+		WINDOW	*win)
+		{ return(*(int *)0); }
+
+#undef menu_win
+WINDOW	*menu_win(
+		const MENU *menu)
+		{ return(*(WINDOW **)0); }

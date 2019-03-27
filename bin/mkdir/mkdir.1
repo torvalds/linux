@@ -1,0 +1,123 @@
+.\"-
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mkdir.1	8.2 (Berkeley) 1/25/94
+.\" $FreeBSD$
+.\"
+.Dd March 15, 2013
+.Dt MKDIR 1
+.Os
+.Sh NAME
+.Nm mkdir
+.Nd make directories
+.Sh SYNOPSIS
+.Nm
+.Op Fl pv
+.Op Fl m Ar mode
+.Ar directory_name ...
+.Sh DESCRIPTION
+The
+.Nm
+utility creates the directories named as operands, in the order specified,
+using mode
+.Dq Li rwxrwxrwx
+(0777)
+as modified by the current
+.Xr umask 2 .
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl m Ar mode"
+.It Fl m Ar mode
+Set the file permission bits of the final created directory to
+the specified mode.
+The
+.Ar mode
+argument can be in any of the formats specified to the
+.Xr chmod 1
+command.
+If a symbolic mode is specified, the operation characters
+.Ql +
+and
+.Ql -
+are interpreted relative to an initial mode of
+.Dq Li a=rwx .
+.It Fl p
+Create intermediate directories as required.
+If this option is not specified, the full path prefix of each
+operand must already exist.
+On the other hand, with this option specified, no error will
+be reported if a directory given as an operand already exists.
+Intermediate directories are created with permission bits of
+.Dq Li rwxrwxrwx
+(0777)
+as modified by the current umask, plus write and search
+permission for the owner.
+.It Fl v
+Be verbose when creating directories, listing them as they are created.
+.El
+.Pp
+The user must have write permission in the parent directory.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Create a directory named
+.Pa foobar :
+.Pp
+.Dl $ mkdir foobar
+.Pp
+Create a directory named
+.Pa foobar
+and set its file mode to 700:
+.Pp
+.Dl $ mkdir -m 700 foobar
+.Pp
+Create a directory named
+.Pa cow/horse/monkey ,
+creating any non-existent intermediate directories as necessary:
+.Pp
+.Dl $ mkdir -p cow/horse/monkey
+.Sh COMPATIBILITY
+The
+.Fl v
+option is non-standard and its use in scripts is not recommended.
+.Sh SEE ALSO
+.Xr rmdir 1
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be
+.St -p1003.2
+compatible.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .

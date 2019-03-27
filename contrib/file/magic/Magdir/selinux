@@ -1,0 +1,24 @@
+# Type:	SE Linux policy modules *.pp reference policy
+#	for Fedora 5 to 9, RHEL5, and Debian Etch and Lenny.
+# URL:	http://doc.coker.com.au/computers/selinux-magic
+# From:	Russell Coker <russell@coker.com.au>
+
+0		lelong	0xf97cff8f	SE Linux modular policy
+>4		lelong	x		version %d,
+>8		lelong	x		%d sections,
+>>(12.l)	lelong	0xf97cff8d
+>>>(12.l+27)	lelong	x		mod version %d,
+>>>(12.l+31)	lelong	0		Not MLS,
+>>>(12.l+31)	lelong	1		MLS,
+>>>(12.l+23)	lelong	2
+>>>>(12.l+47)	string	>\0		module name %s
+>>>(12.l+23)	lelong	1		base
+
+1	string	policy_module(	SE Linux policy module source
+2	string	policy_module(	SE Linux policy module source
+
+0	string	##\ <summary>	SE Linux policy interface source
+
+#0	search	gen_context(	SE Linux policy file contexts
+
+#0	search	gen_sens(	SE Linux policy MLS constraints source

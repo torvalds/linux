@@ -1,0 +1,47 @@
+ARM Limited
+
+Software Grant License Agreement ("Agreement")
+
+Except for the license granted herein to you, ARM Limited ("ARM") reserves all
+right, title, and interest in and to the Software (defined below).
+
+Definition
+
+"Software" means the code and documentation as well as any original work of
+authorship, including any modifications or additions to an existing work, that
+is intentionally submitted by ARM to llvm.org (http://llvm.org) ("LLVM") for
+inclusion in, or documentation of, any of the products owned or managed by LLVM
+(the "Work"). For the purposes of this definition, "submitted" means any form of
+electronic, verbal, or written communication sent to LLVM or its
+representatives, including but not limited to communication on electronic
+mailing lists, source code control systems, and issue tracking systems that are
+managed by, or on behalf of, LLVM for the purpose of discussing and improving
+the Work, but excluding communication that is conspicuously marked otherwise.
+
+1. Grant of Copyright License. Subject to the terms and conditions of this
+   Agreement, ARM hereby grants to you and to recipients of the Software
+   distributed by LLVM a perpetual, worldwide, non-exclusive, no-charge,
+   royalty-free, irrevocable copyright license to reproduce, prepare derivative
+   works of, publicly display, publicly perform, sublicense, and distribute the
+   Software and such derivative works.
+
+2. Grant of Patent License. Subject to the terms and conditions of this
+   Agreement, ARM hereby grants you and to recipients of the Software
+   distributed by LLVM a perpetual, worldwide, non-exclusive, no-charge,
+   royalty-free, irrevocable (except as stated in this section) patent license
+   to make, have made, use, offer to sell, sell, import, and otherwise transfer
+   the Work, where such license applies only to those patent claims licensable
+   by ARM that are necessarily infringed by ARM's Software alone or by
+   combination of the Software with the Work to which such Software was
+   submitted. If any entity institutes patent litigation against ARM or any
+   other entity (including a cross-claim or counterclaim in a lawsuit) alleging
+   that ARM's Software, or the Work to which ARM has contributed constitutes
+   direct or contributory patent infringement, then any patent licenses granted
+   to that entity under this Agreement for the Software or Work shall terminate
+   as of the date such litigation is filed.
+
+Unless required by applicable law or agreed to in writing, the software is
+provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+either express or implied, including, without limitation, any warranties or
+conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+PARTICULAR PURPOSE.

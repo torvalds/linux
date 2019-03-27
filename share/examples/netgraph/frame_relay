@@ -1,0 +1,46 @@
+#!/bin/sh
+# script to set up a frame relay link on the sr card.
+# The dlci used is selected below. The default is 16
+# $FreeBSD$
+
+CARD=sr0
+DLCI=16
+
+# create a frame_relay type node and attach it to the sync port.
+ngctl mkpeer ${CARD}: frame_relay rawdata downstream
+
+# Attach the dlci output of the (de)multiplexor to a new 
+# Link management protocol node.
+ngctl mkpeer ${CARD}:rawdata lmi dlci0 auto0
+
+# Also attach dlci 1023, as it needs both to try auto-configuring.
+# The Link management protocol is now alive and probing..
+ngctl connect ${CARD}:rawdata ${CARD}:rawdata.dlci0 dlci1023 auto1023
+
+# Attach the DLCI(channel) the Telco has assigned you to
+# a node to handle whatever protocol encapsulation your peer
+# is using. In this case RFC1490 encapsulation.
+ngctl mkpeer ${CARD}:rawdata rfc1490 dlci${DLCI} downstream
+
+
+# Attach the ip (inet) protocol output of the protocol mux to the ip (inet)
+# input of a netgraph "interface" node (ifconfig should show it as "ng0").
+#if interface ng0 needs to be created use a mkpeer command.. e.g.
+ngctl mkpeer ${CARD}:rawdata.dlci${DLCI} iface inet inet
+
+# if ng0 already exists, use a CONNECT command instead of a mkpeer. e.g.
+# ngctl connect ${CARD}:rawdata.dlci${DLCI} ng0: inet inet
+
+# Then use ifconfig on interface ng0 as usual
+
+# A variant on this whole set might use the 'name' command to make it more
+# readable. But it doesn't work if you have multiple lines or dlcis
+# e.g.
+# ngctl mkpeer ${CARD}: frame_relay rawdata downstream
+# ngctl name ${CARD}:rawdata mux
+# ngctl mkpeer mux: lmi dlci0 auto0
+# ngctl name mux:dlci0 lmi
+# ngctl connect mux: lmi: dlci1023 auto1023
+# ngctl mkpeer mux: rfc1490 dlci${DLCI} downstream
+# ngctl mux:dlci${DLCI} protomux
+# ngctl mkpeer protomux: iface inet inet

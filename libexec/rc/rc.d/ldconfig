@@ -1,0 +1,106 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ldconfig
+# REQUIRE: FILESYSTEMS
+# BEFORE:  DAEMON
+
+. /etc/rc.subr
+
+name="ldconfig"
+desc="Configure the shared library cache"
+ldconfig_command="/sbin/ldconfig"
+start_cmd="ldconfig_start"
+stop_cmd=":"
+
+ldconfig_start()
+{
+	local _files _ins
+
+	_ins=
+	ldconfig=${ldconfig_command}
+	checkyesno ldconfig_insecure && _ins="-i"
+	if [ -x "${ldconfig_command}" ]; then
+		_LDC="/lib /usr/lib"
+		for i in ${ldconfig_local_dirs}; do
+			if [ -d "${i}" ]; then
+				_files=`find ${i} -type f`
+				if [ -n "${_files}" ]; then
+					ldconfig_paths="${ldconfig_paths} `cat ${_files} | sort -u`"
+				fi
+			fi
+		done
+		for i in ${ldconfig_paths} /etc/ld-elf.so.conf; do
+			if [ -r "${i}" ]; then
+				_LDC="${_LDC} ${i}"
+			fi
+		done
+		check_startmsgs && echo 'ELF ldconfig path:' ${_LDC}
+		${ldconfig} -elf ${_ins} ${_LDC}
+
+		case `sysctl -n hw.machine_arch` in
+		amd64|mips64|powerpc64)
+			for i in ${ldconfig_local32_dirs}; do
+				if [ -d "${i}" ]; then
+					_files=`find ${i} -type f`
+					if [ -n "${_files}" ]; then
+						ldconfig32_paths="${ldconfig32_paths} `cat ${_files} | sort -u`"
+					fi
+				fi
+			done
+			_LDC=""
+			for i in ${ldconfig32_paths}; do
+				if [ -r "${i}" ]; then
+					_LDC="${_LDC} ${i}"
+				fi
+			done
+			check_startmsgs &&
+			    echo '32-bit compatibility ldconfig path:' ${_LDC}
+			${ldconfig} -32 ${_ins} ${_LDC}
+			;;
+		esac
+
+		case `sysctl -n hw.machine_arch` in
+		armv[67])
+			for i in ${ldconfig_localsoft_dirs}; do
+				if [ -d "${i}" ]; then
+					_files=`find ${i} -type f`
+					if [ -n "${_files}" ]; then
+						ldconfigsoft_paths="${ldconfigsoft_paths} `cat ${_files} | sort -u`"
+					fi
+				fi
+			done
+			_LDC=""
+			for i in ${ldconfigsoft_paths}; do
+				if [ -r "${i}" ]; then
+					_LDC="${_LDC} ${i}"
+				fi
+			done
+			check_startmsgs &&
+			    echo 'Soft Float compatibility ldconfig path:' ${_LDC}
+			${ldconfig} -soft ${_ins} ${_LDC}
+			;;
+		esac
+
+		# Legacy aout support for i386 only
+		case `sysctl -n hw.machine_arch` in
+		i386)
+			# Default the a.out ldconfig path.
+			: ${ldconfig_paths_aout=${ldconfig_paths}}
+			_LDC=""
+			for i in /usr/lib/aout ${ldconfig_paths_aout} /etc/ld.so.conf; do
+				if [ -r "${i}" ]; then
+					_LDC="${_LDC} ${i}"
+				fi
+			done
+			check_startmsgs && echo 'a.out ldconfig path:' ${_LDC}
+			${ldconfig} -aout ${_ins} ${_LDC}
+			;;
+		esac
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

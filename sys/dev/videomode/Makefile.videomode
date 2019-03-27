@@ -1,0 +1,18 @@
+#	$NetBSD: Makefile.videomode,v 1.1 2006/03/04 02:34:27 gdamore Exp $
+#	$FreeBSD$
+#
+# As per tron@NetBSD.org, the proper procedure is
+#
+# 1.) Change "src/sys/dev/videomode/modelines".
+# 2.) Commit "src/sys/dev/videomode/modelines".
+# 3.) Execute "make -f Makefile.videomode" in "src/sys/dev/videomode".
+# 4.) Commit "src/sys/dev/videomode/videomode.c"
+
+.include <bsd.own.mk>
+
+videomode.c: modelines modelines2c.awk
+	/bin/rm -f videomode.c
+	${TOOL_AWK} -f modelines2c.awk modelines > videomode.c
+
+test: videomode.c videomode.h test.c
+	${CC} -I ../../ -o test test.c videomode.c

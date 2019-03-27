@@ -1,0 +1,124 @@
+=pod
+
+=head1 NAME
+
+PKCS7_sign - create a PKCS#7 signedData structure
+
+=head1 SYNOPSIS
+
+ #include <openssl/pkcs7.h>
+
+ PKCS7 *PKCS7_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
+                   BIO *data, int flags);
+
+=head1 DESCRIPTION
+
+PKCS7_sign() creates and returns a PKCS#7 signedData structure. B<signcert> is
+the certificate to sign with, B<pkey> is the corresponding private key.
+B<certs> is an optional additional set of certificates to include in the PKCS#7
+structure (for example any intermediate CAs in the chain).
+
+The data to be signed is read from BIO B<data>.
+
+B<flags> is an optional set of flags.
+
+=head1 NOTES
+
+Any of the following flags (ored together) can be passed in the B<flags>
+parameter.
+
+Many S/MIME clients expect the signed content to include valid MIME headers. If
+the B<PKCS7_TEXT> flag is set MIME headers for type B<text/plain> are prepended
+to the data.
+
+If B<PKCS7_NOCERTS> is set the signer's certificate will not be included in the
+PKCS7 structure, the signer's certificate must still be supplied in the
+B<signcert> parameter though. This can reduce the size of the signature if the
+signers certificate can be obtained by other means: for example a previously
+signed message.
+
+The data being signed is included in the PKCS7 structure, unless
+B<PKCS7_DETACHED> is set in which case it is omitted. This is used for PKCS7
+detached signatures which are used in S/MIME plaintext signed messages for
+example.
+
+Normally the supplied content is translated into MIME canonical format (as
+required by the S/MIME specifications) if B<PKCS7_BINARY> is set no translation
+occurs. This option should be used if the supplied data is in binary format
+otherwise the translation will corrupt it.
+
+The signedData structure includes several PKCS#7 authenticatedAttributes
+including the signing time, the PKCS#7 content type and the supported list of
+ciphers in an SMIMECapabilities attribute. If B<PKCS7_NOATTR> is set then no
+authenticatedAttributes will be used. If B<PKCS7_NOSMIMECAP> is set then just
+the SMIMECapabilities are omitted.
+
+If present the SMIMECapabilities attribute indicates support for the following
+algorithms: triple DES, 128 bit RC2, 64 bit RC2, DES and 40 bit RC2. If any of
+these algorithms is disabled then it will not be included.
+
+If the flags B<PKCS7_STREAM> is set then the returned B<PKCS7> structure is
+just initialized ready to perform the signing operation. The signing is however
+B<not> performed and the data to be signed is not read from the B<data>
+parameter. Signing is deferred until after the data has been written. In this
+way data can be signed in a single pass.
+
+If the B<PKCS7_PARTIAL> flag is set a partial B<PKCS7> structure is output to
+which additional signers and capabilities can be added before finalization.
+
+=head1 NOTES
+
+If the flag B<PKCS7_STREAM> is set the returned B<PKCS7> structure is B<not>
+complete and outputting its contents via a function that does not properly
+finalize the B<PKCS7> structure will give unpredictable results.
+
+Several functions including SMIME_write_PKCS7(), i2d_PKCS7_bio_stream(),
+PEM_write_bio_PKCS7_stream() finalize the structure. Alternatively finalization
+can be performed by obtaining the streaming ASN1 B<BIO> directly using
+BIO_new_PKCS7().
+
+If a signer is specified it will use the default digest for the signing
+algorithm. This is B<SHA1> for both RSA and DSA keys.
+
+The B<certs>, B<signcert> and B<pkey> parameters can all be
+B<NULL> if the B<PKCS7_PARTIAL> flag is set. One or more signers can be added
+using the function PKCS7_sign_add_signer(). PKCS7_final() must also be
+called to finalize the structure if streaming is not enabled. Alternative
+signing digests can also be specified using this method.
+
+If B<signcert> and B<pkey> are NULL then a certificates only
+PKCS#7 structure is output.
+
+In versions of OpenSSL before 1.0.0 the B<signcert> and B<pkey> parameters must
+B<NOT> be NULL.
+
+=head1 BUGS
+
+Some advanced attributes such as counter signatures are not supported.
+
+=head1 RETURN VALUES
+
+PKCS7_sign() returns either a valid PKCS7 structure or NULL if an error
+occurred.  The error can be obtained from ERR_get_error(3).
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<PKCS7_verify(3)>
+
+=head1 HISTORY
+
+The B<PKCS7_PARTIAL> flag, and the ability for B<certs>, B<signcert>,
+and B<pkey> parameters to be B<NULL> were added in OpenSSL 1.0.0.
+
+The B<PKCS7_STREAM> flag was added in OpenSSL 1.0.0.
+
+=head1 COPYRIGHT
+
+Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

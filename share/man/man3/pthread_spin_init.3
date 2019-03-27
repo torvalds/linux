@@ -1,0 +1,125 @@
+.\" Copyright (c) 2004 Michael Telahun Makonnen
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 31, 2016
+.Dt PTHREAD_SPIN_INIT 3
+.Os
+.Sh NAME
+.Nm pthread_spin_init , pthread_spin_destroy
+.Nd "initialize or destroy a spin lock"
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_spin_init "pthread_spinlock_t *lock" "int pshared"
+.Ft int
+.Fn pthread_spin_destroy "pthread_spinlock_t *lock"
+.Sh DESCRIPTION
+The
+.Fn pthread_spin_init
+function will initialize
+.Fa lock
+to an unlocked state and
+allocate any resources necessary to begin using it.
+If
+.Fa pshared
+is set to
+.Dv PTHREAD_PROCESS_SHARED ,
+any thread,
+whether belonging to the process in which the spinlock was created or not,
+that has access to the memory area where
+.Fa lock
+resides, can use
+.Fa lock .
+If it is set to
+.Dv PTHREAD_PROCESS_PRIVATE ,
+it can only be used by threads within the same process.
+.Pp
+The
+.Fn pthread_spin_destroy
+function will destroy
+.Fa lock
+and release any resources that may have been allocated on its behalf.
+.Sh RETURN VALUES
+If successful,
+both
+.Fn pthread_spin_init
+and
+.Fn pthread_spin_destroy
+will return zero.
+Otherwise, an error number will be returned to indicate the error.
+.Pp
+Neither of these functions will return
+.Er EINTR .
+.Sh ERRORS
+The
+.Fn pthread_spin_init
+and
+.Fn pthread_spin_destroy
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+An attempt to initialize or destroy
+.Fa lock
+while it is in use.
+.It Bq Er EINVAL
+The value specified by
+.Fa lock
+is invalid.
+.El
+.Pp
+The
+.Fn pthread_spin_init
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+Insufficient resources,
+other than memory,
+to initialize
+.Fa lock .
+.It Bq Er ENOMEM
+Insufficient memory to initialize
+.Fa lock .
+.El
+.Sh SEE ALSO
+.Xr pthread_spin_lock 3 ,
+.Xr pthread_spin_unlock 3
+.Sh HISTORY
+The
+.Fn pthread_spin_init
+and
+.Fn pthread_spin_destroy
+functions first appeared in
+.Lb libkse
+in
+.Fx 5.2 ,
+and in
+.Lb libthr
+in
+.Fx 5.3 .
+Support for process-shared spinlocks appeared in
+.Fx 11.0 .

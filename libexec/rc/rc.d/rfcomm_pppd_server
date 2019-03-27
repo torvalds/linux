@@ -1,0 +1,123 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: rfcomm_pppd_server
+# REQUIRE: DAEMON sdpd
+# BEFORE: LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="rfcomm_pppd_server"
+desc="RFCOMM PPP daemon"
+rcvar="rfcomm_pppd_server_enable"
+command="/usr/sbin/rfcomm_pppd"
+start_cmd="rfcomm_pppd_server_start"
+stop_cmd="rfcomm_pppd_server_stop"
+required_modules="ng_btsocket"
+
+rfcomm_pppd_server_start_profile()
+{
+	local _profile _profile_cleaned _punct _punct_c
+	local _bdaddr _channel _x
+
+	_profile=$1
+	_profile_cleaned=$1
+
+	_punct=". - / +"
+	for _punct_c in ${_punct} ; do
+		_profile_cleaned=`ltr ${_profile_cleaned} ${_punct_c} '_'`
+	done
+
+	rc_flags=""
+
+	# Check for RFCOMM PPP profile bdaddr override
+	#
+	eval _bdaddr=\$rfcomm_pppd_server_${_profile_cleaned}_bdaddr
+	if [ -n "${_bdaddr}" ]; then
+		rc_flags="${rc_flags} -a ${_bdaddr}"
+	fi
+
+	# Check for RFCOMM PPP profile channel override
+	#
+	eval _channel=\$rfcomm_pppd_server_${_profile_cleaned}_channel
+	if [ -z "${_channel}" ]; then
+		_channel=1
+	fi
+	rc_flags="${rc_flags} -C ${_channel}"
+
+	# Check for RFCOMM PPP profile register SP override
+	#
+	eval _x=\$rfcomm_pppd_server_${_profile_cleaned}_register_sp
+	if [ -n "${_x}" ]; then
+		if checkyesno "rfcomm_pppd_server_${_profile_cleaned}_register_sp" ; then
+			rc_flags="${rc_flags} -S"
+		fi
+	fi
+
+	# Check for RFCOMM PPP profile register DUN override
+	#
+	eval _x=\$rfcomm_pppd_server_${_profile_cleaned}_register_dun
+	if [ -n "${_x}" ]; then
+		if checkyesno "rfcomm_pppd_server_${_profile_cleaned}_register_dun" ; then
+			rc_flags="${rc_flags} -D"
+		fi
+	fi
+
+	# Run!
+	#
+	$command -s ${rc_flags} -l ${_profile}
+}
+
+rfcomm_pppd_server_stop_profile()
+{
+	local _profile
+
+	_profile=$1
+
+	/bin/pkill -f "^${command}.*[[:space:]]${_profile}\$" || \
+		echo -n "(not running)"
+}
+
+rfcomm_pppd_server_start()
+{
+	local _profile _p
+
+	_profile=$*
+	if [ -z "${_profile}" ]; then
+		_profile=${rfcomm_pppd_server_profile}
+	fi
+
+	echo -n "Starting RFCOMM PPP profile:"
+
+	for _p in ${_profile} ; do
+		echo -n " ${_p}"
+		rfcomm_pppd_server_start_profile ${_p}
+	done
+
+	echo "."
+}
+
+rfcomm_pppd_server_stop()
+{
+	local _profile _p
+
+	_profile=$*
+	if [ -z "${_profile}" ]; then
+		_profile=${rfcomm_pppd_server_profile}
+	fi
+
+	echo -n "Stopping RFCOMM PPP profile:"
+
+	for _p in ${_profile} ; do
+		echo -n " ${_p}"
+		rfcomm_pppd_server_stop_profile ${_p}
+	done
+
+	echo "."
+}
+
+load_rc_config $name
+run_rc_command $*

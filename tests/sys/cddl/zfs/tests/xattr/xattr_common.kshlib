@@ -1,0 +1,108 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)xattr_common.kshlib	1.3	08/02/27 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+# a function that takes a file, then creates and verifies
+# an xattr on that file. The xattr_contents is the file
+# that should appear in the xattr namespace.
+function create_xattr { # filename xattr_name xattr_contents
+	typeset FILE=$1
+	typeset XATTR_NAME=$2
+	typeset XATTR_CONTENTS=$3
+
+	# read any empty xattr on that file
+	log_must $RUNAT $FILE $LS
+	# create the xattr
+	log_must $RUNAT $FILE $CP $XATTR_CONTENTS $XATTR_NAME
+
+	verify_xattr $FILE $XATTR_NAME $XATTR_CONTENTS
+}
+
+# a function that compares the a single xattr between two files
+# and checks to see if their contents are identical
+function compare_xattrs { # filename1 filename2 xattr_name
+	typeset FILE1=$1
+	typeset FILE2=$2
+	typeset XATTR_NAME=$3
+
+	$RUNAT $FILE1 $CAT $XATTR_NAME > $TMPDIR/file1.${TESTCASE_ID}
+	$RUNAT $FILE2 $CAT $XATTR_NAME > $TMPDIR/file2.${TESTCASE_ID}
+	
+	log_must $DIFF $TMPDIR/file1.${TESTCASE_ID} $TMPDIR/file2.${TESTCASE_ID}
+	log_must $RM $TMPDIR/file1.${TESTCASE_ID} $TMPDIR/file2.${TESTCASE_ID}
+}
+
+function verify_xattr { # filename xattr_name xattr_contents
+	typeset FILE=$1
+	typeset XATTR_NAME=$2
+	typeset XATTR_CONTENTS=$3
+
+	# read the xattr, writing it to a temp file
+	log_must eval "$RUNAT $FILE $CAT $XATTR_NAME > $TMPDIR/$XATTR_NAME.${TESTCASE_ID} 2>&1"
+	log_must $DIFF $XATTR_CONTENTS $TMPDIR/$XATTR_NAME.${TESTCASE_ID}
+	$RM $TMPDIR/$XATTR_NAME.${TESTCASE_ID}
+}
+
+function delete_xattr { # filename xattr_name
+        typeset FILE=$1
+        typeset XATTR_NAME=$2
+
+        # delete the xattr
+        log_must $RUNAT $FILE $RM $XATTR_NAME
+        log_mustnot eval "$RUNAT $FILE $LS $XATTR_NAME > /dev/null 2>&1"
+}
+
+# not sure about this : really this should be testing write/append
+function verify_write_xattr { # filename xattr_name
+        typeset FILE=$1
+        typeset XATTR_NAME=$2
+
+        log_must eval "$RUNAT $FILE $DD if=/etc/passwd of=$XATTR_NAME"
+        log_must eval "$RUNAT $FILE $CAT $XATTR_NAME > $TMPDIR/$XATTR_NAME.${TESTCASE_ID} 2>&1"
+        log_must $DD if=/etc/passwd of=$TMPDIR/passwd_dd.${TESTCASE_ID}
+        log_must $DIFF $TMPDIR/passwd_dd.${TESTCASE_ID} $TMPDIR/$XATTR_NAME.${TESTCASE_ID}
+        log_must $RM $TMPDIR/passwd_dd.${TESTCASE_ID} $TMPDIR/$XATTR_NAME.${TESTCASE_ID}
+}
+
+# this function is to create the expected output
+function create_expected_output  { # expected_output_file  contents_of_the_output
+   typeset FILE=$1
+   shift
+   if [[ -f $FILE ]]; then
+      log_must $RM $FILE
+   fi
+
+   for line in $@ 
+   do
+      log_must eval "$ECHO $line >> $FILE"
+   done
+ } 

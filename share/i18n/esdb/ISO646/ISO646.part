@@ -1,0 +1,29 @@
+# $FreeBSD$ 
+# $NetBSD: ISO646.part,v 1.1 2003/06/27 08:40:57 tshiozak Exp $
+
+BASIC:1983
+IRV:1983
+GB
+US
+SE
+SE2
+JP
+IT
+PT
+ES
+DE
+FR1
+CN
+NO
+NO2
+FR
+PT2
+ES2
+HU
+JP-OCR-B
+CA
+CA2
+YU
+CU
+DK
+KR

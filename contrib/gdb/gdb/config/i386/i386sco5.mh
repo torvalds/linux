@@ -1,0 +1,16 @@
+# Host: Intel 386 running SCO OpenServer 5
+# Much like 3.2v4, except we don't have to avoid problems with const
+
+XM_FILE= xm-i386sco.h
+
+#
+# Not all configurations of SCO OpenServer 5 come with the TCP/IP 
+# runtime, but all come with the development system, so we always
+# have socket(), gethostbyname(), and friends.
+#
+XM_CLIBS= -lPW -lsocket
+
+NAT_FILE= nm-i386sco5.h
+NATDEPFILES= infptrace.o inftarg.o fork-child.o corefile.o core-aout.o \
+	corelow.o i386v-nat.o solib.o solib-svr4.o solib-legacy.o
+

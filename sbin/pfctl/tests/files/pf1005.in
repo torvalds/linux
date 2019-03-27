@@ -1,0 +1,3 @@
+rdr on em0 proto tcp from any to any -> 1.1.1.1 port 2121
+pass out log quick on lo0 route-to (lo0 localhost) inet from any to any
+pass in log quick on lo0 route-to (lo0 localhost) inet6 from any to any

@@ -1,0 +1,103 @@
+.\" -*- nroff -*-
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 18, 2009
+.Dt VOP_ACCESS 9
+.Os
+.Sh NAME
+.Nm VOP_ACCESS ,
+.Nm VOP_ACCESSX
+.Nd "check access permissions of a file or Unix domain socket"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn VOP_ACCESS "struct vnode *vp" "accmode_t accmode" "struct ucred *cred" "struct thread *td"
+.Ft int
+.Fn VOP_ACCESSX "struct vnode *vp" "accmode_t accmode" "struct ucred *cred" "struct thread *td"
+.Sh DESCRIPTION
+This entry point checks the access permissions of the file against the
+given credentials.
+.Pp
+Its arguments are:
+.Bl -tag -width accmode
+.It Fa vp
+The vnode of the file to check.
+.It Fa accmode
+The type of access required.
+.It Fa cred
+The user credentials to check.
+.It Fa td
+The thread which is checking.
+.El
+.Pp
+The
+.Fa accmode
+is a mask which can contain flags described in <sys/vnode.h>, e.g.
+.Dv VREAD ,
+.Dv VWRITE
+or
+.Dv VEXEC .
+For
+.Fn VOP_ACCESS ,
+the only flags that may be set in
+.Fa accmode
+are
+.Dv VEXEC ,
+.Dv VWRITE ,
+.Dv VREAD ,
+.Dv VADMIN
+and
+.Dv VAPPEND .
+To check for other flags, one has to use
+.Fn VOP_ACCESSX
+instead.
+.Sh LOCKS
+The vnode will be locked on entry and should remain locked on return.
+.Sh RETURN VALUES
+If the file is accessible in the specified way, then zero is returned,
+otherwise an appropriate error code is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EPERM
+An attempt was made to change an immutable file.
+.It Bq Er EACCES
+The permission bits the file mode or the ACL do not permit the
+requested access.
+.El
+.Sh SEE ALSO
+.Xr vaccess 9 ,
+.Xr vaccess_acl_nfs4 9 ,
+.Xr vaccess_acl_posix1e 9 ,
+.Xr vnode 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

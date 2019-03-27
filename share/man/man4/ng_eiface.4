@@ -1,0 +1,122 @@
+.\" Copyright (c) 2004 Gleb Smirnoff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 3, 2005
+.Dt NG_EIFACE 4
+.Os
+.Sh NAME
+.Nm ng_eiface
+.Nd "generic Ethernet interface netgraph node type"
+.Sh SYNOPSIS
+.In netgraph/ng_eiface.h
+.Sh DESCRIPTION
+The
+.Vt eiface
+netgraph node implements the generic Ethernet interface.
+When
+.Vt eiface
+node is created, a new interface appears which is accessible via
+.Xr ifconfig 8 .
+These interfaces are named
+.Dq Li ngeth0 ,
+.Dq Li ngeth1 ,
+etc.
+When a node is shut down, the corresponding interface is removed,
+and the interface name becomes available for reuse by future
+.Vt eiface
+nodes.
+New nodes always take the first unused interface.
+.Sh HOOKS
+An
+.Vt eiface
+node has a single hook named
+.Va ether ,
+which should be connected to the
+Ethernet downstream, for example, to the
+.Xr ng_vlan 4
+node.
+Packets transmitted via the interface flow out this hook.
+Similarly, packets received on the hook go to the protocol stack as
+packets received by any real Ethernet interface.
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_EIFACE_SET Pq Ic set
+Set link-level address of the interface.
+Requires
+.Vt "struct ether_addr"
+as an argument.
+This message also has an
+.Tn ASCII
+version, called
+.Dq Li set ,
+which requires as an argument an
+.Tn ASCII
+string consisting of 6 colon-separated hex digits.
+.It Dv NGM_EIFACE_GET_IFNAME Pq Ic getifname
+Return the name of the associated interface as a
+.Dv NUL Ns -terminated
+.Tn ASCII
+string.
+.It Dv NGM_EIFACE_GET_IFADDRS
+Return the list of link-level addresses associated with the node.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message.
+The associated interface is removed and its name becomes
+available for reuse by future
+.Vt eiface
+nodes.
+.Pp
+Unlike most other node types, an
+.Vt eiface
+node does
+.Em not
+go away when all hooks have been disconnected; rather, and explicit
+.Dv NGM_SHUTDOWN
+control message is required.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_ether 4 ,
+.Xr ng_iface 4 ,
+.Xr ng_vlan 4 ,
+.Xr ifconfig 8 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Vt eiface
+node type was implemented in
+.Fx 4.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Vt eiface
+node type was written by
+.An Vitaly V Belekhov .
+This manual page was written by
+.An Gleb Smirnoff .

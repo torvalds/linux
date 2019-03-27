@@ -1,0 +1,32 @@
+# $FreeBSD$
+
+# kgzip: builds, but missing support files
+# mptable: broken (not 64 bit clean)
+# pnpinfo: crashes (not really useful anyway)
+.if ${MK_ACPI} != "no"
+SUBDIR+=	acpi
+.endif
+.if ${MK_APM} != "no"
+SUBDIR+=	apm
+.endif
+.if ${MK_BHYVE} != "no"
+SUBDIR+=	bhyve
+SUBDIR+=	bhyvectl
+SUBDIR+=	bhyveload
+.endif
+SUBDIR+=	boot0cfg
+.if ${MK_TOOLCHAIN} != "no"
+SUBDIR+=	btxld
+.endif
+SUBDIR+=	cpucontrol
+.if ${MK_HYPERV} != "no"
+SUBDIR+=	hyperv
+.endif
+SUBDIR+=	kgmon
+SUBDIR+=	lptcontrol
+SUBDIR+=	mptable
+.if ${MK_NDIS} != "no"
+SUBDIR+=	ndiscvt
+.endif
+SUBDIR+=	spkrtest
+SUBDIR+=	zzz

@@ -1,0 +1,78 @@
+.\"
+.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 19, 2003
+.Dt VM_MAP_FINDSPACE 9
+.Os
+.Sh NAME
+.Nm vm_map_findspace
+.Nd find a free region within a map
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_map.h
+.Ft int
+.Fo vm_map_findspace
+.Fa "vm_map_t map" "vm_offset_t start" "vm_size_t length" "vm_offset_t *addr"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn vm_map_findspace
+function attempts to find a region with sufficient space in the
+.Fa map
+for an object of size
+.Fa length
+at the address
+.Fa addr .
+.Sh IMPLEMENTATION NOTES
+It is the caller's responsibility to obtain a lock on the
+.Fa map
+using
+.Xr vm_map_lock 9
+before calling this function.
+.Pp
+This routine may call
+.Xr pmap_growkernel 9
+to grow the kernel's address space, if and only if the mapping is being
+made within the kernel address space, and if insufficient space remains
+in the
+.Va kernel_map .
+.Sh RETURN VALUES
+The
+.Fn vm_map_findspace
+function returns the value 0 if successful, and
+.Fa *addr
+will contain the first virtual address in the found region;
+otherwise, the value 1 is returned.
+.Sh SEE ALSO
+.Xr pmap_growkernel 9 ,
+.Xr vm_map 9 ,
+.Xr vm_map_entry_resize_free 9 ,
+.Xr vm_map_lock 9
+.Sh AUTHORS
+This manual page was written by
+.An Bruce M Simpson Aq Mt bms@spc.org .

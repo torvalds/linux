@@ -1,0 +1,536 @@
+.\" Copyright (c) 2014 Hiren Panchasara <hiren@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 6, 2017
+.Dt PMC.ATOMSILVERMONT 3
+.Os
+.Sh NAME
+.Nm pmc.atomsilvermont
+.Nd measurement events for
+.Tn Intel
+.Tn Atom Silvermont
+family CPUs
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+.Tn Intel
+.Tn Atom Silvermont
+CPUs contain PMCs conforming to version 3 of the
+.Tn Intel
+performance measurement architecture.
+These CPUs contains two classes of PMCs:
+.Bl -tag -width "Li PMC_CLASS_IAP"
+.It Li PMC_CLASS_IAF
+Fixed-function counters that count only one hardware event per counter.
+.It Li PMC_CLASS_IAP
+Programmable counters that may be configured to count one of a defined
+set of hardware events.
+.El
+.Pp
+The number of PMCs available in each class and their widths need to be
+determined at run time by calling
+.Xr pmc_cpuinfo 3 .
+.Pp
+Intel Atom Silvermont PMCs are documented in
+.Rs
+.%B "Intel 64 and IA-32 Intel(R) Architecture Software Developer's Manual"
+.%T "Combined Volumes"
+.%N "Order Number 325462-050US"
+.%D February 2014
+.%Q "Intel Corporation"
+.Re
+.Ss ATOM SILVERMONT FIXED FUNCTION PMCS
+These PMCs and their supported events are documented in
+.Xr pmc.iaf 3 .
+.Ss ATOM SILVERMONT PROGRAMMABLE PMCS
+The programmable PMCs support the following capabilities:
+.Bl -column "PMC_CAP_INTERRUPT" "Support"
+.It Em Capability Ta Em Support
+.It PMC_CAP_CASCADE Ta \&No
+.It PMC_CAP_EDGE Ta Yes
+.It PMC_CAP_INTERRUPT Ta Yes
+.It PMC_CAP_INVERT Ta Yes
+.It PMC_CAP_READ Ta Yes
+.It PMC_CAP_PRECISE Ta \&No
+.It PMC_CAP_SYSTEM Ta Yes
+.It PMC_CAP_TAGGING Ta \&No
+.It PMC_CAP_THRESHOLD Ta Yes
+.It PMC_CAP_USER Ta Yes
+.It PMC_CAP_WRITE Ta Yes
+.El
+.Ss Event Qualifiers
+Event specifiers for these PMCs support the following common
+qualifiers:
+.Bl -tag -width indent
+.It Li any
+Count matching events seen on any logical processor in a package.
+.It Li cmask= Ns Ar value
+Configure the PMC to increment only if the number of configured
+events measured in a cycle is greater than or equal to
+.Ar value .
+.It Li edge
+Configure the PMC to count the number of de-asserted to asserted
+transitions of the conditions expressed by the other qualifiers.
+If specified, the counter will increment only once whenever a
+condition becomes true, irrespective of the number of clocks during
+which the condition remains true.
+.It Li inv
+Invert the sense of comparison when the
+.Dq Li cmask
+qualifier is present, making the counter increment when the number of
+events per cycle is less than the value specified by the
+.Dq Li cmask
+qualifier.
+.It Li os
+Configure the PMC to count events happening at processor privilege
+level 0.
+.It Li usr
+Configure the PMC to count events occurring at privilege levels 1, 2
+or 3.
+.El
+.Pp
+If neither of the
+.Dq Li os
+or
+.Dq Li usr
+qualifiers are specified, the default is to enable both.
+.Pp
+Events that require core-specificity to be specified use a
+additional qualifier
+.Dq Li core= Ns Ar core ,
+where argument
+.Ar core
+is one of:
+.Bl -tag -width indent
+.It Li all
+Measure event conditions on all cores.
+.It Li this
+Measure event conditions on this core.
+.El
+.Pp
+The default is
+.Dq Li this .
+.Pp
+Events that require an agent qualifier to be specified use an
+additional qualifier
+.Dq Li agent= Ns agent ,
+where argument
+.Ar agent
+is one of:
+.Bl -tag -width indent
+.It Li this
+Measure events associated with this bus agent.
+.It Li any
+Measure events caused by any bus agent.
+.El
+.Pp
+The default is
+.Dq Li this .
+.Pp
+Events that require a hardware prefetch qualifier to be specified use an
+additional qualifier
+.Dq Li prefetch= Ns Ar prefetch ,
+where argument
+.Ar prefetch
+is one of:
+.Bl -tag -width "exclude"
+.It Li both
+Include all prefetches.
+.It Li only
+Only count hardware prefetches.
+.It Li exclude
+Exclude hardware prefetches.
+.El
+.Pp
+The default is
+.Dq Li both .
+.Pp
+Events that require a cache coherence qualifier to be specified use an
+additional qualifier
+.Dq Li cachestate= Ns Ar state ,
+where argument
+.Ar state
+contains one or more of the following letters:
+.Bl -tag -width indent
+.It Li e
+Count cache lines in the exclusive state.
+.It Li i
+Count cache lines in the invalid state.
+.It Li m
+Count cache lines in the modified state.
+.It Li s
+Count cache lines in the shared state.
+.El
+.Pp
+The default is
+.Dq Li eims .
+.Pp
+Events that require a snoop response qualifier to be specified use an
+additional qualifier
+.Dq Li snoopresponse= Ns Ar response ,
+where argument
+.Ar response
+comprises of the following keywords separated by
+.Dq +
+signs:
+.Bl -tag -width indent
+.It Li clean
+Measure CLEAN responses.
+.It Li hit
+Measure HIT responses.
+.It Li hitm
+Measure HITM responses.
+.El
+.Pp
+The default is to measure all the above responses.
+.Pp
+Events that require a snoop type qualifier use an additional qualifier
+.Dq Li snooptype= Ns Ar type ,
+where argument
+.Ar type
+comprises the one of the following keywords:
+.Bl -tag -width indent
+.It Li cmp2i
+Measure CMP2I snoops.
+.It Li cmp2s
+Measure CMP2S snoops.
+.El
+.Pp
+The default is to measure both snoops.
+.Ss Event Specifiers (Programmable PMCs)
+Atom Silvermont programmable PMCs support the following events:
+.Bl -tag -width indent
+.It Li REHABQ.LD_BLOCK_ST_FORWARD
+.Pq Event 03H , Umask 01H
+The number of retired loads that were
+prohibited from receiving forwarded data from the store
+because of address mismatch.
+.It Li REHABQ.LD_BLOCK_STD_NOTREADY
+.Pq Event 03H , Umask 02H
+The cases where a forward was technically possible,
+but did not occur because the store data was not available
+at the right time.
+.It Li REHABQ.ST_SPLITS
+.Pq Event 03H , Umask 04H
+The number of retire stores that experienced.
+cache line boundary splits.
+.It Li REHABQ.LD_SPLITS
+.Pq Event 03H , Umask 08H
+The number of retire loads that experienced.
+cache line boundary splits.
+.It Li REHABQ.LOCK
+.Pq Event 03H , Umask 10H
+The number of retired memory operations with lock semantics.
+These are either implicit locked instructions such as the
+XCHG instruction or instructions with an explicit LOCK
+prefix (0xF0).
+.It Li REHABQ.STA_FULL
+.Pq Event 03H , Umask 20H
+The number of retired stores that are delayed
+because there is not a store address buffer available.
+.It Li REHABQ.ANY_LD
+.Pq Event 03H , Umask 40H
+The number of load uops reissued from Rehabq.
+.It Li REHABQ.ANY_ST
+.Pq Event 03H , Umask 80H
+The number of store uops reissued from Rehabq.
+.It Li MEM_UOPS_RETIRED.L1_MISS_LOADS
+.Pq Event 04H , Umask 01H
+The number of load ops retired that miss in L1
+Data cache.
+Note that prefetch misses will not be counted.
+.It Li MEM_UOPS_RETIRED.L2_HIT_LOADS
+.Pq Event 04H , Umask 02H
+The number of load micro-ops retired that hit L2.
+.It Li MEM_UOPS_RETIRED.L2_MISS_LOADS
+.Pq Event 04H , Umask 04H
+The number of load micro-ops retired that missed L2.
+.It Li MEM_UOPS_RETIRED.DTLB_MISS_LOADS
+.Pq Event 04H , Umask 08H
+The number of load ops retired that had DTLB miss.
+.It Li MEM_UOPS_RETIRED.UTLB_MISS
+.Pq Event 04H , Umask 10H
+The number of load ops retired that had UTLB miss.
+.It Li MEM_UOPS_RETIRED.HITM
+.Pq Event 04H , Umask 20H
+The number of load ops retired that got data
+from the other core or from the other module.
+.It Li MEM_UOPS_RETIRED.ALL_LOADS
+.Pq Event 04H , Umask 40H
+The number of load ops retired.
+.It Li MEM_UOP_RETIRED.ALL_STORES
+.Pq Event 04H , Umask 80H
+The number of store ops retired.
+.It Li PAGE_WALKS.D_SIDE_CYCLES
+.Pq Event 05H , Umask 01H
+Every cycle when a D-side (walks due to a load) page walk is in progress.
+Page walk duration divided by number of page walks is the average duration of
+page-walks.
+Edge trigger bit must be cleared.
+Set Edge to count the number of page walks.
+.It Li PAGE_WALKS.I_SIDE_CYCLES
+.Pq Event 05H , Umask 02H
+Every cycle when a I-side (walks due to an instruction fetch) page walk is in
+progress.
+Page walk duration divided by number of page walks is the average duration of
+page-walks.
+.It Li PAGE_WALKS.WALKS
+.Pq Event 05H , Umask 03H
+The number of times a data (D) page walk or an instruction (I) page walk is
+completed or started.
+Since a page walk implies a TLB miss, the number of TLB misses can be counted
+by counting the number of pagewalks.
+.It Li LONGEST_LAT_CACHE.MISS
+.Pq Event 2EH , Umask 41H
+the total number of L2 cache references and the number of L2 cache misses
+respectively.
+L3 is not supported in Silvermont microarchitecture.
+.It Li LONGEST_LAT_CACHE.REFERENCE
+.Pq Event 2EH , Umask 4FH
+The number of requests originating from the core that
+references a cache line in the L2 cache.
+L3 is not supported in Silvermont microarchitecture.
+.It Li L2_REJECT_XQ.ALL
+.Pq Event 30H , Umask 00H
+The number of demand and prefetch
+transactions that the L2 XQ rejects due to a full or near full
+condition which likely indicates back pressure from the IDI link.
+The XQ may reject transactions from the L2Q (non-cacheable
+requests), BBS (L2 misses) and WOB (L2 write-back victims)
+.It Li CORE_REJECT_L2Q.ALL
+.Pq Event 31H , Umask 00H
+The number of demand and L1 prefetcher
+requests rejected by the L2Q due to a full or nearly full condition which
+likely indicates back pressure from L2Q.
+It also counts requests that would have gone directly to the XQ, but are
+rejected due to a full or nearly full condition, indicating back pressure from
+the IDI link.
+The L2Q may also reject transactions from a core to insure fairness between
+cores, or to delay a core's dirty eviction when the address conflicts incoming
+external snoops.
+(Note that L2 prefetcher requests that are dropped are not counted by this
+event).
+.It Li CPU_CLK_UNHALTED.CORE_P
+.Pq Event 3CH , Umask 00H
+The number of core cycles while the core is not in a halt state.
+The core enters the halt state when it is running the HLT instruction.
+In mobile systems the core frequency may change from time to time.
+For this reason this event may have a changing ratio with regards to time.
+.It Li CPU_CLK_UNHALTED.REF_P
+.Pq Event 3CH , Umask 01H
+The number of reference cycles that the core is not in a halt state.
+The core enters the halt state when it is running the HLT instruction.
+In mobile systems the core frequency may change from time.
+This event is not affected by core frequency changes but counts as if the core
+is running at the maximum frequency all the time.
+.It Li ICACHE.HIT
+.Pq Event 80H , Umask 01H
+The number of instruction fetches from the instruction cache.
+.It Li ICACHE.MISSES
+.Pq Event 80H , Umask 02H
+The number of instruction fetches that miss the Instruction cache or produce
+memory requests.
+This includes uncacheable fetches.
+An instruction fetch miss is counted only once and not once for every cycle
+it is outstanding.
+.It Li ICACHE.ACCESSES
+.Pq Event 80H , Umask 03H
+The number of instruction fetches, including uncacheable fetches.
+.It Li NIP_STALL.ICACHE_MISS
+.Pq Event B6H , Umask 04H
+The number of cycles the NIP stalls because of an icache miss.
+This is a cumulative count of cycles the NIP stalled for all
+icache misses.
+.It Li OFFCORE_RESPONSE_0
+.Pq Event B7H , Umask 01H
+Requires MSR_OFFCORE_RESP0 to specify request type and response.
+.It Li OFFCORE_RESPONSE_1
+.Pq Event B7H , Umask 02H
+Requires MSR_OFFCORE_RESP  to specify request type and response.
+.It Li INST_RETIRED.ANY_P
+.Pq Event C0H , Umask 00H
+The number of instructions that retire execution.
+For instructions that consist of multiple micro-ops, this event counts the
+retirement of the last micro-op of the instruction.
+The counter continues counting during hardware interrupts, traps, and inside
+interrupt handlers.
+.It Li UOPS_RETIRED.MS
+.Pq Event C2H , Umask 01H
+The number of micro-ops retired that were supplied from MSROM.
+.It Li UOPS_RETIRED.ALL
+.Pq Event C2H , Umask 10H
+The number of micro-ops retired.
+.It Li MACHINE_CLEARS.SMC
+.Pq Event C3H , Umask 01H
+The number of times that a program writes to a code section.
+Self-modifying code causes a severe penalty in all Intel
+architecture processors.
+.It Li MACHINE_CLEARS.MEMORY_ORDERING
+.Pq Event C3H , Umask 02H
+The number of times that pipeline was cleared due to memory
+ordering issues.
+.It Li MACHINE_CLEARS.FP_ASSIST
+.Pq Event C3H , Umask 04H
+The number of times that pipeline stalled due to FP operations
+needing assists.
+.It Li MACHINE_CLEARS.ALL
+.Pq Event C3H , Umask 08H
+The number of times that pipeline stalled due to due to any causes
+(including SMC, MO, FP assist, etc).
+.It Li BR_INST_RETIRED.ALL_BRANCHES
+.Pq Event C4H , Umask 00H
+The number of branch instructions retired.
+.It Li BR_INST_RETIRED.JCC
+.Pq Event C4H , Umask 7EH
+The number of branch instructions retired that were conditional
+jumps.
+.It Li BR_INST_RETIRED.FAR_BRANCH
+.Pq Event C4H , Umask BFH
+The number of far branch instructions retired.
+.It Li BR_INST_RETIRED.NON_RETURN_IND
+.Pq Event C4H , Umask EBH
+The number of branch instructions retired that were near indirect
+call or near indirect jmp.
+.It Li BR_INST_RETIRED.RETURN
+.Pq Event C4H , Umask F7H
+The number of near RET branch instructions retired.
+.It Li BR_INST_RETIRED.CALL
+.Pq Event C4H , Umask F9H
+The number of near CALL branch instructions retired.
+.It Li BR_INST_RETIRED.IND_CALL
+.Pq Event C4H , Umask FBH
+The number of near indirect CALL branch instructions retired.
+.It Li BR_INST_RETIRED.REL_CALL
+.Pq Event C4H , Umask FDH
+The number of near relative CALL branch instructions retired.
+.It Li BR_INST_RETIRED.TAKEN_JCC
+.Pq Event C4H , Umask FEH
+The number of branch instructions retired that were conditional
+jumps and predicted taken.
+.It Li BR_MISP_RETIRED.ALL_BRANCHES
+.Pq Event C5H , Umask 00H
+The number of mispredicted branch instructions retired.
+.It Li BR_MISP_RETIRED.JCC
+.Pq Event C5H , Umask 7EH
+The number of mispredicted branch instructions retired that were
+conditional jumps.
+.It Li BR_MISP_RETIRED.FAR
+.Pq Event C5H , Umask BFH
+The number of mispredicted far branch instructions retired.
+.It Li BR_MISP_RETIRED.NON_RETURN_IND
+.Pq Event C5H , Umask EBH
+The number of mispredicted branch instructions retired that were
+near indirect call or near indirect jmp.
+.It Li BR_MISP_RETIRED.RETURN
+.Pq Event C5H , Umask F7H
+The number of mispredicted near RET branch instructions retired.
+.It Li BR_MISP_RETIRED.CALL
+.Pq Event C5H , Umask F9H
+The number of mispredicted near CALL branch instructions retired.
+.It Li BR_MISP_RETIRED.IND_CALL
+.Pq Event C5H , Umask FBH
+The number of mispredicted near indirect CALL branch instructions
+retired.
+.It Li BR_MISP_RETIRED.REL_CALL
+.Pq Event C5H , Umask FDH
+The number of mispredicted near relative CALL branch instructions
+retired.
+.It Li BR_MISP_RETIRED.TAKEN_JCC
+.Pq Event C5H , Umask FEH
+The number of mispredicted branch instructions retired that were
+conditional jumps and predicted taken.
+.It Li NO_ALLOC_CYCLES.ROB_FULL
+.Pq Event CAH , Umask 01H
+The number of cycles when no uops are allocated and the ROB is full
+(less than 2 entries available).
+.It Li NO_ALLOC_CYCLES.RAT_STALL
+.Pq Event CAH , Umask 20H
+The number of cycles when no uops are allocated and a RATstall is
+asserted.
+.It Li NO_ALLOC_CYCLES.ALL
+.Pq Event CAH , Umask 3FH
+The number of cycles when the front-end does not provide any
+instructions to be allocated for any reason.
+.It Li NO_ALLOC_CYCLES.NOT_DELIVERED
+.Pq Event CAH , Umask 50H
+The number of cycles when the front-end does not provide any
+instructions to be allocated but the back end is not stalled.
+.It Li RS_FULL_STALL.MEC
+.Pq Event CBH , Umask 01H
+The number of cycles the allocation pipe line stalled due to
+the RS for the MEC cluster is full.
+.It Li RS_FULL_STALL.ALL
+.Pq Event CBH , Umask 1FH
+The number of cycles that the allocation pipe line stalled due
+to any one of the RS is full.
+.It Li CYCLES_DIV_BUSY.ANY
+.Pq Event CDH , Umask 01H
+The number of cycles the divider is busy.
+.It Li BACLEARS.ALL
+.Pq Event E6H , Umask 01H
+The number of baclears for any type of branch.
+.It Li BACLEARS.RETURN
+.Pq Event E6H , Umask 08H
+The number of baclears for return branches.
+.It Li BACLEARS.COND
+.Pq Event E6H , Umask 10H
+The number of baclears for conditional branches.
+.It Li MS_DECODED.MS_ENTRY
+.Pq Event E7H , Umask 01H)
+The number of times the MSROM starts a flow of UOPS.
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.core2 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.k7 3 ,
+.Xr pmc.k8 3 ,
+.Xr pmc.p4 3 ,
+.Xr pmc.p5 3 ,
+.Xr pmc.p6 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmc_cpuinfo 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .
+The support for the Atom Silvermont
+microarchitecture was written by
+.An Hiren Panchasara Aq Mt hiren@FreeBSD.org .

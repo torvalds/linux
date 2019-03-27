@@ -1,0 +1,136 @@
+# $FreeBSD$
+#
+# This is logic for common headers shared inside of gnu/lib.  It used to
+# live in gnu/usr.bin/cc/cc_tools/Makefile.
+
+.if !defined(TARGET_CPUARCH) || !defined(GCC_CPU)
+.error ${.CURDIR}: Must include gnu/usr.bin/cc/Makefile.tgt first.
+.endif
+
+#
+# The list of headers to go into tm.h
+#
+TARGET_INC+=	options.h
+.if ${TARGET_CPUARCH} == "amd64"
+TARGET_INC+=	i386/biarch64.h
+.endif
+.if ${TARGET_CPUARCH} != "arm"
+TARGET_INC+=	${GCC_CPU}/${GCC_CPU}.h
+.endif
+.if ${TARGET_CPUARCH} == "i386" || ${TARGET_CPUARCH} == "amd64"
+TARGET_INC+=	${GCC_CPU}/unix.h
+TARGET_INC+=	${GCC_CPU}/att.h
+.endif
+TARGET_INC+=	dbxelf.h
+TARGET_INC+=	elfos-undef.h
+TARGET_INC+=	elfos.h
+TARGET_INC+=	freebsd-native.h
+TARGET_INC+=	freebsd-spec.h
+TARGET_INC+=	freebsd.h
+.if ${TARGET_CPUARCH} != "i386" && ${TARGET_CPUARCH} != "amd64"
+. if exists(${GCCDIR}/config/${GCC_CPU}/sysv4.h)
+TARGET_INC+=	${GCC_CPU}/sysv4.h
+. endif
+.endif
+.if ${TARGET_CPUARCH} == "amd64"
+TARGET_INC+=	${GCC_CPU}/x86-64.h
+.endif
+.if ${TARGET_CPUARCH} == "arm" || ${TARGET_CPUARCH} == "mips"
+TARGET_INC+=	${GCC_CPU}/elf.h
+.endif
+.if ${TARGET_CPUARCH} == "arm"
+TARGET_INC+=	${GCC_CPU}/aout.h
+TARGET_INC+=	${GCC_CPU}/bpabi.h
+.endif
+.if ${TARGET_ARCH} == "powerpc64"
+TARGET_INC+=	${GCC_CPU}/biarch64.h
+TARGET_INC+=    ${GCC_CPU}/default64.h
+.endif
+.if ${TARGET_ARCH} == "powerpcspe" 	 
+TARGET_INC+=    ${GCC_CPU}/freebsdspe.h 	 
+TARGET_INC+=    ${GCC_CPU}/e500-double.h 	 
+.endif
+TARGET_INC+=	${GCC_CPU}/freebsd.h
+.if ${TARGET_CPUARCH} == "amd64"
+TARGET_INC+=	${GCC_CPU}/freebsd64.h
+.endif
+.if ${TARGET_CPUARCH} == "arm"
+TARGET_INC+=	${GCC_CPU}/arm.h
+.endif
+TARGET_INC+=	defaults.h
+
+#
+# Option files.
+#
+OPT_FILES=	c.opt common.opt
+
+.if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.opt)
+OPT_FILES+=	${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.opt
+.endif
+
+.if exists(${.CURDIR}/${GCC_CPU}-freebsd.opt)
+OPT_FILES+=	${.CURDIR}/${GCC_CPU}-freebsd.opt
+.endif
+
+.if ${TARGET_CPUARCH} == "powerpc"
+OPT_FILES+=	${GCCDIR}/config/${GCC_CPU}/sysv4.opt
+.endif
+
+.if ${TARGET_CPUARCH} == "sparc64"
+OPT_FILES+=	${GCCDIR}/config/${GCC_CPU}/long-double-switch.opt
+.endif
+
+.if exists(${.CURDIR}/freebsd.opt)
+OPT_FILES+=	${.CURDIR}/freebsd.opt
+.endif
+
+
+# Options
+optionlist: ${OPT_FILES}
+	LC_ALL=C awk -f ${GCCDIR}/opt-gather.awk ${.ALLSRC} > ${.TARGET}
+
+options.h:	optionlist
+	LC_ALL=C awk -f ${GCCDIR}/opt-functions.awk \
+	    -f ${GCCDIR}/opth-gen.awk \
+		< ${.ALLSRC} > ${.TARGET}
+
+options.c:	optionlist
+	LC_ALL=C awk -f ${GCCDIR}/opt-functions.awk \
+	    -f ${GCCDIR}/optc-gen.awk \
+		-v header_name="config.h system.h coretypes.h tm.h" \
+		< ${.ALLSRC} > ${.TARGET}
+
+# Target machine config
+tm.h:
+	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
+	HEADERS="${TARGET_INC}" \
+	DEFINES="" \
+	/bin/sh ${GCCDIR}/mkconfig.sh ${.TARGET}
+.if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}-modes.def)
+	echo '#define EXTRA_MODES_FILE "${GCC_CPU}/${GCC_CPU}-modes.def"' >> ${.TARGET}
+.endif
+
+# tconfig.h
+tconfig.h:
+	TARGET_CPU_DEFAULT="${TARGET_CPU_DEFAULT}" \
+	HEADERS="auto-host.h ansidecl.h" \
+	DEFINES="USED_FOR_TARGET" \
+	/bin/sh ${GCCDIR}/mkconfig.sh ${.TARGET}
+
+# Version header for gcov
+gcov-iov.h:
+	echo "#define GCOV_VERSION ((gcov_unsigned_t)0x34303270)" >> ${.TARGET}
+
+# Linked headers
+gthr-default.h: ${GCCDIR}/gthr-posix.h .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
+
+.if ${TARGET_CPUARCH} == "arm"
+unwind.h: ${GCCDIR}/config/arm/unwind-arm.h
+.else
+unwind.h: ${GCCDIR}/unwind-generic.h
+.endif
+
+unwind.h: .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
+

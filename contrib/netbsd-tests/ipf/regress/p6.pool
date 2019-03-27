@@ -1,0 +1,1 @@
+pool ipf/tree (name microsoft;) { whois file "regress/p6.whois"; };

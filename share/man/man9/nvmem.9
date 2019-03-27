@@ -1,0 +1,157 @@
+.\" Copyright (c) 2018 Emmanuel Vadot <manu@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 24, 2018
+.Dt nvmem 9
+.Os
+.Sh NAME
+.Nm nvmem
+.Nm nvmem_get_cell_len ,
+.Nm nvmem_read_cell_by_name ,
+.Nm nvmem_read_cell_by_idx ,
+.Nm nvmem_write_cell_by_name ,
+.Nm nvmem_write_cell_by_idx ,
+.Sh SYNOPSIS
+.Cd "options EXT_RESOURCES"
+.Cd "options FDT"
+.Cd "device nvmem"
+.In sys/extres/nvmem/nvmem.h
+.Ft int
+.Fn nvmem_get_cell_len "phandle_t node" "const char *name"
+.Ft int
+.Fn nvmem_read_cell_by_name "phandle_t node" "const char *name" "void *cell" "size_t buflen"
+.Ft int
+.Fn nvmem_read_cell_by_idx "phandle_t node" "int idx" "void *cell" "size_t buflen"
+.Ft int
+.Fn nvmem_write_cell_by_name "phandle_t node" "const char *name" "void *cell" "size_t buflen"
+.Ft int
+.Fn nvmem_write_cell_by_idx "phandle_t node" "int idx" "void *cell" "size_t buflen"
+.Sh DESCRIPTION
+On some embedded boards, the manufacturer stored some data on a NVMEM
+(Non-Volatile Memory), this is generally stored in some eeprom or fuses.
+.Pp
+The
+.Nm
+API consist of helpers functions for consumer and device methods for
+providers.
+.Sh FUNCTIONS
+.Bl -tag -width indent
+.It Fn nvmem_get_cell_len  "phandle_t node" "const char *name"
+Get the size of the cell base on the reg property on the node.
+Return the size or ENOENT if the cell name wasn't found
+.It Fn nvmem_read_cell_by_name "phandle_t node" "const char *name" "void *cell" "size_t buflen"
+Get the cell content based on the name.
+Return 0 on sucess or ENOENT if the cell doesn't exists, ENXIO if no provider device was found,
+EINVAL if the size isn't correct.
+.It Fn nvmem_read_cell_by_idx "phandle_t node" "int idx" "void *cell" "size_t buflen"
+Get the cell content based on the id.
+Return 0 on sucess or ENOENT if the cell doesn't exists, ENXIO if no provider device was found,
+EINVAL if the size isn't correct.
+.It Fn nvmem_write_cell_by_name "phandle_t node" "const char *name" "void *cell" "size_t buflen"
+Write the cell content based on the name.
+Return 0 on sucess or ENOENT if the cell doesn't exists, ENXIO if no provider device was found,
+EINVAL if the size isn't correct.
+.It Fn nvmem_write_cell_by_idx "phandle_t node" "int idx" "void *cell" "size_t buflen"
+Write the cell content based on the id.
+Return 0 on sucess or ENOENT if the cell doesn't exists, ENXIO if no provider device was found,
+EINVAL if the size isn't correct.
+.El
+.Sh DEVICE METHODS
+.Bl -tag -width indent
+.It Fn nvmem_read "device_t dev" "uint32_t offset" "uint32_t size" "uint8_t *buffer"
+Provider device method to read a cell content.
+.It Fn nvmem_write "device_t dev" "uint32_t offset" "uint32_t size" "uint8_t *buffer"
+Provider device method to write a cell content.
+.El
+.Sh EXAMPLES
+Consider this DTS
+.Bd -literal
+/* Provider */
+eeprom: eeprom@20000 {
+	board_id: id@0 {
+		reg = <0x0 0x4>;
+	};
+};
+/* Consumer */
+device@30000 {
+	...
+
+	nvmem-cells = <&board_id>
+	nvmem-cell-names = "boardid";
+};
+.Ed
+.Pp
+The device driver for eeprom@20000 needs to expose itself as a provider
+.Bd -literal
+#include "nvmem_if.h"
+
+int
+foo_nvmem_read(device_t dev, uint32_t offset, uint32_t size, uint8_t *buffer)
+{
+	/* Read the data */
+}
+
+int
+foo_attach(device_t dev)
+{
+	phandle_t node;
+
+	node = ofw_bus_get_node(dev);
+	...
+	/* Registering the device so the consumers can find us */
+	OF_device_register_xref(OF_xref_from_node(node), dev);
+
+	...
+}
+
+static device_method_t foo_methods[] = {
+	...
+
+	/* nvmem interface */
+	DEVMETHOD(nvmem_read, foo_nvmem_read),
+
+	/* Terminate method list */
+	DEVMETHOD_END
+};
+.Ed
+.Pp
+The consumer device driver for device@30000 can now read the nvmem data
+.Bd -literal
+int
+bar_attach(device_t dev)
+{
+	phandle_t node;
+	uint32_t boardid;
+
+	...
+	node = ofw_bus_get_node(dev);
+	nvmem_read_cell_by_name(node, "boardid", (void *)&boardid, sizeof(boardid));
+	...
+}
+.Ed
+.Sh HISTORY
+The nvmem related function first appear in
+.Fx 12.0 .
+The nvmem interface and manual page was written by
+.An Emmanuel Vadot Aq Mt manu@FreeBSD.org .

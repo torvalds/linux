@@ -1,0 +1,106 @@
+.\" Generated from openpam_subst.c by gendoc.pl
+.\" $OpenPAM: openpam_subst.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt OPENPAM_SUBST 3
+.Os
+.Sh NAME
+.Nm openpam_subst
+.Nd substitute PAM item values in a string
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.In security/openpam.h
+.Ft "int"
+.Fn openpam_subst "const pam_handle_t *pamh" "char *buf" "size_t *bufsize" "const char *template"
+.Sh DESCRIPTION
+The
+.Fn openpam_subst
+function expands a string, substituting PAM item
+values for all occurrences of specific substitution codes.
+The
+.Fa template
+argument points to the initial string.
+The result is stored in the buffer pointed to by the
+.Fa buf
+argument; the
+.Fa bufsize
+argument specifies the size of that buffer.
+The actual size of the resulting string, including the terminating NUL
+character, is stored in the location pointed to by the
+.Fa bufsize
+argument.
+.Pp
+If
+.Fa buf
+is NULL, or if the buffer is too small to hold the expanded
+string,
+.Fa bufsize
+is updated to reflect the amount of space required to
+hold the entire string, and
+.Fn openpam_subst
+returns
+.Dv PAM_TRY_AGAIN .
+.Pp
+If
+.Fn openpam_subst
+fails for any other reason, the
+.Fa bufsize
+argument is
+untouched, but part of the buffer may still have been overwritten.
+.Pp
+Substitution codes are introduced by a percent character and correspond
+to PAM items:
+.Bl -tag -width 18n
+.It \&%H
+Replaced by the current value of the
+.Dv PAM_RHOST
+item.
+.It \&%h
+Replaced by the current value of the
+.Dv PAM_HOST
+item.
+.It \&%s
+Replaced by the current value of the
+.Dv PAM_SERVICE
+item.
+.It \&%t
+Replaced by the current value of the
+.Dv PAM_TTY
+item.
+.It \&%U
+Replaced by the current value of the
+.Dv PAM_RUSER
+item.
+.It \&%u
+Replaced by the current value of the
+.Dv PAM_USER
+item.
+.El
+.Sh RETURN VALUES
+The
+.Fn openpam_subst
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BAD_ITEM
+Unrecognized or restricted item.
+.It Bq Er PAM_TRY_AGAIN
+Try again.
+.El
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_get_authtok 3 ,
+.Xr pam_get_item 3 ,
+.Xr pam_get_user 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+The
+.Fn openpam_subst
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn openpam_subst
+function and this manual page were
+developed by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

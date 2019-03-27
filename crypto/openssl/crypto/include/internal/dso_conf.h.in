@@ -1,0 +1,30 @@
+{- join("\n",map { "/* $_ */" } @autowarntext) -}
+/*
+ * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+#ifndef HEADER_DSO_CONF_H
+# define HEADER_DSO_CONF_H
+{- output_off() if $disabled{dso} -}
+{-  # The DSO code currently always implements all functions so that no
+    # applications will have to worry about that from a compilation point
+    # of view. However, the "method"s may return zero unless that platform
+    # has support compiled in for them. Currently each method is enabled
+    # by a define "DSO_<name>" ... we translate the "dso_scheme" config
+    # string entry into using the following logic;
+    my $scheme = uc $target{dso_scheme};
+    my @macros = ( "DSO_$scheme" );
+    if ($scheme eq 'DLFCN') {
+        @macros = ( "DSO_DLFCN", "HAVE_DLFCN_H" );
+    } elsif ($scheme eq "DLFCN_NO_H") {
+        @macros = ( "DSO_DLFCN" );
+    }
+    join("\n", map { "# define $_" } @macros); -}
+# define DSO_EXTENSION "{- $target{dso_extension} -}"
+{- output_on() if $disabled{dso} -}
+#endif

@@ -1,0 +1,12 @@
+$FreeBSD$
+*/*.dvi
+*/*.html
+*/*.info
+*/*.ps
+*/texinfo.tex
+*/tests
+*/getopt*
+*/*.pdf
+*/*.vms
+*/*.msvc
+*/*.woe32

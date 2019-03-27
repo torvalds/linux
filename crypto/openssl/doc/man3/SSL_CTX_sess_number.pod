@@ -1,0 +1,85 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_sess_number, SSL_CTX_sess_connect, SSL_CTX_sess_connect_good, SSL_CTX_sess_connect_renegotiate, SSL_CTX_sess_accept, SSL_CTX_sess_accept_good, SSL_CTX_sess_accept_renegotiate, SSL_CTX_sess_hits, SSL_CTX_sess_cb_hits, SSL_CTX_sess_misses, SSL_CTX_sess_timeouts, SSL_CTX_sess_cache_full - obtain session cache statistics
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ long SSL_CTX_sess_number(SSL_CTX *ctx);
+ long SSL_CTX_sess_connect(SSL_CTX *ctx);
+ long SSL_CTX_sess_connect_good(SSL_CTX *ctx);
+ long SSL_CTX_sess_connect_renegotiate(SSL_CTX *ctx);
+ long SSL_CTX_sess_accept(SSL_CTX *ctx);
+ long SSL_CTX_sess_accept_good(SSL_CTX *ctx);
+ long SSL_CTX_sess_accept_renegotiate(SSL_CTX *ctx);
+ long SSL_CTX_sess_hits(SSL_CTX *ctx);
+ long SSL_CTX_sess_cb_hits(SSL_CTX *ctx);
+ long SSL_CTX_sess_misses(SSL_CTX *ctx);
+ long SSL_CTX_sess_timeouts(SSL_CTX *ctx);
+ long SSL_CTX_sess_cache_full(SSL_CTX *ctx);
+
+=head1 DESCRIPTION
+
+SSL_CTX_sess_number() returns the current number of sessions in the internal
+session cache.
+
+SSL_CTX_sess_connect() returns the number of started SSL/TLS handshakes in
+client mode.
+
+SSL_CTX_sess_connect_good() returns the number of successfully established
+SSL/TLS sessions in client mode.
+
+SSL_CTX_sess_connect_renegotiate() returns the number of started renegotiations
+in client mode.
+
+SSL_CTX_sess_accept() returns the number of started SSL/TLS handshakes in
+server mode.
+
+SSL_CTX_sess_accept_good() returns the number of successfully established
+SSL/TLS sessions in server mode.
+
+SSL_CTX_sess_accept_renegotiate() returns the number of started renegotiations
+in server mode.
+
+SSL_CTX_sess_hits() returns the number of successfully reused sessions.
+In client mode a session set with L<SSL_set_session(3)>
+successfully reused is counted as a hit. In server mode a session successfully
+retrieved from internal or external cache is counted as a hit.
+
+SSL_CTX_sess_cb_hits() returns the number of successfully retrieved sessions
+from the external session cache in server mode.
+
+SSL_CTX_sess_misses() returns the number of sessions proposed by clients
+that were not found in the internal session cache in server mode.
+
+SSL_CTX_sess_timeouts() returns the number of sessions proposed by clients
+and either found in the internal or external session cache in server mode,
+ but that were invalid due to timeout. These sessions are not included in
+the SSL_CTX_sess_hits() count.
+
+SSL_CTX_sess_cache_full() returns the number of sessions that were removed
+because the maximum session cache size was exceeded.
+
+=head1 RETURN VALUES
+
+The functions return the values indicated in the DESCRIPTION section.
+
+=head1 SEE ALSO
+
+L<ssl(7)>, L<SSL_set_session(3)>,
+L<SSL_CTX_set_session_cache_mode(3)>
+L<SSL_CTX_sess_set_cache_size(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

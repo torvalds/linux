@@ -1,0 +1,4 @@
+TEST1=hello
+TEST2=bye
+TEST3=later
+exit status 0

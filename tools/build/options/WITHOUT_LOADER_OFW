@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Disable building of openfirmware bootloader components.

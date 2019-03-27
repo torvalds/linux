@@ -1,0 +1,214 @@
+
+#------------------------------------------------------------------------------
+# $File: icc,v 1.5 2017/08/13 00:21:47 christos Exp $
+# icc:  file(1) magic for International Color Consortium file formats
+
+#
+# Color profiles as per the ICC's "Image technology colour management -
+# Architecture, profile format, and data structure" specification.
+# See
+#
+#	http://www.color.org/specification/ICC1v43_2010-12.pdf
+#
+# for Specification ICC.1:2010 (Profile version 4.3.0.0).
+# URL: http://fileformats.archiveteam.org/wiki/ICC_profile
+# Reference: http://www.color.org/iccmax/ICC.2-2016-7.pdf
+# Update: Joerg Jenderek
+#
+# Bytes 36 to 39 contain a generic profile file signature of "acsp";
+# bytes 40 to 43 "may be used to identify the primary platform/operating
+# system framework for which the profile was created".
+#
+#	check and display ICC/ICM color profile
+0	name	color-profile
+>36	string		acsp
+# skip ASCII like Cognacspirit.txt by month <= 12
+>>26	ubeshort	<13
+# platform/operating system. Only 5 mentioned
+
+#
+# This appears to be what's used for Apple ColorSync profiles.
+# Instead of adding that, Apple just changed the generic "acsp" entry
+# to be for "ColorSync ICC Color Profile" rather than "Kodak Color
+# Management System, ICC Profile".
+# Yes, it's "APPL", not "AAPL"; see the spec.
+>>>40	string		APPL		ColorSync
+
+# Microsoft ICM color profile
+>>>40	string		MSFT		Microsoft
+
+# Yes, that's a blank after "SGI".
+>>>40	string		SGI\ 		SGI
+
+# XXX - is this what's used for the Sun KCMS or not?  The standard file
+# uses just "acsp" for that, but Apple's file uses it for "ColorSync",
+# and there *is* an identified "primary platform" value of SUNW.
+>>>40	string		SUNW		Sun KCMS
+
+# 5th platform
+>>>40	string		TGNT		Taligent
+
+# remaining "l" "e" of "color profile" printed later to avoid error
+>>>40	string		x 		color profi
+#>>>40	string		x		(%.4s)
+!:mime	application/vnd.iccprofile
+# for "ICM" extension only versions 2.x and for Kodak "CC" 2.0 is found
+>>>8	ubyte		=2
+# do not use empty message text to a avoid error like
+# icc, 82: Warning: Current entry does not yet have a description for adding a EXTENSION type
+# file.exe: could not find any valid magic files!
+>>>>9	ubyte		!0		\ble
+!:ext	icc/icm
+# minor version
+>>>>9	ubyte		=0		\bl
+# Kodak colour management system
+>>>>>4	string		=KCMS		\be
+!:ext	icc/icm/cc
+>>>>>4	string		!KCMS		\be
+!:ext	icc/icm
+>>>8	ubyte		!2		\ble
+!:ext	icc
+# Profile version major.4bit-minor.sub1.sub2 like 4.3.0.0 (04300000h)
+>>>8	ubyte		x		%u
+>>>9	ubyte/16	x		\b.%u
+# reserved and shall be null but 205.205 in umx1220u.icm
+>>>10	ubyte		>0		\b.%u
+>>>>11	ubyte		>0		\b.%u
+# preferred colour management module like appl CCMS KCMS Lino UCCM "Win " "FF  "
+# skip space like in brmsl08f.icm and null like in brmsl09f.icm, brmsl07f.icm
+>>>4	string		>\ 		\b, type %.2s
+>>>>6	string		>\  		\b%.1s
+>>>>>7	string		>\  		\b%.1s
+# colour space "XYZ " "Lab " "RGB " CMYK GRAY ...
+>>>16	string		x		\b, %.3s
+>>>19	string		>\  		\b%.1s
+# Profile Connection Space (PCS) field usually "XYZ " or "Lab " but sometimes
+# null or CMYK like in ISOcoated_v2_to_PSOcoated_v3_DeviceLink.icc
+>>>20	string		>\0		\b/%.3s
+>>>>23	string		>\ 		\b%.1s
+# eleven device classes
+>>>12	string		x		\b-%.4s device
+# skip 00001964h in hpf69000.icc or 0h in XRDC50Q.ICM or " ROT" in brmsl05f.icm
+>>>52	string		>\040
+# skip "none" model like in "Trinitron Compatible 9300K G2.2.icm"
+>>>>52	ubelong		!0x6e6f6e65
+# device manufacturer field like "HP  " "IBM " EPSO
+>>>>>48	string		x		\b, %.2s
+>>>>>50	string		>\  		\b%.1s
+>>>>>51	string		>\  		\b%.1s
+# model like "ADI " "A265" and skip 20000404h in IS330.icm for RICOH RUSSIAN-SC
+>>>>>52	string		>\ \  		\b/%.3s
+>>>>>>55 string		>\  		\b%.1s
+>>>>>52	string		x		model
+# creator (often same as manufacture) like HP SONY XROX or null like in A925A.icm
+>>>80	string		>\0		by %.2s
+>>>>82	string		>\  		\b%.1s
+>>>>>83	string		>\  		\b%.1s
+# profile size
+>>>0	ubelong		x		\b, %u bytes
+# skip invalid date 0 like in linearSRGB.icc
+>>>24	ubequad		!0
+# datetime dd-mm-yyyy hh:mm:ss
+>>>>28	ubeshort	x		\b, %u
+# month <= 12
+>>>>26	ubeshort	x		\b-%u
+# year
+>>>>24	ubeshort	x		\b-%u
+# do not display midnight time like in CNHP8308.ICC
+>>>>30	ubequad&0xFFffFFffFFff0000	!0
+# hour <= 24
+>>>>>30	ubeshort	x		%u
+# minutes <= 59
+>>>>>32	ubeshort	x		\b:%.2u
+# seconds <= 59
+>>>>>34	ubeshort	x		\b:%.2u
+# vendor specific flags like 2 in HPCLJ5.ICM
+>>>44	ubeshort	>0		\b, 0x%x vendor flags
+# profile flags bits 0-2 of least 16 used by ICC
+#>>>44	ubelong		>0		\b, 0x%x flags
+# icEmbeddedProfileTrue
+>>>44	ubelong		&1		\b, embedded
+# icEmbeddedProfileFalse
+#>>>44	ubelong		^1		\b, not embedded
+# icUseWithEmbeddedDataOnly
+>>>44	ubelong		&2		\b, dependently
+# icUseAnywhere
+#>>>44	ubelong		^2		\b, independently
+>>>44	ubelong		&4		\b, MCS
+#>>>44	ubelong		^4		\b, no MCS
+# vendor specific device attributes 1~srgb.icc
+# E000D00h~CNB7QEDA.ICM C000A00h~CNB5FCAA.ICM 01040401h~CNB25PE3.ICM
+>>>56	ubelong		>0		\b, 0x%x vendor attribute
+# ICC device attributes bits 0-7 used
+#>>>60	ubelong		x		\b, 0x%x attribute
+# http://www.color.org/icc34.h
+>>>60	ubelong		&0x01		\b, transparent
+#>>>60	ubelong		^0x01		\b, reflective
+>>>60	ubelong		&0x02		\b, matte
+#>>>60	ubelong		^0x02		\b, glossy
+>>>60	ubelong		&0x04		\b, negative
+#>>>60	ubelong		^0x04		\b, positive
+>>>60	ubelong		&0x08		\b, black&white
+#>>>60	ubelong		^0x08		\b, colour
+>>>60	ubelong		&0x10		\b, non-paper
+#>>>60	ubelong		^0x10		\b, paper
+>>>60	ubelong		&0x20		\b, non-textured
+#>>>60	ubelong		^0x20		\b, textured
+>>>60	ubelong		&0x40		\b, non-isotropic
+#>>>60	ubelong		^0x40		\b, isotropic
+>>>60	ubelong		&0x80		\b, self-luminous
+#>>>60	ubelong		^0x80		\b, non-self-luminous
+# rendering intent 0-3 but 7AEA5027h in EE051__1.ICM 6CB1BCh in EE061__1.ICM
+>>>64	ubelong		>3		\b, 0x%x rendering intent
+#>>>64	ubelong		=0		\b, perceptual
+>>>64	ubelong		=1		\b, relative colorimetric
+>>>64	ubelong		=2		\b, saturation
+>>>64	ubelong		=3		\b, absolute colorimetric
+# PCS illuminant (3*s15Fixed16Numbers) often 0000f6d6 00010000 0000d32d
+>>>71	ubequad		!0xd6000100000000d3	\b, PCS
+# usually X~0.9642*65536=63189.8112~63190=F6D5h ; but also found
+# often F6D6 in gt5000r.icm, F6B8 in kodakce.icm, F6CA in RSWOP.icm
+>>>>68	ubelong			!0x0000f6d5	X=0x%x
+# usually Y=1.0~00010000h but Y=0 in brmsl07f.icm
+>>>>72	ubelong			!0x00010000	Y=0x%x
+# usually Z~0.8249*65536=54060.6464~54061=D32Dh ; but also found
+# D2F7 in hp1200c.icm, often D32C in A925A.icm, D309 in RSWOP.icm , D2F8 in kodak_dc.icm
+>>>>76	ubelong			!0x0000d32d	Z=0x%x
+# Profile ID. MD5 fingerprinting method as defined in Internet RFC 1321.
+>>>84	ubequad		>0		\b, 0x%llx MD5
+# reserved in older versions should be zero but also found CDCDCDCDCDCDCDCD
+#>>100	ubequad		x		\b 0x%llx reserved
+# tag table
+# 6 <= tags count <= 43
+#>>>128	ubelong		>43		\b, %u tags
+>>>128	ubelong		x
+# shall contain the profileDescriptionTag "desc" , copyrightTag "cprt"
+# search range = tags count * 12 -8=< maximal tag count * 12 -8= 43 * 12 -8= 508
+>>>>132	search/508	cprt
+# but no copyright tag in linearSRGB.icc
+# beneath /System/Library/Frameworks/WebKit.framework/
+# Versions/A/Frameworks/WebCore.framework/Versions/A/Resources
+>>>>132	default		x		\b, no copyright tag
+# 1st tag
+#>>>132	string		x		\b, 1st tag %.4s
+#>>>136	ubelong		x		0x%x offset
+#>>>140	ubelong		x		0x%x len
+# 2nd tag,...
+# look also for profileDescriptionTag "desc"
+>>>132	search/508	desc
+# look further for TextDescriptionType "desc" signature
+>>>>(&0.L)	string		=desc
+>>>>>&4		pstring/l	x	"%s"
+# look alternative for multiLocalizedUnicodeType "mluc" signature like in VideoPAL.icc
+>>>>(&0.L)	string		=mluc
+>>>>>&(&8.L)	ubequad		x
+>>>>>>&4	bestring16	x	'%s'
+
+# Any other profile.
+# XXX - should we use "acsp\0\0\0\0" for "no primary platform" profiles,
+# and use "acsp" for everything else and dump the "primary platform"
+# string in those cases?
+36	string		acsp
+>0	use		color-profile
+
+

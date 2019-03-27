@@ -1,0 +1,382 @@
+module LLVM_Analysis {
+  requires cplusplus
+  umbrella "Analysis"
+  module * { export * }
+
+  // This is intended for (repeated) textual inclusion.
+  textual header "Analysis/TargetLibraryInfo.def"
+}
+
+module LLVM_AsmParser {
+  requires cplusplus
+  umbrella "AsmParser"
+  module * { export * }
+}
+
+// A module covering CodeGen/ and Target/. These are intertwined
+// and codependent, and thus notionally form a single module.
+module LLVM_Backend {
+  requires cplusplus
+
+  module CodeGen {
+    umbrella "CodeGen"
+    module * { export * }
+
+    // Exclude these; they're intended to be included into only a single
+    // translation unit (or none) and aren't part of this module.
+    exclude header "CodeGen/LinkAllAsmWriterComponents.h"
+    exclude header "CodeGen/LinkAllCodegenComponents.h"
+
+    // These are intended for (repeated) textual inclusion.
+    textual header "CodeGen/CommandFlags.inc"
+    textual header "CodeGen/DIEValue.def"
+  }
+}
+
+// FIXME: Make this as a submodule of LLVM_Backend again.
+//        Doing so causes a linker error in clang-format.
+module LLVM_Backend_Target {
+  umbrella "Target"
+  module * { export * }
+}
+
+module LLVM_Bitcode {
+ requires cplusplus
+ umbrella "Bitcode"
+ module * { export * }
+}
+
+
+module LLVM_BinaryFormat {
+    requires cplusplus
+    umbrella "BinaryFormat" module * { export * }
+    textual header "BinaryFormat/Dwarf.def"
+    textual header "BinaryFormat/DynamicTags.def"
+    textual header "BinaryFormat/MachO.def"
+    textual header "BinaryFormat/ELFRelocs/AArch64.def"
+    textual header "BinaryFormat/ELFRelocs/AMDGPU.def"
+    textual header "BinaryFormat/ELFRelocs/ARM.def"
+    textual header "BinaryFormat/ELFRelocs/ARC.def"
+    textual header "BinaryFormat/ELFRelocs/AVR.def"
+    textual header "BinaryFormat/ELFRelocs/BPF.def"
+    textual header "BinaryFormat/ELFRelocs/Hexagon.def"
+    textual header "BinaryFormat/ELFRelocs/i386.def"
+    textual header "BinaryFormat/ELFRelocs/Lanai.def"
+    textual header "BinaryFormat/ELFRelocs/Mips.def"
+    textual header "BinaryFormat/ELFRelocs/MSP430.def"
+    textual header "BinaryFormat/ELFRelocs/PowerPC64.def"
+    textual header "BinaryFormat/ELFRelocs/PowerPC.def"
+    textual header "BinaryFormat/ELFRelocs/RISCV.def"
+    textual header "BinaryFormat/ELFRelocs/Sparc.def"
+    textual header "BinaryFormat/ELFRelocs/SystemZ.def"
+    textual header "BinaryFormat/ELFRelocs/x86_64.def"
+    textual header "BinaryFormat/WasmRelocs.def"
+    textual header "BinaryFormat/MsgPack.def"
+}
+
+module LLVM_Config {
+  requires cplusplus
+  umbrella "Config"
+  extern module LLVM_Extern_Config_Def "module.extern.modulemap"
+  module * { export * }
+}
+
+module LLVM_DebugInfo {
+  requires cplusplus
+  module DIContext { header "DebugInfo/DIContext.h" export * }
+}
+
+module LLVM_DebugInfo_DWARF {
+  requires cplusplus
+
+  umbrella "DebugInfo/DWARF"
+  module * { export * }
+}
+
+module LLVM_DebugInfo_PDB {
+  requires cplusplus
+
+  umbrella "DebugInfo/PDB"
+  module * { export * }
+
+  // Separate out this subdirectory; it's an optional component that depends on
+  // a separate library which might not be available.
+  //
+  // FIXME: There should be a better way to specify this.
+  exclude header "DebugInfo/PDB/DIA/DIADataStream.h"
+  exclude header "DebugInfo/PDB/DIA/DIAEnumDebugStreams.h"
+  exclude header "DebugInfo/PDB/DIA/DIAEnumFrameData.h"
+  exclude header "DebugInfo/PDB/DIA/DIAEnumInjectedSources.h"
+  exclude header "DebugInfo/PDB/DIA/DIAEnumLineNumbers.h"
+  exclude header "DebugInfo/PDB/DIA/DIAEnumSectionContribs.h"
+  exclude header "DebugInfo/PDB/DIA/DIAEnumSourceFiles.h"
+  exclude header "DebugInfo/PDB/DIA/DIAEnumSymbols.h"
+  exclude header "DebugInfo/PDB/DIA/DIAEnumTables.h"
+  exclude header "DebugInfo/PDB/DIA/DIAFrameData.h"
+  exclude header "DebugInfo/PDB/DIA/DIAInjectedSource.h"
+  exclude header "DebugInfo/PDB/DIA/DIALineNumber.h"
+  exclude header "DebugInfo/PDB/DIA/DIARawSymbol.h"
+  exclude header "DebugInfo/PDB/DIA/DIASectionContrib.h"
+  exclude header "DebugInfo/PDB/DIA/DIASession.h"
+  exclude header "DebugInfo/PDB/DIA/DIASourceFile.h"
+  exclude header "DebugInfo/PDB/DIA/DIASupport.h"
+  exclude header "DebugInfo/PDB/DIA/DIATable.h"
+  exclude header "DebugInfo/PDB/DIA/DIAUtils.h"
+}
+
+module LLVM_DebugInfo_PDB_DIA {
+  requires cplusplus
+
+  umbrella "DebugInfo/PDB/DIA"
+  module * { export * }
+}
+
+module LLVM_DebugInfo_MSF {
+  requires cplusplus
+
+  umbrella "DebugInfo/MSF"
+  module * { export * }
+}
+
+module LLVM_DebugInfo_CodeView {
+  requires cplusplus
+
+  umbrella "DebugInfo/CodeView"
+  module * { export * }
+
+  // These are intended for (repeated) textual inclusion.
+  textual header "DebugInfo/CodeView/CodeViewRegisters.def"
+  textual header "DebugInfo/CodeView/CodeViewTypes.def"
+  textual header "DebugInfo/CodeView/CodeViewSymbols.def"
+}
+
+module LLVM_ExecutionEngine {
+  requires cplusplus
+
+  umbrella "ExecutionEngine"
+  module * { export * }
+
+  // Exclude this; it's an optional component of the ExecutionEngine.
+  exclude header "ExecutionEngine/OProfileWrapper.h"
+
+  // Exclude these; they're intended to be included into only a single
+  // translation unit (or none) and aren't part of this module.
+  exclude header "ExecutionEngine/MCJIT.h"
+  exclude header "ExecutionEngine/Interpreter.h"
+  exclude header "ExecutionEngine/OrcMCJITReplacement.h"
+
+  // FIXME: These exclude directives were added as a workaround for
+  //        <rdar://problem/29247092> and should be removed once it is fixed.
+  exclude header "ExecutionEngine/Orc/RawByteChannel.h"
+  exclude header "ExecutionEngine/Orc/RPCUtils.h"
+  exclude header "ExecutionEngine/Orc/OrcRemoteTargetRPCAPI.h"
+  exclude header "ExecutionEngine/Orc/OrcRemoteTargetClient.h"
+  exclude header "ExecutionEngine/Orc/OrcRemoteTargetServer.h"
+  exclude header "ExecutionEngine/Orc/RemoteObjectLayer.h"
+}
+
+module LLVM_Pass {
+  module Pass {
+    // PassSupport.h and PassAnalysisSupport.h are made available only through
+    // Pass.h.
+    header "Pass.h"
+    header "PassSupport.h"
+    header "PassAnalysisSupport.h"
+    export *
+  }
+
+  module PassRegistry { header "PassRegistry.h" export * }
+  module InitializePasses { header "InitializePasses.h" export * }
+}
+
+module LLVM_intrinsic_gen {
+  requires cplusplus
+
+  // Delay building the modules containing dependencies to Attributes.h and
+  // Intrinsics.h because they need to be generated by tablegen first.
+
+  // Attributes.h
+  module IR_Argument { header "IR/Argument.h" export * }
+  module IR_Attributes {
+    header "IR/Attributes.h"
+    extern module LLVM_Extern_IR_Attributes_Gen "module.extern.modulemap"
+    export *
+  }
+  module IR_CallSite { header "IR/CallSite.h" export * }
+  module IR_ConstantFolder { header "IR/ConstantFolder.h" export * }
+  module IR_GlobalVariable { header "IR/GlobalVariable.h" export * }
+  module IR_NoFolder { header "IR/NoFolder.h" export * }
+  module IR_Module { header "IR/Module.h" export * }
+  module IR_ModuleSummaryIndex { header "IR/ModuleSummaryIndex.h" export * }
+  module IR_ModuleSummaryIndexYAML { header "IR/ModuleSummaryIndexYAML.h" export * }
+  module IR_Function { header "IR/Function.h" export * }
+  module IR_InstrTypes { header "IR/InstrTypes.h" export * }
+  module IR_Instructions { header "IR/Instructions.h" export * }
+
+
+  // Intrinsics.h
+  module IR_CFG { header "IR/CFG.h" export * }
+  module IR_CFGDiff { header "IR/CFGDiff.h" export * }
+  module IR_ConstantRange { header "IR/ConstantRange.h" export * }
+  module IR_Dominators { header "IR/Dominators.h" export * }
+  module Analysis_PostDominators { header "Analysis/PostDominators.h" export * }
+  module IR_DomTreeUpdater { header "IR/DomTreeUpdater.h" export * }
+  module IR_IRBuilder { header "IR/IRBuilder.h" export * }
+  module IR_PassManager { header "IR/PassManager.h" export * }
+  module IR_PredIteratorCache { header "IR/PredIteratorCache.h" export * }
+  module IR_Verifier { header "IR/Verifier.h" export * }
+  module IR_InstIterator { header "IR/InstIterator.h" export * }
+  module IR_InstVisitor { header "IR/InstVisitor.h" export * }
+  module IR_Intrinsics {
+    header "IR/Intrinsics.h"
+    extern module LLVM_Extern_IR_Intricsics_Gen "module.extern.modulemap"
+    extern module LLVM_Extern_IR_Intrinsics_Enum "module.extern.modulemap"
+    export *
+  }
+  module IR_IntrinsicInst { header "IR/IntrinsicInst.h" export * }
+  module IR_PatternMatch { header "IR/PatternMatch.h" export * }
+  module IR_Statepoint { header "IR/Statepoint.h" export * }
+
+  export *
+}
+
+module LLVM_IR {
+  requires cplusplus
+
+  umbrella "IR"
+  module * { export * }
+
+  // These are intended for (repeated) textual inclusion.
+  textual header "IR/DebugInfoFlags.def"
+  textual header "IR/Instruction.def"
+  textual header "IR/Metadata.def"
+  textual header "IR/Value.def"
+  textual header "IR/RuntimeLibcalls.def"
+}
+
+module LLVM_IRReader {
+  requires cplusplus
+  umbrella "IRReader"
+  module * { export * }
+}
+
+module LLVM_LineEditor {
+  requires cplusplus
+  umbrella "LineEditor"
+  module * { export * }
+}
+
+module LLVM_LTO {
+  requires cplusplus
+  umbrella "LTO"
+  module * { export * }
+}
+
+module LLVM_MC {
+  requires cplusplus
+
+  umbrella "MC"
+  module * { export * }
+
+  textual header "MC/MCTargetOptionsCommandFlags.inc"
+}
+
+// Used by llvm-tblgen
+module LLVM_MC_TableGen {
+  requires cplusplus
+  module MC_LaneBitmask { header "MC/LaneBitmask.h" export * }
+  module MC_FixedLenDisassembler { header "MC/MCFixedLenDisassembler.h" export * }
+  module MC_InstrItineraries { header "MC/MCInstrItineraries.h" export * }
+  module MC_Schedule { header "MC/MCSchedule.h" export * }
+  module MC_SubtargetFeature { header "MC/SubtargetFeature.h" export * }
+}
+
+module LLVM_Object {
+  requires cplusplus
+  umbrella "Object"
+  module * { export * }
+}
+
+module LLVM_Option {
+  requires cplusplus
+  umbrella "Option"
+  module * { export * }
+}
+
+module LLVM_ProfileData {
+  requires cplusplus
+
+  umbrella "ProfileData"
+  module * { export * }
+
+  textual header "ProfileData/InstrProfData.inc"
+}
+
+// FIXME: Mislayered?
+module LLVM_Support_TargetRegistry {
+  requires cplusplus
+  header "Support/TargetRegistry.h"
+  export *
+}
+
+module LLVM_TableGen {
+  requires cplusplus
+  umbrella "TableGen"
+  module * { export * }
+}
+
+module LLVM_Transforms {
+  requires cplusplus
+  umbrella "Transforms"
+  module * { export * }
+}
+
+extern module LLVM_Extern_Utils_DataTypes "module.extern.modulemap"
+
+// A module covering ADT/ and Support/. These are intertwined and
+// codependent, and notionally form a single module.
+module LLVM_Utils {
+  module ADT {
+    requires cplusplus
+
+    umbrella "ADT"
+    module * { export * }
+  }
+
+  module Support {
+    requires cplusplus
+
+    umbrella "Support"
+    module * { export * }
+
+    // Exclude these; they are fundamentally non-modular.
+    exclude header "Support/PluginLoader.h"
+    exclude header "Support/Solaris/sys/regset.h"
+
+    // These are intended for textual inclusion.
+    textual header "Support/ARMTargetParser.def"
+    textual header "Support/AArch64TargetParser.def"
+    textual header "Support/TargetOpcodes.def"
+    textual header "Support/X86TargetParser.def"
+  }
+
+  // This part of the module is usable from both C and C++ code.
+  module ConvertUTF {
+    header "Support/ConvertUTF.h"
+    export *
+  }
+}
+
+// This is used for a $src == $build compilation. Otherwise we use
+// LLVM_Support_DataTypes_Build, defined in a module map that is
+// copied into the build area.
+module LLVM_Support_DataTypes_Src {
+  header "llvm/Support/DataTypes.h"
+  export *
+}
+
+module LLVM_WindowsManifest {
+  requires cplusplus
+  umbrella "WindowsManifest"
+  module * { export * }
+}

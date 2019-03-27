@@ -1,0 +1,249 @@
+.\"
+.\" Copyright (c) 1992, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software donated to Berkeley by
+.\" John Heidemann of the UCLA Ficus project.
+.\"
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)mount_null.8	8.6 (Berkeley) 5/1/95
+.\" $FreeBSD$
+.\"
+.Dd October 3, 2016
+.Dt MOUNT_NULLFS 8
+.Os
+.Sh NAME
+.Nm mount_nullfs
+.Nd "mount a loopback file system sub-tree; demonstrate the use of a null file system layer"
+.Sh SYNOPSIS
+.Nm
+.Op Fl o Ar options
+.Ar target
+.Ar mount-point
+.Sh DESCRIPTION
+The
+.Nm
+utility creates a
+null layer, duplicating a sub-tree of the file system
+name space under another part of the global file system namespace.
+This allows existing files and directories to be accessed
+using a different pathname.
+.Pp
+The primary differences between a virtual copy of the file system
+and a symbolic link are that the
+.Xr getcwd 3
+functions work correctly in the virtual copy, and that other file systems
+may be mounted on the virtual copy without affecting the original.
+A different device number for the virtual copy is returned by
+.Xr stat 2 ,
+but in other respects it is indistinguishable from the original.
+.Pp
+The
+.Nm
+file system differs from a traditional
+loopback file system in two respects: it is implemented using
+a stackable layers techniques, and its
+.Do null-node Dc Ns s
+stack above
+all lower-layer vnodes, not just over directory vnodes.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl o
+Options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+.El
+.Pp
+The null layer has two purposes.
+First, it serves as a demonstration of layering by providing a layer
+which does nothing.
+(It actually does everything the loopback file system does,
+which is slightly more than nothing.)
+Second, the null layer can serve as a prototype layer.
+Since it provides all necessary layer framework,
+new file system layers can be created very easily by starting
+with a null layer.
+.Pp
+The remainder of this man page examines the null layer as a basis
+for constructing new layers.
+.\"
+.\"
+.Sh INSTANTIATING NEW NULL LAYERS
+New null layers are created with
+.Nm .
+The
+.Nm
+utility takes two arguments, the pathname
+of the lower vfs (target-pn) and the pathname where the null
+layer will appear in the namespace (mount-point-pn).
+After
+the null layer is put into place, the contents
+of target-pn subtree will be aliased under mount-point-pn.
+.\"
+.\"
+.Sh OPERATION OF A NULL LAYER
+The null layer is the minimum file system layer,
+simply bypassing all possible operations to the lower layer
+for processing there.
+The majority of its activity centers
+on the bypass routine, through which nearly all vnode operations
+pass.
+.Pp
+The bypass routine accepts arbitrary vnode operations for
+handling by the lower layer.
+It begins by examining vnode
+operation arguments and replacing any null-nodes by their
+lower-layer equivalents.
+It then invokes the operation
+on the lower layer.
+Finally, it replaces the null-nodes
+in the arguments and, if a vnode is returned by the operation,
+stacks a null-node on top of the returned vnode.
+.Pp
+Although bypass handles most operations,
+.Em vop_getattr ,
+.Em vop_inactive ,
+.Em vop_reclaim ,
+and
+.Em vop_print
+are not bypassed.
+.Em Vop_getattr
+must change the fsid being returned.
+.Em Vop_inactive
+and
+.Em vop_reclaim
+are not bypassed so that
+they can handle freeing null-layer specific data.
+.Em Vop_print
+is not bypassed to avoid excessive debugging
+information.
+.\"
+.\"
+.Sh INSTANTIATING VNODE STACKS
+Mounting associates the null layer with a lower layer,
+in effect stacking two VFSes.
+Vnode stacks are instead
+created on demand as files are accessed.
+.Pp
+The initial mount creates a single vnode stack for the
+root of the new null layer.
+All other vnode stacks
+are created as a result of vnode operations on
+this or other null vnode stacks.
+.Pp
+New vnode stacks come into existence as a result of
+an operation which returns a vnode.
+The bypass routine stacks a null-node above the new
+vnode before returning it to the caller.
+.Pp
+For example, imagine mounting a null layer with
+.Bd -literal -offset indent
+mount_nullfs /usr/include /dev/layer/null
+.Ed
+.Pp
+Changing directory to
+.Pa /dev/layer/null
+will assign
+the root null-node (which was created when the null layer was mounted).
+Now consider opening
+.Pa sys .
+A vop_lookup would be
+done on the root null-node.
+This operation would bypass through
+to the lower layer which would return a vnode representing
+the UFS
+.Pa sys .
+Null_bypass then builds a null-node
+aliasing the UFS
+.Pa sys
+and returns this to the caller.
+Later operations on the null-node
+.Pa sys
+will repeat this
+process when constructing other vnode stacks.
+.\"
+.\"
+.Sh CREATING OTHER FILE SYSTEM LAYERS
+One of the easiest ways to construct new file system layers is to make
+a copy of the null layer, rename all files and variables, and
+then begin modifying the copy.
+The
+.Xr sed 1
+utility can be used to easily rename
+all variables.
+.Pp
+The umap layer is an example of a layer descended from the
+null layer.
+.\"
+.\"
+.Sh INVOKING OPERATIONS ON LOWER LAYERS
+There are two techniques to invoke operations on a lower layer
+when the operation cannot be completely bypassed.
+Each method
+is appropriate in different situations.
+In both cases,
+it is the responsibility of the aliasing layer to make
+the operation arguments "correct" for the lower layer
+by mapping a vnode argument to the lower layer.
+.Pp
+The first approach is to call the aliasing layer's bypass routine.
+This method is most suitable when you wish to invoke the operation
+currently being handled on the lower layer.
+It has the advantage that
+the bypass routine already must do argument mapping.
+An example of this is
+.Em null_getattrs
+in the null layer.
+.Pp
+A second approach is to directly invoke vnode operations on
+the lower layer with the
+.Em VOP_OPERATIONNAME
+interface.
+The advantage of this method is that it is easy to invoke
+arbitrary operations on the lower layer.
+The disadvantage
+is that vnode arguments must be manually mapped.
+.\"
+.\"
+.Sh SEE ALSO
+.Xr mount 8
+.Pp
+UCLA Technical Report CSD-910056,
+.Em "Stackable Layers: an Architecture for File System Development" .
+.Sh HISTORY
+The
+.Nm mount_null
+utility first appeared in
+.Bx 4.4 .
+It was renamed to
+.Nm
+in
+.Fx 5.0 .

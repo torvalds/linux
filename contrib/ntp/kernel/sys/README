@@ -1,0 +1,11 @@
+README file for directory ./kernel/sys of the NTP Version 3 distribution
+
+This directory contains system header files used by the clock discipline
+and STREAMS modules in the .. (./kernel) directory.
+
+If the precision-time kernel (KERNEL_PLL define) is configured, the
+installation process requires the header file /usr/include/sys/timex.h
+for the particular architecture to be in place. The file timex.h included
+in this distribution is for Suns; the files for other systems can be
+found in the kernel distributions available from the manufacturer's
+representatives.

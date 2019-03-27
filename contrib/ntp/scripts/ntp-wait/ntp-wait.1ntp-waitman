@@ -1,0 +1,122 @@
+.de1 NOP
+.  it 1 an-trap
+.  if \\n[.$] \,\\$*\/
+..
+.ie t \
+.ds B-Font [CB]
+.ds I-Font [CI]
+.ds R-Font [CR]
+.el \
+.ds B-Font B
+.ds I-Font I
+.ds R-Font R
+.TH ntp-wait 1ntp-waitman "20 Feb 2019" "ntp (4.2.8p13)" "User Commands"
+.\"
+.\" EDIT THIS FILE WITH CAUTION (in-mem file)
+.\"
+.\" It has been AutoGen-ed February 20, 2019 at 09:57:30 AM by AutoGen 5.18.5
+.\" From the definitions ntp-wait-opts.def
+.\" and the template file agman-cmd.tpl
+.SH NAME
+\f\*[B-Font]ntp-wait\fP
+\- Wait for ntpd to stabilize the system clock
+.SH SYNOPSIS
+\f\*[B-Font]ntp-wait\fP
+.\" Mixture of short (flag) options and long options
+[\f\*[B-Font]\-flags\f[]]
+[\f\*[B-Font]\-flag\f[] [\f\*[I-Font]value\f[]]]
+[\f\*[B-Font]\-\-option-name\f[][[=| ]\f\*[I-Font]value\f[]]]
+.sp \n(Ppu
+.ne 2
+
+All arguments must be options.
+.sp \n(Ppu
+.ne 2
+
+.SH DESCRIPTION
+\f\*[B-Font]ntp-wait\fP
+will send at most
+\f\*[I-Font]num-tries\f[]
+queries to
+\fCntpd\f[]\fR(8)\f[],
+sleeping for
+\f\*[I-Font]secs-between-tries\f[]
+after each status return that says
+\fCntpd\f[]\fR(8)\f[]
+has not yet produced a synchronized and stable system clock.
+.sp \n(Ppu
+.ne 2
+
+\f\*[B-Font]ntp-wait\fP
+will do this quietly, unless the
+\f\*[B-Font]\-v\f[]
+flag is provided.
+This can be useful at boot time, to delay the boot sequence until after
+\f\*[I-Font]ntpd\f[] \f\*[I-Font]\-g\f[]
+has set the time.
+.SH "OPTIONS"
+.TP
+.NOP \f\*[B-Font]\-n\f[] \f\*[I-Font]number\f[], \f\*[B-Font]\-\-tries\f[]=\f\*[I-Font]number\f[]
+Number of times to check ntpd.
+This option takes an integer number as its argument.
+The default
+\f\*[I-Font]number\f[]
+for this option is:
+.ti +4
+ 100
+.sp
+        The maximum number of times we will check \fBntpd\fP to see if
+        it has been able to synchronize and stabilize the system clock.
+.TP
+.NOP \f\*[B-Font]\-s\f[] \f\*[I-Font]secs\-between\-tries\f[], \f\*[B-Font]\-\-sleep\f[]=\f\*[I-Font]secs\-between\-tries\f[]
+How long to sleep between tries.
+This option takes an integer number as its argument.
+The default
+\f\*[I-Font]secs\-between\-tries\f[]
+for this option is:
+.ti +4
+ 6
+.sp
+        We will sleep for \fIsecs-between-tries\fP after each query
+        of \fBntpd\fP that returns "the time is not yet stable".
+.TP
+.NOP \f\*[B-Font]\-v\f[], \f\*[B-Font]\-\-verbose\f[]
+Be verbose.
+.sp
+        By default, \fBntp-wait\fP is silent.
+        With this option, \fBntp-wait\fP will provide status information.
+.TP
+.NOP \f\*[B-Font]\-\&?\f[], \f\*[B-Font]\-\-help\f[]
+Display usage information and exit.
+.TP
+.NOP \f\*[B-Font]\-\&!\f[], \f\*[B-Font]\-\-more-help\f[]
+Pass the extended usage information through a pager.
+.TP
+.NOP \f\*[B-Font]\-v\f[] [{\f\*[I-Font]v|c|n\f[] \f\*[B-Font]\-\-version\f[] [{\f\*[I-Font]v|c|n\f[]}]}]
+Output version of program and exit.  The default mode is `v', a simple
+version.  The `c' mode will print copyright information and `n' will
+print the full copyright notice.
+.PP
+.SH "EXIT STATUS"
+One of the following exit values will be returned:
+.TP
+.NOP 0 " (EXIT_SUCCESS)"
+Successful program execution.
+.TP
+.NOP 1 " (EXIT_FAILURE)"
+The operation failed or the command syntax was not valid.
+.TP
+.NOP 70 " (EX_SOFTWARE)"
+libopts had an internal operational error.  Please report
+it to autogen-users@lists.sourceforge.net.  Thank you.
+.PP
+.SH AUTHORS
+.NOP  "Harlan Stenn" 
+.br
+.SH NOTES
+This document corresponds to version @VERSION@ of NTP.
+.sp \n(Ppu
+.ne 2
+
+This manual page was \fIAutoGen\fP-erated from the \fBntp-wait\fP
+option definitions.

@@ -1,0 +1,88 @@
+#
+# The following are some default rules for devfs(5) mounts.
+# The format is very simple. Empty lines and lines beginning
+# with a hash '#' are ignored. If the hash mark occurs anywhere
+# other than the beginning of a line, it and any subsequent
+# characters will be ignored.  A line in between brackets '[]'
+# denotes the beginning of a ruleset. In the brackets should
+# be a name for the rule and its ruleset number. Any other lines
+# will be considered to be the 'action' part of a rule
+# passed to the devfs(8) command. These will be passed
+# "as-is" to the devfs(8) command with the exception that
+# any references to other rulesets will be expanded first. These
+# references must include a dollar sign '$' in front of the
+# name to be expanded properly.
+#
+# $FreeBSD$
+#
+
+# Very basic and secure ruleset: Hide everything.
+# Used as a basis for other rules.
+#
+[devfsrules_hide_all=1]
+add hide
+
+# Basic devices typically necessary.
+# Requires: devfsrules_hide_all
+#
+[devfsrules_unhide_basic=2]
+add path log unhide
+add path null unhide
+add path zero unhide
+add path crypto unhide
+add path random unhide
+add path urandom unhide
+
+# Devices typically needed to support logged-in users.
+# Requires: devfsrules_hide_all
+#
+[devfsrules_unhide_login=3]
+add path 'ptyp*' unhide
+add path 'ptyq*' unhide
+add path 'ptyr*' unhide
+add path 'ptys*' unhide
+add path 'ptyP*' unhide
+add path 'ptyQ*' unhide
+add path 'ptyR*' unhide
+add path 'ptyS*' unhide
+add path 'ptyl*' unhide
+add path 'ptym*' unhide
+add path 'ptyn*' unhide
+add path 'ptyo*' unhide
+add path 'ptyL*' unhide
+add path 'ptyM*' unhide
+add path 'ptyN*' unhide
+add path 'ptyO*' unhide
+add path 'ttyp*' unhide
+add path 'ttyq*' unhide
+add path 'ttyr*' unhide
+add path 'ttys*' unhide
+add path 'ttyP*' unhide
+add path 'ttyQ*' unhide
+add path 'ttyR*' unhide
+add path 'ttyS*' unhide
+add path 'ttyl*' unhide
+add path 'ttym*' unhide
+add path 'ttyn*' unhide
+add path 'ttyo*' unhide
+add path 'ttyL*' unhide
+add path 'ttyM*' unhide
+add path 'ttyN*' unhide
+add path 'ttyO*' unhide
+add path ptmx unhide
+add path pts unhide
+add path 'pts/*' unhide
+add path fd unhide
+add path 'fd/*' unhide
+add path stdin unhide
+add path stdout unhide
+add path stderr unhide
+
+# Devices usually found in a jail.
+#
+[devfsrules_jail=4]
+add include $devfsrules_hide_all
+add include $devfsrules_unhide_basic
+add include $devfsrules_unhide_login
+add path fuse unhide
+add path zfs unhide

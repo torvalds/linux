@@ -1,0 +1,20 @@
+# $FreeBSD$
+
+1. Rethink protection glitches on REMOTE & PHONES
+   files (setuid/setgid??).
+
+2. Make clean fix for scripting being set in .tiprc
+
+3.  change EOFREAD to recognize more general strings.
+
+4.  add an option that returns an exit status based on
+    whether resources for the requested operation are available.
+
+5.  write a program to list known systems (a quick shell script
+    should do it); people keep forgetting the names.
+
+6.  change remote file descriptions so that acu attributes are
+    are attached to a device so that several different devices
+    can be used to get to the same system (perhaps hardwired
+    and phone line).  got any ideas here?  I'm looking at something
+    like dv=cua1,cul1,dn11;cua2,,df03.

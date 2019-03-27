@@ -1,0 +1,186 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	From: @(#)listen.2	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd August 18, 2016
+.Dt LISTEN 2
+.Os
+.Sh NAME
+.Nm listen
+.Nd listen for connections on a socket
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft int
+.Fn listen "int s" "int backlog"
+.Sh DESCRIPTION
+To accept connections, a socket
+is first created with
+.Xr socket 2 ,
+a willingness to accept incoming connections and
+a queue limit for incoming connections are specified with
+.Fn listen ,
+and then the connections are
+accepted with
+.Xr accept 2 .
+The
+.Fn listen
+system call applies only to sockets of type
+.Dv SOCK_STREAM
+or
+.Dv SOCK_SEQPACKET .
+.Pp
+The
+.Fa backlog
+argument defines the maximum length the queue of
+pending connections may grow to.
+The real maximum queue length will be 1.5 times more than the value
+specified in the
+.Fa backlog
+argument.
+A subsequent
+.Fn listen
+system call on the listening socket allows the caller to change the maximum
+queue length using a new
+.Fa backlog
+argument.
+If a connection
+request arrives with the queue full the client may
+receive an error with an indication of
+.Er ECONNREFUSED ,
+or, in the case of TCP, the connection will be
+silently dropped.
+.Pp
+Current queue lengths of listening sockets can be queried using
+.Xr netstat 1
+command.
+.Pp
+Note that before
+.Fx 4.5
+and the introduction of the syncache,
+the
+.Fa backlog
+argument also determined the length of the incomplete
+connection queue, which held TCP sockets in the process
+of completing TCP's 3-way handshake.
+These incomplete connections
+are now held entirely in the syncache, which is unaffected by
+queue lengths.
+Inflated
+.Fa backlog
+values to help handle denial
+of service attacks are no longer necessary.
+.Pp
+The
+.Xr sysctl 3
+MIB variable
+.Va kern.ipc.soacceptqueue
+specifies a hard limit on
+.Fa backlog ;
+if a value greater than
+.Va kern.ipc.soacceptqueue
+or less than zero is specified,
+.Fa backlog
+is silently forced to
+.Va kern.ipc.soacceptqueue .
+.Sh INTERACTION WITH ACCEPT FILTERS
+When accept filtering is used on a socket, a second queue will
+be used to hold sockets that have connected, but have not yet
+met their accept filtering criteria.
+Once the criteria has been
+met, these sockets will be moved over into the completed connection
+queue to be
+.Xr accept 2 Ns ed .
+If this secondary queue is full and a
+new connection comes in, the oldest socket which has not yet met
+its accept filter criteria will be terminated.
+.Pp
+This secondary queue, like the primary listen queue, is sized
+according to the
+.Fa backlog
+argument.
+.Sh RETURN VALUES
+.Rv -std listen
+.Sh ERRORS
+The
+.Fn listen
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The argument
+.Fa s
+is not a valid descriptor.
+.It Bq Er EDESTADDRREQ
+The socket is not bound to a local address, and the protocol does not
+support listening on an unbound socket.
+.It Bq Er EINVAL
+The socket is already connected, or in the process of being connected.
+.It Bq Er ENOTSOCK
+The argument
+.Fa s
+is not a socket.
+.It Bq Er EOPNOTSUPP
+The socket is not of a type that supports the operation
+.Fn listen .
+.El
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr accept 2 ,
+.Xr connect 2 ,
+.Xr socket 2 ,
+.Xr sysctl 3 ,
+.Xr sysctl 8 ,
+.Xr accept_filter 9
+.Sh HISTORY
+The
+.Fn listen
+system call appeared in
+.Bx 4.2 .
+The ability to configure the maximum
+.Fa backlog
+at run-time, and to use a negative
+.Fa backlog
+to request the maximum allowable value, was introduced in
+.Fx 2.2 .
+The
+.Va kern.ipc.somaxconn
+.Xr sysctl 3
+has been replaced with
+.Va kern.ipc.soacceptqueue
+in
+.Fx 10.0
+to prevent confusion about its actual functionality.
+The original
+.Xr sysctl 3
+.Va kern.ipc.somaxconn
+is still available but hidden from a
+.Xr sysctl 3
+-a output so that existing applications and scripts continue to work.

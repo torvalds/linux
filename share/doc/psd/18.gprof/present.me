@@ -1,0 +1,302 @@
+.\" Copyright (c) 1982, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)present.me	8.1 (Berkeley) 6/8/93
+.\"
+.sh 1 "Data Presentation"
+.pp
+The data is presented to the user in two different formats.
+The first presentation simply lists the routines
+without regard to the amount of time their descendants use.
+The second presentation incorporates the call graph of the
+program.
+.sh 2 "The Flat Profile
+.pp
+The flat profile consists of a list of all the routines 
+that are called during execution of the program,
+with the count of the number of times they are called
+and the number of seconds of execution time for which they
+are themselves accountable.
+The routines are listed in decreasing order of execution time.
+A list of the routines that are never called during execution of
+the program is also available
+to verify that nothing important is omitted by
+this execution.
+The flat profile gives a quick overview of the routines that are used,
+and shows the routines that are themselves responsible
+for large fractions of the execution time.
+In practice,
+this profile usually shows that no single function
+is overwhelmingly responsible for 
+the total time of the program.
+Notice that for this profile,
+the individual times sum to the total execution time.
+.sh 2 "The Call Graph Profile"
+.sz 10
+.(z
+.TS
+box center;
+c c c c c l l
+c c c c c l l
+c c c c c l l
+l n n n c l l.
+				called/total	\ \ parents
+index	%time	self	descendants	called+self	name	index
+				called/total	\ \ children
+_
+		0.20	1.20	4/10	\ \ \s-1CALLER1\s+1	[7]
+		0.30	1.80	6/10	\ \ \s-1CALLER2\s+1	[1]
+[2]	41.5	0.50	3.00	10+4	\s-1EXAMPLE\s+1	[2]
+		1.50	1.00	20/40	\ \ \s-1SUB1\s+1 <cycle1>	[4]
+		0.00	0.50	1/5	\ \ \s-1SUB2\s+1 	[9]
+		0.00	0.00	0/5	\ \ \s-1SUB3\s+1 	[11]
+.TE
+.ce 2
+Profile entry for \s-1EXAMPLE\s+1.
+Figure 4.
+.)z
+.pp
+Ideally, we would like to print the call graph of the program,
+but we are limited by the two-dimensional nature of our output
+devices.
+We cannot assume that a call graph is planar,
+and even if it is, that we can print a planar version of it.
+Instead, we choose to list each routine,
+together with information about
+the routines that are its direct parents and children.
+This listing presents a window into the call graph.
+Based on our experience,
+both parent information and child information
+is important,
+and should be available without searching
+through the output.
+.pp
+The major entries of the call graph profile are the entries from the
+flat profile, augmented by the time propagated to each 
+routine from its descendants.
+This profile is sorted by the sum of the time for the routine
+itself plus the time inherited from its descendants.
+The profile shows which of the higher level routines 
+spend large portions of the total execution time 
+in the routines that they call.
+For each routine, we show the amount of time passed by each child
+to the routine, which includes time for the child itself
+and for the descendants of the child
+(and thus the descendants of the routine).
+We also show the percentage these times represent of the total time
+accounted to the child.
+Similarly, the parents of each routine are listed, 
+along with time,
+and percentage of total routine time,
+propagated to each one.
+.pp
+Cycles are handled as single entities.
+The cycle as a whole is shown as though it were a single routine,
+except that members of the cycle are listed in place of the children.
+Although the number of calls of each member
+from within the cycle are shown,
+they do not affect time propagation.
+When a child is a member of a cycle,
+the time shown is the appropriate fraction of the time
+for the whole cycle.
+Self-recursive routines have their calls broken
+down into calls from the outside and self-recursive calls.
+Only the outside calls affect the propagation of time.
+.pp
+The following example is a typical fragment of a call graph.
+.(b
+.so pres1.pic
+.)b
+The entry in the call graph profile listing for this example is
+shown in Figure 4.
+.pp
+The entry is for routine \s-1EXAMPLE\s+1, which has
+the Caller routines as its parents,
+and the Sub routines as its children.
+The reader should keep in mind that all information
+is given \fIwith respect to \s-1EXAMPLE\s+1\fP.
+The index in the first column shows that \s-1EXAMPLE\s+1
+is the second entry in the profile listing.
+The \s-1EXAMPLE\s+1 routine is called ten times, four times by \s-1CALLER1\s+1,
+and six times by \s-1CALLER2\s+1.
+Consequently 40% of \s-1EXAMPLE\s+1's time is propagated to \s-1CALLER1\s+1,
+and 60% of \s-1EXAMPLE\s+1's time is propagated to \s-1CALLER2\s+1.
+The self and descendant fields of the parents
+show the amount of self and descendant time \s-1EXAMPLE\s+1
+propagates to them (but not the time used by
+the parents directly).
+Note that \s-1EXAMPLE\s+1 calls itself recursively four times.
+The routine \s-1EXAMPLE\s+1 calls routine \s-1SUB1\s+1 twenty times, \s-1SUB2\s+1 once,
+and never calls \s-1SUB3\s+1.
+Since \s-1SUB2\s+1 is called a total of five times,
+20% of its self and descendant time is propagated to \s-1EXAMPLE\s+1's
+descendant time field.
+Because \s-1SUB1\s+1 is a member of \fIcycle 1\fR,
+the self and descendant times
+and call count fraction
+are those for the cycle as a whole.
+Since cycle 1 is called a total of forty times
+(not counting calls among members of the cycle),
+it propagates 50% of the cycle's self and descendant
+time to \s-1EXAMPLE\s+1's descendant time field.
+Finally each name is followed by an index that shows
+where on the listing to find the entry for that routine.
+.sh 1 "Using the Profiles"
+.pp
+The profiler is a useful tool for improving
+a set of routines that implement an abstraction.
+It can be helpful in identifying poorly coded routines,
+and in evaluating the new algorithms and code that replace them.
+Taking full advantage of the profiler 
+requires a careful examination of the call graph profile,
+and a thorough knowledge of the abstractions underlying
+the program.
+.pp
+The easiest optimization that can be performed
+is a small change
+to a control construct or data structure that improves the
+running time of the program.
+An obvious starting point
+is a routine that is called many times.
+For example, suppose an output 
+routine is the only parent
+of a routine that formats the data.
+If this format routine is expanded inline in the
+output routine, the overhead of a function call and
+return can be saved for each datum that needs to be formatted.
+.pp
+The drawback to inline expansion is that the data abstractions
+in the program may become less parameterized,
+hence less clearly defined.
+The profiling will also become less useful since the loss of 
+routines will make its output more granular.
+For example,
+if the symbol table functions ``lookup'', ``insert'', and ``delete''
+are all merged into a single parameterized routine,
+it will be impossible to determine the costs
+of any one of these individual functions from the profile.
+.pp
+Further potential for optimization lies in routines that
+implement data abstractions whose total execution
+time is long.
+For example, a lookup routine might be called only a few
+times, but use an inefficient linear search algorithm,
+that might be replaced with a binary search.
+Alternately, the discovery that a rehashing function is being
+called excessively, can lead to a different
+hash function or a larger hash table.
+If the data abstraction function cannot easily be speeded up,
+it may be advantageous to cache its results,
+and eliminate the need to rerun
+it for identical inputs.
+These and other ideas for program improvement are discussed in
+[Bentley81].
+.pp
+This tool is best used in an iterative approach:
+profiling the program,
+eliminating one bottleneck,
+then finding some other part of the program
+that begins to dominate execution time.
+For instance, we have used \fBgprof\fR on itself;
+eliminating, rewriting, and inline expanding routines,
+until reading
+data files (hardly a target for optimization!)
+represents the dominating factor in its execution time.
+.pp
+Certain types of programs are not easily analyzed by \fBgprof\fR.
+They are typified by programs that exhibit a large degree of 
+recursion, such as recursive descent compilers.
+The problem is that most of the major routines are grouped
+into a single monolithic cycle.
+As in the symbol table abstraction that is placed
+in one routine,
+it is impossible to distinguish which members of the cycle are
+responsible for the execution time.
+Unfortunately there are no easy modifications to these programs that
+make them amenable to analysis.
+.pp
+A completely different use of the profiler is to analyze the control
+flow of an unfamiliar program.
+If you receive a program from another user that you need to modify
+in some small way,
+it is often unclear where the changes need to be made.
+By running the program on an example and then using \fBgprof\fR,
+you can get a view of the structure of the program.
+.pp
+Consider an example in which you need to change the output format
+of the program.
+For purposes of this example suppose that the call graph
+of the output portion of the program has the following structure:
+.(b
+.so pres2.pic
+.)b
+Initially you look through the \fBgprof\fR
+output for the system call ``\s-1WRITE\s+1''.
+The format routine you will need to change is probably
+among the parents of the ``\s-1WRITE\s+1'' procedure.
+The next step is to look at the profile entry for each
+of parents of ``\s-1WRITE\s+1'',
+in this example either ``\s-1FORMAT1\s+1'' or ``\s-1FORMAT2\s+1'',
+to determine which one to change.
+Each format routine will have one or more parents,
+in this example ``\s-1CALC1\s+1'', ``\s-1CALC2\s+1'', and ``\s-1CALC3\s+1''.
+By inspecting the source code for each of these routines
+you can determine which format routine generates the output that
+you wish to modify.
+Since the \fBgprof\fR entry shows all the
+potential calls to the format routine you intend to change,
+you can determine if your modifications will affect output that
+should be left alone.
+If you desire to change the output of ``\s-1CALC2\s+1'', but not ``\s-1CALC3\s+1'',
+then formatting routine ``\s-1FORMAT2\s+1'' needs to be split
+into two separate routines,
+one of which implements the new format.
+You can then retarget just the call by ``\s-1CALC2\s+1''
+that needs the new format.
+It should be noted that the static call information is particularly
+useful here since the test case you run probably will not
+exercise the entire program.
+.sh 1 "Conclusions"
+.pp
+We have created a profiler that aids in the evaluation
+of modular programs.
+For each routine in the program,
+the profile shows the extent to which that routine
+helps support various abstractions,
+and how that routine uses other abstractions.
+The profile accurately assesses the cost of routines
+at all levels of the program decomposition.
+The profiler is easily used,
+and can be compiled into the program without any prior planning by
+the programmer.
+It adds only five to thirty percent execution overhead to the program
+being profiled,
+produces no additional output until after the program finishes,
+and allows the program to be measured in its actual environment.
+Finally, the profiler runs on a time-sharing system 
+using only the normal services provided by the operating system
+and compilers.

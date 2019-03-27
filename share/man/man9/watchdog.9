@@ -1,0 +1,81 @@
+.\"
+.\" Copyright (c) 2004 Poul-Henning Kamp <phk@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 28, 2004
+.Dt WATCHDOG 9
+.Os
+.Sh NAME
+.Nm watchdog
+.Nd "software and hardware watchdog facility"
+.Sh SYNOPSIS
+.In sys/watchdog.h
+.Ft void
+.Fn watchdog_fn "void *private" "u_int cmd" "int *error"
+.Fn EVENTHANDLER_REGISTER watchdog_list watchdog_fn private 0
+.Fn EVENTHANDLER_DEREGISTER watchdog_list eventhandler_tag
+.Sh DESCRIPTION
+To implement a watchdog in software or hardware, only a single
+function needs to be written and registered on the global
+.Va watchdog_list .
+.Pp
+The function must examine the
+.Fa cmd
+argument and act on it as
+follows:
+.Pp
+If
+.Fa cmd
+is zero, the watchdog must be disabled and the
+.Fa error
+argument left untouched.
+If the watchdog cannot be disabled, the
+.Fa error
+argument must be set to
+.Dv EOPNOTSUPP .
+.Pp
+Else the watchdog should be reset and configured to a timeout of
+.Pq 1 << Pq Fa cmd No & Dv WD_INTERVAL
+nanoseconds or larger and the
+.Fa error
+argument be set to zero to signal arming of a watchdog.
+.Pp
+If the watchdog cannot be configured to the proposed timeout, it
+must be disabled and the
+.Fa error
+argument left as is (to avoid hiding the arming of another watchdog).
+.Pp
+There is no specification of what the watchdog should do when it
+times out, but a hardware reset or similar
+.Dq "drastic but certain"
+behaviour is recommended.
+.Sh SEE ALSO
+.Xr watchdog 4
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+facility and this manual page was written
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .

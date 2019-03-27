@@ -1,0 +1,192 @@
+.\" Copyright (c) 2014 Andriy Gapon <avg@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 15, 2014
+.Dt GPTZFSBOOT 8
+.Os
+.Sh NAME
+.Nm gptzfsboot
+.Nd GPT bootcode for ZFS on BIOS-based computers
+.Sh DESCRIPTION
+.Nm
+is used on BIOS-based computers to boot from a filesystem in
+a ZFS pool.
+.Nm
+is installed in a
+.Cm freebsd-boot
+partition of a GPT-partitioned disk with
+.Xr gpart 8 .
+.Sh IMPLEMENTATION NOTES
+The GPT standard allows a variable number of partitions, but
+.Nm
+only boots from tables with 128 partitions or less.
+.Sh BOOTING
+.Nm
+tries to find all ZFS pools that are composed of BIOS-visible
+hard disks or partitions on them.
+.Nm
+looks for ZFS device labels on all visible disks and in discovered
+supported partitions for all supported partition scheme types.
+The search starts with the disk from which
+.Nm
+itself was loaded.
+Other disks are probed in BIOS defined order.
+After a disk is probed and
+.Nm
+determines that the whole disk is not a ZFS pool member, the
+individual partitions are probed in their partition table order.
+Currently GPT and MBR partition schemes are supported.
+With the GPT scheme, only partitions of type
+.Cm freebsd-zfs
+are probed.
+The first pool seen during probing is used as a default boot pool.
+.Pp
+The filesystem specified by the
+.Cm bootfs
+property of the pool is used as a default boot filesystem.
+If the
+.Cm bootfs
+property is not set, then the root filesystem of the pool is used as
+the default.
+.Xr loader 8
+is loaded from the boot filesystem.
+If
+.Pa /boot.config
+or
+.Pa /boot/config
+is present in the boot filesystem, boot options are read from it
+in the same way as
+.Xr boot 8 .
+.Pp
+The ZFS GUIDs of the first successfully probed device and the first
+detected pool are made available to
+.Xr loader 8
+in the
+.Cm vfs.zfs.boot.primary_vdev
+and
+.Cm vfs.zfs.boot.primary_pool
+variables.
+.Sh USAGE
+Normally
+.Nm
+will boot in fully automatic mode.
+However, like
+.Xr boot 8 ,
+it is possible to interrupt the automatic boot process and interact with
+.Nm
+through a prompt.
+.Nm
+accepts all the options that
+.Xr boot 8
+supports.
+.Pp
+The filesystem specification and the path to
+.Xr loader 8
+are different from
+.Xr boot 8 .
+The format is
+.Pp
+.Sm off
+.Oo zfs:pool/filesystem: Oc Oo /path/to/loader Oc
+.Sm on
+.Pp
+Both the filesystem and the path can be specified.
+If only a path is specified, then the default filesystem is used.
+If only a pool and filesystem are specified, then
+.Pa /boot/loader
+is used as a path.
+.Pp
+Additionally, the
+.Ic status
+command can be used to query information about discovered pools.
+The output format is similar to that of
+.Cm zpool status
+.Pq see Xr zpool 8 .
+.Pp
+The configured or automatically determined ZFS boot filesystem is
+stored in the
+.Xr loader 8
+.Cm loaddev
+variable, and also set as the initial value of the
+.Cm currdev
+variable.
+.Sh FILES
+.Bl -tag -width /boot/gptzfsboot -compact
+.It Pa /boot/gptzfsboot
+boot code binary
+.It Pa /boot.config
+parameters for the boot block
+.Pq optional
+.It Pa /boot/config
+alternative parameters for the boot block
+.Pq optional
+.El
+.Sh EXAMPLES
+.Nm
+is typically installed in combination with a
+.Dq protective MBR
+.Po
+see
+.Xr gpart 8
+.Pc .
+To install
+.Nm
+on the
+.Pa ada0
+drive:
+.Bd -literal -offset indent
+gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 ada0
+.Ed
+.Pp
+.Nm
+can also be installed without the PMBR:
+.Bd -literal -offset indent
+gpart bootcode -p /boot/gptzfsboot -i 1 ada0
+.Ed
+.Sh SEE ALSO
+.Xr boot.config 5 ,
+.Xr boot 8 ,
+.Xr gpart 8 ,
+.Xr loader 8 ,
+.Xr zpool 8
+.Sh HISTORY
+.Nm
+appeared in FreeBSD 7.3.
+.Sh AUTHORS
+This manual page was written by
+.An Andriy Gapon Aq avg@FreeBSD.org .
+.Sh BUGS
+.Nm
+looks for ZFS meta-data only in MBR partitions
+.Pq known on FreeBSD as slices .
+It does not look into BSD
+.Xr disklabel 8
+partitions that are traditionally called partitions.
+If a disklabel partition happens to be placed so that ZFS meta-data can be
+found at the fixed offsets relative to a slice, then
+.Nm
+will recognize the partition as a part of a ZFS pool,
+but this is not guaranteed to happen.

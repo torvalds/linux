@@ -1,0 +1,160 @@
+.\" Copyright (c) 2002 Tim J. Robbins.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 20, 2002
+.Dt TABS 1
+.Os
+.Sh NAME
+.Nm tabs
+.Nd set terminal tabs
+.Sh SYNOPSIS
+.Nm
+.Op Fl Ar n | Fl a | a2 | c | c2 | c3 | f | p | s | u
+.Op Cm +m Ns Op Ar n
+.Op Fl T Ar type
+.Nm
+.Op Fl T Ar type
+.Op Cm + Ns Op Ar n
+.Ar n1 Ns Op Ns , Ns Ar n2 , Ns ...
+.Sh DESCRIPTION
+The
+.Nm
+utility displays a series of characters that clear the hardware terminal
+tab settings then initialises tab stops at specified positions, and
+optionally adjusts the margin.
+.Pp
+In the first synopsis form, the tab stops set depend on the command line
+options used, and may be one of the predefined formats or at regular
+intervals.
+.Pp
+In the second synopsis form, tab stops are set at positions
+.Ar n1 , n2 ,
+etc.
+If a position is preceded by a
+.Ql + ,
+it is relative to the previous position set.
+No more than 20 positions may be specified.
+.Pp
+If no tab stops are specified, the
+.Dq standard
+.Ux
+tab width of 8 is used.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl Ar n
+Set a tab stop every
+.Ar n
+columns.
+If
+.Ar n
+is 0, the tab stops are cleared but no new ones are set.
+.It Fl a
+Assembler format (columns 1, 10, 16, 36, 72).
+.It Fl a2
+Assembler format (columns 1, 10, 16, 40, 72).
+.It Fl c
+.Tn COBOL
+normal format (columns 1, 8, 12, 16, 20, 55)
+.It Fl c2
+.Tn COBOL
+compact format (columns 1, 6, 10, 14, 49)
+.It Fl c3
+.Tn COBOL
+compact format (columns 1, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46,
+50, 54, 58, 62, 67).
+.It Fl f
+.Tn FORTRAN
+format (columns 1, 7, 11, 15, 19, 23).
+.It Fl p
+.Tn PL/1
+format (columns 1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53,
+57, 61).
+.It Fl s
+.Tn SNOBOL
+format (columns 1, 10, 55).
+.It Fl u
+Assembler format (columns 1, 12, 20, 44).
+.It Xo
+.Cm +m Ns Op Ar n ,
+.Cm + Ns Op Ar n
+.Xc
+Set an
+.Ar n
+character left margin, or 10 if
+.Ar n
+is omitted.
+.It Fl T Ar type
+Output escape sequence for the terminal type
+.Ar type .
+.El
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL , LC_CTYPE
+and
+.Ev TERM
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Pp
+The
+.Fl T
+option overrides the setting of the
+.Ev TERM
+environment variable.
+If neither
+.Ev TERM
+nor the
+.Fl T
+option are present,
+.Nm
+will fail.
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr expand 1 ,
+.Xr stty 1 ,
+.Xr tput 1 ,
+.Xr unexpand 1 ,
+.Xr termcap 5
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+A
+.Nm
+utility appeared in PWB UNIX.
+This implementation was introduced in
+.Fx 5.0 .
+.Sh BUGS
+The current
+.Xr termcap 5
+database does not define the
+.Ql ML
+(set left soft margin) capability for any terminals.

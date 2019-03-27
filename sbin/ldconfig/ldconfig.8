@@ -1,0 +1,201 @@
+.\"
+.\" Copyright (c) 1993 Paul Kranenburg
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Paul Kranenburg.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 6, 2018
+.Dt LDCONFIG 8
+.Os
+.Sh NAME
+.Nm ldconfig
+.Nd configure the shared library cache
+.Sh SYNOPSIS
+.Nm
+.Op Fl 32
+.Op Fl aout | Fl elf
+.Op Fl Rimrsv
+.Op Fl f Ar hints_file
+.Op Ar directory | Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to prepare a set of
+.Dq hints
+for use by the dynamic linker
+to facilitate quick lookup of shared libraries available in multiple
+directories.
+It scans a set of built-in system directories and any
+.Ar directories
+specified on the command line (in the given order) looking for
+shared libraries and stores the results in a system file to forestall
+the overhead that would otherwise result from the directory search
+operations the dynamic linker would have to perform to load the
+required shared libraries.
+.Pp
+Alternatively,
+.Ar files
+may be specified; these are expected to contain directories
+to scan for shared libraries.
+Each directory's pathname must start on a new
+line.
+Blank lines and lines starting with the comment character
+.Ql \&#
+are ignored.
+Filenames must conform to the
+.Pa lib*.so.[0-9]
+pattern in order to be added to the hints file.
+.Pp
+For security reasons, directories which are world or group-writable or which
+are not owned by root produce warning messages and are skipped, unless
+the
+.Fl i
+option is present.
+.Pp
+The shared libraries which are found will be automatically available for loading
+if needed by the program being prepared for execution.
+This obviates the need
+for storing search paths within the executable.
+.Pp
+The
+.Ev LD_LIBRARY_PATH
+environment variable can be used to override the use of
+directories (or the order thereof) from the cache or to specify additional
+directories where shared libraries might be found.
+.Ev LD_LIBRARY_PATH
+is a
+.Sq \&:
+separated list of directory paths which are searched by
+the dynamic linker
+when it needs to load a shared library.
+It can be viewed as the run-time
+equivalent of the
+.Fl L
+switch of
+.Xr ld 1 .
+.Pp
+The
+.Nm
+utility is typically run as part of the boot sequence.
+.Pp
+The following options are recognized by
+.Nm :
+.Bl -tag -width indent
+.It Fl 32
+Generate the hints for 32-bit ABI shared libraries
+on 64-bit systems that support running 32-bit binaries.
+.It Fl aout
+Generate the hints for a.out format shared libraries.
+.It Fl elf
+Generate the hints for ELF format shared libraries.
+.It Fl R
+Rescan the previously configured directories.
+This opens the previous hints
+file and fetches the directory list from the header.
+Any additional pathnames
+on the command line are also processed.
+This is the default action when no parameters are given.
+.It Fl f Ar hints_file
+Read and/or update the specified hints file, instead of the standard file.
+This option is provided primarily for testing.
+.It Fl i
+Run in insecure mode.
+The security checks will not be performed.
+.It Fl m
+Instead of replacing the contents of the hints file
+with those found in the directories specified,
+.Dq merge
+in new entries.
+Directories recorded in the hints file by previous runs of
+.Nm
+are also rescanned for new shared libraries.
+.It Fl r
+List the current contents of the hints file
+on the standard output.
+The hints file is not modified.
+The list of
+directories stored in the hints file is included.
+.It Fl s
+Do not scan the built-in system directory
+.Pq Dq /usr/lib
+for shared libraries.
+.It Fl v
+Switch on verbose mode.
+.El
+.Sh SECURITY
+Special care must be taken when loading shared libraries into the address
+space of
+.Ev set-user-Id
+programs.
+Whenever such a program is run by any user except the owner of the program,
+the dynamic linker
+will only load shared libraries from the hints
+file.
+In particular, the
+.Ev LD_LIBRARY_PATH
+is not used to search for libraries.
+Thus, the role of
+.Nm
+is dual.
+In addition to building a set of hints for quick lookup, it also serves to
+specify the trusted collection of directories from which shared objects can
+be safely loaded.
+.Sh FILES
+.Bl -tag -width /var/run/ld-elf.so.hintsxxx -compact
+.It Pa /var/run/ld.so.hints
+Standard hints file for the a.out dynamic linker.
+.It Pa /var/run/ld-elf.so.hints
+Standard hints file for the ELF dynamic linker.
+.It Pa /etc/ld.so.conf
+Conventional configuration file containing directory names for
+invocations with
+.Fl aout .
+.It Pa /etc/ld-elf.so.conf
+Conventional configuration file containing directory names for
+invocations with
+.Fl elf .
+.It Pa /var/run/ld-elf32.so.hints
+.It Pa /var/run/ld32.so.hints
+Conventional configuration files containing directory names for
+invocations with
+.Fl 32 .
+.El
+.Sh SEE ALSO
+.Xr ld 1 ,
+.Xr link 5
+.Sh HISTORY
+A
+.Nm
+utility first appeared in SunOS 4.0, it appeared in its current form
+in
+.Fx 1.1 .
+.Sh BUGS
+Some security checks (for example, verifying root ownership of
+added directories) are not performed when
+.Fl aout
+is specified.

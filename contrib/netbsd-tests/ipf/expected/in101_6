@@ -1,0 +1,4 @@
+rewrite in on bge0 inet6 proto icmp from 1:1:1::1/128 to 2:2::2:2/128 -> src 3:3:3::3/128 dst 4::4:4:4/128;
+rewrite in on bge0 inet6 proto udp from 1:1:1::1/128 to 2:2::2:2/128 -> src 3:3:3::3/128 dst 4::4:4:4/128;
+rewrite out on bge0 inet6 proto tcp from 1:1:1::1/128 to 2:2::2:2/128 -> src 3::/24 dst 4::4:4:4/128;
+rewrite in on bge0 inet6 proto tcp/udp from 1:1:1::1/128 to 2:2::/32 -> src 3::/24,20202 dst 4::/24,10101;

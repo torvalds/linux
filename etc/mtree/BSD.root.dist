@@ -1,0 +1,126 @@
+# $FreeBSD$
+#
+# Please see the file src/etc/mtree/README before making changes to this file.
+#
+
+/set type=dir uname=root gname=wheel mode=0755
+.
+    bin
+    ..
+    boot
+        defaults
+        ..
+        dtb
+            allwinner             tags=package=runtime
+            ..
+            overlays              tags=package=runtime
+            ..
+            rockchip              tags=package=runtime
+            ..
+        ..
+        firmware
+        ..
+        lua
+        ..
+        kernel
+        ..
+        modules
+        ..
+        uboot
+        ..
+        zfs
+        ..
+    ..
+    dev             mode=0555
+    ..
+    etc
+        X11
+        ..
+        authpf
+        ..
+        autofs
+        ..
+        bluetooth
+        ..
+        cron.d
+        ..
+        defaults
+        ..
+        devd
+        ..
+        dma
+        ..
+        gss
+        ..
+        mail
+        ..
+        mtree
+        ..
+        newsyslog.conf.d
+        ..
+        ntp             mode=0700
+        ..
+        pam.d
+        ..
+        periodic
+            daily
+            ..
+            monthly
+            ..
+            security
+            ..
+            weekly
+            ..
+        ..
+        pkg
+        ..
+        ppp
+        ..
+        rc.conf.d
+        ..
+        rc.d
+        ..
+        security
+        ..
+        ssh
+        ..
+        ssl
+        ..
+        syslog.d
+        ..
+        zfs
+        ..
+    ..
+    lib
+        casper
+        ..
+        geom
+        ..
+        nvmecontrol
+        ..
+    ..
+    libexec
+        resolvconf
+        ..
+    ..
+    media
+    ..
+    mnt
+    ..
+    net
+    ..
+    proc            mode=0555
+    ..
+    rescue
+    ..
+    root
+    ..
+    sbin
+    ..
+    tmp             mode=01777
+    ..
+    usr
+    ..
+    var
+    ..
+..

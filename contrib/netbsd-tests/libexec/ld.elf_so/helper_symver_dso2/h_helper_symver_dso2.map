@@ -1,0 +1,13 @@
+#	$NetBSD: h_helper_symver_dso2.map,v 1.1 2011/06/25 05:45:13 nonaka Exp $
+
+V_1 {
+	testfunc;
+};
+
+V_2 {
+	testfunc;
+};
+
+V_3 {
+	testfunc;
+};

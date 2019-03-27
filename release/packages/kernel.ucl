@@ -1,0 +1,22 @@
+#
+# $FreeBSD$
+#
+
+name = "FreeBSD-%PKGNAME%"
+origin = "base"
+version = "%VERSION%"
+comment = "%COMMENT% %VCS_REVISION%"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "https://www.FreeBSD.org"
+prefix = "/"
+licenselogic = "single"
+licenses = [ BSD2CLAUSE ]
+desc = <<EOD
+%DESC%
+EOD
+scripts: {
+	post-install = <<EOD
+	/usr/sbin/kldxref ${PKG_ROOTDIR}/boot/%KERNELDIR%
+EOD
+}

@@ -1,0 +1,292 @@
+#
+# Copyright (c) 2005-2006 The FreeBSD Project
+# All rights reserved.
+#
+# Author: Victor Cruceru <soc-victor@freebsd.org>
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+# This is the .def file for both HOST-RESOURCES-MIB and HOST-RESOURCES-TYPES
+#
+
+(1 internet
+  (2 mgmt
+    (1 mib_2
+      (25 host
+        (1 hrSystem
+          (1 hrSystemUptime TIMETICKS op_hrSystem GET)
+          (2 hrSystemDate OCTETSTRING op_hrSystem GET SET)
+          (3 hrSystemInitialLoadDevice INTEGER op_hrSystem GET SET)
+          (4 hrSystemInitialLoadParameters OCTETSTRING op_hrSystem GET SET)
+          (5 hrSystemNumUsers GAUGE op_hrSystem GET)
+          (6 hrSystemProcesses GAUGE op_hrSystem GET)
+          (7 hrSystemMaxProcesses INTEGER op_hrSystem GET)
+        )
+        (2 hrStorage
+          (1 hrStorageTypes
+            (1 hrStorageOther
+            )
+            (2 hrStorageRam
+            )
+            (3 hrStorageVirtualMemory
+            )
+            (4 hrStorageFixedDisk
+            )
+            (5 hrStorageRemovableDisk
+            )
+            (6 hrStorageFloppyDisk
+            )
+            (7 hrStorageCompactDisc
+            )
+            (8 hrStorageRamDisk
+            )
+            (9 hrStorageFlashMemory
+            )
+            (10 hrStorageNetworkDisk
+            )
+          )
+          (2 hrMemorySize INTEGER op_hrStorage GET)
+          (3 hrStorageTable
+            (1 hrStorageEntry : INTEGER op_hrStorageTable
+              (1 hrStorageIndex INTEGER GET)
+              (2 hrStorageType OID GET)
+              (3 hrStorageDescr OCTETSTRING GET)
+              (4 hrStorageAllocationUnits INTEGER GET)
+              (5 hrStorageSize INTEGER GET SET)
+              (6 hrStorageUsed INTEGER GET)
+              (7 hrStorageAllocationFailures COUNTER GET)
+            )
+          )
+        )
+        (3 hrDevice
+          (1 hrDeviceTypes
+            (1 hrDeviceOther
+            )
+            (2 hrDeviceUnknown
+            )
+            (3 hrDeviceProcessor
+            )
+            (4 hrDeviceNetwork
+            )
+            (5 hrDevicePrinter
+            )
+            (6 hrDeviceDiskStorage
+            )
+            (10 hrDeviceVideo
+            )
+            (11 hrDeviceAudio
+            )
+            (12 hrDeviceCoprocessor
+            )
+            (13 hrDeviceKeyboard
+            )
+            (14 hrDeviceModem
+            )
+            (15 hrDeviceParallelPort
+            )
+            (16 hrDevicePointing
+            )
+            (17 hrDeviceSerialPort
+            )
+            (18 hrDeviceTape
+            )
+            (19 hrDeviceClock
+            )
+            (20 hrDeviceVolatileMemory
+            )
+            (21 hrDeviceNonVolatileMemory
+            )
+          )
+          (2 hrDeviceTable
+            (1 hrDeviceEntry : INTEGER op_hrDeviceTable
+              (1 hrDeviceIndex INTEGER GET)
+              (2 hrDeviceType OID GET)
+              (3 hrDeviceDescr OCTETSTRING GET)
+              (4 hrDeviceID OID GET)
+              (5 hrDeviceStatus INTEGER GET)
+              (6 hrDeviceErrors COUNTER GET)
+            )
+          )
+          (3 hrProcessorTable
+            (1 hrProcessorEntry : INTEGER op_hrProcessorTable
+              (1 hrProcessorFrwID OID GET)
+              (2 hrProcessorLoad INTEGER GET)
+            )
+          )
+          (4 hrNetworkTable
+            (1 hrNetworkEntry : INTEGER op_hrNetworkTable
+              (1 hrNetworkIfIndex INTEGER GET)
+            )
+          )
+          (5 hrPrinterTable
+            (1 hrPrinterEntry : INTEGER op_hrPrinterTable
+              (1 hrPrinterStatus INTEGER GET)
+              (2 hrPrinterDetectedErrorState OCTETSTRING GET)
+            )
+          )
+          (6 hrDiskStorageTable
+            (1 hrDiskStorageEntry : INTEGER op_hrDiskStorageTable
+              (1 hrDiskStorageAccess INTEGER GET)
+              (2 hrDiskStorageMedia INTEGER GET)
+              (3 hrDiskStorageRemovable INTEGER GET)
+              (4 hrDiskStorageCapacity INTEGER GET)
+            )
+          )
+          (7 hrPartitionTable
+            (1 hrPartitionEntry : INTEGER INTEGER op_hrPartitionTable
+              (1 hrPartitionIndex INTEGER GET)
+              (2 hrPartitionLabel OCTETSTRING GET)
+              (3 hrPartitionID OCTETSTRING GET)
+              (4 hrPartitionSize INTEGER GET)
+              (5 hrPartitionFSIndex INTEGER GET)
+            )
+          )
+          (8 hrFSTable
+            (1 hrFSEntry : INTEGER op_hrFSTable
+              (1 hrFSIndex INTEGER GET)
+              (2 hrFSMountPoint OCTETSTRING GET)
+              (3 hrFSRemoteMountPoint OCTETSTRING GET)
+              (4 hrFSType OID GET)
+              (5 hrFSAccess INTEGER GET)
+              (6 hrFSBootable INTEGER GET)
+              (7 hrFSStorageIndex INTEGER GET)
+              (8 hrFSLastFullBackupDate OCTETSTRING GET SET)
+              (9 hrFSLastPartialBackupDate OCTETSTRING GET SET)
+            )
+          )
+          (9 hrFSTypes
+            (1 hrFSOther
+            )
+            (2 hrFSUnknown
+            )
+            (3 hrFSBerkeleyFFS
+            )
+            (4 hrFSSys5FS
+            )
+            (5 hrFSFat
+            )
+            (6 hrFSHPFS
+            )
+            (7 hrFSHFS
+            )
+            (8 hrFSMFS
+            )
+            (9 hrFSNTFS
+            )
+            (10 hrFSVNode
+            )
+            (11 hrFSJournaled
+            )
+            (12 hrFSiso9660
+            )
+            (13 hrFSRockRidge
+            )
+            (14 hrFSNFS
+            )
+            (15 hrFSNetware
+            )
+            (16 hrFSAFS
+            )
+            (17 hrFSDFS
+            )
+            (18 hrFSAppleshare
+            )
+            (19 hrFSRFS
+            )
+            (20 hrFSDGCFS
+            )
+            (21 hrFSBFS
+            )
+            (22 hrFSFAT32
+            )
+            (23 hrFSLinuxExt2
+            )
+          )
+        )
+        (4 hrSWRun
+          (1 hrSWOSIndex INTEGER op_hrSWRun GET)
+          (2 hrSWRunTable
+            (1 hrSWRunEntry : INTEGER op_hrSWRunTable
+              (1 hrSWRunIndex INTEGER GET)
+              (2 hrSWRunName OCTETSTRING GET)
+              (3 hrSWRunID OID GET)
+              (4 hrSWRunPath OCTETSTRING GET)
+              (5 hrSWRunParameters OCTETSTRING GET)
+              (6 hrSWRunType INTEGER GET)
+              (7 hrSWRunStatus INTEGER GET SET)
+            )
+          )
+        )
+        (5 hrSWRunPerf
+          (1 hrSWRunPerfTable
+            (1 hrSWRunPerfEntry : INTEGER op_hrSWRunPerfTable
+              (1 hrSWRunPerfCPU INTEGER GET)
+              (2 hrSWRunPerfMem INTEGER GET)
+            )
+          )
+        )
+        (6 hrSWInstalled
+          (1 hrSWInstalledLastChange TIMETICKS op_hrSWInstalled GET)
+          (2 hrSWInstalledLastUpdateTime TIMETICKS op_hrSWInstalled GET)
+          (3 hrSWInstalledTable
+            (1 hrSWInstalledEntry : INTEGER op_hrSWInstalledTable
+              (1 hrSWInstalledIndex INTEGER GET)
+              (2 hrSWInstalledName OCTETSTRING GET)
+              (3 hrSWInstalledID OID GET)
+              (4 hrSWInstalledType INTEGER GET)
+              (5 hrSWInstalledDate OCTETSTRING GET)
+            )
+          )
+        )
+        (7 hrMIBAdminInfo
+          (1 hostResourcesMibModule
+          )
+          (2 hrMIBCompliances
+          )
+          (3 hrMIBGroups
+          )
+        )
+      )
+    )
+  )
+  (4 private
+    (1 enterprises
+      (12325 fokus
+        (1 begemot
+          (202 begemotHostres
+            (1 begemotHostresObjects
+	      (1 begemotHrStorageUpdate TIMETICKS op_begemot GET SET)
+	      (2 begemotHrFSUpdate TIMETICKS op_begemot GET SET)
+	      (3 begemotHrDiskStorageUpdate TIMETICKS op_begemot GET SET)
+	      (4 begemotHrNetworkUpdate TIMETICKS op_begemot GET SET)
+	      (5 begemotHrSWInstalledUpdate TIMETICKS op_begemot GET SET)
+	      (6 begemotHrSWRunUpdate TIMETICKS op_begemot GET SET)
+	      (7 begemotHrPkgDir OCTETSTRING op_begemot GET SET)
+	    )
+	  )
+	)
+      )
+    )
+  )
+)

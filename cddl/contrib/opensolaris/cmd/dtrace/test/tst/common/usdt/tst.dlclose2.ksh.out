@@ -1,0 +1,2 @@
+livelib.so:go:go
+

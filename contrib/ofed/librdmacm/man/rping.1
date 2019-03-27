@@ -1,0 +1,60 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RPING" 1 "2007-05-15" "librdmacm" "librdmacm" librdmacm
+.SH NAME
+rping \- RDMA CM connection and RDMA ping-pong test.
+.SH SYNOPSIS
+.sp
+.nf
+\fIrping\fR -s [-v] [-V] [-d] [-P] [-a address] [-p port]
+		[-C message_count] [-S message_size]
+\fIrping\fR -c [-v] [-V] [-d] [-I address] -a address [-p port]
+		[-C message_count] [-S message_size]
+.fi
+.SH "DESCRIPTION"
+Establishes a reliable RDMA connection between two nodes using the
+librdmacm, optionally performs RDMA transfers between the nodes,
+then disconnects.
+.SH "OPTIONS"
+.TP
+\-s
+Run as the server.
+.TP
+\-c
+Run as the client.
+.TP
+\-a address
+On the server, specifies the network address to bind the connection to.
+To bind to any address with IPv6 use -a ::0 .
+On the client, specifies the server address to connect to.
+.TP
+\-I address
+The address to bind to as the source IP address to use. This is useful
+if you have multiple addresses on the same network or complex routing.
+.TP
+\-p
+Port number for listening server.
+.TP
+\-v
+Display ping data.
+.TP
+\-V
+Validate ping data.
+.TP
+\-d
+Display debug information.
+.TP
+\-C message_count
+The number of messages to transfer over each connection.  (default infinite)
+.TP
+\-S message_size
+The size of each message transferred, in bytes.  (default 100)
+.TP
+\-P
+Run the server in persistent mode.  This allows multiple rping clients
+to connect to a single server instance. The server will run until killed.
+.SH "NOTES"
+Because this test maps RDMA resources to userspace, users must ensure
+that they have available system resources and permissions.  See the
+libibverbs README file for additional details.
+.SH "SEE ALSO"
+rdma_cm(7), ucmatose(1), udaddy(1), mckey(1)

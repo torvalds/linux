@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to avoid installing examples to
+.Pa /usr/share/examples/ .

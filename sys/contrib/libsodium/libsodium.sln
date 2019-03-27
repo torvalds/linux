@@ -1,0 +1,40 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libsodium", "libsodium.vcxproj", "{A185B162-6CB6-4502-B03F-B56F7699A8D9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		DebugDLL|Win32 = DebugDLL|Win32
+		DebugDLL|x64 = DebugDLL|x64
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+		ReleaseDLL|Win32 = ReleaseDLL|Win32
+		ReleaseDLL|x64 = ReleaseDLL|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.Debug|Win32.Build.0 = Debug|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.Debug|x64.ActiveCfg = Debug|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.Debug|x64.Build.0 = Debug|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.DebugDLL|Win32.ActiveCfg = DebugDLL|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.DebugDLL|Win32.Build.0 = DebugDLL|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.DebugDLL|x64.ActiveCfg = DebugDLL|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.DebugDLL|x64.Build.0 = DebugDLL|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.Release|Win32.ActiveCfg = Release|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.Release|Win32.Build.0 = Release|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.Release|x64.ActiveCfg = Release|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.Release|x64.Build.0 = Release|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.ReleaseDLL|Win32.ActiveCfg = ReleaseDLL|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.ReleaseDLL|Win32.Build.0 = ReleaseDLL|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.ReleaseDLL|x64.ActiveCfg = ReleaseDLL|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.ReleaseDLL|x64.Build.0 = ReleaseDLL|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,212 @@
+.\" Copyright (c) 2018 Conrad Meyer <cem@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 5, 2018
+.Dt MODULE_PNP_INFO 9
+.Os
+.Sh NAME
+.Nm MODULE_PNP_INFO
+.Nd register plug and play information for device matching
+.\"
+.Sh SYNOPSIS
+.In sys/module.h
+.Fo MODULE_PNP_INFO
+.Fa "const char *descriptor_string"
+.Fa "bus"
+.Fa "module"
+.Fa "void *table"
+.Fa "size_t num_entries"
+.Fc
+.\"
+.Sh DESCRIPTION
+The
+.Fn MODULE_PNP_INFO
+macro registers a
+.Fa table
+of device-identifying data for use by
+.Xr devmatch 8 .
+Since it is built off module marking macros, it must follow a
+.Xr DRIVER_MODULE 9
+line.
+.Pp
+The macro takes a
+.Fa descriptor_string
+that describes the memory layout of table entries.
+The string is a series of members separated by semi-colons.
+Members are identified by a type and a name.
+They are encoded in the descriptor string by concatenating the type with a
+colon, followed by the name.
+(The special type
+.Vt W32
+represents two members.
+The first name is encoded like any other type.
+The second name is encoded by appending a forward slash and the second
+name after the first.)
+.Pp
+Types are one of the following:
+.Bl -tag -width U16
+.It Dq Vt U8
+.Vt uint8_t
+element.
+.It Dq Vt V8
+Same as
+.Vt U8 ,
+except that the sentinel value 0xFF matches any.
+.It Dq Vt G16
+.Vt uint16_t
+element; any value greater than or equal matches.
+.It Dq Vt L16
+.Vt uint16_t
+element; any value less than or equal matches.
+.It Dq Vt M16
+.Vt uint16_t
+element; mask of which of the following fields to use.
+.It Dq Vt U16
+.Vt uint16_t
+element.
+.It Dq Vt V16
+Same as
+.Vt U16 ,
+except that the sentinel value 0xFFFF matches any.
+.It Dq Vt U32
+.Vt uint32_t
+element.
+.It Dq Vt V32
+Same as
+.Vt U32 ,
+except that the sentinel value 0xFFFFFFFF matches any.
+.It Dq Vt W32
+Two
+.Vt uint16_t
+values; the first named member is in the least significant word and the second
+named member is in the most significant word.
+.It Dq Vt Z
+A pointer to a string to match exactly.
+.It Dq Vt D
+A pointer to a human readable description for the device.
+.It Dq Vt P
+A pointer that should be ignored.
+.It Dq Vt E
+EISA PNP Identifier.
+.It Dq Vt T
+PNP info that is true for the whole table.
+The driver code checks for these condition pragmatically before using
+this table to match devices.
+This item must come last in the list.
+.El
+.Pp
+The pseudo-name
+.Dq #
+is reserved for fields that should be ignored.
+Any member that does not match the parent device's pnpinfo output must be
+ignored.
+.Pp
+The
+.Fa bus
+parameter is an unquoted word naming the parent bus of the driver.
+For example,
+.Dq pci .
+.Pp
+The
+.Fa module
+parameter is also an unquoted word.
+It must be unique to the driver.
+Usually the driver's name is used.
+.Pp
+The
+.Fa table
+parameter points to the device matching data with entries matching the
+.Fa descriptor_string .
+.Pp
+The
+.Fa num_entries
+parameter is the number of entries in the table, i.e.,
+.Ql nitems(table) .
+Note that only valid entries should be included.
+If the table contains trailing zero or bogus values, they should not be
+included in
+.Fa num_entries .
+.\"
+.Sh EXAMPLES
+.Bl -tag -width ""
+.It Sy Example 1\&: No Using W32 for vendor/device pair
+.Pp
+The following example shows usage of
+.Vt W32
+type when vendor/device values are combined into single
+.Vt uint32_t
+value:
+.Bd -literal
+#include <sys/param.h>
+#include <sys/module.h>
+
+static struct my_pciids {
+	uint32_t devid;
+	const char *desc;
+} my_ids[] = {
+	{ 0x12345678, "Foo bar" },
+	{ 0x9abcdef0, "Baz fizz" },
+};
+
+MODULE_PNP_INFO("W32:vendor/device;D:#", pci, my_driver, my_ids,
+    nitems(my_ids));
+.Ed
+.It Sy Example 2\&: No Using T for common vendor value
+.Pp
+The following example shows usage of
+.Vt T
+type when all entries in the table have the same vendor value:
+.Bd -literal
+#include <sys/param.h>
+#include <sys/module.h>
+
+static struct my_pciids {
+	uint16_t device;
+	const char *desc;
+} my_ids[] = {
+	{ 0x9abc, "Foo bar" },
+	{ 0xdef0, "Baz fizz" },
+};
+
+MODULE_PNP_INFO("U16:device;D:#;T:vendor=0x1234", pci, my_driver,
+    my_ids, nitems(my_ids));
+.Ed
+.El
+.\"
+.Sh SEE ALSO
+.Xr devmatch 8 ,
+.Xr DRIVER_MODULE 9 ,
+.Xr module 9
+.Sh HISTORY
+The macro
+.Nm
+appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+The PNP framework and
+.Xr devmatch 8
+utility were written by
+.An Warner Losh Aq Mt imp@FreeBSD.org .

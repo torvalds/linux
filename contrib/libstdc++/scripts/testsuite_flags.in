@@ -1,0 +1,69 @@
+#!/bin/sh
+
+#
+# This script computes the various flags needed to run GNU C++ testsuites
+# (compiler specific as well as library specific). 
+#
+# Written by Benjamin Kosnik <bkoz@redhat.com>
+#            Gabriel Dos Reis <gdr@codesourcery.com>
+#
+
+# Print a message saying how this script is intended to be invoked
+print_usage() {
+    cat <<EOF
+Usage: 
+    testsuite_flags --install-includes
+		    --build-includes
+		    --build-cxx
+		    --install-cxx
+		    --cxxflags
+		    --cxxpchflags
+		    --cxxldflags
+EOF
+}
+
+# Establish configure-generated directory structure.
+BUILD_DIR=@glibcxx_builddir@
+SRC_DIR=@glibcxx_srcdir@
+PREFIX_DIR=@glibcxx_prefixdir@
+query=$1
+
+case ${query} in
+    --install-includes)
+      INCLUDES="-I${SRC_DIR}/testsuite/util"
+      echo ${INCLUDES}
+      ;;
+    --build-includes)
+      INCLUDES="-nostdinc++ @GLIBCXX_INCLUDES@ 
+                -I${SRC_DIR}/include/backward -I${SRC_DIR}/testsuite/util"
+      echo ${INCLUDES}
+      ;;
+    --install-cxx)
+      CXX=${PREFIX_DIR}/bin/g++
+      echo ${CXX}
+      ;;
+    --build-cxx)
+      CXX_build="@CXX@"
+      CXX=`echo "$CXX_build" | sed 's,gcc/xgcc ,gcc/g++ ,'`
+      echo ${CXX}
+      ;;
+    --cxxflags)
+      CXXFLAGS_save="-g -O2 -D_GLIBCXX_ASSERT"
+      CXXFLAGS_config='@SECTION_FLAGS@ -fmessage-length=0 
+ 		      @CXXFLAGS@ @EXTRA_CXX_FLAGS@ '
+      echo ${CXXFLAGS_save} ${CXXFLAGS_config}
+      ;;
+    --cxxpchflags)
+      PCHFLAGS="@glibcxx_PCHFLAGS@"
+      echo ${PCHFLAGS}
+      ;;
+    --cxxldflags)
+      SECTIONLDFLAGS="@SECTION_LDFLAGS@"
+      echo ${SECTIONLDFLAGS}
+      ;;
+    *)
+      print_usage
+      ;;
+esac
+
+exit 0

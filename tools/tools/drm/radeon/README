@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+firmwares	Tools to handle Radeon firmwares imported into the tree.
+mkregtable	Generate headers used to build the Radeon driver.

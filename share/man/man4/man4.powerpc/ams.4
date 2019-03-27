@@ -1,0 +1,86 @@
+.\"-
+.\" Copyright (c) 2009 Nathan Whitehorn <nwhitehorn@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 3, 2009
+.Dt AMS 4
+.Os
+.Sh NAME
+.Nm ams
+.Nd ADB Mouse Driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device adb"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for mice and trackpads attached to the Apple Desktop
+Bus (ADB) implementing both the base and extended ADB mouse protocols.
+.Sh HARDWARE
+Devices supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Apple Mouse
+.It
+ADB Extended Mouse
+.It
+MacAlly 2-Button Mouse
+.It
+Apple iBook Trackpad
+.It
+Apple PowerBook Trackpad
+.El
+.Sh SYSCTL VARIABLES
+.Bl -tag -width indent
+.It Va dev.ams.%d.tapping
+On ADB trackpads, setting this sysctl to 1 causes taps on the trackpad to
+be interpreted as button clicks.
+.El
+.Sh SEE ALSO
+Apple Tech Note HW01: ADB - The Untold Story: Space Aliens Ate My Mouse:
+.Pa http://developer.apple.com/legacy/mac/library/technotes/hw/hw_01.html
+.Pp
+.Xr adb 4 ,
+.Xr cuda 4 ,
+.Xr pmu 4
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Nathan Whitehorn Aq Mt nwhitehorn@FreeBSD.org .

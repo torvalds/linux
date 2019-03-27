@@ -1,0 +1,117 @@
+# $FreeBSD$
+# $OpenBSD: faq-example3,v 1.4 2006/10/07 04:48:01 mcbride Exp $
+
+#
+# Company Network
+# http://www.openbsd.org/faq/pf/queueing.html#example2
+#
+
+
+# enable queueing on the external interface to queue packets going out
+# to the Internet. use the cbq scheduler so that the bandwidth use of
+# each queue can be controlled. the max outgoing bandwidth is 1.5Mbps.
+
+altq on fxp0 cbq bandwidth 1.5Mb queue { std_ext, www_ext, boss_ext }
+
+# define the parameters for the child queues.
+# std_ext        - the standard queue. also the default queue for
+#                  outgoing traffic on fxp0.
+# www_ext        - container queue for WWW server queues. limit to
+#                  500Kbps.
+#   www_ext_http - http traffic from the WWW server; higher priority.
+#   www_ext_misc - all non-http traffic from the WWW server.
+# boss_ext       - traffic coming from the boss's computer.
+
+queue std_ext        bandwidth 500Kb cbq(default borrow)
+queue www_ext        bandwidth 500Kb { www_ext_http, www_ext_misc }
+  queue www_ext_http bandwidth 50% priority 3 cbq(red borrow)
+  queue www_ext_misc bandwidth 50% priority 1 cbq(borrow)
+queue boss_ext       bandwidth 500Kb priority 3 cbq(borrow)
+
+# enable queueing on the internal interface to control traffic coming
+# from the Internet or the DMZ. use the cbq scheduler to control the
+# bandwidth of each queue. bandwidth on this interface is set to the
+# maximum. traffic coming from the DMZ will be able to use all of this
+# bandwidth while traffic coming from the Internet will be limited to
+# 1.0Mbps (because 0.5Mbps (500Kbps) is being allocated to fxp1).
+
+altq on dc0 cbq bandwidth 100% queue { net_int, www_int }
+
+# define the parameters for the child queues.
+# net_int    - container queue for traffic from the Internet. bandwidth
+#              is 1.0Mbps.
+#   std_int  - the standard queue. also the default queue for outgoing
+#              traffic on dc0.
+#   it_int   - traffic to the IT Dept network; reserve them 500Kbps.
+#   boss_int - traffic to the boss's PC; assign a higher priority.
+# www_int    - traffic from the WWW server in the DMZ; full speed.
+
+queue net_int    bandwidth 1.0Mb { std_int, it_int, boss_int }
+  queue std_int  bandwidth 250Kb cbq(default borrow)
+  queue it_int   bandwidth 500Kb cbq(borrow)
+  queue boss_int bandwidth 250Kb priority 3 cbq(borrow)
+queue www_int    bandwidth 99Mb cbq(red borrow)
+
+# enable queueing on the DMZ interface to control traffic destined for
+# the WWW server. cbq will be used on this interface since detailed
+# control of bandwidth is necessary. bandwidth on this interface is set
+# to the maximum. traffic from the internal network will be able to use
+# all of this bandwidth while traffic from the Internet will be limited
+# to 500Kbps.
+
+altq on fxp1 cbq bandwidth 100% queue { internal_dmz, net_dmz }
+
+# define the parameters for the child queues.
+# internal_dmz   - traffic from the internal network.
+# net_dmz        - container queue for traffic from the Internet.
+#   net_dmz_http - http traffic; higher priority.
+#   net_dmz_misc - all non-http traffic. this is also the default queue.
+
+queue internal_dmz   bandwidth 99Mb cbq(borrow)
+queue net_dmz        bandwidth 500Kb { net_dmz_http, net_dmz_misc }
+  queue net_dmz_http bandwidth 50% priority 3 cbq(red borrow)
+  queue net_dmz_misc bandwidth 50% priority 1 cbq(default borrow)
+
+
+# ... in the filtering section of pf.conf ...
+
+main_net  = "192.168.0.0/24"
+it_net    = "192.168.1.0/24"
+int_nets  = "{ 192.168.0.0/24, 192.168.1.0/24 }"
+dmz_net   = "10.0.0.0/24"
+
+boss      = "192.168.0.200"
+wwwserv   = "10.0.0.100"
+
+# default deny
+block on { fxp0, fxp1, dc0 } all
+
+# filter rules for fxp0 inbound
+pass in on fxp0 proto tcp from any to $wwwserv port { 21, \
+        > 49151 } queue www_ext_misc
+pass in on fxp0 proto tcp from any to $wwwserv port 80 \
+        queue www_ext_http
+
+# filter rules for fxp0 outbound
+pass out on fxp0 from $int_nets to any
+pass out on fxp0 from $boss to any queue boss_ext
+
+# filter rules for dc0 inbound
+pass in on dc0 from $int_nets to any
+pass in on dc0 from $it_net to any queue it_int
+pass in on dc0 from $boss to any queue boss_int
+pass in on dc0 proto tcp from $int_nets to $wwwserv port { 21, 80, \
+        > 49151 } queue www_int
+
+# filter rules for dc0 outbound
+pass out on dc0 from dc0 to $int_nets
+
+# filter rules for fxp1 inbound
+pass in on fxp1 proto { tcp, udp } from $wwwserv to any port 53
+
+# filter rules for fxp1 outbound
+pass out on fxp1 proto tcp from any to $wwwserv port { 21, \
+        > 49151 } queue net_dmz_misc
+pass out on fxp1 proto tcp from any to $wwwserv port 80 queue net_dmz_http
+pass out on fxp1 proto tcp from $int_nets to $wwwserv port { 80, \
+        21, > 49151 } queue internal_dmz

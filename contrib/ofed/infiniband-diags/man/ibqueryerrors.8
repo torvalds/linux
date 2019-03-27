@@ -1,0 +1,339 @@
+.\" Man page generated from reStructuredText.
+.
+.TH IBQUERYERRORS 8 "" "" "OpenIB Diagnostics"
+.SH NAME
+IBQUERYERRORS \- query and report IB port counters
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH SYNOPSIS
+.sp
+ibqueryerrors [options]
+.SH DESCRIPTION
+.sp
+The default behavior is to report the port error counters which exceed a
+threshold for each port in the fabric.  The default threshold is zero (0).
+Error fields can also be suppressed entirely.
+.sp
+In addition to reporting errors on every port.  ibqueryerrors can report the
+port transmit and receive data as well as report full link information to the
+remote port if available.
+.SH OPTIONS
+.sp
+\fB\-s, \-\-suppress <err1,err2,...>\fP
+Suppress the errors listed in the comma separated list provided.
+.sp
+\fB\-c, \-\-suppress\-common\fP
+Suppress some of the common "side effect" counters.  These counters usually do
+not indicate an error condition and can be usually be safely ignored.
+.sp
+\fB\-r, \-\-report\-port\fP
+Report the port information.  This includes LID, port, external port (if
+applicable), link speed setting, remote GUID, remote port, remote external port
+(if applicable), and remote node description information.
+.sp
+\fB\-\-data\fP
+Include the optional transmit and receive data counters.
+.sp
+\fB\-\-threshold\-file <filename>\fP
+Specify an alternate threshold file.  The default is /etc/infiniband-diags/error_thresholds
+.sp
+\fB\-\-switch\fP  print data for switch\(aqs only
+.sp
+\fB\-\-ca\fP  print data for CA\(aqs only
+.sp
+\fB\-\-skip\-sl\fP  Use the default sl for queries. This is not recommended when
+using a QoS aware routing engine as it can cause a credit deadlock.
+.sp
+\fB\-\-router\fP  print data for routers only
+.sp
+\fB\-\-clear\-errors \-k\fP Clear error counters after read.
+.sp
+\fB\-\-clear\-counts \-K\fP Clear data counters after read.
+.sp
+\fBCAUTION\fP clearing data or error counters will occur regardless of if they
+are printed or not.  See \fB\-\-counters\fP and \fB\-\-data\fP for details on
+controling which counters are printed.
+.sp
+\fB\-\-details\fP include receive error and transmit discard details
+.sp
+\fB\-\-counters\fP print data counters only
+.SS Partial Scan flags
+.sp
+The node to start a partial scan can be specified with the following addresses.
+.\" Define the common option -G
+.
+.sp
+\fB\-\-port\-guid, \-G <port_guid>\fP  Specify a port_guid
+.\" Define the common option -D for Directed routes
+.
+.sp
+\fB\-D, \-\-Direct <dr_path>\fP     The address specified is a directed route
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+Examples:
+   \-D "0"          # self port
+   \-D "0,1,2,1,4"  # out via port 1, then 2, ...
+
+   (Note the second number in the path specified must match the port being
+   used.  This can be specified using the port selection flag \(aq\-P\(aq or the
+   port found through the automatic selection process.)
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBNote:\fP For switches results are printed for all ports not just switch port 0.
+.sp
+\fB\-S <port_guid>\fP same as "\-G". (provided only for backward compatibility)
+.SS Cache File flags
+.\" Define the common option load-cache
+.
+.sp
+\fB\-\-load\-cache <filename>\fP
+Load and use the cached ibnetdiscover data stored in the specified
+filename.  May be useful for outputting and learning about other
+fabrics or a previous state of a fabric.
+.SS Port Selection flags
+.\" Define the common option -C
+.
+.sp
+\fB\-C, \-\-Ca <ca_name>\fP    use the specified ca_name.
+.\" Define the common option -P
+.
+.sp
+\fB\-P, \-\-Port <ca_port>\fP    use the specified ca_port.
+.\" Explanation of local port selection
+.
+.SS Local port Selection
+.sp
+Multiple port/Multiple CA support: when no IB device or port is specified
+(see the "local umad parameters" below), the libibumad library
+selects the port to use by the following criteria:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP 1. 3
+the first port that is ACTIVE.
+.IP 2. 3
+if not found, the first port that is UP (physical link up).
+.UNINDENT
+.sp
+If a port and/or CA name is specified, the libibumad library attempts
+to fulfill the user request, and will fail if it is not possible.
+.sp
+For example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+ibaddr                 # use the first port (criteria #1 above)
+ibaddr \-C mthca1       # pick the best port from "mthca1" only.
+ibaddr \-P 2            # use the second (active/up) port from the first available IB device.
+ibaddr \-C mthca0 \-P 2  # use the specified port only.
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Configuration flags
+.\" Define the common option -z
+.
+.sp
+\fB\-\-config, \-z  <config_file>\fP Specify alternate config file.
+.INDENT 0.0
+.INDENT 3.5
+Default: /etc/infiniband-diags/ibdiag.conf
+.UNINDENT
+.UNINDENT
+.\" Define the common option -z
+.
+.INDENT 0.0
+.TP
+.B \fB\-\-outstanding_smps, \-o <val>\fP
+Specify the number of outstanding SMP\(aqs which should be issued during the scan
+.sp
+Default: 2
+.UNINDENT
+.\" Define the common option --node-name-map
+.
+.sp
+\fB\-\-node\-name\-map <node\-name\-map>\fP Specify a node name map.
+.INDENT 0.0
+.INDENT 3.5
+This file maps GUIDs to more user friendly names.  See FILES section.
+.UNINDENT
+.UNINDENT
+.\" Define the common option -t
+.
+.sp
+\fB\-t, \-\-timeout <timeout_ms>\fP override the default timeout for the solicited mads.
+.\" Define the common option -y
+.
+.INDENT 0.0
+.TP
+.B \fB\-y, \-\-m_key <key>\fP
+use the specified M_key for requests. If non\-numeric value (like \(aqx\(aq)
+is specified then a value will be prompted for.
+.UNINDENT
+.SS Debugging flags
+.\" Define the common option -d
+.
+.INDENT 0.0
+.TP
+.B \-d
+raise the IB debugging level.
+May be used several times (\-ddd or \-d \-d \-d).
+.UNINDENT
+.\" Define the common option -e
+.
+.INDENT 0.0
+.TP
+.B \-e
+show send and receive errors (timeouts and others)
+.UNINDENT
+.\" Define the common option -h
+.
+.sp
+\fB\-h, \-\-help\fP      show the usage message
+.\" Define the common option -v
+.
+.INDENT 0.0
+.TP
+.B \fB\-v, \-\-verbose\fP
+increase the application verbosity level.
+May be used several times (\-vv or \-v \-v \-v)
+.UNINDENT
+.\" Define the common option -V
+.
+.sp
+\fB\-V, \-\-version\fP     show the version info.
+.sp
+\fB\-R\fP  (This option is obsolete and does nothing)
+.SH EXIT STATUS
+.sp
+\fB\-1\fP if scan fails.
+.sp
+\fB0\fP if scan succeeds without errors beyond thresholds
+.sp
+\fB1\fP if errors are found beyond thresholds or inconsistencies are found in check mode.
+.SH FILES
+.SS ERROR THRESHOLD
+.sp
+/etc/infiniband-diags/error_thresholds
+.sp
+Define threshold values for errors.  File format is simple "name=val".
+Comments begin with \(aq#\(aq
+.sp
+\fBExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+# Define thresholds for error counters
+SymbolErrorCounter=10
+LinkErrorRecoveryCounter=10
+VL15Dropped=100
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.\" Common text for the config file
+.
+.SS CONFIG FILE
+.sp
+/etc/infiniband-diags/ibdiag.conf
+.sp
+A global config file is provided to set some of the common options for all
+tools.  See supplied config file for details.
+.\" Common text to describe the node name map file.
+.
+.SS NODE NAME MAP FILE FORMAT
+.sp
+The node name map is used to specify user friendly names for nodes in the
+output.  GUIDs are used to perform the lookup.
+.sp
+This functionality is provided by the opensm\-libs package.  See \fBopensm(8)\fP
+for the file location for your installation.
+.sp
+\fBGenerically:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+# comment
+<guid> "<name>"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+# IB1
+# Line cards
+0x0008f104003f125c "IB1 (Rack 11 slot 1   ) ISR9288/ISR9096 Voltaire sLB\-24D"
+0x0008f104003f125d "IB1 (Rack 11 slot 1   ) ISR9288/ISR9096 Voltaire sLB\-24D"
+0x0008f104003f10d2 "IB1 (Rack 11 slot 2   ) ISR9288/ISR9096 Voltaire sLB\-24D"
+0x0008f104003f10d3 "IB1 (Rack 11 slot 2   ) ISR9288/ISR9096 Voltaire sLB\-24D"
+0x0008f104003f10bf "IB1 (Rack 11 slot 12  ) ISR9288/ISR9096 Voltaire sLB\-24D"
+
+# Spines
+0x0008f10400400e2d "IB1 (Rack 11 spine 1   ) ISR9288 Voltaire sFB\-12D"
+0x0008f10400400e2e "IB1 (Rack 11 spine 1   ) ISR9288 Voltaire sFB\-12D"
+0x0008f10400400e2f "IB1 (Rack 11 spine 1   ) ISR9288 Voltaire sFB\-12D"
+0x0008f10400400e31 "IB1 (Rack 11 spine 2   ) ISR9288 Voltaire sFB\-12D"
+0x0008f10400400e32 "IB1 (Rack 11 spine 2   ) ISR9288 Voltaire sFB\-12D"
+
+# GUID   Node Name
+0x0008f10400411a08 "SW1  (Rack  3) ISR9024 Voltaire 9024D"
+0x0008f10400411a28 "SW2  (Rack  3) ISR9024 Voltaire 9024D"
+0x0008f10400411a34 "SW3  (Rack  3) ISR9024 Voltaire 9024D"
+0x0008f104004119d0 "SW4  (Rack  3) ISR9024 Voltaire 9024D"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH AUTHOR
+.INDENT 0.0
+.TP
+.B Ira Weiny
+< \fI\%ira.weiny@intel.com\fP >
+.UNINDENT
+.\" Generated by docutils manpage writer.
+.

@@ -1,0 +1,3 @@
+            owner@:r-x---a---c--s:-------:allow
+            group@:r-x---a---c--s:-------:allow
+         everyone@:r-x---a---c--s:-------:allow

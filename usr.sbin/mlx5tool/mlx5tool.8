@@ -1,0 +1,97 @@
+.\"
+.\" Copyright (c) 2018 Mellanox Technologies
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 8, 2018
+.Dt mlx5tool 8
+.Os
+.Sh NAME
+.Nm mlx5tool
+.Nd Utility for managing Connect-X 4/5 Mellanox network adapters
+.Sh SYNOPSIS
+.Nm
+.Fl d Ar domain:bus:slot:func
+.Fl e
+.Nm
+.Fl d Ar domain:bus:slot:func
+.Fl r
+.Nm
+.Fl d Ar domain:bus:slot:func
+.Fl o Ar file
+.Fl w
+.Sh DESCRIPTION
+The
+.Nm
+utility is provided for management of the Connect-X 4 and 5 network adapters
+in the aspects not covered by the generic
+.Xr ifconfig 8
+command, mostly related to the PCIe attachment and internal card working.
+The utility executes commands on specific adapter, which is addressed using
+.Em device:bus:slot:function
+conventions of the PCIe buses.
+You can match adapters ethernet name and addresses using the
+.X pciconf 8
+utility.
+The address is passed as an argument of the
+.Fl d
+option, which must be specified for each invocation.
+.Pp
+When the driver detects the malfunctioning of the hardware, or by user
+request, it is possible to create
+.Em firmware dump ,
+which contains debugging information about internal device state, for
+analysis of the failure by the Mellanox support team.
+.Pp
+The following commands are currently implemented:
+.Bl -tag -width indent
+.It Fl e
+Take the snapshot of the firmware registers state and store it in the
+kernel buffer.
+The buffer must be empty, in other words, no dumps should be written so
+far, or existing dump cleared with the
+.Fl r
+command for the specified device.
+.It Fl r
+Clear the stored firmware dump, preparing the kernel buffer for
+the next dump.
+.It Fl w
+Fetche the stored firmware dump and writes it into the file specified
+by the
+.Fl o
+option argument.
+.El
+.Sh FILES
+The
+.Pa /dev/mlx5ctl
+.Xr devfs 5
+node is used to pass commands to the driver.
+.Sh SEE ALSO
+.Xr mlx5en 4 ,
+.Xr mlx5ib 4 ,
+.Xr mlx5io 4 ,
+.Xr ifconfig 8
+and
+.Xr pciconf 8 .

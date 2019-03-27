@@ -1,0 +1,695 @@
+MANIFEST for byacc-20170430, version t20170430
+--------------------------------------------------------------------------------
+MANIFEST                        this file
+ACKNOWLEDGEMENTS                original version of byacc - 1993
+AUTHORS                         nicknames for some contributors (see CHANGES for details)
+Makefile.old                    renamed from Makefile
+NEW_FEATURES                    original version of byacc - 1993
+NOTES                           original version of byacc - 1993
+NO_WARRANTY                     original version of byacc - 1993
+README                          original version of byacc - 1993
+README.BTYACC                   byacc-btyacc-20140323
+VERSION                         patch-level
+aclocal.m4                      macros for configure-script
+btyaccpar.c                     generated from btyaccpar.skel
+btyaccpar.skel                  bytacc's parser skeleton (renamed from yaccpar.skel)
+closure.c                       original version of byacc - 1993
+config.guess                    configure-script utility
+config.sub                      configure-script utility
+config_h.in                     template for config.h
+configure                       snapshot 2004/3/28
+configure.in                    template for configure-script
+defs.h                          original version of byacc - 1993
+descrip.mms                     build-script for VMS
+error.c                         original version of byacc - 1993
+graph.c                         write the file y.dot in graphviz format
+install-sh                      install-script
+lalr.c                          original version of byacc - 1993
+lr0.c                           original version of byacc - 1993
+main.c                          original version of byacc - 1993
+makefile.in                     template for makefile
+mkpar.c                         original version of byacc - 1993
+mstring.c                       string-utilities
+output.c                        original version of byacc - 1993
+reader.c                        original version of byacc - 1993
+skel2c                          awk script to transform yaccpar.skel into skeleton.c
+symtab.c                        original version of byacc - 1993
+verbose.c                       original version of byacc - 1993
+vmsbuild.com                    build-script for VMS
+warshall.c                      original version of byacc - 1993
+yacc.1                          original version of byacc - 1993
+yaccpar.c                       generated from yaccpar.skel
+yaccpar.skel                    data which can be transformed into skeleton.c
+package                         subdirectory
+package/byacc.spec              RPM file for byacc
+package/debian                  subdirectory
+package/debian/changelog        scripts from Debian package
+package/debian/compat           scripts from Debian package
+package/debian/control          scripts from Debian package
+package/debian/copyright        scripts from Debian package
+package/debian/docs             scripts from Debian package
+package/debian/postinst         scripts from Debian package
+package/debian/prerm            scripts from Debian package
+package/debian/rules            scripts from Debian package
+package/debian/source           subdirectory
+package/debian/source/format    scripts from Debian package
+package/debian                  subdirectory
+package/debian/watch            scripts from Debian package
+package                         subdirectory
+package/mingw-byacc.spec        mingw spec-file, for cross-compiles
+package/pkgsrc                  subdirectory
+package/pkgsrc/DESCR            scripts from NetBSD pkgsrc, for test-builds
+package/pkgsrc/Makefile         scripts from NetBSD pkgsrc, for test-builds
+package/pkgsrc/PLIST            scripts from NetBSD pkgsrc, for test-builds
+package/pkgsrc/distinfo         scripts from NetBSD pkgsrc, for test-builds
+test                            subdirectory
+test/README                     describe contents of "test" subdirectory
+test/btyacc                     subdirectory
+test/btyacc/big_b.error         exercise -L/-B options
+test/btyacc/big_b.output        exercise -L/-B options
+test/btyacc/big_l.error         exercise -L/-B options
+test/btyacc/big_l.output        exercise -L/-B options
+test/btyacc/btyacc_calc1.error  reference output for testing
+test/btyacc/btyacc_calc1.output reference output for testing
+test/btyacc/btyacc_calc1.tab.c  reference output for testing
+test/btyacc/btyacc_calc1.tab.h  reference output for testing
+test/btyacc/btyacc_demo.error   reference output for testing
+test/btyacc/btyacc_demo.output  reference output for testing
+test/btyacc/btyacc_demo.tab.c   reference output for testing
+test/btyacc/btyacc_demo.tab.h   reference output for testing
+test/btyacc/btyacc_demo2.error  reference output for testing
+test/btyacc/btyacc_demo2.output reference output for testing
+test/btyacc/btyacc_demo2.tab.c  reference output for testing
+test/btyacc/btyacc_demo2.tab.h  reference output for testing
+test/btyacc/btyacc_destroy1.error  reference output for testing
+test/btyacc/btyacc_destroy1.output  reference output for testing
+test/btyacc/btyacc_destroy1.tab.c  reference output for testing
+test/btyacc/btyacc_destroy1.tab.h  reference output for testing
+test/btyacc/btyacc_destroy2.error  reference output for testing
+test/btyacc/btyacc_destroy2.output  reference output for testing
+test/btyacc/btyacc_destroy2.tab.c  reference output for testing
+test/btyacc/btyacc_destroy2.tab.h  reference output for testing
+test/btyacc/btyacc_destroy3.error  reference output for testing
+test/btyacc/btyacc_destroy3.output  reference output for testing
+test/btyacc/btyacc_destroy3.tab.c  reference output for testing
+test/btyacc/btyacc_destroy3.tab.h  reference output for testing
+test/btyacc/calc.error          reference output for testing
+test/btyacc/calc.output         reference output for testing
+test/btyacc/calc.tab.c          reference output for testing
+test/btyacc/calc.tab.h          reference output for testing
+test/btyacc/calc1.error         reference output for testing
+test/btyacc/calc1.output        reference output for testing
+test/btyacc/calc1.tab.c         reference output for testing
+test/btyacc/calc1.tab.h         reference output for testing
+test/btyacc/calc2.error         reference output for testing
+test/btyacc/calc2.output        reference output for testing
+test/btyacc/calc2.tab.c         reference output for testing
+test/btyacc/calc2.tab.h         reference output for testing
+test/btyacc/calc3.error         reference output for testing
+test/btyacc/calc3.output        reference output for testing
+test/btyacc/calc3.tab.c         reference output for testing
+test/btyacc/calc3.tab.h         reference output for testing
+test/btyacc/code_calc.code.c    reference output for testing
+test/btyacc/code_calc.error     reference output for testing
+test/btyacc/code_calc.output    reference output for testing
+test/btyacc/code_calc.tab.c     reference output for testing
+test/btyacc/code_calc.tab.h     reference output for testing
+test/btyacc/code_debug.c        reference for test-output
+test/btyacc/code_debug.error    reference for test-output
+test/btyacc/code_debug.h        reference for test-output
+test/btyacc/code_debug.i        reference for test-output
+test/btyacc/code_debug.output   reference for test-output
+test/btyacc/code_error.code.c   reference output for testing
+test/btyacc/code_error.error    reference output for testing
+test/btyacc/code_error.output   reference output for testing
+test/btyacc/code_error.tab.c    reference output for testing
+test/btyacc/code_error.tab.h    reference output for testing
+test/btyacc/empty.error         reference output for testing
+test/btyacc/empty.output        reference output for testing
+test/btyacc/empty.tab.c         reference output for testing
+test/btyacc/empty.tab.h         reference output for testing
+test/btyacc/err_inherit1.error  reference output for testing
+test/btyacc/err_inherit1.output reference output for testing
+test/btyacc/err_inherit1.tab.c  reference output for testing
+test/btyacc/err_inherit1.tab.h  reference output for testing
+test/btyacc/err_inherit2.error  reference output for testing
+test/btyacc/err_inherit2.output reference output for testing
+test/btyacc/err_inherit2.tab.c  reference output for testing
+test/btyacc/err_inherit2.tab.h  reference output for testing
+test/btyacc/err_inherit3.error  reference output for testing
+test/btyacc/err_inherit3.output reference output for testing
+test/btyacc/err_inherit3.tab.c  reference output for testing
+test/btyacc/err_inherit3.tab.h  reference output for testing
+test/btyacc/err_inherit4.error  reference output for testing
+test/btyacc/err_inherit4.output reference output for testing
+test/btyacc/err_inherit4.tab.c  reference output for testing
+test/btyacc/err_inherit4.tab.h  reference output for testing
+test/btyacc/err_inherit5.error  reference output for testing
+test/btyacc/err_inherit5.output reference output for testing
+test/btyacc/err_inherit5.tab.c  reference output for testing
+test/btyacc/err_inherit5.tab.h  reference output for testing
+test/btyacc/err_syntax1.error   reference output for testing
+test/btyacc/err_syntax1.output  reference output for testing
+test/btyacc/err_syntax1.tab.c   reference output for testing
+test/btyacc/err_syntax1.tab.h   reference output for testing
+test/btyacc/err_syntax10.error  reference output for testing
+test/btyacc/err_syntax10.output reference output for testing
+test/btyacc/err_syntax10.tab.c  reference output for testing
+test/btyacc/err_syntax10.tab.h  reference output for testing
+test/btyacc/err_syntax11.error  reference output for testing
+test/btyacc/err_syntax11.output reference output for testing
+test/btyacc/err_syntax11.tab.c  reference output for testing
+test/btyacc/err_syntax11.tab.h  reference output for testing
+test/btyacc/err_syntax12.error  reference output for testing
+test/btyacc/err_syntax12.output reference output for testing
+test/btyacc/err_syntax12.tab.c  reference output for testing
+test/btyacc/err_syntax12.tab.h  reference output for testing
+test/btyacc/err_syntax13.error  reference output for testing
+test/btyacc/err_syntax13.output reference output for testing
+test/btyacc/err_syntax13.tab.c  reference output for testing
+test/btyacc/err_syntax13.tab.h  reference output for testing
+test/btyacc/err_syntax14.error  reference output for testing
+test/btyacc/err_syntax14.output reference output for testing
+test/btyacc/err_syntax14.tab.c  reference output for testing
+test/btyacc/err_syntax14.tab.h  reference output for testing
+test/btyacc/err_syntax15.error  reference output for testing
+test/btyacc/err_syntax15.output reference output for testing
+test/btyacc/err_syntax15.tab.c  reference output for testing
+test/btyacc/err_syntax15.tab.h  reference output for testing
+test/btyacc/err_syntax16.error  reference output for testing
+test/btyacc/err_syntax16.output reference output for testing
+test/btyacc/err_syntax16.tab.c  reference output for testing
+test/btyacc/err_syntax16.tab.h  reference output for testing
+test/btyacc/err_syntax17.error  reference output for testing
+test/btyacc/err_syntax17.output reference output for testing
+test/btyacc/err_syntax17.tab.c  reference output for testing
+test/btyacc/err_syntax17.tab.h  reference output for testing
+test/btyacc/err_syntax18.error  reference output for testing
+test/btyacc/err_syntax18.output reference output for testing
+test/btyacc/err_syntax18.tab.c  reference output for testing
+test/btyacc/err_syntax18.tab.h  reference output for testing
+test/btyacc/err_syntax19.error  reference output for testing
+test/btyacc/err_syntax19.output reference output for testing
+test/btyacc/err_syntax19.tab.c  reference output for testing
+test/btyacc/err_syntax19.tab.h  reference output for testing
+test/btyacc/err_syntax2.error   reference output for testing
+test/btyacc/err_syntax2.output  reference output for testing
+test/btyacc/err_syntax2.tab.c   reference output for testing
+test/btyacc/err_syntax2.tab.h   reference output for testing
+test/btyacc/err_syntax20.error  reference output for testing
+test/btyacc/err_syntax20.output reference output for testing
+test/btyacc/err_syntax20.tab.c  reference output for testing
+test/btyacc/err_syntax20.tab.h  reference output for testing
+test/btyacc/err_syntax21.error  reference output for testing
+test/btyacc/err_syntax21.output reference output for testing
+test/btyacc/err_syntax21.tab.c  reference output for testing
+test/btyacc/err_syntax21.tab.h  reference output for testing
+test/btyacc/err_syntax22.error  reference output for testing
+test/btyacc/err_syntax22.output reference output for testing
+test/btyacc/err_syntax22.tab.c  reference output for testing
+test/btyacc/err_syntax22.tab.h  reference output for testing
+test/btyacc/err_syntax23.error  reference output for testing
+test/btyacc/err_syntax23.output reference output for testing
+test/btyacc/err_syntax23.tab.c  reference output for testing
+test/btyacc/err_syntax23.tab.h  reference output for testing
+test/btyacc/err_syntax24.error  reference output for testing
+test/btyacc/err_syntax24.output reference output for testing
+test/btyacc/err_syntax24.tab.c  reference output for testing
+test/btyacc/err_syntax24.tab.h  reference output for testing
+test/btyacc/err_syntax25.error  reference output for testing
+test/btyacc/err_syntax25.output reference output for testing
+test/btyacc/err_syntax25.tab.c  reference output for testing
+test/btyacc/err_syntax25.tab.h  reference output for testing
+test/btyacc/err_syntax26.error  reference output for testing
+test/btyacc/err_syntax26.output reference output for testing
+test/btyacc/err_syntax26.tab.c  reference output for testing
+test/btyacc/err_syntax26.tab.h  reference output for testing
+test/btyacc/err_syntax27.error  reference output for testing
+test/btyacc/err_syntax27.output reference output for testing
+test/btyacc/err_syntax27.tab.c  reference output for testing
+test/btyacc/err_syntax27.tab.h  reference output for testing
+test/btyacc/err_syntax3.error   reference output for testing
+test/btyacc/err_syntax3.output  reference output for testing
+test/btyacc/err_syntax3.tab.c   reference output for testing
+test/btyacc/err_syntax3.tab.h   reference output for testing
+test/btyacc/err_syntax4.error   reference output for testing
+test/btyacc/err_syntax4.output  reference output for testing
+test/btyacc/err_syntax4.tab.c   reference output for testing
+test/btyacc/err_syntax4.tab.h   reference output for testing
+test/btyacc/err_syntax5.error   reference output for testing
+test/btyacc/err_syntax5.output  reference output for testing
+test/btyacc/err_syntax5.tab.c   reference output for testing
+test/btyacc/err_syntax5.tab.h   reference output for testing
+test/btyacc/err_syntax6.error   reference output for testing
+test/btyacc/err_syntax6.output  reference output for testing
+test/btyacc/err_syntax6.tab.c   reference output for testing
+test/btyacc/err_syntax6.tab.h   reference output for testing
+test/btyacc/err_syntax7.error   reference output for testing
+test/btyacc/err_syntax7.output  reference output for testing
+test/btyacc/err_syntax7.tab.c   reference output for testing
+test/btyacc/err_syntax7.tab.h   reference output for testing
+test/btyacc/err_syntax7a.error  reference output for testing
+test/btyacc/err_syntax7a.output reference output for testing
+test/btyacc/err_syntax7a.tab.c  reference output for testing
+test/btyacc/err_syntax7a.tab.h  reference output for testing
+test/btyacc/err_syntax7b.error  reference output for testing
+test/btyacc/err_syntax7b.output reference output for testing
+test/btyacc/err_syntax7b.tab.c  reference output for testing
+test/btyacc/err_syntax7b.tab.h  reference output for testing
+test/btyacc/err_syntax8.error   reference output for testing
+test/btyacc/err_syntax8.output  reference output for testing
+test/btyacc/err_syntax8.tab.c   reference output for testing
+test/btyacc/err_syntax8.tab.h   reference output for testing
+test/btyacc/err_syntax8a.error  reference output for testing
+test/btyacc/err_syntax8a.output reference output for testing
+test/btyacc/err_syntax8a.tab.c  reference output for testing
+test/btyacc/err_syntax8a.tab.h  reference output for testing
+test/btyacc/err_syntax9.error   reference output for testing
+test/btyacc/err_syntax9.output  reference output for testing
+test/btyacc/err_syntax9.tab.c   reference output for testing
+test/btyacc/err_syntax9.tab.h   reference output for testing
+test/btyacc/error.error         reference output for testing
+test/btyacc/error.output        reference output for testing
+test/btyacc/error.tab.c         reference output for testing
+test/btyacc/error.tab.h         reference output for testing
+test/btyacc/expr.oxout.error    reference output for testing
+test/btyacc/expr.oxout.output   reference output for testing
+test/btyacc/expr.oxout.tab.c    reference output for testing
+test/btyacc/expr.oxout.tab.h    reference output for testing
+test/btyacc/grammar.dot         reference output for testing
+test/btyacc/grammar.error       reference output for testing
+test/btyacc/grammar.output      reference output for testing
+test/btyacc/grammar.tab.c       reference output for testing
+test/btyacc/grammar.tab.h       reference output for testing
+test/btyacc/help.error          reference output for testing
+test/btyacc/help.output         reference output for testing
+test/btyacc/inherit0.error      reference output for testing
+test/btyacc/inherit0.output     reference output for testing
+test/btyacc/inherit0.tab.c      reference output for testing
+test/btyacc/inherit0.tab.h      reference output for testing
+test/btyacc/inherit1.error      reference output for testing
+test/btyacc/inherit1.output     reference output for testing
+test/btyacc/inherit1.tab.c      reference output for testing
+test/btyacc/inherit1.tab.h      reference output for testing
+test/btyacc/inherit2.error      reference output for testing
+test/btyacc/inherit2.output     reference output for testing
+test/btyacc/inherit2.tab.c      reference output for testing
+test/btyacc/inherit2.tab.h      reference output for testing
+test/btyacc/no_b_opt.error      reference output for testing
+test/btyacc/no_b_opt.output     reference output for testing
+test/btyacc/no_b_opt1.error     reference output for testing
+test/btyacc/no_b_opt1.output    reference output for testing
+test/btyacc/no_code_c.error     reference output for testing
+test/btyacc/no_code_c.output    reference output for testing
+test/btyacc/no_defines.error    reference output for testing
+test/btyacc/no_defines.output   reference output for testing
+test/btyacc/no_graph.error      reference output for testing
+test/btyacc/no_graph.output     reference output for testing
+test/btyacc/no_include.error    reference output for testing
+test/btyacc/no_include.output   reference output for testing
+test/btyacc/no_opts.error       reference output for testing
+test/btyacc/no_opts.output      reference output for testing
+test/btyacc/no_output.error     reference output for testing
+test/btyacc/no_output.output    reference output for testing
+test/btyacc/no_output1.error    reference output for testing
+test/btyacc/no_output1.output   reference output for testing
+test/btyacc/no_output2.error    reference output for testing
+test/btyacc/no_output2.output   reference output for testing
+test/btyacc/no_p_opt.error      reference output for testing
+test/btyacc/no_p_opt.output     reference output for testing
+test/btyacc/no_p_opt1.error     reference output for testing
+test/btyacc/no_p_opt1.output    reference output for testing
+test/btyacc/no_verbose.error    reference output for testing
+test/btyacc/no_verbose.output   reference output for testing
+test/btyacc/nostdin.error       reference output for testing
+test/btyacc/nostdin.output      reference output for testing
+test/btyacc/ok_syntax1.error    reference output for testing
+test/btyacc/ok_syntax1.output   reference output for testing
+test/btyacc/ok_syntax1.tab.c    reference output for testing
+test/btyacc/ok_syntax1.tab.h    reference output for testing
+test/btyacc/pure_calc.error     reference output for testing
+test/btyacc/pure_calc.output    reference output for testing
+test/btyacc/pure_calc.tab.c     reference output for testing
+test/btyacc/pure_calc.tab.h     reference output for testing
+test/btyacc/pure_error.error    reference output for testing
+test/btyacc/pure_error.output   reference output for testing
+test/btyacc/pure_error.tab.c    reference output for testing
+test/btyacc/pure_error.tab.h    reference output for testing
+test/btyacc/quote_calc-s.error  reference output for testing
+test/btyacc/quote_calc-s.output reference output for testing
+test/btyacc/quote_calc-s.tab.c  reference output for testing
+test/btyacc/quote_calc-s.tab.h  reference output for testing
+test/btyacc/quote_calc.error    reference output for testing
+test/btyacc/quote_calc.output   reference output for testing
+test/btyacc/quote_calc.tab.c    reference output for testing
+test/btyacc/quote_calc.tab.h    reference output for testing
+test/btyacc/quote_calc2-s.error reference output for testing
+test/btyacc/quote_calc2-s.output  reference output for testing
+test/btyacc/quote_calc2-s.tab.c reference output for testing
+test/btyacc/quote_calc2-s.tab.h reference output for testing
+test/btyacc/quote_calc2.error   reference output for testing
+test/btyacc/quote_calc2.output  reference output for testing
+test/btyacc/quote_calc2.tab.c   reference output for testing
+test/btyacc/quote_calc2.tab.h   reference output for testing
+test/btyacc/quote_calc3-s.error reference output for testing
+test/btyacc/quote_calc3-s.output  reference output for testing
+test/btyacc/quote_calc3-s.tab.c reference output for testing
+test/btyacc/quote_calc3-s.tab.h reference output for testing
+test/btyacc/quote_calc3.error   reference output for testing
+test/btyacc/quote_calc3.output  reference output for testing
+test/btyacc/quote_calc3.tab.c   reference output for testing
+test/btyacc/quote_calc3.tab.h   reference output for testing
+test/btyacc/quote_calc4-s.error reference output for testing
+test/btyacc/quote_calc4-s.output  reference output for testing
+test/btyacc/quote_calc4-s.tab.c reference output for testing
+test/btyacc/quote_calc4-s.tab.h reference output for testing
+test/btyacc/quote_calc4.error   reference output for testing
+test/btyacc/quote_calc4.output  reference output for testing
+test/btyacc/quote_calc4.tab.c   reference output for testing
+test/btyacc/quote_calc4.tab.h   reference output for testing
+test/btyacc/rename_debug.c      reference output for testing
+test/btyacc/rename_debug.error  reference output for testing
+test/btyacc/rename_debug.h      reference output for testing
+test/btyacc/rename_debug.i      reference output for testing
+test/btyacc/rename_debug.output reference output for testing
+test/btyacc/varsyntax_calc1.error  reference output for testing
+test/btyacc/varsyntax_calc1.output  reference output for testing
+test/btyacc/varsyntax_calc1.tab.c  reference output for testing
+test/btyacc/varsyntax_calc1.tab.h  reference output for testing
+test                            subdirectory
+test/btyacc_calc1.y             testcase for btyacc
+test/btyacc_demo.y              testcase for btyacc
+test/btyacc_destroy1.y          btyacc test-case for %parse-param
+test/btyacc_destroy2.y          btyacc test-case for %parse-param
+test/btyacc_destroy3.y          btyacc test-case for %parse-param
+test/calc.y                     example from VMS freeware version of byacc
+test/calc1.y                    advanced example from Steve Johnson's paper.
+test/calc2.y                    test-cases and reference files for %lex-param / %parse-param
+test/calc3.y                    test-cases and reference files for %lex-param / %parse-param
+test/code_calc.y                reference input for testing
+test/code_debug.y               test-input, for -i, -o, -d options
+test/code_error.y               reference input for testing
+test/empty.y                    testcase for btyacc
+test/err_inherit1.y             testcase for btyacc
+test/err_inherit2.y             testcase for btyacc
+test/err_inherit3.y             testcase for btyacc
+test/err_inherit4.y             testcase for btyacc
+test/err_inherit5.y             testcase for btyacc
+test/err_syntax1.y              test-case with syntax error (and nonprinting character)
+test/err_syntax10.y             testcase for retyped_warning()
+test/err_syntax11.y             testcase for reprec_warning()
+test/err_syntax12.y             testcase for revalued_warning()
+test/err_syntax13.y             testcase for terminal_start()
+test/err_syntax14.y             testcase for restarted_warning() and undefined_goal()
+test/err_syntax15.y             testcase for no_grammar()
+test/err_syntax16.y             testcase for terminal_lhs()
+test/err_syntax17.y             testcase for unterminated_action()
+test/err_syntax18.y             testcase for dollar_warning()
+test/err_syntax19.y             testcase for dollar_error()
+test/err_syntax2.y              testcase for unterminated_comment()
+test/err_syntax20.y             testcase for undefined_symbol_warning()
+test/err_syntax21.y             testcase for unknown_rhs()
+test/err_syntax22.y             testcase for untyped_rhs()
+test/err_syntax23.y             testcase for untyped_lhs()
+test/err_syntax24.y             testcase for default_action_warning()
+test/err_syntax25.y             testcase for over_unionized()
+test/err_syntax26.y             testcase for unexpected_EOF()
+test/err_syntax27.y             testcase for missing_brace()
+test/err_syntax3.y              testcase for unterminated_string()
+test/err_syntax4.y              testcase for unterminated_text()
+test/err_syntax5.y              testcase for unterminated_union()
+test/err_syntax6.y              testcase for illegal_tag()
+test/err_syntax7.y              testcase for illegal_character()
+test/err_syntax7a.y             testcase for illegal_character()
+test/err_syntax7b.y             testcase for illegal_character()
+test/err_syntax8.y              testcase for used_reserved()
+test/err_syntax8a.y             testcase for used_reserved()
+test/err_syntax9.y              testcase for tokenized_start()
+test/error.y                    original version of byacc - 1993
+test/expr.oxout.y               test-case for "#line" feature
+test/grammar.y                  grammar from cproto
+test/inherit0.y                 testcase for btyacc
+test/inherit1.y                 testcase for btyacc
+test/inherit2.y                 testcase for btyacc
+test/ok_syntax1.y               testcase for valid literal syntax
+test/pure_calc.y                reference input for testing
+test/pure_error.y               reference input for testing
+test/quote_calc.y               test-case for %token using quoted name
+test/quote_calc2.y              test-case for %token using quoted name
+test/quote_calc3.y              test-case for %token using quoted name
+test/quote_calc4.y              test-case for %token using quoted name
+test/run_lint.sh                run lint, using the build-directory's makefile, on each ".c" file in test-directory
+test/run_make.sh                do a test-compile of each ".c" file in the test-directory
+test/run_test.sh                test-script for byacc
+test/varsyntax_calc1.y          testcase for btyacc
+test/yacc                       subdirectory
+test/yacc/big_b.error           exercise -L/-B options
+test/yacc/big_b.output          exercise -L/-B options
+test/yacc/big_l.error           exercise -L/-B options
+test/yacc/big_l.output          exercise -L/-B options
+test/yacc/calc.error            reference output for testing
+test/yacc/calc.output           reference output for testing
+test/yacc/calc.tab.c            reference output for testing
+test/yacc/calc.tab.h            reference output for testing
+test/yacc/calc1.error           reference output for testing
+test/yacc/calc1.output          reference output for testing
+test/yacc/calc1.tab.c           reference output for testing
+test/yacc/calc1.tab.h           reference output for testing
+test/yacc/calc2.error           reference output for testing
+test/yacc/calc2.output          reference output for testing
+test/yacc/calc2.tab.c           reference output for testing
+test/yacc/calc2.tab.h           reference output for testing
+test/yacc/calc3.error           reference output for testing
+test/yacc/calc3.output          reference output for testing
+test/yacc/calc3.tab.c           reference output for testing
+test/yacc/calc3.tab.h           reference output for testing
+test/yacc/code_calc.code.c      reference output for testing
+test/yacc/code_calc.error       reference output for testing
+test/yacc/code_calc.output      reference output for testing
+test/yacc/code_calc.tab.c       reference output for testing
+test/yacc/code_calc.tab.h       reference output for testing
+test/yacc/code_error.code.c     reference output for testing
+test/yacc/code_error.error      reference output for testing
+test/yacc/code_error.output     reference output for testing
+test/yacc/code_error.tab.c      reference output for testing
+test/yacc/code_error.tab.h      reference output for testing
+test/yacc/empty.error           reference output for testing
+test/yacc/empty.output          reference output for testing
+test/yacc/empty.tab.c           reference output for testing
+test/yacc/empty.tab.h           reference output for testing
+test/yacc/err_syntax1.error     reference output for testing
+test/yacc/err_syntax1.output    reference output for testing
+test/yacc/err_syntax1.tab.c     reference output for testing
+test/yacc/err_syntax1.tab.h     reference output for testing
+test/yacc/err_syntax10.error    reference output for testing
+test/yacc/err_syntax10.output   reference output for testing
+test/yacc/err_syntax10.tab.c    reference output for testing
+test/yacc/err_syntax10.tab.h    reference output for testing
+test/yacc/err_syntax11.error    reference output for testing
+test/yacc/err_syntax11.output   reference output for testing
+test/yacc/err_syntax11.tab.c    reference output for testing
+test/yacc/err_syntax11.tab.h    reference output for testing
+test/yacc/err_syntax12.error    reference output for testing
+test/yacc/err_syntax12.output   reference output for testing
+test/yacc/err_syntax12.tab.c    reference output for testing
+test/yacc/err_syntax12.tab.h    reference output for testing
+test/yacc/err_syntax13.error    reference output for testing
+test/yacc/err_syntax13.output   reference output for testing
+test/yacc/err_syntax13.tab.c    reference output for testing
+test/yacc/err_syntax13.tab.h    reference output for testing
+test/yacc/err_syntax14.error    reference output for testing
+test/yacc/err_syntax14.output   reference output for testing
+test/yacc/err_syntax14.tab.c    reference output for testing
+test/yacc/err_syntax14.tab.h    reference output for testing
+test/yacc/err_syntax15.error    reference output for testing
+test/yacc/err_syntax15.output   reference output for testing
+test/yacc/err_syntax15.tab.c    reference output for testing
+test/yacc/err_syntax15.tab.h    reference output for testing
+test/yacc/err_syntax16.error    reference output for testing
+test/yacc/err_syntax16.output   reference output for testing
+test/yacc/err_syntax16.tab.c    reference output for testing
+test/yacc/err_syntax16.tab.h    reference output for testing
+test/yacc/err_syntax17.error    reference output for testing
+test/yacc/err_syntax17.output   reference output for testing
+test/yacc/err_syntax17.tab.c    reference output for testing
+test/yacc/err_syntax17.tab.h    reference output for testing
+test/yacc/err_syntax18.error    reference output for testing
+test/yacc/err_syntax18.output   reference output for testing
+test/yacc/err_syntax18.tab.c    reference output for testing
+test/yacc/err_syntax18.tab.h    reference output for testing
+test/yacc/err_syntax19.error    reference output for testing
+test/yacc/err_syntax19.output   reference output for testing
+test/yacc/err_syntax19.tab.c    reference output for testing
+test/yacc/err_syntax19.tab.h    reference output for testing
+test/yacc/err_syntax2.error     reference output for testing
+test/yacc/err_syntax2.output    reference output for testing
+test/yacc/err_syntax2.tab.c     reference output for testing
+test/yacc/err_syntax2.tab.h     reference output for testing
+test/yacc/err_syntax20.error    reference output for testing
+test/yacc/err_syntax20.output   reference output for testing
+test/yacc/err_syntax20.tab.c    reference output for testing
+test/yacc/err_syntax20.tab.h    reference output for testing
+test/yacc/err_syntax21.error    reference output for testing
+test/yacc/err_syntax21.output   reference output for testing
+test/yacc/err_syntax21.tab.c    reference output for testing
+test/yacc/err_syntax21.tab.h    reference output for testing
+test/yacc/err_syntax22.error    reference output for testing
+test/yacc/err_syntax22.output   reference output for testing
+test/yacc/err_syntax22.tab.c    reference output for testing
+test/yacc/err_syntax22.tab.h    reference output for testing
+test/yacc/err_syntax23.error    reference output for testing
+test/yacc/err_syntax23.output   reference output for testing
+test/yacc/err_syntax23.tab.c    reference output for testing
+test/yacc/err_syntax23.tab.h    reference output for testing
+test/yacc/err_syntax24.error    reference output for testing
+test/yacc/err_syntax24.output   reference output for testing
+test/yacc/err_syntax24.tab.c    reference output for testing
+test/yacc/err_syntax24.tab.h    reference output for testing
+test/yacc/err_syntax25.error    reference output for testing
+test/yacc/err_syntax25.output   reference output for testing
+test/yacc/err_syntax25.tab.c    reference output for testing
+test/yacc/err_syntax25.tab.h    reference output for testing
+test/yacc/err_syntax26.error    reference output for testing
+test/yacc/err_syntax26.output   reference output for testing
+test/yacc/err_syntax26.tab.c    reference output for testing
+test/yacc/err_syntax26.tab.h    reference output for testing
+test/yacc/err_syntax27.error    reference output for testing
+test/yacc/err_syntax27.output   reference output for testing
+test/yacc/err_syntax27.tab.c    reference output for testing
+test/yacc/err_syntax27.tab.h    reference output for testing
+test/yacc/err_syntax3.error     reference output for testing
+test/yacc/err_syntax3.output    reference output for testing
+test/yacc/err_syntax3.tab.c     reference output for testing
+test/yacc/err_syntax3.tab.h     reference output for testing
+test/yacc/err_syntax4.error     reference output for testing
+test/yacc/err_syntax4.output    reference output for testing
+test/yacc/err_syntax4.tab.c     reference output for testing
+test/yacc/err_syntax4.tab.h     reference output for testing
+test/yacc/err_syntax5.error     reference output for testing
+test/yacc/err_syntax5.output    reference output for testing
+test/yacc/err_syntax5.tab.c     reference output for testing
+test/yacc/err_syntax5.tab.h     reference output for testing
+test/yacc/err_syntax6.error     reference output for testing
+test/yacc/err_syntax6.output    reference output for testing
+test/yacc/err_syntax6.tab.c     reference output for testing
+test/yacc/err_syntax6.tab.h     reference output for testing
+test/yacc/err_syntax7.error     reference output for testing
+test/yacc/err_syntax7.output    reference output for testing
+test/yacc/err_syntax7.tab.c     reference output for testing
+test/yacc/err_syntax7.tab.h     reference output for testing
+test/yacc/err_syntax7a.error    reference output for testing
+test/yacc/err_syntax7a.output   reference output for testing
+test/yacc/err_syntax7a.tab.c    reference output for testing
+test/yacc/err_syntax7a.tab.h    reference output for testing
+test/yacc/err_syntax7b.error    reference output for testing
+test/yacc/err_syntax7b.output   reference output for testing
+test/yacc/err_syntax7b.tab.c    reference output for testing
+test/yacc/err_syntax7b.tab.h    reference output for testing
+test/yacc/err_syntax8.error     reference output for testing
+test/yacc/err_syntax8.output    reference output for testing
+test/yacc/err_syntax8.tab.c     reference output for testing
+test/yacc/err_syntax8.tab.h     reference output for testing
+test/yacc/err_syntax8a.error    reference output for testing
+test/yacc/err_syntax8a.output   reference output for testing
+test/yacc/err_syntax8a.tab.c    reference output for testing
+test/yacc/err_syntax8a.tab.h    reference output for testing
+test/yacc/err_syntax9.error     reference output for testing
+test/yacc/err_syntax9.output    reference output for testing
+test/yacc/err_syntax9.tab.c     reference output for testing
+test/yacc/err_syntax9.tab.h     reference output for testing
+test/yacc/error.error           reference output for testing
+test/yacc/error.output          reference output for testing
+test/yacc/error.tab.c           reference output for testing
+test/yacc/error.tab.h           reference output for testing
+test/yacc/expr.oxout.error      reference output for testing
+test/yacc/expr.oxout.output     reference output for testing
+test/yacc/expr.oxout.tab.c      reference output for testing
+test/yacc/expr.oxout.tab.h      reference output for testing
+test/yacc/grammar.dot           reference output for testing
+test/yacc/grammar.error         reference output for testing
+test/yacc/grammar.output        reference output for testing
+test/yacc/grammar.tab.c         reference output for testing
+test/yacc/grammar.tab.h         reference output for testing
+test/yacc/help.error            reference output for testing
+test/yacc/help.output           reference output for testing
+test/yacc/no_b_opt.error        reference output for testing
+test/yacc/no_b_opt.output       reference output for testing
+test/yacc/no_b_opt1.error       reference output for testing
+test/yacc/no_b_opt1.output      reference output for testing
+test/yacc/no_code_c.error       reference output for testing
+test/yacc/no_code_c.output      reference output for testing
+test/yacc/no_defines.error      reference output for testing
+test/yacc/no_defines.output     reference output for testing
+test/yacc/no_graph.error        reference output for testing
+test/yacc/no_graph.output       reference output for testing
+test/yacc/no_include.error      reference output for testing
+test/yacc/no_include.output     reference output for testing
+test/yacc/no_opts.error         reference output for testing
+test/yacc/no_opts.output        reference output for testing
+test/yacc/no_output.error       reference output for testing
+test/yacc/no_output.output      reference output for testing
+test/yacc/no_output1.error      reference output for testing
+test/yacc/no_output1.output     reference output for testing
+test/yacc/no_output2.error      reference output for testing
+test/yacc/no_output2.output     reference output for testing
+test/yacc/no_p_opt.error        reference output for testing
+test/yacc/no_p_opt.output       reference output for testing
+test/yacc/no_p_opt1.error       reference output for testing
+test/yacc/no_p_opt1.output      reference output for testing
+test/yacc/no_verbose.error      reference output for testing
+test/yacc/no_verbose.output     reference output for testing
+test/yacc/nostdin.error         reference output for testing
+test/yacc/nostdin.output        reference output for testing
+test/yacc/ok_syntax1.error      reference output for testing
+test/yacc/ok_syntax1.output     reference output for testing
+test/yacc/ok_syntax1.tab.c      reference output for testing
+test/yacc/ok_syntax1.tab.h      reference output for testing
+test/yacc/pure_calc.error       reference output for testing
+test/yacc/pure_calc.output      reference output for testing
+test/yacc/pure_calc.tab.c       reference output for testing
+test/yacc/pure_calc.tab.h       reference output for testing
+test/yacc/pure_error.error      reference output for testing
+test/yacc/pure_error.output     reference output for testing
+test/yacc/pure_error.tab.c      reference output for testing
+test/yacc/pure_error.tab.h      reference output for testing
+test/yacc/quote_calc-s.error    reference output for testing
+test/yacc/quote_calc-s.output   reference output for testing
+test/yacc/quote_calc-s.tab.c    reference output for testing
+test/yacc/quote_calc-s.tab.h    reference output for testing
+test/yacc/quote_calc.error      reference output for testing
+test/yacc/quote_calc.output     reference output for testing
+test/yacc/quote_calc.tab.c      reference output for testing
+test/yacc/quote_calc.tab.h      reference output for testing
+test/yacc/quote_calc2-s.error   reference output for testing
+test/yacc/quote_calc2-s.output  reference output for testing
+test/yacc/quote_calc2-s.tab.c   reference output for testing
+test/yacc/quote_calc2-s.tab.h   reference output for testing
+test/yacc/quote_calc2.error     reference output for testing
+test/yacc/quote_calc2.output    reference output for testing
+test/yacc/quote_calc2.tab.c     reference output for testing
+test/yacc/quote_calc2.tab.h     reference output for testing
+test/yacc/quote_calc3-s.error   reference output for testing
+test/yacc/quote_calc3-s.output  reference output for testing
+test/yacc/quote_calc3-s.tab.c   reference output for testing
+test/yacc/quote_calc3-s.tab.h   reference output for testing
+test/yacc/quote_calc3.error     reference output for testing
+test/yacc/quote_calc3.output    reference output for testing
+test/yacc/quote_calc3.tab.c     reference output for testing
+test/yacc/quote_calc3.tab.h     reference output for testing
+test/yacc/quote_calc4-s.error   reference output for testing
+test/yacc/quote_calc4-s.output  reference output for testing
+test/yacc/quote_calc4-s.tab.c   reference output for testing
+test/yacc/quote_calc4-s.tab.h   reference output for testing
+test/yacc/quote_calc4.error     reference output for testing
+test/yacc/quote_calc4.output    reference output for testing
+test/yacc/quote_calc4.tab.c     reference output for testing
+test/yacc/quote_calc4.tab.h     reference output for testing
+test/yacc/rename_debug.c        reference output for testing
+test/yacc/rename_debug.error    reference output for testing
+test/yacc/rename_debug.h        reference output for testing
+test/yacc/rename_debug.i        reference output for testing
+test/yacc/rename_debug.output   reference output for testing
+test/yacc/varsyntax_calc1.error reference output for testing
+test/yacc/varsyntax_calc1.output  reference output for testing
+test/yacc/varsyntax_calc1.tab.c reference output for testing
+test/yacc/varsyntax_calc1.tab.h reference output for testing

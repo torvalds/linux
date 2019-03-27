@@ -1,0 +1,425 @@
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 14, 2011
+.Dt TI 4
+.Os
+.Sh NAME
+.Nm ti
+.Nd "Alteon Networks Tigon I and Tigon II Gigabit Ethernet driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ti"
+.Cd "options TI_SF_BUF_JUMBO"
+.Cd "options TI_JUMBO_HDRSPLIT"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ti_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Gigabit Ethernet adapters based on
+the Alteon Networks Tigon Gigabit Ethernet controller chip.
+The Tigon
+contains an embedded R4000 CPU, gigabit MAC, dual DMA channels and
+a PCI interface unit.
+The Tigon II contains two R4000 CPUs and other
+refinements.
+Either chip can be used in either a 32-bit or 64-bit PCI
+slot.
+Communication with the chip is achieved via PCI shared memory
+and bus master DMA.
+The Tigon I and II support hardware multicast
+address filtering, VLAN tag extraction and insertion, and jumbo
+Ethernet frames sizes up to 9000 bytes.
+Note that the Tigon I chipset
+is no longer in active production: all new adapters should come equipped
+with Tigon II chipsets.
+.Pp
+While the Tigon chipset supports 10, 100 and 1000Mbps speeds, support for
+10 and 100Mbps speeds is only available on boards with the proper
+transceivers.
+Most adapters are only designed to work at 1000Mbps,
+however the driver should support those NICs that work at lower speeds
+as well.
+.Pp
+Support for jumbo frames is provided via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit jumbo frames.
+Using jumbo frames can greatly improve performance for certain tasks,
+such as file transfers and data streaming.
+.Pp
+Header splitting support for Tigon 2 boards (this option has no effect for
+the Tigon 1) can be turned on with the
+.Dv TI_JUMBO_HDRSPLIT
+option.
+See
+.Xr zero_copy 9
+for more discussion on zero copy receive and header splitting.
+.Pp
+The
+.Nm
+driver uses UMA backed jumbo receive buffers, but can be configured
+to use
+.Xr sendfile 2
+buffer allocator.
+To turn on
+.Xr sendfile 2
+buffer allocator, use the
+.Dv TI_SF_BUF_JUMBO
+option.
+.Pp
+Support for vlans is also available using the
+.Xr vlan 4
+mechanism.
+See the
+.Xr vlan 4
+man page for more details.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the
+.Pa /etc/rc.conf
+file.
+.It 10baseT/UTP
+Set 10Mbps operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 1000baseSX
+Set 1000Mbps (Gigabit Ethernet) operation.
+Only
+.Ar full-duplex
+mode is supported at this speed.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It full-duplex
+Force full-duplex operation.
+.It half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Gigabit Ethernet adapters based on the
+Alteon Tigon I and II chips.
+The
+.Nm
+driver has been tested with the following adapters:
+.Pp
+.Bl -bullet -compact
+.It
+3Com 3c985-SX Gigabit Ethernet adapter (Tigon 1)
+.It
+3Com 3c985B-SX Gigabit Ethernet adapter (Tigon 2)
+.It
+Alteon AceNIC V Gigabit Ethernet adapter (1000baseSX)
+.It
+Alteon AceNIC V Gigabit Ethernet adapter (1000baseT)
+.It
+Digital EtherWORKS 1000SX PCI Gigabit adapter
+.It
+Netgear GA620 Gigabit Ethernet adapter (1000baseSX)
+.It
+Netgear GA620T Gigabit Ethernet adapter (1000baseT)
+.El
+.Pp
+The following adapters should also be supported but have
+not yet been tested:
+.Pp
+.Bl -bullet -compact
+.It
+Asante GigaNIX1000T Gigabit Ethernet adapter
+.It
+Asante PCI 1000BASE-SX Gigabit Ethernet adapter
+.It
+Farallon PN9000SX Gigabit Ethernet adapter
+.It
+NEC Gigabit Ethernet
+.It
+Silicon Graphics PCI Gigabit Ethernet adapter
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "xxxxxx"
+.It Va hw.ti.%d.dac
+If this tunable is set to 0 it will disable DAC (Dual Address Cycle).
+The default value is 1 which means driver will use full 64bit
+DMA addressing.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables.
+The interface has to be brought down and up again before a
+change takes effect when any of the following tunables are
+changed.
+The one microsecond clock tick referenced below is a nominal
+time and the actual hardware may not provide granularity to
+this level.
+For example, on Tigon 2 (revision 6) cards with release 12.0
+the clock granularity is 5 microseconds.
+.Bl -tag -width "xxxxxx"
+.It Va dev.ti.%d.rx_coal_ticks
+This value, receive coalesced ticks, controls the number of clock
+ticks (of 1 microseconds each) that must elapse before the NIC DMAs
+the receive return producer pointer to the Host and generates an
+interrupt.
+This parameter works in conjunction with the rx_max_coal_bds,
+receive max coalesced BDs, tunable parameter.
+The NIC will return the receive return producer pointer to the Host
+when either of the thresholds is exceeded.
+A value of 0 means that this parameter is ignored and receive BDs
+will only be returned when the receive max coalesced BDs value is
+reached.
+The default value is 170.
+.It Va dev.ti.%d.rx_max_coal_bds
+This value, receive max coalesced BDs, controls the number of
+receive buffer descriptors that will be coalesced before the NIC
+updates the receive return ring producer index.
+If this value is set to 0 it will disable receive buffer descriptor
+coalescing.
+The default value is 64.
+.It Va dev.ti.%d.ti_tx_coal_ticks
+This value, send coalesced ticks, controls the number of clock
+ticks (of 1 microseconds each) that must elapse before the NIC DMAs
+the send consumer pointer to the Host and generates an interrupt.
+This parameter works in conjunction with the tx_max_coal_bds,
+send max coalesced BDs, tunable parameter.
+The NIC will return the send consumer pointer to the Host when
+either of the thresholds is exceeded.
+A value of 0 means that this parameter is ignored and send BDs will
+only be returned when the send max coalesced BDs value is reached.
+The default value is 2000.
+.It Va dev.ti.%d.tx_max_coal_bds
+This value, send max coalesced BDs, controls the number of send
+buffer descriptors that will be coalesced before the NIC updates
+the send consumer index.
+If this value is set to 0 it will disable send buffer descriptor
+coalescing.
+The default value is 32.
+.It Va dev.ti.%d.tx_buf_ratio
+This value controls the ratio of the remaining memory in the NIC
+that should be devoted to transmit buffer vs. receive buffer.
+The lower 7 bits are used to indicate the ratio in 1/64th increments.
+For example, setting this value to 16 will set the transmit buffer
+to 1/4 of the remaining buffer space.
+In no cases will the transmit or receive buffer be reduced below
+68 KB.
+For a 1 MB NIC the approximate total space for data buffers is
+800 KB.
+For a 512 KB NIC that number is 300 KB.
+The default value is 21.
+.It Va dev.ti.%d.stat_ticks
+The value, stat ticks, controls the number of clock ticks
+(of 1 microseconds each) that must elapse before the NIC DMAs
+the statistics block to the Host and generates a STATS_UPDATED
+event.
+If set to zero then statistics are never DMAed to the Host.
+It is recommended that this value be set to a high enough
+frequency to not mislead someone reading statistics refreshes.
+Several times a second is enough.
+The default value is 2000000 (2 seconds).
+.El
+.Sh IOCTLS
+In addition to the standard
+.Xr socket 2
+.Xr ioctl 2
+calls implemented by most network drivers, the
+.Nm
+driver also includes a character device interface that can be used for
+additional diagnostics, configuration and debugging.
+With this character
+device interface, and a specially patched version of
+.Xr gdb 1 ,
+the user can
+debug firmware running on the Tigon board.
+.Pp
+These ioctls and their arguments are defined in the
+.In sys/tiio.h
+header file.
+.Bl -tag -width ".Dv ALT_WRITE_TG_MEM"
+.It Dv TIIOCGETSTATS
+Return card statistics DMAed from the card into kernel memory approximately
+every 2 seconds.
+(That time interval can be changed via the
+.Dv TIIOCSETPARAMS
+ioctl.)
+The argument is
+.Vt "struct ti_stats" .
+.It Dv TIIOCGETPARAMS
+Get various performance-related firmware parameters that largely affect how
+interrupts are coalesced.
+The argument is
+.Vt "struct ti_params" .
+.It Dv TIIOCSETPARAMS
+Set various performance-related firmware parameters that largely affect how
+interrupts are coalesced.
+The argument is
+.Vt "struct ti_params" .
+.It Dv TIIOCSETTRACE
+Tell the NIC to trace the requested types of information.
+The argument is
+.Vt ti_trace_type .
+.It Dv TIIOCGETTRACE
+Dump the trace buffer from the card.
+The argument is
+.Vt "struct ti_trace_buf" .
+.It Dv ALT_ATTACH
+This ioctl is used for compatibility with Alteon's Solaris driver.
+They apparently only have one character interface for debugging, so they have
+to tell it which Tigon instance they want to debug.
+This ioctl is a noop for
+.Fx .
+.It Dv ALT_READ_TG_MEM
+Read the requested memory region from the Tigon board.
+The argument is
+.Vt "struct tg_mem" .
+.It Dv ALT_WRITE_TG_MEM
+Write to the requested memory region on the Tigon board.
+The argument is
+.Vt "struct tg_mem" .
+.It Dv ALT_READ_TG_REG
+Read the requested register from the Tigon board.
+The argument is
+.Vt "struct tg_reg" .
+.It Dv ALT_WRITE_TG_REG
+Write to the requested register on the Tigon board.
+The argument is
+.Vt "struct tg_reg" .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/ti[0-255]" -compact
+.It Pa /dev/ti[0-255]
+Tigon driver character interface.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ti%d: couldn't map memory"
+A fatal initialization error has occurred.
+.It "ti%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "ti%d: no memory for softc struct!"
+The driver failed to allocate memory for per-device instance information
+during initialization.
+.It "ti%d: failed to enable memory mapping!"
+The driver failed to initialize PCI shared memory mapping.
+This might
+happen if the card is not in a bus-master slot.
+.It "ti%d: no memory for jumbo buffers!"
+The driver failed to allocate memory for jumbo frames during
+initialization.
+.It "ti%d: bios thinks we're in a 64 bit slot, but we aren't"
+The BIOS has programmed the NIC as though it had been installed in
+a 64-bit PCI slot, but in fact the NIC is in a 32-bit slot.
+This happens
+as a result of a bug in some BIOSes.
+This can be worked around on the
+Tigon II, but on the Tigon I initialization will fail.
+.It "ti%d: board self-diagnostics failed!"
+The ROMFAIL bit in the CPU state register was set after system
+startup, indicating that the on-board NIC diagnostics failed.
+.It "ti%d: unknown hwrev"
+The driver detected a board with an unsupported hardware revision.
+The
+.Nm
+driver supports revision 4 (Tigon 1) and revision 6 (Tigon 2) chips
+and has firmware only for those devices.
+.It "ti%d: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.El
+.Sh SEE ALSO
+.Xr sendfile 2 ,
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8 ,
+.Xr zero_copy 9
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@bsdi.com .
+The header splitting firmware modifications, character
+.Xr ioctl 2
+interface and debugging support were written by
+.An Kenneth Merry Aq Mt ken@FreeBSD.org .
+Initial zero copy support was written by
+.An Andrew Gallatin Aq Mt gallatin@FreeBSD.org .

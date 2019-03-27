@@ -1,0 +1,125 @@
+2007-04-11  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* pagsh.1,afslog.1: - options must be lexicographically ordered;
+	  again, options without arguments must be placed before options
+	  with arguments.  - manual page cross references are done using
+	  the macro `.Xr', not the macro `.Nm' (used for command names
+	  instead).
+	
+	From Igor Sobrado.
+	
+2006-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Add man_MANS to EXTRA_DIST
+	
+2006-01-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afslog.1: Document options to allow select principal or
+	credential cache when doing afslog.
+
+	* afslog.c: Add options to allow select principal or credential
+	cache when doing afslog.
+	
+2005-02-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: man_MANS += pagsh.1
+
+	* pagsh.c: add --cache-type that allows the user to control the
+	resulting credential cache type, inherit the type from the
+	invoking process
+
+	* pagsh.1: manpage for pagsh
+
+2004-09-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afslog.c: use negative string help string for arg_negative_flag
+	Pointed out by Harald Barth
+	
+2004-07-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* pagsh.c: use setprogname, if we stripped off -c, try use the
+	fallback code
+	
+2003-10-14  Johan Danielsson  <joda@pdc.kth.se>
+
+	* pagsh.c: mkstemp formats must end in exactly six X's
+
+2003-07-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afslog.c (do_afslog): is cell is unset, set it "<default cell>"
+	for error printing
+
+	* pagsh.c: unconditionally set KRBTKFILE
+	
+2003-04-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afslog.c (log_func): drop the error number
+	
+2003-04-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afslog.c: set kafs log function if verbose is turned on
+	
+2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am (LDADD): use LIB_kafs
+	
+	* afslog.1: --no-v4, --no-v5
+	
+	* Makefile.am: always build afsutils now
+	
+	* afslog.c: make build without KRB4
+	
+2002-11-26  Johan Danielsson  <joda@pdc.kth.se>
+
+	* afslog.c: remove plural form in help string
+
+	* Makefile.am: add afslog manpage
+
+	* afslog.1: manpage
+
+	* afslog.c: try more files when trying to expand a cell name
+
+	* afslog.c: create a list of cells to get tokens for, before
+	actually doing anything, and try to get tokens via krb4 if krb5
+	fails, and give it a chance to work with krb4-only; also some bug
+	fixes, partially from Tomas Olsson.
+
+2002-08-23  Assar Westerlund  <assar@kth.se>
+
+	* pagsh.c: make it handle --version/--help
+
+2001-05-17  Assar Westerlund  <assar@sics.se>
+
+	* afslog.c (main): call free_getarg_strings
+
+2000-12-31  Assar Westerlund  <assar@sics.se>
+
+	* afslog.c (main): handle krb5_init_context failure consistently
+
+2000-12-25  Assar Westerlund  <assar@sics.se>
+
+	* afslog.c: clarify usage strings
+
+1999-08-04  Assar Westerlund  <assar@sics.se>
+
+	* pagsh.c (main): use mkstemp to generate temporary file names.
+  	From Miroslav Ruda <ruda@ics.muni.cz>
+
+1999-07-04  Assar Westerlund  <assar@sics.se>
+
+	* afslog.c (expand_cell_name): terminate on #.  From Miroslav Ruda
+ 	<ruda@ics.muni.cz>
+
+1999-06-27  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (bin_PROGRAMS): only include pagsh if KRB4
+
+1999-06-26  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add pagsh
+
+	* pagsh.c: new file.  contributed by Miroslav Ruda <ruda@ics.muni.cz>
+
+Sat Mar 27 12:49:43 1999  Johan Danielsson  <joda@blubb.pdc.kth.se>
+
+	* afslog.c: cleanup option parsing

@@ -1,0 +1,284 @@
+.\"     $KAME: stf.4,v 1.35 2001/05/02 06:24:49 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 28, 2012
+.Dt STF 4
+.Os
+.Sh NAME
+.Nm stf
+.Nd
+.Tn 6to4
+tunnel interface
+.Sh SYNOPSIS
+.Cd "device stf"
+.Sh DESCRIPTION
+The
+.Nm
+interface supports
+.Dq 6to4
+IPv6 in IPv4 encapsulation.
+It can tunnel IPv6 traffic over IPv4, as specified in
+.Li RFC3056 .
+.Pp
+For ordinary nodes in 6to4 site, you do not need
+.Nm
+interface.
+The
+.Nm
+interface is necessary for site border router
+(called
+.Dq 6to4 router
+in the specification).
+.Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is
+most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
+.Pp
+Due to the way 6to4 protocol is specified,
+.Nm
+interface requires certain configuration to work properly.
+Single
+(no more than 1)
+valid 6to4 address needs to be configured to the interface.
+.Dq A valid 6to4 address
+is an address which has the following properties.
+If any of the following properties are not satisfied,
+.Nm
+raises runtime error on packet transmission.
+Read the specification for more details.
+.Bl -bullet
+.It
+matches
+.Li 2002:xxyy:zzuu::/48
+where
+.Li xxyy:zzuu
+is a hexadecimal notation of an IPv4 address for the node.
+IPv4 address can be taken from any of interfaces your node has.
+Since the specification forbids the use of IPv4 private address,
+the address needs to be a global IPv4 address.
+.It
+Subnet identifier portion
+(48th to 63rd bit)
+and interface identifier portion
+(lower 64 bits)
+are properly filled to avoid address collisions.
+.El
+.Pp
+If you would like the node to behave as a relay router,
+the prefix length for the IPv6 interface address needs to be 16 so that
+the node would consider any 6to4 destination as
+.Dq on-link .
+If you would like to restrict 6to4 peers to be inside certain IPv4 prefix,
+you may want to configure IPv6 prefix length as
+.Dq 16 + IPv4 prefix length .
+.Nm
+interface will check the IPv4 source address on packets,
+if the IPv6 prefix length is larger than 16.
+.Pp
+.Nm
+can be configured to be ECN friendly.
+This can be configured by
+.Dv IFF_LINK1 .
+See
+.Xr gif 4
+for details.
+.Pp
+Please note that 6to4 specification is written as
+.Dq accept tunnelled packet from everyone
+tunnelling device.
+By enabling
+.Nm
+device, you are making it much easier for malicious parties to inject
+fabricated IPv6 packet to your node.
+Also, malicious party can inject an IPv6 packet with fabricated source address
+to make your node generate improper tunnelled packet.
+Administrators must take caution when enabling the interface.
+To prevent possible attacks,
+.Nm
+interface filters out the following packets.
+Note that the checks are no way complete:
+.Bl -bullet
+.It
+Packets with IPv4 unspecified address as outer IPv4 source/destination
+.Pq Li 0.0.0.0/8
+.It
+Packets with loopback address as outer IPv4 source/destination
+.Pq Li 127.0.0.0/8
+.It
+Packets with IPv4 multicast address as outer IPv4 source/destination
+.Pq Li 224.0.0.0/4
+.It
+Packets with limited broadcast address as outer IPv4 source/destination
+.Pq Li 255.0.0.0/8
+.It
+Packets with private address as outer IPv4 source/destination
+.Pq Li 10.0.0.0/8 , 172.16.0.0/12 , 192.168.0.0/16
+.It
+Packets with subnet broadcast address as outer IPv4 source/destination.
+The check is made against subnet broadcast addresses for
+all of the directly connected subnets.
+.It
+Packets that does not pass ingress filtering.
+Outer IPv4 source address must meet the IPv4 topology on the routing table.
+Ingress filter can be turned off by
+.Dv IFF_LINK2
+bit.
+.It
+The same set of rules are applied against the IPv4 address embedded into
+inner IPv6 address, if the IPv6 address matches 6to4 prefix.
+.El
+.Pp
+It is recommended to filter/audit
+incoming IPv4 packet with IP protocol number 41, as necessary.
+It is also recommended to filter/audit encapsulated IPv6 packets as well.
+You may also want to run normal ingress filter against inner IPv6 address
+to avoid spoofing.
+.Pp
+By setting the
+.Dv IFF_LINK0
+flag on the
+.Nm
+interface, it is possible to disable the input path,
+making the direct attacks from the outside impossible.
+Note, however, there are other security risks exist.
+If you wish to use the configuration,
+you must not advertise your 6to4 address to others.
+.\"
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to control the behavior of the
+.Nm stf .
+The default value is shown next to each variable.
+.Bl -tag -width indent
+.It Va net.link.stf.permit_rfc1918 : No 0
+The RFC3056 requires the use of globally unique 32-bit IPv4
+addresses.
+This sysctl variable controls the behaviour of this requirement.
+When it set to not 0,
+.Nm stf
+allows the use of private IPv4 addresses described in the RFC1918.
+This may be useful for an Intranet environment or when some mechanisms
+of network address translation (NAT) are used.
+.El
+.Sh EXAMPLES
+Note that
+.Li 8504:0506
+is equal to
+.Li 133.4.5.6 ,
+written in hexadecimals.
+.Bd -literal
+# ifconfig ne0 inet 133.4.5.6 netmask 0xffffff00
+# ifconfig stf0 inet6 2002:8504:0506:0000:a00:5aff:fe38:6f86 \\
+	prefixlen 16 alias
+.Ed
+.Pp
+The following configuration accepts packets from IPv4 source
+.Li 9.1.0.0/16
+only.
+It emits 6to4 packet only for IPv6 destination 2002:0901::/32
+(IPv4 destination will match
+.Li 9.1.0.0/16 ) .
+.Bd -literal
+# ifconfig ne0 inet 9.1.2.3 netmask 0xffff0000
+# ifconfig stf0 inet6 2002:0901:0203:0000:a00:5aff:fe38:6f86 \\
+	prefixlen 32 alias
+.Ed
+.Pp
+The following configuration uses the
+.Nm
+interface as an output-only device.
+You need to have alternative IPv6 connectivity
+(other than 6to4)
+to use this configuration.
+For outbound traffic, you can reach other 6to4 networks efficiently via
+.Nm stf .
+For inbound traffic, you will not receive any 6to4-tunneled packets
+(less security drawbacks).
+Be careful not to advertise your 6to4 prefix to others
+.Pq Li 2002:8504:0506::/48 ,
+and not to use your 6to4 prefix as a source.
+.Bd -literal
+# ifconfig ne0 inet 133.4.5.6 netmask 0xffffff00
+# ifconfig stf0 inet6 2002:8504:0506:0000:a00:5aff:fe38:6f86 \\
+	prefixlen 16 alias deprecated link0
+# route add -inet6 2002:: -prefixlen 16 ::1
+# route change -inet6 2002:: -prefixlen 16 ::1 -ifp stf0
+.Ed
+.\"
+.Sh SEE ALSO
+.Xr gif 4 ,
+.Xr inet 4 ,
+.Xr inet6 4
+.Pp
+.Pa http://www.ipv6day.org/action.php?n=En.IPv6day
+.Rs
+.%A Brian Carpenter
+.%A Keith Moore
+.%T "Connection of IPv6 Domains via IPv4 Clouds"
+.%D February 2001
+.%R RFC
+.%N 3056
+.Re
+.Rs
+.%A Jun-ichiro itojun Hagino
+.%T "Possible abuse against IPv6 transition technologies"
+.%D July 2000
+.%N draft-itojun-ipv6-transition-abuse-01.txt
+.%O work in progress
+.Re
+.\"
+.Sh HISTORY
+The
+.Nm
+device first appeared in WIDE/KAME IPv6 stack.
+.\"
+.Sh BUGS
+No more than one
+.Nm
+interface is allowed for a node,
+and no more than one IPv6 interface address is allowed for an
+.Nm
+interface.
+It is to avoid source address selection conflicts
+between IPv6 layer and IPv4 layer,
+and to cope with ingress filtering rule on the other side.
+This is a feature to make
+.Nm
+work right for all occasions.

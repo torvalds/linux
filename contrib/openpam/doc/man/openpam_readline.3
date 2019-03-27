@@ -1,0 +1,89 @@
+.\" Generated from openpam_readline.c by gendoc.pl
+.\" $OpenPAM: openpam_readline.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt OPENPAM_READLINE 3
+.Os
+.Sh NAME
+.Nm openpam_readline
+.Nd read a line from a file
+.Sh SYNOPSIS
+.In sys/types.h
+.In stdio.h
+.In security/pam_appl.h
+.In security/openpam.h
+.Ft "char *"
+.Fn openpam_readline "FILE *f" "int *lineno" "size_t *lenp"
+.Sh DESCRIPTION
+.Bf Sy
+This function is deprecated and may be removed in a future release without further warning.
+The
+.Fn openpam_readlinev
+function may be used to achieve similar results.
+.Ef
+.Pp
+The
+.Fn openpam_readline
+function reads a line from a file, and returns it
+in a NUL-terminated buffer allocated with
+.Xr malloc 3 .
+.Pp
+The
+.Fn openpam_readline
+function performs a certain amount of processing
+on the data it reads:
+.Bl -bullet
+.It
+Comments (introduced by a hash sign) are stripped.
+.It
+Blank lines are ignored.
+.It
+If a line ends in a backslash, the backslash is stripped and the
+next line is appended.
+.El
+.Pp
+If
+.Fa lineno
+is not
+.Dv NULL ,
+the integer variable it points to is
+incremented every time a newline character is read.
+.Pp
+If
+.Fa lenp
+is not
+.Dv NULL ,
+the length of the line (not including the
+terminating NUL character) is stored in the variable it points to.
+.Pp
+The caller is responsible for releasing the returned buffer by passing
+it to
+.Xr free 3 .
+.Pp
+.Sh RETURN VALUES
+The
+.Fn openpam_readline
+function returns
+.Dv NULL
+on failure.
+.Sh SEE ALSO
+.Xr openpam_readlinev 3 ,
+.Xr openpam_readword 3 ,
+.Xr pam 3
+.Sh STANDARDS
+The
+.Fn openpam_readline
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn openpam_readline
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

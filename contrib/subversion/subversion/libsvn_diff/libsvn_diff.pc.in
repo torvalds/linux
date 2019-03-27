@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libsvn_diff
+Description: Subversion Diff Library
+Version: @PACKAGE_VERSION@
+Requires:  apr-@SVN_APR_MAJOR_VERSION@
+Requires.private:  libsvn_subr
+Libs: -L${libdir}  -lsvn_diff @SVN_ZLIB_LIBS@
+Cflags: -I${includedir}

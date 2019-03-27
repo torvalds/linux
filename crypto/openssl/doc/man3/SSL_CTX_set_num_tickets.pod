@@ -1,0 +1,68 @@
+=pod
+
+=head1 NAME
+
+SSL_set_num_tickets,
+SSL_get_num_tickets,
+SSL_CTX_set_num_tickets,
+SSL_CTX_get_num_tickets
+- control the number of TLSv1.3 session tickets that are issued
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_set_num_tickets(SSL *s, size_t num_tickets);
+ size_t SSL_get_num_tickets(SSL *s);
+ int SSL_CTX_set_num_tickets(SSL_CTX *ctx, size_t num_tickets);
+ size_t SSL_CTX_get_num_tickets(SSL_CTX *ctx);
+
+=head1 DESCRIPTION
+
+SSL_CTX_set_num_tickets() and SSL_set_num_tickets() can be called for a server
+application and set the number of TLSv1.3 session tickets that will be sent to
+the client after a full handshake. Set the desired value (which could be 0) in
+the B<num_tickets> argument. Typically these functions should be called before
+the start of the handshake.
+
+The default number of tickets is 2; the default number of tickets sent following
+a resumption handshake is 1 but this cannot be changed using these functions.
+The number of tickets following a resumption handshake can be reduced to 0 using
+custom session ticket callbacks (see L<SSL_CTX_set_session_ticket_cb(3)>).
+
+Tickets are also issued on receipt of a post-handshake certificate from the
+client following a request by the server using
+L<SSL_verify_client_post_handshake(3)>. These new tickets will be associated
+with the updated client identity (i.e. including their certificate and
+verification status). The number of tickets issued will normally be the same as
+was used for the initial handshake. If the initial handshake was a full
+handshake then SSL_set_num_tickets() can be called again prior to calling
+SSL_verify_client_post_handshake() to update the number of tickets that will be
+sent.
+
+SSL_CTX_get_num_tickets() and SSL_get_num_tickets() return the number of
+tickets set by a previous call to SSL_CTX_set_num_tickets() or
+SSL_set_num_tickets(), or 2 if no such call has been made.
+
+=head1 RETURN VALUES
+
+SSL_CTX_set_num_tickets() and SSL_set_num_tickets() return 1 on success or 0 on
+failure.
+
+SSL_CTX_get_num_tickets() and SSL_get_num_tickets() return the number of tickets
+that have been previously set.
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 1.1.1.
+
+=head1 COPYRIGHT
+
+Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

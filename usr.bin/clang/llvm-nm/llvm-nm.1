@@ -1,0 +1,221 @@
+.\" $FreeBSD$
+.\" Man page generated from reStructuredText.
+.
+.TH "LLVM-NM" "1" "2018-08-02" "7" "LLVM"
+.SH NAME
+llvm-nm \- list LLVM bitcode and object file's symbol table
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH SYNOPSIS
+.sp
+\fBllvm\-nm\fP [\fIoptions\fP] [\fIfilenames...\fP]
+.SH DESCRIPTION
+.sp
+The \fBllvm\-nm\fP utility lists the names of symbols from the LLVM bitcode
+files, object files, or \fBar\fP archives containing them, named on the
+command line.  Each symbol is listed along with some simple information about
+its provenance.  If no file name is specified, or \fI\-\fP is used as a file name,
+\fBllvm\-nm\fP will process a file on its standard input stream.
+.sp
+\fBllvm\-nm\fP\(aqs default output format is the traditional BSD \fBnm\fP
+output format.  Each such output record consists of an (optional) 8\-digit
+hexadecimal address, followed by a type code character, followed by a name, for
+each symbol.  One record is printed per line; fields are separated by spaces.
+When the address is omitted, it is replaced by 8 spaces.
+.sp
+Type code characters currently supported, and their meanings, are as follows:
+.sp
+U
+.INDENT 0.0
+.INDENT 3.5
+Named object is referenced but undefined in this bitcode file
+.UNINDENT
+.UNINDENT
+.sp
+C
+.INDENT 0.0
+.INDENT 3.5
+Common (multiple definitions link together into one def)
+.UNINDENT
+.UNINDENT
+.sp
+W
+.INDENT 0.0
+.INDENT 3.5
+Weak reference (multiple definitions link together into zero or one definitions)
+.UNINDENT
+.UNINDENT
+.sp
+t
+.INDENT 0.0
+.INDENT 3.5
+Local function (text) object
+.UNINDENT
+.UNINDENT
+.sp
+T
+.INDENT 0.0
+.INDENT 3.5
+Global function (text) object
+.UNINDENT
+.UNINDENT
+.sp
+d
+.INDENT 0.0
+.INDENT 3.5
+Local data object
+.UNINDENT
+.UNINDENT
+.sp
+D
+.INDENT 0.0
+.INDENT 3.5
+Global data object
+.UNINDENT
+.UNINDENT
+.sp
+?
+.INDENT 0.0
+.INDENT 3.5
+Something unrecognizable
+.UNINDENT
+.UNINDENT
+.sp
+Because LLVM bitcode files typically contain objects that are not considered to
+have addresses until they are linked into an executable image or dynamically
+compiled "just\-in\-time", \fBllvm\-nm\fP does not print an address for any
+symbol in an LLVM bitcode file, even symbols which are defined in the bitcode
+file.
+.SH OPTIONS
+.INDENT 0.0
+.TP
+.B \-B    (default)
+Use BSD output format.  Alias for \fI\-\-format=bsd\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-P
+Use POSIX.2 output format.  Alias for \fI\-\-format=posix\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debug\-syms, \-a
+Show all symbols, even debugger only.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-defined\-only
+Print only symbols defined in this file (as opposed to
+symbols which may be referenced by objects in this file, but not
+defined in this file.)
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dynamic, \-D
+Display dynamic symbols instead of normal symbols.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-extern\-only, \-g
+Print only symbols whose definitions are external; that is, accessible
+from other files.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-weak, \-W
+Don\(aqt print any weak symbols in the output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-format=format, \-f format
+Select an output format; \fIformat\fP may be \fIsysv\fP, \fIposix\fP, or \fIbsd\fP\&.  The default
+is \fIbsd\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-help
+Print a summary of command\-line options and their meanings.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-sort, \-p
+Shows symbols in order encountered.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-numeric\-sort, \-n, \-v
+Sort symbols by address.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-print\-file\-name, \-A, \-o
+Precede each symbol with the file it came from.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-print\-size, \-S
+Show symbol size instead of address.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-size\-sort
+Sort symbols by size.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-undefined\-only, \-u
+Print only symbols referenced but not defined in this file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-radix=RADIX, \-t
+Specify the radix of the symbol address(es). Values accepted d(decimal),
+x(hexadecomal) and o(octal).
+.UNINDENT
+.SH BUGS
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fBllvm\-nm\fP does not support the full set of arguments that GNU
+\fBnm\fP does.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH EXIT STATUS
+.sp
+\fBllvm\-nm\fP exits with an exit code of zero.
+.SH SEE ALSO
+.sp
+llvm\-dis, ar(1), nm(1)
+.SH AUTHOR
+Maintained by The LLVM Team (http://llvm.org/).
+.SH COPYRIGHT
+2003-2018, LLVM Project
+.\" Generated by docutils manpage writer.
+.

@@ -1,0 +1,124 @@
+$ $tcsh: set3,v 1.4 2011/02/04 18:19:35 christos Exp $
+$ Description des fonctions éditeur
+$set 3 
+1 Recule d'un caractère
+2 Efface le caractère derrière le curseur
+3 Coupe depuis le début du mot jusqu'au curseur - sauvegardé dans le tampon de copie
+4 Coupe depuis le début de la ligne jusqu'au curseur - sauvegardé dans le tampon de copie
+5 Va au début du mot courant
+6 Va au début de la ligne
+7 Met en majuscules les caractères depuis le curseur jusqu'à la fin du mot
+8 Vi change la casse du caractère sous le curseur et avance d'un caractère
+9 Vi change jusqu'à la fin de la ligne
+10 Efface l'écran en laissant la ligne courant au dessus
+11 Complète le mot courant
+12 Tab avance parmi les fichiers
+13 Tab recule parmi les fichiers
+14 Complète le mot courant en ignorant les compléments programmables
+15 Copie le mot courant jusqu'au curseur
+16 Copie la zone entre la marque et le curseur dans le tampon de copie
+17 Développe vers le mot précédent pour lequel c'est un préfixe
+18 Efface le caractère sous le curseur
+19 Efface le caractère sous le curseur, ou signale la fin de fichier si ligne vide
+20 Efface le caractère sous le curseur, ou liste les compléments si fin de ligne
+21 Efface le caractère sous le curseur, liste les compléments ou signale la fin de fichier
+22 Coupe depuis le curseur jusqu'à la fin du mot courant - sauvegardé dans le tampon de copie
+23 Ajoute aux arguments si démarré ou entre le chiffre
+24 Chiffre au début de l'argument
+25 Va à la prochaine ligne de l'historique
+26 Met en minuscules les caractères depuis le curseur jusqu'à la fin du mot
+27 Indique la fin de fichier
+28 Déplace le curseur à la fin de la ligne
+29 Echange le curseur et la marque
+30 Développe les jokers du nom de fichier
+31 Développe les échappements de l'historique
+32 Développe les échappements de l'historique en une ligne
+33 Développe les variables
+34 Avance d'un caractère
+35 Avance à la fin du mot courant
+36 Echange les deux caractères avant le curseur
+37 Cherche en arrière dans l'historique une ligne commençant comme la ligne courante
+38 Cherche en avant dans l'historique une ligne commençant comme la ligne courante
+39 Insère le dernier elément de la commande précédente
+40 Recherche en avant incrémentale
+41 Recherche en arrière incrémentale
+42 Efface la ligne
+43 Coupe jusqu'à la fin de la ligne et sauvegarde dans le tampon de copie
+44 Coupe la zone entre la marque et le curseur et sauvegarde dans le tampon de copie
+45 Coupe toute la ligne et sauvegarde dans le tampon de copie
+46 Liste les choix pour le complément
+47 Liste les choix pour le complément sur-définissant le complément programmable
+48 Liste les correspondances pour le nom de fichier avec joker
+49 Liste les choix pour le complément ou indique la fin de fichier si ligne vide
+50 Affiche la charge moyenne et l'état courant des processus
+51 Développe les échappements de l'historique et insère une espace
+52 Exécute la commande
+53 Développe les nom de répertoires, éliminant les `.' et `..' en tête
+54 Développe les commandes pour le chemin ou l'alias résultant
+55 Passe du mode insertion au mode recouvrement et vice-versa
+56 Ajoute le 8ième bit au prochain caractère saisi
+57 Ajoute le prochain caractère saisi à la ligne 
+58 Réaffiche tout
+59 Redémarre l'éditeur
+60 Cherche de l'aide pour la commande courante
+61 Ce caractère est ajouté à la ligne
+62 Ca caractère est le premier dans une séquence de caractères
+63 Définit la marque à la position du curseur
+64 Corrige la syntaxe du mot courant
+65 Corrige la syntaxe de la ligne complète
+66 Envoie le caractère au tty en mode 
+67 Bascule la ligne courante de l'historique entre le mode littéral et lexical
+68 Echange le caractère à la gauche du curseur avec celui en dessous du curseur
+69 Echange les deux caractères avant le curseur
+70 Caractère tty de suspension différé
+71 Caractère tty de vidage de sortie
+72 Caractère tty d'interruption
+73 Caractère tty de sortie
+74 Caractère tty de suspension
+75 Caractère tty de validation de sortie
+76 Caractère tty d'invalidation de sortie
+77 Indique un caractère pas attaché
+78 Argument universel Emacs (argument x 4)
+79 Va à la ligne précédente de l'historique
+80 Met en majuscule les caractères depuis le curseur jusqu'à la fin du mot courant
+81 Vi va au début du prochain mot
+82 Vi passe en mode insertion après le curseur
+83 Vi passe en mode insertion à la fin de la ligne
+84 Vi change la casse du caractère sous le curseur et avance d'un caractère
+85 Vi change la commande `prefix'
+86 Vi change jusqu'à la fin de la ligne
+87 Passe au mode de commande Vi (redéfinition des touches alternatives)
+88 Le mode commande de Vi complète le mot courant
+89 Vi va au caractère précédent (retour-arrière)
+90 Vi efface la commande `prefix'
+91 Vi va à la fin du mot courant délimité par des espaces
+92 Vi va à la fin du mot courant
+93 Vi va vers le caractère spécifié avant
+94 Vi va vers le caractère spécifié après
+95 Vi remonte vers le caractère spécifié avant
+96 Vi remonte vers le caractère spécifié après
+97 Passe en mode insertion Vi
+98 Passe en mode insertion Vi au début de la ligne
+99 Vi répète la recherche du caractère en cours dans la même direction
+100 Vi répète la recherche du caractère en cours dans la direction opposée
+101 Vi répète la recherche en cours dans la même direction
+102 Vi répète la recherche en cours dans la direction opposée
+103 Vi remplace le caractère sous le curseur avec le prochain caractère saisi
+104 Mode de remplacement Vi
+105 Vi cherche dans l'historique en arrière
+106 Vi cherche dans l'historique en avant
+107 Vi remplace le caractère sous le curseur et passe en mode insertion
+108 Vi remplace la ligne entière
+109 Vi va au mot précédent
+110 Vi va au prochain mot
+111 Vi défait la dernière modification
+112 Vi va au début de la ligne
+113 Exécute quelle commande en cours
+114 Colle le tampon de copie à la position du curseur
+115 Replace just-yanked text with yank from earlier kill
+116 (WIN32 only) Copy cut buffer to system clipboard
+117 (WIN32 only) Paste clipboard buffer at cursor position
+118 (WIN32 only) Convert each '/' in next word to '\\\\'
+119 (WIN32 only) Convert each '/' in previous word to '\\\\'
+120 (WIN32 only) Page visible console window up
+121 (WIN32 only) Page visible console window down

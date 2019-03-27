@@ -1,0 +1,193 @@
+=pod
+
+=head1 NAME
+
+OSSL_STORE_SEARCH,
+OSSL_STORE_SEARCH_by_name,
+OSSL_STORE_SEARCH_by_issuer_serial,
+OSSL_STORE_SEARCH_by_key_fingerprint,
+OSSL_STORE_SEARCH_by_alias,
+OSSL_STORE_SEARCH_free,
+OSSL_STORE_SEARCH_get_type,
+OSSL_STORE_SEARCH_get0_name,
+OSSL_STORE_SEARCH_get0_serial,
+OSSL_STORE_SEARCH_get0_bytes,
+OSSL_STORE_SEARCH_get0_string,
+OSSL_STORE_SEARCH_get0_digest
+- Type and functions to create OSSL_STORE search criteria
+
+=head1 SYNOPSIS
+
+ #include <openssl/store.h>
+
+ typedef struct ossl_store_search_st OSSL_STORE_SEARCH;
+
+ OSSL_STORE_SEARCH *OSSL_STORE_SEARCH_by_name(X509_NAME *name);
+ OSSL_STORE_SEARCH *OSSL_STORE_SEARCH_by_issuer_serial(X509_NAME *name,
+                                                       const ASN1_INTEGER
+                                                       *serial);
+ OSSL_STORE_SEARCH *OSSL_STORE_SEARCH_by_key_fingerprint(const EVP_MD *digest,
+                                                         const unsigned char
+                                                         *bytes, int len);
+ OSSL_STORE_SEARCH *OSSL_STORE_SEARCH_by_alias(const char *alias);
+
+ void OSSL_STORE_SEARCH_free(OSSL_STORE_SEARCH *search);
+
+ int OSSL_STORE_SEARCH_get_type(const OSSL_STORE_SEARCH *criterion);
+ X509_NAME *OSSL_STORE_SEARCH_get0_name(OSSL_STORE_SEARCH *criterion);
+ const ASN1_INTEGER *OSSL_STORE_SEARCH_get0_serial(const OSSL_STORE_SEARCH
+                                                   *criterion);
+ const unsigned char *OSSL_STORE_SEARCH_get0_bytes(const OSSL_STORE_SEARCH
+                                                   *criterion, size_t *length);
+ const char *OSSL_STORE_SEARCH_get0_string(const OSSL_STORE_SEARCH *criterion);
+ const EVP_MD *OSSL_STORE_SEARCH_get0_digest(const OSSL_STORE_SEARCH
+                                             *criterion);
+
+=head1 DESCRIPTION
+
+These functions are used to specify search criteria to help search for specific
+objects through other names than just the URI that's given to OSSL_STORE_open().
+For example, this can be useful for an application that has received a URI
+and then wants to add on search criteria in a uniform and supported manner.
+
+=head2 Types
+
+B<OSSL_STORE_SEARCH> is an opaque type that holds the constructed search
+criterion, and that can be given to an OSSL_STORE context with
+OSSL_STORE_find().
+
+The calling application owns the allocation of an B<OSSL_STORE_SEARCH> at all
+times, and should therefore be careful not to deallocate it before
+OSSL_STORE_close() has been called for the OSSL_STORE context it was given
+to.
+
+=head2 Application Functions
+
+OSSL_STORE_SEARCH_by_name(),
+OSSL_STORE_SEARCH_by_issuer_serial(),
+OSSL_STORE_SEARCH_by_key_fingerprint(),
+and OSSL_STORE_SEARCH_by_alias()
+are used to create an B<OSSL_STORE_SEARCH> from a subject name, an issuer name
+and serial number pair, a key fingerprint, and an alias (for example a friendly
+name).
+The parameters that are provided are not copied, only referred to in a
+criterion, so they must have at least the same life time as the created
+B<OSSL_STORE_SEARCH>.
+
+OSSL_STORE_SEARCH_free() is used to free the B<OSSL_STORE_SEARCH>.
+
+=head2 Loader Functions
+
+OSSL_STORE_SEARCH_get_type() returns the criterion type for the given
+B<OSSL_STORE_SEARCH>.
+
+OSSL_STORE_SEARCH_get0_name(), OSSL_STORE_SEARCH_get0_serial(),
+OSSL_STORE_SEARCH_get0_bytes(), OSSL_STORE_SEARCH_get0_string(),
+and OSSL_STORE_SEARCH_get0_digest()
+are used to retrieve different data from a B<OSSL_STORE_SEARCH>, as
+available for each type.
+For more information, see L</SUPPORTED CRITERION TYPES> below.
+
+=head1 SUPPORTED CRITERION TYPES
+
+Currently supported criterion types are:
+
+=over 4
+
+=item OSSL_STORE_SEARCH_BY_NAME
+
+This criterion supports a search by exact match of subject name.
+The subject name itself is a B<X509_NAME> pointer.
+A criterion of this type is created with OSSL_STORE_SEARCH_by_name(),
+and the actual subject name is retrieved with OSSL_STORE_SEARCH_get0_name().
+
+=item OSSL_STORE_SEARCH_BY_ISSUER_SERIAL
+
+This criterion supports a search by exact match of both issuer name and serial
+number.
+The issuer name itself is a B<X509_NAME> pointer, and the serial number is
+a B<ASN1_INTEGER> pointer.
+A criterion of this type is created with OSSL_STORE_SEARCH_by_issuer_serial()
+and the actual issuer name and serial number are retrieved with
+OSSL_STORE_SEARCH_get0_name() and OSSL_STORE_SEARCH_get0_serial().
+
+=item OSSL_STORE_SEARCH_BY_KEY_FINGERPRINT
+
+This criterion supports a search by exact match of key fingerprint.
+The key fingerprint in itself is a string of bytes and its length, as
+well as the algorithm that was used to compute the fingerprint.
+The digest may be left unspecified (NULL), and in that case, the
+loader has to decide on a default digest and compare fingerprints
+accordingly.
+A criterion of this type is created with OSSL_STORE_SEARCH_by_key_fingerprint()
+and the actual fingerprint and its length can be retrieved with
+OSSL_STORE_SEARCH_get0_bytes().
+The digest can be retrieved with OSSL_STORE_SEARCH_get0_digest().
+
+=item OSSL_STORE_SEARCH_BY_ALIAS
+
+This criterion supports a search by match of an alias of some kind.
+The alias in itself is a simple C string.
+A criterion of this type is created with OSSL_STORE_SEARCH_by_alias()
+and the actual alias is retrieved with OSSL_STORE_SEARCH_get0_string().
+
+=back
+
+=head1 RETURN VALUES
+
+OSSL_STORE_SEARCH_by_name(),
+OSSL_STORE_SEARCH_by_issuer_serial(),
+OSSL_STORE_SEARCH_by_key_fingerprint(),
+and OSSL_STORE_SEARCH_by_alias()
+return a B<OSSL_STORE_SEARCH> pointer on success, or B<NULL> on failure.
+
+OSSL_STORE_SEARCH_get_type() returns the criterion type of the given
+B<OSSL_STORE_SEARCH>.
+There is no error value.
+
+OSSL_STORE_SEARCH_get0_name() returns a B<X509_NAME> pointer on success,
+or B<NULL> when the given B<OSSL_STORE_SEARCH> was of a different type.
+
+OSSL_STORE_SEARCH_get0_serial() returns a B<ASN1_INTEGER> pointer on success,
+or B<NULL> when the given B<OSSL_STORE_SEARCH> was of a different type.
+
+OSSL_STORE_SEARCH_get0_bytes() returns a B<const unsigned char> pointer and
+sets B<*length> to the strings length on success, or B<NULL> when the given
+B<OSSL_STORE_SEARCH> was of a different type.
+
+OSSL_STORE_SEARCH_get0_string() returns a B<const char> pointer on success,
+or B<NULL> when the given B<OSSL_STORE_SEARCH> was of a different type.
+
+OSSL_STORE_SEARCH_get0_digest() returns a B<const EVP_MD> pointer.
+B<NULL> is a valid value and means that the store loader default will
+be used when applicable.
+
+=head1 SEE ALSO
+
+L<ossl_store(7)>, L<OSSL_STORE_supports_search(3)>, L<OSSL_STORE_find(3)>
+
+=head1 HISTORY
+
+B<OSSL_STORE_SEARCH>,
+OSSL_STORE_SEARCH_by_name(),
+OSSL_STORE_SEARCH_by_issuer_serial(),
+OSSL_STORE_SEARCH_by_key_fingerprint(),
+OSSL_STORE_SEARCH_by_alias(),
+OSSL_STORE_SEARCH_free(),
+OSSL_STORE_SEARCH_get_type(),
+OSSL_STORE_SEARCH_get0_name(),
+OSSL_STORE_SEARCH_get0_serial(),
+OSSL_STORE_SEARCH_get0_bytes(),
+and OSSL_STORE_SEARCH_get0_string()
+were added in OpenSSL 1.1.1.
+
+=head1 COPYRIGHT
+
+Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

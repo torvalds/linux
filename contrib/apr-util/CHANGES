@@ -1,0 +1,162 @@
+                                                     -*- coding: utf-8 -*-
+Changes with APR-util 1.5.4
+
+  *) MySQL driver: Fix incorrect handling of bad parameter in the
+     driver support for apr_dbd_transaction_end().  PR 56330.
+     [Weiqiang Li <weiqiang_li hotmail.com>]
+
+  *) apr_crypto_get_driver(): Fix invalid storage reference on error path.
+     [Philip Martin <philip.martin wandisco.com>]
+
+  *) Fix compile failure for Android.  PR 56627.  [Fredrik Fornwall 
+     <fredrik fornwall.net>, Jeff Trawick]
+
+  *) Fix to let ODBC driver build with MSVC6, which does not have intptr_t
+     [Tom Donovan]
+
+  *) Windows cmake build: Fix incompatiblities with Visual Studio
+     generators with all cmake versions, and the NMake Makefile generator
+     with cmake 2.8.12 and later.  PR 56616 and other bugs.  [Jeff Trawick,
+     Bert Huijben]
+
+  *) Fix detection of Berkeley DB 6.0. PR 55277.
+     [Lars Wendler <polynomial-c gentoo.org>]
+
+  *) Improve platform detection for bundled expat by updating
+     config.guess and config.sub. [Rainer Jung]
+
+Changes with APR-util 1.5.3
+
+  *) Cygwin: Use correct file extension when loading APR DSOs.  PR 55587.
+     [Carlo Bramini <carlo.bramix libero.it>]
+
+  *) Add experimental cmake-based build system for Windows.  Refer to
+     README.cmake for more information.  [Jeff Trawick, Tom Donovan]
+
+  *) Fix warnings in odbc driver on 64bit systems.
+     PR 55197  [Tom Donovan]
+
+  *) Add support to apr_memcache for unix domain sockets. PR 54573 [Remi
+     Gacogne <rgacogne+asf aquaray.com>]
+
+  *) Add support for Berkeley DB 6.0. [Rainer Jung]
+
+  *) Improve platform detection for bundled expat by updating
+     config.guess and config.sub. [Rainer Jung]
+
+Changes with APR-util 1.5.2
+
+  *) Windows: Add command line makefiles. [Gregg Smith]
+
+  *) apr_uri_parse(): Do not accept invalid characters in the scheme.
+     Per RFC 3986 3.3, enforce that the first segment of a relative path does
+     not contain a colon. PR 52479. [Stefan Fritsch]
+
+  *) Fix memory leak in hook sorting function. PR 51256.
+     [<horowity checkpoint com>]
+
+  *) Speedup md5 calculation by avoiding some copying on little endian
+     architectures. PR 49011. [Stefan Fritsch, Stefan Fuhrmann
+     <stefanfuhrmann alice-dsl de>]
+
+  *) Use heap memory for crypt in apr_password_validate(), to reduce stack
+     usage. PR 54572. [Stefan Fritsch]
+
+  *) Fix password validation failure for all crypt and crypt_r based
+     algorithms. PR 54603.  [Harvey Eneman <harvey.eneman oracle.com>]
+
+  *) Fix syntax error in crypto/apr_passwd.c on non-glibc systems. PR 54275.
+     [Stefan Fritsch]
+
+  *) Fix potential data corruption in apr_brigade_write() and friends if
+     the last bucket of the brigade is a heap bucket that has been split,
+     and there are still references to the next part of the original bucket
+     in use. [Stefan Fritsch]
+
+  *) Remove duplicated logic in apr_brigade_puts(). PR 53740. [Christophe
+     Jaillet <christophe jaillet wanadoo fr>]
+
+  *) apr_crypto: If --with-crypto is passed to configure but no crypto
+     libraries are enabled, autodetect available libraries.  [Jeff Trawick]
+
+  *) memcache: Fix dead server retry logic.  [Gavin Shelley <columbusmonkey me.com>]
+
+Changes with APR-util 1.5.1
+
+  *) testmemcache: Fix crash. PR 52705. [Peter Poeml <peter poeml de>]
+
+  *) MinGW: Support shared builds of apr-util when apr is shared.
+     PR 46175.  [Carlo Bramini <carlo.bramix libero.it>, Jeff Trawick]
+
+  *) Add support for Berkeley DB 5.2 and 5.3. Simplify detection script.
+     PR 53684.  [Rainer Jung]
+
+  *) configure: Allow to specify library specific custom linker flags
+     via the LDADD_XXX variables. [Rainer Jung]
+
+  *) apr_password_validate(): Fix intermittent errors on systems
+     such as FreeBSD where the crypt() function is used.
+     (Broken only in 1.5.0)  [Jeff Trawick]
+
+  *) Improve platform detection for bundled expat by updating
+     config.guess and config.sub. [Rainer Jung]
+
+Changes with APR-util 1.5.0
+
+  *) dbd_pgsql_escape: Use PQescapeStringConn. [Nick Kew]
+
+  *) apr_password_validate, apr_bcrypt_encode: Add support for bcrypt encoded
+     passwords. The bcrypt implementation uses code from crypt_blowfish
+     written by Solar Designer <solar openwall com>. apr_bcrypt_encode creates
+     hashes with "$2y$" prefix, but apr_password_validate also accepts the old
+     prefix "$2a$". PR 49288. [Stefan Fritsch]
+
+  *) APR dbd: Allow to use apr_dbd_get_row() with a different pool than
+     apr_dbd_select(). PR 53533. [<arthur echo gmail com>]
+
+  *) APR dbd FreeTDS support: Fix spurious API errors caused by uninitialized
+     fields.  [TROY.LIU 劉春偉 <TROY.LIU deltaww.com.cn>]
+
+  *) apr_password_validate: Increase maximum hash string length to allow
+     more than 9999 rounds with sha512-crypt. PR 53410. [Stefan Fritsch]
+
+  *) Fix segfaults in crypt() and crypt_r() failure modes.
+     PR 47272.  [Arkadiusz Miskiewicz <arekm pld-linux.org>]
+
+  *) apr_crypto: Ensure that the if/else that governs the static
+     initialisation of each crypto driver works when the first driver
+     isn't in use. [Graham Leggett]
+
+  *) apr_crypto: Ensure the *driver variable is initialised when a statically
+     compiled library is initialised for the first time. [Graham Leggett]
+
+  *) apr_crypto: Ensure the *driver variable is initialised when the library
+     has already been loaded. Fix ported from apr_dbd. [Graham Leggett]
+
+  *) apr_crypto: Move the static initialisation of DRIVER_LOAD from
+     apr_crypto_init() to apr_crypto_get_driver(), so that we don't lose
+     the parameters. [Graham Leggett]
+
+Changes with APR-util 1.4.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr-util/branches/1.4.x/CHANGES?view=markup
+
+Changes for APR-util 1.3.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr-util/branches/1.3.x/CHANGES?view=markup
+
+Changes for APR-util 1.2.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr-util/branches/1.2.x/CHANGES?view=markup
+
+Changes for APR-util 1.1.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr-util/branches/1.1.x/CHANGES?view=markup
+
+Changes for APR-util 1.0.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr-util/branches/1.0.x/CHANGES?view=markup
+
+Changes for APR-util 0.9.x and later/earlier:
+
+  *) http://svn.apache.org/viewvc/apr/apr-util/branches/0.9.x/CHANGES?view=markup

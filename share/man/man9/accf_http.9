@@ -1,0 +1,98 @@
+.\"
+.\" Copyright (c) 2000 Alfred Perlstein
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" "
+.Dd November 15, 2000
+.Dt ACCF_HTTP 9
+.Os
+.Sh NAME
+.Nm accf_http
+.Nd "buffer incoming connections until a certain complete HTTP requests arrive"
+.Sh SYNOPSIS
+.Nm options INET
+.Nm options ACCEPT_FILTER_HTTP
+.Nm kldload accf_http
+.Sh DESCRIPTION
+This is a filter to be placed on a socket that will be using
+.Fn accept
+to receive incoming HTTP connections.
+.Pp
+It prevents the application from receiving the connected descriptor via
+.Fn accept
+until either a full HTTP/1.0 or HTTP/1.1 HEAD or GET request has
+been buffered by the kernel.
+.Pp
+If something other than a HTTP/1.0 or
+HTTP/1.1 HEAD or GET request is received the kernel will
+allow the application to receive the connection descriptor
+via
+.Fn accept .
+.Pp
+The utility of
+.Nm
+is such that a server will not have to context switch several times
+before performing the initial parsing of the request.
+This effectively reduces the amount of required CPU utilization
+to handle incoming requests by keeping active
+processes in preforking servers such as Apache low
+and reducing the size of the file descriptor set that needs
+to be managed by interfaces such as
+.Fn select ,
+.Fn poll
+or
+.Fn kevent
+based servers.
+.Pp
+The
+.Nm
+kernel option is also a module that can be enabled at runtime via
+.Xr kldload 8
+if the INET option has been compiled into the kernel.
+.Sh EXAMPLES
+Assuming ACCEPT_FILTER_HTTP has been included in the kernel config
+file or the
+.Nm
+module
+has been loaded, this will enable the http accept filter
+on the socket
+.Fa sok .
+.Bd -literal -offset 0i
+	struct accept_filter_arg afa;
+
+	bzero(&afa, sizeof(afa));
+	strcpy(afa.af_name, "httpready");
+	setsockopt(sok, SOL_SOCKET, SO_ACCEPTFILTER, &afa, sizeof(afa));
+.Ed
+.Sh SEE ALSO
+.Xr setsockopt 2 ,
+.Xr accept_filter 9
+.Sh HISTORY
+The accept filter mechanism and the
+accf_http filter were introduced in
+.Fx 4.0 .
+.Sh AUTHORS
+This manual page and the filter were written by
+.An Alfred Perlstein .

@@ -1,0 +1,113 @@
+\input texinfo    @c -*-texinfo-*-
+@c %**start of header
+@setfilename ntpd.info
+@settitle ntpd: Network Time Protocol (NTP) Daemon User's Manual
+@include ../sntp/include/version.texi
+@paragraphindent 2
+@c %**end of header
+
+@ifinfo
+This file documents the use of the NTP Project's ntpd, a program for
+controlling ntpd.
+@end ifinfo
+
+@direntry
+* ntpd: (ntpd).                               NTP Daemon program
+@end direntry
+
+@titlepage
+@title ntpd: Network Time Protocol (NTP) Daemon User's Manual
+@subtitle ntpd, version @value{VERSION}, @value{UPDATED}
+@c @author Max @email{foo@ntp.org}
+@end titlepage
+
+@c @page
+@c @vskip 0pt plus 1filll
+
+@node Top, ntpd Description, (dir), (dir)
+@top ntpd: Network Time Protocol (NTP) Daemon User Manual
+
+The @code{ntpd} program is an operating system daemon that synchronizes the
+system clock to remote NTP time servers or local reference clocks.
+It is a complete implementation of NTP version 4 defined by RFC-5905, but
+also retains compatible with version 3 defined by RFC-1305 and versions
+1 and 2, defined by RFC-1059 and RFC-1119, respectively.
+The program can operate in any of several modes, including client/server,
+symmetric and broadcast modes, and with both symmetric-key and public-key
+cryptography.
+
+This document applies to version @value{VERSION} of @code{ntpd}.
+
+@shortcontents
+
+@menu
+* ntpd Description::            Description
+* ntpd Invocation::		Invoking ntpd
+* Usage::                       Usage
+@end menu
+
+@node ntpd Description
+@comment  node-name,  next,  previous,  up
+@section Description
+
+The @code{ntpd} program ordinarily requires
+a configuration file described at @ref{ntp.conf}.
+This configuration file contains configuration commands described on
+the pages listed above.
+However a client can discover remote servers and configure them
+automatically.
+This makes it possible to deploy a fleet of workstations without
+specifying configuration details specific to the local environment.
+
+The @code{ntpd} program normally operates continuously while adjusting the
+system time and frequency, but in some cases this might not be
+practical.
+With the @code{-q} option @code{ntpd} operates as in continuous mode, but
+exits just after setting the clock for the first time.
+Most applications will probably want to specify the @code{iburst}
+option with the @code{server} command.
+With this option an initial volley of messages is exchanged to
+groom the data and set the clock in about ten seconds' time.
+If nothing is heard after a few minutes' time,
+the daemon times out and exits without setting the clock.
+
+@include invoke-ntpd.texi
+
+@node Usage
+@comment  node-name,  next,  previous,  up
+@section Usage
+
+@multitable @columnfractions .23 .23 .05 .15
+@headitem What @tab Default @tab Flag @tab Option
+@item configuration file
+@tab @code{/etc/ntp.conf}
+@tab @code{-c}
+@tab @code{conffile}
+@item frequency file
+@tab none
+@tab @code{-f}
+@tab @code{driftfile}
+@item leapseconds file
+@tab none
+@tab
+@tab @code{leapfile}
+@item process ID file
+@tab none
+@tab @code{-p}
+@tab @code{pidfile}
+@item log file
+@tab system log
+@tab @code{-l}
+@tab @code{logfile}
+@item include file
+@tab none
+@tab none
+@tab @code{includefile}
+@item statistics path
+@tab @code{/var/NTP}
+@tab @code{-s}
+@tab @code{statsdir}
+@item keys path
+@tab @code{/usr/local/etc}
+@tab @code{-k}
+@tab @code{keysdir}

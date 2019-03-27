@@ -1,0 +1,160 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)radixsort.3	8.2 (Berkeley) 1/27/94
+.\" $FreeBSD$
+.\"
+.Dd January 27, 1994
+.Dt RADIXSORT 3
+.Os
+.Sh NAME
+.Nm radixsort , sradixsort
+.Nd radix sort
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In limits.h
+.In stdlib.h
+.Ft int
+.Fn radixsort "const unsigned char **base" "int nmemb" "const unsigned char *table" "unsigned endbyte"
+.Ft int
+.Fn sradixsort "const unsigned char **base" "int nmemb" "const unsigned char *table" "unsigned endbyte"
+.Sh DESCRIPTION
+The
+.Fn radixsort
+and
+.Fn sradixsort
+functions
+are implementations of radix sort.
+.Pp
+These functions sort an array of pointers to byte strings, the initial
+member of which is referenced by
+.Fa base .
+The byte strings may contain any values; the end of each string
+is denoted by the user-specified value
+.Fa endbyte .
+.Pp
+Applications may specify a sort order by providing the
+.Fa table
+argument.
+If
+.Pf non- Dv NULL ,
+.Fa table
+must reference an array of
+.Dv UCHAR_MAX
++ 1 bytes which contains the sort
+weight of each possible byte value.
+The end-of-string byte must have a sort weight of 0 or 255
+(for sorting in reverse order).
+More than one byte may have the same sort weight.
+The
+.Fa table
+argument
+is useful for applications which wish to sort different characters
+equally, for example, providing a table with the same weights
+for A-Z as for a-z will result in a case-insensitive sort.
+If
+.Fa table
+is NULL, the contents of the array are sorted in ascending order
+according to the
+.Tn ASCII
+order of the byte strings they reference and
+.Fa endbyte
+has a sorting weight of 0.
+.Pp
+The
+.Fn sradixsort
+function is stable, that is, if two elements compare as equal, their
+order in the sorted array is unchanged.
+The
+.Fn sradixsort
+function uses additional memory sufficient to hold
+.Fa nmemb
+pointers.
+.Pp
+The
+.Fn radixsort
+function is not stable, but uses no additional memory.
+.Pp
+These functions are variants of most-significant-byte radix sorting; in
+particular, see
+.An "D.E. Knuth" Ns 's
+.%T "Algorithm R"
+and section 5.2.5, exercise 10.
+They take linear time relative to the number of bytes in the strings.
+.Sh RETURN VALUES
+.Rv -std radixsort
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of the
+.Fa endbyte
+element of
+.Fa table
+is not 0 or 255.
+.El
+.Pp
+Additionally, the
+.Fn sradixsort
+function
+may fail and set
+.Va errno
+for any of the errors specified for the library routine
+.Xr malloc 3 .
+.Sh SEE ALSO
+.Xr sort 1 ,
+.Xr qsort 3
+.Pp
+.Rs
+.%A Knuth, D.E.
+.%D 1968
+.%B "The Art of Computer Programming"
+.%T "Sorting and Searching"
+.%V Vol. 3
+.%P pp. 170-178
+.Re
+.Rs
+.%A Paige, R.
+.%D 1987
+.%T "Three Partition Refinement Algorithms"
+.%J "SIAM J. Comput."
+.%V Vol. 16
+.%N No. 6
+.Re
+.Rs
+.%A McIlroy, P.
+.%D 1993
+.%B "Engineering Radix Sort"
+.%T "Computing Systems"
+.%V Vol. 6:1
+.%P pp. 5-27
+.Re
+.Sh HISTORY
+The
+.Fn radixsort
+function first appeared in
+.Bx 4.4 .

@@ -1,0 +1,118 @@
+#!/bin/sh
+#
+# Copyright 2014 John-Mark Gurney
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# PROVIDE: growfs
+# BEFORE: sysctl
+# KEYWORD: firstboot
+
+# This allows us to distribute a image
+# and have it work on essentially any size drive.
+#
+# TODO: Figure out where this should really be ordered.
+# I suspect it should go just after fsck but before mountcritlocal.
+# 
+
+. /etc/rc.subr
+
+name="growfs"
+desc="Grow root partition to fill device"
+start_cmd="growfs_start"
+stop_cmd=":"
+rcvar="growfs_enable"
+
+growfs_start ()
+{
+	echo "Growing root partition to fill device"
+	FSTYPE=$(mount -p | awk '{ if ( $2 == "/") { print $3 }}')
+	FSDEV=$(mount -p | awk '{ if ( $2 == "/") { print $1 }}')
+	case "$FSTYPE" in
+	ufs)
+		rootdev=${FSDEV#/dev/}
+		;;
+	zfs)
+		pool=${FSDEV%%/*}
+		rootdev=$(zpool list -v $pool | awk 'END { print $1 }')
+		;;
+	*)
+		echo "Don't know how to grow root filesystem type: $FSTYPE"
+		return
+	esac
+	if [ x"$rootdev" = x"${rootdev%/*}" ]; then
+		# raw device
+		rawdev="$rootdev"
+	else
+		rawdev=$(glabel status | awk '$1 == "'"$rootdev"'" { print $3 }')
+		if [ x"$rawdev" = x"" ]; then
+			echo "Can't figure out device for: $rootdev"
+			return
+		fi
+	fi
+
+	sysctl -b kern.geom.conftxt | awk '
+{
+	lvl=$1
+	device[lvl] = $3
+	type[lvl] = $2
+	idx[lvl] = $7
+	parttype[lvl] = $13
+	if (dev == $3) {
+		for (i = 1; i <= lvl; i++) {
+			# resize
+			if (type[i] == "PART") {
+				pdev = device[i - 1]
+				cmd[i] = "gpart resize -i " idx[i] " " pdev
+				if (parttype[i] == "GPT")
+					cmd[i] = "gpart recover " pdev " ; " cmd[i]
+			} else if (type[i] == "LABEL") {
+				continue
+			} else {
+				print "unhandled type: " type[i]
+				exit 1
+			}
+		}
+		for (i = 1; i <= lvl; i++) {
+			if (cmd[i])
+				system(cmd[i])
+		}
+		exit 0
+	}
+}' dev="$rawdev"
+	gpart commit "$rootdev"
+	case "$FSTYPE" in
+	ufs)
+		growfs -y /dev/"$rootdev"
+		;;
+	zfs)
+		zpool online -e $pool $rootdev
+		;;
+	esac
+}
+
+load_rc_config $name
+run_rc_command "$1"

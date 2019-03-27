@@ -1,0 +1,158 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2018 Oleksandr Tymoshenko
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 23, 2018
+.Dt fdt_pinctrl 9
+.Os
+.Sh NAME
+.Nm fdt_pinctrl
+.Nd helper functions for FDT pinmux controller drivers
+.Sh SYNOPSIS
+.In dev/fdt/fdt_pinctrl.h
+.Ft int
+.Fn fdt_pinctrl_configure "device_t client" "u_int index"
+.Ft int
+.Fn fdt_pinctrl_configure_by_name "device_t client" "const char * name"
+.Ft int
+.Fn fdt_pinctrl_register "device_t pinctrl" "const char *pinprop"
+.Ft int
+.Fn fdt_pinctrl_configure_tree "device_t pinctrl"
+.Sh DESCRIPTION
+.Xr fdt_pinctrl 4
+provides an API for manipulating I/O pin configurations on
+pinmux controllers and pinmux clients.
+On the controller side, the standard newbus probe and
+attach methods are implemented.
+As part of handling attach, it calls the
+.Fn fdt_pinctrl_register
+function to register itself as a pinmux controller.
+Then
+.Fn fdt_pinctrl_configure_tree
+is used to walk the device tree and configure pins specified by the pinctrl-0
+property for all active devices.
+The driver also implements the
+.Fn fdt_pinctrl_configure
+method, which allows client devices to change their
+pin configurations after startup.
+If a client device requires a pin configuration change at some
+point of its lifecycle, it uses the
+.Fn fdt_pinctrl_configure
+or
+.Fn fdt_pinctrl_configure_by_name
+functions.
+.Pp
+.Fn fdt_pinctrl_configure
+is used by client device
+.Fa client
+to request a pin configuration
+described by the pinctrl-N property with index
+.Fa index .
+.Pp
+.Fn fdt_pinctrl_configure_by_name
+is used by client device
+.Fa client
+to request the pin configuration with name
+.Fa name .
+.Pp
+.Fn fdt_pinctrl_register
+registers a pinctrl driver so that it can be used by other devices which call
+.Fn fdt_pinctrl_configure
+or
+.Fn fdt_pinctrl_configure_by_name .
+It also registers each child node of the pinctrl driver's node which contains
+a property with the name given in
+.Fa pinprop .
+If
+.Fa pinprop
+is
+.Dv NULL ,
+every descendant node is registered.
+It is possible for the driver to register itself
+as a pinmux controller for more than one pin property type
+by calling
+.Fn fdt_pinctrl_register
+multiple types.
+.Pp
+.Fn fdt_pinctrl_configure_tree
+walks through enabled devices in the device tree.
+If the pinctrl-0 property contains references
+to child nodes of the specified pinctrl device,
+their pins are configured.
+.Sh EXAMPLES
+.Bd -literal
+static int
+foo_configure_pins(device_t dev, phandle_t cfgxref)
+{
+	phandle_t cfgnode;
+	uint32_t *pins, *functions;
+	int npins, nfunctions;
+
+	cfgnode = OF_node_from_xref(cfgxref);
+	pins = NULL;
+	npins = OF_getencprop_alloc_multi(cfgnode, "foo,pins", sizeof(*pins),
+	    (void **)&pins);
+	functions = NULL;
+	nfunctions = OF_getencprop_alloc_multi(cfgnode, "foo,functions",
+	    sizeof(*functions), (void **)&functions);
+	...
+}
+
+static int
+foo_attach(device_t dev)
+{
+	...
+
+	fdt_pinctrl_register(dev, "foo,pins");
+	/*
+	 * It is possible to register more than one pinprop handler
+	 */
+	fdt_pinctrl_register(dev, "bar,pins");
+	fdt_pinctrl_configure_tree(dev);
+
+	return (0);
+}
+
+static device_method_t foo_methods[] = {
+	...
+
+	/* fdt_pinctrl interface */
+	DEVMETHOD(fdt_pinctrl_configure, foo_configure_pins),
+
+	/* Terminate method list */
+	DEVMETHOD_END
+};
+
+DRIVER_MODULE(foo, simplebus, foo_driver, foo_devclass, NULL, NULL);
+.Ed
+.Sh SEE ALSO
+.Xr fdt_pinctrl 4 ,
+.Sh AUTHORS
+This manual page was written by
+.An Oleksandr Tymoshenko .

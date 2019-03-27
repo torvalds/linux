@@ -1,0 +1,90 @@
+.\" Copyright (c) 1983, 1990, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ruptime.1	8.2 (Berkeley) 4/5/94
+.\" $FreeBSD$
+.\"
+.Dd August 8, 2017
+.Dt RUPTIME 1
+.Os
+.Sh NAME
+.Nm ruptime
+.Nd show host status of local machines
+.Sh SYNOPSIS
+.Nm
+.Op Fl alrtu
+.Op Ar host ...
+.Sh DESCRIPTION
+The
+.Nm
+utility gives a status line like
+.Xr uptime 1
+for each machine on the local network; these are formed from packets
+broadcast by each host on the network once every three minutes.
+.Pp
+If no operands are given,
+.Nm
+displays uptime status for all machines;
+otherwise only those hosts specified on the command line are displayed.
+If hosts are specified on the command line, the sort order is equivalent
+to the order hosts were specified on the command line.
+.Pp
+Machines for which no status report has been received for 11
+minutes are shown as being down, and machines for which no status
+report has been received for 4 days are not shown in the list at all.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Include all users.
+By default, if a user has not typed to the system for
+an hour or more, then the user will be omitted from the output.
+.It Fl l
+Sort by load average.
+.It Fl r
+Reverse the sort order.
+.It Fl t
+Sort by uptime.
+.It Fl u
+Sort by number of users.
+.El
+.Pp
+The default listing is sorted by host name.
+.Sh FILES
+.Bl -tag -width /var/rwho/whod.* -compact
+.It Pa /var/rwho/whod.*
+data files
+.El
+.Sh SEE ALSO
+.Xr rwho 1 ,
+.Xr uptime 1 ,
+.Xr rwhod 8
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.Bx 4.2 .

@@ -1,0 +1,46 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>ntptime - read and set kernel time variables</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3><tt>ntptime</tt> - read and set kernel time variables</h3>
+<img src="pic/pogo5.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Pogo</i>, Walt Kelly</a>
+<p>The turtle has been swimming in the kernel.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->11-Sep-2010  05:55<!-- #EndDate -->
+  UTC</p>
+<br clear="left">
+<hr>
+<h4>Synopsis</h4>
+<tt>ntptime [ -chr ] [ -e <i>est_error</i> ] [ -f <i>frequency</i> ] [ -m <i>max_error</i> ] [ -o <i>offset</i> ] [ -s <i>status</i> ] [ -t <i>time_constant</i>]</tt>
+<h4>Description</h4>
+<p>This program is useful only with special kernels described in the <a href="kern.html">A Kernel Model for Precision Timekeeping</a> page. It reads and displays time-related kernel variables using the <tt>ntp_gettime()</tt> system call. A similar display can be obtained using the <tt>ntpdc</tt> program and <tt>kerninfo</tt> command.</p>
+<h4>Options</h4>
+<dl>
+  <dt><tt>-c</tt></dt>
+  <dd>Display the execution time of <tt>ntptime</tt> itself.</dd>
+  <dt><tt>-e <i>est_error</i></tt></dt>
+  <dd>Specify estimated error, in microseconds.</dd>
+  <dt><tt>-f <i>frequency</i></tt></dt>
+  <dd>Specify frequency offset, in parts per million.</dd>
+  <dt><tt>-h</tt></dt>
+  <dd>Display help information.</dd>
+  <dt><tt>-m <i>max_error</i></tt></dt>
+  <dd>Specify max possible errors, in microseconds.</dd>
+  <dt><tt>-o <i>offset</i></tt></dt>
+  <dd>Specify clock offset, in microseconds.</dd>
+  <dt><tt>-r</tt></dt>
+  <dd>Display Unix and NTP times in raw format.</dd>
+  <dt><tt>-s <i>status</i></tt></dt>
+  <dd>Specify clock status. Better know what you are doing.</dd>
+  <dt><tt>-t <i>time_constant</i></tt></dt>
+  <dd>Specify time constant, an integer in the range 0-10.</dd>
+</dl>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

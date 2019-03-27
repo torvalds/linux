@@ -1,0 +1,83 @@
+.\"
+.\" Copyright (c) 2010 The FreeBSD Foundation 
+.\" All rights reserved. 
+.\" 
+.\" This software was developed by Rui Paulo under sponsorship from the
+.\" FreeBSD Foundation. 
+.\"  
+.\" Redistribution and use in source and binary forms, with or without 
+.\" modification, are permitted provided that the following conditions 
+.\" are met: 
+.\" 1. Redistributions of source code must retain the above copyright 
+.\"    notice, this list of conditions and the following disclaimer. 
+.\" 2. Redistributions in binary form must reproduce the above copyright 
+.\"    notice, this list of conditions and the following disclaimer in the 
+.\"    documentation and/or other materials provided with the distribution. 
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND 
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE 
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+.\" SUCH DAMAGE. 
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 7, 2010
+.Dt CTFDUMP 1
+.Os
+.Sh NAME
+.Nm ctfdump
+.Nd dump the SUNW_ctf section of an ELF file
+.Sh SYNOPSIS
+.Nm
+.Op Fl dfhlsSt
+.Fl u Ar file
+file
+.Sh DESCRIPTION
+The
+.Nm
+utility dumps the contents of the CTF data section (SUNW_ctf) present in
+an ELF binary file.
+This section was previously created with
+.Xr ctfconvert 1
+or
+.Xr ctfmerge 1 .
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d
+Show the data object section.
+.It Fl f
+Show the function section.
+.It Fl h
+Show the header.
+.It Fl l
+Show the label section.
+.It Fl s
+Show the string table.
+.It Fl S
+Show statistics.
+.It Fl t
+Show the type section.
+.It Fl u Ar ufile
+Write the uncompressed CTF data to a raw CTF file called
+.Ar ufile .
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr ctfconvert 1 ,
+.Xr ctfmerge 1
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+The CTF utilities came from OpenSolaris.

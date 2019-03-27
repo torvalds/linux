@@ -1,0 +1,123 @@
+.\" Copyright (c) 2015-2017 Nuxi, https://nuxi.nl/
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd November 30, 2017
+.Dt CLOUDABI 4
+.Os
+.Sh NAME
+.Nm cloudabi ,
+.Nm cloudabi32 ,
+.Nm cloudabi64
+.Nd CloudABI support
+.Sh SYNOPSIS
+Support for 32-bit CloudABI executables can be compiled into the kernel
+by adding this line to the kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options COMPAT_CLOUDABI32"
+.Ed
+.Pp
+Similarly,
+support for 64-bit CloudABI executables can be enabled by adding this
+line:
+.Bd -ragged -offset indent
+.Cd "options COMPAT_CLOUDABI64"
+.Ed
+.Pp
+CloudABI support can also be loaded at boot time from
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+cloudabi_load="YES"
+cloudabi32_load="YES"
+cloudabi64_load="YES"
+.Ed
+.Sh DESCRIPTION
+CloudABI is a POSIX-like pure capability-based runtime environment,
+similar to
+.Xr capsicum 4 .
+It can be used to develop applications that are cross-platform,
+easier to test,
+and hardened against security exploits.
+.Pp
+Support for CloudABI on
+.Fx
+consists of three separate kernel modules.
+The
+.Nm cloudabi
+kernel module implements all of the system calls that do not depend on
+data structures that differ between hardware architectures.
+.Pp
+The
+.Nm cloudabi32
+and
+.Nm cloudabi64
+kernel modules provide implementations of all of the machine-dependent
+system calls,
+assuming that pointers stored in data structures are either 32 bits or
+64 bits in size.
+These modules also provide the image activators that load and start ELF
+executables.
+.Pp
+Though the
+.Nm cloudabi
+module can be loaded on any architecture supported by
+.Fx ,
+the
+.Nm cloudabi32
+module is only available on amd64, arm64, armv6, armv7 and i386.
+The same holds for the
+.Nm cloudabi64
+module,
+which is only available for amd64 and arm64.
+.Pp
+A full cross compilation toolchain for CloudABI is available in the
+.Pa devel/cloudabi-toolchain
+port.
+.Pp
+The
+.Pa sysutils/cloudabi-utils
+port provides the
+.Xr cloudabi-run 1
+utility.
+.Xr cloudabi-run 1
+can be used to safely execute CloudABI processes with access to a
+restricted set of resources.
+.Sh SEE ALSO
+.Xr cloudabi-run 1 ,
+.Xr capsicum 4 ,
+.Xr linux 4 ,
+.Xr elf 5
+.Pp
+CloudABI for FreeBSD:
+.Pa https://nuxi.nl/cloudabi/freebsd/ .
+.Pp
+cloudlibc on GitHub:
+.Pa https://github.com/NuxiNL/cloudlibc .
+.Pp
+The CloudABI Ports Collection on GitHub:
+.Pa https://github.com/NuxiNL/cloudabi-ports .
+.Sh HISTORY
+CloudABI support first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An Nuxi : Pa https://nuxi.nl/ .

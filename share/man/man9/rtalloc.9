@@ -1,0 +1,282 @@
+.\"
+.\" Copyright 1996 Massachusetts Institute of Technology
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby
+.\" granted, provided that both the above copyright notice and this
+.\" permission notice appear in all copies, that both the above
+.\" copyright notice and this permission notice appear in all
+.\" supporting documentation, and that the name of M.I.T. not be used
+.\" in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.  M.I.T. makes
+.\" no representations about the suitability of this software for any
+.\" purpose.  It is provided "as is" without express or implied
+.\" warranty.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+.\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+.\" SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 4, 2012
+.Dt RTALLOC 9
+.Os
+.Sh NAME
+.Nm rtalloc1_fib ,
+.Nm rtalloc_ign_fib ,
+.Nm rtalloc_fib
+.Nd look up a route in the kernel routing table
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In net/route.h
+.Ft "struct rtentry *"
+.Fn rtalloc1_fib "struct sockaddr *dst" "int report" "u_long flags" "u_int fibnum"
+.Ft void
+.Fn rtalloc_fib "struct route *ro" "u_int fibnum"
+.Ft void
+.Fn rtalloc_ign_fib "struct route *ro" "u_long flags" "u_int fibnum"
+.Fn RTFREE_LOCKED "struct rt_entry *rt"
+.Fn RTFREE "struct rt_entry *rt"
+.Fn RT_LOCK "struct rt_entry *rt"
+.Fn RT_UNLOCK "struct rt_entry *rt"
+.Fn RT_ADDREF "struct rt_entry *rt"
+.Fn RT_REMREF "struct rt_entry *rt"
+.Fn RO_RTFREE "struct route *ro"
+.Ft void
+.Fn rtfree "struct rt_entry *rt"
+.Ft "struct rtentry *"
+.Fn rtalloc1 "struct sockaddr *dst" "int report" "u_long flags"
+.Ft void
+.Fn rtalloc "struct route *ro"
+.Ft void
+.Fn rtalloc_ign "struct route *ro" "u_long flags"
+.Pp
+.Cd options RADIX_MPATH
+.Sh DESCRIPTION
+The kernel uses a radix tree structure to manage routes for the
+networking subsystem.
+If compiled with
+.Cd options RADIX_MPATH
+kernel may maintain several independent forwarding information databases (FIBs).
+The
+.Fn rtalloc
+family of routines is used by protocols to query these structures for a
+route corresponding to a particular end-node address, and to cause
+certain protocol\- and interface-specific actions to take place.
+.Pp
+The
+.Fn rtalloc1_fib
+function is the most general form of
+.Fn rtalloc ,
+and all of the other forms are implemented as calls to it.
+It takes a
+.Fa "struct sockaddr *"
+directly as the
+.Fa dst
+argument.
+The second argument,
+.Fa report ,
+controls whether the routing sockets are notified when a lookup fails.
+The third argument,
+.Fa flags ,
+is a combination of
+the following values:
+.Bl -item -offset indent
+.It
+.Dv RTF_RNH_LOCKED
+indicates that the radix tree lock is already held
+.El
+.Pp
+The last argument
+.Fa fibnum
+specifies number of forwarding information database (FIB) on which
+the lookup should be performed.
+In case of success the
+.Fn rtalloc1_fib
+function returns a pointer to a locked
+.Vt "struct rtentry"
+with an additional reference.
+.Pp
+The
+.Fn rtalloc_fib
+is the most simple variant.
+Its main argument is
+.Fa ro ,
+a pointer to a
+.Fa "struct route" ,
+which is defined as follows:
+.Bd -literal -offset indent
+struct route {
+	struct rtentry *ro_rt;
+	struct llentry *ro_lle;
+	struct sockaddr ro_dst;
+};
+.Ed
+.Pp
+Thus, this function can only be used for address families which are
+smaller than the default
+.Ft "struct sockaddr" .
+Before calling
+.Fn rtalloc_fib
+for the first time, callers should ensure that unused bits of the
+structure are set to zero.
+The second argument
+.Fa fibnum
+is FIB number.
+In case of success of the
+.Fn rtalloc_fib
+the
+.Fa ro_rt
+points to a valid and unlocked
+.Xr rtentry 9 ,
+which has an additional reference put on it, freeing which is
+responsibility of the caller.
+On subsequent calls,
+.Fn rtalloc_fib
+returns without performing a lookup if
+.Fa ro->ro_rt
+is non-null and the
+.Dv RTF_UP
+flag is set in the rtentry's
+.Fa rt_flags
+field.
+.Pp
+The
+.Fn rtalloc_ign_fib
+function is the same as the
+.Fn rtalloc_fib ,
+but there is additional
+.Fa flags
+argument, which is same as in
+.Fn rtalloc1_fib .
+.Pp
+The
+.Fn RTFREE_LOCKED
+macro is used to unref and possibly free a locked routing entry
+with one our reference, for example previously allocated by
+.Fn rtalloc1_fib .
+.Pp
+The
+.Fn RTFREE
+macro is used to unref and possibly free an unlocked route entries with
+one our reference, for example previously allocated by
+.Fn rtalloc_fib
+or
+.Fn rtalloc_ign_fib .
+.Pp
+Both
+.Fn RTFREE_LOCKED
+and
+.Fn RTFREE
+macros decrement the reference count on the routing table entry,
+and proceed with actual freeing if the reference count has reached zero.
+.Pp
+The
+.Fn RT_LOCK
+macro is used to lock a routing table entry.
+.Pp
+The
+.Fn RT_UNLOCK
+macro is used to unlock a routing table entry.
+.Pp
+The
+.Fn RT_ADDREF
+macro increments the reference count on a previously locked route entry.
+It should be used whenever a reference to an
+.Xr rtentry 9
+is going to be stored outside the routing table.
+.Pp
+The
+.Fn RT_REMREF
+macro decrements the reference count on a previously locked route entry.
+Its usage is contrary to
+.Fn RT_ADDREF .
+.Pp
+The
+.Fn RO_RTFREE
+macro is used to free route entry that is referenced by struct route.
+At certain circumstances the latter may not hold a reference on rtentry,
+and
+.Fn RO_RTFREE
+treats such routes correctly.
+.Pp
+The
+.Fn rtfree
+function does the actual free of the routing table entry, and shouldn't
+be called directly by facilities, that just perform routing table lookups.
+.Sh LEGACY INTERFACE
+Prior to introduction of multiple routing tables functions did not
+require the
+.Fa "u_int fibnum"
+argument.
+Legacy
+.Fn rtalloc1 ,
+.Fn rtalloc
+and
+.Fn rtalloc_ign
+functions are kept for compatibility, and are equivalent to
+calling new interface with
+.Fa fibnum
+argument equal to
+.Va 0 ,
+which implies default forwarding table.
+.Sh RETURN VALUES
+The
+.Fn rtalloc1_fib
+function returns a pointer to a locked routing-table entry if it succeeds,
+otherwise a null pointer.
+The
+.Fn rtalloc_fib
+and
+.Fn rtalloc_ign_fib
+functions do not return a value, but they fill in the
+.Fa *ro_rt
+member of the
+.Fa *ro
+argument with a pointer to an unlocked routing-table entry if they
+succeed, otherwise a null pointer.
+In a case of success all functions put a reference on the
+routing-table entry, freeing of which is responsibility of the caller.
+Lack of a route should in most cases be
+translated to the
+.Xr errno 2
+value
+.Er EHOSTUNREACH .
+.Sh SEE ALSO
+.Xr route 4 ,
+.Xr rtentry 9
+.Sh HISTORY
+The
+.Nm rtalloc
+facility first appeared in
+.Bx 4.2 ,
+although with much different internals.
+The
+.Fn rtalloc_ign
+function and the
+.Fa flags
+argument to
+.Fn rtalloc1
+first appeared in
+.Fx 2.0 .
+Routing table locking was introduced in
+.Fx 5.2 .
+Multiple routing tables were introduced in
+.Fx 8.0 .
+.Sh AUTHORS
+The original version of this manual page was written by
+.An -nosplit
+.An "Garrett Wollman" .
+It was significantly updated by
+.An "Gleb Smirnoff" .

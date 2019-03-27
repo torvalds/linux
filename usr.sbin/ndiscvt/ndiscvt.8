@@ -1,0 +1,283 @@
+.\" Copyright (c) 2003
+.\"	Bill Paul <wpaul@windriver.com> All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 10, 2003
+.Dt NDISCVT 8
+.Os
+.Sh NAME
+.Nm ndiscvt
+.Nd convert
+.Tn Windows\[rg]
+NDIS drivers for use with FreeBSD
+.Sh SYNOPSIS
+.Nm
+.Op Fl O
+.Op Fl i Ar inffile
+.Fl s Ar sysfile
+.Op Fl n Ar devname
+.Op Fl o Ar outfile
+.Nm
+.Op Fl f Ar firmfile
+.Sh DESCRIPTION
+The
+.Nm
+utility transforms a
+.Tn Windows\[rg]
+NDIS driver into a data file which
+is used to build an
+.Xr ndis 4
+compatibility driver module.
+.Tn Windows\[rg]
+drivers consist of two main parts: a
+.Pa .SYS
+file, which contains the actual driver executable code,
+and an
+.Pa .INF
+file, which provides the
+.Tn Windows\[rg]
+installer with device
+identifier information and a list of driver-specific registry keys.
+The
+.Nm
+utility can convert these files into a header file that is compiled
+into
+.Pa if_ndis.c
+to create an object code module that can be linked into
+the
+.Fx
+kernel.
+.Pp
+The
+.Pa .INF
+file is typically required since only it contains device
+identification data such as PCI vendor and device IDs or PCMCIA
+identifier strings.
+The
+.Pa .INF
+file may be optionally omitted however,
+in which case the
+.Nm
+utility will only perform the conversion of the
+.Pa .SYS
+file.
+This is useful for debugging purposes only.
+.Sh OPTIONS
+The options are as follows:
+.Bl -tag -width indent
+.It Fl i Ar inffile
+Open and parse the specified
+.Pa .INF
+file when performing conversion.
+The
+.Nm
+utility will parse this file and emit a device identification
+structure and registry key configuration structures which will be
+used by the
+.Xr ndis 4
+driver and
+.Xr ndisapi 9
+kernel subsystem.
+If this is omitted,
+.Nm
+will emit a dummy configuration structure only.
+.It Fl s Ar sysfile
+Open and parse the specified
+.Pa .SYS
+file.
+This file must contain a
+.Tn Windows\[rg]
+driver image.
+The
+.Nm
+utility will perform some manipulation of the sections within the
+executable file to make runtime linking within the kernel a little
+easier and then convert the image into a data array.
+.It Fl n Ar devname
+Specify an alternate name for the network device/interface which will
+be created when the driver is instantiated.
+If you need to load more
+than one NDIS driver into your system (i.e., if you have two different
+network cards in your system which require NDIS driver support), each
+module you create must have a unique name.
+Device can not be larger than
+.Dv IFNAMSIZ .
+If no name is specified, the driver will use the
+default a default name
+.Pq Dq Li ndis .
+.It Fl o Ar outfile
+Specify the output file in which to place the resulting data.
+This can be any file pathname.
+If
+.Ar outfile
+is a single dash
+.Pq Sq Fl ,
+the data will be written to the standard output.
+The
+.Pa if_ndis.c
+module expects to find the driver data in a file called
+.Pa ndis_driver_data.h ,
+so it is recommended that this name be used.
+.It Fl O
+Generate both an
+.Pa ndis_driver_data.h
+file and
+an
+.Pa ndis_driver.data.o
+file.
+The latter file will contain a copy of the
+.Tn Windows\[rg]
+.Pa .SYS
+driver image encoded as a
+.Fx
+ELF object file
+(created with
+.Xr objcopy 1 ) .
+Turning the
+.Tn Windows\[rg]
+driver image directly into an object code file saves disk space
+and compilation time.
+.It Fl f Ar firmfile
+A few NDIS drivers come with additional files that the core
+driver module will load during initialization time.
+Typically,
+these files contain firmware which the driver will transfer to
+the device in order to make it fully operational.
+In
+.Tn Windows\[rg] ,
+these files are usually just copied into one of the system
+directories along with the driver itself.
+.Pp
+In
+.Fx
+there are two mechanism for loading these files.
+If the driver
+is built as a loadable kernel module which is loaded after the
+kernel has finished booting
+(and after the root file system has
+been mounted),
+the extra files can simply be copied to the
+.Pa /compat/ndis
+directory, and they will be loaded into the kernel on demand when the
+driver needs them.
+.Pp
+If however the driver is required to bootstrap the system
+(i.e., if
+the NDIS-based network interface is to be used for diskless/PXE
+booting),
+the files need to be pre-loaded by the bootstrap
+loader in order to be accessible, since the driver will need them
+before the root file system has been mounted.
+However, the bootstrap
+loader is only able to load files that are shared
+.Fx
+binary objects.
+.Pp
+The
+.Fl f
+flag can be used to convert an arbitrary file
+.Ar firmfile
+into shared object format
+(the actual conversion is done using
+the
+.Xr objcopy 1
+and
+.Xr ld 1
+commands).
+The resulting files can then be copied to the
+.Pa /boot/kernel
+directory, and can be pre-loaded directly from the boot loader
+prompt, or automatically by editing the
+.Xr loader.conf 5
+file.
+If desired, the files can also be loaded into memory
+at runtime using the
+.Xr kldload 8
+command.
+.Pp
+When an NDIS driver tries to open an external file, the
+.Xr ndisapi 9
+code will first search for a loaded kernel module that matches the
+name specified in the open request, and if that fails, it will then
+try to open the file from the
+.Pa /compat/ndis
+directory as well.
+Note that during kernel bootstrap, the ability
+to open files from
+.Pa /compat/ndis
+is disabled: only the module search will be performed.
+.Pp
+When using the
+.Fl f
+flag,
+.Nm
+will generate both a relocatable object file
+(with a
+.Pa .o
+extension)
+and a shared object file
+(with a
+.Pa .ko
+extension).
+The shared object is the one that should be placed in
+the
+.Pa /boot/kernel
+directory.
+The relocatable object file is useful if the user wishes
+to create a completely static kernel image: the object file can be
+linked into the kernel directly along with the driver itself.
+Some
+editing of the kernel configuration files will be necessary in order
+to have the extra object included in the build.
+.El
+.Sh SEE ALSO
+.Xr ld 1 ,
+.Xr objcopy 1 ,
+.Xr ndis 4 ,
+.Xr kldload 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An Bill Paul Aq Mt wpaul@windriver.com .
+The
+.Xr lex 1
+and
+.Xr yacc 1
+.Pa INF
+file parser was written by
+.An Matthew Dodd Aq Mt mdodd@FreeBSD.org .

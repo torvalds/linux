@@ -1,0 +1,127 @@
+.\" Copyright (c) 1998 Alex Nash
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 4, 1998
+.Dt PTHREAD_RWLOCK_RDLOCK 3
+.Os
+.Sh NAME
+.Nm pthread_rwlock_rdlock ,
+.Nm pthread_rwlock_tryrdlock
+.Nd acquire a read/write lock for reading
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_rwlock_rdlock "pthread_rwlock_t *lock"
+.Ft int
+.Fn pthread_rwlock_tryrdlock "pthread_rwlock_t *lock"
+.Sh DESCRIPTION
+The
+.Fn pthread_rwlock_rdlock
+function acquires a read lock on
+.Fa lock
+provided that
+.Fa lock
+is not presently held for writing and no writer threads are
+presently blocked on the lock.
+If the read lock cannot be
+immediately acquired, the calling thread blocks until it can
+acquire the lock.
+.Pp
+The
+.Fn pthread_rwlock_tryrdlock
+function performs the same action, but does not block if the lock
+cannot be immediately obtained (i.e., the lock is held for writing
+or there are waiting writers).
+.Pp
+A thread may hold multiple concurrent read locks.
+If so,
+.Fn pthread_rwlock_unlock
+must be called once for each lock obtained.
+.Pp
+The results of acquiring a read lock while the calling thread holds
+a write lock are undefined.
+.Sh IMPLEMENTATION NOTES
+To prevent writer starvation, writers are favored over readers.
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_rwlock_rdlock
+and
+.Fn pthread_rwlock_tryrdlock
+functions will return zero.
+Otherwise an error number will be returned
+to indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_rwlock_tryrdlock
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The lock could not be acquired because a writer holds the lock or
+was blocked on it.
+.El
+.Pp
+The
+.Fn pthread_rwlock_rdlock
+and
+.Fn pthread_rwlock_tryrdlock
+functions may fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The lock could not be acquired because the maximum number of read locks
+against
+.Fa lock
+has been exceeded.
+.It Bq Er EDEADLK
+The current thread already owns
+.Fa lock
+for writing.
+.It Bq Er EINVAL
+The value specified by
+.Fa lock
+is invalid.
+.It Bq Er ENOMEM
+Insufficient memory exists to initialize the lock (applies to
+statically initialized locks only).
+.El
+.Sh SEE ALSO
+.Xr pthread_rwlock_init 3 ,
+.Xr pthread_rwlock_trywrlock 3 ,
+.Xr pthread_rwlock_unlock 3 ,
+.Xr pthread_rwlock_wrlock 3
+.Sh STANDARDS
+The
+.Fn pthread_rwlock_rdlock
+and
+.Fn pthread_rwlock_tryrdlock
+functions are expected to conform to
+.St -susv2 .
+.Sh HISTORY
+The
+.Fn pthread_rwlock_rdlock
+function first appeared in
+.Fx 3.0 .

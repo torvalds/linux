@@ -1,0 +1,159 @@
+.\" Copyright (c) 1985, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)ieee.3	6.4 (Berkeley) 5/6/91
+.\" $FreeBSD$
+.\"
+.Dd March 30, 2008
+.Dt REMAINDER 3
+.Os
+.Sh NAME
+.Nm remainder ,
+.Nm remainderf ,
+.Nm remainderl ,
+.Nm remquo ,
+.Nm remquof ,
+.Nm remquol
+.Nd minimal residue functions
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn remainder "double x" "double y"
+.Ft float
+.Fn remainderf "float x" "float y"
+.Ft long double
+.Fn remainderl "long double x" "long double y"
+.Ft double
+.Fn remquo "double x" "double y" "int *quo"
+.Ft float
+.Fn remquof "float x" "float y" "int *quo"
+.Ft long double
+.Fn remquol "long double x" "long double y" "int *quo"
+.Sh DESCRIPTION
+.Fn remainder ,
+.Fn remainderf ,
+.Fn remainderl ,
+.Fn remquo ,
+.Fn remquof ,
+and
+.Fn remquol
+return the remainder
+.Fa r
+:=
+.Fa x
+\-
+.Fa n\(**y
+where
+.Fa n
+is the integer nearest the exact value of
+.Bk -words
+.Fa x Ns / Ns Fa y ;
+.Ek
+moreover if
+.Pf \*(Ba Fa n
+\-
+.Sm off
+.Fa x No / Fa y No \*(Ba
+.Sm on
+=
+1/2
+then
+.Fa n
+is even.
+Consequently
+the remainder is computed exactly and
+.Sm off
+.Pf \*(Ba Fa r No \*(Ba
+.Sm on
+\*(Le
+.Sm off
+.Pf \*(Ba Fa y No \*(Ba/2 .
+.Sm on
+But attempting to take the remainder when
+.Fa y
+is 0 or
+.Fa x
+is \*(Pm\*(If is an invalid operation that produces a \*(Na.
+.Pp
+The
+.Fn remquo ,
+.Fn remquof ,
+and
+.Fn remquol
+functions also store the last
+.Va k
+bits of
+.Fa n
+in the location pointed to by
+.Fa quo ,
+provided that
+.Fa n
+exists.
+The number of bits
+.Va k
+is platform-specific, but is guaranteed to be at least 3.
+.Sh SEE ALSO
+.Xr fmod 3 ,
+.Xr ieee 3 ,
+.Xr math 3
+.Sh STANDARDS
+The
+.Fn remainder ,
+.Fn remainderf ,
+.Fn remainderl ,
+.Fn remquo ,
+.Fn remquof ,
+and
+.Fn remquol
+routines conform to
+.St -isoC-99 .
+The remainder is as defined in
+.St -ieee754 .
+.Sh HISTORY
+The
+.Fn remainder
+and
+.Fn remainderf
+functions appeared in
+.Bx 4.3
+and
+.Fx 2.0 ,
+respectively.
+The
+.Fn remquo
+and
+.Fn remquof
+functions were added in
+.Fx 6.0 ,
+and
+.Fn remainderl
+and
+.Fn remquol
+were added in
+.Fx 8.0 .

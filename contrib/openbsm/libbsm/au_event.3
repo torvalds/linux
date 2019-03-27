@@ -1,0 +1,169 @@
+.\"-
+.\" Copyright (c) 2005-2006 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 19, 2005
+.Dt AU_EVENT 3
+.Os
+.Sh NAME
+.Nm free_au_event_ent ,
+.Nm setauevent ,
+.Nm endauevent ,
+.Nm getauevent ,
+.Nm getauevent_r ,
+.Nm getauevnam ,
+.Nm getauevnam_r ,
+.Nm getauevnum ,
+.Nm getauevnum_r ,
+.Nm getauevnonam ,
+.Nm getauevnonam_r
+.Nd "look up information from the audit_event database"
+.Sh LIBRARY
+.Lb libbsm
+.Sh SYNOPSIS
+.In bsm/libbsm.h
+.Ft void
+.Fn setauevent void
+.Ft void
+.Fn endauevent void
+.Ft "struct au_event_ent *"
+.Fn getauevent void
+.Ft "struct au_event_ent *"
+.Fn getauevent_r "struct au_event_ent *e"
+.Ft "struct au_event_ent *"
+.Fn getauevnam "const char *name"
+.Ft "struct au_event_ent *"
+.Fn getauevnam_r "struct au_event_ent *e" "const char *name"
+.Ft "struct au_event_ent *"
+.Fn getauevnum "au_event_t event_number"
+.Ft "struct au_event_ent *"
+.Fn getauevnum_r "struct au_event_ent *e" "au_event_t event_number"
+.Ft "au_event_t *"
+.Fn getauevnonam "const char *event_name"
+.Ft "au_event_t *"
+.Fn getauevnonam_r "au_event_t *ev" "const char *event_name"
+.Sh DESCRIPTION
+These interfaces may be used to look up information from the
+.Xr audit_event 5
+database, which describes audit events.
+Entries in the database are described by
+.Vt "struct au_event_ent"
+entries, which are returned by calls to
+.Fn getauevent ,
+.Fn getauevnam ,
+or
+.Fn getauevnum .
+It is also possible to look up an event number via a call to
+.Fn getauevnonam .
+.Pp
+The
+.Fn setauevent
+function
+resets the database access session for
+.Xr audit_event 5 ,
+so that the next call to
+.Fn getauevent
+will start with the first entry in the database.
+.Pp
+The
+.Fn endauevent
+function
+closes the
+.Xr audit_event 5
+database session.
+.Pp
+The
+.Fn getauevent
+function
+returns a reference to the next entry in the
+.Xr audit_event 5
+database.
+.Pp
+The
+.Fn getauevnam
+function
+returns a reference to the entry in the
+.Xr audit_event 5
+database with a name of
+.Fa name .
+.Pp
+.Fn getauevnum
+returns a reference to the entry in the
+.Xr audit_event 5
+database with an event number of
+.Fa event_number .
+.Pp
+The
+.Fn getauevnonam
+function
+returns a reference to an audit event number using the
+.Xr audit_event 5
+database.
+.Sh RETURN VALUES
+Functions
+.Fn getauevent ,
+.Fn getauevent_r ,
+.Fn getauevnam ,
+.Fn getauevnam_r ,
+.Fn getauevnum ,
+.Fn getauevnum_r ,
+and
+.Fn getauevnonam
+will return a reference to a
+.Vt "struct au_event_ent"
+or
+.Vt au_event_t
+on success, or
+.Dv NULL
+on failure, with
+.Va errno
+set to provide further error information.
+.Sh SEE ALSO
+.Xr libbsm 3 ,
+.Xr audit_event 5
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer, Inc., in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Sh AUTHORS
+.An -nosplit
+This software was created by
+.An Robert Watson ,
+.An Wayne Salamon ,
+and
+.An Suresh Krishnaswamy
+for McAfee Research, the security research division of McAfee,
+Inc., under contract to Apple Computer, Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
+.Sh BUGS
+The
+.Va errno
+variable
+is not always properly set following a failure.
+.Pp
+These routines are thread-safe, but not re-entrant, so simultaneous or
+interleaved use of these functions will affect the iterator.

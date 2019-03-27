@@ -1,0 +1,154 @@
+/dts-v1/;
+
+#include "rt3050.dtsi"
+
+/ {
+	compatible = "ASL26555", "ralink,rt3050-soc";
+	model = "Alpha ASL26555";
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 10 0>;
+			linux,code = <0x198>;
+		};
+
+		wps {
+			label = "wps";
+			gpios = <&gpio0 12 0>;
+			linux,code = <0x211>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		eth {
+			label = "asl26555:green:eth";
+			gpios = <&gpio0 0 1>;
+		};
+
+		wan-red {
+			label = "asl26555:red:wan";
+			gpios = <&gpio0 1 0>;
+		};
+
+		wan-green {
+			label = "asl26555:green:wan";
+			gpios = <&gpio0 2 0>;
+		};
+
+		wlan {
+			label = "asl26555:green:wlan";
+			gpios = <&gpio0 7 0>;
+		};
+
+		power-green {
+			label = "asl26555:green:power";
+			gpios = <&gpio0 8 0>;
+		};
+
+		power-red {
+			label = "asl26555:red:power";
+			gpios = <&gpio0 9 0>;
+		};
+
+		3g-green {
+			label = "asl26555:green:3g";
+			gpios = <&gpio0 14 1>;
+		};
+
+		3g-red {
+			label = "asl26555:red:3g";
+			gpios = <&gpio0 17 1>;
+		};
+	};
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "s25sl12801";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "uboot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "uboot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0xf80000>;
+		};
+
+		partition@fd0000 {
+			label = "cert";
+			reg = <0xfd0000 0x10000>;
+			read-only;
+		};
+
+		partition@fe0000 {
+			label = "langpack";
+			reg = <0xfe0000 0x10000>;
+			read-only;
+		};
+
+		devdata: partition@ff0000 {
+			label = "devdata";
+			reg = <0xff0000 0x10000>;
+			read-only;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "jtag", "rgmii", "mdio", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&devdata 0x4004>;
+};
+
+&esw {
+	mediatek,portmap = <0x1e>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&devdata 0x4000>;
+};
+
+&otg {
+	status = "okay";
+};

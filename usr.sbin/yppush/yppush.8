@@ -1,0 +1,180 @@
+.\" Copyright (c) 1991, 1993, 1995
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 5, 1995
+.Dt YPPUSH 8
+.Os
+.Sh NAME
+.Nm yppush
+.Nd "force propagation of updated NIS databases"
+.Sh SYNOPSIS
+.Nm
+.Op Fl d Ar domain
+.Op Fl t Ar timeout
+.Op Fl j Ar #parallel jobs
+.Op Fl h Ar host
+.Op Fl p Ar path
+.Op Fl v
+.Ar mapname
+.Sh DESCRIPTION
+The
+.Nm
+utility distributes updated NIS databases (or
+.Pa maps )
+from an NIS master server to NIS slave servers within an NIS
+domain.
+It is normally only run on the NIS master by
+.Pa /var/yp/Makefile
+whenever any of the NIS maps are updated.
+Note that
+.Pa /var/yp/Makefile
+does not invoke
+.Nm
+by default: the
+.Dq Li NOPUSH=True
+entry in the Makefile must first be commented out
+(the default
+.Fx
+configuration assumes a small network with only
+a single NIS server; in such a configuration,
+.Nm
+is not needed).
+.Pp
+By default,
+.Nm
+determines the names of the slave servers for a domain by searching the
+.Pa ypservers
+map.
+A destination host (or a list of hosts) can also be manually
+specified on the command line.
+Once it has a complete list of slave servers, it sends a 'map transfer'
+request to each slave, which in turn reads a copy of the map from
+the master NIS server using
+.Xr ypxfr 8 .
+Included within each request is the name of the map to be copied
+and some special information required by
+.Xr ypxfr 8
+to successfully 'callback' to
+.Nm
+and carry out the transfer.
+Any error messages
+.Nm
+receives from
+.Xr ypxfr 8
+via callback will be printed to stderr.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d Ar domain
+Specify a particular domain.
+The NIS domain of
+the local host system is used by default.
+If the local host's domain
+name is not set, the domain name must be specified with this flag.
+.It Fl t Ar timeout
+Specify a timeout value in seconds.
+This timeout
+controls how long
+.Nm
+will wait for a response from a slave server before sending a
+map transfer request to the next slave server in its list.
+.It Fl j Ar #parallel jobs
+The
+.Nm
+utility normally performs transfers serially, meaning that it will
+send a map transfer request to one slave server and then wait for
+it to respond before moving on to the next slave server.
+In environments
+with many slaves, it is more efficient to initiate several map transfers
+at once so that the transfers can take place in parallel.
+The
+.Fl j
+flag is used to specify the desired number of parallel jobs:
+.Nm
+will initiate the specified number of transfers immediately and
+listen for responses.
+If the number of specified parallel jobs is
+less than the number of slave servers,
+.Nm
+will initiate only the number of specified jobs and then wait
+for some of them to finish before starting any more.
+.Pp
+Note that
+.Nm
+handles callbacks asynchronously, which means that it will collect
+and display the callback information received from
+.Xr ypxfr 8
+as soon as it arrives, even it arrives before all of the map
+transfer requests have been sent.
+.It Fl h Ar host
+Can be used to transfer a map to a user-specified machine or
+group of machines instead of the list of servers contained in
+the
+.Pa ypservers
+map.
+A list of hosts can be specified by using multiple
+instances of the
+.Fl h
+flag.
+.It Fl p Ar path
+By default,
+.Nm
+expects all the local NIS maps to be stored under
+.Pa /var/yp .
+The
+.Fl p
+flag can be used to specify an alternate path in the event that
+the system administrator decides to store the NIS maps somewhere else.
+.It Fl v
+Verbose mode: it causes
+.Nm
+to print debugging messages as it runs.
+Specifying this flag twice
+makes
+.Nm
+even more verbose.
+.El
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /var/yp/[domainname]/ypservers
+the NIS ypservers map containing the names of all servers in
+a particular NIS domain
+.El
+.Sh SEE ALSO
+.Xr yp 8 ,
+.Xr ypserv 8 ,
+.Xr ypxfr 8
+.Sh AUTHORS
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu
+.Sh BUGS
+The mechanism for transferring NIS maps in NIS v1 is different
+than that in NIS version 2.
+This version of
+.Nm
+has support for transferring maps to NIS v2 systems only.

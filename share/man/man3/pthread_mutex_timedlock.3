@@ -1,0 +1,115 @@
+.\" Copyright (c) 2003 Michael Telahun Makonnen
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 17, 2018
+.Dt PTHREAD_MUTEX_TIMEDLOCK 3
+.Os
+.Sh NAME
+.Nm pthread_mutex_timedlock
+.Nd lock a mutex without blocking indefinitely
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.In time.h
+.Ft int
+.Fn pthread_mutex_timedlock "pthread_mutex_t *restrict mutex" "const struct timespec *restrict abs_timeout"
+.Sh DESCRIPTION
+The
+.Fn pthread_mutex_timedlock
+function will lock
+.Fa mutex .
+If it is already locked the calling thread will block until
+the mutex becomes available or
+the timeout,
+specified by abs_timeout,
+expires.
+The time of the timeout is an absolute time and
+is not relative to the current time.
+.Sh RETURN VALUES
+If successful,
+.Fn pthread_mutex_timedlock
+will return zero, otherwise an error number will be returned to
+indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_mutex_timedlock
+function will fail if:
+.Bl -tag -width Er
+.It Bq "Er ENOTRECOVERABLE"
+The
+.Fa mutex
+was created with the protocol attribute having the
+value PTHREAD_PRIO_PROTECT and
+the calling thread's priority is higher than the
+mutex's current priority ceiling.
+.It Bq Er EINVAL
+The process or thread would have blocked, and
+.Fa abs_timeout
+specified a nanosecond value less than zero or
+greater than or equal to 1 billion.
+.It Bq Er EINVAL
+The
+.Fa mutex
+parameter is invalid.
+.It Bq Er ETIMEDOUT
+The
+.Fa mutex
+could not be locked before the timeout expired.
+.It Bq Er EAGAIN
+The
+.Fa mutex
+could not be acquired because the
+maximum number of recursive locks for the
+.Fa mutex
+has been exceeded.
+.It Bq Er EDEADLK
+The current thread already owns the
+.Fa mutex .
+.It Bq Er EOWNERDEAD
+The argument
+.Fa mutex
+points to a robust mutex and the previous owning thread terminated
+while holding the mutex lock.
+The lock was granted to the caller and it is up to the new owner
+to make the state consistent.
+.It Bq Er ENOTRECOVERABLE
+The state protected by the
+.Fa mutex
+is not recoverable.
+.El
+.Sh SEE ALSO
+.Xr pthread_mutex_consistent 3 ,
+.Xr pthread_mutex_destroy 3 ,
+.Xr pthread_mutex_init 3 ,
+.Xr pthread_mutex_lock 3 ,
+.Xr pthread_mutex_trylock 3 ,
+.Xr pthread_mutex_unlock 3
+.Sh STANDARDS
+The
+.Fn pthread_mutex_timedlock
+function is expected to conform to
+.St -p1003.1-96 .

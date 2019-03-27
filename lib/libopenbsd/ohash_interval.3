@@ -1,0 +1,95 @@
+.\"	$OpenBSD: ohash_interval.3,v 1.1 2014/05/12 19:09:00 espie Exp $
+.\" Copyright (c) 2001 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 5, 2013
+.Dt OHASH_INTERVAL 3
+.Os
+.Sh NAME
+.Nm ohash_interval ,
+.Nm ohash_create_entry ,
+.Nm ohash_qlookup ,
+.Nm ohash_qlookupi
+.Nd helper functions for open hashing
+.Sh SYNOPSIS
+.In stdint.h
+.In stddef.h
+.In ohash.h
+.Ft uint32_t
+.Fn ohash_interval "const char *start" "const char **pend"
+.Ft "void *"
+.Fn ohash_create_entry "struct ohash_info *info" "const char *start" "const char **pend"
+.Ft "unsigned int"
+.Fn ohash_qlookupi "struct ohash *h" "const char *start" "const char **pend"
+.Ft "unsigned int"
+.Fn ohash_qlookup "struct ohash *h" "const char *start"
+.Sh DESCRIPTION
+These functions are commonly used to simplify open hashing usage, and use
+similar conventions.
+They operate indifferently on NUL-terminated strings
+.Po
+by setting
+.Fa *pend
+=
+.Dv NULL
+.Pc
+or memory ranges
+.Po
+delimited by
+.Fa start
+and
+.Fa *pend
+.Pc .
+For NUL-terminated strings, as a side effect, those functions
+set
+.Fa *pend
+to the terminating NUL byte.
+.Pp
+.Fn ohash_interval
+is a simple hashing function that yields good results on common data sets.
+.Pp
+.Fn ohash_create_entry
+can be used to create a new record with a given key.
+In that case,
+the alloc field of
+.Fa info
+should point to a
+.Xr malloc 3 Ns -like
+function to allocate the storage:
+.Bd -literal -offset indent
+p = (*info->alloc)(sz, info->data);
+.Ed
+.Pp
+.Fn ohash_qlookupi
+is a wrapper function that simply calls
+.Fn ohash_interval
+and
+.Fn ohash_lookup_interval .
+.Pp
+.Fn ohash_qlookup
+is a variation on
+.Fn ohash_qlookupi
+designed for NUL-terminated strings.
+.Sh SEE ALSO
+.Xr ohash_init 3
+.Sh STANDARDS
+Those functions are completely non-standard and should be avoided in
+portable programs.
+.Sh HISTORY
+Those functions were designed and written for
+.Ox
+.Xr make 1
+by Marc Espie in 1999.

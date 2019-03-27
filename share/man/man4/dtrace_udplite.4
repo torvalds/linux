@@ -1,0 +1,204 @@
+.\" Copyright (c) 2015 Mark Johnston <markj@FreeBSD.org>
+.\" Copyright (c) 2018 Michael Tuexen <tuexen@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 1, 2018
+.Dt DTRACE_UDPLITE 4
+.Os
+.Sh NAME
+.Nm dtrace_udplite
+.Nd a DTrace provider for tracing events related to the UDP-Lite protocol
+.Sh SYNOPSIS
+.Fn udplite:::receive "pktinfo_t *" "csinfo_t *" "ipinfo_t *" "udplitesinfo_t *" \
+    "udpliteinfo_t *"
+.Fn udplite:::send "pktinfo_t *" "csinfo_t *" "ipinfo_t *" "udplitesinfo_t *" \
+    "udpliteinfo_t *"
+.Sh DESCRIPTION
+The DTrace
+.Nm udplite
+provider allows users to trace events in the
+.Xr udplite 4
+protocol implementation.
+The
+.Fn udplite:::send
+probe fires whenever the kernel prepares to transmit a UDP-Lite packet, and the
+.Fn udplite:::receive
+probe fires whenever the kernel receives a UDP-Lite packet, unless
+the UDP-Lite header is incomplete,
+the destination port is 0,
+the length field is invalid,
+or the checksum is wrong.
+The arguments to these probes can be used to obtain detailed information about
+the IP and UDP-Lite headers of the corresponding packet.
+.Sh ARGUMENTS
+The
+.Vt pktinfo_t
+argument is currently unimplemented and is included for compatibility with other
+implementations of this provider.
+Its fields are:
+.Bl -tag -width "uintptr_t pkt_addr" -offset indent
+.It Vt uintptr_t pkt_addr
+Always set to 0.
+.El
+.Pp
+The
+.Vt csinfo_t
+argument is currently unimplemented and is included for compatibility with other
+implementations of this provider.
+Its fields are:
+.Bl -tag -width "uintptr_t cs_addr" -offset indent
+.It Vt uintptr_t cs_addr
+Always set to 0.
+.It Vt uint64_t cs_cid
+A pointer to the
+.Vt struct inpcb
+for this packet, or
+.Dv NULL .
+.It Vt pid_t cs_pid
+Always set to 0.
+.El
+.Pp
+The
+.Vt ipinfo_t
+argument contains IP fields common to both IPv4 and IPv6 packets.
+Its fields are:
+.Bl -tag -width "uint32_t ip_plength" -offset indent
+.It Vt uint8_t ip_ver
+IP version of the packet, 4 for IPv4 packets and 6 for IPv6 packets.
+.It Vt uint32_t ip_plength
+IP payload size.
+This does not include the size of the IP header or IPv6 option headers.
+.It Vt string ip_saddr
+IP source address.
+.It Vt string ip_daddr
+IP destination address.
+.El
+.Pp
+The
+.Vt udplitesinfo_t
+argument contains the state of the UDP-Lite connection associated with the packet.
+Its fields are:
+.Bl -tag -width "uintptr_t udplites_addr" -offset indent
+.It Vt uintptr_t udplites_addr
+Pointer to the
+.Vt struct inpcb
+containing the IP state for the associated socket.
+.It Vt uint16_t udplites_lport
+Local UDP-Lite port.
+.It Vt uint16_t udplites_rport
+Remote UDP-Lite port.
+.It Vt string udplites_laddr
+Local IPv4 or IPv6 address.
+.It Vt string udplites_raddr
+Remote IPv4 or IPv6 address.
+.El
+.Pp
+The
+.Vt udpliteinfo_t
+argument is the raw UDP-Lite header of the packet, with all fields in host order.
+Its fields are:
+.Bl -tag -width "struct udplitehdr *udplite_hdr" -offset indent
+.It Vt uint16_t udplite_sport
+Source UDP-Lite port.
+.It Vt uint16_t udplite_dport
+Destination UDP-Lite port.
+.It Vt uint16_t udplite_coverage
+Checksum coverage of the UDP-Lite header, in bytes, or 0 for full coverage.
+.It Vt uint16_t udplite_checksum
+A checksum of the UDP-Lite header and payload, or 0 if no checksum was calculated.
+.It Vt struct udplitehdr *udplite_hdr
+A pointer to the raw UDP-Lite header.
+.El
+.Sh FILES
+.Bl -tag -width "/usr/lib/dtrace/udplite.d" -compact
+.It Pa /usr/lib/dtrace/udplite.d
+DTrace type and translator definitions for the
+.Nm udplite
+provider.
+.El
+.Sh EXAMPLES
+The following script counts transmitted packets by destination port.
+.Bd -literal -offset indent
+udplite:::send
+{
+        @num[args[4]->udplite_dport] = count();
+}
+.Ed
+.Pp
+This script will print some details of each UDP-Lite packet as it is sent or received
+by the kernel:
+.Bd -literal -offset indent
+#pragma D option quiet
+#pragma D option switchrate=10Hz
+
+dtrace:::BEGIN
+{
+        printf(" %10s %36s    %-36s %6s\\n", "DELTA(us)", "SOURCE",
+            "DEST", "COV");
+        last = timestamp;
+}
+
+udplite:::send
+{
+        this->elapsed = (timestamp - last) / 1000;
+        self->dest = strjoin(strjoin(args[2]->ip_daddr, ":"),
+             lltostr(args[4]->udplite_dport));
+        printf(" %10d %30s:%-5d -> %-36s %6d\\n", this->elapsed,
+            args[2]->ip_saddr, args[4]->udplite_sport,
+            self->dest, args[4]->udplite_coverage);
+        last = timestamp;
+}
+
+udplite:::receive
+{
+        this->elapsed = (timestamp - last) / 1000;
+        self->dest = strjoin(strjoin(args[2]->ip_saddr, ":"),
+             lltostr(args[4]->udplite_sport));
+        printf(" %10d %30s:%-5d <- %-36s %6d\\n", this->elapsed,
+            args[2]->ip_daddr, args[4]->udplite_dport,
+            self->dest, args[4]->udplite_coverage);
+        last = timestamp;
+}
+.Ed
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr dtrace_ip 4 ,
+.Xr dtrace_sctp 4 ,
+.Xr dtrace_tcp 4 ,
+.Xr dtrace_udp 4 ,
+.Xr udplite 4 ,
+.Xr SDT 9
+.Sh HISTORY
+The
+.Nm udplite
+provider first appeared in
+.Fx
+12.0.
+.Sh AUTHORS
+This manual page was written by
+.An Mark Johnston Aq Mt markj@FreeBSD.org
+and
+.An Michael Tuexen Aq Mt tuexen@FreeBSD.org .

@@ -1,0 +1,196 @@
+.\"
+.\" Copyright (c) 2007 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 30, 2018
+.Dt TEXTDUMP 4
+.Os
+.Sh NAME
+.Nm textdump
+.Nd textdump kernel dumping facility
+.Sh SYNOPSIS
+.Cd options DDB
+.Cd options KDB
+.Pp
+.Cd options TEXTDUMP_PREFERRED
+.Cd options TEXTDUMP_VERBOSE
+.Sh DESCRIPTION
+The
+.Nm
+facility allows the capture of kernel debugging information to disk in a
+human-readable rather than the machine-readable form normally used with
+kernel memory dumps and minidumps.
+This representation, while less complete in that it does not capture full
+kernel state, can provide debugging information in a more compact, portable,
+and persistent form than a traditional dump.
+By combining
+.Nm
+with other
+.Xr ddb 4
+facilities, such as scripting and output capture, detailed bug information
+can be captured in a fully automated manner.
+.Sh FORMAT
+.Nm
+data is stored in a dump partition in the same style as a regular memory
+dump, and will be automatically extracted by
+.Xr savecore 8
+if present on boot.
+.Pp
+.Nm
+files are stored in the
+.Xr tar 5
+format, and consist of one or more text files, each storing a particular type
+of debugging output.
+The following parts may be present:
+.Bl -tag -width version.txt
+.It Pa ddb.txt
+Captured
+.Xr ddb 4
+output, if the capture facility has been used.
+May be disabled by clearing the
+.Va debug.ddb.textdump.do_ddb
+sysctl.
+.It Pa config.txt
+Kernel configuration, if
+.Cd options INCLUDE_CONFIG_FILE
+has been compiled into the kernel.
+May be disabled by clearing the
+.Va debug.ddb.textdump.do_config
+sysctl.
+.It Pa msgbuf.txt
+Kernel message buffer, including recent console output if the capture
+facility has been used.
+May be disabled by clearing the
+.Va debug.ddb.textdump.do_msgbuf
+sysctl.
+.It Pa panic.txt
+Kernel panic string, if the kernel panicked before the dump was generated.
+May be disabled by clearing the
+.Va debug.ddb.textdump.do_panic
+sysctl.
+.It Pa version.txt
+Kernel version string.
+My be disabled by clearing the
+.Va debug.ddb.textdump.do_version
+sysctl.
+.El
+.Pp
+Kernel textdumps may be extracted using
+.Xr tar 1 .
+.Sh CONFIGURATION
+The
+.Nm
+facility is enabled as part of the kernel debugger using
+.Cd options KDB
+and
+.Cd options DDB .
+By default, kernel dumps generated on panic or via explicit requests for a
+dump will be regular memory dumps; however, by using the
+.Ic textdump set
+command in
+.Xr ddb 4 ,
+or by setting the
+.Va debug.ddb.textdump.pending
+sysctl to 1 using
+.Xr sysctl 8 ,
+it is possible to request that the next dump be a textdump.
+One may also directly trigger a textdump in
+.Xr ddb 4
+by running the command
+.Ic textdump dump .
+.Pp
+If at the
+.Xr ddb 4
+command line, the commands
+.Ic textdump set ,
+.Ic textdump status ,
+and
+.Ic textdump unset
+may be used to set, query, and clear the textdump pending flag.
+.Pp
+As with regular kernel dumps, a dump partition must be automatically or
+manually configured using
+.Xr dumpon 8 .
+.Pp
+Additional kernel
+.Xr config 8
+options:
+.Bl -tag -width TEXTDUMP_PREFERRED
+.It Cd TEXTDUMP_PREFERRED
+sets textdumps to be the default manner of doing dumps.
+This means there will be no need to
+.Xr sysctl 8
+or use the
+.Ic textdump set
+.Xr ddb 8
+commands.
+.It Cd TEXTDUMP_VERBOSE
+will have the textdump facility be more verbose about each file it is emitting
+as well as other diagnostics useful to debug the textdump facility itself.
+.El
+.Sh EXAMPLES
+In the following example, the script
+.Va kdb.enter.panic
+will run when the kernel debugger is entered as a result of a panic, enable
+output capture, dump several useful pieces of debugging information, and then
+invoke panic in order to force a kernel dump to be written out followed by a
+reboot:
+.Bd -literal -offset indent
+script kdb.enter.panic=textdump set; capture on; show allpcpu; bt;
+  ps; alltrace; show alllocks; call doadump; reset
+.Ed
+.Pp
+In the following example, the script
+.Va kdb.enter.witness
+will run when the kernel debugger is entered as a result of a witness
+violation, printing lock-related information for the user:
+.Bd -literal -offset indent
+script kdb.enter.witness=show locks
+.Ed
+.Pp
+These scripts may also be configured using the
+.Xr ddb 8
+utility.
+.Sh SEE ALSO
+.Xr tar 1 ,
+.Xr ddb 4 ,
+.Xr tar 5 ,
+.Xr ddb 8 ,
+.Xr dumpon 8 ,
+.Xr savecore 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+facility first appeared in
+.Fx 7.1 .
+.Sh AUTHORS
+The
+.Nm
+facility was created by
+.An Robert N. M. Watson .

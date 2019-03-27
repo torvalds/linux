@@ -1,0 +1,298 @@
+.\" Copyright (c) 2016, George V. Neville-Neil
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 31, 2018
+.Dt PKT-GEN 8
+.Os
+.Sh NAME
+.Nm pkt-gen
+.Nd Packet generator for use with
+.Xr netmap 4
+.Sh SYNOPSIS
+.Bl -item -compact
+.It
+.Nm
+.Op Fl h46XzZNIWvrAB
+.Op Fl i Ar interface
+.Op Fl f Ar function
+.Op Fl n Ar count
+.Op Fl l Ar pkt_size
+.Op Fl b Ar burst_size
+.Op Fl d Ar dst_ip[:port[-dst_ip:port]]
+.Op Fl s Ar src_ip[:port[-src_ip:port]]
+.Op Fl D Ar dst_mac
+.Op Fl S Ar src_mac
+.Op Fl a Ar cpu_id
+.Op Fl c Ar cpus
+.Op Fl p Ar threads
+.Op Fl T Ar report_ms
+.Op Fl P Ar file
+.Op Fl w Ar wait_for_link_time
+.Op Fl R Ar rate
+.Op Fl H Ar len
+.Op Fl F Ar num_frags
+.Op Fl M Ar frag_size
+.Op Fl C Ar port_config
+.El
+.Sh DESCRIPTION
+.Nm
+leverages
+.Xr netmap 4
+to generate and receive raw network packets in batches.
+The arguments are as follows:
+.Bl -tag -width Ds
+.It Fl h
+Show program usage and exit.
+.It Fl i Ar interface
+Name of the network interface that
+.Nm
+operates on.
+It can be a system network interface (e.g., em0),
+the name of a
+.Xr vale 4
+port (e.g., valeSSS:PPP), the name of a netmap pipe or monitor,
+or any valid netmap port name accepted by the
+.Ar nm_open
+library function, as documented in
+.Xr netmap 4
+(NIOCREGIF section).
+.It Fl f Ar function
+The function to be executed by
+.Nm .
+Specify
+.Cm tx
+for transmission,
+.Cm rx
+for reception,
+.Cm ping
+for client-side ping-pong operation, and
+.Cm pong
+for server-side ping-pong operation.
+.It Fl n Ar count
+Number of iterations of the
+.Nm
+function, with 0 meaning infinite).
+In case of
+.Cm tx
+or
+.Cm rx ,
+.Ar count
+is the number of packets to receive or transmit.
+In case of
+.Cm ping
+or
+.Cm pong ,
+.Ar count
+is the number of ping-pong transactions.
+.It Fl l Ar pkt_size
+Packet size in bytes excluding CRC.
+If passed a second time, use random sizes larger or equal than the
+second one and lower than the first one.
+.It Fl b Ar burst_size
+Transmit or receive up to
+.Ar burst_size
+packets at a time.
+.It Fl 4
+Use IPv4 addresses.
+.It Fl 6
+Use IPv6 addresses.
+.It Fl d Ar dst_ip[:port[-dst_ip:port]]
+Destination IPv4/IPv6 address and port, single or range.
+.It Fl s Ar src_ip[:port[-src_ip:port]]
+Source IPv4/IPv6 address and port, single or range.
+.It Fl D Ar dst_mac
+Destination MAC address in colon notation (e.g., aa:bb:cc:dd:ee:00).
+.It Fl S Ar src_mac
+Source MAC address in colon notation.
+.It Fl a Ar cpu_id
+Pin the first thread of
+.Nm
+to a particular CPU using
+.Xr pthread_setaffinity_np 3 .
+If more threads are used, they are pinned to the subsequent CPUs,
+one per thread.
+.It Fl c Ar cpus
+Maximum number of CPUs to use (0 means to use all the available ones).
+.It Fl p Ar threads
+Number of threads to use.
+By default, only a single thread is used
+to handle all the netmap rings.
+If
+.Ar threads
+is larger than one, each thread handles a single TX ring (in
+.Cm tx
+mode), a single RX ring (in
+.Cm rx
+mode), or a TX/RX ring couple.
+The number of
+.Ar threads
+must be less or equal than the number of TX (or RX) ring available
+in the device specified by
+.Ar interface .
+.It Fl T Ar report_ms
+Number of milliseconds between reports.
+.It Fl w Ar wait_for_link_time
+Number of seconds to wait before starting the
+.Nm
+function, useuful to make sure that the network link is up.
+A network device driver may take some time to enter netmap mode, or
+to create a new transmit/receive ring pair when
+.Xr netmap 4
+requests one.
+.It Fl R Ar rate
+Packet transmission rate.
+Not setting the packet transmission rate tells
+.Nm
+to transmit packets as quickly as possible.
+On servers from 2010 on-wards
+.Xr netmap 4
+is able to completely use all of the bandwidth of a 10 or 40Gbps link,
+so this option should be used unless your intention is to saturate the link.
+.It Fl X
+Dump payload of each packet transmitted or received.
+.It Fl H Ar len
+Add empty virtio-net-header with size
+.Ar len .
+Valid sizes are 0, 10 and 12.
+This option is only used with Virtual Machine technologies that use virtio
+as a network interface.
+.It Fl P Ar file
+Load the packet to be transmitted from a pcap file rather than constructing
+it within
+.Nm .
+.It Fl z
+Use random IPv4/IPv6 src address/port.
+.It Fl Z
+Use random IPv4/IPv6 dst address/port.
+.It Fl N
+Do not normalize units (i.e., use bps, pps instead of Mbps, Kpps, etc.).
+.It Fl F Ar num_frags
+Send multi-slot packets, each one with
+.Ar num_frags
+fragments.
+A multi-slot packet is represented by two or more consecutive netmap slots
+with the
+.Ar NS_MOREFRAG
+flag set (except for the last slot).
+This is useful to transmit or receive packets larger than the netmap
+buffer size.
+.It Fl M Ar frag_size
+In multi-slot mode,
+.Ar frag_size
+specifies the size of each fragment, if smaller than the packet length
+divided by
+.Ar num_frags .
+.It Fl I
+Use indirect buffers.
+It is only valid for transmitting on VALE ports,
+and it is implemented by setting the
+.Ar NS_INDIRECT
+flag in the netmap slots.
+.It Fl W
+Exit immediately if all the RX rings are empty the first time they are
+examined.
+.It Fl v
+Increase the verbosity level.
+.It Fl r
+In
+.Cm tx
+mode, do not initialize packets, but send whatever the content of
+the uninitialized netmap buffers is (rubbish mode).
+.It Fl A
+Compute mean and standard deviation (over a sliding window) for the
+transmit or receive rate.
+.It Fl B
+Take Ethernet framing and CRC into account when computing the average bps.
+This adds 4 bytes of CRC and 20 bytes of framing to each packet.
+.It Fl C Ar tx_slots Ns Oo Cm \&, Ns Ar rx_slots Ns Oo Cm \&, Ns Ar tx_rings Ns Oo Cm \&, Ns Ar rx_rings Oc Oc Oc
+Configuration in terms of number of rings and slots to be used when
+opening the netmap port.
+Such configuration has effect on software ports
+created on the fly, such as VALE ports and netmap pipes.
+The configuration may consist of 1 to 4 numbers separated by commas:
+.Dq tx_slots,rx_slots,tx_rings,rx_rings .
+Missing numbers or zeroes stand for default values.
+As an additional convenience, if exactly one number is specified,
+then this is assigned to both
+.Ar tx_slots
+and
+.Ar rx_slots .
+If there is no fourth number, then the third one is assigned to both
+.Ar tx_rings
+and
+.Ar rx_rings .
+.El
+.Pp
+.Nm
+is a raw packet generator that can utilize either
+.Xr netmap 4
+or
+.Xr bpf 4
+but which is most often used with
+.Xr netmap 4 .
+The
+.Ar interface name
+used depends upon how the underlying Ethernet driver exposes its
+transmit and receive rings to
+.Xr netmap 4 .
+Most modern network interfaces that support 10Gbps and higher speeds
+have several transmit and receive rings that are used by the operating
+system to balance traffic across the interface.
+.Nm
+can peel off one or more of the transmit or receive rings for its own
+use without interfering with packets that might otherwise be destined
+for the host.
+For example on a system with a Chelsio Network
+Interface Card (NIC) the interface specification of
+.Ar -i netmap:ncxl0
+gives
+.Nm
+access to a pair of transmit and receive rings that are separate from
+the more commonly known cxl0 interface, which is used by the operating
+system's TCP/IP stack.
+.Sh EXAMPLES
+Capture and count all packets arriving on the operating system's cxl0
+interface.
+Using this will block packets from reaching the operating
+system's network stack.
+.Bd -literal -offset indent
+pkt-gen -i cxl0 -f rx
+.Ed
+.Pp
+Send a stream of fake DNS packets between two hosts with a packet
+length of 128 bytes.
+You must set the destination MAC address for
+packets to be received by the target host.
+.Bd -literal -offset intent
+pkt-gen -i netmap:ncxl0 -f tx -s 172.16.0.1:53 -d 172.16.1.3:53 -D 00:07:43:29:2a:e0
+.Ed
+.Sh SEE ALSO
+.Xr netmap 4 ,
+.Xr bridge 8
+.Sh AUTHORS
+This manual page was written by
+.An George V. Neville-Neil Aq gnn@FreeBSD.org .

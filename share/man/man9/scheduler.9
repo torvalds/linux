@@ -1,0 +1,275 @@
+.\" Copyright (c) 2000-2001 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 3, 2000
+.Dt SCHEDULER 9
+.Os
+.Sh NAME
+.Nm curpriority_cmp ,
+.Nm maybe_resched ,
+.Nm resetpriority ,
+.Nm roundrobin ,
+.Nm roundrobin_interval ,
+.Nm sched_setup ,
+.Nm schedclock ,
+.Nm schedcpu ,
+.Nm setrunnable ,
+.Nm updatepri
+.Nd perform round-robin scheduling of runnable processes
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
+.Ft int
+.Fn curpriority_cmp "struct proc *p"
+.Ft void
+.Fn maybe_resched "struct thread *td"
+.Ft void
+.Fn propagate_priority "struct proc *p"
+.Ft void
+.Fn resetpriority "struct ksegrp *kg"
+.Ft void
+.Fn roundrobin "void *arg"
+.Ft int
+.Fn roundrobin_interval "void"
+.Ft void
+.Fn sched_setup "void *dummy"
+.Ft void
+.Fn schedclock "struct thread *td"
+.Ft void
+.Fn schedcpu "void *arg"
+.Ft void
+.Fn setrunnable "struct thread *td"
+.Ft void
+.Fn updatepri "struct thread *td"
+.Sh DESCRIPTION
+Each process has three different priorities stored in
+.Vt "struct proc" :
+.Va p_usrpri ,
+.Va p_nativepri ,
+and
+.Va p_priority .
+.Pp
+The
+.Va p_usrpri
+member is the user priority of the process calculated from a process'
+estimated CPU time and nice level.
+.Pp
+The
+.Va p_nativepri
+member is the saved priority used by
+.Fn propagate_priority .
+When a process obtains a mutex, its priority is saved in
+.Va p_nativepri .
+While it holds the mutex, the process's priority may be bumped by another
+process that blocks on the mutex.
+When the process releases the mutex, then its priority is restored to the
+priority saved in
+.Va p_nativepri .
+.Pp
+The
+.Va p_priority
+member is the actual priority of the process and is used to determine what
+.Xr runqueue 9
+it runs on, for example.
+.Pp
+The
+.Fn curpriority_cmp
+function compares the cached priority of the currently running process with
+process
+.Fa p .
+If the currently running process has a higher priority, then it will return
+a value less than zero.
+If the current process has a lower priority, then it will return a value
+greater than zero.
+If the current process has the same priority as
+.Fa p ,
+then
+.Fn curpriority_cmp
+will return zero.
+The cached priority of the currently running process is updated when a process
+resumes from
+.Xr tsleep 9
+or returns to userland in
+.Fn userret
+and is stored in the private variable
+.Va curpriority .
+.Pp
+The
+.Fn maybe_resched
+function compares the priorities of the current thread and
+.Fa td .
+If
+.Fa td
+has a higher priority than the current thread, then a context switch is
+needed, and
+.Dv KEF_NEEDRESCHED
+is set.
+.Pp
+The
+.Fn propagate_priority
+looks at the process that owns the mutex
+.Fa p
+is blocked on.
+That process's priority is bumped to the priority of
+.Fa p
+if needed.
+If the process is currently running, then the function returns.
+If the process is on a
+.Xr runqueue 9 ,
+then the process is moved to the appropriate
+.Xr runqueue 9
+for its new priority.
+If the process is blocked on a mutex, its position in the list of
+processes blocked on the mutex in question is updated to reflect its new
+priority.
+Then, the function repeats the procedure using the process that owns the
+mutex just encountered.
+Note that a process's priorities are only bumped to the priority of the
+original process
+.Fa p ,
+not to the priority of the previously encountered process.
+.Pp
+The
+.Fn resetpriority
+function recomputes the user priority of the ksegrp
+.Fa kg
+(stored in
+.Va kg_user_pri )
+and calls
+.Fn maybe_resched
+to force a reschedule of each thread in the group if needed.
+.Pp
+The
+.Fn roundrobin
+function is used as a
+.Xr timeout 9
+function to force a reschedule every
+.Va sched_quantum
+ticks.
+.Pp
+The
+.Fn roundrobin_interval
+function simply returns the number of clock ticks in between reschedules
+triggered by
+.Fn roundrobin .
+Thus, all it does is return the current value of
+.Va sched_quantum .
+.Pp
+The
+.Fn sched_setup
+function is a
+.Xr SYSINIT 9
+that is called to start the callout driven scheduler functions.
+It just calls the
+.Fn roundrobin
+and
+.Fn schedcpu
+functions for the first time.
+After the initial call, the two functions will propagate themselves by
+registering their callout event again at the completion of the respective
+function.
+.Pp
+The
+.Fn schedclock
+function is called by
+.Fn statclock
+to adjust the priority of the currently running thread's ksegrp.
+It updates the group's estimated CPU time and then adjusts the priority via
+.Fn resetpriority .
+.Pp
+The
+.Fn schedcpu
+function updates all process priorities.
+First, it updates statistics that track how long processes have been in various
+process states.
+Secondly, it updates the estimated CPU time for the current process such
+that about 90% of the CPU usage is forgotten in 5 * load average seconds.
+For example, if the load average is 2.00,
+then at least 90% of the estimated CPU time for the process should be based
+on the amount of CPU time the process has had in the last 10 seconds.
+It then recomputes the priority of the process and moves it to the
+appropriate
+.Xr runqueue 9
+if necessary.
+Thirdly, it updates the %CPU estimate used by utilities such as
+.Xr ps 1
+and
+.Xr top 1
+so that 95% of the CPU usage is forgotten in 60 seconds.
+Once all process priorities have been updated,
+.Fn schedcpu
+calls
+.Fn vmmeter
+to update various other statistics including the load average.
+Finally, it schedules itself to run again in
+.Va hz
+clock ticks.
+.Pp
+The
+.Fn setrunnable
+function is used to change a process's state to be runnable.
+The process is placed on a
+.Xr runqueue 9
+if needed, and the swapper process is woken up and told to swap the process in
+if the process is swapped out.
+If the process has been asleep for at least one run of
+.Fn schedcpu ,
+then
+.Fn updatepri
+is used to adjust the priority of the process.
+.Pp
+The
+.Fn updatepri
+function is used to adjust the priority of a process that has been asleep.
+It retroactively decays the estimated CPU time of the process for each
+.Fn schedcpu
+event that the process was asleep.
+Finally, it calls
+.Fn resetpriority
+to adjust the priority of the process.
+.Sh SEE ALSO
+.Xr mi_switch 9 ,
+.Xr runqueue 9 ,
+.Xr sleepqueue 9 ,
+.Xr tsleep 9
+.Sh BUGS
+The
+.Va curpriority
+variable really should be per-CPU.
+In addition,
+.Fn maybe_resched
+should compare the priority of
+.Fa chk
+with that of each CPU, and then send an IPI to the processor with the lowest
+priority to trigger a reschedule if needed.
+.Pp
+Priority propagation is broken and is thus disabled by default.
+The
+.Va p_nativepri
+variable is only updated if a process does not obtain a sleep mutex on the
+first try.
+Also, if a process obtains more than one sleep mutex in this manner, and
+had its priority bumped in between, then
+.Va p_nativepri
+will be clobbered.

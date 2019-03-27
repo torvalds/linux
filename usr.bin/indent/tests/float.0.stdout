@@ -1,0 +1,10 @@
+/* $FreeBSD$ */
+void
+t(void)
+{
+	unsigned long	x = 314UL;
+	double		y[] = {0x1P+9F, 0.3, .1, 1.2f, 0xa.p01f, 3.14f, 2.L};
+	int		z = 0b0101;
+	DO_NOTHING;
+	x._y = 5;
+}

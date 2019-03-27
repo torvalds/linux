@@ -1,0 +1,18 @@
+
+Heimdal is a Kerberos 5 implementation.
+
+For information how to install see <http://www.h5l.org/compile.html>.
+
+There are briefer man pages for most of the commands.
+
+Bug reports and bugs are appreciated, see more under Bug reports in
+the manual on how we prefer them: <heimdal-bugs@h5l.org>.
+
+For more information see the web-page at
+<http://www.h5l.org/> or the mailing lists:
+
+heimdal-announce@sics.se	low-volume announcement
+heimdal-discuss@sics.se		high-volume discussion
+
+send a mail to heimdal-announce-request@sics.se and
+heimdal-discuss-request@sics.se respectively to subscribe.

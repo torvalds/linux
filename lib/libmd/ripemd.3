@@ -1,0 +1,145 @@
+.\"
+.\" ----------------------------------------------------------------------------
+.\" "THE BEER-WARE LICENSE" (Revision 42):
+.\" <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you
+.\" can do whatever you want with this stuff. If we meet some day, and you think
+.\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+.\" ----------------------------------------------------------------------------
+.\"
+.\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
+.\" $FreeBSD$
+.\"
+.Dd July 20, 2018
+.Dt RIPEMD 3
+.Os
+.Sh NAME
+.Nm RIPEMD160_Init ,
+.Nm RIPEMD160_Update ,
+.Nm RIPEMD160_Final ,
+.Nm RIPEMD160_End ,
+.Nm RIPEMD160_File ,
+.Nm RIPEMD160_FileChunk ,
+.Nm RIPEMD160_Data
+.Nd calculate the RIPEMD160 message digest
+.Sh LIBRARY
+.Lb libmd
+.Sh SYNOPSIS
+.In sys/types.h
+.In ripemd.h
+.Ft void
+.Fn RIPEMD160_Init "RIPEMD160_CTX *context"
+.Ft void
+.Fn RIPEMD160_Update "RIPEMD160_CTX *context" "const unsigned char *data" "unsigned int len"
+.Ft void
+.Fn RIPEMD160_Final "unsigned char digest[20]" "RIPEMD160_CTX *context"
+.Ft "char *"
+.Fn RIPEMD160_End "RIPEMD160_CTX *context" "char *buf"
+.Ft "char *"
+.Fn RIPEMD160_File "const char *filename" "char *buf"
+.Ft "char *"
+.Fn RIPEMD160_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
+.Fn RIPEMD160_Data "const unsigned char *data" "unsigned int len" "char *buf"
+.Sh DESCRIPTION
+The
+.Li RIPEMD160_
+functions calculate a 160-bit cryptographic checksum (digest)
+for any number of input bytes.
+A cryptographic checksum is a one-way
+hash function; that is, it is computationally impractical to find
+the input corresponding to a particular output.
+This net result is a
+.Dq fingerprint
+of the input-data, which does not disclose the actual input.
+.Pp
+The
+.Fn RIPEMD160_Init ,
+.Fn RIPEMD160_Update ,
+and
+.Fn RIPEMD160_Final
+functions are the core functions.
+Allocate an
+.Vt RIPEMD160_CTX ,
+initialize it with
+.Fn RIPEMD160_Init ,
+run over the data with
+.Fn RIPEMD160_Update ,
+and finally extract the result using
+.Fn RIPEMD160_Final ,
+which will also erase the
+.Vt RIPEMD160_CTX .
+.Pp
+The
+.Fn RIPEMD160_End
+function is a wrapper for
+.Fn RIPEMD160_Final
+which converts the return value to a 41-character
+(including the terminating '\e0')
+.Tn ASCII
+string which represents the 160 bits in hexadecimal.
+.Pp
+The
+.Fn RIPEMD160_File
+function calculates the digest of a file, and uses
+.Fn RIPEMD160_End
+to return the result.
+If the file cannot be opened, a null pointer is returned.
+The
+.Fn RIPEMD160_FileChunk
+function is similar to
+.Fn RIPEMD160_File ,
+but it only calculates the digest over a byte-range of the file specified,
+starting at
+.Fa offset
+and spanning
+.Fa length
+bytes.
+If the
+.Fa length
+parameter is specified as 0, or more than the length of the remaining part
+of the file,
+.Fn RIPEMD160_FileChunk
+calculates the digest from
+.Fa offset
+to the end of file.
+The
+.Fn RIPEMD160_Data
+function calculates the digest of a chunk of data in memory, and uses
+.Fn RIPEMD160_End
+to return the result.
+.Pp
+When using
+.Fn RIPEMD160_End ,
+.Fn RIPEMD160_File ,
+or
+.Fn RIPEMD160_Data ,
+the
+.Fa buf
+argument can be a null pointer, in which case the returned string
+is allocated with
+.Xr malloc 3
+and subsequently must be explicitly deallocated using
+.Xr free 3
+after use.
+If the
+.Fa buf
+argument is non-null it must point to at least 41 characters of buffer space.
+.Sh SEE ALSO
+.Xr md4 3 ,
+.Xr md5 3 ,
+.Xr sha 3 ,
+.Xr sha256 3 ,
+.Xr sha512 3 ,
+.Xr skein 3
+.Sh HISTORY
+These functions appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+The core hash routines were implemented by Eric Young based on the
+published
+.Tn RIPEMD160
+specification.
+.Sh BUGS
+No method is known to exist which finds two files having the same hash value,
+nor to find a file with a specific hash value.
+There is on the other hand no guarantee that such a method does not exist.

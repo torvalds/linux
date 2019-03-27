@@ -1,0 +1,272 @@
+Leap Second Smearing with NTP
+-----------------------------
+
+By Martin Burnicki
+with some edits by Harlan Stenn
+
+The NTP software protocol and its reference implementation, ntpd, were
+originally designed to distribute UTC time over a network as accurately as
+possible.
+
+Unfortunately, leap seconds are scheduled to be inserted into or deleted
+from the UTC time scale in irregular intervals to keep the UTC time scale
+synchronized with the Earth rotation.  Deletions haven't happened, yet, but
+insertions have happened over 30 times.
+
+The problem is that POSIX requires 86400 seconds in a day, and there is no
+prescribed way to handle leap seconds in POSIX.
+
+Whenever a leap second is to be handled ntpd either:
+
+- passes the leap second announcement down to the OS kernel (if the OS
+supports this) and the kernel handles the leap second automatically, or
+
+- applies the leap second correction itself.
+
+NTP servers also pass a leap second warning flag down to their clients via
+the normal NTP packet exchange, so clients also become aware of an
+approaching leap second, and can handle the leap second appropriately.
+
+
+The Problem on Unix-like Systems
+--------------------------------
+If a leap second is to be inserted then in most Unix-like systems the OS
+kernel just steps the time back by 1 second at the beginning of the leap
+second, so the last second of the UTC day is repeated and thus duplicate
+timestamps can occur.
+
+Unfortunately there are lots of applications which get confused it the
+system time is stepped back, e.g. due to a leap second insertion.  Thus,
+many users have been looking for ways to avoid this, and tried to introduce
+workarounds which may work properly, or not.
+
+So even though these Unix kernels normally can handle leap seconds, the way
+they do this is not optimal for applications.
+
+One good way to handle the leap second is to use ntp_gettime() instead of
+the usual calls, because ntp_gettime() includes a "clock state" variable
+that will actually tell you if the time you are receiving is OK or not, and
+if it is OK, if the current second is an in-progress leap second.  But even
+though this mechanism has been available for about 20 years' time, almost
+nobody uses it.
+
+
+NTP Client for Windows Contains a Workaround
+--------------------------------------------
+The Windows system time knows nothing about leap seconds, so for many years
+the Windows port of ntpd provides a workaround where the system time is
+slewed by the client to compensate the leap second.
+
+Thus it is not required to use a smearing NTP server for Windows clients,
+but of course the smearing server approach also works.
+
+
+The Leap Smear Approach
+-----------------------
+Due to the reasons mentioned above some support for leap smearing has
+recently been implemented in ntpd.  This means that to insert a leap second
+an NTP server adds a certain increasing "smear" offset to the real UTC time
+sent to its clients, so that after some predefined interval the leap second
+offset is compensated.  The smear interval should be long enough,
+e.g. several hours, so that NTP clients can easily follow the clock drift
+caused by the smeared time.
+
+During the period while the leap smear is being performed, ntpd will include
+a specially-formatted 'refid' in time packets that contain "smeared" time.
+This refid is of the form 254.x.y.z, where x.y.z are 24 encoded bits of the
+smear value.
+
+With this approach the time an NTP server sends to its clients still matches
+UTC before the leap second, up to the beginning of the smear interval, and
+again corresponds to UTC after the insertion of the leap second has
+finished, at the end of the smear interval.  By examining the first byte of
+the refid, one can also determine if the server is offering smeared time or
+not.
+
+Of course, clients which receive the "smeared" time from an NTP server don't
+have to (and even must not) care about the leap second anymore.  Smearing is
+just transparent to the clients, and the clients don't even notice there's a
+leap second.
+
+
+Pros and Cons of the Smearing Approach
+--------------------------------------
+The disadvantages of this approach are:
+
+- During the smear interval the time provided by smearing NTP servers
+differs significantly from UTC, and thus from the time provided by normal,
+non-smearing NTP servers.  The difference can be up to 1 second, depending
+on the smear algorithm.
+
+- Since smeared time differs from true UTC, and many applications require
+correct legal time (UTC), there may be legal consequences to using smeared
+time.  Make sure you check to see if this requirement affects you.
+
+However, for applications where it's only important that all computers have
+the same time and a temporary offset of up to 1 s to UTC is acceptable, a
+better approach may be to slew the time in a well defined way, over a
+certain interval, which is what we call smearing the leap second.
+
+
+The Motivation to Implement Leap Smearing
+-----------------------------------------
+Here is some historical background for ntpd, related to smearing/slewing
+time.
+
+Up to ntpd 4.2.4, if kernel support for leap seconds was either not
+available or was not enabled, ntpd didn't care about the leap second at all.
+So if ntpd was run with -x and thus kernel support wasn't used, ntpd saw a
+sudden 1 s offset after the leap second and normally would have stepped the
+time by -1 s a few minutes later.  However, 'ntpd -x' does not step the time
+but "slews" the 1-second correction, which takes 33 minutes and 20 seconds
+to complete.  This could be considered a bug, but certainly this was only an
+accidental behavior.
+
+However, as we learned in the discussion in http://bugs.ntp.org/2745, this
+behavior was very much appreciated since indeed the time was never stepped
+back, and even though the start of the slewing was somewhat undefined and
+depended on the poll interval.  The system time was off by 1 second for
+several minutes before slewing even started.
+
+In ntpd 4.2.6 some code was added which let ntpd step the time at UTC
+midnight to insert a leap second, if kernel support was not used.
+Unfortunately this also happened if ntpd was started with -x, so the folks
+who expected that the time was never stepped when ntpd was run with -x found
+this wasn't true anymore, and again from the discussion in NTP bug 2745 we
+learn that there were even some folks who patched ntpd to get the 4.2.4
+behavior back.
+
+In 4.2.8 the leap second code was rewritten and some enhancements were
+introduced, but the resulting code still showed the behavior of 4.2.6,
+i.e. ntpd with -x would still step the time.  This has only recently been
+fixed in the current ntpd stable code, but this fix is only available with a
+certain patch level of ntpd 4.2.8.
+
+So a possible solution for users who were looking for a way to come over the
+leap second without the time being stepped could have been to check the
+version of ntpd installed on each of their systems.  If it's still 4.2.4 be
+sure to start the client ntpd with -x.  If it's 4.2.6 or 4.2.8 it won't work
+anyway except if you had a patched ntpd version instead of the original
+version.  So you'd need to upgrade to the current -stable code to be able to
+run ntpd with -x and get the desired result, so you'd still have the
+requirement to check/update/configure every single machine in your network
+that runs ntpd.
+
+Google's leap smear approach is a very efficient solution for this, for
+sites that do not require correct timestamps for legal purposes.  You just
+have to take care that your NTP servers support leap smearing and configure
+those few servers accordingly.  If the smear interval is long enough so that
+NTP clients can follow the smeared time it doesn't matter at all which
+version of ntpd is installed on a client machine, it just works, and it even
+works around kernel bugs due to the leap second.
+
+Since all clients follow the same smeared time the time difference between
+the clients during the smear interval is as small as possible, compared to
+the -x approach.  The current leap second code in ntpd determines the point
+in system time when the leap second is to be inserted, and given a
+particular smear interval it's easy to determine the start point of the
+smearing, and the smearing is finished when the leap second ends, i.e. the
+next UTC day begins.
+
+The maximum error doesn't exceed what you'd get with the old smearing caused
+by -x in ntpd 4.2.4, so if users could accept the old behavior they would
+even accept the smearing at the server side.
+
+In order to affect the local timekeeping as little as possible the leap
+smear support currently implemented in ntpd does not affect the internal
+system time at all.  Only the timestamps and refid in outgoing reply packets
+*to clients* are modified by the smear offset, so this makes sure the basic
+functionality of ntpd is not accidentally broken.  Also peer packets
+exchanged with other NTP servers are based on the real UTC system time and
+the normal refid, as usual.
+
+The leap smear implementation is optionally available in ntp-4.2.8p3 and
+later, and the changes can be tracked via http://bugs.ntp.org/2855.
+
+
+Using NTP's Leap Second Smearing
+--------------------------------
+- Leap Second Smearing MUST NOT be used for public servers, e.g. servers
+provided by metrology institutes, or servers participating in the NTP pool
+project.  There would be a high risk that NTP clients get the time from a
+mixture of smearing and non-smearing NTP servers which could result in
+undefined client behavior.  Instead, leap second smearing should only be
+configured on time servers providing dedicated clients with time, if all
+those clients can accept smeared time.
+
+- Leap Second Smearing is NOT configured by default.  The only way to get
+this behavior is to invoke the ./configure script from the NTP source code
+package with the --enable-leap-smear parameter before the executables are
+built.
+
+- Even if ntpd has been compiled to enable leap smearing support, leap
+smearing is only done if explicitly configured.
+
+- The leap smear interval should be at least several hours' long, and up to
+1 day (86400s).  If the interval is too short then the applied smear offset
+is applied too quickly for clients to follow.  86400s (1 day) is a good
+choice.
+
+- If several NTP servers are set up for leap smearing then the *same* smear
+interval should be configured on each server.
+
+- Smearing NTP servers DO NOT send a leap second warning flag to client time
+requests.  Since the leap second is applied gradually the clients don't even
+notice there's a leap second being inserted, and thus there will be no log
+message or similar related to the leap second be visible on the clients.
+
+- Since clients don't (and must not) become aware of the leap second at all,
+clients getting the time from a smearing NTP server MUST NOT be configured
+to use a leap second file.  If they had a leap second file they would apply
+the leap second twice: the smeared one from the server, plus another one
+inserted by themselves due to the leap second file.  As a result, the
+additional correction would soon be detected and corrected/adjusted.
+
+- Clients MUST NOT be configured to poll both smearing and non-smearing NTP
+servers at the same time.  During the smear interval they would get
+different times from different servers and wouldn't know which server(s) to
+accept.
+
+
+Setting Up A Smearing NTP Server
+--------------------------------
+If an NTP server should perform leap smearing then the leap smear interval
+(in seconds) needs to be specified in the NTP configuration file ntp.conf,
+e.g.:
+
+ leapsmearinterval 86400
+
+Please keep in mind the leap smear interval should be between several and 24
+hours' long.  With shorter values clients may not be able to follow the
+drift caused by the smeared time, and with longer values the discrepancy
+between system time and UTC will cause more problems when reconciling
+timestamp differences.
+
+When ntpd starts and a smear interval has been specified then a log message
+is generated, e.g.:
+
+ ntpd[31120]: config: leap smear interval 86400 s
+
+While ntpd is running with a leap smear interval specified the command:
+
+ ntpq -c rv
+
+reports the smear status, e.g.:
+
+# ntpq -c rv
+associd=0 status=4419 leap_add_sec, sync_uhf_radio, 1 event, leap_armed,
+version="ntpd 4.2.8p3-RC1@1.3349-o Mon Jun 22 14:24:09 UTC 2015 (26)",
+processor="i586", system="Linux/3.7.1", leap=01, stratum=1,
+precision=-18, rootdelay=0.000, rootdisp=1.075, refid=MRS,
+reftime=d93dab96.09666671 Tue, Jun 30 2015 23:58:14.036,
+clock=d93dab9b.3386a8d5 Tue, Jun 30 2015 23:58:19.201, peer=2335,
+tc=3, mintc=3, offset=-0.097015, frequency=44.627, sys_jitter=0.003815,
+clk_jitter=0.451, clk_wander=0.035, tai=35, leapsec=201507010000,
+expire=201512280000, leapsmearinterval=86400, leapsmearoffset=-932.087
+
+In the example above 'leapsmearinterval' reports the configured leap smear
+interval all the time, while the 'leapsmearoffset' value is 0 outside the
+interval and increases from 0 to -1000 ms over the interval.  So this can be
+used to monitor if and how the time sent to clients is smeared.  With a
+leapsmearoffset of -.932087, the refid reported in smeared packets would be
+254.196.88.176.

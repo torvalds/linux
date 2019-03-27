@@ -1,0 +1,142 @@
+.\" Copyright (c) 2001 Mark R V Murray
+.\" All rights reserved.
+.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" Portions of this software were developed for the FreeBSD Project by
+.\" ThinkSec AS and NAI Labs, the Security Research Division of Network
+.\" Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+.\" ("CBOSS"), as part of the DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 26, 2007
+.Dt PAM_OPIEACCESS 8
+.Os
+.Sh NAME
+.Nm pam_opieaccess
+.Nd OPIEAccess PAM module
+.Sh SYNOPSIS
+.Op Ar service-name
+.Ar module-type
+.Ar control-flag
+.Pa pam_opieaccess
+.Op Ar options
+.Sh DESCRIPTION
+The
+.Nm
+module is used in conjunction with the
+.Xr pam_opie 8
+PAM module to ascertain that authentication can proceed by other means
+(such as the
+.Xr pam_unix 8
+module) even if OPIE authentication failed.
+To properly use this module,
+.Xr pam_opie 8
+should be marked
+.Dq Li sufficient ,
+and
+.Nm
+should be listed right below it and marked
+.Dq Li requisite .
+.Pp
+The
+.Nm
+module provides functionality for only one PAM category:
+authentication.
+In terms of the
+.Ar module-type
+parameter, this is the
+.Dq Li auth
+feature.
+It also provides null functions for the remaining module types.
+.Ss OPIEAccess Authentication Module
+The authentication component
+.Pq Fn pam_sm_authenticate ,
+returns
+.Dv PAM_SUCCESS
+in two cases:
+.Bl -enum
+.It
+The user does not have OPIE enabled.
+.It
+The user has OPIE enabled, and the remote host is listed as a trusted
+host in
+.Pa /etc/opieaccess ,
+and the user does not have a file named
+.Pa \&.opiealways
+in his home directory.
+.El
+.Pp
+Otherwise, it returns
+.Dv PAM_AUTH_ERR .
+.Pp
+The following options may be passed to the authentication module:
+.Bl -tag -width ".Cm allow_local"
+.It Cm allow_local
+Normally, local logins are subjected to the same restrictions as
+remote logins from
+.Dq localhost .
+This option causes
+.Nm
+to always allow local logins.
+.It Cm debug
+.Xr syslog 3
+debugging information at
+.Dv LOG_DEBUG
+level.
+.It Cm no_warn
+suppress warning messages to the user.
+These messages include reasons why the user's authentication attempt
+was declined.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa $HOME/.opiealways"
+.It Pa /etc/opieaccess
+List of trusted hosts or networks.
+See
+.Xr opieaccess 5
+for a description of its syntax.
+.It Pa $HOME/.opiealways
+The presence of this file makes OPIE mandatory for the user.
+.El
+.Sh SEE ALSO
+.Xr opie 4 ,
+.Xr opieaccess 5 ,
+.Xr pam.conf 5 ,
+.Xr pam 8 ,
+.Xr pam_opie 8
+.Sh AUTHORS
+The
+.Nm
+module and this manual page were developed for the
+.Fx
+Project by
+ThinkSec AS and NAI Labs, the Security Research Division of Network
+Associates, Inc.\& under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.

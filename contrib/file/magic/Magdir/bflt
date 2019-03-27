@@ -1,0 +1,14 @@
+
+#------------------------------------------------------------------------------
+# $File: bflt,v 1.5 2014/04/30 21:41:02 christos Exp $
+# bFLT: file(1) magic for BFLT uclinux binary files
+#
+# From Philippe De Muyter <phdm@macqel.be>
+#
+0	string		bFLT		BFLT executable
+>4	belong		x		- version %d
+>4	belong		4
+>>36	belong&0x1	0x1		ram
+>>36	belong&0x2	0x2		gotpic
+>>36	belong&0x4	0x4		gzip
+>>36	belong&0x8	0x8		gzdata

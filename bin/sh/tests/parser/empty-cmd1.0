@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+! (eval ': || f()') 2>/dev/null

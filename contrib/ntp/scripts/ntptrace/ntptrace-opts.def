@@ -1,0 +1,69 @@
+/* -*- Mode: Text -*- */
+AutoGen Definitions perlopt;
+
+//#include copyright.def
+#include autogen-version.def
+
+prog-name	= 'ntptrace';
+prog-title	= 'Trace peers of an NTP server';
+package		= ntp;
+#include	version.def
+argument	= '[host]';
+
+long-opts;
+gnu-usage;
+
+flag = {
+    name    = numeric;
+    value   = n;
+    descrip = 'Print IP addresses instead of hostnames';
+    doc     = <<- _EndOfDoc_
+	Output hosts as dotted-quad numeric format rather than converting to
+	the canonical host names.
+	_EndOfDoc_;
+};
+
+flag = {
+    name        = max-hosts;
+    value       = m;
+    arg-type    = number;
+    arg-default = 99;
+    descrip     = 'Maximum number of peers to trace';
+};
+
+flag = {
+    name        = host;
+    value       = r;
+    arg-type    = string;
+    arg-default = '127.0.0.1';
+    descrip     = 'Single remote host';
+};
+
+doc-section	= {
+  ds-type	= 'DESCRIPTION';
+  ds-format	= 'texi';
+  ds-text	= <<- _END_PROG_MDOC_DESCRIP
+@code{ntptrace} is a perl script that uses the ntpq utility program to follow
+the chain of NTP servers from a given host back to the primary time source. For
+ntptrace to work properly, each of these servers must implement the NTP Control
+and Monitoring Protocol specified in RFC 1305 and enable NTP Mode 6 packets.
+
+If given no arguments, ntptrace starts with localhost. Here is an example of
+the output from ntptrace:
+
+@example
+% ntptrace localhost: stratum 4, offset 0.0019529, synch distance 0.144135
+server2ozo.com: stratum 2, offset 0.0124263, synch distance 0.115784 usndh.edu:
+stratum 1, offset 0.0019298, synch distance 0.011993, refid 'WWVB'
+@end example
+
+On each line, the fields are (left to right): the host name, the host stratum,
+the time offset between that host and the local host (as measured by
+@code{ntptrace}; this is why it is not always zero for "localhost"), the host
+synchronization distance, and (only for stratum-1 servers) the reference clock
+ID. All times are given in seconds. Note that the stratum is the server hop
+count to the primary source, while the synchronization distance is the
+estimated error relative to the primary source. These terms are precisely
+defined in RFC-1305.
+	_END_PROG_MDOC_DESCRIP;
+};

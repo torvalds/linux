@@ -1,0 +1,337 @@
+.\" @(#)rpc_svc_create.3n 1.26 93/08/26 SMI; from SVr4
+.\" Copyright 1989 AT&T
+.\" @(#)rpc_svc_create 1.3 89/06/28 SMI;
+.\" Copyright (c) 1988 Sun Microsystems, Inc. - All Rights Reserved.
+.\" $FreeBSD$
+.Dd May 3, 1993
+.Dt RPC_SVC_CREATE 3
+.Os
+.Sh NAME
+.Nm rpc_svc_create ,
+.Nm svc_control ,
+.Nm svc_create ,
+.Nm svc_destroy ,
+.Nm svc_dg_create ,
+.Nm svc_fd_create ,
+.Nm svc_raw_create ,
+.Nm svc_tli_create ,
+.Nm svc_tp_create ,
+.Nm svc_vc_create
+.Nd library routines for the creation of server handles
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In rpc/rpc.h
+.Ft bool_t
+.Fn svc_control "SVCXPRT *svc" "const u_int req" "void *info"
+.Ft int
+.Fn svc_create "void (*dispatch)(struct svc_req *, SVCXPRT *)" "const rpcprog_t prognum" "const rpcvers_t versnum" "const char *nettype"
+.Ft SVCXPRT *
+.Fn svc_dg_create "const int fildes" "const u_int sendsz" "const u_int recvsz"
+.Ft void
+.Fn svc_destroy "SVCXPRT *xprt"
+.Ft "SVCXPRT *"
+.Fn svc_fd_create "const int fildes" "const u_int sendsz" "const u_int recvsz"
+.Ft "SVCXPRT *"
+.Fn svc_raw_create "void"
+.Ft "SVCXPRT *"
+.Fn svc_tli_create "const int fildes" "const struct netconfig *netconf" "const struct t_bind *bindaddr" "const u_int sendsz" "const u_int recvsz"
+.Ft "SVCXPRT *"
+.Fn svc_tp_create "void (*dispatch)(struct svc_req *, SVCXPRT *)" "const rpcprog_t prognum" "const rpcvers_t versnum" "const struct netconfig *netconf"
+.Ft "SVCXPRT *"
+.Fn svc_vc_create "const int fildes" "const u_int sendsz" "const u_int recvsz"
+.Sh DESCRIPTION
+These routines are part of the RPC
+library which allows C language programs to make procedure
+calls on servers across the network.
+These routines deal with the creation of service handles.
+Once the handle is created, the server can be invoked by calling
+.Fn svc_run .
+.Sh Routines
+See
+.Xr rpc 3
+for the definition of the
+.Vt SVCXPRT
+data structure.
+.Bl -tag -width XXXXX
+.It Fn svc_control
+A function to change or retrieve various information
+about a service object.
+The
+.Fa req
+argument
+indicates the type of operation and
+.Fa info
+is a pointer to the information.
+The supported values of
+.Fa req ,
+their argument types, and what they do are:
+.Bl -tag -width SVCGET_XID
+.It Dv SVCGET_VERSQUIET
+If a request is received for a program number
+served by this server but the version number
+is outside the range registered with the server,
+an
+.Dv RPC_PROGVERSMISMATCH
+error will normally
+be returned.
+The
+.Fa info
+argument
+should be a pointer to an
+integer.
+Upon successful completion of the
+.Dv SVCGET_VERSQUIET
+request,
+.Fa *info
+contains an
+integer which describes the server's current
+behavior: 0 indicates normal server behavior
+(that is, an
+.Dv RPC_PROGVERSMISMATCH
+error
+will be returned); 1 indicates that the out of
+range request will be silently ignored.
+.It Dv SVCSET_VERSQUIET
+If a request is received for a program number
+served by this server but the version number
+is outside the range registered with the server,
+an
+.Dv RPC_PROGVERSMISMATCH
+error will normally
+be returned.
+It is sometimes desirable to
+change this behavior.
+The
+.Fa info
+argument
+should be a
+pointer to an integer which is either 0
+(indicating normal server behavior - an
+.Dv RPC_PROGVERSMISMATCH
+error will be returned),
+or 1 (indicating that the out of range request
+should be silently ignored).
+.El
+.It Fn svc_create
+The
+.Fn svc_create
+function
+creates server handles for all the transports
+belonging to the class
+.Fa nettype .
+The
+.Fa nettype
+argument
+defines a class of transports which can be used
+for a particular application.
+The transports are tried in left to right order in
+.Ev NETPATH
+variable or in top to bottom order in the netconfig database.
+If
+.Fa nettype
+is
+.Dv NULL ,
+it defaults to
+.Qq netpath .
+.Pp
+The
+.Fn svc_create
+function
+registers itself with the rpcbind
+service (see
+.Xr rpcbind 8 ) .
+The
+.Fa dispatch
+function
+is called when there is a remote procedure call for the given
+.Fa prognum
+and
+.Fa versnum ;
+this requires calling
+.Fn svc_run
+(see
+.Fn svc_run
+in
+.Xr rpc_svc_reg 3 ) .
+If
+.Fn svc_create
+succeeds, it returns the number of server
+handles it created,
+otherwise it returns 0 and an error message is logged.
+.It Fn svc_destroy
+A function macro that destroys the RPC
+service handle
+.Fa xprt .
+Destruction usually involves deallocation
+of private data structures,
+including
+.Fa xprt
+itself.
+Use of
+.Fa xprt
+is undefined after calling this routine.
+.It Fn svc_dg_create
+This routine creates a connectionless RPC
+service handle, and returns a pointer to it.
+This routine returns
+.Dv NULL
+if it fails, and an error message is logged.
+The
+.Fa sendsz
+and
+.Fa recvsz
+arguments
+are arguments used to specify the size of the buffers.
+If they are 0, suitable defaults are chosen.
+The file descriptor
+.Fa fildes
+should be open and bound.
+The server is not registered with
+.Xr rpcbind 8 .
+.Pp
+Warning:
+since connectionless-based RPC
+messages can only hold limited amount of encoded data,
+this transport cannot be used for procedures
+that take large arguments or return huge results.
+.It Fn svc_fd_create
+This routine creates a service on top of an open and bound file descriptor,
+and returns the handle to it.
+Typically, this descriptor is a connected file descriptor for a
+connection-oriented transport.
+The
+.Fa sendsz
+and
+.Fa recvsz
+arguments
+indicate sizes for the send and receive buffers.
+If they are 0, reasonable defaults are chosen.
+This routine returns
+.Dv NULL
+if it fails, and an error message is logged.
+.It Fn svc_raw_create
+This routine creates an RPC
+service handle and returns a pointer to it.
+The transport is really a buffer within the process's
+address space, so the corresponding RPC
+client should live in the same address space;
+(see
+.Fn clnt_raw_create
+in
+.Xr rpc_clnt_create 3 ) .
+This routine allows simulation of RPC and acquisition of
+RPC overheads (such as round trip times),
+without any kernel and networking interference.
+This routine returns
+.Dv NULL
+if it fails, and an error message is logged.
+.Pp
+Note:
+.Fn svc_run
+should not be called when the raw interface is being used.
+.It Fn svc_tli_create
+This routine creates an RPC
+server handle, and returns a pointer to it.
+The
+.Fa fildes
+argument
+is the file descriptor on which the service is listening.
+If
+.Fa fildes
+is
+.Dv RPC_ANYFD ,
+it opens a file descriptor on the transport specified by
+.Fa netconf .
+If the file descriptor is unbound and
+.Fa bindaddr
+is not
+.Dv NULL ,
+.Fa fildes
+is bound to the address specified by
+.Fa bindaddr ,
+otherwise
+.Fa fildes
+is bound to a default address chosen by the transport.
+.Pp
+Note: the
+.Vt t_bind
+structure comes from the TLI/XTI SysV interface, which
+.Nx
+does not use.
+The structure is defined in
+.In rpc/types.h
+for compatibility as:
+.Bd -literal
+struct t_bind {
+    struct netbuf addr;	/* network address, see rpc(3) */
+    unsigned int  qlen;	/* queue length (for listen(2)) */
+};
+.Ed
+.Pp
+In the case where the default address is chosen,
+the number of outstanding connect requests is set to 8
+for connection-oriented transports.
+The user may specify the size of the send and receive buffers
+with the arguments
+.Fa sendsz
+and
+.Fa recvsz ;
+values of 0 choose suitable defaults.
+This routine returns
+.Dv NULL
+if it fails,
+and an error message is logged.
+The server is not registered with the
+.Xr rpcbind 8
+service.
+.It Fn svc_tp_create
+The
+.Fn svc_tp_create
+function
+creates a server handle for the network
+specified by
+.Fa netconf ,
+and registers itself with the rpcbind service.
+The
+.Fa dispatch
+function
+is called when there is a remote procedure call
+for the given
+.Fa prognum
+and
+.Fa versnum ;
+this requires calling
+.Fn svc_run .
+The
+.Fn svc_tp_create
+function
+returns the service handle if it succeeds,
+otherwise a
+.Dv NULL
+is returned and an error message is logged.
+.It Fn svc_vc_create
+This routine creates a connection-oriented RPC
+service and returns a pointer to it.
+This routine returns
+.Dv NULL
+if it fails, and an error message is logged.
+The users may specify the size of the send and receive buffers
+with the arguments
+.Fa sendsz
+and
+.Fa recvsz ;
+values of 0 choose suitable defaults.
+The file descriptor
+.Fa fildes
+should be open and bound.
+The server is not registered with the
+.Xr rpcbind 8
+service.
+.El
+.Sh SEE ALSO
+.Xr rpc 3 ,
+.Xr rpc_svc_calls 3 ,
+.Xr rpc_svc_err 3 ,
+.Xr rpc_svc_reg 3 ,
+.Xr rpcbind 8

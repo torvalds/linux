@@ -1,0 +1,7 @@
+milp32
+Target Report RejectNegative Mask(ILP32)
+Generate ILP32 code
+
+mlp64
+Target Report RejectNegative InverseMask(ILP32)
+Generate LP64 code

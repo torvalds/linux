@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+# This may fail when parsing or when defining the function, or the definition
+# may silently do nothing. In no event may the function be executed.
+
+${SH} -c 'unset() { echo overriding function executed, bad; }; v=1; unset v; exit "${v-0}"' 2>/dev/null
+:

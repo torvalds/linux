@@ -1,0 +1,141 @@
+.\" Copyright (c) 1996-1998 John Birrell <jb@cimlogic.com.au>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by John Birrell.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 3, 2018
+.Dt PTHREAD_JOIN 3
+.Os
+.Sh NAME
+.Nm pthread_join ,
+.Nm pthread_timedjoin_np
+.Nd wait for thread termination
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_join "pthread_t thread" "void **value_ptr"
+.In pthread_np.h
+.Ft int
+.Fn pthread_timedjoin_np "pthread_t thread" "void **value_ptr" "const struct timespec *abstime"
+.Sh DESCRIPTION
+The
+.Fn pthread_join
+function suspends execution of the calling thread until the target
+.Fa thread
+terminates unless the target
+.Fa thread
+has already terminated.
+.Pp
+On return from a successful
+.Fn pthread_join
+call with a non-NULL
+.Fa value_ptr
+argument, the value passed to
+.Fn pthread_exit
+by the terminating thread is stored in the location referenced by
+.Fa value_ptr .
+When a
+.Fn pthread_join
+returns successfully, the target thread has been terminated.
+The results
+of multiple simultaneous calls to
+.Fn pthread_join
+specifying the same target thread are undefined.
+If the thread calling
+.Fn pthread_join
+is cancelled, then the target thread is not detached.
+.Pp
+The
+.Fn pthread_timedjoin_np
+function is equivalent to the
+.Fn pthread_join
+function except it will return
+.Er ETIMEDOUT
+if target thread does not exit before specified absolute time passes.
+.Pp
+A thread that has exited but remains unjoined counts against
+[_POSIX_THREAD_THREADS_MAX].
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_join
+and
+.Fn pthread_timedjoin_np
+functions will return zero.
+Otherwise an error number will be returned to
+indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_join
+and
+.Fn pthread_timedjoin_np
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The implementation has detected that the value specified by
+.Fa thread
+does not refer to a joinable thread.
+.It Bq Er ESRCH
+No thread could be found corresponding to that specified by the given
+thread ID,
+.Fa thread .
+.It Bq Er EDEADLK
+A deadlock was detected or the value of
+.Fa thread
+specifies the calling thread.
+.It Bq Er EOPNOTSUPP
+The implementation detected that another caller is already waiting on
+.Fa thread .
+.El
+.Pp
+Additionally, the
+.Fn pthread_timedjoin_np
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er ETIMEDOUT
+The specified absolute time passed while
+.Fn pthread_timedjoin_np
+waited for thread exit.
+.El
+.Sh SEE ALSO
+.Xr wait 2 ,
+.Xr pthread_create 3
+.Sh STANDARDS
+The
+.Fn pthread_join
+function conforms to
+.St -p1003.1-96 .
+The
+.Fn pthread_timedjoin_np
+function is a
+.Fx
+extension which first appeared in
+.Fx 6.1 .

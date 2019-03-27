@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: adjkerntz
+# REQUIRE: FILESYSTEMS
+# BEFORE: netif
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="adjkerntz"
+start_cmd="adjkerntz -i"
+stop_cmd=":"
+
+load_rc_config $name
+run_rc_command "$1"

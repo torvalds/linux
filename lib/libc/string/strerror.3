@@ -1,0 +1,190 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strerror.3	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd April 5, 2011
+.Dt STRERROR 3
+.Os
+.Sh NAME
+.Nm perror ,
+.Nm strerror ,
+.Nm strerror_r ,
+.Nm sys_errlist ,
+.Nm sys_nerr
+.Nd system error messages
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Ft void
+.Fn perror "const char *string"
+.Vt extern const char * const sys_errlist[] ;
+.Vt extern const int sys_nerr ;
+.In string.h
+.Ft "char *"
+.Fn strerror "int errnum"
+.Ft int
+.Fn strerror_r "int errnum" "char *strerrbuf" "size_t buflen"
+.Sh DESCRIPTION
+The
+.Fn strerror ,
+.Fn strerror_r
+and
+.Fn perror
+functions look up the error message string corresponding to an
+error number.
+.Pp
+The
+.Fn strerror
+function accepts an error number argument
+.Fa errnum
+and returns a pointer to the corresponding
+message string.
+.Pp
+The
+.Fn strerror_r
+function renders the same result into
+.Fa strerrbuf
+for a maximum of
+.Fa buflen
+characters and returns 0 upon success.
+.Pp
+The
+.Fn perror
+function finds the error message corresponding to the current
+value of the global variable
+.Va errno
+.Pq Xr intro 2
+and writes it, followed by a newline, to the
+standard error file descriptor.
+If the argument
+.Fa string
+is
+.Pf non- Dv NULL
+and does not point to the null character,
+this string is prepended to the message
+string and separated from it by
+a colon and space
+.Pq Dq Li ":\ " ;
+otherwise, only the error message string is printed.
+.Pp
+If the error number is not recognized, these functions return an error message
+string containing
+.Dq Li "Unknown error:\ "
+followed by the error number in decimal.
+The
+.Fn strerror
+and
+.Fn strerror_r
+functions return
+.Er EINVAL
+as a warning.
+Error numbers recognized by this implementation fall in
+the range 0 <
+.Fa errnum
+<
+.Fa sys_nerr .
+The number 0 is also recognized, although applications that take advantage of
+this are likely to use unspecified values of
+.Va errno .
+.Pp
+If insufficient storage is provided in
+.Fa strerrbuf
+(as specified in
+.Fa buflen )
+to contain the error string,
+.Fn strerror_r
+returns
+.Er ERANGE
+and
+.Fa strerrbuf
+will contain an error message that has been truncated and
+.Dv NUL
+terminated to fit the length specified by
+.Fa buflen .
+.Pp
+The message strings can be accessed directly using the external
+array
+.Va sys_errlist .
+The external value
+.Va sys_nerr
+contains a count of the messages in
+.Va sys_errlist .
+The use of these variables is deprecated;
+.Fn strerror
+or
+.Fn strerror_r
+should be used instead.
+.Sh SEE ALSO
+.Xr intro 2 ,
+.Xr err 3 ,
+.Xr psignal 3
+.Sh STANDARDS
+The
+.Fn perror
+and
+.Fn strerror
+functions conform to
+.St -isoC-99 .
+The
+.Fn strerror_r
+function conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn strerror
+and
+.Fn perror
+functions first appeared in
+.Bx 4.4 .
+The
+.Fn strerror_r
+function was implemented in
+.Fx 4.4
+by
+.An Wes Peters Aq Mt wes@FreeBSD.org .
+.Sh BUGS
+The
+.Fn strerror
+function returns its result in a static buffer which
+will be overwritten by subsequent calls.
+.Pp
+The return type for
+.Fn strerror
+is missing a type-qualifier; it should actually be
+.Vt const char * .
+.Pp
+Programs that use the deprecated
+.Va sys_errlist
+variable often fail to compile because they declare it
+inconsistently.

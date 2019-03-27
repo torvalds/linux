@@ -1,0 +1,45 @@
+
+#------------------------------------------------------------------------------
+# $File: rpm,v 1.12 2013/01/11 16:45:23 christos Exp $
+#
+# RPM: file(1) magic for Red Hat Packages   Erik Troan (ewt@redhat.com)
+#
+0	belong		0xedabeedb	RPM
+!:mime	application/x-rpm
+>4	byte		x		v%d
+>5	byte		x		\b.%d
+>6	beshort		1		src
+>6	beshort		0		bin
+>>8	beshort		1		i386/x86_64
+>>8	beshort		2		Alpha/Sparc64
+>>8	beshort		3		Sparc
+>>8	beshort		4		MIPS
+>>8	beshort		5		PowerPC
+>>8	beshort		6		68000
+>>8	beshort		7		SGI
+>>8	beshort		8		RS6000
+>>8	beshort		9		IA64
+>>8	beshort		10		Sparc64
+>>8	beshort		11		MIPSel
+>>8	beshort		12		ARM
+>>8	beshort		13		MiNT
+>>8	beshort		14		S/390
+>>8	beshort		15		S/390x
+>>8	beshort		16		PowerPC64
+>>8	beshort		17		SuperH
+>>8	beshort		18		Xtensa
+>>8	beshort		255		noarch
+
+#delta RPM    Daniel Novotny (dnovotny@redhat.com)
+0	string		drpm		Delta RPM
+!:mime  application/x-rpm
+>12	string 	x	%s
+>>8	beshort		11		MIPSel
+>>8	beshort		12		ARM
+>>8	beshort		13		MiNT
+>>8	beshort		14		S/390
+>>8	beshort		15		S/390x
+>>8	beshort		16		PowerPC64
+>>8	beshort		17		SuperH
+>>8	beshort		18		Xtensa
+>>10	string		x		%s

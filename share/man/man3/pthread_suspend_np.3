@@ -1,0 +1,77 @@
+.\" Copyright (c) 2003 Alexey Zelkin <phantom@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 5, 2016
+.Dt PTHREAD_SUSPEND_NP 3
+.Os
+.Sh NAME
+.Nm pthread_suspend_np
+.Nd suspend a thread
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread_np.h
+.Ft int
+.Fn pthread_suspend_np "pthread_t tid"
+.Sh DESCRIPTION
+The
+.Fn pthread_suspend_np
+function, called on an active thread, causes it to suspend.
+.Pp
+It is not safe for the caller of the
+.Fn pthread_suspend_np
+function to use any non-async signal safe functions, except
+.Xr pthread_resume_np 3 ,
+until suspended thread is resumed, unless measures are taken to ensure
+that the thread is suspended at a safe point.
+.Sh RETURN VALUES
+If successful,
+.Fn pthread_suspend_np
+function returns 0.
+Otherwise, an error number is returned to indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_suspend_np
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EDEADLK
+An attempt was made to suspend the current thread.
+.It Bq Er EINVAL
+The value specified by the
+.Fa tid
+argument is invalid.
+.It Bq Er ESRCH
+No thread could be found corresponding to the thread ID specified by the
+.Fa tid
+argument.
+.El
+.Sh SEE ALSO
+.Xr pthread_resume_all_np 3 ,
+.Xr pthread_resume_np 3 ,
+.Xr pthread_suspend_all_np 3
+.Sh AUTHORS
+This manual page was written by
+.An Alexey Zelkin Aq Mt phantom@FreeBSD.org .

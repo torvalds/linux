@@ -1,0 +1,90 @@
+@c $FreeBSD: stable/10/gnu/usr.bin/binutils/doc/asconfig.texi 218822 2011-02-18 20:54:12Z dim $
+@c Copyright 1992, 1993, 1994, 1996, 1997, 1999, 2000, 2001, 2002,
+@c 2003, 2005
+@c Free Software Foundation, Inc.
+@c This file is part of the documentation for the GAS manual
+
+@c Configuration settings for all-inclusive version of manual
+
+@c switches:------------------------------------------------------------
+@c Properties of the manual
+@c ========================
+@c Discuss all architectures?
+@clear ALL-ARCH
+@c A generic form of manual (not tailored to specific target)?
+@clear GENERIC
+@c Include text on assembler internals?
+@set INTERNALS
+@c Many object formats supported in this config?
+@clear MULTI-OBJ
+
+@c Object formats of interest
+@c ==========================
+@clear AOUT
+@clear COFF
+@set ELF
+@clear SOM
+
+@c CPUs of interest
+@c ================
+@clear ALPHA
+@clear ARC
+@set ARM
+@clear BFIN
+@clear CRIS
+@clear D10V
+@clear D30V
+@clear H8/300
+@clear HPPA
+@clear I370
+@set I80386
+@clear I860
+@clear I960
+@set IA64
+@clear IP2K
+@clear M32C
+@clear M32R
+@clear xc16x
+@clear M68HC11
+@clear M680X0
+@clear MCORE
+@set MIPS
+@clear MMIX
+@clear MS1
+@clear MSP430
+@clear PDP11
+@clear PJ
+@set PPC
+@clear SH
+@set SPARC
+@clear TIC54X
+@clear V850
+@clear VAX
+@clear XTENSA
+@clear Z80
+@clear Z8000
+
+@c Does this version of the assembler use the difference-table kludge?
+@clear DIFF-TBL-KLUGE
+
+@c Do all machines described use IEEE floating point?
+@clear IEEEFLOAT
+
+@c Is a word 32 bits, or 16?
+@set W32
+@clear W16
+
+@c Do symbols have different characters than usual?
+@clear SPECIAL-SYMS
+
+@c strings:------------------------------------------------------------
+@c Name of the assembler:
+@set AS as
+@c Name of C compiler:
+@set GCC gcc
+@c Name of linker:
+@set LD ld
+@c Text for target machine (best not used in generic case; but just in case...)
+@set TARGET machine specific
+@c Name of object format NOT SET in generic version
+@set OBJ-NAME ELF

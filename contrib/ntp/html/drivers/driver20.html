@@ -1,0 +1,432 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+    <meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1"><title>Generic NMEA GPS Receiver</title>
+    <!-- Changed by: Harlan &, 31-Mar-2014 -->
+    <link href="scripts/style.css" type="text/css" rel="stylesheet">
+    <style type="text/css">
+      table.dlstable { font-size:85%; }
+      td.ttf{ font-family:Courier; font-weight:bold; }
+    </style></head>
+
+
+
+  <body>
+    <h3>Generic NMEA GPS Receiver</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->31-Mar-2014  03:55<!-- #EndDate -->
+  UTC</p>
+    <hr>
+    <h4>Synopsis</h4>
+
+    <p>
+      Address: 127.127.20.<i>u</i><br>
+      Reference ID: <tt>GPS</tt><br>
+      Driver ID: <tt>GPS_NMEA</tt><br>
+      Serial Port: <tt>/dev/gps<i>u</i></tt>; 4800 - 115200 bps, 8-bits, no parity<br>
+      Serial Port: <tt>/dev/gpspps<i>u</i></tt>; for just the PPS signal (this
+      is tried first for PPS, before <tt>/dev/gps<i>u</i></tt>)<br>
+      Serial Port: <tt>/dev/gps<i>u</i></tt>; symlink to server:port (for nmead)<br>
+      Features: <tt>tty_clk</tt>
+    </p>
+
+    <h4>Description</h4>
+
+    <p>
+      This driver supports GPS receivers with
+      the <tt>$GPRMC</tt>, <tt>$GPGLL</tt>, <tt>$GPGGA</tt>, <tt>$GPZDA</tt>
+      and <tt>$GPZDG</tt> NMEA sentences by default.&nbsp; Note that Accord's
+      custom NMEA sentence <tt>$GPZDG</tt> reports using the GPS timescale,
+      while the rest of the sentences report UTC.&nbsp; The difference between
+      the two is a whole number of seconds which increases with each leap
+      second insertion in UTC.&nbsp; To avoid problems mixing UTC and GPS
+      timescales, the driver disables processing of UTC sentences
+      once <tt>$GPZDG</tt> is received.
+    </p>
+    <p>
+      The driver expects the receiver to be set up to transmit at least one
+      supported sentence every second.
+    </p>
+    <p>
+      The accuracy depends on the receiver used. Inexpensive GPS models are
+      available with a claimed PPS signal accuracy of
+      1 &mu;s or better relative to the broadcast
+      signal. However, in most cases the actual accuracy is limited by the
+      precision of the timecode and the latencies of the serial interface and
+      operating system.
+    </p>
+    <p>
+      If the Operating System supports PPSAPI
+      (<a href="http://www.ietf.org/rfc/rfc2783.txt">RFC 2783</a>), fudge flag1
+      1 enables its use.
+    </p>
+    <p>
+      The various GPS sentences that this driver recognises look like this:<br>
+      (others quietly ignored)
+    </p>
+
+    <p><table class="dlstable" border="1">
+      <caption>Accepted NMEA sentences</caption>
+      <tbody><tr>
+	<th>Sentence</th>
+	<th>Vendor</th>
+      </tr><tr>
+	<td class="ttf">$GPRMC,UTC,POS_STAT,LAT,LAT_REF,LON,LON_REF,SPD,HDG,DATE,MAG_VAR,MAG_REF*CS&lt;cr&gt;&lt;lf&gt;</td>
+      </tr><tr>
+	<td class="ttf">$GPGLL,LAT,LAT_REF,LON,LON_REF,UTC,POS_STAT*CS&lt;cr&gt;&lt;lf&gt;</td>
+      </tr><tr>
+	<td class="ttf">$GPGGA,UTC,LAT,LAT_REF,LON,LON_REF,FIX_MODE,SAT_USED,HDOP,ALT,ALT_UNIT,GEO,G_UNIT,D_AGE,D_REF*CS&lt;cr&gt;&lt;lf&gt;</td>
+      </tr><tr>
+	<td class="ttf">$GPZDA,UTC,DD,MM,YYYY,TH,TM,*CS&lt;cr&gt;&lt;lf&gt;</td>
+      </tr><tr>
+	<td class="ttf">$GPZDG,GPSTIME,DD,MM,YYYY,AA.BB,V*CS&lt;cr&gt;&lt;lf&gt;</td>
+	<td>Accord</td>
+      </tr>
+    </tbody></table></p>
+
+    <p><table class="dlstable" border="1">
+      <caption>NMEA data items</caption>
+      <tbody><tr>
+	<th>Symbol</th>
+	<th>Meaning and Format</th>
+      </tr>
+      
+      <tr>
+	<td class="ttf">UTC</td>
+	<td>Time of day on UTC timescale. Hours, minutes and seconds [fraction (opt.)]. (hhmmss[.fff])</td>
+      </tr><tr>
+	<td class="ttf">POS_STAT</td>
+	<td>Position status. (A = Data valid, V = Data invalid)</td>
+      </tr><tr>
+	<td class="ttf">LAT</td>
+	<td>Latitude (llll.ll)</td>
+      </tr><tr>
+	<td class="ttf">LAT_REF</td>
+	<td>Latitude direction. (N = North, S = South)</td>
+      </tr><tr>
+	<td class="ttf">LON</td>
+	<td>Longitude (yyyyy.yy)</td>
+      </tr><tr>
+	<td class="ttf">LON_REF</td>
+	<td>Longitude direction (E = East, W = West)</td>
+      </tr><tr>
+	<td class="ttf">SPD</td>
+	<td>Speed over ground. (knots) (x.x)</td>
+      </tr><tr>
+	<td class="ttf">HDG</td>
+	<td>Heading/track made good (degrees True) (x.x)</td>
+      </tr><tr>
+	<td class="ttf">DATE</td>
+	<td>Date (ddmmyy)</td>
+      </tr><tr>
+	<td class="ttf">MAG_VAR</td>
+	<td>Magnetic variation (degrees) (x.x)</td>
+      </tr><tr>
+	<td class="ttf">MAG_REF</td>
+	<td>Magnetic variation (E = East, W = West)</td>
+      </tr><tr>
+	<td class="ttf">FIX_MODE</td>
+	<td>Position Fix Mode (0 = Invalid, &gt;0 = Valid)</td>
+      </tr><tr>
+	<td class="ttf">SAT_USED</td>
+	<td>Number of Satellites used in solution</td>
+      </tr><tr>
+	<td class="ttf">HDOP</td>
+	<td>Horizontal Dilution of Precision</td>
+      </tr><tr>
+	<td class="ttf">ALT</td>
+	<td>Antenna Altitude</td>
+      </tr><tr>
+	<td class="ttf">ALT_UNIT</td>
+	<td>Altitude Units (Metres/Feet)</td>
+      </tr><tr>
+	<td class="ttf">GEO</td>
+	<td>Geoid/Elipsoid separation</td>
+      </tr><tr>
+	<td class="ttf">G_UNIT</td>
+	<td>Geoid units (M/F)</td>
+      </tr><tr>
+	<td class="ttf">D_AGE</td>
+	<td>Age of last DGPS Fix</td>
+      </tr><tr>
+	<td class="ttf">D_REF</td>
+	<td>Reference ID of DGPS station</td>
+      </tr><tr>
+	<td class="ttf">GPSTIME</td>
+	<td>Time of day on GPS timescale. Hours, minutes and seconds [fraction (opt.)]. (hhmmss[.f])</td>
+      </tr><tr>
+	<td class="ttf">DD</td>
+	<td>Day of the month (1-31)</td>
+      </tr><tr>
+	<td class="ttf">MM</td>
+	<td>Month of the year (1-12)</td>
+      </tr><tr>
+	<td class="ttf">YYYY</td>
+	<td>Year</td>
+      </tr><tr>
+	<td class="ttf">AA.BB</td>
+	<td>Denotes the signal strength (should be &lt; 05.00)</td>
+      </tr><tr>
+	<td class="ttf">V</td>
+	<td>GPS sync status<br>
+	  &nbsp;&nbsp;&nbsp;'0' =&gt; INVALID time,<br>
+	  &nbsp;&nbsp;&nbsp;'1' =&gt; accuracy of +/- 20ms,<br>
+	  &nbsp;&nbsp;&nbsp;'2' =&gt; accuracy of +/- 100ns</td>
+      </tr><tr>
+	<td class="ttf">CS</td>
+	<td> Checksum</td>
+      </tr><tr>
+	<td class="ttf">&lt;cr&gt;&lt;lf&gt;</td>
+	<td>Sentence terminator.</td>
+      </tr>
+    </tbody></table></p>
+
+
+    <h4>The 'mode' byte</h4>
+    
+    <p>
+      Specific GPS sentences and bitrates may be selected by setting bits of
+      the 'mode' in the server configuration line:<br> &nbsp;&nbsp;<tt>server
+      127.127.20.x mode X</tt>
+    </p>
+
+    <table border="1">
+      <caption>mode byte bits and bit groups</caption>
+      <tbody><tr>
+	<th align="center">Bit</th>
+	<th align="center">Decimal</th>
+	<th align="center">Hex</th>
+	<th align="left">Meaning</th>
+      </tr>
+      
+      <tr>
+	<td align="center">0</td>
+	<td align="center">1</td>
+	<td align="center">1</td>
+	<td>process <tt>$GPMRC</tt></td>
+      </tr><tr>
+	<td align="center">1</td>
+	<td align="center">2</td>
+	<td align="center">2</td>
+	<td>process <tt>$GPGGA</tt></td>
+      </tr><tr>
+	<td align="center">2</td>
+	<td align="center">4</td>
+	<td align="center">4</td>
+	<td>process <tt>$GPGLL</tt></td>
+      </tr><tr>
+	<td align="center">3</td>
+	<td align="center">8</td>
+	<td align="center">8</td>
+	<td>process <tt>$GPZDA</tt> or <tt>$GPZDG</tt></td>
+      </tr><tr>
+	<td rowspan="6" align="center">4-6</td>
+	<td align="center">0</td>
+	<td align="center">0</td>
+	<td>linespeed 4800 bps</td>
+      </tr><tr>
+	<td align="center">16</td>
+	<td align="center">0x10</td>
+	<td>linespeed 9600 bps</td>
+      </tr><tr>
+	<td align="center">32</td>
+	<td align="center">0x20</td>
+	<td>linespeed 19200 bps</td>
+      </tr><tr>
+	<td align="center">48</td>
+	<td align="center">0x30</td>
+	<td>linespeed 38400 bps</td>
+      </tr><tr>
+	<td align="center">64</td>
+	<td align="center">0x40</td>
+	<td>linespeed 57600 bps</td>
+      </tr><tr>
+	<td align="center">80</td>
+	<td align="center">0x50</td>
+	<td>linespeed 115200 bps</td>
+      </tr><tr>
+	<td align="center">7</td>
+	<td align="center">128</td>
+	<td align="center">0x80</td>
+	<td>Write the sub-second fraction of the receive time stamp to the
+	clockstat file for all recognised NMEA sentences. This can be used to
+	get a useful value for fudge time2.<br><strong>Caveat:</strong> This
+	will fill your clockstat file rather fast. Use it only temporarily to
+	get the numbers for the NMEA sentence of your choice.</td>
+      </tr>
+      </tr><tr>
+        <td align="center">8</td>
+        <td align="center">256</td>
+        <td align="center">0x100</td>
+	<td>process <tt>$PGRMF</tt></td>
+      </tr><tr>
+        <td align="center">9-15</td>
+        <td align="center"></td>
+        <td align="center">0xFE00</td>
+	<td>reserved - leave 0</td>
+      </tr><tr>
+        <td align="center">16</td>
+        <td align="center">65536</td>
+        <td align="center">0x10000</td>
+        <td>Append extra statistics to the clockstats line.
+        Details below.</td>
+      </tr>
+    </tbody></table> 
+
+ 
+    <p>
+      The default (mode 0) is to process all supported sentences at a linespeed
+      of 4800 bps, which results in the first one received and recognised in
+      each cycle being used.&nbsp; If only specific sentences should be
+      recognised, then the mode byte must be chosen to enable only the selected
+      ones.&nbsp; Multiple sentences may be selected by adding their mode bit
+      values, but of those enabled still only the first received sentence in a
+      cycle will be used.&nbsp; Using more than one sentence per cycle is
+      impossible, because
+      </p><ul>
+	<li>there is only <a href="#fudgetime2">fudge time2</a> available to
+	  compensate for transmission delays but every sentence would need a
+	  different one and
+	</li><li>using more than one sentence per cycle overstuffs the internal data
+	  filters.
+      </li></ul>
+      The driver uses 4800 bits per second by default, but faster bitrates can
+      be selected using bits 4 to 6 of the mode field.
+    <p></p>
+
+    <p>
+      <strong>Caveat:</strong> Using higher line speeds does not necessarily
+      increase the precision of the timing device.&nbsp; Higher line speeds are
+      not necessarily helpful for the NMEA driver, either.&nbsp; They can be
+      used to accomodate for an amount of data that does not fit into a
+      1-second cycle at 4800 bps, but high-speed high-volume NMEA data is likely
+      to cause trouble with the serial line driver since NMEA supports no
+      protocol handshake.&nbsp; Any device that is exclusively used for time
+      synchronisation purposes should be configured to transmit the relevant
+      data only, e.g. one <tt>$GPRMC</tt> or <tt>$GPZDA</tt> per second, at a
+      linespeed of 4800 bps or 9600 bps.
+    </p>
+
+    <h4>Monitor Data</h4>
+
+    <p>The last GPS sentence that is accepted or rejected is written to the
+    clockstats file and available with <code>ntpq -c clockvar</code>.
+    (Logging the rejected sentences lets you see/debug why they were rejected.)
+    Filtered sentences are not logged.</p>
+
+    <p>
+      If the 0x10000 mode bit is on and clockstats is enabled, several extra
+      counters will be appended to the NMEA sentence that gets logged.
+      For example:
+<pre>
+56299 76876.691 127.127.20.20 $GPGGA,212116.000,3726.0785,N,12212.2605,W,1,05,2.0,17.0,M,-25.7,M,,0000*5C  228 64 0 0 64 0
+</pre>
+    </p>
+
+    <table border="1">
+      <caption>Clockstats</caption>
+      <tbody><tr>
+	<th align="center">Column</th>
+	<th align="center">Sample</th>
+	<th align="left">Meaning</th>
+      </tr>
+      
+      <tr>
+	<td align="center">1</td>
+	<td align="center">56299</td>
+	<td>MJD</td>
+      </tr><tr>
+	<td align="center">2</td>
+	<td align="center">76876.691</td>
+	<td>Time of day in seconds</td>
+      </tr><tr>
+	<td align="center">3</td>
+	<td align="center">127.127.20.20</td>
+	<td>IP Address from server config line</td>
+      </tr><tr>
+	<td align="center">4</td>
+	<td align="center">$GPGGA,...0*5C</td>
+	<td>NMEA Sentence</td>
+      </tr><tr>
+        <td align="center">5</td>
+        <td align="center">228</td>
+        <td>Number of sentences received</td>
+      </tr><tr>
+        <td align="center">6</td>
+        <td align="center">64</td>
+        <td>Number of sentences accepted and used for timekeeping</td>
+      </tr><tr>
+        <td align="center">7</td>
+        <td align="center">0</td>
+        <td>Number of sentences rejected because they were marked invalid (poor signal)</td>
+      </tr><tr>
+        <td align="center">8</td>
+        <td align="center">0</td>
+        <td>Number of sentences rejected because of bad checksum or invalid date/time</td>
+      </tr><tr>
+        <td align="center">9</td>
+        <td align="center">64</td>
+        <td>Number of sentences filtered by mode bits or same second</td>
+      </tr><tr>
+        <td align="center">10</td>
+        <td align="center">0</td>
+        <td>Number of PPS pulses used, overrides NMEA sentences</td>
+      </tr>
+    </tbody></table>
+
+    Sentences like $GPGSV that don't contain the time will get
+    counted in the total but otherwise ignored.
+
+    <p>
+      <a href="https://support.ntp.org/bin/view/Support/ConfiguringNMEARefclocks">Configuring
+      NMEA Refclocks</a> might give further useful hints for specific hardware
+      devices that exhibit strange or curious behaviour.
+    </p>
+
+    <p>
+      To make a specific setting, select the corresponding decimal values from
+      the mode byte table, add them all together and enter the resulting
+      decimal value into the clock configuration line.
+    </p>
+
+    <h4>Setting up the Garmin GPS-25XL</h4>
+
+    Switch off all output with by sending it the following string.
+    <pre>"$PGRMO,,2&lt;cr&gt;&lt;lf&gt;"</pre>
+    <p>Now switch only $GPRMC on by sending it the following string.</p>
+    <pre>"$PGRMO,GPRMC,1&lt;cr&gt;&lt;lf&gt;"</pre>
+
+    <p>On some systems the PPS signal isn't switched on by default. It can be
+    switched on by sending the following string.</p>
+    <pre>"$PGRMC,,,,,,,,,,,,2&lt;cr&gt;&lt;lf&gt;"</pre>
+
+    <h4>Fudge Factors</h4>
+
+    <dl>
+      <dt><tt>time1 <i>time</i></tt></dt>
+      <dd>Specifies the PPS time offset calibration factor, in seconds and fraction, with default 0.0.</dd>
+      <dt><a name="fudgetime2"><tt>time2 <i>time</i></tt></a></dt>
+      <dd>Specifies the serial end of line time offset calibration factor, in seconds and fraction, with default
+	0.0.</dd>
+      <dt><tt>stratum <i>number</i></tt></dt>
+      <dd>Specifies the driver stratum, in decimal from 0 to 15, with default 0.</dd>
+      <dt><tt>refid <i>string</i></tt></dt>
+      <dd>Specifies the driver reference identifier, an ASCII string from one to four characters, with
+	default <tt>GPS</tt>.</dd>
+      <dt><tt>flag1 0 | 1</tt></dt>
+      <dd>Disable PPS signal processing if 0 (default); enable PPS signal processing if 1.</dd>
+      <dt><tt>flag2 0 | 1</tt></dt>
+      <dd>If PPS signal processing is enabled, capture the pulse on the rising edge if 0 (default); capture on the
+	falling edge if 1.</dd>
+      <dt><tt>flag3 0 | 1</tt></dt>
+      <dd>If PPS signal processing is enabled, use the <tt>ntpd</tt> clock discipline if 0 (default); use the kernel
+	discipline if 1.</dd>
+      <dt><tt>flag4 0 | 1</tt></dt>
+      <dd>Obscures location in timecode: 0 for disable (default), 1 for enable.</dd>
+    </dl>
+
+    <p>Additional Information</p>
+    <p><tt>flag1</tt>, <tt>flag2</tt>, and <tt>flag3</tt> are ignored under Windows.</p>
+    <p><a href="../refclock.html">Reference Clock Drivers</a></p>
+    <hr>
+    <script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+  </body></html>

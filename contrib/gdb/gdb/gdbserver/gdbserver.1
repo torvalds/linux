@@ -1,0 +1,116 @@
+.\" Copyright 1993 Free Software Foundation, Inc.
+.\" See section COPYING for conditions for redistribution
+.TH gdbserver 1 "2 November 1993" "Cygnus Support" "GNU Development Tools"
+.SH NAME
+gdbserver \- Remote Server for the GNU Debugger
+.SH SYNOPSIS
+.na
+.TP
+.B gdbserver
+.RB tty
+.RB prog
+.RB "[\|" args... "\|]"
+.PP
+.B gdbserver
+.RB tty
+.B --attach
+.RB PID
+.ad b
+.SH DESCRIPTION
+GDBSERVER is a program that allows you to run GDB on a different machine
+than the one which is running the program being debugged.
+
+Usage (server (target) side):
+
+First, you need to have a copy of the program you want to debug put onto
+the target system.  The program can be stripped to save space if needed, as
+GDBserver doesn't care about symbols.  All symbol handling is taken care of by
+the GDB running on the host system.
+
+To use the server, you log on to the target system, and run the `gdbserver'
+program.  You must tell it (a) how to communicate with GDB, (b) the name of
+your program, and (c) its arguments.  The general syntax is:
+
+	target> gdbserver COMM PROGRAM [ARGS ...]
+
+For example, using a serial port, you might say:
+
+	target> gdbserver /dev/com1 emacs foo.txt
+
+This tells gdbserver to debug emacs with an argument of foo.txt, and to
+communicate with GDB via /dev/com1.  Gdbserver now waits patiently for the
+host GDB to communicate with it.
+
+To use a TCP connection, you could say:
+
+	target> gdbserver host:2345 emacs foo.txt
+
+This says pretty much the same thing as the last example, except that we are
+going to communicate with the host GDB via TCP.  The `host:2345' argument means
+that we are expecting to see a TCP connection from `host' to local TCP port
+2345.  (Currently, the `host' part is ignored.)  You can choose any number you
+want for the port number as long as it does not conflict with any existing TCP
+ports on the target system.  This same port number must be used in the host
+GDBs `target remote' command, which will be described shortly.  Note that if
+you chose a port number that conflicts with another service, gdbserver will
+print an error message and exit.
+
+On some targets, gdbserver can also attach to running programs.
+This is accomplished via the --attach argument.  The syntax is:
+
+	target> gdbserver COMM --attach PID
+
+PID is the process ID of a currently running process.  It isn't
+necessary to point gdbserver at a binary for the running process.
+
+Usage (host side):
+
+You need an unstripped copy of the target program on your host system, since
+GDB needs to examine it's symbol tables and such.  Start up GDB as you normally
+would, with the target program as the first argument.  (You may need to use the
+--baud option if the serial line is running at anything except 9600 baud.)
+Ie: `gdb TARGET-PROG', or `gdb --baud BAUD TARGET-PROG'.  After that, the only
+new command you need to know about is `target remote'.  It's argument is either
+a device name (usually a serial device, like `/dev/ttyb'), or a HOST:PORT
+descriptor.  For example:
+
+	(gdb) target remote /dev/ttyb
+
+communicates with the server via serial line /dev/ttyb, and:
+
+	(gdb) target remote the-target:2345
+
+communicates via a TCP connection to port 2345 on host `the-target', where
+you previously started up gdbserver with the same port number.  Note that for
+TCP connections, you must start up gdbserver prior to using the `target remote'
+command, otherwise you may get an error that looks something like
+`Connection refused'.
+.SH OPTIONS
+You have to supply the name of the program to debug
+and the tty to communicate on; the remote GDB will do everything else.
+Any remaining arguments will be passed to the program verbatim.
+.SH "SEE ALSO"
+.RB "`\|" gdb "\|'"
+entry in
+.B info\c
+\&;
+.I 
+Using GDB: A Guide to the GNU Source-Level Debugger\c
+, Richard M. Stallman and Roland H. Pesch, July 1991.
+.SH COPYING
+Copyright (c) 1993 Free Software Foundation, Inc.
+.PP
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+.PP
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+.PP
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.

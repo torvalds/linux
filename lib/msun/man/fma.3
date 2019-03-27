@@ -1,0 +1,116 @@
+.\" Copyright (c) 2005 David Schultz <das@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 22, 2005
+.Dt FMA 3
+.Os
+.Sh NAME
+.Nm fma ,
+.Nm fmaf ,
+.Nm fmal
+.Nd fused multiply-add
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn fma "double x" "double y" "double z"
+.Ft float
+.Fn fmaf "float x" "float y" "float z"
+.Ft long double
+.Fn fmal "long double x" "long double y" "long double z"
+.Sh DESCRIPTION
+The
+.Fn fma ,
+.Fn fmaf ,
+and
+.Fn fmal
+functions return
+.No "(x * y) + z" ,
+computed with only one rounding error.
+Using the ordinary multiplication and addition operators, by contrast,
+results in two roundings: one for the intermediate product and one for
+the final result.
+.Pp
+For instance, the expression
+.No "1.2e100 * 2.0e208 - 1.4e308"
+produces \*(If due to overflow in the intermediate product, whereas
+.No "fma(1.2e100, 2.0e208, -1.4e308)"
+returns approximately 1.0e308.
+.Pp
+The fused multiply-add operation is often used to improve the
+accuracy of calculations such as dot products.
+It may also be used to improve performance on machines that implement
+it natively.
+The macros
+.Dv FP_FAST_FMA ,
+.Dv FP_FAST_FMAF
+and
+.Dv FP_FAST_FMAL
+may be defined in
+.In math.h
+to indicate that
+.Fn fma ,
+.Fn fmaf ,
+and
+.Fn fmal
+(respectively) have comparable or faster speed than a multiply
+operation followed by an add operation.
+.Sh IMPLEMENTATION NOTES
+In general, these routines will behave as one would expect if
+.No "x * y + z"
+were computed with unbounded precision and range,
+then rounded to the precision of the return type.
+However, on some platforms, if
+.Fa z
+is \*(Na, these functions may not raise an exception even
+when the computation of
+.No "x * y"
+would have otherwise generated an invalid exception.
+.Sh SEE ALSO
+.Xr fenv 3 ,
+.Xr math 3
+.Sh STANDARDS
+The
+.Fn fma ,
+.Fn fmaf ,
+and
+.Fn fmal
+functions conform to
+.St -isoC-99 .
+A fused multiply-add operation with virtually identical
+characteristics appears in IEEE draft standard 754R.
+.Sh HISTORY
+The
+.Fn fma
+and
+.Fn fmaf
+routines first appeared in
+.Fx 5.4 ,
+and
+.Fn fmal
+appeared in
+.Fx 6.0 .

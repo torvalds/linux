@@ -1,0 +1,216 @@
+.\" FreeBSD version Copyright (c) 1996
+.\"	Mike Pritchard <mpp@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Adapted from share/man/man8/man8.hp300/crash.8
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 23, 2011
+.Dt CRASH 8
+.Os
+.Sh NAME
+.Nm crash
+.Nd FreeBSD system failures
+.Sh DESCRIPTION
+This section explains a bit about system crashes
+and (very briefly) how to analyze crash dumps.
+.Pp
+When the system crashes voluntarily it prints a message of the form
+.Bl -diag -offset indent
+.It "panic: why i gave up the ghost"
+.El
+.Pp
+on the console, and if dumps have been enabled (see
+.Xr dumpon 8 ) ,
+takes a dump on a mass storage peripheral,
+and then invokes an automatic reboot procedure as
+described in
+.Xr reboot 8 .
+Unless some unexpected inconsistency is encountered in the state
+of the file systems due to hardware or software failure, the system
+will then resume multi-user operations.
+.Pp
+The system has a large number of internal consistency checks; if one
+of these fails, then it will panic with a very short message indicating
+which one failed.
+In many instances, this will be the name of the routine which detected
+the error, or a two-word description of the inconsistency.
+A full understanding of most panic messages requires perusal of the
+source code for the system.
+.Pp
+The most common cause of system failures is hardware failure, which
+can reflect itself in different ways.
+Here are the messages which
+are most likely, with some hints as to causes.
+Left unstated in all cases is the possibility that hardware or software
+error produced the message in some unexpected way.
+.Pp
+.Bl -diag -compact
+.It "cannot mount root"
+This panic message results from a failure to mount the root file system
+during the bootstrap process.
+Either the root file system has been corrupted,
+or the system is attempting to use the wrong device as root file system.
+Usually, an alternate copy of the system binary or an alternate root
+file system can be used to bring up the system to investigate.
+Most often
+this is done by the use of the boot floppy you used to install the system,
+and then using the
+.Dq fixit
+floppy.
+.Pp
+.It "init: not found"
+This is not a panic message, as reboots are likely to be futile.
+Late in the bootstrap procedure, the system was unable to locate
+and execute the initialization process,
+.Xr init 8 .
+The root file system is incorrect or has been corrupted, or the mode
+or type of
+.Pa /sbin/init
+forbids execution or is totally missing.
+.Pp
+.It "ffs_realloccg: bad optim"
+.It "ffs_valloc: dup alloc"
+.It "ffs_alloccgblk: cyl groups corrupted"
+.It "ffs_alloccg: map corrupted"
+.It "blkfree: freeing free block"
+.It "blkfree: freeing free frag"
+.It "ifree: freeing free inode"
+These panic messages are among those that may be produced
+when file system inconsistencies are detected.
+The problem generally results from a failure to repair damaged file systems
+after a crash, hardware failures, or other condition that should not
+normally occur.
+A file system check will normally correct the problem.
+.Pp
+.It "timeout table full"
+This really should not be a panic, but until the data structure
+involved is made to be extensible, running out of entries causes a crash.
+If this happens, make the timeout table bigger.
+.Pp
+.\" .It "trap type %d, code = %x, v = %x"
+.\" An unexpected trap has occurred within the system; the trap types are:
+.\" .Bl -column xxxx -offset indent
+.\" 0	bus error
+.\" 1	address error
+.\" 2	illegal instruction
+.\" 3	divide by zero
+.\" .No 4\t Em chk No instruction
+.\" .No 5\t Em trapv No instruction
+.\" 6	privileged instruction
+.\" 7	trace trap
+.\" 8	MMU fault
+.\" 9	simulated software interrupt
+.\" 10	format error
+.\" 11	FP coprocessor fault
+.\" 12	coprocessor fault
+.\" 13	simulated AST
+.\" .El
+.\" .Pp
+.\" The favorite trap type in system crashes is trap type 8,
+.\" indicating a wild reference.
+.\" ``code'' (hex) is the concatenation of the
+.\" MMU
+.\" status register
+.\" (see <hp300/cpu.h>)
+.\" in the high 16 bits and the 68020 special status word
+.\" (see the 68020 manual, page 6-17)
+.\" in the low 16.
+.\" ``v'' (hex) is the virtual address which caused the fault.
+.\" Additionally, the kernel will dump about a screenful of semi-useful
+.\" information.
+.\" ``pid'' (decimal) is the process id of the process running at the
+.\" time of the exception.
+.\" Note that if we panic in an interrupt routine,
+.\" this process may not be related to the panic.
+.\" ``ps'' (hex) is the 68020 processor status register ``ps''.
+.\" ``pc'' (hex) is the value of the program counter saved
+.\" on the hardware exception frame.
+.\" It may
+.\" .Em not
+.\" be the PC of the instruction causing the fault.
+.\" ``sfc'' and ``dfc'' (hex) are the 68020 source/destination function codes.
+.\" They should always be one.
+.\" ``p0'' and ``p1'' are the
+.\" VAX-like
+.\" region registers.
+.\" They are of the form:
+.\" .Pp
+.\" .Bd -ragged -offset indent
+.\" <length> '@' <kernel VA>
+.\" .Ed
+.\" .Pp
+.\" where both are in hex.
+.\" Following these values are a dump of the processor registers (hex).
+.\" Finally, is a dump of the stack (user/kernel) at the time of the offense.
+.\" .Pp
+.It "init died (signal #, exit #)"
+The system initialization process has exited with the specified
+signal number and exit code.
+This is bad news, as no new users will then be able to log in.
+Rebooting is the only fix, so the
+system just does it right away.
+.El
+.Pp
+That completes the list of panic types you are likely to see.
+.Pp
+If the system has been configured to take crash dumps (see
+.Xr dumpon 8 ) ,
+then when it crashes it will write (or at least attempt to write)
+an image of memory into the back end of the dump device,
+usually the same as the primary swap
+area.
+After the system is rebooted, the program
+.Xr savecore 8
+runs and preserves a copy of this core image and the current
+system in a specified directory for later perusal.
+See
+.Xr savecore 8
+for details.
+.Pp
+To analyze a dump you should begin by running
+.Xr kgdb 1
+on the system load image and core dump.
+If the core image is the result of a panic,
+the panic message is printed.
+For more details consult the chapter on kernel debugging in
+the
+.%B "FreeBSD Developers' Handbook"
+.Pq Pa https://www.freebsd.org/doc/en/books/developers-handbook/ .
+.Sh SEE ALSO
+.Xr kgdb 1 ,
+.Xr dumpon 8 ,
+.Xr reboot 8 ,
+.Xr savecore 8
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 2.2 .

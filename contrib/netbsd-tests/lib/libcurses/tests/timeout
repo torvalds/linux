@@ -1,0 +1,21 @@
+#
+# Validate the timeout works.
+#
+include start
+delay 2000
+input "a"
+call 97 getch
+call OK timeout 100
+input "b"
+# since delay is in effect and we set timeout the following getch should
+# return ERR not the character b.
+call -1 getch
+# drain input....
+call OK drain
+call OK timeout -1
+call OK keypad STDSCR 1
+delay 0
+input "\eOA"
+call $KEY_UP getch
+call OK refresh
+compare timeout.chk

@@ -1,0 +1,70 @@
+/*
+ * CDDL HEADER START
+ *
+ * The contents of this file are subject to the terms of the
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
+ *
+ * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+ * or http://www.opensolaris.org/os/licensing.
+ * See the License for the specific language governing permissions
+ * and limitations under the License.
+ *
+ * When distributing Covered Code, include this CDDL HEADER in each
+ * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+ * If applicable, add the following below this CDDL HEADER, with the
+ * fields enclosed by brackets "[]" replaced with your own identifying
+ * information: Portions Copyright [yyyy] [name of copyright owner]
+ *
+ * CDDL HEADER END
+ */
+
+/*
+ * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Use is subject to license terms.
+ */
+
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
+
+/*
+ * ASSERTION:
+ * Using -l option with -i option.
+ *
+ * SECTION: dtrace Utility/-l Option;
+ * 	dtrace Utility/-i Option
+ *
+ * NOTES: Manually check:
+ *
+ * 1) automated in tst.InvalidTraceID1.d.ksh
+ * /usr/sbin/dtrace -i 0
+ * RESULT: invalid probe specifier.
+ *
+ * 2) automated in tst.InvalidTraceID2.d.ksh
+ * /usr/sbin/dtrace -i -3
+ * RESULT: not a valid id range
+ *
+ * 3) automated in tst.InvalidTraceID3.d.ksh
+ * /usr/sbin/dtrace -i 0-2
+ * RESULT: not a valid id range
+ *
+ * 4) automated in tst.InvalidTraceID4.d.ksh
+ * /usr/sbin/dtrace -i 4-2
+ * RESULT: not a valid id range
+ *
+ * 5) automated in tst.InvalidTraceID5.d.ksh
+ * /usr/sbin/dtrace -i 2-2
+ * RESULT: not a valid id range
+ *
+ * 6) automated in tst.InvalidTraceID6.d.ksh
+ * /usr/sbin/dtrace -i 1 2 3 4
+ * RESULT: invalid probe specifier.
+ *
+ * 7) automated in tst.InvalidTraceID7.d.ksh
+ * /usr/sbin/dtrace -i 0 - 2
+ * RESULT: invalid probe specifier.
+ *
+ * 8)
+ * /usr/sbin/dtrace -i 1 -i 2-4 -i 4 -i 5
+ * RESULT: Only the BEGIN probe is traced and the others are not.
+ *
+ */

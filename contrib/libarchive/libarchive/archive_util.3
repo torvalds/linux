@@ -1,0 +1,224 @@
+.\" Copyright (c) 2003-2007 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 2, 2012
+.Dt ARCHIVE_UTIL 3
+.Os
+.Sh NAME
+.Nm archive_clear_error ,
+.Nm archive_compression ,
+.Nm archive_compression_name ,
+.Nm archive_copy_error ,
+.Nm archive_errno ,
+.Nm archive_error_string ,
+.Nm archive_file_count ,
+.Nm archive_filter_code ,
+.Nm archive_filter_count ,
+.Nm archive_filter_name ,
+.Nm archive_format ,
+.Nm archive_format_name ,
+.Nm archive_position ,
+.Nm archive_set_error
+.Nd libarchive utility functions
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive.h
+.Ft void
+.Fn archive_clear_error "struct archive *"
+.Ft int
+.Fn archive_compression "struct archive *"
+.Ft const char *
+.Fn archive_compression_name "struct archive *"
+.Ft void
+.Fn archive_copy_error "struct archive *" "struct archive *"
+.Ft int
+.Fn archive_errno "struct archive *"
+.Ft const char *
+.Fn archive_error_string "struct archive *"
+.Ft int
+.Fn archive_file_count "struct archive *"
+.Ft int
+.Fn archive_filter_code "struct archive *" "int"
+.Ft int
+.Fn archive_filter_count "struct archive *" "int"
+.Ft const char *
+.Fn archive_filter_name "struct archive *" "int"
+.Ft int
+.Fn archive_format "struct archive *"
+.Ft const char *
+.Fn archive_format_name "struct archive *"
+.Ft int64_t
+.Fn archive_position "struct archive *" "int"
+.Ft void
+.Fo archive_set_error
+.Fa "struct archive *"
+.Fa "int error_code"
+.Fa "const char *fmt"
+.Fa "..."
+.Fc
+.Sh DESCRIPTION
+These functions provide access to various information about the
+.Tn struct archive
+object used in the
+.Xr libarchive 3
+library.
+.Bl -tag -compact -width indent
+.It Fn archive_clear_error
+Clears any error information left over from a previous call.
+Not generally used in client code.
+.It Fn archive_compression
+Synonym for
+.Fn archive_filter_code(a, 0) .
+.It Fn archive_compression_name
+Synonym for
+.Fn archive_filter_name(a, 0) .
+.It Fn archive_copy_error
+Copies error information from one archive to another.
+.It Fn archive_errno
+Returns a numeric error code (see
+.Xr errno 2 )
+indicating the reason for the most recent error return.
+Note that this can not be reliably used to detect whether an
+error has occurred.
+It should be used only after another libarchive function
+has returned an error status.
+.It Fn archive_error_string
+Returns a textual error message suitable for display.
+The error message here is usually more specific than that
+obtained from passing the result of
+.Fn archive_errno
+to
+.Xr strerror 3 .
+.It Fn archive_file_count
+Returns a count of the number of files processed by this archive object.
+The count is incremented by calls to
+.Xr archive_write_header 3
+or
+.Xr archive_read_next_header 3 .
+.It Fn archive_filter_code
+Returns a numeric code identifying the indicated filter.
+See
+.Fn archive_filter_count
+for details of the numbering.
+.It Fn archive_filter_count
+Returns the number of filters in the current pipeline.
+For read archive handles, these filters are added automatically
+by the automatic format detection.
+For write archive handles, these filters are added by calls to the various
+.Fn archive_write_add_filter_XXX
+functions.
+Filters in the resulting pipeline are numbered so that filter 0
+is the filter closest to the format handler.
+As a convenience, functions that expect a filter number will
+accept -1 as a synonym for the highest-numbered filter.
+.Pp
+For example, when reading a uuencoded gzipped tar archive, there
+are three filters:
+filter 0 is the gunzip filter,
+filter 1 is the uudecode filter,
+and filter 2 is the pseudo-filter that wraps the archive read functions.
+In this case, requesting
+.Fn archive_position(a, -1)
+would be a synonym for
+.Fn archive_position(a, 2)
+which would return the number of bytes currently read from the archive, while
+.Fn archive_position(a, 1)
+would return the number of bytes after uudecoding, and
+.Fn archive_position(a, 0)
+would return the number of bytes after decompression.
+.It Fn archive_filter_name
+Returns a textual name identifying the indicated filter.
+See
+.Fn archive_filter_count
+for details of the numbering.
+.It Fn archive_format
+Returns a numeric code indicating the format of the current
+archive entry.
+This value is set by a successful call to
+.Fn archive_read_next_header .
+Note that it is common for this value to change from
+entry to entry.
+For example, a tar archive might have several entries that
+utilize GNU tar extensions and several entries that do not.
+These entries will have different format codes.
+.It Fn archive_format_name
+A textual description of the format of the current entry.
+.It Fn archive_position
+Returns the number of bytes read from or written to the indicated filter.
+In particular,
+.Fn archive_position(a, 0)
+returns the number of bytes read or written by the format handler, while
+.Fn archive_position(a, -1)
+returns the number of bytes read or written to the archive.
+See
+.Fn archive_filter_count
+for details of the numbering here.
+.It Fn archive_set_error
+Sets the numeric error code and error description that will be returned
+by
+.Fn archive_errno
+and
+.Fn archive_error_string .
+This function should be used within I/O callbacks to set system-specific
+error codes and error descriptions.
+This function accepts a printf-like format string and arguments.
+However, you should be careful to use only the following printf
+format specifiers:
+.Dq %c ,
+.Dq %d ,
+.Dq %jd ,
+.Dq %jo ,
+.Dq %ju ,
+.Dq %jx ,
+.Dq %ld ,
+.Dq %lo ,
+.Dq %lu ,
+.Dq %lx ,
+.Dq %o ,
+.Dq %u ,
+.Dq %s ,
+.Dq %x ,
+.Dq %% .
+Field-width specifiers and other printf features are
+not uniformly supported and should not be used.
+.El
+.Sh SEE ALSO
+.Xr archive_read 3 ,
+.Xr archive_write 3 ,
+.Xr libarchive 3 ,
+.Xr printf 3
+.Sh HISTORY
+The
+.Nm libarchive
+library first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm libarchive
+library was written by
+.An Tim Kientzle Aq kientzle@acm.org .

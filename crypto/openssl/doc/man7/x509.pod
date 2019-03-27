@@ -1,0 +1,73 @@
+=pod
+
+=head1 NAME
+
+x509 - X.509 certificate handling
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509.h>
+
+=head1 DESCRIPTION
+
+An X.509 certificate is a structured grouping of information about
+an individual, a device, or anything one can imagine.  A X.509 CRL
+(certificate revocation list) is a tool to help determine if a
+certificate is still valid.  The exact definition of those can be
+found in the X.509 document from ITU-T, or in RFC3280 from PKIX.
+In OpenSSL, the type X509 is used to express such a certificate, and
+the type X509_CRL is used to express a CRL.
+
+A related structure is a certificate request, defined in PKCS#10 from
+RSA Security, Inc, also reflected in RFC2896.  In OpenSSL, the type
+X509_REQ is used to express such a certificate request.
+
+To handle some complex parts of a certificate, there are the types
+X509_NAME (to express a certificate name), X509_ATTRIBUTE (to express
+a certificate attributes), X509_EXTENSION (to express a certificate
+extension) and a few more.
+
+Finally, there's the supertype X509_INFO, which can contain a CRL, a
+certificate and a corresponding private key.
+
+B<X509_>I<XXX>, B<d2i_X509_>I<XXX>, and B<i2d_X509_>I<XXX> functions
+handle X.509 certificates, with some exceptions, shown below.
+
+B<X509_CRL_>I<XXX>, B<d2i_X509_CRL_>I<XXX>, and B<i2d_X509_CRL_>I<XXX>
+functions handle X.509 CRLs.
+
+B<X509_REQ_>I<XXX>, B<d2i_X509_REQ_>I<XXX>, and B<i2d_X509_REQ_>I<XXX>
+functions handle PKCS#10 certificate requests.
+
+B<X509_NAME_>I<XXX> functions handle certificate names.
+
+B<X509_ATTRIBUTE_>I<XXX> functions handle certificate attributes.
+
+B<X509_EXTENSION_>I<XXX> functions handle certificate extensions.
+
+=head1 SEE ALSO
+
+L<X509_NAME_ENTRY_get_object(3)>,
+L<X509_NAME_add_entry_by_txt(3)>,
+L<X509_NAME_add_entry_by_NID(3)>,
+L<X509_NAME_print_ex(3)>,
+L<X509_NAME_new(3)>,
+L<d2i_X509(3)>,
+L<d2i_X509_ALGOR(3)>,
+L<d2i_X509_CRL(3)>,
+L<d2i_X509_NAME(3)>,
+L<d2i_X509_REQ(3)>,
+L<d2i_X509_SIG(3)>,
+L<X509v3(3)>,
+L<crypto(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2003-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

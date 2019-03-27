@@ -1,0 +1,25 @@
+$NetBSD: todo,v 1.12 2008/12/20 15:17:58 lukem Exp $
+
+Current Items
+-------------
+
+autoconf test for HAVE_DECL_GETADDRINFO if providing getaddrinfo() override.
+(required for UnixWare 7.1.1)
+
+Interix may need hack to fix detection of getpgrp() void args.
+(See pkgsrc/net/tnftp/files/src/progressbar.c 1.2)
+
+Old Items
+---------
+
+add locale autoconf checks
+
+in configure, check for ansi c compiler and barf if it fails
+
+check if we need #defines for memcpy() et al
+
+possibly install editline.3 and editrc.5
+
+system specific tests (to remove need for manual intervention):
+- sunos4
+	LIBS+= -lresolv

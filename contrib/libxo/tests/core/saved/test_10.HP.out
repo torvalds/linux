@@ -1,0 +1,316 @@
+<div class="line">
+  <div class="title color-fg-blue">blue</div>
+  <div class="title color-fg-green color-bg-blue">green</div>
+  <div class="title color-fg-red color-bg-green">red</div>
+  <div class="title color-fg-yellow color-bg-red">yellow</div>
+  <div class="title color-bg-yellow">default</div>
+</div>
+<div class="line">
+  <div class="data effect-bold" data-tag="data">bold</div>
+  <div class="text effect-bold"> </div>
+  <div class="data effect-bold effect-underline" data-tag="data">bold-ul</div>
+  <div class="text effect-bold effect-underline"> </div>
+  <div class="data effect-bold effect-underline effect-inverse color-fg-inverse color-bg-inverse" data-tag="data">triple</div>
+  <div class="text effect-bold effect-underline effect-inverse color-fg-inverse color-bg-inverse"> </div>
+  <div class="data effect-underline effect-inverse color-fg-inverse color-bg-inverse" data-tag="data">inv-ul</div>
+  <div class="text effect-underline effect-inverse color-fg-inverse color-bg-inverse"> </div>
+  <div class="data effect-underline" data-tag="data">underline</div>
+  <div class="text effect-underline"> </div>
+  <div class="data" data-tag="data">plain</div>
+</div>
+<div class="line">
+  <div class="title">Item      </div>
+  <div class="title effect-bold effect-underline">  Total Sold</div>
+  <div class="title effect-underline">    In Stock</div>
+  <div class="title effect-underline effect-inverse color-fg-inverse color-bg-inverse">    On Order</div>
+  <div class="title">  SKU</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="name" data-key="key">gum       </div>
+  <div class="data" data-tag="sold">        1412</div>
+  <div class="data" data-tag="in-stock">          54</div>
+  <div class="data color-fg-yellow" data-tag="on-order">          10</div>
+  <div class="data" data-tag="sku" data-key="key">  GRO-000-415</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="name" data-key="key">rope      </div>
+  <div class="data" data-tag="sold">          85</div>
+  <div class="data effect-inverse color-fg-inverse color-bg-inverse" data-tag="in-stock">           4</div>
+  <div class="data" data-tag="on-order">           2</div>
+  <div class="data" data-tag="sku" data-key="key">  HRD-000-212</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="name" data-key="key">ladder    </div>
+  <div class="data" data-tag="sold">           0</div>
+  <div class="data effect-inverse color-fg-inverse color-bg-inverse" data-tag="in-stock">           2</div>
+  <div class="data" data-tag="on-order">           1</div>
+  <div class="data" data-tag="sku" data-key="key">  HRD-000-517</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="name" data-key="key">bolt      </div>
+  <div class="data" data-tag="sold">        4123</div>
+  <div class="data" data-tag="in-stock">         144</div>
+  <div class="data color-fg-yellow" data-tag="on-order">          42</div>
+  <div class="data" data-tag="sku" data-key="key">  HRD-000-632</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="name" data-key="key">water     </div>
+  <div class="data" data-tag="sold">          17</div>
+  <div class="data" data-tag="in-stock">          14</div>
+  <div class="data" data-tag="on-order">           2</div>
+  <div class="data" data-tag="sku" data-key="key">  GRO-000-2331</div>
+</div>
+<div class="line">
+</div>
+<div class="line">
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="text"> '</div>
+  <div class="data" data-tag="name" data-key="key">gum</div>
+  <div class="text">':</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">Total sold</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sold">1412.0</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">In stock</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data effect-inverse color-fg-inverse color-bg-inverse" data-tag="in-stock">54</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">On order</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="on-order">10</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">SKU</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sku" data-key="key">GRO-000-415</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="text"> '</div>
+  <div class="data" data-tag="name" data-key="key">rope</div>
+  <div class="text">':</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">Total sold</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sold">85.0</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">In stock</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data effect-inverse color-fg-inverse color-bg-inverse" data-tag="in-stock">4</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">On order</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="on-order">2</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">SKU</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sku" data-key="key">HRD-000-212</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="text"> '</div>
+  <div class="data" data-tag="name" data-key="key">ladder</div>
+  <div class="text">':</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">Total sold</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sold">0</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">In stock</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data effect-inverse color-fg-inverse color-bg-inverse" data-tag="in-stock">2</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">On order</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="on-order">1</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">SKU</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sku" data-key="key">HRD-000-517</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="text"> '</div>
+  <div class="data" data-tag="name" data-key="key">bolt</div>
+  <div class="text">':</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">Total sold</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sold">4123.0</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">In stock</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data effect-inverse color-fg-inverse color-bg-inverse" data-tag="in-stock">144</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">On order</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="on-order">42</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">SKU</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sku" data-key="key">HRD-000-632</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="text"> '</div>
+  <div class="data" data-tag="name" data-key="key">water</div>
+  <div class="text">':</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">Total sold</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sold">17.0</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">In stock</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data effect-inverse color-fg-inverse color-bg-inverse" data-tag="in-stock">14</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">On order</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="on-order">2</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">SKU</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sku" data-key="key">GRO-000-2331</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="text"> '</div>
+  <div class="data" data-tag="name" data-key="key">fish</div>
+  <div class="text">':</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label effect-bold color-fg-white color-bg-blue">Total sold</div>
+  <div class="text effect-bold color-fg-white color-bg-blue">: </div>
+  <div class="data effect-bold color-fg-white color-bg-blue" data-tag="sold">1321.0</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">In stock</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="in-stock">45</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">On order</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="on-order">1</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">SKU</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sku" data-key="key">GRO-000-533</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item">gum</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item">rope</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item">ladder</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item">bolt</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item">water</div>
+</div>
+<div class="line">
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+</div>
+<div class="line">
+  <div class="text">X</div>
+  <div class="padding">        </div>
+  <div class="text">X</div>
+  <div class="label">Cost</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="cost">425</div>
+</div>
+<div class="line">
+  <div class="text">X</div>
+  <div class="padding">                              </div>
+  <div class="text">X</div>
+  <div class="label">Cost</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="cost">455</div>
+</div>

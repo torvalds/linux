@@ -1,0 +1,310 @@
+.\"	$Id: man.cgi.3,v 1.4 2017/03/15 13:18:53 schwarze Exp $
+.\"
+.\" Copyright (c) 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 15 2017 $
+.Dt MAN.CGI 3
+.Os
+.Sh NAME
+.Nm man.cgi
+.Nd internals of the CGI program to search and display manual pages
+.Sh DESCRIPTION
+The source code of
+.Xr man.cgi 8
+is organized in four levels:
+.Pp
+.Bl -enum -compact
+.It
+.Sx Top level
+.It
+.Sx Page generators
+.It
+.Sx Result generators
+.It
+.Sx Utility routines
+.El
+.Ss Top level
+The top level of
+.Xr man.cgi 8
+consists of the
+.Fn main
+program and a few parser routines.
+.Bl -tag -width 1n
+.It Ft int Fn main void
+The main program
+.Bl -dash -compact
+.It
+limits execution time;
+.It
+changes to
+.Dv MAN_DIR ,
+the data directory containing all the manual trees;
+.It
+calls
+.Fn parse_manpath_conf ;
+.It
+if
+.Ev PATH_INFO
+is empty, calls
+.Fn parse_query_string ;
+otherwise,
+calls
+.Fn parse_path_info ;
+.It
+validates the manpath and the architecture;
+.It
+calls the appropriate one among the
+.Sx Page generators .
+.El
+.It Ft void Fn parse_manpath_conf "struct req *req"
+Parses and validates
+.Pa manpath.conf
+and fills
+.Va req->p
+and
+.Va req->psz .
+.It Ft void Fn parse_path_info "struct req *req" "const char *path"
+Parses and validates
+.Ev PATH_INFO ,
+clears
+.Va req->isquery ,
+and fills
+.Va req->q .
+.It Ft void Fn parse_query_string "struct req *req" "const char *qs"
+Parses and validates
+.Ev QUERY_STRING ,
+sets
+.Va req->isquery ,
+and fills
+.Va req->q .
+This function is the only user of the utility functions
+.Fn http_decode
+and
+.Fn set_query_attr .
+.El
+.Ss Page generators
+The purpose of each page generator is to print a complete HTML page,
+starting with the HTTP headers and continuing to the page footer.
+Before starting HTML output with
+.Fn resp_begin_html ,
+some page generators do some preparatory work, for example to decide
+which page to show.
+Each page generator ends with a call to
+.Fn resp_end_html .
+.Bl -tag -width 1n
+.It Ft void Fn pg_show "struct req *req" "const char *fullpath"
+This page generator is used when
+.Ev PATH_INFO
+contains the complete path to a manual page including manpath,
+section directory, optional architecture subdirectory, manual name
+and section number suffix.
+It validates the manpath, changes into it, validate the filename,
+and then calls
+.Fn resp_begin_html ,
+.Fn resp_searchform ,
+.Fn resp_show ,
+and
+.Fn resp_end_html
+in that order.
+.It Ft void Fn pg_search "const struct req *req"
+This page generator is used when
+.Ev PATH_INFO
+contains a search query in short format or when
+.Ev PATH_INFO
+is empty and a
+.Ev QUERY_STRING
+is provided.
+If possible, requests using
+.Ev QUERY_STRING
+are redirected to URIs using
+.Ev PATH_INFO
+by calling
+.Fn pg_redirect .
+Otherwise, it changes into the manpath and calls
+.Xr mansearch 3 .
+Depending on the result, it calls either
+.Fn pg_noresult
+or
+.Fn pg_searchres .
+.It Ft void Fn pg_redirect "const struct req *req" "const char *name"
+This function is special in so far as it does not print an HTML page,
+but only an HTTP 303 response with a Location: of the form:
+.Sm off
+.No http://
+.Ar host Ns /
+.Op Ar scriptname Ns /
+.Op Ar manpath Ns /
+.Op Ar arch Ns /
+.Fa name
+.Op Pf . Ar sec
+.Sm on
+.It Ft void Fn pg_noresult "const struct req *req" "const char *msg"
+This function calls
+.Fn resp_begin_html ,
+.Fn resp_searchform ,
+prints the
+.Fa msg
+passed to it, and calls
+.Fn resp_end_html .
+.It Ft void Fn pg_searchres "const struct req *req" "struct manpage *r"\
+ "size_t sz"
+This function first validates the filenames found.
+If
+.Ev QUERY_STRING
+was used and there is exactly one result,
+it writes an HTTP redirect to that result.
+Otherwise, it writes an HTML result page beginning with
+.Fn resp_begin_html
+and
+.Fn resp_searchform .
+If there is more than one result, it writes a list of links
+to all the results.
+If it was a
+.Xr man 1
+rather than an
+.Xr apropos 1
+query or if there is only one single result, it calls
+.Fn resp_show .
+Finally, it calls
+.Fn resp_end_html .
+.It Ft void Fn pg_index "const struct req *req"
+This page generator is used when
+.Ev PATH_INFO
+and
+.Ev QUERY_STRING
+are both empty.
+It calls
+.Fn resp_begin_html
+and
+.Fn resp_searchform ,
+writes links to help pages, and calls
+.Fn resp_end_html .
+.It Ft void Fn pg_error_badrequest "const char *msg"
+This page generator is used when
+.Fn main
+or
+.Fn pg_show
+detect an invalid URI.
+It calls
+.Fn resp_begin_html ,
+prints the
+.Fa msg
+provided, and calls
+.Fn resp_end_html .
+.It Ft void Fn pg_error_internal void
+This page generator is used by various functions when errors are
+detected in the
+.Pa manpath.conf
+configuration file, in
+.Xr mandoc.db 5
+databases, in the
+.Xr mandoc 3
+parser, in file system permissions, or when setting up timeouts.
+It calls
+.Fn resp_begin_html ,
+prints
+.Qq "Internal Server Error" ,
+and calls
+.Fn resp_end_html .
+Before calling
+.Fn pg_error_internal ,
+call
+.Xr warn 3
+or
+.Xr warnx 3
+to log the reason of the error to the
+.Xr httpd 8
+server log file.
+.El
+.Ss Result generators
+The purpose of result generators is to print a chunk of HTML code.
+When they print untrusted strings or characters,
+.Fn html_print
+and
+.Fn html_putchar
+are used.
+The highest level result generators are:
+.Bl -tag -width 1n
+.It Ft void Fn resp_begin_html "int code" "const char *msg" "const char *file"
+This generator calls
+.Fn resp_begin_http
+to print the HTTP headers, then prints the HTML header up to the
+opening tag of the <body> element, then copies the file
+.Pa header.html
+to the output, if it exists and is readable.
+If
+.Fa file
+is not
+.Dv NULL ,
+it is used for the <title> element.
+.It Ft void Fn resp_searchform "const struct req *req" "enum focus focus"
+This generator prints a search form, filling it with data
+from the provided request object.
+If the
+.Fa focus
+argument is
+.Dv FOCUS_QUERY ,
+it sets the document's autofocus to the query input box.
+.It Ft void Fn resp_show "const struct req *req" "const char *file"
+This wrapper dispatches to either
+.Fn resp_catman
+or
+.Fn resp_format ,
+depending on whether
+.Ar file
+starts with
+.Pa cat
+or
+.Pa man ,
+respectively.
+.It Ft void Fn resp_catman "const struct req *req" "const char *file"
+This generator translates a preformatted, backspace-encoded manual
+page to HTML and prints it to the output.
+.It Ft void Fn resp_format "const struct req *req" "const char *file"
+This generator formats a manual page on the standard output,
+using the functions documented in
+.Xr mchars_alloc 3
+and
+.Xr mandoc 3 .
+.It Ft void Fn resp_end_html void
+This generator copies the file
+.Pa footer.html
+to the output, if it exists and is readable,
+and closes the <body> and <html> elements.
+.El
+.Ss Utility routines
+These functions take a string and return 1 if it is valid, or 0 otherwise.
+.Bl -tag -width 1n
+.It Ft int Fn validate_urifrag "const char *frag"
+Checks that the string only contains alphanumeric ASCII characters,
+dashes, dots, slashes, and underscores.
+.It Ft int Fn validate_manpath "const struct req *req" "const char* manpath"
+Checks that the string is either
+.Qq mandoc
+or one of the manpaths configured in
+.Pa manpath.conf .
+.It Ft int Fn validate_filename "const char *file"
+Checks that the string starts with
+.Qq man
+or
+.Qq cat
+and does not ascend to parent directories.
+.El
+.Sh SEE ALSO
+.Xr mandoc 3 ,
+.Xr mansearch 3 ,
+.Xr mchars_alloc 3 ,
+.Xr mandoc.db 5 ,
+.Xr man.cgi 8

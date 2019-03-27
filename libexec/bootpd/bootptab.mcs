@@ -1,0 +1,91 @@
+# /etc/bootptab: database for bootp server (/etc/bootpd)
+# Last update: gwr, Sun Dec 12 19:00:00 EDT 1993
+# Blank lines and lines beginning with '#' are ignored.
+#
+# $FreeBSD$
+#
+# Legend:	(see bootptab.5)
+#	first field -- hostname (not indented)
+#	bf -- bootfile
+#	bs -- bootfile size in 512-octet blocks
+#	cs -- cookie servers
+#	df -- dump file name
+#	dn -- domain name
+#	ds -- domain name servers
+#	ef -- extension file
+#	gw -- gateways
+#	ha -- hardware address
+#	hd -- home directory for bootfiles
+#	hn -- host name set for client
+#	ht -- hardware type
+#	im -- impress servers
+#	ip -- host IP address
+#	lg -- log servers
+#	lp -- LPR servers
+#	ns -- IEN-116 name servers
+#	ra -- reply address
+#	rl -- resource location protocol servers
+#	rp -- root path
+#	sa -- boot server address
+#	sm -- subnet mask
+#	sw -- swap server
+#	tc -- template host (points to similar host entry)
+#	td -- TFTP directory
+#	to -- time offset (seconds)
+#	ts -- time servers
+#	vm -- vendor magic number
+#	Tn -- generic option tag n
+#
+# Be careful about including backslashes where they're needed.  Weird (bad)
+# things can happen when a backslash is omitted where one is intended.
+# Also, note that generic option data must be either a string or a
+# sequence of bytes where each byte is a two-digit hex value.
+
+# First, we define a global entry which specifies the stuff every host uses.
+
+# If you leave "td" empty, run bootpd with the "-c /tftpboot" switch
+# so path names (boot files) will be interpreted relative to the same
+# directory as tftpd will use when opening files.
+.default:\
+	:hn:dn="mc.com":\
+	:td=/tftpboot:\
+	:ds=merlin, jericho:\
+	:to=auto:
+
+# Next, we can define different master entries for each subnet. . .
+
+.subnet16:\
+	:tc=.default:\
+	:sm=255.255.255.0:\
+	:gw=merlin:\
+	:sa=merlin:
+
+.subnet17:\
+	:tc=.default:\
+	:sm=255.255.255.0:\
+	:gw=merlin-gw:\
+	:sa=merlin-gw:
+
+#
+# We should be able to use as many levels of indirection as desired.  Use
+# your imagination. . .
+#
+
+# Individual entries (could also have different servers for some/all of these
+# hosts, but we don't really use this feature at CMU):
+
+# Emulex terminal server
+emulex:	tc=.subnet16:ha=00.00.C9.00.42.E0:bf=P4KTL0E:
+
+# Lantronix eps1
+eps1:	tc=.subnet16:ha=00.80.A3.04.1D.78:
+
+# Tadpole 885 board.
+tp885:  tc=.subnet17:ha=08.00.4C.00.2F.74:bf=tp885sys2.cfe:
+
+# MVME147 VxWorks board.
+#mvme147:tc=.subnet17:ha=08.00.3e.20.da.47:bf=mv147vxw.st:
+
+# These are just for testing
+bach:  tc=.subnet16:ha="08:00:20:04:98:8d":bf=boot.sun4m:
+xanadu:tc=.subnet17:ha="00:80:42:42:04:c7":bf=boot.sun4c:

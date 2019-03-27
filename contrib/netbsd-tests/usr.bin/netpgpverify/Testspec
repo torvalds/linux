@@ -1,0 +1,114 @@
+#! /bin/sh
+
+# $NetBSD: Testspec,v 1.2 2016/06/01 14:52:56 agc Exp $
+
+# Copyright (c) 2016 Alistair Crooks <agc@NetBSD.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+# THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+TESTNAME=netpgpverify
+
+TESTSET_1_NAME=rsa_signatures
+TESTSET_1_FILES='
+a.gpg
+b.gpg
+det
+det.sig
+jj.asc
+pubring.gpg
+NetBSD-6.0_hashes.asc:gzip
+expected16
+expected17
+expected18
+expected19
+expected20
+expected21
+expected22
+expected23
+expected24
+expected25
+expected26
+expected27
+expected28
+expected29
+expected30
+expected31
+expected32
+expected33
+expected34
+expected35
+'
+TESTSET_1_CASE_1="-s eq:0 -o file:1.expected -e empty b2e < 1.in"
+TESTSET_1_CASE_2="-s eq:0 -o file:2.expected -e empty b2e < 2.in"
+
+TESTSET_1_CASE_1="-s eq:0 -o file:expected16 -e empty env TZ=US/Pacific netpgpverify -k pubring.gpg -c verify b.gpg"
+DISABLE_TESTSET_1_CASE_2="-s eq:0 -o file:expected17 -e empty netpgpverify -c verify a.gpg"
+TESTSET_1_CASE_3="-s eq:0 -o file:expected18 -e empty env TZ=US/Pacific netpgpverify -c verify a.gpg"
+TESTSET_1_CASE_4="-s eq:0 -o file:expected19 -e empty env TZ=US/Pacific netpgpverify -c verify NetBSD-6.0_RC2_hashes.asc"
+TESTSET_1_CASE_5="-s eq:0 -o file:expected20 -e empty env TZ=US/Pacific netpgpverify -k pubring.gpg -c cat jj.asc"
+TESTSET_1_CASE_6="-s eq:0 -o file:expected21 -e empty env TZ=US/Pacific netpgpverify < a.gpg"
+TESTSET_1_CASE_7="-s eq:0 -o file:expected22 -e empty env TZ=US/Pacific netpgpverify -k pubring.gpg < jj.asc"
+TESTSET_1_CASE_8="-s eq:0 -o file:expected23 -e empty env TZ=US/Pacific netpgpverify < NetBSD-6.0_RC2_hashes.asc"
+TESTSET_1_CASE_9="-s eq:0 -o file:expected24 -e empty env TZ=US/Pacific netpgpverify -k pubring.gpg < b.gpg"
+DISABLE_TESTSET_1_CASE_10="-s eq:0 -o file:expected25 -e empty netpgpverify NetBSD-6.0_RC1_hashes.gpg"
+DISABLE_TESTSET_1_CASE_11="-s eq:0 -o file:expected26 -e empty netpgpverify < NetBSD-6.0_RC1_hashes.gpg"
+TESTSET_1_CASE_12="-s eq:0 -o file:expected27 -e empty env TZ=US/Pacific netpgpverify -k pubring.gpg < NetBSD-6.0_hashes.asc"
+TESTSET_1_CASE_13="-s eq:0 -o file:expected28 -e empty env TZ=US/Pacific netpgpverify -k pubring.gpg NetBSD-6.0_hashes.asc"
+DISABLE_TESTSET_1_CASE_14="-s eq:0 -o file:expected29 -e empty netpgpverify NetBSD-6.0_RC1_hashes_ascii.gpg"
+DISABLE_TESTSET_1_CASE_15="-s eq:0 -o file:expected30 -e empty netpgpverify < NetBSD-6.0_RC1_hashes_ascii.gpg"
+TESTSET_1_CASE_16="-s eq:0 -o file:expected31 -e empty env TZ=US/Pacific netpgpverify -k pubring.gpg -c cat b.gpg b.gpg b.gpg"
+TESTSET_1_CASE_17="-s eq:0 -o file:expected32 -e empty env TZ=US/Pacific netpgpverify -k pubring.gpg b.gpg b.gpg b.gpg"
+TESTSET_1_CASE_18="-s eq:0 -o file:expected33 -e empty env TZ=US/Pacific netpgpverify -k pubring.gpg -c cat b.gpg jj.asc b.gpg"
+TESTSET_1_CASE_19="-s eq:0 -o file:expected34 -e empty env TZ=US/Pacific netpgpverify -k pubring.gpg det.sig"
+TESTSET_1_CASE_20="-s eq:0 -o file:expected35 -e empty env TZ=US/Pacific netpgpverify -c cat -k pubring.gpg det.sig"
+DISABLE_TESTSET_1_CASE_21="-s eq:0 -o file:expected46 -e empty netpgpverify -k problem-pubring.gpg NetBSD-6.0_hashes.asc"
+
+TESTSET_2_NAME=dsa_signatures
+TESTSET_2_FILES='
+dsa-pubring.gpg
+in1.gpg
+in1.asc
+in2.gpg
+in2.asc
+expected36
+expected37
+expected38
+expected39
+expected40
+expected41
+expected42
+expected43
+expected44
+expected45
+expected46
+'
+TESTSET_2_CASE_1="-s eq:0 -o file:expected36 -e empty env TZ=US/Pacific netpgpverify -k dsa-pubring.gpg in1.gpg"
+TESTSET_2_CASE_2="-s eq:0 -o file:expected37 -e empty env TZ=US/Pacific netpgpverify -k dsa-pubring.gpg < in1.gpg"
+TESTSET_2_CASE_3="-s eq:0 -o file:expected38 -e empty env TZ=US/Pacific netpgpverify -k dsa-pubring.gpg in1.asc"
+TESTSET_2_CASE_4="-s eq:0 -o file:expected39 -e empty env TZ=US/Pacific netpgpverify -k dsa-pubring.gpg < in1.asc"
+TESTSET_2_CASE_5="-s eq:0 -o file:expected40 -e empty env TZ=US/Pacific netpgpverify -k dsa-pubring.gpg -c cat in1.gpg"
+TESTSET_2_CASE_6="-s eq:0 -o file:expected41 -e empty env TZ=US/Pacific netpgpverify -k dsa-pubring.gpg -c cat < in1.gpg"
+TESTSET_2_CASE_7="-s eq:0 -o file:expected42 -e empty env TZ=US/Pacific netpgpverify -k dsa-pubring.gpg -c cat in1.asc"
+TESTSET_2_CASE_8="-s eq:0 -o file:expected43 -e empty env TZ=US/Pacific netpgpverify -k dsa-pubring.gpg -c cat < in1.asc"
+TESTSET_2_CASE_9="-s eq:0 -o file:expected44 -e empty env TZ=US/Pacific netpgpverify -k dsa-pubring.gpg in2.gpg"
+TESTSET_2_CASE_10="-s eq:0 -o file:expected45 -e empty env TZ=US/Pacific netpgpverify -k dsa-pubring.gpg in2.asc"

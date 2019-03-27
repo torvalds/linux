@@ -1,0 +1,206 @@
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ee.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 24, 2015
+.Dt AUE 4
+.Os
+.Sh NAME
+.Nm aue
+.Nd ADMtek AN986 Pegasus USB Ethernet driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device miibus"
+.Cd "device uether"
+.Cd "device aue"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_aue_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Ethernet adapters based on the ADMtek
+AN986 Pegasus chipset.
+.Pp
+The LinkSys USB10T adapters that contain the AN986 Pegasus chipset
+will operate at 100Base-TX and full-duplex.
+.Pp
+The Pegasus contains a 10/100
+Ethernet MAC with MII interface and is designed to work with both
+Ethernet and HomePNA transceivers.
+Although designed to interface with
+100Mbps peripherals, the existing USB standard specifies a maximum
+transfer speed of 12Mbps.
+Users should therefore not expect to actually
+achieve 100Mbps speeds with these devices.
+.Pp
+The Pegasus supports a 64-bit multicast hash table, single perfect
+filter entry for the station address and promiscuous mode.
+Packets are
+received and transmitted over separate USB bulk transfer endpoints.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the
+.Pa /etc/rc.conf
+file.
+.It 10baseT/UTP
+Set 10Mbps operation.
+The
+.Ar mediaopt
+option can also be used to enable
+.Ar full-duplex
+operation.
+Not specifying
+.Ar full duplex
+implies
+.Ar half-duplex
+mode.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Ar mediaopt
+option can also be used to enable
+.Ar full-duplex
+operation.
+Not specifying
+.Ar full duplex
+implies
+.Ar half-duplex
+mode.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It full-duplex
+Force full duplex operation.
+The interface will operate in
+half duplex mode if this media option is not specified.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+Adapters supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Abocom UFE1000, DSB650TX_NA
+.It
+Accton USB320-EC, SpeedStream
+.It
+ADMtek AN986, AN8511
+.It
+Billionton USB100, USB100LP, USB100EL, USBE100
+.It
+Corega Ether FEther USB-T, FEther USB-TX, FEther USB-TXS
+.It
+D-Link DSB-650, DSB-650TX, DSB-650TX-PNA
+.It
+Elecom LD-USBL/TX
+.It
+Elsa Microlink USB2Ethernet
+.It
+HP hn210e
+.It
+I-O Data USB ETTX
+.It
+Kingston KNU101TX
+.It
+LinkSys USB10T adapters that contain the AN986 Pegasus chipset,
+USB10TA, USB10TX, USB100TX, USB100H1
+.It
+MELCO LUA-TX, LUA2-TX
+.It
+Netgear FA101
+.It
+Planex UE-200TX
+.It
+Sandberg USB to Network Link (model number 133-06)
+.It
+Siemens Speedstream
+.It
+SmartBridges smartNIC
+.It
+SMC 2202USB
+.It
+SOHOware NUB100
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "aue%d: watchdog timeout"
+A packet was queued for transmission and a transmit command was
+issued, however the device failed to acknowledge the transmission
+before a timeout expired.
+.It "aue%d: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Rs
+.%T ADMtek AN986 data sheet
+.%U http://www.admtek.com.tw
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ee.columbia.edu .

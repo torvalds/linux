@@ -1,0 +1,257 @@
+.\" Copyright (c) 2007 S.Sam Arun Raj
+.\" Copyright (c) 2008,2011 Joseph Koshy
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: size.1 3195 2015-05-12 17:22:19Z emaste $
+.\"
+.Dd August 25, 2011
+.Dt SIZE 1
+.Os
+.Sh NAME
+.Nm size
+.Nd "display section sizes and total size of ELF objects"
+.Sh SYNOPSIS
+.Nm
+.Op Fl -format= Ns Ar format
+.Op Fl -help
+.Op Fl -radix= Ns Ar radix
+.Op Fl -totals
+.Op Fl -version
+.Op Fl ABVdhotx
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility
+lists the sizes of ELF sections, and optionally the total size, for
+each input
+.Ar file
+specified on the command line.
+The
+.Nm
+utility can operate on ELF objects, on
+.Xr ar 1
+archives containing ELF objects, and on core dumps.
+If no file name is specified on the command-line,
+.Pa a.out
+is assumed.
+.Pp
+The
+.Nm
+utility recognized the following options:
+.Bl -tag -width indent
+.It Fl -format= Ns Ar format
+Display output using the format specified by argument
+.Ar format .
+Supported values for this argument are:
+.Sq berkeley
+and
+.Sq sysv .
+The default output format is
+.Sq berkeley .
+See
+.Sx Display Formats
+below for more information.
+.It Fl -help
+Display a help message and exit.
+.It Fl -radix= Ns Ar radix
+Display numeric values using the radix specified by argument
+.Ar radix .
+Supported values for
+.Ar radix
+are 8, 10 and 16.
+The default radix is 10.
+.It Fl -totals
+Shows cumulative totals of section sizes from all objects.
+This option is ignored for System V style output.
+.It Fl -version
+Display a version identifier and exit.
+.It Fl A
+Equivalent to specifying option
+.Fl -format= Ns Ar sysv .
+.It Fl B
+Equivalent to specifying option
+.Fl -format= Ns Ar berkeley .
+.It Fl V
+Equivalent to specifying option
+.Fl -version .
+.It Fl d
+Equivalent to specifying option
+.Fl -radix= Ns Ar 10 .
+.It Fl h
+Equivalent to specifying option
+.Fl -help .
+.It Fl o
+Equivalent to specifying option
+.Fl -radix= Ns Ar 8 .
+.It Fl t
+Equivalent to specifying option
+.Fl -totals .
+.It Fl x
+Equivalent to specifying option
+.Fl -radix= Ns Ar 16 .
+.El
+.Sh DISPLAY FORMATS
+.Ss Berkeley Style Output
+If
+.Sq berkeley
+style output is in effect, an initial header line naming fields will
+be output, followed by one line of output for each ELF object specified
+on the command line or found in an archive.
+.Pp
+Each line will contain the following whitespace separated fields
+in order:
+.Bl -enum -compact
+.It
+The size of the text segment in the object.
+.It
+The size of the data segment in the object.
+.It
+The size of the
+.Sq bss
+segment in the object.
+.It
+The total size of the object in either decimal or octal.
+Decimal output is used if the specified output radix for numeric values
+is 10 or 16.
+Octal output is used if the radix being used for numeric values
+is 8.
+.It
+The total size of the object in hexadecimal.
+.It
+The file name of the object.
+.El
+.Pp
+If option
+.Fl -totals
+was specified, an additional line in the same format as above will be
+output at the end containing the sum of the respective fields.
+The file name field for the line will contain the string
+.Sq (TOTALS) .
+.Ss System V Style Output
+If System V style output is selected,
+.Nm
+will output the following information for each object:
+.Bl -enum -compact
+.It
+The name of the object followed by a colon.
+.It
+A header line containing the names of fields of subsequent lines.
+.It
+One line per section present in the object.
+Each line has three fields:
+.Bl -enum -compact
+.It
+The name of the section.
+.It
+Its size, in the selected radix for numeric values.
+.It
+The address associated with the section, in the selected numeric radix.
+.El
+.It
+A line whose section name field contains the string
+.Sq Total
+and whose size field contains the sum of all reported section sizes.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+To display the section sizes for
+.Pa /bin/ls
+use:
+.Bd -literal
+$ size /bin/ls
+text       data       bss        dec        hex        filename
+20975      540        392        21907      5593        /bin/ls
+.Ed
+.Pp
+To display sizes and total for
+.Pa /bin/ls
+and
+.Pa /bin/dd
+in hexadecimal, use:
+.Bd -literal
+$ size -tx /bin/ls /bin/dd
+text       data       bss        dec        hex        filename
+0x51ef     0x21c      0x188      21907      5593        /bin/ls
+0x3df5     0x170      0x200      16741      4165        /bin/dd
+0x8fe4     0x38c      0x388      38648      96f8       (TOTALS)
+.Ed
+.Pp
+To display section sizes for
+.Pa /bin/ls
+in System V format use:
+.Bd -literal
+$ size -A /bin/ls
+/bin/ls  :
+section            size       addr
+\&.interp            21         4194704
+\&.note.ABI-tag      24         4194728
+\&.hash              624        4194752
+\&.dynsym            2088       4195376
+\&.dynstr            810        4197464
+\&.rela.dyn          120        4198280
+\&.rela.plt          1656       4198400
+\&.init              19         4200056
+\&.plt               1120       4200076
+\&.text              15224      4201200
+\&.fini              14         4216424
+\&.rodata            1472       4216448
+\&.data              80         5267456
+\&.eh_frame          1624       5267536
+\&.dynamic           384        5269160
+\&.ctors             16         5269544
+\&.dtors             16         5269560
+\&.jcr               8          5269576
+\&.got               576        5269584
+\&.bss               528        5270176
+\&.comment           686        0
+Total              27110
+.Ed
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr nm 1 ,
+.Xr objdump 1 ,
+.Xr readelf 1 ,
+.Xr strings 1 ,
+.Xr elf 3 ,
+.Xr gelf 3
+.Rs
+.%A "AT&T Unix Systems Labs"
+.%T "System V Application Binary Interface"
+.%O http://www.sco.com/developers/gabi/
+.Re
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.At v6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was re-written by
+.An S. Sam Arun Raj Aq Mt samarunraj@gmail.com
+This manual page was written by
+.An S. Sam Arun Raj Aq Mt samarunraj@gmail.com

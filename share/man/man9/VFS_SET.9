@@ -1,0 +1,112 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 16, 2018
+.Dt VFS_SET 9
+.Os
+.Sh NAME
+.Nm VFS_SET
+.Nd set up loadable file system
+.Vt vfsconf
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/kernel.h
+.In sys/module.h
+.In sys/mount.h
+.Ft void
+.Fn VFS_SET "struct vfsops *vfsops" "fsname" "int flags"
+.Sh DESCRIPTION
+.Fn VFS_SET
+creates a
+.Vt vfsconf
+structure for the loadable module with the given
+.Fa vfsops , fsname
+and
+.Fa flags ,
+and declares it by calling
+.Xr DECLARE_MODULE 9
+using
+.Fn vfs_modevent
+as the event handler.
+.Pp
+Possible values for the
+.Fa flags
+argument are:
+.Bl -hang -width ".Dv VFCF_DELEGADMIN"
+.It Dv VFCF_STATIC
+File system should be statically available in the kernel.
+.It Dv VFCF_NETWORK
+Network exportable file system.
+.It Dv VFCF_READONLY
+Does not support write operations.
+.It Dv VFCF_SYNTHETIC
+Pseudo file system, data does not represent on-disk files.
+.It Dv VFCF_LOOPBACK
+Loopback file system layer.
+.It Dv VFCF_UNICODE
+File names are stored as Unicode.
+.It Dv VFCF_JAIL
+Can be mounted from within a jail if
+.Va allow.mount
+and
+.Va allow.mount.<fsname>
+jail parameters are set.
+.It Dv VFCF_DELEGADMIN
+Supports delegated administration if
+.Va vfs.usermount
+sysctl is set to
+.Dv 1 .
+.It Dv VFCF_SBDRY
+When in VFS method, the thread suspension is deferred to the user
+boundary upon arrival of stop action.
+.El
+.Sh PSEUDOCODE
+.Bd -literal
+/*
+ * Fill in the fields for which we have special methods.
+ * The others are initially null.  This tells vfs to change them to
+ * pointers to vfs_std* functions during file system registration.
+ */
+static struct vfsops myfs_vfsops = {
+        .vfs_mount =    myfs_mount,
+        .vfs_root =     myfs_root,
+        .vfs_statfs =   myfs_statfs,
+        .vfs_unmount =  myfs_unmount,
+};
+
+VFS_SET(myfs_vfsops, myfs, 0);
+.Ed
+.Sh SEE ALSO
+.Xr jail 2 ,
+.Xr jail 8 ,
+.Xr DECLARE_MODULE 9 ,
+.Xr vfs_modevent 9 ,
+.Xr vfsconf 9
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@acns.ab.ca .

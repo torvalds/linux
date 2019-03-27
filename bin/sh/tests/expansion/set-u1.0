@@ -1,0 +1,29 @@
+# $FreeBSD$
+
+${SH} -uc 'unset foo; echo $foo' 2>/dev/null && exit 1
+${SH} -uc 'foo=; echo $foo' >/dev/null || exit 1
+${SH} -uc 'foo=1; echo $foo' >/dev/null || exit 1
+# -/+/= are unaffected by set -u
+${SH} -uc 'unset foo; echo ${foo-}' >/dev/null || exit 1
+${SH} -uc 'unset foo; echo ${foo+}' >/dev/null || exit 1
+${SH} -uc 'unset foo; echo ${foo=}' >/dev/null || exit 1
+# length/trimming are affected
+${SH} -uc 'unset foo; echo ${#foo}' 2>/dev/null && exit 1
+${SH} -uc 'foo=; echo ${#foo}' >/dev/null || exit 1
+${SH} -uc 'unset foo; echo ${foo#?}' 2>/dev/null && exit 1
+${SH} -uc 'foo=1; echo ${foo#?}' >/dev/null || exit 1
+${SH} -uc 'unset foo; echo ${foo##?}' 2>/dev/null && exit 1
+${SH} -uc 'foo=1; echo ${foo##?}' >/dev/null || exit 1
+${SH} -uc 'unset foo; echo ${foo%?}' 2>/dev/null && exit 1
+${SH} -uc 'foo=1; echo ${foo%?}' >/dev/null || exit 1
+${SH} -uc 'unset foo; echo ${foo%%?}' 2>/dev/null && exit 1
+${SH} -uc 'foo=1; echo ${foo%%?}' >/dev/null || exit 1
+
+${SH} -uc 'echo $!' 2>/dev/null && exit 1
+${SH} -uc ':& echo $!' >/dev/null || exit 1
+${SH} -uc 'echo $#' >/dev/null || exit 1
+${SH} -uc 'echo $1' 2>/dev/null && exit 1
+${SH} -uc 'echo $1' ${SH} x >/dev/null || exit 1
+${SH} -uc 'echo $2' ${SH} x 2>/dev/null && exit 1
+${SH} -uc 'echo $2' ${SH} x y >/dev/null || exit 1
+exit 0

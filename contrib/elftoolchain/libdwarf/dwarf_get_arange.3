@@ -1,0 +1,121 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_arange.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd April 16, 2011
+.Dt DWARF_GET_ARANGE 3
+.Os
+.Sh NAME
+.Nm dwarf_get_arange
+.Nd retrieve the address range descriptor for an address
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_get_arange
+.Fa "Dwarf_Arange *ar_list"
+.Fa "Dwarf_Unsigned ar_cnt"
+.Fa "Dwarf_Addr addr"
+.Fa "Dwarf_Arange *ret_ar"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_get_arange
+searches an array of
+.Vt Dwarf_Arange
+descriptors for one that covers a given address.
+.Pp
+Argument
+.Ar ar_list
+should point to an array of
+.Vt Dwarf_Arange
+descriptors.
+.Pp
+Argument
+.Ar ar_cnt
+specifies the number of
+.Vt Dwarf_Arange
+descriptors in the array pointed to by argument
+.Ar ar_list .
+.Pp
+Argument
+.Ar addr
+specifies the address being looked up.
+.Pp
+Argument
+.Ar ret_ar
+will be used to store the
+.Vt Dwarf_Arange
+descriptor that covers the given address.
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case of an
+error.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_get_arange
+returns
+.Dv DW_DLV_OK
+when it succeeds.
+It returns
+.Dv DW_DLV_NO_ENTRY
+if there is no
+.Vt Dwarf_Arange
+descriptor that covers the provided address.
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh ERRORS
+Function
+.Fn dwarf_get_arange
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar dbg ,
+.Ar ar_list
+or
+.Ar ret_ar
+was NULL.
+.It Bq Er DW_DLE_ARGUMENT
+Value of argument
+.Ar ar_cnt
+equals to 0.
+.It Bq Er DW_DLE_NO_ENTRY
+A
+.Vt Dwarf_Arange
+descriptor that covers the given address
+was not found.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_get_arange_cu_header_offset 3 ,
+.Xr dwarf_get_arange_info 3 ,
+.Xr dwarf_get_aranges 3 ,
+.Xr dwarf_get_cu_die_offset 3

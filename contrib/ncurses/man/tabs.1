@@ -1,0 +1,143 @@
+.\"***************************************************************************
+.\" Copyright (c) 2008-2011,2013 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: tabs.1,v 1.11 2013/06/22 18:11:57 tom Exp $
+.TH @TABS@ 1 ""
+.ds n 5
+.SH NAME
+\fB@TABS@\fR \- set tabs on a terminal
+.SH SYNOPSIS
+\fB@TABS@\fR [\fIoptions\fR]] \fI[tabstop-list]\fR
+.SH DESCRIPTION
+.PP
+The \fB@TABS@\fP program clears and sets tab-stops on the terminal.
+This uses the terminfo \fIclear_all_tabs\fP and \fIset_tab\fP capabilities.
+If either is absent, \fB@TABS@\fP is unable to clear/set tab-stops.
+The terminal should be configured to use hard tabs, e.g.,
+.sp
+.RS
+stty tab0
+.RE
+.SH OPTIONS
+.SS General Options
+.TP 5
+.BI \-T "name"
+Tell \fB@TABS@\fP which terminal type to use.
+If this option is not given, \fB@TABS@\fP will use the \fB$TERM\fP
+environment variable.
+If that is not set, it will use the \fIansi+tabs\fP entry.
+.TP 5
+.B \-d
+The debugging option shows a ruler line, followed by two data lines.
+The first data line shows the expected tab-stops marked with asterisks.
+The second data line shows the actual tab-stops, marked with asterisks.
+.TP 5
+.B \-n
+This option tells \fB@TABS@\fP to check the options and run any debugging
+option, but not to modify the terminal settings.
+.TP
+\fB\-V\fR
+reports the version of ncurses which was used in this program, and exits.
+.PP
+The \fB@TABS@\fP program processes a single list of tab stops.
+The last option to be processed which defines a list is the one that
+determines the list to be processed.
+.SS Implicit Lists
+Use a single number as an option, e.g., "\fB\-5\fP" to set tabs at the given
+interval (in this case 1, 6, 11, 16, 21, etc.).  Tabs are repeated up to
+the right margin of the screen.
+.PP
+Use "\fB\-0\fP" to clear all tabs.
+.PP
+Use "\fB\-8\fP" to set tabs to the standard interval.
+.SS Explicit Lists
+An explicit list can be defined after the options (this does not use a "\-").
+The values in the list must be in increasing numeric order, and greater than
+zero.  They are separated by a comma or a blank, for example,
+.sp
+.RS
+tabs 1,6,11,16,21
+.br
+tabs 1 6 11 16 21
+.RE
+Use a '+' to treat a number as an increment relative to the previous value,
+e.g.,
+.sp
+.RS
+tabs 1,+5,+5,+5,+5
+.RE
+which is equivalent to the 1,6,11,16,21 example.
+.SS Predefined Tab-Stops
+X/Open defines several predefined lists of tab stops.
+.TP 5
+.B \-a
+Assembler, IBM S/370, first format
+.TP 5
+.B \-a2
+Assembler, IBM S/370, second format
+.TP 5
+.B \-c
+COBOL, normal format
+.TP 5
+.B \-c2
+COBOL compact format
+.TP 5
+.B \-c3
+COBOL compact format extended
+.TP 5
+.B \-f
+FORTRAN
+.TP 5
+.B \-p
+PL/I
+.TP 5
+.B \-s
+SNOBOL
+.TP 5
+.B \-u
+UNIVAC 1100 Assembler
+.SH PORTABILITY
+.PP
+X/Open describes a \fB+m\fP option, to set a terminal's left-margin.
+Very few of the entries in the terminal database provide this capability.
+.PP
+The \fB\-d\fP (debug) and \fB\-n\fP (no-op) options are extensions not provided
+by other implementations.
+.PP
+Documentation for other implementations states that there is a limit on the
+number of tab stops.  While some terminals may not accept an arbitrary number
+of tab stops, this implementation will attempt to set tab stops up to the
+right margin of the screen, if the given list happens to be that long.
+.SH SEE ALSO
+\fB@TSET@\fR(1),
+\fB@INFOCMP@\fR(1M),
+\fBcurses\fR(3X),
+\fBterminfo\fR(\*n).
+.PP
+This describes \fBncurses\fR
+version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).

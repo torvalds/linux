@@ -1,0 +1,29 @@
+# $FreeBSD$
+#
+# This is a sample LOMAC policy based upon the PLM defined in the
+# original FreeBSD LOMAC port.  It may be configured on a
+# system via setfsmac(8).
+
+.*				lomac/high
+/sbin/dhclient			lomac/high[low]
+/dev(/.*)?			lomac/equal
+# This is not an exhaustive list of all "privileged" devices.
+/dev/mdctl			lomac/high
+/dev/pci			lomac/high
+/dev/k?mem			lomac/high
+/dev/io				lomac/high
+/dev/agp.*			lomac/high
+(/var)?/tmp(/.*)?		lomac/equal
+/tmp/\.X11-unix			lomac/high[equal]
+/tmp/\.X11-unix/.*		lomac/equal
+/proc(/.*)?			lomac/equal
+/mnt.*				lomac/low
+(/usr)?/home			lomac/high[low]
+(/usr)?/home/.*			lomac/low
+/var/mail(/.*)?			lomac/low
+/var/spool/mqueue(/.*)?		lomac/low
+(/mnt)?/cdrom(/.*)?		lomac/high
+(/usr)?/home/(ftp|samba)(/.*)?	lomac/high
+/var/log/sendmail\.st		lomac/low
+/var/run/utx.active		lomac/equal
+/var/log/utx.(lastlogin|log)	lomac/equal

@@ -1,0 +1,606 @@
+Tue Dec 28 21:10:03 1993  Mike Stump  <mrs@cygnus.com>
+
+	* cp-init.c (expand_vec_init): Remove comptypes test, as it is too
+	harsh here.
+
+Tue Dec 28 13:42:22 1993  Mike Stump  <mrs@cygnus.com>
+
+	* cp-pt.c (do_pending_expansions): Decide to expand a template
+	member function, based upon it's class type, not the class type of
+	the first place it was declared.
+
+Tue Dec 28 05:42:31 1993  Mike Stump  <mrs@cygnus.com>
+
+	* cp-class.c (is_normal): New routine, use to determine when the
+	given binfo is the normal one.  (The one that should have the simple
+	vtable name.)
+	* cp-class.c (modify_other_vtable_entries): Use DECL_ASSEMBLER_NAME
+	to check if two fndecls are `the same'.  Sometimes this routine can
+	modify the main vtable, and normal should be 1, in that case, so use
+	is_normal() to determine if this is the main vtable for the class.
+	Don't recurse down virtual bases, as they are shared, and we take
+	care of them elsewhere.
+	* cp-class.c (modify_vtable_entries): If we have already updated the
+	vtable with the new virtual, don't do it again.
+	* cp-class.c (finish_struct): Set CLASSTYPE_VFIELD_PARENT as
+	appropriate.  Do virtual function overriding in virtual bases, after
+	normal overriding, so that the base function list in DECL_VINDEX is
+	not overridden, before we have a chance to run through the list.
+	Use DECL_ASSEMBLER_NAME to check if two fndecls are `the same'.
+	Make sure we pass the right address into modify_vtable_entries.
+	* cp-tree.h (CLASSTYPE_VFIELD_PARENT): New field to indicate which
+	binfo is the one that has the vtable that we based our vtable on.
+
+Fri Dec 24 09:40:52 1993  Michael Tiemann  <tiemann@blues.cygnus.com>
+
+	* cp-typeck.c (c_expand_start_case): Use default_conversion to
+	convert expression from reference type if necessary.
+
+Wed Dec 22 17:58:43 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-typeck.c (build_unary_op): Make sure that it's a TREE_LIST before
+	trying to read its TREE_VALUE.
+
+	* cp-class.c (finish_struct_methods): Clear DECL_IN_AGGR_P here.
+	(finish_struct): Instead of here.
+
+Tue Dec 21 14:34:25 1993  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* cp-tree.c (list_hash_lookup_or_cons): Make sure the type doesn't
+	have TYPE_PTRMEMFUNC_P set before we try to build its
+	CLASSTYPE_ID_AS_LIST.
+	(get_decl_list): Likewise, when trying to read it.
+
+	* cp-tree.h (VTABLE_NAME): No def with NO_{DOLLAR,DOT} defined.
+	(VTABLE_NAME_P): Use it instead of VTABLE_NAME_FORMAT.
+
+Mon Dec 20 13:35:03 1993  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* cp-typeck.c (rationalize_conditional_expr): New function.
+	(unary_complex_lvalue): Use it.
+	(build_modify_expr): Use it, since trying to do an ADDR_EXPR of it
+	with build_unary_op won't cut it.  Don't wrap the COND_EXPR with a
+	SAVE_EXPR either.
+
+	* cp-decl2.c (explicit_warn_return_type): Deleted variable.
+	(lang_decode_option): Set warn_return_type, not explicit_*, for
+	-Wreturn-type and -Wall.  This is what rest_of_compilation uses to
+	decide if it should go into jump_optimize or not.
+	* cp-tree.h (explicit_warn_return_type): Deleted.
+	* cp-decl.c (grokdeclarator): Use warn_return_type, not explicit_*.
+	(finish_function): Also complain about no return in a non-void fn if
+	we're being pedantic (don't rely on use of -Wreturn-type).
+
+Fri Dec 17 15:45:46 1993  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* cp-decl.c (grokdeclarator): Forbid declaration of a function as
+	static if it's being done inside another function.
+
+	* cp-search.c (compute_visibility): Check for friendship both ways.
+
+Fri Dec 17 14:28:25 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-cvt.c (build_default_binary_type_conversion): Make error
+	messages more helpful.
+
+	* cp-error.c (op_as_string): New function, returns "operator =="
+	given EQ_EXPR or suchlike.
+
+Fri Dec 17 13:28:11 1993  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* cp-call.c (print_n_candidates): New function.
+	(build_overload_call_real): Use it when we complain about a call
+	being ambiguous.
+
+Fri Dec 17 12:41:17 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-call.c (build_method_call): Fix checking for static call
+	context.
+
+	* cp-method.c (build_opfncall): Call build_indirect_ref on argument
+	to operator new.
+
+	* cp-init.c (build_new): Don't mess with rval when building
+	indirect ref.
+
+Thu Dec 16 16:48:05 1993  Kung Hsu  <kung@cirdan.cygnus.com>
+
+	* cp-lex.c (default_assign_ref_body): Add check when TYPE_NESTED_
+	NAME(type) may not be exist.  It's not a problem for old compiler.
+
+Thu Dec 16 14:46:06 1993  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* cp-tree.h (CLASSTYPE_ALTERS_VISIBILITIES_P): Delete macro, it's
+	never used for anything.
+	(struct lang_type, member type_flags): Delete field
+	`alters_visibility', and up `dummy' by 1.
+	* cp-class.c (finish_base_struct): Delete code that copies the
+	setting of CLASSTYPE_ALTERS_VISIBILITIES_P.
+	(finish_struct): Delete code that sets it.
+
+Thu Dec 16 14:44:39 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-decl.c, cp-init.c, cp-typeck.c: Fix arguments to
+	build_method_call that I messed up before.
+
+	* cp-search.c (get_base_distance): If protect > 1, allow immediate
+	private base.
+
+	* cp-class.c (finish_base_struct): Set cant_synth_* correctly.
+	(finish_struct): Likewise.  Well, nigh-correctly; it won't deal
+	properly with the case where a class contains an object of an
+	ambiguous base class which has a protected op=.  Should be fixed
+	when the access control code gets overhauled.
+	(finish_struct_methods): Set TYPE_HAS_NONPUBLIC_* correctly.
+
+Thu Dec 16 12:17:06 1993  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* cp-lex.c (real_yylex): Turn the code back on that deals with
+	__FUNCTION__ and __PRETTY_FUNCTION__.  Don't use lookup_name, to
+	avoid the ambiguity problems that led to it being turned off in the
+	first place.
+
+	* cp-method.c (hack_identifier): Also check for a TYPE_PTRMEMFUNC_P
+	to see if something is a method.
+
+Wed Dec 15 18:35:58 1993  Mike Stump  <mrs@cygnus.com>
+
+	* cp-typeck.c (build_modify_expr): Avoid error messages on small
+	enum bit fields.
+	* cp-typeck.c (convert_for_assignment): Add missing argument to
+	cp_warning and cp_pedwarn calls.
+
+Wed Dec 15 18:25:32 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-parse.y (member_init): ANSI C++ doesn't forbid old-style base
+	initializers; it's just anachronistic.
+
+	* cp-decl.c (finish_decl): Don't require external-linkage arrays
+	to have a complete type at declaration time when pedantic.
+
+Tue Dec 14 11:37:23 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-decl.c (pushdecl): Don't set DECL_CONTEXT if it's already set.
+
+	* cp-call.c (build_method_call): Don't dereference pointer given
+	as instance.
+
+	* cp-decl.c (finish_function): Don't pass pointer to
+	build_method_call.
+	(finish_function): Likewise.
+
+	* cp-typeck.c (build_x_function_call): Likewise.
+
+	* cp-method.c (build_component_type_expr): Likewise.
+
+	* cp-init.c (build_member_call): Likewise.
+	(build_new): Likewise.
+
+Mon Dec 13 18:04:33 1993  Kung Hsu  <kung@cirdan.cygnus.com>
+
+	* cp-decl.c (xref_tag): Fix regression created by changes made
+	in Dec. 7 1993.
+	* cp-decl.c (xref_defn_tag): Fix parallel nested class problem.
+
+Fri Dec 10 12:40:25 1993  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* cp-call.c (compute_conversion_costs_ansi) [DEBUG_MATCHING]: Print
+	out the final evaluation of the function, so we can see if ELLIPSIS,
+	USER, and EVIL were set at the end.
+
+	* cp-call.c (convert_harshness_ansi): When the parm isn't an lvalue,
+	only go for setting TRIVIAL_CODE if we are dealing with types that
+	are compatible.
+
+Thu Dec  9 18:27:22 1993  Mike Stump  <mrs@cygnus.com>
+
+	* cp-decl.c (flag_huge_objects): New flag to allow large objects.
+	* toplev.c (lang_options): Likewise.
+	* cp-decl2.c (flag_huge_objects, lang_f_options): Likewise.
+	* cp-decl.c (delta_type_node): New type for delta entries.
+	* cp-tree.h (delta_type_node): Likewise.
+	* cp-decl.c (init_decl_processing): Setup delta_type_node.
+	* cp-decl.c (init_decl_processing, build_ptrmemfunc_type): Use
+	delta_type_node instead of short_integer_type_node.
+	* cp-class.c (build_vtable_entry): Likewise.
+
+Thu Dec  9 16:19:05 1993  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* cp-tree.h (OPERATOR_TYPENAME_P): Define outside of
+	NO_{DOLLAR,DOT} macro checks, so it always gets defined.
+	(VTABLE_NAME_P): Define for NO_DOT && NO_DOLLAR_IN_LABEL.
+
+Wed Dec  8 17:38:06 1993  Mike Stump  <mrs@cygnus.com>
+
+	* cp-decl.c (finish_decl): Make sure things that can go into
+	"common", do go into common, if -fcommon is given.
+
+Wed Dec  8 13:01:54 1993  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* cp-call.c (print_harshness) [DEBUG_MATCHING]: New function.
+	(compute_conversion_costs_ansi) [DEBUG_MATCHING]: Print out
+	argument matching diagnostics to make instantly clear what the
+	compiler is doing.
+
+	* cp-call.c (convert_harshness_ansi): If the parm isn't an lvalue,
+	then check to see if the penalty was increased due to
+	signed/unsigned mismatch, and use a TRIVIAL_CODE if it wasn't.
+
+Tue Dec  7 18:29:14 1993  Kung Hsu  <kung@cirdan.cygnus.com>
+
+	* cp-decl.c (xref_tag, pushtag): Fix nested class search/resolution
+	problem.
+
+Tue Dec  7 16:09:34 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-class.c (finish_struct): Before synthesizing methods, if no
+	methods have yet been declared then set nonprivate_method.  Don't
+	set non_private method after synthesizing a method.
+
+	* cp-lex.c (extract_interface_info): If flag_alt_external_templates
+	is set, tie emitted code to the location of template instantiation,
+	rather than definition.
+
+	* cp-tree.h: Declare flag_alt_external_templates.
+
+	* cp-decl2.c (lang_decode_option): Support -falt-external-templates.
+
+	* toplev.c (lang_options): Likewise.
+
+Mon Oct  4 12:50:02 1993  Chip Salzenberg  <chip@fin.uucp>
+
+	[changes propagated from 930810 snapshot]
+	* cp-decl.c (init_decl_processing): Make long long available for use
+	as SIZE_TYPE and PTRDIFF_TYPE.
+	(finish_decl): Allow file-scope static incomplete array.
+	(grokdeclarator): Don't pass on const and volatile fron function
+	value type to function type.
+	Warn here for volatile fn returning non-void type.
+	* cp-parse.y (attrib): Accept attributes `volatile' with alias
+	`noreturn', and `const'.
+	* cp-typeck.c (default_conversion): Don't lose const and volatile.
+	(build_binary_op_nodefault): Generate pedantic warning for comparison
+	of complete pointer type with incomplete pointer type.
+	(build_c_cast): Be careful that null pointer constant be INTEGER_CST.
+
+Tue Dec  7 10:46:48 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-init.c (expand_vec_init): When creating a temporary for copying
+	arrays, use the type of the source, not the target.
+
+	* cp-cvt.c (convert): Pass an argument for errtype to
+	convert_to_reference.
+
+	* cp-error.c (dump_expr, COMPONENT_REF & CALL_EXPR): Deal with
+	methods, -> and `this'.
+
+Mon Dec  6 17:12:33 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-error.c (parm_as_string): New function; returns `this' or arg
+	number.  Corresponds to %P.
+	(dump_expr): Deal with method calls.
+
+	* cp-cvt.c (convert_to_reference): Stop using warn_for_assignment.
+	* cp-typeck.c (convert_for_assignment): Likewise.
+	(warn_for_assignment): Lose.
+
+Mon Dec  6 11:33:35 1993  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* cp-call.c (ideal_candidate_ansi): Delete code that was never
+	doing anything useful.  Instead, sort once, and DO NOT wipe
+	out any codes with EVIL_CODE, since that's what we use as a
+	marker for the end of the list of candidates.
+
+	* cp-cvt.c (convert_to_aggr): Make sure to always set H_LEN.
+
+Mon Dec  6 12:49:17 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-init.c (get_aggr_from_typedef): New function, like
+	is_aggr_typedef but returns the _TYPE.
+
+	* cp-call.c, cp-init.c, cp-method.c: Eradicate err_name.
+
+Sun Dec  5 18:12:48 1993  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* cp-lex.c (readescape): Pedwarn when a hex escape is out of range.
+
+Thu Nov 25 23:50:19 1993  Chip Salzenberg  <chip@fin.uucp>
+
+	Delay language context change until beginning of next decl.
+
+	* cp-lex.h (c_header_level): Removed.
+	(pending_lang_change): Declared.
+	* cp-lex.c (c_header_level): Renamed from in_c_header, made static.
+	(pending_lang_change): Defined.
+	(check_newline): Rework code that recognizes line number and
+	filename changes.  Instead of pushing and popping lang context,
+	increment and decrement pending_lang_change.
+	(do_pending_lang_change):  Push and pop lang context according
+	to value of pending_lang_change.
+	* cp-parse.y (extdefs): Use lang_extdef instead of extdef.
+	(extdef): Same as extdef, but call do_pending_lang_change() first.
+
+Mon Nov 15 15:39:15 1993  Chip Salzenberg  <chip@fin.uucp>
+
+	* cp-typeck.c (build_binary_op_nodefault): Warn for ordered
+	compare of ptr with 0 only if pedantic in both cases.
+
+Thu Nov 25 13:31:37 1993  Chip Salzenberg  <chip@fin.uucp>
+
+	Reinstate the below patch, which got lost in the Cygnus merge:
+	Tue Nov 23 13:59:24 1993  Hallvard B Furuseth  (hbf@durin.uio.no)
+	* cp-parse.y (maybe_type_qual): Don't fail to set $$.
+
+Wed Nov 17 19:03:30 1993  Chip Salzenberg  <chip@fin.uucp>
+
+	* cp-parse.y (attrib): Allow "ident(ident)" like the C front end.
+
+Fri Oct 22 20:43:37 1993  Paul Eggert  <eggert@twinsun.com>
+
+	* cp-lex.c (real_yylex): Diagnose floating point constants
+	that are too large.
+
+Wed Nov 17 19:10:37 1993  Chip Salzenberg  <chip@fin.uucp>
+
+	* cp-type2.c (build_functional_cast): ARM page 16: When a class
+	and an object, function or enumerator are declared in the same
+	scope with the same name, the class name is hidden.
+
+Wed Nov 17 19:07:18 1993  Chip Salzenberg  <chip@fin.uucp>
+
+	* cp-call.c (convert_harshness_ansi): Distinguish float, double,
+	and long double from each other when overloading.
+	(compute_conversion_costs_{ansi,old}, build_method_call,
+	build_overlay_call_real, convert_to_aggr): Always set and
+	always use H_LEN member of candidate structure.
+
+Mon Oct 11 23:10:53 1993  Chip Salzenberg  <chip@fin.uucp>
+
+	* cp-decl.c (duplicate_decls): Note redeclarations of library
+	functions, and generate distinct warnings for them.
+
+Mon Oct  4 12:26:49 1993  Chip Salzenberg  <chip@fin.uucp>
+
+	Support format warnings in G++.
+
+	* cp-tree.h: Protect against multiple inclusion.
+	Declare all public functions in c-common.c (copy from c-tree.h).
+	(STDIO_PROTO): Define.
+	(warn_format): Declare.
+	(record_format_info): Remove declaration.
+	* cp-decl.c (init_decl_processing): Call init_function_format_info.
+	* cp-decl2.c (lang_decode_option): Make "-Wall" include warn_format.
+	* cp-typeck.c (build_function_call_real): Call check_function_format.
+	(record_format_info): Remove -- obsolete stub.
+
+Sat Jul 24 12:04:29 1993  Chip Salzenberg  <chip@fin.uucp>
+
+	* cp-decl.c (duplicate_decls): Don't warn for non-extern var decl
+	following an extern one (for -Wredundant-decls).
+	* cp-parse.y (primary): In statement expression case, if compstmt
+	returns something other than a BLOCK, return it unchanged.
+
+Thu Dec  2 20:44:58 1993  Chip Salzenberg  <chip@fin.uucp>
+
+	* cp-decl.c (warn_extern_redeclared_static): New function made
+	from code extracted from pushdecl.
+	(duplicate_decls, pushdecl): Call new function.
+	(lookup_name_current_level): Allow for IDENTIFIER_GLOBAL_VALUE
+	to be a TREE_LIST when function is declared in 'extern "C" {}'.
+
+Fri Dec  3 16:01:10 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-class.c (duplicate_tag_error): Use cp_error.
+	(finish_base_struct): Check for ambiguity with direct base, and don't
+	generate op= or copy ctor if it exists.
+
+Fri Dec  3 15:32:34 1993  Kung Hsu  <kung@cirdan.cygnus.com>
+
+	* cp-init.c (expand_member_init): When initializer name is null,
+	don't try to build it now because emit_base_init will handle it.
+
+Fri Dec  3 12:28:59 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-lex.c (init_lex): Initialize input_filename to "<internal>" for
+	code such as ExceptionHandler::operator=.
+
+Fri Dec  3 10:32:08 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-decl.c (grokdeclarator): Don't try to print out dname when
+	complaining about arrays of references if decl_context==TYPENAME,
+	since it will be null.
+
+	* cp-decl2.c: Default to flag_ansi_overloading.
+
+Thu Dec  2 18:05:56 1993  Kung Hsu  <kung@cirdan.cygnus.com>
+
+	* cp-call.c (build_method_call): Use binfo from instance if it's
+	different from binfo (basetype_path) passed from above.
+
+Wed Nov 17 19:14:29 1993  Chip Salzenberg  <chip@fin.uucp>
+
+	cp-error.c (dump_expr): Use unsigned chars to output a
+	TREE_REAL_CST in hex.
+
+Thu Dec  2 11:05:48 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-class.c (finish_struct): Fix typo in setting
+	cant_synth_asn_ref.
+
+	* cp-tree.h (TYPE_NESTED_NAME): New macro, does
+	DECL_NESTED_TYPENAME (TYPE_NAME (NODE)).
+
+	* cp-lex.c (default_copy_constructor_body): Change
+	DECL_NAME (TYPE_NAME (btype)) to TYPE_NESTED_NAME (btype).
+	(default_assign_ref_body): Likewise.
+	(default_copy_constructor_body): Call operator= explicitly for
+	base classes that have no constructor.
+
+Thu Dec  2 10:47:15 1993  Michael Tiemann  <tiemann@blues.cygnus.com>
+
+	* cp-call.c (build_method_call): If the instance variable is
+	converted to error_mark_node when we're trying to convert it to the
+	base type of a method we're looking up, return error_mark_node.
+
+Thu Dec  2 10:41:16 1993  Torbjorn Granlund  <tege@cygnus.com>
+
+	* cp-typeck.c (build_binary_op_nodefault): In *_DIV_EXPR *_MOD_EXPR
+	cases, tests for unsigned operands by peeking inside a NOP_EXPR.
+
+Wed Dec  1 13:33:34 1993  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* cp-call.c (compute_conversion_costs_ansi): Use the size of struct
+	harshness_code, not the size of short, for clearing out the
+	ansi_harshness.
+
+	* cp-call.c (print_candidates): New function.
+	(build_method_call): When we had some candidates, but didn't get a
+	usable match, don't report that we got an error with the first
+	candidate.  Instead, say there were no matches, and list the
+	candidates with print_candidates.  In the second pass, make sure we
+	clear out ever_seen, so we can accurately count the number of
+	functions that qualified.
+
+Wed Dec  1 09:53:59 1993  Torbjorn Granlund  <tege@cygnus.com>
+
+	* cp-typeck.c (build_binary_op_nodefault): Shorten for *_MOD_EXPR
+	only if op1 is known to be != -1.
+	(build_binary_op_nodefault): Handle *_DIV_EXPR likewise.
+
+Tue Nov 30 14:07:26 1993  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* cp-method.c (hack_identifier): If the field itself is private, and
+	not from a private base class, say so.
+
+Mon Nov 29 03:00:56 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-decl.c (grokdeclarator): Always warn on initialization of
+	const member.
+
+Wed Nov 24 00:49:35 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-class.c (finish_struct): Set TYPE_GETS_CONST_* properly.
+	(finish_base_struct): Set cant_synth_asn_ref properly.
+
+	* cp-lex.c (cons_up_default_function): Add section for operator=.
+	(default_assign_ref_body): New function, mostly cribbed from
+	default_copy_constructor_body.
+
+	* cp-class.c (base_info): Add members cant_synth_copy_ctor,
+	cant_synth_asn_ref, no_const_asn_ref.
+	(finish_base_struct): Update no_const_asn_ref, note that you should
+	update cant_synth_*, propagate TYPE_GETS_ASSIGN_REF.
+	(finish_struct): Add decls for cant_synth_*, no_const_asn_ref, and
+	initialize them properly.  Set no_const_asn_ref properly.  Set
+	cant_synth_* in some of the situations where they should be set.
+	Propagate TYPE_GETS_ASSIGN_REF.  Use cant_synth_copy_ctor.  Add call
+	to cons_up_default_function for operator=.
+
+Tue Nov 23 20:24:58 1993  Mike Stump  <mrs@cygnus.com>
+
+	* cp-cvt.c (convert_force): Add code to perform casting of pointer
+	to member function types.
+	* cp-typeck.c (build_ptrmemfunc): Add FORCE parameter to indicate
+	when the conversion should be done, regardless.
+	* cp-tree.h (build_ptrmemfunc): Likewise.
+	* cp-type2.c (digest_init): Likewise.
+	* cp-typeck.c (convert_for_assignment): Likewise.
+
+Tue Nov 23 18:06:58 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-error.c (dump_expr): Do the right thing for variables of
+	reference type.
+
+	* cp-decl.c (grok_op_properties): Set TYPE_HAS_ASSIGN_REF
+	and its kin properly.
+	(xref_tag): Propagate TYPE_GETS_ASSIGN_REF.
+
+Tue Nov 23 12:26:13 1993  Mike Stump  <mrs@cygnus.com>
+
+	* cp-method.c (build_opfncall): Don't count pointer to member
+	functions as aggregates here, as we don't want to look up methods in
+	them.  The compiler would core dump if we did, as they don't have
+	normal names.
+	* cp-typeck.c (build_indirect_ref): Improve wording on error
+	message.
+
+Mon Nov 22 14:22:23 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-decl.c (grok_op_properties): Allow operator?: with pedwarn
+	(since it's supported in other compiler bits).
+
+	* cp-method.c (report_type_mismatch): Use cp_error; ignore err_name
+	argument.
+
+	* cp-error.c (dump_function_decl): Don't print return type for
+	constructors and destructors.
+
+	* cp-cvt.c (cp_convert_to_pointer): Import code from
+	convert_to_pointer so we can return error_mark_node in the case of an
+	error, and to allow more meaningful error messages.
+	(build_type_conversion): Don't go through void* when trying
+	to convert to a pointer type.
+
+	* cp-decl.c (grokfndecl): Move call to grok_op_properties back
+	after grokclassfn so that it's dealing with the right decl.
+	(grok_op_properties): Don't assert !methodp for op new and op delete.
+
+	* cp-init.c (build_delete): Don't use TYPE_BUILT_IN (there are now
+	no uses of it in the compiler).
+
+	* cp-call.c (build_scoped_method_call): Fix for destructors of simple
+	types.
+	(build_method_call): Likewise.
+
+Fri Nov 19 12:59:38 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-tree.c (count_functions): Abstraction function.
+
+	* cp-call.c (build_overload_call_real): Deal with new overloading
+	properly, remove dead code.
+
+	* gcc.c (default_compilers): Generate and use .ii files in the
+	intermediate stage of compiling C++ source.
+
+Fri Nov 19 11:26:09 1993  Jim Wilson  <wilson@sphagnum.cygnus.com>
+
+	* cp-expr.c (cplus_expand_expr): Make call_target a valid memory
+	address before using it, so it can be later safely compared.
+
+Fri Nov 12 15:30:27 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-pt.c (tsubst): Deal with new overloading.
+
+	* cp-typeck.c (fntype_p): Is the arg function type?
+	(comp_target_parms): pedwarn on conversion from (anything) to (...).
+	(build_x_function_call): Deal with new overloading.
+
+	* cp-tree.c (decl_list_length): Deal with new overloading.
+	(decl_value_member): Like value_member, but for DECL_CHAINs.
+
+	* cp-decl.c (duplicate_decls): Deal with new overloading.
+	(start_decl): Likewise.
+
+	* cp-class.c (instantiate_type): Deal with new overloading.
+
+	* cp-call.c (convert_harshness_ansi): Deal with new overloading.
+	(convert_harshness_old): Deal with new overloading.
+	(build_overload_call_real): Likewise.
+
+Mon Nov  8 13:50:49 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-tree.c (get_unique_fn): New function; returns FUNCTION_DECL
+	if unambiguous, NULL_TREE otherwise.
+	(get_first_fn): Returns the first appropriate FUNCTION_DECL.
+	(is_overloaded_fn): Returns whether or not the passed tree is
+	a function or list of functions.
+
+	* cp-init.c (init_init_processing): Use `get_first_fn' to find
+	the FUNCTION_DEFN for new and delete.
+
+	* cp-decl.c (push_overloaded_decl): Use new overloading strategy, cut
+	code size in half (I spit on special cases).
+
+Tue Sep  7 20:03:33 1993  Jason Merrill  <jason@deneb.cygnus.com>
+
+	* cp-decl.c: Allow references and template type parameters as well

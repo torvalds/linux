@@ -1,0 +1,143 @@
+.\"
+.\" Copyright (c) 2009 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 4, 2009
+.Dt IEEE80211_REGDOMAIN 9
+.Os
+.Sh NAME
+.Nm ieee80211_regdomain
+.Nd 802.11 regulatory support
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.In net80211/ieee80211_regdomain.h
+.Pp
+.Ft int
+.Fo ieee80211_init_channels
+.Fa "struct ieee80211com *"
+.Fa "const struct ieee80211_regdomain *"
+.Fa "const uint8_t bands[]"
+.Fc
+.\"
+.Ft void
+.Fo ieee80211_sort_channels
+.Fa "struct ieee80211_channel *"
+.Fa "int nchans"
+.Fc
+.\"
+.Ft "struct ieee80211_appie *"
+.Fn ieee80211_alloc_countryie "struct ieee80211com *"
+.Sh DESCRIPTION
+The
+.Nm net80211
+software layer provides a support framework for drivers that includes
+comprehensive regulatory support.
+.Nm net80211
+provides mechanisms that enforce
+.Em "regulatory policy"
+by privileged user applications.
+.Pp
+Drivers define a device's capabilities and can
+intercept and control regulatory changes requested through
+.Nm net80211 .
+The initial regulatory state, including the channel list, must be
+filled in by the driver before calling
+.Fn ieee80211_ifattach .
+The channel list should reflect the set of channels the device is
+.Em calibrated
+for use on.
+This list may also be requested later through the
+.Vt ic_getradiocaps
+method in the
+.Vt ieee80211com
+structure.
+The
+.Fn ieee80211_init_channels
+function is provided as a rudimentary fallback for drivers that do not
+(or cannot) fill in a proper channel list.
+Default regulatory state is supplied such as the regulatory SKU,
+ISO country code, location (e.g. indoor, outdoor), and a set of
+frequency bands the device is capable of operating on.
+.Nm net80211
+populates the channel table in
+.Vt ic_channels
+with a default set of channels and capabilities.
+Note this mechanism should be used with care as any mismatch between
+the channel list created and the device's capabilities can result
+in runtime errors (e.g. a request to operate on a channel the device
+does not support).
+The SKU and country information are used for generating 802.11h protocol
+elements and related operation such as for 802.11d; mis-setup by a
+driver is not fatal, only potentially confusing.
+.Pp
+Devices that do not have a fixed/default regulatory state can set
+the regulatory SKU to
+.Dv SKU_DEBUG
+and country code to
+.Dv CTRY_DEFAULT
+and leave proper setup to user applications.
+If default settings are known they can be installed and/or an event
+can be dispatched to user space using
+.Fn ieee80211_notify_country
+so that
+.Xr devd 8
+will do the appropriate setup work at system boot (or device insertion).
+.Pp
+The channel table is sorted to optimize lookups using the
+.Fn ieee80211_sort_channels
+routine.
+This should be done whenever the channel table contents are modified.
+.Pp
+The
+.Fn ieee80211_alloc_countryie
+function allocates an information element as specified by 802.11h.
+Because this is expensive to generate it is cached in
+.Vt ic_countryie
+and generated only when regulatory state changes.
+Drivers that call
+.Fn ieee80211_alloc_countryie
+directly should not help with this caching; doing so may confuse the
+.Nm net80211
+layer.
+.Sh DRIVER REGULATORY CONTROL
+Drivers can control regulatory change requests by overriding the
+.Vt ic_setregdomain
+method that checks change requests.
+While drivers can reject any request that does not meet its requirements
+it is recommended that one be lenient in what is accepted and, whenever
+possible, instead of rejecting a request, alter it to be correct.
+For example, if the transmit power cap for a channel is too high the
+driver can either reject the request or (better) reduce the cap to be
+compliant.
+Requests that include unacceptable channels should cause the request
+to be rejected as otherwise a mismatch may be created between application
+state and the state managed by
+.Nm net80211 .
+The exact rules by which to operate are still being codified.
+.Sh SEE ALSO
+.Xr regdomain 5 ,
+.Xr ifconfig 8 ,
+.Xr ieee80211 9

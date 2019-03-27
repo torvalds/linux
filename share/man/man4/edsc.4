@@ -1,0 +1,107 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)lo.4	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd March 25, 2007
+.Dt EDSC 4
+.Os
+.Sh NAME
+.Nm edsc
+.Nd Ethernet discard network interface
+.Sh SYNOPSIS
+.Cd "device edsc"
+.Sh DESCRIPTION
+The
+.Nm
+interface is a software discard mechanism which may be
+used for performance analysis and software testing.
+It imitates an Ethernet device, which
+allows for its use in conjunction with such drivers as
+.Xr if_bridge 4
+and
+.Xr vlan 4 .
+.Pp
+As with other network interfaces, an
+.Nm
+interface must have network addresses assigned for each address family
+with which it is to be used.
+These addresses may be set or changed with the
+.Dv SIOCSIFADDR
+.Xr ioctl 2
+or
+.Xr ifconfig 8
+utility.
+.Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr arp 4 ,
+.Xr if_bridge 4 ,
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr vlan 4 ,
+.Xr rc.conf 5 ,
+.Xr arp 8 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device was derived from the
+.Xr disc 4
+device and first appeared in
+.Fx 6.3 .
+This manpage was adapted from
+.Xr disc 4 .
+.Sh CAVEATS
+Since outgoing packets are just discarded by
+.Nm ,
+ARP requests stay unreplied.
+Consequently, an IP packet cannot be sent via
+.Nm
+until a static
+.Xr arp 4
+entry is created for its next hop using
+.Xr arp 8 .
+.Pp
+Initially an
+.Nm
+interface has a zero link level address.
+It can be changed with
+.Xr ifconfig 8
+.Cm lladdr
+if needed.

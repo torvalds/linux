@@ -1,0 +1,158 @@
+.\"	$NetBSD: ctxsw.9,v 1.2 1996/12/02 00:11:31 tls Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 24, 1996
+.Dt MI_SWITCH 9
+.Os
+.Sh NAME
+.Nm mi_switch ,
+.Nm cpu_switch ,
+.Nm cpu_throw
+.Nd switch to another thread context
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
+.Ft void
+.Fn mi_switch "void"
+.Ft void
+.Fn cpu_switch "void"
+.Ft void
+.Fn cpu_throw "void"
+.Sh DESCRIPTION
+The
+.Fn mi_switch
+function implements the machine independent prelude to a thread context
+switch.
+It is called from only a few distinguished places in the kernel
+code as a result of the principle of non-preemptable kernel mode execution.
+The various major uses of
+.Nm
+can be enumerated as follows:
+.Bl -enum -offset indent
+.It
+From within a function such as
+.Xr cv_wait 9 ,
+.Xr mtx_lock 9 ,
+or
+.Xr tsleep 9
+when the current thread
+voluntarily relinquishes the CPU to wait for some resource or lock to become
+available.
+.It
+After handling a trap
+(e.g.\& a system call, device interrupt)
+when the kernel prepares a return to user-mode execution.
+This case is
+typically handled by machine dependent trap-handling code after detection
+of a change in the signal disposition of the current process, or when a
+higher priority thread might be available to run.
+The latter event is
+communicated by the machine independent scheduling routines by calling
+the machine defined
+.Fn need_resched .
+.It
+In the signal handling code
+(see
+.Xr issignal 9 )
+if a signal is delivered that causes a process to stop.
+.It
+When a thread dies in
+.Xr thread_exit 9
+and control of the processor can be passed to the next runnable thread.
+.It
+In
+.Xr thread_suspend_check 9
+where a thread needs to stop execution due to the suspension state of
+the process as a whole.
+.El
+.Pp
+.Fn mi_switch
+records the amount of time the current thread has been running in the
+process structures and checks this value against the CPU time limits
+allocated to the process
+(see
+.Xr getrlimit 2 ) .
+Exceeding the soft limit results in a
+.Dv SIGXCPU
+signal to be posted to the process, while exceeding the hard limit will
+cause a
+.Dv SIGKILL .
+.Pp
+If the thread is still in the
+.Dv TDS_RUNNING
+state,
+.Fn mi_switch
+will put it back onto the run queue, assuming that
+it will want to run again soon.
+If it is in one of the other
+states and KSE threading is enabled, the associated
+.Em KSE
+will be made available to any higher priority threads from the same
+group, to allow them to be scheduled next.
+.Pp
+After these administrative tasks are done,
+.Fn mi_switch
+hands over control to the machine dependent routine
+.Fn cpu_switch ,
+which will perform the actual thread context switch.
+.Pp
+.Fn cpu_switch
+first saves the context of the current thread.
+Next, it calls
+.Fn choosethread
+to determine which thread to run next.
+Finally, it reads in the saved context of the new thread and starts to
+execute the new thread.
+.Pp
+.Fn cpu_throw
+is similar to
+.Fn cpu_switch
+except that it does not save the context of the old thread.
+This function is useful when the kernel does not have an old thread
+context to save, such as when CPUs other than the boot CPU perform their
+first task switch, or when the kernel does not care about the state of the
+old thread, such as in
+.Fn thread_exit
+when the kernel terminates the current thread and switches into a new
+thread.
+.Pp
+To protect the
+.Xr runqueue 9 ,
+all of these functions must be called with the
+.Va sched_lock
+mutex held.
+.Sh SEE ALSO
+.Xr cv_wait 9 ,
+.Xr issignal 9 ,
+.Xr mutex 9 ,
+.Xr runqueue 9 ,
+.Xr tsleep 9 ,
+.Xr wakeup 9

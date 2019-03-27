@@ -1,0 +1,119 @@
+.\"
+.\" Copyright (c) 2016 Justin Hibbits
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 31, 2017
+.Dt DTSEC 4
+.Os
+.Sh NAME
+.Nm dtsec
+.Nd "Freescale Datapath Acceleration Architecture-based Three-Speed Ethernet Controller device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "include ""dpaa/config.dpaa""
+.Cd "device dpaa"
+.Cd "device miibus"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the DPAA-based gigabit Ethernet controller
+integrated in some of the Freescale system-on-chip devices.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It autoselect
+Enable autoselection of the media type and options
+.It 10baseT/UTP
+Set 10Mbps operation
+.It 100baseTX
+Set 100Mbps operation
+.It 1000baseT
+Set 1000baseT operation
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It full-duplex
+Set full duplex operation
+.El
+.Pp
+The
+.Nm
+driver supports two operating modes:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It Regular
+Normal mode, utilizing the full datapath acceleration, Buffer Manager, and Queue
+Manager.
+.It Independent
+Runs disconnected from the Buffer Manager and Queue Manager.
+.El
+.Sh HARDWARE
+Gigabit Ethernet controllers built into the following Freescale
+system-on-chip devices are known to work with the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+P2041, P3041
+.It
+P5010, P5020
+.El
+.Pp
+Additionally, the following devices are expected to work, but are untested:
+.Bl -bullet -compact
+.It
+P4080, P4040
+.It
+P5040
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An -nosplit
+The base version of
+.Nm
+device driver was written by
+.An Semihalf .
+This manual page was written by
+.An Justin Hibbits .

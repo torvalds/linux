@@ -1,0 +1,115 @@
+.\" Copyright (c) 2003 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and Network Associates
+.\" Laboratories, the Security Research Division of Network Associates,
+.\" Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part
+.\" of the DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 25, 2004
+.Dt LIBUGIDFW 3
+.Os
+.Sh NAME
+.Nm libugidfw
+.Nd "library interface to the file system firewall MAC policy"
+.Sh LIBRARY
+.Lb libugidfw
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/mac_bsdextended/mac_bsdextended.h
+.In ugidfw.h
+.Sh DESCRIPTION
+The
+.Nm
+library routines provide an interface to the
+.Xr mac_bsdextended 4
+file system firewall MAC policy.
+.Pp
+The
+.Nm
+library defines the following functions:
+.Bl -tag -width ".Fn bsde_parse_rule_string"
+.It Fn bsde_rule_to_string
+Converts the internal representation of a rule
+.Pq Vt "struct mac_bsdextended_rule"
+into its text representation;
+see
+.Xr bsde_rule_to_string 3 .
+.It Fn bsde_parse_rule
+Parses an entire rule
+(in argument array form);
+see
+.Xr bsde_parse_rule 3 .
+.It Fn bsde_parse_rule_string
+Parses an entire rule string;
+see
+.Xr bsde_parse_rule_string 3 .
+.It Fn bsde_get_rule_count
+Returns the total number of ugidfw rules being enforced in the system;
+see
+.Xr bsde_get_rule_count 3 .
+.It Fn bsde_get_rule_slots
+Returns the total number of used rule slots;
+see
+.Xr bsde_get_rule_slots 3 .
+.It Fn bsde_get_rule
+Returns a rule by its rule number;
+see
+.Xr bsde_get_rule 3 .
+.It Fn bsde_delete_rule
+Deletes a rule by its rule number;
+see
+.Xr bsde_delete_rule 3 .
+.It Fn bsde_set_rule
+Uploads the rule to the
+.Xr mac_bsdextended 4
+module and applies it;
+see
+.Xr bsde_set_rule 3 .
+.It Fn bsde_add_rule
+Upload the rule to the module, automatically selecting the next available
+rule number; see
+.Xr bsde_add_rule 3 .
+.El
+.Sh SEE ALSO
+.Xr bsde_delete_rule 3 ,
+.Xr bsde_get_rule 3 ,
+.Xr bsde_get_rule_count 3 ,
+.Xr bsde_get_rule_slots 3 ,
+.Xr bsde_parse_rule 3 ,
+.Xr bsde_parse_rule_string 3 ,
+.Xr bsde_rule_to_string 3 ,
+.Xr bsde_set_rule 3
+.Sh AUTHORS
+This software was contributed to the
+.Fx
+Project by Network Associates Labs,
+the Security Research Division of Network Associates
+Inc.
+under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.

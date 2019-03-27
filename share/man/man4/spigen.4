@@ -1,0 +1,206 @@
+.\"
+.\" Copyright (c) 2018 Ian Lepore <ian@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 7, 2018
+.Dt SPIGEN 4
+.Os
+.Sh NAME
+.Nm spigen
+.Nd SPI generic I/O device driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device spi"
+.Cd "device spibus"
+.Cd "device spigen"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+spigen_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides direct access to a slave device on the SPI bus.
+Each instance of a
+.Nm
+device is associated with a single chip-select
+line on the bus, and all I/O performed through that instance is done
+with that chip-select line asserted.
+.Pp
+SPI data transfers are inherently bi-directional; there are not separate
+read and write operations. 
+When commands and data are sent to a device, data also comes back from
+the device, although in some cases the data may not be useful (or even
+documented or predictable for some devices).
+Likewise on a read operation, whatever data is in the buffer at the start
+of the operation is sent to (and typically ignored by) the device, with each
+outgoing byte then replaced in the buffer by the corresponding incoming byte.
+Thus, all buffers passed to the transfer functions are both input and
+output buffers.
+.Pp
+The
+.Nm
+driver provides access to the SPI slave device with the following
+.Xr ioctl 2
+calls, defined in
+.In sys/spigenio.h :
+.Bl -tag -width indent
+.It Dv SPIGENIOC_TRANSFER Pq Vt "struct spigen_transfer"
+Transfer a command and optional associated data to/from the device,
+using the buffers described by the st_command and st_data fields in the
+.Vt spigen_transfer .
+Set
+.Vt st_data.iov_len
+to zero if there is no data associated with the command.
+.Bd -literal
+struct spigen_transfer {
+	struct iovec st_command;
+	struct iovec st_data;
+};
+.Ed
+.It Dv SPIGENIOC_TRANSFER_MMAPPED Pq Vt "spigen_transfer_mmapped"
+Transfer a command and optional associated data to/from the device.
+The buffers for the transfer are a previously-mmap'd region.
+The length of the command and data within that region are described by the
+.Vt stm_command_length
+and
+.Vt stm_data_length
+fields of
+.Vt spigen_transfer_mmapped .
+If
+.Vt stm_data_length
+is non-zero, the data appears in the memory region immediately
+following the command (that is, at offset
+.Vt stm_command_length
+from the start of the mapped region).
+.Bd -literal
+struct spigen_transfer_mmapped {
+	size_t stm_command_length;
+	size_t stm_data_length;
+};
+.Ed
+.It Dv SPIGENIOC_GET_CLOCK_SPEED Pq Vt uint32_t
+Get the maximum clock speed (bus frequency in Hertz) to be used
+when communicating with this slave device.
+.It Dv SPIGENIOC_SET_CLOCK_SPEED Pq Vt uint32_t
+Set the maximum clock speed (bus frequency in Hertz) to be used
+when communicating with this slave device.
+The setting remains in effect for subsequent transfers; it
+is not necessary to reset this before each transfer.
+The actual bus frequency may be lower due to hardware limitiations
+of the SPI bus controller device.
+.It Dv SPIGENIOC_GET_SPI_MODE Pq Vt uint32_t
+Get the SPI mode (clock polarity and phase) to be used
+when communicating with this device.
+.It Dv SPIGENIOC_SET_SPI_MODE Pq Vt uint32_t
+Set the SPI mode (clock polarity and phase) to be used
+when communicating with this device.
+The setting remains in effect for subsequent transfers; it
+is not necessary to reset this before each transfer.
+.El
+.Sh HINTS CONFIGURATION
+On a 
+.Xr device.hints 5
+based system, such as
+.Li MIPS ,
+these values are configurable for
+.Nm :
+.Bl -tag -width indent
+.It Va hint.spigen.%d.at
+The spibus the
+.Nm
+instance is attached to.
+.It Va hint.spigen.%d.clock
+The maximum bus frequency to use when communicating with this device.
+Actual bus speed may be lower, depending on the capabilities of the SPI
+bus controller hardware.
+.It Va hint.spigen.%d.cs
+The chip-select number to assert when performing I/O for this device.
+Set the high bit (1 << 31) to invert the logic level of the chip select line.
+.It Va hint.spigen.%d.mode
+The SPI mode (0-3) to use when communicating with this device.
+.El
+.Sh FDT CONFIGURATION
+On an
+.Xr fdt 4
+based system, the spigen device is defined as a slave device subnode
+of the SPI bus controller node.
+All properties documented in the
+.Va spibus.txt
+bindings document can be used with the
+.Nm
+device.
+The most commonly-used ones are documented below.
+.Pp
+The following properties are required in the
+.Nm
+device subnode:
+.Bl -tag -width indent
+.It Va compatible
+Must be the string "freebsd,spigen".
+.It Va reg
+Chip select address of device.
+.It Va spi-max-frequency
+The maximum bus frequency to use when communicating with this slave device.
+Actual bus speed may be lower, depending on the capabilities of the SPI
+bus controller hardware.
+.El
+.Pp
+The following properties are optional for the
+.Nm
+device subnode:
+.Bl -tag -width indent
+.It Va spi-cpha
+Empty property indicating the slave device requires shifted clock
+phase (CPHA) mode.
+.It Va spi-cpol
+Empty property indicating the slave device requires inverse clock
+polarity (CPOL) mode.
+.It Va spi-cs-high
+Empty property indicating the slave device requires chip select active high.
+.El
+.Sh FILES
+.Bl -tag -width -compact
+.It Pa /dev/spigen*
+.El
+.Sh SEE ALSO
+.Xr fdt 4 ,
+.Xr device.hints 5
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Fx 11.0 .
+FDT support appeared in
+.Fx 11.2 .

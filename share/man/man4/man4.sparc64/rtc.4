@@ -1,0 +1,88 @@
+.\"-
+.\" Copyright (c) 2004 Jason L. Wright (jason@thought.net)
+.\" Copyright (c) 2005 Marius Strobl <marius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	from: OpenBSD: clock.4,v 1.3 2004/09/24 07:04:15 miod Exp
+.\" $FreeBSD$
+.\"
+.Dd June 18, 2005
+.Dt RTC 4 sparc64
+.Os
+.Sh NAME
+.Nm rtc
+.Nd "non-volatile RAM / real time clock"
+.Sh SYNOPSIS
+.Cd "device genclock"
+.Cd "device mc146818"
+.Cd "device rtc"
+.Sh DESCRIPTION
+The
+.Nm
+driver is a front-end for the machine-independent
+.Tn Motorola
+MC146818 and compatible clocks driver.
+The
+.Tn Motorola
+MC146818 and compatible clocks driver provides access to the real time clock
+part of the chips it supports to
+.Fx
+by interfacing with the generic clock code.
+.Pp
+.Tn Dallas /
+.Tn Maxim Semiconductor
+DS1287 chips
+(those are compatible to the
+.Tn Motorola
+MC146818 clocks)
+are found on the ISA bus of
+.Tn UltraSPARC II
+systems and the EBus bus of
+.Tn UltraSPARC III
+systems.
+.Sh DIAGNOSTICS
+The following driver specific error message may be reported:
+.Bl -diag
+.It "mc146818_attach_attach: battery low"
+The device signals that its battery is low and should be replaced.
+The
+.Nm
+driver refused to attach the device in this case as the time in the real time
+clock is probably invalid.
+This gives the generic clock code the chance to use another device as the
+system real time clock that otherwise would not have been chosen.
+.El
+.Sh SEE ALSO
+.Xr ebus 4 ,
+.Xr eeprom 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.4 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Marius Strobl Aq Mt marius@FreeBSD.org .

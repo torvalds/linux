@@ -1,0 +1,93 @@
+.\"
+.\" Copyright (c) 2015 M. Warner Losh
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 22, 2016
+.Dt OWLL 9
+.Os
+.Sh NAME
+.Nm owll
+.Nm OWLL_WRITE_ONE ,
+.Nm OWLL_WRITE_ZERO ,
+.Nm OWLL_READ_DATA ,
+.Nm OWLL_REASET_AND_PRESENCE
+.Nd Dallas Semiconductor 1-Wire Link Layer Interface
+.Sh SYNOPSIS
+.Ft int
+.Fn OWLL_WRITE_ONE "device_t lldev" "struct ow_timing *timing"
+.Ft int
+.Fn OWLL_WRITE_ZERO "device_t lldev" "struct ow_timing *timing"
+.Ft int
+.Fn OWLL_READ_DATA "device_t lldev" "struct ow_timing *timing" "int *bit"
+.Ft int
+.Fn OWLL_RESET_AND_PRESENCE "device_t lldev" "struct ow_timing *timing" "int *bit"
+.Sh DESCRIPTION
+The
+.Nm
+interface provides access to the link layer of the Dallas
+Semiconductor 1-Wire from upper layers of the protocol.
+.Pp
+.Fn OWLL_WRITE_ONE
+and
+.Fn OWLL_WRITE_ZERO
+writes a one bit or a zero bit respectively on the 1-Wire bus.
+.Pp
+.Fn OWLL_READ_DATA
+reads one bit from the 1-Wire bus.
+This is often referred to as a
+.Dq Read Time Slot
+in the 1-Wire device data sheets.
+.Pp
+The
+.Fn OWLL_RESET_AND_PRESENCE
+function starts a reset sequence and detects if any device(s) are
+present on the bus.
+This is the beginning of all 1-Wire transactions.
+.Sh NOTES
+This interface is intended to be used only by the
+.Xr ow 4
+device to talk to the low-level bus.
+By convention, the device that implements this interface is called
+.Xr owc 4 .
+Only devices that implement
+.Xr own 9
+should call these interfaces.
+.Sh SEE ALSO
+.Xr ow 4 ,
+.Xr owc 4 ,
+.Xr own 9
+.Sh LEGAL
+.Tn 1-Wire
+is a registered trademark of Maxim Integrated Products, Inc.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were written by
+.An Warner Losh .

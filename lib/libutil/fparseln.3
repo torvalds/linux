@@ -1,0 +1,157 @@
+.\"	$NetBSD: fparseln.3,v 1.7 1999/07/02 15:49:12 simonb Exp $
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 1997 Christos Zoulas.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Christos Zoulas.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd December 1, 1997
+.Dt FPARSELN 3
+.Os
+.Sh NAME
+.Nm fparseln
+.Nd return the next logical line from a stream
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In stdio.h
+.In libutil.h
+.Ft "char *"
+.Fo fparseln
+.Fa "FILE *stream" "size_t *len" "size_t *lineno"
+.Fa "const char delim[3]" "int flags"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn fparseln
+function
+returns a pointer to the next logical line from the stream referenced by
+.Fa stream .
+This string is
+.Dv NUL
+terminated and it is dynamically allocated on each invocation.
+It is the
+responsibility of the caller to free the pointer.
+.Pp
+By default, if a character is escaped, both it and the preceding escape
+character will be present in the returned string.
+Various
+.Fa flags
+alter this behaviour.
+.Pp
+The meaning of the arguments is as follows:
+.Bl -tag -width "lineno"
+.It Fa stream
+The stream to read from.
+.It Fa len
+If not
+.Dv NULL ,
+the length of the string is stored in the memory location to which it
+points.
+.It Fa lineno
+If not
+.Dv NULL ,
+the value of the memory location to which is pointed to, is incremented
+by the number of lines actually read from the file.
+.It Fa delim
+Contains the escape, continuation, and comment characters.
+If a character is
+.Dv NUL
+then processing for that character is disabled.
+If
+.Dv NULL ,
+all characters default to values specified below.
+The contents of
+.Fa delim
+is as follows:
+.Bl -tag -width "delim[0]"
+.It Fa delim[0]
+The escape character, which defaults to
+.Cm \e ,
+is used to remove any special meaning from the next character.
+.It Fa delim[1]
+The continuation character, which defaults to
+.Cm \e ,
+is used to indicate that the next line should be concatenated with the
+current one if this character is the last character on the current line
+and is not escaped.
+.It Fa delim[2]
+The comment character, which defaults to
+.Cm # ,
+if not escaped indicates the beginning of a comment that extends until the
+end of the current line.
+.El
+.It Fa flags
+If non-zero, alter the operation of
+.Fn fparseln .
+The various flags, which may be
+.Em or Ns -ed
+together, are:
+.Bl -tag -width "FPARSELN_UNESCCOMM"
+.It Dv FPARSELN_UNESCCOMM
+Remove escape preceding an escaped comment.
+.It Dv FPARSELN_UNESCCONT
+Remove escape preceding an escaped continuation.
+.It Dv FPARSELN_UNESCESC
+Remove escape preceding an escaped escape.
+.It Dv FPARSELN_UNESCREST
+Remove escape preceding any other character.
+.It Dv FPARSELN_UNESCALL
+All of the above.
+.El
+.El
+.Sh RETURN VALUES
+Upon successful completion a pointer to the parsed line is returned;
+otherwise,
+.Dv NULL
+is returned.
+.Pp
+The
+.Fn fparseln
+function uses internally
+.Xr fgetln 3 ,
+so all error conditions that apply to
+.Xr fgetln 3 ,
+apply to
+.Fn fparseln .
+In addition
+.Fn fparseln
+may set
+.Va errno
+to
+.Er ENOMEM
+and return
+.Dv NULL
+if it runs out of memory.
+.Sh SEE ALSO
+.Xr fgetln 3
+.Sh HISTORY
+The
+.Fn fparseln
+function first appeared in
+.Nx 1.4
+and
+.Fx 4.0 .

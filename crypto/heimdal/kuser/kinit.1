@@ -1,0 +1,227 @@
+.\" Copyright (c) 1998 - 2003, 2006 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd April 25, 2006
+.Dt KINIT 1
+.Os HEIMDAL
+.Sh NAME
+.Nm kinit
+.Nd acquire initial tickets
+.Sh SYNOPSIS
+.Nm kinit
+.Op Fl Fl afslog
+.Oo Fl c Ar cachename \*(Ba Xo
+.Fl Fl cache= Ns Ar cachename
+.Xc
+.Oc
+.Op Fl f | Fl Fl no-forwardable
+.Oo Fl t Ar keytabname \*(Ba Xo
+.Fl Fl keytab= Ns Ar keytabname
+.Xc
+.Oc
+.Oo Fl l Ar time \*(Ba Xo
+.Fl Fl lifetime= Ns Ar time
+.Xc
+.Oc
+.Op Fl p | Fl Fl proxiable
+.Op Fl R | Fl Fl renew
+.Op Fl Fl renewable
+.Oo Fl r Ar time \*(Ba Xo
+.Fl Fl renewable-life= Ns Ar time
+.Xc
+.Oc
+.Oo Fl S Ar principal \*(Ba Xo
+.Fl Fl server= Ns Ar principal
+.Xc
+.Oc
+.Oo Fl s Ar time \*(Ba Xo
+.Fl Fl start-time= Ns Ar time
+.Xc
+.Oc
+.Op Fl k | Fl Fl use-keytab
+.Op Fl v | Fl Fl validate
+.Oo Fl e Ar enctypes \*(Ba Xo
+.Fl Fl enctypes= Ns Ar enctypes
+.Xc
+.Oc
+.Oo Fl a Ar addresses \*(Ba Xo
+.Fl Fl extra-addresses= Ns Ar addresses
+.Xc
+.Oc
+.Op Fl Fl password-file= Ns Ar filename
+.Op Fl Fl fcache-version= Ns Ar version-number
+.Op Fl A | Fl Fl no-addresses
+.Op Fl Fl anonymous
+.Op Fl Fl enterprise
+.Op Fl Fl version
+.Op Fl Fl help
+.Op Ar principal Op Ar command
+.Sh DESCRIPTION
+.Nm
+is used to authenticate to the Kerberos server as
+.Ar principal ,
+or if none is given, a system generated default (typically your login
+name at the default realm), and acquire a ticket granting ticket that
+can later be used to obtain tickets for other services.
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Fl c Ar cachename Fl Fl cache= Ns Ar cachename
+The credentials cache to put the acquired ticket in, if other than
+default.
+.It Fl f Fl Fl no-forwardable
+Get ticket that can be forwarded to another host, or if the negative
+flags use, don't get a forwardable flag.
+.It Fl t Ar keytabname , Fl Fl keytab= Ns Ar keytabname
+Don't ask for a password, but instead get the key from the specified
+keytab.
+.It Fl l Ar time , Fl Fl lifetime= Ns Ar time
+Specifies the lifetime of the ticket.
+The argument can either be in seconds, or a more human readable string
+like
+.Sq 1h .
+.It Fl p , Fl Fl proxiable
+Request tickets with the proxiable flag set.
+.It Fl R , Fl Fl renew
+Try to renew ticket.
+The ticket must have the
+.Sq renewable
+flag set, and must not be expired.
+.It Fl Fl renewable
+The same as
+.Fl Fl renewable-life ,
+with an infinite time.
+.It Fl r Ar time , Fl Fl renewable-life= Ns Ar time
+The max renewable ticket life.
+.It Fl S Ar principal , Fl Fl server= Ns Ar principal
+Get a ticket for a service other than krbtgt/LOCAL.REALM.
+.It Fl s Ar time , Fl Fl start-time= Ns Ar time
+Obtain a ticket that starts to be valid
+.Ar time
+(which can really be a generic time specification, like
+.Sq 1h )
+seconds into the future.
+.It Fl k , Fl Fl use-keytab
+The same as
+.Fl Fl keytab ,
+but with the default keytab name (normally
+.Ar FILE:/etc/krb5.keytab ) .
+.It Fl v , Fl Fl validate
+Try to validate an invalid ticket.
+.It Fl e , Fl Fl enctypes= Ns Ar enctypes
+Request tickets with this particular enctype.
+.It Fl Fl password-file= Ns Ar filename
+read the password from the first line of
+.Ar filename .
+If the
+.Ar filename
+is
+.Ar STDIN ,
+the password will be read from the standard input.
+.It Fl Fl fcache-version= Ns Ar version-number
+Create a credentials cache of version
+.Ar version-number .
+.It Fl a , Fl Fl extra-addresses= Ns Ar enctypes
+Adds a set of addresses that will, in addition to the systems local
+addresses, be put in the ticket.
+This can be useful if all addresses a client can use can't be
+automatically figured out.
+One such example is if the client is behind a firewall.
+Also settable via
+.Li libdefaults/extra_addresses
+in
+.Xr krb5.conf 5 .
+.It Fl A , Fl Fl no-addresses
+Request a ticket with no addresses.
+.It Fl Fl anonymous
+Request an anonymous ticket (which means that the ticket will be
+issued to an anonymous principal, typically
+.Dq anonymous@REALM ) .
+.It Fl Fl enterprise
+Parse principal as a enterprise (KRB5-NT-ENTERPRISE) name. Enterprise
+names are email like principals that are stored in the name part of
+the principal, and since there are two @ characters the parser needs
+to know that the first is not a realm.
+An example of an enterprise name is
+.Dq lha@e.kth.se@KTH.SE ,
+and this option is usually used with canonicalize so that the
+principal returned from the KDC will typically be the real principal
+name.
+.It Fl Fl afslog
+Gets AFS tickets, converts them to version 4 format, and stores them
+in the kernel.
+Only useful if you have AFS.
+.El
+.Pp
+The
+.Ar forwardable ,
+.Ar proxiable ,
+.Ar ticket_life ,
+and
+.Ar renewable_life
+options can be set to a default value from the
+.Dv appdefaults
+section in krb5.conf, see
+.Xr krb5_appdefault 3 .
+.Pp
+If  a
+.Ar command
+is given,
+.Nm
+will set up new credentials caches, and AFS PAG, and then run the given
+command.
+When it finishes the credentials will be removed.
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev KRB5CCNAME
+Specifies the default credentials cache.
+.It Ev KRB5_CONFIG
+The file name of
+.Pa krb5.conf ,
+the default being
+.Pa /etc/krb5.conf .
+.It Ev KRBTKFILE
+Specifies the Kerberos 4 ticket file to store version 4 tickets in.
+.El
+.\".Sh FILES
+.\".Sh EXAMPLES
+.\".Sh DIAGNOSTICS
+.Sh SEE ALSO
+.Xr kdestroy 1 ,
+.Xr klist 1 ,
+.Xr krb5_appdefault 3 ,
+.Xr krb5.conf 5
+.\".Sh STANDARDS
+.\".Sh HISTORY
+.\".Sh AUTHORS
+.\".Sh BUGS

@@ -1,0 +1,86 @@
+.\"
+.\" Copyright (c) 1994 Gordon W. Ross
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	from: Id: bootparams.5,v 1.2 1994/10/03 19:26:13 gwr Exp
+.\" $FreeBSD$
+.\"
+.Dd October 2, 1994
+.Dt BOOTPARAMS 5
+.Os
+.Sh NAME
+.Nm bootparams
+.Nd boot parameter database
+.Sh SYNOPSIS
+.Nm /etc/bootparams
+.Sh DESCRIPTION
+The
+.Nm
+file specifies the boot parameters that
+.Xr diskless 8
+clients may request when booting over the network.
+Each client supported by this server must have an entry in the
+.Nm
+file containing the pathnames for its
+.Dq root
+and (optionally)
+.Dq swap
+areas.
+.Pp
+Each line in the file
+(other than comment lines that begin with a
+.Ql # )
+specifies the client name followed by the pathnames that
+the client may request by their logical names.
+The components of the line are delimited with blank or tab,
+and may be continued onto multiple lines with a backslash.
+.Pp
+For example:
+.Bd -literal -offset indent
+dummy	root=host:/export/dummy/root \\
+	swap=host:/export/dummy/swap \\
+	dump=host:/export/dummy/swap
+.Ed
+.Pp
+When the client named
+.Dq dummy
+requests the pathname for its logical
+.Dq root
+it will be given the pathname
+.Dq Pa host:/export/dummy/root
+as the response to its
+.Tn RPC
+request.
+The
+.Dq host:
+component must be supplied.
+.Sh FILES
+.Bl -tag -width /etc/bootparams -compact
+.It Pa /etc/bootparams
+default configuration file
+.El
+.Sh SEE ALSO
+.Xr bootparamd 8 ,
+.Xr diskless 8

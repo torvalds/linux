@@ -1,0 +1,21 @@
+.TH IBND_FIND_NODE_GUID 3  "July 25, 2008" "OpenIB" "OpenIB Programmer's Manual"
+.SH "NAME"
+ibnd_find_node_guid, ibnd_find_node_dr \- given a fabric object find the node object within it which matches the guid or directed route specified.
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/ibnetdisc.h>
+.sp
+.BI "ibnd_node_t *ibnd_find_node_guid(ibnd_fabric_t *fabric, uint64_t guid)"
+.BI "ibnd_node_t *ibnd_find_node_dr(ibnd_fabric_t *fabric, char *dr_str)"
+.SH "DESCRIPTION"
+.B ibnd_find_node_guid()
+Given a fabric object and a guid, return the ibnd_node_t object with that node guid.
+.B ibnd_find_node_dr()
+Given a fabric object and a directed route, return the ibnd_node_t object with
+that directed route.
+.SH "RETURN VALUE"
+.B ibnd_find_node_guid(), ibnd_find_node_dr()
+return NULL on failure, otherwise a valid ibnd_node_t object.
+.SH "AUTHORS"
+.TP
+Ira Weiny <weiny2@llnl.gov>

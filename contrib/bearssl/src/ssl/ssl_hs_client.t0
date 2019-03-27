@@ -1,0 +1,1276 @@
+\ Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
+\
+\ Permission is hereby granted, free of charge, to any person obtaining 
+\ a copy of this software and associated documentation files (the
+\ "Software"), to deal in the Software without restriction, including
+\ without limitation the rights to use, copy, modify, merge, publish,
+\ distribute, sublicense, and/or sell copies of the Software, and to
+\ permit persons to whom the Software is furnished to do so, subject to
+\ the following conditions:
+\
+\ The above copyright notice and this permission notice shall be 
+\ included in all copies or substantial portions of the Software.
+\
+\ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
+\ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+\ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+\ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+\ BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+\ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+\ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+\ SOFTWARE.
+
+\ ----------------------------------------------------------------------
+\ Handshake processing code, for the client.
+\ The common T0 code (ssl_hs_common.t0) shall be read first.
+
+preamble {
+
+/*
+ * This macro evaluates to a pointer to the client context, under that
+ * specific name. It must be noted that since the engine context is the
+ * first field of the br_ssl_client_context structure ('eng'), then
+ * pointers values of both types are interchangeable, modulo an
+ * appropriate cast. This also means that "addresses" computed as offsets
+ * within the structure work for both kinds of context.
+ */
+#define CTX  ((br_ssl_client_context *)ENG)
+
+/*
+ * Generate the pre-master secret for RSA key exchange, and encrypt it
+ * with the server's public key. Returned value is either the encrypted
+ * data length (in bytes), or -x on error, with 'x' being an error code.
+ *
+ * This code assumes that the public key has been already verified (it
+ * was properly obtained by the X.509 engine, and it has the right type,
+ * i.e. it is of type RSA and suitable for encryption).
+ */
+static int
+make_pms_rsa(br_ssl_client_context *ctx, int prf_id)
+{
+	const br_x509_class **xc;
+	const br_x509_pkey *pk;
+	const unsigned char *n;
+	unsigned char *pms;
+	size_t nlen, u;
+
+	xc = ctx->eng.x509ctx;
+	pk = (*xc)->get_pkey(xc, NULL);
+
+	/*
+	 * Compute actual RSA key length, in case there are leading zeros.
+	 */
+	n = pk->key.rsa.n;
+	nlen = pk->key.rsa.nlen;
+	while (nlen > 0 && *n == 0) {
+		n ++;
+		nlen --;
+	}
+
+	/*
+	 * We need at least 59 bytes (48 bytes for pre-master secret, and
+	 * 11 bytes for the PKCS#1 type 2 padding). Note that the X.509
+	 * minimal engine normally blocks RSA keys shorter than 128 bytes,
+	 * so this is mostly for public keys provided explicitly by the
+	 * caller.
+	 */
+	if (nlen < 59) {
+		return -BR_ERR_X509_WEAK_PUBLIC_KEY;
+	}
+	if (nlen > sizeof ctx->eng.pad) {
+		return -BR_ERR_LIMIT_EXCEEDED;
+	}
+
+	/*
+	 * Make PMS.
+	 */
+	pms = ctx->eng.pad + nlen - 48;
+	br_enc16be(pms, ctx->eng.version_max);
+	br_hmac_drbg_generate(&ctx->eng.rng, pms + 2, 46);
+	br_ssl_engine_compute_master(&ctx->eng, prf_id, pms, 48);
+
+	/*
+	 * Apply PKCS#1 type 2 padding.
+	 */
+	ctx->eng.pad[0] = 0x00;
+	ctx->eng.pad[1] = 0x02;
+	ctx->eng.pad[nlen - 49] = 0x00;
+	br_hmac_drbg_generate(&ctx->eng.rng, ctx->eng.pad + 2, nlen - 51);
+	for (u = 2; u < nlen - 49; u ++) {
+		while (ctx->eng.pad[u] == 0) {
+			br_hmac_drbg_generate(&ctx->eng.rng,
+				&ctx->eng.pad[u], 1);
+		}
+	}
+
+	/*
+	 * Compute RSA encryption.
+	 */
+	if (!ctx->irsapub(ctx->eng.pad, nlen, &pk->key.rsa)) {
+		return -BR_ERR_LIMIT_EXCEEDED;
+	}
+	return (int)nlen;
+}
+
+/*
+ * OID for hash functions in RSA signatures.
+ */
+static const unsigned char *HASH_OID[] = {
+	BR_HASH_OID_SHA1,
+	BR_HASH_OID_SHA224,
+	BR_HASH_OID_SHA256,
+	BR_HASH_OID_SHA384,
+	BR_HASH_OID_SHA512
+};
+
+/*
+ * Check the RSA signature on the ServerKeyExchange message.
+ *
+ *   hash      hash function ID (2 to 6), or 0 for MD5+SHA-1 (with RSA only)
+ *   use_rsa   non-zero for RSA signature, zero for ECDSA
+ *   sig_len   signature length (in bytes); signature value is in the pad
+ *
+ * Returned value is 0 on success, or an error code.
+ */
+static int
+verify_SKE_sig(br_ssl_client_context *ctx,
+	int hash, int use_rsa, size_t sig_len)
+{
+	const br_x509_class **xc;
+	const br_x509_pkey *pk;
+	br_multihash_context mhc;
+	unsigned char hv[64], head[4];
+	size_t hv_len;
+
+	xc = ctx->eng.x509ctx;
+	pk = (*xc)->get_pkey(xc, NULL);
+	br_multihash_zero(&mhc);
+	br_multihash_copyimpl(&mhc, &ctx->eng.mhash);
+	br_multihash_init(&mhc);
+	br_multihash_update(&mhc,
+		ctx->eng.client_random, sizeof ctx->eng.client_random);
+	br_multihash_update(&mhc,
+		ctx->eng.server_random, sizeof ctx->eng.server_random);
+	head[0] = 3;
+	head[1] = 0;
+	head[2] = ctx->eng.ecdhe_curve;
+	head[3] = ctx->eng.ecdhe_point_len;
+	br_multihash_update(&mhc, head, sizeof head);
+	br_multihash_update(&mhc,
+		ctx->eng.ecdhe_point, ctx->eng.ecdhe_point_len);
+	if (hash) {
+		hv_len = br_multihash_out(&mhc, hash, hv);
+		if (hv_len == 0) {
+			return BR_ERR_INVALID_ALGORITHM;
+		}
+	} else {
+		if (!br_multihash_out(&mhc, br_md5_ID, hv)
+			|| !br_multihash_out(&mhc, br_sha1_ID, hv + 16))
+		{
+			return BR_ERR_INVALID_ALGORITHM;
+		}
+		hv_len = 36;
+	}
+	if (use_rsa) {
+		unsigned char tmp[64];
+		const unsigned char *hash_oid;
+
+		if (hash) {
+			hash_oid = HASH_OID[hash - 2];
+		} else {
+			hash_oid = NULL;
+		}
+		if (!ctx->eng.irsavrfy(ctx->eng.pad, sig_len,
+			hash_oid, hv_len, &pk->key.rsa, tmp)
+			|| memcmp(tmp, hv, hv_len) != 0)
+		{
+			return BR_ERR_BAD_SIGNATURE;
+		}
+	} else {
+		if (!ctx->eng.iecdsa(ctx->eng.iec, hv, hv_len, &pk->key.ec,
+			ctx->eng.pad, sig_len))
+		{
+			return BR_ERR_BAD_SIGNATURE;
+		}
+	}
+	return 0;
+}
+
+/*
+ * Perform client-side ECDH (or ECDHE). The point that should be sent to
+ * the server is written in the pad; returned value is either the point
+ * length (in bytes), or -x on error, with 'x' being an error code.
+ *
+ * The point _from_ the server is taken from ecdhe_point[] if 'ecdhe'
+ * is non-zero, or from the X.509 engine context if 'ecdhe' is zero
+ * (for static ECDH).
+ */
+static int
+make_pms_ecdh(br_ssl_client_context *ctx, unsigned ecdhe, int prf_id)
+{
+	int curve;
+	unsigned char key[66], point[133];
+	const unsigned char *order, *point_src;
+	size_t glen, olen, point_len, xoff, xlen;
+	unsigned char mask;
+
+	if (ecdhe) {
+		curve = ctx->eng.ecdhe_curve;
+		point_src = ctx->eng.ecdhe_point;
+		point_len = ctx->eng.ecdhe_point_len;
+	} else {
+		const br_x509_class **xc;
+		const br_x509_pkey *pk;
+
+		xc = ctx->eng.x509ctx;
+		pk = (*xc)->get_pkey(xc, NULL);
+		curve = pk->key.ec.curve;
+		point_src = pk->key.ec.q;
+		point_len = pk->key.ec.qlen;
+	}
+	if ((ctx->eng.iec->supported_curves & ((uint32_t)1 << curve)) == 0) {
+		return -BR_ERR_INVALID_ALGORITHM;
+	}
+
+	/*
+	 * We need to generate our key, as a non-zero random value which
+	 * is lower than the curve order, in a "large enough" range. We
+	 * force top bit to 0 and bottom bit to 1, which guarantees that
+	 * the value is in the proper range.
+	 */
+	order = ctx->eng.iec->order(curve, &olen);
+	mask = 0xFF;
+	while (mask >= order[0]) {
+		mask >>= 1;
+	}
+	br_hmac_drbg_generate(&ctx->eng.rng, key, olen);
+	key[0] &= mask;
+	key[olen - 1] |= 0x01;
+
+	/*
+	 * Compute the common ECDH point, whose X coordinate is the
+	 * pre-master secret.
+	 */
+	ctx->eng.iec->generator(curve, &glen);
+	if (glen != point_len) {
+		return -BR_ERR_INVALID_ALGORITHM;
+	}
+
+	memcpy(point, point_src, glen);
+	if (!ctx->eng.iec->mul(point, glen, key, olen, curve)) {
+		return -BR_ERR_INVALID_ALGORITHM;
+	}
+
+	/*
+	 * The pre-master secret is the X coordinate.
+	 */
+	xoff = ctx->eng.iec->xoff(curve, &xlen);
+	br_ssl_engine_compute_master(&ctx->eng, prf_id, point + xoff, xlen);
+
+	ctx->eng.iec->mulgen(point, key, olen, curve);
+	memcpy(ctx->eng.pad, point, glen);
+	return (int)glen;
+}
+
+/*
+ * Perform full static ECDH. This occurs only in the context of client
+ * authentication with certificates: the server uses an EC public key,
+ * the cipher suite is of type ECDH (not ECDHE), the server requested a
+ * client certificate and accepts static ECDH, the client has a
+ * certificate with an EC public key in the same curve, and accepts
+ * static ECDH as well.
+ *
+ * Returned value is 0 on success, -1 on error.
+ */
+static int
+make_pms_static_ecdh(br_ssl_client_context *ctx, int prf_id)
+{
+	unsigned char point[133];
+	size_t point_len;
+	const br_x509_class **xc;
+	const br_x509_pkey *pk;
+
+	xc = ctx->eng.x509ctx;
+	pk = (*xc)->get_pkey(xc, NULL);
+	point_len = pk->key.ec.qlen;
+	if (point_len > sizeof point) {
+		return -1;
+	}
+	memcpy(point, pk->key.ec.q, point_len);
+	if (!(*ctx->client_auth_vtable)->do_keyx(
+		ctx->client_auth_vtable, point, &point_len))
+	{
+		return -1;
+	}
+	br_ssl_engine_compute_master(&ctx->eng,
+		prf_id, point, point_len);
+	return 0;
+}
+
+/*
+ * Compute the client-side signature. This is invoked only when a
+ * signature-based client authentication was selected. The computed
+ * signature is in the pad; its length (in bytes) is returned. On
+ * error, 0 is returned.
+ */
+static size_t
+make_client_sign(br_ssl_client_context *ctx)
+{
+	size_t hv_len;
+
+	/*
+	 * Compute hash of handshake messages so far. This "cannot" fail
+	 * because the list of supported hash functions provided to the
+	 * client certificate handler was trimmed to include only the
+	 * hash functions that the multi-hasher supports.
+	 */
+	if (ctx->hash_id) {
+		hv_len = br_multihash_out(&ctx->eng.mhash,
+			ctx->hash_id, ctx->eng.pad);
+	} else {
+		br_multihash_out(&ctx->eng.mhash,
+			br_md5_ID, ctx->eng.pad);
+		br_multihash_out(&ctx->eng.mhash,
+			br_sha1_ID, ctx->eng.pad + 16);
+		hv_len = 36;
+	}
+	return (*ctx->client_auth_vtable)->do_sign(
+		ctx->client_auth_vtable, ctx->hash_id, hv_len,
+		ctx->eng.pad, sizeof ctx->eng.pad);
+}
+
+}
+
+\ =======================================================================
+
+: addr-ctx:
+	next-word { field }
+	"addr-" field + 0 1 define-word
+	0 8191 "offsetof(br_ssl_client_context, " field + ")" + make-CX
+	postpone literal postpone ; ;
+
+addr-ctx: min_clienthello_len
+addr-ctx: hashes
+addr-ctx: auth_type
+addr-ctx: hash_id
+
+\ Length of the Secure Renegotiation extension. This is 5 for the
+\ first handshake, 17 for a renegotiation (if the server supports the
+\ extension), or 0 if we know that the server does not support the
+\ extension.
+: ext-reneg-length ( -- n )
+	addr-reneg get8 dup if 1 - 17 * else drop 5 then ;
+
+\ Length of SNI extension.
+: ext-sni-length ( -- len )
+	addr-server_name strlen dup if 9 + then ;
+
+\ Length of Maximum Fragment Length extension.
+: ext-frag-length ( -- len )
+	addr-log_max_frag_len get8 14 = if 0 else 5 then ;
+
+\ Length of Signatures extension.
+: ext-signatures-length ( -- len )
+	supported-hash-functions { num } drop 0
+	supports-rsa-sign? if num + then
+	supports-ecdsa? if num + then
+	dup if 1 << 6 + then ;
+
+\ Write supported hash functions ( sign -- )
+: write-hashes
+	{ sign }
+	supported-hash-functions drop
+	\ We advertise hash functions in the following preference order:
+	\   SHA-256 SHA-224 SHA-384 SHA-512 SHA-1
+	\ Rationale:
+	\ -- SHA-256 and SHA-224 are more efficient on 32-bit architectures
+	\ -- SHA-1 is less than ideally collision-resistant
+	dup 0x10 and if 4 write8 sign write8 then
+	dup 0x08 and if 3 write8 sign write8 then
+	dup 0x20 and if 5 write8 sign write8 then
+	dup 0x40 and if 6 write8 sign write8 then
+	0x04 and if 2 write8 sign write8 then ;
+
+\ Length of Supported Curves extension.
+: ext-supported-curves-length ( -- len )
+	supported-curves dup if
+		0 { x }
+		begin dup while
+			dup 1 and x + >x
+			1 >>
+		repeat
+		drop x 1 << 6 +
+	then ;
+
+\ Length of Supported Point Formats extension.
+: ext-point-format-length ( -- len )
+	supported-curves if 6 else 0 then ;
+
+\ Length of ALPN extension.
+cc: ext-ALPN-length ( -- len ) {
+	size_t u, len;
+
+	if (ENG->protocol_names_num == 0) {
+		T0_PUSH(0);
+		T0_RET();
+	}
+	len = 6;
+	for (u = 0; u < ENG->protocol_names_num; u ++) {
+		len += 1 + strlen(ENG->protocol_names[u]);
+	}
+	T0_PUSH(len);
+}
+
+\ Write handshake message: ClientHello
+: write-ClientHello ( -- )
+	{ ; total-ext-length }
+
+	\ Compute length for extensions (without the general two-byte header).
+	\ This does not take padding extension into account.
+	ext-reneg-length ext-sni-length + ext-frag-length +
+	ext-signatures-length +
+	ext-supported-curves-length + ext-point-format-length +
+	ext-ALPN-length +
+	>total-ext-length
+
+	\ ClientHello type
+	1 write8
+
+	\ Compute and write length
+	39 addr-session_id_len get8 + addr-suites_num get8 1 << +
+	total-ext-length if 2+ total-ext-length + then
+	\ Compute padding (if requested).
+	addr-min_clienthello_len get16 over - dup 0> if
+		\ We well add a Pad ClientHello extension, which has its
+		\ own header (4 bytes) and might be the only extension
+		\ (2 extra bytes for the extension list header).
+		total-ext-length ifnot swap 2+ swap 2- then
+		\ Account for the extension header.
+		4 - dup 0< if drop 0 then
+		\ Adjust total extension length.
+		dup 4 + total-ext-length + >total-ext-length
+		\ Adjust ClientHello length.
+		swap 4 + over + swap
+	else
+		drop
+		-1
+	then
+	{ ext-padding-amount }
+	write24
+
+	\ Protocol version
+	addr-version_max get16 write16
+
+	\ Client random
+	addr-client_random 4 bzero
+	addr-client_random 4 + 28 mkrand
+	addr-client_random 32 write-blob
+
+	\ Session ID
+	addr-session_id addr-session_id_len get8 write-blob-head8
+
+	\ Supported cipher suites. We also check here that we indeed
+	\ support all these suites.
+	addr-suites_num get8 dup 1 << write16
+	addr-suites_buf swap
+	begin
+		dup while 1-
+		over get16
+		dup suite-supported? ifnot ERR_BAD_CIPHER_SUITE fail then
+		write16
+		swap 2+ swap
+	repeat
+	2drop
+
+	\ Compression methods (only "null" compression)
+	1 write8 0 write8
+
+	\ Extensions
+	total-ext-length if
+		total-ext-length write16
+		ext-reneg-length if
+			0xFF01 write16          \ extension type (0xFF01)
+			addr-saved_finished
+			ext-reneg-length 4 - dup write16 \ extension length
+			1- write-blob-head8              \ verify data
+		then
+		ext-sni-length if
+			0x0000 write16          \ extension type (0)
+			addr-server_name
+			ext-sni-length 4 - dup write16 \ extension length
+			2 - dup write16                \ ServerNameList length
+			0 write8                       \ name type: host_name
+			3 - write-blob-head16          \ the name itself
+		then
+		ext-frag-length if
+			0x0001 write16          \ extension type (1)
+			0x0001 write16          \ extension length
+			addr-log_max_frag_len get8 8 - write8
+		then
+		ext-signatures-length if
+			0x000D write16          \ extension type (13)
+			ext-signatures-length 4 - dup write16 \ extension length
+			2 - write16             \ list length
+			supports-ecdsa? if 3 write-hashes then
+			supports-rsa-sign? if 1 write-hashes then
+		then
+		\ TODO: add an API to specify preference order for curves.
+		\ Right now we send Curve25519 first, then other curves in
+		\ increasing ID values (hence P-256 in second).
+		ext-supported-curves-length dup if
+			0x000A write16          \ extension type (10)
+			4 - dup write16         \ extension length
+			2- write16              \ list length
+			supported-curves 0
+			dup 0x20000000 and if
+				0xDFFFFFFF and 29 write16
+			then
+			begin dup 32 < while
+				dup2 >> 1 and if dup write16 then
+				1+
+			repeat
+			2drop
+		else
+			drop
+		then
+		ext-point-format-length if
+			0x000B write16          \ extension type (11)
+			0x0002 write16          \ extension length
+			0x0100 write16          \ value: 1 format: uncompressed
+		then
+		ext-ALPN-length dup if
+			0x0010 write16          \ extension type (16)
+			4 - dup write16         \ extension length
+			2- write16              \ list length
+			addr-protocol_names_num get16 0
+			begin
+				dup2 > while
+				dup copy-protocol-name
+				dup write8 addr-pad swap write-blob
+				1+
+			repeat
+			2drop
+		else
+			drop
+		then
+		ext-padding-amount 0< ifnot
+			0x0015 write16          \ extension value (21)
+			ext-padding-amount
+			dup write16             \ extension length
+			begin dup while
+			1- 0 write8 repeat      \ value (only zeros)
+			drop
+		then
+	then
+	;
+
+\ =======================================================================
+
+\ Parse server SNI extension. If present, then it should be empty.
+: read-server-sni ( lim -- lim )
+	read16 if ERR_BAD_SNI fail then ;
+
+\ Parse server Max Fragment Length extension. If present, then it should
+\ advertise the same length as the client. Note that whether the server
+\ sends it or not changes nothing for us: we won't send any record larger
+\ than the advertised value anyway, and we will accept incoming records
+\ up to our input buffer length.
+: read-server-frag ( lim -- lim )
+	read16 1 = ifnot ERR_BAD_FRAGLEN fail then
+	read8 8 + addr-log_max_frag_len get8 = ifnot ERR_BAD_FRAGLEN fail then ;
+
+\ Parse server Secure Renegotiation extension. This is called only if
+\ the client sent that extension, so we only have two cases to
+\ distinguish: first handshake, and renegotiation; in the latter case,
+\ we know that the server supports the extension, otherwise the client
+\ would not have sent it.
+: read-server-reneg ( lim -- lim )
+	read16
+	addr-reneg get8 ifnot
+		\ "reneg" is 0, so this is a first handshake. The server's
+		\ extension MUST be empty. We also learn that the server
+		\ supports the extension.
+		1 = ifnot ERR_BAD_SECRENEG fail then
+		read8 0 = ifnot ERR_BAD_SECRENEG fail then
+		2 addr-reneg set8
+	else
+		\ "reneg" is non-zero, and we sent an extension, so it must
+		\ be 2 and this is a renegotiation. We must verify that
+		\ the extension contents have length exactly 24 bytes and
+		\ match the saved client and server "Finished".
+		25 = ifnot ERR_BAD_SECRENEG fail then
+		read8 24 = ifnot ERR_BAD_SECRENEG fail then
+		addr-pad 24 read-blob
+		addr-saved_finished addr-pad 24 memcmp ifnot
+			ERR_BAD_SECRENEG fail
+		then
+	then ;
+
+\ Read the ALPN extension from the server. It must contain a single name,
+\ and that name must match one of our names.
+: read-ALPN-from-server ( lim -- lim )
+	\ Extension contents length.
+	read16 open-elt
+	\ Length of list of names.
+	read16 open-elt
+	\ There should be a single name.
+	read8 addr-pad swap dup { len } read-blob
+	close-elt
+	close-elt
+	len test-protocol-name dup 0< if
+		3 flag? if ERR_UNEXPECTED fail then
+		drop
+	else
+		1+ addr-selected_protocol set16
+	then ;
+
+\ Save a value in a 16-bit field, or check it in case of session resumption.
+: check-resume ( val addr resume -- )
+	if get16 = ifnot ERR_RESUME_MISMATCH fail then else set16 then ;
+
+cc: DEBUG-BLOB ( addr len -- ) {
+	extern int printf(const char *fmt, ...);
+
+	size_t len = T0_POP();
+	unsigned char *buf = (unsigned char *)CTX + T0_POP();
+	size_t u;
+
+	printf("BLOB:");
+	for (u = 0; u < len; u ++) {
+		if (u % 16 == 0) {
+			printf("\n    ");
+		}
+		printf(" %02x", buf[u]);
+	}
+	printf("\n");
+}
+
+\ Parse incoming ServerHello. Returned value is true (-1) on session
+\ resumption.
+: read-ServerHello ( -- bool )
+	\ Get header, and check message type.
+	read-handshake-header 2 = ifnot ERR_UNEXPECTED fail then
+
+	\ Get protocol version.
+	read16 { version }
+	version addr-version_min get16 < version addr-version_max get16 > or if
+		ERR_UNSUPPORTED_VERSION fail
+	then
+
+	\ Enforce chosen version for subsequent records in both directions.
+	version addr-version_in get16 <> if ERR_BAD_VERSION fail then
+	version addr-version_out set16
+
+	\ Server random.
+	addr-server_random 32 read-blob
+
+	\ The "session resumption" flag.
+	0 { resume }
+
+	\ Session ID.
+	read8 { idlen }
+	idlen 32 > if ERR_OVERSIZED_ID fail then
+	addr-pad idlen read-blob
+	idlen addr-session_id_len get8 = idlen 0 > and if
+		addr-session_id addr-pad idlen memcmp if
+			\ Server session ID is non-empty and matches what
+			\ we sent, so this is a session resumption.
+			-1 >resume
+		then
+	then
+	addr-session_id addr-pad idlen memcpy
+	idlen addr-session_id_len set8
+
+	\ Record version.
+	version addr-version resume check-resume
+
+	\ Cipher suite. We check that it is part of the list of cipher
+	\ suites that we advertised.
+	read16
+	dup scan-suite 0< if ERR_BAD_CIPHER_SUITE fail then
+	\ Also check that the cipher suite is compatible with the
+	\ announced version: suites that don't use HMAC/SHA-1 are
+	\ for TLS-1.2 only, not older versions.
+	dup use-tls12? version 0x0303 < and if ERR_BAD_CIPHER_SUITE fail then
+	addr-cipher_suite resume check-resume
+
+	\ Compression method. Should be 0 (no compression).
+	read8 if ERR_BAD_COMPRESSION fail then
+
+	\ Parse extensions (if any). If there is no extension, then the
+	\ read limit (on the TOS) should be 0 at that point.
+	dup if
+		\ Length of extension list.
+		\ message size.
+		read16 open-elt
+
+		\ Enumerate extensions. For each of them, check that we
+		\ sent an extension of that type, and did not see it
+		\ yet; and then process it.
+		ext-sni-length { ok-sni }
+		ext-reneg-length { ok-reneg }
+		ext-frag-length { ok-frag }
+		ext-signatures-length { ok-signatures }
+		ext-supported-curves-length { ok-curves }
+		ext-point-format-length { ok-points }
+		ext-ALPN-length { ok-ALPN }
+		begin dup while
+			read16
+			case
+				\ Server Name Indication. The server may
+				\ send such an extension if it uses the SNI
+				\ from the client, but that "response
+				\ extension" is supposed to be empty.
+				0x0000 of
+					ok-sni ifnot
+						ERR_EXTRA_EXTENSION fail
+					then
+					0 >ok-sni
+					read-server-sni
+				endof
+
+				\ Max Frag Length. The contents shall be
+				\ a single byte whose value matches the one
+				\ sent by the client.
+				0x0001 of
+					ok-frag ifnot
+						ERR_EXTRA_EXTENSION fail
+					then
+					0 >ok-frag
+					read-server-frag
+				endof
+
+				\ Secure Renegotiation.
+				0xFF01 of
+					ok-reneg ifnot
+						ERR_EXTRA_EXTENSION fail
+					then
+					0 >ok-reneg
+					read-server-reneg
+				endof
+
+				\ Signature Algorithms.
+				\ Normally, the server should never send this
+				\ extension (so says RFC 5246 #7.4.1.4.1),
+				\ but some existing servers do.
+				0x000D of
+					ok-signatures ifnot
+						ERR_EXTRA_EXTENSION fail
+					then
+					0 >ok-signatures
+					read-ignore-16
+				endof
+
+				\ Supported Curves.
+				0x000A of
+					ok-curves ifnot
+						ERR_EXTRA_EXTENSION fail
+					then
+					0 >ok-curves
+					read-ignore-16
+				endof
+
+				\ Supported Point Formats.
+				0x000B of
+					ok-points ifnot
+						ERR_EXTRA_EXTENSION fail
+					then
+					0 >ok-points
+					read-ignore-16
+				endof
+
+				\ ALPN.
+				0x0010 of
+					ok-ALPN ifnot
+						ERR_EXTRA_EXTENSION fail
+					then
+					0 >ok-ALPN
+					read-ALPN-from-server
+				endof
+
+				ERR_EXTRA_EXTENSION fail
+			endcase
+		repeat
+
+		\ If we sent a secure renegotiation extension but did not
+		\ receive a response, then the server does not support
+		\ secure renegotiation. This is a hard failure if this
+		\ is a renegotiation.
+		ok-reneg if
+			ok-reneg 5 > if ERR_BAD_SECRENEG fail then
+			1 addr-reneg set8
+		then
+		close-elt
+	else
+		\ No extension received at all, so the server does not
+		\ support secure renegotiation. This is a hard failure
+		\ if the server was previously known to support it (i.e.
+		\ this is a renegotiation).
+		ext-reneg-length 5 > if ERR_BAD_SECRENEG fail then
+		1 addr-reneg set8
+	then
+	close-elt
+	resume
+	;
+
+cc: set-server-curve ( -- ) {
+	const br_x509_class *xc;
+	const br_x509_pkey *pk;
+
+	xc = *(ENG->x509ctx);
+	pk = xc->get_pkey(ENG->x509ctx, NULL);
+	CTX->server_curve =
+		(pk->key_type == BR_KEYTYPE_EC) ? pk->key.ec.curve : 0;
+}
+
+\ Read Certificate message from server.
+: read-Certificate-from-server ( -- )
+	addr-cipher_suite get16 expected-key-type
+	-1 read-Certificate
+	dup 0< if neg fail then
+	dup ifnot ERR_UNEXPECTED fail then
+	over and <> if ERR_WRONG_KEY_USAGE fail then
+
+	\ Set server curve (used for static ECDH).
+	set-server-curve ;
+
+\ Verify signature on ECDHE point sent by the server.
+\   'hash' is the hash function to use (1 to 6, or 0 for RSA with MD5+SHA-1)
+\   'use-rsa' is 0 for ECDSA, -1 for for RSA
+\   'sig-len' is the signature length (in bytes)
+\ The signature itself is in the pad.
+cc: verify-SKE-sig ( hash use-rsa sig-len -- err ) {
+	size_t sig_len = T0_POP();
+	int use_rsa = T0_POPi();
+	int hash = T0_POPi();
+
+	T0_PUSH(verify_SKE_sig(CTX, hash, use_rsa, sig_len));
+}
+
+\ Parse ServerKeyExchange
+: read-ServerKeyExchange ( -- )
+	\ Get header, and check message type.
+	read-handshake-header 12 = ifnot ERR_UNEXPECTED fail then
+
+	\ We expect a named curve, and we must support it.
+	read8 3 = ifnot ERR_INVALID_ALGORITHM fail then
+	read16 dup addr-ecdhe_curve set8
+	dup 32 >= if ERR_INVALID_ALGORITHM fail then
+	supported-curves swap >> 1 and ifnot ERR_INVALID_ALGORITHM fail then
+
+	\ Read the server point.
+	read8
+	dup 133 > if ERR_INVALID_ALGORITHM fail then
+	dup addr-ecdhe_point_len set8
+	addr-ecdhe_point swap read-blob
+
+	\ If using TLS-1.2+, then the hash function and signature algorithm
+	\ are explicitly provided; the signature algorithm must match what
+	\ the cipher suite specifies. With TLS-1.0 and 1.1, the signature
+	\ algorithm is inferred from the cipher suite, and the hash is
+	\ either MD5+SHA-1 (for RSA signatures) or SHA-1 (for ECDSA).
+	addr-version get16 0x0303 >= { tls1.2+ }
+	addr-cipher_suite get16 use-rsa-ecdhe? { use-rsa }
+	2 { hash }
+	tls1.2+ if
+		\ Read hash function; accept only the SHA-* identifiers
+		\ (from SHA-1 to SHA-512, no MD5 here).
+		read8
+		dup dup 2 < swap 6 > or if ERR_INVALID_ALGORITHM fail then
+		>hash
+		read8
+		\ Get expected signature algorithm and compare with what
+		\ the server just sent. Expected value is 1 for RSA, 3
+		\ for ECDSA. Note that 'use-rsa' evaluates to -1 for RSA,
+		\ 0 for ECDSA.
+		use-rsa 1 << 3 + = ifnot ERR_INVALID_ALGORITHM fail then
+	else
+		\ For MD5+SHA-1, we set 'hash' to 0.
+		use-rsa if 0 >hash then
+	then
+
+	\ Read signature into the pad.
+	read16 dup { sig-len }
+
+	dup 512 > if ERR_LIMIT_EXCEEDED fail then
+	addr-pad swap read-blob
+
+	\ Verify signature.
+	hash use-rsa sig-len verify-SKE-sig
+	dup if fail then drop
+
+	close-elt ;
+
+\ Client certificate: start processing of anchor names.
+cc: anchor-dn-start-name-list ( -- ) {
+	if (CTX->client_auth_vtable != NULL) {
+		(*CTX->client_auth_vtable)->start_name_list(
+			CTX->client_auth_vtable);
+	}
+}
+
+\ Client certificate: start a new anchor DN (length is 16-bit).
+cc: anchor-dn-start-name ( length -- ) {
+	size_t len;
+
+	len = T0_POP();
+	if (CTX->client_auth_vtable != NULL) {
+		(*CTX->client_auth_vtable)->start_name(
+			CTX->client_auth_vtable, len);
+	}
+}
+
+\ Client certificate: push some data for current anchor DN.
+cc: anchor-dn-append-name ( length -- ) {
+	size_t len;
+
+	len = T0_POP();
+	if (CTX->client_auth_vtable != NULL) {
+		(*CTX->client_auth_vtable)->append_name(
+			CTX->client_auth_vtable, ENG->pad, len);
+	}
+}
+
+\ Client certificate: end current anchor DN.
+cc: anchor-dn-end-name ( -- ) {
+	if (CTX->client_auth_vtable != NULL) {
+		(*CTX->client_auth_vtable)->end_name(
+			CTX->client_auth_vtable);
+	}
+}
+
+\ Client certificate: end list of anchor DN.
+cc: anchor-dn-end-name-list ( -- ) {
+	if (CTX->client_auth_vtable != NULL) {
+		(*CTX->client_auth_vtable)->end_name_list(
+			CTX->client_auth_vtable);
+	}
+}
+
+\ Client certificate: obtain the client certificate chain.
+cc: get-client-chain ( auth_types -- ) {
+	uint32_t auth_types;
+
+	auth_types = T0_POP();
+	if (CTX->client_auth_vtable != NULL) {
+		br_ssl_client_certificate ux;
+
+		(*CTX->client_auth_vtable)->choose(CTX->client_auth_vtable,
+			CTX, auth_types, &ux);
+		CTX->auth_type = (unsigned char)ux.auth_type;
+		CTX->hash_id = (unsigned char)ux.hash_id;
+		ENG->chain = ux.chain;
+		ENG->chain_len = ux.chain_len;
+	} else {
+		CTX->hash_id = 0;
+		ENG->chain_len = 0;
+	}
+}
+
+\ Parse CertificateRequest. Header has already been read.
+: read-contents-CertificateRequest ( lim -- )
+	\ Read supported client authentication types. We keep only
+	\ RSA, ECDSA, and ECDH.
+	0 { auth_types }
+	read8 open-elt
+	begin dup while
+		read8 case
+			1  of 0x0000FF endof
+			64 of 0x00FF00 endof
+			65 of 0x010000 endof
+			66 of 0x020000 endof
+			0 swap
+		endcase
+		auth_types or >auth_types
+	repeat
+	close-elt
+
+	\ Full static ECDH is allowed only if the cipher suite is ECDH
+	\ (not ECDHE). It would be theoretically feasible to use static
+	\ ECDH on the client side with an ephemeral key pair from the
+	\ server, but RFC 4492 (section 3) forbids it because ECDHE suites
+	\ are supposed to provide forward secrecy, and static ECDH would
+	\ negate that property.
+	addr-cipher_suite get16 use-ecdh? ifnot
+		auth_types 0xFFFF and >auth_types
+	then
+
+	\ Note: if the cipher suite is ECDH, then the X.509 validation
+	\ engine was invoked with the BR_KEYTYPE_EC | BR_KEYTYPE_KEYX
+	\ combination, so the server's public key has already been
+	\ checked to be fit for a key exchange.
+
+	\ With TLS 1.2:
+	\  - rsa_fixed_ecdh and ecdsa_fixed_ecdh are synoymous.
+	\  - There is an explicit list of supported sign+hash.
+	\ With TLS 1.0,
+	addr-version get16 0x0303 >= if
+		\ With TLS 1.2:
+		\  - There is an explicit list of supported sign+hash.
+		\  - The ECDH flags must be adjusted for RSA/ECDSA
+		\    support.
+		read-list-sign-algos dup addr-hashes set32
+
+		\ Trim down the list depending on what hash functions
+		\ we support (since the hashing itself is done by the SSL
+		\ engine, not by the certificate handler).
+		supported-hash-functions drop dup 8 << or 0x030000 or and
+
+		auth_types and
+		auth_types 0x030000 and if
+			dup 0x0000FF and if 0x010000 or then
+			dup 0x00FF00 and if 0x020000 or then
+		then
+		>auth_types
+	else
+		\ TLS 1.0 or 1.1. The hash function is fixed for signatures
+		\ (MD5+SHA-1 for RSA, SHA-1 for ECDSA).
+		auth_types 0x030401 and >auth_types
+	then
+
+	\ Parse list of anchor DN.
+	anchor-dn-start-name-list
+	read16 open-elt
+	begin dup while
+		read16 open-elt
+		dup anchor-dn-start-name
+
+		\ We read the DN by chunks through the pad, so
+		\ as to use the existing reading function (read-blob)
+		\ that also ensures proper hashing.
+		begin
+			dup while
+			dup 256 > if 256 else dup then { len }
+			addr-pad len read-blob
+			len anchor-dn-append-name
+		repeat
+		close-elt
+		anchor-dn-end-name
+	repeat
+	close-elt
+	anchor-dn-end-name-list
+
+	\ We should have reached the message end.
+	close-elt
+
+	\ Obtain the client chain.
+	auth_types get-client-chain
+	;
+
+\ (obsolete)
+\ Write an empty Certificate message.
+\ : write-empty-Certificate ( -- )
+\ 	11 write8 3 write24 0 write24 ;
+
+cc: do-rsa-encrypt ( prf_id -- nlen ) {
+	int x;
+
+	x = make_pms_rsa(CTX, T0_POP());
+	if (x < 0) {
+		br_ssl_engine_fail(ENG, -x);
+		T0_CO();
+	} else {
+		T0_PUSH(x);
+	}
+}
+
+cc: do-ecdh ( echde prf_id -- ulen ) {
+	unsigned prf_id = T0_POP();
+	unsigned ecdhe = T0_POP();
+	int x;
+
+	x = make_pms_ecdh(CTX, ecdhe, prf_id);
+	if (x < 0) {
+		br_ssl_engine_fail(ENG, -x);
+		T0_CO();
+	} else {
+		T0_PUSH(x);
+	}
+}
+
+cc: do-static-ecdh ( prf-id -- ) {
+	unsigned prf_id = T0_POP();
+
+	if (make_pms_static_ecdh(CTX, prf_id) < 0) {
+		br_ssl_engine_fail(ENG, BR_ERR_INVALID_ALGORITHM);
+		T0_CO();
+	}
+}
+
+cc: do-client-sign ( -- sig_len ) {
+	size_t sig_len;
+
+	sig_len = make_client_sign(CTX);
+	if (sig_len == 0) {
+		br_ssl_engine_fail(ENG, BR_ERR_INVALID_ALGORITHM);
+		T0_CO();
+	}
+	T0_PUSH(sig_len);
+}
+
+\ Write ClientKeyExchange.
+: write-ClientKeyExchange ( -- )
+	16 write8
+	addr-cipher_suite get16
+	dup use-rsa-keyx? if
+		prf-id do-rsa-encrypt
+		dup 2+ write24
+		dup write16
+		addr-pad swap write-blob
+	else
+		dup use-ecdhe? swap prf-id do-ecdh
+		dup 1+ write24
+		dup write8
+		addr-pad swap write-blob
+	then ;
+
+\ Write CertificateVerify. This is invoked only if a client certificate
+\ was requested and sent, and the authentication is not full static ECDH.
+: write-CertificateVerify ( -- )
+	do-client-sign
+	15 write8 dup
+	addr-version get16 0x0303 >= if
+		4 + write24
+		addr-hash_id get8 write8
+		addr-auth_type get8 write8
+	else
+		2+ write24
+	then
+	dup write16 addr-pad swap write-blob ;
+
+\ =======================================================================
+
+\ Perform a handshake.
+: do-handshake ( -- )
+	0 addr-application_data set8
+	22 addr-record_type_out set8
+	0 addr-selected_protocol set16
+	multihash-init
+
+	write-ClientHello
+	flush-record
+	read-ServerHello
+
+	if
+		\ Session resumption.
+		-1 read-CCS-Finished
+		-1 write-CCS-Finished
+
+	else
+
+		\ Not a session resumption.
+
+		\ Read certificate; then check key type and usages against
+		\ cipher suite.
+		read-Certificate-from-server
+
+		\ Depending on cipher suite, we may now expect a
+		\ ServerKeyExchange.
+		addr-cipher_suite get16 expected-key-type
+		CX 0 63 { BR_KEYTYPE_SIGN } and if
+			read-ServerKeyExchange
+		then
+
+		\ Get next header.
+		read-handshake-header
+
+		\ If this is a CertificateRequest, parse it, then read
+		\ next header.
+		dup 13 = if
+			drop read-contents-CertificateRequest
+			read-handshake-header
+			-1
+		else
+			0
+		then
+		{ seen-CR }
+
+		\ At that point, we should have a ServerHelloDone,
+		\ whose length must be 0.
+		14 = ifnot ERR_UNEXPECTED fail then
+		if ERR_BAD_HELLO_DONE fail then
+
+		\ There should not be more bytes in the record at that point.
+		more-incoming-bytes? if ERR_UNEXPECTED fail then
+
+		seen-CR if
+			\ If the server requested a client certificate, then
+			\ we must write a Certificate message (it may be
+			\ empty).
+			write-Certificate
+
+			\ If using static ECDH, then the ClientKeyExchange
+			\ is empty, and there is no CertificateVerify.
+			\ Otherwise, there is a ClientKeyExchange; there
+			\ will then be a CertificateVerify if a client chain
+			\ was indeed sent.
+			addr-hash_id get8 0xFF = if
+				drop
+				16 write8 0 write24
+				addr-cipher_suite get16 prf-id do-static-ecdh
+			else
+				write-ClientKeyExchange
+				if write-CertificateVerify then
+			then
+		else
+			write-ClientKeyExchange
+		then
+
+		-1 write-CCS-Finished
+		-1 read-CCS-Finished
+	then
+
+	\ Now we should be invoked only in case of renegotiation.
+	1 addr-application_data set8
+	23 addr-record_type_out set8 ;
+
+\ Read a HelloRequest message.
+: read-HelloRequest ( -- )
+	\ A HelloRequest has length 0 and type 0.
+	read-handshake-header-core
+	if ERR_UNEXPECTED fail then
+	if ERR_BAD_HANDSHAKE fail then ;
+
+\ Entry point.
+: main ( -- ! )
+	\ Perform initial handshake.
+	do-handshake
+
+	begin
+		\ Wait for further invocation. At that point, we should
+		\ get either an explicit call for renegotiation, or
+		\ an incoming HelloRequest handshake message.
+		wait-co
+		dup 0x07 and case
+			0x00 of
+				0x10 and if
+					do-handshake
+				then
+			endof
+			0x01 of
+				drop
+				0 addr-application_data set8
+				read-HelloRequest
+				\ Reject renegotiations if the peer does not
+				\ support secure renegotiation, or if the
+				\ "no renegotiation" flag is set.
+				addr-reneg get8 1 = 1 flag? or if
+					flush-record
+					begin can-output? not while
+						wait-co drop
+					repeat
+					100 send-warning
+					\ We rejected the renegotiation,
+					\ but the connection is not dead.
+					\ We must set back things into
+					\ working "application data" state.
+					1 addr-application_data set8
+					23 addr-record_type_out set8
+				else
+					do-handshake
+				then
+			endof
+			ERR_UNEXPECTED fail
+		endcase
+	again
+	;

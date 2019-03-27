@@ -1,0 +1,4 @@
+a="10.0.0.1"
+b="x"
+b="y"
+pass in from $a

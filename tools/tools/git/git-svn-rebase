@@ -1,0 +1,57 @@
+#!/bin/sh
+
+# $FreeBSD$
+
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
+#  Copyright (c) 2018 M. Warner Losh
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#  1. Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#  2. Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+#  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+#  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+#  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+#  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+#  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+#  SUCH DAMAGE.
+
+#
+# simple script to keep all my branches up to date while tracking
+# FreeBSD (or any upstream svn source) with git. Run it often, and it
+# will rebase all the branches so they don't get too stale.
+# Takes no args, and acts goofy if you have really old branches
+# which is why stable/* and mfc* are excluded. Caution to should be taken
+# when using this.
+#
+
+FAIL=
+echo ----------------- Checkout master for svn rebase ------------
+git checkout master
+echo ----------------- Rebasing our master to svn upstream  ------------
+git svn rebase
+for i in $(git branch --no-merge | grep -v stable/ | grep -v mfc); do
+	echo ----------------- Rebasing $i to the tip of master ------------
+	git rebase master $i || {
+	    echo "****************** REBASE OF $i FAILED, ABORTING *****************"
+	    FAIL="$FAIL $i"
+	    git rebase --abort
+	}
+done
+echo ----------------- Checkout out master again ------------
+git checkout master
+git branch
+if [ -n "$FAIL" ]; then
+    echo Failed branches: $FAIL
+fi

@@ -1,0 +1,88 @@
+@(#)README	8.3
+This file is in the public domain, so clarified as of
+2009-05-17 by Arthur David Olson.
+
+$FreeBSD$
+
+"What time is it?" -- Richard Deacon as The King
+"Any time you want it to be." -- Frank Baxter as The Scientist
+					(from the Bell System film "About Time")
+
+The 1989 update of the time zone package featured
+
+*	POSIXization (including interpretation of POSIX-style TZ environment
+	variables, provided by Guy Harris),
+*	ANSIfication (including versions of "mktime" and "difftime"),
+*	SVIDulation (an "altzone" variable)
+*	MACHination (the "gtime" function)
+*	corrections to some time zone data (including corrections to the rules
+	for Great Britain and New Zealand)
+*	reference data from the United States Naval Observatory for folks who
+	want to do additional time zones
+*	and the 1989 data for Saudi Arabia.
+
+(Since this code will be treated as "part of the implementation" in some places
+and as "part of the application" in others, there's no good way to name
+functions, such as timegm, that are not part of the proposed ANSI C standard;
+such functions have kept their old, underscore-free names in this update.)
+
+And the "dysize" function has disappeared; it was present to allow compilation
+of the "date" command on old BSD systems, and a version of "date" is now
+provided in the package.  The "date" command is not created when you "make all"
+since it may lack options provided by the version distributed with your
+operating system, or may not interact with the system in the same way the
+native version does.
+
+Since POSIX frowns on correct leap second handling, the default behavior of
+the "zic" command (in the absence of a "-L" option) has been changed to omit
+leap second information from its output files.
+
+Here is a recipe for acquiring, building, installing, and testing the
+tz distribution on a GNU/Linux or similar host.
+
+	mkdir tz
+	cd tz
+	wget 'ftp://elsie.nci.nih.gov/pub/tz*.tar.gz'
+	gzip -dc tzcode*.tar.gz | tar -xf -
+	gzip -dc tzdata*.tar.gz | tar -xf -
+
+Be sure to read the comments in "Makefile" and make any changes needed
+to make things right for your system, especially if you are using some
+platform other than GNU/Linux.  Then run the following commands,
+substituting your desired installation directory for "$HOME/tzdir":
+
+	make TOPDIR=$HOME/tzdir install
+	$HOME/tzdir/etc/zdump -v America/Los_Angeles
+
+To use the new functions, use a "-ltz" option when compiling or linking.
+
+Historical local time information has been included here to:
+
+*	provide a compendium of data about the history of civil time
+	that is useful even if the data are not 100% accurate;
+
+*	give an idea of the variety of local time rules that have
+	existed in the past and thus an idea of the variety that may be
+	expected in the future;
+
+*	provide a test of the generality of the local time rule description
+	system.
+
+The information in the time zone data files is by no means authoritative;
+the files currently do not even attempt to cover all time stamps before
+1970, and there are undoubtedly errors even for time stamps since 1970.
+If you know that the rules are different from those in a file, by all means
+feel free to change file (and please send the changed version to
+tz@elsie.nci.nih.gov for use in the future).  Europeans take note!
+
+Thanks to these Timezone Caballeros who've made major contributions to the
+time conversion package:  Keith Bostic; Bob Devine; Paul Eggert; Robert Elz;
+Guy Harris; Mark Horton; John Mackin; and Bradley White.  Thanks also to
+Michael Bloom, Art Neilson, Stephen Prince, John Sovereign, and Frank Wales
+for testing work, and to Gwillim Law for checking local mean time data.
+None of them are responsible for remaining errors.
+
+Look in the ~ftp/pub directory of elsie.nci.nih.gov
+for updated versions of these files.
+
+Please send comments or information to tz@elsie.nci.nih.gov.

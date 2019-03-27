@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to build the BSD licensed version of the device tree compiler rather
+than the GPLed one from elinux.org.

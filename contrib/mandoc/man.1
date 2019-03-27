@@ -1,0 +1,396 @@
+.\"	$Id: man.1,v 1.33 2018/04/19 23:41:16 schwarze Exp $
+.\"
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2003, 2007, 2008, 2014 Jason McIntyre <jmc@openbsd.org>
+.\" Copyright (c) 2010, 2011, 2014-2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)man.1	8.2 (Berkeley) 1/2/94
+.\"
+.Dd $Mdocdate: April 19 2018 $
+.Dt MAN 1
+.Os
+.Sh NAME
+.Nm man
+.Nd display manual pages
+.Sh SYNOPSIS
+.Nm man
+.Op Fl acfhklw
+.Op Fl C Ar file
+.Op Fl M Ar path
+.Op Fl m Ar path
+.Op Fl S Ar subsection
+.Op Oo Fl s Oc Ar section
+.Ar name ...
+.Sh DESCRIPTION
+The
+.Nm
+utility
+displays the
+manual pages entitled
+.Ar name .
+Pages may be selected according to
+a specific category
+.Pq Ar section
+or
+machine architecture
+.Pq Ar subsection .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Display all matching manual pages.
+Normally, only the first page found is displayed.
+.It Fl C Ar file
+Use the specified
+.Ar file
+instead of the default configuration file.
+This permits users to configure their own manual environment.
+See
+.Xr man.conf 5
+for a description of the contents of this file.
+.It Fl c
+Copy the manual page to the standard output instead of using
+.Xr more 1
+to paginate it.
+This is done by default if the standard output is not a terminal device.
+.Pp
+When using
+.Fl c ,
+most terminal devices are unable to show the markup.
+To print the output of
+.Nm
+to the terminal with markup but without using a pager, pipe it to
+.Xr ul 1 .
+To remove the markup, pipe the output to
+.Xr col 1
+.Fl b
+instead.
+.It Fl f
+A synonym for
+.Xr whatis 1 .
+It searches for
+.Ar name
+in manual page names and displays the header lines from all matching pages.
+The search is case insensitive and matches whole words only.
+.It Fl h
+Display only the SYNOPSIS lines of the requested manual pages.
+Implies
+.Fl a
+and
+.Fl c .
+.It Fl k
+A synonym for
+.Xr apropos 1 .
+Instead of
+.Ar name ,
+an expression can be provided using the syntax described in the
+.Xr apropos 1
+manual.
+By default, it displays the header lines of all matching pages.
+.It Fl l
+A synonym for
+.Xr mandoc 1 .
+The
+.Ar name
+arguments are interpreted as filenames.
+No search is done and
+.Ar file ,
+.Ar path ,
+.Ar section ,
+.Ar subsection ,
+and
+.Fl w
+are ignored.
+This option implies
+.Fl a .
+.It Fl M Ar path
+Override the list of standard directories which
+.Nm
+searches for manual pages.
+The supplied
+.Ar path
+must be a colon
+.Pq Ql \&:
+separated list of directories.
+This search path may also be set using the environment variable
+.Ev MANPATH .
+.It Fl m Ar path
+Augment the list of standard directories which
+.Nm
+searches for manual pages.
+The supplied
+.Ar path
+must be a colon
+.Pq Ql \&:
+separated list of directories.
+These directories will be searched before the standard directories or
+the directories specified using the
+.Fl M
+option or the
+.Ev MANPATH
+environment variable.
+.It Fl S Ar subsection
+Only show pages for the specified
+.Xr machine 1
+architecture.
+.Ar subsection
+is case insensitive.
+.Pp
+By default manual pages for all architectures are installed.
+Therefore this option can be used to view pages for one
+architecture whilst using another.
+.Pp
+This option overrides the
+.Ev MACHINE
+environment variable.
+.It Oo Fl s Oc Ar section
+Only select manuals from the specified
+.Ar section .
+The currently available sections are:
+.Pp
+.Bl -tag -width "localXXX" -offset indent -compact
+.It 1
+General commands
+.Pq tools and utilities .
+.It 2
+System calls and error numbers.
+.It 3
+Library functions.
+.It 3p
+.Xr perl 1
+programmer's reference guide.
+.It 4
+Device drivers.
+.It 5
+File formats.
+.It 6
+Games.
+.It 7
+Miscellaneous information.
+.It 8
+System maintenance and operation commands.
+.It 9
+Kernel internals.
+.El
+.Pp
+If not specified and a match is found in more than one section,
+the first match is selected from the following list:
+1, 8, 6, 2, 3, 5, 7, 4, 9, 3p.
+.It Fl w
+List the pathnames of all matching manual pages instead of displaying
+any of them.
+.El
+.Pp
+The options
+.Fl IKOTW
+are also supported and are documented in
+.Xr mandoc 1 .
+The options
+.Fl fkl
+are mutually exclusive and override each other.
+.Pp
+Guidelines for writing
+man pages can be found in
+.Xr mdoc 7 .
+.Pp
+If both a formatted and an unformatted version of the same manual page,
+for example
+.Pa cat1/foo.0
+and
+.Pa man1/foo.1 ,
+exist in the same directory, only the unformatted version is used.
+.Sh ENVIRONMENT
+.Bl -tag -width MANPATHX
+.It Ev MACHINE
+As some manual pages are intended only for specific architectures,
+.Nm
+searches any subdirectories,
+with the same name as the current architecture,
+in every directory which it searches.
+Machine specific areas are checked before general areas.
+The current machine type may be overridden by setting the environment
+variable
+.Ev MACHINE
+to the name of a specific architecture,
+or with the
+.Fl S
+option.
+.Ev MACHINE
+is case insensitive.
+.It Ev MANPAGER
+Any non-empty value of the environment variable
+.Ev MANPAGER
+is used instead of the standard pagination program,
+.Xr more 1 .
+If
+.Xr less 1
+is used, the interactive
+.Ic :t
+command can be used to go to the definitions of various terms, for
+example command line options, command modifiers, internal commands,
+environment variables, function names, preprocessor macros,
+.Xr errno 2
+values, and some other emphasized words.
+Some terms may have defining text at more than one place.
+In that case, the
+.Xr less 1
+interactive commands
+.Ic t
+and
+.Ic T
+can be used to move to the next and to the previous place providing
+information about the term last searched for with
+.Ic :t .
+.It Ev MANPATH
+The standard search path used by
+.Nm
+may be changed by specifying a path in the
+.Ev MANPATH
+environment variable.
+The format of the path is a colon
+.Pq Ql \&:
+separated list of directories.
+Invalid paths are ignored.
+Overridden by
+.Fl M ,
+ignored if
+.Fl l
+is specified.
+.Pp
+If
+.Ev MANPATH
+begins with a colon, it is appended to the default list;
+if it ends with a colon, it is prepended to the default list;
+or if it contains two adjacent colons,
+the standard search path is inserted between the colons.
+If none of these conditions are met, it overrides the
+standard search path.
+.It Ev PAGER
+Specifies the pagination program to use when
+.Ev MANPAGER
+is not defined.
+If neither PAGER nor MANPAGER is defined,
+.Xr more 1
+.Fl s
+is used.
+.El
+.Sh FILES
+.Bl -tag -width /etc/man.conf -compact
+.It Pa /etc/man.conf
+default man configuration file
+.El
+.Sh EXIT STATUS
+.Ex -std man
+See
+.Xr mandoc 1
+for details.
+.Sh EXAMPLES
+Format a page for pasting extracts into an email message \(em
+avoid printing any UTF-8 characters, reduce the width to ease
+quoting in replies, and remove markup:
+.Pp
+.Dl $ man -T ascii -O width=65 pledge | col -b
+.Pp
+Read a typeset page in a PDF viewer:
+.Pp
+.Dl $ MANPAGER=mupdf man -T pdf lpd
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr col 1 ,
+.Xr mandoc 1 ,
+.Xr ul 1 ,
+.Xr whereis 1 ,
+.Xr man.conf 5 ,
+.Xr mdoc 7
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The flags
+.Op Fl aCcfhIKlMmOSsTWw ,
+as well as the environment variables
+.Ev MACHINE ,
+.Ev MANPAGER ,
+and
+.Ev MANPATH ,
+are extensions to that specification.
+.Sh HISTORY
+A
+.Nm
+command first appeared in
+.At v3 .
+.Pp
+The
+.Fl w
+option first appeared in
+.At v7 ;
+.Fl f
+and
+.Fl k
+in
+.Bx 4 ;
+.Fl M
+in
+.Bx 4.3 ;
+.Fl a
+in
+.Bx 4.3 Tahoe ;
+.Fl c
+and
+.Fl m
+in
+.Bx 4.3 Reno ;
+.Fl h
+in
+.Bx 4.3 Net/2 ;
+.Fl C
+in
+.Nx 1.0 ;
+.Fl s
+and
+.Fl S
+in
+.Ox 2.3 ;
+and
+.Fl I ,
+.Fl K ,
+.Fl l ,
+.Fl O ,
+and
+.Fl W
+in
+.Ox 5.7 .
+The
+.Fl T
+option first appeared in
+.At III
+and was also added in
+.Ox 5.7 .

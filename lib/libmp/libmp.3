@@ -1,0 +1,314 @@
+.\"
+.\" Copyright (c) 2001 Dima Dorfman.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This manual page is based on the mp(3X) manual page from Sun Release
+.\" 4.1, dated 7 September 1989.  It's an old, crufty, and relatively ugly
+.\" manual page, but it does document what appears to be the "traditional"
+.\" libmp interface.
+.\"
+.\" $FreeBSD$
+.\"
+.\" See above for rationale for this date.
+.Dd September 7, 1989
+.Dt LIBMP 3
+.Os
+.Sh NAME
+.Nm libmp
+.Nd traditional BSD multiple precision integer arithmetic library
+.Sh SYNOPSIS
+.In mp.h
+.Pp
+Function prototypes are given in the main body of the text.
+.Pp
+Applications using this interface must be linked with
+.Fl l Ns Ar mp
+(this library)
+and
+.Fl l Ns Ar crypto
+.Pq Xr crypto 3 .
+.Sh DESCRIPTION
+.Bf -symbolic
+This interface is obsolete in favor of the
+.Xr crypto 3
+.Vt BIGNUM
+library.
+.Ef
+.Pp
+.Nm
+is the traditional
+.Bx
+multiple precision integer arithmetic library.
+It has a number of problems,
+and is unsuitable for use in any programs where reliability is a concern.
+It is provided here for compatibility only.
+.Pp
+These routines perform arithmetic on integers of arbitrary precision
+stored using the defined type
+.Vt MINT .
+Pointers to
+.Vt MINT
+are initialized using
+.Fn mp_itom
+or
+.Fn mp_xtom ,
+and must be recycled with
+.Fn mp_mfree
+when they are no longer needed.
+Routines which store a result in one of their arguments expect that
+the latter has also been initialized prior to being passed to it.
+The following routines are defined and implemented:
+.Pp
+.Ft "MINT *" Ns
+.Fn mp_itom "short n" ;
+.Pp
+.Ft "MINT *" Ns
+.Fn mp_xtom "const char *s" ;
+.Pp
+.Ft "char *" Ns
+.Fn mp_mtox "const MINT *mp" ;
+.Pp
+.Ft void
+.Fn mp_mfree "MINT *mp" ;
+.Bd -ragged -offset indent
+.Fn mp_itom
+returns an
+.Vt MINT
+with the value of
+.Fa n .
+.Fn mp_xtom
+returns an
+.Vt MINT
+with the value of
+.Fa s ,
+which is treated to be in hexadecimal.
+The return values from
+.Fn mp_itom
+and
+.Fn mp_xtom
+must be released with
+.Fn mp_mfree
+when they are no longer needed.
+.Fn mp_mtox
+returns a null-terminated hexadecimal string having the value of
+.Fa mp ;
+its return value must be released with
+.Fn free
+.Pq Xr free 3
+when it is no longer needed.
+.Ed
+.Pp
+.Ft void
+.Fn mp_madd "const MINT *mp1" "const MINT *mp2" "MINT *rmp" ;
+.Pp
+.Ft void
+.Fn mp_msub "const MINT *mp1" "const MINT *mp2" "MINT *rmp" ;
+.Pp
+.Ft void
+.Fn mp_mult "const MINT *mp1" "const MINT *mp2" "MINT *rmp" ;
+.Bd -ragged -offset indent
+.Fn mp_madd ,
+.Fn mp_msub ,
+and
+.Fn mp_mult
+store the sum, difference, or product, respectively, of
+.Fa mp1
+and
+.Fa mp2
+in
+.Fa rmp .
+.Ed
+.Pp
+.Ft void
+.Fn mp_mdiv "const MINT *nmp" "const MINT *dmp" "MINT *qmp" "MINT *rmp" ;
+.Pp
+.Ft void
+.Fn mp_sdiv "const MINT *nmp" "short d" "MINT *qmp" "short *ro" ;
+.Bd -ragged -offset indent
+.Fn mp_mdiv
+computes the quotient and remainder of
+.Fa nmp
+and
+.Fa dmp
+and stores the result in
+.Fa qmp
+and
+.Fa rmp ,
+respectively.
+.Fn mp_sdiv
+is similar to
+.Fn mp_mdiv
+except the divisor
+.Fa ( dmp
+or
+.Fa d )
+and remainder
+.Fa ( rmp
+or
+.Fa ro )
+are ordinary integers.
+.Ed
+.Pp
+.Ft void
+.Fn mp_pow "const MINT *bmp" "const MINT *emp" "const MINT *mmp" "MINT *rmp" ;
+.Pp
+.Ft void
+.Fn mp_rpow "const MINT *bmp" "short e" "MINT *rmp" ;
+.Bd -ragged -offset indent
+.Fn mp_rpow
+computes the result of
+.Fa bmp
+raised to the
+.Fa emp Ns th
+power and reduced modulo
+.Fa mmp ;
+the result is stored in
+.Fa rmp .
+.Fn mp_pow
+computes the result of
+.Fa bmp
+raised to the
+.Fa e Ns th
+power and stores the result in
+.Fa rmp .
+.Ed
+.Pp
+.Ft void
+.Fn mp_min "MINT *mp" ;
+.Pp
+.Ft void
+.Fn mp_mout "const MINT *mp" ;
+.Bd -ragged -offset indent
+.Fn mp_min
+reads a line from standard input, tries to interpret it as a decimal
+number, and if successful, stores the result in
+.Fa mp .
+.Fn mp_mout
+prints the value, in decimal, of
+.Fa mp
+to standard output (without a trailing newline).
+.Ed
+.Pp
+.Ft void
+.Fn mp_gcd "const MINT *mp1" "const MINT *mp2" "MINT *rmp" ;
+.Bd -ragged -offset indent
+.Fn mp_gcd
+computes the greatest common divisor of
+.Fa mp1
+and
+.Fa mp2
+and stores the result in
+.Fa rmp .
+.Ed
+.Pp
+.Ft int
+.Fn mp_mcmp "const MINT *mp1" "const MINT *mp2" ;
+.Bd -ragged -offset indent
+.Fa mcmp
+compares the values of
+.Fa mp1
+and
+.Fa mp2
+and returns
+0 if the two values are equal,
+a value greater than 0 if
+.Fa mp1
+is greater than
+.Fa mp2 ,
+and a value less than 0 if
+.Fa mp2
+is greater than
+.Fa mp1 .
+.Ed
+.Pp
+.Ft void
+.Fn mp_move "const MINT *smp" "MINT *tmp" ;
+.Bd -ragged -offset indent
+.Fn mp_move
+copies the value of
+.Fa smp
+to
+.Fa tmp
+(both values must be initialized).
+.Ed
+.Pp
+.Ft void
+.Fn mp_msqrt "const MINT *nmp" "MINT *xmp" "MINT *rmp" ;
+.Bd -ragged -offset indent
+.Fn mp_msqrt
+computes the square root and remainder of
+.Fa nmp
+and stores them in
+.Fa xmp
+and
+.Fa rmp ,
+respectively.
+.Ed
+.Sh IMPLEMENTATION NOTES
+This version of
+.Nm
+is implemented in terms of the
+.Xr crypto 3
+.Vt BIGNUM
+library.
+.Sh DIAGNOSTICS
+Running out of memory or illegal operations result in error messages
+on standard error and a call to
+.Xr abort 3 .
+.Sh SEE ALSO
+.Xr abort 3 ,
+.Xr bn 3 ,
+.Xr crypto 3 ,
+.Xr free 3 ,
+.Xr malloc 3 ,
+.Xr math 3
+.Sh HISTORY
+A
+.Nm
+library appeared in
+.Bx 4.3 .
+.Fx 2.2
+shipped with a
+.Nm
+implemented in terms of
+.Nm libgmp .
+This implementation appeared in
+.Fx 5.0 .
+.Sh BUGS
+Errors are reported via output to standard error and abnormal
+program termination instead of via return values.
+The application cannot control this behavior.
+.Pp
+It is not clear whether the string returned by
+.Fn mp_mtox
+may be written to by the caller.
+This implementation allows it, but others may not.
+Ideally,
+.Fn mp_mtox
+would take a pointer to a buffer to fill in.
+.Pp
+It is not clear whether using the same variable as both source and
+destination in a single invocation is permitted.
+Some of the calls in this implementation allow this, while others
+do not.

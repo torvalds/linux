@@ -1,0 +1,74 @@
+As with other systems using BPF, macOS allows users with read access to
+the BPF devices to capture packets with libpcap and allows users with
+write access to the BPF devices to send packets with libpcap.
+
+On some systems that use BPF, the BPF devices live on the root file
+system, and the permissions and/or ownership on those devices can be
+changed to give users other than root permission to read or write those
+devices.
+
+On newer versions of FreeBSD, the BPF devices live on devfs, and devfs
+can be configured to set the permissions and/or ownership of those
+devices to give users other than root permission to read or write those
+devices.
+
+On macOS, the BPF devices live on devfs, but the macOS version of devfs
+is based on an older (non-default) FreeBSD devfs, and that version of
+devfs cannot be configured to set the permissions and/or ownership of
+those devices.
+
+Therefore, we supply:
+
+	a "startup item" for older versions of macOS;
+
+	a launchd daemon for Tiger and later versions of macOS;
+
+Both of them will change the ownership of the BPF devices so that the
+"admin" group owns them, and will change the permission of the BPF
+devices to rw-rw----, so that all users in the "admin" group - i.e., all
+users with "Allow user to administer this computer" turned on - have
+both read and write access to them.
+
+The startup item is in the ChmodBPF directory in the source tree.  A
+/Library/StartupItems directory should be created if it doesn't already
+exist, and the ChmodBPF directory should be copied to the
+/Library/StartupItems directory (copy the entire directory, so that
+there's a /Library/StartupItems/ChmodBPF directory, containing all the
+files in the source tree's ChmodBPF directory; don't copy the individual
+items in that directory to /Library/StartupItems).  The ChmodBPF
+directory, and all files under it, must be owned by root.  Installing
+the files won't immediately cause the startup item to be executed; it
+will be executed on the next reboot.  To change the permissions before
+the reboot, run
+
+	sudo SystemStarter start ChmodBPF
+
+The launchd daemon is the chmod_bpf script, plus the
+org.tcpdump.chmod_bpf.plist launchd plist file.  chmod_bpf should be
+installed in /usr/local/bin/chmod_bpf, and org.tcpdump.chmod_bpf.plist
+should be installed in /Library/LaunchDaemons.  chmod_bpf, and
+org.tcpdump.chmod_bpf.plist, must be owned by root.  Installing the
+script and plist file won't immediately cause the script to be executed;
+it will be executed on the next reboot.  To change the permissions
+before the reboot, run
+
+	sudo /usr/local/bin/chmod_bpf
+
+or
+
+	sudo launchctl load /Library/LaunchDaemons/org.tcpdump.chmod_bpf.plist
+
+If you want to give a particular user permission to access the BPF
+devices, rather than giving all administrative users permission to
+access them, you can have the ChmodBPF/ChmodBPF script change the
+ownership of /dev/bpf* without changing the permissions.  If you want to
+give a particular user permission to read and write the BPF devices and
+give the administrative users permission to read but not write the BPF
+devices, you can have the script change the owner to that user, the
+group to "admin", and the permissions to rw-r-----.  Other possibilities
+are left as an exercise for the reader.
+
+(NOTE: due to a bug in Snow Leopard, if you change the permissions not
+to grant write permission to everybody who should be allowed to capture
+traffic, non-root users who cannot open the BPF devices for writing will
+not be able to capture outgoing packets.)

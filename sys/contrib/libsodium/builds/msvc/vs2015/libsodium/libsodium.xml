@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ProjectSchemaDefinitions xmlns="clr-namespace:Microsoft.Build.Framework.XamlTypes;assembly=Microsoft.Build.Framework">
+  <Rule Name="libsodium-uiextension" PageTemplate="tool" DisplayName="Sodium Options" SwitchPrefix="/" Order="1">
+    <Rule.Categories>
+      <Category Name="amd64asm" DisplayName="amd64asm" />
+    </Rule.Categories>
+    <Rule.DataSource>
+      <DataSource Persistence="ProjectFile" ItemType="" />
+    </Rule.DataSource>
+    <EnumProperty Name="Option-amd64asm" DisplayName="Enable AMD64 Assembly" Description="Enable the AMD64 Assembly build option" Category="amd64asm">
+      <EnumValue Name="" DisplayName="No" />
+      <EnumValue Name="true" DisplayName="Yes" />
+    </EnumProperty>
+  </Rule>
+</ProjectSchemaDefinitions>

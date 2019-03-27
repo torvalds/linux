@@ -1,0 +1,63 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_set_style , xo_set_style_name
+.Nd set the output style for a libxo handle
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Fn xo_set_style "xo_handle_t *handle" "unsigned style"
+.Ft int
+.Fn xo_set_style_name "xo_handle_t *handle" "const char *style"
+.Sh DESCRIPTION
+Use the
+.Fn xo_set_style
+function to set the output style for a handle.
+To use the default handle, pass a
+.Dv NULL
+handle.
+The set of output styles used by
+.Nm libxo
+is:
+.Bl -column "XO_STYLE_TEXT12"
+.It Sy "Flag          Description"
+.It "XO_STYLE_TEXT  Traditional text output"
+.It "XO_STYLE_XML   XML encoded data"
+.It "XO_STYLE_JSON  JSON encoded data"
+.It "XO_STYLE_HTML  HTML encoded data"
+.El
+.Pp
+The
+.Fn xo_set_style_name
+function can be used to set the style based on a name
+encoded as a string.
+The name can be any of the styles: "text", "xml", "json", or "html".
+.Bd -literal -offset indent
+    EXAMPLE:
+        xo_set_style_name(NULL, "html");
+.Ed
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

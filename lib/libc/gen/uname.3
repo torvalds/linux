@@ -1,0 +1,117 @@
+.\" Copyright (c) 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)uname.3	8.1 (Berkeley) 1/4/94
+.\" $FreeBSD$
+.\"
+.Dd December 2, 2005
+.Dt UNAME 3
+.Os
+.Sh NAME
+.Nm uname
+.Nd get system identification
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/utsname.h
+.Ft int
+.Fn uname "struct utsname *name"
+.Sh DESCRIPTION
+The
+.Fn uname
+function stores
+.Dv NUL Ns -terminated
+strings of information identifying
+the current system into the structure referenced by
+.Fa name .
+.Pp
+The
+.Vt utsname
+structure is defined in the
+.In sys/utsname.h
+header file, and contains the following members:
+.Bl -tag -width nodenameXXXX -offset indent
+.It sysname
+Name of the operating system implementation.
+.It nodename
+Network name of this machine.
+.It release
+Release level of the operating system.
+.It version
+Version level of the operating system.
+.It machine
+Machine hardware platform.
+.El
+.Sh RETURN VALUES
+.Rv -std uname
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev UNAME_s"
+.It Ev UNAME_s
+If the environment variable
+.Ev UNAME_s
+is set, it will override the
+.Va sysname
+member.
+.It Ev UNAME_r
+If the environment variable
+.Ev UNAME_r
+is set, it will override the
+.Va release
+member.
+.It Ev UNAME_v
+If the environment variable
+.Ev UNAME_v
+is set, it will override the
+.Va version
+member.
+.It Ev UNAME_m
+If the environment variable
+.Ev UNAME_m
+is set, it will override the
+.Va machine
+member.
+.El
+.Sh ERRORS
+The
+.Fn uname
+function may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr sysctl 3 .
+.Sh SEE ALSO
+.Xr uname 1 ,
+.Xr sysctl 3
+.Sh STANDARDS
+The
+.Fn uname
+function conforms to
+.St -p1003.1-88 .
+.Sh HISTORY
+The
+.Fn uname
+function first appeared in
+.Bx 4.4 .

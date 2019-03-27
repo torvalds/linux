@@ -1,0 +1,196 @@
+Resource Name;	Writers;	Readers;	Semantics of Dependency
+ALAT;	chk.a.clr, IC:mem-readers-alat, IC:mem-writers, IC:invala-all;	IC:mem-readers-alat, IC:mem-writers, IC:chk-a, invala.e;	none
+AR[BSP];	br.call, brl.call, br.ret, cover, IC:mov-to-AR-BSPSTORE, rfi;	br.call, brl.call, br.ia, br.ret, cover, flushrs, loadrs, IC:mov-from-AR-BSP, rfi;	impliedF
+AR[BSPSTORE];	alloc, loadrs, flushrs, IC:mov-to-AR-BSPSTORE;	alloc, br.ia, flushrs, IC:mov-from-AR-BSPSTORE;	impliedF
+AR[CCV];	IC:mov-to-AR-CCV;	br.ia, IC:cmpxchg, IC:mov-from-AR-CCV;	impliedF
+AR[CFLG];	IC:mov-to-AR-CFLG;	br.ia, IC:mov-from-AR-CFLG;	impliedF
+AR[CSD];	ld16, IC:mov-to-AR-CSD;	br.ia, cmp8xchg16, IC:mov-from-AR-CSD, st16;	impliedF
+AR[EC];	IC:mod-sched-brs, br.ret, IC:mov-to-AR-EC;	br.call, brl.call, br.ia, IC:mod-sched-brs, IC:mov-from-AR-EC;	impliedF
+AR[EFLAG];	IC:mov-to-AR-EFLAG;	br.ia, IC:mov-from-AR-EFLAG;	impliedF
+AR[FCR];	IC:mov-to-AR-FCR;	br.ia, IC:mov-from-AR-FCR;	impliedF
+AR[FDR];	IC:mov-to-AR-FDR;	br.ia, IC:mov-from-AR-FDR;	impliedF
+AR[FIR];	IC:mov-to-AR-FIR;	br.ia, IC:mov-from-AR-FIR;	impliedF
+AR[FPSR].sf0.controls;	IC:mov-to-AR-FPSR, fsetc.s0;	br.ia, IC:fp-arith-s0, IC:fcmp-s0, IC:fpcmp-s0, fsetc, IC:mov-from-AR-FPSR;	impliedF
+AR[FPSR].sf1.controls;	IC:mov-to-AR-FPSR, fsetc.s1;	br.ia, IC:fp-arith-s1, IC:fcmp-s1, IC:fpcmp-s1, IC:mov-from-AR-FPSR;	impliedF
+AR[FPSR].sf2.controls;	IC:mov-to-AR-FPSR, fsetc.s2;	br.ia, IC:fp-arith-s2, IC:fcmp-s2, IC:fpcmp-s2, IC:mov-from-AR-FPSR;	impliedF
+AR[FPSR].sf3.controls;	IC:mov-to-AR-FPSR, fsetc.s3;	br.ia, IC:fp-arith-s3, IC:fcmp-s3, IC:fpcmp-s3, IC:mov-from-AR-FPSR;	impliedF
+AR[FPSR].sf0.flags;	IC:fp-arith-s0, fclrf.s0, IC:fcmp-s0, IC:fpcmp-s0, IC:mov-to-AR-FPSR;	br.ia, fchkf, IC:mov-from-AR-FPSR;	impliedF
+AR[FPSR].sf1.flags;	IC:fp-arith-s1, fclrf.s1, IC:fcmp-s1, IC:fpcmp-s1, IC:mov-to-AR-FPSR;	br.ia, fchkf.s1, IC:mov-from-AR-FPSR;	impliedF
+AR[FPSR].sf2.flags;	IC:fp-arith-s2, fclrf.s2, IC:fcmp-s2, IC:fpcmp-s2, IC:mov-to-AR-FPSR;	br.ia, fchkf.s2, IC:mov-from-AR-FPSR;	impliedF
+AR[FPSR].sf3.flags;	IC:fp-arith-s3, fclrf.s3, IC:fcmp-s3, IC:fpcmp-s3, IC:mov-to-AR-FPSR;	br.ia, fchkf.s3, IC:mov-from-AR-FPSR;	impliedF
+AR[FPSR].traps;	IC:mov-to-AR-FPSR;	br.ia, IC:fp-arith, fchkf, fcmp, fpcmp, IC:mov-from-AR-FPSR;	impliedF
+AR[FPSR].rv;	IC:mov-to-AR-FPSR;	br.ia, IC:fp-arith, fchkf, fcmp, fpcmp, IC:mov-from-AR-FPSR;	impliedF
+AR[FSR];	IC:mov-to-AR-FSR;	br.ia, IC:mov-from-AR-FSR;	impliedF
+AR[ITC];	IC:mov-to-AR-ITC;	br.ia, IC:mov-from-AR-ITC;	impliedF
+AR[K%], % in 0 - 7;	IC:mov-to-AR-K+1;	br.ia, IC:mov-from-AR-K+1;	impliedF
+AR[LC];	IC:mod-sched-brs-counted, IC:mov-to-AR-LC;	br.ia, IC:mod-sched-brs-counted, IC:mov-from-AR-LC;	impliedF
+AR[PFS];	br.call, brl.call;	alloc, br.ia, br.ret, epc, IC:mov-from-AR-PFS;	impliedF
+AR[PFS];	IC:mov-to-AR-PFS;	alloc, br.ia, epc, IC:mov-from-AR-PFS;	impliedF
+AR[PFS];	IC:mov-to-AR-PFS;	br.ret;	none
+AR[RNAT];	alloc, flushrs, loadrs, IC:mov-to-AR-RNAT, IC:mov-to-AR-BSPSTORE;	alloc, br.ia, flushrs, loadrs, IC:mov-from-AR-RNAT;	impliedF
+AR[RSC];	IC:mov-to-AR-RSC;	alloc, br.ia, flushrs, loadrs, IC:mov-from-AR-RSC, IC:mov-from-AR-BSPSTORE, IC:mov-to-AR-RNAT, IC:mov-from-AR-RNAT, IC:mov-to-AR-BSPSTORE;	impliedF
+AR[SSD];	IC:mov-to-AR-SSD;	br.ia, IC:mov-from-AR-SSD;	impliedF
+AR[UNAT]{%}, % in 0 - 63;	IC:mov-to-AR-UNAT, st8.spill;	br.ia, ld8.fill, IC:mov-from-AR-UNAT;	impliedF
+AR%, % in 8-15, 20, 22-23, 31, 33-35, 37-39, 41-43, 45-47, 67-111;	IC:none;	br.ia, IC:mov-from-AR-rv+1;	none
+AR%, % in 48-63, 112-127;	IC:mov-to-AR-ig+1;	br.ia, IC:mov-from-AR-ig+1;	impliedF
+BR%, % in 0 - 7;	br.call+1, brl.call+1;	IC:indirect-brs+1, IC:indirect-brp+1, IC:mov-from-BR+1;	impliedF
+BR%, % in 0 - 7;	IC:mov-to-BR+1;	IC:indirect-brs+1;	none
+BR%, % in 0 - 7;	IC:mov-to-BR+1;	IC:indirect-brp+1, IC:mov-from-BR+1;	impliedF
+CFM;	IC:mod-sched-brs;	IC:mod-sched-brs;	impliedF
+CFM;	IC:mod-sched-brs;	cover, alloc, rfi, loadrs, br.ret, br.call, brl.call;	impliedF
+CFM;	IC:mod-sched-brs;	IC:cfm-readers+2;	impliedF
+CFM;	br.call, brl.call, br.ret, clrrrb, cover, rfi;	IC:cfm-readers;	impliedF
+CFM;	alloc;	IC:cfm-readers;	none
+CPUID#;	IC:none;	IC:mov-from-IND-CPUID+3;	specific
+CR[CMCV];	IC:mov-to-CR-CMCV;	IC:mov-from-CR-CMCV;	data
+CR[DCR];	IC:mov-to-CR-DCR;	IC:mov-from-CR-DCR, IC:mem-readers-spec;	data
+CR[EOI];	IC:mov-to-CR-EOI;	IC:none;	SC Section 5.8.3.4, "End of External Interrupt Register (EOI Ð CR67)" on page 2:119
+CR[GPTA];	IC:mov-to-CR-GPTA;	IC:mov-from-CR-GPTA, thash;	data
+CR[IFA];	IC:mov-to-CR-IFA;	itc.i, itc.d, itr.i, itr.d;	implied
+CR[IFA];	IC:mov-to-CR-IFA;	IC:mov-from-CR-IFA;	data
+CR[IFS];	IC:mov-to-CR-IFS;	IC:mov-from-CR-IFS;	data
+CR[IFS];	IC:mov-to-CR-IFS;	rfi;	implied
+CR[IFS];	cover;	rfi, IC:mov-from-CR-IFS;	implied
+CR[IHA];	IC:mov-to-CR-IHA;	IC:mov-from-CR-IHA;	data
+CR[IIM];	IC:mov-to-CR-IIM;	IC:mov-from-CR-IIM;	data
+CR[IIP];	IC:mov-to-CR-IIP;	IC:mov-from-CR-IIP;	data
+CR[IIP];	IC:mov-to-CR-IIP;	rfi;	implied
+CR[IIPA];	IC:mov-to-CR-IIPA;	IC:mov-from-CR-IIPA;	data
+CR[IPSR];	IC:mov-to-CR-IPSR;	IC:mov-from-CR-IPSR;	data
+CR[IPSR];	IC:mov-to-CR-IPSR;	rfi;	implied
+CR[IRR%], % in 0 - 3;	IC:mov-from-CR-IVR;	IC:mov-from-CR-IRR+1;	data
+CR[ISR];	IC:mov-to-CR-ISR;	IC:mov-from-CR-ISR;	data
+CR[ITIR];	IC:mov-to-CR-ITIR;	IC:mov-from-CR-ITIR;	data
+CR[ITIR];	IC:mov-to-CR-ITIR;	itc.i, itc.d, itr.i, itr.d;	implied
+CR[ITM];	IC:mov-to-CR-ITM;	IC:mov-from-CR-ITM;	data
+CR[ITV];	IC:mov-to-CR-ITV;	IC:mov-from-CR-ITV;	data
+CR[IVA];	IC:mov-to-CR-IVA;	IC:mov-from-CR-IVA;	instr
+CR[IVR];	IC:none;	IC:mov-from-CR-IVR;	SC Section 5.8.3.2, "External Interrupt Vector Register (IVR Ð CR65)" on page 2:118
+CR[LID];	IC:mov-to-CR-LID;	IC:mov-from-CR-LID;	SC Section 5.8.3.1, "Local ID (LID Ð CR64)" on page 2:117
+CR[LRR%], % in 0 - 1;	IC:mov-to-CR-LRR+1;	IC:mov-from-CR-LRR+1;	data
+CR[PMV];	IC:mov-to-CR-PMV;	IC:mov-from-CR-PMV;	data
+CR[PTA];	IC:mov-to-CR-PTA;	IC:mov-from-CR-PTA, IC:mem-readers, IC:mem-writers, IC:non-access, thash;	data
+CR[TPR];	IC:mov-to-CR-TPR;	IC:mov-from-CR-TPR, IC:mov-from-CR-IVR;	data
+CR[TPR];	IC:mov-to-CR-TPR;	IC:mov-to-PSR-l+17, ssm+17;	SC Section 5.8.3.3, "Task Priority Register (TPR Ð CR66)" on page 2:119
+CR[TPR];	IC:mov-to-CR-TPR;	rfi;	implied
+CR%, % in 3-7, 10-15, 18, 26-63, 75-79, 82-127;	IC:none;	IC:mov-from-CR-rv+1;	none
+DBR#;	IC:mov-to-IND-DBR+3;	IC:mov-from-IND-DBR+3;	impliedF
+DBR#;	IC:mov-to-IND-DBR+3;	IC:probe-all, IC:lfetch-all, IC:mem-readers, IC:mem-writers;	data
+DTC;	ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d, itc.i, itc.d, itr.i, itr.d;	IC:mem-readers, IC:mem-writers, IC:non-access;	data
+DTC;	itc.i, itc.d, itr.i, itr.d;	ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d, itc.i, itc.d, itr.i, itr.d;	impliedF
+DTC;	ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d;	ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d;	none
+DTC;	ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d;	itc.i, itc.d, itr.i, itr.d;	impliedF
+DTC_LIMIT*;	ptc.g, ptc.ga;	ptc.g, ptc.ga;	impliedF
+DTR;	itr.d;	IC:mem-readers, IC:mem-writers, IC:non-access;	data
+DTR;	itr.d;	ptc.g, ptc.ga, ptc.l, ptr.d, itr.d;	impliedF
+DTR;	ptr.d;	IC:mem-readers, IC:mem-writers, IC:non-access;	data
+DTR;	ptr.d;	ptc.g, ptc.ga, ptc.l, ptr.d;	none
+DTR;	ptr.d;	itr.d, itc.d;	impliedF
+FR%, % in 0 - 1;	IC:none;	IC:fr-readers+1;	none
+FR%, % in 2 - 127;	IC:fr-writers+1\IC:ldf-c+1\IC:ldfp-c+1;	IC:fr-readers+1;	impliedF
+FR%, % in 2 - 127;	IC:ldf-c+1, IC:ldfp-c+1;	IC:fr-readers+1;	none
+GR0;	IC:none;	IC:gr-readers+1;	none
+GR%, % in 1 - 127;	IC:ld-c+1+13;	IC:gr-readers+1;	none
+GR%, % in 1 - 127;	IC:gr-writers+1\IC:ld-c+1+13;	IC:gr-readers+1;	impliedF
+IBR#;	IC:mov-to-IND-IBR+3;	IC:mov-from-IND-IBR+3;	impliedF
+InService*;	IC:mov-to-CR-EOI;	IC:mov-from-CR-IVR;	data
+InService*;	IC:mov-from-CR-IVR;	IC:mov-from-CR-IVR;	impliedF
+InService*;	IC:mov-to-CR-EOI;	IC:mov-to-CR-EOI;	impliedF
+IP;	IC:all;	IC:all;	none
+ITC;	ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d;	epc, vmsw;	instr
+ITC;	ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d;	itc.i, itc.d, itr.i, itr.d;	impliedF
+ITC;	ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d;	ptr.i, ptr.d, ptc.e, ptc.g, ptc.ga, ptc.l;	none
+ITC;	itc.i, itc.d, itr.i, itr.d;	epc, vmsw;	instr
+ITC;	itc.i, itc.d, itr.i, itr.d;	itc.d, itc.i, itr.d, itr.i, ptr.d, ptr.i, ptc.g, ptc.ga, ptc.l;	impliedF
+ITC_LIMIT*;	ptc.g, ptc.ga;	ptc.g, ptc.ga;	impliedF
+ITR;	itr.i;	itr.i, itc.i, ptc.g, ptc.ga, ptc.l, ptr.i;	impliedF
+ITR;	itr.i;	epc, vmsw;	instr
+ITR;	ptr.i;	itc.i, itr.i;	impliedF
+ITR;	ptr.i;	ptc.g, ptc.ga, ptc.l, ptr.i;	none
+ITR;	ptr.i;	epc, vmsw;	instr
+memory;	IC:mem-writers;	IC:mem-readers;	none
+MSR#;	IC:mov-to-IND-MSR+5;	IC:mov-from-IND-MSR+5;	specific
+PKR#;	IC:mov-to-IND-PKR+3;	IC:mem-readers, IC:mem-writers, IC:mov-from-IND-PKR+4, IC:probe-all;	data
+PKR#;	IC:mov-to-IND-PKR+3;	IC:mov-to-IND-PKR+4;	none
+PKR#;	IC:mov-to-IND-PKR+3;	IC:mov-from-IND-PKR+3;	impliedF
+PKR#;	IC:mov-to-IND-PKR+3;	IC:mov-to-IND-PKR+3;	impliedF
+PMC#;	IC:mov-to-IND-PMC+3;	IC:mov-from-IND-PMC+3;	impliedF
+PMC#;	IC:mov-to-IND-PMC+3;	IC:mov-from-IND-PMD+3;	SC Section 7.2.1, "Generic Performance Counter Registers" for PMC[0].fr on page 2:150
+PMD#;	IC:mov-to-IND-PMD+3;	IC:mov-from-IND-PMD+3;	impliedF
+PR0;	IC:pr-writers+1;	IC:pr-readers-br+1, IC:pr-readers-nobr-nomovpr+1, IC:mov-from-PR+12, IC:mov-to-PR+12;	none
+PR%, % in 1 - 15;	IC:pr-writers+1, IC:mov-to-PR-allreg+7;	IC:pr-readers-nobr-nomovpr+1, IC:mov-from-PR, IC:mov-to-PR+12;	impliedF
+PR%, % in 1 - 15;	IC:pr-writers-fp+1;	IC:pr-readers-br+1;	impliedF
+PR%, % in 1 - 15;	IC:pr-writers-int+1, IC:mov-to-PR-allreg+7;	IC:pr-readers-br+1;	none
+PR%, % in 16 - 62;	IC:pr-writers+1, IC:mov-to-PR-allreg+7, IC:mov-to-PR-rotreg;	IC:pr-readers-nobr-nomovpr+1, IC:mov-from-PR, IC:mov-to-PR+12;	impliedF
+PR%, % in 16 - 62;	IC:pr-writers-fp+1;	IC:pr-readers-br+1;	impliedF
+PR%, % in 16 - 62;	IC:pr-writers-int+1, IC:mov-to-PR-allreg+7, IC:mov-to-PR-rotreg;	IC:pr-readers-br+1;	none
+PR63;	IC:mod-sched-brs, IC:pr-writers+1, IC:mov-to-PR-allreg+7, IC:mov-to-PR-rotreg;	IC:pr-readers-nobr-nomovpr+1, IC:mov-from-PR, IC:mov-to-PR+12;	impliedF
+PR63;	IC:pr-writers-fp+1, IC:mod-sched-brs;	IC:pr-readers-br+1;	impliedF
+PR63;	IC:pr-writers-int+1, IC:mov-to-PR-allreg+7, IC:mov-to-PR-rotreg;	IC:pr-readers-br+1;	none
+PSR.ac;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um;	IC:mem-readers, IC:mem-writers;	implied
+PSR.ac;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mem-readers, IC:mem-writers;	data
+PSR.ac;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mov-from-PSR, IC:mov-from-PSR-um;	impliedF
+PSR.ac;	rfi;	IC:mem-readers, IC:mem-writers, IC:mov-from-PSR, IC:mov-from-PSR-um;	impliedF
+PSR.be;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um;	IC:mem-readers, IC:mem-writers;	implied
+PSR.be;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mem-readers, IC:mem-writers;	data
+PSR.be;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mov-from-PSR, IC:mov-from-PSR-um;	impliedF
+PSR.be;	rfi;	IC:mem-readers, IC:mem-writers, IC:mov-from-PSR, IC:mov-from-PSR-um;	impliedF
+PSR.bn;	bsw, rfi;	IC:gr-readers+10, IC:gr-writers+10;	impliedF
+PSR.cpl;	epc, br.ret;	IC:priv-ops, br.call, brl.call, epc, IC:mov-from-AR-ITC, IC:mov-to-AR-ITC, IC:mov-to-AR-RSC, IC:mov-to-AR-K, IC:mov-from-IND-PMD, IC:probe-all, IC:mem-readers, IC:mem-writers, IC:lfetch-all;	implied
+PSR.cpl;	rfi;	IC:priv-ops, br.call, brl.call, epc, IC:mov-from-AR-ITC, IC:mov-to-AR-ITC, IC:mov-to-AR-RSC, IC:mov-to-AR-K, IC:mov-from-IND-PMD, IC:probe-all, IC:mem-readers, IC:mem-writers, IC:lfetch-all;	impliedF
+PSR.da;	rfi;	IC:mem-readers, IC:lfetch-all, IC:mem-writers, IC:probe-fault;	impliedF
+PSR.db;	IC:mov-to-PSR-l;	IC:lfetch-all, IC:mem-readers, IC:mem-writers, IC:probe-fault;	data
+PSR.db;	IC:mov-to-PSR-l;	IC:mov-from-PSR;	impliedF
+PSR.db;	rfi;	IC:lfetch-all, IC:mem-readers, IC:mem-writers, IC:mov-from-PSR, IC:probe-fault;	impliedF
+PSR.dd;	rfi;	IC:lfetch-all, IC:mem-readers, IC:probe-fault, IC:mem-writers;	impliedF
+PSR.dfh;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:fr-readers+8, IC:fr-writers+8;	data
+PSR.dfh;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mov-from-PSR;	impliedF
+PSR.dfh;	rfi;	IC:fr-readers+8, IC:fr-writers+8, IC:mov-from-PSR;	impliedF
+PSR.dfl;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:fr-writers+8, IC:fr-readers+8;	data
+PSR.dfl;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mov-from-PSR;	impliedF
+PSR.dfl;	rfi;	IC:fr-writers+8, IC:fr-readers+8, IC:mov-from-PSR;	impliedF
+PSR.di;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	br.ia;	data
+PSR.di;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mov-from-PSR;	impliedF
+PSR.di;	rfi;	br.ia, IC:mov-from-PSR;	impliedF
+PSR.dt;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mem-readers, IC:mem-writers, IC:non-access;	data
+PSR.dt;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mov-from-PSR;	impliedF
+PSR.dt;	rfi;	IC:mem-readers, IC:mem-writers, IC:non-access, IC:mov-from-PSR;	impliedF
+PSR.ed;	rfi;	IC:lfetch-all, IC:mem-readers-spec;	impliedF
+PSR.i;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:mov-from-PSR;	impliedF
+PSR.ia;	rfi;	IC:all;	none
+PSR.ic;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mov-from-PSR;	impliedF
+PSR.ic;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	cover, itc.i, itc.d, itr.i, itr.d, IC:mov-from-interruption-CR, IC:mov-to-interruption-CR;	data
+PSR.ic;	rfi;	IC:mov-from-PSR, cover, itc.i, itc.d, itr.i, itr.d, IC:mov-from-interruption-CR, IC:mov-to-interruption-CR;	impliedF
+PSR.id;	rfi;	IC:all;	none
+PSR.is;	br.ia, rfi;	IC:none;	none
+PSR.it;	rfi;	IC:branches, IC:mov-from-PSR, chk, epc, fchkf, vmsw;	impliedF
+PSR.lp;	IC:mov-to-PSR-l;	IC:mov-from-PSR;	impliedF
+PSR.lp;	IC:mov-to-PSR-l;	br.ret;	data
+PSR.lp;	rfi;	IC:mov-from-PSR, br.ret;	impliedF
+PSR.mc;	rfi;	IC:mov-from-PSR;	impliedF
+PSR.mfh;	IC:fr-writers+9, IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:mov-from-PSR-um, IC:mov-from-PSR;	impliedF
+PSR.mfl;	IC:fr-writers+9, IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:mov-from-PSR-um, IC:mov-from-PSR;	impliedF
+PSR.pk;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:lfetch-all, IC:mem-readers, IC:mem-writers, IC:probe-all;	data
+PSR.pk;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mov-from-PSR;	impliedF
+PSR.pk;	rfi;	IC:lfetch-all, IC:mem-readers, IC:mem-writers, IC:mov-from-PSR, IC:probe-all;	impliedF
+PSR.pp;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:mov-from-PSR;	impliedF
+PSR.ri;	rfi;	IC:all;	none
+PSR.rt;	IC:mov-to-PSR-l;	IC:mov-from-PSR;	impliedF
+PSR.rt;	IC:mov-to-PSR-l;	alloc, flushrs, loadrs;	data
+PSR.rt;	rfi;	IC:mov-from-PSR, alloc, flushrs, loadrs;	impliedF
+PSR.si;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mov-from-PSR;	impliedF
+PSR.si;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mov-from-AR-ITC;	data
+PSR.si;	rfi;	IC:mov-from-AR-ITC, IC:mov-from-PSR;	impliedF
+PSR.sp;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mov-from-PSR;	impliedF
+PSR.sp;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l;	IC:mov-from-IND-PMD, IC:mov-to-PSR-um, rum, sum;	data
+PSR.sp;	rfi;	IC:mov-from-IND-PMD, IC:mov-from-PSR, IC:mov-to-PSR-um, rum, sum;	impliedF
+PSR.ss;	rfi;	IC:all;	impliedF
+PSR.tb;	IC:mov-to-PSR-l;	IC:branches, chk, fchkf;	data
+PSR.tb;	IC:mov-to-PSR-l;	IC:mov-from-PSR;	impliedF
+PSR.tb;	rfi;	IC:branches, chk, fchkf, IC:mov-from-PSR;	impliedF
+PSR.up;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:mov-from-PSR-um, IC:mov-from-PSR;	impliedF
+PSR.vm;	vmsw;	IC:mem-readers, IC:mem-writers, IC:mov-from-AR-ITC, IC:mov-from-IND-CPUID, IC:mov-to-AR-ITC, IC:priv-ops\vmsw, cover, thash, ttag;	implied
+PSR.vm;	rfi;	IC:mem-readers, IC:mem-writers, IC:mov-from-AR-ITC, IC:mov-from-IND-CPUID, IC:mov-to-AR-ITC, IC:priv-ops\vmsw, cover, thash, ttag;	impliedF
+RR#;	IC:mov-to-IND-RR+6;	IC:mem-readers, IC:mem-writers, itc.i, itc.d, itr.i, itr.d, IC:non-access, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d, thash, ttag;	data
+RR#;	IC:mov-to-IND-RR+6;	IC:mov-from-IND-RR+6;	impliedF
+RSE;	IC:rse-writers+14;	IC:rse-readers+14;	impliedF

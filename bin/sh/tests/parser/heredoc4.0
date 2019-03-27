@@ -1,0 +1,44 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if ! eval "[ $* ]"; then
+		echo "Failed: $*"
+		: $((failures += 1))
+	fi
+}
+
+f() {
+	cat <<EOF && echo `echo bar`
+foo
+EOF
+}
+check '"`f`" = "foo
+bar"'
+
+f() {
+	cat <<EOF && echo $(echo bar)
+foo
+EOF
+}
+check '"$(f)" = "foo
+bar"'
+
+f() {
+	echo `echo bar` && cat <<EOF
+foo
+EOF
+}
+check '"`f`" = "bar
+foo"'
+
+f() {
+	echo $(echo bar) && cat <<EOF
+foo
+EOF
+}
+check '"$(f)" = "bar
+foo"'
+
+exit $((failures != 0))

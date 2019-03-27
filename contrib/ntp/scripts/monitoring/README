@@ -1,0 +1,158 @@
+This directory contains support for monitoring the local clock of xntp daemons.
+
+WARNING: The scripts and routines contained in this directory are beta
+	 release!  Do not depend on their correct operation. They are,
+	 however, in regular use at University of Erlangen-Nuernberg.
+	 No severe problems are known for this code.
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+PLEASE THINK TWICE BEFORE STARTING MONITORING REMOTE XNTP DEAMONS !!!!
+MONITORING MAY INCREASE THE LOAD OF THE DEAMON MONITORED AND MAY
+INCREASE THE NETWORK LOAD SIGNIFICANTLY
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+Files are:
+
+README:
+	This file
+
+ntptrap:
+	perl script to log ntp mode 6 trap messages.
+
+	It sends a set_trap request to each server given and dumps the
+	trap messages received. It handles refresh of set_trap.
+	Currently it handles only NTP V2, however the NTP V3 servers
+	also accept v2 requests. It will not interpret v3 system and
+	peer stati correctly.
+
+	usage:
+	  ntptrap [-n] [-p <port>] [-l <debug-output>] servers...
+	
+	-n:		do not send set_trap requests
+
+	port:		port to listen for responses
+			useful if you have a configured trap
+
+	debug-output:	file to write trace output to (for debugging)
+
+	This script convinced me that ntp trap messages are only of
+	little use.
+
+ntploopstat:
+	perl script to gather loop info statistics from xntpd via mode 7
+	LOOP_INFO requests.
+
+	This script collects data to allow monitoring of remote xntp servers
+	where it is not possible to directly access the loopstats file
+	produced by xntpd itself. Of course, it can be used to sample
+	a local server if it is not configured to produce a loopstats file.
+
+	Please note, this program poses a high load on the server as
+	a communication takes place every delay seconds ! USE WITH CARE !
+
+	usage:
+	  ntploopstat [-d<delay>] [-t<timeout>] [-l <logfile>] [-v] [ntpserver]
+	
+	delay:		number of seconds to wait between samples
+			default: 60 seconds
+	timeout:	number of seconds to wait for reply
+			default 12 seconds
+	logfile:	file to log samples to
+			default: loopstats:<ntpserver>:
+			(note the trailing colon)
+			This name actually is a prefix.
+			The file name is dynamically derived by appending
+			the name of the month the sample belongs to.
+			Thus all samples of a month end up in the same file.
+
+	the format of the files generated is identical to the format used by
+	xntpd with the loopstats file:
+		MJD <seconds since midnight UTC> offset frequency compliance
+	
+	if a timeout occurs the next sample is tried after delay/2 seconds
+
+	The script will terminate after MAX_FAIL (currently 60)
+	consecutive errors.
+
+	Errors are counted for:
+		- error on send call
+		- error on select call
+		- error on recv call
+		- short packet received
+		- bad packet 
+		- error on open for logfile
+
+ntploopwatch:
+	perl script to display loop filter statistics collected by ntploopstat
+	or dumped directly by xntpd.
+
+	Gnuplot is used to produce a graphical representation of the sample
+	values, that have been preprocessed and analysed by this script.
+
+	It can either be called to produce a printout of specific data set or
+	used to continously monitor the values. Monitoring is achieved by 
+	periodically reprocessing the logfiles, which are updated regularly
+	either by a running ntploopstat process or by the running xntpd.
+
+	usage:
+	  to watch statistics permanently:
+	     ntploopwatch [-v[<level>]] [-c <config-file>] [-d <working-dir>]
+
+	  to get a single print out specify also
+			  -P<printer> [-s<samples>]
+				      [-S <start-time>] [-E <end-time>]
+				      [-O <MaxOffs>] [-o <MinOffs>]
+	
+	level:		level of verbosity for debugging
+	config-file:	file to read configurable settings from
+			On each iteration it is checked and reread
+			if it has been changed
+			default: loopwatch.config
+	working-dir:	specify working directory for process, affects
+			interpretation of relative file names
+	
+	All other flags are only useful with printing plots, as otherwise
+	command line values would be replaced by settings from the config file.
+
+	printer:	specify printer to print plot
+			BSD print systems semantics apply; if printer
+			is omitted the name "ps" is used; plots are
+			prepared using PostScript, thus the printer
+			should best accept postscript input
+
+	For the following see also the comments in loopwatch.config.SAMPLE
+
+	samples:	use last # samples from input data
+	start-time:	ignore input samples before this date
+	end-time:	ignore input samples after this date
+			if both start-time and end-time are specified
+			a given samples value is ignored
+	MaxOffs:
+	MinOffs:	restrict value range 
+
+loopwatch.config.SAMPLE:
+	sample config file for ntploopwatch
+	each configurable option is explained there
+
+lr.pl:
+	linear regression package used by ntploopwatch to compute
+	linear approximations for frequency and offset values
+	within display range
+
+timelocal.pl:
+
+	used during conversion of ISO_DATE_TIME values specified in
+	loopwatch config files to unix epoch values (seconds since
+	1970-01-01_00:00_00 UTC)
+
+	A version of this file is distributed with perl-4.x, however,
+	it has a bug related to dates crossing 1970, causing endless loops..
+	The version contained here has been fixed.
+
+ntp.pl:
+	perl support for ntp v2 mode 6 message handling
+	WARNING: This code is beta level - it triggers a memory leak;
+		 as for now it is not quite clear, wether this is caused by a
+		 bug in perl or by bad usage of perl within this script.
+

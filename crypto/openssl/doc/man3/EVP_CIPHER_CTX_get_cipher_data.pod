@@ -1,0 +1,51 @@
+=pod
+
+=head1 NAME
+
+EVP_CIPHER_CTX_get_cipher_data, EVP_CIPHER_CTX_set_cipher_data - Routines to
+inspect and modify EVP_CIPHER_CTX objects
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ void *EVP_CIPHER_CTX_get_cipher_data(const EVP_CIPHER_CTX *ctx);
+ void *EVP_CIPHER_CTX_set_cipher_data(EVP_CIPHER_CTX *ctx, void *cipher_data);
+
+=head1 DESCRIPTION
+
+The EVP_CIPHER_CTX_get_cipher_data() function returns a pointer to the cipher
+data relevant to EVP_CIPHER_CTX. The contents of this data is specific to the
+particular implementation of the cipher. For example this data can be used by
+engines to store engine specific information. The data is automatically
+allocated and freed by OpenSSL, so applications and engines should not normally
+free this directly (but see below).
+
+The EVP_CIPHER_CTX_set_cipher_data() function allows an application or engine to
+replace the cipher data with new data. A pointer to any existing cipher data is
+returned from this function. If the old data is no longer required then it
+should be freed through a call to OPENSSL_free().
+
+=head1 RETURN VALUES
+
+The EVP_CIPHER_CTX_get_cipher_data() function returns a pointer to the current
+cipher data for the EVP_CIPHER_CTX.
+
+The EVP_CIPHER_CTX_set_cipher_data() function returns a pointer to the old
+cipher data for the EVP_CIPHER_CTX.
+
+=head1 HISTORY
+
+The EVP_CIPHER_CTX_get_cipher_data() and EVP_CIPHER_CTX_set_cipher_data()
+functions were added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

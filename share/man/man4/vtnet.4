@@ -1,0 +1,115 @@
+.\" Copyright (c) 2011 Bryan Venteicher
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 22, 2012
+.Dt VTNET 4
+.Os
+.Sh NAME
+.Nm vtnet
+.Nd VirtIO Ethernet driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device vtnet"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_vtnet_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides support for VirtIO Ethernet devices.
+.Pp
+If the hypervisor advertises the appreciate features, the
+.Nm
+driver supports TCP/UDP checksum offload for both transmit and receive,
+TCP segmentation offload (TSO), TCP large receive offload (LRO),
+hardware VLAN tag stripping/insertion features, a multicast hash filter,
+as well as Jumbo Frames (up to 9216 bytes), which can be
+configured via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit Jumbo Frames.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "xxxxxx"
+.It Va hw.vtnet.csum_disable
+.It Va hw.vtnet. Ns Ar X Ns Va .csum_disable
+This tunable disables receive and send checksum offload.
+The default value is 0.
+.It Va hw.vtnet.tso_disable
+.It Va hw.vtnet. Ns Ar X Ns Va .tso_disable
+This tunable disables TSO.
+The default value is 0.
+.It Va hw.vtnet.lro_disable
+.It Va hw.vtnet. Ns Ar X Ns Va .lro_disable
+This tunable disables LRO.
+The default value is 0.
+.It Va hw.vtnet.mq_disable
+.It Va hw.vtnet. Ns Ar X Ns Va .mq_disable
+This tunable disables multiqueue.
+The default value is 0.
+.It Va hw.vtnet.mq_max_pairs
+.It Va hw.vtnet. Ns Ar X Ns Va .mq_max_pairs
+This tunable sets the maximum number of transmit and receive queue pairs.
+Multiple queues are only supported when the Multiqueue feature is negotiated.
+This driver supports a maximum of 8 queue pairs.
+The number of queue pairs used is the lesser of the maximum supported by the
+driver and the hypervisor, the number of CPUs present in the guest, and this
+tunable if not zero.
+The default value is 0.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr virtio 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver was written by
+.An Bryan Venteicher Aq Mt bryanv@FreeBSD.org .
+It first appeared in
+.Fx 9.0 .
+.Sh CAVEATS
+The
+.Nm
+driver only supports LRO when the hypervisor advertises the
+mergeable buffer feature.

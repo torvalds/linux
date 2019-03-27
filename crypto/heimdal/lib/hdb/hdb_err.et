@@ -1,0 +1,30 @@
+#
+# Error messages for the hdb library
+#
+# This might look like a com_err file, but is not
+#
+id "$Id$"
+
+error_table hdb
+
+prefix HDB_ERR
+
+index 1
+#error_code INUSE,		"Entry already exists in database"
+error_code UK_SERROR,		"Database store error"
+error_code UK_RERROR,		"Database read error"
+error_code NOENTRY,		"No such entry in the database"
+error_code DB_INUSE,		"Database is locked or in use--try again later"
+error_code DB_CHANGED,		"Database was modified during read"
+error_code RECURSIVELOCK,	"Attempt to lock database twice"
+error_code NOTLOCKED,		"Attempt to unlock database when not locked"
+error_code BADLOCKMODE,		"Invalid kdb lock mode"
+error_code CANT_LOCK_DB,	"Insufficient access to lock database"
+error_code EXISTS,		"Entry already exists in database"
+error_code BADVERSION,		"Wrong database version"
+error_code NO_MKEY,		"No correct master key"
+error_code MANDATORY_OPTION,	"Entry contains unknown mandatory extension"
+error_code NO_WRITE_SUPPORT,	"HDB backend doesn't contain write support"
+error_code NOT_FOUND_HERE,	"The secret for this entry is not replicated to this database"
+
+end

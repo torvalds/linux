@@ -1,0 +1,183 @@
+.\"	$NetBSD: seq.1,v 1.8 2013/04/07 17:37:45 jdf Exp $
+.\"
+.\" Copyright (c) 2005 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Brian Ginsbach.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 30, 2018
+.Dt SEQ 1
+.Os
+.Sh NAME
+.Nm seq
+.Nd print sequences of numbers
+.Sh SYNOPSIS
+.Nm
+.Op Fl w
+.Op Fl f Ar format
+.Op Fl s Ar string
+.Op Fl t Ar string
+.Op Ar first Op Ar incr
+.Ar last
+.Sh DESCRIPTION
+The
+.Nm
+utility prints a sequence of numbers, one per line
+.Pq default ,
+from
+.Ar first
+.Pq default 1 ,
+to near
+.Ar last
+as possible, in increments of
+.Ar incr
+.Pq default 1 .
+When
+.Ar first
+is larger than
+.Ar last ,
+the default
+.Ar incr
+is -1.
+.Pp
+All numbers are interpreted as floating point.
+.Pp
+Normally integer values are printed as decimal integers.
+.Pp
+The
+.Nm
+utility accepts the following options:
+.Bl -tag -width Ar
+.It Fl f Ar format , Fl -format Ar format
+Use a
+.Xr printf 3
+style
+.Ar format
+to print each number.
+Only the
+.Cm A ,
+.Cm a ,
+.Cm E ,
+.Cm e ,
+.Cm F ,
+.Cm f ,
+.Cm G ,
+.Cm g ,
+and
+.Cm %
+conversion characters are valid, along with any optional
+flags and an optional numeric minimum field width or precision.
+The
+.Ar format
+can contain character escape sequences in backslash notation as
+defined in
+.St -ansiC .
+The default is
+.Cm %g .
+.It Fl s Ar string , Fl -separator Ar string
+Use
+.Ar string
+to separate numbers.
+The
+.Ar string
+can contain character escape sequences in backslash notation as
+defined in
+.St -ansiC .
+The default is
+.Cm \en .
+.It Fl t Ar string , Fl -terminator Ar string
+Use
+.Ar string
+to terminate sequence of numbers.
+The
+.Ar string
+can contain character escape sequences in backslash notation as
+defined in
+.St -ansiC .
+This option is useful when the default separator
+does not contain a
+.Cm \en .
+.It Fl w , Fl -fixed-width
+Equalize the widths of all numbers by padding with zeros as necessary.
+This option has no effect with the
+.Fl f
+option.
+If any sequence numbers will be printed in exponential notation,
+the default conversion is changed to
+.Cm %e .
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+.Bd -literal -offset indent
+# seq 1 3
+1
+2
+3
+
+# seq 3 1
+3
+2
+1
+
+# seq -w 0 .05 .1
+0.00
+0.05
+0.10
+.Ed
+.Sh SEE ALSO
+.Xr jot 1 ,
+.Xr printf 1 ,
+.Xr printf 3
+.Sh HISTORY
+The
+.Nm
+command first appeared in Version\~8
+.At .
+A
+.Nm
+command appeared in
+.Nx 3.0 ,
+and was ported to
+.Fx 9.0 .
+This command was based on the command of the same name in
+.Tn "Plan 9 from Bell Labs"
+and the
+.Tn GNU
+core utilities.
+The
+.Tn GNU
+.Nm
+command first appeared in the 1.13 shell utilities release.
+.Sh BUGS
+The
+.Fl w
+option does not handle the transition from pure floating point
+to exponent representation very well.
+The
+.Nm
+command is not bug for bug compatible with other implementations.

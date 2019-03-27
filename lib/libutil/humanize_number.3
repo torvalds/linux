@@ -1,0 +1,208 @@
+.\"	$NetBSD: humanize_number.3,v 1.4 2003/04/16 13:34:37 wiz Exp $
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 1999, 2002 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Luke Mewburn and by Tomas Svensson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd October 7, 2013
+.Dt HUMANIZE_NUMBER 3
+.Os
+.Sh NAME
+.Nm humanize_number
+.Nd format a number into a human readable form
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In libutil.h
+.Ft int
+.Fo humanize_number
+.Fa "char *buf" "size_t len" "int64_t number" "const char *suffix"
+.Fa "int scale" "int flags"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn humanize_number
+function formats the signed 64-bit quantity given in
+.Fa number
+into
+.Fa buf .
+A space and then
+.Fa suffix
+is appended to the end.
+The buffer pointed to by
+.Fa buf
+must be at least
+.Fa len
+bytes long.
+.Pp
+If the formatted number (including
+.Fa suffix )
+would be too long to fit into
+.Fa buf ,
+then divide
+.Fa number
+by 1024 until it will.
+In this case, prefix
+.Fa suffix
+with the appropriate designator.
+The
+.Fn humanize_number
+function follows the traditional computer science conventions by
+default, rather than the IEE/IEC (and now also SI) power of two
+convention or the power of ten notion.
+This behaviour however can be altered by specifying the
+.Dv HN_DIVISOR_1000
+and
+.Dv HN_IEC_PREFIXES
+flags.
+.Pp
+The traditional
+.Pq default
+prefixes are:
+.Bl -column "Prefix" "Description" "1000000000000000000" -offset indent
+.It Sy "Prefix" Ta Sy "Description" Ta Sy "Multiplier" Ta Sy "Multiplier 1000x"
+.It Li (note) Ta No kilo Ta 1024 Ta 1000
+.It Li M Ta No mega Ta 1048576 Ta 1000000
+.It Li G Ta No giga Ta 1073741824 Ta 1000000000
+.It Li T Ta No tera Ta 1099511627776 Ta 1000000000000
+.It Li P Ta No peta Ta 1125899906842624 Ta 1000000000000000
+.It Li E Ta No exa Ta 1152921504606846976 Ta 1000000000000000000
+.El
+.Pp
+Note:
+An uppercase K indicates a power of two, a lowercase k a power of ten.
+.Pp
+The IEE/IEC (and now also SI) power of two prefixes are:
+.Bl -column "Prefix" "Description" "1000000000000000000" -offset indent
+.It Sy "Prefix" Ta Sy "Description" Ta Sy "Multiplier"
+.It Li Ki Ta No kibi Ta 1024
+.It Li Mi Ta No mebi Ta 1048576
+.It Li Gi Ta No gibi Ta 1073741824
+.It Li Ti Ta No tebi Ta 1099511627776
+.It Li Pi Ta No pebi Ta 1125899906842624
+.It Li Ei Ta No exbi Ta 1152921504606846976
+.El
+.Pp
+The
+.Fa len
+argument must be at least 4 plus the length of
+.Fa suffix ,
+in order to ensure a useful result is generated into
+.Fa buf .
+To use a specific prefix, specify this as
+.Fa scale
+.Po multiplier = 1024 ^ scale;
+when
+.Dv HN_DIVISOR_1000
+is specified,
+multiplier = 1000 ^ scale
+.Pc .
+This cannot be combined with any of the
+.Fa scale
+flags below.
+.Pp
+The following flags may be passed in
+.Fa scale :
+.Bl -tag -width ".Dv HN_DIVISOR_1000" -offset indent
+.It Dv HN_AUTOSCALE
+Format the buffer using the lowest multiplier possible.
+.It Dv HN_GETSCALE
+Return the prefix index number (the number of times
+.Fa number
+must be divided to fit) instead of formatting it to the buffer.
+.El
+.Pp
+The following flags may be passed in
+.Fa flags :
+.Bl -tag -width ".Dv HN_DIVISOR_1000" -offset indent
+.It Dv HN_DECIMAL
+If the final result is less than 10, display it using one decimal place.
+.It Dv HN_NOSPACE
+Do not put a space between
+.Fa number
+and the prefix.
+.It Dv HN_B
+Use
+.Ql B
+(bytes) as prefix if the original result does not have a prefix.
+.It Dv HN_DIVISOR_1000
+Divide
+.Fa number
+with 1000 instead of 1024.
+.It Dv HN_IEC_PREFIXES
+Use the IEE/IEC notion of prefixes (Ki, Mi, Gi...).
+This flag has no effect when
+.Dv HN_DIVISOR_1000
+is also specified.
+.El
+.Sh RETURN VALUES
+Upon success, the
+.Nm
+function returns the number of characters that would have been stored in
+.Fa buf
+(excluding the terminating
+.Dv NUL )
+if
+.Fa buf
+was large enough, or \-1 upon failure.
+Even upon failure, the contents of
+.Fa buf
+may be modified.
+If
+.Dv HN_GETSCALE
+is specified, the prefix index number will be returned instead.
+.Sh SEE ALSO
+.Xr expand_number 3
+.Sh STANDARDS
+The
+.Dv HN_DIVISOR_1000
+and
+.Dv HN_IEC_PREFIXES
+flags
+conform to
+.Tn ISO/IEC
+Std\~80000-13:2008
+and
+.Tn IEEE
+Std\~1541-2002.
+.Sh HISTORY
+The
+.Fn humanize_number
+function first appeared in
+.Nx 2.0
+and then in
+.Fx 5.3 .
+The
+.Dv HN_IEC_PREFIXES
+flag was introduced in
+.Fx 9.0 .
+.Sh CAVEATS
+For numbers greater than 999 using buffer length of 4 and less can cause
+rounding errors.
+When using
+.Dv HN_IEC_PREFIXES
+the same error occurs for buffer length of 5 or less.

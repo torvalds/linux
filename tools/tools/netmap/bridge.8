@@ -1,0 +1,83 @@
+.\" Copyright (c) 2016 Luigi Rizzo, Universita` di Pisa
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 28, 2018
+.Dt BRIDGE 8
+.Os
+.Sh NAME
+.Nm bridge
+.Nd netmap client to bridge two netmap ports
+.Sh SYNOPSIS
+.Bk -words
+.Bl -tag -width "bridge"
+.It Nm
+.Op Fl i Ar port
+.Op Fl b Ar batch size
+.Op Fl w Ar wait-link
+.Op Fl v
+.Op Fl c
+.El
+.Ek
+.Sh DESCRIPTION
+.Nm
+is a simple netmap application that bridges packets between two netmap ports.
+If the two netmap ports use the same netmap memory region
+.Nm
+forwards packets without copying the packets payload (zero-copy mode), unless
+explicitly prevented by the
+.Fl c
+flag.
+.Bl -tag -width Ds
+.It Fl i Ar port
+Name of the netmap port.
+It can be supplied up to two times to identify the ports that must be bridged.
+Any netmap port type (physical interface, VALE switch, pipe, monitor port...)
+can be used.
+If the option is supplied only once, then it must be for a physical interface and, in that case,
+.Nm
+will bridge the port and the host stack.
+.It Fl b Ar batch-size
+Maximum number of packets to send in one operation.
+.It Fl w Ar wait-link
+indicates the number of seconds to wait before transmitting.
+It defaults to 2, and may be useful when talking to physical
+ports to let link negotiation complete before starting transmission.
+.It Fl v
+Enable verbose mode
+.It Fl c
+Disable zero-copy mode.
+.El
+.Sh SEE ALSO
+.Xr netmap 4 ,
+.Xr pkt-gen 8 ,
+.Xr lb 8
+.Sh AUTHORS
+.An -nosplit
+.Nm
+has been written by
+.An Luigi Rizzo
+and
+.An Matteo Landi
+at the Universita` di Pisa, Italy.

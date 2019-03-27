@@ -1,0 +1,332 @@
+.\"	$KAME: ipsec_set_policy.3,v 1.15 2001/08/17 07:21:36 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 14, 2006
+.Dt IPSEC_SET_POLICY 3
+.Os
+.Sh NAME
+.Nm ipsec_set_policy ,
+.Nm ipsec_get_policylen ,
+.Nm ipsec_dump_policy
+.Nd create an IPsec policy structure from a human readable string
+.\"
+.Sh LIBRARY
+.Lb libipsec
+.Sh SYNOPSIS
+.In netipsec/ipsec.h
+.Ft "char *"
+.Fn ipsec_set_policy "char *policy" "int len"
+.Ft int
+.Fn ipsec_get_policylen "char *buf"
+.Ft "char *"
+.Fn ipsec_dump_policy "char *buf" "char *delim"
+.Sh DESCRIPTION
+The
+.Fn ipsec_set_policy
+function generates an IPsec policy specification structure,
+.Li struct sadb_x_policy
+and/or
+.Li struct sadb_x_ipsecrequest
+from a human-readable policy specification.
+The policy specification must be given as a C string,
+passed in the
+.Fa policy
+argument and the length of the string, given as
+.Fa len .
+The
+.Fn ipsec_set_policy
+function returns pointer to a buffer which contains a properly formed
+IPsec policy specification structure.
+The buffer is dynamically allocated, and must be freed by using the
+.Xr free 3
+library function.
+.Pp
+The
+.Fn ipsec_get_policylen
+function will returns the of the buffer which is needed when passing
+the specification structure to the
+.Xr setsockopt 2
+system call.
+.Pp
+The
+.Fn ipsec_dump_policy
+function converts an IPsec policy structure into a human readable form.
+The
+.Fa buf
+argument points to an IPsec policy structure,
+.Li struct sadb_x_policy .
+.Fa delim
+is a delimiter string, which is usually a blank character.
+If you set
+.Fa delim
+to
+.Dv NULL ,
+a single white space is assumed.
+The
+.Fn ipsec_dump_policy
+function returns a pointer to dynamically allocated string.
+It is the caller's responsibility to free the returned pointer using the
+.Xr free 3
+library call.
+.Pp
+A
+.Fa policy
+is given in the following way:
+.Bl -tag -width "discard"
+.It Ar direction Li discard
+The
+.Ar direction
+must be
+.Li in
+or
+.Li out
+and
+specifies which direction the policy needs to be applied, either on
+inbound or outbound packets.
+When the
+.Li discard
+policy is selected, packets will be dropped if they match the policy.
+.It Ar direction Li entrust
+.Li entrust
+means to consult the security policy database
+(SPD)
+in the kernel, as controlled by
+.Xr setkey 8 .
+.It Ar direction Li bypass
+A direction of
+.Li bypass
+indicates that IPsec processing should not occur and that the
+packet will be transmitted in clear.
+The bypass option is only
+available to privileged sockets.
+.It Xo
+.Ar direction
+.Li ipsec
+.Ar request ...
+.Xc
+A direction of
+.Li ipsec
+means that matching packets are processed by IPsec.
+.Li ipsec
+can be followed by one or more
+.Ar request
+string, which is formatted as:
+.Bl -tag -width "discard"
+.It Xo
+.Ar protocol
+.Li /
+.Ar mode
+.Li /
+.Ar src
+.Li -
+.Ar dst
+.Op Ar /level
+.Xc
+The
+.Ar protocol
+is one of:
+.Li ah ,
+.Li esp
+or
+.Li ipcomp
+indicating Authentication Header, Encapsulating Security Protocol or
+IP Compression protocol is used.
+.Pp
+The
+.Ar mode
+is either
+.Li transport
+or
+.Li tunnel
+the meanings of both modes are described in
+.Xr ipsec 4 .
+.Pp
+The
+.Ar src
+and
+.Ar dst
+specify the IP address, either v4 or v6, of the source and destination systems.
+The
+.Ar src
+always stands for the
+.Dq sending node
+and
+.Ar dst
+always stands for the
+.Dq receiving node .
+When
+.Ar direction
+is
+.Li in ,
+.Ar dst
+is this local node
+and
+.Ar src
+is the remote node or peer.
+If
+.Ar mode
+is
+.Li transport ,
+both
+.Ar src
+and
+.Ar dst
+can be omitted.
+.Pp
+The
+.Ar level
+must be set to one of the following:
+.Li default , use , require
+or
+.Li unique .
+.Li default
+means that the kernel should consult the default security policies as
+defined by a set of
+.Xr sysctl 8 ,
+variables.
+The relevant
+.Xr sysctl 8
+variables are described in
+.Xr ipsec 4 .
+.Pp
+When
+.Li use
+is selected a relevant security association
+(SA)
+can be used when available but is not necessary.
+If the SA is available then packets will be handled by IPsec,
+i.e., encrypted and/or authenticated but if an SA is not available then
+packets will be transmitted in the clear.
+The
+.Li use
+option is not recommended because it allows for accidental
+mis-configurations where encrypted or authenticated link becomes
+unencrypted or unauthenticated, the
+.Li require
+keyword is recommended instead of
+.Li use
+where possible.
+Using the
+.Li require
+keyword means that a relevant SA is required,
+and that the kernel must perform IPsec processing on all matching
+packets.
+.Pp
+The
+.Li unique
+keyword has the same effect as
+.Li require ,
+but adds the restriction that the SA for outbound traffic is used
+only for this policy.
+You may need the identifier in order to relate the policy and the SA
+when you define the SA by manual keying using
+.Xr setkey 8 .
+Put the decimal number as the identifier after the
+.Li unique
+keyword in this way:
+.Li unique : number ,
+where
+.Li number
+must be between 1 and 32767.
+.Pp
+If the
+.Ar request
+string is kept unambiguous,
+.Ar level
+and the slash prior to
+.Ar level
+can be omitted but you are encouraged to specify them explicitly
+to avoid unintended behaviors.
+If
+.Ar level
+is omitted, it will be interpreted as
+.Li default .
+.El
+.El
+.Pp
+Note that there is a difference between the specification allowed here
+and in
+.Xr setkey 8 .
+When specifying security policies with
+.Xr setkey 8 ,
+neither entrust nor bypass are used.
+Refer to
+.Xr setkey 8
+for details.
+.Sh RETURN VALUES
+The
+.Fn ipsec_set_policy
+function returns a pointer to the allocated buffer containing a the
+policy specification if successful; otherwise a NULL pointer is
+returned.
+.Pp
+The
+.Fn ipsec_get_policylen
+function returns a positive value,
+indicating the buffer size,
+on success, and a negative value on error.
+.Pp
+The
+.Fn ipsec_dump_policy
+function returns a pointer to a dynamically allocated region
+containing a human readable security policy on success, and
+.Dv NULL
+on error.
+.Sh EXAMPLES
+Set a policy that all inbound packets are discarded.
+.Pp
+.Dl "in discard"
+.Pp
+.\"
+All outbound packets are required to be processed by IPsec and
+transported using ESP.
+.Pp
+.Dl "out ipsec esp/transport//require"
+.Pp
+.\"
+All inbound packets are required to be authenticated using the AH protocol.
+.Pp
+.Dl "in ipsec ah/transport//require"
+.Pp
+.\"
+Tunnel packets outbound through the endpoints at 10.1.1.2 and 10.1.1.1.
+.Pp
+.Dl "out ipsec esp/tunnel/10.1.1.2-10.1.1.1/require"
+.Sh SEE ALSO
+.Xr ipsec_strerror 3 ,
+.Xr ipsec 4 ,
+.Xr setkey 8
+.Sh HISTORY
+These functions first appeared in WIDE/KAME IPv6 protocol stack kit.
+.Pp
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initially integrated into
+.Fx 4.0 .

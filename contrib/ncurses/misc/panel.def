@@ -1,0 +1,20 @@
+LIBRARY panel5 INITINSTANCE TERMINSTANCE
+DESCRIPTION "NCurses-5-1-20000704, module panel"
+CODE LOADONCALL
+DATA LOADONCALL NONSHARED MULTIPLE
+EXPORTS
+	"bottom_panel"	@7	NONAME
+	"del_panel"	@5	NONAME
+	"hide_panel"	@3	NONAME
+	"move_panel"	@13	NONAME
+	"new_panel"	@8	NONAME
+	"panel_above"	@9	NONAME
+	"panel_below"	@10	NONAME
+	"panel_hidden"	@15	NONAME
+	"panel_userptr"	@12	NONAME
+	"panel_window"	@1	NONAME
+	"replace_panel"	@14	NONAME
+	"set_panel_userptr"	@11	NONAME
+	"show_panel"	@4	NONAME
+	"top_panel"	@6	NONAME
+	"update_panels"	@2	NONAME

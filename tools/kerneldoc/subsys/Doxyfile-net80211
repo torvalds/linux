@@ -1,0 +1,20 @@
+# Doxyfile 1.5.2
+
+# $FreeBSD$
+
+#---------------------------------------------------------------------------
+# Project related configuration options
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "FreeBSD kernel WLAN code"
+OUTPUT_DIRECTORY       = $(DOXYGEN_DEST_PATH)/net80211/
+EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
+#--------------------------------------------------------------------------
+# configuration options related to the input files
+#---------------------------------------------------------------------------
+INPUT                  = $(DOXYGEN_SRC_PATH)/net80211/ $(NOTREVIEWED)
+
+GENERATE_TAGFILE       = net80211/net80211.tag
+
+@INCLUDE_PATH          = $(DOXYGEN_INCLUDE_PATH)
+@INCLUDE               = common-Doxyfile
+

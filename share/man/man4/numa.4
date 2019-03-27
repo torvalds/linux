@@ -1,0 +1,154 @@
+.\" Copyright (c) 2015 Adrian Chadd <adrian@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 22, 2018
+.Dt NUMA 4
+.Os
+.Sh NAME
+.Nm NUMA
+.Nd Non-Uniform Memory Access
+.Sh SYNOPSIS
+.Cd options MAXMEMDOM
+.Cd options NUMA
+.Pp
+.Sh DESCRIPTION
+Non-Uniform Memory Access is a computer architecture design which
+involves unequal costs between processors, memory and IO devices
+in a given system.
+.Pp
+In a
+.Nm
+architecture, the latency to access specific memory or IO devices
+depends upon which processor the memory or device is attached to.
+Accessing memory local to a processor is faster than accessing memory
+that is connected to one of the other processors.
+.Fx
+implements NUMA-aware memory allocation policies.
+By default it attempts to ensure that allocations are balanced across
+each domain.
+Users may override the default domain selection policy using
+.Xr cpuset 1 .
+.Pp
+.Nm
+support is enabled when the
+.Cd NUMA
+option is specified in the kernel configuration file.
+Each platform defines the
+.Cd MAXMEMDOM
+constant, which specifies the maximum number of supported NUMA domains.
+This constant may be specified in the kernel configuration file.
+.Nm
+support can be disabled at boot time by setting the
+.Va vm.numa.disabled
+tunable to 1.
+Other values for this tunable are currently ignored.
+.Pp
+Thread and process
+.Nm
+policies are controlled with the
+.Xr cpuset_getdomain 2
+and
+.Xr cpuset_setdomain 2
+syscalls.
+The
+.Xr cpuset 1
+tool is available for starting processes with a non-default
+policy, or to change the policy of an existing thread or process.
+See
+.Xr SMP 4
+for information about CPU to domain mapping.
+.Pp
+Systems with non-uniform access to I/O devices may mark those devices
+with the local VM domain identifier.
+Drivers can find out their local domain information by calling
+.Xr bus_get_domain 9 .
+.Ss MIB Variables
+The operation of
+.Nm
+is controlled and exposes information with these
+.Xr sysctl 8
+MIB variables:
+.Pp
+.Bl -tag -width indent -compact
+.It Va vm.ndomains
+The number of VM domains which have been detected.
+.Pp
+.It Va vm.phys_locality
+A table indicating the relative cost of each VM domain to each other.
+A value of 10 indicates equal cost.
+A value of -1 means the locality map is not available or no
+locality information is available.
+.Pp
+.It Va vm.phys_segs
+The map of physical memory, grouped by VM domain.
+.El
+.Sh IMPLEMENTATION NOTES
+The current
+.Nm
+implementation is VM-focused.
+The hardware
+.Nm
+domains are mapped into a contiguous, non-sparse
+VM domain space, starting from 0.
+Thus, VM domain information (for example, the domain identifier) is not
+necessarily the same as is found in the hardware specific information.
+Policy information is available in both struct thread and struct proc.
+.Sh SEE ALSO
+.Xr cpuset 1 ,
+.Xr cpuset_getaffinity 2 ,
+.Xr cpuset_setaffinity 2 ,
+.Xr SMP 4 ,
+.Xr bus_get_domain 9
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 9.0
+as a first-touch allocation policy with a fail-over to round-robin allocation
+and was not configurable.
+It was then modified in
+.Fx 10.0
+to implement a round-robin allocation policy and was also not configurable.
+.Pp
+The
+.Xr numa_getaffinity 2
+and
+.Xr numa_setaffinity 2
+syscalls and the
+.Xr numactl 1
+tool first appeared in
+.Fx 11.0
+and were removed in
+.Fx 12.0 .
+The current implementation appeared in
+.Fx 12.0 .
+.Pp
+.Sh AUTHORS
+This manual page written by
+.An Adrian Chadd Aq Mt adrian@FreeBSD.org .
+.Sh NOTES
+No statistics are kept to indicate how often
+.Nm
+allocation policies succeed or fail.

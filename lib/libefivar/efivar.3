@@ -1,0 +1,123 @@
+.\"
+.\" Copyright 2016 Netflix, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 25, 2018
+.Dt LIBEFIVAR 3
+.Os
+.Sh NAME
+.Nm libefivar
+.Nd EFI Non Volatile Variable Support
+.Sh SYNOPSIS
+.In efivar.h
+.Ft int
+.Fn efi_append_variable "efi_guid_t guid" "const char *name" "void *data" "size_t data_size" "uint32_t attributes"
+.Ft int
+.Fn efi_del_variable "efi_guid_t guid" "const char *name"
+.Ft int
+.Fn efi_get_variable "efi_guid_t guid" "const char *name" "void **data" "ssize_t *data_size" "uint32_t *attributes"
+.Ft int
+.Fn efi_get_variable_attributes "efi_guid_t guid" "const char *name" "uint32_t *attributes"
+.Ft int
+.Fn efi_get_variable_size "efi_guid_t guid" "const char *name" "size_t *size"
+.Ft int
+.Fn efi_get_next_variable_name "efi_guid_t **guid" "char **name"
+.Ft int
+.Fn efi_guid_to_name "efi_guid_t *guid" "char **name"
+.Ft int
+.Fn efi_guid_to_symbol "efi_guid_t *guid" "char **symbol"
+.Ft int
+.Fn efi_guid_to_str "const efi_guid_t *guid" "char **sp"
+.Ft int
+.Fn efi_name_to_guid "const char *name" "efi_guid_t *guid"
+.Ft int
+.Fn efi_set_variable "efi_guid_t guid" "const char *name" "void *data" "size_t data_size" "uint32_t attributes"
+.Ft int
+.Fn efi_str_to_guid "const char *s" "efi_guid_t *guid"
+.Ft int
+.Fn efi_variables_supported "void"
+.Sh DESCRIPTION
+The
+.Nm
+library implements access to EFI Variables via the EFI Runtime
+Services.
+All
+.Vt "char *"
+strings are converted to 16-bit UTF strings before passing
+them to EFI.
+.Pp
+.Fn efi_variables_supported
+returns non-zero if the current machine supports setting of EFI firmware
+variables and the kernel support for doing so is present.
+Otherwise zero is returned.
+.Pp
+.Fn efi_del_variable
+deletes the EFI variable selected by
+.Va guid
+and
+.Va name .
+.Pp
+The following functions have not been implemented yet:
+.Bl -dash -offset indent -compact
+.It
+.Fn efi_append_variable
+.It
+.Fn efi_get_next_variable_name
+.It
+.Fn efi_get_variable
+.It
+.Fn efi_get_variable_attributes
+.It
+.Fn efi_get_variable_size
+.It
+.Fn efi_guid_to_name
+.It
+.Fn efi_guid_to_str
+.It
+.Fn efi_guid_to_symbol
+.It
+.Fn efi_name_to_guid
+.It
+.Fn efi_set_variable
+.It
+.Fn efi_str_to_guid
+.El
+.Sh SEE ALSO
+.Xr efidev 4
+.Sh HISTORY
+The
+.Nm
+library first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+.An -nosplit
+This software was originally written by
+.An Warner Losh .
+.Sh BUGS
+No facilities exist to process the strings as native UTF.
+This is a limitation in the Linux
+.Nm
+library interface.

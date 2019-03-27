@@ -1,0 +1,6 @@
+# $FreeBSD$ 
+# $NetBSD: EBCDIC.src,v 1.1 2003/06/27 08:40:53 tshiozak Exp $
+
+NAME		"EBCDIC-x"
+ENCODING	"NONE"
+DEFCSID		"EBCDIC-x"	0

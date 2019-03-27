@@ -1,0 +1,13 @@
+d_context_a.in:A pig is a jolly companion,
+d_context_a.in-Boar, sow, barrow, or gilt --
+d_context_a.in:A pig is a pal, who'll boost your morale, 
+d_context_a.in-Though mountains may topple and tilt.
+--
+d_context_a.in-Though you may be thrown over by Tabby and Rover,
+d_context_a.in:You'll never go wrong with a pig, a pig,
+d_context_a.in:You'll never go wrong with a pig!
+d_context_a.in-                -- Thomas Pynchon, "Gravity's Rainbow"
+--
+d_context_b.in-This is to test output of context from multiple files.
+d_context_b.in:Dave was a happy pig who wandered around the orchard eating
+d_context_b.in-apples all day long.

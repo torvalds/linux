@@ -1,0 +1,159 @@
+.\" Copyright (c) 1995
+.\"	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 24, 1995
+.Dt REVNETGROUP 8
+.Os
+.Sh NAME
+.Nm revnetgroup
+.Nd "generate reverse netgroup data"
+.Sh SYNOPSIS
+.Nm
+.Fl u | h
+.Op Fl f Ar netgroup_file
+.Sh DESCRIPTION
+The
+.Nm
+utility processes the contents of a file in
+.Xr netgroup 5
+format into what is called
+.Pa reverse netgroup
+form.
+That is, where the original file shows
+netgroup memberships in terms of which members reside in a particular
+group, the reverse netgroup format specifies what groups are associated
+with a particular member.
+This information is used to generate the
+.Pa netgroup.byuser
+and
+.Pa netgroup.byhost
+.Tn NIS
+maps.
+These reverse netgroup maps are used to help speed up
+netgroup lookups, particularly for the
+.Fn innetgr
+library function.
+.Pp
+For example, the standard
+.Pa /etc/netgroup
+file may list a netgroup and a list of its members.
+Here, the
+netgroup is considered the
+.Em key
+and the member names are the
+.Em data .
+By contrast, the reverse
+.Pa netgroup.byuser
+database lists each unique
+member as the key and the netgroups to which the members belong become
+the data.
+Separate databases are created to hold information pertaining
+to users and hosts; this allows netgroup username lookups
+and netgroup hostname lookups to be performed using independent keyspaces.
+.Pp
+By constructing these reverse netgroup databases (and the corresponding
+.Tn NIS
+maps) in advance, the
+.Xr getnetgrent 3
+library functions are spared from having to work out the dependencies
+themselves on the fly.
+This is important on networks with large numbers
+of users and hosts, since it can take a considerable amount of time
+to process very large netgroup databases.
+.Pp
+The
+.Nm
+utility prints its results on the standard output.
+It is usually called
+only by
+.Pa /var/yp/Makefile
+when rebuilding the
+.Tn NIS
+netgroup maps.
+.Sh OPTIONS
+The
+.Nm
+utility supports the following options:
+.Bl -tag -width indent
+.It Fl u
+Generate
+.Pa netgroup.byuser
+output; only username information in the
+original netgroup file is processed.
+.It Fl h
+Generate
+.Pa netgroup.byhost
+output; only hostname information in the
+original netgroup file is processed.
+(Note at least one of the
+.Fl u
+or
+.Fl h
+flags must be specified.)
+.It Op Fl f Ar netgroup_file
+The
+.Nm
+utility uses
+.Pa /etc/netgroup
+as its default input file.
+The
+.Fl f
+flag allows the user to specify an alternate input file.
+Specifying ``-''
+as the input file causes
+.Nm
+to read from the standard input.
+.El
+.Sh FILES
+.Bl -tag -width /var/yp/Makefile -compact
+.It Pa /var/yp/Makefile
+the Makefile that calls
+.Nm yp_mkdb
+and
+.Nm
+to build the
+.Tn NIS
+databases
+.It Pa /etc/netgroup
+the default netgroup database file.
+This file is most often found
+only on the
+.Tn NIS
+master server
+.El
+.Sh SEE ALSO
+.Xr getnetgrent 3 ,
+.Xr netgroup 5 ,
+.Xr yp 8 ,
+.Xr yp_mkdb 8
+.Sh AUTHORS
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu

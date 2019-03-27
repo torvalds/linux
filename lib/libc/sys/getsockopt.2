@@ -1,0 +1,602 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
+.\" $FreeBSD$
+.\"
+.Dd February 10, 2019
+.Dt GETSOCKOPT 2
+.Os
+.Sh NAME
+.Nm getsockopt ,
+.Nm setsockopt
+.Nd get and set options on sockets
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.Ft int
+.Fn getsockopt "int s" "int level" "int optname" "void * restrict optval" "socklen_t * restrict optlen"
+.Ft int
+.Fn setsockopt "int s" "int level" "int optname" "const void *optval" "socklen_t optlen"
+.Sh DESCRIPTION
+The
+.Fn getsockopt
+and
+.Fn setsockopt
+system calls
+manipulate the
+.Em options
+associated with a socket.
+Options may exist at multiple
+protocol levels; they are always present at the uppermost
+.Dq socket
+level.
+.Pp
+When manipulating socket options the level at which the
+option resides and the name of the option must be specified.
+To manipulate options at the socket level,
+.Fa level
+is specified as
+.Dv SOL_SOCKET .
+To manipulate options at any
+other level the protocol number of the appropriate protocol
+controlling the option is supplied.
+For example,
+to indicate that an option is to be interpreted by the
+.Tn TCP
+protocol,
+.Fa level
+should be set to the protocol number of
+.Tn TCP ;
+see
+.Xr getprotoent 3 .
+.Pp
+The
+.Fa optval
+and
+.Fa optlen
+arguments
+are used to access option values for
+.Fn setsockopt .
+For
+.Fn getsockopt
+they identify a buffer in which the value for the
+requested option(s) are to be returned.
+For
+.Fn getsockopt ,
+.Fa optlen
+is a value-result argument, initially containing the
+size of the buffer pointed to by
+.Fa optval ,
+and modified on return to indicate the actual size of
+the value returned.
+If no option value is
+to be supplied or returned,
+.Fa optval
+may be NULL.
+.Pp
+The
+.Fa optname
+argument
+and any specified options are passed uninterpreted to the appropriate
+protocol module for interpretation.
+The include file
+.In sys/socket.h
+contains definitions for
+socket level options, described below.
+Options at other protocol levels vary in format and
+name; consult the appropriate entries in
+section
+4 of the manual.
+.Pp
+Most socket-level options utilize an
+.Vt int
+argument for
+.Fa optval .
+For
+.Fn setsockopt ,
+the argument should be non-zero to enable a boolean option,
+or zero if the option is to be disabled.
+.Dv SO_LINGER
+uses a
+.Vt "struct linger"
+argument, defined in
+.In sys/socket.h ,
+which specifies the desired state of the option and the
+linger interval (see below).
+.Dv SO_SNDTIMEO
+and
+.Dv SO_RCVTIMEO
+use a
+.Vt "struct timeval"
+argument, defined in
+.In sys/time.h .
+.Pp
+The following options are recognized at the socket level.
+For protocol-specific options, see protocol manual pages,
+e.g.
+.Xr ip 4
+or
+.Xr tcp 4 .
+Except as noted, each may be examined with
+.Fn getsockopt
+and set with
+.Fn setsockopt .
+.Bl -column SO_ACCEPTFILTER -offset indent
+.It Dv SO_DEBUG Ta "enables recording of debugging information"
+.It Dv SO_REUSEADDR Ta "enables local address reuse"
+.It Dv SO_REUSEPORT Ta "enables duplicate address and port bindings"
+.It Dv SO_REUSEPORT_LB Ta "enables duplicate address and port bindings with load balancing"
+.It Dv SO_KEEPALIVE Ta "enables keep connections alive"
+.It Dv SO_DONTROUTE Ta "enables routing bypass for outgoing messages"
+.It Dv SO_LINGER  Ta "linger on close if data present"
+.It Dv SO_BROADCAST Ta "enables permission to transmit broadcast messages"
+.It Dv SO_OOBINLINE Ta "enables reception of out-of-band data in band"
+.It Dv SO_SNDBUF Ta "set buffer size for output"
+.It Dv SO_RCVBUF Ta "set buffer size for input"
+.It Dv SO_SNDLOWAT Ta "set minimum count for output"
+.It Dv SO_RCVLOWAT Ta "set minimum count for input"
+.It Dv SO_SNDTIMEO Ta "set timeout value for output"
+.It Dv SO_RCVTIMEO Ta "set timeout value for input"
+.It Dv SO_ACCEPTFILTER Ta "set accept filter on listening socket"
+.It Dv SO_NOSIGPIPE Ta
+controls generation of
+.Dv SIGPIPE
+for the socket
+.It Dv SO_TIMESTAMP Ta "enables reception of a timestamp with datagrams"
+.It Dv SO_BINTIME Ta "enables reception of a timestamp with datagrams"
+.It Dv SO_ACCEPTCONN Ta "get listening status of the socket (get only)"
+.It Dv SO_DOMAIN Ta "get the domain of the socket (get only)"
+.It Dv SO_TYPE Ta "get the type of the socket (get only)"
+.It Dv SO_PROTOCOL Ta "get the protocol number for the socket (get only)"
+.It Dv SO_PROTOTYPE Ta "SunOS alias for the Linux SO_PROTOCOL (get only)"
+.It Dv SO_ERROR Ta "get and clear error on the socket (get only)"
+.It Dv SO_SETFIB Ta "set the associated FIB (routing table) for the socket (set only)"
+.El
+.Pp
+The following options are recognized in
+.Fx :
+.Bl -column SO_LISTENINCQLEN -offset indent
+.It Dv SO_LABEL Ta "get MAC label of the socket (get only)"
+.It Dv SO_PEERLABEL Ta "get socket's peer's MAC label (get only)"
+.It Dv SO_LISTENQLIMIT Ta "get backlog limit of the socket (get only)"
+.It Dv SO_LISTENQLEN Ta "get complete queue length of the socket (get only)"
+.It Dv SO_LISTENINCQLEN Ta "get incomplete queue length of the socket (get only)"
+.It Dv SO_USER_COOKIE Ta "set the 'so_user_cookie' value for the socket (uint32_t, set only)"
+.It Dv SO_TS_CLOCK Ta "set specific format of timestamp returned by SO_TIMESTAMP"
+.It Dv SO_MAX_PACING_RATE Ta "set the maximum transmit rate in bytes per second for the socket"
+.El
+.Pp
+.Dv SO_DEBUG
+enables debugging in the underlying protocol modules.
+.Pp
+.Dv SO_REUSEADDR
+indicates that the rules used in validating addresses supplied
+in a
+.Xr bind 2
+system call should allow reuse of local addresses.
+.Pp
+.Dv SO_REUSEPORT
+allows completely duplicate bindings by multiple processes
+if they all set
+.Dv SO_REUSEPORT
+before binding the port.
+This option permits multiple instances of a program to each
+receive UDP/IP multicast or broadcast datagrams destined for the bound port.
+.Pp
+.Dv SO_REUSEPORT_LB
+allows completely duplicate bindings by multiple processes
+if they all set
+.Dv SO_REUSEPORT_LB
+before binding the port.
+Incoming TCP and UDP connections are distributed among the sharing
+processes based on a hash function of local port number, foreign IP
+address and port number. A maximum of 256 processes can share one socket.
+.Pp
+.Dv SO_KEEPALIVE
+enables the
+periodic transmission of messages on a connected socket.
+Should the
+connected party fail to respond to these messages, the connection is
+considered broken and processes using the socket are notified via a
+.Dv SIGPIPE
+signal when attempting to send data.
+.Pp
+.Dv SO_DONTROUTE
+indicates that outgoing messages should
+bypass the standard routing facilities.
+Instead, messages are directed
+to the appropriate network interface according to the network portion
+of the destination address.
+.Pp
+.Dv SO_LINGER
+controls the action taken when unsent messages
+are queued on socket and a
+.Xr close 2
+is performed.
+If the socket promises reliable delivery of data and
+.Dv SO_LINGER
+is set,
+the system will block the process on the
+.Xr close 2
+attempt until it is able to transmit the data or until it decides it
+is unable to deliver the information (a timeout period, termed the
+linger interval, is specified in seconds in the
+.Fn setsockopt
+system call when
+.Dv SO_LINGER
+is requested).
+If
+.Dv SO_LINGER
+is disabled and a
+.Xr close 2
+is issued, the system will process the close in a manner that allows
+the process to continue as quickly as possible.
+.Pp
+The option
+.Dv SO_BROADCAST
+requests permission to send broadcast datagrams
+on the socket.
+Broadcast was a privileged operation in earlier versions of the system.
+.Pp
+With protocols that support out-of-band data, the
+.Dv SO_OOBINLINE
+option
+requests that out-of-band data be placed in the normal data input queue
+as received; it will then be accessible with
+.Xr recv 2
+or
+.Xr read 2
+calls without the
+.Dv MSG_OOB
+flag.
+Some protocols always behave as if this option is set.
+.Pp
+.Dv SO_SNDBUF
+and
+.Dv SO_RCVBUF
+are options to adjust the normal
+buffer sizes allocated for output and input buffers, respectively.
+The buffer size may be increased for high-volume connections,
+or may be decreased to limit the possible backlog of incoming data.
+The system places an absolute maximum on these values, which is accessible
+through the
+.Xr sysctl 3
+MIB variable
+.Dq Li kern.ipc.maxsockbuf .
+.Pp
+.Dv SO_SNDLOWAT
+is an option to set the minimum count for output operations.
+Most output operations process all of the data supplied
+by the call, delivering data to the protocol for transmission
+and blocking as necessary for flow control.
+Nonblocking output operations will process as much data as permitted
+subject to flow control without blocking, but will process no data
+if flow control does not allow the smaller of the low water mark value
+or the entire request to be processed.
+A
+.Xr select 2
+operation testing the ability to write to a socket will return true
+only if the low water mark amount could be processed.
+The default value for
+.Dv SO_SNDLOWAT
+is set to a convenient size for network efficiency, often 1024.
+.Pp
+.Dv SO_RCVLOWAT
+is an option to set the minimum count for input operations.
+In general, receive calls will block until any (non-zero) amount of data
+is received, then return with the smaller of the amount available or the amount
+requested.
+The default value for
+.Dv SO_RCVLOWAT
+is 1.
+If
+.Dv SO_RCVLOWAT
+is set to a larger value, blocking receive calls normally
+wait until they have received the smaller of the low water mark value
+or the requested amount.
+Receive calls may still return less than the low water mark if an error
+occurs, a signal is caught, or the type of data next in the receive queue
+is different from that which was returned.
+.Pp
+.Dv SO_SNDTIMEO
+is an option to set a timeout value for output operations.
+It accepts a
+.Vt "struct timeval"
+argument with the number of seconds and microseconds
+used to limit waits for output operations to complete.
+If a send operation has blocked for this much time,
+it returns with a partial count
+or with the error
+.Er EWOULDBLOCK
+if no data were sent.
+In the current implementation, this timer is restarted each time additional
+data are delivered to the protocol,
+implying that the limit applies to output portions ranging in size
+from the low water mark to the high water mark for output.
+.Pp
+.Dv SO_RCVTIMEO
+is an option to set a timeout value for input operations.
+It accepts a
+.Vt "struct timeval"
+argument with the number of seconds and microseconds
+used to limit waits for input operations to complete.
+In the current implementation, this timer is restarted each time additional
+data are received by the protocol,
+and thus the limit is in effect an inactivity timer.
+If a receive operation has been blocked for this much time without
+receiving additional data, it returns with a short count
+or with the error
+.Er EWOULDBLOCK
+if no data were received.
+.Pp
+.Dv SO_SETFIB
+can be used to over-ride the default FIB (routing table) for the given socket.
+The value must be from 0 to one less than the number returned from
+the sysctl
+.Em net.fibs .
+.Pp
+.Dv SO_USER_COOKIE
+can be used to set the uint32_t so_user_cookie field in the socket.
+The value is an uint32_t, and can be used in the kernel code that
+manipulates traffic related to the socket.
+The default value for the field is 0.
+As an example, the value can be used as the skipto target or
+pipe number in
+.Nm ipfw/dummynet .
+.Pp
+.Dv SO_ACCEPTFILTER
+places an
+.Xr accept_filter 9
+on the socket,
+which will filter incoming connections
+on a listening stream socket before being presented for
+.Xr accept 2 .
+Once more,
+.Xr listen 2
+must be called on the socket before
+trying to install the filter on it,
+or else the
+.Fn setsockopt
+system call will fail.
+.Bd -literal
+struct  accept_filter_arg {
+        char    af_name[16];
+        char    af_arg[256-16];
+};
+.Ed
+.Pp
+The
+.Fa optval
+argument
+should point to a
+.Fa struct accept_filter_arg
+that will select and configure the
+.Xr accept_filter 9 .
+The
+.Fa af_name
+argument
+should be filled with the name of the accept filter
+that the application wishes to place on the listening socket.
+The optional argument
+.Fa af_arg
+can be passed to the accept
+filter specified by
+.Fa af_name
+to provide additional configuration options at attach time.
+Passing in an
+.Fa optval
+of NULL will remove the filter.
+.Pp
+The
+.Dv SO_NOSIGPIPE
+option controls generation of the
+.Dv SIGPIPE
+signal normally sent
+when writing to a connected socket where the other end has been
+closed returns with the error
+.Er EPIPE .
+.Pp
+If the
+.Dv SO_TIMESTAMP
+or
+.Dv SO_BINTIME
+option is enabled on a
+.Dv SOCK_DGRAM
+socket, the
+.Xr recvmsg 2
+call will return a timestamp corresponding to when the datagram was received.
+The
+.Va msg_control
+field in the
+.Vt msghdr
+structure points to a buffer that contains a
+.Vt cmsghdr
+structure followed by a
+.Vt "struct timeval"
+for
+.Dv SO_TIMESTAMP
+and
+.Vt "struct bintime"
+for
+.Dv SO_BINTIME .
+The
+.Vt cmsghdr
+fields have the following values for TIMESTAMP by default:
+.Bd -literal
+     cmsg_len = CMSG_LEN(sizeof(struct timeval));
+     cmsg_level = SOL_SOCKET;
+     cmsg_type = SCM_TIMESTAMP;
+.Ed
+.Pp
+and for
+.Dv SO_BINTIME :
+.Bd -literal
+     cmsg_len = CMSG_LEN(sizeof(struct bintime));
+     cmsg_level = SOL_SOCKET;
+     cmsg_type = SCM_BINTIME;
+.Ed
+.Pp
+Additional timestamp types are available by following
+.Dv SO_TIMESTAMP
+with
+.Dv SO_TS_CLOCK ,
+which requests a specific timestamp format to be returned instead of
+.Dv SCM_TIMESTAMP when
+.Dv SO_TIMESTAMP is enabled.
+These
+.Dv SO_TS_CLOCK
+values are recognized in
+.Fx :
+.Bl -column SO_TS_CLOCK -offset indent
+.It Dv SO_TS_REALTIME_MICRO Ta "realtime (SCM_TIMESTAMP, struct timeval), default"
+.It Dv SO_TS_BINTIME Ta "realtime (SCM_BINTIME, struct bintime)"
+.It Dv SO_TS_REALTIME Ta "realtime (SCM_REALTIME, struct timespec)"
+.It Dv SO_TS_MONOTONIC Ta "monotonic time (SCM_MONOTONIC, struct timespec)"
+.El
+.Pp
+.Dv SO_ACCEPTCONN ,
+.Dv SO_TYPE ,
+.Dv SO_PROTOCOL
+(and its alias
+.Dv SO_PROTOTYPE )
+and
+.Dv SO_ERROR
+are options used only with
+.Fn getsockopt .
+.Dv SO_ACCEPTCONN
+returns whether the socket is currently accepting connections,
+that is, whether or not the
+.Xr listen 2
+system call was invoked on the socket.
+.Dv SO_TYPE
+returns the type of the socket, such as
+.Dv SOCK_STREAM ;
+it is useful for servers that inherit sockets on startup.
+.Dv SO_PROTOCOL
+returns the protocol number for the socket, for
+.Dv AF_INET
+and
+.Dv AF_INET6
+address families.
+.Dv SO_ERROR
+returns any pending error on the socket and clears
+the error status.
+It may be used to check for asynchronous errors on connected
+datagram sockets or for other asynchronous errors.
+.Pp
+Finally,
+.Dv SO_LABEL
+returns the MAC label of the socket.
+.Dv SO_PEERLABEL
+returns the MAC label of the socket's peer.
+Note that your kernel must be compiled with MAC support.
+See
+.Xr mac 3
+for more information.
+.Dv SO_LISTENQLIMIT
+returns the maximal number of queued connections, as set by
+.Xr listen 2 .
+.Dv SO_LISTENQLEN
+returns the number of unaccepted complete connections.
+.Dv SO_LISTENINCQLEN
+returns the number of unaccepted incomplete connections.
+.Pp
+.Dv SO_MAX_PACING_RATE
+instruct the socket and underlying network adapter layers to limit the
+transfer rate to the given unsigned 32-bit value in bytes per second.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn getsockopt
+and
+.Fn setsockopt
+system calls succeed unless:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The argument
+.Fa s
+is not a valid descriptor.
+.It Bq Er ENOTSOCK
+The argument
+.Fa s
+is a file, not a socket.
+.It Bq Er ENOPROTOOPT
+The option is unknown at the level indicated.
+.It Bq Er EFAULT
+The address pointed to by
+.Fa optval
+is not in a valid part of the process address space.
+For
+.Fn getsockopt ,
+this error may also be returned if
+.Fa optlen
+is not in a valid part of the process address space.
+.It Bq Er EINVAL
+Installing an
+.Xr accept_filter 9
+on a non-listening socket was attempted.
+.It Bq Er ENOMEM
+A memory allocation failed that was required to service the request.
+.El
+.Pp
+The
+.Fn setsockopt
+system call may also return the following error:
+.Bl -tag -width Er
+.It Bq Er ENOBUFS
+Insufficient resources were available in the system
+to perform the operation.
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr listen 2 ,
+.Xr recvmsg 2 ,
+.Xr socket 2 ,
+.Xr getprotoent 3 ,
+.Xr mac 3 ,
+.Xr sysctl 3 ,
+.Xr ip 4 ,
+.Xr ip6 4 ,
+.Xr sctp 4 ,
+.Xr tcp 4 ,
+.Xr protocols 5 ,
+.Xr sysctl 8 ,
+.Xr accept_filter 9 ,
+.Xr bintime 9
+.Sh HISTORY
+The
+.Fn getsockopt
+and
+.Fn setsockopt
+system calls appeared in
+.Bx 4.2 .
+.Sh BUGS
+Several of the socket options should be handled at lower levels of the system.

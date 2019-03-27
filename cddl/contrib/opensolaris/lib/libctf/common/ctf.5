@@ -1,0 +1,1224 @@
+.\"
+.\" This file and its contents are supplied under the terms of the
+.\" Common Development and Distribution License ("CDDL"), version 1.0.
+.\" You may only use this file in accordance with the terms of version
+.\" 1.0 of the CDDL.
+.\"
+.\" A full copy of the text of the CDDL should have accompanied this
+.\" source.  A copy of the CDDL is also available via the Internet at
+.\" http://www.illumos.org/license/CDDL.
+.\"
+.\"
+.\" Copyright (c) 2014 Joyent, Inc.
+.\"
+.Dd Sep 26, 2014
+.Dt CTF 5
+.Os
+.Sh NAME
+.Nm ctf
+.Nd Compact C Type Format
+.Sh SYNOPSIS
+.In sys/ctf.h
+.Sh DESCRIPTION
+.Nm
+is designed to be a compact representation of the C programming
+language's type information focused on serving the needs of dynamic
+tracing, debuggers, and other in-situ and post-mortem introspection
+tools.
+.Nm
+data is generally included in
+.Sy ELF
+objects and is tagged as
+.Sy SHT_PROGBITS
+to ensure that the data is accessible in a running process and in subsequent
+core dumps, if generated.
+.Lp
+The
+.Nm
+data contained in each file has information about the layout and
+sizes of C types, including intrinsic types, enumerations, structures,
+typedefs, and unions, that are used by the corresponding
+.Sy ELF
+object.
+The
+.Nm
+data may also include information about the types of global objects and
+the return type and arguments of functions in the symbol table.
+.Lp
+Because a
+.Nm
+file is often embedded inside a file, rather than being a standalone
+file itself, it may also be referred to as a
+.Nm
+.Sy container .
+.Lp
+On
+.Fx
+systems,
+.Nm
+data is consumed by
+.Xr dtrace 1 .
+Programmatic access to
+.Nm
+data can be obtained through libctf.
+.Lp
+The
+.Nm
+file format is broken down into seven different sections.
+The first section is the
+.Sy preamble
+and
+.Sy header ,
+which describes the version of the
+.Nm
+file, the links it has to other
+.Nm
+files, and the sizes of the other sections.
+The next section is the
+.Sy label
+section,
+which provides a way of identifying similar groups of
+.Nm
+data across multiple files.
+This is followed by the
+.Sy object
+information section, which describes the types of global
+symbols.
+The subsequent section is the
+.Sy function
+information section, which describes the return
+types and arguments of functions.
+The next section is the
+.Sy type
+information section, which describes
+the format and layout of the C types themselves, and finally the last
+section is the
+.Sy string
+section, which contains the names of types, enumerations, members, and
+labels.
+.Lp
+While strictly speaking, only the
+.Sy preamble
+and
+.Sy header
+are required, to be actually useful, both the type and string
+sections are necessary.
+.Lp
+A
+.Nm
+file may contain all of the type information that it requires, or it
+may optionally refer to another
+.Nm
+file which holds the remaining types.
+When a
+.Nm
+file refers to another file, it is called the
+.Sy child
+and the file it refers to is called the
+.Sy parent .
+A given file may only refer to one parent.
+This process is called
+.Em uniquification
+because it ensures each child only has type information that is
+unique to it.
+A common example of this is that most kernel modules in illumos are uniquified
+against the kernel module
+.Sy genunix
+and the type information that comes from the
+.Sy IP
+module.
+This means that a module only has types that are unique to itself and the most
+common types in the kernel are not duplicated.
+.Sh FILE FORMAT
+This documents version
+.Em two
+of the
+.Nm
+file format.
+All applications and tools on
+.Fx
+currently produce and operate on this version.
+.Lp
+The file format can be summarized with the following image, the
+following sections will cover this in more detail.
+.Bd -literal
+
+         +-------------+  0t0
++--------| Preamble    |
+|        +-------------+  0t4
+|+-------| Header      |
+||       +-------------+  0t36 + cth_lbloff
+||+------| Labels      |
+|||      +-------------+  0t36 + cth_objtoff
+|||+-----| Objects     |
+||||     +-------------+  0t36 + cth_funcoff
+||||+----| Functions   |
+|||||    +-------------+  0t36 + cth_typeoff
+|||||+---| Types       |
+||||||   +-------------+  0t36 + cth_stroff
+||||||+--| Strings     |
+|||||||  +-------------+  0t36 + cth_stroff + cth_strlen
+|||||||
+|||||||
+|||||||
+|||||||    +-- magic -   vers   flags
+|||||||    |          |    |      |
+|||||||   +------+------+------+------+
++---------| 0xcf | 0xf1 | 0x02 | 0x00 |
+ ||||||   +------+------+------+------+
+ ||||||   0      1      2      3      4
+ ||||||
+ ||||||    + parent label        + objects
+ ||||||    |       + parent name |     + functions    + strings
+ ||||||    |       |     + label |     |      + types |       + strlen
+ ||||||    |       |     |       |     |      |       |       |
+ ||||||   +------+------+------+------+------+-------+-------+-------+
+ +--------| 0x00 | 0x00 | 0x00 | 0x08 | 0x36 | 0x110 | 0x5f4 | 0x611 |
+  |||||   +------+------+------+------+------+-------+-------+-------+
+  |||||   0x04   0x08   0x0c   0x10   0x14    0x18    0x1c    0x20   0x24
+  |||||
+  |||||         + Label name
+  |||||         |       + Label type
+  |||||         |       |       + Next label
+  |||||         |       |       |
+  |||||       +-------+------+-----+
+  +-----------| 0x01  | 0x42 | ... |
+   ||||       +-------+------+-----+
+   ||||  cth_lbloff   +0x4   +0x8  cth_objtoff
+   ||||
+   ||||
+   |||| Symidx  0t15   0t43   0t44
+   ||||       +------+------+------+-----+
+   +----------| 0x00 | 0x42 | 0x36 | ... |
+    |||       +------+------+------+-----+
+    ||| cth_objtoff  +0x2   +0x4   +0x6   cth_funcoff
+    |||
+    |||        + CTF_TYPE_INFO         + CTF_TYPE_INFO
+    |||        |        + Return type  |
+    |||        |        |       + arg0 |
+    |||       +--------+------+------+-----+
+    +---------| 0x2c10 | 0x08 | 0x0c | ... |
+     ||       +--------+------+------+-----+
+     || cth_funcff     +0x2   +0x4   +0x6  cth_typeoff
+     ||
+     ||         + ctf_stype_t for type 1
+     ||         |  integer           + integer encoding
+     ||         |                    |          + ctf_stype_t for type 2
+     ||         |                    |          |
+     ||       +--------------------+-----------+-----+
+     +--------| 0x19 * 0xc01 * 0x0 | 0x1000000 | ... |
+      |       +--------------------+-----------+-----+
+      | cth_typeoff               +0x08      +0x0c  cth_stroff
+      |
+      |     +--- str 0
+      |     |    +--- str 1       + str 2
+      |     |    |                |
+      |     v    v                v
+      |   +----+---+---+---+----+---+---+---+---+---+----+
+      +---| \\0 | i | n | t | \\0 | f | o | o | _ | t | \\0 |
+          +----+---+---+---+----+---+---+---+---+---+----+
+          0    1   2   3   4    5   6   7   8   9   10   11
+.Ed
+.Lp
+Every
+.Nm
+file begins with a
+.Sy preamble ,
+followed by a
+.Sy header .
+The
+.Sy preamble
+is defined as follows:
+.Bd -literal
+typedef struct ctf_preamble {
+	ushort_t ctp_magic;	/* magic number (CTF_MAGIC) */
+	uchar_t ctp_version;	/* data format version number (CTF_VERSION) */
+	uchar_t ctp_flags;	/* flags (see below) */
+} ctf_preamble_t;
+.Ed
+.Pp
+The
+.Sy preamble
+is four bytes long and must be four byte aligned.
+This
+.Sy preamble
+defines the version of the
+.Nm
+file which defines the format of the rest of the header.
+While the header may change in subsequent versions, the preamble will not change
+across versions, though the interpretation of its flags may change from
+version to version.
+The
+.Em ctp_magic
+member defines the magic number for the
+.Nm
+file format.
+This must always be
+.Li 0xcff1 .
+If another value is encountered, then the file should not be treated as
+a
+.Nm
+file.
+The
+.Em ctp_version
+member defines the version of the
+.Nm
+file.
+The current version is
+.Li 2 .
+It is possible to encounter an unsupported version.
+In that case, software should not try to parse the format, as it may have
+changed.
+Finally, the
+.Em ctp_flags
+member describes aspects of the file which modify its interpretation.
+The following flags are currently defined:
+.Bd -literal
+#define	CTF_F_COMPRESS		0x01
+.Ed
+.Pp
+The flag
+.Sy CTF_F_COMPRESS
+indicates that the body of the
+.Nm
+file, all the data following the
+.Sy header ,
+has been compressed through the
+.Sy zlib
+library and its
+.Sy deflate
+algorithm.
+If this flag is not present, then the body has not been compressed and no
+special action is needed to interpret it.
+All offsets into the data as described by
+.Sy header ,
+always refer to the
+.Sy uncompressed
+data.
+.Lp
+In version two of the
+.Nm
+file format, the
+.Sy header
+denotes whether or not this
+.Nm
+file is the child of another
+.Nm
+file and also indicates the size of the remaining sections.
+The structure for the
+.Sy header
+logically contains a copy of the
+.Sy preamble
+and the two have a combined size of 36 bytes.
+.Bd -literal
+typedef struct ctf_header {
+	ctf_preamble_t cth_preamble;
+	uint_t cth_parlabel;	/* ref to name of parent lbl uniq'd against */
+	uint_t cth_parname;	/* ref to basename of parent */
+	uint_t cth_lbloff;	/* offset of label section */
+	uint_t cth_objtoff;	/* offset of object section */
+	uint_t cth_funcoff;	/* offset of function section */
+	uint_t cth_typeoff;	/* offset of type section */
+	uint_t cth_stroff;	/* offset of string section */
+	uint_t cth_strlen;	/* length of string section in bytes */
+} ctf_header_t;
+.Ed
+.Pp
+After the
+.Sy preamble ,
+the next two members
+.Em cth_parlablel
+and
+.Em cth_parname ,
+are used to identify the parent.
+The value of both members are offsets into the
+.Sy string
+section which point to the start of a null-terminated string.
+For more information on the encoding of strings, see the subsection on
+.Sx String Identifiers .
+If the value of either is zero, then there is no entry for that
+member.
+If the member
+.Em cth_parlabel
+is set, then the
+.Em ctf_parname
+member must be set, otherwise it will not be possible to find the
+parent.
+If
+.Em ctf_parname
+is set, it is not necessary to define
+.Em cth_parlabel ,
+as the parent may not have a label.
+For more information on labels and their interpretation, see
+.Sx The Label Section .
+.Lp
+The remaining members (excepting
+.Em cth_strlen )
+describe the beginning of the corresponding sections.
+These offsets are relative to the end of the
+.Sy header .
+Therefore, something with an offset of 0 is at an offset of thirty-six
+bytes relative to the start of the
+.Nm
+file.
+The difference between members indicates the size of the section itself.
+Different offsets have different alignment requirements.
+The start of the
+.Em cth_objotoff
+and
+.Em cth_funcoff
+must be two byte aligned, while the sections
+.Em cth_lbloff
+and
+.Em cth_typeoff
+must be four-byte aligned.
+The section
+.Em cth_stroff
+has no alignment requirements.
+To calculate the size of a given section, excepting the
+.Sy string
+section, one should subtract the offset of the section from the following one.
+For example, the size of the
+.Sy types
+section can be calculated by subtracting
+.Em cth_stroff
+from
+.Em cth_typeoff .
+.Lp
+Finally, the member
+.Em cth_strlen
+describes the length of the string section itself.
+From it, you can also calculate the size of the entire
+.Nm
+file by adding together the size of the
+.Sy ctf_header_t ,
+the offset of the string section in
+.Em cth_stroff ,
+and the size of the string section in
+.Em cth_srlen .
+.Ss Type Identifiers
+Through the
+.Nm ctf
+data, types are referred to by identifiers.
+A given
+.Nm
+file supports up to 32767 (0x7fff) types.
+The first valid type identifier is 0x1.
+When a given
+.Nm
+file is a child, indicated by a non-zero entry for the
+.Sy header Ns 's
+.Em cth_parname ,
+then the first valid type identifier is 0x8000 and the last is 0xffff.
+In this case, type identifiers 0x1 through 0x7fff are references to the
+parent.
+.Lp
+The type identifier zero is a sentinel value used to indicate that there
+is no type information available or it is an unknown type.
+.Lp
+Throughout the file format, the identifier is stored in different sized
+values; however, the minimum size to represent a given identifier is a
+.Sy uint16_t .
+Other consumers of
+.Nm
+information may use larger or opaque identifiers.
+.Ss String Identifiers
+String identifiers are always encoded as four byte unsigned integers
+which are an offset into a string table.
+The
+.Nm
+format supports two different string tables which have an identifier of
+zero or one.
+This identifier is stored in the high-order bit of the unsigned four byte
+offset.
+Therefore, the maximum supported offset into one of these tables is 0x7ffffffff.
+.Lp
+Table identifier zero, always refers to the
+.Sy string
+section in the CTF file itself.
+String table identifier one refers to an external string table which is the ELF
+string table for the ELF symbol table associated with the
+.Nm
+container.
+.Ss Type Encoding
+Every
+.Nm
+type begins with metadata encoded into a
+.Sy uint16_t .
+This encoded information tells us three different pieces of information:
+.Bl -bullet -offset indent -compact
+.It
+The kind of the type
+.It
+Whether this type is a root type or not
+.It
+The length of the variable data
+.El
+.Lp
+The 16 bits that make up the encoding are broken down such that you have
+five bits for the kind, one bit for indicating whether or not it is a
+root type, and 10 bits for the variable length.
+This is laid out as follows:
+.Bd -literal -offset indent
++--------------------+
+| kind | root | vlen |
++--------------------+
+15   11   10   9    0
+.Ed
+.Lp
+The current version of the file format defines 14 different kinds.
+The interpretation of these different kinds will be discussed in the section
+.Sx The Type Section .
+If a kind is encountered that is not listed below, then it is not a valid
+.Nm
+file.
+The kinds are defined as follows:
+.Bd -literal -offset indent
+#define	CTF_K_UNKNOWN	0
+#define	CTF_K_INTEGER	1
+#define	CTF_K_FLOAT	2
+#define	CTF_K_POINTER	3
+#define	CTF_K_ARRAY	4
+#define	CTF_K_FUNCTION	5
+#define	CTF_K_STRUCT	6
+#define	CTF_K_UNION	7
+#define	CTF_K_ENUM	8
+#define	CTF_K_FORWARD	9
+#define	CTF_K_TYPEDEF	10
+#define	CTF_K_VOLATILE	11
+#define	CTF_K_CONST	12
+#define	CTF_K_RESTRICT	13
+.Ed
+.Lp
+Programs directly reference many types; however, other types are referenced
+indirectly because they are part of some other structure.
+These types that are referenced directly and used are called
+.Sy root
+types.
+Other types may be used indirectly, for example, a program may reference
+a structure directly, but not one of its members which has a type.
+That type is not considered a
+.Sy root
+type.
+If a type is a
+.Sy root
+type, then it will have bit 10 set.
+.Lp
+The variable length section is specific to each kind and is discussed in the
+section
+.Sx The Type Section .
+.Lp
+The following macros are useful for constructing and deconstructing the encoded
+type information:
+.Bd -literal -offset indent
+
+#define	CTF_MAX_VLEN	0x3ff
+#define	CTF_INFO_KIND(info)	(((info) & 0xf800) >> 11)
+#define	CTF_INFO_ISROOT(info)	(((info) & 0x0400) >> 10)
+#define	CTF_INFO_VLEN(info)	(((info) & CTF_MAX_VLEN))
+
+#define	CTF_TYPE_INFO(kind, isroot, vlen) \\
+	(((kind) << 11) | (((isroot) ? 1 : 0) << 10) | ((vlen) & CTF_MAX_VLEN))
+.Ed
+.Ss The Label Section
+When consuming
+.Nm
+data, it is often useful to know whether two different
+.Nm
+containers come from the same source base and version.
+For example, when building illumos, there are many kernel modules that are built
+against a single collection of source code.
+A label is encoded into the
+.Nm
+files that corresponds with the particular build.
+This ensures that if files on the system were to become mixed up from multiple
+releases, that they are not used together by tools, particularly when a child
+needs to refer to a type in the parent.
+Because they are linked using the type identifiers, if the wrong parent is used
+then the wrong type will be encountered.
+.Lp
+Each label is encoded in the file format using the following eight byte
+structure:
+.Bd -literal
+typedef struct ctf_lblent {
+	uint_t ctl_label;	/* ref to name of label */
+	uint_t ctl_typeidx;	/* last type associated with this label */
+} ctf_lblent_t;
+.Ed
+.Lp
+Each label has two different components, a name and a type identifier.
+The name is encoded in the
+.Em ctl_label
+member which is in the format defined in the section
+.Sx String Identifiers .
+Generally, the names of all labels are found in the internal string
+section.
+.Lp
+The type identifier encoded in the member
+.Em ctl_typeidx
+refers to the last type identifier that a label refers to in the current
+file.
+Labels only refer to types in the current file, if the
+.Nm
+file is a child, then it will have the same label as its parent;
+however, its label will only refer to its types, not its parent's.
+.Lp
+It is also possible, though rather uncommon, for a
+.Nm
+file to have multiple labels.
+Labels are placed one after another, every eight bytes.
+When multiple labels are present, types may only belong to a single label.
+.Ss The Object Section
+The object section provides a mapping from ELF symbols of type
+.Sy STT_OBJECT
+in the symbol table to a type identifier.
+Every entry in this section is a
+.Sy uint16_t
+which contains a type identifier as described in the section
+.Sx Type Identifiers .
+If there is no information for an object, then the type identifier 0x0
+is stored for that entry.
+.Lp
+To walk the object section, you need to have a corresponding
+.Sy symbol table
+in the ELF object that contains the
+.Nm
+data.
+Not every object is included in this section.
+Specifically, when walking the symbol table, an entry is skipped if it matches
+any of the following conditions:
+.Lp
+.Bl -bullet -offset indent -compact
+.It
+The symbol type is not
+.Sy STT_OBJECT
+.It
+The symbol's section index is
+.Sy SHN_UNDEF
+.It
+The symbol's name offset is zero
+.It
+The symbol's section index is
+.Sy SHN_ABS
+and the value of the symbol is zero.
+.It
+The symbol's name is
+.Li _START_
+or
+.Li _END_ .
+These are skipped because they are used for scoping local symbols in
+ELF.
+.El
+.Lp
+The following sample code shows an example of iterating the object
+section and skipping the correct symbols:
+.Bd -literal
+#include <gelf.h>
+#include <stdio.h>
+
+/*
+ * Given the start of the object section in the CTF file, the number of symbols,
+ * and the ELF Data sections for the symbol table and the string table, this
+ * prints the type identifiers that correspond to objects. Note, a more robust
+ * implementation should ensure that they don't walk beyond the end of the CTF
+ * object section.
+ */
+static int
+walk_symbols(uint16_t *objtoff, Elf_Data *symdata, Elf_Data *strdata,
+    long nsyms)
+{
+	long i;
+	uintptr_t strbase = strdata->d_buf;
+
+	for (i = 1; i < nsyms; i++, objftoff++) {
+		const char *name;
+		GElf_Sym sym;
+
+		if (gelf_getsym(symdata, i, &sym) == NULL)
+			return (1);
+
+		if (GELF_ST_TYPE(sym.st_info) != STT_OBJECT)
+			continue;
+		if (sym.st_shndx == SHN_UNDEF || sym.st_name == 0)
+			continue;
+		if (sym.st_shndx == SHN_ABS && sym.st_value == 0)
+			continue;
+		name = (const char *)(strbase + sym.st_name);
+		if (strcmp(name, "_START_") == 0 || strcmp(name, "_END_") == 0)
+			continue;
+
+		(void) printf("Symbol %d has type %d\n", i, *objtoff);
+	}
+
+	return (0);
+}
+.Ed
+.Ss The Function Section
+The function section of the
+.Nm
+file encodes the types of both the function's arguments and the function's
+return value.
+Similar to
+.Sx The Object Section ,
+the function section encodes information for all symbols of type
+.Sy STT_FUNCTION ,
+excepting those that fit specific criteria.
+Unlike with objects, because functions have a variable number of arguments, they
+start with a type encoding as defined in
+.Sx Type Encoding ,
+which is the size of a
+.Sy uint16_t .
+For functions which have no type information available, they are encoded as
+.Li CTF_TYPE_INFO(CTF_K_UNKNOWN, 0, 0) .
+Functions with arguments are encoded differently.
+Here, the variable length is turned into the number of arguments in the
+function.
+If a function is a
+.Sy varargs
+type function, then the number of arguments is increased by one.
+Functions with type information are encoded as:
+.Li CTF_TYPE_INFO(CTF_K_FUNCTION, 0, nargs) .
+.Lp
+For functions that have no type information, nothing else is encoded, and the
+next function is encoded.
+For functions with type information, the next
+.Sy uint16_t
+is encoded with the type identifier of the return type of the function.
+It is followed by each of the type identifiers of the arguments, if any exist,
+in the order that they appear in the function.
+Therefore, argument 0 is the first type identifier and so on.
+When a function has a final varargs argument, that is encoded with the type
+identifier of zero.
+.Lp
+Like
+.Sx The Object Section ,
+the function section is encoded in the order of the symbol table.
+It has similar, but slightly different considerations from objects.
+While iterating the symbol table, if any of the following conditions are true,
+then the entry is skipped and no corresponding entry is written:
+.Lp
+.Bl -bullet -offset indent -compact
+.It
+The symbol type is not
+.Sy STT_FUNCTION
+.It
+The symbol's section index is
+.Sy SHN_UNDEF
+.It
+The symbol's name offset is zero
+.It
+The symbol's name is
+.Li _START_
+or
+.Li _END_ .
+These are skipped because they are used for scoping local symbols in
+ELF.
+.El
+.Ss The Type Section
+The type section is the heart of the
+.Nm
+data.
+It encodes all of the information about the types themselves.
+The base of the type information comes in two forms, a short form and a long
+form, each of which may be followed by a variable number of arguments.
+The following definitions describe the short and long forms:
+.Bd -literal
+#define	CTF_MAX_SIZE	0xfffe	/* max size of a type in bytes */
+#define	CTF_LSIZE_SENT	0xffff	/* sentinel for ctt_size */
+#define	CTF_MAX_LSIZE	UINT64_MAX
+
+typedef struct ctf_stype {
+	uint_t ctt_name;	/* reference to name in string table */
+	ushort_t ctt_info;	/* encoded kind, variant length */
+	union {
+		ushort_t _size;	/* size of entire type in bytes */
+		ushort_t _type;	/* reference to another type */
+	} _u;
+} ctf_stype_t;
+
+typedef struct ctf_type {
+	uint_t ctt_name;	/* reference to name in string table */
+	ushort_t ctt_info;	/* encoded kind, variant length */
+	union {
+		ushort_t _size;	/* always CTF_LSIZE_SENT */
+		ushort_t _type; /* do not use */
+	} _u;
+	uint_t ctt_lsizehi;	/* high 32 bits of type size in bytes */
+	uint_t ctt_lsizelo;	/* low 32 bits of type size in bytes */
+} ctf_type_t;
+
+#define	ctt_size _u._size	/* for fundamental types that have a size */
+#define	ctt_type _u._type	/* for types that reference another type */
+.Ed
+.Pp
+Type sizes are stored in
+.Sy bytes .
+The basic small form uses a
+.Sy ushort_t
+to store the number of bytes.
+If the number of bytes in a structure would exceed 0xfffe, then the alternate
+form, the
+.Sy ctf_type_t ,
+is used instead.
+To indicate that the larger form is being used, the member
+.Em ctt_size
+is set to value of
+.Sy CTF_LSIZE_SENT
+(0xffff).
+In general, when going through the type section, consumers use the
+.Sy ctf_type_t
+structure, but pay attention to the value of the member
+.Em ctt_size
+to determine whether they should increment their scan by the size of the
+.Sy ctf_stype_t
+or
+.Sy ctf_type_t .
+Not all kinds of types use
+.Sy ctt_size .
+Those which do not, will always use the
+.Sy ctf_stype_t
+structure.
+The individual sections for each kind have more information.
+.Lp
+Types are written out in order.
+Therefore the first entry encountered has a type id of 0x1, or 0x8000 if a
+child.
+The member
+.Em ctt_name
+is encoded as described in the section
+.Sx String Identifiers .
+The string that it points to is the name of the type.
+If the identifier points to an empty string (one that consists solely of a null
+terminator) then the type does not have a name, this is common with anonymous
+structures and unions that only have a typedef to name them, as well as
+pointers and qualifiers.
+.Lp
+The next member, the
+.Em ctt_info ,
+is encoded as described in the section
+.Sx Type Encoding .
+The type's kind tells us how to interpret the remaining data in the
+.Sy ctf_type_t
+and any variable length data that may exist.
+The rest of this section will be broken down into the interpretation of the
+various kinds.
+.Ss Encoding of Integers
+Integers, which are of type
+.Sy CTF_K_INTEGER ,
+have no variable length arguments.
+Instead, they are followed by a four byte
+.Sy uint_t
+which describes their encoding.
+All integers must be encoded with a variable length of zero.
+The
+.Em ctt_size
+member describes the length of the integer in bytes.
+In general, integer sizes will be rounded up to the closest power of two.
+.Lp
+The integer encoding contains three different pieces of information:
+.Bl -bullet -offset indent -compact
+.It
+The encoding of the integer
+.It
+The offset in
+.Sy bits
+of the type
+.It
+The size in
+.Sy bits
+of the type
+.El
+.Pp
+This encoding can be expressed through the following macros:
+.Bd -literal -offset indent
+#define	CTF_INT_ENCODING(data)	(((data) & 0xff000000) >> 24)
+#define	CTF_INT_OFFSET(data)	(((data) & 0x00ff0000) >> 16)
+#define	CTF_INT_BITS(data)	(((data) & 0x0000ffff))
+
+#define	CTF_INT_DATA(encoding, offset, bits) \\
+	(((encoding) << 24) | ((offset) << 16) | (bits))
+.Ed
+.Pp
+The following flags are defined for the encoding at this time:
+.Bd -literal -offset indent
+#define	CTF_INT_SIGNED		0x01
+#define	CTF_INT_CHAR		0x02
+#define	CTF_INT_BOOL		0x04
+#define	CTF_INT_VARARGS		0x08
+.Ed
+.Lp
+By default, an integer is considered to be unsigned, unless it has the
+.Sy CTF_INT_SIGNED
+flag set.
+If the flag
+.Sy CTF_INT_CHAR
+is set, that indicates that the integer is of a type that stores character
+data, for example the intrinsic C type
+.Sy char
+would have the
+.Sy CTF_INT_CHAR
+flag set.
+If the flag
+.Sy CTF_INT_BOOL
+is set, that indicates that the integer represents a boolean type.
+For example, the intrinsic C type
+.Sy _Bool
+would have the
+.Sy CTF_INT_BOOL
+flag set.
+Finally, the flag
+.Sy CTF_INT_VARARGS
+indicates that the integer is used as part of a variable number of arguments.
+This encoding is rather uncommon.
+.Ss Encoding of Floats
+Floats, which are of type
+.Sy CTF_K_FLOAT ,
+are similar to their integer counterparts.
+They have no variable length arguments and are followed by a four byte encoding
+which describes the kind of float that exists.
+The
+.Em ctt_size
+member is the size, in bytes, of the float.
+The float encoding has three different pieces of information inside of it:
+.Lp
+.Bl -bullet -offset indent -compact
+.It
+The specific kind of float that exists
+.It
+The offset in
+.Sy bits
+of the float
+.It
+The size in
+.Sy bits
+of the float
+.El
+.Lp
+This encoding can be expressed through the following macros:
+.Bd -literal -offset indent
+#define	CTF_FP_ENCODING(data)	(((data) & 0xff000000) >> 24)
+#define	CTF_FP_OFFSET(data)	(((data) & 0x00ff0000) >> 16)
+#define	CTF_FP_BITS(data)	(((data) & 0x0000ffff))
+
+#define	CTF_FP_DATA(encoding, offset, bits) \\
+	(((encoding) << 24) | ((offset) << 16) | (bits))
+.Ed
+.Lp
+Where as the encoding for integers is a series of flags, the encoding for
+floats maps to a specific kind of float.
+It is not a flag-based value.
+The kinds of floats correspond to both their size, and the encoding.
+This covers all of the basic C intrinsic floating point types.
+The following are the different kinds of floats represented in the encoding:
+.Bd -literal -offset indent
+#define	CTF_FP_SINGLE	1	/* IEEE 32-bit float encoding */
+#define	CTF_FP_DOUBLE	2	/* IEEE 64-bit float encoding */
+#define	CTF_FP_CPLX	3	/* Complex encoding */
+#define	CTF_FP_DCPLX	4	/* Double complex encoding */
+#define	CTF_FP_LDCPLX	5	/* Long double complex encoding */
+#define	CTF_FP_LDOUBLE	6	/* Long double encoding */
+#define	CTF_FP_INTRVL	7	/* Interval (2x32-bit) encoding */
+#define	CTF_FP_DINTRVL	8	/* Double interval (2x64-bit) encoding */
+#define	CTF_FP_LDINTRVL	9	/* Long double interval (2x128-bit) encoding */
+#define	CTF_FP_IMAGRY	10	/* Imaginary (32-bit) encoding */
+#define	CTF_FP_DIMAGRY	11	/* Long imaginary (64-bit) encoding */
+#define	CTF_FP_LDIMAGRY	12	/* Long double imaginary (128-bit) encoding */
+.Ed
+.Ss Encoding of Arrays
+Arrays, which are of type
+.Sy CTF_K_ARRAY ,
+have no variable length arguments.
+They are followed by a structure which describes the number of elements in the
+array, the type identifier of the elements in the array, and the type identifier
+of the index of the array.
+With arrays, the
+.Em ctt_size
+member is set to zero.
+The structure that follows an array is defined as:
+.Bd -literal
+typedef struct ctf_array {
+	ushort_t cta_contents;	/* reference to type of array contents */
+	ushort_t cta_index;	/* reference to type of array index */
+	uint_t cta_nelems;	/* number of elements */
+} ctf_array_t;
+.Ed
+.Lp
+The
+.Em cta_contents
+and
+.Em cta_index
+members of the
+.Sy ctf_array_t
+are type identifiers which are encoded as per the section
+.Sx Type Identifiers .
+The member
+.Em cta_nelems
+is a simple four byte unsigned count of the number of elements.
+This count may be zero when encountering C99's flexible array members.
+.Ss Encoding of Functions
+Function types, which are of type
+.Sy CTF_K_FUNCTION ,
+use the variable length list to be the number of arguments in the function.
+When the function has a final member which is a varargs, then the argument count
+is incremented by one to account for the variable argument.
+Here, the
+.Em ctt_type
+member is encoded with the type identifier of the return type of the function.
+Note that the
+.Em ctt_size
+member is not used here.
+.Lp
+The variable argument list contains the type identifiers for the arguments of
+the function, if any.
+Each one is represented by a
+.Sy uint16_t
+and encoded according to the
+.Sx Type Identifiers
+section.
+If the function's last argument is of type varargs, then it is also written out,
+but the type identifier is zero.
+This is included in the count of the function's arguments.
+An extra type identifier may follow the argument and return type identifiers
+in order to maintain four-byte alignment for the following type definition.
+Such a type identifier is not included in the argument count and has a value
+of zero.
+.Ss Encoding of Structures and Unions
+Structures and Unions, which are encoded with
+.Sy CTF_K_STRUCT
+and
+.Sy CTF_K_UNION
+respectively,  are very similar constructs in C.
+The main difference between them is the fact that members of a structure
+follow one another, where as in a union, all members share the same memory.
+They are also very similar in terms of their encoding in
+.Nm .
+The variable length argument for structures and unions represents the number of
+members that they have.
+The value of the member
+.Em ctt_size
+is the size of the structure and union.
+There are two different structures which are used to encode members in the
+variable list.
+When the size of a structure or union is greater than or equal to the large
+member threshold, 8192, then a different structure is used to encode the member,
+all members are encoded using the same structure.
+The structure for members is as follows:
+.Bd -literal
+typedef struct ctf_member {
+	uint_t ctm_name;	/* reference to name in string table */
+	ushort_t ctm_type;	/* reference to type of member */
+	ushort_t ctm_offset;	/* offset of this member in bits */
+} ctf_member_t;
+
+typedef struct ctf_lmember {
+	uint_t ctlm_name;	/* reference to name in string table */
+	ushort_t ctlm_type;	/* reference to type of member */
+	ushort_t ctlm_pad;	/* padding */
+	uint_t ctlm_offsethi;	/* high 32 bits of member offset in bits */
+	uint_t ctlm_offsetlo;	/* low 32 bits of member offset in bits */
+} ctf_lmember_t;
+.Ed
+.Lp
+Both the
+.Em ctm_name
+and
+.Em ctlm_name
+refer to the name of the member.
+The name is encoded as an offset into the string table as described by the
+section
+.Sx String Identifiers .
+The members
+.Sy ctm_type
+and
+.Sy ctlm_type
+both refer to the type of the member.
+They are encoded as per the section
+.Sx Type Identifiers .
+.Lp
+The last piece of information that is present is the offset which describes the
+offset in memory at which the member begins.
+For unions, this value will always be zero because each member of a union has
+an offset of zero.
+For structures, this is the offset in
+.Sy bits
+at which the member begins.
+Note that a compiler may lay out a type with padding.
+This means that the difference in offset between two consecutive members may be
+larger than the size of the member.
+When the size of the overall structure is strictly less than 8192 bytes, the
+normal structure,
+.Sy ctf_member_t ,
+is used and the offset in bits is stored in the member
+.Em ctm_offset .
+However, when the size of the structure is greater than or equal to 8192 bytes,
+then the number of bits is split into two 32-bit quantities.
+One member,
+.Em ctlm_offsethi ,
+represents the upper 32 bits of the offset, while the other member,
+.Em ctlm_offsetlo ,
+represents the lower 32 bits of the offset.
+These can be joined together to get a 64-bit sized offset in bits by shifting
+the member
+.Em ctlm_offsethi
+to the left by thirty two and then doing a binary or of
+.Em ctlm_offsetlo .
+.Ss Encoding of Enumerations
+Enumerations, noted by the type
+.Sy CTF_K_ENUM ,
+are similar to structures.
+Enumerations use the variable list to note the number of values that the
+enumeration contains, which we'll term enumerators.
+In C, an enumeration is always equivalent to the intrinsic type
+.Sy int ,
+thus the value of the member
+.Em ctt_size
+is always the size of an integer which is determined based on the current model.
+For
+.Fx
+systems, this will always be 4, as an integer is always defined to
+be 4 bytes large in both
+.Sy ILP32
+and
+.Sy LP64 ,
+regardless of the architecture.
+For further details, see
+.Xr arch 7 .
+.Lp
+The enumerators encoded in an enumeration have the following structure in the
+variable list:
+.Bd -literal
+typedef struct ctf_enum {
+	uint_t cte_name;	/* reference to name in string table */
+	int cte_value;		/* value associated with this name */
+} ctf_enum_t;
+.Ed
+.Pp
+The member
+.Em cte_name
+refers to the name of the enumerator's value, it is encoded according to the
+rules in the section
+.Sx String Identifiers .
+The member
+.Em cte_value
+contains the integer value of this enumerator.
+.Ss Encoding of Forward References
+Forward references, types of kind
+.Sy CTF_K_FORWARD ,
+in a
+.Nm
+file refer to types which may not have a definition at all, only a name.
+If the
+.Nm
+file is a child, then it may be that the forward is resolved to an
+actual type in the parent, otherwise the definition may be in another
+.Nm
+container or may not be known at all.
+The only member of the
+.Sy ctf_type_t
+that matters for a forward declaration is the
+.Em ctt_name
+which points to the name of the forward reference in the string table as
+described earlier.
+There is no other information recorded for forward references.
+.Ss Encoding of Pointers, Typedefs, Volatile, Const, and Restrict
+Pointers, typedefs, volatile, const, and restrict are all similar in
+.Nm .
+They all refer to another type.
+In the case of typedefs, they provide an alternate name, while volatile, const,
+and restrict change how the type is interpreted in the C programming language.
+This covers the
+.Nm
+kinds
+.Sy CTF_K_POINTER ,
+.Sy CTF_K_TYPEDEF ,
+.Sy CTF_K_VOLATILE ,
+.Sy CTF_K_RESTRICT ,
+and
+.Sy CTF_K_CONST .
+.Lp
+These types have no variable list entries and use the member
+.Em ctt_type
+to refer to the base type that they modify.
+.Ss Encoding of Unknown Types
+Types with the kind
+.Sy CTF_K_UNKNOWN
+are used to indicate gaps in the type identifier space.
+These entries consume an identifier, but do not define anything.
+Nothing should refer to these gap identifiers.
+.Ss Dependencies Between Types
+C types can be imagined as a directed, cyclic, graph.
+Structures and unions may refer to each other in a way that creates a cyclic
+dependency.
+In cases such as these, the entire type section must be read in and processed.
+Consumers must not assume that every type can be laid out in dependency order;
+they cannot.
+.Ss The String Section
+The last section of the
+.Nm
+file is the
+.Sy string
+section.
+This section encodes all of the strings that appear throughout the other
+sections.
+It is laid out as a series of characters followed by a null terminator.
+Generally, all names are written out in ASCII, as most C compilers do not allow
+any characters to appear in identifiers outside of a subset of ASCII.
+However, any extended characters sets should be written out as a series of UTF-8
+bytes.
+.Lp
+The first entry in the section, at offset zero, is a single null
+terminator to reference the empty string.
+Following that, each C string should be written out, including the null
+terminator.
+Offsets that refer to something in this section should refer to the first byte
+which begins a string.
+Beyond the first byte in the section being the null terminator, the order of
+strings is unimportant.
+.Ss Data Encoding and ELF Considerations
+.Nm
+data is generally included in ELF objects which specify information to
+identify the architecture and endianness of the file.
+A
+.Nm
+container inside such an object must match the endianness of the ELF object.
+Aside from the question of the endian encoding of data, there should be no other
+differences between architectures.
+While many of the types in this document refer to non-fixed size C integral
+types, they are equivalent in the models
+.Sy ILP32
+and
+.Sy LP64 .
+If any other model is being used with
+.Nm
+data that has different sizes, then it must not use the model's sizes for
+those integral types and instead use the fixed size equivalents based on an
+.Sy ILP32
+environment.
+.Lp
+When placing a
+.Nm
+container inside of an ELF object, there are certain conventions that are
+expected for the purposes of tooling being able to find the
+.Nm
+data.
+In particular, a given ELF object should only contain a single
+.Nm
+section.
+Multiple containers should be merged together into a single one.
+.Lp
+The
+.Nm
+file should be included in its own ELF section.
+The section's name must be
+.Ql .SUNW_ctf .
+The type of the section must be
+.Sy SHT_PROGBITS .
+The section should have a link set to the symbol table and its address
+alignment must be 4.
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr elf 3 ,
+.Xr gelf 3 ,
+.Xr a.out 5 ,
+.Xr elf 5 ,
+.Xr arch 7

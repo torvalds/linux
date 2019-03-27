@@ -1,0 +1,26 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_GET_DEVICE_NAME 3  2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_get_device_name \- get an RDMA device's name
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "const char *ibv_get_device_name(struct ibv_device " "*device" ");
+.fi
+.SH "DESCRIPTION"
+.B ibv_get_device_name()
+returns a human-readable name associated with the RDMA device
+.I device\fR.
+.SH "RETURN VALUE"
+.B ibv_get_device_name()
+returns a pointer to the device name, or NULL if the request fails.
+.SH "SEE ALSO"
+.BR ibv_get_device_list (3),
+.BR ibv_get_device_guid (3),
+.BR ibv_open_device (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

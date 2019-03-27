@@ -1,0 +1,229 @@
+.\" Copyright (c) 2006,2008,2010-2011 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_getdata.3 3643 2018-10-14 21:09:24Z jkoshy $
+.\"
+.Dd January 26, 2011
+.Dt ELF_GETDATA 3
+.Os
+.Sh NAME
+.Nm elf_getdata ,
+.Nm elf_newdata ,
+.Nm elf_rawdata
+.Nd iterate through or allocate section data
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft "Elf_Data *"
+.Fn elf_getdata "Elf_Scn *scn" "Elf_Data *data"
+.Ft "Elf_Data *"
+.Fn elf_newdata "Elf_Scn *scn"
+.Ft "Elf_Data *"
+.Fn elf_rawdata "Elf_Scn *scn" "Elf_Data *data"
+.Sh DESCRIPTION
+These functions are used to access and manipulate data descriptors
+associated with section descriptors.
+Data descriptors used by the ELF library are described in
+.Xr elf 3 .
+.Pp
+Function
+.Fn elf_getdata
+will return the next data descriptor associated with section descriptor
+.Ar scn .
+The returned data descriptor will be setup to contain translated data.
+Argument
+.Ar data
+may be NULL, in which case the function returns the first data descriptor
+associated with section
+.Ar scn .
+If argument
+.Ar data
+is not NULL, it must be a pointer to a data descriptor associated with
+section descriptor
+.Ar scn ,
+and function
+.Fn elf_getdata
+will return a pointer to the next data descriptor for the section,
+or NULL when the end of the section's descriptor list is reached.
+.Pp
+Function
+.Fn elf_newdata
+will allocate a new data descriptor and append it to the list of data
+descriptors associated with section descriptor
+.Ar scn .
+The new data descriptor will be initialized as follows:
+.Bl -tag -width "d_version" -compact -offset indent
+.It Va d_align
+Set to 1.
+.It Va d_buf
+Initialized to NULL.
+.It Va d_off
+Set to (off_t) -1.
+This field is under application control if the
+.Dv ELF_F_LAYOUT
+flag was set on the ELF descriptor.
+.It Va d_size
+Set to zero.
+.It Va d_type
+Initialized to
+.Dv ELF_T_BYTE .
+.It Va d_version
+Set to the current working version of the library, as set by
+.Xr elf_version 3 .
+.El
+The application must set these values as appropriate before
+calling
+.Xr elf_update 3 .
+Section
+.Ar scn
+must be associated with an ELF file opened for writing.
+If the application has not requested full control of layout by
+setting the
+.Dv ELF_F_LAYOUT
+flag on descriptor
+.Ar elf ,
+then the data referenced by the returned descriptor will be positioned
+after the existing content of the section, honoring the file alignment
+specified in member
+.Va d_align .
+On successful completion of a call to
+.Fn elf_newdata ,
+the ELF library will mark the section
+.Ar scn
+as
+.Dq dirty .
+.Pp
+Function
+.Fn elf_rawdata
+is used to step through the data descriptors associated with
+section
+.Ar scn .
+In contrast to function
+.Fn elf_getdata ,
+this function returns untranslated data.
+If argument
+.Ar data
+is NULL, the first data descriptor associated with section
+.Ar scn
+is returned.
+If argument
+.Ar data
+is not NULL, is must be a data descriptor associated with
+section
+.Ar scn ,
+and function
+.Fn elf_rawdata
+will return the next data descriptor in the list, or NULL
+if no further descriptors are present.
+Function
+.Fn elf_rawdata
+always returns
+.Vt Elf_Data
+structures of type
+.Dv ELF_T_BYTE .
+.Ss Special handling of zero-sized and SHT_NOBITS sections
+For sections of type
+.Dv SHT_NOBITS ,
+and for zero-sized sections,
+the functions
+.Fn elf_getdata
+and
+.Fn elf_rawdata
+return a pointer to a valid
+.Vt Elf_Data
+structure that has its
+.Va d_buf
+member set to NULL and its
+.Va d_size
+member set to the size of the section.
+.Pp
+If an application wishes to create a section of type
+.Dv SHT_NOBITS ,
+it should add a data buffer to the section using function
+.Fn elf_newdata .
+It should then set the
+.Va d_buf
+and
+.Va d_size
+members of the returned
+.Vt Elf_Data
+structure to NULL and the desired size of the section respectively.
+.Sh RETURN VALUES
+These functions return a valid pointer to a data descriptor if successful, or
+NULL if an error occurs.
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+Either of the arguments
+.Ar scn
+or
+.Ar data
+was NULL.
+.It Bq Er ELF_E_ARGUMENT
+The data descriptor referenced by argument
+.Ar data
+is not associated with section descriptor
+.Ar scn .
+.It Bq Er ELF_E_ARGUMENT
+The section denoted by argument
+.Ar scn
+had no data associated with it.
+.It Bq Er ELF_E_DATA
+Retrieval of data from the underlying object failed.
+.It Bq Er ELF_E_RESOURCE
+An out of memory condition was detected.
+.It Bq Er ELF_E_SECTION
+Section
+.Ar scn
+had type
+.Dv SHT_NULL .
+.It Bq Er ELF_E_SECTION
+The type of the section
+.Ar scn
+was not recognized by the library.
+.It Bq Er ELF_E_SECTION
+The size of the section
+.Ar scn
+is not a multiple of the file size for its section type.
+.It Bq Er ELF_E_SECTION
+The file offset for section
+.Ar scn
+is incorrect.
+.It Bq Er ELF_E_UNIMPL
+The section type associated with section
+.Ar scn
+is currently unsupported by the library.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_flagdata 3 ,
+.Xr elf_flagscn 3 ,
+.Xr elf_getscn 3 ,
+.Xr elf_getshdr 3 ,
+.Xr elf_newscn 3 ,
+.Xr elf_rawfile 3 ,
+.Xr elf_update 3 ,
+.Xr elf_version 3 ,
+.Xr gelf 3

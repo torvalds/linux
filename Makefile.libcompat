@@ -1,0 +1,234 @@
+# $FreeBSD$
+
+.if !targets(__<${_this:T}>__)
+__<${_this:T}>__:
+
+# Makefile for the compatibility libraries.
+# - 32-bit compat libraries on MIPS, PowerPC, and AMD64.
+
+# -------------------------------------------------------------------
+# 32 bit world
+.if ${TARGET_ARCH} == "amd64"
+.if empty(TARGET_CPUTYPE)
+LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
+.else
+LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
+.endif
+.if ${WANT_COMPILER_TYPE} == gcc || \
+    (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
+.else
+LIB32CPUFLAGS+=	-target x86_64-unknown-freebsd13.0
+.endif
+LIB32CPUFLAGS+=	-m32
+LIB32WMAKEENV=	MACHINE=i386 MACHINE_ARCH=i386 \
+		MACHINE_CPU="i686 mmx sse sse2"
+LIB32WMAKEFLAGS=	\
+		AS="${XAS} --32" \
+		LD="${XLD} -m elf_i386_fbsd -L${LIBCOMPATTMP}/usr/lib32" \
+		OBJCOPY="${XOBJCOPY}"
+
+.elif ${TARGET_ARCH} == "powerpc64"
+.if empty(TARGET_CPUTYPE)
+LIB32CPUFLAGS=	-mcpu=powerpc
+.else
+LIB32CPUFLAGS=	-mcpu=${TARGET_CPUTYPE}
+.endif
+LIB32CPUFLAGS+=	-m32
+LIB32WMAKEENV=	MACHINE=powerpc MACHINE_ARCH=powerpc
+LIB32WMAKEFLAGS=	\
+		LD="${XLD} -m elf32ppc_fbsd" \
+		OBJCOPY="${XOBJCOPY}"
+
+.elif ${TARGET_ARCH:Mmips64*} != ""
+.if ${WANT_COMPILER_TYPE} == gcc || \
+    (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
+.if empty(TARGET_CPUTYPE)
+LIB32CPUFLAGS=	-march=mips3
+.else
+LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
+.endif
+.else
+.if ${TARGET_ARCH:Mmips64el*} != ""
+LIB32CPUFLAGS=  -target mipsel-unknown-freebsd13.0
+.else
+LIB32CPUFLAGS=  -target mips-unknown-freebsd13.0
+.endif
+.endif
+LIB32CPUFLAGS+= -mabi=32
+LIB32WMAKEENV=	MACHINE=mips MACHINE_ARCH=mips
+.if ${TARGET_ARCH:Mmips64el*} != ""
+LIB32WMAKEFLAGS= LD="${XLD} -m elf32ltsmip_fbsd"
+.else
+LIB32WMAKEFLAGS= LD="${XLD} -m elf32btsmip_fbsd"
+.endif
+LIB32WMAKEFLAGS+= OBJCOPY="${XOBJCOPY}"
+.endif
+
+LIB32WMAKEFLAGS+= NM="${XNM}"
+
+
+LIB32CFLAGS=	-DCOMPAT_32BIT
+LIB32DTRACE=	${DTRACE} -32
+LIB32WMAKEFLAGS+=	-DCOMPAT_32BIT
+
+# -------------------------------------------------------------------
+# soft-fp world
+.if ${TARGET_ARCH:Marmv[67]*} != ""
+LIBSOFTCFLAGS=        -DCOMPAT_SOFTFP
+LIBSOFTCPUFLAGS= -mfloat-abi=softfp
+LIBSOFTWMAKEENV= CPUTYPE=soft MACHINE=arm MACHINE_ARCH=${TARGET_ARCH}
+LIBSOFTWMAKEFLAGS=        -DCOMPAT_SOFTFP
+.endif
+
+# -------------------------------------------------------------------
+# Generic code for each type.
+# Set defaults based on type.
+libcompat=	${LIBCOMPAT:tl}
+_LIBCOMPAT_MAKEVARS=	_OBJTOP TMP CPUFLAGS CFLAGS CXXFLAGS WMAKEENV \
+			WMAKEFLAGS WMAKE
+.for _var in ${_LIBCOMPAT_MAKEVARS}
+.if !empty(LIB${LIBCOMPAT}${_var})
+LIBCOMPAT${_var}?=	${LIB${LIBCOMPAT}${_var}}
+.endif
+.endfor
+
+# Shared flags
+LIBCOMPAT_OBJTOP?=	${OBJTOP}/obj-lib${libcompat}
+LIBCOMPATTMP?=		${LIBCOMPAT_OBJTOP}/tmp
+
+LIBCOMPATCFLAGS+=	${LIBCOMPATCPUFLAGS} \
+			-L${LIBCOMPATTMP}/usr/lib${libcompat} \
+			--sysroot=${LIBCOMPATTMP} \
+			${BFLAGS}
+
+# -B is needed to find /usr/lib32/crti.o for GCC and /usr/libsoft/crti.o for
+# Clang/GCC.
+LIBCOMPATCFLAGS+=	-B${LIBCOMPATTMP}/usr/lib${libcompat}
+
+# Yes, the flags are redundant.
+LIBCOMPATWMAKEENV+= \
+		INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		PATH=${TMPPATH} \
+		SYSROOT=${LIBCOMPATTMP} \
+		LIBDIR=/usr/lib${libcompat} \
+		SHLIBDIR=/usr/lib${libcompat} \
+		DTRACE="${LIB$COMPATDTRACE:U${DTRACE}}"
+.if ${MK_META_MODE} != "no"
+# Don't rebuild build-tools targets during normal build.
+LIBCOMPATWMAKEENV+=	BUILD_TOOLS_META=.NOMETA
+.endif
+LIBCOMPATWMAKEFLAGS+= CC="${XCC} ${LIBCOMPATCFLAGS}" \
+		CXX="${XCXX} ${LIBCOMPATCXXFLAGS} ${LIBCOMPATCFLAGS}" \
+		CPP="${XCPP} ${LIBCOMPATCFLAGS}" \
+		DESTDIR=${LIBCOMPATTMP} \
+		-DNO_CPU_CFLAGS \
+		MK_CTF=no \
+		-DNO_LINT \
+		MK_TESTS=no
+LIBCOMPATWMAKE+=	${LIBCOMPATWMAKEENV} ${MAKE} ${LIBCOMPATWMAKEFLAGS} \
+			OBJTOP=${LIBCOMPAT_OBJTOP} \
+			OBJROOT='$${OBJTOP}/' \
+			MAKEOBJDIRPREFIX= \
+			MK_MAN=no MK_HTML=no
+LIBCOMPATIMAKE+=	${LIBCOMPATWMAKE:NINSTALL=*:NDESTDIR=*} \
+			${IMAKE_INSTALL} \
+			-DLIBRARIES_ONLY
+
+_LC_LIBDIRS.yes=		lib
+_LC_LIBDIRS.yes+=		gnu/lib
+_LC_LIBDIRS.${MK_CDDL:tl}+=	cddl/lib
+_LC_LIBDIRS.${MK_CRYPT:tl}+=	secure/lib
+_LC_LIBDIRS.${MK_KERBEROS:tl}+=	kerberos5/lib
+
+_LC_INCDIRS=	\
+		include \
+		lib/ncurses/ncursesw \
+		${_LC_LIBDIRS.yes}
+
+.if ${MK_FILE} != "no"
+_libmagic=	lib/libmagic
+.endif
+.if ${MK_PMC} != "no" && ${TARGET_ARCH} == "amd64"
+_jevents=	lib/libpmc/pmu-events
+.endif
+
+
+# Shared logic
+build${libcompat}: .PHONY
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> stage 5.1: building lib${libcompat} shim libraries"
+	@echo "--------------------------------------------------------------"
+.if !defined(NO_CLEAN)
+	rm -rf ${LIBCOMPATTMP}
+.else
+	${_+_}@if [ -e "${LIBCOMPATTMP}" ]; then \
+		echo ">>> Deleting stale files in build${libcompat} tree..."; \
+		cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+		    DESTDIR=${LIBCOMPATTMP} \
+		    delete-old delete-old-libs >/dev/null; \
+	fi
+.endif	# !defined(NO_CLEAN)
+
+	mkdir -p ${LIBCOMPATTMP}/usr/include
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${LIBCOMPATTMP}/usr >/dev/null
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	    -p ${LIBCOMPATTMP}/usr/include >/dev/null
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
+	    -p ${LIBCOMPATTMP}/usr >/dev/null
+.if ${MK_DEBUG_FILES} != "no"
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${LIBCOMPATTMP}/usr/lib >/dev/null
+	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
+	    -p ${LIBCOMPATTMP}/usr/lib/debug/usr >/dev/null
+.endif
+	mkdir -p ${WORLDTMP}
+	ln -sf ${.CURDIR}/sys ${WORLDTMP}
+.for _t in ${_obj} includes
+.for _dir in ${_LC_INCDIRS}
+	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATWMAKE} MK_INCLUDES=yes \
+	    DIRPRFX=${_dir}/ ${_t}
+.endfor
+.endfor
+.for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw ${_libmagic} ${_jevents}
+.for _t in ${_obj} build-tools
+	${_+_}cd ${.CURDIR}/${_dir}; \
+	    WORLDTMP=${WORLDTMP} \
+	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
+	    ${MAKE} SSP_CFLAGS= DESTDIR= \
+	    OBJTOP=${LIBCOMPAT_OBJTOP} \
+	    OBJROOT='$${OBJTOP}/' \
+	    MAKEOBJDIRPREFIX= \
+	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS \
+	    MK_CTF=no MK_RETPOLINE=no MK_WARNS=no \
+	    ${_t}
+.endfor
+.endfor
+	${_+_}cd ${.CURDIR}; \
+	    ${LIBCOMPATWMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
+.if ${libcompat} == "32"
+.for _t in ${_obj} all
+.if !defined(NO_RTLD)
+	${_+_}cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIBCOMPATWMAKE} \
+	    -DNO_FSCHG DIRPRFX=libexec/rtld-elf/ ${_t}
+.endif
+	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIBCOMPATWMAKE} \
+	    DIRPRFX=usr.bin/ldd ${_t}
+.endfor
+.endif
+
+distribute${libcompat} install${libcompat}: .PHONY
+.for _dir in ${_LC_LIBDIRS.yes}
+	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATIMAKE} ${.TARGET:S/${libcompat}$//}
+.endfor
+.if ${libcompat} == "32"
+.if !defined(NO_RTLD)
+	${_+_}cd ${.CURDIR}/libexec/rtld-elf; \
+	    PROG=ld-elf32.so.1 ${LIBCOMPATIMAKE} ${.TARGET:S/32$//}
+.endif
+	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIBCOMPATIMAKE} \
+	    ${.TARGET:S/32$//}
+.endif
+
+.endif

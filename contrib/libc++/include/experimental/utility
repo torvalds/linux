@@ -1,0 +1,47 @@
+// -*- C++ -*-
+//===-------------------------- utility ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXPERIMENTAL_UTILITY
+#define _LIBCPP_EXPERIMENTAL_UTILITY
+
+/*
+    experimental/utility synopsis
+
+// C++1y
+
+#include <utility>
+
+namespace std {
+namespace experimental {
+inline namespace fundamentals_v1 {
+
+  3.1.2, erased-type placeholder
+  struct erased_type { };
+
+} // namespace fundamentals_v1
+} // namespace experimental
+} // namespace std
+
+ */
+
+#include <experimental/__config>
+#include <utility>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_LFTS
+
+  struct _LIBCPP_TEMPLATE_VIS erased_type { };
+
+_LIBCPP_END_NAMESPACE_LFTS
+
+#endif /* _LIBCPP_EXPERIMENTAL_UTILITY */

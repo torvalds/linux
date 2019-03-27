@@ -1,0 +1,265 @@
+.\" Copyright (c) 2005 David Xu <davidxu@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 11, 2000
+.Dt TIMER_SETTIME 2
+.Os
+.Sh NAME
+.Nm timer_getoverrun ,
+.Nm timer_gettime ,
+.Nm timer_settime
+.Nd "per-process timers (REALTIME)"
+.Sh LIBRARY
+.Lb librt
+.Sh SYNOPSIS
+.In time.h
+.Ft int
+.Fn timer_getoverrun "timer_t timerid"
+.Ft int
+.Fn timer_gettime "timer_t timerid" "struct itimerspec *value"
+.Ft int
+.Fo timer_settime
+.Fa "timer_t timerid" "int flags" "const struct itimerspec *restrict value"
+.Fa "struct itimerspec *restrict ovalue"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn timer_gettime
+system call stores the amount of time until the specified timer,
+.Fa timerid ,
+expires and the reload value of the timer into the space pointed to by the
+.Fa value
+argument.
+The
+.Va it_value
+member of this structure contains the amount of time
+before the timer expires, or zero if the timer is disarmed.
+This value is
+returned as the interval until timer expiration, even if the timer was armed
+with absolute time.
+The
+.Va it_interval
+member of
+.Fa value
+contains the reload
+value last set by
+.Fn timer_settime .
+.Pp
+The
+.Fn timer_settime
+system call sets the time until the next expiration of the timer specified
+by
+.Fa timerid
+from the
+.Va it_value
+member of the
+.Fa value
+argument and arms the timer if the
+.Va it_value
+member of
+.Fa value
+is non-zero.
+If the specified timer was already
+armed when
+.Fn timer_settime
+is called, this call resets the time until next expiration to the value
+specified.
+If the
+.Va it_value
+member of
+.Fa value
+is zero, the timer is disarmed.
+If the timer is disarmed, then pending signal is removed.
+.Pp
+If the flag
+.Dv TIMER_ABSTIME
+is not set in the argument
+.Fa flags ,
+.Fn timer_settime
+behaves as if the time until next expiration is set to
+be equal to the interval specified by the
+.Va it_value
+member of
+.Fa value .
+That is,
+the timer expires in
+.Va it_value
+nanoseconds from when the call is made.
+If the flag
+.Dv TIMER_ABSTIME
+is set in the argument
+.Fa flags ,
+.Fn timer_settime
+behaves as if the time until next expiration is set to be equal to the
+difference between the absolute time specified by the it_value member of
+value and the current value of the clock associated with
+.Fa timerid .
+That is, the timer expires when the clock reaches the value specified by the
+.Va it_value
+member of
+.Fa value .
+If the specified time has already passed, the
+system call succeeds and the expiration notification is made.
+.Pp
+The reload value of the timer is set to the value specified by the
+.Va it_interval
+member of
+.Fa value .
+When a timer is armed with a non-zero
+.Va it_interval ,
+a periodic
+(or repetitive) timer is specified.
+.Pp
+Time values that are between two consecutive non-negative integer multiples of
+the resolution of the specified timer are rounded up to the larger multiple of
+the resolution.
+Quantization error will not cause the timer to expire earlier
+than the rounded time value.
+.Pp
+If the argument
+.Fa ovalue
+is not
+.Dv NULL ,
+the
+.Fn timer_settime
+system call stores, in the location referenced by
+.Fa ovalue ,
+a value representing
+the previous amount of time before the timer would have expired, or zero if the
+timer was disarmed, together with the previous timer reload value.
+Timers do not
+expire before their scheduled time.
+.Pp
+Only a single signal is queued to the process for a given timer at any point in
+time.
+When a timer for which a signal is still pending expires, no signal is
+queued, and a timer overrun will occur.
+When a timer expiration signal is
+accepted by a process, the
+.Fn timer_getoverrun
+system call returns the timer expiration overrun count for the specified timer.
+The overrun count returned contains the number of extra timer expirations that
+occurred between the time the signal was generated (queued) and when it was
+accepted, up to but not including an maximum of
+.Brq Dv DELAYTIMER_MAX .
+If the number of
+such extra expirations is greater than or equal to
+.Brq Dv DELAYTIMER_MAX ,
+then the overrun count is set to
+.Brq Dv DELAYTIMER_MAX .
+The value returned by
+.Fn timer_getoverrun
+applies to the most recent expiration signal acceptance for the timer.
+If no
+expiration signal has been delivered for the timer, the return value of
+.Fn timer_getoverrun
+is unspecified.
+.Sh RETURN VALUES
+If the
+.Fn timer_getoverrun
+system call succeeds, it returns the timer expiration overrun count as explained
+above.
+Otherwise the value \-1 is returned, and the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+.Rv -std timer_gettime timer_settime
+.Sh ERRORS
+The
+.Fn timer_settime
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+A
+.Fa value
+structure specified a nanosecond value less than zero or greater than
+or equal to 1000 million, and the
+.Va it_value
+member of that structure did not
+specify zero seconds and nanoseconds.
+.El
+.Pp
+These system calls may fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa timerid
+argument does not correspond to an ID returned by
+.Fn timer_create
+but not yet deleted by
+.Fn timer_delete .
+.El
+.Pp
+The
+.Fn timer_settime
+system call may fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Va it_interval
+member of
+.Fa value
+is not zero and the timer was created with
+notification by creation of a new thread
+.Va ( sigev_sigev_notify
+was
+.Dv SIGEV_THREAD )
+and a fixed stack address has been set in the thread attribute pointed to by
+.Va sigev_notify_attributes .
+.El
+.Pp
+The
+.Fn timer_gettime
+and
+.Fn timer_settime
+system calls
+may fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+Any arguments point outside the allocated address space or there is a
+memory protection fault.
+.El
+.Sh SEE ALSO
+.Xr clock_getres 2 ,
+.Xr timer_create 2 ,
+.Xr siginfo 3
+.Sh STANDARDS
+The
+.Fn timer_getoverrun ,
+.Fn timer_gettime ,
+and
+.Fn timer_settime
+system calls conform to
+.St -p1003.1-2004 .
+.Sh HISTORY
+Support for
+.Tn POSIX
+per-process timer first appeared in
+.Fx 7.0 .

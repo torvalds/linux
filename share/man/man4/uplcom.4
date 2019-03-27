@@ -1,0 +1,223 @@
+.\" $NetBSD: uplcom.4,v 1.9 2002/02/07 03:15:09 ross Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 24, 2018
+.Dt UPLCOM 4
+.Os
+.Sh NAME
+.Nm uplcom
+.Nd USB support for Prolific PL-2303/2303X/2303HX serial adapters driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device ucom"
+.Cd "device uplcom"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+uplcom_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various serial adapters based on the Prolific
+PL-2303, PL-2303X and PL-2303HX USB-to-RS232 Bridge chips.
+.Pp
+The device is accessed through the
+.Xr ucom 4
+driver which makes it behave like a
+.Xr tty 4 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the following devices and adapters:
+.Pp
+.Bl -bullet -compact
+.It
+ADLINK ND-6530 USB-Serial Adapter
+.It
+Alcatel One Touch 535/735 Phone
+.It
+Alcor AU9720 USB-RS232 Serial Adapter
+.It
+AlDiga AL-11U Modem
+.It
+Alltronix ACM003U00 Modem
+.It
+Anchor Serial adapter
+.It
+ATEN UC-232A
+.It
+BAFO BF-800 and BF-810
+.It
+Belkin F5U257
+.It
+BenQ S81 Phone
+.It
+Corega CG-USBRS232R Serial Adapter
+.It
+Cressi Edy (Seiko) Diving Computer
+.It
+ELECOM UC-SGT Serial Adapter
+.It
+HAL Corporation Crossam2+USB IR commander
+.It
+Hama USB RS-232 Serial Adapter
+.It
+Hamlet exaggerate XURS232
+.It
+HP LD220 Point-Of-Sale (POS) Display
+.It
+IOGEAR UC-232A
+.It
+I/O DATA USB-RSAQ, USB-RSAQ2, USB-RSAQ3 and USB-RSAQ5
+.It
+iTegno WM1080A GSM/GFPRS Modem
+.It
+iTegno WM2080A CDMA Modem
+.It
+Leadtek 9531 GPS
+.It
+Micromax 610U Modem
+.It
+Microsoft Palm 700WX
+.It
+Mobile Action MA-620 Infrared Adapter
+.It
+Motorola Cables
+.It
+Nokia CA-42 Cable
+.It
+OTI DKU-5 cable
+.It
+Panasonic TY-TP50P6-S flat screen
+.It
+PLX CA-42 Phone Cable
+.It
+PLANEX USB-RS232 URS-03
+.It
+Prolific Generic USB-Serial Adapters
+.It
+Prolific Pharos USB-Serial Adapter
+.It
+RATOC REX-USB60
+.It
+Radio Shack USB Serial Cable
+.It
+Sagem USB-Serial Adapter
+.It
+Samsung I330 Phone Cradle
+.It
+Sandberg USB to Serial Link (model number 133-08)
+.It
+Sanwa KB-USB2 Multimeter cable
+.It
+Siemens/BenQ EF81, SX1, X65 and X75 Mobile Phones
+.It
+Sitecom USB-Serial Adapter
+.It
+SMART Technologies USB-Serial Adapter
+.It
+Sony QN3 Phone Cable
+.It
+Sony Ericsson Datapilot
+.It
+Sony Ericsson DCU-10 and DCU-11 (Susteen) USB Cables
+.It
+SOURCENEXT KeikaiDenwa 8 (with and without charger)
+.It
+Speed Dragon USB-Serial Cable
+.It
+Syntech CPT-8001C Barcode Scanner
+.It
+TDK UHA6400 and UPA9664 USB-PHS Adapters
+.It
+TRENDnet USB to Serial Converter (TU-S9)
+.It
+Tripp-Lite U209-000-R USB-Serial Adapter
+.It
+UIC HCR331 Magnetic Stripe Card Reader
+.It
+UIC MSR206 Magnetic Stripe Card Reader
+.It
+Willcom W-SIM DD PHS terminal.(WS002IN)
+.It
+YC-Cable USB-Serial Adapter
+.It
+Zeagle N2iTion3 Diving Computer
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.uplcom.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.El
+.Sh FILES
+.Bl -tag -width "/dev/ttyU*.init" -compact
+.It Pa /dev/ttyU*
+for callin ports
+.It Pa /dev/ttyU*.init
+.It Pa /dev/ttyU*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*
+for callout ports
+.It Pa /dev/cuaU*.init
+.It Pa /dev/cuaU*.lock
+corresponding callout initial-state and lock-state devices
+.El
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Nx 1.6 .
+This manual page was adopted from
+.Nx
+by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org
+in April 2002.

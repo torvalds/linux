@@ -1,0 +1,132 @@
+#
+#  Watcom Makefile for dos-libpcap.
+#
+# Specify MODEL = `3r' or `3s'
+# Specify TARGET = `pharlap' or `dos4g'
+#
+# Use this makefile from the libpcap root directory.
+# E.g. like this:
+#
+#  c:\net\pcap> wmake -f msdos\makefile.wc
+#
+
+MODEL  = 3s
+TARGET = dos4g
+
+OBJDIR = msdos\$(TARGET).w$(MODEL)
+LIB    = $(OBJDIR)\pcap.lib
+
+.EXTENSIONS: .l .y
+
+DEFS = -dDEBUG -dNDIS_DEBUG -d_U_= -dHAVE_LIMITS_H -dHAVE_STRERROR &
+       -dHAVE_SNPRINTF -dHAVE_VSNPRINTF
+
+CC  = wcc386.exe
+ASM = wasm.exe -$(MODEL) $(DEFS) -dDOSX -dDOS4GW -zq -bt=dos -fr=nul -d3 -s
+
+OBJS = $(OBJDIR)\grammar.obj    $(OBJDIR)\scanner.obj  $(OBJDIR)\pcap.obj     &
+       $(OBJDIR)\bpf_filter.obj $(OBJDIR)\bpf_imag.obj $(OBJDIR)\bpf_dump.obj &
+       $(OBJDIR)\etherent.obj   $(OBJDIR)\gencode.obj  $(OBJDIR)\nametoad.obj &
+       $(OBJDIR)\pcap-dos.obj   $(OBJDIR)\pktdrvr.obj  $(OBJDIR)\optimize.obj &
+       $(OBJDIR)\savefile.obj   $(OBJDIR)\ndis2.obj
+
+CFLAGS = $(DEFS) $(YYDEFS) -I. -I$(%watt_root)\inc -I.\msdos\pm_drvr &
+         -$(MODEL) -mf -zff -zgf -zq -bt=dos -fr=nul -w6 -fpi        &
+         -oilrtf -zm
+
+TEMPBIN = tmp.bin
+
+all: $(OBJDIR) $(OBJDIR)\pcap.lib
+
+$(OBJDIR):
+          - mkdir $(OBJDIR)
+
+$(OBJDIR)\pcap.lib: $(OBJS) wlib.arg
+          wlib -q -b -c $(OBJDIR)\pcap.lib @wlib.arg
+
+wlib.arg: msdos\makefile.wc
+          %create $^@
+          for %f in ($(OBJS)) do %append $^@ +- %f
+
+$(OBJDIR)\pktdrvr.obj: msdos\pkt_stub.inc msdos\pktdrvr.c &
+  pcap-dos.h pcap-int.h pcap.h msdos\pktdrvr.h
+          *$(CC) $(CFLAGS) msdos\pktdrvr.c -fo=$@
+
+$(OBJDIR)\bpf_filter.obj: bpf\net\bpf_filter.c
+          *$(CC) $(CFLAGS) bpf\net\bpf_filter.c -fo=$@
+
+$(OBJDIR)\ndis2.obj: msdos\ndis2.c
+          *$(CC) $(CFLAGS) msdos\ndis2.c -fo=$@
+
+.ERASE
+.c{$(OBJDIR)}.obj:
+          *$(CC) $(CFLAGS) $[@ -fo=$@
+
+grammar.c tokdefs.h: grammar.y
+          bison --name-prefix=pcap_ --yacc --defines $[@
+          - @del grammar.c
+          - @del tokdefs.h
+          ren y_tab.c grammar.c
+          ren y_tab.h tokdefs.h
+
+scanner.c: scanner.l
+          flex -Ppcap_ -7 -o$@ $[@
+
+msdos\pkt_stub.inc: bin2c.exe msdos\pkt_rx1.S
+          nasm -fbin -dDEBUG -o $(TEMPBIN) -lmsdos\pkt_rx1.lst msdos\pkt_rx1.S
+          bin2c.exe  $(TEMPBIN) > $@
+          @del $(TEMPBIN)
+
+bin2c.exe: msdos\bin2c.c
+          wcl $[@
+
+clean realclean vclean: .SYMBOLIC
+          for %f in (dos4g.w3r dos4g.w3s pharlap.w3r pharlap.w3s) do &
+            @del %f\*.obj
+          @del grammar.c
+          @del tokdefs.h
+          @del scanner.c
+          @del bin2c.exe
+          @del bin2c.obj
+          @del msdos\pkt_stub.inc
+          @echo Cleaned
+
+#
+# dependencies
+#
+$(OBJDIR)\bpf_filter.obj: bpf\net\bpf_filter.c pcap-int.h pcap.h pcap-bpf.h
+
+$(OBJDIR)\bpf_imag.obj: bpf_imag.c pcap-int.h pcap.h pcap-bpf.h
+
+$(OBJDIR)\bpf_dump.obj: bpf_dump.c pcap.h pcap-bpf.h
+
+$(OBJDIR)\etherent.obj: etherent.c pcap-int.h pcap.h pcap-bpf.h pcap-namedb.h
+
+$(OBJDIR)\optimize.obj: optimize.c pcap-int.h pcap.h pcap-bpf.h gencode.h
+
+$(OBJDIR)\savefile.obj: savefile.c pcap-int.h pcap.h pcap-bpf.h
+
+$(OBJDIR)\pcap.obj: pcap.c pcap-dos.h pcap-int.h pcap.h pcap-bpf.h
+
+$(OBJDIR)\grammar.obj: grammar.c pcap-int.h pcap.h pcap-bpf.h gencode.h &
+  pcap-namedb.h
+
+$(OBJDIR)\scanner.obj: scanner.c pcap-int.h pcap.h pcap-bpf.h gencode.h &
+  pcap-namedb.h tokdefs.h
+
+$(OBJDIR)\gencode.obj: gencode.c pcap-dos.h pcap-int.h pcap.h pcap-bpf.h &
+  ethertyp.h nlpid.h llc.h gencode.h atmuni31.h sunatmpo.h ppp.h sll.h &
+  arcnet.h pcap-namedb.h
+
+$(OBJDIR)\nametoad.obj: nametoad.c pcap-int.h pcap.h pcap-bpf.h gencode.h &
+  pcap-namedb.h ethertyp.h
+
+$(OBJDIR)\pcap-dos.obj: pcap-dos.c pcap.h pcap-bpf.h pcap-dos.h pcap-int.h &
+  msdos\pktdrvr.h
+
+$(OBJDIR)\pktdrvr.obj: msdos\pktdrvr.c pcap-dos.h pcap-int.h &
+  pcap.h pcap-bpf.h msdos\pktdrvr.h msdos\pkt_stub.inc
+
+$(OBJDIR)\ndis2.obj: msdos\ndis2.c pcap-dos.h pcap-int.h pcap.h pcap-bpf.h &
+  msdos\ndis2.h
+

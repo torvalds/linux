@@ -1,0 +1,13 @@
+
+#------------------------------------------------------------------------------
+# $File: news,v 1.6 2009/09/19 16:28:11 christos Exp $
+# news:  file(1) magic for SunOS NeWS fonts (not "news" as in "netnews")
+#
+0	string		StartFontMetrics	ASCII font metrics
+0	string		StartFont	ASCII font bits
+0	belong		0x137A2944	NeWS bitmap font
+0	belong		0x137A2947	NeWS font family
+0	belong		0x137A2950	scalable OpenFont binary
+0	belong		0x137A2951	encrypted scalable OpenFont binary
+8	belong		0x137A2B45	X11/NeWS bitmap font
+8	belong		0x137A2B48	X11/NeWS font family

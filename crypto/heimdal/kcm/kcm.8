@@ -1,0 +1,174 @@
+.\" Copyright (c) 2005 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd May 29, 2005
+.Dt KCM 8
+.Os Heimdal
+.Sh NAME
+.Nm kcm
+.Nd process-based credential cache for Kerberos tickets.
+.Sh SYNOPSIS
+.Nm
+.Op Fl Fl cache-name= Ns Ar cachename
+.Oo Fl c Ar file \*(Ba Xo
+.Fl Fl config-file= Ns Ar file
+.Xc
+.Oc
+.Oo Fl g Ar group \*(Ba Xo
+.Fl Fl group= Ns Ar group
+.Xc
+.Oc
+.Op Fl Fl max-request= Ns Ar size
+.Op Fl Fl disallow-getting-krbtgt
+.Op Fl Fl detach
+.Op Fl h | Fl Fl help
+.Oo Fl k Ar principal \*(Ba Xo
+.Fl Fl system-principal= Ns Ar principal
+.Xc
+.Oc
+.Oo Fl l Ar time \*(Ba Xo
+.Fl Fl lifetime= Ns Ar time
+.Xc
+.Oc
+.Oo Fl m Ar mode \*(Ba Xo
+.Fl Fl mode= Ns Ar mode
+.Xc
+.Oc
+.Op Fl n | Fl Fl no-name-constraints
+.Oo Fl r Ar time \*(Ba Xo
+.Fl Fl renewable-life= Ns Ar time
+.Xc
+.Oc
+.Oo Fl s Ar path \*(Ba Xo
+.Fl Fl socket-path= Ns Ar path
+.Xc
+.Oc
+.Oo Xo
+.Fl Fl door-path= Ns Ar path
+.Xc
+.Oc
+.Oo Fl S Ar principal \*(Ba Xo
+.Fl Fl server= Ns Ar principal
+.Xc
+.Oc
+.Oo Fl t Ar keytab \*(Ba Xo
+.Fl Fl keytab= Ns Ar keytab
+.Xc
+.Oc
+.Oo Fl u Ar user \*(Ba Xo
+.Fl Fl user= Ns Ar user
+.Xc
+.Oc
+.Op Fl v | Fl Fl version
+.Sh DESCRIPTION
+.Nm
+is a process based credential cache.
+To use it, set the
+.Ev KRB5CCNAME
+enviroment variable to
+.Ql KCM: Ns Ar uid
+or add the stanza
+.Bd -literal
+
+[libdefaults]
+        default_cc_name = KCM:%{uid}
+
+.Ed
+to the
+.Pa /etc/krb5.conf
+configuration file and make sure
+.Nm kcm
+is started in the system startup files.
+.Pp
+The
+.Nm
+daemon can hold the credentials for all users in the system.  Access
+control is done with Unix-like permissions.  The daemon checks the
+access on all operations based on the uid and gid of the user.  The
+tickets are renewed as long as is permitted by the KDC's policy.
+.Pp
+The
+.Nm
+daemon can also keep a SYSTEM credential that server processes can
+use to access services.  One example of usage might be an nss_ldap
+module that quickly needs to get credentials and doesn't want to renew
+the ticket itself.
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Fl Fl cache-name= Ns Ar cachename
+system cache name
+.It Fl c Ar file , Fl Fl config-file= Ns Ar file
+location of config file
+.It Fl g Ar group , Fl Fl group= Ns Ar group
+system cache group
+.It Fl Fl max-request= Ns Ar size
+max size for a kcm-request
+.It Fl Fl disallow-getting-krbtgt
+disallow extracting any krbtgt from the
+.Nm kcm
+daemon.
+.It Fl Fl detach
+detach from console
+.It Fl h , Fl Fl help
+.It Fl k Ar principal , Fl Fl system-principal= Ns Ar principal
+system principal name
+.It Fl l Ar time , Fl Fl lifetime= Ns Ar time
+lifetime of system tickets
+.It Fl m Ar mode , Fl Fl mode= Ns Ar mode
+octal mode of system cache
+.It Fl n , Fl Fl no-name-constraints
+disable credentials cache name constraints
+.It Fl r Ar time , Fl Fl renewable-life= Ns Ar time
+renewable lifetime of system tickets
+.It Fl s Ar path , Fl Fl socket-path= Ns Ar path
+path to kcm domain socket
+.It Fl Fl door-path= Ns Ar path
+path to kcm door socket
+.It Fl S Ar principal , Fl Fl server= Ns Ar principal
+server to get system ticket for
+.It Fl t Ar keytab , Fl Fl keytab= Ns Ar keytab
+system keytab name
+.It Fl u Ar user , Fl Fl user= Ns Ar user
+system cache owner
+.It Fl v , Fl Fl version
+.El
+.\".Sh ENVIRONMENT
+.\".Sh FILES
+.\".Sh EXAMPLES
+.\".Sh DIAGNOSTICS
+.\".Sh SEE ALSO
+.\".Sh STANDARDS
+.\".Sh HISTORY
+.\".Sh AUTHORS
+.\".Sh BUGS

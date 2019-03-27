@@ -1,0 +1,556 @@
+.\"	$KAME: ping6.8,v 1.58 2003/06/20 12:00:22 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 22, 2014
+.Dt PING6 8
+.Os
+.Sh NAME
+.Nm ping6
+.Nd send
+.Tn ICMPv6 ECHO_REQUEST
+packets to network hosts
+.Sh SYNOPSIS
+.Nm
+.\" without ipsec, or new ipsec
+.Op Fl DdfHmnNoqrRtvwW
+.\" old ipsec
+.\" .Op Fl ADdEfmnNqRtvwW
+.Bk -words
+.Op Fl a Ar addrtype
+.Ek
+.Bk -words
+.Op Fl b Ar bufsiz
+.Ek
+.Bk -words
+.Op Fl c Ar count
+.Ek
+.Bk -words
+.Op Fl g Ar gateway
+.Ek
+.Bk -words
+.Op Fl h Ar hoplimit
+.Ek
+.Bk -words
+.Op Fl I Ar interface
+.Ek
+.Bk -words
+.Op Fl i Ar wait
+.Ek
+.Bk -words
+.Op Fl x Ar waittime
+.Ek
+.Bk -words
+.Op Fl X Ar timeout
+.Ek
+.Bk -words
+.Op Fl l Ar preload
+.Ek
+.Bk -words
+.\" new ipsec
+.Op Fl P Ar policy
+.Ek
+.Bk -words
+.Op Fl p Ar pattern
+.Ek
+.Bk -words
+.Op Fl S Ar sourceaddr
+.Ek
+.Bk -words
+.Op Fl s Ar packetsize
+.Ek
+.Bk -words
+.Op Ar hops ...
+.Ek
+.Bk -words
+.Ar host
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+utility uses the
+.Tn ICMPv6
+protocol's mandatory
+.Tn ICMP6_ECHO_REQUEST
+datagram to elicit an
+.Tn ICMP6_ECHO_REPLY
+from a host or gateway.
+.Tn ICMP6_ECHO_REQUEST
+datagrams (``pings'') have an IPv6 header,
+and
+.Tn ICMPv6
+header formatted as documented in RFC2463.
+The options are as follows:
+.Bl -tag -width Ds
+.\" old ipsec
+.\" .It Fl A
+.\" Enables transport-mode IPsec authentication header
+.\" (experimental).
+.It Fl a Ar addrtype
+Generate ICMPv6 Node Information Node Addresses query, rather than echo-request.
+.Ar addrtype
+must be a string constructed of the following characters.
+.Bl -tag -width Ds -compact
+.It Ic a
+requests unicast addresses from all of the responder's interfaces.
+If the character is omitted,
+only those addresses which belong to the interface which has the
+responder's address are requests.
+.It Ic c
+requests responder's IPv4-compatible and IPv4-mapped addresses.
+.It Ic g
+requests responder's global-scope addresses.
+.It Ic s
+requests responder's site-local addresses.
+.It Ic l
+requests responder's link-local addresses.
+.It Ic A
+requests responder's anycast addresses.
+Without this character, the responder will return unicast addresses only.
+With this character, the responder will return anycast addresses only.
+Note that the specification does not specify how to get responder's
+anycast addresses.
+This is an experimental option.
+.El
+.It Fl b Ar bufsiz
+Set socket buffer size.
+.It Fl c Ar count
+Stop after sending
+(and receiving)
+.Ar count
+.Tn ECHO_RESPONSE
+packets.
+.It Fl D
+Disable IPv6 fragmentation.
+.It Fl d
+Set the
+.Dv SO_DEBUG
+option on the socket being used.
+.\" .It Fl E
+.\" Enables transport-mode IPsec encapsulated security payload
+.\" (experimental).
+.It Fl f
+Flood ping.
+Outputs packets as fast as they come back or one hundred times per second,
+whichever is more.
+For every
+.Tn ECHO_REQUEST
+sent a period
+.Dq \&.
+is printed, while for every
+.Tn ECHO_REPLY
+received a backspace is printed.
+This provides a rapid display of how many packets are being dropped.
+Only the super-user may use this option.
+.Bf -emphasis
+This can be very hard on a network and should be used with caution.
+.Ef
+.It Fl g Ar gateway
+Specifies to use
+.Ar gateway
+as the next hop to the destination.
+The gateway must be a neighbor of the sending node.
+.It Fl H
+Specifies to try reverse-lookup of IPv6 addresses.
+The
+.Nm
+utility does not try reverse-lookup unless the option is specified.
+.It Fl h Ar hoplimit
+Set the IPv6 hoplimit.
+.It Fl I Ar interface
+Source packets with the given interface address.
+This flag applies if the ping destination is a multicast address,
+or link-local/site-local unicast address.
+.It Fl i Ar wait
+Wait
+.Ar wait
+seconds
+.Em between sending each packet .
+The default is to wait for one second between each packet.
+This option is incompatible with the
+.Fl f
+option.
+.It Fl x Ar waittime
+Time in milliseconds to wait for a reply for each packet sent.
+If a reply arrives later,
+the packet is not printed as replied,
+but considered as replied when calculating statistics.
+.It Fl X Ar timeout
+Specify a timeout,
+in seconds,
+before ping exits regardless of how many packets have been received.
+.It Fl l Ar preload
+If
+.Ar preload
+is specified,
+.Nm
+sends that many packets as fast as possible before falling into its normal
+mode of behavior.
+Only the super-user may use this option.
+.It Fl m
+By default,
+.Nm
+asks the kernel to fragment packets to fit into the minimum IPv6 MTU.
+The
+.Fl m
+option
+will suppress the behavior in the following two levels:
+when the option is specified once, the behavior will be disabled for
+unicast packets.
+When the option is more than once, it will be disabled for both
+unicast and multicast packets.
+.It Fl n
+Numeric output only.
+No attempt will be made to lookup symbolic names from addresses in the reply.
+.It Fl N
+Probe node information multicast group address
+.Pq Li ff02::2:ffxx:xxxx .
+.Ar host
+must be string hostname of the target
+(must not be a numeric IPv6 address).
+Node information multicast group will be computed based on given
+.Ar host ,
+and will be used as the final destination.
+Since node information multicast group is a link-local multicast group,
+outgoing interface needs to be specified by
+.Fl I
+option.
+.Pp
+When specified twice, the address
+.Pq Li ff02::2:xxxx:xxxx
+is used instead.
+The former is in RFC 4620, the latter is in an old Internet Draft
+draft-ietf-ipngwg-icmp-name-lookup.
+Note that KAME-derived implementations including
+.Fx
+use the latter.
+.It Fl o
+Exit successfully after receiving one reply packet.
+.It Fl p Ar pattern
+You may specify up to 16
+.Dq pad
+bytes to fill out the packet you send.
+This is useful for diagnosing data-dependent problems in a network.
+For example,
+.Dq Li \-p ff
+will cause the sent packet to be filled with all
+ones.
+.\" new ipsec
+.It Fl P Ar policy
+.Ar policy
+specifies IPsec policy to be used for the probe.
+.It Fl q
+Quiet output.
+Nothing is displayed except the summary lines at startup time and
+when finished.
+.It Fl r
+Audible.
+Include a bell
+.Tn ( ASCII
+0x07)
+character in the output when any packet is received.
+.It Fl R
+Audible.
+Output a bell
+.Tn ( ASCII
+0x07)
+character when no packet is received before the next packet
+is transmitted.
+To cater for round-trip times that are longer than the interval
+between transmissions, further missing packets cause a bell only
+if the maximum number of unreceived packets has increased.
+.It Fl S Ar sourceaddr
+Specifies the source address of request packets.
+The source address must be one of the unicast addresses of the sending node,
+and must be numeric.
+.It Fl s Ar packetsize
+Specifies the number of data bytes to be sent.
+The default is 56, which translates into 64
+.Tn ICMP
+data bytes when combined
+with the 8 bytes of
+.Tn ICMP
+header data.
+You may need to specify
+.Fl b
+as well to extend socket buffer size.
+.It Fl t
+Generate ICMPv6 Node Information supported query types query,
+rather than echo-request.
+.Fl s
+has no effect if
+.Fl t
+is specified.
+.It Fl v
+Verbose output.
+.Tn ICMP
+packets other than
+.Tn ECHO_RESPONSE
+that are received are listed.
+.It Fl w
+Generate ICMPv6 Node Information DNS Name query, rather than echo-request.
+.Fl s
+has no effect if
+.Fl w
+is specified.
+.It Fl W
+Same as
+.Fl w ,
+but with old packet format based on 03 draft.
+This option is present for backward compatibility.
+.Fl s
+has no effect if
+.Fl w
+is specified.
+.It Ar hops
+IPv6 addresses for intermediate nodes,
+which will be put into type 0 routing header.
+.It Ar host
+IPv6 address of the final destination node.
+.El
+.Pp
+When using
+.Nm
+for fault isolation, it should first be run on the local host, to verify
+that the local network interface is up and running.
+Then, hosts and gateways further and further away should be
+.Dq pinged .
+Round-trip times and packet loss statistics are computed.
+If duplicate packets are received, they are not included in the packet
+loss calculation, although the round trip time of these packets is used
+in calculating the round-trip time statistics.
+When the specified number of packets have been sent
+(and received)
+or if the program is terminated with a
+.Dv SIGINT ,
+a brief summary is displayed, showing the number of packets sent and
+received, and the minimum, mean, maximum, and standard deviation of
+the round-trip times.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+(see the
+.Cm status
+argument for
+.Xr stty 1 )
+signal, the current number of packets sent and received, and the
+minimum, mean, maximum, and standard deviation of the round-trip times
+will be written to the standard output in the same format as the
+standard completion message.
+.Pp
+This program is intended for use in network testing, measurement and
+management.
+Because of the load it can impose on the network, it is unwise to use
+.Nm
+during normal operations or from automated scripts.
+.\" .Sh ICMP PACKET DETAILS
+.\" An IP header without options is 20 bytes.
+.\" An
+.\" .Tn ICMP
+.\" .Tn ECHO_REQUEST
+.\" packet contains an additional 8 bytes worth of
+.\" .Tn ICMP
+.\" header followed by an arbitrary amount of data.
+.\" When a
+.\" .Ar packetsize
+.\" is given, this indicated the size of this extra piece of data
+.\" (the default is 56).
+.\" Thus the amount of data received inside of an IP packet of type
+.\" .Tn ICMP
+.\" .Tn ECHO_REPLY
+.\" will always be 8 bytes more than the requested data space
+.\" (the
+.\" .Tn ICMP
+.\" header).
+.\" .Pp
+.\" If the data space is at least eight bytes large,
+.\" .Nm
+.\" uses the first eight bytes of this space to include a timestamp which
+.\" it uses in the computation of round trip times.
+.\" If less than eight bytes of pad are specified, no round trip times are
+.\" given.
+.Sh DUPLICATE AND DAMAGED PACKETS
+The
+.Nm
+utility will report duplicate and damaged packets.
+Duplicate packets should never occur when pinging a unicast address,
+and seem to be caused by
+inappropriate link-level retransmissions.
+Duplicates may occur in many situations and are rarely
+(if ever)
+a good sign, although the presence of low levels of duplicates may not
+always be cause for alarm.
+Duplicates are expected when pinging a broadcast or multicast address,
+since they are not really duplicates but replies from different hosts
+to the same request.
+.Pp
+Damaged packets are obviously serious cause for alarm and often
+indicate broken hardware somewhere in the
+.Nm
+packet's path
+(in the network or in the hosts).
+.Sh TRYING DIFFERENT DATA PATTERNS
+The
+(inter)network
+layer should never treat packets differently depending on the data
+contained in the data portion.
+Unfortunately, data-dependent problems have been known to sneak into
+networks and remain undetected for long periods of time.
+In many cases the particular pattern that will have problems is something
+that does not have sufficient
+.Dq transitions ,
+such as all ones or all zeros, or a pattern right at the edge, such as
+almost all zeros.
+It is not
+necessarily enough to specify a data pattern of all zeros (for example)
+on the command line because the pattern that is of interest is
+at the data link level, and the relationship between what you type and
+what the controllers transmit can be complicated.
+.Pp
+This means that if you have a data-dependent problem you will probably
+have to do a lot of testing to find it.
+If you are lucky, you may manage to find a file that either
+cannot
+be sent across your network or that takes much longer to transfer than
+other similar length files.
+You can then examine this file for repeated patterns that you can test
+using the
+.Fl p
+option of
+.Nm .
+.Sh EXIT STATUS
+The
+.Nm
+utility returns 0 on success (the host is alive),
+2 if the transmission was successful but no responses were received,
+any other non-zero value if the arguments are incorrect or
+another error has occurred.
+.Sh EXAMPLES
+Normally,
+.Nm
+works just like
+.Xr ping 8
+would work; the following will send ICMPv6 echo request to
+.Li dst.foo.com .
+.Bd -literal -offset indent
+ping6 -n dst.foo.com
+.Ed
+.Pp
+The following will probe hostnames for all nodes on the network link attached to
+.Li wi0
+interface.
+The address
+.Li ff02::1
+is named the link-local all-node multicast address, and the packet would
+reach every node on the network link.
+.Bd -literal -offset indent
+ping6 -w ff02::1%wi0
+.Ed
+.Pp
+The following will probe addresses assigned to the destination node,
+.Li dst.foo.com .
+.Bd -literal -offset indent
+ping6 -a agl dst.foo.com
+.Ed
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr icmp6 4 ,
+.Xr inet6 4 ,
+.Xr ip6 4 ,
+.Xr ifconfig 8 ,
+.Xr ping 8 ,
+.Xr routed 8 ,
+.Xr traceroute 8 ,
+.Xr traceroute6 8
+.Rs
+.%A A. Conta
+.%A S. Deering
+.%T "Internet Control Message Protocol (ICMPv6) for the Internet Protocol Version 6 (IPv6) Specification"
+.%N RFC2463
+.%D December 1998
+.Re
+.Rs
+.%A Matt Crawford
+.%T "IPv6 Node Information Queries"
+.%N draft-ietf-ipngwg-icmp-name-lookups-09.txt
+.%D May 2002
+.%O work in progress material
+.Re
+.Sh HISTORY
+The
+.Xr ping 8
+utility appeared in
+.Bx 4.3 .
+The
+.Nm
+utility with IPv6 support first appeared in the WIDE Hydrangea IPv6
+protocol stack kit.
+.Pp
+IPv6 and IPsec support based on the KAME Project
+.Pq Pa http://www.kame.net/
+stack was initially integrated into
+.Fx 4.0 .
+.Sh BUGS
+The
+.Nm
+utility
+is intentionally separate from
+.Xr ping 8 .
+.Pp
+There have been many discussions on why we separate
+.Nm
+and
+.Xr ping 8 .
+Some people argued that it would be more convenient to uniform the
+ping command for both IPv4 and IPv6.
+The followings are an answer to the request.
+.Pp
+From a developer's point of view:
+since the underling raw sockets API is totally different between IPv4
+and IPv6, we would end up having two types of code base.
+There would actually be less benefit to uniform the two commands
+into a single command from the developer's standpoint.
+.Pp
+From an operator's point of view: unlike ordinary network applications
+like remote login tools, we are usually aware of address family when using
+network management tools.
+We do not just want to know the reachability to the host, but want to know the
+reachability to the host via a particular network protocol such as
+IPv6.
+Thus, even if we had a unified
+.Xr ping 8
+command for both IPv4 and IPv6, we would usually type a
+.Fl 6
+or
+.Fl 4
+option (or something like those) to specify the particular address family.
+This essentially means that we have two different commands.

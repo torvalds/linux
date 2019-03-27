@@ -1,0 +1,56 @@
+
+			  Installing OpenPAM
+			  ==================
+
+1. REQUIREMENTS
+
+  See the release notes for a list of platforms OpenPAM has been
+  tested on.
+
+  You will need the GNU autotools, GNU make and the GNU compiler suite
+  to build OpenPAM.  On some platforms, you may have to install these
+  separately.
+
+2. CONFIGURATION
+
+  Use the "configure" shell script to configure OpenPAM for your
+  system.  Options include:
+
+    --enable-debug
+	Turn debugging on by default.
+
+    --with-modules-dir=DIR
+	Indicates the directory where PAM modules will be installed.
+	This option should not be used if you intend to install PAM
+	modules in the system library directory.
+
+    --without-doc
+	Skips the documentation.
+
+    --with-pam-unix
+	Builds the sample PAM module.
+
+    --with-su
+	Builds the sample su(1) implementation.
+
+  For more information about configuration options, use the --help
+  option.
+
+  A typical invocation might look like this:
+
+  # ./configure --with-pam-unix --with-su
+
+3. COMPILATION
+
+  To compile OpenPAM, simply run "make" (or "gmake" on platforms where
+  "make" is not GNU make) in the top-level OpenPAM directory:
+
+  # make
+
+4. INSTALLATION
+
+  To install OpenPAM, simply run "make install" (or "gmake install" on
+  platforms where "make" is not GNU make) in the top-level OpenPAM
+  directory:
+
+  # make install

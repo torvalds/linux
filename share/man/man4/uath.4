@@ -1,0 +1,187 @@
+.\"
+.\" Copyright (c) 2006
+.\"     Damien Bergamini <damien.bergamini@free.fr>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 7, 2009
+.Dt UATH 4
+.Os
+.Sh NAME
+.Nm uath
+.Nd Atheros USB IEEE 802.11a/b/g wireless network device
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ehci"
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device uath"
+.Cd "device wlan"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_uath_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB 2.0 wireless network devices based on Atheros
+Communications fifth generation AR5005UG and AR5005UX chipsets.
+.Pp
+The AR5005UG chipset is made of an AR5523 multiprotocol MAC/baseband processor
+and an AR2112 Radio-on-a-Chip that can operate between 2300 and 2500 MHz
+(802.11b/g).
+.Pp
+The AR5005UX chipset is made of an AR5523 multiprotocol MAC/baseband processor
+and an AR5112 dual band Radio-on-a-Chip that can operate between 2300 and
+2500 MHz (802.11b/g) or 4900 and 5850 MHz (802.11a).
+.Pp
+The AR5005UG and AR5005UX chipsets both have an integrated 32-bit MIPS
+R4000-class processor that runs a firmware and manages, among other things,
+the automatic control of the transmit rate and the calibration of the radio.
+.Pp
+.Nm
+supports
+.Cm station ,
+and
+.Cm monitor
+mode operation.
+Only one virtual interface may be configured at any time.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh FIRMWARE
+.Nm
+requires firmware that is downloaded to the device.
+This is normally done by the
+.Xr uathload 8
+utility that is launched by
+.Xr devd 8
+when the device is inserted.
+.Xr uathload 8
+includes the firmware in the binary program.
+This firmware is licensed for general use and is included in the base system.
+.Sh HARDWARE
+The
+.Nm
+driver should work with the following adapters:
+.Bl -column "TRENDware International TEW-444UB" "AR5005UX"
+.It Em "Adapter" Ta Em "Chipset"
+.\".It Belkin F6D3050	AR5005UX
+.It Li "Compex WLU108AG" Ta AR5005UX
+.It Li "Compex WLU108G" Ta AR5005UG
+.\".It Li "D-Link DWL-AG132" Ta AR5005UX
+.It Li "D-Link DWL-G132" Ta AR5005UG
+.\".It Li "Edimax EW-7315Ug" Ta AR5005UG (AR2414???)
+.\".It Li "Lancom USB-54ag" Ta AR5005UX
+.\".It Li "NEC WL54TU" Ta AR5005UX
+.It Li "IODATA WN-G54/US" Ta AR5005UG
+.It Li "MELCO WLI-U2-KAMG54" Ta AR5005UX
+.It Li "Netgear WG111T" Ta AR5005UG
+.It Li "Netgear WG111U" Ta AR5005UX
+.It Li "Netgear WPN111" Ta AR5005UG
+.It Li "Olitec 000544" Ta AR5005UG
+.It Li "PLANET WDL-U357" Ta AR5005UX
+.\".It Li "Senao WUB-8004" Ta AR5005UX
+.It Li "Siemens Gigaset 108" Ta AR5005UG
+.It Li "SMC SMCWUSBT-G" Ta AR5005UG
+.It Li "SMC SMCWUSBT-G2" Ta AR5005UG
+.\".It Li "SparkLAN WL-685GS" Ta AR5005UG
+.It Li "SparkLAN WL-785A" Ta AR5005UX
+.It Li "TP-Link TL-WN620G" Ta AR5005UG
+.It Li "TRENDware International TEW-444UB" Ta AR5005UG
+.It Li "TRENDware International TEW-504UB" Ta AR5005UX
+.It Li "Unex Technology UR054ag" Ta AR5005UX
+.\".It Li "Wistron NeWeb DCUA-81" Ta AR5005UX
+.\".It Li "Wistron NeWeb DRUA-81" Ta AR5005UG
+.\".It Li "Wistron NeWeb DRUA-82" Ta AR5005UX
+.\".It Li "ZyXEL G-200 v2" Ta AR5005UG
+.It Li "ZyXEL XtremeMIMO M-202" Ta AR5005UX
+.El
+.Pp
+An up to date list can be found at
+.Pa http://customerproducts.atheros.com/customerproducts/default.asp .
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Bd -literal -offset indent
+ifconfig wlan create wlandev uath0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wlan create wlandev uath0 ssid my_net up"
+.Pp
+Join a specific BSS network with 64-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev uath0 ssid my_net \e
+	wepmode on wepkey 0x1234567890 weptxkey 1 up
+.Ed
+.Pp
+Join a specific BSS network with 128-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev uath0 wlanmode adhoc ssid my_net \e
+    wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "uath%d: could not send command (error=%s)"
+An attempt to send a command to the firmware failed.
+.It "uath%d: timeout waiting for command reply"
+A read command was sent to the firmware but the firmware failed to reply in
+time.
+.It "uath%d: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr wlan 4 ,
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr devd 8 ,
+.Xr ifconfig 8 ,
+.Xr uathload 8 ,
+.Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Weongyo Jeong Aq Mt weongyo@FreeBSD.org
+and
+.An Sam Leffler Aq Mt sam@FreeBSD.org .
+It is distantly related to a driver written by
+.An Damien Bergamini Aq Mt damien@openbsd.org .
+.Sh CAVEATS
+Atheros proprietary 108 Mbps mode (aka Super AG mode) is not supported.
+.Pp
+Dual-band adapters are presently not working;
+to workaround, restriction operation to 2.4GHz channels.

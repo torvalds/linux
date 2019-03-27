@@ -1,0 +1,51 @@
+# $FreeBSD$
+# VNAT/jail utility functions
+##
+
+vnet_init()
+{
+	if [ "`sysctl -i -n kern.features.vimage`" != 1 ]; then
+		atf_skip "This test requires VIMAGE"
+	fi
+}
+
+vnet_mkepair()
+{
+	ifname=$(ifconfig epair create)
+	echo $ifname >> created_interfaces.lst
+	echo ${ifname%a}
+}
+
+vnet_mkjail()
+{
+	jailname=$1
+	shift
+
+	vnet_interfaces=
+	for ifname in $@
+	do
+		vnet_interfaces="${vnet_interfaces} vnet.interface=${ifname}"
+	done
+	jail -c name=${jailname} persist vnet ${vnet_interfaces}
+
+	echo $jailname >> created_jails.lst
+}
+
+vnet_cleanup()
+{
+	if [ -f created_jails.lst ]; then
+		for jailname in `cat created_jails.lst`
+		do
+			jail -r ${jailname}
+		done
+		rm created_jails.lst
+	fi
+
+	if [ -f created_interfaces.lst ]; then
+		for ifname in `cat created_interfaces.lst`
+		do
+			ifconfig ${ifname} destroy
+		done
+		rm created_interfaces.lst
+	fi
+}

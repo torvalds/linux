@@ -1,0 +1,8 @@
+# $FreeBSD$
+#	From: @(#)phones	5.2 (Berkeley) 6/30/90
+#
+# phones -- remote host phone number data base
+# see tip(1), phones(5)
+# examples:
+#system1	9=2225551212
+#system2	  9995551212

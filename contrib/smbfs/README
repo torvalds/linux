@@ -1,0 +1,53 @@
+
+
+    SMB/CIFS protocol and SMB/CIFS file system implementation
+		for FreeBSD, version 1.4.
+    
+    This is native SMB/CIFS filesystem (smbfs for short) for FreeBSD.
+It is a complete, kernel side implementation of SMB requester and filesystem.
+
+    Supported platform		Comment
+	FreeBSD 4.X		Port
+
+	FreeBSD 4.5		Everything available in the base system.
+
+	FreeBSD-current		Everything available in the base system.
+
+	Darwin			maintained in the Darwin's  tree.
+
+    I would be very grateful for any feedback, bug reports etc.
+
+    Supported SMB servers:
+	Samba
+	Windows 95/98/ME/2000/NT4.0 (SPs 4, 5, 6)
+	IBM LanManager
+	NetApp
+
+    An updated version of this package can be retrieved from ftp server:
+
+    ftp://ftp.butya.kz/pub/smbfs/smbfs.tar.gz
+
+    Performance
+    ==========
+    
+    These are some performance benchmarks over a 10Mbit network:
+    
+    Win95 machine as server:
+IOZONE: auto-test mode
+	MB      reclen  bytes/sec written   bytes/sec read
+	1       512     339791              323416
+	1       1024    481067              431568
+	1       2048    648394              588674
+	1       4096    630130              583555
+	1       8192    671088              618514
+
+    Samba 2.0.6 as server:
+IOZONE: auto-test mode
+	MB      reclen  bytes/sec written   bytes/sec read
+	1       512     409200              437191
+	1       1024    545600              596523
+	1       2048    729444              798915
+	1       4096    871543              919299
+	1       8192    900790              1024562
+
+Author: Boris Popov <bp@freebsd.org>

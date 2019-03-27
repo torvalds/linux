@@ -1,0 +1,160 @@
+.\" Copyright (c) 2004 Daniel Hartmeier
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\"    - Redistributions of source code must retain the above copyright
+.\"      notice, this list of conditions and the following disclaimer.
+.\"    - Redistributions in binary form must reproduce the above
+.\"      copyright notice, this list of conditions and the following
+.\"      disclaimer in the documentation and/or other materials provided
+.\"      with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $NetBSD: cdce.4,v 1.4 2004/12/08 18:35:56 peter Exp $
+.\" $FreeBSD$
+.\"
+.Dd May 21, 2018
+.Dt CDCE 4
+.Os
+.Sh NAME
+.Nm cdce
+.Nd "USB Communication Device Class Ethernet (CDC ECM/NCM) driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device miibus"
+.Cd "device uether"
+.Cd "device cdce"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_cdce_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Host-to-Host (aka USB-to-USB) and
+USB-to-Ethernet bridges based on the USB Communication Device Class
+Ethernet Control Model (CDC ECM) and Network Control Model (CDC NCM)
+specifications.
+It also provides device-side CDC ECM support.
+.Pp
+The USB bridge appears as a regular network interface on both sides,
+transporting Ethernet frames.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+USB 1.x bridges support speeds of up to 12Mbps, and USB 2.0 speeds of
+up to 480Mbps.
+.Pp
+Packets are
+received and transmitted over separate USB bulk transfer endpoints.
+.Pp
+The
+.Nm
+driver does not support different media types or options.
+.Sh HARDWARE
+The following devices are supported by the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+Prolific PL-2501 Host-to-Host Bridge Controller
+.It
+Sharp Zaurus PDA
+.It
+Terayon TJ-715 DOCSIS Cable Modem
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "cdce%d: no union descriptor"
+The driver could not fetch an interface descriptor from the USB
+device.
+For a manually added USB vendor/product, the CDCE_NO_UNION flag
+can be tried to work around the missing descriptor.
+.It "cdce%d: no data interface"
+.It "cdce%d: could not read endpoint descriptor"
+.It "cdce%d: unexpected endpoint"
+.It "cdce%d: could not find data bulk in/out"
+For a manually added USB vendor/product, these errors indicate
+that the bridge is not compatible with the driver.
+.It "cdce%d: watchdog timeout"
+A packet was queued for transmission and a transmit command was
+issued, however the device failed to acknowledge the transmission
+before a timeout expired.
+.It "cdce%d: no memory for rx list -- packet dropped!"
+Memory allocation through MGETHDR or MCLGET failed, the system
+is running low on mbufs.
+.It "cdce%d: abort/close rx/tx pipe failed"
+.It "cdce%d: rx/tx list init failed"
+.It "cdce%d: open rx/tx pipe failed"
+.It "cdce%d: usb error on rx/tx"
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr intro 4 ,
+.Xr ipheth 4 ,
+.Xr netintro 4 ,
+.Xr urndis 4 ,
+.Xr usb 4 ,
+.Xr ifconfig 8
+.Rs
+.%T "Universal Serial Bus Class Definitions for Communication Devices"
+.%U http://www.usb.org/developers/devclass_docs/usbcdc11.pdf
+.Re
+.Rs
+.%T "Data sheet Prolific PL-2501 Host-to-Host Bridge/Network Controller"
+.%U http://tech.prolific.com.tw/visitor/fcabdl.asp?fid=20679530
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 3.6 ,
+.Nx 3.0
+and
+.Fx 6.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Craig Boston Aq Mt craig@tobuj.gank.org
+based on the
+.Xr aue 4
+driver written by
+.An Bill Paul Aq Mt wpaul@windriver.com
+and ported to
+.Ox
+by
+.An Daniel Hartmeier Aq Mt dhartmei@openbsd.org .
+.Sh CAVEATS
+Many USB devices notoriously fail to report their class and interfaces
+correctly.
+Undetected products might work flawlessly when their vendor and product IDs
+are added to the driver manually.

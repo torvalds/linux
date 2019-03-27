@@ -1,0 +1,13 @@
+README file for directory ./conf of the NTP Version 4 distribution
+
+This directory contains example run-time configuration files for the
+NTP Version 4 daemon ntpd. These files illustrate some of the more
+obtuse configurations you may run into. They are not likely to do
+anything good if run on machines other than their native spot, so don't
+just blindly copy something and put it up. Additional information can
+be found in the ./doc directory of the base directory.
+
+Included also are example public key and symmetric key files produced
+by the ntp-genkeys program with names prefixed by ntpkey. These are
+ordinarily kept in /usr/local/etc and used by the Autokey scheme. See
+the authopt.htm pnd genkeys.htm ages for further information.

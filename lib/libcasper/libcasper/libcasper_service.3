@@ -1,0 +1,116 @@
+.\" Copyright (c) 2018 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 23, 2018
+.Dt LIBCASPER 3
+.Os
+.Sh NAME
+.Nm CREATE_SERVICE
+.Nd "casper service declaration macro"
+.Sh LIBRARY
+.Lb libcasper
+.Sh SYNOPSIS
+.In sys/nv.h
+.In libcasper.h
+.In libcasper_service.h
+.Bd -literal
+typedef int service_limit_func_t(const nvlist_t *, const nvlist_t *);
+
+typedef int service_command_func_t(const char *, const nvlist_t *, nvlist_t *,
+    nvlist_t *);
+
+.Ed
+.Fn CREATE_SERVICE "name" "limit_func" "command_func" "flags"
+.Sh DESCRIPTION
+The
+.Nm CREATE_SERVICE
+macro to create a new Casper service.
+The
+.Fa name
+is a string containing the service name, which will be used in the
+.Xr cap_service_open 3,
+function to identify it.
+.Pp
+The
+.Fa limit_func
+is a function of type
+.Li service_limit_func_t .
+The first argument of the function contains
+.Xr nvlist 9 ,
+old service limits and second one the new limits.
+If the services wasn't limited the old limits will be set to
+.Dv NULL .
+This function should not allow to extend service limits and only limit it
+further.
+The
+.Fa command_func
+is a function of type
+.Li service_command_func_t .
+First argument is the name of the command that should be executed.
+The first
+.Xr nvlist 9
+contains the current limits.
+Next one contains a
+.Xr nvlist 9
+with current request.
+The last one contains an output
+.Xr nvlist 9
+which contains the response from Casper.
+.Pp
+The
+.Fa flags
+argument defines limits of the service.
+The supported flags are:
+.Bl -ohang -offset indent
+.It CASPER_SERVICE_STDIO
+The Casper service has access to the stdio descriptors from the process it was
+spawned from.
+.It CASPER_SERVICE_FD
+The Casper service has access to all descriptors besides stdio descriptors from
+the process it was spawned from.
+.It CASPER_SERVICE_NO_UNIQ_LIMITS
+The whole Casper communication is using
+.Xr nvlist 9
+with
+.Xr NVLIST_NO_UNIQ 9
+flag.
+.El
+.Sh SEE ALSO
+.Xr cap_enter 2 ,
+.Xr libcasper 3 ,
+.Xr capsicum 4 ,
+.Xr nv 9
+.Sh AUTHORS
+The
+.Nm libcasper
+library was implemented by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship from the FreeBSD Foundation.
+The
+.Nm libcasper
+new architecture was implemented by
+.An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org
+.

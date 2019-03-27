@@ -1,0 +1,88 @@
+//===-- OpenCLImageTypes.def - Metadata about BuiltinTypes ------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//  This file extends builtin types database with OpenCL image singleton types.
+//  Custom code should define one of those three macros:
+//    GENERIC_IMAGE_TYPE(Type, Id) - a generic image with its Id without an
+//      access type
+//    IMAGE_TYPE(Type, Id, SingletonId, AccessType, CGSuffix) - an image type
+//      with given ID, singleton ID access type and a codegen suffix
+//    GENERIC_IMAGE_TYPE_EXT(Type, Id, Ext) - a generic image with its Id and
+//      required extension without an access type
+
+#ifdef GENERIC_IMAGE_TYPE
+
+#define IMAGE_READ_TYPE(Type, Id, Ext) GENERIC_IMAGE_TYPE(Type, Id)
+#define IMAGE_WRITE_TYPE(Type, Id, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext)
+
+#elif defined(GENERIC_IMAGE_TYPE_EXT)
+#define IMAGE_READ_TYPE(Type, Id, Ext) GENERIC_IMAGE_TYPE_EXT(Type, Id##ROTy, Ext)
+#define IMAGE_WRITE_TYPE(Type, Id, Ext) GENERIC_IMAGE_TYPE_EXT(Type, Id##WOTy, Ext)
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext) GENERIC_IMAGE_TYPE_EXT(Type, Id##RWTy, Ext)
+
+#else
+#ifndef IMAGE_READ_TYPE
+#define IMAGE_READ_TYPE(Type, Id, Ext) \
+          IMAGE_TYPE(Type, Id##RO, Id##ROTy,  read_only, ro)
+#endif
+#ifndef IMAGE_WRITE_TYPE
+#define IMAGE_WRITE_TYPE(Type, Id, Ext) \
+          IMAGE_TYPE(Type, Id##WO, Id##WOTy, write_only, wo)
+#endif
+#ifndef IMAGE_READ_WRITE_TYPE
+#define IMAGE_READ_WRITE_TYPE(Type, Id, Ext) \
+          IMAGE_TYPE(Type, Id##RW, Id##RWTy, read_write, rw)
+#endif
+
+#endif
+
+IMAGE_READ_TYPE(image1d, OCLImage1d, "")
+IMAGE_READ_TYPE(image1d_array, OCLImage1dArray, "")
+IMAGE_READ_TYPE(image1d_buffer, OCLImage1dBuffer, "")
+IMAGE_READ_TYPE(image2d, OCLImage2d, "")
+IMAGE_READ_TYPE(image2d_array, OCLImage2dArray, "")
+IMAGE_READ_TYPE(image2d_depth, OCLImage2dDepth, "")
+IMAGE_READ_TYPE(image2d_array_depth, OCLImage2dArrayDepth, "")
+IMAGE_READ_TYPE(image2d_msaa, OCLImage2dMSAA, "cl_khr_gl_msaa_sharing")
+IMAGE_READ_TYPE(image2d_array_msaa, OCLImage2dArrayMSAA, "cl_khr_gl_msaa_sharing")
+IMAGE_READ_TYPE(image2d_msaa_depth, OCLImage2dMSAADepth, "cl_khr_gl_msaa_sharing")
+IMAGE_READ_TYPE(image2d_array_msaa_depth, OCLImage2dArrayMSAADepth, "cl_khr_gl_msaa_sharing")
+IMAGE_READ_TYPE(image3d, OCLImage3d, "")
+
+IMAGE_WRITE_TYPE(image1d, OCLImage1d, "")
+IMAGE_WRITE_TYPE(image1d_array, OCLImage1dArray, "")
+IMAGE_WRITE_TYPE(image1d_buffer, OCLImage1dBuffer, "")
+IMAGE_WRITE_TYPE(image2d, OCLImage2d, "")
+IMAGE_WRITE_TYPE(image2d_array, OCLImage2dArray, "")
+IMAGE_WRITE_TYPE(image2d_depth, OCLImage2dDepth, "")
+IMAGE_WRITE_TYPE(image2d_array_depth, OCLImage2dArrayDepth, "")
+IMAGE_WRITE_TYPE(image2d_msaa, OCLImage2dMSAA, "cl_khr_gl_msaa_sharing")
+IMAGE_WRITE_TYPE(image2d_array_msaa, OCLImage2dArrayMSAA, "cl_khr_gl_msaa_sharing")
+IMAGE_WRITE_TYPE(image2d_msaa_depth, OCLImage2dMSAADepth, "cl_khr_gl_msaa_sharing")
+IMAGE_WRITE_TYPE(image2d_array_msaa_depth, OCLImage2dArrayMSAADepth, "cl_khr_gl_msaa_sharing")
+IMAGE_WRITE_TYPE(image3d, OCLImage3d, "cl_khr_3d_image_writes")
+
+IMAGE_READ_WRITE_TYPE(image1d, OCLImage1d, "")
+IMAGE_READ_WRITE_TYPE(image1d_array, OCLImage1dArray, "")
+IMAGE_READ_WRITE_TYPE(image1d_buffer, OCLImage1dBuffer, "")
+IMAGE_READ_WRITE_TYPE(image2d, OCLImage2d, "")
+IMAGE_READ_WRITE_TYPE(image2d_array, OCLImage2dArray, "")
+IMAGE_READ_WRITE_TYPE(image2d_depth, OCLImage2dDepth, "")
+IMAGE_READ_WRITE_TYPE(image2d_array_depth, OCLImage2dArrayDepth, "")
+IMAGE_READ_WRITE_TYPE(image2d_msaa, OCLImage2dMSAA, "cl_khr_gl_msaa_sharing")
+IMAGE_READ_WRITE_TYPE(image2d_array_msaa, OCLImage2dArrayMSAA, "cl_khr_gl_msaa_sharing")
+IMAGE_READ_WRITE_TYPE(image2d_msaa_depth, OCLImage2dMSAADepth, "cl_khr_gl_msaa_sharing")
+IMAGE_READ_WRITE_TYPE(image2d_array_msaa_depth, OCLImage2dArrayMSAADepth, "cl_khr_gl_msaa_sharing")
+IMAGE_READ_WRITE_TYPE(image3d, OCLImage3d, "")
+
+#undef IMAGE_TYPE
+#undef GENERIC_IMAGE_TYPE
+#undef IMAGE_READ_TYPE
+#undef IMAGE_WRITE_TYPE
+#undef IMAGE_READ_WRITE_TYPE

@@ -1,0 +1,95 @@
+=pod
+
+=head1 NAME
+
+RSA_public_encrypt, RSA_private_decrypt - RSA public key cryptography
+
+=head1 SYNOPSIS
+
+ #include <openssl/rsa.h>
+
+ int RSA_public_encrypt(int flen, unsigned char *from,
+                        unsigned char *to, RSA *rsa, int padding);
+
+ int RSA_private_decrypt(int flen, unsigned char *from,
+                         unsigned char *to, RSA *rsa, int padding);
+
+=head1 DESCRIPTION
+
+RSA_public_encrypt() encrypts the B<flen> bytes at B<from> (usually a
+session key) using the public key B<rsa> and stores the ciphertext in
+B<to>. B<to> must point to RSA_size(B<rsa>) bytes of memory.
+
+B<padding> denotes one of the following modes:
+
+=over 4
+
+=item RSA_PKCS1_PADDING
+
+PKCS #1 v1.5 padding. This currently is the most widely used mode.
+
+=item RSA_PKCS1_OAEP_PADDING
+
+EME-OAEP as defined in PKCS #1 v2.0 with SHA-1, MGF1 and an empty
+encoding parameter. This mode is recommended for all new applications.
+
+=item RSA_SSLV23_PADDING
+
+PKCS #1 v1.5 padding with an SSL-specific modification that denotes
+that the server is SSL3 capable.
+
+=item RSA_NO_PADDING
+
+Raw RSA encryption. This mode should I<only> be used to implement
+cryptographically sound padding modes in the application code.
+Encrypting user data directly with RSA is insecure.
+
+=back
+
+B<flen> must be less than RSA_size(B<rsa>) - 11 for the PKCS #1 v1.5
+based padding modes, less than RSA_size(B<rsa>) - 41 for
+RSA_PKCS1_OAEP_PADDING and exactly RSA_size(B<rsa>) for RSA_NO_PADDING.
+The random number generator must be seeded prior to calling
+RSA_public_encrypt().
+
+RSA_private_decrypt() decrypts the B<flen> bytes at B<from> using the
+private key B<rsa> and stores the plaintext in B<to>. B<to> must point
+to a memory section large enough to hold the decrypted data (which is
+smaller than RSA_size(B<rsa>)). B<padding> is the padding mode that
+was used to encrypt the data.
+
+=head1 RETURN VALUES
+
+RSA_public_encrypt() returns the size of the encrypted data (i.e.,
+RSA_size(B<rsa>)). RSA_private_decrypt() returns the size of the
+recovered plaintext.
+
+On error, -1 is returned; the error codes can be
+obtained by L<ERR_get_error(3)>.
+
+=head1 WARNING
+
+Decryption failures in the RSA_PKCS1_PADDING mode leak information
+which can potentially be used to mount a Bleichenbacher padding oracle
+attack. This is an inherent weakness in the PKCS #1 v1.5 padding
+design. Prefer RSA_PKCS1_OAEP_PADDING.
+
+=head1 CONFORMING TO
+
+SSL, PKCS #1 v2.0
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<RAND_bytes(3)>,
+L<RSA_size(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

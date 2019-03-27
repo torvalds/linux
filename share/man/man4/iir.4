@@ -1,0 +1,77 @@
+.\" $FreeBSD$
+.\" Written by Tom Rhodes
+.\" This file is in the public domain.
+.\"
+.Dd August 8, 2004
+.Dt IIR 4
+.Os
+.Sh NAME
+.Nm iir
+.Nd Intel Integrated RAID controller and ICP Vortex driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device iir"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+iir_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver claims to interface with the Intel integrated
+RAID controller cards, and all versions of the
+ICP Vortex controllers (including FC).
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Intel RAID Controller SRCMR
+.It
+Intel Server RAID Controller U3-l (SRCU31a)
+.It
+Intel Server RAID Controller U3-1L (SRCU31La)
+.It
+Intel Server RAID Controller U3-2 (SRCU32)
+.It
+All past and future releases of Intel and ICP RAID Controllers.
+.El
+.Pp
+.Bl -bullet -compact
+.It
+Intel RAID Controller SRCU21 (discontinued)
+.It
+Intel RAID Controller SRCU31 (older revision, not compatible)
+.It
+Intel RAID Controller SRCU31L (older revision, not compatible)
+.El
+.Pp
+The SRCU31 and SRCU31L can be updated via a firmware update available
+from Intel.
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr pass 4 ,
+.Xr xpt 4 ,
+.Xr camcontrol 8
+.Sh AUTHORS
+The
+.Nm
+driver is supported and maintained by
+.An -nosplit
+.An Achim Leubner Aq Mt Achim_Leubner@adaptec.com .
+.Pp
+This manual page was written by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org
+and is based on information supplied by the driver authors and the website of
+.An Mike Smith Aq Mt msmith@FreeBSD.org .

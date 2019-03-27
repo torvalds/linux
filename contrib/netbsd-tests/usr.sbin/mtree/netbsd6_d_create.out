@@ -1,0 +1,55 @@
+#	   user: x
+#	machine: x
+#	   tree: x
+#	   date: x
+
+# .
+/set type=file nlink=1
+.               type=dir nlink=4
+    a.symlink.1 type=link link=a.file.1
+    top.dangling \
+                type=link link=nonexistent
+    top.file.1  size=18 \
+                sha256=74c53aaf0cd9543b7efad969de1058ee38859134ba467500b849811fc3513195
+    top.symlink.b \
+                type=link link=b
+
+# ./a
+a               type=dir nlink=4
+    a.file.1    size=18 \
+                sha256=bdbea62f7ccdf862f22254ea871d523845250010d5f233896e800142a859eef2
+    a.file.2    size=18 \
+                sha256=77876d113fe1b45a41f8d1d3e178aaad7f91fcd93d3df782690625b74ad90fe6
+    a.hardlink.b2 \
+                nlink=2 size=18 \
+                sha256=784fd6b95fe5054d87bf268de51dea043031c5e985f668d4f51e1c759b0f9333
+
+# ./a/1
+1               type=dir nlink=2
+    a1.file.1   size=21 \
+                sha256=a062cd272facdd38c4fdeff2a18947b28c99a28a8fe51f88468978740382e592
+# ./a/1
+..
+
+
+# ./a/2
+2               type=dir nlink=2
+# ./a/2
+..
+
+# ./a
+..
+
+
+# ./b
+b               type=dir nlink=2
+    b.file.1    nlink=2 size=18 \
+                sha256=5754b0d97a8238ea0e495ab871667dcab8f1d684e323290ae76f70c47de18998
+    b.file.2    nlink=2 size=18 \
+                sha256=784fd6b95fe5054d87bf268de51dea043031c5e985f668d4f51e1c759b0f9333
+    b.hardlink.1 \
+                nlink=2 size=18 \
+                sha256=5754b0d97a8238ea0e495ab871667dcab8f1d684e323290ae76f70c47de18998
+# ./b
+..
+

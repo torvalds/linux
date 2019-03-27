@@ -1,0 +1,115 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+	<head>
+		<meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1">
+		<title>hopf clock drivers by ATLSoft</title>
+		<link href="scripts/style.css" type="text/css" rel="stylesheet">
+	</head>
+
+	<body bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#800080" alink="#FF0000">
+		<h1><font face="Arial"><i><blink><font size="5">hopf</font></blink></i><font size="+2"> </font><font size="3">PCI-Bus Receiver (6039 GPS/DCF77)</font></font></h1>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->21-Oct-2010  23:44<!-- #EndDate -->
+  UTC</p>
+		<hr>
+		<div align="center">
+			<center>
+				<table width="100%">
+					<tr>
+						<td width="50%">
+							<h2><font size="+1">Synopsis</font></h2>
+							<table bgcolor="#C0C0C0">
+								<tr>
+									<td height="21">
+										<div align="right">
+											<tt>Address:&nbsp;&nbsp;</tt></div>
+									</td>
+									<td height="21"><b>127.127.39.<i>X</i></b></td>
+								</tr>
+								<tr>
+									<td height="21">
+										<div align="right">
+											<tt>Reference ID:&nbsp;&nbsp;</tt></div>
+									</td>
+									<td height="21"><a name="REFID"></a><b>.hopf. </b>(default)<b>, GPS, DCF</b></td>
+								</tr>
+								<tr>
+									<td height="21">
+										<div align="right">
+											<tt>Driver ID:&nbsp;&nbsp;</tt></div>
+									</td>
+									<td height="21"><b>HOPF_P</b></td>
+								</tr>
+							</table>
+						</td>
+						<td align="center" valign="middle"><font face="Arial"><i><blink><font size="5"><img src="../pic/fg6039.jpg" alt="gif" height="140" width="141" border="0"></font></blink></i></font></td>
+					</tr>
+				</table>
+			</center>
+		</div>
+		<hr>
+		<h2><font size="+1">Description</font></h2>
+		The <b>refclock_hopf_pci </b>driver supports the <a href="http://www.hopf.com">hopf</a> PCI-bus interface 6039 GPS/DCF77.<br>
+		Additional software and information about the software drivers maybe available from: <a href="http://www.ATLSoft.de/ntp">http://www.ATLSoft.de/ntp</a>.<br>
+		Latest NTP driver source, executables and documentation is maintained at: <a href="http://www.ATLSoft.de/ntp">http://www.ATLSoft.de/ntp</a>
+		<hr>
+		<h2><font size="+1">Operating System Compatibility</font></h2>
+		<p align="left">The hopf clock driver has been tested on the following software and hardware platforms:<br>&nbsp;</p>
+		<table bgcolor="#C0C0C0">
+			<tr>
+				<td valign="CENTER" nowrap width="23%">
+					<p align="left"><b>Platform</b></p>
+				</td>
+				<td valign="CENTER" nowrap>
+					<p align="left"><b>Operating System</b></p>
+				</td>
+			</tr>
+			<tr>
+				<td valign="CENTER" nowrap width="23%">
+					<p align="left">i386 (PC)&nbsp;</p>
+				</td>
+				<td valign="CENTER" nowrap>
+					<p align="left">Linux</p>
+				</td>
+			</tr>
+			<tr>
+				<td nowrap>
+					<p align="left">i386 (PC)&nbsp;</p>
+				</td>
+				<td nowrap>
+					<p align="left">Windows NT</p>
+				</td>
+			</tr>
+			<tr>
+				<td nowrap>
+					<p align="left">i386 (PC)&nbsp;</p>
+				</td>
+				<center>
+					<td nowrap>Windows 2000</td>
+				</center>
+			</tr>
+		</table>
+		<hr>
+		<h2><font size="+1">O/S System Configuration</font></h2>
+		<p><b>UNIX</b></p>
+		The driver attempts to open the device <b><tt><a href="#REFID">/dev/hopf6039</a></tt></b> . The device entry will be made by the installation process of the kernel module for the PCI-bus board. The driver sources belongs to the delivery equipment of the PCI-board.
+		<p><b>Windows NT/2000</b></p>
+		<p>The driver attempts to open the device by calling the function &quot;OpenHopfDevice()&quot;. This function will be installed by the Device Driver for the PCI-bus board. The driver belongs to the delivery equipment of the PCI-board.</p>
+		<hr>
+		<h2><font size="+1">Fudge Factors</font></h2>
+		<dl>
+			<dt><tt><font size="+1"><a href="#REFID"><b>refid <i>string</i></b></a></font></tt>
+			<dd>Specifies the driver reference identifier, <b>GPS </b><i>or</i> <b>DCF</b>.
+			<dt><tt><font size="+1"><b>flag1 0 | 1</b></font></tt>
+			<dd>When set to 1, driver sync's even if only crystal driven.
+		</dl>
+		<hr>
+		<h3>Questions or Comments:</h3>
+		<p><a href="mailto:altmeier@atlsoft.de">Bernd Altmeier</a><a href="http://www.ATLSoft.de"><br>Ing.-B&uuml;ro f&uuml;r Software www.ATLSoft.de</a></p>
+		<hr>
+		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+	</body>
+
+</html>

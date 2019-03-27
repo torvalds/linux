@@ -1,0 +1,32 @@
+# $FreeBSD$
+
+# Pretty much only ash derivatives can parse all of this.
+
+f1() {
+	x=$(case x in
+		(x|esac) ;;
+		(*) echo bad >&2 ;;
+	esac)
+}
+f1
+f2() {
+	x=$(case x in
+		(x|esac) ;;
+		(*) echo bad >&2
+	esac)
+}
+f2
+f3() {
+	x=$(case x in
+		x|esac) ;;
+		*) echo bad >&2 ;;
+	esac)
+}
+f3
+f4() {
+	x=$(case x in
+		x|esac) ;;
+		*) echo bad >&2
+	esac)
+}
+f4

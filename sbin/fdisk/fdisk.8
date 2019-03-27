@@ -1,0 +1,523 @@
+.\" $FreeBSD$
+.\"
+.Dd October 5, 2016
+.Dt FDISK 8
+.Os
+.Sh NAME
+.Nm fdisk
+.Nd PC slice table maintenance utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl BIaipqstu
+.Op Fl b Ar bootcode
+.Op Fl 1234
+.Op Ar disk
+.Nm
+.Fl f Ar configfile
+.Op Fl itv
+.Op Ar disk
+.Sh PROLOGUE
+In order for the BIOS to boot the kernel,
+certain conventions must be adhered to.
+Sector 0 of the disk must contain boot code,
+a slice table,
+and a magic number.
+BIOS slices can be used to break the disk up into several pieces.
+The BIOS brings in sector 0 and verifies the magic number.
+The sector
+0 boot code then searches the slice table to determine which
+slice is marked
+.Dq active .
+This boot code then brings in the bootstrap from the
+active slice and, if marked bootable, runs it.
+Under
+.Tn DOS ,
+you can have one or more slices with one active.
+The
+.Tn DOS
+.Nm
+utility can be used to divide space on the disk into slices and set one
+active.
+.Sh DESCRIPTION
+.Bf -symbolic
+This command is obsolete.
+Users are advised to use
+.Xr gpart 8
+instead.
+.Ef
+.Pp
+The
+.Fx
+utility,
+.Nm ,
+serves a similar purpose to the
+.Tn DOS
+utility.
+The first form is used to
+display slice information or to interactively edit the slice
+table.
+The second is used to write a slice table using a
+.Ar configfile ,
+and is designed to be used by other scripts/programs.
+.Pp
+Options are:
+.Bl -tag -width indent
+.It Fl a
+Change the active slice only.
+Ignored if
+.Fl f
+is given.
+.It Fl b Ar bootcode
+Get the boot code from the file
+.Ar bootcode .
+Default is
+.Pa /boot/mbr .
+.It Fl B
+Reinitialize the boot code contained in sector 0 of the disk.
+Ignored if
+.Fl f
+is given.
+.It Fl f Ar configfile
+Set slice values using the file
+.Ar configfile .
+The
+.Ar configfile
+only modifies explicitly specified slices, unless
+.Fl i
+is also given, in which case all existing slices are deleted (marked
+as
+.Dq unused )
+before the
+.Ar configfile
+is read.
+The
+.Ar configfile
+can be
+.Sq Fl ,
+in which case standard input is read.
+See
+.Sx CONFIGURATION FILE ,
+below, for file syntax.
+.Pp
+.Em WARNING :
+when
+.Fl f
+is used, you are not asked if you really want to write the slices
+table (as you are in the interactive mode).
+Use with caution!
+.It Fl i
+Initialize sector 0 of the disk.
+Existing slice entries will be cleared
+(marked as unused) before editing.
+(Compare with
+.Fl u . )
+.It Fl I
+Initialize sector 0 slice table
+for one
+.Fx
+slice covering the entire disk.
+.It Fl p
+Print a slice table in
+.Nm
+configuration file format and exit; see
+.Sx CONFIGURATION FILE ,
+below.
+.It Fl q
+Be quiet.
+Benign warnings (such as "GEOM not found") are suppressed.
+.It Fl s
+Print summary information and exit.
+.It Fl t
+Test mode; do not write slice values.
+Generally used with the
+.Fl f
+option to see what would be written to the slice table.
+Implies
+.Fl v .
+.It Fl u
+Update (edit) the disk's sector 0 slice table.
+Ignored if
+.Fl f
+is given.
+.It Fl v
+Be verbose.
+When
+.Fl f
+is used,
+.Nm
+prints out the slice table that is written to the disk.
+.It Fl 1234
+Operate on a single slice table entry only.
+Ignored if
+.Fl f
+is given.
+.El
+.Pp
+The final disk name can be provided as a
+.Dq bare
+disk name only, e.g.\&
+.Pa da0 ,
+or as a full pathname.
+If omitted,
+.Nm
+tries to figure out the default disk device name from the
+mounted root device.
+.Pp
+When called with no arguments, it prints the sector 0 slice table.
+An example follows:
+.Bd -literal
+	******* Working on device /dev/ada0 *******
+	parameters extracted from in-core disklabel are:
+	cylinders=769 heads=15 sectors/track=33 (495 blks/cyl)
+
+	parameters to be used for BIOS calculations are:
+	cylinders=769 heads=15 sectors/track=33 (495 blks/cyl)
+
+	Warning: BIOS sector numbering starts with sector 1
+	Information from DOS bootblock is:
+	The data for partition 1 is:
+	sysid 165,(FreeBSD/NetBSD/386BSD)
+           start 495, size 380160 (185 Meg), flag 0
+		beg: cyl 1/ sector 1/ head 0;
+		end: cyl 768/ sector 33/ head 14
+	The data for partition 2 is:
+	sysid 164,(unknown)
+           start 378180, size 2475 (1 Meg), flag 0
+		beg: cyl 764/ sector 1/ head 0;
+		end: cyl 768/ sector 33/ head 14
+	The data for partition 3 is:
+	<UNUSED>
+	The data for partition 4 is:
+	sysid 99,(ISC UNIX, other System V/386, GNU HURD or Mach)
+           start 380656, size 224234 (109 Meg), flag 80
+		beg: cyl 769/ sector 2/ head 0;
+		end: cyl 197/ sector 33/ head 14
+.Ed
+.Pp
+The disk is divided into three slices that happen to fill the disk.
+The second slice overlaps the end of the first.
+(Used for debugging purposes.)
+.Bl -tag -width ".Em cyl , sector No and Em head"
+.It Em sysid
+is used to label the slice.
+.Fx
+reserves the
+magic number 165 decimal (A5 in hex).
+.It Xo
+.Em start
+and
+.Em size
+.Xc
+fields provide the start address
+and size of a slice in sectors.
+.It Em "flag 80"
+specifies that this is the active slice.
+.It Xo
+.Em cyl , sector
+and
+.Em head
+.Xc
+fields are used to specify the beginning and end addresses of the slice.
+.El
+.Pp
+.Em Note :
+these numbers are calculated using BIOS's understanding of the disk geometry
+and saved in the bootblock.
+.Pp
+The
+.Fl i
+and
+.Fl u
+flags are used to indicate that the slice data is to be updated.
+Unless the
+.Fl f
+option is also given,
+.Nm
+will enter a conversational mode.
+In this mode, no changes will be written to disk unless you explicitly tell
+.Nm
+to.
+.Pp
+The
+.Nm
+utility will display each slice and ask whether you want to edit it.
+If you say yes,
+.Nm
+will step through each field, show you the old value,
+and ask you for a new one.
+When you are done with the slice,
+.Nm
+will display it and ask you whether it is correct.
+It will then proceed to the next entry.
+.Pp
+Getting the
+.Em cyl , sector ,
+and
+.Em head
+fields correct is tricky, so by default,
+they will be calculated for you;
+you can specify them if you choose to though.
+.Pp
+After all the slices are processed,
+you are given the option to change the
+.Dq active
+slice.
+Finally, when all the new data for sector 0 has been accumulated,
+you are asked to confirm whether you really want to rewrite it.
+.Pp
+The difference between the
+.Fl u
+and
+.Fl i
+flags is that
+the
+.Fl u
+flag edits (updates) the existing slice parameters
+while the
+.Fl i
+flag is used to
+.Dq initialize
+them (old values will be ignored);
+if you edit the first slice,
+.Fl i
+will also set it up to use the whole disk for
+.Fx
+and make it active.
+.Sh NOTES
+The automatic calculation of starting cylinder etc.\& uses
+a set of figures that represent what the BIOS thinks the
+geometry of the drive is.
+These figures are taken from the in-core disklabel by default,
+but
+.Nm
+initially gives you an opportunity to change them.
+This allows you to create a bootblock that can work with drives
+that use geometry translation under the BIOS.
+.Pp
+If you hand craft your disk layout,
+please make sure that the
+.Fx
+slice starts on a cylinder boundary.
+.Pp
+Editing an existing slice will most likely result in the loss of
+all data in that slice.
+.Pp
+You should run
+.Nm
+interactively once or twice to see how it works.
+This is completely safe as long as you answer the last question
+in the negative.
+There are subtleties that
+.Nm
+detects that are not fully explained in this manual page.
+.Sh CONFIGURATION FILE
+When the
+.Fl f
+option is given, a disk's slice table can be written using values
+from a
+.Ar configfile .
+The syntax of this file is very simple;
+each line is either a comment or a specification, as follows:
+.Bl -tag -width indent
+.It Ic # Ar comment ...
+Lines beginning with a
+.Ic #
+are comments and are ignored.
+.It Ic g Ar spec1 spec2 spec3
+Set the BIOS geometry used in slice calculations.
+There must be
+three values specified, with a letter preceding each number:
+.Bl -tag -width indent
+.It Cm c Ns Ar num
+Set the number of cylinders to
+.Ar num .
+.It Cm h Ns Ar num
+Set the number of heads to
+.Ar num .
+.It Cm s Ns Ar num
+Set the number of sectors/track to
+.Ar num .
+.El
+.Pp
+These specs can occur in any order, as the leading letter determines
+which value is which; however, all three must be specified.
+.Pp
+This line must occur before any lines that specify slice
+information.
+.Pp
+It is an error if the following is not true:
+.Bd -literal -offset indent
+1 <= number of cylinders
+1 <= number of heads <= 256
+1 <= number of sectors/track < 64
+.Ed
+.Pp
+The number of cylinders should be less than or equal to 1024, but this
+is not enforced, although a warning will be printed.
+Note that bootable
+.Fx
+slices (the
+.Dq Pa /
+file system) must lie completely within the
+first 1024 cylinders; if this is not true, booting may fail.
+Non-bootable slices do not have this restriction.
+.Pp
+Example (all of these are equivalent), for a disk with 1019 cylinders,
+39 heads, and 63 sectors:
+.Bd -literal -offset indent
+g       c1019   h39     s63
+g       h39     c1019   s63
+g       s63     h39     c1019
+.Ed
+.It Ic p Ar slice type start length
+Set the slice given by
+.Ar slice
+(1-4) to type
+.Ar type ,
+starting at sector
+.Ar start
+for
+.Ar length
+sectors.
+If the
+.Ar start
+or
+.Ar length
+is suffixed with a
+.Em K ,
+.Em M
+or
+.Em G ,
+it is taken as a
+.Em Kilobyte ,
+.Em Megabyte
+or
+.Em Gigabyte
+measurement respectively.
+If the
+.Ar start
+is given as
+.Qq *
+it is set to the value of the previous partition end.
+If the
+.Ar length
+is given as
+.Qq *
+the partition end is set to the end of the disk.
+.Pp
+Only those slices explicitly mentioned by these lines are modified;
+any slice not referenced by a
+.Ic p
+line will not be modified.
+However, if an invalid slice table is present, or the
+.Fl i
+option is specified, all existing slice entries will be cleared
+(marked as unused), and these
+.Ic p
+lines will have to be used to
+explicitly set slice information.
+If multiple slices need to be
+set, multiple
+.Ic p
+lines must be specified; one for each slice.
+.Pp
+These slice lines must occur after any geometry specification lines,
+if one is present.
+.Pp
+The
+.Ar type
+is 165 for
+.Fx
+slices.
+Specifying a slice type of zero is
+the same as clearing the slice and marking it as unused; however,
+dummy values (such as
+.Dq 0 )
+must still be specified for
+.Ar start
+and
+.Ar length .
+.Pp
+Note: the start offset will be rounded upwards to a head boundary if
+necessary, and the end offset will be rounded downwards to a cylinder
+boundary if necessary.
+.Pp
+Example: to clear slice 4 and mark it as unused:
+.Pp
+.Dl "p       4       0       0       0"
+.Pp
+Example: to set slice 1 to a
+.Fx
+slice, starting at sector 1
+for 2503871 sectors (note: these numbers will be rounded upwards and
+downwards to correspond to head and cylinder boundaries):
+.Pp
+.Dl "p       1       165     1       2503871"
+.Pp
+Example: to set slices 1, 2 and 4 to
+.Fx
+slices, the first being 2 Gigabytes, the second being 10 Gigabytes and the
+forth being the remainder of the disk (again, numbers will be rounded
+appropriately):
+.Pp
+.Dl "p       1       165     63      2G"
+.Dl "p       2       165     *       10G"
+.Dl "p       3       0       0       0"
+.Dl "p       4       165     *       *"
+.It Ic a Ar slice
+Make
+.Ar slice
+the active slice.
+Can occur anywhere in the config file, but only
+one must be present.
+.Pp
+Example: to make slice 1 the active slice:
+.Pp
+.Dl "a       1"
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /boot/mbr" -compact
+.It Pa /boot/mbr
+The default boot code.
+.El
+.Sh SEE ALSO
+.Xr boot0cfg 8 ,
+.Xr bsdlabel 8 ,
+.Xr gpart 8 ,
+.Xr newfs 8
+.Sh HISTORY
+A version of
+.Nm
+first appeared in the Mach Operating System.
+It was subsequently ported to
+.Bx 386 .
+.Sh AUTHORS
+.An -nosplit
+.Nm
+for Mach Operating System was written by
+.An Robert Baron Aq Mt rvb@cs.cmu.edu .
+It was ported to
+.Bx 386
+by
+.An Julian Elischer Aq Mt julian@tfs.com .
+.Sh BUGS
+The default boot code will not necessarily handle all slice types
+correctly, in particular those introduced since
+.Tn MS-DOS
+6.x.
+.Pp
+The entire utility should be made more user-friendly.
+.Pp
+Most users new to
+.Fx
+do not understand the difference between
+.Dq slice
+and
+.Dq partition ,
+causing difficulty to adjust.
+.Pp
+You cannot use this command to completely dedicate a disk to
+.Fx .
+The
+.Xr bsdlabel 8
+command must be used for this.

@@ -1,0 +1,210 @@
+.\" Copyright (c) 2001 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 20, 2012
+.Dt KTR 4
+.Os
+.Sh NAME
+.Nm ktr
+.Nd kernel tracing facility
+.Sh SYNOPSIS
+.Cd options KTR
+.Cd options ALQ
+.Cd options KTR_ALQ
+.Cd options KTR_COMPILE=(KTR_LOCK|KTR_INTR|KTR_PROC)
+.Cd options KTR_CPUMASK=0x3
+.Cd options KTR_ENTRIES=8192
+.Cd options KTR_MASK=(KTR_INTR|KTR_PROC)
+.Cd options KTR_VERBOSE
+.Sh DESCRIPTION
+The
+.Nm
+facility allows kernel events to be logged while the kernel executes so that
+they can be examined later when debugging.
+The only mandatory option to enable
+.Nm
+is
+.Dq Li options KTR .
+.Pp
+The
+.Dv KTR_ENTRIES
+option sets the size of the buffer of events.
+The size of the buffer in the currently running kernel can be found via the
+sysctl
+.Va debug.ktr.entries .
+By default the buffer contains 1024 entries.
+.Ss Event Masking
+Event levels can be enabled or disabled to trim excessive and overly verbose
+logging.
+First, a mask of events is specified at compile time via the
+.Dv KTR_COMPILE
+option to limit which events are actually compiled into the kernel.
+The default value for this option is for all events to be enabled.
+.Pp
+Secondly, the actual events logged while the kernel runs can be further
+masked via the run time event mask.
+The
+.Dv KTR_MASK
+option sets the default value of the run time event mask.
+The runtime event mask can also be set by the
+.Xr loader 8
+via the
+.Va debug.ktr.mask
+environment variable.
+It can also be examined and set after booting via the
+.Va debug.ktr.mask
+sysctl.
+By default the run time mask is set to block any tracing.
+The definitions of the event mask bits can be found in
+.In sys/ktr.h .
+.Pp
+Furthermore, there is a CPU event mask whose default value can be changed via
+the
+.Dv KTR_CPUMASK
+option.
+When two or more parameters to
+.Dv KTR_CPUMASK ,
+are used, it is important they are not separated by whitespace.
+A CPU must have the bit corresponding to its logical id set in this bitmask
+for events that occur on it to be logged.
+This mask can be set by the
+.Xr loader 8
+via the
+.Va debug.ktr.cpumask
+environment variable.
+It can also be examined and set after booting via the
+.Va debug.ktr.cpumask
+sysctl.
+By default, only CPUs specified in
+.Dv KTR_CPUMASK
+will log events.
+See
+.Pa sys/conf/NOTES
+for more information.
+.Ss Verbose Mode
+By default, events are only logged to the internal buffer for examination
+later, but if the verbose flag is set then they are dumped to the kernel
+console as well.
+This flag can also be set from the loader via the
+.Va debug.ktr.verbose
+environment variable, or it can be examined and set after booting via the
+.Va debug.ktr.verbose
+sysctl.
+If the flag is set to zero, which is the default, then verbose output is
+disabled.
+If the flag is set to one, then the contents of the log message and the CPU
+number are printed to the kernel console.
+If the flag is greater than one, then the filename and line number of the
+event are output to the console in addition to the log message and the CPU
+number.
+The
+.Dv KTR_VERBOSE
+option sets the flag to one.
+.Ss Examining the Events
+The KTR buffer can be examined from within
+.Xr ddb 4
+via the
+.Ic show ktr Op Cm /vV
+command.
+This command displays the contents of the trace buffer one page at a time.
+At the
+.Dq Li --more--
+prompt, the Enter key displays one more entry and prompts again.
+The spacebar displays another page of entries.
+Any other key quits.
+By default the timestamp, filename, and line number are not displayed with
+each log entry.
+If the
+.Cm /v
+modifier is specified, then they are displayed in addition to the normal
+output.
+If the
+.Cm /V
+modifier is specified, then just the timestamp is displayed in
+addition to the normal output.
+Note that the events are displayed in reverse chronological order.
+That is, the most recent events are displayed first.
+.Ss Logging ktr to Disk
+The
+.Dv KTR_ALQ
+option can be used to log
+.Nm
+entries to disk for post analysis using the
+.Xr ktrdump 8
+utility.
+This option depends on the
+.Dv ALQ
+option.
+Due to the potentially high volume of trace messages the trace mask should be
+selected carefully.
+This feature is configured through a group of sysctls.
+.Bl -tag -width ".Va debug.ktr.alq_enable"
+.It Va debug.ktr.alq_file
+displays or sets the file that
+.Nm
+will log to.
+By default its value is
+.Pa /tmp/ktr.out .
+If the file name is changed while
+.Nm
+is enabled it will not take effect until
+the next invocation.
+.It Va debug.ktr.alq_enable
+enables logging of
+.Nm
+entries to disk if it is set to one.
+Setting this to 0 will terminate logging to disk and revert to
+logging to the normal ktr ring buffer.
+Data is not sent to the ring buffer while logging to disk.
+.It Va debug.ktr.alq_max
+is the maximum number of entries that will be recorded to disk, or 0 for
+infinite.
+This is helpful for limiting the number of particularly high frequency entries
+that are recorded.
+.It Va debug.ktr.alq_depth
+determines the number of entries in the write buffer.
+This is the buffer that holds entries before they are written to disk and
+defaults to the value of the
+.Dv KTR_ENTRIES
+option.
+.It Va debug.ktr.alq_failed
+records the number of times we failed to write an entry due to overflowing the
+write buffer.
+This may happen if the frequency of the logged
+.Nm
+messages outpaces the depth
+of the queue.
+.It Va debug.ktr.alq_cnt
+records the number of entries that have currently been written to disk.
+.El
+.Sh SEE ALSO
+.Xr ktrdump 8 ,
+.Xr alq 9 ,
+.Xr ktr 9
+.Sh HISTORY
+The KTR kernel tracing facility first appeared in
+.Bsx 3.0
+and was imported into
+.Fx 5.0 .

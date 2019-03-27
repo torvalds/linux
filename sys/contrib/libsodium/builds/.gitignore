@@ -1,0 +1,7 @@
+*.opensdf
+*.suo
+*.sdf
+*.vcxproj.user
+*.aps
+*.log
+!build

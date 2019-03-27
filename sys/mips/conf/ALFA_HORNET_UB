@@ -1,0 +1,59 @@
+#
+# Alfa Networks Hornet UB - an AR933x based SoC wifi device.
+#
+# http://www.alfa.com.tw/products_show.php?pc=99&ps=50
+#
+# This is for the 64MB RAM/16MB flash part.  They also
+# do various other versions; they have different RAM/flash
+# configurations.
+#
+# * AR9330 SoC
+# * 64MB RAM
+# * 16MB flash
+# * Integrated 1x1 2GHz wifi and 10/100 bridge
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+# Include the default AR933x parameters
+include         "std.AR933X"
+
+ident           ALFA_HORNET_UB
+
+# Override hints with board values
+hints           "ALFA_HORNET_UB.hints"
+
+# Board memory - 64MB
+options         AR71XX_REALMEM=(64*1024*1024)
+
+# i2c GPIO bus
+#device		gpioiic
+#device		iicbb
+#device		iicbus
+#device		iic
+
+# Options required for miiproxy and mdiobus
+options 	ARGE_MDIO	# Export an MDIO bus separate from arge
+device		miiproxy	# MDIO bus <-> MII PHY rendezvous
+
+device		etherswitch
+device		arswitch
+
+# read MSDOS formatted disks - USB
+#options 	MSDOSFS
+
+# Enable the uboot environment stuff rather then the
+# redboot stuff.
+options 	AR71XX_ENV_UBOOT
+
+# uzip - to boot natively from flash
+device		xz
+options 	GEOM_UZIP
+
+# Used for the static uboot partition map
+device          geom_map
+
+# Boot off of the rootfs, as defined in the geom_map setup.
+options 	ROOTDEVNAME=\"ufs:map/rootfs.uzip\"

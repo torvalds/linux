@@ -1,0 +1,234 @@
+This directory contains the source files for libmilter.
+
+The sendmail Mail Filter API (Milter) is designed to allow third-party
+programs access to mail messages as they are being processed in order to
+filter meta-information and content.
+
+This README file describes the steps needed to compile and run a filter,
+through reference to a sample filter which is attached at the end of this
+file.  It is necessary to first build libmilter.a, which can be done by
+issuing the './Build' command in SRCDIR/libmilter .
+
+Starting with 8.13 sendmail is compiled by default with support for
+the milter API.
+
+Note: if you want to write a milter in Java, then see
+http://sendmail-jilter.sourceforge.net/
+
++----------------+
+| SECURITY HINTS |
++----------------+
+
+Note: we strongly recommend not to run any milter as root.  Libmilter
+does not need root access to communicate with sendmail.  It is a
+good security practice to run a program only with root privileges
+if really necessary.  A milter should probably check first whether
+it runs as root and refuse to start in that case.  libmilter will
+not unlink a socket when running as root.
+
++----------------------+
+| CONFIGURATION MACROS |
++----------------------+
+
+Libmilter uses a set of C preprocessor macros to specify platform specific
+features of the C compiler and standard C libraries.
+
+SM_CONF_POLL
+	Set to 1 if poll(2) should be used instead of select(2).
+
++-------------------+
+| BUILDING A FILTER |
++-------------------+
+
+The following command presumes that the sample code from the end of this
+README is saved to a file named 'sample.c' and built in the local platform-
+specific build subdirectory (SRCDIR/obj.*/libmilter).
+
+	cc -I../../include -o sample sample.c libmilter.a ../libsm/libsm.a -pthread
+
+It is recommended that you build your filters in a location outside of
+the sendmail source tree.  Modify the compiler include references (-I)
+and the library locations accordingly.  Also, some operating systems may
+require additional libraries.  For example, SunOS 5.X requires '-lresolv
+-lsocket -lnsl'.  Depending on your operating system you may need a library
+instead of the option -pthread, e.g., -lpthread.
+
+Filters must be thread-safe!  Many operating systems now provide support for
+POSIX threads in the standard C libraries.  The compiler flag to link with
+threading support differs according to the compiler and linker used.  Check
+the Makefile in your appropriate obj.*/libmilter build subdirectory if you
+are unsure of the local flag used.
+
+Note that since filters use threads, it may be necessary to alter per
+process limits in your filter.  For example, you might look at using
+setrlimit() to increase the number of open file descriptors if your filter
+is going to be busy.
+
+
++----------------------------------------+
+| SPECIFYING FILTERS IN SENDMAIL CONFIGS |
++----------------------------------------+
+
+Filters are specified with a key letter ``X'' (for ``eXternal'').
+
+For example:
+
+	Xfilter1, S=local:/var/run/f1.sock, F=R
+	Xfilter2, S=inet6:999@localhost, F=T, T=C:10m;S:1s;R:1s;E:5m
+	Xfilter3, S=inet:3333@localhost
+
+specifies three filters.  Filters can be specified in your .mc file using
+the following:
+
+	INPUT_MAIL_FILTER(`filter1', `S=local:/var/run/f1.sock, F=R')
+	INPUT_MAIL_FILTER(`filter2', `S=inet6:999@localhost, F=T, T=C:10m;S:1s;R:1s;E:5m')
+	INPUT_MAIL_FILTER(`filter3', `S=inet:3333@localhost')
+
+The first attaches to a Unix-domain socket in the /var/run directory; the
+second uses an IPv6 socket on port 999 of localhost, and the third uses an
+IPv4 socket on port 3333 of localhost.  The current flags (F=) are:
+
+	R		Reject connection if filter unavailable
+	T		Temporary fail connection if filter unavailable
+	4		Shut down connection if filter unavailable
+			(with a 421 temporary error).
+
+If none of these is specified, the message is passed through sendmail
+in case of filter errors as if the failing filters were not present.
+
+Finally, you can override the default timeouts used by sendmail when
+talking to the filters using the T= equate.  There are four fields inside
+of the T= equate:
+
+Letter		Meaning
+  C		Timeout for connecting to a filter (if 0, use system timeout)
+  S		Timeout for sending information from the MTA to a filter
+  R		Timeout for reading reply from the filter
+  E		Overall timeout between sending end-of-message to filter
+		and waiting for the final acknowledgment
+
+Note the separator between each is a ';' as a ',' already separates equates
+and therefore can't separate timeouts.  The default values (if not set in
+the config) are:
+
+T=C:5m;S:10s;R:10s;E:5m
+
+where 's' is seconds and 'm' is minutes.
+
+Which filters are invoked and their sequencing is handled by the 
+InputMailFilters option. Note: if InputMailFilters is not defined no filters
+will be used.
+
+	O InputMailFilters=filter1, filter2, filter3
+
+This is is set automatically according to the order of the
+INPUT_MAIL_FILTER commands in your .mc file.  Alternatively, you can
+reset its value by setting confINPUT_MAIL_FILTERS in your .mc file.
+This options causes the three filters to be called in the same order
+they were specified.  It allows for possible future filtering on output
+(although this is not intended for this release).
+
+Also note that a filter can be defined without adding it to the input
+filter list by using MAIL_FILTER() instead of INPUT_MAIL_FILTER() in your
+.mc file.
+
+To test sendmail with the sample filter, the following might be added (in
+the appropriate locations) to your .mc file:
+
+	INPUT_MAIL_FILTER(`sample', `S=local:/var/run/f1.sock')
+
+
++------------------+
+| TESTING A FILTER |
++------------------+
+
+Once you have compiled a filter, modified your .mc file and restarted
+the sendmail process, you will want to test that the filter performs as
+intended.
+
+The sample filter takes one argument -p, which indicates the local port
+on which to create a listening socket for the filter.  Maintaining
+consistency with the suggested options for sendmail.cf, this would be the
+UNIX domain socket located in /var/run/f1.sock.
+
+	% ./sample -p local:/var/run/f1.sock
+
+If the sample filter returns immediately to a command line, there was either
+an error with your command or a problem creating the specified socket.
+Further logging can be captured through the syslogd daemon.  Using the
+'netstat -a' command can ensure that your filter process is listening on
+the appropriate local socket.
+
+Email messages must be injected via SMTP to be filtered.  There are two
+simple means of doing this; either using the 'sendmail -bs' command, or
+by telnetting to port 25 of the machine configured for milter.  Once
+connected via one of these options, the session can be continued through
+the use of standard SMTP commands.
+
+% sendmail -bs
+220 test.sendmail.com ESMTP Sendmail 8.14.0/8.14.0; Thu, 22 Jun 2006 13:05:23 -0500 (EST)
+HELO localhost
+250 test.sendmail.com Hello testy@localhost, pleased to meet you
+MAIL From:<testy>
+250 2.1.0 <testy>... Sender ok
+RCPT To:<root>
+250 2.1.5 <root>... Recipient ok
+DATA
+354 Enter mail, end with "." on a line by itself
+From: testy@test.sendmail.com
+To: root@test.sendmail.com
+Subject: testing sample filter
+
+Sample body
+.
+250 2.0.0 dB73Zxi25236 Message accepted for delivery
+QUIT
+221 2.0.0 test.sendmail.com closing connection
+
+In the above example, the lines beginning with numbers are output by the
+mail server, and those without are your input.  If everything is working
+properly, you will find a file in /tmp by the name of msg.XXXXXXXX (where
+the Xs represent any combination of letters and numbers).  This file should
+contain the message body and headers from the test email entered above.
+
+If the sample filter did not log your test email, there are a number of
+methods to narrow down the source of the problem.  Check your system
+logs written by syslogd and see if there are any pertinent lines.  You
+may need to reconfigure syslogd to capture all relevant data.  Additionally,
+the logging level of sendmail can be raised with the LogLevel option.
+See the sendmail(8) manual page for more information.
+
+
++--------------+
+| REQUIREMENTS |
++--------------+
+
+libmilter requires pthread support in the operating system.  Moreover, it
+requires that the library functions it uses are thread safe; which is true
+for the operating systems libmilter has been developed and tested on.  On
+some operating systems this requires special compile time options (e.g.,
+not just -pthread).  libmilter is currently known to work on (modulo problems
+in the pthread support of some specific versions):
+
+FreeBSD 3.x, 4.x
+SunOS 5.x (x >= 5)
+AIX 4.3.x
+HP UX 11.x
+Linux (recent versions/distributions)
+
+libmilter is currently not supported on:
+
+IRIX 6.x
+Ultrix
+
+Feedback about problems (and possible fixes) is welcome.
+
++--------------------------+
+| SOURCE FOR SAMPLE FILTER |
++--------------------------+
+
+Note that the filter example.c may not be thread safe on some operating
+systems.  You should check your system man pages for the functions used
+below to verify the functions are thread safe.
+
+$Revision: 8.42 $, Last updated $Date: 2006-06-29 17:10:16 $

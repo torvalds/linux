@@ -1,0 +1,143 @@
+
+			Contributing to GDB
+
+GDB is a collaborative project and one which wants to encourage new
+development.  You may wish to fix GDB bugs, improve testing, port GDB
+to a new platform, update documentation, add new GDB features, and the
+like. To help with this, there is a lot of documentation
+available.. In addition to the user guide and internals manual
+included in the GDB distribution, the GDB web pages also contain much
+information.
+
+You may also want to submit your change so that can be considered for
+conclusion in a future version of GDB (see below).  Regardless, we
+encourage you to distribute the change yourself.
+
+If you don't feel up to hacking GDB, there are still plenty of ways to
+help!  You can answer questions on the mailing lists, write
+documentation, find bugs, create a GDB related website (contribute to
+the official GDB web site), or create a GDB related software
+package. We welcome all of the above and feel free to ask on the GDB
+mailing lists if you are looking for feedback or for people to review
+a work in progress.
+
+Ref: http://www.gnu.org/software/gdb/
+
+Finally, there are certain legal requirements and style issues which
+all contributors need to be aware of.
+
+o	Coding Standards
+
+	All contributions must conform to the GNU Coding Standard.
+	Submissions which do not conform to the standards will be
+	returned with a request to reformat the changes.
+
+	GDB has certain additional coding requirements.  Those
+	requirements are explained in the GDB internals documentation
+	in the gdb/doc directory.
+
+	Ref: http://www.gnu.org/prep/standards_toc.html
+
+
+o	Copyright Assignment
+
+	Before we can accept code contributions from you, we need a
+	copyright assignment form filled out and filed with the FSF.
+
+	See some documentation by the FSF for details and contact us
+	(either via the GDB mailing list or the GDB maintainer that is
+	taking care of your contributions) to obtain the relevant
+	forms.
+
+	Small changes can be accepted without a copyright assignment form on file.
+
+	Ref: http://www.gnu.org/prep/maintain.html#SEC6
+
+
+o	Submitting Patches
+
+	Every patch must have several pieces of information before we
+	can properly evaluate it.
+
+	A description of the bug and how your patch fixes this
+	bug. A reference to a testsuite failure is very helpful. For
+	new features a description of the feature and your
+	implementation.
+
+	A ChangeLog entry as plaintext (separate from the patch); see
+	the various ChangeLog files for format and content. Note that,
+	unlike some other projects, we do require ChangeLogs also for
+	documentation (i.e., .texi files).
+
+	The patch itself. If you are accessing the CVS repository use
+	"cvs update; cvs diff -cp"; else, use "diff -cp OLD NEW" or
+	"diff -up OLD NEW". If your version of diff does not support
+	these options, then get the latest version of GNU diff.
+
+	We accept patches as plain text (preferred for the compilers
+	themselves), MIME attachments (preferred for the web pages),
+	or as uuencoded gzipped text.
+
+	When you have all these pieces, bundle them up in a mail
+	message and send it to gdb-patches@sources.redhat.com. All
+	patches and related discussion should be sent to the
+	gdb-patches mailinglist. For further information on the GDB
+	CVS repository, see the Anonymous read-only CVS access and
+	Read-write CVS access page.
+
+--
+
+Supplemental information for GDB:
+
+o	Please try to run the relevant testsuite before and after
+	committing a patch
+
+	If the contributor doesn't do it then the maintainer will.  A
+	contributor might include before/after test results in their
+	contribution.
+
+
+o	For bug fixes, please try to include a way of
+	demonstrating that the patch actually fixes something.
+
+	The best way of doing this is to ensure that the
+	testsuite contains one or more test cases that
+	fail without the fix but pass with the fix.
+
+	People are encouraged to submit patches that extend
+	the testsuite.
+
+
+o	Please read your patch before submitting it.
+
+	A patch containing several unrelated changes or
+	arbitrary reformats will be returned with a request
+	to re-formatting / split it.
+
+
+o	If ``gdb/configure.in'' is modified then you don't
+	need to include patches to the regenerated file
+	``configure''.
+
+	The maintainer will re-generate those files
+	using autoconf (2.13 as of 2000-02-29).
+
+
+o	If ``gdb/gdbarch.sh'' is modified, you don't
+	need to include patches to the generated files
+	``gdbarch.h'' and ``gdbarch.c''.
+
+	See ``gdb/configure.in'' above.
+
+
+o	When submitting a patch that fixes a bug
+	in GDB's bug database a brief reference
+	to the bug can be included in the ChangeLog
+	vis
+
+	* CONTRIBUTE: Mention PR convention.
+	Fix PR gdb/4705.
+
+	The text ``PR gdb/4705'' should also be included
+	in the CVS commit message.  That causes the
+	patch to automatically be archived with the PR.

@@ -1,0 +1,148 @@
+#!/bin/sh
+#
+# Copyright (c) 2000 - 2008 Kungliga Tekniska Högskolan
+# (Royal Institute of Technology, Stockholm, Sweden). 
+# All rights reserved. 
+#
+# Redistribution and use in source and binary forms, with or without 
+# modification, are permitted provided that the following conditions 
+# are met: 
+#
+# 1. Redistributions of source code must retain the above copyright 
+#    notice, this list of conditions and the following disclaimer. 
+#
+# 2. Redistributions in binary form must reproduce the above copyright 
+#    notice, this list of conditions and the following disclaimer in the 
+#    documentation and/or other materials provided with the distribution. 
+#
+# 3. Neither the name of the Institute nor the names of its contributors 
+#    may be used to endorse or promote products derived from this software 
+#    without specific prior written permission. 
+#
+# THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+# SUCH DAMAGE. 
+#
+
+do_libs=no
+do_cflags=no
+do_usage=no
+print_prefix=no
+print_exec_prefix=no
+library=krb5
+
+if test $# -eq 0; then
+  do_usage=yes
+  usage_exit=1
+fi
+
+for i in $*; do
+  case $i in
+  --help)
+    do_usage=yes
+    usage_exit=0
+    ;;
+  --version)
+    echo "@PACKAGE@ @VERSION@"
+    exit 0
+    ;;
+  --prefix=*)
+    prefix=`echo $i | sed 's/^--prefix=//'`
+    ;;
+  --prefix)
+    print_prefix=yes
+    ;;
+  --exec-prefix=*)
+    exec_prefix=`echo $i | sed 's/^--exec-prefix=//'`
+    ;;
+  --exec-prefix)
+    print_exec_prefix=yes
+    ;;
+  --libs)
+    do_libs=yes
+    ;;
+  --cflags)
+    do_cflags=yes
+    ;;
+  krb5)
+    library=krb5
+    ;;
+  gssapi)
+    library=gssapi
+    ;;
+  kadm-client)
+    library=kadm-client
+    ;;
+  kadm-server)
+    library=kadm-server
+    ;;
+  kafs)
+    library=kafs
+    ;;
+  *)
+    echo "unknown option: $i"
+    exit 1
+    ;;
+  esac
+done
+
+if test "$do_usage" = "yes"; then
+    echo "usage: $0 [options] [libraries]"
+    echo "options: [--prefix[=dir]] [--exec-prefix[=dir]] [--libs] [--cflags]"
+    echo "libraries: krb5 gssapi kadm-client kadm-server kafs"
+    exit $usage_exit
+fi
+
+if test "$prefix" = ""; then
+  prefix=@prefix@
+fi
+if test "$exec_prefix" = ""; then
+  exec_prefix=@exec_prefix@
+fi
+
+libdir=@libdir@
+includedir=@includedir@
+
+if test "$print_prefix" = "yes"; then
+    echo $prefix
+fi
+
+if test "$print_exec_prefix" = "yes"; then
+    echo $exec_prefix
+fi
+
+if test "$do_libs" = "yes"; then
+    lib_flags="-L${libdir}"
+    case $library in
+    gssapi)
+	lib_flags="$lib_flags -lgssapi -lgssapi_krb5 -lheimntlm"
+	;;
+    kadm-client)
+	lib_flags="$lib_flags -lkadm5clnt"
+	;;
+    kadm-server)
+	lib_flags="$lib_flags -lkadm5srv @LIB_dbopen@"
+	;;
+    kafs)
+	lib_flags="$lib_flags -lkafs"
+	;;
+    esac
+    lib_flags="$lib_flags -lkrb5 @LIB_pkinit@ -lcom_err"
+    lib_flags="$lib_flags @LIB_hcrypto_appl@ -lasn1 -lwind -lheimbase -lroken"
+    lib_flags="$lib_flags @LIB_crypt@ @PTHREAD_LIBADD@ @LIB_dlopen@"
+    lib_flags="$lib_flags @LIB_door_create@ @LIBS@"
+    echo $lib_flags
+fi
+if test "$do_cflags" = "yes"; then
+    echo "-I${includedir} @INCLUDE_hcrypto@"
+fi
+
+exit 0

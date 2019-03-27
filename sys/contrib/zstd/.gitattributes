@@ -1,0 +1,21 @@
+# Set the default behavior
+* text eol=lf
+
+# Explicitly declare source files
+*.c text eol=lf
+*.h text eol=lf
+
+# Denote files that should not be modified.
+*.odt binary
+*.png binary
+
+# Visual Studio
+*.sln text eol=crlf
+*.vcxproj* text eol=crlf
+*.vcproj* text eol=crlf
+*.suo binary
+*.rc text eol=crlf
+
+# Windows
+*.bat text eol=crlf
+*.cmd text eol=crlf

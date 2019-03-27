@@ -1,0 +1,78 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)phones.5	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd June 5, 1993
+.Dt PHONES 5
+.Os
+.Sh NAME
+.Nm phones
+.Nd remote host phone number data base
+.Sh DESCRIPTION
+The file
+.Pa /etc/phones
+contains the system-wide
+private phone numbers for the
+.Xr tip 1
+program.
+This file is normally unreadable, and so may contain
+privileged information.
+The format of the file is a series of lines
+of the form: <system-name>[\ \et]*<phone-number>.
+The system name is
+one of those defined in the
+.Xr remote 5
+file and the phone number is constructed from any sequence of
+characters terminated only by ``,'' or the end of the line.
+The ``='' and ``*'' characters are
+indicators to the auto call units to pause and wait for a second dial
+tone (when going through an exchange).
+The ``='' is required by the
+.Tn DF02-AC
+and the ``*'' is required by the
+.Tn BIZCOMP
+1030.
+.Pp
+Only one phone number per line is permitted.
+However, if more than
+one line in the file contains the same system name
+.Xr tip 1
+will attempt to dial each one in turn, until it establishes a connection.
+.Sh FILES
+.Bl -tag -width /etc/phones -compact
+.It Pa /etc/phones
+.El
+.Sh SEE ALSO
+.Xr tip 1 ,
+.Xr remote 5
+.Sh HISTORY
+The
+.Nm
+file appeared in
+.Bx 4.2 .

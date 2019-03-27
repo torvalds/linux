@@ -1,0 +1,35 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+# Remove system	messages
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_clean_msgs_enable" in
+    [Yy][Ee][Ss])
+	if [ ! -d /var/msgs ]
+	then
+	    echo '$daily_clean_msgs_enable is set but /var/msgs' \
+		"doesn't exist"
+	    rc=2
+	else
+	    echo ""
+	    echo "Cleaning out old system announcements:"
+
+	    [ -n "$daily_clean_msgs_days" ] &&
+		arg=-${daily_clean_msgs_days#-} || arg=
+	    msgs -c $arg && rc=0 || rc=3
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

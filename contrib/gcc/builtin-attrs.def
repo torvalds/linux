@@ -1,0 +1,183 @@
+/* Copyright (C) 2001, 2002, 2004, 2005 Free Software Foundation, Inc.
+   Contributed by Joseph Myers <jsm28@cam.ac.uk>.
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
+
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
+
+/* This header provides a declarative way of describing the attributes
+   that are applied to some functions by default.
+
+   Before including this header, you must define the following macros.
+   In each case where there is an ENUM, it is an identifier used to
+   reference the tree in subsequent definitions.
+
+   DEF_ATTR_NULL_TREE (ENUM)
+
+     Constructs a NULL_TREE.
+
+   DEF_ATTR_INT (ENUM, VALUE)
+
+     Constructs an INTEGER_CST with value VALUE (an integer representable
+     in HOST_WIDE_INT).
+
+   DEF_ATTR_IDENT (ENUM, STRING)
+
+     Constructs an IDENTIFIER_NODE for STRING.
+
+   DEF_ATTR_TREE_LIST (ENUM, PURPOSE, VALUE, CHAIN)
+
+     Constructs a TREE_LIST with given PURPOSE, VALUE and CHAIN (given
+     as previous ENUM names).  */
+
+DEF_ATTR_NULL_TREE (ATTR_NULL)
+
+/* Construct a tree for a given integer and a list containing it.  */
+#define DEF_ATTR_FOR_INT(VALUE)					\
+  DEF_ATTR_INT (ATTR_##VALUE, VALUE)			\
+  DEF_ATTR_TREE_LIST (ATTR_LIST_##VALUE, ATTR_NULL,	\
+		      ATTR_##VALUE, ATTR_NULL)
+DEF_ATTR_FOR_INT (0)
+DEF_ATTR_FOR_INT (1)
+DEF_ATTR_FOR_INT (2)
+DEF_ATTR_FOR_INT (3)
+DEF_ATTR_FOR_INT (4)
+DEF_ATTR_FOR_INT (5)
+DEF_ATTR_FOR_INT (6)
+#undef DEF_ATTR_FOR_INT
+
+/* Construct a tree for a list of two integers.  */
+#define DEF_LIST_INT_INT(VALUE1, VALUE2)				 \
+  DEF_ATTR_TREE_LIST (ATTR_LIST_##VALUE1##_##VALUE2, ATTR_NULL,		 \
+		      ATTR_##VALUE1, ATTR_LIST_##VALUE2)
+DEF_LIST_INT_INT (1,0)
+DEF_LIST_INT_INT (1,2)
+DEF_LIST_INT_INT (2,0)
+DEF_LIST_INT_INT (2,3)
+DEF_LIST_INT_INT (3,0)
+DEF_LIST_INT_INT (3,4)
+DEF_LIST_INT_INT (4,0)
+DEF_LIST_INT_INT (4,5)
+DEF_LIST_INT_INT (5,0)
+DEF_LIST_INT_INT (5,6)
+#undef DEF_LIST_INT_INT
+
+/* Construct trees for identifiers.  */
+DEF_ATTR_IDENT (ATTR_CONST, "const")
+DEF_ATTR_IDENT (ATTR_FORMAT, "format")
+DEF_ATTR_IDENT (ATTR_FORMAT_ARG, "format_arg")
+DEF_ATTR_IDENT (ATTR_MALLOC, "malloc")
+DEF_ATTR_IDENT (ATTR_NONNULL, "nonnull")
+DEF_ATTR_IDENT (ATTR_NORETURN, "noreturn")
+DEF_ATTR_IDENT (ATTR_NOTHROW, "nothrow")
+DEF_ATTR_IDENT (ATTR_PRINTF, "printf")
+DEF_ATTR_IDENT (ATTR_ASM_FPRINTF, "asm_fprintf")
+DEF_ATTR_IDENT (ATTR_GCC_DIAG, "gcc_diag")
+DEF_ATTR_IDENT (ATTR_GCC_CDIAG, "gcc_cdiag")
+DEF_ATTR_IDENT (ATTR_GCC_CXXDIAG, "gcc_cxxdiag")
+DEF_ATTR_IDENT (ATTR_PURE, "pure")
+DEF_ATTR_IDENT (ATTR_NOVOPS, "no vops")
+DEF_ATTR_IDENT (ATTR_SCANF, "scanf")
+DEF_ATTR_IDENT (ATTR_SENTINEL, "sentinel")
+DEF_ATTR_IDENT (ATTR_STRFMON, "strfmon")
+DEF_ATTR_IDENT (ATTR_STRFTIME, "strftime")
+
+DEF_ATTR_TREE_LIST (ATTR_NOVOPS_LIST, ATTR_NOVOPS, ATTR_NULL, ATTR_NULL)
+
+DEF_ATTR_TREE_LIST (ATTR_NOTHROW_LIST, ATTR_NOTHROW, ATTR_NULL, ATTR_NULL)
+
+DEF_ATTR_TREE_LIST (ATTR_CONST_NOTHROW_LIST, ATTR_CONST,	\
+			ATTR_NULL, ATTR_NOTHROW_LIST)
+DEF_ATTR_TREE_LIST (ATTR_PURE_NOTHROW_LIST, ATTR_PURE,		\
+			ATTR_NULL, ATTR_NOTHROW_LIST)
+DEF_ATTR_TREE_LIST (ATTR_PURE_NOTHROW_NOVOPS_LIST, ATTR_NOVOPS,	\
+			ATTR_NULL, ATTR_PURE_NOTHROW_LIST)
+DEF_ATTR_TREE_LIST (ATTR_NORETURN_NOTHROW_LIST, ATTR_NORETURN,	\
+			ATTR_NULL, ATTR_NOTHROW_LIST)
+DEF_ATTR_TREE_LIST (ATTR_MALLOC_NOTHROW_LIST, ATTR_MALLOC,	\
+			ATTR_NULL, ATTR_NOTHROW_LIST)
+DEF_ATTR_TREE_LIST (ATTR_SENTINEL_NOTHROW_LIST, ATTR_SENTINEL,	\
+			ATTR_NULL, ATTR_NOTHROW_LIST)
+
+/* Functions whose pointer parameter(s) are all nonnull.  */
+DEF_ATTR_TREE_LIST (ATTR_NONNULL_LIST, ATTR_NONNULL, ATTR_NULL, ATTR_NULL)
+/* Functions whose first parameter is a nonnull pointer.  */
+DEF_ATTR_TREE_LIST (ATTR_NONNULL_1, ATTR_NONNULL, ATTR_LIST_1, ATTR_NULL)
+/* Functions whose second parameter is a nonnull pointer.  */
+DEF_ATTR_TREE_LIST (ATTR_NONNULL_2, ATTR_NONNULL, ATTR_LIST_2, ATTR_NULL)
+/* Nothrow functions with the sentinel(1) attribute. */
+DEF_ATTR_TREE_LIST (ATTR_NOTHROW_SENTINEL_1, ATTR_SENTINEL, ATTR_LIST_1, \
+			ATTR_NOTHROW_LIST)
+/* Nothrow functions whose pointer parameter(s) are all nonnull.  */
+DEF_ATTR_TREE_LIST (ATTR_NOTHROW_NONNULL, ATTR_NONNULL, ATTR_NULL, \
+			ATTR_NOTHROW_LIST)
+/* Nothrow functions whose first parameter is a nonnull pointer.  */
+DEF_ATTR_TREE_LIST (ATTR_NOTHROW_NONNULL_1, ATTR_NONNULL, ATTR_LIST_1, \
+			ATTR_NOTHROW_LIST)
+/* Nothrow functions whose second parameter is a nonnull pointer.  */
+DEF_ATTR_TREE_LIST (ATTR_NOTHROW_NONNULL_2, ATTR_NONNULL, ATTR_LIST_2, \
+			ATTR_NOTHROW_LIST)
+/* Nothrow functions whose third parameter is a nonnull pointer.  */
+DEF_ATTR_TREE_LIST (ATTR_NOTHROW_NONNULL_3, ATTR_NONNULL, ATTR_LIST_3, \
+			ATTR_NOTHROW_LIST)
+/* Nothrow functions whose fourth parameter is a nonnull pointer.  */
+DEF_ATTR_TREE_LIST (ATTR_NOTHROW_NONNULL_4, ATTR_NONNULL, ATTR_LIST_4, \
+			ATTR_NOTHROW_LIST)
+/* Nothrow functions whose fifth parameter is a nonnull pointer.  */
+DEF_ATTR_TREE_LIST (ATTR_NOTHROW_NONNULL_5, ATTR_NONNULL, ATTR_LIST_5, \
+			ATTR_NOTHROW_LIST)
+/* Nothrow const functions whose pointer parameter(s) are all nonnull.  */
+DEF_ATTR_TREE_LIST (ATTR_CONST_NOTHROW_NONNULL, ATTR_CONST, ATTR_NULL, \
+			ATTR_NOTHROW_NONNULL)
+/* Nothrow pure functions whose pointer parameter(s) are all nonnull.  */
+DEF_ATTR_TREE_LIST (ATTR_PURE_NOTHROW_NONNULL, ATTR_PURE, ATTR_NULL, \
+			ATTR_NOTHROW_NONNULL)
+/* Nothrow malloc functions whose pointer parameter(s) are all nonnull.  */
+DEF_ATTR_TREE_LIST (ATTR_MALLOC_NOTHROW_NONNULL, ATTR_MALLOC, ATTR_NULL, \
+			ATTR_NOTHROW_NONNULL)
+
+/* Construct a tree for a format attribute.  */
+#define DEF_FORMAT_ATTRIBUTE(TYPE, FA, VALUES)				 \
+  DEF_ATTR_TREE_LIST (ATTR_##TYPE##_##VALUES, ATTR_NULL,		 \
+		      ATTR_##TYPE, ATTR_LIST_##VALUES)			 \
+  DEF_ATTR_TREE_LIST (ATTR_FORMAT_##TYPE##_##VALUES, ATTR_FORMAT,	 \
+		      ATTR_##TYPE##_##VALUES, ATTR_NOTHROW_NONNULL_##FA)
+DEF_FORMAT_ATTRIBUTE(PRINTF,1,1_0)
+DEF_FORMAT_ATTRIBUTE(PRINTF,1,1_2)
+DEF_FORMAT_ATTRIBUTE(PRINTF,2,2_0)
+DEF_FORMAT_ATTRIBUTE(PRINTF,2,2_3)
+DEF_FORMAT_ATTRIBUTE(PRINTF,3,3_0)
+DEF_FORMAT_ATTRIBUTE(PRINTF,3,3_4)
+DEF_FORMAT_ATTRIBUTE(PRINTF,4,4_0)
+DEF_FORMAT_ATTRIBUTE(PRINTF,4,4_5)
+DEF_FORMAT_ATTRIBUTE(PRINTF,5,5_0)
+DEF_FORMAT_ATTRIBUTE(PRINTF,5,5_6)
+DEF_FORMAT_ATTRIBUTE(SCANF,1,1_0)
+DEF_FORMAT_ATTRIBUTE(SCANF,1,1_2)
+DEF_FORMAT_ATTRIBUTE(SCANF,2,2_0)
+DEF_FORMAT_ATTRIBUTE(SCANF,2,2_3)
+DEF_FORMAT_ATTRIBUTE(STRFTIME,3,3_0)
+DEF_FORMAT_ATTRIBUTE(STRFMON,3,3_4)
+#undef DEF_FORMAT_ATTRIBUTE
+
+/* Construct a tree for a format_arg attribute.  */
+#define DEF_FORMAT_ARG_ATTRIBUTE(FA)					\
+  DEF_ATTR_TREE_LIST (ATTR_FORMAT_ARG_##FA, ATTR_FORMAT_ARG,		\
+		      ATTR_LIST_##FA, ATTR_NOTHROW_NONNULL_##FA)
+DEF_FORMAT_ARG_ATTRIBUTE(1)
+DEF_FORMAT_ARG_ATTRIBUTE(2)
+#undef DEF_FORMAT_ARG_ATTRIBUTE
+

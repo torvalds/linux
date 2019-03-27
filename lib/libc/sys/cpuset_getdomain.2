@@ -1,0 +1,188 @@
+.\" Copyright (c) 2018 Jeffrey Roberson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Mar 19, 2018
+.Dt CPUSET_GETDOMAIN 2
+.Os
+.Sh NAME
+.Nm cpuset_getdomain ,
+.Nm cpuset_setdomain
+.Nd manage memory domain policy
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/domainset.h
+.Ft int
+.Fn cpuset_getdomain "cpulevel_t level" "cpuwhich_t which" "id_t id" "size_t setsize" "domainet_t *mask" "int *policy"
+.Ft int
+.Fn cpuset_setdomain "cpulevel_t level" "cpuwhich_t which" "id_t id" "size_t setsize" "const domainset_t *mask" "int policy"
+.Sh DESCRIPTION
+.Fn cpuset_getdomain
+and
+.Fn cpuset_setdomain
+allow the manipulation of sets of memory domains and allocation policy available
+to processes, threads, jails and other resources.
+These functions may manipulate sets of memory domains that contain many processes
+or per-object anonymous masks that effect only a single object.
+.Pp
+The valid values for the
+.Fa level
+and
+.Fa which
+arguments are documented in
+.Xr cpuset 2 .
+These arguments specify which object and which set of the object we are
+referring to.
+Not all possible combinations are valid.
+For example, only processes may belong to a numbered set accessed by a
+.Fa level
+argument of
+.Dv CPU_LEVEL_CPUSET .
+All resources, however, have a mask which may be manipulated with
+.Dv CPU_LEVEL_WHICH .
+.Pp
+Masks of type
+.Ft domainset_t
+are composed using the
+.Dv DOMAINSET
+macros.
+The kernel tolerates large sets as long as all domains specified
+in the set exist.
+Sets smaller than the kernel uses generate an error on calls to
+.Fn cpuset_getdomain
+even if the result set would fit within the user supplied set.
+Calls to
+.Fn cpuset_setdomain
+tolerate small sets with no restrictions.
+.Pp
+The supplied mask should have a size of
+.Fa setsize
+bytes.
+This size is usually provided by calling
+.Li sizeof(mask)
+which is ultimately determined by the value of
+.Dv DOMAINSET_SETSIZE
+as defined in
+.In sys/domainset.h .
+.Pp
+.Fn cpuset_getdomain
+retrieves the
+mask and policy from the object specified by
+.Fa level ,
+.Fa which
+and
+.Fa id
+and stores it in the space provided by
+.Fa mask and
+.Fa policy .
+.Pp
+.Fn cpuset_setdomain
+attempts to set the mask and policy for the object specified by
+.Fa level ,
+.Fa which
+and
+.Fa id
+to the values in
+.Fa mask and
+.Fa policy .
+.Sh ALLOCATION POLICIES
+Valid policy values are as follows:
+.Bl -tag -width "foo"
+.It Dv DOMAINSET_POLICY_ROUNDROBIN
+Memory is allocated on a round-robin basis by cycling through each domain in
+.Fa mask .
+.It Dv DOMAINSET_POLICY_FIRSTTOUCH
+Memory is allocated on the domain local to the CPU the requesting thread is
+running on.  Failure to allocate from this domain will fallback to round-robin.
+.It Dv DOMAINSET_POLICY_PREFER
+Memory is allocated preferentially from the single domain specified in the mask.
+If memory is unavailable the domains listed in the parent cpuset will be
+visited in a round-robin order.
+.El
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The following error codes may be set in
+.Va errno :
+.Bl -tag -width Er
+.\" When changing this list, consider updating share/man/man3/pthread_create.3,
+.\" since that function can return any of these errors.
+.It Bq Er EINVAL
+The
+.Fa level
+or
+.Fa which
+argument was not a valid value.
+.It Bq Er EINVAL
+The
+.Fa mask or
+.Fa policy
+argument specified when calling
+.Fn cpuset_setdomain
+was not a valid value.
+.It Bq Er EDEADLK
+The
+.Fn cpuset_setdomain
+call would leave a thread without a valid CPU to run on because the set
+does not overlap with the thread's anonymous mask.
+.It Bq Er EFAULT
+The mask pointer passed was invalid.
+.It Bq Er ESRCH
+The object specified by the
+.Fa id
+and
+.Fa which
+arguments could not be found.
+.It Bq Er ERANGE
+The
+.Fa domainsetsize
+was either preposterously large or smaller than the kernel set size.
+.It Bq Er EPERM
+The calling process did not have the credentials required to complete the
+operation.
+.It Bq Er ECAPMODE
+The calling process attempted to act on a process other than itself, while 
+in capability mode.
+See
+.Xr capsicum 4 .
+.El
+.Sh SEE ALSO
+.Xr capsicum 4 ,
+.Xr cpuset 1 ,
+.Xr cpuset 2 ,
+.Xr cpuset_getid 2 ,
+.Xr cpuset_setid 2 ,
+.Xr cpuset_getaffinity 2 ,
+.Xr cpuset_setaffinity 2 ,
+.Xr cpuset 9
+.Sh HISTORY
+The
+.Nm
+family of system calls first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+.An Jeffrey Roberson Aq Mt jeff@FreeBSD.org

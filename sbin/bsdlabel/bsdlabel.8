@@ -1,0 +1,507 @@
+.\" Copyright (c) 1987, 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Symmetric Computer Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\"
+.Dd October 5, 2016
+.Dt BSDLABEL 8
+.Os
+.Sh NAME
+.Nm bsdlabel
+.Nd read and write BSD label
+.Sh SYNOPSIS
+.Nm
+.Op Fl A
+.Ar disk | Fl f Ar file
+.Nm
+.Fl w
+.Op Fl \&An
+.Op Fl B Op Fl b Ar boot
+.Op Fl m Ar machine
+.Ar disk | Fl f Ar file
+.Op Ar type
+.Nm
+.Fl e
+.Op Fl \&An
+.Op Fl B Op Fl b Ar boot
+.Op Fl m Ar machine
+.Ar disk | Fl f Ar file
+.Nm
+.Fl R
+.Op Fl \&An
+.Op Fl B Op Fl b Ar boot
+.Op Fl m Ar machine
+.Op Fl f
+.Ar disk | Fl f Ar file
+.Ar protofile
+.Sh DESCRIPTION
+The
+.Nm
+utility
+installs, examines or modifies the
+.Bx
+label on a disk partition, or on a file containing a partition image.
+In addition,
+.Nm
+can install bootstrap code.
+.Ss Disk Device Name
+When specifying the device (i.e., when the
+.Fl f
+option is not used),
+the
+.Pa /dev/
+path prefix may be omitted;
+the
+.Nm
+utility will automatically prepend it.
+.Ss General Options
+The
+.Fl A
+option enables processing of the historical parts of the
+.Bx
+label.
+If the option is not given, suitable values are set for these fields.
+.Pp
+The
+.Fl f
+option tells
+.Nm
+that the program will operate on a file instead of a disk partition.
+.Pp
+The
+.Fl n
+option stops the
+.Nm
+program right before the disk would have been modified, and displays
+the result instead of writing it.
+.Pp
+The
+.Fl m Ar machine
+argument forces
+.Nm
+to use a layout suitable for a different architecture.
+Current valid values are
+.Cm i386
+and
+.Cm amd64 .
+If this option is omitted,
+.Nm
+will use a layout suitable for the current machine.
+.Ss Reading the Disk Label
+To examine the label on a disk drive, use the form
+.Pp
+.Nm
+.Op Fl A
+.Op Fl m Ar machine
+.Ar disk
+.Pp
+.Ar disk
+represents the disk in question, and may be in the form
+.Pa da0
+or
+.Pa /dev/da0 .
+It will display the partition layout.
+.Ss Writing a Standard Label
+To write a standard label, use the form
+.Pp
+.Nm
+.Fl w
+.Op Fl \&An
+.Op Fl m Ar machine
+.Ar disk
+.Op Ar type
+.Pp
+If the drive
+.Ar type
+is specified, the entry of that name in the
+.Xr disktab 5
+file is used; otherwise, or if the type is specified as 'auto', a default
+layout is used.
+.Ss Editing an Existing Disk Label
+To edit an existing disk label, use the form
+.Pp
+.Nm
+.Fl e
+.Op Fl \&An
+.Op Fl m Ar machine
+.Ar disk
+.Pp
+This command opens the disk label in the default editor, and when the editor
+exits, the label is validated and if OK written to disk.
+.Ss Restoring a Disk Label From a File
+To restore a disk label from a file, use the form
+.Pp
+.Nm
+.Fl R
+.Op Fl \&An
+.Op Fl m Ar machine
+.Ar disk protofile
+.Pp
+The
+.Nm
+utility
+is capable of restoring a disk label that was previously saved in a file in
+.Tn ASCII
+format.
+The prototype file used to create the label should be in the same format as that
+produced when reading or editing a label.
+Comments are delimited by
+.Ql #
+and newline.
+.Ss Installing Bootstraps
+If the
+.Fl B
+option is specified, bootstrap code will be read from the file
+.Pa /boot/boot
+and written to the disk.
+The
+.Fl b Ar boot
+option allows a different file to be used.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/disktab" -compact
+.It Pa /boot/boot
+Default boot image.
+.It Pa /etc/disktab
+Disk description file.
+.El
+.Sh SAVED FILE FORMAT
+The
+.Nm
+utility
+uses an
+.Tn ASCII
+version of the label when examining, editing, or restoring a disk
+label.
+The format is:
+.Bd -literal -offset 4n
+
+8 partitions:
+#        size   offset    fstype   [fsize bsize bps/cpg]
+  a:    81920       16    4.2BSD     2048 16384  5128
+  b:  1091994    81936      swap
+  c:  1173930        0    unused        0     0         # "raw" part, don't edit
+.Ed
+.Pp
+If the
+.Fl A
+option is specified, the format is:
+.Bd -literal -offset 4n
+# /dev/da1c:
+type: SCSI
+disk: da0s1
+label:
+flags:
+bytes/sector: 512
+sectors/track: 51
+tracks/cylinder: 19
+sectors/cylinder: 969
+cylinders: 1211
+sectors/unit: 1173930
+rpm: 3600
+interleave: 1
+trackskew: 0
+cylinderskew: 0
+headswitch: 0           # milliseconds
+track-to-track seek: 0  # milliseconds
+drivedata: 0
+
+8 partitions:
+#        size   offset    fstype   [fsize bsize bps/cpg]
+  a:    81920       16    4.2BSD     1024  8192    16
+  b:   160000    81936      swap
+  c:  1173930        0    unused        0     0         # "raw" part, don't edit
+.Ed
+.Pp
+Lines starting with a
+.Ql #
+mark are comments.
+.Pp
+The partition table can have up to 8 entries.
+It contains the following information:
+.Bl -tag -width indent
+.It Ar #
+The partition identifier is a single letter in the range
+.Ql a
+to
+.Ql h .
+By convention, partition
+.Ql c
+is reserved to describe the entire disk.
+.It Ar size
+The size of the partition in sectors,
+.Cm K
+(kilobytes - 1024),
+.Cm M
+(megabytes - 1024*1024),
+.Cm G
+(gigabytes - 1024*1024*1024),
+.Cm %
+(percentage of free space
+.Em after
+removing any fixed-size partitions other than partition
+.Ql c ) ,
+or
+.Cm *
+(all remaining free space
+.Em after
+fixed-size and percentage partitions).
+For partition
+.Ql c ,
+a size of
+.Cm *
+indicates the entire disk.
+Lowercase versions of suffixes
+.Cm K , M ,
+and
+.Cm G
+are allowed.
+Size and suffix should be specified without any spaces between them.
+.Pp
+Example: 2097152, 1G, 1024M and 1048576K are all the same size
+(assuming 512-byte sectors).
+.It Ar offset
+The offset of the start of the partition from the beginning of the
+drive in sectors, or
+.Cm *
+to have
+.Nm
+calculate the correct offset to use (the end of the previous partition plus
+one, ignoring partition
+.Ql c ) .
+For partition
+.Ql c ,
+.Cm *
+will be interpreted as an offset of 0.
+The first partition should start at offset 16, because the first 16 sectors are
+reserved for metadata.
+.It Ar fstype
+Describes the purpose of the partition.
+The above example shows all currently used partition types.
+For
+.Tn UFS
+file systems and
+.Xr ccd 4
+partitions, use type
+.Cm 4.2BSD .
+For Vinum drives, use type
+.Cm vinum .
+Other common types are
+.Cm swap
+and
+.Cm unused .
+By convention, partition
+.Ql c
+represents the entire slice and should be of type
+.Cm unused ,
+though
+.Nm
+does not enforce this convention.
+The
+.Nm
+utility
+also knows about a number of other partition types,
+none of which are in current use.
+(See the definitions starting with
+.Dv FS_UNUSED
+in
+.In sys/disklabel.h
+for more details.)
+.It Ar fsize
+For
+.Cm 4.2BSD
+file systems only, the fragment size; see
+.Xr newfs 8 .
+.It Ar bsize
+For
+.Cm 4.2BSD
+file systems only, the block size; see
+.Xr newfs 8 .
+.It Ar bps/cpg
+For
+.Cm 4.2BSD
+file systems, the number of cylinders in a cylinder group; see
+.Xr newfs 8 .
+.El
+.Sh EXAMPLES
+Display the label for the first slice of the
+.Pa da0
+disk, as obtained via
+.Pa /dev/da0s1 :
+.Pp
+.Dl "bsdlabel da0s1"
+.Pp
+Save the in-core label for
+.Pa da0s1
+into the file
+.Pa savedlabel .
+This file can be used with the
+.Fl R
+option to restore the label at a later date:
+.Pp
+.Dl "bsdlabel da0s1 > savedlabel"
+.Pp
+Create a label for
+.Pa da0s1 :
+.Pp
+.Dl "bsdlabel -w /dev/da0s1"
+.Pp
+Read the label for
+.Pa da0s1 ,
+edit it, and install the result:
+.Pp
+.Dl "bsdlabel -e da0s1"
+.Pp
+Read the on-disk label for
+.Pa da0s1 ,
+edit it, and display what the new label would be (in sectors).
+It does
+.Em not
+install the new label either in-core or on-disk:
+.Pp
+.Dl "bsdlabel -e -n da0s1"
+.Pp
+Write a default label on
+.Pa da0s1 .
+Use another
+.Nm Fl e
+command to edit the
+partitioning and file system information:
+.Pp
+.Dl "bsdlabel -w da0s1"
+.Pp
+Restore the on-disk and in-core label for
+.Pa da0s1
+from information in
+.Pa savedlabel :
+.Pp
+.Dl "bsdlabel -R da0s1 savedlabel"
+.Pp
+Display what the label would be for
+.Pa da0s1
+using the partition layout in
+.Pa label_layout .
+This is useful for determining how much space would be allotted for various
+partitions with a labeling scheme using
+.Cm % Ns -based
+or
+.Cm *
+partition sizes:
+.Pp
+.Dl "bsdlabel -R -n da0s1 label_layout"
+.Pp
+Install a new bootstrap on
+.Pa da0s1 .
+The boot code comes from
+.Pa /boot/boot :
+.Pp
+.Dl "bsdlabel -B da0s1"
+.Pp
+Install a new label and bootstrap.
+The bootstrap code comes from the file
+.Pa newboot
+in the current working directory:
+.Pp
+.Dl "bsdlabel -w -B -b newboot /dev/da0s1"
+.Pp
+Completely wipe any prior information on the disk, creating a new bootable
+disk with a
+.Tn DOS
+partition table containing one slice, covering the whole disk.
+Initialize the label on this slice,
+then edit it.
+The
+.Xr dd 1
+commands are optional, but may be necessary for some
+.Tn BIOS Ns es
+to properly
+recognize the disk:
+.Bd -literal -offset indent
+dd if=/dev/zero of=/dev/da0 bs=512 count=32
+gpart create -s MBR da0
+gpart add -t freebsd da0
+gpart set -a active -i 1 da0
+gpart bootcode -b /boot/mbr da0
+dd if=/dev/zero of=/dev/da0s1 bs=512 count=32
+bsdlabel -w -B da0s1
+bsdlabel -e da0s1
+.Ed
+.Pp
+This is an example disk label that uses some of the new partition size types
+such as
+.Cm % , M , G ,
+and
+.Cm * ,
+which could be used as a source file for
+.Dq Li "bsdlabel -R ada0s1 new_label_file" :
+.Bd -literal -offset 4n
+# /dev/ada0s1:
+
+8 partitions:
+#        size   offset    fstype   [fsize bsize bps/cpg]
+  a:   400M       16    4.2BSD     4096 16384    75    # (Cyl.    0 - 812*)
+  b:     1G        *      swap
+  c:      *        *    unused
+  e: 204800        *    4.2BSD
+  f:     5g        *    4.2BSD
+  g:      *        *    4.2BSD
+.Ed
+.Sh DIAGNOSTICS
+The kernel device drivers will not allow the size of a disk partition
+to be decreased or the offset of a partition to be changed while it is open.
+.Sh COMPATIBILITY
+Due to the use of an
+.Vt uint32_t
+to store the number of sectors,
+.Bx
+labels are restricted to a maximum of 2^32-1 sectors.
+This usually means 2TB of disk space.
+Larger disks should be partitioned using another method such as
+.Xr gpart 8 .
+.Pp
+The various
+.Bx Ns s
+all use slightly different versions of
+.Bx
+labels and
+are not generally compatible.
+.Sh SEE ALSO
+.Xr ccd 4 ,
+.Xr geom 4 ,
+.Xr md 4 ,
+.Xr disktab 5 ,
+.Xr boot0cfg 8 ,
+.Xr gpart 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm disklabel
+utility appeared in
+.Bx 4.3 Tahoe .

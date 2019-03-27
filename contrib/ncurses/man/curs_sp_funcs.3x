@@ -1,0 +1,353 @@
+.\"***************************************************************************
+.\" Copyright (c) 2010,2013 Free Software Foundation, Inc.                   *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_sp_funcs.3x,v 1.6 2013/06/22 17:53:59 tom Exp $
+.TH curs_sp_funcs 3X ""
+.na
+.hy 0
+.SH NAME
+new_prescr \- \fBcurses\fR screen-pointer extension
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.nf
+.sp
+\fBint assume_default_colors_sp(SCREEN*, int, int);\fR
+.br
+\fBint baudrate_sp(SCREEN*);\fR
+.br
+\fBint beep_sp(SCREEN*);\fR
+.br
+\fBbool can_change_color_sp(SCREEN*);\fR
+.br
+\fBint cbreak_sp(SCREEN*);\fR
+.br
+\fBint color_content_sp(SCREEN*, short, short*, short*, short*);\fR
+.br
+\fBint curs_set_sp(SCREEN*, int);\fR
+.br
+\fBint define_key_sp(SCREEN*, const char *, int);\fR
+.br
+\fBint def_prog_mode_sp(SCREEN*);\fR
+.br
+\fBint def_shell_mode_sp(SCREEN*);\fR
+.br
+\fBint delay_output_sp(SCREEN*, int);\fR
+.br
+\fBint doupdate_sp(SCREEN*);\fR
+.br
+\fBint echo_sp(SCREEN*);\fR
+.br
+\fBint endwin_sp(SCREEN*);\fR
+.br
+\fBint erasechar_sp(SCREEN*);\fR
+.br
+\fBint filter_sp(SCREEN*);\fR
+.br
+\fBint flash_sp(SCREEN*);\fR
+.br
+\fBint flushinp_sp(SCREEN*);\fR
+.br
+\fBint get_escdelay_sp(SCREEN*);\fR
+.br
+\fBint getmouse_sp(SCREEN*, MEVENT*);\fR
+.br
+\fBWINDOW* getwin_sp(SCREEN*, FILE*);\fR
+.br
+\fBint halfdelay_sp(SCREEN*);\fR
+.br
+\fBbool has_colors_sp(SCREEN*);\fR
+.br
+\fBbool has_ic_sp(SCREEN*);\fR
+.br
+\fBbool has_il_sp(SCREEN*);\fR
+.br
+\fBint has_key_sp(SCREEN*, int);\fR
+.br
+\fBbool has_mouse_sp(SCREEN*);\fR
+.br
+\fBint init_color_sp(SCREEN*, short, short, short, short);\fR
+.br
+\fBint init_pair_sp(SCREEN*, short, short, short);\fR
+.br
+\fBint intrflush_sp(SCREEN*, WINDOW*, bool);\fR
+.br
+\fBbool isendwin_sp(SCREEN*);\fR
+.br
+\fBbool is_term_resized_sp(SCREEN*, int, int);\fR
+.br
+\fBchar* keybound_sp(SCREEN*, int, int);\fR
+.br
+\fBint key_defined_sp(SCREEN*, const char *);\fR
+.br
+\fBNCURSES_CONST char * keyname_sp(SCREEN*, int);\fR
+.br
+\fBint keyok_sp(SCREEN*, int, bool);\fR
+.br
+\fBchar killchar_sp(SCREEN*);\fR
+.br
+\fBint mcprint_sp(SCREEN*, char *, int);\fR
+.br
+\fBint mouseinterval_sp(SCREEN*, int);\fR
+.br
+\fBmmask_t mousemask_sp(SCREEN*, mmask_t, mmask_t *);\fR
+.br
+\fBint mvcur_sp(SCREEN*, int, int, int, int);\fR
+.br
+\fBint napms_sp(SCREEN*, int);\fR
+.br
+\fBWINDOW* newpad_sp(SCREEN*, int, int);\fR
+.br
+\fBSCREEN* new_prescr(void);\fR
+.br
+\fBSCREEN* newterm_sp(SCREEN*, NCURSES_CONST char *, FILE *, FILE *);\fR
+.br
+\fBWINDOW* newwin_sp(SCREEN*, int, int, int, int);\fR
+.br
+\fBint nl_sp(SCREEN*);\fR
+.br
+\fBint nocbreak_sp(SCREEN*);\fR
+.br
+\fBint noecho_sp(SCREEN*);\fR
+.br
+\fBint nofilter_sp(SCREEN*);\fR
+.br
+\fBint nonl_sp(SCREEN*);\fR
+.br
+\fBvoid noqiflush_sp(SCREEN*);\fR
+.br
+\fBint noraw_sp(SCREEN*);\fR
+.br
+\fBint pair_content_sp(SCREEN*, short, short*, short*);\fR
+.br
+\fBvoid qiflush_sp(SCREEN*);\fR
+.br
+\fBint raw_sp(SCREEN*);\fR
+.br
+\fBint reset_prog_mode_sp(SCREEN*);\fR
+.br
+\fBint reset_shell_mode_sp(SCREEN*);\fR
+.br
+\fBint resetty_sp(SCREEN*);\fR
+.br
+\fBint resize_term_sp(SCREEN*, int, int);\fR
+.br
+\fBint resizeterm_sp(SCREEN*, int, int);\fR
+.br
+\fBint restartterm_sp(SCREEN*, NCURSES_CONST char*, int, int *);\fR
+.br
+\fBint ripoffline_sp(SCREEN*, int, int (*)(WINDOW*, int));\fR
+.br
+\fBint savetty_sp(SCREEN*);\fR
+.br
+\fBint scr_init_sp(SCREEN*, const char *);\fR
+.br
+\fBint scr_restore_sp(SCREEN*, const char *);\fR
+.br
+\fBint scr_set_sp(SCREEN*, const char *);\fR
+.br
+\fBTERMINAL* set_curterm_sp(SCREEN*, TERMINAL*);\fR
+.br
+\fBint set_escdelay_sp(SCREEN*, int);\fR
+.br
+\fBint set_tabsize_sp(SCREEN*, int);\fR
+.br
+\fBint slk_attroff_sp(SCREEN*, const chtype);\fR
+.br
+\fBint slk_attron_sp(SCREEN*, const chtype);\fR
+.br
+\fBint slk_attr_set_sp(SCREEN*, const attr_t, short, void*);\fR
+.br
+\fBint slk_attrset_sp(SCREEN*, const chtype);\fR
+.br
+\fBint slk_attr_sp(SCREEN*);\fR
+.br
+\fBint slk_clear_sp(SCREEN*);\fR
+.br
+\fBint slk_color_sp(SCREEN*, short);\fR
+.br
+\fBint slk_init_sp(SCREEN*, int);\fR
+.br
+\fBint slk_label_sp(SCREEN*, int);\fR
+.br
+\fBint slk_noutrefresh_sp(SCREEN*);\fR
+.br
+\fBint slk_refresh_sp(SCREEN*);\fR
+.br
+\fBint slk_restore_sp(SCREEN*);\fR
+.br
+\fBint slk_set_sp(SCREEN*, int, const char *, int);\fR
+.br
+\fBint slk_touch_sp(SCREEN*);\fR
+.br
+\fBint start_color_sp(SCREEN*);\fR
+.br
+\fBattr_t term_attrs_sp(SCREEN*);\fR
+.br
+\fBchtype termattrs_sp(SCREEN*);\fR
+.br
+\fBchar* termname_sp(SCREEN*);\fR
+.br
+\fBint typeahead_sp(SCREEN*, int);\fR
+.br
+\fBNCURSES_CONST char* unctrl_sp(SCREEN*, chtype);\fR
+.br
+\fBint ungetch_sp(SCREEN*, int);\fR
+.br
+\fBint ungetmouse_sp(SCREEN*,MEVENT *);\fR
+.br
+\fBint unget_wch_sp(SCREEN*, const wchar_t);\fR
+.br
+\fBint use_default_colors_sp(SCREEN*);\fR
+.br
+\fBvoid use_env_sp(SCREEN*, bool);\fR
+.br
+\fBint use_legacy_coding_sp(SCREEN*, int);\fR
+.br
+\fBint vid_attr_sp(SCREEN*, attr_t, short, void *);\fR
+.br
+\fBint vidattr_sp(SCREEN*, chtype);\fR
+.br
+\fBint vid_puts_sp(SCREEN*, attr_t, short, void *, NCURSES_SP_OUTC);\fR
+.br
+\fBint vidputs_sp(SCREEN*, chtype, NCURSES_SP_OUTC);\fR
+.br
+\fBwchar_t* wunctrl_sp(SCREEN*, cchar_t *);\fR
+.sp
+\fB#include <form.h>\fR
+.sp
+\fBint new_form_sp(SCREEN*, FIELD **);\fR
+.sp
+\fB#include <menu.h>\fR
+.sp
+\fBint new_menu_sp(SCREEN*, ITEM **);\fR
+.sp
+\fB#include <panel.h>\fR
+.sp
+\fBint ceiling_panel(SCREEN*);\fR
+.br
+\fBPANEL* ground_panel(SCREEN*);\fR
+.br
+\fBint update_panels_sp(SCREEN*);\fR
+.sp
+\fB#include <term.h>\fR
+.sp
+\fBint del_curterm_sp(SCREEN*, TERMINAL *);\fR
+.br
+\fBint putp_sp(SCREEN*, const char *);\fR
+.br
+\fBint tgetflag_sp(SCREEN*, char *, const char *);\fR
+.br
+\fBint tgetent_sp(SCREEN*, char *, const char *);\fR
+.br
+\fBint tgetnum_sp(SCREEN*, NCURSES_CONST char *);\fR
+.br
+\fBchar* tgetstr_sp(SCREEN*, NCURSES_CONST char *, char **);\fR
+.br
+\fBint tigetflag_sp(SCREEN*, NCURSES_CONST char *);\fR
+.br
+\fBint tigetnum_sp(SCREEN*, NCURSES_CONST char *);\fR
+.br
+\fBchar* tigetstr_sp(SCREEN*, NCURSES_CONST char *);\fR
+.br
+\fBint tputs_sp(SCREEN*, const char *, int, NCURSES_SP_OUTC);\fR
+.ad
+.br
+.SH DESCRIPTION
+This implementation can be configured to provide a set of functions which
+improve the ability to manage multiple screens.
+This feature can be added to any of the configurations supported by ncurses;
+it adds new entrypoints
+without changing the meaning of any of the existing ones.
+.PP
+.\" ***************************************************************************
+.SS IMPROVED FUNCTIONS
+Most of the functions are new versions of existing functions.
+A parameter is added at the front of the parameter list.
+It is a SCREEN pointer.
+.PP
+The existing functions all use the current screen,
+which is a static variable.
+The extended functions use the specified screen,
+thereby reducing the number of variables which must be modified
+to update multiple screens.
+.\" ***************************************************************************
+.SS NEW FUNCTIONS
+Here are the new functions:
+.TP 5
+ceiling_panel
+this returns a pointer to the topmost panel in the given screen.
+.TP 5
+ground_panel
+this returns a pointer to the lowest panel in the given screen.
+.TP 5
+new_prescr
+when creating a new screen, the library uses static variables which
+have been preset, e.g., by \fBuse_env\fP(3X), \fBfilter\fP(3X), etc.
+With the screen-pointer extension,
+there are situations where it must create a current screen before
+the unextended library does.
+The \fBnew_prescr\fP function is used internally to handle these cases.
+It is also provided as an entrypoint to allow applications to customize
+the library initialization.
+.\" ***************************************************************************
+.SH NOTES
+This extension introduces some new names:
+.TP 5
+NCURSES_SP_FUNCS
+This is set to the library patch-level number.
+In the unextended library, this is zero (0),
+to make it useful for checking if the extension is provided.
+.TP 5
+NCURSES_SP_NAME
+The new functions are named using the macro \fINCURSES_SP_NAME\fP,
+which hides the actual implementation.
+Currently this adds a "_sp" suffix to the name of the unextended function.
+This manual page indexes the extensions showing the full name.
+However the proper usage of these functions uses the macro,
+to provide for the possibility of changing the naming convention
+for specific library configurations.
+.TP 5
+NCURSES_SP_OUTC
+This is a new function-pointer type to use in the screen-pointer functions
+where an \fINCURSES_OUTC\fP is used in the unextended library.
+.TP 5
+NCURSES_OUTC
+This is a function-pointer type used for the cases where a function passes
+characters to the output stream, e.g., \fBvidputs\fP(3X).
+.PP
+.SH PORTABILITY
+These routines are specific to ncurses.
+They were not supported on Version 7, BSD or System V implementations.
+It is recommended that any code depending on ncurses extensions
+be conditioned using \fINCURSES_SP_FUNCS\fP.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_opaque\fR(3X),
+\fBcurs_threads\fR(3X).

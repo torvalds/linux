@@ -1,0 +1,403 @@
+pc-sysinstall README
+
+This file documents many of the variables used in pc-sysinstall
+config scripts
+#################################################################
+
+# hostname=
+
+Using hostname= will set the specified hostname on the
+installed system
+
+When hostname= is not present, pc-sysinstall will auto-generate
+a hostname such as freebsd-XXXX or pcbsd-XXXX
+
+# installMode=(fresh/upgrade/extract)
+
+Set the type of install we are doing.
+
+Fresh installs will format and mount the target disks before
+extracting the install images to the system. Using this mode
+it is also possible to do a system restore, by specifying a
+full system backup as the install source.
+
+Upgrades will mount the target disk, and extract the system
+archive to the disk, overwriting files on the disk. 
+The conf/exclude-from-upgrade file can be used to specify
+additional files to exclude from overwriting during the
+install process.
+
+Extract will skip any disk setup, and perform an installation
+to the directory specified by "installLocation=". This location
+should be a directory with your pre-mounted file-systems ready
+for file extraction. When using the "extract" option, /etc/fstab
+on the installed system will *not* be automatically configured. 
+
+# installLocation=
+
+Used only when installMode is set to extract. 
+
+This is set to the location you want to extract your system to,
+and should already be mounted properly. 
+
+# installInteractive=(yes or no)
+
+Set if the installer is running in interactive mode, and
+is able to prompt for input from the user, defaults to no
+
+
+########################################################################
+# NETWORK SETTINGS
+########################################################################
+
+# netDev=(AUTO-DHCP or <nic>)
+
+netDev specifies what type of networking to enable for the installer
+Can be set to AUTO-DHCP or to a network interface, such as et0
+
+When set to AUTO-DHCP, pc-sysinstall will probe for all network devices
+and attempt to set DHCP mode on each, until a working network connection
+is established
+
+If netDev= is set to a network interface such as et0, the following options
+will need to be set in order to enable the interface
+
+# netIP=(IP address such as 192.168.0.100)
+
+ Set netIP to an address that you wish to have the interface specified in
+ netDev set to
+ Only used when netDev is not set to AUTO-DHCP
+
+# netMask=(Netmask such as 255.255.255.0)
+
+Set netMask to the address you with to have the interface specified in
+netDev set to
+Only used when netDev is not set to AUTO-DHCP
+
+ 
+# netNameServer=(DNS Server such as 192.168.0.1)
+
+Set netNameServer to the DNS address you want to use during the install
+Only used when netDev is not set to AUTO-DHCP
+
+
+# netDefaultRouter=(192.168.0.1)
+
+Set netDefaultRouter to the gateway you wish to have the installer use
+Only used when netDev is not set to AUTO-DHCP
+
+
+
+# netSaveDev=(AUTO-DHCP or network interface)
+
+netSaveDev specifies what networking to enable on the installed system
+
+When set to AUTO-DHCP, pc-sysinstall will probe all network interfaces, and
+set them all to DHCP in the systems /etc/rc.conf file. Wireless devices will also
+have the corresponding wlan[0-9] device created. 
+
+When set to a network interface, pc-sysinstall will set the target device with
+the settings specified by the variables below.
+
+# netSaveIP=192.168.0.49
+# netSaveMask=255.255.255.0
+# netSaveNameServer=208.67.222.222
+# netSaveDefaultRouter=192.168.0.1
+
+
+
+
+########################################################################
+# DISK SLICE SETTINGS
+########################################################################
+
+The following section specifies the target disk(s) to be used in the
+install or upgrade. 
+
+# disk0=(disk device, such as ad0)
+
+The diskX= variable should be set to the target device for this drive, such
+as ad0, da0
+The first should begin with disk0=, and additional drives to disk1=, disk2
+if additional disks are to be setup. 
+
+When doing an upgrade, the disk0= line should be set to the root device or 
+root zpool of the target system to update. I.E:
+ # disk0=tank0
+ # disk0=ada0s1a
+
+
+# partition=(all, free, s1, s1, s3, s4, image)
+
+After setting disk[0-9], the partition= variable is used to specify which target
+partition we will be working with for this device.
+
+Setting this to "all" will setup the disk with a single FreeBSD slice as "s1"
+
+Setting this to "free" will allow pc-sysinstall to search for the first available
+primary slice with free space, and create the slice. 
+
+Setting this to "s1, s2, s3 or s4" will use the specified MBR slice.
+
+Setting this to "image" will use an image to configure the disk.
+
+(This tag is unused for upgrades)
+
+# partscheme=(MBR/GPT)
+
+When performing a "full" disk (partition=all), the partscheme= variable is used
+to determine the partition scheme type gpart will be using on the disk. Valid
+choices are MBR or GPT. 
+
+# mirror=(disk device such as ad1)
+
+Setting the mirror= variable will setup the target device as a gmirror
+of the diskX= device. The mirror device must be the same size or larger
+than the drive being mirrored. 
+ 
+
+# mirrorbal=(load, prefer, round-robin, split)
+
+Allows the setting of the mirror balance method to be used, if not
+specified this defaults to "round-robin"
+
+# bootManager=(none, bsd)
+
+Setting this option will instruct pc-sysinstall to install the BSD boot Manager,
+or leave it empty
+
+# image=(/path/to/image/file) (/mountpoint)
+
+Setting this option will instruct pc-sysinstall to write the image file
+specified by the path to the disk.
+
+# commitDiskPart
+
+This command must be placed at the end of the diskX= section, before starting
+the listing of any additional diskX= directives. 
+
+
+########################################################################
+# DISK PARTITION / MOUNT SETTINGS
+########################################################################
+
+The following settings specify the partitioning / mount points to setup
+on the target partition
+
+# disk0-part=UFS+S 500 / (-n -o time)
+# disk0-part=SWAP 2000 none
+# disk0-part=UFS.eli 500 /usr
+# encpass=mypass
+# disk0-part=UFS+J 500 /tmp
+# disk0-part=ZFS 0 /data,/storage (mirror: ad1)
+# commitDiskLabel
+
+The above values instructs pc-sysinstall which partitions / mounts
+to create on the target drive / slice, specified by "disk0".
+(disk0 will resolve to the drive / slice specified in the previous section)
+
+The notation is as follows:
+<File System Type> <Size> <Mountpoint>
+
+Available FileSystems: 
+  UFS - Standard UFS2 FileSystem
+UFS+S - UFS2 + Softupdates enabled
+UFS+SUJ - UFS2 + Soft Updates + Journaling enabled
+UFS+J - UFS2 + Journaling through gjournal
+  ZFS - Z File System, pools / mounts created automatically
+ SWAP - BSD Swap space partition, mountpoint should be set to "none"
+
+Adding the ".eli" extension to any of the above file systems
+will enable disk encryption via geli
+(UFS.eli, UFS+S.eli, UFS+SUJ.eli, UFS+J.eli, ZFS.eli, SWAP.eli)
+
+If you with to use a passphrase with this encrypted partition, on the next line
+the flag "encpass=" should be entered:
+encpass=mypass
+
+All sizes are expressed in MegaBytes
+Specifying a size 0 instructs pc-sysinstall to use the rest of the 
+available slice size, and should only be used for the last partition / mount
+
+When using "UFS" and its various types, it is possible to specify custom options
+for newfs using (). For examplei:
+disk0-part=UFS+SUJ 1000 / (-o time)
+In this case "-o time" would be passed to newfs when creating the "/" filesystem.
+
+
+When using "ZFS" specifically, it is possible to specify additional disks / partitions
+to include in the zpool. By using the syntax: (mirror: ad1,ad2) or (raidz: ad1,ad2), it is possible
+to include the disk "ad1" into the zpool for this partition, using the raidz / mirror methods.
+If you with to just include the disk into the pool in "basic" mode, then use (ad1,ad2) with no flags
+
+########################################################################
+# INSTALL OPTIONS / SOURCES
+########################################################################
+
+The following settings specify the type, locations and sources
+for this installation
+
+# installMedium=(dvd, usb, ftp, rsync, image)
+
+Set installMedium= to the source type we will be using for this install.
+
+Available Types:
+  dvd - Search for and mount the DVD which contains the install archive
+local - Pull files directly from a local directory
+  usb - Search for and mount the USB drive which contains the install archive
+  ftp - The install archive will be fetched from a FTP / HTTP server before install
+rsync - Pull the system data from a ssh + rsync server, specified with variables below
+image - Install system from an image
+
+# localPath=/usr/freebsd-dist
+
+Location of the directory we will be pulling installation files from
+
+# installType=(PCBSD, FreeBSD)
+
+Set the type of system we are installing, PCBSD or FreeBSD
+
+# installFile=fbsd-release.tbz
+
+The installer archive, if not using the defaults specified in conf/pc-sysinstall.conf
+
+# packageType=(tar, uzip, split, dist)
+
+The archive type we are extracting from when using dvd, usb or ftp
+
+# distFiles=base src kernel
+
+List of dist files to install when packageType=dist
+
+# ftpPath=ftp://ftp.pcbsd.org/pub/8.0/netinstall
+
+Location of the installer archive when using a installMedium=ftp
+
+# rsyncPath=life-preserver/back-2009-11-12T14_53_14
+
+The location of the rsync data on the remote server when using installMedium=rsync
+
+# rsyncUser=rsyncuser
+
+The username to use for the ssh server running rsync
+
+# rsyncHost=192.168.0.50
+
+The rsync / ssh server we wish to connect to
+
+# rsyncPort=22
+
+The port to use when connecting to a ssh + rsync server
+
+# installComponents=amarok,firefox,ports
+
+The specified components to install, view available with "./pc-sysinstall list-components"
+
+
+########################################################################
+# UPGRADE OPTIONS
+########################################################################
+
+Options specific to performing an upgrade
+
+# upgradeKeepDesktopProfile=(yes/no)
+
+This option allows you to specify if you wish to keep your existing users desktop
+profile data. The default is NO, and your existing profile will be moved to 
+.kde4.preUpgrade automatically. 
+
+########################################################################
+# USER OPTIONS
+########################################################################
+
+Options for setting up usernames and passwords on the installed system
+
+# rootPass=root
+
+Set the root password of the installed system to the specified plaintext string
+
+# rootEncPass=<encryptedstring>
+
+Set the root password of the installed system to the specified encrypted string
+
+The below variables are used to setup a user on the installed system
+Be sure to call commitUser after after adding these values, and before
+starting another user block
+
+# userName=kris
+# userComment=Kris Moore
+# userPass=mypass
+or
+# userEncPass=<encryptedstring>
+# userShell=/bin/csh
+# userHome=/home/kris
+# userGroups=wheel,operator
+# commitUser
+
+########################################################################
+# RUN COMMANDS
+########################################################################
+
+The following variables can be set to run commands post-installation,
+allowing the user to further tweak / modify the system
+
+# runCommand=
+
+Run the specified command within chroot of the installed system
+
+# runScript=
+
+runScript will copy the specified script into FSMNT, and run it in chroot of the system
+Useful when you have a 3rd party script on the DVD / USB, and you want to copy it into
+the installed system and run
+
+# runExtCommand=
+
+runExtCommand is used when you wish to run a command outside the chroot
+The variable $FSMNT is set to the mount-point of your installed system
+
+
+########################################################################
+# PC-BSD SPECIFIC OPTIONS
+########################################################################
+
+Options for time-zones and NTP on the installed system
+
+# timeZone=
+
+timeZone can be set to the zone file in /usr/share/zoneinfo/ that is to be used
+example: America/New_York
+
+# enableNTP= (yes / no)
+
+set enableNTP to yes or no to enable or disable the NTP service on the system
+
+
+########################################################################
+# PC-BSD SPECIFC OPTIONS
+########################################################################
+
+Options specific to installing PC-BSD, such as localization, and KDE settings
+
+# localizeLang=en
+
+localizeLang will set the system console and Desktop to the target language
+
+# localizeKeyLayout=en
+
+localizeKeyLayout updates the system's xorg config to set the keyboard layout
+
+# localizeKeyModel=pc104
+
+localizeKeyModel updates the system's xorg config to set the keyboard model
+
+# localizeKeyVariant=intl
+
+localizeKeyVariant is used to update the xorg config to set the keyboard variant
+
+# autoLoginUser=kris
+
+Setting autoLoginUser will enable the specified user to log into the desktop 
+automatically without entering a password
+
+$FreeBSD$

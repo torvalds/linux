@@ -1,0 +1,74 @@
+.\" Copyright (c) 2009 Rick Macklem, University of Guelph
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 25, 2009
+.Dt NFSDUMPSTATE 8
+.Os
+.Sh NAME
+.Nm nfsdumpstate
+.Nd display
+.Tn NFSv4
+open/lock state
+.Sh SYNOPSIS
+.Nm nfsdumpstate
+.Op Fl o
+.Op Fl l Ar filename
+.Sh DESCRIPTION
+.Nm
+displays open/lock state for the
+.Tn NFSv4
+client and server in the experimental nfs subsystem.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl o
+Displays a summary of Clients for NFSv4. Each line lists a Client with
+the ClientID being the last field of the line.
+.Pp
+The following are the client flag values displayed:
+.Bl -tag -compact -offset 2n -width MMMM
+.It NC
+Needs Confirmation
+.It CB
+Callbacks are enabled
+.It GSS
+Using RPCSEC_GSS
+.It REV
+Administratively Revoked, via nfsrevoke(8)
+.El
+.It Fl l Ar filename
+Displays a list of all NFSv4 Opens and Locks on the file specified by
+the
+.Ar filename .
+The ClientID is the last field of each line.
+.El
+.Sh SEE ALSO
+.Xr nfsv4 4 ,
+.Xr nfsrevoke 8
+.Sh HISTORY
+The
+.Nm
+utility was introduced with the NFSv4 experimental subsystem in 2009.

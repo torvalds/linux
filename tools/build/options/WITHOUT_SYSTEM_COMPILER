@@ -1,0 +1,12 @@
+.\" $FreeBSD$
+Set to not opportunistically skip building a cross-compiler during the
+bootstrap phase of the build.
+Normally, if the currently installed compiler matches the planned bootstrap
+compiler type and revision, then it will not be built.
+This does not prevent a compiler from being built for installation though,
+only for building one for the build itself.
+The
+.Va WITHOUT_CLANG
+and
+.Va WITHOUT_GCC
+options control those.

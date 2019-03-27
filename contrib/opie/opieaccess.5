@@ -1,0 +1,89 @@
+.\" opieaccess.5: Manual page describing the /etc/opieaccess file.
+.\"
+.\" Portions of this software are Copyright 1995 by Randall Atkinson and Dan
+.\" McDonald, All Rights Reserved. All Rights under this copyright are assigned
+.\" to the U.S. Naval Research Laboratory (NRL). The NRL Copyright Notice and
+.\" License Agreement applies to this software.
+.\"
+.\"	History:
+.\"
+.\"	Modified by cmetz for OPIE 2.4. Fixed "0PIE" typo.
+.\"	Written at NRL for OPIE 2.0.
+.\"
+.ll 6i
+.pl 10.5i
+.\"	@(#)opieaccess.5	2.0 (NRL) 1/10/95
+.\" $FreeBSD$
+.\"
+.lt 6.0i
+.TH OPIEACCESS 5 "January 10, 1995"
+.AT 3
+.SH NAME
+/etc/opieaccess \- OPIE database of trusted networks
+
+.SH DESCRIPTION
+The 
+.I opieaccess
+file contains a list of networks that are considered trusted by the system as
+far as security against passive attacks is concerned. Users from networks so
+trusted will be able to log in using OPIE responses, but not be required to
+do so, while users from networks that are not trusted will always be required
+to use OPIE responses (the default behavior). This trust allows a site to
+have a more gentle migration to OPIE by allowing it to be non-mandatory for
+"inside" networks while allowing users to choose whether they with to use OPIE
+to protect their passwords or not.
+.sp
+The entire notion of trust implemented in the
+.I opieaccess
+file is a major security hole because it opens your system back up to the same
+passive attacks that the OPIE system is designed to protect you against. The
+.I opieaccess
+support in this version of OPIE exists solely because we believe that it is
+better to have it so that users who don't want their accounts broken into can
+use OPIE than to have them prevented from doing so by users who don't want
+to use OPIE. In any environment, it should be considered a transition tool and
+not a permanent fixture. When it is not being used as a transition tool, a
+version of OPIE that has been built without support for the
+.I opieaccess
+file should be built to prevent the possibility of an attacker using this file
+as a means to circumvent the OPIE software.
+.sp
+The
+.I opieaccess
+file consists of lines containing three fields separated by spaces (tabs are
+properly interpreted, but spaces should be used instead) as follows:
+.PP
+.nf
+.ta \w'              'u
+Field	Description
+action	"permit" or "deny" non-OPIE logins
+address	Address of the network to match
+mask	Mask of the network to match
+.fi
+
+Subnets can be controlled by using the appropriate address and mask. Individual
+hosts can be controlled by using the appropriate address and a mask of
+255.255.255.255. If no rules are matched, the default is to deny non-OPIE
+logins.
+
+.SH SEE ALSO
+.BR ftpd (8)
+.BR login (1),
+.BR opie (4),
+.BR opiekeys (5),
+.BR opiepasswd (1),
+.BR opieinfo (1),
+.BR su (1),
+
+.SH AUTHOR
+Bellcore's S/Key was written by Phil Karn, Neil M. Haller, and John S. Walden
+of Bellcore. OPIE was created at NRL by Randall Atkinson, Dan McDonald, and
+Craig Metz.
+
+S/Key is a trademark of Bell Communications Research (Bellcore).
+
+.SH CONTACT
+OPIE is discussed on the Bellcore "S/Key Users" mailing list. To join,
+send an email request to:
+.sp
+skey-users-request@thumper.bellcore.com

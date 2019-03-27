@@ -1,0 +1,260 @@
+.\" Copyright (c) 2011 Ed Schouten <ed@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 26, 2011
+.Dt THRD_CREATE 3
+.Os
+.Sh NAME
+.Nm call_once ,
+.Nm cnd_broadcast ,
+.Nm cnd_destroy ,
+.Nm cnd_init ,
+.Nm cnd_signal ,
+.Nm cnd_timedwait ,
+.Nm cnd_wait ,
+.Nm mtx_destroy ,
+.Nm mtx_init ,
+.Nm mtx_lock ,
+.Nm mtx_timedlock ,
+.Nm mtx_trylock ,
+.Nm mtx_unlock ,
+.Nm thrd_create ,
+.Nm thrd_current ,
+.Nm thrd_detach ,
+.Nm thrd_equal ,
+.Nm thrd_exit ,
+.Nm thrd_join ,
+.Nm thrd_sleep ,
+.Nm thrd_yield ,
+.Nm tss_create ,
+.Nm tss_delete ,
+.Nm tss_get ,
+.Nm tss_set
+.Nd C11 threads interface
+.Sh LIBRARY
+.Lb libstdthreads
+.Sh SYNOPSIS
+.In threads.h
+.Ft void
+.Fn call_once "once_flag *flag" "void (*func)(void)"
+.Ft int
+.Fn cnd_broadcast "cnd_t *cond"
+.Ft void
+.Fn cnd_destroy "cnd_t *cond"
+.Ft int
+.Fn cnd_init "cnd_t *cond"
+.Ft int
+.Fn cnd_signal "cnd_t *cond"
+.Ft int
+.Fn cnd_timedwait "cnd_t * restrict cond" "mtx_t * restrict mtx" "const struct timespec * restrict ts"
+.Ft int
+.Fn cnd_wait "cnd_t *cond" "mtx_t *mtx"
+.Ft void
+.Fn mtx_destroy "mtx_t *mtx"
+.Ft int
+.Fn mtx_init "mtx_t *mtx" "int type"
+.Ft int
+.Fn mtx_lock "mtx_t *mtx"
+.Ft int
+.Fn mtx_timedlock "mtx_t * restrict mtx" "const struct timespec * restrict ts"
+.Ft int
+.Fn mtx_trylock "mtx_t *mtx"
+.Ft int
+.Fn mtx_unlock "mtx_t *mtx"
+.Ft int
+.Fn thrd_create "thrd_t *thr" "int (*func)(void *)" "void *arg"
+.Ft thrd_t
+.Fn thrd_current "void"
+.Ft int
+.Fn thrd_detach "thrd_t thr"
+.Ft int
+.Fn thrd_equal "thrd_t thr0" "thrd_t thr1"
+.Ft _Noreturn void
+.Fn thrd_exit "int res"
+.Ft int
+.Fn thrd_join "thrd_t thr" "int *res"
+.Ft int
+.Fn thrd_sleep "const struct timespec *duration" "struct timespec *remaining"
+.Ft void
+.Fn thrd_yield "void"
+.Ft int
+.Fn tss_create "tss_t *key" "void (*dtor)(void *)"
+.Ft void
+.Fn tss_delete "tss_t key"
+.Ft void *
+.Fn tss_get "tss_t key"
+.Ft int
+.Fn tss_set "tss_t key" "void *val"
+.Sh DESCRIPTION
+As of
+.St -isoC-2011 ,
+the C standard includes an API for writing multithreaded applications.
+Since POSIX.1 already includes a threading API that is used by virtually
+any multithreaded application, the interface provided by the C standard
+can be considered superfluous.
+.Pp
+In this implementation, the threading interface is therefore implemented
+as a light-weight layer on top of existing interfaces.
+The functions to which these routines are mapped, are listed in the
+following table.
+Please refer to the documentation of the POSIX equivalent functions for
+more information.
+.Bl -column ".Fn mtx_timedlock" ".Xr pthread_mutex_timedlock 3" -offset indent
+.It Em Function Ta Em POSIX equivalent
+.It Fn call_once Ta Xr pthread_once 3
+.It Fn cnd_broadcast Ta Xr pthread_cond_broadcast 3
+.It Fn cnd_destroy Ta Xr pthread_cond_destroy 3
+.It Fn cnd_init Ta Xr pthread_cond_init 3
+.It Fn cnd_signal Ta Xr pthread_cond_signal 3
+.It Fn cnd_timedwait Ta Xr pthread_cond_timedwait 3
+.It Fn cnd_wait Ta Xr pthread_cond_wait 3
+.It Fn mtx_destroy Ta Xr pthread_mutex_destroy 3
+.It Fn mtx_init Ta Xr pthread_mutex_init 3
+.It Fn mtx_lock Ta Xr pthread_mutex_lock 3
+.It Fn mtx_timedlock Ta Xr pthread_mutex_timedlock 3
+.It Fn mtx_trylock Ta Xr pthread_mutex_trylock 3
+.It Fn mtx_unlock Ta Xr pthread_mutex_unlock 3
+.It Fn thrd_create Ta Xr pthread_create 3
+.It Fn thrd_current Ta Xr pthread_self 3
+.It Fn thrd_detach Ta Xr pthread_detach 3
+.It Fn thrd_equal Ta Xr pthread_equal 3
+.It Fn thrd_exit Ta Xr pthread_exit 3
+.It Fn thrd_join Ta Xr pthread_join 3
+.It Fn thrd_sleep Ta Xr nanosleep 2
+.It Fn thrd_yield Ta Xr pthread_yield 3
+.It Fn tss_create Ta Xr pthread_key_create 3
+.It Fn tss_delete Ta Xr pthread_key_delete 3
+.It Fn tss_get Ta Xr pthread_getspecific 3
+.It Fn tss_set Ta Xr pthread_setspecific 3
+.El
+.Sh DIFFERENCES WITH POSIX EQUIVALENTS
+The
+.Fn thrd_exit
+function returns an integer value to the thread calling
+.Fn thrd_join ,
+whereas the
+.Fn pthread_exit
+function uses a pointer.
+.Pp
+The mutex created by
+.Fn mtx_init
+can be of
+.Fa type
+.Dv mtx_plain
+or
+.Dv mtx_timed
+to distinguish between a mutex that supports
+.Fn mtx_timedlock .
+This type can be
+.Em or'd
+with
+.Dv mtx_recursive
+to create a mutex that allows recursive acquisition.
+These properties are normally set using
+.Fn pthread_mutex_init Ns 's
+.Fa attr
+parameter.
+.Sh RETURN VALUES
+If successful, the
+.Fn cnd_broadcast ,
+.Fn cnd_init ,
+.Fn cnd_signal ,
+.Fn cnd_timedwait ,
+.Fn cnd_wait ,
+.Fn mtx_init ,
+.Fn mtx_lock ,
+.Fn mtx_timedlock ,
+.Fn mtx_trylock ,
+.Fn mtx_unlock ,
+.Fn thrd_create ,
+.Fn thrd_detach ,
+.Fn thrd_equal ,
+.Fn thrd_join ,
+.Fn thrd_sleep ,
+.Fn tss_create
+and
+.Fn tss_set
+functions return
+.Dv thrd_success .
+Otherwise an error code will be returned to indicate the error.
+.Pp
+The
+.Fn thrd_current
+function returns the thread ID of the calling thread.
+.Pp
+The
+.Fn tss_get
+function returns the thread-specific data value associated with the
+given
+.Fa key .
+If no thread-specific data value is associated with
+.Fa key ,
+then the value NULL is returned.
+.Sh ERRORS
+The
+.Fn cnd_init
+and
+.Fn thrd_create
+functions will fail if:
+.Bl -tag -width thrd_timedout
+.It Dv thrd_nomem
+The system has insufficient memory.
+.El
+.Pp
+The
+.Fn cnd_timedwait
+and
+.Fn mtx_timedlock
+functions will fail if:
+.Bl -tag -width thrd_timedout
+.It Dv thrd_timedout
+The system time has reached or exceeded the time specified in
+.Fa ts
+before the operation could be completed.
+.El
+.Pp
+The
+.Fn mtx_trylock
+function will fail if:
+.Bl -tag -width thrd_timedout
+.It Dv thrd_busy
+The mutex is already locked.
+.El
+.Pp
+In all other cases, these functions may fail by returning general error
+code
+.Dv thrd_error .
+.Sh SEE ALSO
+.Xr nanosleep 2 ,
+.Xr pthread 3
+.Sh STANDARDS
+These functions are expected to conform to
+.St -isoC-2011 .
+.Sh HISTORY
+These functions appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An Ed Schouten Aq Mt ed@FreeBSD.org

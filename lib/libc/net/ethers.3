@@ -1,0 +1,233 @@
+.\" Copyright (c) 1995 Bill Paul <wpaul@ctr.columbia.edu>.
+.\" Copyright (c) 2007 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 30, 2007
+.Dt ETHERS 3
+.Os
+.Sh NAME
+.Nm ethers ,
+.Nm ether_line ,
+.Nm ether_aton ,
+.Nm ether_aton_r ,
+.Nm ether_ntoa ,
+.Nm ether_ntoa_r ,
+.Nm ether_ntohost ,
+.Nm ether_hostton
+.Nd Ethernet address conversion and lookup routines
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In net/ethernet.h
+.Ft int
+.Fn ether_line "const char *l" "struct ether_addr *e" "char *hostname"
+.Ft struct ether_addr *
+.Fn ether_aton "const char *a"
+.Ft struct ether_addr *
+.Fn ether_aton_r "const char *a" "struct ether_addr *e"
+.Ft char *
+.Fn ether_ntoa "const struct ether_addr *n"
+.Ft char *
+.Fn ether_ntoa_r "const struct ether_addr *n" "char *buf"
+.Ft int
+.Fn ether_ntohost "char *hostname" "const struct ether_addr *e"
+.Ft int
+.Fn ether_hostton "const char *hostname" "struct ether_addr *e"
+.Sh DESCRIPTION
+These functions operate on ethernet addresses using an
+.Vt ether_addr
+structure, which is defined in the header file
+.In net/ethernet.h :
+.Bd -literal -offset indent
+/*
+ * The number of bytes in an ethernet (MAC) address.
+ */
+#define ETHER_ADDR_LEN		6
+
+/*
+ * Structure of a 48-bit Ethernet address.
+ */
+struct  ether_addr {
+        u_char octet[ETHER_ADDR_LEN];
+};
+.Ed
+.Pp
+The function
+.Fn ether_line
+scans
+.Fa l ,
+an
+.Tn ASCII
+string in
+.Xr ethers 5
+format and sets
+.Fa e
+to the ethernet address specified in the string and
+.Fa h
+to the hostname.
+This function is used to parse lines from
+.Pa /etc/ethers
+into their component parts.
+.Pp
+The
+.Fn ether_aton
+and
+.Fn ether_aton_r
+functions convert
+.Tn ASCII
+representation of ethernet addresses into
+.Vt ether_addr
+structures.
+Likewise, the
+.Fn ether_ntoa
+and
+.Fn ether_ntoa_r
+functions
+convert ethernet addresses specified as
+.Vt ether_addr
+structures into
+.Tn ASCII
+strings.
+.Pp
+The
+.Fn ether_ntohost
+and
+.Fn ether_hostton
+functions map ethernet addresses to their corresponding hostnames
+as specified in the
+.Pa /etc/ethers
+database.
+The
+.Fn ether_ntohost
+function
+converts from ethernet address to hostname, and
+.Fn ether_hostton
+converts from hostname to ethernet address.
+.Sh RETURN VALUES
+The
+.Fn ether_line
+function
+returns zero on success and non-zero if it was unable to parse
+any part of the supplied line
+.Fa l .
+It returns the extracted ethernet address in the supplied
+.Vt ether_addr
+structure
+.Fa e
+and the hostname in the supplied string
+.Fa h .
+.Pp
+On success,
+.Fn ether_ntoa
+and
+.Fn ether_ntoa_r
+functions return a pointer to a string containing an
+.Tn ASCII
+representation of an ethernet address.
+If it is unable to convert
+the supplied
+.Vt ether_addr
+structure, it returns a
+.Dv NULL
+pointer.
+.Fn ether_ntoa
+stores the result in a static buffer;
+.Fn ether_ntoa_r
+stores the result in a user-passed buffer.
+.Pp
+Likewise,
+.Fn ether_aton
+and
+.Fn ether_aton_r
+return a pointer to an
+.Vt ether_addr
+structure on success and a
+.Dv NULL
+pointer on failure.
+.Fn ether_aton
+stores the result in a static buffer;
+.Fn ether_aton_r
+stores the result in a user-passed buffer.
+.Pp
+The
+.Fn ether_ntohost
+and
+.Fn ether_hostton
+functions both return zero on success or non-zero if they were
+unable to find a match in the
+.Pa /etc/ethers
+database.
+.Sh NOTES
+The user must ensure that the hostname strings passed to the
+.Fn ether_line ,
+.Fn ether_ntohost
+and
+.Fn ether_hostton
+functions are large enough to contain the returned hostnames.
+.Sh NIS INTERACTION
+If the
+.Pa /etc/ethers
+contains a line with a single + in it, the
+.Fn ether_ntohost
+and
+.Fn ether_hostton
+functions will attempt to consult the NIS
+.Pa ethers.byname
+and
+.Pa ethers.byaddr
+maps in addition to the data in the
+.Pa /etc/ethers
+file.
+.Sh SEE ALSO
+.Xr ethers 5 ,
+.Xr yp 8
+.Sh HISTORY
+This particular implementation of the
+.Nm
+library functions were written for and first appeared in
+.Fx 2.1 .
+Thread-safe function variants first appeared in
+.Fx 7.0 .
+.Sh BUGS
+The
+.Fn ether_aton
+and
+.Fn ether_ntoa
+functions returns values that are stored in static memory areas
+which may be overwritten the next time they are called.
+.Pp
+.Fn ether_ntoa_r
+accepts a character buffer pointer, but not a buffer length.
+The caller must ensure adequate space is available in the buffer in order to
+avoid a buffer overflow.

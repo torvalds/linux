@@ -1,0 +1,542 @@
+/*
+ * P5020DS Device Tree Source
+ *
+ * Copyright 2010-2011 Freescale Semiconductor Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of Freescale Semiconductor nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ *
+ * ALTERNATIVELY, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") as published by the Free Software
+ * Foundation, either version 2 of that License or (at your option) any
+ * later version.
+ *
+ * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+/* $FreeBSD$ */
+
+/include/ "p5020si.dtsi"
+
+/ {
+	model = "fsl,P5020DS";
+	compatible = "fsl,P5020DS";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&mpic>;
+
+	aliases {
+		phy_rgmii_0 = &phy_rgmii_0;
+		phy_rgmii_1 = &phy_rgmii_1;
+		phy_sgmii_1c = &phy_sgmii_1c;
+		phy_sgmii_1d = &phy_sgmii_1d;
+		phy_sgmii_1e = &phy_sgmii_1e;
+		phy_sgmii_1f = &phy_sgmii_1f;
+		phy_xgmii_1 = &phy_xgmii_1;
+		phy_xgmii_2 = &phy_xgmii_2;
+		emi1_rgmii = &hydra_mdio_rgmii;
+		emi1_sgmii = &hydra_mdio_sgmii;
+		emi2_xgmii = &hydra_mdio_xgmii;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x00000000 0x00000000 0x80000000>;
+	};
+
+	dcsr: dcsr@f00000000 {
+		ranges = <0x00000000 0xf 0x00000000 0x01008000>;
+	};
+
+	bman-portals@ff4000000 {
+		bman-portal@0 {
+			cpu-handle = <&cpu0>;
+		};
+		bman-portal@4000 {
+			cpu-handle = <&cpu1>;
+		};
+		bman-portal@8000 {
+		};
+		bman-portal@c000 {
+		};
+		bman-portal@10000 {
+		};
+		bman-portal@14000 {
+		};
+		bman-portal@18000 {
+		};
+		bman-portal@1c000 {
+		};
+		bman-portal@20000 {
+		};
+		bman-portal@24000 {
+		};
+
+		buffer-pool@0 {
+			compatible = "fsl,p5020-bpool", "fsl,bpool";
+			fsl,bpid = <0>;
+			fsl,bpool-cfg = <0 0x100 0 1 0 0x100>;
+		};
+	};
+
+	qman-portals@ff4200000 {
+		qportal0: qman-portal@0 {
+			cpu-handle = <&cpu0>;
+			fsl,qman-pool-channels = <&qpool1 &qpool2 &qpool3
+						  &qpool4 &qpool5 &qpool6
+						  &qpool7 &qpool8 &qpool9
+						  &qpool10 &qpool11 &qpool12
+						  &qpool13 &qpool14 &qpool15>;
+		};
+
+		qportal1: qman-portal@4000 {
+			cpu-handle = <&cpu1>;
+			fsl,qman-pool-channels = <&qpool1 &qpool2 &qpool3
+						  &qpool4 &qpool5 &qpool6
+						  &qpool7 &qpool8 &qpool9
+						  &qpool10 &qpool11 &qpool12
+						  &qpool13 &qpool14 &qpool15>;
+		};
+
+		qportal2: qman-portal@8000 {
+			fsl,qman-pool-channels = <&qpool1 &qpool2 &qpool3
+						  &qpool4 &qpool5 &qpool6
+						  &qpool7 &qpool8 &qpool9
+						  &qpool10 &qpool11 &qpool12
+						  &qpool13 &qpool14 &qpool15>;
+		};
+
+		qportal3: qman-portal@c000 {
+			fsl,qman-pool-channels = <&qpool1 &qpool2 &qpool3
+						  &qpool4 &qpool5 &qpool6
+						  &qpool7 &qpool8 &qpool9
+						  &qpool10 &qpool11 &qpool12
+						  &qpool13 &qpool14 &qpool15>;
+		};
+
+		qportal4: qman-portal@10000 {
+			fsl,qman-pool-channels = <&qpool1 &qpool2 &qpool3
+						  &qpool4 &qpool5 &qpool6
+						  &qpool7 &qpool8 &qpool9
+						  &qpool10 &qpool11 &qpool12
+						  &qpool13 &qpool14 &qpool15>;
+		};
+
+		qportal5: qman-portal@14000 {
+			fsl,qman-pool-channels = <&qpool1 &qpool2 &qpool3
+						  &qpool4 &qpool5 &qpool6
+						  &qpool7 &qpool8 &qpool9
+						  &qpool10 &qpool11 &qpool12
+						  &qpool13 &qpool14 &qpool15>;
+		};
+
+		qportal6: qman-portal@18000 {
+			fsl,qman-pool-channels = <&qpool1 &qpool2 &qpool3
+						  &qpool4 &qpool5 &qpool6
+						  &qpool7 &qpool8 &qpool9
+						  &qpool10 &qpool11 &qpool12
+						  &qpool13 &qpool14 &qpool15>;
+		};
+
+		qportal7: qman-portal@1c000 {
+			fsl,qman-pool-channels = <&qpool1 &qpool2 &qpool3
+						  &qpool4 &qpool5 &qpool6
+						  &qpool7 &qpool8 &qpool9
+						  &qpool10 &qpool11 &qpool12
+						  &qpool13 &qpool14 &qpool15>;
+		};
+
+		qportal8: qman-portal@20000 {
+			fsl,qman-pool-channels = <&qpool1 &qpool2 &qpool3
+						  &qpool4 &qpool5 &qpool6
+						  &qpool7 &qpool8 &qpool9
+						  &qpool10 &qpool11 &qpool12
+						  &qpool13 &qpool14 &qpool15>;
+		};
+
+		qportal9: qman-portal@24000 {
+			fsl,qman-pool-channels = <&qpool1 &qpool2 &qpool3
+						  &qpool4 &qpool5 &qpool6
+						  &qpool7 &qpool8 &qpool9
+						  &qpool10 &qpool11 &qpool12
+						  &qpool13 &qpool14 &qpool15>;
+		};
+	};
+
+	soc: soc@ffe000000 {
+		spi@110000 {
+			flash@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "spansion,s25sl12801";
+				reg = <0>;
+				spi-max-frequency = <40000000>; /* input clock */
+				partition@u-boot {
+					label = "u-boot";
+					reg = <0x00000000 0x00100000>;
+					read-only;
+				};
+				partition@kernel {
+					label = "kernel";
+					reg = <0x00100000 0x00500000>;
+					read-only;
+				};
+				partition@dtb {
+					label = "dtb";
+					reg = <0x00600000 0x00100000>;
+					read-only;
+				};
+				partition@fs {
+					label = "file system";
+					reg = <0x00700000 0x00900000>;
+				};
+			};
+		};
+
+		i2c@118100 {
+			eeprom@51 {
+				compatible = "at24,24c256";
+				reg = <0x51>;
+			};
+			eeprom@52 {
+				compatible = "at24,24c256";
+				reg = <0x52>;
+			};
+		};
+
+		i2c@119100 {
+			rtc@68 {
+				compatible = "dallas,ds3232";
+				reg = <0x68>;
+				interrupts = <0x1 0x1 0 0>;
+			};
+		};
+
+		pme: pme@316000 {
+			/* Commented out, use default allocation */
+			/* fsl,pme-pdsr = <0x0 0x23000000 0x0 0x01000000>; */
+			/* fsl,pme-sre = <0x0 0x24000000 0x0 0x00a00000>; */
+		};
+
+		qman: qman@318000 {
+			/* Commented out, use default allocation */
+			/* fsl,qman-fqd = <0x0 0x20000000 0x0 0x01000000>; */
+			/* fsl,qman-pfdr = <0x0 0x21000000 0x0 0x01000000>; */
+		};
+
+		bman: bman@31a000 {
+			/* Same as fsl,qman-*, use default allocation */
+			/* fsl,bman-fbpr = <0x0 0x22000000 0x0 0x01000000>; */
+		};
+
+		fman0: fman@400000 {
+			enet0: ethernet@e0000 {
+				tbi-handle = <&tbi0>;
+				phy-handle = <&phy_rgmii_0>;
+				phy-connection-type = "rgmii";
+			};
+
+			mdio0: mdio@e1120 {
+				tbi0: tbi-phy@8 {
+					reg = <0x8>;
+					device_type = "tbi-phy";
+				};
+
+				/*
+				 * Virtual MDIO for the two on-board RGMII
+				 * ports.  The fsl,hydra-mdio-muxval property
+				 * is already correct.
+				 */
+				hydra_mdio_rgmii: hydra-mdio-rgmii {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					compatible = "fsl,hydra-mdio";
+					fsl,mdio-handle = <&mdio0>;
+					fsl,hydra-mdio-muxval = <0x00>;
+					status = "disabled";
+
+					phy_rgmii_0: ethernet-phy@0 {
+						reg = <0x0>;
+					};
+					phy_rgmii_1: ethernet-phy@1 {
+						reg = <0x1>;
+					};
+				};
+
+				/*
+				 * Virtual MDIO for the four-port SGMII card.
+				 * The fsl,hydra-mdio-muxval property will be
+				 * fixed-up by U-Boot based on the slot that
+				 * the SGMII card is in.
+				 *
+				 * Note: we do not support DTSEC5 connected to
+				 * SGMII, so this is the only SGMII node.
+				 */
+				hydra_mdio_sgmii: hydra-mdio-sgmii {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					compatible = "fsl,hydra-mdio";
+					fsl,mdio-handle = <&mdio0>;
+					fsl,hydra-mdio-muxval = <0x00>;
+					status = "disabled";
+
+					phy_sgmii_1c: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+					phy_sgmii_1d: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+					phy_sgmii_1e: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+					phy_sgmii_1f: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+			};
+
+			enet1: ethernet@e2000 {
+				tbi-handle = <&tbi1>;
+				phy-handle = <&phy_sgmii_1d>;
+				phy-connection-type = "sgmii";
+			};
+
+			mdio@e3120 {
+				tbi1: tbi-phy@8 {
+					reg = <8>;
+					device_type = "tbi-phy";
+				};
+			};
+
+			enet2: ethernet@e4000 {
+				tbi-handle = <&tbi2>;
+				phy-handle = <&phy_sgmii_1e>;
+				phy-connection-type = "sgmii";
+			};
+
+			mdio@e5120 {
+				tbi2: tbi-phy@8 {
+					reg = <8>;
+					device_type = "tbi-phy";
+				};
+			};
+
+			enet3: ethernet@e6000 {
+				tbi-handle = <&tbi3>;
+				phy-handle = <&phy_sgmii_1f>;
+				phy-connection-type = "sgmii";
+			};
+
+			mdio@e7120 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,fman-tbi";
+				reg = <0xe7120 0xee0>;
+				interrupts = <100 1 0 0>;
+
+				tbi3: tbi-phy@8 {
+					reg = <8>;
+					device_type = "tbi-phy";
+				};
+			};
+
+			enet4: ethernet@e8000 {
+				tbi-handle = <&tbi4>;
+				phy-handle = <&phy_rgmii_1>;
+				phy-connection-type = "rgmii";
+			};
+
+			mdio@e9120 {
+				tbi4: tbi-phy@8 {
+					reg = <8>;
+					device_type = "tbi-phy";
+				};
+			};
+
+			enet5: ethernet@f0000 {
+				/*
+				 * phy-handle will be updated by U-Boot to
+				 * reflect the actual slot the XAUI card is in.
+				 */
+				phy-handle = <&phy_xgmii_1>;
+				phy-connection-type = "xgmii";
+			};
+
+			/*
+			 * We only support one XAUI card, so the MDIO muxing
+			 * is set by U-Boot, and Linux never touches it.
+			 * Therefore, we don't need a virtual MDIO node.
+			 * However, the phy address depends on the slot, so
+			 * only one of the ethernet-phy nodes below will be
+			 * used.
+			 */
+			hydra_mdio_xgmii: mdio@f1000 {
+				status = "disabled";
+
+				/* XAUI card in slot 1 */
+				phy_xgmii_1: ethernet-phy@4 {
+					reg = <0x4>;
+				};
+
+				/* XAUI card in slot 2 */
+				phy_xgmii_2: ethernet-phy@0 {
+					reg = <0x0>;
+				};
+			};
+		};
+	};
+
+	rapidio@ffe0c0000 {
+		reg = <0xf 0xfe0c0000 0 0x11000>;
+
+		port1 {
+			ranges = <0 0 0xc 0x20000000 0 0x10000000>;
+		};
+		port2 {
+			ranges = <0 0 0xc 0x30000000 0 0x10000000>;
+		};
+	};
+
+	localbus@ffe124000 {
+		reg = <0xf 0xfe124000 0 0x1000>;
+		ranges = <0 0 0xf 0xb8000000 0x04000000>;
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			/*
+                         * Map 64Mb of 128MB NOR flash memory. Since highest
+                         * line of address of NOR flash memory are set by
+                         * FPGA, memory are divided into two pages equal to
+                         * 64MB. One of the pages can be accessed at once.
+                         */
+			reg = <0 0 0x04000000>;
+			bank-width = <2>;
+			device-width = <2>;
+		};
+
+		nand@2,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,elbc-fcm-nand";
+			reg = <0x2 0x0 0x40000>;
+
+			partition@0 {
+				label = "NAND U-Boot Image";
+				reg = <0x0 0x02000000>;
+				read-only;
+			};
+
+			partition@2000000 {
+				label = "NAND Root File System";
+				reg = <0x02000000 0x10000000>;
+			};
+
+			partition@12000000 {
+				label = "NAND Compressed RFS Image";
+				reg = <0x12000000 0x08000000>;
+			};
+
+			partition@1a000000 {
+				label = "NAND Linux Kernel Image";
+				reg = <0x1a000000 0x04000000>;
+			};
+
+			partition@1e000000 {
+				label = "NAND DTB Image";
+				reg = <0x1e000000 0x01000000>;
+			};
+
+			partition@1f000000 {
+				label = "NAND Writable User area";
+				reg = <0x1f000000 0x21000000>;
+			};
+		};
+
+		board-control@3,0 {
+			compatible = "fsl,p5020ds-fpga", "fsl,fpga-ngpixis";
+			reg = <3 0 0x30>;
+		};
+	};
+
+	pci0: pcie@ffe200000 {
+		reg = <0xf 0xfe200000 0 0x1000>;
+		ranges = <0x02000000 0 0x80000000 0x0 0x80000000 0x0 0x10000000
+			  0x01000000 0 0x00000000 0x0 0xff000000 0x0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0x80000000
+				  0x02000000 0 0x80000000
+				  0 0x10000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0xff000000
+				  0 0x00010000>;
+		};
+	};
+
+	pci1: pcie@ffe201000 {
+		reg = <0xf 0xfe201000 0 0x1000>;
+		ranges = <0x02000000 0x0 0x90000000 0x0 0x90000000 0x0 0x10000000
+			  0x01000000 0x0 0x00000000 0x0 0xff010000 0x0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0x90000000
+				  0x02000000 0 0x90000000
+				  0 0x10000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0xff010000
+				  0 0x00010000>;
+		};
+	};
+
+	pci2: pcie@ffe202000 {
+		reg = <0xf 0xfe202000 0 0x1000>;
+		ranges = <0x02000000 0 0xa0000000 0x0 0xa0000000 0 0x10000000
+			  0x01000000 0 0x00000000 0x0 0xff020000 0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0xa0000000
+				  0x02000000 0 0xa0000000
+				  0 0x10000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0xff020000
+				  0 0x00010000>;
+		};
+	};
+
+	pci3: pcie@ffe203000 {
+		reg = <0xf 0xfe203000 0 0x1000>;
+		ranges = <0x02000000 0 0xb0000000 0x0 0xb0000000 0 0x08000000
+			  0x01000000 0 0x00000000 0x0 0xff030000 0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0xb0000000
+				  0x02000000 0 0xb0000000
+				  0 0x08000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0xff030000
+				  0 0x00010000>;
+		};
+	};
+
+	chosen {
+		stdin = "serial0";
+		stdout = "serial0";
+	};
+};

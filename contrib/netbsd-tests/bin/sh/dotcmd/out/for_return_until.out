@@ -1,0 +1,10 @@
+before for
+before dotcmd
+before until
+before return
+after dotcmd, return value: 0
+before dotcmd
+before until
+before return
+after dotcmd, return value: 0
+after for

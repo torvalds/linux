@@ -1,0 +1,575 @@
+.\" Copyright (c) 2011 Sergey Kandaurov <pluknet@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 29, 2017
+.Dt LIBPROCSTAT 3
+.Os
+.Sh NAME
+.Nm procstat_close ,
+.Nm procstat_freeargv ,
+.Nm procstat_freeauxv ,
+.Nm procstat_freeenvv ,
+.Nm procstat_freefiles ,
+.Nm procstat_freegroups ,
+.Nm procstat_freekstack ,
+.Nm procstat_freeprocs ,
+.Nm procstat_freeptlwpinfo ,
+.Nm procstat_freevmmap ,
+.Nm procstat_get_pipe_info ,
+.Nm procstat_get_pts_info ,
+.Nm procstat_get_sem_info ,
+.Nm procstat_get_shm_info ,
+.Nm procstat_get_socket_info ,
+.Nm procstat_get_vnode_info ,
+.Nm procstat_getargv ,
+.Nm procstat_getauxv ,
+.Nm procstat_getenvv ,
+.Nm procstat_getfiles ,
+.Nm procstat_getgroups ,
+.Nm procstat_getkstack ,
+.Nm procstat_getosrel ,
+.Nm procstat_getpathname ,
+.Nm procstat_getprocs ,
+.Nm procstat_getptlwpinfo ,
+.Nm procstat_getrlimit ,
+.Nm procstat_getumask ,
+.Nm procstat_getvmmap ,
+.Nm procstat_open_core ,
+.Nm procstat_open_kvm ,
+.Nm procstat_open_sysctl
+.Nd library interface for file and process information retrieval
+.Sh LIBRARY
+.Lb libprocstat
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/queue.h
+.In sys/socket.h
+.In libprocstat.h
+.Ft void
+.Fn procstat_close "struct procstat *procstat"
+.Ft void
+.Fo procstat_freeargv
+.Fa "struct procstat *procstat"
+.Fc
+.Ft void
+.Fo procstat_freeauxv
+.Fa "struct procstat *procstat"
+.Fa "Elf_Auxinfo *auxv"
+.Fc
+.Ft void
+.Fo procstat_freeenvv
+.Fa "struct procstat *procstat"
+.Fc
+.Ft void
+.Fo procstat_freefiles
+.Fa "struct procstat *procstat"
+.Fa "struct filestat_list *head"
+.Fc
+.Ft void
+.Fo procstat_freegroups
+.Fa "struct procstat *procstat"
+.Fa "gid_t *groups"
+.Fc
+.Ft void
+.Fo procstat_freekstack
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_kstack *kkstp"
+.Fc
+.Ft void
+.Fn procstat_freeprocs "struct procstat *procstat" "struct kinfo_proc *p"
+.Ft void
+.Fo procstat_freevmmap
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_vmentry *vmmap"
+.Fc
+.Ft void
+.Fo procstat_freeptlwpinfo
+.Fa "struct procstat *procstat"
+.Fa "struct ptrace_lwpinfo *pl"
+.Fc
+.Ft int
+.Fo procstat_get_pipe_info
+.Fa "struct procstat *procstat"
+.Fa "struct filestat *fst"
+.Fa "struct pipestat *pipe"
+.Fa "char *errbuf"
+.Fc
+.Ft int
+.Fo procstat_get_pts_info
+.Fa "struct procstat *procstat"
+.Fa "struct filestat *fst"
+.Fa "struct ptsstat *pts"
+.Fa "char *errbuf"
+.Fc
+.Ft int
+.Fo procstat_get_sem_info
+.Fa "struct procstat *procstat"
+.Fa "struct filestat *fst"
+.Fa "struct semstat *sem"
+.Fa "char *errbuf"
+.Fc
+.Ft int
+.Fo procstat_get_shm_info
+.Fa "struct procstat *procstat"
+.Fa "struct filestat *fst"
+.Fa "struct shmstat *shm"
+.Fa "char *errbuf"
+.Fc
+.Ft int
+.Fo procstat_get_socket_info
+.Fa "struct procstat *procstat"
+.Fa "struct filestat *fst"
+.Fa "struct sockstat *sock"
+.Fa "char *errbuf"
+.Fc
+.Ft int
+.Fo procstat_get_vnode_info
+.Fa "struct procstat *procstat"
+.Fa "struct filestat *fst"
+.Fa "struct vnstat *vn"
+.Fa "char *errbuf"
+.Fc
+.Ft "char **"
+.Fo procstat_getargv
+.Fa "struct procstat *procstat"
+.Fa "const struct kinfo_proc *kp"
+.Fa "size_t nchr"
+.Fc
+.Ft "Elf_Auxinfo *"
+.Fo procstat_getauxv
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "unsigned int *count"
+.Fc
+.Ft "char **"
+.Fo procstat_getenvv
+.Fa "struct procstat *procstat"
+.Fa "const struct kinfo_proc *kp"
+.Fa "size_t nchr"
+.Fc
+.Ft "struct filestat_list *"
+.Fo procstat_getfiles
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "int mmapped"
+.Fc
+.Ft "gid_t *"
+.Fo procstat_getgroups
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "unsigned int *count"
+.Fc
+.Ft "struct kinfo_kstack *"
+.Fo procstat_getkstack
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "unsigned int *count"
+.Fc
+.Ft int
+.Fo procstat_getosrel
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "int *osrelp"
+.Fc
+.Ft "int"
+.Fo procstat_getpathname
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "char *pathname"
+.Fa "size_t maxlen"
+.Fc
+.Ft "struct kinfo_proc *"
+.Fo procstat_getprocs
+.Fa "struct procstat *procstat"
+.Fa "int what"
+.Fa "int arg"
+.Fa "unsigned int *count"
+.Fc
+.Ft "struct ptrace_lwpinfo *"
+.Fo procstat_getptlwpinfo
+.Fa "struct procstat *procstat"
+.Fa "unsigned int *count"
+.Fc
+.Ft "int"
+.Fo procstat_getrlimit
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "int which"
+.Fa "struct rlimit* rlimit"
+.Fc
+.Ft "int"
+.Fo procstat_getumask
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "unsigned short *maskp"
+.Fc
+.Ft "struct kinfo_vmentry *"
+.Fo procstat_getvmmap
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "unsigned int *count"
+.Fc
+.Ft "struct procstat *"
+.Fn procstat_open_core "const char *filename"
+.Ft "struct procstat *"
+.Fn procstat_open_kvm "const char *nlistf" "const char *memf"
+.Ft "struct procstat *"
+.Fn procstat_open_sysctl void
+.Sh DESCRIPTION
+The
+.Nm libprocstat
+library contains the API for runtime file and process information
+retrieval from the running kernel via the
+.Xr sysctl 3
+library backend, and for post-mortem analysis via the
+.Xr kvm 3
+library backend, or from the process
+.Xr core 5
+file, searching for statistics in special
+.Xr elf 3
+note sections.
+.Pp
+The
+.Fn procstat_open_kvm
+and
+.Fn procstat_open_sysctl
+functions use the
+.Xr kvm 3
+or
+.Xr sysctl 3
+library routines, respectively, to access kernel state information
+used to retrieve processes and files states.
+The
+.Fn procstat_open_core
+uses
+.Xr elf 3
+routines to access statistics stored as a set of notes in a process
+.Xr core 5
+file, written by the kernel at the moment of the process abnormal termination.
+The
+.Fa filename
+argument is the process core file name.
+The
+.Fa nlistf
+argument is the executable image of the kernel being examined.
+If this argument is
+.Dv NULL ,
+the currently running kernel is assumed.
+The
+.Fa memf
+argument is the kernel memory device file.
+If this argument is
+.Dv NULL ,
+then
+.Pa /dev/mem
+is assumed.
+See
+.Xr kvm_open 3
+for more details.
+The functions dynamically allocate and return a
+.Vt procstat
+structure pointer used in the rest of the
+.Nm libprocstat
+library routines until the corresponding
+.Fn procstat_close
+call that cleans up the resources allocated by the
+.Fn procstat_open_*
+functions.
+.Pp
+The
+.Fn procstat_getprocs
+function gets a pointer to the
+.Vt procstat
+structure from one of the
+.Fn procstat_open_*
+functions and returns a dynamically allocated (sub-)set of active processes
+in the kernel filled in to array of
+.Vt kinfo_proc
+structures.
+The
+.Fa what
+and
+.Fa arg
+arguments constitute a filtering predicate as described in the
+.Xr kvm_getprocs 3
+function.
+The number of processes found is returned in the reference parameter
+.Fa cnt .
+The caller is responsible to free the allocated memory with a subsequent
+.Fn procstat_freeprocs
+function call.
+.Pp
+The
+.Fn procstat_getptlwpinfo
+function gets a pointer to the
+.Vt procstat
+structure from the
+.Fn procstat_open_core
+function and returns a dynamically allocated set of signals intercepted by a
+process in the process's core file.
+The number of processes found is returned in the reference parameter
+.Fa cnt .
+The caller is responsible to free the allocated memory with a subsequent
+.Fn procstat_freeptlwpinfo
+function call.
+.Pp
+The
+.Fn procstat_getargv
+function gets a pointer to the
+.Vt procstat
+structure from one of the
+.Fn procstat_open_*
+functions, a pointer to
+.Vt kinfo_proc
+structure from the array obtained from the
+.Fn kvm_getprocs
+function, and returns a null-terminated argument vector that corresponds to
+the command line arguments passed to the process.
+The
+.Fa nchr
+argument indicates the maximum number of characters, including null bytes,
+to use in building the strings.
+If this amount is exceeded, the string causing the overflow is truncated and
+the partial result is returned.
+This is handy for programs that print only a one line summary of a
+command and should not copy out large amounts of text only to ignore it.
+If
+.Fa nchr
+is zero, no limit is imposed and all argument strings are returned.
+The values of the returned argument vector refer the strings stored
+in the
+.Vt procstat
+internal buffer.
+A subsequent call of the function with the same
+.Vt procstat
+argument will reuse the buffer.
+To free the allocated memory
+.Fn procstat_freeargv
+function call can be used, or it will be released on
+.Fn procstat_close .
+.Pp
+The
+.Fn procstat_getenvv
+function is similar to
+.Fn procstat_getargv
+but returns the vector of environment strings.
+The caller may free the allocated memory with a subsequent
+.Fn procstat_freeenvv
+function call.
+.Pp
+The
+.Fn procstat_getauxv
+function gets a pointer to the
+.Vt procstat
+structure, a pointer to
+.Vt kinfo_proc
+structure, and returns the auxiliary vector as a dynamically allocated array of
+.Vt Elf_Auxinfo
+elements.
+The caller is responsible to free the allocated memory with a subsequent
+.Fn procstat_freeauxv
+function call.
+.Pp
+The
+.Fn procstat_getfiles
+function gets a pointer to the
+.Vt procstat
+structure initialized with one of the
+.Fn procstat_open_*
+functions, a pointer to
+.Vt kinfo_proc
+structure from the array obtained from the
+.Fn kvm_getprocs
+function, and returns a dynamically allocated linked list of filled in
+.Vt filestat_list
+structures using the STAILQ macros defined in
+.Xr queue 3 .
+The caller is responsible to free the allocated memory with a subsequent
+.Fn procstat_freefiles
+function call.
+.Pp
+The
+.Fn procstat_getgroups
+function gets a pointer to the
+.Vt procstat
+structure, a pointer to
+.Vt kinfo_proc
+structure, and returns the process groups as a dynamically allocated array of
+.Vt gid_t
+elements.
+The caller is responsible to free the allocated memory with a subsequent
+.Fn procstat_freegroups
+function call.
+.Pp
+The
+.Fn procstat_getkstack
+function gets a pointer to the
+.Vt procstat
+structure initialized with one of the
+.Fn procstat_open_*
+functions, a pointer to
+.Vt kinfo_proc
+structure, and returns kernel stacks of the process as a dynamically allocated
+array of
+.Vt kinfo_kstack
+structures.
+The caller is responsible to free the allocated memory with a subsequent
+.Fn procstat_freekstack
+function call.
+.Pp
+The
+.Fn procstat_getosrel
+function gets a pointer to the
+.Vt procstat
+structure, a pointer to
+.Vt kinfo_proc
+structure, and returns osrel date in the 3rd reference parameter.
+.Pp
+The
+.Fn procstat_getpathname
+function gets a pointer to the
+.Vt procstat
+structure, a pointer to
+.Vt kinfo_proc
+structure, and copies the path of the process executable to
+.Fa pathname
+buffer, limiting to
+.Fa maxlen
+characters.
+.Pp
+The
+.Fn procstat_getrlimit
+function gets a pointer to the
+.Vt procstat
+structure, a pointer to
+.Vt kinfo_proc
+structure, resource index
+.Fa which ,
+and returns the actual resource limit in the 4th reference parameter.
+.Pp
+The
+.Fn procstat_getumask
+function gets a pointer to the
+.Vt procstat
+structure, a pointer to
+.Vt kinfo_proc
+structure, and returns the process umask in the 3rd reference parameter.
+.Pp
+The
+.Fn procstat_getvmmap
+function gets a pointer to the
+.Vt procstat
+structure initialized with one of the
+.Fn procstat_open_*
+functions, a pointer to
+.Vt kinfo_proc
+structure, and returns VM layout of the process as a dynamically allocated
+array of
+.Vt kinfo_vmentry
+structures.
+The caller is responsible to free the allocated memory with a subsequent
+.Fn procstat_freevmmap
+function call.
+.Pp
+The
+.Fn procstat_get_pipe_info ,
+.Fn procstat_get_pts_info ,
+.Fn procstat_get_sem_info ,
+.Fn procstat_get_shm_info ,
+.Fn procstat_get_socket_info
+and
+.Fn procstat_get_vnode_info
+functions are used to retrieve information about pipes, pseudo-terminals,
+semaphores, shared memory objects,
+sockets, and vnodes, respectively.
+Each of them have a similar interface API.
+The
+.Fa procstat
+argument is a pointer obtained from one of
+.Fn procstat_open_*
+functions.
+The
+.Ft filestat Fa fst
+argument is an element of STAILQ linked list as obtained from the
+.Fn procstat_getfiles
+function.
+The
+.Ft filestat
+structure contains a
+.Fa fs_type
+field that specifies a file type and a corresponding function to be
+called among the
+.Nm procstat_get_*_info
+function family.
+The actual object is returned in the 3rd reference parameter.
+The
+.Fa errbuf
+argument indicates an actual error message in case of failure.
+.Pp
+.Bl -tag -width 20n -compact -offset indent
+.It Li PS_FST_TYPE_FIFO
+.Nm procstat_get_vnode_info
+.It Li PS_FST_TYPE_VNODE
+.Nm procstat_get_vnode_info
+.It Li PS_FST_TYPE_SOCKET
+.Nm procstat_get_socket_info
+.It Li PS_FST_TYPE_PIPE
+.Nm procstat_get_pipe_info
+.It Li PS_FST_TYPE_PTS
+.Nm procstat_get_pts_info
+.It Li PS_FST_TYPE_SEM
+.Nm procstat_get_sem_info
+.It Li PS_FST_TYPE_SHM
+.Nm procstat_get_shm_info
+.El
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr fuser 1 ,
+.Xr pipe 2 ,
+.Xr shm_open 2 ,
+.Xr socket 2 ,
+.Xr elf 3 ,
+.Xr kvm 3 ,
+.Xr queue 3 ,
+.Xr sem_open 3 ,
+.Xr sysctl 3 ,
+.Xr pts 4 ,
+.Xr core 5 ,
+.Xr vnode 9
+.Sh HISTORY
+The
+.Nm libprocstat
+library appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm libprocstat
+library was written by
+.An Stanislav Sedov Aq Mt stas@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Sergey Kandaurov Aq Mt pluknet@FreeBSD.org .

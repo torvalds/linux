@@ -1,0 +1,194 @@
+.\" Copyright (c) 2017 Broadcom. All rights reserved.
+.\" The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright notice,
+.\"    this list of conditions and the following disclaimer in the documentation
+.\"    and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the copyright holder nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 30, 2018
+.Dt OCS_FC 4
+.Os
+.Sh NAME
+.Nm ocs_fc
+.Nd "Device driver for Emulex Fibre Channel Host Adapters"
+.Sh SYNOPSIS
+To compile this driver into the kernel, add this line to the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ocs_fc"
+.Ed
+.Pp
+To load the driver as a module at boot, add this line to
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ocs_fc_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to Fibre Channel SCSI devices.
+.Pp
+The
+.Nm
+driver supports initiator and target modes.
+Support is available for Arbitrated loops, Point-to-Point,
+and Fabric connections.
+FC-Tape is highly recommended for connections to tape drives that support
+it.
+FC-Tape includes four elements from the T-10 FCP-4 specification:
+.Bl -bullet -offset indent
+.It
+Precise Delivery of Commands
+.It
+Confirmed Completion of FCP I/O Operations
+.It
+Retransmission of Unsuccessfully Transmitted IUs
+.It
+Task Retry Identification
+.El
+.Pp
+Together these features allow for link level error recovery with tape
+devices.
+Without link level error recovery, an initiator cannot, for instance, tell whether a tape write
+command that has timed out resulted in all, part, or none of the data going to
+the tape drive.
+FC-Tape is automatically enabled when both the controller and target support it.
+
+.Sh HARDWARE
+The
+.Nm
+driver supports these Fibre Channel adapters:
+.Bl -tag -width xxxxxx -offset indent
+.It Emulex 16/8G FC GEN 5 HBAS
+.Bd -literal -offset indent
+LPe15004 FC Host Bus Adapters
+LPe160XX FC Host Bus Adapters
+.Ed
+.It Emulex 32/16G FC GEN 6 HBAS
+.Bd -literal -offset indent
+LPe3100X FC Host Bus Adapters
+LPe3200X FC Host Bus Adapters
+.Ed
+.El
+.Sh UPDATING FIRMWARE
+Adapter firmware updates are persistent.
+.Pp
+Firmware can be updated by following these steps:
+.Bl -enum
+.It
+Copy this code to a
+.Pa Makefile :
+.Bd -literal -offset indent
+KMOD=ocsflash
+FIRMWS=imagename.grp:ocsflash
+\&.include <bsd.kmod.mk>
+.Ed
+.It
+Replace
+.Pa imagename
+with the name of the GRP file.
+.It
+Copy the
+.Pa Makefile
+and GRP file to a local directory
+.It
+Execute
+.Cm make
+and copy the generated
+.Pa ocsflash.ko
+file to
+.Pa /lib/modules
+.It
+.Cm sysctl dev.ocs_fc.<N>.fw_upgrade=ocsflash
+.It
+Check kernel messages regarding status of the operation
+.It
+Reboot the machine
+.El
+.Pp
+.Sh BOOT OPTIONS
+Options are controlled by setting values in
+.Pa /boot/device.hints .
+.Pp
+They are:
+.Bl -tag -width indent
+.It Va hint.ocs_fc.N.initiator
+Enable initiator functionality.
+Default 1 (enabled), 0 to disable.
+.It Va hint.ocs_fc.N.target
+Enable target functionality.
+Default 1 (enabled), 0 to disable.
+.It Va hint.ocs_fc.N.topology
+Topology: 0 for Auto, 1 for NPort only, 2 for Loop only.
+.It Va hint.ocs_fc.N.speed
+Link speed in megabits per second.
+Possible values include:
+0 Auto-speed negotiation (default), 4000 (4GFC), 8000 (8GFC), 16000 (16GFC).
+.El
+.Sh SYSCTL OPTIONS
+.Bl -tag -width indent
+.It Va dev.ocs_fc.N.port_state
+Port state (read/write).
+Valid values are
+.Li online
+and
+.Li offline .
+.It Va dev.ocs_fc.N.wwpn
+World Wide Port Name (read/write).
+.It Va dev.ocs_fc.N.wwnn
+World Wide Node Name (read/write).
+.It Va dev.ocs_fc.N.fwrev
+Firmware revision (read-only).
+.It Va dev.ocs_fc.N.sn
+Adapter serial number (read-only).
+.It Va dev.ocs_fc.N.configured_speed
+Configured Port Speed (read/write).
+Valid values are:
+0 Auto-speed negotiation (default), 4000 (4GFC), 8000 (8GFC), 16000 (16GFC).
+.It Va dev.ocs_fc.N.configured_topology
+Configured Port Topology (read/write).
+Valid values are:
+0-Auto; 1-NPort; 2-Loop.
+.It Va dev.ocs_fc.N.current_speed
+Current Port Speed (read-only).
+.It Va dev.ocs_fc.N.current_topology
+Current Port Topology (read-only).
+.El
+.Sh SUPPORT
+For general information and support,
+go to the Broadcom website at:
+.Pa http://www.broadcom.com/
+or E-Mail at
+.Pa ocs-driver-team.pdl@broadcom.com.
+.Sh SEE ALSO
+.Xr ifconfig 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Broadcom.

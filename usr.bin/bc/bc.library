@@ -1,0 +1,274 @@
+/*	$FreeBSD$							*/
+/*      $OpenBSD: bc.library,v 1.4 2012/03/14 07:35:53 otto Exp $	*/
+
+/*
+ * Copyright (C) Caldera International Inc.  2001-2002.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code and documentation must retain the above
+ *    copyright notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed or owned by Caldera
+ *      International, Inc.
+ * 4. Neither the name of Caldera International, Inc. nor the names of other
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+ * INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+ * INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ *	@(#)bc.library	5.1 (Berkeley) 4/17/91
+ */
+
+scale = 20
+define e(x) {
+	auto a, b, c, d, e, g, t, w, y, r
+
+	r = ibase
+	ibase = A
+	t = scale
+	scale = 0
+	if (x > 0) scale = (0.435*x)/1
+	scale = scale + t + length(scale + t) + 1
+
+	w = 0
+	if (x < 0) {
+		x = -x
+		w = 1
+	}
+	y = 0
+	while (x > 2) {
+		x = x/2
+		y = y + 1
+	}
+
+	a = 1
+	b = 1
+	c = b
+	d = 1
+	e = 1
+	for (a = 1; 1 == 1; a++) {
+		b = b*x
+		c = c*a + b
+		d = d*a
+		g = c/d
+		if (g == e) {
+			g = g/1
+			while (y--) {
+				g = g*g
+			}
+			scale = t
+			ibase = r
+			if (w == 1) return (1/g)
+			return (g/1)
+		}
+		e = g
+	}
+}
+
+define l(x) {
+	auto a, b, c, d, e, f, g, u, s, t, r
+	r = ibase
+	ibase = A
+	if (x <= 0) {
+		a = (1 - 10^scale)
+		ibase = r
+		return (a)
+	}
+	t = scale
+
+	f = 1
+	if (x < 1) {
+		s = scale(x)
+	} else {
+		s = length(x)-scale(x)
+	}
+	scale = 0
+	a = (2.31*s)/1 /* estimated integer part of the answer */
+	s = t + length(a) + 2 /* estimated length of the answer */
+	while (x > 2) {
+		scale = 0
+		scale = (length(x) + scale(x))/2 + 1
+		if (scale < s) scale = s
+		x = sqrt(x)
+		f = f*2
+	}
+	while (x < .5) {
+		scale = 0
+		scale = scale(x)/2 + 1
+		if (scale < s) scale = s
+		x = sqrt(x)
+		f = f*2
+	}
+
+	scale = 0
+	scale = t + length(f) + length((1.05*(t+length(f))/1)) + 1
+	u = (x - 1)/(x + 1)
+	s = u*u
+	scale = t + 2
+	b = 2*f
+	c = b
+	d = 1
+	e = 1
+	for (a = 3; 1 == 1 ; a = a + 2) {
+		b = b*s
+		c = c*a + d*b
+		d = d*a
+		g = c/d
+		if (g == e) {
+			scale = t
+			ibase = r
+			return (u*c/d)
+		}
+		e = g
+	}
+}
+
+define s(x) {
+	auto a, b, c, s, t, y, p, n, i, r
+	r = ibase
+	ibase = A
+	t = scale
+	y = x/.7853
+	s = t + length(y) - scale(y)
+	if (s < t) s = t
+	scale = s
+	p = a(1)
+
+	scale = 0
+	if (x >= 0) n = (x/(2*p) + 1)/2
+	if (x < 0) n = (x/(2*p) - 1)/2
+	x = x - 4*n*p
+	if (n % 2 != 0) x = -x
+
+	scale = t + length(1.2*t) - scale(1.2*t)
+	y = -x*x
+	a = x
+	b = 1
+	s = x
+	for (i =3 ; 1 == 1; i = i + 2) {
+		a = a*y
+		b = b*i*(i - 1)
+		c = a/b
+		if (c == 0) {
+			scale = t
+			ibase = r
+			return (s/1)
+		}
+		s = s + c
+	}
+}
+
+define c(x) {
+	auto t, r
+	r = ibase
+	ibase = A
+	t = scale
+	scale = scale + 1
+	x = s(x + 2*a(1))
+	scale = t
+	ibase = r
+	return (x/1)
+}
+
+define a(x) {
+	auto a, b, c, d, e, f, g, s, t, r
+	if (x == 0) return(0)
+
+	r = ibase
+	ibase = A
+	if (x == 1) {
+		if (scale < 52) {
+			 a = .7853981633974483096156608458198757210492923498437764/1
+			 ibase = r
+			 return (a)
+		}
+	}
+	t = scale
+	f = 1
+	while (x > .5) {
+		scale = scale + 1
+		x = -(1 - sqrt(1. + x*x))/x
+		f = f*2
+	}
+	while (x < -.5) {
+		scale = scale + 1
+		x = -(1 - sqrt(1. + x*x))/x
+		f = f*2
+	}
+	s = -x*x
+	b = f
+	c = f
+	d = 1
+	e = 1
+	for (a = 3; 1 == 1; a = a + 2) {
+		b = b*s
+		c = c*a + d*b
+		d = d*a
+		g = c/d
+		if (g == e) {
+			ibase = r
+			scale = t
+			return (x*c/d)
+		}
+		e = g
+	}
+}
+
+define j(n,x) {
+	auto a, b, c, d, e, g, i, s, k, t, r
+
+	r = ibase
+	ibase = A
+	t = scale
+	k = 1.36*x + 1.16*t - n
+	k = length(k) - scale(k)
+	if (k > 0) scale = scale + k
+
+	s = -x*x/4
+	if (n < 0) {
+		n = -n
+		x = -x
+	}
+	a = 1
+	c = 1
+	for (i = 1; i <= n; i++) {
+		a = a*x
+		c = c*2*i
+	}
+	b = a
+	d = 1
+	e = 1
+	for (i = 1; 1; i++) {
+		a = a*s
+		b = b*i*(n + i) + a
+		c = c*i*(n + i)
+		g = b/c
+		if (g == e) {
+			ibase = r
+			scale = t
+			return (g/1)
+		}
+		e = g
+	}
+}
+/* vim: set filetype=bc shiftwidth=8 noexpandtab: */

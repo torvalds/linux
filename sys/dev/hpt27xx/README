@@ -1,0 +1,220 @@
+RocketRAID Controller Driver for FreeBSD
+Copyright (C) 2005-2015 HighPoint Technologies, Inc. All rights reserved.
+
+#############################################################################
+Revision History:
+   v1.2.7.1 06/08/2015
+   * Add 10.x comment and correct file name in readme.
+   
+   v1.2.7 05/22/2015
+   * Support Report Luns command.
+   
+   v1.2.6 04/13/2015
+   * Fix a bug that some disks will be dropped when data integrity test over
+     one hour on 32bit system.
+	   
+   v1.2.5 01/26/2015
+    * Fix a bug that failed to verify controller by retrying 8 times.
+    * Supported 4Kn drive.
+
+   v1.2.4 09/29/2014
+    * Fix a bug that memory would be corrupted and caused strange system
+      behavior when running IO and WebGUI
+    
+   v1.2.3 01/24/2014
+    * fixup system crash while write date to raid5.
+
+   v1.1   07/01/2013
+    * Fix 2nd RAID controller can not load as multipath issue.
+
+   v1.0   12/13/2011
+    * First source code release
+
+#############################################################################
+
+1. Overview
+---------------------
+  This package contains FreeBSD driver source code for HighPoint RocketRAID 
+  controller, include:
+  SAS Controller: RR271x, RR272x, RR274x, RR276x, RR278x.
+
+  NO WARRANTY
+
+  THE DRIVER SOURCE CODE HIGHPOINT PROVIDED IS FREE OF CHARGE, AND THERE IS
+  NO WARRANTY FOR THE PROGRAM. THERE ARE NO RESTRICTIONS ON THE USE OF THIS
+  FREE SOURCE CODE. HIGHPOINT DOES NOT PROVIDE ANY TECHNICAL SUPPORT IF THE
+  CODE HAS BEEN CHANGED FROM ORIGINAL SOURCE CODE.
+
+  LIMITATION OF LIABILITY
+
+  IN NO EVENT WILL HIGHPOINT BE LIABLE FOR DIRECT, INDIRECT, SPECIAL,
+  INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OF OR
+  INABILITY TO USE THIS PRODUCT OR DOCUMENTATION, EVEN IF ADVISED OF THE
+  POSSIBILITY OF SUCH DAMAGES. IN PARTICULAR, HIGHPOINT SHALL NOT HAVE
+  LIABILITY FOR ANY HARDWARE, SOFTWARE, OR DATA STORED USED WITH THE
+  PRODUCT, INCLUDING THE COSTS OF REPAIRING, REPLACING, OR RECOVERING
+  SUCH HARDWARE, OR DATA.
+
+
+2. Rebuild the kernel with HighPoint RocketRAID support
+-----------------------------------------------
+
+  1) Install kernel source package and building tools. 
+  
+  2) Extract the driver files under the kernel source tree:
+
+     # cd /usr/src/sys/
+     # tar xvzf /your/path/to/HPT27xx_FreeBSD_Src_v1.2.7.1_15_06_08.tgz
+
+  3) Update the kernel configuration file to include the HighPoint source.
+     Assume the configure file is GENERIC, and new kernel configure file is 
+     MYKERNEL:
+
+     # cd i386/conf          (or amd64/conf for AMD64)
+     # cp GENERIC MYKERNEL
+
+  4) Edit MYKERNEL, and add the following line under "RAID controllers 
+     interfaced to the SCSI subsystem":
+
+          device  "hpt27xx"   #HighPoint RocketRAID
+
+  5) For i386 system, edit /usr/src/sys/conf/files.i386 and append the lines
+     shown below:
+
+          hpt27xx_lib.o optional    hpt27xx  \
+              dependency  "$S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu" \
+              compile-with    "uudecode < $S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu" \
+              no-implicit-rule
+
+          dev/hpt27xx/hpt27xx_os_bsd.c      optional        hpt27xx
+          dev/hpt27xx/hpt27xx_osm_bsd.c     optional        hpt27xx
+          dev/hpt27xx/hpt27xx_config.c      optional        hpt27xx
+
+     For amd64 system, edit /usr/src/sys/conf/files.amd64 and append the lines
+     shown below:
+
+          hpt27xx_lib.o optional    hpt27xx  \
+              dependency  "$S/dev/hpt27xx/amd64-elf.hpt27xx_lib.o.uu" \
+              compile-with    "uudecode < $S/dev/hpt27xx/amd64-elf.hpt27xx_lib.o.uu" \
+              no-implicit-rule
+
+          dev/hpt27xx/hpt27xx_os_bsd.c      optional        hpt27xx
+          dev/hpt27xx/hpt27xx_osm_bsd.c     optional        hpt27xx
+          dev/hpt27xx/hpt27xx_config.c      optional        hpt27xx
+
+  6) Rebuild and install the kernel:
+
+     a) for FreeBSD 5.x-i386/6.x-i386/7.x-i386/8.x-i386/9.x-i386/10.x-i386:
+     
+        # cd /usr/src/sys/i386/conf/
+        # /usr/sbin/config MYKERNEL
+        # cd ../compile/MYKERNEL/
+        # make depend
+        # make 
+        # make install
+
+     b) for FreeBSD 5.x-amd64/6.x-amd64/7.x-amd64/8.x-amd64/9.x-amd64/10.x-amd64:
+
+        # cd /usr/src/sys/amd64/conf/
+        # /usr/sbin/config MYKERNEL
+        # cd ../compile/MYKERNEL/
+        # make depend
+        # make 
+        # make install
+
+     c) for FreeBSD 4.x:
+     
+        # cd /usr/src/sys/i386/conf/
+        # /usr/sbin/config MYKERNEL
+        # cd ../../compile/MYKERNEL/
+        # make depend
+        # make 
+        # make install
+
+    If the driver was previously configured as an auto-loaded module by
+    /boot/defaults/loader.conf, please remove the entry hpt27xx_load="YES"
+    from loader.conf to prevent the driver from being loaded twice.
+    
+  7) Reboot from the new kernel.
+
+
+3. Build/Load the driver as a kernel module
+------------------------------------------------
+
+  1) Install kernel source package and building tools. 
+  
+  2) Extract the driver files under the kernel source tree:
+    
+     # cd /usr/src/sys/
+     # tar xvzf /your/path/to/HPT27xx_FreeBSD_Src_v1.2.7.1_15_06_08.tgz
+
+
+  4) Build the driver module:
+    
+     # cd modules/hpt27xx
+     # make
+
+  5) Copy the driver module to the kernel module directory
+
+     For FreeBSD 4.x:
+     
+     # cp hpt27xx.ko /modules/
+
+     For FreeBSD 5.x/6.x/7.x/8.x/9.x/10.x:
+    
+     # cp hpt27xx.ko /boot/kernel/
+
+  6) Reboot and load the driver under loader prompt. e.g:
+
+        BTX loader 1.00  BTX version is 1.01
+        Console: internal video/keyboard
+        BIOS driver A: is disk0
+        BIOS driver C: is disk2
+        BIOS 636kB/74512kB available memory
+        
+        FreeBSD/i386 bootstrap loader, Revision 0.8
+        (mailto:jkh@narf.osd.bsdi.com, Sat Apr 21 08:46:19 GMT 2001)
+        Loading /boot/defaults/loader.conf
+        /kernel text=0x24f1db data=0x3007ec+0x2062c -
+        
+        Hit [Enter] to boot immediagely, or any other key for command prompt.
+        Booting [kernel] in 9 seconds
+        
+         <-- press SPACE key here 
+        Type '?' for a list of commands, 'help' for more detailed help.
+        ok load hpt27xx
+        /modules/hpt27xx.ko text=0xf571 data=0x2c8+0x254
+        ok boot
+        
+     For FreeBSD 5.x/6.x/7.x/8.x/9.x/10.x, you can select 6 on the boot menu to get a loader
+     prompt.
+  
+  7) You can add a below line into /boot/defaults/loader.conf to load the
+     driver automatically:
+    
+           hpt27xx_load="YES"
+    
+     Please refer to the installation guide in HighPoint FreeBSD driver release 
+     package for more information.
+     
+
+#############################################################################
+Technical support and service
+
+  If you have questions about installing or using your HighPoint product,
+  check the user's guide or readme file first, and you will find answers to
+  most of your questions here. If you need further assistance, please
+  contact us. We offer the following support and information services:
+
+  1)  The HighPoint Web Site provides information on software upgrades,
+      answers to common questions, and other topics. The Web Site is
+      available from Internet 24 hours a day, 7 days a week, at
+      http://www.highpoint-tech.com.
+
+  2)  For technical support, send e-mail to support@highpoint-tech.com
+
+  NOTE: Before you send an e-mail, please visit our Web Site
+        (http://www.highpoint-tech.com) to check if there is a new or 
+        updated device driver for your system.
+
+$FreeBSD$

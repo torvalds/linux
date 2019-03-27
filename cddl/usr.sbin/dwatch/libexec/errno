@@ -1,0 +1,37 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for syscall errno logging $
+# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $FreeBSD$
+#
+############################################################ DESCRIPTION
+#
+# Print when syscall returns with non-zero errno (default) or other condition.
+# To override the default test condition, use (for example) `-t errno==2' to
+# test for specific value or simply `-t 1' to unconditionally show all values.
+#
+############################################################ PROBE
+
+: ${PROBE:=syscall:::return}
+
+############################################################ EVENT ACTION
+
+[ "$CUSTOM_TEST" ] || EVENT_TEST="errno > 0"
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print errno details
+	 */
+	printf("%s: %s (%i)", probefunc, strerror[errno], errno);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

@@ -1,0 +1,118 @@
+.\" $Id$
+.\"
+.\" Copyright (c) 2001, 2003, 2006 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd Sepember  16, 2006
+.Dt KRB5_TIMEOFDAY 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_timeofday ,
+.Nm krb5_set_real_time ,
+.Nm krb5_us_timeofday ,
+.Nm krb5_format_time ,
+.Nm krb5_string_to_deltat
+.Nd Kerberos 5 time handling functions
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Pp
+.Li krb5_timestamp ;
+.Pp
+.Li krb5_deltat ;
+.Ft krb5_error_code
+.Fo krb5_set_real_time
+.Fa "krb5_context context"
+.Fa "krb5_timestamp sec"
+.Fa "int32_t usec"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_timeofday
+.Fa "krb5_context context"
+.Fa "krb5_timestamp *timeret"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_us_timeofday
+.Fa "krb5_context context"
+.Fa "krb5_timestamp *sec"
+.Fa "int32_t *usec"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_format_time
+.Fa "krb5_context context"
+.Fa "time_t t"
+.Fa "char *s"
+.Fa "size_t len"
+.Fa "krb5_boolean include_time"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_string_to_deltat
+.Fa "const char *string"
+.Fa "krb5_deltat *deltat"
+.Fc
+.Sh DESCRIPTION
+.Nm krb5_set_real_time
+sets the absolute time that the caller knows the KDC has.
+With this the Kerberos library can calculate the relative
+difference between the KDC time and the local system time and store it
+in the
+.Fa context .
+With this information the Kerberos library can adjust all time stamps
+in Kerberos packages.
+.Pp
+.Fn krb5_timeofday
+returns the current time, but adjusted with the time difference
+between the local host and the KDC.
+.Fn krb5_us_timeofday
+also returns microseconds.
+.Pp
+.Nm krb5_format_time
+formats the time
+.Fa t
+into the string
+.Fa s
+of length
+.Fa len .
+If
+.Fa include_time
+is set, the time is set include_time.
+.Pp
+.Nm krb5_string_to_deltat
+parses delta time
+.Fa string
+into
+.Fa deltat .
+.Sh SEE ALSO
+.Xr gettimeofday 2 ,
+.Xr krb5 3

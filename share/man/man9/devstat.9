@@ -1,0 +1,544 @@
+.\"
+.\" Copyright (c) 1998, 1999 Kenneth D. Merry.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 22, 2018
+.Dt DEVSTAT 9
+.Os
+.Sh NAME
+.Nm devstat ,
+.Nm devstat_add_entry ,
+.Nm devstat_end_transaction ,
+.Nm devstat_end_transaction_bio ,
+.Nm devstat_end_transaction_bio_bt ,
+.Nm devstat_remove_entry ,
+.Nm devstat_start_transaction ,
+.Nm devstat_start_transaction_bio
+.Nd kernel interface for keeping device statistics
+.Sh SYNOPSIS
+.In sys/devicestat.h
+.Ft void
+.Fo devstat_add_entry
+.Fa "struct devstat *ds"
+.Fa "const char *dev_name"
+.Fa "int unit_number"
+.Fa "uint32_t block_size"
+.Fa "devstat_support_flags flags"
+.Fa "devstat_type_flags device_type"
+.Fa "devstat_priority priority"
+.Fc
+.Ft void
+.Fn devstat_remove_entry "struct devstat *ds"
+.Ft void
+.Fo devstat_start_transaction
+.Fa "struct devstat *ds"
+.Fa "const struct bintime *now"
+.Fc
+.Ft void
+.Fo devstat_start_transaction_bio
+.Fa "struct devstat *ds"
+.Fa "struct bio *bp"
+.Fc
+.Ft void
+.Fo devstat_end_transaction
+.Fa "struct devstat *ds"
+.Fa "uint32_t bytes"
+.Fa "devstat_tag_type tag_type"
+.Fa "devstat_trans_flags flags"
+.Fa "const struct bintime *now"
+.Fa "const struct bintime *then"
+.Fc
+.Ft void
+.Fo devstat_end_transaction_bio
+.Fa "struct devstat *ds"
+.Fa "const struct bio *bp"
+.Fc
+.Fc
+.Ft void
+.Fo devstat_end_transaction_bio_bt
+.Fa "struct devstat *ds"
+.Fa "const struct bio *bp"
+.Fa "const struct bintime *now"
+.Fc
+.Sh DESCRIPTION
+The devstat subsystem is an interface for recording device
+statistics, as its name implies.
+The idea is to keep reasonably detailed
+statistics while utilizing a minimum amount of CPU time to record them.
+Thus, no statistical calculations are actually performed in the kernel
+portion of the
+.Nm
+code.
+Instead, that is left for user programs to handle.
+.Pp
+The historical and antiquated
+.Nm
+model assumed a single active IO operation per device, which is not accurate
+for most disk-like drivers in the 2000s and beyond.
+New consumers of the interface should almost certainly use only the "bio"
+variants of the start and end transacation routines.
+.Pp
+.Fn devstat_add_entry
+registers a device with the
+.Nm
+subsystem.
+The caller is expected to have already allocated \fBand zeroed\fR
+the devstat structure before calling this function.
+.Fn devstat_add_entry
+takes several arguments:
+.Bl -tag -width device_type
+.It ds
+The
+.Va devstat
+structure, allocated and zeroed by the client.
+.It dev_name
+The device name, e.g., da, cd, sa.
+.It unit_number
+Device unit number.
+.It block_size
+Block size of the device, if supported.
+If the device does not support a
+block size, or if the blocksize is unknown at the time the device is added
+to the
+.Nm
+list, it should be set to 0.
+.It flags
+Flags indicating operations supported or not supported by the device.
+See below for details.
+.It device_type
+The device type.
+This is broken into three sections: base device type
+(e.g., direct access, CDROM, sequential access), interface type (IDE, SCSI
+or other) and a pass-through flag to indicate pas-through devices.
+See below for a complete list of types.
+.It priority
+The device priority.
+The priority is used to determine how devices are
+sorted within
+.Nm devstat Ns 's
+list of devices.
+Devices are sorted first by priority (highest to lowest),
+and then by attach order.
+See below for a complete list of available
+priorities.
+.El
+.Pp
+.Fn devstat_remove_entry
+removes a device from the
+.Nm
+subsystem.
+It takes the devstat structure for the device in question as
+an argument.
+The
+.Nm
+generation number is incremented and the number of devices is decremented.
+.Pp
+.Fn devstat_start_transaction
+registers the start of a transaction with the
+.Nm
+subsystem.
+Optionally, if the caller already has a
+.Fn binuptime
+value available, it may be passed in
+.Fa *now .
+Usually the caller can just pass
+.Dv NULL
+for
+.Fa now ,
+and the routine will gather the current
+.Fn binuptime
+itself.
+The busy count is incremented with each transaction start.
+When a device goes from idle to busy, the system uptime is recorded in the
+.Va busy_from
+field of the
+.Va devstat
+structure.
+.Pp
+.Fn devstat_start_transaction_bio
+records the
+.Fn binuptime
+in the provided bio's
+.Fa bio_t0
+and then invokes
+.Fn devstat_start_transaction .
+.Pp
+.Fn devstat_end_transaction
+registers the end of a transaction with the
+.Nm
+subsystem.
+It takes six arguments:
+.Bl -tag -width tag_type
+.It ds
+The
+.Va devstat
+structure for the device in question.
+.It bytes
+The number of bytes transferred in this transaction.
+.It tag_type
+Transaction tag type.
+See below for tag types.
+.It flags
+Transaction flags indicating whether the transaction was a read, write, or
+whether no data was transferred.
+.It now
+The
+.Fn binuptime
+at the end of the transaction, or
+.Dv NULL .
+.It then
+The
+.Fn binuptime
+at the beginning of the transaction, or
+.Dv NULL .
+.El
+.Pp
+If
+.Fa now
+is
+.Dv NULL ,
+it collects the current time from
+.Fn binuptime .
+If
+.Fa then
+is
+.Dv NULL ,
+the operation is not tracked in the
+.Va devstat
+.Fa duration
+table.
+.Pp
+.Fn devstat_end_transaction_bio
+is a thin wrapper for
+.Fn devstat_end_transaction_bio_bt
+with a
+.Dv NULL
+.Fa now
+parameter.
+.Pp
+.Fn devstat_end_transaction_bio_bt
+is a wrapper for
+.Fn devstat_end_transaction
+which pulls all needed information from a
+.Va "struct bio"
+prepared by
+.Fn devstat_start_transaction_bio .
+The bio must be ready for
+.Fn biodone
+(i.e.,
+.Fa bio_bcount
+and
+.Fa bio_resid
+must be correctly initialized).
+.Pp
+The
+.Va devstat
+structure is composed of the following fields:
+.Bl -tag -width dev_creation_time
+.It sequence0 ,
+.It sequence1
+An implementation detail used to gather consistent snapshots of device
+statistics.
+.It start_count
+Number of operations started.
+.It end_count
+Number of operations completed.
+The
+.Dq busy_count
+can be calculated by subtracting
+.Fa end_count
+from
+.Fa start_count .
+.Fa ( sequence0
+and
+.Fa sequence1
+are used to get a consistent snapshot.)
+This is the current number of outstanding transactions for the device.
+This should never go below zero, and on an idle device it should be zero.
+If either one of these conditions is not true, it indicates a problem.
+.Pp
+There should be one and only one
+transaction start event and one transaction end event for each transaction.
+.It dev_links
+Each
+.Va devstat
+structure is placed in a linked list when it is registered.
+The
+.Va dev_links
+field contains a pointer to the next entry in the list of
+.Va devstat
+structures.
+.It device_number
+The device number is a unique identifier for each device.
+The device
+number is incremented for each new device that is registered.
+The device
+number is currently only a 32-bit integer, but it could be enlarged if
+someone has a system with more than four billion device arrival events.
+.It device_name
+The device name is a text string given by the registering driver to
+identify itself.
+(e.g.,
+.Dq da ,
+.Dq cd ,
+.Dq sa ,
+etc.)
+.It unit_number
+The unit number identifies the particular instance of the peripheral driver
+in question.
+.It bytes[4]
+This array contains the number of bytes that have been read (index
+.Dv DEVSTAT_READ ) ,
+written (index
+.Dv DEVSTAT_WRITE ) ,
+freed or erased (index
+.Dv DEVSTAT_FREE ) ,
+or other (index
+.Dv DEVSTAT_NO_DATA ) .
+All values are unsigned 64-bit integers.
+.It operations[4]
+This array contains the number of operations of a given type that have been
+performed.
+The indices are identical to those for
+.Fa bytes
+above.
+.Dv DEVSTAT_NO_DATA
+or "other" represents the number of transactions to the device which are
+neither reads, writes, nor frees.
+For instance,
+.Tn SCSI
+drivers often send a test unit ready command to
+.Tn SCSI
+devices.
+The test unit ready command does not read or write any data.
+It merely causes the device to return its status.
+.It duration[4]
+This array contains the total bintime corresponding to completed operations of
+a given type.
+The indices are identical to those for
+.Fa bytes
+above.
+(Operations that complete using the historical
+.Fn devstat_end_transaction
+API and do not provide a non-NULL
+.Fa then
+are not accounted for.)
+.It busy_time
+This is the amount of time that the device busy count has been greater than
+zero.
+This is only updated when the busy count returns to zero.
+.It creation_time
+This is the time, as reported by
+.Fn getmicrotime
+that the device was registered.
+.It block_size
+This is the block size of the device, if the device has a block size.
+.It tag_types
+This is an array of counters to record the number of various tag types that
+are sent to a device.
+See below for a list of tag types.
+.It busy_from
+If the device is not busy, this was the time that a transaction last completed.
+If the device is busy, this the most recent of either the time that the device
+became busy, or the time that the last transaction completed.
+.It flags
+These flags indicate which statistics measurements are supported by a
+particular device.
+These flags are primarily intended to serve as an aid
+to userland programs that decipher the statistics.
+.It device_type
+This is the device type.
+It consists of three parts: the device type
+(e.g., direct access, CDROM, sequential access, etc.), the interface (IDE,
+SCSI or other) and whether or not the device in question is a pass-through
+driver.
+See below for a complete list of device types.
+.It priority
+This is the priority.
+This is the first parameter used to determine where
+to insert a device in the
+.Nm
+list.
+The second parameter is attach order.
+See below for a list of available priorities.
+.El
+.Pp
+Each device is given a device type.
+Pass-through devices have the same underlying device type and interface as the
+device they provide an interface for, but they also have the pass-through flag
+set.
+The base device types are identical to the
+.Tn SCSI
+device type numbers, so with
+.Tn SCSI
+peripherals, the device type returned from an inquiry is usually ORed with the
+.Tn SCSI
+interface type and the pass-through flag if appropriate.
+The device type
+flags are as follows:
+.Bd -literal -offset indent
+typedef enum {
+	DEVSTAT_TYPE_DIRECT	= 0x000,
+	DEVSTAT_TYPE_SEQUENTIAL	= 0x001,
+	DEVSTAT_TYPE_PRINTER	= 0x002,
+	DEVSTAT_TYPE_PROCESSOR	= 0x003,
+	DEVSTAT_TYPE_WORM	= 0x004,
+	DEVSTAT_TYPE_CDROM	= 0x005,
+	DEVSTAT_TYPE_SCANNER	= 0x006,
+	DEVSTAT_TYPE_OPTICAL	= 0x007,
+	DEVSTAT_TYPE_CHANGER	= 0x008,
+	DEVSTAT_TYPE_COMM	= 0x009,
+	DEVSTAT_TYPE_ASC0	= 0x00a,
+	DEVSTAT_TYPE_ASC1	= 0x00b,
+	DEVSTAT_TYPE_STORARRAY	= 0x00c,
+	DEVSTAT_TYPE_ENCLOSURE	= 0x00d,
+	DEVSTAT_TYPE_FLOPPY	= 0x00e,
+	DEVSTAT_TYPE_MASK	= 0x00f,
+	DEVSTAT_TYPE_IF_SCSI	= 0x010,
+	DEVSTAT_TYPE_IF_IDE	= 0x020,
+	DEVSTAT_TYPE_IF_OTHER	= 0x030,
+	DEVSTAT_TYPE_IF_MASK	= 0x0f0,
+	DEVSTAT_TYPE_PASS	= 0x100
+} devstat_type_flags;
+.Ed
+.Pp
+Devices have a priority associated with them, which controls roughly where
+they are placed in the
+.Nm
+list.
+The priorities are as follows:
+.Bd -literal -offset indent
+typedef enum {
+	DEVSTAT_PRIORITY_MIN	= 0x000,
+	DEVSTAT_PRIORITY_OTHER	= 0x020,
+	DEVSTAT_PRIORITY_PASS	= 0x030,
+	DEVSTAT_PRIORITY_FD	= 0x040,
+	DEVSTAT_PRIORITY_WFD	= 0x050,
+	DEVSTAT_PRIORITY_TAPE	= 0x060,
+	DEVSTAT_PRIORITY_CD	= 0x090,
+	DEVSTAT_PRIORITY_DISK	= 0x110,
+	DEVSTAT_PRIORITY_ARRAY	= 0x120,
+	DEVSTAT_PRIORITY_MAX	= 0xfff
+} devstat_priority;
+.Ed
+.Pp
+Each device has associated with it flags to indicate what operations are
+supported or not supported.
+The
+.Va devstat_support_flags
+values are as follows:
+.Bl -tag -width DEVSTAT_NO_ORDERED_TAGS
+.It DEVSTAT_ALL_SUPPORTED
+Every statistic type is supported by the device.
+.It DEVSTAT_NO_BLOCKSIZE
+This device does not have a blocksize.
+.It DEVSTAT_NO_ORDERED_TAGS
+This device does not support ordered tags.
+.It DEVSTAT_BS_UNAVAILABLE
+This device supports a blocksize, but it is currently unavailable.
+This
+flag is most often used with removable media drives.
+.El
+.Pp
+Transactions to a device fall into one of three categories, which are
+represented in the
+.Va flags
+passed into
+.Fn devstat_end_transaction .
+The transaction types are as follows:
+.Bd -literal -offset indent
+typedef enum {
+	DEVSTAT_NO_DATA	= 0x00,
+	DEVSTAT_READ	= 0x01,
+	DEVSTAT_WRITE	= 0x02,
+	DEVSTAT_FREE	= 0x03
+} devstat_trans_flags;
+.Ed
+.Pp
+There are four possible values for the
+.Va tag_type
+argument to
+.Fn devstat_end_transaction :
+.Bl -tag -width DEVSTAT_TAG_ORDERED
+.It DEVSTAT_TAG_SIMPLE
+The transaction had a simple tag.
+.It DEVSTAT_TAG_HEAD
+The transaction had a head of queue tag.
+.It DEVSTAT_TAG_ORDERED
+The transaction had an ordered tag.
+.It DEVSTAT_TAG_NONE
+The device does not support tags.
+.El
+.Pp
+The tag type values correspond to the lower four bits of the
+.Tn SCSI
+tag definitions.
+In CAM, for instance, the
+.Va tag_action
+from the CCB is ORed with 0xf to determine the tag type to pass in to
+.Fn devstat_end_transaction .
+.Pp
+There is a macro,
+.Dv DEVSTAT_VERSION
+that is defined in
+.In sys/devicestat.h .
+This is the current version of the
+.Nm
+subsystem, and it should be incremented each time a change is made that
+would require recompilation of userland programs that access
+.Nm
+statistics.
+Userland programs use this version, via the
+.Va kern.devstat.version
+.Nm sysctl
+variable to determine whether they are in sync with the kernel
+.Nm
+structures.
+.Sh SEE ALSO
+.Xr systat 1 ,
+.Xr devstat 3 ,
+.Xr iostat 8 ,
+.Xr rpc.rstatd 8 ,
+.Xr vmstat 8
+.Sh HISTORY
+The
+.Nm
+statistics system appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An Kenneth Merry Aq Mt ken@FreeBSD.org
+.Sh BUGS
+There may be a need for
+.Fn spl
+protection around some of the
+.Nm
+list manipulation code to ensure, for example, that the list of devices
+is not changed while someone is fetching the
+.Va kern.devstat.all
+.Nm sysctl
+variable.

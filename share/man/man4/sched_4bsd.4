@@ -1,0 +1,74 @@
+.\" Copyright (c) 2005 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 21, 2008
+.Dt SCHED_4BSD 4
+.Os
+.Sh NAME
+.Nm sched_4bsd
+.Nd "4.4BSD scheduler"
+.Sh SYNOPSIS
+.Cd "options SCHED_4BSD"
+.Sh DESCRIPTION
+The
+.Nm
+scheduler
+is the traditional system scheduler, providing both high throughput and solid
+interactive response in the presence of load.
+.Pp
+The following sysctls are relevant to the operation of
+.Nm :
+.Bl -tag -width indent
+.It Va kern.sched.name
+This read-only sysctl reports the name of the active scheduler.
+.It Va kern.sched.quantum
+This read-write sysctl reports or sets the length of the quantum (in
+micro-seconds) granted to a thread.
+.It Va kern.sched.ipiwakeup.enabled
+This read-write sysctl sets whether or not the scheduler will generate an
+inter-processor interrupt (IPI) to an idle CPU when a thread is woken up.
+Otherwise, idle CPUs will wait until the next clock tick before looking for
+new work.
+.It Va kern.sched.preemption
+This read-only sysctl reports whether or not the kernel is configured to
+support preemption, which reduces the latency to run lower priority threads
+on wakeup.
+.El
+.Pp
+Some sysctls will be available only on systems supporting SMP.
+.Sh SEE ALSO
+.Xr sched_ule 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+scheduler has been present, in various forms, since the inception of
+.Bx .
+.Sh BUGS
+While a highly robust and time-tested scheduler,
+.Nm
+lacks specific knowledge of how to schedule advantageously in non-symmetric
+processor configurations, such as hyper-threading.

@@ -1,0 +1,4 @@
+block out quick on de0 head 100
+skip 1 out group 100
+block out quick group 100
+pass out quick group 100

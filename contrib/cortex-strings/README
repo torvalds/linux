@@ -1,0 +1,111 @@
+= Cortex-A String Routines =
+
+This package contains optimised string routines including memcpy(), memset(),
+strcpy(), strlen() for the ARM Cortex-A series of cores.
+
+Various implementations of these routines are provided, including generic
+implementations for ARMv7-A cores with/without Neon, Thumb2 implementations
+and generic implementations for cores supporting AArch64.
+
+== Getting started ==
+First configure and then install libcortex-strings.so.  To make other
+applications use this library, either add -lcortex-strings to the link
+command or use LD_PRELOAD to load the library into existing applications.
+
+Our intent is to get these routines into the common C libraries such
+as GLIBC, Bionic, and Newlib.  Your system may already include them!
+
+== Contents ==
+ * src/  contains the routines themselves
+ * tests/  contains the unit tests
+ * reference/  contains reference copies of other ARM-focused
+   implementations gathered from around the Internet
+ * benchmarks/  contains various benchmarks, tools, and scripts used to
+   check and report on the different implementations.
+
+The src directory contains different variants organised by the
+implementation they run on and optional features used.  For example:
+  * src/thumb-2  contains generic non-NEON routines for AArch32 (with Thumb-2).
+  * src/arm  contains tuned routines for Cortex-A class processors.
+  * src/aarch64  contains generic routines for AArch64.
+  * src/thumb  contains generic routines for armv6-M (with Thumb).
+
+== Reference versions ==
+reference/ contains versions collected from various popular Open
+Source libraries.  These have been modified for use in benchmarking.
+Please refer to the individual files for any licensing terms.
+
+The routines were collected from the following releases:
+ * EGLIBC 2.13
+ * Newlib 1.19.0
+ * Bionic android-2.3.5_r1
+
+== Licensing ==
+All Linaro-authored routines are under the modified BSD license:
+
+Copyright (c) 2011, Linaro Limited
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the Linaro nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+
+All ARM-authored routines are under the modified BSD license:
+
+Copyright (c) 2014 ARM Ltd
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the Linaro nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+All third party routines are under a GPL compatible license.
+
+== Notes and Limitations ==
+Some of the implementations have been collected from other
+projects and have a variety of licenses and copyright holders.
+
+== Style ==
+Assembly code attempts to follow the GLIBC coding convetions.  They
+are:
+ * Copyright headers in C style comment blocks
+ * Instructions indented with one tab
+ * Operands indented with one tab
+ * Text is wrapped at 70 characters
+ * End of line comments are fine

@@ -1,0 +1,100 @@
+.\"
+.\"
+.\"     Licensed to the Apache Software Foundation (ASF) under one
+.\"     or more contributor license agreements.  See the NOTICE file
+.\"     distributed with this work for additional information
+.\"     regarding copyright ownership.  The ASF licenses this file
+.\"     to you under the Apache License, Version 2.0 (the
+.\"     "License"); you may not use this file except in compliance
+.\"     with the License.  You may obtain a copy of the License at
+.\"    
+.\"       http://www.apache.org/licenses/LICENSE-2.0
+.\"    
+.\"     Unless required by applicable law or agreed to in writing,
+.\"     software distributed under the License is distributed on an
+.\"     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+.\"     KIND, either express or implied.  See the License for the
+.\"     specific language governing permissions and limitations
+.\"     under the License.
+.\"
+.\"
+.\" You can view this file with:
+.\" nroff -man [filename]
+.\"
+.TH svnserve.conf 5
+.SH NAME
+svnserve.conf \- Repository configuration file for svnserve
+.SH SYNOPSIS
+.TP
+\fIrepository-path\fP\fB/conf/svnserve.conf\fP
+.SH DESCRIPTION
+\fBsvnserve.conf\fP controls the behavior of the \fBsvnserve\fP daemon
+on a per-repository basis.  It is located in the \fBconf\fP
+subdirectory of the repository.
+.PP
+The overall structure of the file is the same as the structure of
+Subversion user configuration files.  At the top level are sections,
+which are specified by words in square brackets; inside each section
+are variable definitions of the form "variable = value".  Lines
+beginning with '#' are ignored.  \fBsvnserve.conf\fP currently uses
+only one section named "general", and supports the following
+variables:
+.PP
+.TP 5
+\fBanon-access\fP = \fBnone\fP|\fBread\fP|\fBwrite\fP
+Determines the access level for unauthenticated users.  \fBwrite\fP
+access allows all repository operations.  \fBread\fP access allows all
+operations except committing and changing revision properties.
+\fBnone\fP access allows no access.  The default level is \fBread\fP.
+.PP
+.TP 5
+\fBauth-access\fP = \fBnone\fP|\fBread\fP|\fBwrite\fP
+Determines the access level for authenticated users, using the same
+access levels as above.  The default level is \fBwrite\fP.
+.PP
+.TP 5
+\fBpassword-db\fP = \fIfilename\fP
+Sets the location of the password database.  \fIfilename\fP may be
+relative to the repository conf directory.  There is no default value.
+The password database has the same overall format as this file.  It
+uses only one section "users"; each variable within the section is a
+username, and each value is a password.
+.PP
+.TP 5
+\fBauthz-db\fP = \fIpath\fP
+The authz-db option controls the location of the authorization
+rules for path-based access control.  \fIpath\fP may be 
+relative to the repository conf directory.  \fIpath\fP may be a repository
+relative URL (^/) or absolute file:// URL to a text file in a Subversion
+repository.  There is no default value.  If you don't specify an authz-db,
+no path-based access control is done.
+.PP
+.TP 5
+\fBrealm\fP = \fIrealm\-name\fP
+Sets the authentication realm of the repository.  If two repositories
+have the same password database, they should have the same realm, and
+vice versa; this association allows clients to use a single cached
+password for several repositories.  The default realm value is the
+repository's uuid.
+.SH EXAMPLE
+The following example \fBsvnserve.conf\fP allows read access for
+authenticated users, no access for anonymous users, points to a passwd
+database in the same directory, and defines a realm name.
+.PP
+.nf
+ [general]
+ anon-access = none
+ auth-access = read
+ password-db = passwd
+ realm = My First Repository
+.fi
+.PP
+The file "passwd" would look like:
+.PP
+.nf
+ [users]
+ joeuser = joepassword
+ jayrandom = randomjay
+.fi
+.SH SEE ALSO
+.BR svnserve (8)

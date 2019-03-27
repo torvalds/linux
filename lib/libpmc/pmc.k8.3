@@ -1,0 +1,798 @@
+.\" Copyright (c) 2003-2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 4, 2008
+.Dt PMC.K8 3
+.Os
+.Sh NAME
+.Nm pmc.k8
+.Nd measurement events for
+.Tn AMD
+.Tn Athlon 64
+(K8 family) CPUs
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+AMD K8 PMCs are present in the
+.Tn "AMD Athlon64"
+and
+.Tn "AMD Opteron"
+series of CPUs.
+They are documented in the
+.Rs
+.%B "BIOS and Kernel Developer's Guide for the AMD Athlon(tm) 64 and AMD Opteron Processors"
+.%N "Publication No. 26094"
+.%D "April 2004"
+.%Q "Advanced Micro Devices, Inc."
+.Re
+.Ss PMC Features
+AMD K8 PMCs are 48 bits wide.
+Each CPU contains 4 PMCs with the following capabilities:
+.Bl -column "PMC_CAP_INTERRUPT" "Support"
+.It Em Capability Ta Em Support
+.It PMC_CAP_CASCADE Ta \&No
+.It PMC_CAP_EDGE Ta Yes
+.It PMC_CAP_INTERRUPT Ta Yes
+.It PMC_CAP_INVERT Ta Yes
+.It PMC_CAP_READ Ta Yes
+.It PMC_CAP_PRECISE Ta \&No
+.It PMC_CAP_SYSTEM Ta Yes
+.It PMC_CAP_TAGGING Ta \&No
+.It PMC_CAP_THRESHOLD Ta Yes
+.It PMC_CAP_USER Ta Yes
+.It PMC_CAP_WRITE Ta Yes
+.El
+.Ss Event Qualifiers
+Event specifiers for AMD K8 PMCs can have the following optional
+qualifiers:
+.Bl -tag -width indent
+.It Li count= Ns Ar value
+Configure the counter to increment only if the number of configured
+events measured in a cycle is greater than or equal to
+.Ar value .
+.It Li edge
+Configure the counter to only count negated-to-asserted transitions
+of the conditions expressed by the other fields.
+In other words, the counter will increment only once whenever a given
+condition becomes true, irrespective of the number of clocks during
+which the condition remains true.
+.It Li inv
+Invert the sense of comparison when the
+.Dq Li count
+qualifier is present, making the counter to increment when the
+number of events per cycle is less than the value specified by
+the
+.Dq Li count
+qualifier.
+.It Li mask= Ns Ar qualifier
+Many event specifiers for AMD K8 PMCs need to be additionally
+qualified using a mask qualifier.
+These additional qualifiers are event-specific and are documented
+along with their associated event specifiers below.
+.It Li os
+Configure the PMC to count events happening at privilege level 0.
+.It Li usr
+Configure the PMC to count events occurring at privilege levels 1, 2
+or 3.
+.El
+.Pp
+If neither of the
+.Dq Li os
+or
+.Dq Li usr
+qualifiers were specified, the default is to enable both.
+.Ss AMD K8 Event Specifiers
+The event specifiers supported on AMD K8 PMCs are:
+.Bl -tag -width indent
+.It Li k8-bu-cpu-clk-unhalted
+.Pq Event 76H
+Count the number of clock cycles when the CPU is not in the HLT or
+STPCLK states.
+.It Li k8-bu-fill-request-l2-miss Op Li ,mask= Ns Ar qualifier
+.Pq Event 7EH
+Count fill requests that missed in the L2 cache.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li dc-fill
+Count data cache fill requests.
+.It Li ic-fill
+Count instruction cache fill requests.
+.It Li tlb-reload
+Count TLB reloads.
+.El
+.Pp
+The default is to count all types of requests.
+.It Li k8-bu-fill-into-l2 Op Li ,mask= Ns Ar qualifier
+.Pq Event 7FH
+The number of lines written to and from the L2 cache.
+The event may be further qualified by using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li dirty-l2-victim
+Count lines written into L2 cache due to victim writebacks from the
+Icache or Dcache, TLB page table walks or hardware data prefetches.
+.It Li victim-from-l2
+Count writebacks of dirty lines from L2 to the system.
+.El
+.It Li k8-bu-internal-l2-request Op Li ,mask= Ns Ar qualifier
+.Pq Event 7DH
+Count internally generated requests to the L2 cache.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li cancelled
+Count cancelled requests.
+.It Li dc-fill
+Count data cache fill requests.
+.It Li ic-fill
+Count instruction cache fill requests.
+.It Li tag-snoop
+Count tag snoop requests.
+.It Li tlb-reload
+Count TLB reloads.
+.El
+.Pp
+The default is to count all types of requests.
+.It Li k8-dc-access
+.Pq Event 40H
+Count data cache accesses including microcode scratch pad accesses.
+.It Li k8-dc-copyback Op Li ,mask= Ns Ar qualifier
+.Pq Event 44H
+Count data cache copyback operations.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li exclusive
+Count operations for lines in the
+.Dq exclusive
+state.
+.It Li invalid
+Count operations for lines in the
+.Dq invalid
+state.
+.It Li modified
+Count operations for lines in the
+.Dq modified
+state.
+.It Li owner
+Count operations for lines in the
+.Dq owner
+state.
+.It Li shared
+Count operations for lines in the
+.Dq shared
+state.
+.El
+.Pp
+The default is to count operations for lines in all the
+above states.
+.It Li k8-dc-dcache-accesses-by-locks Op Li ,mask= Ns Ar qualifier
+.Pq Event 4CH
+Count data cache accesses by lock instructions.
+This event is only available on processors of revision C or later
+vintage.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li accesses
+Count data cache accesses by lock instructions.
+.It Li misses
+Count data cache misses by lock instructions.
+.El
+.Pp
+The default is to count all accesses.
+.It Li k8-dc-dispatched-prefetch-instructions Op Li ,mask= Ns Ar qualifier
+.Pq Event 4BH
+Count the number of dispatched prefetch instructions.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li load
+Count load operations.
+.It Li nta
+Count non-temporal operations.
+.It Li store
+Count store operations.
+.El
+.Pp
+The default is to count all operations.
+.It Li k8-dc-l1-dtlb-miss-and-l2-dtlb-hit
+.Pq Event 45H
+Count L1 DTLB misses that are L2 DTLB hits.
+.It Li k8-dc-l1-dtlb-miss-and-l2-dtlb-miss
+.Pq Event 46H
+Count L1 DTLB misses that are also misses in the L2 DTLB.
+.It Li k8-dc-microarchitectural-early-cancel-of-an-access
+.Pq Event 49H
+Count microarchitectural early cancels of data cache accesses.
+.It Li k8-dc-microarchitectural-late-cancel-of-an-access
+.Pq Event 48H
+Count microarchitectural late cancels of data cache accesses.
+.It Li k8-dc-misaligned-data-reference
+.Pq Event 47H
+Count misaligned data references.
+.It Li k8-dc-miss
+.Pq Event 41H
+Count data cache misses.
+.It Li k8-dc-one-bit-ecc-error Op Li ,mask= Ns Ar qualifier
+.Pq Event 4AH
+Count one bit ECC errors found by the scrubber.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li scrubber
+Count scrubber detected errors.
+.It Li piggyback
+Count piggyback scrubber errors.
+.El
+.Pp
+The default is to count both kinds of errors.
+.It Li k8-dc-refill-from-l2 Op Li ,mask= Ns Ar qualifier
+.Pq Event 42H
+Count data cache refills from L2 cache.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li exclusive
+Count operations for lines in the
+.Dq exclusive
+state.
+.It Li invalid
+Count operations for lines in the
+.Dq invalid
+state.
+.It Li modified
+Count operations for lines in the
+.Dq modified
+state.
+.It Li owner
+Count operations for lines in the
+.Dq owner
+state.
+.It Li shared
+Count operations for lines in the
+.Dq shared
+state.
+.El
+.Pp
+The default is to count operations for lines in all the
+above states.
+.It Li k8-dc-refill-from-system Op Li ,mask= Ns Ar qualifier
+.Pq Event 43H
+Count data cache refills from system memory.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li exclusive
+Count operations for lines in the
+.Dq exclusive
+state.
+.It Li invalid
+Count operations for lines in the
+.Dq invalid
+state.
+.It Li modified
+Count operations for lines in the
+.Dq modified
+state.
+.It Li owner
+Count operations for lines in the
+.Dq owner
+state.
+.It Li shared
+Count operations for lines in the
+.Dq shared
+state.
+.El
+.Pp
+The default is to count operations for lines in all the
+above states.
+.It Li k8-fp-cycles-with-no-fpu-ops-retired
+.Pq Event 01H
+Count cycles when no FPU ops were retired.
+This event is supported in revision B and later CPUs.
+.It Li k8-fp-dispatched-fpu-fast-flag-ops
+.Pq Event 02H
+Count dispatched FPU ops that use the fast flag interface.
+This event is supported in revision B and later CPUs.
+.It Li k8-fp-dispatched-fpu-ops Op Li ,mask= Ns Ar qualifier
+.Pq Event 00H
+Count the number of dispatched FPU ops.
+This event is supported in revision B and later CPUs.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li add-pipe-excluding-junk-ops
+Count add pipe ops excluding junk ops.
+.It Li add-pipe-junk-ops
+Count junk ops in the add pipe.
+.It Li multiply-pipe-excluding-junk-ops
+Count multiply pipe ops excluding junk ops.
+.It Li multiply-pipe-junk-ops
+Count junk ops in the multiply pipe.
+.It Li store-pipe-excluding-junk-ops
+Count store pipe ops excluding junk ops
+.It Li store-pipe-junk-ops
+Count junk ops in the store pipe.
+.El
+.Pp
+The default is to count all types of ops.
+.It Li k8-fr-decoder-empty
+.Pq Event D0H
+Count cycles when there was nothing to dispatch (i.e., the decoder
+was empty).
+.It Li k8-fr-dispatch-stall-for-segment-load
+.Pq Event D4H
+Count dispatch stalls for segment loads.
+.It Li k8-fr-dispatch-stall-for-serialization
+.Pq Event D3H
+Count dispatch stalls for serialization.
+.It Li k8-fr-dispatch-stall-from-branch-abort-to-retire
+.Pq Event D2H
+Count dispatch stalls from branch abort to retiral.
+.It Li k8-fr-dispatch-stall-when-fpu-is-full
+.Pq Event D7H
+Count dispatch stalls when the FPU is full.
+.It Li k8-fr-dispatch-stall-when-ls-is-full
+.Pq Event D8H
+Count dispatch stalls when the load/store unit is full.
+.It Li k8-fr-dispatch-stall-when-reorder-buffer-is-full
+.Pq Event D5H
+Count dispatch stalls when the reorder buffer is full.
+.It Li k8-fr-dispatch-stall-when-reservation-stations-are-full
+.Pq Event D6H
+Count dispatch stalls when reservation stations are full.
+.It Li k8-fr-dispatch-stall-when-waiting-far-xfer-or-resync-branch-pending
+.Pq Event DAH
+Count dispatch stalls when a far control transfer or a resync branch
+is pending.
+.It Li k8-fr-dispatch-stall-when-waiting-for-all-to-be-quiet
+.Pq Event D9H
+Count dispatch stalls when waiting for all to be quiet.
+.\" XXX What does "waiting for all to be quiet" mean?
+.It Li k8-fr-dispatch-stalls
+.Pq Event D1H
+Count all dispatch stalls.
+.It Li k8-fr-fpu-exceptions Op Li ,mask= Ns Ar qualifier
+.Pq Event DBH
+Count FPU exceptions.
+This event is supported in revision B and later CPUs.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li sse-and-x87-microtraps
+Count SSE and x87 microtraps.
+.It Li sse-reclass-microfaults
+Count SSE reclass microfaults
+.It Li sse-retype-microfaults
+Count SSE retype microfaults
+.It Li x87-reclass-microfaults
+Count x87 reclass microfaults.
+.El
+.Pp
+The default is to count all types of exceptions.
+.It Li k8-fr-interrupts-masked-cycles
+.Pq Event CDH
+Count cycles when interrupts were masked (by CPU RFLAGS field IF was zero).
+.It Li k8-fr-interrupts-masked-while-pending-cycles
+.Pq Event CEH
+Count cycles while interrupts were masked while pending (i.e., cycles
+when INTR was asserted while CPU RFLAGS field IF was zero).
+.It Li k8-fr-number-of-breakpoints-for-dr0
+.Pq Event DCH
+Count the number of breakpoints for DR0.
+.It Li k8-fr-number-of-breakpoints-for-dr1
+.Pq Event DDH
+Count the number of breakpoints for DR1.
+.It Li k8-fr-number-of-breakpoints-for-dr2
+.Pq Event DEH
+Count the number of breakpoints for DR2.
+.It Li k8-fr-number-of-breakpoints-for-dr3
+.Pq Event DFH
+Count the number of breakpoints for DR3.
+.It Li k8-fr-retired-branches
+.Pq Event C2H
+Count retired branches including exceptions and interrupts.
+.It Li k8-fr-retired-branches-mispredicted
+.Pq Event C3H
+Count mispredicted retired branches.
+.It Li k8-fr-retired-far-control-transfers
+.Pq Event C6H
+Count retired far control transfers (which are always mispredicted).
+.It Li k8-fr-retired-fastpath-double-op-instructions Op Li ,mask= Ns Ar qualifier
+.Pq Event CCH
+Count retired fastpath double op instructions.
+This event is supported in revision B and later CPUs.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li low-op-pos-0
+Count instructions with the low op in position 0.
+.It Li low-op-pos-1
+Count instructions with the low op in position 1.
+.It Li low-op-pos-2
+Count instructions with the low op in position 2.
+.El
+.Pp
+The default is to count all types of instructions.
+.It Li k8-fr-retired-fpu-instructions Op Li ,mask= Ns Ar qualifier
+.Pq Event CBH
+Count retired FPU instructions.
+This event is supported in revision B and later CPUs.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li mmx-3dnow
+Count MMX and 3DNow!\& instructions.
+.It Li packed-sse-sse2
+Count packed SSE and SSE2 instructions.
+.It Li scalar-sse-sse2
+Count scalar SSE and SSE2 instructions
+.It Li x87
+Count x87 instructions.
+.El
+.Pp
+The default is to count all types of instructions.
+.It Li k8-fr-retired-near-returns
+.Pq Event C8H
+Count retired near returns.
+.It Li k8-fr-retired-near-returns-mispredicted
+.Pq Event C9H
+Count mispredicted near returns.
+.It Li k8-fr-retired-resyncs
+.Pq Event C7H
+Count retired resyncs (non-control transfer branches).
+.It Li k8-fr-retired-taken-branches
+.Pq Event C4H
+Count retired taken branches.
+.It Li k8-fr-retired-taken-branches-mispredicted
+.Pq Event C5H
+Count retired taken branches that were mispredicted.
+.It Li k8-fr-retired-taken-branches-mispredicted-by-addr-miscompare
+.Pq Event CAH
+Count retired taken branches that were mispredicted only due to an
+address miscompare.
+.It Li k8-fr-retired-taken-hardware-interrupts
+.Pq Event CFH
+Count retired taken hardware interrupts.
+.It Li k8-fr-retired-uops
+.Pq Event C1H
+Count retired uops.
+.It Li k8-fr-retired-x86-instructions
+.Pq Event C0H
+Count retired x86 instructions including exceptions and interrupts.
+.It Li k8-ic-fetch
+.Pq Event 80H
+Count instruction cache fetches.
+.It Li k8-ic-instruction-fetch-stall
+.Pq Event 87H
+Count cycles in stalls due to instruction fetch.
+.It Li k8-ic-l1-itlb-miss-and-l2-itlb-hit
+.Pq Event 84H
+Count L1 ITLB misses that are L2 ITLB hits.
+.It Li k8-ic-l1-itlb-miss-and-l2-itlb-miss
+.Pq Event 85H
+Count ITLB misses that miss in both L1 and L2 ITLBs.
+.It Li k8-ic-microarchitectural-resync-by-snoop
+.Pq Event 86H
+Count microarchitectural resyncs caused by snoops.
+.It Li k8-ic-miss
+.Pq Event 81H
+Count instruction cache misses.
+.It Li k8-ic-refill-from-l2
+.Pq Event 82H
+Count instruction cache refills from L2 cache.
+.It Li k8-ic-refill-from-system
+.Pq Event 83H
+Count instruction cache refills from system memory.
+.It Li k8-ic-return-stack-hits
+.Pq Event 88H
+Count hits to the return stack.
+.It Li k8-ic-return-stack-overflow
+.Pq Event 89H
+Count overflows of the return stack.
+.It Li k8-ls-buffer2-full
+.Pq Event 23H
+Count load/store buffer2 full events.
+.It Li k8-ls-locked-operation Op Li ,mask= Ns Ar qualifier
+.Pq Event 24H
+Count locked operations.
+For revision C and later CPUs, the following qualifiers are supported:
+.Pp
+.Bl -tag -width indent -compact
+.It Li cycles-in-request
+Count the number of cycles in the lock request/grant stage.
+.It Li cycles-to-complete
+Count the number of cycles a lock takes to complete once it is
+non-speculative and is the older load/store operation.
+.It Li locked-instructions
+Count the number of lock instructions executed.
+.El
+.Pp
+The default is to count the number of lock instructions executed.
+.It Li k8-ls-microarchitectural-late-cancel
+.Pq Event 25H
+Count microarchitectural late cancels of operations in the load/store
+unit.
+.It Li k8-ls-microarchitectural-resync-by-self-modifying-code
+.Pq Event 21H
+Count microarchitectural resyncs caused by self-modifying code.
+.It Li k8-ls-microarchitectural-resync-by-snoop
+.Pq Event 22H
+Count microarchitectural resyncs caused by snoops.
+.It Li k8-ls-retired-cflush-instructions
+.Pq Event 26H
+Count retired CFLUSH instructions.
+.It Li k8-ls-retired-cpuid-instructions
+.Pq Event 27H
+Count retired CPUID instructions.
+.It Li k8-ls-segment-register-load Op Li ,mask= Ns Ar qualifier
+.Pq Event 20H
+Count segment register loads.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Bl -tag -width indent -compact
+.It Li cs
+Count CS register loads.
+.It Li ds
+Count DS register loads.
+.It Li es
+Count ES register loads.
+.It Li fs
+Count FS register loads.
+.It Li gs
+Count GS register loads.
+.\" .It Li hs
+.\" Count HS register loads.
+.\" XXX "HS" register?
+.It Li ss
+Count SS register loads.
+.El
+.Pp
+The default is to count all types of loads.
+.It Li k8-nb-ht-bus0-bandwidth Op Li ,mask= Ns Ar qualifier
+.It Li k8-nb-ht-bus1-bandwidth Op Li ,mask= Ns Ar qualifier
+.It Li k8-nb-ht-bus2-bandwidth Op Li ,mask= Ns Ar qualifier
+.Pq Events F6H, F7H and F8H respectively
+Count events on the HyperTransport(tm) buses.
+These events may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li buffer-release
+Count buffer release messages sent.
+.It Li command
+Count command messages sent.
+.It Li data
+Count data messages sent.
+.It Li nop
+Count nop messages sent.
+.El
+.Pp
+The default is to count all types of messages.
+.It Li k8-nb-memory-controller-bypass-saturation Op Li ,mask= Ns Ar qualifier
+.Pq Event E4H
+Count memory controller bypass counter saturation events.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li dram-controller-interface-bypass
+Count DRAM controller interface bypass.
+.It Li dram-controller-queue-bypass
+Count DRAM controller queue bypass.
+.It Li memory-controller-hi-pri-bypass
+Count memory controller high priority bypasses.
+.It Li memory-controller-lo-pri-bypass
+Count memory controller low priority bypasses.
+.El
+.It Li k8-nb-memory-controller-dram-slots-missed
+.Pq Event E2H
+Count memory controller DRAM command slots missed (in MemClks).
+.It Li k8-nb-memory-controller-page-access-event Op Li ,mask= Ns Ar qualifier
+.Pq Event E0H
+Count memory controller page access events.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li page-conflict
+Count page conflicts.
+.It Li page-hit
+Count page hits.
+.It Li page-miss
+Count page misses.
+.El
+.Pp
+The default is to count all types of events.
+.It Li k8-nb-memory-controller-page-table-overflow
+.Pq Event E1H
+Count memory control page table overflow events.
+.It Li k8-nb-memory-controller-turnaround Op Li ,mask= Ns Ar qualifier
+.Pq Event E3H
+Count memory control turnaround events.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.\" XXX doc is unclear whether these are cycle counts or event counts
+.It Li dimm-turnaround
+Count DIMM turnarounds.
+.It Li read-to-write-turnaround
+Count read to write turnarounds.
+.It Li write-to-read-turnaround
+Count write to read turnarounds.
+.El
+.Pp
+The default is to count all types of events.
+.It Li k8-nb-probe-result Op Li ,mask= Ns Ar qualifier
+.Pq Event ECH
+Count probe events.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li probe-hit
+Count all probe hits.
+.It Li probe-hit-dirty-no-memory-cancel
+Count probe hits without memory cancels.
+.It Li probe-hit-dirty-with-memory-cancel
+Count probe hits with memory cancels.
+.It Li probe-miss
+Count probe misses.
+.El
+.It Li k8-nb-sized-commands Op Li ,mask= Ns Ar qualifier
+.Pq Event EBH
+Count sized commands issued.
+This event may be further qualified using
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li nonpostwrszbyte
+.It Li nonpostwrszdword
+.It Li postwrszbyte
+.It Li postwrszdword
+.It Li rdszbyte
+.It Li rdszdword
+.It Li rdmodwr
+.El
+.Pp
+The default is to count all types of commands.
+.El
+.Ss Event Name Aliases
+The following table shows the mapping between the PMC-independent
+aliases supported by
+.Lb libpmc
+and the underlying hardware events used.
+.Bl -column "branch-mispredicts" "Description"
+.It Em Alias Ta Em Event
+.It Li branches Ta Li k8-fr-retired-taken-branches
+.It Li branch-mispredicts Ta Li k8-fr-retired-taken-branches-mispredicted
+.It Li dc-misses Ta Li k8-dc-miss
+.It Li ic-misses Ta Li k8-ic-miss
+.It Li instructions Ta Li k8-fr-retired-x86-instructions
+.It Li interrupts Ta Li k8-fr-taken-hardware-interrupts
+.It Li unhalted-cycles Ta Li k8-bu-cpu-clk-unhalted
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.core2 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.k7 3 ,
+.Xr pmc.p4 3 ,
+.Xr pmc.p5 3 ,
+.Xr pmc.p6 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .

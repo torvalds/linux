@@ -1,0 +1,140 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)send.2	8.2 (Berkeley) 2/21/94
+.\" $FreeBSD$
+.\"
+.Dd June 18, 2011
+.Dt SCTP_OPT_INFO 3
+.Os
+.Sh NAME
+.Nm sctp_opt_info
+.Nd get SCTP socket information
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netinet/sctp.h
+.Ft int
+.Fn sctp_opt_info "int sd" "sctp_assoc_t id" "int opt" "void *arg" "socklen_t *size"
+.Sh DESCRIPTION
+The
+.Fn sctp_opt_info
+call provides a multi-os compatible method for getting
+specific
+.Fn getsockopt
+data where an association identification needs to be passed
+into the operating system.
+For
+.Fx
+a direct
+.Fn getsockopt
+may be used, since
+.Fx
+has the ability to pass information
+into the operating system on a
+.Fn getsockopt
+call.
+Other operating systems may not have this ability.
+For those
+who wish to write portable code amongst multiple operating systems
+this call should be used for the following SCTP
+socket options.
+.Pp
+.Dv SCTP_RTOINFO
+.Pp
+.Dv SCTP_ASSOCINFO
+.Pp
+.Dv SCTP_PRIMARY_ADDR
+.Pp
+.Dv SCTP_PEER_ADDR_PARAMS
+.Pp
+.Dv SCTP_DEFAULT_SEND_PARAM
+.Pp
+.Dv SCTP_MAX_SEG
+.Pp
+.Dv SCTP_AUTH_ACTIVE_KEY
+.Pp
+.Dv SCTP_DELAYED_SACK
+.Pp
+.Dv SCTP_MAX_BURST
+.Pp
+.Dv SCTP_CONTEXT
+.Pp
+.Dv SCTP_EVENT
+.Pp
+.Dv SCTP_DEFAULT_SNDINFO
+.Pp
+.Dv SCTP_DEFAULT_PRINFO
+.Pp
+.Dv SCTP_STATUS
+.Pp
+.Dv SCTP_GET_PEER_ADDR_INFO
+.Pp
+.Dv SCTP_PEER_AUTH_CHUNKS
+.Pp
+.Dv SCTP_LOCAL_AUTH_CHUNKS
+.Sh RETURN VALUES
+The call returns 0 on success and -1 upon error.
+.Sh ERRORS
+The
+.Fn sctp_opt_info
+function can return the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The argument
+.Fa arg
+value was invalid.
+.It Bq Er EOPNOTSUPP
+The argument
+.Fa opt
+was not one of the above listed SCTP socket
+options.
+.It Bq Er EBADF
+The argument
+.Fa s
+is not a valid descriptor.
+.It Bq Er ENOTSOCK
+The argument
+.Fa s
+is not a socket.
+.El
+.Sh SEE ALSO
+.Xr getsockopt 2 ,
+.Xr sctp 4
+.Sh BUGS
+Because the structure used for
+.Fa arg
+of the
+.Dv SCTP_MAX_BURST
+socket option has changed in FreeBSD 9.0 and higher,
+using
+.Dv SCTP_MAX_BURST
+as
+.Fa opt
+is only supported in FreeBSD 9.0 and higher.

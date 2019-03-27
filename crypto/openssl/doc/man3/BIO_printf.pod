@@ -1,0 +1,50 @@
+=pod
+
+=head1 NAME
+
+BIO_printf, BIO_vprintf, BIO_snprintf, BIO_vsnprintf
+- formatted output to a BIO
+
+=head1 SYNOPSIS
+
+ #include <openssl/bio.h>
+
+ int BIO_printf(BIO *bio, const char *format, ...)
+ int BIO_vprintf(BIO *bio, const char *format, va_list args)
+
+ int BIO_snprintf(char *buf, size_t n, const char *format, ...)
+ int BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args)
+
+=head1 DESCRIPTION
+
+BIO_printf() is similar to the standard C printf() function, except that
+the output is sent to the specified BIO, B<bio>, rather than standard
+output.  All common format specifiers are supported.
+
+BIO_vprintf() is similar to the vprintf() function found on many platforms,
+the output is sent to the specified BIO, B<bio>, rather than standard
+output.  All common format specifiers are supported. The argument
+list B<args> is a stdarg argument list.
+
+BIO_snprintf() is for platforms that do not have the common snprintf()
+function. It is like sprintf() except that the size parameter, B<n>,
+specifies the size of the output buffer.
+
+BIO_vsnprintf() is to BIO_snprintf() as BIO_vprintf() is to BIO_printf().
+
+=head1 RETURN VALUES
+
+All functions return the number of bytes written, or -1 on error.
+For BIO_snprintf() and BIO_vsnprintf() this includes when the output
+buffer is too small.
+
+=head1 COPYRIGHT
+
+Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

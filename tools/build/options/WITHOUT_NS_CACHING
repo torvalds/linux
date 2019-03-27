@@ -1,0 +1,7 @@
+.\" $FreeBSD$
+Set to disable name caching in the
+.Pa nsswitch
+subsystem.
+The generic caching daemon,
+.Xr nscd 8 ,
+will not be built either if this option is set.

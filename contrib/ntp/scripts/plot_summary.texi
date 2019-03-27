@@ -1,0 +1,40 @@
+\input texinfo    @c -*-texinfo-*-
+@c %**start of header
+@setfilename plot_summary.info
+@settitle Plot_summary User's Manual
+@include ../sntp/include/version.texi
+@paragraphindent 2
+@c %**end of header
+
+@ifinfo
+This file documents the use of @code{plot_summary},
+a program from the NTP Project
+@end ifinfo
+
+@direntry
+* plot_summary: (plot_summary).                 Summarize (something)
+@end direntry
+
+@titlepage
+@title plot_summary User's Manual
+@subtitle plot_summary, version @value{VERSION}, @value{UPDATED}
+@c @author Max @email{foo@ntp.org}
+@end titlepage
+
+@c @page
+@c @vskip 0pt plus 1filll
+
+@node Top, plot_summary Description, (dir), (dir)
+@top Plot_summary User Manual
+
+This document describes the use of the NTP Project's @code{plot_summary} program.
+This document applies to version @value{VERSION} of @code{plot_summary}.
+
+@shortcontents
+
+@menu
+* plot_summary Description::             Description
+* plot_summary Invocation::		    Invoking plot_summary
+@end menu
+
+@include invoke-plot_summary.texi

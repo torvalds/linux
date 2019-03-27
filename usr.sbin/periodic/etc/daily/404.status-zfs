@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_status_zfs_enable" in
+    [Yy][Ee][Ss])
+	echo
+	echo 'Checking status of zfs pools:'
+
+	case "$daily_status_zfs_zpool_list_enable" in
+	    [Yy][Ee][Ss])
+		lout=`zpool list`
+		echo "$lout"
+		echo
+		;;
+	    *)
+		;;
+	esac
+	sout=`zpool status -x`
+	echo "$sout"
+	# zpool status -x always exits with 0, so we have to interpret its
+	# output to see what's going on.
+	if [ "$sout" = "all pools are healthy" \
+	    -o "$sout" = "no pools available" ]; then
+		rc=0
+	else
+		rc=1
+	fi
+	;;
+
+    *)
+	rc=0
+	;;
+esac
+
+exit $rc

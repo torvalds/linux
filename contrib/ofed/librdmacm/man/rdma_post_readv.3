@@ -1,0 +1,53 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_POST_READV" 3 "2010-07-19" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_post_readv \- post an RDMA read work request.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_verbs.h>"
+.P
+.B "int" rdma_post_readv
+.BI "(struct rdma_cm_id *" id ","
+.BI "void *" context ","
+.BI "struct ibv_sge *" sgl ","
+.BI "int " nsge ","
+.BI "int " flags ","
+.BI "uint64_t " remote_addr ","
+.BI "uint32_t " rkey ");"
+.SH ARGUMENTS
+.IP "id" 12
+A reference to a communication identifier where the request 
+will be posted.
+.IP "context" 12
+User-defined context associated with the request.
+.IP "sgl" 12
+A scatter-gather list of the destination buffers of the read.
+.IP "nsge" 12
+The number of scatter-gather array entries.
+.IP "flags" 12
+Optional flags used to control the read operation.
+.IP "remote_addr" 12
+The address of the remote registered memory to read from.
+.IP "rkey" 12
+The registered memory key associated with the remote address.
+.SH "DESCRIPTION"
+Posts a work request to the send queue of the queue pair associated
+with the rdma_cm_id.  The contents of the remote memory region will be
+read into the local data buffers.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+For a list of supported flags, see ibv_post_send. 
+Both the remote and local data buffers must have been registered
+before the read is issued, and the buffers must remain registered
+until the read completes.
+.P
+Read operations may not be posted to an rdma_cm_id or the corresponding
+queue pair until it has been connected.
+.P
+The user-defined context associated with the read request will be
+returned to the user through the work completion wr_id, work request
+identifier, field.
+.SH "SEE ALSO"
+rdma_cm(7), rdma_connect(3), rdma_accept(3),
+ibv_post_send(3), rdma_post_read(3), rdma_reg_read(3), rdma_reg_msgs(3)

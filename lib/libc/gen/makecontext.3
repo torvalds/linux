@@ -1,0 +1,125 @@
+.\" Copyright (c) 2002 Packet Design, LLC.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty,
+.\" use and redistribution of this software, in source or object code
+.\" forms, with or without modifications are expressly permitted by
+.\" Packet Design; provided, however, that:
+.\"
+.\"    (i)  Any and all reproductions of the source or object code
+.\"         must include the copyright notice above and the following
+.\"         disclaimer of warranties; and
+.\"    (ii) No rights are granted, in any manner or form, to use
+.\"         Packet Design trademarks, including the mark "PACKET DESIGN"
+.\"         on advertising, endorsements, or otherwise except as such
+.\"         appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY PACKET DESIGN "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, PACKET DESIGN MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING
+.\" THIS SOFTWARE, INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+.\" OR NON-INFRINGEMENT.  PACKET DESIGN DOES NOT WARRANT, GUARANTEE,
+.\" OR MAKE ANY REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS
+.\" OF THE USE OF THIS SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY,
+.\" RELIABILITY OR OTHERWISE.  IN NO EVENT SHALL PACKET DESIGN BE
+.\" LIABLE FOR ANY DAMAGES RESULTING FROM OR ARISING OUT OF ANY USE
+.\" OF THIS SOFTWARE, INCLUDING WITHOUT LIMITATION, ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, PUNITIVE, OR CONSEQUENTIAL
+.\" DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, LOSS OF
+.\" USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+.\" THE USE OF THIS SOFTWARE, EVEN IF PACKET DESIGN IS ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 31, 2018
+.Dt MAKECONTEXT 3
+.Os
+.Sh NAME
+.Nm makecontext , swapcontext
+.Nd modify and exchange user thread contexts
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In ucontext.h
+.Ft void
+.Fo makecontext
+.Fa "ucontext_t *ucp"
+.Fa "void \*[lp]*func\*[rp]\*[lp]void\*[rp]"
+.Fa "int argc" ...
+.Fc
+.Ft int
+.Fn swapcontext "ucontext_t *oucp" "const ucontext_t *ucp"
+.Sh DESCRIPTION
+The
+.Fn makecontext
+function
+modifies the user thread context pointed to by
+.Fa ucp ,
+which must have previously been initialized by a call to
+.Xr getcontext 3
+and had a stack allocated for it.
+The context is modified so that it will continue execution by invoking
+.Fn func
+with the arguments provided.
+The
+.Fa argc
+argument
+must be equal to the number of additional arguments of type
+.Vt int
+provided to
+.Fn makecontext
+and also equal to the number of arguments of type
+.Vt int
+to
+.Fn func ;
+otherwise ,
+the behavior is undefined.
+.Pp
+The
+.Fa "ucp->uc_link"
+argument
+must be initialized before calling
+.Fn makecontext
+and determines the action to take when
+.Fn func
+returns:
+if equal to
+.Dv NULL ,
+the process exits;
+otherwise,
+.Fn setcontext "ucp->uc_link"
+is implicitly invoked.
+.Pp
+The
+.Fn swapcontext
+function
+saves the current thread context in
+.Fa "*oucp"
+and makes
+.Fa "*ucp"
+the currently active context.
+.Sh RETURN VALUES
+If successful,
+.Fn swapcontext
+returns zero;
+otherwise \-1 is returned and the global variable
+.Va errno
+is set appropriately.
+.Sh ERRORS
+The
+.Fn swapcontext
+function
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+There is not enough stack space in
+.Fa ucp
+to complete the operation.
+.El
+.Sh SEE ALSO
+.Xr setcontext 3 ,
+.Xr ucontext 3

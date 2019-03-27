@@ -1,0 +1,42 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        ec_lib.c ecp_smpl.c ecp_mont.c ecp_nist.c ec_cvt.c ec_mult.c \
+        ec_err.c ec_curve.c ec_check.c ec_print.c ec_asn1.c ec_key.c \
+        ec2_smpl.c ec_ameth.c ec_pmeth.c eck_prn.c \
+        ecp_nistp224.c ecp_nistp256.c ecp_nistp521.c ecp_nistputil.c \
+        ecp_oct.c ec2_oct.c ec_oct.c ec_kmeth.c ecdh_ossl.c ecdh_kdf.c \
+        ecdsa_ossl.c ecdsa_sign.c ecdsa_vrf.c curve25519.c ecx_meth.c \
+        curve448/arch_32/f_impl.c curve448/f_generic.c curve448/scalar.c \
+        curve448/curve448_tables.c curve448/eddsa.c curve448/curve448.c \
+        {- $target{ec_asm_src} -}
+
+GENERATE[ecp_nistz256-x86.s]=asm/ecp_nistz256-x86.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+
+GENERATE[ecp_nistz256-x86_64.s]=asm/ecp_nistz256-x86_64.pl $(PERLASM_SCHEME)
+
+GENERATE[ecp_nistz256-avx2.s]=asm/ecp_nistz256-avx2.pl $(PERLASM_SCHEME)
+
+GENERATE[ecp_nistz256-sparcv9.S]=asm/ecp_nistz256-sparcv9.pl $(PERLASM_SCHEME)
+INCLUDE[ecp_nistz256-sparcv9.o]=..
+
+GENERATE[ecp_nistz256-armv4.S]=asm/ecp_nistz256-armv4.pl $(PERLASM_SCHEME)
+INCLUDE[ecp_nistz256-armv4.o]=..
+GENERATE[ecp_nistz256-armv8.S]=asm/ecp_nistz256-armv8.pl $(PERLASM_SCHEME)
+INCLUDE[ecp_nistz256-armv8.o]=..
+GENERATE[ecp_nistz256-ppc64.s]=asm/ecp_nistz256-ppc64.pl $(PERLASM_SCHEME)
+
+GENERATE[x25519-x86_64.s]=asm/x25519-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[x25519-ppc64.s]=asm/x25519-ppc64.pl $(PERLASM_SCHEME)
+
+BEGINRAW[Makefile]
+{- $builddir -}/ecp_nistz256-%.S:	{- $sourcedir -}/asm/ecp_nistz256-%.pl
+	CC="$(CC)" $(PERL) $< $(PERLASM_SCHEME) $@
+ENDRAW[Makefile]
+
+INCLUDE[curve448/arch_32/f_impl.o]=curve448/arch_32 curve448
+INCLUDE[curve448/f_generic.o]=curve448/arch_32 curve448
+INCLUDE[curve448/scalar.o]=curve448/arch_32 curve448
+INCLUDE[curve448/curve448_tables.o]=curve448/arch_32 curve448
+INCLUDE[curve448/eddsa.o]=curve448/arch_32 curve448
+INCLUDE[curve448/curve448.o]=curve448/arch_32 curve448

@@ -1,0 +1,121 @@
+.\" Copyright (c) 2008 George V. Neville-Neil
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 3, 2008
+.Dt MCTEST 1
+.Os
+.Sh NAME
+.Nm mctest
+.Nd "multicast test"
+.Sh SYNOPSIS
+.Nm
+.Op Fl i Ar interface
+.Op Fl g Ar group
+.Op Fl b Ar base port
+.Op Fl n Ar number
+.Op Fl s Ar size
+.Op Fl t Ar inter-packet gap
+.Op Fl M Ar number of clients (source only)
+.Op Fl m Ar my client number (sink only)
+.Op Fl r
+.Sh DESCRIPTION
+The
+.Nm
+command implements a multicast test which involves a source
+and a sink.
+The source sends packets to a pre-configured
+multicast address over the interface given as a command line
+argument.
+The sink listens for multicast packets, records
+the time at which they are received and then reflects them back
+over unicast to the source.
+When the source has captured all
+the reflected packets it prints out the round trip time of each.
+.Pp
+The source prints out the round trip time of packets sent to the
+sinks.
+The sink prints out the time between the packets received.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl i Ar interface"
+.It Fl i Ar interface
+Network interface, which can be found with
+.Xr ifconfig 8 .
+.It Fl g Ar group
+Multicast group.
+.It Fl b Ar base port
+Port on which to listen.
+.It Fl s Ar size
+Packet size in bytes.
+.It Fl n Ar number
+Number of packets.
+.It Fl t Ar gap
+Inter-packet gap in nanoseconds.
+.It Fl M Ar clients
+The number of clients that are listening.
+.It Fl m Ar my number
+The client's number 0, 1, etc.
+.It Fl r
+This version of
+.Nm
+is the receiver aka the sink.
+This option MUST
+only be used with one copy of the program at a time.
+.El
+.Sh EXAMPLES
+The following is an example of a typical usage
+of the
+.Nm
+command:
+.Pp
+Source
+.Dl "mctest -i em0 -M 1 -s 1024 -n 100 -t 1"
+Sink
+.Dl "mctest -i em0 -m 0 -s 1024 -n 100 -r"
+.Pp
+Send 100 packets of 1024 bytes, with an inter-packet gap of 1 nanosecond.
+.Pp
+Gaps are measured with
+.Xr nanosleep 2 ,
+and so are not accurate down to nanoseconds
+but depend on the setting of
+.Va kern.hz .
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr nanosleep 2 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An George V. Neville-Neil Aq Mt gnn@FreeBSD.org .
+.Sh BUGS
+Should be reported to the author or to
+.Aq Mt net@FreeBSD.org .

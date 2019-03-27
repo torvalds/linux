@@ -1,0 +1,12 @@
+*/*/Makefile*
+*/Makefile*
+*/*.m4
+*/*.pc.in
+INSTALL
+Makefile*
+aclocal.m4
+admin/
+config.h.in
+bootstrap/
+configure*
+m4/

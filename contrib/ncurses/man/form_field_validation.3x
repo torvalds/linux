@@ -1,0 +1,138 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: form_field_validation.3x,v 1.20 2010/12/04 18:38:55 tom Exp $
+.TH form_field_validation 3X ""
+.SH NAME
+\fBform_field_validation\fR \- data type validation for fields
+.SH SYNOPSIS
+\fB#include <form.h>\fR
+.br
+int set_field_type(FIELD *field, FIELDTYPE *type, ...);
+.br
+FIELDTYPE *field_type(const FIELD *field);
+.br
+void *field_arg(const FIELD *field);
+.sp
+FIELDTYPE *TYPE_ALNUM;
+.br
+FIELDTYPE *TYPE_ALPHA;
+.br
+FIELDTYPE *TYPE_ENUM;
+.br
+FIELDTYPE *TYPE_INTEGER;
+.br
+FIELDTYPE *TYPE_NUMERIC;
+.br
+FIELDTYPE *TYPE_REGEXP;
+.br
+FIELDTYPE *TYPE_IPV4;
+.br
+.SH DESCRIPTION
+The function \fBset_field_type\fR declares a data type for a given form field.
+This is the type checked by validation functions.
+The predefined types are as follows:
+.TP 5
+TYPE_ALNUM
+Alphanumeric data.  Requires a third \fBint\fR argument, a minimum field width.
+.TP 5
+TYPE_ALPHA
+Character data.  Requires a third \fBint\fR argument, a minimum field width.
+.TP 5
+TYPE_ENUM
+Accept one of a specified set of strings.  Requires a third \fB(char **)\fR
+argument pointing to a string list; a fourth \fBint\fR flag argument to enable
+case-sensitivity; and a fifth \fBint\fR flag argument specifying whether a partial
+match must be a unique one (if this flag is off, a prefix matches the first
+of any set of more than one list elements with that prefix). Please notice
+that the string list is copied. So you may use a list that lives in automatic variables on the stack.
+.TP 5
+TYPE_INTEGER
+Integer data, parsable to an integer by \fBatoi(3)\fR.  Requires a third
+\fBint\fR argument controlling the precision, a fourth \fBlong\fR argument
+constraining minimum value, and a fifth \fBlong\fR constraining maximum value.
+If the maximum value is less than or equal to the minimum value, the range is
+simply ignored. On return the field buffer is formatted according to the
+\fBprintf\fR format specification ".*ld", where the '*' is replaced by the
+precision argument.
+For details of the precision handling see \fBprintf's\fR man-page.
+.TP 5
+TYPE_NUMERIC
+Numeric data (may have a decimal-point part). Requires a third
+\fBint\fR argument controlling the precision, a fourth \fBdouble\fR
+argument constraining minimum value, and a fifth \fBdouble\fR constraining
+maximum value. If your system supports locales, the decimal point character
+to be used must be the one specified by your locale.
+If the maximum value is less than or equal to the minimum value, the range is
+simply ignored. On return the field buffer is formatted according to the
+\fBprintf\fR format specification ".*f", where the '*' is replaced by the
+precision argument.
+For details of the precision handling see \fBprintf's\fR man-page.
+.TP 5
+TYPE_REGEXP
+Regular expression data.  Requires a regular expression \fB(char *)\fR third argument;
+the data is valid if the regular expression matches it.  Regular expressions
+are in the format of \fBregcomp\fR and \fBregexec\fR. Please notice
+that the regular expression must match the whole field. If you have for
+example an eight character wide field, a regular expression "^[0\-9]*$" always
+means that you have to fill all eight positions with digits. If you want to
+allow fewer digits, you may use for example "^[0\-9]* *$" which is good for
+trailing spaces (up to an empty field), or "^ *[0\-9]* *$" which is good for
+leading and trailing spaces around the digits.
+.TP 5
+TYPE_IPV4
+An Internet Protocol Version 4 address. This requires no additional argument. It
+is checked whether or not the buffer has the form a.b.c.d, where a,b,c and d are
+numbers between 0 and 255. Trailing blanks in the buffer are ignored. The address
+itself is not validated. Please note that this is an ncurses extension. This
+field type may not be available in other curses implementations.
+.PP
+It is possible to set up new programmer-defined field types.  See the
+\fBform_fieldtype\fR(3X) manual page.
+.SH RETURN VALUE
+The functions \fBfield_type\fR and \fBfield_arg\fR return \fBNULL\fR on
+error. The function \fBset_field_type\fR returns one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBform\fR(3X),
+\fBform_variables\fR(3X).
+.SH NOTES
+The header file \fB<form.h>\fR automatically includes the header file
+\fB<curses.h>\fR.
+.SH PORTABILITY
+These routines emulate the System V forms library.  They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
+S. Raymond.

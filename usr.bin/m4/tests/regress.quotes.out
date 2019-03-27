@@ -1,0 +1,49 @@
+m4: unclosed quote:
+   quotes.m4 at line 55
+1: normal
+quoted string
+[quoted STRING]
+normal STRING
+half quoted string
+going up to that string
+
+2: kill quotes
+`quoted STRING'
+[quoted STRING]
+normal STRING
+`half quoted STRING
+going up to that STRING'
+
+3: normal changed quote
+`quoted STRING'
+quoted string
+normal STRING
+`half quoted STRING
+going up to that STRING'
+
+4: empty quotes, kill them too
+`quoted STRING'
+[quoted STRING]
+normal STRING
+`half quoted STRING
+going up to that STRING'
+
+5: start quote only
+quoted string'[quoted STRING]
+normal STRING
+half quoted stringgoing up to that STRING'
+
+6: normal quotes are back
+
+quoted string
+[quoted STRING]
+normal STRING
+half quoted string
+going up to that string
+
+7: start quote+empty end quote
+`quoted STRING'
+quoted string]
+normal string
+`half quoted string
+going up to that string'

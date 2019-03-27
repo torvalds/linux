@@ -1,0 +1,241 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 1, 2016
+.Dt DOMAIN 9
+.Os
+.Sh NAME
+.Nm domain_add ,
+.Nm pfctlinput ,
+.Nm pfctlinput2 ,
+.Nm pffinddomain ,
+.Nm pffindproto ,
+.Nm pffindtype ,
+.Nm DOMAIN_SET
+.Nd "network domain management"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/kernel.h
+.In sys/protosw.h
+.In sys/domain.h
+.Ft void
+.Fn domain_add "void *data"
+.Ft void
+.Fn pfctlinput "int cmd" "struct sockaddr *sa"
+.Ft void
+.Fn pfctlinput2 "int cmd" "struct sockaddr *sa" "void *ctlparam"
+.Ft struct domain *
+.Fn pffinddomain "int family"
+.Ft struct protosw *
+.Fn pffindproto "int family" "int protocol" "int type"
+.Ft struct protosw *
+.Fn pffindtype "int family" "int type"
+.Ft void
+.Fn DOMAIN_SET "name"
+.Sh DESCRIPTION
+Network protocols installed in the system are maintained within what
+are called domains
+(for example the
+.Va inetdomain
+and
+.Va localdomain ) .
+.Bd -literal
+struct domain {
+	int	dom_family;		/* AF_xxx */
+	char	*dom_name;
+	void	(*dom_init)		/* initialize domain data structures */
+		(void);
+	void	(*dom_destroy)		/* cleanup structures / state */
+		(void);
+	int	(*dom_externalize)	/* externalize access rights */
+		(struct mbuf *, struct mbuf **);
+	void	(*dom_dispose)		/* dispose of internalized rights */
+		(struct mbuf *);
+	struct	protosw *dom_protosw, *dom_protoswNPROTOSW;
+	struct	domain *dom_next;
+	int	(*dom_rtattach)		/* initialize routing table */
+		(void **, int);
+	int	(*dom_rtdetach)		/* clean up routing table */
+		(void **, int);
+	void	*(*dom_ifattach)(struct ifnet *);
+	void	(*dom_ifdetach)(struct ifnet *, void *);
+	int	(*dom_ifmtu)(struct ifnet *);
+					/* af-dependent data on ifnet */
+};
+.Ed
+.Pp
+Each domain contains an array of protocol switch structures
+.Pq Vt "struct protosw *" ,
+one for each socket type supported.
+.Bd -literal
+struct protosw {
+	short	pr_type;		/* socket type used for */
+	struct	domain *pr_domain;	/* domain protocol a member of */
+	short	pr_protocol;		/* protocol number */
+	short	pr_flags;		/* see below */
+/* protocol-protocol hooks */
+	pr_input_t *pr_input;		/* input to protocol (from below) */
+	pr_output_t *pr_output;		/* output to protocol (from above) */
+	pr_ctlinput_t *pr_ctlinput;	/* control input (from below) */
+	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
+/* utility hooks */
+	pr_init_t *pr_init;
+	pr_fasttimo_t *pr_fasttimo;	/* fast timeout (200ms) */
+	pr_slowtimo_t *pr_slowtimo;	/* slow timeout (500ms) */
+	pr_drain_t *pr_drain;		/* flush any excess space possible */
+
+	struct	pr_usrreqs *pr_usrreqs;	/* user-protocol hook */
+};
+.Ed
+.Pp
+The following functions handle the registration of a new domain,
+lookups of specific protocols and protocol types within those domains,
+and handle control messages from the system.
+.Pp
+.Fn pfctlinput
+is called by the system whenever an event occurs that could affect every
+domain.
+Examples of those types of events are routing table changes, interface
+shutdowns or certain
+.Tn ICMP
+message types.
+When called,
+.Fn pfctlinput
+calls the protocol specific
+.Fn pr_ctlinput
+function for each protocol in that has defined one, in every domain.
+.Pp
+.Fn pfctlinput2
+provides that same functionality of
+.Fn pfctlinput ,
+but with a few additional checks and a new
+.Vt "void *"
+argument that is passed directly to the protocol's
+.Fn pr_ctlinput
+function.
+Unlike
+.Fn pfctlinput ,
+.Fn pfctlinput2
+verifies that
+.Fa sa
+is not
+.Dv NULL ,
+and that only the protocol families that are the same as
+.Fa sa
+have their
+.Fn pr_ctlinput
+function called.
+.Pp
+.Fn domain_add
+adds a new protocol domain to the system.
+The argument
+.Fa data
+is cast directly to
+.Vt "struct domain *"
+within the function, but is declared
+.Vt "void *"
+in order to prevent compiler warnings when new domains are registered with
+.Fn SYSINIT .
+In most cases
+.Fn domain_add
+is not called directly, instead
+.Fn DOMAIN_SET
+is used.
+.Pp
+If the new domain has defined an initialization routine, it is called by
+.Fn domain_add ;
+as well, each of the protocols within the domain that have defined an
+initialization routine will have theirs called.
+.Pp
+Once a domain is added it cannot be unloaded.
+This is because there is
+no reference counting system in place to determine if there are any
+active references from sockets within that domain.
+.Pp
+.Fn pffinddomain
+finds a domain by family.
+If the domain cannot be found,
+.Dv NULL
+is returned.
+.Pp
+.Fn pffindtype
+and
+.Fn pffindproto
+look up a protocol by its number or by its type.
+In most cases, if the protocol or type cannot be found,
+.Dv NULL
+is returned, but
+.Fn pffindproto
+may return the default if the requested type is
+.Dv SOCK_RAW ,
+a protocol switch type of
+.Dv SOCK_RAW
+is found, and the domain has a default raw protocol.
+.Pp
+Both functions are called by
+.Fn socreate
+in order to resolve the protocol for the socket currently being created.
+.Pp
+.Fn DOMAIN_SET
+is a macro that simplifies the registration of a domain via
+.Fn SYSINIT .
+The code resulting from the macro expects there to be a domain structure
+named
+.Dq Fa name Ns Li domain
+where
+.Fa name
+is the argument to
+.Fn DOMAIN_SET :
+.Bd -literal
+struct domain localdomain =
+{ AF_LOCAL, "local", unp_init, unp_externalize, unp_dispose,
+  localsw, &localsw[sizeof(localsw)/sizeof(localsw[0])] };
+
+DOMAIN_SET(local);
+.Ed
+.Sh RETURN VALUES
+Both
+.Fn pffindtype
+and
+.Fn pffindproto
+return a
+.Vt "struct protosw *"
+for the protocol requested.
+If the protocol or socket type is not found,
+.Dv NULL
+is returned.
+In the case of
+.Fn pffindproto ,
+the default protocol may be returned for
+.Dv SOCK_RAW
+types if the domain has a default raw protocol.
+.Sh SEE ALSO
+.Xr socket 2
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@acns.ab.ca .

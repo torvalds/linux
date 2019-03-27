@@ -1,0 +1,138 @@
+.\"
+.\"
+.\"     Licensed to the Apache Software Foundation (ASF) under one
+.\"     or more contributor license agreements.  See the NOTICE file
+.\"     distributed with this work for additional information
+.\"     regarding copyright ownership.  The ASF licenses this file
+.\"     to you under the Apache License, Version 2.0 (the
+.\"     "License"); you may not use this file except in compliance
+.\"     with the License.  You may obtain a copy of the License at
+.\"    
+.\"       http://www.apache.org/licenses/LICENSE-2.0
+.\"    
+.\"     Unless required by applicable law or agreed to in writing,
+.\"     software distributed under the License is distributed on an
+.\"     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+.\"     KIND, either express or implied.  See the License for the
+.\"     specific language governing permissions and limitations
+.\"     under the License.
+.\"
+.\"
+.\" You can view this file with:
+.\" nroff -man [filename]
+.\"
+.TH svnserve 8
+.SH NAME
+svnserve \- Server for the 'svn' repository access method
+.SH SYNOPSIS
+.TP
+\fBsvnserve\fP [\fIoptions\fP]
+.SH DESCRIPTION
+\fBsvnserve\fP allows access to Subversion repositories using the svn
+network protocol.  It can both run as a standalone server process, or
+it can run out of inetd.  You must choose a mode of operation when you
+start \fBsvnserve\fP.  The following options are recognized:
+.PP
+.TP 5
+\fB\-d\fP, \fB\-\-daemon\fP
+Causes \fBsvnserve\fP to run in daemon mode.  \fBsvnserve\fP
+backgrounds itself and accepts and serves TCP/IP connections on the
+svn port (3690, by default).
+.PP
+.TP 5
+\fB\-\-listen\-port\fP=\fIport\fP
+Causes \fBsvnserve\fP to listen on \fIport\fP when run in daemon mode.
+.PP
+.TP 5
+\fB\-\-listen\-host\fP=\fIhost\fP
+Causes \fBsvnserve\fP to listen on the interface specified by \fIhost\fP,
+which may be either a hostname or an IP address.
+.PP
+.TP 5
+\fB\-\-foreground\fP
+When used together with \fB\-d\fP, this option causes \fBsvnserve\fP
+to stay in the foreground.  This option is mainly useful for
+debugging.
+.PP
+.TP 5
+\fB\-i\fP, \fB\-\-inetd\fP
+Causes \fBsvnserve\fP to use the stdin/stdout file descriptors, as is
+appropriate for a daemon running out of inetd.
+.PP
+.TP 5
+\fB\-h\fP, \fB\-\-help\fP
+Displays a usage summary and exits.
+.PP
+.TP 5
+\fB\-\-version\fP
+Print \fBsvnserve\fP's version and the repository filesystem
+back-end(s) a particular \fBsvnserve\fP supports.
+.PP
+.TP 5
+\fB\-r\fP \fIroot\fP, \fB\-\-root\fP=\fIroot\fP
+Sets the virtual root for repositories served by \fBsvnserve\fP.  The
+pathname in URLs provided by the client will be interpreted relative
+to this root, and will not be allowed to escape this root.
+.PP
+.TP 5
+\fB\-R\fP \fB\-\-read\-only\fP
+Force all write operations through this \fBsvnserve\fP instance to be
+forbidden, overriding all other access policy configuration.  Do not
+use this option to set general repository access policy - that is what
+the \fBconf/svnserve.conf\fP repository configuration file is for.
+This option should be used only to restrict access via a certain
+method of invoking \fBsvnserve\fP - for example, to allow write access
+via SSH, but not via a \fBsvnserve\fP daemon, or to create a
+restricted SSH key which is only capable of read access.
+.PP
+.TP 5
+\fB\-t\fP, \fB\-\-tunnel\fP
+Causes \fBsvnserve\fP to run in tunnel mode, which is just like the
+inetd mode of operation (serve one connection over stdin/stdout)
+except that the connection is considered to be pre-authenticated with
+the username of the current uid.  This flag is selected by the client
+when running over a tunnel agent.
+.PP
+.TP 5
+\fB\-\-tunnel\-user\fP=\fIusername\fP
+When combined with \fB\-\-tunnel\fP, overrides the pre-authenticated
+username with the supplied \fIusername\fP.  This is useful in
+combination with the ssh authorized_key file's "command" directive to
+allow a single system account to be used by multiple committers, each
+having a distinct ssh identity.
+.PP
+.TP 5
+\fB\-T\fP, \fB\-\-threads\fP
+When running in daemon mode, causes \fBsvnserve\fP to spawn a thread
+instead of a process for each connection.  The \fBsvnserve\fP process
+still backgrounds itself at startup time.
+.PP
+.TP 5
+\fB\-\-config\-file\fP=\fIfilename\fP
+When specified, \fBsvnserve\fP reads \fIfilename\fP once at program
+startup and caches the \fBsvnserve\fP configuration.  The password
+and authorization configurations referenced from \fIfilename\fP will
+be loaded on each connection.  \fBsvnserve\fP will not read any
+per-repository \fBconf/svnserve.conf\fP files when this option is
+used.  See the \fBsvnserve.conf\fP(5) man page for details of the
+file format for this option.
+.PP
+.TP 5
+\fB\-\-pid\-file\fP=\fIfilename\fP
+When specified, \fBsvnserve\fP will write its process ID to
+\fIfilename\fP.
+.PP
+.TP 5
+\fB\-X\fP, \fB\-\-listen\-once\fP
+Causes \fBsvnserve\fP to accept one connection on the svn port, serve
+it, and exit.  This option is mainly useful for debugging.
+.PP
+Unless the \fB\-\-config\-file\fP option was specified on the command
+line, once the client has selected a repository by transmitting its
+URL, \fBsvnserve\fP reads a file named \fBconf/svnserve.conf\fP in the
+repository directory to determine repository-specific settings such as
+what authentication database to use and what authorization policies to
+apply.  See the \fBsvnserve.conf\fP(5) man page for details of that
+file format.
+.SH SEE ALSO
+.BR svnserve.conf (5)

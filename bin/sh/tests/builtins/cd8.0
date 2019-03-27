@@ -1,0 +1,26 @@
+# $FreeBSD$
+
+# The exact wording of the error message is not standardized, but giving
+# a description of the errno is useful.
+
+LC_ALL=C
+export LC_ALL
+r=0
+
+t() {
+	exec 3>&1
+	errmsg=`cd "$1" 2>&1 >&3 3>&-`
+	exec 3>&-
+	case $errmsg in
+	*[Nn]ot\ a\ directory*)
+		;;
+	*)
+		printf "Wrong error message for %s: %s\n" "$1" "$errmsg"
+		r=3
+		;;
+	esac
+}
+
+t /dev/tty
+t /dev/tty/x
+exit $r

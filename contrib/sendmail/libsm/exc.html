@@ -1,0 +1,757 @@
+<html>
+<head>
+    <title>libsm : Exception Handling</title>
+</head>
+<body>
+
+<a href="index.html">Back to libsm overview</a>
+
+<center>
+    <h1> libsm : Exception Handling </h1>
+    <br> $Id: exc.html,v 1.13 2006-06-20 17:18:16 ca Exp $
+</center>
+
+<h2> Introduction </h2>
+
+The exception handling package provides the facilities that
+functions in libsm use to report errors.
+Here are the basic concepts:
+
+<ol>
+<li>
+    When a function detects an exceptional condition at the library level,
+    it does not print an error message, or call syslog, or
+    exit the program.  Instead, it reports the error back to its
+    caller, and lets the caller decide what to do.
+    This improves modularity, because error handling is separated
+    from error reporting.
+    <p>
+<li>
+    Errors are not represented by a single integer error code,
+    because then you can't represent everything that an error handler
+    might need to know about an error by a single integer.
+    Instead, errors are represented by exception objects.
+    An exception object contains an exception code and an array
+    of zero or more exception arguments.
+    The exception code is a string that specifies what kind of exception
+    this is, and the arguments may be integers, strings or exception objects.
+    <p>
+<li>
+    Errors are not reported using a special return value,
+    because if you religiously check for error returns from every
+    function call that could fail, then most of your code ends up being
+    error handling code.  Errors are reported by raising an exception.
+    When an exception is raised, we unwind the call stack
+    until we find an exception handler.  If the exception is
+    not handled, then we print the exception on stderr and
+    exit the program.
+</ol>
+
+<h2> Synopsis </h2>
+
+<pre>
+#include &lt;sm/exc.h&gt;
+
+typedef struct sm_exc_type SM_EXC_TYPE_T;
+typedef struct sm_exc SM_EXC_T;
+typedef union sm_val SM_VAL_T;
+
+/*
+**  Exception types
+*/
+
+extern const char SmExcTypeMagic[];
+
+struct sm_exc_type
+{
+	const char	*sm_magic;
+	const char	*etype_category;
+	const char	*etype_argformat;
+	void 		(*etype_print)(SM_EXC_T *exc, SM_FILE_T *stream);
+	const char	*etype_printcontext;
+};
+
+extern const SM_EXC_TYPE_T SmEtypeOs;
+extern const SM_EXC_TYPE_T SmEtypeErr;
+
+void
+sm_etype_printf(
+	SM_EXC_T *exc,
+	SM_FILE_T *stream);
+
+/*
+**  Exception objects
+*/
+
+extern const char SmExcMagic[];
+
+union sm_val
+{
+	int		v_int;
+	long		v_long;
+	char		*v_str;
+	SM_EXC_T	*v_exc;
+};
+
+struct sm_exc
+{
+	const char		*sm_magic;
+	size_t			exc_refcount;
+	const SM_EXC_TYPE_T	*exc_type;
+	SM_VAL_T		*exc_argv;
+};
+
+SM_EXC_T *
+sm_exc_new_x(
+	const SM_EXC_TYPE_T *type,
+	...);
+
+SM_EXC_T *
+sm_exc_addref(
+	SM_EXC_T *exc);
+
+void
+sm_exc_free(
+	SM_EXC_T *exc);
+
+bool
+sm_exc_match(
+	SM_EXC_T *exc,
+	const char *pattern);
+
+void
+sm_exc_print(
+	SM_EXC_T *exc,
+	SM_FILE_T *stream);
+
+void
+sm_exc_write(
+	SM_EXC_T *exc,
+	SM_FILE_T *stream);
+
+void
+sm_exc_raise_x(
+	SM_EXC_T *exc);
+
+void
+sm_exc_raisenew_x(
+	const SM_EXC_TYPE_T *type,
+	...);
+
+/*
+**  Ensure that cleanup code is executed,
+**  and/or handle an exception.
+*/
+SM_TRY
+	Block of code that may raise an exception.
+SM_FINALLY
+	Cleanup code that may raise an exception.
+	This clause is guaranteed to be executed even if an exception is
+	raised by the SM_TRY clause or by an earlier SM_FINALLY clause.
+	You may have 0 or more SM_FINALLY clauses.
+SM_EXCEPT(exc, pattern)
+	Exception handling code, triggered by an exception
+	whose category matches 'pattern'.
+	You may have 0 or more SM_EXCEPT clauses.
+SM_END_TRY
+</pre>
+
+<h2> Overview </h2>
+
+    An exception is an object which represents an exceptional condition,
+    which might be an error condition like "out of memory", or might be
+    a condition like "end of file".
+<p>
+    Functions in libsm report errors and other unusual conditions by
+    raising an exception, rather than by returning an error code or
+    setting a global variable such as errno.  If a libsm function is
+    capable of raising an exception, its name ends in "_x".
+    (We do not raise an exception when a bug is detected in the
+    program; instead, we terminate the program using <tt>sm_abort</tt>.
+    See <a href="assert.html">the assertion package</a>
+    for details.)
+<p>
+    When you are using the libsm exception handling package,
+    you are using a new programming paradigm.
+    You will need to abandon some of the programming idioms
+    you are accustomed to, and switch to new idioms.
+    Here is an overview of some of these idioms.
+<ol>
+<li>
+	When a function is unable to complete its task because
+	of an exceptional condition, it reports this condition
+	by raising an exception.
+	<p>
+	Here is an example of how to construct an exception object
+	and raise an exception.
+	In this example, we convert a Unix system error into an exception.
+<blockquote><pre>
+fd = open(path, O_RDONLY);
+if (fd == -1)
+	sm_exc_raise_x(sm_exc_new_x(&SmEtypeOs, errno, "open", "%s", path));
+</pre></blockquote>
+
+	Because the idiom <tt>sm_exc_raise_x(sm_exc_new_x(...))</tt>
+	is so common, it can be abbreviated as <tt>sm_exc_raisenew_x(...)</tt>.
+<p>
+<li>
+	When you detect an error at the application level,
+	you don't call a function like BSD's <tt>errx</tt>,
+	which prints an error message on stderr and exits the program.
+	Instead, you raise an exception.
+	This causes cleanup code in surrounding exception handlers
+	to be run before the program exits.
+	For example, instead of this:
+<blockquote><pre>
+errx(1, "%s:%d: syntax error", filename, lineno);
+</pre></blockquote>
+
+	use this:
+
+<blockquote><pre>
+sm_exc_raisenew_x(&SmEtypeErr, "%s:%d: syntax error", filename, lineno);
+</pre></blockquote>
+
+	The latter code raises an exception, unwinding the call stack
+	and executing cleanup code.
+	If the exception is not handled, then the exception is printed
+	to stderr and the program exits.
+	The end result is substantially the same as a call to <tt>errx</tt>.
+<p>
+<li>
+        The SM_TRY ... SM_FINALLY ... control structure
+	ensures that cleanup code is executed and resources are released
+	in the presence of exceptions.
+<p>
+	For example, suppose that you have written the following code:
+
+<blockquote><pre>
+rpool = sm_rpool_new_x(&SmRpoolRoot, 0);
+... some code ...
+sm_rpool_free_x(rpool);
+</pre></blockquote>
+
+	If any of the functions called within "... some code ..." have
+	names ending in _x, then it is possible that an exception will be
+	raised, and if that happens, then "rpool" will not be freed.
+	And that's a bug.  To fix this bug, change your code so it looks
+	like this:
+
+<blockquote><pre>
+rpool = sm_rpool_new_x(&SmRpoolRoot, 0);
+SM_TRY
+	... some code that can raise an exception ...
+SM_FINALLY
+	sm_rpool_free_x(rpool);
+SM_END_TRY
+</pre></blockquote>
+
+<li>
+	The SM_TRY ... SM_EXCEPT ... control structure handles an exception.
+	Unhandled exceptions terminate the program.
+	For example, here is a simple exception handler
+	that traps all exceptions, and prints the exceptions:
+
+<blockquote><pre>
+SM_TRY
+	/* code that can raise an exception */
+	...
+SM_EXCEPT(exc, "*")
+	/* catch all exceptions */
+	sm_exc_print(exc, stderr);
+SM_END_TRY
+</pre></blockquote>
+
+    Exceptions are reference counted.  The SM_END_TRY macro contains a
+    call to sm_exc_free, so you don't normally need to worry about freeing
+    an exception after handling it.  In the rare case that you want an
+    exception to outlive an exception handler, then you increment its
+    reference count by calling sm_exc_addref.
+<p>
+<li>
+    The second argument of the SM_EXCEPT macro is a glob pattern
+    which specifies the types of exceptions that are to be handled.
+    For example, you might want to handle an end-of-file exception
+    differently from other exceptions.
+    Here's how you do that:
+
+<blockquote><pre>
+SM_TRY
+	/* code that might raise end-of-file, or some other exception */
+	...
+SM_EXCEPT(exc, "E:sm.eof")
+	/* what to do if end-of-file is encountered */
+	...
+SM_EXCEPT(exc, "*")
+	/* what to do if some other exception is raised */
+	...
+SM_END_TRY
+</pre></blockquote>
+</ol>
+
+<h2> Exception Values </h2>
+
+In traditional C code, errors are usually denoted by a single integer,
+such as errno.  In practice, errno does not carry enough information
+to describe everything that an error handler might want to know about
+an error.  And the scheme is not very extensible: if several different
+packages want to add additional error codes, it is hard to avoid
+collisions.
+
+<p>
+In libsm, an exceptional condition is described
+by an object of type SM_EXC_T.
+An exception object is created by specifying an exception type
+and a list of exception arguments.
+
+<p>
+The exception arguments are an array of zero or more values.
+The values may be a mixture of ints, longs, strings, and exceptions.
+In the SM_EXC_T structure, the argument vector is represented
+by <tt>SM_VAL_T&nbsp;*exc_argv</tt>, where <tt>SM_VAL_T</tt>
+is a union of the possible argument types.
+The number and types of exception arguments is determined by
+the exception type.
+
+<p>
+An exception type is a statically initialized const object
+of type SM_EXC_TYPE_T, which has the following members:
+
+<dl>
+<dt>
+<tt> const char *sm_magic </tt>
+<dd>
+	A pointer to <tt>SmExcTypeMagic</tt>.
+	<p>
+<dt>
+<tt> const char *etype_category </tt>
+<dd>
+	This is a string of the form
+	<tt>"</tt><i>class</i><tt>:</tt><i>name</i><tt>"</tt>.
+	<p>
+	The <i>class</i> is used to assign the exception type to
+	one of a number of broad categories of exceptions on which an
+	exception handler might want to discriminate.
+	I suspect that what we want is a hierarchical taxonomy,
+	but I don't have a full design for this yet.
+	For now, I am recommending the following classes:
+	<dl>
+	<dt><tt>"F"</tt>
+	<dd>A fatal error has occurred.
+	    This is an error that prevents the application
+	    from making any further progress, so the only
+	    recourse is to raise an exception, execute cleanup code
+	    as the stack is unwound, then exit the application.
+	    The out-of-memory exception raised by sm_malloc_x
+	    has category "F:sm.heap" because sendmail commits suicide
+	    (after logging the error and cleaning up) when it runs out
+	    of memory.
+
+	<dt><tt>"E"</tt>
+	<dd>The function could not complete its task because an error occurred.
+	    (It might be useful to define subclasses of this category,
+	    in which case our taxonony becomes a tree, and 'F' becomes
+	    a subclass of 'E'.)
+
+	<dt><tt>"J"</tt>
+	<dd>This exception is being raised in order to effect a
+	    non-local jump.  No error has occurred; we are just
+	    performing the non-local equivalent of a <tt>continue</tt>,
+	    <tt>break</tt> or <tt>return</tt>.
+
+	<dt><tt>"S"</tt>
+	<dd>The function was interrupted by a signal.
+	    Signals are not errors because they occur asynchronously,
+	    and they are semantically unrelated to the function that
+	    happens to be executing when the signal arrives.
+	    Note that it is extremely dangerous to raise an exception
+	    from a signal handler.  For example, if you are in the middle
+	    of a call to malloc, you might corrupt the heap.
+	</dl>
+	Eric's libsm paper defines <tt>"W"</tt>, <tt>"D"</tt> and <tt>"I"</tt>
+	for Warning, Debug and Informational:
+	I suspect these categories only make sense in the context of
+	Eric's 1985 exception handling system which allowed you to
+	raise conditions without terminating the calling function.
+	<p>
+	The <i>name</i> uniquely identifies the exception type.
+	I recommend a string of the form
+	<i>library</i><tt>.</tt><i>package</i><tt>.</tt><i>detail</i>.
+	<p>
+<dt>
+<tt> const char *etype_argformat </tt>
+<dd>
+	This is an array of single character codes.
+	Each code indicates the type of one of the exception arguments.
+	<tt>sm_exc_new_x</tt> uses this string to decode its variable
+	argument list into an exception argument vector.
+	The following type codes are supported:
+	<dl>
+	<dt><tt>i</tt>
+	<dd>
+		The exception argument has type <tt>int</tt>.
+	<dt><tt>l</tt>
+	<dd>
+		The exception argument has type <tt>long</tt>.
+	<dt><tt>e</tt>
+	<dd>
+		The exception argument has type <tt>SM_EXC_T*</tt>.
+		The value may either be <tt>NULL</tt> or a pointer
+		to an exception.  The pointer value is simply copied
+		into the exception argument vector.
+	<dt><tt>s</tt>
+	<dd>
+		The exception argument has type <tt>char*</tt>.
+		The value may either be <tt>NULL</tt> or a pointer
+		to a character string.  In the latter case,
+		<tt>sm_exc_new_x</tt> will make a copy of the string.
+	<dt><tt>r</tt>
+	<dd>
+		The exception argument has type <tt>char*</tt>.
+		<tt>sm_exc_new_x</tt> will read a printf-style
+		format string argument followed by a list of printf
+		arguments from its variable argument list, and convert
+		these into a string.
+		This type code can only occur as the last element
+		of <tt>exc_argformat</tt>.
+	</dl>
+	<p>
+<dt>
+<tt> void (*etype_print)(SM_EXC_T *exc, SM_FILE_T *stream) </tt>
+<dd>
+	This function prints an exception of the specified type
+	onto an output stream.
+	The final character printed is not a newline.
+</dl>
+
+<h2> Standard Exceptions and Exception Types </h2>
+
+Libsm defines one standard exception value, <tt>SmHeapOutOfMemory</tt>.
+This is a statically initialized const variable, because it seems
+like a bad idea to dynamically allocate an exception object to
+report a low memory condition.
+This exception has category <tt>"F:sm.heap"</tt>.
+If you need to, you can explicitly raise this exception
+with <tt>sm_exc_raise_x(&SmHeapOutOfMemory)</tt>.
+
+<p>
+Statically initialized exception values cannot contain any
+run-time parameters, so the normal case is to dynamically allocate
+a new exception object whenever you raise an exception.
+Before you can create an exception, you need an exception type.
+Libsm defines the following standard exception types.
+
+<dl>
+<dt>
+<tt> SmEtypeOs </tt>
+<dd>
+	This represents a generic operating system error.
+	The category is <tt>"E:sm.os"</tt>.
+	The argformat is <tt>"isr"</tt>,
+	where argv[0] is the value of <tt>errno</tt>
+	after a system call has failed,
+	argv[1] is the name of the function (usually a system call) that failed,
+	and argv[2] is either <tt>NULL</tt>
+	or a character string which describes some of the arguments
+	to the failing system call (usually it is just a file name).
+	Here's an example of raising an exception:
+
+<blockquote><pre>
+fd = open(filename, O_RDONLY);
+if (fd == -1)
+	sm_exc_raisenew_x(&SmEtypeOs, errno, "open", "%s", filename);
+</pre></blockquote>
+
+	If errno is ENOENT and filename is "/etc/mail/snedmail.cf",
+	then the exception raised by the above code will be printed as
+
+<blockquote><pre>
+/etc/mail/snedmail.cf: open failed: No such file or directory
+</pre></blockquote>
+
+<dt>
+<tt> SmEtypeErr </tt>
+<dd>
+	This represents a generic error.
+	The category is <tt>"E:sm.err"</tt>,
+	and the argformat is <tt>"r"</tt>.
+	You can use it
+	in application contexts where you are raising an exception
+	for the purpose of terminating the program.
+	You know the exception won't be handled,
+	so you don't need to worry about packaging the error for
+	later analysis by an exception handler.
+	All you need to specify is the message string that
+	will be printed to stderr before the program exits.
+	For example,
+
+<blockquote><pre>
+sm_exc_raisenew_x(&SmEtypeErr, "name lookup failed: %s", name);
+</pre></blockquote>
+</dl>
+
+<h2> Custom Exception Types </h2>
+
+If you are writing a library package, and you need to raise
+exceptions that are not standard Unix system errors,
+then you need to define one or more new exception types.
+
+<p>
+Every new exception type needs a print function.
+The standard print function <tt>sm_etype_printf</tt>
+is all you need in the majority of cases.
+It prints the <tt>etype_printcontext</tt> string of the exception type,
+substituting occurrences of %0 through %9 with the corresponding
+exception argument.
+If exception argument 3 is an int or long,
+then %3 will print the argument in decimal,
+and %o3 or %x3 will print it in octal or hex.
+
+<p>
+In the following example, I will assume that your library
+package implements regular expressions, and can raise 5 different exceptions.
+When compiling a regular expression, 3 different syntax errors
+can be reported:
+<ul>
+<li>unbalanced parenthesis
+<li>unbalanced bracket
+<li>missing argument for repetition operator
+</ul>
+Whenever one of these errors is reported, you will also report
+the index of the character within the regex string at which the
+syntax error was detected.
+The fourth exception is raised if a compiled regular expression
+is invalid: this exception has no arguments.
+The fifth exception is raised if the package runs out of memory:
+for this, you use the standard <tt>SmHeapOutOfMemory</tt> exception.
+
+<p>
+The obvious approach is to define 4 separate exception types.
+Here they are:
+
+<blockquote><pre>
+/* print a regular expression syntax error */
+void
+rx_esyntax_print(SM_EXC_T *exc, SM_FILE_T *stream)
+{
+	sm_io_fprintf(stream, "rx syntax error at character %d: %s",
+		exc-&gt;exc_argv[0].v_int,
+		exc-&gt;exc_type-&gt;etype_printcontext);
+}
+SM_EXC_TYPE_T RxSyntaxParen = {
+	SmExcTypeMagic,
+	"E:mylib.rx.syntax.paren",
+	"i",
+	rx_esyntax_print,
+	"unbalanced parenthesis"
+};
+SM_EXC_TYPE_T RxSyntaxBracket = {
+	SmExcTypeMagic,
+	"E:mylib.rx.syntax.bracket",
+	"i",
+	rx_esyntax_print,
+	"unbalanced bracket"
+};
+SM_EXC_TYPE_T RxSyntaxMissingArg = {
+	SmExcTypeMagic,
+	"E:mylib.rx.syntax.missingarg",
+	"i",
+	rx_esyntax_print,
+	"missing argument for repetition operator"
+};
+
+SM_EXC_TYPE_T RxRunCorrupt = {
+	SmExcTypeMagic,
+	"E:mylib.rx.run.corrupt",
+	"",
+	sm_etype_printf,
+	"rx runtime error: compiled regular expression is corrupt"
+};
+</pre></blockquote>
+
+<p>
+With the above definitions, you can raise a syntax error reporting
+an unbalanced parenthesis at string offset <tt>i</tt> using:
+<blockquote><pre>
+sm_exc_raisenew_x(&RxSyntaxParen, i);
+</pre></blockquote>
+
+If <tt>i==42</tt> then this exception will be printed as:
+<blockquote><pre>
+rx syntax error at character 42: unbalanced parenthesis
+</pre></blockquote>
+
+An exception handler can provide special handling for regular
+expression syntax errors using this code:
+<blockquote><pre>
+SM_TRY
+	... code that might raise an exception ...
+SM_EXCEPT(exc, "E:mylib.rx.syntax.*")
+	int i = exc-&gt;exc_argv[0].v_int;
+	... handle a regular expression syntax error ...
+SM_END_TRY
+</pre></blockquote>
+
+<p>
+External requirements may force you to define an integer code
+for each error reported by your package.  Or you may be wrapping
+an existing package that works this way.  In this case, it might
+make sense to define a single exception type, patterned after SmEtypeOs,
+and include the integer code as an exception argument.
+
+<p>
+Your package might intercept an exception E generated by a lower
+level package, and then reclassify it as a different expression E'.
+For example, a package for reading a configuration file might
+reclassify one of the regular expression syntax errors from the
+previous example as a configuration file syntax error.
+When you do this, the new exception E' should include the original
+exception E as an exception parameter, and the print function for
+exception E' should print the high level description of the exception
+(eg, "syntax error in configuration file %s at line %d\n"),
+then print the subexception that is stored as an exception parameter.
+
+<h2> Function Reference </h2>
+
+<dl>
+<dt>
+<tt> SM_EXC_T *sm_exc_new_x(const SM_EXC_TYPE_T *type, ...) </tt>
+<dd>
+	Create a new exception.  Raise an exception on heap exhaustion.
+	The new exception has a reference count of 1.
+	<p>
+
+	A list of zero or more exception arguments follows the exception type;
+	these are copied into the new exception object.
+	The number and types of these arguments is determined
+	by <tt>type-&gt;etype_argformat</tt>.
+	<p>
+
+	Note that there is no rpool argument to sm_exc_new_x.
+	Exceptions are allocated directly from the heap.
+	This is because exceptions are normally raised at low levels
+	of abstraction and handled at high levels.  Because the low
+	level code typically has no idea of how or at what level the
+	exception will be handled, it also has no idea of which resource
+	pool, if any, should own the exception.
+	<p>
+<dt>
+<tt> SM_EXC_T *sm_exc_addref(SM_EXC_T *exc) </tt>
+<dd>
+	Increment the reference count of an exception.
+	Return the first argument.
+	<p>
+<dt>
+<tt> void sm_exc_free(SM_EXC_T *exc) </tt>
+<dd>
+	Decrement the reference count of an exception.
+	If it reaches 0, free the exception object.
+	<p>
+<dt>
+<tt> bool sm_exc_match(SM_EXC_T *exc, const char *pattern) </tt>
+<dd>
+	Compare the exception's category to the specified glob pattern,
+	return true if they match.
+	<p>
+<dt>
+<tt> void sm_exc_print(SM_EXC_T *exc, SM_FILE_T *stream) </tt>
+<dd>
+	Print the exception on the stream
+	as a sequence of one or more newline terminated lines.
+	<p>
+<dt>
+<tt> void sm_exc_write(SM_EXC_T *exc, SM_FILE_T *stream) </tt>
+<dd>
+	Write the exception on the stream without a terminating newline.
+	<p>
+<dt>
+<tt> void sm_exc_raise_x(SM_EXC_T *exc) </tt>
+<dd>
+	Raise the exception.  This function does not return to its caller.
+	<p>
+<dt>
+<tt> void sm_exc_raisenew_x(const SM_EXC_TYPE_T *type, ...) </tt>
+<dd>
+	A short form for <tt>sm_exc_raise_x(sm_exc_new_x(type,...))</tt>.
+</dl>
+
+<h2> Macro Reference </h2>
+
+The SM_TRY ... SM_END_TRY control structure
+ensures that cleanup code is executed in the presence of exceptions,
+and permits exceptions to be handled.
+
+<blockquote><pre>
+SM_TRY
+	A block of code that may raise an exception.
+SM_FINALLY
+	Cleanup code that may raise an exception.
+	This code is guaranteed to be executed whether or not
+	an exception was raised by a previous clause.
+	You may have 0 or more SM_FINALLY clauses.
+SM_EXCEPT(e, pat)
+	Exception handling code, which is triggered by an exception
+	whose category matches the glob pattern 'pat'.
+	The exception value is bound to the local variable 'e'.
+	You may have 0 or more SM_EXCEPT clauses.
+SM_END_TRY
+</pre></blockquote>
+
+First, the SM_TRY clause is executed, then each SM_FINALLY clause is
+executed in sequence.
+If one or more of these clauses was terminated by an exception,
+then the first such exception is remembered, and the other exceptions
+are lost.
+
+If no exception was raised, then we are done.
+
+Otherwise, each of the SM_EXCEPT clauses is examined in sequence.
+and the first SM_EXCEPT clause whose pattern argument matches the exception
+(see <tt>sm_exc_match</tt>) is executed.
+If none of the SM_EXCEPT clauses matched the exception, or if there are
+no SM_EXCEPT clauses, then the remembered exception is re-raised.
+
+<p>
+SM_TRY .. SM_END_TRY clauses may be nested arbitrarily.
+
+<p>
+It is illegal to jump out of a SM_TRY or SM_FINALLY clause
+using goto, break, continue, return or longjmp.
+If you do this, you will corrupt the internal exception handling stack.
+You can't use <tt>break</tt> or <tt>continue</tt> in an SM_EXCEPT clause;
+these are reserved for use by the implementation.
+It is legal to jump out of an SM_EXCEPT clause using goto or return;
+however, in this case, you must take responsibility
+for freeing the exception object.
+
+<p>
+The SM_TRY and SM_FINALLY macros contain calls to setjmp,
+and consequently, they suffer from the limitations imposed on setjmp
+by the C standard.
+Suppose you declare an auto variable <tt>i</tt> outside of a
+SM_TRY ... SM_END_TRY statement, initializing it to 0.
+Then you modify <tt>i</tt> inside of a SM_TRY or SM_FINALLY clause,
+setting it to 1.
+If you reference <tt>i</tt> in a different SM_FINALLY clause, or in
+an SM_EXCEPT clause, then it is implementation dependent whether <tt>i</tt>
+will be 0 or 1, unless you have declared <tt>i</tt> to be <tt>volatile</tt>.
+
+<blockquote><pre>
+int volatile i = 0;
+
+SM_TRY
+	i = 1;
+	...
+SM_FINALLY
+	/* the following reference to i only works if i is declared volatile */
+	use(i);
+	...
+SM_EXCEPT(exc, "*")
+	/* the following reference to i only works if i is declared volatile */
+	use(i);
+	...
+SM_END_TRY
+</pre></blockquote>
+
+</body>
+</html>

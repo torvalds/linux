@@ -1,0 +1,157 @@
+-- From RFC 3369 --
+-- $Id$ --
+
+CMS DEFINITIONS ::= BEGIN
+
+IMPORTS CertificateSerialNumber, AlgorithmIdentifier, Name,
+	Attribute, Certificate, SubjectKeyIdentifier FROM rfc2459
+	heim_any, heim_any_set FROM heim;
+
+id-pkcs7 OBJECT IDENTIFIER ::= { iso(1) member-body(2)
+         us(840) rsadsi(113549) pkcs(1) pkcs7(7) }
+
+id-pkcs7-data OBJECT IDENTIFIER ::= 			{ id-pkcs7 1 }
+id-pkcs7-signedData OBJECT IDENTIFIER ::= 		{ id-pkcs7 2 }
+id-pkcs7-envelopedData OBJECT IDENTIFIER ::= 		{ id-pkcs7 3 }
+id-pkcs7-signedAndEnvelopedData OBJECT IDENTIFIER ::= 	{ id-pkcs7 4 }
+id-pkcs7-digestedData OBJECT IDENTIFIER ::= 		{ id-pkcs7 5 }
+id-pkcs7-encryptedData OBJECT IDENTIFIER ::= 		{ id-pkcs7 6 }
+
+CMSVersion ::= INTEGER {
+	   CMSVersion_v0(0),
+	   CMSVersion_v1(1),
+	   CMSVersion_v2(2),
+	   CMSVersion_v3(3),
+	   CMSVersion_v4(4)
+}
+
+DigestAlgorithmIdentifier ::= AlgorithmIdentifier
+DigestAlgorithmIdentifiers ::= SET OF DigestAlgorithmIdentifier
+SignatureAlgorithmIdentifier ::= AlgorithmIdentifier
+
+ContentType ::= OBJECT IDENTIFIER
+MessageDigest ::= OCTET STRING
+
+ContentInfo ::= SEQUENCE {
+	contentType ContentType,
+	content [0] EXPLICIT heim_any OPTIONAL --  DEFINED BY contentType
+}
+
+EncapsulatedContentInfo ::= SEQUENCE {
+	eContentType ContentType,
+	eContent [0] EXPLICIT OCTET STRING OPTIONAL
+}
+
+CertificateSet ::= SET OF heim_any
+
+CertificateList ::= Certificate
+
+CertificateRevocationLists ::= SET OF CertificateList
+
+IssuerAndSerialNumber ::= SEQUENCE {
+	issuer Name,
+	serialNumber CertificateSerialNumber
+}
+
+-- RecipientIdentifier is same as SignerIdentifier,
+-- lets glue them togheter and save some bytes and share code for them
+
+CMSIdentifier ::= CHOICE {
+	issuerAndSerialNumber IssuerAndSerialNumber,
+	subjectKeyIdentifier [0] SubjectKeyIdentifier
+}
+
+SignerIdentifier ::= CMSIdentifier
+RecipientIdentifier ::= CMSIdentifier
+
+--- CMSAttributes are the combined UnsignedAttributes and SignedAttributes
+--- to store space and share code
+
+CMSAttributes ::= SET OF Attribute		-- SIZE (1..MAX)
+
+SignatureValue ::= OCTET STRING
+
+SignerInfo ::= SEQUENCE {
+	version CMSVersion,
+	sid SignerIdentifier,
+	digestAlgorithm DigestAlgorithmIdentifier,
+	signedAttrs [0] IMPLICIT -- CMSAttributes --
+		SET OF Attribute OPTIONAL,
+	signatureAlgorithm SignatureAlgorithmIdentifier,
+	signature SignatureValue,
+	unsignedAttrs [1] IMPLICIT -- CMSAttributes --
+		SET OF Attribute OPTIONAL
+}
+
+SignerInfos ::= SET OF SignerInfo
+
+SignedData ::= SEQUENCE {
+	version CMSVersion,
+	digestAlgorithms DigestAlgorithmIdentifiers,
+	encapContentInfo EncapsulatedContentInfo,
+	certificates [0] IMPLICIT -- CertificateSet --
+		SET OF heim_any OPTIONAL,
+	crls [1] IMPLICIT -- CertificateRevocationLists --
+		heim_any OPTIONAL,
+	signerInfos SignerInfos
+}
+
+OriginatorInfo ::= SEQUENCE {
+	certs [0] IMPLICIT -- CertificateSet --
+		SET OF heim_any OPTIONAL,
+	crls [1] IMPLICIT --CertificateRevocationLists --
+		heim_any OPTIONAL
+}
+
+KeyEncryptionAlgorithmIdentifier ::= AlgorithmIdentifier
+ContentEncryptionAlgorithmIdentifier ::= AlgorithmIdentifier
+
+EncryptedKey ::= OCTET STRING
+
+KeyTransRecipientInfo ::= SEQUENCE {
+	version CMSVersion,  -- always set to 0 or 2
+	rid RecipientIdentifier,
+	keyEncryptionAlgorithm KeyEncryptionAlgorithmIdentifier,
+	encryptedKey EncryptedKey
+}
+
+RecipientInfo ::= KeyTransRecipientInfo
+
+RecipientInfos ::= SET OF RecipientInfo
+
+EncryptedContent ::= OCTET STRING
+
+EncryptedContentInfo ::= SEQUENCE {
+	contentType ContentType,
+	contentEncryptionAlgorithm ContentEncryptionAlgorithmIdentifier,
+	encryptedContent [0] IMPLICIT OCTET STRING OPTIONAL
+}
+
+UnprotectedAttributes ::= SET OF Attribute	-- SIZE (1..MAX)
+
+CMSEncryptedData ::= SEQUENCE {
+	version CMSVersion,
+	encryptedContentInfo EncryptedContentInfo,
+        unprotectedAttrs [1] IMPLICIT -- UnprotectedAttributes --
+		heim_any OPTIONAL
+}
+
+EnvelopedData ::= SEQUENCE {
+	version CMSVersion,
+	originatorInfo [0] IMPLICIT -- OriginatorInfo -- heim_any OPTIONAL,
+	recipientInfos RecipientInfos,
+	encryptedContentInfo EncryptedContentInfo,
+	unprotectedAttrs [1] IMPLICIT -- UnprotectedAttributes --
+		heim_any OPTIONAL
+}
+
+-- Data ::= OCTET STRING
+
+CMSRC2CBCParameter ::= SEQUENCE {
+	rc2ParameterVersion	INTEGER (0..4294967295),
+	iv			OCTET STRING -- exactly 8 octets
+}
+
+CMSCBCParameter ::= OCTET STRING
+
+END

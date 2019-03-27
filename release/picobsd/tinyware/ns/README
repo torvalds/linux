@@ -1,0 +1,43 @@
+Warsaw, 1998.07.20
+
+			Small replacement for netstat
+			-----------------------------
+
+This program implements some basic functionality subset of normal netstat -
+it can display the routing table and protocol statistics.
+
+Large part of the code dealing with retrieving the routing table via sysctl(3)
+was taken from code examples written by Richard Stevens to accompany his
+excellent book.
+
+Usage
+-----
+
+	ns [-rsi] [-p proto] [-w wait]
+
+where
+
+	-r	print routing table (default)
+	-s	print protocol statistics
+	-i	print interface statistics
+	-p proto	display only statistics related to this
+			protocol, where 'proto' is one of:
+			- ip
+			- tcp
+			- udp
+			- icmp
+			- bdg - bridging stats, if 'ns' was compiled with
+			   bridging support (flag BRIDGING in Makefile)
+	-w wait	continuous display, repeat every 'wait' seconds.
+
+Bugs
+----
+
+* 'ns' doesn't resolve IP addresses to names
+* well, real netstat provides _much_ more information... but this one needs
+  to be small, right? :-)
+
+Andrzej Bialecki
+<abial@freebsd.org>
+
+$FreeBSD$

@@ -1,0 +1,88 @@
+.\"
+.\" Copyright (c) 2008 Andrew Thompson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 1, 2013
+.Dt GEOM_LINUX_LVM 4
+.Os
+.Sh NAME
+.Nm geom_linux_lvm
+.Nd "GEOM based Linux LVM logical volume mapping"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options GEOM_LINUX_LVM"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+geom_linux_lvm_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+framework provides support for mapping Linux LVM volumes to GEOM providers.
+.Nm
+currently supports linear stripes with segments on one or more physical disks.
+The parser is able to read LVM2 Text Format metadata, the logical volumes will
+be assembled and made available under
+.Pa /dev/linux_lvm/ .
+The metadata is read-only, logical volumes cannot be allocated or resized.
+.Sh EXAMPLES
+To view which
+.Nm
+devices are available:
+.Bd -literal -offset indent
+# geom linux_lvm list
+Geom name: vg1
+Providers:
+1. Name: linux_lvm/vg1-home
+   Mediasize: 4294967296 (4.0G)
+   Sectorsize: 512
+   Mode: r0w0e0
+2. Name: linux_lvm/vg1-logs
+   Mediasize: 4294967296 (4.0G)
+   Sectorsize: 512
+   Mode: r0w0e0
+Consumers:
+1. Name: ada0s1
+   Mediasize: 80023716864 (75G)
+   Sectorsize: 512
+   Mode: r0w0e0
+.Ed
+.Sh SEE ALSO
+.Xr GEOM 4 ,
+.Xr geom 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Andrew Thompson Aq Mt thompsa@FreeBSD.org .

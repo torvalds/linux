@@ -1,0 +1,6 @@
+# $FreeBSD$
+# Pre-increment and pre-decrement in arithmetic expansion are not in POSIX.
+# Require either an error or a correct implementation.
+
+! (eval 'x=4; [ $((++x)) != 5 ] || [ $x != 5 ]') 2>/dev/null &&
+! (eval 'x=2; [ $((--x)) != 1 ] || [ $x != 1 ]') 2>/dev/null

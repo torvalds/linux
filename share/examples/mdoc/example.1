@@ -1,0 +1,157 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) [year] [your name]
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" Note: The date here should be updated whenever a non-trivial
+.\" change is made to the manual page.
+.Dd December 8, 1999
+.Dt EXAMPLE 1
+.Os
+.Sh NAME
+.Nm example
+.Nd "example command manual page"
+.Sh SYNOPSIS
+.Nm
+.Op Fl abc
+.Op Fl d Ar argument
+.Ar file
+.Sh DESCRIPTION
+This is an example manual page for the
+.Nm
+command.
+It is intended that this example can be used as a template
+when writing a new manual page.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl d Ar argument"
+.It Fl a
+Example optional
+.Fl a
+option.
+.It Fl b
+Example optional
+.Fl b
+option.
+.It Fl c
+Example optional
+.Fl c
+option.
+.It Fl d Ar argument
+Example optional
+.Fl d
+option with required argument
+.Ar argument .
+.It Ar file
+Required argument
+.Ar file .
+.El
+.Sh ENVIRONMENT
+The
+.Nm
+command ignores the
+.Ev EXAMPLE
+environment variable.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/null" -compact
+.It Pa /dev/null
+Example of a file in the
+.Sx FILES
+section.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+The following is an example of a typical usage
+of the
+.Nm
+command:
+.Pp
+.Dl "example -abc -d xyzzy /dev/null"
+.Sh DIAGNOSTICS
+The command may fail for one of the following reasons:
+.Bl -diag
+.It "example error message"
+An example of an error message.
+.It "another example error message."
+Self explanatory.
+.El
+.Sh COMPATIBILITY
+The
+.Nm
+command has no known compatibility issues.
+.Sh SEE ALSO
+.Xr example 3 ,
+.Xr example 4 ,
+.Xr mdoc 7 ,
+.Xr example 9
+.Rs
+.%A "A. B. Author"
+.%T "Example RFC Title"
+.%O RFC0000
+.Re
+.Rs
+.%A "A. B. Author"
+.%B "Example Book Title"
+.%O ISBN-0-000-00000-0
+.Re
+.Rs
+.%A "A. B. Author"
+.%D "January 1997"
+.%J "Example Journal Name"
+.%T "Example Article Title"
+.Re
+.Sh STANDARDS
+If the command conforms to some standard, such as
+.St -p1003.2
+or
+.St -isoC ,
+it should be noted here.
+.Sh HISTORY
+The
+.Nm
+manual page example first appeared in
+.Fx 2.2 .
+.Pp
+Some other common
+.Sx HISTORY
+section examples are:
+.Pp
+The
+.Nm
+manual page example first appeared in
+.Bx 4.4 .
+.Pp
+The
+.Nm
+manual page example first appeared in
+.At v6 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Mike Pritchard Aq Mt mpp@FreeBSD.org .
+.Sh BUGS
+The actual code for this command is vaporware.

@@ -1,0 +1,3 @@
+map z0 0/0 -> 1.1.1.1/32 portmap tcp/udp 1:4 sequential
+map z0 0/0 -> 1.1.1.1/32 portmap tcp/udp 1000:5000 sequential
+map z0 0/0 -> 1.1.1.1/32 portmap tcp/udp 1000:50000 sequential

@@ -1,0 +1,338 @@
+.\"/* Copyright 1988,1990,1993,1994 by Paul Vixie
+.\" * All rights reserved
+.\" *
+.\" * Distribute freely, except: don't remove my name from the source or
+.\" * documentation (don't take credit for my work), mark your changes (don't
+.\" * get me blamed for your possible bugs), don't alter or remove this
+.\" * notice.  May be sold if buildable source is provided to buyer.  No
+.\" * warrantee of any kind, express or implied, is included with this
+.\" * software; use at your own risk, responsibility for damages (if any) to
+.\" * anyone resulting from the use of this software rests entirely with the
+.\" * user.
+.\" *
+.\" * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
+.\" * I'll try to keep a version up to date.  I can be reached as follows:
+.\" * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
+.\" */
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 6, 2018
+.Dt CRONTAB 5
+.Os
+.Sh NAME
+.Nm crontab
+.Nd tables for driving cron
+.Sh DESCRIPTION
+A
+.Nm
+file contains instructions to the
+.Xr cron 8
+daemon of the general form: ``run this command at this time on this date''.
+Each user has their own crontab, and commands in any given crontab will be
+executed as the user who owns the crontab.
+Uucp and News will usually have
+their own crontabs, eliminating the need for explicitly running
+.Xr su 1
+as part of a cron command.
+.Pp
+Blank lines and leading spaces and tabs are ignored.
+Lines whose first
+non-space character is a pound-sign (#) are comments, and are ignored.
+Note that comments are not allowed on the same line as cron commands, since
+they will be taken to be part of the command.
+Similarly, comments are not
+allowed on the same line as environment variable settings.
+.Pp
+An active line in a crontab will be either an environment setting or a cron
+command.
+An environment setting is of the form,
+.Bd -literal
+    name = value
+.Ed
+.Pp
+where the spaces around the equal-sign (=) are optional, and any subsequent
+non-leading spaces in
+.Em value
+will be part of the value assigned to
+.Em name .
+The
+.Em value
+string may be placed in quotes (single or double, but matching) to preserve
+leading or trailing blanks.
+The
+.Em name
+string may also be placed in quote (single or double, but matching)
+to preserve leading, trailing or inner blanks.
+.Pp
+Several environment variables are set up
+automatically by the
+.Xr cron 8
+daemon.
+.Ev SHELL
+is set to
+.Pa /bin/sh ,
+.Ev PATH
+is set to
+.Pa /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin ,
+and
+.Ev LOGNAME
+and
+.Ev HOME
+are set from the
+.Pa /etc/passwd
+line of the crontab's owner.
+.Ev HOME ,
+.Ev PATH
+and
+.Ev SHELL
+may be overridden by settings in the crontab;
+.Ev LOGNAME
+may not.
+.Pp
+(Another note: the
+.Ev LOGNAME
+variable is sometimes called
+.Ev USER
+on
+.Bx
+systems...
+On these systems,
+.Ev USER
+will be set also).
+.Pp
+In addition to
+.Ev LOGNAME ,
+.Ev HOME ,
+.Ev PATH ,
+and
+.Ev SHELL ,
+.Xr cron 8
+will look at
+.Ev MAILTO
+if it has any reason to send mail as a result of running
+commands in ``this'' crontab.
+If
+.Ev MAILTO
+is defined (and non-empty), mail is
+sent to the user so named.
+.Ev MAILTO
+may also be used to direct mail to multiple recipients
+by separating recipient users with a comma.
+If
+.Ev MAILTO
+is defined but empty (MAILTO=""), no
+mail will be sent.
+Otherwise mail is sent to the owner of the crontab.
+This
+option is useful if you decide on
+.Pa /bin/mail
+instead of
+.Pa /usr/lib/sendmail
+as
+your mailer when you install cron --
+.Pa /bin/mail
+does not do aliasing, and UUCP
+usually does not read its mail.
+.Pp
+The format of a cron command is very much the V7 standard, with a number of
+upward-compatible extensions.
+Each line has five time and date fields,
+followed by a user name
+(with optional ``:<group>'' and ``/<login-class>'' suffixes)
+if this is the system crontab file,
+followed by a command.
+Commands are executed by
+.Xr cron 8
+when the minute, hour, and month of year fields match the current time,
+.Em and
+when at least one of the two day fields (day of month, or day of week)
+matches the current time (see ``Note'' below).
+.Xr cron 8
+examines cron entries once every minute.
+The time and date fields are:
+.Bd -literal -offset indent
+field         allowed values
+-----         --------------
+minute        0-59
+hour          0-23
+day of month  1-31
+month         1-12 (or names, see below)
+day of week   0-7 (0 or 7 is Sun, or use names)
+.Ed
+.Pp
+A field may be an asterisk (*), which always stands for ``first\-last''.
+.Pp
+Ranges of numbers are allowed.
+Ranges are two numbers separated
+with a hyphen.
+The specified range is inclusive.
+For example,
+8-11 for an ``hours'' entry specifies execution at hours 8, 9, 10
+and 11.
+.Pp
+Lists are allowed.
+A list is a set of numbers (or ranges)
+separated by commas.
+Examples: ``1,2,5,9'', ``0-4,8-12''.
+.Pp
+Step values can be used in conjunction with ranges.
+Following
+a range with ``/<number>'' specifies skips of the number's value
+through the range.
+For example, ``0-23/2'' can be used in the hours
+field to specify command execution every other hour (the alternative
+in the V7 standard is ``0,2,4,6,8,10,12,14,16,18,20,22'').
+Steps are
+also permitted after an asterisk, so if you want to say ``every two
+hours'', just use ``*/2''.
+.Pp
+Names can also be used for the ``month'' and ``day of week''
+fields.
+Use the first three letters of the particular
+day or month (case does not matter).
+Ranges or
+lists of names are not allowed.
+.Pp
+The ``sixth'' field (the rest of the line) specifies the command to be
+run.
+The entire command portion of the line, up to a newline or %
+character, will be executed by
+.Pa /bin/sh
+or by the shell
+specified in the
+.Ev SHELL
+variable of the cronfile.
+Percent-signs (%) in the command, unless escaped with backslash
+(\\), will be changed into newline characters, and all data
+after the first % will be sent to the command as standard
+input.
+.Pp
+Note: The day of a command's execution can be specified by two
+fields \(em day of month, and day of week.
+If both fields are
+restricted (ie, are not *), the command will be run when
+.Em either
+field matches the current time.
+For example,
+``30 4 1,15 * 5''
+would cause a command to be run at 4:30 am on the 1st and 15th of each
+month, plus every Friday.
+.Pp
+Instead of the first five fields,
+a line may start with
+.Sq @
+symbol followed either by one of eight special strings or by a numeric value.
+The recognized special strings are:
+.Bd -literal -offset indent
+string		meaning
+------		-------
+@reboot		Run once, at startup of cron.
+@yearly		Run once a year, "0 0 1 1 *".
+@annually	(same as @yearly)
+@monthly	Run once a month, "0 0 1 * *".
+@weekly		Run once a week, "0 0 * * 0".
+@daily		Run once a day, "0 0 * * *".
+@midnight	(same as @daily)
+@hourly		Run once an hour, "0 * * * *".
+@every_minute	Run once a minute, "*/1 * * * *".
+@every_second	Run once a second.
+.Ed
+.Pp
+The
+.Sq @
+symbol followed by a numeric value has a special notion of running
+a job that much seconds after completion of previous invocation of
+the job.
+Unlike regular syntax, it guarantees not to overlap two or more
+invocations of the same job.
+The first run is scheduled specified amount of seconds after cron
+has started.
+.Sh EXAMPLE CRON FILE
+.Bd -literal
+
+# use /bin/sh to run commands, overriding the default set by cron
+SHELL=/bin/sh
+# mail any output to `paul', no matter whose crontab this is
+MAILTO=paul
+#
+# run five minutes after midnight, every day
+5 0 * * *       $HOME/bin/daily.job >> $HOME/tmp/out 2>&1
+# run at 2:15pm on the first of every month -- output mailed to paul
+15 14 1 * *     $HOME/bin/monthly
+# run at 10 pm on weekdays, annoy Joe
+0 22 * * 1-5	mail -s "It's 10pm" joe%Joe,%%Where are your kids?%
+23 0-23/2 * * * echo "run 23 minutes after midn, 2am, 4am ..., everyday"
+5 4 * * sun     echo "run at 5 after 4 every sunday"
+# run at 5 minutes intervals, no matter how long it takes
+@300		svnlite up /usr/src
+.Ed
+.Sh SEE ALSO
+.Xr crontab 1 ,
+.Xr cron 8
+.Sh EXTENSIONS
+When specifying day of week, both day 0 and day 7 will be considered Sunday.
+.Bx
+and
+.Tn ATT
+seem to disagree about this.
+.Pp
+Lists and ranges are allowed to co-exist in the same field.
+"1-3,7-9" would
+be rejected by
+.Tn ATT
+or
+.Bx
+cron -- they want to see "1-3" or "7,8,9" ONLY.
+.Pp
+Ranges can include "steps", so "1-9/2" is the same as "1,3,5,7,9".
+.Pp
+Names of months or days of the week can be specified by name.
+.Pp
+Environment variables can be set in the crontab.
+In
+.Bx
+or
+.Tn ATT ,
+the
+environment handed to child processes is basically the one from
+.Pa /etc/rc .
+.Pp
+Command output is mailed to the crontab owner
+.No ( Bx
+cannot do this), can be
+mailed to a person other than the crontab owner (SysV cannot do this), or the
+feature can be turned off and no mail will be sent at all (SysV cannot do this
+either).
+.Pp
+All of the
+.Sq @
+directives that can appear in place of the first five fields
+are extensions.
+.Sh AUTHORS
+.An Paul Vixie Aq Mt paul@vix.com
+.Sh BUGS
+If you are in one of the 70-odd countries that observe Daylight
+Savings Time, jobs scheduled during the rollback or advance may be
+affected if
+.Xr cron 8
+is not started with the
+.Fl s
+flag.
+In general, it is not a good idea to schedule jobs during
+this period if
+.Xr cron 8
+is not started with the
+.Fl s
+flag, which is enabled by default.
+See
+.Xr cron 8
+for more details.
+.Pp
+For US timezones (except parts of AZ and HI) the time shift occurs at
+2AM local time.
+For others, the output of the
+.Xr zdump 8
+program's verbose
+.Fl ( v )
+option can be used to determine the moment of time shift.

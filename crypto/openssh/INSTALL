@@ -1,0 +1,276 @@
+1. Prerequisites
+----------------
+
+A C compiler.  Any C89 or better compiler should work.  Where supported,
+configure will attempt to enable the compiler's run-time integrity checking
+options.  Some notes about specific compilers:
+ - clang: -ftrapv and -sanitize=integer require the compiler-rt runtime
+  (CC=clang LDFLAGS=--rtlib=compiler-rt ./configure)
+
+You will need working installations of Zlib and libcrypto (LibreSSL /
+OpenSSL)
+
+Zlib 1.1.4 or 1.2.1.2 or greater (earlier 1.2.x versions have problems):
+http://www.gzip.org/zlib/
+
+libcrypto (LibreSSL or OpenSSL >= 1.0.1 < 1.1.0)
+LibreSSL http://www.libressl.org/ ; or
+OpenSSL http://www.openssl.org/
+
+LibreSSL/OpenSSL should be compiled as a position-independent library
+(i.e. with -fPIC) otherwise OpenSSH will not be able to link with it.
+If you must use a non-position-independent libcrypto, then you may need
+to configure OpenSSH --without-pie.  Note that because of API changes,
+OpenSSL 1.1.x is not currently supported.
+
+The remaining items are optional.
+
+NB. If you operating system supports /dev/random, you should configure
+libcrypto (LibreSSL/OpenSSL) to use it. OpenSSH relies on libcrypto's
+direct support of /dev/random, or failing that, either prngd or egd
+
+PRNGD:
+
+If your system lacks kernel-based random collection, the use of Lutz
+Jaenicke's PRNGd is recommended.
+
+http://prngd.sourceforge.net/
+
+EGD:
+
+If the kernel lacks /dev/random the Entropy Gathering Daemon (EGD) is
+supported only if libcrypto supports it.
+
+http://egd.sourceforge.net/
+
+PAM:
+
+OpenSSH can utilise Pluggable Authentication Modules (PAM) if your
+system supports it. PAM is standard most Linux distributions, Solaris,
+HP-UX 11, AIX >= 5.2, FreeBSD and NetBSD.
+
+Information about the various PAM implementations are available:
+
+Solaris PAM:	http://www.sun.com/software/solaris/pam/
+Linux PAM:	http://www.kernel.org/pub/linux/libs/pam/
+OpenPAM:	http://www.openpam.org/
+
+If you wish to build the GNOME passphrase requester, you will need the GNOME
+libraries and headers.
+
+GNOME:
+http://www.gnome.org/
+
+Alternatively, Jim Knoble <jmknoble@pobox.com> has written an excellent X11
+passphrase requester. This is maintained separately at:
+
+http://www.jmknoble.net/software/x11-ssh-askpass/
+
+TCP Wrappers:
+
+If you wish to use the TCP wrappers functionality you will need at least
+tcpd.h and libwrap.a, either in the standard include and library paths,
+or in the directory specified by --with-tcp-wrappers.  Version 7.6 is
+known to work.
+
+http://ftp.porcupine.org/pub/security/index.html
+
+LibEdit:
+
+sftp supports command-line editing via NetBSD's libedit.  If your platform
+has it available natively you can use that, alternatively you might try
+these multi-platform ports:
+
+http://www.thrysoee.dk/editline/
+http://sourceforge.net/projects/libedit/
+
+LDNS:
+
+LDNS is a DNS BSD-licensed resolver library which supports DNSSEC.
+
+http://nlnetlabs.nl/projects/ldns/
+
+Autoconf:
+
+If you modify configure.ac or configure doesn't exist (eg if you checked
+the code out of git yourself) then you will need autoconf-2.69 to rebuild
+the automatically generated files by running "autoreconf".  Earlier
+versions may also work but this is not guaranteed.
+
+http://www.gnu.org/software/autoconf/
+
+Basic Security Module (BSM):
+
+Native BSM support is known to exist in Solaris from at least 2.5.1,
+FreeBSD 6.1 and OS X.  Alternatively, you may use the OpenBSM
+implementation (http://www.openbsm.org).
+
+makedepend:
+
+https://www.x.org/archive/individual/util/
+
+If you are making significant changes to the code you may need to rebuild
+the dependency (.depend) file using "make depend", which requires the
+"makedepend" tool from the X11 distribution.
+
+2. Building / Installation
+--------------------------
+
+To install OpenSSH with default options:
+
+./configure
+make
+make install
+
+This will install the OpenSSH binaries in /usr/local/bin, configuration files
+in /usr/local/etc, the server in /usr/local/sbin, etc. To specify a different
+installation prefix, use the --prefix option to configure:
+
+./configure --prefix=/opt
+make
+make install
+
+Will install OpenSSH in /opt/{bin,etc,lib,sbin}. You can also override
+specific paths, for example:
+
+./configure --prefix=/opt --sysconfdir=/etc/ssh
+make
+make install
+
+This will install the binaries in /opt/{bin,lib,sbin}, but will place the
+configuration files in /etc/ssh.
+
+If you are using Privilege Separation (which is enabled by default)
+then you will also need to create the user, group and directory used by
+sshd for privilege separation.  See README.privsep for details.
+
+If you are using PAM, you may need to manually install a PAM control
+file as "/etc/pam.d/sshd" (or wherever your system prefers to keep
+them).  Note that the service name used to start PAM is __progname,
+which is the basename of the path of your sshd (e.g., the service name
+for /usr/sbin/osshd will be osshd).  If you have renamed your sshd
+executable, your PAM configuration may need to be modified.
+
+A generic PAM configuration is included as "contrib/sshd.pam.generic",
+you may need to edit it before using it on your system. If you are
+using a recent version of Red Hat Linux, the config file in
+contrib/redhat/sshd.pam should be more useful.  Failure to install a
+valid PAM file may result in an inability to use password
+authentication.  On HP-UX 11 and Solaris, the standard /etc/pam.conf
+configuration will work with sshd (sshd will match the other service
+name).
+
+There are a few other options to the configure script:
+
+--with-audit=[module] enable additional auditing via the specified module.
+Currently, drivers for "debug" (additional info via syslog) and "bsm"
+(Sun's Basic Security Module) are supported.
+
+--with-pam enables PAM support. If PAM support is compiled in, it must
+also be enabled in sshd_config (refer to the UsePAM directive).
+
+--with-prngd-socket=/some/file allows you to enable EGD or PRNGD
+support and to specify a PRNGd socket. Use this if your Unix lacks
+/dev/random.
+
+--with-prngd-port=portnum allows you to enable EGD or PRNGD support
+and to specify a EGD localhost TCP port. Use this if your Unix lacks
+/dev/random.
+
+--with-lastlog=FILE will specify the location of the lastlog file.
+./configure searches a few locations for lastlog, but may not find
+it if lastlog is installed in a different place.
+
+--without-lastlog will disable lastlog support entirely.
+
+--with-osfsia, --without-osfsia will enable or disable OSF1's Security
+Integration Architecture.  The default for OSF1 machines is enable.
+
+--with-tcp-wrappers will enable TCP Wrappers (/etc/hosts.allow|deny)
+support.
+
+--with-md5-passwords will enable the use of MD5 passwords. Enable this
+if your operating system uses MD5 passwords and the system crypt() does
+not support them directly (see the crypt(3/3c) man page). If enabled, the
+resulting binary will support both MD5 and traditional crypt passwords.
+
+--with-utmpx enables utmpx support. utmpx support is automatic for
+some platforms.
+
+--without-shadow disables shadow password support.
+
+--with-ipaddr-display forces the use of a numeric IP address in the
+$DISPLAY environment variable. Some broken systems need this.
+
+--with-default-path=PATH allows you to specify a default $PATH for sessions
+started by sshd. This replaces the standard path entirely.
+
+--with-pid-dir=PATH specifies the directory in which the sshd.pid file is
+created.
+
+--with-xauth=PATH specifies the location of the xauth binary
+
+--with-ssl-dir=DIR allows you to specify where your Libre/OpenSSL
+libraries are installed.
+
+--with-ssl-engine enables Libre/OpenSSL's (hardware) ENGINE support
+
+--with-4in6 Check for IPv4 in IPv6 mapped addresses and convert them to
+real (AF_INET) IPv4 addresses. Works around some quirks on Linux.
+
+If you need to pass special options to the compiler or linker, you
+can specify these as environment variables before running ./configure.
+For example:
+
+CC="/usr/foo/cc" CFLAGS="-O" LDFLAGS="-s" LIBS="-lrubbish" ./configure
+
+3. Configuration
+----------------
+
+The runtime configuration files are installed by in ${prefix}/etc or
+whatever you specified as your --sysconfdir (/usr/local/etc by default).
+
+The default configuration should be instantly usable, though you should
+review it to ensure that it matches your security requirements.
+
+To generate a host key, run "make host-key". Alternately you can do so
+manually using the following commands:
+
+    ssh-keygen -t [type] -f /etc/ssh/ssh_host_key -N ""
+
+for each of the types you wish to generate (rsa, dsa or ecdsa) or
+
+    ssh-keygen -A
+
+to generate keys for all supported types.
+
+Replacing /etc/ssh with the correct path to the configuration directory.
+(${prefix}/etc or whatever you specified with --sysconfdir during
+configuration)
+
+If you have configured OpenSSH with EGD support, ensure that EGD is
+running and has collected some Entropy.
+
+For more information on configuration, please refer to the manual pages
+for sshd, ssh and ssh-agent.
+
+4. (Optional) Send survey
+-------------------------
+
+$ make survey
+[check the contents of the file "survey" to ensure there's no information
+that you consider sensitive]
+$ make send-survey
+
+This will send configuration information for the currently configured
+host to a survey address.  This will help determine which configurations
+are actually in use, and what valid combinations of configure options
+exist.  The raw data is available only to the OpenSSH developers, however
+summary data may be published.
+
+5. Problems?
+------------
+
+If you experience problems compiling, installing or running OpenSSH.
+Please refer to the "reporting bugs" section of the webpage at
+https://www.openssh.com/

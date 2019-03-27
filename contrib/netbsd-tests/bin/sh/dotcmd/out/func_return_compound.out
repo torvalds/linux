@@ -1,0 +1,6 @@
+before function
+before dotcmd
+compound start
+before return
+after dotcmd
+after function

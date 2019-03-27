@@ -1,0 +1,169 @@
+.de1 NOP
+.  it 1 an-trap
+.  if \\n[.$] \,\\$*\/
+..
+.ie t \
+.ds B-Font [CB]
+.ds I-Font [CI]
+.ds R-Font [CR]
+.el \
+.ds B-Font B
+.ds I-Font I
+.ds R-Font R
+.TH update-leap 1update-leapman "20 Feb 2019" "ntp (4.2.8p13)" "User Commands"
+.\"
+.\" EDIT THIS FILE WITH CAUTION (in-mem file)
+.\"
+.\" It has been AutoGen-ed February 20, 2019 at 05:04:24 PM by AutoGen 5.18.5
+.\" From the definitions update-leap-opts.def
+.\" and the template file agman-cmd.tpl
+.SH NAME
+\f\*[B-Font]update-leap\fP
+\- leap-seconds file manager/updater
+.SH SYNOPSIS
+\f\*[B-Font]update-leap\fP
+.\" Mixture of short (flag) options and long options
+[\f\*[B-Font]\-flags\f[]]
+[\f\*[B-Font]\-flag\f[] [\f\*[I-Font]value\f[]]]
+[\f\*[B-Font]\-\-option-name\f[][[=| ]\f\*[I-Font]value\f[]]]
+.sp \n(Ppu
+.ne 2
+
+All arguments must be options.
+.sp \n(Ppu
+.ne 2
+
+.SH DESCRIPTION
+\f\*[B-Font]update-leap\fP
+will validate the file currently on the local system
+and if necessary, updates leap-second definition file.
+.sp \n(Ppu
+.ne 2
+
+Ordinarily, the file is found using the "leapfile" directive in
+\fCntp.conf\f[]\fR(5)\f[].
+However, an alternate location can be specified on the command line.
+.sp \n(Ppu
+.ne 2
+
+If the file does not exist, is not valid, has expired, or is expiring soon,
+a new copy will be downloaded.  If the new copy validates, it is installed and
+NTP is (optionally) restarted.
+.sp \n(Ppu
+.ne 2
+
+If the current file is acceptable, no download or restart occurs.
+.sp \n(Ppu
+.ne 2
+
+-c can also be used to invoke another script to perform administrative
+functions, e.g. to copy the file to other local systems.
+.PP
+This can be run as a cron job.  As the file is rarely updated, and leap
+seconds are announced at least one month in advance (usually longer), it
+need not be run more frequently than about once every three weeks.
+.PP
+For cron-friendly behavior, define CRONJOB=1 in the crontab.
+.PP
+This script depends on$REQUIREDCMDS
+.SH "OPTIONS"
+.TP
+.NOP \f\*[B-Font]\-s\f[] \f\*[I-Font]string\f[], \f\*[B-Font]\-\-source\-url\f[]=\f\*[I-Font]string\f[]
+The URL of the master copy of the leapseconds file.
+.sp
+Specify the URL of the master copy to download
+$LEAPSRC
+.TP
+.NOP \f\*[B-Font]\-4\f[], \f\*[B-Font]\-\-ipv4\f[]
+Use only IPv4 addresses for DNS name resolution.
+This option must not appear in combination with any of the following options:
+ipv6.
+.sp
+        Force DNS resolution of following host names on the command line
+        to the IPv4 namespace.
+        _EndOfDoc_;
+};
+.sp
+flag = {
+    name      = ipv6;
+    flags-cant = ipv4, prefer;
+    value     = 6;
+    descrip   = "Use only IPv6 addresses for DNS name resolution";
+    doc = <<-  _EndOfDoc_
+        Force DNS resolution of following host names on the command line
+        to the IPv6 namespace.
+        _EndOfDoc_;
+};
+.sp
+flag = {
+    name        = prefer;
+    flags-cant	= ipv4, ipv6;
+    value	= p;
+    arg-type    = keyword;
+    keyword	= 4, 6;
+    descrip     = 'Prefer IPv4 or IPv6 (as specified) addresses, but use either';
+    doc         = <<-  _EndOfDoc_
+Prefer IPv4 or IPv6 (as specified) addresses, but use either.
+.TP
+.NOP \f\*[B-Font]\-d\f[] \f\*[I-Font]float\f[], \f\*[B-Font]\-\-destination\f[]=\f\*[I-Font]float\f[]
+Filename on the local system.
+.sp
+The name to use to store the leapfile on the local system.
+$LEAPFILE
+.TP
+.NOP \f\*[B-Font]\-e\f[] \f\*[I-Font]string\f[], \f\*[B-Font]\-\-expiration\f[]=\f\*[I-Font]string\f[]
+Refresh the leapfile this long before it expires.
+.sp
+Specify how long before expiration the file is to be refreshed
+Units are required, e.g. "-e 60 days"  Note that larger values
+imply more frequent refreshes.
+"$PREFETCH"
+.TP
+.NOP \f\*[B-Font]\-f\f[] \f\*[I-Font]string\f[], \f\*[B-Font]\-\-ntp\-conf\-file\f[]=\f\*[I-Font]string\f[]
+Location of the ntp.conf file.
+.sp
+Specify location of ntp.conf (used to make sure leapfile directive is
+present and to default  leapfile)
+/etc/ntp.conf
+.TP
+.NOP \f\*[B-Font]\-F\f[], \f\*[B-Font]\-\-force\-update\f[]
+Force update of the leapfile.
+.sp
+Force update even if current file is OK and not close to expiring.
+.TP
+.NOP \f\*[B-Font]\-\-dont\-wait\f[]
+Don't wait for keystroke between plots.
+.sp
+.TP
+.NOP \f\*[B-Font]\-\&?\f[], \f\*[B-Font]\-\-help\f[]
+Display usage information and exit.
+.TP
+.NOP \f\*[B-Font]\-\&!\f[], \f\*[B-Font]\-\-more-help\f[]
+Pass the extended usage information through a pager.
+.TP
+.NOP \f\*[B-Font]\-v\f[] [{\f\*[I-Font]v|c|n\f[] \f\*[B-Font]\-\-version\f[] [{\f\*[I-Font]v|c|n\f[]}]}]
+Output version of program and exit.  The default mode is `v', a simple
+version.  The `c' mode will print copyright information and `n' will
+print the full copyright notice.
+.PP
+.SH USAGE
+Usage stuff
+.SH "EXIT STATUS"
+One of the following exit values will be returned:
+.TP
+.NOP 0 " (EXIT_SUCCESS)"
+Successful program execution.
+.TP
+.NOP 1 " (EXIT_FAILURE)"
+The operation failed or the command syntax was not valid.
+.TP
+.NOP 70 " (EX_SOFTWARE)"
+libopts had an internal operational error.  Please report
+it to autogen-users@lists.sourceforge.net.  Thank you.
+.PP
+.SH AUTHORS
+.NOP  "Timothe Litt" 
+.br
+.SH "NOTES"
+This manual page was \fIAutoGen\fP-erated from the \fBupdate-leap\fP
+option definitions.

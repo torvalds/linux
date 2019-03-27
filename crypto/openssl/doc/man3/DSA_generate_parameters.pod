@@ -1,0 +1,126 @@
+=pod
+
+=head1 NAME
+
+DSA_generate_parameters_ex, DSA_generate_parameters - generate DSA parameters
+
+=head1 SYNOPSIS
+
+ #include <openssl/dsa.h>
+
+ int DSA_generate_parameters_ex(DSA *dsa, int bits,
+                                const unsigned char *seed, int seed_len,
+                                int *counter_ret, unsigned long *h_ret,
+                                BN_GENCB *cb);
+
+Deprecated:
+
+ #if OPENSSL_API_COMPAT < 0x00908000L
+ DSA *DSA_generate_parameters(int bits, unsigned char *seed, int seed_len,
+                              int *counter_ret, unsigned long *h_ret,
+                              void (*callback)(int, int, void *), void *cb_arg);
+ #endif
+
+=head1 DESCRIPTION
+
+DSA_generate_parameters_ex() generates primes p and q and a generator g
+for use in the DSA and stores the result in B<dsa>.
+
+B<bits> is the length of the prime p to be generated.
+For lengths under 2048 bits, the length of q is 160 bits; for lengths
+greater than or equal to 2048 bits, the length of q is set to 256 bits.
+
+If B<seed> is NULL, the primes will be generated at random.
+If B<seed_len> is less than the length of q, an error is returned.
+
+DSA_generate_parameters_ex() places the iteration count in
+*B<counter_ret> and a counter used for finding a generator in
+*B<h_ret>, unless these are B<NULL>.
+
+A callback function may be used to provide feedback about the progress
+of the key generation. If B<cb> is not B<NULL>, it will be
+called as shown below. For information on the BN_GENCB structure and the
+BN_GENCB_call function discussed below, refer to
+L<BN_generate_prime(3)>.
+
+DSA_generate_prime() is similar to DSA_generate_prime_ex() but
+expects an old-style callback function; see
+L<BN_generate_prime(3)> for information on the old-style callback.
+
+=over 2
+
+=item *
+
+When a candidate for q is generated, B<BN_GENCB_call(cb, 0, m++)> is called
+(m is 0 for the first candidate).
+
+=item *
+
+When a candidate for q has passed a test by trial division,
+B<BN_GENCB_call(cb, 1, -1)> is called.
+While a candidate for q is tested by Miller-Rabin primality tests,
+B<BN_GENCB_call(cb, 1, i)> is called in the outer loop
+(once for each witness that confirms that the candidate may be prime);
+i is the loop counter (starting at 0).
+
+=item *
+
+When a prime q has been found, B<BN_GENCB_call(cb, 2, 0)> and
+B<BN_GENCB_call(cb, 3, 0)> are called.
+
+=item *
+
+Before a candidate for p (other than the first) is generated and tested,
+B<BN_GENCB_call(cb, 0, counter)> is called.
+
+=item *
+
+When a candidate for p has passed the test by trial division,
+B<BN_GENCB_call(cb, 1, -1)> is called.
+While it is tested by the Miller-Rabin primality test,
+B<BN_GENCB_call(cb, 1, i)> is called in the outer loop
+(once for each witness that confirms that the candidate may be prime).
+i is the loop counter (starting at 0).
+
+=item *
+
+When p has been found, B<BN_GENCB_call(cb, 2, 1)> is called.
+
+=item *
+
+When the generator has been found, B<BN_GENCB_call(cb, 3, 1)> is called.
+
+=back
+
+=head1 RETURN VALUES
+
+DSA_generate_parameters_ex() returns a 1 on success, or 0 otherwise.
+The error codes can be obtained by L<ERR_get_error(3)>.
+
+DSA_generate_parameters() returns a pointer to the DSA structure or
+B<NULL> if the parameter generation fails.
+
+=head1 BUGS
+
+Seed lengths greater than 20 are not supported.
+
+=head1 SEE ALSO
+
+L<DSA_new(3)>, L<ERR_get_error(3)>, L<RAND_bytes(3)>,
+L<DSA_free(3)>, L<BN_generate_prime(3)>
+
+=head1 HISTORY
+
+DSA_generate_parameters() was deprecated in OpenSSL 0.9.8; use
+DSA_generate_parameters_ex() instead.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

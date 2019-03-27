@@ -1,0 +1,135 @@
+
+Designers
+=========
+
+argon2                                 Alex Biryukov
+                                       Daniel Dinu
+                                       Dmitry Khovratovich
+
+blake2                                 Jean-Philippe Aumasson
+                                       Christian Winnerlein
+                                       Samuel Neves
+                                       Zooko Wilcox-O'Hearn
+
+chacha20                               Daniel J. Bernstein
+
+chacha20poly1305                       Adam Langley
+                                       Yoav Nir
+
+curve25519                             Daniel J. Bernstein
+
+curve25519xsalsa20poly1305             Daniel J. Bernstein
+
+ed25519                                Daniel J. Bernstein
+                                       Bo-Yin Yang
+                                       Niels Duif
+                                       Peter Schwabe
+                                       Tanja Lange
+
+poly1305                               Daniel J. Bernstein
+
+salsa20                                Daniel J. Bernstein
+
+scrypt                                 Colin Percival
+
+siphash                                Jean-Philippe Aumasson
+                                       Daniel J. Bernstein
+
+Implementors
+============
+
+crypto_aead/aes256gcm/aesni            Romain Dolbeau
+                                       Frank Denis
+
+crypto_aead/chacha20poly1305           Frank Denis
+
+crypto_aead/xchacha20poly1305          Frank Denis
+                                       Jason A. Donenfeld
+
+crypto_auth/hmacsha256                 Colin Percival
+crypto_auth/hmacsha512
+crypto_auth/hmacsha512256
+
+crypto_box/curve25519xsalsa20poly1305  Daniel J. Bernstein
+
+crypto_box/curve25519xchacha20poly1305 Frank Denis
+
+crypto_core/ed25519                    Daniel J. Bernstein
+                                       Adam Langley
+
+crypto_core/hchacha20                  Frank Denis
+
+crypto_core/hsalsa20                   Daniel J. Bernstein
+crypto_core/salsa
+
+crypto_generichash/blake2b             Jean-Philippe Aumasson
+                                       Christian Winnerlein
+                                       Samuel Neves
+                                       Zooko Wilcox-O'Hearn
+
+crypto_hash/sha256                     Colin Percival
+crypto_hash/sha512
+crypto_hash/sha512256
+
+crypto_kdf                             Frank Denis
+
+crypto_kx                              Frank Denis
+
+crypto_onetimeauth/poly1305/donna      Andrew "floodyberry" Moon
+crypto_onetimeauth/poly1305/sse2
+
+crypto_pwhash/argon2                   Samuel Neves
+                                       Dmitry Khovratovich
+                                       Jean-Philippe Aumasson
+                                       Daniel Dinu
+                                       Thomas Pornin
+
+crypto_pwhash/scryptsalsa208sha256     Colin Percival
+                                       Alexander Peslyak
+
+crypto_scalarmult/curve25519/ref10     Daniel J. Bernstein
+
+crypto_scalarmult/curve25519/sandy2x   Tung Chou
+
+crypto_scalarmult/ed25519              Frank Denis
+
+crypto_secretbox/xsalsa20poly1305      Daniel J. Bernstein
+
+crypto_secretbox/xchacha20poly1305     Frank Denis
+
+crypto_secretstream/xchacha20poly1305  Frank Denis
+
+crypto_shorthash/siphash24             Jean-Philippe Aumasson
+                                       Daniel J. Bernstein
+
+crypto_sign/ed25519                    Peter Schwabe
+                                       Daniel J. Bernstein
+                                       Niels Duif
+                                       Tanja Lange
+                                       Bo-Yin Yang
+
+crypto_stream/chacha20/ref             Daniel J. Bernstein
+
+crypto_stream/chacha20/dolbeau         Romain Dolbeau
+                                       Daniel J. Bernstein
+
+crypto_stream/salsa20/ref              Daniel J. Bernstein
+crypto_stream/salsa20/xmm6
+
+crypto_stream/salsa20/xmm6int          Romain Dolbeau
+                                       Daniel J. Bernstein
+
+crypto_stream/salsa2012/ref            Daniel J. Bernstein
+crypto_stream/salsa2008/ref
+
+crypto_stream/xchacha20                Frank Denis
+
+crypto_verify                          Frank Denis
+
+sodium/codecs.c                        Frank Denis
+                                       Thomas Pornin
+                                       Christian Winnerlein
+
+sodium/core.c                          Frank Denis
+sodium/runtime.h
+sodium/utils.c

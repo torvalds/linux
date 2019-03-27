@@ -1,0 +1,44 @@
+.\"	$FreeBSD$
+.\"
+.TH IPSCAN 8
+.SH NAME
+ipscan \- user interface to the IPFilter content scanning
+.SH SYNOPSIS
+.B ipscan
+[
+.B \-dlnrsv
+] [
+]
+.B \-f <\fIfilename\fP>
+.SH DESCRIPTION
+.PP
+\fBipscan\fP opens the filename given (treating "\-" as stdin) and parses the
+file to build up a content scanning configuration to load into the kernel.
+Currently only the first 16 bytes of a connection can be compared.
+.SH OPTIONS
+.TP
+.B \-d
+Toggle debugging of processing the configuration file.
+.TP
+.B \-l
+Show the list of currently configured content scanning entries.
+.TP
+.B \-n
+This flag (no-change) prevents \fBipscan\fP from actually making any ioctl
+calls or doing anything which would alter the currently running kernel.
+.TP
+.B \-r
+Remove commands from kernel configuration as they are read from the
+configuration file rather than adding new ones.
+.TP
+.B \-s
+Retrieve and display content scanning statistics
+.TP
+.B \-v
+Turn verbose mode on.
+.DT
+.SH FILES
+/dev/ipscan
+/etc/ipscan.conf
+.SH SEE ALSO
+ipscan(5), ipf(8)

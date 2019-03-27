@@ -1,0 +1,98 @@
+.\"
+.\" Copyright (c) 2011 Rick van der Zwet <info@rickvanderzwet.nl>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 24, 2015
+.Dt MOS 4
+.Os
+.Sh NAME
+.Nm mos
+.Nd Moschip MCS7730/MCS7830/MCS7832 USB Ethernet driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device ehci"
+.Cd "device usb"
+.Cd "device miibus"
+.Cd "device uether"
+.Cd "device mos"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_mos_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Ethernet adapters based on the
+Moschip MCS7730/MCS7830/MCS7832 chipset.
+.Pp
+The adapters that contain the Moschip MCS7730/MCS7830/MCS7832 chipset
+will operate at 100Base-TX and full-duplex.
+.Pp
+The Moschip contains a 10/100
+Ethernet MAC with MII interface and is designed to work with both
+Ethernet and HomePNA transceivers.
+Although designed to interface with
+100Mbps peripherals, this only works with USB 2.0. The existing USB 1.0
+standard specifies a maximum transfer speed of 12Mbps.
+USB 1.0 Users should therefore not expect to actually achieve 100Mbps speeds
+with these devices.
+.Pp
+The Moschip supports a 64-bit multicast hash table, single perfect
+filter entry for the station address and promiscuous mode.
+Packets are
+received and transmitted over separate USB bulk transfer endpoints.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+Adapters supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Sitecom LN030
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Rs
+.%T ADMtek AN986 data sheet
+.%O http://www.moschip.com/data/products/MCS7830/Data%20Sheet_7830.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 8.2 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Rick van der Zwet info@rickvanderzwet.nl .

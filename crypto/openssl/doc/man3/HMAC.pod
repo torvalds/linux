@@ -1,0 +1,157 @@
+=pod
+
+=head1 NAME
+
+HMAC,
+HMAC_CTX_new,
+HMAC_CTX_reset,
+HMAC_CTX_free,
+HMAC_Init,
+HMAC_Init_ex,
+HMAC_Update,
+HMAC_Final,
+HMAC_CTX_copy,
+HMAC_CTX_set_flags,
+HMAC_CTX_get_md,
+HMAC_size
+- HMAC message authentication code
+
+=head1 SYNOPSIS
+
+ #include <openssl/hmac.h>
+
+ unsigned char *HMAC(const EVP_MD *evp_md, const void *key,
+                     int key_len, const unsigned char *d, int n,
+                     unsigned char *md, unsigned int *md_len);
+
+ HMAC_CTX *HMAC_CTX_new(void);
+ int HMAC_CTX_reset(HMAC_CTX *ctx);
+
+ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int key_len,
+                  const EVP_MD *md, ENGINE *impl);
+ int HMAC_Update(HMAC_CTX *ctx, const unsigned char *data, int len);
+ int HMAC_Final(HMAC_CTX *ctx, unsigned char *md, unsigned int *len);
+
+ void HMAC_CTX_free(HMAC_CTX *ctx);
+
+ int HMAC_CTX_copy(HMAC_CTX *dctx, HMAC_CTX *sctx);
+ void HMAC_CTX_set_flags(HMAC_CTX *ctx, unsigned long flags);
+ const EVP_MD *HMAC_CTX_get_md(const HMAC_CTX *ctx);
+
+ size_t HMAC_size(const HMAC_CTX *e);
+
+Deprecated:
+
+ #if OPENSSL_API_COMPAT < 0x10100000L
+ int HMAC_Init(HMAC_CTX *ctx, const void *key, int key_len,
+               const EVP_MD *md);
+ #endif
+
+=head1 DESCRIPTION
+
+HMAC is a MAC (message authentication code), i.e. a keyed hash
+function used for message authentication, which is based on a hash
+function.
+
+HMAC() computes the message authentication code of the B<n> bytes at
+B<d> using the hash function B<evp_md> and the key B<key> which is
+B<key_len> bytes long.
+
+It places the result in B<md> (which must have space for the output of
+the hash function, which is no more than B<EVP_MAX_MD_SIZE> bytes).
+If B<md> is NULL, the digest is placed in a static array.  The size of
+the output is placed in B<md_len>, unless it is B<NULL>. Note: passing a NULL
+value for B<md>  to use the static array is not thread safe.
+
+B<evp_md> can be EVP_sha1(), EVP_ripemd160() etc.
+
+HMAC_CTX_new() creates a new HMAC_CTX in heap memory.
+
+HMAC_CTX_reset() zeroes an existing B<HMAC_CTX> and associated
+resources, making it suitable for new computations as if it was newly
+created with HMAC_CTX_new().
+
+HMAC_CTX_free() erases the key and other data from the B<HMAC_CTX>,
+releases any associated resources and finally frees the B<HMAC_CTX>
+itself.
+
+The following functions may be used if the message is not completely
+stored in memory:
+
+HMAC_Init_ex() initializes or reuses a B<HMAC_CTX> structure to use the hash
+function B<evp_md> and key B<key>. If both are NULL, or if B<key> is NULL
+and B<evp_md> is the same as the previous call, then the
+existing key is
+reused. B<ctx> must have been created with HMAC_CTX_new() before the first use
+of an B<HMAC_CTX> in this function.
+
+If HMAC_Init_ex() is called with B<key> NULL and B<evp_md> is not the
+same as the previous digest used by B<ctx> then an error is returned
+because reuse of an existing key with a different digest is not supported.
+
+HMAC_Init() initializes a B<HMAC_CTX> structure to use the hash
+function B<evp_md> and the key B<key> which is B<key_len> bytes
+long.
+
+HMAC_Update() can be called repeatedly with chunks of the message to
+be authenticated (B<len> bytes at B<data>).
+
+HMAC_Final() places the message authentication code in B<md>, which
+must have space for the hash function output.
+
+HMAC_CTX_copy() copies all of the internal state from B<sctx> into B<dctx>.
+
+HMAC_CTX_set_flags() applies the specified flags to the internal EVP_MD_CTXs.
+These flags have the same meaning as for L<EVP_MD_CTX_set_flags(3)>.
+
+HMAC_CTX_get_md() returns the EVP_MD that has previously been set for the
+supplied HMAC_CTX.
+
+HMAC_size() returns the length in bytes of the underlying hash function output.
+
+=head1 RETURN VALUES
+
+HMAC() returns a pointer to the message authentication code or NULL if
+an error occurred.
+
+HMAC_CTX_new() returns a pointer to a new B<HMAC_CTX> on success or
+B<NULL> if an error occurred.
+
+HMAC_CTX_reset(), HMAC_Init_ex(), HMAC_Update(), HMAC_Final() and
+HMAC_CTX_copy() return 1 for success or 0 if an error occurred.
+
+HMAC_CTX_get_md() return the EVP_MD previously set for the supplied HMAC_CTX or
+NULL if no EVP_MD has been set.
+
+HMAC_size() returns the length in bytes of the underlying hash function output
+or zero on error.
+
+=head1 CONFORMING TO
+
+RFC 2104
+
+=head1 SEE ALSO
+
+L<SHA1(3)>, L<evp(7)>
+
+=head1 HISTORY
+
+HMAC_CTX_init() was replaced with HMAC_CTX_reset() in OpenSSL 1.1.0.
+
+HMAC_CTX_cleanup() existed in OpenSSL before version 1.1.0.
+
+HMAC_CTX_new(), HMAC_CTX_free() and HMAC_CTX_get_md() are new in OpenSSL 1.1.0.
+
+HMAC_Init_ex(), HMAC_Update() and HMAC_Final() did not return values in
+OpenSSL before version 1.0.0.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

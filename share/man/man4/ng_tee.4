@@ -1,0 +1,134 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_tee.8,v 1.4 1999/01/25 23:46:27 archie Exp $
+.\"
+.Dd May 28, 2004
+.Dt NG_TEE 4
+.Os
+.Sh NAME
+.Nm ng_tee
+.Nd netgraph ``tee'' node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph/ng_tee.h
+.Sh DESCRIPTION
+The
+.Nm tee
+node type has a purpose similar to the
+.Xr tee 1
+command.
+.Nm Tee
+nodes are useful for debugging or
+.Dq snooping
+on a connection
+between two netgraph nodes.
+.Nm Tee
+nodes have four hooks,
+.Dv right ,
+.Dv left ,
+.Dv right2left ,
+and
+.Dv left2right .
+All data received on
+.Dv right
+is sent unmodified to
+.Em both
+hooks
+.Dv left
+and
+.Dv right2left .
+Similarly, all data received on
+.Dv left
+is sent unmodified to both
+.Dv right
+and
+.Dv left2right .
+.Pp
+Packets may also be received on
+.Dv right2left
+and
+.Dv left2right ;
+if so, they are forwarded unchanged out hooks
+.Dv right
+and
+.Dv left ,
+respectively.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va left2right"
+.It Va right
+The connection to the node on the right.
+.It Va left
+The connection to the node on the left.
+.It Va right2left
+Tap for right to left traffic.
+.It Va left2right
+Tap for left to right traffic.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following.
+.Bl -tag -width foo
+.It Dv NGM_TEE_GET_STATS Pq Ic getstats
+Get statistics, returned as a
+.Dv "struct ng_tee_stats" .
+.It Dv NGM_TEE_CLR_STATS Pq Ic clrstats
+Clear statistics.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of an
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+If both
+.Dv right
+and
+.Dv left
+hooks are present, node removes itself from the chain gently,
+connecting
+.Dv right
+and
+.Dv left
+together.
+.Sh SEE ALSO
+.Xr tee 1 ,
+.Xr netgraph 4 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq Mt julian@FreeBSD.org

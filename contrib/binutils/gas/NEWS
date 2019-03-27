@@ -1,0 +1,500 @@
+-*- text -*-
+* Support for the National Semiconductor CR16 target has been added.
+
+* Added gas .reloc pseudo.  This is a low-level interface for creating
+  relocations.
+
+* Add support for x86_64 PE+ target.
+
+* Add support for Score target.
+
+* Support for the Infineon XC16X has been added by KPIT Cummins Infosystems.
+
+* Support for ms2 architecture has been added.
+
+* Support for the Z80 processor family has been added.
+
+* Add support for the "@<file>" syntax to the command line, so that extra
+  switches can be read from <file>.
+
+* The SH target supports a new command line switch --enable-reg-prefix which,
+  if enabled, will allow register names to be optionally prefixed with a $
+  character.  This allows register names to be distinguished from label names.
+  
+* Macros with a variable number of arguments are now supported. See the
+  documentation for how this works.
+
+* Added --reduce-memory-overheads switch to reduce the size of the hash
+  tables used, at the expense of longer assembly times, and
+  --hash-size=<NUMBER> to set the size of the hash tables used by gas.
+
+* Macro names and macro parameter names can now be any identifier that would
+  also be legal as a symbol elsewhere. For macro parameter names, this is
+  known to cause problems in certain sources when the respective target uses
+  characters inconsistently, and thus macro parameter references may no longer
+  be recognized as such (see the documentation for details).
+  
+* Support the .f_floating, .d_floating, .g_floating and .h_floating directives
+  for the VAX target in order to be more compatible with the VAX MACRO
+  assembler.
+
+* New command line option -mtune=[itanium1|itanium2] for IA64 targets.
+
+Changes in 2.16:
+
+* Redefinition of macros now results in an error.
+
+* New command line option -mhint.b=[ok|warning|error] for IA64 targets.
+
+* New command line option -munwind-check=[warning|error] for IA64
+  targets.
+
+* The IA64 port now uses automatic dependency violation removal as its default
+  mode.
+
+* Port to MAXQ processor contributed by HCL Tech.
+
+* Added support for generating unwind tables for ARM ELF targets.
+
+* Add a -g command line option to generate debug information in the target's
+  preferred debug format.
+
+* Support for the crx-elf target added.
+
+* Support for the sh-symbianelf target added.
+
+* Added a pseudo-op (.secrel32) to generate 32 bit section relative relocations
+  on pe[i]-i386; required for this target's DWARF 2 support.
+
+* Support for Motorola MCF521x/5249/547x/548x added.
+
+* Support for ColdFire EMAC instructions added and Motorola syntax for MAC/EMAC
+  instrucitons.
+
+* New command line option -mno-shared for MIPS ELF targets.
+
+* New command line option --alternate and pseudo-ops .altmacro and .noaltmacro
+  added to enter (and leave) alternate macro syntax mode.
+
+Changes in 2.15:
+
+* The MIPS -membedded-pic option (Embedded-PIC code generation) is
+  deprecated and will be removed in a future release.
+
+* Added PIC m32r Linux (ELF) and support to M32R assembler.
+
+* Added support for ARM V6.
+
+* Added support for sh4a and variants.
+
+* Support for Renesas M32R2 added.
+
+* Limited support for Mapping Symbols as specified in the ARM ELF
+  specification has been added to the arm assembler.
+
+* On ARM architectures, added a new gas directive ".unreq" that undoes
+  definitions created by ".req".
+
+* Support for Motorola ColdFire MCF528x added.
+
+* Added --gstabs+ switch to enable the generation of STABS debug format
+  information with GNU extensions.
+ 
+* Added support for MIPS64 Release 2.
+
+* Added support for v850e1.
+
+* Added -n switch for x86 assembler.  By default, x86 GAS replaces
+  multiple nop instructions used for alignment within code sections
+  with multi-byte nop instructions such as leal 0(%esi,1),%esi.  This
+  switch disables the optimization.
+
+* Removed -n option from MIPS assembler.  It was not useful, and confused the
+  existing -non_shared option.
+
+Changes in 2.14:
+
+* Added support for MIPS32 Release 2.
+
+* Added support for Xtensa architecture.
+
+* Support for Intel's iWMMXt processor (an ARM variant) added.
+
+* An assembler test generator has been contributed and an example file that
+  uses it (gas/testsuite/gas/all/test-gen.c and test-exmaple.c).
+  
+* Support for SH2E added.
+
+* GASP has now been removed.
+
+* Support for Texas Instruments TMS320C4x and TMS320C3x series of
+  DSP's contributed by Michael Hayes and Svein E. Seldal.
+  
+* Support for the Ubicom IP2xxx microcontroller added.
+
+Changes in 2.13:
+
+* Support for the Fujitsu FRV architecture added by Red Hat. Models for FR400
+  and FR500 included.
+
+* Support for DLX processor added.
+
+* GASP has now been deprecated and will be removed in a future release.  Use
+  the macro facilities in GAS instead.
+
+* GASP now correctly parses floating point numbers. Unless the base is
+  explicitly specified, they are interpreted as decimal numbers regardless of
+  the currently specified base.
+
+Changes in 2.12:
+
+* Support for Don Knuth's MMIX, by Hans-Peter Nilsson.
+
+* Support for the OpenRISC 32-bit embedded processor by OpenCores.
+
+* The ARM assembler now accepts -march=..., -mcpu=... and -mfpu=... for 
+  specifying the target instruction set.  The old method of specifying the 
+  target processor has been deprecated, but is still accepted for
+  compatibility.
+
+* Support for the VFP floating-point instruction set has been added to
+  the ARM assembler.
+
+* New psuedo op: .incbin to include a set of binary data at a given point
+  in the assembly.  Contributed by Anders Norlander.
+
+* The MIPS assembler now accepts -march/-mtune. -mcpu has been deprecated
+  but still works for compatability.
+
+* The MIPS assembler no longer issues a warning by default when it 
+  generates a nop instruction from a macro. The new command line option
+  -n will turn on the warning.
+
+Changes in 2.11:
+
+* Support for PDP-11 and 2.11BSD a.out format, by Lars Brinkhoff.
+
+* x86 gas now supports the full Pentium4 instruction set.
+
+* Support for AMD x86-64 architecture, by Jan Hubicka, SuSE Labs.
+
+* Support for Motorola 68HC11 and 68HC12.
+
+* Support for Texas Instruments TMS320C54x (tic54x).
+
+* Support for IA-64.
+
+* Support for i860, by Jason Eckhardt.
+
+* Support for CRIS (Axis Communications ETRAX series).
+
+* x86 gas has a new .arch pseudo op to specify the target CPU architecture.
+
+* x86 gas -q command line option quietens warnings about register size changes
+  due to suffix, indirect jmp/call without `*', stand-alone prefixes, and
+  translating various deprecated floating point instructions.
+
+Changes in 2.10:
+
+* Support for the ARM msr instruction was changed to only allow an immediate
+  operand when altering the flags field.
+
+* Support for ATMEL AVR.
+
+* Support for IBM 370 ELF.  Somewhat experimental.
+
+* Support for numbers with suffixes.
+
+* Added support for breaking to the end of repeat loops.
+
+* Added support for parallel instruction syntax (DOUBLEBAR_PARALLEL).
+
+* New .elseif pseudo-op added.
+
+* New --fatal-warnings option.
+
+* picoJava architecture support added.
+
+* Motorola MCore 210 processor support added.
+
+* A new pseudo-op .intel_syntax has been implemented to allow gas to parse i386 
+  assembly programs with intel syntax.
+
+* New pseudo-ops .func,.endfunc to aid in debugging user-written assembler code.
+
+* Added -gdwarf2 option to generate DWARF 2 debugging information.
+
+* Full 16-bit mode support for i386.
+
+* Greatly improved instruction operand checking for i386.  This change will 
+  produce errors or warnings on incorrect assembly code that previous versions
+  of gas accepted.  If you get unexpected messages from code that worked with
+  older versions of gas, please double check the code before reporting a bug.
+
+* Weak symbol support added for COFF targets.
+
+* Mitsubishi D30V support added.
+
+* Texas Instruments c80 (tms320c80) support added.
+
+* i960 ELF support added.
+
+* ARM ELF support added.
+
+Changes in 2.9:
+
+* Texas Instruments c30 (tms320c30) support added.
+
+* The assembler now optimizes the exception frame information generated by egcs 
+  and gcc 2.8.  The new --traditional-format option disables this optimization.
+
+* Added --gstabs option to generate stabs debugging information.
+
+* The -a option takes a new suboption, m (e.g., -alm) to expand macros in a 
+  listing.
+
+* Added -MD option to print dependencies.
+
+Changes in 2.8:
+
+* BeOS support added.
+
+* MIPS16 support added.
+
+* Motorola ColdFire 5200 support added (configure for m68k and use -m5200).
+
+* Alpha/VMS support added.
+
+* m68k options --base-size-default-16, --base-size-default-32,
+  --disp-size-default-16, and --disp-size-default-32 added.
+
+* The alignment directives now take an optional third argument, which is the
+  maximum number of bytes to skip.  If doing the alignment would require
+  skipping more than the given number of bytes, the alignment is not done at
+  all.
+
+* The ELF assembler has a new pseudo-op, .symver, used for symbol versioning.
+
+* The -a option takes a new suboption, c (e.g., -alc), to skip false
+  conditionals in listings.
+
+* Added new pseudo-op, .equiv; it's like .equ, except that it is an error if
+  the symbol is already defined.
+
+Changes in 2.7:
+
+* The PowerPC assembler now allows the use of symbolic register names (r0,
+  etc.) if -mregnames is used.  Symbolic names preceded by a '%' (%r0, etc.)
+  can be used any time.  PowerPC 860 move to/from SPR instructions have been
+  added.
+
+* Alpha Linux (ELF) support added.
+
+* PowerPC ELF support added.
+
+* m68k Linux (ELF) support added.
+
+* i960 Hx/Jx support added.
+
+* i386/PowerPC gnu-win32 support added.
+
+* SCO ELF support added.  For OpenServer 5 targets (i386-unknown-sco3.2v5) the
+  default is to build COFF-only support.  To get a set of tools that generate
+  ELF (they'll understand both COFF and ELF), you must configure with 
+  target=i386-unknown-sco3.2v5elf.
+
+* m88k-motorola-sysv3* support added.
+
+Changes in 2.6:
+
+* Gas now directly supports macros, without requiring GASP.
+
+* Gas now has an MRI assembler compatibility mode.  Use -M or --mri to select
+  MRI mode.  The pseudo-op ``.mri 1'' will switch into the MRI mode until the
+  ``.mri 0'' is seen; this can be convenient for inline assembler code.
+
+* Added --defsym SYM=VALUE option.
+
+* Added -mips4 support to MIPS assembler.
+
+* Added PIC support to Solaris and SPARC SunOS 4 assembler.
+
+Changes in 2.4:
+
+* Converted this directory to use an autoconf-generated configure script.
+
+* ARM support, from Richard Earnshaw.
+
+* Updated VMS support, from Pat Rankin, including considerably improved
+  debugging support.
+
+* Support for the control registers in the 68060.
+
+* Handles (ignores) a new directive ".this_GCC_requires_the_GNU_assembler", to
+  provide for possible future gcc changes, for targets where gas provides some 
+  features not available in the native assembler.  If the native assembler is 
+  used, it should become obvious pretty quickly what the problem is.
+
+* Usage message is available with "--help".
+
+* The GNU Assembler Preprocessor (gasp) is included.  (Actually, it was in 2.3 
+  also, but didn't get into the NEWS file.)
+
+* Weak symbol support for a.out.
+
+* A bug in the listing code which could cause an infinite loop has been fixed. 
+  Bugs in listings when generating a COFF object file have also been fixed.
+
+* Initial i386-svr4 PIC implementation from Eric Youngdale, based on code by
+  Paul Kranenburg.
+
+* Improved Alpha support.  Immediate constants can have a much larger range
+  now. Support for the 21164 has been contributed by Digital.
+
+* Updated ns32k (pc532-mach, netbsd532) support from Ian Dall.
+
+Changes in 2.3:
+
+* Mach i386 support, by David Mackenzie and Ken Raeburn.
+
+* RS/6000 and PowerPC support by Ian Taylor.
+
+* VMS command scripts (make-gas.com, config-gas.com) have been worked on a bit,
+  based on mail received from various people.  The `-h#' option should work
+  again too.
+
+* HP-PA work, by Jeff Law.  Note, for the PA, gas-2.3 has been designed to work
+  with gdb-4.12 and gcc-2.6.  As gcc-2.6 has not been released yet, a special 
+  version of gcc-2.5.8 has been patched to work with gas-2.3.  You can retrieve
+  this special version of gcc-2.5.8 via anonymous ftp from jaguar.cs.utah.edu
+  in the "dist" directory.
+
+* Vax support in gas fixed for BSD, so it builds and seems to run a couple
+  simple tests okay.  I haven't put it through extensive testing.  (GNU make is
+  currently required for BSD 4.3 builds.)
+
+* Support for the DEC Alpha, running OSF/1 (ECOFF format).  The gas support is 
+  based on code donated by CMU, which used an a.out-based format.  I'm afraid
+  the alpha-a.out support is pretty badly mangled, and much of it removed;
+  making it work will require rewriting it as BFD support for the format anyways.
+
+* Irix 5 support.
+
+* The test suites have been fixed up a bit, so that they should work with a 
+  couple different versions of expect and dejagnu.
+
+* Symbols' values are now handled internally as expressions, permitting more 
+  flexibility in evaluating them in some cases.  Some details of relocation 
+  handling have also changed, and simple constant pool management has been
+  added, to make the Alpha port easier.
+
+* New option "--statistics" for printing out program run times.  This is
+  intended to be used with the gcc "-Q" option, which prints out times spent in
+  various phases of compilation.  (You should be able to get all of them
+  printed out with "gcc -Q -Wa,--statistics", I think.)
+
+Changes in 2.2:
+
+* RS/6000 AIX and MIPS SGI Irix 5 support has been added.
+
+* Configurations that are still in development (and therefore are convenient to 
+  have listed in configure.in) still get rejected without a minor change to 
+  gas/Makefile.in, so people not doing development work shouldn't get the
+  impression that support for such configurations is actually believed to be
+  reliable.
+
+* The program name (usually "as") is printed when a fatal error message is 
+  displayed.  This should prevent some confusion about the source of occasional
+  messages about "internal errors".
+
+* ELF support is falling into place.  Support for the 386 should be working. 
+  Support for SPARC Solaris is in.  HPPA support from Utah is being integrated.
+
+* Symbol values are maintained as expressions instead of being immediately
+  boiled down to add-symbol, sub-symbol, and constant.  This permits slightly
+  more complex calculations involving symbols whose values are not alreadey
+  known.
+
+* DBX-style debugging info ("stabs") is now supported for COFF formats.
+  If any stabs directives are seen in the source, GAS will create two new 
+  sections: a ".stab" and a ".stabstr" section.  The format of the .stab 
+  section is nearly identical to the a.out symbol format, and .stabstr is
+  its string table.  For this to be useful, you must have configured GCC
+  to generate stabs (by defining DBX_DEBUGGING_INFO), and must have a GDB
+  that can use the stab sections (4.11 or later).
+
+* LynxOS, on i386 and m68k platforms, is now supported.  SPARC LynxOS 
+  support is in progress.
+
+Changes in 2.1:
+
+* Several small fixes for i386-aix (PS/2) support from Minh Tran-Le have been 
+  incorporated, but not well tested yet.
+
+* Altered the opcode table split for m68k; it should require less VM to compile 
+  with gcc now.
+
+* Some minor adjustments to add (Convergent Technologies') Miniframe support,
+  suggested by Ronald Cole.
+
+* HPPA support (running OSF only, not HPUX) has been contributed by Utah.  This
+  includes improved ELF support, which I've started adapting for SPARC Solaris
+  2.x.  Integration isn't completely, so it probably won't work.
+
+* HP9000/300 support, donated by HP, has been merged in.
+
+* Ian Taylor has finished the MIPS ECOFF (Ultrix, Irix) support.
+
+* Better error messages for unsupported configurations (e.g., hppa-hpux).
+
+* Test suite framework is starting to become reasonable.
+
+Changes in 2.0:
+
+* Mostly bug fixes.
+
+* Some more merging of BFD and ELF code, but ELF still doesn't work.
+
+Changes in 1.94:
+
+* BFD merge is partly done.  Adventurous souls may try giving configure the
+  "--with-bfd-assembler" option.  Currently, ELF format requires it, a.out
+  format accepts it; SPARC CPU accepts it.  It's the default only for OS "elf"
+  or "solaris".  (ELF isn't really supported yet.  It needs work.  I've got
+  some code from Utah for HP-PA ELF, and from DG for m88k ELF, but they're not
+  fully merged yet.)
+
+* The 68K opcode table has been split in half.  It should now compile under gcc
+  without consuming ridiculous amounts of memory.
+
+* A couple data structures have been reduced in size.  This should result in
+  saving a little bit of space at runtime.
+
+* Support for MIPS, from OSF and Ralph Campbell, has been merged in.  The OSF
+  code provided ROSE format support, which I haven't merged in yet.  (I can
+  make it available, if anyone wants to try it out.)  Ralph's code, for BSD
+  4.4, supports a.out format.  We don't have ECOFF support in just yet; it's
+  coming.
+
+* Support for the Hitachi H8/500 has been added.
+
+* VMS host and target support should be working now, thanks chiefly to Eric
+  Youngdale.
+
+Changes in 1.93.01:
+
+* For m68k, support for more processors has been added: 68040, CPU32, 68851.
+
+* For i386, .align is now power-of-two; was number-of-bytes.
+
+* For m68k, "%" is now accepted before register names.  For COFF format, which
+  doesn't use underscore prefixes for C labels, it is required, so variable "a0"
+  can be distinguished from the register.
+
+* Last public release was 1.38.  Lots of configuration changes since then, lots
+  of new CPUs and formats, lots of bugs fixed.
+
+
+Local variables:
+fill-column: 79
+End:

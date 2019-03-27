@@ -1,0 +1,326 @@
+.\" All Rights Reserved, Copyright (C) Fujitsu Limited 1995
+.\"
+.\" This document may be used, modified, copied, distributed, and sold, in
+.\" both source and printed form provided that the above copyright, these
+.\" terms and the following disclaimer are retained.  The name of the author
+.\" and/or the contributor may not be used to endorse or promote products
+.\" derived from this software without specific prior written permission.
+.\"
+.\" THIS DOCUMENT IS PROVIDED BY THE AUTHOR AND THE CONTRIBUTOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR THE CONTRIBUTOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS DOCUMENT, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Contributed by M. Sekiguchi <seki@sysrap.cs.fujitsu.co.jp>.
+.\" for fe driver.
+.\"
+.\" $FreeBSD$
+.Dd October 24, 2018
+.Dt FE 4 i386
+.Os
+.Sh NAME
+.Nm fe
+.Nd "Fujitsu MB86960A/MB86965A based Ethernet adapters"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device fe"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_fe_load="YES"
+.Ed
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.fe.0.at="isa"
+.Cd hint.fe.0.port="0x300"
+.Cd hint.fe.0.flags="0x0"
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
+.Sh DESCRIPTION
+The
+.Nm
+is a network device driver
+for Ethernet adapters based on Fujitsu MB86960A, MB86965A,
+or other compatible chips.
+.Pp
+The driver provides automatic I/O port address configuration and
+automatic IRQ configuration,
+when used with suitable adapter hardware.
+.Pp
+The driver works with program I/O data transfer technique.
+It gives a fair performance.
+Shared memory is never used, even if the adapter has one.
+.Pp
+It currently works with Fujitsu FMV-180 series for ISA,
+Allied-Telesis AT1700 series and RE2000 series for ISA,
+and Fujitsu MBH10302 PC card.
+.Ss Parameters
+In the
+.Pa /boot/device.hints
+file, two parameters,
+.Ar port
+and
+.Ar irq ,
+must be specified to reflect adapter hardware settings.
+Another parameter
+.Ar flags
+can be specified to provide additional configuration as an option.
+.Pp
+The
+.Ar port
+parameter specifies a base I/O port address of the adapter.
+It must match with the hardware setting of the adapter.
+The
+.Ar port
+may be left unspecified by removing
+.Dl hint.fe.0.port="..."
+from the file.
+In that case, the driver tries to detect the hardware setting
+of the I/O address automatically.
+This feature may not work with some adapter hardware.
+.Pp
+The
+.Ar irq
+parameter specifies an IRQ number used by the adapter.
+It must match the hardware setting of the adapter.
+.Ar Irq
+may be left unspecified by removing
+.Dl hint.fe.0.irq="..."
+from the file.
+in that case, the driver tries to detect
+the hardware setting of the IRQ automatically.
+This feature may not work on some adapters.
+.Pp
+The
+.Ar flags
+is a numeric value which consists of a combination of various device settings.
+The following flags are defined in the current version.
+To specify two or more settings for a device,
+use a numeric sum of each flag value.
+Flag bits not specified below are reserved and must be set to 0.
+Actually, each bit is either just ignored by the driver,
+or tested and used to control undocumented features of the driver.
+Consult the source program for undocumented features.
+.Bl -tag -width 8n
+.It Li 0x007F
+These flag bits are used
+to initialize DLCR6 register of MB86960A/MB86965A chip,
+when the
+.Li 0x0080
+bit of the
+.Ar flags
+is set.
+See below for more about DLCR6 override feature.
+The
+.Li 0x007F
+flag bits must be 0 unless the
+.Li 0x0080
+bit is set,
+to maintain the compatibility with future versions of the driver.
+.It Li 0x0080
+This flag overrides the default setting to the DLCR6 register
+of MB86960A/MB86965A chip by a user supplied value,
+which is taken from the lower 7 bits of the flag value.
+This is a troubleshooting flag and should not be used
+without understanding of the adapter hardware.
+Consult the Fujitsu manual for more information
+on DLCR6 settings.
+.El
+.Sh HARDWARE
+Controllers and cards supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Allied Telesis RE1000, RE1000Plus, ME1500 (110-pin)
+.It
+CONTEC C-NET(98)P2, C-NET (9N)E (110-pin), C-NET(9N)C (ExtCard)
+.It
+CONTEC C-NET(PC)C PC Card Ethernet
+.It
+Eagle Tech NE200T
+.It
+Eiger Labs EPX-10BT
+.It
+Fujitsu FMV-J182, FMV-J182A
+.It
+Fujitsu MB86960A, MB86965A
+.It
+Fujitsu MBH10303, MBH10302 PC Card Ethernet
+.It
+Fujitsu Towa LA501 Ethernet
+.It
+HITACHI HT-4840-11 PC Card Ethernet
+.It
+NextCom J Link NC5310
+.It
+RATOC REX-5588, REX-9822, REX-4886, and REX-R280
+.It
+RATOC REX-9880/9881/9882/9883
+.It
+TDK LAC-98012, LAC-98013, LAC-98025, LAC-9N011 (110-pin)
+.It
+TDK LAK-CD011, LAK-CD021, LAK-CD021A, LAK-CD021BX
+.It
+Ungermann-Bass Access/PC N98C+(PC85152, PC85142), Access/NOTE
+N98(PC86132) (110-pin)
+.El
+.Sh FEATURES SPECIFIC TO HARDWARE MODELS
+The
+.Nm
+driver has some features and limitations
+which depend on adapter hardware models.
+The following is a summary of these dependencies.
+.Ss Fujitsu FMV-180 series adapters
+Both automatic IRQ detection and automatic I/O port address detection
+is available with these adapters.
+.Pp
+Automatic I/O port address detection feature of
+.Nm
+works mostly fine for FMV-180 series.
+It works even if there are two or more FMV-180s in a system.
+However, some combination of other adapters may confuse the driver.
+It is recommended to explicitly specify
+.Ar port
+when you experience some difficulties with hardware probe.
+.Pp
+Automatic IRQ detection feature of
+.Nm
+works reliably for FMV-180 series.
+It is recommended to explicitly specify
+.Ar irq
+always for FMV-180.
+The hardware setting of IRQ is read
+from the configuration EEPROM on the adapter,
+even when the kernel config file specifies an IRQ value.
+The driver will generate a warning message,
+if the IRQ setting specified in
+.Pa /boot/device.hints
+does not match one stored in EEPROM.
+Then, it will use the value specified in the file.
+(This behavior has been changed from the previous releases.)
+.Ss Allied-Telesis AT1700 series and RE2000 series adapters
+Automatic I/O port address detection
+is available with Allied-Telesis AT1700 series and RE2000 series,
+while it is less reliable than FMV-180 series.
+Using the feature with Allied-Telesis adapters
+is not recommended.
+.Pp
+Automatic IRQ detection is also available with some limitation.
+The
+.Nm
+driver
+tries to get IRQ setting from the configuration EEPROM on the board,
+if
+.Ar irq
+is not specified in
+.Pa /boot/device.hints .
+Unfortunately,
+AT1700 series and RE2000 series seems to have two types of models;
+One type allows IRQ selection from 3/4/5/9,
+while the other from 10/11/12/15.
+Identification of the models are not well known.
+Hence, automatic IRQ detection with Allied-Telesis adapters
+may not be reliable.
+Specify an exact IRQ number if any troubles are encountered.
+.Pp
+Differences between AT1700 series and RE2000 series
+or minor models in those series are not recognized.
+.Ss Fujitsu MBH10302 PC card
+The
+.Nm
+driver supports Fujitsu MBH10302 and compatible PC cards.
+It requires the PC card (PCMCIA) support package.
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr ed 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Fx 2.0.5 .
+.Sh AUTHORS, COPYRIGHT AND DISCLAIMER
+The
+.Nm
+driver was originally written and contributed by
+.An M. Sekiguchi Aq Mt seki@sysrap.cs.fujitsu.co.jp ,
+following the
+.Nm ed
+driver written by
+.An David Greenman .
+PC card support in
+.Nm
+is written by
+.An Hidetoshi Kimura Aq Mt h-kimura@tokyo.se.fujitsu.co.jp .
+This manual page was written by
+.An M. Sekiguchi .
+.Pp
+.Em "All Rights Reserved, Copyright (C) Fujitsu Limited 1995"
+.Pp
+This document and the associated software may be used, modified,
+copied, distributed, and sold, in both source and binary form provided
+that the above copyright, these terms and the following disclaimer are
+retained.
+The name of the author and/or the contributor may not be
+used to endorse or promote products derived from this document and the
+associated software without specific prior written permission.
+.Pp
+THIS DOCUMENT AND THE ASSOCIATED SOFTWARE IS PROVIDED BY THE AUTHOR
+AND THE CONTRIBUTOR
+.Dq AS IS
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE AUTHOR OR THE
+CONTRIBUTOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+DOCUMENT AND THE ASSOCIATED SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+.Sh BUGS
+Following are major known bugs:
+.Pp
+Statistics on the number of collisions maintained by the
+.Nm
+driver is not accurate;
+the
+.Fl i
+option of
+.Xr netstat 1
+shows slightly less value than true number of collisions.
+.Pp
+More mbuf clusters are used than expected.
+The packet receive routine has an intended violation
+against the mbuf cluster allocation policy.
+The unnecessarily allocated clusters are freed within short lifetime,
+and it will not affect long term kernel memory usage.
+.Pp
+Although XNS and IPX support is included in the driver,
+it has never been tested and it is expected to have a lot of bugs.

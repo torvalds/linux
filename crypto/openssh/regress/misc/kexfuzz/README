@@ -1,0 +1,34 @@
+This is a harness to help with fuzzing KEX.
+
+To use it, you first set it to count packets in each direction:
+
+./kexfuzz -K diffie-hellman-group1-sha1 -k host_ed25519_key -c
+S2C: 29
+C2S: 31
+
+Then get it to record a particular packet (in this case the 4th
+packet from client->server):
+
+./kexfuzz -K diffie-hellman-group1-sha1 -k host_ed25519_key \
+    -d -D C2S -i 3 -f packet_3
+
+Fuzz the packet somehow:
+
+dd if=/dev/urandom of=packet_3 bs=32 count=1 # Just for example
+
+Then re-run the key exchange substituting the modified packet in
+its original sequence:
+
+./kexfuzz -K diffie-hellman-group1-sha1 -k host_ed25519_key \
+    -r -D C2S -i 3 -f packet_3
+
+A comprehensive KEX fuzz run would fuzz every packet in both
+directions for each key exchange type and every hostkey type.
+This will take some time.
+
+Limitations: kexfuzz can't change the ordering of packets at
+present. It is limited to replacing individual packets with
+fuzzed variants with the same type. It really should allow
+insertion, deletion on replacement of packets too.
+
+$OpenBSD: README,v 1.3 2017/10/20 02:13:41 djm Exp $

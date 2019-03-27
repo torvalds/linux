@@ -1,0 +1,53 @@
+.\" Generated from openpam_set_feature.c by gendoc.pl
+.\" $OpenPAM: openpam_set_feature.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt OPENPAM_SET_FEATURE 3
+.Os
+.Sh NAME
+.Nm openpam_set_feature
+.Nd enable or disable an optional feature
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.In security/openpam.h
+.Ft "int"
+.Fn openpam_set_feature "int feature" "int onoff"
+.Sh DESCRIPTION
+.Bf Sy
+This function is experimental and may be modified or removed in a future release without prior warning.
+.Ef
+.Pp
+The
+.Fn openpam_set_feature
+function sets the state of the specified
+feature to the value specified by the
+.Fa onoff
+argument.
+See
+.Xr openpam_get_feature 3
+for a list of recognized features.
+.Pp
+.Sh RETURN VALUES
+The
+.Fn openpam_set_feature
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BAD_FEATURE
+Unrecognized or restricted feature.
+.El
+.Sh SEE ALSO
+.Xr openpam_get_feature 3 ,
+.Xr pam 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+The
+.Fn openpam_set_feature
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn openpam_set_feature
+function and this manual page were
+developed by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

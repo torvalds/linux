@@ -1,0 +1,363 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+    <meta http-equiv="Content-Type"
+    content="text/html;charset=iso-8859-1"><title>GPSD-NG client driver</title>
+    
+    <link href="scripts/style.css" type="text/css" rel="stylesheet">
+    <style type="text/css">
+      table.dlstable { font-size:85%; }
+      td.ttf{ font-family:Courier; font-weight:bold; }
+    </style></head>
+
+
+
+  <body>
+    <h3>GPSD NG client driver</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->30-Apr-2015  05:53<!-- #EndDate -->
+  UTC</p>
+    <hr>
+    <h4>Synopsis</h4>
+
+    <p>
+      Address: 127.127.46.<i>u</i><br>
+      Reference ID: <tt>GPSD</tt><br>
+      Driver ID: <tt>GPSD_JSON</tt><br>
+      Serial Port: <tt>/dev/gps<i>u</i></tt> as symlink to the true
+      device (not used directly; see below)<br>
+      Features: <tt></tt>
+    </p>
+
+    <!-- --------------------------------------------------------- -->
+
+    <br><h4>Description</h4>
+    <p>
+      This driver is a client driver to the <i>GPSD</i> daemon, which
+      over the time became increasingly popular for UN*Xish
+      platforms. <i>GPSD</i> can manage several devices in parallel,
+      aggregate information, and acts as a data hub for client
+      applications. <i>GPSD</i> can also auto-detect and handle PPS
+      hardware signals on serial ports. Have a look
+      at <a href="http://www.catb.org/gpsd/">the
+      <i>GPSD</i> project page</a>.
+    </p>
+    <p>
+      <b>It is important to understand that this driver works best
+      using a GPS device with PPS support.</b>
+    </p>
+    <p>
+      The GPSD-NG protocol is text based, using JSON notation to
+      transfer records in form of JSON objects. The driver uses a
+      TCP/IP connection to <tt>localhost:gpsd</tt> to connect to the
+      daemon and then requests the GPS
+      device <tt>/dev/gps<i>u</i></tt> to be watched. (Different clock
+      units use different devices, and
+      <i>GPSD</i> is able to give only the relevant information to a clock
+      instance.)
+    </p>
+    <p>
+      This driver does not expect <i>GPSD</i> to be running or the
+      clock device to be present <i>a priori</i>; it will try to
+      re-establish a lost or hitherto unsuccessful connection and will
+      wait for device to come up in <i>GPSD.</i> There is an initial
+      10 seconds delay between a connection loss or failed attempt and
+      the next reconnect attempt; this makes sure that there is no
+      thrashing on the network layer. If the connection fails again,
+      an exponential back off is used with an upper limit of
+      approximately 10 minutes.
+    </p>
+    <p>
+      The overall accuracy depends on the receiver used. The driver
+      uses the error estimations (95% probability limits) provided by
+      <i>GPSD</i> to set the clock precision dynamically according to
+      these readings.
+    </p>
+    <p>
+      The driver needs the VERSION, TPV, PPS, WATCH and TOFF objects
+      of the <i>GPSD</i> protocol. (Others are quietly ignored.) The
+      driver can operate without the TOFF objects, which are available
+      with the <i>protocol</i> version 3.10 and above. (Not to be
+      confused with the <i>release</i> version of <i>GPSD</i>!)
+      Running without TOFF objects has a negative impact on the jitter
+      and offset of the serial timing information; if possible, a
+      version of <i>GPSD</i> with support for TOFF objects should be
+      used.
+    </p>
+    <p>The acronym <u>STI</u> is used here as a synonym for <i>serial
+      time information</i> from the data channel of the receiver, no
+      matter what objects were used to obtain it.
+    </p>
+
+    <!-- --------------------------------------------------------- -->
+
+    <br><h4>Naming a Device</h4>
+    <p>
+      The <i>GPSD</i> driver uses the same device name as the NMEA
+      driver, namely <tt>/dev/gps<i>u</i></tt>. There is a simple
+      reason for that: While the NMEA driver and the <i>GPSD</i>
+      driver can be active at the same time <b>for different
+      devices</b>, they cannot access the same device at a
+      time. Having the same name helps on that. It also eases
+      migration from using NMEA directly to using <i>GPSD</i>, as no
+      new links etc need to be created.
+    </p>
+    <p>
+      <i>GPSD</i> is normally started with the device name to access;
+      it can also be instructed by hot-plug scripts to add or remove
+      devices from its device pool. Luckily, the symlinks used by the
+      NMEA driver are happily accepted and used by <i>GPSD</i>; this
+      makes it possible to use the symlink names as device
+      identification. This makes the migration from the built-in NMEA
+      driver a bit easier.
+    </p>
+    <p><b>Note:</b> <i>GPSD</i> (as of version 3.10) cannot use kernel
+      mode PPS on devices that are hot-plugged. This would require to
+      attach the PPS line discipline to the character special file,
+      which is not possible when running with root privileges already
+      dropped. This is not likely to change in the future.
+    </p>
+
+    <!-- --------------------------------------------------------- -->
+
+    <br><h4>The 'mode' word</h4>
+    <p>
+      A few operation modes can be selected with the mode word.
+    </p>
+    <p>
+      <table border="1" frame="box" rules="all">
+      <th colspan="3">The Mode Word</th>
+	<tr> <td>Bits</td><td>Value</td><td>Description</td>
+	</tr>
+	<tr> <td rowspan="4"align="center">0..1</td>
+	  <td align="center">0</td>
+	  <td>STI only operation. This mode is affected by the timing
+	    stability of whatever protocol is used between the GPS
+	    device and GPSD.
+	    <br>
+	    Running on STI only is not recommended in general. Possible
+	    use cases include:
+	    <ul>
+	      <li>The receiver does not provide a PPS signal.
+	      <li>The receiver <i>does</i> provide a PPS signal and
+	      the secondary PPS unit is used.
+	      <li>The receiver has a stable serial timing and a proper
+	      fudge can be established.
+	      <li>You have other time sources available and want to
+		establish a useful fudge value for <tt>time2</tt>.
+	    </ul>
+	  </td>
+	</tr>
+	<tr>
+	  <td align="center">1</td>
+	  <td>Strict operation. This mode needs a valid PPS and a
+	    valid STI to combine the absolute time from the STI with
+	    the time stamp from the PPS record. Does not feed clock
+	    samples if no valid PPS+STI pair is available.
+	    <br><br>
+	    This type of operation results in an ordinary clock with a
+	    very low jitter as long as the PPS data is available, but
+	    the clock fails once PPS drops out. This mode is a
+	    possible choice for receivers that provide a PPS signal
+	    most of the time but have an unstable serial timing that
+	    cannot be fudge-compensated.
+	  </td>
+	</tr>
+	<tr><td align="center">2</td>
+	  <td>Automatic mode. Tries to operate in strict mode unless
+	    it fails to process valid samples for some time, currently
+	    120s. Then it reverts to STI-only operation until the PPS
+	    is stable again for 40s, when strict mode is engaged
+	    again.
+	    <br><br><b>Important Notice: This is an expiremental
+	    feature!</b><br>  Switching between strict and STI-only
+	    mode will cause changes in offset and jitter. Use this
+	    mode only if STI-only works fairly well with your setup,
+	    or if you expect longer dropouts of the PPS signal and
+	    prefer to use STI alone over not getting synchronised at
+	    all.</td>
+	</tr>
+	<tr>
+	  <td align="center">3</td>
+	  <td><i>(reserved for future extension, do not use)</i></td>
+	</tr>
+	<tr>
+	  <td align="center">2..31</td>
+	  <td colspan="2"><i>(reserved for future extension, do not
+	  use)</i></td>
+	</tr>
+      </table>
+    </p>
+
+    <!-- --------------------------------------------------------- -->
+
+    <br><h4>Syslog flood throttle</h4>
+    <p>This driver can create a lot of syslog messages when things go
+      wrong, and cluttering the log files is frowned upon. So we
+      attempt to log persistent or recurring errors only once per
+      hour. On the other hand, when tracking a problem the syslog
+      flood throttle can get into the way.</p>
+    <p>Therefore, fudge <i>flag3</i> can be used to <i>disable</i> the
+      flood throttle at any time; the throttle is engaged by
+      default. Running with the syslog flood throttle disabled for
+      lengthy time is not recommended unless the log files are closely
+      monitored.</p>
+
+    <!-- --------------------------------------------------------- -->
+
+    <br><h4>PPS secondary clock unit</h4>
+    <p>Units with numbers &ge;128 act as secondary clock unit for the
+      primary clock unit (u mod 128). A secondary unit processes only
+      the PPS data from <i>GPSD</i> and needs the corresponding master
+      unit to work<a href="#fn1" name="fn1bl"><sup>1</sup></a>. Use
+      the 'noselect' keyword on the primary unit if you are not
+      interested in its data.
+    </p><p>The secondary unit employs the usual precautions before
+      feeding clock samples:</p>
+    <ul>
+      <li>The system must be already in a synchronised state.	  
+      <li>The system offset must be less than 400ms absolute.
+      <li>The phase adjustment from the PPS signal must also be less
+	than 400ms absolute.
+    </ul>
+    <p>If fudge flag <tt>flag1</tt> is set for the secondary unit, the
+      unit asserts the PPS flag on the clock as long as PPS data is
+      available. This makes the unit eligible as PPS peer and should
+      only be used if the GPS receiver can be trusted for the quality
+      of its PPS signal<a href="fn2"
+      name="fn2bl"><sup>2</sup></a>. The PPS flag gets cleared if no
+      PPS records can be aquired for some time. The unit also flushes
+      the sample buffer at this point to avoid the use of stale PPS
+      data.</p>
+    <p><b>Attention:</b> This unit uses its own PPS fudge value
+      which must be set as fudge <tt>time1</tt>. Only the fudge
+      values <tt>time1</tt> and <tt>flag1</tt> have an impact on secondary
+      units.</p>
+
+    <!-- --------------------------------------------------------- -->
+
+    <br><h4>Clockstats</h4>
+    <p>If flag4 is set when the driver is polled, a clockstats record
+      is written for the primary clock unit. (The secondary PPS unit
+      does not provide clock stats on its own.) The first 3 fields are
+      the normal date, time, and IP address common to all clockstats
+      records.
+    </p><p>
+      <table border="1" frame="box" rules="all">
+	<th colspan="2">The Clockstats Line</th>
+	<tr> <td>field</td><td>Description</td>	</tr>
+	<tr>
+	  <td align="center">1</td>
+	  <td>Date as day number since NTP epoch.</td>
+	</tr><tr>
+	  <td align="center">2</td>
+	  <td>Time as seconds since midnight.</td>
+	</tr><tr>
+	  <td align="center">3</td>
+	  <td>(Pseudo-) IP address of clock unit.</td>
+	</tr><tr>
+	  <td align="center">4</td>
+	  <td>Number of received known JSON records since last
+	    poll. The driver knows about TPV, PPS, TOFF, VERSION and
+	    WATCH records; others are silently ignored.
+	  </td>
+	</tr><tr>
+	  <td align="center">5</td>
+	  <td>Bad replies since last poll. A record is considered
+	    malformed or a bad reply when it is missing vital fields
+	    or the fields contain malformed data that cannot be
+	    parsed.
+	  </td>
+	</tr><tr>
+	  <td align="center">6</td>
+	  <td>Number of sample cycles since last poll that were
+	    discarded because there was no GPS fix. This is
+	    effectively the number of TPV records with a fix value
+	    &lt; 2 or without a time stamp.
+	  </td>
+	</tr><tr>
+	  <td align="center">7</td>
+	  <td>Number of serial time information records (TPV or TOFF,
+	    depending on the GPSD version) received since last poll.
+	  </td>
+	</tr><tr>
+	  <td align="center">8</td>
+	  <td>Number of serial time information records used for
+	    clock samples since the last poll.
+	  </td>
+	</tr><tr>
+	  <td align="center">9</td>
+	  <td>Number of PPS records received since the last poll.</td>
+	</tr><tr>
+	  <td align="center">10</td>
+	  <td>Number of PPS records used for clock samples on the
+	    secondary channel since the last poll.
+	  </td>
+	</tr>
+      </table>
+    </p>
+
+    <!-- --------------------------------------------------------- -->
+
+    <br><h4>Fudge Factors</h4>
+
+    <dl>
+      <dt><tt>time1 <i>time</i></tt></dt>
+      <dd>Specifies the PPS time offset calibration factor, in seconds
+      and fraction, with default 0.0.</dd>
+      <dt><a name="fudgetime2"><tt>time2 <i>time</i></tt></a></dt>
+      <dd><em>[Primary Unit]</em> Specifies the TPV/TIME time offset
+      calibration factor, in seconds and fraction, with default
+      0.0.</dd>
+      <dt><tt>stratum <i>number</i></tt></dt>
+      <dd>Specifies the driver stratum, in decimal from 0 to 15, with
+	default 0.</dd>
+      <dt><tt>refid <i>string</i></tt></dt>
+      <dd>Specifies the driver reference identifier, an ASCII string
+	from one to four characters, with default <tt>GPSD</tt>.</dd>
+      <dt><tt>flag1 0 | 1</tt></dt><dd><em>[<b>Secondary</b>
+	  Unit]</em> When set, flags the secondary clock unit as a
+	potential PPS peer as long as good PPS data is available.
+      </dd>
+      <dt><tt>flag2 0 | 1</tt></dt>
+      <dd><em>[Primary Unit]</em> When set, <u>disables</u> the
+	processing of incoming PPS records. Intended as an aide to
+	test the effects of a PPS dropout when using automatic mode
+	(mode 2).
+      </dd>
+      <dt><tt>flag3 0 | 1</tt></dt><dd><em>[Primary Unit]</em>
+      If set, <u>disables</u> the log throttle. Useful when tracking
+      problems in the interaction between <i>GPSD</i> and <i>NTPD</i>,
+      since now all error events are logged. Persistent/recurrent
+      errors can easily fill up the log, so this should only be
+      enabled during bug hunts.</dd>
+      <dt><tt>flag4 0 | 1</tt></dt><dd><em>[Primary Unit]</em>
+	If set, write a clock stats line on every poll cycle.
+      </dd>
+    </dl>
+
+    <!-- -- footnotes -------------------------------------------- -->
+
+    <hr>
+    <p><a name="fn1" href="#fn1bl"><sup>1</sup>) </a>Data transmission
+      an decoding is done only once by the primary unit. The decoded
+      data is then processed independently in both clock units. This
+      avoids double transmission over two sockets and decoding the
+      same data twice, but the primary unit is always needed as a
+      downside of this approach.
+    </p>
+    <p><a name="fn2" href="#fn2bl"><sup>2</sup>) </a>The clock driver
+      suppresses the processing PPS records when the TPV/TIME data
+      indicates the receiver has no fix. It can also deal with
+      situations where the PPS signal is not delivered
+      to <i>GPSD</i>. But once it is available, it is also processed
+      and used to create samples. If a receiver cannot be trusted for
+      the precision of its PPS signal, it should not be used to create
+      a possible PPS peer: These get extra clout and can effectively
+      become the sole source of input for the control loop. You do not
+      want to use sloppy data for that.
+    <hr>
+    <p>Additional Information</p>
+    <p><a href="../refclock.html">Reference Clock Drivers</a></p>
+    <hr>
+    <script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+  </body></html>

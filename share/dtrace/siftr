@@ -1,0 +1,68 @@
+#!/usr/sbin/dtrace -s
+/*-
+ * Copyright (c) 2015 George V. Neville-Neil
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *
+ * The siftr D script collects data from the SIFTR kernel module.
+ *
+ * Usage: siftr
+ */
+
+#pragma D option quiet
+tcp:kernel::siftr
+{
+	printf("direction %s state %s local %d remote %d\n",
+	       siftr_dir_string[args[0]->direction],
+	       tcp_state_string[args[0]->conn_state],
+	       args[0]->tcp_localport,
+	       args[0]->tcp_foreignport);
+	printf("snd_cwnd %d snd_wnd %d rcv_wnd %d snd_bwnd %d snd_ssthresh %d\n",
+	       args[0]->snd_cwnd,
+	       args[0]->snd_wnd,
+	       args[0]->rcv_wnd,
+	       args[0]->snd_bwnd,
+	       args[0]->snd_ssthresh);
+	printf("\tmax_seg_size %u smoothed_rtt %d sack_enabled %d\n",
+	       args[0]->max_seg_size,
+	       args[0]->smoothed_rtt,
+	       args[0]->sack_enabled);
+	printf("\tsnd_scale %d rcv_scale %d flags 0x%x rxt_length %d\n",
+	       args[0]->snd_scale,
+	       args[0]->rcv_scale,
+	       args[0]->flags,
+	       args[0]->rxt_length);
+	printf("\tsnd_buf_hiwater %u snd_buf_cc %u rcv_buf_hiwater %u\n",
+	       args[0]->snd_buf_hiwater,
+	       args[0]->snd_buf_cc,
+	       args[0]->rcv_buf_hiwater);
+	printf("\trcv_buf_cc %u sent_inflight_bytes %u t_segqlen %d\n",
+	       args[0]->rcv_buf_cc,
+	       args[0]->sent_inflight_bytes,
+	       args[0]->t_segqlen);
+	printf("\tflowid %u flowtype %u\n",
+	       args[0]->flowid,
+	       args[0]->flowtype);
+}

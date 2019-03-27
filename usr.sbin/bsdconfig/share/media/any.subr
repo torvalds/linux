@@ -1,0 +1,149 @@
+if [ ! "$_MEDIA_ANY_SUBR" ]; then _MEDIA_ANY_SUBR=1
+#
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." media/any.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/media/cdrom.subr
+f_include $BSDCFG_SHARE/media/directory.subr
+f_include $BSDCFG_SHARE/media/dos.subr
+f_include $BSDCFG_SHARE/media/floppy.subr
+f_include $BSDCFG_SHARE/media/ftp.subr
+f_include $BSDCFG_SHARE/media/http.subr
+f_include $BSDCFG_SHARE/media/httpproxy.subr
+f_include $BSDCFG_SHARE/media/nfs.subr
+f_include $BSDCFG_SHARE/media/options.subr
+f_include $BSDCFG_SHARE/media/ufs.subr
+f_include $BSDCFG_SHARE/media/usb.subr
+f_include $BSDCFG_SHARE/struct.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+MEDIA_HELPFILE=$BSDCFG_LIBE/include/media.hlp
+
+############################################################ FUNCTIONS
+
+# f_media_get_type
+#
+# Prompt the user to select amongst the known media types (included above).
+#
+# If the user does not cancel or press Esc, invokes the f_media_set_* function
+# associated with the chosen media type. If after all that we have a struct
+# named `device_media' then success is returned, otherwise failure.
+#
+# NOTE: The f_media_set_* function should create the `device_media' struct.
+# See `struct.subr' and the above `media/*.subr' includes for more details.
+#
+f_media_get_type()
+{
+	f_dialog_title "$msg_choose_installation_media"
+	local title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
+	f_dialog_title_restore
+	local prompt="$msg_choose_installation_media_description"
+	local menu_list="
+		'1 $msg_cd_dvd'    '$msg_install_from_a_freebsd_cd_dvd'
+		'2 $msg_ftp'       '$msg_install_from_an_ftp_server'
+		'3 $msg_http_proxy'
+		                '$msg_install_from_an_ftp_server_thru_proxy'
+		'4 $msg_http_direct' '$msg_install_from_an_http_server'
+		'5 $msg_directory' '$msg_install_from_the_existing_filesystem'
+		'6 $msg_nfs'       '$msg_install_over_nfs'
+		'7 $msg_dos'       '$msg_install_from_a_dos_partition'
+		'8 $msg_ufs'       '$msg_install_from_a_ufs_partition'
+		'9 $msg_floppy'    '$msg_install_from_a_floppy_disk_set'
+		'A $msg_usb'       '$msg_install_from_a_usb_drive'
+		'X $msg_options'   '$msg_view_set_various_media_options'
+	" # END-QUOTE
+	local hline="$hline_choose_help_for_more_information_on_media_types"
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$title\"  \
+	                        \"\$btitle\" \
+	                        \"\$prompt\" \
+	                        \"\$hline\"  \
+	                        $menu_list
+
+	local mtag
+	while :; do
+		mtag=$( eval $DIALOG \
+			--title \"\$title\"             \
+			--backtitle \"\$btitle\"        \
+			--hline \"\$hline\"             \
+			--ok-label \"\$msg_ok\"         \
+			--cancel-label \"\$msg_cancel\" \
+			--help-button                   \
+			--help-label \"\$msg_help\"     \
+			${USE_XDIALOG:+--help \"\"}     \
+			--menu \"\$prompt\"             \
+			$height $width $rows            \
+			$menu_list                      \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
+		local retval=$?
+		f_dialog_data_sanitize mtag
+		f_dprintf "retval=%s mtag=[%s]" $retval "$mtag"
+
+		if [ $retval -eq $DIALOG_HELP ]; then
+			f_show_help "$MEDIA_HELPFILE"
+			continue
+		elif [ $retval -ne $DIALOG_OK ]; then
+			return $FAILURE
+		fi
+
+		case "$mtag" in
+		?" $msg_cd_dvd")      f_media_set_cdrom ;;
+		?" $msg_ftp")         f_media_set_ftp ;;
+		?" $msg_http_proxy")  f_media_set_http_proxy ;;
+		?" $msg_http_direct") f_media_set_http ;;
+		?" $msg_directory")   f_media_set_directory ;;
+		?" $msg_dos")         f_media_set_dos ;;
+		?" $msg_nfs")         f_media_set_nfs ;;
+		?" $msg_ufs")         f_media_set_ufs ;;
+		?" $msg_floppy")      f_media_set_floppy ;;
+		?" $msg_usb")         f_media_set_usb ;;
+		?" $msg_options")
+			f_media_options_menu
+			continue
+			;;
+		esac
+		break
+	done
+
+	f_struct device_media || return $FAILURE
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." media/any.subr
+
+fi # ! $_MEDIA_ANY_SUBR

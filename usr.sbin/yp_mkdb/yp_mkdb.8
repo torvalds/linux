@@ -1,0 +1,209 @@
+.\" Copyright (c) 1995, 1996
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 12, 1996
+.Dt YP_MKDB 8
+.Os
+.Sh NAME
+.Nm yp_mkdb
+.Nd "generate the NIS databases"
+.Sh SYNOPSIS
+.Nm
+.Fl c
+.Nm
+.Fl u Ar dbname
+.Nm
+.Op Fl c
+.Op Fl b
+.Op Fl s
+.Op Fl f
+.Op Fl i Ar inputfile
+.Op Fl o Ar outputfile
+.Op Fl d Ar domainname
+.Op Fl m Ar mastername
+.Ar inputfile
+.Ar dbname
+.Sh DESCRIPTION
+The
+.Nm
+utility creates
+.Xr db 3
+style databases for use with
+.Fx Ns 's
+NIS server.
+The
+.Nm
+utility reads data from
+.Ar inputfile ,
+and writes it to
+.Ar dbname
+in
+.Xr db 3
+format (using the hash table method).
+The input should be in 'key data' format, which is to say
+two fields of
+.Tn ASCII
+data separated by white space.
+The first field
+is assumed to be the key, and everything else is assumed to be
+the data.
+These databases are typically stored in
+.Pa /var/yp/[domainname]
+where
+.Ar domainname
+is the name of the NIS domain being served.
+The
+.Nm
+utility is usually invoked by
+.Pa /var/yp/Makefile .
+The
+.Nm
+utility can also be used to dump an NIS database file so that its
+contents can be examined.
+For security reasons, all databases that
+.Nm
+creates are readable and writable by owner only (and usually the
+owner is root).
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl c
+Cause
+.Nm
+to send a YPPROC_CLEAR request to
+.Xr ypserv 8
+on the local host.
+This signal tells the server to close any open
+database descriptors and flush out its database cache.
+If used alone,
+this flag signals the server and does nothing else.
+If used as part
+of a database creation command,
+.Nm
+will send the signal only after the new database has been successfully
+created.
+.It Fl b
+Cause
+.Nm
+to add a special entry to the database with a key of
+.Em YP_INTERDOMAIN
+and an empty data field.
+If this key is present in a map, it alters the
+behavior of the 'match' procedure in
+.Xr ypserv 8
+slightly.
+If a match query fails (because the server could not find
+a record that matched the supplied key), and the
+.Em YP_INTERDOMAIN
+key exists within the queried map,
+.Xr ypserv 8
+will try to match the entry again using a DNS lookup.
+Note that this
+special behavior only applies to the
+.Em hosts
+maps.
+Using the
+.Fl b
+flag for other maps has no effect.
+.It Fl s
+This flag is used to add a special entry to the database with a key of
+.Em YP_SECURE
+and an empty data field.
+If this key is present in a map,
+.Xr ypserv 8
+will deny access to the map to any client that is not using a
+reserved port for its query.
+This is used mainly for the
+.Em master.passwd
+maps, which should be restricted to privileged access only.
+.It Fl f
+This flag is used to turn on filtering of lines in the source file
+input that start with ``+'' or ``-'' characters.
+These characters
+have special meaning for the
+.Pa group ,
+.Pa passwd
+and
+.Pa master.passwd
+maps and hence should not be allowed to appear in them as the first
+character of a key or datum.
+If the
+.Fl f
+flag is used,
+.Nm
+will reject any source line that starts with a ``+'' or ``-''
+character and issue a warning message displaying the line that
+was dropped.
+.It Fl u Ar dbname
+Dump (or 'unwind') an NIS database.
+This option can be used to
+inspect the contents of an existing NIS database.
+.It Fl i Ar inputfile
+When generating an NIS map, encode
+.Ar inputfile
+as a special entry in the database with a key of
+.Em YP_INPUT_FILE .
+.It Fl o Ar outputfile
+When generating an NIS map, encode
+.Ar outputfile
+as a special entry in the database with a key of
+.Em YP_OUTPUT_FILE .
+.It Fl d Ar domainname
+When generating an NIS map, encode
+.Ar domainname
+as a special entry in the database with a key of
+.Em YP_DOMAIN_NAME .
+.It Fl m Ar mastername
+When generating an NIS map, encode
+.Ar mastername
+as a special entry in the database with a key of
+.Em YP_MASTER_NAME .
+This entry in the database is frequently used by various NIS utilities
+to determine the name of an NIS master server for a domain.
+By default,
+.Nm
+assumes that the local host is the NIS master; the
+.Fl m
+option is used to override this default.
+.El
+.Sh FILES
+.Bl -tag -width /var/yp/Makefile -compact
+.It Pa /var/yp/Makefile
+the Makefile that calls
+.Nm
+to build the NIS databases
+.El
+.Sh SEE ALSO
+.Xr db 3 ,
+.Xr ypserv 8
+.Sh AUTHORS
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu

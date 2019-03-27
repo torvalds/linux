@@ -1,0 +1,77 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+#
+# XML RELAX NG schema for Subversion command-line client output
+# Common declarations
+
+# Data types.
+
+## A revision number.
+revnum.type = xsd:nonNegativeInteger
+
+## A user name.
+username.type = string
+
+## A path or URL.
+target.type = string | xsd:anyURI
+
+## An UUID.
+uuid.type = string
+
+## An MD5 checksum.
+md5sum.type = xsd:hexBinary { length = "16" }
+
+# Common elements
+
+## Commit info.
+commit = element commit { attlist.commit, author?, date? }
+attlist.commit &= attribute revision { revnum.type }
+
+author = element author { username.type }
+
+date = element date { xsd:dateTime }
+
+## Lock info stored in repository or working copy.
+lock =
+  element lock {
+    \token, owner, comment?, created, expires?
+  }
+
+## Lock token.
+\token = element token { xsd:anyURI }
+
+## Lock owner.
+owner = element owner { username.type }
+
+## Lock comment.
+comment = element comment { text }
+
+## Creation date.
+created = element created { xsd:dateTime }
+
+## Expiration date.
+expires = element expires { xsd:dateTime }
+
+## Node and revision properties.
+property = element property { attlist.property, text }
+attlist.property &=
+  ## The property name
+  attribute name { string },
+  ## The encoding of the element content.  If not present, the value
+  ## is the raw content of the element.
+  attribute encoding { "base64" }?

@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: automountd
+# REQUIRE: rpcbind ypset nfsclient FILESYSTEMS ldconfig
+# BEFORE: DAEMON
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="automountd"
+desc="daemon handling autofs mount requests"
+rcvar="autofs_enable"
+pidfile="/var/run/${name}.pid"
+command="/usr/sbin/${name}"
+required_modules="autofs"
+
+load_rc_config $name
+run_rc_command "$1"

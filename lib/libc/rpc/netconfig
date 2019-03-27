@@ -1,0 +1,19 @@
+# $FreeBSD$
+#
+# The network configuration file. This file is currently only used in
+# conjunction with the (TI-) RPC code in the C library, unlike its
+# use in SVR4.
+#
+# Entries consist of:
+#
+#       <network_id> <semantics> <flags> <protofamily> <protoname> \
+#               <device> <nametoaddr_libs>
+#
+# The <device> and <nametoaddr_libs> fields are always empty in FreeBSD.
+#
+udp6       tpi_clts      v     inet6    udp     -       -
+tcp6       tpi_cots_ord  v     inet6    tcp     -       -
+udp        tpi_clts      v     inet     udp     -       -
+tcp        tpi_cots_ord  v     inet     tcp     -       -
+rawip      tpi_raw       -     inet      -      -       -
+local      tpi_cots_ord  -     loopback  -      -       -

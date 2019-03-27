@@ -1,0 +1,115 @@
+# Dialog
+# Copyright 2001, # Thomas Dickey
+# This file is distributed under the same license as the dialog package.
+#
+# Michael Piefel <piefel@informatik.hu-berlin.de>, 2002.
+# Roland Illig <roland.illig@gmx.de>, 2009-2014.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2014-09-01 12:39+0100\n"
+"Last-Translator: Roland Illig <roland.illig@gmx.de>\n"
+"Language-Team: German <translation-team-de@lists.sourceforge.net>\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Poedit 1.6.9\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "Ja"
+
+#: buttons.c:393
+msgid "No"
+msgstr "Nein"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "OK"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "VERLASSEN"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "Extra"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "Hilfe"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "Monat"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "Jahr"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "Umbenennen"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "Verzeichnisse"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "Dateien"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Erfolgreich"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Fehlgeschlagen"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Bestanden"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Abgeschlossen"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Geprüft"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Erledigt"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Übersprungen"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "In Bearbeitung"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "N/A"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Gesamtfortschritt"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "Suche"

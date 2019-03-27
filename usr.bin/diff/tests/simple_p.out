@@ -1,0 +1,34 @@
+*** input_c1.in
+--- input_c2.in
+***************
+*** 1,14 ****
+  /*
+   * A comment 
+   *
+!  * And another  bla
+   *
+!  * And yet another
+   */
+  
+  int
+  main(void)
+  {
+  	printf("something");
+  
+  	return (0);
+--- 1,15 ----
+  /*
+   * A comment 
+   *
+!  * And another bla
+   *
+!  * and yet another
+   */
+  
+  int
+  main(void)
+  {
++ 
+  	printf("something");
+  
+  	return (0);

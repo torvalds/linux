@@ -1,0 +1,162 @@
+.\" Copyright (c) 1993, 1994
+.\"     The Regents of the University of California.  All rights reserved.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software donated to Berkeley by
+.\" Christopher G. Demetriou.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)mount_cd9660.8	8.3 (Berkeley) 3/27/94
+.\" $FreeBSD$
+.\"
+.Dd August 11, 2018
+.Dt MOUNT_CD9660 8
+.Os
+.Sh NAME
+.Nm mount_cd9660
+.Nd mount an ISO-9660 file system
+.Sh SYNOPSIS
+.Nm
+.Op Fl begjrv
+.Op Fl C Ar charset
+.Op Fl o Ar options
+.Op Fl s Ar startsector
+.Ar special node
+.Sh DESCRIPTION
+The
+.Nm
+utility attaches the ISO-9660 file system residing on the device
+.Pa special
+to the global file system namespace at the location indicated by
+.Pa node .
+This command is normally executed by
+.Xr mount 8
+at boot time.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl b
+Relax checking for Supplementary Volume Descriptor Flags field
+which is set to a wrong value on some Joliet formatted disks.
+.It Fl e
+Enable the use of extended attributes.
+.It Fl g
+Do not strip version numbers on files.
+(By default, if there are files with different version numbers on the disk,
+only the last one will be listed.)
+In either case, files may be opened without explicitly stating a
+version number.
+.It Fl j
+Do not use any Joliet extensions included in the file system.
+.It Fl o
+Options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+The following cd9660 specific options are available:
+.Pp
+.Bl -tag -width "brokenjoliet" -compact
+.It Cm extatt
+Same as
+.Fl e .
+.It Cm gens
+Same as
+.Fl g .
+.It Cm nojoliet
+Same as
+.Fl j .
+.It Cm norrip
+Same as
+.Fl r .
+.It Cm brokenjoliet
+Same as
+.Fl b .
+.El
+.It Fl r
+Do not use any Rockridge extensions included in the file system.
+.It Fl s Ar startsector
+Start the file system at
+.Ar startsector .
+Normally, if the underlying device is a CD-ROM drive,
+.Nm
+will try to figure out the last track from the CD-ROM containing
+data, and start the file system there.
+If the device is not a CD-ROM,
+or the table of contents cannot be examined, the file system will be
+started at sector 0.
+This option can be used to override the behaviour.
+Note that
+.Ar startsector
+is measured in CD-ROM blocks, with 2048 bytes each.
+This is the same
+as for example the
+.Cm info
+command of
+.Xr cdcontrol 1
+is printing.
+It is possible to mount an arbitrary session of a multi-session CD by specifying
+the correct
+.Ar startsector
+here.
+.It Fl C Ar charset
+Specify local
+.Ar charset
+to convert Unicode file names when using Joliet extensions.
+.It Fl v
+Be verbose about the starting sector decisions made.
+.El
+.Sh EXAMPLES
+The following command can be used to mount a Kodak Photo-CD:
+.Pp
+.Dl "mount_cd9660 -o rw -v -s 0 /dev/cd0 /cdrom"
+.Sh SEE ALSO
+.Xr cdcontrol 1 ,
+.Xr mount 2 ,
+.Xr unmount 2 ,
+.Xr cd9660 5 ,
+.Xr fstab 5 ,
+.Xr mdconfig 8 ,
+.Xr mount 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.4 .
+.Pp
+The Unicode conversion routine was added by
+.An Ryuichiro Imura Aq Mt imura@ryu16.org
+in 2003.
+.Sh BUGS
+POSIX device node mapping is currently not supported.
+.Pp
+Version numbers are not stripped if Rockridge extensions are in use.
+In this case, accessing files that do not have Rockridge names without
+version numbers gets the one with the lowest version number and not
+the one with the highest.
+.Pp
+There is no ECMA support.

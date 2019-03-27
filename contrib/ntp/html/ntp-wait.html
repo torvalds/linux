@@ -1,0 +1,33 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+	<head>
+		<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+		<meta name="generator" content="HTML Tidy, see www.w3.org">
+		<title>ntp-wait - waits until ntpd is in synchronized state</title>
+		<link href="scripts/style.css" type="text/css" rel="stylesheet">
+	</head>
+	<body>
+		<h3><tt>ntp-wait</tt> - waits until ntpd is in synchronized state</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->12-Jul-2011  22:03<!-- #EndDate -->
+    UTC</p>
+		<hr>
+		<h4>Synopsis</h4>
+		<p><tt>ntp-wait [ -v ] [ -n <i>tries</i> ] [ -s <i>seconds</i> ]</tt></p>
+		<h4>Description</h4>
+		<p>The <tt>ntp-wait</tt> program blocks until ntpd is in synchronized state.
+		This can be useful at boot time, to delay the boot sequence
+		until after "ntpd -g" has set the time.
+		<h4>Command Line Options</h4>
+		<dl>
+			<dt><tt>-n <i>tries</i></tt>
+			<dd>Number of tries before giving up. The default is 1000.
+			<dt><tt>-s <i>seconds</i></tt>
+			<dd>Seconds to sleep between tries. The default is 6 seconds.
+			<dt><tt>-v</tt>
+			<dd>Be verbose.
+		</dl>
+		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+	</body>
+
+</html>

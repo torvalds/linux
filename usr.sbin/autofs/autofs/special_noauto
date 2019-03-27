@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+print_available() {
+	sed 's/#.*//' /etc/fstab | awk '$4 ~ /noauto/ { print $2 }'
+}
+
+print_one() {
+	local _mntpoint
+
+	_mntpoint="${1%/}"
+	
+	sed 's/#.*//' /etc/fstab | awk '
+	$2 == "'"${_mntpoint}"'" && $4 ~ /noauto/ {
+		if ($1 ~ /:/) { dev=$1 } else { dev=":"$1 }
+		print "-fstype=" $3 "," $4, dev
+	}'
+}
+
+if [ $# -eq 0 ]; then
+	print_available
+	exit 0
+fi
+
+print_one "$1"
+exit 0
+

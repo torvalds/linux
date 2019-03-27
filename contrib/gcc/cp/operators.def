@@ -1,0 +1,152 @@
+/* -*-C-*-
+
+   This file contains definitions of the various C++ operators,
+   including both overloadable operators (like `+') and
+   non-overloadable operators (like the `?:' ternary operator).
+   Written by Mark Mitchell <mark@codesourcery.com>
+
+   Copyright (C) 2000, 2001, 2002, 2003, 2005 Free Software Foundation, Inc.
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+GCC is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
+
+/* The DEF_OPERATOR macro takes the following arguments:
+
+   NAME
+
+     The name of the operator, as a C string, but without the
+     preceding `operator'.  This is the name that would be given in
+     the source program.  For `operator +', for example, this would be
+     `+'.
+
+   CODE
+
+     The tree_code for this operator.  For `operator +', for example,
+     this would be PLUS_EXPR.  Because there are no tree codes for
+     assignment operators, the same tree-codes are reused; i.e.,
+     `operator +' will also have PLUS_EXPR as its CODE.
+
+   MANGLING
+
+     The mangling prefix for the operator, as a C string, and as
+     mangled under the new ABI.  For `operator +', for example, this
+     would be "pl".
+
+   ARITY
+
+     The arity of the operator, or -1 if any arity is allowed.  (As
+     for `operator ()'.)  Postincrement and postdecrement operators
+     are marked as binary.
+
+   ASSN_P
+
+     A boolean value.  If nonzero, this is an assignment operator.
+
+   Before including this file, you should define DEFOPERATOR
+   to take these arguments.
+
+   There is code (such as in grok_op_properties) that depends on the
+   order the operators are presented in this file.  In particular,
+   unary operators must precede binary operators.  */
+
+/* Use DEF_SIMPLE_OPERATOR to define a non-assignment operator.  Its
+   arguments are as for DEF_OPERATOR, but there is no need to provide
+   an ASSIGNMENT_P argument; it is always zero.  */
+
+#define DEF_SIMPLE_OPERATOR(NAME, CODE, MANGLING, ARITY) \
+  DEF_OPERATOR(NAME, CODE, MANGLING, ARITY, 0)
+
+/* Use DEF_ASSN_OPERATOR to define an assignment operator.  Its
+   arguments are as for DEF_OPERATOR, but there is no need to provide
+   an ASSIGNMENT_P argument; it is always one.  */
+
+#define DEF_ASSN_OPERATOR(NAME, CODE, MANGLING, ARITY) \
+  DEF_OPERATOR(NAME, CODE, MANGLING, ARITY, 1)
+
+/* Memory allocation operators.  */
+DEF_SIMPLE_OPERATOR ("new", NEW_EXPR, "nw", -1)
+DEF_SIMPLE_OPERATOR ("new []", VEC_NEW_EXPR, "na", -1)
+DEF_SIMPLE_OPERATOR ("delete", DELETE_EXPR, "dl", -1)
+DEF_SIMPLE_OPERATOR ("delete []", VEC_DELETE_EXPR, "da", -1)
+
+/* Unary operators.  */
+DEF_SIMPLE_OPERATOR ("+", UNARY_PLUS_EXPR, "ps", 1)
+DEF_SIMPLE_OPERATOR ("-", NEGATE_EXPR, "ng", 1)
+DEF_SIMPLE_OPERATOR ("&", ADDR_EXPR, "ad", 1)
+DEF_SIMPLE_OPERATOR ("*", INDIRECT_REF, "de", 1)
+DEF_SIMPLE_OPERATOR ("~", BIT_NOT_EXPR, "co", 1)
+DEF_SIMPLE_OPERATOR ("!", TRUTH_NOT_EXPR, "nt", 1)
+DEF_SIMPLE_OPERATOR ("++", PREINCREMENT_EXPR, "pp", 1)
+DEF_SIMPLE_OPERATOR ("--", PREDECREMENT_EXPR, "mm", 1)
+DEF_SIMPLE_OPERATOR ("sizeof", SIZEOF_EXPR, "sz", 1)
+/* These are extensions.  */
+DEF_SIMPLE_OPERATOR ("alignof", ALIGNOF_EXPR, "v17alignof", 1)
+DEF_SIMPLE_OPERATOR ("__imag__", IMAGPART_EXPR, "v18__imag__", 1)
+DEF_SIMPLE_OPERATOR ("__real__", REALPART_EXPR, "v18__real__", 1)
+
+/* The cast operator.  */
+DEF_SIMPLE_OPERATOR ("", TYPE_EXPR, "cv", 1)
+DEF_SIMPLE_OPERATOR ("", CAST_EXPR, "cv", 1)
+DEF_SIMPLE_OPERATOR ("", CONST_CAST_EXPR, "cv", 1)
+DEF_SIMPLE_OPERATOR ("", STATIC_CAST_EXPR, "cv", 1)
+
+/* Binary operators.  */
+DEF_SIMPLE_OPERATOR ("+", PLUS_EXPR, "pl", 2)
+DEF_SIMPLE_OPERATOR ("-", MINUS_EXPR, "mi", 2)
+DEF_SIMPLE_OPERATOR ("*", MULT_EXPR, "ml", 2)
+DEF_SIMPLE_OPERATOR ("/", TRUNC_DIV_EXPR, "dv", 2)
+DEF_SIMPLE_OPERATOR ("%", TRUNC_MOD_EXPR, "rm", 2)
+DEF_SIMPLE_OPERATOR ("&", BIT_AND_EXPR, "an", 2)
+DEF_SIMPLE_OPERATOR ("|", BIT_IOR_EXPR, "or", 2)
+DEF_SIMPLE_OPERATOR ("^", BIT_XOR_EXPR, "eo", 2)
+DEF_SIMPLE_OPERATOR ("<<", LSHIFT_EXPR, "ls", 2)
+DEF_SIMPLE_OPERATOR (">>", RSHIFT_EXPR, "rs", 2)
+DEF_SIMPLE_OPERATOR ("==", EQ_EXPR, "eq", 2)
+DEF_SIMPLE_OPERATOR ("!=", NE_EXPR, "ne", 2)
+DEF_SIMPLE_OPERATOR ("<", LT_EXPR, "lt", 2)
+DEF_SIMPLE_OPERATOR (">", GT_EXPR, "gt", 2)
+DEF_SIMPLE_OPERATOR ("<=", LE_EXPR, "le", 2)
+DEF_SIMPLE_OPERATOR (">=", GE_EXPR, "ge", 2)
+DEF_SIMPLE_OPERATOR ("&&", TRUTH_ANDIF_EXPR, "aa", 2)
+DEF_SIMPLE_OPERATOR ("||", TRUTH_ORIF_EXPR, "oo", 2)
+DEF_SIMPLE_OPERATOR (",", COMPOUND_EXPR, "cm", 2)
+DEF_SIMPLE_OPERATOR ("->*", MEMBER_REF, "pm", 2)
+DEF_SIMPLE_OPERATOR ("->", COMPONENT_REF, "pt", 2)
+DEF_SIMPLE_OPERATOR ("[]", ARRAY_REF, "ix", 2)
+DEF_SIMPLE_OPERATOR ("++", POSTINCREMENT_EXPR, "pp", 2)
+DEF_SIMPLE_OPERATOR ("--", POSTDECREMENT_EXPR, "mm", 2)
+/* This one is needed for mangling.  */
+DEF_SIMPLE_OPERATOR ("::", SCOPE_REF, "sr", 2)
+
+/* Assignment operators.  */
+DEF_ASSN_OPERATOR ("=", NOP_EXPR, "aS", 2)
+DEF_ASSN_OPERATOR ("+=", PLUS_EXPR, "pL", 2)
+DEF_ASSN_OPERATOR ("-=", MINUS_EXPR, "mI", 2)
+DEF_ASSN_OPERATOR ("*=", MULT_EXPR, "mL", 2)
+DEF_ASSN_OPERATOR ("/=", TRUNC_DIV_EXPR, "dV", 2)
+DEF_ASSN_OPERATOR ("%=", TRUNC_MOD_EXPR, "rM", 2)
+DEF_ASSN_OPERATOR ("&=", BIT_AND_EXPR, "aN", 2)
+DEF_ASSN_OPERATOR ("|=", BIT_IOR_EXPR, "oR", 2)
+DEF_ASSN_OPERATOR ("^=", BIT_XOR_EXPR, "eO", 2)
+DEF_ASSN_OPERATOR ("<<=", LSHIFT_EXPR, "lS", 2)
+DEF_ASSN_OPERATOR (">>=", RSHIFT_EXPR, "rS", 2)
+
+/* Ternary operators.  */
+DEF_SIMPLE_OPERATOR ("?:", COND_EXPR, "qu", 3)
+
+/* Miscellaneous.  */
+DEF_SIMPLE_OPERATOR ("()", CALL_EXPR, "cl", -1)

@@ -1,0 +1,260 @@
+.\" Copyright (c) 2006, M. Warner Losh
+.\" Copyright (c) 1998, Nicolas Souchu
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 15, 2015
+.Dt IIC 4
+.Os
+.Sh NAME
+.Nm iic
+.Nd I2C generic I/O device driver
+.Sh SYNOPSIS
+.Cd "device iic"
+.Pp
+.In dev/iicbus/iic.h
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides generic I/O to any
+.Xr iicbus 4
+instance.
+In order to control I2C devices, use
+.Pa /dev/iic?
+with the
+following ioctls:
+.Bl -tag -width ".Dv I2CRPTSTART"
+.It Dv I2CSTART
+.Pq Vt "struct iiccmd"
+Sends the start condition to the slave specified by the
+.Va slave
+element to the bus.
+The
+.Va slave
+element consists of a 7-bit address and a read/write bit
+(that is, a 7-bit address << 1 | r/w).
+A read operation is initiated when the read/write bit is set, or a write
+operation when it is cleared.
+All other elements are ignored.
+If successful, the file descriptor receives exclusive
+ownership of the underlying iicbus instance.
+.It Dv I2CRPTSTART
+.Pq Vt "struct iiccmd"
+Sends the repeated start condition to the slave specified by the
+.Va slave
+element to the bus.
+The slave address should be specified as in
+.Dv I2CSTART .
+All other elements are ignored.
+.Dv I2CSTART
+must have previously been issued on the same file descriptor.
+.It Dv I2CSTOP
+No argument is passed.
+Sends the stop condition to the bus.
+If
+.Dv I2CSTART
+was previously issued on the file descriptor, the current transaction is
+terminated and exclusive ownership of the underlying iicbus instance is
+released.
+Otherwise, no action is performed.
+.It Dv I2CRSTCARD
+.Pq Vt "struct iiccmd"
+Resets the bus.
+The argument is completely ignored.
+This command does not require
+.Dv I2CSTART
+to have been previously issued on the file descriptor.
+If it was previously issued, exclusive ownership of the underlying iicbus
+instance is released.
+.It Dv I2CWRITE
+.Pq Vt "struct iiccmd"
+Writes data to the
+.Xr iicbus 4 .
+The bus must already be started by a previous
+.Dv I2CSTART
+on the file descriptor.
+The
+.Va slave
+element is ignored.
+The
+.Va count
+element is the number of bytes to write.
+The
+.Va last
+element is a boolean flag.
+It must be zero when additional read commands will follow, or non-zero if this
+is the last command.
+The
+.Va buf
+element is a pointer to the data to write to the bus.
+.It Dv I2CREAD
+.Pq Vt "struct iiccmd"
+Reads data from the
+.Xr iicbus 4 .
+The bus must already be started by a previous
+.Dv I2CSTART
+on the file descriptor.
+The
+.Va slave
+element is ignored.
+The
+.Va count
+element is the number of bytes to read.
+The
+.Va last
+element is a boolean flag.
+It must be zero when additional read commands will follow, or non-zero if this
+is the last command.
+The
+.Va buf
+element is a pointer to where to store the data read from the bus.
+Short reads on the bus produce undefined results.
+.It Dv I2CRDWR
+.Pq Vt "struct iic_rdwr_data"
+Generic read/write interface.
+Allows for an arbitrary number of commands to be sent to
+an arbitrary number of devices on the bus.
+Any previous transaction started by
+.Dv I2CSTART
+must be terminated by
+.Dv I2CSTOP
+or
+.Dv I2CRSTCARD
+before
+.Dv I2CRDWR
+can be issued on the same file descriptor.
+A read transfer is specified if
+.Dv IIC_M_RD
+is set in
+.Va flags .
+Otherwise the transfer is a write transfer.
+The
+.Va slave
+element specifies the 7-bit address with the read/write bit for the transfer.
+The read/write bit will be handled by the iicbus stack based on the specified
+transfer operation.
+The
+.Va len
+element is the number of
+.Pq Vt "struct iic_msg"
+messages encoded on
+.Pq Vt "struct iic_rdwr_data" .
+The
+.Va buf
+element is a buffer for that data.
+This ioctl is intended to be
+.Tn Linux
+compatible.
+.It Dv I2CSADDR
+.Pq Vt "uint8_t"
+Associate the specified address with the file descriptor for use by
+subsequent
+.Xr read 2
+or
+.Xr write 2
+calls.
+The argument is an 8-bit address (that is, a 7-bit address << 1).
+The read/write bit in the least-significant position is ignored.
+Any subsequent read or write operation will set or clear that bit as needed.
+.El
+.Pp
+The following data structures are defined in
+.In dev/iicbus/iic.h
+and referenced above:
+.Bd -literal -offset indent
+struct iiccmd {
+	u_char slave;
+	int count;
+	int last;
+	char *buf;
+};
+
+/* Designed to be compatible with linux's struct i2c_msg */
+struct iic_msg
+{
+	uint16_t	slave;
+	uint16_t	flags;
+#define	IIC_M_WR	0	/* Fake flag for write */
+#define	IIC_M_RD	0x0001	/* read vs write */
+#define	IIC_M_NOSTOP	0x0002	/* do not send a I2C stop after message */
+#define	IIC_M_NOSTART	0x0004	/* do not send a I2C start before message */
+	uint16_t	len;	/* msg length */
+	uint8_t *	buf;
+};
+
+struct iic_rdwr_data {
+	struct iic_msg *msgs;
+	uint32_t nmsgs;
+};
+.Ed
+.Pp
+It is also possible to use
+.Xr read 2
+or
+.Xr write 2 ,
+in which case the I2C start/stop handshake is managed by
+.Xr iicbus 4 .
+The address used for the read/write operation is the one passed to the most
+recent
+.Dv I2CSTART
+.Xr ioctl 2
+or
+.Dv I2CSADDR
+.Xr ioctl 2
+on the open
+.Pa /dev/iic?
+file descriptor.
+Closing the file descriptor clears any addressing state established by a
+previous
+.Dv I2CSTART
+or
+.Dv I2CSADDR ,
+stops any transaction established by a not-yet-terminated
+.Dv I2CSTART ,
+and releases iicbus ownership.
+Because addressing state is stored on a per-file-descriptor basis, it is
+permissible for multiple file descriptors to be simultaneously open on the
+same
+.Pa /dev/iic?
+device.
+Concurrent transactions on those descriptors are synchronized by the
+exclusive-ownership requests issued to the underlying iicbus instance.
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr iicbus 4
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An -nosplit
+This
+manual page was written by
+.An Nicolas Souchu
+and
+.An M. Warner Losh .

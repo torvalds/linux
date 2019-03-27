@@ -1,0 +1,18 @@
+$FreeBSD$
+
+find-sb is a program which scans the input file you specify (normally a
+raw disk slice) for filesystems.  It's not very smart, nor particularly
+efficient.  All it does is read the input file one device block at a time,
+and when it reads a block that has a UFS superblock magic number in the
+right place, it tells you about it.  It helped me find an important partition
+after the disklabel got somehow trashed.  It might not work for you.  After
+looking carefully at the output of this program and creating a new disklabel,
+you should use `fsck -n' or a tool like ffsinfo(8) to verify that there is
+in fact something vaguely sane located at that spot on the disk.  (There are
+checks that fsck can do to verify the validity of the superblock which
+this program does not even attempt.)
+
+If you use this program and as a result trash what was left of your disk,
+well, too bad.  You should have kept a backup anyway.  If you read the source
+code and don't immediately understand how it works and what it's doing, then
+DON'T USE IT.

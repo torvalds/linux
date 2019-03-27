@@ -1,0 +1,270 @@
+# Copyright (c) 2000-2002, 2005 Proofpoint, Inc. and its suppliers.
+#	All rights reserved.
+#
+# By using this file, you agree to the terms and conditions set
+# forth in the LICENSE file which can be found at the top level of
+# the sendmail distribution.
+#
+# $Id: sendmail.schema,v 8.23 2013-11-22 20:51:07 ca Exp $
+
+# Note that this schema is experimental at this point as it has had little
+# public review.  Therefore, it may change in future versions.  Feedback
+# via sendmail-YYYY@support.sendmail.org is encouraged (replace YYYY with
+# the current year, e.g., 2005).
+
+# OID arcs for Sendmail
+# enterprise:		1.3.6.1.4.1
+# sendmail:		enterprise.6152
+# sendmail-at:		sendmail.3.1
+# sendmail-oc:		sendmail.3.2
+
+###########################################################################
+#
+# The Sendmail MTA attributes and objectclass
+#
+###########################################################################
+
+# attribute sendmailMTACluster	cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.10
+	NAME 'sendmailMTACluster'
+	DESC 'cluster name associated with a set of MTAs'
+	EQUALITY caseIgnoreIA5Match
+	SUBSTR caseIgnoreIA5SubstringsMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256} )
+
+# attribute sendmailMTAHost	cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.11
+	NAME 'sendmailMTAHost'
+	DESC 'host name associated with a MTA cluster'
+	EQUALITY caseIgnoreIA5Match
+	SUBSTR caseIgnoreIA5SubstringsMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256} )
+
+#objectClass sendmailMTA
+#	requires
+#		objectClass
+#	allows
+#		sendmailMTACluster,
+#		sendmailMTAHost,
+#		Description
+
+objectclass ( 1.3.6.1.4.1.6152.10.3.2.10
+	NAME 'sendmailMTA'
+	SUP top STRUCTURAL
+	DESC 'Sendmail MTA definition'
+	MAY ( sendmailMTACluster $ sendmailMTAHost $ Description ) )
+
+###########################################################################
+#
+# The Sendmail MTA shared attributes
+#
+###########################################################################
+
+# attribute sendmailMTAKey	cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.13
+	NAME 'sendmailMTAKey'
+	DESC 'key (left hand side) of an aliases or map entry'
+	EQUALITY caseIgnoreMatch
+	SUBSTR caseIgnoreSubstringsMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{256} )
+
+###########################################################################
+#
+# The Sendmail MTA Map attributes and objectclasses
+#
+###########################################################################
+
+# attribute sendmailMTAMapName	cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.14
+	NAME 'sendmailMTAMapName'
+	DESC 'identifier for the particular map'
+	EQUALITY caseIgnoreMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{128} SINGLE-VALUE )
+
+# attribute sendmailMTAMapValue	cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.16
+	NAME 'sendmailMTAMapValue'
+	DESC 'value (right hand side) of a map entry'
+	EQUALITY caseIgnoreMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE )
+
+# attribute sendmailMTAMapSearch cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.24
+	NAME 'sendmailMTAMapSearch'
+	DESC 'recursive search for values of a map entry'
+	EQUALITY caseExactMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE )
+
+# attribute sendmailMTAMapURL cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.25
+	NAME 'sendmailMTAMapURL'
+	DESC 'recursive search URL for values of a map entry'
+	EQUALITY caseExactMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE )
+
+#objectClass sendmailMTAMap
+#	requires
+#		objectClass,
+#		sendmailMTAMapName,
+#	allows
+#		sendmailMTACluster,
+#		sendmailMTAHost,
+#		Description
+
+objectclass ( 1.3.6.1.4.1.6152.10.3.2.11
+	NAME 'sendmailMTAMap'
+	SUP sendmailMTA STRUCTURAL
+	DESC 'Sendmail MTA map definition'
+	MUST sendmailMTAMapName
+	MAY ( sendmailMTACluster $ sendmailMTAHost $ Description ) )
+
+#objectClass sendmailMTAObject
+#	requires
+#		objectClass,
+#		sendmailMTAMapName,
+#		sendmailMTAKey,
+#	allows
+#		sendmailMTACluster,
+#		sendmailMTAHost,
+#		sendmailMTAMapValue,
+#		sendmailMTAMapSearch,
+#		sendmailMTAMapURL,
+#		Description
+
+objectclass ( 1.3.6.1.4.1.6152.10.3.2.12
+	NAME 'sendmailMTAMapObject'
+	SUP sendmailMTAMap STRUCTURAL
+	DESC 'Sendmail MTA map object'
+	MUST ( sendmailMTAMapName $ sendmailMTAKey )
+	MAY ( sendmailMTACluster $ sendmailMTAHost $ 
+		sendmailMTAMapValue $ sendmailMTAMapSearch $
+		sendmailMTAMapURL $ Description ) )
+
+
+###########################################################################
+#
+# The Sendmail MTA Alias attributes and objectclasses
+#
+###########################################################################
+
+# attribute sendmailMTAAliasGrouping	cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.18
+	NAME 'sendmailMTAAliasGrouping'
+	DESC 'name that identifies a particular aliases grouping'
+	EQUALITY caseIgnoreIA5Match
+	SUBSTR caseIgnoreIA5SubstringsMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{256} )
+
+# attribute sendmailMTAAliasValue	cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.20
+	NAME 'sendmailMTAAliasValue'
+	DESC 'value (right hand side) of an alias'
+	EQUALITY caseIgnoreMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
+
+# attribute sendmailMTAAliasSearch cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.26
+	NAME 'sendmailMTAAliasSearch'
+	DESC 'recursive search for values of an alias'
+	EQUALITY caseExactMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE )
+
+# attribute sendmailMTAAliasURL cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.27
+	NAME 'sendmailMTAAliasURL'
+	DESC 'recursive search URL for values of an alias'
+	EQUALITY caseExactMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE )
+
+#objectClass sendmailMTAAlias
+#	requires
+#		objectClass,
+#	allows
+#		sendmailMTAAliasGrouping,
+#		sendmailMTACluster,
+#		sendmailMTAHost,
+#		Description
+
+objectclass ( 1.3.6.1.4.1.6152.10.3.2.13
+	NAME 'sendmailMTAAlias'
+	SUP sendmailMTA STRUCTURAL
+	DESC 'Sendmail MTA alias definition'
+	MAY ( sendmailMTAAliasGrouping $
+		sendmailMTACluster $ sendmailMTAHost $ Description ) )
+
+#objectClass sendmailMTAAliasObject
+#	requires
+#		objectClass,
+#		sendmailMTAKey,
+#	allows
+#		sendmailMTAAliasGrouping,
+#		sendmailMTACluster,
+#		sendmailMTAHost,
+#		sendmailMTAAliasValue,
+#		sendmailMTAAliasSearch,
+#		sendmailMTAAliasURL,
+#		Description
+
+objectclass ( 1.3.6.1.4.1.6152.10.3.2.14
+	NAME 'sendmailMTAAliasObject'
+	SUP sendmailMTAAlias STRUCTURAL
+	DESC 'Sendmail MTA alias object'
+	MUST sendmailMTAKey
+	MAY ( sendmailMTAAliasGrouping $ sendmailMTACluster $
+		sendmailMTAHost $ sendmailMTAAliasValue $
+		sendmailMTAAliasSearch $ sendmailMTAAliasURL $ Description ) )
+
+###########################################################################
+#
+# The Sendmail MTA Class attributes and objectclass
+#
+###########################################################################
+
+# attribute sendmailMTAClassName	cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.22
+	NAME 'sendmailMTAClassName'
+	DESC 'identifier for the class'
+	EQUALITY caseIgnoreMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{128} SINGLE-VALUE )
+
+# attribute sendmailMTAClassValue	cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.23
+	NAME 'sendmailMTAClassValue'
+	DESC 'member of a class'
+	EQUALITY caseIgnoreMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
+
+# attribute sendmailMTAClassSearch cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.28
+	NAME 'sendmailMTAClassSearch'
+	DESC 'recursive search for members of a class'
+	EQUALITY caseExactMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE )
+
+# attribute sendmailMTAClassURL cis
+attributetype ( 1.3.6.1.4.1.6152.10.3.1.29
+	NAME 'sendmailMTAClassURL'
+	DESC 'recursive search URL for members of a class'
+	EQUALITY caseExactMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE )
+
+#objectClass sendmailMTAClass
+#	requires
+#		objectClass,
+#		sendmailMTAClassName,
+#	allows
+#		sendmailMTACluster,
+#		sendmailMTAHost,
+#		sendmailMTAClassValue,
+#		sendmailMTAClassSearch,
+#		sendmailMTAClassURL,
+#		Description
+
+objectclass ( 1.3.6.1.4.1.6152.10.3.2.15
+	NAME 'sendmailMTAClass'
+	SUP sendmailMTA STRUCTURAL
+	DESC 'Sendmail MTA class definition'
+	MUST sendmailMTAClassName
+	MAY ( sendmailMTACluster $ sendmailMTAHost $
+		sendmailMTAClassValue $ sendmailMTAClassSearch $
+		sendmailMTAClassURL $ Description ) )

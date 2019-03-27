@@ -1,0 +1,549 @@
+2007-07-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsh.c: Fix pointer vs strict alias rules.
+
+	* rshd.c: Fix pointer vs strict alias rules.
+
+2007-01-04  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* rshd.c: Declare iruserok if needed, based on bug report from
+	David Love.
+	
+2006-11-14  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* rsh_locl.h: Forward decl.
+	
+2006-10-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsh_locl.h: Include "crypto-headers.h".
+	
+2006-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Add man_MANS to EXTRA_DIST
+	
+2006-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: rshd_SOURCES += add limits_conf.c
+
+	* rsh_locl.h: Include "loginpaths.h"
+
+	* rshd.c: Read limits from limits.confon non-root login, patch
+	from Daniel Ahlin
+	
+2006-02-27 Johan Danielsson <joda@pdc.kth.se>
+
+	* rshd.8: grammar (from Thomas Klausner)
+	
+2006-01-31  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rshd.c (krb5_start_session): syslog failures to store cred cache
+	
+2005-12-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rshd.c (doit): move creation of users ticket file to later to
+	avoid seteuid/setuid dance. this breaks DCE, so remove support for
+	it completely.
+	
+2005-10-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rshd.c: Check return value from asprintf instead of string !=
+	NULL since it undefined behavior on Linux. From Björn Sandell
+
+	* rsh.c: Check return value from asprintf instead of string !=
+	NULL since it undefined behavior on Linux. From Björn Sandell
+
+2005-06-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rshd.c: init some important variables and check that they are
+	set checking authentication, all to please gcc
+
+2005-05-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rshd.c: case uid_t to unsigned long in printf format
+	
+2005-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsh_locl.h: Use larger buffer for recving data to be compatible
+	with older versions of heimdal (0.4 branch specificly)
+
+	* rshd.c: Use larger buffer for recving data to be compatible with
+	older versions of heimdal (0.4 branch specificly)
+
+2005-04-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rshd.c: use snprintf to format tkfile
+	
+2005-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsh.c: use strlcat
+
+	* rsh.c: use strlcpy
+
+	* rsh_locl.h: forward declaration for private structures
+
+2005-04-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsh.c: cast size_t to unsigned long
+
+2004-09-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rshd.c: rename loop to rshd_loop
+	
+	* rshd.c: pass errsock status to init_ivecs
+	
+	* rsh.c: rename loop() to rsh_loop()
+	
+	* rsh.c (loop): pass errsock status to init_ivecs
+	
+	* common.c (init_ivecs): if we don't have an errsock the ivecs
+	should point to the same data
+	
+	* rshd.c: if we don't have an errsock, dup stdout to stderr (this
+	would normally be done by inetd, but not by mini_inetd).
+	
+	* rshd.c: move keepalive setting to after setting up sockets
+	
+2004-02-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.1: reorder and document some options
+
+	* rsh_locl.h: include kafs.h if krb4 || krb5
+
+	* rsh.c: reorder some options
+
+2003-09-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.1: document -d
+
+2003-08-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rshd.c: -P also with KRB5
+	
+2003-04-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rsh.1: replace > with \*[Gt]
+	
+2003-04-16  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.c: use krb5_appdefault to get defaults for forward and
+	encrypt
+
+	* rshd.c: use ARG_MAX + 1
+
+	* rshd.c (read_str): return allocated string
+
+	* rsh_locl.h: set NCARGS to 8k if undefined
+
+2003-03-23  Assar Westerlund  <assar@kth.se>
+
+	* rsh.c (loop): only check errsock if it's valid
+
+2003-03-18  Love  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* rshd.c: do krb5_afslog when compling with afs support
+
+	* rsh_locl.h: always include kafs.h
+	
+2002-11-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rshd.8: clarify -x and kerberos 5
+
+2002-11-01  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh_locl.h: bump COMMAND_SZ to NCARGS+1
+
+2002-09-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.c: free some memory
+
+2002-09-04  Assar Westerlund  <assar@kth.se>
+
+	* common.c: krb5_crypto_block_size -> krb5_crypto_getblocksize
+
+2002-09-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.1: document -P
+
+2002-09-03  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.c: revert to protocol v1 if not asked for specific protocol
+
+	* rshd.c: handle protocol version 2
+
+	* rsh.c: handle protocol version 2
+
+	* common.c: handle protocol version 2
+
+	* rsh_locl.h: handle protocol version 2
+
+2002-02-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rshd.c: don't show options that doesn't apply
+
+	* rsh.c: don't show options that doesn't apply
+
+	* rsh_locl.h: if we're not building with any kerberos support,
+	just call read/write directly
+
+	* common.c: if we're not building with any kerberos support, just
+	call read/write directly
+
+	* rshd.c: make this build without krb5; also use the addrinfo
+	interface to mini_inetd, and set the keepalive option if requested
+
+	* rsh.c: make this build without krb5
+
+	* rsh_locl.h: make this build without krb5
+
+	* common.c: make this build without krb5
+
+2001-11-30  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rshd.c: make the syslog messages somewhat more informative
+
+2001-08-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.c: only complain about encryption flag when old
+	authentication is requested
+
+2001-08-07  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.c: don't try broken auth if rresvport failed; try to give
+	some more informative error messages
+
+2001-07-31  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rshd.8: add an EXAMPLE
+	* rshd.8: manual page
+	* rshd.c: add some compat flags
+	* rsh.1: manual page
+	* rsh.c: iff -d, set the SO_DEBUG flags of the stdout and stderr
+	socket; implement parsing user@host
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c (fatal): use vsnprintf correctly
+
+2001-02-07  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add login_access
+	* rshd.c (login_access): add prototype
+	(syslog_and_die, fatal): add printf attributes
+	(*): AIX -> _AIX
+	(doit): use login_access
+	based on patches from Ake Sandgren <ake@cs.umu.se>
+
+2001-01-09  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c (save_krb5_creds): use krb5_rd_cred2 instead of
+	krb5_rd_cred
+
+2000-12-31  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c (main): handle krb5_init_context failure consistently
+	* rsh.c (main): handle krb5_init_context failure consistently
+
+2000-12-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rshd.c: require encryption if passed -x
+
+2000-11-15  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c (loop): check that the fd's aren't too large to select on
+	* rsh.c (loop, proto): check that the fd's aren't too large to
+	select on
+
+2000-08-10  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c: move code to do config/command parsing correctly.
+
+2000-08-09  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (main): only fetch stuff from krb5.conf when no option has
+	been given
+
+2000-08-01  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (doit): loop until we create an error socket of an
+	supported socket family
+
+2000-07-02  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c: DCE stuff from Ake Sandgren <ake@cs.umu.se>
+	do not call syslog with a variable as format string
+
+	* rsh_locl.h (_PATH_ETC_ENVIRONMENT): add
+
+2000-06-09  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (main): work-around for setuid and capabilities bug fixed
+	in Linux 2.2.16
+
+2000-06-06  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.c: nuke long option from -z
+	
+	* rsh.c: don't try to encrypt if auth is broken (Daniel Kouril)
+	
+2000-06-03  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c (doit): check return value of getspnam.  From
+	<haba@pdc.kth.se>
+
+2000-05-23  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (proto): select on the normal socket when waiting for the
+	daemon to connect back to the stderr port, so that we discover
+	when data arrives there before.  when that happens, we assume that
+	the daemon did not manage to connect (because of NAT/whatever) and
+	continue as if `-e' was given
+	* rshd.c (doit): if we fail to connect back to the stderr port,
+	act as if `-e' was given on the client side, i.e. without the
+	special TCP-connection.  This tries to make things better when
+	running the head against a NAT wall, for example.
+
+2000-02-07  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (LDADD): make sure we use the heimdal libdes
+
+2000-02-06  Assar Westerlund  <assar@sics.se>
+
+	* *: conditionalize des stuff on KRB4
+
+1999-12-16  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (doit): addrinfo returned from getaddrinfo() is not usable
+	directly as hints.  copy it and set AI_PASSIVE.
+
+1999-11-20  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (main): remember to close the priviledged sockets before
+ 	calling rlogin
+
+1999-11-02  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (main): redo the v4/v5 selection for consistency.  -4 ->
+ 	try only v4 -5 -> try only v5 none, -45 -> try v5, v4
+
+1999-10-26  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c (main): ignore SIGPIPE
+
+	* common.c (do_read): the encoded length can be longer than the
+ 	buffer being used, allocate memory for it dynamically.  From Brian
+ 	A May <bmay@dgs.monash.edu.au>
+
+1999-10-14  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (proto): be more careful and don't print errno when read()
+ 	returns 0
+
+1999-09-20  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c (recv_krb4_auth): set `iv'
+
+1999-08-16  Assar Westerlund  <assar@sics.se>
+
+	* common.c (do_read): be careful with the return value from
+ 	krb5_net_read
+
+1999-08-05  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c: call freehostent
+
+	* rsh.c: remove some dead code
+
+1999-08-04  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c: re-write the handling of forwarded credentials and
+ 	stuff.  From Miroslav Ruda <ruda@ics.muni.cz>
+
+	* rsh_locl.h: always include kafs.h
+
+	* rsh.c: add `-z' and `-G' options
+
+	* rsh.c (loop): shutdown one side of the TCP connection on EOF.
+  	From Brian A May <bmay@dgs.monash.edu.au>
+
+	* common.c (do_read): handle EOF.  From Brian A May
+ 	<bmay@dgs.monash.edu.au>
+
+1999-08-01  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c: const fixes
+
+1999-07-29  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c: v6-ify
+
+	* rsh.c: v6-ify
+
+1999-07-28  Assar Westerlund  <assar@sics.se>
+
+	* rsh_locl.h: move around kafs.h
+
+1999-07-24  Assar Westerlund  <assar@sics.se>
+
+	* rsh_locl.h: <shadow.h>
+
+	* rsh.c, rshd.c: improve forwarding and implement unique ccache on
+ 	server.  From Miroslav Ruda <ruda@ics.muni.cz>
+
+1999-07-03  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (construct_command): handle argc == 0 for generality
+
+1999-06-23  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c: new option `-e' for not trying to open an stderr socket
+
+1999-06-17  Assar Westerlund  <assar@sics.se>
+
+	* rsh_locl.h (RSH_BUFSIZ): bump to 16 * 1024 to be sure that we
+ 	don't leave any data inside des_enc_read.  (that constant should
+ 	really be exported in some way...)
+
+1999-06-15  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c: use get_default_username and resulting const pollution
+
+1999-05-21  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (main): try $USERNAME
+
+1999-05-14  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c (doit): afslog correctly
+
+1999-05-11  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (main): add fallback to rlogin
+
+1999-05-10  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (send_krb5_auth): call krb5_sendauth with ccache == NULL.
+	check return value from krb5_crypto_init
+	
+	* common.c (do_write, do_read): always return -1 for failure
+	(net_write, net_read): remove.  they already exist in libroken
+
+1999-05-09  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c: make sure it tries with all other authentication methods
+	after one has failed
+	* rsh.c (main): detect the case of no command given.
+	
+1999-04-11  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c: new option --forwardable. use print_version
+	
+Sat Apr 10 17:10:55 1999  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c (setup_copier): use `socketpair' instead of `pipe'.  Some
+ 	shells don't think it's a rsh session if they find a pipe at the
+ 	other end.
+	(setup_environment): add SSH_CLIENT just to make bash happy
+
+	* common.c (do_read): use krb5_get_wrapped_length
+
+Wed Mar 24 03:59:42 1999  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (loop): more braces to make gcc happy
+
+Tue Mar 23 17:08:32 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* rsh_locl.h: kafs.h
+
+	* rshd.c: add `-P', `-v', and `-L' flags
+
+Thu Mar 18 11:37:24 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: include Makefile.am.common
+
+Tue Dec  1 14:44:44 1998  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* appl/rsh/rshd.c: update to new crypto framework
+
+	* appl/rsh/rsh_locl.h: update to new crypto framework
+
+	* appl/rsh/rsh.c: update to new crypto framework
+
+	* appl/rsh/common.c: update to new crypto framework
+
+Mon Nov  2 01:15:06 1998  Assar Westerlund  <assar@sics.se>
+
+	* appl/rsh/rsh.c (main): initialize host
+
+	* appl/rsh/rshd.c (recv_krb5_auth): disable `do_encrypt' if not
+ 	encrypting.
+
+Thu Jul 30 23:12:17 1998  Assar Westerlund  <assar@sics.se>
+
+	* appl/rsh/rsh.c: kludges for parsing `rsh hostname -l user'
+
+Thu Jul 23 19:49:03 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* appl/rsh/rshd.c: use krb5_verify_authenticator_checksum
+
+Sat Apr 18 21:13:06 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* appl/rsh/rsh.c: Don't try v5 if (only) `-4' is specified.
+
+Sun Dec 21 09:44:05 1997  Assar Westerlund  <assar@sics.se>
+
+	* appl/rsh/rshd.c (recv_krb5_auth): swap the order of the
+ 	`local_user' and the `remote_user'
+
+	* appl/rsh/rsh.c (send_krb5_auth): swap the order of the
+ 	`local_user' and the `remote_user'
+
+Sat Nov 29 07:10:11 1997  Assar Westerlund  <assar@sics.se>
+
+	* appl/rsh/rshd.c: updated to use getarg.
+	changed `struct fd_set' to `fd_set'.
+	implemented broken/BSD authentication (requires iruserok)
+
+Wed Nov 12 02:35:57 1997  Assar Westerlund  <assar@sics.se>
+
+	* appl/rsh/rsh_locl.h: add AUTH_BROKEN and PATH_RSH
+
+	* appl/rsh/Makefile.am: set BINDIR
+
+	* appl/rsh/rsh.c: implemented BSD-style reserved port
+ 	`authentication'
+
+Sun Aug 24 08:06:54 1997  Assar Westerlund  <assar@sics.se>
+
+	* appl/rsh/rshd.c: syslog remote shells
+
+Tue Aug 12 01:29:46 1997  Assar Westerlund  <assar@sics.se>
+
+	* appl/rshd/rshd.c: Use `krb5_sock_to_principal'.  Send server
+ 	parameter to krb5_rd_req/krb5_recvauth.  Set addresses in
+ 	auth_context.
+
+Fri Jul 25 17:32:12 1997  Assar Westerlund  <assar@sics.se>
+
+	* appl/rsh/rshd.c: implement forwarding
+
+	* appl/rsh/rsh.c: Use getarg.  Implement forwarding.
+
+Sun Jul 13 00:32:16 1997  Assar Westerlund  <assar@sics.se>
+
+	* appl/rsh: Conditionalize the krb4-support.
+
+Wed Jul  9 06:58:00 1997  Assar Westerlund  <assar@sics.se>
+
+	* appl/rsh/rsh.c: use the correct user for the checksum
+
+Mon Jul  7 11:15:51 1997  Assar Westerlund  <assar@sics.se>
+
+	* appl/rsh/rshd.c: Now works.  Also implementd encryption and
+ 	`-p'.
+	
+	* appl/rsh/common.c: new file
+
+Mon Jun 30 06:08:14 1997  Assar Westerlund  <assar@sics.se>
+
+	* appl/rsh: New program.
+

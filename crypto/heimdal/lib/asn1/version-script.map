@@ -1,0 +1,6 @@
+# Export everything, but put a tag on is so that we make ourself incompatible with older versions
+
+HEIMDAL_ASN1_1.0 {
+	global:
+		*;
+};

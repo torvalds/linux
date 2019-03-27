@@ -1,0 +1,30 @@
+$ $tcsh: set7,v 1.3 2011/02/04 18:19:33 christos Exp $
+$ ed.screen.c
+$set 7
+1 \n\tTcsh arvab, et teie terminal omab\n
+2 \tjärgnevaid omadusi:\n\n
+3 \tTal on %d veergu ja %d rida\n
+4 \tTa %s meta klahvi\n
+5 omab
+6 ei oma
+7 \tTal on%s tabulaatori omadus\n
+8  puudu
+9 \tTa %s automaatseid ääri\n
+10 omab
+11 ei oma
+12 \tTa %s maagilisi ääri\n
+13 (tühi)
+14 jah
+15 ei
+16 VIGA: ei saa kustutada\r\n
+17 DeleteChars: num on mõttetu: %d\r\n
+18 VIGA: cannot insert\r\n
+19 StartInsert: num on mõttetu: %d\r\n
+20 %s: Ei saa avada /etc/termcap.\n
+21 %s: Terminali tüübil "%s" puudub kirje\n
+22 %s: kasutan rumala terminali seadeid.\n
+23 %s: HOIATUS: Teie terminal ei saa liikuda üles.\n
+24 Pikkade ridade toimetamine võib olla kummaline.\n
+25 puudub puhasta EOL omadus.\n
+26 puudub kustuta sümbol omadus.\n
+27 puudub lisa sümbol omadus.\n

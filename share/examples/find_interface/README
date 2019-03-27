@@ -1,0 +1,9 @@
+This is a simple program which demonstrates how to query the kernel
+routing mechanism using only a UDP socket.  Pass it a hostname on
+the command line (sorry, it doesn't parse dotted decimal) and it will
+print out an IP address which names the interface over which UDP
+packets intended for that destination would be sent.
+A more sophisticated program might use the list obtained from SIOCGIFCONF
+to match the address with an interface name, but applications programmers
+much more often need to know the address of the interface rather than
+the name.

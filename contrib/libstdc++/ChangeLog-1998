@@ -1,0 +1,942 @@
+1998-12-31  Benjamin Kosnik  <bkoz@lunatic.cygnus.com>
+
+	* bits/fstream.tcc: Add fstream ctor for cin/cout/etc.
+	* bits/std_fstream.h: Ditto.
+	* src/stdstreams.cc: Ditto.
+
+	* math/cpowl.c: Fix header typo with last change.
+
+1998-12-31  Benjamin Kosnik  <bkoz@loony.cygnus.com>
+
+	* COPYING: New file (GPL v 2).
+	* LICENSE.STD: Remove.
+	* ./*: Change license.
+
+1998-12-30  Benjamin Kosnik  <bkoz@haight.constant.com>
+
+	* bits/std_streambuf.h (std): Remove static on _M_init.
+	* bits/streambuf.tcc (std): Ditto.
+
+	* bits/std_fstream.h: Add changes as discussed with Nathan, including
+	state_type and codecvt_type members, the allocation of an internal
+	buffer, the streamlined codecvt calls, etc.
+
+1998-12-21  Benjamin Kosnik  <bkoz@haight.constant.com>
+
+	* bits/std_sstream.h: Tweak.
+	* bits/fstream.tcc: Remove unused stubs.
+	* bits/std_fstream.h: Tweak.
+
+1998-12-17  Benjamin Kosnik  <bkoz@tintin.cygnus.com>
+
+	* bits/std_streambuf.h: Move _IO_file_flags into basic_filebuf.
+	Remove unused _IO_* members, possibly put into filebuf, which may
+	need them.
+	* bits/std_fstream.h: Add _M_flag.
+	* bits/sbuf_iter.h: Tweak.
+
+	* bits/std_cstdio.h: Add SEEK_SET, SEEK_END, SEEK_CUR.
+	* bits/ios_base.h: Use.
+
+	* src/stdstreams.cc: Modify to reflect standard ctors for
+	filebuf.
+	* src/misc-inst.cc: Ditto.
+
+	* bits/os_raw.h: Wrap in std namespace. Model parameters on
+	underlying C library calls instead of the underlying unix
+	filesystem.
+	* src/os_raw.cc (_S_os_open): Use fopen, and compute a mode
+	string as per p.659.
+	(_S_os_close): Model on fopen.
+	(_S_os_read): Model on fread.
+	(_S_os_write): Model on fwrite.
+	(_S_os_seek): Model on fseek.
+
+	* bits/ios_base.h: Tweak.
+	* bits/std_iosfwd.h: Wrap libio.h include with extern "C".
+	* bits/std_sstream.h: Tweak.
+	* bits/sstream.tcc: Remove old, uncalled code.
+	* bits/std_fstream.h: Major reconstruction.
+	* bits/fstream.tcc: Disable for the time being.
+
+1998-12-11  Benjamin Kosnik  <bkoz@haight.constant.com>
+
+	* bits/basic_string.h: Fix insert method.
+	* stl/bits/stl_iterator.h: Remove previous hack.
+	* bits/std_streambuf.h (sbumpc): Correct increment/return oddness.
+	* bits/std_sstream.h: Fix more regressions.
+	* testsuite/27/27stringbuf.C: Add (almost) complete tests.
+
+1998-12-09 Benjamin Kosnik  <bkoz@loony.cygnus.com>
+
+	* bits/basic_string.h: Tweak.
+
+	* stl/bits/stl_iterator.h: Specialize iterator_traits for int so
+	that string::append can be instantiated. HACK--checkin
+	basic_string::iterator class.
+
+1998-12-07  Benjamin Kosnik  <bkoz@haight.constant.com>
+
+	* bits/std_sstream.h: Tweak.
+	* bits/sstream.tcc: Tweak ctors.
+
+	FIXME invalid friend defs. . WHERE ARE THEY??
+
+	* bits/sbuf_iter.h (istreambuf_iterator::equal): Change to new
+	names for basic_streambuf data members.
+
+	* bits/std_streambuf.h: Add getloc() initialization bits.
+	basic_streambuf(): Initialize with global locale data.
+	imbue(): Set _M_init.
+
+	* bits/std_streambuf.h(seekoff, seekpos): Complete with invalid
+	stream pos == pos_type(off_type(-1)).
+	in_avail(): Complete default implementation.
+	snextc, sbumpc, sputbackc, sungetc, sputc, setg, xsputn,
+	underflow, uflow, xsgetn, showmany, sync: Ditto.
+
+	* bits/std_streambuf.h: _M_snextc_helper(): Remove.
+
+	* bits/streambuf.tcc (sputbackc): Temporarily remove, need to
+	re-populate with in-line member functions that are too big.  Add
+	initialization for _M_init.
+
+1998-12-03  Benjamin Kosnik  <bkoz@cygnus.com>
+
+	* bits/sstream.tcc: Convert _Allocator to _Alloc.  Add typedefs
+	for basic_string and basic_streambuf. Scope _IO_buf_* pointers to
+	streambuf_type.
+
+	* src/stdstreams.cc (std): Disable wchar_t instantiations.
+
+	* bits/c++config.h (_G_DEPRICATED): Add.
+	(_G_USE_WCHAR_T): Add.
+	* bits/std_streambuf.h: Radical reconstruction of basic_streambuf.
+	Take out _Streambuf_base. Put _IO_FILE data member in basic_filebuf.
+	* bits/streambuf.tcc (sputbackc): Remove ctor anti-def, Tweak.
+	* bits/std_fstream.h: Add comment for implementation.
+	* src/streambuf.cc: Remove.
+	* src/Makefile.in: Remove streambuf.lo.
+	* src/misc-inst.cc: Tweak.
+
+1998-12-02  Benjamin Kosnik  <bkoz@cygnus.com>
+
+	* bits/std_sstream.h: Add const_cast to rdbuf returns.
+	* testsuite/27stringstream.C: Modify.
+
+1998-11-25  Benjamin Kosnik  <bkoz@haight.constant.com>
+
+	* src/Makefile.in (libstdc___la_OBJECTS): Add streambuf.lo.
+	(libstdc___la_SOURCES): Ditto.
+
+	* bits/streambuf.tcc: Tweak.
+
+	* src/streambuf.cc: New file, add out-of-line definitions for
+	_Streambuf_base.
+
+	* src/misc-inst.cc: Remove _Streambuf_base instantiations.
+	Comment out wchar_t versions of the buffer instantiations, for now.
+
+	* bits/std_streambuf.h: Wrap libio.h include with extern "C".
+	Remove template wrapper around _Streambuf_base.
+	Move IO_* data members into _Streambuf_base.
+	Move _Streambuf_base members into streambuf.tcc.
+
+	* bits/c++config.h (_G_USE_LIBIO): Enable.
+
+1998-11-02  Nathan Myers <ncm@cantrip.org>
+
+	* CHECKLIST: downgrade iterator implementations
+	* DESIGN: fill out notes about unimplemented features
+
+1998-10-31  Nathan Myers <ncm@cantrip.org>
+
+	* CHECKLIST: itemized list of all interfaces, and status of each.
+
+1998-10-30  Nathan Myers  <ncm@cantrip.org>
+
+	* RELEASE-NOTES: add notes about optional includes, linking, running
+	* src/Makefile.am: handle header installs properly
+	* src/Makefile.in: regenerate from new src/Makefile.am
+
+1998-10-30  Benjamin Kosnik  <bkoz@loony.cygnus.com>
+
+	* bits/basic_string.h: Revert npos pending ciso646.
+	* src/Makefile.am: Revert CXX flags for now.
+	* src/Makefile.in: Ditto.
+
+1998-10-30  Brendan Kehoe  <brendan@cygnus.com>
+
+	* bits/std_sstream.h: Re-order ctors to put base before member
+	inits.
+
+1998-10-30  Ryszard Kabatek  <kabatek@chemie.uni-halle.de>
+
+	* stl/bits/std_memory.h: Fix typo.
+
+1998-10-30  Nathan Myers <ncm@cantrip.org>
+
+	* src/string[A-Z]+.cc: change back to include "string.cc".
+	* src/Makefile.am: revert filename changes.  We need a different
+	way to keep filenames in std/ from confusing Make.
+	* bits/basic_string.h: define _S_max_size right, return it from
+	string::max_size(); churn definition of npos again.
+	* bits/string.tcc: fix _S_frob_size to avoid uint overflow.
+	* bits/ios.cc: remove #ifdef on ios_base locale member initialization
+	* BUGS: clear cruft.
+	* C++STYLE: Touchup for release.
+	* CHECKLIST: Touchup for release.
+	* DESIGN: New file.
+	* LICENSE.STD: Add requirement to retain copyrights and to provide
+	the license with any copies.
+	* README: Update for release.
+	* TODO: Minor touchup for release.
+	* RELEASE-NOTES: prepare for release
+
+1998-10-29  Ulrich Drepper  <drepper@cygnus.com>
+
+	* src/string[A-Z]+.cc: Include stdstring.cc, not string.cc.
+
+	* src/Makefile.am (CXXFLAGS): Define _GNU_SOURCE.
+
+	* src/Makefile.am (CXXLINK): New variable.  Make sure we don't use
+	CXX to generate the shared object.
+
+	* src/Makefile.am (headers): Remove duplicated char_traits.h.
+
+1998-10-29  Brendan Kehoe  <brendan@cygnus.com>
+
+	* bits/basic_string.h (basic_string<>::max_size): Subtract 1, not
+	2, from npos, solving infinite loop problems.
+
+1998-10-29 18:41  Ulrich Drepper  <drepper@cygnus.com>
+
+	* src/Makefile.am: Add rules to install headers.
+
+1998-10-29  Nathan Myers <ncm@cantrip.org>
+
+	* bits/std_ostream.h: Remove #ifdef on operator<< for long double
+	* bits/ostream.tcc:   Remove #ifdef on operator<< for long double
+	* shadow/libio.h:
+	* shadow/unistd.h:
+	* shadow/bits/wrap_libio.h:
+	* shadow/bits/wrap_unistd.h: New files.
+
+1998-10-29  Brendan Kehoe  <brendan@cygnus.com>
+
+	* bits/ostream.tcc (operator<<): Wrap with #ifdef
+	_G_HAVE_LONG_DOUBLE_IO, to match bits/std_ostream.h.
+
+1998-10-29  Ulrich Drepper  <drepper@cygnus.com>
+
+	* src/Makefile.am: Add temporarily rules to make sure misc-inst.cc
+	is not compiled with -fno-implicit-templates in effect.
+
+	* src/Makefile.am (EXTRA_SOURCES): Add string.cc and wstring.cc here.
+	(libstdc___la_SOURCES): Add all the string*.cc and wstring*.cc files.
+	* src/stringADDCS.cc: Wrapper around string.cc to define individual
+	function.
+	* src/stringADDPS.cc: Likewise.
+	* src/stringADDSC.cc: Likewise.
+	* src/stringADDSP.cc: Likewise.
+	* src/stringADDSS.cc: Likewise.
+	* src/stringBIST.cc: Likewise.
+	* src/stringBOST.cc: Likewise.
+	* src/stringCHTR.cc: Likewise.
+	* src/stringEQPS.cc: Likewise.
+	* src/stringEQSP.cc: Likewise.
+	* src/stringEQSS.cc: Likewise.
+	* src/stringEXTRA.cc: Likewise.
+	* src/stringGEPS.cc: Likewise.
+	* src/stringGESP.cc: Likewise.
+	* src/stringGESS.cc: Likewise.
+	* src/stringGETLI.cc: Likewise.
+	* src/stringGTPS.cc: Likewise.
+	* src/stringGTSP.cc: Likewise.
+	* src/stringGTSS.cc: Likewise.
+	* src/stringINSER.cc: Likewise.
+	* src/stringLEPS.cc: Likewise.
+	* src/stringLESP.cc: Likewise.
+	* src/stringLESS.cc: Likewise.
+	* src/stringLTPS.cc: Likewise.
+	* src/stringLTSP.cc: Likewise.
+	* src/stringLTSS.cc: Likewise.
+	* src/stringMAIN.cc: Likewise.
+	* src/stringNEPS.cc: Likewise.
+	* src/stringNESP.cc: Likewise.
+	* src/stringNESS.cc: Likewise.
+	* src/stringSCOPY.cc: Likewise.
+	* src/wstringADDCS.cc: Wrapper around wstring.cc to define individual
+	functions.
+	* src/wstringADDPS.cc: Likewise.
+	* src/wstringADDSC.cc: Likewise.
+	* src/wstringADDSP.cc: Likewise.
+	* src/wstringADDSS.cc: Likewise.
+	* src/wstringBIST.cc: Likewise.
+	* src/wstringBOST.cc: Likewise.
+	* src/wstringCHTR.cc: Likewise.
+	* src/wstringEQPS.cc: Likewise.
+	* src/wstringEQSP.cc: Likewise.
+	* src/wstringEQSS.cc: Likewise.
+	* src/wstringEXTRA.cc: Likewise.
+	* src/wstringGEPS.cc: Likewise.
+	* src/wstringGESP.cc: Likewise.
+	* src/wstringGESS.cc: Likewise.
+	* src/wstringGETLI.cc: Likewise.
+	* src/wstringGTPS.cc: Likewise.
+	* src/wstringGTSP.cc: Likewise.
+	* src/wstringGTSS.cc: Likewise.
+	* src/wstringINSER.cc: Likewise.
+	* src/wstringLEPS.cc: Likewise.
+	* src/wstringLESP.cc: Likewise.
+	* src/wstringLESS.cc: Likewise.
+	* src/wstringLTPS.cc: Likewise.
+	* src/wstringLTSP.cc: Likewise.
+	* src/wstringLTSS.cc: Likewise.
+	* src/wstringMAIN.cc: Likewise.
+	* src/wstringNEPS.cc: Likewise.
+	* src/wstringNESP.cc: Likewise.
+	* src/wstringNESS.cc: Likewise.
+	* src/wstringSCOPY.cc: Likewise.
+	* src/string.cc: Remove now unneeded #defines now.
+
+1998-10-29 Nathan Myers <ncm@cantrip.org>
+
+	* bits/locfacets.tcc: Define num_put::put(... const void*), improve
+	integer formatting.
+	* bits/ostream.tcc: Delete cruft, rewrite various op<< as members,
+	add definitions for double, long double, const void*.
+	* bits/std_ostream.h: Move op<<'s back into class ostream,
+	define some in-line.
+	* bits/string.tcc: fix unnecessary-copying bug in op[], typos in
+	string construction from input iterators that Brendan reported.
+
+
+1998-10-28  Brendan Kehoe  <brendan@cygnus.com>
+
+	* stl/bits/stl_pair.h (op!=, op>, p<=, op>=): Add missing definitions.
+
+	* bits/valarray_meta.h (class _Constant): Move declaration to the
+	top, so the rest of the file can grok it.
+	(_ApplyBinaryFunction::operator[]): Add missing parenthesis.
+
+	* bits/std_sstream.h (basic_ostringstream::str): Fix typo of extra
+	semicolon.
+	(basic_stringstream::str, both instances): Likewise.
+
+1998-10-28 Nathan Myers <ncm@cantrip.org>
+
+	* bits/locfacets.h: fix num_put<>::falsename()
+	* bits/locfacets.tcc: fix _Format_cache<>::_M_populate bool name init
+	* testsuite/27/27octfmt.C, testsuite/27/27octfmt.C: new tests
+	* bits/locfacets.tcc: touch up _S_group_digits.
+	* src/misc-inst.cc: adjust _S_group_digits insts to match.
+
+1998-10-27 Nathan Myers <ncm@cantrip.org>
+
+	* stl/bits/stl_config.h: Turn off long long support, for now.
+	* src/locale-inst.cc: Instantiate num_put<> only for
+	ostreambuf_iterator, num_get only for istreambuf_iterator.
+	* src/misc-inst.cc: Delete duplicate locale-related instantiations,
+	add lots of new instantiations for num_put support function templates;
+	remove junk about __match_parallel for ostreambuf_iterator.
+
+1998-10-27 Nathan Myers <ncm@cantrip.org>
+
+	* bits/locfacets.tcc: Make num_put's digit grouping work.
+	* bits/string.tcc: More uglification.
+	* src/ios.cc: initialize format cache right
+
+1998-10-26 Nathan Myers <ncm@cantrip.org>
+
+	* bits/basic_string.h: Uglify more names.
+	* bits/fstream.tcc: Rewrite some filebut output handling.
+	* bits/ios_base.h: Cosmetic.
+	* bits/locfacets.h: Changes to _Format_cache for support of num_put.
+	Also, specialize its default ctor for optimal default case.
+	#ifdef out "long long" prototypes for now.
+	* bits/locfacets.tcc: Do complete, optimized num_put<>::do_put
+	implementation for integer types.  (Still needs optimized
+	std::copy() applied to ostreambuf_iterator to be optimal.)
+	* bits/ostream.tcc: Write operator<< for long, bool types.
+	Make other operators<< non-members, per spec.  (Many still
+	not implemented.)  Identify those that fail to create a sentry.
+	* bits/sbuf_iter: Cosmetic.
+	* bits/std_fstream.h: Add some filebuf members.
+	* bits/std_locale.h: Include <limits> for use in bits/locfacets.h
+	* bits/std_ostream.h: Make member operators<< global, per spec.
+	(Should do the same in std_istream.h.)
+	* bits/std_string.h: Include <limits> for use in bits/locfacets.h
+	* bits/string.tcc: Uglify names
+	* shadow/bits/std_cstdlib.h: Optimize std::div and std::ldiv.
+	* src/ios.cc: Specialize _Format_cache<> for char and wchar_t,
+	for optimal default behavior.
+
+1998-10-26  Benjamin Kosnik  <bkoz@loony.cygnus.com>
+
+	* src/Makefile.in (libstdc___la_SOURCES): Add misc-inst.cc again.
+
+1998-10-21 Nathan Myers <ncm@cantrip.org>
+
+	* src/locale.cc: make ctype operations actually work for glibc
+	* CHECKLIST: add a comprehensive (i.e. huge) implementation
+	checklist of stdlib facilities.  Not filled in yet.
+
+1998-10-20 Nathan Myers <ncm@cantrip.org>
+
+	* bits/string.tcc: fix patching NULs on string ends.
+
+1998-10-19 Nathan Myers <ncm@cantrip.org>
+
+	* bits/std_iosfwd.h: eliminate "basic_" prefix on streambuf
+	iterator forward declarations
+	* bits/sbuf_iter.h: eliminate default template argument definitions
+	on streambuf iterators (rely on <iosfwd> decls).
+	* TODO: add note about lazy facet construction
+	* bits/basic_ios.h: hit operator void* again.  This should be the
+	last time we need to touch it.
+	* bits/basic_ios.h: copyfmt now returns *this.
+	* bits/basic_string.h: fix npos again.  npos cannot be defined as zero.
+	* bits/basic_string.h: put back overloaded constructors; adjust
+	behavior for default allocator on copy constructor.
+	* bits/char_traits.h: make not_eof return correct type.
+	* bits/loccore.h: remove call to bits/std_stdexcept.h; subincludes
+	cannot be in non-standard headers or we get include loops (bad)
+	* bits/loccore.h: delete ifdef'd out workarounds for old compiler bugs.
+	* bits/loccore.h: add apparatus to support lazy construction of
+	facets.
+	* bits/locfacets.tcc: Uglify names in __match_parallel decl.
+	* bits/std_ios.h: add include of <typeinfo> to get bad_cast for
+	locale use_facet<> failure.
+	* bits/std_locale.h: same.
+	* bits/std_string.h: same.
+	* bits/std_stdexcept.h: change exception member __msg from a
+	reference to a regular object.
+	* bits/string.tcc: add pasting a NUL on the end of strings after
+	each operation. We had already left room for it, but previously
+	plugged it only on a call to c_str(), but the WG changed the
+	requirement when I wasn't looking.  (Can't leave them alone for
+	a second without they break something else.)
+	* bits/valarray_meta.h: add Gaby's changes from 981018.
+	* src/locale.cc: add new type _Bad_use_facet to be thrown on
+	failure of use_facet<>().
+	* src/stdexcept.cc: remove pragma, remove bkoz's #if 0,
+	comment out leftover member definitions
+
+1998-10-16  Ulrich Drepper  <drepper@cygnus.com>
+
+	* string/Makefile.am: Revert last change.
+	* math/Makefile.am: Likewise.
+
+1998-10-15  Benjamin Kosnik  <bkoz@haight.constant.com>
+
+	* bits/std_sstream.h: Fix typo.
+
+1998-10-15  Benjamin Kosnik  <bkoz@haight.constant.com>
+
+	* src/Makefile.am (libstdc___la_SOURCES): Add misc-inst.cc.
+
+	* bits/std_sstream.h: Add typedefs, member definitions. Clean.
+	* bits/std_stdexcept.h: Remove.
+
+1998-10-15  Benjamin Kosnik  <bkoz@haight.constant.com>
+
+	* src/misc-inst.cc: Tweak again.
+
+	* bits/std_sstream.h: Move out-of-line definitions to sstream.tcc.
+	* bits/sstream.tcc: New file.
+
+1998-10-15  Ulrich Drepper  <drepper@cygnus.com>
+
+	* configure.in: Test for machine/param.h, sys/machine.h and fp.h.
+	Don't run AC_C_BIGENDIAN if machine/param.h or sys/machine.h are
+	available.
+
+	* math/mathconf.h: Include sys/machine.h, machine/param.h and fp.h
+	if available.
+	(INFINITE_P): Use IS_INF macro if available.
+
+1998-10-15  Ulrich Drepper  <drepper@cygnus.com>
+
+	* math/Makefile.am (EXTRA_LTLIBRARIES): Renamed from
+	noinst_LTLIBRARIES.
+	* string/Makefile.am: Likewise.
+
+1998-10-15  Ulrich Drepper  <drepper@cygnus.com>
+
+	* configure.in (AC_CHECK_FUNCS): Add finite, qfinite, fpclass, and
+	qfpclass.
+	(AC_CHECK_HEADERS): Add machine/endian.h.  If no header specifying
+	endianess is available run AC_C_BIGENDIAN.
+
+	* math/clog10l.c: Add ugly hack around bug in Irix 6.2 header until
+	fixincludes is fixed.
+	* math/clogl.c: Likewise.
+	* math/csqrtl.c: Likewise.
+	* math/mycabsl.c: Likewise.
+
+	* math/mathconf.h: Include machine/endian.h if possible.  If no
+	header describing endianess is available rely on WORDS_BIGENDIAN
+	macro.
+	(FINITE_P, FINITEF_P, FINITEL_P): Use finite functino if available.
+	(INFINITE_P, INFINITEF_P, INFINITEL_P): Use fpclass function if
+	available.
+
+	* src/complex.cc (polar): Don't use sincos on OSF machines.
+
+1998-10-09  Benjamin Kosnik  <bkoz@loony.cygnus.com>
+
+	* src/locale-inst.cc: Don't instantiate time_get for
+	ostreambuf_iterators as time_get::do_get_weekday and
+	time_get::do_get_monthname use __match_parallel, which is illegal
+	for ostreambuf_iterators to use, as they don't have operator== or
+	operator!=.
+	* bits/std_stdexcept.h: Add dtor definitions.
+	Use stl/bits/std_stdexcept.h instead of this file?
+	* bits/sbuf_iter.h : Tweak.
+	* src/misc-inst.cc: Tweak.
+
+1998-10-09  Benjamin Kosnik  <bkoz@haight.constant.com>
+
+	* bits/std_stdexcept.h: New file.
+	* src/stdexcept.cc: Define the following:
+	logic_error::what()
+	runtime_error::what()
+
+	* src/misc-inst.cc: New file.
+	* src/Makefile.in (libstdc___la_SOURCES): Add misc-inst.cc.
+	(libstdc___la_OBJECTS): Add misc-inst.lo.
+
+	* bits/basic_string.h: Disable non-standard ctor declarations.
+	* bits/string.tcc: Disable definitions as well.
+	* src/string.cc: Disable <ios> dependencies.
+	* bits/sbuf_iter.h (std): Add default to template parameter for
+	ostreambuf_iterator and istreambuf_iterator.
+	* bits/std_iosfwd.h: Change istreambuf_iterator to
+	basic_istreambuf_iterator. Likewise for ostreambuf.
+	* bits/locfacets.tcc (__match_parallel): Fix typo.
+	* src/ios.cc (imbue): Remove the _G_HAVE_LOCALE guards around
+	ios_base::imbue.
+	* bits/std_streambuf.h: Define _Streambuf_base::getloc().
+	* bits/std_istream.h: Define the following:
+	get (basic_streambuf<char_type,_Traits>& __sb, char_type __delim)
+	get (char_type* __s, streamsize __n, char_type __delim);
+	getline (char_type* __s, streamsize __n, char_type __delim)
+	* bits/loccore.h : FIXME friend template code for use_facet.
+	Add std_stdexcept.h include so that range_error will be defined.
+	Add explicit conversion to string for range_error throws. (HACK?)
+
+1998-10-8  Ulrich Drepper  <drepepr@cygnus.com>
+
+	* configure.in: Check for sincos, sincosf, and sincosl.
+	* src/complex.cc (polar): Use sincos if available.
+
+	* bits/c++config.h: Fix hack to get LONG_LONG* definitions on Linux.
+	* stl/bits/std_limits.h: Include bits/c++config.h.  HACK!!!
+
+	* math/clog10.c: Fix typo (FP_INIFITE_P -> INFINITE_P).
+
+	* math/cpow.c: Use c_log, not clog.
+	* math/cpowf.c: Likewise.
+	* math/cpowl.c: Likewise.
+
+	* math/cexp.c: Remove unused fpclassify calls.  Use FINITE_P instead
+	of isfinite call.
+
+	* math/mathconf.h (FINITE_P, FINITEF_P, FINITEL_P): Define using
+	isfinite macro if it is available.
+	(INFINITE_P, INFINITEF_P, INFINITEL_P): Define using isinf macro.
+
+	* math/ccosf.c: Use appropriate test macros for this type.
+	* math/ccoshf.c: Likewise.
+	* math/ccoshl.c: Likewise.
+	* math/ccosl.c: Likewise.
+	* math/cexpf.c: Likewise.
+	* math/cexpl.c: Likewise.
+	* math/clog10f.c: Likewise.
+	* math/clog10l.c: Likewise.
+	* math/clogf.c: Likewise.
+	* math/clogl.c: Likewise.
+	* math/csinf.c: Likewise.
+	* math/csinhf.c: Likewise.
+	* math/csinhl.c: Likewise.
+	* math/csinl.c: Likewise.
+	* math/csqrtf.c: Likewise.
+	* math/csqrtl.c: Likewise.
+	* math/ctanf.c: Likewise.
+	* math/ctanhf.c: Likewise.
+	* math/ctanhl.c: Likewise.
+	* math/ctanl.c: Likewise.
+
+1998-10-06  Benjamin Kosnik  <bkoz@bliss.nabi.net>
+
+	* bits/basic_ios.h: Fix previous change.
+
+1998-10-06  Benjamin Kosnik  <bkoz@bliss.nabi.net>
+
+	* bits/basic_ios.h: Add const_cast<basic_ios&>
+	(operator void*): As per 5.2.9 p 2, make sure static_cast is
+	well-formed.
+	* bits/char_traits.h: No _CharT for specialization, change to 0.
+	* bits/basic_string.h: As per 9.4.2 p4, initialize with
+	constant-initializer.
+	* bits/locfacets.tcc: Add template parameter to initialization list.
+
+1998-10-02  Benjamin Kosnik  <bkoz@loony.cygnus.com>
+
+	* bits/basic_string.h: Should just be <, not <=.
+
+1998-10-01  Benjamin Kosnik  <bkoz@bliss.nabi.net>
+
+	* bits/string.tcc (compare): Fix for strings that are similar, but
+	not the same length.
+
+1998-09-04  Brendan Kehoe  <brendan@cygnus.com>
+
+	* bits/c++config.h: For __linux__, define _GNU_SOURCE.  This is
+	required for us to get LONG_LONG_{MIN,MAX} out of gcc's limits.h.
+	We can't check for __GLIBC__ here, since this header can be read
+	before any system one (that would lead to features.h) being used.
+
+	* stl/bits/stl_config.h (__STL_LONG_LONG): Re-enabled
+
+	* stl/bits/std_limits.h [__STL_LONG_LONG]: Fix usage to use
+	LONG_LONG_MIN, LONG_LONG_MAX, and ULONG_LONG_MAX.
+
+	* stl/bits/stl_config.h: Don't do __STL_LONG_LONG, it uses
+	LONGLONG_{MIN,MAX} which I can't find the origin of.
+
+1998-09-03  Brendan Kehoe  <brendan@cygnus.com>
+
+	* stl/bits/stl_iterator.h: Add extern decl of cin for now; where
+	should this come from, if not iostream.h?
+	(class istream_iterator): Make the new operator!= a friend also.
+
+	* stl/bits/stl_config.h: Define __STL_HAS_WCHAR_T,
+	__STL_MEMBER_TEMPLATE_CLASSES, and __STL_LONG_LONG.  Don't include
+	_G_config.h like the egcs one does.
+
+1998-09-01  Brendan Kehoe  <brendan@cygnus.com>
+
+	* bits/string.tcc: Call `_M_destroy' instead of `destroy'.
+
+	* bits/valarray_meta.h: Throughout, rename _Expr typedefs to be
+	_Expr1 (or _Expr_def if it's taken), and change definitions.
+	Avoids redecl of the template parm.
+
+	* bits/string.tcc (basic_string copy ctor): Fix typo in declaration.
+	(operator>>): Initialize __ERROR with ios_base::goodbit, not 0.
+
+	* bits/std_streambuf.h (_POSIX_SOURCE): Only define if it's not
+	already done.
+
+	* src/locale-inst.cc: New file, **TOTAL HACK**.  There has GOT to
+	be a better way to do this.
+
+	* src/stlinst.cc: New file.
+
+	* BUGS: New file, with various discovered bugs that need to be
+	fixed.
+
+	* Makefile.in, math/Makefile.in, string/Makefile.in,
+	src/Makefile.in: Reran automake.
+
+	Workarounds, these may not all be the final fixes:
+
+	* bits/basic_ios.h (class basic_ios): Make _M_strbuf be protected,
+	not private, for basic_istream::get() in std_istream.h to be able
+	to use it.
+	(basic_ios::operator void*): Don't use static_cast for the false
+	case.
+	(basic_ios::copyfmt): Fix `rhs.except' to be `rhs.exceptions ()'.
+	This appears to have been in sep94, but didn't get corrected
+	afterwards.
+
+	* bits/basic_string.h (npos): Don't init here.
+	* bits/string.tcc: Instead, do initialization here, to -1 instead
+	of the size_type destructor.
+
+	* src/traits.cc, src/wtraits.cc: New files.
+	* bits/char_traits.h: For char_traits<char> and
+	char_traits<wchar_t>, declare static, but define over in the src
+	files.
+
+	* bits/gslice.h: Comment out forward decls of _Array, valarray,
+	gslice_array, and _GsliceExpression.
+
+	* bits/std_cstdio.h [__sparc__ && __svr4__]: #undef all of
+	clearerr, feof, ferror, getc, getchar, putc, putchar, stdin,
+	stdout, and stderr.  Note we do get unresolved refs to stdin, but
+	that'll get fixed by the "true" solution.
+
+	* bits/std_ios.h: Include <bits/std_streambuf.h> to get the
+	definition of basic_streambuf.h, which is used in basic_ios.h to
+	call pubimbue.
+
+	* bits/std_streambuf.h: Don't include libio.h for now.
+	(class basic_streambuf): Define missing methods pubimbue and
+	getloc.
+
+	* src/Makefile.am (libstdc___la_SOURCES): Add stdexcept.cc,
+	ios.cc, os_raw.cc, stdstreams.cc, locale.cc, localename.cc,
+	locale-inst.cc, stlinst.cc, traits.cc, wtraits.cc.
+
+	* src/ios.cc: Instantiate basic_ios<char> and basic_ios<wchar_t>.
+
+	* src/locale.cc: Come up with munged versions of _S_toupper,
+	_S_tolower, and _S_table instead of the glibc-specific ones, so
+	they're at least defined, if not necessarily usable.  The glibc
+	ones on any other system will yield unresolved refs to
+	__ctype_{b,toupper,tolower}.
+
+	* src/string.cc: Define all of ADDCS, ADDPS, et al.  Add
+	basic_ios, basic_istream, basic_ostream.  Don't do char_traits
+	anymore cuz of the explicit specialization in char_traits.h.
+	Also add _S_string_copy, but this doesn't fix it -- cf the BUGS
+	file for the details.
+
+	* stl/bits/stl_algobase.h (equal): Fix to do `! (x==y)'.
+	* stl/bits/stl_iterator.h (__distance): Likewise.
+
+	* stl/bits/stl_iterator.h: As with 8/18 set, define missing op!=,
+	op>, op<=, and op>= for reverse_iterator.  Also add op!= for
+	istream_iterator.
+
+1998-08-26  Brendan Kehoe  <brendan@cygnus.com>
+
+	* bits/string.tcc (basic_string::compare (const char*)): Fix to
+	return 0, not 1.
+
+1998-08-25  Brendan Kehoe  <brendan@cygnus.com>
+
+	This should really be fixed with __asm__ directives renaming the
+	symbol, but keeping the function.
+	* math/clogf.c (c_logf): Renamed from `clogf'.
+	* math/clogl.c (c_logl): Renamed from `clogl'.
+	* math/complex-stub.h (c_logf, c_logl): Change decls.
+
+	* bits/locfacets.h (class _Numeric_get): For friend decls, rename
+	_CharT and _InIter parms, since they duplicate the enclosing ones.
+
+1998-08-19  Brendan Kehoe  <brendan@cygnus.com>
+
+	Deal with conflict of the iostreams `clog' and our internal
+	complex number `clog'.
+	* src/complex.cc: Call `c_log' instead of `clog'.
+	* math/clog.c (c_log):: Renamed from clog.
+	* math/complex-stub.h (c_log): Renamed from clog decl.
+
+	* bits/locfacets.h (class _Numeric_get): Tweak fwd decls of the
+	get/put classes.
+	(num_put::put): #if 0 long long version, since we don't declare or
+	define the long long version of do_put.
+
+1998-08-18 Nathan Myers <ncm@cantrip.org>
+
+	* bits/basic_string.h: add basic_string<>::push_back(), fix return
+	type of get_allocator (thanks to Ryszard Kabatek).
+	* bits/char_traits.h: make init order of fpos<> members
+	match decl order.
+	* bits/ios_base.h: fix decls of ios_base bitmask & enum types, add
+	flags _S_fd_in etc. for special filebuf ctor.
+	* bits/locfacets.h: make _Numeric_get and _Format_cache public
+	to work around problems in friend declarations.
+	* bits/locfacets.tcc: qualify _S_get_cache in num_get<>::get(..bool&),
+	fix random type errors & typos
+	* bits/std_fstream.h: major refitting to bypass libio (for now),
+	instrument to use bits/fstream.tcc template definitions
+	* bits/std_iosfwd.h: mess with wrappers
+	* bits/std_istream.h: remove meaningless comment
+	* bits/std_ostream.h: instrument to work with ostream.tcc.
+	* bits/std_streambuf.h: instrument to work with streambuf.tcc
+	* bits/fstream.tcc: template defs for <fstream>
+	* bits/ostream.tcc: template defs for <ostream>
+	* bits/streambuf.tcc: template defs for <streambuf>
+	* bits/os_raw.h: thin OS interface wrapper, to bypass libio (for now).
+	* Delete .cc files, replace with bits/*.tcc
+	src/fstream.cc
+	src/istream.cc
+	src/ostream.cc
+	src/streambuf.cc
+	* Add files:
+	src/os_raw.cc: thin interface to OS, to bypass libio (for now).
+	src/stdstreams.cc: cout, cin, etc. definitions
+	(these still need work: must be init'd before user statics.)
+
+
+1998-08-18  Brendan Kehoe  <brendan@cygnus.com>
+
+	Sent to SGI before checkin:
+	* stl/bits/stl_vector.h (operator!=, operator>, operator<=,
+	operator>=): Define.
+	* stl/bits/stl_bvector.h (vector<bool>::flip): Define method.
+	* stl/bits/stl_deque.h (operator!=, operator>, operator<=,
+	operator>=): Define.
+	(operator==, operator<): Add inline.
+	* stl/bits/stl_map.h (operator!=, operator<, operator<=,
+	operator>=): Define.
+	* stl/bits/stl_multimap.h (operator!=, operator<, operator<=,
+	operator>=): Define.
+	* stl/bits/stl_list.h (operator!=, operator<, operator<=,
+	operator>=): Define.
+	* stl/bits/stl_set.h (operator!=, operator<, operator<=,
+	operator>=): Define.
+	* stl/bits/stl_multiset.h (operator!=, operator<, operator<=,
+	operator>=): Define.
+
+	* bits/std_valarray.h (_Shift_left, _Shift_right): Inherit from
+	unary_function.
+
+1998-08-15 Nathan Myers <ncm@cantrip.org>
+
+	* bits/ios_base.h: change nominal bitmask and enum types to real enums
+	* bits/locfacets.h: make _Format_cache bool names usable by num_get
+	* bits/locfacets.tcc: make num_get<>::get(... bool&) use _Format_cache
+	* bits/std_fstream.h: minor cleanups: ctors delegate to open()
+	* bits/std_iosfwd.h: more bitmask changes, for ios_base::iostate
+	* bits/std_sstream.h: formatting cleanups
+
+1998-08-14 Nathan Myers <ncm@cantrip.org>
+
+	* bits/locfacets.tcc: implement num_get<>::do_get(..., bool&)
+	* bits/locfacets.tcc: implement time_get<>::do_get_weekday
+	* bits/locfacets.tcc: implement time_get<>::do_get_monthname
+	* bits/locfacets.h:   fix missing argument in do_get_monthname
+	(this is a bug in the standard, ref. 36 in my list.)
+	* bits/locfacets.h: make month and day name caches mutable
+	* bits/locfacets.tcc: various typos in get() functions
+	* bits/sbuf_iter.h: fix omission in istreambuf_iterator::op++().
+	* bits/std_streambuf.h: fix typo in sgetn (Brendan)
+
+1998-08-12 Nathan Myers <ncm@cantrip.org>
+	* move streambuf iterators to bits/sbuf_iter.h
+	* optimize streambuf iterators
+	* begin generalizing streambuf
+	* begin implementing num_get<>::get (starting with bool)
+	* patch stl/bits/stl_config.h so that relops operators are
+	contained properly, out of the way.
+
+1998-07-24 Nathan Myers <ncm@cantrip.org>
+	* Fold in SGI 3.11 changes (uglified names, some algorithm
+	  improvements, very minor bug fixes.)
+	* Uglify names elsewhere to match (s/_T/_Tp/).
+	* Begin work on optimized streambuf
+	* Put complex.cc in namespace std:: (thanks Martin)
+
+1998-07-17 Nathan Myers <ncm@cantrip.org>
+
+	* bits/char_traits.h: add _Char_traits_match template.
+	* bits/string.tcc: fix bugs in various find_last* members.
+	* bits/basic_string.h: redeclare member _S_find.
+	* stl/bits/stl_iterator.h: change member names in nonstandard
+	  templates bidirectional_reverse_iterator and
+	  random_access_reverse_iterator to match expected changes
+	  in upstream source.
+	* src/string.cc: fix definitions of stream operators.
+
+1998-07-14 16:06  Ulrich Drepper  <drepper@cygnus.com>
+
+	* Makefile.am (SUBDIRS): Add string.
+
+	* configure.in: Test for long double functions separately.  Test for
+	ISO C 89 float functions.  Test for endian.h and sys/isa_defs.h.
+	Generate string/Makefile.
+
+	* bits/c++config.h: Define mbstate_t for Solaris.
+
+	* bits/char_traits.h: Remove unused #if.
+
+	* bits/std_cwchar.h: Declare wide char string functions.
+
+	* m4/stringfcts.m4: New file.
+
+	* math/complex-stub.h: Declare nan.
+	* math/nan.c: New file.
+
+	* math/mathconf.h: Hack around missing endian.h file.
+	Handle missing NAN definition.
+	Handle missing float math functions.
+
+	* src/Makefile.am (libstdc___la_LIBADD): Add libstring.la.
+	(libstdc___la_LDFLAGS): Set version information.
+
+	* src/complexl.cc: Don't compile any code if no long double functions
+	are available.
+
+	* string/Makefile.am: New file.
+	* string/dummy.c: New file.
+	* string/wmemchr.c: New file.
+	* string/wmemcmp.c: New file.
+	* string/wmemcpy.c: New file.
+	* string/wmemmove.c: New file.
+	* string/wmemset.c: New file.
+
+1998-07-14 10:45  Ulrich Drepper  <drepper@cygnus.com>
+
+	* configure.in: Make it work.
+	* install-sh: New file.
+	* missing: New file.
+	* mkinstalldirs: New file.
+	* m4/mathfcts.m4: New file.
+	* math/Makefile.am: New file.
+
+	* bits/std_complex.h (conj): Mark specializations as inline.
+
+	* math/carg.c: New file.
+	* math/cargf.c: New file.
+	* math/cargl.c: New file.
+	* math/mycabs.c: New file.
+	* math/mycabsf.c: New file.
+	* math/mycabsl.c: New file.
+	* math/signbit.c: New file.
+	* math/signbitf.c: New file.
+	* math/signbitl.c: New file.
+
+	* math/ccos.c: Avoid ISO C 9x functionality.
+	* math/ccosf.c: Likewise.
+	* math/ccosh.c: Likewise.
+	* math/ccoshf.c: Likewise.
+	* math/ccoshl.c: Likewise.
+	* math/ccosl.c: Likewise.
+	* math/cexp.c: Likewise.
+	* math/cexpf.c: Likewise.
+	* math/cexpl.c: Likewise.
+	* math/clog.c: Likewise.
+	* math/clog10.c: Likewise.
+	* math/clog10f.c: Likewise.
+	* math/clog10l.c: Likewise.
+	* math/clogf.c: Likewise.
+	* math/clogl.c: Likewise.
+	* math/cpow.c: Likewise.
+	* math/cpowf.c: Likewise.
+	* math/cpowl.c: Likewise.
+	* math/csin.c: Likewise.
+	* math/csinf.c: Likewise.
+	* math/csinh.c: Likewise.
+	* math/csinhf.c: Likewise.
+	* math/csinhl.c: Likewise.
+	* math/csinl.c: Likewise.
+	* math/csqrt.c: Likewise.
+	* math/csqrtf.c: Likewise.
+	* math/csqrtl.c: Likewise.
+	* math/ctan.c: Likewise.
+	* math/ctanf.c: Likewise.
+	* math/ctanh.c: Likewise.
+	* math/ctanhf.c: Likewise.
+	* math/ctanhl.c: Likewise.
+	* math/ctanl.c: Likewise.
+
+	* math/complex-stub.h: New file.
+
+	* math/mathconf.h: New file.
+
+	* src/Makefile.am: New file.
+
+	* src/complex.cc: Use mathconf.h instead of complex.h.
+	Don't use cabs, always use __mycabs.
+
+1998-02-13  Brendan Kehoe  <brendan@cygnus.com>
+
+	* iterator (class reverse_iterator): Do some tweaks to be in sync
+	w/ the FDIS.
+

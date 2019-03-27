@@ -1,0 +1,3 @@
+zypper install -y --no-recommends -n binutils gcc make tar
+
+. $(dirname $0)/build

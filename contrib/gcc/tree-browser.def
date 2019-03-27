@@ -1,0 +1,98 @@
+/* Definitions and documentation for the codes used by the Tree Browser.
+   Copyright (C) 2002 Free Software Foundation, Inc.
+   Contributed by Sebastian Pop <s.pop@laposte.net>
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
+
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
+
+/* First field in the following declarations is the code of the command
+   used by the tree browser.  
+   Second field is what is parsed in order to recognize a command.
+   Third field is used for printing the help message.  */
+
+
+/* Misc. commands.  */
+DEFTBCODE (TB_EXIT,		"x",	"Exits tree-browser.")
+DEFTBCODE (TB_QUIT,             "q",    "Exits tree-browser.")
+DEFTBCODE (TB_HELP,		"h",	"Prints this help message.")
+DEFTBCODE (TB_UPDATE_UP,        "update", "Update information about parent expressions.")
+DEFTBCODE (TB_VERBOSE,          "verbose", "Sets/unsets verbose mode (default is on).")
+
+/* Walking commands.  */
+DEFTBCODE (TB_FUN,		"fun",	"Go to the current function declaration.")
+DEFTBCODE (TB_NEXT,		"nx",	"Go to the next expression in a BIND_EXPR.")
+DEFTBCODE (TB_PREV,		"pr",   "Go to the previous expression in a BIND_EXPR.")
+DEFTBCODE (TB_UP,		"up",	"Go to the parent tree node.")
+DEFTBCODE (TB_LAST,             "last", "Go to the last expression in a BIND_EXPR.")
+DEFTBCODE (TB_FIRST,            "first","Go to the first expression in a BIND_EXPR.")
+DEFTBCODE (TB_HPREV,            "hpr",  "Go to the previous visited node (history previous).")
+
+/* Fields accessors.  */
+DEFTBCODE (TB_CHILD_0,          "arg0",  "Child 0.")
+DEFTBCODE (TB_CHILD_1,          "arg1",  "Child 1.")
+DEFTBCODE (TB_CHILD_2,          "arg2",  "Child 2.")
+DEFTBCODE (TB_CHILD_3,          "arg3",  "Child 3.")
+DEFTBCODE (TB_DECL_SAVED_TREE,  "decl_saved_tree", "Body of a function.")
+DEFTBCODE (TB_TYPE,             "type", "Field accessor.")
+DEFTBCODE (TB_SIZE,             "size", "Field accessor.")
+DEFTBCODE (TB_UNIT_SIZE,        "unit_size", "Field accessor.")
+DEFTBCODE (TB_OFFSET,           "offset", "Field accessor.")
+DEFTBCODE (TB_BIT_OFFSET,       "bit_offset", "Field accessor.")
+DEFTBCODE (TB_CONTEXT,          "context", "Field accessor.")
+DEFTBCODE (TB_ATTRIBUTES,       "attributes", "Field accessor.")
+DEFTBCODE (TB_ABSTRACT_ORIGIN,  "abstract_origin", "Field accessor.")
+DEFTBCODE (TB_ARGUMENTS,        "arguments", "Field accessor.")
+DEFTBCODE (TB_RESULT,           "result", "Field accessor.")
+DEFTBCODE (TB_INITIAL,          "initial", "Field accessor.")
+DEFTBCODE (TB_ARG_TYPE,         "arg-type", "Field accessor.")
+DEFTBCODE (TB_ARG_TYPE_AS_WRITTEN, "arg-type-as-written", "Field accessor.")
+DEFTBCODE (TB_CHAIN,            "chain", "Field accessor.")
+DEFTBCODE (TB_VALUES,           "values", "Field accessor.")
+DEFTBCODE (TB_DOMAIN,           "domain", "Field accessor.")
+DEFTBCODE (TB_METHOD_BASE_TYPE, "method_basetype", "Field accessor.")
+DEFTBCODE (TB_FIELDS,           "fields", "Field accessor.")
+DEFTBCODE (TB_ARG_TYPES,        "arg-types", "Field accessor.")
+DEFTBCODE (TB_BASETYPE,         "basetype", "Field accessor.")
+DEFTBCODE (TB_POINTER_TO_THIS,  "pointer_to_this", "Field accessor.")
+DEFTBCODE (TB_REFERENCE_TO_THIS,"reference_to_this", "Field accessor.")
+DEFTBCODE (TB_VARS,             "vars", "Field accessor.")
+DEFTBCODE (TB_SUPERCONTEXT,     "supercontext", "Field accessor.")
+DEFTBCODE (TB_BODY,             "body", "Field accessor.")
+DEFTBCODE (TB_SUBBLOCKS,        "subblocks", "Field accessor.")
+DEFTBCODE (TB_BLOCK,            "block", "Field accessor.")
+DEFTBCODE (TB_REAL,             "real", "Field accessor.")
+DEFTBCODE (TB_IMAG,             "imag", "Field accessor.")
+DEFTBCODE (TB_PURPOSE,          "purpose", "Field accessor.")
+DEFTBCODE (TB_VALUE,            "value", "Field accessor.")
+DEFTBCODE (TB_ELT,              "elt", "Field accessor.")
+DEFTBCODE (TB_MIN,              "min", "Field accessor.")
+DEFTBCODE (TB_MAX,              "max", "Field accessor.")
+
+/* Searching commands.  */
+DEFTBCODE (TB_SEARCH_CODE,	"sc",	"Search a node having a TREE_CODE given as a parameter.") 
+DEFTBCODE (TB_SEARCH_NAME,	"sn",	"Search an identifier having a name given as a parameter.")
+
+/* Printing commands.  */
+DEFTBCODE (TB_PRETTY_PRINT,     "pp",   "Pretty print current node.") 
+DEFTBCODE (TB_PRINT,            "p",    "Prints the current node.")  
+
+
+/*
+Local variables:
+mode:c
+End:
+*/

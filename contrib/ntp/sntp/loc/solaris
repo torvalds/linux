@@ -1,0 +1,17 @@
+# Solaris installations and man page suffixes
+MAN
+calc_tickadj,sbin,1m
+ntp-keygen,sbin,1m
+ntp-wait,libexec,1m
+ntpd,libexec,1m
+ntpdate,sbin,1m
+ntpdc,sbin,1m
+ntpdsim,sbin,1m
+ntpq,sbin,1m
+ntpsnmpd,libexec,1m
+ntpsweep,noinst,1m
+ntptime,sbin,1m
+ntptrace,sbin,1m
+sntp,sbin,1m
+tickadj,sbin,1m
+update-leap,sbin,1m

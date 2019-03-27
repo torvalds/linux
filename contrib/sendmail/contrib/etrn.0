@@ -1,0 +1,58 @@
+System Administration Commands                           etrn(1M)
+
+
+NAME
+     etrn - start mail queue run
+
+SYNOPSIS
+     etrn [-v] server-host [client-hosts]
+
+DESCRIPTION
+     SMTP's  ETRN  command  allows  an  SMTP client and server to
+     interact, giving the server an opportunity to start the pro­
+     cessing  of  its  queues for messages to go to a given host.
+     This is meant to be used in start-up conditions, as well  as
+     for mail nodes that have transient connections to their ser­
+     vice providers.
+
+     The etrn utility initiates an SMTP  session  with  the  host
+     server-host  and sends one or more ETRN commands as follows:
+     If no client-hosts are specified, etrn looks up  every  host
+     name  for  which  sendmail(1M)  accepts  email and, for each
+     name, sends an ETRN command with that name as the  argument.
+     If  any  client-hosts are specified, etrn uses each of these
+     as arguments for successive ETRN commands.
+
+OPTIONS
+     The following option is supported:
+
+     -v    The normal mode of operation for etrn is to do all  of
+	   its  work  silently.   The -v option makes it verbose,
+	   which causes etrn to display  its  conversations  with
+	   the remote SMTP server.
+
+ENVIRONMENT
+     No environment variables are used.
+
+FILES
+     /etc/mail/sendmail.cf
+	   sendmail configuration file
+
+SEE ALSO
+     sendmail(1M), RFC 1985.
+
+CAVEATS
+     Not all SMTP servers support ETRN.
+
+CREDITS
+     Leveraged from David Muir Sharnoff's expn.pl script.  Chris­
+     tian von Roques added support for args and fixed a couple of
+     bugs.
+
+AVAILABILITY
+     The  latest  version  of  etrn  is  available in the contrib
+     directory of the sendmail distribution through anonymous ftp
+     at ftp://ftp.sendmail.org/ucb/src/sendmail/.
+
+AUTHOR
+     John T. Beck    <john@beck.org>

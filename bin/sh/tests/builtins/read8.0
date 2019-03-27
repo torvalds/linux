@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+read a b c <<\EOF
+\
+A\
+ \
+ \
+ \
+B\
+ \
+ \
+C\
+ \
+ \
+ \
+EOF
+[ "$a.$b.$c" = "A.B.C" ]

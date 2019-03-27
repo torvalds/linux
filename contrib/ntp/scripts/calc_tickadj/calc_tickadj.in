@@ -1,0 +1,59 @@
+#! @PATH_PERL@ -w
+#
+# drift of 104.8576 -> +1 tick.  Base  of 10000 ticks.
+#
+# 970306 HMS Deal with nanoseconds.  Fix sign of adjustments.
+package calc_tickadj;
+use strict;
+
+exit run(@ARGV) unless caller;
+
+sub run {
+    my $opts;
+    if (!processOptions(\@_, $opts)) {
+        usage(1);
+    };
+    my $drift_file = $opts->{'drift-file'};
+    my $tick       = $opts->{'tick'};
+
+    if (!$tick) {
+        my ($fl) = `tickadj`;
+        if (defined $fl && $fl =~ /(?:KERNEL|PRESET)?\s*tick\s+=\s+(\d+)/) {
+            $tick = $1;
+        }
+        else {
+            die "Could not get tick value, try manually with -t/--tick\n";
+        }
+    }
+
+    # Drift file is in PPM where Milion is actually 2**20
+    my $cvt   = (2 ** 20) / $tick;
+    my $drift = 0.;
+
+    open my $dfh, $drift_file or die "Could not open $drift_file: $!\n";
+
+    $drift = <$dfh>; 
+
+    close $dfh;
+    die "Invalid drift file value <$drift>" if $drift !~ /[+-]?\d+\.?[0-9]+/;
+
+    while ($drift < 0) {
+        $drift += $cvt;
+        $tick--;
+    }
+
+    while ($drift > $cvt) {
+        $drift -= $cvt;
+        $tick++;
+    }
+
+    printf "%.3f (drift)\n", $drift;
+    printf "%d usec; %d nsec\n", $tick, ($tick + ($drift/$cvt)) * 1000;
+
+    return 0;
+}
+
+@calc_tickadj_opts@
+
+1;
+__END__

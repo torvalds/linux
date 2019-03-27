@@ -1,0 +1,226 @@
+.\" Copyright (c) 2001 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and NAI Labs, the Security
+.\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
+.\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+.\" research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 26, 2001
+.Dt FFS 7
+.Os
+.Sh NAME
+.Nm ffs
+.Nd Berkeley fast file system
+.Sh SYNOPSIS
+In the kernel configuration file:
+.Cd "options FFS"
+.Cd "options QUOTA"
+.Cd "options SOFTUPDATES"
+.Cd "options SUIDDIR"
+.Cd "options UFS_ACL"
+.Cd "options UFS_DIRHASH"
+.Cd "options UFS_EXTATTR"
+.Cd "options UFS_EXTATTR_AUTOSTART"
+.Pp
+In
+.Xr fstab 5 :
+.Bd -literal -compact
+/dev/disk0a	/mnt ufs rw 1 1
+.Ed
+.Sh DESCRIPTION
+The Berkeley fast file system
+provides facilities to store file system data onto a disk device.
+.Nm
+has been optimized over the years
+for speed and reliability
+and is the default
+.Fx
+file system.
+.Ss Quotas
+.Bl -tag -width 2n
+.It Cd "options QUOTA"
+This option allows system administrators
+to set limits on disk usage
+on a per-user basis.
+Quotas can be used only on file systems
+mounted with the
+.Cm quota
+option;
+see
+.Xr quota 1
+and
+.Xr edquota 8 .
+.El
+.Ss Soft Updates
+.Bl -tag -width 2n
+.It Cd "options SOFTUPDATES"
+The soft updates feature tracks writes to the disk
+and enforces metadata update dependencies
+(e.g., updating free block maps)
+to ensure that the file system remains consistent.
+.Pp
+To enable soft updates on an
+.Em unmounted
+file system, use the following command:
+.Pp
+.D1 Nm tunefs Fl n Cm enable Ar fs
+.Pp
+.Ar fs
+can be either a mount point listed in
+.Xr fstab 5
+(e.g.,
+.Pa /usr ) ,
+or a disk device
+(e.g.,
+.Pa /dev/da0a ) .
+.El
+.Ss File Ownership Inheritance
+.Bl -tag -width 2n
+.It Cd "options SUIDDIR"
+For use in file sharing environments
+on networks including
+.Tn "Microsoft Windows"
+and
+.Tn "Apple Macintosh"
+computers,
+this option allows files on file systems
+mounted with the
+.Cm suiddir
+option
+to inherit the ownership of its directory,
+i.e.,
+.Dq "if it's my directory, it must be my file."
+.El
+.Ss Access Control Lists
+.Bl -tag -width 2n
+.It Cd "options UFS_ACL"
+Access control lists allow the association of
+fine-grained discretionary access control information
+with files and directories.
+This option requires the presence of the
+.Dv UFS_EXTATTR
+option, and it is recommended that
+.Dv UFS_EXTATTR_AUTOSTART
+is included as well,
+so that ACLs are enabled atomically upon mounting the file system.
+.El
+.Pp
+In order to enable support for ACLs,
+two extended attributes must be available in the
+.Dv EXTATTR_NAMESPACE_SYSTEM
+namespace:
+.Pa posix1e.acl_access ,
+which holds the access ACL,
+and
+.Pa posix1e.acl_default ,
+which holds the default ACL for directories.
+If you are using file system extended attributes,
+the following commands may be used to
+allocate space for and create the necessary EA backing files
+for ACLs in the root of each file system.
+In these examples, the root file system is used;
+see
+.Sx "Extended Attributes"
+for more details.
+.Bd -literal -offset indent
+mkdir -p /.attribute/system
+cd /.attribute/system
+extattrctl initattr -p / 388 posix1e.acl_access
+extattrctl initattr -p / 388 posix1e.acl_default
+.Ed
+.Pp
+On the next mount of the root file system,
+the attributes will be automatically started
+(if
+.Dv UFS_EXTATTR_AUTOSTART
+is included in the kernel configuration),
+and ACLs will be enabled.
+.Ss Directory Hashing
+.Bl -tag -width 2n
+.It Cd "options UFS_DIRHASH"
+Implements a hash-based lookup scheme for directories
+in order to speed up accesses to very large directories.
+.El
+.Ss Extended Attributes
+.Bl -tag -width 2n
+.It Cd "options UFS_EXTATTR"
+Extended attributes allow the association of
+additional arbitrary metadata with files and directories,
+which can be assigned and retrieved from userland
+as well as from within the kernel; see
+.Xr extattrctl 8 .
+.It Cd "options UFS_EXTATTR_AUTOSTART"
+If this option is defined,
+.Nm
+will search for a
+.Pa .attribute
+subdirectory of the file system root during the mount operation.
+If found, extended attribute support will be
+automatically started for that file system.
+.El
+.Pp
+The following
+.Xr sysctl 8
+MIBs are defined for use with
+.Nm :
+.Bl -hang -width ".Va vfs.ffs.doreallocblk"
+.It Va vfs.ffs.doasyncfree
+Asynchronously write out modified i-node and indirect blocks
+upon reallocating file system blocks to be contiguous.
+(Default: 1.)
+.It Va vfs.ffs.doreallocblks
+Enable support for the rearrangement of blocks
+to be contiguous.
+(Default: 1.)
+.El
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr acl 3 ,
+.Xr extattr 3 ,
+.Xr edquota 8 ,
+.Xr extattrctl 8 ,
+.Xr sysctl 8
+.Rs
+.%A M. McKusick
+.%A W. Joy
+.%A S. Leffler
+.%A R. Fabry
+.%D August 1984
+.%T "A Fast File System for UNIX"
+.%J "ACM Transactions on Computer Systems"
+.%N 2
+.%V 3
+.%P 181-197
+.Re
+.Rs
+.%A M. McKusick
+.%D June 2000
+.%T "Soft Updates: A Technique for Eliminating Most Synchronous Writes in the Fast Filesystem"
+.%J "Proceedings of the Freenix Track at the 1999 Usenix Annual Technical Conference"
+.%P 71-84
+.Re

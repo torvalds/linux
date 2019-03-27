@@ -1,0 +1,204 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ktrace.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd March 31, 2016
+.Dt KTRACE 2
+.Os
+.Sh NAME
+.Nm ktrace
+.Nd process tracing
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/time.h
+.In sys/uio.h
+.In sys/ktrace.h
+.Ft int
+.Fn ktrace "const char *tracefile" "int ops" "int trpoints" "int pid"
+.Sh DESCRIPTION
+The
+.Fn ktrace
+system call enables or disables tracing of one or more processes.
+Users may only trace their own processes.
+Only the super-user can trace setuid or setgid programs.
+.Pp
+The
+.Fa tracefile
+argument
+gives the pathname of the file to be used for tracing.
+The file must exist and be a regular file writable by the calling process.
+All trace records are always appended to the file,
+so the file must be truncated to zero length to discard
+previous trace data.
+If tracing points are being disabled (see KTROP_CLEAR below),
+.Fa tracefile
+may be NULL.
+.Pp
+The
+.Fa ops
+argument specifies the requested ktrace operation.
+The defined operations are:
+.Bl -column KTRFLAG_DESCENDXXX -offset indent
+.It KTROP_SET Ta "Enable trace points specified in"
+.Fa trpoints .
+.It KTROP_CLEAR Ta "Disable trace points specified in"
+.Fa trpoints .
+.It KTROP_CLEARFILE Ta "Stop all tracing."
+.It KTRFLAG_DESCEND Ta "The tracing change should apply to the"
+specified process and all its current children.
+.El
+.Pp
+The
+.Fa trpoints
+argument specifies the trace points of interest.
+The defined trace points are:
+.Bl -column KTRFAC_PROCCTORXXX -offset indent
+.It KTRFAC_SYSCALL Ta "Trace system calls."
+.It KTRFAC_SYSRET Ta "Trace return values from system calls."
+.It KTRFAC_NAMEI Ta "Trace name lookup operations."
+.It KTRFAC_GENIO Ta "Trace all I/O (note that this option can"
+generate much output).
+.It KTRFAC_PSIG Ta "Trace posted signals."
+.It KTRFAC_CSW Ta "Trace context switch points."
+.It KTRFAC_USER Ta "Trace application-specific events."
+.It KTRFAC_STRUCT Ta "Trace certain data structures."
+.It KTRFAC_SYSCTL Ta "Trace sysctls."
+.It KTRFAC_PROCCTOR Ta "Trace process construction."
+.It KTRFAC_PROCDTOR Ta "Trace process destruction."
+.It KTRFAC_CAPFAIL Ta "Trace capability failures."
+.It KTRFAC_FAULT Ta "Trace page faults."
+.It KTRFAC_FAULTEND Ta "Trace the end of page faults."
+.It KTRFAC_INHERIT Ta "Inherit tracing to future children."
+.El
+.Pp
+Each tracing event outputs a record composed of a generic header
+followed by a trace point specific structure.
+The generic header is:
+.Bd -literal
+struct ktr_header {
+	int		ktr_len;		/* length of buf */
+	short		ktr_type;		/* trace record type */
+	pid_t		ktr_pid;		/* process id */
+	char		ktr_comm[MAXCOMLEN+1];	/* command name */
+	struct timeval	ktr_time;		/* timestamp */
+	intptr_t	ktr_tid;		/* was ktr_buffer */
+};
+.Ed
+.Pp
+The
+.Va ktr_len
+field specifies the length of the
+.Va ktr_type
+data that follows this header.
+The
+.Va ktr_pid
+and
+.Va ktr_comm
+fields specify the process and command generating the record.
+The
+.Va ktr_time
+field gives the time (with microsecond resolution)
+that the record was generated.
+The
+.Va ktr_tid
+field holds a thread id.
+.Pp
+The generic header is followed by
+.Va ktr_len
+bytes of a
+.Va ktr_type
+record.
+The type specific records are defined in the
+.In sys/ktrace.h
+include file.
+.Sh SYSCTL TUNABLES
+The following
+.Xr sysctl 8
+tunables influence the behaviour of
+.Fn ktrace :
+.Bl -tag -width indent
+.It Va kern.ktrace.geniosize
+bounds the amount of data a traced I/O request will log
+to the trace file.
+.It Va kern.ktrace.request_pool
+bounds the number of trace events being logged at a time.
+.El
+.Pp
+Sysctl tunables that control process debuggability (as determined by
+.Xr p_candebug 9 )
+also affect the operation of
+.Fn ktrace .
+.Sh RETURN VALUES
+.Rv -std ktrace
+.Sh ERRORS
+The
+.Fn ktrace
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded 255 characters,
+or an entire path name exceeded 1023 characters.
+.It Bq Er ENOENT
+The named tracefile does not exist.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.It Bq Er ENOSYS
+The kernel was not compiled with
+.Nm
+support.
+.El
+.Pp
+A thread may be unable to log one or more tracing events due to a
+temporary shortage of resources.
+This condition is remembered by the kernel, and the next tracing request
+that succeeds will have the flag
+.Li KTR_DROP
+set in its
+.Va ktr_type
+field.
+.Sh SEE ALSO
+.Xr kdump 1 ,
+.Xr ktrace 1 ,
+.Xr utrace 2 ,
+.Xr sysctl 8 ,
+.Xr p_candebug 9
+.Sh HISTORY
+The
+.Fn ktrace
+system call first appeared in
+.Bx 4.4 .

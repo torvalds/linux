@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+# This may be expected to work, but pretty much only ash derivatives allow it.
+
+test "$(cat <<EOF)" = "hi there"
+hi there
+EOF

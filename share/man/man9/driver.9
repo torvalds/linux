@@ -1,0 +1,116 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1998 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 22, 2011
+.Dt DRIVER 9
+.Os
+.Sh NAME
+.Nm driver
+.Nd structure describing a device driver
+.Sh SYNOPSIS
+.Bd -literal
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/module.h>
+
+static int foo_probe(device_t);
+static int foo_attach(device_t);
+static int foo_detach(device_t);
+static int foo_frob(device_t, int, int);
+static int foo_twiddle(device_t, char *);
+
+static device_method_t foo_methods[] = {
+	/* Methods from the device interface */
+	DEVMETHOD(device_probe,		foo_probe),
+	DEVMETHOD(device_attach,	foo_attach),
+	DEVMETHOD(device_detach,	foo_detach),
+
+	/* Methods from the bogo interface */
+	DEVMETHOD(bogo_frob,		foo_frob),
+	DEVMETHOD(bogo_twiddle,		foo_twiddle),
+
+	/* Terminate method list */
+	DEVMETHOD_END
+};
+
+static driver_t foo_driver = {
+	"foo",
+	foo_methods,
+	sizeof(struct foo_softc)
+};
+
+static devclass_t foo_devclass;
+
+DRIVER_MODULE(foo, bogo, foo_driver, foo_devclass, NULL, NULL);
+.Ed
+.Sh DESCRIPTION
+Each driver in the kernel is described by a
+.Dv driver_t
+structure.
+The structure contains the name of the device, a pointer
+to a list of methods, an indication of the kind of device which the
+driver implements and the size of the private data which the driver
+needs to associate with a device instance.
+Each driver will implement
+one or more sets of methods (called interfaces).
+The example driver
+implements the standard "driver" interface and the fictitious "bogo"
+interface.
+.Pp
+When a driver is registered with the system (by the
+.Dv DRIVER_MODULE
+macro, see
+.Xr DRIVER_MODULE 9 ) ,
+it is added to the list of drivers contained in the devclass
+of its parent bus type.
+For instance all PCI drivers would be
+contained in the devclass named "pci" and all ISA drivers would be
+in the devclass named "isa".
+The reason the drivers are not held in the device object of the parent
+bus is to handle multiple instances of a given type of bus.
+The
+.Dv DRIVER_MODULE
+macro will also create the devclass with the name of the driver and
+can optionally call extra initialisation code in the driver by
+specifying an extra module event handler and argument as the last two
+arguments.
+.Sh SEE ALSO
+.Xr devclass 9 ,
+.Xr device 9 ,
+.Xr DEVICE_ATTACH 9 ,
+.Xr DEVICE_DETACH 9 ,
+.Xr DEVICE_IDENTIFY 9 ,
+.Xr DEVICE_PROBE 9 ,
+.Xr DEVICE_SHUTDOWN 9 ,
+.Xr DRIVER_MODULE 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

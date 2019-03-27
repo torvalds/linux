@@ -1,0 +1,112 @@
+Authors of GNU diffutils.
+
+	Copyright 2001 Free Software Foundation, Inc.
+
+	This file is part of GNU diffutils.
+
+	GNU diffutils is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2, or (at your option)
+	any later version.
+
+	GNU diffutils is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with GNU diffutils; see the file COPYING.  If not, write to
+	the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+	Boston, MA 02111-1307, USA.
+
+The following contributions warranted legal paper exchanges with the
+Free Software Foundation.  Also see files ChangeLog and THANKS.
+
+DIFFUTILS	Leonard H. Tower Jr.	US 1949	1987-03-09
+Assigns diff (diff.c, initial version).
+
+DIFFUTILS	Torbjorn Granlund	Sweden 1961	1988-01-11
+Assigns cmp.
+tege@matematik.su.se
+
+DIFFUTILS	Mike Haertel	US 1967	1988-09-16
+Assigns changes to diff.
+
+DIFFUTILS	David S. Hayes	US ?	1988-01-12
+Assigns changes to diff.
+
+DIFFUTILS	Randall Smith	US 1964	1988-09-21
+Assigns diff3.
+
+DIFFUTILS	Richard Stallman	US 1953	1988-01-15
+Assigns changes to GNU Diff.
+
+DIFFUTILS	F. Thomas May	US 1965	1989-08-22
+Assigns changes to diff (for -D).
+
+DIFFUTILS	Optimal Solutions, Inc.	1989-08-14
+Disclaims changes by Thomas May to diff.
+
+DIFFUTILS	Wayne Davison	1990-09-10
+Disclaims changes to diff.
+
+DIFFUTILS	Digital Research Inc.	1990-09-13
+Disclaims changes by Wayne Davison to diff.
+
+DIFFUTILS	Paul Eggert	1990-03-16
+Disclaims changes to diff.
+eggert@twinsun.com
+
+DIFFUTILS	Paul Eggert	1990-08-14
+Disclaims changes to GNU Diff.
+eggert@twinsun.com
+
+DIFFUTILS	Twin Sun Inc.	1990-03-16
+Disclaims changes to GNU Diff by Paul Eggert.
+
+DIFFUTILS	Twin Sun Inc.	1990-08-14
+Disclaims changes to GNU Diff by Paul Eggert.
+
+DIFFUTILS	Chip Rosenthal	US 1959	1990-03-06
+Assigns changes to diff.
+chip@chinacat.Unicom.COM
+
+DIFFUTILS	Unicom Systems Development	1990-03-06
+Disclaims changes by Chip Rosenthal to diff.
+
+GCC DIFFUTILS	Paul Eggert and Twin Sun Inc.	1992-03-11
+Disclaims changes by Paul Eggert to gcc and diff.
+eggert@twinsun.com
+
+DIFF	Wayne Davison	1993-06-20
+Disclaims diffcvt.c.
+
+DIFFUTILS	Francois Pinard	Canada 1949	1993-01-15
+Assigns wdiff and future changes submitted to the FSF.
+pinard@iro.umontreal.ca
+
+DIFFUTILS	Patrick D'Cruze	Australia 1971	1994-11-10
+Assigns changes (makefile.in, analyze.c, cmp.c, error.c, diff.c,
+diff3.c, getopt.c, getopt1.c, regex.c, sdiff.c, util.c, xmalloc.c;
+new file: language.++)
+
+DIFFUTILS	Paul R. Eggert	US 1954	1997-04-07
+Assigns past and future changes.
+eggert@twinsun.com
+
+DIFFUTILS	Paul R. Eggert	US 1954	1997-04-07
+Assigns past and future changes to manual.
+eggert@twinsun.com
+
+ANY DIFFUTILS GNATS	Cyclic Software	1997-11-11
+Assigns past and future works (work for hire by Tim Pierce (diffutils) and
+Abe Feldman (GNATS)).
+kingdon@cyclic.com
+
+WEBPAGES        Gregory B. Harvey       Canada 1976     1998-02-14
+Assigns web pages describing GNU Diffutils and future changes.
+
+DIFFUTILS	Olga Nikulin	Russia 1965	2001-01-11
+Assigns changes to diff. (diffutils-2.7.2/analyze.c, context.c, diff.[ch],
+ed.c, ifdef.c, io.c, normal.c, side.c, util.c)
+onikulin@yahoo.com

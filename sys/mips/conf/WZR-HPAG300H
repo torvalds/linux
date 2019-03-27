@@ -1,0 +1,52 @@
+#
+# Specific board setup for the Buffalo Airstation WZR-HPAG300H
+#
+# The WZR-HPAG300H has the following hardware:
+#
+# + AR7161 CPU SoC
+# + 2x AR9280 5GHz 11n
+# + AR8136 Gigabit switch
+# + 2 m25ll128(really w25q128)  based 16MB flash
+# + 128MB RAM
+# + uboot environment
+
+# $FreeBSD$
+
+#NO_UNIVERSE
+
+include		"AR71XX_BASE"
+ident		"WZR-HPAG300H"
+hints		"WZR-HPAG300H.hints"
+
+options 	AR71XX_REALMEM=128*1024*1024
+
+options 	AR71XX_ENV_UBOOT
+
+options 	BOOTVERBOSE
+
+# GEOM modules
+device		xz
+options		GEOM_UZIP
+device		geom_map	# to get access to the SPI flash partitions
+
+options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uzip\"
+
+options 	AR71XX_ATH_EEPROM	# Fetch EEPROM/PCI config from flash
+options 	ATH_EEPROM_FIRMWARE	# Use EEPROM from flash
+device		firmware		# Used by the above
+
+# Options required for miiproxy and mdiobus
+options         ARGE_MDIO               # Export an MDIO bus separate from arge
+device          miiproxy                # MDIO bus <-> MII PHY rendezvous
+
+device          etherswitch
+device          arswitch
+
+# hwpmc
+device		hwpmc_mips24k
+device		hwpmc
+
+# load these via modules, shrink kernel
+nodevice	if_bridge
+nodevice	bridgestp
+nodevice	random

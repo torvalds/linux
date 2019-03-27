@@ -1,0 +1,87 @@
+=pod
+
+=head1 NAME
+
+X509_get_pubkey, X509_get0_pubkey, X509_set_pubkey, X509_get_X509_PUBKEY,
+X509_REQ_get_pubkey, X509_REQ_get0_pubkey, X509_REQ_set_pubkey,
+X509_REQ_get_X509_PUBKEY - get or set certificate or certificate request
+public key
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509.h>
+
+ EVP_PKEY *X509_get_pubkey(X509 *x);
+ EVP_PKEY *X509_get0_pubkey(const X509 *x);
+ int X509_set_pubkey(X509 *x, EVP_PKEY *pkey);
+ X509_PUBKEY *X509_get_X509_PUBKEY(X509 *x);
+
+ EVP_PKEY *X509_REQ_get_pubkey(X509_REQ *req);
+ EVP_PKEY *X509_REQ_get0_pubkey(X509_REQ *req);
+ int X509_REQ_set_pubkey(X509_REQ *x, EVP_PKEY *pkey);
+ X509_PUBKEY *X509_REQ_get_X509_PUBKEY(X509_REQ *x);
+
+=head1 DESCRIPTION
+
+X509_get_pubkey() attempts to decode the public key for certificate B<x>. If
+successful it returns the public key as an B<EVP_PKEY> pointer with its
+reference count incremented: this means the returned key must be freed up
+after use. X509_get0_pubkey() is similar except it does B<not> increment
+the reference count of the returned B<EVP_PKEY> so it must not be freed up
+after use.
+
+X509_get_X509_PUBKEY() returns an internal pointer to the B<X509_PUBKEY>
+structure which encodes the certificate of B<x>. The returned value
+must not be freed up after use.
+
+X509_set_pubkey() attempts to set the public key for certificate B<x> to
+B<pkey>. The key B<pkey> should be freed up after use.
+
+X509_REQ_get_pubkey(), X509_REQ_get0_pubkey(), X509_REQ_set_pubkey() and
+X509_REQ_get_X509_PUBKEY() are similar but operate on certificate request B<req>.
+
+=head1 NOTES
+
+The first time a public key is decoded the B<EVP_PKEY> structure is
+cached in the certificate or certificate request itself. Subsequent calls
+return the cached structure with its reference count incremented to
+improve performance.
+
+=head1 RETURN VALUES
+
+X509_get_pubkey(), X509_get0_pubkey(), X509_get_X509_PUBKEY(),
+X509_REQ_get_pubkey() and X509_REQ_get_X509_PUBKEY() return a public key or
+B<NULL> if an error occurred.
+
+X509_set_pubkey() and X509_REQ_set_pubkey() return 1 for success and 0
+for failure.
+
+=head1 SEE ALSO
+
+L<d2i_X509(3)>,
+L<ERR_get_error(3)>,
+L<X509_CRL_get0_by_serial(3)>,
+L<X509_get0_signature(3)>,
+L<X509_get_ext_d2i(3)>,
+L<X509_get_extension_flags(3)>,
+L<X509_get_subject_name(3)>,
+L<X509_get_version(3)>,
+L<X509_NAME_add_entry_by_txt(3)>,
+L<X509_NAME_ENTRY_get_object(3)>,
+L<X509_NAME_get_index_by_NID(3)>,
+L<X509_NAME_print_ex(3)>,
+L<X509_new(3)>,
+L<X509_sign(3)>,
+L<X509V3_get_d2i(3)>,
+L<X509_verify_cert(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

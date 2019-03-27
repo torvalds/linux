@@ -1,0 +1,68 @@
+2007-06-05  Joerg Wunsch  <j.gnu@uriah.heep.sax.de> (r250566)
+
+	PR preprocessor/23479
+	* expr.c (cpp_classify_number): Implement 0b-prefixed binary
+	integer constants.
+	(append_digit): Likewise.
+	* include/cpplib.h: Add CPP_N_BINARY, to be used for 0b-prefixed
+	binary integer constants.
+	
+2007-05-31  Dave Korn  <dave.korn@artimi.com> (r125212)
+
+	PR preprocessor/14331
+	* lex.c (_cpp_get_fresh_line):  Don't warn if no newline at EOF.
+
+2007-05-24  Ollie Wild  <aaw@google.com> (r125041)
+
+	* macro.c (_cpp_builtin_macro_text): Handle BT_COUNTER.
+	* pch.c (cpp_write_pch_deps): Save __COUNTER__ state.
+	(cpp_write_pch_state): Save __COUNTER__ state.
+	(cpp_valid_state): Check valid __COUNTER__ state.
+	(cpp_read_state): Read new __COUNTER__ state.
+	* include/cpplib.h (enum builtin_type): Add BT_COUNTER enumerator.
+	* init.c (builtin_array): Add __COUNTER__/BT_COUNTER.
+	* internal.h (struct cpp_reader): Add counter member.
+
+2007-05-21  Ian Lance Taylor  <iant@google.com> (r124929)
+
+	* internal.h (struct cpp_reader): Add new fields:
+	nonexistent_file_hash and nonexistent_file_ob.
+	* files.c: Include "obstack.h".
+	(find_file_in_dir): Before trying to open the file, look up the
+	path name in the hash table of nonexistent files.  After failing
+	to open the file, add the path name to the hash table.
+	(_cpp_find_file): Cache the results of looking up the file name
+	starting with the quote and bracket chain heads, if we can.
+	(nonexistent_file_hash_eq): New static function.
+	(_cpp_init_files): Initialize pfile->nonexistent_file_hash and
+	pfile->nonexistent_file_ob.
+	(_cpp_cleanup_files): Free pfile->nonexistent_file_hash and
+	pfile->nonexistent_file_ob.
+
+2007-05-14  Janis Johnson  <janis187@us.ibm.com> (r124731)
+
+	PR c/31924
+	* expr.c (interpret_float_suffix): Check for invalid suffix.
+
+2007-05-02  Eric Christopher  <echristo@apple.com> (r124358)
+
+	* expr.c (num_div_op): Don't overflow if the result is
+	zero.
+
+2007-05-02  Tom Tromey  <tromey@redhat.com> (r124356)
+
+	PR preprocessor/28709:
+	* macro.c (paste_tokens): Remove PASTE_LEFT from the old lhs.
+
+2007-01-30  Tom Tromey  <tromey@redhat.com> (r121340)
+
+	PR preprocessor/29966:
+	* macro.c (lex_expansion_token): Save and restore cpp_reader's
+	cur_token.
+	(_cpp_create_definition): Don't restore cur_token here.
+	* lex.c (_cpp_lex_token): Added assertion.
+
+2006-12-29  Ian Lance Taylor  <iant@google.com> (r120263)
+
+	* lex.c (_cpp_clean_line): Add uses of __builtin_expect.  Don't
+	look backward at the end of the line unless we saw a backslash.

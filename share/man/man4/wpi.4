@@ -1,0 +1,218 @@
+.\" Copyright (c) 2004-2007
+.\"	Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
+.\"	Benjamin Close <Benjamin.Close@clearchain.com>. All rights reserved.
+.\" Copyright (c) 2016 Andriy Voskoboinyk <avos@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice unmodified, this list of conditions, and the following
+.\"    disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 31, 2016
+.Dt WPI 4
+.Os
+.Sh NAME
+.Nm wpi
+.Nd "Intel 3945ABG Wireless LAN IEEE 802.11 driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device wpi"
+.Cd "device wpifw"
+.Cd "device pci"
+.Cd "device wlan"
+.Cd "device wlan_amrr"
+.Cd "device firmware"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_wpi_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Tn Intel
+3945ABG Wireless network adapter.
+The driver supports
+.Cm station ,
+.Cm adhoc ,
+.Cm adhoc-demo ,
+.Cm hostap ,
+and
+.Cm monitor
+mode operation.
+Only one virtual interface may be configured at any time.
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA-PSK and WPA2-PSK).
+WPA is the de facto encryption standard for wireless networks.
+It is strongly recommended that WEP
+not be used as the sole mechanism
+to secure wireless communication,
+due to serious weaknesses in it.
+The
+.Nm
+driver offloads both encryption and decryption of data frames to the
+hardware for the CCMP cipher.
+.Pp
+This driver requires the firmware built with the
+.Nm wpifw 4
+module to work.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8 .
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/doc/legal/intel_wpi.LICENSE" -compact
+.It Pa /usr/share/doc/legal/intel_wpi.LICENSE
+.Nm
+firmware license
+.El
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev wpi0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wlan0 create wlandev wpi0 ssid my_net up"
+.Pp
+Join a specific BSS network with 64-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev wpi0 ssid my_net \e
+	wepmode on wepkey 0x1234567890 weptxkey 1 up
+.Ed
+.Pp
+Create an IBSS network with 128-bit WEP encryption on the channel 4:
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev wpi0 wlanmode adhoc ssid my_net \e
+	wepmode on wepkey 0x01020304050607080910111213 weptxkey 1 \e
+	channel 4
+.Ed
+.Pp
+Join/create an 802.11b IBSS network with network name
+.Dq Li my_net :
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev wpi0 wlanmode adhoc
+ifconfig wlan0 inet 192.168.0.22 netmask 0xffffff00 ssid my_net \e
+	mode 11b
+.Ed
+.Pp
+Create an 802.11g host-based access point:
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev wpi0 wlanmode hostap
+ifconfig wlan0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
+	mode 11g
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "wpi%d: could not load firmware image '%s'"
+The driver failed to load the firmware image using the
+.Xr firmware 9
+subsystem.
+Verify the
+.Xr wpifw 4
+firmware module is installed.
+.It "wpi%d: %s: timeout waiting for adapter to initialize, error %d"
+The onboard microcontroller failed to initialize in time.
+This should not happen.
+.It "wpi%d: %s: could not load boot firmware"
+An attempt to upload the boot firmware image to the onboard microcontroller
+failed.
+This should not happen.
+.It "wpi%d: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware and continue.
+This should not happen.
+.It "wpi%d: scan timeout"
+Firmware scan command response was not received in time.
+The driver will reset the hardware and continue.
+This should not happen.
+.It "wpi%d: fatal firmware error"
+The onboard microcontroller crashed for some reason.
+The driver will reset the hardware and continue.
+This should not happen.
+.It "wpi%d: RF switch: radio disabled"
+The hardware switch controlling the radio is currently turned off.
+Data transmission is not possible in this state.
+.It "wpi%d: can't map mem space"
+The driver was unable to map the device registers into the host address space.
+This should not happen.
+.It "wpi%d: can't map interrupt"
+The driver was unable to allocate an IRQ for the device interrupt.
+This should not happen.
+.It "wpi%d: can't establish interrupt, error %d"
+The driver was unable to install the device interrupt handler.
+This should not happen.
+.It "wpi%d: %s: bus_dmamap_load failed, error %d"
+The driver was unable to map newly allocated mbuf to device
+visible address space.
+Contents of currently received frame will be lost.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr pci 4 ,
+.Xr wlan 4 ,
+.Xr wlan_amrr 4 ,
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr wlan_xauth 4 ,
+.Xr wpifw 4 ,
+.Xr hostapd 8 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Sh AUTHORS
+.An -nosplit
+The original
+.Nm
+driver was written for
+.Ox
+by
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .
+.An Benjamin Close Aq Mt benjsc@FreeBSD.org
+ported
+.Nm
+to
+.Fx .
+.Sh CAVEATS
+Hostap mode is not directly supported by the device;
+it is implemented through IBSS mode (as a result, DFS/passive
+channels are not available in this mode).
+.Pp
+Powersave may be unstable on some networks (results in
+occasional 'wpi%d: device timeout' messages); you can try
+to disable it to improve device stability.

@@ -1,0 +1,74 @@
+.\" Copyright (c) 2001 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd July  1, 2001
+.Dt KRB5_GET_ADDRS 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_get_all_client_addrs ,
+.Nm krb5_get_all_server_addrs
+.Nd return local addresses
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Ft "krb5_error_code"
+.Fn krb5_get_all_client_addrs "krb5_context context" "krb5_addresses *addrs"
+.Ft "krb5_error_code"
+.Fn krb5_get_all_server_addrs "krb5_context context" "krb5_addresses *addrs"
+.Sh DESCRIPTION
+These functions return in
+.Fa addrs
+a list of addresses associated with the local
+host.
+.Pp
+The server variant returns all configured interface addresses (if
+possible), including loop-back addresses. This is useful if you want
+to create sockets to listen to.
+.Pp
+The client version will also scan local interfaces (can be turned off
+by setting
+.Li libdefaults/scan_interfaces
+to false in
+.Pa krb5.conf ) ,
+but will not include loop-back addresses, unless there are no other
+addresses found. It will remove all addresses included in
+.Li libdefaults/ignore_addresses
+but will unconditionally include addresses in
+.Li libdefaults/extra_addresses .
+.Pp
+The returned addresses should be freed by calling
+.Fn krb5_free_addresses .
+.\".Sh EXAMPLE
+.Sh SEE ALSO
+.Xr krb5_free_addresses 3

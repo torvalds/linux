@@ -1,0 +1,1022 @@
+/* -*- Mode: Text -*- */
+
+autogen definitions options;
+
+#include copyright.def
+#include homerc.def
+#include autogen-version.def
+
+prog-name      = "ntpq";
+prog-title     = "standard NTP query program";
+argument       = '[ host ...]';
+
+flag = {
+    name      = ipv4;
+    flags-cant = ipv6;
+    value     = 4;
+    descrip   = "Force IPv4 name resolution";
+    doc = <<-  _EndOfDoc_
+	Force resolution of following host names on the command line
+	to the IPv4 namespace.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = ipv6;
+    flags-cant = ipv4;
+    value     = 6;
+    descrip   = "Force IPv6 name resolution";
+    doc = <<-  _EndOfDoc_
+	Force resolution of following host names on the command line
+	to the IPv6 namespace.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = command;
+    value     = c;
+    arg-type  = string;
+    descrip   = "run a command and exit";
+    max       = NOLIMIT;
+    arg-name  = cmd;
+    call-proc = ntpq_custom_opt_handler;
+    doc = <<-  _EndOfDoc_
+	The following argument is interpreted as an interactive format command
+	and is added to the list of commands to be executed on the specified
+	host(s).
+	_EndOfDoc_;
+};
+
+#include debug-opt.def
+
+flag = {
+    name      = interactive;
+    value     = i;
+    flags-cant = command, peers;
+    descrip   = "Force ntpq to operate in interactive mode";
+    doc = <<-  _EndOfDoc_
+	Force @code{ntpq} to operate in interactive mode.
+	Prompts will be written to the standard output and
+	commands read from the standard input.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = numeric;
+    value     = n;
+    descrip   = "numeric host addresses";
+    doc = <<-  _EndOfDoc_
+	Output all host addresses in dotted-quad numeric format rather than
+	converting to the canonical host names.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = old-rv;
+    descrip   = "Always output status line with readvar";
+    doc = <<-  _EndOfDoc_
+	By default, @code{ntpq} now suppresses the @code{associd=...}
+	line that precedes the output of @code{readvar}
+	(alias @code{rv}) when a single variable is requested, such as
+	@code{ntpq -c "rv 0 offset"}.
+	This option causes @code{ntpq} to include both lines of output
+	for a single-variable @code{readvar}.
+	Using an environment variable to
+	preset this option in a script will enable both older and
+	newer @code{ntpq} to behave identically in this regard.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = peers;
+    value     = p;
+    descrip   = "Print a list of the peers";
+    flags-cant = interactive;
+    call-proc = ntpq_custom_opt_handler;
+    doc = <<-  _EndOfDoc_
+	Print a list of the peers known to the server as well as a summary
+	of their state. This is equivalent to the 'peers' interactive command.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = refid;
+    value     = r;
+    descrip   = "Set default display type for S2+ refids";
+    arg-type  = keyword;
+    keyword   = hash, ipv4;
+    arg-default = ipv4;
+    doc = <<-  _EndOfDoc_
+	Set the default display format for S2+ refids.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = wide;
+    value     = w;
+    descrip   = "Display the full 'remote' value";
+    doc = <<-  _EndOfDoc_
+	Display the full value of the 'remote' value.  If this requires
+	more than 15 characters, display the full value, emit a newline,
+	and continue the data display properly indented on the next line.
+	_EndOfDoc_;
+};
+
+doc-section	= {
+  ds-type	= 'DESCRIPTION';
+  ds-format	= 'mdoc';
+  ds-text	= <<-  _END_PROG_MDOC_DESCRIP
+.Pp
+The
+.Nm
+utility program is used to query NTP servers to monitor NTP operations
+and performance, requesting
+information about current state and/or changes in that state.
+The program may be run either in interactive mode or controlled using
+command line arguments.
+Requests to read and write arbitrary
+variables can be assembled, with raw and pretty-printed output
+options being available.
+The
+.Nm
+utility can also obtain and print a
+list of peers in a common format by sending multiple queries to the
+server.
+.Pp
+If one or more request options is included on the command line
+when
+.Nm
+is executed, each of the requests will be sent
+to the NTP servers running on each of the hosts given as command
+line arguments, or on localhost by default.
+If no request options
+are given,
+.Nm
+will attempt to read commands from the
+standard input and execute these on the NTP server running on the
+first host given on the command line, again defaulting to localhost
+when no other host is specified.
+The
+.Nm
+utility will prompt for
+commands if the standard input is a terminal device.
+.Pp
+.Nm
+uses NTP mode 6 packets to communicate with the
+NTP server, and hence can be used to query any compatible server on
+the network which permits it.
+Note that since NTP is a UDP protocol
+this communication will be somewhat unreliable, especially over
+large distances in terms of network topology.
+The
+.Nm
+utility makes
+one attempt to retransmit requests, and will time requests out if
+the remote host is not heard from within a suitable timeout
+time.
+.Pp
+Note that in contexts where a host name is expected, a
+.Fl 4
+qualifier preceding the host name forces resolution to the IPv4
+namespace, while a
+.Fl 6
+qualifier forces resolution to the IPv6 namespace.
+For examples and usage, see the
+.Dq NTP Debugging Techniques
+page.
+.Pp
+Specifying a
+command line option other than
+.Fl i
+or
+.Fl n
+will
+cause the specified query (queries) to be sent to the indicated
+host(s) immediately.
+Otherwise,
+.Nm
+will attempt to read
+interactive format commands from the standard input.
+
+.Ss "Internal Commands"
+.Pp
+Interactive format commands consist of a keyword followed by zero
+to four arguments.
+Only enough characters of the full keyword to
+uniquely identify the command need be typed.
+.Pp
+A
+number of interactive format commands are executed entirely within
+the
+.Nm
+utility itself and do not result in NTP
+requests being sent to a server.
+These are described following.
+.Bl -tag -width "help [command]" -compact -offset indent
+.It Ic ? Op Ar command
+.It Ic help Op Ar command
+A
+.Ql \&?
+by itself will print a list of all the commands
+known to
+.Nm .
+A
+.Ql \&?
+followed by a command name will print function and usage
+information about the command.
+.It Ic addvars Ar name Ns Oo \&= Ns Ar value Oc Ns Op ,...
+.It Ic rmvars Ar name Ns Op ,...
+.It Ic clearvars
+.It Ic showvars
+The arguments to this command consist of a list of
+items of the form
+.Ar name Ns Op \&= Ns Ar value ,
+where the
+.No \&= Ns Ar value
+is ignored, and can be omitted,
+in requests to the server to read variables.
+The
+.Nm
+utility maintains an internal list in which data to be included in
+messages can be assembled, and displayed or set using the
+.Ic readlist
+and
+.Ic writelist
+commands described below.
+The
+.Ic addvars
+command allows variables and their optional values to be added to
+the list.
+If more than one variable is to be added, the list should
+be comma-separated and not contain white space.
+The
+.Ic rmvars
+command can be used to remove individual variables from the list,
+while the
+.Ic clearvars
+command removes all variables from the
+list.
+The
+.Ic showvars
+command displays the current list of optional variables.
+.It Ic authenticate Op Cm yes Ns | Ns Cm no
+Normally
+.Nm
+does not authenticate requests unless
+they are write requests.
+The command
+.Ic authenticate Cm yes
+causes
+.Nm
+to send authentication with all requests it
+makes.
+Authenticated requests causes some servers to handle
+requests slightly differently.
+The command
+.Ic authenticate
+causes
+.Nm
+to display whether or not
+it is currently authenticating requests.
+.It Ic cooked
+Causes output from query commands to be "cooked", so that
+variables which are recognized by
+.Nm
+will have their
+values reformatted for human consumption.
+Variables which
+.Nm
+could not decode completely are
+marked with a trailing
+.Ql \&? .
+.It Ic debug Op Cm more Ns | Ns Cm less Ns | Ns Cm off
+With no argument, displays the current debug level.
+Otherwise, the debugging level is changed as indicated.
+.It Ic delay Op Ar milliseconds
+Specify a time interval to be added to timestamps included in
+requests which require authentication.
+This is used to enable
+(unreliable) server reconfiguration over long delay network paths
+or between machines whose clocks are unsynchronized.
+Actually the
+server does not now require timestamps in authenticated requests,
+so this command may be obsolete.
+Without any arguments, displays the current delay.
+.It Ic drefid Op Cm hash Ns | Ns Cm ipv4
+Display refids as IPv4 or hash.
+Without any arguments, displays whether refids are shown as IPv4
+addresses or hashes.
+.It Ic exit
+Exit
+.Nm .
+.It Ic host Op Ar name
+Set the host to which future queries will be sent.
+The
+.Ar name
+may be either a host name or a numeric address.
+Without any arguments, displays the current host.
+.It Ic hostnames Op Cm yes Ns | Ns Cm no
+If
+.Cm yes
+is specified, host names are printed in
+information displays.
+If
+.Cm no
+is specified, numeric
+addresses are printed instead.
+The default is
+.Cm yes ,
+unless
+modified using the command line
+.Fl n
+switch.
+Without any arguments, displays whether host names or numeric addresses
+are shown.
+.It Ic keyid Op Ar keyid
+This command allows the specification of a key number to be
+used to authenticate configuration requests.
+This must correspond
+to the
+.Cm controlkey
+key number the server has been configured to use for this
+purpose.
+Without any arguments, displays the current
+.Ar keyid .
+.It Ic keytype Op Ar digest
+Specify the digest algorithm to use for authenticating requests, with default
+.Cm MD5 .
+If
+.Nm
+was built with OpenSSL support, and OpenSSL is installed,
+.Ar digest
+can be any message digest algorithm supported by OpenSSL.
+If no argument is given, the current
+.Ic keytype Ar digest
+algorithm used is displayed.
+.It Ic ntpversion Op Cm 1 Ns | Ns Cm 2 Ns | Ns Cm 3 Ns | Ns Cm 4
+Sets the NTP version number which
+.Nm
+claims in
+packets.
+Defaults to 3, and note that mode 6 control messages (and
+modes, for that matter) didn't exist in NTP version 1.
+There appear
+to be no servers left which demand version 1.
+With no argument, displays the current NTP version that will be used
+when communicating with servers.
+.It Ic passwd
+This command prompts you to type in a password (which will not
+be echoed) which will be used to authenticate configuration
+requests.
+The password must correspond to the key configured for
+use by the NTP server for this purpose if such requests are to be
+successful.
+.It Ic poll Oo Ar n Oc Op Cm verbose
+Poll an NTP server in client mode
+.Ar n
+times.
+Poll not implemented yet.
+.It Ic quit
+Exit
+.Nm .
+.It Ic raw
+Causes all output from query commands is printed as received
+from the remote server.
+The only formating/interpretation done on
+the data is to transform nonascii data into a printable (but barely
+understandable) form.
+.It Ic timeout Op Ar milliseconds
+Specify a timeout period for responses to server queries.
+The
+default is about 5000 milliseconds.
+Without any arguments, displays the current timeout period.
+Note that since
+.Nm
+retries each query once after a timeout, the total waiting time for
+a timeout will be twice the timeout value set.
+.It Ic version
+Display the version of the
+.Nm
+program.
+.El
+
+.Ss "Control Message Commands"
+Association ids are used to identify system, peer and clock variables.
+System variables are assigned an association id of zero and system name
+space, while each association is assigned a nonzero association id and
+peer namespace.
+Most control commands send a single message to the server and expect a
+single response message.
+The exceptions are the
+.Ic peers
+command, which sends a series of messages,
+and the
+.Ic mreadlist
+and
+.Ic mreadvar
+commands, which iterate over a range of associations.
+.Bl -tag -width "something" -compact -offset indent
+.It Ic apeers
+Display a list of peers in the form:
+.Dl [tally]remote refid assid st t when pool reach delay offset jitter
+where the output is just like the
+.Ic peers
+command except that the
+.Cm refid
+is displayed in hex format and the association number is also displayed.
+.It Ic associations
+Display a list of mobilized associations in the form:
+.Dl ind assid status conf reach auth condition last_event cnt
+.Bl -column -offset indent ".Sy Variable" "see the select field of the peer status word"
+.It Sy Variable Ta Sy Description
+.It Cm ind Ta index on this list
+.It Cm assid Ta association id
+.It Cm status Ta peer status word
+.It Cm conf Ta Cm yes : No persistent, Cm no : No ephemeral
+.It Cm reach Ta Cm yes : No reachable, Cm no : No unreachable
+.It Cm auth Ta Cm ok , Cm yes , Cm bad No and Cm none
+.It Cm condition Ta selection status \&(see the Cm select No field of the peer status word\&)
+.It Cm last_event Ta event report \&(see the Cm event No field of the peer status word\&)
+.It Cm cnt Ta event count \&(see the Cm count No field of the peer status word\&)
+.El
+.It Ic authinfo
+Display the authentication statistics counters:
+time since reset, stored keys, free keys, key lookups, keys not found,
+uncached keys, expired keys, encryptions, decryptions.
+.It Ic clocklist Op Ar associd
+.It Ic cl Op Ar associd
+Display all clock variables in the variable list for those associations
+supporting a reference clock.
+.It Ic clockvar Oo Ar associd Oc Oo Ar name Ns Oo \&= Ns Ar value Oc Ns Oc Ns Op ,...
+.It Ic cv Oo Ar associd Oc Oo Ar name Ns Oo \&= Ns Ar value Oc Ns Oc Ns Op ,...
+Display a list of clock variables for those associations supporting a
+reference clock.
+.It Ic :config Ar "configuration command line"
+Send the remainder of the command line, including whitespace, to the
+server as a run-time configuration command in the same format as a line
+in the configuration file.
+This command is experimental until further notice and clarification.
+Authentication is of course required.
+.It Ic config-from-file Ar filename
+Send each line of
+.Ar filename
+to the server as run-time configuration commands in the same format as
+lines in the configuration file.
+This command is experimental until further notice and clarification.
+Authentication is required.
+.It Ic ifstats
+Display status and statistics counters for each local network interface address:
+interface number, interface name and address or broadcast, drop, flag,
+ttl, mc, received, sent, send failed, peers, uptime.
+Authentication is required.
+.It Ic iostats
+Display network and reference clock I/O statistics:
+time since reset, receive buffers, free receive buffers, used receive buffers,
+low water refills, dropped packets, ignored packets, received packets,
+packets sent, packet send failures, input wakeups, useful input wakeups.
+.It Ic kerninfo
+Display kernel loop and PPS statistics:
+associd, status, pll offset, pll frequency, maximum error,
+estimated error, kernel status, pll time constant, precision,
+frequency tolerance, pps frequency, pps stability, pps jitter,
+calibration interval, calibration cycles, jitter exceeded,
+stability exceeded, calibration errors.
+As with other ntpq output, times are in milliseconds; very small values
+may be shown as exponentials.
+The precision value displayed is in milliseconds as well, unlike the
+precision system variable.
+.It Ic lassociations
+Perform the same function as the associations command, except display
+mobilized and unmobilized associations, including all clients.
+.It Ic lopeers Op Fl 4 Ns | Ns Fl 6
+Display a list of all peers and clients showing
+.Cm dstadr
+(associated with the given IP version).
+.It Ic lpassociations
+Display the last obtained list of associations, including all clients.
+.It Ic lpeers Op Fl 4 Ns | Ns Fl 6
+Display a list of all peers and clients (associated with the given IP version).
+.It Ic monstats
+Display monitor facility status, statistics, and limits:
+enabled, addresses, peak addresses, maximum addresses,
+reclaim above count, reclaim older than, kilobytes, maximum kilobytes.
+.It Ic mreadlist Ar associdlo Ar associdhi
+.It Ic mrl Ar associdlo Ar associdhi
+Perform the same function as the
+.Ic readlist
+command for a range of association ids.
+.It Ic mreadvar Ar associdlo Ar associdhi Oo Ar name Oc Ns Op ,...
+This range may be determined from the list displayed by any
+command showing associations.
+.It Ic mrv Ar associdlo Ar associdhi Oo Ar name Oc Ns Op ,...
+Perform the same function as the
+.Ic readvar
+command for a range of association ids.
+This range may be determined from the list displayed by any
+command showing associations.
+.It Xo Ic mrulist Oo Cm limited | Cm kod | Cm mincount Ns \&= Ns Ar count |
+.Cm laddr Ns \&= Ns Ar localaddr | Cm sort Ns \&= Ns Oo \&- Oc Ns Ar sortorder |
+.Cm resany Ns \&= Ns Ar hexmask | Cm resall Ns \&= Ns Ar hexmask Oc
+.Xc
+Display traffic counts of the most recently seen source addresses
+collected and maintained by the monitor facility.
+With the exception of
+.Cm sort Ns \&= Ns Oo \&- Oc Ns Ar sortorder ,
+the options filter the list returned by
+.Xr ntpd 8 .
+The
+.Cm limited
+and
+.Cm kod
+options return only entries representing client addresses from which the
+last packet received triggered either discarding or a KoD response.
+The
+.Cm mincount Ns = Ns Ar count
+option filters entries representing less than
+.Ar count
+packets.
+The
+.Cm laddr Ns = Ns Ar localaddr
+option filters entries for packets received on any local address other than
+.Ar localaddr .
+.Cm resany Ns = Ns Ar hexmask
+and
+.Cm resall Ns = Ns Ar hexmask
+filter entries containing none or less than all, respectively, of the bits in
+.Ar hexmask ,
+which must begin with
+.Cm 0x .
+The
+.Ar sortorder
+defaults to
+.Cm lstint
+and may be 
+.Cm addr ,
+.Cm avgint ,
+.Cm count ,
+.Cm lstint ,
+or any of those preceded by
+.Ql \&-
+to reverse the sort order.
+The output columns are:
+.Bl -tag -width "something" -compact -offset indent
+.It Column
+Description
+.It Ic lstint
+Interval in seconds between the receipt of the most recent packet from
+this address and the completion of the retrieval of the MRU list by
+.Nm .
+.It Ic avgint
+Average interval in s between packets from this address.
+.It Ic rstr
+Restriction flags associated with this address.
+Most are copied unchanged from the matching
+.Ic restrict
+command, however 0x400 (kod) and 0x20 (limited) flags are cleared unless
+the last packet from this address triggered a rate control response.
+.It Ic r
+Rate control indicator, either
+a period,
+.Ic L
+or
+.Ic K
+for no rate control response,
+rate limiting by discarding, or rate limiting with a KoD response, respectively.
+.It Ic m
+Packet mode.
+.It Ic v
+Packet version number.
+.It Ic count
+Packets received from this address.
+.It Ic rport
+Source port of last packet from this address.
+.It Ic remote address
+host or DNS name, numeric address, or address followed by
+claimed DNS name which could not be verified in parentheses.
+.El
+.It Ic opeers Op Fl 4 | Fl 6
+Obtain and print the old-style list of all peers and clients showing
+.Cm dstadr
+(associated with the given IP version),
+rather than the
+.Cm refid .
+.It Ic passociations
+Perform the same function as the
+.Ic associations
+command,
+except that it uses previously stored data rather than making a new query.
+.It Ic peers
+Display a list of peers in the form:
+.Dl [tally]remote refid st t when pool reach delay offset jitter
+.Bl -tag -width "something" -compact -offset indent
+.It Variable
+Description
+.It Cm [tally]
+single-character code indicating current value of the
+.Ic select
+field of the
+.Lk decode.html#peer "peer status word"
+.It Cm remote
+host name (or IP number) of peer.
+The value displayed will be truncated to 15 characters unless the
+.Nm
+.Fl w
+option is given, in which case the full value will be displayed
+on the first line, and if too long,
+the remaining data will be displayed on the next line.
+.It Cm refid
+source IP address or
+.Lk decode.html#kiss "'kiss code"
+.It Cm st
+stratum: 0 for local reference clocks, 1 for servers with local
+reference clocks, ..., 16 for unsynchronized server clocks
+.It Cm t
+.Ic u :
+unicast or manycast client,
+.Ic b :
+broadcast or multicast client,
+.Ic p :
+pool source,
+.Ic l :
+local (reference clock),
+.Ic s :
+symmetric (peer),
+.Ic A :
+manycast server,
+.Ic B :
+broadcast server,
+.Ic M :
+multicast server
+.It Cm when
+time in seconds, minutes, hours, or days since the last packet
+was received, or
+.Ql \&-
+if a packet has never been received
+.It Cm poll
+poll interval (s)
+.It Cm reach
+reach shift register (octal)
+.It Cm delay
+roundtrip delay
+.It Cm offset
+offset of server relative to this host
+.It Cm jitter
+offset RMS error estimate.
+.El
+.It Ic pstats Ar associd
+Display the statistics for the peer with the given
+.Ar associd :
+associd, status, remote host, local address, time last received,
+time until next send, reachability change, packets sent,
+packets received, bad authentication, bogus origin, duplicate,
+bad dispersion, bad reference time, candidate order.
+.It Ic readlist Op Ar associd
+.It Ic rl Op Ar associd
+Display all system or peer variables.
+If the
+.Ar associd
+is omitted, it is assumed to be zero.
+.It Ic readvar Op Ar associd Ar name Ns Oo Ns = Ns Ar value Oc Op , ...
+.It Ic rv Op Ar associd Ar name Ns Oo Ns = Ns Ar value Oc Op , ...
+Display the specified system or peer variables.
+If
+.Ar associd
+is zero, the variables are from the
+.Sx System Variables
+name space, otherwise they are from the
+.Sx Peer Variables
+name space.
+The
+.Ar associd
+is required, as the same name can occur in both spaces.
+If no
+.Ar name
+is included, all operative variables in the name space are displayed.
+In this case only, if the
+.Ar associd
+is omitted, it is assumed to be zero.
+Multiple names are specified with comma separators and without whitespace.
+Note that time values are represented in milliseconds
+and frequency values in parts-per-million (PPM).
+Some NTP timestamps are represented in the format
+.Ar YYYY Ns Ar MM Ar DD Ar TTTT ,
+where
+.Ar YYYY
+is the year,
+.Ar MM
+the month of year,
+.Ar DD
+the day of month and
+.Ar TTTT
+the time of day.
+.It Ic reslist
+Display the access control (restrict) list for
+.Nm .
+Authentication is required.
+.It Ic saveconfig Ar filename
+Save the current configuration,
+including any runtime modifications made by
+.Ic :config
+or
+.Ic config-from-file ,
+to the NTP server host file
+.Ar filename .
+This command will be rejected by the server unless
+.Lk miscopt.html#saveconfigdir "saveconfigdir"
+appears in the
+.Xr ntpd 8
+configuration file.
+.Ar filename
+can use
+.Xr date 1
+format specifiers to substitute the current date and time, for
+example,
+.D1 Ic saveconfig Pa ntp-%Y%m%d-%H%M%S.conf .
+The filename used is stored in system variable
+.Cm savedconfig .
+Authentication is required.
+.It Ic sysinfo
+Display system operational summary:
+associd, status, system peer, system peer mode, leap indicator,
+stratum, log2 precision, root delay, root dispersion,
+reference id, reference time, system jitter, clock jitter,
+clock wander, broadcast delay, symm. auth. delay.
+.It Ic sysstats
+Display system uptime and packet counts maintained in the
+protocol module:
+uptime, sysstats reset, packets received, current version,
+older version, bad length or format, authentication failed,
+declined, restricted, rate limited, KoD responses,
+processed for time.
+.It Ic timerstats
+Display interval timer counters:
+time since reset, timer overruns, calls to transmit.
+.It Ic writelist Ar associd
+Set all system or peer variables included in the variable list.
+.It Ic writevar Ar associd Ar name Ns = Ns Ar value Op , ...
+Set the specified variables in the variable list.
+If the
+.Ar associd
+is zero, the variables are from the
+.Sx System Variables
+name space, otherwise they are from the
+.Sx Peer Variables
+name space.
+The
+.Ar associd
+is required, as the same name can occur in both spaces.
+Authentication is required.
+.El
+
+.Ss Status Words and Kiss Codes
+The current state of the operating program is shown
+in a set of status words
+maintained by the system.
+Status information is also available on a per-association basis.
+These words are displayed by the
+.Ic readlist
+and
+.Ic associations
+commands both in hexadecimal and in decoded short tip strings.
+The codes, tips and short explanations are documented on the
+.Lk decode.html "Event Messages and Status Words"
+page.
+The page also includes a list of system and peer messages,
+the code for the latest of which is included in the status word.
+.Pp
+Information resulting from protocol machine state transitions
+is displayed using an informal set of ASCII strings called
+.Lk decode.html#kiss "kiss codes" .
+The original purpose was for kiss-o'-death (KoD) packets
+sent by the server to advise the client of an unusual condition.
+They are now displayed, when appropriate,
+in the reference identifier field in various billboards.
+
+.Ss System Variables
+The following system variables appear in the
+.Ic readlist
+billboard.
+Not all variables are displayed in some configurations.
+.Pp
+.Bl -tag -width "something" -compact -offset indent
+.It Variable
+Description
+.It Cm status
+.Lk decode.html#sys "system status word"
+.It Cm version
+NTP software version and build time
+.It Cm processor
+hardware platform and version
+.It Cm system
+operating system and version
+.It Cm leap
+leap warning indicator (0-3)
+.It Cm stratum
+stratum (1-15)
+.It Cm precision
+precision (log2 s)
+.It Cm rootdelay
+total roundtrip delay to the primary reference clock
+.It Cm rootdisp
+total dispersion to the primary reference clock
+.It Cm refid
+reference id or
+.Lk decode.html#kiss "kiss code"
+.It Cm reftime
+reference time
+.It Ic clock
+date and time of day
+.It Cm peer
+system peer association id
+.It Cm tc
+time constant and poll exponent (log2 s) (3-17)
+.It Cm mintc
+minimum time constant (log2 s) (3-10)
+.It Cm offset
+combined offset of server relative to this host
+.It Cm frequency
+frequency drift (PPM) relative to hardware clock
+.It Cm sys_jitter
+combined system jitter
+.It Cm clk_wander
+clock frequency wander (PPM)
+.It Cm clk_jitter
+clock jitter
+.It Cm tai
+TAI-UTC offset (s)
+.It Cm leapsec
+NTP seconds when the next leap second is/was inserted
+.It Cm expire
+NTP seconds when the NIST leapseconds file expires
+.El
+The jitter and wander statistics are exponentially-weighted RMS averages.
+The system jitter is defined in the NTPv4 specification;
+the clock jitter statistic is computed by the clock discipline module.
+.Pp
+When the NTPv4 daemon is compiled with the OpenSSL software library,
+additional system variables are displayed,
+including some or all of the following,
+depending on the particular Autokey dance:
+.Bl -tag -width "something" -compact -offset indent
+.It Variable
+Description
+.It Cm host
+Autokey host name for this host
+.It Cm ident
+Autokey group name for this host
+.It Cm flags
+host flags  (see Autokey specification)
+.It Cm digest
+OpenSSL message digest algorithm
+.It Cm signature
+OpenSSL digest/signature scheme
+.It Cm update
+NTP seconds at last signature update
+.It Cm cert
+certificate subject, issuer and certificate flags
+.It Cm until
+NTP seconds when the certificate expires
+.El
+.Ss Peer Variables
+The following peer variables appear in the
+.Ic readlist
+billboard for each association.
+Not all variables are displayed in some configurations.
+.Pp
+.Bl -tag -width "something" -compact -offset indent
+.It Variable
+Description
+.It Cm associd
+association id
+.It Cm status
+.Lk decode.html#peer "peer status word"
+.It Cm srcadr
+source (remote) IP address
+.It Cm srcport
+source (remote) port
+.It Cm dstadr
+destination (local) IP address
+.It Cm dstport
+destination (local) port
+.It Cm leap
+leap indicator (0-3)
+.It Cm stratum
+stratum (0-15)
+.It Cm precision
+precision (log2 s)
+.It Cm rootdelay
+total roundtrip delay to the primary reference clock
+.It Cm rootdisp
+total root dispersion to the primary reference clock
+.It Cm refid
+reference id or
+.Lk decode.html#kiss "kiss code"
+.It Cm reftime
+reference time
+.It Cm rec
+last packet received time
+.It Cm reach
+reach register (octal)
+.It Cm unreach
+unreach counter
+.It Cm hmode
+host mode (1-6)
+.It Cm pmode
+peer mode (1-5)
+.It Cm hpoll
+host poll exponent (log2 s) (3-17)
+.It Cm ppoll
+peer poll exponent (log2 s) (3-17)
+.It Cm headway
+headway (see
+.Lk rate.html "Rate Management and the Kiss-o'-Death Packet" )
+.It Cm flash
+.Lk decode.html#flash "flash status word"
+.It Cm keyid
+symmetric key id
+.It Cm offset
+filter offset
+.It Cm delay
+filter delay
+.It Cm dispersion
+filter dispersion
+.It Cm jitter
+filter jitter
+.It Cm bias
+unicast/broadcast bias
+.It Cm xleave
+interleave delay (see
+.Lk xleave.html "NTP Interleaved Modes" )
+.El
+The
+.Cm bias
+variable is calculated when the first broadcast packet is received
+after the calibration volley.
+It represents the offset of the broadcast subgraph relative to the
+unicast subgraph.
+The
+.Cm xleave
+variable appears only for the interleaved symmetric and interleaved modes.
+It represents the internal queuing, buffering and transmission delays
+for the preceding packet.
+.Pp
+When the NTPv4 daemon is compiled with the OpenSSL software library,
+additional peer variables are displayed, including the following:
+.Bl -tag -width "something" -compact -offset indent
+.It Variable
+Description
+.It Cm flags
+peer flags (see Autokey specification)
+.It Cm host
+Autokey server name
+.It Cm flags
+peer flags (see Autokey specification)
+.It Cm signature
+OpenSSL digest/signature scheme
+.It Cm initsequence
+initial key id
+.It Cm initkey
+initial key index
+.It Cm timestamp
+Autokey signature timestamp
+.It Cm ident
+Autokey group name for this association
+.El
+
+.Ss Clock Variables
+The following clock variables appear in the
+.Ic clocklist
+billboard for each association with a reference clock.
+Not all variables are displayed in some configurations.
+.Bl -tag -width "something" -compact -offset indent
+.It Variable
+Description
+.It Cm associd
+association id
+.It Cm status
+.Lk decode.html#clock "clock status word"
+.It Cm device
+device description
+.It Cm timecode
+ASCII time code string (specific to device)
+.It Cm poll
+poll messages sent
+.It Cm noreply
+no reply
+.It Cm badformat
+bad format
+.It Cm baddata
+bad date or time
+.It Cm fudgetime1
+fudge time 1
+.It Cm fudgetime2
+fudge time 2
+.It Cm stratum
+driver stratum
+.It Cm refid
+driver reference id
+.It Cm flags
+driver flags
+.El
+	_END_PROG_MDOC_DESCRIP;
+};

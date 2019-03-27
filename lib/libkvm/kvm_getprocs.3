@@ -1,0 +1,173 @@
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software developed by the Computer Systems
+.\" Engineering group at Lawrence Berkeley Laboratory under DARPA contract
+.\" BG 91-66 and contributed to Berkeley.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)kvm_getprocs.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd November 22, 2011
+.Dt KVM_GETPROCS 3
+.Os
+.Sh NAME
+.Nm kvm_getprocs ,
+.Nm kvm_getargv ,
+.Nm kvm_getenvv
+.Nd access user process state
+.Sh LIBRARY
+.Lb libkvm
+.Sh SYNOPSIS
+.In kvm.h
+.In sys/param.h
+.In sys/sysctl.h
+.In sys/user.h
+.Ft struct kinfo_proc *
+.Fn kvm_getprocs "kvm_t *kd" "int op" "int arg" "int *cnt"
+.Ft char **
+.Fn kvm_getargv "kvm_t *kd" "const struct kinfo_proc *p" "int nchr"
+.Ft char **
+.Fn kvm_getenvv "kvm_t *kd" "const struct kinfo_proc *p" "int nchr"
+.Sh DESCRIPTION
+The
+.Fn kvm_getprocs
+function returns a (sub-)set of active processes in the kernel indicated by
+.Fa kd .
+The
+.Fa op
+and
+.Fa arg
+arguments constitute a predicate which limits the set of processes
+returned.
+The value of
+.Fa op
+describes the filtering predicate as follows:
+.Pp
+.Bl -tag -width 20n -offset indent -compact
+.It Dv KERN_PROC_ALL
+all processes and kernel visible threads
+.It Dv KERN_PROC_PROC
+all processes, without threads
+.It Dv KERN_PROC_PID
+processes with process ID
+.Fa arg
+.It Dv KERN_PROC_PGRP
+processes with process group
+.Fa arg
+.It Dv KERN_PROC_SESSION
+processes with session
+.Fa arg
+.It Dv KERN_PROC_TTY
+processes with TTY
+.Fa arg
+.It Dv KERN_PROC_UID
+processes with effective user ID
+.Fa arg
+.It Dv KERN_PROC_RUID
+processes with real user ID
+.Fa arg
+.It Dv KERN_PROC_INC_THREAD
+modifier to return all kernel visible threads when filtering
+by process ID, process group, TTY, user ID, and real user ID
+.El
+.Pp
+The number of processes found is returned in the reference parameter
+.Fa cnt .
+The processes are returned as a contiguous array of kinfo_proc structures.
+This memory is locally allocated, and subsequent calls to
+.Fn kvm_getprocs
+and
+.Fn kvm_close
+will overwrite this storage.
+.Pp
+The
+.Fn kvm_getargv
+function returns a null-terminated argument vector that corresponds to the
+command line arguments passed to process indicated by
+.Fa p .
+Most likely, these arguments correspond to the values passed to
+.Xr exec 3
+on process creation.
+This information is, however,
+deliberately under control of the process itself.
+Note that the original command name can be found, unaltered,
+in the p_comm field of the process structure returned by
+.Fn kvm_getprocs .
+.Pp
+The
+.Fa nchr
+argument indicates the maximum number of characters, including null bytes,
+to use in building the strings.
+If this amount is exceeded, the string
+causing the overflow is truncated and the partial result is returned.
+This is handy for programs like
+.Xr ps 1
+and
+.Xr w 1
+that print only a one line summary of a command and should not copy
+out large amounts of text only to ignore it.
+If
+.Fa nchr
+is zero, no limit is imposed and all argument strings are returned in
+their entirety.
+.Pp
+The memory allocated to the argv pointers and string storage
+is owned by the kvm library.
+Subsequent
+.Fn kvm_getprocs
+and
+.Xr kvm_close 3
+calls will clobber this storage.
+.Pp
+The
+.Fn kvm_getenvv
+function is similar to
+.Fn kvm_getargv
+but returns the vector of environment strings.
+This data is
+also alterable by the process.
+.Sh RETURN VALUES
+The
+.Fn kvm_getprocs ,
+.Fn kvm_getargv ,
+and
+.Fn kvm_getenvv
+functions return
+.Dv NULL
+on failure.
+.Sh SEE ALSO
+.Xr kvm 3 ,
+.Xr kvm_close 3 ,
+.Xr kvm_geterr 3 ,
+.Xr kvm_nlist 3 ,
+.Xr kvm_open 3 ,
+.Xr kvm_openfiles 3 ,
+.Xr kvm_read 3 ,
+.Xr kvm_write 3
+.Sh BUGS
+These routines do not belong in the kvm interface.

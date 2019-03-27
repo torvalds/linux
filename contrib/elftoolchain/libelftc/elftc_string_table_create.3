@@ -1,0 +1,226 @@
+.\" Copyright (c) 2012-2013 Joseph Koshy.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elftc_string_table_create.3 3645 2018-10-15 20:17:14Z jkoshy $
+.\"
+.Dd January 5, 2013
+.Dt ELFTC_STRING_TABLE_CREATE 3
+.Os
+.Sh NAME
+.Nm elftc_string_table_create ,
+.Nm elftc_string_table_destroy ,
+.Nm elftc_string_table_from_section ,
+.Nm elftc_string_table_image ,
+.Nm elftc_string_table_insert ,
+.Nm elftc_string_table_lookup ,
+.Nm elftc_string_table_remove ,
+.Nm elftc_string_table_to_string
+.Nd convenience routines for handling ELF string tables
+.Sh SYNOPSIS
+.In libelftc.h
+.Ft "Elftc_String_Table *"
+.Fn elftc_string_table_create "int sizehint"
+.Ft int
+.Fn elftc_string_table_destroy "Elftc_String_Table *table"
+.Ft "Elftc_String_Table *"
+.Fn elftc_string_table_from_section "Elf_Scn *scn" "int sizehint"
+.Ft "const char *"
+.Fo elftc_string_table_image
+.Fa "Elftc_String_Table *table"
+.Fa "size_t *size"
+.Fc
+.Ft size_t
+.Fo elftc_string_table_insert
+.Fa "Elftc_String_Table *table"
+.Fa "const char *string"
+.Fc
+.Ft size_t
+.Fo elftc_string_table_lookup
+.Fa "Elftc_String_Table *table"
+.Fa "const char *string"
+.Fc
+.Ft int
+.Fo elftc_string_table_remove
+.Fa "Elftc_String_Table *table"
+.Fa "const char *string"
+.Fc
+.Ft "const char *"
+.Fo elftc_string_table_to_string
+.Fa "Elftc_String_Table *table"
+.Fa "size_t offset"
+.Fc
+.Sh DESCRIPTION
+This manual page documents convenience routines for handling ELF
+string tables.
+.Pp
+Function
+.Fn elftc_string_table_create
+creates a new, empty string table.
+The argument
+.Ar sizehint
+provides a hint about the expected number of bytes of string data in
+the table.
+If the argument
+.Ar sizehint
+is zero, an implementation-defined default will be used instead.
+.Pp
+Function
+.Fn elftc_string_table_destroy
+destroys the previously allocated string table specified by
+argument
+.Ar table ,
+and frees the internal resources allocated for it.
+.Pp
+Function
+.Fn elftc_string_table_from_section
+creates a new string table and initializes it based on the
+contents of the section specified by argument
+.Ar scn .
+This section must be of type
+.Dv SHT_STRTAB .
+The argument
+.Ar sizehint
+provides a hint about expected number of bytes of string data in the
+table.
+If the value of
+.Ar sizehint
+is zero, an implementation-default will be used instead.
+.Pp
+Function
+.Fn elftc_string_table_image
+returns a pointer to the ELF representation of the contents of the
+string table specified by argument
+.Ar table .
+If argument
+.Ar size
+is not NULL, the size of the ELF representation of the string table is
+stored in the location pointed to by argument
+.Ar size .
+The function
+.Fn elftc_string_table_image
+will compact the string table if the table contains deleted strings.
+The string offsets returned by prior calls to
+.Fn elftc_string_table_insert
+and
+.Fn elftc_string_table_lookup
+should be treated as invalid after a call to this function.
+.Pp
+Function
+.Fn elftc_string_table_insert
+inserts the NUL-terminated string pointed to by argument
+.Ar string
+into the string table specified by argument
+.Ar table ,
+and returns an offset value usable in ELF data structures.
+Multiple insertions of the same content will return the same offset.
+The offset returned will remain valid until the next call to
+.Fn elftc_string_table_image .
+.Pp
+Function
+.Fn elftc_string_table_lookup
+looks up the string referenced by argument
+.Ar string
+in the string table specified by argument
+.Ar table ,
+and if found, returns the offset associated with the string.
+The returned offset will be valid till the next call to function
+.Fn elftc_string_table_image .
+.Pp
+Function
+.Fn elftc_string_table_remove
+removes the string pointed by argument
+.Ar string
+from the string table referenced by argument
+.Ar table ,
+if it is present in the string table.
+.Pp
+Function
+.Fn elftc_string_table_to_string
+returns a pointer to the NUL-terminated string residing at argument
+.Ar offset
+in the string table specified by argument
+.Ar table .
+The value of argument
+.Ar offset
+should be one returned by a prior call to
+.Fn elftc_string_table_insert
+or
+.Fn elftc_string_table_lookup .
+The returned pointer will remain valid until the next call to
+.Fn elftc_string_table_insert
+or
+.Fn elftc_string_table_image .
+.Ss Memory Management
+The
+.Lb libelftc
+library manages its own memory allocations.
+The application should not free the pointers returned by the string
+table functions.
+.Sh IMPLEMENTATION NOTES
+The current implementation is optimized for the case where strings are
+added to a string table, but rarely removed from it.
+.Pp
+The functions
+.Fn elftc_string_table_insert ,
+.Fn elftc_string_table_lookup ,
+.Fn elftc_string_table_remove
+and
+.Fn elftc_string_table_to_string
+have O(1) asymptotic behavior.
+The function
+.Fn elftc_string_table_image
+can have O(size) asymptotic behavior, where
+.Ar size
+denotes the size of the string table.
+.Sh RETURN VALUES
+Functions
+.Fn elftc_string_table_create
+and
+.Fn elftc_string_table_from_section
+return a valid pointer to an opaque structure of type
+.Vt Elftc_String_Table
+on success, or NULL in case of an error.
+.Pp
+The function
+.Fn elftc_string_table_image
+returns a pointer to an in-memory representation of an ELF string
+table on success, or NULL in case of an error.
+.Pp
+Functions
+.Fn elftc_string_table_insert
+and
+.Fn elftc_string_table_lookup
+return a non-zero offset on success, or zero in case of an error.
+.Pp
+Function
+.Fn elftc_string_table_remove
+returns a positive value on success, or zero in case of an error.
+.Pp
+Function
+.Fn elftc_string_table_to_string
+returns a valid pointer on success, or NULL in case of an error.
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr elf 3 ,
+.Xr elftc 3

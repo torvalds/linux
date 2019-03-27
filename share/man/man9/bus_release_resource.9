@@ -1,0 +1,106 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2000 Alexander Langer
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 18, 2000
+.Dt BUS_RELEASE_RESOURCE 9
+.Os
+.Sh NAME
+.Nm bus_release_resource
+.Nd release resources on a bus
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Pp
+.In machine/bus.h
+.In sys/rman.h
+.In machine/resource.h
+.Ft int
+.Fn bus_release_resource "device_t dev" "int type" "int rid" "struct resource *r"
+.Sh DESCRIPTION
+Free a resource allocated by
+.Xr bus_alloc_resource 9 .
+The resource must not be in use on release, i.e., call an appropriate function
+before (e.g.\&
+.Xr bus_teardown_intr 9
+for IRQs).
+.Bl -item
+.It
+.Fa dev
+is the device that owns the resource.
+.It
+.Fa type
+is the type of resource that is released.
+It must be of the same type you allocated it as before.
+See
+.Xr bus_alloc_resource 9
+for valid types.
+.It
+.Fa rid
+is the resource ID of the resource.
+The
+.Fa rid
+value must be the same as the one returned by
+.Xr bus_alloc_resource 9 .
+.It
+.Fa r
+is the pointer to
+.Va struct resource ,
+i.e., the resource itself,
+returned by
+.Xr bus_alloc_resource 9 .
+.El
+.Sh RETURN VALUES
+.Er EINVAL
+is returned, if the device
+.Fa dev
+has no parent,
+.Dv 0
+otherwise.
+The kernel will panic, if it cannot release the resource.
+.Sh EXAMPLES
+.Bd -literal
+	/* deactivate IRQ */
+	bus_teardown_intr(dev, foosoftc->irqres, foosoftc->irqid);
+
+	/* release IRQ resource */
+	bus_release_resource(dev, SYS_RES_IRQ, foosoftc->irqid,
+		foosoftc->irqres);
+
+	/* release I/O port resource */
+	bus_release_resource(dev, SYS_RES_IOPORT, foosoftc->portid,
+		foosoftc->portres);
+.Ed
+.Sh SEE ALSO
+.Xr bus_alloc_resource 9 ,
+.Xr device 9 ,
+.Xr driver 9
+.Sh AUTHORS
+This manual page was written by
+.An Alexander Langer Aq Mt alex@big.endian.de .

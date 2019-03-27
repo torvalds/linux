@@ -1,0 +1,74 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 24, 1996
+.Dt VOP_IOCTL 9
+.Os
+.Sh NAME
+.Nm VOP_IOCTL
+.Nd device specific control
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn VOP_IOCTL "struct vnode *vp" "u_long command" "caddr_t data" "int fflag" "struct ucred *cred" "struct thread *td"
+.Sh DESCRIPTION
+Manipulate a file in device dependent ways.
+.Pp
+Its arguments are:
+.Bl -tag -width command
+.It Fa vp
+The vnode of the file (normally representing a device).
+.It Fa command
+The device specific operation to perform.
+.It Fa data
+Extra data for the specified operation.
+.It Fa fflag
+Some flags ???
+.It Fa cred
+The caller's credentials.
+.It Fa td
+The calling thread.
+.El
+.Pp
+Most file systems do not implement this entry point.
+.Sh LOCKS
+The file should not be locked on entry.
+.Sh RETURN VALUES
+If successful, zero is returned, otherwise an appropriate error code.
+.Pp
+If the ioctl is not recognized or not handled,
+.Er ENOTTY
+should be returned.
+.Sh SEE ALSO
+.Xr vnode 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

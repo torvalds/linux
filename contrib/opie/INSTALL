@@ -1,0 +1,178 @@
+OPIE Software Distribution, Release 2.4               Installation Instructions
+=======================================               =========================
+
+	Did you read the README file?
+
+	If not, please go do so, then come back here. There is information in
+the README file that you will probably need to know in order to build and use
+OPIE, and you are better off doing it before you try to compile and install
+it.
+
+	OPIE uses Autoconf to automagically figure out as much as possible
+about your system. There are four steps to installing OPIE. Please read them
+all first before attempting to do them.
+
+1. Run the "configure" script.
+
+	Normally, you will need to type:
+
+	sh configure
+
+	If you would like to use an access file to allow users from some hosts
+to log into your system without using OTPs (thus opening up a big security
+hole, but a necessary evil for some sites), type:
+
+	sh configure --enable-access-file=/etc/opieaccess
+
+	If you'd like the file to go somewhere else, adjust this appropriately.
+
+	There are a number of configure-time options available for OPIE. You
+probably don't want to change the defaults. To get a complete listing of the
+currently available options, type:
+
+	sh configure --help
+
+	Some options that may be of interest are:
+
+  --enable-access-file=FILENAME: Enable the OPIE access file FILENAME
+    The OPIE access file provides a system administrator with the ability
+    to make the use of OTP optional for certain hosts. Note that individual
+    users can create a file named ".opiealways" in their home directory to 
+    require that OTP be used to access to their account. Note also that the
+    access file is based on addresses, but many of the clients that use it
+    are only given hostnames. This opens this entire scheme up to DNS
+    spoofing attacks, which is a major security problem. ALWAYS use a
+    package such as tcp_wrappers configured to do paranoid checking on DNS
+    information if you enable this option (it's good practice anyway).
+
+  --enable-server-md4: Use MD4 instead of MD5 for the server
+    The old S/Key package used MD4 instead of MD5. MD4 is believed to be
+    less secure than MD5. Use this option only for compatibility with old
+    key files.
+
+  --disable-user-locking: Disable user locking
+    OPIE only allows one session at a time to attempt to authenticate a
+    principal; this prevents a possible race attack on OTP. This locking
+    mechanism can cause problems in some applications, in which case you
+    might want to disable the locking. This option also provides a work-
+    around if the locking code doesn't work reliably on your system.
+
+  --enable-user-locking[=DIR]: Put user lock files in DIR [/etc/opielocks]
+    The OPIE lock files need to be put in an isolated directory that is
+    only accessable by the super-user and has a parent directory that is
+    only writable by the super-user. If you are trying to use OPIE with
+    the key file shared by NFS, you need to make the lock directory
+    shared too. (But you read the README file, so you knew this)
+
+  --enable-retype: Ask users to re-type their secret pass phrases
+    On the one hand, this helps prevent users from having to go generate
+    an OTP, type it into a remote system, and then found out they
+    mistyped. On the other hand, it's annoying. If this is enabled, users
+    can simply hit return at the second prompt and the generator will skip
+    the retype check, which allows users who don't like the retype check
+    to mostly skip it.
+
+  --enable-su-star-check: Refuse to switch to disabled accounts
+    On many systems, an asterisk means one thing and one thing only: this
+    account is never meant for human users. Therefore, it doesn't make
+    much sense for anyone other than an attacker to try to su to that
+    account. Enabling this check causes su to refuse to switch to
+    accounts with an asterisk in their password field. While probably
+    better for security, this is not compatible with traditional *IX su
+    behavior, so it is disabled by default
+
+  --disable-new-prompts: Use more compatible (but less informative) prompts
+    OPIE uses login prompts that tell you exactly what kind of response
+    (an OTP response and/or a cleartext password) it expects you to give.
+    This can break automatic login scripts that look for 'Password:' as
+    the prompt for the password. If you have users that use such scripts,
+    you might want to disable the more informative responses so as not to
+    break those scripts.
+
+  --enable-insecure-override: Allow users to override insecure checks
+    While OPIE cannot determine whether or not a session is secure, it can
+    check for fairly common signs that it isn't secure. If it believes the
+    session is insecure, some programs like opiekey will refuse to run
+    because they prompt the user to send a secret pass phrase. Sometimes
+    these checks declare a session insecure when it is, and sometimes the
+    user wants to continue anyway even if the session is insecure. If this
+    option is enabled, many commands gain a '-f' option to force them to
+    operate even if OPIE thinks the session is insecure.
+
+  --enable-anonymous-ftp  Enable anonymous FTP support
+    By default, the OPIE FTP daemon does not support anonymous FTP
+    service. The FTP daemon contains many security related bug fixes
+    relative to the original source, but bugs probably remain. It was not
+    intended to be used for anonymous FTP, where it is more open to the
+    commands of potentially hostile users. If you enable this option, it
+    will once again support anonymous FTP, but it probably isn't secure
+    when that way.
+
+  --disable-utmp          Disable utmp logging
+  --disable-wtmp          Disable wtmp logging
+    On some systems, logging to the utmp and/or wtmp files is just a lost
+    cause. If this is the case on your system, you might be better off
+    not having OPIE even try.
+
+  --enable-opieauto       Enable support for opieauto
+    opieauto is a facility that caches an intermediate result of the OTP
+    generator so that a user-selected number of OTPs can be generated on
+    demand for each time the user types in the secret pass phrase. This
+    is great for user convenience, as typing a twenty or thirty character
+    secret pass phrase can be annoying. It can also be a minor security
+    hole (see the README for details).
+
+2. Edit the Makefile
+
+	The Makefile contains some options that you may wish to modify. Also
+verify that Autoconf chose the correct options for your system.
+
+	The Makefile created by Autoconf should be correct for most users
+as-is.
+
+3. Build OPIE
+
+	Normally, you will need to type:
+
+	make
+
+	If you only want to build the client programs, type:
+
+	make client
+
+	If you only want to build the server programs, type:
+
+	make server
+
+4. Verify that OPIE works on your system and install
+
+	Normall, you will need to type:
+
+	make install
+
+	If you only want to install the client programs, type:
+
+	make client-install
+
+	If you only want to install the server programs, type:
+
+	make server-install
+
+	If you encounter any problems, you may be able to run "make uninstall"
+to remove the OPIE software from your system and revert back to almost the
+way things were before.
+
+Copyright
+=========
+
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
+Reserved. The Inner Net License Version 2 applies to these portions of
+the software.
+You should have received a copy of the license with this software. If
+you didn't get a copy, you may request one from <license@inner.net>.
+
+Portions of this document are Copyright 1995 by Randall Atkinson and Dan
+McDonald, All Rights Reserved. All Rights under this copyright are assigned
+to the U.S. Naval Research Laboratory (NRL). The NRL Copyright Notice and
+License Agreement applies to this software.

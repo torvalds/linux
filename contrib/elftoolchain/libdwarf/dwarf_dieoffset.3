@@ -1,0 +1,206 @@
+.\" Copyright (c) 2010,2014 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_dieoffset.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd December 21, 2014
+.Dt DWARF_DIEOFFSET 3
+.Os
+.Sh NAME
+.Nm dwarf_die_CU_offset ,
+.Nm dwarf_die_CU_offset_range ,
+.Nm dwarf_dieoffset ,
+.Nm dwarf_get_cu_die_offset_given_cu_header_offset ,
+.Nm dwarf_get_cu_die_offset_given_cu_header_offset_b
+.Nd return offsets of DWARF debugging information entries
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_die_CU_offset
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Off *ret_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_die_CU_offset_range
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Off *cu_offset"
+.Fa "Dwarf_Off *cu_length"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_dieoffset
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Off *ret_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_get_cu_die_offset_given_cu_header_offset
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Off in_cu_header_offset"
+.Fa "Dwarf_Off *out_cu_die_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_get_cu_die_offset_given_cu_header_offset_b
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Off in_cu_header_offset"
+.Fa "Dwarf_Bool is_info"
+.Fa "Dwarf_Off *out_cu_die_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+These functions are used to retrieve offsets for DWARF debugging
+information entries.
+.Pp
+Function
+.Fn dwarf_die_CU_offset
+returns the offset of the debugging information entry referenced by
+argument
+.Ar die
+relative to the start of its containing compilation unit.
+Argument
+.Ar ret_offset
+should point to the location that is to hold the returned offset.
+If argument
+.Ar err
+is non-NULL, it will be used to return an error descriptor in case of
+an error.
+.Pp
+Function
+.Fn dwarf_die_CU_offset_range
+returns the section-relative offset and length of the compilation unit
+containing the debugging information entry referenced by argument
+.Ar die .
+Argument
+.Ar cu_offset
+should point to a location that will hold the returned offset.
+Argument
+.Ar cu_length
+should point to a location that will hold the returned length of the
+compilation unit.
+If argument
+.Ar err
+is non-NULL, it will be used to return an error descriptor in case of
+an error.
+.Pp
+Function
+.Fn dwarf_dieoffset
+retrieves the section-relative offset of the debugging information
+entry referenced by argument
+.Ar die .
+Argument
+.Ar ret_offset
+should point to a location that is to hold the returned
+section-relative offset.
+If argument
+.Ar err
+is non-NULL, it will be used to return an error descriptor in case of
+an error.
+.Pp
+Function
+.Fn dwarf_get_cu_die_offset_given_cu_header_offset
+returns the offset for the first debugging information entry for a
+compilation unit, given an offset to the header of the compilation
+unit.
+Argument
+.Ar dbg
+should reference a valid debugging context allocated using
+.Xr dwarf_init 3 .
+Argument
+.Ar in_cu_header_offset
+contains the offset to the start of a compilation unit.
+Argument
+.Ar out_cu_die_offset
+points to a location that will hold the returned offset.
+If argument
+.Ar err
+is non-NULL, it will be used to return an error descriptor in case of
+an error.
+.Pp
+Function
+.Fn dwarf_get_cu_die_offset_given_cu_header_offset_b
+behaves identically to the function
+.Fn dwarf_get_cu_die_offset_given_cu_header_offset
+when the argument
+.Ar is_info
+is non-zero.
+When the argument
+.Ar is_info
+is zero, function
+.Fn dwarf_get_cu_die_offset_given_cu_header_offset_b
+returns the offset for the first debugging information entry for a
+type unit, given an offset to the header of the type unit in argument
+.Ar in_cu_header_offset .
+Argument
+.Ar out_cu_die_offset
+points to a location that will hold the returned offset.
+If the argument
+.Ar err
+is non-NULL, it will be used to return an error descriptor in case of
+an error.
+.Sh RETURN VALUES
+On success, these functions return
+.Dv DW_DLV_OK .
+In case of an error, these functions return
+.Dv DW_DLV_ERROR
+and set argument
+.Ar err .
+.Pp
+Function
+.Fn dwarf_get_cu_die_offset_given_cu_header_offset
+and
+.Fn dwarf_get_cu_die_offset_given_cu_header_offset_b
+returns
+.Dv DW_DLV_NO_ENTRY
+and sets argument
+.Ar err
+if there is no compilation or type unit located at the
+offset specified in argument
+.Ar in_cu_header_offset .
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Va cu_length ,
+.Va cu_offset ,
+.Va dbg ,
+.Va die ,
+.Va out_cu_die_offset
+or
+.Va ret_offset
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+Argument
+.Ar in_cu_header_offset
+specified an unknown offset.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_next_cu_header 3 ,
+.Xr dwarf_offdie 3 ,
+.Xr dwarf_offdie_b 3

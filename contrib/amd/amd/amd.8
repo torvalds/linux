@@ -1,0 +1,405 @@
+.\"
+.\" Copyright (c) 1997-2014 Erez Zadok
+.\" Copyright (c) 1989 Jan-Simon Pendry
+.\" Copyright (c) 1989 Imperial College of Science, Technology & Medicine
+.\" Copyright (c) 1989 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry at Imperial College, London.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.\" File: am-utils/amd/amd.8
+.\" $FreeBSD$
+.\"
+.Dd February 26, 2016
+.Dt AMD 8
+.Os
+.Sh NAME
+.Nm amd
+.Nd automatically mount file systems
+.Sh SYNOPSIS
+.Nm
+.Fl H
+.Nm
+.Op Fl F Ar conf_file
+.Nm
+.Op Fl nprvHS
+.Op Fl a Ar mount_point
+.Op Fl c Ar duration
+.Op Fl d Ar domain
+.Op Fl k Ar kernel-arch
+.Op Fl l Ar logfile
+.Op Fl o Ar op_sys_ver
+.Op Fl t Ar timeout.retransmit
+.Op Fl w Ar interval
+.Op Fl x Ar log-option
+.Op Fl y Ar YP-domain
+.Op Fl A Ar arch
+.Op Fl C Ar cluster-name
+.Op Fl D Ar option
+.Op Fl F Ar conf_file
+.Op Fl O Ar op_sys_name
+.Op Fl T Ar tag
+.Oo
+.Ar directory mapname
+.Op Fl map-options
+.Oc
+.Ar ...
+.Sh DESCRIPTION
+.Bf -symbolic
+This daemon is obsolete.
+Users are advised to use
+.Xr autofs 5
+instead.
+.Ef
+.Pp
+The
+.Nm
+utility
+is a daemon that automatically mounts file systems
+whenever a file or directory
+within that file system is accessed.
+File systems are automatically unmounted when they
+appear to be quiescent.
+.Pp
+The
+.Nm
+utility
+operates by attaching itself as an
+.Tn NFS
+server to each of the specified
+.Ar directories .
+Lookups within the specified directories
+are handled by
+.Nm ,
+which uses the map defined by
+.Ar mapname
+to determine how to resolve the lookup.
+Generally, this will be a host name, some file system information
+and some mount options for the given file system.
+.Pp
+In the first form depicted above,
+.Nm
+will print a short help string.
+In the second form, if no options are
+specified, or if the
+.Fl F
+is used,
+.Nm
+will read configuration parameters from the file
+.Ar conf_file
+which defaults to
+.Pa /etc/amd.conf .
+The last form is described below.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl a Ar temporary-directory
+Specify an alternative location for the real mount points.
+The default is
+.Pa /.amd_mnt .
+.It Fl c Ar duration
+Specify a
+.Ar duration ,
+in seconds, that a looked up name remains
+cached when not in use.
+The default is 5 minutes.
+.It Fl d Ar domain
+Specify the local domain name.
+If this option is not
+given the domain name is determined from the hostname.
+.It Fl k Ar kernel-arch
+Specifies the kernel architecture.
+This is used solely
+to set the ${karch} selector.
+.It Fl l Ar logfile
+Specify a logfile in which to record mount and unmount events.
+If
+.Ar logfile
+is the string
+.Dq Li syslog ,
+then the log messages will be sent to the system log daemon by
+.Xr syslog 3 .
+The default syslog facility used is
+.Dv LOG_DAEMON .
+If you
+wish to change it, append its name to the log file name, delimited by a
+single colon.
+For example, if
+.Ar logfile
+is the string
+.Dq Li syslog:local7
+then
+.Nm
+will log messages via
+.Xr syslog 3
+using the
+.Dv LOG_LOCAL7
+facility (if it exists on the system).
+.It Fl n
+Normalize hostnames.
+The name referred to by ${rhost} is normalized relative to the
+host database before being used.
+The effect is to translate
+aliases into
+.Dq official
+names.
+.It Fl o Ar op_sys_ver
+Override the compiled-in version number of the operating system.
+Useful
+when the built in version is not desired for backward compatibility reasons.
+For example, if the build in version is
+.Dq Li 2.5.1 ,
+you can override it to
+.Dq Li 5.5.1 ,
+and use older maps that were written with the latter in mind.
+.It Fl p
+Print PID.
+Outputs the process ID of
+.Nm
+to standard output where it can be saved into a file.
+.It Fl r
+Restart existing mounts.
+The
+.Nm
+utility
+will scan the mount file table to determine which file systems
+are currently mounted.
+Whenever one of these would have
+been auto-mounted,
+.Nm
+.Em inherits
+it.
+.It Fl t Ar timeout.retransmit
+Specify the NFS
+.Ar timeout
+interval,
+in tenths of a second, between
+.Tn NFS/RPC
+retries (for UDP only).
+The default
+is 0.8 seconds.
+The second value alters the retransmit counter, which
+defaults to 11 retransmissions.
+Both of these values are used by the kernel
+to communicate with amd.
+Useful defaults are supplied if either or both
+values are missing.
+.Pp
+The
+.Xr amd 8
+utility
+relies on the kernel RPC retransmit mechanism to trigger mount retries.
+The values of these parameters change the overall retry interval.
+Too long
+an interval gives poor interactive response; too short an interval causes
+excessive retries.
+.It Fl v
+Version.
+Displays version and configuration information on standard error.
+.It Fl w Ar interval
+Specify an
+.Ar interval ,
+in seconds, between attempts to dismount
+file systems that have exceeded their cached times.
+The default is 2 minutes.
+.TP
+.It Fl x Ar options
+Specify run-time logging options.  The options are a comma separated
+list chosen from:
+.Li fatal, error, user, warn, info, map, stats, defaults, all .
+Note that "fatal" and "error" are mandatory and cannot be turned off.
+.TP
+.It Fl y Ar domain
+Specify an alternative
+.Tn NIS
+domain from which to fetch the
+.Tn NIS
+maps.
+The default is the system domain name.  This option is ignored if NIS
+support is not available.
+.It Fl A Ar arch
+Specifies the OS architecture.
+This is used solely to set the ${arch}
+selector.
+.It Fl C Ar cluster-name
+Specify an alternative HP-UX cluster name to use.
+.It Fl D Ar option
+Select from a variety of debug options.
+Prefixing an
+option with the string
+.Dq Li no
+reverses the effect of that option.
+Options are cumulative.
+The most useful option is
+.Dq Li all .
+.Pp
+Since
+.Fl D
+is only used for debugging other options are not documented here:
+the current supported set of options is listed by the
+.Fl v
+option
+and a fuller description is available in the program source.
+.It Fl F Ar conf_file
+Specify an
+.Nm
+configuration file to use.
+See
+.Xr amd.conf 5
+for description of this file's format.
+This configuration file is used to
+specify any options in lieu of typing many of them on the command line.
+The
+.Xr amd.conf 5
+file includes directives for every command line option amd has, and many
+more that are only available via the configuration file facility.
+The
+configuration file specified by this option is processed after all other
+options had been processed, regardless of the actual location of this option
+on the command line.
+.It Fl H
+Print help and usage string.
+.It Fl O Ar op_sys_name
+Override the compiled-in name of the operating system.
+Useful when the
+built in name is not desired for backward compatibility reasons.
+For
+example, if the build in name is
+.Dq Li sunos5 ,
+you can override it to
+.Dq Li sos5
+and use older maps which were written with the latter in mind.
+.It Fl S
+Do not lock the running executable pages of
+.Nm
+into memory.
+To improve
+.Nm Ns 's
+performance, systems that support the
+.Xr plock 3
+call, could lock the
+.Nm
+process into memory.
+This way there is less chance
+the operating system will schedule, page out, and swap the
+.Nm
+process as
+needed.
+This tends to improve
+.Nm Ns 's
+performance, at the cost of reserving the
+memory used by the
+.Nm
+process (making it unavailable for other processes).
+If this behavior is not desired, use the
+.Fl S
+option.
+.It Fl T Ar tag
+Specify a tag to use with
+.Xr amd.conf 5 .
+All map entries tagged with
+.Ar tag
+will be processed.
+Map entries that are not tagged are always processed.
+Map entries that are tagged with a tag other than
+.Ar tag
+will not be processed.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/amd.conf"
+.It Pa /.amd_mnt
+directory under which file systems are dynamically mounted
+.It Pa /etc/amd.conf
+default configuration file
+.El
+.Sh CAVEATS
+Some care may be required when creating a mount map.
+.Pp
+Symbolic links on an
+.Tn NFS
+file system can be incredibly inefficient.
+In most implementations of
+.Tn NFS ,
+their interpolations are not cached
+by the kernel and each time a symbolic link is encountered during a
+.Em lookuppn
+translation it costs an
+.Tn RPC
+call to the
+.Tn NFS
+server.
+It would appear that a large improvement in real-time
+performance could be gained by adding a cache somewhere.
+Replacing symlinks with a suitable incarnation of the auto-mounter
+results in a large real-time speedup, but also causes a large
+number of process context switches.
+.Pp
+A weird imagination is most useful to gain full advantage of all
+the features.
+.Sh SEE ALSO
+.Xr domainname 1 ,
+.Xr hostname 1 ,
+.Xr syslog 3 ,
+.Xr amd.conf 5 ,
+.Xr mtab 5 ,
+.Xr amq 8 ,
+.Xr automount 8 ,
+.Xr mount 8 ,
+.Xr umount 8
+.Pp
+.Dq am-utils
+.Xr info 1
+entry.
+.Rs
+.%A Erez Zadok
+.%B "Linux NFS and Automounter Administration"
+.%O ISBN 0-7821-2739-8
+.%I Sybex
+.%D 2001
+.Re
+.Pp
+.Pa http://www.am-utils.org/
+.Rs
+.%T Amd \- The 4.4 BSD Automounter
+.Re
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.4 .
+.Sh AUTHORS
+.An Jan-Simon Pendry Aq jsp@doc.ic.ac.uk ,
+Department of Computing, Imperial College, London, UK.
+.Pp
+.An Erez Zadok Aq ezk@cs.sunysb.edu ,
+Computer Science Department, Stony Brook
+University, Stony Brook, New York, USA.
+.Pp
+Other authors and contributors to am-utils are listed in the
+.Pa AUTHORS
+file distributed with am-utils.

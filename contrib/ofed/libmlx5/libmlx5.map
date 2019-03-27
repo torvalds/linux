@@ -1,0 +1,13 @@
+/* Export symbols should be added below according to
+   Documentation/versioning.md document. */
+MLX5_1.0 {
+	global:
+		mlx5dv_query_device;
+		mlx5dv_init_obj;
+	local: *;
+};
+
+MLX5_1.1 {
+	global:
+		mlx5dv_create_cq;
+} MLX5_1.0;

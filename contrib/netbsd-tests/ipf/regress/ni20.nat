@@ -1,0 +1,1 @@
+rdr bge0 10.1.1.4/32 port shell -> 192.168.113.4 port shell tcp proxy rcmd

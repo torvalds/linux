@@ -1,0 +1,91 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)intro.8	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd October 22, 2006
+.Dt INTRO 8
+.Os
+.Sh NAME
+.Nm intro
+.Nd "introduction to system maintenance procedures and commands"
+.Sh DESCRIPTION
+This section contains information related to system operation
+and maintenance.
+.Pp
+It describes commands used to create new file systems
+.Pq Xr newfs 8 ,
+verify the integrity of the file systems
+.Pq Xr fsck 8 ,
+control disk usage
+.Pq Xr edquota 8 ,
+maintain system backups
+.Pq Xr dump 8 ,
+and recover files when disks die an untimely death
+.Pq Xr restore 8 .
+.\" The
+.\" .Xr format 8
+.\" manual
+.\" for the specific architecture the system is running on should be
+.\" consulted when formatting disks and tapes.
+Network related services like
+.Xr inetd 8
+and
+.Xr ftpd 8
+are also described.
+.Pp
+All commands set an exit status.
+Its value may be tested
+to see if the command completed normally.
+Unless otherwise noted (rare), the value 0 signifies successful
+completion of the command, while a value >0 indicates an error.
+Some commands attempt to describe the nature of the failure by using
+error codes defined in
+.Xr sysexits 3 ,
+or set the status to arbitrary values >0 (typically 1), but many
+such values are not described in the manual.
+.Pp
+A number of pages in this section describe general system
+management topics.
+.Pp
+For example, the
+.Xr boot 8
+manual page describes the system bootstrapping procedures,
+and the
+.Xr diskless 8
+manual page describes how to boot a system over a network.
+The
+.Xr crash 8
+manual page
+should be consulted to understand how to interpret system
+crash dumps.
+.Sh HISTORY
+The
+.Nm
+section manual page appeared in
+.Bx 4.2 .

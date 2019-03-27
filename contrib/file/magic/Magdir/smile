@@ -1,0 +1,34 @@
+
+#------------------------------------------------------------------------------
+# $File: smile,v 1.1 2011/08/17 17:37:18 christos Exp $
+# smile:  file(1) magic for Smile serialization
+#
+# The Smile serialization format uses a 4-byte header:
+#
+#   Constant byte #0: 0x3A (ASCII ':')
+#   Constant byte #1: 0x29 (ASCII ')')
+#   Constant byte #2: 0x0A (ASCII linefeed, '\n')
+#   Variable byte #3, consisting of bits:
+#     Bits 4-7 (4 MSB): 4-bit version number
+#     Bits 3: Reserved
+#     Bit 2 (mask 0x04): Whether raw binary (unescaped 8-bit) values may be present in content
+#     Bit 1 (mask 0x02): Whether shared String value checking was enabled during encoding, default false
+#     Bit 0 (mask 0x01): Whether shared property name checking was enabled during encoding, default true
+#
+# Reference: http://wiki.fasterxml.com/SmileFormatSpec
+# Created by: Pierre-Alexandre Meyer <pierre@mouraf.org>
+
+# Detection
+0	string		:)\n	Smile binary data
+
+# Versioning
+>3	byte&0xF0	x		version %d:
+
+# Properties
+>3	byte&0x04	0x04		binary raw,
+>3	byte&0x04	0x00		binary encoded,
+>3	byte&0x02	0x02		shared String values enabled,
+>3	byte&0x02	0x00		shared String values disabled,
+>3	byte&0x01	0x01		shared field names enabled
+>3	byte&0x01	0x00		shared field names disabled
+

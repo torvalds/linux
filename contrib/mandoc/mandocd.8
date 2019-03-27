@@ -1,0 +1,198 @@
+.\"	$Id: mandocd.8,v 1.2 2017/03/18 19:56:01 schwarze Exp $
+.\"
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 18 2017 $
+.Dt MANDOCD 8
+.Os
+.Sh NAME
+.Nm mandocd
+.Nd server process to format manual pages in batch mode
+.Sh SYNOPSIS
+.Nm mandocd
+.Op Fl I Cm os Ns = Ns Ar name
+.Op Fl T Ar output
+.Ar socket_fd
+.Sh DESCRIPTION
+The
+.Nm
+utility formats many manual pages without requiring
+.Xr fork 2
+and
+.Xr exec 3
+overhead in between.
+It does not require listing all the manuals to be formatted on the
+command line, and it supports writing each formatted manual to its
+own file descriptor.
+.Pp
+This server requires that a connected UNIX domain
+.Xr socket 2
+is already present at
+.Xr exec 3
+time.
+Consequently, it cannot be started from the
+.Xr sh 1
+command line because the shell cannot supply such a socket.
+Typically, the socket is created by the parent process using
+.Xr socketpair 2
+before calling
+.Xr fork 2
+and
+.Xr exec 3
+on
+.Nm .
+The parent process will pass the file descriptor number as an argument to
+.Xr exec 3 ,
+formatted as a decimal ASCII-encoded integer.
+See
+.Xr catman 8
+for a typical implementation of a parent process.
+.Pp
+.Nm
+loops reading one-byte messages with
+.Xr recvmsg 2
+from the file descriptor number
+.Ar socket_fd .
+It ignores the byte read and only uses the out-of-band auxiliary
+.Vt struct cmsghdr
+control data, typically supplied by the calling process using
+.Xr CMSG_FIRSTHDR 3 .
+The parent process is expected to pass three file descriptors
+with each dummy byte.
+The first one is used for
+.Xr mdoc 7
+or
+.Xr man 7
+input, the second one for formatted output, and the third one
+for error output.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl I Cm os Ns = Ns Ar name
+Override the default operating system
+.Ar name
+for the
+.Xr mdoc 7
+.Ic \&Os
+and for the
+.Xr man 7
+.Ic TH
+macro.
+.It Fl T Ar output
+Output format.
+The
+.Ar output
+argument can be
+.Cm ascii ,
+.Cm utf8 ,
+or
+.Cm html ;
+see
+.Xr mandoc 1 .
+In
+.Cm html
+output mode, the
+.Cm fragment
+output option is implied.
+Other output options are not supported.
+.El
+.Pp
+After exhausting one input file descriptor, all three file descriptors
+are closed before reading the next dummy byte and control message.
+.Pp
+When a zero-byte message is read, when the
+.Ar socket_fd
+is closed by the parent process,
+or when an error occurs,
+.Nm
+exits.
+.Sh EXIT STATUS
+.Ex -std
+.Pp
+A zero-byte message or a closed
+.Ar socket_fd
+is considered success.
+Possible errors include:
+.Bl -bullet
+.It
+missing, invalid, or excessive
+.Xr exec 3
+arguments
+.It
+.Xr recvmsg 2
+failure, for example due to
+.Er EMSGSIZE
+.It
+missing or unexpected control data, in particular a
+.Fa cmsg_level
+in the
+.Vt struct cmsghdr
+that differs from
+.Dv SOL_SOCKET ,
+a
+.Fa cmsg_type
+that differs from
+.Dv SCM_RIGHTS ,
+or a
+.Fa cmsg_len
+that is not three times the size of an
+.Vt int
+.It
+invalid file descriptors passed in the
+.Xr CMSG_DATA 3
+.It
+resource exhaustion, in particular
+.Xr dup 2
+or
+.Xr malloc 3
+failure
+.El
+.Pp
+Except for memory exhaustion and similar system-level failures,
+parsing and formatting errors do not cause
+.Nm
+to return an error exit status.
+Even after severe parsing errors,
+.Nm
+will simply accept and process the next input file descriptor.
+.Sh SEE ALSO
+.Xr mandoc 1 ,
+.Xr mandoc 3 ,
+.Xr catman 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in version 1.14.1 or the
+.Sy mandoc
+toolkit.
+.Sh AUTHORS
+.An -nosplit
+The concept was designed and implemented by
+.An Michael Stapelberg Aq Mt stapelberg@debian.org .
+The
+.Xr mandoc 3
+glue needed to make it a stand-alone process was added by
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org .
+.Sh CAVEATS
+If the parsed manual pages contain
+.Xr roff 7
+.Pf . Ic so
+requests,
+.Nm
+needs to be started with the current working directory set to the
+root of the manual page tree.
+Avoid starting it in directories that contain secret files in any
+subdirectories, in particular in the user starting it has read
+access to these secret files.

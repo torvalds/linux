@@ -1,0 +1,39 @@
+# tzdb data for System V rules (this file is obsolete)
+
+# This file is in the public domain, so clarified as of
+# 2009-05-17 by Arthur David Olson.
+
+# Old rules, should the need arise.
+# No attempt is made to handle Newfoundland, since it cannot be expressed
+# using the System V "TZ" scheme (half-hour offset), or anything outside
+# North America (no support for non-standard DST start/end dates), nor
+# the changes in the DST rules in the US after 1976 (which occurred after
+# the old rules were written).
+#
+# If you need the old rules, uncomment ## lines.
+# Compile this *without* leap second correction for true conformance.
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	SystemV	min	1973	-	Apr	lastSun	2:00	1:00	D
+Rule	SystemV	min	1973	-	Oct	lastSun	2:00	0	S
+Rule	SystemV	1974	only	-	Jan	6	2:00	1:00	D
+Rule	SystemV	1974	only	-	Nov	lastSun	2:00	0	S
+Rule	SystemV	1975	only	-	Feb	23	2:00	1:00	D
+Rule	SystemV	1975	only	-	Oct	lastSun	2:00	0	S
+Rule	SystemV	1976	max	-	Apr	lastSun	2:00	1:00	D
+Rule	SystemV	1976	max	-	Oct	lastSun	2:00	0	S
+
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+## Zone	SystemV/AST4ADT	-4:00	SystemV		A%sT
+## Zone	SystemV/EST5EDT	-5:00	SystemV		E%sT
+## Zone	SystemV/CST6CDT	-6:00	SystemV		C%sT
+## Zone	SystemV/MST7MDT	-7:00	SystemV		M%sT
+## Zone	SystemV/PST8PDT	-8:00	SystemV		P%sT
+## Zone	SystemV/YST9YDT	-9:00	SystemV		Y%sT
+## Zone	SystemV/AST4	-4:00	-		AST
+## Zone	SystemV/EST5	-5:00	-		EST
+## Zone	SystemV/CST6	-6:00	-		CST
+## Zone	SystemV/MST7	-7:00	-		MST
+## Zone	SystemV/PST8	-8:00	-		PST
+## Zone	SystemV/YST9	-9:00	-		YST
+## Zone	SystemV/HST10	-10:00	-		HST

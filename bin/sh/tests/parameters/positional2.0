@@ -1,0 +1,65 @@
+# $FreeBSD$
+
+failures=''
+ok=''
+
+testcase() {
+	code="$1"
+	expected="$2"
+	oIFS="$IFS"
+	eval "$code"
+	IFS='|'
+	result="$#|$*"
+	IFS="$oIFS"
+	if [ "x$result" = "x$expected" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "For $code, expected $expected actual $result"
+	fi
+}
+
+testcase 'set -- a b; set -- p$@q'		'2|pa|bq'
+testcase 'set -- a b; set -- $@q'		'2|a|bq'
+testcase 'set -- a b; set -- p$@'		'2|pa|b'
+testcase 'set -- a b; set -- p$@q'		'2|pa|bq'
+testcase 'set -- a b; set -- $@q'		'2|a|bq'
+testcase 'set -- a b; set -- p$@'		'2|pa|b'
+testcase 'set -- a b; set -- p$*q'		'2|pa|bq'
+testcase 'set -- a b; set -- $*q'		'2|a|bq'
+testcase 'set -- a b; set -- p$*'		'2|pa|b'
+testcase 'set -- a b; set -- p$*q'		'2|pa|bq'
+testcase 'set -- a b; set -- $*q'		'2|a|bq'
+testcase 'set -- a b; set -- p$*'		'2|pa|b'
+testcase 'set -- a b; set -- "p$@q"'		'2|pa|bq'
+testcase 'set -- a b; set -- "$@q"'		'2|a|bq'
+testcase 'set -- a b; set -- "p$@"'		'2|pa|b'
+testcase 'set -- a b; set -- p"$@"q'		'2|pa|bq'
+testcase 'set -- a b; set -- "$@"q'		'2|a|bq'
+testcase 'set -- a b; set -- p"$@"'		'2|pa|b'
+testcase 'set -- "" a b; set -- "p$@q"'		'3|p|a|bq'
+testcase 'set -- "" a b; set -- "$@q"'		'3||a|bq'
+testcase 'set -- "" a b; set -- "p$@"'		'3|p|a|b'
+testcase 'set -- "" a b; set -- p"$@"q'		'3|p|a|bq'
+testcase 'set -- "" a b; set -- "$@"q'		'3||a|bq'
+testcase 'set -- "" a b; set -- p"$@"'		'3|p|a|b'
+testcase 'set -- a; set -- p$@q'		'1|paq'
+testcase 'set -- a; set -- $@q'			'1|aq'
+testcase 'set -- a; set -- p$@'			'1|pa'
+testcase 'set -- a; set -- p$@q'		'1|paq'
+testcase 'set -- a; set -- $@q'			'1|aq'
+testcase 'set -- a; set -- p$@'			'1|pa'
+testcase 'set -- a; set -- p$*q'		'1|paq'
+testcase 'set -- a; set -- $*q'			'1|aq'
+testcase 'set -- a; set -- p$*'			'1|pa'
+testcase 'set -- a; set -- p$*q'		'1|paq'
+testcase 'set -- a; set -- $*q'			'1|aq'
+testcase 'set -- a; set -- p$*'			'1|pa'
+testcase 'set -- a; set -- "p$@q"'		'1|paq'
+testcase 'set -- a; set -- "$@q"'		'1|aq'
+testcase 'set -- a; set -- "p$@"'		'1|pa'
+testcase 'set -- a; set -- p"$@"q'		'1|paq'
+testcase 'set -- a; set -- "$@"q'		'1|aq'
+testcase 'set -- a; set -- p"$@"'		'1|pa'
+
+test "x$failures" = x

@@ -1,0 +1,68 @@
+# Sample configuration file for an installation using pc-sysinstall
+#$FreeBSD$
+
+installMode=fresh
+installInteractive=yes
+hostname=pcbsd8
+
+# Set the disk parameters
+disk0=ad0
+partition=all
+bootManager=none
+commitDiskPart
+
+# Setup the disk label
+# All sizes are expressed in MB
+# Avail FS Types, UFS, UFS+S, UFS+J, ZFS, SWAP
+disk0-part=UFS 1000 / 
+disk0-part=SWAP 2000 none
+disk0-part=UFS 0 /usr
+# Size 0 means use the rest of the slice size
+# Do it now!
+commitDiskLabel
+
+netDev=AUTO-DHCP
+#netDev=nfe0
+#netIP=192.168.0.49
+#netMask=255.255.255.0
+#netNameServer=208.67.222.222
+#netDefaultRouter=192.168.0.1
+
+netSaveDev=AUTO-DHCP
+#netSaveDev=nfe0
+#netSaveIP=192.168.0.49
+#netSaveMask=255.255.255.0
+#netSaveNameServer=208.67.222.222
+#netSaveDefaultRouter=192.168.0.1
+
+# Set if we are installing via optical, USB, or FTP
+#installType=PCBSD
+installType=FreeBSD
+#installMedium=dvd
+installMedium=ftp
+
+ftpPath=ftp://192.168.0.2/netinstall
+
+#packageType=uzip
+packageType=tar
+#installComponents=ports,src
+
+#autoLoginUser=kris
+
+# Set the root pass
+rootPass=root
+
+# Setup our users
+userName=kris
+userComment=Kris Moore
+userPass=kris
+userShell=/bin/csh
+userHome=/home/kris
+userGroups=wheel,operator
+commitUser
+
+# Options for localizing an install
+localizeLang="ru"
+localizeKeyLayout="ru"
+localizeKeyModel="pc104"
+localizeKeyVariant="intl"

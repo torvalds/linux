@@ -1,0 +1,97 @@
+#! @PATH_PERL@ -w
+
+die "perl5 needed\n" unless ($] > 5);
+
+use Getopt::Std;
+use vars qw($opt_n);
+
+getopts('d:nt:');
+
+#chop($ncpu = `sysctl -n hw.ncpu`);
+#die "Found $ncpu CPUs; can only be run on systems with 1 CPU.\n" if ($ncpu > 1);
+
+$driftfile = "/etc/ntp.drift";
+$driftfile = $opt_d if defined($opt_d);
+
+chop($timer = `sysctl -n kern.timecounter.hardware 2> /dev/null`);
+
+$timer =~ tr/\U/\L/;
+
+if ($timer eq '') {
+  open(DM, "/var/run/dmesg.boot");
+  while(<DM>) {
+    # Timecounter "i8254"  frequency 1193182 Hz
+    if (/^Timecounter "(\w+)"\s+/) {
+      $timer = $1;
+      last;
+    }
+  }
+  close(DM);
+}
+
+$opt_t = $timer if !defined($opt_t);
+
+if ($timer ne '') {		# $timer found...
+  if ($opt_t ne  '') {		# - and $opt_t found
+    if ($timer ne $opt_t) {	# - - and they differ
+      warn "You specified a $opt_t timer but I detected a $timer timer.\n";
+      usage();
+      exit 1;
+    } else {			# - - and they are the same
+      ;
+    }
+  } else {			# - but no $opt_t specified; this is OK
+    ;
+  }
+} else {			# No $timer found...
+  if ($opt_t ne '') {		# - but $opt_t was specified
+    $timer = $opt_t;		# - - so use it.
+  } else {			# - and neither was $opt_t
+    warn "I can't tell what timer you have.  Please specify one.\n";
+    usage();
+    exit 1;
+  }
+}
+
+open(DF, $driftfile) || die "Can't open driftfile ($driftfile): $!\n";
+while(<DF>) {
+    chop;
+    if (/^(-?\d+\.\d+)(\s\d)?$/) {
+	$drift = $1;
+    } else {
+	die "Bogus value in driftfile $driftfile: <$_>\n";
+    }
+}
+close(DF);
+
+print "NTP drift is <$drift>\n";
+
+# Convert from NTP's idea of PPM to a decimal equivalent
+$freq_adj = int ( $drift * ( 10 ** 6 / 2 ** 20) );
+print "normalized freq_adj  is <$freq_adj>\n";
+
+$freq_adj = int ( ( $freq_adj - 1 ) / 2 );
+print "Applying freq_adj of <".-$freq_adj.">\n";
+
+$sysctl = "machdep.".$timer."_freq";
+
+chop($mach_freq = `sysctl -n $sysctl`);
+
+print "$sysctl is <$mach_freq>\n";
+
+$n_mach_freq = $mach_freq - $freq_adj;
+
+if (defined($opt_n)) {
+  print "$sysctl $mach_freq -> $n_mach_freq\n";
+} else {
+  print "i8254: ".`sysctl -w $sysctl=$n_mach_freq`;
+}
+
+sub usage {
+  print STDERR <<EOUsage
+Usage: $0 [-d drift_file] [-n] [-t timer]
+where "drift_file" defaults to /etc/ntp.drift
+and "timer" is usually "tsc" or "i8254"
+and "-n" says "don't really change anything, just say what would happen".
+EOUsage
+}

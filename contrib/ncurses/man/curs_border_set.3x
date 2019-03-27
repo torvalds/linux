@@ -1,0 +1,206 @@
+.\"***************************************************************************
+.\" Copyright (c) 2002-2011,2012 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_border_set.3x,v 1.11 2012/11/03 23:03:59 tom Exp $
+.TH curs_border_set 3X ""
+.na
+.hy 0
+.SH NAME
+\fBborder_set\fR,
+\fBwborder_set\fR,
+\fBbox_set\fR,
+\fBhline_set\fR,
+\fBwhline_set\fR,
+\fBmvhline_set\fR,
+\fBmvwhline_set\fR,
+\fBvline_set\fR,
+\fBwvline_set\fR,
+\fBmvvline_set\fR,
+\fBmvwvline_set\fR \- create \fBcurses\fR borders or lines using complex characters and renditions
+.ad
+.hy
+.SH SYNOPSIS
+.PP
+\fB#include <curses.h>\fR
+.sp
+\fBint border_set(\fR
+   \fBconst cchar_t *\fR\fIls\fR, \fBconst cchar_t *\fR\fIrs\fR,
+   \fBconst cchar_t *\fR\fIts\fR, \fBconst cchar_t *\fR\fIbs\fR,
+   \fBconst cchar_t *\fR\fItl\fR, \fBconst cchar_t *\fR\fItr\fR,
+   \fBconst cchar_t *\fR\fIbl\fR, \fBconst cchar_t *\fR\fIbr\fR
+\fB);\fR
+.br
+\fBint wborder_set(\fR
+   \fBWINDOW *win\fR,
+   \fBconst cchar_t *\fR\fIls\fR, \fBconst cchar_t *\fR\fIrs\fR,
+   \fBconst cchar_t *\fR\fIts\fR, \fBconst cchar_t *\fR\fIbs\fR,
+   \fBconst cchar_t *\fR\fItl\fR, \fBconst cchar_t *\fR\fItr\fR,
+   \fBconst cchar_t *\fR\fIbl\fR, \fBconst cchar_t *\fR\fIbr\fR\fB);\fR
+.br
+\fBint box_set(\fR
+   \fBWINDOW *win\fR,
+   \fBconst cchar_t *\fR\fIverch\fR,
+   \fBconst cchar_t *\fR\fIhorch\fR\fB);\fR
+.br
+\fBint hline_set(\fR
+   \fBconst cchar_t *\fR\fIwch\fR, \fBint \fR\fIn\fR\fB);\fR
+.br
+\fBint whline_set(\fR
+   \fBWINDOW *\fR\fIwin\fR,
+   \fBconst cchar_t *\fR\fIwch\fR, \fBint \fR\fIn\fR\fB);\fR
+.br
+\fBint mvhline_set(\fR
+   \fBint \fR\fIy\fR, \fBint \fR\fIx\fR,
+   \fBconst cchar_t *\fR\fIwch\fR, \fBint \fR\fIn\fR\fB);\fR
+.br
+\fBint mvwhline_set(\fR
+   \fBWINDOW *\fR\fIwin\fR,
+   \fBint \fR\fIy\fR, \fBint \fR\fIx\fR,
+   \fBconst cchar_t *\fR\fIwch\fR, \fBint \fR\fIn\fR\fB);\fR
+.br
+\fBint vline_set(\fR
+   \fBconst cchar_t *\fR\fIwch\fR, \fBint \fR\fIn\fR\fB);\fR
+.br
+\fBint wvline_set(\fR
+   \fBWINDOW *\fR\fIwin\fR,
+   \fBconst cchar_t *\fR\fIwch\fR, \fBint \fR\fIn\fR\fB);\fR
+.br
+\fBint mvvline_set(\fR
+   \fBint \fR\fIy\fR, \fBint \fR\fIx\fR,
+   \fBconst cchar_t *\fR\fIwch\fR, \fBint \fR\fIn\fR\fB);\fR
+.br
+\fBint mvwvline_set(\fR
+   \fBWINDOW *\fR\fIwin\fR,
+   \fBint \fR\fIy\fR, \fBint \fR\fIx\fR,
+   \fBconst cchar_t *\fR\fIwch\fR, \fBint \fR\fIn\fR\fB);\fR
+.br
+.SH DESCRIPTION
+.PP
+The
+\fBborder_set\fR
+and
+\fBwborder_set\fR
+functions draw a border around the edges of the current or specified window.
+These functions do not change the cursor position, and do not wrap.
+.PP
+Other than the window, each argument is a complex character with attributes:
+.RS
+\fIls\fR \- left side,
+.br
+\fIrs\fR \- right side,
+.br
+\fIts\fR \- top side,
+.br
+\fIbs\fR \- bottom side,
+.br
+\fItl\fR \- top left-hand corner,
+.br
+\fItr\fR \- top right-hand corner,
+.br
+\fIbl\fR \- bottom left-hand corner, and
+.br
+\fIbr\fR \- bottom right-hand corner.
+.RE
+.PP
+If any of these arguments is zero, then the corresponding
+default values (defined in \fBcurses.h\fR) are used instead:
+.RS
+\fBWACS_VLINE\fR,
+.br
+\fBWACS_VLINE\fR,
+.br
+\fBWACS_HLINE\fR,
+.br
+\fBWACS_HLINE\fR,
+.br
+\fBWACS_ULCORNER\fR,
+.br
+\fBWACS_URCORNER\fR,
+.br
+\fBWACS_LLCORNER\fR, and
+.br
+\fBWACS_LRCORNER\fR.
+.RE
+.PP
+\fBbox_set(\fR\fIwin\fR, \fIverch\fR\fB, \fR\fIhorch\fR\fB);\fR
+is a shorthand for the following call:
+.PP
+\fBwborder_set(\fR\fIwin\fR\fB, \fR\fIverch\fR\fB, \fR\fIverch\fR\fB,\fR
+    \fIhorch\fR\fB, \fR\fIhorch\fR\fB, NULL, NULL, NULL, NULL);\fR
+.PP
+The
+\fB*line_set\fR
+functions use
+\fIwch\fR
+to draw a line starting at the current cursor position in the window.
+The line is at most \fIn\fR characters long or as many as fit into the window.
+The current cursor position is not changed.
+.PP
+The
+\fBhline_set\fR,
+\fBmvhline_set\fR,
+\fBmvwhline_set\fR, and
+\fBwhline_set\fR
+functions draw a line proceeding toward the last column of the same line.
+.PP
+The
+\fBvline_set\fR,
+\fBmvvline_set\fR,
+\fBmvwvline_set\fR, and
+\fBwvline_set\fR
+functions draw a line proceeding toward the last line of the window.
+.br
+.SH NOTES
+.PP
+Note that
+\fBborder_set\fR,
+\fBhline_set\fR,
+\fBmvhline_set\fR,
+\fBmvvline_set\fR,
+\fBmvwhline_set\fR,
+\fBmvwvline_set\fR, and
+\fBvline_set\fR
+may be macros.
+.br
+.SH RETURN VALUE
+.PP
+Upon successful completion, these functions return
+\fBOK\fR.
+Otherwise, they return
+\fBERR\fR.
+.PP
+Functions using a window parameter return an error if it is null.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH SEE ALSO
+\fBncurses\fR(3X),
+\fBcurs_add_wch\fR(3X),
+\fBcurs_border\fR(3X),
+\fBcurs_outopts\fR(3X)

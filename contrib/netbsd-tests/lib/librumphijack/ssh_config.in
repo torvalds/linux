@@ -1,0 +1,14 @@
+# $NetBSD: ssh_config.in,v 1.1 2011/02/14 15:14:00 pooka Exp $
+
+# Basic settings.
+Port 22
+Protocol 2
+
+# The temporary key used for login.
+IdentityFile @WORKDIR@/ssh_user_key
+
+# Prevent the client from complaining about unknown host keys.
+GlobalKnownHostsFile @WORKDIR@/known_hosts
+
+# Do not attempt password authentication in case keys fail.
+IdentitiesOnly yes

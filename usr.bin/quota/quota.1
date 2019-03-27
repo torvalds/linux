@@ -1,0 +1,176 @@
+.\" Copyright (c) 1983, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Robert Elz at The University of Melbourne.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)quota.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd February 3, 2007
+.Dt QUOTA 1
+.Os
+.Sh NAME
+.Nm quota
+.Nd display disk usage and limits
+.Sh SYNOPSIS
+.Nm
+.Op Fl ghlu
+.Op Fl f Ar path
+.Op Fl v | q | r
+.Nm
+.Op Fl hlu
+.Op Fl f Ar path
+.Op Fl v | q | r
+.Ar user ...
+.Nm
+.Fl g
+.Op Fl hl
+.Op Fl f Ar path
+.Op Fl v | q | r
+.Ar group ...
+.Sh DESCRIPTION
+The
+.Nm
+utility displays users' disk usage and limits.
+By default only the user quotas are printed.
+Disk block usage and limits are shown in 1024-byte blocks.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl f Ar path
+Only display quota information for the file system
+that contains the specified path.
+This can be any file within a mounted file system.
+.It Fl g
+Print group quotas for the group
+of which the user is a member.
+.It Fl h
+"Human-readable" output.
+Use unit suffixes: Byte, Kilobyte, Megabyte, Gigabyte, Terabyte and Petabyte.
+.It Fl l
+Do not report quotas on
+.Tn NFS
+file systems.
+.It Fl q
+Print a more terse message,
+containing only information
+on file systems where usage is over quota.
+The
+.Fl q
+flag takes precedence over the
+.Fl v
+flag.
+.It Fl r
+Display the raw quota information as it appears in the quota structure.
+Non-zero time values will also be displayed in
+.Xr ctime 3
+format.
+This option implies
+.Fl v
+and will override the
+.Fl q
+flag.
+.It Fl u
+Print the user quotas.
+This is the default unless
+.Fl g
+is specified.
+.It Fl v
+Display quotas on file systems
+where no storage is allocated.
+.El
+.Pp
+Specifying both
+.Fl g
+and
+.Fl u
+displays both the user quotas and the group quotas (for
+the user).
+.Pp
+Only the super-user may use the
+.Fl u
+flag and the optional
+.Ar user
+argument to view the limits of other users.
+Non-super-users can use the
+.Fl g
+flag and optional
+.Ar group
+argument to view only the limits of groups of which they are members.
+.Pp
+The
+.Nm
+utility tries to report the quotas of all mounted file systems.
+If the file system is mounted via
+.Tn NFS ,
+it will attempt to contact the
+.Xr rpc.rquotad 8
+daemon on the
+.Tn NFS
+server.
+For
+.Tn UFS
+file systems, quotas must be turned on in
+.Pa /etc/fstab .
+If
+.Nm
+exits with a non-zero status, one or more file systems
+are over quota or the path specified with the
+.Fl f
+option does not exist.
+.Pp
+If the
+.Fl l
+flag is specified,
+.Nm
+will not check
+.Tn NFS
+file systems.
+.Sh FILES
+.Bl -tag -width quota.group -compact
+.It Pa quota.user
+located at the file system root with user quotas
+.It Pa quota.group
+located at the file system root with group quotas
+.It Pa /etc/fstab
+to find file system names and locations
+.El
+.Sh SEE ALSO
+.Xr quotactl 2 ,
+.Xr ctime 3 ,
+.Xr fstab 5 ,
+.Xr edquota 8 ,
+.Xr quotacheck 8 ,
+.Xr quotaon 8 ,
+.Xr repquota 8 ,
+.Xr rpc.rquotad 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .

@@ -1,0 +1,58 @@
+#!/bin/sh -
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$weekly_noid_enable" in
+    [Yy][Ee][Ss])
+	echo ""
+	echo "Check for files with an unknown user or group:"
+
+	# Host should not test jailed subtrees as jails have their own
+	# databases of users and groups. Leave them for jailed invocations
+	# of this script.
+
+	exclude=''
+	if [ $(sysctl -n security.jail.jailed) = 0 ]; then
+	    # For jail_conf
+	    . /etc/rc.subr
+	    load_rc_config jail
+
+	    sep=:
+	    OIFS="$IFS"
+	    IFS="$sep"
+	    for param in $(jail -f "$jail_conf" -e "$sep" 2>/dev/null)
+	    do
+		case "$param" in
+		    path=*)
+			_p=${param#path=}
+			if [ -z "$_p" -o "$_p" = / ]; then
+				continue
+			fi
+
+			exclude="$exclude -path $_p -prune -or"
+			;;
+		esac
+	    done
+	    IFS="$OIFS"
+	fi
+
+	rc=$(find -H ${weekly_noid_dirs:-/} \
+	    \( $exclude ! -fstype local -prune -or -name \* \) -and \
+	    \( -nogroup -o -nouser \) -print | sed 's/^/  /' |
+	    tee /dev/stderr | wc -l)
+	[ $rc -gt 1 ] && rc=1
+	;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

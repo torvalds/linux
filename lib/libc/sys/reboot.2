@@ -1,0 +1,164 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)reboot.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd July 10, 2018
+.Dt REBOOT 2
+.Os
+.Sh NAME
+.Nm reboot
+.Nd reboot system or halt processor
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.In sys/reboot.h
+.Ft int
+.Fn reboot "int howto"
+.Sh DESCRIPTION
+The
+.Fn reboot
+system call
+reboots the system.
+Only the super-user may reboot a machine on demand.
+However, a reboot is invoked
+automatically in the event of unrecoverable system failures.
+.Pp
+The
+.Fa howto
+argument
+is a mask of options; the system call interface allows the following
+options, defined in the include file
+.In sys/reboot.h ,
+to be passed
+to the new kernel or the new bootstrap and init programs.
+.Bl -tag -width RB_POWERCYCLE
+.It Dv RB_AUTOBOOT
+The default, causing the system to reboot in its usual fashion.
+.It Dv RB_ASKNAME
+Normally the system only prompts the user if the loader specified root
+file system has an error.
+This flag forces it to always prompt the user for the root partition.
+.It Dv RB_DFLTROOT
+Use the compiled in root device.
+Normally, the system uses the device from which it was booted
+as the root device if possible.
+(The default behavior is dependent on the ability of the bootstrap program
+to determine the drive from which it was loaded, which is not possible
+on all systems.)
+.It Dv RB_DUMP
+Dump kernel memory before rebooting; see
+.Xr savecore 8
+for more information.
+.It Dv RB_HALT
+The processor is simply halted; no reboot takes place.
+This option should be used with caution.
+.It Dv RB_POWERCYCLE
+After halting, the shutdown code will do what it can to turn
+off the power and then turn the power back on.
+This requires hardware support, usually an auxiliary microprocessor
+that can sequence the power supply.
+At present only the
+.Xr ipmi 4
+driver implements this feature.
+.It Dv RB_POWEROFF
+After halting, the shutdown code will do what it can to turn
+off the power.
+This requires hardware support.
+.It Dv RB_KDB
+Load the symbol table and enable a built-in debugger in the system.
+This option will have no useful function if the kernel is not configured
+for debugging.
+Several other options have different meaning if combined
+with this option, although their use may not be possible
+via the
+.Fn reboot
+system call.
+See
+.Xr ddb 4
+for more information.
+.It Dv RB_NOSYNC
+Normally, the disks are sync'd (see
+.Xr sync 8 )
+before the processor is halted or rebooted.
+This option may be useful if file system changes have been made manually
+or if the processor is on fire.
+.It Dv RB_REROOT
+Instead of rebooting, unmount all filesystems except the one containing
+currently-running executable, and mount root filesystem using the same
+mechanism which is used during normal boot, based on
+vfs.root.mountfrom
+.Xr kenv 1
+variable.
+.It Dv RB_RDONLY
+Initially mount the root file system read-only.
+This is currently the default, and this option has been deprecated.
+.It Dv RB_SINGLE
+Normally, the reboot procedure involves an automatic disk consistency
+check and then multi-user operations.
+.Dv RB_SINGLE
+prevents this, booting the system with a single-user shell
+on the console.
+.Dv RB_SINGLE
+is actually interpreted by the
+.Xr init 8
+program in the newly booted system.
+.El
+.Pp
+When no options are given (i.e.,
+.Dv RB_AUTOBOOT
+is used), the system is
+rebooted from file
+.Dq kernel
+in the root file system of unit 0
+of a disk chosen in a processor specific way.
+An automatic consistency check of the disks is normally performed
+(see
+.Xr fsck 8 ) .
+.Sh RETURN VALUES
+If successful, this call never returns.
+Otherwise, a -1 is returned and an error is returned in the global
+variable
+.Va errno .
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EPERM
+The caller is not the super-user.
+.El
+.Sh SEE ALSO
+.Xr crash 8 ,
+.Xr halt 8 ,
+.Xr init 8 ,
+.Xr reboot 8 ,
+.Xr savecore 8
+.Sh HISTORY
+The
+.Fn reboot
+system call appeared in
+.Bx 4.0 .

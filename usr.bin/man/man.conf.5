@@ -1,0 +1,142 @@
+.\"-
+.\"  Copyright (c) 2010 Gordon Tetlow
+.\"  All rights reserved.
+.\"
+.\"  Redistribution and use in source and binary forms, with or without
+.\"  modification, are permitted provided that the following conditions
+.\"  are met:
+.\"  1. Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\"  2. Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\"
+.\"  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\"  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\"  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\"  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\"  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\"  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\"  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\"  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\"  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\"  SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 3, 2011
+.Dt MAN.CONF 5
+.Os
+.Sh NAME
+.Nm man.conf
+.Nd
+.Xr man 1
+and
+.Xr manpath 1
+configuration files
+.Sh DESCRIPTION
+The
+.Nm
+file is used to configure the manual search path, locales, and utility set for
+.Xr man 1
+and its related utilities.
+During initialization,
+.Xr man 1
+reads the configuration files located at
+.Pa /usr/local/etc/man.d/*.conf
+and
+.Pa /etc/man.conf .
+.Pp
+The files contained in
+.Pa /usr/local/etc/man.d/*.conf
+are intended to be used by the
+.Xr ports 7
+system for extending the manual set to support additional paths and locales.
+.Pa /etc/man.conf
+is intended to be used by the local administrator to set additional policy.
+.Pp
+Currently supported configuration variables include:
+.Bl -tag -width 12n -offset indent
+.It MANCONFIG
+Overrides the default location to import additional manual configuration files.
+Defaults to
+.Pa /usr/local/etc/man.d/*.conf .
+.It MANPATH
+Adds the specified directory to the manual search path.
+.It MANLOCALE
+Indicates support is available for the given locale.
+.El
+.Pp
+For pages in a given language, overriding the default toolset for
+display is supported via the following definitions:
+.Pp
+.Bl -tag -width 12n -offset indent -compact
+.It EQN Ns _ Ns Va LANG
+.It NROFF Ns _ Ns Va LANG
+.It PIC Ns _ Ns Va LANG
+.It TBL Ns _ Ns Va LANG
+.It TROFF Ns _ Ns Va LANG
+.It REFER Ns _ Ns Va LANG
+.It VGRIND Ns _ Ns Va LANG
+.El
+.Pp
+See the
+.Sx EXAMPLES
+section for how to use these variables.
+.Sh IMPLEMENTATION NOTES
+The parser used for this utility is very basic and only supports comment
+characters (#) at the beginning of a line.
+.Sh FILES
+.Bl -tag -width "Pa /usr/local/etc/man.d/*.conf" -compact
+.It Pa /etc/man.conf
+System configuration file.
+.It Pa /usr/local/etc/man.d/*.conf
+Local configuration files.
+.El
+.Sh EXAMPLES
+A perl port that needs to install additional manual pages outside of the
+default location could install a file in
+.Pa /usr/local/etc/man.d/perl.conf
+with the following contents:
+.Bd -literal -offset indent
+# Add perl man pages to search path
+MANPATH /usr/local/lib/perl5/5.8.9/man
+MANPATH /usr/local/lib/perl5/5.8.9/perl/man
+.Ed
+.Pp
+A Japanese localization port could install a custom toolset and include a
+file in
+.Pa /usr/local/etc/man.d/ja-man-doc.conf
+with the following contents:
+.Bd -literal -offset indent
+# Setup Japanese toolset
+MANLOCALE	ja_JP.eucJP
+EQN_JA		/usr/local/bin/geqn
+PIC_JA		/usr/local/bin/gpic
+TBL_JA		/usr/local/bin/gtbl
+NROFF_JA	/usr/local/bin/groff -man -dlang=ja_JP.eucJP
+TROFF_JA	/usr/local/bin/groff -man -dlang=ja_JP.euc.jp
+.Ed
+.Pp
+If the system administrator decides to override the
+.Va LOCALBASE
+.Xr make 1
+variable causing all
+.Xr ports 7
+to be installed into
+.Pa /opt
+instead of
+.Pa /usr/local ,
+specifying the following in
+.Pa /etc/man.conf
+will accommodate this change:
+.Bd -literal -offset indent
+# Look for additional configuration files
+MANCONFIG /opt/etc/man.d/*.conf
+.Ed
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr man 1 ,
+.Xr manpath 1 ,
+.Xr whatis 1

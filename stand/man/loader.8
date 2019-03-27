@@ -1,0 +1,1128 @@
+.\" Copyright (c) 1999 Daniel C. Sobral
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 15, 2018
+.Dt LOADER 8
+.Os
+.Sh NAME
+.Nm loader
+.Nd kernel bootstrapping final stage
+.Sh DESCRIPTION
+The program called
+.Nm
+is the final stage of
+.Fx Ns 's
+kernel bootstrapping process.
+On IA32 (i386) architectures, it is a
+.Pa BTX
+client.
+It is linked statically to
+.Xr libstand 3
+and usually located in the directory
+.Pa /boot .
+.Pp
+It provides a scripting language that can be used to
+automate tasks, do pre-configuration or assist in recovery
+procedures.
+This scripting language is roughly divided in
+two main components.
+The smaller one is a set of commands
+designed for direct use by the casual user, called "builtin
+commands" for historical reasons.
+The main drive behind these commands is user-friendliness.
+The bigger component is an
+.Tn ANS
+Forth compatible Forth interpreter based on FICL, by
+.An John Sadler .
+.Pp
+During initialization,
+.Nm
+will probe for a console and set the
+.Va console
+variable, or set it to serial console
+.Pq Dq Li comconsole
+if the previous boot stage used that.
+If multiple consoles are selected, they will be listed separated by spaces.
+Then, devices are probed,
+.Va currdev
+and
+.Va loaddev
+are set, and
+.Va LINES
+is set to 24.
+Next,
+.Tn FICL
+is initialized, the builtin words are added to its vocabulary, and
+.Pa /boot/boot.4th
+is processed if it exists.
+No disk switching is possible while that file is being read.
+The inner interpreter
+.Nm
+will use with
+.Tn FICL
+is then set to
+.Ic interpret ,
+which is
+.Tn FICL Ns 's
+default.
+After that,
+.Pa /boot/loader.rc
+is processed if available.
+These files are processed through the
+.Ic include
+command, which reads all of them into memory before processing them,
+making disk changes possible.
+.Pp
+At this point, if an
+.Ic autoboot
+has not been tried, and if
+.Va autoboot_delay
+is not set to
+.Dq Li NO
+(not case sensitive), then an
+.Ic autoboot
+will be tried.
+If the system gets past this point,
+.Va prompt
+will be set and
+.Nm
+will engage interactive mode.
+Please note that historically even when
+.Va autoboot_delay
+is set to
+.Dq Li 0
+user will be able to interrupt autoboot process by pressing some key
+on the console while kernel and modules are being loaded.
+In some
+cases such behaviour may be undesirable, to prevent it set
+.Va autoboot_delay
+to
+.Dq Li -1 ,
+in this case
+.Nm
+will engage interactive mode only if
+.Ic autoboot
+has failed.
+.Sh BUILTIN COMMANDS
+In
+.Nm ,
+builtin commands take parameters from the command line.
+Presently,
+the only way to call them from a script is by using
+.Pa evaluate
+on a string.
+If an error condition occurs, an exception will be generated,
+which can be intercepted using
+.Tn ANS
+Forth exception handling
+words.
+If not intercepted, an error message will be displayed and
+the interpreter's state will be reset, emptying the stack and restoring
+interpreting mode.
+.Pp
+The builtin commands available are:
+.Pp
+.Bl -tag -width Ds -compact
+.It Ic autoboot Op Ar seconds Op Ar prompt
+Proceeds to bootstrap the system after a number of seconds, if not
+interrupted by the user.
+Displays a countdown prompt
+warning the user the system is about to be booted,
+unless interrupted by a key press.
+The kernel will be loaded first if necessary.
+Defaults to 10 seconds.
+.Pp
+.It Ic bcachestat
+Displays statistics about disk cache usage.
+For debugging only.
+.Pp
+.It Ic boot
+.It Ic boot Ar kernelname Op Cm ...
+.It Ic boot Fl flag Cm ...
+Immediately proceeds to bootstrap the system, loading the kernel
+if necessary.
+Any flags or arguments are passed to the kernel, but they
+must precede the kernel name, if a kernel name is provided.
+.Pp
+.Em WARNING :
+The behavior of this builtin is changed if
+.Xr loader.4th 8
+is loaded.
+.Pp
+.It Ic echo Xo
+.Op Fl n
+.Op Aq message
+.Xc
+Displays text on the screen.
+A new line will be printed unless
+.Fl n
+is specified.
+.Pp
+.It Ic heap
+Displays memory usage statistics.
+For debugging purposes only.
+.Pp
+.It Ic help Op topic Op subtopic
+Shows help messages read from
+.Pa /boot/loader.help .
+The special topic
+.Em index
+will list the topics available.
+.Pp
+.It Ic include Ar file Op Ar
+Process script files.
+Each file, in turn, is completely read into memory,
+and then each of its lines is passed to the command line interpreter.
+If any error is returned by the interpreter, the include
+command aborts immediately, without reading any other files, and
+returns an error itself (see
+.Sx ERRORS ) .
+.Pp
+.It Ic load Xo
+.Op Fl t Ar type
+.Ar file Cm ...
+.Xc
+Loads a kernel, kernel loadable module (kld), disk image,
+or file of opaque contents tagged as being of the type
+.Ar type .
+Kernel and modules can be either in a.out or ELF format.
+Any arguments passed after the name of the file to be loaded
+will be passed as arguments to that file.
+Use the
+.Li md_image
+type to make the kernel create a file-backed
+.Xr md 4
+disk.
+This is useful for booting from a temporary rootfs.
+Currently, argument passing does not work for the kernel.
+.Pp
+.It Ic load_geli Xo
+.Op Fl n Ar keyno
+.Ar prov Ar file
+.Xc
+Loads a
+.Xr geli 8
+encryption keyfile for the given provider name.
+The key index can be specified via
+.Ar keyno
+or will default to zero.
+.Pp
+.It Ic ls Xo
+.Op Fl l
+.Op Ar path
+.Xc
+Displays a listing of files in the directory
+.Ar path ,
+or the root directory if
+.Ar path
+is not specified.
+If
+.Fl l
+is specified, file sizes will be shown too.
+.Pp
+.It Ic lsdev Op Fl v
+Lists all of the devices from which it may be possible to load modules,
+as well as ZFS pools.
+If
+.Fl v
+is specified, more details are printed, including ZFS pool information
+in a format that resembles
+.Nm zpool Cm status
+output.
+.Pp
+.It Ic lsmod Op Fl v
+Displays loaded modules.
+If
+.Fl v
+is specified, more details are shown.
+.Pp
+.It Ic lszfs Ar filesystem
+A ZFS extended command that can be used to explore the ZFS filesystem
+hierarchy in a pool.
+Lists the immediate children of the
+.Ar filesystem .
+The filesystem hierarchy is rooted at a filesystem with the same name
+as the pool.
+.Pp
+.It Ic more Ar file Op Ar
+Display the files specified, with a pause at each
+.Va LINES
+displayed.
+.Pp
+.It Ic pnpscan Op Fl v
+Scans for Plug-and-Play devices.
+This is not functional at present.
+.Pp
+.It Ic read Xo
+.Op Fl t Ar seconds
+.Op Fl p Ar prompt
+.Op Va variable
+.Xc
+Reads a line of input from the terminal, storing it in
+.Va variable
+if specified.
+A timeout can be specified with
+.Fl t ,
+though it will be canceled at the first key pressed.
+A prompt may also be displayed through the
+.Fl p
+flag.
+.Pp
+.It Ic reboot
+Immediately reboots the system.
+.Pp
+.It Ic set Ar variable
+.It Ic set Ar variable Ns = Ns Ar value
+Set loader's environment variables.
+.Pp
+.It Ic show Op Va variable
+Displays the specified variable's value, or all variables and their
+values if
+.Va variable
+is not specified.
+.Pp
+.It Ic unload
+Remove all modules from memory.
+.Pp
+.It Ic unset Va variable
+Removes
+.Va variable
+from the environment.
+.Pp
+.It Ic \&?
+Lists available commands.
+.El
+.Ss BUILTIN ENVIRONMENT VARIABLES
+The
+.Nm
+has actually two different kinds of
+.Sq environment
+variables.
+There are ANS Forth's
+.Em environmental queries ,
+and a separate space of environment variables used by builtins, which
+are not directly available to Forth words.
+It is the latter type that this section covers.
+.Pp
+Environment variables can be set and unset through the
+.Ic set
+and
+.Ic unset
+builtins, and can have their values interactively examined through the
+use of the
+.Ic show
+builtin.
+Their values can also be accessed as described in
+.Sx BUILTIN PARSER .
+.Pp
+Notice that these environment variables are not inherited by any shell
+after the system has been booted.
+.Pp
+A few variables are set automatically by
+.Nm .
+Others can affect the behavior of either
+.Nm
+or the kernel at boot.
+Some options may require a value,
+while others define behavior just by being set.
+Both types of builtin variables are described below.
+.Bl -tag -width bootfile
+.It Va autoboot_delay
+Number of seconds
+.Ic autoboot
+will wait before booting.
+If this variable is not defined,
+.Ic autoboot
+will default to 10 seconds.
+.Pp
+If set to
+.Dq Li NO ,
+no
+.Ic autoboot
+will be automatically attempted after processing
+.Pa /boot/loader.rc ,
+though explicit
+.Ic autoboot Ns 's
+will be processed normally, defaulting to 10 seconds delay.
+.Pp
+If set to
+.Dq Li 0 ,
+no delay will be inserted, but user still will be able to interrupt
+.Ic autoboot
+process and escape into the interactive mode by pressing some key
+on the console while kernel and
+modules are being loaded.
+.Pp
+If set to
+.Dq Li -1 ,
+no delay will be inserted and
+.Nm
+will engage interactive mode only if
+.Ic autoboot
+has failed for some reason.
+.It Va boot_askname
+Instructs the kernel to prompt the user for the name of the root device
+when the kernel is booted.
+.It Va boot_cdrom
+Instructs the kernel to try to mount the root file system from CD-ROM.
+.It Va boot_ddb
+Instructs the kernel to start in the DDB debugger, rather than
+proceeding to initialize when booted.
+.It Va boot_dfltroot
+Instructs the kernel to mount the statically compiled-in root file system.
+.It Va boot_gdb
+Selects gdb-remote mode for the kernel debugger by default.
+.It Va boot_multicons
+Enables multiple console support in the kernel early on boot.
+In a running system, console configuration can be manipulated
+by the
+.Xr conscontrol 8
+utility.
+.It Va boot_mute
+All kernel console output is suppressed when console is muted.
+In a running system, the state of console muting can be manipulated by the
+.Xr conscontrol 8
+utility.
+.It Va boot_pause
+During the device probe, pause after each line is printed.
+.It Va boot_serial
+Force the use of a serial console even when an internal console
+is present.
+.It Va boot_single
+Prevents the kernel from initiating a multi-user startup; instead,
+a single-user mode will be entered when the kernel has finished
+device probing.
+.It Va boot_verbose
+Setting this variable causes extra debugging information to be printed
+by the kernel during the boot phase.
+.It Va bootfile
+List of semicolon-separated search path for bootable kernels.
+The default is
+.Dq Li kernel .
+.It Va comconsole_speed
+Defines the speed of the serial console (i386 and amd64 only).
+If the previous boot stage indicated that a serial console is in use
+then this variable is initialized to the current speed of the console
+serial port.
+Otherwise it is set to 9600 unless this was overridden using the
+.Va BOOT_COMCONSOLE_SPEED
+variable when
+.Nm
+was compiled.
+Changes to the
+.Va comconsole_speed
+variable take effect immediately.
+.It Va comconsole_port
+Defines the base i/o port used to access console UART
+(i386 and amd64 only).
+If the variable is not set, its assumed value is 0x3F8, which
+corresponds to PC port COM1, unless overridden by
+.Va BOOT_COMCONSOLE_PORT
+variable during the compilation of
+.Nm .
+Setting the
+.Va comconsole_port
+variable automatically set
+.Va hw.uart.console
+environment variable to provide a hint to kernel for location of the console.
+Loader console is changed immediately after variable
+.Va comconsole_port
+is set.
+.It Va comconsole_pcidev
+Defines the location of a PCI device of the 'simple communication'
+class to be used as the serial console UART (i386 and amd64 only).
+The syntax of the variable is
+.Li 'bus:device:function[:bar]' ,
+where all members must be numeric, with possible
+.Li 0x
+prefix to indicate a hexadecimal value.
+The
+.Va bar
+member is optional and assumed to be 0x10 if omitted.
+The bar must decode i/o space.
+Setting the variable
+.Va comconsole_pcidev
+automatically sets the variable
+.Va comconsole_port
+to the base of the selected bar, and hint
+.Va hw.uart.console .
+Loader console is changed immediately after variable
+.Va comconsole_pcidev
+is set.
+.It Va console
+Defines the current console or consoles.
+Multiple consoles may be specified.
+In that case, the first listed console will become the default console for
+userland output (e.g.\& from
+.Xr init 8 ) .
+.It Va currdev
+Selects the default device.
+Syntax for devices is odd.
+.It Va dumpdev
+Sets the device for kernel dumps.
+This can be used to ensure that a device is configured before the corresponding
+.Va dumpdev
+directive from
+.Xr rc.conf 5
+has been processed, allowing kernel panics that happen during the early stages
+of boot to be captured.
+.It Va init_chroot
+See
+.Xr init 8 .
+.It Va init_exec
+See
+.Xr init 8 .
+.It Va init_path
+Sets the list of binaries which the kernel will try to run as the initial
+process.
+The first matching binary is used.
+The default list is
+.Dq Li /sbin/init:/sbin/oinit:/sbin/init.bak:\:/rescue/init .
+.It Va init_script
+See
+.Xr init 8 .
+.It Va init_shell
+See
+.Xr init 8 .
+.It Va interpret
+Has the value
+.Dq Li OK
+if the Forth's current state is interpreting.
+.It Va LINES
+Define the number of lines on the screen, to be used by the pager.
+.It Va module_path
+Sets the list of directories which will be searched for modules
+named in a load command or implicitly required by a dependency.
+The default value for this variable is
+.Dq Li /boot/kernel;/boot/modules .
+.It Va num_ide_disks
+Sets the number of IDE disks as a workaround for some problems in
+finding the root disk at boot.
+This has been deprecated in favor of
+.Va root_disk_unit .
+.It Va prompt
+Value of
+.Nm Ns 's
+prompt.
+Defaults to
+.Dq Li "${interpret}" .
+If variable
+.Va prompt
+is unset, the default prompt is
+.Ql > .
+.It Va root_disk_unit
+If the code which detects the disk unit number for the root disk is
+confused, e.g.\& by a mix of SCSI and IDE disks, or IDE disks with
+gaps in the sequence (e.g.\& no primary slave), the unit number can
+be forced by setting this variable.
+.It Va rootdev
+By default the value of
+.Va currdev
+is used to set the root file system
+when the kernel is booted.
+This can be overridden by setting
+.Va rootdev
+explicitly.
+.El
+.Pp
+Other variables are used to override kernel tunable parameters.
+The following tunables are available:
+.Bl -tag -width Va
+.It Va efi.rt.disabled
+Disable UEFI runtime services in the kernel, if applicable.
+Runtime services are only available and used if the kernel is booted in a UEFI
+environment.
+.It Va hw.physmem
+Limit the amount of physical memory the system will use.
+By default the size is in bytes, but the
+.Cm k , K , m , M , g
+and
+.Cm G
+suffixes
+are also accepted and indicate kilobytes, megabytes and gigabytes
+respectively.
+An invalid suffix will result in the variable being ignored by the
+kernel.
+.It Va hw.pci.host_start_mem , hw.acpi.host_start_mem
+When not otherwise constrained, this limits the memory start
+address.
+The default is 0x80000000 and should be set to at least size of the
+memory and not conflict with other resources.
+Typically, only systems without PCI bridges need to set this variable
+since PCI bridges typically constrain the memory starting address
+(and the variable is only used when bridges do not constrain this
+address).
+.It Va hw.pci.enable_io_modes
+Enable PCI resources which are left off by some BIOSes or are not
+enabled correctly by the device driver.
+Tunable value set to ON (1) by default, but this may cause problems
+with some peripherals.
+.It Va kern.maxusers
+Set the size of a number of statically allocated system tables; see
+.Xr tuning 7
+for a description of how to select an appropriate value for this
+tunable.
+When set, this tunable replaces the value declared in the kernel
+compile-time configuration file.
+.It Va kern.ipc.nmbclusters
+Set the number of mbuf clusters to be allocated.
+The value cannot be set below the default
+determined when the kernel was compiled.
+.It Va kern.ipc.nsfbufs
+Set the number of
+.Xr sendfile 2
+buffers to be allocated.
+Overrides
+.Dv NSFBUFS .
+Not all architectures use such buffers; see
+.Xr sendfile 2
+for details.
+.It Va kern.maxswzone
+Limits the amount of KVM to be used to hold swap
+metadata, which directly governs the
+maximum amount of swap the system can support,
+at the rate of approximately 200 MB of swap space
+per 1 MB of metadata.
+This value is specified in bytes of KVA space.
+If no value is provided, the system allocates
+enough memory to handle an amount of swap
+that corresponds to eight times the amount of
+physical memory present in the system.
+.Pp
+Note that swap metadata can be fragmented,
+which means that the system can run out of
+space before it reaches the theoretical limit.
+Therefore, care should be taken to not configure
+more swap than approximately half of the
+theoretical maximum.
+.Pp
+Running out of space for swap metadata can leave
+the system in an unrecoverable state.
+Therefore, you should only change
+this parameter if you need to greatly extend the
+KVM reservation for other resources such as the
+buffer cache or
+.Va kern.ipc.nmbclusters .
+Modifies kernel option
+.Dv VM_SWZONE_SIZE_MAX .
+.It Va kern.maxbcache
+Limits the amount of KVM reserved for use by the
+buffer cache, specified in bytes.
+The default maximum is 200MB on i386,
+and 400MB on amd64 and sparc64.
+This parameter is used to
+prevent the buffer cache from eating too much
+KVM in large-memory machine configurations.
+Only mess around with this parameter if you need to
+greatly extend the KVM reservation for other resources
+such as the swap zone or
+.Va kern.ipc.nmbclusters .
+Note that
+the NBUF parameter will override this limit.
+Modifies
+.Dv VM_BCACHE_SIZE_MAX .
+.It Va kern.msgbufsize
+Sets the size of the kernel message buffer.
+The default limit of 64KB is usually sufficient unless
+large amounts of trace data need to be collected
+between opportunities to examine the buffer or
+dump it to a file.
+Overrides kernel option
+.Dv MSGBUF_SIZE .
+.It Va machdep.disable_mtrrs
+Disable the use of i686 MTRRs (x86 only).
+.It Va net.inet.tcp.tcbhashsize
+Overrides the compile-time set value of
+.Dv TCBHASHSIZE
+or the preset default of 512.
+Must be a power of 2.
+.It Va twiddle_divisor
+Throttles the output of the
+.Sq twiddle
+I/O progress indicator displayed while loading the kernel and modules.
+This is useful on slow serial consoles where the time spent waiting for
+these characters to be written can add up to many seconds.
+The default is 1 (full speed); a value of 2 spins half as fast, and so on.
+.It Va vm.kmem_size
+Sets the size of kernel memory (bytes).
+This overrides the value determined when the kernel was compiled.
+Modifies
+.Dv VM_KMEM_SIZE .
+.It Va vm.kmem_size_min
+.It Va vm.kmem_size_max
+Sets the minimum and maximum (respectively) amount of kernel memory
+that will be automatically allocated by the kernel.
+These override the values determined when the kernel was compiled.
+Modifies
+.Dv VM_KMEM_SIZE_MIN
+and
+.Dv VM_KMEM_SIZE_MAX .
+.El
+.Ss ZFS FEATURES
+.Nm
+supports the following format for specifying ZFS filesystems which
+can be used wherever
+.Xr loader 8
+refers to a device specification:
+.Pp
+.Ar zfs:pool/filesystem:
+.Pp
+where
+.Pa pool/filesystem
+is a ZFS filesystem name as described in
+.Xr zfs 8 .
+.Pp
+If
+.Pa /etc/fstab
+does not have an entry for the root filesystem and
+.Va vfs.root.mountfrom
+is not set, but
+.Va currdev
+refers to a ZFS filesystem, then
+.Nm
+will instruct kernel to use that filesystem as the root filesystem.
+.Ss BUILTIN PARSER
+When a builtin command is executed, the rest of the line is taken
+by it as arguments, and it is processed by a special parser which
+is not used for regular Forth commands.
+.Pp
+This special parser applies the following rules to the parsed text:
+.Bl -enum
+.It
+All backslash characters are preprocessed.
+.Bl -bullet
+.It
+\eb , \ef , \er , \en and \et are processed as in C.
+.It
+\es is converted to a space.
+.It
+\ev is converted to
+.Tn ASCII
+11.
+.It
+\ez is just skipped.
+Useful for things like
+.Dq \e0xf\ez\e0xf .
+.It
+\e0xN and \e0xNN are replaced by the hex N or NN.
+.It
+\eNNN is replaced by the octal NNN
+.Tn ASCII
+character.
+.It
+\e" , \e' and \e$ will escape these characters, preventing them from
+receiving special treatment in Step 2, described below.
+.It
+\e\e will be replaced with a single \e .
+.It
+In any other occurrence, backslash will just be removed.
+.El
+.It
+Every string between non-escaped quotes or double-quotes will be treated
+as a single word for the purposes of the remaining steps.
+.It
+Replace any
+.Li $VARIABLE
+or
+.Li ${VARIABLE}
+with the value of the environment variable
+.Va VARIABLE .
+.It
+Space-delimited arguments are passed to the called builtin command.
+Spaces can also be escaped through the use of \e\e .
+.El
+.Pp
+An exception to this parsing rule exists, and is described in
+.Sx BUILTINS AND FORTH .
+.Ss BUILTINS AND FORTH
+All builtin words are state-smart, immediate words.
+If interpreted, they behave exactly as described previously.
+If they are compiled, though,
+they extract their arguments from the stack instead of the command line.
+.Pp
+If compiled, the builtin words expect to find, at execution time, the
+following parameters on the stack:
+.D1 Ar addrN lenN ... addr2 len2 addr1 len1 N
+where
+.Ar addrX lenX
+are strings which will compose the command line that will be parsed
+into the builtin's arguments.
+Internally, these strings are concatenated in from 1 to N,
+with a space put between each one.
+.Pp
+If no arguments are passed, a 0
+.Em must
+be passed, even if the builtin accepts no arguments.
+.Pp
+While this behavior has benefits, it has its trade-offs.
+If the execution token of a builtin is acquired (through
+.Ic '
+or
+.Ic ['] ) ,
+and then passed to
+.Ic catch
+or
+.Ic execute ,
+the builtin behavior will depend on the system state
+.Bf Em
+at the time
+.Ic catch
+or
+.Ic execute
+is processed!
+.Ef
+This is particularly annoying for programs that want or need to
+handle exceptions.
+In this case, the use of a proxy is recommended.
+For example:
+.Dl : (boot) boot ;
+.Sh FICL
+.Tn FICL
+is a Forth interpreter written in C, in the form of a forth
+virtual machine library that can be called by C functions and vice
+versa.
+.Pp
+In
+.Nm ,
+each line read interactively is then fed to
+.Tn FICL ,
+which may call
+.Nm
+back to execute the builtin words.
+The builtin
+.Ic include
+will also feed
+.Tn FICL ,
+one line at a time.
+.Pp
+The words available to
+.Tn FICL
+can be classified into four groups.
+The
+.Tn ANS
+Forth standard words, extra
+.Tn FICL
+words, extra
+.Fx
+words, and the builtin commands;
+the latter were already described.
+The
+.Tn ANS
+Forth standard words are listed in the
+.Sx STANDARDS
+section.
+The words falling in the two other groups are described in the
+following subsections.
+.Ss FICL EXTRA WORDS
+.Bl -tag -width wid-set-super
+.It Ic .env
+.It Ic .ver
+.It Ic -roll
+.It Ic 2constant
+.It Ic >name
+.It Ic body>
+.It Ic compare
+This is the STRING word set's
+.Ic compare .
+.It Ic compile-only
+.It Ic endif
+.It Ic forget-wid
+.It Ic parse-word
+.It Ic sliteral
+This is the STRING word set's
+.Ic sliteral .
+.It Ic wid-set-super
+.It Ic w@
+.It Ic w!
+.It Ic x.
+.It Ic empty
+.It Ic cell-
+.It Ic -rot
+.El
+.Ss FREEBSD EXTRA WORDS
+.Bl -tag -width XXXXXXXX
+.It Ic \&$ Pq --
+Evaluates the remainder of the input buffer, after having printed it first.
+.It Ic \&% Pq --
+Evaluates the remainder of the input buffer under a
+.Ic catch
+exception guard.
+.It Ic .#
+Works like
+.Ic "."
+but without outputting a trailing space.
+.It Ic fclose Pq Ar fd --
+Closes a file.
+.It Ic fkey Pq Ar fd -- char
+Reads a single character from a file.
+.It Ic fload Pq Ar fd --
+Processes a file
+.Em fd .
+.It Ic fopen Pq Ar addr len mode Li -- Ar fd
+Opens a file.
+Returns a file descriptor, or \-1 in case of failure.
+The
+.Ar mode
+parameter selects whether the file is to be opened for read access, write
+access, or both.
+The constants
+.Dv O_RDONLY , O_WRONLY ,
+and
+.Dv O_RDWR
+are defined in
+.Pa /boot/support.4th ,
+indicating read only, write only, and read-write access, respectively.
+.It Xo
+.Ic fread
+.Pq Ar fd addr len -- len'
+.Xc
+Tries to read
+.Em len
+bytes from file
+.Em fd
+into buffer
+.Em addr .
+Returns the actual number of bytes read, or -1 in case of error or end of
+file.
+.It Ic heap? Pq -- Ar cells
+Return the space remaining in the dictionary heap, in cells.
+This is not related to the heap used by dynamic memory allocation words.
+.It Ic inb Pq Ar port -- char
+Reads a byte from a port.
+.It Ic key Pq -- Ar char
+Reads a single character from the console.
+.It Ic key? Pq -- Ar flag
+Returns
+.Ic true
+if there is a character available to be read from the console.
+.It Ic ms Pq Ar u --
+Waits
+.Em u
+microseconds.
+.It Ic outb Pq Ar port char --
+Writes a byte to a port.
+.It Ic seconds Pq -- Ar u
+Returns the number of seconds since midnight.
+.It Ic tib> Pq -- Ar addr len
+Returns the remainder of the input buffer as a string on the stack.
+.It Ic trace! Pq Ar flag --
+Activates or deactivates tracing.
+Does not work with
+.Ic catch .
+.El
+.Ss FREEBSD DEFINED ENVIRONMENTAL QUERIES
+.Bl -tag -width Ds
+.It arch-i386
+.Ic TRUE
+if the architecture is IA32.
+.It FreeBSD_version
+.Fx
+version at compile time.
+.It loader_version
+.Nm
+version.
+.El
+.Sh SECURITY
+Access to the
+.Nm
+command line provides several ways of compromising system security,
+including, but not limited to:
+.Pp
+.Bl -bullet
+.It
+Booting from removable storage, by setting the
+.Va currdev
+or
+.Va loaddev
+variables
+.It
+Executing binary of choice, by setting the
+.Va init_path
+or
+.Va init_script
+variables
+.It
+Overriding ACPI DSDT to inject arbitrary code into the ACPI subsystem
+.El
+.Pp
+One can prevent unauthorized access
+to the
+.Nm
+command line by setting the
+.Va password ,
+or setting
+.Va autoboot_delay
+to -1.
+See
+.Xr loader.conf 5
+for details.
+In order for this to be effective, one should also configure the firmware
+(BIOS or UEFI) to prevent booting from unauthorized devices.
+.Sh FILES
+.Bl -tag -width /usr/share/examples/bootforth/ -compact
+.It Pa /boot/loader
+.Nm
+itself.
+.It Pa /boot/boot.4th
+Additional
+.Tn FICL
+initialization.
+.It Pa /boot/defaults/loader.conf
+.It Pa /boot/loader.4th
+Extra builtin-like words.
+.It Pa /boot/loader.conf
+.It Pa /boot/loader.conf.local
+.Nm
+configuration files, as described in
+.Xr loader.conf 5 .
+.It Pa /boot/loader.rc
+.Nm
+bootstrapping script.
+.It Pa /boot/loader.help
+Loaded by
+.Ic help .
+Contains the help messages.
+.It Pa /boot/support.4th
+.Pa loader.conf
+processing words.
+.It Pa /usr/share/examples/bootforth/
+Assorted examples.
+.El
+.Sh EXAMPLES
+Boot in single user mode:
+.Pp
+.Dl boot -s
+.Pp
+Load the kernel, a splash screen, and then autoboot in five seconds.
+Notice that a kernel must be loaded before any other
+.Ic load
+command is attempted.
+.Bd -literal -offset indent
+load kernel
+load splash_bmp
+load -t splash_image_data /boot/chuckrulez.bmp
+autoboot 5
+.Ed
+.Pp
+Set the disk unit of the root device to 2, and then boot.
+This would be needed in a system with two IDE disks,
+with the second IDE disk hardwired to ada2 instead of ada1.
+.Bd -literal -offset indent
+set root_disk_unit=2
+boot /boot/kernel/kernel
+.Ed
+.Pp
+Set the default device used for loading a kernel from a ZFS filesystem:
+.Bd -literal -offset indent
+set currdev=zfs:tank/ROOT/knowngood:
+.Ed
+.Pp
+.Sh ERRORS
+The following values are thrown by
+.Nm :
+.Bl -tag -width XXXXX -offset indent
+.It 100
+Any type of error in the processing of a builtin.
+.It -1
+.Ic Abort
+executed.
+.It -2
+.Ic Abort"
+executed.
+.It -56
+.Ic Quit
+executed.
+.It -256
+Out of interpreting text.
+.It -257
+Need more text to succeed -- will finish on next run.
+.It -258
+.Ic Bye
+executed.
+.It -259
+Unspecified error.
+.El
+.Sh SEE ALSO
+.Xr libstand 3 ,
+.Xr loader.conf 5 ,
+.Xr tuning 7 ,
+.Xr boot 8 ,
+.Xr btxld 8
+.Sh STANDARDS
+For the purposes of ANS Forth compliance, loader is an
+.Bf Em
+ANS Forth System with Environmental Restrictions, Providing
+.Ef
+.Bf Li
+.No .( ,
+.No :noname ,
+.No ?do ,
+parse, pick, roll, refill, to, value, \e, false, true,
+.No <> ,
+.No 0<> ,
+compile\&, , erase, nip, tuck
+.Ef
+.Em and
+.Li marker
+.Bf Em
+from the Core Extensions word set, Providing the Exception Extensions
+word set, Providing the Locals Extensions word set, Providing the
+Memory-Allocation Extensions word set, Providing
+.Ef
+.Bf Li
+\&.s,
+bye, forget, see, words,
+\&[if],
+\&[else]
+.Ef
+.Em and
+.Li [then]
+.Bf Em
+from the Programming-Tools extension word set, Providing the
+Search-Order extensions word set.
+.Ef
+.Sh HISTORY
+The
+.Nm
+first appeared in
+.Fx 3.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+was written by
+.An Michael Smith Aq msmith@FreeBSD.org .
+.Pp
+.Tn FICL
+was written by
+.An John Sadler Aq john_sadler@alum.mit.edu .
+.Sh BUGS
+The
+.Ic expect
+and
+.Ic accept
+words will read from the input buffer instead of the console.
+The latter will be fixed, but the former will not.

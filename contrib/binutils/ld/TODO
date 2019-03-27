@@ -1,0 +1,9 @@
+Volunteers to tackle some of the following would be welcome:
+
+Support the "traditional" BSD  -A flag (incremental loading).
+(There is a -A flag in ld now, but it is used to specify the
+architecture.  That should probably be changed.)
+
+Support for dynamic loading (a la dld, but bfd-based) would be nice.
+
+Avoid re-open (and re-seeking) output bfd and archives.

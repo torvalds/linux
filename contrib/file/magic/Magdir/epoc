@@ -1,0 +1,62 @@
+
+#------------------------------------------------------------------------------
+# $File: epoc,v 1.9 2013/12/21 14:28:15 christos Exp $
+# EPOC : file(1) magic for EPOC documents [Psion Series 5/Osaris/Geofox 1]
+# Stefan Praszalowicz <hpicollo@worldnet.fr> and Peter Breitenlohner <peb@mppmu.mpg.de>
+# Useful information for improving this file can be found at:
+# http://software.frodo.looijaard.name/psiconv/formats/Index.html
+#------------------------------------------------------------------------------
+0	lelong		0x10000037	Psion Series 5
+>4	lelong		0x10000039	font file
+>4	lelong		0x1000003A	printer driver
+>4	lelong		0x1000003B	clipboard
+>4	lelong		0x10000042	multi-bitmap image
+!:mime image/x-epoc-mbm
+>4	lelong		0x1000006A	application information file
+>4	lelong		0x1000006D
+>>8	lelong		0x1000007D	Sketch image
+!:mime image/x-epoc-sketch
+>>8	lelong		0x1000007E	voice note
+>>8	lelong		0x1000007F	Word file
+!:mime application/x-epoc-word
+>>8	lelong		0x10000085	OPL program (TextEd)
+!:mime application/x-epoc-opl
+>>8	lelong		0x10000087	Comms settings
+>>8	lelong		0x10000088	Sheet file
+!:mime application/x-epoc-sheet
+>>8	lelong		0x100001C4	EasyFax initialisation file
+>4	lelong		0x10000073	OPO module
+!:mime application/x-epoc-opo
+>4	lelong		0x10000074	OPL application
+!:mime application/x-epoc-app
+>4	lelong		0x1000008A	exported multi-bitmap image
+>4	lelong		0x1000016D
+>>8	lelong		0x10000087	Comms names
+
+0	lelong		0x10000041	Psion Series 5 ROM multi-bitmap image
+
+0	lelong		0x10000050	Psion Series 5
+>4	lelong		0x1000006D	database
+>>8	lelong		0x10000084	Agenda file
+!:mime application/x-epoc-agenda
+>>8	lelong		0x10000086	Data file
+!:mime application/x-epoc-data
+>>8	lelong		0x10000CEA	Jotter file
+!:mime application/x-epoc-jotter
+>4	lelong		0x100000E4	ini file
+
+0	lelong		0x10000079	Psion Series 5 binary:
+>4	lelong		0x00000000	DLL
+>4	lelong		0x10000049	comms hardware library
+>4	lelong		0x1000004A	comms protocol library
+>4	lelong		0x1000005D	OPX
+>4	lelong		0x1000006C	application
+>4	lelong		0x1000008D	DLL
+>4	lelong		0x100000AC	logical device driver
+>4	lelong		0x100000AD	physical device driver
+>4	lelong		0x100000E5	file transfer protocol
+>4	lelong		0x100000E5	file transfer protocol
+>4	lelong		0x10000140	printer definition
+>4	lelong		0x10000141	printer definition
+
+0	lelong		0x1000007A	Psion Series 5 executable

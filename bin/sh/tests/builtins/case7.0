@@ -1,0 +1,24 @@
+# $FreeBSD$
+
+# Character ranges in a locale other than the POSIX locale, not specified
+# by POSIX.
+
+unset LC_ALL
+LC_CTYPE=de_DE.ISO8859-1
+export LC_CTYPE
+LC_COLLATE=de_DE.ISO8859-1
+export LC_COLLATE
+
+c1=e
+# o umlaut
+c2=$(printf '\366')
+
+case $c1$c2 in
+[a-z][a-z]) ;;
+*) echo wrong at $LINENO ;;
+esac
+
+case $c1$c2 in
+[a-f][n-p]) ;;
+*) echo wrong at $LINENO ;;
+esac

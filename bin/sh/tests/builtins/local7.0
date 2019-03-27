@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+f() {
+	local x
+	readonly x=2
+}
+unset x
+f
+x=4
+[ "$x" = 4 ]

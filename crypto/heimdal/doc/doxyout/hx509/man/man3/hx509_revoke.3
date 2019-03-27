@@ -1,0 +1,171 @@
+.TH "hx509 revokation checking functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hx509 revokation checking functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "int \fBhx509_revoke_init\fP (hx509_context context, hx509_revoke_ctx *ctx)"
+.br
+.ti -1c
+.RI "void \fBhx509_revoke_free\fP (hx509_revoke_ctx *ctx)"
+.br
+.ti -1c
+.RI "int \fBhx509_revoke_add_ocsp\fP (hx509_context context, hx509_revoke_ctx ctx, const char *path)"
+.br
+.ti -1c
+.RI "int \fBhx509_revoke_add_crl\fP (hx509_context context, hx509_revoke_ctx ctx, const char *path)"
+.br
+.ti -1c
+.RI "int \fBhx509_revoke_verify\fP (hx509_context context, hx509_revoke_ctx ctx, hx509_certs certs, time_t now, hx509_cert cert, hx509_cert parent_cert)"
+.br
+.ti -1c
+.RI "int \fBhx509_ocsp_request\fP (hx509_context context, hx509_certs reqcerts, hx509_certs pool, hx509_cert signer, const AlgorithmIdentifier *digest, heim_octet_string *request, heim_octet_string *nonce)"
+.br
+.ti -1c
+.RI "int \fBhx509_revoke_ocsp_print\fP (hx509_context context, const char *path, FILE *out)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+See the \fBRevocation methods\fP for description and examples. 
+.SH "Function Documentation"
+.PP 
+.SS "int hx509_ocsp_request (hx509_context context, hx509_certs reqcerts, hx509_certs pool, hx509_cert signer, const AlgorithmIdentifier * digest, heim_octet_string * request, heim_octet_string * nonce)"
+.PP
+Create an OCSP request for a set of certificates.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context 
+.br
+\fIreqcerts\fP list of certificates to request ocsp data for 
+.br
+\fIpool\fP certificate pool to use when signing 
+.br
+\fIsigner\fP certificate to use to sign the request 
+.br
+\fIdigest\fP the signing algorithm in the request, if NULL use the default signature algorithm, 
+.br
+\fIrequest\fP the encoded request, free with free_heim_octet_string(). 
+.br
+\fInonce\fP nonce in the request, free with free_heim_octet_string().
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_revoke_add_crl (hx509_context context, hx509_revoke_ctx ctx, const char * path)"
+.PP
+Add a CRL file to the revokation context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP hx509 context 
+.br
+\fIctx\fP hx509 revokation context 
+.br
+\fIpath\fP path to file that is going to be added to the context.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_revoke_add_ocsp (hx509_context context, hx509_revoke_ctx ctx, const char * path)"
+.PP
+Add a OCSP file to the revokation context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP hx509 context 
+.br
+\fIctx\fP hx509 revokation context 
+.br
+\fIpath\fP path to file that is going to be added to the context.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "void hx509_revoke_free (hx509_revoke_ctx * ctx)"
+.PP
+Free a hx509 revokation context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP context to be freed 
+.RE
+.PP
+
+.SS "int hx509_revoke_init (hx509_context context, hx509_revoke_ctx * ctx)"
+.PP
+Allocate a revokation context. Free with \fBhx509_revoke_free()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIctx\fP returns a newly allocated revokation context.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_revoke_ocsp_print (hx509_context context, const char * path, FILE * out)"
+.PP
+Print the OCSP reply stored in a file.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context 
+.br
+\fIpath\fP path to a file with a OCSP reply 
+.br
+\fIout\fP the out FILE descriptor to print the reply on
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_revoke_verify (hx509_context context, hx509_revoke_ctx ctx, hx509_certs certs, time_t now, hx509_cert cert, hx509_cert parent_cert)"
+.PP
+Check that a certificate is not expired according to a revokation context. Also need the parent certificte to the check OCSP parent identifier.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP hx509 context 
+.br
+\fIctx\fP hx509 revokation context 
+.br
+\fIcerts\fP 
+.br
+\fInow\fP 
+.br
+\fIcert\fP 
+.br
+\fIparent_cert\fP 
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+

@@ -1,0 +1,138 @@
+/*	$Id: lib.in,v 1.20 2017/08/20 02:30:27 schwarze Exp $ */
+/*
+ * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2009, 2012 Joerg Sonnenberger <joerg@netbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
+ * These are all possible .Lb strings.  When a new library is added, add
+ * its short-string to the left-hand side and formatted string to the
+ * right-hand side.
+ *
+ * Be sure to escape strings.
+ */
+
+LINE("lib80211",	"802.11 Wireless Network Management Library (lib80211, \\-l80211)")
+LINE("libalias",	"Packet Aliasing Library (libalias, \\-lalias)")
+LINE("libarchive",	"Streaming Archive Library (libarchive, \\-larchive)")
+LINE("libarm",		"ARM Architecture Library (libarm, \\-larm)")
+LINE("libarm32",	"ARM32 Architecture Library (libarm32, \\-larm32)")
+LINE("libbe",		"Boot Environment Library (libbe, \\-lbe)")
+LINE("libbluetooth",	"Bluetooth Library (libbluetooth, \\-lbluetooth)")
+LINE("libbsdxml",	"eXpat XML parser library (libbsdxml, \\-lbsdxml)")
+LINE("libbsm",		"Basic Security Module Library (libbsm, \\-lbsm)")
+LINE("libc",		"Standard C\\~Library (libc, \\-lc)")
+LINE("libc_r",		"Reentrant C\\~Library (libc_r, \\-lc_r)")
+LINE("libcalendar",	"Calendar Arithmetic Library (libcalendar, \\-lcalendar)")
+LINE("libcam",		"Common Access Method User Library (libcam, \\-lcam)")
+LINE("libcasper",	"Casper Library (libcasper, \\-lcasper)")
+LINE("libcdk",		"Curses Development Kit Library (libcdk, \\-lcdk)")
+LINE("libcipher",	"FreeSec Crypt Library (libcipher, \\-lcipher)")
+LINE("libcompat",	"Compatibility Library (libcompat, \\-lcompat)")
+LINE("libcrypt",	"Crypt Library (libcrypt, \\-lcrypt)")
+LINE("libcurses",	"Curses Library (libcurses, \\-lcurses)")
+LINE("libcuse", 	"Userland Character Device Library (libcuse, \\-lcuse)")
+LINE("libdevattr",	"Device attribute and event library (libdevattr, \\-ldevattr)")
+LINE("libdevctl",	"Device Control Library (libdevctl, \\-ldevctl)")
+LINE("libdevinfo",	"Device and Resource Information Utility Library (libdevinfo, \\-ldevinfo)")
+LINE("libdevstat",	"Device Statistics Library (libdevstat, \\-ldevstat)")
+LINE("libdisk",		"Interface to Slice and Partition Labels Library (libdisk, \\-ldisk)")
+LINE("libdl",		"Dynamic Linker Services Filter (libdl, \\-ldl)")
+LINE("libdm",		"Device Mapper Library (libdm, \\-ldm)")
+LINE("libdwarf",	"DWARF Access Library (libdwarf, \\-ldwarf)")
+LINE("libedit",		"Command Line Editor Library (libedit, \\-ledit)")
+LINE("libefi",		"EFI Runtime Services Library (libefi, \\-lefi)")
+LINE("libelf",		"ELF Access Library (libelf, \\-lelf)")
+LINE("libevent",	"Event Notification Library (libevent, \\-levent)")
+LINE("libexecinfo",	"Backtrace Information Library (libexecinfo, \\-lexecinfo)")
+LINE("libfetch",	"File Transfer Library (libfetch, \\-lfetch)")
+LINE("libfsid",		"Filesystem Identification Library (libfsid, \\-lfsid)")
+LINE("libftpio",	"FTP Connection Management Library (libftpio, \\-lftpio)")
+LINE("libform",		"Curses Form Library (libform, \\-lform)")
+LINE("libgeom",		"Userland API Library for Kernel GEOM subsystem (libgeom, \\-lgeom)")
+LINE("libgmock",	"GoogleMock library (libgmock, \\-lgmock)")
+LINE("libgpio",		"General-Purpose Input Output (GPIO) library (libgpio, \\-lgpio)")
+LINE("libgtest",	"GoogleTest library (libgtest, \\-lgtest)")
+LINE("libhammer",	"HAMMER Filesystem Userland Library (libhammer, \\-lhammer)")
+LINE("libi386",		"i386 Architecture Library (libi386, \\-li386)")
+LINE("libintl",		"Internationalized Message Handling Library (libintl, \\-lintl)")
+LINE("libipsec",	"IPsec Policy Control Library (libipsec, \\-lipsec)")
+LINE("libiscsi",	"iSCSI protocol library (libiscsi, \\-liscsi)")
+LINE("libisns",		"Internet Storage Name Service Library (libisns, \\-lisns)")
+LINE("libjail",		"Jail Library (libjail, \\-ljail)")
+LINE("libkcore",	"Kernel Memory Core Access Library (libkcore, \\-lkcore)")
+LINE("libkiconv",	"Kernel-side iconv Library (libkiconv, \\-lkiconv)")
+LINE("libkse",		"N:M Threading Library (libkse, \\-lkse)")
+LINE("libkvm",		"Kernel Data Access Library (libkvm, \\-lkvm)")
+LINE("libm",		"Math Library (libm, \\-lm)")
+LINE("libm68k",		"m68k Architecture Library (libm68k, \\-lm68k)")
+LINE("libmagic",	"Magic Number Recognition Library (libmagic, \\-lmagic)")
+LINE("libmandoc",	"Mandoc Macro Compiler Library (libmandoc, \\-lmandoc)")
+LINE("libmd",		"Message Digest (MD4, MD5, etc.) Support Library (libmd, \\-lmd)")
+LINE("libmemstat",	"Kernel Memory Allocator Statistics Library (libmemstat, \\-lmemstat)")
+LINE("libmenu",		"Curses Menu Library (libmenu, \\-lmenu)")
+LINE("libmj",		"Minimalist JSON library (libmj, \\-lmj)")
+LINE("libnetgraph",	"Netgraph User Library (libnetgraph, \\-lnetgraph)")
+LINE("libnetpgp",	"Netpgp Signing, Verification, Encryption and Decryption (libnetpgp, \\-lnetpgp)")
+LINE("libnetpgpverify",	"Netpgp Verification (libnetpgpverify, \\-lnetpgpverify)")
+LINE("libnpf",		"NPF Packet Filter Library (libnpf, \\-lnpf)")
+LINE("libnv",		"Name/value pairs library (libnv, \\-lnv)")
+LINE("libossaudio",	"OSS Audio Emulation Library (libossaudio, \\-lossaudio)")
+LINE("libpam",		"Pluggable Authentication Module Library (libpam, \\-lpam)")
+LINE("libpanel",	"Z-order for curses windows (libpanel, \\-lpanel)")
+LINE("libpcap",		"Packet capture Library (libpcap, \\-lpcap)")
+LINE("libpci",		"PCI Bus Access Library (libpci, \\-lpci)")
+LINE("libpmc",		"Performance Counters Library (libpmc, \\-lpmc)")
+LINE("libppath",	"Property-List Paths Library (libppath, \\-lppath)")
+LINE("libposix",	"POSIX Compatibility Library (libposix, \\-lposix)")
+LINE("libposix1e",	"POSIX.1e Security API Library (libposix1e, \\-lposix1e)")
+LINE("libppath",	"Property-List Paths Library (libppath, \\-lppath)")
+LINE("libproc",		"Processor Monitoring and Analysis Library (libproc, \\-lproc)")
+LINE("libprocstat",	"Process and Files Information Retrieval (libprocstat, \\-lprocstat)")
+LINE("libprop",		"Property Container Object Library (libprop, \\-lprop)")
+LINE("libpthread",	"POSIX Threads Library (libpthread, \\-lpthread)")
+LINE("libpthread_dbg",	"POSIX Debug Threads Library (libpthread_dbg, \\-lpthread_dbg)")
+LINE("libpuffs",	"puffs Convenience Library (libpuffs, \\-lpuffs)")
+LINE("libquota",	"Disk Quota Access and Control Library (libquota, \\-lquota)")
+LINE("libradius",	"RADIUS Client Library (libradius, \\-lradius)")
+LINE("librefuse",	"File System in Userspace Convenience Library (librefuse, \\-lrefuse)")
+LINE("libresolv",	"DNS Resolver Library (libresolv, \\-lresolv)")
+LINE("librpcsec_gss",	"RPC GSS-API Authentication Library (librpcsec_gss, \\-lrpcsec_gss)")
+LINE("librpcsvc",	"RPC Service Library (librpcsvc, \\-lrpcsvc)")
+LINE("librt",		"POSIX Real\\-time Library (librt, \\-lrt)")
+LINE("librtld_db",	"Debugging interface to the runtime linker Library (librtld_db, \\-lrtld_db)")
+LINE("librumpclient",	"Clientside Stubs for rump Kernel Remote Protocols (librumpclient, \\-lrumpclient)")
+LINE("libsaslc",	"Simple Authentication and Security Layer client library (libsaslc, \\-lsaslc)")
+LINE("libsbuf",		"Safe String Composition Library (libsbuf, \\-lsbuf)")
+LINE("libsdp",		"Bluetooth Service Discovery Protocol User Library (libsdp, \\-lsdp)")
+LINE("libssp",		"Buffer Overflow Protection Library (libssp, \\-lssp)")
+LINE("libstdthreads",	"C11 Threads Library (libstdthreads, \\-lstdthreads)")
+LINE("libstdthreads",	"C11 Threads Library (libstdthreads, \\-lstdthreads)")
+LINE("libSystem",	"System Library (libSystem, \\-lSystem)")
+LINE("libsysdecode",	"System Argument Decoding Library (libsysdecode, \\-lsysdecode)")
+LINE("libtacplus",	"TACACS+ Client Library (libtacplus, \\-ltacplus)")
+LINE("libtcplay",	"TrueCrypt-compatible API library (libtcplay, \\-ltcplay)")
+LINE("libtermcap",	"Termcap Access Library (libtermcap, \\-ltermcap)")
+LINE("libterminfo",	"Terminal Information Library (libterminfo, \\-lterminfo)")
+LINE("libthr",		"1:1 Threading Library (libthr, \\-lthr)")
+LINE("libufs",		"UFS File System Access Library (libufs, \\-lufs)")
+LINE("libugidfw",	"File System Firewall Interface Library (libugidfw, \\-lugidfw)")
+LINE("libulog",		"User Login Record Library (libulog, \\-lulog)")
+LINE("libusbhid",	"USB Human Interface Devices Library (libusbhid, \\-lusbhid)")
+LINE("libutil",		"System Utilities Library (libutil, \\-lutil)")
+LINE("libvgl",		"Video Graphics Library (libvgl, \\-lvgl)")
+LINE("libx86_64",	"x86_64 Architecture Library (libx86_64, \\-lx86_64)")
+LINE("libxo",		"Text, XML, JSON, and HTML Output Emission Library (libxo, \\-lxo)")
+LINE("libz",		"Compression Library (libz, \\-lz)")

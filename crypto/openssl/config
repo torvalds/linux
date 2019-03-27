@@ -1,0 +1,946 @@
+#!/bin/sh
+# Copyright 1998-2019 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# OpenSSL config: determine the operating system and run ./Configure
+# Derived from minarch and GuessOS from Apache.
+#
+# Do "config -h" for usage information.
+SUFFIX=""
+DRYRUN="false"
+VERBOSE="false"
+EXE=""
+THERE=`dirname $0`
+
+# pick up any command line args to config
+for i
+do
+case "$i" in
+-d*) options=$options" --debug";;
+-t*) DRYRUN="true" VERBOSE="true";;
+-v*) VERBOSE="true";;
+-h*) DRYRUN="true"; cat <<EOF
+Usage: config [options]
+ -d	Build with debugging when possible.
+ -t	Test mode, do not run the Configure perl script.
+ -v	Verbose mode, show the exact Configure call that is being made.
+ -h	This help.
+
+Any other text will be passed to the Configure perl script.
+See INSTALL for instructions.
+
+EOF
+;;
+*)  i=`echo "$i" | sed -e "s|'|'\\\\\\''|g"`
+    options="$options '$i'" ;;
+esac
+done
+
+# Environment that's being passed to Configure
+__CNF_CPPDEFINES=
+__CNF_CPPINCLUDES=
+__CNF_CPPFLAGS=
+__CNF_CFLAGS=
+__CNF_CXXFLAGS=
+__CNF_LDFLAGS=
+__CNF_LDLIBS=
+
+# First get uname entries that we use below
+
+[ "$MACHINE" ] || MACHINE=`(uname -m) 2>/dev/null` || MACHINE="unknown"
+[ "$RELEASE" ] || RELEASE=`(uname -r) 2>/dev/null` || RELEASE="unknown"
+[ "$SYSTEM" ] || SYSTEM=`(uname -s) 2>/dev/null`  || SYSTEM="unknown"
+[ "$BUILD" ] || VERSION=`(uname -v) 2>/dev/null` || VERSION="unknown"
+
+
+# Now test for ISC and SCO, since it is has a braindamaged uname.
+#
+# We need to work around FreeBSD 1.1.5.1
+(
+XREL=`uname -X 2>/dev/null | grep "^Release" | awk '{print $3}'`
+if [ "x$XREL" != "x" ]; then
+    if [ -f /etc/kconfig ]; then
+	case "$XREL" in
+	    4.0|4.1)
+		    echo "${MACHINE}-whatever-isc4"; exit 0
+		;;
+	esac
+    else
+	case "$XREL" in
+	    3.2v4.2)
+		echo "whatever-whatever-sco3"; exit 0
+		;;
+	    3.2v5.0*)
+		echo "whatever-whatever-sco5"; exit 0
+		;;
+	    4.2MP)
+		case "x${VERSION}" in
+		    x2.0*) echo "whatever-whatever-unixware20"; exit 0 ;;
+		    x2.1*) echo "whatever-whatever-unixware21"; exit 0 ;;
+		    x2*)   echo "whatever-whatever-unixware2";  exit 0 ;;
+		esac
+		;;
+	    4.2)
+		echo "whatever-whatever-unixware1"; exit 0
+		;;
+	    5*)
+		case "x${VERSION}" in
+		    # We hardcode i586 in place of ${MACHINE} for the
+		    # following reason. The catch is that even though Pentium
+		    # is minimum requirement for platforms in question,
+		    # ${MACHINE} gets always assigned to i386. Now, problem
+		    # with i386 is that it makes ./config pass 386 to
+		    # ./Configure, which in turn makes make generate
+		    # inefficient SHA-1 (for this moment) code.
+		    x[678]*)  echo "i586-sco-unixware7"; exit 0 ;;
+		esac
+		;;
+	esac
+    fi
+fi
+# Now we simply scan though... In most cases, the SYSTEM info is enough
+#
+case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
+    A/UX:*)
+	echo "m68k-apple-aux3"; exit 0
+	;;
+
+    AIX:[3-9]:4:*)
+	echo "${MACHINE}-ibm-aix"; exit 0
+	;;
+
+    AIX:*:[5-9]:*)
+	echo "${MACHINE}-ibm-aix"; exit 0
+	;;
+
+    AIX:*)
+	echo "${MACHINE}-ibm-aix3"; exit 0
+	;;
+
+    HI-UX:*)
+	echo "${MACHINE}-hi-hiux"; exit 0
+	;;
+
+    HP-UX:*)
+	HPUXVER=`echo ${RELEASE}|sed -e 's/[^.]*.[0B]*//'`
+	case "$HPUXVER" in
+	    1[0-9].*)	# HPUX 10 and 11 targets are unified
+		echo "${MACHINE}-hp-hpux1x"; exit 0
+		;;
+	    *)
+		echo "${MACHINE}-hp-hpux"; exit 0
+		;;
+	esac
+	;;
+
+    IRIX:6.*)
+	echo "mips3-sgi-irix"; exit 0
+	;;
+
+    IRIX64:*)
+	echo "mips4-sgi-irix64"; exit 0
+	;;
+
+    Linux:[2-9].*)
+	echo "${MACHINE}-whatever-linux2"; exit 0
+	;;
+
+    Linux:1.*)
+	echo "${MACHINE}-whatever-linux1"; exit 0
+	;;
+
+    GNU*)
+	echo "hurd-x86"; exit 0;
+	;;
+
+    LynxOS:*)
+	echo "${MACHINE}-lynx-lynxos"; exit 0
+	;;
+
+    BSD/OS:4.*)  # BSD/OS always says 386
+	echo "i486-whatever-bsdi4"; exit 0
+	;;
+
+    BSD/386:*:*:*486*|BSD/OS:*:*:*:*486*)
+        case `/sbin/sysctl -n hw.model` in
+	    Pentium*)
+                echo "i586-whatever-bsdi"; exit 0
+                ;;
+            *)
+                echo "i386-whatever-bsdi"; exit 0
+                ;;
+            esac;
+	;;
+
+    BSD/386:*|BSD/OS:*)
+	echo "${MACHINE}-whatever-bsdi"; exit 0
+	;;
+
+    FreeBSD:*:*:*386*)
+        VERS=`echo ${RELEASE} | sed -e 's/[-(].*//'`
+        MACH=`sysctl -n hw.model`
+        ARCH='whatever'
+        case ${MACH} in
+           *386*       ) MACH="i386"     ;;
+           *486*       ) MACH="i486"     ;;
+           Pentium\ II*) MACH="i686"     ;;
+           Pentium*    ) MACH="i586"     ;;
+           *           ) MACH="$MACHINE" ;;
+        esac
+        case ${MACH} in
+           i[0-9]86 ) ARCH="pc" ;;
+        esac
+        echo "${MACH}-${ARCH}-freebsd${VERS}"; exit 0
+        ;;
+
+    DragonFly:*)
+	echo "${MACHINE}-whatever-dragonfly"; exit 0
+	;;
+
+    FreeBSD:*)
+	echo "${MACHINE}-whatever-freebsd"; exit 0
+	;;
+
+    Haiku:*)
+	echo "${MACHINE}-whatever-haiku"; exit 0
+	;;
+
+    NetBSD:*:*:*386*)
+        echo "`(/usr/sbin/sysctl -n hw.model || /sbin/sysctl -n hw.model) | sed 's,.*\(.\)86-class.*,i\186,'`-whatever-netbsd"; exit 0
+	;;
+
+    NetBSD:*)
+	echo "${MACHINE}-whatever-netbsd"; exit 0
+	;;
+
+    OpenBSD:*)
+	echo "${MACHINE}-whatever-openbsd"; exit 0
+	;;
+
+    OpenUNIX:*)
+	echo "${MACHINE}-unknown-OpenUNIX${VERSION}"; exit 0
+	;;
+
+    OSF1:*:*:*alpha*)
+	OSFMAJOR=`echo ${RELEASE}| sed -e 's/^V\([0-9]*\)\..*$/\1/'`
+	case "$OSFMAJOR" in
+	    4|5)
+		echo "${MACHINE}-dec-tru64"; exit 0
+		;;
+	    1|2|3)
+		echo "${MACHINE}-dec-osf"; exit 0
+		;;
+	    *)
+		echo "${MACHINE}-dec-osf"; exit 0
+		;;
+	esac
+	;;
+
+    Paragon*:*:*:*)
+	echo "i860-intel-osf1"; exit 0
+	;;
+
+    Rhapsody:*)
+	echo "ppc-apple-rhapsody"; exit 0
+	;;
+
+    Darwin:*)
+	case "$MACHINE" in
+	    Power*)
+		echo "ppc-apple-darwin${VERSION}"
+		;;
+	    x86_64)
+		echo "x86_64-apple-darwin${VERSION}"
+		;;
+	    *)
+		echo "i686-apple-darwin${VERSION}"
+		;;
+	esac
+	exit 0
+	;;
+
+    SunOS:5.*)
+	echo "${MACHINE}-whatever-solaris2"; exit 0
+	;;
+
+    SunOS:*)
+	echo "${MACHINE}-sun-sunos4"; exit 0
+	;;
+
+    UNIX_System_V:4.*:*)
+	echo "${MACHINE}-whatever-sysv4"; exit 0
+	;;
+
+    VOS:*:*:i786)
+     echo "i386-stratus-vos"; exit 0
+     ;;
+
+    VOS:*:*:*)
+     echo "hppa1.1-stratus-vos"; exit 0
+     ;;
+
+    *:4*:R4*:m88k)
+	echo "${MACHINE}-whatever-sysv4"; exit 0
+	;;
+
+    DYNIX/ptx:4*:*)
+	echo "${MACHINE}-whatever-sysv4"; exit 0
+	;;
+
+    *:4.0:3.0:3[34]?? | *:4.0:3.0:3[34]??,*)
+	echo "i486-ncr-sysv4"; exit 0
+	;;
+
+    ULTRIX:*)
+	echo "${MACHINE}-unknown-ultrix"; exit 0
+	;;
+
+    POSIX-BC*)
+	echo "${MACHINE}-siemens-sysv4"; exit 0   # Here, $MACHINE == "BS2000"
+	;;
+
+    machten:*)
+       echo "${MACHINE}-tenon-${SYSTEM}"; exit 0;
+       ;;
+
+    library:*)
+	echo "${MACHINE}-ncr-sysv4"; exit 0
+	;;
+
+    ConvexOS:*:11.0:*)
+	echo "${MACHINE}-v11-${SYSTEM}"; exit 0;
+	;;
+
+    # The following combinations are supported
+    # MINGW64* on x86_64 => mingw64
+    # MINGW32* on x86_64 => mingw
+    # MINGW32* on i?86 => mingw
+    #
+    # MINGW64* on i?86 isn't expected to work...
+    MINGW64*:*:*:x86_64)
+	echo "${MACHINE}-whatever-mingw64"; exit 0;
+	;;
+    MINGW*)
+	echo "${MACHINE}-whatever-mingw"; exit 0;
+	;;
+    CYGWIN*)
+	echo "${MACHINE}-pc-cygwin"; exit 0
+	;;
+
+    vxworks*)
+       echo "${MACHINE}-whatever-vxworks"; exit 0;
+       ;;
+esac
+
+#
+# Ugg. These are all we can determine by what we know about
+# the output of uname. Be more creative:
+#
+
+# Do the Apollo stuff first. Here, we just simply assume
+# that the existence of the /usr/apollo directory is proof
+# enough
+if [ -d /usr/apollo ]; then
+    echo "whatever-apollo-whatever"
+    exit 0
+fi
+
+# Now NeXT
+ISNEXT=`hostinfo 2>/dev/null`
+case "$ISNEXT" in
+    *'NeXT Mach 3.3'*)
+	echo "whatever-next-nextstep3.3"; exit 0
+	;;
+    *NeXT*)
+	echo "whatever-next-nextstep"; exit 0
+	;;
+esac
+
+# At this point we gone through all the one's
+# we know of: Punt
+
+echo "${MACHINE}-whatever-${SYSTEM}"
+exit 0
+) 2>/dev/null | (
+
+# ---------------------------------------------------------------------------
+# this is where the translation occurs into SSLeay terms
+# ---------------------------------------------------------------------------
+
+# Only set CC if not supplied already
+if [ -z "$CROSS_COMPILE$CC" ]; then
+  GCCVER=`sh -c "gcc -dumpversion" 2>/dev/null`
+  if [ "$GCCVER" != "" ]; then
+    # then strip off whatever prefix egcs prepends the number with...
+    # Hopefully, this will work for any future prefixes as well.
+    GCCVER=`echo $GCCVER | LC_ALL=C sed 's/^[a-zA-Z]*\-//'`
+    # Since gcc 3.1 gcc --version behaviour has changed.  gcc -dumpversion
+    # does give us what we want though, so we use that.  We just just the
+    # major and minor version numbers.
+    # peak single digit before and after first dot, e.g. 2.95.1 gives 29
+    GCCVER=`echo $GCCVER | sed 's/\([0-9]\)\.\([0-9]\).*/\1\2/'`
+    CC=gcc
+  else
+    CC=cc
+  fi
+fi
+GCCVER=${GCCVER:-0}
+if [ "$SYSTEM" = "HP-UX" ];then
+  # By default gcc is a ILP32 compiler (with long long == 64).
+  GCC_BITS="32"
+  if [ $GCCVER -ge 30 ]; then
+    # PA64 support only came in with gcc 3.0.x.
+    # We check if the preprocessor symbol __LP64__ is defined...
+    if echo "__LP64__" | gcc -v -E -x c - 2>/dev/null | grep "^__LP64__" 2>&1 > /dev/null; then
+      : # __LP64__ has slipped through, it therefore is not defined
+    else
+      GCC_BITS="64"
+    fi
+  fi
+fi
+if [ "$SYSTEM" = "SunOS" ]; then
+  if [ $GCCVER -ge 30 ]; then
+    # 64-bit ABI isn't officially supported in gcc 3.0, but it appears
+    # to be working, at the very least 'make test' passes...
+    if gcc -v -E -x c /dev/null 2>&1 | grep __arch64__ > /dev/null; then
+      GCC_ARCH="-m64"
+    else
+      GCC_ARCH="-m32"
+    fi
+  fi
+  # check for WorkShop C, expected output is "cc: blah-blah C x.x"
+  CCVER=`(cc -V 2>&1) 2>/dev/null | \
+  	egrep -e '^cc: .* C [0-9]\.[0-9]' | \
+	sed 's/.* C \([0-9]\)\.\([0-9]\).*/\1\2/'`
+  CCVER=${CCVER:-0}
+  if [ $MACHINE != i86pc -a $CCVER -gt 40 ]; then
+    CC=cc	# overrides gcc!!!
+    if [ $CCVER -eq 50 ]; then
+      echo "WARNING! Detected WorkShop C 5.0. Do make sure you have"
+      echo "         patch #107357-01 or later applied."
+      sleep 5
+    fi
+  fi
+fi
+
+if [ "${SYSTEM}" = "AIX" ]; then	# favor vendor cc over gcc
+    (cc) 2>&1 | grep -iv "not found" > /dev/null && CC=cc
+fi
+
+CCVER=${CCVER:-0}
+
+# read the output of the embedded GuessOS
+read GUESSOS
+
+echo Operating system: $GUESSOS
+
+# now map the output into SSLeay terms ... really should hack into the
+# script above so we end up with values in vars but that would take
+# more time that I want to waste at the moment
+case "$GUESSOS" in
+  uClinux*64*)
+    OUT=uClinux-dist64
+	;;
+  uClinux*)
+    OUT=uClinux-dist
+	;;
+  mips3-sgi-irix)
+	OUT="irix-mips3-$CC"
+	;;
+  mips4-sgi-irix64)
+	echo "WARNING! If you wish to build 64-bit library, then you have to"
+	echo "         invoke '$THERE/Configure irix64-mips4-$CC' *manually*."
+	if [ "$DRYRUN" = "false" -a -t 1 ]; then
+	  echo "         You have about 5 seconds to press Ctrl-C to abort."
+	  (trap "stty `stty -g`; exit 0" 2 0; stty -icanon min 0 time 50; read waste) <&1
+	fi
+	OUT="irix-mips3-$CC"
+	;;
+  ppc-apple-rhapsody) OUT="rhapsody-ppc-cc" ;;
+  ppc-apple-darwin*)
+	ISA64=`(sysctl -n hw.optional.64bitops) 2>/dev/null`
+	if [ "$ISA64" = "1" -a -z "$KERNEL_BITS" ]; then
+	    echo "WARNING! If you wish to build 64-bit library, then you have to"
+	    echo "         invoke '$THERE/Configure darwin64-ppc-cc' *manually*."
+	    if [ "$DRYRUN" = "false" -a -t 1 ]; then
+	      echo "         You have about 5 seconds to press Ctrl-C to abort."
+	      (trap "stty `stty -g`; exit 0" 2 0; stty -icanon min 0 time 50; read waste) <&1
+	    fi
+	fi
+	if [ "$ISA64" = "1" -a "$KERNEL_BITS" = "64" ]; then
+	    OUT="darwin64-ppc-cc"
+	else
+	    OUT="darwin-ppc-cc"
+	fi ;;
+  i?86-apple-darwin*)
+	ISA64=`(sysctl -n hw.optional.x86_64) 2>/dev/null`
+	if [ "$ISA64" = "1" -a -z "$KERNEL_BITS" ]; then
+	    echo "WARNING! If you wish to build 64-bit library, then you have to"
+	    echo "         invoke 'KERNEL_BITS=64 $THERE/config $options'."
+	    if [ "$DRYRUN" = "false" -a -t 1 ]; then
+	      echo "         You have about 5 seconds to press Ctrl-C to abort."
+	      (trap "stty `stty -g`; exit 1" 2; stty -icanon min 0 time 50; read waste; exit 0) <&1 || exit
+	    fi
+	fi
+	if [ "$ISA64" = "1" -a "$KERNEL_BITS" = "64" ]; then
+	    OUT="darwin64-x86_64-cc"
+	else
+	    OUT="darwin-i386-cc"
+	fi ;;
+  x86_64-apple-darwin*)
+	if [ "$KERNEL_BITS" = "32" ]; then
+	    OUT="darwin-i386-cc"
+	else
+	    OUT="darwin64-x86_64-cc"
+	fi ;;
+  armv6+7-*-iphoneos)
+	__CNF_CFLAGS="$__CNF_CFLAGS -arch%20armv6 -arch%20armv7"
+	__CNF_CXXFLAGS="$__CNF_CXXFLAGS -arch%20armv6 -arch%20armv7"
+	OUT="iphoneos-cross" ;;
+  *-*-iphoneos)
+	__CNF_CFLAGS="$__CNF_CFLAGS -arch%20${MACHINE}"
+	__CNF_CXXFLAGS="$__CNF_CXXFLAGS -arch%20${MACHINE}"
+	OUT="iphoneos-cross" ;;
+  arm64-*-iphoneos|*-*-ios64)
+	OUT="ios64-cross" ;;
+  alpha-*-linux2)
+        ISA=`awk '/cpu model/{print$4;exit(0);}' /proc/cpuinfo`
+	case ${ISA:-generic} in
+	*[678])	OUT="linux-alpha+bwx-$CC" ;;
+	*)	OUT="linux-alpha-$CC" ;;
+	esac
+	if [ "$CC" = "gcc" ]; then
+	    case ${ISA:-generic} in
+	    EV5|EV45)		__CNF_CFLAGS="$__CNF_CFLAGS -mcpu=ev5"
+				__CNF_CXXFLAGS="$__CNF_CFLAGS -mcpu=ev5";;
+	    EV56|PCA56)		__CNF_CFLAGS="$__CNF_CFLAGS -mcpu=ev56"
+				__CNF_CXXFLAGS="$__CNF_CXXFLAGS -mcpu=ev56";;
+	    *)			__CNF_CFLAGS="$__CNF_CFLAGS -mcpu=ev6"
+				__CNF_CXXFLAGS="$__CNF_CXXFLAGS -mcpu=ev6";;
+	    esac
+	fi
+	;;
+  ppc64-*-linux2)
+	if [ -z "$KERNEL_BITS" ]; then
+	    echo "WARNING! If you wish to build 64-bit library, then you have to"
+	    echo "         invoke '$THERE/Configure linux-ppc64' *manually*."
+	    if [ "$DRYRUN" = "false" -a -t 1 ]; then
+		echo "         You have about 5 seconds to press Ctrl-C to abort."
+		(trap "stty `stty -g`; exit 0" 2 0; stty -icanon min 0 time 50; read waste) <&1
+	    fi
+	fi
+	if [ "$KERNEL_BITS" = "64" ]; then
+	    OUT="linux-ppc64"
+	else
+	    OUT="linux-ppc"
+	    if (echo "__LP64__" | gcc -E -x c - 2>/dev/null | grep "^__LP64__" 2>&1 > /dev/null); then
+		:;
+	    else
+		__CNF_CFLAGS="$__CNF_CFLAGS -m32"
+		__CNF_CXXFLAGS="$__CNF_CXXFLAGS -m32"
+	    fi
+	fi
+	;;
+  ppc64le-*-linux2) OUT="linux-ppc64le" ;;
+  ppc-*-linux2) OUT="linux-ppc" ;;
+  mips64*-*-linux2)
+	echo "WARNING! If you wish to build 64-bit library, then you have to"
+	echo "         invoke '$THERE/Configure linux64-mips64' *manually*."
+	if [ "$DRYRUN" = "false" -a -t 1 ]; then
+	    echo "         You have about 5 seconds to press Ctrl-C to abort."
+	    (trap "stty `stty -g`; exit 0" 2 0; stty -icanon min 0 time 50; read waste) <&1
+	fi
+	OUT="linux-mips64"
+	;;
+  mips*-*-linux2) OUT="linux-mips32" ;;
+  ppc60x-*-vxworks*) OUT="vxworks-ppc60x" ;;
+  ppcgen-*-vxworks*) OUT="vxworks-ppcgen" ;;
+  pentium-*-vxworks*) OUT="vxworks-pentium" ;;
+  simlinux-*-vxworks*) OUT="vxworks-simlinux" ;;
+  mips-*-vxworks*) OUT="vxworks-mips";;
+  ia64-*-linux?) OUT="linux-ia64" ;;
+  sparc64-*-linux2)
+	echo "WARNING! If you *know* that your GNU C supports 64-bit/V9 ABI"
+	echo "         and wish to build 64-bit library, then you have to"
+	echo "         invoke '$THERE/Configure linux64-sparcv9' *manually*."
+	if [ "$DRYRUN" = "false" -a -t 1 ]; then
+	  echo "          You have about 5 seconds to press Ctrl-C to abort."
+	  (trap "stty `stty -g`; exit 0" 2 0; stty -icanon min 0 time 50; read waste) <&1
+	fi
+	OUT="linux-sparcv9" ;;
+  sparc-*-linux2)
+	KARCH=`awk '/^type/{print$3;exit(0);}' /proc/cpuinfo`
+	case ${KARCH:-sun4} in
+	sun4u*)	OUT="linux-sparcv9" ;;
+	sun4m)	OUT="linux-sparcv8" ;;
+	sun4d)	OUT="linux-sparcv8" ;;
+	*)	OUT="linux-generic32";
+		__CNF_CPPFLAGS="$__CNF_CPPFLAGS -DB_ENDIAN" ;;
+	esac ;;
+  parisc*-*-linux2)
+	# 64-bit builds under parisc64 linux are not supported and
+	# compiler is expected to generate 32-bit objects...
+	CPUARCH=`awk '/cpu family/{print substr($5,1,3); exit(0);}' /proc/cpuinfo`
+	CPUSCHEDULE=`awk '/^cpu.[ 	]*: PA/{print substr($3,3); exit(0);}' /proc/cpuinfo`
+
+	# ??TODO ??  Model transformations
+	# 0. CPU Architecture for the 1.1 processor has letter suffixes. We strip that off
+	#    assuming no further arch. identification will ever be used by GCC.
+	# 1. I'm most concerned about whether is a 7300LC is closer to a 7100 versus a 7100LC.
+	# 2. The variant 64-bit processors cause concern should GCC support explicit schedulers
+	#    for these chips in the future.
+	#         PA7300LC -> 7100LC (1.1)
+	#         PA8200   -> 8000   (2.0)
+	#         PA8500   -> 8000   (2.0)
+	#         PA8600   -> 8000   (2.0)
+
+	CPUSCHEDULE=`echo $CPUSCHEDULE|sed -e 's/7300LC/7100LC/' -e 's/8.00/8000/'`
+	# Finish Model transformations
+
+	__CNF_CPPFLAGS="$__CNF_CPPFLAGS -DB_ENDIAN"
+	__CNF_CFLAGS="$__CNF_CFLAGS -mschedule=$CPUSCHEDULE -march=$CPUARCH"
+	__CNF_CXXFLAGS="$__CNF_CXXFLAGS -mschedule=$CPUSCHEDULE -march=$CPUARCH"
+	OUT="linux-generic32" ;;
+  armv[1-3]*-*-linux2) OUT="linux-generic32" ;;
+  armv[7-9]*-*-linux2) OUT="linux-armv4"
+		       __CNF_CFLAGS="$__CNF_CFLAGS -march=armv7-a"
+		       __CNF_CXXFLAGS="$__CNF_CXXFLAGS -march=armv7-a"
+		       ;;
+  arm*-*-linux2) OUT="linux-armv4" ;;
+  aarch64-*-linux2) OUT="linux-aarch64" ;;
+  sh*b-*-linux2) OUT="linux-generic32";
+		 __CNF_CPPFLAGS="$__CNF_CPPFLAGS -DB_ENDIAN" ;;
+  sh*-*-linux2)	 OUT="linux-generic32";
+		 __CNF_CPPFLAGS="$__CNF_CPPFLAGS -DL_ENDIAN" ;;
+  m68k*-*-linux2) OUT="linux-generic32";
+		  __CNF_CPPFLAGS="$__CNF_CPPFLAGS -DB_ENDIAN" ;;
+  s390-*-linux2) OUT="linux-generic32";
+		 __CNF_CPPFLAGS="$__CNF_CPPFLAGS -DB_ENDIAN" ;;
+  s390x-*-linux2)
+	# To be uncommented when glibc bug is fixed, see Configure...
+	#if egrep -e '^features.* highgprs' /proc/cpuinfo >/dev/null ; then
+	#  echo "WARNING! If you wish to build \"highgprs\" 32-bit library, then you"
+	#  echo "         have to invoke './Configure linux32-s390x' *manually*."
+	#  if [ "$DRYRUN" = "false" -a -t -1 ]; then
+	#    echo "         You have about 5 seconds to press Ctrl-C to abort."
+	#    (trap "stty `stty -g`; exit 0" 2 0; stty -icanon min 0 time 50; read waste) <&1
+	#  fi
+	#fi
+	OUT="linux64-s390x"
+	;;
+  x86_64-*-linux?)
+	if $CC -dM -E -x c /dev/null 2>&1 | grep -q ILP32 > /dev/null; then
+	    OUT="linux-x32"
+	else
+	    OUT="linux-x86_64"
+	fi ;;
+  *86-*-linux2)
+        # On machines where the compiler understands -m32, prefer a
+        # config target that uses it
+        if $CC -m32 -E -x c /dev/null > /dev/null 2>&1; then
+            OUT="linux-x86"
+        else
+            OUT="linux-elf"
+        fi ;;
+  *86-*-linux1) OUT="linux-aout" ;;
+  *-*-linux?) OUT="linux-generic32" ;;
+  sun4[uv]*-*-solaris2)
+	OUT="solaris-sparcv9-$CC"
+	ISA64=`(isainfo) 2>/dev/null | grep sparcv9`
+	if [ "$ISA64" != "" -a "$KERNEL_BITS" = "" ]; then
+	    if [ "$CC" = "cc" -a $CCVER -ge 50 ]; then
+		echo "WARNING! If you wish to build 64-bit library, then you have to"
+		echo "         invoke '$THERE/Configure solaris64-sparcv9-cc' *manually*."
+		if [ "$DRYRUN" = "false" -a -t 1 ]; then
+		  echo "         You have about 5 seconds to press Ctrl-C to abort."
+		  (trap "stty `stty -g`; exit 0" 2 0; stty -icanon min 0 time 50; read waste) <&1
+		fi
+	    elif [ "$CC" = "gcc" -a "$GCC_ARCH" = "-m64" ]; then
+		# $GCC_ARCH denotes default ABI chosen by compiler driver
+		# (first one found on the $PATH). I assume that user
+		# expects certain consistency with the rest of his builds
+		# and therefore switch over to 64-bit. <appro>
+		OUT="solaris64-sparcv9-gcc"
+		echo "WARNING! If you wish to build 32-bit library, then you have to"
+		echo "         invoke '$THERE/Configure solaris-sparcv9-gcc' *manually*."
+		if [ "$DRYRUN" = "false" -a -t 1 ]; then
+		  echo "         You have about 5 seconds to press Ctrl-C to abort."
+		  (trap "stty `stty -g`; exit 0" 2 0; stty -icanon min 0 time 50; read waste) <&1
+		fi
+	    elif [ "$GCC_ARCH" = "-m32" ]; then
+		echo "NOTICE! If you *know* that your GNU C supports 64-bit/V9 ABI"
+		echo "        and wish to build 64-bit library, then you have to"
+		echo "        invoke '$THERE/Configure solaris64-sparcv9-gcc' *manually*."
+		if [ "$DRYRUN" = "false" -a -t 1 ]; then
+		  echo "         You have about 5 seconds to press Ctrl-C to abort."
+		  (trap "stty `stty -g`; exit 0" 2 0; stty -icanon min 0 time 50; read waste) <&1
+		fi
+	    fi
+	fi
+	if [ "$ISA64" != "" -a "$KERNEL_BITS" = "64" ]; then
+	    OUT="solaris64-sparcv9-$CC"
+	fi
+	;;
+  sun4m-*-solaris2)	OUT="solaris-sparcv8-$CC" ;;
+  sun4d-*-solaris2)	OUT="solaris-sparcv8-$CC" ;;
+  sun4*-*-solaris2)	OUT="solaris-sparcv7-$CC" ;;
+  *86*-*-solaris2)
+	ISA64=`(isainfo) 2>/dev/null | grep amd64`
+	if [ "$ISA64" != "" -a ${KERNEL_BITS:-64} -eq 64 ]; then
+	    OUT="solaris64-x86_64-$CC"
+	else
+	    OUT="solaris-x86-$CC"
+	    if [ `uname -r | sed -e 's/5\.//'` -lt 10 ]; then
+		options="$options no-sse2"
+	    fi
+	fi
+	;;
+  *-*-sunos4)		OUT="sunos-$CC" ;;
+
+  *86*-*-bsdi4)		OUT="BSD-x86-elf"; options="$options no-sse2";
+			__CNF_LDFLAGS="$__CNF_LDFLAGS -ldl" ;;
+  alpha*-*-*bsd*)	OUT="BSD-generic64";
+			__CNF_CPPFLAGS="$__CNF_CPPFLAGS -DL_ENDIAN" ;;
+  powerpc64-*-*bsd*)	OUT="BSD-generic64";
+			__CNF_CPPFLAGS="$__CNF_CPPFLAGS -DB_ENDIAN" ;;
+  sparc64-*-*bsd*)	OUT="BSD-sparc64" ;;
+  ia64-*-*bsd*)		OUT="BSD-ia64" ;;
+  x86_64-*-dragonfly*)  OUT="BSD-x86_64" ;;
+  amd64-*-*bsd*)	OUT="BSD-x86_64" ;;
+  *86*-*-*bsd*)		# mimic ld behaviour when it's looking for libc...
+			if [ -L /usr/lib/libc.so ]; then	# [Free|Net]BSD
+			    libc=/usr/lib/libc.so
+			else					# OpenBSD
+			    # ld searches for highest libc.so.* and so do we
+			    libc=`(ls /usr/lib/libc.so.* /lib/libc.so.* | tail -1) 2>/dev/null`
+			fi
+			case "`(file -L $libc) 2>/dev/null`" in
+			*ELF*)	OUT="BSD-x86-elf" ;;
+			*)	OUT="BSD-x86"; options="$options no-sse2" ;;
+			esac ;;
+  *-*-*bsd*)		OUT="BSD-generic32" ;;
+
+  x86_64-*-haiku)	OUT="haiku-x86_64" ;;
+  *-*-haiku)		OUT="haiku-x86" ;;
+
+  *-*-osf)		OUT="osf1-alpha-cc" ;;
+  *-*-tru64)		OUT="tru64-alpha-cc" ;;
+  *-*-[Uu]nix[Ww]are7)
+	if [ "$CC" = "gcc" ]; then
+	  OUT="unixware-7-gcc" ; options="$options no-sse2"
+	else
+	  OUT="unixware-7" ; options="$options no-sse2"
+	  __CNF_CPPFLAGS="$__CNF_CPPFLAGS -D__i386__"
+	fi
+	;;
+  *-*-[Uu]nix[Ww]are20*) OUT="unixware-2.0"; options="$options no-sse2 no-sha512" ;;
+  *-*-[Uu]nix[Ww]are21*) OUT="unixware-2.1"; options="$options no-sse2 no-sha512" ;;
+  *-*-vos)
+	options="$options no-threads no-shared no-asm no-dso"
+	EXE=".pm"
+	OUT="vos-$CC" ;;
+  BS2000-siemens-sysv4) OUT="BS2000-OSD" ;;
+  *-hpux1*)
+	if [ $CC = "gcc" -a $GCC_BITS = "64" ]; then
+	    OUT="hpux64-parisc2-gcc"
+	fi
+	[ "$KERNEL_BITS" ] || KERNEL_BITS=`(getconf KERNEL_BITS) 2>/dev/null`
+	KERNEL_BITS=${KERNEL_BITS:-32}
+	CPU_VERSION=`(getconf CPU_VERSION) 2>/dev/null`
+	CPU_VERSION=${CPU_VERSION:-0}
+	# See <sys/unistd.h> for further info on CPU_VERSION.
+	if   [ $CPU_VERSION -ge 768 ]; then	# IA-64 CPU
+	     if [ $KERNEL_BITS -eq 64 -a "$CC" = "cc" ]; then
+	        OUT="hpux64-ia64-cc"
+             else
+	        OUT="hpux-ia64-cc"
+             fi
+	elif [ $CPU_VERSION -ge 532 ]; then	# PA-RISC 2.x CPU
+	     # PA-RISC 2.0 is no longer supported as separate 32-bit
+	     # target. This is compensated for by run-time detection
+	     # in most critical assembly modules and taking advantage
+	     # of 2.0 architecture in PA-RISC 1.1 build.
+	     OUT=${OUT:-"hpux-parisc1_1-${CC}"}
+	     if [ $KERNEL_BITS -eq 64 -a "$CC" = "cc" ]; then
+		echo "WARNING! If you wish to build 64-bit library then you have to"
+		echo "         invoke '$THERE/Configure hpux64-parisc2-cc' *manually*."
+		if [ "$DRYRUN" = "false" -a -t 1 ]; then
+		  echo "         You have about 5 seconds to press Ctrl-C to abort."
+		  (trap "stty `stty -g`; exit 0" 2 0; stty -icanon min 0 time 50; read waste) <&1
+		fi
+	     fi
+	elif [ $CPU_VERSION -ge 528 ]; then	# PA-RISC 1.1+ CPU
+	     OUT="hpux-parisc1_1-${CC}"
+	elif [ $CPU_VERSION -ge 523 ]; then	# PA-RISC 1.0 CPU
+	     OUT="hpux-parisc-${CC}"
+	else					# Motorola(?) CPU
+	     OUT="hpux-$CC"
+	fi
+	__CNF_CPPFLAGS="$__CNF_CPPFLAGS -D_REENTRANT" ;;
+  *-hpux)	OUT="hpux-parisc-$CC" ;;
+  *-aix)
+	[ "$KERNEL_BITS" ] || KERNEL_BITS=`(getconf KERNEL_BITMODE) 2>/dev/null`
+	KERNEL_BITS=${KERNEL_BITS:-32}
+	OBJECT_MODE=${OBJECT_MODE:-32}
+	if [ "$CC" = "gcc" ]; then
+	    OUT="aix-gcc"
+          if [ $OBJECT_MODE -eq 64 ]; then
+            echo 'Your $OBJECT_MODE was found to be set to 64'
+            OUT="aix64-gcc"
+          fi
+	elif [ $OBJECT_MODE -eq 64 ]; then
+	    echo 'Your $OBJECT_MODE was found to be set to 64'
+	    OUT="aix64-cc"
+	else
+	    OUT="aix-cc"
+	    if [ $KERNEL_BITS -eq 64 ]; then
+		echo "WARNING! If you wish to build 64-bit kit, then you have to"
+		echo "         invoke '$THERE/Configure aix64-cc' *manually*."
+		if [ "$DRYRUN" = "false" -a -t 1 ]; then
+		    echo "         You have ~5 seconds to press Ctrl-C to abort."
+		    (trap "stty `stty -g`; exit 0" 2 0; stty -icanon min 0 time 50; read waste) <&1
+		fi
+	    fi
+	fi
+	if (lsattr -E -O -l `lsdev -c processor|awk '{print$1;exit}'` | grep -i powerpc) >/dev/null 2>&1; then
+	    :	# this applies even to Power3 and later, as they return PowerPC_POWER[345]
+	else
+	    options="$options no-asm"
+	fi
+	;;
+  # these are all covered by the catchall below
+  i[3456]86-*-cygwin) OUT="Cygwin-x86" ;;
+  *-*-cygwin) OUT="Cygwin-${MACHINE}" ;;
+  x86-*-android|i?86-*-android) OUT="android-x86" ;;
+  armv[7-9]*-*-android)
+      OUT="android-armeabi"
+      __CNF_CFLAGS="$__CNF_CFLAGS -march=armv7-a"
+      __CNF_CXXFLAGS="$__CNF_CXXFLAGS -march=armv7-a";;
+  arm*-*-android) OUT="android-armeabi" ;;
+  *) OUT=`echo $GUESSOS | awk -F- '{print $3}'`;;
+esac
+
+# NB: This atalla support has been superseded by the ENGINE support
+# That contains its own header and definitions anyway. Support can
+# be enabled or disabled on any supported platform without external
+# headers, eg. by adding the "hw-atalla" switch to ./config or
+# perl Configure
+#
+# See whether we can compile Atalla support
+#if [ -f /usr/include/atasi.h ]
+#then
+#  __CNF_CPPFLAGS="$__CNF_CPPFLAGS -DATALLA"
+#fi
+
+if [ -n "$CONFIG_OPTIONS" ]; then
+  options="$options $CONFIG_OPTIONS"
+fi
+
+# gcc < 2.8 does not support -march=ultrasparc
+if [ "$OUT" = solaris-sparcv9-gcc -a $GCCVER -lt 28 ]
+then
+  echo "WARNING! Falling down to 'solaris-sparcv8-gcc'."
+  echo "         Upgrade to gcc-2.8 or later."
+  sleep 5
+  OUT=solaris-sparcv8-gcc
+fi
+if [ "$OUT" = "linux-sparcv9" -a $GCCVER -lt 28 ]
+then
+  echo "WARNING! Falling down to 'linux-sparcv8'."
+  echo "         Upgrade to gcc-2.8 or later."
+  sleep 5
+  OUT=linux-sparcv8
+fi
+
+case "$GUESSOS" in
+  i386-*) options="$options 386" ;;
+esac
+
+for i in aes aria bf camellia cast des dh dsa ec hmac idea md2 md5 mdc2 rc2 rc4 rc5 ripemd rsa seed sha sm2 sm3 sm4
+do
+  if [ ! -d $THERE/crypto/$i ]
+  then
+    options="$options no-$i"
+  fi
+done
+
+if [ -z "$OUT" ]; then
+  OUT="$CC"
+fi
+
+if [ ".$PERL" = . ] ; then
+	for i in . `echo $PATH | sed 's/:/ /g'`; do
+		if [ -f "$i/perl5$EXE" ] ; then
+			PERL="$i/perl5$EXE"
+			break;
+		fi;
+	done
+fi
+
+if [ ".$PERL" = . ] ; then
+	for i in . `echo $PATH | sed 's/:/ /g'`; do
+		if [ -f "$i/perl$EXE" ] ; then
+			if "$i/perl$EXE" -e 'exit($]<5.0)'; then
+				PERL="$i/perl$EXE"
+				break;
+			fi;
+		fi;
+	done
+fi
+
+if [ ".$PERL" = . ] ; then
+	echo "You need Perl 5."
+	exit 1
+fi
+
+# run Configure to check to see if we need to specify the
+# compiler for the platform ... in which case we add it on
+# the end ... otherwise we leave it off
+
+$PERL $THERE/Configure LIST | grep "$OUT-$CC" > /dev/null
+if [ $? = "0" ]; then
+  OUT="$OUT-$CC"
+fi
+
+OUT="$OUT"
+
+$PERL $THERE/Configure LIST | grep "$OUT" > /dev/null
+if [ $? = "0" ]; then
+  if [ "$VERBOSE" = "true" ]; then
+    echo /usr/bin/env \
+	 __CNF_CPPDEFINES="'$__CNF_CPPDEFINES'" \
+	 __CNF_CPPINCLUDES="'$__CNF_CPPINCLUDES'" \
+	 __CNF_CPPFLAGS="'$__CNF_CPPFLAGS'" \
+	 __CNF_CFLAGS="'$__CNF_CFLAGS'" \
+	 __CNF_CXXFLAGS="'$__CNF_CXXFLAGS'" \
+	 __CNF_LDFLAGS="'$__CNF_LDFLAGS'" \
+	 __CNF_LDLIBS="'$__CNF_LDLIBS'" \
+	 $PERL $THERE/Configure $OUT $options
+  fi
+  if [ "$DRYRUN" = "false" ]; then
+    # eval to make sure quoted options, possibly with spaces inside,
+    # are treated right
+    eval /usr/bin/env \
+	 __CNF_CPPDEFINES="'$__CNF_CPPDEFINES'" \
+	 __CNF_CPPINCLUDES="'$__CNF_CPPINCLUDES'" \
+	 __CNF_CPPFLAGS="'$__CNF_CPPFLAGS'" \
+	 __CNF_CFLAGS="'$__CNF_CFLAGS'" \
+	 __CNF_CXXFLAGS="'$__CNF_CXXFLAGS'" \
+	 __CNF_LDFLAGS="'$__CNF_LDFLAGS'" \
+	 __CNF_LDLIBS="'$__CNF_LDLIBS'" \
+	 $PERL $THERE/Configure $OUT $options
+  fi
+else
+  echo "This system ($OUT) is not supported. See file INSTALL for details."
+  exit 1
+fi
+
+if [ "$OUT" = "darwin64-x86_64-cc" ]; then
+    echo "WARNING! If you wish to build 32-bit libraries, then you have to"
+    echo "         invoke 'KERNEL_BITS=32 $THERE/config $options'."
+fi
+)

@@ -1,0 +1,22 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_DESTROY_SRQ" 3 "2011-06-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_destroy_srq \- Deallocate a SRQ.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_verbs.h>"
+.P
+.B "void" rdma_destroy_srq
+.BI "(struct rdma_cm_id *" id ");"
+.SH ARGUMENTS
+.IP "id" 12
+RDMA identifier.
+.SH "DESCRIPTION"
+Destroy an SRQ allocated on the rdma_cm_id.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+Users should destroy any SRQ associated with an rdma_cm_id before
+destroying the ID.
+.SH "SEE ALSO"
+rdma_create_srq(3), rdma_destroy_id(3), ibv_destroy_srq(3)

@@ -1,0 +1,212 @@
+=pod
+
+=head1 NAME
+
+openssl-s_time,
+s_time - SSL/TLS performance timing program
+
+=head1 SYNOPSIS
+
+B<openssl> B<s_time>
+[B<-help>]
+[B<-connect host:port>]
+[B<-www page>]
+[B<-cert filename>]
+[B<-key filename>]
+[B<-CApath directory>]
+[B<-cafile filename>]
+[B<-no-CAfile>]
+[B<-no-CApath>]
+[B<-reuse>]
+[B<-new>]
+[B<-verify depth>]
+[B<-nameopt option>]
+[B<-time seconds>]
+[B<-ssl3>]
+[B<-bugs>]
+[B<-cipher cipherlist>]
+[B<-ciphersuites val>]
+
+=head1 DESCRIPTION
+
+The B<s_time> command implements a generic SSL/TLS client which connects to a
+remote host using SSL/TLS. It can request a page from the server and includes
+the time to transfer the payload data in its timing measurements. It measures
+the number of connections within a given timeframe, the amount of data
+transferred (if any), and calculates the average time spent for one connection.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-connect host:port>
+
+This specifies the host and optional port to connect to.
+
+=item B<-www page>
+
+This specifies the page to GET from the server. A value of '/' gets the
+index.htm[l] page. If this parameter is not specified, then B<s_time> will only
+perform the handshake to establish SSL connections but not transfer any
+payload data.
+
+=item B<-cert certname>
+
+The certificate to use, if one is requested by the server. The default is
+not to use a certificate. The file is in PEM format.
+
+=item B<-key keyfile>
+
+The private key to use. If not specified then the certificate file will
+be used. The file is in PEM format.
+
+=item B<-verify depth>
+
+The verify depth to use. This specifies the maximum length of the
+server certificate chain and turns on server certificate verification.
+Currently the verify operation continues after errors so all the problems
+with a certificate chain can be seen. As a side effect the connection
+will never fail due to a server certificate verify failure.
+
+=item B<-nameopt option>
+
+Option which determines how the subject or issuer names are displayed. The
+B<option> argument can be a single option or multiple options separated by
+commas.  Alternatively the B<-nameopt> switch may be used more than once to
+set multiple options. See the L<x509(1)> manual page for details.
+
+=item B<-CApath directory>
+
+The directory to use for server certificate verification. This directory
+must be in "hash format", see B<verify> for more information. These are
+also used when building the client certificate chain.
+
+=item B<-CAfile file>
+
+A file containing trusted certificates to use during server authentication
+and to use when attempting to build the client certificate chain.
+
+=item B<-no-CAfile>
+
+Do not load the trusted CA certificates from the default file location
+
+=item B<-no-CApath>
+
+Do not load the trusted CA certificates from the default directory location
+
+=item B<-new>
+
+Performs the timing test using a new session ID for each connection.
+If neither B<-new> nor B<-reuse> are specified, they are both on by default
+and executed in sequence.
+
+=item B<-reuse>
+
+Performs the timing test using the same session ID; this can be used as a test
+that session caching is working. If neither B<-new> nor B<-reuse> are
+specified, they are both on by default and executed in sequence.
+
+=item B<-ssl3>
+
+This option disables the use of SSL version 3. By default
+the initial handshake uses a method which should be compatible with all
+servers and permit them to use SSL v3 or TLS as appropriate.
+
+The timing program is not as rich in options to turn protocols on and off as
+the L<s_client(1)> program and may not connect to all servers.
+Unfortunately there are a lot of ancient and broken servers in use which
+cannot handle this technique and will fail to connect. Some servers only
+work if TLS is turned off with the B<-ssl3> option.
+
+Note that this option may not be available, depending on how
+OpenSSL was built.
+
+=item B<-bugs>
+
+There are several known bug in SSL and TLS implementations. Adding this
+option enables various workarounds.
+
+=item B<-cipher cipherlist>
+
+This allows the TLSv1.2 and below cipher list sent by the client to be modified.
+This list will be combined with any TLSv1.3 ciphersuites that have been
+configured. Although the server determines which cipher suite is used it should
+take the first supported cipher in the list sent by the client. See
+L<ciphers(1)> for more information.
+
+=item B<-ciphersuites val>
+
+This allows the TLSv1.3 ciphersuites sent by the client to be modified. This
+list will be combined with any TLSv1.2 and below ciphersuites that have been
+configured. Although the server determines which cipher suite is used it should
+take the first supported cipher in the list sent by the client. See
+L<ciphers(1)> for more information. The format for this list is a simple
+colon (":") separated list of TLSv1.3 ciphersuite names.
+
+=item B<-time length>
+
+Specifies how long (in seconds) B<s_time> should establish connections and
+optionally transfer payload data from a server. Server and client performance
+and the link speed determine how many connections B<s_time> can establish.
+
+=back
+
+=head1 NOTES
+
+B<s_time> can be used to measure the performance of an SSL connection.
+To connect to an SSL HTTP server and get the default page the command
+
+ openssl s_time -connect servername:443 -www / -CApath yourdir -CAfile yourfile.pem -cipher commoncipher [-ssl3]
+
+would typically be used (https uses port 443). 'commoncipher' is a cipher to
+which both client and server can agree, see the L<ciphers(1)> command
+for details.
+
+If the handshake fails then there are several possible causes, if it is
+nothing obvious like no client certificate then the B<-bugs> and
+B<-ssl3> options can be tried
+in case it is a buggy server. In particular you should play with these
+options B<before> submitting a bug report to an OpenSSL mailing list.
+
+A frequent problem when attempting to get client certificates working
+is that a web client complains it has no certificates or gives an empty
+list to choose from. This is normally because the server is not sending
+the clients certificate authority in its "acceptable CA list" when it
+requests a certificate. By using L<s_client(1)> the CA list can be
+viewed and checked. However some servers only request client authentication
+after a specific URL is requested. To obtain the list in this case it
+is necessary to use the B<-prexit> option of L<s_client(1)> and
+send an HTTP request for an appropriate page.
+
+If a certificate is specified on the command line using the B<-cert>
+option it will not be used unless the server specifically requests
+a client certificate. Therefor merely including a client certificate
+on the command line is no guarantee that the certificate works.
+
+=head1 BUGS
+
+Because this program does not have all the options of the
+L<s_client(1)> program to turn protocols on and off, you may not be
+able to measure the performance of all protocols with all servers.
+
+The B<-verify> option should really exit if the server verification
+fails.
+
+=head1 SEE ALSO
+
+L<s_client(1)>, L<s_server(1)>, L<ciphers(1)>
+
+=head1 COPYRIGHT
+
+Copyright 2004-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

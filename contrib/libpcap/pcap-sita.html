@@ -1,0 +1,943 @@
+<HTML><HEAD>
+<STYLE type="text/css">
+<!--
+A { text-decoration:none }
+-->
+</STYLE>
+</HEAD>
+<BODY>
+
+<TABLE WIDTH=100%><TR>
+	<TD ALIGN=LEFT VALIGN=TOP>
+		<FONT SIZE=+0 FACE="COURIER"><B>A "Distributed Pcap" for<BR>Remote Monitoring LANs & WANs</B><BR>
+										(Design Notes for the SITA ACN device)</FONT>
+	</TD>
+	<TD ALIGN=RIGHT VALIGN=TOP>
+		Fulko Hew<BR>SITA INC Canada, Inc.<BR>Revised: October 2, 2007
+	</TD>
+</TR></TABLE>
+
+
+<H3>SUMMARY</H3>
+<UL>
+	<STRONG>Note:</STRONG> This document is part of the libpcap Git and was derived from 'pcap.3' (circa Aug/07).
+	<P>
+	The ACN provides a customized/distributed version of this library that alows SMPs to
+	interact with the various IOPs within the site providing a standard mechanism
+	to capture LAN and WAN message traffic.
+	<P>
+	<CENTER>
+		<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3 WIDTH=75%>
+			<TR>
+				<TH VALIGN=TOP>SMP</TH>
+				<TD VALIGN=TOP>The Supervisory Management Processor where Wireshark (or equivalent)
+								runs in conjuction with a libpcap front-end.</TD>
+			</TR>
+			<TR>
+				<TH VALIGN=TOP>IOP</TH>
+				<TD VALIGN=TOP>I/O Processors where the monitored ports exist in conjunction
+								with a custom device driver/libpcap back-end.</TD>
+			</TR>
+		</TABLE>
+	</CENTER>
+	<P>
+	Each IOP will be capable of supporting multiple connections from an SMP
+	enabling monitoring of more than one interface at a time, each through
+	its own seperate connection.  The IOP is responsible to ensure and report
+	an error if any attempt is made to monitor the same interface more than once.
+	<P>
+	There are three applications that will be supported by the ACN version of libpcap.
+	They each use a slightly different mode for looping/capturing and termination
+	as summarized in the following table:
+	<P>
+	<CENTER>
+	<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3>
+    	<TR><TH>Application</TH>	<TH>Capture</TH>	<TH>Termination</TH></TR>
+    	<TR><TH VALIGN=TOP NOWRAP>wireshark</TH>
+			<TD VALIGN=TOP>pcap_dispatch(all packets in one buffer of capture only)</TD>
+			<TD VALIGN=TOP>pcap_breakloop()</TD>
+		</TR>
+    	<TR><TH VALIGN=TOP NOWRAP>tshark</TH>
+			<TD VALIGN=TOP>pcap_dispatch(one buffer of capture only)</TD>
+			<TD VALIGN=TOP>Since a CTRL-C was used to terminate the application, pcap_breakloop() is never called.</TD>
+		</TR>
+    	<TR><TH VALIGN=TOP NOWRAP>tcpdump</TH>
+			<TD VALIGN=TOP>pcap_loop(all packets in the next buffer, and loop forever)</TD>
+			<TD VALIGN=TOP>pcap_breakloop()</TD>
+		</TR>
+	</TABLE>
+	</CENTER>
+	<P>
+	<B>Note: </B>In all cases, the termination of capturing is always (apparently) followed by
+	pcap_close().  Pcap_breakloop() is only used to stop/suspend looping/processing,
+	and upon close interpretation of the function definitions, it is possible to resume
+	capturing following a pcap_breakloop() without any re-initialization.
+	<P>
+	<H4>ACN Limitations</H4>
+	<OL>
+		<LI>Monitoring of backup IOPs is not currently supported.
+		<LI>Ethernet interfaces cannot be monitored in promiscuous mode.
+	</OL>
+
+</UL>
+
+<H3>ROUTINES</H3>
+<UL>
+		The following list of functions is the sub-set of Pcap functions that have been
+		altered/enhanced to support the ACN remote monitoring facility.  The remainder of the Pcap
+		functions continue to perform their duties un-altered.  Libpcap only supports this
+		mode of operation if it has been configured/compiled for SITA/ACN support.
+		<P>
+		<UL><FONT FACE=COURIER>
+			pcap_findalldevs<BR>
+			pcap_freealldevs<BR>
+			pcap_open_live<BR>
+			pcap_close<BR>
+			pcap_setfilter<BR>
+			pcap_dispatch<BR>
+			pcap_loop<BR>
+			pcap_next<BR>
+			pcap_next_ex<BR>
+			pcap_stats<BR>
+		</FONT></UL>
+
+	These subroutines have been modified for the ACN specific distributed and remote monitoring
+	ability perform the following basic functions.  More detail is provided in the
+	"SMP/IOP Inter-Process Communication Protocol" section.
+	<P>
+<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3>
+	<TR>
+		<TD VALIGN=TOP ROWSPAN=2><B>pcap_open_live()</B></TD>
+		<TD VALIGN=TOP>Used to obtain a packet capture descriptor to look at packets on the network.</TD>
+	</TR>
+	<TR><TD><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%>
+		<TR><TH VALIGN=TOP NOWRAP>SMP -> IOP</TH>
+			<TD>
+			The SMP will open a connection to the selected IOP on its 'sniffer' port
+			to ensure it is available.  It sends a null terminated string identifying
+			the interface to be monitored.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>IOP -> SMP</TH>
+			<TD>
+			After any required processing is complete, the IOP will return a
+			null terminated string containing an error message if one occured.
+			If no error occured, a empty string is still returned.
+			Errors are:
+			<UL>
+			<LI>"Interface (xxx) does not exist."
+			<LI>"Interface (xxx) not configured."
+			<LI>"Interface (xxx) already being monitored."
+			</UL>
+			</TD>
+		</TR>
+	</TABLE></TD></TR>
+
+	<TR>
+		<TD VALIGN=TOP ROWSPAN=2><B>pcap_findalldevs()</B></TD>
+		<TD VALIGN=TOP>It constructs a list of network devices that can be opened with pcap_open_live().</TD>
+	</TR>
+	<TR><TD><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%>
+		<TR><TH VALIGN=TOP NOWRAP>SMP</TH>
+			<TD>
+			It obtains a list of IOPs currently available (via /etc/hosts).
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>SMP -> IOP</TH>
+			<TD>
+			The SMP will sequentially open a connection to each IOP on its 'sniffer' port to ensure
+			the IOP is available.
+			It sends a null terminated empty interface ID followed by the query request command.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>IOP -> SMP</TH>
+			<TD>The IOP returns an error response and its list of devices.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>SMP -> IOP</TH>
+			<TD>
+			The SMP closes the TCP connection with each IOP.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>SMP</TH>
+			<TD>
+			The SMP adds the received information to its internal structure.
+			</TD>
+		</TR>
+	</TABLE></TD></TR>
+
+	<TR>
+		<TD VALIGN=TOP ROWSPAN=2><B>pcap_freealldevs()</B></TD>
+		<TD VALIGN=TOP>Used to free a list allocated by pcap_findalldevs().</TD>
+	</TR>
+	<TR><TD><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%>
+		<TR><TH VALIGN=TOP NOWRAP>SMP</TH>
+			<TD>
+			The SMP frees the structure it built as a result of the previous
+			invocation of pcap_findalldevs().
+			</TD>
+		</TR>
+	</TABLE></TD></TR>
+
+	<TR>
+		<TD VALIGN=TOP ROWSPAN=2><B>pcap_dispatch()</B></TD>
+		<TD VALIGN=TOP>Used to collect and process packets.</TD>
+	</TR>
+	<TR><TD><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%>
+		<TR><TH VALIGN=TOP NOWRAP>SMP -> IOP</TH>
+			<TD>
+			On the first invocation of pcap_dispatch(), pcap_loop(), or pcap_next(), or pcap_next_ex() following a pcap_open_live(),
+			the SMP will pass down the monitor start command and various parameters the IOP should use.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>IOP -> SMP</TH>
+			<TD>
+			The IOP now sends a stream of captured data.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>SMP</TH>
+			<TD>
+			The SMP will read the reverse channel of the connection between the SMP and the
+			IOP that provides the captured data (via 'p->read_op' which is 'pcap_read_linux()'
+			until the select() call returns a 'no more data' indication.
+			It will the process (at most) the next 'cnt' packets and invoke the specified
+			callback function for each packet processed.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>IOP</TH>
+			<TD>
+			The IOP continues to listen for additional commands as well as capturing and forwarding data to the SMP.
+			</TD>
+		</TR>
+	</TABLE></TD></TR>
+
+	<TR>
+		<TD VALIGN=TOP ROWSPAN=2><B>pcap_loop()</B></TD>
+		<TD VALIGN=TOP>
+				Is similar to pcap_dispatch() except it keeps reading packets until
+				the requested number of packets are processed or an error occurs.
+		</TD>
+	</TR>
+	<TR><TD><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%>
+		<TR><TH VALIGN=TOP NOWRAP>SMP -> IOP</TH>
+			<TD>
+			On the first invocation of pcap_dispatch(), pcap_loop(), or pcap_next(), or pcap_next_ex() following a pcap_open_live(),
+			the SMP will pass down the monitor start command and various parameters the IOP should use.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>IOP -> SMP</TH>
+			<TD>
+			The IOP now sends a stream of captured data.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>SMP</TH>
+			<TD>
+			The SMP continuously reads the next packet from the reverse channel of the connection
+			between the SMP and the IOP that provides the captured data (via 'p->read_op'
+			which is 'pcap_read_linux()' until 'cnt' packets have been received.
+			The specified callback function will be invoked for each packet received.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>IOP</TH>
+			<TD>
+			The IOP continues to listen for additional commands as well as capturing and forwarding data to the SMP.
+			</TD>
+		</TR>
+	</TABLE></TD></TR>
+
+	<TR>
+		<TD VALIGN=TOP ROWSPAN=2><B>pcap_next()</B></TD>
+		<TD VALIGN=TOP>
+			It reads the next packet (by calling pcap_dispatch() with a count of 1)
+			and returns a pointer to the data in that packet.
+		</TD>
+	</TR>
+	<TR><TD><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%>
+		<TR><TH VALIGN=TOP NOWRAP>SMP -> IOP</TH>
+			<TD>
+			On the first invocation of pcap_dispatch(), pcap_loop(), or pcap_next(), or pcap_next_ex() following a pcap_open_live(),
+			the SMP will pass down the monitor start command and various parameters the IOP should use.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>IOP -> SMP</TH>
+			<TD>
+			The IOP now sends a stream of captured data.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>SMP</TH>
+			<TD>
+			The SMP reads only the next packet from the reverse channel of the connection
+			between the SMP and the IOP that provides the captured data (via calling pcap_dispatch()
+			with a count of 1) and returns a pointer to that data by invoking an internal callback.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>IOP</TH>
+			<TD>
+			The IOP continues to listen for additional commands as well as capturing and forwarding data to the SMP.
+			</TD>
+		</TR>
+	</TABLE></TD></TR>
+
+	<TR>
+		<TD VALIGN=TOP ROWSPAN=2><B>pcap_next_ex()</B></TD>
+		<TD VALIGN=TOP>Reads the next packet and returns a success/failure indication.</TD>
+	</TR>
+	<TR><TD><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%>
+		<TR><TH VALIGN=TOP NOWRAP>SMP -> IOP</TH>
+			<TD>
+			On the first invocation of pcap_dispatch(), pcap_loop(), or pcap_next(), or pcap_next_ex() following a pcap_open_live(),
+			the SMP will pass down the monitor start command and various parameters the IOP should use.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>IOP -> SMP</TH>
+			<TD>
+			The IOP now sends a stream of captured data.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>SMP</TH>
+			<TD>
+			The SMP reads only the next packet from the reverse channel of the connection
+			between the SMP and the IOP that provides the captured data (via calling pcap_dispatch()
+			with a count of 1) and returns seperate pointers to both the
+			packet header and packet data by invoking an internal callback.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>IOP</TH>
+			<TD>
+			The IOP continues to listen for additional commands as well as capturing and forwarding data to the SMP.
+			</TD>
+		</TR>
+	</TABLE></TD></TR>
+
+	<TR>
+		<TD VALIGN=TOP ROWSPAN=2><B>pcap_setfilter()</B></TD>
+        <TD VALIGN=TOP>Used to specify a filter program.</TD>
+	</TR>
+	<TR><TD><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%>
+		<TR><TH VALIGN=TOP NOWRAP>SMP -> IOP</TH>
+			<TD>
+			The SMP sends a 'set filter' command followed by the BPF commands.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>IOP -> SMP</TH>
+			<TD>
+			The IOP returns a null terminated error string if it failed to accept the filter.
+			If no error occured, then a NULL terminated empty string is returned instead.
+			Errors are:
+			<UL>
+			<LI>"Invalid BPF."
+			<LI>"Insufficient resources for BPF."
+			</UL>
+			</TD>
+		</TR>
+	</TABLE></TD></TR>
+
+	<TR>
+		<TD VALIGN=TOP ROWSPAN=2><B>pcap_stats()</B></TD>
+        <TD VALIGN=TOP>Fills in a pcap_stat struct with packet statistics.</TD>
+	</TR>
+	<TR><TD><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%>
+		<TR><TH VALIGN=TOP NOWRAP>SMP -> IOP</TH>
+			<TD>
+			The SMP sends a message to the IOP requesting its statistics.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>IOP -> SMP</TH>
+			<TD>
+			The IOP returns the statistics.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>SMP</TH>
+			<TD>
+			The SMP fills in the structure provided with the information retrieved from the IOP.
+			</TD>
+		</TR>
+	</TABLE></TD></TR>
+
+	<TR>
+		<TD VALIGN=TOP ROWSPAN=2><B>pcap_close()</B></TD>
+        <TD VALIGN=TOP>Closes the file and deallocates resources.</TD>
+	</TR>
+	<TR><TD><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%>
+		<TR><TH VALIGN=TOP NOWRAP>SMP -> IOP</TH>
+			<TD>
+			The SMP closes the file descriptor, and if the descriptor is that of
+			the comminucation session with an IOP, it too is terminated.
+			</TD>
+		</TR>
+		<TR><TH VALIGN=TOP NOWRAP>IOP</TH>
+			<TD>
+			If the IOP detects that its communication session with an SMP
+			has closed, it will terminate any monitoring in progress,
+			release any resources and close its end of the session.
+			It will not maintain persistance of any information or prior mode of operation.
+			</TD>
+		</TR>
+	</TABLE></TD></TR>
+</TABLE>
+</UL>
+
+<P>
+<H3>SMP/IOP Inter-Process Communication Protocol</H3>
+
+<UL>
+	<LI><P>Communications between an SMP and an IOP consists of a TCP session
+			between an ephemeral port on the SMP and the well known port of 49152
+			(which is the first available port in the 'dynamic and/or private port'
+			range) on an IOP.
+	<LI><P>Following a TCP open operation the IOP receives a null terminated
+			'interface ID' string to determine the type of operation that follows:
+	<LI><P>Every command received by an IOP implies a 'stop trace/stop forwarding' operation must
+			occur before executing the received command.
+	<LI><P>A session is closed when the SMP closes the TCP session with the IOP.
+			Obviously monitoring and forwarding is also stopped at that time.
+
+	<B>Note: </B>All multi-octet entities are sent in network neutral order.
+	<P>
+
+	<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=5>
+		<TR><TH COLSPAN=3><HR WIDTH=100%></TH></TR>
+		<TR>
+			<TD VALIGN=TOP ROWSPAN=6>pcap_findalldevs()</TD>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>SMP -> IOP</TD>
+			<TD VALIGN=TOP>Open socket (to each IOP), and sends:
+				<P>
+				<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3>
+					<TR>
+					<TH VALIGN=TOP ALIGN=CENTER>Name/<BR>Purpose</TH>
+					<TH VALIGN=TOP ALIGN=CENTER NOWRAP>Size<BR>(in bytes)</TH>
+					<TH VALIGN=TOP ALIGN=CENTER>Description</TH>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>Interface ID</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+						<TD VALIGN=TOP>A NULL to indicate an an empty 'interface ID'.</TD>
+					</TR>
+				</TABLE>
+			</TD>
+		</TR>
+		<TR>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>IOP -> SMP</TD>
+			<TD VALIGN=TOP>Send its (possibly empty) NULL terminated error response string.</TD>
+		</TR>
+		<TR>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>SMP -> IOP</TD>
+			<TD VALIGN=TOP>Sends the 'interface query request':
+				<P>
+				<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3>
+					<TR>
+					<TH VALIGN=TOP ALIGN=CENTER>Name/<BR>Purpose</TH>
+					<TH VALIGN=TOP ALIGN=CENTER NOWRAP>Size<BR>(in bytes)</TH>
+					<TH VALIGN=TOP ALIGN=CENTER>Description</TH>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>Interface ID</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+						<TD VALIGN=TOP>A 'Q' (indicating 'interface query request').</TD>
+					</TR>
+				</TABLE>
+			</TD>
+		</TR>
+		<TR>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>IOP -> SMP</TD>
+			<TD VALIGN=TOP>The IOP returns a list of sequences of information as
+				defined by the return parameter of this function call (as shown in the following table).
+				Elements are specified by providing an unsigned byte preceeding the actual data that contains length information.
+				<P>
+				<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3>
+				<TR>
+					<TH VALIGN=TOP ALIGN=CENTER>Notes:</TH>
+					<TH VALIGN=TOP ALIGN=CENTER>Name/<BR>Purpose</TH>
+					<TH VALIGN=TOP ALIGN=CENTER NOWRAP>Size<BR>(in bytes)</TH>
+					<TH VALIGN=TOP ALIGN=CENTER>Description</TH>
+				</TR>
+				<TR>
+					<TD ROWSPAN=7>&nbsp;</TD>
+					<TD VALIGN=TOP ALIGN=RIGHT>length</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+					<TD VALIGN=TOP>The number of octets in the name field that follows.</TD>
+				</TR>
+				<TR><TD VALIGN=TOP ALIGN=LEFT>Name</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>1-255</TD>
+					<TD VALIGN=TOP>The name of the interface. The format of the name is an alphabetic string (indicating
+									the type of interface) followed by an optional numeric string (indicating the interface's
+									sequence number).
+									Sequence numbers (if needed) will begin at zero and progress monotonically upwards.
+									(i.e. 'eth0', 'lo', 'wan0', etc.)
+									<P>
+									For an IOP, the alphabetic string will be one of: 'eth', 'wan', and 'lo'
+									for Ethernet, WAN ports and the IP loopback device respectively.
+									An IOP currently supports: 'eth0', 'eth1', 'lo', 'wan0' ... 'wan7'.
+									<P>
+						<B>Note:</B> IOPs and ACNs will not currently support the concept of 'any' interface.</TD>
+				</TR>
+				<TR><TD VALIGN=TOP ALIGN=RIGHT>length</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+					<TD VALIGN=TOP>The number of octets in the interface description field that follows.</TD>
+				</TR>
+				<TR><TD VALIGN=TOP ALIGN=LEFT>Interface Description</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>0-255</TD>
+					<TD VALIGN=TOP>A description of the interface or it may be an empty string. (i.e. 'ALC')</TD>
+				</TR>
+				<TR><TD VALIGN=TOP ALIGN=LEFT>Interface Type</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>4</TD>
+					<TD VALIGN=TOP>The type of interface as defined in the description for pcap_datalink() (in network neutral order).</TD>
+				</TR>
+				<TR><TD VALIGN=TOP ALIGN=LEFT>Loopback Flag</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+					<TD VALIGN=TOP>1 = if the interface is a loopback interface, zero = otherwise.</TD>
+				</TR>
+				<TR><TD VALIGN=TOP ALIGN=RIGHT>count</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+					<TD VALIGN=TOP># of address entries that follow.
+						Each entry is a series of bytes in network neutral order.
+						See the parameter definition above for more details.</TD>
+				</TR>
+				<TR>
+					<TD ALIGN=CENTER ROWSPAN=8 WIDTH=1%>Repeated 'count' number of times.</TD>
+					<TD VALIGN=TOP ALIGN=RIGHT>length</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+					<TD VALIGN=TOP>The number of octets in the address field that follows.</TD>
+				</TR>
+				<TR><TD VALIGN=TOP ALIGN=LEFT>Address</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>1-255</TD>
+					<TD VALIGN=TOP>The address of this interface (in network neutral order).</TD>
+				</TR>
+				<TR><TD VALIGN=TOP ALIGN=RIGHT>length</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+					<TD VALIGN=TOP>The number of octets in the netmask field that follows.</TD>
+				</TR>
+				<TR><TD VALIGN=TOP ALIGN=LEFT>Network Mask</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>0-255</TD>
+					<TD VALIGN=TOP>The network mask used on this interface (if applicable) (in network neutral order).</TD>
+				</TR>
+				<TR><TD VALIGN=TOP ALIGN=RIGHT>length</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+					<TD VALIGN=TOP>The number of octets in the broadcast address field that follows.</TD>
+				</TR>
+				<TR><TD VALIGN=TOP ALIGN=LEFT>Broadcast Address</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>0-255</TD>
+					<TD VALIGN=TOP>The broadcast address of this interface (if applicable) (in network neutral order).</TD>
+				</TR>
+				<TR><TD VALIGN=TOP ALIGN=RIGHT>length</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+					<TD VALIGN=TOP>The number of octets in the destination address field that follows.</TD>
+				</TR>
+				<TR><TD VALIGN=TOP ALIGN=LEFT>Destination Address</TD>
+					<TD VALIGN=TOP ALIGN=CENTER>0-255</TD>
+					<TD VALIGN=TOP>The destination address of this interface (if applicable) (in network neutral order).</TD>
+				</TR>
+				</TABLE>
+		</TR>
+		<TR>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>SMP -> IOP</TD>
+			<TD VALIGN=TOP>Close the socket.</TD>
+		</TR>
+		<TR>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>IOP -> SMP</TD>
+			<TD VALIGN=TOP>Close the socket.</TD>
+		</TR>
+		<TR><TH COLSPAN=3><HR WIDTH=100%></TH></TR>
+		<TR>
+			<TD VALIGN=TOP ROWSPAN=2>pcap_open_live()</TD>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>SMP -> IOP</TD>
+			<TD VALIGN=TOP>Open socket, and sends:
+				<P>
+				<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3>
+					<TR>
+					<TH VALIGN=TOP ALIGN=CENTER>Name/<BR>Purpose</TH>
+					<TH VALIGN=TOP ALIGN=CENTER NOWRAP>Size<BR>(in bytes)</TH>
+					<TH VALIGN=TOP ALIGN=CENTER>Description</TH>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>Interface ID</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>'n'</TD>
+						<TD VALIGN=TOP>'n' octets containing a NULL terminated interface name string.</TD>
+					</TR>
+				</TABLE>
+			</TD>
+		</TR>
+		<TR>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>IOP -> SMP</TD>
+			<TD VALIGN=TOP>Send its NULL terminated error response string.</TD>
+		</TR>
+		<TR><TH COLSPAN=3><HR WIDTH=100%></TH></TR>
+		<TR>
+			<TD VALIGN=TOP NOWRAP ROWSPAN=2>pcap_dispatch()<BR>pcap_loop()<BR>pcap_next()<BR>pcap_next_ex()</TD>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>SMP -> IOP</TD>
+			<TD VALIGN=TOP>On the first invocation following a pcap_open_live() or pcap_breakloop() additional information is sent:
+				<P>
+				<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3>
+					<TR>
+					<TH VALIGN=TOP ALIGN=CENTER>Name/<BR>Purpose</TH>
+					<TH VALIGN=TOP ALIGN=CENTER NOWRAP>Size<BR>(in bytes)</TH>
+					<TH VALIGN=TOP ALIGN=CENTER>Description</TH>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>command</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+						<TD VALIGN=TOP>'M' (indicating 'monitor start')</TD>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>snaplen</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>4</TD>
+						<TD VALIGN=TOP>snaplen</TD>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>timeout</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+						<TD VALIGN=TOP>timeout value (in milliseconds)</TD>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>promiscuous</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+						<TD VALIGN=TOP>A flag indicating that the interface being monitored show operate
+							in promiscuous mode. [off(0) / on(NZ)]</TD>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>direction</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+						<TD VALIGN=TOP>A flag indicating the direction of traffic that should be captuted [both(0) / in(1) / out(2)]</TD>
+					</TR>
+				</TABLE>
+			</TD>
+		</TR>
+		<TR>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>IOP -> SMP</TD>
+			<TD VALIGN=TOP>Sends captured packets.</TD>
+		</TR>
+		<TR><TH COLSPAN=3><HR WIDTH=100%></TH></TR>
+		<TR>
+			<TD VALIGN=TOP ROWSPAN=2>pcap_setfilter()</TD>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>SMP -> IOP</TD>
+			<TD VALIGN=TOP>At any time, the SMP can issue a set filter command which contains
+							an indicator, a count of the number of statements in the filter,
+							followed by the sequence of filter commands represented as a sequence
+							of C-style structures.
+				<P>
+				<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3>
+					<TR>
+					<TH VALIGN=TOP ALIGN=CENTER>Name/<BR>Purpose</TH>
+					<TH VALIGN=TOP ALIGN=CENTER NOWRAP>Size<BR>(in bytes)</TH>
+					<TH VALIGN=TOP ALIGN=CENTER>Description</TH>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>command</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+						<TD VALIGN=TOP>'F' (indicating 'filter')</TD>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>count</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>4</TD>
+						<TD VALIGN=TOP>The number of command in the Berkeley Packet Filter that follow.</TD>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>BPF program</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>'n'</TD>
+						<TD VALIGN=TOP>8 bytes of each command (repeated 'n' times).<BR>
+								 	Each command consists of that C-style structure which contains:
+							<P>
+							<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3>
+								<TR>
+								<TH VALIGN=TOP ALIGN=CENTER>Name/<BR>Purpose</TH>
+								<TH VALIGN=TOP ALIGN=CENTER NOWRAP>Size<BR>(in bytes)</TH>
+								<TH VALIGN=TOP ALIGN=CENTER>Description</TH>
+								</TR>
+								<TR>
+									<TD VALIGN=TOP>opcode</TD>
+									<TD VALIGN=TOP ALIGN=CENTER>2</TD>
+									<TD VALIGN=TOP>The command's opcode.</TD>
+								</TR>
+								<TR>
+									<TD VALIGN=TOP>'jt'</TD>
+									<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+									<TD VALIGN=TOP>The 'jump if true' program counter offset.</TD>
+								</TR>
+								<TR>
+									<TD VALIGN=TOP>'jf'</TD>
+									<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+									<TD VALIGN=TOP>The 'jump if false' program counter offset.</TD>
+								</TR>
+								<TR>
+									<TD VALIGN=TOP>'k'</TD>
+									<TD VALIGN=TOP ALIGN=CENTER>4</TD>
+									<TD VALIGN=TOP>The 'other' data field.</TD>
+								</TR>
+							</TABLE>
+							<P>
+							Refer to the bpf(4) man page for more details.
+						</TD>
+					</TR>
+				</TABLE>
+			</TD>
+		</TR>
+		<TR>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>IOP -> SMP</TD>
+			<TD VALIGN=TOP>In return the IOP will send its (possibly empty) NULL terminated error response string.</TD>
+		</TR>
+		<TR><TH COLSPAN=3><HR WIDTH=100%></TH></TR>
+		<TR>
+			<TD VALIGN=TOP ROWSPAN=2>pcap_stats()</TD>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>SMP -> IOP</TD>
+			<TD VALIGN=TOP>At any time, the SMP can issue a 'retrieve statistics' command which contains:<BR>
+				<P>
+				<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3>
+					<TR>
+					<TH VALIGN=TOP ALIGN=CENTER>Name/<BR>Purpose</TH>
+					<TH VALIGN=TOP ALIGN=CENTER NOWRAP>Size<BR>(in bytes)</TH>
+					<TH VALIGN=TOP ALIGN=CENTER>Description</TH>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>command</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>1</TD>
+						<TD VALIGN=TOP>'S' (indicating 'request statistics')</TD>
+					</TR>
+				</TABLE>
+			</TD>
+		</TR>
+		<TR>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>IOP -> SMP</TD>
+			<TD VALIGN=TOP>In return the IOP will send:
+				<P>
+				<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3>
+					<TR>
+					<TH VALIGN=TOP ALIGN=CENTER>Name/<BR>Purpose</TH>
+					<TH VALIGN=TOP ALIGN=CENTER NOWRAP>Size<BR>(in bytes)</TH>
+					<TH VALIGN=TOP ALIGN=CENTER>Description</TH>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>ps_recv</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>4</TD>
+						<TD VALIGN=TOP>The number of packets that passed the filter.</TD>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>ps_drop</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>4</TD>
+						<TD VALIGN=TOP>The number of packets that were dropped because the input queue was full,
+							regardless of whether they passed the filter.</TD>
+					</TR>
+					<TR>
+						<TD VALIGN=TOP>ps_ifdrop</TD>
+						<TD VALIGN=TOP ALIGN=CENTER>4</TD>
+						<TD VALIGN=TOP>The number of packets dropped by the network inteface
+							(regardless of whether they would have passed the input filter).</TD>
+					</TR>
+				</TABLE>
+			</TD>
+		</TR>
+		<TR><TH COLSPAN=3><HR WIDTH=100%></TH></TR>
+		<TR>
+			<TD VALIGN=TOP ROWSPAN=1>pcap_close()</TD>
+			<TD VALIGN=TOP ALIGN=CENTER NOWRAP>SMP -> IOP</TD>
+			<TD VALIGN=TOP>At any time, the SMP can close the TCP session with the IOP.</TD>
+		</TR>
+		<TR><TH COLSPAN=3><HR WIDTH=100%></TH></TR>
+	</TABLE>
+</UL>
+
+<H3>Interface ID Naming Convention</H3>
+<UL>
+	Each interface within an IOP will be referred to uniquely.  Since an currently contains
+	8 monitorable WAN ports and a monitorable Ethernet port, the naming convention is:
+	<P>
+	<CENTER>
+	<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3>
+		<TR><TH>Interface #</TH>		<TH>Type</TH>					<TH>Name</TH></TR>
+		<TR><TD ALIGN=CENTER>1</TD>		<TD ALIGN=CENTER>WAN</TD>		<TD ALIGN=CENTER>wan0</TD></TR>
+		<TR><TD ALIGN=CENTER>2</TD>		<TD ALIGN=CENTER>WAN</TD>		<TD ALIGN=CENTER>wan1</TD></TR>
+		<TR><TD ALIGN=CENTER>3</TD>		<TD ALIGN=CENTER>WAN</TD>		<TD ALIGN=CENTER>wan2</TD></TR>
+		<TR><TD ALIGN=CENTER>4</TD>		<TD ALIGN=CENTER>WAN</TD>		<TD ALIGN=CENTER>wan3</TD></TR>
+		<TR><TD ALIGN=CENTER>5</TD>		<TD ALIGN=CENTER>WAN</TD>		<TD ALIGN=CENTER>wan4</TD></TR>
+		<TR><TD ALIGN=CENTER>6</TD>		<TD ALIGN=CENTER>WAN</TD>		<TD ALIGN=CENTER>wan5</TD></TR>
+		<TR><TD ALIGN=CENTER>7</TD>		<TD ALIGN=CENTER>WAN</TD>		<TD ALIGN=CENTER>wan6</TD></TR>
+		<TR><TD ALIGN=CENTER>8</TD>		<TD ALIGN=CENTER>WAN</TD>		<TD ALIGN=CENTER>wan7</TD></TR>
+		<TR><TD ALIGN=CENTER>9</TD>		<TD ALIGN=CENTER>Ethernet</TD>	<TD ALIGN=CENTER>eth0</TD></TR>
+		<TR><TD ALIGN=CENTER>10</TD>	<TD ALIGN=CENTER>Ethernet</TD>	<TD ALIGN=CENTER>eth1</TD></TR>
+	</TABLE>
+	</CENTER>
+</UL>
+
+<H3>Packet Trace Data Format</H3>
+<UL>
+	The format of the trace data that is sent to the SMP follows a portion of the libpcap file format
+	and is summarized here.  This format specifies the generic requirements needed to
+	be able to decode packets, but does not cover ACN specifics such as custom MAC addressing
+	and WAN protocol support.
+	<P>
+
+	Although a libpcap file begins with a global header followed by zero or
+	more records for each captured packet, trace data sent to the SMP does NOT begin with a global header.
+	A trace sequence looks like this:
+	<P>
+	<TABLE>
+		<TR>
+  			<TD STYLE="background-color: #c0FFc0">&nbsp;[Packet Header]&nbsp;</TD>
+  			<TD STYLE="background-color: #c0FFc0">&nbsp;[Packet Data]&nbsp;</TD>
+  			<TD STYLE="background-color: #c0c0FF">&nbsp;[Packet Header]&nbsp;</TD>
+  			<TD STYLE="background-color: #c0c0FF">&nbsp;[Packet Data]&nbsp;</TD>
+  			<TD STYLE="background-color: #e0c0c0">&nbsp;[Packet Header]&nbsp;</TD>
+  			<TD STYLE="background-color: #e0c0c0">&nbsp;[Packet Data]&nbsp;</TD>
+  			<TD>...</TD>
+		</TR>
+	</TABLE>
+
+<H4>Packet Header</H4>
+	<UL>
+		Each captured packet starts with a header that contains the following values
+		(in network neutral order):
+
+		<FONT SIZE=-1>
+		<PRE>
+ uint32 tv_sec;  /* timestamp seconds */
+ uint32 tv_usec; /* timestamp microseconds */
+ uint32 caplen;  /* number of octets in the following packet */
+ uint32 len;     /* original length of packet on the wire */
+		</PRE>
+		</FONT>
+
+		<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3>
+			<TR>
+				<TD VALIGN=TOP>tv_sec</TD>
+				<TD>The date and time when this packet was captured.
+					This value is in seconds since January 1, 1970 00:00:00 GMT;
+					this is also known as a UN*X time_t. You can use the ANSI C
+					<em>time()</em> function from <em>time.h</em> to get this value,
+					but you might use a more optimized way to get this timestamp value.
+					If this timestamp isn't based on GMT (UTC), use <em>thiszone</em>
+					from the global header for adjustments.</TD>
+			</TR>
+			<TR>
+				<TD VALIGN=TOP>tv_usec</TD>
+				<TD>The microseconds when this packet was captured, as an offset to <em>ts_sec</em>.
+					<B>Beware: </B>this value must never reach 1 second (1,000,000),
+					in this case <em>ts_sec</em> must be increased instead!</TD>
+			</TR>
+			<TR>
+				<TD VALIGN=TOP>caplen</TD>
+				<TD>The number of bytes actually provided in the capture record.
+					This value should never become larger than <em>len</em> or the
+					<em>snaplen</em> value specified during the capture.</TD>
+			</TR>
+			<TR>
+				<TD VALIGN=TOP>len</TD>
+				<TD>The length of the packet "on the wire" when it was captured.
+					If <em>caplen</em> and <em>len</em> differ, the actually
+					saved packet size was limited by the value of <em>snaplen</em> specified
+					during one of the capture directives such as pcap_dispatch().</TD>
+			</TR>
+		</TABLE>
+	</UL>
+
+<H4>Packet Data</H4>
+	<UL>
+	The actual packet data will immediately follow the packet header as a sequence of <em>caplen</em> octets.
+	Depending on the DLT encoding number assigned to the interface, the packet data will contain an additional
+	custom header used to convey WAN port related information.
+	</UL>
+
+<H4>ACN Custom Packet Header</H4>
+	<UL>
+	PCAP, Wireshark and Tcpdump enhancements have been added to the ACN to support
+	monitoring of its ports, however each of these facilities were focused on capturing
+	and displaying traffic from LAN interfaces.  The SITA extentions to these facilities
+	are used to also provide the ability to capture, filter, and display information from
+	an ACN's WAN ports.
+	<P>
+	Although each packet follows the standard libpcap format, since there are
+	two types of interfaces that can be monitored, the format of the data
+	packet varies slightly.
+	<P>
+	<UL TYPE=DISC>
+		<LI>For Ethernet (like) devices, the packet format is unchanged from the standard Pcap format.
+		<LI>For WAN devices, the packet contains a 5 byte header that preceeds the actual captured data
+			described by the following table:
+	</UL>
+	<P>
+	<CENTER>
+	<TABLE BORDER=1 CELLSPACING=0 CELLPADDING=3>
+	<TR>	<TH>Octet</TH>
+			<TH>Name</TH>
+			<TH>Mask/Value</TH>
+			<TH COLSPAN=2>Definition</TH>		</TR>
+
+	<TR>	<TH VALIGN=TOP ALIGN=CENTER ROWSPAN=3>0</TH>
+			<TH VALIGN=TOP ALIGN=CENTER ROWSPAN=3>Control / Status</TH>
+
+			<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxxxxxx0</FONT></TD>
+			<TD>Transmitted by capture device</TD>
+			<TD ROWSPAN=2 ALIGN=CENTER>(see 'Errors' octets)</TD>							</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxxxxxx1</FONT></TD>
+			<TD>Received by capture device</TD>												</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">1xxxxxxx</FONT></TD>
+			<TD COLSPAN=2>No buffer was available during capture of previous packet.</TD>	</TR>
+
+	<TR>	<TH VALIGN=TOP ALIGN=CENTER ROWSPAN=8>1</TH>
+			<TH VALIGN=TOP ALIGN=CENTER ROWSPAN=8>Signals</TH>
+
+			<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxxxxxx1</FONT></TD>	<TD COLSPAN=2>DSR asserted</TD>		</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxxxxx1x</FONT></TD>	<TD COLSPAN=2>DTR asserted</TD>		</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxxxx1xx</FONT></TD>	<TD COLSPAN=2>CTS asserted</TD>		</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxxx1xxx</FONT></TD>	<TD COLSPAN=2>RTS asserted</TD>		</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxx1xxxx</FONT></TD>	<TD COLSPAN=2>DCD asserted</TD>		</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xx1xxxxx</FONT></TD>	<TD COLSPAN=2>Undefined</TD>		</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">x1xxxxxx</FONT></TD>	<TD COLSPAN=2>Undefined</TD>		</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">1xxxxxxx</FONT></TD>	<TD COLSPAN=2>Undefined</TD>		</TR>
+
+	<TR>	<TH VALIGN=TOP ALIGN=CENTER ROWSPAN=9>2</TH>
+			<TH VALIGN=TOP ALIGN=CENTER ROWSPAN=9>Errors<BR>(octet 1)</TH>
+
+			<TH>&nbsp;</TH>															<TH>Tx</TH>						<TH>Rx</TH>				</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxxxxxx1</FONT></TD>	<TD>Underrun</TD>				<TD>Framing</TD>		</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxxxxx1x</FONT></TD>	<TD>CTS Lost</TD>				<TD>Parity</TD>			</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxxxx1xx</FONT></TD>	<TD>UART Error</TD>				<TD>Collision</TD>		</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxxx1xxx</FONT></TD>	<TD>Re-Tx Limit Reached</TD>	<TD>Long Frame</TD>		</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxx1xxxx</FONT></TD>	<TD>Undefined</TD>				<TD>Short Frame</TD>	</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xx1xxxxx</FONT></TD>	<TD>Undefined</TD>				<TD>Undefined</TD>		</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">x1xxxxxx</FONT></TD>	<TD>Undefined</TD>				<TD>Undefined</TD>		</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">1xxxxxxx</FONT></TD>	<TD>Undefined</TD>				<TD>Undefined</TD>		</TR>
+
+	<TR>	<TH VALIGN=TOP ALIGN=CENTER ROWSPAN=9>3</TH>
+			<TH VALIGN=TOP ALIGN=CENTER ROWSPAN=9>Errors<BR>(octet 2)</TH>
+
+			<TH>&nbsp;</TH>															<TH>Tx</TH>			<TH>Rx</TH>						</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxxxxxx1</FONT></TD>	<TD>Undefined</TD>	<TD>Non-Octet Aligned</TD>		</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxxxxx1x</FONT></TD>	<TD>Undefined</TD>	<TD>Abort Received</TD>			</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxxxx1xx</FONT></TD>	<TD>Undefined</TD>	<TD>CD Lost</TD>				</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxxx1xxx</FONT></TD>	<TD>Undefined</TD>	<TD>Digital PLL Error</TD>		</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xxx1xxxx</FONT></TD>	<TD>Undefined</TD>	<TD>Overrun</TD>				</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">xx1xxxxx</FONT></TD>	<TD>Undefined</TD>	<TD>Frame Length Violation</TD>	</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">x1xxxxxx</FONT></TD>	<TD>Undefined</TD>	<TD>CRC Error</TD>				</TR>
+	<TR>	<TD VALIGN=TOP ALIGN=CENTER><FONT FACE="COURIER">1xxxxxxx</FONT></TD>	<TD>Undefined</TD>	<TD>Break Received</TD>			</TR>
+
+	<TR>	<TH VALIGN=TOP ALIGN=CENTER ROWSPAN=12>4</TH>
+			<TH VALIGN=TOP ALIGN=CENTER>Protocol</TH>
+
+			<TD COLSPAN=3>
+				<CENTER>
+				<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0>
+					<TR VALIGN=BOTTOM><TD ALIGN=CENTER>0x01</TD>	<TD>-</TD>	<TD>LAPB (BOP)				<SUP>&nbsp;</SUP>	</TD>	</TR>
+					<TR VALIGN=BOTTOM><TD ALIGN=CENTER>0x02</TD>	<TD>-</TD>	<TD>Ethernet				<SUP>1</SUP>		</TD>	</TR>
+					<TR VALIGN=BOTTOM><TD ALIGN=CENTER>0x03</TD>	<TD>-</TD>	<TD>Async (Interrupt IO)	<SUP>&nbsp;</SUP>	</TD>	</TR>
+					<TR VALIGN=BOTTOM><TD ALIGN=CENTER>0x04</TD>	<TD>-</TD>	<TD>Async (Block IO)		<SUP>&nbsp;</SUP>	</TD>	</TR>
+					<TR VALIGN=BOTTOM><TD ALIGN=CENTER>0x05</TD>	<TD>-</TD>	<TD>IPARS					<SUP>&nbsp;</SUP>	</TD>	</TR>
+					<TR VALIGN=BOTTOM><TD ALIGN=CENTER>0x06</TD>	<TD>-</TD>	<TD>UTS						<SUP>&nbsp;</SUP>	</TD>	</TR>
+					<TR VALIGN=BOTTOM><TD ALIGN=CENTER>0x07</TD>	<TD>-</TD>	<TD>PPP (HDLC)				<SUP>&nbsp;</SUP>	</TD>	</TR>
+					<TR VALIGN=BOTTOM><TD ALIGN=CENTER>0x08</TD>	<TD>-</TD>	<TD>SDLC					<SUP>&nbsp;</SUP>	</TD>	</TR>
+					<TR VALIGN=BOTTOM><TD ALIGN=CENTER>0x09</TD>	<TD>-</TD>	<TD>Token Ring				<SUP>1</SUP>		</TD>	</TR>
+					<TR VALIGN=BOTTOM><TD ALIGN=CENTER>0x10</TD>	<TD>-</TD>	<TD>I2C						<SUP>&nbsp;</SUP>	</TD>	</TR>
+					<TR VALIGN=BOTTOM><TD ALIGN=CENTER>0x11</TD>	<TD>-</TD>	<TD>DPM Link				<SUP>&nbsp;</SUP>	</TD>	</TR>
+					<TR VALIGN=BOTTOM><TD ALIGN=CENTER>0x12</TD>	<TD>-</TD>	<TD>Frame Relay (BOP)		<SUP>&nbsp;</SUP>	</TD>	</TR>
+				</TABLE>
+				</CENTER>
+				<P>
+				<STRONG>Note 1:</STRONG>
+				Ethernet and Token Ring frames will never be sent as DLT_SITA (with the 5 octet header),
+				but will be sent as their corresponding DLT types instead.
+			</TD>
+	</TR>
+	</TABLE>
+	</CENTER>
+</UL>
+<P>
+</UL>
+</UL>

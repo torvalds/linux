@@ -1,0 +1,163 @@
+.\" Copyright (c) 2010 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: dwarf_srclines.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd November 9, 2011
+.Dt DWARF_SRCLINES 3
+.Os
+.Sh NAME
+.Nm dwarf_srclines
+.Nd retrieve line number information for a debugging information entry
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_srclines
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Line **lines"
+.Fa "Dwarf_Signed *nlines"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_srclines
+returns line number information associated with a compilation unit.
+Line number information is returned as an array of
+.Vt Dwarf_Line
+descriptors.
+.Pp
+Argument
+.Ar die
+should reference a DWARF debugging information entry descriptor
+with line number information, see
+.Xr dwarf 3 .
+Argument
+.Ar lines
+should point to a location that will hold a pointer to the returned array
+of
+.Vt Dwarf_Line
+descriptors.
+Argument
+.Ar nlines
+should point to a location that will hold the number of descriptors
+returned.
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case of an
+error.
+.Pp
+The returned
+.Vt Dwarf_Line
+descriptors may be passed to the other line number functions in the
+API set to retrieve specific information about each source line.
+.Ss Memory Management
+The memory area used for the array of
+.Vt Dwarf_Line
+descriptors returned in argument
+.Ar lines
+is owned by the
+.Lb libdwarf .
+The application should not attempt to free this pointer.
+Portable code should instead use
+.Fn dwarf_srclines_dealloc
+to indicate that the memory may be freed.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_srclines
+returns
+.Dv DW_DLV_OK
+when it succeeds.
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh EXAMPLES
+To obtain an array of
+.Vt Dwarf_Line
+descriptors and to retrieve the source file, line number, and virtual address
+associated with each descriptor:
+.Bd -literal -offset indent
+int n;
+Dwarf_Die die;
+Dwarf_Error de;
+char *filename;
+Dwarf_Line *lines;
+Dwarf_Signed nlines;
+Dwarf_Addr lineaddr;
+Dwarf_Unsigned lineno;
+
+/* variable "die" should reference a DIE for a compilation unit */
+
+if (dwarf_srclines(die, &lines, &nlines, &de) != DW_DLV_OK)
+	errx(EXIT_FAILURE, "dwarf_srclines: %s", dwarf_errmsg(de));
+
+for (n = 0; n < nlines; n++) {
+	/* Retrieve the file name for this descriptor. */
+	if (dwarf_linesrc(lines[n], &filename, &de))
+		errx(EXIT_FAILURE, "dwarf_linesrc: %s",
+		    dwarf_errmsg(de));
+
+	/* Retrieve the line number in the source file. */
+	if (dwarf_lineno(lines[n], &lineno, &de))
+		errx(EXIT_FAILURE, "dwarf_lineno: %s",
+		    dwarf_errmsg(de));
+	/* Retrieve the virtual address for this line. */
+	if (dwarf_lineaddr(lines[n], &lineaddr, &de))
+		errx(EXIT_FAILURE, "dwarf_lineaddr: %s",
+		    dwarf_errmsg(de));
+	}
+.Ed
+.Sh ERRORS
+Function
+.Fn dwarf_srclines
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar die ,
+.Ar lines
+or
+.Ar nlines
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+The compilation unit referenced by argument
+.Ar die
+does not have associated line number information.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of
+this function.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_line_srcfileno 3 ,
+.Xr dwarf_lineaddr 3 ,
+.Xr dwarf_linebeginstatement 3 ,
+.Xr dwarf_lineblock 3 ,
+.Xr dwarf_lineendsequence 3 ,
+.Xr dwarf_lineno 3 ,
+.Xr dwarf_lineoff 3 ,
+.Xr dwarf_linesrc 3 ,
+.Xr dwarf_srcfiles 3 ,
+.Xr dwarf_srclines_dealloc 3

@@ -1,0 +1,22 @@
+# $FreeBSD$
+PATH=/var/empty
+case $(command -pV ls) in
+*/var/empty/ls*)
+	echo "Failed: \$(command -pV ls) should not match */var/empty/ls*" ;;
+"ls is"*" "/*/ls) ;;
+*)
+	echo "Failed: \$(command -pV ls) match \"ls is\"*\" \"/*/ls" ;;
+esac
+command -pV true
+command -pV /bin/ls
+
+fun() {
+	:
+}
+command -pV fun
+command -pV break
+command -pV if
+command -pV {
+
+alias foo=bar
+command -pV foo

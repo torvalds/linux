@@ -1,0 +1,301 @@
+.\" Copyright (c) 2004 FreeBSD Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL [your name] OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 11, 2012
+.Dt BPF 9
+.Os
+.\"
+.Sh NAME
+.Nm bpf
+.Nd "Berkeley Packet Filter"
+.\"
+.Sh SYNOPSIS
+.In net/bpf.h
+.\"
+.Ft void
+.Fn bpfattach "struct ifnet *ifp" "u_int dlt" "u_int hdrlen"
+.Ft void
+.Fo bpfattach2
+.Fa "struct ifnet *ifp" "u_int dlt" "u_int hdrlen" "struct bpf_if **driverp"
+.Fc
+.Ft void
+.Fn bpfdetach "struct ifnet *ifp"
+.Ft void
+.Fn bpf_tap "struct ifnet *ifp" "u_char *pkt" "u_int *pktlen"
+.Ft void
+.Fn bpf_mtap "struct ifnet *ifp" "struct mbuf *m"
+.Ft void
+.Fn bpf_mtap2 "struct bpf_if *bp" "void *data" "u_int dlen" "struct mbuf *m"
+.Ft u_int
+.Fo bpf_filter
+.Fa "const struct bpf_insn *pc " "u_char *pkt" "u_int wirelen" "u_int buflen"
+.Fc
+.Ft int
+.Fn bpf_validate "const struct bpf_insn *fcode" "int flen"
+.\"
+.Sh DESCRIPTION
+The Berkeley Packet Filter provides a raw interface,
+that is protocol independent,
+to data link layers.
+It allows all packets on the network,
+even those destined for other hosts,
+to be passed from a network interface to user programs.
+Each program may specify a filter,
+in the form of a
+.Nm
+filter machine program.
+The
+.Xr bpf 4
+manual page
+describes the interface used by user programs.
+This manual page describes the functions used by interfaces to pass packets to
+.Nm
+and the functions for testing and running
+.Nm
+filter machine programs.
+.Pp
+The
+.Fn bpfattach
+function
+attaches a network interface to
+.Nm .
+The
+.Fa ifp
+argument
+is a pointer to the structure that defines the interface to be
+attached to an interface.
+The
+.Fa dlt
+argument
+is the data link-layer type:
+.Dv DLT_NULL
+(no link-layer encapsulation),
+.Dv DLT_EN10MB
+(Ethernet),
+.Dv DLT_IEEE802_11
+(802.11 wireless networks),
+etc.
+The rest of the link layer types can be found in
+.In net/bpf.h .
+The
+.Fa hdrlen
+argument
+is the fixed size of the link header;
+variable length headers are not yet supported.
+The
+.Nm
+system will hold a pointer to
+.Fa ifp->if_bpf .
+This variable will set to a
+.Pf non- Dv NULL
+value when
+.Nm
+requires packets from this interface to be tapped using the functions below.
+.Pp
+The
+.Fn bpfattach2
+function
+allows multiple
+.Nm
+instances to be attached to a single interface,
+by registering an explicit
+.Fa if_bpf
+rather than using
+.Fa ifp->if_bpf .
+It is then possible to run
+.Xr tcpdump 1
+on the interface for any data link-layer types attached.
+.Pp
+The
+.Fn bpfdetach
+function detaches a
+.Nm
+instance from an interface,
+specified by
+.Fa ifp .
+The
+.Fn bpfdetach
+function
+should be called once for each
+.Nm
+instance attached.
+.Pp
+The
+.Fn bpf_tap
+function
+is used by an interface to pass the packet to
+.Nm .
+The packet data (including link-header),
+pointed to by
+.Fa pkt ,
+is of length
+.Fa pktlen ,
+which must be a contiguous buffer.
+The
+.Fa ifp
+argument
+is a pointer to the structure that defines the interface to be tapped.
+The packet is parsed by each processes filter,
+and if accepted,
+it is buffered for the process to read.
+.Pp
+The
+.Fn bpf_mtap
+function is like
+.Fn bpf_tap
+except that it is used to tap packets that are in an
+.Vt mbuf
+chain,
+.Fa m .
+The
+.Fa ifp
+argument
+is a pointer to the structure that defines the interface to be tapped.
+Like
+.Fn bpf_tap ,
+.Fn bpf_mtap
+requires a link-header for whatever data link layer type is specified.
+Note that
+.Nm
+only reads from the
+.Vt mbuf
+chain,
+it does not free it or keep a pointer to it.
+This means that an
+.Vt mbuf
+containing the link-header
+can be prepended to the chain if necessary.
+A cleaner interface to achieve this is provided by
+.Fn bpf_mtap2 .
+.Pp
+The
+.Fn bpf_mtap2
+function
+allows the user to pass a link-header
+.Fa data ,
+of length
+.Fa dlen ,
+independent of the
+.Vt mbuf
+.Fa m ,
+containing the packet.
+This simplifies the passing of some link-headers.
+.Pp
+The
+.Fn bpf_filter
+function
+executes the filter program starting at
+.Fa pc
+on the packet
+.Fa pkt .
+The
+.Fa wirelen
+argument
+is the length of the original packet and
+.Fa buflen
+is the amount of data present.
+The
+.Fa buflen
+value of 0 is special; it indicates that the
+.Fa pkt
+is actually a pointer to an mbuf chain
+.Pq Vt "struct mbuf *" .
+.Pp
+The
+.Fn bpf_validate
+function
+checks that the filter code
+.Fa fcode ,
+of length
+.Fa flen ,
+is valid.
+.\"
+.Sh RETURN VALUES
+The
+.Fn bpf_filter
+function returns \-1
+(cast to an unsigned integer)
+if there is no filter.
+Otherwise, it returns the result of the filter program.
+.Pp
+The
+.Fn bpf_validate
+function
+returns 0 when the program is not a valid filter program.
+.\"
+.Sh EVENT HANDLERS
+.Nm
+invokes
+.Fa bpf_track
+.Xr EVENTHANDLER 9
+event each time listener attaches to or detaches from an interface.
+Pointer to
+.Pq Vt "struct ifnet *"
+is passed as the first argument, interface
+.Fa dlt
+follows.
+Last argument indicates listener is attached (1) or detached (0).
+Note that handler is invoked with
+.Nm
+global lock held, which implies restriction on sleeping and calling
+.Nm
+subsystem inside
+.Xr EVENTHANDLER 9
+dispatcher.
+Note that handler is not called for write-only listeners.
+.\"
+.Sh SEE ALSO
+.Xr tcpdump 1 ,
+.Xr bpf 4 ,
+.Xr EVENTHANDLER 9
+.\"
+.Sh HISTORY
+The Enet packet filter was created in 1980 by Mike Accetta and
+Rick Rashid at Carnegie-Mellon University.
+Jeffrey Mogul,
+at Stanford,
+ported the code to
+.Bx
+and continued its development from 1983 on.
+Since then,
+it has evolved into the Ultrix Packet Filter at
+.Tn DEC ,
+a
+.Tn STREAMS
+.Tn NIT
+module under
+.Tn SunOS
+4.1, and
+.Tn BPF .
+.\"
+.Sh AUTHORS
+.An -nosplit
+.An Steven McCanne ,
+of Lawrence Berkeley Laboratory, implemented BPF in Summer 1990.
+Much of the design is due to
+.An Van Jacobson .
+This manpage was written by
+.An Orla McGann .

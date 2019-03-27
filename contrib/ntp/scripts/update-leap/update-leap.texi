@@ -1,0 +1,43 @@
+\input texinfo    @c -*-texinfo-*-
+@c %**start of header
+@setfilename update-leap.info
+@settitle update-leap User's Manual
+@include ../../sntp/include/version.texi
+@paragraphindent 2
+@c %**end of header
+
+@ifinfo
+This file documents the use of @code{update-leap},
+a program from
+the NTP Project,
+that is used to wait until @code{ntpd} has been able to
+synchronize and stabilize the time on the current host.
+@end ifinfo
+
+@direntry
+* update-leap: (update-leap).                 Check the leapfile and update it if needed.
+@end direntry
+
+@titlepage
+@title update-leap User's Manual
+@subtitle update-leap, version @value{VERSION}, @value{UPDATED}
+@c @author Max @email{foo@ntp.org}
+@end titlepage
+
+@c @page
+@c @vskip 0pt plus 1filll
+
+@node Top, update-leap Description, (dir), (dir)
+
+This document describes the use of the NTP Project's @code{update-leap} program.
+
+This document applies to version @value{VERSION} of @code{update-leap}.
+
+@shortcontents
+
+@menu
+* update-leap Description::            Description
+* update-leap Invocation::		Invoking update-leap
+@end menu
+
+@include invoke-update-leap.texi

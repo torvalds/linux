@@ -1,0 +1,512 @@
+.\"	$NetBSD: m4.1,v 1.23 2012/04/08 22:00:39 wiz Exp $
+.\"	@(#) $OpenBSD: m4.1,v 1.63 2015/09/14 20:06:58 schwarze Exp $
+.\"
+.\" Copyright (c) 1989, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Ozan Yigit at York University.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd $Mdocdate: September 14 2015 $
+.Dt M4 1
+.Os
+.Sh NAME
+.Nm m4
+.Nd macro language processor
+.Sh SYNOPSIS
+.Nm
+.Op Fl gPs
+.Oo
+.Sm off
+.Fl D Ar name Op No = Ar value
+.Sm on
+.Oc
+.Op Fl d Ar flags
+.Op Fl I Ar dirname
+.Op Fl o Ar filename
+.Op Fl t Ar macro
+.Op Fl U Ns Ar name
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility is a macro processor that can be used as a front end to any
+language (e.g., C, ratfor, fortran, lex, and yacc).
+If no input files are given,
+.Nm
+reads from the standard input,
+otherwise files specified on the command line are
+processed in the given order.
+Input files can be regular files, files in the m4 include paths, or a
+single dash
+.Pq Sq - ,
+denoting standard input.
+.Nm
+writes
+the processed text to the standard output, unless told otherwise.
+.Pp
+Macro calls have the form name(argument1[, argument2, ..., argumentN]).
+.Pp
+There cannot be any space following the macro name and the open
+parenthesis
+.Pq Sq \&( .
+If the macro name is not followed by an open
+parenthesis it is processed with no arguments.
+.Pp
+Macro names consist of a leading alphabetic or underscore
+possibly followed by alphanumeric or underscore characters, e.g.,
+valid macro names match the pattern
+.Dq [a-zA-Z_][a-zA-Z0-9_]* .
+.Pp
+In arguments to macros, leading unquoted space, tab, and newline
+.Pq Sq \en
+characters are ignored.
+To quote strings, use left and right single quotes
+.Pq e.g., Sq \ \&this is a string with a leading space .
+You can change the quote characters with the
+.Ic changequote
+built-in macro.
+.Pp
+Most built-ins do not make any sense without arguments, and hence are not
+recognized as special when not followed by an open parenthesis.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl D Ns Ar name Ns Op = Ns Ar value
+Define the symbol
+.Ar name
+to have some value (or
+.Dv NULL ) .
+.It Fl d Ar "flags"
+Set trace flags.
+.Ar flags
+may hold the following:
+.Bl -tag -width Ds
+.It Ar a
+print macro arguments.
+.It Ar c
+print macro expansion over several lines.
+.It Ar e
+print result of macro expansion.
+.It Ar f
+print filename location.
+.It Ar l
+print line number.
+.It Ar q
+quote arguments and expansion with the current quotes.
+.It Ar t
+start with all macros traced.
+.It Ar x
+number macro expansions.
+.It Ar V
+turn on all options.
+.El
+.Pp
+By default, trace is set to
+.Qq eq .
+.It Fl g
+Activate GNU-m4 compatibility mode.
+In this mode, translit handles simple character
+ranges (e.g., a-z), regular expressions mimic emacs behavior,
+multiple m4wrap calls are handled as a stack,
+the number of diversions is unlimited,
+empty names for macro definitions are allowed,
+and eval understands
+.Sq 0rbase:value
+numbers.
+.It Fl I Ar "dirname"
+Add directory
+.Ar dirname
+to the include path.
+.It Fl o Ar filename
+Send trace output to
+.Ar filename .
+.It Fl P
+Prefix all built-in macros with
+.Sq m4_ .
+For example, instead of writing
+.Ic define ,
+use
+.Ic m4_define .
+.It Fl s
+Output line synchronization directives, suitable for
+.Xr cpp 1 .
+.It Fl t Ar macro
+Turn tracing on for
+.Ar macro .
+.It Fl "U" Ns Ar "name"
+Undefine the symbol
+.Ar name .
+.El
+.Sh SYNTAX
+.Nm
+provides the following built-in macros.
+They may be redefined, losing their original meaning.
+Return values are null unless otherwise stated.
+.Bl -tag -width changequote
+.It Fn builtin name
+Calls a built-in by its
+.Fa name ,
+overriding possible redefinitions.
+.It Fn changecom startcomment endcomment
+Changes the start comment and end comment sequences.
+Comment sequences may be up to five characters long.
+The default values are the hash sign
+and the newline character.
+.Bd -literal -offset indent
+# This is a comment
+.Ed
+.Pp
+With no arguments, comments are turned off.
+With one single argument, the end comment sequence is set
+to the newline character.
+.It Fn changequote beginquote endquote
+Defines the open quote and close quote sequences.
+Quote sequences may be up to five characters long.
+The default values are the backquote character and the quote
+character.
+.Bd -literal -offset indent
+`Here is a quoted string'
+.Ed
+.Pp
+With no arguments, the default quotes are restored.
+With one single argument, the close quote sequence is set
+to the newline character.
+.It Fn decr arg
+Decrements the argument
+.Fa arg
+by 1.
+The argument
+.Fa arg
+must be a valid numeric string.
+.It Fn define name value
+Define a new macro named by the first argument
+.Fa name
+to have the
+value of the second argument
+.Fa value .
+Each occurrence of
+.Sq $n
+(where
+.Ar n
+is 0 through 9) is replaced by the
+.Ar n Ns 'th
+argument.
+.Sq $0
+is the name of the calling macro.
+Undefined arguments are replaced by a null string.
+.Sq $#
+is replaced by the number of arguments;
+.Sq $*
+is replaced by all arguments comma separated;
+.Sq $@
+is the same as
+.Sq $*
+but all arguments are quoted against further expansion.
+.It Fn defn name ...
+Returns the quoted definition for each argument.
+This can be used to rename
+macro definitions (even for built-in macros).
+.It Fn divert num
+There are 10 output queues (numbered 0-9).
+At the end of processing
+.Nm
+concatenates all the queues in numerical order to produce the
+final output.
+Initially the output queue is 0.
+The divert
+macro allows you to select a new output queue (an invalid argument
+passed to divert causes output to be discarded).
+.It Ic divnum
+Returns the current output queue number.
+.It Ic dnl
+Discard input characters up to and including the next newline.
+.It Fn dumpdef name ...
+Prints the names and definitions for the named items, or for everything
+if no arguments are passed.
+.It Fn errprint msg
+Prints the first argument on the standard error output stream.
+.It Fn esyscmd cmd
+Passes its first argument to a shell and returns the shell's standard output.
+Note that the shell shares its standard input and standard error with
+.Nm .
+.It Fn eval expr[,radix[,minimum]]
+Computes the first argument as an arithmetic expression using 32-bit
+arithmetic.
+Operators are the standard C ternary, arithmetic, logical,
+shift, relational, bitwise, and parentheses operators.
+You can specify
+octal, decimal, and hexadecimal numbers as in C.
+The optional second argument
+.Fa radix
+specifies the radix for the result and the optional third argument
+.Fa minimum
+specifies the minimum number of digits in the result.
+.It Fn expr expr
+This is an alias for
+.Ic eval .
+.It Fn format formatstring arg1 ...
+Returns
+.Fa formatstring
+with escape sequences substituted with
+.Fa arg1
+and following arguments, in a way similar to
+.Xr printf 3 .
+This built-in is only available in GNU-m4 compatibility mode, and the only
+parameters implemented are there for autoconf compatibility:
+left-padding flag, an optional field width, a maximum field width,
+*-specified field widths, and the %s and %c data type.
+.It Fn ifdef name yes no
+If the macro named by the first argument is defined then return the second
+argument, otherwise the third.
+If there is no third argument, the value is
+.Dv NULL .
+The word
+.Qq unix
+is predefined.
+.It Fn ifelse a b yes ...
+If the first argument
+.Fa a
+matches the second argument
+.Fa b
+then
+.Fn ifelse
+returns
+the third argument
+.Fa yes .
+If the match fails the three arguments are
+discarded and the next three arguments are used until there is
+zero or one arguments left, either this last argument or
+.Dv NULL
+is returned if no other matches were found.
+.It Fn include name
+Returns the contents of the file specified in the first argument.
+If the file is not found as is, look through the include path:
+first the directories specified with
+.Fl I
+on the command line, then the environment variable
+.Ev M4PATH ,
+as a colon-separated list of directories.
+Include aborts with an error message if the file cannot be included.
+.It Fn incr arg
+Increments the argument by 1.
+The argument must be a valid numeric string.
+.It Fn index string substring
+Returns the index of the second argument in the first argument (e.g.,
+.Ic index(the quick brown fox jumped, fox)
+returns 16).
+If the second
+argument is not found index returns \-1.
+.It Fn indir macro arg1 ...
+Indirectly calls the macro whose name is passed as the first argument,
+with the remaining arguments passed as first, ... arguments.
+.It Fn len arg
+Returns the number of characters in the first argument.
+Extra arguments
+are ignored.
+.It Fn m4exit code
+Immediately exits with the return value specified by the first argument,
+0 if none.
+.It Fn m4wrap todo
+Allows you to define what happens at the final
+.Dv EOF ,
+usually for cleanup purposes (e.g.,
+.Ic m4wrap("cleanup(tempfile)")
+causes the macro cleanup to be
+invoked after all other processing is done).
+.Pp
+Multiple calls to
+.Fn m4wrap
+get inserted in sequence at the final
+.Dv EOF .
+.It Fn maketemp template
+Like
+.Ic mkstemp .
+.It Fn mkstemp template
+Invokes
+.Xr mkstemp 3
+on the first argument, and returns the modified string.
+This can be used to create unique
+temporary file names.
+.It Fn paste file
+Includes the contents of the file specified by the first argument without
+any macro processing.
+Aborts with an error message if the file cannot be
+included.
+.It Fn patsubst string regexp replacement
+Substitutes a regular expression in a string with a replacement string.
+Usual substitution patterns apply: an ampersand
+.Pq Sq \&&
+is replaced by the string matching the regular expression.
+The string
+.Sq \e# ,
+where
+.Sq #
+is a digit, is replaced by the corresponding back-reference.
+.It Fn popdef arg ...
+Restores the
+.Ic pushdef Ns ed
+definition for each argument.
+.It Fn pushdef macro def
+Takes the same arguments as
+.Ic define ,
+but it saves the definition on a
+stack for later retrieval by
+.Fn popdef .
+.It Fn regexp string regexp replacement
+Finds a regular expression in a string.
+If no further arguments are given,
+it returns the first match position or \-1 if no match.
+If a third argument
+is provided, it returns the replacement string, with sub-patterns replaced.
+.It Fn shift arg1 ...
+Returns all but the first argument, the remaining arguments are
+quoted and pushed back with commas in between.
+The quoting
+nullifies the effect of the extra scan that will subsequently be
+performed.
+.It Fn sinclude file
+Similar to
+.Ic include ,
+except it ignores any errors.
+.It Fn spaste file
+Similar to
+.Fn paste ,
+except it ignores any errors.
+.It Fn substr string offset length
+Returns a substring of the first argument starting at the offset specified
+by the second argument and the length specified by the third argument.
+If no third argument is present it returns the rest of the string.
+.It Fn syscmd cmd
+Passes the first argument to the shell.
+Nothing is returned.
+.It Ic sysval
+Returns the return value from the last
+.Ic syscmd .
+.It Fn traceon arg ...
+Enables tracing of macro expansions for the given arguments, or for all
+macros if no argument is given.
+.It Fn traceoff arg ...
+Disables tracing of macro expansions for the given arguments, or for all
+macros if no argument is given.
+.It Fn translit string mapfrom mapto
+Transliterate the characters in the first argument from the set
+given by the second argument to the set given by the third.
+You cannot use
+.Xr tr 1
+style abbreviations.
+.It Fn undefine name1 ...
+Removes the definition for the macros specified by its arguments.
+.It Fn undivert arg ...
+Flushes the named output queues (or all queues if no arguments).
+.It Ic unix
+A pre-defined macro for testing the OS platform.
+.It Ic __line__
+Returns the current file's line number.
+.It Ic __file__
+Returns the current file's name.
+.El
+.Sh EXIT STATUS
+.Ex -std m4
+.Pp
+But note that the
+.Ic m4exit
+macro can modify the exit status.
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The flags
+.Op Fl dgIPot
+and the macros
+.Ic builtin ,
+.Ic esyscmd ,
+.Ic expr ,
+.Ic format ,
+.Ic indir ,
+.Ic paste ,
+.Ic patsubst ,
+.Ic regexp ,
+.Ic spaste ,
+.Ic unix ,
+.Ic __line__ ,
+and
+.Ic __file__
+are extensions to that specification.
+.Pp
+.Ic maketemp
+is not supposed to be a synonym for
+.Ic mkstemp ,
+but instead to be an insecure temporary file name creation function.
+It is marked by
+.St -p1003.1-2008
+as being obsolescent and should not be used if portability is a concern.
+.Pp
+The output format of
+.Ic traceon
+and
+.Ic dumpdef
+are not specified in any standard,
+are likely to change and should not be relied upon.
+The current format of tracing is closely modelled on
+.Nm gnu-m4 ,
+to allow
+.Nm autoconf
+to work.
+.Pp
+The built-ins
+.Ic pushdef
+and
+.Ic popdef
+handle macro definitions as a stack.
+However,
+.Ic define
+interacts with the stack in an undefined way.
+In this implementation,
+.Ic define
+replaces the top-most definition only.
+Other implementations may erase all definitions on the stack instead.
+.Pp
+All built-ins do expand without arguments in many other
+.Nm .
+.Pp
+Many other
+.Nm
+have dire size limitations with respect to buffer sizes.
+.Sh AUTHORS
+.An -nosplit
+.An Ozan Yigit Aq Mt oz@sis.yorku.ca
+and
+.An Richard A. O'Keefe Aq Mt ok@goanna.cs.rmit.OZ.AU .
+.Pp
+GNU-m4 compatibility extensions by
+.An Marc Espie Aq Mt espie@cvs.openbsd.org .

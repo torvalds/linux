@@ -1,0 +1,19 @@
+document.write("<p>External Links</p><ul>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/book.html'>Computer Network Time Synchronization - The Network Time Protocol (book)</a></li>\
+<li class='inline'><a href='http://www.ntp.org/index.html'>NTP Public Services Project (home page)</a></li>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/ntp.html'>NTP Research Project (home page)</a></li>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/exec.html'>Executive Summary: Computer Network Time Synchronization</a></li>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/leap.html'>The NTP Timescale and Leap Seconds</a></li>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/time.html'>NTP Timestamp Calculations</a></li>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/y2k.html'>The NTP Era and Era Numbering</a></li>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/stamp.html'>Timestamp Capture Principles</a></li>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/onwire.html'>Analysis and Simulation of the NTP On-Wire Protocols</a></li>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/proximity.html'>Time Synchroization for Space Data Links</a></li>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/security.html'>NTP Security Analysis</a></li>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/ptp.html'>IEEE 1588 Precision Time Protocol (PTP)</a></li>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/autocfg.html'>Autonomous Configuration</a></li>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/autokey.html'>Autonomous Authentication</a></li>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/proto.html'>Autokey Protocol</a></li>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/ident.html'>Autokey Identity Schemes</a></li>\
+<li class='inline'><a href='sitemap.html'>Site Map</a></li>\
+</ul>")

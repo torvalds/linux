@@ -1,0 +1,277 @@
+<HTML>
+<HEAD><TITLE>xxfi_negotiate</TITLE></HEAD>
+<BODY>
+<!--
+$Id: xxfi_negotiate.html,v 1.24 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>xxfi_negotiate</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+#include &lt;libmilter/mfdef.h&gt;
+sfsistat (*xxfi_negotiate)(
+        SMFICTX    *ctx, 
+	unsigned long f0,
+	unsigned long f1,
+	unsigned long f2,
+	unsigned long f3,
+	unsigned long *pf0,
+	unsigned long *pf1,
+	unsigned long *pf2,
+	unsigned long *pf3);
+</PRE>
+</TD></TR>
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR>
+<TH valign="top" align=left width=80>Called When</TH>
+<TD>Once, at the start of each SMTP connection.</TD>
+</TR>
+<TR>
+<TH valign="top" align=left width=80>Default Behavior</TH>
+<TD>Return SMFIS_ALL_OPTS to change nothing.</TD>
+</TR>
+</TABLE>
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR><TD>ctx</TD>
+	<TD>the opaque context structure.
+	</TD></TR>
+    <TR><TD>f0</TD>
+	<TD>the actions offered by the MTA.
+	</TD></TR>
+    <TR><TD>f1</TD>
+	<TD>the protocol steps offered by the MTA.
+    <TR><TD>f2</TD>
+	<TD>for future extensions.
+	</TD></TR>
+    <TR><TD>f3</TD>
+	<TD>for future extensions.
+	</TD></TR>
+    <TR><TD>pf0</TD>
+	<TD>the actions requested by the milter.
+	</TD></TR>
+    <TR><TD>pf1</TD>
+	<TD>the protocol steps requested by the milter.
+    <TR><TD>pf2</TD>
+	<TD>for future extensions.
+	</TD></TR>
+    <TR><TD>pf3</TD>
+	<TD>for future extensions.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>SPECIAL RETURN VALUES</TH>
+<TD><TABLE border="1" cellspacing=0>
+  <TR bgcolor="#dddddd"><TH>Return value</TH><TH>Description</TH></TR>
+  <TR valign="top">
+     <TD>SMFIS_ALL_OPTS</TD>
+     <TD>
+If a milter just wants to inspect the available protocol steps
+and actions, then it can return
+SMFIS_ALL_OPTS
+and the MTA will make all protocol steps and actions available
+to the milter.
+In this case, no values should be assigned to the output parameters
+<CODE>pf0</CODE> - <CODE>pf3</CODE>
+as they will be ignored.
+     </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_REJECT</TD>
+     <TD>Milter startup fails and it will not be contacted again
+(for the current connection).
+     </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_CONTINUE</TD>
+     <TD>Continue processing.
+	In this case the milter <EM>must</EM> set all output parameters
+	<CODE>pf0</CODE> - <CODE>pf3</CODE>.
+	See below for an explanation how to set those output parameters.
+     </TD>
+  </TR>
+</TABLE>
+</TR>
+
+<!----------- Notes ---------->
+<TR>
+<TH valign="top" align=left>NOTES</TH> 
+<TD>This function allows a milter to dynamically determine and
+request operations and actions during startup.
+In previous versions, the actions (f0) were fixed in the
+<A HREF="smfi_register.html#flags">flags</A> field of the
+<A HREF="smfi_register.html#smfiDesc">smfiDesc</A>
+structure
+and the protocol steps (f1) were implicitly derived by checking whether
+a callback was defined.
+Due to the extensions in the new milter version,
+such a static selection will not work if a milter requires
+new actions that are not available when talking to an older MTA.
+Hence in the negotiation callback a milter can determine
+which operations are available and dynamically select
+those which it needs and which are offered.
+If some operations are not available, the milter may either fall back
+to an older mode or abort the session and ask the user to upgrade.
+
+<!--
+<P>
+The protocol steps are defined in
+<CODE>include/libmilter/mfdef.h</CODE>:
+the macros start with
+<CODE>SMFIP_</CODE>.
+-->
+
+<P>
+Protocol steps
+(<CODE>f1</CODE>, <CODE>*pf1</CODE>):
+<UL>
+<LI><A NAME="SMFIP_RCPT_REJ"><CODE>SMFIP_RCPT_REJ</CODE></A>:
+By setting this bit, a milter can request that the
+MTA should also send <CODE>RCPT</CODE> commands that have been rejected
+because the user is unknown (or similar reasons), but not those
+which have been rejected because of syntax errors etc.
+If a milter requests this protocol step,
+then it should check the macro
+<CODE>{rcpt_mailer}</CODE>:
+if that is set to
+<CODE>error</CODE>,
+then the recipient will be rejected by the MTA.
+Usually the macros
+<CODE>{rcpt_host}</CODE> and <CODE>{rcpt_addr}</CODE>
+will contain an enhanced status code and an error text
+in that case, respectively.
+
+<LI><A NAME="SMFIP_SKIP"><CODE>SMFIP_SKIP</CODE></A>
+indicates that the MTA understand the
+<A HREF="api.html#SMFIS_SKIP">SMFIS_SKIP</A>
+return code.
+
+<LI><A NAME="SMFIP_NR_"><CODE>SMFIP_NR_*</CODE></A>
+indicates that the MTA understand the
+<A HREF="api.html#SMFIS_NOREPLY">SMFIS_NOREPLY</A>
+return code.
+There are flags for various protocol stages:
+
+<UL>
+
+<LI><A NAME="SMFIP_NR_CONN"><CODE>SMFIP_NR_CONN</CODE></A>:
+<A HREF="xxfi_connect.html">xxfi_connect()</A>
+
+<LI><A NAME="SMFIP_NR_HELO"><CODE>SMFIP_NR_HELO</CODE></A>:
+<A HREF="xxfi_helo.html">xxfi_helo()</A>
+
+<LI><A NAME="SMFIP_NR_MAIL"><CODE>SMFIP_NR_MAIL</CODE></A>:
+<A HREF="xxfi_envfrom.html">xxfi_envfrom()</A>
+
+<LI><A NAME="SMFIP_NR_RCPT"><CODE>SMFIP_NR_RCPT</CODE></A>:
+<A HREF="xxfi_envrcpt.html">xxfi_envrcpt()</A>
+
+<LI><A NAME="SMFIP_NR_DATA"><CODE>SMFIP_NR_DATA</CODE></A>:
+<A HREF="xxfi_data.html">xxfi_data()</A>
+
+<LI><A NAME="SMFIP_NR_UNKN"><CODE>SMFIP_NR_UNKN</CODE></A>:
+<A HREF="xxfi_unknown.html">xxfi_unknown()</A>
+
+<LI><A NAME="SMFIP_NR_EOH"><CODE>SMFIP_NR_EOH</CODE></A>:
+<A HREF="xxfi_eoh.html">xxfi_eoh()</A>
+
+<LI><A NAME="SMFIP_NR_BODY"><CODE>SMFIP_NR_BODY</CODE></A>:
+<A HREF="xxfi_body.html">xxfi_body()</A>
+
+<LI><A NAME="SMFIP_NR_HDR"><CODE>SMFIP_NR_HDR</CODE></A>:
+<A HREF="xxfi_header.html">xxfi_header()</A>
+
+</UL>
+
+<LI><A NAME="SMFIP_HDR_LEADSPC"><CODE>SMFIP_HDR_LEADSPC</CODE></A>
+indicates that the MTA can send header values with leading space intact.
+If this protocol step is requested, then the MTA will also not add a leading
+space to headers when they are added, inserted, or changed.
+
+<!--
+:'a,.s;^#define \(SMFIP_NO[A-Z]*\)[ 	].*;<LI><A NAME="\1"><CODE>\1</CODE></A>:;
+-->
+<LI>The MTA can be instructed not to send information about
+various SMTP stages, these flags start with:
+<A NAME="SMFIP_NO"><CODE>SMFIP_NO*</CODE></A>.
+<UL>
+<LI><A NAME="SMFIP_NOCONNECT"><CODE>SMFIP_NOCONNECT</CODE></A>:
+<A HREF="xxfi_connect.html">xxfi_connect()</A>
+<LI><A NAME="SMFIP_NOHELO"><CODE>SMFIP_NOHELO</CODE></A>:
+<A HREF="xxfi_header.html">xxfi_header()</A>
+<LI><A NAME="SMFIP_NOMAIL"><CODE>SMFIP_NOMAIL</CODE></A>:
+<A HREF="xxfi_envfrom.html">xxfi_envfrom()</A>
+<LI><A NAME="SMFIP_NORCPT"><CODE>SMFIP_NORCPT</CODE></A>:
+<A HREF="xxfi_envrcpt.html">xxfi_envrcpt()</A>
+<LI><A NAME="SMFIP_NOBODY"><CODE>SMFIP_NOBODY</CODE></A>:
+<A HREF="xxfi_body.html">xxfi_body()</A>
+<LI><A NAME="SMFIP_NOHDRS"><CODE>SMFIP_NOHDRS</CODE></A>:
+<A HREF="xxfi_header.html">xxfi_header()</A>
+<LI><A NAME="SMFIP_NOEOH"><CODE>SMFIP_NOEOH</CODE></A>:
+<A HREF="xxfi_eoh.html">xxfi_eoh()</A>
+<LI><A NAME="SMFIP_NOUNKNOWN"><CODE>SMFIP_NOUNKNOWN</CODE></A>:
+<A HREF="xxfi_unknown.html">xxfi_unknown()</A>
+<LI><A NAME="SMFIP_NODATA"><CODE>SMFIP_NODATA</CODE></A>:
+<A HREF="xxfi_data.html">xxfi_data()</A>
+</UL>
+
+For each of these xxfi_* callbacks that a milter does not use
+the corresponding flag <EM>should</EM> be set in
+<CODE>*pf1</CODE>.
+
+</UL>
+
+<P>
+The available actions
+(<CODE>f0</CODE>, <CODE>*pf0</CODE>)
+are
+<!--
+defined in
+<CODE>include/libmilter/mfapi.h</CODE>:
+the macros start with
+<CODE>SMFIF_</CODE>;
+these are
+-->
+described
+<A HREF="smfi_register.html#flags">elsewhere (xxfi_flags)</A>.
+
+<P>
+If a milter returns SMFIS_CONTINUE, then it <EM>must</EM>
+set the desired actions and protocol steps
+via the (output) parameters
+<CODE>pf0</CODE>
+and
+<CODE>pf1</CODE>
+(which correspond to
+<CODE>f0</CODE>
+and
+<CODE>f1</CODE>, respectively).
+The (output) parameters
+<CODE>pf2</CODE> and
+<CODE>pf3</CODE>
+should be set to 0 for compatibility with future versions.
+
+</TD>
+</TR>
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2006 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

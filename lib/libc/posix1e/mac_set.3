@@ -1,0 +1,149 @@
+.\" Copyright (c) 2001 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and NAI Labs, the Security
+.\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
+.\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+.\" research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 14, 2003
+.Dt MAC_SET 3
+.Os
+.Sh NAME
+.Nm mac_set_file ,
+.Nm mac_set_fd ,
+.Nm mac_set_proc
+.Nd set the MAC label for a file or process
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mac.h
+.Ft int
+.Fn mac_set_file "const char *path" "mac_t label"
+.Ft int
+.Fn mac_set_link "const char *path" "mac_t label"
+.Ft int
+.Fn mac_set_fd "int fd" "mac_t label"
+.Ft int
+.Fn mac_set_proc "mac_t label"
+.Sh DESCRIPTION
+The
+.Fn mac_set_file
+and
+.Fn mac_set_fd
+functions associate a MAC label
+specified by
+.Fa label
+to the file referenced to by
+.Fa path_p ,
+or to the file descriptor
+.Fa fd ,
+respectively.
+Note that when a file descriptor references a socket, label operations
+on the file descriptor act on the socket, not on the file that may
+have been used as a rendezvous when binding the socket.
+The
+.Fn mac_set_link
+function is the same as
+.Fn mac_set_file ,
+except that it does not follow symlinks.
+.Pp
+The
+.Fn mac_set_proc
+function associates the MAC label
+specified by
+.Fa label
+to the calling process.
+.Pp
+A process is allowed to set a label for a file
+only if it has MAC write access to the file,
+and its effective user ID is equal to
+the owner of the file,
+or has appropriate privileges.
+.Sh RETURN VALUES
+.Rv -std mac_set_fd mac_set_file mac_set_link mac_set_proc
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EACCES
+MAC write access to the file is denied.
+.It Bq Er EBADF
+The
+.Fa fd
+argument
+is not a valid file descriptor.
+.It Bq Er EINVAL
+The
+.Fa label
+argument
+is not a valid MAC label, or the object referenced by
+.Fa fd
+is not appropriate for label operations.
+.It Bq Er EOPNOTSUPP
+Setting MAC labels is not supported
+by the file referenced by
+.Fa fd .
+.It Bq Er EPERM
+The calling process had insufficient privilege
+to change the MAC label.
+.It Bq Er EROFS
+File system for the object being modified
+is read only.
+.It Bq Er ENAMETOOLONG
+.\" XXX POSIX_NO_TRUNC?
+The length of the pathname in
+.Fa path_p
+exceeds
+.Dv PATH_MAX ,
+or a component of the pathname
+is longer than
+.Dv NAME_MAX .
+.It Bq Er ENOENT
+The file referenced by
+.Fa path_p
+does not exist.
+.It Bq Er ENOTDIR
+A component of the pathname
+referenced by
+.Fa path_p
+is not a directory.
+.El
+.Sh SEE ALSO
+.Xr mac 3 ,
+.Xr mac_free 3 ,
+.Xr mac_get 3 ,
+.Xr mac_is_present 3 ,
+.Xr mac_prepare 3 ,
+.Xr mac_text 3 ,
+.Xr posix1e 3 ,
+.Xr mac 4 ,
+.Xr mac 9
+.Sh HISTORY
+Support for Mandatory Access Control was introduced in
+.Fx 5.0
+as part of the
+.Tn TrustedBSD
+Project.

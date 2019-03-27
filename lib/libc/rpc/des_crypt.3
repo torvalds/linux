@@ -1,0 +1,130 @@
+.\" @(#)des_crypt.3	2.1 88/08/11 4.0 RPCSRC; from 1.16 88/03/02 SMI;
+.\" $FreeBSD$
+.\"
+.Dd October 6, 1987
+.Dt DES_CRYPT 3
+.Os
+.Sh NAME
+.Nm des_crypt , ecb_crypt , cbc_crypt , des_setparity
+.Nd "fast DES encryption"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In rpc/des_crypt.h
+.Ft int
+.Fn ecb_crypt "char *key" "char *data" "unsigned datalen" "unsigned mode"
+.Ft int
+.Fn cbc_crypt "char *key" "char *data" "unsigned datalen" "unsigned mode" "char *ivec"
+.Ft void
+.Fn des_setparity "char *key"
+.Sh DESCRIPTION
+The
+.Fn ecb_crypt
+and
+.Fn cbc_crypt
+functions
+implement the
+.Tn NBS
+.Tn DES
+(Data Encryption Standard).
+These routines are faster and more general purpose than
+.Xr crypt 3 .
+They also are able to utilize
+.Tn DES
+hardware if it is available.
+The
+.Fn ecb_crypt
+function
+encrypts in
+.Tn ECB
+(Electronic Code Book)
+mode, which encrypts blocks of data independently.
+The
+.Fn cbc_crypt
+function
+encrypts in
+.Tn CBC
+(Cipher Block Chaining)
+mode, which chains together
+successive blocks.
+.Tn CBC
+mode protects against insertions, deletions and
+substitutions of blocks.
+Also, regularities in the clear text will
+not appear in the cipher text.
+.Pp
+Here is how to use these routines.
+The first argument,
+.Fa key ,
+is the 8-byte encryption key with parity.
+To set the key's parity, which for
+.Tn DES
+is in the low bit of each byte, use
+.Fn des_setparity .
+The second argument,
+.Fa data ,
+contains the data to be encrypted or decrypted.
+The
+third argument,
+.Fa datalen ,
+is the length in bytes of
+.Fa data ,
+which must be a multiple of 8.
+The fourth argument,
+.Fa mode ,
+is formed by
+.Em OR Ns 'ing
+together some things.
+For the encryption direction
+.Em OR
+in either
+.Dv DES_ENCRYPT
+or
+.Dv DES_DECRYPT .
+For software versus hardware
+encryption,
+.Em OR
+in either
+.Dv DES_HW
+or
+.Dv DES_SW .
+If
+.Dv DES_HW
+is specified, and there is no hardware, then the encryption is performed
+in software and the routine returns
+.Er DESERR_NOHWDEVICE .
+For
+.Fn cbc_crypt ,
+the
+.Fa ivec
+argument
+is the 8-byte initialization
+vector for the chaining.
+It is updated to the next initialization
+vector upon return.
+.Sh ERRORS
+.Bl -tag -width [DESERR_NOHWDEVICE] -compact
+.It Bq Er DESERR_NONE
+No error.
+.It Bq Er DESERR_NOHWDEVICE
+Encryption succeeded, but done in software instead of the requested hardware.
+.It Bq Er DESERR_HWERROR
+An error occurred in the hardware or driver.
+.It Bq Er DESERR_BADPARAM
+Bad argument to routine.
+.El
+.Pp
+Given a result status
+.Va stat ,
+the macro
+.Fn DES_FAILED stat
+is false only for the first two statuses.
+.Sh SEE ALSO
+.\" .Xr des 1 ,
+.Xr crypt 3
+.Sh RESTRICTIONS
+These routines are not available in RPCSRC 4.0.
+This information is provided to describe the
+.Tn DES
+interface expected by
+Secure RPC.

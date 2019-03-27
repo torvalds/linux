@@ -1,0 +1,1124 @@
+.\" Copyright (c) 2008,2009 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 8, 2009
+.Dt PMC.CORE2 3
+.Os
+.Sh NAME
+.Nm pmc.core2
+.Nd measurement events for
+.Tn Intel
+.Tn Core2
+family CPUs
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+.Tn Intel
+.Tn "Core2"
+CPUs contain PMCs conforming to version 2 of the
+.Tn Intel
+performance measurement architecture.
+These CPUs may contain up to two classes of PMCs:
+.Bl -tag -width "Li PMC_CLASS_IAP"
+.It Li PMC_CLASS_IAF
+Fixed-function counters that count only one hardware event per counter.
+.It Li PMC_CLASS_IAP
+Programmable counters that may be configured to count one of a defined
+set of hardware events.
+.El
+.Pp
+The number of PMCs available in each class and their widths need to be
+determined at run time by calling
+.Xr pmc_cpuinfo 3 .
+.Pp
+Intel Core2 PMCs are documented in
+.Rs
+.%B "IA-32 Intel(R) Architecture Software Developer's Manual"
+.%T "Volume 3: System Programming Guide"
+.%N "Order Number 253669-027US"
+.%D July 2008
+.%Q "Intel Corporation"
+.Re
+.Ss CORE2 FIXED FUNCTION PMCS
+These PMCs and their supported events are documented in
+.Xr pmc.iaf 3 .
+Not all CPUs in this family implement fixed-function counters.
+.Ss CORE2 PROGRAMMABLE PMCS
+The programmable PMCs support the following capabilities:
+.Bl -column "PMC_CAP_INTERRUPT" "Support"
+.It Em Capability Ta Em Support
+.It PMC_CAP_CASCADE Ta \&No
+.It PMC_CAP_EDGE Ta Yes
+.It PMC_CAP_INTERRUPT Ta Yes
+.It PMC_CAP_INVERT Ta Yes
+.It PMC_CAP_READ Ta Yes
+.It PMC_CAP_PRECISE Ta \&No
+.It PMC_CAP_SYSTEM Ta Yes
+.It PMC_CAP_TAGGING Ta \&No
+.It PMC_CAP_THRESHOLD Ta Yes
+.It PMC_CAP_USER Ta Yes
+.It PMC_CAP_WRITE Ta Yes
+.El
+.Ss Event Qualifiers
+Event specifiers for these PMCs support the following common
+qualifiers:
+.Bl -tag -width indent
+.It Li cmask= Ns Ar value
+Configure the PMC to increment only if the number of configured
+events measured in a cycle is greater than or equal to
+.Ar value .
+.It Li edge
+Configure the PMC to count the number of de-asserted to asserted
+transitions of the conditions expressed by the other qualifiers.
+If specified, the counter will increment only once whenever a
+condition becomes true, irrespective of the number of clocks during
+which the condition remains true.
+.It Li inv
+Invert the sense of comparison when the
+.Dq Li cmask
+qualifier is present, making the counter increment when the number of
+events per cycle is less than the value specified by the
+.Dq Li cmask
+qualifier.
+.It Li os
+Configure the PMC to count events happening at processor privilege
+level 0.
+.It Li usr
+Configure the PMC to count events occurring at privilege levels 1, 2
+or 3.
+.El
+.Pp
+If neither of the
+.Dq Li os
+or
+.Dq Li usr
+qualifiers are specified, the default is to enable both.
+.Pp
+Events that require core-specificity to be specified use a
+additional qualifier
+.Dq Li core= Ns Ar core ,
+where argument
+.Ar core
+is one of:
+.Bl -tag -width indent
+.It Li all
+Measure event conditions on all cores.
+.It Li this
+Measure event conditions on this core.
+.El
+.Pp
+The default is
+.Dq Li this .
+.Pp
+Events that require an agent qualifier to be specified use an
+additional qualifier
+.Dq Li agent= Ns agent ,
+where argument
+.Ar agent
+is one of:
+.Bl -tag -width indent
+.It Li this
+Measure events associated with this bus agent.
+.It Li any
+Measure events caused by any bus agent.
+.El
+.Pp
+The default is
+.Dq Li this .
+.Pp
+Events that require a hardware prefetch qualifier to be specified use an
+additional qualifier
+.Dq Li prefetch= Ns Ar prefetch ,
+where argument
+.Ar prefetch
+is one of:
+.Bl -tag -width "exclude"
+.It Li both
+Include all prefetches.
+.It Li only
+Only count hardware prefetches.
+.It Li exclude
+Exclude hardware prefetches.
+.El
+.Pp
+The default is
+.Dq Li both .
+.Pp
+Events that require a cache coherence qualifier to be specified use an
+additional qualifier
+.Dq Li cachestate= Ns Ar state ,
+where argument
+.Ar state
+contains one or more of the following letters:
+.Bl -tag -width indent
+.It Li e
+Count cache lines in the exclusive state.
+.It Li i
+Count cache lines in the invalid state.
+.It Li m
+Count cache lines in the modified state.
+.It Li s
+Count cache lines in the shared state.
+.El
+.Pp
+The default is
+.Dq Li eims .
+.Pp
+Events that require a snoop response qualifier to be specified use an
+additional qualifier
+.Dq Li snoopresponse= Ns Ar response ,
+where argument
+.Ar response
+comprises of the following keywords separated by
+.Dq +
+signs:
+.Bl -tag -width indent
+.It Li clean
+Measure CLEAN responses.
+.It Li hit
+Measure HIT responses.
+.It Li hitm
+Measure HITM responses.
+.El
+.Pp
+The default is to measure all the above responses.
+.Pp
+Events that require a snoop type qualifier use an additional qualifier
+.Dq Li snooptype= Ns Ar type ,
+where argument
+.Ar type
+comprises the one of the following keywords:
+.Bl -tag -width indent
+.It Li cmp2i
+Measure CMP2I snoops.
+.It Li cmp2s
+Measure CMP2S snoops.
+.El
+.Pp
+The default is to measure both snoops.
+.Ss Event Specifiers (Programmable PMCs)
+Core2 programmable PMCs support the following events:
+.Bl -tag -width indent
+.It Li BACLEARS
+.Pq Event E6H , Umask 00H
+The number of times the front end is resteered.
+.It Li BOGUS_BR
+.Pq Event E4H , Umask 00H
+The number of byte sequences mistakenly detected as taken branch
+instructions.
+.It Li BR_BAC_MISSP_EXEC
+.Pq Event 8AH , Umask 00H
+The number of branch instructions that were mispredicted when
+decoded.
+.It Li BR_CALL_MISSP_EXEC
+.Pq Event 93H , Umask 00H
+The number of mispredicted
+.Li CALL
+instructions that were executed.
+.It Li BR_CALL_EXEC
+.Pq Event 92H , Umask 00H
+The number of
+.Li CALL
+instructions executed.
+.It Li BR_CND_EXEC
+.Pq Event 8BH , Umask 00H
+The number of conditional branches executed, but not necessarily retired.
+.It Li BR_CND_MISSP_EXEC
+.Pq Event 8CH , Umask 00H
+The number of mispredicted conditional branches executed.
+.It Li BR_IND_CALL_EXEC
+.Pq Event 94H , Umask 00H
+The number of indirect
+.Li CALL
+instructions executed.
+.It Li BR_IND_EXEC
+.Pq Event 8DH , Umask 00H
+The number of indirect branch instructions executed.
+.It Li BR_IND_MISSP_EXEC
+.Pq Event 8EH , Umask 00H
+The number of mispredicted indirect branch instructions executed.
+.It Li BR_INST_DECODED
+.Pq Event E0H , Umask 00H
+The number of branch instructions decoded.
+.It Li BR_INST_EXEC
+.Pq Event 88H , Umask 00H
+The number of branches executed, but not necessarily retired.
+.It Li BR_INST_RETIRED.ANY
+.Pq Event C4H , Umask 00H
+.Pq Alias Qq "Branch Instruction Retired"
+The number of branch instructions retired.
+This is an architectural performance event.
+.It Li BR_INST_RETIRED.MISPRED
+.Pq Event C5H , Umask 00H
+.Pq Alias Qq "Branch Misses Retired"
+The number of mispredicted branch instructions retired.
+This is an architectural performance event.
+.It Li BR_INST_RETIRED.MISPRED_NOT_TAKEN
+.Pq Event C4H , Umask 02H
+The number of not taken branch instructions retired that were
+mispredicted.
+.It Li BR_INST_RETIRED.MISPRED_TAKEN
+.Pq Event C4H , Umask 08H
+The number taken branch instructions retired that were mispredicted.
+.It Li BR_INST_RETIRED.PRED_NOT_TAKEN
+.Pq Event C4H , Umask 01H
+The number of not taken branch instructions retired that were
+correctly predicted.
+.It Li BR_INST_RETIRED.PRED_TAKEN
+.Pq Event C4H , Umask 04H
+The number of taken branch instructions retired that were correctly
+predicted.
+.It Li BR_INST_RETIRED.TAKEN
+.Pq Event C4H , Umask 0CH
+The number of taken branch instructions retired.
+.It Li BR_MISSP_EXEC
+.Pq Event 89H , Umask 00H
+The number of mispredicted branch instructions that were executed.
+.It Li BR_RET_MISSP_EXEC
+.Pq Event 90H , Umask 00H
+The number of mispredicted
+.Li RET
+instructions executed.
+.It Li BR_RET_BAC_MISSP_EXEC
+.Pq Event 91H , Umask 00H
+The number of
+.Li RET
+instructions executed that were mispredicted at decode time.
+.It Li BR_RET_EXEC
+.Pq Event 8FH , Umask 00H
+The number of
+.Li RET
+instructions executed.
+.It Li BR_TKN_BUBBLE_1
+.Pq Event 97H , Umask 00H
+The number of branch predicted taken with bubble 1.
+.It Li BR_TKN_BUBBLE_2
+.Pq Event 98H , Umask 00H
+The number of branch predicted taken with bubble 2.
+.It Li BUSQ_EMPTY Op ,core= Ns Ar core
+.Pq Event 7DH
+The number of cycles during which the core did not have any pending
+transactions in the bus queue.
+.It Li BUS_BNR_DRV Op ,agent= Ns Ar agent
+.Pq Event 61H
+The number of Bus Not Ready signals asserted on the bus.
+.It Li BUS_DATA_RCV Op ,core= Ns Ar core
+.Pq Event 64H
+The number of bus cycles during which the processor is receiving data.
+.It Li BUS_DRDY_CLOCKS Op ,agent= Ns Ar agent
+.Pq Event 62H
+The number of bus cycles during which the Data Ready signal is asserted
+on the bus.
+.It Li BUS_HIT_DRV Op ,agent= Ns Ar agent
+.Pq Event 7AH
+The number of bus cycles during which the processor drives the
+.Li HIT#
+pin.
+.It Li BUS_HITM_DRV Op ,agent= Ns Ar agent
+.Pq Event 7BH
+The number of bus cycles during which the processor drives the
+.Li HITM#
+pin.
+.It Li BUS_IO_WAIT Op ,core= Ns Ar core
+.Pq Event 7FH
+The number of core cycles during which I/O requests wait in the bus
+queue.
+.It Li BUS_LOCK_CLOCKS Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 63H
+The number of bus cycles during which the
+.Li LOCK
+signal was asserted on the bus.
+.It Li BUS_REQUEST_OUTSTANDING Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 60H
+The number of pending full cache line read transactions on the bus
+occurring in each cycle.
+.It Li BUS_TRANS_P Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 6BH
+The number of partial bus transactions.
+.It Li BUS_TRANS_IFETCH Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 68H
+The number of instruction fetch full cache line bus transactions.
+.It Li BUS_TRANS_INVAL Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 69H
+The number of invalidate bus transactions.
+.It Li BUS_TRANS_PWR Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 6AH
+The number of partial write bus transactions.
+.It Li BUS_TRANS_DEF Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 6DH
+The number of deferred bus transactions.
+.It Li BUS_TRANS_BURST Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 6EH
+The number of burst transactions.
+.It Li BUS_TRANS_MEM Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 6FH
+The number of memory bus transactions.
+.It Li BUS_TRANS_ANY Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 70H
+The number of bus transactions of any kind.
+.It Li BUS_TRANS_BRD Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 65H
+The number of burst read transactions.
+.It Li BUS_TRANS_IO Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 6CH
+The number of completed I/O bus transactions due to
+.Li IN
+and
+.Li OUT
+instructions.
+.It Li BUS_TRANS_RFO Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 66H
+The number of Read For Ownership bus transactions.
+.It Li BUS_TRANS_WB Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 67H
+The number explicit write-back bus transactions due to dirty line
+evictions.
+.It Li CMP_SNOOP Xo
+.Op ,core= Ns Ar core
+.Op ,snooptype= Ns Ar snoop
+.Xc
+.Pq Event 78H
+The number of times the L1 data cache is snooped by the other core in
+the same processor.
+.It Li CPU_CLK_UNHALTED.BUS
+.Pq Event 3CH , Umask 01H
+.Pq Alias Qq "Unhalted Reference Cycles"
+The number of bus cycles when the core is not in the halt state.
+This is an architectural performance event.
+.It Li CPU_CLK_UNHALTED.CORE_P
+.Pq Event 3CH , Umask 00H
+.Pq Alias Qq "Unhalted Core Cycles"
+The number of core cycles while the core is not in a halt state.
+This is an architectural performance event.
+.It Li CPU_CLK_UNHALTED.NO_OTHER
+.Pq Event 3CH , Umask 02H
+The number of bus cycles during which the core remains unhalted and
+the other core is halted.
+.It Li CYCLES_DIV_BUSY
+.Pq Event 14H , Umask 00H
+The number of cycles the divider is busy.
+This event is only available on PMC0.
+.It Li CYCLES_INT_MASKED
+.Pq Event C6H , Umask 01H
+The number of cycles during which interrupts are disabled.
+.It Li CYCLES_INT_PENDING_AND_MASKED
+.Pq Event C6H , Umask 02H
+The number of cycles during which there were pending interrupts while
+interrupts were disabled.
+.It Li CYCLES_L1I_MEM_STALLED
+.Pq Event 86H , Umask 00H
+The number of cycles for which an instruction fetch stalls.
+.It Li DELAYED_BYPASS.FP
+.Pq Event 19H , Umask 00H
+The number of floating point operations that used data immediately
+after the data was generated by a non floating point execution unit.
+.It Li DELAYED_BYPASS.LOAD
+.Pq Event 19H , Umask 01H
+The number of delayed bypass penalty cycles that a load operation incurred.
+.It Li DELAYED_BYPASS.SIMD
+.Pq Event 19H , Umask 02H
+The number of times SIMD operations use data immediately after data,
+was generated by a non-SIMD execution unit.
+.It Li DIV
+.Pq Event 13H , Umask 00H
+The number of divide operations executed.
+This event is only available on PMC1.
+.It Li DTLB_MISSES.ANY
+.Pq Event 08H , Umask 01H
+The number of Data TLB misses, including misses that result from
+speculative accesses.
+.It Li DTLB_MISSES.L0_MISS_LD
+.Pq Event 08H , Umask 04H
+The number of level 0 DTLB misses due to load operations.
+.It Li DTLB_MISSES.MISS_LD
+.Pq Event 08H , Umask 02H
+The number of Data TLB misses due to load operations.
+.It Li DTLB_MISSES.MISS_ST
+.Pq Event 08H , Umask 08H
+The number of Data TLB misses due to store operations.
+.It Li EIST_TRANS
+.Pq Event 3AH , Umask 00H
+The number of Enhanced Intel SpeedStep Technology transitions.
+.It Li ESP.ADDITIONS
+.Pq Event ABH , Umask 02H
+The number of automatic additions to the
+.Li %esp
+register.
+.It Li ESP.SYNCH
+.Pq Event ABH , Umask 01H
+The number of times the
+.Li %esp
+register was explicitly used in an address expression after
+it is implicitly used by a
+.Li PUSH
+or
+.Li POP
+instruction.
+.It Li EXT_SNOOP Xo
+.Op ,agent= Ns Ar agent
+.Op ,snoopresponse= Ns Ar response
+.Xc
+.Pq Event 77H
+The number of snoop responses to bus transactions.
+.It Li FP_ASSIST
+.Pq Event 11H , Umask 00H
+The number of floating point operations executed that needed
+a microcode assist.
+.It Li FP_COMP_OPS_EXE
+.Pq Event 10H , Umask 00H
+The number of floating point computational micro-ops executed.
+The event is available only on PMC0.
+.It Li FP_MMX_TRANS_TO_FP
+.Pq Event CCH , Umask 02H
+The number of transitions from MMX instructions to floating point
+instructions.
+.It Li FP_MMX_TRANS_TO_MMX
+.Pq Event CCH , Umask 01H
+The number of transitions from floating point instructions to MMX
+instructions.
+.It Li HW_INT_RCV
+.Pq Event C8H , Umask 00H
+The number of hardware interrupts received.
+.It Li IDLE_DURING_DIV
+.Pq Event 18H , Umask 00H
+The number of cycles the divider is busy and no other execution unit
+or load operation was in progress.
+This event is available only on PMC0.
+.It Li ILD_STALL
+.Pq Event 87H , Umask 00H
+The number of cycles the instruction length decoder stalled due to a
+length changing prefix.
+.It Li INST_QUEUE.FULL
+.Pq Event 83H , Umask 02H
+The number of cycles during which the instruction queue is full.
+.It Li INST_RETIRED.ANY_P
+.Pq Event C0H , Umask 00H
+.Pq Alias Qq "Instruction Retired"
+The number of instructions retired.
+This is an architectural performance event.
+.It Li INST_RETIRED.LOADS
+.Pq Event C0H , Umask 01H
+The number of instructions retired that contained a load operation.
+.It Li INST_RETIRED.OTHER
+.Pq Event C0H , Umask 04H
+The number of instructions retired that did not contain a load or a
+store operation.
+.It Li INST_RETIRED.STORES
+.Pq Event C0H , Umask 02H
+The number of instructions retired that contained a store operation.
+.It Li INST_RETIRED.VM_H
+.Pq Event C0H , Umask 08H
+.Pq Tn Core2Extreme
+The number of instructions retired while in VMX root operation.
+.It Li ITLB.FLUSH
+.Pq Event 82H , Umask 40H
+The number of ITLB flushes.
+.It Li ITLB.LARGE_MISS
+.Pq Event 82H , Umask 10H
+The number of instruction fetches from large pages that miss the
+ITLB.
+.It Li ITLB.MISSES
+.Pq Event 82H , Umask 12H
+The number of instruction fetches from both large and small pages that
+miss the ITLB.
+.It Li ITLB.SMALL_MISS
+.Pq Event 82H , Umask 02H
+The number of instruction fetches from small pages that miss the ITLB.
+.It Li ITLB_MISS_RETIRED
+.Pq Event C9H , Umask 00H
+The number of retired instructions that missed the ITLB when they were
+fetched.
+.It Li L1D_ALL_REF
+.Pq Event 43H , Umask 01H
+The number of references to L1 data cache counting loads and stores of
+to all memory types.
+.It Li L1D_ALL_CACHE_REF
+.Pq Event 43H , Umask 02H
+The number of data reads and writes to cacheable memory.
+.It Li L1D_CACHE_LOCK Op ,cachestate= Ns Ar state
+.Pq Event 42H
+The number of locked reads from cacheable memory.
+.It Li L1D_CACHE_LOCK_DURATION
+.Pq Event 42H , Umask 10H
+The number of cycles during which any cache line is locked by any
+locking instruction.
+.It Li L1D_CACHE_LD Op ,cachestate= Ns Ar state
+.Pq Event 40H
+The number of data reads from cacheable memory excluding locked
+reads.
+.It Li L1D_CACHE_ST Op ,cachestate= Ns Ar state
+.Pq Event 41H
+The number of data writes to cacheable memory excluding locked
+writes.
+.It Li L1D_M_EVICT
+.Pq Event 47H , Umask 00H
+The number of modified cache lines evicted from L1 data cache.
+.It Li L1D_M_REPL
+.Pq Event 46H , Umask 00H
+The number of modified lines allocated in L1 data cache.
+.It Li L1D_PEND_MISS
+.Pq Event 48H , Umask 00H
+The total number of outstanding L1 data cache misses at any clock.
+.It Li L1D_PREFETCH.REQUESTS
+.Pq Event 4EH , Umask 10H
+The number of times L1 data cache requested to prefetch a data cache
+line.
+.It Li L1D_REPL
+.Pq Event 45H , Umask 0FH
+The number of lines brought into L1 data cache.
+.It Li L1D_SPLIT.LOADS
+.Pq Event 49H , Umask 01H
+The number of load operations that span two cache lines.
+.It Li L1D_SPLIT.STORES
+.Pq Event 49H , Umask 02H
+The number of store operations that span two cache lines.
+.It Li L1I_MISSES
+.Pq Event 81H , Umask 00H
+The number of instruction fetch unit misses.
+.It Li L1I_READS
+.Pq Event 80H , Umask 00H
+The number of instruction fetches.
+.It Li L2_ADS Op ,core= Ns core
+.Pq Event 21H
+The number of cycles that the L2 address bus is in use.
+.It Li L2_DBUS_BUSY_RD Op ,core= Ns core
+.Pq Event 23H
+The number of cycles during which the L2 data bus is busy transferring
+data to the core.
+.It Li L2_IFETCH Xo
+.Op ,cachestate= Ns Ar state
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 28H
+The number of instruction cache line requests from the instruction
+fetch unit.
+.It Li L2_LD Xo
+.Op ,cachestate= Ns Ar state
+.Op ,core= Ns Ar core
+.Op ,prefetch= Ns Ar prefetch
+.Xc
+.Pq Event 29H
+The number of L2 cache read requests from L1 cache and L2
+prefetchers.
+.It Li L2_LINES_IN Xo
+.Op ,core= Ns Ar core
+.Op ,prefetch= Ns Ar prefetch
+.Xc
+.Pq Event 24H
+The number of cache lines allocated in L2 cache.
+.It Li L2_LINES_OUT Xo
+.Op ,core= Ns Ar core
+.Op ,prefetch= Ns Ar prefetch
+.Xc
+.Pq Event 26H
+The number of L2 cache lines evicted.
+.It Li L2_LOCK Xo
+.Op ,cachestate= Ns Ar state
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 2BH
+The number of locked accesses to cache lines that miss L1 data
+cache.
+.It Li L2_M_LINES_IN Op ,core= Ns Ar core
+.Pq Event 25H
+The number of L2 cache line modifications.
+.It Li L2_M_LINES_OUT Xo
+.Op ,core= Ns Ar core
+.Op ,prefetch= Ns Ar prefetch
+.Xc
+.Pq Event 27H
+The number of modified lines evicted from L2 cache.
+.It Li L2_NO_REQ Op ,core= Ns Ar core
+.Pq Event 32H
+The number of cycles during which no L2 cache requests were pending
+from a core.
+.It Li L2_REJECT_BUSQ Xo
+.Op ,cachestate= Ns Ar state
+.Op ,core= Ns Ar core
+.Op ,prefetch= Ns Ar prefetch
+.Xc
+.Pq Event 30H
+The number of L2 cache requests that were rejected.
+.It Li L2_RQSTS Xo
+.Op ,cachestate= Ns Ar state
+.Op ,core= Ns Ar core
+.Op ,prefetch= Ns Ar prefetch
+.Xc
+.Pq Event 2EH
+The number of completed L2 cache requests.
+.It Li L2_RQSTS.SELF.DEMAND.I_STATE
+.Pq Event 2EH , Umask 41H
+.Pq Alias Qq "LLC Misses"
+The number of completed L2 cache demand requests from this core that
+missed the L2 cache.
+This is an architectural performance event.
+.It Li L2_RQSTS.SELF.DEMAND.MESI
+.Pq Event 2EH , Umask 4FH
+.Pq Alias Qq "LLC References"
+The number of completed L2 cache demand requests from this core.
+This is an architectural performance event.
+.It Li L2_ST Xo
+.Op ,cachestate= Ns Ar state
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 2AH
+The number of store operations that miss the L1 cache and request data
+from the L2 cache.
+.It Li LOAD_BLOCK.L1D
+.Pq Event 03H , Umask 20H
+The number of loads blocked by the L1 data cache.
+.It Li LOAD_BLOCK.OVERLAP_STORE
+.Pq Event 03H , Umask 08H
+The number of loads that partially overlap an earlier store or are
+aliased with a previous store.
+.It Li LOAD_BLOCK.STA
+.Pq Event 03H , Umask 02H
+The number of loads blocked by preceding stores whose address is yet
+to be calculated.
+.It Li LOAD_BLOCK.STD
+.Pq Event 03H , Umask 04H
+The number of loads blocked by preceding stores to the same address
+whose data value is not known.
+.It Li LOAD_BLOCK.UNTIL_RETIRE
+.Pq Event 03H , Umask 10H
+The number of load operations that were blocked until retirement.
+.It Li LOAD_HIT_PRE
+.Pq Event 4CH , Umask 00H
+The number of load operations that conflicted with an prefetch to the
+same cache line.
+.It Li MACHINE_NUKES.SMC
+.Pq Event C3H , Umask 01H
+The number of times a program writes to a code section.
+.It Li MACHINE_NUKES.MEM_ORDER
+.Pq Event C3H , Umask 04H
+The number of times the execution pipeline was restarted due to a
+memory ordering conflict or memory disambiguation misprediction.
+.It Li MACRO_INSTS.CISC_DECODED
+.Pq Event AAH , Umask 08H
+The number of complex instructions decoded.
+.It Li MACRO_INSTS.DECODED
+.Pq Event AAH , Umask 01H
+The number of instructions decoded.
+.It Li MEMORY_DISAMBIGUATION.RESET
+.Pq Event 09H , Umask 01H
+The number of cycles during which memory disambiguation misprediction
+occurs.
+.It Li MEMORY_DISAMBIGUATION.SUCCESS
+.Pq Event 09H , Umask 02H
+The number of load operations that were successfully disambiguated.
+.It Li MEM_LOAD_RETIRED.DTLB_MISS
+.Pq Event CBH , Umask 10H
+The number of retired loads that missed the DTLB.
+.It Li MEM_LOAD_RETIRED.L1D_LINE_MISS
+.Pq Event CBH , Umask 02H
+The number of retired load operations that missed L1 data cache and
+that sent a request to L2 cache.
+This event is only available on PMC0.
+.It Li MEM_LOAD_RETIRED.L1D_MISS
+.Pq Event CBH , Umask 01H
+The number of retired load operations that missed L1 data cache.
+This event is only available on PMC0.
+.It Li MEM_LOAD_RETIRED.L2_LINE_MISS
+.Pq Event CBH , Umask 08H
+The number of load operations that missed L2 cache and that caused a
+bus request.
+.It Li MEM_LOAD_RETIRED.L2_MISS
+.Pq Event CBH , Umask 04H
+The number of load operations that missed L2 cache.
+.It Li MUL
+.Pq Event 12H , Umask 00H
+The number of multiply operations executed.
+This event is only available on PMC1.
+.It Li PAGE_WALKS.COUNT
+.Pq Event 0CH , Umask 01H
+The number of page walks executed due to an ITLB or DTLB miss.
+.It Li PAGE_WALKS.CYCLES
+.Pq Event 0CH , Umask 02H
+The number of cycles spent in a page walk caused by an ITLB or DTLB
+miss.
+.It Li PREF_RQSTS_DN
+.Pq Event F8H , Umask 00H
+The number of downward prefetches issued from the Data Prefetch Logic
+unit to L2 cache.
+.It Li PREF_RQSTS_UP
+.Pq Event F0H , Umask 00H
+The number of upward prefetches issued from the Data Prefetch Logic
+unit to L2 cache.
+.It Li RAT_STALLS.ANY
+.Pq Event D2H , Umask 0FH
+The number of stall cycles due to any of
+.Li RAT_STALLS.FLAGS
+.Li RAT_STALLS.FPSW ,
+.Li RAT_STALLS.PARTIAL
+and
+.Li RAT_STALLS.ROB_READ_PORT .
+.It Li RAT_STALLS.FLAGS
+.Pq Event D2H , Umask 04H
+The number of cycles execution stalled due to a flag register induced
+stall.
+.It Li RAT_STALLS.FPSW
+.Pq Event D2H , Umask 08H
+The number of times the floating point status word was written.
+.It Li RAT_STALLS.OTHER_SERIALIZATION_STALLS
+.Pq Event D2H , Umask 10H , Tn Core2Extreme
+The number of stalls due to other RAT resource serialization not
+counted by umask 0FH.
+.It Li RAT_STALLS.PARTIAL_CYCLES
+.Pq Event D2H , Umask 02H
+The number of cycles of added instruction execution latency due to the
+use of a register that was partially written by previous instructions.
+.It Li RAT_STALLS.ROB_READ_PORT
+.Pq Event D2H , Umask 01H
+The number of cycles when ROB read port stalls occurred.
+.It Li RESOURCE_STALLS.ANY
+.Pq Event DCH , Umask 1FH
+The number of cycles during which any resource related stall
+occurred.
+.It Li RESOURCE_STALLS.BR_MISS_CLEAR
+.Pq Event DCH , Umask 10H
+The number of cycles stalled due to branch misprediction.
+.It Li RESOURCE_STALLS.FPCW
+.Pq Event DCH , Umask 08H
+The number of cycles stalled due to writing the floating point control
+word.
+.It Li RESOURCE_STALLS.LD_ST
+.Pq Event DCH , Umask 04H
+The number of cycles during which the number of loads and stores in
+the pipeline exceeded their limits.
+.It Li RESOURCE_STALLS.ROB_FULL
+.Pq Event DCH , Umask 01H
+The number of cycles when the reorder buffer was full.
+.It Li RESOURCE_STALLS.RS_FULL
+.Pq Event DCH , Umask 02H
+The number of cycles during which the RS was full.
+.It Li RS_UOPS_DISPATCHED
+.Pq Event A0H , Umask 00H
+The number of micro-ops dispatched for execution.
+.It Li RS_UOPS_DISPATCHED.PORT0
+.Pq Event A1H , Umask 01H
+The number of cycles micro-ops were dispatched for execution on port
+0.
+.It Li RS_UOPS_DISPATCHED.PORT1
+.Pq Event A1H , Umask 02H
+The number of cycles micro-ops were dispatched for execution on port
+1.
+.It Li RS_UOPS_DISPATCHED.PORT2
+.Pq Event A1H , Umask 04H
+The number of cycles micro-ops were dispatched for execution on port
+2.
+.It Li RS_UOPS_DISPATCHED.PORT3
+.Pq Event A1H , Umask 08H
+The number of cycles micro-ops were dispatched for execution on port
+3.
+.It Li RS_UOPS_DISPATCHED.PORT4
+.Pq Event A1H , Umask 10H
+The number of cycles micro-ops were dispatched for execution on port
+4.
+.It Li RS_UOPS_DISPATCHED.PORT5
+.Pq Event A1H , Umask 20H
+The number of cycles micro-ops were dispatched for execution on port
+5.
+.It Li SB_DRAIN_CYCLES
+.Pq Event 04H , Umask 01H
+The number of cycles while the store buffer is draining.
+.It Li SEGMENT_REG_LOADS
+.Pq Event 06H , Umask 00H
+The number of segment register loads.
+.It Li SEG_REG_RENAMES.ANY
+.Pq Event D5H , Umask 0FH
+The number of times the any segment register was renamed.
+.It Li SEG_REG_RENAMES.DS
+.Pq Event D5H , Umask 02H
+The number of times the
+.Li %ds
+register is renamed.
+.It Li SEG_REG_RENAMES.ES
+.Pq Event D5H , Umask 01H
+The number of times the
+.Li %es
+register is renamed.
+.It Li SEG_REG_RENAMES.FS
+.Pq Event D5H , Umask 04H
+The number of times the
+.Li %fs
+register is renamed.
+.It Li SEG_REG_RENAMES.GS
+.Pq Event D5H , Umask 08H
+The number of times the
+.Li %gs
+register is renamed.
+.It Li SEG_RENAME_STALLS.ANY
+.Pq Event D4H , Umask 0FH
+The number of stalls due to lack of resource to rename any segment
+register.
+.It Li SEG_RENAME_STALLS.DS
+.Pq Event D4H , Umask 02H
+The number of stalls due to lack of renaming resources for the
+.Li %ds
+register.
+.It Li SEG_RENAME_STALLS.ES
+.Pq Event D4H , Umask 01H
+The number of stalls due to lack of renaming resources for the
+.Li %es
+register.
+.It Li SEG_RENAME_STALLS.FS
+.Pq Event D4H , Umask 04H
+The number of stalls due to lack of renaming resources for the
+.Li %fs
+register.
+.It Li SEG_RENAME_STALLS.GS
+.Pq Event D4H , Umask 08H
+The number of stalls due to lack of renaming resources for the
+.Li %gs
+register.
+.It Li SIMD_ASSIST
+.Pq Event CDH , Umask 00H
+The number SIMD assists invoked.
+.It Li SIMD_COMP_INST_RETIRED.PACKED_DOUBLE
+.Pq Event CAH , Umask 04H
+Then number of computational SSE2 packed double precision instructions
+retired.
+.It Li SIMD_COMP_INST_RETIRED.PACKED_SINGLE
+.Pq Event CAH , Umask 01H
+Then number of computational SSE2 packed single precision instructions
+retired.
+.It Li SIMD_COMP_INST_RETIRED.SCALAR_DOUBLE
+.Pq Event CAH , Umask 08H
+Then number of computational SSE2 scalar double precision instructions
+retired.
+.It Li SIMD_COMP_INST_RETIRED.SCALAR_SINGLE
+.Pq Event CAH , Umask 02H
+Then number of computational SSE2 scalar single precision instructions
+retired.
+.It Li SIMD_INSTR_RETIRED
+.Pq Event CEH , Umask 00H
+The number of retired SIMD instructions that use MMX registers.
+.It Li SIMD_INST_RETIRED.ANY
+.Pq Event C7H , Umask 1FH
+The number of streaming SIMD instructions retired.
+.It Li SIMD_INST_RETIRED.PACKED_DOUBLE
+.Pq Event C7H , Umask 04H
+The number of SSE2 packed double precision instructions retired.
+.It Li SIMD_INST_RETIRED.PACKED_SINGLE
+.Pq Event C7H , Umask 01H
+The number of SSE packed single precision instructions retired.
+.It Li SIMD_INST_RETIRED.SCALAR_DOUBLE
+.Pq Event C7H , Umask 08H
+The number of SSE2 scalar double precision instructions retired.
+.It Li SIMD_INST_RETIRED.SCALAR_SINGLE
+.Pq Event C7H , Umask 02H
+The number of SSE scalar single precision instructions retired.
+.It Li SIMD_INST_RETIRED.VECTOR
+.Pq Event C7H , Umask 10H
+The number of SSE2 vector instructions retired.
+.It Li SIMD_SAT_INSTR_RETIRED
+.Pq Event CFH , Umask 00H
+The number of saturated arithmetic SIMD instructions retired.
+.It Li SIMD_SAT_UOP_EXEC
+.Pq Event B1H , Umask 00H
+The number of SIMD saturated arithmetic micro-ops executed.
+.It Li SIMD_UOPS_EXEC
+.Pq Event B0H , Umask 00H
+The number of SIMD micro-ops executed.
+.It Li SIMD_UOP_TYPE_EXEC.ARITHMETIC
+.Pq Event B3H , Umask 20H
+The number of SIMD packed arithmetic micro-ops executed.
+.It Li SIMD_UOP_TYPE_EXEC.LOGICAL
+.Pq Event B3H , Umask 10H
+The number of SIMD packed logical micro-ops executed.
+.It Li SIMD_UOP_TYPE_EXEC.MUL
+.Pq Event B3H , Umask 01H
+The number of SIMD packed multiply micro-ops executed.
+.It Li SIMD_UOP_TYPE_EXEC.PACK
+.Pq Event B3H , Umask 04H
+The number of SIMD pack micro-ops executed.
+.It Li SIMD_UOP_TYPE_EXEC.SHIFT
+.Pq Event B3H , Umask 02H
+The number of SIMD packed shift micro-ops executed.
+.It Li SIMD_UOP_TYPE_EXEC.UNPACK
+.Pq Event B3H , Umask 08H
+The number of SIMD unpack micro-ops executed.
+.It Li SNOOP_STALL_DRV Xo
+.Op ,agent= Ns Ar agent
+.Op ,core= Ns Ar core
+.Xc
+.Pq Event 7EH
+The number of times the bus stalled for snoops.
+.It Li SSE_PRE_EXEC.L1
+.Pq Event 07H , Umask 01H
+The number of
+.Li PREFETCHT0
+instructions executed.
+.It Li SSE_PRE_EXEC.L2
+.Pq Event 07H , Umask 02H
+The number of
+.Li PREFETCHT1
+instructions executed.
+.It Li SSE_PRE_EXEC.NTA
+.Pq Event 07H , Umask 00H
+The number of
+.Li PREFETCHNTA
+instructions executed.
+.It Li SSE_PRE_EXEC.STORES
+.Pq Event 07H , Umask 03H
+The number of times SSE non-temporal store instructions were executed.
+.It Li SSE_PRE_MISS.L1
+.Pq Event 4BH , Umask 01H
+The number of times the
+.Li PREFETCHT0
+instruction executed and missed all cache levels.
+.It Li SSE_PRE_MISS.L2
+.Pq Event 4BH , Umask 02H
+The number of times the
+.Li PREFETCHT1
+instruction executed and missed all cache levels.
+.It Li SSE_PRE_MISS.NTA
+.Pq Event 4BH , Umask 00H
+The number of times the
+.Li PREFETCHNTA
+instruction executed and missed all cache levels.
+.It Li STORE_BLOCK.ORDER
+.Pq Event 04H , Umask 02H
+The number of cycles while a store was waiting for another store to be
+globally observed.
+.It Li STORE_BLOCK.SNOOP
+.Pq Event 04H , Umask 08H
+The number of cycles while a store was blocked due to a conflict with
+an internal or external snoop.
+.It Li THERMAL_TRIP
+.Pq Event 3BH , Umask C0H
+The number of thermal trips.
+.It Li UOPS_RETIRED.LD_IND_BR
+.Pq Event C2H , Umask 01H
+The number of micro-ops retired that fused a load with another
+operation.
+.It Li UOPS_RETIRED.STD_STA
+.Pq Event C2H , Umask 02H
+The number of store address calculations that fused into one micro-op.
+.It Li UOPS_RETIRED.MACRO_FUSION
+.Pq Event C2H , Umask 04H
+The number of times retired instruction pairs were fused into one
+micro-op.
+.It Li UOPS_RETIRED.FUSED
+.Pq Event C2H , Umask 07H
+The number of fused micro-ops retired.
+.It Li UOPS_RETIRED.NON_FUSED
+.Pq Event C2H , Umask 8H
+The number of non-fused micro-ops retired.
+.It Li UOPS_RETIRED.ANY
+.Pq Event C2H , Umask 0FH
+The number of micro-ops retired.
+.It Li X87_OPS_RETIRED.ANY
+.Pq Event C1H , Umask FEH
+The number of floating point computational instructions retired.
+.It Li X87_OPS_RETIRED.FXCH
+.Pq Event C1H , Umask 01H
+The number of
+.Li FXCH
+instructions retired.
+.El
+.Ss Event Name Aliases
+The following table shows the mapping between the PMC-independent
+aliases supported by
+.Lb libpmc
+and the underlying hardware events used.
+.Bl -column "branch-mispredicts" "cpu_clk_unhalted.core_p" "PMC Class"
+.It Em Alias Ta Em Event Ta Em PMC Class
+.It Li branches Ta Li BR_INST_RETIRED.ANY Ta Li PMC_CLASS_IAP
+.It Li branch-mispredicts Ta Li BR_INST_RETIRED.MISPRED Ta Li PMC_CLASS_IAP
+.It Li ic-misses Ta Li L1I_MISSES Ta Li PMC_CLASS_IAP
+.It Li instructions Ta Li INST_RETIRED.ANY_P Ta Li PMC_CLASS_IAF
+.It Li interrupts Ta Li HW_INT_RCV Ta Li PMC_CLASS_IAP
+.It Li unhalted-cycles Ta Li CPU_CLK_UNHALTED.CORE_P Ta Li PMC_CLASS_IAF
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.k7 3 ,
+.Xr pmc.k8 3 ,
+.Xr pmc.p4 3 ,
+.Xr pmc.p5 3 ,
+.Xr pmc.p6 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmc_cpuinfo 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .

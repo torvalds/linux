@@ -1,0 +1,179 @@
+.\" Copyright (c) 2002-2004 Tim J. Robbins
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 21, 2013
+.Dt MBRTOWC 3
+.Os
+.Sh NAME
+.Nm mbrtowc ,
+.Nm mbrtoc16 ,
+.Nm mbrtoc32
+.Nd "convert a character to a wide-character code (restartable)"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In wchar.h
+.Ft size_t
+.Fo mbrtowc
+.Fa "wchar_t * restrict pc" "const char * restrict s" "size_t n"
+.Fa "mbstate_t * restrict ps"
+.Fc
+.In uchar.h
+.Ft size_t
+.Fo mbrtoc16
+.Fa "char16_t * restrict pc" "const char * restrict s" "size_t n"
+.Fa "mbstate_t * restrict ps"
+.Fc
+.Ft size_t
+.Fo mbrtoc32
+.Fa "char32_t * restrict pc" "const char * restrict s" "size_t n"
+.Fa "mbstate_t * restrict ps"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn mbrtowc ,
+.Fn mbrtoc16
+and
+.Fn mbrtoc32
+functions inspect at most
+.Fa n
+bytes pointed to by
+.Fa s
+to determine the number of bytes needed to complete the next multibyte
+character.
+If a character can be completed, and
+.Fa pc
+is not
+.Dv NULL ,
+the wide character which is represented by
+.Fa s
+is stored in the
+.Vt wchar_t ,
+.Vt char16_t
+or
+.Vt char32_t
+it points to.
+.Pp
+If
+.Fa s
+is
+.Dv NULL ,
+these functions behave as if
+.Fa pc
+was
+.Dv NULL ,
+.Fa s
+was an empty string
+.Pq Qq
+and
+.Fa n
+was 1.
+.Pp
+The
+.Vt mbstate_t
+argument,
+.Fa ps ,
+is used to keep track of the shift state.
+If it is
+.Dv NULL ,
+these functions use an internal, static
+.Vt mbstate_t
+object, which is initialized to the initial conversion state
+at program startup.
+.Pp
+As a single
+.Vt char16_t
+is not large enough to represent certain multibyte characters, the
+.Fn mbrtoc16
+function may need to be invoked multiple times to convert a single
+multibyte character sequence.
+.Sh RETURN VALUES
+The
+.Fn mbrtowc ,
+.Fn mbrtoc16
+and
+.Fn mbrtoc32
+functions return:
+.Bl -tag -width indent
+.It 0
+The next
+.Fa n
+or fewer bytes
+represent the null wide character
+.Pq Li "L'\e0'" .
+.It >0
+The next
+.Fa n
+or fewer bytes represent a valid character, these functions
+return the number of bytes used to complete the multibyte character.
+.It Po Vt size_t Pc Ns \-1
+An encoding error has occurred.
+The next
+.Fa n
+or fewer bytes do not contribute to a valid multibyte character.
+.It Po Vt size_t Pc Ns \-2
+The next
+.Fa n
+contribute to, but do not complete, a valid multibyte character sequence,
+and all
+.Fa n
+bytes have been processed.
+.El
+.Pp
+The
+.Fn mbrtoc16
+function also returns:
+.Bl -tag -width indent
+.It Po Vt size_t Pc Ns \-3
+The next character resulting from a previous call has been stored.
+No bytes from the input have been consumed.
+.El
+.Sh ERRORS
+The
+.Fn mbrtowc ,
+.Fn mbrtoc16
+and
+.Fn mbrtoc32
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EILSEQ
+An invalid multibyte sequence was detected.
+.It Bq Er EINVAL
+The conversion state is invalid.
+.El
+.Sh SEE ALSO
+.Xr mbtowc 3 ,
+.Xr multibyte 3 ,
+.Xr setlocale 3 ,
+.Xr wcrtomb 3
+.Sh STANDARDS
+The
+.Fn mbrtowc ,
+.Fn mbrtoc16
+and
+.Fn mbrtoc32
+functions conform to
+.St -isoC-2011 .

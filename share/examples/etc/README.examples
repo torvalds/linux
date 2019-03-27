@@ -1,0 +1,73 @@
+$FreeBSD$
+
+The /usr/share/examples/etc directory contains the original
+distribution versions of the files which are shipped in /etc.  This is
+intended to make it easy to recover when the /etc versions are
+accidentally deleted or broken beyond repair.
+
+This directory contains the following files:
+
+amd.map		- filesystem automounter lookup resolution map (see amd(8))
+apmd.conf	- configuration file for apmd(8)
+bsd-style-copyright	- copyright style for bsd system
+crontab		- system scheduled command table (see crontab(5))
+csh.cshrc	- sample .cshrc (see csh(1))
+csh.login	- sample .login
+csh.logout	- sample .logout
+defaults/	- directory containing default configuration file
+devd.conf	- configuration file for devd(8)
+devfs.conf	- configuration file for devfs(8)
+dhclient.conf	- configuration file for dhclient(8)
+disktab		- disk description file (see disktab(5))
+fbtab		- configuration file for login(1)
+ftpusers	- user restriction file for ftpd(8)
+gettytab	- defines port configuration for getty(8)
+group		- group permissions file (see group(5))
+hosts		- see hosts(5)
+hosts.allow	- defines allow trusted hosts
+hosts.equiv	- defines system-wide trusted hosts (see ruserok(3))
+hosts.lpd	- defines trusted hosts for lpd(8)
+inetd.conf	- configuration file for inetd(8)
+locate.rc	- configuration file for locate(1)
+login.access	- configuration file for login(8) (see login.access(5))
+login.conf	- login class capabilities database (see login.conf(5))
+mac.conf	- TrustedBSD MAC userland policy configuration file
+mail.rc		- systemwide initialization files for mail(1)
+make.conf	- example configuration variables for system builds
+motd		- sample Message of the Day
+netconfig	- network configuration data base
+netstart	- network startup script run from /etc/rc
+network.subr	- routines for network configuration scripts
+networks	- see networks(5)
+newsyslog.conf	- configuration for system log file rotator newsyslog(8)
+nsmb.conf	- smbfs lookups configuration file
+opieaccess	- OPIE database of trusted networks
+pf.conf		- pf(4) example configuration file
+pf.os		- SYN fingerprint database
+phones		- phone number database for tip(1)
+portsnap.conf	- portsnap(8) configuration file
+printcap	- configuration file for lpr(1)
+profile		- system-wide .profile for sh(1)
+protocols	- see protocols(5)
+rc		- system startup script (see init(8))
+rc.bsdextended	- startup policy for the mac_bsdextended(4) security module. 
+rc.firewall	- ipfw(8) setup script with basic rulesets
+rc.initdiskless	- configuration file to boot a diskless machine
+rc.resume	- sample run command file for APM Resume Event
+rc.sendmail	- script for sendmail(8) startup
+rc.shutdown	- system shutdown script (see init(8))
+rc.subr		- script with functions used by various rc scripts
+rc.suspend	- sample run command file for APM Resume Event
+remote		- configuration file for tip(1)
+rpc		- see rpc(5)
+security	- script run from crontab to do nightly security checks
+services	- see services(5)
+shells		- list of configurable shells (see shells(5))
+snmpd.config	- example configuration file for bsnmpd(1)
+sysctl.conf	- configuration file for sysctl(8)
+syslog.conf	- configuration file for syslogd(8)
+ttys		- defines port configuration for init(8)
+defaults/bluetooth.device.conf	- 
+defaults/devfs.rules		- default configuration rules for devfs(8)
+defaults/periodic.conf		- default configuration file for periodic(8)
+defaults/rc.conf		- default system configuration info (see rc.conf(5))

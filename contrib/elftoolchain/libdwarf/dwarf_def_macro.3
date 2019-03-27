@@ -1,0 +1,129 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_def_macro.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd November 9, 2011
+.Dt DWARF_DEF_MACRO 3
+.Os
+.Sh NAME
+.Nm dwarf_def_macro
+.Nd add a macro definition to a DWARF producer instance
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft "int"
+.Fo dwarf_def_macro
+.Fa "Dwarf_P_Debug dbg"
+.Fa "Dwarf_Unsigned lineno"
+.Fa "char *name"
+.Fa "char *value"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_def_macro
+adds a macro definition to a DWARF producer instance.
+.Pp
+Argument
+.Ar dbg
+should reference a DWARF producer instance allocated using
+.Xr dwarf_producer_init 3
+or
+.Xr dwarf_producer_init_b 3 .
+.Pp
+Argument
+.Ar lineno
+specifies the line number of the source line where the macro is
+defined.
+A line number of zero is used for macros that are defined
+before any source file is read.
+.Pp
+Argument
+.Ar name
+should point to a NUL-terminated string containing the name
+of the macro.
+For function-like macros this parameter should also include
+parentheses and parameter names if any.
+.Pp
+Argument
+.Ar value
+should point to a NUL-terminated string containing the value
+of the macro.
+If the macro does not have a value, argument
+.Ar value
+should be set to NULL.
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case of an
+error.
+.Sh RETURN VALUES
+On success, function
+.Fn dwarf_def_macro
+returns
+.Dv DW_DLV_OK .
+In case of an error, function
+.Fn dwarf_def_macro
+returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh EXAMPLES
+To record the fact that a macro named
+.Dv _STDIO_H_
+was defined at line 20 of the current macro file, use:
+.Bd -literal -offset indent
+Dwarf_P_Debug dbg;
+Dwarf_Error de;
+
+/* ... Assume 'dbg' refers to a DWARF producer instance... */
+if (dwarf_def_macro(dbg, 20, "_STDIO_H_", NULL, &de) != DW_DLV_OK)
+	errx(EXIT_FAILURE, "dwarf_def_macro failed: %s",
+	    dwarf_errmsg(-1));
+.Ed
+.Sh ERRORS
+Function
+.Fn dwarf_def_macro
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Either arguments
+.Ar dbg
+or
+.Ar name
+was NULL.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of the
+function.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_end_macro_file 3 ,
+.Xr dwarf_producer_init 3 ,
+.Xr dwarf_producer_init_b 3 ,
+.Xr dwarf_start_macro_file 3 ,
+.Xr dwarf_undef_macro 3 ,
+.Xr dwarf_vendor_ext 3

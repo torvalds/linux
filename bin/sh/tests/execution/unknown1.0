@@ -1,0 +1,29 @@
+# $FreeBSD$
+
+nosuchtool 2>/dev/null
+[ $? -ne 127 ] && exit 1
+/var/empty/nosuchtool 2>/dev/null
+[ $? -ne 127 ] && exit 1
+(nosuchtool) 2>/dev/null
+[ $? -ne 127 ] && exit 1
+(/var/empty/nosuchtool) 2>/dev/null
+[ $? -ne 127 ] && exit 1
+/ 2>/dev/null
+[ $? -ne 126 ] && exit 1
+PATH=/usr bin 2>/dev/null
+[ $? -ne 126 ] && exit 1
+
+dummy=$(nosuchtool 2>/dev/null)
+[ $? -ne 127 ] && exit 1
+dummy=$(/var/empty/nosuchtool 2>/dev/null)
+[ $? -ne 127 ] && exit 1
+dummy=$( (nosuchtool) 2>/dev/null)
+[ $? -ne 127 ] && exit 1
+dummy=$( (/var/empty/nosuchtool) 2>/dev/null)
+[ $? -ne 127 ] && exit 1
+dummy=$(/ 2>/dev/null)
+[ $? -ne 126 ] && exit 1
+dummy=$(PATH=/usr bin 2>/dev/null)
+[ $? -ne 126 ] && exit 1
+
+exit 0

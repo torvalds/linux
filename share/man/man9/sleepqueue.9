@@ -1,0 +1,389 @@
+.\" Copyright (c) 2000-2004 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 22, 2014
+.Dt SLEEPQUEUE 9
+.Os
+.Sh NAME
+.Nm init_sleepqueues ,
+.Nm sleepq_abort ,
+.Nm sleepq_add ,
+.Nm sleepq_alloc ,
+.Nm sleepq_broadcast ,
+.Nm sleepq_free ,
+.Nm sleepq_lock ,
+.Nm sleepq_lookup ,
+.Nm sleepq_release ,
+.Nm sleepq_remove ,
+.Nm sleepq_signal ,
+.Nm sleepq_set_timeout ,
+.Nm sleepq_set_timeout_sbt ,
+.Nm sleepq_sleepcnt ,
+.Nm sleepq_timedwait ,
+.Nm sleepq_timedwait_sig ,
+.Nm sleepq_type ,
+.Nm sleepq_wait ,
+.Nm sleepq_wait_sig
+.Nd manage the queues of sleeping threads
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/sleepqueue.h
+.Ft void
+.Fn init_sleepqueues "void"
+.Ft int
+.Fn sleepq_abort "struct thread *td"
+.Ft void
+.Fn sleepq_add "void *wchan" "struct lock_object *lock" "const char *wmesg" "int flags" "int queue"
+.Ft struct sleepqueue *
+.Fn sleepq_alloc "void"
+.Ft int
+.Fn sleepq_broadcast "void *wchan" "int flags" "int pri" "int queue"
+.Ft void
+.Fn sleepq_free "struct sleepqueue *sq"
+.Ft struct sleepqueue *
+.Fn sleepq_lookup "void *wchan"
+.Ft void
+.Fn sleepq_lock "void *wchan"
+.Ft void
+.Fn sleepq_release "void *wchan"
+.Ft void
+.Fn sleepq_remove "struct thread *td" "void *wchan"
+.Ft int
+.Fn sleepq_signal "void *wchan" "int flags" "int pri" "int queue"
+.Ft void
+.Fn sleepq_set_timeout "void *wchan" "int timo"
+.Ft void
+.Fn sleepq_set_timeout_sbt "void *wchan" "sbintime_t sbt" \
+"sbintime_t pr" "int flags"
+.Ft u_int
+.Fn sleepq_sleepcnt "void *wchan" "int queue"
+.Ft int
+.Fn sleepq_timedwait "void *wchan" "int pri"
+.Ft int
+.Fn sleepq_timedwait_sig "void *wchan" "int pri"
+.Ft int
+.Fn sleepq_type "void *wchan"
+.Ft void
+.Fn sleepq_wait "void *wchan" "int pri"
+.Ft int
+.Fn sleepq_wait_sig "void *wchan" "int pri"
+.Sh DESCRIPTION
+Sleep queues provide a mechanism for suspending execution of a thread until
+some condition is met.
+Each queue is associated with a specific wait channel when it is active,
+and only one queue may be associated with a wait channel at any given point
+in time.
+The implementation of each wait channel splits its sleepqueue into 2 sub-queues
+in order to enable some optimizations on threads' wakeups.
+An active queue holds a list of threads that are blocked on the associated
+wait channel.
+Threads that are not blocked on a wait channel have an associated inactive
+sleep queue.
+When a thread blocks on a wait channel it donates its inactive sleep queue
+to the wait channel.
+When a thread is resumed,
+the wait channel that it was blocked on gives it an inactive sleep queue for
+later use.
+.Pp
+The
+.Fn sleepq_alloc
+function allocates an inactive sleep queue and is used to assign a
+sleep queue to a thread during thread creation.
+The
+.Fn sleepq_free
+function frees the resources associated with an inactive sleep queue and is
+used to free a queue during thread destruction.
+.Pp
+Active sleep queues are stored in a hash table hashed on the addresses pointed
+to by wait channels.
+Each bucket in the hash table contains a sleep queue chain.
+A sleep queue chain contains a spin mutex and a list of sleep queues that hash
+to that specific chain.
+Active sleep queues are protected by their chain's spin mutex.
+The
+.Fn init_sleepqueues
+function initializes the hash table of sleep queue chains.
+.Pp
+The
+.Fn sleepq_lock
+function locks the sleep queue chain associated with wait channel
+.Fa wchan .
+.Pp
+The
+.Fn sleepq_lookup
+returns a pointer to the currently active sleep queue for that wait
+channel associated with
+.Fa wchan
+or
+.Dv NULL
+if there is no active sleep queue associated with
+argument
+.Fa wchan .
+It requires the sleep queue chain associated with
+.Fa wchan
+to have been locked by a prior call to
+.Fn sleepq_lock .
+.Pp
+The
+.Fn sleepq_release
+function unlocks the sleep queue chain associated with
+.Fn wchan
+and is primarily useful when aborting a pending sleep request before one of
+the wait functions is called.
+.Pp
+The
+.Fn sleepq_add
+function places the current thread on the sleep queue associated with the
+wait channel
+.Fa wchan .
+The sleep queue chain associated with argument
+.Fa wchan
+must be locked by a prior call to
+.Fn sleepq_lock
+when this function is called.
+If a lock is specified via the
+.Fa lock
+argument, and if the kernel was compiled with
+.Cd "options INVARIANTS" ,
+then the sleep queue code will perform extra checks to ensure that
+the lock is used by all threads sleeping on
+.Fa wchan .
+The
+.Fa wmesg
+parameter should be a short description of
+.Fa wchan .
+The
+.Fa flags
+parameter is a bitmask consisting of the type of sleep queue being slept on
+and zero or more optional flags.
+The
+.Fa queue
+parameter specifies the sub-queue, in which the contending thread will be
+inserted.
+.Pp
+There are currently three types of sleep queues:
+.Pp
+.Bl -tag -width ".Dv SLEEPQ_CONDVAR" -compact
+.It Dv SLEEPQ_CONDVAR
+A sleep queue used to implement condition variables.
+.It Dv SLEEPQ_SLEEP
+A sleep queue used to implement
+.Xr sleep 9 ,
+.Xr wakeup 9
+and
+.Xr wakeup_one 9 .
+.It Dv SLEEPQ_PAUSE
+A sleep queue used to implement
+.Xr pause 9 .
+.El
+.Pp
+There are currently two optional flag:
+.Pp
+.Bl -tag -width ".Dv SLEEPQ_INTERRUPTIBLE" -compact
+.It Dv SLEEPQ_INTERRUPTIBLE
+The current thread is entering an interruptible sleep.
+.El
+.Bl -tag -width ".Dv SLEEPQ_STOP_ON_BDRY" -compact
+.It Dv SLEEPQ_STOP_ON_BDRY
+When thread is entering an interruptible sleep, do not stop it upon
+arrival of stop action, like
+.Dv SIGSTOP .
+Wake it up instead.
+.El
+.Pp
+A timeout on the sleep may be specified by calling
+.Fn sleepq_set_timeout
+after
+.Fn sleepq_add .
+The
+.Fa wchan
+parameter should be the same value from the preceding call to
+.Fn sleepq_add ,
+and the sleep queue chain associated with
+.Fa wchan
+must have been locked by a prior call to
+.Fn sleepq_lock .
+The
+.Fa timo
+parameter should specify the timeout value in ticks.
+.Pp
+.Fn sleepq_set_timeout_sbt
+function takes
+.Fa sbt
+argument instead of
+.Fa timo .
+It allows to specify relative or absolute wakeup time with higher resolution
+in form of
+.Vt sbintime_t .
+The parameter
+.Fa pr
+allows to specify wanted absolute event precision.
+The parameter
+.Fa flags
+allows to pass additional
+.Fn callout_reset_sbt
+flags.
+.Pp
+Once the thread is ready to suspend,
+one of the wait functions is called to put the current thread to sleep
+until it is awakened and to context switch to another thread.
+The
+.Fn sleepq_wait
+function is used for non-interruptible sleeps that do not have a timeout.
+The
+.Fn sleepq_timedwait
+function is used for non-interruptible sleeps that have had a timeout set via
+.Fn sleepq_set_timeout .
+The
+.Fn sleepq_wait_sig
+function is used for interruptible sleeps that do not have a timeout.
+The
+.Fn sleepq_timedwait_sig
+function is used for interruptible sleeps that do have a timeout set.
+The
+.Fa wchan
+argument to all of the wait functions is the wait channel being slept
+on.
+The sleep queue chain associated with argument
+.Fa wchan
+needs to have been locked with a prior call to
+.Fn sleepq_lock .
+The
+.Fa pri
+argument is used to set the priority of the thread when it is awakened.
+If it is set to zero, the thread's priority is left alone.
+.Pp
+When the thread is resumed,
+the wait functions return a non-zero value if the thread was awakened due to
+an interrupt other than a signal or a timeout.
+If the sleep timed out, then
+.Er EWOULDBLOCK
+is returned.
+If the sleep was interrupted by something other than a signal,
+then some other return value will be returned.
+.Pp
+A sleeping thread is normally resumed by the
+.Fn sleepq_broadcast
+and
+.Fn sleepq_signal
+functions.
+The
+.Fn sleepq_signal
+function awakens the highest priority thread sleeping on a wait channel while
+.Fn sleepq_broadcast
+awakens all of the threads sleeping on a wait channel.
+The
+.Fa wchan
+argument specifics which wait channel to awaken.
+The
+.Fa flags
+argument must match the sleep queue type contained in the
+.Fa flags
+argument passed to
+.Fn sleepq_add
+by the threads sleeping on the wait channel.
+If the
+.Fa pri
+argument does not equal \-1,
+then each thread that is awakened will have its priority raised to
+.Fa pri
+if it has a lower priority.
+The sleep queue chain associated with argument
+.Fa wchan
+must be locked by a prior call to
+.Fn sleepq_lock
+before calling any of these functions.
+The
+.Fa queue
+argument specifies the sub-queue, from which threads need to be woken up.
+.Pp
+A thread in an interruptible sleep can be interrupted by another thread via
+the
+.Fn sleepq_abort
+function.
+The
+.Fa td
+argument specifies the thread to interrupt.
+An individual thread can also be awakened from sleeping on a specific wait
+channel via the
+.Fn sleepq_remove
+function.
+The
+.Fa td
+argument specifies the thread to awaken and the
+.Fa wchan
+argument specifies the wait channel to awaken it from.
+If the thread
+.Fa td
+is not blocked on the wait channel
+.Fa wchan
+then this function will not do anything,
+even if the thread is asleep on a different wait channel.
+This function should only be used if one of the other functions above is not
+sufficient.
+One possible use is waking up a specific thread from a widely shared sleep
+channel.
+.Pp
+The
+.Fn sleepq_sleepcnt
+function offer a simple way to retrieve the number of threads sleeping for
+the specified
+.Fa queue ,
+given a
+.Fa wchan .
+.Pp
+The
+.Fn sleepq_type
+function returns the type of
+.Fa wchan
+associated to a sleepqueue.
+.Pp
+The
+.Fn sleepq_abort ,
+.Fn sleepq_broadcast ,
+and
+.Fn sleepq_signal
+functions all return a boolean value.
+If the return value is true,
+then at least one thread was resumed that is currently swapped out.
+The caller is responsible for awakening the scheduler process so that the
+resumed thread will be swapped back in.
+This is done by calling the
+.Fn kick_proc0
+function after releasing the sleep queue chain lock via a call to
+.Fn sleepq_release .
+.Pp
+The sleep queue interface is currently used to implement the
+.Xr sleep 9
+and
+.Xr condvar 9
+interfaces.
+Almost all other code in the kernel should use one of those interfaces rather
+than manipulating sleep queues directly.
+.Sh SEE ALSO
+.Xr condvar 9 ,
+.Xr runqueue 9 ,
+.Xr scheduler 9 ,
+.Xr sleep 9 ,
+.Xr timeout 9

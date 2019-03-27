@@ -1,0 +1,401 @@
+#	$Id: README,v 1.1 1997/03/11 07:27:15 sjg Exp $
+
+This directory contains some macro's derrived from the NetBSD bsd.*.mk
+macros.  They have the same names but without the bsd., separate macro
+files are needed to ensure we can make them do what we want for
+builing things outside of /usr/src.  Nearly all the comments below
+apply. 
+
+#	$NetBSD: bsd.README,v 1.18 1997/01/13 00:54:23 mark Exp $
+#	@(#)bsd.README	5.1 (Berkeley) 5/11/90
+
+This is the README file for the new make "include" files for the BSD
+source tree.  The files are installed in /usr/share/mk, and are, by
+convention, named with the suffix ".mk".
+
+Note, this file is not intended to replace reading through the .mk
+files for anything tricky.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+RANDOM THINGS WORTH KNOWING:
+
+The files are simply C-style #include files, and pretty much behave like
+you'd expect.  The syntax is slightly different in that a single '.' is
+used instead of the hash mark, i.e. ".include <bsd.prog.mk>".
+
+One difference that will save you lots of debugging time is that inclusion
+of the file is normally done at the *end* of the Makefile.  The reason for
+this is because .mk files often modify variables and behavior based on the
+values of variables set in the Makefile.  To make this work, remember that
+the FIRST target found is the target that is used, i.e. if the Makefile has:
+
+	a:
+		echo a
+	a:
+		echo a number two
+
+the command "make a" will echo "a".  To make things confusing, the SECOND
+variable assignment is the overriding one, i.e. if the Makefile has:
+
+	a=	foo
+	a=	bar
+
+	b:
+		echo ${a}
+
+the command "make b" will echo "bar".  This is for compatibility with the
+way the V7 make behaved.
+
+It's fairly difficult to make the BSD .mk files work when you're building
+multiple programs in a single directory.  It's a lot easier split up the
+programs than to deal with the problem.  Most of the agony comes from making
+the "obj" directory stuff work right, not because we switch to a new version
+of make.  So, don't get mad at us, figure out a better way to handle multiple
+architectures so we can quit using the symbolic link stuff.  (Imake doesn't
+count.)
+
+The file .depend in the source directory is expected to contain dependencies
+for the source files.  This file is read automatically by make after reading
+the Makefile.
+
+The variable DESTDIR works as before.  It's not set anywhere but will change
+the tree where the file gets installed.
+
+The profiled libraries are no longer built in a different directory than
+the regular libraries.  A new suffix, ".po", is used to denote a profiled
+object.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The include file <sys.mk> has the default rules for all makes, in the BSD
+environment or otherwise.  You probably don't want to touch this file.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The include file <bsd.man.mk> handles installing manual pages and their
+links.
+
+It has a single target:
+
+	maninstall:
+		Install the manual pages and their links.
+
+It sets/uses the following variables:
+
+MANDIR		Base path for manual installation.
+
+MANGRP		Manual group.
+
+MANOWN		Manual owner.
+
+MANMODE		Manual mode.
+
+MANSUBDIR	Subdirectory under the manual page section, i.e. "/vax"
+		or "/tahoe" for machine specific manual pages.
+
+MAN		The manual pages to be installed (use a .1 - .9 suffix).
+
+MLINKS		List of manual page links (using a .1 - .9 suffix).  The
+		linked-to file must come first, the linked file second,
+		and there may be multiple pairs.  The files are soft-linked.
+
+The include file <bsd.man.mk> includes a file named "../Makefile.inc" if
+it exists.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The include file <bsd.own.mk> contains source tree configuration parameters,
+such as the owners, groups, etc. for both manual pages and binaries, and
+a few global "feature configuration" parameters.
+
+It has no targets.
+
+To get system-specific configuration parameters, bsd.own.mk will try to
+include the file specified by the "MAKECONF" variable.  If MAKECONF is not
+set, or no such file exists, the system make configuration file, /etc/mk.conf
+is included.  These files may define any of the variables described below.
+
+bsd.own.mk sets the following variables, if they are not already defined
+(defaults are in brackets):
+
+BSDSRCDIR	The real path to the system sources, so that 'make obj'
+		will work correctly. [/usr/src]
+
+BSDOBJDIR	The real path to the system 'obj' tree, so that 'make obj'
+		will work correctly. [/usr/obj]
+
+BINGRP		Binary group. [bin]
+
+BINOWN		Binary owner. [bin]
+
+BINMODE		Binary mode. [555]
+
+NONBINMODE	Mode for non-executable files. [444]
+
+MANDIR		Base path for manual installation. [/usr/share/man/cat]
+
+MANGRP		Manual group. [bin]
+
+MANOWN		Manual owner. [bin]
+
+MANMODE		Manual mode. [${NONBINMODE}]
+
+LIBDIR		Base path for library installation. [/usr/lib]
+
+LINTLIBDIR	Base path for lint(1) library installation. [/usr/libdata/lint]
+
+LIBGRP		Library group. [${BINGRP}]
+
+LIBOWN		Library owner. [${BINOWN}]
+
+LIBMODE		Library mode. [${NONBINMODE}]
+
+DOCDIR		Base path for system documentation (e.g. PSD, USD, etc.)
+	        installation. [/usr/share/doc]
+
+DOCGRP		Documentation group. [bin]
+
+DOCOWN		Documentation owner. [bin]
+
+DOCMODE		Documentation mode. [${NONBINMODE}]
+
+NLSDIR		Base path for National Language Support files installation.
+		[/usr/share/nls]
+
+NLSGRP		National Language Support files group. [bin]
+
+NLSOWN		National Language Support files owner. [bin]
+
+NLSMODE		National Language Support files mode. [${NONBINMODE}]
+
+STRIP		The flag passed to the install program to cause the binary
+		to be stripped.  This is to be used when building your
+		own install script so that the entire system can be made
+		stripped/not-stripped using a single knob. [-s]
+
+COPY		The flag passed to the install program to cause the binary
+		to be copied rather than moved.  This is to be used when
+		building our own install script so that the entire system
+		can either be installed with copies, or with moves using
+		a single knob. [-c]
+
+Additionally, the following variables may be set by bsd.own.mk or in a
+make configuration file to modify the behaviour of the system build
+process (default values are in brackets along with comments, if set by
+bsd.own.mk):
+
+EXPORTABLE_SYSTEM
+		Do not build /usr/src/domestic, even if it is present.
+
+SKEY		Compile in support for S/key authentication. [yes, set
+		unconditionally]
+
+KERBEROS	Compile in support for Kerberos 4 authentication.
+
+KERBEROS5	Compile in support for Kerberos 5 authentication.
+
+MANZ		Compress manual pages at installation time.
+
+SYS_INCLUDE	Copy or symlink kernel include files into /usr/include.
+		Possible values are "symlinks" or "copies" (which is
+		the same as the variable being unset).
+
+NOPROFILE	Do not build profiled versions of system libraries
+
+NOPIC		Do not build PIC versions of system libraries, and
+		do not build shared libraries.  [set if ${MACHINE_ARCH}
+		is "mips", "vax", "alpha" or "arm32", unset otherwise.]
+
+NOLINT		Do not build lint libraries. [set, set unconditionally]
+
+bsd.own.mk is generally useful when building your own Makefiles so that
+they use the same default owners etc. as the rest of the tree.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The include file <bsd.prog.mk> handles building programs from one or
+more source files, along with their manual pages.  It has a limited number
+of suffixes, consistent with the current needs of the BSD tree.
+
+It has eight targets:
+
+	all:
+		build the program and its manual page
+	clean:
+		remove the program, any object files and the files a.out,
+		Errs, errs, mklog, and core.
+	cleandir:
+		remove all of the files removed by the target clean, as
+		well as .depend, tags, and any manual pages.
+	depend:
+		make the dependencies for the source files, and store
+		them in the file .depend.
+	includes:
+		install any header files.
+	install:
+		install the program and its manual pages; if the Makefile
+		does not itself define the target install, the targets
+		beforeinstall and afterinstall may also be used to cause
+		actions immediately before and after the install target
+		is executed.
+	lint:
+		run lint on the source files
+	tags:
+		create a tags file for the source files.
+
+It sets/uses the following variables:
+
+BINGRP		Binary group.
+
+BINOWN		Binary owner.
+
+BINMODE		Binary mode.
+
+CLEANFILES	Additional files to remove for the clean and cleandir targets.
+
+COPTS		Additional flags to the compiler when creating C objects.
+
+HIDEGAME	If HIDEGAME is defined, the binary is installed in
+		/usr/games/hide, and a symbolic link is created to
+		/usr/games/dm.
+
+LDADD		Additional loader objects.  Usually used for libraries.
+		For example, to load with the compatibility and utility
+		libraries, use:
+
+			LDADD+=-lutil -lcompat
+
+LDFLAGS		Additional loader flags.
+
+LINKS		The list of binary links; should be full pathnames, the
+		linked-to file coming first, followed by the linked
+		file.  The files are hard-linked.  For example, to link
+		/bin/test and /bin/[, use:
+
+			LINKS=	${DESTDIR}/bin/test ${DESTDIR}/bin/[
+
+MAN		Manual pages (should end in .1 - .9).  If no MAN variable is
+		defined, "MAN=${PROG}.1" is assumed.
+
+PROG		The name of the program to build.  If not supplied, nothing
+		is built.
+
+SRCS		List of source files to build the program.  If PROG is not
+		defined, it's assumed to be ${PROG}.c.
+
+DPADD		Additional dependencies for the program.  Usually used for
+		libraries.  For example, to depend on the compatibility and
+		utility libraries use:
+
+			DPADD+=${LIBCOMPAT} ${LIBUTIL}
+
+		The following libraries are predefined for DPADD:
+
+			LIBC		/lib/libc.a
+			LIBCOMPAT	/usr/lib/libcompat.a
+			LIBCRYPT	/usr/lib/libcrypt.a
+			LIBCURSES	/usr/lib/libcurses.a
+			LIBDBM		/usr/lib/libdbm.a
+			LIBDES		/usr/lib/libdes.a
+			LIBL		/usr/lib/libl.a
+			LIBKDB		/usr/lib/libkdb.a
+			LIBKRB		/usr/lib/libkrb.a
+			LIBKVM		/usr/lib/libkvm.a
+			LIBM		/usr/lib/libm.a
+			LIBMP		/usr/lib/libmp.a
+			LIBPC		/usr/lib/libpc.a
+			LIBPLOT		/usr/lib/libplot.a
+			LIBRPC		/usr/lib/sunrpc.a
+			LIBTERM		/usr/lib/libterm.a
+			LIBUTIL		/usr/lib/libutil.a
+
+SHAREDSTRINGS	If defined, a new .c.o rule is used that results in shared
+		strings, using xstr(1). Note that this will not work with
+		parallel makes.
+
+STRIP		The flag passed to the install program to cause the binary
+		to be stripped.
+
+SUBDIR		A list of subdirectories that should be built as well.
+		Each of the targets will execute the same target in the
+		subdirectories.
+
+The include file <bsd.prog.mk> includes the file named "../Makefile.inc"
+if it exists, as well as the include file <bsd.man.mk>.
+
+Some simple examples:
+
+To build foo from foo.c with a manual page foo.1, use:
+
+	PROG=	foo
+
+	.include <bsd.prog.mk>
+
+To build foo from foo.c with a manual page foo.2, add the line:
+
+	MAN=	foo.2
+
+If foo does not have a manual page at all, add the line:
+
+	NOMAN=	noman
+
+If foo has multiple source files, add the line:
+
+	SRCS=	a.c b.c c.c d.c
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The include file <bsd.subdir.mk> contains the default targets for building
+subdirectories.  It has the same eight targets as <bsd.prog.mk>: all, 
+clean, cleandir, depend, includes, install, lint, and tags.  For all of
+the directories listed in the variable SUBDIRS, the specified directory 
+will be visited and the target made.  There is also a default target which
+allows the command "make subdir" where subdir is any directory listed in
+the variable SUBDIRS.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The include file <bsd.sys.mk> is used by <bsd.prog.mk> and
+<bsd.lib.mk>.  It contains overrides that are used when building
+the NetBSD source tree.  For instance, if "PARALLEL" is defined by
+the program/library Makefile, it includes a set of rules for lex and
+yacc that allow multiple lex and yacc targets to be built in parallel.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The include file <bsd.lib.mk> has support for building libraries.  It has
+the same eight targets as <bsd.prog.mk>: all, clean, cleandir, depend,
+includes, install, lint, and tags.  It has a limited number of suffixes,
+consistent with the current needs of the BSD tree.
+
+It sets/uses the following variables:
+
+LIB		The name of the library to build.
+
+LIBDIR		Target directory for libraries.
+
+LINTLIBDIR	Target directory for lint libraries.
+
+LIBGRP		Library group.
+
+LIBOWN		Library owner.
+
+LIBMODE		Library mode.
+
+LDADD		Additional loader objects.
+
+MAN		The manual pages to be installed (use a .1 - .9 suffix).
+
+SRCS		List of source files to build the library.  Suffix types
+		.s, .c, and .f are supported.  Note, .s files are preferred
+		to .c files of the same name.  (This is not the default for
+		versions of make.)
+
+The include file <bsd.lib.mk> includes the file named "../Makefile.inc"
+if it exists, as well as the include file <bsd.man.mk>.
+
+It has rules for building profiled objects; profiled libraries are
+built by default.
+
+Libraries are ranlib'd when made.

@@ -1,0 +1,27 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# Start keyserv if we are running Secure RPC
+
+# PROVIDE: keyserv
+# REQUIRE: ypset
+# BEFORE: DAEMON
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="keyserv"
+desc="Server for storing private encryption keys"
+rcvar="keyserv_enable"
+command="/usr/sbin/${name}"
+start_precmd="keyserv_prestart"
+
+keyserv_prestart()
+{
+	force_depend rpcbind || return 1
+}
+
+load_rc_config $name
+run_rc_command "$1"

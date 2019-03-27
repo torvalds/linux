@@ -1,0 +1,22 @@
+------------------------------------------------------------------------------
+The adjtimed daemon emulates the BSD adjtime(2) system call.  The
+adjtime() routine communicates with this daemon via SYSV messages.
+
+The emulation uses an undocumented kernel variable (as of 6.0/2.0
+and later releases) and as such it cannot be guaranteed to work in
+future HP-UX releases.  Perhaps HP-UX will have a real adjtime(2)
+system call in the future.
+
+Author: Tai Jin (tai@sde.hp.com)
+------------------------------------------------------------------------------
+
+IMPORTANT NOTE: This stuff must be compiled with no optimization !!
+
+NOTE: This code is known to work as of 8.0 on s300's, s700's and s800's.
+      PLEASE do not modify it unless you have access to kernel sources
+      and fully understand the implications of any changes you are making.
+      One person already has trashed adjtimed by making it do "the right 
+      thing".  This is not an exact replacement for BSD adjtime(2), don't
+      try to make it into one.
+
+	 -- Ken

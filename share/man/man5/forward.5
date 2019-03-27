@@ -1,0 +1,96 @@
+.\" Copyright (c) 1996
+.\"	Mike Pritchard <mpp@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Mike Pritchard and
+.\"	contributors.
+.\" 4. Neither the name of the author nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 2, 1996
+.Dt FORWARD 5
+.Os
+.Sh NAME
+.Nm forward
+.Nd mail forwarding instructions
+.Sh DESCRIPTION
+The
+.Nm .forward
+file contains a list of mail addresses or programs
+that the user's mail should be redirected to.
+If the
+file is not present, then no mail forwarding will be done.
+Mail may also be forwarded as the standard input to a program
+by prefixing the line
+with the normal shell pipe symbol (|).
+If arguments
+are to be passed to the command, then the entire line
+should be enclosed in quotes.
+For security reasons, the
+.Nm .forward
+file must be owned by the user the mail is being sent to,
+or by root, and the user's shell must be listed in
+.Pa /etc/shells .
+.Pp
+For example, if a
+.Nm .forward
+file contained the following lines:
+.Bd -literal -offset indent
+nobody@FreeBSD.org
+"|/usr/bin/vacation nobody"
+.Ed
+.Pp
+Mail would be forwarded to
+.Aq nobody@FreeBSD.org
+and to the program
+.Pa /usr/bin/vacation
+with the single argument
+.Ar nobody .
+.Pp
+If a local user address is prefixed with a backslash
+character, mail is delivered directly to the user's
+mail spool file, bypassing further redirection.
+.Pp
+For example, if user chris had a
+.Nm .forward
+file containing the following lines:
+.Bd -literal -offset indent
+chris@otherhost
+\echris
+.Ed
+.Pp
+One copy of mail would be forwarded to
+.Ar chris@otherhost
+and another copy would be retained as mail for local user chris.
+.Sh FILES
+.Bl -tag -width $HOME/.forward -compact
+.It Pa $HOME/.forward
+The user's forwarding instructions.
+.El
+.Sh SEE ALSO
+.Xr aliases 5 ,
+.Xr sendmail 8

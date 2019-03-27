@@ -1,0 +1,4 @@
+.\" $FreeBSD$
+Set to not build the
+.Xr llvm-cov 1
+tool.

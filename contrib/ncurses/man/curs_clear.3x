@@ -1,0 +1,118 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_clear.3x,v 1.14 2010/12/04 18:36:44 tom Exp $
+.TH curs_clear 3X ""
+.na
+.hy 0
+.SH NAME
+\fBerase\fR,
+\fBwerase\fR,
+\fBclear\fR,
+\fBwclear\fR,
+\fBclrtobot\fR,
+\fBwclrtobot\fR,
+\fBclrtoeol\fR,
+\fBwclrtoeol\fR \- clear all or part of a \fBcurses\fR window
+.ad
+.hy
+.SH SYNOPSIS
+\fB# include <curses.h>\fR
+.sp
+\fBint erase(void);\fR
+.br
+\fBint werase(WINDOW *win);\fR
+.br
+\fBint clear(void);\fR
+.br
+\fBint wclear(WINDOW *win);\fR
+.br
+\fBint clrtobot(void);\fR
+.br
+\fBint wclrtobot(WINDOW *win);\fR
+.br
+\fBint clrtoeol(void);\fR
+.br
+\fBint wclrtoeol(WINDOW *win);\fR
+.br
+.SH DESCRIPTION
+The \fBerase\fR and \fBwerase\fR routines copy blanks to every
+position in the window, clearing the screen.
+.PP
+The \fBclear\fR and \fBwclear\fR routines are like \fBerase\fR and
+\fBwerase\fR, but they also call \fBclearok\fR, so that the screen is
+cleared completely on the next call to \fBwrefresh\fR for that window
+and repainted from scratch.
+.PP
+The \fBclrtobot\fR and \fBwclrtobot\fR routines erase from the cursor to the
+end of screen.  That is, they erase all lines below the cursor in the window.
+Also, the current line to the right of the cursor, inclusive, is erased.
+.PP
+The \fBclrtoeol\fR and \fBwclrtoeol\fR routines erase the current line
+to the right of the cursor, inclusive, to the end of the current line.
+.PP
+Blanks created by erasure have the current background rendition (as set
+by \fBwbkgdset\fR) merged into them.
+.SH RETURN VALUE
+All routines return the integer \fBOK\fR on success and \fBERR\fP on failure.
+The SVr4.0 manual says "or a
+non-negative integer if \fBimmedok\fR is set", but this appears to be an error.
+.PP
+X/Open defines no error conditions.
+In this implementation,
+functions using a window pointer parameter return an error if it is null.
+.SH NOTES
+Note that \fBerase\fR, \fBwerase\fR, \fBclear\fR, \fBwclear\fR,
+\fBclrtobot\fR, and \fBclrtoeol\fR may be macros.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.  The
+standard specifies that they return \fBERR\fR on failure, but specifies no
+error conditions.
+.PP
+Some historic curses implementations had, as an undocumented feature, the
+ability to do the equivalent of \fBclearok(..., 1)\fR by saying
+\fBtouchwin(stdscr)\fR or \fBclear(stdscr)\fR.  This will not work under
+ncurses.
+.PP
+This implementation, and others such as Solaris,
+sets the current position to 0,0 after erasing
+via \fBwerase()\fP and \fBwclear()\fP.
+That fact is not documented in other implementations,
+and may not be true of implementations
+which were not derived from SVr4 source.
+.PP
+Not obvious from the description,
+most implementations clear the screen after \fBwclear\fP
+even for a subwindow or derived window.
+If you do not want to clear the screen during the next \fBwrefresh\fP,
+use \fBwerase\fP instead.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_outopts\fR(3X),
+\fBcurs_refresh\fR(3X),
+\fBcurs_variables\fR(3X)

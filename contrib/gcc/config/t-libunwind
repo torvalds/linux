@@ -1,0 +1,12 @@
+# Use the system libunwind library.
+#
+# Override the default value from t-slibgcc-elf-ver and mention -lunwind
+# so that the resulting libgcc_s.so has the necessary DT_NEEDED entry for
+# libunwind.
+SHLIB_LC = -lunwind -lc
+LIB2ADDEH = $(srcdir)/unwind-sjlj.c $(srcdir)/unwind-c.c \
+  $(srcdir)/unwind-compat.c $(srcdir)/unwind-dw2-fde-compat.c
+LIB2ADDEHSTATIC = $(srcdir)/unwind-sjlj.c $(srcdir)/unwind-c.c
+
+T_CFLAGS += -DUSE_LIBUNWIND_EXCEPTIONS
+TARGET_LIBGCC2_CFLAGS += -DUSE_GAS_SYMVER

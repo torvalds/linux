@@ -1,0 +1,50 @@
+#!/bin/sh
+# $FreeBSD$
+# script to edit and save some config file(s).
+# If called with no arguments, it edits 3 files in /etc
+thefiles=$*
+[ -z "$thefiles" ] && \
+    thefiles="/etc/rc.conf /etc/rc.firewall /etc/master.passwd"
+dev=`sysctl -n machdep.guessed_bootdev`
+[ -c "${dev}" ] || dev="/dev/fd0"
+mount ${dev} /mnt
+if [ "$?" != "0" ] ; then
+	echo ""
+	echo "Cannot mount ${dev} read-write!"
+	exit 1
+fi
+
+echo "Updating ${thefiles} on ${dev}: "
+
+for f in ${thefiles} ; do
+    case $f in
+    /etc )
+	echo  "Update all files in $f :"
+	srcs=`ls $f`
+	for i in $srcs ; do
+	    if [ -f /mnt${f}/${i}.gz ]; then
+		echo -n "$i ..."
+		gzip < $f/$i > /mnt${f}/${i}.gz
+	    fi
+	done
+	echo " Done."
+	;;
+
+    passwd|master.passwd)
+	mkdir -p /mnt/etc
+	ee /etc/master.passwd
+	pwd_mkdb /etc/master.passwd
+	gzip < /etc/master.passwd > /mnt/etc/master.passwd.gz
+	;;
+
+    /*)	# only absolute pathnames are ok
+	mkdir -p /mnt/etc /mnt/root
+	[ -f $f ] && ee $f && gzip < $f > /mnt${f}.gz
+        ;;
+
+    *)
+	echo "File $f not recognised, you must use an absolute pathname."
+	;;
+    esac
+done
+umount /mnt

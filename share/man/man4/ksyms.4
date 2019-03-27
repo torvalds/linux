@@ -1,0 +1,135 @@
+.\" Copyright (c) 2008-2009 Stacey Son <sson@FreeBSD.org>
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 2, 2017
+.Dt KSYMS 4
+.Os
+.Sh NAME
+.Nm ksyms
+.Nd kernel symbol table interface
+.Sh SYNOPSIS
+.Cd "device ksyms"
+.Sh DESCRIPTION
+The
+.Pa /dev/ksyms
+character device provides a read-only interface to a snapshot of the kernel
+symbol table.
+The in-kernel symbol manager is designed to be able to handle
+many types of symbols tables, however, only
+.Xr elf 5
+symbol tables are supported by this device.
+The ELF format image contains two
+sections: a symbol table and a corresponding string table.
+.Bl -tag -width indent -offset indent
+.It Dv Symbol Table
+The SYMTAB section contains the symbol table entries present in the current
+running kernel, including the symbol table entries of any loaded modules.
+The symbols are ordered by the kernel module load time starting with kernel file
+symbols first, followed by the first loaded module's symbols and so on.
+.It Dv String Table
+The STRTAB section contains the symbol name strings from the kernel and any
+loaded modules that the symbol table entries reference.
+.El
+.Pp
+Elf formatted symbol table data read from the
+.Pa /dev/ksyms
+file represents the state of the kernel at the time when the device is opened.
+Since
+.Pa /dev/ksyms
+has no text or data, most of the fields are initialized to NULL.
+The
+.Nm
+driver does not block the loading or unloading of modules into the kernel
+while the
+.Pa /dev/ksyms
+file is open but may contain stale data.
+.Sh FILES
+.Bl -tag -width /dev/ksymsX
+.It Pa /dev/ksyms
+.El
+.Sh ERRORS
+An
+.Xr open 2
+of
+.Pa /dev/ksyms
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The device is already open.
+A process must close
+.Pa /dev/ksyms
+before it can be opened again.
+.It Bq Er ENOMEM
+There is a resource shortage in the kernel.
+.It Bq Er ENXIO
+The driver was unsuccessful in creating a snapshot of the kernel symbol
+table.
+This may occur if the kernel was in the process of loading or
+unloading a module.
+.El
+.Sh SEE ALSO
+.Xr nlist 3 ,
+.Xr elf 5 ,
+.Xr kldload 8
+.Sh HISTORY
+A
+.Nm
+device exists in many different operating systems.
+This implementation is similar in function to the Solaris and NetBSD
+.Nm
+driver.
+.Pp
+The
+.Nm
+driver first appeared in
+.Fx 8.0
+to support
+.Xr lockstat 1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Stacey Son Aq Mt sson@FreeBSD.org .
+.Sh BUGS
+Because files can be dynamically linked into the kernel at any time the symbol
+information can vary.
+When you open the
+.Pa /dev/ksyms
+file, you have access to an ELF image which represents a snapshot of the state
+of the kernel symbol information at that instant in time.
+Keeping the device open does not block the loading or unloading of kernel
+modules.
+To get a new snapshot you must close and re-open the device.
+.Pp
+A process is only allowed to open the
+.Pa /dev/ksyms
+file once at a time.
+The process must close the
+.Pa /dev/ksyms
+before it is allowed to open it again.

@@ -1,0 +1,16 @@
+# $FreeBSD$
+# $OpenBSD: queue3,v 1.3 2006/10/07 04:48:01 mcbride Exp $
+# simple PRIQ example
+
+ext_if="lo0"
+
+altq on $ext_if priq bandwidth 10Mb queue { pri-low pri-med pri-high }
+queue pri-low priority 0
+queue pri-med priority 1 priq(default)
+queue pri-high priority 2
+
+pass out on $ext_if proto tcp from any to any port 22 \
+    queue(pri-med, pri-high)
+pass out on $ext_if proto tcp from any to any port 80 queue pri-med
+pass in  on $ext_if proto tcp from any to any port 80 queue pri-low
+

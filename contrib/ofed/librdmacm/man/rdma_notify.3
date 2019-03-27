@@ -1,0 +1,39 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_NOTIFY" 3 "2007-05-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_notify \- Notifies the librdmacm of an asynchronous event.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "int" rdma_notify
+.BI "(struct rdma_cm_id *" id ","
+.BI "enum ibv_event_type " event ");"
+.SH ARGUMENTS
+.IP "id" 12
+RDMA identifier.
+.IP "event" 12
+Asynchronous event.
+.SH "DESCRIPTION"
+Used to notify the librdmacm of asynchronous events that have occurred
+on a QP associated with the rdma_cm_id.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.  If errno is set to EISCONN
+(transport endpoint is already connected), this indicates that the 
+the underlying communication manager established the connection before
+the call to rdma_notify could be processed.  In this case, the error may
+safely be ignored.
+.SH "NOTES"
+Asynchronous events that occur on a QP are reported through the user's
+device event handler.  This routine is used to notify the librdmacm of
+communication events.  In most cases, use of this routine is not
+necessary, however if connection establishment is done out of band
+(such as done through Infiniband), it's possible to receive data on a
+QP that is not yet considered connected.  This routine forces the
+connection into an established state in this case in order to handle
+the rare situation where the connection never forms on its own.
+Calling this routine ensures the delivery of the RDMA_CM_EVENT_ESTABLISHED
+event to the application.
+Events that should be reported to the CM are: IB_EVENT_COMM_EST.
+.SH "SEE ALSO"
+rdma_connect(3), rdma_accept(3), rdma_listen(3)

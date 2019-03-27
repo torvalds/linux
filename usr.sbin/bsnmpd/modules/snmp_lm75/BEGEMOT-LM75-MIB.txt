@@ -1,0 +1,160 @@
+--
+-- Copyright (c) 2014 Luiz Otavio O Souza <loos@FreeBSD.org>
+-- All rights reserved.
+--
+-- Redistribution and use in source and binary forms, with or without
+-- modification, are permitted provided that the following conditions
+-- are met:
+-- 1. Redistributions of source code must retain the above copyright
+--    notice, this list of conditions and the following disclaimer.
+-- 2. Redistributions in binary form must reproduce the above copyright
+--    notice, this list of conditions and the following disclaimer in the
+--    documentation and/or other materials provided with the distribution.
+--
+-- THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+-- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-- ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+-- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+-- OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+-- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+-- LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+-- OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+-- SUCH DAMAGE.
+--
+-- $FreeBSD$
+--
+
+BEGEMOT-LM75-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE,
+    Counter64, Integer32
+	FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION, RowStatus
+	FROM SNMPv2-TC
+    begemot
+	FROM BEGEMOT-MIB;
+
+begemotLoos MODULE-IDENTITY
+    LAST-UPDATED "201402240000Z"
+    ORGANIZATION "FreeBSD"
+    CONTACT-INFO
+	    "		Luiz Otavio O Souza
+
+	     Postal:	N/A
+
+	     Fax:	N/A
+
+	     E-Mail:	loos@FreeBSD.org"
+    DESCRIPTION
+	    "The Begemot MIB for reading lm75 sensors data."
+    REVISION     "201402240000Z"
+    DESCRIPTION
+	    "Initial revision."
+    ::= { begemot 400 }
+
+begemotLm75Objects	OBJECT IDENTIFIER ::= { begemotLm75 1 }
+
+-- ---------------------------------------------------------- --
+-- Configuration parameters
+-- ---------------------------------------------------------- --
+
+lm75Sensor	OBJECT IDENTIFIER ::= { begemotlm75Objects 1 }
+
+lm75Sensors	OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of LM75 sensors in the system."
+    ::= { lm75Sensors 1 }
+
+-- ---------------------------------------------------------- --
+-- TempSensor Table
+-- ---------------------------------------------------------- --
+lm75SensorTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF Lm75SensorEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table containing information about all temperature sensors."
+    ::= { begemotLm75Objects 2 }
+
+loosTempSensorEntry OBJECT-TYPE
+    SYNTAX	Lm75SensorEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Table entry that describes one temperature sensor."
+    INDEX	{ lm75SensorIndex }
+    ::= { lm75SensorTable 1 }
+
+Lm75SensorEntry ::= SEQUENCE {
+    lm75SensorIndex			Integer32,
+    lm75SensorSysctlIndex		Integer32,
+    lm75SensorDesc			OCTET STRING,
+    lm75SensorLocation			OCTET STRING,
+    lm75SensorPnpInfo			OCTET STRING,
+    lm75SensorParent			OCTET STRING,
+    lm75SensorTemperature		Integer32
+}
+
+lm75SensorIndex OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"LM75 Sensor index."
+    ::= { lm75SensorEntry 1 }
+
+lm75SensorSysctlIndex OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"LM75 Sensor sysctl index."
+    ::= { lm75SensorEntry 2 }
+
+lm75SensorDesc OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"LM75 Sensor description."
+    ::= { lm75SensorEntry 3 }
+
+lm75SensorLocation OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"LM75 Sensor location."
+    ::= { lm75SensorEntry 4 }
+
+lm75SensorPnpInfo OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"LM75 Sensor pnp information."
+    ::= { lm75SensorEntry 5 }
+
+lm75SensorParent OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"LM75 Sensor parent bus."
+    ::= { lm75SensorEntry 6 }
+
+lm75SensorTemperature OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"LM75 Sensor temperature."
+    ::= { lm75SensorEntry 7 }
+
+END

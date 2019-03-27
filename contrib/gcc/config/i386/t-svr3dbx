@@ -1,0 +1,7 @@
+# gas 1.38.1 supporting dbx-in-coff requires a link script.
+
+svr3.ifile: $(srcdir)/config/i386/svr3.ifile
+	rm -f svr3.ifile; cp $(srcdir)/config/i386/svr3.ifile .
+
+svr3z.ifile: $(srcdir)/config/i386/svr3z.ifile
+	rm -f svr3z.ifile; cp $(srcdir)/config/i386/svr3z.ifile .

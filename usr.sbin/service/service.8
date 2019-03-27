@@ -1,0 +1,157 @@
+.\" Copyright (c) 2009 Douglas Barton
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 31, 2018
+.Dt SERVICE 8
+.Os
+.Sh NAME
+.Nm service
+.Nd "control (start/stop/etc.) or list system services"
+.Sh SYNOPSIS
+.Nm
+.Op Fl j Ar jail
+.Fl e
+.Nm
+.Op Fl j Ar jail
+.Fl R
+.Nm
+.Op Fl j Ar jail
+.Op Fl v
+.Fl l
+.Nm
+.Op Fl j Ar jail
+.Op Fl v
+.Fl r
+.Nm
+.Op Fl j Ar jail
+.Op Fl v
+.Ar script
+.Ar command
+.Sh DESCRIPTION
+The
+.Nm
+command is an easy interface to the rc.d system.
+Its primary purpose is to start and stop services provided
+by the rc.d scripts.
+When used for this purpose it will set the same restricted
+environment that is in use at boot time
+.Po
+see
+.Sx ENVIRONMENT
+.Pc .
+It can also be used to list
+the scripts using various criteria.
+.Pp
+The options are as follows:
+.Bl -tag -width F1
+.It Fl e
+List services that are enabled.
+The list of scripts to check is compiled using
+.Xr rcorder 8
+the same way that it is done in
+.Xr rc 8 ,
+then that list of scripts is checked for an
+.Qq rcvar
+assignment.
+If present the script is checked to see if it is enabled.
+.It Fl j Ar jail
+Perform the given actions under the named jail.
+The
+.Ar jail
+argument can be either a jail ID or a jail name.
+.It Fl l
+List all files in
+.Pa /etc/rc.d
+and the local startup directories.
+As described in
+.Xr rc.conf 5
+this is usually
+.Pa /usr/local/etc/rc.d .
+All files will be listed whether they are an actual
+rc.d script or not.
+.It Fl r
+Generate the
+.Xr rcorder 8
+as in
+.Fl e
+above, but list all of the files, not just what is enabled.
+.It Fl R
+Restart all enabled local services.
+.It Fl v
+Be slightly more verbose.
+.El
+.Sh ENVIRONMENT
+When used to run rc.d scripts the
+.Nm
+command sets
+.Ev HOME
+to
+.Pa /
+and
+.Ev PATH
+to
+.Pa /sbin:/bin:/usr/sbin:/usr/bin
+which is how they are set in
+.Pa /etc/rc
+at boot time.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+The following are examples of typical usage of the
+.Nm
+command:
+.Bd -literal -offset -ident
+service named status
+service -j dns named status
+service -rv
+.Ed
+.Pp
+The following programmable completion entry can be use in
+.Xr bash 1
+for the names of the rc.d scripts:
+.Bd -literal -offset -ident
+_service () {
+	local cur
+	cur=${COMP_WORDS[COMP_CWORD]}
+	COMPREPLY=( $( compgen -W '$( service -l )' -- $cur ) )
+	return 0
+}
+complete -F _service service
+.Ed
+.Sh SEE ALSO
+.Xr bash 1 Pq Pa ports/shells/bash ,
+.Xr rc.conf 5 ,
+.Xr rc 8 ,
+.Xr rcorder 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 7.3 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Douglas Barton Aq Mt dougb@FreeBSD.org .

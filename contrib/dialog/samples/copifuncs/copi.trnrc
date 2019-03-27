@@ -1,0 +1,13 @@
+TRNINIT="-x -e -X -F\" :> \""
+HIDELINE="^X-FTN"
+NEWSHEADER="Newsgroups: %(%F=^\$?%C:%F)
+Subject: %(%S=^\$?%\"\n\nSubject: \":%S)
+%(%R=^\$?:References: %R
+)Sender:
+Distribution: %(%i=^\$?%\"\nDistribution: \":%D)
+Organization: %o
+X-Comment-To: %f\n\n"
+ATTRIBUTION="%f writes:\n"
+YOUSAID="In article %i \n of newsgroup %C you write about \"%s\":\n"
+MAILCALL="(New Mail)"
+export NEWSHEADER HIDELINE TRNINIT ATTRIBUTION MAILCALL YOUSAID EDITOR

@@ -1,0 +1,98 @@
+.\" Copyright (c) 2008 Cisco systems
+.\"	Author Julian Elischer.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 20, 2008
+.Dt SETFIB 1
+.Os
+.Sh NAME
+.Nm setfib
+.Nd execute a utility with an altered default network view
+.Sh SYNOPSIS
+.Nm
+.Op Fl F
+.Ar fib
+.Ar utility
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+utility runs another
+.Ar utility
+with a different routing table.
+The table number
+.Ar fib
+will be used by default for all sockets started by this
+process or descendants.
+.Sh ENVIRONMENT
+The
+.Ev PATH
+environment variable is used to locate the requested
+.Ar utility
+if the name contains no
+.Ql /
+characters.
+.Sh EXIT STATUS
+If
+.Ar utility
+is invoked, the exit status of
+.Nm
+is the exit status of
+.Ar utility .
+.Pp
+An exit status of 126 indicates
+.Ar utility
+was found, but could not be executed.
+An exit status of 127 indicates
+.Ar utility
+could not be found.
+.Sh EXAMPLES
+Run
+.Xr netstat 1
+to view the second routing table.
+.Pp
+.Dl "setfib -F 1 netstat -rn"
+or
+.Dl "setfib 1 netstat -rn"
+or
+.Dl "setfib -1 netstat -rn"
+.Sh SEE ALSO
+.Xr setfib 2 ,
+.Xr setsockopt 2
+.Sh STANDARDS
+The
+.Nm
+utility is a
+.Fx
+specific extension.
+However, many
+.Ux Ns - Ns
+like systems
+have an equivalent function.
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 7.1 .

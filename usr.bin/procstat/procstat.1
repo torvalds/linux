@@ -1,0 +1,722 @@
+.\"-
+.\" Copyright (c) 2007-2009 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 4, 2019
+.Dt PROCSTAT 1
+.Os
+.Sh NAME
+.Nm procstat
+.Nd get detailed process information
+.Sh SYNOPSIS
+.Nm
+.Op Fl -libxo
+.Op Fl h
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl w Ar interval
+.Ar command
+.Op Ar pid ... | Ar core ...
+.Nm
+.Op Fl -libxo
+.Fl a
+.Op Fl h
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl w Ar interval
+.Ar command
+.Nm
+.Op Fl -libxo
+.Op Fl h
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl w Ar interval
+.Oo
+.Fl b |
+.Fl c |
+.Fl e |
+.Fl f Oo Fl C Oc |
+.Fl i Oo Fl n Oc |
+.Fl j Oo Fl n Oc |
+.Fl k Oo Fl k Oc |
+.Fl l |
+.Fl r Oo Fl H Oc |
+.Fl s |
+.Fl S |
+.Fl t |
+.Fl v |
+.Fl x
+.Oc
+.Op Ar pid ... | Ar core ...
+.Nm
+.Op Fl -libxo
+.Fl a
+.Op Fl h
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl w Ar interval
+.Oo
+.Fl b |
+.Fl c |
+.Fl e |
+.Fl f Oo Fl C Oc |
+.Fl i Oo Fl n Oc |
+.Fl j Oo Fl n Oc |
+.Fl k Oo Fl k Oc |
+.Fl l |
+.Fl r Oo Fl H Oc |
+.Fl s |
+.Fl S |
+.Fl t |
+.Fl v |
+.Fl x
+.Oc
+.Nm
+.Op Fl -libxo
+.Fl L
+.Op Fl h
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl w Ar interval
+.Ar core ...
+.Sh DESCRIPTION
+.Nm
+utility displays detailed information about the processes identified by the
+.Ar pid
+arguments, or if the
+.Fl a
+flag is used, all processes.
+It can also display information extracted from a process core file, if
+the core file is specified as the argument.
+.Pp
+If the
+.Fl -libxo
+flag is specified the output is generated via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
+.Pp
+The following commands are available:
+.Bl -tag -width indent
+.It Ar basic
+Print basic process statistics (this is the default).
+.It Ar binary | Fl b
+Display binary information for the process.
+.Pp
+Substring commands are accepted.
+.It Ar argument(s) | Fl c
+Display command line arguments for the process.
+.Pp
+Substring commands are accepted.
+.It Ar environment | Fl e
+Display environment variables for the process.
+.Pp
+Substring commands are accepted.
+.It Ar file(s) | Ar fd(s) | Fl f
+Display file descriptor information for the process.
+.Pp
+If the
+.Fl C
+subcommand flag is used then additional capability information is printed.
+.It Ar signal(s) | Fl i
+Display signal pending and disposition information for the process.
+.Pp
+If the
+.Fl n
+subcommand option is used, the signal numbers are shown instead of signal
+names.
+.Pp
+Substring commands are accepted.
+.It Ar tsignal(s) | Fl j
+Display signal pending and blocked information for the process's threads.
+.Pp
+If the
+.Fl n
+subcommand option is used, the signal numbers are shown instead of signal
+names.
+.Pp
+Substring commands are accepted.
+.It Ar kstack | Fl k
+Display the stacks of kernel threads in the process, excluding stacks of
+threads currently running on a CPU and threads with stacks swapped to disk.
+.Pp
+If the
+.Fl v
+subcommand option is used (or the command flag is repeated), function
+offsets as well as function names are printed.
+.It Ar rlimit | Fl l
+Display resource limits for the process.
+.It Ar ptlwpinfo | Fl L
+Display LWP info for the process pertaining to its signal driven exit.
+.It Ar rusage | Fl r
+Display resource usage information for the process.
+.Pp
+If the
+.Fl v
+.Pq or Fl H
+subcommand flag
+is used then per-thread statistics are printed, rather than per-process
+statistics.
+The second field in the table will list the thread ID to which the row of
+information corresponds.
+.It Ar credential(s) | Fl s
+Display security credential information for the process.
+.Pp
+Substring commands are accepted.
+.It Ar cpuset | Ar cs | Fl S
+Display the cpuset information for the thread.
+.It Ar thread(s) | Fl t
+Display thread information for the process.
+.It Ar vm | Fl v
+Display virtual memory mappings for the process.
+.It Ar auxv | Fl x
+Display ELF auxiliary vector for the process.
+.El
+.Pp
+All options generate output in the format of a table, the first field of
+which is the process ID to which the row of information corresponds.
+The
+.Fl h
+flag may be used to suppress table headers.
+.Pp
+The
+.Fl w
+flag may be used to specify a wait interval at which to repeat the printing
+of the requested process information.
+If the
+.Fl w
+flag is not specified, the output will not repeat.
+.Pp
+Information for VM, file descriptor, and cpuset options is available
+only to the owner of a process or the superuser.
+A cpuset value displayed as -1 means that the information is either invalid
+or not available.
+.Ss Binary Information
+Display the process ID, command, and path to the process binary:
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It COMM
+command
+.It OSREL
+osreldate for process binary
+.It PATH
+path to process binary (if available)
+.El
+.Ss Command Line Arguments
+Display the process ID, command, and command line arguments:
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It COMM
+command
+.It ARGS
+command line arguments (if available)
+.El
+.Ss Environment Variables
+Display the process ID, command, and environment variables:
+.Pp
+.Bl -tag -width "ENVIRONMENT" -compact
+.It PID
+process ID
+.It COMM
+command
+.It ENVIRONMENT
+environment variables (if available)
+.El
+.Ss File Descriptors
+Display detailed information about each file descriptor referenced by a
+process, including the process ID, command, file descriptor number, and
+per-file descriptor object information, such as object type and file system
+path.
+By default, the following information will be printed:
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It COMM
+command
+.It FD
+file descriptor number or cwd/root/jail
+.It T
+file descriptor type
+.It V
+vnode type
+.It FLAGS
+file descriptor flags
+.It REF
+file descriptor reference count
+.It OFFSET
+file descriptor offset
+.It PRO
+network protocol
+.It NAME
+file path or socket addresses (if available)
+.El
+.Pp
+The following file descriptor types may be displayed:
+.Pp
+.Bl -tag -width X -compact
+.It c
+crypto
+.It e
+POSIX semaphore
+.It f
+fifo
+.It h
+shared memory
+.It k
+kqueue
+.It m
+message queue
+.It P
+process descriptor
+.It p
+pipe
+.It s
+socket
+.It t
+pseudo-terminal master
+.It v
+vnode
+.El
+.Pp
+The following vnode types may be displayed:
+.Pp
+.Bl -tag -width X -compact
+.It -
+not a vnode
+.It b
+block device
+.It c
+character device
+.It d
+directory
+.It f
+fifo
+.It l
+symbolic link
+.It r
+regular file
+.It s
+socket
+.It x
+revoked device
+.El
+.Pp
+The following file descriptor flags may be displayed:
+.Pp
+.Bl -tag -width X -compact
+.It r
+read
+.It w
+write
+.It a
+append
+.It s
+async
+.It f
+fsync
+.It n
+non-blocking
+.It d
+direct I/O
+.It l
+lock held
+.El
+.Pp
+If the
+.Fl C
+flag is specified, the vnode type, reference count, and offset fields will be
+omitted, and a new capabilities field will be included listing capabilities,
+as described in
+.Xr cap_rights_limit 2 ,
+present for each capability descriptor.
+.Pp
+The following network protocols may be displayed (grouped by address family):
+.Pp
+.Dv AF_INET ,
+.Dv AF_INET6
+.Pp
+.Bl -tag -width indent -compact
+.It ICM
+.Dv IPPROTO_ICMP ;
+see
+.Xr icmp 4 .
+.It IPD
+.Dv IPPROTO_DIVERT ;
+see
+.Xr divert 4 .
+.It IP?
+unknown protocol.
+.It RAW
+.Dv IPPROTO_RAW ;
+see
+.Xr ip 4 .
+.It SCT
+.Dv IPPROTO_SCTP ;
+see
+.Xr sctp 4 .
+.It TCP
+.Dv IPPROTO_TCP ;
+see
+.Xr tcp 4 .
+.It UDP
+.Dv IPPROTO_UDP ;
+see
+.Xr udp 4 .
+.El
+.Pp
+.Dv AF_LOCAL
+.Pp
+.Bl -tag -width indent -compact
+.It UDD
+.Dv IPPROTO_UDP ;
+see
+.Xr udp 4 .
+.It UDS
+.Dv IPPROTO_TCP ;
+see
+.Xr tcp 4 .
+.It UD?
+unknown protocol.
+.El
+.Pp
+.Bl -tag -width indent -compact
+.It ?
+unknown address family.
+.El
+.Ss Signal Disposition Information
+Display signal pending and disposition for a process:
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It COMM
+command
+.It SIG
+signal name
+.It FLAGS
+process signal disposition details, three symbols
+.Bl -tag -width X -compact
+.It P
+if signal is pending in the global process queue; - otherwise.
+.It I
+if signal delivery disposition is
+.Dv SIG_IGN;
+- otherwise.
+.It C
+if the signal will be caught; - otherwise.
+.El
+.El
+.Pp
+If
+.Fl n
+switch is given, the signal numbers are shown instead of signal names.
+.Ss Thread Signal Information
+Display signal pending and blocked for a process's threads:
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It TID
+thread ID
+.It COMM
+command
+.It SIG
+signal name
+.It FLAGS
+thread signal delivery status, two symbols
+.Bl -tag -width X -compact
+.It P
+if signal is pending for the thread, - otherwise
+.It B
+if signal is blocked in the thread signal mask, - if not blocked
+.El
+.El
+.Pp
+The
+.Fl n
+switch has the same effect as for the
+.Fl i
+switch: the signal numbers are shown instead of signal names.
+.Ss Kernel Thread Stacks
+Display kernel thread stacks for a process, allowing further interpretation
+of thread wait channels.
+If the
+.Fl k
+flag is repeated, function offsets, not just function names, are printed.
+.Pp
+This feature requires
+.Cd "options STACK"
+or
+.Cd "options DDB"
+to be compiled into the kernel.
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It TID
+thread ID
+.It COMM
+command
+.It TDNAME
+thread name
+.It KSTACK
+kernel thread call stack
+.El
+.Ss Resource Limits
+Display resource limits for a process:
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It COMM
+command
+.It RLIMIT
+resource limit name
+.It SOFT
+soft limit
+.It HARD
+hard limit
+.El
+.Ss Resource Usage
+Display resource usage for a process.
+If the
+.Fl H
+flag is specified,
+resource usage for individual threads is displayed instead.
+.Pp
+.Bl -tag -width "RESOURCE" -compact
+.It PID
+process ID
+.It TID
+thread ID
+.Po
+if
+.Fl H
+is specified
+.Pc
+.It COMM
+command
+.It RESOURCE
+resource name
+.It VALUE
+current usage
+.El
+.Ss Security Credentials
+Display process credential information:
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It COMM
+command
+.It EUID
+effective user ID
+.It RUID
+real user ID
+.It SVUID
+saved user ID
+.It EGID
+effective group ID
+.It RGID
+real group ID
+.It SVGID
+saved group ID
+.It UMASK
+file creation mode mask
+.It FLAGS
+credential flags
+.It GROUPS
+group set
+.El
+.Pp
+The following credential flags may be displayed:
+.Pp
+.Bl -tag -width X -compact
+.It C
+capability mode
+.El
+.Ss Thread Information
+Display per-thread information, including process ID, per-thread ID, name,
+CPU, and execution state:
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It TID
+thread ID
+.It COMM
+command
+.It TDNAME
+thread name
+.It CPU
+current or most recent CPU run on
+.It PRI
+thread priority
+.It STATE
+thread state
+.It WCHAN
+thread wait channel
+.El
+.Ss Virtual Memory Mappings
+Display process virtual memory mappings, including addresses, mapping
+meta-data, and mapped object information:
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It START
+starting address of mapping
+.It END
+ending address of mapping
+.It PRT
+protection flags
+.It RES
+resident pages
+.It PRES
+private resident pages
+.It REF
+reference count
+.It SHD
+shadow page count
+.It FLAG
+mapping flags
+.It TP
+VM object type
+.El
+.Pp
+The following protection flags may be displayed:
+.Pp
+.Bl -tag -width X -compact
+.It r
+read
+.It w
+write
+.It x
+execute
+.El
+.Pp
+The following VM object types may be displayed:
+.Pp
+.Bl -tag -width XX -compact
+.It --
+none
+.It dd
+dead
+.It df
+default
+.It dv
+device
+.It md
+device with managed pages
+.Pq GEM/TTM
+.It ph
+physical
+.It sg
+scatter/gather
+.It sw
+swap
+.It vn
+vnode
+.El
+.Pp
+The following mapping flags may be displayed:
+.Pp
+.Bl -tag -width X -compact
+.It C
+copy-on-write
+.It N
+needs copy
+.It S
+one or more superpage mappings are used
+.It D
+grows down (top-down stack)
+.It U
+grows up (bottom-up stack)
+.It W
+pages in this range are locked by
+.Xr mlock 2
+or
+.Xr mlockall 2
+.El
+.Ss ELF Auxiliary Vector
+Display ELF auxiliary vector values:
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It COMM
+command
+.It AUXV
+auxiliary vector name
+.It VALUE
+auxiliary vector value
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr ps 1 ,
+.Xr sockstat 1 ,
+.Xr cap_enter 2 ,
+.Xr cap_rights_limit 2 ,
+.Xr mlock 2 ,
+.Xr mlockall 2 ,
+.Xr libprocstat 3 ,
+.Xr libxo 3 ,
+.Xr signal 3 ,
+.Xr xo_parse_args 3 ,
+.Xr ddb 4 ,
+.Xr divert 4 ,
+.Xr icmp 4 ,
+.Xr ip 4 ,
+.Xr sctp 4 ,
+.Xr tcp 4 ,
+.Xr udp 4 ,
+.Xr stack 9
+.Sh AUTHORS
+.An Robert N M Watson Aq Mt rwatson@FreeBSD.org .
+.br
+.Xr libxo 3
+support was added by
+.An -nosplit
+Allan Jude
+.Aq Mt allanjude@FreeBSD.org .
+.Sh BUGS
+The display of open file or memory mapping pathnames is implemented using the
+kernel's name cache.
+If a file system does not use the name cache, or the path to a file is not in
+the cache, a path will not be displayed.
+.Pp
+.Nm
+currently supports extracting data only from a live kernel, and not from
+kernel crash dumps.

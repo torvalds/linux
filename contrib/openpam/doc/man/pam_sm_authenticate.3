@@ -1,0 +1,76 @@
+.\" Generated from pam_sm_authenticate.c by gendoc.pl
+.\" $OpenPAM: pam_sm_authenticate.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_SM_AUTHENTICATE 3
+.Os
+.Sh NAME
+.Nm pam_sm_authenticate
+.Nd service module implementation for pam_authenticate
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.In security/pam_modules.h
+.Ft "int"
+.Fn pam_sm_authenticate "pam_handle_t *pamh" "int flags" "int argc" "const char **argv"
+.Sh DESCRIPTION
+The
+.Fn pam_sm_authenticate
+function is the service module's
+implementation of the
+.Xr pam_authenticate 3
+API function.
+.Sh RETURN VALUES
+The
+.Fn pam_sm_authenticate
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_ABORT
+General failure.
+.It Bq Er PAM_AUTHINFO_UNAVAIL
+Authentication information is unavailable.
+.It Bq Er PAM_AUTH_ERR
+Authentication error.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_CRED_INSUFFICIENT
+Insufficient credentials.
+.It Bq Er PAM_IGNORE
+Ignore this module.
+.It Bq Er PAM_MAXTRIES
+Maximum number of tries exceeded.
+.It Bq Er PAM_PERM_DENIED
+Permission denied.
+.It Bq Er PAM_SERVICE_ERR
+Error in service module.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.It Bq Er PAM_USER_UNKNOWN
+Unknown user.
+.El
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_authenticate 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The
+.Fn pam_sm_authenticate
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

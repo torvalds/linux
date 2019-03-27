@@ -1,0 +1,53 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_set_default_ctlog_list_file, SSL_CTX_set_ctlog_list_file -
+load a Certificate Transparency log list from a file
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_CTX_set_default_ctlog_list_file(SSL_CTX *ctx);
+ int SSL_CTX_set_ctlog_list_file(SSL_CTX *ctx, const char *path);
+
+=head1 DESCRIPTION
+
+SSL_CTX_set_default_ctlog_list_file() loads a list of Certificate Transparency
+(CT) logs from the default file location, "ct_log_list.cnf", found in the
+directory where OpenSSL is installed.
+
+SSL_CTX_set_ctlog_list_file() loads a list of CT logs from a specific path.
+See L<CTLOG_STORE_new(3)> for the file format.
+
+=head1 NOTES
+
+These functions will not clear the existing CT log list - it will be appended
+to. To replace the existing list, use L<SSL_CTX_set0_ctlog_store> first.
+
+If an error occurs whilst parsing a particular log entry in the file, that log
+entry will be skipped.
+
+=head1 RETURN VALUES
+
+SSL_CTX_set_default_ctlog_list_file() and SSL_CTX_set_ctlog_list_file()
+return 1 if the log list is successfully loaded, and 0 if an error occurs. In
+the case of an error, the log list may have been partially loaded.
+
+=head1 SEE ALSO
+
+L<ssl(7)>,
+L<SSL_CTX_set_ct_validation_callback(3)>,
+L<CTLOG_STORE_new(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

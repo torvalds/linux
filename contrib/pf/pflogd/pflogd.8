@@ -1,0 +1,237 @@
+.\"	$OpenBSD: pflogd.8,v 1.37 2008/10/22 08:16:49 henning Exp $
+.\"
+.\" Copyright (c) 2001 Can Erkin Acar.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 11, 2018
+.Dt PFLOGD 8
+.Os
+.Sh NAME
+.Nm pflogd
+.Nd packet filter logging daemon
+.Sh SYNOPSIS
+.Nm pflogd
+.Bk -words
+.Op Fl \&Dx
+.Op Fl d Ar delay
+.Op Fl f Ar filename
+.Op Fl i Ar interface
+.Op Fl s Ar snaplen
+.Op Ar expression
+.Ek
+.Sh DESCRIPTION
+.Nm
+is a background daemon which reads packets logged by
+.Xr pf 4
+to a
+.Xr pflog 4
+interface, normally
+.Pa pflog0 ,
+and writes the packets to a logfile (normally
+.Pa /var/log/pflog )
+in
+.Xr tcpdump 1
+binary format.
+These logs can be reviewed later using the
+.Fl r
+option of
+.Xr tcpdump 1 ,
+hopefully offline in case there are bugs in the packet parsing code of
+.Xr tcpdump 1 .
+.Pp
+.Nm
+closes and then re-opens the log file when it receives
+.Dv SIGHUP ,
+permitting
+.Xr newsyslog 8
+to rotate logfiles automatically.
+.Dv SIGALRM
+causes
+.Nm
+to flush the current logfile buffers to the disk, thus making the most
+recent logs available.
+The buffers are also flushed every
+.Ar delay
+seconds.
+.Pp
+If the log file contains data after a restart or a
+.Dv SIGHUP ,
+new logs are appended to the existing file.
+If the existing log file was created with a different snaplen,
+.Nm
+temporarily uses the old snaplen to keep the log file consistent.
+.Pp
+.Nm
+tries to preserve the integrity of the log file against I/O errors.
+Furthermore, integrity of an existing log file is verified before
+appending.
+If there is an invalid log file or an I/O error, the log file is moved
+out of the way and a new one is created.
+If a new file cannot be created, logging is suspended until a
+.Dv SIGHUP
+or a
+.Dv SIGALRM
+is received.
+.Pp
+.Nm
+will also log the pcap statistics for the
+.Xr pflog 4
+interface to syslog when a
+.Dv SIGUSR1
+is received.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl D
+Debugging mode.
+.Nm
+does not disassociate from the controlling terminal.
+.It Fl d Ar delay
+Time in seconds to delay between automatic flushes of the file.
+This may be specified with a value between 5 and 3600 seconds.
+If not specified, the default is 60 seconds.
+.It Fl f Ar filename
+Log output filename.
+Default is
+.Pa /var/log/pflog .
+.It Fl i Ar interface
+Specifies the
+.Xr pflog 4
+interface to use.
+By default,
+.Nm
+will use
+.Ar pflog0 .
+.It Fl p Ar pidfile
+Writes a file containing the process ID of the program to
+.Pa /var/run .
+The file name has the form
+.Ao Ar pidfile Ac Ns .pid .
+The default is
+.Ar pflogd .
+.It Fl s Ar snaplen
+Analyze at most the first
+.Ar snaplen
+bytes of data from each packet rather than the default of 116.
+The default of 116 is adequate for IP, ICMP, TCP, and UDP headers but may
+truncate protocol information for other protocols.
+Other file parsers may desire a higher snaplen.
+.It Fl x
+Check the integrity of an existing log file, and return.
+.It Ar expression
+Selects which packets will be dumped, using the regular language of
+.Xr tcpdump 1 .
+.El
+.Sh FILES
+.Bl -tag -width /var/run/pflogd.pid -compact
+.It Pa /var/run/pflogd.pid
+Process ID of the currently running
+.Nm .
+.It Pa /var/log/pflog
+Default log file.
+.El
+.Sh EXAMPLES
+Log specific tcp packets to a different log file with a large snaplen
+(useful with a log-all rule to dump complete sessions):
+.Bd -literal -offset indent
+# pflogd -s 1600 -f suspicious.log port 80 and host evilhost
+.Ed
+.Pp
+Log from another
+.Xr pflog 4
+interface, excluding specific packets:
+.Bd -literal -offset indent
+# pflogd -i pflog3 -f network3.log "not (tcp and port 23)"
+.Ed
+.Pp
+Display binary logs:
+.Bd -literal -offset indent
+# tcpdump -n -e -ttt -r /var/log/pflog
+.Ed
+.Pp
+Display the logs in real time (this does not interfere with the
+operation of
+.Nm ) :
+.Bd -literal -offset indent
+# tcpdump -n -e -ttt -i pflog0
+.Ed
+.Pp
+Tcpdump has been extended to be able to filter on the pfloghdr
+structure defined in
+.Aq Ar net/if_pflog.h .
+Tcpdump can restrict the output
+to packets logged on a specified interface, a rule number, a reason,
+a direction, an IP family or an action.
+.Pp
+.Bl -tag -width "ruleset authpf " -compact
+.It ip
+Address family equals IPv4.
+.It ip6
+Address family equals IPv6.
+.It ifname kue0
+Interface name equals "kue0".
+.It on kue0
+Interface name equals "kue0".
+.It ruleset authpf
+Ruleset name equals "authpf".
+.It rulenum 10
+Rule number equals 10.
+.It reason match
+Reason equals match.
+Also accepts "bad-offset", "fragment", "bad-timestamp", "short",
+"normalize", "memory", "congestion", "ip-option", "proto-cksum",
+"state-mismatch", "state-insert", "state-limit", "src-limit",
+and "synproxy".
+.It action pass
+Action equals pass.
+Also accepts "block".
+.It inbound
+The direction was inbound.
+.It outbound
+The direction was outbound.
+.El
+.Pp
+Display the logs in real time of inbound packets that were blocked on
+the wi0 interface:
+.Bd -literal -offset indent
+# tcpdump -n -e -ttt -i pflog0 inbound and action block and on wi0
+.Ed
+.Sh SEE ALSO
+.Xr pcap 3 ,
+.Xr pf 4 ,
+.Xr pflog 4 ,
+.Xr pf.conf 5 ,
+.Xr newsyslog 8 ,
+.Xr tcpdump 1
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Ox 3.0 .
+.Sh AUTHORS
+.Nm
+was written by
+.An Can Erkin Acar Aq canacar@openbsd.org .

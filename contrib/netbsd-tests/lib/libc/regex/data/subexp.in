@@ -1,0 +1,60 @@
+# subexpressions
+a(b)(c)d	-	abcd	abcd	b,c
+a(((b)))c	-	abc	abc	b,b,b
+a(b|(c))d	-	abd	abd	b,-
+a(b*|c|e)d	-	abbd	abbd	bb
+a(b*|c|e)d	-	acd	acd	c
+a(b*|c|e)d	-	ad	ad	@d
+a(b?)c		-	abc	abc	b
+a(b?)c		-	ac	ac	@c
+a(b+)c		-	abc	abc	b
+a(b+)c		-	abbbc	abbbc	bbb
+a(b*)c		-	ac	ac	@c
+(a|ab)(bc([de]+)f|cde)	-	abcdef	abcdef	a,bcdef,de
+# Begin FreeBSD
+a\(b\|c\)d	b	ab|cd	ab|cd	b|c
+# End FreeBSD
+# the regression tester only asks for 9 subexpressions
+a(b)(c)(d)(e)(f)(g)(h)(i)(j)k	-	abcdefghijk	abcdefghijk	b,c,d,e,f,g,h,i,j
+a(b)(c)(d)(e)(f)(g)(h)(i)(j)(k)l	-	abcdefghijkl	abcdefghijkl	b,c,d,e,f,g,h,i,j,k
+a([bc]?)c	-	abc	abc	b
+a([bc]?)c	-	ac	ac	@c
+a([bc]+)c	-	abc	abc	b
+a([bc]+)c	-	abcc	abcc	bc
+a([bc]+)bc	-	abcbc	abcbc	bc
+a(bb+|b)b	-	abb	abb	b
+a(bbb+|bb+|b)b	-	abb	abb	b
+a(bbb+|bb+|b)b	-	abbb	abbb	bb
+a(bbb+|bb+|b)bb	-	abbb	abbb	b
+(.*).*		-	abcdef	abcdef	abcdef
+(a*)*		-	bc	@b	@b
+
+# do we get the right subexpression when it is used more than once?
+a(b|c)*d	-	ad	ad	-
+a(b|c)*d	-	abcd	abcd	c
+a(b|c)+d	-	abd	abd	b
+a(b|c)+d	-	abcd	abcd	c
+a(b|c?)+d	-	ad	ad	@d
+a(b|c?)+d	-	abcd	abcd	@d
+a(b|c){0,0}d	-	ad	ad	-
+a(b|c){0,1}d	-	ad	ad	-
+a(b|c){0,1}d	-	abd	abd	b
+a(b|c){0,2}d	-	ad	ad	-
+a(b|c){0,2}d	-	abcd	abcd	c
+a(b|c){0,}d	-	ad	ad	-
+a(b|c){0,}d	-	abcd	abcd	c
+a(b|c){1,1}d	-	abd	abd	b
+a(b|c){1,1}d	-	acd	acd	c
+a(b|c){1,2}d	-	abd	abd	b
+a(b|c){1,2}d	-	abcd	abcd	c
+a(b|c){1,}d	-	abd	abd	b
+a(b|c){1,}d	-	abcd	abcd	c
+a(b|c){2,2}d	-	acbd	acbd	b
+a(b|c){2,2}d	-	abcd	abcd	c
+a(b|c){2,4}d	-	abcd	abcd	c
+a(b|c){2,4}d	-	abcbd	abcbd	b
+a(b|c){2,4}d	-	abcbcd	abcbcd	c
+a(b|c){2,}d	-	abcd	abcd	c
+a(b|c){2,}d	-	abcbd	abcbd	b
+a(b+|((c)*))+d	-	abd	abd	@d,@d,-
+a(b+|((c)*))+d	-	abcd	abcd	@d,@d,-

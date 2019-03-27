@@ -1,0 +1,187 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: menu.3x,v 1.21 2010/12/04 18:40:45 tom Exp $
+.TH menu 3X ""
+.SH NAME
+\fBmenu\fR \- curses extension for programming menus
+.SH SYNOPSIS
+\fB#include <menu.h>\fR
+.br
+.SH DESCRIPTION
+The \fBmenu\fR library provides terminal-independent facilities for composing
+menu systems on character-cell terminals.  The library includes: item routines,
+which create and modify menu items; and menu routines, which group items into
+menus, display menus on the screen, and handle interaction with the user.
+.PP
+The \fBmenu\fR library uses the \fBcurses\fR libraries, and a curses
+initialization routine such as \fBinitscr\fR must be called before using any of
+these functions.  To use the \fBmenu\fR library, link with the options
+\fB\-lmenu \-lcurses\fR.
+.
+.SS Current Default Values for Item Attributes
+.
+The \fBmenu\fR library maintains a default value for item attributes.  You can
+get or set this default by calling the appropriate \fBget_\fR or \fBset_\fR
+routine with a \fBNULL\fR item pointer.  Changing this default with a
+\fBset_\fR function affects future item creations, but does not change the
+rendering of items already created.
+.
+.SS Routine Name Index
+.
+The following table lists each \fBmenu\fR routine and the name of
+the manual page on which it is described.
+.
+.TS
+l l .
+\fBcurses\fR Routine Name	Manual Page Name
+=
+current_item	\fBmitem_current\fR(3X)
+free_item 	\fBmitem_new\fR(3X)
+free_menu 	\fBmenu_new\fR(3X)
+item_count	\fBmenu_items\fR(3X)
+item_description	\fBmitem_name\fR(3X)
+item_index	\fBmitem_current\fR(3X)
+item_init 	\fBmenu_hook\fR(3X)
+item_name 	\fBmitem_name\fR(3X)
+item_opts 	\fBmitem_opts\fR(3X)
+item_opts_off	\fBmitem_opts\fR(3X)
+item_opts_on	\fBmitem_opts\fR(3X)
+item_term 	\fBmenu_hook\fR(3X)
+item_userptr	\fBmitem_userptr\fR(3X)
+item_value	\fBmitem_value\fR(3X)
+item_visible	\fBmitem_visible\fR(3X)
+menu_back 	\fBmenu_attributes\fR(3X)
+menu_driver	\fBmenu_driver\fR(3X)
+menu_fore 	\fBmenu_attributes\fR(3X)
+menu_format	\fBmenu_format\fR(3X)
+menu_grey 	\fBmenu_attributes\fR(3X)
+menu_init 	\fBmenu_hook\fR(3X)
+menu_items	\fBmenu_items\fR(3X)
+menu_mark 	\fBmenu_mark\fR(3X)
+menu_opts 	\fBmenu_opts\fR(3X)
+menu_opts_off	\fBmenu_opts\fR(3X)
+menu_opts_on	\fBmenu_opts\fR(3X)
+menu_pad  	\fBmenu_attributes\fR(3X)
+menu_pattern	\fBmenu_pattern\fR(3X)
+menu_request_by_name	\fBmenu_requestname\fR(3X)
+menu_request_name	\fBmenu_requestname\fR(3X)
+menu_spacing	\fBmenu_spacing\fR(3X)
+menu_sub  	\fBmenu_win\fR(3X)
+menu_term 	\fBmenu_hook\fR(3X)
+menu_userptr	\fBmenu_userptr\fR(3X)
+menu_win  	\fBmenu_win\fR(3X)
+new_item  	\fBmitem_new\fR(3X)
+new_menu  	\fBmenu_new\fR(3X)
+pos_menu_cursor	\fBmenu_cursor\fR(3X)
+post_menu 	\fBmenu_post\fR(3X)
+scale_menu	\fBmenu_win\fR(3X)
+set_current_item	\fBmitem_current\fR(3X)
+set_item_init	\fBmenu_hook\fR(3X)
+set_item_opts	\fBmitem_opts\fR(3X)
+set_item_term	\fBmenu_hook\fR(3X)
+set_item_userptr	\fBmitem_userptr\fR(3X)
+set_item_value	\fBmitem_value\fR(3X)
+set_menu_back	\fBmenu_attributes\fR(3X)
+set_menu_fore	\fBmenu_attributes\fR(3X)
+set_menu_format	\fBmenu_format\fR(3X)
+set_menu_grey	\fBmenu_attributes\fR(3X)
+set_menu_init	\fBmenu_hook\fR(3X)
+set_menu_items	\fBmenu_items\fR(3X)
+set_menu_mark	\fBmenu_mark\fR(3X)
+set_menu_opts	\fBmitem_opts\fR(3X)
+set_menu_pad	\fBmenu_attributes\fR(3X)
+set_menu_pattern	\fBmenu_pattern\fR(3X)
+set_menu_spacing	\fBmenu_spacing\fR(3X)
+set_menu_sub	\fBmenu_win\fR(3X)
+set_menu_term	\fBmenu_hook\fR(3X)
+set_menu_userptr	\fBmenu_userptr\fR(3X)
+set_menu_win	\fBmenu_win\fR(3X)
+set_top_row	\fBmitem_current\fR(3X)
+top_row   	\fBmitem_current\fR(3X)
+unpost_menu	\fBmenu_post\fR(3X)
+.TE
+.SH RETURN VALUE
+Routines that return pointers return \fBNULL\fR on error.  Routines that return
+an integer return one of the following error codes:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_BAD_STATE
+Routine was called from an initialization or termination function.
+.TP 5
+.B E_NO_MATCH
+Character failed to match.
+.TP 5
+.B E_NO_ROOM
+Menu is too large for its window.
+.TP 5
+.B E_NOT_CONNECTED
+No items are connected to the menu.
+.TP 5
+.B E_NOT_POSTED
+The menu has not been posted.
+.TP 5
+.B E_NOT_SELECTABLE
+The designated item cannot be selected.
+.TP 5
+.B E_POSTED
+The menu is already posted.
+.TP 5
+.B E_REQUEST_DENIED
+The menu driver could not process the request.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.TP 5
+.B E_UNKNOWN_COMMAND
+The menu driver code saw an unknown request code.
+.SH SEE ALSO
+\fBcurses\fR(3X) and related pages whose names begin "menu_" for detailed
+descriptions of the entry points.
+.SH NOTES
+The header file \fB<menu.h>\fR automatically includes the header files
+\fB<curses.h>\fR and \fB<eti.h>\fR.
+.PP
+In your library list, libmenu.a should be before libncurses.a; that is,
+you want to say `\-lmenu \-lncurses', not the other way around (which would
+usually give a link-error).
+.SH PORTABILITY
+These routines emulate the System V menu library.  They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.  Manual pages and adaptation for ncurses by Eric
+S. Raymond.
+.SH SEE ALSO
+This describes \fBncurses\fR
+version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).

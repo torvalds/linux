@@ -1,0 +1,488 @@
+.\" Copyright (c) 2015-2016 Landon Fuller <landonf@FreeBSD.org>
+.\" Copyright (c) 2017 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Portions of this documentation were written by Landon Fuller
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 9, 2017
+.Dt BHND_EROM 9
+.Os
+.Sh NAME
+.Nm bhnd_erom ,
+.Nm bhnd_erom_alloc ,
+.Nm bhnd_erom_dump ,
+.Nm bhnd_erom_fini_static ,
+.Nm bhnd_erom_free ,
+.Nm bhnd_erom_free_core_table ,
+.Nm bhnd_erom_get_core_table ,
+.Nm bhnd_erom_init_static ,
+.Nm bhnd_erom_io ,
+.Nm bhnd_erom_io_fini ,
+.Nm bhnd_erom_io_map ,
+.Nm bhnd_erom_io_read ,
+.Nm bhnd_erom_iobus_init ,
+.Nm bhnd_erom_iores_new ,
+.Nm bhnd_erom_lookup_core ,
+.Nm bhnd_erom_lookup_core_addr ,
+.Nm bhnd_erom_probe ,
+.Nm bhnd_erom_probe_driver_classes
+.Nd BHND device enumeration table parsing
+.Sh SYNOPSIS
+.In dev/bhnd/bhnd.h
+.In dev/bhnd/bhnd_erom.h
+.\"
+.Vt typedef struct bhnd_erom bhnd_erom_t ;
+.Vt typedef struct kobj_class bhnd_erom_class_t ;
+.Vt typedef struct bhnd_erom_static bhnd_erom_static_t ;
+.Ft int
+.Fo bhnd_erom_probe
+.Fa "bhnd_erom_class_t *cls"
+.Fa "struct bhnd_erom_io *eio"
+.Fa "const struct bhnd_chipid *hint"
+.Fa "struct bhnd_chipid *cid"
+.Fc
+.Ft bhnd_erom_class_t *
+.Fo bhnd_erom_probe_driver_classes
+.Fa "devclass_t bus_devclass"
+.Fa "struct bhnd_erom_io *eio"
+.Fa "const struct bhnd_chipid *hint"
+.Fa "struct bhnd_chipid *cid"
+.Fc
+.Ft bhnd_erom_t *
+.Fo bhnd_erom_alloc
+.Fa "bhnd_erom_class_t *cls"
+.Fa "const struct bhnd_chipid *cid"
+.Fa "struct bhnd_erom_io *eio"
+.Fc
+.Ft void
+.Fo bhnd_erom_free
+.Fa "bhnd_erom_t *erom"
+.Fc
+.Ft int
+.Fo bhnd_erom_init_static
+.Fa "bhnd_erom_class_t *cls"
+.Fa "bhnd_erom_t *erom"
+.Fa "size_t esize"
+.Fa "const struct bhnd_chipid *cid"
+.Fa "struct bhnd_erom_io *eio"
+.Fc
+.Ft void
+.Fo bhnd_erom_fini_static
+.Fa "bhnd_erom_t *erom"
+.Fc
+.Ft int
+.Fo bhnd_erom_dump
+.Fa "bhnd_erom_t *erom"
+.Fc
+.Ft int
+.Fo bhnd_erom_get_core_table
+.Fa "bhnd_erom_t *erom"
+.Fa "struct bhnd_core_info **cores"
+.Fa "u_int *num_cores"
+.Fc
+.Ft void
+.Fo bhnd_erom_free_core_table
+.Fa "bhnd_erom_t *erom"
+.Fa "struct bhnd_core_info *cores"
+.Fc
+.Ft int
+.Fo bhnd_erom_lookup_core
+.Fa "bhnd_erom_t *erom"
+.Fa "const struct bhnd_core_match *desc"
+.Fa "struct bhnd_core_info *core"
+.Fc
+.Ft int
+.Fo bhnd_erom_lookup_core_addr
+.Fa "bhnd_erom_t *erom"
+.Fa "const struct bhnd_core_match *desc"
+.Fa "bhnd_port_type type"
+.Fa "u_int port"
+.Fa "u_int region"
+.Fa "struct bhnd_core_info *core"
+.Fa "bhnd_addr_t *addr"
+.Fa "bhnd_size_t *size"
+.Fc
+.\"
+.Ss Bus Space I/O
+.Ft struct bhnd_erom_io *
+.Fo bhnd_erom_iores_new
+.Fa "device_t dev"
+.Fa "int rid"
+.Fc
+.Ft int
+.Fo bhnd_erom_iobus_init
+.Fa "struct bhnd_erom_iobus *iobus"
+.Fa "bhnd_addr_t addr"
+.Fa "bhnd_size_t size"
+.Fa "bus_space_tag_t bst"
+.Fa "bus_space_handle_t bsh"
+.Fc
+.Ft void
+.Fo bhnd_erom_io_fini
+.Fa "struct bhnd_erom_io *eio"
+.Fc
+.Ft int
+.Fo bhnd_erom_io_map
+.Fa "struct bhnd_erom_io *eio"
+.Fa "bhnd_addr_t addr"
+.Fa "bhnd_size_t size"
+.Fc
+.Ft uint32_t
+.Fo bhnd_erom_io_read
+.Fa "struct bhnd_erom_io *eio"
+.Fa "bhnd_size_t offset"
+.Fa "u_int width"
+.Fc
+.In dev/bhnd/bhnd_eromvar.h
+.Bd -literal
+struct bhnd_erom_io {
+	bhnd_erom_io_map_t	*map;
+	bhnd_erom_io_read_t	*read;
+	bhnd_erom_io_fini_t	*fini;
+};
+.Ed
+.Ft typedef int
+.Fo \*(lpbhnd_erom_io_map_t\*(rp
+.Fa "struct bhnd_erom_io *eio"
+.Fa "bhnd_addr_t addr"
+.Fa "bhnd_size_t size"
+.Fc
+.Ft typedef uint32_t
+.Fo \*(lpbhnd_erom_io_read_t\*(rp
+.Fa "struct bhnd_erom_io *eio"
+.Fa "bhnd_size_t offset"
+.Fa "u_int width"
+.Fc
+.Ft typedef void
+.Fo "\*(lpbhnd_erom_io_fini_t\*(rp
+.Fa "struct bhnd_erom_io *eio"
+.Fc
+.\"
+.Sh DESCRIPTION
+The
+.Nm
+framework provides a common parser interface to the BHND device enumeration
+table formats supported by
+.Xr bhnd 4
+bus drivers.
+.Pp
+The
+.Fn bhnd_erom_probe
+function is used to identify a
+.Xr bhnd 4
+bus device and determine whether the erom class
+.Fa cls
+is capable of parsing its device enumeration table.
+If successful, the probed chip identification is written to the location
+pointed to by
+.Fa cid .
+.Pp
+A pointer to a bus I/O instance mapping the device registers of the first
+hardware core must be provided using the
+.Fa eio
+argument.
+The registers can be mapped using
+.Xr bhnd_erom_io_map 9 .
+.Pp
+On devices that do not provide standard
+.Xr bhnd_chipc 4
+chip identification registers via the first hardware core, a pointer to chip
+information for the device must be specified using the
+.Fa hint
+argument.
+Otherwise, the
+.Fa hint
+argument should be
+.Dv NULL .
+.Pp
+The
+.Fn bhnd_erom_probe_driver_classes
+function is a convenience wrapper for
+.Fn bhnd_erom_probe .
+This function will iterate over all drivers instances in the device class
+.Fa bus_devclass ,
+using
+.Xr bhnd_driver_get_erom_class 9
+to fetch each driver's erom class and probe the hardware core mapped by
+.Fa eio .
+A pointer to the erom class with the highest probe priority is returned on
+success.
+If there are no successful probe results from the erom classes,
+.Dv NULL
+is returned.
+.Pp
+The
+.Fn bhnd_erom_alloc
+function allocates and returns a new parser instance of the device enumeration
+class
+.Fa cls
+for the chip identified by
+.Fa cid ,
+using the bus I/O instance
+.Fa eio
+to map and read the device table.
+On success, the returned
+.Vt bhnd_erom_t
+assumes ownership of
+.Fa eio .
+.Pp
+The
+.Fn bhnd_erom_free
+function releases all resources held by an erom parser successfully allocated
+using
+.Fn bhnd_erom_alloc .
+.Pp
+Clients can manage the allocation of memory themselves with
+.Fn bhnd_erom_init_static .
+This is useful in cases like performing device enumeration before
+.Xr malloc 9
+initialization.
+.Fn bhnd_erom_init_static
+is called with
+.Fa erom
+set to a pointer to the memory for the instance, and the total available bytes
+in
+.Fa esize .
+.Pp
+The
+.Vt bhnd_erom_static
+structure is large enough to statically allocate any supported parser class
+instance state.
+Pointers to a
+.Vt bhnd_erom_static
+structure can be cast to
+.Vt bhnd_erom_t .
+.Pp
+The
+.Fn bhnd_erom_fini_static
+function releases all resources held by an erom parser successfully
+initialized using
+.Fn bhnd_erom_init_static .
+.Pp
+The
+.Fn bhnd_erom_dump
+function enumerates and prints all device table entries in
+.Fa erom .
+.Pp
+The
+.Fn bhnd_erom_get_core_table
+function enumerates all device table entries in
+.Fa erom ,
+returning a table of core information structures in
+.Fa cores
+and the count in
+.Fa num_cores .
+The memory allocated for the table must be freed using
+.Fn bhnd_erom_free_core_table .
+.Pp
+The
+.Fn bhnd_erom_free_core_table
+function frees any memory allocated in a previous call to
+.Fn bhnd_erom_get_core_table .
+.Pp
+The
+.Fn bhnd_erom_lookup_core
+function locates the first device table entry in
+.Fa erom
+that matches core match descriptor
+.Fa desc ,
+writing the core information of the matching entry to
+.Fa core .
+.Pp
+The
+.Fn bhnd_erom_lookup_core_addr
+function locates the first device table entry in
+.Fa erom
+that matches core match descriptor
+.Fa desc ,
+fetching the base address and size of the memory region
+.Fa region
+mapped to the port
+.Fa port
+of type
+.Fa type .
+On success, the core information of the matching entry is written to
+.Fa core ,
+the base address of the port region is written to
+.Fa addr ,
+and the total size of the port region is written to
+.Fa size .
+If the core information is not desired, set
+.Fa core
+to
+.Dv NULL .
+.Ss Bus Space I/O
+.Pp
+The
+.Vt bhnd_erom_io
+structure provides a set of I/O callbacks used by
+.Nm
+to map and read the device enumeration table.
+Clients may either use the existing
+.Fn bhnd_erom_iores_new
+or
+.Fn bhnd_erom_iobus_init
+functions to allocate a bus I/O instance, or implement the
+.Vt bhnd_erom_io
+callbacks directly.
+.Pp
+The
+.Vt bhnd_erom_io
+structure contains these required fields:
+.Pp
+.Bl -tag -width "read" -offset indent
+.It Fa map
+A function implementing
+.Fn bhnd_erom_io_map .
+.It Fa read
+A function implementing
+.Fn bhnd_erom_io_read .
+.It Fa fini
+A function implementing
+.Fn bhnd_erom_io_fini .
+.El
+.Pp
+The
+.Fn bhnd_erom_iores_new
+function allocates and returns a new bus I/O instance that will perform mapping
+by using
+.Xr bhnd_alloc_resource 9
+to allocate
+.Dv SYS_RES_MEMORY
+bus resources on demand from the device
+.Fa dev
+using a resource ID of
+.Fa rid .
+.Pp
+The
+.Fn bhnd_erom_iobus_init
+function initializes a caller-allocated bus I/O instance
+.Fa iobus
+that will perform bus I/O using the bus space tag
+.Fa bst
+and handle
+.Fa bsh .
+The base address and total size mapped by
+.Fa bsh
+should be specified using the
+.Fa addr
+and
+.Fa size
+arguments.
+.Pp
+The
+.Fn bhnd_erom_io_fini
+function frees all resources held by the bus I/O instance
+.Fa eio .
+.Pp
+The
+.Fn bhnd_erom_io_map
+function is used to request that the bus I/O instance
+.Fa eio
+map
+.Xr bhnd 4
+bus space at bus address
+.Fa addr
+with a mapping of size
+.Fa size .
+.Pp
+The
+.Fn bhnd_erom_io_read
+function is used to read a data item of
+.Fa width
+bytes from the bus I/O instance
+.Fa eio
+at
+.Fa offset ,
+relative to the bus address previously mapped using
+.Fn bhnd_erom_io_map .
+.Pp
+The
+.Fa width
+must be one of 1, 2, or 4 bytes.
+.Pp
+.Sh RETURN VALUES
+The
+.Fn bhnd_erom_probe
+function returns a standard
+.Xr DEVICE_PROBE 9
+result.
+.Pp
+A return value equal to or less than zero indicates success.
+Values greater than zero indicates an error, and will be an appropriate error
+code.
+For values less than or equal to zero, the erom class returning the highest
+value should be used to parse the erom table.
+.Er ENXIO
+is returned if the device is not supported by the parser.
+.Pp
+The
+.Fn bhnd_erom_probe_driver_classes
+function returns a pointer to the probed
+.Vt bhnd_erom_class_t
+instance on success, a null pointer otherwise.
+.Pp
+The
+.Fn bhnd_erom_alloc
+function returns a pointer to
+.Vt bhnd_erom_t
+on success, or
+.Dv NULL
+if an error occurred allocating or initializing the EROM parser.
+.Pp
+The
+.Fn bhnd_erom_init_static
+function returns 0 on success,
+.Er ENOMEM
+if the allocation size is smaller than required by the erom class, or
+an appropriate error code if initialization otherwise fails.
+.Pp
+The
+.Fn bhnd_erom_lookup_core
+function returns 0 on success,
+.Er ENOENT
+if no matching core is found, or an appropriate error code if parsing the device
+table otherwise fails.
+.Pp
+The
+.Fn bhnd_erom_dump ,
+.Fn bhnd_erom_get_core_table ,
+.Fn bhnd_erom_iobus_init ,
+.Fn bhnd_erom_io_map ,
+functions return 0 on success, otherwise an appropriate error code is returned.
+.Sh SEE ALSO
+.Xr bhnd 4 ,
+.Xr bhnd 9 ,
+.Xr bhnd_alloc_resource 9
+.Xr bhnd_driver_get_erom_class 9
+.Xr bus_space 9
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+framework and this manual page were written by
+.An Landon Fuller Aq Mt landonf@FreeBSD.org .

@@ -1,0 +1,115 @@
+.\" Copyright (c) 2008 Yahoo!, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 19, 2017
+.Dt CRASHINFO 8
+.Os
+.Sh NAME
+.Nm crashinfo
+.Nd "analyze a core dump of the operating system"
+.Sh SYNOPSIS
+.Nm
+.Op Fl d Ar crashdir
+.Op Fl n Ar dumpnr
+.Op Fl k Ar kernel
+.Op Ar core
+.Sh DESCRIPTION
+The
+.Nm
+utility analyzes a core dump saved by
+.Xr savecore 8 .
+It generates a text file containing the analysis in the same directory as
+the core dump.
+For a given core dump file named
+.Pa vmcore.XX
+the generated text file will be named
+.Pa core.txt.XX .
+.Pp
+By default,
+.Nm
+analyzes the most recent core dump in the core dump directory.
+A specific core dump may be specified via either the
+.Ar core
+or
+.Ar dumpnr
+arguments.
+Once
+.Nm
+has located a core dump,
+it analyzes the core dump to determine the exact version of the kernel
+that generated the core.
+It then looks for a matching kernel file under each of the subdirectories in
+.Pa /boot .
+The location of the kernel file can also be explicitly provided via the
+.Ar kernel
+argument.
+.Pp
+Once
+.Nm
+has located a core dump and kernel,
+it uses several utilities to analyze the core including
+.Xr dmesg 8 ,
+.Xr fstat 1 ,
+.Xr iostat 8 ,
+.Xr ipcs 1 ,
+.Xr kgdb 1 ,
+.Xr netstat 1 ,
+.Xr nfsstat 1 ,
+.Xr ps 1 ,
+.Xr pstat 8 ,
+and
+.Xr vmstat 8 .
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl b
+Run in batch mode.  Write most messages to the
+.Pa core.txt.XX
+file instead of the terminal.  This flag is used when
+.Nm
+is run during boot.
+.It Fl d Ar crashdir
+Specify an alternate core dump directory.
+The default crash dump directory is
+.Pa /var/crash .
+.It Fl n Ar dumpnr
+Use the core dump saved in
+.Pa vmcore. Ns Ar dumpnr
+instead of the latest core in the core dump directory.
+.It Fl k Ar kernel
+Specify an explicit kernel file.
+.El
+.Sh SEE ALSO
+.Xr textdump 4 ,
+.Xr savecore 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 6.4 .

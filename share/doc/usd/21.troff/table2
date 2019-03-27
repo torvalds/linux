@@ -1,0 +1,253 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\"	@(#)table2	8.1 (Berkeley) 8/14/93
+.\"
+.\" $FreeBSD$
+.sp 100
+.br
+.de mx
+.nf
+.ft I
+.ta .25iC .5i +.45i 3.25iC +.25i +.45i
+		Input	Character		Input	Character
+	Char	Name	Name	Char	Name	Name
+.ft R
+.sp .2
+.nr cl 0
+.mk
+..
+.br
+.tr ~~
+.nf
+.ps 12
+.vs 14p
+.ft B
+.ce
+Table II
+.sp
+.ce 2
+Input Naming Conventions for \', \`, and  \-
+and for Non-ASCII Special Characters
+.sp .5i
+.ft R
+.ps 10
+.vs 12p
+.ft B
+.bd I 3
+Non-\s-1ASCII\s+1 characters and \fIminus\fP on the standard fonts.
+.sp
+.ft R
+.de cl
+.ie \\n+(cl<2 \{\
+.po +3.0i
+.rt
+.\}
+.el .sc
+..
+.de sc
+.po 26i/27u
+.nr cl 0
+..
+.nr cl 0 1
+.de qq
+	\&'	\'	close quote
+	`	\`	open quote
+	\(em	\e\|(em	3\(sl4 Em dash
+	-	\-	hyphen or
+	\(hy	\e\|(hy	hyphen
+	\-	\e\-	current font minus
+	\(bu	\e\|(bu	bullet
+	\(sq	\e\|(sq	square
+	\(ru	\e\|(ru	rule
+	\(14	\e\|(14	1\(sl4
+	\(12	\e\|(12	1\(sl2
+	\(34	\e\|(34	3\(sl4
+	\(fi	\e\|(fi	fi
+	\(fl	\e\|(fl	fl
+	\(ff	\e\|(ff	ff
+	\(Fi	\e\|(Fi	ffi
+	\(Fl	\e\|(Fl	ffl
+	\(de	\e\|(de	degree
+	\(dg	\e\|(dg	dagger
+	\(fm	\e\|(fm	foot mark
+	\(ct	\e\|(ct	cent sign
+	\(rg	\e\|(rg	registered
+	\(co	\e\|(co	copyright
+..
+.di zz
+.lg 0
+.qq
+.di
+.lg
+.mx
+.nr aa \n(dn/2
+.ne \n(aau+1
+.nr bb \n(nl+\n(aa
+.wh \n(bbu cl
+.qq
+.sp |\n(bbu
+.ch cl 12i
+.fi
+.sp 2
+.ft B
+.bd I
+Non-\s-1ASCII\s+1 characters and \', \`, \_\|, \(pl, \(mi, \(eq, and \(** on the special font.
+.sp .4
+.ft R
+.fi
+.ps 10
+The ASCII characters @, #, ", \', \`, <, >, \\, {, }, ~, ^, and \(ul exist
+\fIonly\fR on the special font and are printed as a 1-em space if that font
+is not mounted.
+The following characters exist only on the special font except
+for the upper case Greek letter names followed by \(dg which are mapped into
+upper case English letters in
+whatever font is mounted on font position one (default Times Roman).
+The special math plus, minus, and equals are provided to
+insulate the appearance of equations from the choice of standard fonts.
+.bd I 3
+.nf
+.ps 10
+.sp
+.ch cl \nmu-\n(.vu-1u
+.mx
+.lg 0
+	\(pl	\e\|(pl	math plus
+	\(mi	\e\|(mi	math minus
+	\(eq	\e\|(eq	math equals
+	\(**	\e\|(**	math star
+	\(sc	\e\|(sc	section
+	\(aa	\e\|(aa	acute accent
+	\(ga	\e\|(ga	grave accent
+	\(ul	\e\|(ul	underrule
+	\(sl	\e\|(sl	slash (matching backslash)
+	\(*a	\e\|(*a	alpha
+	\(*b	\e\|(*b	beta
+	\(*g	\e\|(*g	gamma
+	\(*d	\e\|(*d	delta
+	\(*e	\e\|(*e	epsilon
+	\(*z	\e\|(*z	zeta
+	\(*y	\e\|(*y	eta
+	\(*h	\e\|(*h	theta
+	\(*i	\e\|(*i	iota
+	\(*k	\e\|(*k	kappa
+	\(*l	\e\|(*l	lambda
+	\(*m	\e\|(*m	mu
+	\(*n	\e\|(*n	nu
+	\(*c	\e\|(*c	xi
+	\(*o	\e\|(*o	omicron
+	\(*p	\e\|(*p	pi
+	\(*r	\e\|(*r	rho
+	\(*s	\e\|(*s	sigma
+	\(ts	\e\|(ts	terminal sigma
+	\(*t	\e\|(*t	tau
+	\(*u	\e\|(*u	upsilon
+	\(*f	\e\|(*f	phi
+	\(*x	\e\|(*x	chi
+	\(*q	\e\|(*q	psi
+	\(*w	\e\|(*w	omega
+	\(*A	\e\|(*A	Alpha\(dg
+	\(*B	\e\|(*B	Beta\(dg
+	\(*G	\e\|(*G	Gamma
+	\(*D	\e\|(*D	Delta
+	\(*E	\e\|(*E	Epsilon\(dg
+	\(*Z	\e\|(*Z	Zeta\(dg
+	\(*Y	\e\|(*Y	Eta\(dg
+	\(*H	\e\|(*H	Theta
+	\(*I	\e\|(*I	Iota\(dg
+	\(*K	\e\|(*K	Kappa\(dg
+	\(*L	\e\|(*L	Lambda
+	\(*M	\e\|(*M	Mu\(dg
+	\(*N	\e\|(*N	Nu\(dg
+	\(*C	\e\|(*C	Xi
+	\(*O	\e\|(*O	Omicron\(dg
+	\(*P	\e\|(*P	Pi
+	\(*R	\e\|(*R	Rho\(dg
+	\(*S	\e\|(*S	Sigma
+	\(*T	\e\|(*T	Tau\(dg
+	\(*U	\e\|(*U	Upsilon
+	\(*F	\e\|(*F	Phi
+	\(*X	\e\|(*X	Chi\(dg
+	\(*Q	\e\|(*Q	Psi
+	\(*W	\e\|(*W	Omega
+	\(sr	\e\|(sr	square root
+	\(rn	\e\|(rn	root en extender
+	\(>=	\e\|(>=	>=
+	\(<=	\e\|(<=	<=
+	\(==	\e\|(==	identically equal
+	\(~=	\e\|(~=	approx =
+	\(ap	\e\|(ap	approximates
+	\(!=	\e\|(!=	not equal
+	\(->	\e\|(\(mi>	right arrow
+	\(<-	\e\|(<\(mi	left arrow
+	\(ua	\e\|(ua	up arrow
+	\(da	\e\|(da	down arrow
+	\(mu	\e\|(mu	multiply
+	\(di	\e\|(di	divide
+	\(+-	\e\|(+\(mi	plus-minus
+	\(cu	\e\|(cu	cup (union)
+	\(ca	\e\|(ca	cap (intersection)
+	\(sb	\e\|(sb	subset of
+	\(sp	\e\|(sp	superset of
+	\(ib	\e\|(ib	improper subset
+	\(ip	\e\|(ip	improper superset
+	\(if	\e\|(if	infinity
+	\(pd	\e\|(pd	partial derivative
+	\(gr	\e\|(gr	gradient
+	\(no	\e\|(no	not
+	\(is	\e\|(is	integral sign
+	\(pt	\e\|(pt	proportional to
+	\(es	\e\|(es	empty set
+	\(mo	\e\|(mo	member of
+	\(br	\e\|(br	box vertical rule
+	\(dd	\e\|(dd	double dagger
+	\(rh	\e\|(rh	right hand
+	\(lh	\e\|(lh	left hand
+	\(or	\e\|(or	or
+	\(ci	\e\|(ci	circle
+	\(lt	\e\|(lt	left top of big curly bracket
+	\(lb	\e\|(lb	left bottom
+	\(rt	\e\|(rt	right top
+	\(rb	\e\|(rb	right bot
+	\(lk	\e\|(lk	left center of big curly bracket
+	\(rk	\e\|(rk	right center of big curly bracket
+	\(bv	\e\|(bv	bold vertical
+	\(lf	\e\|(lf	left floor (left bottom of big
+			square bracket)
+	\(rf	\e\|(rf	right floor (right bottom)
+	\(lc	\e\|(lc	left ceiling (left top)
+	\(rc	\e\|(rc	right ceiling (right top)

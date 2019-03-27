@@ -1,0 +1,214 @@
+.\"
+.\" Copyright (c) 2006 Tom Rhodes
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 25, 2017
+.Dt IPMI 4
+.Os
+.Sh NAME
+.Nm ipmi
+.Nd "OpenIPMI compatible IPMI interface driver"
+.Sh SYNOPSIS
+.Cd "device ipmi"
+.Pp
+To manually specify I/O attachment in
+.Pa /boot/device.hints :
+.Cd hint.ipmi.0.at="isa"
+.Cd hint.ipmi.0.port="0xCA2"
+.Cd hint.ipmi.0.spacing="8"
+.Cd hint.ipmi.0.mode="KCS"
+.Pp
+To manually specify memory attachment in
+.Pa /boot/device.hints :
+.Cd hint.ipmi.0.at="isa"
+.Cd hint.ipmi.0.maddr="0xf0000000"
+.Cd hint.ipmi.0.spacing="8"
+.Cd hint.ipmi.0.mode="SMIC"
+.Pp
+Meaning of
+.Ar spacing :
+.Bl -tag -offset indent -compact -width 0x0
+.It 8
+8 bit alignment
+.It 16
+16 bit alignment
+.It 32
+32 bit alignment
+.El
+.Pp
+If the
+.Ar port
+and
+.Ar spacing
+are not specified the interface type default will be used.
+Only specify either the
+.Ar port
+for I/O access or
+.Ar maddr
+for memory access.
+.Sh DESCRIPTION
+The
+.Tn IPMI
+(Intelligent Platform Management Interface) is a standard for
+monitoring system hardware by permitting generic code to detect
+and monitor the sensors in a system.
+The
+.Tn IPMI
+standard offers watchdog support, an FRU database, and other
+support extensions.
+It is currently being adopted by the makers of many
+single board and embedded system manufacturers.
+.Pp
+The
+.Nm
+driver in
+.Fx
+is heavily adopted from the standard and
+.Tn Linux
+driver; however, not all features described in the
+standard are supported.
+.Pp
+The
+.Nm
+driver implements the power cycling option to
+.Xr shutdown 8
+to implement power cycling of the system.
+The motherboard's BMC must support the chassis device and the optional
+power cycle subcomand of the chassis control command as described in section 28.3
+of the IPMI standard.
+The length of time the system is off will be at least one second, but
+may be longer if the power cycle interval has been set (see section 28.9).
+.Sh IOCTLS
+Sending and receiving messages through the
+.Nm
+driver requires the use of
+.Xr ioctl 2 .
+The ioctls are used due to the complexity of
+data sent to and from the device.
+The
+.Xr ioctl 2
+command codes below are defined in
+.In sys/ipmi.h .
+The third argument to
+.Xr ioctl 2
+should be a pointer to the type indicated.
+.Pp
+Currently the following ioctls are supported:
+.Bl -tag -width indent
+.It Dv IPMICTL_RECEIVE_MSG Pq Vt "struct ipmi_recv"
+Receive a message.
+Possible error values:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+No messages are in the process queue.
+.It Bq Er EFAULT
+An address supplied was invalid.
+.It Bq Er EMSGSIZE
+The address could not fit in the message buffer and
+will remain in the buffer.
+.El
+.It Dv IPMICTL_RECEIVE_MSG_TRUNC Pq Vt "struct ipmi_recv"
+Like
+.Dv IPMICTL_RECEIVE_MSG
+but if the message cannot fit into the buffer, it
+will truncate the contents instead of leaving the data
+in the buffer.
+.It Dv IPMICTL_SEND_COMMAND Pq Vt "struct ipmi_req"
+Send a message to the interface.
+Possible error values:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+An address supplied was invalid.
+.It Bq Er ENOMEM
+Buffers could not be allowed for the command, out of memory.
+.El
+.It Dv IPMICTL_SET_MY_ADDRESS_CMD Pq Vt "unsigned int"
+Set the slave address for source messages.
+.It Dv IPMICTL_GET_MY_ADDRESS_CMD Pq Vt "unsigned int"
+Get the slave address for source messages.
+.It Dv IPMICTL_SET_MY_LUN_CMD Pq Vt "unsigned int"
+Set the slave LUN for source messages.
+.It Dv IPMICTL_GET_MY_LUN_CMD Pq Vt "unsigned int"
+Get the slave LUN for source messages.
+.El
+.Ss Unimplemented Ioctls
+.Bl -tag -width indent
+.It Dv IPMICTL_REGISTER_FOR_CMD Pq Vt "struct ipmi_cmdspec"
+Register to receive a specific command.
+Possible error values:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+An supplied address was invalid.
+.It Bq Er EBUSY
+The network function/command is already in use.
+.It Bq Er ENOMEM
+Could not allocate memory.
+.El
+.It Dv IPMICTL_UNREGISTER_FOR_CMD Pq Vt "struct ipmi_cmdspec"
+Unregister to receive a specific command.
+Possible error values:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+An address supplied was invalid.
+.It Bq Er ENOENT
+The network function/command was not found.
+.El
+.El
+.Ss Stub Only Ioctl
+.Bl -tag -width indent
+.It Dv IPMICTL_SET_GETS_EVENTS_CMD Pq Vt int
+Set whether this interface receives events.
+Possible error values:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+An address supplied was invalid.
+.El
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr watchdog 4 ,
+.Xr reboot 8 ,
+.Xr shutdown 8 ,
+.Xr watchdog 8 ,
+.Xr watchdogd 8 ,
+.Xr watchdog 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 6.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Doug Ambrisko Aq Mt ambrisko@FreeBSD.org .
+This manual page was written by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org .
+.Sh BUGS
+Not all features of the MontaVista driver are supported.
+.Pp
+Currently, IPMB and BT modes are not implemented.

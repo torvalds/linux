@@ -1,0 +1,22 @@
+# $FreeBSD$
+
+e=
+for i in 0 1 2 3; do
+	for j in 0 1 2 3 4 5 6 7; do
+		for k in 0 1 2 3 4 5 6 7; do
+			case $i$j$k in
+			000) continue ;;
+			esac
+			e="$e\\$i$j$k"
+		done
+	done
+done
+e=$(printf "$e")
+v=@$e@$e@
+y=${v##*"$e"}
+yq="${v##*"$e"}"
+[ "$y" = @ ] || echo "error when unquoted in non-splitting context"
+[ "$yq" = @ ] || echo "error when quoted in non-splitting context"
+[ "${v##*"$e"}" = @ ] || echo "error when quoted in splitting context"
+IFS=
+[ ${v##*"$e"} = @ ] || echo "error when unquoted in splitting context"

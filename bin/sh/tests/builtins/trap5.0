@@ -1,0 +1,19 @@
+# $FreeBSD$
+
+set -e
+trap - USR1
+initial=$(trap)
+trap -- -l USR1
+added=$(trap)
+[ -n "$added" ]
+trap - USR1
+second=$(trap)
+[ "$initial" = "$second" ]
+eval "$added"
+added2=$(trap)
+added3=$(trap --)
+[ "$added" = "$added2" ]
+[ "$added2" = "$added3" ]
+trap -- - USR1
+third=$(trap)
+[ "$initial" = "$third" ]

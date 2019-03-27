@@ -1,0 +1,111 @@
+.\" Copyright (c) 2004, 2006 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd May 12, 2006
+.Dt KRB5_ACL_MATCH_FILE 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_acl_match_file ,
+.Nm krb5_acl_match_string
+.Nd ACL matching functions
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.Ft krb5_error_code
+.Fo krb5_acl_match_file
+.Fa "krb5_context context"
+.Fa "const char *file"
+.Fa "const char *format"
+.Fa "..."
+.Fc
+.Ft krb5_error_code
+.Fo krb5_acl_match_string
+.Fa "krb5_context context"
+.Fa "const char *string"
+.Fa "const char *format"
+.Fa "..."
+.Fc
+.Sh DESCRIPTION
+.Nm krb5_acl_match_file
+matches ACL format against each line in a file.
+Lines starting with # are treated like comments and ignored.
+.Pp
+.Nm krb5_acl_match_string
+matches ACL format against a string.
+.Pp
+The ACL format has three format specifiers: s, f, and r.
+Each specifier will retrieve one argument from the variable arguments
+for either matching or storing data.
+The input string is split up using " " and "\et" as a delimiter; multiple
+" " and "\et" in a row are considered to be the same.
+.Pp
+.Bl -tag -width "fXX" -offset indent
+.It s
+Matches a string using
+.Xr strcmp 3
+(case sensitive).
+.It f
+Matches the string with
+.Xr fnmatch 3 .
+The
+.Fa flags
+argument (the last argument) passed to the fnmatch function is 0.
+.It r
+Returns a copy of the string in the char ** passed in; the copy must be
+freed with
+.Xr free 3 .
+There is no need to
+.Xr free 3
+the string on error: the function will clean up and set the pointer to
+.Dv NULL .
+.El
+.Pp
+All unknown format specifiers cause an error.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+char *s;
+
+ret = krb5_acl_match_string(context, "foo", "s", "foo");
+if (ret)
+    krb5_errx(context, 1, "acl didn't match");
+ret = krb5_acl_match_string(context, "foo foo baz/kaka",
+    "ss", "foo", &s, "foo/*");
+if (ret) {
+    /* no need to free(s) on error */
+    assert(s == NULL);
+    krb5_errx(context, 1, "acl didn't match");
+}
+free(s);
+.Ed
+.Sh SEE ALSO
+.Xr krb5 3

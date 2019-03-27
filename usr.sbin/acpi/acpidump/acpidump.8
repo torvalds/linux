@@ -1,0 +1,203 @@
+.\" ACPI (ACPI Package)
+.\"
+.\" Copyright (c) 1999 Doug Rabson <dfr@FreeBSD.org>
+.\" Copyright (c) 2000 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
+.\" Copyright (c) 2000 Yasuo YOKOYAMA <yokoyama@jp.FreeBSD.org>
+.\" Copyright (c) 2000 Hiroki Sato <hrs@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 10, 2018
+.Dt ACPIDUMP 8
+.Os
+.Sh NAME
+.Nm acpidump
+.Nd dump ACPI tables and ASL
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl t
+.Op Fl h
+.Op Fl v
+.Op Fl f Ar dsdt_input
+.Op Fl o Ar dsdt_output
+.Sh DESCRIPTION
+The
+.Nm
+utility analyzes ACPI tables in physical memory and can dump them to a file.
+In addition,
+.Nm
+can call
+.Xr iasl 8
+to disassemble AML
+(ACPI Machine Language)
+found in these tables and dump them as ASL
+(ACPI Source Language)
+to stdout.
+.Pp
+ACPI tables have an essential data block (the DSDT,
+Differentiated System Description Table)
+that includes information used on the kernel side such as
+detailed information about PnP hardware, procedures for controlling
+power management support, and so on.
+The
+.Nm
+utility can extract the DSDT data block from physical memory and store it into
+an output file and optionally also disassemble it.
+If any Secondary System Description Table
+(SSDT)
+entries exist, they will also be included in the output file and disassembly.
+.Pp
+When
+.Nm
+is invoked without the
+.Fl f
+option, it will read ACPI tables from physical memory via
+.Pa /dev/mem .
+First it searches for the RSDP
+(Root System Description Pointer),
+which has the signature
+.Qq RSD PTR\ \& ,
+and then gets the RSDT
+(Root System Description Table),
+which includes a list of pointers to physical memory addresses
+for other tables.
+The RSDT itself and all other tables linked from RSDT are generically
+called SDTs
+(System Description Tables)
+and their header has a common format which consists of items
+such as Signature, Length, Revision, Checksum, OEMID, OEM Table ID,
+OEM Revision, Creator ID and Creator Revision.
+When invoked with the
+.Fl t
+flag, the
+.Nm
+utility dumps contents of the following tables:
+.Pp
+.Bl -tag -offset indent -width 12345 -compact
+.It DMAR
+.It DSDT
+.It ECDT
+.It FACS
+.It FADT
+.It HPET
+.It LPIT
+.It MADT
+.It MCFG
+.It NFIT
+.It RSD PTR
+.It RSDT
+.It WDDT
+.El
+.Pp
+The RSDT contains a pointer to the physical memory address of the FACP
+(Fixed ACPI Description Table).
+The FACP defines static system information about power management support
+(ACPI Hardware Register Implementation)
+such as interrupt mode (INT_MODEL),
+SCI interrupt number, SMI command port (SMI_CMD)
+and the location of ACPI registers.
+The FACP also has a pointer to a physical memory address for the DSDT.
+While the other tables are fixed format,
+the DSDT consists of free-formatted AML data.
+.Sh OPTIONS
+The following options are supported by
+.Nm :
+.Bl -tag -width indent
+.It Fl d
+Disassemble the DSDT into ASL using
+.Xr iasl 8
+and print the results to stdout.
+.It Fl t
+Dump the contents of the various fixed tables listed above.
+.It Fl h
+Displays usage and exit.
+.It Fl v
+Enable verbose messages.
+.It Fl f Ar dsdt_input
+Load the DSDT from the specified file instead of physical memory.
+Since only the DSDT is stored in the file, the
+.Fl t
+flag may not be used with this option.
+.It Fl o Ar dsdt_output
+Store the DSDT data block from physical memory into the specified file.
+.El
+.Sh FILES
+.Bl -tag -width /dev/mem
+.It Pa /dev/mem
+.El
+.Sh EXAMPLES
+If a developer requests a copy of your ASL, please use the following
+command to dump all tables and compress the result.
+.Bd -literal -offset indent
+# acpidump -dt | gzip -c9 > my_computer.asl.gz
+.Ed
+.Pp
+This example dumps the DSDT from physical memory to foo.dsdt.
+It also prints the contents of various system tables and disassembles
+the AML contained in the DSDT to stdout, redirecting the output
+to foo.asl.
+.Bd -literal -offset indent
+# acpidump -t -d -o foo.dsdt > foo.asl
+.Ed
+.Pp
+This example reads a DSDT file and disassembles it to stdout.
+Verbose messages are enabled.
+.Bd -literal -offset indent
+# acpidump -v -d -f foo.dsdt
+.Ed
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr mem 4 ,
+.Xr acpiconf 8 ,
+.Xr acpidb 8 ,
+.Xr iasl 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.0
+and was rewritten to use
+.Xr iasl 8
+for
+.Fx 5.2 .
+.Sh AUTHORS
+.An Doug Rabson Aq Mt dfr@FreeBSD.org
+.An Mitsuru IWASAKI Aq Mt iwasaki@FreeBSD.org
+.An Yasuo YOKOYAMA Aq Mt yokoyama@jp.FreeBSD.org
+.An Nate Lawson Aq Mt njl@FreeBSD.org
+.Pp
+.An -nosplit
+Some contributions made by
+.An Chitoshi Ohsawa Aq Mt ohsawa@catv1.ccn-net.ne.jp ,
+.An Takayasu IWANASHI Aq Mt takayasu@wendy.a.perfect-liberty.or.jp ,
+.An Yoshihiko SARUMARU Aq Mt mistral@imasy.or.jp ,
+.An Hiroki Sato Aq Mt hrs@FreeBSD.org ,
+.An Michael Lucas Aq Mt mwlucas@blackhelicopters.org
+and
+.An Michael Smith Aq Mt msmith@FreeBSD.org .
+.Sh BUGS
+The current implementation does not dump the BOOT structure or
+other miscellaneous tables.

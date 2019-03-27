@@ -1,0 +1,267 @@
+.\"	$NetBSD: re_format.7,v 1.1.1.2 2008/05/18 14:31:37 aymeric Exp $
+.\"
+.\" Copyright (c) 1992, 1993, 1994 Henry Spencer.
+.\" Copyright (c) 1992, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Henry Spencer of the University of Toronto.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)re_format.7	8.2 (Berkeley) 3/16/94
+.\"
+.TH RE_FORMAT 7 "March 16, 1994"
+.SH NAME
+re_format \- POSIX 1003.2 regular expressions
+.SH DESCRIPTION
+Regular expressions (``RE''s),
+as defined in POSIX 1003.2, come in two forms:
+modern REs (roughly those of
+.IR egrep ;
+1003.2 calls these ``extended'' REs)
+and obsolete REs (roughly those of
+.IR ed ;
+1003.2 ``basic'' REs).
+Obsolete REs mostly exist for backward compatibility in some old programs;
+they will be discussed at the end.
+1003.2 leaves some aspects of RE syntax and semantics open;
+`\(dg' marks decisions on these aspects that
+may not be fully portable to other 1003.2 implementations.
+.PP
+A (modern) RE is one\(dg or more non-empty\(dg \fIbranches\fR,
+separated by `|'.
+It matches anything that matches one of the branches.
+.PP
+A branch is one\(dg or more \fIpieces\fR, concatenated.
+It matches a match for the first, followed by a match for the second, etc.
+.PP
+A piece is an \fIatom\fR possibly followed
+by a single\(dg `*', `+', `?', or \fIbound\fR.
+An atom followed by `*' matches a sequence of 0 or more matches of the atom.
+An atom followed by `+' matches a sequence of 1 or more matches of the atom.
+An atom followed by `?' matches a sequence of 0 or 1 matches of the atom.
+.PP
+A \fIbound\fR is `{' followed by an unsigned decimal integer,
+possibly followed by `,'
+possibly followed by another unsigned decimal integer,
+always followed by `}'.
+The integers must lie between 0 and RE_DUP_MAX (255\(dg) inclusive,
+and if there are two of them, the first may not exceed the second.
+An atom followed by a bound containing one integer \fIi\fR
+and no comma matches
+a sequence of exactly \fIi\fR matches of the atom.
+An atom followed by a bound
+containing one integer \fIi\fR and a comma matches
+a sequence of \fIi\fR or more matches of the atom.
+An atom followed by a bound
+containing two integers \fIi\fR and \fIj\fR matches
+a sequence of \fIi\fR through \fIj\fR (inclusive) matches of the atom.
+.PP
+An atom is a regular expression enclosed in `()' (matching a match for the
+regular expression),
+an empty set of `()' (matching the null string)\(dg,
+a \fIbracket expression\fR (see below), `.'
+(matching any single character), `^' (matching the null string at the
+beginning of a line), `$' (matching the null string at the
+end of a line), a `\e' followed by one of the characters
+`^.[$()|*+?{\e'
+(matching that character taken as an ordinary character),
+a `\e' followed by any other character\(dg
+(matching that character taken as an ordinary character,
+as if the `\e' had not been present\(dg),
+or a single character with no other significance (matching that character).
+A `{' followed by a character other than a digit is an ordinary
+character, not the beginning of a bound\(dg.
+It is illegal to end an RE with `\e'.
+.PP
+A \fIbracket expression\fR is a list of characters enclosed in `[]'.
+It normally matches any single character from the list (but see below).
+If the list begins with `^',
+it matches any single character
+(but see below) \fInot\fR from the rest of the list.
+If two characters in the list are separated by `\-', this is shorthand
+for the full \fIrange\fR of characters between those two (inclusive) in the
+collating sequence,
+e.g. `[0-9]' in ASCII matches any decimal digit.
+It is illegal\(dg for two ranges to share an
+endpoint, e.g. `a-c-e'.
+Ranges are very collating-sequence-dependent,
+and portable programs should avoid relying on them.
+.PP
+To include a literal `]' in the list, make it the first character
+(following a possible `^').
+To include a literal `\-', make it the first or last character,
+or the second endpoint of a range.
+To use a literal `\-' as the first endpoint of a range,
+enclose it in `[.' and `.]' to make it a collating element (see below).
+With the exception of these and some combinations using `[' (see next
+paragraphs), all other special characters, including `\e', lose their
+special significance within a bracket expression.
+.PP
+Within a bracket expression, a collating element (a character,
+a multi-character sequence that collates as if it were a single character,
+or a collating-sequence name for either)
+enclosed in `[.' and `.]' stands for the
+sequence of characters of that collating element.
+The sequence is a single element of the bracket expression's list.
+A bracket expression containing a multi-character collating element 
+can thus match more than one character,
+e.g. if the collating sequence includes a `ch' collating element,
+then the RE `[[.ch.]]*c' matches the first five characters
+of `chchcc'.
+.PP
+Within a bracket expression, a collating element enclosed in `[=' and
+`=]' is an equivalence class, standing for the sequences of characters
+of all collating elements equivalent to that one, including itself.
+(If there are no other equivalent collating elements,
+the treatment is as if the enclosing delimiters were `[.' and `.]'.)
+For example, if o and \o'o^' are the members of an equivalence class,
+then `[[=o=]]', `[[=\o'o^'=]]', and `[o\o'o^']' are all synonymous.
+An equivalence class may not\(dg be an endpoint
+of a range.
+.PP
+Within a bracket expression, the name of a \fIcharacter class\fR enclosed
+in `[:' and `:]' stands for the list of all characters belonging to that
+class.
+Standard character class names are:
+.PP
+.RS
+.nf
+.ta 3c 6c 9c
+alnum	digit	punct
+alpha	graph	space
+blank	lower	upper
+cntrl	print	xdigit
+.fi
+.RE
+.PP
+These stand for the character classes defined in
+.IR ctype (3).
+A locale may provide others.
+A character class may not be used as an endpoint of a range.
+.PP
+There are two special cases\(dg of bracket expressions:
+the bracket expressions `[[:<:]]' and `[[:>:]]' match the null string at
+the beginning and end of a word respectively.
+A word is defined as a sequence of
+word characters
+which is neither preceded nor followed by
+word characters.
+A word character is an
+.I alnum
+character (as defined by
+.IR ctype (3))
+or an underscore.
+This is an extension,
+compatible with but not specified by POSIX 1003.2,
+and should be used with
+caution in software intended to be portable to other systems.
+.PP
+In the event that an RE could match more than one substring of a given
+string,
+the RE matches the one starting earliest in the string.
+If the RE could match more than one substring starting at that point,
+it matches the longest.
+Subexpressions also match the longest possible substrings, subject to
+the constraint that the whole match be as long as possible,
+with subexpressions starting earlier in the RE taking priority over
+ones starting later.
+Note that higher-level subexpressions thus take priority over
+their lower-level component subexpressions.
+.PP
+Match lengths are measured in characters, not collating elements.
+A null string is considered longer than no match at all.
+For example,
+`bb*' matches the three middle characters of `abbbc',
+`(wee|week)(knights|nights)' matches all ten characters of `weeknights',
+when `(.*).*' is matched against `abc' the parenthesized subexpression
+matches all three characters, and
+when `(a*)*' is matched against `bc' both the whole RE and the parenthesized
+subexpression match the null string.
+.PP
+If case-independent matching is specified,
+the effect is much as if all case distinctions had vanished from the
+alphabet.
+When an alphabetic that exists in multiple cases appears as an
+ordinary character outside a bracket expression, it is effectively
+transformed into a bracket expression containing both cases,
+e.g. `x' becomes `[xX]'.
+When it appears inside a bracket expression, all case counterparts
+of it are added to the bracket expression, so that (e.g.) `[x]'
+becomes `[xX]' and `[^x]' becomes `[^xX]'.
+.PP
+No particular limit is imposed on the length of REs\(dg.
+Programs intended to be portable should not employ REs longer
+than 256 bytes,
+as an implementation can refuse to accept such REs and remain
+POSIX-compliant.
+.PP
+Obsolete (``basic'') regular expressions differ in several respects.
+`|', `+', and `?' are ordinary characters and there is no equivalent
+for their functionality.
+The delimiters for bounds are `\e{' and `\e}',
+with `{' and `}' by themselves ordinary characters.
+The parentheses for nested subexpressions are `\e(' and `\e)',
+with `(' and `)' by themselves ordinary characters.
+`^' is an ordinary character except at the beginning of the
+RE or\(dg the beginning of a parenthesized subexpression,
+`$' is an ordinary character except at the end of the
+RE or\(dg the end of a parenthesized subexpression,
+and `*' is an ordinary character if it appears at the beginning of the
+RE or the beginning of a parenthesized subexpression
+(after a possible leading `^').
+Finally, there is one new type of atom, a \fIback reference\fR:
+`\e' followed by a non-zero decimal digit \fId\fR
+matches the same sequence of characters
+matched by the \fId\fRth parenthesized subexpression
+(numbering subexpressions by the positions of their opening parentheses,
+left to right),
+so that (e.g.) `\e([bc]\e)\e1' matches `bb' or `cc' but not `bc'.
+.SH SEE ALSO
+regex(3)
+.PP
+POSIX 1003.2, section 2.8 (Regular Expression Notation).
+.SH BUGS
+Having two kinds of REs is a botch.
+.PP
+The current 1003.2 spec says that `)' is an ordinary character in
+the absence of an unmatched `(';
+this was an unintentional result of a wording error,
+and change is likely.
+Avoid relying on it.
+.PP
+Back references are a dreadful botch,
+posing major problems for efficient implementations.
+They are also somewhat vaguely defined
+(does
+`a\e(\e(b\e)*\e2\e)*d' match `abbbd'?).
+Avoid using them.
+.PP
+1003.2's specification of case-independent matching is vague.
+The ``one case implies all cases'' definition given above
+is current consensus among implementors as to the right interpretation.
+.PP
+The syntax for word boundaries is incredibly ugly.

@@ -1,0 +1,50 @@
+[probe 1 pid$target:tst.ProbeData.exe:fN:entry [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0: 54 45  0  0 1c  0                                TE....
+,   tst.ProbeData.exe`f_b                             , 0]]
+
+[probe 1 pid$target:tst.ProbeData.exe:fN:entry [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0: 54 45  0  0 1c  0                                TE....
+,   tst.ProbeData.exe`f_e                             , -2]]
+
+[probe 2 pid$target:tst.ProbeData.exe:fN2:entry [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0: 54 45  0  0 1c  0                                TE....
+,   tst.ProbeData.exe`f_e                             , -2]]
+
+[probe 1 pid$target:tst.ProbeData.exe:fN:entry [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0: 54 45  0  0 1c  0                                TE....
+,   tst.ProbeData.exe`f_e                             , 2]]
+
+[probe 2 pid$target:tst.ProbeData.exe:fN2:entry [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0: 54 45  0  0 1c  0                                TE....
+,   tst.ProbeData.exe`f_e                             , 2]]
+
+[probe 1 pid$target:tst.ProbeData.exe:fN:entry [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0: 54 45  0  0 1c  1                                TE....
+,   tst.ProbeData.exe`f_c                             , 0]]
+
+[probe 1 pid$target:tst.ProbeData.exe:fN:entry [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0: f9 c9  0  0 1c  1                                ......
+,   tst.ProbeData.exe`f_a                             , -1]]
+
+[probe 1 pid$target:tst.ProbeData.exe:fN:entry [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0: f9 c9  0  0 1c  1                                ......
+,   tst.ProbeData.exe`f_a                             , 1]]
+
+[probe 1 pid$target:tst.ProbeData.exe:fN:entry [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0: f9 c9  0  0 1d  0                                ......
+,   tst.ProbeData.exe`f_d                             , 101]]
+
+[probe 1 pid$target:tst.ProbeData.exe:fN:entry [
+             0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+         0: f9 c9  0  0 1d  0                                ......
+,   tst.ProbeData.exe`f_d                             , 102]]
+

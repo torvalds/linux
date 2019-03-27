@@ -1,0 +1,561 @@
+
+#------------------------------------------------------------------------------
+# $File: pgp,v 1.15 2018/02/24 16:11:23 christos Exp $
+# pgp:  file(1) magic for Pretty Good Privacy
+# see http://lists.gnupg.org/pipermail/gnupg-devel/1999-September/016052.html
+#
+# Update: Joerg Jenderek
+# Note: verified by `gpg -v --debug 0x02 --list-packets < PUBRING263_10.PGP`
+#0		byte	0x99		MAYBE PGP 0x99
+0		byte	0x99
+# 99h~10;0110;01~2=old packet type;tag 6=Public-Key Packet;1=two-octet length
+# A two-octet body header encodes packet lengths of 192~00C0h - 8383~20BFh
+#>1		ubeshort	x		\b, body length 0x%.4x
+# skip Basic.Image Beauty.320 Pic.Icons by looking for low version number
+#>3		ubyte		x		\b, V=%u
+#>3		ubyte		<5		VERSION OK
+>3		ubyte		<5
+# next packet type often b4h~(tag 13)~User ID Packet, b0h~(tag 12)~Trust packet
+#>>(1.S+3)	ubyte	x		\b, next packet type 0x%x
+# skip 9900-v4.bin 9902-v4.bin by looking for valid second packet type (bit 7=1)
+#>>(1.S+3)	ubyte	>0x7F		TYPE OK,
+>>(1.S+3)	ubyte	>0x7F
+# old versions 2,3 implies Pretty Good Privacy
+>>>3		ubyte		<4		PGP key public ring (v%u)
+!:mime		application/pgp-keys
+!:ext		pgp/ASD
+>>>>4		beldate		x		created %s
+# days that this key is valid. If this number is zero, then it does not expire
+>>>>8		ubeshort	>0		\b, %u days valid
+>>>>8		ubeshort	=0		\b, not expire
+# display key algorithm 1~RSA (Encrypt or Sign)
+>>>>10		use		key_algo
+# Multiprecision Integers (MPI) size
+>>>>11		ubeshort	x		%u bits
+# MPI
+>>>>13		ubequad		x		MPI=0x%16.16llx...
+# new version implies Pretty Good Privacy (PGP) >= 5.0 or Gnu Privacy Guard (GPG)
+>>>3		ubyte		>3		PGP/GPG key public ring (v%u)
+!:mime		application/pgp-keys
+!:ext		pgp/gpg/pkr/asd
+>>>>4		beldate		x		created %s
+# display key algorithm 17~DSA
+>>>>8		use		key_algo
+# Multiprecision Integers (MPI) size
+>>>>9		ubeshort	x		%u bits
+>>>>11		ubequad		x		MPI=0x%16.16llx...
+
+0       beshort         0x9501                  PGP key security ring
+!:mime	application/x-pgp-keyring
+0       beshort         0x9500                  PGP key security ring
+!:mime	application/x-pgp-keyring
+0	beshort		0xa600			PGP encrypted data
+#!:mime	application/pgp-encrypted
+#0	string		-----BEGIN\040PGP	text/PGP armored data
+!:mime	text/PGP # encoding: armored data
+#>15	string	PUBLIC\040KEY\040BLOCK-	public key block
+#>15	string	MESSAGE-		message
+#>15	string	SIGNED\040MESSAGE-	signed message
+#>15	string	PGP\040SIGNATURE-	signature
+
+2	string	---BEGIN\040PGP\040PUBLIC\040KEY\040BLOCK-	PGP public key block
+!:mime	application/pgp-keys
+>10	search/100	\n\n
+>>&0	use		pgp
+0	string	-----BEGIN\040PGP\040MESSAGE-		PGP message
+!:mime	application/pgp
+>10	search/100	\n\n
+>>&0	use		pgp
+0	string	-----BEGIN\040PGP\040SIGNATURE-		PGP signature
+!:mime	application/pgp-signature
+>10	search/100	\n\n
+>>&0	use		pgp
+
+# Decode the type of the packet based on it's base64 encoding.
+# Idea from Mark Martinec
+# The specification is in RFC 4880, section 4.2 and 4.3:
+# http://tools.ietf.org/html/rfc4880#section-4.2
+
+0	name		pgp
+>0	byte		0x67		Reserved (old)
+>0	byte		0x68		Public-Key Encrypted Session Key (old)
+>0	byte		0x69		Signature (old)
+>0	byte		0x6a		Symmetric-Key Encrypted Session Key (old)
+>0	byte		0x6b		One-Pass Signature (old)
+>0	byte		0x6c		Secret-Key (old)
+>0	byte		0x6d		Public-Key (old)
+>0	byte		0x6e		Secret-Subkey (old)
+>0	byte		0x6f		Compressed Data (old)
+>0	byte		0x70		Symmetrically Encrypted Data (old)
+>0	byte		0x71		Marker (old)
+>0	byte		0x72		Literal Data (old)
+>0	byte		0x73		Trust (old)
+>0	byte		0x74		User ID (old)
+>0	byte		0x75		Public-Subkey (old)
+>0	byte		0x76		Unused (old)
+>0	byte		0x77
+>>1	byte&0xc0	0x00		Reserved
+>>1	byte&0xc0	0x40		Public-Key Encrypted Session Key
+>>1	byte&0xc0	0x80		Signature
+>>1	byte&0xc0	0xc0		Symmetric-Key Encrypted Session Key
+>0	byte		0x78
+>>1	byte&0xc0	0x00		One-Pass Signature
+>>1	byte&0xc0	0x40		Secret-Key
+>>1	byte&0xc0	0x80		Public-Key
+>>1	byte&0xc0	0xc0		Secret-Subkey
+>0	byte		0x79
+>>1	byte&0xc0	0x00		Compressed Data
+>>1	byte&0xc0	0x40		Symmetrically Encrypted Data
+>>1	byte&0xc0	0x80		Marker
+>>1	byte&0xc0	0xc0		Literal Data
+>0	byte		0x7a
+>>1	byte&0xc0	0x00		Trust
+>>1	byte&0xc0	0x40		User ID
+>>1	byte&0xc0	0x80		Public-Subkey
+>>1	byte&0xc0	0xc0		Unused [z%x]
+>0	byte		0x30
+>>1	byte&0xc0	0x00		Unused [0%x]
+>>1	byte&0xc0	0x40		User Attribute
+>>1	byte&0xc0	0x80		Sym. Encrypted and Integrity Protected Data
+>>1	byte&0xc0	0xc0		Modification Detection Code
+
+# magic signatures to detect PGP crypto material (from stef)
+# detects and extracts metadata from:
+#  - symmetric encrypted packet header
+#  - RSA (e=65537) secret (sub-)keys
+
+# 1024b RSA encrypted data
+
+0	string	\x84\x8c\x03		PGP RSA encrypted session key -
+>3	lelong	x			keyid: %X
+>7	lelong	x			%X
+>11	byte	0x01			RSA (Encrypt or Sign) 1024b
+>11	byte	0x02			RSA Encrypt-Only 1024b
+>12	string	\x04\x00
+>12	string	\x03\xff
+>12	string	\x03\xfe
+>12	string	\x03\xfd
+>12	string	\x03\xfc
+>12	string	\x03\xfb
+>12	string	\x03\xfa
+>12	string	\x03\xf9
+>142	byte	0xd2			.
+
+# 2048b RSA encrypted data
+
+0	string	\x85\x01\x0c\x03	PGP RSA encrypted session key -
+>4	lelong	x			keyid: %X
+>8	lelong	x			%X
+>12	byte	0x01			RSA (Encrypt or Sign) 2048b
+>12	byte	0x02			RSA Encrypt-Only 2048b
+>13	string	\x08\x00
+>13	string	\x07\xff
+>13	string	\x07\xfe
+>13	string	\x07\xfd
+>13	string	\x07\xfc
+>13	string	\x07\xfb
+>13	string	\x07\xfa
+>13	string	\x07\xf9
+>271	byte	0xd2			.
+
+# 3072b RSA encrypted data
+
+0	string	\x85\x01\x8c\x03	PGP RSA encrypted session key -
+>4	lelong	x			keyid: %X
+>8	lelong	x			%X
+>12	byte	0x01			RSA (Encrypt or Sign) 3072b
+>12	byte	0x02			RSA Encrypt-Only 3072b
+>13	string	\x0c\x00
+>13	string	\x0b\xff
+>13	string	\x0b\xfe
+>13	string	\x0b\xfd
+>13	string	\x0b\xfc
+>13	string	\x0b\xfb
+>13	string	\x0b\xfa
+>13	string	\x0b\xf9
+>399	byte	0xd2			.
+
+# 3072b RSA encrypted data
+
+0	string	\x85\x02\x0c\x03	PGP RSA encrypted session key -
+>4	lelong	x			keyid: %X
+>8	lelong	x			%X
+>12	byte	0x01			RSA (Encrypt or Sign) 4096b
+>12	byte	0x02			RSA Encrypt-Only 4096b
+>13	string	\x10\x00
+>13	string	\x0f\xff
+>13	string	\x0f\xfe
+>13	string	\x0f\xfd
+>13	string	\x0f\xfc
+>13	string	\x0f\xfb
+>13	string	\x0f\xfa
+>13	string	\x0f\xf9
+>527	byte	0xd2			.
+
+# 4096b RSA encrypted data
+
+0	string	\x85\x04\x0c\x03	PGP RSA encrypted session key -
+>4	lelong	x			keyid: %X
+>8	lelong	x			%X
+>12	byte	0x01			RSA (Encrypt or Sign) 8129b
+>12	byte	0x02			RSA Encrypt-Only 8129b
+>13	string	\x20\x00
+>13	string	\x1f\xff
+>13	string	\x1f\xfe
+>13	string	\x1f\xfd
+>13	string	\x1f\xfc
+>13	string	\x1f\xfb
+>13	string	\x1f\xfa
+>13	string	\x1f\xf9
+>1039	byte	0xd2			.
+
+# crypto algo mapper
+
+0	name	crypto
+>0	byte	0x00			Plaintext or unencrypted data
+>0	byte	0x01			IDEA
+>0	byte	0x02			TripleDES
+>0	byte	0x03			CAST5 (128 bit key)
+>0	byte	0x04			Blowfish (128 bit key, 16 rounds)
+>0	byte	0x07			AES with 128-bit key
+>0	byte	0x08			AES with 192-bit key
+>0	byte	0x09			AES with 256-bit key
+>0	byte	0x0a			Twofish with 256-bit key
+
+# hash algo mapper
+
+0	name	hash
+>0	byte	0x01			MD5
+>0	byte	0x02			SHA-1
+>0	byte	0x03			RIPE-MD/160
+>0	byte	0x08			SHA256
+>0	byte	0x09			SHA384
+>0	byte	0x0a			SHA512
+>0	byte	0x0b			SHA224
+
+# display public key algorithms as human readable text
+0	name	key_algo
+>0	byte	0x01			RSA (Encrypt or Sign)
+# keep old look of version 5.28 without parentheses
+>0	byte	0x02			RSA Encrypt-Only
+>0	byte	0x03			RSA (Sign-Only)
+>0	byte	16			ElGamal (Encrypt-Only)
+>0	byte	17			DSA
+>0	byte	18			Elliptic Curve
+>0	byte	19			ECDSA
+>0	byte	20			ElGamal (Encrypt or Sign)
+>0	byte	21			Diffie-Hellman
+>0	default	x
+>>0	ubyte	<22			unknown (pub %d)
+# this should never happen
+>>0	ubyte	>21			invalid (%d)
+
+# pgp symmetric encrypted data
+
+0	byte	0x8c			PGP symmetric key encrypted data -
+>1	byte	0x0d
+>1	byte	0x0c
+>2	byte	0x04
+>3	use	crypto
+>4	byte	0x01			salted -
+>>5	use	hash
+>>14	byte	0xd2			.
+>>14	byte	0xc9			.
+>4	byte	0x03			salted & iterated -
+>>5	use	hash
+>>15	byte	0xd2			.
+>>15	byte	0xc9			.
+
+# encrypted keymaterial needs s2k & can be checksummed/hashed
+
+0	name	chkcrypto
+>0	use	crypto
+>1	byte	0x00			Simple S2K
+>1	byte	0x01			Salted S2K
+>1	byte	0x03			Salted&Iterated S2K
+>2	use	hash
+
+# all PGP keys start with this prolog
+# containing version, creation date, and purpose
+
+0	name	keyprolog
+>0	byte	0x04
+>1	beldate	x			created on %s -
+>5	byte	0x01			RSA (Encrypt or Sign)
+>5	byte	0x02			RSA Encrypt-Only
+
+# end of secret keys known signature
+# contains e=65537 and the prolog to
+# the encrypted parameters
+
+0	name	keyend
+>0	string	\x00\x11\x01\x00\x01	e=65537
+>5	use	crypto
+>5	byte	0xff			checksummed
+>>6	use	chkcrypto
+>5	byte	0xfe			hashed
+>>6	use	chkcrypto
+
+# PGP secret keys contain also the public parts
+# these vary by bitsize of the key
+
+0	name	x1024
+>0	use	keyprolog
+>6	string	\x03\xfe
+>6	string	\x03\xff
+>6	string	\x04\x00
+>136	use	keyend
+
+0	name	x2048
+>0	use	keyprolog
+>6	string	\x80\x00
+>6	string	\x07\xfe
+>6	string	\x07\xff
+>264	use	keyend
+
+0	name	x3072
+>0	use	keyprolog
+>6	string	\x0b\xfe
+>6	string	\x0b\xff
+>6	string	\x0c\x00
+>392	use	keyend
+
+0	name	x4096
+>0	use	keyprolog
+>6	string	\x10\x00
+>6	string	\x0f\xfe
+>6	string	\x0f\xff
+>520	use	keyend
+
+# \x00|\x1f[\xfe\xff]).{1024})'
+0	name	x8192
+>0	use	keyprolog
+>6	string	\x20\x00
+>6	string	\x1f\xfe
+>6	string	\x1f\xff
+>1032	use	keyend
+
+# depending on the size of the pkt
+# we branch into the proper key size
+# signatures defined as x{keysize}
+
+>0	name	pgpkey
+>0	string	\x01\xd8	1024b
+>>2	use	x1024
+>0	string	\x01\xeb	1024b
+>>2	use	x1024
+>0	string	\x01\xfb	1024b
+>>2	use	x1024
+>0	string	\x01\xfd	1024b
+>>2	use	x1024
+>0	string	\x01\xf3	1024b
+>>2	use	x1024
+>0	string	\x01\xee	1024b
+>>2	use	x1024
+>0	string	\x01\xfe	1024b
+>>2	use	x1024
+>0	string	\x01\xf4	1024b
+>>2	use	x1024
+>0	string	\x02\x0d	1024b
+>>2	use	x1024
+>0	string	\x02\x03	1024b
+>>2	use	x1024
+>0	string	\x02\x05	1024b
+>>2	use	x1024
+>0	string	\x02\x15	1024b
+>>2	use	x1024
+>0	string	\x02\x00	1024b
+>>2	use	x1024
+>0	string	\x02\x10	1024b
+>>2	use	x1024
+>0	string	\x02\x04	1024b
+>>2	use	x1024
+>0	string	\x02\x06	1024b
+>>2	use	x1024
+>0	string	\x02\x16	1024b
+>>2	use	x1024
+>0	string	\x03\x98	2048b
+>>2	use	x2048
+>0	string	\x03\xab	2048b
+>>2	use	x2048
+>0	string	\x03\xbb	2048b
+>>2	use	x2048
+>0	string	\x03\xbd	2048b
+>>2	use	x2048
+>0	string	\x03\xcd	2048b
+>>2	use	x2048
+>0	string	\x03\xb3	2048b
+>>2	use	x2048
+>0	string	\x03\xc3	2048b
+>>2	use	x2048
+>0	string	\x03\xc5	2048b
+>>2	use	x2048
+>0	string	\x03\xd5	2048b
+>>2	use	x2048
+>0	string	\x03\xae	2048b
+>>2	use	x2048
+>0	string	\x03\xbe	2048b
+>>2	use	x2048
+>0	string	\x03\xc0	2048b
+>>2	use	x2048
+>0	string	\x03\xd0	2048b
+>>2	use	x2048
+>0	string	\x03\xb4	2048b
+>>2	use	x2048
+>0	string	\x03\xc4	2048b
+>>2	use	x2048
+>0	string	\x03\xc6	2048b
+>>2	use	x2048
+>0	string	\x03\xd6	2048b
+>>2	use	x2048
+>0	string	\x05X		3072b
+>>2	use	x3072
+>0	string	\x05k		3072b
+>>2	use	x3072
+>0	string	\x05{		3072b
+>>2	use	x3072
+>0	string	\x05}		3072b
+>>2	use	x3072
+>0	string	\x05\x8d	3072b
+>>2	use	x3072
+>0	string	\x05s		3072b
+>>2	use	x3072
+>0	string	\x05\x83	3072b
+>>2	use	x3072
+>0	string	\x05\x85	3072b
+>>2	use	x3072
+>0	string	\x05\x95	3072b
+>>2	use	x3072
+>0	string	\x05n		3072b
+>>2	use	x3072
+>0	string	\x05\x7e	3072b
+>>2	use	x3072
+>0	string	\x05\x80	3072b
+>>2	use	x3072
+>0	string	\x05\x90	3072b
+>>2	use	x3072
+>0	string	\x05t		3072b
+>>2	use	x3072
+>0	string	\x05\x84	3072b
+>>2	use	x3072
+>0	string	\x05\x86	3072b
+>>2	use	x3072
+>0	string	\x05\x96	3072b
+>>2	use	x3072
+>0	string	\x07[		4096b
+>>2	use	x4096
+>0	string	\x07\x18	4096b
+>>2	use	x4096
+>0	string	\x07+		4096b
+>>2	use	x4096
+>0	string	\x07;		4096b
+>>2	use	x4096
+>0	string	\x07=		4096b
+>>2	use	x4096
+>0	string	\x07M		4096b
+>>2	use	x4096
+>0	string	\x073		4096b
+>>2	use	x4096
+>0	string	\x07C		4096b
+>>2	use	x4096
+>0	string	\x07E		4096b
+>>2	use	x4096
+>0	string	\x07U		4096b
+>>2	use	x4096
+>0	string	\x07.		4096b
+>>2	use	x4096
+>0	string	\x07>		4096b
+>>2	use	x4096
+>0	string	\x07@		4096b
+>>2	use	x4096
+>0	string	\x07P		4096b
+>>2	use	x4096
+>0	string	\x074		4096b
+>>2	use	x4096
+>0	string	\x07D		4096b
+>>2	use	x4096
+>0	string	\x07F		4096b
+>>2	use	x4096
+>0	string	\x07V		4096b
+>>2	use	x4096
+>0	string	\x0e[		8192b
+>>2	use	x8192
+>0	string	\x0e\x18	8192b
+>>2	use	x8192
+>0	string	\x0e+		8192b
+>>2	use	x8192
+>0	string	\x0e;		8192b
+>>2	use	x8192
+>0	string	\x0e=		8192b
+>>2	use	x8192
+>0	string	\x0eM		8192b
+>>2	use	x8192
+>0	string	\x0e3		8192b
+>>2	use	x8192
+>0	string	\x0eC		8192b
+>>2	use	x8192
+>0	string	\x0eE		8192b
+>>2	use	x8192
+>0	string	\x0eU		8192b
+>>2	use	x8192
+>0	string	\x0e.		8192b
+>>2	use	x8192
+>0	string	\x0e>		8192b
+>>2	use	x8192
+>0	string	\x0e@		8192b
+>>2	use	x8192
+>0	string	\x0eP		8192b
+>>2	use	x8192
+>0	string	\x0e4		8192b
+>>2	use	x8192
+>0	string	\x0eD		8192b
+>>2	use	x8192
+>0	string	\x0eF		8192b
+>>2	use	x8192
+>0	string	\x0eV		8192b
+>>2	use	x8192
+
+# PGP RSA (e=65537) secret (sub-)key header
+
+0	byte	0x95			PGP	Secret Key -
+>1	use	pgpkey
+0	byte	0x97			PGP	Secret Sub-key -
+>1	use	pgpkey
+0	byte	0x9d
+# Update: Joerg Jenderek
+# secret subkey packet (tag 7) with same structure as secret key packet (tag 5)
+# skip Fetus.Sys16 CALIBUS.MAIN OrbFix.Sys16.Ex by looking for positive len
+>1	ubeshort	>0
+#>1	ubeshort	x		\b, body length 0x%x
+# next packet type often 88h,89h~(tag 2)~Signature Packet
+#>>(1.S+3)	ubyte	x		\b, next packet type 0x%x
+# skip Dragon.SHR DEMO.INIT by looking for positive version
+>>3	ubyte		>0
+# skip BUISSON.13 GUITAR1 by looking for low version number
+>>>3	ubyte		<5		PGP Secret Sub-key
+# sub-key are normally part of secret key. So it does not occur as standalone file
+#!:ext	bin
+# version 2,3~old 4~new . Comment following line for version 5.28 look
+>>>>3	ubyte		x		(v%d)
+>>>>3	ubyte		x		-
+# old versions 2 or 3 but no real example found
+>>>>3	ubyte		<4
+# 2 byte for key bits in version 5.28 look
+>>>>>11		ubeshort	x	%db
+>>>>>4		beldate		x	created on %s -
+# old versions use 2 additional bytes after time stamp
+#>>>>>8		ubeshort	x	0x%x
+# display key algorithm 1~RSA Encrypt|Sign - 21~Diffie-Hellman
+>>>>>10	  	use		key_algo
+>>>>>(11.S/8)	ubequad		x
+# look after first key
+>>>>>>&5	use		keyend
+# new version
+>>>>3	ubyte		>3
+>>>>>9		ubeshort	x	%db
+>>>>>4		beldate		x	created on %s -
+# display key algorithm
+>>>>>8		use		key_algo
+>>>>>(9.S/8)	ubequad		x
+# look after first key for something like s2k
+>>>>>>&3	use		keyend

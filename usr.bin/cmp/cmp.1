@@ -1,0 +1,128 @@
+.\" Copyright (c) 1987, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)cmp.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd May 1, 2018
+.Dt CMP 1
+.Os
+.Sh NAME
+.Nm cmp
+.Nd compare two files
+.Sh SYNOPSIS
+.Nm
+.Op Fl l | s | x
+.Op Fl hz
+.Ar file1 file2
+.Op Ar skip1 Op Ar skip2
+.Sh DESCRIPTION
+The
+.Nm
+utility compares two files of any type and writes the results
+to the standard output.
+By default,
+.Nm
+is silent if the files are the same; if they differ, the byte
+and line number at which the first difference occurred is reported.
+.Pp
+Bytes and lines are numbered beginning with one.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl h
+Do not follow symbolic links.
+.It Fl l , Fl -verbose
+Print the byte number (decimal) and the differing
+byte values (octal) for each difference.
+.It Fl s , Fl -silent , Fl -quiet
+Print nothing for differing files; return exit
+status only.
+.It Fl x
+Like
+.Fl l
+but prints in hexadecimal and using zero as index
+for the first byte in the files.
+.It Fl z
+For regular files compare file sizes first, and fail the comparison if they
+are not equal.
+.El
+.Pp
+The optional arguments
+.Ar skip1
+and
+.Ar skip2
+are the byte offsets from the beginning of
+.Ar file1
+and
+.Ar file2 ,
+respectively, where the comparison will begin.
+The offset is decimal by default, but may be expressed as a hexadecimal
+or octal value by preceding it with a leading ``0x'' or ``0''.
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Bl -tag -width 4n
+.It 0
+The files are identical.
+.It 1
+The files are different; this includes the case
+where one file is identical to the first part of
+the other.
+In the latter case, if the
+.Fl s
+option has not been specified,
+.Nm
+writes to standard error that EOF was reached in the shorter
+file (before any differences were found).
+.It >1
+An error occurred.
+.El
+.Sh SEE ALSO
+.Xr diff 1 ,
+.Xr diff3 1
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be
+.St -p1003.2
+compatible.
+The
+.Fl h ,
+.Fl x ,
+and
+.Fl z
+options are extensions to the standard.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .

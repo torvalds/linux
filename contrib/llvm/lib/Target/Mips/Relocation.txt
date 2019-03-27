@@ -1,0 +1,92 @@
+MIPS Relocation Principles
+
+In LLVM, there are several elements of the llvm::ISD::NodeType enum
+that deal with addresses and/or relocations. These are defined in
+include/llvm/Target/TargetSelectionDAG.td, namely:
+    GlobalAddress, GlobalTLSAddress, JumpTable, ConstantPool,
+    ExternalSymbol, BlockAddress
+The MIPS backend uses several principles to handle these.
+
+1. Code for lowering addresses references to machine dependent code is
+factored into common code for generating different address forms and
+is called by the relocation model specific lowering function, using
+templated functions. For example:
+
+  // lib/Target/Mips/MipsISelLowering.cpp
+  SDValue MipsTargetLowering::
+  lowerJumpTable(SDValue Op, SelectionDAG &DAG) const
+
+calls
+
+  template <class NodeTy> // lib/Target/Mips/MipsISelLowering.h
+  SDValue getAddrLocal(NodeTy *N, const SDLoc &DL, EVT Ty,
+                       SelectionDAG &DAG, bool IsN32OrN64) const
+
+which calls the overloaded function:
+
+  // lib/Target/Mips/MipsISelLowering.h
+  SDValue getTargetNode(JumpTableSDNode *N, EVT Ty, SelectionDAG &DAG,
+                        unsigned Flag) const;
+
+2. Generic address nodes are lowered to some combination of target
+independent and machine specific SDNodes (for example:
+MipsISD::{Highest, Higher, Hi, Lo}) depending upon relocation model,
+ABI, and compilation options.
+
+The choice of specific instructions that are to be used is delegated
+to ISel which in turn relies on TableGen patterns to choose subtarget
+specific instructions. For example, in getAddrLocal, the pseudo-code
+generated is:
+
+  (add (load (wrapper $gp, %got(sym)), %lo(sym))
+
+where "%lo" represents an instance of an SDNode with opcode
+"MipsISD::Lo", "wrapper" indicates one with opcode "MipsISD::Wrapper",
+and "%got" the global table pointer "getGlobalReg(...)". The "add" is
+"ISD::ADD", not a target dependent one.
+
+3. A TableGen multiclass pattern "MipsHiLoRelocs" is used to define a
+template pattern parameterized over the load upper immediate
+instruction, add operation, the zero register, and register class.
+Here the instantiation of MipsHiLoRelocs in MipsInstrInfo.td is used
+to MIPS32 to compute addresses for the static relocation model.
+
+  // lib/Target/Mips/MipsInstrInfo.td
+  multiclass MipsHiLoRelocs<Instruction Lui, Instruction Addiu,
+                            Register ZeroReg, RegisterOperand GPROpnd> {
+    def : MipsPat<(MipsHi tglobaladdr:$in), (Lui tglobaladdr:$in)>;
+    ...
+    def : MipsPat<(MipsLo tglobaladdr:$in), (Addiu ZeroReg, tglobaladdr:$in)>;
+    ...
+    def : MipsPat<(add GPROpnd:$hi, (MipsLo tglobaladdr:$lo)),
+                (Addiu GPROpnd:$hi, tglobaladdr:$lo)>;
+    ...
+  }
+  defm : MipsHiLoRelocs<LUi, ADDiu, ZERO, GPR32Opnd>;
+
+  // lib/Target/Mips/Mips64InstrInfo.td
+  defm : MipsHiLoRelocs<LUi64, DADDiu, ZERO_64, GPR64Opnd>, SYM_32;
+
+The instantiation in Mips64InstrInfo.td is used for MIPS64 in ILP32
+mode, as guarded by the predicate "SYM_32" and also for a submode of
+LP64 where symbols are assumed to be 32 bits wide.
+
+More details on how multiclasses in TableGen work can be found in the
+section "Multiclass definitions and instances" in the document
+"TableGen Language Introduction"
+
+4. Instruction definitions are multiply defined to cover the different
+register classes. In some cases, such as LW/LW64, this also accounts
+for the difference in the results of instruction execution. On MIPS32,
+"lw" loads a 32 bit value from memory. On MIPS64, "lw" loads a 32 bit
+value from memory and sign extends the value to 64 bits.
+
+  // lib/Target/Mips/MipsInstrInfo.td
+  def LUi   : MMRel, LoadUpper<"lui", GPR32Opnd, uimm16_relaxed>, LUI_FM;
+  // lib/Target/Mips/Mips64InstrInfo.td
+  def LUi64   : LoadUpper<"lui", GPR64Opnd, uimm16_64_relaxed>, LUI_FM;
+
+defines two names "LUi" and "LUi64" with two different register
+classes, but with the same encoding---"LUI_FM". These instructions load a
+16-bit immediate into bits 31-16 and clear the lower 15 bits. On MIPS64,
+the result is sign-extended to 64 bits.

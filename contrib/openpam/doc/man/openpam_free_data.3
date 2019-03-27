@@ -1,0 +1,46 @@
+.\" Generated from openpam_free_data.c by gendoc.pl
+.\" $OpenPAM: openpam_free_data.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt OPENPAM_FREE_DATA 3
+.Os
+.Sh NAME
+.Nm openpam_free_data
+.Nd generic cleanup function
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.In security/openpam.h
+.Ft "void"
+.Fn openpam_free_data "pam_handle_t *pamh" "void *data" "int status"
+.Sh DESCRIPTION
+The
+.Fn openpam_free_data
+function is a cleanup function suitable for
+passing to
+.Xr pam_set_data 3 .
+It simply releases the data by passing its
+.Fa data
+argument to
+.Xr free 3 .
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr pam 3 ,
+.Xr pam_set_data 3
+.Sh STANDARDS
+The
+.Fn openpam_free_data
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn openpam_free_data
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

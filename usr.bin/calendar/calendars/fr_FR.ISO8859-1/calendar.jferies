@@ -1,0 +1,46 @@
+/*
+ * Jours fériés
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _fr_FR_ISO8859_1_jferies_
+#define _fr_FR_ISO8859_1_jferies_
+
+LANG=fr_FR.ISO8859-1
+
+/* Jours chômés */
+01/01	Nouvel an
+05/01	Fête du travail
+05/08	Armistice 1945
+07/14	Fête nationale française
+11/11	Armistice 1918
+
+/* Jours fériés religieux */
+Easter		Pâques
+Easter+1 	Lundi de Pâques
+Easter+39	Ascension
+Easter+49	Pentecôte
+Easter+50	Lundi de Pentecôte
+08/15		Assomption
+11/01		Toussaint
+12/25		Noël
+
+/* Les dates suivantes ne sont malheureusement pas fériées... */
+
+/* Saisons */
+03/21*	Printemps
+06/21*	Été
+09/21*	Automne
+12/21*	Hiver
+
+/* Changements d'heure */
+03/SundayLast	Passage à l'heure d'été
+10/SundayLast	Passage à l'heure d'hiver
+
+/* Divers */
+/* BUG : si Penteco^te = 05/SunLast, fe^te des me`res repousse'e d'une semaine */
+05/SundayLast	Fêtes des mères
+June Sun+3	Fêtes des pères
+
+#endif /*! _fr_FR_ISO8859_1_jferies_ */

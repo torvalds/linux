@@ -1,0 +1,291 @@
+.\" Man page generated from reStructuredText.
+.
+.TH IBROUTE 8 "" "" "Open IB Diagnostics"
+.SH NAME
+IBROUTE \- 
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH QUERY INFINIBAND SWITCH FORWARDING TABLES
+.SS SYNOPSIS
+.sp
+ibroute [options] [<dest dr_path|lid|guid> [<startlid> [<endlid>]]]
+.SS DESCRIPTION
+.sp
+ibroute uses SMPs to display the forwarding tables (unicast
+(LinearForwardingTable or LFT) or multicast (MulticastForwardingTable or MFT))
+for the specified switch LID and the optional lid (mlid) range.
+The default range is all valid entries in the range 1...FDBTop.
+.SS OPTIONS
+.INDENT 0.0
+.TP
+.B \fB\-a, \-\-all\fP
+show all lids in range, even invalid entries
+.TP
+.B \fB\-n, \-\-no_dests\fP
+do not try to resolve destinations
+.TP
+.B \fB\-M, \-\-Multicast\fP
+show multicast forwarding tables
+In this case, the range parameters are specifying the mlid range.
+.UNINDENT
+.SS Addressing Flags
+.\" Define the common option -D for Directed routes
+.
+.sp
+\fB\-D, \-\-Direct\fP     The address specified is a directed route
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+Examples:
+   [options] \-D [options] "0"          # self port
+   [options] \-D [options] "0,1,2,1,4"  # out via port 1, then 2, ...
+
+   (Note the second number in the path specified must match the port being
+   used.  This can be specified using the port selection flag \(aq\-P\(aq or the
+   port found through the automatic selection process.)
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.\" Define the common option -G
+.
+.sp
+\fB\-G, \-\-Guid\fP     The address specified is a Port GUID
+.\" Define the common option -L
+.
+.sp
+\fB\-L, \-\-Lid\fP   The address specified is a LID
+.\" Define the common option -s
+.
+.sp
+\fB\-s, \-\-sm_port <smlid>\fP     use \(aqsmlid\(aq as the target lid for SA queries.
+.SS Port Selection flags
+.\" Define the common option -C
+.
+.sp
+\fB\-C, \-\-Ca <ca_name>\fP    use the specified ca_name.
+.\" Define the common option -P
+.
+.sp
+\fB\-P, \-\-Port <ca_port>\fP    use the specified ca_port.
+.\" Explanation of local port selection
+.
+.SS Local port Selection
+.sp
+Multiple port/Multiple CA support: when no IB device or port is specified
+(see the "local umad parameters" below), the libibumad library
+selects the port to use by the following criteria:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP 1. 3
+the first port that is ACTIVE.
+.IP 2. 3
+if not found, the first port that is UP (physical link up).
+.UNINDENT
+.sp
+If a port and/or CA name is specified, the libibumad library attempts
+to fulfill the user request, and will fail if it is not possible.
+.sp
+For example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+ibaddr                 # use the first port (criteria #1 above)
+ibaddr \-C mthca1       # pick the best port from "mthca1" only.
+ibaddr \-P 2            # use the second (active/up) port from the first available IB device.
+ibaddr \-C mthca0 \-P 2  # use the specified port only.
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Debugging flags
+.\" Define the common option -d
+.
+.INDENT 0.0
+.TP
+.B \-d
+raise the IB debugging level.
+May be used several times (\-ddd or \-d \-d \-d).
+.UNINDENT
+.\" Define the common option -e
+.
+.INDENT 0.0
+.TP
+.B \-e
+show send and receive errors (timeouts and others)
+.UNINDENT
+.\" Define the common option -h
+.
+.sp
+\fB\-h, \-\-help\fP      show the usage message
+.\" Define the common option -v
+.
+.INDENT 0.0
+.TP
+.B \fB\-v, \-\-verbose\fP
+increase the application verbosity level.
+May be used several times (\-vv or \-v \-v \-v)
+.UNINDENT
+.\" Define the common option -V
+.
+.sp
+\fB\-V, \-\-version\fP     show the version info.
+.SS Configuration flags
+.\" Define the common option -t
+.
+.sp
+\fB\-t, \-\-timeout <timeout_ms>\fP override the default timeout for the solicited mads.
+.\" Define the common option -y
+.
+.INDENT 0.0
+.TP
+.B \fB\-y, \-\-m_key <key>\fP
+use the specified M_key for requests. If non\-numeric value (like \(aqx\(aq)
+is specified then a value will be prompted for.
+.UNINDENT
+.\" Define the common option --node-name-map
+.
+.sp
+\fB\-\-node\-name\-map <node\-name\-map>\fP Specify a node name map.
+.INDENT 0.0
+.INDENT 3.5
+This file maps GUIDs to more user friendly names.  See FILES section.
+.UNINDENT
+.UNINDENT
+.\" Define the common option -z
+.
+.sp
+\fB\-\-config, \-z  <config_file>\fP Specify alternate config file.
+.INDENT 0.0
+.INDENT 3.5
+Default: /etc/infiniband-diags/ibdiag.conf
+.UNINDENT
+.UNINDENT
+.SS FILES
+.\" Common text for the config file
+.
+.SS CONFIG FILE
+.sp
+/etc/infiniband-diags/ibdiag.conf
+.sp
+A global config file is provided to set some of the common options for all
+tools.  See supplied config file for details.
+.\" Common text to describe the node name map file.
+.
+.SS NODE NAME MAP FILE FORMAT
+.sp
+The node name map is used to specify user friendly names for nodes in the
+output.  GUIDs are used to perform the lookup.
+.sp
+This functionality is provided by the opensm\-libs package.  See \fBopensm(8)\fP
+for the file location for your installation.
+.sp
+\fBGenerically:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+# comment
+<guid> "<name>"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+# IB1
+# Line cards
+0x0008f104003f125c "IB1 (Rack 11 slot 1   ) ISR9288/ISR9096 Voltaire sLB\-24D"
+0x0008f104003f125d "IB1 (Rack 11 slot 1   ) ISR9288/ISR9096 Voltaire sLB\-24D"
+0x0008f104003f10d2 "IB1 (Rack 11 slot 2   ) ISR9288/ISR9096 Voltaire sLB\-24D"
+0x0008f104003f10d3 "IB1 (Rack 11 slot 2   ) ISR9288/ISR9096 Voltaire sLB\-24D"
+0x0008f104003f10bf "IB1 (Rack 11 slot 12  ) ISR9288/ISR9096 Voltaire sLB\-24D"
+
+# Spines
+0x0008f10400400e2d "IB1 (Rack 11 spine 1   ) ISR9288 Voltaire sFB\-12D"
+0x0008f10400400e2e "IB1 (Rack 11 spine 1   ) ISR9288 Voltaire sFB\-12D"
+0x0008f10400400e2f "IB1 (Rack 11 spine 1   ) ISR9288 Voltaire sFB\-12D"
+0x0008f10400400e31 "IB1 (Rack 11 spine 2   ) ISR9288 Voltaire sFB\-12D"
+0x0008f10400400e32 "IB1 (Rack 11 spine 2   ) ISR9288 Voltaire sFB\-12D"
+
+# GUID   Node Name
+0x0008f10400411a08 "SW1  (Rack  3) ISR9024 Voltaire 9024D"
+0x0008f10400411a28 "SW2  (Rack  3) ISR9024 Voltaire 9024D"
+0x0008f10400411a34 "SW3  (Rack  3) ISR9024 Voltaire 9024D"
+0x0008f104004119d0 "SW4  (Rack  3) ISR9024 Voltaire 9024D"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS EXAMPLES
+.sp
+Unicast examples
+.INDENT 0.0
+.TP
+.B ::
+ibroute 4               # dump all lids with valid out ports of switch with lid 4
+ibroute \-a 4            # same, but dump all lids, even with invalid out ports
+ibroute \-n 4            # simple dump format \- no destination resolution
+ibroute 4 10            # dump lids starting from 10 (up to FDBTop)
+ibroute 4 0x10 0x20     # dump lid range
+ibroute \-G 0x08f1040023 # resolve switch by GUID
+ibroute \-D 0,1          # resolve switch by direct path
+.UNINDENT
+.sp
+Multicast examples
+.INDENT 0.0
+.TP
+.B ::
+ibroute \-M 4                # dump all non empty mlids of switch with lid 4
+ibroute \-M 4 0xc010 0xc020  # same, but with range
+ibroute \-M \-n 4             # simple dump format
+.UNINDENT
+.SS SEE ALSO
+.sp
+ibtracert (8)
+.SS AUTHOR
+.INDENT 0.0
+.TP
+.B Hal Rosenstock
+< \fI\%halr@voltaire.com\fP >
+.UNINDENT
+.\" Generated by docutils manpage writer.
+.

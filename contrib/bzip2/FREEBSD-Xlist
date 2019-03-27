@@ -1,0 +1,26 @@
+# $FreeBSD$
+*Makefile*
+*README.XML.STUFF
+*bz-common.xsl
+*bz-fo.xsl
+*bz-html.xsl
+*bzdiff
+*bzdiff.1
+*bzgrep
+*bzgrep.1
+*bzip.css
+*bzip2.1.preformatted
+*bzip2.txt
+*bzmore
+*bzmore.1
+*dlltest.*
+*entities.xml
+*format.pl
+*libbz2.dsp
+*makefile.msc
+*manual.html
+*manual.pdf
+*manual.ps
+*manual.xml
+*mk251.c
+*xmlproc.sh

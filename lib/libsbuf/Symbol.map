@@ -1,0 +1,41 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.2 {
+	sbuf_new;
+	sbuf_clear;
+	sbuf_setpos;
+	sbuf_bcat;
+	sbuf_bcpy;
+	sbuf_cat;
+	sbuf_cpy;
+	sbuf_printf;
+	sbuf_vprintf;
+	sbuf_putc;
+	sbuf_set_drain;
+	sbuf_trim;
+	sbuf_error;
+	sbuf_finish;
+	sbuf_data;
+	sbuf_len;
+	sbuf_done;
+	sbuf_delete;
+	sbuf_clear_flags;
+	sbuf_get_flags;
+	sbuf_set_flags;
+};
+
+FBSD_1.3 {
+	sbuf_start_section;
+	sbuf_end_section;
+};
+
+FBSD_1.4 {
+	sbuf_hexdump;
+};
+
+FBSD_1.5 {
+	sbuf_putbuf;
+};
+

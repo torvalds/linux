@@ -1,0 +1,74 @@
+// -*- C++ -*-
+//===--------------------------- __config ---------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXPERIMENTAL_CONFIG
+#define _LIBCPP_EXPERIMENTAL_CONFIG
+
+#include <__config>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+#define _LIBCPP_BEGIN_NAMESPACE_EXPERIMENTAL namespace std { namespace experimental {
+#define _LIBCPP_END_NAMESPACE_EXPERIMENTAL  } }
+#define _VSTD_EXPERIMENTAL std::experimental
+
+#define _LIBCPP_BEGIN_NAMESPACE_LFTS _LIBCPP_BEGIN_NAMESPACE_EXPERIMENTAL inline namespace fundamentals_v1 {
+#define _LIBCPP_END_NAMESPACE_LFTS  } } }
+#define _VSTD_LFTS _VSTD_EXPERIMENTAL::fundamentals_v1
+
+#define _LIBCPP_BEGIN_NAMESPACE_LFTS_V2 _LIBCPP_BEGIN_NAMESPACE_EXPERIMENTAL inline namespace fundamentals_v2 {
+#define _LIBCPP_END_NAMESPACE_LFTS_V2  } } }
+#define _VSTD_LFTS_V2 _VSTD_EXPERIMENTAL::fundamentals_v2
+
+#define _LIBCPP_BEGIN_NAMESPACE_LFTS_PMR _LIBCPP_BEGIN_NAMESPACE_LFTS namespace pmr {
+#define _LIBCPP_END_NAMESPACE_LFTS_PMR _LIBCPP_END_NAMESPACE_LFTS }
+#define _VSTD_LFTS_PMR _VSTD_LFTS::pmr
+
+#define _LIBCPP_BEGIN_NAMESPACE_CHRONO_LFTS _LIBCPP_BEGIN_NAMESPACE_STD        \
+  namespace chrono { namespace experimental { inline namespace fundamentals_v1 {
+#define _LIBCPP_END_NAMESPACE_CHRONO_LFTS _LIBCPP_END_NAMESPACE_STD } } }
+
+#define _LIBCPP_BEGIN_NAMESPACE_EXPERIMENTAL_FILESYSTEM \
+    _LIBCPP_BEGIN_NAMESPACE_EXPERIMENTAL namespace filesystem { \
+    inline namespace v1 {
+
+#define _LIBCPP_END_NAMESPACE_EXPERIMENTAL_FILESYSTEM \
+    } } _LIBCPP_END_NAMESPACE_EXPERIMENTAL
+
+#define _LIBCPP_BEGIN_NAMESPACE_EXPERIMENTAL_COROUTINES \
+  _LIBCPP_BEGIN_NAMESPACE_EXPERIMENTAL inline namespace coroutines_v1 {
+
+#define _LIBCPP_END_NAMESPACE_EXPERIMENTAL_COROUTINES \
+  } _LIBCPP_END_NAMESPACE_EXPERIMENTAL
+
+#define _VSTD_CORO _VSTD_EXPERIMENTAL::coroutines_v1
+
+#define _LIBCPP_BEGIN_NAMESPACE_EXPERIMENTAL_SIMD \
+    _LIBCPP_BEGIN_NAMESPACE_EXPERIMENTAL inline namespace parallelism_v2 {
+
+#define _LIBCPP_END_NAMESPACE_EXPERIMENTAL_SIMD \
+    } _LIBCPP_END_NAMESPACE_EXPERIMENTAL
+
+#define _LIBCPP_BEGIN_NAMESPACE_EXPERIMENTAL_SIMD_ABI \
+    _LIBCPP_BEGIN_NAMESPACE_EXPERIMENTAL_SIMD namespace simd_abi {
+
+#define _LIBCPP_END_NAMESPACE_EXPERIMENTAL_SIMD_ABI \
+    } _LIBCPP_END_NAMESPACE_EXPERIMENTAL_SIMD
+
+// TODO: support more targets
+#if defined(__AVX__)
+#define _LIBCPP_NATIVE_SIMD_WIDTH_IN_BYTES 32
+#else
+#define _LIBCPP_NATIVE_SIMD_WIDTH_IN_BYTES 16
+#endif
+
+#endif

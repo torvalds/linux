@@ -1,0 +1,325 @@
+.\" Copyright (c) 2013  iXsystems.com,
+.\"                     author: Alfred Perlstein <alfred@freebsd.org>
+.\" Copyright (c) 2004  Poul-Henning Kamp <phk@FreeBSD.org>
+.\" Copyright (c) 2003  Sean M. Kelly <smkelly@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 11, 2015
+.Dt WATCHDOGD 8
+.Os
+.Sh NAME
+.Nm watchdogd
+.Nd watchdog daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl dnSw
+.Op Fl -debug
+.Op Fl -softtimeout
+.Op Fl -softtimeout-action Ar action
+.Op Fl -pretimeout Ar timeout
+.Op Fl -pretimeout-action Ar action
+.Op Fl e Ar cmd
+.Op Fl I Ar file
+.Op Fl s Ar sleep
+.Op Fl t Ar timeout
+.Op Fl T Ar script_timeout
+.Op Fl x Ar exit_timeout
+.Sh DESCRIPTION
+The
+.Nm
+utility interfaces with the kernel's watchdog facility to ensure
+that the system is in a working state.
+If
+.Nm
+is unable to interface with the kernel over a specific timeout,
+the kernel will take actions to assist in debugging or restarting the computer.
+.Pp
+If
+.Fl e Ar cmd
+is specified,
+.Nm
+will attempt to execute this command with
+.Xr system 3 ,
+and only if the command returns with a zero exit code will the
+watchdog be reset.
+If
+.Fl e Ar cmd
+is not specified, the daemon will perform a trivial file system
+check instead.
+.Pp
+The
+.Fl n
+argument 'dry-run' will cause watchdog not to arm the system watchdog and
+instead only run the watchdog function and report on failures.
+This is useful for developing new watchdogd scripts as the system will not
+reboot if there are problems with the script.
+.Pp
+The
+.Fl s Ar sleep
+argument can be used to control the sleep period between each execution
+of the check and defaults to 10 seconds.
+.Pp
+The
+.Fl t Ar timeout
+specifies the desired timeout period in seconds.
+The default timeout is 128 seconds.
+.Pp
+One possible circumstance which will cause a watchdog timeout is an interrupt
+storm.
+If this occurs,
+.Nm
+will no longer execute and thus the kernel's watchdog routines will take
+action after a configurable timeout.
+.Pp
+The
+.Fl T Ar script_timeout
+specifies the threshold (in seconds) at which the watchdogd will complain
+that its script has run for too long.
+If unset
+.Ar script_timeout
+defaults to the value specified by the
+.Fl s Ar sleep
+option.
+.Pp
+The
+.Fl x Ar exit_timeout
+argument is the timeout period (in seconds) to leave in effect when the
+program exits.
+Using
+.Fl x
+with a non-zero value protects against lockup during a reboot by
+triggering a hardware reset if the software reboot doesn't complete
+before the given timeout expires.
+.Pp
+Upon receiving the
+.Dv SIGTERM
+or
+.Dv SIGINT
+signals,
+.Nm
+will terminate, after first instructing the kernel to either disable the
+timeout or reset it to the value given by
+.Fl x Ar exit_timeout .
+.Pp
+The
+.Nm
+utility recognizes the following runtime options:
+.Bl -tag -width 30m
+.It Fl I Ar file
+Write the process ID of the
+.Nm
+utility in the specified file.
+.It Fl d Fl -debug
+Do not fork.
+When this option is specified,
+.Nm
+will not fork into the background at startup.
+.It Fl S
+Do not send a message to the system logger when the watchdog command takes
+longer than expected to execute.
+The default behaviour is to log a warning via the system logger with the
+LOG_DAEMON facility, and to output a warning to standard error.
+.It Fl w
+Complain when the watchdog script takes too long.
+This flag will cause watchdogd to complain when the amount of time to
+execute the watchdog script exceeds the threshold of 'sleep' option.
+.It Fl -pretimeout Ar timeout
+Set a "pretimeout" watchdog.
+At "timeout" seconds before the watchdog will fire attempt an action.
+The action is set by the --pretimeout-action flag.
+The default is just to log a message (WD_SOFT_LOG) via
+.Xr log 9 .
+.It Fl -pretimeout-action Ar action
+Set the timeout action for the pretimeout.
+See the section
+.Sx Timeout Actions .
+.It Fl -softtimeout
+Instead of arming the various hardware watchdogs, only use a basic software
+watchdog.
+The default action is just to
+.Xr log 9
+a message (WD_SOFT_LOG).
+.It Fl -softtimeout-action Ar action
+Set the timeout action for the softtimeout.
+See the section
+.Sx Timeout Actions .
+.El
+.Sh Timeout Actions
+The following timeout actions are available via the
+.Fl -pretimeout-action
+and
+.Fl -softtimeout-action
+flags:
+.Bl -tag -width ".Ar printf  "
+.It Ar panic
+Call
+.Xr panic 9
+when the timeout is reached.
+.It Ar ddb
+Enter the kernel debugger via
+.Xr kdb_enter 9
+when the timeout is reached.
+.It Ar log
+Log a message using
+.Xr log 9
+when the timeout is reached.
+.It Ar printf
+call the kernel
+.Xr printf 9
+to display a message to the console and
+.Xr dmesg 8
+buffer.
+.El
+.Pp
+Actions can be combined in a comma separated list as so:
+.Ar log,printf
+which would both
+.Xr printf 9
+and
+.Xr log 9
+which will send messages both to
+.Xr dmesg 8
+and the kernel
+.Xr log 4
+device for
+.Xr syslogd 8 .
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/watchdogd.pid" -compact
+.It Pa /var/run/watchdogd.pid
+.El
+.Sh EXAMPLES
+.Ss Debugging watchdogd and/or your watchdog script.
+This is a useful recipe for debugging
+.Nm
+and your watchdog script.
+.Pp
+(Note that ^C works oddly because
+.Nm
+calls
+.Xr system 3
+so the
+first ^C will terminate the "sleep" command.)
+.Pp
+Explanation of options used:
+.Bl -enum -offset indent -compact
+.It
+Set Debug on (--debug)
+.It
+Set the watchdog to trip at 30 seconds. (-t 30)
+.It
+Use of a softtimeout:
+.Bl -enum -offset indent -compact -nested
+.It
+Use a softtimeout (do not arm the hardware watchdog).
+(--softtimeout)
+.It
+Set the softtimeout action to do both kernel
+.Xr printf 9
+and
+.Xr log 9
+when it trips.
+(--softtimeout-action log,printf)
+.El
+.It
+Use of a pre-timeout:
+.Bl -enum -offset indent -compact -nested
+.It
+Set a pre-timeout of 15 seconds (this will later trigger a panic/dump).
+(--pretimeout 15)
+.It
+Set the action to also kernel
+.Xr printf 9
+and
+.Xr log 9
+when it trips.
+(--pretimeout-action log,printf)
+.El
+.It
+Use of a script:
+.Bl -enum -offset indent -compact -nested
+.It
+Run "sleep 60" as a shell command that acts as the watchdog (-e 'sleep 60')
+.It
+Warn us when the script takes longer than 1 second to run (-w)
+.El
+.El
+.Bd -literal
+watchdogd --debug -t 30 \\
+  --softtimeout --softtimeout-action log,printf \\
+  --pretimeout 15 --pretimeout-action log,printf \\
+  -e 'sleep 60' -w
+.Ed
+.Ss Production use of example
+.Bl -enum -offset indent -compact
+.It
+Set hard timeout to 120 seconds (-t 120)
+.It
+Set a panic to happen at 60 seconds (to trigger a
+.Xr crash 8
+for dump analysis):
+.Bl -enum -offset indent -compact -nested
+.It
+Use of pre-timeout (--pretimeout 60)
+.It
+Specify pre-timeout action (--pretimeout-action log,printf,panic )
+.El
+.It
+Use of a script:
+.Bl -enum -offset indent -compact -nested
+.It
+Run your script (-e '/path/to/your/script 60')
+.It
+Log if your script takes a longer than 15 seconds to run time. (-w -T 15)
+.El
+.El
+.Bd -literal
+watchdogd  -t 120 \\
+  --pretimeout 60 --pretimeout-action log,printf,panic \\
+  -e '/path/to/your/script 60' -w -T 15
+.Ed
+.Sh SEE ALSO
+.Xr watchdog 4 ,
+.Xr watchdog 8 ,
+.Xr watchdog 9
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility and manual page were written by
+.An Sean Kelly Aq Mt smkelly@FreeBSD.org
+and
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .
+.Pp
+Some contributions made by
+.An Jeff Roberson Aq Mt jeff@FreeBSD.org .
+.Pp
+The pretimeout and softtimeout action system was added by
+.An Alfred Perlstein Aq Mt alfred@freebsd.org .

@@ -1,0 +1,57 @@
+.\" Generated from openpam_restore_cred.c by gendoc.pl
+.\" $OpenPAM: openpam_restore_cred.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt OPENPAM_RESTORE_CRED 3
+.Os
+.Sh NAME
+.Nm openpam_restore_cred
+.Nd restore credentials
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.In security/openpam.h
+.Ft "int"
+.Fn openpam_restore_cred "pam_handle_t *pamh"
+.Sh DESCRIPTION
+The
+.Fn openpam_restore_cred
+function restores the credentials saved by
+.Xr openpam_borrow_cred 3 .
+.Pp
+.Sh RETURN VALUES
+The
+.Fn openpam_restore_cred
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_NO_MODULE_DATA
+Module data not found.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.El
+.Sh SEE ALSO
+.Xr setegid 2 ,
+.Xr seteuid 2 ,
+.Xr setgroups 2 ,
+.Xr openpam_borrow_cred 3 ,
+.Xr pam 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+The
+.Fn openpam_restore_cred
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn openpam_restore_cred
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

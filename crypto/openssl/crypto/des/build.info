@@ -1,0 +1,19 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        set_key.c  ecb_enc.c  cbc_enc.c \
+        ecb3_enc.c cfb64enc.c cfb64ede.c cfb_enc.c \
+        ofb64ede.c ofb64enc.c ofb_enc.c \
+        str2key.c  pcbc_enc.c qud_cksm.c rand_key.c \
+        {- $target{des_asm_src} -} \
+        fcrypt.c xcbc_enc.c cbc_cksm.c
+
+GENERATE[des_enc-sparc.S]=asm/des_enc.m4
+GENERATE[dest4-sparcv9.S]=asm/dest4-sparcv9.pl $(PERLASM_SCHEME)
+INCLUDE[dest4-sparcv9.o]=..
+
+GENERATE[des-586.s]=asm/des-586.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS)
+DEPEND[des-586.s]=../perlasm/x86asm.pl ../perlasm/cbc.pl
+GENERATE[crypt586.s]=asm/crypt586.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS)
+DEPEND[crypt586.s]=../perlasm/x86asm.pl ../perlasm/cbc.pl

@@ -1,0 +1,145 @@
+.\"
+.\" Copyright (c) 2012 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Semihalf under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 8, 2012
+.Dt NAND 4
+.Os
+.Sh NAME
+.Nm nand
+.Nd NAND Flash framework
+.Sh SYNOPSIS
+.Cd "device nand"
+.Sh DESCRIPTION
+The
+.Fx
+.Nm
+framework consists of a set of interfaces that aim to provide an extensible,
+object oriented environment for NAND controllers and NAND Flash memory chips
+from various hardware vendors, and to allow for uniform and flexible
+management of the NAND devices.
+It comprises of the following major components:
+.Bl -bullet
+.It
+NAND Flash controller (NFC) interface.
+.Pp
+Defines methods which allow to send commands as well as send/receive data
+between the controller and a NAND chip.
+Back-end drivers for specific NAND
+controllers plug into this interface and implement low-level routines for a
+given NAND controller.
+.Pp
+This layer implements basic functionality of a NAND Flash controller.
+It allows to send command and address to chip, drive CS (chip select line),
+as well as read/write to the selected NAND chip.
+This layer is independent of
+NAND chip devices actually connected to the controller.
+.It
+NAND chip interface.
+.Pp
+Provides basic operations like read page, program page, erase block.
+Currently three generic classes of drivers are available, which provide
+support for the following chips:
+.Bl -bullet
+.It
+large page
+.It
+small page
+.It
+ONFI-compliant
+.El
+.Pp
+This layer implements basic operations to be performed on a NAND chip, like
+read, program, erase, get status etc.
+Since these operations use specific
+commands (depending on the vendor), each chip has potentially its own
+implementation of the commands set.
+.Pp
+The framework is extensible so it is also possible to create a custom command
+set for a non standard chip support.
+.It
+NANDbus.
+.Pp
+This layer is responsible for enumerating NAND chips in the system and
+establishing the hierarchy between chips and their supervising controllers.
+.Pp
+Its main purpose is detecting type of NAND chips connected to a given chip
+select (CS line).
+It also allows manages locking access to the NAND
+controller.
+NANDbus passes requests from an active chip to the chip controller.
+.It
+NAND character / GEOM device.
+.Pp
+For each NAND chip found in a system a character and GEOM devices are created
+which allows to read / write directly to a device, as well as perform other
+specific operations (like via ioctl).
+.Pp
+There are two GEOM devices created for each NAND chip:
+.Bl -bullet
+.It
+raw device
+.It
+normal device
+.El
+.Pp
+Raw device allows to bypass ECC checking when reading/writing to it, while
+normal device always uses ECC algorithm to validate the read data.
+.Pp
+NAND character devices will be created for each NAND chip detected while
+probing the NAND controller.
+.El
+.Sh SEE ALSO
+.Xr libnandfs 3 ,
+.Xr gnand 4 ,
+.Xr nandsim 4 ,
+.Xr nandfs 5 ,
+.Xr makefs 8 ,
+.Xr mount_nandfs 8 ,
+.Xr nandfs 8 ,
+.Xr nandsim 8 ,
+.Xr nandtool 8 ,
+.Xr newfs_nandfs 8 ,
+.Xr umount_nandfs 8
+.Sh STANDARDS
+Open NAND Flash Interface Working Group
+.Pq Vt ONFI .
+.Sh HISTORY
+The
+.Nm
+framework support first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+framework was designed and developed by
+.An Grzegorz Bernacki .
+This manual page was written by
+.An Rafal Jaworowski .

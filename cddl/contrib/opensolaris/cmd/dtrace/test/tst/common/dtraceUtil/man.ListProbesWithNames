@@ -1,0 +1,128 @@
+/*
+ * CDDL HEADER START
+ *
+ * The contents of this file are subject to the terms of the
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
+ *
+ * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+ * or http://www.opensolaris.org/os/licensing.
+ * See the License for the specific language governing permissions
+ * and limitations under the License.
+ *
+ * When distributing Covered Code, include this CDDL HEADER in each
+ * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+ * If applicable, add the following below this CDDL HEADER, with the
+ * fields enclosed by brackets "[]" replaced with your own identifying
+ * information: Portions Copyright [yyyy] [name of copyright owner]
+ *
+ * CDDL HEADER END
+ */
+
+/*
+ * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Use is subject to license terms.
+ */
+
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
+
+/*
+ * ASSERTION:
+ * Using -l option with -n option.
+ *
+ * SECTION: dtrace Utility/-l Option;
+ * 	dtrace Utility/-n Option
+ *
+ * NOTES: Manually check:
+ *
+ * 1)
+ * /usr/sbin/dtrace -ln profile
+ * RESULT: Silent output without any probes listed.
+ *
+ * 2)
+ * /usr/sbin/dtrace -ln genunix
+ * RESULT: Silent output without any probes listed.
+ *
+ * 3)
+ * /usr/sbin/dtrace -ln read
+ * RESULT: Silent output without any probes listed.
+ *
+ * 4)
+ * /usr/sbin/dtrace -ln BEGIN
+ * RESULT: list of one probe with name BEGIN.
+ *
+ * 5)
+ * /usr/sbin/dtrace -ln begin
+ * RESULT: Silent output without any probes listed.
+ *
+ * 6)
+ * /usr/sbin/dtrace -ln genunix:read
+ * RESULT: Silent output without any probes listed.
+ *
+ * 7)
+ * /usr/sbin/dtrace -ln genunix:read:
+ * RESULT: matching list of probes with module genunix and
+ * function read.
+ *
+ * 8)
+ * /usr/sbin/dtrace -ln sysinfo:genunix:read
+ * RESULT: Silent output without any probes listed.
+ *
+ * 9)
+ * /usr/sbin/dtrace -ln sysinfo:genunix:read:
+ * RESULT: matching list of probes with provider sysinfo, module
+ * genunix and function read.
+ *
+ * 10) /usr/sbin/dtrace -ln :genunix::
+ * RESULT: matching list of probes with module genunix
+ *
+ * 11)
+ * /usr/sbin/dtrace -ln :genunix:
+ * RESULT: Silent output without any probes listed.
+ *
+ * 12)
+ * /usr/sbin/dtrace -ln ::read:
+ * RESULT: matching list of probes with and function read.
+ *
+ * 13)
+ * /usr/sbin/dtrace -ln profile:::profile-97
+ * RESULT: matching list of probes with provider profile and function
+ * profile-97
+ *
+ * 14)
+ * /usr/sbin/dtrace -ln read: -ln write:
+ * RESULT: matching list of both read and write probes.
+ *
+ * 15)
+ * /usr/sbin/dtrace -ln read: -ln fight:
+ * RESULT: List of only read probes.
+ *
+ * 16)
+ * /usr/sbin/dtrace -ln fight: -ln write:
+ * RESULT: List of only write probes.
+ *
+ * 17)
+ * /usr/sbin/dtrace -ln fbt:des:des3_crunch_block:return
+ * RESULT: Silent output of only the header.
+ *
+ * 18)
+ * /usr/sbin/dtrace -ln read:'{printf("FOUND");}'
+ * RESULT: Silent output without any probes listed.
+ *
+ * 19)
+ * /usr/sbin/dtrace -ln read:entry'{printf("FOUND");}'
+ * RESULT: Silent output without any probes listed.
+ *
+ * 20)
+ * /usr/sbin/dtrace -ln BEGIN'{Printf("FOUND");}'
+ * RESULT: Silent output without any probes listed.
+ *
+ * 21)
+ * /usr/sbin/dtrace -ln BEGIN '{printf("FOUND");}'
+ * RESULT: List of only BEGIN probe.
+ *
+ * 22)
+ * /usr/sbin/dtrace -ln
+ * BEGIN'/probename == "entry"/{printf("FOUND");}'
+ * RESULT: Silent output without any probes listed.
+ */

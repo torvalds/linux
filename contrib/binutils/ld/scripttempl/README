@@ -1,0 +1,4 @@
+The files in this directory are linker script templates.
+genscripts.sh sets some shell variables, then sources
+EMULATION.sc, to generate EMULATION.{x,xr,xu,xn,xbn} -- the script
+files for default, -r, -Ur, -n, -N.

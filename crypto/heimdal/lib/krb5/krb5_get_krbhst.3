@@ -1,0 +1,86 @@
+.\" Copyright (c) 2001 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd April 24, 2005
+.Dt KRB5_GET_KRBHST 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_get_krbhst ,
+.Nm krb5_get_krb_admin_hst ,
+.Nm krb5_get_krb_changepw_hst ,
+.Nm krb5_get_krb524hst ,
+.Nm krb5_free_krbhst
+.Nd lookup Kerberos KDC hosts
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Ft krb5_error_code
+.Fn krb5_get_krbhst "krb5_context context" "const krb5_realm *realm" "char ***hostlist"
+.Ft krb5_error_code
+.Fn krb5_get_krb_admin_hst "krb5_context context" "const krb5_realm *realm" "char ***hostlist"
+.Ft krb5_error_code
+.Fn krb5_get_krb_changepw_hst "krb5_context context" "const krb5_realm *realm" "char ***hostlist"
+.Ft krb5_error_code
+.Fn krb5_get_krb524hst "krb5_context context" "const krb5_realm *realm" "char ***hostlist"
+.Ft krb5_error_code
+.Fn krb5_free_krbhst "krb5_context context" "char **hostlist"
+.Sh DESCRIPTION
+These functions implement the old API to get a list of Kerberos hosts,
+and are thus similar to the
+.Fn krb5_krbhst_init
+functions. However, since these functions returns
+.Em all
+hosts in one go, they potentially have to do more lookups than
+necessary. These functions remain for compatibility reasons.
+.Pp
+After a call to one of these functions,
+.Fa hostlist
+is a
+.Dv NULL
+terminated list of strings, pointing to the requested Kerberos hosts. These should be freed with
+.Fn krb5_free_krbhst
+when done with.
+.Sh EXAMPLES
+The following code will print the KDCs of the realm
+.Dq MY.REALM .
+.Bd -literal -offset indent
+char **hosts, **p;
+krb5_get_krbhst(context, "MY.REALM", &hosts);
+for(p = hosts; *p; p++)
+    printf("%s\\n", *p);
+krb5_free_krbhst(context, hosts);
+.Ed
+.\" .Sh BUGS
+.Sh SEE ALSO
+.Xr krb5_krbhst_init 3

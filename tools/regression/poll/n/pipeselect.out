@@ -1,0 +1,21 @@
+1..20
+ok 1      Pipe state 4: expected clear; got clear
+ok 2      Pipe state 5: expected set; got set
+ok 3      Pipe state 6: expected set; got set
+ok 4      Pipe state 6a: expected set; got set
+ok 5      Sock state 4: expected clear; got clear
+ok 6      Sock state 5: expected set; got set
+ok 7      Sock state 6: expected set; got set
+ok 8      Sock state 6a: expected set; got set
+ok 9      FIFO state 0: expected clear; got clear
+ok 10     FIFO state 1: expected clear; got clear
+ok 11     FIFO state 2: expected set; got set
+ok 12     FIFO state 2a: expected clear; got clear
+ok 13     FIFO state 3: expected set; got set
+ok 14     FIFO state 4: expected clear; got clear
+ok 15     FIFO state 5: expected set; got set
+ok 16     FIFO state 6: expected set; got set
+ok 17     FIFO state 6a: expected set; got set
+ok 18     FIFO state 6b: expected clear; got clear
+ok 19     FIFO state 6c: expected set; got set
+ok 20     FIFO state 6d: expected set; got set

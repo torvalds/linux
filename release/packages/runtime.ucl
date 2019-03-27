@@ -1,0 +1,36 @@
+#
+# $FreeBSD$
+#
+
+name = "FreeBSD-%PKGNAME%"
+origin = "base"
+version = "%VERSION%"
+comment = "%COMMENT% %VCS_REVISION%"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "https://www.FreeBSD.org"
+prefix = "/"
+vital = true
+licenselogic = "single"
+licenses = [ BSD2CLAUSE ]
+desc = <<EOD
+%DESC%
+EOD
+scripts: {
+	post-install = <<EOD
+	cap_mkdb %CAP_MKDB_ENDIAN% ${PKG_ROOTDIR}/etc/login.conf
+	pwd_mkdb -i -p -d  ${PKG_ROOTDIR}/etc ${PKG_ROOTDIR}/etc/master.passwd
+	services_mkdb %CAP_MKDB_ENDIAN% -q -o ${PKG_ROOTDIR}/var/db/services.db ${PKG_ROOTDIR}/etc/services
+	chmod 1777 ${PKG_ROOTDIR}/tmp
+EOD
+}
+deps: {
+    "FreeBSD-clibs": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+}
+directories {
+    /dev = "y";
+    /tmp = "y";
+}

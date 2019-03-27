@@ -1,0 +1,107 @@
+.\" Copyright (c) 2011 Sergey Kandaurov
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 3, 2014
+.Dt PGET 9
+.Os
+.Sh NAME
+.Nm pget
+.Nd locate a process by number
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
+.Ft int
+.Fn pget "pid_t pid" "int flags" "struct proc **pp"
+.Sh DESCRIPTION
+This function
+takes a
+.Fa pid
+as its argument,
+which can be either a process or thread id,
+and fills a pointer to the
+.Vt proc
+structure in
+.Fa *pp .
+In the latter case, a process owning the specified thread is looked for.
+The operation is performed by invoking the
+.Xr pfind 9
+function.
+The found process is returned locked.
+For the
+.Dv PGET_HOLD
+case, it is returned unlocked (but held).
+The
+.Fn pget
+function can
+perform additional manipulations, depending on a
+.Fa flags
+argument.
+.Pp
+The
+.Fa flags
+argument is the logical OR of some subset of:
+.Bl -tag -width ".Dv PGET_NOTINEXEC"
+.It Dv PGET_HOLD
+If set, the found process will be held and unlocked.
+.It Dv PGET_CANSEE
+If set, the found process will be checked for its visibility.
+See
+.Xr p_cansee 9 .
+.It Dv PGET_CANDEBUG
+If set, the found process will be checked for its debuggability.
+See
+.Xr p_candebug 9 .
+.It Dv PGET_ISCURRENT
+If set, the found process will be checked that it matches the current
+process context.
+.It Dv PGET_NOTWEXIT
+If set, the found process will be checked that it does not have the process
+flag
+.Dv P_WEXIT
+set.
+.It Dv PGET_NOTINEXEC
+If set, the found process will be checked that it does not have the process
+flag
+.Dv P_INEXEC
+set.
+.It Dv PGET_NOTID
+If set,
+.Fa pid
+is not assumed as a thread id for values larger than
+.Dv PID_MAX .
+.It Dv PGET_WANTREAD
+If set, the found process will be checked that the caller may get
+a read access to its structure.
+A shorthand for
+.Pq Dv PGET_HOLD | PGET_CANDEBUG | PGET_NOTWEXIT .
+.El
+.Sh RETURN VALUES
+If the process is found in the specified way, then zero is returned,
+otherwise an appropriate error code is returned.
+.Sh SEE ALSO
+.Xr p_candebug 9 ,
+.Xr p_cansee 9 ,
+.Xr pfind 9

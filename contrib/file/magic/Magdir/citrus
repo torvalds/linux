@@ -1,0 +1,8 @@
+
+#------------------------------------------------------------------------------
+# $File: citrus,v 1.4 2009/09/19 16:28:08 christos Exp $
+# citrus locale declaration
+#
+
+0	string		RuneCT		Citrus locale declaration for LC_CTYPE
+

@@ -1,0 +1,135 @@
+.\"
+.\" Copyright (c) 2002
+.\"	Mark R V Murray.  All rights reserved.
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" "
+.Dd February 6, 2002
+.Dt RIJNDAEL 9
+.Os
+.Sh NAME
+.Nm rijndael_makeKey ,
+.Nm rijndael_cipherInit ,
+.Nm rijndael_blockEncrypt ,
+.Nm rijndael_padEncrypt ,
+.Nm rijndael_blockDecrypt ,
+.Nm rijndael_padDecrypt
+.Nd AES encryption
+.Sh SYNOPSIS
+.In sys/types.h
+.In crypto/rijndael.h
+.Ft int
+.Fo rijndael_makeKey
+.Fa "keyInstance *key"
+.Fa "uint8_t direction"
+.Fa "int keyLen"
+.Fa "char *keyMaterial"
+.Fc
+.Ft int
+.Fo rijndael_cipherInit
+.Fa "cipherInstance *cipher"
+.Fa "uint8_t mode"
+.Fa "char *IV"
+.Fc
+.Ft int
+.Fo rijndael_blockEncrypt
+.Fa "cipherInstance *cipher"
+.Fa "keyInstance *key"
+.Fa "uint8_t *input"
+.Fa "int inputLen"
+.Fa "uint8_t *outBuffer"
+.Fc
+.Ft int
+.Fo rijndael_padEncrypt
+.Fa "cipherInstance *cipher"
+.Fa "keyInstance *key"
+.Fa "uint8_t *input"
+.Fa "int inputOctets"
+.Fa "uint8_t *outBuffer"
+.Fc
+.Ft int
+.Fo rijndael_blockDecrypt
+.Fa "cipherInstance *cipher"
+.Fa "keyInstance *key"
+.Fa "uint8_t *input"
+.Fa "int inputLen"
+.Fa "uint8_t *outBuffer"
+.Fc
+.Ft int
+.Fo rijndael_padDecrypt
+.Fa "cipherInstance *cipher"
+.Fa "keyInstance *key"
+.Fa "uint8_t *input"
+.Fa "int inputOctets"
+.Fa "uint8_t *outBuffer"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn rijndael_makeKey
+function is used to set up the key schedule in
+.Fa key .
+The
+.Fa direction
+(which may be
+.Dv DIR_ENCRYPT
+or
+.Dv DIR_DECRYPT )
+specifies the intended use of the key.
+The length of the key (in bits) is given in
+.Fa keyLen ,
+and must be 128, 192 or 256.
+The actual key is supplied in the buffer pointed to by
+.Fa keyMaterial .
+This material may be raw binary data,
+or an ASCII string containing a hexadecimal rendition
+of the raw binary data,
+dependent on a compile-time option in the
+.Nm
+sources,
+.Dv BINARY_KEY_MATERIAL .
+.Sh RETURN VALUES
+The
+.Fn rijndael_makeKey
+function will return
+.Dv BAD_KEY_INSTANCE
+if a
+.Dv NULL
+.Fa key
+is passed,
+.Dv BAD_KEY_DIR
+if
+.Fa direction
+is not
+.Dv DIR_ENCRYPT
+or
+.Dv DIR_DECRYPT ,
+.Dv BAD_KEY_MAT
+if the key materials are not a hexadecimal string
+(and binary keys are not set),
+and
+.Dv TRUE
+otherwise.
+.Sh AUTHORS
+.An Mark R V Murray

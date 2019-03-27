@@ -1,0 +1,181 @@
+# Makefile.win for Win32 APR alone
+#
+# Targets are:
+#
+#     buildall - compile everything
+#     checkall - run APR regression tests
+#     install  - compile everything
+#     clean    - mop up everything
+#
+# You can override the build mechanism, choose only one;
+#
+#     USEMAK=1 - compile from exported make files
+#     USEDSW=1 - compile from .dsw / .dsp VC6 projects
+#     USESLN=1 - compile from converted .sln / .vcproj VC7+ files
+#
+# Define ARCH to your desired preference (your PATH must point
+# to the correct compiler tools!)  Choose only one;
+#
+#     ARCH="Win32 Release"
+#     ARCH="Win32 Debug"
+#     ARCH="Win32 Release9x"
+#     ARCH="Win32 Debug9x"
+#     ARCH="x64 Release"
+#     ARCH="x64 Debug"
+#
+# For example;
+#
+#   nmake -f Makefile.win PREFIX=C:\APR buildall checkall install clean
+#
+
+!IF EXIST("apr.sln") && ([devenv /help > NUL 2>&1] == 0) \
+    && !defined(USEMAK) && !defined(USEDSW)
+USESLN=1
+USEMAK=0
+USEDSW=0
+!ELSEIF EXIST("apr.mak") && !defined(USEDSW)
+USESLN=0
+USEMAK=1
+USEDSW=0
+!ELSE
+USESLN=0
+USEMAK=0
+USEDSW=1
+!ENDIF
+
+PREFIX=..\apr-dist
+
+!IF [$(COMSPEC) /c cl /nologo /? \
+	| $(SystemRoot)\System32\find.exe "x64" >NUL ] == 0
+ARCH=x64 Release
+!ELSE
+ARCH=Win32 Release
+!ENDIF
+
+!MESSAGE ARCH        = $(ARCH)
+!MESSAGE PREFIX      = $(PREFIX)  (install path)
+
+
+# Utility and Translation things, nothing here for the user
+#
+!IF "$(ARCH)" == "Win32 Release"
+SLNARCH=Release|Win32
+ARCHOSPATH=Release
+LIBSOSPATH=LibR
+!ELSEIF "$(ARCH)" == "Win32 Debug"
+SLNARCH=Debug|Win32
+ARCHOSPATH=Debug
+LIBSOSPATH=LibD
+!ELSEIF "$(ARCH)" == "Win32 Release9x"
+SLNARCH=Release9x|Win32
+ARCHOSPATH=9x\Release
+LIBSOSPATH=9x\LibR
+!ELSEIF "$(ARCH)" == "Win32 Debug9x"
+SLNARCH=Debug9x|Win32
+ARCHOSPATH=9x\Debug
+LIBSOSPATH=9x\LibD
+!ELSEIF "$(ARCH)" == "x64 Release"
+SLNARCH=Release|x64
+ARCHOSPATH=x64\Release
+LIBSOSPATH=x64\LibR
+!ELSEIF "$(ARCH)" == "x64 Debug"
+SLNARCH=Debug|x64
+ARCHOSPATH=x64\Debug
+LIBSOSPATH=x64\LibD
+!ENDIF
+
+!IFNDEF MAKEOPT
+# Only default the behavior if MAKEOPT= is omitted
+!IFDEF _NMAKE_VER
+# Microsoft NMake options
+MAKEOPT=-nologo
+!ELSEIF "$(MAKE)" == "make"
+# Borland make options?  Not really supported (yet)
+MAKEOPT=-s -N
+!ENDIF
+!ENDIF
+
+
+all: buildall checkall
+
+!IF $(USEMAK) == 1
+
+clean:
+	$(MAKE) $(MAKEOPT) -f Makefile.win ARCH="$(ARCH)" \
+		CTARGET=CLEAN buildall
+
+buildall:
+	$(MAKE) $(MAKEOPT) -f apr.mak         CFG="apr - $(ARCH)" RECURSE=0 $(CTARGET)
+	$(MAKE) $(MAKEOPT) -f libapr.mak      CFG="libapr - $(ARCH)" RECURSE=0 $(CTARGET)
+	cd build
+	 $(MAKE) $(MAKEOPT) -f aprapp.mak     CFG="aprapp - $(ARCH)" RECURSE=0 $(CTARGET)
+	 $(MAKE) $(MAKEOPT) -f libaprapp.mak  CFG="libaprapp - $(ARCH)" RECURSE=0 $(CTARGET)
+	cd ..
+
+!ELSEIF $(USESLN) == 1
+
+clean:
+	-devenv apr.sln /useenv /clean "$(SLNARCH)" /project libaprapp
+	-devenv apr.sln /useenv /clean "$(SLNARCH)" /project libapr
+	-devenv apr.sln /useenv /clean "$(SLNARCH)" /project aprapp
+	-devenv apr.sln /useenv /clean "$(SLNARCH)" /project apr
+
+buildall:
+	devenv apr.sln /useenv /build "$(SLNARCH)" /project apr
+	devenv apr.sln /useenv /build "$(SLNARCH)" /project aprapp
+	devenv apr.sln /useenv /build "$(SLNARCH)" /project libapr
+	devenv apr.sln /useenv /build "$(SLNARCH)" /project libaprapp
+
+!ELSE
+#	$(USEDSP) == 1
+
+clean:
+	-msdev apr.dsw /USEENV /MAKE "libaprapp - $(ARCH)" /CLEAN
+	-msdev apr.dsw /USEENV /MAKE "libapr - $(ARCH)" /CLEAN
+	-msdev apr.dsw /USEENV /MAKE "aprapp - $(ARCH)" /CLEAN
+	-msdev apr.dsw /USEENV /MAKE "apr - $(ARCH)" /CLEAN
+
+buildall:
+	@msdev apr.dsw /USEENV /MAKE "apr - $(ARCH)"
+	@msdev apr.dsw /USEENV /MAKE "aprapp - $(ARCH)"
+	@msdev apr.dsw /USEENV /MAKE "libapr - $(ARCH)"
+	@msdev apr.dsw /USEENV /MAKE "libaprapp - $(ARCH)"
+
+!ENDIF
+
+
+checkapr:
+	cd test
+	 $(MAKE) $(MAKEOPT) -f Makefile.win MODEL=static \
+		OUTDIR=$(LIBSOSPATH) check
+	 $(MAKE) $(MAKEOPT) -f Makefile.win MODEL=dynamic \
+		OUTDIR=$(ARCHOSPATH) check
+	 cd ..
+
+checkall: checkapr
+
+
+install:
+	echo Y >.y
+	echo A >.A
+	@if NOT EXIST "$(PREFIX)\."		mkdir "$(PREFIX)"
+	@if NOT EXIST "$(PREFIX)\bin\."		mkdir "$(PREFIX)\bin"
+	@if NOT EXIST "$(PREFIX)\include\."	mkdir "$(PREFIX)\include"
+	@if NOT EXIST "$(PREFIX)\lib\."		mkdir "$(PREFIX)\lib"
+	copy CHANGES "$(PREFIX)\APR-CHANGES.txt" <.y
+	copy LICENSE "$(PREFIX)\APR-LICENSE.txt" <.y
+	copy NOTICE  "$(PREFIX)\APR-NOTICE.txt"  <.y
+	xcopy include\*.h		"$(PREFIX)\include\" /d < .a
+	copy $(LIBSOSPATH)\apr-1.lib		"$(PREFIX)\lib\" <.y
+	copy $(LIBSOSPATH)\apr-1.pdb		"$(PREFIX)\lib\" <.y
+	copy $(LIBSOSPATH)\aprapp-1.lib		"$(PREFIX)\lib\" <.y
+	copy $(LIBSOSPATH)\aprapp-1.pdb		"$(PREFIX)\lib\" <.y
+	copy $(ARCHOSPATH)\libaprapp-1.lib	"$(PREFIX)\lib\" <.y
+	copy $(ARCHOSPATH)\libaprapp-1.pdb	"$(PREFIX)\lib\" <.y
+	copy $(ARCHOSPATH)\libapr-1.lib		"$(PREFIX)\lib\" <.y
+	copy $(ARCHOSPATH)\libapr-1.exp		"$(PREFIX)\lib\" <.y
+	copy $(ARCHOSPATH)\libapr-1.dll		"$(PREFIX)\bin\" <.y
+	copy $(ARCHOSPATH)\libapr-1.pdb		"$(PREFIX)\bin\" <.y
+	del .y
+	del .a
+

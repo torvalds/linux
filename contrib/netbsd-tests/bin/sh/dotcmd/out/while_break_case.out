@@ -1,0 +1,5 @@
+before while
+before dotcmd
+before case
+before break
+after while

@@ -1,0 +1,214 @@
+.\" $FreeBSD$
+.\"
+.Dd August 25, 2016
+.Dt CDCONTROL 1
+.Os
+.Sh NAME
+.Nm cdcontrol
+.Nd compact disc control utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl sv
+.Op Fl f Ar device
+.Op Ar command ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is a program to control audio features of a CD drive.
+The device is a name such
+as
+.Pa cd0 .
+.Pp
+If no
+.Ar command
+is given, then
+.Nm
+enters an interactive mode, reading commands from the standard input.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl s
+Silent mode.
+Do not print table headers and human readable comments.
+.It Fl v
+Verbose mode.
+Print as much information as possible.
+.It Fl f Ar device
+Specify a device, such as
+.Pa /dev/cd0 .
+Both absolute path and relative to
+.Pa /dev
+filename are possible.
+The
+.Fl f
+option overrides
+.Ev CDROM .
+If neither
+.Ev CDROM
+nor the
+.Fl f
+option is specified,
+.Nm
+tries opening first
+.Pa /dev/cdrom ,
+then
+.Pa /dev/cd0 .
+.El
+.Pp
+The available commands are listed below.
+Only as many
+characters as are required to uniquely identify a command
+need be specified.
+The word
+.Ic play
+can be omitted or the characters
+.Ic +
+and
+.Ic -
+can be used in the
+place of
+.Ic next
+and
+.Ic prev .
+.Bl -tag -width indent
+.It Ic play Ar first_track Op Ar last_track
+Play from track
+.Ar first_track
+to track
+.Ar last_track .
+The first track has number 1.
+Can be omitted in all cases.
+.It Xo
+.Ic play
+.Ar start_m : Ns Ar start_s . Ns Ar start_f
+.Op Ar end_m : Ns Ar end_s . Ns Ar end_f
+.Xc
+Play from the absolute address
+(MSF) defined by
+.Ar start_m
+in minutes,
+.Ar start_s ,
+in seconds and
+.Ar start_f
+(frame number) to the absolute address defined by
+.Ar end_m
+in minutes,
+.Ar end_s ,
+in seconds and
+.Ar end_f
+(frame number).
+Minutes are in the range 0-99.
+Seconds are in the range 0-59.
+Frame numbers are in the range 0-74.
+.It Ic play Op # Ns Ar start_block Op Ar length
+Play starting from the logical block
+.Ar start_block
+using
+.Ar length
+logical blocks.
+.It Ic next Op Ar tracks
+Skip forward a number of tracks (default 1).
+.It Ic prev Op Ar tracks
+Skip backward a number of tracks (default 1).
+.It Ic pause
+Stop playing.
+Do not stop the disc.
+.It Ic resume
+Resume playing.
+Used after the
+.Ic pause
+command.
+.It Ic stop
+Stop the disc.
+.It Ic eject
+Eject the disc.
+.It Ic close
+Inject the disc.
+.It Ic volume
+Same as
+.Em status volume
+command.
+.It Ic volume Ar level
+Set the volume of both channels to
+.Ar level .
+Allowed values are in the range 0-255.
+.It Ic volume Ar left_channel right_channel
+Set the volume of left channel to
+.Ar left_channel
+and the volume of right channel to
+.Ar right_channel .
+Allowed values are in the range 0-255.
+.It Ic volume Cm mute
+Turn the sound off.
+.It Ic volume Cm mono
+Set the mono mode.
+.It Ic volume Cm stereo
+Set the stereo mode.
+.It Ic volume Cm left
+Play the left subtrack on both left and right channels.
+.It Ic volume Cm right
+Play the right subtrack on both left and right channels.
+.It Ic info
+Print the table of contents.
+.It Ic status Op Cm audio | media | volume
+Print the information about the disc:
+.Pp
+.Bl -tag -width ".Cm volume" -compact
+.It Cm audio
+the current playing status and position
+.It Cm media
+the current media catalog status
+.It Cm volume
+the current values of the volume for left and right channels.
+.El
+.It Ic cdid
+Display the serial number of the CD using the method used by the
+.Tn CDDB
+project
+.Pq Pa http://www.cddb.org/ .
+.It Ic help
+Print the list of available commands.
+.It Ic debug Cm on
+Enable the debugging mode of the CD device driver.
+.It Ic debug Cm off
+Disable the driver debugging mode.
+.It Ic reset
+Perform the hardware reset of the device.
+.It Ic set Cm msf
+Set minute-second-frame ioctl mode (default).
+.It Ic set Cm lba
+Set LBA ioctl mode.
+.It Ic speed Ar s
+Set the highest speed that the drive should use for reading data.
+The units are multiples of a single speed CDROM (150 KB/s).
+Specify
+.Dq Li max
+to use the drive's fastest speed.
+.It Ic quit
+Quit the program.
+.El
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev CD_DRIVE"
+.It Ev CDROM
+The CD device to use, if one is not specified with the
+.Fl f
+option.
+.It Ev CDPLAY , CD_DRIVE , DISC , MUSIC_CD
+These variables have been deprecated in favour of
+.Ev CDROM .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/cd0" -compact
+.It Pa /dev/cd0
+.El
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 2.1 .
+.Sh AUTHORS
+.An Jean-Marc Zucconi
+.An Andrey A. Chernov
+.An Serge V. Vakulenko

@@ -1,0 +1,234 @@
+#! @PATH_PERL@ -w
+#
+# html2man: Converts the NTP HTML documentation to man page format
+#
+# This file require the Perl HTML::TokeParser module:
+# http://search.cpan.org/search?module=HTML::TokeParser
+#
+# Depending on where this is run from, you might need to modify $MANDIR below.
+#
+# Hacked together by Peter Boettcher <boettcher@ll.mit.edu>
+# Last modified: <Mon Jan 28 17:24:38 2002 by pwb>
+
+require HTML::TokeParser;
+
+# use strict;		# I can dream...
+
+$MANDIR = "./man";
+
+# HTML files to convert.  Also include per-file info here: 
+#   name of man page, man section, 'see also' section
+%manfiles = (
+	     'ntpd' => ['ntpd', @NTPD_MS@, 'ntp.conf(5), ntpq(@NTPQ_MS@), ntpdc(@NTPDC_MS@)'],
+	     'ntpq' => ['ntpq', @NTPQ_MS@, 'ntp_decode(5), ntpd(@NTPD_MS@), ntpdc(@NTPDC_MS@)'],
+	     'ntpdate' => ['ntpdate', @NTPDATE_MS@, 'ntpd(@NTPD_MS@)'],
+	     'ntpdc' => ['ntpdc', @NTPDC_MS@, 'ntpd(@NTPD_MS@)'],
+	     'ntptime' => ['ntptime', @NTPTIME_MS@, 'ntpd(@NTPD_MS@), ntpdate(@NTPDATE_MS@)'],
+	     'ntptrace' => ['ntptrace', @NTPTRACE_MS@, 'ntpd(@NTPD_MS@)'],
+	     'ntp-wait' => ['ntp-wait', @NTP_WAIT_MS@, 'ntpd(@NTPD_MS@)'],
+	     'keygen' => ['ntp-keygen', @NTP_KEYGEN_MS@, 'ntpd(@NTPD_MS@), ntp_auth(5)'],
+	     'tickadj' => ['tickadj', @TICKADJ_MS@, 'ntpd(@NTPD_MS@)'],
+	     'confopt' => ['ntp.conf', 5, 'ntpd(@NTPD_MS@), ntp_auth(5), ntp_mon(5), ntp_acc(5), ntp_clock(5), ntp_misc(5)'],
+	     'authopt' => ['ntp_auth', 5, 'ntp.conf(5), ntpd(@NTPD_MS@)'],
+	     'monopt' => ['ntp_mon', 5, 'ntp.conf(5), ntp_decode(5)'],
+	     'accopt' => ['ntp_acc', 5, 'ntp.conf(5)'],
+	     'clockopt' => ['ntp_clock', 5, 'ntp.conf(5)'],
+	     'decode' => ['ntp_decode', 5, 'ntpq(@NTPQ_MS@), ntp_mon(5)'],
+	     'miscopt' => ['ntp_misc', 5, 'ntp.conf(5)']);
+
+%table_headers = (
+    'ntpd' => 'l l l l.',
+    'ntpq' => 'l l.',
+    'monopt' => 'l l l.',
+    'decode' => 'l l l l.',
+    'authopt' => 'c c c c c c.'
+);
+
+# Disclaimer to go in SEE ALSO section of the man page
+$seealso_disclaimer = "The official HTML documentation.\n\n" .
+    "This file was automatically generated from HTML source.\n";
+
+mkdir $MANDIR, 0777;
+mkdir "$MANDIR/man8", 0777;
+mkdir "$MANDIR/man5", 0777;
+
+# Do the actual processing
+foreach $file (keys %manfiles) {
+    process($file);
+}
+# End of main function
+
+
+
+# Do the real work
+sub process {
+    my($filename) = @_;
+    $fileinfo = $manfiles{$filename};
+
+    $p = HTML::TokeParser->new("$filename.html") || die "Can't open $filename.html: $!";
+    $fileout = "$MANDIR/man$fileinfo->[1]/$fileinfo->[0].$fileinfo->[1]";
+    open(MANOUT, ">$fileout")
+	|| die "Can't open: $!";
+
+    $p->get_tag("title");
+    $name = $p->get_text("/title");
+    $p->get_tag("hr");		# Skip past image and quote, hopefully
+
+    # Setup man header
+    print MANOUT ".TH " . $fileinfo->[0] . " " . $fileinfo->[1] .  "\n";
+    print MANOUT ".SH NAME\n";
+    $pat = $fileinfo->[0];
+    if ($name =~ /$pat/) {
+    } else {
+	# Add the manpage name, if not in the HTML title already
+	print MANOUT "$fileinfo->[0] - ";
+    }
+    print MANOUT "$name\n.SH \\ \n\n";
+
+    @fontstack = ();
+    $deflevel = 0;
+    $pre = 0;
+    $ignore = 0;
+    $first_td = 1;
+    # Now start scanning.  We basically print everything after translating some tags.
+    # $token->[0] has "T", "S", "E" for Text, Start, End
+    # $token->[1] has the tag name, or text (for "T" case)
+    #  Theres lots more in the world of tokens, but who cares?
+    while (my $token = $p->get_token) {
+	if($token->[0] eq "T") {
+	    my $text = $token->[1];
+	    if (!$pre) {
+		if($tag) {
+		    $text =~ s/^[\n\t ]*//;
+		}
+		$text =~ s/^[\n\t ][\n\t ]+$//;
+		$text =~ s/[\n\t ]+/ /g;
+		$text =~ s/&nbsp\;/ /g;
+		$text =~ s/&gt\;/>/g;
+		$text =~ s/&lt\;/</g;
+		$text =~ s/&quot\;/"/g;
+		$text =~ s/&amp\;/&/g;
+		$text =~ s/^\./\\[char46]/;
+	    }
+	    print MANOUT "$text";
+	    $tag = 0;
+	}
+	if($token->[0] eq "S") {
+	    if($token->[1] eq "h4") {
+		my $text = uc($p->get_trimmed_text("/h4"));
+		# ignore these sections in ntpd.html
+		if ($filename eq "ntpd" &&
+		    ($text eq "CONFIGURATION OPTIONS")) {
+			$ignore = 1;
+			close(MANOUT);
+			open(MANOUT, ">/dev/null");
+		} elsif ($ignore) {
+		    $ignore = 0;
+		    close(MANOUT);
+		    open(MANOUT, ">>$fileout");
+		}
+		print MANOUT "\n\n.SH $text\n";
+	    }
+	    if($token->[1] eq "tt") {
+		push @fontstack, "tt";
+		print MANOUT "\\fB";
+	    }
+	    if($token->[1] eq "i") {
+		push @fontstack, "i";
+		print MANOUT "\\fI";
+	    }
+	    if($token->[1] eq "address") {
+		my $text = $p->get_trimmed_text("/address");
+		print MANOUT "\n.SH AUTHOR\n$text\n";
+	    }
+	    if($token->[1] eq "dt" || $token->[1] eq "br" && $deflevel > 0) {
+		print MANOUT "\n.TP 8\n";
+		$tag = 1;
+	    }
+	    if($token->[1] eq "dd") {
+		print MANOUT "\n";
+		$tag = 1;
+	    }
+	    if($token->[1] eq "dl") {
+		$deflevel+=1;
+		if ($deflevel > 0) {
+		    print MANOUT "\n.RS ", $deflevel > 1 ? 8 : 0;
+		}
+	    }
+	    if($token->[1] eq "p") {
+		print MANOUT "\n";
+	    }
+	    if($token->[1] eq "pre") {
+		print MANOUT "\n.nf";
+		$pre = 1;
+	    }
+	    if($token->[1] eq "table") {
+		print MANOUT "\n.TS\n";
+		print MANOUT "expand allbox tab(%);\n";
+		print MANOUT $table_headers{$filename};
+		print MANOUT "\n";
+	    }
+	    if($token->[1] eq "td") {
+		if ($first_td == 0) {
+		    print MANOUT " % ";
+		}
+		$first_td = 0;
+	    }
+	}
+	elsif($token->[0] eq "E") {
+	    if($token->[1] eq "h4") {
+		$tag = 1;
+	    }
+	    if($token->[1] eq "tt") {
+		$f = pop @fontstack;
+		if($f ne "tt") {
+		    warn "Oops, mismatched font!  Trying to continue\n";
+		}
+		if ($#fontstack < 0) { $fontswitch = "\\fR"; }
+		elsif ($fontstack[$#fontstack] eq "tt") { $fontswitch = "\\fB"; }
+		else { $fontswitch = "\\fI"; }
+		print MANOUT "$fontswitch";
+	    }
+	    if($token->[1] eq "i") {
+		$f = pop @fontstack;
+		if($f ne "i") {
+		    warn "Oops, mismatched font!  Trying to continue\n";
+		}
+		if ($#fontstack < 0) { $fontswitch = "\\fR"; }
+		elsif ($fontstack[$#fontstack] eq "tt") { $fontswitch = "\\fB"; }
+		else { $fontswitch = "\\fI"; }
+		print MANOUT "$fontswitch";
+	    }
+	    if($token->[1] eq "dl") {
+		if ($deflevel > 0) {
+		    print MANOUT "\n.RE";
+		}
+		print MANOUT "\n";
+		$deflevel-=1;
+	    }
+	    if($token->[1] eq "p") {
+		print MANOUT "\n";
+		$tag = 1;
+	    }
+	    if($token->[1] eq "pre") {
+		print MANOUT "\n.fi";
+		$pre = 0;
+	    }
+	    if($token->[1] eq "table") {
+		print MANOUT ".TE\n";
+	    }
+	    if($token->[1] eq "tr") {
+		print MANOUT "\n";
+		$first_td = 1;
+	    }
+	}
+    }
+    if ($ignore) {
+	close(MANOUT);
+	open(MANOUT, ">>$fileout");
+    }
+    print MANOUT "\n.SH SEE ALSO\n\n";
+    print MANOUT "$fileinfo->[2]\n\n";
+    print MANOUT "$seealso_disclaimer\n";
+    close(MANOUT);
+}

@@ -1,0 +1,69 @@
+=pod
+
+=head1 NAME
+
+RAND_set_rand_method, RAND_get_rand_method, RAND_OpenSSL - select RAND method
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand.h>
+
+ RAND_METHOD *RAND_OpenSSL(void);
+
+ void RAND_set_rand_method(const RAND_METHOD *meth);
+
+ const RAND_METHOD *RAND_get_rand_method(void);
+
+=head1 DESCRIPTION
+
+A B<RAND_METHOD> specifies the functions that OpenSSL uses for random number
+generation.
+
+RAND_OpenSSL() returns the default B<RAND_METHOD> implementation by OpenSSL.
+This implementation ensures that the PRNG state is unique for each thread.
+
+If an B<ENGINE> is loaded that provides the RAND API, however, it will
+be used instead of the method returned by RAND_OpenSSL().
+
+RAND_set_rand_method() makes B<meth> the method for PRNG use.  If an
+ENGINE was providing the method, it will be released first.
+
+RAND_get_rand_method() returns a pointer to the current B<RAND_METHOD>.
+
+=head1 THE RAND_METHOD STRUCTURE
+
+ typedef struct rand_meth_st {
+     void (*seed)(const void *buf, int num);
+     int (*bytes)(unsigned char *buf, int num);
+     void (*cleanup)(void);
+     void (*add)(const void *buf, int num, int randomness);
+     int (*pseudorand)(unsigned char *buf, int num);
+     int (*status)(void);
+ } RAND_METHOD;
+
+The fields point to functions that are used by, in order,
+RAND_seed(), RAND_bytes(), internal RAND cleanup, RAND_add(), RAND_pseudo_rand()
+and RAND_status().
+Each pointer may be NULL if the function is not implemented.
+
+=head1 RETURN VALUES
+
+RAND_set_rand_method() returns no value. RAND_get_rand_method() and
+RAND_OpenSSL() return pointers to the respective methods.
+
+=head1 SEE ALSO
+
+L<RAND_bytes(3)>,
+L<ENGINE_by_id(3)>,
+L<RAND(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

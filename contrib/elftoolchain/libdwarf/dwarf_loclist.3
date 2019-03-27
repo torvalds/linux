@@ -1,0 +1,230 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_loclist.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd November 9, 2011
+.Dt DWARF_LOCLIST 3
+.Os
+.Sh NAME
+.Nm dwarf_loclist ,
+.Nm dwarf_loclist_n
+.Nd retrieve DWARF location expression information
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_loclist
+.Fa "Dwarf_Attribute at"
+.Fa "Dwarf_Locdesc **llbuf"
+.Fa "Dwarf_Signed *listlen"
+.Fa "Dwarf_Error *error"
+.Fc
+.Ft int
+.Fo dwarf_loclist_n
+.Fa "Dwarf_Attribute at"
+.Fa "Dwarf_Locdesc ***llbuf"
+.Fa "Dwarf_Signed *listlen"
+.Fa "Dwarf_Error *error"
+.Fc
+.Sh DESCRIPTION
+These functions retrieve the location expressions
+associated with a DWARF attribute.
+.Pp
+Note: function
+.Fn dwarf_loclist
+is deprecated.
+New application code should instead use function
+.Fn dwarf_loclist_n
+.Pp
+Function
+.Fn dwarf_loclist_n
+retrieves the list of location expressions associated with a DWARF
+attribute.
+Argument
+.Ar at
+should reference a valid DWARF attribute.
+Argument
+.Ar llbuf
+should point to a location which will hold a returned array of
+pointers to
+.Vt Dwarf_Locdesc
+descriptors.
+Argument
+.Ar listlen
+should point to a location which will be set to the number of
+elements contained in the returned array.
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case
+of an error.
+.Pp
+Function
+.Fn dwarf_loclist
+retrieves the first location expression associated with an attribute.
+Argument
+.Ar at
+should reference a valid DWARF attribute.
+Argument
+.Ar llbuf
+should point to a location which will hold the returned pointer
+to a
+.Vt Dwarf_Locdesc
+descriptor.
+Argument
+.Ar listlen
+should point to a location which will be always set to 1.
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case
+of an error.
+.Pp
+.Vt Dwarf_Locdesc
+descriptors are defined in the header file
+.In libdwarf.h ,
+and consist of following fields:
+.Pp
+.Bl -tag -width ".Va ld_cents" -compact
+.It Va ld_lopc
+The lowest program counter address covered by the descriptor.
+This field will be set to 0 if the descriptor is not associated with
+an address range.
+.It Va ld_hipc
+The highest program counter address covered by the descriptor.
+This field will be set to 0 if the descriptor is not associated with
+an address range.
+.It Va ld_cents
+The number of entries returned in
+.Va ld_s
+field.
+.It Va ld_s
+Pointer to an array of
+.Vt Dwarf_Loc
+descriptors.
+.El
+.Pp
+Each
+.Vt Dwarf_Loc
+descriptor represents one operation of a location expression.
+These descriptors are defined in the header file
+.In libdwarf.h ,
+and consist of following fields:
+.Pp
+.Bl -tag -width ".Va lr_number2" -compact
+.It Va lr_atom
+The operator name, one of the
+.Dv DW_OP_*
+constants defined in the header file
+.In dwarf.h .
+.It Va lr_number
+The first operand of this operation.
+.It Va lr_number2
+The second operand of this operation.
+.It Va lr_offset
+The byte offset of this operation within the containing location
+expression.
+.El
+.Ss Memory Management
+The memory area used for the descriptor array returned in argument
+.Ar llbuf
+is allocated by the
+.Lb libdwarf .
+When the descriptor array is no longer needed, application code should
+use function
+.Xr dwarf_dealloc 3
+to free the memory area in the following manner:
+.Bl -enum
+.It
+First, the
+.Ar ld_s
+field of each
+.Vt Dwarf_Locdesc
+descriptor should be deallocated using the allocation type
+.Dv DW_DLA_LOC_BLOCK .
+.It
+Then, the application should free each
+.Vt Dwarf_Locdesc
+descriptor using the allocation type
+.Dv DW_DLA_LOCDESC .
+.It
+Finally, the
+.Va llbuf
+pointer should be deallocated using the allocation type
+.Dv DW_DLA_LIST .
+.El
+.Sh RETURN VALUES
+On success, these functions returns
+.Dv DW_DLV_OK .
+In case of an error, they return
+.Dv DW_DLV_ERROR
+and set the argument
+.Ar err .
+.Sh EXAMPLES
+To retrieve the location list associated with an attribute, use:
+.Bd -literal -offset indent
+Dwarf_Attribute at;
+Dwarf_Locdesc **llbuf;
+Dwarf_Signed lcnt;
+Dwarf_Loc *lr;
+Dwarf_Error de;
+int i;
+
+if (dwarf_loclist_n(at, &llbuf, &lcnt, &de) != DW_DLV_OK)
+	errx(EXIT_FAILURE, "dwarf_loclist_n failed: %s",
+	    dwarf_errmsg(de));
+
+for (i = 0; i < lcnt; i++) {
+	/* ... Use llbuf[i] ... */
+	for (j = 0; (Dwarf_Half) j < llbuf[i]->ld_cents; j++) {
+		lr = &llbuf[i]->ld_s[j];
+		/* ... Use each Dwarf_Loc descriptor ... */
+	}
+	dwarf_dealloc(dbg, llbuf[i]->ld_s, DW_DLA_LOC_BLOCK);
+	dwarf_dealloc(dbg, llbuf[i], DW_DLA_LOCDESC);
+}
+dwarf_dealloc(dbg, llbuf, DW_DLA_LIST);
+.Ed
+.Sh ERRORS
+These functions can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar at ,
+.Ar llbuf
+or
+.Ar listlen
+was NULL.
+.It Bq Er DW_DLE_ARGUMENT
+The attribute provided by argument
+.Ar at
+does not contain a location expression or is not associated with a
+location expression list.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_dealloc 3 ,
+.Xr dwarf_get_loclist_entry 3 ,
+.Xr dwarf_loclist_from_expr 3 ,
+.Xr dwarf_loclist_from_expr_a 3

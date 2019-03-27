@@ -1,0 +1,109 @@
+/* -*- Mode: Text -*- */
+AutoGen Definitions perlopt;
+
+#include autogen-version.def
+
+prog-name	= "ntp-wait";
+prog-title	= "Wait for ntpd to stabilize the system clock";
+package		= ntp;
+#include	version.def
+
+long-opts;
+gnu-usage;
+
+flag = {
+    name        = tries;
+    value       = n;
+    arg-type    = number;
+    arg-default = 100;
+    descrip     = "Number of times to check ntpd";
+    doc         = <<-  _EndOfDoc_
+        The maximum number of times we will check @code{ntpd} to see if
+        it has been able to synchronize and stabilize the system clock.
+	_EndOfDoc_;
+};
+
+flag = {
+    name        = sleep;
+    value       = s;
+    arg-type    = number;
+    arg-name    = "secs-between-tries";
+    arg-default = 6;
+    descrip     = "How long to sleep between tries";
+    doc         = <<-  _EndOfDoc_
+        We will sleep for @file{secs-between-tries} after each query
+        of @code{ntpd} that returns "the time is not yet stable".
+	_EndOfDoc_;
+};
+
+flag = {
+    name    = verbose;
+    value   = v;
+    descrip = "Be verbose";
+    doc     = <<-  _EndOfDoc_
+        By default, @code{ntp-wait} is silent.
+        With this option, @code{ntp-wait} will provide status information.
+	_EndOfDoc_;
+};
+
+explain = <<- _END_EXPLAIN
+	_END_EXPLAIN;
+
+doc-section	= {
+  ds-type	= 'DESCRIPTION';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_PROG_MDOC_DESCRIP
+.Nm
+will send at most
+.Ar num-tries
+queries to
+.Xr ntpd 8 ,
+sleeping for
+.Ar secs-between-tries
+after each status return that says
+.Xr ntpd 8
+has not yet produced a synchronized and stable system clock.
+.Pp
+.Nm
+will do this quietly, unless the
+.Fl v
+flag is provided.
+This can be useful at boot time, to delay the boot sequence until after
+.Ar ntpd -g 
+has set the time.
+	_END_PROG_MDOC_DESCRIP;
+};
+
+/*
+doc-section	= {
+  ds-type	= 'USAGE';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_USAGE
+	_END_MDOC_USAGE;
+};
+*/
+
+doc-section	= {
+  ds-type	= 'AUTHORS';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_AUTH
+.An "Harlan Stenn"
+	_END_MDOC_AUTH;
+};
+
+doc-section	= {
+  ds-type	= 'NOTES';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_NOTES
+This document corresponds to version @VERSION@ of NTP.
+	_END_MDOC_NOTES;
+};
+
+/*
+doc-section	= {
+  ds-type	= 'BUGS';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_BUGS
+	_END_MDOC_BUGS;
+};
+*/

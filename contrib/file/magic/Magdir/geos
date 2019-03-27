@@ -1,0 +1,20 @@
+
+#------------------------------------------------------------------------------
+# $File: geos,v 1.4 2009/09/19 16:28:09 christos Exp $
+# GEOS files (Vidar Madsen, vidar@gimp.org)
+# semi-commonly used in embedded and handheld systems.
+0	belong	0xc745c153	GEOS
+>40	byte	1	executable
+>40	byte	2	VMFile
+>40	byte	3	binary
+>40	byte	4	directory label
+>40	byte	<1	unknown
+>40	byte	>4	unknown
+>4	string	>\0	\b, name "%s"
+#>44	short	x	\b, version %d
+#>46	short	x	\b.%d
+#>48	short	x	\b, rev %d
+#>50	short	x	\b.%d
+#>52	short	x	\b, proto %d
+#>54	short	x	\br%d
+#>168	string	>\0	\b, copyright "%s"

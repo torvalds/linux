@@ -1,0 +1,250 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2018-2019 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 10, 2019
+.Dt STYLE.MDOC 5
+.Os
+.Sh NAME
+.Nm style.mdoc
+.Nd
+.Fx
+.Xr mdoc 7
+file style guide
+.Sh DESCRIPTION
+This file specifies the preferred style for manual pages in the
+.Fx
+source tree.
+.Ss Code Examples
+.Bl -dash -width ""
+.It
+Use literal formatting for examples and literal shell commands, e.g.:
+.Bd -literal -offset indent
+Then run
+\&.Dq Li make install clean .
+.Ed
+.Pp
+which renders as:
+.Bd -filled -offset indent
+Then run
+.Dq Li make install clean .
+.Ed
+.Pp
+The incorrect way would be to use macros like
+.Sy \&Nm
+to stylize the command invocation:
+.Bd -literal -offset indent
+Then run
+\&.Dq Nm make Cm install Cm clean .
+.Ed
+.Pp
+which renders as:
+.Bd -filled -offset indent
+Then run
+.Dq Nm make Cm install Cm clean .
+.Ed
+.El
+.Ss EXAMPLES Section
+.Bl -dash -width ""
+.It
+Format the
+.Sx EXAMPLES
+section in the following way:
+.Bd -literal -offset indent
+\&.Bl -tag -width 0n
+\&.It Sy Example 1\\&: No Doing Something
+\&.Pp
+The following command does something.
+\&.Bd -literal -offset 2n
+\&.Li # Ic make -VLEGAL
+\&.Ed
+\&.It Sy Example 2\\&: No Doing Something Different
+\&.Pp
+The following command does something different.
+\&.Bd -literal -offset 2n
+\&.Li # Ic bectl list
+\&.Ed
+\&.Pp
+It is good to know this command.
+\&.El
+.Ed
+.Pp
+which renders as:
+.Bd -filled -offset indent
+.Bl -tag -width 0n
+.It Sy Example 1\&: No Doing Something
+.Pp
+The following command does something.
+.Bd -literal -offset 2n
+.Li # Ic make -VLEGAL
+.Ed
+.It Sy Example 2\&: No Doing Something Different
+.Pp
+The following command does something different.
+.Bd -literal -offset 2n
+.Li # Ic bectl list
+.Ed
+.Pp
+It is good to know this command.
+.El
+.Ed
+.El
+.Ss Synopsis Formatting
+.Bl -dash -width ""
+.It
+Do not put whitespace between alternative parameters separated with a pipe
+.Pq Dq | ,
+e.g.:
+.Bd -literal -offset indent
+\&.Cm compression Cm on Ns | Ns Cm off
+\&.Cm install Fl -all Ns | Ns Ar portname Ar ...
+.Ed
+.Pp
+which in the SYNOPSIS section is rendered as:
+.Bd -unfilled -offset indent
+.Cm compression Cm on Ns | Ns Cm off
+.Cm install Fl -all Ns | Ns Ar portname Ar ...
+.Ed
+.It
+Use
+.Sy \&Cm
+to stylize characters that are command modifiers
+.Po e.g.,
+.Dq \&, ,
+.Dq @
+or
+.Dq "="
+.Pc .
+For example:
+.Bd -literal -offset indent
+\&.Sm off
+\&.Fl -meet Cm = Ar who Oo Cm \&, Ar who " " Ar "..." Oc Cm @ Ar where
+\&.Sm on
+.Ed
+.Pp
+which renders as:
+.Bd -filled -offset indent
+.Sm off
+.Fl -meet Cm = Ar who Oo Cm \&, Ar who " " Ar "..." Oc Cm @ Ar where
+.Sm on
+.Ed
+.Pp
+instead of:
+.Bd -literal -offset indent
+\&.Sm off
+\&.Fl -meet No = Ar who Oo , Ar who " " Ar "..." Oc @ Ar where
+\&.Sm on
+.Ed
+.Pp
+which would render as:
+.Bd -filled -offset indent
+.Sm off
+.Fl -meet No = Ar who Oo , Ar who " " Ar "..." Oc @ Ar where
+.Sm on
+.Ed
+.Pp
+It is important to realize that in the correct example,
+.Dq \&, ,
+.Dq @
+and
+.Dq =
+are stylized with
+.Sy \&Cm .
+At the same time, the square brackets
+.Pq Dq "[]"
+are not stylized as they do not belong to the syntax of the
+.Fl -meet
+flag.
+.El
+.Ss Quoting
+.Bl -dash -width ""
+.It
+Use the
+.Sy \&Dq
+.Pq Do Dc
+macro
+for quoting.
+Use the
+.Sy \&Sq
+.Pq So Sc
+macro for quoting inside quotes.
+The use of the
+.Sy \&Qq
+.Pq Qo Qc
+macro is usually not necessary.
+.El
+.Ss Variables
+.Bl -dash -width ""
+.It
+Use
+.Sy \&Va
+instead of
+.Sy \&Dv
+for
+.Xr sysctl 8
+variables like
+.Va kdb.enter.panic .
+.It
+Use the angle brackets
+.Sy \&Aq
+.Pq Dq "<>"
+macro
+for arguments
+.Pq Sy \&Ar
+when they are mixed with similarly stylized macros like
+.Sy \&Pa
+or
+.Sy \&Va ,
+e.g.:
+.Bd -literal -offset indent
+\&.Va critical_filesystems_ Ns Aq Ar type
+.Ed
+.Pp
+which renders as:
+.Bd -filled -offset indent
+.Va critical_filesystems_ Ns Aq Ar type
+.Ed
+.Pp
+instead of:
+.Bd -literal -offset indent
+\&.Va critical_filesystems_ Ns Ar type
+.Ed
+.Pp
+that would be rendered as:
+.Bd -filled -offset indent
+.Va critical_filesystems_ Ns Ar type
+.Ed
+.El
+.Sh SEE ALSO
+.Xr man 1 ,
+.Xr mandoc 1 ,
+.Xr mdoc 7
+.Sh HISTORY
+This manual page first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org

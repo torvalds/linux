@@ -1,0 +1,1354 @@
+//===-- TargetLibraryInfo.def - Library information -------------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+// This .def file will either fill in the enum definition or fill in the
+// string representation array definition for TargetLibraryInfo.
+// Which is defined depends on whether TLI_DEFINE_ENUM is defined or
+// TLI_DEFINE_STRING is defined. Only one should be defined at a time.
+
+#if !(defined(TLI_DEFINE_ENUM) || defined(TLI_DEFINE_STRING))
+#error "Must define TLI_DEFINE_ENUM or TLI_DEFINE_STRING for TLI .def."
+#elif defined(TLI_DEFINE_ENUM) && defined(TLI_DEFINE_STRING)
+#error "Can only define one of TLI_DEFINE_ENUM or TLI_DEFINE_STRING at a time."
+#else
+// One of TLI_DEFINE_ENUM/STRING are defined.
+
+#if defined(TLI_DEFINE_ENUM)
+#define TLI_DEFINE_ENUM_INTERNAL(enum_variant) LibFunc_##enum_variant,
+#define TLI_DEFINE_STRING_INTERNAL(string_repr)
+#else
+#define TLI_DEFINE_ENUM_INTERNAL(enum_variant)
+#define TLI_DEFINE_STRING_INTERNAL(string_repr) string_repr,
+#endif
+
+/// void *new(unsigned int);
+TLI_DEFINE_ENUM_INTERNAL(msvc_new_int)
+TLI_DEFINE_STRING_INTERNAL("??2@YAPAXI@Z")
+
+/// void *new(unsigned int, nothrow);
+TLI_DEFINE_ENUM_INTERNAL(msvc_new_int_nothrow)
+TLI_DEFINE_STRING_INTERNAL("??2@YAPAXIABUnothrow_t@std@@@Z")
+
+/// void *new(unsigned long long);
+TLI_DEFINE_ENUM_INTERNAL(msvc_new_longlong)
+TLI_DEFINE_STRING_INTERNAL("??2@YAPEAX_K@Z")
+
+/// void *new(unsigned long long, nothrow);
+TLI_DEFINE_ENUM_INTERNAL(msvc_new_longlong_nothrow)
+TLI_DEFINE_STRING_INTERNAL("??2@YAPEAX_KAEBUnothrow_t@std@@@Z")
+
+/// void operator delete(void*);
+TLI_DEFINE_ENUM_INTERNAL(msvc_delete_ptr32)
+TLI_DEFINE_STRING_INTERNAL("??3@YAXPAX@Z")
+
+/// void operator delete(void*, nothrow);
+TLI_DEFINE_ENUM_INTERNAL(msvc_delete_ptr32_nothrow)
+TLI_DEFINE_STRING_INTERNAL("??3@YAXPAXABUnothrow_t@std@@@Z")
+
+/// void operator delete(void*, unsigned int);
+TLI_DEFINE_ENUM_INTERNAL(msvc_delete_ptr32_int)
+TLI_DEFINE_STRING_INTERNAL("??3@YAXPAXI@Z")
+
+/// void operator delete(void*);
+TLI_DEFINE_ENUM_INTERNAL(msvc_delete_ptr64)
+TLI_DEFINE_STRING_INTERNAL("??3@YAXPEAX@Z")
+
+/// void operator delete(void*, nothrow);
+TLI_DEFINE_ENUM_INTERNAL(msvc_delete_ptr64_nothrow)
+TLI_DEFINE_STRING_INTERNAL("??3@YAXPEAXAEBUnothrow_t@std@@@Z")
+
+/// void operator delete(void*, unsigned long long);
+TLI_DEFINE_ENUM_INTERNAL(msvc_delete_ptr64_longlong)
+TLI_DEFINE_STRING_INTERNAL("??3@YAXPEAX_K@Z")
+
+/// void *new[](unsigned int);
+TLI_DEFINE_ENUM_INTERNAL(msvc_new_array_int)
+TLI_DEFINE_STRING_INTERNAL("??_U@YAPAXI@Z")
+
+/// void *new[](unsigned int, nothrow);
+TLI_DEFINE_ENUM_INTERNAL(msvc_new_array_int_nothrow)
+TLI_DEFINE_STRING_INTERNAL("??_U@YAPAXIABUnothrow_t@std@@@Z")
+
+/// void *new[](unsigned long long);
+TLI_DEFINE_ENUM_INTERNAL(msvc_new_array_longlong)
+TLI_DEFINE_STRING_INTERNAL("??_U@YAPEAX_K@Z")
+
+/// void *new[](unsigned long long, nothrow);
+TLI_DEFINE_ENUM_INTERNAL(msvc_new_array_longlong_nothrow)
+TLI_DEFINE_STRING_INTERNAL("??_U@YAPEAX_KAEBUnothrow_t@std@@@Z")
+
+/// void operator delete[](void*);
+TLI_DEFINE_ENUM_INTERNAL(msvc_delete_array_ptr32)
+TLI_DEFINE_STRING_INTERNAL("??_V@YAXPAX@Z")
+
+/// void operator delete[](void*, nothrow);
+TLI_DEFINE_ENUM_INTERNAL(msvc_delete_array_ptr32_nothrow)
+TLI_DEFINE_STRING_INTERNAL("??_V@YAXPAXABUnothrow_t@std@@@Z")
+
+/// void operator delete[](void*, unsigned int);
+TLI_DEFINE_ENUM_INTERNAL(msvc_delete_array_ptr32_int)
+TLI_DEFINE_STRING_INTERNAL("??_V@YAXPAXI@Z")
+
+/// void operator delete[](void*);
+TLI_DEFINE_ENUM_INTERNAL(msvc_delete_array_ptr64)
+TLI_DEFINE_STRING_INTERNAL("??_V@YAXPEAX@Z")
+
+/// void operator delete[](void*, nothrow);
+TLI_DEFINE_ENUM_INTERNAL(msvc_delete_array_ptr64_nothrow)
+TLI_DEFINE_STRING_INTERNAL("??_V@YAXPEAXAEBUnothrow_t@std@@@Z")
+
+/// void operator delete[](void*, unsigned long long);
+TLI_DEFINE_ENUM_INTERNAL(msvc_delete_array_ptr64_longlong)
+TLI_DEFINE_STRING_INTERNAL("??_V@YAXPEAX_K@Z")
+
+/// int _IO_getc(_IO_FILE * __fp);
+TLI_DEFINE_ENUM_INTERNAL(under_IO_getc)
+TLI_DEFINE_STRING_INTERNAL("_IO_getc")
+/// int _IO_putc(int __c, _IO_FILE * __fp);
+TLI_DEFINE_ENUM_INTERNAL(under_IO_putc)
+TLI_DEFINE_STRING_INTERNAL("_IO_putc")
+/// void operator delete[](void*);
+TLI_DEFINE_ENUM_INTERNAL(ZdaPv)
+TLI_DEFINE_STRING_INTERNAL("_ZdaPv")
+/// void operator delete[](void*, nothrow);
+TLI_DEFINE_ENUM_INTERNAL(ZdaPvRKSt9nothrow_t)
+TLI_DEFINE_STRING_INTERNAL("_ZdaPvRKSt9nothrow_t")
+/// void operator delete[](void*, align_val_t);
+TLI_DEFINE_ENUM_INTERNAL(ZdaPvSt11align_val_t)
+TLI_DEFINE_STRING_INTERNAL("_ZdaPvSt11align_val_t")
+/// void operator delete[](void*, align_val_t, nothrow)
+TLI_DEFINE_ENUM_INTERNAL(ZdaPvSt11align_val_tRKSt9nothrow_t)
+TLI_DEFINE_STRING_INTERNAL("_ZdaPvSt11align_val_tRKSt9nothrow_t")
+/// void operator delete[](void*, unsigned int);
+TLI_DEFINE_ENUM_INTERNAL(ZdaPvj)
+TLI_DEFINE_STRING_INTERNAL("_ZdaPvj")
+/// void operator delete[](void*, unsigned long);
+TLI_DEFINE_ENUM_INTERNAL(ZdaPvm)
+TLI_DEFINE_STRING_INTERNAL("_ZdaPvm")
+/// void operator delete(void*);
+TLI_DEFINE_ENUM_INTERNAL(ZdlPv)
+TLI_DEFINE_STRING_INTERNAL("_ZdlPv")
+/// void operator delete(void*, nothrow);
+TLI_DEFINE_ENUM_INTERNAL(ZdlPvRKSt9nothrow_t)
+TLI_DEFINE_STRING_INTERNAL("_ZdlPvRKSt9nothrow_t")
+/// void operator delete(void*, align_val_t)
+TLI_DEFINE_ENUM_INTERNAL(ZdlPvSt11align_val_t)
+TLI_DEFINE_STRING_INTERNAL("_ZdlPvSt11align_val_t")
+/// void operator delete(void*, align_val_t, nothrow)
+TLI_DEFINE_ENUM_INTERNAL(ZdlPvSt11align_val_tRKSt9nothrow_t)
+TLI_DEFINE_STRING_INTERNAL("_ZdlPvSt11align_val_tRKSt9nothrow_t")
+/// void operator delete(void*, unsigned int);
+TLI_DEFINE_ENUM_INTERNAL(ZdlPvj)
+TLI_DEFINE_STRING_INTERNAL("_ZdlPvj")
+/// void operator delete(void*, unsigned long);
+TLI_DEFINE_ENUM_INTERNAL(ZdlPvm)
+TLI_DEFINE_STRING_INTERNAL("_ZdlPvm")
+/// void *new[](unsigned int);
+TLI_DEFINE_ENUM_INTERNAL(Znaj)
+TLI_DEFINE_STRING_INTERNAL("_Znaj")
+/// void *new[](unsigned int, nothrow);
+TLI_DEFINE_ENUM_INTERNAL(ZnajRKSt9nothrow_t)
+TLI_DEFINE_STRING_INTERNAL("_ZnajRKSt9nothrow_t")
+/// void *new[](unsigned int, align_val_t)
+TLI_DEFINE_ENUM_INTERNAL(ZnajSt11align_val_t)
+TLI_DEFINE_STRING_INTERNAL("_ZnajSt11align_val_t")
+/// void *new[](unsigned int, align_val_t, nothrow)
+TLI_DEFINE_ENUM_INTERNAL(ZnajSt11align_val_tRKSt9nothrow_t)
+TLI_DEFINE_STRING_INTERNAL("_ZnajSt11align_val_tRKSt9nothrow_t")
+/// void *new[](unsigned long);
+TLI_DEFINE_ENUM_INTERNAL(Znam)
+TLI_DEFINE_STRING_INTERNAL("_Znam")
+/// void *new[](unsigned long, nothrow);
+TLI_DEFINE_ENUM_INTERNAL(ZnamRKSt9nothrow_t)
+TLI_DEFINE_STRING_INTERNAL("_ZnamRKSt9nothrow_t")
+/// void *new[](unsigned long, align_val_t)
+TLI_DEFINE_ENUM_INTERNAL(ZnamSt11align_val_t)
+TLI_DEFINE_STRING_INTERNAL("_ZnamSt11align_val_t")
+/// void *new[](unsigned long, align_val_t, nothrow)
+TLI_DEFINE_ENUM_INTERNAL(ZnamSt11align_val_tRKSt9nothrow_t)
+TLI_DEFINE_STRING_INTERNAL("_ZnamSt11align_val_tRKSt9nothrow_t")
+/// void *new(unsigned int);
+TLI_DEFINE_ENUM_INTERNAL(Znwj)
+TLI_DEFINE_STRING_INTERNAL("_Znwj")
+/// void *new(unsigned int, nothrow);
+TLI_DEFINE_ENUM_INTERNAL(ZnwjRKSt9nothrow_t)
+TLI_DEFINE_STRING_INTERNAL("_ZnwjRKSt9nothrow_t")
+/// void *new(unsigned int, align_val_t)
+TLI_DEFINE_ENUM_INTERNAL(ZnwjSt11align_val_t)
+TLI_DEFINE_STRING_INTERNAL("_ZnwjSt11align_val_t")
+/// void *new(unsigned int, align_val_t, nothrow)
+TLI_DEFINE_ENUM_INTERNAL(ZnwjSt11align_val_tRKSt9nothrow_t)
+TLI_DEFINE_STRING_INTERNAL("_ZnwjSt11align_val_tRKSt9nothrow_t")
+/// void *new(unsigned long);
+TLI_DEFINE_ENUM_INTERNAL(Znwm)
+TLI_DEFINE_STRING_INTERNAL("_Znwm")
+/// void *new(unsigned long, nothrow);
+TLI_DEFINE_ENUM_INTERNAL(ZnwmRKSt9nothrow_t)
+TLI_DEFINE_STRING_INTERNAL("_ZnwmRKSt9nothrow_t")
+/// void *new(unsigned long, align_val_t)
+TLI_DEFINE_ENUM_INTERNAL(ZnwmSt11align_val_t)
+TLI_DEFINE_STRING_INTERNAL("_ZnwmSt11align_val_t")
+/// void *new(unsigned long, align_val_t, nothrow)
+TLI_DEFINE_ENUM_INTERNAL(ZnwmSt11align_val_tRKSt9nothrow_t)
+TLI_DEFINE_STRING_INTERNAL("_ZnwmSt11align_val_tRKSt9nothrow_t")
+/// double __acos_finite(double x);
+TLI_DEFINE_ENUM_INTERNAL(acos_finite)
+TLI_DEFINE_STRING_INTERNAL("__acos_finite")
+/// float __acosf_finite(float x);
+TLI_DEFINE_ENUM_INTERNAL(acosf_finite)
+TLI_DEFINE_STRING_INTERNAL("__acosf_finite")
+/// double __acosh_finite(double x);
+TLI_DEFINE_ENUM_INTERNAL(acosh_finite)
+TLI_DEFINE_STRING_INTERNAL("__acosh_finite")
+/// float __acoshf_finite(float x);
+TLI_DEFINE_ENUM_INTERNAL(acoshf_finite)
+TLI_DEFINE_STRING_INTERNAL("__acoshf_finite")
+/// long double __acoshl_finite(long double x);
+TLI_DEFINE_ENUM_INTERNAL(acoshl_finite)
+TLI_DEFINE_STRING_INTERNAL("__acoshl_finite")
+/// long double __acosl_finite(long double x);
+TLI_DEFINE_ENUM_INTERNAL(acosl_finite)
+TLI_DEFINE_STRING_INTERNAL("__acosl_finite")
+/// double __asin_finite(double x);
+TLI_DEFINE_ENUM_INTERNAL(asin_finite)
+TLI_DEFINE_STRING_INTERNAL("__asin_finite")
+/// float __asinf_finite(float x);
+TLI_DEFINE_ENUM_INTERNAL(asinf_finite)
+TLI_DEFINE_STRING_INTERNAL("__asinf_finite")
+/// long double __asinl_finite(long double x);
+TLI_DEFINE_ENUM_INTERNAL(asinl_finite)
+TLI_DEFINE_STRING_INTERNAL("__asinl_finite")
+/// double atan2_finite(double y, double x);
+TLI_DEFINE_ENUM_INTERNAL(atan2_finite)
+TLI_DEFINE_STRING_INTERNAL("__atan2_finite")
+/// float atan2f_finite(float y, float x);
+TLI_DEFINE_ENUM_INTERNAL(atan2f_finite)
+TLI_DEFINE_STRING_INTERNAL("__atan2f_finite")
+/// long double atan2l_finite(long double y, long double x);
+TLI_DEFINE_ENUM_INTERNAL(atan2l_finite)
+TLI_DEFINE_STRING_INTERNAL("__atan2l_finite")
+/// double __atanh_finite(double x);
+TLI_DEFINE_ENUM_INTERNAL(atanh_finite)
+TLI_DEFINE_STRING_INTERNAL("__atanh_finite")
+/// float __atanhf_finite(float x);
+TLI_DEFINE_ENUM_INTERNAL(atanhf_finite)
+TLI_DEFINE_STRING_INTERNAL("__atanhf_finite")
+/// long double __atanhl_finite(long double x);
+TLI_DEFINE_ENUM_INTERNAL(atanhl_finite)
+TLI_DEFINE_STRING_INTERNAL("__atanhl_finite")
+/// double __cosh_finite(double x);
+TLI_DEFINE_ENUM_INTERNAL(cosh_finite)
+TLI_DEFINE_STRING_INTERNAL("__cosh_finite")
+/// float __coshf_finite(float x);
+TLI_DEFINE_ENUM_INTERNAL(coshf_finite)
+TLI_DEFINE_STRING_INTERNAL("__coshf_finite")
+/// long double __coshl_finite(long double x);
+TLI_DEFINE_ENUM_INTERNAL(coshl_finite)
+TLI_DEFINE_STRING_INTERNAL("__coshl_finite")
+/// double __cospi(double x);
+TLI_DEFINE_ENUM_INTERNAL(cospi)
+TLI_DEFINE_STRING_INTERNAL("__cospi")
+/// float __cospif(float x);
+TLI_DEFINE_ENUM_INTERNAL(cospif)
+TLI_DEFINE_STRING_INTERNAL("__cospif")
+/// int __cxa_atexit(void (*f)(void *), void *p, void *d);
+TLI_DEFINE_ENUM_INTERNAL(cxa_atexit)
+TLI_DEFINE_STRING_INTERNAL("__cxa_atexit")
+/// void __cxa_guard_abort(guard_t *guard);
+/// guard_t is int64_t in Itanium ABI or int32_t on ARM eabi.
+TLI_DEFINE_ENUM_INTERNAL(cxa_guard_abort)
+TLI_DEFINE_STRING_INTERNAL("__cxa_guard_abort")
+/// int __cxa_guard_acquire(guard_t *guard);
+TLI_DEFINE_ENUM_INTERNAL(cxa_guard_acquire)
+TLI_DEFINE_STRING_INTERNAL("__cxa_guard_acquire")
+/// void __cxa_guard_release(guard_t *guard);
+TLI_DEFINE_ENUM_INTERNAL(cxa_guard_release)
+TLI_DEFINE_STRING_INTERNAL("__cxa_guard_release")
+/// double __exp10_finite(double x);
+TLI_DEFINE_ENUM_INTERNAL(exp10_finite)
+TLI_DEFINE_STRING_INTERNAL("__exp10_finite")
+/// float __exp10f_finite(float x);
+TLI_DEFINE_ENUM_INTERNAL(exp10f_finite)
+TLI_DEFINE_STRING_INTERNAL("__exp10f_finite")
+/// long double __exp10l_finite(long double x);
+TLI_DEFINE_ENUM_INTERNAL(exp10l_finite)
+TLI_DEFINE_STRING_INTERNAL("__exp10l_finite")
+/// double __exp2_finite(double x);
+TLI_DEFINE_ENUM_INTERNAL(exp2_finite)
+TLI_DEFINE_STRING_INTERNAL("__exp2_finite")
+/// float __exp2f_finite(float x);
+TLI_DEFINE_ENUM_INTERNAL(exp2f_finite)
+TLI_DEFINE_STRING_INTERNAL("__exp2f_finite")
+/// long double __exp2l_finite(long double x);
+TLI_DEFINE_ENUM_INTERNAL(exp2l_finite)
+TLI_DEFINE_STRING_INTERNAL("__exp2l_finite")
+/// double __exp_finite(double x);
+TLI_DEFINE_ENUM_INTERNAL(exp_finite)
+TLI_DEFINE_STRING_INTERNAL("__exp_finite")
+/// float __expf_finite(float x);
+TLI_DEFINE_ENUM_INTERNAL(expf_finite)
+TLI_DEFINE_STRING_INTERNAL("__expf_finite")
+/// long double __expl_finite(long double x);
+TLI_DEFINE_ENUM_INTERNAL(expl_finite)
+TLI_DEFINE_STRING_INTERNAL("__expl_finite")
+/// int __isoc99_scanf (const char *format, ...)
+TLI_DEFINE_ENUM_INTERNAL(dunder_isoc99_scanf)
+TLI_DEFINE_STRING_INTERNAL("__isoc99_scanf")
+/// int __isoc99_sscanf(const char *s, const char *format, ...)
+TLI_DEFINE_ENUM_INTERNAL(dunder_isoc99_sscanf)
+TLI_DEFINE_STRING_INTERNAL("__isoc99_sscanf")
+/// double __log10_finite(double x);
+TLI_DEFINE_ENUM_INTERNAL(log10_finite)
+TLI_DEFINE_STRING_INTERNAL("__log10_finite")
+/// float __log10f_finite(float x);
+TLI_DEFINE_ENUM_INTERNAL(log10f_finite)
+TLI_DEFINE_STRING_INTERNAL("__log10f_finite")
+/// long double __log10l_finite(long double x);
+TLI_DEFINE_ENUM_INTERNAL(log10l_finite)
+TLI_DEFINE_STRING_INTERNAL("__log10l_finite")
+/// double __log2_finite(double x);
+TLI_DEFINE_ENUM_INTERNAL(log2_finite)
+TLI_DEFINE_STRING_INTERNAL("__log2_finite")
+/// float __log2f_finite(float x);
+TLI_DEFINE_ENUM_INTERNAL(log2f_finite)
+TLI_DEFINE_STRING_INTERNAL("__log2f_finite")
+/// long double __log2l_finite(long double x);
+TLI_DEFINE_ENUM_INTERNAL(log2l_finite)
+TLI_DEFINE_STRING_INTERNAL("__log2l_finite")
+/// double __log_finite(double x);
+TLI_DEFINE_ENUM_INTERNAL(log_finite)
+TLI_DEFINE_STRING_INTERNAL("__log_finite")
+/// float __logf_finite(float x);
+TLI_DEFINE_ENUM_INTERNAL(logf_finite)
+TLI_DEFINE_STRING_INTERNAL("__logf_finite")
+/// long double __logl_finite(long double x);
+TLI_DEFINE_ENUM_INTERNAL(logl_finite)
+TLI_DEFINE_STRING_INTERNAL("__logl_finite")
+/// void *__memcpy_chk(void *s1, const void *s2, size_t n, size_t s1size);
+TLI_DEFINE_ENUM_INTERNAL(memcpy_chk)
+TLI_DEFINE_STRING_INTERNAL("__memcpy_chk")
+/// void *__memmove_chk(void *s1, const void *s2, size_t n, size_t s1size);
+TLI_DEFINE_ENUM_INTERNAL(memmove_chk)
+TLI_DEFINE_STRING_INTERNAL("__memmove_chk")
+/// void *__memset_chk(void *s, char v, size_t n, size_t s1size);
+TLI_DEFINE_ENUM_INTERNAL(memset_chk)
+TLI_DEFINE_STRING_INTERNAL("__memset_chk")
+
+// int __nvvm_reflect(const char *)
+TLI_DEFINE_ENUM_INTERNAL(nvvm_reflect)
+TLI_DEFINE_STRING_INTERNAL("__nvvm_reflect")
+/// double __pow_finite(double x, double y);
+TLI_DEFINE_ENUM_INTERNAL(pow_finite)
+TLI_DEFINE_STRING_INTERNAL("__pow_finite")
+/// float _powf_finite(float x, float y);
+TLI_DEFINE_ENUM_INTERNAL(powf_finite)
+TLI_DEFINE_STRING_INTERNAL("__powf_finite")
+/// long double __powl_finite(long double x, long double y);
+TLI_DEFINE_ENUM_INTERNAL(powl_finite)
+TLI_DEFINE_STRING_INTERNAL("__powl_finite")
+/// double __sincospi_stret(double x);
+TLI_DEFINE_ENUM_INTERNAL(sincospi_stret)
+TLI_DEFINE_STRING_INTERNAL("__sincospi_stret")
+/// float __sincospif_stret(float x);
+TLI_DEFINE_ENUM_INTERNAL(sincospif_stret)
+TLI_DEFINE_STRING_INTERNAL("__sincospif_stret")
+/// double __sinh_finite(double x);
+TLI_DEFINE_ENUM_INTERNAL(sinh_finite)
+TLI_DEFINE_STRING_INTERNAL("__sinh_finite")
+/// float _sinhf_finite(float x);
+TLI_DEFINE_ENUM_INTERNAL(sinhf_finite)
+TLI_DEFINE_STRING_INTERNAL("__sinhf_finite")
+/// long double __sinhl_finite(long double x);
+TLI_DEFINE_ENUM_INTERNAL(sinhl_finite)
+TLI_DEFINE_STRING_INTERNAL("__sinhl_finite")
+/// double __sinpi(double x);
+TLI_DEFINE_ENUM_INTERNAL(sinpi)
+TLI_DEFINE_STRING_INTERNAL("__sinpi")
+/// float __sinpif(float x);
+TLI_DEFINE_ENUM_INTERNAL(sinpif)
+TLI_DEFINE_STRING_INTERNAL("__sinpif")
+/// double __sqrt_finite(double x);
+TLI_DEFINE_ENUM_INTERNAL(sqrt_finite)
+TLI_DEFINE_STRING_INTERNAL("__sqrt_finite")
+/// float __sqrt_finite(float x);
+TLI_DEFINE_ENUM_INTERNAL(sqrtf_finite)
+TLI_DEFINE_STRING_INTERNAL("__sqrtf_finite")
+/// long double __sqrt_finite(long double x);
+TLI_DEFINE_ENUM_INTERNAL(sqrtl_finite)
+TLI_DEFINE_STRING_INTERNAL("__sqrtl_finite")
+/// char *__stpcpy_chk(char *s1, const char *s2, size_t s1size);
+TLI_DEFINE_ENUM_INTERNAL(stpcpy_chk)
+TLI_DEFINE_STRING_INTERNAL("__stpcpy_chk")
+/// char *__stpncpy_chk(char *s1, const char *s2, size_t n, size_t s1size);
+TLI_DEFINE_ENUM_INTERNAL(stpncpy_chk)
+TLI_DEFINE_STRING_INTERNAL("__stpncpy_chk")
+/// char *__strcpy_chk(char *s1, const char *s2, size_t s1size);
+TLI_DEFINE_ENUM_INTERNAL(strcpy_chk)
+TLI_DEFINE_STRING_INTERNAL("__strcpy_chk")
+/// char * __strdup(const char *s);
+TLI_DEFINE_ENUM_INTERNAL(dunder_strdup)
+TLI_DEFINE_STRING_INTERNAL("__strdup")
+/// char *__strncpy_chk(char *s1, const char *s2, size_t n, size_t s1size);
+TLI_DEFINE_ENUM_INTERNAL(strncpy_chk)
+TLI_DEFINE_STRING_INTERNAL("__strncpy_chk")
+/// char *__strndup(const char *s, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(dunder_strndup)
+TLI_DEFINE_STRING_INTERNAL("__strndup")
+/// char * __strtok_r(char *s, const char *delim, char **save_ptr);
+TLI_DEFINE_ENUM_INTERNAL(dunder_strtok_r)
+TLI_DEFINE_STRING_INTERNAL("__strtok_r")
+/// int abs(int j);
+TLI_DEFINE_ENUM_INTERNAL(abs)
+TLI_DEFINE_STRING_INTERNAL("abs")
+/// int access(const char *path, int amode);
+TLI_DEFINE_ENUM_INTERNAL(access)
+TLI_DEFINE_STRING_INTERNAL("access")
+/// double acos(double x);
+TLI_DEFINE_ENUM_INTERNAL(acos)
+TLI_DEFINE_STRING_INTERNAL("acos")
+/// float acosf(float x);
+TLI_DEFINE_ENUM_INTERNAL(acosf)
+TLI_DEFINE_STRING_INTERNAL("acosf")
+/// double acosh(double x);
+TLI_DEFINE_ENUM_INTERNAL(acosh)
+TLI_DEFINE_STRING_INTERNAL("acosh")
+/// float acoshf(float x);
+TLI_DEFINE_ENUM_INTERNAL(acoshf)
+TLI_DEFINE_STRING_INTERNAL("acoshf")
+/// long double acoshl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(acoshl)
+TLI_DEFINE_STRING_INTERNAL("acoshl")
+/// long double acosl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(acosl)
+TLI_DEFINE_STRING_INTERNAL("acosl")
+/// double asin(double x);
+TLI_DEFINE_ENUM_INTERNAL(asin)
+TLI_DEFINE_STRING_INTERNAL("asin")
+/// float asinf(float x);
+TLI_DEFINE_ENUM_INTERNAL(asinf)
+TLI_DEFINE_STRING_INTERNAL("asinf")
+/// double asinh(double x);
+TLI_DEFINE_ENUM_INTERNAL(asinh)
+TLI_DEFINE_STRING_INTERNAL("asinh")
+/// float asinhf(float x);
+TLI_DEFINE_ENUM_INTERNAL(asinhf)
+TLI_DEFINE_STRING_INTERNAL("asinhf")
+/// long double asinhl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(asinhl)
+TLI_DEFINE_STRING_INTERNAL("asinhl")
+/// long double asinl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(asinl)
+TLI_DEFINE_STRING_INTERNAL("asinl")
+/// double atan(double x);
+TLI_DEFINE_ENUM_INTERNAL(atan)
+TLI_DEFINE_STRING_INTERNAL("atan")
+/// double atan2(double y, double x);
+TLI_DEFINE_ENUM_INTERNAL(atan2)
+TLI_DEFINE_STRING_INTERNAL("atan2")
+/// float atan2f(float y, float x);
+TLI_DEFINE_ENUM_INTERNAL(atan2f)
+TLI_DEFINE_STRING_INTERNAL("atan2f")
+/// long double atan2l(long double y, long double x);
+TLI_DEFINE_ENUM_INTERNAL(atan2l)
+TLI_DEFINE_STRING_INTERNAL("atan2l")
+/// float atanf(float x);
+TLI_DEFINE_ENUM_INTERNAL(atanf)
+TLI_DEFINE_STRING_INTERNAL("atanf")
+/// double atanh(double x);
+TLI_DEFINE_ENUM_INTERNAL(atanh)
+TLI_DEFINE_STRING_INTERNAL("atanh")
+/// float atanhf(float x);
+TLI_DEFINE_ENUM_INTERNAL(atanhf)
+TLI_DEFINE_STRING_INTERNAL("atanhf")
+/// long double atanhl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(atanhl)
+TLI_DEFINE_STRING_INTERNAL("atanhl")
+/// long double atanl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(atanl)
+TLI_DEFINE_STRING_INTERNAL("atanl")
+/// double atof(const char *str);
+TLI_DEFINE_ENUM_INTERNAL(atof)
+TLI_DEFINE_STRING_INTERNAL("atof")
+/// int atoi(const char *str);
+TLI_DEFINE_ENUM_INTERNAL(atoi)
+TLI_DEFINE_STRING_INTERNAL("atoi")
+/// long atol(const char *str);
+TLI_DEFINE_ENUM_INTERNAL(atol)
+TLI_DEFINE_STRING_INTERNAL("atol")
+/// long long atoll(const char *nptr);
+TLI_DEFINE_ENUM_INTERNAL(atoll)
+TLI_DEFINE_STRING_INTERNAL("atoll")
+/// int bcmp(const void *s1, const void *s2, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(bcmp)
+TLI_DEFINE_STRING_INTERNAL("bcmp")
+/// void bcopy(const void *s1, void *s2, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(bcopy)
+TLI_DEFINE_STRING_INTERNAL("bcopy")
+/// void bzero(void *s, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(bzero)
+TLI_DEFINE_STRING_INTERNAL("bzero")
+/// double cabs(double complex z)
+TLI_DEFINE_ENUM_INTERNAL(cabs)
+TLI_DEFINE_STRING_INTERNAL("cabs")
+/// float cabs(float complex z)
+TLI_DEFINE_ENUM_INTERNAL(cabsf)
+TLI_DEFINE_STRING_INTERNAL("cabsf")
+/// long double cabs(long double complex z)
+TLI_DEFINE_ENUM_INTERNAL(cabsl)
+TLI_DEFINE_STRING_INTERNAL("cabsl")
+/// void *calloc(size_t count, size_t size);
+TLI_DEFINE_ENUM_INTERNAL(calloc)
+TLI_DEFINE_STRING_INTERNAL("calloc")
+/// double cbrt(double x);
+TLI_DEFINE_ENUM_INTERNAL(cbrt)
+TLI_DEFINE_STRING_INTERNAL("cbrt")
+/// float cbrtf(float x);
+TLI_DEFINE_ENUM_INTERNAL(cbrtf)
+TLI_DEFINE_STRING_INTERNAL("cbrtf")
+/// long double cbrtl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(cbrtl)
+TLI_DEFINE_STRING_INTERNAL("cbrtl")
+/// double ceil(double x);
+TLI_DEFINE_ENUM_INTERNAL(ceil)
+TLI_DEFINE_STRING_INTERNAL("ceil")
+/// float ceilf(float x);
+TLI_DEFINE_ENUM_INTERNAL(ceilf)
+TLI_DEFINE_STRING_INTERNAL("ceilf")
+/// long double ceill(long double x);
+TLI_DEFINE_ENUM_INTERNAL(ceill)
+TLI_DEFINE_STRING_INTERNAL("ceill")
+/// int chmod(const char *path, mode_t mode);
+TLI_DEFINE_ENUM_INTERNAL(chmod)
+TLI_DEFINE_STRING_INTERNAL("chmod")
+/// int chown(const char *path, uid_t owner, gid_t group);
+TLI_DEFINE_ENUM_INTERNAL(chown)
+TLI_DEFINE_STRING_INTERNAL("chown")
+/// void clearerr(FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(clearerr)
+TLI_DEFINE_STRING_INTERNAL("clearerr")
+/// int closedir(DIR *dirp);
+TLI_DEFINE_ENUM_INTERNAL(closedir)
+TLI_DEFINE_STRING_INTERNAL("closedir")
+/// double copysign(double x, double y);
+TLI_DEFINE_ENUM_INTERNAL(copysign)
+TLI_DEFINE_STRING_INTERNAL("copysign")
+/// float copysignf(float x, float y);
+TLI_DEFINE_ENUM_INTERNAL(copysignf)
+TLI_DEFINE_STRING_INTERNAL("copysignf")
+/// long double copysignl(long double x, long double y);
+TLI_DEFINE_ENUM_INTERNAL(copysignl)
+TLI_DEFINE_STRING_INTERNAL("copysignl")
+/// double cos(double x);
+TLI_DEFINE_ENUM_INTERNAL(cos)
+TLI_DEFINE_STRING_INTERNAL("cos")
+/// float cosf(float x);
+TLI_DEFINE_ENUM_INTERNAL(cosf)
+TLI_DEFINE_STRING_INTERNAL("cosf")
+/// double cosh(double x);
+TLI_DEFINE_ENUM_INTERNAL(cosh)
+TLI_DEFINE_STRING_INTERNAL("cosh")
+/// float coshf(float x);
+TLI_DEFINE_ENUM_INTERNAL(coshf)
+TLI_DEFINE_STRING_INTERNAL("coshf")
+/// long double coshl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(coshl)
+TLI_DEFINE_STRING_INTERNAL("coshl")
+/// long double cosl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(cosl)
+TLI_DEFINE_STRING_INTERNAL("cosl")
+/// char *ctermid(char *s);
+TLI_DEFINE_ENUM_INTERNAL(ctermid)
+TLI_DEFINE_STRING_INTERNAL("ctermid")
+/// int execl(const char *path, const char *arg, ...);
+TLI_DEFINE_ENUM_INTERNAL(execl)
+TLI_DEFINE_STRING_INTERNAL("execl")
+/// int execle(const char *file, const char *arg, ..., char * const envp[]);
+TLI_DEFINE_ENUM_INTERNAL(execle)
+TLI_DEFINE_STRING_INTERNAL("execle")
+/// int execlp(const char *file, const char *arg, ...);
+TLI_DEFINE_ENUM_INTERNAL(execlp)
+TLI_DEFINE_STRING_INTERNAL("execlp")
+/// int execv(const char *path, char *const argv[]);
+TLI_DEFINE_ENUM_INTERNAL(execv)
+TLI_DEFINE_STRING_INTERNAL("execv")
+/// int execvP(const char *file, const char *search_path, char *const argv[]);
+TLI_DEFINE_ENUM_INTERNAL(execvP)
+TLI_DEFINE_STRING_INTERNAL("execvP")
+/// int execve(const char *filename, char *const argv[], char *const envp[]);
+TLI_DEFINE_ENUM_INTERNAL(execve)
+TLI_DEFINE_STRING_INTERNAL("execve")
+/// int execvp(const char *file, char *const argv[]);
+TLI_DEFINE_ENUM_INTERNAL(execvp)
+TLI_DEFINE_STRING_INTERNAL("execvp")
+/// int execvpe(const char *file, char *const argv[], char *const envp[]);
+TLI_DEFINE_ENUM_INTERNAL(execvpe)
+TLI_DEFINE_STRING_INTERNAL("execvpe")
+/// double exp(double x);
+TLI_DEFINE_ENUM_INTERNAL(exp)
+TLI_DEFINE_STRING_INTERNAL("exp")
+/// double exp10(double x);
+TLI_DEFINE_ENUM_INTERNAL(exp10)
+TLI_DEFINE_STRING_INTERNAL("exp10")
+/// float exp10f(float x);
+TLI_DEFINE_ENUM_INTERNAL(exp10f)
+TLI_DEFINE_STRING_INTERNAL("exp10f")
+/// long double exp10l(long double x);
+TLI_DEFINE_ENUM_INTERNAL(exp10l)
+TLI_DEFINE_STRING_INTERNAL("exp10l")
+/// double exp2(double x);
+TLI_DEFINE_ENUM_INTERNAL(exp2)
+TLI_DEFINE_STRING_INTERNAL("exp2")
+/// float exp2f(float x);
+TLI_DEFINE_ENUM_INTERNAL(exp2f)
+TLI_DEFINE_STRING_INTERNAL("exp2f")
+/// long double exp2l(long double x);
+TLI_DEFINE_ENUM_INTERNAL(exp2l)
+TLI_DEFINE_STRING_INTERNAL("exp2l")
+/// float expf(float x);
+TLI_DEFINE_ENUM_INTERNAL(expf)
+TLI_DEFINE_STRING_INTERNAL("expf")
+/// long double expl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(expl)
+TLI_DEFINE_STRING_INTERNAL("expl")
+/// double expm1(double x);
+TLI_DEFINE_ENUM_INTERNAL(expm1)
+TLI_DEFINE_STRING_INTERNAL("expm1")
+/// float expm1f(float x);
+TLI_DEFINE_ENUM_INTERNAL(expm1f)
+TLI_DEFINE_STRING_INTERNAL("expm1f")
+/// long double expm1l(long double x);
+TLI_DEFINE_ENUM_INTERNAL(expm1l)
+TLI_DEFINE_STRING_INTERNAL("expm1l")
+/// double fabs(double x);
+TLI_DEFINE_ENUM_INTERNAL(fabs)
+TLI_DEFINE_STRING_INTERNAL("fabs")
+/// float fabsf(float x);
+TLI_DEFINE_ENUM_INTERNAL(fabsf)
+TLI_DEFINE_STRING_INTERNAL("fabsf")
+/// long double fabsl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(fabsl)
+TLI_DEFINE_STRING_INTERNAL("fabsl")
+/// int fclose(FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fclose)
+TLI_DEFINE_STRING_INTERNAL("fclose")
+/// FILE *fdopen(int fildes, const char *mode);
+TLI_DEFINE_ENUM_INTERNAL(fdopen)
+TLI_DEFINE_STRING_INTERNAL("fdopen")
+/// int feof(FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(feof)
+TLI_DEFINE_STRING_INTERNAL("feof")
+/// int ferror(FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(ferror)
+TLI_DEFINE_STRING_INTERNAL("ferror")
+/// int fflush(FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fflush)
+TLI_DEFINE_STRING_INTERNAL("fflush")
+/// int ffs(int i);
+TLI_DEFINE_ENUM_INTERNAL(ffs)
+TLI_DEFINE_STRING_INTERNAL("ffs")
+/// int ffsl(long int i);
+TLI_DEFINE_ENUM_INTERNAL(ffsl)
+TLI_DEFINE_STRING_INTERNAL("ffsl")
+/// int ffsll(long long int i);
+TLI_DEFINE_ENUM_INTERNAL(ffsll)
+TLI_DEFINE_STRING_INTERNAL("ffsll")
+/// int fgetc(FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fgetc)
+TLI_DEFINE_STRING_INTERNAL("fgetc")
+/// int fgetc_unlocked(FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fgetc_unlocked)
+TLI_DEFINE_STRING_INTERNAL("fgetc_unlocked")
+/// int fgetpos(FILE *stream, fpos_t *pos);
+TLI_DEFINE_ENUM_INTERNAL(fgetpos)
+TLI_DEFINE_STRING_INTERNAL("fgetpos")
+/// char *fgets(char *s, int n, FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fgets)
+TLI_DEFINE_STRING_INTERNAL("fgets")
+/// char *fgets_unlocked(char *s, int n, FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fgets_unlocked)
+TLI_DEFINE_STRING_INTERNAL("fgets_unlocked")
+/// int fileno(FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fileno)
+TLI_DEFINE_STRING_INTERNAL("fileno")
+/// int fiprintf(FILE *stream, const char *format, ...);
+TLI_DEFINE_ENUM_INTERNAL(fiprintf)
+TLI_DEFINE_STRING_INTERNAL("fiprintf")
+/// void flockfile(FILE *file);
+TLI_DEFINE_ENUM_INTERNAL(flockfile)
+TLI_DEFINE_STRING_INTERNAL("flockfile")
+/// double floor(double x);
+TLI_DEFINE_ENUM_INTERNAL(floor)
+TLI_DEFINE_STRING_INTERNAL("floor")
+/// float floorf(float x);
+TLI_DEFINE_ENUM_INTERNAL(floorf)
+TLI_DEFINE_STRING_INTERNAL("floorf")
+/// long double floorl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(floorl)
+TLI_DEFINE_STRING_INTERNAL("floorl")
+/// int fls(int i);
+TLI_DEFINE_ENUM_INTERNAL(fls)
+TLI_DEFINE_STRING_INTERNAL("fls")
+/// int flsl(long int i);
+TLI_DEFINE_ENUM_INTERNAL(flsl)
+TLI_DEFINE_STRING_INTERNAL("flsl")
+/// int flsll(long long int i);
+TLI_DEFINE_ENUM_INTERNAL(flsll)
+TLI_DEFINE_STRING_INTERNAL("flsll")
+/// double fmax(double x, double y);
+TLI_DEFINE_ENUM_INTERNAL(fmax)
+TLI_DEFINE_STRING_INTERNAL("fmax")
+/// float fmaxf(float x, float y);
+TLI_DEFINE_ENUM_INTERNAL(fmaxf)
+TLI_DEFINE_STRING_INTERNAL("fmaxf")
+/// long double fmaxl(long double x, long double y);
+TLI_DEFINE_ENUM_INTERNAL(fmaxl)
+TLI_DEFINE_STRING_INTERNAL("fmaxl")
+/// double fmin(double x, double y);
+TLI_DEFINE_ENUM_INTERNAL(fmin)
+TLI_DEFINE_STRING_INTERNAL("fmin")
+/// float fminf(float x, float y);
+TLI_DEFINE_ENUM_INTERNAL(fminf)
+TLI_DEFINE_STRING_INTERNAL("fminf")
+/// long double fminl(long double x, long double y);
+TLI_DEFINE_ENUM_INTERNAL(fminl)
+TLI_DEFINE_STRING_INTERNAL("fminl")
+/// double fmod(double x, double y);
+TLI_DEFINE_ENUM_INTERNAL(fmod)
+TLI_DEFINE_STRING_INTERNAL("fmod")
+/// float fmodf(float x, float y);
+TLI_DEFINE_ENUM_INTERNAL(fmodf)
+TLI_DEFINE_STRING_INTERNAL("fmodf")
+/// long double fmodl(long double x, long double y);
+TLI_DEFINE_ENUM_INTERNAL(fmodl)
+TLI_DEFINE_STRING_INTERNAL("fmodl")
+/// FILE *fopen(const char *filename, const char *mode);
+TLI_DEFINE_ENUM_INTERNAL(fopen)
+TLI_DEFINE_STRING_INTERNAL("fopen")
+/// FILE *fopen64(const char *filename, const char *opentype)
+TLI_DEFINE_ENUM_INTERNAL(fopen64)
+TLI_DEFINE_STRING_INTERNAL("fopen64")
+/// int fork();
+TLI_DEFINE_ENUM_INTERNAL(fork)
+TLI_DEFINE_STRING_INTERNAL("fork")
+/// int fprintf(FILE *stream, const char *format, ...);
+TLI_DEFINE_ENUM_INTERNAL(fprintf)
+TLI_DEFINE_STRING_INTERNAL("fprintf")
+/// int fputc(int c, FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fputc)
+TLI_DEFINE_STRING_INTERNAL("fputc")
+/// int fputc_unlocked(int c, FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fputc_unlocked)
+TLI_DEFINE_STRING_INTERNAL("fputc_unlocked")
+/// int fputs(const char *s, FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fputs)
+TLI_DEFINE_STRING_INTERNAL("fputs")
+/// int fputs_unlocked(const char *s, FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fputs_unlocked)
+TLI_DEFINE_STRING_INTERNAL("fputs_unlocked")
+/// size_t fread(void *ptr, size_t size, size_t nitems, FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fread)
+TLI_DEFINE_STRING_INTERNAL("fread")
+/// size_t fread_unlocked(void *ptr, size_t size, size_t nitems, FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fread_unlocked)
+TLI_DEFINE_STRING_INTERNAL("fread_unlocked")
+/// void free(void *ptr);
+TLI_DEFINE_ENUM_INTERNAL(free)
+TLI_DEFINE_STRING_INTERNAL("free")
+/// double frexp(double num, int *exp);
+TLI_DEFINE_ENUM_INTERNAL(frexp)
+TLI_DEFINE_STRING_INTERNAL("frexp")
+/// float frexpf(float num, int *exp);
+TLI_DEFINE_ENUM_INTERNAL(frexpf)
+TLI_DEFINE_STRING_INTERNAL("frexpf")
+/// long double frexpl(long double num, int *exp);
+TLI_DEFINE_ENUM_INTERNAL(frexpl)
+TLI_DEFINE_STRING_INTERNAL("frexpl")
+/// int fscanf(FILE *stream, const char *format, ... );
+TLI_DEFINE_ENUM_INTERNAL(fscanf)
+TLI_DEFINE_STRING_INTERNAL("fscanf")
+/// int fseek(FILE *stream, long offset, int whence);
+TLI_DEFINE_ENUM_INTERNAL(fseek)
+TLI_DEFINE_STRING_INTERNAL("fseek")
+/// int fseeko(FILE *stream, off_t offset, int whence);
+TLI_DEFINE_ENUM_INTERNAL(fseeko)
+TLI_DEFINE_STRING_INTERNAL("fseeko")
+/// int fseeko64(FILE *stream, off64_t offset, int whence)
+TLI_DEFINE_ENUM_INTERNAL(fseeko64)
+TLI_DEFINE_STRING_INTERNAL("fseeko64")
+/// int fsetpos(FILE *stream, const fpos_t *pos);
+TLI_DEFINE_ENUM_INTERNAL(fsetpos)
+TLI_DEFINE_STRING_INTERNAL("fsetpos")
+/// int fstat(int fildes, struct stat *buf);
+TLI_DEFINE_ENUM_INTERNAL(fstat)
+TLI_DEFINE_STRING_INTERNAL("fstat")
+/// int fstat64(int filedes, struct stat64 *buf)
+TLI_DEFINE_ENUM_INTERNAL(fstat64)
+TLI_DEFINE_STRING_INTERNAL("fstat64")
+/// int fstatvfs(int fildes, struct statvfs *buf);
+TLI_DEFINE_ENUM_INTERNAL(fstatvfs)
+TLI_DEFINE_STRING_INTERNAL("fstatvfs")
+/// int fstatvfs64(int fildes, struct statvfs64 *buf);
+TLI_DEFINE_ENUM_INTERNAL(fstatvfs64)
+TLI_DEFINE_STRING_INTERNAL("fstatvfs64")
+/// long ftell(FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(ftell)
+TLI_DEFINE_STRING_INTERNAL("ftell")
+/// off_t ftello(FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(ftello)
+TLI_DEFINE_STRING_INTERNAL("ftello")
+/// off64_t ftello64(FILE *stream)
+TLI_DEFINE_ENUM_INTERNAL(ftello64)
+TLI_DEFINE_STRING_INTERNAL("ftello64")
+/// int ftrylockfile(FILE *file);
+TLI_DEFINE_ENUM_INTERNAL(ftrylockfile)
+TLI_DEFINE_STRING_INTERNAL("ftrylockfile")
+/// void funlockfile(FILE *file);
+TLI_DEFINE_ENUM_INTERNAL(funlockfile)
+TLI_DEFINE_STRING_INTERNAL("funlockfile")
+/// size_t fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fwrite)
+TLI_DEFINE_STRING_INTERNAL("fwrite")
+/// size_t fwrite_unlocked(const void *ptr, size_t size, size_t nitems, FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(fwrite_unlocked)
+TLI_DEFINE_STRING_INTERNAL("fwrite_unlocked")
+/// int getc(FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(getc)
+TLI_DEFINE_STRING_INTERNAL("getc")
+/// int getc_unlocked(FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(getc_unlocked)
+TLI_DEFINE_STRING_INTERNAL("getc_unlocked")
+/// int getchar(void);
+TLI_DEFINE_ENUM_INTERNAL(getchar)
+TLI_DEFINE_STRING_INTERNAL("getchar")
+/// int getchar_unlocked(void);
+TLI_DEFINE_ENUM_INTERNAL(getchar_unlocked)
+TLI_DEFINE_STRING_INTERNAL("getchar_unlocked")
+/// char *getenv(const char *name);
+TLI_DEFINE_ENUM_INTERNAL(getenv)
+TLI_DEFINE_STRING_INTERNAL("getenv")
+/// int getitimer(int which, struct itimerval *value);
+TLI_DEFINE_ENUM_INTERNAL(getitimer)
+TLI_DEFINE_STRING_INTERNAL("getitimer")
+/// int getlogin_r(char *name, size_t namesize);
+TLI_DEFINE_ENUM_INTERNAL(getlogin_r)
+TLI_DEFINE_STRING_INTERNAL("getlogin_r")
+/// struct passwd *getpwnam(const char *name);
+TLI_DEFINE_ENUM_INTERNAL(getpwnam)
+TLI_DEFINE_STRING_INTERNAL("getpwnam")
+/// char *gets(char *s);
+TLI_DEFINE_ENUM_INTERNAL(gets)
+TLI_DEFINE_STRING_INTERNAL("gets")
+/// int gettimeofday(struct timeval *tp, void *tzp);
+TLI_DEFINE_ENUM_INTERNAL(gettimeofday)
+TLI_DEFINE_STRING_INTERNAL("gettimeofday")
+/// uint32_t htonl(uint32_t hostlong);
+TLI_DEFINE_ENUM_INTERNAL(htonl)
+TLI_DEFINE_STRING_INTERNAL("htonl")
+/// uint16_t htons(uint16_t hostshort);
+TLI_DEFINE_ENUM_INTERNAL(htons)
+TLI_DEFINE_STRING_INTERNAL("htons")
+/// int iprintf(const char *format, ...);
+TLI_DEFINE_ENUM_INTERNAL(iprintf)
+TLI_DEFINE_STRING_INTERNAL("iprintf")
+/// int isascii(int c);
+TLI_DEFINE_ENUM_INTERNAL(isascii)
+TLI_DEFINE_STRING_INTERNAL("isascii")
+/// int isdigit(int c);
+TLI_DEFINE_ENUM_INTERNAL(isdigit)
+TLI_DEFINE_STRING_INTERNAL("isdigit")
+/// long int labs(long int j);
+TLI_DEFINE_ENUM_INTERNAL(labs)
+TLI_DEFINE_STRING_INTERNAL("labs")
+/// int lchown(const char *path, uid_t owner, gid_t group);
+TLI_DEFINE_ENUM_INTERNAL(lchown)
+TLI_DEFINE_STRING_INTERNAL("lchown")
+/// double ldexp(double x, int n);
+TLI_DEFINE_ENUM_INTERNAL(ldexp)
+TLI_DEFINE_STRING_INTERNAL("ldexp")
+/// float ldexpf(float x, int n);
+TLI_DEFINE_ENUM_INTERNAL(ldexpf)
+TLI_DEFINE_STRING_INTERNAL("ldexpf")
+/// long double ldexpl(long double x, int n);
+TLI_DEFINE_ENUM_INTERNAL(ldexpl)
+TLI_DEFINE_STRING_INTERNAL("ldexpl")
+/// long long int llabs(long long int j);
+TLI_DEFINE_ENUM_INTERNAL(llabs)
+TLI_DEFINE_STRING_INTERNAL("llabs")
+/// double log(double x);
+TLI_DEFINE_ENUM_INTERNAL(log)
+TLI_DEFINE_STRING_INTERNAL("log")
+/// double log10(double x);
+TLI_DEFINE_ENUM_INTERNAL(log10)
+TLI_DEFINE_STRING_INTERNAL("log10")
+/// float log10f(float x);
+TLI_DEFINE_ENUM_INTERNAL(log10f)
+TLI_DEFINE_STRING_INTERNAL("log10f")
+/// long double log10l(long double x);
+TLI_DEFINE_ENUM_INTERNAL(log10l)
+TLI_DEFINE_STRING_INTERNAL("log10l")
+/// double log1p(double x);
+TLI_DEFINE_ENUM_INTERNAL(log1p)
+TLI_DEFINE_STRING_INTERNAL("log1p")
+/// float log1pf(float x);
+TLI_DEFINE_ENUM_INTERNAL(log1pf)
+TLI_DEFINE_STRING_INTERNAL("log1pf")
+/// long double log1pl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(log1pl)
+TLI_DEFINE_STRING_INTERNAL("log1pl")
+/// double log2(double x);
+TLI_DEFINE_ENUM_INTERNAL(log2)
+TLI_DEFINE_STRING_INTERNAL("log2")
+/// float log2f(float x);
+TLI_DEFINE_ENUM_INTERNAL(log2f)
+TLI_DEFINE_STRING_INTERNAL("log2f")
+/// double long double log2l(long double x);
+TLI_DEFINE_ENUM_INTERNAL(log2l)
+TLI_DEFINE_STRING_INTERNAL("log2l")
+/// double logb(double x);
+TLI_DEFINE_ENUM_INTERNAL(logb)
+TLI_DEFINE_STRING_INTERNAL("logb")
+/// float logbf(float x);
+TLI_DEFINE_ENUM_INTERNAL(logbf)
+TLI_DEFINE_STRING_INTERNAL("logbf")
+/// long double logbl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(logbl)
+TLI_DEFINE_STRING_INTERNAL("logbl")
+/// float logf(float x);
+TLI_DEFINE_ENUM_INTERNAL(logf)
+TLI_DEFINE_STRING_INTERNAL("logf")
+/// long double logl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(logl)
+TLI_DEFINE_STRING_INTERNAL("logl")
+/// int lstat(const char *path, struct stat *buf);
+TLI_DEFINE_ENUM_INTERNAL(lstat)
+TLI_DEFINE_STRING_INTERNAL("lstat")
+/// int lstat64(const char *path, struct stat64 *buf);
+TLI_DEFINE_ENUM_INTERNAL(lstat64)
+TLI_DEFINE_STRING_INTERNAL("lstat64")
+/// void *malloc(size_t size);
+TLI_DEFINE_ENUM_INTERNAL(malloc)
+TLI_DEFINE_STRING_INTERNAL("malloc")
+/// void *memalign(size_t boundary, size_t size);
+TLI_DEFINE_ENUM_INTERNAL(memalign)
+TLI_DEFINE_STRING_INTERNAL("memalign")
+/// void *memccpy(void *s1, const void *s2, int c, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(memccpy)
+TLI_DEFINE_STRING_INTERNAL("memccpy")
+/// void *memchr(const void *s, int c, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(memchr)
+TLI_DEFINE_STRING_INTERNAL("memchr")
+/// int memcmp(const void *s1, const void *s2, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(memcmp)
+TLI_DEFINE_STRING_INTERNAL("memcmp")
+/// void *memcpy(void *s1, const void *s2, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(memcpy)
+TLI_DEFINE_STRING_INTERNAL("memcpy")
+/// void *memmove(void *s1, const void *s2, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(memmove)
+TLI_DEFINE_STRING_INTERNAL("memmove")
+/// void *mempcpy(void *s1, const void *s2, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(mempcpy)
+TLI_DEFINE_STRING_INTERNAL("mempcpy")
+// void *memrchr(const void *s, int c, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(memrchr)
+TLI_DEFINE_STRING_INTERNAL("memrchr")
+/// void *memset(void *b, int c, size_t len);
+TLI_DEFINE_ENUM_INTERNAL(memset)
+TLI_DEFINE_STRING_INTERNAL("memset")
+/// void memset_pattern16(void *b, const void *pattern16, size_t len);
+TLI_DEFINE_ENUM_INTERNAL(memset_pattern16)
+TLI_DEFINE_STRING_INTERNAL("memset_pattern16")
+/// int mkdir(const char *path, mode_t mode);
+TLI_DEFINE_ENUM_INTERNAL(mkdir)
+TLI_DEFINE_STRING_INTERNAL("mkdir")
+/// time_t mktime(struct tm *timeptr);
+TLI_DEFINE_ENUM_INTERNAL(mktime)
+TLI_DEFINE_STRING_INTERNAL("mktime")
+/// double modf(double x, double *iptr);
+TLI_DEFINE_ENUM_INTERNAL(modf)
+TLI_DEFINE_STRING_INTERNAL("modf")
+/// float modff(float, float *iptr);
+TLI_DEFINE_ENUM_INTERNAL(modff)
+TLI_DEFINE_STRING_INTERNAL("modff")
+/// long double modfl(long double value, long double *iptr);
+TLI_DEFINE_ENUM_INTERNAL(modfl)
+TLI_DEFINE_STRING_INTERNAL("modfl")
+
+/// double nearbyint(double x);
+TLI_DEFINE_ENUM_INTERNAL(nearbyint)
+TLI_DEFINE_STRING_INTERNAL("nearbyint")
+/// float nearbyintf(float x);
+TLI_DEFINE_ENUM_INTERNAL(nearbyintf)
+TLI_DEFINE_STRING_INTERNAL("nearbyintf")
+/// long double nearbyintl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(nearbyintl)
+TLI_DEFINE_STRING_INTERNAL("nearbyintl")
+/// uint32_t ntohl(uint32_t netlong);
+TLI_DEFINE_ENUM_INTERNAL(ntohl)
+TLI_DEFINE_STRING_INTERNAL("ntohl")
+/// uint16_t ntohs(uint16_t netshort);
+TLI_DEFINE_ENUM_INTERNAL(ntohs)
+TLI_DEFINE_STRING_INTERNAL("ntohs")
+/// int open(const char *path, int oflag, ... );
+TLI_DEFINE_ENUM_INTERNAL(open)
+TLI_DEFINE_STRING_INTERNAL("open")
+/// int open64(const char *filename, int flags[, mode_t mode])
+TLI_DEFINE_ENUM_INTERNAL(open64)
+TLI_DEFINE_STRING_INTERNAL("open64")
+/// DIR *opendir(const char *dirname);
+TLI_DEFINE_ENUM_INTERNAL(opendir)
+TLI_DEFINE_STRING_INTERNAL("opendir")
+/// int pclose(FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(pclose)
+TLI_DEFINE_STRING_INTERNAL("pclose")
+/// void perror(const char *s);
+TLI_DEFINE_ENUM_INTERNAL(perror)
+TLI_DEFINE_STRING_INTERNAL("perror")
+/// FILE *popen(const char *command, const char *mode);
+TLI_DEFINE_ENUM_INTERNAL(popen)
+TLI_DEFINE_STRING_INTERNAL("popen")
+/// int posix_memalign(void **memptr, size_t alignment, size_t size);
+TLI_DEFINE_ENUM_INTERNAL(posix_memalign)
+TLI_DEFINE_STRING_INTERNAL("posix_memalign")
+/// double pow(double x, double y);
+TLI_DEFINE_ENUM_INTERNAL(pow)
+TLI_DEFINE_STRING_INTERNAL("pow")
+/// float powf(float x, float y);
+TLI_DEFINE_ENUM_INTERNAL(powf)
+TLI_DEFINE_STRING_INTERNAL("powf")
+/// long double powl(long double x, long double y);
+TLI_DEFINE_ENUM_INTERNAL(powl)
+TLI_DEFINE_STRING_INTERNAL("powl")
+/// ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset);
+TLI_DEFINE_ENUM_INTERNAL(pread)
+TLI_DEFINE_STRING_INTERNAL("pread")
+/// int printf(const char *format, ...);
+TLI_DEFINE_ENUM_INTERNAL(printf)
+TLI_DEFINE_STRING_INTERNAL("printf")
+/// int putc(int c, FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(putc)
+TLI_DEFINE_STRING_INTERNAL("putc")
+/// int putc_unlocked(int c, FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(putc_unlocked)
+TLI_DEFINE_STRING_INTERNAL("putc_unlocked")
+/// int putchar(int c);
+TLI_DEFINE_ENUM_INTERNAL(putchar)
+TLI_DEFINE_STRING_INTERNAL("putchar")
+/// int putchar_unlocked(int c);
+TLI_DEFINE_ENUM_INTERNAL(putchar_unlocked)
+TLI_DEFINE_STRING_INTERNAL("putchar_unlocked")
+/// int puts(const char *s);
+TLI_DEFINE_ENUM_INTERNAL(puts)
+TLI_DEFINE_STRING_INTERNAL("puts")
+/// ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset);
+TLI_DEFINE_ENUM_INTERNAL(pwrite)
+TLI_DEFINE_STRING_INTERNAL("pwrite")
+/// void qsort(void *base, size_t nel, size_t width,
+///            int (*compar)(const void *, const void *));
+TLI_DEFINE_ENUM_INTERNAL(qsort)
+TLI_DEFINE_STRING_INTERNAL("qsort")
+/// ssize_t read(int fildes, void *buf, size_t nbyte);
+TLI_DEFINE_ENUM_INTERNAL(read)
+TLI_DEFINE_STRING_INTERNAL("read")
+/// ssize_t readlink(const char *path, char *buf, size_t bufsize);
+TLI_DEFINE_ENUM_INTERNAL(readlink)
+TLI_DEFINE_STRING_INTERNAL("readlink")
+/// void *realloc(void *ptr, size_t size);
+TLI_DEFINE_ENUM_INTERNAL(realloc)
+TLI_DEFINE_STRING_INTERNAL("realloc")
+/// void *reallocf(void *ptr, size_t size);
+TLI_DEFINE_ENUM_INTERNAL(reallocf)
+TLI_DEFINE_STRING_INTERNAL("reallocf")
+/// char *realpath(const char *file_name, char *resolved_name);
+TLI_DEFINE_ENUM_INTERNAL(realpath)
+TLI_DEFINE_STRING_INTERNAL("realpath")
+/// int remove(const char *path);
+TLI_DEFINE_ENUM_INTERNAL(remove)
+TLI_DEFINE_STRING_INTERNAL("remove")
+/// int rename(const char *old, const char *new);
+TLI_DEFINE_ENUM_INTERNAL(rename)
+TLI_DEFINE_STRING_INTERNAL("rename")
+/// void rewind(FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(rewind)
+TLI_DEFINE_STRING_INTERNAL("rewind")
+/// double rint(double x);
+TLI_DEFINE_ENUM_INTERNAL(rint)
+TLI_DEFINE_STRING_INTERNAL("rint")
+/// float rintf(float x);
+TLI_DEFINE_ENUM_INTERNAL(rintf)
+TLI_DEFINE_STRING_INTERNAL("rintf")
+/// long double rintl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(rintl)
+TLI_DEFINE_STRING_INTERNAL("rintl")
+/// int rmdir(const char *path);
+TLI_DEFINE_ENUM_INTERNAL(rmdir)
+TLI_DEFINE_STRING_INTERNAL("rmdir")
+/// double round(double x);
+TLI_DEFINE_ENUM_INTERNAL(round)
+TLI_DEFINE_STRING_INTERNAL("round")
+/// float roundf(float x);
+TLI_DEFINE_ENUM_INTERNAL(roundf)
+TLI_DEFINE_STRING_INTERNAL("roundf")
+/// long double roundl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(roundl)
+TLI_DEFINE_STRING_INTERNAL("roundl")
+/// int scanf(const char *restrict format, ... );
+TLI_DEFINE_ENUM_INTERNAL(scanf)
+TLI_DEFINE_STRING_INTERNAL("scanf")
+/// void setbuf(FILE *stream, char *buf);
+TLI_DEFINE_ENUM_INTERNAL(setbuf)
+TLI_DEFINE_STRING_INTERNAL("setbuf")
+/// int setitimer(int which, const struct itimerval *value,
+///               struct itimerval *ovalue);
+TLI_DEFINE_ENUM_INTERNAL(setitimer)
+TLI_DEFINE_STRING_INTERNAL("setitimer")
+/// int setvbuf(FILE *stream, char *buf, int type, size_t size);
+TLI_DEFINE_ENUM_INTERNAL(setvbuf)
+TLI_DEFINE_STRING_INTERNAL("setvbuf")
+/// double sin(double x);
+TLI_DEFINE_ENUM_INTERNAL(sin)
+TLI_DEFINE_STRING_INTERNAL("sin")
+/// float sinf(float x);
+TLI_DEFINE_ENUM_INTERNAL(sinf)
+TLI_DEFINE_STRING_INTERNAL("sinf")
+/// double sinh(double x);
+TLI_DEFINE_ENUM_INTERNAL(sinh)
+TLI_DEFINE_STRING_INTERNAL("sinh")
+/// float sinhf(float x);
+TLI_DEFINE_ENUM_INTERNAL(sinhf)
+TLI_DEFINE_STRING_INTERNAL("sinhf")
+/// long double sinhl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(sinhl)
+TLI_DEFINE_STRING_INTERNAL("sinhl")
+/// long double sinl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(sinl)
+TLI_DEFINE_STRING_INTERNAL("sinl")
+/// int siprintf(char *str, const char *format, ...);
+TLI_DEFINE_ENUM_INTERNAL(siprintf)
+TLI_DEFINE_STRING_INTERNAL("siprintf")
+/// int snprintf(char *s, size_t n, const char *format, ...);
+TLI_DEFINE_ENUM_INTERNAL(snprintf)
+TLI_DEFINE_STRING_INTERNAL("snprintf")
+/// int sprintf(char *str, const char *format, ...);
+TLI_DEFINE_ENUM_INTERNAL(sprintf)
+TLI_DEFINE_STRING_INTERNAL("sprintf")
+/// double sqrt(double x);
+TLI_DEFINE_ENUM_INTERNAL(sqrt)
+TLI_DEFINE_STRING_INTERNAL("sqrt")
+/// float sqrtf(float x);
+TLI_DEFINE_ENUM_INTERNAL(sqrtf)
+TLI_DEFINE_STRING_INTERNAL("sqrtf")
+/// long double sqrtl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(sqrtl)
+TLI_DEFINE_STRING_INTERNAL("sqrtl")
+/// int sscanf(const char *s, const char *format, ... );
+TLI_DEFINE_ENUM_INTERNAL(sscanf)
+TLI_DEFINE_STRING_INTERNAL("sscanf")
+/// int stat(const char *path, struct stat *buf);
+TLI_DEFINE_ENUM_INTERNAL(stat)
+TLI_DEFINE_STRING_INTERNAL("stat")
+/// int stat64(const char *path, struct stat64 *buf);
+TLI_DEFINE_ENUM_INTERNAL(stat64)
+TLI_DEFINE_STRING_INTERNAL("stat64")
+/// int statvfs(const char *path, struct statvfs *buf);
+TLI_DEFINE_ENUM_INTERNAL(statvfs)
+TLI_DEFINE_STRING_INTERNAL("statvfs")
+/// int statvfs64(const char *path, struct statvfs64 *buf)
+TLI_DEFINE_ENUM_INTERNAL(statvfs64)
+TLI_DEFINE_STRING_INTERNAL("statvfs64")
+/// char *stpcpy(char *s1, const char *s2);
+TLI_DEFINE_ENUM_INTERNAL(stpcpy)
+TLI_DEFINE_STRING_INTERNAL("stpcpy")
+/// char *stpncpy(char *s1, const char *s2, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(stpncpy)
+TLI_DEFINE_STRING_INTERNAL("stpncpy")
+/// int strcasecmp(const char *s1, const char *s2);
+TLI_DEFINE_ENUM_INTERNAL(strcasecmp)
+TLI_DEFINE_STRING_INTERNAL("strcasecmp")
+/// char *strcat(char *s1, const char *s2);
+TLI_DEFINE_ENUM_INTERNAL(strcat)
+TLI_DEFINE_STRING_INTERNAL("strcat")
+/// char *strchr(const char *s, int c);
+TLI_DEFINE_ENUM_INTERNAL(strchr)
+TLI_DEFINE_STRING_INTERNAL("strchr")
+/// int strcmp(const char *s1, const char *s2);
+TLI_DEFINE_ENUM_INTERNAL(strcmp)
+TLI_DEFINE_STRING_INTERNAL("strcmp")
+/// int strcoll(const char *s1, const char *s2);
+TLI_DEFINE_ENUM_INTERNAL(strcoll)
+TLI_DEFINE_STRING_INTERNAL("strcoll")
+/// char *strcpy(char *s1, const char *s2);
+TLI_DEFINE_ENUM_INTERNAL(strcpy)
+TLI_DEFINE_STRING_INTERNAL("strcpy")
+/// size_t strcspn(const char *s1, const char *s2);
+TLI_DEFINE_ENUM_INTERNAL(strcspn)
+TLI_DEFINE_STRING_INTERNAL("strcspn")
+/// char *strdup(const char *s1);
+TLI_DEFINE_ENUM_INTERNAL(strdup)
+TLI_DEFINE_STRING_INTERNAL("strdup")
+/// size_t strlen(const char *s);
+TLI_DEFINE_ENUM_INTERNAL(strlen)
+TLI_DEFINE_STRING_INTERNAL("strlen")
+/// int strncasecmp(const char *s1, const char *s2, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(strncasecmp)
+TLI_DEFINE_STRING_INTERNAL("strncasecmp")
+/// char *strncat(char *s1, const char *s2, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(strncat)
+TLI_DEFINE_STRING_INTERNAL("strncat")
+/// int strncmp(const char *s1, const char *s2, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(strncmp)
+TLI_DEFINE_STRING_INTERNAL("strncmp")
+/// char *strncpy(char *s1, const char *s2, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(strncpy)
+TLI_DEFINE_STRING_INTERNAL("strncpy")
+/// char *strndup(const char *s1, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(strndup)
+TLI_DEFINE_STRING_INTERNAL("strndup")
+/// size_t strnlen(const char *s, size_t maxlen);
+TLI_DEFINE_ENUM_INTERNAL(strnlen)
+TLI_DEFINE_STRING_INTERNAL("strnlen")
+/// char *strpbrk(const char *s1, const char *s2);
+TLI_DEFINE_ENUM_INTERNAL(strpbrk)
+TLI_DEFINE_STRING_INTERNAL("strpbrk")
+/// char *strrchr(const char *s, int c);
+TLI_DEFINE_ENUM_INTERNAL(strrchr)
+TLI_DEFINE_STRING_INTERNAL("strrchr")
+/// size_t strspn(const char *s1, const char *s2);
+TLI_DEFINE_ENUM_INTERNAL(strspn)
+TLI_DEFINE_STRING_INTERNAL("strspn")
+/// char *strstr(const char *s1, const char *s2);
+TLI_DEFINE_ENUM_INTERNAL(strstr)
+TLI_DEFINE_STRING_INTERNAL("strstr")
+/// double strtod(const char *nptr, char **endptr);
+TLI_DEFINE_ENUM_INTERNAL(strtod)
+TLI_DEFINE_STRING_INTERNAL("strtod")
+/// float strtof(const char *nptr, char **endptr);
+TLI_DEFINE_ENUM_INTERNAL(strtof)
+TLI_DEFINE_STRING_INTERNAL("strtof")
+// char *strtok(char *s1, const char *s2);
+TLI_DEFINE_ENUM_INTERNAL(strtok)
+TLI_DEFINE_STRING_INTERNAL("strtok")
+// char *strtok_r(char *s, const char *sep, char **lasts);
+TLI_DEFINE_ENUM_INTERNAL(strtok_r)
+TLI_DEFINE_STRING_INTERNAL("strtok_r")
+/// long int strtol(const char *nptr, char **endptr, int base);
+TLI_DEFINE_ENUM_INTERNAL(strtol)
+TLI_DEFINE_STRING_INTERNAL("strtol")
+/// long double strtold(const char *nptr, char **endptr);
+TLI_DEFINE_ENUM_INTERNAL(strtold)
+TLI_DEFINE_STRING_INTERNAL("strtold")
+/// long long int strtoll(const char *nptr, char **endptr, int base);
+TLI_DEFINE_ENUM_INTERNAL(strtoll)
+TLI_DEFINE_STRING_INTERNAL("strtoll")
+/// unsigned long int strtoul(const char *nptr, char **endptr, int base);
+TLI_DEFINE_ENUM_INTERNAL(strtoul)
+TLI_DEFINE_STRING_INTERNAL("strtoul")
+/// unsigned long long int strtoull(const char *nptr, char **endptr, int base);
+TLI_DEFINE_ENUM_INTERNAL(strtoull)
+TLI_DEFINE_STRING_INTERNAL("strtoull")
+/// size_t strxfrm(char *s1, const char *s2, size_t n);
+TLI_DEFINE_ENUM_INTERNAL(strxfrm)
+TLI_DEFINE_STRING_INTERNAL("strxfrm")
+/// int system(const char *command);
+TLI_DEFINE_ENUM_INTERNAL(system)
+TLI_DEFINE_STRING_INTERNAL("system")
+/// double tan(double x);
+TLI_DEFINE_ENUM_INTERNAL(tan)
+TLI_DEFINE_STRING_INTERNAL("tan")
+/// float tanf(float x);
+TLI_DEFINE_ENUM_INTERNAL(tanf)
+TLI_DEFINE_STRING_INTERNAL("tanf")
+/// double tanh(double x);
+TLI_DEFINE_ENUM_INTERNAL(tanh)
+TLI_DEFINE_STRING_INTERNAL("tanh")
+/// float tanhf(float x);
+TLI_DEFINE_ENUM_INTERNAL(tanhf)
+TLI_DEFINE_STRING_INTERNAL("tanhf")
+/// long double tanhl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(tanhl)
+TLI_DEFINE_STRING_INTERNAL("tanhl")
+/// long double tanl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(tanl)
+TLI_DEFINE_STRING_INTERNAL("tanl")
+/// clock_t times(struct tms *buffer);
+TLI_DEFINE_ENUM_INTERNAL(times)
+TLI_DEFINE_STRING_INTERNAL("times")
+/// FILE *tmpfile(void);
+TLI_DEFINE_ENUM_INTERNAL(tmpfile)
+TLI_DEFINE_STRING_INTERNAL("tmpfile")
+/// FILE *tmpfile64(void)
+TLI_DEFINE_ENUM_INTERNAL(tmpfile64)
+TLI_DEFINE_STRING_INTERNAL("tmpfile64")
+/// int toascii(int c);
+TLI_DEFINE_ENUM_INTERNAL(toascii)
+TLI_DEFINE_STRING_INTERNAL("toascii")
+/// double trunc(double x);
+TLI_DEFINE_ENUM_INTERNAL(trunc)
+TLI_DEFINE_STRING_INTERNAL("trunc")
+/// float truncf(float x);
+TLI_DEFINE_ENUM_INTERNAL(truncf)
+TLI_DEFINE_STRING_INTERNAL("truncf")
+/// long double truncl(long double x);
+TLI_DEFINE_ENUM_INTERNAL(truncl)
+TLI_DEFINE_STRING_INTERNAL("truncl")
+/// int uname(struct utsname *name);
+TLI_DEFINE_ENUM_INTERNAL(uname)
+TLI_DEFINE_STRING_INTERNAL("uname")
+/// int ungetc(int c, FILE *stream);
+TLI_DEFINE_ENUM_INTERNAL(ungetc)
+TLI_DEFINE_STRING_INTERNAL("ungetc")
+/// int unlink(const char *path);
+TLI_DEFINE_ENUM_INTERNAL(unlink)
+TLI_DEFINE_STRING_INTERNAL("unlink")
+/// int unsetenv(const char *name);
+TLI_DEFINE_ENUM_INTERNAL(unsetenv)
+TLI_DEFINE_STRING_INTERNAL("unsetenv")
+/// int utime(const char *path, const struct utimbuf *times);
+TLI_DEFINE_ENUM_INTERNAL(utime)
+TLI_DEFINE_STRING_INTERNAL("utime")
+/// int utimes(const char *path, const struct timeval times[2]);
+TLI_DEFINE_ENUM_INTERNAL(utimes)
+TLI_DEFINE_STRING_INTERNAL("utimes")
+/// void *valloc(size_t size);
+TLI_DEFINE_ENUM_INTERNAL(valloc)
+TLI_DEFINE_STRING_INTERNAL("valloc")
+/// int vfprintf(FILE *stream, const char *format, va_list ap);
+TLI_DEFINE_ENUM_INTERNAL(vfprintf)
+TLI_DEFINE_STRING_INTERNAL("vfprintf")
+/// int vfscanf(FILE *stream, const char *format, va_list arg);
+TLI_DEFINE_ENUM_INTERNAL(vfscanf)
+TLI_DEFINE_STRING_INTERNAL("vfscanf")
+/// int vprintf(const char *restrict format, va_list ap);
+TLI_DEFINE_ENUM_INTERNAL(vprintf)
+TLI_DEFINE_STRING_INTERNAL("vprintf")
+/// int vscanf(const char *format, va_list arg);
+TLI_DEFINE_ENUM_INTERNAL(vscanf)
+TLI_DEFINE_STRING_INTERNAL("vscanf")
+/// int vsnprintf(char *s, size_t n, const char *format, va_list ap);
+TLI_DEFINE_ENUM_INTERNAL(vsnprintf)
+TLI_DEFINE_STRING_INTERNAL("vsnprintf")
+/// int vsprintf(char *s, const char *format, va_list ap);
+TLI_DEFINE_ENUM_INTERNAL(vsprintf)
+TLI_DEFINE_STRING_INTERNAL("vsprintf")
+/// int vsscanf(const char *s, const char *format, va_list arg);
+TLI_DEFINE_ENUM_INTERNAL(vsscanf)
+TLI_DEFINE_STRING_INTERNAL("vsscanf")
+/// size_t wcslen (const wchar_t* wcs);
+TLI_DEFINE_ENUM_INTERNAL(wcslen)
+TLI_DEFINE_STRING_INTERNAL("wcslen")
+/// ssize_t write(int fildes, const void *buf, size_t nbyte);
+TLI_DEFINE_ENUM_INTERNAL(write)
+TLI_DEFINE_STRING_INTERNAL("write")
+
+#undef TLI_DEFINE_ENUM_INTERNAL
+#undef TLI_DEFINE_STRING_INTERNAL
+#endif  // One of TLI_DEFINE_ENUM/STRING are defined.
+
+#undef TLI_DEFINE_ENUM
+#undef TLI_DEFINE_STRING

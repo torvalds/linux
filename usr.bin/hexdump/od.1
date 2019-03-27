@@ -1,0 +1,264 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)od.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd December 22, 2011
+.Dt OD 1
+.Os
+.Sh NAME
+.Nm od
+.Nd octal, decimal, hex, ASCII dump
+.Sh SYNOPSIS
+.Nm
+.Op Fl aBbcDdeFfHhIiLlOosvXx
+.Op Fl A Ar base
+.Op Fl j Ar skip
+.Op Fl N Ar length
+.Op Fl t Ar type
+.Op Oo Cm + Oc Ns Ar offset Ns Oo Cm \&. Oc Ns Op Cm Bb
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility is a filter which displays the specified files, or standard
+input if no files are specified, in a user specified format.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl I , L , l"
+.It Fl A Ar base
+Specify the input address base.
+The argument
+.Ar base
+may be one of
+.Cm d ,
+.Cm o ,
+.Cm x
+or
+.Cm n ,
+which specify decimal, octal, hexadecimal
+addresses or no address, respectively.
+.It Fl a
+Output named characters.
+Equivalent to
+.Fl t Cm a .
+.It Fl B , o
+Output octal shorts.
+Equivalent to
+.Fl t Cm o2 .
+.It Fl b
+Output octal bytes.
+Equivalent to
+.Fl t Cm o1 .
+.It Fl c
+Output C-style escaped characters.
+Equivalent to
+.Fl t Cm c .
+.It Fl D
+Output unsigned decimal ints.
+Equivalent to
+.Fl t Cm u4 .
+.It Fl d
+Output unsigned decimal shorts.
+Equivalent to
+.Fl t Cm u2 .
+.It Fl e , F
+Output double-precision floating point numbers.
+Equivalent to
+.Fl t Cm fD .
+.It Fl f
+Output single-precision floating point numbers.
+Equivalent to
+.Fl t Cm fF .
+.It Fl H , X
+Output hexadecimal ints.
+Equivalent to
+.Fl t Cm x4 .
+.It Fl h , x
+Output hexadecimal shorts.
+Equivalent to
+.Fl t Cm x2 .
+.It Fl I , L , l
+Output signed decimal longs.
+Equivalent to
+.Fl t Cm dL .
+.It Fl i
+Output signed decimal ints.
+Equivalent to
+.Fl t Cm dI .
+.It Fl j Ar skip
+Skip
+.Ar skip
+bytes of the combined input before dumping.
+The number may be followed by one
+of
+.Cm b , k
+or
+.Cm m
+which specify the units of the number as blocks (512 bytes), kilobytes and
+megabytes, respectively.
+.It Fl N Ar length
+Dump at most
+.Ar length
+bytes of input.
+.It Fl O
+Output octal ints.
+Equivalent to
+.Fl t Cm o4 .
+.It Fl s
+Output signed decimal shorts.
+Equivalent to
+.Fl t Cm d2 .
+.It Fl t Ar type
+Specify the output format.
+The
+.Ar type
+argument
+is a string containing one or more of the following kinds of type specifiers:
+.Bl -tag -width indent
+.It Cm a
+Named characters
+.Pq Tn ASCII .
+Control characters are displayed using the following names:
+.Bl -column "000 NUL" "001 SOH" "002 STX" "003 ETX" "004 EOT" "005 ENQ"
+.It "000 NUL	001 SOH	002 STX	003 ETX	004 EOT	005 ENQ"
+.It "006 ACK	007 BEL	008 BS	009 HT	00A NL	00B VT"
+.It "00C FF	00D CR	00E SO	00F SI	010 DLE	011 DC1"
+.It "012 DC2	013 DC3	014 DC4	015 NAK	016 SYN	017 ETB"
+.It "018 CAN	019 EM	01A SUB	01B ESC	01C FS	01D GS"
+.It "01E RS	01F US	020 SP	07F DEL	\&	\&"
+.El
+.It Cm c
+Characters in the default character set.
+Non-printing characters are
+represented as 3-digit octal character codes, except the following
+characters, which are represented as C escapes:
+.Pp
+.Bl -tag -width carriage-return -compact
+.It NUL
+\e0
+.It alert
+\ea
+.It backspace
+\eb
+.It newline
+\en
+.It carriage-return
+\er
+.It tab
+\et
+.It vertical tab
+\ev
+.El
+.Pp
+Multi-byte characters are displayed in the area corresponding to the first
+byte of the character.
+The remaining bytes are shown as
+.Ql ** .
+.It Xo
+.Sm off
+.Op Cm d | o | u | x
+.Op Cm C | S | I | L | Ar n
+.Sm on
+.Xc
+Signed decimal
+.Pq Cm d ,
+octal
+.Pq Cm o ,
+unsigned decimal
+.Pq Cm u
+or
+hexadecimal
+.Pq Cm x .
+Followed by an optional size specifier, which may be either
+.Cm C
+.Pq Vt char ,
+.Cm S
+.Pq Vt short ,
+.Cm I
+.Pq Vt int ,
+.Cm L
+.Pq Vt long ,
+or a byte count as a decimal integer.
+.It Xo
+.Sm off
+.Cm f
+.Op Cm F | D | L | Ar n
+.Sm on
+.Xc
+Floating-point number.
+Followed by an optional size specifier, which may be either
+.Cm F
+.Pq Vt float ,
+.Cm D
+.Pq Vt double
+or
+.Cm L
+.Pq Vt "long double" .
+.El
+.It Fl v
+Write all input data, instead of replacing lines of duplicate values with a
+.Ql * .
+.El
+.Pp
+Multiple options that specify output format may be used; the output will
+contain one line for each format.
+.Pp
+If no output format is specified,
+.Fl t Cm oS
+is assumed.
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std
+.Sh COMPATIBILITY
+The traditional
+.Fl s
+option to extract string constants is not supported; consider using
+.Xr strings 1
+instead.
+.Sh SEE ALSO
+.Xr hexdump 1 ,
+.Xr strings 1
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+An
+.Nm
+command appeared in
+.At v1 .

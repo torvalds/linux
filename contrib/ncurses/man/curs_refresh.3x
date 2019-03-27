@@ -1,0 +1,140 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_refresh.3x,v 1.15 2010/12/04 18:38:55 tom Exp $
+.TH curs_refresh 3X ""
+.na
+.hy 0
+.SH NAME
+\fBdoupdate\fR,
+\fBredrawwin\fR,
+\fBrefresh\fR,
+\fBwnoutrefresh\fR,
+\fBwredrawln\fR,
+\fBwrefresh\fR \- refresh \fBcurses\fR windows and lines
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint refresh(void);\fR
+.br
+\fBint wrefresh(WINDOW *win);\fR
+.br
+\fBint wnoutrefresh(WINDOW *win);\fR
+.br
+\fBint doupdate(void);\fR
+.br
+\fBint redrawwin(WINDOW *win);\fR
+.br
+\fBint wredrawln(WINDOW *win, int beg_line, int num_lines);\fR
+.br
+.SH DESCRIPTION
+The \fBrefresh\fR and \fBwrefresh\fR routines (or \fBwnoutrefresh\fR and
+\fBdoupdate\fR) must be called to get actual output to the terminal, as other
+routines merely manipulate data structures.
+The routine \fBwrefresh\fR copies
+the named window to the physical terminal screen, taking into account what is
+already there to do optimizations.
+The \fBrefresh\fR routine is the
+same, using \fBstdscr\fR as the default window.
+Unless \fBleaveok\fR has been
+enabled, the physical cursor of the terminal is left at the location of the
+cursor for that window.
+.PP
+The \fBwnoutrefresh\fR and \fBdoupdate\fR routines allow multiple updates with
+more efficiency than \fBwrefresh\fR alone.
+In addition to all the window
+structures, \fBcurses\fR keeps two data structures representing the terminal
+screen: a physical screen, describing what is actually on the screen, and a
+virtual screen, describing what the programmer wants to have on the screen.
+.PP
+The routine \fBwrefresh\fR works by first calling \fBwnoutrefresh\fR, which
+copies the named window to the virtual screen, and then calling \fBdoupdate\fR,
+which compares the virtual screen to the physical screen and does the actual
+update.
+If the programmer wishes to output several windows at once, a series
+of calls to \fBwrefresh\fR results in alternating calls to \fBwnoutrefresh\fR
+and \fBdoupdate\fR, causing several bursts of output to the screen.
+By first
+calling \fBwnoutrefresh\fR for each window, it is then possible to call
+\fBdoupdate\fR once, resulting in only one burst of output, with fewer total
+characters transmitted and less CPU time used.
+If the \fIwin\fR argument to
+\fBwrefresh\fR is the global variable \fBcurscr\fR, the screen is immediately
+cleared and repainted from scratch.
+.PP
+The phrase "copies the named window to the virtual screen" above is ambiguous.
+What actually happens is that all \fItouched\fR (changed) lines in the window
+are copied to the virtual screen.
+This affects programs that use overlapping
+windows; it means that if two windows overlap, you can refresh them in either
+order and the overlap region will be modified only when it is explicitly
+changed.
+(But see the section on \fBPORTABILITY\fR below for a warning about
+exploiting this behavior.)
+.PP
+The \fBwredrawln\fR routine indicates to \fBcurses\fR that some screen lines
+are corrupted and should be thrown away before anything is written over them.
+It touches the indicated lines (marking them changed).
+The routine \fBredrawwin\fR() touches the entire window.
+.SH RETURN VALUE
+Routines that return an integer return \fBERR\fR upon failure, and \fBOK\fR
+(SVr4 only specifies "an integer value other than \fBERR\fR") upon successful
+completion.
+.PP
+X/Open does not define any error conditions.
+In this implementation
+.RS
+.TP 5
+\fBwnoutrefresh\fP
+returns an error
+if the window pointer is null, or
+if the window is really a pad.
+.TP 5
+\fBwredrawln\fP
+returns an error
+if the associated call to \fBtouchln\fP returns an error.
+.RE
+.SH NOTES
+Note that \fBrefresh\fR and \fBredrawwin\fR may be macros.
+.SH PORTABILITY
+The XSI Curses standard, Issue 4 describes these functions.
+.PP
+Whether \fBwnoutrefresh()\fR copies to the virtual screen the entire contents
+of a window or just its changed portions has never been well-documented in
+historic curses versions (including SVr4).
+It might be unwise to rely on
+either behavior in programs that might have to be linked with other curses
+implementations.
+Instead, you can do an explicit \fBtouchwin()\fR before the
+\fBwnoutrefresh()\fR call to guarantee an entire-contents copy anywhere.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_outopts\fR(3X)
+\fBcurs_variables\fR(3X).

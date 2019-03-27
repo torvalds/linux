@@ -1,0 +1,29 @@
+
+include        = <<- _EOF_
+	#ifdef __windows
+	  extern int atoi(const char*);
+	#else
+	# include <stdlib.h>
+	#endif
+	_EOF_;
+
+flag = {
+    name      = debug-level;
+    value     = d;
+    max       = NOLIMIT;
+    nopreset;
+    flag-code = 'OPT_VALUE_SET_DEBUG_LEVEL++;';
+    descrip   = "Increase debug verbosity level";
+    doc		= <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = set-debug-level;
+    value     = D;
+    max       = NOLIMIT;
+    descrip   = "Set the debug verbosity level";
+    arg-type  = number;
+    doc		= <<-  _EndOfDoc_
+	_EndOfDoc_;
+};

@@ -1,0 +1,163 @@
+.\"
+.\" Copyright (c) 2004 Joseph Koshy
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 30, 2018
+.Dt CONTIGMALLOC 9
+.Os
+.Sh NAME
+.Nm contigmalloc , contigfree
+.Nd manage contiguous kernel physical memory
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/malloc.h
+.Ft "void *"
+.Fo contigmalloc
+.Fa "unsigned long size"
+.Fa "struct malloc_type *type"
+.Fa "int flags"
+.Fa "vm_paddr_t low"
+.Fa "vm_paddr_t high"
+.Fa "unsigned long alignment"
+.Fa "vm_paddr_t boundary"
+.Fc
+.Ft void
+.Fo contigfree
+.Fa "void *addr"
+.Fa "unsigned long size"
+.Fa "struct malloc_type *type"
+.Fc
+.In sys/param.h
+.In sys/domainset.h
+.Ft "void *"
+.Fo contigmalloc_domainset
+.Fa "unsigned long size"
+.Fa "struct malloc_type *type"
+.Fa "struct domainset *ds"
+.Fa "int flags"
+.Fa "vm_paddr_t low"
+.Fa "vm_paddr_t high"
+.Fa "unsigned long alignment"
+.Fa "vm_paddr_t boundary"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn contigmalloc
+function allocates
+.Fa size
+bytes of contiguous physical memory that is aligned to
+.Fa alignment
+bytes, and which does not cross a boundary of
+.Fa boundary
+bytes.
+If successful, the allocation will reside between physical addresses
+.Fa low
+and
+.Fa high .
+The returned pointer points to a wired kernel virtual
+address range of
+.Fa size
+bytes allocated from the kernel virtual address (KVA) map.
+.Pp
+The
+.Fn contigmalloc_domainset
+variant allows the caller to additionally specify a
+.Xr numa 4
+domain selection policy.
+See
+.Xr domainset 9
+for some example policies.
+.Pp
+The
+.Fa flags
+parameter modifies
+.Fn contigmalloc Ns 's
+behaviour as follows:
+.Bl -tag -width indent
+.It Dv M_ZERO
+Causes the allocated physical memory to be zero filled.
+.It Dv M_NOWAIT
+Causes
+.Fn contigmalloc
+to return
+.Dv NULL
+if the request cannot be immediately fulfilled due to resource shortage.
+.El
+.Pp
+Other flags (if present) are ignored.
+.Pp
+The
+.Fn contigfree
+function deallocates memory allocated by a previous call to
+.Fn contigmalloc
+or
+.Fn contigmalloc_domainset .
+.Sh IMPLEMENTATION NOTES
+The
+.Fn contigmalloc
+function does not sleep waiting for memory resources to be freed up,
+but instead actively reclaims pages before giving up.
+However, unless
+.Dv M_NOWAIT
+is specified, it may select a page for reclamation that must first be
+written to backing storage, causing it to sleep.
+.Pp
+The
+.Fn contigfree
+function does not accept
+.Dv NULL
+as an address input, unlike
+.Xr free 9 .
+.Sh RETURN VALUES
+The
+.Fn contigmalloc
+function returns a kernel virtual address if allocation succeeds,
+or
+.Dv NULL
+otherwise.
+.Sh EXAMPLES
+.Bd -literal
+void *p;
+p = contigmalloc(8192, M_DEVBUF, M_ZERO, 0, (1L << 22),
+    32 * 1024, 1024 * 1024);
+.Ed
+.Pp
+Ask for 8192 bytes of zero-filled memory residing between physical
+address 0 and 4194303 inclusive, aligned to a 32K boundary and not
+crossing a 1M address boundary.
+.Sh DIAGNOSTICS
+The
+.Fn contigmalloc
+function will panic if
+.Fa size
+is zero, or if
+.Fa alignment
+or
+.Fa boundary
+is not a power of two.
+.Sh SEE ALSO
+.Xr malloc 9 ,
+.Xr memguard 9

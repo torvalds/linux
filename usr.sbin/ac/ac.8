@@ -1,0 +1,148 @@
+.\"
+.\" Copyright (c) 1994 Simon J. Gerraty
+.\" Copyright (c) 1994 Christopher G. Demetriou
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 21, 2010
+.Dt AC 8
+.Os
+.Sh NAME
+.Nm ac
+.Nd connect time accounting
+.Sh SYNOPSIS
+.Nm
+.Op Fl dp
+.\".Op Fl c Ar console
+.Op Fl t Ar tty
+.Op Fl w Ar wtmp
+.Op Ar users ...
+.Sh DESCRIPTION
+If the file
+.Pa /var/log/utx.log
+exists, a record of individual login and logout
+times are written to it by
+.Xr login 1
+and
+.Xr init 8 ,
+respectively.
+The
+.Nm
+utility
+examines these records and writes the accumulated connect time (in hours)
+for all logins to the standard output.
+.Pp
+The options are as follows:
+.Bl -tag -width indentXXX
+.It Fl d
+Display the connect times in 24 hour chunks.
+.\" .It Fl c Ar console
+.\" Use
+.\" .Ar console
+.\" as the name of the device that local X sessions (ut_host of ":0.0")
+.\" originate from.  If any login has been recorded on
+.\" .Ar console
+.\" then these X sessions are ignored unless COMPAT_SUNOS was defined at
+.\" compile time.
+.It Fl p
+Print individual users' totals.
+.It Fl t Ar tty
+Only do accounting logins on certain ttys.
+The
+.Ar tty
+specification can start with '!' to indicate not this
+.Ar tty
+and end with '*' to indicate all similarly named ttys.
+Multiple
+.Fl t
+flags may be specified.
+.It Fl w Ar wtmp
+Read connect time data from
+.Ar wtmp
+instead of the default file,
+.Pa /var/log/utx.log .
+.It Ar users ...
+Display totals for the given individuals only.
+.El
+.Pp
+If no arguments are given,
+.Nm
+displays the total connect time for all
+accounts with login sessions recorded in
+.Pa utx.log .
+.Pp
+The default
+.Pa utx.log
+file will increase without bound unless it is truncated.
+It is normally truncated by the daily scripts run
+by
+.Xr cron 8 ,
+which rename and rotate the
+.Pa utx.log
+files, keeping a week's worth of data on
+hand.
+No login or connect time accounting is performed if
+.Pa /var/log/utx.log
+does not exist.
+.Sh FILES
+.Bl -tag -width /var/log/utx.log -compact
+.It Pa /var/log/utx.log
+connect time accounting file
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Allow times recorded in
+.Pa modems
+to be charged out at a different rate than
+.Pa other :
+.Bd -literal -offset indent
+ac -p -t "ttyd*" > modems
+ac -p -t "!ttyd*" > other
+.Ed
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr getutxent 3 ,
+.Xr init 8 ,
+.Xr sa 8
+.\" .Sh NOTES
+.\" If COMPAT_SUNOS is defined
+.\" .Nm ac
+.\" ignores the fact that entries with ut_host of ":0.0" are not real
+.\" login sessions.  Normally such entries are ignored except in the case
+.\" of a user being logged in when the
+.\" .Pa wtmp
+.\" file was rotated, in which case a login with ut_host of ":0.0" may
+.\" appear without any preceding console logins.
+.\" If no one is logged in on the console, the user is deemed to have
+.\" logged in on at the earliest time stamp found in
+.\" .Pa wtmp .
+.\" Use of
+.\" .Pa console
+.\" allows
+.\" .Nm ac
+.\" to identify and correctly process a logout for the user.  The default
+.\" value for
+.\" .Pa console
+.\" is usually correct at compile time.

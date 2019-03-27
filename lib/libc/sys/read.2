@@ -1,0 +1,284 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)read.2	8.4 (Berkeley) 2/26/94
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2017
+.Dt READ 2
+.Os
+.Sh NAME
+.Nm read ,
+.Nm readv ,
+.Nm pread ,
+.Nm preadv
+.Nd read input
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft ssize_t
+.Fn read "int fd" "void *buf" "size_t nbytes"
+.Ft ssize_t
+.Fn pread "int fd" "void *buf" "size_t nbytes" "off_t offset"
+.In sys/uio.h
+.Ft ssize_t
+.Fn readv "int fd" "const struct iovec *iov" "int iovcnt"
+.Ft ssize_t
+.Fn preadv "int fd" "const struct iovec *iov" "int iovcnt" "off_t offset"
+.Sh DESCRIPTION
+The
+.Fn read
+system call
+attempts to read
+.Fa nbytes
+of data from the object referenced by the descriptor
+.Fa fd
+into the buffer pointed to by
+.Fa buf .
+The
+.Fn readv
+system call
+performs the same action, but scatters the input data
+into the
+.Fa iovcnt
+buffers specified by the members of the
+.Fa iov
+array: iov[0], iov[1], ..., iov[iovcnt\|\-\|1].
+The
+.Fn pread
+and
+.Fn preadv
+system calls
+perform the same functions, but read from the specified position in
+the file without modifying the file pointer.
+.Pp
+For
+.Fn readv
+and
+.Fn preadv ,
+the
+.Fa iovec
+structure is defined as:
+.Pp
+.Bd -literal -offset indent -compact
+struct iovec {
+	void   *iov_base;  /* Base address. */
+	size_t iov_len;    /* Length. */
+};
+.Ed
+.Pp
+Each
+.Fa iovec
+entry specifies the base address and length of an area
+in memory where data should be placed.
+The
+.Fn readv
+system call
+will always fill an area completely before proceeding
+to the next.
+.Pp
+On objects capable of seeking, the
+.Fn read
+starts at a position
+given by the pointer associated with
+.Fa fd
+(see
+.Xr lseek 2 ) .
+Upon return from
+.Fn read ,
+the pointer is incremented by the number of bytes actually read.
+.Pp
+Objects that are not capable of seeking always read from the current
+position.
+The value of the pointer associated with such an
+object is undefined.
+.Pp
+Upon successful completion,
+.Fn read ,
+.Fn readv ,
+.Fn pread
+and
+.Fn preadv
+return the number of bytes actually read and placed in the buffer.
+The system guarantees to read the number of bytes requested if
+the descriptor references a normal file that has that many bytes left
+before the end-of-file, but in no other case.
+.Sh RETURN VALUES
+If successful, the
+number of bytes actually read is returned.
+Upon reading end-of-file,
+zero is returned.
+Otherwise, a -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn read ,
+.Fn readv ,
+.Fn pread
+and
+.Fn preadv
+system calls
+will succeed unless:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument
+is not a valid file or socket descriptor open for reading.
+.It Bq Er ECONNRESET
+The
+.Fa fd
+argument refers to a socket, and the remote socket end is
+forcibly closed.
+.It Bq Er EFAULT
+The
+.Fa buf
+argument
+points outside the allocated address space.
+.It Bq Er EIO
+An I/O error occurred while reading from the file system.
+.It Bq Er EBUSY
+Failed to read from a file, e.g. /proc/<pid>/regs while <pid> is not stopped
+.It Bq Er EINTR
+A read from a slow device
+(i.e.\& one that might block for an arbitrary amount of time)
+was interrupted by the delivery of a signal
+before any data arrived.
+.It Bq Er EINVAL
+The pointer associated with
+.Fa fd
+was negative.
+.It Bq Er EAGAIN
+The file was marked for non-blocking I/O,
+and no data were ready to be read.
+.It Bq Er EISDIR
+The file descriptor is associated with a directory residing
+on a file system that does not allow regular read operations on
+directories (e.g.\& NFS).
+.It Bq Er EOPNOTSUPP
+The file descriptor is associated with a file system and file type that
+do not allow regular read operations on it.
+.It Bq Er EOVERFLOW
+The file descriptor is associated with a regular file,
+.Fa nbytes
+is greater than 0,
+.Fa offset
+is before the end-of-file, and
+.Fa offset
+is greater than or equal to the offset maximum established
+for this file system.
+.It Bq Er EINVAL
+The value
+.Fa nbytes
+is greater than
+.Dv INT_MAX .
+.El
+.Pp
+In addition,
+.Fn readv
+and
+.Fn preadv
+may return one of the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa iovcnt
+argument
+was less than or equal to 0, or greater than
+.Dv IOV_MAX .
+.It Bq Er EINVAL
+One of the
+.Fa iov_len
+values in the
+.Fa iov
+array was negative.
+.It Bq Er EINVAL
+The sum of the
+.Fa iov_len
+values in the
+.Fa iov
+array overflowed a 32-bit integer.
+.It Bq Er EFAULT
+Part of the
+.Fa iov
+array points outside the process's allocated address space.
+.El
+.Pp
+The
+.Fn pread
+and
+.Fn preadv
+system calls may also return the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa offset
+value was negative.
+.It Bq Er ESPIPE
+The file descriptor is associated with a pipe, socket, or FIFO.
+.El
+.Sh SEE ALSO
+.Xr dup 2 ,
+.Xr fcntl 2 ,
+.Xr getdirentries 2 ,
+.Xr open 2 ,
+.Xr pipe 2 ,
+.Xr select 2 ,
+.Xr socket 2 ,
+.Xr socketpair 2 ,
+.Xr fread 3 ,
+.Xr readdir 3
+.Sh STANDARDS
+The
+.Fn read
+system call is expected to conform to
+.St -p1003.1-90 .
+The
+.Fn readv
+and
+.Fn pread
+system calls are expected to conform to
+.St -xpg4.2 .
+.Sh HISTORY
+The
+.Fn preadv
+system call appeared in
+.Fx 6.0 .
+The
+.Fn pread
+function appeared in
+.At V.4 .
+The
+.Fn readv
+system call appeared in
+.Bx 4.2 .
+The
+.Fn read
+function appeared in
+.At v1 .

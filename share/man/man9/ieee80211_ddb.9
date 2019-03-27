@@ -1,0 +1,71 @@
+.\"
+.\" Copyright (c) 2009 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 4, 2009
+.Dt IEEE80211_DDB 9
+.Os
+.Sh NAME
+.Nm ieee80211_ddb
+.Nd 802.11 ddb support
+.Sh SYNOPSIS
+.Bd -ragged
+.Cd options DDB
+.Ed
+.Bd -ragged
+.Cd show vap [addr]
+.Cd show all vaps
+.Cd show com [addr]
+.Cd show sta [addr]
+.Cd show statab [addr]
+.Cd show mesh [addr]
+.Ed
+.Sh DESCRIPTION
+The
+.Nm net80211
+layer includes
+.Xr ddb 4
+support for displaying important data structures.
+This is especially important because wireless applications are often
+built for embedded environments where cross-machine or post-mortem
+debugging facilities like
+.Xr kgdb 1
+are infeasible.
+.Pp
+The most commonly used command is
+.Bd -literal -offset indent
+show all vaps/a
+.Ed
+.Pp
+which dumps the contents of all
+.Vt ieee80211vap ,
+.Vt ieee80211com ,
+and
+.Vt ieee80211_node
+data structures in the system.
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr ieee80211 9

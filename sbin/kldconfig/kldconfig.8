@@ -1,0 +1,109 @@
+.\"
+.\" Copyright (c) 2001 Peter Pentchev
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 27, 2017
+.Dt KLDCONFIG 8
+.Os
+.Sh NAME
+.Nm kldconfig
+.Nd display or modify the kernel module search path
+.Sh SYNOPSIS
+.Nm
+.Op Fl dfimnUv
+.Op Fl S Ar sysctlname
+.Op Ar path ...
+.Nm
+.Fl r
+.Sh DESCRIPTION
+The
+.Nm
+utility
+displays or modifies the search path used by the kernel when loading modules
+using the
+.Xr kldload 8
+utility or the
+.Xr kldload 2
+syscall.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d
+Remove the specified paths from the module search path.
+.It Fl f
+Do not display a diagnostic message if a path specified for adding is
+already present in the search path, or if a path specified for removing
+is not present in the search path.
+This may be useful in startup/shutdown scripts for adding a path to
+a file system which is still not mounted, or in shutdown scripts for
+unconditionally removing a path that may have been added during startup.
+.It Fl i
+Add the specified paths to the beginning of the search path, not to the end.
+This option can only be used when adding paths.
+.It Fl m
+Instead of replacing the module search path with the set of paths
+specified,
+.Dq merge
+in the new entries.
+.It Fl n
+Do not actually change the module search path.
+.It Fl r
+Display the current search path.
+This option cannot be used if any paths are also specified.
+.It Fl S Ar sysctlname
+Specify the sysctl name to use instead of the default
+.Va kern.module_path .
+.It Fl U
+.Dq Unique-ify
+the current search path - if any of the directories is repeated one
+or more times, only the first occurrence remains.
+This option implies
+.Fl m .
+.It Fl v
+Verbose output: display the new module search path.
+If the path has been changed, and the
+.Fl v
+flag is specified more than once, the old path is displayed as well.
+.El
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /boot/kernel , /boot/modules , /modules
+The default module search path used by the kernel.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr kldload 2 ,
+.Xr kldload 8 ,
+.Xr kldxref 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 4.4 .
+.Sh AUTHORS
+.An Peter Pentchev Aq Mt roam@FreeBSD.org

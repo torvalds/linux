@@ -1,0 +1,338 @@
+// -*- C++ -*-
+//===-------------------------- exception ---------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXCEPTION
+#define _LIBCPP_EXCEPTION
+
+/*
+    exception synopsis
+
+namespace std
+{
+
+class exception
+{
+public:
+    exception() noexcept;
+    exception(const exception&) noexcept;
+    exception& operator=(const exception&) noexcept;
+    virtual ~exception() noexcept;
+    virtual const char* what() const noexcept;
+};
+
+class bad_exception
+    : public exception
+{
+public:
+    bad_exception() noexcept;
+    bad_exception(const bad_exception&) noexcept;
+    bad_exception& operator=(const bad_exception&) noexcept;
+    virtual ~bad_exception() noexcept;
+    virtual const char* what() const noexcept;
+};
+
+typedef void (*unexpected_handler)();
+unexpected_handler set_unexpected(unexpected_handler  f ) noexcept;
+unexpected_handler get_unexpected() noexcept;
+[[noreturn]] void unexpected();
+
+typedef void (*terminate_handler)();
+terminate_handler set_terminate(terminate_handler  f ) noexcept;
+terminate_handler get_terminate() noexcept;
+[[noreturn]] void terminate() noexcept;
+
+bool uncaught_exception()  noexcept;
+int  uncaught_exceptions() noexcept;  // C++17
+
+typedef unspecified exception_ptr;
+
+exception_ptr current_exception() noexcept;
+void rethrow_exception [[noreturn]] (exception_ptr p);
+template<class E> exception_ptr make_exception_ptr(E e) noexcept;
+
+class nested_exception
+{
+public:
+    nested_exception() noexcept;
+    nested_exception(const nested_exception&) noexcept = default;
+    nested_exception& operator=(const nested_exception&) noexcept = default;
+    virtual ~nested_exception() = default;
+
+    // access functions
+    [[noreturn]] void rethrow_nested() const;
+    exception_ptr nested_ptr() const noexcept;
+};
+
+template <class T> [[noreturn]] void throw_with_nested(T&& t);
+template <class E> void rethrow_if_nested(const E& e);
+
+}  // std
+
+*/
+
+#include <__config>
+#include <cstddef>
+#include <cstdlib>
+#include <type_traits>
+#include <version>
+
+#if defined(_LIBCPP_ABI_MICROSOFT) && !defined(_LIBCPP_NO_VCRUNTIME)
+#include <vcruntime_exception.h>
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+namespace std  // purposefully not using versioning namespace
+{
+
+#if !defined(_LIBCPP_ABI_MICROSOFT) || defined(_LIBCPP_NO_VCRUNTIME)
+class _LIBCPP_EXCEPTION_ABI exception
+{
+public:
+    _LIBCPP_INLINE_VISIBILITY exception() _NOEXCEPT {}
+    virtual ~exception() _NOEXCEPT;
+    virtual const char* what() const _NOEXCEPT;
+};
+
+class _LIBCPP_EXCEPTION_ABI bad_exception
+    : public exception
+{
+public:
+    _LIBCPP_INLINE_VISIBILITY bad_exception() _NOEXCEPT {}
+    virtual ~bad_exception() _NOEXCEPT;
+    virtual const char* what() const _NOEXCEPT;
+};
+#endif // !_LIBCPP_ABI_MICROSOFT || _LIBCPP_NO_VCRUNTIME
+
+#if _LIBCPP_STD_VER <= 14 \
+    || defined(_LIBCPP_ENABLE_CXX17_REMOVED_UNEXPECTED_FUNCTIONS) \
+    || defined(_LIBCPP_BUILDING_LIBRARY)
+typedef void (*unexpected_handler)();
+_LIBCPP_FUNC_VIS unexpected_handler set_unexpected(unexpected_handler) _NOEXCEPT;
+_LIBCPP_FUNC_VIS unexpected_handler get_unexpected() _NOEXCEPT;
+_LIBCPP_NORETURN _LIBCPP_FUNC_VIS void unexpected();
+#endif
+
+typedef void (*terminate_handler)();
+_LIBCPP_FUNC_VIS terminate_handler set_terminate(terminate_handler) _NOEXCEPT;
+_LIBCPP_FUNC_VIS terminate_handler get_terminate() _NOEXCEPT;
+_LIBCPP_NORETURN _LIBCPP_FUNC_VIS void terminate() _NOEXCEPT;
+
+_LIBCPP_FUNC_VIS bool uncaught_exception() _NOEXCEPT;
+_LIBCPP_FUNC_VIS _LIBCPP_AVAILABILITY_UNCAUGHT_EXCEPTIONS int uncaught_exceptions() _NOEXCEPT;
+
+class _LIBCPP_TYPE_VIS exception_ptr;
+
+_LIBCPP_FUNC_VIS exception_ptr current_exception() _NOEXCEPT;
+_LIBCPP_NORETURN _LIBCPP_FUNC_VIS void rethrow_exception(exception_ptr);
+
+#ifndef _LIBCPP_ABI_MICROSOFT
+
+class _LIBCPP_TYPE_VIS exception_ptr
+{
+    void* __ptr_;
+public:
+    _LIBCPP_INLINE_VISIBILITY exception_ptr() _NOEXCEPT : __ptr_() {}
+    _LIBCPP_INLINE_VISIBILITY exception_ptr(nullptr_t) _NOEXCEPT : __ptr_() {}
+
+    exception_ptr(const exception_ptr&) _NOEXCEPT;
+    exception_ptr& operator=(const exception_ptr&) _NOEXCEPT;
+    ~exception_ptr() _NOEXCEPT;
+
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_EXPLICIT operator bool() const _NOEXCEPT
+    {return __ptr_ != nullptr;}
+
+    friend _LIBCPP_INLINE_VISIBILITY
+    bool operator==(const exception_ptr& __x, const exception_ptr& __y) _NOEXCEPT
+        {return __x.__ptr_ == __y.__ptr_;}
+
+    friend _LIBCPP_INLINE_VISIBILITY
+    bool operator!=(const exception_ptr& __x, const exception_ptr& __y) _NOEXCEPT
+        {return !(__x == __y);}
+
+    friend _LIBCPP_FUNC_VIS exception_ptr current_exception() _NOEXCEPT;
+    friend _LIBCPP_FUNC_VIS void rethrow_exception(exception_ptr);
+};
+
+template<class _Ep>
+_LIBCPP_INLINE_VISIBILITY exception_ptr
+make_exception_ptr(_Ep __e) _NOEXCEPT
+{
+#ifndef _LIBCPP_NO_EXCEPTIONS
+    try
+    {
+        throw __e;
+    }
+    catch (...)
+    {
+        return current_exception();
+    }
+#else
+    ((void)__e);
+    _VSTD::abort();
+#endif
+}
+
+#else // _LIBCPP_ABI_MICROSOFT
+
+class _LIBCPP_TYPE_VIS exception_ptr
+{
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-private-field"
+#endif
+    void* __ptr1_;
+    void* __ptr2_;
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+public:
+    exception_ptr() _NOEXCEPT;
+    exception_ptr(nullptr_t) _NOEXCEPT;
+    exception_ptr(const exception_ptr& __other) _NOEXCEPT;
+    exception_ptr& operator=(const exception_ptr& __other) _NOEXCEPT;
+    exception_ptr& operator=(nullptr_t) _NOEXCEPT;
+    ~exception_ptr() _NOEXCEPT;
+    _LIBCPP_EXPLICIT operator bool() const _NOEXCEPT;
+};
+
+_LIBCPP_FUNC_VIS
+bool operator==(const exception_ptr& __x, const exception_ptr& __y) _NOEXCEPT;
+
+inline _LIBCPP_INLINE_VISIBILITY
+bool operator!=(const exception_ptr& __x, const exception_ptr& __y) _NOEXCEPT
+    {return !(__x == __y);}
+
+_LIBCPP_FUNC_VIS void swap(exception_ptr&, exception_ptr&) _NOEXCEPT;
+
+_LIBCPP_FUNC_VIS exception_ptr __copy_exception_ptr(void *__except, const void* __ptr);
+_LIBCPP_FUNC_VIS exception_ptr current_exception() _NOEXCEPT;
+_LIBCPP_NORETURN _LIBCPP_FUNC_VIS void rethrow_exception(exception_ptr p);
+
+// This is a built-in template function which automagically extracts the required
+// information.
+template <class _E> void *__GetExceptionInfo(_E);
+
+template<class _Ep>
+_LIBCPP_INLINE_VISIBILITY exception_ptr
+make_exception_ptr(_Ep __e) _NOEXCEPT
+{
+  return __copy_exception_ptr(_VSTD::addressof(__e), __GetExceptionInfo(__e));
+}
+
+#endif // _LIBCPP_ABI_MICROSOFT
+// nested_exception
+
+class _LIBCPP_EXCEPTION_ABI nested_exception
+{
+    exception_ptr __ptr_;
+public:
+    nested_exception() _NOEXCEPT;
+//     nested_exception(const nested_exception&) noexcept = default;
+//     nested_exception& operator=(const nested_exception&) noexcept = default;
+    virtual ~nested_exception() _NOEXCEPT;
+
+    // access functions
+    _LIBCPP_NORETURN void rethrow_nested() const;
+    _LIBCPP_INLINE_VISIBILITY exception_ptr nested_ptr() const _NOEXCEPT {return __ptr_;}
+};
+
+template <class _Tp>
+struct __nested
+    : public _Tp,
+      public nested_exception
+{
+    _LIBCPP_INLINE_VISIBILITY explicit __nested(const _Tp& __t) : _Tp(__t) {}
+};
+
+#ifndef _LIBCPP_NO_EXCEPTIONS
+template <class _Tp, class _Up, bool>
+struct __throw_with_nested;
+
+template <class _Tp, class _Up>
+struct __throw_with_nested<_Tp, _Up, true> {
+    _LIBCPP_NORETURN static inline _LIBCPP_INLINE_VISIBILITY void
+#ifndef _LIBCPP_CXX03_LANG
+    __do_throw(_Tp&& __t)
+#else
+    __do_throw (_Tp& __t)
+#endif  // _LIBCPP_CXX03_LANG
+    {
+        throw __nested<_Up>(_VSTD::forward<_Tp>(__t));
+    }
+};
+
+template <class _Tp, class _Up>
+struct __throw_with_nested<_Tp, _Up, false> {
+    _LIBCPP_NORETURN static inline _LIBCPP_INLINE_VISIBILITY void
+#ifndef _LIBCPP_CXX03_LANG
+    __do_throw(_Tp&& __t)
+#else
+    __do_throw (_Tp& __t)
+#endif  // _LIBCPP_CXX03_LANG
+    {
+        throw _VSTD::forward<_Tp>(__t);
+    }
+};
+#endif
+
+template <class _Tp>
+_LIBCPP_NORETURN
+void
+#ifndef _LIBCPP_CXX03_LANG
+throw_with_nested(_Tp&& __t)
+#else
+throw_with_nested (_Tp& __t)
+#endif // _LIBCPP_CXX03_LANG
+{
+#ifndef _LIBCPP_NO_EXCEPTIONS
+    typedef typename decay<_Tp>::type _Up;
+    static_assert( is_copy_constructible<_Up>::value, "type thrown must be CopyConstructible");
+    __throw_with_nested<_Tp, _Up,
+        is_class<_Up>::value &&
+        !is_base_of<nested_exception, _Up>::value &&
+        !__libcpp_is_final<_Up>::value>::
+            __do_throw(_VSTD::forward<_Tp>(__t));
+#else
+    ((void)__t);
+    // FIXME: Make this abort
+#endif
+}
+
+template <class _From, class _To>
+struct __can_dynamic_cast : public _LIBCPP_BOOL_CONSTANT(
+              is_polymorphic<_From>::value &&
+                 (!is_base_of<_To, _From>::value ||
+                   is_convertible<const _From*, const _To*>::value)) {};
+
+template <class _Ep>
+inline _LIBCPP_INLINE_VISIBILITY
+void
+rethrow_if_nested(const _Ep& __e,
+                  typename enable_if< __can_dynamic_cast<_Ep, nested_exception>::value>::type* = 0)
+{
+    const nested_exception* __nep = dynamic_cast<const nested_exception*>(_VSTD::addressof(__e));
+    if (__nep)
+        __nep->rethrow_nested();
+}
+
+template <class _Ep>
+inline _LIBCPP_INLINE_VISIBILITY
+void
+rethrow_if_nested(const _Ep&,
+                  typename enable_if<!__can_dynamic_cast<_Ep, nested_exception>::value>::type* = 0)
+{
+}
+
+}  // std
+
+#endif  // _LIBCPP_EXCEPTION

@@ -1,0 +1,5 @@
+?:y
+?:z
+?:w
+x:unset
+OPTIND=3

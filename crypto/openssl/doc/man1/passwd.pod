@@ -1,0 +1,132 @@
+=pod
+
+=head1 NAME
+
+openssl-passwd,
+passwd - compute password hashes
+
+=head1 SYNOPSIS
+
+B<openssl passwd>
+[B<-help>]
+[B<-crypt>]
+[B<-1>]
+[B<-apr1>]
+[B<-aixmd5>]
+[B<-5>]
+[B<-6>]
+[B<-salt> I<string>]
+[B<-in> I<file>]
+[B<-stdin>]
+[B<-noverify>]
+[B<-quiet>]
+[B<-table>]
+[B<-rand file...>]
+[B<-writerand file>]
+{I<password>}
+
+=head1 DESCRIPTION
+
+The B<passwd> command computes the hash of a password typed at
+run-time or the hash of each password in a list.  The password list is
+taken from the named file for option B<-in file>, from stdin for
+option B<-stdin>, or from the command line, or from the terminal otherwise.
+The Unix standard algorithm B<crypt> and the MD5-based BSD password
+algorithm B<1>, its Apache variant B<apr1>, and its AIX variant are available.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-crypt>
+
+Use the B<crypt> algorithm (default).
+
+=item B<-1>
+
+Use the MD5 based BSD password algorithm B<1>.
+
+=item B<-apr1>
+
+Use the B<apr1> algorithm (Apache variant of the BSD algorithm).
+
+=item B<-aixmd5>
+
+Use the B<AIX MD5> algorithm (AIX variant of the BSD algorithm).
+
+=item B<-5>
+
+=item B<-6>
+
+Use the B<SHA256> / B<SHA512> based algorithms defined by Ulrich Drepper.
+See L<https://www.akkadia.org/drepper/SHA-crypt.txt>.
+
+=item B<-salt> I<string>
+
+Use the specified salt.
+When reading a password from the terminal, this implies B<-noverify>.
+
+=item B<-in> I<file>
+
+Read passwords from I<file>.
+
+=item B<-stdin>
+
+Read passwords from B<stdin>.
+
+=item B<-noverify>
+
+Don't verify when reading a password from the terminal.
+
+=item B<-quiet>
+
+Don't output warnings when passwords given at the command line are truncated.
+
+=item B<-table>
+
+In the output list, prepend the cleartext password and a TAB character
+to each password hash.
+
+=item B<-rand file...>
+
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
+The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
+all others.
+
+=item [B<-writerand file>]
+
+Writes random data to the specified I<file> upon exit.
+This can be used with a subsequent B<-rand> flag.
+
+=back
+
+=head1 EXAMPLES
+
+  % openssl passwd -crypt -salt xx password
+  xxj31ZMTZzkVA
+
+  % openssl passwd -1 -salt xxxxxxxx password
+  $1$xxxxxxxx$UYCIxa628.9qXjpQCjM4a.
+
+  % openssl passwd -apr1 -salt xxxxxxxx password
+  $apr1$xxxxxxxx$dxHfLAsjHkDRmG83UXe8K0
+
+  % openssl passwd -aixmd5 -salt xxxxxxxx password
+  xxxxxxxx$8Oaipk/GPKhC64w/YVeFD/
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

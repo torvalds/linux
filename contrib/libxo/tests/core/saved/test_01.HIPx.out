@@ -1,0 +1,382 @@
+<div class="line">
+  <div class="text">static </div>
+  <div class="data" data-tag="type" data-xpath="/top/type">ethernet</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="type" data-xpath="/top/type">bridge</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="type" data-xpath="/top/type">  18u</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="type" data-xpath="/top/type"> 24</div>
+  <div class="text">anchor </div>
+  <div class="padding">            </div>
+  <div class="data" data-tag="address" data-xpath="/top/address">0x0</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="port" data-xpath="/top/port">1</div>
+</div>
+<div class="line">
+  <div class="text">anchor </div>
+  <div class="padding">            </div>
+  <div class="data" data-tag="address" data-xpath="/top/address">0x0</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="port" data-xpath="/top/port">1</div>
+</div>
+<div class="line">
+  <div class="text">anchor </div>
+  <div class="padding">            </div>
+  <div class="data" data-tag="address" data-xpath="/top/address">0x0</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="port" data-xpath="/top/port">1</div>
+</div>
+<div class="line">
+  <div class="text">df </div>
+  <div class="data" data-tag="used-percent" data-xpath="/top/used-percent">   12</div>
+  <div class="units">%</div>
+</div>
+<div class="line">
+  <div class="text">testing argument modifier </div>
+  <div class="data" data-tag="host" data-xpath="/top/host">my-box</div>
+  <div class="text">.</div>
+  <div class="data" data-tag="domain" data-xpath="/top/domain">example.com</div>
+  <div class="text">...</div>
+</div>
+<div class="line">
+  <div class="text">testing argument modifier with encoding to </div>
+  <div class="text">.</div>
+  <div class="data" data-tag="domain" data-xpath="/top/domain">example.com</div>
+  <div class="text">...</div>
+</div>
+<div class="line">
+  <div class="label">Label text</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="label" data-xpath="/top/label">value</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="max-chaos" data-xpath="/top/max-chaos">  very  </div>
+  <div class="data" data-tag="min-chaos" data-xpath="/top/min-chaos">42</div>
+  <div class="data" data-tag="some-chaos" data-xpath="/top/some-chaos">42
+</div>
+  <div class="text">Connecting to </div>
+  <div class="data" data-tag="host" data-xpath="/top/host">my-box</div>
+  <div class="text">.</div>
+  <div class="data" data-tag="domain" data-xpath="/top/domain">example.com</div>
+  <div class="text">...</div>
+</div>
+<div class="line">
+  <div class="title">Item      </div>
+  <div class="title">  Total Sold</div>
+  <div class="title">    In Stock</div>
+  <div class="title">    On Order</div>
+  <div class="title">  SKU</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="name" data-xpath="/top/data/item/name" data-type="string" data-help="Name of the item" data-key="key">gum       </div>
+  <div class="data" data-tag="sold" data-xpath="/top/data/item[sku = 'GRO-000-415'][name = 'gum']/sold" data-type="number" data-help="Number of items sold">        1412</div>
+  <div class="data" data-tag="in-stock" data-xpath="/top/data/item[sku = 'GRO-000-415'][name = 'gum']/in-stock" data-type="number" data-help="Number of items in stock">          54</div>
+  <div class="data" data-tag="on-order" data-xpath="/top/data/item[sku = 'GRO-000-415'][name = 'gum']/on-order" data-type="number" data-help="Number of items on order">          10</div>
+  <div class="data" data-tag="sku" data-xpath="/top/data/item/sku" data-type="string" data-help="Stock Keeping Unit" data-key="key">  GRO-000-415</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="name" data-xpath="/top/data/item/name" data-type="string" data-help="Name of the item" data-key="key">rope      </div>
+  <div class="data" data-tag="sold" data-xpath="/top/data/item[sku = 'HRD-000-212'][name = 'rope']/sold" data-type="number" data-help="Number of items sold">          85</div>
+  <div class="data" data-tag="in-stock" data-xpath="/top/data/item[sku = 'HRD-000-212'][name = 'rope']/in-stock" data-type="number" data-help="Number of items in stock">           4</div>
+  <div class="data" data-tag="on-order" data-xpath="/top/data/item[sku = 'HRD-000-212'][name = 'rope']/on-order" data-type="number" data-help="Number of items on order">           2</div>
+  <div class="data" data-tag="sku" data-xpath="/top/data/item/sku" data-type="string" data-help="Stock Keeping Unit" data-key="key">  HRD-000-212</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="name" data-xpath="/top/data/item/name" data-type="string" data-help="Name of the item" data-key="key">ladder    </div>
+  <div class="data" data-tag="sold" data-xpath="/top/data/item[sku = 'HRD-000-517'][name = 'ladder']/sold" data-type="number" data-help="Number of items sold">           0</div>
+  <div class="data" data-tag="in-stock" data-xpath="/top/data/item[sku = 'HRD-000-517'][name = 'ladder']/in-stock" data-type="number" data-help="Number of items in stock">           2</div>
+  <div class="data" data-tag="on-order" data-xpath="/top/data/item[sku = 'HRD-000-517'][name = 'ladder']/on-order" data-type="number" data-help="Number of items on order">           1</div>
+  <div class="data" data-tag="sku" data-xpath="/top/data/item/sku" data-type="string" data-help="Stock Keeping Unit" data-key="key">  HRD-000-517</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="name" data-xpath="/top/data/item/name" data-type="string" data-help="Name of the item" data-key="key">bolt      </div>
+  <div class="data" data-tag="sold" data-xpath="/top/data/item[sku = 'HRD-000-632'][name = 'bolt']/sold" data-type="number" data-help="Number of items sold">        4123</div>
+  <div class="data" data-tag="in-stock" data-xpath="/top/data/item[sku = 'HRD-000-632'][name = 'bolt']/in-stock" data-type="number" data-help="Number of items in stock">         144</div>
+  <div class="data" data-tag="on-order" data-xpath="/top/data/item[sku = 'HRD-000-632'][name = 'bolt']/on-order" data-type="number" data-help="Number of items on order">          42</div>
+  <div class="data" data-tag="sku" data-xpath="/top/data/item/sku" data-type="string" data-help="Stock Keeping Unit" data-key="key">  HRD-000-632</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="name" data-xpath="/top/data/item/name" data-type="string" data-help="Name of the item" data-key="key">water     </div>
+  <div class="data" data-tag="sold" data-xpath="/top/data/item[sku = 'GRO-000-2331'][name = 'water']/sold" data-type="number" data-help="Number of items sold">          17</div>
+  <div class="data" data-tag="in-stock" data-xpath="/top/data/item[sku = 'GRO-000-2331'][name = 'water']/in-stock" data-type="number" data-help="Number of items in stock">          14</div>
+  <div class="data" data-tag="on-order" data-xpath="/top/data/item[sku = 'GRO-000-2331'][name = 'water']/on-order" data-type="number" data-help="Number of items on order">           2</div>
+  <div class="data" data-tag="sku" data-xpath="/top/data/item/sku" data-type="string" data-help="Stock Keeping Unit" data-key="key">  GRO-000-2331</div>
+</div>
+<div class="line">
+</div>
+<div class="line">
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="text"> '</div>
+  <div class="data" data-tag="name" data-xpath="/top/data2/item/name" data-type="string" data-help="Name of the item" data-key="key">gum</div>
+  <div class="text">':</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">Total sold</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sold" data-xpath="/top/data2/item[sku = 'GRO-000-415'][name = 'gum']/sold" data-type="number" data-help="Number of items sold">1412.0</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">In stock</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="in-stock" data-xpath="/top/data2/item[sku = 'GRO-000-415'][name = 'gum']/in-stock" data-type="number" data-help="Number of items in stock">54</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">On order</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="on-order" data-xpath="/top/data2/item[sku = 'GRO-000-415'][name = 'gum']/on-order" data-type="number" data-help="Number of items on order">10</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">SKU</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sku" data-xpath="/top/data2/item/sku" data-type="string" data-help="Stock Keeping Unit" data-key="key">GRO-000-415</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="text"> '</div>
+  <div class="data" data-tag="name" data-xpath="/top/data2/item/name" data-type="string" data-help="Name of the item" data-key="key">rope</div>
+  <div class="text">':</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">Total sold</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sold" data-xpath="/top/data2/item[sku = 'HRD-000-212'][name = 'rope']/sold" data-type="number" data-help="Number of items sold">85.0</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">In stock</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="in-stock" data-xpath="/top/data2/item[sku = 'HRD-000-212'][name = 'rope']/in-stock" data-type="number" data-help="Number of items in stock">4</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">On order</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="on-order" data-xpath="/top/data2/item[sku = 'HRD-000-212'][name = 'rope']/on-order" data-type="number" data-help="Number of items on order">2</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">SKU</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sku" data-xpath="/top/data2/item/sku" data-type="string" data-help="Stock Keeping Unit" data-key="key">HRD-000-212</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="text"> '</div>
+  <div class="data" data-tag="name" data-xpath="/top/data2/item/name" data-type="string" data-help="Name of the item" data-key="key">ladder</div>
+  <div class="text">':</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">Total sold</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sold" data-xpath="/top/data2/item[sku = 'HRD-000-517'][name = 'ladder']/sold" data-type="number" data-help="Number of items sold">0</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">In stock</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="in-stock" data-xpath="/top/data2/item[sku = 'HRD-000-517'][name = 'ladder']/in-stock" data-type="number" data-help="Number of items in stock">2</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">On order</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="on-order" data-xpath="/top/data2/item[sku = 'HRD-000-517'][name = 'ladder']/on-order" data-type="number" data-help="Number of items on order">1</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">SKU</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sku" data-xpath="/top/data2/item/sku" data-type="string" data-help="Stock Keeping Unit" data-key="key">HRD-000-517</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="text"> '</div>
+  <div class="data" data-tag="name" data-xpath="/top/data2/item/name" data-type="string" data-help="Name of the item" data-key="key">bolt</div>
+  <div class="text">':</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">Total sold</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sold" data-xpath="/top/data2/item[sku = 'HRD-000-632'][name = 'bolt']/sold" data-type="number" data-help="Number of items sold">4123.0</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">In stock</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="in-stock" data-xpath="/top/data2/item[sku = 'HRD-000-632'][name = 'bolt']/in-stock" data-type="number" data-help="Number of items in stock">144</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">On order</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="on-order" data-xpath="/top/data2/item[sku = 'HRD-000-632'][name = 'bolt']/on-order" data-type="number" data-help="Number of items on order">42</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">SKU</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sku" data-xpath="/top/data2/item/sku" data-type="string" data-help="Stock Keeping Unit" data-key="key">HRD-000-632</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="text"> '</div>
+  <div class="data" data-tag="name" data-xpath="/top/data2/item/name" data-type="string" data-help="Name of the item" data-key="key">water</div>
+  <div class="text">':</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">Total sold</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sold" data-xpath="/top/data2/item[sku = 'GRO-000-2331'][name = 'water']/sold" data-type="number" data-help="Number of items sold">17.0</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">In stock</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="in-stock" data-xpath="/top/data2/item[sku = 'GRO-000-2331'][name = 'water']/in-stock" data-type="number" data-help="Number of items in stock">14</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">On order</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="on-order" data-xpath="/top/data2/item[sku = 'GRO-000-2331'][name = 'water']/on-order" data-type="number" data-help="Number of items on order">2</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">SKU</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sku" data-xpath="/top/data2/item/sku" data-type="string" data-help="Stock Keeping Unit" data-key="key">GRO-000-2331</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="text"> '</div>
+  <div class="data" data-tag="name" data-xpath="/top/data3/item/name" data-type="string" data-help="Name of the item" data-key="key">fish</div>
+  <div class="text">':</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">Total sold</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sold" data-xpath="/top/data3/item[sku = 'GRO-000-533'][name = 'fish']/sold" data-type="number" data-help="Number of items sold">1321.0</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">In stock</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="in-stock" data-xpath="/top/data3/item[sku = 'GRO-000-533'][name = 'fish']/in-stock" data-type="number" data-help="Number of items in stock">45</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">On order</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="on-order" data-xpath="/top/data3/item[sku = 'GRO-000-533'][name = 'fish']/on-order" data-type="number" data-help="Number of items on order">1</div>
+</div>
+<div class="line">
+  <div class="padding">   </div>
+  <div class="label">SKU</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="sku" data-xpath="/top/data3/item/sku" data-type="string" data-help="Stock Keeping Unit" data-key="key">GRO-000-533</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item" data-xpath="/top/data4/item">gum</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item" data-xpath="/top/data4/item">rope</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item" data-xpath="/top/data4/item">ladder</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item" data-xpath="/top/data4/item">bolt</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item" data-xpath="/top/data4/item">water</div>
+</div>
+<div class="line">
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+</div>
+<div class="line">
+  <div class="text">X</div>
+  <div class="padding">        </div>
+  <div class="text">X</div>
+  <div class="label">Cost</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="cost" data-xpath="/top/cost">425</div>
+</div>
+<div class="line">
+  <div class="text">X</div>
+  <div class="padding">                              </div>
+  <div class="text">X</div>
+  <div class="label">Cost</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="cost" data-xpath="/top/cost">455</div>
+</div>
+<div class="line">
+  <div class="text"> </div>
+  <div class="data" data-tag="links" data-xpath="/top/links">links</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="user" data-xpath="/top/user">user</div>
+  <div class="text">  </div>
+  <div class="data" data-tag="group" data-xpath="/top/group">group</div>
+  <div class="text">  </div>
+</div>
+<div class="line">
+  <div class="data" data-tag="links" data-xpath="/top/links">3       </div>
+  <div class="data" data-tag="post" data-xpath="/top/post">this    </div>
+</div>
+<div class="line">
+  <div class="data" data-tag="mode" data-xpath="/top/mode">/some/file</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="links" data-xpath="/top/links">       1</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="user" data-xpath="/top/user">user      </div>
+  <div class="text">  </div>
+  <div class="data" data-tag="group" data-xpath="/top/group">group       </div>
+  <div class="text">  </div>
+</div>

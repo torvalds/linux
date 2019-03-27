@@ -1,0 +1,646 @@
+
+#------------------------------------------------------------------------------
+# $File: database,v 1.54 2018/06/23 16:37:21 christos Exp $
+# database:  file(1) magic for various databases
+#
+# extracted from header/code files by Graeme Wilford (eep2gw@ee.surrey.ac.uk)
+#
+#
+# GDBM magic numbers
+#  Will be maintained as part of the GDBM distribution in the future.
+#  <downsj@teeny.org>
+0	belong	0x13579acd	GNU dbm 1.x or ndbm database, big endian, 32-bit
+!:mime	application/x-gdbm
+0	belong	0x13579ace	GNU dbm 1.x or ndbm database, big endian, old
+!:mime	application/x-gdbm
+0	belong	0x13579acf	GNU dbm 1.x or ndbm database, big endian, 64-bit
+!:mime	application/x-gdbm
+0	lelong	0x13579acd	GNU dbm 1.x or ndbm database, little endian, 32-bit
+!:mime	application/x-gdbm
+0	lelong	0x13579ace	GNU dbm 1.x or ndbm database, little endian, old
+!:mime	application/x-gdbm
+0	lelong	0x13579acf	GNU dbm 1.x or ndbm database, little endian, 64-bit
+!:mime	application/x-gdbm
+0	string	GDBM		GNU dbm 2.x database
+!:mime	application/x-gdbm
+#
+# Berkeley DB
+#
+# Ian Darwin's file /etc/magic files: big/little-endian version.
+#
+# Hash 1.85/1.86 databases store metadata in network byte order.
+# Btree 1.85/1.86 databases store the metadata in host byte order.
+# Hash and Btree 2.X and later databases store the metadata in host byte order.
+
+0	long	0x00061561	Berkeley DB
+!:mime	application/x-dbm
+>8	belong	4321
+>>4	belong	>2		1.86
+>>4	belong	<3		1.85
+>>4	belong	>0		(Hash, version %d, native byte-order)
+>8	belong	1234
+>>4	belong	>2		1.86
+>>4	belong	<3		1.85
+>>4	belong	>0		(Hash, version %d, little-endian)
+
+0	belong	0x00061561	Berkeley DB
+>8	belong	4321
+>>4	belong	>2		1.86
+>>4	belong	<3		1.85
+>>4	belong	>0		(Hash, version %d, big-endian)
+>8	belong	1234
+>>4	belong	>2		1.86
+>>4	belong	<3		1.85
+>>4	belong	>0		(Hash, version %d, native byte-order)
+
+0	long	0x00053162	Berkeley DB 1.85/1.86
+>4	long	>0		(Btree, version %d, native byte-order)
+0	belong	0x00053162	Berkeley DB 1.85/1.86
+>4	belong	>0		(Btree, version %d, big-endian)
+0	lelong	0x00053162	Berkeley DB 1.85/1.86
+>4	lelong	>0		(Btree, version %d, little-endian)
+
+12	long	0x00061561	Berkeley DB
+>16	long	>0		(Hash, version %d, native byte-order)
+12	belong	0x00061561	Berkeley DB
+>16	belong	>0		(Hash, version %d, big-endian)
+12	lelong	0x00061561	Berkeley DB
+>16	lelong	>0		(Hash, version %d, little-endian)
+
+12	long	0x00053162	Berkeley DB
+>16	long	>0		(Btree, version %d, native byte-order)
+12	belong	0x00053162	Berkeley DB
+>16	belong	>0		(Btree, version %d, big-endian)
+12	lelong	0x00053162	Berkeley DB
+>16	lelong	>0		(Btree, version %d, little-endian)
+
+12	long	0x00042253	Berkeley DB
+>16	long	>0		(Queue, version %d, native byte-order)
+12	belong	0x00042253	Berkeley DB
+>16	belong	>0		(Queue, version %d, big-endian)
+12	lelong	0x00042253	Berkeley DB
+>16	lelong	>0		(Queue, version %d, little-endian)
+
+# From Max Bowsher.
+12	long	0x00040988	Berkeley DB
+>16	long	>0		(Log, version %d, native byte-order)
+12	belong	0x00040988	Berkeley DB
+>16	belong	>0		(Log, version %d, big-endian)
+12	lelong	0x00040988	Berkeley DB
+>16	lelong	>0		(Log, version %d, little-endian)
+
+#
+#
+# Round Robin Database Tool by Tobias Oetiker <oetiker@ee.ethz.ch>
+0	string/b	RRD\0		RRDTool DB
+>4	string/b	x		version %s
+
+>>10	short		!0		16bit aligned
+>>>10	bedouble	8.642135e+130	big-endian
+>>>>18	short		x		32bit long (m68k)
+
+>>10	short		0
+>>>12	long		!0		32bit aligned
+>>>>12	bedouble	8.642135e+130	big-endian
+>>>>>20 long		0		64bit long
+>>>>>20 long		!0		32bit long
+>>>>12	ledouble	8.642135e+130	little-endian
+>>>>>24 long		0		64bit long
+>>>>>24 long		!0		32bit long (i386)
+>>>>12	string		\x43\x2b\x1f\x5b\x2f\x25\xc0\xc7	middle-endian
+>>>>>24 short		!0		32bit long (arm)
+
+>>8	quad		0		64bit aligned
+>>>16	bedouble	8.642135e+130	big-endian
+>>>>24	long		0		64bit long (s390x)
+>>>>24	long		!0		32bit long (hppa/mips/ppc/s390/SPARC)
+>>>16	ledouble	8.642135e+130	little-endian
+>>>>28	long		0		64bit long (alpha/amd64/ia64)
+>>>>28	long		!0		32bit long (armel/mipsel)
+
+#----------------------------------------------------------------------
+# ROOT: file(1) magic for ROOT databases
+#
+0       string  root\0  ROOT file
+>4      belong  x       Version %d
+>33     belong  x       (Compression: %d)
+
+# XXX: Weak magic.
+# Alex Ott <ott@jet.msk.su>
+## Paradox file formats
+#2	  leshort	0x0800	Paradox
+#>0x39	  byte		3	v. 3.0
+#>0x39	  byte		4	v. 3.5
+#>0x39	  byte		9	v. 4.x
+#>0x39	  byte		10	v. 5.x
+#>0x39	  byte		11	v. 5.x
+#>0x39	  byte		12	v. 7.x
+#>>0x04	  byte		0	indexed .DB data file
+#>>0x04	  byte		1	primary index .PX file
+#>>0x04	  byte		2	non-indexed .DB data file
+#>>0x04	  byte		3	non-incrementing secondary index .Xnn file
+#>>0x04	  byte		4	secondary index .Ynn file
+#>>0x04	  byte		5	incrementing secondary index .Xnn file
+#>>0x04	  byte		6	non-incrementing secondary index .XGn file
+#>>0x04	  byte		7	secondary index .YGn file
+#>>>0x04	  byte		8	incrementing secondary index .XGn file
+
+## XBase database files
+# updated by Joerg Jenderek at Feb 2013
+# http://www.dbase.com/Knowledgebase/INT/db7_file_fmt.htm
+# http://www.clicketyclick.dk/databases/xbase/format/dbf.html
+# http://home.f1.htw-berlin.de/scheibl/db/intern/dBase.htm
+# inspect VVYYMMDD , where 1<= MM <= 12 and 1<= DD <= 31
+0	ubelong&0x0000FFFF		<0x00000C20
+# skip Infocom game Z-machine
+>2		ubyte			>0
+# skip Androids *.xml
+>>3		ubyte			>0
+>>>3		ubyte			<32
+# 1 < version VV
+>>>>0		ubyte			>1
+# skip HELP.CA3 by test for reserved byte ( NULL )
+>>>>>27		ubyte			0
+# reserved bytes not always 0 ; also found 0x3901 (T4.DBF) ,0x7101 (T5.DBF,T6.DBF)
+#>>>>>30		ubeshort     		x		30NULL?%x
+# possible production flag,tag numbers(<=0x30),tag length(<=0x20), reserved (NULL)
+>>>>>>24	ubelong&0xffFFFFff	>0x01302000
+# .DBF or .MDX
+>>>>>>24	ubelong&0xffFFFFff	<0x01302001
+# for Xbase Database file (*.DBF) reserved (NULL) for multi-user
+>>>>>>>24	ubelong&0xffFFFFff	=0
+# test for 2 reserved NULL bytes,transaction and encryption byte flag
+>>>>>>>>12	ubelong&0xFFFFfEfE	0
+# test for MDX flag
+>>>>>>>>>28	ubyte			x
+>>>>>>>>>28	ubyte&0xf8		0
+# header size >= 32
+>>>>>>>>>>8	uleshort		>31
+# skip PIC15736.PCX by test for language driver name or field name
+>>>>>>>>>>>32	ubyte			>0
+#!:mime	application/x-dbf; charset=unknown-8bit ??
+#!:mime	application/x-dbase
+>>>>>>>>>>>>0	use			xbase-type
+# database file
+>>>>>>>>>>>>0	ubyte			x		\b DBF
+>>>>>>>>>>>>4	lelong			0		\b, no records
+>>>>>>>>>>>>4	lelong			>0		\b, %d record
+# plural s appended
+>>>>>>>>>>>>>4	lelong			>1		\bs
+# http://www.clicketyclick.dk/databases/xbase/format/dbf_check.html#CHECK_DBF
+# 1 <= record size <= 4000 (dBase 3,4) or 32 * KB (=0x8000)
+>>>>>>>>>>>>10	uleshort		x		* %d
+# file size = records * record size + header size
+>>>>>>>>>>>>1	ubyte			x		\b, update-date
+>>>>>>>>>>>>1	use			xbase-date
+# http://msdn.microsoft.com/de-de/library/cc483186(v=vs.71).aspx
+#>>>>>>>>>>>>29	ubyte			=0		\b, codepage ID=0x%x
+# 2~cp850 , 3~cp1252 , 0x1b~?? ; what code page is 0x1b ?
+>>>>>>>>>>>>29	ubyte			>0		\b, codepage ID=0x%x
+#>>>>>>>>>>>>28	ubyte&0x01		0		\b, no index file
+>>>>>>>>>>>>28	ubyte&0x01		1		\b, with index file .MDX
+>>>>>>>>>>>>28	ubyte&0x02		2		\b, with memo .FPT
+>>>>>>>>>>>>28	ubyte&0x04		4		\b, DataBaseContainer
+# 1st record offset + 1 = header size
+>>>>>>>>>>>>8	uleshort		>0
+>>>>>>>>>>>>(8.s+1)	ubyte		>0
+>>>>>>>>>>>>>8		uleshort	>0		\b, at offset %d
+>>>>>>>>>>>>>(8.s+1)	ubyte		>0
+>>>>>>>>>>>>>>&-1	string		>\0		1st record "%s"
+# for multiple index files (*.MDX) Production flag,tag numbers(<=0x30),tag length(<=0x20), reserved (NULL)
+>>>>>>>24	ubelong&0x0133f7ff	>0
+# test for reserved NULL byte
+>>>>>>>>47	ubyte			0
+# test for valid TAG key format (0x10 or 0)
+>>>>>>>>>559	ubyte&0xeF		0
+# test MM <= 12
+>>>>>>>>>>45	ubeshort		<0x0C20
+>>>>>>>>>>>45	ubyte			>0
+>>>>>>>>>>>>46	ubyte			<32
+>>>>>>>>>>>>>46	ubyte			>0
+#!:mime	application/x-mdx
+>>>>>>>>>>>>>>0		use		xbase-type
+>>>>>>>>>>>>>>0		ubyte		x		\b MDX
+>>>>>>>>>>>>>>1		ubyte		x		\b, creation-date
+>>>>>>>>>>>>>>1		use		xbase-date
+>>>>>>>>>>>>>>44	ubyte		x		\b, update-date
+>>>>>>>>>>>>>>44	use		xbase-date
+# No.of tags in use (1,2,5,12)
+>>>>>>>>>>>>>>28	uleshort	x		\b, %d
+# No. of entries in tag (0x30)
+>>>>>>>>>>>>>>25	ubyte		x		\b/%d tags
+#  Length of tag
+>>>>>>>>>>>>>>26	ubyte		x		* %d
+# 1st tag name_
+>>>>>>>>>>>>>548	string		x		\b, 1st tag "%.11s"
+# 2nd tag name
+#>>>>>>>>>>>>(26.b+548)	string		x		\b, 2nd tag "%.11s"
+#
+#		Print the xBase names of different version variants
+0	name				xbase-type
+>0	ubyte		<2
+# 1 < version
+>0	ubyte		>1
+>>0	ubyte		0x02		FoxBase
+# FoxBase+/dBaseIII+, no memo
+>>0	ubyte		0x03		FoxBase+/dBase III
+!:mime	application/x-dbf
+# dBASE IV no memo file
+>>0	ubyte		0x04		dBase IV
+!:mime	application/x-dbf
+# dBASE V no memo file
+>>0	ubyte		0x05		dBase V
+!:mime	application/x-dbf
+>>0	ubyte		0x30		Visual FoxPro
+!:mime	application/x-dbf
+>>0	ubyte		0x31		Visual FoxPro, autoincrement
+!:mime	application/x-dbf
+# Visual FoxPro, with field type Varchar or Varbinary
+>>0	ubyte		0x32		Visual FoxPro, with field type Varchar
+!:mime	application/x-dbf
+# dBASE IV SQL, no memo;dbv memo var size (Flagship)
+>>0	ubyte		0x43		dBase IV, with SQL table
+!:mime	application/x-dbf
+# http://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
+#>>0	ubyte		0x62		dBase IV, with SQL table
+#!:mime	application/x-dbf
+# dBASE IV, with memo!!
+>>0	ubyte		0x7b		dBase IV, with memo
+!:mime	application/x-dbf
+# http://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
+#>>0	ubyte		0x82		dBase IV, with SQL system
+#!:mime	application/x-dbf
+# FoxBase+/dBaseIII+ with memo .DBT!
+>>0	ubyte		0x83		FoxBase+/dBase III, with memo .DBT
+!:mime	application/x-dbf
+# VISUAL OBJECTS (first 1.0 versions) for the Dbase III files (NTX clipper driver); memo file
+>>0	ubyte		0x87		VISUAL OBJECTS, with memo file
+!:mime	application/x-dbf
+# http://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
+#>>0	ubyte		0x8A		FoxBase+/dBase III, with memo .DBT
+#!:mime	application/x-dbf
+# dBASE IV with memo!
+>>0	ubyte		0x8B		dBase IV, with memo .DBT
+!:mime	application/x-dbf
+# dBase IV with SQL Table,no memo?
+>>0	ubyte		0x8E		dBase IV, with SQL table
+!:mime	application/x-dbf
+# .dbv and .dbt memo (Flagship)?
+>>0	ubyte		0xB3		Flagship
+# http://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
+#>>0	ubyte		0xCA		dBase IV with memo .DBT
+#!:mime	application/x-dbf
+# dBASE IV with SQL table, with memo .DBT
+>>0	ubyte		0xCB		dBase IV with SQL table, with memo .DBT
+!:mime	application/x-dbf
+# HiPer-Six format;Clipper SIX, with SMT memo file
+>>0	ubyte		0xE5		Clipper SIX with memo
+!:mime	application/x-dbf
+# http://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
+#>>0	ubyte		0xF4		dBase IV, with SQL table, with memo
+#!:mime	application/x-dbf
+>>0	ubyte		0xF5		FoxPro with memo
+!:mime	application/x-dbf
+# http://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
+#>>0	ubyte		0xFA		FoxPro 2.x, with memo
+#!:mime	application/x-dbf
+# unknown version (should not happen)
+>>0	default		x		xBase
+!:mime	application/x-dbf
+>>>0	ubyte		x		(0x%x)
+# flags in version byte
+# DBT flag (with dBASE III memo .DBT)!!
+# >>0	ubyte&0x80	>0		DBT_FLAG=%x
+# memo flag ??
+# >>0	ubyte&0x08	>0		MEMO_FLAG=%x
+# SQL flag ??
+# >>0	ubyte&0x70	>0		SQL_FLAG=%x
+#		test and print the date of xBase .DBF .MDX
+0	name				xbase-date
+# inspect YYMMDD , where 1<= MM <= 12 and 1<= DD <= 31
+>0	ubelong		x
+>1	ubyte		<13
+>>1	ubyte		>0
+>>>2	ubyte		>0
+>>>>2	ubyte		<32
+>>>>>0	ubyte		x
+# YY is interpreted as 20YY or 19YY
+>>>>>>0	ubyte		<100		\b %.2d
+# YY is interpreted 1900+YY; TODO: display yy or 20yy instead 1YY
+>>>>>>0	ubyte		>99		\b %d
+>>>>>1	ubyte		x		\b-%d
+>>>>>2	ubyte		x		\b-%d
+
+#	dBase memo files .DBT or .FPT
+# http://msdn.microsoft.com/en-us/library/8599s21w(v=vs.80).aspx
+16		ubyte		<4
+>16		ubyte		!2
+>>16		ubyte		!1
+# next free block index is positive
+>>>0		ulelong		>0
+# skip many JPG. ZIP, BZ2 by test for reserved bytes NULL , 0|2 , 0|1 , low byte of block size
+>>>>17		ubelong&0xFFfdFE00	0x00000000
+# skip many RAR by test for low byte 0 ,high byte 0|2|even of block size, 0|a|e|d7 , 0|64h
+>>>>>20		ubelong&0xFF01209B	0x00000000
+# dBASE III
+>>>>>>16	ubyte		3
+# dBASE III DBT
+>>>>>>>0	use		dbase3-memo-print
+# dBASE III DBT without version, dBASE IV DBT , FoxPro FPT , or many ZIP , DBF garbage
+>>>>>>16	ubyte		0
+# unusual dBASE III DBT like angest.dbt, dBASE IV DBT with block size 0 , FoxPro FPT ,  or garbage PCX DBF
+>>>>>>>20	uleshort	0
+# FoxPro FPT , unusual dBASE III DBT like biblio.dbt or garbage
+>>>>>>>>8	ulong		=0
+>>>>>>>>>6	ubeshort	>0
+# skip emacs.PIF
+>>>>>>>>>>4	ushort		0
+>>>>>>>>>>>0	use		foxpro-memo-print
+# dBASE III DBT , garbage
+>>>>>>>>>6	ubeshort	0
+# skip MM*DD*.bin by test for for reserved NULL byte
+>>>>>>>>>>510	ubeshort	0
+# skip TK-DOS11.img image by looking for memo text
+>>>>>>>>>>>512	ubelong		<0xfeffff03
+# skip EFI executables by looking for memo text
+>>>>>>>>>>>>512	ubelong		>0x1F202020
+>>>>>>>>>>>>>513 ubyte		>0
+# unusual dBASE III DBT like adressen.dbt
+>>>>>>>>>>>>>>0	use		dbase3-memo-print
+# dBASE III DBT like angest.dbt, or garbage PCX DBF
+>>>>>>>>8	ubelong		!0
+# skip PCX and some DBF by test for for reserved NULL bytes
+>>>>>>>>>510	ubeshort	0
+# skip some DBF by test of invalid version
+>>>>>>>>>>0	ubyte		>5
+>>>>>>>>>>>0	ubyte		<48
+>>>>>>>>>>>>0	use		dbase3-memo-print
+# dBASE IV DBT with positive block size
+>>>>>>>20	uleshort	>0
+# dBASE IV DBT with valid block length like 512, 1024
+# multiple of 2 in between 16 and 16 K ,implies upper and lower bits are zero
+>>>>>>>>20	uleshort&0x800f	0
+>>>>>>>>>0	use		dbase4-memo-print
+
+#		Print the information of dBase III DBT memo file
+0	name				dbase3-memo-print
+>0	ubyte			x		dBase III DBT
+# instead 3 as version number 0 for unusual examples like biblio.dbt
+>16	ubyte			!3		\b, version number %u
+# Number of next available block for appending data
+#>0	lelong			=0		\b, next free block index %u
+>0	lelong			!0		\b, next free block index %u
+# no positiv block length
+#>20	uleshort		=0		\b, block length %u
+>20	uleshort		!0		\b, block length %u
+# dBase III memo field terminated by \032\032
+>512	string			>\0		\b, 1st item "%s"
+#		Print the information of dBase IV DBT memo file
+0	name				dbase4-memo-print
+>0		lelong		x		dBase IV DBT
+!:mime	application/x-dbt
+!:ext dbt
+# 8 character shorted main name of coresponding dBASE IV DBF file
+>8		ubelong		>0x20000000
+# skip unusual like for angest.dbt
+>>20		uleshort	>0
+>>>8		string		>\0		\b of %-.8s.DBF
+# value 0 implies 512 as size
+#>4		ulelong		=0		\b, blocks size %u
+# size of blocks not reliable like 0x2020204C in angest.dbt
+>4		ulelong		!0
+>>4		ulelong&0x0000003f	0	\b, blocks size %u
+# dBase IV DBT with positive block length (found 512 , 1024)
+>20		uleshort	>0		\b, block length %u
+# next available block
+#>0		lelong		=0		\b, next free block index %u
+>0		lelong		!0		\b, next free block index %u
+>20		uleshort	>0
+>>(20.s)	ubelong		x
+>>>&-4		use		dbase4-memofield-print
+# unusual dBase IV DBT without block length (implies 512 as length)
+>20		uleshort	=0
+>>512		ubelong		x
+>>>&-4		use				dbase4-memofield-print
+#		Print the information of dBase IV memo field
+0	name			dbase4-memofield-print
+# free dBase IV memo field
+>0		ubelong		!0xFFFF0800
+>>0		lelong		x		\b, next free block %u
+>>4		lelong		x		\b, next used block %u
+# used dBase IV memo field
+>0		ubelong		=0xFFFF0800
+# length of memo field
+>>4		lelong		x		\b, field length %d
+>>>8		string		>\0		\b, 1st used item "%s"
+#		Print the information of FoxPro FPT memo file
+0	name				foxpro-memo-print
+>0		belong		x		FoxPro FPT
+# Size of blocks for FoxPro ( 64,256 )
+>6		ubeshort	x		\b, blocks size %u
+# next available block
+#>0		belong		=0		\b, next free block index %u
+>0		belong		!0		\b, next free block index %u
+# field type ( 0~picture, 1~memo, 2~object )
+>512		ubelong		<3		\b, field type %u
+# length of memo field
+>512		ubelong		1
+>>516		belong		>0		\b, field length %d
+>>>520		string		>\0		\b, 1st item "%s"
+
+# TODO:
+# DBASE index file *.NDX
+# DBASE Compound Index file *.CDX
+# dBASE IV Printer Driver *.PRF
+## End of XBase database stuff
+
+# MS Access database
+4	string	Standard\ Jet\ DB	Microsoft Access Database
+!:mime	application/x-msaccess
+4	string	Standard\ ACE\ DB	Microsoft Access Database
+!:mime	application/x-msaccess
+
+# From: Joerg Jenderek
+# URL: http://fileformats.archiveteam.org/wiki/Extensible_Storage_Engine
+# Reference: https://github.com/libyal/libesedb/archive/master.zip
+#	libesedb-master/documentation/
+#	Extensible Storage Engine (ESE) Database File (EDB) format.asciidoc
+# Note: also known as "JET Blue". Used by numerous Windows components such as
+# Windows Search, Mail, Exchange and Active Directory.
+4	ubelong		0xefcdab89
+# unknown1
+>132	ubelong		0		Extensible storage engine
+!:mime	application/x-ms-ese
+# file_type 0~database 1~stream
+>>12	ulelong		0		DataBase
+# Security DataBase (sdb)
+!:ext	edb/sdb
+>>12	ulelong		1		STreaMing
+!:ext	stm
+# format_version 620h
+>>8	uleshort	x		\b, version 0x%x
+>>10	uleshort	>0		revision 0x%4.4x
+>>0	ubelong		x	 	\b, checksum 0x%8.8x
+# Page size 4096 8192 32768
+>>236	ulequad		x		\b, page size %lld
+# database_state
+>>52	ulelong		1		\b, JustCreated
+>>52	ulelong		2		\b, DirtyShutdown
+#>>52	ulelong		3		\b, CleanShutdown
+>>52	ulelong		4		\b, BeingConverted
+>>52	ulelong		5		\b, ForceDetach
+# Windows NT major version when the databases indexes were updated.
+>>216	ulelong		x		\b, Windows version %d
+# Windows NT minor version
+>>220	ulelong		x		\b.%d
+
+# From: Joerg Jenderek
+# URL: http://forensicswiki.org/wiki/Windows_Application_Compatibility
+# Note: files contain application compatibility fixes, application compatibility modes and application help messages.
+8	string		sdbf
+>7	ubyte		0
+# TAG_TYPE_LIST+TAG_INDEXES
+>>12	uleshort	0x7802		Windows application compatibility Shim DataBase
+# version? 2 3
+#>>>0	ulelong		x		\b, version %d
+!:mime	application/x-ms-sdb
+!:ext	sdb
+
+# TDB database from Samba et al - Martin Pool <mbp@samba.org>
+0	string	TDB\ file		TDB database
+>32	lelong	0x2601196D		version 6, little-endian
+>>36	lelong	x			hash size %d bytes
+
+# SE Linux policy database
+0       lelong  0xf97cff8c      SE Linux policy
+>16     lelong  x               v%d
+>20     lelong  1      MLS
+>24     lelong  x       %d symbols
+>28     lelong  x       %d ocons
+
+# ICE authority file data (Wolfram Kleff)
+2	string		ICE		ICE authority data
+
+# X11 Xauthority file (Wolfram Kleff)
+10	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
+11	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
+12	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
+13	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
+14	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
+15	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
+16	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
+17	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
+18	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
+
+# From: Maxime Henrion <mux@FreeBSD.org>
+# PostgreSQL's custom dump format, Maxime Henrion <mux@FreeBSD.org>
+0	string		PGDMP		PostgreSQL custom database dump
+>5	byte		x		- v%d
+>6	byte		x		\b.%d
+>5	beshort		<0x101		\b-0
+>5	beshort		>0x100
+>>7	byte		x		\b-%d
+
+# Type: Advanced Data Format (ADF) database
+# URL:  http://www.grc.nasa.gov/WWW/cgns/adf/
+# From: Nicolas Chauvat <nicolas.chauvat@logilab.fr>
+0	string	@(#)ADF\ Database	CGNS Advanced Data Format
+
+# Tokyo Cabinet magic data
+# http://tokyocabinet.sourceforge.net/index.html
+0	string		ToKyO\ CaBiNeT\n	Tokyo Cabinet
+>14	string		x			\b (%s)
+>32	byte		0			\b, Hash
+!:mime	application/x-tokyocabinet-hash
+>32	byte		1			\b, B+ tree
+!:mime	application/x-tokyocabinet-btree
+>32	byte		2			\b, Fixed-length
+!:mime	application/x-tokyocabinet-fixed
+>32	byte		3			\b, Table
+!:mime	application/x-tokyocabinet-table
+>33	byte		&1			\b, [open]
+>33	byte		&2			\b, [fatal]
+>34	byte		x			\b, apow=%d
+>35	byte		x			\b, fpow=%d
+>36	byte		&0x01			\b, [large]
+>36	byte		&0x02			\b, [deflate]
+>36	byte		&0x04			\b, [bzip]
+>36	byte		&0x08			\b, [tcbs]
+>36	byte		&0x10			\b, [excodec]
+>40	lequad		x			\b, bnum=%lld
+>48	lequad		x			\b, rnum=%lld
+>56	lequad		x			\b, fsiz=%lld
+
+# Type:	QDBM Quick Database Manager
+# From:	Benoit Sibaud <bsibaud@april.org>
+0	string		\\[depot\\]\n\f		Quick Database Manager, little endian
+0	string		\\[DEPOT\\]\n\f		Quick Database Manager, big endian
+
+# Type:	TokyoCabinet database
+# URL:	http://tokyocabinet.sourceforge.net/
+# From:	Benoit Sibaud <bsibaud@april.org>
+0	string		ToKyO\ CaBiNeT\n	TokyoCabinet database
+>14	string		x			(version %s)
+
+# From:  Stephane Blondon http://www.yaal.fr
+# Database file for Zope (done by FileStorage)
+0	string	FS21	Zope Object Database File Storage v3 (data)
+0	string	FS30	Zope Object Database File Storage v4 (data)
+
+# Cache file for the database of Zope (done by ClientStorage)
+0	string		ZEC3	Zope Object Database Client Cache File (data)
+
+# IDA (Interactive Disassembler) database
+0	string		IDA1	IDA (Interactive Disassembler) database
+
+# Hopper (reverse engineering tool) http://www.hopperapp.com/
+0	string		hopperdb	Hopper database
+
+# URL: https://en.wikipedia.org/wiki/Panorama_(database_engine)
+# Reference: http://www.provue.com/Panorama/
+# From: Joerg Jenderek
+# NOTE: test only versions 4 and 6.0 with Windows
+# length of Panorama database name
+5	ubyte				>0
+# look after database name for "some" null bits
+>(5.B+7)	ubelong&0xF3ffF000	0
+# look for first keyword
+>>&1		search/2		DESIGN		Panorama database
+#!:mime	application/x-panorama-database
+!:apple	KASXZEPD
+!:ext	pan
+# database name
+>>>5	pstring				x		\b, "%s"
+
+#
+#
+# askSam Database by Stefan A. Haubenthal <polluks@web.de>
+0	string	askw40\0	askSam DB
+
+#
+#
+# MUIbase Database Tool by Stefan A. Haubenthal <polluks@web.de>
+0	string	MBSTV\040	MUIbase DB
+>6	string	x		version %s
+
+#
+# CDB database
+0	string	NBCDB\012	NetBSD Constant Database
+>7	byte	x		\b, version %d
+>8	string	x		\b, for '%s'
+>24	lelong	x		\b, datasize %d
+>28	lelong	x		\b, entries %d
+>32	lelong	x		\b, index %d
+>36	lelong	x		\b, seed %#x
+
+#
+# Redis RDB - https://redis.io/topics/persistence
+0	string	REDIS			Redis RDB file,
+>5	regex	[0-9][0-9][0-9][0-9]	version %s
+
+# Mork database.
+# Used by older versions of Mozilla Suite and Firefox,
+# and current versions of Thunderbird.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+0	string	//\ <!--\ <mdb:mork:z\ v="	Mozilla Mork database
+>23	string	x		\b, version %.3s

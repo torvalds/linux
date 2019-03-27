@@ -1,0 +1,89 @@
+.\"
+.\" Copyright (c) 2016 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 2, 2017
+.Dt IF_NTB 4
+.Os
+.Sh NAME
+.Nm if_ntb
+.Nd Virtual Ethernet interface for Non-Transparent Bridges
+.Sh SYNOPSIS
+To compile this driver into your kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ntb"
+.Cd "device ntb_transport"
+.Cd "device if_ntb"
+.Ed
+.Pp
+Or, to load the driver as a module at boot, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ntb_load="YES"
+.Ed
+.Pp
+The following tunables are settable from the
+.Xr loader 8 :
+.Bl -ohang
+.It Va hw.if_ntb.num_queues
+Limits maximal number of queues per interface.
+Default is unlimited.
+.El
+.Sh DESCRIPTION
+The
+.Nm
+driver attaches on top of the
+.Xr ntb_transport 4
+driver to utilize one or more of its packet queues to create virtual
+Ethernet network interface between the systems.
+Typical MTU for the interface is about 64KB to reduce overhead.
+Default MAC address for the interface is randomly generated.
+.Pp
+The
+.Nm
+driver does not implement any real hardware offload, but since PCIe link is
+protected by CRC32, in some situations it may be possible to save some CPU
+cycles by enabling fake checksum offload on both link sides via setting
+.Cm rxcsum
+and
+.Cm txcsum
+interface options.
+.Sh SEE ALSO
+.Xr ntb_transport 4
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was developed by Intel and originally written by
+.An Carl Delsey Aq Mt carl@FreeBSD.org .
+Later improvements were done by
+.An Conrad E. Meyer Aq Mt cem@FreeBSD.org
+and
+.An Alexander Motin Aq Mt mav@FreeBSD.org .
+.Sh BUGS
+Linux supports only one queue per interface, so manual configuration
+may be required for compatibility.

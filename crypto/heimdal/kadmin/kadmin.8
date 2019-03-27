@@ -1,0 +1,347 @@
+.\" Copyright (c) 2000 - 2007 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd Feb  22, 2007
+.Dt KADMIN 8
+.Os HEIMDAL
+.Sh NAME
+.Nm kadmin
+.Nd Kerberos administration utility
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl p Ar string \*(Ba Fl Fl principal= Ns Ar string
+.Op Fl K Ar string \*(Ba Fl Fl keytab= Ns Ar string
+.Op Fl c Ar file \*(Ba Fl Fl config-file= Ns Ar file
+.Op Fl k Ar file \*(Ba Fl Fl key-file= Ns Ar file
+.Op Fl r Ar realm \*(Ba Fl Fl realm= Ns Ar realm
+.Op Fl a Ar host \*(Ba Fl Fl admin-server= Ns Ar host
+.Op Fl s Ar port number \*(Ba Fl Fl server-port= Ns Ar port number
+.Op Fl l | Fl Fl local
+.Op Fl h | Fl Fl help
+.Op Fl v | Fl Fl version
+.Op Ar command
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+program is used to make modifications to the Kerberos database, either remotely via the
+.Xr kadmind 8
+daemon, or locally (with the
+.Fl l
+option).
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Fl p Ar string , Fl Fl principal= Ns Ar string
+principal to authenticate as
+.It Fl K Ar string , Fl Fl keytab= Ns Ar string
+keytab for authentication principal
+.It Fl c Ar file , Fl Fl config-file= Ns Ar file
+location of config file
+.It Fl k Ar file , Fl Fl key-file= Ns Ar file
+location of master key file
+.It Fl r Ar realm , Fl Fl realm= Ns Ar realm
+realm to use
+.It Fl a Ar host , Fl Fl admin-server= Ns Ar host
+server to contact
+.It Fl s Ar port number , Fl Fl server-port= Ns Ar port number
+port to use
+.It Fl l , Fl Fl local
+local admin mode
+.El
+.Pp
+If no
+.Ar command
+is given on the command line,
+.Nm
+will prompt for commands to process. Some of the commands that take
+one or more principals as argument
+.Ns ( Nm delete ,
+.Nm ext_keytab ,
+.Nm get ,
+.Nm modify ,
+and
+.Nm passwd )
+will accept a glob style wildcard, and perform the operation on all
+matching principals.
+.Pp
+Commands include:
+.\" not using a list here, since groff apparently gets confused
+.\" with nested Xo/Xc
+.Pp
+.Nm add
+.Op Fl r | Fl Fl random-key
+.Op Fl Fl random-password
+.Op Fl p Ar string \*(Ba Fl Fl password= Ns Ar string
+.Op Fl Fl key= Ns Ar string
+.Op Fl Fl max-ticket-life= Ns Ar lifetime
+.Op Fl Fl max-renewable-life= Ns Ar lifetime
+.Op Fl Fl attributes= Ns Ar attributes
+.Op Fl Fl expiration-time= Ns Ar time
+.Op Fl Fl pw-expiration-time= Ns Ar time
+.Ar principal...
+.Bd -ragged -offset indent
+Adds a new principal to the database. The options not passed on the
+command line will be promped for.
+.Ed
+.Pp
+.Nm add_enctype
+.Op Fl r | Fl Fl random-key
+.Ar principal enctypes...
+.Pp
+.Bd -ragged -offset indent
+Adds a new encryption type to the principal, only random key are
+supported.
+.Ed
+.Pp
+.Nm delete
+.Ar principal...
+.Bd -ragged -offset indent
+Removes a principal.
+.Ed
+.Pp
+.Nm del_enctype
+.Ar principal enctypes...
+.Bd -ragged -offset indent
+Removes some enctypes from a principal; this can be useful if the
+service belonging to the principal is known to not handle certain
+enctypes.
+.Ed
+.Pp
+.Nm ext_keytab
+.Oo Fl k Ar string \*(Ba Xo
+.Fl Fl keytab= Ns Ar string
+.Xc
+.Oc
+.Ar principal...
+.Bd -ragged -offset indent
+Creates a keytab with the keys of the specified principals.
+.Ed
+.Pp
+.Nm get
+.Op Fl l | Fl Fl long
+.Op Fl s | Fl Fl short
+.Op Fl t | Fl Fl terse
+.Op Fl o Ar string | Fl Fl column-info= Ns Ar string
+.Ar principal...
+.Bd -ragged -offset indent
+Lists the matching principals, short prints the result as a table,
+while long format produces a more verbose output. Which columns to
+print can be selected with the
+.Fl o
+option. The argument is a comma separated list of column names
+optionally appended with an equal sign
+.Pq Sq =
+and a column header. Which columns are printed by default differ
+slightly between short and long output.
+.Pp
+The default terse output format is similar to
+.Fl s o Ar principal= ,
+just printing the names of matched principals.
+.Pp
+Possible column names include:
+.Li principal ,
+.Li princ_expire_time ,
+.Li pw_expiration ,
+.Li last_pwd_change ,
+.Li max_life ,
+.Li max_rlife ,
+.Li mod_time ,
+.Li mod_name ,
+.Li attributes ,
+.Li kvno ,
+.Li mkvno ,
+.Li last_success ,
+.Li last_failed ,
+.Li fail_auth_count ,
+.Li policy ,
+and
+.Li keytypes .
+.Ed
+.Pp
+.Nm modify
+.Oo Fl a Ar attributes \*(Ba Xo
+.Fl Fl attributes= Ns Ar attributes
+.Xc
+.Oc
+.Op Fl Fl max-ticket-life= Ns Ar lifetime
+.Op Fl Fl max-renewable-life= Ns Ar lifetime
+.Op Fl Fl expiration-time= Ns Ar time
+.Op Fl Fl pw-expiration-time= Ns Ar time
+.Op Fl Fl kvno= Ns Ar number
+.Ar principal...
+.Bd -ragged -offset indent
+Modifies certain attributes of a principal. If run without command
+line options, you will be prompted. With command line options, it will
+only change the ones specified.
+.Pp
+Possible attributes are:
+.Li new-princ ,
+.Li support-desmd5 ,
+.Li pwchange-service ,
+.Li disallow-svr ,
+.Li requires-pw-change ,
+.Li requires-hw-auth ,
+.Li requires-pre-auth ,
+.Li disallow-all-tix ,
+.Li disallow-dup-skey ,
+.Li disallow-proxiable ,
+.Li disallow-renewable ,
+.Li disallow-tgt-based ,
+.Li disallow-forwardable ,
+.Li disallow-postdated
+.Pp
+Attributes may be negated with a "-", e.g.,
+.Pp
+kadmin -l modify -a -disallow-proxiable user
+.Ed
+.Pp
+.Nm passwd
+.Op Fl r | Fl Fl random-key
+.Op Fl Fl random-password
+.Oo Fl p Ar string \*(Ba Xo
+.Fl Fl password= Ns Ar string
+.Xc
+.Oc
+.Op Fl Fl key= Ns Ar string
+.Ar principal...
+.Bd -ragged -offset indent
+Changes the password of an existing principal.
+.Ed
+.Pp
+.Nm password-quality
+.Ar principal
+.Ar password
+.Bd -ragged -offset indent
+Run the password quality check function locally.
+You can run this on the host that is configured to run the kadmind
+process to verify that your configuration file is correct.
+The verification is done locally, if kadmin is run in remote mode,
+no rpc call is done to the server.
+.Ed
+.Pp
+.Nm privileges
+.Bd -ragged -offset indent
+Lists the operations you are allowed to perform. These include
+.Li add ,
+.Li add_enctype ,
+.Li change-password ,
+.Li delete ,
+.Li del_enctype ,
+.Li get ,
+.Li list ,
+and
+.Li modify .
+.Ed
+.Pp
+.Nm rename
+.Ar from to
+.Bd -ragged -offset indent
+Renames a principal. This is normally transparent, but since keys are
+salted with the principal name, they will have a non-standard salt,
+and clients which are unable to cope with this will fail. Kerberos 4
+suffers from this.
+.Ed
+.Pp
+.Nm check
+.Op Ar realm
+.Pp
+.Bd -ragged -offset indent
+Check database for strange configurations on important principals. If
+no realm is given, the default realm is used.
+.Ed
+.Pp
+When running in local mode, the following commands can also be used:
+.Pp
+.Nm dump
+.Op Fl d | Fl Fl decrypt
+.Op Ar dump-file
+.Bd -ragged -offset indent
+Writes the database in
+.Dq human readable
+form to the specified file, or standard out. If the database is
+encrypted, the dump will also have encrypted keys, unless
+.Fl Fl decrypt
+is used.
+.Ed
+.Pp
+.Nm init
+.Op Fl Fl realm-max-ticket-life= Ns Ar string
+.Op Fl Fl realm-max-renewable-life= Ns Ar string
+.Ar realm
+.Bd -ragged -offset indent
+Initializes the Kerberos database with entries for a new realm. It's
+possible to have more than one realm served by one server.
+.Ed
+.Pp
+.Nm load
+.Ar file
+.Bd -ragged -offset indent
+Reads a previously dumped database, and re-creates that database from
+scratch.
+.Ed
+.Pp
+.Nm merge
+.Ar file
+.Bd -ragged -offset indent
+Similar to
+.Nm load
+but just modifies the database with the entries in the dump file.
+.Ed
+.Pp
+.Nm stash
+.Oo Fl e Ar enctype \*(Ba Xo
+.Fl Fl enctype= Ns Ar enctype
+.Xc
+.Oc
+.Oo Fl k Ar keyfile \*(Ba Xo
+.Fl Fl key-file= Ns Ar keyfile
+.Xc
+.Oc
+.Op Fl Fl convert-file
+.Op Fl Fl master-key-fd= Ns Ar fd
+.Bd -ragged -offset indent
+Writes the Kerberos master key to a file used by the KDC.
+.Ed
+.\".Sh ENVIRONMENT
+.\".Sh FILES
+.\".Sh EXAMPLES
+.\".Sh DIAGNOSTICS
+.Sh SEE ALSO
+.Xr kadmind 8 ,
+.Xr kdc 8
+.\".Sh STANDARDS
+.\".Sh HISTORY
+.\".Sh AUTHORS
+.\".Sh BUGS

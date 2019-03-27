@@ -1,0 +1,99 @@
+.\"	$NetBSD: getusershell.3,v 1.6 1999/03/22 19:44:42 garbled Exp $
+.\"
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getusershell.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd January 16, 1999
+.Dt GETUSERSHELL 3
+.Os
+.Sh NAME
+.Nm getusershell ,
+.Nm setusershell ,
+.Nm endusershell
+.Nd get valid user shells
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft char *
+.Fn getusershell void
+.Ft void
+.Fn setusershell void
+.Ft void
+.Fn endusershell void
+.Sh DESCRIPTION
+The
+.Fn getusershell
+function
+returns a pointer to a valid user shell as defined by the
+system manager in the shells database as described in
+.Xr shells 5 .
+If the shells database is not available,
+.Fn getusershell
+behaves as if
+.Pa /bin/sh
+and
+.Pa /bin/csh
+were listed.
+.Pp
+The
+.Fn getusershell
+function
+reads the next
+line (opening the file if necessary);
+.Fn setusershell
+rewinds the file;
+.Fn endusershell
+closes it.
+.Sh FILES
+.Bl -tag -width /etc/shells -compact
+.It Pa /etc/shells
+.El
+.Sh DIAGNOSTICS
+The routine
+.Fn getusershell
+returns a null pointer (0) on
+.Dv EOF .
+.Sh SEE ALSO
+.Xr nsswitch.conf 5 ,
+.Xr shells 5
+.Sh HISTORY
+The
+.Fn getusershell
+function appeared in
+.Bx 4.3 .
+.Sh BUGS
+The
+.Fn getusershell
+function leaves its result in an internal static object and returns
+a pointer to that object.
+Subsequent calls to
+.Fn getusershell
+will modify the same object.

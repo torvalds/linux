@@ -1,0 +1,48 @@
+#	@(#)README	8.1 (Berkeley) 6/6/93
+#
+# $FreeBSD$
+
+col - filter out reverse line feeds.
+
+Options are:
+	-b	do not print any backspaces (last character written is printed)
+	-f	allow half line feeds in output, by default characters between
+		lines are pushed to the line below
+	-p	force unknown control sequences to be passed through unchanged
+	-x	do not compress spaces into tabs.
+	-l num	keep (at least) num lines in memory, 128 are kept by default
+
+In the 32V source code to col(1) the default behavior was to NOT compress
+spaces into tabs.  There was a -h option which caused it to compress spaces
+into tabs.  There was no -x flag.
+
+The 32V documentation, however, was consistent with the SVID (actually, V7
+at the time) and documented a -x flag (as defined above) while making no
+mention of a -h flag.  Just before 4.3BSD went out, CSRG updated the manual
+page to reflect the way the code worked.  Suspecting that this was probably
+the wrong way to go, this version adopts the SVID defaults, and no longer
+documents the -h option.
+
+Known differences between AT&T's col and this one (# is delimiter):
+	Input			AT&T col		this col
+	#\nabc\E7def\n#		#   def\nabc\r#		#   def\nabc\n#
+	#a#			##			#a\n#
+		- last line always ends with at least one \n (or \E9)
+	#1234567 8\n#		#1234567\t8\n#		#1234567 8\n#
+		- single space not expanded to tab
+     -f #a\E8b\n#		#ab\n#			# b\E9\ra\n#
+		- can back up past first line (as far as you want) so you
+		  *can* have a super script on the first line
+	#\E9_\ba\E8\nb\n#	#\n_\bb\ba\n#		#\n_\ba\bb\n#
+		- always print last character written to a position,
+		  AT&T col claims to do this but doesn't.
+
+If a character is to be placed on a line that has been flushed, a warning
+is produced (the AT&T col is silent).   The -l flag (not in AT&T col) can
+be used to increase the number of lines buffered to avoid the problem.
+
+General algorithm: a limited number of lines are buffered in a linked
+list.  When a printable character is read, it is put in the buffer of
+the current line along with the column it's supposed to be in.  When
+a line is flushed, the characters in the line are sorted according to
+column and then printed.

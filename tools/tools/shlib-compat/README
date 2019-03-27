@@ -1,0 +1,22 @@
+ABI compatibility checker for shared libraries with symbol versioning.
+
+shlib-compat uses dwarf debugging symbols to recreate definitions of
+exported symbols, including function arguments and structural types.
+
+The shlib-compat.py script requires devel/dwarfdump port to be
+installed.
+
+
+Syscalls in libc are implemented as assembly stubs and thus have no
+debugging symbols attached. To enable sysfake stubs rebuild libc
+adding the following to /etc/make.conf:
+
+.if ${.CURDIR:M/usr/src/lib/libc}
+.include "../../tools/tools/shlib-compat/Makefile.sysfake"
+.endif
+
+To compare libc.so versions compiled with sysfake stubs:
+./shlib-compat.py -v --alias-prefix __sysfake_ \
+	--alias-prefix __sysfake_freebsd8_ \
+	--exclude-ver FBSDprivate \
+	--out-orig out-orig.c --out-new out-new.c libc.so.7.orig libc.so.7.new

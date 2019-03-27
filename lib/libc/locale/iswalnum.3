@@ -1,0 +1,158 @@
+.\"	$NetBSD: iswalnum.3,v 1.5 2002/07/10 14:46:10 yamt Exp $
+.\"
+.\" Copyright (c) 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)isalnum.3	5.2 (Berkeley) 6/29/91
+.\" $FreeBSD$
+.\"
+.Dd October 3, 2002
+.Dt ISWALNUM 3
+.Os
+.Sh NAME
+.Nm iswalnum ,
+.Nm iswalpha ,
+.Nm iswascii ,
+.Nm iswblank ,
+.Nm iswcntrl ,
+.Nm iswdigit ,
+.Nm iswgraph ,
+.Nm iswhexnumber ,
+.Nm iswideogram ,
+.Nm iswlower ,
+.Nm iswnumber ,
+.Nm iswphonogram ,
+.Nm iswprint ,
+.Nm iswpunct ,
+.Nm iswrune ,
+.Nm iswspace ,
+.Nm iswspecial ,
+.Nm iswupper ,
+.Nm iswxdigit
+.Nd wide character classification utilities
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In wctype.h
+.Ft int
+.Fn iswalnum "wint_t wc"
+.Ft int
+.Fn iswalpha "wint_t wc"
+.Ft int
+.Fn iswascii "wint_t wc"
+.Ft int
+.Fn iswblank "wint_t wc"
+.Ft int
+.Fn iswcntrl "wint_t wc"
+.Ft int
+.Fn iswdigit "wint_t wc"
+.Ft int
+.Fn iswgraph "wint_t wc"
+.Ft int
+.Fn iswhexnumber "wint_t wc"
+.Ft int
+.Fn iswideogram "wint_t wc"
+.Ft int
+.Fn iswlower "wint_t wc"
+.Ft int
+.Fn iswnumber "wint_t wc"
+.Ft int
+.Fn iswphonogram "wint_t wc"
+.Ft int
+.Fn iswprint "wint_t wc"
+.Ft int
+.Fn iswpunct "wint_t wc"
+.Ft int
+.Fn iswrune "wint_t wc"
+.Ft int
+.Fn iswspace "wint_t wc"
+.Ft int
+.Fn iswspecial "wint_t wc"
+.Ft int
+.Fn iswupper "wint_t wc"
+.Ft int
+.Fn iswxdigit "wint_t wc"
+.Sh DESCRIPTION
+The above functions are character classification utility functions,
+for use with wide characters
+.Vt ( wchar_t
+or
+.Vt wint_t ) .
+See the description for the similarly-named single byte classification
+functions (like
+.Xr isalnum 3 ) ,
+for details.
+.Sh RETURN VALUES
+The functions return zero if the character tests false and
+return non-zero if the character tests true.
+.Sh SEE ALSO
+.Xr isalnum 3 ,
+.Xr isalpha 3 ,
+.Xr isascii 3 ,
+.Xr isblank 3 ,
+.Xr iscntrl 3 ,
+.Xr isdigit 3 ,
+.Xr isgraph 3 ,
+.Xr ishexnumber 3 ,
+.Xr isideogram 3 ,
+.Xr islower 3 ,
+.Xr isnumber 3 ,
+.Xr isphonogram 3 ,
+.Xr isprint 3 ,
+.Xr ispunct 3 ,
+.Xr isrune 3 ,
+.Xr isspace 3 ,
+.Xr isspecial 3 ,
+.Xr isupper 3 ,
+.Xr isxdigit 3 ,
+.Xr wctype 3
+.Sh STANDARDS
+These functions conform to
+.St -p1003.1-2001 ,
+except
+.Fn iswascii ,
+.Fn iswhexnumber ,
+.Fn iswideogram ,
+.Fn iswnumber ,
+.Fn iswphonogram ,
+.Fn iswrune
+and
+.Fn iswspecial ,
+which are
+.Fx
+extensions.
+.Sh CAVEATS
+The result of these functions is undefined unless
+the argument is
+.Dv WEOF
+or a valid
+.Vt wchar_t
+value for the current locale.

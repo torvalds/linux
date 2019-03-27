@@ -1,0 +1,745 @@
+=pod
+
+=head1 NAME
+
+openssl-cms,
+cms - CMS utility
+
+=head1 SYNOPSIS
+
+B<openssl> B<cms>
+[B<-help>]
+[B<-encrypt>]
+[B<-decrypt>]
+[B<-sign>]
+[B<-verify>]
+[B<-cmsout>]
+[B<-resign>]
+[B<-data_create>]
+[B<-data_out>]
+[B<-digest_create>]
+[B<-digest_verify>]
+[B<-compress>]
+[B<-uncompress>]
+[B<-EncryptedData_encrypt>]
+[B<-sign_receipt>]
+[B<-verify_receipt receipt>]
+[B<-in filename>]
+[B<-inform SMIME|PEM|DER>]
+[B<-rctform SMIME|PEM|DER>]
+[B<-out filename>]
+[B<-outform SMIME|PEM|DER>]
+[B<-stream -indef -noindef>]
+[B<-noindef>]
+[B<-content filename>]
+[B<-text>]
+[B<-noout>]
+[B<-print>]
+[B<-CAfile file>]
+[B<-CApath dir>]
+[B<-no-CAfile>]
+[B<-no-CApath>]
+[B<-attime timestamp>]
+[B<-check_ss_sig>]
+[B<-crl_check>]
+[B<-crl_check_all>]
+[B<-explicit_policy>]
+[B<-extended_crl>]
+[B<-ignore_critical>]
+[B<-inhibit_any>]
+[B<-inhibit_map>]
+[B<-no_check_time>]
+[B<-partial_chain>]
+[B<-policy arg>]
+[B<-policy_check>]
+[B<-policy_print>]
+[B<-purpose purpose>]
+[B<-suiteB_128>]
+[B<-suiteB_128_only>]
+[B<-suiteB_192>]
+[B<-trusted_first>]
+[B<-no_alt_chains>]
+[B<-use_deltas>]
+[B<-auth_level num>]
+[B<-verify_depth num>]
+[B<-verify_email email>]
+[B<-verify_hostname hostname>]
+[B<-verify_ip ip>]
+[B<-verify_name name>]
+[B<-x509_strict>]
+[B<-md digest>]
+[B<-I<cipher>>]
+[B<-nointern>]
+[B<-noverify>]
+[B<-nocerts>]
+[B<-noattr>]
+[B<-nosmimecap>]
+[B<-binary>]
+[B<-crlfeol>]
+[B<-asciicrlf>]
+[B<-nodetach>]
+[B<-certfile file>]
+[B<-certsout file>]
+[B<-signer file>]
+[B<-recip file>]
+[B<-keyid>]
+[B<-receipt_request_all>]
+[B<-receipt_request_first>]
+[B<-receipt_request_from emailaddress>]
+[B<-receipt_request_to emailaddress>]
+[B<-receipt_request_print>]
+[B<-secretkey key>]
+[B<-secretkeyid id>]
+[B<-econtent_type type>]
+[B<-inkey file>]
+[B<-keyopt name:parameter>]
+[B<-passin arg>]
+[B<-rand file...>]
+[B<-writerand file>]
+[B<cert.pem...>]
+[B<-to addr>]
+[B<-from addr>]
+[B<-subject subj>]
+[cert.pem]...
+
+=head1 DESCRIPTION
+
+The B<cms> command handles S/MIME v3.1 mail. It can encrypt, decrypt, sign and
+verify, compress and uncompress S/MIME messages.
+
+=head1 OPTIONS
+
+There are fourteen operation options that set the type of operation to be
+performed. The meaning of the other options varies according to the operation
+type.
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-encrypt>
+
+Encrypt mail for the given recipient certificates. Input file is the message
+to be encrypted. The output file is the encrypted mail in MIME format. The
+actual CMS type is <B>EnvelopedData<B>.
+
+Note that no revocation check is done for the recipient cert, so if that
+key has been compromised, others may be able to decrypt the text.
+
+=item B<-decrypt>
+
+Decrypt mail using the supplied certificate and private key. Expects an
+encrypted mail message in MIME format for the input file. The decrypted mail
+is written to the output file.
+
+=item B<-debug_decrypt>
+
+This option sets the B<CMS_DEBUG_DECRYPT> flag. This option should be used
+with caution: see the notes section below.
+
+=item B<-sign>
+
+Sign mail using the supplied certificate and private key. Input file is
+the message to be signed. The signed message in MIME format is written
+to the output file.
+
+=item B<-verify>
+
+Verify signed mail. Expects a signed mail message on input and outputs
+the signed data. Both clear text and opaque signing is supported.
+
+=item B<-cmsout>
+
+Takes an input message and writes out a PEM encoded CMS structure.
+
+=item B<-resign>
+
+Resign a message: take an existing message and one or more new signers.
+
+=item B<-data_create>
+
+Create a CMS B<Data> type.
+
+=item B<-data_out>
+
+B<Data> type and output the content.
+
+=item B<-digest_create>
+
+Create a CMS B<DigestedData> type.
+
+=item B<-digest_verify>
+
+Verify a CMS B<DigestedData> type and output the content.
+
+=item B<-compress>
+
+Create a CMS B<CompressedData> type. OpenSSL must be compiled with B<zlib>
+support for this option to work, otherwise it will output an error.
+
+=item B<-uncompress>
+
+Uncompress a CMS B<CompressedData> type and output the content. OpenSSL must be
+compiled with B<zlib> support for this option to work, otherwise it will
+output an error.
+
+=item B<-EncryptedData_encrypt>
+
+Encrypt content using supplied symmetric key and algorithm using a CMS
+B<EncryptedData> type and output the content.
+
+=item B<-sign_receipt>
+
+Generate and output a signed receipt for the supplied message. The input
+message B<must> contain a signed receipt request. Functionality is otherwise
+similar to the B<-sign> operation.
+
+=item B<-verify_receipt receipt>
+
+Verify a signed receipt in filename B<receipt>. The input message B<must>
+contain the original receipt request. Functionality is otherwise similar
+to the B<-verify> operation.
+
+=item B<-in filename>
+
+The input message to be encrypted or signed or the message to be decrypted
+or verified.
+
+=item B<-inform SMIME|PEM|DER>
+
+This specifies the input format for the CMS structure. The default
+is B<SMIME> which reads an S/MIME format message. B<PEM> and B<DER>
+format change this to expect PEM and DER format CMS structures
+instead. This currently only affects the input format of the CMS
+structure, if no CMS structure is being input (for example with
+B<-encrypt> or B<-sign>) this option has no effect.
+
+=item B<-rctform SMIME|PEM|DER>
+
+Specify the format for a signed receipt for use with the B<-receipt_verify>
+operation.
+
+=item B<-out filename>
+
+The message text that has been decrypted or verified or the output MIME
+format message that has been signed or verified.
+
+=item B<-outform SMIME|PEM|DER>
+
+This specifies the output format for the CMS structure. The default
+is B<SMIME> which writes an S/MIME format message. B<PEM> and B<DER>
+format change this to write PEM and DER format CMS structures
+instead. This currently only affects the output format of the CMS
+structure, if no CMS structure is being output (for example with
+B<-verify> or B<-decrypt>) this option has no effect.
+
+=item B<-stream -indef -noindef>
+
+The B<-stream> and B<-indef> options are equivalent and enable streaming I/O
+for encoding operations. This permits single pass processing of data without
+the need to hold the entire contents in memory, potentially supporting very
+large files. Streaming is automatically set for S/MIME signing with detached
+data if the output format is B<SMIME> it is currently off by default for all
+other operations.
+
+=item B<-noindef>
+
+Disable streaming I/O where it would produce and indefinite length constructed
+encoding. This option currently has no effect. In future streaming will be
+enabled by default on all relevant operations and this option will disable it.
+
+=item B<-content filename>
+
+This specifies a file containing the detached content, this is only
+useful with the B<-verify> command. This is only usable if the CMS
+structure is using the detached signature form where the content is
+not included. This option will override any content if the input format
+is S/MIME and it uses the multipart/signed MIME content type.
+
+=item B<-text>
+
+This option adds plain text (text/plain) MIME headers to the supplied
+message if encrypting or signing. If decrypting or verifying it strips
+off text headers: if the decrypted or verified message is not of MIME
+type text/plain then an error occurs.
+
+=item B<-noout>
+
+For the B<-cmsout> operation do not output the parsed CMS structure. This
+is useful when combined with the B<-print> option or if the syntax of the CMS
+structure is being checked.
+
+=item B<-print>
+
+For the B<-cmsout> operation print out all fields of the CMS structure. This
+is mainly useful for testing purposes.
+
+=item B<-CAfile file>
+
+A file containing trusted CA certificates, only used with B<-verify>.
+
+=item B<-CApath dir>
+
+A directory containing trusted CA certificates, only used with
+B<-verify>. This directory must be a standard certificate directory: that
+is a hash of each subject name (using B<x509 -hash>) should be linked
+to each certificate.
+
+=item B<-no-CAfile>
+
+Do not load the trusted CA certificates from the default file location
+
+=item B<-no-CApath>
+
+Do not load the trusted CA certificates from the default directory location
+
+=item B<-md digest>
+
+Digest algorithm to use when signing or resigning. If not present then the
+default digest algorithm for the signing key will be used (usually SHA1).
+
+=item B<-I<cipher>>
+
+The encryption algorithm to use. For example triple DES (168 bits) - B<-des3>
+or 256 bit AES - B<-aes256>. Any standard algorithm name (as used by the
+EVP_get_cipherbyname() function) can also be used preceded by a dash, for
+example B<-aes-128-cbc>. See L<enc(1)> for a list of ciphers
+supported by your version of OpenSSL.
+
+If not specified triple DES is used. Only used with B<-encrypt> and
+B<-EncryptedData_create> commands.
+
+=item B<-nointern>
+
+When verifying a message normally certificates (if any) included in
+the message are searched for the signing certificate. With this option
+only the certificates specified in the B<-certfile> option are used.
+The supplied certificates can still be used as untrusted CAs however.
+
+=item B<-noverify>
+
+Do not verify the signers certificate of a signed message.
+
+=item B<-nocerts>
+
+When signing a message the signer's certificate is normally included
+with this option it is excluded. This will reduce the size of the
+signed message but the verifier must have a copy of the signers certificate
+available locally (passed using the B<-certfile> option for example).
+
+=item B<-noattr>
+
+Normally when a message is signed a set of attributes are included which
+include the signing time and supported symmetric algorithms. With this
+option they are not included.
+
+=item B<-nosmimecap>
+
+Exclude the list of supported algorithms from signed attributes, other options
+such as signing time and content type are still included.
+
+=item B<-binary>
+
+Normally the input message is converted to "canonical" format which is
+effectively using CR and LF as end of line: as required by the S/MIME
+specification. When this option is present no translation occurs. This
+is useful when handling binary data which may not be in MIME format.
+
+=item B<-crlfeol>
+
+Normally the output file uses a single B<LF> as end of line. When this
+option is present B<CRLF> is used instead.
+
+=item B<-asciicrlf>
+
+When signing use ASCII CRLF format canonicalisation. This strips trailing
+whitespace from all lines, deletes trailing blank lines at EOF and sets
+the encapsulated content type. This option is normally used with detached
+content and an output signature format of DER. This option is not normally
+needed when verifying as it is enabled automatically if the encapsulated
+content format is detected.
+
+=item B<-nodetach>
+
+When signing a message use opaque signing: this form is more resistant
+to translation by mail relays but it cannot be read by mail agents that
+do not support S/MIME.  Without this option cleartext signing with
+the MIME type multipart/signed is used.
+
+=item B<-certfile file>
+
+Allows additional certificates to be specified. When signing these will
+be included with the message. When verifying these will be searched for
+the signers certificates. The certificates should be in PEM format.
+
+=item B<-certsout file>
+
+Any certificates contained in the message are written to B<file>.
+
+=item B<-signer file>
+
+A signing certificate when signing or resigning a message, this option can be
+used multiple times if more than one signer is required. If a message is being
+verified then the signers certificates will be written to this file if the
+verification was successful.
+
+=item B<-recip file>
+
+When decrypting a message this specifies the recipients certificate. The
+certificate must match one of the recipients of the message or an error
+occurs.
+
+When encrypting a message this option may be used multiple times to specify
+each recipient. This form B<must> be used if customised parameters are
+required (for example to specify RSA-OAEP).
+
+Only certificates carrying RSA, Diffie-Hellman or EC keys are supported by this
+option.
+
+=item B<-keyid>
+
+Use subject key identifier to identify certificates instead of issuer name and
+serial number. The supplied certificate B<must> include a subject key
+identifier extension. Supported by B<-sign> and B<-encrypt> options.
+
+=item B<-receipt_request_all>, B<-receipt_request_first>
+
+For B<-sign> option include a signed receipt request. Indicate requests should
+be provided by all recipient or first tier recipients (those mailed directly
+and not from a mailing list). Ignored it B<-receipt_request_from> is included.
+
+=item B<-receipt_request_from emailaddress>
+
+For B<-sign> option include a signed receipt request. Add an explicit email
+address where receipts should be supplied.
+
+=item B<-receipt_request_to emailaddress>
+
+Add an explicit email address where signed receipts should be sent to. This
+option B<must> but supplied if a signed receipt it requested.
+
+=item B<-receipt_request_print>
+
+For the B<-verify> operation print out the contents of any signed receipt
+requests.
+
+=item B<-secretkey key>
+
+Specify symmetric key to use. The key must be supplied in hex format and be
+consistent with the algorithm used. Supported by the B<-EncryptedData_encrypt>
+B<-EncryptedData_decrypt>, B<-encrypt> and B<-decrypt> options. When used
+with B<-encrypt> or B<-decrypt> the supplied key is used to wrap or unwrap the
+content encryption key using an AES key in the B<KEKRecipientInfo> type.
+
+=item B<-secretkeyid id>
+
+The key identifier for the supplied symmetric key for B<KEKRecipientInfo> type.
+This option B<must> be present if the B<-secretkey> option is used with
+B<-encrypt>. With B<-decrypt> operations the B<id> is used to locate the
+relevant key if it is not supplied then an attempt is used to decrypt any
+B<KEKRecipientInfo> structures.
+
+=item B<-econtent_type type>
+
+Set the encapsulated content type to B<type> if not supplied the B<Data> type
+is used. The B<type> argument can be any valid OID name in either text or
+numerical format.
+
+=item B<-inkey file>
+
+The private key to use when signing or decrypting. This must match the
+corresponding certificate. If this option is not specified then the
+private key must be included in the certificate file specified with
+the B<-recip> or B<-signer> file. When signing this option can be used
+multiple times to specify successive keys.
+
+=item B<-keyopt name:opt>
+
+For signing and encryption this option can be used multiple times to
+set customised parameters for the preceding key or certificate. It can
+currently be used to set RSA-PSS for signing, RSA-OAEP for encryption
+or to modify default parameters for ECDH.
+
+=item B<-passin arg>
+
+The private key password source. For more information about the format of B<arg>
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
+
+=item B<-rand file...>
+
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
+The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
+all others.
+
+=item [B<-writerand file>]
+
+Writes random data to the specified I<file> upon exit.
+This can be used with a subsequent B<-rand> flag.
+
+=item B<cert.pem...>
+
+One or more certificates of message recipients: used when encrypting
+a message.
+
+=item B<-to, -from, -subject>
+
+The relevant mail headers. These are included outside the signed
+portion of a message so they may be included manually. If signing
+then many S/MIME mail clients check the signers certificate's email
+address matches that specified in the From: address.
+
+=item B<-attime>, B<-check_ss_sig>, B<-crl_check>, B<-crl_check_all>,
+B<-explicit_policy>, B<-extended_crl>, B<-ignore_critical>, B<-inhibit_any>,
+B<-inhibit_map>, B<-no_alt_chains>, B<-no_check_time>, B<-partial_chain>, B<-policy>,
+B<-policy_check>, B<-policy_print>, B<-purpose>, B<-suiteB_128>,
+B<-suiteB_128_only>, B<-suiteB_192>, B<-trusted_first>, B<-use_deltas>,
+B<-auth_level>, B<-verify_depth>, B<-verify_email>, B<-verify_hostname>,
+B<-verify_ip>, B<-verify_name>, B<-x509_strict>
+
+Set various certificate chain validation options. See the
+L<verify(1)> manual page for details.
+
+=back
+
+=head1 NOTES
+
+The MIME message must be sent without any blank lines between the
+headers and the output. Some mail programs will automatically add
+a blank line. Piping the mail directly to sendmail is one way to
+achieve the correct format.
+
+The supplied message to be signed or encrypted must include the
+necessary MIME headers or many S/MIME clients won't display it
+properly (if at all). You can use the B<-text> option to automatically
+add plain text headers.
+
+A "signed and encrypted" message is one where a signed message is
+then encrypted. This can be produced by encrypting an already signed
+message: see the examples section.
+
+This version of the program only allows one signer per message but it
+will verify multiple signers on received messages. Some S/MIME clients
+choke if a message contains multiple signers. It is possible to sign
+messages "in parallel" by signing an already signed message.
+
+The options B<-encrypt> and B<-decrypt> reflect common usage in S/MIME
+clients. Strictly speaking these process CMS enveloped data: CMS
+encrypted data is used for other purposes.
+
+The B<-resign> option uses an existing message digest when adding a new
+signer. This means that attributes must be present in at least one existing
+signer using the same message digest or this operation will fail.
+
+The B<-stream> and B<-indef> options enable streaming I/O support.
+As a result the encoding is BER using indefinite length constructed encoding
+and no longer DER. Streaming is supported for the B<-encrypt> operation and the
+B<-sign> operation if the content is not detached.
+
+Streaming is always used for the B<-sign> operation with detached data but
+since the content is no longer part of the CMS structure the encoding
+remains DER.
+
+If the B<-decrypt> option is used without a recipient certificate then an
+attempt is made to locate the recipient by trying each potential recipient
+in turn using the supplied private key. To thwart the MMA attack
+(Bleichenbacher's attack on PKCS #1 v1.5 RSA padding) all recipients are
+tried whether they succeed or not and if no recipients match the message
+is "decrypted" using a random key which will typically output garbage.
+The B<-debug_decrypt> option can be used to disable the MMA attack protection
+and return an error if no recipient can be found: this option should be used
+with caution. For a fuller description see L<CMS_decrypt(3)>).
+
+=head1 EXIT CODES
+
+=over 4
+
+=item Z<>0
+
+The operation was completely successfully.
+
+=item Z<>1
+
+An error occurred parsing the command options.
+
+=item Z<>2
+
+One of the input files could not be read.
+
+=item Z<>3
+
+An error occurred creating the CMS file or when reading the MIME
+message.
+
+=item Z<>4
+
+An error occurred decrypting or verifying the message.
+
+=item Z<>5
+
+The message was verified correctly but an error occurred writing out
+the signers certificates.
+
+=back
+
+=head1 COMPATIBILITY WITH PKCS#7 format.
+
+The B<smime> utility can only process the older B<PKCS#7> format. The B<cms>
+utility supports Cryptographic Message Syntax format. Use of some features
+will result in messages which cannot be processed by applications which only
+support the older format. These are detailed below.
+
+The use of the B<-keyid> option with B<-sign> or B<-encrypt>.
+
+The B<-outform PEM> option uses different headers.
+
+The B<-compress> option.
+
+The B<-secretkey> option when used with B<-encrypt>.
+
+The use of PSS with B<-sign>.
+
+The use of OAEP or non-RSA keys with B<-encrypt>.
+
+Additionally the B<-EncryptedData_create> and B<-data_create> type cannot
+be processed by the older B<smime> command.
+
+=head1 EXAMPLES
+
+Create a cleartext signed message:
+
+ openssl cms -sign -in message.txt -text -out mail.msg \
+        -signer mycert.pem
+
+Create an opaque signed message
+
+ openssl cms -sign -in message.txt -text -out mail.msg -nodetach \
+        -signer mycert.pem
+
+Create a signed message, include some additional certificates and
+read the private key from another file:
+
+ openssl cms -sign -in in.txt -text -out mail.msg \
+        -signer mycert.pem -inkey mykey.pem -certfile mycerts.pem
+
+Create a signed message with two signers, use key identifier:
+
+ openssl cms -sign -in message.txt -text -out mail.msg \
+        -signer mycert.pem -signer othercert.pem -keyid
+
+Send a signed message under Unix directly to sendmail, including headers:
+
+ openssl cms -sign -in in.txt -text -signer mycert.pem \
+        -from steve@openssl.org -to someone@somewhere \
+        -subject "Signed message" | sendmail someone@somewhere
+
+Verify a message and extract the signer's certificate if successful:
+
+ openssl cms -verify -in mail.msg -signer user.pem -out signedtext.txt
+
+Send encrypted mail using triple DES:
+
+ openssl cms -encrypt -in in.txt -from steve@openssl.org \
+        -to someone@somewhere -subject "Encrypted message" \
+        -des3 user.pem -out mail.msg
+
+Sign and encrypt mail:
+
+ openssl cms -sign -in ml.txt -signer my.pem -text \
+        | openssl cms -encrypt -out mail.msg \
+        -from steve@openssl.org -to someone@somewhere \
+        -subject "Signed and Encrypted message" -des3 user.pem
+
+Note: the encryption command does not include the B<-text> option because the
+message being encrypted already has MIME headers.
+
+Decrypt mail:
+
+ openssl cms -decrypt -in mail.msg -recip mycert.pem -inkey key.pem
+
+The output from Netscape form signing is a PKCS#7 structure with the
+detached signature format. You can use this program to verify the
+signature by line wrapping the base64 encoded structure and surrounding
+it with:
+
+ -----BEGIN PKCS7-----
+ -----END PKCS7-----
+
+and using the command,
+
+ openssl cms -verify -inform PEM -in signature.pem -content content.txt
+
+alternatively you can base64 decode the signature and use
+
+ openssl cms -verify -inform DER -in signature.der -content content.txt
+
+Create an encrypted message using 128 bit Camellia:
+
+ openssl cms -encrypt -in plain.txt -camellia128 -out mail.msg cert.pem
+
+Add a signer to an existing message:
+
+ openssl cms -resign -in mail.msg -signer newsign.pem -out mail2.msg
+
+Sign mail using RSA-PSS:
+
+ openssl cms -sign -in message.txt -text -out mail.msg \
+        -signer mycert.pem -keyopt rsa_padding_mode:pss
+
+Create encrypted mail using RSA-OAEP:
+
+ openssl cms -encrypt -in plain.txt -out mail.msg \
+        -recip cert.pem -keyopt rsa_padding_mode:oaep
+
+Use SHA256 KDF with an ECDH certificate:
+
+ openssl cms -encrypt -in plain.txt -out mail.msg \
+        -recip ecdhcert.pem -keyopt ecdh_kdf_md:sha256
+
+=head1 BUGS
+
+The MIME parser isn't very clever: it seems to handle most messages that I've
+thrown at it but it may choke on others.
+
+The code currently will only write out the signer's certificate to a file: if
+the signer has a separate encryption certificate this must be manually
+extracted. There should be some heuristic that determines the correct
+encryption certificate.
+
+Ideally a database should be maintained of a certificates for each email
+address.
+
+The code doesn't currently take note of the permitted symmetric encryption
+algorithms as supplied in the SMIMECapabilities signed attribute. this means the
+user has to manually include the correct encryption algorithm. It should store
+the list of permitted ciphers in a database and only use those.
+
+No revocation checking is done on the signer's certificate.
+
+=head1 HISTORY
+
+The use of multiple B<-signer> options and the B<-resign> command were first
+added in OpenSSL 1.0.0.
+
+The B<keyopt> option was added in OpenSSL 1.0.2.
+
+Support for RSA-OAEP and RSA-PSS was added in OpenSSL 1.0.2.
+
+The use of non-RSA keys with B<-encrypt> and B<-decrypt>
+was added in OpenSSL 1.0.2.
+
+The -no_alt_chains option was added in OpenSSL 1.0.2b.
+
+=head1 COPYRIGHT
+
+Copyright 2008-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

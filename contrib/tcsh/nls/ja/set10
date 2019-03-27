@@ -1,0 +1,8 @@
+$ $tcsh: set10,v 1.3 2011/02/04 18:19:39 christos Exp $
+$ ma.setp.c
+$set 10 
+1 setpath: コマンドが不正です '%s'.\n
+2 setpath: '%s' コマンドのためのアーギュメントが不足しています.\n
+3 setpath: パス '%s'の内容が間違っています\n
+4 setpath: %s が %s の中にありません\n
+5 setpath: %d は %s の中では,間違った位置です\n

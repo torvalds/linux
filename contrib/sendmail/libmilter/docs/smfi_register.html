@@ -1,0 +1,224 @@
+<HTML>
+<HEAD><TITLE>smfi_register</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_register.html,v 1.19 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_register</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_register(
+	smfiDesc descr
+);
+</PRE>
+Register a set of filter callbacks.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=1>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>smfi_register must be called before smfi_main</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>smfi_register creates a filter using the information given in the
+smfiDesc argument.
+Multiple (successful) calls to smfi_register within a
+single process are not allowed,
+i.e., only one filter can be successfully registered.
+Note, however, that the library may not check whether this restriction
+is obeyed.
+</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>descr</TD>
+	<TD>
+A filter descriptor of type smfiDesc describing the filter's functions.
+<A NAME="smfiDesc">The structure</A> has the following members:
+<PRE>
+struct smfiDesc
+{
+	char		*xxfi_name;	/* filter name */
+	int		xxfi_version;	/* version code -- do not change */
+	unsigned long	xxfi_flags;	/* <A href="#flags">flags</A> */
+
+	/* connection info filter */
+	sfsistat	(*<A href="xxfi_connect.html">xxfi_connect</A>)(SMFICTX *, char *, _SOCK_ADDR *);
+	/* SMTP HELO command filter */
+	sfsistat	(*<A href="xxfi_helo.html">xxfi_helo</A>)(SMFICTX *, char *);
+	/* envelope sender filter */
+	sfsistat	(*<A href="xxfi_envfrom.html">xxfi_envfrom</A>)(SMFICTX *, char **);
+	/* envelope recipient filter */
+	sfsistat	(*<A href="xxfi_envrcpt.html">xxfi_envrcpt</A>)(SMFICTX *, char **);
+	/* header filter */
+	sfsistat	(*<A href="xxfi_header.html">xxfi_header</A>)(SMFICTX *, char *, char *);
+	/* end of header */
+	sfsistat	(*<A href="xxfi_eoh.html">xxfi_eoh</A>)(SMFICTX *);
+	/* body block */
+	sfsistat	(*<A href="xxfi_body.html">xxfi_body</A>)(SMFICTX *, unsigned char *, size_t);
+	/* end of message */
+	sfsistat	(*<A href="xxfi_eom.html">xxfi_eom</A>)(SMFICTX *);
+	/* message aborted */
+	sfsistat	(*<A href="xxfi_abort.html">xxfi_abort</A>)(SMFICTX *);
+	/* connection cleanup */
+	sfsistat	(*<A href="xxfi_close.html">xxfi_close</A>)(SMFICTX *);
+
+	/* any unrecognized or unimplemented command filter */
+	sfsistat	(*xxfi_unknown)(SMFICTX *, const char *);
+
+	/* SMTP DATA command filter */
+	sfsistat	(*xxfi_data)(SMFICTX *);
+
+	/* negotiation callback */
+	sfsistat (*<A HREF="xxfi_negotiate.html">xxfi_negotiate</A>)(SMFICTX *,
+		unsigned long, unsigned long, unsigned long, unsigned long,
+		unsigned long *, unsigned long *, unsigned long *, unsigned long *);
+};
+</PRE>
+
+A NULL value for any callback function indicates that the filter
+does not wish to process the given type of information,
+simply returning SMFIS_CONTINUE.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>
+smfi_register may return MI_FAILURE for any of the following reasons:
+<UL>
+<LI>memory allocation failed.  
+<LI>incompatible version or illegal flags value.
+</UL>
+
+</TD>
+</TR>
+
+<!----------- Notes ---------->
+<TR align="left" valign=top>
+<TH>NOTES</TH> 
+<TD>
+
+<A NAME="flags">The xxfi_flags</A>
+field should contain the bitwise OR of zero or more of
+the following values, describing the actions the filter may take:
+<TABLE BORDER CELLPADDING="1" cellspacing=1>
+<TR valign="top" bgcolor="#dddddd"><TH align="left">Flag</TH><TH align="center">Description</TH></TR>
+  <TR align="left" valign=top>
+    <TD>
+        SMFIF_ADDHDRS
+    </TD>
+    <TD>
+        This filter may <A HREF="smfi_addheader.html">add headers</A>.
+    </TD>
+  </TR>
+  <TR align="left" valign=top>
+    <TD>
+        SMFIF_CHGHDRS
+    </TD>
+    <TD>
+        This filter may
+	<A HREF="smfi_chgheader.html">change and/or delete headers</A>.
+    </TD>
+  </TR>
+  <TR align="left" valign=top>
+    <TD VALIGN="TOP">
+        SMFIF_CHGBODY
+    </TD>
+    <TD>
+        This filter may
+	<A HREF="smfi_replacebody.html">replace the body</A> during filtering.
+        This may have significant performance impact
+        if other filters do body filtering after this filter.
+    </TD>
+  </TR>
+  <TR>
+    <TD VALIGN="TOP">
+        SMFIF_ADDRCPT
+    </TD>
+    <TD>
+        This filter may
+	<A HREF="smfi_addrcpt.html">add recipients</A>
+	to the message.
+    </TD>
+  </TR>
+  <TR>
+    <TD VALIGN="TOP">
+	SMFIF_ADDRCPT_PAR
+    </TD>
+    <TD>
+	This filter may
+	<A HREF="smfi_addrcpt_par.html">add recipients including ESMTP args</A>.
+    </TD>
+  </TR>
+  <TR>
+    <TD VALIGN="TOP">
+        SMFIF_DELRCPT
+    </TD>
+    <TD>
+        This filter may
+	<A HREF="smfi_delrcpt.html">remove recipients</A> from the message.
+    </TD>
+  </TR>
+  <TR>
+    <TD VALIGN="TOP">
+	SMFIF_QUARANTINE
+    </TD>
+    <TD>
+	This filter may
+	<A HREF="smfi_quarantine.html">quarantine</A> a message.
+    </TD>
+  </TR>
+
+  <TR>
+    <TD VALIGN="TOP">
+	SMFIF_CHGFROM
+    </TD>
+    <TD>
+	This filter may
+	<A HREF="smfi_chgfrom.html">change the envelope sender</A> (MAIL).
+    </TD>
+  </TR>
+
+  <TR>
+    <TD VALIGN="TOP">
+	SMFIF_SETSYMLIST
+    </TD>
+    <TD>
+	This filter can
+	<A HREF="smfi_setsymlist.html">send a set of symbols (macros)</A>
+	that it wants.
+    </TD>
+  </TR>
+
+</TABLE>
+
+</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000-2001, 2003, 2006 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

@@ -1,0 +1,340 @@
+//===--- X86Target.def - X86 Feature/Processor Database ---------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the X86-specific Features and Processors, as used by
+// the X86 Targets.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef PROC_WITH_FEAT
+#define PROC_WITH_FEAT(ENUM, STRING, IS64BIT, KEYFEATURE)                      \
+  PROC(ENUM, STRING, IS64BIT)
+#endif
+
+#ifndef PROC
+#define PROC(ENUM, STRING, IS64BIT)
+#endif
+
+#ifndef PROC_ALIAS
+#define PROC_ALIAS(ENUM, ALIAS)
+#endif
+
+#ifndef FEATURE
+#define FEATURE(ENUM)
+#endif
+
+#ifndef CPU_SPECIFIC
+#define CPU_SPECIFIC(NAME, MANGLING, FEATURES)
+#endif
+
+#ifndef CPU_SPECIFIC_ALIAS
+#define CPU_SPECIFIC_ALIAS(NEW_NAME, NAME)
+#endif
+
+#define PROC_64_BIT true
+#define PROC_32_BIT false
+
+/// \name i386
+/// i386-generation processors.
+//@{
+PROC(i386, "i386", PROC_32_BIT)
+//@}
+
+/// \name i486
+/// i486-generation processors.
+//@{
+PROC(i486, "i486", PROC_32_BIT)
+PROC(WinChipC6, "winchip-c6", PROC_32_BIT)
+PROC(WinChip2, "winchip2", PROC_32_BIT)
+PROC(C3, "c3", PROC_32_BIT)
+//@}
+
+/// \name i586
+/// i586-generation processors, P5 microarchitecture based.
+//@{
+PROC(i586, "i586", PROC_32_BIT)
+PROC(Pentium, "pentium", PROC_32_BIT)
+PROC(PentiumMMX, "pentium-mmx", PROC_32_BIT)
+//@}
+
+/// \name i686
+/// i686-generation processors, P6 / Pentium M microarchitecture based.
+//@{
+PROC(PentiumPro, "pentiumpro", PROC_32_BIT)
+PROC_ALIAS(PentiumPro, "i686")
+PROC(Pentium2, "pentium2", PROC_32_BIT)
+PROC(Pentium3, "pentium3", PROC_32_BIT)
+PROC_ALIAS(Pentium3, "pentium3m")
+PROC(PentiumM, "pentium-m", PROC_32_BIT)
+PROC(C3_2, "c3-2", PROC_32_BIT)
+
+/// This enumerator is a bit odd, as GCC no longer accepts -march=yonah.
+/// Clang however has some logic to support this.
+// FIXME: Warn, deprecate, and potentially remove this.
+PROC(Yonah, "yonah", PROC_32_BIT)
+//@}
+
+/// \name Netburst
+/// Netburst microarchitecture based processors.
+//@{
+PROC(Pentium4, "pentium4", PROC_32_BIT)
+PROC_ALIAS(Pentium4, "pentium4m")
+
+PROC(Prescott, "prescott", PROC_32_BIT)
+PROC(Nocona, "nocona", PROC_64_BIT)
+//@}
+
+/// \name Core
+/// Core microarchitecture based processors.
+//@{
+PROC_WITH_FEAT(Core2, "core2", PROC_64_BIT, FEATURE_SSSE3)
+
+/// This enumerator, like Yonah, is a bit odd. It is another
+/// codename which GCC no longer accepts as an option to -march, but Clang
+/// has some logic for recognizing it.
+// FIXME: Warn, deprecate, and potentially remove this.
+PROC(Penryn, "penryn", PROC_64_BIT)
+//@}
+
+/// \name Atom
+/// Atom processors
+//@{
+PROC_WITH_FEAT(Bonnell, "bonnell", PROC_64_BIT, FEATURE_SSSE3)
+PROC_ALIAS(Bonnell, "atom")
+
+PROC_WITH_FEAT(Silvermont, "silvermont", PROC_64_BIT, FEATURE_SSE4_2)
+PROC_ALIAS(Silvermont, "slm")
+
+PROC(Goldmont, "goldmont", PROC_64_BIT)
+PROC(GoldmontPlus, "goldmont-plus", PROC_64_BIT)
+
+PROC(Tremont, "tremont", PROC_64_BIT)
+//@}
+
+/// \name Nehalem
+/// Nehalem microarchitecture based processors.
+PROC_WITH_FEAT(Nehalem, "nehalem", PROC_64_BIT, FEATURE_SSE4_2)
+PROC_ALIAS(Nehalem, "corei7")
+
+/// \name Westmere
+/// Westmere microarchitecture based processors.
+PROC_WITH_FEAT(Westmere, "westmere", PROC_64_BIT, FEATURE_PCLMUL)
+
+/// \name Sandy Bridge
+/// Sandy Bridge microarchitecture based processors.
+PROC_WITH_FEAT(SandyBridge, "sandybridge", PROC_64_BIT, FEATURE_AVX)
+PROC_ALIAS(SandyBridge, "corei7-avx")
+
+/// \name Ivy Bridge
+/// Ivy Bridge microarchitecture based processors.
+PROC_WITH_FEAT(IvyBridge, "ivybridge", PROC_64_BIT, FEATURE_AVX)
+PROC_ALIAS(IvyBridge, "core-avx-i")
+
+/// \name Haswell
+/// Haswell microarchitecture based processors.
+PROC_WITH_FEAT(Haswell, "haswell", PROC_64_BIT, FEATURE_AVX2)
+PROC_ALIAS(Haswell, "core-avx2")
+
+/// \name Broadwell
+/// Broadwell microarchitecture based processors.
+PROC_WITH_FEAT(Broadwell, "broadwell", PROC_64_BIT, FEATURE_AVX2)
+
+/// \name Skylake Client
+/// Skylake client microarchitecture based processors.
+PROC_WITH_FEAT(SkylakeClient, "skylake", PROC_64_BIT, FEATURE_AVX2)
+
+/// \name Skylake Server
+/// Skylake server microarchitecture based processors.
+PROC_WITH_FEAT(SkylakeServer, "skylake-avx512", PROC_64_BIT, FEATURE_AVX512F)
+PROC_ALIAS(SkylakeServer, "skx")
+
+/// \name Cascadelake Server
+/// Cascadelake Server microarchitecture based processors.
+PROC_WITH_FEAT(Cascadelake, "cascadelake", PROC_64_BIT, FEATURE_AVX512VNNI)
+
+/// \name Cannonlake Client
+/// Cannonlake client microarchitecture based processors.
+PROC_WITH_FEAT(Cannonlake, "cannonlake", PROC_64_BIT, FEATURE_AVX512VBMI)
+
+/// \name Icelake Client
+/// Icelake client microarchitecture based processors.
+PROC(IcelakeClient, "icelake-client", PROC_64_BIT)
+
+/// \name Icelake Server
+/// Icelake server microarchitecture based processors.
+PROC(IcelakeServer, "icelake-server", PROC_64_BIT)
+
+/// \name Knights Landing
+/// Knights Landing processor.
+PROC_WITH_FEAT(KNL, "knl", PROC_64_BIT, FEATURE_AVX512F)
+
+/// \name Knights Mill
+/// Knights Mill processor.
+PROC_WITH_FEAT(KNM, "knm", PROC_64_BIT, FEATURE_AVX5124FMAPS)
+
+/// \name Lakemont
+/// Lakemont microarchitecture based processors.
+PROC(Lakemont, "lakemont", PROC_32_BIT)
+
+/// \name K6
+/// K6 architecture processors.
+//@{
+PROC(K6, "k6", PROC_32_BIT)
+PROC(K6_2, "k6-2", PROC_32_BIT)
+PROC(K6_3, "k6-3", PROC_32_BIT)
+//@}
+
+/// \name K7
+/// K7 architecture processors.
+//@{
+PROC(Athlon, "athlon", PROC_32_BIT)
+PROC_ALIAS(Athlon, "athlon-tbird")
+
+PROC(AthlonXP, "athlon-xp", PROC_32_BIT)
+PROC_ALIAS(AthlonXP, "athlon-mp")
+PROC_ALIAS(AthlonXP, "athlon-4")
+//@}
+
+/// \name K8
+/// K8 architecture processors.
+//@{
+PROC(K8, "k8", PROC_64_BIT)
+PROC_ALIAS(K8, "athlon64")
+PROC_ALIAS(K8, "athlon-fx")
+PROC_ALIAS(K8, "opteron")
+
+PROC(K8SSE3, "k8-sse3", PROC_64_BIT)
+PROC_ALIAS(K8SSE3, "athlon64-sse3")
+PROC_ALIAS(K8SSE3, "opteron-sse3")
+
+PROC_WITH_FEAT(AMDFAM10, "amdfam10", PROC_64_BIT, FEATURE_SSE4_A)
+PROC_ALIAS(AMDFAM10, "barcelona")
+//@}
+
+/// \name Bobcat
+/// Bobcat architecture processors.
+//@{
+PROC_WITH_FEAT(BTVER1, "btver1", PROC_64_BIT, FEATURE_SSE4_A)
+PROC_WITH_FEAT(BTVER2, "btver2", PROC_64_BIT, FEATURE_BMI)
+//@}
+
+/// \name Bulldozer
+/// Bulldozer architecture processors.
+//@{
+PROC_WITH_FEAT(BDVER1, "bdver1", PROC_64_BIT, FEATURE_XOP)
+PROC_WITH_FEAT(BDVER2, "bdver2", PROC_64_BIT, FEATURE_FMA)
+PROC_WITH_FEAT(BDVER3, "bdver3", PROC_64_BIT, FEATURE_FMA)
+PROC_WITH_FEAT(BDVER4, "bdver4", PROC_64_BIT, FEATURE_AVX2)
+//@}
+
+/// \name zen
+/// Zen architecture processors.
+//@{
+PROC_WITH_FEAT(ZNVER1, "znver1", PROC_64_BIT, FEATURE_AVX2)
+//@}
+
+/// This specification is deprecated and will be removed in the future.
+/// Users should prefer K8.
+// FIXME: Warn on this when the CPU is set to it.
+//@{
+PROC(x86_64, "x86-64", PROC_64_BIT)
+//@}
+
+/// \name Geode
+/// Geode processors.
+//@{
+PROC(Geode, "geode", PROC_32_BIT)
+//@}
+
+// List of CPU Supports features in order.  These need to remain in the order
+// required by attribute 'target' checking.  Note that not all are supported/
+// prioritized by GCC, so synchronization with GCC's implementation may require
+// changing some existing values.
+FEATURE(FEATURE_CMOV)
+FEATURE(FEATURE_MMX)
+FEATURE(FEATURE_SSE)
+FEATURE(FEATURE_SSE2)
+FEATURE(FEATURE_SSE3)
+FEATURE(FEATURE_SSSE3)
+FEATURE(FEATURE_SSE4_A)
+FEATURE(FEATURE_SSE4_1)
+FEATURE(FEATURE_SSE4_2)
+FEATURE(FEATURE_POPCNT)
+FEATURE(FEATURE_AES)
+FEATURE(FEATURE_PCLMUL)
+FEATURE(FEATURE_AVX)
+FEATURE(FEATURE_BMI)
+FEATURE(FEATURE_FMA4)
+FEATURE(FEATURE_XOP)
+FEATURE(FEATURE_FMA)
+FEATURE(FEATURE_BMI2)
+FEATURE(FEATURE_AVX2)
+FEATURE(FEATURE_AVX512F)
+FEATURE(FEATURE_AVX512VL)
+FEATURE(FEATURE_AVX512BW)
+FEATURE(FEATURE_AVX512DQ)
+FEATURE(FEATURE_AVX512CD)
+FEATURE(FEATURE_AVX512ER)
+FEATURE(FEATURE_AVX512PF)
+FEATURE(FEATURE_AVX512VBMI)
+FEATURE(FEATURE_AVX512IFMA)
+FEATURE(FEATURE_AVX5124VNNIW)
+FEATURE(FEATURE_AVX5124FMAPS)
+FEATURE(FEATURE_AVX512VPOPCNTDQ)
+FEATURE(FEATURE_AVX512VBMI2)
+FEATURE(FEATURE_GFNI)
+FEATURE(FEATURE_VPCLMULQDQ)
+FEATURE(FEATURE_AVX512VNNI)
+FEATURE(FEATURE_AVX512BITALG)
+
+
+// FIXME: When commented out features are supported in LLVM, enable them here.
+CPU_SPECIFIC("generic", 'A', "")
+CPU_SPECIFIC("pentium", 'B', "")
+CPU_SPECIFIC("pentium_pro", 'C', "+cmov")
+CPU_SPECIFIC("pentium_mmx", 'D', "+mmx")
+CPU_SPECIFIC("pentium_ii", 'E', "+cmov,+mmx")
+CPU_SPECIFIC("pentium_iii", 'H', "+cmov,+mmx,+sse")
+CPU_SPECIFIC("pentium_iii_no_xmm_regs", 'H',"+cmov,+sse")
+CPU_SPECIFIC("pentium_4", 'J', "+cmov,+mmx,+sse,+sse2")
+CPU_SPECIFIC("pentium_m", 'K', "+cmov,+mmx,+sse,+sse2")
+CPU_SPECIFIC("pentium_4_sse3", 'L', "+cmov,+mmx,+sse,+sse2,+sse3")
+CPU_SPECIFIC("core_2_duo_ssse3", 'M', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3")
+CPU_SPECIFIC("core_2_duo_sse4_1", 'N', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1")
+CPU_SPECIFIC("atom", 'O', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+movbe")
+CPU_SPECIFIC("atom_sse4_2", 'c', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+popcnt")
+CPU_SPECIFIC("core_i7_sse4_2", 'P', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+popcnt")
+CPU_SPECIFIC("core_aes_pclmulqdq", 'Q', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+popcnt")
+CPU_SPECIFIC("atom_sse4_2_movbe", 'd', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+movbe,+popcnt")
+CPU_SPECIFIC("goldmont", 'i', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+movbe,+popcnt")
+CPU_SPECIFIC("sandybridge", 'R', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+popcnt,+avx")
+CPU_SPECIFIC_ALIAS("core_2nd_gen_avx", "sandybridge")
+CPU_SPECIFIC("ivybridge", 'S', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+popcnt,+f16c,+avx")
+CPU_SPECIFIC_ALIAS("core_3rd_gen_avx", "ivybridge")
+CPU_SPECIFIC("haswell", 'V', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+movbe,+popcnt,+f16c,+avx,+fma,+bmi,+lzcnt,+avx2")
+CPU_SPECIFIC_ALIAS("core_4th_gen_avx", "haswell")
+CPU_SPECIFIC("core_4th_gen_avx_tsx", 'W', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+movbe,+popcnt,+f16c,+avx,+fma,+bmi,+lzcnt,+avx2")
+CPU_SPECIFIC("broadwell", 'X', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+movbe,+popcnt,+f16c,+avx,+fma,+bmi,+lzcnt,+avx2,+adx")
+CPU_SPECIFIC_ALIAS("core_5th_gen_avx", "broadwell")
+CPU_SPECIFIC("core_5th_gen_avx_tsx", 'Y', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+movbe,+popcnt,+f16c,+avx,+fma,+bmi,+lzcnt,+avx2,+adx")
+CPU_SPECIFIC("knl", 'Z', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+movbe,+popcnt,+f16c,+avx,+fma,+bmi,+lzcnt,+avx2,+avx512f,+adx,+avx512er,+avx512pf,+avx512cd")
+CPU_SPECIFIC_ALIAS("mic_avx512", "knl")
+CPU_SPECIFIC("skylake", 'b', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+movbe,+popcnt,+f16c,+avx,+fma,+bmi,+lzcnt,+avx2,+adx,+mpx")
+CPU_SPECIFIC( "skylake_avx512", 'a', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+movbe,+popcnt,+f16c,+avx,+fma,+bmi,+lzcnt,+avx2,+avx512dq,+avx512f,+adx,+avx512cd,+avx512bw,+avx512vl,+clwb")
+CPU_SPECIFIC("cannonlake", 'e', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+movbe,+popcnt,+f16c,+avx,+fma,+bmi,+lzcnt,+avx2,+avx512dq,+avx512f,+adx,+avx512ifma,+avx512cd,+avx512bw,+avx512vl,+avx512vbmi")
+CPU_SPECIFIC("knm", 'j', "+cmov,+mmx,+sse,+sse2,+sse3,+ssse3,+sse4.1,+sse4.2,+movbe,+popcnt,+f16c,+avx,+fma,+bmi,+lzcnt,+avx2,+avx512f,+adx,+avx512er,+avx512pf,+avx512cd,+avx5124fmaps,+avx5124vnniw,+avx512vpopcntdq")
+
+#undef CPU_SPECIFIC_ALIAS
+#undef CPU_SPECIFIC
+#undef PROC_64_BIT
+#undef PROC_32_BIT
+#undef FEATURE
+#undef PROC
+#undef PROC_ALIAS
+#undef PROC_WITH_FEAT

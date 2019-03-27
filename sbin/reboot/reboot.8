@@ -1,0 +1,196 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)reboot.8	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd December 20, 2017
+.Dt REBOOT 8
+.Os
+.Sh NAME
+.Nm reboot ,
+.Nm halt ,
+.Nm fastboot ,
+.Nm fasthalt
+.Nd stopping and restarting the system
+.Sh SYNOPSIS
+.Nm halt
+.Op Fl lNnpq
+.Op Fl k Ar kernel
+.Nm
+.Op Fl cdlNnpqr
+.Op Fl k Ar kernel
+.Nm fasthalt
+.Op Fl lNnpq
+.Op Fl k Ar kernel
+.Nm fastboot
+.Op Fl dlNnpq
+.Op Fl k Ar kernel
+.Sh DESCRIPTION
+The
+.Nm halt
+and
+.Nm
+utilities flush the file system cache to disk, send all running processes
+a
+.Dv SIGTERM
+(and subsequently a
+.Dv SIGKILL )
+and, respectively, halt or restart the system.
+The action is logged, including entering a shutdown record into the user
+accounting database.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl c
+The system will turn off the power and then turn it back on if it can.
+If the power down action fails, the system
+will halt or reboot normally, depending on whether
+.Nm halt
+or
+.Nm
+was called.
+At the present time, only the
+.Xr ipmi 4
+driver implements the power cycle functionality and only on hardware
+with a BMC that supports power cycling.
+Unlike power off, the amount of hardware that supports power cycling
+is small.
+.It Fl d
+The system is requested to create a crash dump.
+This option is
+supported only when rebooting, and it has no effect unless a dump
+device has previously been specified with
+.Xr dumpon 8 .
+.It Fl k Ar kernel
+Boot the specified
+.Ar kernel
+on the next system boot.
+If the kernel boots successfully, the
+.Em default
+kernel will be booted on successive boots, this is a one-shot option.
+If the boot fails, the system will continue attempting to boot
+.Ar kernel
+until the boot process is interrupted and a valid kernel booted.
+This may change in the future.
+.It Fl l
+The halt or reboot is
+.Em not
+logged to the system log.
+This option is intended for applications such as
+.Xr shutdown 8 ,
+that call
+.Nm
+or
+.Nm halt
+and log this themselves.
+.It Fl N
+The file system cache is not flushed during the initial process clean-up,
+however the kernel level
+.Xr reboot 2
+is still processed with a sync.
+This option can be useful for performing a
+.Dq best-effort
+reboot when devices might be unavailable.
+This can happen when devices have been disconnected, such as with
+.Xr iscsi 4 .
+.It Fl n
+The file system cache is not flushed.
+This option should probably not be used.
+.It Fl p
+The system will turn off the power if it can.
+If the power down action fails, the system
+will halt or reboot normally, depending on whether
+.Nm halt
+or
+.Nm
+was called.
+.It Fl q
+The system is halted or restarted quickly and ungracefully, and only
+the flushing of the file system cache is performed (if the
+.Fl n
+option is not specified).
+This option should probably not be used.
+.It Fl r
+The system kills all processes, unmounts all filesystems, mounts the new
+root filesystem, and begins the usual startup sequence.
+After changing vfs.root.mountfrom with
+.Xr kenv 1 ,
+.Nm Fl r
+can be used to change the root filesystem while preserving kernel state.
+This requires the
+.Xr tmpfs 5
+kernel module to be loaded because
+.Xr init 8
+needs a place to store itself after the old root is unmounted, but
+before the new root is in place.
+.El
+.Pp
+The
+.Nm fasthalt
+and
+.Nm fastboot
+utilities are nothing more than aliases for the
+.Nm halt
+and
+.Nm
+utilities.
+.Pp
+Normally, the
+.Xr shutdown 8
+utility is used when the system needs to be halted or restarted, giving
+users advance warning of their impending doom and cleanly terminating
+specific programs.
+.Sh EXAMPLES
+Replace current root filesystem with UFS mounted from
+.Pa /dev/ada0s1a :
+.Bd -literal -offset indent
+kenv vfs.root.mountfrom=ufs:/dev/ada0s1a
+reboot -r
+.Ed
+.Pp
+This mechanism can also be used with NFS, with a caveat that
+it only works with NFSv4, and requires a numeric IPv4 address:
+.Bd -literal -offset indent
+kenv vfs.root.mountfrom=nfs:192.168.1.1:/share/name
+reboot -r
+.Ed
+.Sh SEE ALSO
+.Xr kenv 1 ,
+.Xr getutxent 3 ,
+.Xr ipmi 4 ,
+.Xr boot 8 ,
+.Xr dumpon 8 ,
+.Xr nextboot 8 ,
+.Xr savecore 8 ,
+.Xr shutdown 8 ,
+.Xr sync 8
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.Bx 4.0 .

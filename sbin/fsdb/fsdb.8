@@ -1,0 +1,270 @@
+.\"	$NetBSD: fsdb.8,v 1.2 1995/10/08 23:18:08 thorpej Exp $
+.\"
+.\" Copyright (c) 1995 John T. Kohl
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR `AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 3, 2016
+.Dt FSDB 8
+.Os
+.Sh NAME
+.Nm fsdb
+.Nd FFS debugging/editing tool
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl f
+.Op Fl r
+.Ar fsname
+.Sh DESCRIPTION
+The
+.Nm
+utility opens
+.Ar fsname
+(usually a raw disk partition) and runs a command loop
+allowing manipulation of the file system's inode data.
+You are prompted
+to enter a command with
+.Ic "fsdb (inum X)>"
+where
+.Va X
+is the currently selected i-number.
+The initial selected inode is the
+root of the file system (i-number 2).
+The command processor uses the
+.Xr editline 3
+library, so you can use command line editing to reduce typing if desired.
+When you exit the command loop, the file system superblock is marked
+dirty and any buffered blocks are written to the file system.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d
+Enable additional debugging output (which comes primarily from
+.Xr fsck 8 Ns -derived
+code).
+.It Fl f
+Left for historical reasons and has no meaning.
+.It Fl r
+Open the file system read/only, and disables all commands that would
+write to it.
+.El
+.Sh COMMANDS
+Besides the built-in
+.Xr editline 3
+commands,
+.Nm
+supports these commands:
+.Pp
+.Bl -tag -width indent -compact
+.It Cm help
+Print out the list of accepted commands.
+.Pp
+.It Cm inode Ar i-number
+Select inode
+.Ar i-number
+as the new current inode.
+.Pp
+.It Cm back
+Revert to the previously current inode.
+.Pp
+.It Cm clri Ar i-number
+Clear
+.Ar i-number .
+.Pp
+.It Cm lookup Ar name
+.It Cm cd Ar name
+Find
+.Ar name
+in the current directory and make its inode the current inode.
+.Ar Name
+may be a multi-component name or may begin with slash to indicate that
+the root inode should be used to start the lookup.
+If some component
+along the pathname is not found, the last valid directory encountered is
+left as the active inode.
+This command is valid only if the starting inode is a directory.
+.Pp
+.It Cm active
+.It Cm print
+Print out the active inode.
+.Pp
+.It Cm blocks
+Print out the block list of the active inode.
+Note that the printout can become long for large files, since all
+indirect block pointers will also be printed.
+.Pp
+.It Cm findblk Ar disk_block_number ...
+Find the inode(s) owning the specified disk block(s) number(s).
+Note that these are not absolute disk blocks numbers, but offsets from the
+start of the partition.
+.Pp
+.It Cm uplink
+Increment the active inode's link count.
+.Pp
+.It Cm downlink
+Decrement the active inode's link count.
+.Pp
+.It Cm linkcount Ar number
+Set the active inode's link count to
+.Ar number .
+.Pp
+.It Cm ls
+List the current inode's directory entries.
+This command is valid only
+if the current inode is a directory.
+.Pp
+.It Cm rm Ar name
+.It Cm del Ar name
+Remove the entry
+.Ar name
+from the current directory inode.
+This command is valid only
+if the current inode is a directory.
+.Pp
+.It Cm ln Ar ino Ar name
+Create a link to inode
+.Ar ino
+under the name
+.Ar name
+in the current directory inode.
+This command is valid only
+if the current inode is a directory.
+.Pp
+.It Cm chinum Ar dirslot Ar inum
+Change the i-number in directory entry
+.Ar dirslot
+to
+.Ar inum .
+.Pp
+.It Cm chname Ar dirslot Ar name
+Change the name in directory entry
+.Ar dirslot
+to
+.Ar name .
+This command cannot expand a directory entry.
+You can only rename an
+entry if the name will fit into the existing directory slot.
+.Pp
+.It Cm chtype Ar type
+Change the type of the current inode to
+.Ar type .
+.Ar Type
+may be one of:
+.Em file ,
+.Em dir ,
+.Em socket ,
+or
+.Em fifo .
+.Pp
+.It Cm chmod Ar mode
+Change the mode bits of the current inode to
+.Ar mode .
+You cannot change the file type with this subcommand; use
+.Ic chtype
+to do that.
+.Pp
+.It Cm chflags Ar flags
+Change the file flags of the current inode to
+.Ar flags .
+.Pp
+.It Cm chown Ar uid
+Change the owner of the current inode to
+.Ar uid .
+.Pp
+.It Cm chgrp Ar gid
+Change the group of the current inode to
+.Ar gid .
+.Pp
+.It Cm chgen Ar gen
+Change the generation number of the current inode to
+.Ar gen .
+.Pp
+.It Cm btime Ar time
+.It Cm mtime Ar time
+.It Cm ctime Ar time
+.It Cm atime Ar time
+Change the creation (birth), modification, change, or access
+time (respectively) on the current inode to
+.Ar time .
+.Ar Time
+should be in the format
+.Em YYYYMMDDHHMMSS[.nsec]
+where
+.Em nsec
+is an optional nanosecond specification.
+If no nanoseconds are specified, the
+.Va birthnsec ,
+.Va mtimensec ,
+.Va ctimensec ,
+or
+.Va atimensec
+field will be set to zero.
+Note that
+.Cm btime
+is available on UFS2 file systems only.
+.Pp
+.It Cm quit , q , exit , Em <EOF>
+Exit the program.
+.El
+.Sh SEE ALSO
+.Xr editline 3 ,
+.Xr fs 5 ,
+.Xr clri 8 ,
+.Xr fsck 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.3 Tahoe .
+It used the source code for
+.Xr fsck 8
+to implement most of the file system manipulation code.
+The remainder of
+.Nm
+appeared in
+.Nx 1.1
+written by
+.An John T. Kohl .
+It first appeared in
+.Fx 2.1.5 
+ported by Peter Wemm.
+.Sh BUGS
+Manipulation of ``short'' symlinks has no effect.
+In particular, one should not
+try changing a symlink's type.
+.Pp
+You must specify modes as numbers rather than symbolic names.
+.Pp
+There are a bunch of other things that you might want to do which
+.Nm
+does not implement.
+.Sh WARNING
+Use this tool with extreme caution--you can damage an FFS file system
+beyond what
+.Xr fsck 8
+can repair.

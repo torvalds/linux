@@ -1,0 +1,519 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)route.8	8.3 (Berkeley) 3/19/94
+.\" $FreeBSD$
+.\"
+.Dd January 9, 2019
+.Dt ROUTE 8
+.Os
+.Sh NAME
+.Nm route
+.Nd manually manipulate the routing tables
+.Sh SYNOPSIS
+.Nm
+.Op Fl dnqtv
+.Ar command
+.Oo
+.Op Ar modifiers
+.Ar args
+.Oc
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to manually manipulate the network
+routing tables.
+It normally is not needed, as a
+system routing table management daemon, such as
+.Xr routed 8 ,
+should tend to this task.
+.Pp
+The
+.Nm
+utility supports a limited number of general options,
+but a rich command language, enabling the user to specify
+any arbitrary request that could be delivered via the
+programmatic interface discussed in
+.Xr route 4 .
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl 4
+Specify
+.Cm inet
+address family as family hint for subcommands.
+.It Fl 6
+Specify
+.Cm inet6
+address family as family hint for subcommands.
+.It Fl d
+Run in debug-only mode, i.e., do not actually modify the routing table.
+.It Fl n
+Bypass attempts to print host and network names symbolically
+when reporting actions.
+(The process of translating between symbolic
+names and numerical equivalents can be quite time consuming, and
+may require correct operation of the network; thus it may be expedient
+to forget this, especially when attempting to repair networking operations).
+.It Fl t
+Run in test-only mode.
+.Pa /dev/null
+is used instead of a socket.
+.It Fl v
+(verbose) Print additional details.
+.It Fl q
+Suppress all output from the
+.Cm add , change , delete ,
+and
+.Cm flush
+commands.
+.El
+.Pp
+The
+.Nm
+utility provides the following commands:
+.Pp
+.Bl -tag -width Fl -compact
+.It Cm add
+Add a route.
+.It Cm flush
+Remove all routes.
+.It Cm delete
+Delete a specific route.
+.It Cm del
+Another name for the
+.Cm delete
+command.
+.It Cm change
+Change aspects of a route (such as its gateway).
+.It Cm get
+Lookup and display the route for a destination.
+.It Cm monitor
+Continuously report any changes to the routing information base,
+routing lookup misses, or suspected network partitionings.
+.It Cm show
+Another name for the
+.Cm get
+command.
+.El
+.Pp
+The monitor command has the syntax:
+.Pp
+.Bd -ragged -offset indent -compact
+.Nm
+.Op Fl n
+.Cm monitor Op Fl fib Ar number
+.Ed
+.Pp
+The flush command has the syntax:
+.Pp
+.Bd -ragged -offset indent -compact
+.Nm
+.Op Fl n
+.Cm flush Oc Oo Ar family Oc Op Fl fib Ar number
+.Ed
+.Pp
+If the
+.Cm flush
+command is specified,
+.Nm
+will ``flush'' the routing tables of all gateway entries.
+When the address family may is specified by any of the
+.Fl osi ,
+.Fl xns ,
+.Fl inet6 ,
+or
+.Fl inet
+modifiers, only routes having destinations with addresses in the
+delineated family will be deleted.
+Additionally,
+.Fl 4
+or
+.Fl 6
+can be used as aliases for
+.Fl inet
+and
+.Fl inet6
+modifiers.
+When a
+.Fl fib
+option is specified, the operation will be applied to
+the specified FIB
+.Pq routing table .
+.Pp
+The add command has the following syntax:
+.Pp
+.Bd -ragged -offset indent -compact
+.Nm
+.Op Fl n
+.Cm add
+.Op Fl net No \&| Fl host
+.Ar destination gateway
+.Op Ar netmask
+.Op Fl fib Ar number
+.Ed
+.Pp
+and the other commands have the following syntax:
+.Pp
+.Bd -ragged -offset indent -compact
+.Nm
+.Op Fl n
+.Ar command
+.Op Fl net No \&| Fl host
+.Ar destination
+.Op Ar gateway Op Ar netmask
+.Op Fl fib Ar number
+.Ed
+.Pp
+where
+.Ar destination
+is the destination host or network,
+.Ar gateway
+is the next-hop intermediary via which packets should be routed.
+Routes to a particular host may be distinguished from those to
+a network by interpreting the Internet address specified as the
+.Ar destination
+argument.
+The optional modifiers
+.Fl net
+and
+.Fl host
+force the destination to be interpreted as a network or a host, respectively.
+Otherwise, if the
+.Ar destination
+has a
+.Dq local address part
+of
+INADDR_ANY
+.Pq Li 0.0.0.0 ,
+or if the
+.Ar destination
+is the symbolic name of a network, then the route is
+assumed to be to a network; otherwise, it is presumed to be a
+route to a host.
+Optionally, the
+.Ar destination
+could also be specified in the
+.Ar net Ns / Ns Ar bits
+format.
+.Pp
+For example,
+.Li 128.32
+is interpreted as
+.Fl host Li 128.0.0.32 ;
+.Li 128.32.130
+is interpreted as
+.Fl host Li 128.32.0.130 ;
+.Fl net Li 128.32
+is interpreted as
+.Li 128.32.0.0;
+.Fl net Li 128.32.130
+is interpreted as
+.Li 128.32.130.0;
+and
+.Li 192.168.64/20
+is interpreted as
+.Fl net Li 192.168.64 Fl netmask Li 255.255.240.0 .
+.Pp
+A
+.Ar destination
+of
+.Ar default
+is a synonym for the default route.
+For
+.Li IPv4
+it is
+.Fl net Fl inet Li 0.0.0.0 ,
+and for
+.Li IPv6
+it is
+.Fl net Fl inet6 Li :: .
+.Pp
+If the destination is directly reachable
+via an interface requiring
+no intermediary system to act as a gateway, the
+.Fl interface
+modifier should be specified;
+the gateway given is the address of this host on the common network,
+indicating the interface to be used for transmission.
+Alternately, if the interface is point to point the name of the interface
+itself may be given, in which case the route remains valid even
+if the local or remote addresses change.
+.Pp
+The optional modifiers
+.Fl xns ,
+.Fl osi ,
+and
+.Fl link
+specify that all subsequent addresses are in the
+.Tn XNS
+or
+.Tn OSI
+address families,
+or are specified as link-level addresses,
+and the names must be numeric specifications rather than
+symbolic names.
+.Pp
+The optional
+.Fl netmask
+modifier is intended
+to achieve the effect of an
+.Tn OSI
+.Tn ESIS
+redirect with the netmask option,
+or to manually add subnet routes with
+netmasks different from that of the implied network interface
+(as would otherwise be communicated using the OSPF or ISIS routing protocols).
+One specifies an additional ensuing address parameter
+(to be interpreted as a network mask).
+The implicit network mask generated in the AF_INET case
+can be overridden by making sure this option follows the destination parameter.
+.Pp
+For
+.Dv AF_INET6 ,
+the
+.Fl prefixlen
+qualifier
+is available instead of the
+.Fl mask
+qualifier because non-continuous masks are not allowed in IPv6.
+For example,
+.Fl prefixlen Li 32
+specifies that a network mask of
+.Li ffff:ffff:0000:0000:0000:0000:0000:0000
+will be used.
+The default prefixlen is 64.
+However, it is assumed to be 0 if
+.Cm default
+is specified for
+.Ar destination .
+Note that the qualifier works only for
+.Dv AF_INET6
+address family.
+.Pp
+Routes have associated flags which influence operation of the protocols
+when sending to destinations matched by the routes.
+These flags may be set (or sometimes cleared)
+by indicating the following corresponding modifiers:
+.Bd -literal
+-xresolve  RTF_XRESOLVE   - emit mesg on use (for external lookup)
+-iface    ~RTF_GATEWAY    - destination is directly reachable
+-static    RTF_STATIC     - manually added route
+-nostatic ~RTF_STATIC     - pretend route added by kernel or daemon
+-reject    RTF_REJECT     - emit an ICMP unreachable when matched
+-blackhole RTF_BLACKHOLE  - silently discard pkts (during updates)
+-proto1    RTF_PROTO1     - set protocol specific routing flag #1
+-proto2    RTF_PROTO2     - set protocol specific routing flag #2
+.Ed
+.Pp
+The optional modifiers
+.Fl rtt ,
+.Fl rttvar ,
+.Fl sendpipe ,
+.Fl recvpipe ,
+.Fl mtu ,
+.Fl hopcount ,
+.Fl expire ,
+and
+.Fl ssthresh
+provide initial values to quantities maintained in the routing entry
+by transport level protocols, such as TCP or TP4.
+These may be individually locked by preceding each such modifier to
+be locked by
+the
+.Fl lock
+meta-modifier, or one can
+specify that all ensuing metrics may be locked by the
+.Fl lockrest
+meta-modifier.
+.Pp
+Note that
+.Fl expire
+accepts expiration time of the route as the number of seconds since the
+Epoch
+.Pq see Xr time 3 .
+When the first character of the number is
+.Dq +
+or
+.Dq - ,
+it is interpreted as a value relative to the current time.
+.Pp
+The optional modifier
+.Fl fib Ar number
+specifies that the command will be applied to a non-default FIB.
+The
+.Ar number
+must be smaller than the
+.Va net.fibs
+.Xr sysctl 8
+MIB.
+When this modifier is not specified,
+or a negative number is specified,
+the default FIB shown in the
+.Va net.my_fibnum
+.Xr sysctl 8
+MIB will be used.
+.Pp
+The
+.Ar number
+allows multiple FIBs by a comma-separeted list and/or range
+specification.
+The
+.Qq Fl fib Li 2,4,6
+means the FIB number 2, 4, and 6.
+The
+.Qq Fl fib Li 1,3-5,6
+means the 1, 3, 4, 5, and 6.
+.Pp
+In a
+.Cm change
+or
+.Cm add
+command where the destination and gateway are not sufficient to specify
+the route (as in the
+.Tn ISO
+case where several interfaces may have the
+same address), the
+.Fl ifp
+or
+.Fl ifa
+modifiers may be used to determine the interface or interface address.
+.Pp
+All symbolic names specified for a
+.Ar destination
+or
+.Ar gateway
+are looked up first as a host name using
+.Xr gethostbyname 3 .
+If this lookup fails,
+.Xr getnetbyname 3
+is then used to interpret the name as that of a network.
+.Pp
+The
+.Nm
+utility uses a routing socket and the new message types
+.Dv RTM_ADD , RTM_DELETE , RTM_GET ,
+and
+.Dv RTM_CHANGE .
+As such, only the super-user may modify
+the routing tables.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Add a default route to the network routing table.
+This will send all packets for destinations not available in the routing table
+to the default gateway at 192.168.1.1:
+.Pp
+.Dl route add -net 0.0.0.0/0 192.168.1.1
+.Pp
+A shorter version of adding a default route can also be written as:
+.Pp
+.Dl route add default 192.168.1.1
+.Pp
+Add a static route to the 172.16.10.0/24 network via the 172.16.1.1 gateway:
+.Pp
+.Dl route add -net 172.16.10.0/24 172.16.1.1
+.Pp
+Change the gateway of an already established static route in the routing table:
+.Pp
+.Dl route change -net 172.16.10.0/24 172.16.1.2
+.Pp
+Display the route for a destination network:
+.Pp
+.Dl route show 172.16.10.0
+.Pp
+Delete a static route from the routing table:
+.Pp
+.Dl route delete -net 172.16.10.0/24 172.16.1.2
+.Pp
+Remove all routes from the routing table:
+.Pp
+.Dl route flush
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "add [host \&| network ] %s: gateway %s flags %x"
+The specified route is being added to the tables.
+The
+values printed are from the routing table entry supplied
+in the
+.Xr ioctl 2
+call.
+If the gateway address used was not the primary address of the gateway
+(the first one returned by
+.Xr gethostbyname 3 ) ,
+the gateway address is printed numerically as well as symbolically.
+.It "delete [ host \&| network ] %s: gateway %s flags %x"
+As above, but when deleting an entry.
+.It "%s %s done"
+When the
+.Cm flush
+command is specified, each routing table entry deleted
+is indicated with a message of this form.
+.It "Network is unreachable"
+An attempt to add a route failed because the gateway listed was not
+on a directly-connected network.
+The next-hop gateway must be given.
+.It "not in table"
+A delete operation was attempted for an entry which
+was not present in the tables.
+.It "routing table overflow"
+An add operation was attempted, but the system was
+low on resources and was unable to allocate memory
+to create the new entry.
+.It "gateway uses the same route"
+A
+.Cm change
+operation resulted in a route whose gateway uses the
+same route as the one being changed.
+The next-hop gateway should be reachable through a different route.
+.El
+.Sh SEE ALSO
+.\".Xr esis 4 ,
+.Xr netintro 4 ,
+.Xr route 4 ,
+.Xr arp 8 ,
+.Xr routed 8
+.\".Xr XNSrouted 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.2 .
+.Sh BUGS
+The first paragraph may have slightly exaggerated
+.Xr routed 8 Ns 's
+abilities.
+.Pp
+Currently, routes with the
+.Dv RTF_BLACKHOLE
+flag set need to have the gateway set to an instance of the
+.Xr lo 4
+driver, using the
+.Fl iface
+option, for the flag to have any effect; unless IP fast forwarding
+is enabled, in which case the meaning of the flag will always
+be honored.

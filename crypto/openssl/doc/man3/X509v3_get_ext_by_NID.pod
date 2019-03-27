@@ -1,0 +1,142 @@
+=pod
+
+=head1 NAME
+
+X509v3_get_ext_count, X509v3_get_ext, X509v3_get_ext_by_NID,
+X509v3_get_ext_by_OBJ, X509v3_get_ext_by_critical, X509v3_delete_ext,
+X509v3_add_ext, X509_get_ext_count, X509_get_ext,
+X509_get_ext_by_NID, X509_get_ext_by_OBJ, X509_get_ext_by_critical,
+X509_delete_ext, X509_add_ext, X509_CRL_get_ext_count, X509_CRL_get_ext,
+X509_CRL_get_ext_by_NID, X509_CRL_get_ext_by_OBJ, X509_CRL_get_ext_by_critical,
+X509_CRL_delete_ext, X509_CRL_add_ext, X509_REVOKED_get_ext_count,
+X509_REVOKED_get_ext, X509_REVOKED_get_ext_by_NID, X509_REVOKED_get_ext_by_OBJ,
+X509_REVOKED_get_ext_by_critical, X509_REVOKED_delete_ext,
+X509_REVOKED_add_ext - extension stack utility functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509.h>
+
+ int X509v3_get_ext_count(const STACK_OF(X509_EXTENSION) *x);
+ X509_EXTENSION *X509v3_get_ext(const STACK_OF(X509_EXTENSION) *x, int loc);
+
+ int X509v3_get_ext_by_NID(const STACK_OF(X509_EXTENSION) *x,
+                           int nid, int lastpos);
+ int X509v3_get_ext_by_OBJ(const STACK_OF(X509_EXTENSION) *x,
+                           const ASN1_OBJECT *obj, int lastpos);
+ int X509v3_get_ext_by_critical(const STACK_OF(X509_EXTENSION) *x,
+                                int crit, int lastpos);
+ X509_EXTENSION *X509v3_delete_ext(STACK_OF(X509_EXTENSION) *x, int loc);
+ STACK_OF(X509_EXTENSION) *X509v3_add_ext(STACK_OF(X509_EXTENSION) **x,
+                                          X509_EXTENSION *ex, int loc);
+
+ int X509_get_ext_count(const X509 *x);
+ X509_EXTENSION *X509_get_ext(const X509 *x, int loc);
+ int X509_get_ext_by_NID(const X509 *x, int nid, int lastpos);
+ int X509_get_ext_by_OBJ(const X509 *x, const ASN1_OBJECT *obj, int lastpos);
+ int X509_get_ext_by_critical(const X509 *x, int crit, int lastpos);
+ X509_EXTENSION *X509_delete_ext(X509 *x, int loc);
+ int X509_add_ext(X509 *x, X509_EXTENSION *ex, int loc);
+
+ int X509_CRL_get_ext_count(const X509_CRL *x);
+ X509_EXTENSION *X509_CRL_get_ext(const X509_CRL *x, int loc);
+ int X509_CRL_get_ext_by_NID(const X509_CRL *x, int nid, int lastpos);
+ int X509_CRL_get_ext_by_OBJ(const X509_CRL *x, const ASN1_OBJECT *obj, int lastpos);
+ int X509_CRL_get_ext_by_critical(const X509_CRL *x, int crit, int lastpos);
+ X509_EXTENSION *X509_CRL_delete_ext(X509_CRL *x, int loc);
+ int X509_CRL_add_ext(X509_CRL *x, X509_EXTENSION *ex, int loc);
+
+ int X509_REVOKED_get_ext_count(const X509_REVOKED *x);
+ X509_EXTENSION *X509_REVOKED_get_ext(const X509_REVOKED *x, int loc);
+ int X509_REVOKED_get_ext_by_NID(const X509_REVOKED *x, int nid, int lastpos);
+ int X509_REVOKED_get_ext_by_OBJ(const X509_REVOKED *x, const ASN1_OBJECT *obj,
+                                 int lastpos);
+ int X509_REVOKED_get_ext_by_critical(const X509_REVOKED *x, int crit, int lastpos);
+ X509_EXTENSION *X509_REVOKED_delete_ext(X509_REVOKED *x, int loc);
+ int X509_REVOKED_add_ext(X509_REVOKED *x, X509_EXTENSION *ex, int loc);
+
+=head1 DESCRIPTION
+
+X509v3_get_ext_count() retrieves the number of extensions in B<x>.
+
+X509v3_get_ext() retrieves extension B<loc> from B<x>. The index B<loc>
+can take any value from B<0> to X509_get_ext_count(x) - 1. The returned
+extension is an internal pointer which B<must not> be freed up by the
+application.
+
+X509v3_get_ext_by_NID() and X509v3_get_ext_by_OBJ() look for an extension
+with B<nid> or B<obj> from extension stack B<x>. The search starts from the
+extension after B<lastpos> or from the beginning if <lastpos> is B<-1>. If
+the extension is found its index is returned otherwise B<-1> is returned.
+
+X509v3_get_ext_by_critical() is similar to X509v3_get_ext_by_NID() except it
+looks for an extension of criticality B<crit>. A zero value for B<crit>
+looks for a non-critical extension a non-zero value looks for a critical
+extension.
+
+X509v3_delete_ext() deletes the extension with index B<loc> from B<x>. The
+deleted extension is returned and must be freed by the caller. If B<loc>
+is in invalid index value B<NULL> is returned.
+
+X509v3_add_ext() adds extension B<ex> to stack B<*x> at position B<loc>. If
+B<loc> is B<-1> the new extension is added to the end. If B<*x> is B<NULL>
+a new stack will be allocated. The passed extension B<ex> is duplicated
+internally so it must be freed after use.
+
+X509_get_ext_count(), X509_get_ext(), X509_get_ext_by_NID(),
+X509_get_ext_by_OBJ(), X509_get_ext_by_critical(), X509_delete_ext()
+and X509_add_ext() operate on the extensions of certificate B<x> they are
+otherwise identical to the X509v3 functions.
+
+X509_CRL_get_ext_count(), X509_CRL_get_ext(), X509_CRL_get_ext_by_NID(),
+X509_CRL_get_ext_by_OBJ(), X509_CRL_get_ext_by_critical(),
+X509_CRL_delete_ext() and X509_CRL_add_ext() operate on the extensions of
+CRL B<x> they are otherwise identical to the X509v3 functions.
+
+X509_REVOKED_get_ext_count(), X509_REVOKED_get_ext(),
+X509_REVOKED_get_ext_by_NID(), X509_REVOKED_get_ext_by_OBJ(),
+X509_REVOKED_get_ext_by_critical(), X509_REVOKED_delete_ext() and
+X509_REVOKED_add_ext() operate on the extensions of CRL entry B<x>
+they are otherwise identical to the X509v3 functions.
+
+=head1 NOTES
+
+These functions are used to examine stacks of extensions directly. Many
+applications will want to parse or encode and add an extension: they should
+use the extension encode and decode functions instead such as
+X509_add1_ext_i2d() and X509_get_ext_d2i().
+
+Extension indices start from zero, so a zero index return value is B<not> an
+error. These search functions start from the extension B<after> the B<lastpos>
+parameter so it should initially be set to B<-1>, if it is set to zero the
+initial extension will not be checked.
+
+=head1 RETURN VALUES
+
+X509v3_get_ext_count() returns the extension count.
+
+X509v3_get_ext(), X509v3_delete_ext() and X509_delete_ext() return an
+B<X509_EXTENSION> pointer or B<NULL> if an error occurs.
+
+X509v3_get_ext_by_NID() X509v3_get_ext_by_OBJ() and
+X509v3_get_ext_by_critical() return the an extension index or B<-1> if an
+error occurs.
+
+X509v3_add_ext() returns a stack of extensions or B<NULL> on error.
+
+X509_add_ext() returns 1 on success and 0 on error.
+
+=head1 SEE ALSO
+
+L<X509V3_get_d2i(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

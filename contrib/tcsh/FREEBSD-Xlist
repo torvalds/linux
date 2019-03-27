@@ -1,0 +1,9 @@
+$FreeBSD$
+*/BUGS
+*/config/a*
+*/config/bs2000
+*/config/bsd
+*/config/bsdreno
+*/config/[c-z]*
+*/tests
+*/win32

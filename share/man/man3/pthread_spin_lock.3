@@ -1,0 +1,138 @@
+.\" Copyright (c) 2004 Michael Telahun Makonnen
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 22, 2004
+.Dt PTHREAD_SPIN_LOCK 3
+.Os
+.Sh NAME
+.Nm pthread_spin_lock , pthread_spin_trylock , pthread_spin_unlock
+.Nd "lock or unlock a spin lock"
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_spin_lock "pthread_spinlock_t *lock"
+.Ft int
+.Fn pthread_spin_trylock "pthread_spinlock_t *lock"
+.Ft int
+.Fn pthread_spin_unlock "pthread_spinlock_t *lock"
+.Sh DESCRIPTION
+The
+.Fn pthread_spin_lock
+function will acquire
+.Fa lock
+if it is not currently owned by another thread.
+If the lock cannot be acquired immediately, it will
+spin attempting to acquire the lock (it will not sleep) until
+it becomes available.
+.Pp
+The
+.Fn pthread_spin_trylock
+function is the same as
+.Fn pthread_spin_lock
+except that if it cannot acquire
+.Fa lock
+immediately it will return with an error.
+.Pp
+The
+.Fn pthread_spin_unlock
+function will release
+.Fa lock ,
+which must have been previously locked by a call to
+.Fn pthread_spin_lock
+or
+.Fn pthread_spin_trylock .
+.Sh RETURN VALUES
+If successful, all these functions will return zero.
+Otherwise, an error number will be returned to indicate the error.
+.Pp
+None of these functions will return
+.Er EINTR .
+.Sh ERRORS
+The
+.Fn pthread_spin_lock ,
+.Fn pthread_spin_trylock
+and
+.Fn pthread_spin_unlock
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa lock
+is invalid or is not initialized.
+.El
+.Pp
+The
+.Fn pthread_spin_lock
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EDEADLK
+The calling thread already owns the lock.
+.El
+.Pp
+The
+.Fn pthread_spin_trylock
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+Another thread currently holds
+.Fa lock .
+.El
+.Pp
+The
+.Fn pthread_spin_unlock
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The calling thread does not own
+.Fa lock .
+.El
+.Sh SEE ALSO
+.Xr pthread_spin_destroy 3 ,
+.Xr pthread_spin_init 3
+.Sh HISTORY
+The
+.Fn pthread_spin_lock ,
+.Fn pthread_spin_trylock
+and
+.Fn pthread_spin_unlock
+functions first appeared in
+.Lb libkse
+in
+.Fx 5.2 ,
+and in
+.Lb libthr
+in
+.Fx 5.3 .
+.Sh BUGS
+The implementation of
+.Fn pthread_spin_lock ,
+.Fn pthread_spin_trylock
+and
+.Fn pthread_spin_unlock
+is expected to conform to
+.St -p1003.2 .

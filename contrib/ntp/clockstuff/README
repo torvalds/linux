@@ -1,0 +1,21 @@
+README file for directory ./clockstuff of the NTP Version 4 distribution
+
+This directory contains the sources for utility programs designed to
+support radio clocks.  chutest.c is desgined to test the depredated
+chu_clk line discipline or STREAMS module and can also test a CHU
+modem in raw mode.
+
+You can make things in here by typing one or more of:
+
+	make propdelay (or `make')
+	make chutest
+
+Propdelay computes high frequency propagation delays, given the
+longitude and latitude of the transmitter and receiver.  Use
+this for WWV/H and CHU.  Don't use it for WWVB (the computation
+is easier for that).
+
+Chutest can be used to input and process data from a CHU modem
+attached to a serial port.  It will use the CHU line discipline
+(if installed), or raw mode otherwise.  This was used to test
+out the initial reduction algorithms, and may not be up to date.

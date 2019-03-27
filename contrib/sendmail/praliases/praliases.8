@@ -1,0 +1,57 @@
+.\" Copyright (c) 1998-2000, 2008 Proofpoint, Inc. and its suppliers.
+.\"	 All rights reserved.
+.\"
+.\" By using this file, you agree to the terms and conditions set
+.\" forth in the LICENSE file which can be found at the top level of
+.\" the sendmail distribution.
+.\"
+.\"
+.\"	$Id: praliases.8,v 8.20 2013-11-22 20:51:53 ca Exp $
+.\"
+.TH PRALIASES 8 "$Date: 2013-11-22 20:51:53 $"
+.SH NAME
+praliases
+\- display system mail aliases
+.SH SYNOPSIS
+.B praliases
+.RB [ \-C
+.IR file ]
+.RB [ \-f
+.IR file ]
+.RB [\c
+.IR key
+.IR ... ]
+.SH DESCRIPTION
+The
+.B praliases
+utility displays the current system aliases, 
+one per line, in no particular order.
+The special internal @:@ alias will be displayed if present.
+.PP
+The options are as follows:
+.TP
+.BI "\-C " file
+Read the specified sendmail configuration file instead of the default
+.B sendmail
+configuration file.
+.TP 
+.BI "\-f " file
+Read the specified file instead of the configured
+.B sendmail
+system aliases file(s).
+.PP
+If one or more keys are specified on the command line,
+only entries which match those keys are displayed.
+.PP
+The
+.B praliases
+utility exits 0 on success, and >0 if an error occurs.
+.SH FILES
+.TP 2.5i
+/etc/mail/sendmail.cf
+The default
+.B sendmail
+configuration file.
+.SH SEE ALSO
+mailq(1), 
+sendmail(8)

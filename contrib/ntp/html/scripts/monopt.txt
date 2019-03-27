@@ -1,0 +1,6 @@
+document.write("<p>Monitoring Commands and Options</p><ul>\
+<li class='inline'><a href='monopt.html#filegen'>filegen - specify monitor files</a></li>\
+<li class='inline'><a href='monopt.html#statistics'>statistics - enable writing of statistics records</a></li>\
+<li class='inline'><a href='monopt.html#statsdir'>statsdir - specify monitor files directory</a></li>\
+<li class='inline'><a href='comdex.html'>Command Index</a></li>\
+</ul>")

@@ -1,0 +1,30 @@
+$ $tcsh: set7,v 1.6 2011/02/04 18:19:37 christos Exp $
+$ ed.screen.c
+$set 7
+1 \n\tTcsh meint, Ihr Endgerät hat die\n
+2 \tfolgenden Eigenschaften:\n\n
+3 \tEs hat %d Spalten und %d Zeilen\n
+4 \tEs hat %s Meta-Taste\n
+5 eine
+6 keine
+7 \tEs kann%s Tabulatoren benutzen\n
+8 \040keine
+9 \tEs %s automatische Ränder\n
+10 hat
+11 hat nicht
+12 \tEs %s magische Ränder\n
+13 (leer)
+14 ja
+15 nein
+16 FEHLER: kann nicht löschen\r\n
+17 DeleteChars: num ist lächerlich: %d\r\n
+18 FEHLER: kann nicht einfügen\r\n
+19 StartInsert: num ist lächerlich: %d\r\n
+20 %s: Kann /etc/termcap nicht öffnen.\n
+21 %s: Kein Eintrag für Terminaltyp "%s"\n
+22 %s: benutze minimale Terminaleigenschaften.\n
+23 %s: WARNUNG: Ihr Terminal kann den Cursor nicht aufwärts bewegen.\n
+24 Lange Zeilen könnten etwas komisch aussehen.\n
+25 keine Fähigkeit, bis Zeilenende zu löschen.\n
+26 keine Fähigkeit, Zeichen zu löschen.\n
+27 keine Fähigkeit, Zeichen einzufügen.\n

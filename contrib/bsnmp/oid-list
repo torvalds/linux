@@ -1,0 +1,44 @@
+$Begemot: bsnmp/trunk/oid-list 1512 2011-02-03 15:16:22Z brandt_h $
+
+This file documents the OID assignments under BSNMP's private OID.
+
+While I was at Fraunhofer Fokus (www.fokus.fraunhofer.de) I registered
+an official OID for Fokus: enterprises 12325 and assigned the sub-OID 1
+to the software I develop. Under this OID there are:
+
+enterprises
+  12325		FOKUS
+    1		BEGEMOT
+      1		BEGEMOT-SNMPD
+      2		BEGEMOT-NETGRAPH	snmpd netgraph module
+      3		BEGEMOT-IP		snmpd IP related stuff.
+      4		BEGEMOT-IFACE-MIB	interface MIB private stuff
+      5		BEGEMOT-IPSTATS-MIB	IP statistics
+      6		BEGEMOT-IP-MIB		IP objects
+      100	BEGEMOT-ILMID		snmpd ILMID module
+      101	BEGEMOT-ATM		snmpd ATM module
+      200	BEGEMOT-PF		snmpd PF module (phillip@freebsd.org)
+      201	BEGEMOT-NTP		snmpd NTP module
+      202	BEGEMOT-HOSTRES		snmpd HOSTRES module private stuff
+      203	regexData		bsnmp-regex (Nate Nielsen <nielsen@memberwebs.com>)
+      204	pingData		bsnmp-ping (Nate Nielsen <nielsen@memberwebs.com>)
+      205	begemotBridge		bridge module
+      210	begemotWlan		WLAN module
+      220	begemotHast		HAST module
+
+      300	BEGEMOT-ACM		DLR ACM project
+      303	BEGEMOT-WLINK		DLR WLINK simulator
+      304	BEGEMOT-SATX		DLR SatX simulator
+
+      405	mysql			(vanilla@fatpipi.com)
+      406	varnish			(vanilla@fatpipi.com)
+
+      500	DLR-MOSAKA		DLR Mosaka simulation platform
+
+      1111	bsnmp-jails		per-jail network, cpu, disk, memory statistics (Stef Walter <stef@memberwebs.com>)
+      1112	bsnmp-pcap		monitor traffic for specific network flows (Stef Walter <stef@memberwebs.com>)
+
+If you need an OID and don't know where to stuck it in, I can assign you one -
+just drop me a mail.
+
+harti

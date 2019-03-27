@@ -1,0 +1,10 @@
+.TH "page_revoke" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+page_revoke \- Revocation methods 
+There are two revocation method for PKIX/X.509: CRL and OCSP. Revocation is needed if the private key is lost and stolen. Depending on how picky you are, you might want to make revocation for destroyed private keys too (smartcard broken), but that should not be a problem.
+.PP
+CRL is a list of certifiates that have expired.
+.PP
+OCSP is an online checking method where the requestor sends a list of certificates to the OCSP server to return a signed reply if they are valid or not. Some services sends a OCSP reply as part of the hand-shake to make the revoktion decision simpler/faster for the client. 

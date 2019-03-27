@@ -1,0 +1,540 @@
+.\" Copyright (c) 1992, 1993, 1994, 1995
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
+.\" $FreeBSD$
+.\"
+.Dd April 13, 2017
+.Dt MOUNT_NFS 8
+.Os
+.Sh NAME
+.Nm mount_nfs
+.Nd mount NFS file systems
+.Sh SYNOPSIS
+.Nm
+.Op Fl 23bcdiLlNPsTU
+.Op Fl a Ar maxreadahead
+.Op Fl D Ar deadthresh
+.Op Fl g Ar maxgroups
+.Op Fl I Ar readdirsize
+.Op Fl o Ar options
+.Op Fl R Ar retrycnt
+.Op Fl r Ar readsize
+.Op Fl t Ar timeout
+.Op Fl w Ar writesize
+.Op Fl x Ar retrans
+.Ar rhost : Ns Ar path node
+.Sh DESCRIPTION
+The
+.Nm
+utility calls the
+.Xr nmount 2
+system call to prepare and graft a remote NFS file system
+.Pq Ar rhost : Ns Ar path
+on to the file system tree at the point
+.Ar node .
+This command is normally executed by
+.Xr mount 8 .
+It implements the mount protocol as described in RFC 1094, Appendix A and
+.%T "NFS: Network File System Version 3 Protocol Specification" ,
+Appendix I.
+.Pp
+By default,
+.Nm
+keeps retrying until the mount succeeds.
+This behaviour is intended for file systems listed in
+.Xr fstab 5
+that are critical to the boot process.
+For non-critical file systems, the
+.Cm bg
+and
+.Cm retrycnt
+options provide mechanisms to prevent the boot process from hanging
+if the server is unavailable.
+.Pp
+If the server becomes unresponsive while an NFS file system is
+mounted, any new or outstanding file operations on that file system
+will hang uninterruptibly until the server comes back.
+To modify this default behaviour, see the
+.Cm intr
+and
+.Cm soft
+options.
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl o
+Options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+The following NFS specific options are also available:
+.Bl -tag -width indent
+.It Cm acregmin Ns = Ns Aq Ar seconds
+.It Cm acregmax Ns = Ns Aq Ar seconds
+.It Cm acdirmin Ns = Ns Aq Ar seconds
+.It Cm acdirmax Ns = Ns Aq Ar seconds
+When attributes of files are cached, a timeout calculated to determine
+whether a given cache entry has expired.
+These four values determine the upper and lower bounds of the timeouts for
+.Dq directory
+attributes and
+.Dq regular
+(ie: everything else).
+The default values are 3 -> 60 seconds
+for regular files, and 30 -> 60 seconds for directories.
+The algorithm to calculate the timeout is based on the age of the file.
+The older the file,
+the longer the cache is considered valid, subject to the limits above.
+.It Cm actimeo Ns = Ns Aq Ar seconds
+Set four cache timeouts above to specified value.
+.It Cm allgssname
+This option can be used along with
+.Fl o Cm gssname
+to specify that all operations should use the host-based initiator
+credential.
+This may be used for clients that run system daemons that need to
+access files on the NFSv4 mounted volume.
+.It Cm bg
+If an initial attempt to contact the server fails, fork off a child to keep
+trying the mount in the background.
+Useful for
+.Xr fstab 5 ,
+where the file system mount is not critical to multiuser operation.
+.It Cm deadthresh Ns = Ns Aq Ar value
+Set the
+.Dq "dead server threshold"
+to the specified number of round trip timeout intervals before a
+.Dq "server not responding"
+message is displayed.
+.It Cm dumbtimer
+Turn off the dynamic retransmit timeout estimator.
+This may be useful for UDP mounts that exhibit high retry rates,
+since it is possible that the dynamically estimated timeout interval is too
+short.
+.It Cm fg
+Same as not specifying
+.Cm bg .
+.It Cm gssname Ns = Ns Aq Ar service-principal-name
+This option can be used with the KerberosV security flavors for NFSv4 mounts
+to specify the
+.Dq "service-principal-name"
+of a host-based entry in the default
+keytab file that is used for system operations.
+It allows the mount to be performed by
+.Dq "root"
+and avoids problems with
+cached credentials for the system operations expiring.
+The
+.Dq "service-prinicpal-name"
+should be specified without instance or domain and is typically
+.Dq "host" ,
+.Dq "nfs"
+or
+.Dq "root" .
+.It Cm hard
+Same as not specifying
+.Cm soft .
+.It Cm intr
+Make the mount interruptible, which implies that file system calls that
+are delayed due to an unresponsive server will fail with EINTR when a
+termination signal is posted for the process.
+.It Cm maxgroups Ns = Ns Aq Ar value
+Set the maximum size of the group list for the credentials to the
+specified value.
+This should be used for mounts on old servers that cannot handle a
+group list size of 16, as specified in RFC 1057.
+Try 8, if users in a lot of groups cannot get response from the mount
+point.
+.It Cm mntudp
+Force the mount protocol to use UDP transport, even for TCP NFS mounts.
+(Necessary for some old
+.Bx
+servers.)
+.It Cm nametimeo Ns = Ns Aq Ar value
+Override the default of NFS_DEFAULT_NAMETIMEO for the timeout (in seconds)
+for positive name cache entries.
+If this is set to 0 it disables positive name caching for the mount point.
+.It Cm negnametimeo Ns = Ns Aq Ar value
+Override the default of NFS_DEFAULT_NEGNAMETIMEO for the timeout (in seconds)
+for negative name cache entries.
+If this is set to 0 it disables negative name caching for the mount point.
+.It Cm nfsv2
+Use the NFS Version 2 protocol (the default is to try version 3 first
+then version 2).
+Note that NFS version 2 has a file size limit of 2 gigabytes.
+.It Cm nfsv3
+Use the NFS Version 3 protocol.
+.It Cm nfsv4
+Use the NFS Version 4 protocol.
+This option will force the mount to use
+TCP transport.
+.It Cm minorversion Ns = Ns Aq Ar value
+Override the default of 0 for the minor version of the NFS Version 4 protocol.
+The only minor version currently supported is 1.
+This option is only meaningful when used with the
+.Cm nfsv4
+option.
+.It Cm oneopenown
+Make a minor version 1 of the NFS Version 4 protocol mount use a single OpenOwner
+for all Opens.
+This may be useful for a server with a very low limit on OpenOwners, such as
+AmazonEFS.
+It can only be used with an NFSv4.1 mount.
+It may not work correctly when Delegations are being issued by a server,
+but note that the AmazonEFS server does not issued delegations at this time.
+.It Cm pnfs
+Enable support for parallel NFS (pNFS) for minor version 1 of the
+NFS Version 4 protocol.
+This option is only meaningful when used with the
+.Cm minorversion
+option.
+.It Cm noac
+Disable attribute caching.
+.It Cm noconn
+For UDP mount points, do not do a
+.Xr connect 2 .
+This must be used if the server does not reply to requests from the standard
+NFS port number 2049 or replies to requests using a different IP address
+(which can occur if the server is multi-homed).
+Setting the
+.Va vfs.nfs.nfs_ip_paranoia
+sysctl to 0 will make this option the default.
+.It Cm nocto
+Normally, NFS clients maintain the close-to-open cache coherency.
+This works by flushing at close time and checking at open time.
+Checking at open time is implemented by getting attributes from
+the server and purging the data cache if they do not match
+attributes cached by the client.
+.Pp
+This option disables checking at open time.
+It may improve performance for read-only mounts,
+but should only be used if the data on the server changes rarely.
+Be sure to understand the consequences before enabling this option.
+.It Cm noinet4 , noinet6
+Disables
+.Dv AF_INET
+or
+.Dv AF_INET6
+connections.
+Useful for hosts that have
+both an A record and an AAAA record for the same name.
+.It Cm nolockd
+Do
+.Em not
+forward
+.Xr fcntl 2
+locks over the wire.
+All locks will be local and not seen by the server
+and likewise not seen by other NFS clients.
+This removes the need to run the
+.Xr rpcbind 8
+service and the
+.Xr rpc.statd 8
+and
+.Xr rpc.lockd 8
+servers on the client.
+Note that this option will only be honored when performing the
+initial mount, it will be silently ignored if used while updating
+the mount options.
+.It Cm noncontigwr
+This mount option allows the NFS client to
+combine non-contiguous byte ranges being written
+such that the dirty byte range becomes a superset of the bytes
+that are dirty.
+This reduces the number of writes significantly for software
+builds.
+The merging of byte ranges is not done if the file has been file
+locked, since most applications modifying a file from multiple
+clients will use file locking.
+As such, this option could result in a corrupted file for the
+rare case of an application modifying the file from multiple
+clients concurrently without using file locking.
+.It Cm principal
+For the RPCSEC_GSS security flavors, such as krb5, krb5i and krb5p,
+this option sets the name of the host based principal name expected
+by the server.
+This option overrides the default, which will be ``nfs@<server-fqdn>''
+and should normally be sufficient.
+.It Cm noresvport
+Do
+.Em not
+use a reserved socket port number (see below).
+.It Cm port Ns = Ns Aq Ar port_number
+Use specified port number for NFS requests.
+The default is to query the portmapper for the NFS port.
+.It Cm proto Ns = Ns Aq Ar protocol
+Specify transport protocol version to use.
+Currently, they are:
+.Bd -literal
+udp -   Use UDP over IPv4
+tcp -   Use TCP over IPv4
+udp6 -  Use UDP over IPv6
+tcp6 -  Use TCP over IPv6
+.Ed
+.It Cm rdirplus
+Used with NFSV3 to specify that the \fBReaddirPlus\fR RPC should
+be used.
+For NFSV4, setting this option has a similar effect, in that it will make
+the Readdir Operation get more attributes.
+This option reduces RPC traffic for cases such as
+.Dq "ls -l" ,
+but tends to flood the attribute and name caches with prefetched entries.
+Try this option and see whether performance improves or degrades.
+Probably
+most useful for client to server network interconnects with a large bandwidth
+times delay product.
+.It Cm readahead Ns = Ns Aq Ar value
+Set the read-ahead count to the specified value.
+This may be in the range of 0 - 4, and determines how many blocks
+will be read ahead when a large file is being read sequentially.
+Trying a value greater than 1 for this is suggested for
+mounts with a large bandwidth * delay product.
+.It Cm readdirsize Ns = Ns Aq Ar value
+Set the readdir read size to the specified value.
+The value should normally
+be a multiple of
+.Dv DIRBLKSIZ
+that is <= the read size for the mount.
+.It Cm resvport
+Use a reserved socket port number.
+This flag is obsolete, and only retained for compatibility reasons.
+Reserved port numbers are used by default now.
+(For the rare case where the client has a trusted root account
+but untrustworthy users and the network cables are in secure areas this does
+help, but for normal desktop clients this does not apply.)
+.It Cm retrans Ns = Ns Aq Ar value
+Set the retransmit timeout count for soft mounts to the specified value.
+.It Cm retrycnt Ns = Ns Aq Ar count
+Set the mount retry count to the specified value.
+The default is a retry count of zero, which means to keep retrying
+forever.
+There is a 60 second delay between each attempt.
+.It Cm rsize Ns = Ns Aq Ar value
+Set the read data size to the specified value.
+It should normally be a power of 2 greater than or equal to 1024.
+This should be used for UDP mounts when the
+.Dq "fragments dropped due to timeout"
+value is getting large while actively using a mount point.
+(Use
+.Xr netstat 1
+with the
+.Fl s
+option to see what the
+.Dq "fragments dropped due to timeout"
+value is.)
+.It Cm sec Ns = Ns Aq Ar flavor
+This option specifies what security flavor should be used for the mount.
+Currently, they are:
+.Bd -literal
+krb5 -  Use KerberosV authentication
+krb5i - Use KerberosV authentication and
+        apply integrity checksums to RPCs
+krb5p - Use KerberosV authentication and
+        encrypt the RPC data
+sys -   The default AUTH_SYS, which uses a
+        uid + gid list authenticator
+.Ed
+.It Cm soft
+A soft mount, which implies that file system calls will fail
+after
+.Ar retrycnt
+round trip timeout intervals.
+.It Cm tcp
+Use TCP transport.
+This is the default option, as it provides for increased reliability on both
+LAN and WAN configurations compared to UDP.
+Some old NFS servers do not support this method; UDP mounts may be required
+for interoperability.
+.It Cm timeout Ns = Ns Aq Ar value
+Set the initial retransmit timeout to the specified value,
+expressed in tenths of a second.
+May be useful for fine tuning UDP mounts over internetworks
+with high packet loss rates or an overloaded server.
+Try increasing the interval if
+.Xr nfsstat 1
+shows high retransmit rates while the file system is active or reducing the
+value if there is a low retransmit rate but long response delay observed.
+(Normally, the
+.Cm dumbtimer
+option should be specified when using this option to manually
+tune the timeout
+interval.)
+.It Cm timeo Ns = Ns Aq Ar value
+Alias for
+.Cm timeout .
+.It Cm udp
+Use UDP transport.
+.It Cm vers Ns = Ns Aq Ar vers_number
+Use the specified version number for NFS requests.
+See the
+.Cm nfsv2 ,
+.Cm nfsv3 ,
+and
+.Cm nfsv4
+options for details.
+.It Cm wcommitsize Ns = Ns Aq Ar value
+Set the maximum pending write commit size to the specified value.
+This determines the maximum amount of pending write data that the NFS
+client is willing to cache for each file.
+.It Cm wsize Ns = Ns Aq Ar value
+Set the write data size to the specified value.
+Ditto the comments w.r.t.\& the
+.Cm rsize
+option, but using the
+.Dq "fragments dropped due to timeout"
+value on the server instead of the client.
+Note that both the
+.Cm rsize
+and
+.Cm wsize
+options should only be used as a last ditch effort at improving performance
+when mounting servers that do not support TCP mounts.
+.El
+.El
+.Sh COMPATIBILITY
+The following command line flags are equivalent to
+.Fl o
+named options and are supported for compatibility with older
+installations.
+.Bl -tag -width indent
+.It Fl 2
+Same as
+.Fl o Cm nfsv2
+.It Fl 3
+Same as
+.Fl o Cm nfsv3
+.It Fl D
+Same as
+.Fl o Cm deadthresh
+.It Fl I
+Same as
+.Fl o Cm readdirsize Ns = Ns Aq Ar value
+.It Fl L
+Same as
+.Fl o Cm nolockd
+.It Fl N
+Same as
+.Fl o Cm noresvport
+.It Fl P
+Use a reserved socket port number.
+This flag is obsolete, and only retained for compatibility reasons.
+(For the rare case where the client has a trusted root account
+but untrustworthy users and the network cables are in secure areas this does
+help, but for normal desktop clients this does not apply.)
+.It Fl R
+Same as
+.Fl o Cm retrycnt Ns = Ns Aq Ar value
+.It Fl T
+Same as
+.Fl o Cm tcp
+.It Fl U
+Same as
+.Fl o Cm mntudp
+.It Fl a
+Same as
+.Fl o Cm readahead Ns = Ns Aq Ar value
+.It Fl b
+Same as
+.Fl o Cm bg
+.It Fl c
+Same as
+.Fl o Cm noconn
+.It Fl d
+Same as
+.Fl o Cm dumbtimer
+.It Fl g
+Same as
+.Fl o Cm maxgroups
+.It Fl i
+Same as
+.Fl o Cm intr
+.It Fl l
+Same as
+.Fl o Cm rdirplus
+.It Fl r
+Same as
+.Fl o Cm rsize Ns = Ns Aq Ar value
+.It Fl s
+Same as
+.Fl o Cm soft
+.It Fl t
+Same as
+.Fl o Cm retransmit Ns = Ns Aq Ar value
+.It Fl w
+Same as
+.Fl o Cm wsize Ns = Ns Aq Ar value
+.It Fl x
+Same as
+.Fl o Cm retrans Ns = Ns Aq Ar value
+.El
+.Pp
+The following
+.Fl o
+named options are equivalent to other
+.Fl o
+named options and are supported for compatibility with other
+operating systems (e.g., Linux, Solaris, and OSX) to ease usage of
+.Xr autofs 5
+support.
+.Bl -tag -width indent
+.It Fl o Cm vers Ns = Ns 2
+Same as
+.Fl o Cm nfsv2
+.It Fl o Cm vers Ns = Ns 3
+Same as
+.Fl o Cm nfsv3
+.It Fl o Cm vers Ns = Ns 4
+Same as
+.Fl o Cm nfsv4
+.El
+.Sh SEE ALSO
+.Xr nmount 2 ,
+.Xr unmount 2 ,
+.Xr nfsv4 4 ,
+.Xr fstab 5 ,
+.Xr gssd 8 ,
+.Xr mount 8 ,
+.Xr nfsd 8 ,
+.Xr nfsiod 8 ,
+.Xr showmount 8
+.Sh HISTORY
+A version of the
+.Nm
+utility appeared in
+.Bx 4.4 .
+.Sh BUGS
+Since nfsv4 performs open/lock operations that have their ordering strictly
+enforced by the server, the options
+.Cm intr
+and
+.Cm soft
+cannot be safely used.
+.Cm hard
+nfsv4 mounts are strongly recommended.

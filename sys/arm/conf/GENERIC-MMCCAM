@@ -1,0 +1,22 @@
+#
+# GEMERIC-MMCCAM
+#
+# Custom kernel for GENERIC plus MMCCAM as opposed to the prior MMC stack.
+#
+# $FreeBSD$
+
+include		GENERIC
+
+ident		GENERIC-MMCCAM
+
+options		MMCCAM
+
+# Add CAMDEBUG stuff
+options 	CAMDEBUG
+options 	CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_PROBE|CAM_DEBUG_PERIPH)
+
+# pass(4) device
+device		pass
+
+nodevice	mmc
+nodevice	mmcsd

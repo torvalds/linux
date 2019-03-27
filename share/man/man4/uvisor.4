@@ -1,0 +1,156 @@
+.\" $NetBSD: uvisor.4,v 1.3 2001/01/23 21:31:10 augustss Exp $
+.\"
+.\" Copyright (c) 2000 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 26, 2017
+.Dt UVISOR 4
+.Os
+.Sh NAME
+.Nm uvisor
+.Nd "USB support for the PalmOS based PDAs"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device ucom"
+.Cd "device uvisor"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+uvisor_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB based PalmOS PDAs, like Handspring
+Visor, Palm Mxxx series, and Sony Clie.
+.Pp
+The device is accessed through the
+.Xr ucom 4
+driver which makes it behave like a
+.Xr tty 4 .
+The device has several ports for different purposes, each of them gets its
+own
+.Xr ucom 4
+device.
+The attach message describes the purpose of each port.
+.Pp
+The usual Pilot tools can be used to access the attached device on the
+HotSync port.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following devices:
+.Pp
+.Bl -bullet -compact
+.It
+Aceeca Mez1000 RDA
+.It
+Handspring Treo
+.It
+Handspring Treo 600
+.It
+Handspring Visor
+.It
+Palm I705
+.It
+Palm M125
+.It
+Palm M130
+.It
+Palm M500
+.It
+Palm M505
+.It
+Palm M515
+.It
+Palm Tungsten T
+.It
+Palm Tungsten Z
+.It
+Palm Zire
+.It
+Palm Zire 31
+.It
+Sony Clie 4.0
+.It
+Sony Clie 4.1
+.It
+Sony Clie 5.0
+.It
+Sony Clie PEG-S500C
+.It
+Sony Clie NX60
+.It
+Sony Clie S360
+.It
+Sony Clie TJ37
+.El
+.Sh FILES
+.Bl -tag -width "/dev/ttyU*.init" -compact
+.It Pa /dev/ttyU*
+for callin ports
+.It Pa /dev/ttyU*.init
+.It Pa /dev/ttyU*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*
+for callout ports
+.It Pa /dev/cuaU*.init
+.It Pa /dev/cuaU*.lock
+corresponding callout initial-state and lock-state devices
+.El
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver was adopted from
+.Nx 1.5
+in August 2002.
+This manual page was adopted from
+.Nx
+by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org
+at that time.
+.Sh BUGS
+The code to provide multiple
+.Xr ucom 4
+instances has not yet been ported from
+.Nx .
+It is unclear whether this driver works in its
+current state.

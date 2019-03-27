@@ -1,0 +1,43 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_REG_MSGS" 3 "2010-07-19" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_reg_msgs \- register data buffer(s) for sending or receiving messages.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_verbs.h>"
+.P
+.B "struct ibv_mr *" rdma_reg_msgs
+.BI "(struct rdma_cm_id *" id ","
+.BI "void *" addr ","
+.BI "size_t " length ");"
+.SH ARGUMENTS
+.IP "id" 12
+A reference to a communication identifier where the message buffer(s)
+will be used.
+.IP "addr" 12
+The address of the memory buffer(s) to register.
+.IP "length" 12
+The total length of the memory to register.
+.SH "DESCRIPTION"
+Registers an array of memory buffers used for sending and receiving
+messages or for RDMA operations.  Memory buffers registered using
+rdma_reg_msgs may be posted to an rdma_cm_id using
+rdma_post_send or rdma_post_recv, or specified as the target of an RDMA
+read operation or the source of an RDMA write request.
+.SH "RETURN VALUE"
+Returns a reference to the registered memory region on success, or NULL on
+error.  If an error occurs, errno will be set to indicate the failure reason.
+.SH "NOTES"
+rdma_reg_msgs is used to register an array of data buffers
+that will be used send and/or receive messages on a queue pair associated with
+an rdma_cm_id.  The memory buffer is registered with the proteection
+domain associated with the idenfier.  The start of the data buffer array
+is specified through the addr parameter, and the total size of the array
+is given by length.
+.P
+All data buffers should be registered before being posted as a work request.
+Users must deregister all registered memory by calling rdma_dereg_mr.
+.SH "SEE ALSO"
+rdma_cm(7), rdma_create_id(3), rdma_create_ep(3),
+rdma_reg_read(3), rdma_reg_write(3),
+ibv_reg_mr(3), ibv_dereg_mr(3), rdma_post_send(3), rdma_post_recv(3),
+rdma_post_read(3), rdma_post_readv(3), rdma_post_write(3), rdma_post_writev(3)

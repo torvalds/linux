@@ -1,0 +1,140 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1998 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 2012
+.Dt DEVICE_PROBE 9
+.Os
+.Sh NAME
+.Nm DEVICE_PROBE
+.Nd probe for device existence
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Ft int
+.Fn DEVICE_PROBE "device_t dev"
+.Sh DESCRIPTION
+The
+.Fn DEVICE_PROBE
+method should probe to see if the device is present.
+It should return 0 if the device exists,
+.Er ENXIO
+if it cannot be found.
+If some other error happens during the probe (such as a memory
+allocation failure), an appropriate error code should be returned.
+For
+cases where more than one driver matches a device, a priority value can
+be returned.
+In this case, success codes are values less than or equal
+to zero with the highest value representing the best match.
+Failure
+codes are represented by positive values and the regular
+.Ux
+error
+codes should be used for the purpose.
+.Pp
+If a driver returns a success code which is less than zero, it must
+not assume that it will be the same driver which is attached to the
+device.
+In particular, it must not assume that any values stored in
+the softc structure will be available for its attach method and any
+resources allocated during probe must be released and re-allocated
+if the attach method is called.
+In addition it is an absolute requirement that the probe routine have
+no side effects whatsoever.
+The probe routine may be called more than once before the attach
+routine is called.
+.Pp
+If a success code of zero is
+returned, the driver can assume that it will be the one attached, but
+must not hold any resources when the probe routine returns.
+A driver may assume that the softc is preserved when it returns
+a success code of zero.
+.Sh RETURN VALUES
+A value equal to or less than zero indicates success, greater than
+zero indicates an error (errno).
+For values equal to or less than
+zero: zero indicates highest priority, no further probing is done;
+for a value less than zero, the lower the value the lower the
+priority, e.g.\& -100 indicates a lower priority than -50.
+.Pp
+The following values are used by convention to indicate different
+strengths of matching in a probe routine.
+Except as noted, these are just suggested values, and there's nothing
+magical about them.
+.Bl -tag -width BUS_PROBE_NOWILDCARD
+.It BUS_PROBE_SPECIFIC
+The device that cannot be reprobed, and that no
+possible other driver may exist (typically legacy drivers who don't follow
+all the rules, or special needs drivers).
+.It BUS_PROBE_VENDOR
+The device is supported by a vendor driver.
+This is for source or binary drivers that are not yet integrated into the
+.Fx
+tree.
+Its use in the base OS is prohibited.
+.It BUS_PROBE_DEFAULT
+The device is a normal device matching some plug and play ID.
+This is
+the normal return value for drivers to use.
+It is intended that nearly all of the drivers in the tree should return
+this value.
+.It BUS_PROBE_LOW_PRIORITY
+The driver is a legacy driver, or an otherwise less desirable driver
+for a given plug and play ID.
+The driver has special requirements like when there are two drivers
+that support overlapping series of hardware devices.
+In this case the one that supports the older part of the line would
+return this value, while the one that supports the newer ones would
+return BUS_PROBE_DEFAULT.
+.It BUS_PROBE_GENERIC
+The driver matches the type of device generally.
+This allows drivers to match all serial ports generally, with specialized
+drivers matching particular types of serial ports that need special
+treatment for some reason.
+.It BUS_PROBE_HOOVER
+The driver matches all unclaimed devices on a bus.
+The
+.Xr ugen 4
+device is one example.
+.It BUS_PROBE_NOWILDCARD
+The driver expects its parent to tell it which children to manage
+and no probing is really done.
+The device only matches if its parent bus specifically said to use
+this driver.
+.El
+.Sh SEE ALSO
+.Xr device 9 ,
+.Xr DEVICE_ATTACH 9 ,
+.Xr DEVICE_DETACH 9 ,
+.Xr DEVICE_IDENTIFY 9 ,
+.Xr DEVICE_SHUTDOWN 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

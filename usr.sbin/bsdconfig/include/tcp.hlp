@@ -1,0 +1,33 @@
+This screen allows you to set up your general network parameters
+(hostname, domain name, DNS server, etc) as well as the settings for a
+given interface (which was selected from the menu before this screen).
+
+PLIP/SLIP users - please read through to the end of this doc!
+
+The "options" field is kind of special (read: a hack :-):
+
+Any valid options to ifconfig can be specified here, so if you need
+to do something "special" to get your interface working, then here
+is the place to do it.
+
+If you're running SLIP or PLIP, you also need to use it for specifying
+the remote end of the link (simply type the foreign IP address in).
+In the specific case where you're running PLIP with a Linux host peer
+rather than a FreeBSD one, you also must add the "-link0" flag after the
+foreign address.
+
+If you're dealing with an ethernet adaptor with multiple media
+connectors (e.g. AUI, 10BT, 10B2, etc), you can use this field to
+specify which one to use.  Examples of valid strings include:
+
+        "media 10base5/AUI" - Select the AUI port.
+        "media 10baseT/UTP" - Select the twisted pair port.
+        "media 10base2/BNC" - Select the BNC connector.
+        "media 100baseTX"   - Select 100BaseT on a 100/10 dual adaptor.
+
+If you have a wireless interface and must specify arguments such as a
+WEP key here, you may use something like:
+
+	"wepmode on wepkey 0xFEEDFACE"
+
+When you're done with this form, select OK.

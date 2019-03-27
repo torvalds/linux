@@ -1,0 +1,214 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getttyent.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd November 17, 1996
+.Dt GETTTYENT 3
+.Os
+.Sh NAME
+.Nm getttyent ,
+.Nm getttynam ,
+.Nm setttyent ,
+.Nm endttyent ,
+.Nm isdialuptty ,
+.Nm isnettty
+.Nd
+.Xr ttys 5
+file routines
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In ttyent.h
+.Ft struct ttyent *
+.Fn getttyent void
+.Ft struct ttyent *
+.Fn getttynam "const char *name"
+.Ft int
+.Fn setttyent void
+.Ft int
+.Fn endttyent void
+.Ft int
+.Fn isdialuptty "const char *name"
+.Ft int
+.Fn isnettty "const char *name"
+.Sh DESCRIPTION
+The
+.Fn getttyent ,
+and
+.Fn getttynam
+functions
+each return a pointer to an object, with the following structure,
+containing the broken-out fields of a line from the tty description
+file.
+.Bd -literal
+struct ttyent {
+	char	*ty_name;	/* terminal device name */
+	char	*ty_getty;	/* command to execute, usually getty */
+	char	*ty_type;	/* terminal type for termcap */
+#define	TTY_ON		0x01	/* enable logins (start ty_getty program) */
+#define	TTY_SECURE	0x02	/* allow uid of 0 to login */
+#define	TTY_DIALUP	0x04	/* is a dialup tty */
+#define	TTY_NETWORK	0x08	/* is a network tty */
+#define	TTY_IFEXISTS	0x10	/* configured as "onifexists" */
+#define	TTY_IFCONSOLE	0x20	/* configured as "onifconsole" */
+	int	ty_status;	/* status flags */
+	char	*ty_window;	/* command to start up window manager */
+	char	*ty_comment;	/* comment field */
+	char	*ty_group;	/* tty group name */
+};
+.Ed
+.Pp
+The fields are as follows:
+.Bl -tag -width ty_comment
+.It Fa ty_name
+The name of the character-special file.
+.It Fa ty_getty
+The name of the command invoked by
+.Xr init 8
+to initialize tty line characteristics.
+.It Fa ty_type
+The name of the default terminal type connected to this tty line.
+.It Fa ty_status
+A mask of bit fields which indicate various actions allowed on this
+tty line.
+The possible flags are as follows:
+.Bl -tag -width TTY_NETWORK
+.It Dv TTY_ON
+Enables logins (i.e.,
+.Xr init 8
+will start the command referenced by
+.Fa ty_getty
+on this entry).
+.It Dv TTY_SECURE
+Allow users with a uid of 0 to login on this terminal.
+.It Dv TTY_DIALUP
+Identifies a tty as a dialin line.
+If this flag is set, then
+.Fn isdialuptty
+will return a non-zero value.
+.It Dv TTY_NETWORK
+Identifies a tty used for network connections.
+If this flag is set, then
+.Fn isnettty
+will return a non-zero value.
+.It Dv TTY_IFEXISTS
+Identifies a tty that does not necessarily exist.
+.It Dv TTY_IFCONSOLE
+Identifies a tty that might be a system console.
+.El
+.It Fa ty_window
+The command to execute for a window system associated with the line.
+.It Fa ty_group
+A group name to which the tty belongs.
+If no group is specified in the ttys description file,
+then the tty is placed in an anonymous group called "none".
+.It Fa ty_comment
+Any trailing comment field, with any leading hash marks (``#'') or
+whitespace removed.
+.El
+.Pp
+If any of the fields pointing to character strings are unspecified,
+they are returned as null pointers.
+The field
+.Fa ty_status
+will be zero if no flag values are specified.
+.Pp
+See
+.Xr ttys 5
+for a more complete discussion of the meaning and usage of the
+fields.
+.Pp
+The
+.Fn getttyent
+function
+reads the next line from the ttys file, opening the file if necessary.
+The
+.Fn setttyent
+function
+rewinds the file if open, or opens the file if it is unopened.
+The
+.Fn endttyent
+function
+closes any open files.
+.Pp
+The
+.Fn getttynam
+function
+searches from the beginning of the file until a matching
+.Fa name
+is found
+(or until
+.Dv EOF
+is encountered).
+.Sh RETURN VALUES
+The routines
+.Fn getttyent
+and
+.Fn getttynam
+return a null pointer on
+.Dv EOF
+or error.
+The
+.Fn setttyent
+function
+and
+.Fn endttyent
+return 0 on failure and 1 on success.
+.Pp
+The routines
+.Fn isdialuptty
+and
+.Fn isnettty
+return non-zero if the dialup or network flag is set for the
+tty entry relating to the tty named by the argument, and
+zero otherwise.
+.Sh FILES
+.Bl -tag -width /etc/ttys -compact
+.It Pa /etc/ttys
+.El
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr gettytab 5 ,
+.Xr termcap 5 ,
+.Xr ttys 5 ,
+.Xr getty 8 ,
+.Xr init 8
+.Sh HISTORY
+The
+.Fn getttyent ,
+.Fn getttynam ,
+.Fn setttyent ,
+and
+.Fn endttyent
+functions appeared in
+.Bx 4.3 .
+.Sh BUGS
+These functions use static data storage;
+if the data is needed for future use, it should be
+copied before any subsequent calls overwrite it.

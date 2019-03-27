@@ -1,0 +1,11 @@
+$FreeBSD$
+
+NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
+file is important.  Make sure the current version number is on line 6.
+
+1.1:	Flattened Device Tree blob support.
+1.0:	Added storage support.
+0.6:	Integrated with the new U-Boot API
+0.5:	Full network functionality.
+0.2:	Initial U-Boot/PowerPC version derived from the existing
+	OpenFirmware-based.

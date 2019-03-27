@@ -1,0 +1,241 @@
+# Copyright (c) 2001-2003, 2014 Proofpoint, Inc. and its suppliers.
+#	All rights reserved.
+#
+# By using this file, you agree to the terms and conditions set
+# forth in the LICENSE file which can be found at the top level of
+# the sendmail distribution.
+#
+#	$Id: TUNING,v 1.22 2013-11-22 20:51:54 ca Exp $
+#
+
+********************************************
+** This is a DRAFT, comments are welcome! **
+********************************************
+
+
+If the default configuration of sendmail does not achieve the
+required performance, there are several configuration options that
+can be changed to accomplish higher performance.  However, before
+those options are changed it is necessary to understand why the
+performance is not as good as desired.  This may also involve hardware
+and software (OS) configurations which are not extensively explored
+in this document.  We assume that your system is not limited by
+network bandwidth because optimizing for this situation is beyond
+the scope of this guide.  In almost all other cases performance will
+be limited by disk I/O.
+
+
+This text assumes that all options which are mentioned here are
+familiar to the reader, they are explained in the Sendmail Installation
+and Operations Guide; doc/op/op.txt.
+
+There are basically three different scenarios which are treated
+in the following:
+* Mailing Lists and Large Aliases (1-n Mailing)
+* 1-1 Mass Mailing
+* High Volume Mail
+
+Depending on your requirements, these may need different options
+to optimize sendmail for the particular purpose.  It is also possible
+to configure sendmail to achieve good performance in all cases, but
+it will not be optimal for any specific purpose.  For example, it
+is non-trivial to combine low latency (fast delivery of incoming
+mail) with high overall throughput.
+
+Before we explore the different scenarios, a basic discussion about
+disk I/O, delivery modes, and queue control is required.
+
+
+* Disk I/O
+-----------------------------------------------
+
+In general mail will be written to disk before a delivery attempt
+is made.  This is required for reliability and should only be changed
+in a few specific cases that are mentioned later on.  To achieve
+better disk I/O performance the queue directories can be spread
+over several disks to distribute the load.  This is some basic tuning
+that should be done in all cases where the I/O speed of a single
+disk is exceeded, which is true for almost every high-volume
+situation except if a special disk subsystem with large (NV)RAM
+buffer is used.
+
+Depending on your OS there might be ways to speed up I/O, e.g.,
+using softupdates or turning on the noatime mount option.  If this
+is done make sure the filesystem is still reliable, i.e., if fsync()
+returns without an error, the file has really been committed to
+disk.
+
+
+* Queueing Strategies and DeliveryMode
+-----------------------------------------------
+
+There are basically three delivery modes:
+
+background: incoming mail will be immediately delivered by a new process
+interactive: incoming mail will be immediately delivered by the same process
+queue: incoming mail will be queued and delivered by a queue runner later on
+
+The first offers the lowest latency without the disadvantage of the
+second, which keeps the connection from the sender open until the
+delivery to the next hop succeeded or failed.  However, it does not
+allow for a good control over the number of delivery processes other
+than limiting the total number of direct children of the daemon
+processes (MaxChildren) or by load control options (RefuseLA,
+DelayLA).  Moreover, it can't make as good use as 'queue' mode can
+for connection caching.
+
+Interactive DeliveryMode should only be used in rare cases, e.g.,
+if the delivery time to the next hop is a known quantity or if the
+sender is under local control and it does not matter if it has to
+wait for delivery.
+
+Queueing up e-mail before delivery is done by a queue runner allows
+the best load control but does not achieve as low latency as the
+other two modes.  However, this mode is probably also best for
+concurrent delivery since the number of queue runners can be specified
+on a queue group basis.  Persistent queue runners (-qp) can be used
+to minimize the overhead for creating processes because they just
+sleep for the specified interval (which should be short) instead of
+exiting after a queue run.
+
+
+* Queue Groups
+-----------------------------------------------
+
+In most situations disk I/O is a bottleneck which can be mitigated
+by spreading the load over several disks.  This can easily be achieved
+with different queue directories.  sendmail 8.12 introduces queue
+groups which are collections of queue directories with similar
+properties, i.e., number of processes to run the queues in the
+group, maximum number of recipients within an e-mail (envelope),
+etc.  Queue groups allow control over the behaviour of different
+queues.  Depending on the setup, it is usually possible to have
+several queue runners delivering mails concurrently which should
+increase throughput.  The number of queue runners can be controlled
+per queue group (Runner=) and overall (MaxQueueChildren).
+
+
+* DNS Lookups
+-----------------------------------------------
+
+sendmail performs by default host name canonifications by using
+host name lookups.  This process is meant to replace unqualified
+host name with qualified host names, and CNAMEs with the non-aliased
+name.  However, these lookups can take a while for large address
+lists, e.g., mailing lists.  If you can assure by other means that
+host names are canonical, you should use
+
+		FEATURE(`nocanonify', `canonify_hosts')
+
+in your .mc file.  For further information on this feature and
+additional options see cf/README.  If sendmail is invoked directly
+to send e-mail then either the -G option should be used or
+
+	define(`confDIRECT_SUBMISSION_MODIFIERS', `C')
+
+should be added to the .mc file.
+
+Note: starting with 8.15, sendmail will not ignore temporary map
+lookup failures during header rewriting, which means that DNS lookup
+problems even for headers will cause messages to stay in the queue.
+Hence it is strongly suggested to use the nocanonify feature;
+at least turning it on for the MTA, but maybe disabling it for the
+MSA, i.e., use Modifiers for DaemonPortOptions accordingly.
+As a last resort, it is possible to override the host map to ignore
+temporary failures, e.g.,
+Khost host -t
+However, this can cause inconsistent header rewriting.
+
+
+* Mailing Lists and Large Aliases (1-n Mailing)
+-----------------------------------------------
+
+Before 8.12 sendmail would deliver an e-mail sequentially to all its
+recipients.  For mailing lists or large aliases the overall delivery
+time can be substantial, especially if some of the recipients are
+located at hosts that are slow to accept e-mail.  Some mailing list
+software therefore "split" up e-mails into smaller pieces with
+fewer recipients.  sendmail 8.12 can do this itself, either across
+queue groups or within a queue directory.  The latter is controlled
+by the 'r=' field of a queue group declaration.
+
+Let's assume a simple example: a mailing list where most of the
+recipients are at three domains: the local one (local.domain) and
+two remotes (one.domain, two.domain) and the rest is splittered
+over several other domains.  For this case it is useful to specify
+three queue groups:
+
+QUEUE_GROUP(`local', `P=/var/spool/mqueue/local, F=f, R=2, I=1m')dnl
+QUEUE_GROUP(`one', `P=/var/spool/mqueue/one, F=f, r=50, R=3')dnl
+QUEUE_GROUP(`two', `P=/var/spool/mqueue/two, F=f, r=30, R=4')dnl
+QUEUE_GROUP(`remote', `P=/var/spool/mqueue/remote, F=f, r=5, R=8, I=2m')dnl
+define(`ESMTP_MAILER_QGRP', `remote')dnl
+define(`confDELIVERY_MODE', `q')dnl
+define(`confMAX_QUEUE_CHILDREN', `50')dnl
+define(`confMIN_QUEUE_AGE', `27m')dnl
+
+and specify the queuegroup ruleset as follows:
+
+LOCAL_RULESETS
+Squeuegroup
+R$* @ local.domain	$# local
+R$* @ $* one.domain	$# one
+R$* @ $* two.domain	$# two
+R$* @ $*		$# remote
+R$*			$# mqueue
+
+Now it is necessary to control the number of queue runners, which
+is done by MaxQueueChildren.  Starting the daemon with the option
+-q5m assures that the first delivery attempt for each e-mail is
+done within 5 minutes, however, there are also individual queue
+intervals for the queue groups as specified above.  MinQueueAge
+is set to 27 minutes to avoid that entries are run too often.
+
+Notice: if envelope splitting happens due to alias expansion, and
+DeliveryMode is not 'i'nteractive, then only one envelope is sent
+immediately.  The rest (after splitting) are queued up and queue
+runners must come along and take care of them.  Hence it is essential
+that the queue interval is very short.
+
+
+* 1-1 Mass Mailing
+-----------------------------------------------
+
+In this case some program generates e-mails which are sent to
+individual recipients (or at most very few per e-mail).  A simple
+way to achieve high throughput is to set the delivery mode to
+'interactive', turn off the SuperSafe option and make sure that the
+program that generates the mails can deal with mail losses if the
+server loses power.  In no other case should SuperSafe be set to
+'false'.  If these conditions are met, sendmail does not need to
+commit mails to disk but can buffer them in memory which will greatly
+enhance performance, especially compared to normal disk subsystems, e.g.,
+non solid-state disks.
+
+
+* High Volume Mail
+-----------------------------------------------
+
+For high volume mail it is necessary to be able to control the load
+on the system.  Therefore the 'queue' delivery mode should be used,
+and all options related to number of processes and the load should
+be set to reasonable values.  It is important not to accept mail
+faster than it can be delivered; otherwise the system will be
+overwhelmed.  Hence RefuseLA should be lower than QueueLA, the number
+of daemon children should probably be lower than the number of queue
+runners (MaxChildren vs. MaxQueueChildren).  DelayLA is a new option
+in 8.12 which allows delaying connections instead of rejecting them.
+This may result in a smoother load distribution depending on how
+the mails are submitted to sendmail.
+
+
+* Miscellaneous
+-----------------------------------------------
+
+Other options that are interesting to tweak performance are
+(in no particular order):
+
+SuperSafe: if interactive DeliveryMode is used, then this can
+be set to the new value "interactive" in 8.12 to save some disk
+synchronizations which are not really necessary in that mode.
+

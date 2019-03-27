@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: disks
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="ccd"
+desc="Concatenated disks setup"
+start_cmd="ccd_start"
+stop_cmd=":"
+
+ccd_start()
+{
+	if [ -f /etc/ccd.conf ]; then
+		echo "Configuring CCD devices."
+		ccdconfig -C
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

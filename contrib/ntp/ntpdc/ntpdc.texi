@@ -1,0 +1,88 @@
+\input texinfo    @c -*-texinfo-*-
+@c %**start of header
+@setfilename ntpdc.info
+@settitle ntpdc: NTPD Control User's Manual
+@include ../sntp/include/version.texi
+@paragraphindent 2
+@c %**end of header
+
+@ifinfo
+This file documents the use of the NTP Project's ntpdc, a program for
+controlling ntpd.
+@end ifinfo
+
+@direntry
+* ntpdc: (ntpdc).                               ntpd Control program
+@end direntry
+
+@titlepage
+@title ntpdc: NTPD Control User's Manual
+@subtitle ntpdc, version @value{VERSION}, @value{UPDATED}
+@c @author Max @email{foo@ntp.org}
+@end titlepage
+
+@c @page
+@c @vskip 0pt plus 1filll
+
+@node Top, ntpdc Description, (dir), (dir)
+@top ntpdc: NTPD Control User Manual
+
+This document describes the use of the NTP Project's @code{ntpdc} program,
+that can be used to query a Network Time Protocol (NTP) server and
+display the time offset of the system clock relative to the server
+clock.  Run as root, it can correct the system clock to this offset as
+well.  It can be run as an interactive command or from a cron job.
+
+This document applies to version @value{VERSION} of @code{ntpdc}.
+
+The program implements the SNTP protocol as defined by RFC 5905, the NTPv4
+IETF specification.
+
+@shortcontents
+
+@menu
+* ntpdc Description::            Description
+* ntpdc Invocation::		Invoking ntpdc
+* Usage::                       Usage
+@end menu
+
+@node ntpdc Description
+@comment  node-name,  next,  previous,  up
+@section Description
+
+By default, @code{ntpdc} writes the local data and time (i.e., not UTC) to the
+standard output in the format:
+
+@example
+1996-10-15 20:17:25.123 (+0800) +4.567 +/- 0.089 secs
+@end example
+
+where
+YYYY-MM-DD HH:MM:SS.SUBSEC is the local date and time,
+(+0800) is the local timezone adjustment (so we would add 8 hours and 0 minutes to convert the reported local time to UTC),
+and
+the +4.567 +/- 0.089 secs indicates the time offset and
+error bound of the system clock relative to the server clock.
+
+@include invoke-ntpdc.texi
+
+@node Usage
+@comment  node-name,  next,  previous,  up
+@section Usage
+
+The simplest use of this program is as an unprivileged command to
+check the current time, offset, and error in the local clock.
+For example:
+
+@example
+ntpdc ntpserver.somewhere
+@end example
+
+With suitable privilege, it can be run as a command or in a
+@code{cron} job to reset the local clock from a reliable server, like
+the @code{ntpdate} and @code{rdate} commands.
+For example:
+
+@example
+ntpdc -a ntpserver.somewhere
+@end example

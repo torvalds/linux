@@ -1,0 +1,118 @@
+.\" Copyright (c) 2004 Apple Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1.  Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\" 2.  Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\" 3.  Neither the name of Apple Inc. ("Apple") nor the names of
+.\"     its contributors may be used to endorse or promote products derived
+.\"     from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL APPLE OR ITS CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd January 4, 2008
+.Dt AUDIT_USER 5
+.Os
+.Sh NAME
+.Nm audit_user
+.Nd "events to be audited for given users"
+.Sh DESCRIPTION
+The
+.Nm
+file specifies which audit event classes are to be audited for the given users.
+If specified, these flags are combined with the system-wide audit flags in the
+.Xr audit_control 5
+file to determine which classes of events to audit for that user.
+These settings take effect when the user logs in.
+.Pp
+Each line maps a user name to a list of classes that should be audited and a
+list of classes that should not be audited.
+Entries are of the form:
+.Pp
+.D1 Ar username Ns : Ns Ar alwaysaudit Ns : Ns Ar neveraudit
+.Pp
+In the format above,
+.Ar alwaysaudit
+is a set of event classes that are always audited, and
+.Ar neveraudit
+is a set of event classes that should not be audited.
+These sets can indicate
+the inclusion or exclusion of multiple classes, and whether to audit successful
+or failed events.
+See
+.Xr audit_control 5
+for more information about audit flags.
+.Pp
+Example entries in this file are:
+.Bd -literal -offset indent
+root:lo,ad:no
+jdoe:-fc,ad:+fw
+.Ed
+.Pp
+These settings would cause login/logout and administrative events that
+are performed on behalf of user
+.Dq Li root
+to be audited.
+No failure events are audited.
+For the user
+.Dq Li jdoe ,
+failed file creation events are audited, administrative events are
+audited, and successful file write events are never audited.
+.Sh IMPLEMENTATION NOTES
+Per-user and global audit preselection configuration are evaluated at time of
+login, so users must log out and back in again for audit changes relating to
+preselection to take effect.
+.Pp
+Audit record preselection occurs with respect to the audit identifier
+associated with a process, rather than with respect to the UNIX user or group
+ID.
+The audit identifier is set as part of the user credential context as part of
+login, and typically does not change as a result of running setuid or setgid
+applications, such as
+.Xr su 1 .
+This has the advantage that events that occur after running
+.Xr su 1
+can be audited to the original authenticated user, as required by CAPP, but
+may be surprising if not expected.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/security/audit_user" -compact
+.It Pa /etc/security/audit_user
+.El
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr su 1 ,
+.Xr audit 4 ,
+.Xr audit_class 5 ,
+.Xr audit_control 5 ,
+.Xr audit_event 5
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Sh AUTHORS
+.An -nosplit
+This software was created by McAfee Research, the security research division
+of McAfee, Inc., under contract to Apple Computer Inc.
+Additional authors include
+.An Wayne Salamon ,
+.An Robert Watson ,
+and SPARTA Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.

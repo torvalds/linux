@@ -1,0 +1,48 @@
+
+#------------------------------------------------------------------------------
+# $File: gringotts,v 1.6 2017/03/17 21:35:28 christos Exp $
+# gringotts:  file(1) magic for Gringotts
+# http://devel.pluto.linux.it/projects/Gringotts/
+# author: Germano Rizzo <mano@pluto.linux.it>
+#GRG3????Y
+0	string	GRG		Gringotts data file
+#file format 1
+>3	string		1		v.1, MCRYPT S2K, SERPENT crypt, SHA-256 hash, ZLib lvl.9
+#file format 2
+>3	string		2		v.2, MCRYPT S2K,
+>>8	byte&0x70	0x00		RIJNDAEL-128 crypt,
+>>8	byte&0x70	0x10		SERPENT crypt,
+>>8	byte&0x70	0x20		TWOFISH crypt,
+>>8	byte&0x70	0x30		CAST-256 crypt,
+>>8	byte&0x70	0x40		SAFER+ crypt,
+>>8	byte&0x70	0x50		LOKI97 crypt,
+>>8	byte&0x70	0x60		3DES crypt,
+>>8	byte&0x70	0x70		RIJNDAEL-256 crypt,
+>>8	byte&0x08	0x00		SHA1 hash,
+>>8	byte&0x08	0x08		RIPEMD-160 hash,
+>>8	byte&0x04	0x00		ZLib
+>>8	byte&0x04	0x04		BZip2
+>>8	byte&0x03	0x00		lvl.0
+>>8	byte&0x03	0x01		lvl.3
+>>8	byte&0x03	0x02		lvl.6
+>>8	byte&0x03	0x03		lvl.9
+#file format 3
+>3	string		3		v.3, OpenPGP S2K,
+>>8	byte&0x70	0x00		RIJNDAEL-128 crypt,
+>>8	byte&0x70	0x10		SERPENT crypt,
+>>8	byte&0x70	0x20		TWOFISH crypt,
+>>8	byte&0x70	0x30		CAST-256 crypt,
+>>8	byte&0x70	0x40		SAFER+ crypt,
+>>8	byte&0x70	0x50		LOKI97 crypt,
+>>8	byte&0x70	0x60		3DES crypt,
+>>8	byte&0x70	0x70		RIJNDAEL-256 crypt,
+>>8	byte&0x08	0x00		SHA1 hash,
+>>8	byte&0x08	0x08		RIPEMD-160 hash,
+>>8	byte&0x04	0x00		ZLib
+>>8	byte&0x04	0x04		BZip2
+>>8	byte&0x03	0x00		lvl.0
+>>8	byte&0x03	0x01		lvl.3
+>>8	byte&0x03	0x02		lvl.6
+>>8	byte&0x03	0x03		lvl.9
+#file format >3
+>3	string		>3		v.%.1s (unknown details)

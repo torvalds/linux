@@ -1,0 +1,14 @@
+# $FreeBSD$
+# Internet (IP) protocols
+ip	0	IP		# internet protocol, pseudo protocol number
+icmp	1	ICMP		# internet control message protocol
+igmp	2	IGMP		# Internet Group Management
+tcp	6	TCP		# transmission control protocol
+udp	17	UDP		# user datagram protocol
+ipv6	41	IPV6		# ipv6
+gre	47	GRE		# Generic Routing Encapsulation
+ah	51	AH		# authentication header
+ospf	89	OSPFIGP		# Open Shortest Path First IGP
+pim	103	PIM		# Protocol Independent Multicast
+vrrp	112	VRRP		# Virtual Router Redundancy Protocol
+pgm	113	PGM		# PGM

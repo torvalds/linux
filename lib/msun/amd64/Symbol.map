@@ -1,0 +1,12 @@
+/*
+ * $FreeBSD$
+ */
+FBSD_1.0 {
+	fesetexceptflag;
+	feraiseexcept;
+	fegetenv;
+	feholdexcept;
+	feupdateenv;
+	feenableexcept;
+	fedisableexcept;
+};

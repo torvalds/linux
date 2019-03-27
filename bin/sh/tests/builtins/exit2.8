@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+# exit without arguments is the same as exit $? outside a trap.
+
+trap 'true; true' 0
+(exit 8)
+exit

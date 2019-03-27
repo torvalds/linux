@@ -1,0 +1,245 @@
+.\" Copyright (c) 1989, 1990, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)finger.1	8.3 (Berkeley) 5/5/94
+.\" $FreeBSD$
+.\"
+.Dd January 21, 2010
+.Dt FINGER 1
+.Os
+.Sh NAME
+.Nm finger
+.Nd user information lookup program
+.Sh SYNOPSIS
+.Nm
+.Op Fl 46gklmpsho
+.Op Ar user ...\&
+.Op Ar user@host ...\&
+.Sh DESCRIPTION
+The
+.Nm
+utility displays information about the system users.
+.Pp
+Options are:
+.Bl -tag -width indent
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
+.It Fl s
+Display the user's login name, real name, terminal name and write
+status (as a ``*'' before the terminal name if write permission is
+denied), idle time, login time, and either office location and office
+phone number, or the remote host.
+If
+.Fl o
+is given, the office location and office phone number is printed
+(the default).
+If
+.Fl h
+is given, the remote host is printed instead.
+.Pp
+Idle time is in minutes if it is a single integer, hours and minutes
+if a ``:'' is present, or days if a ``d'' is present.
+If it is an
+.Dq * ,
+the login time indicates the time of last login.
+Login time is displayed as the day name if less than 6 days, else month, day;
+hours and minutes, unless more than six months ago, in which case the year
+is displayed rather than the hours and minutes.
+.Pp
+Unknown devices as well as nonexistent idle and login times are
+displayed as single asterisks.
+.It Fl h
+When used in conjunction with the
+.Fl s
+option, the name of the remote host is displayed instead of the office
+location and office phone.
+.It Fl o
+When used in conjunction with the
+.Fl s
+option, the office location and office phone information is displayed
+instead of the name of the remote host.
+.It Fl g
+This option restricts the gecos output to only the users' real
+name.
+It also has the side-effect of restricting the output
+of the remote host when used in conjunction with the
+.Fl h
+option.
+.It Fl k
+Disable all use of the user accounting database.
+.It Fl l
+Produce a multi-line format displaying all of the information
+described for the
+.Fl s
+option as well as the user's home directory, home phone number, login
+shell, mail status, and the contents of the files
+.Pa .forward ,
+.Pa .plan ,
+.Pa .project
+and
+.Pa .pubkey
+from the user's home directory.
+.Pp
+If idle time is at least a minute and less than a day, it is
+presented in the form ``hh:mm''.
+Idle times greater than a day are presented as ``d day[s]hh:mm''.
+.Pp
+Phone numbers specified as eleven digits are printed as ``+N-NNN-NNN-NNNN''.
+Numbers specified as ten or seven digits are printed as the appropriate
+subset of that string.
+Numbers specified as five digits are printed as ``xN-NNNN''.
+Numbers specified as four digits are printed as ``xNNNN''.
+.Pp
+If write permission is denied to the device, the phrase ``(messages off)''
+is appended to the line containing the device name.
+One entry per user is displayed with the
+.Fl l
+option; if a user is logged on multiple times, terminal information
+is repeated once per login.
+.Pp
+Mail status is shown as ``No Mail.'' if there is no mail at all, ``Mail
+last read DDD MMM ## HH:MM YYYY (TZ)'' if the person has looked at their
+mailbox since new mail arriving, or ``New mail received ...'', ``Unread
+since ...'' if they have new mail.
+.It Fl p
+Prevent
+the
+.Fl l
+option of
+.Nm
+from displaying the contents of the
+.Pa .forward ,
+.Pa .plan ,
+.Pa .project
+and
+.Pa .pubkey
+files.
+.It Fl m
+Prevent matching of
+.Ar user
+names.
+.Ar User
+is usually a login name; however, matching will also be done on the
+users' real names, unless the
+.Fl m
+option is supplied.
+All name matching performed by
+.Nm
+is case insensitive.
+.El
+.Pp
+If no options are specified,
+.Nm
+defaults to the
+.Fl l
+style output if operands are provided, otherwise to the
+.Fl s
+style.
+Note that some fields may be missing, in either format, if information
+is not available for them.
+.Pp
+If no arguments are specified,
+.Nm
+will print an entry for each user currently logged into the system.
+.Pp
+The
+.Nm
+utility may be used to look up users on a remote machine.
+The format is to specify a
+.Ar user
+as
+.Dq Li user@host ,
+or
+.Dq Li @host ,
+where the default output
+format for the former is the
+.Fl l
+style, and the default output format for the latter is the
+.Fl s
+style.
+The
+.Fl l
+option is the only option that may be passed to a remote machine.
+.Pp
+If the file
+.Pa .nofinger
+exists in the user's home directory,
+and the program is not run with superuser privileges,
+.Nm
+behaves as if the user in question does not exist.
+.Pp
+The optional
+.Xr finger.conf 5
+configuration file can be used to specify aliases.
+Since
+.Nm
+is invoked by
+.Xr fingerd 8 ,
+aliases will work for both local and network queries.
+.Sh ENVIRONMENT
+The
+.Nm
+utility utilizes the following environment variable, if it exists:
+.Bl -tag -width Fl
+.It Ev FINGER
+This variable may be set with favored options to
+.Nm .
+.El
+.Sh FILES
+.Bl -tag -width /var/log/utx.lastlogin -compact
+.It Pa /etc/finger.conf
+alias definition data base
+.It Pa /var/log/utx.lastlogin
+last login data base
+.El
+.Sh SEE ALSO
+.Xr chpass 1 ,
+.Xr w 1 ,
+.Xr who 1 ,
+.Xr finger.conf 5 ,
+.Xr fingerd 8
+.Rs
+.%A D. Zimmerman
+.%T The Finger User Information Protocol
+.%R RFC 1288
+.%D December, 1991
+.Re
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 3.0 .
+.Sh BUGS
+The
+.Nm
+utility does not recognize multibyte characters.

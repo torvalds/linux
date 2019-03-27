@@ -1,0 +1,79 @@
+.\" Copyright (c) 1998, Nicolas Souchu
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 25, 1998
+.Dt LPBB 4
+.Os
+.Sh NAME
+.Nm lpbb
+.Nd parallel port I2C bit-banging interface
+.Sh SYNOPSIS
+.Cd "device iicbus"
+.Cd "device iicbb"
+.Pp
+.Cd "device lpbb"
+.Cd "device iic"
+.Sh DESCRIPTION
+The
+.Em lpbb
+driver supports the Philips official I2C parallel bit-banging interface.
+.Bd -literal
+
+                                         LS05 pin 14 (Vcc) o      -------
+                                                           |      |     |
+            +--+--+---------------------+--+--+------------+------+-o 1 |
+            |  |  |                     |  |  |           ===.1uF | +5V |
+  -------- [R][R][R] 3x10K       3x10K [R][R][R]   LS05    |      |     |
+  |      |  |  |  |                     |  |  |    pin 7 o-+------+-o 2 |
+  | 12 o-+--+  |  |   3|\\ 4             |  |  |    (Gnd)          | GND |
+  | 17 o-+-----|--|----| >o-------------+--|--|--------------+    |     |
+  |      |     |  |    |/        8 /|9     |  |     10 /|11  +----+-o 3 |
+  | 15 o-+-----+--|--------------o< |------+--|------o< |----+    | SCL |
+  |      |        |   1|\\ 2        \\|         |        \\|         |     |
+  |  9 o-+--------|----| >o-------------------+--------------+----+-o 4 |
+  |      |        |    |/                            6 /|5   |    | SDA |
+  | 11 o-+--------+----------------------------------o< |----+    -------
+  | 10 o-+-+                                           \\|          4-pin
+  | 13 o-+-+--oGND                                              Connector
+  | 25 o-+-+      ------------------ Part List --------------------------
+  --------        | 1 - .1 uF capacitor   | 6 - 10K 5% resistors        |
+  25-pin male D   | 1 - 4-pin connector   | 1 - 25-pin male D connector |
+  connector to PC | 1 - 74LS05 open collector hex inverter              |
+  printer port    -------------------------------------------------------
+.Ed
+.Sh SEE ALSO
+.Xr iicbb 4 ,
+.Xr iicbus 4 ,
+.Xr ppbus 4
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Nicolas Souchu .

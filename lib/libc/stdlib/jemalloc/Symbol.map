@@ -1,0 +1,69 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	_malloc_options;
+	_malloc_message;
+	malloc;
+	posix_memalign;
+	calloc;
+	realloc;
+	free;
+	malloc_usable_size;
+};
+
+FBSD_1.3 {
+	malloc_conf;
+	malloc_message;
+	aligned_alloc;
+	malloc_stats_print;
+	mallctl;
+	mallctlnametomib;
+	mallctlbymib;
+	mallocx;
+	rallocx;
+	xallocx;
+	sallocx;
+	dallocx;
+	nallocx;
+	allocm;
+	rallocm;
+	sallocm;
+	dallocm;
+	nallocm;
+	__malloc;
+	__calloc;
+	__realloc;
+	__free;
+	__posix_memalign;
+	__malloc_usable_size;
+	__mallocx;
+	__rallocx;
+	__xallocx;
+	__sallocx;
+	__dallocx;
+	__nallocx;
+	__allocm;
+	__rallocm;
+	__sallocm;
+	__dallocm;
+	__nallocm;
+};
+
+FBSD_1.4 {
+	sdallocx;
+	__sdallocx;
+	__aligned_alloc;
+	__malloc_stats_print;
+	__mallctl;
+	__mallctlnametomib;
+	__mallctlbymib;
+};
+
+FBSDprivate_1.0 {
+	_malloc_thread_cleanup;
+	_malloc_prefork;
+	_malloc_postfork;
+	_malloc_first_thread;
+};

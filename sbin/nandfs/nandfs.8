@@ -1,0 +1,79 @@
+.\"
+.\" Copyright (c) 2012 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Semihalf under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 10, 2016
+.Dt NANDFS 8
+.Os
+.Sh NAME
+.Nm nandfs
+.Nd manage mounted NAND FS
+.Sh SYNOPSIS
+.Nm
+.Cm lssnap
+.Ar node
+.Nm
+.Cm mksnap
+.Ar node
+.Nm
+.Cm rmsnap
+.Ar snapshot node
+.Sh DESCRIPTION
+The
+.Nm
+utility allows the management of snapshots on a mounted NAND FS.
+.Sh EXAMPLES
+Create a snapshot of filesystem mounted on
+.Em /nand .
+.Bd -literal -offset 2n
+.Li # Ic nandfs mksnap /nand
+1
+.Ed
+.Pp
+List snapshots of filesystem mounted on
+.Em /nand .
+.Bd -literal -offset 2n
+.Li # Ic nandfs lssnap /nand
+1  2012-02-28 18:49:45   ss           138          2
+.Ed
+.Pp
+Remove snapshot 1 of filesystem mounted on
+.Em /nand .
+.Bd -literal -offset 2n
+.Li # Ic nandfs rmsnap 1 /nand
+.Ed
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+This utility and manual page were written by
+.An Mateusz Guzik .

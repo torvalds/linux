@@ -1,0 +1,22 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_GET_LOCAL_ADDR" 3 "2007-05-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_get_local_addr \- Returns the local IP address of a bound rdma_cm_id.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "struct sockaddr *" rdma_get_local_addr
+.BI "(struct rdma_cm_id *" id ");"
+.SH ARGUMENTS
+.IP "id" 12
+RDMA identifier.
+.SH "DESCRIPTION"
+Returns the local IP address for an rdma_cm_id that has been bound to
+a local device.
+.SH "RETURN VALUE"
+Returns a pointer to the local sockaddr address of the rdma_cm_id.  If
+the rdma_cm_id is not bound to an address, the contents of the sockaddr
+structure will be set to all zeroes.
+.SH "SEE ALSO"
+rdma_bind_addr(3), rdma_resolve_addr(3), rdma_get_src_port(3),
+rdma_get_dst_port(3), rdma_get_peer_addr(3)

@@ -1,0 +1,225 @@
+<div class="line">
+  <div class="text">We are </div>
+  <div class="text">{emit}</div>
+  <div class="text">{ting}</div>
+  <div class="text"> some </div>
+  <div class="data" data-tag="what" data-xpath="/top/data/what">braces</div>
+</div>
+<div class="line">
+  <div class="message">abcdef
+</div>
+</div>
+<div class="line">
+  <div class="message">abcdef: Bad file descriptor
+</div>
+</div>
+<div class="line">
+  <div class="message">improper use of profanity; ten yard penalty; first down
+</div>
+</div>
+<div class="line">
+  <div class="text">length </div>
+  <div class="data" data-tag="length" data-xpath="/top/data/length">abcdef</div>
+</div>
+<div class="line">
+  <div class="text">close </div>
+  <div class="data" data-tag="fd" data-xpath="/top/data/fd">-1</div>
+  <div class="text"> returned </div>
+  <div class="data" data-tag="error" data-xpath="/top/data/error">Bad file descriptor</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="test" data-xpath="/top/data/test">good</div>
+</div>
+<div class="line">
+  <div class="text">close </div>
+  <div class="data" data-tag="fd" data-xpath="/top/data/fd">-1</div>
+  <div class="text"> returned </div>
+  <div class="data" data-tag="error" data-xpath="/top/data/error">Bad fi</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="test" data-xpath="/top/data/test">good</div>
+</div>
+<div class="line">
+  <div class="message">improper use of profanity; ten yard penalty; first down
+</div>
+</div>
+<div class="line">
+  <div class="text"> </div>
+  <div class="data" data-tag="lines" data-xpath="/top/data/lines">     20</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="words" data-xpath="/top/data/words">     30</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="characters" data-xpath="/top/data/characters">     40</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="filename" data-xpath="/top/data/filename">file</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes" data-xpath="/top/data/bytes">0</div>
+  <div class="padding"> </div>
+  <div class="note">bytes</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes" data-xpath="/top/data/bytes">1</div>
+  <div class="padding"> </div>
+  <div class="note">byte</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes" data-xpath="/top/data/bytes">2</div>
+  <div class="padding"> </div>
+  <div class="note">bytes</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes" data-xpath="/top/data/bytes">3</div>
+  <div class="padding"> </div>
+  <div class="note">bytes</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes" data-xpath="/top/data/bytes">4</div>
+  <div class="padding"> </div>
+  <div class="note">bytes</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="mbuf-current" data-xpath="/top/data/mbuf-current">10</div>
+  <div class="text">/</div>
+  <div class="data" data-tag="mbuf-cache" data-xpath="/top/data/mbuf-cache">20</div>
+  <div class="text">/</div>
+  <div class="data" data-tag="mbuf-total" data-xpath="/top/data/mbuf-total">30</div>
+  <div class="text"> </div>
+  <div class="note">mbufs &lt;&amp;&gt; in use (current/cache/total)</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="distance" data-units="miles" data-xpath="/top/data/distance">50</div>
+  <div class="padding"> </div>
+  <div class="text"> from </div>
+  <div class="data" data-tag="location" data-xpath="/top/data/location">Boston</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="memory" data-units="k" data-xpath="/top/data/memory">64</div>
+  <div class="text"> left out of </div>
+  <div class="data" data-tag="total" data-units="kb" data-xpath="/top/data/total">640</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="memory" data-units="k" data-xpath="/top/data/memory">64</div>
+  <div class="text"> left out of </div>
+  <div class="data" data-tag="total" data-units="kilobytes" data-xpath="/top/data/total">640</div>
+</div>
+<div class="line">
+  <div class="title">beforeworkingafter:</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="some" data-xpath="/top/data/some">string</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="ten" data-xpath="/top/data/ten">10</div>
+  <div class="data" data-tag="eleven" data-xpath="/top/data/eleven">11</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="unknown" data-xpath="/top/data/unknown">1010</div>
+  <div class="text"> </div>
+  <div class="note">packets here/there/everywhere</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="unknown" data-xpath="/top/data/unknown">1010</div>
+  <div class="text"> </div>
+  <div class="note">packets here/there/everywhere</div>
+</div>
+<div class="line">
+  <div class="text">(</div>
+  <div class="padding">                     </div>
+  <div class="data" data-tag="min" data-xpath="/top/data/min">15</div>
+  <div class="text">/</div>
+  <div class="data" data-tag="cur" data-xpath="/top/data/cur">20</div>
+  <div class="text">/</div>
+  <div class="data" data-tag="max" data-xpath="/top/data/max">125</div>
+  <div class="text">)</div>
+</div>
+<div class="line">
+  <div class="text">(</div>
+  <div class="padding">                     </div>
+  <div class="data" data-tag="min" data-xpath="/top/data/min">15</div>
+  <div class="text">/</div>
+  <div class="data" data-tag="cur" data-xpath="/top/data/cur">20</div>
+  <div class="text">/</div>
+  <div class="data" data-tag="max" data-xpath="/top/data/max">125</div>
+  <div class="text">)</div>
+</div>
+<div class="line">
+  <div class="text">(</div>
+  <div class="data" data-tag="min" data-xpath="/top/data/min">15</div>
+  <div class="text">/</div>
+  <div class="data" data-tag="cur" data-xpath="/top/data/cur">20</div>
+  <div class="text">/</div>
+  <div class="data" data-tag="max" data-xpath="/top/data/max">125</div>
+  <div class="padding">                     </div>
+  <div class="text">)</div>
+</div>
+<div class="line">
+  <div class="text">(</div>
+  <div class="data" data-tag="min" data-xpath="/top/data/min">15</div>
+  <div class="text">/</div>
+  <div class="data" data-tag="cur" data-xpath="/top/data/cur">20</div>
+  <div class="text">/</div>
+  <div class="data" data-tag="max" data-xpath="/top/data/max">125</div>
+  <div class="padding">                     </div>
+  <div class="text">)</div>
+</div>
+<div class="line">
+  <div class="text">Humanize: </div>
+  <div class="data" data-tag="val1" data-xpath="/top/data/val1" data-number="21">21</div>
+  <div class="text">, </div>
+  <div class="data" data-tag="val2" data-xpath="/top/data/val2" data-number="58368">57 K</div>
+  <div class="text">, </div>
+  <div class="data" data-tag="val3" data-xpath="/top/data/val3" data-number="100663296">96M</div>
+  <div class="text">, </div>
+  <div class="data" data-tag="val4" data-xpath="/top/data/val4" data-number="44470272">44M</div>
+  <div class="text">, </div>
+  <div class="data" data-tag="val5" data-xpath="/top/data/val5" data-number="1342172800">1.2G</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="flag" data-xpath="/top/data/flag">one</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="flag" data-xpath="/top/data/flag">two</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="flag" data-xpath="/top/data/flag">three</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="works" data-xpath="/top/data/works">(null)</div>
+</div>
+<div class="line">
+  <div class="text">1:</div>
+  <div class="data" data-tag="t1" data-xpath="/top/data/t1">  1000</div>
+  <div class="text"> 2:</div>
+  <div class="data" data-tag="t2" data-xpath="/top/data/t2">test5000    </div>
+  <div class="text"> 3:</div>
+  <div class="data" data-tag="t3" data-xpath="/top/data/t3">  ten-longx</div>
+  <div class="text"> 4:</div>
+  <div class="data" data-tag="t4" data-xpath="/top/data/t4">xtest      </div>
+</div>
+<div class="line">
+  <div class="error">this is an error</div>
+</div>
+<div class="line">
+  <div class="error">two more errors</div>
+</div>
+<div class="line">
+  <div class="warning">this is an warning</div>
+</div>
+<div class="line">
+  <div class="warning">two more warnings</div>
+</div>
+<div class="line">
+  <div class="label">V1/V2 packets</div>
+  <div class="text">: </div>
+  <div class="data" data-tag="count" data-xpath="/top/data/count">10</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="test" data-xpath="/top/data/test">0004</div>
+  <div class="text"> </div>
+  <div class="label">tries</div>
+</div>
+<div class="line">
+  <div class="message">improper use of profanity; ten yard penalty; first down
+</div>
+</div>
+<div class="line">
+  <div class="error">Shut 'er down, Clancey!  She's a-pumpin' mud!  &lt;&gt;!,"!&lt;&gt;
+</div>
+</div>

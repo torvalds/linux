@@ -1,0 +1,113 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 31, 2018
+.Dt CLI.LUA 8
+.Os
+.Sh NAME
+.Nm cli.lua
+.Nd FreeBSD Lua CLI module
+.Sh DESCRIPTION
+.Nm
+contains the main functionality required to add new CLI commands, which can be
+executed at the loader prompt.
+.Pp
+Before hooking into the functionality provided by
+.Nm ,
+it must be included with a statement such as the following:
+.Pp
+.Dl local cli = require("cli")
+.Ss Adding new commands
+New loader commands may be created by adding functions to the object returned by
+requiring the
+.Nm
+module.
+.Pp
+For instance:
+.Pp
+.Bd -literal -offset indent -compact
+local cli = require("cli")
+
+cli.foo = function(...)
+	-- Expand args to command name and the rest of argv.  These arguments
+	-- are pushed directly to the stack by loader, then handed off to
+	-- cli_execute.  cli_execute then passes them on to the invoked
+	-- function, where they appear as varargs that must be peeled apart into
+	-- their respective components.
+	local _, argv = cli.arguments(...)
+
+	print("This is the foo command!")
+	for k, v in ipairs(argv) do
+		print("arg #" .. tostring(k) .. ": '" .. v .. "'")
+	end
+	-- Perform a loader command directly.  This will not get dispatched back
+	-- to Lua, so it is acceptable to have a function of the exact same name
+	-- in loader.  Lua will have the first chance to handle any commands
+	-- executed at the loader prompt.
+	loader.perform("foo")
+end
+.Ed
+.Pp
+This function may be invoked by a user at the loader prompt by simply typing
+.Ic foo .
+Arguments may be passed to it as usual, space-delimited.
+.Ss Default Commands
+As of present, the
+.Nm
+module by default provides commands for
+.Ic autoboot ,
+.Ic boot ,
+and
+.Ic boot-conf.
+In all three cases, the
+.Xr core.lua 8
+module will load all ELF modules as-needed before executing the equivalent
+built-in loader commands.
+All non-kernel arguments to these commands are passed in the same order to the
+loader command.
+.Ss Exported Functions
+The following functions are exported from
+.Nm :
+.Bl -tag -width cli.arguments -offset indent
+.It Fn cli.arguments ...
+Takes varargs passed on the stack from
+.Xr loader 8
+to
+.Ic cli_execute ,
+splits them out into two return values: the command name, traditionally argv[0],
+and the rest of argv.
+.El
+.Sh SEE ALSO
+.Xr loader.conf 5 ,
+.Xr core.lua 8 ,
+.Xr loader 8
+.Sh AUTHORS
+The
+.Nm
+file was originally written by
+.An Kyle Evans Aq Mt kevans@FreeBSD.org .

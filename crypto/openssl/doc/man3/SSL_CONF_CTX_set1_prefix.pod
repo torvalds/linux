@@ -1,0 +1,58 @@
+=pod
+
+=head1 NAME
+
+SSL_CONF_CTX_set1_prefix - Set configuration context command prefix
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ unsigned int SSL_CONF_CTX_set1_prefix(SSL_CONF_CTX *cctx, const char *prefix);
+
+=head1 DESCRIPTION
+
+The function SSL_CONF_CTX_set1_prefix() sets the command prefix of B<cctx>
+to B<prefix>. If B<prefix> is B<NULL> it is restored to the default value.
+
+=head1 NOTES
+
+Command prefixes alter the commands recognised by subsequent SSL_CONF_cmd()
+calls. For example for files, if the prefix "SSL" is set then command names
+such as "SSLProtocol", "SSLOptions" etc. are recognised instead of "Protocol"
+and "Options". Similarly for command lines if the prefix is "--ssl-" then
+"--ssl-no_tls1_2" is recognised instead of "-no_tls1_2".
+
+If the B<SSL_CONF_FLAG_CMDLINE> flag is set then prefix checks are case
+sensitive and "-" is the default. In the unlikely even an application
+explicitly wants to set no prefix it must be explicitly set to "".
+
+If the B<SSL_CONF_FLAG_FILE> flag is set then prefix checks are case
+insensitive and no prefix is the default.
+
+=head1 RETURN VALUES
+
+SSL_CONF_CTX_set1_prefix() returns 1 for success and 0 for failure.
+
+=head1 SEE ALSO
+
+L<SSL_CONF_CTX_new(3)>,
+L<SSL_CONF_CTX_set_flags(3)>,
+L<SSL_CONF_CTX_set_ssl_ctx(3)>,
+L<SSL_CONF_cmd(3)>,
+L<SSL_CONF_cmd_argv(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 1.0.2.
+
+=head1 COPYRIGHT
+
+Copyright 2012-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

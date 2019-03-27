@@ -1,0 +1,153 @@
+.\" LP (Laptop Package)
+.\"
+.\" Copyright (c) 1994 by Tatsumi Hosokawa <hosokawa@jp.FreeBSD.org>
+.\"
+.\" This software may be used, modified, copied, and distributed, in
+.\" both source and binary form provided that the above copyright and
+.\" these terms are retained. Under no circumstances is the author
+.\" responsible for the proper functioning of this software, nor does
+.\" the author assume any responsibility for damages incurred with its
+.\" use.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 22, 2009
+.Dt APM 8 i386
+.Os
+.Sh NAME
+.Nm apm
+.Nd control the APM BIOS and display its information
+.Sh SYNOPSIS
+.Nm
+.Op Fl ablstzZ
+.Op Fl d Ar enable
+.Op Fl e Ar enable
+.Op Fl h Ar enable
+.Op Fl r Ar delta
+.Sh DESCRIPTION
+The
+.Nm
+utility
+controls the Intel / Microsoft APM (Advanced Power Management) BIOS and
+displays the current status of APM on laptop PCs.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a
+Display the current AC-line status as an integer value.
+The values
+0, 1 and 2 correspond to the
+.Dq off-line
+state,
+.Dq on-line
+state or
+.Dq backup power
+state, respectively.
+.It Fl b
+Display an integer value reflecting the current battery status.
+The values 0, 1, 2, 3, correspond to the
+.Dq high
+status,
+.Dq low
+status,
+.Dq critical
+status,
+.Dq charging
+status respectively.
+.It Fl d Ar enable
+Disable/enable suspending of the display separately from a normal suspend
+using the boolean value for
+.Ar enable .
+This feature seems to not work on many different laptops,
+including the Libretto 30CT and 50CT.
+.It Fl e Ar enable
+Enable or disable APM functions of the computer,
+depending on the boolean
+.Ar enable
+argument.
+.It Fl h Ar enable
+Depending on the boolean value of
+.Ar enable ,
+enable or disable the HLT instruction in the kernel context switch routine.
+These options are not necessary for almost all APM implementations,
+but for some implementations whose
+.Dq Pa Idle CPU
+call executes both CPU clock slowdown and HLT instruction,
+.Fl h Cm false
+is necessary to prevent the system from reducing its peak performance.
+See
+.Xr apm 4
+for details.
+.It Fl l
+Display the remaining battery percentage.
+If your laptop does not
+support this function, 255 is displayed.
+.It Fl r Ar delta
+Enable the resume wakeup timer, if the laptop supports it.
+This
+does not actually suspend the laptop, but if the laptop is suspended,
+and it supports resume from suspend, then it will be resumed after
+.Ar delta
+seconds (from when you run this command, not from when you suspend).
+.It Fl s
+Display the status of the APM support as an integer value.
+The values
+0 and 1 correspond to the
+.Dq disabled
+state or
+.Dq enabled
+state respectively.
+.It Fl t
+Display the estimated remaining battery lifetime in seconds.
+If
+it is unknown, -1 is displayed.
+.It Fl Z
+Transition the system into standby mode.
+This mode uses less power than
+full power mode, but more than suspend mode.
+Some laptops support
+resuming from this state on timer or Ring Indicator events.
+The
+output of
+.Nm
+tells what your laptop claims to support.
+.It Fl z
+Suspend the system.
+It is used by
+.Xr zzz 8 .
+.El
+.Pp
+If no options are specified,
+.Nm
+displays information and current status of APM in verbose mode.
+If multiple display options are given, the values are displayed one
+per line in the order given here.
+.Sh NOTES
+.Xr apmconf 8
+has been merged in
+.Nm
+and thus
+.Nm
+replaces all of its functionality.
+.Sh SEE ALSO
+.Xr apm 4 ,
+.Xr zzz 8
+.Sh AUTHORS
+.An Tatsumi Hosokawa Aq Mt hosokawa@jp.FreeBSD.org
+.Sh BUGS
+Some APM implementations do not support parameters needed by
+.Nm .
+On such systems,
+.Nm
+displays them as unknown.
+.Pp
+Some APM implementations cannot handle events such as pushing the
+power button or closing the cover.
+On such implementations, the system
+.Ar must
+be suspended
+.Ar only
+by using
+.Nm
+or
+.Nm zzz .

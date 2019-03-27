@@ -1,0 +1,92 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2018 Gandi
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 29, 2018
+.Dt FHREADLINK 2
+.Os
+.Sh NAME
+.Nm fhreadlink
+.Nd read value of a symbolic link
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.Ft int
+.Fn fhreadlink "fhandle_t *fhp" "char *buf" "size_t bufsize"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn fhreadlink
+system call
+places the contents of the symbolic link
+.Fa fhp
+in the buffer
+.Fa buf ,
+which has size
+.Fa bufsiz .
+The
+.Fn fhreadlink
+system call does not append a
+.Dv NUL
+character to
+.Fa buf .
+.Pp
+.Sh RETURN VALUES
+The call returns the count of characters placed in the buffer
+if it succeeds, or a \-1 if an error occurs, placing the error
+code in the global variable
+.Va errno .
+.Sh ERRORS
+The
+.Fn readlink
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOENT
+The named file does not exist.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the file handle
+.Fa fhp .
+.It Bq Er EINVAL
+The named file is not a symbolic link.
+.It Bq Er EIO
+An I/O error occurred while reading from the file system.
+.It Bq Er EFAULT
+The
+.Fa buf
+argument
+extends outside the process's allocated address space.
+.It Bq Er ESTALE
+The file handle
+.Fa fhp
+is no longer valid
+.El
+.El
+.Sh SEE ALSO
+.Xr fhstat 2 ,
+.Xr fhlink 2 ,

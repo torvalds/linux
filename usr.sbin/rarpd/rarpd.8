@@ -1,0 +1,160 @@
+.\" Copyright (c) 1990, 1991, 1993 The Regents of the University of
+.\" California. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution.  Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 9, 2012
+.Dt RARPD 8
+.Os
+.Sh NAME
+.Nm rarpd
+.Nd reverse ARP daemon
+.Sh SYNOPSIS
+.Nm
+.Fl a
+.Op Fl dfsv
+.Op Fl t Ar directory
+.Op Fl P Ar pidfile
+.Nm
+.Op Fl dfsv
+.Op Fl t Ar directory
+.Op Fl P Ar pidfile
+.Ar interface
+.Sh DESCRIPTION
+The
+.Nm
+utility services Reverse ARP requests on the Ethernet connected to
+.Ar interface .
+Upon receiving a request,
+.Nm
+maps the target hardware address to an IP address via its name, which
+must be present in both the
+.Xr ethers 5
+and
+.Xr hosts 5
+databases.
+If a host does not exist in both databases, the translation cannot
+proceed and a reply will not be sent.
+.Pp
+By default, a request is honored only if the server
+(i.e., the host that
+.Nm
+is running on)
+can "boot" the target; that is, a file or directory matching the glob
+.Pa /tftpboot/\fIipaddr\fP*
+exists, where
+.Em ipaddr
+is the target IP address in hex.
+For example, the IP address 204.216.27.18 will be replied to if any of
+.Pa /tftpboot/CCD81B12 ,
+.Pa /tftpboot/CCD81B12.SUN3 ,
+or
+.Pa /tftpboot/CCD81B12-boot
+exist.
+This requirement can be overridden with the
+.Fl s
+flag (see below).
+.Pp
+In normal operation,
+.Nm
+forks a copy of itself and runs in the background.
+Anomalies and errors are reported via
+.Xr syslog 3 .
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
+Listen on all the Ethernets attached to the system.
+If
+.Fl a
+is omitted, an interface must be specified.
+.It Fl d
+If
+.Fl f
+is also specified,
+.Nm
+logs messages to
+.Em stdout
+and
+.Em stderr
+instead of via
+.Xr syslog 3 .
+.It Fl f
+Run in the foreground.
+.It Fl P
+Specify the pathname of the PID file.
+If not specified,
+.Pa /var/run/rarpd.pid
+or
+.Pa /var/run/rarpd.ifname.pid
+will be used depending on the
+.Fl a
+flag or the specified interface name.
+.It Fl s
+Supply a response to any RARP request for which an ethernet to IP address
+mapping exists; do not depend on the existence of
+.Pa /tftpboot/\fIipaddr\fP* .
+.It Fl t
+Supply an alternate tftp root directory to
+.Pa /tftpboot ,
+similar to the
+.Fl s
+option of
+.Xr tftpd 8 .
+This permits
+.Nm
+to selectively respond to RARP requests, but use an alternate directory
+for IP checking.
+.It Fl v
+Enable verbose syslogging.
+.El
+.Sh FILES
+.Bl -tag -width /etc/ethers -compact
+.It Pa /etc/ethers
+.It Pa /etc/hosts
+.It Pa /tftpboot
+.It Pa /var/run/rarpd.pid
+.El
+.Sh SEE ALSO
+.Xr bpf 4
+.Rs
+.%A "Finlayson, R."
+.%A "Mann, T."
+.%A "Mogul, J.C."
+.%A "Theimer, M."
+.%T "RFC 903: Reverse Address Resolution Protocol"
+.%D "June 1984"
+.%O "4 p"
+.Re
+.Sh AUTHORS
+.An -nosplit
+.An Craig Leres Aq Mt leres@ee.lbl.gov
+and
+.An Steven McCanne Aq Mt mccanne@ee.lbl.gov .
+Lawrence Berkeley Laboratory, University of California, Berkeley, CA.
+.Sh BUGS
+The
+.Nm
+utility can depend on the DNS to resolve the name discovered from
+.Pa /etc/ethers .
+If this name is not in the DNS but is in
+.Pa /etc/hosts ,
+the DNS lookup can cause a delayed RARP response, so in this situation
+it is recommended to configure
+.Xr nsswitch.conf 5
+to read
+.Pa /etc/hosts
+first.

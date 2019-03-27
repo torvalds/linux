@@ -1,0 +1,57 @@
+=pod
+
+=head1 NAME
+
+X509_get0_uids - get certificate unique identifiers
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509.h>
+
+ void X509_get0_uids(const X509 *x, const ASN1_BIT_STRING **piuid,
+                     const ASN1_BIT_STRING **psuid);
+
+=head1 DESCRIPTION
+
+X509_get0_uids() sets B<*piuid> and B<*psuid> to the issuer and subject unique
+identifiers of certificate B<x> or NULL if the fields are not present.
+
+=head1 NOTES
+
+The issuer and subject unique identifier fields are very rarely encountered in
+practice outside test cases.
+
+=head1 RETURN VALUES
+
+X509_get0_uids() does not return a value.
+
+=head1 SEE ALSO
+
+L<d2i_X509(3)>,
+L<ERR_get_error(3)>,
+L<X509_CRL_get0_by_serial(3)>,
+L<X509_get0_signature(3)>,
+L<X509_get_ext_d2i(3)>,
+L<X509_get_extension_flags(3)>,
+L<X509_get_pubkey(3)>,
+L<X509_get_subject_name(3)>,
+L<X509_get_version(3)>,
+L<X509_NAME_add_entry_by_txt(3)>,
+L<X509_NAME_ENTRY_get_object(3)>,
+L<X509_NAME_get_index_by_NID(3)>,
+L<X509_NAME_print_ex(3)>,
+L<X509_new(3)>,
+L<X509_sign(3)>,
+L<X509V3_get_d2i(3)>,
+L<X509_verify_cert(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

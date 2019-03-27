@@ -1,0 +1,352 @@
+.\" Copyright (c) 2011-2013 Devin Teske
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 6, 2013
+.Dt MENU.4TH 8
+.Os
+.Sh NAME
+.Nm menu.4th
+.Nd FreeBSD dynamic menu boot module
+.Sh DESCRIPTION
+The file that goes by the name of
+.Nm
+is a set of commands designed to display a dynamic menu system managed through
+a system of carefully named environment variables.
+The commands of
+.Nm
+by themselves are not enough for most uses.
+Please refer to the
+examples below for the most common situations, and to
+.Xr loader 8
+for additional commands.
+.Pp
+Before using any of the commands provided in
+.Nm ,
+it must be included
+through the command:
+.Pp
+.Dl include menu.4th
+.Pp
+This line is present in the default
+.Pa /boot/menu.rc
+file, so it is not needed (and should not be re-issued) in a normal setup.
+.Pp
+The commands provided by it are:
+.Pp
+.Bl -tag -width disable-module_module -compact -offset indent
+.It Ic menu-init
+Draws the menu bounding box and initializes some internal state variables.
+This should be called before any other menu-related functions.
+.It Ic menu-display
+Displays the menu (configured via the below documented environment variables)
+and blocks on keyboard input, awaiting user action.
+.It Ic menu-erase
+Clears the screen area within the menu bounding box.
+.It Ic menu-redraw
+Calls
+.Ic menu-erase
+and then redraws the menu.
+.It Ic menu-unset
+Unsets the environment variables associated with individual menu items,
+clearing the way for a new menu.
+.It Ic menu-clear
+Calls
+.Ic menu-unset
+and then
+.Ic menu-erase .
+.El
+.Pp
+The environment variables that effect its behavior are:
+.Bl -tag -width bootfile -offset indent
+.It Va loader_color
+If set to
+.Dq Li NO
+(case-insensitive) or
+.Dq Li 0 ,
+causes the menu to be displayed without color.
+The default is to use ANSI coloring whenever possible.
+If serial boot is enabled, color is disabled by default.
+Color features include the use of ANSI bold for numbers appearing to the left
+of menuitems and the use of special
+.Dq Li ansi
+variables described below.
+.It Va autoboot_delay
+Number of seconds
+.Ic menu-display
+will wait before executing
+.Va menu_timeout_command
+.Ic ( boot
+by default) unless a key is pressed.
+If set to
+.Dq Li NO
+(case-insensitive)
+.Ic menu-display
+will wait for user input and never execute
+.Ic menu_timeout_command .
+If set to
+.Dq Li -1 ,
+.Ic menu-display
+will boot immediately, preventing both interruption of the
+.Ic autoboot
+process and escaping to the loader prompt.
+Default is
+.Dq Li 10 .
+See
+.Xr loader 8
+for additional information.
+.It Va menu_timeout_command
+The command to be executed after
+.Va autoboot_delay
+seconds if a key is not pressed.
+The default is
+.Ic boot .
+.It Va loader_menu_frame
+Sets the desired box style to draw around the boot menu.
+Possible values are:
+.Dq Li single
+.Pq the default ,
+.Dq Li double ,
+and
+.Dq Li none .
+.It Va loader_menu_timeout_x
+Sets the desired column position of the timeout countdown text.
+Default is 4.
+.It Va loader_menu_timeout_y
+Sets the desired row position of the timeout countdown text.
+Default is 23.
+.It Va loader_menu_title
+The text to display above the menu.
+Default is
+.Dq Li "Welcome to FreeBSD" .
+.It Va loader_menu_title_align
+Default is to align
+.Ic loader_menu_title
+centered above the menu. This can be set to
+.Dq Li left
+or
+.Dq Li right
+to instead display the title left-or-right justified
+.Pq respectively .
+.It Va loader_menu_x
+Sets the desired column position of the boot menu.
+Default is 5.
+.It Va loader_menu_y
+Sets the desired row position of the boot menu.
+Default is 10.
+.It Va menu_caption[x]
+The text to be displayed for the numbered menuitem
+.Dq Li x .
+.It Va menu_command[x]
+The command to be executed when the number associated with menuitem
+.Dq Li x
+is pressed.
+See the list of included FICL words below for some ideas.
+.It Va menu_keycode[x]
+An optional decimal ASCII keycode to be associated with menuitem
+.Dq Li x .
+When pressed, will cause the execution of
+.Va menu_command[x] .
+.It Va ansi_caption[x]
+If
+.Va loader_color
+is set
+.Pq enabled by default ,
+use this caption for menuitem
+.Dq Li x
+instead of
+.Va menu_caption[x] .
+.It Va toggled_text[x]
+For menuitems where
+.Va menu_command[x]
+is set to
+.Dq Li toggle_menuitem
+(or a derivative thereof), the text displayed
+will toggle between this and
+.Va menu_caption[x] .
+.It Va toggled_ansi[x]
+Like
+.Va toggled_text[x]
+except used when
+.Va loader_color
+is enabled
+.Pq default .
+.It Va menu_caption[x][y]
+For menuitems where
+.Va menu_command[x]
+is set to
+.Dq Li cycle_menuitem
+(or a derivative thereof), the text displayed will cycle between this and other
+.Va menu_caption[x][y]
+entries.
+.It Va ansi_caption[x][y]
+Like
+.Va menu_caption[x][y]
+except used when
+.Va loader_color
+is enabled
+.Pq default .
+.It Va menu_acpi
+When set to a number
+.Dq Li x
+associated with a given menuitem, that menuitem will only appear when
+running on i386-compatible hardware,
+.Va hint.acpi.0.rsdp
+is set (indicating the presence of hardware ACPI support as detected by
+.Xr loader 8 ) ,
+and
+.Va hint.acpi.0.disabled
+is not set.
+On non-i386 hardware, menuitems configured after the
+.Dq Li menu_acpi
+menuitem will use a lower number (to compensate for the missing ACPI menuitem)
+but continue to function as expected.
+On i386-compatible hardware lacking ACPI support (as detected by
+.Xr loader 8 ) ,
+subsequent menuitems will retain their associated numbers.
+.It Va hint.acpi.0.rsdp
+Set automatically by
+.Xr loader 8
+on i386-compatible hardware when ACPI support is detected at boot time.
+Effects the display of the
+.Dq Li menu_acpi
+menuitem (if configured).
+.It Va hint.acpi.0.disabled
+Effects the display of the
+.Va menu_acpi
+menuitem.
+If set, the menuitem will display
+.Va toggled_text[x]
+.Va ( toggled_ansi[x]
+if
+.Va loader_color
+is set), otherwise
+.Va menu_caption[x]
+.Va ( ansi_caption[x]
+if
+.Va loader_color
+is set).
+.It Va menu_options
+When set to a number
+.Dq Li x ,
+a single blank-line and an
+.Dq Li Options
+header are inserted between
+.Va menu_caption[x-1]
+and
+.Va menu_caption[x]
+(if configured).
+.It Va menu_reboot
+If set, adds a built-in
+.Dq Li Reboot
+menuitem to the end of the last configured menuitem.
+If
+.Va menu_options
+is configured, the
+.Dq Li Reboot
+menuitem will be inserted before the
+.Dq Options
+separator.
+.El
+.Pp
+In addition, it provides the following FICL words:
+.Pp
+.Bl -tag -width disable-module_module -compact -offset indent
+.It Ic arch-i386? ( -- BOOL )
+Returns true (-1) on i386 and false (0) otherwise.
+.It Ic acpipresent? ( -- BOOL )
+Returns true (-1) if ACPI is present and false (0) otherwise.
+.It Ic acpienabled? ( -- BOOL )
+Returns true (-1) if ACPI is enabled and false (0) otherwise.
+.It Ic toggle_menuitem ( N -- N )
+Toggles menuitem
+.Dq Li N
+between
+.Va menu_caption[x]
+and
+.Va toggled_text[x]
+(where
+.Dq Li N
+represents the ASCII decimal value for
+.Dq Li x ) .
+.It Ic cycle_menuitem ( N -- N )
+Cycles menuitem
+.Dq Li N
+between
+.Va menu_caption[x][y]
+entries (where
+.Va N
+represents the ASCII decimal value for
+.Va x ) .
+.El
+.Pp
+For all values of
+.Dq Li x
+above, use any number between 1 through 9. Sorry, double-digits are not
+currently supported.
+.Sh FILES
+.Bl -tag -width /boot/loader.4th -compact
+.It Pa /boot/loader
+The
+.Xr loader 8 .
+.It Pa /boot/menu.4th
+.Nm
+itself.
+.It Pa /boot/loader.rc
+.Xr loader 8
+bootstrapping script.
+.El
+.Sh EXAMPLES
+A simple boot menu:
+.Pp
+.Bd -literal -offset indent -compact
+include /boot/menu.4th
+menu-init
+set menu_caption[1]="Boot"
+set menu_command[1]="boot"
+set menu_options=2
+set menu_caption[2]="Option: NO"
+set toggled_text[2]="Option: YES"
+set menu_command[2]="toggle_menuitem"
+set menu_timeout_command="boot"
+set menu_reboot
+menu-display
+.Ed
+.Sh SEE ALSO
+.Xr loader.conf 5 ,
+.Xr beastie.4th 8 ,
+.Xr loader 8 ,
+.Xr loader.4th 8
+.Sh HISTORY
+The
+.Nm
+set of commands first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+The
+.Nm
+set of commands was written by
+.An -nosplit
+.An Devin Teske Aq dteske@FreeBSD.org .

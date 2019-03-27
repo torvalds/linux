@@ -1,0 +1,15 @@
+$ $tcsh: set26,v 1.5 2011/02/04 18:19:36 christos Exp $
+$ tc.who.c
+$set 26
+1 Kein Zugriff auf %s.  Bitte "unset watch" eingeben.\n
+2 %s kann nicht geöffnet werden.  Bitte "unset watch" eingeben.\n
+3 FEHLER! letztes Element ist nicht whotail!\n
+4 Zurück: 
+5 FEHLER! erstes Element ist nicht whohead!\n
+6 neu: %s/%s\n
+7 %n hat %a an %l von %m.
+8 %n hat %a an %l.
+9 sich angemeldet
+10 sich abgemeldet
+11 %s ersetzt
+12 lokal

@@ -1,0 +1,138 @@
+.\" Copyright (c) 2004 Roland Smith <rsmith@xs4all.nl>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 13, 2015
+.Dt DEVFS.CONF 5
+.Os
+.Sh NAME
+.Nm devfs.conf
+.Nd boot-time devfs configuration information
+.Sh DESCRIPTION
+The
+.Nm
+file provides an easy way to set ownership and permissions, or create
+links for devices available at boot.
+.Pp
+It does not work for devices plugged in and out after the system is up
+and running, e.g.\& USB devices.
+See
+.Xr devfs.rules 5
+for setting ownership and permissions for all device nodes, and
+.Xr devd.conf 5
+for actions to be taken when devices are attached or detached.
+.Pp
+Lines starting with a hash sign
+.Pq Ql #
+and empty lines are ignored.
+The lines that specify
+.Nm
+rules consist of three parameters separated by whitespace:
+.Bl -tag -width indent
+.It Ar action
+The action to take for the device.
+The action names are only significant to the first unique character.
+.It Ar devname
+The name of the device created by
+.Xr devfs 5 .
+.It Ar arg
+The argument of the
+.Ar action .
+.El
+.Pp
+The actions currently supported are:
+.Bl -tag -width indent
+.It Ic link
+This action creates a symbolic link named
+.Ar arg
+that points to
+.Ar devname ,
+the name of the device created by
+.Xr devfs 5 .
+.It Ic own
+This action changes the ownership of
+.Ar devname .
+The
+.Ar arg
+parameter must be in the form of an
+.Ar owner Ns : Ns Ar group
+pair, in the same format used by
+.Xr chown 8 .
+.It Ic perm
+This action changes the permissions of
+.Ar devname .
+The
+.Ar arg
+parameter must be a
+.Ar mode
+as explained in
+.Xr chmod 1 .
+.El
+.Sh FILES
+.Bl -tag -compact -width Pa
+.It Pa /etc/devfs.conf
+.It Pa /usr/share/examples/etc/devfs.conf
+.El
+.Sh EXAMPLES
+To create a
+.Pa /dev/cdrom
+link that points to the first
+.Xr SCSI 4
+CD-ROM,
+the following may be added to
+.Nm :
+.Bd -literal -offset indent
+link	cd0	cdrom
+.Ed
+.Pp
+Similarly, to link
+.Pa /dev/cdrom
+to the first SCSI CD-ROM device, the following action may be used:
+.Bd -literal -offset indent
+link	cd0	cdrom
+.Ed
+.Pp
+To set the owner of a device, the
+.Ic own
+action may be specified:
+.Bd -literal -offset indent
+own	cd0	root:cdrom
+.Ed
+.Pp
+To set the permissions of a device, a
+.Ic perm
+action should be used:
+.Bd -literal -offset indent
+perm	cd0	0660
+.Ed
+.Sh SEE ALSO
+.Xr chmod 1 ,
+.Xr devd.conf 5 ,
+.Xr devfs 5 ,
+.Xr devfs.rules 5 ,
+.Xr chown 8
+.Sh AUTHORS
+This manual page was written by
+.An Roland Smith Aq Mt rsmith@xs4all.nl .

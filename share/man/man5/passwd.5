@@ -1,0 +1,461 @@
+.\"	$NetBSD: passwd.5,v 1.12.2.2 1999/12/17 23:14:50 he Exp $
+.\"
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\" Portions Copyright (c) 1994, Jason Downs.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)passwd.5	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd May 29, 2014
+.Dt PASSWD 5
+.Os
+.Sh NAME
+.Nm passwd ,
+.Nm master.passwd
+.Nd format of the password file
+.Sh DESCRIPTION
+The
+.Nm
+files are the local source of password information.
+They can be used in conjunction with the Hesiod domains
+.Sq Li passwd
+and
+.Sq Li uid ,
+and the
+.Tn NIS
+maps
+.Sq Li passwd.byname ,
+.Sq Li passwd.byuid ,
+.Sq Li master.passwd.byname ,
+and
+.Sq Li master.passwd.byuid ,
+as controlled by
+.Xr nsswitch.conf 5 .
+.Pp
+For consistency, none of these files should ever be modified
+manually.
+.Pp
+The
+.Nm master.passwd
+file is readable only by root, and consists of newline separated
+records, one per user, containing ten colon
+.Pq Ql \&:
+separated
+fields.
+These fields are as follows:
+.Bl -tag -width ".Ar password" -offset indent
+.It Ar name
+User's login name.
+.It Ar password
+User's
+.Em encrypted
+password.
+.It Ar uid
+User's id.
+.It Ar gid
+User's login group id.
+.It Ar class
+User's login class.
+.It Ar change
+Password change time.
+.It Ar expire
+Account expiration time.
+.It Ar gecos
+General information about the user.
+.It Ar home_dir
+User's home directory.
+.It Ar shell
+User's login shell.
+.El
+.Pp
+The
+.Nm
+file is generated from the
+.Nm master.passwd
+file by
+.Xr pwd_mkdb 8 ,
+has the
+.Ar class ,
+.Ar change ,
+and
+.Ar expire
+fields removed, and the
+.Ar password
+field replaced by a
+.Ql *
+character.
+.Pp
+The
+.Ar name
+field is the login used to access the computer account, and the
+.Ar uid
+field is the number associated with it.
+They should both be unique
+across the system (and often across a group of systems) since they
+control file access.
+.Pp
+While it is possible to have multiple entries with identical login names
+and/or identical user id's, it is usually a mistake to do so.
+Routines
+that manipulate these files will often return only one of the multiple
+entries, and that one by random selection.
+.Pp
+The login name must not begin with a hyphen
+.Pq Ql \&- ,
+and cannot contain 8-bit characters, tabs or spaces, or any of these
+symbols:
+.Ql \&,:+&#%^\&(\&)!@~*?<>=|\e\\&/" .
+The dollar symbol
+.Pq Ql \&$
+is allowed only as the last character for use with Samba.
+No field may contain a
+colon
+.Pq Ql \&:
+as this has been used historically to separate the fields
+in the user database.
+.Pp
+Case is significant.
+Login names
+.Ql Lrrr
+and
+.Ql lrrr
+represent different users.
+Be aware of this when interoperating with systems that do not have
+case-sensitive login names.
+.Pp
+In the
+.Nm master.passwd
+file,
+the
+.Ar password
+field is the
+.Em encrypted
+form of the password, see
+.Xr crypt 3 .
+If the
+.Ar password
+field is empty, no password will be required to gain access to the
+machine.
+This is almost invariably a mistake, so authentication components
+such as PAM can forcibly disallow remote access to passwordless accounts.
+Because this file contains the encrypted user passwords, it should
+not be readable by anyone without appropriate privileges.
+.Pp
+A password of
+.Ql *
+indicates that
+password authentication is disabled for that account
+(logins through other forms of
+authentication, e.g., using
+.Xr ssh 1
+keys, will still work).
+The field only contains encrypted passwords, and
+.Ql *
+can never be the result of encrypting a password.
+.Pp
+An encrypted password prefixed by
+.Ql *LOCKED*
+means that the account is temporarily locked out
+and no one can log into it using any authentication.
+For a convenient command-line interface to account locking, see
+.Xr pw 8 .
+.Pp
+The
+.Ar group
+field is the group that the user will be placed in upon login.
+Since this system supports multiple groups (see
+.Xr groups 1 )
+this field currently has little special meaning.
+.Pp
+The
+.Ar class
+field is a key for a user's login class.
+Login classes
+are defined in
+.Xr login.conf 5 ,
+which is a
+.Xr termcap 5
+style database of user attributes, accounting, resource,
+and environment settings.
+.Pp
+The
+.Ar change
+field is the number of seconds from the epoch,
+.Dv UTC ,
+until the
+password for the account must be changed.
+This field may be left empty to turn off the password aging feature;
+a value of zero is equivalent to leaving the field empty.
+.Pp
+The
+.Ar expire
+field is the number of seconds from the epoch,
+.Dv UTC ,
+until the
+account expires.
+This field may be left empty to turn off the account aging feature;
+a value of zero is equivalent to leaving the field empty.
+.Pp
+The
+.Ar gecos
+field normally contains comma
+.Pq Ql \&,
+separated subfields as follows:
+.Pp
+.Bl -tag -width ".Ar office" -offset indent -compact
+.It Ar name
+user's full name
+.It Ar office
+user's office number
+.It Ar wphone
+user's work phone number
+.It Ar hphone
+user's home phone number
+.El
+.Pp
+The full
+.Ar name
+may contain an ampersand
+.Pq Ql &
+which will be replaced by
+the capitalized login
+.Ar name
+when the
+.Ar gecos
+field is displayed or used
+by various programs such as
+.Xr finger 1 ,
+.Xr sendmail 8 ,
+etc.
+.Pp
+The
+.Ar office
+and phone number subfields are used by the
+.Xr finger 1
+program, and possibly other applications.
+.Pp
+The user's home directory,
+.Ar home_dir ,
+is the full
+.Ux
+path name where the user
+will be placed on login.
+.Pp
+The
+.Ar shell
+field is the command interpreter the user prefers.
+If there is nothing in the
+.Ar shell
+field, the Bourne shell
+.Pq Pa /bin/sh
+is assumed.
+The conventional way to disable logging into an account once and for all,
+as it is done for system accounts,
+is to set its
+.Ar shell
+to
+.Pa /sbin/nologin
+.Pq see Xr nologin 8 .
+.Sh HESIOD SUPPORT
+If
+.Sq Li dns
+is specified for the
+.Sq Li passwd
+database in
+.Xr nsswitch.conf 5 ,
+then
+.Nm
+lookups occur from the
+.Sq Li passwd
+Hesiod domain.
+.Sh NIS SUPPORT
+If
+.Sq Li nis
+is specified for the
+.Sq Li passwd
+database in
+.Xr nsswitch.conf 5 ,
+then
+.Nm
+lookups occur from the
+.Sq Li passwd.byname ,
+.Sq Li passwd.byuid ,
+.Sq Li master.passwd.byname ,
+and
+.Sq Li master.passwd.byuid
+.Tn NIS
+maps.
+.Sh COMPAT SUPPORT
+If
+.Sq Li compat
+is specified for the
+.Sq Li passwd
+database, and either
+.Sq Li dns
+or
+.Sq Li nis
+is specified for the
+.Sq Li passwd_compat
+database in
+.Xr nsswitch.conf 5 ,
+then the
+.Nm
+file also supports standard
+.Sq Li + Ns / Ns Li -
+exclusions and inclusions, based on user names and netgroups.
+.Pp
+Lines beginning with a
+.Ql -
+(minus sign) are entries marked as being excluded
+from any following inclusions, which are marked with a
+.Ql +
+(plus sign).
+.Pp
+If the second character of the line is a
+.Ql @
+(at sign), the operation
+involves the user fields of all entries in the netgroup specified by the
+remaining characters of the
+.Ar name
+field.
+Otherwise, the remainder of the
+.Ar name
+field is assumed to be a specific user name.
+.Pp
+The
+.Ql +
+token may also be alone in the
+.Ar name
+field, which causes all users from either the Hesiod domain
+.Nm
+(with
+.Sq Li passwd_compat: dns )
+or
+.Sq Li passwd.byname
+and
+.Sq Li passwd.byuid
+.Tn NIS
+maps (with
+.Sq Li passwd_compat: nis )
+to be included.
+.Pp
+If the entry contains non-empty
+.Ar uid
+or
+.Ar gid
+fields, the specified numbers will override the information retrieved
+from the Hesiod domain or the
+.Tn NIS
+maps.
+Likewise, if the
+.Ar gecos ,
+.Ar dir
+or
+.Ar shell
+entries contain text, it will override the information included via
+Hesiod or
+.Tn NIS .
+On some systems, the
+.Ar passwd
+field may also be overridden.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/master.passwd" -compact
+.It Pa /etc/passwd
+.Tn ASCII
+password file, with passwords removed
+.It Pa /etc/pwd.db
+.Xr db 3 Ns -format
+password database, with passwords removed
+.It Pa /etc/master.passwd
+.Tn ASCII
+password file, with passwords intact
+.It Pa /etc/spwd.db
+.Xr db 3 Ns -format
+password database, with passwords intact
+.El
+.Sh COMPATIBILITY
+The password file format has changed since
+.Bx 4.3 .
+The following awk script can be used to convert your old-style password
+file into a new style password file.
+The additional fields
+.Ar class ,
+.Ar change
+and
+.Ar expire
+are added, but are turned off by default
+.Pq setting these fields to zero is equivalent to leaving them blank .
+Class is currently not implemented, but change and expire are; to set them,
+use the current day in seconds from the epoch + whatever number of seconds
+of offset you want.
+.Bd -literal -offset indent
+BEGIN { FS = ":"}
+{ print $1 ":" $2 ":" $3 ":" $4 "::0:0:" $5 ":" $6 ":" $7 }
+.Ed
+.Sh SEE ALSO
+.Xr chpass 1 ,
+.Xr login 1 ,
+.Xr passwd 1 ,
+.Xr crypt 3 ,
+.Xr getpwent 3 ,
+.Xr login.conf 5 ,
+.Xr netgroup 5 ,
+.Xr nsswitch.conf 5 ,
+.Xr adduser 8 ,
+.Xr nologin 8 ,
+.Xr pw 8 ,
+.Xr pwd_mkdb 8 ,
+.Xr vipw 8 ,
+.Xr yp 8
+.Pp
+.%T "Managing NFS and NIS"
+(O'Reilly & Associates)
+.Sh HISTORY
+A
+.Nm
+file format appeared in
+.At v6 .
+.Pp
+The
+.Tn NIS
+.Nm
+file format first appeared in SunOS.
+.Pp
+The Hesiod support first appeared in
+.Fx 4.1 .
+It was imported from the
+.Nx
+Project, where it first appeared in
+.Nx 1.4 .
+.Sh BUGS
+User information should (and eventually will) be stored elsewhere.
+.Pp
+Placing
+.Sq Li compat
+exclusions in the file after any inclusions will have
+unexpected results.

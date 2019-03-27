@@ -1,0 +1,24 @@
+#/bin/sh
+# $FreeBSD$
+#
+# These files are imported from Ian Campbell's git tree mirroring the linux
+# kernel.
+#
+# git clone git://xenbits.xen.org/people/ianc/device-tree-rebasing.git
+#
+# will grab the latest tree. It is imported into vendor/device-tree/dist and tagged
+# with the svn cp command, per the handbook.
+#
+# We only import those files from here that we know work with some kernel, rather than
+# all of them. This means we have an 'opt in' list rather than an 'opt out' list
+# that's more typical for FreeBSD. The opt-in list should be relative to the top level
+# directory (so a bunch of lines starting with src). We import src/$ARCH/foo into
+# sys/gnu/dts/$ARCH/foo with the goal being to use as many of these files as possible
+# unmodified for FreeBSD. This isn't always possible, but there are workarounds.
+#
+# This script should take care of all that the first time...
+
+s=svn+ssh://svn.freebsd.org/base/vendor/device-tree/dist/
+
+args=$(grep -v ^# FreeBSD-list | sed -e"s=^=$s=")
+svn cp -m "Initial import of DTS files from Linux" ${args} svn+ssh://svn.freebsd.org/base/head/sys/gnu/dts/arm

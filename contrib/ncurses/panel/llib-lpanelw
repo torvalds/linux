@@ -1,0 +1,197 @@
+/****************************************************************************
+ * Copyright (c) 2002-2005,2010 Free Software Foundation, Inc.              *
+ *                                                                          *
+ * Permission is hereby granted, free of charge, to any person obtaining a  *
+ * copy of this software and associated documentation files (the            *
+ * "Software"), to deal in the Software without restriction, including      *
+ * without limitation the rights to use, copy, modify, merge, publish,      *
+ * distribute, distribute with modifications, sublicense, and/or sell       *
+ * copies of the Software, and to permit persons to whom the Software is    *
+ * furnished to do so, subject to the following conditions:                 *
+ *                                                                          *
+ * The above copyright notice and this permission notice shall be included  *
+ * in all copies or substantial portions of the Software.                   *
+ *                                                                          *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+ * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+ * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+ *                                                                          *
+ * Except as contained in this notice, the name(s) of the above copyright   *
+ * holders shall not be used in advertising or otherwise to promote the     *
+ * sale, use or other dealings in this Software without prior written       *
+ * authorization.                                                           *
+ ****************************************************************************/
+
+/****************************************************************************
+ *  Author: Thomas E. Dickey                    2002-2005,2010              *
+ ****************************************************************************/
+/* LINTLIBRARY */
+
+/* ./panel.c */
+
+#include <panel.priv.h>
+
+#undef _nc_retrace_panel
+PANEL	*_nc_retrace_panel(
+		PANEL	*pan)
+		{ return(*(PANEL **)0); }
+
+#undef _nc_my_visbuf
+const char *_nc_my_visbuf(
+		const void *ptr)
+		{ return(*(const char **)0); }
+
+#undef _nc_dPanel
+void	_nc_dPanel(
+		const char *text, 
+		const PANEL *pan)
+		{ /* void */ }
+
+#undef _nc_dStack
+void	_nc_dStack(
+		const char *fmt, 
+		int	num, 
+		const PANEL *pan)
+		{ /* void */ }
+
+#undef _nc_Wnoutrefresh
+void	_nc_Wnoutrefresh(
+		const PANEL *pan)
+		{ /* void */ }
+
+#undef _nc_Touchpan
+void	_nc_Touchpan(
+		const PANEL *pan)
+		{ /* void */ }
+
+#undef _nc_Touchline
+void	_nc_Touchline(
+		const PANEL *pan, 
+		int	start, 
+		int	count)
+		{ /* void */ }
+
+/* ./p_above.c */
+
+#undef ground_panel
+PANEL	*ground_panel(
+		SCREEN	*sp)
+		{ return(*(PANEL **)0); }
+
+#undef panel_above
+PANEL	*panel_above(
+		const PANEL *pan)
+		{ return(*(PANEL **)0); }
+
+/* ./p_below.c */
+
+#undef ceiling_panel
+PANEL	*ceiling_panel(
+		SCREEN	*sp)
+		{ return(*(PANEL **)0); }
+
+#undef panel_below
+PANEL	*panel_below(
+		const PANEL *pan)
+		{ return(*(PANEL **)0); }
+
+/* ./p_bottom.c */
+
+#undef bottom_panel
+int	bottom_panel(
+		PANEL	*pan)
+		{ return(*(int *)0); }
+
+/* ./p_delete.c */
+
+#undef del_panel
+int	del_panel(
+		PANEL	*pan)
+		{ return(*(int *)0); }
+
+/* ./p_hide.c */
+
+#undef hide_panel
+int	hide_panel(
+		 PANEL	*pan)
+		{ return(*(int *)0); }
+
+/* ./p_hidden.c */
+
+#undef panel_hidden
+int	panel_hidden(
+		const PANEL *pan)
+		{ return(*(int *)0); }
+
+/* ./p_move.c */
+
+#undef move_panel
+int	move_panel(
+		PANEL	*pan, 
+		int	starty, 
+		int	startx)
+		{ return(*(int *)0); }
+
+/* ./p_new.c */
+
+#undef new_panel
+PANEL	*new_panel(
+		WINDOW	*win)
+		{ return(*(PANEL **)0); }
+
+/* ./p_replace.c */
+
+#undef replace_panel
+int	replace_panel(
+		PANEL	*pan, 
+		WINDOW	*win)
+		{ return(*(int *)0); }
+
+/* ./p_show.c */
+
+#undef show_panel
+int	show_panel(
+		PANEL	*pan)
+		{ return(*(int *)0); }
+
+/* ./p_top.c */
+
+#undef top_panel
+int	top_panel(
+		PANEL	*pan)
+		{ return(*(int *)0); }
+
+/* ./p_update.c */
+
+#undef update_panels_sp
+void	update_panels_sp(
+		SCREEN	*sp)
+		{ /* void */ }
+
+#undef update_panels
+void	update_panels(void)
+		{ /* void */ }
+
+/* ./p_user.c */
+
+#undef set_panel_userptr
+int	set_panel_userptr(
+		PANEL	*pan, 
+		void	*uptr)
+		{ return(*(int *)0); }
+
+#undef panel_userptr
+void	*panel_userptr(
+		const PANEL *pan)
+		{ return(*(void **)0); }
+
+/* ./p_win.c */
+
+#undef panel_window
+WINDOW	*panel_window(
+		const PANEL *pan)
+		{ return(*(WINDOW **)0); }

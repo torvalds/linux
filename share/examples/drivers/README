@@ -1,0 +1,43 @@
+$FreeBSD$
+
+Author: Julian Elischer
+
+The files in this directory are shell scripts.
+
+They will, when run, create an example skeleton driver
+for you. You can use this driver as a starting point for
+writing drivers for your own devices. They have all the hooks needed
+for initialization, probing, attaching, as well as DEVFS
+node creation. They also create sample ioctl commands and a sample
+ioctl definition .h file in /sys/sys. In other words they are fully
+functional in a 'skeleton' sort of a way. They support multiple devices
+so that you may have several of your 'foobar' devices probed and attached
+at once.
+
+I expect that these scripts will improve with time.
+
+At present these scripts also link the newly created driver into
+the kernel sources in /sys. Possibly a better way would be
+to make them interactive. (and ask what kernel tree to use as well as
+a name for the driver.).
+
+There are presently two scripts.
+One for making a real device driver for ISA devices, and 
+one for making a device driver for pseudo devices (e.g. /dev/null).
+Hopefully they will be joined by similar scripts for creating
+skeletons for PCI devices as well.
+
+Give them a single argument: the name of the driver.
+They will use this given name in many places within the driver,
+both in lower and upper case form.  (conforming to normal usage).
+
+The skeleton driver should already link with the kernel 
+and in fact the shell script will compile a kernel with the new 
+drive linked in..  The new kernel should still be 
+runnable and the new driver should be
+fully callable (once you get your device to probe).
+You should simply edit the driver and continue to use
+'make' (as done in the script) until your driver does what you want.
+
+The driver will end up in /sys/i386/isa for the device driver script,
+and in /sys/dev for the pseudo driver script.

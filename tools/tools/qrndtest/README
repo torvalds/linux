@@ -1,0 +1,4 @@
+This is a really quick random testing that I wrote for adrian.
+
+If you want a real randomness tester, look at dieharder that has a much
+larger battery of tests and will tell you if your PRNG is good or not.

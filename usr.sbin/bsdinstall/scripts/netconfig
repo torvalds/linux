@@ -1,0 +1,217 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# All rights reserved.
+# Copyright (c) 2011 The FreeBSD Foundation
+# All rights reserved.
+#
+# Portions of this software were developed by Bjoern Zeeb
+# under sponsorship from the FreeBSD Foundation.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+INTERFACES=""
+DIALOG_TAGS=""
+
+: ${DIALOG_OK=0}
+: ${DIALOG_CANCEL=1}
+: ${DIALOG_HELP=2}
+: ${DIALOG_EXTRA=3}
+: ${DIALOG_ITEM_HELP=4}
+: ${DIALOG_ESC=255}
+
+for IF in `ifconfig -l`; do
+	test "$IF" = "lo0" && continue
+	(ifconfig -g wlan | egrep -wq $IF) && continue
+	INTERFACES="$INTERFACES $IF"
+done
+
+INTERFACES="$INTERFACES $(sysctl -in net.wlan.devices)"
+is_wireless_if() {
+	for IF in $(sysctl -in net.wlan.devices); do
+		if [ $IF = $1 ]; then
+			return 0
+		fi
+	done
+	return 1
+}
+
+for IF in $INTERFACES; do
+	DESC=`sysctl -n dev.$(echo $IF | sed -E 's/([[:alpha:]]*)([[:digit:]]*)/\1.\2/g').%desc`
+	DIALOG_TAGS="$DIALOG_TAGS $IF \"$DESC\""
+done
+
+if [ -z "$INTERFACES" ]; then
+	dialog --backtitle 'FreeBSD Installer' \
+	    --title 'Network Configuration Error' \
+	    --msgbox 'No network interfaces present to configure.' 0 0
+	exit 1
+fi
+
+exec 3>&1
+INTERFACE=`echo $DIALOG_TAGS | xargs dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' --menu 'Please select a network interface to configure:' 0 0 0 2>&1 1>&3`
+if [ $? -eq $DIALOG_CANCEL ]; then exit 1; fi
+exec 3>&-
+
+: > $BSDINSTALL_TMPETC/._rc.conf.net
+
+IFCONFIG_PREFIX=""
+if is_wireless_if $INTERFACE; then
+	NEXT_WLAN_IFACE=wlan0	# XXX
+	echo wlans_$INTERFACE=\"$NEXT_WLAN_IFACE\" >> $BSDINSTALL_TMPETC/._rc.conf.net
+	IFCONFIG_PREFIX="WPA "
+	if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
+		ifconfig $NEXT_WLAN_IFACE create wlandev $INTERFACE
+		ifconfig $NEXT_WLAN_IFACE up
+	fi
+	bsdinstall wlanconfig $NEXT_WLAN_IFACE || exec $0
+	INTERFACE="$NEXT_WLAN_IFACE"
+fi
+
+IPV6_AVAIL=0
+IPV4_AVAIL=0
+sysctl -N kern.features.inet6 > /dev/null 2>&1
+case $? in
+0)	IPV6_AVAIL=1 ;;
+esac
+sysctl -N kern.features.inet > /dev/null 2>&1
+case $? in
+0)	IPV4_AVAIL=1 ;;
+esac
+
+if [ ${IPV4_AVAIL} -eq 1 ]; then
+	dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
+	    --yesno 'Would you like to configure IPv4 for this interface?' 0 0
+	if [ $? -eq $DIALOG_OK ]; then
+		bsdinstall netconfig_ipv4 ${INTERFACE} "${IFCONFIG_PREFIX}" || \
+		exec $0
+	else
+		IPV4_AVAIL=0
+	fi
+fi
+# In case wlanconfig left an option and we do not support IPv4 we need to write
+# it out on its own.  We cannot write it out with IPv6 as that suffix.
+if [ ${IPV4_AVAIL} -eq 0 -a -n ${IFCONFIG_PREFIX} ]; then
+	echo ifconfig_${INTERFACE}=\"${IFCONFIG_PREFIX}\" >> $BSDINSTALL_TMPETC/._rc.conf.net
+fi
+if [ ${IPV6_AVAIL} -eq 1 ]; then
+	dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
+	    --yesno 'Would you like to configure IPv6 for this interface?' 0 0
+	if [ $? -eq $DIALOG_OK ]; then
+		bsdinstall netconfig_ipv6 ${INTERFACE} || exec $0
+	else
+		IPV6_AVAIL=0
+	fi
+fi
+
+SEARCH=""
+IP4_1=""
+IP4_2=""
+IP6_1=""
+IP6_2=""
+while read key value; do
+	case "${key}" in
+	search)		SEARCH="${value}" ;;
+	nameserver)	# is more trick as we have to distinguish v4 and v6
+		case "${value}" in
+		[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*)
+			if [ -z "${IP4_1}" ] ; then
+				IP4_1="${value}"
+			elif [ -z "${IP4_2}" ]; then
+				IP4_2="${value}"
+			fi
+			;;
+		[0-9A-Fa-f:]*:*)
+			if [ -z "${IP6_1}" ] ; then
+				IP6_1="${value}"
+			elif [ -z "${IP6_2}" ]; then
+				IP6_2="${value}"
+			fi
+			;;
+		esac
+		;;
+	# ignore others
+	esac
+done < ${BSDINSTALL_TMPETC}/resolv.conf
+
+RESOLV=""
+if [ ${IPV6_AVAIL} -eq 1 -a ${IPV4_AVAIL} -eq 1 ];  then
+	RESOLV="
+	    'Search' 1 0 \"${SEARCH}\" 1 16 50 0 0
+	    'Nameserver' 2 0 \"Nameserver\" 2 16 50 0 2
+	    'IPv6 DNS #1' 2 0 \"${IP6_1}\" 2 16 50 0 0
+	    'IPv6 DNS #2' 3 0 \"${IP6_2}\" 3 16 50 0 0
+	    'IPv4 DNS #1' 4 0 \"${IP4_1}\" 4 16 16 0 0
+	    'IPv4 DNS #2' 5 0 \"${IP4_2}\" 5 16 16 0 0"
+elif [ ${IPV6_AVAIL} -eq 1 ]; then
+	RESOLV="
+	    'Search' 1 0 \"${SEARCH}\" 1 16 50 0 0
+	    'Nameserver' 2 0 \"Nameserver\" 2 16 50 0 2
+	    'IPv6 DNS #1' 2 0 \"${IP6_1}\" 2 16 50 0 0
+	    'IPv6 DNS #2' 3 0 \"${IP6_2}\" 3 16 50 0 0"
+elif [ ${IPV4_AVAIL} -eq 1 ]; then
+	RESOLV="
+	    'Search' 1 0 \"${SEARCH}\" 1 16 50 0 0
+	    'Nameserver' 2 0 \"Nameserver\" 2 16 50 0 2
+	    'IPv4 DNS #1' 2 0 \"${IP4_1}\" 2 16 16 0 0
+	    'IPv4 DNS #2' 3 0 \"${IP4_2}\" 3 16 16 0 0"
+else
+	exit 0
+fi
+
+exec 3>&1
+RESOLV=$(echo "${RESOLV}" | xargs dialog --backtitle 'FreeBSD Installer' \
+	--title 'Network Configuration' \
+	--mixedform 'Resolver Configuration' 0 0 0 \
+2>&1 1>&3)
+if [ $? -eq $DIALOG_CANCEL ]; then exec $0; fi
+exec 3>&-
+
+echo ${RESOLV} | tr ' ' '\n' | \
+awk '
+BEGIN {
+	search=-1;
+}
+{
+	if (/^[[:space:]]+$/) {
+		next;
+	}
+	if (/^Nameserver$/) {
+		printf "\n";
+		search=0;
+		next;
+	}
+	if (search == -1) {
+		printf "search ";
+		search=1;
+	}
+	if (search > 0) {
+		printf "%s%s", (search > 1) ? " " : "", $1;
+		search++;
+		next;
+	}
+	printf "nameserver %s\n", $1;
+}' > ${BSDINSTALL_TMPETC}/resolv.conf
+
+mv $BSDINSTALL_TMPETC/._rc.conf.net $BSDINSTALL_TMPETC/rc.conf.net

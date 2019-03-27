@@ -1,0 +1,118 @@
+.\" Copyright (c) 1995
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)kvm_getvfsbyname.3	8.3 (Berkeley) 5/4/95
+.\" $FreeBSD$
+.\"
+.Dd August 16, 2018
+.Dt GETVFSBYNAME 3
+.Os
+.Sh NAME
+.Nm getvfsbyname
+.Nd get information about a file system
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.Ft int
+.Fn getvfsbyname "const char *name" "struct xvfsconf *vfc"
+.Sh DESCRIPTION
+The
+.Fn getvfsbyname
+function provides access to information about a
+file system module that is configured in the kernel.
+If successful,
+the requested file system
+.Fa xvfsconf
+is returned in the location pointed to by
+.Fa vfc .
+The fields in a
+.Dq Li struct xvfsconf
+are defined as follows:
+.Pp
+.Bl -tag -compact -width vfc_refcount
+.It vfc_name
+the name of the file system
+.It vfc_typenum
+the file system type number assigned by the kernel
+.It vfc_refcount
+the number of active mount points using the file system
+.It vfc_flags
+flag bits, as described below
+.El
+.Pp
+The flags are defined as follows:
+.Pp
+.Bl -tag -width VFCF_DELEGADMIN -compact
+.It Dv VFCF_STATIC
+statically compiled into kernel
+.It Dv VFCF_NETWORK
+may get data over the network
+.It Dv VFCF_READONLY
+writes are not implemented
+.It Dv VFCF_SYNTHETIC
+data does not represent real files
+.It Dv VFCF_LOOPBACK
+aliases some other mounted FS
+.It Dv VFCF_UNICODE
+stores file names as Unicode
+.It Dv VFCF_JAIL
+can be mounted from within a jail if
+.Va allow.mount
+and
+.Va allow.mount.<vfc_name>
+jail parameters are set
+.It Dv VFCF_DELEGADMIN
+supports delegated administration if
+.Va vfs.usermount
+sysctl is set to
+.Dv 1
+.El
+.Sh RETURN VALUES
+.Rv -std getvfsbyname
+.Sh ERRORS
+The following errors may be reported:
+.Bl -tag -width Er
+.It Bq Er ENOENT
+The
+.Fa name
+argument
+specifies a file system that is unknown or not configured in the kernel.
+.El
+.Sh SEE ALSO
+.Xr jail 2 ,
+.Xr mount 2 ,
+.Xr sysctl 3 ,
+.Xr jail 8 ,
+.Xr mount 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+A variant of the
+.Fn getvfsbyname
+function first appeared in
+.Fx 2.0 .

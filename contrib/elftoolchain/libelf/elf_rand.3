@@ -1,0 +1,118 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_rand.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd June 17, 2006
+.Dt ELF_RAND 3
+.Os
+.Sh NAME
+.Nm elf_rand
+.Nd provide sequential access to the next archive member
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft off_t
+.Fn elf_rand "Elf *archive" "off_t offset"
+.Sh DESCRIPTION
+The
+.Fn elf_rand
+function causes the ELF descriptor
+.Ar archive
+to be adjusted so that the next call to
+.Xr elf_begin 3
+will provide access to the archive member at byte offset
+.Ar offset
+in the archive.
+Argument
+.Ar offset
+is the byte offset from the start of the archive to the beginning of
+the archive header for the desired member.
+.Pp
+Archive member offsets may be retrieved using the
+.Xr elf_getarsym 3
+function.
+.Sh RETURN VALUES
+Function
+.Fn elf_rand
+returns
+.Ar offset
+if successful or zero in case of an error.
+.Sh EXAMPLES
+To process all the members of an archive use:
+.Bd -literal -offset indent
+off_t off;
+Elf *archive, *e;
+\&...
+cmd = ELF_C_READ;
+archive = elf_begin(fd, cmd, NULL);
+while ((e = elf_begin(fd, cmd, archive)) != (Elf *) 0)
+{
+	... process `e' here ...
+	elf_end(e);
+
+	off = ...new value...;
+	if (elf_rand(archive, off) != off) {
+		... process error ...
+	}
+}
+elf_end(archive);
+.Ed
+.Pp
+To rewind an archive, use:
+.Bd -literal -offset indent
+Elf *archive;
+\&...
+if (elf_rand(archive, SARMAG) != SARMAG) {
+	... error ...
+}
+.Ed
+.Sh ERRORS
+Function
+.Fn elf_rand
+may fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar archive
+was null.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar archive
+was not a descriptor for an
+.Xr ar 1
+archive.
+.It Bq Er ELF_E_ARCHIVE
+Argument
+.Ar offset
+did not correspond to the start of an archive member header.
+.El
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr elf 3 ,
+.Xr elf_begin 3 ,
+.Xr elf_end 3 ,
+.Xr elf_getarsym 3 ,
+.Xr elf_next 3 ,
+.Xr gelf 3

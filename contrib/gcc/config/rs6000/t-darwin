@@ -1,0 +1,37 @@
+LIB2FUNCS_EXTRA = $(srcdir)/config/rs6000/darwin-tramp.asm \
+	$(srcdir)/config/rs6000/ppc64-fp.c \
+	$(srcdir)/config/darwin-64.c \
+	$(srcdir)/config/rs6000/darwin-ldouble.c \
+	$(srcdir)/config/rs6000/darwin-world.asm
+
+LIB2FUNCS_STATIC_EXTRA = \
+	$(srcdir)/config/rs6000/darwin-fpsave.asm  \
+	$(srcdir)/config/rs6000/darwin-vecsave.asm
+
+DARWIN_EXTRA_CRT_BUILD_CFLAGS = -mlongcall
+
+# The .asm files above are designed to run on all processors,
+# even though they use AltiVec instructions.  -Wa is used because
+# -force_cpusubtype_ALL doesn't work with -dynamiclib.
+#
+# -pipe because there's an assembler bug, 4077127, which causes
+# it to not properly process the first # directive, causing temporary
+# file names to appear in stabs, causing the bootstrap to fail.  Using -pipe
+# works around this by not having any temporary file names.
+TARGET_LIBGCC2_CFLAGS = -Wa,-force_cpusubtype_ALL -pipe -mmacosx-version-min=10.4
+
+# Export the _xlq* symbols from darwin-ldouble.c.
+SHLIB_MAPFILES += $(srcdir)/config/rs6000/libgcc-ppc64.ver
+
+SHLIB_VERPFX = $(srcdir)/config/rs6000/darwin-libgcc
+
+LIB2ADDEH += $(srcdir)/config/rs6000/darwin-fallback.c
+
+darwin-fpsave.o:	$(srcdir)/config/rs6000/darwin-asm.h
+darwin-tramp.o:		$(srcdir)/config/rs6000/darwin-asm.h
+
+# Explain how to build crt2.o
+$(T)crt2$(objext): $(srcdir)/config/darwin-crt2.c $(GCC_PASSES) \
+	$(TCONFIG_H) stmp-int-hdrs tsystem.h
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(INCLUDES) $(MULTILIB_CFLAGS) \
+	  -c $(srcdir)/config/darwin-crt2.c -o $(T)crt2$(objext)

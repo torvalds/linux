@@ -1,0 +1,201 @@
+.\" Copyright (c) 2011,2014 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_loclist_from_expr.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd December 21, 2014
+.Dt DWARF_LOCLIST_FROM_EXPR 3
+.Os
+.Sh NAME
+.Nm dwarf_loclist_from_expr ,
+.Nm dwarf_loclist_from_expr_a ,
+.Nm dwarf_loclist_from_expr_b
+.Nd translate DWARF location expression bytes
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_loclist_from_expr
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Ptr bytes_in"
+.Fa "Dwarf_Unsigned bytes_len"
+.Fa "Dwarf_Locdesc **llbuf"
+.Fa "Dwarf_Signed *listlen"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_loclist_from_expr_a
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Ptr bytes_in"
+.Fa "Dwarf_Unsigned bytes_len"
+.Fa "Dwarf_Half addr_size"
+.Fa "Dwarf_Locdesc **llbuf"
+.Fa "Dwarf_Signed *listlen"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_loclist_from_expr_b
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Ptr bytes_in"
+.Fa "Dwarf_Unsigned bytes_len"
+.Fa "Dwarf_Half addr_size"
+.Fa "Dwarf_Half offset_size"
+.Fa "Dwarf_Small version"
+.Fa "Dwarf_Locdesc **llbuf"
+.Fa "Dwarf_Signed *listlen"
+.Fa "Dwarf_Error *error"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_loclist_from_expr
+translates DWARF location expression bytes into a
+.Vt Dwarf_Locdesc
+descriptor.
+The size for address related data is taken to be the default address
+size for the object being read.
+.Pp
+Argument
+.Ar dbg
+should reference a DWARF debug context allocated using
+.Xr dwarf_init 3 .
+.Pp
+Argument
+.Ar bytes_in
+should point to an array of DWARF location expression bytes.
+.Pp
+Argument
+.Ar bytes_len
+should specify the number of the location expression bytes to be
+translated.
+.Pp
+Argument
+.Ar llbuf
+should point to a location which will be set to a pointer
+to a returned
+.Vt Dwarf_Locdesc
+descriptor.
+.Pp
+Argument
+.Ar listlen
+should point to a location which will hold the number of the
+.Vt Dwarf_Locdesc
+descriptors returned.
+In this case it is always set to 1.
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case of an
+error.
+.Pp
+Function
+.Fn dwarf_loclist_from_expr_a
+is identical to function
+.Fn dwarf_loclist_from_expr ,
+except that it requires one additional argument
+.Ar addr_size ,
+which specifies the address size to use when translating the location
+expression bytes.
+.Pp
+Function
+.Fn dwarf_loclist_from_expr_b
+is identical to function
+.Fn dwarf_loclist_from_expr_a
+except that it requires two additional arguments for translating the
+location expression bytes.
+Argument
+.Ar offset_size
+specifies the offset size, and argument
+.Ar version
+specifies the DWARF version.
+These values are required to correctly translate the
+.Dv DW_OP_GNU_implicit_pointer
+opcode.
+.Ss Memory Management
+The memory area used for the descriptor returned in argument
+.Ar llbuf
+is allocated by
+.Lb libdwarf .
+When the descriptor is no longer needed, application code should use
+function
+.Xr dwarf_dealloc 3
+to free the memory area in two steps:
+.Bl -enum -compact
+.It
+First, the array of
+.Vt Dwarf_Loc
+descriptors pointed to by the
+.Ar ld_s
+field of the
+.Vt Dwarf_Locdesc
+descriptor should be deallocated using the allocation type
+.Dv DW_DLA_LOC_BLOCK .
+.It
+Next, the application should free the
+.Ar llbuf
+pointer using the allocation type
+.Dv DW_DLA_LOCDESC .
+.El
+.Sh RETURN VALUES
+On success, these functions returns
+.Dv DW_DLV_OK .
+In case of an error, they return
+.Dv DW_DLV_ERROR
+and set the argument
+.Ar err .
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_LOC_EXPR_BAD"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Va dbg ,
+.Va bytes_in ,
+.Va llbuf
+or
+.Va listlen
+was NULL.
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Ar bytes_len
+was 0.
+.It Bq Er DW_DLE_ARGUMENT
+The value of argument
+.Ar addr_size
+was invalid.
+.It Bq Er DW_DLE_LOC_EXPR_BAD
+An unknown or invalid operation was found in the location expression
+bytes provided in argument
+.Ar bytes_in .
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of
+this function.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_dealloc 3 ,
+.Xr dwarf_get_fde_info_for_all_regs3 3 ,
+.Xr dwarf_get_fde_info_for_cfa_reg3 3 ,
+.Xr dwarf_get_fde_info_for_reg3 3 ,
+.Xr dwarf_get_loclist_entry 3 ,
+.Xr dwarf_loclist_n 3

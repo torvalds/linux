@@ -1,0 +1,103 @@
+.\" Copyright (c) 2003 - 2006 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd May  1, 2006
+.Dt KRB5_VERIFY_INIT_CREDS 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_verify_init_creds_opt_init ,
+.Nm krb5_verify_init_creds_opt_set_ap_req_nofail ,
+.Nm krb5_verify_init_creds
+.Nd "verifies a credential cache is correct by using a local keytab"
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Pp
+.Li "struct krb5_verify_init_creds_opt;"
+.Ft void
+.Fo krb5_verify_init_creds_opt_init
+.Fa "krb5_verify_init_creds_opt *options"
+.Fc
+.Ft void
+.Fo krb5_verify_init_creds_opt_set_ap_req_nofail
+.Fa "krb5_verify_init_creds_opt *options"
+.Fa "int ap_req_nofail"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_verify_init_creds
+.Fa "krb5_context context"
+.Fa "krb5_creds *creds"
+.Fa "krb5_principal ap_req_server"
+.Fa "krb5_ccache *ccache"
+.Fa "krb5_verify_init_creds_opt *options"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm krb5_verify_init_creds
+function verifies the initial tickets with the local keytab to make
+sure the response of the KDC was spoof-ed.
+.Pp
+.Nm krb5_verify_init_creds
+will use principal
+.Fa ap_req_server
+from the local keytab, if
+.Dv NULL
+is passed in, the code will guess the local hostname and use that to
+form host/hostname/GUESSED-REALM-FOR-HOSTNAME.
+.Fa creds
+is the credential that
+.Nm krb5_verify_init_creds
+should verify.
+If
+.Fa ccache
+is given
+.Fn krb5_verify_init_creds
+stores all credentials it fetched from the KDC there, otherwise it
+will use a memory credential cache that is destroyed when done.
+.Pp
+.Fn krb5_verify_init_creds_opt_init
+cleans the the structure, must be used before trying to pass it in to
+.Fn krb5_verify_init_creds .
+.Pp
+.Fn krb5_verify_init_creds_opt_set_ap_req_nofail
+controls controls the behavior if
+.Fa ap_req_server
+doesn't exists in the local keytab or in the KDC's database, if it's
+true, the error will be ignored.  Note that this use is possible
+insecure.
+.Sh SEE ALSO
+.Xr krb5 3 ,
+.Xr krb5_get_init_creds 3 ,
+.Xr krb5_verify_user 3 ,
+.Xr krb5.conf 5

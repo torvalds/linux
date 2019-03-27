@@ -1,0 +1,13 @@
+expected: source4
+actual:   source4
+expected: target1.x
+actual:   target1.x
+expected: target1.y
+actual:   target1.y
+expected: source1
+actual:   source1
+expected: source2
+actual:   source2
+expected: source1
+actual:   source1
+exit status 0

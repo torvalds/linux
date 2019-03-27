@@ -1,0 +1,229 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: mail
+# REQUIRE: LOGIN FILESYSTEMS
+#	we make mail start late, so that things like .forward's are not
+#	processed until the system is fully operational
+# KEYWORD: shutdown
+
+# XXX - Get together with sendmail mantainer to figure out how to
+#	better handle SENDMAIL_ENABLE and 3rd party MTAs.
+#
+. /etc/rc.subr
+
+name="sendmail"
+desc="Electronic mail transport agent"
+rcvar="sendmail_enable"
+required_files="/etc/mail/${name}.cf"
+start_precmd="sendmail_precmd"
+
+load_rc_config $name
+command=${sendmail_program:-/usr/sbin/${name}}
+pidfile=${sendmail_pidfile:-/var/run/${name}.pid}
+procname=${sendmail_procname:-/usr/sbin/${name}}
+
+CERTDIR=/etc/mail/certs
+
+case ${sendmail_enable} in
+[Nn][Oo][Nn][Ee])
+	sendmail_enable="NO"
+	sendmail_submit_enable="NO"
+	sendmail_outbound_enable="NO"
+	sendmail_msp_queue_enable="NO"
+	;;
+esac
+
+# If sendmail_enable=yes, don't need submit or outbound daemon
+if checkyesno sendmail_enable; then
+	sendmail_submit_enable="NO"
+	sendmail_outbound_enable="NO"
+fi
+
+# If sendmail_submit_enable=yes, don't need outbound daemon
+if checkyesno sendmail_submit_enable; then
+	sendmail_outbound_enable="NO"
+fi
+
+sendmail_cert_create()
+{
+	cnname="${sendmail_cert_cn:-`hostname`}"
+	cnname="${cnname:-amnesiac}"
+
+	# based upon:
+	# http://www.sendmail.org/~ca/email/other/cagreg.html
+	CAdir=`mktemp -d` &&
+	certpass=`(date; ps ax ; hostname) | md5 -q`
+
+	# make certificate authority
+	( cd "$CAdir" &&
+	chmod 700 "$CAdir" &&
+	mkdir certs crl newcerts &&
+	echo "01" > serial &&
+	:> index.txt &&
+
+	cat <<-OPENSSL_CNF > openssl.cnf &&
+		RANDFILE	= $CAdir/.rnd
+		[ ca ]
+		default_ca	= CA_default
+		[ CA_default ]
+		dir		= .
+		certs		= \$dir/certs		# Where the issued certs are kept
+		crl_dir		= \$dir/crl		# Where the issued crl are kept
+		database	= \$dir/index.txt	# database index file.
+		new_certs_dir	= \$dir/newcerts	# default place for new certs.
+		certificate	= \$dir/cacert.pem 	# The CA certificate
+		serial		= \$dir/serial 		# The current serial number
+		crlnumber	= \$dir/crlnumber	# the current crl number
+		crl		= \$dir/crl.pem 	# The current CRL
+		private_key	= \$dir/cakey.pem
+		x509_extensions	= usr_cert		# The extensions to add to the cert
+		name_opt 	= ca_default		# Subject Name options
+		cert_opt 	= ca_default		# Certificate field options
+		default_days	= 365			# how long to certify for
+		default_crl_days= 30			# how long before next CRL
+		default_md	= default		# use public key default MD
+		preserve	= no			# keep passed DN ordering
+		policy		= policy_anything
+		[ policy_anything ]
+		countryName		= optional
+		stateOrProvinceName	= optional
+		localityName		= optional
+		organizationName	= optional
+		organizationalUnitName	= optional
+		commonName		= supplied
+		emailAddress		= optional
+		[ req ]
+		default_bits		= 2048
+		default_keyfile 	= privkey.pem
+		distinguished_name	= req_distinguished_name
+		attributes		= req_attributes
+		x509_extensions	= v3_ca	# The extensions to add to the self signed cert
+		string_mask = utf8only
+		prompt = no
+		[ req_distinguished_name ]
+		countryName			= XX
+		stateOrProvinceName		= Some-state
+		localityName			= Some-city
+		0.organizationName		= Some-org
+		CN				= $cnname
+		[ req_attributes ]
+		challengePassword		= foobar
+		unstructuredName		= An optional company name
+		[ usr_cert ]
+		basicConstraints=CA:FALSE
+		nsComment			= "OpenSSL Generated Certificate"
+		subjectKeyIdentifier=hash
+		authorityKeyIdentifier=keyid,issuer
+		[ v3_req ]
+		basicConstraints = CA:FALSE
+		keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+		[ v3_ca ]
+		subjectKeyIdentifier=hash
+		authorityKeyIdentifier=keyid:always,issuer
+		basicConstraints = CA:true
+	OPENSSL_CNF
+
+	# though we use a password, the key is discarded and never used
+	openssl req -batch -passout pass:"$certpass" -new -x509 \
+	    -keyout cakey.pem -out cacert.pem -days 3650 \
+	    -config openssl.cnf -newkey rsa:2048 >/dev/null 2>&1 &&
+
+	# make new certificate
+	openssl req -batch -nodes -new -x509 -keyout newkey.pem \
+	    -out newreq.pem -days 365 -config openssl.cnf \
+	    -newkey rsa:2048 >/dev/null 2>&1 &&
+
+	# sign certificate
+	openssl x509 -x509toreq -in newreq.pem -signkey newkey.pem \
+	    -out tmp.pem >/dev/null 2>&1 &&
+	openssl ca -notext -config openssl.cnf \
+	    -out newcert.pem -keyfile cakey.pem -cert cacert.pem \
+	    -key "$certpass" -batch -infiles tmp.pem >/dev/null 2>&1 &&
+
+	mkdir -p "$CERTDIR" &&
+	chmod 0755 "$CERTDIR" &&
+	chmod 644 newcert.pem cacert.pem &&
+	chmod 600 newkey.pem &&
+	cp -p newcert.pem "$CERTDIR"/host.cert &&
+	cp -p cacert.pem "$CERTDIR"/cacert.pem &&
+	cp -p newkey.pem "$CERTDIR"/host.key &&
+	ln -s cacert.pem "$CERTDIR"/`openssl x509 -hash -noout \
+	    -in cacert.pem`.0)
+
+	retVal="$?"
+	rm -rf "$CAdir"
+
+	return "$retVal"
+}
+
+sendmail_precmd()
+{
+	# Die if there's pre-8.10 custom configuration file.  This check is
+	# mandatory for smooth upgrade.  See NetBSD PR 10100 for details.
+	#
+	if checkyesno ${rcvar} && [ -f "/etc/${name}.cf" ]; then
+		if ! cmp -s "/etc/mail/${name}.cf" "/etc/${name}.cf"; then
+			warn \
+    "${name} was not started; you have multiple copies of sendmail.cf."
+			return 1
+		fi
+	fi
+
+	# check modifications on /etc/mail/aliases
+	if checkyesno sendmail_rebuild_aliases; then
+		if [ -f "/etc/mail/aliases.db" ]; then
+			if [ "/etc/mail/aliases" -nt "/etc/mail/aliases.db" ]; then
+				echo \
+	    	"${name}: /etc/mail/aliases newer than /etc/mail/aliases.db, regenerating"
+				/usr/bin/newaliases
+			fi
+		else
+			echo \
+	    	"${name}: /etc/mail/aliases.db not present, generating"
+				/usr/bin/newaliases
+		fi
+	fi
+
+	if checkyesno sendmail_cert_create && [ ! \( \
+	    -f "$CERTDIR/host.cert" -o -f "$CERTDIR/host.key" -o \
+	    -f "$CERTDIR/cacert.pem" \) ]; then
+		if ! openssl version >/dev/null 2>&1; then
+			warn "OpenSSL not available, but sendmail_cert_create is YES."
+		else
+			info Creating certificate for sendmail.
+			sendmail_cert_create
+		fi
+	fi
+
+	if [ ! -f /var/log/sendmail.st ]; then
+		/usr/bin/install -m 640 -o root -g wheel /dev/null /var/log/sendmail.st
+	fi
+}
+
+run_rc_command "$1"
+
+required_files=
+
+if checkyesno sendmail_submit_enable; then
+	name="sendmail_submit"
+	rcvar="sendmail_submit_enable"
+	_rc_restart_done=false
+	run_rc_command "$1"
+fi
+
+if checkyesno sendmail_outbound_enable; then
+	name="sendmail_outbound"
+	rcvar="sendmail_outbound_enable"
+	_rc_restart_done=false
+	run_rc_command "$1"
+fi
+
+name="sendmail_msp_queue"
+rcvar="sendmail_msp_queue_enable"
+pidfile="${sendmail_msp_queue_pidfile:-/var/spool/clientmqueue/sm-client.pid}"
+required_files="/etc/mail/submit.cf"
+_rc_restart_done=false
+run_rc_command "$1"

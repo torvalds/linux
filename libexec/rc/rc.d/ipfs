@@ -1,0 +1,52 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ipfs
+# REQUIRE: ipnat
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="ipfs"
+desc="Saves and restores information for NAT and state tables"
+rcvar="ipfs_enable"
+start_cmd="ipfs_start"
+stop_cmd="ipfs_stop"
+start_precmd="ipfs_prestart"
+
+ipfs_prestart()
+{
+	# Do not continue if either ipnat or ipfilter is not enabled or
+	# if the ipfilter module is not loaded.
+	#
+	if ! checkyesno ipfilter_enable -o ! checkyesno ipnat_enable ; then
+		err 1  "${name} requires either ipfilter or ipnat enabled"
+	fi
+	if ! ${ipfilter_program:-/sbin/ipf} -V | grep -q 'Running: yes' >/dev/null 2>&1; then
+		err 1 "ipfilter module is not loaded"
+	fi
+	return 0
+}
+
+ipfs_start()
+{
+	if [ -r /var/db/ipf/ipstate.ipf -a -r /var/db/ipf/ipnat.ipf ]; then
+		${ipfs_program} -R ${rc_flags}
+		rm -f /var/db/ipf/ipstate.ipf /var/db/ipf/ipnat.ipf
+	fi
+}
+
+ipfs_stop()
+{
+	if [ ! -d /var/db/ipf ]; then
+		mkdir /var/db/ipf
+		chmod 700 /var/db/ipf
+		chown root:wheel /var/db/ipf
+	fi
+	${ipfs_program} -W ${rc_flags}
+}
+
+load_rc_config $name
+run_rc_command "$1"

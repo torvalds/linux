@@ -1,0 +1,115 @@
+.\" Copyright (c) 2005 Mark Kettenis
+.\" Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"   $OpenBSD: dl_iterate_phdr.3,v 1.3 2007/05/31 19:19:48 jmc Exp $
+.\" $FreeBSD$
+.Dd October 9, 2014
+.Dt DL_ITERATE_PHDR 3
+.Os
+.Sh NAME
+.Nm dl_iterate_phdr
+.Nd iterate over program headers
+.Sh LIBRARY
+For the dynamically linked binaries, the service is provided by
+.Xr ld-elf.so.1 1
+dynamic linker.
+Statically linked programs use an implementation of
+.Fn dl_iterate_phdr
+from libc.
+.Sh SYNOPSIS
+.In link.h
+.Ft int
+.Fn dl_iterate_phdr "int (*callback)(struct dl_phdr_info *, size_t, void *)" "void *data"
+.Sh DESCRIPTION
+The
+.Fn dl_iterate_phdr
+function iterates over all ELF objects loaded into a process's
+address space, calling
+.Fa callback
+for each object, passing it information about the object's
+program headers and the
+.Fa data
+argument.
+The iteration is aborted when all objects are passed, or when the next
+.Fa callback
+call returns non-zero value.
+The information about the program headers is passed in a structure
+that is defined as:
+.Bd -literal
+struct dl_phdr_info {
+	Elf_Addr	dlpi_addr;
+	const char	*dlpi_name;
+	const Elf_Phdr	*dlpi_phdr;
+	Elf_Half	dlpi_phnum;
+	unsigned long long int dlpi_adds;
+	unsigned long long int dlpi_subs;
+	size_t		dlpi_tls_modid;
+	void		*dlpi_tls_data;
+};
+.Ed
+.Pp
+The members of
+.Li struct dl_phdr_info
+have the following meaning:
+.Bl -tag -width dlpi_tls_modid
+.It Fa dlpi_addr
+The base address at which the object is mapped into the address
+space of the calling process.
+.It Fa dlpi_name
+The pathname of the ELF object.
+.It Fa dlpi_phdr
+A pointer to the object's program headers.
+.It Fa dlpi_phnum
+The number of program headers in the object.
+.It Fa dlpi_adds
+The counter of the object loads performed by the dynamic linker.
+.It Fa dlpi_subs
+The counter of the object unloads performed by the dynamic linker.
+.It Fa dlpi_tls_modid
+The TLS index of the object.
+.It Fa dlpi_tls_data
+A pointer to the initialization data for the object TLS segment.
+.El
+.Pp
+Future versions of
+.Fx
+might add more members to this structure.
+To make it possible for programs to check whether any new members have
+been added, the size of the structure is passed as an second argument to
+.Fa callback .
+.Pp
+The third argument to callback is the
+.Fa data
+value passed to the call to
+.Fn dl_iterate_phdr ,
+allowing the
+.Fa callback
+to have a context.
+.Sh RETURN VALUES
+The
+.Fn dl_iterate_phdr
+returns the value returned by the last
+.Fa callback
+call executed.
+.Sh SEE ALSO
+.Xr ld 1 ,
+.Xr ld-elf.so.1 1 ,
+.Xr dlopen 3 ,
+.Xr elf 5
+.Sh HISTORY
+The
+.Nm
+function first appeared in
+.Fx 7.0 .

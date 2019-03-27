@@ -1,0 +1,708 @@
+.TH "LIBUCL" "3" "27 December, 2014" "Libucl manual" ""
+.SH NAME
+.PP
+\f[B]ucl_parser_new\f[], \f[B]ucl_parser_register_macro\f[],
+\f[B]ucl_parser_register_variable\f[], \f[B]ucl_parser_add_chunk\f[],
+\f[B]ucl_parser_add_string\f[], \f[B]ucl_parser_add_file\f[],
+\f[B]ucl_parser_get_object\f[], \f[B]ucl_parser_get_error\f[],
+\f[B]ucl_parser_free\f[], \f[B]ucl_pubkey_add\f[],
+\f[B]ucl_parser_set_filevars\f[] \- universal configuration library
+parser and utility functions
+.SH LIBRARY
+.PP
+UCL library (libucl, \-lucl)
+.SH SYNOPSIS
+.PP
+\f[C]#include\ <ucl.h>\f[]
+.SH DESCRIPTION
+.PP
+Libucl is a parser and \f[C]C\f[] API to parse and generate \f[C]ucl\f[]
+objects.
+Libucl consist of several groups of functions:
+.SS Parser functions
+.PP
+Used to parse \f[C]ucl\f[] files and provide interface to extract
+\f[C]ucl\f[] object.
+Currently, \f[C]libucl\f[] can parse only full \f[C]ucl\f[] documents,
+for instance, it is impossible to parse a part of document and therefore
+it is impossible to use \f[C]libucl\f[] as a streaming parser.
+In future, this limitation can be removed.
+.SS Emitting functions
+.PP
+Convert \f[C]ucl\f[] objects to some textual or binary representation.
+Currently, libucl supports the following exports:
+.IP \[bu] 2
+\f[C]JSON\f[] \- valid json format (can possibly lose some original
+data, such as implicit arrays)
+.IP \[bu] 2
+\f[C]Config\f[] \- human\-readable configuration format (lossless)
+.IP \[bu] 2
+\f[C]YAML\f[] \- embedded yaml format (has the same limitations as
+\f[C]json\f[] output)
+.SS Conversion functions
+.PP
+Help to convert \f[C]ucl\f[] objects to C types.
+These functions are used to convert \f[C]ucl_object_t\f[] to C primitive
+types, such as numbers, strings or boolean values.
+.SS Generation functions
+.PP
+Allow creation of \f[C]ucl\f[] objects from C types and creating of
+complex \f[C]ucl\f[] objects, such as hashes or arrays from primitive
+\f[C]ucl\f[] objects, such as numbers or strings.
+.SS Iteration functions
+.PP
+Iterate over \f[C]ucl\f[] complex objects or over a chain of values, for
+example when a key in an object has multiple values (that can be treated
+as implicit array or implicit consolidation).
+.SS Validation functions
+.PP
+Validation functions are used to validate some object \f[C]obj\f[] using
+json\-schema compatible object \f[C]schema\f[].
+Both input and schema must be UCL objects to perform validation.
+.SS Utility functions
+.PP
+Provide basic utilities to manage \f[C]ucl\f[] objects: creating,
+removing, retaining and releasing reference count and so on.
+.SH PARSER FUNCTIONS
+.PP
+Parser functions operates with \f[C]struct\ ucl_parser\f[].
+.SS ucl_parser_new
+.IP
+.nf
+\f[C]
+struct\ ucl_parser*\ ucl_parser_new\ (int\ flags);
+\f[]
+.fi
+.PP
+Creates new parser with the specified flags:
+.IP \[bu] 2
+\f[C]UCL_PARSER_KEY_LOWERCASE\f[] \- lowercase keys parsed
+.IP \[bu] 2
+\f[C]UCL_PARSER_ZEROCOPY\f[] \- try to use zero\-copy mode when reading
+files (in zero\-copy mode text chunk being parsed without copying
+strings so it should exist till any object parsed is used)
+.IP \[bu] 2
+\f[C]UCL_PARSER_NO_TIME\f[] \- treat time values as strings without
+parsing them as floats
+.SS ucl_parser_register_macro
+.IP
+.nf
+\f[C]
+void\ ucl_parser_register_macro\ (struct\ ucl_parser\ *parser,
+\ \ \ \ const\ char\ *macro,\ ucl_macro_handler\ handler,\ void*\ ud);
+\f[]
+.fi
+.PP
+Register new macro with name .\f[C]macro\f[] parsed by handler
+\f[C]handler\f[] that accepts opaque data pointer \f[C]ud\f[].
+Macro handler should be of the following type:
+.IP
+.nf
+\f[C]
+bool\ (*ucl_macro_handler)\ (const\ unsigned\ char\ *data,
+\ \ \ \ size_t\ len,\ void*\ ud);`
+\f[]
+.fi
+.PP
+Handler function accepts macro text \f[C]data\f[] of length \f[C]len\f[]
+and the opaque pointer \f[C]ud\f[].
+If macro is parsed successfully the handler should return \f[C]true\f[].
+\f[C]false\f[] indicates parsing failure and the parser can be
+terminated.
+.SS ucl_parser_register_variable
+.IP
+.nf
+\f[C]
+void\ ucl_parser_register_variable\ (struct\ ucl_parser\ *parser,
+\ \ \ \ const\ char\ *var,\ const\ char\ *value);
+\f[]
+.fi
+.PP
+Register new variable $\f[C]var\f[] that should be replaced by the
+parser to the \f[C]value\f[] string.
+.SS ucl_parser_add_chunk
+.IP
+.nf
+\f[C]
+bool\ ucl_parser_add_chunk\ (struct\ ucl_parser\ *parser,\ 
+\ \ \ \ const\ unsigned\ char\ *data,\ size_t\ len);
+\f[]
+.fi
+.PP
+Add new text chunk with \f[C]data\f[] of length \f[C]len\f[] to the
+parser.
+At the moment, \f[C]libucl\f[] parser is not a streamlined parser and
+chunk \f[I]must\f[] contain the \f[I]valid\f[] ucl object.
+For example, this object should be valid:
+.IP
+.nf
+\f[C]
+{\ "var":\ "value"\ }
+\f[]
+.fi
+.PP
+while this one won\[aq]t be parsed correctly:
+.IP
+.nf
+\f[C]
+{\ "var":\ 
+\f[]
+.fi
+.PP
+This limitation may possible be removed in future.
+.SS ucl_parser_add_string
+.IP
+.nf
+\f[C]
+bool\ ucl_parser_add_string\ (struct\ ucl_parser\ *parser,\ 
+\ \ \ \ const\ char\ *data,\ size_t\ len);
+\f[]
+.fi
+.PP
+This function acts exactly like \f[C]ucl_parser_add_chunk\f[] does but
+if \f[C]len\f[] argument is zero, then the string \f[C]data\f[] must be
+zero\-terminated and the actual length is calculated up to \f[C]\\0\f[]
+character.
+.SS ucl_parser_add_file
+.IP
+.nf
+\f[C]
+bool\ ucl_parser_add_file\ (struct\ ucl_parser\ *parser,\ 
+\ \ \ \ const\ char\ *filename);
+\f[]
+.fi
+.PP
+Load file \f[C]filename\f[] and parse it with the specified
+\f[C]parser\f[].
+This function uses \f[C]mmap\f[] call to load file, therefore, it should
+not be \f[C]shrunk\f[] during parsing.
+Otherwise, \f[C]libucl\f[] can cause memory corruption and terminate the
+calling application.
+This function is also used by the internal handler of \f[C]include\f[]
+macro, hence, this macro has the same limitation.
+.SS ucl_parser_get_object
+.IP
+.nf
+\f[C]
+ucl_object_t*\ ucl_parser_get_object\ (struct\ ucl_parser\ *parser);
+\f[]
+.fi
+.PP
+If the \f[C]ucl\f[] data has been parsed correctly this function returns
+the top object for the parser.
+Otherwise, this function returns the \f[C]NULL\f[] pointer.
+The reference count for \f[C]ucl\f[] object returned is increased by
+one, therefore, a caller should decrease reference by using
+\f[C]ucl_object_unref\f[] to free object after usage.
+.SS ucl_parser_get_error
+.IP
+.nf
+\f[C]
+const\ char\ *ucl_parser_get_error(struct\ ucl_parser\ *parser);
+\f[]
+.fi
+.PP
+Returns the constant error string for the parser object.
+If no error occurred during parsing a \f[C]NULL\f[] object is returned.
+A caller should not try to free or modify this string.
+.SS ucl_parser_free
+.IP
+.nf
+\f[C]
+void\ ucl_parser_free\ (struct\ ucl_parser\ *parser);
+\f[]
+.fi
+.PP
+Frees memory occupied by the parser object.
+The reference count for top object is decreased as well, however if the
+function \f[C]ucl_parser_get_object\f[] was called previously then the
+top object won\[aq]t be freed.
+.SS ucl_pubkey_add
+.IP
+.nf
+\f[C]
+bool\ ucl_pubkey_add\ (struct\ ucl_parser\ *parser,\ 
+\ \ \ \ const\ unsigned\ char\ *key,\ size_t\ len);
+\f[]
+.fi
+.PP
+This function adds a public key from text blob \f[C]key\f[] of length
+\f[C]len\f[] to the \f[C]parser\f[] object.
+This public key should be in the \f[C]PEM\f[] format and can be used by
+\f[C]\&.includes\f[] macro for checking signatures of files included.
+\f[C]Openssl\f[] support should be enabled to make this function
+working.
+If a key cannot be added (e.g.
+due to format error) or \f[C]openssl\f[] was not linked to
+\f[C]libucl\f[] then this function returns \f[C]false\f[].
+.SS ucl_parser_set_filevars
+.IP
+.nf
+\f[C]
+bool\ ucl_parser_set_filevars\ (struct\ ucl_parser\ *parser,\ 
+\ \ \ \ const\ char\ *filename,\ bool\ need_expand);
+\f[]
+.fi
+.PP
+Add the standard file variables to the \f[C]parser\f[] based on the
+\f[C]filename\f[] specified:
+.IP \[bu] 2
+\f[C]$FILENAME\f[] \- a filename of \f[C]ucl\f[] input
+.IP \[bu] 2
+\f[C]$CURDIR\f[] \- a current directory of the input
+.PP
+For example, if a \f[C]filename\f[] param is
+\f[C]\&../something.conf\f[] then the variables will have the following
+values:
+.IP \[bu] 2
+\f[C]$FILENAME\f[] \- "../something.conf"
+.IP \[bu] 2
+\f[C]$CURDIR\f[] \- ".."
+.PP
+if \f[C]need_expand\f[] parameter is \f[C]true\f[] then all relative
+paths are expanded using \f[C]realpath\f[] call.
+In this example if \f[C]\&..\f[] is \f[C]/etc/dir\f[] then variables
+will have these values:
+.IP \[bu] 2
+\f[C]$FILENAME\f[] \- "/etc/something.conf"
+.IP \[bu] 2
+\f[C]$CURDIR\f[] \- "/etc"
+.SS Parser usage example
+.PP
+The following example loads, parses and extracts \f[C]ucl\f[] object
+from stdin using \f[C]libucl\f[] parser functions (the length of input
+is limited to 8K):
+.IP
+.nf
+\f[C]
+char\ inbuf[8192];
+struct\ ucl_parser\ *parser\ =\ NULL;
+int\ ret\ =\ 0,\ r\ =\ 0;
+ucl_object_t\ *obj\ =\ NULL;
+FILE\ *in;
+
+in\ =\ stdin;
+parser\ =\ ucl_parser_new\ (0);
+while\ (!feof\ (in)\ &&\ r\ <\ (int)sizeof\ (inbuf))\ {
+\ \ \ \ r\ +=\ fread\ (inbuf\ +\ r,\ 1,\ sizeof\ (inbuf)\ \-\ r,\ in);
+}
+ucl_parser_add_chunk\ (parser,\ inbuf,\ r);
+fclose\ (in);
+
+if\ (ucl_parser_get_error\ (parser))\ {
+\ \ \ \ printf\ ("Error\ occurred:\ %s\\n",\ ucl_parser_get_error\ (parser));
+\ \ \ \ ret\ =\ 1;
+}
+else\ {
+\ \ \ \ obj\ =\ ucl_parser_get_object\ (parser);
+}
+
+if\ (parser\ !=\ NULL)\ {
+\ \ \ \ ucl_parser_free\ (parser);
+}
+if\ (obj\ !=\ NULL)\ {
+\ \ \ \ ucl_object_unref\ (obj);
+}
+return\ ret;
+\f[]
+.fi
+.SH EMITTING FUNCTIONS
+.PP
+Libucl can transform UCL objects to a number of tectual formats:
+.IP \[bu] 2
+configuration (\f[C]UCL_EMIT_CONFIG\f[]) \- nginx like human readable
+configuration file where implicit arrays are transformed to the
+duplicate keys
+.IP \[bu] 2
+compact json: \f[C]UCL_EMIT_JSON_COMPACT\f[] \- single line valid json
+without spaces
+.IP \[bu] 2
+formatted json: \f[C]UCL_EMIT_JSON\f[] \- pretty formatted JSON with
+newlines and spaces
+.IP \[bu] 2
+compact yaml: \f[C]UCL_EMIT_YAML\f[] \- compact YAML output
+.PP
+Moreover, libucl API allows to select a custom set of emitting functions
+allowing efficient and zero\-copy output of libucl objects.
+Libucl uses the following structure to support this feature:
+.IP
+.nf
+\f[C]
+struct\ ucl_emitter_functions\ {
+\ \ \ \ /**\ Append\ a\ single\ character\ */
+\ \ \ \ int\ (*ucl_emitter_append_character)\ (unsigned\ char\ c,\ size_t\ nchars,\ void\ *ud);
+\ \ \ \ /**\ Append\ a\ string\ of\ a\ specified\ length\ */
+\ \ \ \ int\ (*ucl_emitter_append_len)\ (unsigned\ const\ char\ *str,\ size_t\ len,\ void\ *ud);
+\ \ \ \ /**\ Append\ a\ 64\ bit\ integer\ */
+\ \ \ \ int\ (*ucl_emitter_append_int)\ (int64_t\ elt,\ void\ *ud);
+\ \ \ \ /**\ Append\ floating\ point\ element\ */
+\ \ \ \ int\ (*ucl_emitter_append_double)\ (double\ elt,\ void\ *ud);
+\ \ \ \ /**\ Opaque\ userdata\ pointer\ */
+\ \ \ \ void\ *ud;
+};
+\f[]
+.fi
+.PP
+This structure defines the following callbacks:
+.IP \[bu] 2
+\f[C]ucl_emitter_append_character\f[] \- a function that is called to
+append \f[C]nchars\f[] characters equal to \f[C]c\f[]
+.IP \[bu] 2
+\f[C]ucl_emitter_append_len\f[] \- used to append a string of length
+\f[C]len\f[] starting from pointer \f[C]str\f[]
+.IP \[bu] 2
+\f[C]ucl_emitter_append_int\f[] \- this function applies to integer
+numbers
+.IP \[bu] 2
+\f[C]ucl_emitter_append_double\f[] \- this function is intended to
+output floating point variable
+.PP
+The set of these functions could be used to output text formats of
+\f[C]UCL\f[] objects to different structures or streams.
+.PP
+Libucl provides the following functions for emitting UCL objects:
+.SS ucl_object_emit
+.IP
+.nf
+\f[C]
+unsigned\ char\ *ucl_object_emit\ (const\ ucl_object_t\ *obj,\ enum\ ucl_emitter\ emit_type);
+\f[]
+.fi
+.PP
+Allocate a string that is suitable to fit the underlying UCL object
+\f[C]obj\f[] and fill it with the textual representation of the object
+\f[C]obj\f[] according to style \f[C]emit_type\f[].
+The caller should free the returned string after using.
+.SS ucl_object_emit_full
+.IP
+.nf
+\f[C]
+bool\ ucl_object_emit_full\ (const\ ucl_object_t\ *obj,\ enum\ ucl_emitter\ emit_type,
+\ \ \ \ \ \ \ \ struct\ ucl_emitter_functions\ *emitter);
+\f[]
+.fi
+.PP
+This function is similar to the previous with the exception that it
+accepts the additional argument \f[C]emitter\f[] that defines the
+concrete set of output functions.
+This emit function could be useful for custom structures or streams
+emitters (including C++ ones, for example).
+.SH CONVERSION FUNCTIONS
+.PP
+Conversion functions are used to convert UCL objects to primitive types,
+such as strings, numbers, or boolean values.
+There are two types of conversion functions:
+.IP \[bu] 2
+safe: try to convert an ucl object to a primitive type and fail if such
+a conversion is not possible
+.IP \[bu] 2
+unsafe: return primitive type without additional checks, if the object
+cannot be converted then some reasonable default is returned (NULL for
+strings and 0 for numbers)
+.PP
+Also there is a single \f[C]ucl_object_tostring_forced\f[] function that
+converts any UCL object (including compound types \- arrays and objects)
+to a string representation.
+For objects, arrays, booleans and numeric types this function performs
+emitting to a compact json format actually.
+.PP
+Here is a list of all conversion functions:
+.IP \[bu] 2
+\f[C]ucl_object_toint\f[] \- returns \f[C]int64_t\f[] of UCL object
+.IP \[bu] 2
+\f[C]ucl_object_todouble\f[] \- returns \f[C]double\f[] of UCL object
+.IP \[bu] 2
+\f[C]ucl_object_toboolean\f[] \- returns \f[C]bool\f[] of UCL object
+.IP \[bu] 2
+\f[C]ucl_object_tostring\f[] \- returns \f[C]const\ char\ *\f[] of UCL
+object (this string is NULL terminated)
+.IP \[bu] 2
+\f[C]ucl_object_tolstring\f[] \- returns \f[C]const\ char\ *\f[] and
+\f[C]size_t\f[] len of UCL object (string does not need to be NULL
+terminated)
+.IP \[bu] 2
+\f[C]ucl_object_tostring_forced\f[] \- returns string representation of
+any UCL object
+.PP
+Strings returned by these pointers are associated with the UCL object
+and exist over its lifetime.
+A caller should not free this memory.
+.SH GENERATION FUNCTIONS
+.PP
+It is possible to generate UCL objects from C primitive types.
+Moreover, libucl allows creation and modifying complex UCL objects, such
+as arrays or associative objects.
+.SS ucl_object_new
+.IP
+.nf
+\f[C]
+ucl_object_t\ *\ ucl_object_new\ (void)
+\f[]
+.fi
+.PP
+Creates new object of type \f[C]UCL_NULL\f[].
+This object should be released by caller.
+.SS ucl_object_typed_new
+.IP
+.nf
+\f[C]
+ucl_object_t\ *\ ucl_object_typed_new\ (unsigned\ int\ type)
+\f[]
+.fi
+.PP
+Create an object of a specified type: \- \f[C]UCL_OBJECT\f[] \- UCL
+object \- key/value pairs \- \f[C]UCL_ARRAY\f[] \- UCL array \-
+\f[C]UCL_INT\f[] \- integer number \- \f[C]UCL_FLOAT\f[] \- floating
+point number \- \f[C]UCL_STRING\f[] \- NULL terminated string \-
+\f[C]UCL_BOOLEAN\f[] \- boolean value \- \f[C]UCL_TIME\f[] \- time value
+(floating point number of seconds) \- \f[C]UCL_USERDATA\f[] \- opaque
+userdata pointer (may be used in macros) \- \f[C]UCL_NULL\f[] \- null
+value
+.PP
+This object should be released by caller.
+.SS Primitive objects generation
+.PP
+Libucl provides the functions similar to inverse conversion functions
+called with the specific C type: \- \f[C]ucl_object_fromint\f[] \-
+converts \f[C]int64_t\f[] to UCL object \-
+\f[C]ucl_object_fromdouble\f[] \- converts \f[C]double\f[] to UCL object
+\- \f[C]ucl_object_fromboolean\f[] \- converts \f[C]bool\f[] to UCL
+object \- \f[C]ucl_object_fromstring\f[] \- converts
+\f[C]const\ char\ *\f[] to UCL object (this string should be NULL
+terminated) \- \f[C]ucl_object_fromlstring\f[] \- converts
+\f[C]const\ char\ *\f[] and \f[C]size_t\f[] len to UCL object (string
+does not need to be NULL terminated)
+.PP
+Also there is a function to generate UCL object from a string performing
+various parsing or conversion operations called
+\f[C]ucl_object_fromstring_common\f[].
+.SS ucl_object_fromstring_common
+.IP
+.nf
+\f[C]
+ucl_object_t\ *\ ucl_object_fromstring_common\ (const\ char\ *str,\ 
+\ \ \ \ size_t\ len,\ enum\ ucl_string_flags\ flags)
+\f[]
+.fi
+.PP
+This function is used to convert a string \f[C]str\f[] of size
+\f[C]len\f[] to a UCL object applying \f[C]flags\f[] conversions.
+If \f[C]len\f[] is equal to zero then a \f[C]str\f[] is assumed as
+NULL\-terminated.
+This function supports the following flags (a set of flags can be
+specified using logical \f[C]OR\f[] operation):
+.IP \[bu] 2
+\f[C]UCL_STRING_ESCAPE\f[] \- perform JSON escape
+.IP \[bu] 2
+\f[C]UCL_STRING_TRIM\f[] \- trim leading and trailing whitespaces
+.IP \[bu] 2
+\f[C]UCL_STRING_PARSE_BOOLEAN\f[] \- parse passed string and detect
+boolean
+.IP \[bu] 2
+\f[C]UCL_STRING_PARSE_INT\f[] \- parse passed string and detect integer
+number
+.IP \[bu] 2
+\f[C]UCL_STRING_PARSE_DOUBLE\f[] \- parse passed string and detect
+integer or float number
+.IP \[bu] 2
+\f[C]UCL_STRING_PARSE_TIME\f[] \- parse time values as floating point
+numbers
+.IP \[bu] 2
+\f[C]UCL_STRING_PARSE_NUMBER\f[] \- parse passed string and detect
+number (both float, integer and time types)
+.IP \[bu] 2
+\f[C]UCL_STRING_PARSE\f[] \- parse passed string (and detect booleans,
+numbers and time values)
+.IP \[bu] 2
+\f[C]UCL_STRING_PARSE_BYTES\f[] \- assume that numeric multipliers are
+in bytes notation, for example \f[C]10k\f[] means \f[C]10*1024\f[] and
+not \f[C]10*1000\f[] as assumed without this flag
+.PP
+If parsing operations fail then the resulting UCL object will be a
+\f[C]UCL_STRING\f[].
+A caller should always check the type of the returned object and release
+it after using.
+.SH ITERATION FUNCTIONS
+.PP
+Iteration are used to iterate over UCL compound types: arrays and
+objects.
+Moreover, iterations could be performed over the keys with multiple
+values (implicit arrays).
+There are two types of iterators API: old and unsafe one via
+\f[C]ucl_iterate_object\f[] and the proposed interface of safe
+iterators.
+.SS ucl_iterate_object
+.IP
+.nf
+\f[C]
+const\ ucl_object_t*\ ucl_iterate_object\ (const\ ucl_object_t\ *obj,\ 
+\ \ \ \ ucl_object_iter_t\ *iter,\ bool\ expand_values);
+\f[]
+.fi
+.PP
+This function accepts opaque iterator pointer \f[C]iter\f[].
+In the first call this iterator \f[I]must\f[] be initialized to
+\f[C]NULL\f[].
+Iterator is changed by this function call.
+\f[C]ucl_iterate_object\f[] returns the next UCL object in the compound
+object \f[C]obj\f[] or \f[C]NULL\f[] if all objects have been iterated.
+The reference count of the object returned is not increased, so a caller
+should not unref the object or modify its content (e.g.
+by inserting to another compound object).
+The object \f[C]obj\f[] should not be changed during the iteration
+process as well.
+\f[C]expand_values\f[] flag speicifies whether
+\f[C]ucl_iterate_object\f[] should expand keys with multiple values.
+The general rule is that if you need to iterate through the
+\f[I]object\f[] or \f[I]explicit array\f[], then you always need to set
+this flag to \f[C]true\f[].
+However, if you get some key in the object and want to extract all its
+values then you should set \f[C]expand_values\f[] to \f[C]false\f[].
+Mixing of iteration types is not permitted since the iterator is set
+according to the iteration type and cannot be reused.
+Here is an example of iteration over the objects using libucl API
+(assuming that \f[C]top\f[] is \f[C]UCL_OBJECT\f[] in this example):
+.IP
+.nf
+\f[C]
+ucl_object_iter_t\ it\ =\ NULL,\ it_obj\ =\ NULL;
+const\ ucl_object_t\ *cur,\ *tmp;
+
+/*\ Iterate\ over\ the\ object\ */
+while\ ((obj\ =\ ucl_iterate_object\ (top,\ &it,\ true)))\ {
+\ \ \ \ printf\ ("key:\ \\"%s\\"\\n",\ ucl_object_key\ (obj));
+\ \ \ \ /*\ Iterate\ over\ the\ values\ of\ a\ key\ */
+\ \ \ \ while\ ((cur\ =\ ucl_iterate_object\ (obj,\ &it_obj,\ false)))\ {
+\ \ \ \ \ \ \ \ printf\ ("value:\ \\"%s\\"\\n",\ 
+\ \ \ \ \ \ \ \ \ \ \ \ ucl_object_tostring_forced\ (cur));
+\ \ \ \ }
+}
+\f[]
+.fi
+.SS Safe iterators API
+.PP
+Safe iterators are defined to clarify iterating over UCL objects and
+simplify flattening of UCL objects in non\-trivial cases.
+For example, if there is an implicit array that contains another array
+and a boolean value it is extremely unclear how to iterate over such an
+object.
+Safe iterators are desinged to define two sorts of iteration:
+.IP "1." 3
+Iteration over complex objects with expanding all values
+.IP "2." 3
+Iteration over complex objects without expanding of values
+.PP
+The following example demonstrates the difference between these two
+types of iteration:
+.IP
+.nf
+\f[C]
+key\ =\ 1;
+key\ =\ [2,\ 3,\ 4];
+
+Iteration\ with\ expansion:
+
+1,\ 2,\ 3,\ 4
+
+Iteration\ without\ expansion:
+
+1,\ [2,\ 3,\ 4]
+\f[]
+.fi
+.PP
+UCL defines the following functions to manage safe iterators:
+.IP \[bu] 2
+\f[C]ucl_object_iterate_new\f[] \- creates new safe iterator
+.IP \[bu] 2
+\f[C]ucl_object_iterate_reset\f[] \- resets iterator to a new object
+.IP \[bu] 2
+\f[C]ucl_object_iterate_safe\f[] \- safely iterate the object inside
+iterator
+.IP \[bu] 2
+\f[C]ucl_object_iterate_free\f[] \- free memory associated with the safe
+iterator
+.PP
+Please note that unlike unsafe iterators, safe iterators \f[I]must\f[]
+be explicitly initialized and freed.
+An assert is likely generated if you use uninitialized or \f[C]NULL\f[]
+iterator in all safe iterators functions.
+.IP
+.nf
+\f[C]
+ucl_object_iter_t\ it;
+const\ ucl_object_t\ *cur;
+
+it\ =\ ucl_object_iterate_new\ (obj);
+
+while\ ((cur\ =\ ucl_object_iterate_safe\ (it,\ true))\ !=\ NULL)\ {
+\ \ \ \ /*\ Do\ something\ */
+}
+
+/*\ Switch\ to\ another\ object\ */
+it\ =\ ucl_object_iterate_reset\ (it,\ another_obj);
+
+while\ ((cur\ =\ ucl_object_iterate_safe\ (it,\ true))\ !=\ NULL)\ {
+\ \ \ \ /*\ Do\ something\ else\ */
+}
+
+ucl_object_iterate_free\ (it);
+\f[]
+.fi
+.SH VALIDATION FUNCTIONS
+.PP
+Currently, there is only one validation function called
+\f[C]ucl_object_validate\f[].
+It performs validation of object using the specified schema.
+This function is defined as following:
+.SS ucl_object_validate
+.IP
+.nf
+\f[C]
+bool\ ucl_object_validate\ (const\ ucl_object_t\ *schema,
+\ \ \ \ const\ ucl_object_t\ *obj,\ struct\ ucl_schema_error\ *err);
+\f[]
+.fi
+.PP
+This function uses ucl object \f[C]schema\f[], that must be valid in
+terms of \f[C]json\-schema\f[] draft v4, to validate input object
+\f[C]obj\f[].
+If this function returns \f[C]true\f[] then validation procedure has
+been succeed.
+Otherwise, \f[C]false\f[] is returned and \f[C]err\f[] is set to a
+specific value.
+If a caller sets \f[C]err\f[] to NULL then this function does not set
+any error just returning \f[C]false\f[].
+Error is the structure defined as following:
+.IP
+.nf
+\f[C]
+struct\ ucl_schema_error\ {
+\ \ \ \ enum\ ucl_schema_error_code\ code;\ \ \ \ /*\ error\ code\ */
+\ \ \ \ char\ msg[128];\ \ \ \ \ \ \ \ \ \ \ \ \ \ /*\ error\ message\ */
+\ \ \ \ ucl_object_t\ *obj;\ \ \ \ \ \ \ \ \ \ /*\ object\ where\ error\ occurred\ */
+};
+\f[]
+.fi
+.PP
+Caller may use \f[C]code\f[] field to get a numeric error code:
+.IP
+.nf
+\f[C]
+enum\ ucl_schema_error_code\ {
+\ \ \ \ UCL_SCHEMA_OK\ =\ 0,\ \ \ \ \ \ \ \ \ \ /*\ no\ error\ */
+\ \ \ \ UCL_SCHEMA_TYPE_MISMATCH,\ \ \ /*\ type\ of\ object\ is\ incorrect\ */
+\ \ \ \ UCL_SCHEMA_INVALID_SCHEMA,\ \ /*\ schema\ is\ invalid\ */
+\ \ \ \ UCL_SCHEMA_MISSING_PROPERTY,/*\ missing\ properties\ */
+\ \ \ \ UCL_SCHEMA_CONSTRAINT,\ \ \ \ \ \ /*\ constraint\ found\ */
+\ \ \ \ UCL_SCHEMA_MISSING_DEPENDENCY,\ /*\ missing\ dependency\ */
+\ \ \ \ UCL_SCHEMA_UNKNOWN\ \ \ \ \ \ \ \ \ \ /*\ generic\ error\ */
+};
+\f[]
+.fi
+.PP
+\f[C]msg\f[] is a string description of an error and \f[C]obj\f[] is an
+object where error has occurred.
+Error object is not allocated by libucl, so there is no need to free it
+after validation (a static object should thus be used).
+.SH AUTHORS
+Vsevolod Stakhov <vsevolod@highsecure.ru>.

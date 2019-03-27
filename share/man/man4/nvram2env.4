@@ -1,0 +1,117 @@
+.\" Copyright (c) 2011 Aleksandr Rybalko
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 3, 2011
+.Dt NVRAM2ENV 4
+.Os
+.Sh NAME
+.Nm nvram2env
+.Nd "copy nvram-like data into kernel environment"
+.Sh SYNOPSIS
+.Cd "device nvram2env"
+.Sh DESCRIPTION
+.Nm
+implements a simple method of reading the NVRAM-like data and information
+stored in flash and storing it in the kernel environment.
+It can then be used by various device drivers at boot-time.
+.Pp
+The NVRAM-like data is an array of zero terminated strings.
+Each string contains the string name, "=" delimiter and the string value.
+.Pp
+.Nm
+copies the environment values into kernel environment using the kernel setenv call.
+.Pp
+Configuration of
+.Nm
+is done in
+.Xr device.hints 5
+defining the NVRAM base address, fallback base address, maxsize and flags.
+.Pp
+.Nm
+is currently MIPS-specific.
+.Ss base
+base - physical address where data block is stored.
+.Ss fallbackbase
+fallbackbase - physical address where data block is stored, but only
+if not found at base.
+.Ss maxsize
+maxsize - maximum size of data block.
+.Ss flags
+flags - control flags, used to select nvram type and enable/disable CRC check.
+.Bl -tag -width indent
+.It Fa 0x0001
+Avoid CRC checking.
+Currently CRC checking is not implemented, so to be future
+compatible, please set it to "1".
+.It Fa 0x0002
+Use format "Generic", skip uint32_t field, then zero terminating array of
+strings.
+.It Fa 0x0004
+Use Broadcom CFE format, uint32_t signature "FLSH", uint32_t size,
+three unused fields uint32_t, then data.
+.It Fa 0x0008
+Use U-Boot format, uint32_t crc, then zero terminating array of strings.
+.El
+.Sh EXAMPLES
+Usage in U-Boot case:
+.Bd -literal -offset indent
+hint.nvram.0.base=0x1f030000
+hint.nvram.0.maxsize=0x2000
+hint.nvram.0.flags=3 # 1 = No check, 2 = Format Generic
+hint.nvram.1.base=0x1f032000
+hint.nvram.1.maxsize=0x4000
+hint.nvram.1.flags=3 # 1 = No check, 2 = Format Generic
+.Ed
+.Pp
+CFE nvram with fallback:
+.Bd -literal -offset indent
+hint.nvram.0.base=0x1fff8000
+hint.nvram.0.fallbackbase=0x1fc00400
+hint.nvram.0.flags=4 # 4 = Format Broadcom
+.Ed
+.Pp
+but seems for CFE nvram preferred to read both blocks:
+.Pp
+NVRAM partition: Static, CFE internal
+.Bd -literal -offset indent
+hint.nvram.0.flags=0x05 # Broadcom + nocheck
+hint.nvram.0.base=0x1fc00400
+.Ed
+.Pp
+Dynamic, editable form CFE, override values from first
+.Bd -literal -offset indent
+hint.nvram.1.flags=0x05 # Broadcom + nocheck
+hint.nvram.1.base=0x1cff8000
+.Ed
+.Sh SEE ALSO
+.Xr kenv 1 ,
+.Xr kenv 2
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An Aleksandr Rybalko Aq Mt ray@ddteam.net

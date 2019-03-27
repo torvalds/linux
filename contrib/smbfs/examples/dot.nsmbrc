@@ -1,0 +1,59 @@
+# $Id: dot.nsmbrc,v 1.7 2002/04/10 04:21:11 bp Exp $
+# $FreeBSD$
+#
+# Example for .nsmbrc file
+#
+# smbfs lookups configuration files in next order:
+#	1. ~/.nsmbrc
+#	2. /etc/nsmb.conf - if this file found it will
+#	   override values with same keys from user files.
+#
+#
+# This file consist from a set of sections. Each section started by section name
+# surrounded with square brackets:
+# [section_name]
+#
+# End of the section marked either by new section or by the end of file.
+# Each section can contain zero or more parameters:
+# [section_name]
+# key=value
+#
+# where 'key' represents parameter name and 'value' a value assigned
+# to this parameter.
+#
+# SMB library uses next forms of section names (please note that the section
+# name should be in upper case when it refers to server, user or share):
+# A) [default]
+# B) [SERVER]
+# C) [SERVER:USER]
+# D) [SERVER:USER:SHARE]
+#
+# Here is the map of possible keywords:
+#
+# keyword/section	A  B  C  D	Comment
+#
+# addr			-  +  -  -	IP or IPX address of SMB server
+# charsets		+  +  +  +	local:remote charset pair
+# nbns			+  +  -	 -	address of NetBIOS name server (WINS)
+# nbscope		+  +  -	 -	NetBIOS scope
+# nbtimeout		+  +  -	 -	timeout for NetBIOS name servers
+# password		-  -  +	 +	a plain text password used to access to the given share
+# retry_count		+  +  -	 -	number of retries before connection marked as broken
+# timeout		+  +  -	 -	SMB request timeout
+# workgroup		+  +  +  +	name of workgroup
+#
+
+# A simple configuration example:
+
+# First, define a workgroup.
+[default]
+workgroup=SALES
+
+# The 'FSERVER' is an NT server.
+[FSERVER]
+charsets=koi8-r:cp866
+addr=fserv.coolcorp.com
+
+[FSERVER:JOE]
+# use persistent password cache for user 'joe'
+password=$$1767877DF

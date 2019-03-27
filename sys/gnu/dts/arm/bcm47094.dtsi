@@ -1,0 +1,19 @@
+/*
+ * Copyright (C) 2016 Rafał Miłecki <rafal@milecki.pl>
+ *
+ * Licensed under the ISC license.
+ */
+
+#include "bcm4708.dtsi"
+
+/ {
+};
+
+&usb3_phy {
+	compatible = "brcm,ns-bx-usb3-phy";
+};
+
+&uart0 {
+	clock-frequency = <125000000>;
+	status = "okay";
+};

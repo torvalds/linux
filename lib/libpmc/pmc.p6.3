@@ -1,0 +1,1026 @@
+.\" Copyright (c) 2003-2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 4, 2008
+.Dt PMC.P6 3
+.Os
+.Sh NAME
+.Nm pmc.p6
+.Nd measurement events for
+.Tn Intel
+Pentium Pro, P-II, P-III family CPUs
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+Intel P6 PMCs are present in Intel
+.Tn "Pentium Pro" ,
+.Tn "Pentium II" ,
+.Tn Celeron ,
+.Tn "Pentium III"
+and
+.Tn "Pentium M"
+processors.
+.Pp
+They are documented in
+.Rs
+.%B "IA-32 Intel(R) Architecture Software Developer's Manual"
+.%T "Volume 3: System Programming Guide"
+.%N "Order Number 245472-012"
+.%D 2003
+.%Q "Intel Corporation"
+.Re
+.Pp
+Some of these events are affected by processor errata described in
+.Rs
+.%B "Intel(R) Pentium(R) III Processor Specification Update"
+.%N "Document Number: 244453-054"
+.%D "April 2005"
+.%Q "Intel Corporation"
+.Re
+.Ss PMC Features
+These CPUs have two counters, each 40 bits wide.
+Some events may only be used on specific counters and some events are
+defined only on specific processor models.
+These PMCs support the following capabilities:
+.Bl -column "PMC_CAP_INTERRUPT" "Support"
+.It Em Capability Ta Em Support
+.It PMC_CAP_CASCADE Ta \&No
+.It PMC_CAP_EDGE Ta Yes
+.It PMC_CAP_INTERRUPT Ta Yes
+.It PMC_CAP_INVERT Ta Yes
+.It PMC_CAP_READ Ta Yes
+.It PMC_CAP_PRECISE Ta \&No
+.It PMC_CAP_SYSTEM Ta Yes
+.It PMC_CAP_TAGGING Ta \&No
+.It PMC_CAP_THRESHOLD Ta Yes
+.It PMC_CAP_USER Ta Yes
+.It PMC_CAP_WRITE Ta Yes
+.El
+.Ss Event Qualifiers
+Event specifiers for Intel P6 PMCs can have the following common
+qualifiers:
+.Bl -tag -width indent
+.It Li cmask= Ns Ar value
+Configure the PMC to increment only if the number of configured
+events measured in a cycle is greater than or equal to
+.Ar value .
+.It Li edge
+Configure the PMC to count the number of de-asserted to asserted
+transitions of the conditions expressed by the other qualifiers.
+If specified, the counter will increment only once whenever a
+condition becomes true, irrespective of the number of clocks during
+which the condition remains true.
+.It Li inv
+Invert the sense of comparison when the
+.Dq Li cmask
+qualifier is present, making the counter increment when the number of
+events per cycle is less than the value specified by the
+.Dq Li cmask
+qualifier.
+.It Li os
+Configure the PMC to count events happening at processor privilege
+level 0.
+.It Li umask= Ns Ar value
+This qualifier is used to further qualify the event selected (see
+below).
+.It Li usr
+Configure the PMC to count events occurring at privilege levels 1, 2
+or 3.
+.El
+.Pp
+If neither of the
+.Dq Li os
+or
+.Dq Li usr
+qualifiers are specified, the default is to enable both.
+.Pp
+The event specifiers supported by Intel P6 PMCs are:
+.Bl -tag -width indent
+.It Li p6-baclears
+.Pq Event E6H
+Count the number of times a static branch prediction was made by the
+branch decoder because the BTB did not have a prediction.
+.It Li p6-br-bac-missp-exec
+.Pq Event 8AH , Tn "Pentium M"
+Count the number of branch instructions executed that where
+mispredicted at the Front End (BAC).
+.It Li p6-br-bogus
+.Pq Event E4H
+Count the number of bogus branches.
+.It Li p6-br-call-exec
+.Pq Event 92H , Tn "Pentium M"
+Count the number of call instructions executed.
+.It Li p6-br-call-missp-exec
+.Pq Event 93H , Tn "Pentium M"
+Count the number of call instructions executed that were mispredicted.
+.It Li p6-br-cnd-exec
+.Pq Event 8BH , Tn "Pentium M"
+Count the number of conditional branch instructions executed.
+.It Li p6-br-cnd-missp-exec
+.Pq Event 8CH , Tn "Pentium M"
+Count the number of conditional branch instructions executed that were
+mispredicted.
+.It Li p6-br-ind-call-exec
+.Pq Event 94H , Tn "Pentium M"
+Count the number of indirect call instructions executed.
+.It Li p6-br-ind-exec
+.Pq Event 8DH , Tn "Pentium M"
+Count the number of indirect branch instructions executed.
+.It Li p6-br-ind-missp-exec
+.Pq Event 8EH , Tn "Pentium M"
+Count the number of indirect branch instructions executed that were
+mispredicted.
+.It Li p6-br-inst-decoded
+.Pq Event E0H
+Count the number of branch instructions decoded.
+.It Li p6-br-inst-exec
+.Pq Event 88H , Tn "Pentium M"
+Count the number of branch instructions executed but necessarily retired.
+.It Li p6-br-inst-retired
+.Pq Event C4H
+Count the number of branch instructions retired.
+.It Li p6-br-miss-pred-retired
+.Pq Event C5H
+Count the number of mispredicted branch instructions retired.
+.It Li p6-br-miss-pred-taken-ret
+.Pq Event C9H
+Count the number of taken mispredicted branches retired.
+.It Li p6-br-missp-exec
+.Pq Event 89H , Tn "Pentium M"
+Count the number of branch instructions executed that were
+mispredicted at execution.
+.It Li p6-br-ret-bac-missp-exec
+.Pq Event 91H , Tn "Pentium M"
+Count the number of return instructions executed that were
+mispredicted at the Front End (BAC).
+.It Li p6-br-ret-exec
+.Pq Event 8FH , Tn "Pentium M"
+Count the number of return instructions executed.
+.It Li p6-br-ret-missp-exec
+.Pq Event 90H , Tn "Pentium M"
+Count the number of return instructions executed that were
+mispredicted at execution.
+.It Li p6-br-taken-retired
+.Pq Event C9H
+Count the number of taken branches retired.
+.It Li p6-btb-misses
+.Pq Event E2H
+Count the number of branches for which the BTB did not produce a
+prediction.
+.It Li p6-bus-bnr-drv
+.Pq Event 61H
+Count the number of bus clock cycles during which this processor is
+driving the BNR# pin.
+.It Li p6-bus-data-rcv
+.Pq Event 64H
+Count the number of bus clock cycles during which this processor is
+receiving data.
+.It Li p6-bus-drdy-clocks Op Li ,umask= Ns Ar qualifier
+.Pq Event 62H
+Count the number of clocks during which DRDY# is asserted.
+An additional qualifier may be specified, and comprises one of the
+following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count transactions generated by any agent on the bus.
+.It Li self
+Count transactions generated by this processor.
+.El
+.Pp
+The default is to count operations generated by this processor.
+.It Li p6-bus-hit-drv
+.Pq Event 7AH
+Count the number of bus clock cycles during which this processor is
+driving the HIT# pin.
+.It Li p6-bus-hitm-drv
+.Pq Event 7BH
+Count the number of bus clock cycles during which this processor is
+driving the HITM# pin.
+.It Li p6-bus-lock-clocks Op Li ,umask= Ns Ar qualifier
+.Pq Event 63H
+Count the number of clocks during with LOCK# is asserted on the
+external system bus.
+An additional qualifier may be specified and comprises one of the following
+keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count transactions generated by any agent on the bus.
+.It Li self
+Count transactions generated by this processor.
+.El
+.Pp
+The default is to count operations generated by this processor.
+.It Li p6-bus-req-outstanding
+.Pq Event 60H
+Count the number of bus requests outstanding in any given cycle.
+.It Li p6-bus-snoop-stall
+.Pq Event 7EH
+Count the number of clock cycles during which the bus is snoop stalled.
+.It Li p6-bus-tran-any Op Li ,umask= Ns Ar qualifier
+.Pq Event 70H
+Count the number of completed bus transactions of any kind.
+An additional qualifier may be specified and comprises one of the following
+keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count transactions generated by any agent on the bus.
+.It Li self
+Count transactions generated by this processor.
+.El
+.Pp
+The default is to count operations generated by this processor.
+.It Li p6-bus-tran-brd Op Li ,umask= Ns Ar qualifier
+.Pq Event 65H
+Count the number of burst read transactions.
+An additional qualifier may be specified and comprises one of the following
+keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count transactions generated by any agent on the bus.
+.It Li self
+Count transactions generated by this processor.
+.El
+.Pp
+The default is to count operations generated by this processor.
+.It Li p6-bus-tran-burst Op Li ,umask= Ns Ar qualifier
+.Pq Event 6EH
+Count the number of completed burst transactions.
+An additional qualifier may be specified and comprises one of the following
+keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count transactions generated by any agent on the bus.
+.It Li self
+Count transactions generated by this processor.
+.El
+.Pp
+The default is to count operations generated by this processor.
+.It Li p6-bus-tran-def Op Li ,umask= Ns Ar qualifier
+.Pq Event 6DH
+Count the number of completed deferred transactions.
+An additional qualifier may be specified and comprises one of the following
+keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count transactions generated by any agent on the bus.
+.It Li self
+Count transactions generated by this processor.
+.El
+.Pp
+The default is to count operations generated by this processor.
+.It Li p6-bus-tran-ifetch Op Li ,umask= Ns Ar qualifier
+.Pq Event 68H
+Count the number of completed instruction fetch transactions.
+An additional qualifier may be specified and comprises one of the following
+keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count transactions generated by any agent on the bus.
+.It Li self
+Count transactions generated by this processor.
+.El
+.Pp
+The default is to count operations generated by this processor.
+.It Li p6-bus-tran-inval Op Li ,umask= Ns Ar qualifier
+.Pq Event 69H
+Count the number of completed invalidate transactions.
+An additional qualifier may be specified and comprises one of the following
+keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count transactions generated by any agent on the bus.
+.It Li self
+Count transactions generated by this processor.
+.El
+.Pp
+The default is to count operations generated by this processor.
+.It Li p6-bus-tran-mem Op Li ,umask= Ns Ar qualifier
+.Pq Event 6FH
+Count the number of completed memory transactions.
+An additional qualifier may be specified and comprises one of the following
+keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count transactions generated by any agent on the bus.
+.It Li self
+Count transactions generated by this processor.
+.El
+.Pp
+The default is to count operations generated by this processor.
+.It Li p6-bus-tran-pwr Op Li ,umask= Ns Ar qualifier
+.Pq Event 6AH
+Count the number of completed partial write transactions.
+An additional qualifier may be specified and comprises one of the following
+keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count transactions generated by any agent on the bus.
+.It Li self
+Count transactions generated by this processor.
+.El
+.Pp
+The default is to count operations generated by this processor.
+.It Li p6-bus-tran-rfo Op Li ,umask= Ns Ar qualifier
+.Pq Event 66H
+Count the number of completed read-for-ownership transactions.
+An additional qualifier may be specified and comprises one of the following
+keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count transactions generated by any agent on the bus.
+.It Li self
+Count transactions generated by this processor.
+.El
+.Pp
+The default is to count operations generated by this processor.
+.It Li p6-bus-trans-io Op Li ,umask= Ns Ar qualifier
+.Pq Event 6CH
+Count the number of completed I/O transactions.
+An additional qualifier may be specified and comprises one of the following
+keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count transactions generated by any agent on the bus.
+.It Li self
+Count transactions generated by this processor.
+.El
+.Pp
+The default is to count operations generated by this processor.
+.It Li p6-bus-trans-p Op Li ,umask= Ns Ar qualifier
+.Pq Event 6BH
+Count the number of completed partial transactions.
+An additional qualifier may be specified and comprises one of the following
+keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count transactions generated by any agent on the bus.
+.It Li self
+Count transactions generated by this processor.
+.El
+.Pp
+The default is to count operations generated by this processor.
+.It Li p6-bus-trans-wb Op Li ,umask= Ns Ar qualifier
+.Pq Event 67H
+Count the number of completed write-back transactions.
+An additional qualifier may be specified and comprises one of the following
+keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count transactions generated by any agent on the bus.
+.It Li self
+Count transactions generated by this processor.
+.El
+.Pp
+The default is to count operations generated by this processor.
+.It Li p6-cpu-clk-unhalted
+.Pq Event 79H
+Count the number of cycles during with the processor was not halted.
+.Pp
+.Pq Tn "Pentium M"
+Count the number of cycles during with the processor was not halted
+and not in a thermal trip.
+.It Li p6-cycles-div-busy
+.Pq Event 14H
+Count the number of cycles during which the divider is busy and cannot
+accept new divides.
+This event is only allocated on counter 0.
+.It Li p6-cycles-int-pending-and-masked
+.Pq Event C7H
+Count the number of processor cycles for which interrupts were
+disabled and interrupts were pending.
+.It Li p6-cycles-int-masked
+.Pq Event C6H
+Count the number of processor cycles for which interrupts were
+disabled.
+.It Li p6-data-mem-refs
+.Pq Event 43H
+Count all loads and all stores using any memory type, including
+internal retries.
+Each part of a split store is counted separately.
+.It Li p6-dcu-lines-in
+.Pq Event 45H
+Count the total lines allocated in the data cache unit.
+.It Li p6-dcu-m-lines-in
+.Pq Event 46H
+Count the number of M state lines allocated in the data cache unit.
+.It Li p6-dcu-m-lines-out
+.Pq Event 47H
+Count the number of M state lines evicted from the data cache unit.
+.It Li p6-dcu-miss-outstanding
+.Pq Event 48H
+Count the weighted number of cycles while a data cache unit miss is
+outstanding, incremented by the number of outstanding cache misses at
+any time.
+.It Li p6-div
+.Pq Event 13H
+Count the number of integer and floating-point divides including
+speculative divides.
+This event is only allocated on counter 1.
+.It Li p6-emon-esp-uops
+.Pq Event D7H , Tn "Pentium M"
+Count the total number of micro-ops.
+.It Li p6-emon-est-trans Op Li ,umask= Ns Ar qualifier
+.Pq Event 58H , Tn "Pentium M"
+Count the number of
+.Tn "Enhanced Intel SpeedStep"
+transitions.
+An additional qualifier may be specified, and can be one of the
+following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li all
+Count all transitions.
+.It Li freq
+Count only frequency transitions.
+.El
+.Pp
+The default is to count all transitions.
+.It Li p6-emon-fused-uops-ret Op Li ,umask= Ns Ar qualifier
+.Pq Event DAH , Tn "Pentium M"
+Count the number of retired fused micro-ops.
+An additional qualifier may be specified, and may be one of the
+following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li all
+Count all fused micro-ops.
+.It Li loadop
+Count only load and op micro-ops.
+.It Li stdsta
+Count only STD/STA micro-ops.
+.El
+.Pp
+The default is to count all fused micro-ops.
+.It Li p6-emon-kni-comp-inst-ret
+.Pq Event D9H , Tn "Pentium III"
+Count the number of SSE computational instructions retired.
+An additional qualifier may be specified, and comprises one of the
+following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li packed-and-scalar
+Count packed and scalar operations.
+.It Li scalar
+Count scalar operations only.
+.El
+.Pp
+The default is to count packed and scalar operations.
+.It Li p6-emon-kni-inst-retired Op Li ,umask= Ns Ar qualifier
+.Pq Event D8H , Tn "Pentium III"
+Count the number of SSE instructions retired.
+An additional qualifier may be specified, and comprises one of the
+following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li packed-and-scalar
+Count packed and scalar operations.
+.It Li scalar
+Count scalar operations only.
+.El
+.Pp
+The default is to count packed and scalar operations.
+.It Li p6-emon-kni-pref-dispatched Op Li ,umask= Ns Ar qualifier
+.Pq Event 07H , Tn "Pentium III"
+Count the number of SSE prefetch or weakly ordered instructions
+dispatched (including speculative prefetches).
+An additional qualifier may be specified, and comprises one of the
+following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li nta
+Count non-temporal prefetches.
+.It Li t1
+Count prefetches to L1.
+.It Li t2
+Count prefetches to L2.
+.It Li wos
+Count weakly ordered stores.
+.El
+.Pp
+The default is to count non-temporal prefetches.
+.It Li p6-emon-kni-pref-miss Op Li ,umask= Ns Ar qualifier
+.Pq Event 4BH , Tn "Pentium III"
+Count the number of prefetch or weakly ordered instructions that miss
+all caches.
+An additional qualifier may be specified, and comprises one of the
+following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li nta
+Count non-temporal prefetches.
+.It Li t1
+Count prefetches to L1.
+.It Li t2
+Count prefetches to L2.
+.It Li wos
+Count weakly ordered stores.
+.El
+.Pp
+The default is to count non-temporal prefetches.
+.It Li p6-emon-pref-rqsts-dn
+.Pq Event F8H , Tn "Pentium M"
+Count the number of downward prefetches issued.
+.It Li p6-emon-pref-rqsts-up
+.Pq Event F0H , Tn "Pentium M"
+Count the number of upward prefetches issued.
+.It Li p6-emon-simd-instr-retired
+.Pq Event CEH , Tn "Pentium M"
+Count the number of retired
+.Tn MMX
+instructions.
+.It Li p6-emon-sse-sse2-comp-inst-retired Op Li ,umask= Ns Ar qualifier
+.Pq Event D9H , Tn "Pentium M"
+Count the number of computational SSE instructions retired.
+An additional qualifier may be specified and can be one of the
+following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li sse-packed-single
+Count SSE packed-single instructions.
+.It Li sse-scalar-single
+Count SSE scalar-single instructions.
+.It Li sse2-packed-double
+Count SSE2 packed-double instructions.
+.It Li sse2-scalar-double
+Count SSE2 scalar-double instructions.
+.El
+.Pp
+The default is to count SSE packed-single instructions.
+.It Li p6-emon-sse-sse2-inst-retired Op Li ,umask= Ns Ar qualifier
+.Pq Event D8H , Tn "Pentium M"
+Count the number of SSE instructions retired.
+An additional qualifier can be specified, and can be one of the
+following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li sse-packed-single
+Count SSE packed-single instructions.
+.It Li sse-packed-single-scalar-single
+Count SSE packed-single and scalar-single instructions.
+.It Li sse2-packed-double
+Count SSE2 packed-double instructions.
+.It Li sse2-scalar-double
+Count SSE2 scalar-double instructions.
+.El
+.Pp
+The default is to count SSE packed-single instructions.
+.It Li p6-emon-synch-uops
+.Pq Event D3H , Tn "Pentium M"
+Count the number of sync micro-ops.
+.It Li p6-emon-thermal-trip
+.Pq Event 59H , Tn "Pentium M"
+Count the duration or occurrences of thermal trips.
+Use the
+.Dq Li edge
+qualifier to count occurrences of thermal trips.
+.It Li p6-emon-unfusion
+.Pq Event DBH , Tn "Pentium M"
+Count the number of unfusion events in the reorder buffer.
+.It Li p6-flops
+.Pq Event C1H
+Count the number of computational floating point operations retired.
+This event is only allocated on counter 0.
+.It Li p6-fp-assist
+.Pq Event 11H
+Count the number of floating point exceptions handled by microcode.
+This event is only allocated on counter 1.
+.It Li p6-fp-comps-ops-exe
+.Pq Event 10H
+Count the number of computation floating point operations executed.
+This event is only allocated on counter 0.
+.It Li p6-fp-mmx-trans Op Li ,umask= Ns Ar qualifier
+.Pq Event CCH , Tn "Pentium II" , Tn "Pentium III"
+Count the number of transitions between MMX and floating-point
+instructions.
+An additional qualifier may be specified, and comprises one of the
+following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li mmxtofp
+Count transitions from MMX instructions to floating-point instructions.
+.It Li fptommx
+Count transitions from floating-point instructions to MMX instructions.
+.El
+.Pp
+The default is to count MMX to floating-point transitions.
+.It Li p6-hw-int-rx
+.Pq Event C8H
+Count the number of hardware interrupts received.
+.It Li p6-ifu-ifetch
+.Pq Event 80H
+Count the number of instruction fetches, both cacheable and non-cacheable.
+.It Li p6-ifu-ifetch-miss
+.Pq Event 81H
+Count the number of instruction fetch misses (i.e., those that produce
+memory accesses).
+.It Li p6-ifu-mem-stall
+.Pq Event 86H
+Count the number of cycles instruction fetch is stalled for any reason.
+.It Li p6-ild-stall
+.Pq Event 87H
+Count the number of cycles the instruction length decoder is stalled.
+.It Li p6-inst-decoded
+.Pq Event D0H
+Count the number of instructions decoded.
+.It Li p6-inst-retired
+.Pq Event C0H
+Count the number of instructions retired.
+.It Li p6-itlb-miss
+.Pq Event 85H
+Count the number of instruction TLB misses.
+.It Li p6-l2-ads
+.Pq Event 21H
+Count the number of L2 address strobes.
+.It Li p6-l2-dbus-busy
+.Pq Event 22H
+Count the number of cycles during which the L2 cache data bus was busy.
+.It Li p6-l2-dbus-busy-rd
+.Pq Event 23H
+Count the number of cycles during which the L2 cache data bus was busy
+transferring read data from L2 to the processor.
+.It Li p6-l2-ifetch Op Li ,umask= Ns Ar qualifier
+.Pq Event 28H
+Count the number of L2 instruction fetches.
+An additional qualifier may be specified and comprises a list of the following
+keywords separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li e
+Count operations affecting E (exclusive) state lines.
+.It Li i
+Count operations affecting I (invalid) state lines.
+.It Li m
+Count operations affecting M (modified) state lines.
+.It Li s
+Count operations affecting S (shared) state lines.
+.El
+.Pp
+The default is to count operations affecting all (MESI) state lines.
+.It Li p6-l2-ld Op Li ,umask= Ns Ar qualifier
+.Pq Event 29H
+Count the number of L2 data loads.
+An additional qualifier may be specified and comprises a list of the following
+keywords separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li both
+.Pq Tn "Pentium M"
+Count both hardware-prefetched lines and non-hardware-prefetched lines.
+.It Li e
+Count operations affecting E (exclusive) state lines.
+.It Li hw
+.Pq Tn "Pentium M"
+Count hardware-prefetched lines only.
+.It Li i
+Count operations affecting I (invalid) state lines.
+.It Li m
+Count operations affecting M (modified) state lines.
+.It Li nonhw
+.Pq Tn "Pentium M"
+Exclude hardware-prefetched lines.
+.It Li s
+Count operations affecting S (shared) state lines.
+.El
+.Pp
+The default on processors other than
+.Tn "Pentium M"
+processors is to count operations affecting all (MESI) state lines.
+The default on
+.Tn "Pentium M"
+processors is to count both hardware-prefetched and
+non-hardware-prefetch operations on all (MESI) state lines.
+.Pq Errata
+This event is affected by processor errata E53.
+.It Li p6-l2-lines-in Op Li ,umask= Ns Ar qualifier
+.Pq Event 24H
+Count the number of L2 lines allocated.
+An additional qualifier may be specified and comprises a list of the following
+keywords separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li both
+.Pq Tn "Pentium M"
+Count both hardware-prefetched lines and non-hardware-prefetched lines.
+.It Li e
+Count operations affecting E (exclusive) state lines.
+.It Li hw
+.Pq Tn "Pentium M"
+Count hardware-prefetched lines only.
+.It Li i
+Count operations affecting I (invalid) state lines.
+.It Li m
+Count operations affecting M (modified) state lines.
+.It Li nonhw
+.Pq Tn "Pentium M"
+Exclude hardware-prefetched lines.
+.It Li s
+Count operations affecting S (shared) state lines.
+.El
+.Pp
+The default on processors other than
+.Tn "Pentium M"
+processors is to count operations affecting all (MESI) state lines.
+The default on
+.Tn "Pentium M"
+processors is to count both hardware-prefetched and
+non-hardware-prefetch operations on all (MESI) state lines.
+.Pq Errata
+This event is affected by processor errata E45.
+.It Li p6-l2-lines-out Op Li ,umask= Ns Ar qualifier
+.Pq Event 26H
+Count the number of L2 lines evicted.
+An additional qualifier may be specified and comprises a list of the following
+keywords separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li both
+.Pq Tn "Pentium M"
+Count both hardware-prefetched lines and non-hardware-prefetched lines.
+.It Li e
+Count operations affecting E (exclusive) state lines.
+.It Li hw
+.Pq Tn "Pentium M"
+Count hardware-prefetched lines only.
+.It Li i
+Count operations affecting I (invalid) state lines.
+.It Li m
+Count operations affecting M (modified) state lines.
+.It Li nonhw
+.Pq Tn "Pentium M" only
+Exclude hardware-prefetched lines.
+.It Li s
+Count operations affecting S (shared) state lines.
+.El
+.Pp
+The default on processors other than
+.Tn "Pentium M"
+processors is to count operations affecting all (MESI) state lines.
+The default on
+.Tn "Pentium M"
+processors is to count both hardware-prefetched and
+non-hardware-prefetch operations on all (MESI) state lines.
+.Pq Errata
+This event is affected by processor errata E45.
+.It Li p6-l2-m-lines-inm
+.Pq Event 25H
+Count the number of modified lines allocated in L2 cache.
+.It Li p6-l2-m-lines-outm Op Li ,umask= Ns Ar qualifier
+.Pq Event 27H
+Count the number of L2 M-state lines evicted.
+.Pp
+.Pq Tn "Pentium M"
+On these processors an additional qualifier may be specified and
+comprises a list of the following keywords separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li both
+Count both hardware-prefetched lines and non-hardware-prefetched lines.
+.It Li hw
+Count hardware-prefetched lines only.
+.It Li nonhw
+Exclude hardware-prefetched lines.
+.El
+.Pp
+The default is to count both hardware-prefetched and
+non-hardware-prefetch operations.
+.Pq Errata
+This event is affected by processor errata E53.
+.It Li p6-l2-rqsts Op Li ,umask= Ns Ar qualifier
+.Pq Event 2EH
+Count the total number of L2 requests.
+An additional qualifier may be specified and comprises a list of the following
+keywords separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li e
+Count operations affecting E (exclusive) state lines.
+.It Li i
+Count operations affecting I (invalid) state lines.
+.It Li m
+Count operations affecting M (modified) state lines.
+.It Li s
+Count operations affecting S (shared) state lines.
+.El
+.Pp
+The default is to count operations affecting all (MESI) state lines.
+.It Li p6-l2-st
+.Pq Event 2AH
+Count the number of L2 data stores.
+An additional qualifier may be specified and comprises a list of the following
+keywords separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li e
+Count operations affecting E (exclusive) state lines.
+.It Li i
+Count operations affecting I (invalid) state lines.
+.It Li m
+Count operations affecting M (modified) state lines.
+.It Li s
+Count operations affecting S (shared) state lines.
+.El
+.Pp
+The default is to count operations affecting all (MESI) state lines.
+.It Li p6-ld-blocks
+.Pq Event 03H
+Count the number of load operations delayed due to store buffer blocks.
+.It Li p6-misalign-mem-ref
+.Pq Event 05H
+Count the number of misaligned data memory references (crossing a 64
+bit boundary).
+.It Li p6-mmx-assist
+.Pq Event CDH , Tn "Pentium II" , Tn "Pentium III"
+Count the number of MMX assists executed.
+.It Li p6-mmx-instr-exec
+.Pq Event B0H
+.Pq Tn Celeron , Tn "Pentium II"
+Count the number of MMX instructions executed, except MOVQ and MOVD
+stores from register to memory.
+.It Li p6-mmx-instr-ret
+.Pq Event CEH , Tn "Pentium II"
+Count the number of MMX instructions retired.
+.It Li p6-mmx-instr-type-exec Op Li ,umask= Ns Ar qualifier
+.Pq Event B3H , Tn "Pentium II" , Tn "Pentium III"
+Count the number of MMX instructions executed.
+An additional qualifier may be specified and comprises a list of
+the following keywords separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li pack
+Count MMX pack operation instructions.
+.It Li packed-arithmetic
+Count MMX packed arithmetic instructions.
+.It Li packed-logical
+Count MMX packed logical instructions.
+.It Li packed-multiply
+Count MMX packed multiply instructions.
+.It Li packed-shift
+Count MMX packed shift instructions.
+.It Li unpack
+Count MMX unpack operation instructions.
+.El
+.Pp
+The default is to count all operations.
+.It Li p6-mmx-sat-instr-exec
+.Pq Event B1H , Tn "Pentium II" , Tn "Pentium III"
+Count the number of MMX saturating instructions executed.
+.It Li p6-mmx-uops-exec
+.Pq Event B2H , Tn "Pentium II" , Tn "Pentium III"
+Count the number of MMX micro-ops executed.
+.It Li p6-mul
+.Pq Event 12H
+Count the number of integer and floating-point multiplies, including
+speculative multiplies.
+This event is only allocated on counter 1.
+.It Li p6-partial-rat-stalls
+.Pq Event D2H
+Count the number of cycles or events for partial stalls.
+.It Li p6-resource-stalls
+.Pq Event A2H
+Count the number of cycles there was a resource related stall of any kind.
+.It Li p6-ret-seg-renames
+.Pq Event D6H , Tn "Pentium II" , Tn "Pentium III"
+Count the number of segment register rename events retired.
+.It Li p6-sb-drains
+.Pq Event 04H
+Count the number of cycles the store buffer is draining.
+.It Li p6-seg-reg-renames Op Li ,umask= Ns Ar qualifier
+.Pq Event D5H , Tn "Pentium II" , Tn "Pentium III"
+Count the number of segment register renames.
+An additional qualifier may be specified, and comprises a list of the
+following keywords separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li ds
+Count renames for segment register DS.
+.It Li es
+Count renames for segment register ES.
+.It Li fs
+Count renames for segment register FS.
+.It Li gs
+Count renames for segment register GS.
+.El
+.Pp
+The default is to count operations affecting all segment registers.
+.It Li p6-seg-rename-stalls
+.Pq Event D4H , Tn "Pentium II" , Tn "Pentium III"
+Count the number of segment register renaming stalls.
+An additional qualifier may be specified, and comprises a list of the
+following keywords separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li ds
+Count stalls for segment register DS.
+.It Li es
+Count stalls for segment register ES.
+.It Li fs
+Count stalls for segment register FS.
+.It Li gs
+Count stalls for segment register GS.
+.El
+.Pp
+The default is to count operations affecting all the segment registers.
+.It Li p6-segment-reg-loads
+.Pq Event 06H
+Count the number of segment register loads.
+.It Li p6-uops-retired
+.Pq Event C2H
+Count the number of micro-ops retired.
+.El
+.Ss Event Name Aliases
+The following table shows the mapping between the PMC-independent
+aliases supported by
+.Lb libpmc
+and the underlying hardware events used.
+.Bl -column "branch-mispredicts" "Description"
+.It Em Alias Ta Em Event
+.It Li branches Ta Li p6-br-inst-retired
+.It Li branch-mispredicts Ta Li p6-br-miss-pred-retired
+.It Li dc-misses Ta Li p6-dcu-lines-in
+.It Li ic-misses Ta Li p6-ifu-fetch-miss
+.It Li instructions Ta Li p6-inst-retired
+.It Li interrupts Ta Li p6-hw-int-rx
+.It Li unhalted-cycles Ta Li p6-cpu-clk-unhalted
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.core2 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.k7 3 ,
+.Xr pmc.k8 3 ,
+.Xr pmc.p4 3 ,
+.Xr pmc.p5 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .

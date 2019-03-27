@@ -1,0 +1,10 @@
+before while
+before dotcmd
+subshell start
+before break
+after dotcmd, return value: 0
+before dotcmd
+subshell start
+before break
+after dotcmd, return value: 0
+after while

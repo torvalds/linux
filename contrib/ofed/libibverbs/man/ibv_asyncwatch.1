@@ -1,0 +1,31 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH IBV_ASYNCWATCH 1 "August 30, 2005" "libibverbs" "USER COMMANDS"
+
+.SH NAME
+ibv_asyncwatch \- display asynchronous events
+
+.SH SYNOPSIS
+.B ibv_asyncwatch
+[\-d device] [-h]
+
+.SH DESCRIPTION
+.PP
+Display asynchronous events forwarded to userspace for an RDMA device.
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-d\fR, \fB\-\-ib\-dev\fR=\fIDEVICE\fR
+use IB device \fIDEVICE\fR (default first device found)
+.TP
+\fB\-h\fR, \fB\-\-help\fR=\fIDEVICE\fR
+Print a help text and exit.
+
+.SH AUTHORS
+.TP
+Roland Dreier
+.RI < rolandd@cisco.com >
+.TP
+Eran Ben Elisha
+.RI < eranbe@mellanox.com >

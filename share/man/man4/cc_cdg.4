@@ -1,0 +1,155 @@
+.\"
+.\" Copyright (c) 2013 Swinburne University of Technology, Melbourne, Australia
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 2, 2013
+.Dt CC_CDG 4
+.Os
+.Sh NAME
+.Nm cc_cdg
+.Nd CDG Congestion Control Algorithm
+.Sh DESCRIPTION
+CAIA-Delay Gradient (CDG) is a hybrid congestion control algorithm which reacts
+to both packet loss and inferred queuing delay.
+It attempts to operate as a delay-based algorithm where possible, but utilises
+heuristics to detect loss-based TCP cross traffic and will compete effectively
+as required.
+CDG is therefore incrementally deployable and suitable for use on shared
+networks.
+.Pp
+During delay-based operation, CDG uses a delay-gradient based probabilistic
+backoff mechanism, and will also try to infer non congestion related
+packet losses and avoid backing off when they occur.
+During loss-based operation, CDG essentially reverts to
+.Xr cc_newreno 4 Ns - Ns like
+behaviour.
+.Pp
+CDG switches to loss-based operation when it detects that a configurable number
+of consecutive delay-based backoffs have had no measurable effect.
+It periodically attempts to return to delay-based operation, but will keep
+switching back to loss-based operation as required.
+.Sh MIB Variables
+The algorithm exposes the following variables in the
+.Va net.inet.tcp.cc.cdg
+branch of the
+.Xr sysctl 3
+MIB:
+.Bl -tag -width ".Va exp_backoff_scale"
+.It Va version
+Current algorithm/implementation version number.
+.It Va beta_delay
+Delay-based window decrease factor as a percentage (on delay-based backoff, w =
+w * beta_delay / 100).
+Default is 70.
+.It Va beta_loss
+Loss-based window decrease factor as a percentage (on loss-based backoff, w =
+w * beta_loss / 100).
+Default is 50.
+.It Va exp_backoff_scale
+Scaling parameter for the probabilistic exponential backoff.
+Default is 2.
+.It Va smoothing_factor
+Number of samples used for moving average smoothing (0 means no smoothing).
+Default is 8.
+.It Va loss_compete_consec_cong
+Number of consecutive delay-gradient based congestion episodes which will
+trigger loss-based CC compatibility.
+Default is 5.
+.It Va loss_compete_hold_backoff
+Number of consecutive delay-gradient based congestion episodes to hold the
+window backoff for loss-based CC compatibility.
+Default is 5.
+.It Va alpha_inc
+If non-zero, this enables an experimental mode where CDG's window increase
+factor (alpha) is increased by 1 MSS every
+.Va alpha_inc
+RTTs during congestion avoidance mode.
+(Setting
+.Va alpha_inc
+to 1 results in the most aggressive growth of the window increase factor over
+time.
+Use higher
+.Va alpha_inc
+values for slower growth.)
+Default is 0.
+.El
+.Sh SEE ALSO
+.Xr cc_chd 4 ,
+.Xr cc_cubic 4 ,
+.Xr cc_hd 4 ,
+.Xr cc_htcp 4 ,
+.Xr cc_newreno 4 ,
+.Xr cc_vegas 4 ,
+.Xr h_ertt 4 ,
+.Xr mod_cc 4 ,
+.Xr tcp 4 ,
+.Xr khelp 9 ,
+.Xr mod_cc 9
+.Rs
+.%A "D. A. Hayes"
+.%A "G. Armitage"
+.%T "Revisiting TCP Congestion Control using Delay Gradients"
+.%J "Networking 2011 Proceedings, Part II"
+.%D "May 2011"
+.%P "328-341"
+.Re
+.Rs
+.%A "N. Khademi"
+.%A "G. Armitage"
+.%T "Minimising RTT across homogeneous 802.11 WLANs with CAIA Delay-Gradient TCP (v0.1)"
+.%R "CAIA Technical Report 121113A"
+.%D "November 2012"
+.%U "http://caia.swin.edu.au/reports/121113A/CAIA-TR-121113A.pdf"
+.Re
+.Sh ACKNOWLEDGEMENTS
+Development and testing of this software were made possible in part by grants
+from the FreeBSD Foundation and The Cisco University Research Program Fund, a
+corporate advised fund of Silicon Valley Community Foundation.
+.Sh HISTORY
+The
+.Nm
+congestion control module first appeared in
+.Fx 9.2 .
+.Pp
+The module was first released in 2011 by David Hayes whilst working on the
+NewTCP research project at Swinburne University of Technology's Centre for
+Advanced Internet Architectures, Melbourne, Australia.
+More details are available at:
+.Pp
+http://caia.swin.edu.au/urp/newtcp/
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+congestion control module was written by
+.An David Hayes Aq Mt david.hayes@ieee.org .
+This manual page was written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org
+and
+.An Grenville Armitage Aq Mt garmitage@swin.edu.au .
+.Sh BUGS
+The underlying algorithm and parameter values are still a work in progress and
+may not be optimal for some network scenarios.

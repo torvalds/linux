@@ -1,0 +1,22 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_ACK_CM_EVENT" 3 "2007-05-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_ack_cm_event \- Free a communication event.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "int" rdma_ack_cm_event
+.BI "(struct rdma_cm_event *" event ");"
+.SH ARGUMENTS
+.IP "event" 12
+Event to be released.
+.SH "DESCRIPTION"
+All events which are allocated by rdma_get_cm_event must be released,
+there should be a one-to-one correspondence between successful gets
+and acks.  This call frees the event structure and any memory that it
+references.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "SEE ALSO"
+rdma_get_cm_event(3), rdma_destroy_id(3)

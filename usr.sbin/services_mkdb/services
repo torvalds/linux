@@ -1,0 +1,2500 @@
+#
+# Network services, Internet style
+#
+# Note that it is presently the policy of IANA to assign a single well-known
+# port number for both TCP and UDP; hence, most entries here have two entries
+# even if the protocol doesn't support UDP operations.
+#
+# The latest IANA port assignments can be gotten from
+#
+#	http://www.iana.org/assignments/port-numbers
+#
+# The Well Known Ports are those from 0 through 1023.
+# The Registered Ports are those from 1024 through 49151
+# The Dynamic and/or Private Ports are those from 49152 through 65535
+#
+# Kerberos services are for Kerberos v4, and are unofficial.  Sites running
+# v5 should uncomment v5 entries and comment v4 entries.
+#
+# $FreeBSD$
+#	From: @(#)services	5.8 (Berkeley) 5/9/91
+#
+# WELL KNOWN PORT NUMBERS
+#
+rtmp		  1/ddp	   #Routing Table Maintenance Protocol
+tcpmux		  1/tcp	   #TCP Port Service Multiplexer
+tcpmux		  1/udp	   #TCP Port Service Multiplexer
+nbp		  2/ddp	   #Name Binding Protocol
+compressnet	  2/tcp	   #Management Utility
+compressnet	  2/udp	   #Management Utility
+compressnet	  3/tcp	   #Compression Process
+compressnet	  3/udp	   #Compression Process
+echo		  4/ddp	   #AppleTalk Echo Protocol
+rje		  5/tcp	   #Remote Job Entry
+rje		  5/udp	   #Remote Job Entry
+zip		  6/ddp	   #Zone Information Protocol
+echo		  7/sctp
+echo		  7/tcp
+echo		  7/udp
+discard		  9/sctp   sink null
+discard		  9/tcp	   sink null
+discard		  9/udp	   sink null
+systat		 11/tcp	   users	#Active Users
+systat		 11/udp	   users	#Active Users
+daytime		 13/sctp
+daytime		 13/tcp
+daytime		 13/udp
+qotd		 17/tcp	   quote	#Quote of the Day
+qotd		 17/udp	   quote	#Quote of the Day
+msp		 18/tcp	   #Message Send Protocol
+msp		 18/udp	   #Message Send Protocol
+chargen		 19/sctp   ttytst source	#Character Generator
+chargen		 19/tcp	   ttytst source	#Character Generator
+chargen		 19/udp	   ttytst source	#Character Generator
+ftp-data	 20/sctp   #File Transfer [Default Data]
+ftp-data	 20/tcp	   #File Transfer [Default Data]
+ftp-data	 20/udp	   #File Transfer [Default Data]
+ftp		 21/sctp   #File Transfer [Control]
+ftp		 21/tcp	   #File Transfer [Control]
+ftp		 21/udp	   #File Transfer [Control]
+ssh		 22/sctp   #Secure Shell Login
+ssh		 22/tcp	   #Secure Shell Login
+ssh		 22/udp	   #Secure Shell Login
+telnet		 23/tcp
+telnet		 23/udp
+#		 24/tcp	   any private mail system
+#		 24/udp	   any private mail system
+smtp		 25/tcp	   mail		#Simple Mail Transfer
+smtp		 25/udp	   mail		#Simple Mail Transfer
+nsw-fe		 27/tcp	   #NSW User System FE
+nsw-fe		 27/udp	   #NSW User System FE
+msg-icp		 29/tcp	   #MSG ICP
+msg-icp		 29/udp	   #MSG ICP
+msg-auth	 31/tcp	   #MSG Authentication
+msg-auth	 31/udp	   #MSG Authentication
+dsp		 33/tcp	   #Display Support Protocol
+dsp		 33/udp	   #Display Support Protocol
+#		 35/tcp	   any private printer server
+#		 35/udp	   any private printer server
+time		 37/tcp	   timserver
+time		 37/udp	   timserver
+rap		 38/tcp	   #Route Access Protocol
+rap		 38/udp	   #Route Access Protocol
+rlp		 39/tcp	   resource	#Resource Location Protocol
+rlp		 39/udp	   resource	#Resource Location Protocol
+graphics	 41/tcp
+graphics	 41/udp
+nameserver	 42/tcp	   name		#Host Name Server
+nameserver	 42/udp	   name		#Host Name Server
+nicname		 43/tcp	   whois
+nicname		 43/udp	   whois
+mpm-flags	 44/tcp	   #MPM FLAGS Protocol
+mpm-flags	 44/udp	   #MPM FLAGS Protocol
+mpm		 45/tcp	   #Message Processing Module [recv]
+mpm		 45/udp	   #Message Processing Module [recv]
+mpm-snd		 46/tcp	   #MPM [default send]
+mpm-snd		 46/udp	   #MPM [default send]
+ni-ftp		 47/tcp	   #NI FTP
+ni-ftp		 47/udp	   #NI FTP
+auditd		 48/tcp	   #Digital Audit Daemon
+auditd		 48/udp	   #Digital Audit Daemon
+tacacs		 49/tcp	   #Login Host Protocol (TACACS)
+tacacs		 49/udp	   #Login Host Protocol (TACACS)
+re-mail-ck	 50/tcp	   #Remote Mail Checking Protocol
+re-mail-ck	 50/udp	   #Remote Mail Checking Protocol
+la-maint	 51/tcp	   #IMP Logical Address Maintenance
+la-maint	 51/udp	   #IMP Logical Address Maintenance
+xns-time	 52/tcp	   #XNS Time Protocol
+xns-time	 52/udp	   #XNS Time Protocol
+domain		 53/tcp	   #Domain Name Server
+domain		 53/udp	   #Domain Name Server
+xns-ch		 54/tcp	   #XNS Clearinghouse
+xns-ch		 54/udp	   #XNS Clearinghouse
+isi-gl		 55/tcp	   #ISI Graphics Language
+isi-gl		 55/udp	   #ISI Graphics Language
+xns-auth	 56/tcp	   #XNS Authentication
+xns-auth	 56/udp	   #XNS Authentication
+#		 57/tcp    any private terminal access
+#		 57/udp    any private terminal access
+xns-mail	 58/tcp	   #XNS Mail
+xns-mail	 58/udp	   #XNS Mail
+#		 59/tcp	   any private file service
+#		 59/udp	   any private file service
+ni-mail		 61/tcp	   #NI MAIL
+ni-mail		 61/udp	   #NI MAIL
+acas		 62/tcp	   #ACA Services
+acas		 62/udp	   #ACA Services
+whois++		 63/tcp
+whois++		 63/udp
+covia		 64/tcp	   #Communications Integrator (CI)
+covia		 64/udp	   #Communications Integrator (CI)
+tacacs-ds	 65/tcp	   #TACACS-Database Service
+tacacs-ds	 65/udp	   #TACACS-Database Service
+sql*net		 66/tcp	   #Oracle SQL*NET
+sql*net		 66/udp	   #Oracle SQL*NET
+bootps		 67/tcp	   dhcps	#Bootstrap Protocol Server
+bootps		 67/udp	   dhcps	#Bootstrap Protocol Server
+bootpc		 68/tcp	   dhcpc	#Bootstrap Protocol Client
+bootpc		 68/udp	   dhcpc	#Bootstrap Protocol Client
+tftp		 69/tcp	   #Trivial File Transfer
+tftp		 69/udp	   #Trivial File Transfer
+gopher		 70/tcp
+gopher		 70/udp
+netrjs-1	 71/tcp	   #Remote Job Service
+netrjs-1	 71/udp	   #Remote Job Service
+netrjs-2	 72/tcp	   #Remote Job Service
+netrjs-2	 72/udp	   #Remote Job Service
+netrjs-3	 73/tcp	   #Remote Job Service
+netrjs-3	 73/udp	   #Remote Job Service
+netrjs-4	 74/tcp	   #Remote Job Service
+netrjs-4	 74/udp	   #Remote Job Service
+#		 75/tcp	   any private dial out service
+#		 75/udp	   any private dial out service
+deos		 76/tcp	   #Distributed External Object Store
+deos		 76/udp	   #Distributed External Object Store
+#		 77/tcp	   any private RJE service
+#		 77/udp	   any private RJE service
+vettcp		 78/tcp
+vettcp		 78/udp
+finger		 79/tcp
+finger		 79/udp
+http		 80/sctp   www www-http	#World Wide Web HTTP
+http		 80/tcp	   www www-http	#World Wide Web HTTP
+http		 80/udp	   www www-http	#World Wide Web HTTP
+hosts2-ns	 81/tcp	   #HOSTS2 Name Server
+hosts2-ns	 81/udp	   #HOSTS2 Name Server
+xfer		 82/tcp	   #XFER Utility
+xfer		 82/udp	   #XFER Utility
+mit-ml-dev	 83/tcp	   #MIT ML Device
+mit-ml-dev	 83/udp	   #MIT ML Device
+ctf		 84/tcp	   #Common Trace Facility
+ctf		 84/udp	   #Common Trace Facility
+mit-ml-dev	 85/tcp	   #MIT ML Device
+mit-ml-dev	 85/udp	   #MIT ML Device
+mfcobol		 86/tcp	   #Micro Focus Cobol
+mfcobol		 86/udp	   #Micro Focus Cobol
+#		 87/tcp	   any private terminal link
+#		 87/udp	   any private terminal link
+kerberos-sec	 88/tcp	   kerberos	# krb5	# Kerberos (v5)
+kerberos-sec	 88/udp	   kerberos	# krb5	# Kerberos (v5)
+su-mit-tg	 89/tcp	   #SU/MIT Telnet Gateway
+su-mit-tg	 89/udp	   #SU/MIT Telnet Gateway
+dnsix		 90/tcp	   #DNSIX Securit Attribute Token Map
+dnsix		 90/udp	   #DNSIX Securit Attribute Token Map
+mit-dov		 91/tcp	   #MIT Dover Spooler
+mit-dov		 91/udp	   #MIT Dover Spooler
+npp		 92/tcp	   #Network Printing Protocol
+npp		 92/udp	   #Network Printing Protocol
+dcp		 93/tcp	   #Device Control Protocol
+dcp		 93/udp	   #Device Control Protocol
+objcall		 94/tcp	   #Tivoli Object Dispatcher
+objcall		 94/udp	   #Tivoli Object Dispatcher
+supdup		 95/tcp
+supdup		 95/udp
+dixie		 96/tcp	   #DIXIE Protocol Specification
+dixie		 96/udp	   #DIXIE Protocol Specification
+swift-rvf	 97/tcp	   #Swift Remote Virtural File Protocol
+swift-rvf	 97/udp	   #Swift Remote Virtural File Protocol
+tacnews		 98/tcp	   #TAC News, Unofficial: Red Hat linuxconf
+tacnews		 98/udp	   #TAC News, Unofficial: Red Hat linuxconf
+metagram	 99/tcp	   #Metagram Relay
+metagram	 99/udp	   #Metagram Relay
+newacct		100/tcp	   #[unauthorized use]
+hostname	101/tcp	   hostnames	#NIC Host Name Server
+hostname	101/udp	   hostnames	#NIC Host Name Server
+iso-tsap	102/tcp	   tsap		#ISO-TSAP Class 0
+iso-tsap	102/udp	   tsap		#ISO-TSAP Class 0
+gppitnp		103/tcp	   #Genesis Point-to-Point Trans Net
+gppitnp		103/udp	   #Genesis Point-to-Point Trans Net
+acr-nema	104/tcp	   #ACR-NEMA Digital Imag. & Comm. 300
+acr-nema	104/udp	   #ACR-NEMA Digital Imag. & Comm. 300
+csnet-ns	105/tcp	   cso-ns cso	#Mailbox Name Nameserver
+csnet-ns	105/udp	   cso-ns cso	#Mailbox Name Nameserver
+pop3pw		106/tcp	   3com-tsmux	#Eudora compatible PW changer
+3com-tsmux	106/udp
+rtelnet		107/tcp	   #Remote Telnet Service
+rtelnet		107/udp	   #Remote Telnet Service
+snagas		108/tcp	   #SNA Gateway Access Server
+snagas		108/udp	   #SNA Gateway Access Server
+pop2		109/tcp	   postoffice	#Post Office Protocol - Version 2
+pop2		109/udp	   postoffice	#Post Office Protocol - Version 2
+pop3		110/tcp	   #Post Office Protocol - Version 3
+pop3		110/udp	   #Post Office Protocol - Version 3
+sunrpc		111/tcp	   rpcbind	#SUN Remote Procedure Call
+sunrpc		111/udp	   rpcbind	#SUN Remote Procedure Call
+mcidas		112/tcp	   #McIDAS Data Transmission Protocol
+mcidas		112/udp	   #McIDAS Data Transmission Protocol
+auth		113/tcp	   ident tap	#Authentication Service
+auth		113/udp	   ident tap	#Authentication Service
+sftp		115/tcp	   #Simple File Transfer Protocol
+sftp		115/udp	   #Simple File Transfer Protocol
+ansanotify	116/tcp	   #ANSA REX Notify
+ansanotify	116/udp	   #ANSA REX Notify
+uucp-path	117/tcp	   #UUCP Path Service
+uucp-path	117/udp	   #UUCP Path Service
+sqlserv		118/tcp	   #SQL Services
+sqlserv		118/udp	   #SQL Services
+nntp		119/tcp	   usenet	#Network News Transfer Protocol
+nntp		119/udp	   usenet	#Network News Transfer Protocol
+cfdptkt		120/tcp
+cfdptkt		120/udp
+erpc		121/tcp	   #Encore Expedited Remote Pro.Call
+erpc		121/udp	   #Encore Expedited Remote Pro.Call
+smakynet	122/tcp
+smakynet	122/udp
+ntp		123/tcp	   #Network Time Protocol
+ntp		123/udp	   #Network Time Protocol
+ansatrader	124/tcp	   #ANSA REX Trader
+ansatrader	124/udp	   #ANSA REX Trader
+locus-map	125/tcp	   #Locus PC-Interface Net Map Ser
+locus-map	125/udp	   #Locus PC-Interface Net Map Ser
+unitary		126/tcp	   #Unisys Unitary Login
+unitary		126/udp	   #Unisys Unitary Login
+locus-con	127/tcp	   #Locus PC-Interface Conn Server
+locus-con	127/udp	   #Locus PC-Interface Conn Server
+gss-xlicen	128/tcp	   #GSS X License Verification
+gss-xlicen	128/udp	   #GSS X License Verification
+pwdgen		129/tcp	   #Password Generator Protocol
+pwdgen		129/udp	   #Password Generator Protocol
+cisco-fna	130/tcp	   #cisco FNATIVE
+cisco-fna	130/udp	   #cisco FNATIVE
+cisco-tna	131/tcp	   #cisco TNATIVE
+cisco-tna	131/udp	   #cisco TNATIVE
+cisco-sys	132/tcp	   #cisco SYSMAINT
+cisco-sys	132/udp	   #cisco SYSMAINT
+statsrv		133/tcp	   #Statistics Service
+statsrv		133/udp	   #Statistics Service
+ingres-net	134/tcp	   #INGRES-NET Service
+ingres-net	134/udp	   #INGRES-NET Service
+loc-srv		135/tcp	   epmap	#Location Service
+loc-srv		135/udp	   epmap	#Location Service
+profile		136/tcp	   #PROFILE Naming System
+profile		136/udp	   #PROFILE Naming System
+netbios-ns	137/tcp	   #NETBIOS Name Service
+netbios-ns	137/udp	   #NETBIOS Name Service
+netbios-dgm	138/tcp	   #NETBIOS Datagram Service
+netbios-dgm	138/udp	   #NETBIOS Datagram Service
+netbios-ssn	139/tcp	   #NETBIOS Session Service
+netbios-ssn	139/udp	   #NETBIOS Session Service
+emfis-data	140/tcp	   #EMFIS Data Service
+emfis-data	140/udp	   #EMFIS Data Service
+emfis-cntl	141/tcp	   #EMFIS Control Service
+emfis-cntl	141/udp	   #EMFIS Control Service
+bl-idm		142/tcp	   #Britton-Lee IDM
+bl-idm		142/udp	   #Britton-Lee IDM
+imap		143/tcp	   imap2 imap4	#Interim Mail Access Protocol v2
+imap		143/udp	   imap2 imap4	#Interim Mail Access Protocol v2
+NeWS		144/tcp	   # Window System
+NeWS		144/udp	   # Window System
+#PROBLEMS!==============================================================
+#uma		144/tcp	   #Universal Management Architecture
+#uma		144/udp	   #Universal Management Architecture
+#PROBLEMS!==============================================================
+uaac		145/tcp	   #UAAC Protocol
+uaac		145/udp	   #UAAC Protocol
+iso-tp0		146/tcp
+iso-tp0		146/udp
+iso-ip		147/tcp
+iso-ip		147/udp
+cronus		148/tcp	   jargon	#CRONUS-SUPPORT
+cronus		148/udp	   jargon	#CRONUS-SUPPORT
+aed-512		149/tcp	   #AED 512 Emulation Service
+aed-512		149/udp	   #AED 512 Emulation Service
+sql-net		150/tcp
+sql-net		150/udp
+hems		151/tcp
+hems		151/udp
+bftp		152/tcp	   #Background File Transfer Program
+bftp		152/udp	   #Background File Transfer Program
+sgmp		153/tcp
+sgmp		153/udp
+netsc-prod	154/tcp
+netsc-prod	154/udp
+netsc-dev	155/tcp
+netsc-dev	155/udp
+sqlsrv		156/tcp	   #SQL Service
+sqlsrv		156/udp	   #SQL Service
+knet-cmp	157/tcp	   #KNET/VM Command/Message Protocol
+knet-cmp	157/udp	   #KNET/VM Command/Message Protocol
+pcmail-srv	158/tcp	   #PCMail Server
+pcmail-srv	158/udp	   #PCMail Server
+nss-routing	159/tcp
+nss-routing	159/udp
+sgmp-traps	160/tcp
+sgmp-traps	160/udp
+snmp		161/tcp
+snmp		161/udp
+snmptrap	162/tcp	   snmp-trap
+snmptrap	162/udp	   snmp-trap
+cmip-man	163/tcp	   #CMIP/TCP Manager
+cmip-man	163/udp	   #CMIP/TCP Manager
+cmip-agent	164/tcp	   #CMIP/TCP Agent
+smip-agent	164/udp	   #CMIP/TCP Agent
+xns-courier	165/tcp	   #Xerox
+xns-courier	165/udp	   #Xerox
+s-net		166/tcp	   #Sirius Systems
+s-net		166/udp	   #Sirius Systems
+namp		167/tcp
+namp		167/udp
+rsvd		168/tcp
+rsvd		168/udp
+send		169/tcp
+send		169/udp
+print-srv	170/tcp	   #Network PostScript
+print-srv	170/udp	   #Network PostScript
+multiplex	171/tcp	   #Network Innovations Multiplex
+multiplex	171/udp	   #Network Innovations Multiplex
+cl/1		172/tcp	   #Network Innovations CL/1
+cl/1		172/udp	   #Network Innovations CL/1
+xyplex-mux	173/tcp
+xyplex-mux	173/udp
+mailq		174/tcp
+mailq		174/udp
+vmnet		175/tcp
+vmnet		175/udp
+genrad-mux	176/tcp
+genrad-mux	176/udp
+xdmcp		177/tcp	   #X Display Manager Control Protocol
+xdmcp		177/udp	   #X Display Manager Control Protocol
+NextStep	178/tcp	   nextstep NeXTStep	#NextStep Window Server
+NextStep	178/udp	   nextstep NeXTStep	#NextStep Window Server
+bgp		179/sctp   #Border Gateway Protocol
+bgp		179/tcp	   #Border Gateway Protocol
+bgp		179/udp	   #Border Gateway Protocol
+ris		180/tcp	   #Intergraph
+ris		180/udp	   #Intergraph
+unify		181/tcp
+unify		181/udp
+audit		182/tcp	   #Unisys Audit SITP
+audit		182/udp	   #Unisys Audit SITP
+ocbinder	183/tcp
+ocbinder	183/udp
+ocserver	184/tcp
+ocserver	184/udp
+remote-kis	185/tcp
+remote-kis	185/udp
+kis		186/tcp	   #KIS Protocol
+kis		186/udp	   #KIS Protocol
+aci		187/tcp	   #Application Communication Interface
+aci		187/udp	   #Application Communication Interface
+mumps		188/tcp	   #Plus Five's MUMPS
+mumps		188/udp	   #Plus Five's MUMPS
+qft		189/tcp	   #Queued File Transport
+qft		189/udp	   #Queued File Transport
+gacp		190/tcp	   #Gateway Access Control Protocol
+gacp		190/udp	   cacp		#Gateway Access Control Protocol
+prospero	191/tcp	   #Prospero Directory Service
+prospero	191/udp	   #Prospero Directory Service
+osu-nms		192/tcp	   #OSU Network Monitoring System
+osu-nms		192/udp	   #OSU Network Monitoring System
+srmp		193/tcp	   #Spider Remote Monitoring Protocol
+srmp		193/udp	   #Spider Remote Monitoring Protocol
+irc		194/tcp	   #Internet Relay Chat Protocol
+irc		194/udp	   #Internet Relay Chat Protocol
+dn6-nlm-aud	195/tcp	   #DNSIX Network Level Module Audit
+dn6-nlm-aud	195/udp	   #DNSIX Network Level Module Audit
+dn6-smm-red	196/tcp	   #DNSIX Session Mgt Module Audit Redir
+dn6-smm-red	196/udp	   #DNSIX Session Mgt Module Audit Redir
+dls		197/tcp	   #Directory Location Service
+dls		197/udp	   #Directory Location Service
+dls-mon		198/tcp	   #Directory Location Service Monitor
+dls-mon		198/udp	   #Directory Location Service Monitor
+smux		199/tcp
+smux		199/udp
+src		200/tcp	   #IBM System Resource Controller
+src		200/udp	   #IBM System Resource Controller
+at-rtmp		201/tcp	   #AppleTalk Routing Maintenance
+at-rtmp		201/udp	   #AppleTalk Routing Maintenance
+at-nbp		202/tcp	   #AppleTalk Name Binding
+at-nbp		202/udp	   #AppleTalk Name Binding
+at-3		203/tcp	   #AppleTalk Unused
+at-3		203/udp	   #AppleTalk Unused
+at-echo		204/tcp	   #AppleTalk Echo
+at-echo		204/udp	   #AppleTalk Echo
+at-5		205/tcp	   #AppleTalk Unused
+at-5		205/udp	   #AppleTalk Unused
+at-zis		206/tcp	   #AppleTalk Zone Information
+at-zis		206/udp	   #AppleTalk Zone Information
+at-7		207/tcp	   #AppleTalk Unused
+at-7		207/udp	   #AppleTalk Unused
+at-8		208/tcp	   #AppleTalk Unused
+at-8		208/udp	   #AppleTalk Unused
+qmtp		209/tcp	   #The Quick Mail Transfer Protocol
+qmtp		209/udp	   #The Quick Mail Transfer Protocol
+#PROBLEMS!==============================================================
+#tam		209/tcp	   #Trivial Authenticated Mail Protocol
+#tam		209/udp	   #Trivial Authenticated Mail Protocol
+#PROBLEMS!==============================================================
+z39.50		210/tcp	   wais		#ANSI Z39.50
+z39.50		210/udp	   wais		#ANSI Z39.50
+914c/g		211/tcp	   #Texas Instruments 914C/G Terminal
+914c/g		211/udp	   #Texas Instruments 914C/G Terminal
+anet		212/tcp	   #ATEXSSTR
+anet		212/udp	   #ATEXSSTR
+ipx		213/tcp
+ipx		213/udp
+vmpwscs		214/tcp
+vmpwscs		214/udp
+softpc		215/tcp	   #Insignia Solutions
+softpc		215/udp	   #Insignia Solutions
+CAIlic		216/tcp	   atls		#Computer Associates Int'l License Server
+CAIlic		216/udp	   atls		#Computer Associates Int'l License Server
+dbase		217/tcp	   #dBASE Unix
+dbase		217/udp	   #dBASE Unix
+mpp		218/tcp	   #Netix Message Posting Protocol
+mpp		218/udp	   #Netix Message Posting Protocol
+uarps		219/tcp	   #Unisys ARPs
+uarps		219/udp	   #Unisys ARPs
+imap3		220/tcp	   #Interactive Mail Access Protocol v3
+imap3		220/udp	   #Interactive Mail Access Protocol v3
+fln-spx		221/tcp	   #Berkeley rlogind with SPX auth
+fln-spx		221/udp	   #Berkeley rlogind with SPX auth
+rsh-spx		222/tcp	   #Berkeley rshd with SPX auth
+rsh-spx		222/udp	   #Berkeley rshd with SPX auth
+cdc		223/tcp	   #Certificate Distribution Center
+cdc		223/udp	   #Certificate Distribution Center
+masqdialer	224/tcp
+masqdialer	224/udp
+direct		242/tcp
+direct		242/udp
+sur-meas	243/tcp	   #Survey Measurement
+sur-meas	243/udp	   #Survey Measurement
+dayna		244/tcp
+dayna		244/udp
+link		245/tcp
+link		245/udp
+dsp3270		246/tcp	   #Display Systems Protocol
+dsp3270		246/udp	   #Display Systems Protocol
+subntbcst_tftp	247/tcp	   #subntbcst_tftp
+subntbcst_tftp	247/udp	   #subntbcst_tftp
+bhfhs		248/tcp
+bhfhs		248/udp
+#		249-255	   reserved
+rap		256/tcp
+rap		256/udp
+set		257/tcp	   #secure electronic transaction
+set		257/udp	   #secure electronic transaction
+esro-gen	259/tcp	   #efficient short remote operations
+esro-gen	259/udp	   #efficient short remote operations
+openport	260/tcp
+openport	260/udp
+nsiiops		261/tcp	   #iiop name service over tls/ssl
+nsiiops		261/udp	   #iiop name service over tls/ssl
+arcisdms	262/tcp
+arcisdms	262/udp
+hdap		263/tcp
+hdap		263/udp
+bgmp		264/tcp
+bgmp		264/udp
+x-bone-ctl	265/tcp    #X-Bone CTL
+x-bone-ctl	265/udp    #X-Bone CTL
+sst		266/tcp    #SCSI on ST
+sst		266/udp    #SCSI on ST
+td-service	267/tcp    #Tobit David Service Layer
+td-service	267/udp    #Tobit David Service Layer
+td-replica	268/tcp    #Tobit David Replica
+td-replica	268/udp    #Tobit David Replica
+#		269-279	   unassigned
+http-mgmt	280/tcp
+http-mgmt	280/udp
+personal-link	281/tcp
+personal-link	281/udp
+cableport-ax	282/tcp	   #cable port a/x
+cableport-ax	282/udp	   #cable port a/x
+rescap		283/tcp
+rescap		283/udp
+corerjd		284/tcp
+corerjd		284/udp
+#		285        unassigned
+fxp		286/tcp
+fxp		286/udp
+k-block		287/tcp
+k-block		287/udp
+#		288-307	   unassigned
+novastorbakcup	308/tcp	   #novastor backup
+novastorbakcup	308/udp	   #novastor backup
+entrusttime	309/tcp
+entrusttime	309/udp
+bhmds		310/tcp
+bhmds		310/udp
+asip-webadmin	311/tcp	   #appleshare ip webadmin
+asip-webadmin	311/udp	   #appleshare ip webadmin
+vslmp		312/tcp
+vslmp		312/udp
+magenta-logic	313/tcp
+magenta-logic	313/udp
+opalis-robot	314/tcp
+opalis-robot	314/udp
+dpsi		315/tcp
+dpsi		315/udp
+decauth		316/tcp
+decauth		316/udp
+zannet		317/tcp
+zannet		317/udp
+pkix-timestamp	318/tcp    #PKIX TimeStamp
+pkix-timestamp	318/udp    #PKIX TimeStamp
+ptp-event	319/tcp    #PTP Event
+ptp-event	319/udp    #PTP Event
+ptp-general	320/tcp    #PTP General
+ptp-general	320/udp    #PTP General
+pip		321/tcp
+pip		321/udp
+rtsps		322/tcp
+rtsps		322/udp
+#		323-332	   #unassigned
+texar		333/tcp    #Texar Security Port
+texar		333/udp    #Texar Security Port
+#		334-343	   #unassigned
+pdap		344/tcp	   #Prospero Data Access Protocol
+pdap		344/udp	   #Prospero Data Access Protocol
+pawserv		345/tcp	   #Perf Analysis Workbench
+pawserv		345/udp	   #Perf Analysis Workbench
+zserv		346/tcp	   #Zebra server
+zserv		346/udp	   #Zebra server
+fatserv		347/tcp	   #Fatmen Server
+fatserv		347/udp	   #Fatmen Server
+csi-sgwp	348/tcp	   #Cabletron Management Protocol
+csi-sgwp	348/udp	   #Cabletron Management Protocol
+mftp		349/tcp
+mftp		349/udp
+matip-type-a	350/tcp	   #MATIP Type A
+matip-type-a	350/udp
+matip-type-b	351/tcp	   #MATIP Type B
+matip-type-b	351/udp
+bhoetty		351/tcp	   #unassigned but widespread use
+bhoetty		351/udp	   #unassigned but widespread use
+dtag-ste-sb	352/tcp	   #DTAG
+dtag-ste-sb	352/udp	   #DTAG
+bhoedap4	352/tcp	   #unassigned but widespread use
+bhoedap4	352/udp	   #unassigned but widespread use
+ndsauth		353/tcp
+ndsauth		353/udp
+bh611		354/tcp
+bh611		354/udp
+datex-asn	355/tcp
+datex-asn	355/udp
+cloanto-net-1	356/tcp	   #Cloanto Net 1
+cloanto-net-1	356/udp
+bhevent		357/tcp
+bhevent		357/udp
+shrinkwrap	358/tcp
+shrinkwrap	358/udp
+tenebris_nts	359/tcp	   #Tenebris Network Trace Service
+tenebris_nts	359/udp	   #Tenebris Network Trace Service
+scoi2odialog	360/tcp
+scoi2odialog	360/udp
+semantix	361/tcp
+semantix	361/udp
+srssend		362/tcp	   #SRS Send
+srssend		362/udp	   #SRS Send
+rsvp_tunnel	363/tcp
+rsvp_tunnel	363/udp
+aurora-cmgr	364/tcp
+aurora-cmgr	364/udp
+dtk		365/tcp	   #Deception Tool Kit - Fred Cohen <fc@all.net>
+dtk		365/udp	   #Deception Tool Kit - Fred Cohen <fc@all.net>
+odmr		366/tcp
+odmr		366/udp
+mortgageware	367/tcp
+mortgageware	367/udp
+qbikgdp		368/tcp	   #QbikGDP
+qbikgdp		368/udp
+rpc2portmap	369/tcp
+rpc2portmap	369/udp
+codaauth2	370/tcp
+codaauth2	370/udp
+clearcase	371/tcp
+clearcase	371/udp
+ulistserv	372/tcp	   ulistproc	#Unix Listserv
+ulistserv	372/udp	   ulistproc	#Unix Listserv
+legent-1	373/tcp	   #Legent Corporation (now Computer Associates Intl.)
+legent-1	373/udp	   #Legent Corporation (now Computer Associates Intl.)
+legent-2	374/tcp	   #Legent Corporation (now Computer Associates Intl.)
+legent-2	374/udp	   #Legent Corporation (now Computer Associates Intl.)
+hassle		375/tcp
+hassle		375/udp
+nip		376/tcp	   #Amiga Envoy Network Inquiry Proto
+nip		376/udp	   #Amiga Envoy Network Inquiry Proto
+tnETOS		377/tcp	   #NEC Corporation
+tnETOS		377/udp	   #NEC Corporation
+dsETOS		378/tcp	   #NEC Corporation
+dsETOS		378/udp	   #NEC Corporation
+is99c		379/tcp	   #TIA/EIA/IS-99 modem client
+is99c		379/udp	   #TIA/EIA/IS-99 modem client
+is99s		380/tcp	   #TIA/EIA/IS-99 modem server
+is99s		380/udp	   #TIA/EIA/IS-99 modem server
+hp-collector	381/tcp	   #hp performance data collector
+hp-collector	381/udp	   #hp performance data collector
+hp-managed-node	382/tcp	   #hp performance data managed node
+hp-managed-node	382/udp	   #hp performance data managed node
+hp-alarm-mgr	383/tcp	   #hp performance data alarm manager
+hp-alarm-mgr	383/udp	   #hp performance data alarm manager
+arns		384/tcp	   #A Remote Network Server System
+arns		384/udp	   #A Remote Network Server System
+ibm-app		385/tcp	   #IBM Application
+ibm-app		385/udp	   #IBM Application
+asa		386/tcp	   #ASA Message Router Object Def.
+asa		386/udp	   #ASA Message Router Object Def.
+aurp		387/tcp	   #Appletalk Update-Based Routing Pro.
+aurp		387/udp	   #Appletalk Update-Based Routing Pro.
+unidata-ldm	388/tcp	   #Unidata LDM Version 4
+unidata-ldm	388/udp	   #Unidata LDM Version 4
+ldap		389/tcp	   #Lightweight Directory Access Protocol
+ldap		389/udp	   #Lightweight Directory Access Protocol
+uis		390/tcp
+uis		390/udp
+synotics-relay	391/tcp	   #SynOptics SNMP Relay Port
+synotics-relay	391/udp	   #SynOptics SNMP Relay Port
+synotics-broker	392/tcp	   #SynOptics Port Broker Port
+synotics-broker	392/udp	   #SynOptics Port Broker Port
+dis		393/tcp	   #Data Interpretation System
+dis		393/udp	   #Data Interpretation System
+embl-ndt	394/tcp	   #EMBL Nucleic Data Transfer
+embl-ndt	394/udp	   #EMBL Nucleic Data Transfer
+netcp		395/tcp	   #NETscout Control Protocol
+netcp		395/udp	   #NETscout Control Protocol
+netware-ip	396/tcp	   #Novell Netware over IP
+netware-ip	396/udp	   #Novell Netware over IP
+mptn		397/tcp	   #Multi Protocol Trans. Net.
+mptn		397/udp	   #Multi Protocol Trans. Net.
+kryptolan	398/tcp
+kryptolan	398/udp
+iso-tsap-c2	399/tcp	   #ISO-TSAP Class 2
+iso-tsap-c2	399/udp	   #ISO-TSAP Class 2
+work-sol	400/tcp	   #Workstation Solutions
+work-sol	400/udp	   #Workstation Solutions
+ups		401/tcp	   #Uninterruptible Power Supply
+ups		401/udp	   #Uninterruptible Power Supply
+genie		402/tcp	   #Genie Protocol
+genie		402/udp	   #Genie Protocol
+decap		403/tcp
+decap		403/udp
+nced		404/tcp
+nced		404/udp
+ncld		405/tcp
+ncld		405/udp
+imsp		406/tcp	   #Interactive Mail Support Protocol
+imsp		406/udp	   #Interactive Mail Support Protocol
+timbuktu	407/tcp
+timbuktu	407/udp
+prm-sm		408/tcp	   #Prospero Resource Manager Sys. Man.
+prm-sm		408/udp	   #Prospero Resource Manager Sys. Man.
+prm-nm		409/tcp	   #Prospero Resource Manager Node Man.
+prm-nm		409/udp	   #Prospero Resource Manager Node Man.
+decladebug	410/tcp	   #DECLadebug Remote Debug Protocol
+decladebug	410/udp	   #DECLadebug Remote Debug Protocol
+rmt		411/tcp	   #Remote MT Protocol
+rmt		411/udp	   #Remote MT Protocol
+synoptics-trap	412/tcp	   #Trap Convention Port
+synoptics-trap	412/udp	   #Trap Convention Port
+smsp		413/tcp
+smsp		413/udp
+infoseek	414/tcp
+infoseek	414/udp
+bnet		415/tcp
+bnet		415/udp
+silverplatter	416/tcp
+silverplatter	416/udp
+onmux		417/tcp
+onmux		417/udp
+hyper-g		418/tcp
+hyper-g		418/udp
+ariel1		419/tcp
+ariel1		419/udp
+smpte		420/tcp
+smpte		420/udp
+ariel2		421/tcp
+ariel2		421/udp
+ariel3		422/tcp
+ariel3		422/udp
+opc-job-start	423/tcp	   #IBM Operations Planning and Control Start
+opc-job-start	423/udp	   #IBM Operations Planning and Control Start
+opc-job-track	424/tcp	   #IBM Operations Planning and Control Track
+opc-job-track	424/udp	   #IBM Operations Planning and Control Track
+icad-el		425/tcp
+icad-el		425/udp
+smartsdp	426/tcp
+smartsdp	426/udp
+svrloc		427/tcp	   #Server Location
+svrloc		427/udp	   #Server Location
+ocs_cmu		428/tcp
+ocs_cmu		428/udp
+ocs_amu		429/tcp
+ocs_amu		429/udp
+utmpsd		430/tcp
+utmpsd		430/udp
+utmpcd		431/tcp
+utmpcd		431/udp
+iasd		432/tcp
+iasd		432/udp
+nnsp		433/tcp
+nnsp		433/udp
+mobileip-agent	434/tcp
+mobileip-agent	434/udp
+mobilip-mn	435/tcp
+mobilip-mn	435/udp
+dna-cml		436/tcp
+dna-cml		436/udp
+comscm		437/tcp
+comscm		437/udp
+dsfgw		438/tcp
+dsfgw		438/udp
+dasp		439/tcp
+dasp		439/udp
+sgcp		440/tcp
+sgcp		440/udp
+decvms-sysmgt	441/tcp
+decvms-sysmgt	441/udp
+cvc_hostd	442/tcp
+cvc_hostd	442/udp
+https		443/sctp
+https		443/tcp
+https		443/udp
+snpp		444/tcp	   #Simple Network Paging Protocol
+snpp		444/udp	   #Simple Network Paging Protocol
+#			   [RFC1568]
+microsoft-ds	445/tcp
+microsoft-ds	445/udp
+ddm-rdb		446/tcp
+ddm-rdb		446/udp
+ddm-dfm		447/tcp
+ddm-dfm		447/udp
+ddm-ssl		448/tcp	   ddm-byte
+ddm-ssl		448/udp	   ddm-byte
+as-servermap	449/tcp	   #AS Server Mapper
+as-servermap	449/udp	   #AS Server Mapper
+tserver		450/tcp
+tserver		450/udp
+sfs-smp-net	451/tcp	   #Cray Network Semaphore server
+sfs-smp-net	451/udp	   #Cray Network Semaphore server
+sfs-config	452/tcp	   #Cray SFS config server
+sfs-config	452/udp	   #Cray SFS config server
+creativeserver	453/tcp	   #CreativeServer
+creativeserver	453/udp	   #CreativeServer
+contentserver	454/tcp	   #ContentServer
+contentserver	454/udp	   #ContentServer
+creativepartnr	455/tcp	   #CreativePartnr
+creativepartnr	455/udp	   #CreativePartnr
+macon-tcp	456/tcp
+macon-udp	456/udp
+scohelp		457/tcp
+scohelp		457/udp
+appleqtc	458/tcp	   #apple quick time
+appleqtc	458/udp	   #apple quick time
+ampr-rcmd	459/tcp
+ampr-rcmd	459/udp
+skronk		460/tcp
+skronk		460/udp
+datasurfsrv	461/tcp
+datasurfsrv	461/udp
+datasurfsrvsec	462/tcp
+datasurfsrvsec	462/udp
+alpes		463/tcp
+alpes		463/udp
+#
+kpasswd5	464/tcp	   # Kerberos (v5)
+kpasswd5	464/udp	   # Kerberos (v5)
+#PROBLEMS!==============================================================
+# IANA has officially assigned these two ports as ``kpasswd''
+#kpasswd	464/tcp	   # Kerberos (v5)
+#kpasswd	464/udp	   # Kerberos (v5)
+#PROBLEMS!==============================================================
+smtps		465/tcp	   #smtp protocol over TLS/SSL (was ssmtp)
+smtps		465/udp	   #smtp protocol over TLS/SSL (was ssmtp)
+digital-vrc	466/tcp
+digital-vrc	466/udp
+mylex-mapd	467/tcp
+mylex-mapd	467/udp
+photuris	468/tcp
+photuris	468/udp
+rcp		469/tcp	   #Radio Control Protocol
+rcp		469/udp	   #Radio Control Protocol
+scx-proxy	470/tcp
+scx-proxy	470/udp
+mondex		471/tcp
+mondex		471/udp
+ljk-login	472/tcp
+ljk-login	472/udp
+hybrid-pop	473/tcp
+hybrid-pop	473/udp
+tn-tl-w1	474/tcp
+tn-tl-w2	474/udp
+tcpnethaspsrv	475/tcp
+tcpnethaspsrv	475/udp
+tn-tl-fd1	476/tcp
+tn-tl-fd1	476/udp
+ss7ns		477/tcp
+ss7ns		477/udp
+spsc		478/tcp
+spsc		478/udp
+iafserver	479/tcp
+iafserver	479/udp
+iafdbase	480/tcp
+iafdbase	480/udp
+ph		481/tcp
+ph		481/udp
+bgs-nsi		482/tcp
+bgs-nsi		482/udp
+ulpnet		483/tcp
+ulpnet		483/udp
+integra-sme	484/tcp	   #Integra Software Management Environment
+integra-sme	484/udp	   #Integra Software Management Environment
+powerburst	485/tcp	   #Air Soft Power Burst
+powerburst	485/udp	   #Air Soft Power Burst
+avian		486/tcp
+avian		486/udp
+saft		487/tcp	   #saft Simple Asynchronous File Transfer
+saft		487/udp	   #saft Simple Asynchronous File Transfer
+gss-http	488/tcp
+gss-http	488/udp
+nest-protocol	489/tcp
+nest-protocol	489/udp
+micom-pfs	490/tcp
+micom-pfs	490/udp
+go-login	491/tcp
+go-login	491/udp
+ticf-1		492/tcp	   #Transport Independent Convergence for FNA
+ticf-1		492/udp	   #Transport Independent Convergence for FNA
+ticf-2		493/tcp	   #Transport Independent Convergence for FNA
+ticf-2		493/udp	   #Transport Independent Convergence for FNA
+pov-ray		494/tcp
+pov-ray		494/udp
+intecourier	495/tcp
+intecourier	495/udp
+pim-rp-disc	496/tcp
+pim-rp-disc	496/udp
+dantz		497/tcp
+dantz		497/udp
+siam		498/tcp
+siam		498/udp
+iso-ill		499/tcp	   #ISO ILL Protocol
+iso-ill		499/udp	   #ISO ILL Protocol
+isakmp		500/tcp
+isakmp		500/udp
+stmf		501/tcp
+stmf		501/udp
+mbap		502/tcp    # Modbus Application Protocol
+mbap		502/udp    # Modbus Application Protocol
+intrinsa	503/tcp
+intrinsa	503/udp
+citadel		504/tcp
+citadel		504/udp
+mailbox-lm	505/tcp
+mailbox-lm	505/udp
+ohimsrv		506/tcp
+ohimsrv		506/udp
+crs		507/tcp
+crs		507/udp
+xvttp		508/tcp
+xvttp		508/udp
+snare		509/tcp
+snare		509/udp
+fcp		510/tcp	   #FirstClass Protocol
+fcp		510/udp	   #FirstClass Protocol
+passgo		511/tcp
+passgo		511/udp
+#
+# Berkeley-specific services
+#
+exec		512/tcp	   #remote process execution;
+#			   authentication performed using
+#			   passwords and UNIX login names
+biff		512/udp	   comsat	#used by mail system to notify users
+#					of new mail received; currently
+#					receives messages only from
+#					processes on the same machine
+login		513/tcp	   #remote login a la telnet;
+#			   automatic authentication performed
+#			   based on priviledged port numbers
+#			   and distributed data bases which
+#			   identify "authentication domains"
+who		513/udp	   whod		#maintains data bases showing who's
+#					logged in to machines on a local
+#					net and the load average of the
+#					machine
+shell		514/tcp	   cmd		#like exec, but automatic
+#					authentication is performed as for
+#					login server
+syslog		514/udp
+printer		515/tcp	   spooler
+printer		515/udp	   spooler
+videotex	516/tcp
+videotex	516/udp
+talk		517/tcp	   #like tenex link, but across
+#			   machine - unfortunately, doesn't
+#			   use link protocol (this is actually
+#			   just a rendezvous port from which a
+#			   tcp connection is established)
+talk		517/udp	   #like tenex link, but across
+#			   machine - unfortunately, doesn't
+#			   use link protocol (this is actually
+#			   just a rendezvous port from which a
+#			   tcp connection is established)
+ntalk		518/tcp
+ntalk		518/udp
+utime		519/tcp	   unixtime
+utime		519/udp	   unixtime
+efs		520/tcp	   #extended file name server
+router		520/udp	   route routed	#local routing process (on site);
+#					   uses variant of Xerox NS routing
+#					   information protocol
+ripng		521/tcp
+ripng		521/udp
+ulp		522/tcp
+ulp		522/udp
+ibm-db2		523/tcp
+ibm-db2		523/udp
+ncp		524/tcp
+ncp		524/udp
+timed		525/tcp	   timeserver
+timed		525/udp	   timeserver
+tempo		526/tcp	   newdate
+tempo		526/udp	   newdate
+stx		527/tcp	   #Stock IXChange
+stx		527/udp	   #Stock IXChange
+custix		528/tcp	   #Customer IXChange
+custix		528/udp	   #Customer IXChange
+irc-serv	529/tcp
+irc-serv	529/udp
+courier		530/tcp	   rpc
+courier		530/udp	   rpc
+conference	531/tcp	   chat
+conference	531/udp	   chat
+netnews		532/tcp	   readnews
+netnews		532/udp	   readnews
+netwall		533/tcp	   #for emergency broadcasts
+netwall		533/udp	   #for emergency broadcasts
+mm-admin	534/tcp	   #MegaMedia Admin
+mm-admin	534/udp	   #MegaMedia Admin
+iiop		535/tcp
+iiop		535/udp
+opalis-rdv	536/tcp
+opalis-rdv	536/udp
+nmsp		537/tcp	   #Networked Media Streaming Protocol
+nmsp		537/udp	   #Networked Media Streaming Protocol
+gdomap		538/tcp
+gdomap		538/udp
+apertus-ldp	539/tcp	   #Apertus Technologies Load Determination
+apertus-ldp	539/udp	   #Apertus Technologies Load Determination
+uucp		540/tcp	   uucpd
+uucp		540/udp	   uucpd
+uucp-rlogin	541/tcp
+uucp-rlogin	541/udp
+commerce	542/tcp
+commerce	542/udp
+klogin		543/tcp	   # Kerberos (v4/v5)
+klogin		543/udp	   # Kerberos (v4/v5)
+kshell		544/tcp	   krcmd	# Kerberos (v4/v5)
+kshell		544/udp	   krcmd	# Kerberos (v4/v5)
+appleqtcsrvr	545/tcp
+appleqtcsrvr	545/udp
+dhcpv6-client	546/tcp	   #DHCPv6 Client
+dhcpv6-client	546/udp	   #DHCPv6 Client
+dhcpv6-server	547/tcp	   #DHCPv6 Server
+dhcpv6-server	547/udp	   #DHCPv6 Server
+afpovertcp	548/tcp	   #AFP over TCP
+afpovertcp	548/udp	   #AFP over TCP
+idfp		549/tcp
+idfp		549/udp
+new-rwho	550/tcp	   new-who
+new-rwho	550/udp	   new-who
+cybercash	551/tcp
+cybercash	551/udp
+deviceshare	552/tcp
+deviceshare	552/udp
+pirp		553/tcp
+pirp		553/udp
+rtsp		554/tcp	   #Real Time Stream Control Protocol
+rtsp		554/udp	   #Real Time Stream Control Protocol
+dsf		555/tcp
+dsf		555/udp
+remotefs	556/tcp	   rfs rfs_server	# Brunhoff remote filesystem
+remotefs	556/udp	   rfs rfs_server	# Brunhoff remote filesystem
+openvms-sysipc	557/tcp
+openvms-sysipc	557/udp
+sdnskmp		558/tcp
+sdnskmp		558/udp
+teedtap		559/tcp
+teedtap		559/udp
+rmonitor	560/tcp	   rmonitord
+rmonitor	560/udp	   rmonitord
+monitor		561/tcp
+monitor		561/udp
+chshell		562/tcp	   chcmd
+chshell		562/udp	   chcmd
+nntps		563/tcp	   snntp	#nntp protocol over TLS/SSL
+nntps		563/udp	   snntp	#nntp protocol over TLS/SSL
+9pfs		564/tcp	   #plan 9 file service
+9pfs		564/udp	   #plan 9 file service
+whoami		565/tcp
+whoami		565/udp
+streettalk	566/tcp
+streettalk	566/udp
+banyan-rpc	567/tcp
+banyan-rpc	567/udp
+ms-shuttle	568/tcp	   #Microsoft shuttle
+ms-shuttle	568/udp	   #Microsoft shuttle
+ms-rome		569/tcp	   #Microsoft rome
+ms-rome		569/udp	   #Microsoft rome
+meter		570/tcp	   #demon
+meter		570/udp	   #demon
+umeter		571/tcp	   #udemon
+umeter		571/udp	   #udemon
+sonar		572/tcp
+sonar		572/udp
+banyan-vip	573/tcp
+banyan-vip	573/udp
+ftp-agent	574/tcp	   #FTP Software Agent System
+ftp-agent	574/udp	   #FTP Software Agent System
+vemmi		575/tcp
+vemmi		575/udp
+ipcd		576/tcp
+ipcd		576/udp
+vnas		577/tcp
+vnas		577/udp
+ipdd		578/tcp
+ipdd		578/udp
+decbsrv		579/tcp
+decbsrv		579/udp
+sntp-heartbeat	580/tcp
+sntp-heartbeat	580/udp
+bdp		581/tcp	   #Bundle Discovery Protocol
+bdp		581/udp	   #Bundle Discovery Protocol
+scc-security	582/tcp
+scc-security	582/udp
+philips-vc	583/tcp	   #Philips Video-Conferencing
+philips-vc	583/udp	   #Philips Video-Conferencing
+keyserver	584/tcp
+keyserver	584/udp
+#imap4-ssl@585 never should have been allocated. See PR 46294.
+#imap4-ssl	585/tcp	   #IMAP4+SSL (use of 585 is not recommended,
+#imap4-ssl	585/udp	   #		use 993 instead)
+password-chg	586/tcp
+password-chg	586/udp
+submission	587/tcp
+submission	587/udp
+cal		588/tcp
+cal		588/udp
+eyelink		589/tcp
+eyelink		589/udp
+tns-cml		590/tcp
+tns-cml		590/udp
+http-alt	591/tcp	   #FileMaker, Inc. - HTTP Alternate (see Port 80)
+http-alt	591/udp	   #FileMaker, Inc. - HTTP Alternate (see Port 80)
+eudora-set	592/tcp
+eudora-set	592/udp
+http-rpc-epmap	593/tcp	   #HTTP RPC Ep Map
+http-rpc-epmap	593/udp	   #HTTP RPC Ep Map
+tpip		594/tcp
+tpip		594/udp
+cab-protocol	595/tcp
+cab-protocol	595/udp
+smsd		596/tcp
+smsd		596/udp
+ptcnameservice	597/tcp	   #PTC Name Service
+ptcnameservice	597/udp	   #PTC Name Service
+sco-websrvrmg3	598/tcp	   #SCO Web Server Manager 3
+sco-websrvrmg3	598/udp	   #SCO Web Server Manager 3
+acp		599/tcp	   #Aeolon Core Protocol
+acp		599/udp	   #Aeolon Core Protocol
+ipcserver	600/tcp	   #Sun IPC server
+ipcserver	600/udp	   #Sun IPC server
+syslog-conn	601/tcp    #Reliable Syslog Service
+syslog-conn	601/udp    #Reliable Syslog Service
+xmlrpc-beep	602/tcp    #XML-RPC over BEEP
+xmlrpc-beep	602/udp    #XML-RPC over BEEP
+idxp		603/tcp
+idxp		603/udp
+tunnel		604/tcp
+tunnel		604/udp
+soap-beep	605/tcp    #SOAP over BEEP
+soap-beep	605/udp    #SOAP over BEEP
+urm		606/tcp	   #Cray Unified Resource Manager
+urm		606/udp	   #Cray Unified Resource Manager
+nqs		607/tcp
+nqs		607/udp
+sift-uft	608/tcp	   #Sender-Initiated/Unsolicited File Transfer
+sift-uft	608/udp	   #Sender-Initiated/Unsolicited File Transfer
+npmp-trap	609/tcp
+npmp-trap	609/udp
+npmp-local	610/tcp
+npmp-local	610/udp
+npmp-gui	611/tcp
+npmp-gui	611/udp
+hmmp-ind	612/tcp    #HMMP Indication
+hmmp-ind	612/udp	   #HMMP Indication
+hmmp-op		613/tcp    #HMMP Operation
+hmmp-op		613/udp	   #HMMP Operation
+sshell		614/tcp	   #SSLshell
+sshell		614/udp
+sco-inetmgr	615/tcp	   #Internet Configuration Manager
+sco-inetmgr	615/udp    #Internet Configuration Manager
+sco-sysmgr	616/tcp    #SCO System Administration Server
+sco-sysmgr	616/udp    #SCO System Administration Server
+sco-dtmgr	617/tcp    #SCO Desktop Administration Server
+sco-dtmgr	617/udp    #SCO Desktop Administration Server
+dei-icda	618/tcp
+dei-icda	618/udp
+compaq-evm	619/tcp    #Compaq EVM
+compaq-evm	619/udp    #Compaq EVM
+sco-websrvrmgr	620/tcp    #SCO WebServer Manager
+sco-websrvrmgr	620/udp    #SCO WebServer Manager
+escp-ip		621/tcp    #ESCP
+escp-ip		621/udp    #ESCP
+collaborator	622/tcp
+collaborator	622/udp
+asf-rmcp	623/tcp    #ASF Remote Management and Control Protocol
+asf-rmcp	623/udp    #ASF Remote Management and Control Protocol
+cryptoadmin	624/tcp    #Crypto Admin
+cryptoadmin	624/udp    #Crypto Admin
+dec_dlm		625/tcp    #DEC DLM
+dec_dlm		625/udp    #DEC DLM
+asia		626/tcp
+asia		626/udp
+passgo-tivoli	627/tcp    #PassGo Tivoli
+passgo-tivoli	627/udp    #PassGo Tivoli
+qmqp		628/tcp
+qmqp		628/udp
+3com-amp3	629/tcp    #3Com AMP3
+3com-amp3	629/udp    #3Com AMP3
+rda		630/tcp
+rda		630/udp
+ipp		631/tcp	   #IPP (Internet Printing Protocol)
+ipp		631/udp	   #IPP (Internet Printing Protocol)
+bmpp		632/tcp
+bmpp		632/udp
+servstat	633/tcp    #Service Status update (Sterling Software)
+servstat	633/udp    #Service Status update (Sterling Software)
+ginad		634/tcp
+ginad		634/udp
+rlzdbase	635/tcp    #RLZ DBase
+rlzdbase	635/udp    #RLZ DBase
+ldaps		636/tcp	   sldap	#ldap protocol over TLS/SSL
+ldaps		636/udp	   sldap
+lanserver	637/tcp
+lanserver	637/udp
+mcns-sec	638/tcp
+mcns-sec	638/udp
+msdp		639/tcp
+msdp		639/udp
+entrust-sps	640/tcp
+entrust-sps	640/udp
+repcmd		641/tcp
+repcmd		641/udp
+esro-emsdp	642/tcp    #ESRO-EMSDP V1.3
+esro-emsdp	642/udp    #ESRO-EMSDP V1.3
+sanity		643/tcp    #SANity
+sanity		643/udp    #SANity
+dwr		644/tcp
+dwr		644/udp
+pssc		645/tcp
+pssc		645/udp
+ldp		646/tcp
+ldp		646/udp
+dhcp-failover	647/tcp    #DHCP Failover
+dhcp-failover	647/udp    #DHCP Failover
+rrp		648/tcp    #Registry Registrar Protocol (RRP)
+rrp		648/udp    #Registry Registrar Protocol (RRP)
+cadview-3d	649/tcp    #Cadview-3d - streaming 3d models over the internet
+cadview-3d	649/udp    #Cadview-3d - streaming 3d models over the internet
+obex		650/tcp
+obex		650/udp
+ieee-mms	651/tcp    #IEEE MMS
+ieee-mms	651/udp    #IEEE MMS
+hello-port	652/tcp
+hello-port	652/udp
+repscmd		653/tcp
+repscmd		653/udp
+aodv		654/tcp	   #Ad-Hoc On-Demand Distance Vector Routing Protocol
+aodv		654/udp	   #Ad-Hoc On-Demand Distance Vector Routing Protocol
+tinc		655/tcp
+tinc		655/udp
+spmp		656/tcp
+spmp		656/udp
+rmc		657/tcp
+rmc		657/udp
+tenfold		658/tcp
+tenfold		658/udp
+mac-srvr-admin	660/tcp    #MacOS Server Admin
+mac-srvr-admin	660/udp    #MacOS Server Admin
+hap		661/tcp
+hap		661/udp
+pftp		662/tcp
+pftp		662/udp
+purenoise	663/tcp    #PureNoise
+purenoise	663/udp    #PureNoise
+asf-secure-rmcp	664/tcp    #ASF Secure Remote Management and Control Protocol
+asf-secure-rmcp	664/udp    #ASF Secure Remote Management and Control Protocol
+sun-dr		665/tcp    #Sun DR
+sun-dr		665/udp    #Sun DR
+mdqs		666/tcp
+mdqs		666/udp
+#PROBLEMS!===============================================
+doom		666/tcp	   #doom Id Software
+doom		666/udp	   #doom Id Software
+#PROBLEMS!===============================================
+disclose	667/tcp    #campaign contribution disclosures - SDR Technologies
+disclose	667/udp    #campaign contribution disclosures - SDR Technologies
+mecomm		668/tcp
+mecomm		668/udp
+meregister	669/tcp
+meregister	669/udp
+vacdsm-sws	670/tcp
+vacdsm-sws	670/udp
+vacdsm-app	671/tcp
+vacdsm-app	671/udp
+vpps-qua	672/tcp
+vpps-qua	672/udp
+cimplex		673/tcp
+cimplex		673/udp
+acap		674/tcp	   #Application Configuration Access Protocol
+acap		674/udp	   #Application Configuration Access Protocol
+dctp		675/tcp
+dctp		675/udp
+vpps-via	676/tcp    #VPPS Via
+vpps-via	676/udp    #VPPS Via
+vpp		677/tcp    #Virtual Presence Protocol
+vpp		677/udp    #Virtual Presence Protocol
+ggf-ncp		678/tcp    #GNU Generation Foundation NCP
+ggf-ncp		678/udp    #GNU Generation Foundation NCP
+mrm		679/tcp
+mrm		679/udp
+entrust-aaas	680/tcp
+entrust-aaas	680/udp
+entrust-aams	681/tcp
+entrust-aams	681/udp
+xfr		682/tcp
+xfr		682/udp
+corba-iiop	683/tcp    #CORBA IIOP
+corba-iiop	683/udp    #CORBA IIOP
+corba-iiop-ssl	684/tcp    #CORBA IIOP SSL
+corba-iiop-ssl	684/udp    #CORBA IIOP SSL
+mdc-portmapper	685/tcp    #MDC Port Mapper
+mdc-portmapper	685/udp    #MDC Port Mapper
+hcp-wismar	686/tcp    #Hardware Control Protocol Wismar
+hcp-wismar	686/udp    #Hardware Control Protocol Wismar
+asipregistry	687/tcp
+asipregistry	687/udp
+realm-rusd	688/tcp    #ApplianceWare management protocol
+realm-rusd	688/udp    #ApplianceWare management protocol
+nmap		689/tcp
+nmap		689/udp
+vatp		690/tcp    #Velazquez Application Transfer Protocol
+vatp		690/udp    #Velazquez Application Transfer Protocol
+msexch-routing	691/tcp    #MS Exchange Routing
+msexch-routing	691/udp    #MS Exchange Routing
+hyperwave-isp	692/tcp    #Hyperwave-ISP
+hyperwave-isp	692/udp    #Hyperwave-ISP
+connendp	693/tcp
+connendp	693/udp
+ha-cluster	694/tcp
+ha-cluster	694/udp
+ieee-mms-ssl	695/tcp
+ieee-mms-ssl	695/udp
+rushd		696/tcp
+rushd		696/udp
+uuidgen		697/tcp
+uuidgen		697/udp
+olsr		698/tcp
+olsr		698/udp
+accessnetwork	699/tcp    #Access Network
+accessnetwork	699/udp    #Access Network
+epp		700/tcp    #Extensible Provisioning Protocol
+epp		700/udp    #Extensible Provisioning Protocol
+lmp		701/tcp    #Link Management Protocol (LMP)
+lmp		701/udp    #Link Management Protocol (LMP)
+iris-beep	702/tcp    #IRIS over BEEP
+iris-beep	702/udp    #IRIS over BEEP
+elcsd		704/tcp	   #errlog copy/server daemon
+elcsd		704/udp	   #errlog copy/server daemon
+agentx		705/tcp    #AgentX
+agentx		705/udp    #AgentX
+silc		706/tcp
+silc		706/udp
+borland-dsj	707/tcp    #Borland DSJ
+borland-dsj	707/udp	   #Borland DSJ
+entrustmanager	709/tcp	   #EntrustManager
+entrustmanager	709/udp	   #EntrustManager
+entrust-ash	710/tcp    #Entrust Administration Service Handler
+entrust-ash	710/udp    #Entrust Administration Service Handler
+cisco-tdp	711/tcp    #Cisco TDP
+cisco-tdp	711/udp    #Cisco TDP
+tbrpf		712/tcp
+tbrpf		712/udp
+iris-xpc	713/tcp    #IRIS over XPC
+iris-xpc	713/udp    #IRIS over XPC
+iris-xpcs	714/tcp    #IRIS over XPCS
+iris-xpcs	714/udp    #IRIS over XPCS
+iris-lwz	715/tcp
+iris-lwz	715/udp
+netviewdm1	729/tcp	   #IBM NetView DM/6000 Server/Client
+netviewdm1	729/udp	   #IBM NetView DM/6000 Server/Client
+netviewdm2	730/tcp	   #IBM NetView DM/6000 send/tcp
+netviewdm2	730/udp	   #IBM NetView DM/6000 send/tcp
+netviewdm3	731/tcp	   #IBM NetView DM/6000 receive/tcp
+netviewdm3	731/udp	   #IBM NetView DM/6000 receive/tcp
+netgw		741/tcp
+netgw		741/udp
+netrcs		742/tcp	   #Network based Rev. Cont. Sys.
+netrcs		742/udp	   #Network based Rev. Cont. Sys.
+flexlm		744/tcp	   #Flexible License Manager
+flexlm		744/udp	   #Flexible License Manager
+fujitsu-dev	747/tcp	   #Fujitsu Device Control
+fujitsu-dev	747/udp	   #Fujitsu Device Control
+ris-cm		748/tcp	   #Russell Info Sci Calendar Manager
+ris-cm		748/udp	   #Russell Info Sci Calendar Manager
+kerberos-adm	749/tcp	   #Kerberos administration (v5)
+kerberos-adm	749/udp	   #Kerberos administration (v5)
+kerberos-iv	750/udp	   kdc		# Kerberos (v4)
+kerberos-iv	750/tcp	   kdc		# Kerberos (v4)
+#PROBLEMS!========================================================
+#rfile		750/tcp
+#loadav		750/udp
+#PROBLEMS!========================================================
+kerberos_master	751/tcp	   # Kerberos `kadmin' (v4)
+kerberos_master	751/udp	   # Kerberos `kadmin' (v4)
+#PROBLEMS!========================================================
+pump		751/tcp
+pump		751/udp
+#PROBLEMS!========================================================
+qrh		752/tcp
+qrh		752/udp
+rrh		753/tcp
+rrh		753/udp
+krb_prop	754/tcp	   krb5_prop	# kerberos/v5 server propagation
+#PROBLEMS!========================================================
+tell		754/tcp	   #send
+#PROBLEMS!========================================================
+tell		754/udp	   #send
+nlogin		758/tcp
+nlogin		758/udp
+con		759/tcp
+con		759/udp
+krbupdate	760/tcp	   kreg		# Kerberos (v4) registration
+#PROBLEMS!========================================================
+ns		760/tcp
+#PROBLEMS!========================================================
+ns		760/udp
+kpasswd		761/tcp	   kpwd		# Kerberos (v4) "passwd"
+#PROBLEMS!========================================================
+rxe		761/tcp
+#PROBLEMS!========================================================
+rxe		761/udp
+quotad		762/tcp
+quotad		762/udp
+cycleserv	763/tcp
+cycleserv	763/udp
+omserv		764/tcp
+omserv		764/udp
+webster		765/tcp
+webster		765/udp
+phonebook	767/tcp	   #phone
+phonebook	767/udp	   #phone
+vid		769/tcp
+vid		769/udp
+cadlock		770/tcp
+cadlock		770/udp
+rtip		771/tcp
+rtip		771/udp
+cycleserv2	772/tcp
+cycleserv2	772/udp
+submit		773/tcp
+notify		773/udp
+rpasswd		774/tcp
+acmaint_dbd	774/udp
+entomb		775/tcp
+acmaint_transd	775/udp
+wpages		776/tcp
+wpages		776/udp
+multiling-http	777/tcp    #Multiling HTTP
+multiling-http	777/udp    #Multiling HTTP
+wpgs		780/tcp
+wpgs		780/udp
+mdbs_daemon	800/tcp
+mdbs_daemon	800/udp
+device		801/tcp
+device		801/udp
+mbap-s		802/tcp    # Modbus Application Protocol Secure
+mbap-s		802/udp    # Modbus Application Protocol Secure
+fcp-udp		810/tcp    #FCP
+fcp-udp		810/udp    #FCP Datagram
+itm-mcell-s	828/tcp
+itm-mcell-s	828/udp
+pkix-3-ca-ra	829/tcp    #PKIX-3 CA/RA
+pkix-3-ca-ra	829/udp    #PKIX-3 CA/RA
+netconf-ssh	830/tcp    #NETCONF over SSH
+netconf-ssh	830/udp    #NETCONF over SSH
+netconf-beep	831/tcp    #NETCONF over BEEP
+netconf-beep	831/udp    #NETCONF over BEEP
+netconfsoaphttp	832/tcp    #NETCONF for SOAP over HTTPS
+netconfsoaphttp	832/udp    #NETCONF for SOAP over HTTPS
+netconfsoapbeep	833/tcp    #NETCONF for SOAP over BEEP
+netconfsoapbeep	833/udp    #NETCONF for SOAP over BEEP
+dhcp-failover2	847/tcp    #dhcp-failover 2
+dhcp-failover2	847/udp    #dhcp-failover 2
+gdoi		848/tcp
+gdoi		848/udp
+iscsi		860/tcp
+iscsi		860/udp
+owamp-control	861/tcp
+owamp-control	861/udp
+supfilesrv	871/tcp	   # for SUP
+rsync		873/tcp
+rsync		873/udp
+iclcnet-locate	886/tcp    #ICL coNETion locate server
+iclcnet-locate	886/udp    #ICL coNETion locate server
+iclcnet_svinfo	887/tcp    #ICL coNETion server info
+iclcnet_svinfo	887/udp    #ICL coNETion server info
+accessbuilder	888/tcp
+accessbuilder	888/udp
+omginitialrefs	900/tcp    #OMG Initial Refs
+omginitialrefs	900/udp    #OMG Initial Refs
+swat		901/tcp	   # samba web configuration tool
+smpnameres	901/tcp
+smpnameres	901/udp
+ideafarm-chat	902/tcp
+ideafarm-chat	902/udp
+ideafarm-catch	903/tcp
+ideafarm-catch	903/udp
+kink		910/tcp    #Kerberized Internet Negotiation of Keys (KINK)
+kink		910/udp    #Kerberized Internet Negotiation of Keys (KINK)
+xact-backup	911/tcp
+xact-backup	911/udp
+apex-mesh	912/tcp    #APEX relay-relay service
+apex-mesh	912/udp    #APEX relay-relay service
+apex-edge	913/tcp    #APEX endpoint-relay service
+apex-edge	913/udp    #APEX endpoint-relay service
+rndc		953/tcp	   # named's rndc control socket
+ftps-data	989/tcp	   # ftp protocol, data, over TLS/SSL
+ftps-data	989/udp
+ftps		990/tcp	   # ftp protocol, control, over TLS/SSL
+ftps		990/udp
+nas		991/tcp    #Netnews Administration System
+nas		991/udp    #Netnews Administration System
+telnets		992/tcp	   # telnet protocol over TLS/SSL
+telnets		992/udp
+imaps		993/tcp	   # imap4 protocol over TLS/SSL
+imaps		993/udp
+ircs		994/tcp	   # irc protocol over TLS/SSL
+ircs		994/udp
+pop3s		995/tcp	   spop3	# pop3 protocol over TLS/SSL
+pop3s		995/udp	   spop3
+vsinet		996/tcp
+vsinet		996/udp
+maitrd		997/tcp
+maitrd		997/udp
+busboy		998/tcp
+puparp		998/udp
+garcon		999/tcp
+applix		999/udp	   #Applix ac
+puprouter	999/tcp
+puprouter	999/udp
+cadlock2	1000/tcp
+cadlock2	1000/udp
+surf		1010/tcp
+surf		1010/udp
+exp1		1021/tcp   #RFC3692-style Experiment 1 (*)    [RFC4727]
+exp1		1021/udp   #RFC3692-style Experiment 1 (*)    [RFC4727]
+exp2		1022/tcp   #RFC3692-style Experiment 2 (*)    [RFC4727]
+exp2		1022/udp   #RFC3692-style Experiment 2 (*)    [RFC4727]
+#
+# REGISTERED PORT NUMBERS
+#
+blackjack	1025/tcp   #network blackjack
+blackjack	1025/udp   #network blackjack
+iad1		1030/tcp   #BBN IAD
+iad1		1030/udp   #BBN IAD
+iad2		1031/tcp   #BBN IAD
+iad2		1031/udp   #BBN IAD
+iad3		1032/tcp   #BBN IAD
+iad3		1032/udp   #BBN IAD
+nim		1058/tcp
+nim		1058/udp
+nimreg		1059/tcp
+nimreg		1059/udp
+instl_boots	1067/tcp   #Installation Bootstrap Proto. Serv.
+instl_boots	1067/udp   #Installation Bootstrap Proto. Serv.
+instl_bootc	1068/tcp   #Installation Bootstrap Proto. Cli.
+instl_bootc	1068/udp   #Installation Bootstrap Proto. Cli.
+socks		1080/tcp
+socks		1080/udp
+ansoft-lm-1	1083/tcp   #Anasoft License Manager
+ansoft-lm-1	1083/udp   #Anasoft License Manager
+ansoft-lm-2	1084/tcp   #Anasoft License Manager
+ansoft-lm-2	1084/udp   #Anasoft License Manager
+webobjects	1085/tcp   #Web Objects
+webobjects	1085/udp   #Web Objects
+kpop		1109/tcp   #Unofficial
+kpop		1109/udp   #Unofficial
+nfsd-status	1110/tcp   #Cluster status info
+nfsd-keepalive	1110/udp   #Client status info
+supfiledbg	1127/tcp   # for SUP
+nfa		1155/tcp   #Network File Access
+nfa		1155/udp   #Network File Access
+cisco-ipsla	1167/sctp  #Cisco IP SLAs Control Protocol
+cisco-ipsla	1167/tcp   #Cisco IP SLAs Control Protocol
+cisco-ipsla	1167/udp   #Cisco IP SLAs Control Protocol
+skkserv		1178/tcp   #SKK (kanji input)
+openvpn		1194/tcp   #OpenVPN
+openvpn		1194/udp   #OpenVPN
+lupa		1212/tcp
+lupa		1212/udp
+nerv		1222/tcp   #SNI R&D network
+nerv		1222/udp   #SNI R&D network
+hermes		1248/tcp
+hermes		1248/udp
+healthd		1281/tcp   #healthd
+healthd		1281/udp   #healthd
+alta-ana-lm	1346/tcp   #Alta Analytics License Manager
+alta-ana-lm	1346/udp   #Alta Analytics License Manager
+bbn-mmc		1347/tcp   #multi media conferencing
+bbn-mmc		1347/udp   #multi media conferencing
+bbn-mmx		1348/tcp   #multi media conferencing
+bbn-mmx		1348/udp   #multi media conferencing
+sbook		1349/tcp   #Registration Network Protocol
+sbook		1349/udp   #Registration Network Protocol
+editbench	1350/tcp   #Registration Network Protocol
+editbench	1350/udp   #Registration Network Protocol
+equationbuilder	1351/tcp   #Digital Tool Works (MIT)
+equationbuilder	1351/udp   #Digital Tool Works (MIT)
+lotusnote	1352/tcp   #Lotus Note
+lotusnote	1352/udp   #Lotus Note
+relief		1353/tcp   #Relief Consulting
+relief		1353/udp   #Relief Consulting
+rightbrain	1354/tcp   #RightBrain Software
+rightbrain	1354/udp   #RightBrain Software
+intuitive-edge	1355/tcp   #Intuitive Edge
+intuitive-edge	1355/udp   #Intuitive Edge
+cuillamartin	1356/tcp   #CuillaMartin Company
+cuillamartin	1356/udp   #CuillaMartin Company
+pegboard	1357/tcp   #Electronic PegBoard
+pegboard	1357/udp   #Electronic PegBoard
+connlcli	1358/tcp
+connlcli	1358/udp
+ftsrv		1359/tcp
+ftsrv		1359/udp
+mimer		1360/tcp
+mimer		1360/udp
+linx		1361/tcp
+linx		1361/udp
+timeflies	1362/tcp
+timeflies	1362/udp
+ndm-requester	1363/tcp   #Network DataMover Requester
+ndm-requester	1363/udp   #Network DataMover Requester
+ndm-server	1364/tcp   #Network DataMover Server
+ndm-server	1364/udp   #Network DataMover Server
+adapt-sna	1365/tcp   #Network Software Associates
+adapt-sna	1365/udp   #Network Software Associates
+netware-csp	1366/tcp   #Novell NetWare Comm Service Platform
+netware-csp	1366/udp   #Novell NetWare Comm Service Platform
+dcs		1367/tcp
+dcs		1367/udp
+screencast	1368/tcp
+screencast	1368/udp
+gv-us		1369/tcp   #GlobalView to Unix Shell
+gv-us		1369/udp   #GlobalView to Unix Shell
+us-gv		1370/tcp   #Unix Shell to GlobalView
+us-gv		1370/udp   #Unix Shell to GlobalView
+fc-cli		1371/tcp   #Fujitsu Config Protocol
+fc-cli		1371/udp   #Fujitsu Config Protocol
+fc-ser		1372/tcp   #Fujitsu Config Protocol
+fc-ser		1372/udp   #Fujitsu Config Protocol
+chromagrafx	1373/tcp
+chromagrafx	1373/udp
+molly		1374/tcp   #EPI Software Systems
+molly		1374/udp   #EPI Software Systems
+bytex		1375/tcp
+bytex		1375/udp
+ibm-pps		1376/tcp   #IBM Person to Person Software
+ibm-pps		1376/udp   #IBM Person to Person Software
+cichlid		1377/tcp   #Cichlid License Manager
+cichlid		1377/udp   #Cichlid License Manager
+elan		1378/tcp   #Elan License Manager
+elan		1378/udp   #Elan License Manager
+dbreporter	1379/tcp   #Integrity Solutions
+dbreporter	1379/udp   #Integrity Solutions
+telesis-licman	1380/tcp   #Telesis Network License Manager
+telesis-licman	1380/udp   #Telesis Network License Manager
+apple-licman	1381/tcp   #Apple Network License Manager
+apple-licman	1381/udp   #Apple Network License Manager
+#udt_os		1382/tcp
+#udt_os		1382/udp
+gwha		1383/tcp   #GW Hannaway Network License Manager
+gwha		1383/udp   #GW Hannaway Network License Manager
+os-licman	1384/tcp   #Objective Solutions License Manager
+os-licman	1384/udp   #Objective Solutions License Manager
+atex_elmd	1385/tcp   #Atex Publishing License Manager
+atex_elmd	1385/udp   #Atex Publishing License Manager
+checksum	1386/tcp   #CheckSum License Manager
+checksum	1386/udp   #CheckSum License Manager
+cadsi-lm	1387/tcp   #Computer Aided Design Software Inc LM
+cadsi-lm	1387/udp   #Computer Aided Design Software Inc LM
+objective-dbc	1388/tcp   #Objective Solutions DataBase Cache
+objective-dbc	1388/udp   #Objective Solutions DataBase Cache
+iclpv-dm	1389/tcp   #Document Manager
+iclpv-dm	1389/udp   #Document Manager
+iclpv-sc	1390/tcp   #Storage Controller
+iclpv-sc	1390/udp   #Storage Controller
+iclpv-sas	1391/tcp   #Storage Access Server
+iclpv-sas	1391/udp   #Storage Access Server
+iclpv-pm	1392/tcp   #Print Manager
+iclpv-pm	1392/udp   #Print Manager
+iclpv-nls	1393/tcp   #Network Log Server
+iclpv-nls	1393/udp   #Network Log Server
+iclpv-nlc	1394/tcp   #Network Log Client
+iclpv-nlc	1394/udp   #Network Log Client
+iclpv-wsm	1395/tcp   #PC Workstation Manager software
+iclpv-wsm	1395/udp   #PC Workstation Manager software
+dvl-activemail	1396/tcp   #DVL Active Mail
+dvl-activemail	1396/udp   #DVL Active Mail
+audio-activmail	1397/tcp   #Audio Active Mail
+audio-activmail	1397/udp   #Audio Active Mail
+video-activmail	1398/tcp   #Video Active Mail
+video-activmail	1398/udp   #Video Active Mail
+cadkey-licman	1399/tcp   #Cadkey License Manager
+cadkey-licman	1399/udp   #Cadkey License Manager
+cadkey-tablet	1400/tcp   #Cadkey Tablet Daemon
+cadkey-tablet	1400/udp   #Cadkey Tablet Daemon
+goldleaf-licman	1401/tcp   #Goldleaf License Manager
+goldleaf-licman	1401/udp   #Goldleaf License Manager
+prm-sm-np	1402/tcp   #Prospero Resource Manager
+prm-sm-np	1402/udp   #Prospero Resource Manager
+prm-nm-np	1403/tcp   #Prospero Resource Manager
+prm-nm-np	1403/udp   #Prospero Resource Manager
+igi-lm		1404/tcp   #Infinite Graphics License Manager
+igi-lm		1404/udp   #Infinite Graphics License Manager
+ibm-res		1405/tcp   #IBM Remote Execution Starter
+ibm-res		1405/udp   #IBM Remote Execution Starter
+netlabs-lm	1406/tcp   #NetLabs License Manager
+netlabs-lm	1406/udp   #NetLabs License Manager
+dbsa-lm		1407/tcp   #DBSA License Manager
+dbsa-lm		1407/udp   #DBSA License Manager
+sophia-lm	1408/tcp   #Sophia License Manager
+sophia-lm	1408/udp   #Sophia License Manager
+here-lm		1409/tcp   #Here License Manager
+here-lm		1409/udp   #Here License Manager
+hiq		1410/tcp   #HiQ License Manager
+hiq		1410/udp   #HiQ License Manager
+af		1411/tcp   #AudioFile
+af		1411/udp   #AudioFile
+innosys		1412/tcp
+innosys		1412/udp
+innosys-acl	1413/tcp
+innosys-acl	1413/udp
+ibm-mqseries	1414/tcp   #IBM MQSeries
+ibm-mqseries	1414/udp   #IBM MQSeries
+dbstar		1415/tcp
+dbstar		1415/udp
+novell-lu6.2	1416/tcp   #Novell LU6.2
+novell-lu6.2	1416/udp   #Novell LU6.2
+timbuktu-srv1	1417/tcp   #Timbuktu Service 1 Port
+timbuktu-srv1	1417/udp   #Timbuktu Service 1 Port
+timbuktu-srv2	1418/tcp   #Timbuktu Service 2 Port
+timbuktu-srv2	1418/udp   #Timbuktu Service 2 Port
+timbuktu-srv3	1419/tcp   #Timbuktu Service 3 Port
+timbuktu-srv3	1419/udp   #Timbuktu Service 3 Port
+timbuktu-srv4	1420/tcp   #Timbuktu Service 4 Port
+timbuktu-srv4	1420/udp   #Timbuktu Service 4 Port
+gandalf-lm	1421/tcp   #Gandalf License Manager
+gandalf-lm	1421/udp   #Gandalf License Manager
+autodesk-lm	1422/tcp   #Autodesk License Manager
+autodesk-lm	1422/udp   #Autodesk License Manager
+essbase		1423/tcp   #Essbase Arbor Software
+essbase		1423/udp   #Essbase Arbor Software
+hybrid		1424/tcp   #Hybrid Encryption Protocol
+hybrid		1424/udp   #Hybrid Encryption Protocol
+zion-lm		1425/tcp   #Zion Software License Manager
+zion-lm		1425/udp   #Zion Software License Manager
+sas-1		1426/tcp   #Satellite-data Acquisition System 1
+sas-1		1426/udp   #Satellite-data Acquisition System 1
+mloadd		1427/tcp   #mloadd monitoring tool
+mloadd		1427/udp   #mloadd monitoring tool
+informatik-lm	1428/tcp   #Informatik License Manager
+informatik-lm	1428/udp   #Informatik License Manager
+nms		1429/tcp   #Hypercom NMS
+nms		1429/udp   #Hypercom NMS
+tpdu		1430/tcp   #Hypercom TPDU
+tpdu		1430/udp   #Hypercom TPDU
+rgtp		1431/tcp   #Reverse Gossip Transport
+rgtp		1431/udp   #Reverse Gossip Transport
+blueberry-lm	1432/tcp   #Blueberry Software License Manager
+blueberry-lm	1432/udp   #Blueberry Software License Manager
+ms-sql-s	1433/tcp   #Microsoft-SQL-Server
+ms-sql-s	1433/udp   #Microsoft-SQL-Server
+ms-sql-m	1434/tcp   #Microsoft-SQL-Monitor
+ms-sql-m	1434/udp   #Microsoft-SQL-Monitor
+ibm-cics	1435/tcp
+ibm-cics	1435/udp
+sas-2		1436/tcp   #Satellite-data Acquisition System 2
+sas-2		1436/udp   #Satellite-data Acquisition System 2
+tabula		1437/tcp
+tabula		1437/udp
+eicon-server	1438/tcp   #Eicon Security Agent/Server
+eicon-server	1438/udp   #Eicon Security Agent/Server
+eicon-x25	1439/tcp   #Eicon X25/SNA Gateway
+eicon-x25	1439/udp   #Eicon X25/SNA Gateway
+eicon-slp	1440/tcp   #Eicon Service Location Protocol
+eicon-slp	1440/udp   #Eicon Service Location Protocol
+cadis-1		1441/tcp   #Cadis License Management
+cadis-1		1441/udp   #Cadis License Management
+cadis-2		1442/tcp   #Cadis License Management
+cadis-2		1442/udp   #Cadis License Management
+ies-lm		1443/tcp   #Integrated Engineering Software
+ies-lm		1443/udp   #Integrated Engineering Software
+marcam-lm	1444/tcp   #Marcam  License Management
+marcam-lm	1444/udp   #Marcam  License Management
+proxima-lm	1445/tcp   #Proxima License Manager
+proxima-lm	1445/udp   #Proxima License Manager
+ora-lm		1446/tcp   #Optical Research Associates License Manager
+ora-lm		1446/udp   #Optical Research Associates License Manager
+apri-lm		1447/tcp   #Applied Parallel Research LM
+apri-lm		1447/udp   #Applied Parallel Research LM
+oc-lm		1448/tcp   #OpenConnect License Manager
+oc-lm		1448/udp   #OpenConnect License Manager
+peport		1449/tcp
+peport		1449/udp
+dwf		1450/tcp   #Tandem Distributed Workbench Facility
+dwf		1450/udp   #Tandem Distributed Workbench Facility
+infoman		1451/tcp   #IBM Information Management
+infoman		1451/udp   #IBM Information Management
+gtegsc-lm	1452/tcp   #GTE Government Systems License Man
+gtegsc-lm	1452/udp   #GTE Government Systems License Man
+genie-lm	1453/tcp   #Genie License Manager
+genie-lm	1453/udp   #Genie License Manager
+interhdl_elmd	1454/tcp   #interHDL License Manager
+interhdl_elmd	1454/udp   #interHDL License Manager
+esl-lm		1455/tcp   #ESL License Manager
+esl-lm		1455/udp   #ESL License Manager
+dca		1456/tcp
+dca		1456/udp
+valisys-lm	1457/tcp   #Valisys License Manager
+valisys-lm	1457/udp   #Valisys License Manager
+nrcabq-lm	1458/tcp   #Nichols Research Corp.
+nrcabq-lm	1458/udp   #Nichols Research Corp.
+proshare1	1459/tcp   #Proshare Notebook Application
+proshare1	1459/udp   #Proshare Notebook Application
+proshare2	1460/tcp   #Proshare Notebook Application
+proshare2	1460/udp   #Proshare Notebook Application
+ibm_wrless_lan	1461/tcp   #IBM Wireless LAN
+ibm_wrless_lan	1461/udp   #IBM Wireless LAN
+world-lm	1462/tcp   #World License Manager
+world-lm	1462/udp   #World License Manager
+nucleus		1463/tcp
+nucleus		1463/udp
+msl_lmd		1464/tcp   #MSL License Manager
+msl_lmd		1464/udp   #MSL License Manager
+pipes		1465/tcp   #Pipes Platform
+pipes		1465/udp   #Pipes Platform  mfarlin@peerlogic.com
+oceansoft-lm	1466/tcp   #Ocean Software License Manager
+oceansoft-lm	1466/udp   #Ocean Software License Manager
+csdmbase	1467/tcp
+csdmbase	1467/udp
+csdm		1468/tcp
+csdm		1468/udp
+aal-lm		1469/tcp   #Active Analysis Limited License Manager
+aal-lm		1469/udp   #Active Analysis Limited License Manager
+uaiact		1470/tcp   #Universal Analytics
+uaiact		1470/udp   #Universal Analytics
+csdmbase	1471/tcp
+csdmbase	1471/udp
+csdm		1472/tcp
+csdm		1472/udp
+openmath	1473/tcp
+openmath	1473/udp
+telefinder	1474/tcp
+telefinder	1474/udp
+taligent-lm	1475/tcp   #Taligent License Manager
+taligent-lm	1475/udp   #Taligent License Manager
+clvm-cfg	1476/tcp
+clvm-cfg	1476/udp
+ms-sna-server	1477/tcp
+ms-sna-server	1477/udp
+ms-sna-base	1478/tcp
+ms-sna-base	1478/udp
+dberegister	1479/tcp
+dberegister	1479/udp
+pacerforum	1480/tcp
+pacerforum	1480/udp
+airs		1481/tcp
+airs		1481/udp
+miteksys-lm	1482/tcp   #Miteksys License Manager
+miteksys-lm	1482/udp   #Miteksys License Manager
+afs		1483/tcp   #AFS License Manager
+afs		1483/udp   #AFS License Manager
+confluent	1484/tcp   #Confluent License Manager
+confluent	1484/udp   #Confluent License Manager
+lansource	1485/tcp
+lansource	1485/udp
+nms_topo_serv	1486/tcp
+nms_topo_serv	1486/udp
+localinfosrvr	1487/tcp
+localinfosrvr	1487/udp
+docstor		1488/tcp
+docstor		1488/udp
+dmdocbroker	1489/tcp
+dmdocbroker	1489/udp
+insitu-conf	1490/tcp
+insitu-conf	1490/udp
+anynetgateway	1491/tcp
+anynetgateway	1491/udp
+stone-design-1	1492/tcp
+stone-design-1	1492/udp
+netmap_lm	1493/tcp
+netmap_lm	1493/udp
+ica		1494/tcp
+ica		1494/udp
+cvc		1495/tcp
+cvc		1495/udp
+liberty-lm	1496/tcp
+liberty-lm	1496/udp
+rfx-lm		1497/tcp
+rfx-lm		1497/udp
+watcom-sql	1498/tcp
+watcom-sql	1498/udp
+fhc		1499/tcp   #Federico Heinz Consultora
+fhc		1499/udp   #Federico Heinz Consultora
+vlsi-lm		1500/tcp   #VLSI License Manager
+vlsi-lm		1500/udp   #VLSI License Manager
+sas-3		1501/tcp   #Satellite-data Acquisition System 3
+sas-3		1501/udp   #Satellite-data Acquisition System 3
+shivadiscovery	1502/tcp   #Shiva
+shivadiscovery	1502/udp   #Shiva
+imtc-mcs	1503/tcp   #Databeam
+imtc-mcs	1503/udp   #Databeam
+evb-elm		1504/tcp   #EVB Software Engineering License Manager
+evb-elm		1504/udp   #EVB Software Engineering License Manager
+funkproxy	1505/tcp   #Funk Software, Inc.
+funkproxy	1505/udp   #Funk Software, Inc.
+utcd		1506/tcp   #Universal Time daemon (utcd)
+utcd		1506/udp   #Universal Time daemon (utcd)
+symplex		1507/tcp
+symplex		1507/udp
+diagmond	1508/tcp
+diagmond	1508/udp
+robcad-lm	1509/tcp   #Robcad, Ltd. License Manager
+robcad-lm	1509/udp   #Robcad, Ltd. License Manager
+mvx-lm		1510/tcp   #Midland Valley Exploration Ltd. Lic. Man.
+mvx-lm		1510/udp   #Midland Valley Exploration Ltd. Lic. Man.
+3l-l1		1511/tcp
+3l-l1		1511/udp
+wins		1512/tcp   #Microsoft's Windows Internet Name Service
+wins		1512/udp   #Microsoft's Windows Internet Name Service
+fujitsu-dtc	1513/tcp   #Fujitsu Systems Business of America, Inc
+fujitsu-dtc	1513/udp   #Fujitsu Systems Business of America, Inc
+fujitsu-dtcns	1514/tcp   #Fujitsu Systems Business of America, Inc
+fujitsu-dtcns	1514/udp   #Fujitsu Systems Business of America, Inc
+ifor-protocol	1515/tcp
+ifor-protocol	1515/udp
+vpad		1516/tcp   #Virtual Places Audio data
+vpad		1516/udp   #Virtual Places Audio data
+vpac		1517/tcp   #Virtual Places Audio control
+vpac		1517/udp   #Virtual Places Audio control
+vpvd		1518/tcp   #Virtual Places Video data
+vpvd		1518/udp   #Virtual Places Video data
+vpvc		1519/tcp   #Virtual Places Video control
+vpvc		1519/udp   #Virtual Places Video control
+atm-zip-office	1520/tcp   #atm zip office
+atm-zip-office	1520/udp   #atm zip office
+ncube-lm	1521/tcp   #nCube License Manager
+ncube-lm	1521/udp   #nCube License Manager
+rna-lm		1522/tcp   #Ricardo North America License Manager
+rna-lm		1522/udp   #Ricardo North America License Manager
+cichild-lm	1523/tcp
+cichild-lm	1523/udp
+ingreslock	1524/tcp   #ingres
+ingreslock	1524/udp   #ingres
+prospero-np	1525/tcp   #Prospero Directory Service non-priv
+prospero-np	1525/udp   #Prospero Directory Service non-priv
+#PROBLEMS!========================================================
+orasrv		1525/tcp   #oracle
+orasrv		1525/udp   #oracle
+#PROBLEMS!========================================================
+pdap-np		1526/tcp   #Prospero Data Access Prot non-priv
+pdap-np		1526/udp   #Prospero Data Access Prot non-priv
+tlisrv		1527/tcp   #oracle
+tlisrv		1527/udp   #oracle
+mciautoreg	1528/tcp
+mciautoreg	1528/udp
+support		1529/tcp   prmsd gnatsd	# cygnus bug tracker
+coauthor	1529/tcp   #oracle
+coauthor	1529/udp   #oracle
+rap-service	1530/tcp
+rap-service	1530/udp
+rap-listen	1531/tcp
+rap-listen	1531/udp
+miroconnect	1532/tcp
+miroconnect	1532/udp
+virtual-places	1533/tcp   #Virtual Places Software
+virtual-places	1533/udp   #Virtual Places Software
+micromuse-lm	1534/tcp
+micromuse-lm	1534/udp
+ampr-info	1535/tcp
+ampr-info	1535/udp
+ampr-inter	1536/tcp
+ampr-inter	1536/udp
+sdsc-lm		1537/tcp
+sdsc-lm		1537/udp
+3ds-lm		1538/tcp
+3ds-lm		1538/udp
+intellistor-lm	1539/tcp   #Intellistor License Manager
+intellistor-lm	1539/udp   #Intellistor License Manager
+rds		1540/tcp
+rds		1540/udp
+rds2		1541/tcp
+rds2		1541/udp
+gridgen-elmd	1542/tcp
+gridgen-elmd	1542/udp
+simba-cs	1543/tcp
+simba-cs	1543/udp
+aspeclmd	1544/tcp
+aspeclmd	1544/udp
+vistium-share	1545/tcp
+vistium-share	1545/udp
+abbaccuray	1546/tcp
+abbaccuray	1546/udp
+laplink		1547/tcp
+laplink		1547/udp
+axon-lm		1548/tcp   #Axon License Manager
+axon-lm		1548/udp   #Axon License Manager
+shivahose	1549/tcp   #Shiva Hose
+shivasound	1549/udp   #Shiva Sound
+3m-image-lm	1550/tcp   #Image Storage license manager 3M Company
+3m-image-lm	1550/udp   #Image Storage license manager 3M Company
+hecmtl-db	1551/tcp
+hecmtl-db	1551/udp
+pciarray	1552/tcp
+pciarray	1552/udp
+issd		1600/tcp
+issd		1600/udp
+# IMPORTANT NOTE: Ports 1645/1646 are the traditional radius ports used by
+# many vendors without obtaining official IANA assignment.  The official
+# assignment is now ports 1812/1813 and users are encouraged to migrate
+# when possible to these new ports.
+#radius		1645/udp   #RADIUS authentication protocol (old)
+#radacct	1646/udp   #RADIUS accounting protocol (old)
+nkd		1650/tcp
+nkd		1650/udp
+shiva_confsrvr	1651/tcp
+shiva_confsrvr	1651/udp
+xnmp		1652/tcp
+xnmp		1652/udp
+netview-aix-1	1661/tcp
+netview-aix-1	1661/udp
+netview-aix-2	1662/tcp
+netview-aix-2	1662/udp
+netview-aix-3	1663/tcp
+netview-aix-3	1663/udp
+netview-aix-4	1664/tcp
+netview-aix-4	1664/udp
+netview-aix-5	1665/tcp
+netview-aix-5	1665/udp
+netview-aix-6	1666/tcp
+netview-aix-6	1666/udp
+netview-aix-7	1667/tcp
+netview-aix-7	1667/udp
+netview-aix-8	1668/tcp
+netview-aix-8	1668/udp
+netview-aix-9	1669/tcp
+netview-aix-9	1669/udp
+netview-aix-10	1670/tcp
+netview-aix-10	1670/udp
+netview-aix-11	1671/tcp
+netview-aix-11	1671/udp
+netview-aix-12	1672/tcp
+netview-aix-12	1672/udp
+l2f		1701/tcp   #l2f
+l2f		1701/udp   #l2f
+l2tp		1701/tcp   #Layer 2 Tunnelling Protocol
+l2tp		1701/udp   #Layer 2 Tunnelling Protocol
+pptp		1723/tcp   #Point-to-point tunnelling protocol
+# IMPORTANT NOTE: See comments for ports 1645/1646 when using older equipment
+radius		1812/udp   #RADIUS authentication protocol (IANA sanctioned)
+radacct		1813/udp   #RADIUS accounting protocol (IANA sanctioned)
+licensedaemon	1986/tcp   #cisco license management
+licensedaemon	1986/udp   #cisco license management
+tr-rsrb-p1	1987/tcp   #cisco RSRB Priority 1 port
+tr-rsrb-p1	1987/udp   #cisco RSRB Priority 1 port
+tr-rsrb-p2	1988/tcp   #cisco RSRB Priority 2 port
+tr-rsrb-p2	1988/udp   #cisco RSRB Priority 2 port
+tr-rsrb-p3	1989/tcp   #cisco RSRB Priority 3 port
+tr-rsrb-p3	1989/udp   #cisco RSRB Priority 3 port
+#PROBLEMS!===================================================
+mshnet		1989/tcp   #MHSnet system
+mshnet		1989/udp   #MHSnet system
+#PROBLEMS!===================================================
+stun-p1		1990/tcp   #cisco STUN Priority 1 port
+stun-p1		1990/udp   #cisco STUN Priority 1 port
+stun-p2		1991/tcp   #cisco STUN Priority 2 port
+stun-p2		1991/udp   #cisco STUN Priority 2 port
+stun-p3		1992/tcp   #cisco STUN Priority 3 port
+stun-p3		1992/udp   #cisco STUN Priority 3 port
+#PROBLEMS!===================================================
+ipsendmsg	1992/tcp
+ipsendmsg	1992/udp
+#PROBLEMS!===================================================
+snmp-tcp-port	1993/tcp   #cisco SNMP TCP port
+snmp-tcp-port	1993/udp   #cisco SNMP TCP port
+stun-port	1994/tcp   #cisco serial tunnel port
+stun-port	1994/udp   #cisco serial tunnel port
+perf-port	1995/tcp   #cisco perf port
+perf-port	1995/udp   #cisco perf port
+tr-rsrb-port	1996/tcp   #cisco Remote SRB port
+tr-rsrb-port	1996/udp   #cisco Remote SRB port
+gdp-port	1997/tcp   #cisco Gateway Discovery Protocol
+gdp-port	1997/udp   #cisco Gateway Discovery Protocol
+x25-svc-port	1998/tcp   #cisco X.25 service (XOT)
+x25-svc-port	1998/udp   #cisco X.25 service (XOT)
+tcp-id-port	1999/tcp   #cisco identification port
+tcp-id-port	1999/udp   #cisco identification port
+callbook	2000/tcp
+callbook	2000/udp
+dc		2001/tcp
+wizard		2001/udp   #curry
+globe		2002/tcp
+globe		2002/udp
+cfingerd	2003/tcp   #GNU finger
+mailbox		2004/tcp
+emce		2004/udp   #CCWS mm conf
+berknet		2005/tcp
+oracle		2005/udp
+invokator	2006/tcp
+raid-cc		2006/udp   #raid
+dectalk		2007/tcp
+raid-am		2007/udp
+conf		2008/tcp
+terminaldb	2008/udp
+news		2009/tcp
+whosockami	2009/udp
+search		2010/tcp
+pipe_server	2010/udp
+raid-cc		2011/tcp   #raid
+servserv	2011/udp
+ttyinfo		2012/tcp
+raid-ac		2012/udp
+raid-am		2013/tcp
+raid-cd		2013/udp
+troff		2014/tcp
+raid-sf		2014/udp
+cypress		2015/tcp
+raid-cs		2015/udp
+bootserver	2016/tcp
+bootserver	2016/udp
+cypress-stat	2017/tcp
+bootclient	2017/udp
+terminaldb	2018/tcp
+rellpack	2018/udp
+whosockami	2019/tcp
+about		2019/udp
+xinupageserver	2020/tcp
+xinupageserver	2020/udp
+servexec	2021/tcp
+xinuexpansion1	2021/udp
+down		2022/tcp
+xinuexpansion2	2022/udp
+xinuexpansion3	2023/tcp
+xinuexpansion3	2023/udp
+xinuexpansion4	2024/tcp
+xinuexpansion4	2024/udp
+ellpack		2025/tcp
+xribs		2025/udp
+scrabble	2026/tcp
+scrabble	2026/udp
+shadowserver	2027/tcp
+shadowserver	2027/udp
+submitserver	2028/tcp
+submitserver	2028/udp
+device2		2030/tcp
+device2		2030/udp
+blackboard	2032/tcp
+blackboard	2032/udp
+glogger		2033/tcp
+glogger		2033/udp
+scoremgr	2034/tcp
+scoremgr	2034/udp
+imsldoc		2035/tcp
+imsldoc		2035/udp
+objectmanager	2038/tcp
+objectmanager	2038/udp
+lam		2040/tcp
+lam		2040/udp
+interbase	2041/tcp
+interbase	2041/udp
+isis		2042/tcp
+isis		2042/udp
+isis-bcast	2043/tcp
+isis-bcast	2043/udp
+rimsl		2044/tcp
+rimsl		2044/udp
+cdfunc		2045/tcp
+cdfunc		2045/udp
+sdfunc		2046/tcp
+sdfunc		2046/udp
+#dls		2047/tcp
+#dls		2047/udp
+dls-monitor	2048/tcp
+dls-monitor	2048/udp
+nfsd		2049/sctp  nfs		# NFS server daemon
+nfsd		2049/tcp   nfs		# NFS server daemon
+nfsd		2049/udp   nfs		# NFS server daemon
+#PROBLEMS!=============================================================
+#shilp		2049/tcp
+#shilp		2049/udp
+#PROBLEMS!=============================================================
+dlsrpn		2065/tcp   #Data Link Switch Read Port Number
+dlsrpn		2065/udp   #Data Link Switch Read Port Number
+dlswpn		2067/tcp   #Data Link Switch Write Port Number
+dlswpn		2067/udp   #Data Link Switch Write Port Number
+zephyr-clt	2103/udp   #Zephyr serv-hm connection
+zephyr-hm	2104/udp   #Zephyr hostmanager
+#PROBLEMS!=============================================================
+#zephyr-hm-srv	2105/udp   #Zephyr hm-serv connection
+#PROBLEMS!=============================================================
+eklogin		2105/tcp   #Kerberos (v4) encrypted rlogin
+eklogin		2105/udp   #Kerberos (v4) encrypted rlogin
+ekshell		2106/tcp   #Kerberos (v4) encrypted rshell
+ekshell		2106/udp   #Kerberos (v4) encrypted rshell
+rkinit		2108/tcp   #Kerberos (v4) remote initialization
+rkinit		2108/udp   #Kerberos (v4) remote initialization
+ats		2201/tcp   #Advanced Training System Program
+ats		2201/udp   #Advanced Training System Program
+hpssd		2207/tcp   #HP Status and Services
+hpssd		2207/udp   #HP Status and Services
+hpiod		2208/tcp   #HP I/O Backend
+hpiod		2208/udp   #HP I/O Backend
+rcip-itu	2225/sctp  #Resource Connection Initiation Protocol
+rcip-itu	2225/tcp   #Resource Connection Initiation Protocol
+ivs-video	2232/tcp   #IVS Video default
+ivs-video	2232/udp   #IVS Video default
+ivsd		2241/tcp   #IVS Daemon
+ivsd		2241/udp   #IVS Daemon
+pehelp		2307/tcp
+pehelp		2307/udp
+cvspserver	2401/tcp   #CVS network server
+cvspserver	2401/udp   #CVS network server
+venus		2430/tcp   #venus
+venus		2430/udp   #venus
+venus-se	2431/tcp   #venus-se
+venus-se	2431/udp   #venus-se
+codasrv		2432/tcp   #codasrv
+codasrv		2432/udp   #codasrv
+codasrv-se	2433/tcp   #codasrv-se
+codasrv-se	2433/udp   #codasrv-se
+rtsserv		2500/tcp   #Resource Tracking system server
+rtsserv		2500/udp   #Resource Tracking system server
+rtsclient	2501/tcp   #Resource Tracking system client
+rtsclient	2501/udp   #Resource Tracking system client
+hp-3000-telnet	2564/tcp   #HP 3000 NS/VT block mode telnet
+zebrasrv	2600/tcp   #zebra service
+zebra		2601/tcp   #zebra vty
+ripd		2602/tcp   #RIPd vty
+ripngd		2603/tcp   #RIPngd vty
+ospfd		2604/tcp   #OSPFd vty
+bgpd		2605/tcp   #BGPd vty
+ospf6d		2606/tcp   #OSPF6d vty
+dict		2628/tcp   #RFC 2229
+dict		2628/udp   #RFC 2229
+listen		2766/tcp   #System V listener port
+smpp		2775/tcp   #SMPP
+smpp		2775/udp   #SMPP
+www-dev		2784/tcp   #world wide web - development
+www-dev		2784/udp   #world wide web - development
+m2ua		2904/sctp  #M2UA
+m2ua		2904/tcp   #M2UA
+m2ua		2904/udp   #M2UA
+m3ua		2905/sctp  #M3UA
+m3ua		2905/tcp   #M3UA
+megaco-h248	2944/sctp  #Megaco-H.248 text
+megaco-h248	2944/tcp   #Megaco H-248
+megaco-h248	2944/udp   #Megaco H-248
+h248-binary	2945/sctp  #Megaco/H.248 binary
+h248-binary	2945/tcp   #H248 Binary
+h248-binary	2945/udp   #H248 Binary
+eppc		3031/tcp   #Remote AppleEvents/PPC Toolbox
+eppc		3031/udp   #Remote AppleEvents/PPC Toolbox
+NSWS		3049/tcp
+NSWS		3049/udp
+gds_db		3050/tcp   #InterBase Database Remote Protocol
+gds_db		3050/udp   #InterBase Database Remote Protocol
+sj3		3086/tcp   #SJ3 (kanji input)
+itu-bicc-stc	3097/sctp  #ITU-T Q.1902.1/Q.2150.3
+vmodem		3141/tcp
+vmodem		3141/udp
+iscsi-target	3260/tcp   # iSCSI port
+iscsi-target	3260/udp   # iSCSI port
+ccmail		3264/tcp   #cc:mail/lotus
+ccmail		3264/udp   #cc:mail/lotus
+mysql		3306/tcp   #MySQL
+mysql		3306/udp   #MySQL
+dec-notes	3333/tcp   #DEC Notes
+dec-notes	3333/udp   #DEC Notes
+rdp		3389/tcp   #Microsoft Remote Desktop Protocol
+bmap		3421/tcp   #Bull Apprise portmapper
+bmap		3421/udp   #Bull Apprise portmapper
+prsvp		3455/tcp   #RSVP Port
+prsvp		3455/udp   rsvp-encap	#RSVP Port
+vat		3456/tcp   #VAT default data
+vat		3456/udp   #VAT default data
+vat-control	3457/tcp   #VAT default control
+vat-control	3457/udp   #VAT default control
+nut		3493/tcp   #Network UPS Tools
+nut		3493/udp   #Network UPS Tools
+lsp-ping	3503/tcp   #MPLS LSP-echo (RFC8029)
+lsp-ping	3503/udp   #MPLS LSP-echo (RFC8029)
+m2pa		3565/sctp  #M2PA
+m2pa		3565/tcp   #M2PA
+tsp		3653/tcp   #Tunnel Setup Protocol
+tsp		3653/udp   #Tunnel Setup Protocol
+svn		3690/tcp   #Subversion
+svn		3690/udp   #Subversion
+asap		3863/sctp  #asap sctp
+asap		3863/tcp   #asap tcp port
+asap		3863/udp   #asap udp port
+asap-tls	3864/sctp  #asap-sctp/tls
+asap-tls	3864/tcp   #asap/tls tcp port
+diameter	3868/tcp   #DIAMETER
+diameter	3868/sctp  #DIAMETER
+udt_os		3900/tcp   #Unidata UDT OS
+udt_os		3900/udp   #Unidata UDT OS
+mapper-nodemgr	3984/tcp   #MAPPER network node manager
+mapper-nodemgr	3984/udp   #MAPPER network node manager
+mapper-mapethd	3985/tcp   #MAPPER TCP/IP server
+mapper-mapethd	3985/udp   #MAPPER TCP/IP server
+mapper-ws_ethd	3986/tcp   #MAPPER workstation server
+mapper-ws_ethd	3986/udp   #MAPPER workstation server
+netcheque	4008/tcp   #NetCheque accounting
+netcheque	4008/udp   #NetCheque accounting
+lockd		4045/udp   # NFS lock daemon/manager
+lockd		4045/tcp
+nuts_dem	4132/tcp   #NUTS Daemon
+nuts_dem	4132/udp   #NUTS Daemon
+nuts_bootp	4133/tcp   #NUTS Bootp Server
+nuts_bootp	4133/udp   #NUTS Bootp Server
+sieve		4190/tcp   #ManageSieve Protocol
+sieve		4190/udp   #ManageSieve Protocol
+rwhois		4321/tcp   #Remote Who Is
+rwhois		4321/udp   #Remote Who Is
+unicall		4343/tcp
+unicall		4343/udp
+epmd		4369/tcp   #Erlang Port Mapper Daemon
+epmd		4369/udp   #Erlang Port Mapper Daemon
+krb524		4444/tcp
+krb524		4444/udp
+# PROBLEM krb524 assigned the port,
+# PROBLEM nv used it without an assignment
+nv-video	4444/tcp   #NV Video default
+nv-video	4444/udp   #NV Video default
+sae-urn		4500/tcp
+sae-urn		4500/udp
+fax		4557/tcp   #FAX transmission service
+hylafax		4559/tcp   #HylaFAX client-server protocol
+rfa		4672/tcp   #remote file access server
+rfa		4672/udp   #remote file access server
+ipfix		4739/sctp  #IP Flow Info Export
+ipfix		4739/tcp   #IP Flow Info Export
+ipfix		4739/udp   #IP Flow Info Export
+ipfixs		4740/sctp  #ipfix protocol over DTLS
+ipfixs		4740/tcp   #ipfix protocol over TLS
+ipfixs		4740/udp   #ipfix protocol over DTLS
+vxlan		4789/udp   #Virtual eXtensible Local Area Network (VXLAN)
+commplex-main	5000/tcp
+commplex-main	5000/udp
+commplex-link	5001/tcp
+commplex-link	5001/udp
+rfe		5002/tcp   #radio free ethernet
+rfe		5002/udp   #radio free ethernet
+telelpathstart	5010/tcp
+telelpathstart	5010/udp
+telelpathattack	5011/tcp
+telelpathattack	5011/udp
+mmcc		5050/tcp   #multimedia conference control tool
+mmcc		5050/udp   #multimedia conference control tool
+sds		5059/tcp   #SIP Directory Services
+sds		5059/udp   #SIP Directory Services
+sip		5060/tcp   #Session Initialization Protocol (VoIP)
+sip		5060/udp   #Session Initialization Protocol (VoIP)
+sip-tls		5061/tcp   #SIP over TLS
+sip-tls		5061/udp   #SIP over TLS
+car		5090/sctp  #Candidate AR
+cxtp		5091/sctp  #Context Transfer Protocol
+rmonitor_secure	5145/tcp
+rmonitor_secure	5145/udp
+aol		5190/tcp   #America-Online
+aol		5190/udp   #America-Online
+aol-1		5191/tcp   #AmericaOnline1
+aol-1		5191/udp   #AmericaOnline1
+aol-2		5192/tcp   #AmericaOnline2
+aol-2		5192/udp   #AmericaOnline2
+aol-3		5193/tcp   #AmericaOnline3
+aol-3		5193/udp   #AmericaOnline3
+xmpp-client	5222/tcp   #XMPP Client Connection
+xmpp-client	5222/udp   #XMPP Client Connection
+padl2sim	5236/tcp
+padl2sim	5236/udp
+xmpp-server	5269/tcp   #XMPP Server Connection
+xmpp-server	5269/udp   #XMPP Server Connection
+hacl-hb		5300/tcp   # HA cluster heartbeat
+hacl-hb		5300/udp   # HA cluster heartbeat
+hacl-gs		5301/tcp   # HA cluster general services
+hacl-gs		5301/udp   # HA cluster general services
+hacl-cfg	5302/tcp   # HA cluster configuration
+hacl-cfg	5302/udp   # HA cluster configuration
+hacl-probe	5303/tcp   # HA cluster probing
+hacl-probe	5303/udp   # HA cluster probing
+hacl-local	5304/tcp
+hacl-local	5304/udp
+hacl-test	5305/tcp
+hacl-test	5305/udp
+cfengine	5308/tcp
+cfengine	5308/udp
+mdns		5353/tcp   #Multicast DNS
+mdns		5353/udp   #Multicast DNS
+postgresql	5432/tcp   #PostgreSQL Database
+postgresql	5432/udp   #PostgreSQL Database
+vami		5480/tcp   #VMware Appliance Management Interface, HTTPS-like
+vami		5480/udp   #VMware Appliance Management Interface, HTTPS-like
+rplay		5555/udp
+amqp		5672/sctp  #AMQP
+amqp		5672/tcp   #AMQP
+amqp		5672/udp   #AMQP
+v5ua		5675/sctp  #V5UA application port
+v5ua		5675/tcp   #V5UA application port
+v5ua		5675/udp   #V5UA application port
+canna		5680/tcp   #Canna (Japanese Input)
+proshareaudio	5713/tcp   #proshare conf audio
+proshareaudio	5713/udp   #proshare conf audio
+prosharevideo	5714/tcp   #proshare conf video
+prosharevideo	5714/udp   #proshare conf video
+prosharedata	5715/tcp   #proshare conf data
+prosharedata	5715/udp   #proshare conf data
+prosharerequest	5716/tcp   #proshare conf request
+prosharerequest	5716/udp   #proshare conf request
+prosharenotify	5717/tcp   #proshare conf notify
+prosharenotify	5717/udp   #proshare conf notify
+couchdb		5984/tcp   #CouchDB database server
+couchdb		5984/udp   #CouchDB database server
+cvsup		5999/tcp   #CVSup file transfer/John Polstra/FreeBSD
+x11		6000/tcp   #6000-6063 are assigned to X Window System
+x11		6000/udp
+x11-ssh		6010/tcp   #Unofficial name, for convenience
+x11-ssh		6010/udp
+softcm		6110/tcp   #HP SoftBench CM
+softcm		6110/udp   #HP SoftBench CM
+spc		6111/tcp   #HP SoftBench Sub-Process Control
+spc		6111/udp   #HP SoftBench Sub-Process Control
+meta-corp	6141/tcp   #Meta Corporation License Manager
+meta-corp	6141/udp   #Meta Corporation License Manager
+aspentec-lm	6142/tcp   #Aspen Technology License Manager
+aspentec-lm	6142/udp   #Aspen Technology License Manager
+watershed-lm	6143/tcp   #Watershed License Manager
+watershed-lm	6143/udp   #Watershed License Manager
+statsci1-lm	6144/tcp   #StatSci License Manager - 1
+statsci1-lm	6144/udp   #StatSci License Manager - 1
+statsci2-lm	6145/tcp   #StatSci License Manager - 2
+statsci2-lm	6145/udp   #StatSci License Manager - 2
+lonewolf-lm	6146/tcp   #Lone Wolf Systems License Manager
+lonewolf-lm	6146/udp   #Lone Wolf Systems License Manager
+montage-lm	6147/tcp   #Montage License Manager
+montage-lm	6147/udp   #Montage License Manager
+ricardo-lm	6148/tcp   #Ricardo North America License Manager
+ricardo-lm	6148/udp   #Ricardo North America License Manager
+sge_qmaster	6444/tcp   #Grid Engine Qmaster Service
+sge_qmaster	6444/udp   #Grid Engine Qmaster Service
+sge_execd	6445/tcp   #Grid Engine Execution Service
+sge_execd	6445/udp   #Grid Engine Execution Service
+xdsxdm		6558/tcp
+xdsxdm		6558/udp
+sane-port	6566/tcp   #Scanner Access Now Easy (SANE) Control Port
+sane-port	6566/udp   #Scanner Access Now Easy (SANE) Control Port
+ircd		6667/tcp   #Internet Relay Chat (unofficial)
+ircs-u		6697/tcp   #Internet Relay Chat over TLS/SSL
+frc-hp		6704/sctp  #ForCES HP (High Priority) channel
+frc-mp		6705/sctp  #ForCES MP (Medium Priority) channel
+frc-lp		6706/sctp  #ForCES LP (Low priority) channel
+acmsoda		6969/tcp
+acmsoda		6969/udp
+afs3-fileserver	7000/tcp   #file server itself
+afs3-fileserver	7000/udp   #file server itself
+afs3-callback	7001/tcp   #callbacks to cache managers
+afs3-callback	7001/udp   #callbacks to cache managers
+afs3-prserver	7002/tcp   #users & groups database
+afs3-prserver	7002/udp   #users & groups database
+afs3-vlserver	7003/tcp   #volume location database
+afs3-vlserver	7003/udp   #volume location database
+afs3-kaserver	7004/tcp   #AFS/Kerberos authentication service
+afs3-kaserver	7004/udp   #AFS/Kerberos authentication service
+afs3-volser	7005/tcp   #volume management server
+afs3-volser	7005/udp   #volume management server
+afs3-errors	7006/tcp   #error interpretation service
+afs3-errors	7006/udp   #error interpretation service
+afs3-bos	7007/tcp   #basic overseer process
+afs3-bos	7007/udp   #basic overseer process
+afs3-update	7008/tcp   #server-to-server updater
+afs3-update	7008/udp   #server-to-server updater
+afs3-rmtsys	7009/tcp   #remote cache manager service
+afs3-rmtsys	7009/udp   #remote cache manager service
+afs3-resserver	7010/tcp   #MR-AFS residence server
+afs3-resserver	7010/udp   #MR-AFS residence server
+ups-onlinet	7010/tcp   #onlinet uninterruptable power supplies
+ups-onlinet	7010/udp   #onlinet uninterruptable power supplies
+afs3-remio	7011/tcp   #MR-AFS remote IO server
+afs3-remio	7011/udp   #MR-AFS remote IO server
+font-service	7100/tcp   #X Font Service
+font-service	7100/udp   #X Font Service
+fodms		7200/tcp   #FODMS FLIP
+fodms		7200/udp   #FODMS FLIP
+dlip		7201/tcp
+dlip		7201/udp
+simco		7626/sctp  #SImple Middlebox COnfiguration (SIMCO)
+simco		7626/tcp   #SImple Middlebox COnfiguration (SIMCO) Server
+ftp-proxy	8021/tcp   # FTP proxy
+pim		8471/sctp  #PIM over Reliable Transport
+pim		8471/tcp   #PIM over Reliable Transport
+natd		8668/divert # Network Address Translation
+lcs-ap		9082/sctp  #LCS Application Protocol
+aurora		9084/sctp  #IBM AURORA Performance Visualizer
+aurora		9084/tcp   #IBM AURORA Performance Visualizer
+aurora		9084/udp   #IBM AURORA Performance Visualizer
+jetdirect	9100/tcp   #HP JetDirect card
+prom-sysctl	9124/tcp   #prometheus_sysctl_exporter(8)
+git		9418/tcp   #git pack transfer service
+git		9418/udp   #git pack transfer service
+man		9535/tcp
+man		9535/udp
+sd		9876/tcp   #Session Director
+sd		9876/udp   #Session Director
+iua		9900/sctp  #IUA
+iua		9900/tcp   #IUA
+iua		9900/udp   #IUA
+enrp		9901/sctp  #enrp server channel
+enrp		9901/udp   #enrp server channel
+enrp-tls	9902/sctp  #enrp/tls server channel
+amanda		10080/tcp  #Dump server control
+amanda		10080/udp  #Dump server control
+amandaidx	10082/tcp  #Amanda indexing
+amidxtape	10083/tcp  #Amanda tape indexing
+wmereceiving	11997/sctp #WorldMailExpress
+wmedistribution	11998/sctp #WorldMailExpress
+wmereporting	11999/sctp #WorldMailExpress
+bpcd		13782/tcp  #Veritas NetBackup
+bpcd		13782/udp  #Veritas NetBackup
+sua		14001/sctp #SUA
+sua		14001/tcp  #SUA
+isode-dua	17007/tcp
+isode-dua	17007/udp
+biimenu		18000/tcp  #Beckman Instruments, Inc.
+biimenu		18000/udp  #Beckman Instruments, Inc.
+nfsrdma		20049/sctp #Network File System (NFS) over RDMA
+nfsrdma		20049/tcp  #Network File System (NFS) over RDMA
+nfsrdma		20049/udp  #Network File System (NFS) over RDMA
+wnn4		22273/tcp  wnn6		#Wnn4 (Japanese input)
+wnn4_Cn		22289/tcp  wnn6_Cn	#Wnn4 (Chinese input)
+wnn4_Kr		22305/tcp  wnn6_Kr	#Wnn4 (Korean input)
+wnn4_Tw		22321/tcp  wnn6_Tw	#Wnn4 (Taiwanse input)
+wnn6_DS		26208/tcp  #Wnn6 (Dserver)
+sgsap		29118/sctp #SGsAP in 3GPP
+sbcap		29168/sctp #SBcAP in 3GPP
+iuhsctpassoc	29169/sctp #HNBAP and RUA Common Association
+s1-control	36412/sctp #S1-Control Plane (3GPP)
+x2-control	36422/sctp #X2-Control Plane (3GPP)
+dbbrowse	47557/tcp  #Databeam Corporation
+dbbrowse	47557/udp  #Databeam Corporation

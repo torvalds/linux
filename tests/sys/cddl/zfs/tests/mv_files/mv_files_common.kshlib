@@ -1,0 +1,216 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)mv_files_common.kshlib	1.5	09/06/22 SMI"
+#
+
+#
+# Determine whether this version of the ksh being
+# executed has a bug where the limit of background
+# processes of 25.
+#
+function check_bg_procs_limit_num
+{
+$ECHO "#!/usr/local/bin/ksh93" > $TMPDIR/exitsZero.ksh
+$ECHO  "exit 0" >> $TMPDIR/exitsZero.ksh
+$CHMOD 777 $TMPDIR/exitsZero.ksh
+
+$CAT <<EOF > $TMPDIR/testbackgprocs.ksh
+#!/usr/local/bin/ksh93
+#
+# exitsZero.ksh is a one line script
+# that exit with status of "0"
+#
+
+PIDS=""
+typeset -i i=1
+while [ \$i -le 50 ]
+do
+	$TMPDIR/exitsZero.ksh &
+        PIDS="\$PIDS \$!"
+        (( i = i + 1 ))
+done
+
+\$SLEEP 1
+
+for pid in \$PIDS
+do
+	\$WAIT \$pid
+        (( \$? == 127 )) && exit 1
+done
+exit 0
+EOF
+
+$KSH93 $TMPDIR/testbackgprocs.ksh
+if [[ $? -eq 1 ]]; then
+#
+# Current ksh being executed has a limit
+# of 25 background processes.
+#
+	return 1
+else
+        return 0
+fi
+}
+
+function init_setup
+{
+
+	typeset disklist=$1
+
+        create_pool $TESTPOOL "$disklist"
+
+	if ! is_global_zone ; then
+		reexport_pool
+	fi
+
+        $RM -rf $TESTDIR  || log_unresolved Could not remove $TESTDIR
+        $MKDIR -p $TESTDIR || log_unresolved Could not create $TESTDIR
+
+        $RM -rf $TESTDIR_TGT  || log_unresolved Could not remove $TESTDIR_TGT
+        $MKDIR -p $TESTDIR_TGT || log_unresolved Could not create $TESTDIR_TGT
+
+        log_must $ZFS create $TESTPOOL/$TESTFS
+        log_must $ZFS set mountpoint=$TESTDIR $TESTPOOL/$TESTFS
+
+        log_must $ZFS create $TESTPOOL/$TESTFS_TGT
+        log_must $ZFS set mountpoint=$TESTDIR_TGT $TESTPOOL/$TESTFS_TGT
+
+        $MKDIR -p $OLDDIR || log_unresolved Could not create $OLDDIR
+        $MKDIR -p $NEWDIR_IN_FS || log_unresolved Could not create $NEWDIR_IN_FS
+        $MKDIR -p $NEWDIR_ACROSS_FS || log_unresolved Could not create $NEWDIR_ACROSS_FS
+
+}
+
+function wait_pid
+{
+	for pid in $1
+	do 
+		$PS -e | $GREP $pid >/dev/null 2>&1
+      	 	(( $? == 0 )) && $WAIT $pid
+        done
+}
+
+
+#
+# Generate given number files in a  
+# directory of zfs file system
+# $1 - the directory holds the generated files
+# $2 - number of to-be-generated files
+#
+
+function generate_files
+{
+	typeset -i count
+        typeset -i proc_num=0
+
+	if (( $2 == $MVNUMFILES )); then
+		count=1
+	else
+		count=$MVNUMFILES+1
+	fi
+
+        while (( count <= $2 ))
+        do
+                $CP /etc/passwd $1/file_$count \
+                         > /dev/null 2>&1 &
+
+                PIDS="$PIDS $!"
+
+                proc_num=`$ECHO $PIDS | $WC -w`
+                if (( proc_num >= GANGPIDS )); then
+                        wait_pid "$PIDS"
+                        proc_num=0
+                        PIDS=""
+                fi
+
+               (( count = count + 1 ))
+        done
+
+}
+
+#
+# Move given number files from one directory to 
+# another directory in parallel
+# $1 - source directory
+# $2 - target directory
+#
+function mv_files
+{
+        $FIND $1 -type f -print | xargs -J % \
+                $MV % $2 > /dev/null 2>&1
+}
+
+#
+# Count the files number after moving, and
+# compare it with the original number
+# $1 - directory that to be operated
+# $2 - original files number
+#
+function count_files
+{
+        typeset -i file_num
+        file_num=`$FIND $1  -type f -print | \
+                wc -l`
+        (( file_num != $2 )) && \
+                log_fail "The file number of target directory"\
+                        "$2 is not equal to that of the source "\
+                        "directory $1"
+
+}
+
+#
+# Running the 'mv' test
+# $1 - old directory
+# $2 - new directory
+#
+function mv_test
+{
+        typeset old=$1
+        typeset new=$2
+
+        typeset -i inc_num=$(( MVNUMFILES + MVNUMINCR ))
+        typeset -i num=0
+
+        for num in $MVNUMFILES $inc_num
+        do
+                generate_files $old $num
+
+                mv_files $old $new
+                count_files $new $num
+
+                mv_files $new $old
+                count_files $old $num
+        done
+
+	typeset dir=$(get_device_dir $DISKS)
+        verify_filesys "$TESTPOOL" "$TESTPOOL/$TESTFS" "$dir"
+
+        return 0
+}
+

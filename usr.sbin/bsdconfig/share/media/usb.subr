@@ -1,0 +1,176 @@
+if [ ! "$_MEDIA_USB_SUBR" ]; then _MEDIA_USB_SUBR=1
+#
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." media/usb.subr
+f_include $BSDCFG_SHARE/device.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/media/common.subr
+f_include $BSDCFG_SHARE/struct.subr
+f_include $BSDCFG_SHARE/variable.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+############################################################ GLOBALS
+
+USB_MOUNTED=
+
+############################################################ FUNCTIONS
+
+# f_media_set_usb
+#
+# Attempt to use USB as the media type. Return success if we both found and set
+# the media type to be a USB drive.
+#
+f_media_set_usb()
+{
+	f_media_close
+
+	local devs ndevs
+	f_device_find "" $DEVICE_TYPE_USB devs
+	f_count ndevs $devs
+
+	if [ ${ndevs:=0} -eq 0 ]; then
+		f_show_msg "$msg_no_usb_devices_found"
+		return $FAILURE
+	elif [ $ndevs -eq 1 ]; then
+		f_struct_copy $devs device_media
+	else
+		local dev
+		local title="$msg_choose_a_usb_drive"
+		local prompt="$msg_please_select_a_usb_drive"
+		local hline=
+
+		dev=$( f_device_menu \
+			"$title" "$prompt" "$hline" $DEVICE_TYPE_USB \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD ) ||
+			return $FAILURE
+
+		f_struct_copy "$dev" device_media
+	fi
+
+	f_struct device_media &&
+		device_media unset private
+
+	if f_interactive; then
+		local name
+		f_struct device_media get name name
+		f_show_msg "$msg_using_usb_device" "$name"
+	fi
+
+	f_struct device_media || return $FAILURE
+}
+
+# f_media_init_usb $device
+#
+# Initializes the USB media device. Returns success if able to mount the USB
+# disk device using mount(8).
+#
+f_media_init_usb()
+{
+	local funcname=f_media_init_usb
+	local dev="$1" devname err
+
+	$dev get devname devname || return $FAILURE
+	f_dprintf "Init routine called for USB device. devname=[%s]" \
+	          "$devname"
+
+	if [ "$USB_MOUNTED" ]; then
+		f_dprintf "USB device already mounted."
+		return $SUCCESS
+	fi
+
+	if [ ! -e "$MOUNTPOINT" ]; then
+		f_eval_catch $funcname mkdir 'mkdir -p "%s"' "$MOUNTPOINT" ||
+			return $FAILURE
+	fi
+
+	if f_eval_catch -dk err $funcname mount \
+		'mount "%s" "%s"' "$devname" "$MOUNTPOINT"
+	then
+		USB_MOUNTED=1
+		return $SUCCESS
+	fi
+
+	err="${err#mount: }"; err="${err#$devname: }"
+	f_show_msg "$msg_error_mounting_usb_drive" \
+	           "$devname" "$MOUNTPOINT" "$err"
+	return $FAILURE
+}
+
+# f_media_get_usb $device $file [$probe_type]
+#
+# Returns data from $file on a mounted USB disk device. Similar to cat(1). If
+# $probe_type is present and non-NULL, returns success if $file exists. If
+# $probe_type is equal to $PROBE_SIZE, prints the size of $file in bytes to
+# standard-out.
+#
+f_media_get_usb()
+{
+	local dev="$1" file="$2" probe_type="$3"
+	local name
+
+	$dev get name name
+	f_dprintf "f_media_get_usb: dev=[%s] file=[%s] probe_type=%s" \
+	          "$name" "$file" "$probe_type"
+
+	f_media_generic_get "$MOUNTPOINT" "$file" "$probe_type"
+}
+
+# f_media_shutdown_usb $device
+#
+# Shuts down the USB disk device using umount(8). Return status should be
+# ignored.
+#
+f_media_shutdown_usb()
+{
+	local funcname=f_media_shutdown_usb
+	local dev="$1" err
+
+	[ "$USB_MOUNTED" ] || return $FAILURE
+
+	if ! f_eval_catch -dk err $funcname umount \
+		'umount -f "%s"' "$MOUNTPOINT"
+	then
+		err="${err#umount: }"; err="${err#*: }"
+		f_show_msg "$msg_could_not_unmount_the_ufs_partition" \
+		           "$MOUNTPOINT" "$err"
+	else
+		USB_MOUNTED=
+	fi
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." media/usb.subr
+
+fi # ! $_MEDIA_USB_SUBR

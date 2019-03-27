@@ -1,0 +1,430 @@
+/*
+ * Copyright (c) 2004 - 2007 Kungliga Tekniska Högskolan
+ * (Royal Institute of Technology, Stockholm, Sweden). 
+ * All rights reserved. 
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met: 
+ *
+ * 1. Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright 
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the distribution. 
+ *
+ * 3. Neither the name of the Institute nor the names of its contributors 
+ *    may be used to endorse or promote products derived from this software 
+ *    without specific prior written permission. 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+ * SUCH DAMAGE. 
+ */
+/* $Id$ */
+
+command = {
+	name = "stash"
+	name = "kstash"
+	option = {
+		long = "enctype"
+		short = "e"
+		type = "string"
+		help = "encryption type"
+		default = "des3-cbc-sha1"
+	}
+	option = {
+		long = "key-file"
+		short = "k"
+		type = "string"
+		argument = "file"
+		help = "master key file"
+	}
+	option = {
+		long = "convert-file"
+		type = "flag"
+		help = "just convert keyfile to new format"
+	}
+	option = {
+		long = "random-password"
+		type = "flag"
+		help = "use a random password (and print the password to stdout)"
+	}
+	option = {
+		long = "master-key-fd"
+		type = "integer"
+		argument = "fd"
+		help = "filedescriptor to read passphrase from"
+		default = "-1"
+	}
+	help = "Writes the Kerberos master key to a file used by the KDC. \nLocal (-l) mode only."
+}
+command = {
+	name = "dump"
+	option = {
+		long = "decrypt"
+		short = "d"
+		type = "flag"
+		help = "decrypt keys"
+	}
+	argument = "[dump-file]"
+	min_args = "0"
+	max_args = "1"
+	help = "Dumps the database in a human readable format to the specified file, \nor the standard out. Local (-l) mode only."
+}
+
+command = {
+	name = "init"
+	option = {
+		long = "realm-max-ticket-life"
+		type = "string"
+		help = "realm max ticket lifetime"
+	}
+	option = {
+		long = "realm-max-renewable-life"
+		type = "string"
+		help = "realm max renewable lifetime"
+	}
+	option = {
+		long = "bare"
+		type = "flag"
+		help = "only create krbtgt for realm"
+	}
+	argument = "realm..."
+	min_args = "1"
+	help = "Initializes the default principals for a realm. Creates the database\nif necessary. Local (-l) mode only."
+}
+command = {
+	name = "load"
+	argument = "file"
+	min_args = "1"
+	max_args = "1"
+	help = "Loads a previously dumped file. Local (-l) mode only."
+}
+command = {
+	name = "merge"
+	argument = "file"
+	min_args = "1"
+	max_args = "1"
+	help = "Merges the contents of a dump file into the database. Local (-l) mode only."
+}
+command = {
+	name = "add"
+	name = "ank"
+	name = "add_new_key"
+	function = "add_new_key"
+	option = {
+		long = "random-key"
+		short = "r"
+		type = "flag"
+		help = "set random key"
+	}
+	option = {
+		long = "random-password"
+		type = "flag"
+		help = "set random password"
+	}
+	option = {
+		long = "password"
+		short = "p"
+		type = "string"
+		help = "principal's password"
+	}
+	option = {
+		long = "key"
+		type = "string"
+		help = "DES-key in hex"
+	}
+	option = {
+		long = "max-ticket-life"
+		type = "string"
+		argument ="lifetime"
+		help = "max ticket lifetime"
+	}
+	option = {
+		long = "max-renewable-life"
+		type = "string"
+		argument = "lifetime"
+		help = "max renewable life"
+	}
+	option = {
+		long = "attributes"
+		type = "string"
+		argument = "attributes"
+		help = "principal attributes"
+	}
+	option = {
+		long = "expiration-time"
+		type = "string"
+		argument = "time"
+		help = "principal expiration time"
+	}
+	option = {
+		long = "pw-expiration-time"
+		type = "string"
+		argument = "time"
+		help = "password expiration time"
+	}
+	option = {
+		long = "use-defaults"
+		type = "flag"
+		help = "use default values"
+	}
+	argument = "principal..."
+	min_args = "1"
+	help = "Adds a principal to the database."
+}
+command = {
+	name = "passwd"
+	name = "cpw"
+	name = "change_password"
+	function = "cpw_entry"
+	option = {
+		long = "random-key"
+		short = "r"
+		type = "flag"
+		help = "set random key"
+	}
+	option = {
+		long = "random-password"
+		type = "flag"
+		help = "set random password"
+	}
+	option = {
+		long = "password"
+		short = "p"
+		type = "string"
+		help = "princial's password"
+	}
+	option = {
+		long = "key"
+		type = "string"
+		help = "DES key in hex"
+	}
+	argument = "principal..."
+	min_args = "1"
+	help = "Changes the password of one or more principals matching the expressions."
+}
+command = {
+	name = "delete"
+	name = "del"
+	name = "del_entry"
+	function = "del_entry"
+	argument = "principal..."
+	min_args = "1"
+	help = "Deletes all principals matching the expressions."
+}
+command = {
+	name = "del_enctype"
+	argument = "principal enctype..."
+	min_args = "2"
+	help = "Delete all the mentioned enctypes for principal."
+}
+command = {
+	name = "add_enctype"
+	option = {
+		long = "random-key"
+		short = "r"
+		type = "flag"
+		help = "set random key"
+	}
+	argument = "principal enctype..."
+	min_args = "2"
+	help = "Add new enctypes for principal."
+}
+command = {
+	name = "ext_keytab"
+	option = {
+		long = "keytab"
+		short = "k"
+		type = "string"
+		help = "keytab to use"
+	}
+	argument = "principal..."
+	min_args = "1"
+	help = "Extracts the keys of all principals matching the expressions, and stores them in a keytab." 
+}
+command = {
+	name = "get"
+	name = "get_entry"
+	function = "get_entry"
+	/* XXX sync options with "list" */
+	option = {
+		long = "long"
+		short = "l"
+		type = "flag"
+		help = "long format"
+		default = "-1"
+	}
+	option = {
+		long = "short"
+		short = "s"
+		type = "flag"
+		help = "short format"
+	}
+	option = {
+		long = "terse"
+		short = "t"
+		type = "flag"
+		help = "terse format"
+	}
+	option = {
+		long = "column-info"
+		short = "o"
+		type = "string"
+		help = "columns to print for short output"
+	}
+	argument = "principal..."
+	min_args = "1"
+	help = "Shows information about principals matching the expressions."
+}
+command = {
+	name = "rename"
+	function = "rename_entry"
+	argument = "from to"
+	min_args = "2"
+	max_args = "2"
+	help = "Renames a principal."
+}
+command = {
+	name = "modify"
+	function = "mod_entry"
+	option = {
+		long = "max-ticket-life"
+		type = "string"
+		argument ="lifetime"
+		help = "max ticket lifetime"
+	}
+	option = {
+		long = "max-renewable-life"
+		type = "string"
+		argument = "lifetime"
+		help = "max renewable life"
+	}
+	option = {
+		long = "attributes"
+		short = "a"
+		type = "string"
+		argument = "attributes"
+		help = "principal attributes"
+	}
+	option = {
+		long = "expiration-time"
+		type = "string"
+		argument = "time"
+		help = "principal expiration time"
+	}
+	option = {
+		long = "pw-expiration-time"
+		type = "string"
+		argument = "time"
+		help = "password expiration time"
+	}
+	option = {
+		long = "kvno"
+		type = "integer"
+		help = "key version number"
+		default = "-1"
+	}
+	option = {
+		long = "constrained-delegation"
+		type = "strings"
+		argument = "principal"
+		help = "allowed target principals"
+	}
+	option = {
+		long = "alias"
+		type = "strings"
+		argument = "principal"
+		help = "aliases"
+	}
+	option = {
+		long = "pkinit-acl"
+		type = "strings"
+		argument = "subject dn"
+		help = "aliases"
+	}
+	argument = "principal"
+	min_args = "1"
+	max_args = "1"
+	help = "Modifies some attributes of the specified principal."
+}
+command = {
+	name = "privileges"
+	name = "privs"
+	function = "get_privs"
+	help = "Shows which operations you are allowed to perform."
+}
+command = {
+	name = "list"
+	function = "list_princs"
+	/* XXX sync options with "get" */
+	option = {
+		long = "long"
+		short = "l"
+		type = "flag"
+		help = "long format"
+	}
+	option = {
+		long = "short"
+		short = "s"
+		type = "flag"
+		help = "short format"
+	}
+	option = {
+		long = "terse"
+		short = "t"
+		type = "flag"
+		help = "terse format"
+		default = "-1"
+	}
+	option = {
+		long = "column-info"
+		short = "o"
+		type = "string"
+		help = "columns to print for short output"
+	}
+	argument = "principal..."
+	min_args = "1"
+	help = "Lists principals in a terse format. Equivalent to \"get -t\"." 
+}
+command = {
+	name = "verify-password-quality"
+	name = "pwq"
+	function = "password_quality"
+	argument = "principal password"
+	min_args = "2"
+	max_args = "2"
+	help = "Try run the password quality function locally (not doing RPC out to server)."
+}
+command = {
+	name = "check"
+	function = "check"
+	argument = "[realm]"
+	min_args = "0"
+	max_args = "1"
+	help = "Check the realm (if not given, the default realm) for configuration errors."
+}
+command = {
+	name = "help"
+	name = "?"
+	argument = "[command]"
+	min_args = "0"
+	max_args = "1"
+	help = "Help! I need somebody."
+}
+command = {
+	name = "exit"
+	name = "quit"
+	function = "exit_kadmin"
+	help = "Quits."
+}

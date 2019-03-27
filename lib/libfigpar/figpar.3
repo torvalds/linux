@@ -1,0 +1,265 @@
+.\" Copyright (c) 2013-2018 Devin Teske <dteske@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 13, 2018
+.Dt FIGPAR 3
+.Os
+.Sh NAME
+.Nm figpar ,
+.Nm parse_config ,
+.Nm get_config_option
+.Nd configuration file parsing library
+.Sh LIBRARY
+.Lb libfigpar
+.Sh SYNOPSIS
+.In figpar.h
+.Ft int
+.Fo parse_config
+.Fa "struct figpar_config options[]"
+.Fa "const char *path"
+.Fa "int \*[lp]*unknown\*[rp]\*[lp]struct figpar_config *option"
+.Fa "uint32_t line"
+.Fa "char *directive"
+.Fa "char *value\*[rp]"
+.Fa "uint8_t processing_options"
+.Fc
+.Ft "struct figpar_config *"
+.Fo get_config_option
+.Fa "struct figpar_config options[]"
+.Fa "const char *directive"
+.Fc
+.In string_m.h
+.Ft int
+.Fo replaceall
+.Fa "char *source"
+.Fa "const char *find"
+.Fa "const char *replace"
+.Fc
+.Ft unsigned int
+.Fo strcount
+.Fa "const char *source"
+.Fa "const char *find"
+.Fc
+.Ft void
+.Fo strexpand
+.Fa "char *source"
+.Fc
+.Ft void
+.Fo strexpandnl
+.Fa "char *source"
+.Fc
+.Ft void
+.Fo strtolower
+.Fa "char *source"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+library provides a light-weight,
+portable framework for parsing configuration
+files.
+The library uses
+.Xr open 2 ,
+.Xr read 2 ,
+and
+.Xr lseek 2
+within the file pointed to by
+.Fa path
+to find directives and values which are then made available to the application.
+.Pp
+Due to the fact that configuration files may have basic syntax differences,
+the library does not attempt to impose any structure on the data but instead
+provides raw data to a set of callback functions.
+These callback functions can in-turn initiate abort through their return value,
+allowing custom syntax validation during parsing.
+.Pp
+Configuration directives,
+types,
+and callback functions are provided through data structures defined in
+.In figpar.h :
+.Bd -literal -offset indent
+struct figpar_config {
+    enum figpar_cfgtype		type;		/* value type */
+    const char			*directive;	/* keyword */
+    union figpar_cfgvalue	value;		/* value */
+
+    /* Pointer to function used when directive is found */
+    int (*action)(struct figpar_config *option, uint32_t line,
+        char *directive, char *value);
+};
+
+enum figpar_cfgtype {
+    FIGPAR_TYPE_NONE      = 0x0000, /* directives with no value */
+    FIGPAR_TYPE_BOOL      = 0x0001, /* boolean */
+    FIGPAR_TYPE_INT       = 0x0002, /* signed 32 bit integer */
+    FIGPAR_TYPE_UINT      = 0x0004, /* unsigned 32 bit integer */
+    FIGPAR_TYPE_STR       = 0x0008, /* string pointer */
+    FIGPAR_TYPE_STRARRAY  = 0x0010, /* string array pointer */
+    FIGPAR_TYPE_DATA1     = 0x0020, /* void data type-1 (open) */
+    FIGPAR_TYPE_DATA2     = 0x0040, /* void data type-2 (open) */
+    FIGPAR_TYPE_DATA3     = 0x0080, /* void data type-3 (open) */
+    FIGPAR_TYPE_RESERVED1 = 0x0100, /* reserved data type-1 */
+    FIGPAR_TYPE_RESERVED2 = 0x0200, /* reserved data type-2 */
+    FIGPAR_TYPE_RESERVED3 = 0x0400, /* reserved data type-3 */
+};
+
+union figpar_cfgvalue {
+    void	*data;      /* Pointer to NUL-terminated string */
+    char	*str;       /* Pointer to NUL-terminated string */
+    char	**strarray; /* Pointer to an array of strings */
+    int32_t	num;        /* Signed 32-bit integer value */
+    uint32_t	u_num;      /* Unsigned 32-bit integer value */
+    uint32_t	boolean:1;  /* Boolean integer value (0 or 1) */
+};
+.Ed
+.Pp
+The
+.Fa processing_options
+argument to
+.Fn parse_config
+is a mask of bit fields which indicate various
+processing options.
+The possible flags are:
+.Bl -tag -width FIGPAR_BREAK_ON_SEMICOLON
+.It Dv FIGPAR_BREAK_ON_EQUALS
+An equals sign
+.Pq Ql Li =
+is normally considered part of the directive.
+This flag enables terminating the directive at the equals sign.
+Also makes equals sign optional and transient.
+.It Dv FIGPAR_BREAK_ON_SEMICOLON
+A semicolon
+.Pq Ql Li \;
+is normally considered part of the value.
+This flag enables terminating the value at the semicolon.
+Also allows multiple statements on a single line separated by semicolon.
+.It Dv FIGPAR_CASE_SENSITIVE
+Normally directives are matched case insensitively using
+.Xr fnmatch 3 .
+This flag enables directive matching to be case sensitive.
+.It Dv FIGPAR_REQUIRE_EQUALS
+If a directive is not followed by an equals,
+processing is aborted.
+.It Dv FIGPAR_STRICT_EQUALS
+Equals must be part of the directive to be considered a delimiter between
+directive and value.
+.El
+.Pp
+The
+.Fa options
+struct array pointer can be NULL and every directive will run the
+.Fn unknown
+function argument.
+.Pp
+The directive for each figpar_config item in the
+.Fn parse_config
+options argument is matched against each parsed directive using
+.Xr fnmatch 3
+until a match is found.
+If a match is found,
+the
+.Fn action
+function for that figpar_config directive is run with the line number,
+directive,
+and value.
+Otherwise if no match,
+the
+.Fn unknown
+function is run
+.Pq with the same arguments .
+.Pp
+If either
+.Fa action
+or
+.Fa unknown
+return non-zero,
+.Fn parse_config
+aborts reading the file and returns the error value to its caller.
+.Pp
+.Fn get_config_option
+traverses the options-array and returns the option that matches via
+.Xr strcmp 3 ,
+or if no match a pointer to a static dummy struct is returned
+.Pq whose values are all zero or NULL .
+.Pp
+The use of
+.Fa "struct figpar_config"
+is entirely optional as-is the use of
+.Fa "enum figpar_cfgtype"
+or
+.Fa "union figpar_cfgvalue" .
+For example,
+a NULL pointer can be passed to
+.Fn parse_config
+for the first argument while providing a simple
+.Fa unknown
+function based on
+.Xr queue 3
+that populates a singly-linked list of a struct containing the
+.Fa directive
+and
+.Fa value .
+.Pp
+In addition,
+miscellaneous string manipulation routines are provided by
+.In string_m.h :
+.Bl -tag -width strexpandnl()
+.It Fn replaceall
+Replace all occurrences of
+.Fa find
+in
+.Fa source
+with
+.Fa replace .
+.It Fn strcount
+Count the number of occurrences of one string that appear in the
+.Fa source
+string.
+Return value is the total count.
+An example use would be to show how large a block of memory needs to be for a
+.Fn replaceall
+series.
+.It Fn strexpand
+Expand escape sequences in a buffer pointed to by
+.Fa source .
+.It Fn strexpandnl
+Expand only the escaped newlines in a buffer pointed to by
+.Fa source .
+.It Fn strtolower
+Convert a string to lower case.
+.El
+.Sh SEE ALSO
+.Xr queue 3
+.Sh HISTORY
+The
+.Nm
+library first appeared in
+.Fx 10.2 .
+.Sh AUTHORS
+.An Devin Teske Aq dteske@FreeBSD.org
+.Sh BUGS
+This is the first implementation of the library,
+and the interface may be subject to refinement.

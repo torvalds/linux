@@ -1,0 +1,114 @@
+=pod
+
+=head1 NAME
+
+DSA_get0_pqg, DSA_set0_pqg, DSA_get0_key, DSA_set0_key,
+DSA_get0_p, DSA_get0_q, DSA_get0_g,
+DSA_get0_pub_key, DSA_get0_priv_key,
+DSA_clear_flags, DSA_test_flags, DSA_set_flags,
+DSA_get0_engine - Routines for getting and
+setting data in a DSA object
+
+=head1 SYNOPSIS
+
+ #include <openssl/dsa.h>
+
+ void DSA_get0_pqg(const DSA *d,
+                   const BIGNUM **p, const BIGNUM **q, const BIGNUM **g);
+ int DSA_set0_pqg(DSA *d, BIGNUM *p, BIGNUM *q, BIGNUM *g);
+ void DSA_get0_key(const DSA *d,
+                   const BIGNUM **pub_key, const BIGNUM **priv_key);
+ int DSA_set0_key(DSA *d, BIGNUM *pub_key, BIGNUM *priv_key);
+ const BIGNUM *DSA_get0_p(const DSA *d);
+ const BIGNUM *DSA_get0_q(const DSA *d);
+ const BIGNUM *DSA_get0_g(const DSA *d);
+ const BIGNUM *DSA_get0_pub_key(const DSA *d);
+ const BIGNUM *DSA_get0_priv_key(const DSA *d);
+ void DSA_clear_flags(DSA *d, int flags);
+ int DSA_test_flags(const DSA *d, int flags);
+ void DSA_set_flags(DSA *d, int flags);
+ ENGINE *DSA_get0_engine(DSA *d);
+
+=head1 DESCRIPTION
+
+A DSA object contains the parameters B<p>, B<q> and B<g>. It also contains a
+public key (B<pub_key>) and (optionally) a private key (B<priv_key>).
+
+The B<p>, B<q> and B<g> parameters can be obtained by calling DSA_get0_pqg().
+If the parameters have not yet been set then B<*p>, B<*q> and B<*g> will be set
+to NULL. Otherwise they are set to pointers to their respective values. These
+point directly to the internal representations of the values and therefore
+should not be freed directly.
+
+The B<p>, B<q> and B<g> values can be set by calling DSA_set0_pqg() and passing
+the new values for B<p>, B<q> and B<g> as parameters to the function. Calling
+this function transfers the memory management of the values to the DSA object,
+and therefore the values that have been passed in should not be freed directly
+after this function has been called.
+
+To get the public and private key values use the DSA_get0_key() function. A
+pointer to the public key will be stored in B<*pub_key>, and a pointer to the
+private key will be stored in B<*priv_key>. Either may be NULL if they have not
+been set yet, although if the private key has been set then the public key must
+be. The values point to the internal representation of the public key and
+private key values. This memory should not be freed directly.
+
+The public and private key values can be set using DSA_set0_key(). The public
+key must be non-NULL the first time this function is called on a given DSA
+object. The private key may be NULL.  On subsequent calls, either may be NULL,
+which means the corresponding DSA field is left untouched. As for DSA_set0_pqg()
+this function transfers the memory management of the key values to the DSA
+object, and therefore they should not be freed directly after this function has
+been called.
+
+Any of the values B<p>, B<q>, B<g>, B<priv_key>, and B<pub_key> can also be
+retrieved separately by the corresponding function DSA_get0_p(), DSA_get0_q(),
+DSA_get0_g(), DSA_get0_priv_key(), and DSA_get0_pub_key(), respectively.
+
+DSA_set_flags() sets the flags in the B<flags> parameter on the DSA object.
+Multiple flags can be passed in one go (bitwise ORed together). Any flags that
+are already set are left set. DSA_test_flags() tests to see whether the flags
+passed in the B<flags> parameter are currently set in the DSA object. Multiple
+flags can be tested in one go. All flags that are currently set are returned, or
+zero if none of the flags are set. DSA_clear_flags() clears the specified flags
+within the DSA object.
+
+DSA_get0_engine() returns a handle to the ENGINE that has been set for this DSA
+object, or NULL if no such ENGINE has been set.
+
+=head1 NOTES
+
+Values retrieved with DSA_get0_key() are owned by the DSA object used
+in the call and may therefore I<not> be passed to DSA_set0_key().  If
+needed, duplicate the received value using BN_dup() and pass the
+duplicate.  The same applies to DSA_get0_pqg() and DSA_set0_pqg().
+
+=head1 RETURN VALUES
+
+DSA_set0_pqg() and DSA_set0_key() return 1 on success or 0 on failure.
+
+DSA_test_flags() returns the current state of the flags in the DSA object.
+
+DSA_get0_engine() returns the ENGINE set for the DSA object or NULL if no ENGINE
+has been set.
+
+=head1 SEE ALSO
+
+L<DSA_new(3)>, L<DSA_new(3)>, L<DSA_generate_parameters(3)>, L<DSA_generate_key(3)>,
+L<DSA_dup_DH(3)>, L<DSA_do_sign(3)>, L<DSA_set_method(3)>, L<DSA_SIG_new(3)>,
+L<DSA_sign(3)>, L<DSA_size(3)>, L<DSA_meth_new(3)>
+
+=head1 HISTORY
+
+The functions described here were added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

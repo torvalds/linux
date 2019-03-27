@@ -1,0 +1,14 @@
+
+# PhoneTrans lines provide rules to change phone prefixes to make local
+# or long-distance calls.  In the example below, my country code is 7,
+# and local dialing area is 095.  From the numbers starting with "7-095-"
+# the prefix is stripped and the 7-digit remainder is dialed.  For
+# the numbers starting with "7-" but not with "7-095-", the country prefix
+# "7-" is stripped and the long-distance dialing prefix "8W" substituted. 
+# For the numbers not matching any of the above, international
+# call is performed: international dialing prefix "8W10" is prepended
+# to the unmodified 11-digit number.  Generally, the syntax is:
+# "PhoneTrans <what-to-strip> / <what-to-substitute-instead>"
+#PhoneTrans      7-095-  /
+#PhoneTrans      7-      /       8W
+#PhoneTrans              /       8W10

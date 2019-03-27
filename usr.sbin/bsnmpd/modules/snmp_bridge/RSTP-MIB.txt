@@ -1,0 +1,325 @@
+--
+-- Copyright (C) The Internet Society (2005).
+--
+-- This document is subject to the rights, licenses and restrictions
+-- contained in BCP 78, and except as set forth therein, the authors
+-- retain all their rights.
+--
+-- This document and the information contained herein are provided on an
+-- "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/SHE REPRESENTS
+-- OR IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY AND THE INTERNET
+-- ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED,
+-- INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE
+-- INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED
+-- WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+--
+-- $FreeBSD$
+--
+
+RSTP-MIB DEFINITIONS ::= BEGIN
+
+-- -------------------------------------------------------------
+-- MIB for IEEE 802.1w Rapid Spanning Tree Protocol
+-- -------------------------------------------------------------
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, Integer32, mib-2
+        FROM SNMPv2-SMI
+    TruthValue
+        FROM SNMPv2-TC
+    MODULE-COMPLIANCE, OBJECT-GROUP
+        FROM SNMPv2-CONF
+    dot1dStp, dot1dStpPortEntry
+        FROM BRIDGE-MIB;
+
+rstpMIB MODULE-IDENTITY
+    LAST-UPDATED "200512070000Z"
+    ORGANIZATION "IETF Bridge MIB Working Group"
+    CONTACT-INFO
+        "Email: Bridge-mib@ietf.org"
+    DESCRIPTION
+        "The Bridge MIB Extension module for managing devices
+         that support the Rapid Spanning Tree Protocol defined
+         by IEEE 802.1w.
+
+         Copyright (C) The Internet Society (2005).  This version of
+         this MIB module is part of RFC 4318; See the RFC itself for
+         full legal notices."
+
+    REVISION     "200512070000Z"
+    DESCRIPTION
+         "The initial version of this MIB module as published in
+          RFC 4318."
+    ::= { mib-2 134 }
+
+-- ---------------------------------------------------------- --
+-- subtrees in the RSTP-MIB
+-- ---------------------------------------------------------- --
+
+rstpNotifications OBJECT IDENTIFIER ::= { rstpMIB 0 }
+rstpObjects       OBJECT IDENTIFIER ::= { rstpMIB 1 }
+rstpConformance   OBJECT IDENTIFIER ::= { rstpMIB 2 }
+
+-- -------------------------------------------------------------
+-- Addition to the dot1dStp group
+-- -------------------------------------------------------------
+
+dot1dStpVersion OBJECT-TYPE
+    SYNTAX      INTEGER {
+                    stpCompatible(0),
+                    rstp(2)
+                }
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+        "The version of Spanning Tree Protocol the bridge is
+         currently running.  The value 'stpCompatible(0)'
+         indicates the Spanning Tree Protocol specified in
+         IEEE 802.1D-1998 and 'rstp(2)' indicates the Rapid
+         Spanning Tree Protocol specified in IEEE 802.1w and
+         clause 17 of 802.1D-2004.  The values are directly from
+         the IEEE standard.  New values may be defined as future
+         versions of the protocol become available.
+
+         The value of this object MUST be retained across
+         reinitializations of the management system."
+    REFERENCE
+        "IEEE 802.1w clause 14.8.1, 17.12, 17.16.1"
+    DEFVAL      { rstp }
+    ::= { dot1dStp 16 }
+
+dot1dStpTxHoldCount OBJECT-TYPE
+    SYNTAX      Integer32 (1..10)
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+        "The value used by the Port Transmit state machine to limit
+         the maximum transmission rate.
+
+         The value of this object MUST be retained across
+         reinitializations of the management system."
+
+    REFERENCE
+        "IEEE 802.1w clause 17.16.6"
+    DEFVAL      { 3 }
+    ::= { dot1dStp 17 }
+
+--
+-- { dot1dStp 18 } was used to represent dot1dStpPathCostDefault
+-- in an earlier version of this MIB.  It has since been
+-- obsoleted, and should not be used.
+--
+
+dot1dStpExtPortTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF Dot1dStpExtPortEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        "A table that contains port-specific Rapid Spanning Tree
+         information."
+    ::= { dot1dStp 19 }
+
+dot1dStpExtPortEntry OBJECT-TYPE
+    SYNTAX      Dot1dStpExtPortEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        "A list of Rapid Spanning Tree information maintained by
+         each port."
+    AUGMENTS    { dot1dStpPortEntry }
+    ::= { dot1dStpExtPortTable 1 }
+
+Dot1dStpExtPortEntry ::=
+    SEQUENCE {
+        dot1dStpPortProtocolMigration
+            TruthValue,
+        dot1dStpPortAdminEdgePort
+            TruthValue,
+        dot1dStpPortOperEdgePort
+            TruthValue,
+        dot1dStpPortAdminPointToPoint
+            INTEGER,
+        dot1dStpPortOperPointToPoint
+            TruthValue,
+        dot1dStpPortAdminPathCost
+            Integer32
+    }
+
+dot1dStpPortProtocolMigration OBJECT-TYPE
+    SYNTAX      TruthValue
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+        "When operating in RSTP (version 2) mode, writing true(1)
+         to this object forces this port to transmit RSTP BPDUs.
+         Any other operation on this object has no effect and
+         it always returns false(2) when read."
+    REFERENCE
+        "IEEE 802.1w clause 14.8.2.4, 17.18.10, 17.26"
+    ::= { dot1dStpExtPortEntry 1 }
+
+dot1dStpPortAdminEdgePort OBJECT-TYPE
+    SYNTAX      TruthValue
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+        "The administrative value of the Edge Port parameter.  A
+         value of true(1) indicates that this port should be
+         assumed as an edge-port, and a value of false(2) indicates
+         that this port should be assumed as a non-edge-port.
+         Setting this object will also cause the corresponding
+         instance of dot1dStpPortOperEdgePort to change to the
+         same value.  Note that even when this object's value
+         is true, the value of the corresponding instance of
+         dot1dStpPortOperEdgePort can be false if a BPDU has
+         been received.
+
+         The value of this object MUST be retained across
+         reinitializations of the management system."
+
+    REFERENCE
+        "IEEE 802.1t clause 14.8.2, 18.3.3"
+    ::= { dot1dStpExtPortEntry 2 }
+
+dot1dStpPortOperEdgePort OBJECT-TYPE
+    SYNTAX      TruthValue
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "The operational value of the Edge Port parameter.  The
+         object is initialized to the value of the corresponding
+         instance of dot1dStpPortAdminEdgePort.  When the
+         corresponding instance of dot1dStpPortAdminEdgePort is
+         set, this object will be changed as well.  This object
+         will also be changed to false on reception of a BPDU."
+
+    REFERENCE
+        "IEEE 802.1t clause 14.8.2, 18.3.4"
+    ::= { dot1dStpExtPortEntry 3 }
+
+dot1dStpPortAdminPointToPoint OBJECT-TYPE
+    SYNTAX      INTEGER {
+                    forceTrue(0),
+                    forceFalse(1),
+                    auto(2)
+                }
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+        "The administrative point-to-point status of the LAN segment
+         attached to this port, using the enumeration values of the
+         IEEE 802.1w clause.  A value of forceTrue(0) indicates
+         that this port should always be treated as if it is
+         connected to a point-to-point link.  A value of
+         forceFalse(1) indicates that this port should be treated as
+         having a shared media connection.  A value of auto(2)
+         indicates that this port is considered to have a
+         point-to-point link if it is an Aggregator and all of its
+         members are aggregatable, or if the MAC entity
+         is configured for full duplex operation, either through
+         auto-negotiation or by management means.  Manipulating this
+         object changes the underlying adminPortToPortMAC.
+
+         The value of this object MUST be retained across
+         reinitializations of the management system."
+
+   REFERENCE
+       "IEEE 802.1w clause 6.4.3, 6.5, 14.8.2"
+   ::= { dot1dStpExtPortEntry 4 }
+
+dot1dStpPortOperPointToPoint OBJECT-TYPE
+    SYNTAX      TruthValue
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "The operational point-to-point status of the LAN segment
+         attached to this port.  It indicates whether a port is
+         considered to have a point-to-point connection.
+         If adminPointToPointMAC is set to auto(2), then the value
+         of operPointToPointMAC is determined in accordance with the
+         specific procedures defined for the MAC entity concerned,
+         as defined in IEEE 802.1w, clause 6.5.  The value is
+         determined dynamically; that is, it is re-evaluated whenever
+         the value of adminPointToPointMAC changes, and whenever
+         the specific procedures defined for the MAC entity evaluate
+         a change in its point-to-point status."
+    REFERENCE
+        "IEEE 802.1w clause 6.4.3, 6.5, 14.8.2"
+    ::= { dot1dStpExtPortEntry 5 }
+
+dot1dStpPortAdminPathCost OBJECT-TYPE
+    SYNTAX      Integer32 (0..200000000)
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+        "The administratively assigned value for the contribution
+         of this port to the path cost of paths toward the spanning
+         tree root.
+
+         Writing a value of '0' assigns the automatically calculated
+         default Path Cost value to the port.  If the default Path
+         Cost is being used, this object returns '0' when read.
+
+         This complements the object dot1dStpPortPathCost or
+         dot1dStpPortPathCost32, which returns the operational value
+         of the path cost.
+
+         The value of this object MUST be retained across
+         reinitializations of the management system."
+    REFERENCE
+        "IEEE 802.1D-1998: Section 8.5.5.3"
+    ::= { dot1dStpExtPortEntry 6 }
+
+-- -------------------------------------------------------------
+-- rstpMIB - Conformance Information
+-- -------------------------------------------------------------
+
+rstpGroups OBJECT IDENTIFIER ::= { rstpConformance 1 }
+
+rstpCompliances OBJECT IDENTIFIER ::= { rstpConformance 2 }
+
+-- -------------------------------------------------------------
+-- Units of conformance
+-- -------------------------------------------------------------
+
+rstpBridgeGroup OBJECT-GROUP
+    OBJECTS {
+        dot1dStpVersion,
+        dot1dStpTxHoldCount
+    }
+    STATUS      current
+    DESCRIPTION
+        "Rapid Spanning Tree information for the bridge."
+    ::= { rstpGroups 1 }
+
+rstpPortGroup OBJECT-GROUP
+    OBJECTS {
+        dot1dStpPortProtocolMigration,
+        dot1dStpPortAdminEdgePort,
+        dot1dStpPortOperEdgePort,
+        dot1dStpPortAdminPointToPoint,
+        dot1dStpPortOperPointToPoint,
+        dot1dStpPortAdminPathCost
+    }
+    STATUS      current
+    DESCRIPTION
+        "Rapid Spanning Tree information for individual ports."
+    ::= { rstpGroups 2 }
+
+-- -------------------------------------------------------------
+-- Compliance statements
+-- -------------------------------------------------------------
+
+rstpCompliance MODULE-COMPLIANCE
+    STATUS      current
+    DESCRIPTION
+        "The compliance statement for device support of Rapid
+         Spanning Tree Protocol (RSTP) bridging services."
+    MODULE
+        MANDATORY-GROUPS {
+            rstpBridgeGroup,
+            rstpPortGroup
+        }
+    ::= { rstpCompliances 1 }
+
+END

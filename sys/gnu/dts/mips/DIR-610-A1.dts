@@ -1,0 +1,102 @@
+/dts-v1/;
+
+#include "rt5350.dtsi"
+
+/ {
+	compatible = "DIR-610-A1", "ralink,rt5350-soc";
+	model = "D-Link DIR-610 A1";
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		status {
+			label = "dir-610-a1:green:status";
+			gpios = <&gpio0 9 1>;
+		};
+
+		wps {
+			label = "dir-610-a1:green:wps";
+			gpios = <&gpio0 13 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 10 1>;
+			linux,code = <0x198>;
+		};
+
+		wps {
+			label = "wps";
+			gpios = <&gpio0 0 1>;
+			linux,code = <0x211>;
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		devdata: partition@30000 {
+			label = "devdata";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x3b0000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "jtag", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&devdata 0x4004>;
+};
+
+&esw {
+	status = "okay";
+	mediatek,portmap = <0x2f>;
+	mediatek,led_polarity = <0x17>;
+};
+
+&wmac {
+	status = "okay";
+	ralink,led-polarity = <1>;
+	ralink,mtd-eeprom = <&devdata 0x4000>;
+};

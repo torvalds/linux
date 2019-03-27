@@ -1,0 +1,38 @@
+LIB2FUNCS_EXTRA = tramp.S
+
+tramp.S: $(srcdir)/config/rs6000/tramp.asm
+	cat $(srcdir)/config/rs6000/tramp.asm > tramp.S
+
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c > dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib
+
+MULTILIB_OPTIONS    += msoft-float
+MULTILIB_DIRNAMES   += soft-float
+
+MULTILIB_OPTIONS    += maltivec
+MULTILIB_DIRNAMES   += altivec
+
+MULTILIB_EXCEPTIONS = *msoft-float/*maltivec*
+
+EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o 
+
+# If .sdata is enabled __CTOR_{LIST,END}__ go into .sdata instead of
+# .ctors.
+CRTSTUFF_T_CFLAGS = -mno-sdata 
+ 
+# Compile crtbeginS.o and crtendS.o with pic. 
+CRTSTUFF_T_CFLAGS_S = -fPIC -mno-sdata 
+
+Local Variables:
+mode: makefile
+End:

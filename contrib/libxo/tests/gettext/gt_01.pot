@@ -1,0 +1,105 @@
+# SOME DESCRIPTIVE TITLE.
+# This file is put in the public domain.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2015-07-01 16:15-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: gt_01.c:42
+#, c-format
+msgid "{:bytes}{N:byte,bytes}\n"
+msgstr ""
+
+#: gt_01.c:44
+#, c-format
+msgid "{L:total} {:total}\n"
+msgstr ""
+
+#: gt_01.c:60
+#, c-format
+msgid "Only {:marzlevanes} {N:marzlevane,marzlevanes} are functioning correctly\n"
+msgstr ""
+
+#: gt_01.c:63
+msgid "Version {:version} {:date}\n"
+msgstr ""
+
+#: gt_01.c:66
+msgid "Unable to {:verb} forward velociping"
+msgstr ""
+
+#: gt_01.c:67
+msgid "{:style} synchronization of {:type} {:target} failed"
+msgstr ""
+
+#: gt_01.c:69
+#, c-format
+msgid "{L:hydrocoptic marzlevanes}{:marzlevanes}\n"
+msgstr ""
+
+#: gt_01.c:71
+msgid "{L:Windings}{:windings}\n"
+msgstr ""
+
+msgid "byte"
+msgid_plural "bytes"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "marzlevane"
+msgid_plural "marzlevanes"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "lotus-o-delta"
+msgstr ""
+
+msgid "cardinal"
+msgstr ""
+
+msgid "automatic"
+msgstr ""
+
+msgid "grammeters"
+msgstr ""
+
+msgid "objectulate"
+msgstr ""
+
+msgid "hydrocoptic marzlevanes"
+msgstr ""
+
+msgid "Windings"
+msgstr ""
+
+msgid "Your {:adjective} {:noun} is {:verb} {:owner} {:target}\n"
+msgstr ""
+
+msgid "The {:adjective} {:noun} was {:verb} {:owner} {:target}\n"
+msgstr ""
+
+msgid "flaming"
+msgstr ""
+
+msgid "sword"
+msgstr ""
+
+msgid "burning"
+msgstr ""
+
+msgid "my"
+msgstr ""
+
+msgid "couch"
+msgstr ""

@@ -1,0 +1,76 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1">
+<meta name="GENERATOR" content="Mozilla/4.01 [en] (Win95; I) [Netscape]">
+<title>PSTI/Traconex 1020 WWV/WWVH Receiver</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>PSTI/Traconex 1020 WWV/WWVH Receiver</h3>
+<p>Author: David L. Mills (mills@udel.edu)<br>
+Last update:
+  <!-- #BeginDate format:En2m -->11-Sep-2010  05:56<!-- #EndDate -->
+  UTC</p>
+<hr>
+<h4>Synopsis</h4>
+<p>Address: 127.127.3.<i>u</i><br>
+  Reference ID: <tt>WWV</tt><br>
+  Driver ID: <tt>WWV_PST</tt><br>
+  Serial Port: <tt>/dev/wwv<i>u</i></tt>; 9600 baud, 8-bits, no parity<br>
+  Features: <tt>tty_clk</tt></p>
+<h4>Description</h4>
+<p>This driver supports the PSTI 1010 and Traconex 1020 WWV/WWVH Receivers. No specific claim of accuracy is made for these receiver, but actual experience suggests that 10 ms would be a conservative assumption.</p>
+<p>The dipswitches should be set for 9600 bps line speed, 24-hour day-of-year format and UTC time zone. Automatic correction for DST should be disabled. It is very important that the year be set correctly in the DIP-switches; otherwise, the day of year will be incorrect after 28 April of a normal or leap year. As the there are only four dipswitches to set the year and the base value of zero correspondes to 1986, years beyond 2001 recycle with the value of zero corresponding to 2002. The propagation delay DIP-switches should be set according to the distance from the transmitter for both WWV and WWVH, as described in the instructions. While the delay can be set only to within 11 ms, the fudge time1 parameter can be used for vernier corrections.</p>
+<p>Using the poll sequence <tt>QTQDQM</tt>, the response timecode is in three sections totalling 50 ASCII printing characters, as concatenated by the driver, in the following format:</p>
+<pre>
+ahh:mm:ss.fffs&lt;cr&gt; yy/dd/mm/ddd&lt;cr&gt;
+frdzycchhSSFTttttuuxx&lt;cr&gt;
+
+on-time = first &lt;cr&gt;
+hh:mm:ss.fff = hours, minutes, seconds, milliseconds
+a = AM/PM indicator (' ' for 24-hour mode)
+yy = year (from DIPswitches)
+dd/mm/ddd = day of month, month, day of year
+s = daylight-saving indicator (' ' for 24-hour mode)
+f = frequency enable (O = all frequencies enabled)
+r = baud rate (3 = 1200, 6 = 9600)
+d = features indicator (@ = month/day display enabled)
+z = time zone (0 = UTC)
+y = year (5 = 91)
+cc = WWV propagation delay (52 = 22 ms)
+hh = WWVH propagation delay (81 = 33 ms)
+SS = status (80 or 82 = operating correctly)
+F = current receive frequency (4 = 15 MHz)
+T = transmitter (C = WWV, H = WWVH)
+tttt = time since last update (0000 = minutes)
+uu = flush character (03 = ^c)
+xx = 94 (unknown)</pre>
+<p>The alarm condition is indicated by other than <tt>8</tt> at <tt>a</tt>, which occurs during initial synchronization and when received signal is lost for an extended period; unlock condition is indicated by other than <tt>0000</tt> in the <tt>tttt</tt> subfield.</p>
+<h4>Monitor Data</h4>
+<p>When enabled by the <tt>flag4</tt> fudge flag, every received timecode is written as-is to the <tt>clockstats</tt> file.</p>
+<h4>Fudge Factors</h4>
+<dl>
+  <dt><tt>time1 <i>time</i></tt>
+  <dd>Specifies the time offset calibration factor, in seconds and fraction, with default 0.0.
+  <dt><tt>time2 <i>time</i></tt>
+  <dd>Not used by this driver.
+  <dt><tt>stratum <i>number</i></tt>
+  <dd>Specifies the driver stratum, in decimal from 0 to 15, with default 0.
+  <dt><tt>refid <i>string</i></tt>
+  <dd>Specifies the driver reference identifier, an ASCII string from one to four characters, with default <tt>WWV</tt>.
+  <dt><tt>flag1 0 | 1</tt>
+  <dd>Not used by this driver.
+  <dt><tt>flag2 0 | 1</tt>
+  <dd>Not used by this driver.
+  <dt><tt>flag3 0 | 1</tt>
+  <dd>Not used by this driver.
+  <dt><tt>flag4 0 | 1</tt>
+  <dd>Not used by this driver.
+</dl>
+<h4>Additional Information</h4>
+<p><a href="../refclock.html">Reference Clock Drivers</a></p>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

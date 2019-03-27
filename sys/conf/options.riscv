@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+RISCV				opt_global.h
+FPE				opt_global.h
+INTRNG				opt_global.h

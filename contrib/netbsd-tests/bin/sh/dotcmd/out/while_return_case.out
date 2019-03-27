@@ -1,0 +1,10 @@
+before while
+before dotcmd
+before case
+before return
+after dotcmd, return value: 0
+before dotcmd
+before case
+before return
+after dotcmd, return value: 0
+after while

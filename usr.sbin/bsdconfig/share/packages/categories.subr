@@ -1,0 +1,209 @@
+if [ ! "$_PACKAGES_CATEGORIES_SUBR" ]; then _PACKAGES_CATEGORIES_SUBR=1
+#
+# Copyright (c) 2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." packages/categories.subr
+f_include $BSDCFG_SHARE/strings.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+############################################################ GLOBALS
+
+CATEGORIES=
+NCATEGORIES=0
+
+############################################################ FUNCTIONS
+
+# f_category_desc_get $category [$var_to_set]
+#
+# Fetch the description of a given category. Returns success if a match was
+# found, otherwise failure.
+#
+# If $var_to_set is missing or NULL, the category description is printed to
+# standard out for capturing in a sub-shell (which is less-recommended because
+# of performance degredation; for example, when called in a loop).
+#
+f_category_desc_get()
+{
+	local __category="$1" __var_to_set="$2" __cat __varcat
+
+	# Return failure if $category
+	[ "$__category" ] || return $FAILURE
+
+	for __cat in $CATEGORIES; do
+		[ "$__cat" = "$__category" ] || continue
+		f_str2varname $__cat __varcat
+		f_getvar _category_$__varcat $__var_to_set
+		return $?
+	done
+	return $FAILURE
+}
+
+# f_category_desc_set $category $desc
+#
+# Store a description in-association with a category. $category should be
+# alphanumeric and can include the underscore [_] but should not contain
+# whitespace. Returns success unless $category is NULL or no arguments. Use the
+# f_category_desc_get() routine with the same $category to retrieve the stored
+# description.
+#
+f_category_desc_set()
+{
+	local category="$1" desc="$2"
+	local cat varcat found=
+	[ "$category" ] || return $FAILURE
+	for cat in $CATEGORIES; do
+		[ "$cat" = "$category" ] || continue
+		f_str2varname $cat varcat
+		f_isset _category_$varcat || continue
+		found=1 && break
+	done
+	if [ ! "$found" ]; then
+		CATEGORIES="$CATEGORIES $category"
+	fi
+	f_str2varname $category varcat
+	setvar "_category_$varcat" "$desc"
+	# Export the variable for awk(1) ENVIRON visibility
+	export "_category_$varcat"
+	return $SUCCESS
+}
+
+############################################################ MAIN
+
+#
+# Load descriptions for package categories. Note that we don't internationalize
+# category names because this would be confusing for people used to browsing
+# the FTP mirrors or are otherwise familiar with an interface that does not
+# provide internationalized names. The descriptions can be used to provide i18n
+# users a description of the non-i18n category name.
+#
+f_category() { f_category_desc_set "$1" "$2"; }
+f_category All           "$msg_all_desc"
+f_category accessibility "$msg_accessibility_desc"
+f_category afterstep     "$msg_afterstep_desc"
+f_category arabic        "$msg_arabic_desc"
+f_category archivers     "$msg_archivers_desc"
+f_category astro         "$msg_astro_desc"
+f_category audio         "$msg_audio_desc"
+f_category benchmarks    "$msg_benchmarks_desc"
+f_category biology       "$msg_biology_desc"
+f_category cad           "$msg_cad_desc"
+f_category chinese       "$msg_chinese_desc"
+f_category comms         "$msg_comms_desc"
+f_category converters    "$msg_converters_desc"
+f_category databases     "$msg_databases_desc"
+f_category deskutils     "$msg_deskutils_desc"
+f_category devel         "$msg_devel_desc"
+f_category dns           "$msg_dns_desc"
+f_category docs          "$msg_docs_desc"
+f_category editors       "$msg_editors_desc"
+f_category elisp         "$msg_elisp_desc"
+f_category emulators     "$msg_emulators_desc"
+f_category enlightenment "$msg_enlightenment_desc"
+f_category finance       "$msg_finance_desc"
+f_category french        "$msg_french_desc"
+f_category ftp           "$msg_ftp_desc"
+f_category games         "$msg_games_desc"
+f_category geography     "$msg_geography_desc"
+f_category german        "$msg_german_desc"
+f_category gnome         "$msg_gnome_desc"
+f_category gnustep       "$msg_gnustep_desc"
+f_category graphics      "$msg_graphics_desc"
+f_category hamradio      "$msg_hamradio_desc"
+f_category haskell       "$msg_haskell_desc"
+f_category hebrew        "$msg_hebrew_desc"
+f_category hungarian     "$msg_hungarian_desc"
+f_category ipv6          "$msg_ipv6_desc"
+f_category irc           "$msg_irc_desc"
+f_category japanese      "$msg_japanese_desc"
+f_category java          "$msg_java_desc"
+f_category kde           "$msg_kde_desc"
+f_category kld           "$msg_kld_desc"
+f_category korean        "$msg_korean_desc"
+f_category lang          "$msg_lang_desc"
+f_category linux         "$msg_linux_desc"
+f_category lisp          "$msg_lisp_desc"
+f_category mail          "$msg_mail_desc"
+f_category math          "$msg_math_desc"
+f_category mbone         "$msg_mbone_desc"
+f_category misc          "$msg_misc_desc"
+f_category multimedia    "$msg_multimedia_desc"
+f_category net           "$msg_net_desc"
+f_category net-im        "$msg_net_im_desc"
+f_category net-mgmt      "$msg_net_mgmt_desc"
+f_category net-p2p       "$msg_net_p2p_desc"
+f_category news          "$msg_news_desc"
+f_category palm          "$msg_palm_desc"
+f_category parallel      "$msg_parallel_desc"
+f_category pear          "$msg_pear_desc"
+f_category perl5         "$msg_perl5_desc"
+f_category plan9         "$msg_plan9_desc"
+f_category polish        "$msg_polish_desc"
+f_category ports-mgmt    "$msg_ports_mgmt_desc"
+f_category portuguese    "$msg_portuguese_desc"
+f_category print         "$msg_print_desc"
+f_category python        "$msg_python_desc"
+f_category ruby          "$msg_ruby_desc"
+f_category rubygems      "$msg_rubygems_desc"
+f_category russian       "$msg_russian_desc"
+f_category scheme        "$msg_scheme_desc"
+f_category science       "$msg_science_desc"
+f_category security      "$msg_security_desc"
+f_category shells        "$msg_shells_desc"
+f_category spanish       "$msg_spanish_desc"
+f_category sysutils      "$msg_sysutils_desc"
+f_category tcl           "$msg_tcl_desc"
+f_category textproc      "$msg_textproc_desc"
+f_category tk            "$msg_tk_desc"
+f_category ukrainian     "$msg_ukrainian_desc"
+f_category vietnamese    "$msg_vietnamese_desc"
+f_category windowmaker   "$msg_windowmaker_desc"
+f_category www           "$msg_www_desc"
+f_category x11           "$msg_x11_desc"
+f_category x11-clocks    "$msg_x11_clocks_desc"
+f_category x11-drivers   "$msg_x11_drivers_desc"
+f_category x11-fm        "$msg_x11_fm_desc"
+f_category x11-fonts     "$msg_x11_fonts_desc"
+f_category x11-servers   "$msg_x11_servers_desc"
+f_category x11-themes    "$msg_x11_themes_desc"
+f_category x11-toolkits  "$msg_x11_toolkits_desc"
+f_category x11-wm        "$msg_x11_wm_desc"
+f_category xfce          "$msg_xfce_desc"
+f_category zope          "$msg_zope_desc"
+
+f_count NCATEGORIES $CATEGORIES
+f_dprintf "%s: Initialized %u package category descriptions." \
+          packages/categories.subr $NCATEGORIES
+
+f_dprintf "%s: Successfully loaded." packages/categories.subr
+
+fi # ! $_PACKAGES_CATEGORIES_SUBR

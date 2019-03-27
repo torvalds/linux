@@ -1,0 +1,64 @@
+# $FreeBSD$
+
+This directory holds scripts and a support program for multiple test cases
+exercising multi-IP FIBs.  At this time only IPv6 test cases are provided.
+
+Makefile
+reflect.c
+
+	Makefile just builds reflect, a program to echo data on a TCP or UDP
+	socket in very simplistic ways.  It has a couple of options to provide
+	an address or port, a FIB to bind to or a FIB to add to a reflected
+	message as well as some "magic" keyword handling to let the intiators
+	control it.
+
+initiator.sh and reflector.sh
+
+	intiator.sh runs two local test cases, one which shows a documented
+	limitation.
+
+	All further tests are either exercising the sending or receiving of
+	ICMP6, TCP or UDP packets with multiple FIBs.  initiator.sh and
+	reflector.sh must run on two different nodes both having a network
+	interface in the same broadcast domain (be it cross-over or on a
+	bridge/switch).  The tests will use the IPv6 benchmarking working
+	group (BMWG) prefix.  The prefix is hard coded into some tests.
+	Control messages will synchronize reflector with initiator.  The
+	reflector needs the reflect binary.  Apart from that the scripts
+	depend on ping6, netcat, awk, tr and ipfw.  The interface to use can
+	be set from the environment.  The commands can be run like:
+	
+	env IFACE=ifname sh intiator.sh
+	env IFACE=ifname sh reflector.sh
+	
+	Both scripts also support a DEBUG environment variable for additional
+	output.  A special value of 42 will enable sh(1) xtrace printing.
+
+	The output format is modeled after Test::Harness Perl as used in
+	tools/regression/ but not always compliant following the test case name.
+
+	NOTE: at the time of writing reflector.sh can trigger kernel races
+	unrelated to multi-FIB test leading to a panic(9).  "delay" calls
+	are used to mitigate the problem some but are not always good enough.
+	It is suggested to run one test case at a time manually disabling
+	the others in both scripts.
+
+forwarding.sh
+
+	forwarding.sh tests FIBs in the forwarding path, making sure that
+	packets tagged on input are leaving on the correct FIB.
+	The script must be run on three nodes with both edge nodes (left
+	and right) being connected to the middle node on separate interfaces.
+
+	The script operates on the same principles and requirements as the
+	two afore described ones.  Environment options equally apply, with
+	the middle node also taking an IFACEFAR variable to name the interface
+	to the right.   See the ASCII art at the beginning of the script for
+	details. The script needs to be told which node it is running with
+	the first argument:
+
+	env IFACE=ifname sh forwarding.sh left
+	env IFACE=leftifname IFACEFAR=rightifname sh forwarding.sh middle
+	env IFACE=ifname sh forwarding.sh right
+
+# end

@@ -1,0 +1,47 @@
+1: normal
+# this is a comment
+>> this is a COMMENT
+'XXX' this is a COMMENT
+'XXX' this is a COMMENT q COMMENT too
+
+2: changecom(>>)dnl
+# this is a COMMENT
+>> this is a comment
+'XXX' this is a COMMENT
+'XXX' this is a COMMENT q COMMENT too
+
+3: changecom dnl
+ # this is a COMMENT
+>> this is a COMMENT
+'XXX' this is a COMMENT
+'XXX' this is a COMMENT q COMMENT too
+
+4: changecom()dnl
+# this is a COMMENT
+>> this is a COMMENT
+'XXX' this is a COMMENT
+'XXX' this is a COMMENT q COMMENT too
+
+5: changecom(,)dnl
+# this is a COMMENT
+>> this is a COMMENT
+'XXX' this is a COMMENT
+'XXX' this is a COMMENT q COMMENT too
+
+6: changecom(`p',q)dnl
+# this is a COMMENT
+>> this is a COMMENT
+p this is a comment
+p this is a comment q COMMENT too
+
+7: changecom(`p')dnl
+# this is a COMMENT
+>> this is a COMMENT
+p this is a comment
+p this is a comment q comment too
+
+8: changecom(#)dnl
+# this is a comment
+>> this is a COMMENT
+'XXX' this is a COMMENT
+'XXX' this is a COMMENT q COMMENT too

@@ -1,0 +1,81 @@
+.\"
+.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 9, 2011
+.Dt VM_MAP_SYNC 9
+.Os
+.Sh NAME
+.Nm vm_map_sync
+.Nd push dirty pages to their pager
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_map.h
+.Ft int
+.Fo vm_map_sync
+.Fa "vm_map_t map" "vm_offset_t start" "vm_offset_t end" "boolean_t syncio"
+.Fa "boolean_t invalidate"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn vm_map_sync
+function forces any dirty cached pages in the range
+.Fa start
+to
+.Fa end
+within the
+.Fa map
+to be pushed to their underlying pager.
+.Pp
+If
+.Fa syncio
+is TRUE, dirty pages are written synchronously.
+.Pp
+If
+.Fa invalidate
+is TRUE, any cached pages are also freed.
+.Pp
+The range provided must be contiguous, it MUST NOT contain holes.
+The range provided MUST NOT contain any sub-map entries.
+.Sh RETURN VALUES
+The
+.Fn vm_map_sync
+function returns
+.Dv KERN_SUCCESS
+if successful.
+.Pp
+Otherwise,
+.Dv KERN_INVALID_ADDRESS
+will be returned if the function encountered a sub-map entry;
+.Dv KERN_INVALID_ARGUMENT
+will be returned if the function encountered a hole in the region provided,
+or if an entry could not be found for the given start address.
+.Sh SEE ALSO
+.Xr vm_map 9
+.Sh AUTHORS
+This manual page was written by
+.An Bruce M Simpson Aq Mt bms@spc.org .

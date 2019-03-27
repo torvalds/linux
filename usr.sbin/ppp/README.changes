@@ -1,0 +1,140 @@
+Copyright (c) 2001 Brian Somers <brian@Awfulhak.org>
+              based on work by Eivind Eklund <perhaps@yes.no>,
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+
+$FreeBSD$
+
+This file summarises changes made to ppp that effect
+its configuration.
+
+It does not describe new features, rather it attempts
+to answer any `this used to work, why doesn't it now?'
+questions.
+
+o The `set debug' command was replaced with `set log'.
+o The `set log LCP' command was split into LCP, IPCP and CCP logs.
+o Syslogd is used for logging.  /etc/syslog.conf must be updated.
+o LQR is disabled by default.
+o Openmode is active by default.
+o Users must be a member of group `network' for ppp access.  Furthermore,
+  they must be `allow'ed to run ppp via the `allow' command in the
+  configuration file.
+  For a brief period, ppp could only be run as root.
+o No diagnostic socket is created by default.  The `set server' command
+  must be used.
+o The diagnostic socket password must be specified *only* on the `set
+  server' command line.
+o When `set server' is used to re-select a diagnostic port, all existing
+  diagnostic connections are dropped.
+o pppd-deflate is now called deflate24.
+o Filter IPs of 0.0.0.0 have a default width of 0, not 32.
+o Errors in `add' and `delete' are logged as warnings rather than being
+  written to the TCP/IP log.
+o Any number of diagnostic prompts are allowed, and they are allowed in
+  interactive mode.
+o The default `device' is cuau1, then cuau0
+o A password of "*" in ppp.secret causes a passwd database lookup in
+  pap mode.
+o The value of the CONNECT environment variable is logged in the
+  utmp host field in -direct mode.
+o Out-of-sequence FSM packets (IPCP/LCP/CCP) are dropped by default.
+o Reconnect values are used after an LQR timeout.
+o ^C works on the parent in -background mode.
+o The dial/call/open command works asynchronously.  As a result, prompts
+  do not lose control while dialing.
+o The `display' command has been removed.  All information is available
+  with the appropriate `show' command.
+o Msext does not need to be enabled/disabled.  Setting the NBNS (set nbns)
+  will auto enable it.  The DNS side may be enabled/disabled, and if
+  enabled without a `set dns' (was `set ns') will use values from
+  /etc/resolv.conf.
+o Filters are now called `allow', `dial', `in' and `out'.  `set
+  ifilter ...' becomes `set filter in ...' etc.
+o Authname and Authkey may only be `set' in phase DEAD.
+o Set encrypt is no longer necessary.  Ppp will respond to M$CHAP
+  servers correctly if it's built with DES.
+o Throughput statistics are enabled by default.
+o `Set stopped' only has two parameters.  It's no longer possible to
+  have an IPCP stopped timer.
+o `Set timeout' only has one or two parameters.  Use `set lqrperiod' and
+  `set {lcp,ccp,ipcp,chap,pap}retry' for the other timers.  These timeout
+  values can be seen using the relevant show commands.
+o `set loopback' is now `enable/disable loopback'.
+o `show auto', `show loopback' and `show mtu' are all part of `show bundle'.
+o `show mru' is part of `show lcp'
+o `show msext' and `show vj' are part of `show ipcp'
+o `show reconnect' and `show redial' are part of `show link'
+o A signal 15 (TERM) will now shut down the link gracefully.
+o A signal 2 (HUP) will drop all links immediately.
+o Signal 30 (USR1) is now ignored.
+o Add & delete commands are not necessary in ppp.linkup if they are
+  `sticky routes' (ie, contain MYADDR or HISADDR).
+o LINK and CARRIER logging are no longer available.
+o Timer based DEBUG messages are now logged in the new TIMER log.
+o Ppp can use tun devices > tun255.
+o Protocol-compressed packets are accepted even if they were denied
+  at LCP negotiation time.
+o Passwords aren't logged when logging the ``set server'' line.
+o Command line options only need enough characters to uniquely identify
+  them.  -a == -auto, -dd == -ddial etc.  -interactive is also allowed.
+o If you don't like seeing additional interface aliases when running in
+  -auto -alias mode, add ``iface clear'' to your ppp.linkdown file -
+  check the sample file.
+o Ppp waits for 1 second before checking whether the device supports
+  carrier.  This is controllable with ``set cd''.
+o Random dial timeouts are now between 1 and 30 seconds inclusive rather
+  than between 0 and 29.
+o Ppp now accepts M$CHAP (as well as normal CHAP) by default.  If this
+  is not required, you must ``deny chap05 chap80''.
+o The ``set device'' command now expects each device to be specified as an
+  argument rather than concatentating all arguments and splitting based
+  on commas and spaces.
+o The ``show modem'' command is deprecated and has been changed to
+  ``show physical''.
+o The words ``host'' and ``port'' are no longer accepted by the ``set filter''
+  command.  Removing them should yield the same results as before.
+o The ``set weight'' command has been deprecated.  The ``set bandwidth''
+  command should now be used instead.
+o The ``set autoload'' command syntax and implementation have changed as the
+  old implementation was mis-designed and dysfunctional.
+o Ppp now waits either the full ``set cd'' time or until carrier is detected
+  before running the login script (whichever comes first).
+o The -alias flag has been deprecated.  The -nat flag should be used instead.
+o Unbalanced quotes in commands are now warned about and the entire command
+  is ignored.
+o It is now only necessary to escape the `-' character in chat scripts twice.
+  See the example files for details.
+o Environment variables and ~ are expanded on in commands
+o ``nat pptp'' is no longer necessary as this is now done transparently
+o The ``!'' at the start of chat scripts and authkey can be made literal
+  (rather than meaning execute) by doubling it to ``!!''.
+o MP autoload throughput measurements are now based on the maximum of input
+  and output averages rather than on the total.
+o When only one link is open in MP mode, MP link level compression is not
+  open and the peer MRU >= the peer MRRU, ppp sends outbound traffic as
+  PROTO_IP traffic rather than PROTO_MP.
+o MSCHAPv2 is now accepted by default.  If you don't wish to negotiate
+  this, you must explicitly deny it.
+o MPPE is enabled and accepted by default (although deflate and predictor1
+  are preferred.

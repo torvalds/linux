@@ -1,0 +1,40 @@
+/* $FreeBSD$ */
+
+&palmbus {
+	gpio@600 {
+		/*
+		 * Mark gpio as compatible to simple-bus and override
+		 * its #size-cells and provide a default ranges property
+		 * so we can attach instances of our mtk_gpio_v2 driver
+		 * to it for now. Provide exactly the same resources to
+		 * the instances of mtk_gpio_v2.
+		 */
+		compatible = "simple-bus";
+		ranges = <0x0 0x600 0x100>;
+		#size-cells = <1>;
+
+		gpio0: bank@0 {
+			reg = <0x0 0x100>;
+			interrupts = <6>;
+		};
+
+		gpio1: bank@1 {
+			reg = <0x0 0x100>;
+			interrupts = <6>;
+		};
+
+		gpio2: bank@2 {
+			reg = <0x0 0x100>;
+			interrupts = <6>;
+		};
+	};
+};
+
+&pcie {
+		/*
+		 * Our driver is different that OpenWRT's, so we need slightly
+		 * different values for the reg property
+		 */
+		reg = <0x10140000 0x10000>;
+	compatible = "mediatek,mt7628-pci";
+};

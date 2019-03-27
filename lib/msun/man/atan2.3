@@ -1,0 +1,225 @@
+.\" Copyright (c) 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)atan2.3	5.1 (Berkeley) 5/2/91
+.\" $FreeBSD$
+.\"
+.Dd July 31, 2008
+.Dt ATAN2 3
+.Os
+.Sh NAME
+.Nm atan2 ,
+.Nm atan2f ,
+.Nm atan2l ,
+.Nm carg ,
+.Nm cargf ,
+.Nm cargl
+.Nd arc tangent and complex phase angle functions
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn atan2 "double y" "double x"
+.Ft float
+.Fn atan2f "float y" "float x"
+.Ft long double
+.Fn atan2l "long double y" "long double x"
+.In complex.h
+.Ft double
+.Fn carg "double complex z"
+.Ft float
+.Fn cargf "float complex z"
+.Ft long double
+.Fn cargl "long double complex z"
+.Sh DESCRIPTION
+The
+.Fn atan2 ,
+.Fn atan2f ,
+and
+.Fn atan2l
+functions compute the principal value of the arc tangent of
+.Fa y/ Ns Ar x ,
+using the signs of both arguments to determine the quadrant of
+the return value.
+.Pp
+The
+.Fn carg ,
+.Fn cargf ,
+and
+.Fn cargl
+functions compute the complex argument (or phase angle) of
+.Fa z .
+The complex argument is the number theta such that
+.Li z = r * e^(I * theta) ,
+where
+.Li r = cabs(z) .
+The call
+.Li carg(z)
+is equivalent to
+.Li atan2(cimag(z), creal(z)) ,
+and similarly for
+.Fn cargf
+and
+.Fn cargl .
+.Sh RETURN VALUES
+The
+.Fn atan2 ,
+.Fn atan2f ,
+and
+.Fn atan2l
+functions, if successful,
+return the arc tangent of
+.Fa y/ Ns Ar x
+in the range
+.Bk -words
+.Bq \&- Ns \*(Pi , \&+ Ns \*(Pi
+.Ek
+radians.
+Here are some of the special cases:
+.Bl -column atan_(y,x)_:=____  sign(y)_(Pi_atan2(Xy_xX))___
+.It Fn atan2 y x No := Ta
+.Fn atan y/x Ta
+if
+.Ar x
+> 0,
+.It Ta sign( Ns Ar y Ns )*(\*(Pi -
+.Fn atan "\*(Bay/x\*(Ba" ) Ta
+if
+.Ar x
+< 0,
+.It Ta
+.No 0 Ta
+if x = y = 0, or
+.It Ta
+.Pf sign( Ar y Ns )*\*(Pi/2 Ta
+if
+.Ar x
+= 0 \(!=
+.Ar y .
+.El
+.Sh NOTES
+The function
+.Fn atan2
+defines "if x > 0,"
+.Fn atan2 0 0
+= 0 despite that previously
+.Fn atan2 0 0
+may have generated an error message.
+The reasons for assigning a value to
+.Fn atan2 0 0
+are these:
+.Bl -enum -offset indent
+.It
+Programs that test arguments to avoid computing
+.Fn atan2 0 0
+must be indifferent to its value.
+Programs that require it to be invalid are vulnerable
+to diverse reactions to that invalidity on diverse computer systems.
+.It
+The
+.Fn atan2
+function is used mostly to convert from rectangular (x,y)
+to polar
+.if n\
+(r,theta)
+.if t\
+(r,\(*h)
+coordinates that must satisfy x =
+.if n\
+r\(**cos theta
+.if t\
+r\(**cos\(*h
+and y =
+.if n\
+r\(**sin theta.
+.if t\
+r\(**sin\(*h.
+These equations are satisfied when (x=0,y=0)
+is mapped to
+.if n \
+(r=0,theta=0).
+.if t \
+(r=0,\(*h=0).
+In general, conversions to polar coordinates
+should be computed thus:
+.Bd -unfilled -offset indent
+.if n \{\
+r	:= hypot(x,y);  ... := sqrt(x\(**x+y\(**y)
+theta	:= atan2(y,x).
+.\}
+.if t \{\
+r	:= hypot(x,y);  ... := \(sr(x\u\s82\s10\d+y\u\s82\s10\d)
+\(*h	:= atan2(y,x).
+.\}
+.Ed
+.It
+The foregoing formulas need not be altered to cope in a
+reasonable way with signed zeros and infinities
+on a machine that conforms to
+.Tn IEEE 754 ;
+the versions of
+.Xr hypot 3
+and
+.Fn atan2
+provided for
+such a machine are designed to handle all cases.
+That is why
+.Fn atan2 \(+-0 \-0
+= \(+-\*(Pi
+for instance.
+In general the formulas above are equivalent to these:
+.Bd -unfilled -offset indent
+.if n \
+r := sqrt(x\(**x+y\(**y); if r = 0 then x := copysign(1,x);
+.if t \
+r := \(sr(x\(**x+y\(**y);\0\0if r = 0 then x := copysign(1,x);
+.Ed
+.El
+.Sh SEE ALSO
+.Xr acos 3 ,
+.Xr asin 3 ,
+.Xr atan 3 ,
+.Xr cabs 3 ,
+.Xr cos 3 ,
+.Xr cosh 3 ,
+.Xr math 3 ,
+.Xr sin 3 ,
+.Xr sinh 3 ,
+.Xr tan 3 ,
+.Xr tanh 3
+.Sh STANDARDS
+The
+.Fn atan2 ,
+.Fn atan2f ,
+.Fn atan2l ,
+.Fn carg ,
+.Fn cargf ,
+and
+.Fn cargl
+functions conform to
+.St -isoC-99 .

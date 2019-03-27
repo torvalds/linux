@@ -1,0 +1,4 @@
+version=3
+
+opts=passive ftp://ftp.invisible-island.net/dialog/dialog-([\d.]+)\.tgz \
+ debian  uupdate

@@ -1,0 +1,118 @@
+.\"
+.\" Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 30, 2017
+.Dt NTB_HW_PLX 4
+.Os
+.Sh NAME
+.Nm ntb_hw_plx
+.Nd PLX/Avago/Broadcom Non-Transparent Bridge driver
+.Sh SYNOPSIS
+To compile this driver into your kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ntb"
+.Cd "device ntb_hw_plx"
+.Ed
+.Pp
+Or, to load the driver as a module at boot, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ntb_hw_plx_load="YES"
+.Ed
+.Pp
+The following tunables are settable from the
+.Xr loader 8 :
+.Bl -ohang
+.It Va hint.ntb_hw. Ns Ar X Ns Va .b2b
+Being set to 1 (default) tells the driver attached to Virtual Interface of the
+NTB that it works in NTB-to-NTB (back-to-back) mode, 0 -- NTB-to-Root Port.
+Driver attached to Link Interface (visible from Root Port side) switches to
+NTB-to-Root Port mode automatically, but one attached to Virtual Interface
+can't detect what is on the other side and require external knowledge.
+.El
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Non-Transparent Bridge (NTB) hardware in
+PLX PCIe bridge chips, which allow up to two of their PCIe ports to be
+switched from transparent to non-transparent bridge mode.
+In this mode bridge looks not as a PCI bridge, but as PCI endpoint device.
+The driver hides hardware details, exposing memory windows, scratchpads
+and doorbells of the other side via hardware independent KPI to
+.Xr ntb 4
+subsystem.
+.Pp
+Each PLX NTB provides up to 2 64-bit or 4 32-bit memory windows to the
+other system's memory, 6 or 12 scratchpad registers and 16 doorbells to
+interrupt the other system.
+In NTB-to-NTB mode one of memory windows (or half of it, if bigger then 1MB)
+is consumed by the driver itself to access scratchpad and doorbell registers
+of the other side.
+.Sh HARDWARE
+The following PLX/Avago/Broadcom chips are supported by the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+PEX 8713
+.It
+PEX 8717
+.It
+PEX 8725
+.It
+PEX 8733
+.It
+PEX 8749
+.El
+.Pp
+, but it may also work with other compatible ones.
+.Sh CONFIGURATION
+The basic chip configuration should be done by serial EEPROM or via i2c.
+It includes enabling NTB on one or both sides (choosing between NTB-to-NTB
+(back-to-back) and NTB-to-Root Port modes) and configuring BARs sizes.
+.Pp
+The recommended mode is NTB-to-NTB mode, since while NTB-to-Root Port is
+generally supported by the driver, it require PCI hotplug handling on the
+Root Port, that may be difficult or cause different kinds of problems.
+.Sh SEE ALSO
+.Xr if_ntb 4 ,
+.Xr ntb_transport 4 ,
+.Xr ntb 4 ,
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Alexander Motin Aq Mt mav@FreeBSD.org .
+.Sh BUGS
+There is no way to protect your system from malicious behavior on the other
+system once the link is brought up.
+Anyone with root or kernel access on the other system can read or write to
+any location on your system.
+In other words, only connect two systems that completely trust each other.

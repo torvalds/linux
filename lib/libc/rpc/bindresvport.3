@@ -1,0 +1,103 @@
+.\" @(#)bindresvport.3n	2.2 88/08/02 4.0 RPCSRC; from 1.7 88/03/14 SMI
+.\" $NetBSD: bindresvport.3,v 1.8 2000/07/05 15:45:33 msaitoh Exp $
+.\" $FreeBSD$
+.\"
+.Dd November 22, 1987
+.Dt BINDRESVPORT 3
+.Os
+.Sh NAME
+.Nm bindresvport ,
+.Nm bindresvport_sa
+.Nd bind a socket to a privileged IP port
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In rpc/rpc.h
+.Ft int
+.Fn bindresvport "int sd" "struct sockaddr_in *sin"
+.Ft int
+.Fn bindresvport_sa "int sd" "struct sockaddr *sa"
+.Sh DESCRIPTION
+The
+.Fn bindresvport
+and
+.Fn bindresvport_sa
+functions
+are used to bind a socket descriptor to a privileged
+.Tn IP
+port, that is, a
+port number in the range 0-1023.
+.Pp
+If
+.Fa sin
+is a pointer to a
+.Ft "struct sockaddr_in"
+then the appropriate fields in the structure should be defined.
+Note that
+.Fa sin->sin_family
+must be initialized to the address family of the socket, passed by
+.Fa sd .
+If
+.Fa sin->sin_port
+is
+.Sq 0
+then an anonymous port (in the range 600-1023) will be
+chosen, and if
+.Xr bind 2
+is successful, the
+.Fa sin->sin_port
+will be updated to contain the allocated port.
+.Pp
+If
+.Fa sin
+is the
+.Dv NULL
+pointer,
+an anonymous port will be allocated (as above).
+However, there is no way for
+.Fn bindresvport
+to return the allocated port in this case.
+.Pp
+Only root can bind to a privileged port; this call will fail for any
+other users.
+.Pp
+Function prototype of
+.Fn bindresvport
+is biased to
+.Dv AF_INET
+socket.
+The
+.Fn bindresvport_sa
+function
+acts exactly the same, with more neutral function prototype.
+Note that both functions behave exactly the same, and
+both support
+.Dv AF_INET6
+sockets as well as
+.Dv AF_INET
+sockets.
+.Sh RETURN VALUES
+.Rv -std bindresvport
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EPFNOSUPPORT
+If second argument was supplied,
+and address family did not match between arguments.
+.El
+.Pp
+The
+.Fn bindresvport
+function
+may also fail and set
+.Va errno
+for any of the errors specified for the calls
+.Xr bind 2 ,
+.Xr getsockopt 2 ,
+or
+.Xr setsockopt 2 .
+.Sh SEE ALSO
+.Xr bind 2 ,
+.Xr getsockopt 2 ,
+.Xr setsockopt 2 ,
+.Xr ip 4

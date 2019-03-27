@@ -1,0 +1,475 @@
+[ this is really old mail that came to me in response to my 1986 posting
+  to usenet asking for feature suggestions before releasing the first 
+  version of cron.  it is presented here for its entertainment value.
+  --vix ]
+
+$FreeBSD$
+
+From ptsfa!lll-crg!ames!acornrc!bob Wed Dec 31 10:07:08 1986
+Date: Wed, 31 Dec 86 08:59:31 pst
+From: lll-crg!ames!acornrc!bob (Bob Weissman)
+To: ptsfa!vixie!paul
+Status: RO
+
+Sure, here's a suggestion: I'd like to be able to run a program, say,
+every two hours.  Current cron requires me to write
+0,2,4,6,8,10,12,14,16,18,20,22 in the hours field.  How about a notation
+to handle this more elegantly?
+
+<<	Okay, I've allowed 0-22/2 as a means of handling this.
+	The time specification for my cron is as follows:
+		specification = range {"," range}
+		range = (start "-" finish ["/" step]) | single-unit
+	This allows "1,3,5-7", which the current cron doesn't (it won't
+	do a range inside a list), and handles your specific need.	>>
+
+From drw@mit-eddie Wed Dec 31 18:25:27 1986
+Date: Wed, 31 Dec 86 14:28:19 est
+From: drw@mit-eddie (Dale Worley)
+To: mit-eddie!vixie!paul
+Status: RO
+
+We have a lot of lines in our crontab of the form
+
+	00 12 * * * su user < /usr/users/user/script.file
+
+This barfs (silently!) on our system (Dec Ultrix 1.2 == 4.2bsd) if
+user's shell is csh.  This, I am told, is because csh requires that
+the environment be set up in certain ways, which cron doesn't do.
+(Actually, I believe, it is because /etc/rc, which runs cron, doesn't
+set up the environment enough for csh to run, and cron just inherits
+the situation.)  Anyway, the point is that if you find out what csh
+really needs in its environment, you might want to set up cron to
+provide some reasonable defaults (if it isn't supplied by cron's
+parent).  Also, could you tell me what csh needs, if you find out, so
+we can hack our /etc/rc?
+
+<<	well, the environment IS a problem. processes that cron forks
+	will inherit the environment of the person who ran the cron
+	daemon... I plan to edit out such useless things as TERMCAP,
+	TERM, and the like; supply correct values for HOME, USER, CWD,
+	and whatever else comes to mind.  I'll make sure csh works...	>>
+From ptsfa!ames!seismo!dgis!generous Thu Jan  1 07:33:17 1987
+Date: Thu Jan 1 10:29:20 1987
+From: ames!seismo!dgis!generous (Curtis Generous)
+To: nike!ptsfa!vixie!paul
+Status: RO
+
+Paul:
+
+One of the limitations of the present versions of cron is the lack
+of the capability of specifying a way to execute a command every
+n units of time.
+
+Here is a good example:
+
+# Present method to start up uucico
+02,12,22,32,42,52 * * * * 	exec /usr/lib/uucp/uucico -r1
+
+# New method ?? (the ':' here is just one possibility for syntax)
+02:10 * * * *			exec /usr/lib/uucp/uucico -r1
+
+This method would prove very helpful for those programs that get started
+every few minutes, making the entry long and not easily readable.  The first
+number would specify the base time, and the second number the repetition
+interval.
+
+<<	Good idea, but bob@acornrc beat you to it.  I used '/' instead of
+	':'.  This is my personal preference, and seems intuitive when you
+	think of the divide operator in C... Does anyone have a preference? >>
+
+From ptsfa!lll-lcc!seismo!decuac!c3pe!c3engr!charles Thu Jan  1 17:04:24 1987
+From: lll-lcc!seismo!c3pe!c3engr!charles (Charles Green)
+To: c3pe!decuac!dolqci!vrdxhq!seismo!lll-lcc!ptsfa!vixie!paul
+Date: Thu Jan  1 19:22:47 1987
+Status: RO
+
+Well, this isn't a compatible extension, but I have in times past wondered
+about a facility to let you start a process at intervals of, say, 17 minutes,
+instead of particular minutes out of each hour.
+
+<<	This was a popular request!	>>
+
+From seismo!uwvax!astroatc!nicmad!norvax!mann Sun Jan  4 13:04:01 1987
+Date: Fri, 2 Jan 87 09:23:53 cst
+From: lll-lcc!seismo!uwvax!astroatc!nicmad!norvax!mann (Tom Mann)
+To: ptsfa!vixie!paul
+Status: RO
+
+I'm not sure if it is in cron (either SysV or BSD ... if it is, I haven't
+figured it out ) but a comment feature would SURE BE NICE!.
+There are times when I want to comment out an entry
+for a period of time; it might also make it a lot more legible.
+
+<<	My cron allows blank lines and standard #-type comments.  I know
+	that one BSD4.2 cron I've used had it.  I don't know about SysV.  >>
+
+From ptsfa!hoptoad!hugh Mon Jan  5 10:26:46 1987
+Date: Mon, 5 Jan 87 01:22:17 PST
+From: hoptoad!hugh (Hugh Daniel)
+To: ptsfa!vixie!paul
+Status: RO
+
+  Hi, I do have a BIG one that I would like.  I want to log ALL output
+from command lines into a file for each line.  Thus I might have a chance
+of finding out why my crontab entry did not work.
+  This would seem to work best if done by cron, as it is now I have a google
+of shell scripts laying about just to put the error output where I can see
+it.
+
+<<	My cron (and the SysV cron) will send mail to the owner of the
+	particular crontab file if a command generates any output on stdout
+	or stderr.  This can be irritating, but if you write a script such
+	that any output means a problem occurred, you can avoid most logfile
+	needs, and not generate mail except in unforeseen circumstances.   >>
+
+From ptsfa!dual!ucbvax!ihnp4!anvil!es!Robert_Toxen Mon Jan  5 13:08:46 1987
+From: dual!ucbvax!ihnp4!anvil!es!Robert_Toxen
+Date: Fri,  2 Jan 87 14:25:29 EST
+To: anvil!ihnp4!ucbvax!dual!ptsfa!vixie!paul
+Status: RO
+
+Here are some suggestions:
+1. Run it through the C preprocessor via "/lib/<whatever>".
+
+<<	hmmm. this seems of limited utility, and if you really wanted
+	to do it that way, you could do it yourself (since users can
+	write to their own crontab files).  I'll add '-' (read stdin)
+	to the crontab installer program to facilitate this.		>>
+
+2. Allow specifying every Nth day of week, i.e., every second Wednesday.
+   I did this to calendar by separating the day of week (Wed=4, which one
+   to start on and N with slashes).  I took modulo the day of year as a
+   starting point so that someone with a desk calendar documenting such
+   things can easily determine the offset (second number).  I did this
+   while at SGI; alas I don't have a copy of the code.
+
+<<	I can see how this could be useful, but I'm not sure how I'd
+	implement it.  Cron currently doesn't keep track of the last time
+	a given command was run; whether the current Wednesday is the first
+	or second since the command was last run would be pretty hard to
+	figure out.  I'd have to keep a database of commands and their
+	execution around, and purge it when the crontab was overwritten.
+	This is too much work for me, but if someone adds it, let me know.  >>
+
+From ptsfa!ames!seismo!cbmvax!devon!paul Tue Jan  6 05:50:17 1987
+From: ames!seismo!cbmvax!devon!paul
+To: cbmvax!seismo!nike!ptsfa!vixie!paul
+Date: Mon Jan  5 09:29:57 1987
+Status: RO
+
+One problem that has always plagued me with cron is the assumed ORing.
+I'd like to see some type of ANDing implemented.  I guess I can best
+describe this by example.  Say I have the following line in my crontab
+file:
+
+*  *  4-31  *  1-6	/usr/bin/command
+
+What this does is run 'command' on the 4th thru 31st days of the
+month, AND on Monday thru Saturday; which probably means running it
+every day of the month (unless Sunday falls on days 1-3).  This
+happens because cron runs the command if the day-of-month OR the
+day-of-week is true.
+
+What I'd like to happen with the above line is to run the command ONLY
+on Monday thru Saturday any time after the 3rd of the month, e.g. if
+the day-of-month AND the day-of-week are true.
+
+My proposal to you is to implement some special chars for the first
+five fields.  Examples:
+
+*  *  !1-3  *  1-6	/usr/bin/command
+
+(run command Mon-Sat, but NOT [!] on the first 3 days of the month)
+
+*  *  &4-31 *  &1-6	/usr/bin/command
+
+(run command if day-of-month AND day-of-week are true)
+
+Get the picture?  This would be compatible with existing versions of
+cron (which wouldn't currently be using any special characters, so
+that old crontabs would be handled correctly).
+
+<<	This message made me aware of the actual boolean expression involved
+	in a crontab entry.  I'd assumed that it was
+		(minute && hour && DoM && month && DoW)
+	But it's really
+		(minute && hour && month && (DoM || DoW))
+
+	I can see some value in changing this, but with a fixed order of
+	fields, operators get to be kindof unary, which && and || really
+	aren't.  If someone has an idea on a syntax that allows useful
+	variations to the standard (&& && && (||)) default, please suggest. >>
+
+From bobkat!pedz Tue Jan  6 20:02:10 1987
+From: pedz@bobkat.UUCP (Pedz Thing)
+Date: 2 Jan 87 17:34:44 GMT
+Status: RO
+
+Log files!  It would be nice to be able to specify a log for cron
+itself and also a log for each program's stdout and stderr to go to.
+The latter can of course be done with > and 2> but it would be nice if
+there could be a single line with some sort of pattern like
+`> /usr/spool/log/%' and the command would be substituted for the %.
+Another thing which would be nice is to be able to specify which shell
+to call to give the command to.
+
+<<	Log files are done with mail.  The '%' idea could be useful if
+	a different character were used (% is special to cron, see man
+	page); a different directory would have to be chosen, since each
+	user has their own crontab file; and something intelligent would
+	have to be done in the file naming, since the first word of the
+	command might be ambiguous (with other commands).  In short, it's
+	too much work.  Sorry.						  >>
+
+From guy%gorodish@sun Tue Jan  6 20:03:13 1987
+From: guy%gorodish@sun (Guy Harris)
+Message-ID: <10944@sun.uucp>
+Date: 5 Jan 87 12:09:09 GMT
+References: <429@vixie.UUCP> <359@bobkat.UUCP>
+Sender: news@sun.uucp
+Status: RO
+
+> Another thing which would be nice is to be able to specify which shell
+> to call to give the command to.
+
+Well, the obvious choice would be the user's shell, but this wouldn't work
+for accounts like "uucico".
+
+<<	I use the owning user's shell, and to handle "uucico" I check a
+	list of "acceptable shells" (currently compiled in, does anybody
+	mind?), substituting a default (compiled in) shell if the user's
+	shell isn't on the list.
+
+	BTW, "compiled in" means that it's in a .h file, easily changed
+	during installation, but requiring recompilation to modify.  You
+	don't have to go digging through the code to find it...		  >>
+
+From qantel!hplabs!ucbvax!mwm@violet.berkeley.edu Tue Jan  6 21:24:48 1987
+To: hplabs!qantel!vixie!paul (Paul Vixie Esq)
+Date: 04 Jan 87 00:42:35 PST (Sun)
+From: Mike Meyer <mwm@violet.berkeley.edu>
+Status: RO
+
+<<[Discussion of RMS/FSF, and mwm's GNU Cron deleted]>>
+
+Oh, yeah - here are the extensions on my cron:
+
+1) Sunday is both day 0 and day 7, so it complies with both SysV and
+BSD cron.
+
+<<	Good idea. I did it too, thanks for informing me.	>>
+
+2) At is integrated into the cron. Instead of atrun to scan the
+/usr/spool/at directory, at files are put into the /usr/lib/cron
+directory along with users cron files, and cron fabricates a line from
+a crontab file to run them. This is considered a major win by all who
+use it.
+
+<<	I don't use 'at', and my cron doesn't do anything with it.  To run
+	'at', I use 'atrun' the same way the current BSD cron does.  My
+	crontab files are in /usr/spool/cron/crontabs, in the SysV
+	tradition -- not in /usr/lib/cron.  This is a configuration
+	parameter, of course.						>>
+
+There are two known restrictions:
+
+1) I don't support any of the SysV security hooks. I don't have a use
+for them, and RMS didn't like the idea at all :-).
+
+<<	This means cron.allow and cron.deny.  I plan to support them, as
+	they've been quite helpful at various HPUX sites I've administered. >>
+
+2) Cron expects to be able to create files with names longer than 14
+characters, which makes it hard to run on SysV. At least one person
+was working on a port, but I don't know how it's going. That might
+make for a good reason for releasing yours, right there.
+
+<<	If someone has SysV (with the 14-character limit), they probably
+	won't want my cron, since it doesn't add much to the standard
+	version (which they may have support for).  My cron is not currently
+	portable to non-BSD systems, since it relies on interval timers (I
+	needed to sleep for intervals more granular than seconds alone would
+	allow).  The port would be trivial, and I will do it if a lot of
+	people ask for it...						>>
+
+Oh, yeah - I'm going to see about getting this cron integrated into
+the next 4BSD release.
+
+<<	How does one go about this?  I have a few nifty gadgets I'd like
+	to contribute, this cron being one of them...			>>
+
+<<[more FSF/GNU discussion deleted]>>
+
+From qantel!hplabs!ames!ut-sally!ut-ngp!melpad!bigtex!james Tue Jan  6 21:24:57 1987
+Posted-Date: Fri, 2 Jan 87 19:26:16 est
+Date: Fri, 2 Jan 87 19:26:16 est
+From: hplabs!ames!ut-sally!ut-ngp!bigtex!james
+To: vixie!paul
+Status: RO
+
+Yes!!!  There are several critical failures in System V cron...
+
+1. Pass all variables in cron's environment into the environment of things
+   cron starts up, or at least into the crontab entries started up (at jobs
+   will inherit the environment of the user).  If nothing else it is critically
+   important that the TZ variable be passed on.  PATH should be passed on too.
+   Basically, passing environment values allows one to design a standard
+   environment with TZ and PATH and have that run by everything.  If anyone
+   tells you this is no big deal, consider what happens when uucico is
+   started by cron in CA to make a long distance phone link...  Unless the
+   administrator is really on his/her toes, calls scheduled at 5pm will really
+   go at two in the afternoon, needlessly incurring huge phone bills, all
+   because System V refuses to pass the TZ from its environment down.  There
+   are work arounds, but only putting it in cron will really work.  This is
+   not a security hole.
+
+<<	delete TERM and TERMCAP; modify HOME, USER, and CWD; pass TZ and
+	PATH through undisturbed.  any other requests out there?
+
+	BSD doesn't have this problem -- TZ is passed right on through if
+	you define it in the shell before starting my cron daemon.  However,
+	the BSD I'm running this on doesn't need TZ to be defined anyway...
+	The default in the kernel has been just fine so far...  But just the
+	same, if/when I port to SysV (I guess I really should), I'll make
+	sure this works right.
+
+	I guess I've been spoiled.  HPUX is SysV-based, and I never had a
+	problem with cron and TZ when I used it.			  >>
+
+2. A way to avoid logging stuff in /usr/lib/cron/log.  I have a cron entry
+   run uudemon.hr every 10 minutes.  This is 144 times/day.  Each run generates
+   three lines of text, for a total of 432 lines of text I don't want to see.
+   Obviously this should be optional, but it would be nice if there were a
+   way to flag an entry so that it wasn't logged at all unless there was an
+   error.
+
+<<	I don't know nothin' 'bout no /usr/lib/cron/log.  What is this file?
+	I don't see any reason to create log entries, given the mail-the-
+	output behaviour.  Opinions, anyone?				>>
+
+I will come up with other ideas no doubt, but I can always implement them
+myself.
+
+<<	That's what I like about PD software.  Please send me the diffs!  >>
+
+The other problem you have is making sure you can run standard
+crontabs.  I would suggest something like this: if the command part of the
+entry starts with an unescaped -, then flags and options follow immediately
+thereafter.  As in:
+
+2,12,22,32,42,52 * * * * -q /usr/lib/uucp/uudemon.hr
+
+This could mean do not log the uudemon.hr run unless there is a problem of
+some kind.  This is probably safe as not many filenames start with "-", and
+those that do are already a problem for people.
+
+<<	Since I don't plan on supporting /usr/lib/cron/log in ANY form unless
+	many people request it, I won't be needing -q as you've defined it.
+	I could use something like this to avoid sending mail on errors, for
+	the occasional script that you don't want to bullet-proof.
+
+	The compatibility issue is CRITICAL.  The 4.3BSD crontab format is
+	a crime against the whole philosophy of Unix(TM), in my opinion.   >>
+
+One other minor thing to consider is the ulimit: can different users get
+different ulimits for their crontab entries?
+
+<<	Boy I'm ignorant today.  What's a ulimit, and what should I do with
+	it in a crontab?  Suggestions, enlightenment, etc ??		   >>
+
+From qantel!lll-crg!ames!uw-beaver!uw-nsr!john Tue Jan  6 23:32:44 1987
+Date: Thu, 1 Jan 87 10:53:05 pst
+From: lll-crg!ames!uw-beaver!uw-nsr!john (John Sambrook 5-7433)
+To: vixie!paul
+Status: RO
+
+How about not hardwiring the default environment that cron builds for its
+children in the cron program itself?  Our cron does this and it's the pits
+because we are TZ=PST8PDT not TZ=EST5EDT !
+
+<<	yeachk.  I assure you, I will not hardwire the TZ!		>>
+From ptsfa!well!dv Fri Jan  9 04:01:50 1987
+Date: Thu, 8 Jan 87 23:50:40 pst
+From: well!dv (David W. Vezie)
+To: ptsfa!vixie!paul
+Status: RO
+
+6, have a special notation called 'H' which would expand to weekends
+   and holidays (you'd have to keep a database somewhere of real
+   holidays), and also 'W' for workdays (neither weekend or holiday).
+
+<<	Too much work.  There should be a standard way to define and
+	detect holidays under Unix(TM); if there were, I'd use it.  As
+	it is, I'll leave this for someone else to add.
+
+	I can see the usefulness; it just doesn't quite seem worth it.    >>
+From qantel!gatech!akgua!blnt1!jat Wed Jan 14 20:00:40 1987
+Date: Tue, 13 Jan 87 16:39:38 EST
+From: gatech!akgua!blnt1!jat
+Status: RO
+
+1) Add some way to tell cron to reread the files, say kill -1 <pid>
+
+<<	whenever the 'crontab' program is run and updates a crontab file,
+	a file /usr/spool/cron/POKECRON is created; next time the cron
+	daemon wakes up, it sees it, and re-reads the crontab files.
+
+	I thought of handling the signal; even implemented it.  Then this
+	clever idea hit me and I ripped it all out and added a single
+	IF-statement to handle the POKECRON file.			>>
+
+2) Have some kind of retry time so that if a command fails, cron will try to
+   execute it again after a certain period.  This is useful if you have some
+   type of cleanup program that can run at the scheduled time for some reason
+   (such as locked device, unmounted filesystem, etc).
+
+<<	Hmmm, sounds useful.  I could do this by submitting an 'at' job...
+	I'll think about it.						>>
+From ptsfa!dual!ucbvax!ihnp4!mtuxo!ender Sat Jan  3 16:54:00 1987
+From: dual!ucbvax!ihnp4!mtuxo!ender
+Date: Sat, 3 Jan 87 14:05:13 PST
+To: ucbvax!dual!ptsfa!vixie!paul
+Status: RO
+
+It would be nice if nonprivileged users can setup personal crontab files
+(~/.cronrc, say) and be able to run personal jobs at regular intervals.
+	
+<<	this is done, but in the SysV style: the 'crontab' program installs
+	a new crontab file for the executing user (can be overridden by root
+	for setup of uucp and news).  the advantage of this is that (1) when
+	a crontab is changed, the daemon can be informed automatically; and
+	(2) the file can be syntax-checked before installation.		>>
+From ptsfa!ames!seismo!ihnp4!lcc!richard Fri Jan 16 04:47:33 1987
+Date: Fri, 16 Jan 87 07:44:57 EST
+To: nike!ptsfa!vixie!paul
+Status: RO
+
+The System V cron is nice, but it has a few annoying features.  One is that
+its mail files will say that the previous message is the output of "one of your
+cron commands."  I wish it would say WHICH cron commmand.
+
+<<	Done.  Also which shell, which user (useful when the mail gets
+	forwarded), which home directory, and other useful crud.	>>
+
+Another problem is with timezones.  It is necessary to specify TZ=PST8PDT (or
+whatever) when you invoke cron (from inittab, or /etc/rc) and it is also
+necessary to add TZ=PST8PDT to each crontab line which might need it.  Cron
+should automatically export its idea of the "TZ" to each invoked command, and
+it should be possible to put a line in the crontab file which overrides that
+for every command in the file (e.g., most users are on EST, so cron is run
+with TZ=EST5EDT; but one user is usually on PST and wants all of his cron
+commands to run with TZ=PST8PDT).  This might be extended to allow any
+environment variable to be specified once for the whole crontab file (e.g.,
+PATH).
+
+<<	Well, since I run the user's shell, you could put this into .cshrc.
+	generic environment-variable setting could be useful, though.  Since
+	I have to modify the environment anyway, I'll consider this.	  >>
+
+A log file might be a nice idea, but the System V cron log is too verbose.
+I seem to remember that cron keeps it open, too; so you can't even have
+something go and periodically clean it out.
+
+<<	I don't do /usr/lib/cron/log.  I wasn't aware of this file until I
+	got all these suggestions.  Do people want this file?  Tell me!    >>

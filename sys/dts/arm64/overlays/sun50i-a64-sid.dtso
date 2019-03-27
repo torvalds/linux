@@ -1,0 +1,17 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "allwinner,sun50i-a64";
+};
+
+&{/soc} {
+	sid: eeprom@1c14000 {
+		compatible = "allwinner,sun50i-a64-sid";
+		reg = <0x1c14000 0x400>;
+
+		ths_calib: calib@234 {
+			reg = <0x234 0x6>;
+		};
+	};
+};

@@ -1,0 +1,17 @@
+#
+# BERI_SIM_SDROOT -- Kernel for the SRI/Cambridge "BERI" (Bluespec Extensible
+# RISC Implementation) FPGA soft core, as configured for simulation.
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+include "BERI_SIM_BASE"
+
+ident		BERI_SIM_SDROOT
+
+#
+# This kernel expects to find its root filesystem on the SD Card.
+#
+options 	ROOTDEVNAME=\"ufs:/dev/altera_sdcard0\"

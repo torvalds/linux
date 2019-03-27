@@ -1,0 +1,71 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: zfsbe
+# REQUIRE: mountcritlocal
+
+# Handle boot environment subordinate filesystems
+# that may have canmount property set to noauto.
+# For these filesystems mountpoint relative to /
+# must be the same as their dataset name relative
+# to BE root dataset.
+
+. /etc/rc.subr
+
+name="zfsbe"
+rcvar="zfs_enable"
+start_cmd="be_start"
+stop_cmd="be_stop"
+required_modules="zfs"
+
+mount_subordinate()
+{
+	local _be
+
+	_be=$1
+	zfs list -rH -o mountpoint,name,canmount,mounted -s mountpoint -t filesystem $_be | \
+	while read _mp _name _canmount _mounted ; do
+		# skip filesystems that must not be mounted
+		[ "$_canmount" = "off" ] && continue
+		# skip filesystems that are already mounted
+		[ "$_mounted" = "yes" ] && continue
+		case "$_mp" in
+		"none" | "legacy" | "/" | "/$_be")
+			# do nothing for filesystems with unset or legacy mountpoint
+			# or those that would be mounted over /
+			;;
+		"/$_be/"*)
+			# filesystems with mountpoint relative to BE
+			mount -t zfs $_name ${_mp#/$_be}
+			;;
+		*)
+			# filesystems with mountpoint elsewhere
+			zfs mount $_name
+			;;
+		esac
+	done
+}
+
+be_start()
+{
+	if [ `$SYSCTL_N security.jail.jailed` -eq 1 ]; then
+		:
+	else
+		mount -p | while read _dev _mp _type _rest; do
+			[ $_mp  = "/" ] || continue
+			if [ $_type = "zfs" ] ; then
+				mount_subordinate $_dev
+			fi
+			break
+		done
+	fi
+}
+
+be_stop()
+{
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,12 @@
+before while
+before dotcmd
+before while
+before break
+after while
+after dotcmd, return value: 0
+before dotcmd
+before while
+before break
+after while
+after dotcmd, return value: 0
+after while

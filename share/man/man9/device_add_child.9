@@ -1,0 +1,134 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1998 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 11, 2018
+.Dt DEVICE_ADD_CHILD 9
+.Os
+.Sh NAME
+.Nm device_add_child ,
+.Nm device_add_child_ordered
+.Nd "add a new device as a child of an existing device"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Ft device_t
+.Fn device_add_child "device_t dev" "const char *name" "int unit"
+.Ft device_t
+.Fn device_add_child_ordered "device_t dev" "int order" "const char *name" "int unit"
+.Sh DESCRIPTION
+Create a new child device of
+.Fa dev .
+The
+.Fa name
+and
+.Fa unit
+arguments specify the name and unit number of the device.
+If the name is unknown then the caller should pass
+.Dv NULL .
+If the unit is unknown then the caller should pass
+.Dv -1
+and the system will choose the next available unit number.
+.Pp
+The name of the device is used to determine which drivers might be
+appropriate for the device.
+If a name is specified then only drivers of that name are probed.
+If no name is given then all drivers for the owning bus are probed.
+In any event, only the name of the device is stored so that one may
+safely unload/load a driver bound to that name.
+.Pp
+This allows buses which can uniquely identify device instances (such
+as PCI) to allow each driver to check each device instance for a
+match.
+For buses which rely on supplied probe hints where only one
+driver can have a chance of probing the device, the driver name should
+be specified as the device name.
+.Pp
+Normally unit numbers will be chosen automatically by the system and a
+unit number of
+.Dv -1
+should be given.
+When a specific unit number is desired (e.g.,\& for wiring a particular
+piece of hardware to a pre-configured unit number), that unit should
+be passed.
+If the specified unit number is already allocated, a new
+unit will be allocated and a diagnostic message printed.
+.Pp
+If the devices attached to a bus must be probed in a specific order
+(e.g.,\& for the ISA bus some devices are sensitive to failed probe attempts
+of unrelated drivers and therefore must be probed first),
+the
+.Fa order
+argument of
+.Fn device_add_child_ordered
+should be used to specify a partial ordering.
+The new device will be added before any existing device with a greater
+order.
+If
+.Fn device_add_child
+is used, then the new child will be added as if its order was zero.
+.Pp
+When adding a device in the context of
+.Xr DEVICE_IDENTIFY 9
+routine, the
+.Xr device_find_child 9
+routine should be used to ensure that the device has not already been
+added to the tree.
+Because the device name and
+.Vt devclass_t
+are associated at probe time (not child addition time), previous
+instances of the driver (say in a module that was later unloaded) may
+have already added the instance.
+Authors of bus drivers must likewise be careful when adding children
+when they are loaded and unloaded to avoid duplication of children
+devices.
+.Pp
+When adding a child to another device node, such as in an identify
+routine, use
+.Xr BUS_ADD_CHILD 9
+instead of
+.Xr device_add_child 9 .
+.Xr BUS_ADD_CHILD 9
+will call
+.Xr device_add_child 9
+and add the proper bus-specific data to the new child.
+.Fn device_add_child
+does not call
+.Xr BUS_ADD_CHILD 9 .
+.Sh RETURN VALUES
+The new device if successful, NULL otherwise.
+.Sh SEE ALSO
+.Xr BUS_ADD_CHILD 9 ,
+.Xr device 9 ,
+.Xr device_delete_child 9 ,
+.Xr device_find_child 9 ,
+.Xr DEVICE_IDENTIFY 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

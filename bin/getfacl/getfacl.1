@@ -1,0 +1,137 @@
+.\"-
+.\" Copyright (c) 2000, 2001, 2002 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed by Robert Watson for the TrustedBSD Project.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" Developed by the TrustedBSD Project.
+.\" Support for POSIX.1e access control lists.
+.\"
+.Dd September 4, 2009
+.Dt GETFACL 1
+.Os
+.Sh NAME
+.Nm getfacl
+.Nd get ACL information
+.Sh SYNOPSIS
+.Nm
+.Op Fl dhinqv
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility writes discretionary access control information associated with
+the specified file(s) to standard output.
+If the
+.Xr getconf 1
+utility indicates that
+.Brq Va _POSIX_ACL_EXTENDED
+is not in effect for a
+.Ar file
+then the standard discretionary access permissions are interpreted as
+an ACL containing only the required ACL entries.
+.Pp
+The following option is available:
+.Bl -tag -width indent
+.It Fl d
+The operation applies to the default ACL of a directory instead of the
+access ACL.
+An error is generated if a default ACL cannot be associated with
+.Ar file .
+This option is not valid for NFSv4 ACLs.
+.It Fl h
+If the target of the operation is a symbolic link, return the ACL from
+the symbolic link itself rather than following the link.
+.It Fl i
+For NFSv4 ACLs, append numerical ID at the end of each entry containing
+user or group name.
+Ignored for POSIX.1e ACLs.
+.It Fl n
+Display user and group IDs numerically rather than converting to
+a user or group name.
+Ignored for POSIX.1e ACLs.
+.It Fl q
+Do not write commented information about file name and ownership.
+This is
+useful when dealing with filenames with unprintable characters.
+.It Fl v
+For NFSv4 ACLs, display access mask and flags in a verbose form.
+Ignored for POSIX.1e ACLs.
+.El
+.Pp
+The following operand is available:
+.Bl -tag -width indent
+.It Ar file
+A pathname of a file whose ACL shall be retrieved.
+If
+.Ar file
+is not specified, or a
+.Ar file
+is specified as
+.Fl ,
+then
+.Nm
+reads a list of pathnames, each terminated by one newline character,
+from the standard input.
+.El
+.Pp
+For an explanation of the ACL syntax, see the
+.Xr setfacl 1
+manual page.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+.Dl getfacl /
+.Pp
+Retrieve ACL for the directory
+.Pa / .
+.Pp
+.Dl getfacl -d /
+.Pp
+Retrieve the default ACL for the directory
+.Pa / ,
+if any.
+.Sh SEE ALSO
+.Xr setfacl 1 ,
+.Xr acl 3 ,
+.Xr getextattr 8 ,
+.Xr setextattr 8 ,
+.Xr acl 9 ,
+.Xr extattr 9
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be
+.Tn IEEE
+Std 1003.2c compliant.
+.Sh HISTORY
+Extended Attribute and Access Control List support was developed as part
+of the
+.Tn TrustedBSD
+Project and introduced in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Robert N M Watson

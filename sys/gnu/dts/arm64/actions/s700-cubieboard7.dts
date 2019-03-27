@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2017 Andreas Färber
+ */
+
+/dts-v1/;
+
+#include "s700.dtsi"
+
+/ {
+	compatible = "cubietech,cubieboard7", "actions,s700";
+	model = "CubieBoard7";
+
+	aliases {
+		serial3 = &uart3;
+	};
+
+	chosen {
+		stdout-path = "serial3:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x80000000>;
+	};
+
+	memory@1,e0000000 {
+		device_type = "memory";
+		reg = <0x1 0xe0000000 0x0 0x0>;
+	};
+};
+
+&timer {
+	clocks = <&hosc>;
+};
+
+&uart3 {
+	status = "okay";
+};

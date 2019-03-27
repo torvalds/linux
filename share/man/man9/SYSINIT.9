@@ -1,0 +1,163 @@
+.\" Copyright (c) 2003 Hiten M. Pandya
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2010
+.Dt SYSINIT 9
+.Os
+.Sh NAME
+.Nm SYSINIT ,
+.Nm SYSUNINIT
+.Nd a framework for dynamic kernel initialization
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/kernel.h
+.Fn SYSINIT "uniquifier" "enum sysinit_sub_id subsystem" "enum sysinit_elem_order order" "sysinit_cfunc_t func" "const void *ident"
+.Fn SYSUNINIT "uniquifier" "enum sysinit_sub_id subsystem" "enum sysinit_elem_order order" "sysinit_cfunc_t func" "const void *ident"
+.Sh DESCRIPTION
+.Nm
+is a mechanism for scheduling the execution of initialization and teardown
+routines.
+This is similar to init and fini routines with the addition of explicit
+ordering metadata.
+It allows runtime ordering of subsystem initialization in the kernel as well
+as kernel modules (KLDs).
+.Pp
+The
+.Fn SYSINIT
+macro creates a
+.Vt struct sysinit
+and stores it in a startup linker set.
+The
+.Vt struct sysinit
+type as well as the subsystem identifier constants
+.Pq Dv SI_SUB_*
+and initialization ordering constants
+.Pq Dv SI_ORDER_*
+are defined in
+.In sys/kernel.h :
+.Bd -literal
+struct sysinit {
+	enum sysinit_sub_id subsystem;	/* subsystem identifier*/
+	enum sysinit_elem_order	order;	/* init order within subsystem*/
+	sysinit_cfunc_t func;		/* function             */
+	const void	*udata;		/* multiplexer/argument */
+};
+.Ed
+.Pp
+The
+.Fn SYSINIT
+macro takes a
+.Fa uniquifier
+argument to identify the particular function dispatch data,
+the
+.Fa subsystem
+type of startup interface, the subsystem element
+.Fa order
+of initialization within the subsystem, the
+.Fa func
+function to call,
+and the data specified in
+.Fa ident
+argument to pass the function.
+.Pp
+The
+.Fn SYSUNINIT
+macro behaves similarly to the
+.Fn SYSINIT
+macro except that it adds the data to a shutdown linker set.
+.Pp
+The startup linker set for the kernel is scanned during boot to build a
+sorted list of initialization routines.
+The initialization routines are then executed in the sorted order.
+The
+.Fa subsystem
+is used as the primary key and is sorted in ascending order.
+The
+.Fa order
+is used as the secondary key and is sorted in ascending order.
+The relative order of two routines that have the same
+.Fa subsystem
+and
+.Fa order
+is undefined.
+.Pp
+The startup linker sets for modules that are loaded together with the kernel
+by the boot loader are scanned during the
+.Dv SI_SUB_KLD
+subsystem initialization.
+These modules' initialization routines are sorted and merged into the kernel's
+list of startup routines and are executed during boot along with the kernel's
+initialization routines.
+Note that this has the effect that any initialization routines in a kernel
+module that are scheduled earlier than
+.Dv SI_SUB_KLD
+are not executed until after
+.Dv SI_SUB_KLD
+during boot.
+.Pp
+The startup linker set for a kernel module loaded at runtime via
+.Xr kldload 2
+is scanned, sorted, and executed when the module is loaded.
+.Pp
+The shutdown linker set for a kernel module is scanned, sorted, and executed
+when a kernel module is unloaded.
+The teardown routines are sorted in the reverse order of the initialization
+routines.
+The teardown routines of the kernel and any loaded modules are
+.Sy not
+executed during shutdown.
+.Sh EXAMPLES
+This example shows the SYSINIT which displays the copyright notice during boot:
+.Bd -literal -offset indent
+static void
+print_caddr_t(void *data)
+{
+	printf("%s", (char *)data);
+}
+SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
+    copyright);
+.Ed
+.Sh SEE ALSO
+.Xr kld 4 ,
+.Xr DECLARE_MODULE 9 ,
+.Xr DEV_MODULE 9 ,
+.Xr DRIVER_MODULE 9 ,
+.Xr MTX_SYSINIT 9 ,
+.Xr SYSCALL_MODULE 9
+.Sh HISTORY
+The
+.Nm
+framework first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+framework was written by
+.An Terrence Lambert Aq Mt terry@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Hiten Pandya Aq Mt hmp@FreeBSD.org .

@@ -1,0 +1,3 @@
+rdr on em0 inet proto tcp all -> 1.1.1.1 port 2121
+pass out log quick on lo0 route-to (lo0 127.0.0.1) inet all flags S/SA keep state
+pass in log quick on lo0 route-to (lo0 ::1) inet6 all flags S/SA keep state

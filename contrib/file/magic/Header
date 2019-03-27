@@ -1,0 +1,5 @@
+# Magic data for file(1) command.
+# Format is described in magic(files), where:
+# files is 5 on V7 and BSD, 4 on SV, and ?? on SVID.
+# Don't edit this file, edit /etc/magic or send your magic improvements
+# to the maintainers, at file@mx.gw.com

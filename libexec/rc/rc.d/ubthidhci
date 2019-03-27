@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ubthidhci
+# REQUIRE: DAEMON
+# BEFORE: bluetooth
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="ubthidhci"
+rcvar="ubthidhci_enable"
+command="/usr/sbin/usbconfig"
+start_precmd="ubthidhci_prestart"
+
+ubthidhci_prestart()
+{
+
+	if [ -z ${ubthidhci_busnum} ]; then
+		warn ubthidhci_busnum is not set
+		return 1
+	fi
+	if [ -z ${ubthidhci_addr} ]; then
+		warn ubthidhci_addr is not set
+		return 1
+	fi
+}
+
+load_rc_config $name
+#
+# We discard the output because:
+# 1) we don't want it to show up during boot; and
+# 2) the request usually returns an error, but that doesn't mean it failed
+#
+# NB: 0x40 is UT_VENDOR
+command_args="-u ${ubthidhci_busnum} -a ${ubthidhci_addr} do_request 0x40 0 0 0 0 > /dev/null 2>&1"
+
+run_rc_command "$1"

@@ -1,0 +1,2152 @@
+ 22. Fix type of read in prompt confirmation (eg. rmstar) (David Kaspar)
+ 20. V6.20.00 - 20161124
+ 19. Don't resize the screen if it did not change size.
+ 18. V6.19.01 - 20161025
+ 17. restore file description when cleaning up after eval:
+	repeat 99 time
+ 16. PR/572: Fix $SHLVL issue when exec'ing subshells.
+ 15. PR/403: Fix backquote expansion for multi-byte character sets.
+ 14. Fix drawing issu with multi-line prompt (Kensuke Iwahashi/David Kaspar)
+ 13. always send prusage to stdout.
+ 12. PR/526: Fix double \\ printing from previous fix in history expansion.
+ 11. Android updates from Corinna Vinschen
+ 10. PR/526: Quote backslashes properly so they can be preserved in ``
+     expansions
+  9. Fix memory leak for paraml
+  8. Add notempty and ask values for the noclobber setting (Martin Tournoij)
+  7. more correct $wordchars for vimode (Luke Mewburn)
+  6. expose VImode in $vimode (Luke Mewburn)
+  5. display what the compiled in editor is in bindkey -d (Luke Mewburn)
+  4. run-fg-editor improvements and documentation (Luke Mewburn)
+  3. Fix parsing of 'if (cond)then' (Fridolin Pokorny)
+  2. PR/437: Fix handling of invalid unicode characters.
+  1. PR/451: Fix error messages containing %c to be always '%c'
+
+ 41. V6.19.00 - 20150521
+ 40. V6.18.05 - 20150510
+ 39. fix reseting when interrupted inside an eval "eval sleep 10^C"
+     (paulo.cesar.pereira.de.andrade)
+ 38. rename handle_intr -> handle_interrupt as originally intended.
+ 37. fix input tests that need stdin on a tty
+ 36. V6.18.04 - 20150504
+ 35. revert fix echo "\1", it is incorrect.
+ 34. revert fix to PR/437, breaks short strings.
+ 33. V6.18.03 - 20150503
+ 32. PR/437: Nakajima Akira: Fix segmentation fault reading input files
+ 31. PR/291: Print job status messages to stderr.
+ 30. Fridolin Pokorny NUL in `` does not mean EOF.
+ 29. Pavel Raiskup fix hang with:
+	while (1)
+	   ( date & ; wait )
+        end
+ 28. Add cdtohome special variable (Martin Tournoij)
+ 27. Fix root prompt char for windows (Corinna Vinschen)
+ 26. For "next" completion matches only consider exact matches of the previous
+     word (Jamie Landeg-Jones)
+ 25. Fix echo "\1" for echo_style=both where the first character was
+     not processed properly (Gary Duzan)
+ 24. V6.18.02 - 20140618
+ 23. fix ls-F /non printing exit value twice.
+ 22. rename configure.in to configure.ac, add aclocal.m4 to CVS
+ 21. set foo="aabaabaa"; echo $foo:as/a// should produce bb
+ 20. Add locked merge history support (Marcin Konarski)
+ 19. Support more resource limits from various BSD's
+ 18. Cache history count to speed up thing
+ 17. PR/240: minix support 
+ 16. revert fix for 15. Causes extra quoting, for example (foo is a program
+     that prints its arguments):
+	$ ./foo 'abc' *
+	'\a\b\c'
+ 15. fix globbing for ``, stripping backslashes. Example:
+	cat << _EOF > huh
+	echo 'hello\;world'
+        _EOF
+	echo `./huh 0`
+	echo `./huh $?`
+ 14. fix for `` that causes hang. Example:
+	cat << _EOF > huh
+	#!/bin/sh
+	echo "[$@]"
+	echo "I am running"
+	echo "I am running ($$)" >> huh.out
+	_EOF
+	cat << _EOF > huh.tcsh
+	#!/bin/tcsh -f
+
+	./huh \
+	    `#comment blah blah blah` \
+	    parameter a \
+	    `#comment blah blah blah` \
+	    parameter b \
+	    `#comment blah blah blah` \
+	    parameter c
+	echo ok
+	_EOF
+ 13. remove AsciiOnly fix now that the real issue has been fixed (Roman Kollar)
+ 12. define utmp file for aix (Laurence Darby)
+ 11. fix if history in loops
+ 10. make ls-F print to stderr and set the exit code
+  9. make rmstar interruptible on linux
+  8. Get rid of pret_t and make the printf functions return the number of
+     characters printed as the system ones do.
+  7. Parse a FreeBSD compat $LSCOLORS. What to do when both LSCOLORS and
+     LS_COLORS are set. I am not documenting this until we decide.
+  6. V6.18.01 - 20120214
+  5. fix interruptible wait again
+  4. ignore bogus compiler overflow message
+  3. cleanup ifdefs in utmp code, and provide default array entries
+  2. Ignore #machine entries in host.defs
+  1. Detect missing ) in gethost.c (Corinna Vinschen)
+
+104. V6.18.00 - 20120114
+103. remove unused variables.
+102. Make gethost use definitions for x __x__ and __x automatically.
+101. More utmp fixes
+100. V6.17.10 - 20120105
+ 99. Add more FreeBSD/NetBSD machines
+ 98. Add portability wrapper for gencat
+ 97. Fix warning for write in SYSMALLOC systems.
+ 96. V6.17.09 - 20120102
+ 95. revert gencat handling to pre-cygwin fixes (without the env settings)
+ 94. remove stray endutent()
+ 93. V6.17.08 - 20111230
+ 92. Remove - from gencat
+ 91. Provide support for malloc_usable_size() so that linux works again
+     without SYSMALLOC
+ 90. Add support for FreeBSD's utmpx.
+ 89. V6.17.07 - 20111227
+ 88. Fix debian bug #645238: tcsh segfaults when prompt includes %j and
+     there are more than 10 jobs.
+ 87. PR/155: Default $anyerror to set for backward compatibility
+ 86. PR/149: Don't print -1 in %j (Vojtech Vitek)
+ 85. handle -- on chdir commands as the end of options processing so that
+     they can process a directory like -x without resorting to ./-x
+     (Andrew Stevenson)
+ 84. Handle write(2) returning ENOENT from SoFS, thanks ++HAL (Robert Byrnes)
+ 83. PR/38: Null check for jobs (Kurt Miller)
+ 82. Fix spelling correction correcting ./foo -> ../foo2 (jean-luc leger)
+ 81. PR/120: string0 in filetest does not have enough space.
+ 80. V6.17.06 - 20110415
+ 79. PR/110: Add $anyerror to select behavior. Default to the new one.
+ 78. Don't try to spell commands that are correct (Rouben Rostamian)
+     [./tcsh -f; set path=($path 2); mkdir foo2; cd foo2; touch foo;
+      chmod +x foo; set correct=cmd; ./foo -> ../foo]
+ 77. Don't push the syntax struct on the cleanup stack, because on foo;bar
+     if foo fails, we will free bar prematurely (Ben Miller)
+ 76. Avoid infinite loop while trying to print the pid of a dying process
+     to a closed file (Bob Arendt)
+ 75. Handle completion of ${ variables (Anthony Mallet)
+ 74. Add --disable-nls-catalogs (Corinna Vinschen)
+ 73. convert message catalogs to UTF-8 (Werner Fink)
+ 72. check that the NLS path works before setting $NLSPATH.
+ 71. use SYSMALLOC for GLIBC (Werner Fink)
+ 70. use mallinfo for SYSMALLOC (Corinna Vinschen)
+ 69. V6.17.05 - 20110201
+ 68. Use mkstemp() if there for here docs (Werner Fink)
+ 67. Fix handling of errors and exit values in builtins (Werner Fink)
+ 66. Better pty name detection (Werner Fink)
+ 65. Enable NLS catalogs on Cygwin (Corinna Vinschen)
+ 64. NLSPATH handling fixes (Corinna Vinschen)
+ 63. Avoid infrequent exit when tcsh cd's into a non-existent directory
+     https://bugzilla.novell.com/show_bug.cgi?id=293395 (Werner Fink)
+ 62. Don't try to spell check full path binaries that are correct because
+     they can cause hangs when other nfs partitions are hung. (Werner Fink)
+ 61. Avoid nested interrupts when exiting causing history writing to fail
+     https://bugzilla.novell.com/show_bug.cgi?id=331627 (Werner Fink)
+ 60. Instead of giving an error or ignoring lines with missing eol at eof,
+     process them.
+ 59. Avoid leaking fd's in mail check (Werner Fink)
+ 58. Add cygwin_xcrypt() (Corinna Vinschen)
+ 57. Recognize i686 (Corinna Vinschen)
+ 56. Rename cygwin32 to cygwin and bring it up-to-date with modern cygwin
+     settings (Corinna Vinschen)
+ 55. Avoid double slashes in cdpath (Corinna Vinschen)
+ 54. V6.17.04 - 20110118
+ 53. Revert PR/110, breaks the test suite.
+ 52. V6.17.03 - 20110117
+ 51. PR/102: Complain on input files with missing trailing \n
+ 50. PR/104: If atime == mtime we don't have new mail.
+ 49. PR/113: Don't allow illegal variable names to be set.
+ 48. PR/112: don't set $REMOTEHOST on the local machine.
+ 47. PR/110: exit status of the pipeline should be the status of the last
+     command.
+ 46. Android support (Corinna Vinschen)
+ 45. Add AUTOSET_KANJI which works around the Shift-JIS encoding that
+     translates unshifted 7 bit ASCII (Werner Fink)
+ 44. Handle mb{r,}towc() returning 0 by setting the return value to NUL
+     (Jean-Luc Leger)
+ 43. PR/109: make wait interruptible (Vojtech Vitek)
+ 42. resource limit fixes: signed vs. unsigned, megabyte issue, doc issues
+     (Robert Byrnes)
+ 41. remove .bat and .cmd handling for executables on cygwin (Corinna Vinschen)
+ 40. Don't echo history while history -L or history -M
+ 39. Check for EOS before ** from Greg Dionne
+ 38. Don't fork in backeval from Bryan Mason
+ 37. Better globstar support from Greg Dionne
+ 36. Error out when processing the last incomplete line instead of silently
+     ignoring it (Anders Kaseorg)
+ 35. Fix SEGV from echo ``
+ 34. Better fixes for histchars and promptchars (nargs)
+ 33. Fix win32 issue calling fmalloc/ffree from non-thread-safe context.
+     (Fabio Fabbri)
+ 32. V6.17.02 - 20100512
+ 31. PR/79: nargs: Better handling for promptchars.
+ 30. PR/97: Add parseoctal to retain compatibility with previous versions (Jim
+     Zajkowski)
+ 29. PR/84: Performance fixes for large history merges (add
+     hashtable (Ted Anderson)
+ 28. Revert previous #23; people should use $histlit if they want this
+     feature.
+ 27. Don't kill "hup" background jobs when a child of the shell exits.
+     From Debian.
+ 26. Ignore \r\n in the command line options for OS's that don't strip
+     these from #!; from Debian
+ 25. Fix enhanced missing patch (Greg Dionne)
+ 24. Callers of rt_mbtowc don't grok -2 as a return. Return -1 for now.
+     (Corinna Vinschen)
+ 23. Turn HistLit on while recording history to avoid \!\! losing its \.
+     From Debian
+ 22. set autoexpand; set histchars="";\n<tab> crash. From Debian
+ 21. V6.17.01 - 20100506
+ 20. unset verbose while we are reading the history file to avoid echoing
+     to the terminal. (Jeffrey Bastian)
+ 19. globstar addition, Enhance addition, euid, euser, gid variables
+     (Greg Dionne)
+ 18. Make 'e' in vi mode work like 'b' - use wordchars (Alistair Crooks)
+ 17. Handle UTF-16 surrogates (Corinna Vinschen)
+ 16. Make tcsh work on systems where sizeof(wchar_t) == 2 (Corinna Vinschen)
+ 15. Better support for Solaris >= 2.9 (Thomas Uhle)
+ 14. Change internal expression calculations to long long so that we can
+     deal with > 32 bit time, inodes, uids, file sizes etc.
+ 13. Add new linux resource limits.
+ 12. Don't print 'Exit X' when printexitvalue is set in `` expressions
+     (Jeff Bastian)
+ 11. Add more LS_COLORS vars (M.H. Anderson)
+ 10. Reduce whitespace in Makefile (Don Estabrook)
+  9. Manual page fixes (Alan R. S. Bueno)
+  8. Remove history in loops bug from the documentation (Holger Weiss)
+  7. Add autorehash (Holger Weiss)
+  6. Add history.at (Ted Anderson)
+  5. Better NLSPATH handling (Norm Jacobs)
+  4. Fix hostname building from utmp (Cyrus Rahman)
+  3. Handle pending signals before flush so that the the history file does
+     not get truncated.  (Ted Anderson)
+  2. Fix AsciiOnly setting that broke 8 bit input. (Juergen Keil)
+  1. remember to closedir in mailchk (from Werner Fink, reported by
+     David Binderman)
+
+ 21. V6.17.00 - 20090710
+ 20. Fix dataroot autoconf issue.
+ 19. Fix directory stuff for unit tests.
+ 18. Fix small bug in history in loops.
+ 17. Provide newer config.{guess,sub}
+ 16. Fix gcc 4 warnings.
+ 15. Fix memory trashing bug introduced in 10.
+ 14. V6.16.01 - 20090624
+ 13. add missing sigemptyset in goodbye()
+ 12. add rlimit swapsize from FreeBSD.
+ 11. restore behavior where a[n-] never prints an error.
+ 10. always save the whole command, not just the first 80 chars of it.
+  9. fix short2str/short2qstr length adjustment in wide chars
+     (Vitezslav Crhonek)
+  8. set histfile=/tmp/history.temp; set savehist=(100 merge);
+     alias precmd history -S. After that justpr is not restored and commands
+     don't execute. (Andriy Gapon)
+  7. Fix "as" $ modifier from corrupting memory.
+     set t=demfonsftraftionf; echo $t:as/f//
+  6. Make $% work with environment variable (Ron Johnston)
+  5. Dragonfly script support (Matthias Schmidt, m65)
+  4. Add autoexpand=onlyhistory (Don Estabrook, m66)
+  3. Add history in loops (Laurence Darby, m48)
+  2. Add missing colorls "rs" variable (Shlomi Fish, m70)
+  1. Fix pts detection issue (Ruslan Ermilov)
+
+ 33. V6.16.00 - 20080930
+ 32. longjmp clobbered variable fixes.
+ 31. __GNX__ addition
+ 30. Windows fork fixes
+ 28. V6.15.02 - 20080830
+ 27. Fix an eval free'ing botch (Per Hedeland)
+ 26. /bin/echo "`" coredumped because stderror() calls longjmp corrupting
+     the stack (Mark Davies). We should vet the code for all stderror()
+     calls that cleanup local stack variables.
+ 25. foo > ${undef} caused coredumps because of vfork() child corrupting
+     the state of the parent stack. 
+ 24. $x[A-B] did not complain for A out of range. (Cai Xianchao)
+ 23. rename setp -> tcsh_setp to avoid conflict with mach (Javier Vasquez)
+ 22. Fix degree handling by defining __XPG4_CHAR_CLASS__ for solaris
+     (Mike Sullivan)
+ 21. Change 'od' to 'od -c' in tests so that they work on big endian machines.
+     (Martin Kraemer)
+ 20. Add environment variable COMMAND_LINE to be available in completions
+     (Marcin Konarski)
+ 19. V6.15.01 - 20070928
+ 18. Evaluate expressions in the proper order (Li Zefan), controlled by
+     compat_expr.
+ 17. Don't need to flush() if we are silent. Prevents recursive error issue.
+     (joshua stein)
+ 16. Don't execute the jobcmd if the output is not a tty (Charles Ross)
+ 15. Quote the history in the examples (Johann 'Myrkraverk' Oskarsson)
+ 14. Mismatch clarification patch (Per Hedeland)
+ 13. Fix 'repeat n cmd &' abort() (Mike Sullivan)
+ 12. Fix octal parsing (Li Zefan)
+ 11. Fix pty detection for autologout setting (Kris Kennaway, Giorgos Keramidas)
+ 10. kill `foo` got stuck because sigchld was disabled too soon (Mark Peek)
+  9. Avoid null pointer dereference in proc cwd (Kurt Miller)
+  8. eval "foreach a b c" exits (Anthony Menasse)
+  7. Quoting was broken in substitutions (Joe Wells)
+  6. QNX patches via pkgsrc
+  5. cd - twice from a directory that contained a glob pattern,
+     expands the glob twice (Mark Santcroos)
+  4. MidnightBsd support (Lucas Holt)
+  3. Fix history substitution core-dump with no history entries
+  2. Merge two character tables that are the same (Martin Kraemer)
+  1. On ancient 7 bit locales, punctuation characters are used to
+     denote special characters such as umlaut, adiaresis, etc.
+     These characters return true for isalpha/isalnum. Ignore them
+     because they break parsing (Martin Kraemer)
+
+ 74. V6.15.00 - 20070303
+ 73. fix extension eating windows code (christos)
+ 72. fix loop in %R history expansion (christos)
+ 71. sched +X source file disables interrupts (Mike Sullivan)
+ 70. One off copying macro buffers (Jean-Luc Leger)
+ 69. Avoid infinite loops in :ga modifiers when the LHS is a substring of the
+     RHS.
+ 68. Automatically disable WIDE_STRINGS with --disable-nls (Miloslav Trmac)
+ 67. V6.14.07 - 20060825
+ 66. rename set to setv to avoid clashes (christos)
+ 65. Eliminate sighold/sigrelse (christos)
+ 64. Compilation cleanups. (Martin Kraemer)
+ 63. Don't rebuild needlessly when generated files are unchanged
+     (Martin Kraemer)
+ 62. Fix confusion between Char and eChar (Martin Kraemer)
+ 61. V6.14.06 - 20060824
+ 60. set PROGRAM_ENVIRONMENT for OSD_POSIX (Martin Kraemer)
+ 59. EBCDIC patch (Martin Kraemer)
+ 58. Remove globbing support in history rearches (Ryan Barrett)
+ 57. Highlighting patch (Ryan Barrett)
+ 56. Mark-Cursor exchange emacs editing fix (Martin Kraemer)
+ 55. V6.14.05 - 20060304
+ 54. don't limit termcap strings to 1K (Alan Ferrency)
+ 53. protect against null path.
+ 52. Be more conservative in wide_read PR#29
+ 51. remove HAVE_STRCOLL; not needed anymore (Miloslav Trmac)
+ 50. remove imake support and make nls configurable by configure
+     (Miloslav Trmac)
+ 49. V6.14.04 - 20060214
+ 48. Fixes build failure with !SHORT_STRINGS (Miloslav Trmac)
+ 47. Fixes constness warnings with !SHORT_STRINGS: short2str is "strip()",
+     which modifies its argument.  Rather than verify this is safe in all
+     callers, I have added caching_strip() to mirror the behavior of other
+     modes. (Miloslav Trmac)
+ 46. Fixes some constness warnings with SHORT_STRINGS;  this is orthogonal
+     to both build errors with SHORT_STRINGS in 6.14.03, and
+     short_strings.patch. (Miloslav Trmac)
+ 45. config-catalogs.patch: Autodetect catalog support (#14). (Miloslav Trmac)
+ 44. auth.patch: Handle false positives in getauthid() detection,
+     IIRC on FreeBSD. (Miloslav Trmac)
+ 43. crypt.patch: Autodetect whether <crypt.h> is available. (Miloslav Trmac)
+ 42. sigint.patch: Block SIGINT while waiting on children.
+     This is necessary, but I'll still have to look on the older
+     releases to find out why it was not necessary before
+     ("before" = 6.13 on Linux). (Miloslav Trmac)
+ 41. config-package.patch: Readd package version to configure.in,
+     the testsuite uses it.
+     (TODO: a better integration with package.h) (Miloslav Trmac)
+ 40. item_len.patch: Truncate item.len when truncating the string,
+     just to be sure. (Miloslav Trmac)
+ 39. va_list.patch: Add missing va_end(). (Miloslav Trmac)
+ 38. Use va_copy in xvasprintf(); emulate va_copy as suggested in
+     Autoconf manual if it is not available. (Miloslav Trmac)
+ 37. declarations.patch: Replace some #ifdef nests by autodetecting
+     whether the guarded declaration is necessary.
+     I'm only guessing this is the intent of the #ifdefs, though.
+     Declare environ unconditionally, it is a bit hard to detect
+     and the declaration is correct for Linux, anyway. (Miloslav Trmac)
+ 36. warning.patch: Fix a const warning.
+ 35. More color-ls variables (Jean-Luc Leger)
+ 34. V6.14.03 - 20060212
+ 33. Signal related changes (Miloslav Trmac)
+ 32. Misc cast cleanups and code clarification (Miloslav Trmac)
+ 31. Use dynamically allocated buffers everywhere (Miloslav Trmac)
+ 30. Fix reading of invalid byte sequences (Miloslav Trmac)
+ 29. read should only increment count when it succeeds (Miloslav Trmac)
+ 28. testsuiteadditions (Miloslav Trmac)
+ 27. -n fixes (Miloslav Trmac)
+ 26. signness warnings (Miloslav Trmac)
+ 25. Prevent infinite recursion in catclose (Gerhard Niklasch)
+ 24. Add Dragonfly (Joerg Sonnenberger)
+ 23. Check for wcwidth returning a negative number (TOMITA Yoshinori)
+ 22. recognize "li" and "co" in echotc (Martin Kraemer) [PR/7]
+ 21. Don't use T_Cols for wrapping purposes; use TermH consistently
+     (Martin Kraemer) [PR/8]
+ 20. Don't display duplicate utmp records (Miloslav Trmac) [PR/17]
+ 19. Clarify hashing and -f sections of man page (Volker Quetschke) [PR/20]
+ 18. Dave Yearke: configure did not recognize solaris 10 [PR/18]
+ 17. CYGWIN: Don't lowercase commands and allow foo.exe on command line.
+     (Corinna Vinschen) [PR/19]
+ 16. CYGWIN: cd /foo && cd .. ends up erroneously in // for systems that
+     HAVE_SLASHSLASH [PR/21]
+ 15. %j was broken (Peter Kruse)
+ 14. Extend // handling in pathnames from being apollo specific to also
+     cygwin (Corinna Vinschen)
+ 13. Fix uppercase/lowercase transformations (Jean-Luc Leger)
+ 12. Fix symlink expansion (revert from 6.10.00) (Jean-Luc Leger and Christos)
+ 11. Fix literal sequence in prompt (Miloslav Trmac)
+ 10. V6.14.02 - 20050412
+  9. Prototype fixes (Miloslav Trmac and Jean-Luc Leger)
+  8. V6.14.01 - 20050411
+  7. Make =- refer to $owd (H.Merijn Brand)
+  6. Use prototypes (almost) everywhere (Miloslav Trmac) (issue #5)
+  5. Fix doc path in Cygwin installation (Corinna Vinschen)
+  4. Fix column size calculation (Martin Kraemer)
+  3. Implement newline-and-hold and newline-and-down-history (Per Hedeland)
+  2. Messages fixes for the ja (Japanese) locale (NAKAMURA Takeshi) (issue #4)
+  1. Enable charset conversion in nls (Miloslav Trmac) (issue #3)
+
+ 76. V6.14.00 - 20050325
+ 75. Additional messages for the ja (Japanese) locale (NAKAMURA Takeshi)
+ 74. V6.13.10 - 20050321
+ 73. Implement --help (Tom Warzeka)
+ 72. Clamp solaris autologout time
+ 71. Add support for "limit heapsize" (Martin Kraemer)
+ 70. Improved autoconf for utmp/utmpx (Miloslav Trmac)
+ 69. V6.13.09 - 20050303
+ 68. Autoconf additions (Miloslav Trmac and Jean-Luc Leger)
+ 67. Fix erroneous sign extension when printing huge numbers (Martin Kraemer)
+ 66. Handle delay in termcap entries (Martin Kraemer)
+ 65. EBCDIC and BS2000 fixes (Martin Kraemer)
+ 64. Avoid the SCCS percent-S-percent sequence differently (Kimmo Suominen)
+ 63. Mark position update fixes (Martin Kraemer)
+ 62. Define BSDLIMIT and BSDTIMES for Cygwin (Corinna Vinschen)
+ 61. Fix NLSFrom prototype (Martin Kraemer)
+ 60. V6.13.08 - 20050303
+ 59. Add test for socklen_t in autoconf
+ 58. Fix problems with NLSFrom prototype
+ 57. Deal with AIX's utmpx lossage
+ 56. V6.13.07 - 20050118
+ 55. constifications, XXX: duplicate prototype on setpgrp().
+ 54. iconv fixes (Miloslav Trmac)
+ 53. literal code cleanups (Miloslav Trmac)
+ 52. move intptr_t definition to sh.h and include both stdint.h and inttypes.h
+ 51. Fix dup2() issues, and introduce FSAFE as the highest file descriptor
+     to be left untouched. This is to avoid closing hesiod/nis etc file
+     descriptors behind their backs. I need to really fix file descriptor
+     handling one day.
+ 50. forward<->reverse char conversion verification (Miloslav Trmac)
+ 49. japanese locale additions (Yoshiyuki Sakakibara)
+ 48. wide character/utf 8 cleanups (Michael Schroeder)
+ 47. V6.13.06 - 20050105
+ 46. autoconf cleanup (Miloslav Trmac)
+ 45. Fix literal refresh code (Michael Schroeder)
+ 44. Fix history printing bug with WIDE_STRINGS
+ 43. V6.13.05 - 20041121
+ 42. deal with not having intptr_t
+ 41. get rid of bool.
+ 40. Protect HAVE_ICONV with NLS_CATALOGS
+ 39. Deal with wchar_t being unsigned.
+ 38. If we HAVEUTMPX redefine some utmp functions in terms of utmpx ones.
+ 37. V6.13.04 - 20041120
+ 36. Fix display problems with two-column characters when using WIDE_STRINGS.
+     (Miloslav Trmac)
+ 35. Change charset declarations for some of the translations.
+     (Miloslav Trmac)
+ 34. Set O_LARGEFILE properly (Miloslav Trmac)
+ 33. Use libc functions to access utmp data (Miloslav Trmac)
+ 32. t_pmatch() was not really case-insensitive when cs == 8
+     (Miloslav Trmac)
+ 31. Fix escaping of "control" bytes 0x80..0x9F when they are actually
+     parts of UTF-8 character representation.  (Miloslav Trmac)
+ 30. V6.13.03 - 20041120
+ 29. More close_on_exec fixes (Miloslav Trmac)
+ 28. SUSE dspmbyte fixes (via Harald)
+ 27. Newline handling in command substitution controlled by csubstnonl
+     (Miloslav Trmac)
+ 26. Fix UNC prompt expansion (WIN32) (Yasuhiro Matsumoto)
+ 25. Fix incorrect xprintf() usage (Miloslav Trmac)
+ 24. Additional architectures support for $HOSTTYPE and $MACHTYPE
+     (Miloslav Trmac)
+ 23. Use nl_langinfo(CODESET) to determine $dspmbyte (Miloslav Trmac)
+ 22. Complete arguments that contant a # (Steven Grady)
+ 21. Set close-on-exec in subshells
+ 20. Compilation fixes (Miloslav Trmac)
+ 19. V6.13.02 - 20040804
+ 18. de-register, de-extern, de-shadow, and const poison.
+ 17. WIDE_STRINGS support (Miloslav Trmac)
+ 16. warning cleanups (Miloslav Trmac)
+ 15. nlsclose() arg passing, exp2 is now a gcc builtin (Mark Peek)
+ 14. iconv malloc portability fix.
+ 13. make automatic dspmbyte determination case insensitive
+ 12. V6.13.01 - 20040724
+ 11. bug fix in automatic dspmbyte setting (Miloslav Trmac)
+ 10. iconv patches (Miloslav Trmac)
+  9. cygwin signal fixes; only init 32 signals, don't set bit flag on error;
+     breaks SIGHUP. (Corinna Vinschen)
+  8. Make sure terminal size change takes effect immediately.
+  7. Obey $printexitvalue for builtins.
+  6. FreeBSD PR/66420: Allow history parsing to be special so that it
+     can handle inline # characters (Oliver Eikemeier)
+  5. new termname builtin from (Andrew Stevenson)
+  4. if ($var =~ *[^0-9]*) echo not numeric, fix (Andrew Stevenson)
+  3. completion fix to avoid dup hosts from ssh_known_hosts
+     (Eric D. Hendrickson)
+  2. vc++ 7.1 compilation fix (Steve Schockley)
+  1. UTF-8 handling for both single and double width characters, but
+     no combining character support. (Michael Schroeder)
+
+ 36. V6.13.00 - 20040519
+ 35. V6.12.03 - 20040322
+ 34. turn on kanji and dspmbyte by default; add check for utf8 locales,
+     and turn parsing of that automatically based on $LANG.
+ 33. Fix compilation issue under Windows/NT and charset incorrect patch
+     (Yoshiyuki Sakakibara)
+ 32. completion additions (Tom Warzeka)
+ 31. compilation fix (Martin Kraemer)
+ 30. V6.12.02 - 20040221
+ 29. Glob completion listing addition (Tom Warzeka)
+ 28. BS2000 bs2cmd builtin. (Martin Kraemer)
+ 27. Fix interrupt resetting code when /etc startup scripts have syntax errors
+     (Mark A. Grondona)
+ 26. Clarification of kill-ring commands (Per Hedeland)
+ 25. Debian completion additions (Martin Godisch)
+ 24. Japanese character set fixes (Juehiro-san) from debian
+ 23. NLS charset fixes; disabled since they only work with gnu gencat
+     (Martin Godisch)
+ 22. Fix HPUX >= 11 resource (Jack Cummings)
+ 21. Handle breaksw that jumps out of loops.
+ 20. Revert #16. It causes worse problems.
+ 19. Avoid using execl() because the last NULL does not always promoted to
+     a pointer because the function is variadic (Harti Brandt)
+ 18. revert ignoreeof to the 6.11.00 behavior and document it (Martin Godisch)
+ 17. do a case insensitive comparison for the multibyte vars (Martin Godisch)
+ 16. don't sigsuspend() for an already exited job
+ 15. glob all arguments in source (Martin Godisch)
+ 14. various debian fixes (Martin Godisch)
+ 13. setenv syntax check revert (Satoshi I. Nozawa)
+ 12. EAGAIN typo (dan harkless)
+ 11. filec compilation issue on hpux (beebe)
+ 10. win32 compilation fixes for O_LARGEFILE (amol)
+  9. Don't go into an infinite loop when tcgetpgrp() returns an error.
+  8. Cygwin fixes (Corinna Vinschen)
+  7. NLS catclose() bug avoidance (KAJIMOTO Masato)
+  6. V6.12.01 - 20030208
+  5. Misc NT cleanup. No more GPL code (amol)
+  4. use strtol() to detect errors in builtin kill (Peter Jeremy)
+  3. Recognize linux systems on mips* (Maciej W. Rozycki)
+  2. Enable complete=igncase on unix (Stephen Krauth)
+  1. Eliminate maxitems (Todd Miller)
+
+ 58. V6.12.00 - 20020732
+ 57. misc cleanups.
+ 56. V6.11.05 - 20020712
+ 55. We should have socklen_t in the INET6 case, but we leave int otherwise.
+ 54. Fixed for Darwin/Rhapsody (Mark Peek)
+ 53. provide new config.sub and config.guess from ftp://ftp.gnu.org/gnu/config/
+     (Nelson Beebe)
+ 52. V6.11.04 - 20020709
+ 51. Dissallow setting of environment variables that do not contain
+     alphanumeric names (Ton Voon)
+ 50. Don't expand path components that don't resolve to path names (Jonathan
+     Chen)
+ 49. Make $ignoreeof agree with the man page (Matias Moreno Meringer)
+ 48. Fix argument passing in tc.prompt.c expdollar (Nelson Beebe)
+ 47. Completion fixes from FreeBSD (Mark Peek)
+ 46. FreeBSD's sbsize limit (Mark Peek)
+ 45. Fix repeat 3 repeat 2 echo foo
+ 44. Fix I/O redirection in scripts (Ian D Allen)
+ 43. Fix ` \\\n ` evaluation (Jean-Luc Leger)
+ 42. add --version (Nelson Beebe)
+ 41. portability fixes for sed (Nelson Beebe)
+ 40. undef sv_handler for AIX's benefit. (Nelson Beebe)
+ 39. Add a test for ss_family that disables IPV6 (linux/ppc, osf/1 have
+     problems) (Nelson Beebe)
+ 38. Disable ipv6 for Apple (Nelson Beebe)
+ 37. Fix darwin configure entry (Nelson Beebe)
+ 36. V6.11.03 - 20020701
+ 35. Add Ian D. Allen's bug list.
+ 34. If we are invoked as csh, default to bsd echo (Matej Vela)
+ 33. Don't close file descriptors too early because setuid scripts fail.
+     (Jill Pryse-Davies)
+ 32. Completion updates (Tom Warzeka)
+ 31. Fix compilation issue on SunOS4 with _POSIX_VDISABLE (Tom Warzeka)
+ 30. ukrainian update (Olexander Kunytsa)
+ 29. DSPMBYTE=utf8 patch (Jean-Luc Leger)
+ 28. fix ipv4 only compilation, remove extra sigsetmask() call (Takayuki Nakao)
+ 27. window change can cause free to be re-entered causing abort (Mark Peek)
+ 26. vp->vec vetting, suggested by Ian Dall.
+ 25. V6.11.02 - 20020516
+ 24. Fix prompt bugs in $var and %c0n (TAKAI Kousuke)
+ 23. Add Cray SV2 config (Rafal Maszkowski)
+ 22. Add pdf manual page (Warren Ferguson)
+ 21. Fix REMOTEHOST lossage in with AF_LOCAL sockets (Tom Mander)
+ 20. Fix win32 break because of TIOCSTI (Amol)
+ 19. Fix TIOCSTI for hpux 11  (Igor Schein)
+ 18. Avoid collapsing paths that refer to non-existent components
+     (Martin Kraemer)
+ 17. Make -shell invocations always treated as a login shell.
+ 16. V6.11.01 - 20020308
+ 15. Fixes to polish nls locale (Pawe³ Niewiadomski)
+ 14. russian locale fixes (Alexey Dokuchaev)
+ 13. document door support (Shaen)
+ 12. tcsh euc handling extensions (Alexey Zelkin)
+ 11. Make sure that jobcmd does not clobber the current job (Rob McMahon)
+ 10. Make sure that the output of verbose and echo do not end up in the
+     command output (Victor I. Pasko)
+  9. Add %j in prompt [needs more work; is not right the first time
+     after proclist changes] (Hr. Peter Kruse)
+  8. `` commands with embedded newlines would ignore commands following
+     the new line (Victor I. Pasko)
+  7. Re-initialize nls if NLSPATH is changed (Naoki Wakamatsu)
+  6. Fix 64 bit compilation with linux and resource limits.
+  5. Avoid double globbing when ls-F needs to fork (Joe Townsend)
+  4. put back csh filec compatible support.
+  3. add support for quads in xprintf in the presence of gcc.
+  2. unlimit should set rlim.rlim_max to rlim.rlim_cur if max < cur.
+  1. Make ~user work again when the home directory is '/'.
+
+ 40. V6.11.00 - 20010902
+ 39. Completion fixes (Tom Warzeka)
+ 38. make c_insert not static so that it can be used from win32 (amol)
+ 37. Fix rmstar not to corrupt memory when we say no. (Mark Peek)
+ 36. V6.10.02 - 20010806
+ 35. polish nls locale (Pawe³ Niewiadomski))
+ 34. Fix a tcsetattr race running background jobs as the last line on an xterm
+     window (Andrew Brown)
+ 33. jobcmd alias (Greg Parker)
+ 32. hpux11 support (Joshua Weage)
+ 31. Fix SHORT_STRINGS compilation (Daniel Trinkle)
+ 30. Add kill -s (Mark Peek)
+ 29. Don't recognize all mips as dec (Bjorn Knutsson)
+ 28. Fix GLOB_QUOTE problem (noted by Per) I introduced in 6.10.01.
+ 27. Port to concurrent's powermaxos (Matt Majka)
+ 26. New builtin srcfile (Amol)
+ 25. Fix bindkey "\\" cmd (reported by Ismail H. Tuncer)
+ 24. %0Xc was broken in the prompt if the user's home directory was '/'.
+     (reported by Edward Glowacki)
+ 23. V6.10.01 - 20010426
+ 22. LARGEFILE support on Linux.
+ 21. Add big5 multibyte support (Yen-Ming Lee)
+ 20. Check the return value of setpriority (Dima Dorfman)
+ 19. Avoid constructing paths with // on DomainOS (Nickolai Zeldovich)
+ 18. Russian translation (Ilmar S. Habibulin)
+ 17. Fix hostdefs for alpha support in FreeBSD (Andrey A. Chernov)
+ 16. Add door support in colorls (Shaen)
+ 15. Add BSD_STYLE_COLORLS for FreeBSD (Anand)
+ 14. MAXHOSTNAMELEN needs to be 256 (Kris Kennaway)
+ 13. Document stty -tabs problems on compaq (Nelson H. F. Beebe)
+ 12. Fix broken comment, and new versions of config.guess and config.sub
+     (H.Merijn Brand)
+ 11. fix redrawing in the recognize case (Andrew Brown)
+ 10. don't call qsort with 0 items. (Luke Mewburn)
+  9. fix echo;echo;echo; not outputing anything (Andrey A. Chernov)
+  8. Fix shell word parsing in dabbrev-expand (Per Hedeland)
+  7. hpux fixes (Chienting Lin)
+  6. Implement kill ring (Per Hedeland)
+  5. Avoid core-dumping when a very long $HOME gets passed in (Kris Kennaway)
+  4. Add rlimit_vmem for linux based on rlimit_as (N KomaZaki)
+  3. back out symlink=expand path check.
+  2. Add Estonian translation (Toomas Soome)
+  1. Accept empty $savedirs to mean infinity.
+
+ 57. V6.10.00 - 20001119
+ 56. Completion fixes (Tom Warzeka)
+ 55. add missing linux kanji define (Tsuyoshi Kawabe)
+ 54. More WINNT_NATIVE fixes (amol)
+ 53. Fix compile error on winnt (Yoshiyuki Sakakibara)
+ 52. nonstopux configure and makefile fixes (Tom Bates)
+ 51. V6.09.04 - 20001111
+ 50. Order of initialization for multibyte display was wrong 
+     (HyunChul Kim)
+ 49. Follow the guideline for linux for japanese locale:
+     http://www.linux.or.jp/JF/JFdocs/Japanese-Locale-Policy.txt
+     (Tomohiro KUBOTA)
+ 48. Ukrainian nls map (Olexander Kunytsa)
+ 47. exit immeditiately if we get an error while we are setting up
+     (Michael Shalayeff)
+ 46. (unset path; unsetenv PATH; rehash) -> crash (Kent Vander Velden)
+ 45. change winnt to winnt_native (Randolph Fritz)
+ 44. Support home/end in the editor (Andrey A. Chernov)
+ 43. Typo s/gycwin/cygwin/ in tc.os.h (Andreas Schott)
+ 42. Alpha ev6 addition (Karen R. McArthur)
+ 41. DSPMBYTE patch from (Issei Suzuki)
+ 40. Security fix for here-doc tmp files (proton@ENERGYMECH.NET)
+ 39. Fix resource limit rounding *again* (Johannes Gross)
+ 38. Fix $ expansion in prompt (Takashi Sumiyoshi)
+ 37. V6.09.03 - 20000715
+ 36. cygwin port fixes (Arihiro Yoshida)
+ 35. Add a new "catalog" variable that specifies which NLS catalog
+     to be used (Issei Suzuki)
+ 34. cleanup and addition of page up/down (amol)
+ 33. fix vfork compile problem.
+ 32. use inet_addr instead of inet_aton for portability.
+ 31. V6.09.02 - 20000704
+ 30. lots more completions (George Cox)
+ 29. change FILSIZ to BUFSIZE [now that BUFSIZE >> MAXPATHLEN] and
+     avoid a potential buffer overflow in sh.dir.c (Volker Schmidt)
+ 28. _MINIX_VMD port (Martijn van Buul)
+ 27. inet6 handling for remotehost and configure (Hajimu UMEMOTO)
+ 26. aix-4 does not need gethostname (Darren Reed)
+ 25. IBM OS/390 Unix Systems Services support (Peter Prymmer)
+ 24. Fix prompt formatting (Andrey A. Chernov)
+ 23. Use HostType from Imakefile correctly (Kjetil Torgrim Homme)
+ 22. Handle long and expanded history lines better (Boleslaw Ciesielski)
+ 21. With symlinks=expand expand valid paths only (Martin Kraemer)
+ 20. Make one-byte charsets work with KANJI (Andrey A. Chernov)
+ 19. NT-specific executable detection moved to NT code (amol)
+ 18. New "complete module" (Dan Nicolaescu)
+ 17. Correctly display scaling string in limit error messages (Nathan Ahlstrom)
+ 16. Don't display "unset watch" message when not appropriate (kim)
+ 15. V6.09.01 - 20000114
+ 14. Circumvent IRIX4D ESTALE bug by exiting.
+ 13. IRIS4D de-linting.
+ 12. Finnish nls catalogs (Jukka A. Ukkonen)
+ 11. Even more multibyte fixes (Taga Nayuta)
+ 10. Patches to statically link tcsh under solaris-2.6 (John Hawkinson)
+  9. Manual page typos (R. Bernstein)
+  8. HP/UX-11 (9000/800) HP/UX-10.20 (9000/820) (Haflidi Sigtryggur Magnusson)
+  7. Color-ls fixes (Luis Francisco Gonzalez)
+  6. Don't re-use time0 to compare to stat's st_mtime, cause it could be
+     the value returned from times(2) which is the ticks since system
+     startup (Frank van der Linden)
+  5. Time percentage wrap fix (Simon Burge)
+  4. EUCKR support (HyunChul Kim)
+  3. Grammar and typo fixes for tcsh.man (Steve Kelem)
+  2. More multibyte fixes (Rodney Ruddock)
+  1. Change 6.08 -> 6.09 where I missed it; update for utlrix 4.5 (Simon Burge)
+
+ 65. V6.09.00 - 19990816
+ 64. Add csh emacs mode (Dan Harkless)
+ 63. Make sure the the glob buffer matches the word buffer size (Brian Biswas)
+ 62. Fix periodic to work without tperiod set (Kenny McCormack)
+ 61. V6.08.07 - 19990813
+ 60. Fix e_dabbrev_expand (Bjorn Knutsson)
+ 59. Make \builtin work again (by calling the command not the builtin)
+ 58. Add NLS_BUGS for OS's that keep file descriptors open for NLS (Ian Dowse)
+ 57. Make NONLSREBIND work after tcsh starts up.
+ 56. Fix AIX stupid exit bug. (Dan Harkless)
+ 55. More irix fixes (Kaveh)
+ 54. V6.08.06 - 19990701
+ 53. module command completion (Dan Nicolaescu)
+ 52. Man command completion enhancement (Tom)
+ 51. Fixes for irix configuration (Kaveh)
+ 50. Support \a and \e in echo command. From (Keith Thompson)
+ 49. Alpha configure nit from Kaveh
+ 48. V6.08.05 - 19990511
+ 47. In some system, when a builtin fails immediately after we start
+     tcsh and before we print any messages, NLS messages fail (some
+     descriptor might be closed) [FreeBSD, HP/UX?]. So we force reading
+     the NLS catalogs in errinit() (Yoshiyuki Sakakibara)
+ 46. typos in ja/set1 and ja/set29 (Yoshiyuki Sakakibara)
+ 45. "dspmbyte autoset trap" support to HP-UX 10.20. (Yoshiyuki Sakakibara)
+ 44. misnumbered NLS message in tw.help.c (Yoshiyuki Sakakibara)
+ 43. colorcat variable for NLS color messages (Yoshiyuki Sakakibara)
+ 42. autoconf fixes from Kaveh (and if it broke, me)
+ 41. SGI irix fixes from Glenn Coombs.
+ 40. Don't spin writing the history file when quota is exceeded (Rob McMahon)
+ 39. V6.08.04 - 19990419
+ 38. complete additions (John Gotts)
+ 37. Port to amiga with geek gadgets (Arto Huusko)
+ 36. Ignore case in setenv for windows (amol)
+ 35. Bug fixes for NT unc stuff (amol)
+ 34. Hash spell check (amol)
+ 33. V6.08.03 - 19990211
+ 32. Helpcommand documentation (Vladimir Alexiev)
+ 31. small Y2K fix [%y in prompt would be formatted as 10 not 00 at year 2000],
+     and new Itoa() code (Chris Torek)
+ 30. OpenBSD m68k patches (Paul DuBois)
+ 29. Avoid redefinition of getpeername on Solaris-2.7
+ 28. fix problems with savedups=erase, savehist=merge (Randy Gobbel)
+ 27. Don't set $shell to csh, if we were invoked as tcsh (Tomas Persson)
+ 26. added $_
+ 25. added postcmd
+ 24. V6.08.02 - 19981124
+ 23. document continue and continue_args
+ 22. wrong test in slowexec made NT optimization a noop (Amol)
+ 21. Rhapsody fixes + separate CFLAGS/CPPFLAGS (Wilfredo Sanchez)
+ 20. literals in both prompt at rprompt did not work properly (Taga Nayuta)
+ 19. multibyte deletion fixes (Yoshiyuki.Sakakibara)
+ 18. clean up key binding stuff for NT by moving the nt dependent code to
+     the NT source (amol)
+ 17. dspmbyte fixes for AIX, typos in man page and nls (Yoshiyuki Sakakibara)
+ 16. Convex fixes (Ron Echeverri)
+ 15. V6.08.01 - 19981025
+ 14. SX4 port; this adds many casts for machines where ptrdiff_t is 64 bits.
+     (Andreas Schott)
+ 13. U/Win port; does not work properly with U/Win 1.6, wait for the next
+     version (Chris Jones)
+ 12. Sgi does not need gethostname prototype (John Bogan)
+ 11. Logic in sh.dir.c was wrong for NT (Amol)
+ 10. HP_CXD_SPP stat64 fixes (Scott Garee)
+  9. Documentation spelling fixes (Keith Thompson)
+  8. Documentation fix for savedirs (Amol)
+  7. Siemens OSD_POSIX fixes (Martin Kraemer)
+  6. include <errno.h> for all the BSD's (Trevor Johnson)
+  5. Multibyte display fixes for gnu ls (Taga Nayuta)
+  4. Configure/Makefile hesiod and bindir fixes (Dan Winship)
+  3. Use winnt not win32 in tc.os.h (Amol)
+  2. Cygwin32 port (Raj Menon)
+  1. Ported Fixes (Tom)
+
+ 95. V6.08.00 - 19981002
+ 94. where builtin nt fix (Amol)
+ 93. V6.07.13 - 19980926
+ 96. NT multibyte fixes (Amol)
+ 95. NeXT needs getcwd.
+ 94. fix new bug introduced by strncpy'fication in sh.dir.c (Taga Nayuta)
+ 93. V6.07.12 - 19980918
+ 92. add cray in configure script (Tom)
+ 91. nls fixes
+ 90. Avoid buffer overflows in directory code (kim)
+ 89. Add multibyte character display support (Yoshiyuki Sakakibara)
+ 88. Make tcsh use getcwd instead of getwd and supply a getcwd.
+ 87. Fix remotehost again (kim)
+ 86. V6.07.11 - 19980913
+ 85. Leave remotehost ip addresses alone (don't try to resolve them) (Kim)
+ 84. Read vs. force_read fixes (Amol)
+ 83. Make colorls if color is set before the first LS_COLORS setenv
+     (Taga Nayuta)
+ 82. Use _PATH_DEFPATH on BSD4_4 systems. (Jim Bernard)
+ 81. Cursor bounds checks (Michael Schroeder)
+ 80. Syntax error nits (Michael Schroeder)
+ 79. configure fixes (Michael Schroeder)
+ 78. V6.07.10 - 19980904
+ 77. Off by one error in NO_ERRORS...
+ 76. Japanese NLS messages (Yoshiyuki Sakakibara)
+ 75. Add ENXIO and EBADF in the test for write failures for Irix Zombies
+     (Ralf W. Grosse-Kunstleve)
+ 74. Missed a test for NOSTRCOLL in glob.c (Michael Liepelt)
+ 73. Another ABSOLUTEP change (Amol)
+ 72. Italian NLS messages (Massimo Bertozzi)
+ 71. WIN32 fixes for ntslowexec and color_ls literal printing in prompt (Amol)
+ 70. a few missed WIN32 merges (Amol)
+ 69. defined YPBUGS for sgi (Kaveh)
+ 68. V6.07.09 - 19980707
+ 67. Separate the nt builtins (Amol)
+ 66. completion fixes (Tom)
+ 65. color ls fixes (Taga Nayuta)
+ 64. V6.07.08 - 19980629
+ 63. add config.h.in (Kaveh)
+ 62. win32 updates (Amol)
+ 61. warning and portability cleanups on the new changes (Kaveh)
+ 60. V6.07.07 - 19980628
+ 59. Fast execute by-pass for win32 (Amol Deshpande)
+ 58. Clean up const usage a bit, and fix gcc 2.8.1 warnings.
+ 57. Use @bindir@ for DESTBIN in Makefile.in (Edgar Hoch)
+ 56. Avoid overflow in time builtin computation (Nobue Adachi)
+ 55. Color ls additions (Taga Nayuta)
+ 54. unsigned char vs. char warning fixes (Kaveh)
+ 53. Solaris 64 bit fixes (fix directory offset bug) (Thomas-Martin Kruel)
+ 52. More win32 patches (Amol)
+ 51. autoconf lossage from (Kaveh)
+ 50. V6.07.06 - 04/08/98
+ 49. Collation fix for globbing (Andrey A. Chernov)
+ 48. We might have NLS_CATALOGS and not LC_MESSAGES (Andrey A. Chernov)
+ 47. 4.4BSD header fixes (Andrey A. Chernov)
+ 46. Signed char prompt fixes (Andrey A. Chernov)
+ 45. Pattern match fix for directory searches (Mike Patnode)
+ 44. Pentium DGUX fixes (Miko Nahum)
+ 43. Spanish nls message catalogs (Luis Francisco Gonzalez)
+ 42. Fix trailing whitespace parsing in HASHBANG code (Martin Kraemer)
+ 41. Remove stray debuggin message from unmatched substitutions.
+     (from Amol Deshpande)
+ 40. Fix reversed arguments in Usagae message. (from Amol Deshpande)
+ 39. Fix bug introduced at tcsh-7.06.03 [expdollar] that affected %.n prompt
+     format.
+ 38. Fix typos introduced in last batch of changes.
+ 37. Fix interrupted script using onintr, exiting parent shell problem.
+ 36. Cleanup prototypes.
+ 35. V6.07.05 - 10/28/97
+ 34. Integrate Amol Deshpande's WINNT fixes to the tcsh source. Note that
+     this is not complete yet; we are missing the NT glue code and the message
+     catalogs.
+ 33. Fix ^T at the first character in the line  (Chuck Silvers)
+ 32. Eliminate xsprintf and xvsprintf
+ 31. Qmail patch from (Matthew Zahorik)
+ 30. Added missing linux signals (Vadim Vygonets)
+ 29. fixed problem where  complete complete  'p/*/t:*.txt/' would not honor
+     the pattern.
+ 28. Port to an EBCDIC machine: BS2000 by Siemens Nixdorf that has an
+     IBM/390 compatible processor (Martin.Kraemer)
+ 27. Detect when we have errors writing to stdout (Vadim Vygonets)
+ 26. Ignore quotes in the comparisons for builtins, so that \builtin works
+     (Amol Deshpande).
+ 25. HPUX, portability fixes; make sure that we have the right config file
+     (Jonathan Kamens)
+ 24. Don't do lookups for x displays and figure out ttys properly 
+     (Leonard N. Zubkoff)
+ 23. make print_by_columns print in a single column when the output is not a tty
+ 22. use rlim_t for Solaris2 (Casper Dik)
+ 21. V6.07.04 - 05/04/97
+ 20. set -f -l patch (Michael Veksler)
+ 19. SGI patches (Tomasz J. Cholewo). Also fix completion code to take into
+     account aliases that start with a period.
+ 18. SCO patches (Boyd Lynn Gerber)
+ 17. Fujitsu patches (Toshiaki Nomura)
+ 16. autoconf patches (Kaveh Ghazi)
+ 15. BSDI patches (Paul Vixie)
+ 14. %Q formatting character addition.
+ 13. Fix set=#123; echo $i:s/#// (Quoting problem)
+ 12. V6.07.03 - 02/23/97
+ 11. Understand %$variable in the prompt.
+ 10. Quote directory names properly in .cshdirs
+  9. USE_ACCESS and autoconfig patches from (Larry Schwimmer)
+  8. Pyramid att config file (Andrew Lister)
+  7. $rprompt code (Luke Mewburn)
+  6. Kanji patches (Huw Rogers)
+  5. Cray T3E port (Jorn Amundsen)
+  4. Avoid html redirects in tcsh.man2html (from Kimmo)
+  3. HP/UX 10.0 fix for filesize resource limit; don't scale by 512 anymore.
+  2. Workaround for TIOCSTAT for NetBSD from lukem@netbsd.org
+  1. Return exit status from 0..255 not -128...127, as POSIX mandates.
+
+V6.07.02, 10/27/96
+ 58. More configure fixes from Kaveh.
+ 57. Fix histdup=erase again: Don't renumber events, or access uninitialized
+     storage.
+ 56. 6.07.01 - 10/19/96
+ 55. Fix histdup=erase, where after some repetitions, we would get negative
+     history events (kim@gw.com)
+ 54. NLS fixes and typo in sh.err.c (Martin.Kraemer@deejai.mch.sni.de)
+ 53. Output history in raw format in the history file (mveksler@VNET.IBM.COM)
+ 52. Fix possible core dump when !:<tab> in autoexpand mode (rbrown@ERA.COM)
+ 51. 6.07.00 - 10/11/96
+ 50. Avoid stdio.h inclusion problem in SCO (gethost.c).
+ 49. A bit of housekeeping in host.defs
+ 48. 6.06.04 - 10/05/96
+ 47. Fix tellmewhat() code to return true if found.
+ 46. Change register foo to register int foo to avoid compiler warnings.
+ 45. Fix problem with sticky non editing mode from Casper Dik.
+ 44. history lex fix from Martin Kraemer; history events that ended with 0
+     were not properly parsed.
+ 43. SNI fixes from Martin Kraemer.
+ 42. SGI fixes from Ralf W. Grosse-Kunstleve.
+ 41. BSDI2.1 fixes from Paul Vixie.
+ 40. 6.06.03 - 09/24/96
+ 39. undef TIOCGLTC for HP/UX 10.0 from Michael Shroeder
+ 38. Sinix fixes
+ 37. 6.06.02 - 06/22/96
+ 36. Added implicitcd
+ 35. Added configure.in and Makefile.in from Kaveh.
+ 34. unset path, unsetenv PATH, ./foo did not work.
+ 33. Add VAR_NOGLOB, and use it to avoid globbing directory names when
+     cd'ing into them.
+ 32. Fix bug introduced in the new tty parsing code.
+ 31. Avoid pushing string back to the parsing string in ${ errors.
+ 30. Patches for the manual page from Dave.
+ 29. 6.06.01 - 05/24/96
+ 28. Use sysconf to get NCARGS if available Robert Daniel Kennedy
+     <kennedy@b0ru01.fnal.gov>
+ 27. Grab the program name and use that instead of tcsh in error messages.
+ 26. Fix histdup, so that it does not leave gaps in the event sequence.
+ 25. HP/UX v10.0 fixes: Don't use bsdtty.h and avoid clobbering memory
+     since SIGRT??? is defined as -1.
+ 24. Avoid coredumps when $TERMCAP exceeds 1024 characters
+     Michael Schroeder <Michael.Schroeder@informatik.uni-erlangen.de>
+ 23. Fix memory clobbering when SHORT_STRINGS is not defined. 
+     Todd J Derr <infidel+@pitt.edu>
+ 22. Only restart stopped editors. Robert Webb <robertw@wormald.com.au>
+ 21. Recognize pts sysv ptys when checking to set autologout Bob Myers
+     <bob@intelenet.net> 
+ 20. Magic space incomplete modified core dump fix. Chris Metcalf
+     <metcalf@catfish.lcs.mit.edu>, Bradley White <bww@fore.com>
+ 19. Linux nls fixes Rik Faith <faith@cs.unc.edu>
+ 18. SGI RS8000, Ported notes. Ralf W. Grosse-Kunstleve
+     <rwgk@laplace.csb.yale.edu>
+ 17. Greek nls messages. Aggelos P. Varvitsiotis <avarvit@cc.ece.ntua.gr>
+ 16. Imakefile linux and libcrypt fixes. Jonathan Kamens  <jik@cam.ov.com>
+ 15. FreeBSD fixes Jukka Ukkonen <jau@jau.csc.fi>
+ 14. Expand the environment space for path Steve Kelem <steve.kelem@xilinx.com>
+ 13. Don't overwrite the environment randomly Steve Kelem
+     <steve.kelem@xilinx.com>
+ 12. Don't turn the editor on when we have dumb or unknown terminals. This
+     breaks emacs when compiled with terminfo Jonathan Kamens  <jik@cam.ov.com>
+ 11. Fix F- parsing in tc.bind.c <bob@intelnet.net> (Bob Meyers)
+ 10. Added -T option in history to force timestamp printing. -h alone does
+     not print timestamps anymore for compatibility with csh.
+  9. Typo in tc.bind.c [with -DOBSOLETE] (misplaced parenthesis)
+  8. Recognize convex models properly.
+  7. suppress the DING! option using the noding variable.
+  6. negative nice values did not work.
+  5. Harris CX/UX 7.x support.
+  4. ERR_DMMODE was used on the crays but not defined. I changed the error
+     messages in tc.os.c to use ERR_STRING instead, and fixed a missing error
+     message in the catalogs. Someone will need to retranslate #30 and #31
+     in set23.
+  3. Bug setting listflags... Workaround: set listflags=(A /bin/ls)
+  2. Typo in Imakefile (# comment instead of c comment)
+  1. Typo in ma.setp.c (missing parenthesis)
+
+
+V6.06.00, 05/13/95
+ 88. Cleanup off-by-one error ed.defns.c.
+ 87. 6.05.09 - 05/06/95
+ 86. Small memory leak in dosetenv()
+ 85. Make sure that the number of editing functions defined is correct
+     and abort otherwise.
+ 84. Completion Fixes from Tom
+ 83. Don't add yp stuff in the tilde cache [names that start with + or -]
+ 82. Don't let children catclose() in xexit(), because the parent will lose
+     access to the nls catalogs. From Michael.
+ 81. 6.05.08 - 04/29/95
+ 80. Update to the newest csh sh.file.c
+ 79. More completions from Tom.
+ 78. Fix the Imakefile to use XCOMM
+ 77. Update for AIX 3.2.
+ 76. French catalog from J.M.Vansteene@frcl.bull.fr (fwd Michael Schmidt)
+ 75. Nls fixes and small typos from Michael
+ 74. PDP11 BSD type fixes.
+ 73. More manual page fixes.
+ 72. 6.05.07 - 04/19/95
+ 71. More NLS catalog fixes.
+ 70. Bruce's jumbo patch.
+ 69. 6.05.06 - 03/15/95
+ 68. make clean does not clobber config.h if Makefile.std is used.
+     make veryclean does.
+ 67. New config define NISPLUS. Reportedly fixes vanishing output of ~expansion
+     on solaris 2.4.
+ 66. showdots has been removed; use listflags instead. [handles -x too]
+ 65. more nls catalog fixes.
+ 64. set histchars=,. did not have any effect in .cshrc
+ 63. fix "-c command" new core dump.
+ 62. more completions from Tom
+ 61. call catclose() before exiting, so that svr4 cleans up the symlinks before
+     exiting.
+ 60. Per's fix for insert-last-word
+ 59. Per's emacs abbreviation mode.
+ 58. Makefile fixes for catalog stuff.
+ 57. fixed again complete-word-raw and list-word-raw
+ 56. 6.05.05 - 03/11/95
+ 55. Made %?str work again
+ 54. IRIX sigalarm problem should be fixed
+ 53. complete-word-raw and list-word-raw should work
+ 52. nls catalogs complete reworking.
+ 51. sh.init.c: Signal complete rewrite.
+ 50. Signal fixes from Bruce.
+ 49. Added promptchars, like histchars; affect %# in the prompt. The first
+     char is for the user and the second is for root.
+ 48. 6.05.04 - 03/03/95
+ 47. Add NODOT config, $command [that holds the command passed with -c]
+     $GROUP and $group
+ 46. AFS fixes from Larry Schwimmer <rosebud@cyclone.Stanford.EDU>
+ 45. Real NLS catalogs from Michael Schmidt <michael@muc.de>
+ 44. patch to allow ^? binding.
+ 43. completion patch from Paul DuBois.
+ 42. Don't spell check in here docs.
+ 41. Incorrect normalization of usec in sh.time.c
+ 40. directory printing and option parsing fixes [from Paul DuBois]
+ 39. realloc_searchlen should be static to avoid conflicts with OS's that
+     use the same malloc package.
+ 38. LOGINFIRST now applies to /etc/csh.login
+ 37. Fixes in bind compatibility code to bindkey.
+ 36. 6.05.03 - 01/17/95
+ 35. Don't print the whole watchlist on startup. One can use explicitly
+     the log builtin for that.
+ 34. Don't display the $watch value in the log command. 
+ 33. Don't delete the unmatched portion if we try to complete a spelling error.
+ 32. Solaris 2.4 workaround for isprint('\t') lossage (From Casper)
+ 31. Fixed csh bug: [Reported by Jaap]
+	set test="one\
+	two\
+	three"
+	echo "$test:q"
+ 30. Fixed the lossage in setting the looking mode in tw.parse.c before
+     calling t_search; $x/$y will not append the right suffix.
+ 29. Another attempt at the gethost timeout code.
+ 28. Cray dmmode and filetests -m -k [need documentation!]
+ 27. More manual patches.
+ 26. Don't glob the path; security problem and core-dump. [from beto]
+ 25. Avoid waiting for jobs that failed to restart, thus hanging the shell.
+     eg, run job in background, attach to debugger; kill it inside the
+     debugger. Get out of the debugger and you are stuck if you fg that job.
+ 24. 6.05.02 - 09/04/94
+ 23. remhost code could pass the wrong length to getpeername()
+ 22. too eager sed'ing broke convex getwarpbyvalue() to getwarpbyvarval()
+ 21. Fixed new bindings bug.
+ 20. Fixed bug in newgrp code; execv was called incorrectly.
+ 19. Take into account programmable completion hints when spell checking.
+ 18. Unconditionally change stty modes in Rawmode()
+ 17. Change date in $version to be ISO 8601 per Keith's suggestion
+ 16. Fixed portability problems in the new counted-strings codes (From Kaveh)
+ 15. Fixed binding problem with the new counted-strings code [all key bindings
+     ended up in the extended map]
+ 14. 6.05.01 - 07/08/94
+ 13. Changed key bindings to use counted strings instead of Null terminated
+     strings, so that binding ^@ works.
+ 12. Fix parsing bug, where words that contained keywords caused incorrect
+     word breaks:
+	switch (iftagd)
+	case iftagd:
+	    echo It works
+	    breaksw
+	default:
+	    echo It is broken.
+	endsw
+ 11. Fix sh.c for systems with no job control. [the new hup builtin sends
+     SIGCONT].
+ 10. Don't add the suffix character when all completions fail, from michael
+  9. Added histdup=erase, that deletes the oldest duplicate instead of
+     the newest.
+  8. Don't call .logout recursively if we receive more than one hup,
+     and don't process hangups when we execute the .logout.
+  7. $logout was set to a static string.
+  6. Non printable binding listing was broken.
+  5. Recursive sourced scripts would get mangled up because of input buffer
+     confusion (thanks michael)
+  4. M-space should not be counted as a space. Leads to infinite loop in
+     word splitting.
+  3. Pyramid fixes.
+  2. Fixed '\' in sysv echo (from Mika)
+  1. Missed fix_yp_bugs() when setting REMOTEHOST (From Casper)
+
+
+V6.05.00, 06/19/94
+113. 6.04.17 06/18/94
+112. Realloc debug fix from John.
+111. Completion fixes from Bruce.
+110. Added -b option to bind.
+109. Added tcsh.man2html from Dave. Looks great!
+108. 6.04.16 06/06/94
+107. Allow multi word glob in "`foo`" expressions.
+     > if ("`ls`" == "a b c") then
+106. Michaels lex() buffer patch version 2.
+     the previous version core-dumped with
+     > sleep | echo
+105. Fix seg fault in find_cmd, when path is unset.
+104. 6.04.15 05/28/94
+103. the previous =~ fix, was a bit broken.
+102. 6.04.14 05/25/94
+101. expression parser fix for !~ and =~.
+     if (foo =~ *) echo ok
+     the * was taken for a multiply and parsed as 0 * 0 returning 0.
+     and asked to match "foo" with "0"
+100. Michael's lex() buffer patch.
+ 99. Bruce's Jumbo cleanup
+ 98. fixed Imakefile for X11R6
+ 97. fixed argument parsing in source command.
+ 96. added $sched to format scheduled events.
+ 95. 6.04.13 05/07/94
+ 94. added expand-command
+ 93. Alpha OSF-2.0 fixes
+ 92. 6.04.12 04/28/94
+ 91. Ignoreeof patch from Bruce.
+ 90. Dan's completion fix.
+ 89. 6.04.11 04/12/94
+ 88. Don't source .logout when killed with -HUP unless we are a login shell.
+     [ actually $loginsh controls the behavior now ]
+ 87. ISC-4.0 posix exec() bug workaround
+     (from Jonathan Broome <jon@wilbur.uucp>)
+ 86. Dan's patch for complete=enhance
+ 85. Kaveh's patches for memset, host.defs, _{U,G}ID_T
+ 84. 6.04.10 03/29/94
+ 83. Pathname completion bug fixes...
+ 82. Completion pathname(p) changes: Completion 'C' -> 'X'.
+     Replaced 'p' with 'F' and added D,T,C.
+ 81. Next NLS fixes
+     (From Paul Nevai <nevai@ops.mps.ohio-state.edu>)
+ 80. make spelling correction obey the current histchars setting.
+ 79. Fix rounding in limits so that 0 is a true 0. 
+     (From Ken Lalonde <ken@cs.berkeley.edu>)
+ 78. 6.04.09 03/12/94
+ 77. Alarm race with remotehost.
+ 76. If you have in your .cshrc 
+	set savehist=(100 merge)
+	and execute
+	#!./tcsh
+	exec ps
+     you get no output; [fixed]
+ 75. setenv SHLVL -1; tcsh = Segmentation fault [fixed]
+ 74. 6.04.08 02/10/94
+ 73. new machtype, ostype, vendor
+ 72. execute .logout on hangup.
+ 71. more man page fixes.
+ 70. 6.04.07 02/04/94
+ 69. Dynamic hash changes, globbing for which command from Michael.
+ 68. INBUFSIZE fixes for history.
+ 67. printenv returns 1 when a variable is not found, like the non builtin one
+ 66. Add quotes to the mismatch array so that:
+     > touch foo
+     > mail "oo bar"
+     does not get corrected. The right fix would be to do correct parsing
+     and quote the space...
+ 65. NULL terminate mismatch[] array in ed.inputl.c, since it is used in
+     Strchr().
+ 64. renamed stat to filetest
+ 63. Afs and Hesiod patches.
+ 62. More manual page patches.
+ 61. 6.04.06 12/19/93
+ 60. Alarm for resolver timeouts (untested)
+ 59. Fixes for Henry Spenser's regex in the Makefiles
+ 58. Modifiers now work with $< and $< does not do :q by default.
+     [incompatibility with csh] and $< can be interrupted.
+ 57. Added $histdup.
+ 56. source /etc/.login for Solaris 2.x
+ 55. don't remove trailing spaces in history searches.
+ 54. dirs -L and dirs -S spurious warning elimination.
+ 53. man page fixes from David.
+ 52. Kimmo's patch [makefile, gcc warning, netdb.h include]
+ 51. 6.04.05 12/12/93
+ 50. rewrote srcunit() to use st_save and st_restore. The code was
+     too messy to be useful before.
+ 49. recdirs and rechist patches again!
+ 48. Harris hck port, and ISC imake update
+ 47. Eliminate the x windows :display.screen before looking for the 
+     hostname in REMOTEHOST
+ 46. Patch for CDF filetype() recognition (hpux)
+ 45. 6.04.04 11/12/93
+ 44. Made =x obey nonomatch.
+ 43. Fixed rechist and recdirs not to depend on savehist and savedirs
+ 42. Removed aliases, bind, linedit builtins [ifdef'ed out as OBSOLETE]
+ 41. change REMHOST to REMOTEHOST for compatibility with SGI.
+ 40. $owd was not working correctly.
+ 39. Debugging printf elimination (from Kimmo)
+ 38. Typos in the new hup code in sh.c (from Matt)
+ 37. Imakefile fix for sequent (from Jaap)
+ 36. 6.04.03, 10/30/93
+ 35. New manual page in place.
+ 34. Fixed Makefile sed RE to work with gnu sed.
+ 33. Added hup builtin.
+ 32. Added $REMHOST in config_f.h
+ 31. Fixed random parsing bug in sh.exp.c in isa(). It checked cp[1]
+     without checking cp[0] first... (should propagate to 4.4BSD)
+ 30. More sh.exp.c fixes from Bruce
+ 29. Always exit when the user types exit. 
+     cat | tcsh -f -s
+     exit
+     ls
+ 28. savedirs fix and readlink() null termination fix from Peter.
+ 27. Added -p flag (force dirs printing in all directory functions and $owd
+     variable
+ 26. Let $dirstack work by default without needing to be set.
+ 25. Fixed history -h to work with other history flags.
+ 24. Renamed ed-functions more consistently (dcs)
+ 23. Added missing filetests (dcs)
+ 22. Added NEWGRP define in config_f.h (dcs)
+ 21. More fixes for non blocking io recovery from Bruce
+ 20. 6.04.02, 10/08/93
+ 19. changed default prompt to %#
+ 18. New group 'g' completion.
+ 17. removed IIASA defs.
+ 16. fix for history -SL and dirs -SL to work when savedirs and savehist are
+     not set.
+ 15. fix magic-space to understand :p
+ 14. make :u,:l work for history.
+ 13. Fixes for non-blocking i/o recovery. trap all non blocking styles under
+     sunos.
+ 12. 6.04.01, 08/10/93
+ 11. Vi mode word moves [they work like vi and don't obey wordchars anymore].
+ 10. New file operators and stat builtin
+  9. David's FIONREAD patch for SVR4
+  8. Bruce's ignoreeof=n patch
+  7. Dan's complete/correct enhancement
+  6. Abort corrections patch.
+  5. Print_by_columns, now does not use the rightmost column.
+  4. Renamed config/config.$i to $i to avoid once and for all filename length
+     problems.
+  3. bbn butterfly config
+  2. Beto's proc fixes
+  1. Bruce's bug fix for ed.chared.c, signals
+
+
+V6.04.00, 07/03/93
+ 92. Alpha prototypes, for gcc -Wall clean compile.
+ 91. Fixed alpha hashing. Did not work for directories > 31, Thanks to
+     Dan Mosedale <mosedale@genome.Stanford.EDU> for all the help!
+ 90. Added USE(a) for unused parameters, to avoid compiler warnings.
+ 89. 6.03.10, 06/25/93
+ 88. Makefile and lint patches from Bruce.
+ 87. Posixsig patch from Peter for svr4
+ 86. 6.03.09, 06/11/93
+ 85. signal handling broke with the last job control patch...
+     > (does-not-compute;)
+     would hang.
+ 84. don't quit after the first modifier fails:
+     > set i=aabbcc
+     > echo $i:s/a/A/:s/b/B/
+     AaBbcc
+     > echo $i:s/x/A/:s/b/B/
+     aabbcc
+ 83. Imakefile fixes for sequents from Jaap.
+ 82. Move past the bottom of input when we hit ^C, so that multi-line
+     input commands don't get trashed.
+ 81. Look only at the first word in ${EDITOR,VISUAL} to determine the
+     editor name.
+ 80. Last patch broke listmax.
+ 79. Remove extra sandbagging in exitstat(). Not needed anymore as value()
+     will never return NULL.
+ 78. Save $status before calling aliasrun() otherwise:
+     > alias precmd 'cd .'
+     > true
+     > echo $status
+     0
+     > false
+     > echo $status
+     0
+ 77. 6.03.08, 06/07/93
+ 76. missing prototypes/unused variables under SYSV4.
+ 75. savedirs should glob the filename argument.
+ 74. 6.03.07, 06/05/93
+ 73. Changed _Q, _Q1 macros in sh.lex.c, sh.dol.c, sh.char.? to _QF and _QB
+     because today 4.4BSD <ctype.h> defined _Q to be ``Phonetics''
+ 72. listmaxrows variable.
+ 71. set -r would not make existing variables readonly.
+ 70. print usernames with ~user where possible in dirs and job cwd's
+ 69. Mika's fixes (missing args in sh.c set(), linux Makefile, SIGCHLD)
+ 68. FIONREAD argument is int everywhere except on SunOS where it is long.
+     Tcsh used to think that it was long, and so it broke on the alpha where
+     sizeof(int) != sizeof(long)
+ 67. 6.03.06 05/16/93
+ 66. Pipeline fixes. This should get rid of the dreaded Stopped tty output
+     message.
+ 65. Michael's fix for history buffer cleanup:
+     > alias foo 'echo \!:1:h'
+     > foo a/b
+     a
+     > ^P [nothing happens]
+ 64. Unsigned long rlimit type for 64 bit machines (alpha)
+ 63. Fixed Imakefile for alpha
+ 62. tilde expansion now obeys $nonomatch
+ 61. readonly veriables. 'set -r x=3' will set x to a very sticky 3...
+ 60. Fixed bug in the new tab'ed completion that interfered with old listing.
+ 59. Fixed entry -> item in tw.parse.c
+ 58. Added -f option to unlimit
+ 57. Define __STDC__ in Imakefile for Irix
+ 56. Static redeclarations in tw.parse.c
+ 55. 6.03.05 04/26/93
+ 54. Don't echo history expansion in loops:
+     > alias junk 'foreach i (\!:2*) \
+     foreach? echo \!:1 $i; \
+     foreach? end'
+     > junk a b c d
+     echo a $i ;
+     a b
+     echo a $i ;
+     a c
+     echo a $i ;
+     a d
+ 53. Added complete-word-fwd and complete-word-back that scroll through
+     the list of possible completions... Neat addition from 
+     jfink@csugrad.cs.vt.edu (Jeff "$DOTDIR" Fink)
+ 52. Workaround hpux9.01 broken optimizer in sh.glob.c where 'ls *' breaks.
+ 51. Michael's editor fix.  With "magic margins" and 80 char width, try:
+	> set prompt=
+	<ESC>20a<CTRL>a<ESC>76b<CTRL>ac
+ 50. Reverted fix that does not glob the expanded back-quote text again.
+ 49. > cd /., echo $cwd
+     /.
+     Eliminate the . in this case...
+ 48. Matt's optimization in glob.c [retracted]
+ 47. Fixed bug with -S
+ 46. Renamed Makefile Makefile.std, and fixed the readme file
+ 45. 6.03.04 04/07/93
+ 44. Changed -s == !-z and -S == socket
+ 43. Fixed typo in sh.c, in phup [shpgrp != pr->pgrp]
+ 42. Multi-line aliases are not entered into the history when executed.
+ 41. Changed f_seek to a union to avoid gcc warnings on 4.4BSD
+ 40. Fixed 'unset home; dirs' bug
+ 39. fixed $HOME->$home memory problem.
+ 38. $?0 returns false now on interactive shells for csh compatibility.
+ 37. Default watch inteval was 10 hours not 10 minutes as advertized in the
+     manual!
+ 36. Fixed clobbered veriable warning from gcc-1.39 in tw.parse.c
+ 35. Fixed typo with INVPTR in sh.lex.c
+ 34. 6.03.03 03/04/93
+ 33. Eliminate 'Reset tty pgrp error message'. It is normal for the
+     walking process group stuff. Check about the killpg() above?
+ 32. More portability for 64 bit machines.
+ 31. Improved completion error messages.
+ 30. Fix bug with double globbing expansion on mirrored variables:
+	> setenv TERM '?vt100'
+ 29. Avoid hanging when writing to pipes etc. (From Paul Close)
+ 28. Typo in the $HOME->$home mirroring.
+ 27. %p %P 'p'recise time formats that include seconds for prompt strings.
+ 26. Signal list fixes from Paul Close. nsig is now a variable.
+ 25. 6.03.02 02/12/93
+ 24. NEC SX3 "entry" is a reserved word!, changed entry to item...
+     [this is as bad as cray typedefining "word" to int. Next thing I know,
+      I'll have to prefix all the variables with tcsh_!]
+ 23. xxx
+ 22. Protected all include files to avoid warnings from lcc.
+ 21. Finally resolved the job control problems with linux and ISC (from Beto)
+ 20. More HUP,XFSZ,XCPU fixes. (with Beto)
+ 19. Dcanon would not canonicalize correctly in case where dnormalize()
+     failed to find a directory, but the directory existed when not 
+     crossing the symbolic link.
+ 18. sh.init.c fixes; give 65 signals for all POSIX machines.
+ 17. AMS mail fixes and cmu wm handling.
+ 16. Setenv would not ignore trim quoted names...
+     > alias foo 'setenv "\!:1" bar'
+     > setenv FOO 123
+     > foo FOO
+     > printenv
+     ...
+     FOO=123
+     FOO=bar
+     ...
+ 15. 6.03.01 08/01/93
+ 14. #undef SHORT_STRINGS gcc warning fixes...
+ 13. csh bug fix in foreach [quoteing problem]
+     > foreach i ("*")
+     > echo $i:q
+     > end
+     Should print *
+ 12. ls-F obeys showdots...
+ 11. After scheduled commands get executed, the editor could stay disabled
+     until the first enter.
+ 10. sigset() bug in ed.init.c; ^C could get disabled sometimes.
+  9. Don't glob in dowhich(); otherwise \pat does not work if pat is aliased.
+  8. When completion patterns are used $ and ~ expansion did not work right.
+  7. Printenv builtin and long backquote expansion fix from Harald.
+  6. $:-1, $:-0 enhancement from Paul and Michael.
+  5. Lynx/OS patches
+  4. Apollo bugs [Setenv -> tsetenv, typedef in pid_t]
+  3. ^@ did not work correctly in bindkey.
+  2. Fix vms/posix ifdefs in tc.alloc.c
+  1. Elide gcc-2.3.1 warnings
+
+
+V6.03.00, 11/20/92
+102. Solaris2 patches, renamed sunosX to sosX to fit in 14 character filenames.
+101. 6.02.12 11/12/92
+100. Decreased BUFSIZE to 1K...
+99. Don't use sbrk() in tc.alloc.c on VMS
+98. EINTR error handling from Michael
+97. Overwrite mode takes effect immediately, not delayed by a command.
+96. Emx fixes.
+95. SIGHUP gain...
+94. Coherent times()/ <sys/file.h> fixes.
+93. 6.02.11 10/27/92
+92. Mach setpath fixes.
+91. Which now globs its arguments
+90. Again POSIX SIGHUP fixes... Maybe we got it right this time...
+89. Increased BUFSIZE to 4K. Smaller machines may want to decrease this.
+    [ Now one can edit up to 4K of buffer! ]. From Harald.
+88. : is now a true builtin that does nothing, instead of being treated like
+    the last character of a label. This is so it can take args. From Harald.
+87. More fixes for hpux limits from Harald.
+86. Login shell if ppid == 1 and argc == 1 for VMS.
+85. Typo in sh.exec.c from Harry.
+84. Per's editor fixes.
+83. 6.02.10 10/17/92
+82. Don't free STRNULL in freelex(). Update linked list in copylex() to
+    do the same insert as in lex().
+81. Fixed spurious tilde printing in %c prompt.
+80. Fixed dumb wild free in AddXKey... 
+    (thanks Harald for the complex bindings! :-)
+    > bindkey "\e10z" expand-line # Any editor command will do
+    > bindkey -[cs] "\e10z" "foo" # Any string or command will do
+    Free(%x) ....
+79. coherent additions.
+78. fixes for hpux8 resource limits [Thanks Harald]
+77. 6.02.09 10/10/92
+76. More vms cleanups.
+75. Removed #include CONFIGH from sh.h. There was no way to make it work 
+    under VMS/POSIX
+74. Added t completion (Gray Watson)
+73. Memory leaks in sh.dir.c and sh.glob.c [thanks purify :-)]
+72. IRIX 5.0 patches (from Paul Close)
+71. BSD resource limits for hpux8.0 (From Andreas Stolcke)
+70. NGROUPS_MAX fixes (from Matt Day)
+69. 6.02.08 10/04/92
+68. VMS port additions.
+67. Added $%var, which == strlen(var)
+66. Added ^X^I and ^X^D to override programmable listing+completion
+65. Added case insensitive globbing for OS/2
+64. FIOCLEX and FIONCLEX are only used if we don't have FD_CLOEXEC.
+63. Added emx termio support, and emx pathsep support; emx compiles and runs:
+    needs job-debugging and finishing touches.
+62. Horrible bug with the lex linked list; from Loic Grenie, grenie@ens.fr
+    > echo a !#
+    echoed 'echo a echo a echo'!
+61. Shell -w,-x were incompatible with the same for test [POSIX] (beto)
+60. builtin newgrp did not accept the - argument.
+59. FIOCLEX for the masses (POSIX FD_CLOEXEC addition)
+58. Old style csh completion bug fix [not used] (beto)
+57. A background process waiting for input from tty
+    blocks when being foregrounded doesn't read its input and
+    doesn't get <cntl-c> and <cntl-z> signals.
+    It can only be killed from another session. (beto)
+    > cat > foo
+    #!/bin/csh -f
+    echo ">>>>>>"
+    set x = $<
+    echo $x
+    ^D
+    > chmod +x foo
+    > foo &
+    > fg
+    ^Z,^C # Nothing happens
+56. history > 1000 fix (beto)
+55. 6.02.07 9/18/92
+54. Added e_stuff_char() to put back a character in cooked mode in
+    the input stream... Useful for status (^T)
+53. $? == $status and $# == $#argv like in the bourne shell.
+52. Added $dirstack. Problems: off by one since =0 == $cwd, but 
+    $dirstack[1] == $cwd... Suggestions welcome.
+51. Leading spaces would confuse the run-help function.
+50. Don't expand imported environment variables:
+    > setenv HOME \*
+    > tcsh
+    > echo "$home"
+    > echo "$HOME"
+49. %C0n displays the number of directories omitted as /usr/local/bin /<2>bin/
+48. Added POSIXSIGS as a configuration option.
+47. Per's fixes for history format and arrow key binding.
+46. Expand-variables expands array variables too
+45. 6.02.06 8/14/92 
+44. Separated limit stuff from BSDTIMES and added BSDLIMIT
+43. History searching inconsistent with HistLit:
+    > echo foo
+    foo
+    > ^foo^bar
+    bar
+    > ec[M-p]
+    echo foo
+42. 6.02.05 8/8/92 
+41. sourcing a script that contains 'onintr -; onintr' would disable 
+    interrupts on the command line
+40. cd ../... with symlinks=ignore would work !@#!@
+39. No more BACKPIPE for POSIX machines...
+38. SUNOS NLS bug workarounds...
+37. New HASHBANG define for #! emulation... even 386BSD does not have it
+    yet...
+36. Added new -b -c file operators from SGI csh.
+35. 6.02.04 7/23/92 
+34. Walking process group fixes.
+33. $0 contains now argv[0] when we are not executing a shell script.
+32. New Getwd() was broken.
+31. 6.02.03 7/17/92
+30. We kill our last foreground process group on HUP, for POSIX systems.
+29. Walking process group fix.
+28. $shlvl gets reset to 1 for login shells.
+27. Macros can now involve multiple commands, i.e.
+    bindkey -s "^[OP" "ls\n^P"
+26. 6.02.02 7/6/92
+25. nostat accepts now a list shell patterns.
+24. Avoid print_exit_value in if ( { foo } )
+23. Symbolic key names for bindkey [arrow keys].
+22. Smarter getwd() that avoids some of the NFS hangs...
+21. Use memmove() where possible.
+20. 6.02.01 6/16/92
+19. Fix automatic correction to work with the new completion.
+18. Globbing bug with brace expansion, when arguments need to be realloced...
+    e.g. echo 134{6,7}{0,1,2,3,4,5,6,7,8,9}{0,1,2,3,4,5,6,7,8,9}
+17. shift and left operators update variables correcly ('shift path' did not 
+    work)
+16. apollo fixes for cd.
+15. STRNULL <-> NULL bug fixes.
+14. %S in xprintf for short strings.
+13. history -LSc, dirs -LSc additions, builtins builtin [oxymoron]
+12. history formatting string, who formatting string, prompt formatting
+    all use tprintf() now.
+11. $history accepts a second formatting argument..
+10. History timestamps preserved in .history
+9.  Backquotes were broken: echo hi | cat > `echo foo`
+8.  SGI -t operator problem.
+7.  Dnix fixes.
+6.  Fix history file writing bug when autologout.
+5.  Change from TCSETA to TCSETAW, since we affect the output.
+4.  Per's fixes for display margin bugs.
+3.  Linux fixes.
+2.  Collapse adjacent stars in glob.c to avoid exponential behavior.
+1.  Fixed parseescape to put ^ literally if not followed by alpha.
+
+
+V6.02.00, 5/15/92
+94. Default echo_style was not being set correctly.
+93. $< did not work correctly with NLS chars.
+92. 6.01.15 (5/11/92)
+91. Minor cleanups in refresh code.
+90. 6.01.14 (5/8/92)
+89. Print \n in the right margin always to be consistent.
+88. Linux patches.
+87. 6.01.13 (5/2/92) 
+86. Fixes in listing and completion of non-unique commands.
+85. Fix =stack entries > 9... from Bill Petro
+84. Fix for last character at margin. [on terminals that have am & xm move
+    the cursor manually to the next line]
+83. Fix for complete completions 
+82. small typo in tc.alloc.c from Mark Moraes.
+81. small typo in tw.parse.c from Richard.
+80. Man page fixes from Per.
+79. 6.01.12 (4/24/92) [release version for 6.02]
+78. Autosuffix was not getting reset all the time.
+77. Don't limit completion patterns to 1K.
+76. Naming changes in ed.screen.c from Justin.
+75. 6.01.11 (4/10/92)
+74. Fixed magic-space ! expand bug:
+    > echo a b123 45.{6,7}
+    > echo !:2!:3[magic-space]
+73. Work-around for apollo optimizer in tc.bind.c
+72. Problem with setjmp in tw.parse.c
+71. symlinks=expand from Yumin.
+70. tenematch() fixes from Michael;
+69. 6.01.10 (4/3/92)
+68. Fixed Gnmatch.
+67. Removed ignore_symlinks and chase_symlinks. Replaced by symlinks variable.
+66. Backquote from completion was broken for machines with no dup2()
+65. No $printexitvalue for `` jobs.
+64. Added ultrix stuff for PW_AUTH [from Mike Potter mpotter@lampf.lanl.gov]
+63. Fixed bug in Gnmatch(), added 'N' command 'x' completion.
+62. Fixed fg_proc_entry() so autologout gets disabled when a process
+    is foregrounded.
+61. 6.01.09 (3/26/92)
+60. source builtin takes arguments now that are passed in the script e.g.:
+    > ./tcsh -i a b c
+    > cat test
+    echo $argv
+    > echo $argv
+    a b c
+    > source test 1 2 3
+    1 2 3
+    > echo $argv
+    a b c
+59. Eliminate $margin_bug, add more intelligent margin code [from Justin]
+58. expand_symlinks variable Urgh...
+57. SGI CONTROL() fixes...
+56. new dnormalize(), expand_symlinks flag.
+55. interrupting completion restores the current line. [from Marc]
+54. 6.01.08 (3/20/92)
+53. inputmode affects the first line too.
+52. Searches in vi do not destroy the current line.
+51. -drwX test enhancement.
+50. Generalized completion syntax and added more completion builtins.
+49. Don't print '\n' on the right margin if we can avoid it.
+48. 6.01.07 (3/9/92)
+47. New completion style. [[<pattern>[ ]],=<completion action>]
+46. 6.01.06 (3/7/92)
+45. complete styles are ignored after shell metachars eg.
+    > complete mail =u
+    > mail christos < [tab]
+    completes filenames.
+44. $echo_style is initialized to the default style of the machine.
+43. SGI 4.0 CTRL() macro is busted. So we ignore it.
+42. Fixed bug with the new margin code (thanks justin)
+41. Fixed mirroring of variables. Now set and setenv affect
+    HOME, TERM, PATH, SHLVL, USER and their csh counterparts. Unset affects
+    affects only the csh copies of the variables, and unsetenv only the
+    environment variables.
+40. Fixed gcc-2.0 warnings in sh.sem.c (needed for vfork() -O2 optimization)
+39. 6.01.05 (2/21/92)
+38. signal masking for BSD machines was still wrong in tw.init.c
+37. Added $margin_bug, and now the editor outputs on the rightmost 
+    column by default. This should fix the xterm cut-n-paste problem.
+36. AU/X 2.0 and SGI compiles with POSIX as a default now.
+35. sysv_echo is gone too. Now we have a variable called echo_style
+    which can be set to "none", "bsd", "sysv", "both" that defines
+    the builtin echo_style. The default is "bsd" for systems with
+    SYSVREL == 0, "sysv" otherwise. This can be overriden in config.h
+    by defining ECHO_STYLE ro be BSD_ECHO, SYSV_ECHO, BOTH_ECHO, 
+    or NONE_ECHO.
+34. asynchronous notification in run-fg-editor would try to change the 
+    tty settings and print an extra prompt.
+    > set notify 
+    > sleep 10 &
+    > vi^Z
+    > ^[^Z
+33. alias x /bin/true
+    x<esc>?
+    reported .//bin/true instead of /bin/true
+32. 6.01.04 (2/12/92)
+31. fixed vi_substitute_line
+30. binding completion addition.
+29. showdots=-A addition
+28. sysv_echo addition; deleted bsd_echo which is now the default.
+27. dunique could crash.
+26. Don't clear lines after an asynchronous notification, because it
+    might erase the message.
+25. 6.01.03 (1/29/92)
+24. `` were not working correctly when tcsh is started with 0,1,2 closed.
+23. Correction was picking up the wrong thing in cases like .rhosts hosts
+22. Correction with names with quoted spaces was broken.
+21. Added sysv_echo and bsd_echo.
+20. Added and documented the complete builtin.
+19. Added dunique and cd -.
+18. Per's fix for alarm functions. Things would break if time went backwards.
+17. Realloc bug fix (copy min of old and new size)
+16. Fix for csh compatible braces.
+15. Brace globbing and negation globbing for Gmatch.
+14. 6.01.02 (1/16/92)
+13. Completion builtin, new tw* files.
+12. 6.01.01 (1/6/92)
+11. Changed w_ fields in tc.who.c to who_ to avoid redefinitions in
+    <sys/wait.h> in some os's.
+10. Setting savehist to an empty string makes savehist use the value
+    in $history.
+9.  echotc did not use the internal termcap descriptions.
+8.  echotc did not work right for single argument termcap strings.
+7.  DGUX needs SAVESIGVEC, updated type protection, and disabled CSWTCH.
+6.  Changed SVID to SYSVREL, since there is no SVID == 4 (yet).
+5.  Typo in tc.sig.h: UNRELSIGS was not getting defined.
+4.  Globbing bug fix. tglob() should ignore globbing characters inside 
+    backquotes otherwise things get expanded twice:
+    % echo 'bar?' > 'foo?'
+    % echo `cat foo\?`
+    echo: No match.
+3.  Mach setpath fix.
+2.  Alliant process group fix.
+1.  Xenix fixes for broken vi and help path with no suffixes.
+
+
+V6.01.00, 12/19/91 [for comp.sources.unix]
+22. Restore the original prompt in automatic correction when the user
+    asks to re-edit the command.
+21. Better error for unreadable files in tw.parse.c
+20. Sequent patches.
+19. (V6.00.08 beta 12/14/91)
+18. Filenames containing # were spelled/expanded incorrectly.
+17. Stellar/stellix port.
+16. Hpux 8.0 has SIGWINDOW but we cannot get the window size. Protect
+    against window changes updating $LINES and $COLUMNS.
+15. Mach setpath did not work right.
+14. Mach does not need setenv in lib; in fact that does not work right.
+13. shell level gets decremented when we exec.
+12. restart_fg_editor picked the wrong editor if arg contained a slash.
+    e.g vi ~/.cshrc
+11. (V6.00.07 beta 12/08/91)
+10. Allow use of vfork() on systems that do not have job control.
+9.  Avoid NUMCC from being defined twice.
+8.  (V6.00.06 beta 12/05/91)
+7.  SunOS3's FIOCLEX dups...
+6.  Yet another globbing bug fix from Michael (echo .[^.])
+5.  Ultrix now wants __ before cpp symbols.
+4.  Workaround sun's header files inconsistency so tcsh can be compiled
+    with #undef POSIX
+3.  Fixed limit stuff so that large values don't cause errors.
+2.  Fixed =1 and ~user error messages (Per)
+1.  (beta-5 6.00.04 == 6.00.05)
+
+$#*
+$#* New numbering scheme (The last 2 digits are reserved for beta releases
+$#* from now on. So we start at 6.00.06 which is 6.00.04 beta 6, and we are
+$#* going to release 6.01.00...
+$#*
+
+V6.00.04, (never released)
+34. (beta-5 11/25/91)
+33. Simplify code in BindArrowKeys()
+32. Get rid of the PNULL's
+31. Support for shadow password in locking code. (From Kimmo)
+30. Normalize-path editor function.
+29. (beta-4 11/21/91)
+28. minix additions
+27. bindkey fixes (-c addition, casting cleanups)
+26. (beta-3 11/16/91)
+25. Prompt length checking. 
+24. Michael's fixes for the watching code. Tcsh could core dump when using
+    a corrupted utmp.
+23. overwrite mode flag, and autologout locking code.
+22. overwrite mode would still insert digits!
+21. Get the value of _POSIX_VDISABLE from pathconf...
+20. Hpux 8.0 fixes. Sigstack botches with shared libraries. Ansi mode
+    static initialization of structures with prototyped function pointers
+    gives spurious warnings...
+19. Onintr in /etc rc files is disabled.
+18. (beta-2 11/03/91)
+17. Multi-line aliases with `` bug fix.
+16. Sticky emacs overwrite mode.
+15. Autolist option.
+14. Fix for redirection with wildcard filanames.
+13. No error correction for multi-line commands.
+12. Esix-4 re-defines p_pid. Argh...
+11. (beta-1 10/28/91)
+10. Foreach loops were broken again.
+9.  SUNOS localtime() bug does not only happen on the 8th byte. [Michael]
+8.  sh.dir.c, memory corruption in dinit(). Thanks Michael.
+7.  uts broken <sys/stat.h> work-around, and has a wait3()
+6.  SGI (-t filename) extension, returns true when filename is a tty.
+5.  'default:' addition in all switch() statements.
+4.  oflag was not being updated correctly in Rawmode()
+3.  missing 'break;' in prompt code '%y'.
+2.  infinite loop in :a<mod> code.
+1.  hashstat was not reporting hits+misses
+
+
+V6.00.03, 10/21/91
+31. watch code now accepts shell patterns.
+30. new hashing code portability fixes.
+29. $foo:gs/:/ / fix and 'a' modifier addition.
+28. Added $! (the pid of the last background job forked)
+27. exec does not kill the shell when it fails.
+26. Irix4.0 decls.
+25. SVR4 uthost fixes from Kimmo Suominen
+24. Imake addition from marc
+23. New i-search from Per.
+22. ibmesa fixes
+21. convex fixes.
+20. t command for vi.
+19. SVR4 fixes (reverse pipeline and sigaction()) from David Dawes.
+18. New hashing from Marc
+17. Added : to the ~name separators so ~foo:~bar works.
+16. New ed.init.c. Added ed.term.c
+15. Still can't get the history exactly csh-like... !-2$ was broken...
+14. vi character searches.
+13. -Dvar=name command line option for the apollos.
+12. Prompt format changes for date/directory.
+11. Vi searches.
+10. Emacs i-search. [currently not bound]
+9.  Vi additions ([dc]-{w,$,f<c>},Undo)
+8.  tcsh -n parses now builtin structures.
+7.  seek to the end on errors in loops.
+6.  echotc -s was broken
+5.  Better !event parsing. !foo;!bar was broken.
+4.  foreach loops and if statements in aliases.
+3.  .cshdirs would corrupt the heap if some directories were not there.
+2.  System V echo was broken with \
+1.  Fixed echo '!-1', history would eat the quote.
+
+V6.00.02, 08/05/91 [For comp.sources.unix]
+8.  tcsh will always set $LOGNAME and $USER if not already set in the
+    environment.
+7.  added $histfile.
+6.  echo `echo` * and  echo ~ {} were broken
+5.  setty builtin addition
+4.  Multiple : modifiers [experimental, disabled with -DCOMPAT]
+3.  7 bit fixes, and hp9000s500.
+2.  #undef DEBUG in tc.alloc.c, so we continue if we get a bad free() 
+1.  getn() is now protected against NULL strings.
+
+V6.00.01, 07/16/91
+17. added beepcmd, and fixed small tenematch bugs.
+16. Renamed DUP2 flag to HAVEDUP2 cause AIXPS2 defines DUP2 already.
+15. More ANSI fixes, and mit additions (load-average)
+14. don't clear ECHOE, background programs might need it.
+13. Refresh bug fix...
+12. getpwent() should not be interrupted (yellow pages), cause it might
+    leave dangling pointers, that endpwent() will trash.
+11. ChangeSize is now responsible to set the screen size to something
+    sane, but it should not affect the environment if the information
+    it received is not valid
+10. Find out if we are running under emacs using $TERM. It is more 
+    reliable.
+9.  tcsh was broken if SHORT_STRINGS was not defined (glob() problem)
+8.  If GetSize() fails it should always return reasonable screen sizes.
+7.  globbing should not fail if one or more patterns match.
+6.  increased the number of aliases in the loop detection code.
+5.  DGUX has size_t and pid_t defined now...
+4.  ESIX does not have EWOULDBLOCK or EAGAIN & POSIX... That was not handled
+    correctly.
+3.  rs6000 needs BSDWAIT.
+2.  Hpux susp key could not be changed.
+1.  Apollo fixes.
+
+V6.00.00, 07/04/91
+45. Fixed quoting of VSTART/VSTOP on termios
+44. Memory leak every time you pipe in or out.
+43. echo {foo bar.[ch]}. Did not check for end of word.
+42. ANSI prototypes
+41. dmove() would leave the source descriptor open when using dup2()
+    e.g.
+    while (1)
+	echo foo >>! bar
+    end
+    runs out of file descriptors
+40. recursive `` expanded via aliases would abort.
+39. set home=../relative-path-name was broken.
+    e.g.
+    set home=../..; cd ..;
+    <abort>
+38. Incorrect error when changing to directory:
+    e.g.
+    mkdir not-in-cd-path; chmod -x not-in-cd-path; cd not-in-cd-path;
+    echoed:
+       not-in-cd-path: No such file or directory.
+    it should have said
+       not-in-cd-path: Permission denied.
+37. if ( \! =~ [\!] ) echo ok, did not echo ok. Quoting inside [] pattern.
+36. More than 127 jobs caused job # to go negative
+35. unsetenv <pattern> ... Added support for more than one pattern.
+34. More background process status report fixes.
+33. Apollo builtin support.
+32. Glob fix. echo '*' * was not handled properly.
+31. Glob fix. setenv FOO `sleep 1` would either cause a segmentation fault.
+    or print ambiguous.
+30. Glob fix. Quoted characters inside [] were not handled properly.
+29. Removed TELL and VMUNIX defines. I think we cannot compile on V6 anyway
+28. Overflow check for expansions.
+27. Added matchbeep, shell pattern history searching.
+26. Added code to handle /dev/std{in,out,err}
+25. Fixed POSIX speed handling in raw mode.
+24. Fixed a flushing bug in the filec code in sh.file.c
+23. Compiled and added hp9000s700 to the list of hosts.
+22. Fixed horrible bug in gmatch() 
+	switch (4)
+	case [a-z]:
+		echo bug;
+		breaksw;
+	case 4:
+		echo ok;
+		breaksw;
+	endsw
+21. Fixes for _SEQUENT_ ut_host.
+20. FLUSHO added
+19. mkdir foo\`bar; cd foo\`bar; was broken
+18. EWOULDBLOCK == EAGAIN on RENO check for that too.
+17. Dword() simplified and removed the gotos.
+16. Hpux now compiles with POSIX. Moved the local chars modes in ed.init.c
+    after the tty modes.
+15. Process group fixes for POSIX
+14. We need <sys/filio.h> on the suns for FIOCLEX!!! We did not close
+    our file descriptors before...
+13. A/UX fixes.
+12. History events that start with a number are not necessarily numeric:
+    > !3d
+    3d: Event not fount
+11. History loop detection added.
+    > alias a \!#
+    > b; a
+10. Alias loop detection code was ineffective on eager optimizers.
+ 9. All errors should now go through our table. Next step we should
+    add nls error messages.
+ 8. Unsetenv now globs its arguments! Before it did not...
+ 7. Added tilde cache and -l flag.
+ 6. Added autocorrect
+ 5. Fixed for so that background jobs in scripts get process groups
+ 4. Fixed amazing memory leak in setenv()...
+ 3. Added short2qstr() so that we can form quoted strings to be used with glob()
+ 2. str2short and short2str allocate space dynamically.
+ 1. Fixed bug related to the is*() routines called with shorts.
+    [only if NLS and SHORT_STRINGS are defined].
+    (The _ctype_ was getting indexed with shorts...)
+ 0. Complete overhaul. Brought in the 4.4 csh stuff. Separated most
+    tcsh and csh code except where I would have to add more global
+    variables. Compiled correctly with both lint and gcc -Wall on
+    a sparc running 4.1
+
+V5.20.03, 03/20/91.	- Never released
+25. Kanji, SXA additions.
+24. (exec foo) should not fail if they are suspended jobs.
+23. Support kernel paging stuff on aix 370.
+22. Now we handle correctly the environment variables LINES, COLUMNS,
+    TERMCAP for window size changes...
+21. Tcsh 5.18c+ had broken NULL chars on scripts.
+    > cat > foo 
+    #!/usr/local/bin/tcsh -f
+    echo "foo"
+    echo "^V^@"
+    echo "bar"
+    ^D
+    > chmod +x foo; foo
+    foo
+20. Posix has EAGAIN and not EWOULDBLOCK
+19. Don't set ECHOK; makes kill ^U ugly.
+18. $shell is SHELLPATH and not $SHELL any more.
+17. Added -n flag to cd, pushd, popd and dirs. Documented -l and -v
+    flags.
+16. Documented and fixed chase_symlinks and ignore_symlinks.
+15. Call endpwent() when you get interrupted...
+    cd ~chri<tab>^C
+    cd ~christos/<enter>
+    <stuck>
+14. Exec when you have suspended jobs asks for verification.
+13. Variable length fixes:
+    >set abcdefghijklmnopqrstuvwxyz=1
+    >echo $abcdefghijklmnopqrstuvwxyz
+    abcdefghijklmnopqrs: Undefined variable
+    Now we have better messages too...
+12. Icon fixes...
+11. Quote expanded glob and history chars too.
+10. If someone sets SHIN to O_NDELAY we died... Now we set it back...
+ 9. unset path; unsetenv PATH; ls-F; (poof) fixed...
+ 8. Patches for masscomp, and ${var123} lexical analysis fix...
+ 7. Patch for sunview bug: A partially covered suntool sends SIGWINCH every
+    time the text is scrolled, causing annoying redraw effects. Now tcsh
+    checks if the size really changed before doing anything.
+ 6. Interrupt in the middle of cwdcmd, and periodic does not remove the
+    aliases.
+ 5. prompt2 and prompt3 fixes:
+    Prompt2 now prints the status of the parser by default.
+    Prompt3 can now have the standard prompt escape sequences.
+ 4. eval file descriptor re-direction fix.
+    >set p='w | tail +3'
+    >eval $p
+    (originally | tail +3 was ignored)
+ 3. $edit != emacs anymore; it was misleading, 'set edit' enables editing
+    'unset edit' disables it.
+ 2. PERROR define fix. 
+ 1. irix3.3.1 line discipline fix.
+
+V5.20.02, 12/15/90.
+32. /etc/Logout added and merged with /etc/Login flag.
+31. Fixed tty chars in ed.init.c. Some of them were not handled correctly.
+30. Command execution does not leak memory any more, and doing
+    ~ four times does not core-dump.
+29. Fixed the notorious csh 'if(' bug (part of the convex fixes)
+28. Intelligent getwd() on startup, and canonicalization.
+27. Intelligent directory stack. Gets updated when $HOME changes.
+26. Directory stack/save-restore additions
+25. Convex Fixes.
+24. Fixed onlret, and echonl getting stuck on svid.
+23. Shouldn't leave tty in raw mode at auto-logout (e.g. when su'ing from a
+    csh, this is annoying).
+22. Some users had environment EMACS set to something, and with my bad fix
+    at pl 1 found that they didn't have echo... (of course, even before my
+    "fix", they didn't have editing...). Anyway, refined the check to be
+    for EMACS=t, which is what emacs sets when running a subshell.
+21. kill -CONT %job, would not update the status of the job, but it would
+    just restart it.
+20. Sequent fixes.
+19. AIX370 signal and TCF fixes.
+18. fixed ls-F -l, SIGINT problem.
+17. aix on the ps2 does not have strcoll() either.
+16. Bind [A - [D and OA to OD in vi mode to the arrow key functions
+    so that they work from insert mode.
+15. %~ was not working correctly for /home/news and /home/newsbin...
+14. Removed Rcs Log
+13. ISC unix fixes.
+12. sunos3.x wants <sys/dir.h> not <dirent.h>
+11. Remove precmd's, cwdcmd's and periodic cmds that had errors.
+10. Compile sunos4.1 using termio. 
+ 9. Rs6000 line discipline fixes. 
+ 8. T_Tabs was wrong for termio machines.
+ 7. Don't bind single keystroke arrow keys, when they are already bound!
+ 6. Test for newline and tab before deciding not to send shell scripts
+    to the bourne shell.
+ 5. Added LITERAL prompt stuff.
+ 4. Fixed gethostname() in sh.rest.c to return the nodename.
+ 3. Do not quote spell checked stuff. This is not very intelligent but
+    works better than before.
+ 2. Fixes for relative path components. (paths that start with a .)
+ 1. Fixed so that Rawmode() is not called when we are not editing
+    (breaks running under emacs)
+
+V5.20.01, 11/15/90.
+12. Recognize environment variables too.
+11. Always start in Rawmode()
+10. don't try to execute binary files using the bourne shell.
+ 9. Vi change to end of line updates correctly now.
+ 8. Prompt in continuation lines.
+ 7. Prompt in if statements fix.
+ 6. System V ^C works right now.
+ 5. ^Z works correctly in bindings
+ 4. Better error messages for variables.
+ 3. dinit() now is more robust.
+ 2. Added aux2.0 patches.
+ 1. Fixed bug with arrow key bindings in ed.screen.c. All the keys
+    were bound to up-history!
+
+V5.20.00, 11/10/90.
+26. Fixed system V and POSIX time reporting.
+25. Fixed ed.screen.c so that it does not use malloc().
+24. Fixed SIGWINCH on the iris
+23. Fixed ed.screen.c, so that settc works correcly. It used to set
+    the termcap with a string that was allocated from the stack!
+22. Fixed listing of commands, where the last command was not checked.
+21. Fixed which command. It did not work for
+    \<command>, if command was aliased.
+20. Eliminated CSH4.3 define. You've had enough time to upgrade from 4.2
+19. Fixed GotTermCaps to be called only once.
+18. Added bindkey -r
+17. Attributes were not getting reset correctly.
+16. history -t does not print the time-stamp.
+15. AddXkey, works now for single character xkeys.
+14. filetype() knows better about symlinks.
+13. ls-F works with filenames that have metachars
+12. Completion/spelling works with quoted things.
+11. Fixed refresh bug. Repeat by:
+    On an intelligent terminal that has insert and delete chars (xterm)
+    > orphan
+    > vi orphan.c
+    > ^P^P
+10. Fixed so that if we don't have a tty on stdin editing is disabled.
+ 9. Check for nested process forking, to avoid loops such as:
+    > alias foo 'set bar=`foo`'
+    > foo
+ 8. Fix setting of AsciiOnly (Per)
+ 7. tw.spell.c, defined F_OK for systems that don't have it.
+ 6. ourwait.h had typo in ifdef.
+ 5. BSD compilers need a cast to int for enums used in 
+    switches (Matthew Day)
+ 4. Found the cause for the core-dump in long backquote 
+    expansions (Mark Davies)
+ 3. Some externs in ed.h needed to be truly externs...
+    reported by Mark Davies, bug appeared only on hp9000s800.
+ 2. Changed $tcsh, and $version strings.
+ 1. Added internal sprintf function, renamed putchar to CSHputchar,
+    printf to CSHprintf, sprintf to CSHsprintf.
+
+V5.19.02, 10/23/90.
+36. Added /etc/cshrc for the SGI irises.
+35. Added expand-variables function.
+34. Documented $time in tcsh.man
+33. Shell variables are now 'recognized' when expanding/listing things.
+32. ls-F does not eat the last slash on the / directory!
+31. Strings bound to keys are printed inside double quotes.
+30. History now remembers the exact line, not just an unparsed version of
+    the tokens.
+29. Renamed itoa to Itoa(), so things in libc that use itoa() don't break.
+28. Ported to IBM aix/ps2. 
+27. Fixed eval so that it forks when the output is piped
+    Repeat by:
+    > who | grep $user
+    > eval who | grep $user
+26. Fixed so that 'nice <builtin changing the working directory>' does not
+    nice or fork.
+    Consider doing:
+    nice cd /tmp && rm *.c (don't try it!!!)
+    [what actually happens is that nice has to fork, then the child executes
+     chdir, and the parent stays where it was]
+25. Added Dan's patches (nls, builtin bindkey, fixes to the editor).
+24. Added aix370, migrate, getspath, getspath, getxvers, setxvers
+23. Added builtin echotc, removed sl and el.
+22. Ported to 4.4 BSD. This involved changing the way lots of flags worked,
+    cleanup of the SVID stuff, and addition of more compilation flags.
+    Now POSIX can work whed BSD is defined...
+21. Fixed so that el, sl work. Actually they are to be removed soon and
+    be replaced with echotc.
+20. Avoid the Quoted Space hack for alias when printing jobs!
+    [aliases to the same name avoid further alias expansion, by 
+     inserting a quoted space in front of the command. In SHORT_STRINGS
+     QUOTE is the 15th bit so print ignores it thinking it is the
+     end of the string. So we just skip the Quoted Space....]
+    Repeat by:
+    > set notify
+    > alias ls ls -F
+    > (ls) &
+    Prints        Exit 0 (
+    Should print: Exit 0 ( ls -F )
+19. Fixed so that "", '', ``, all produce ': Command not found',
+    and not the spurious messages.
+    Repeat by:
+    > set path = (/bin /usr/bin .... .)
+    > ""
+    /some/path/name/: Command not found
+18. Enable the use of <ctype.h> macros if they exist and NLS is defined.
+    NLS code is not ready yet.
+17. Fixed rmstar and continue_jobs code, so that they are not compile
+    options, but shell variables. Now you need to 'set rmstar' to get
+    enable rmstar.
+16. Fixed SIGWINCH, SIGWINDOW, and setting of li, co, that broke
+    suntools, and others.
+    Repeat by:
+    Start a shelltool of size other than 80x34
+    > telltc
+    > stty -a
+    do not report the same number of lines and columns.
+15. More fixes to tw.parse.c, and tw.spell.c.
+14. More fixes to sh.char.c.
+13. Fixed coredump caused by ``.
+12. Fixed spell-line code..
+11. Trapped SIGCHLD in sh.sem.c, while forking. Still there is a small
+    race, but the probability of happening is smaller!
+10. Fixed sh.char.c to be ISO compliant.
+ 9. Added expand-glob
+ 8. Fixed ourwait.h for little endians.
+ 7. Fixed that foreach i (^D expands correctly.
+ 6. Fixed so that listmax is ignored in ls-F.
+ 5. Fixed spelling correction so that single letter words and words that
+    contain globbing chars do not get spell checked.
+ 4. Changed NeXT HOSTTYPE to next, since all HOSTTYPE's are lower case.
+ 3. Fixed symmetry, and changed symmetry HOSTTYPE from sequent to symmetry.
+ 2. Added boldfacing, underlining chars.
+ 1. Added IRIX3.3.1 support.
+
+V5.19.01, 9/26/90.
+ 7. Brought the README file up-to-date, and changed the bug report
+    address to point to me.
+ 6. sh.lex.c. In addla(), overflow computation was wrong.
+ 5. Fixed SHELLPATH, to be set correctly when $SHELL is not set.
+ 4. Fixed print statement in sh.proc.c that contained \215.
+ 3. Fixed the Makefile and MAKEDIFFS so that a tahoe diff can be made.
+ 2. RS6000: hacked around execv bug, and ed.init.c warning.
+ 1. Editor should not be enabled when we don't have a tty.

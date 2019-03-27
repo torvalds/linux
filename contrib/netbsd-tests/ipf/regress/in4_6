@@ -1,0 +1,5 @@
+map-block le0 inet6 10::/96 -> 203:1:1::/96
+map-block le0 inet6 10::/96 -> 203:1:1::/96 ports 0
+map-block le0 inet6 10::/96 -> 203:1:1::/96 ports 256
+map-block le0 inet6 10::/96 -> 203:1:1::/96 ports auto
+map-block le0 inet6 10::/16 -> 203:1:1::/96 ports auto

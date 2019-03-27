@@ -1,0 +1,38 @@
+
+
+              key  ------------- Distribution ------------- count    
+          demerit                @@@@@|                     -10      
+              wtf                     |@@@@@                10       
+              bot                     |@@@@@@@@@@           20       
+
+
+              key  ------------- Distribution ------------- count    
+         SOAP/XML |@@@                                      1        
+      XACML store |@@@@@@@@@@@@@@@@@                        5        
+       SAML token |@@@@@@@@@@@@@@@@@@@@                     6        
+
+
+              key  ------------- Distribution ------------- count    
+           parrot         @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@| -100     
+   non-diet pepsi                                   @@@@@@| -20      
+        breakfast                                       @@| -5       
+
+zoomed:
+
+              key  ------------- Distribution ------------- count    
+          demerit           @@@@@@@@@@|                     -10      
+              wtf                     |@@@@@@@@@@           10       
+              bot                     |@@@@@@@@@@@@@@@@@@@  20       
+
+
+              key  ------------- Distribution ------------- count    
+         SOAP/XML |@@@@@@@                                  1        
+      XACML store |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@        5        
+       SAML token |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 6        
+
+
+              key  ------------- Distribution ------------- count    
+           parrot   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@| -100     
+   non-diet pepsi                                 @@@@@@@@| -20      
+        breakfast                                       @@| -5       
+

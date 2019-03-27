@@ -1,0 +1,93 @@
+.\" Copyright (c) 2018 Emmanuel Vadot <manu@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 12, 2019
+.Dt PWM 9
+.Os
+.Sh NAME
+.Nm pwm ,
+.Nm PWM_GET_BUS ,
+.Nm PWM_CHANNEL_CONFIG ,
+.Nm PWM_CHANNEL_GET_CONFIG ,
+.Nm PWM_CHANNEL_SET_FLAGS ,
+.Nm PWM_CHANNEL_GET_FLAGS ,
+.Nm PWM_CHANNEL_ENABLE ,
+.Nm PWM_CHANNEL_IS_ENABLED ,
+.Nm PWM_CHANNEL_MAX
+.Nd PWM methods
+.Sh SYNOPSIS
+.Cd "device pwm"
+.In "pwm_if.h"
+.Ft device_t
+.Fn PWM_GET_BUS "device_t dev"
+.Ft int
+.Fn PWM_CHANNEL_CONFIG "device_t dev" "int channel" "uint64_t period" "uint64_t duty"
+.Ft int
+.Fn PWM_CHANNEL_GET_CONFIG "device_t dev" "int channel" "uint64_t *period" "uint64_t *duty"
+.Ft int
+.Fn PWM_CHANNEL_SET_FLAGS "device_t dev" "int channel" "uint32_t flags"
+.Ft int
+.Fn PWM_CHANNEL_GET_FLAGS "device_t dev" "int channel" "uint32_t *flags"
+.Ft int
+.Fn PWM_CHANNEL_ENABLE "device_t dev" "int channel" "bool enable"
+.Ft int
+.Fn PWM_CHANNEL_IS_ENABLED "device_t dev" "int channel" "bool *enabled"
+.Ft int
+.Fn PWM_CHANNEL_MAX "device_t dev" "int channel" "int *nchannel"
+.Sh DESCRIPTION
+The PWM (Pulse-Width Modulation) interface allows the device driver to register to a global
+bus so other devices in the kernel can use them in a generic way.
+.Sh INTERFACE
+.Bl -tag -width indent
+.It Fn PWM_GET_BUS "device_t dev"
+Return the bus device.
+.It Fn PWM_CHANNEL_CONFIG "device_t dev" "int channel" "uint64_t period" "uint64_t duty"
+Configure the period and duty (in nanoseconds) in the PWM controller for the specified channel.
+Returns 0 on success or
+.Er EINVAL
+if the values are not supported by the controller or
+.Er EBUSY
+is the PWM controller is in use and does not support changing the value on the fly.
+.It Fn PWM_CHANNEL_GET_CONFIG "device_t dev" "int channel" "uint64_t *period" "uint64_t *duty"
+Get the current configuration of the period and duty for the specified channel.
+.It Fn PWM_CHANNEL_SET_FLAGS "device_t dev" "int channel" "uint32_t flags"
+Set the flags of the channel (like inverted polarity).
+.It Fn PWM_CHANNEL_GET_FLAGS "device_t dev" "int channel" "uint32_t *flags"
+Get the current flags for the channel.
+.It Fn PWM_CHANNEL_ENABLE "device_t dev" "int channel" "bool enable"
+Enable the PWM channel.
+.It Fn PWM_CHANNEL_ISENABLED "device_t dev" "int channel" "bool *enable"
+Test if the PWM channel is enabled.
+.It Fn PWM_CHANNEL_MAX "device_t dev" "int channel" "int *nchannel"
+Get the maximum number of channels supported by the controller.
+.El
+.Sh HISTORY
+The
+.Nm pwm
+interface first appeared in
+.Fx 13.0 .
+The
+.Nm pwm
+interface and manual page was written by
+.An Emmanuel Vadot Aq Mt manu@FreeBSD.org .

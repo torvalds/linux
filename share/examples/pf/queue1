@@ -1,0 +1,21 @@
+# $FreeBSD$
+# $OpenBSD: queue1,v 1.4 2006/10/07 04:48:01 mcbride Exp $
+
+ext_if = "dc0"
+
+altq on $ext_if cbq bandwidth 10Mb \
+    queue { deflt, http, ssh, mail, rsets }
+queue	deflt bandwidth 10% priority 0 cbq(default ecn)
+queue	http bandwidth 1.5Mb priority 3 { http_vhosts, http_cust1 }
+queue	 http_vhosts bandwidth 40% cbq(borrow red)
+queue	 http_cust1 bandwidth 0.5Mb
+queue	mail bandwidth 10% priority 1
+queue	ssh bandwidth 100Kb priority 7 cbq(borrow)
+queue	rsets bandwidth 7500b priority 0 cbq(red)
+
+block return in on $ext_if inet all queue rsets
+pass in on $ext_if inet proto tcp from any to any port 80 queue http
+pass out on $ext_if inet proto tcp from any to any port 22 queue ssh
+pass in  on $ext_if inet proto tcp from any to any port 22 queue ssh
+pass out on $ext_if inet proto tcp from any to any port 25 queue mail
+pass out on $ext_if inet all

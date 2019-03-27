@@ -1,0 +1,135 @@
+.\" Copyright (c) 2009 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 23, 2015
+.Dt SIIS 4
+.Os
+.Sh NAME
+.Nm siis
+.Nd SiliconImage Serial ATA Host Controller driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device siis"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+siis_load="YES"
+.Ed
+.Pp
+The following tunables are settable from the
+.Xr loader 8 :
+.Bl -ohang
+.It Va hint.siis. Ns Ar X Ns Va .msi
+controls Message Signaled Interrupts (MSI) usage by the specified controller.
+.It Va hint.siisch. Ns Ar X Ns Va .pm_level
+controls SATA interface Power Management for the specified channel,
+allowing some power to be saved at the cost of additional command
+latency.
+Possible values:
+.Bl -tag -width 2n -offset indent
+.It 0
+interface Power Management is disabled (default);
+.It 1
+device is allowed to initiate PM state change, host is passive.
+.El
+.Pp
+Note that interface Power Management is not compatible with
+device presence detection.
+A manual bus reset is needed on device hot-plug.
+.It Va hint.siisch. Ns Ar X Ns Va .sata_rev
+setting to nonzero value limits maximum SATA revision (speed).
+Values 1, 2 and 3 are respectively 1.5, 3 and 6Gbps.
+.El
+.Sh DESCRIPTION
+This driver provides the
+.Xr CAM 4
+subsystem with native access to the
+.Tn SATA
+ports of controller.
+Each SATA port is represented to CAM as a separate bus with 16 targets.
+Most of the bus-management details are handled by the SATA-specific
+transport of CAM.
+Connected ATA disks are handled by the ATA protocol disk peripheral driver
+.Xr ada 4 .
+ATAPI devices are handled by the SCSI protocol peripheral drivers
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr sa 4 ,
+etc.
+.Pp
+Driver features include support for Serial ATA and ATAPI devices,
+Port Multipliers (including FIS-based switching), hardware command queues
+(31 command per port), Native Command Queuing, SATA interface Power Management,
+device hot-plug and Message Signaled Interrupts.
+.Pp
+The activity LEDs of the adapters supported by the
+.Nm
+driver can be controlled via the
+.Xr led 4
+API for localization or status reporting purposes.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following controller chips:
+.Pp
+.Bl -bullet -compact
+.It
+SiI3124 (PCI-X 133MHz/64bit, 4 ports)
+.It
+SiI3131 (PCIe 1.0 x1, 1 port)
+.It
+SiI3132 (PCIe 1.0 x1, 2 ports)
+.It
+SiI3531 (PCIe 1.0 x1, 1 port)
+.El
+.Sh FILES
+.Bl -tag -width /dev/led/siisch*
+.It Pa /dev/led/siisch*
+identification LED device nodes
+.El
+.Sh SEE ALSO
+.Xr ada 4 ,
+.Xr ata 4 ,
+.Xr cam 4 ,
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr led 4 ,
+.Xr sa 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An Alexander Motin Aq Mt mav@FreeBSD.org

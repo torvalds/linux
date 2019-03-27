@@ -1,0 +1,110 @@
+=pod
+
+=head1 NAME
+
+EVP_PKEY_encrypt_init, EVP_PKEY_encrypt - encrypt using a public key algorithm
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ int EVP_PKEY_encrypt_init(EVP_PKEY_CTX *ctx);
+ int EVP_PKEY_encrypt(EVP_PKEY_CTX *ctx,
+                      unsigned char *out, size_t *outlen,
+                      const unsigned char *in, size_t inlen);
+
+=head1 DESCRIPTION
+
+The EVP_PKEY_encrypt_init() function initializes a public key algorithm
+context using key B<pkey> for an encryption operation.
+
+The EVP_PKEY_encrypt() function performs a public key encryption operation
+using B<ctx>. The data to be encrypted is specified using the B<in> and
+B<inlen> parameters. If B<out> is B<NULL> then the maximum size of the output
+buffer is written to the B<outlen> parameter. If B<out> is not B<NULL> then
+before the call the B<outlen> parameter should contain the length of the
+B<out> buffer, if the call is successful the encrypted data is written to
+B<out> and the amount of data written to B<outlen>.
+
+=head1 NOTES
+
+After the call to EVP_PKEY_encrypt_init() algorithm specific control
+operations can be performed to set any appropriate parameters for the
+operation.
+
+The function EVP_PKEY_encrypt() can be called more than once on the same
+context if several operations are performed using the same parameters.
+
+=head1 RETURN VALUES
+
+EVP_PKEY_encrypt_init() and EVP_PKEY_encrypt() return 1 for success and 0
+or a negative value for failure. In particular a return value of -2
+indicates the operation is not supported by the public key algorithm.
+
+=head1 EXAMPLE
+
+Encrypt data using OAEP (for RSA keys). See also L<PEM_read_PUBKEY(3)> or
+L<d2i_X509(3)> for means to load a public key. You may also simply
+set 'eng = NULL;' to start with the default OpenSSL RSA implementation:
+
+ #include <openssl/evp.h>
+ #include <openssl/rsa.h>
+ #include <openssl/engine.h>
+
+ EVP_PKEY_CTX *ctx;
+ ENGINE *eng;
+ unsigned char *out, *in;
+ size_t outlen, inlen;
+ EVP_PKEY *key;
+
+ /*
+  * NB: assumes eng, key, in, inlen are already set up,
+  * and that key is an RSA public key
+  */
+ ctx = EVP_PKEY_CTX_new(key, eng);
+ if (!ctx)
+     /* Error occurred */
+ if (EVP_PKEY_encrypt_init(ctx) <= 0)
+     /* Error */
+ if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_OAEP_PADDING) <= 0)
+     /* Error */
+
+ /* Determine buffer length */
+ if (EVP_PKEY_encrypt(ctx, NULL, &outlen, in, inlen) <= 0)
+     /* Error */
+
+ out = OPENSSL_malloc(outlen);
+
+ if (!out)
+     /* malloc failure */
+
+ if (EVP_PKEY_encrypt(ctx, out, &outlen, in, inlen) <= 0)
+     /* Error */
+
+ /* Encrypted data is outlen bytes written to buffer out */
+
+=head1 SEE ALSO
+
+L<d2i_X509(3)>,
+L<ENGINE_by_id(3)>,
+L<EVP_PKEY_CTX_new(3)>,
+L<EVP_PKEY_decrypt(3)>,
+L<EVP_PKEY_sign(3)>,
+L<EVP_PKEY_verify(3)>,
+L<EVP_PKEY_verify_recover(3)>,
+L<EVP_PKEY_derive(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 1.0.0.
+
+=head1 COPYRIGHT
+
+Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

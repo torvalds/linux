@@ -1,0 +1,142 @@
+.\"
+.\" Copyright (c) 1995 David Hovemeyer <daveho@infocom.com>
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 4, 2018
+.Dt SHMGET 2
+.Os
+.Sh NAME
+.Nm shmget
+.Nd obtain a shared memory identifier
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/shm.h
+.Ft int
+.Fn shmget "key_t key" "size_t size" "int flag"
+.Sh DESCRIPTION
+Based on the values of
+.Fa key
+and
+.Fa flag ,
+.Fn shmget
+returns the identifier of a newly created or previously existing shared
+memory segment.
+.\"
+.\" The following bit about keys and modes also applies to semaphores
+.\" and message queues.
+.\"
+The key
+is analogous to a filename: it provides a handle that names an
+IPC object.
+There are three ways to specify a key:
+.Bl -bullet
+.It
+IPC_PRIVATE may be specified, in which case a new IPC object
+will be created.
+.It
+An integer constant may be specified.
+If no IPC object corresponding
+to
+.Fa key
+is specified and the IPC_CREAT bit is set in
+.Fa flag ,
+a new one will be created.
+.It
+The
+.Xr ftok 3
+may be used to generate a key from a pathname.
+.El
+.Pp
+The mode of a newly created IPC object is determined by
+which are set by ORing these constants into the
+.Fa flag
+argument:
+.Bl -tag -width 0000
+.It Dv 0400
+Read access for owner.
+.It Dv 0200
+Write access for owner.
+.It Dv 0040
+Read access for group.
+.It Dv 0020
+Write access for group.
+.It Dv 0004
+Read access for other.
+.It Dv 0002
+Write access for other.
+.El
+.\"
+.\" XXX - we should also mention how uid, euid, and gid affect ownership
+.\"	  and use
+.\"
+.\" end section about keys and modes
+.\"
+.Pp
+When creating a new shared memory segment,
+.Fa size
+indicates the desired size of the new segment in bytes.
+The size
+of the segment may be rounded up to a multiple convenient to the
+kernel (i.e., the page size).
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn shmget
+returns the positive integer identifier of a shared memory segment.
+Otherwise, -1 is returned and
+.Va errno
+set to indicate the error.
+.Sh ERRORS
+The
+.Fn shmget
+system call
+will fail if:
+.Bl -tag -width Er
+.\"
+.\" XXX What about ipcperm failing?
+.\"
+.It Bq Er EINVAL
+Size specified is greater than the size of the previously existing segment.
+Size specified is less than the system imposed minimum, or greater than
+the system imposed maximum.
+.It Bq Er ENOENT
+No shared memory segment was found matching
+.Fa key ,
+and IPC_CREAT was not specified.
+.It Bq Er ENOSPC
+The kernel was unable to allocate enough memory to
+satisfy the request.
+.It Bq Er EEXIST
+IPC_CREAT and IPC_EXCL were specified, and a shared memory segment
+corresponding to
+.Fa key
+already exists.
+.El
+.Sh "SEE ALSO"
+.Xr shmat 2 ,
+.Xr shmctl 2 ,
+.Xr shmdt 2 ,
+.Xr ftok 3

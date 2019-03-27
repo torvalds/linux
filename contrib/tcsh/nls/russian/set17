@@ -1,0 +1,17 @@
+$ $tcsh: set17,v 1.5 2011/02/04 18:19:41 christos Exp $
+$ sh.proc.c
+$set 17 
+1 BUG: waiting for background job!\n
+2 Выход %d\n
+3 BUG: process flushed twice
+4 Выполняется 
+5 Сигнал 
+6 Exit %-25d
+7 Окончено
+8 BUG: status=%-9o
+9 \040(core dumped)
+10 \040(wd:
+11 wd now: 
+12 %S: Уже отложено\n
+13 %S: Уже остановлено\n
+14 %S: Badly formed number\n

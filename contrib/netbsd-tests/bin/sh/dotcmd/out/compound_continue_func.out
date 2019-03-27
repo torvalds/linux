@@ -1,0 +1,8 @@
+compound start
+before dotcmd
+before function
+before continue
+after continue
+after function
+after dotcmd, return value: 0
+compound end

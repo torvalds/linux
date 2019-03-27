@@ -1,0 +1,118 @@
+/*
+ * $FreeBSD$
+ */
+/dts-v1/;
+
+/ {
+	model = "ARM Versatile PB";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "arm,versatile-pb";
+
+	amba {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		intc: interrupt-controller {
+			compatible = "arm,versatile-vic";
+			reg = <0x10140000 0x1000>;
+
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+
+		sic: secondary-interrupt-controller {
+			compatible = "arm,versatile-sic";
+			reg = <0x10003000 0x28>;
+
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+
+		uart0: uart0 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x101f1000 0x1000>;
+			interrupts = <12>;
+			interrupt-parent = <&intc>;
+			clock-frequency = <3000000>;
+			reg-shift = <2>;
+		};
+
+		uart1: uart1 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x101f2000 0x1000>;
+			interrupts = <13>;
+			interrupt-parent = <&intc>;
+			clock-frequency = <3000000>;
+			reg-shift = <2>;
+		};
+
+		uart2: uart2 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x101f3000 0x1000>;
+			interrupts = <14>;
+			interrupt-parent = <&intc>;
+			clock-frequency = <3000000>;
+			reg-shift = <2>;
+		};
+
+		timer0 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x101e2000 0x40>;
+			interrupts = <4>;
+			interrupt-parent = <&intc>;
+		};
+
+		pci0 {
+
+			compatible = "versatile,pci";
+			reg = <0x10000044 0x4
+				0x10001000 0x1000
+				0x41000000 0x01000000
+				0x42000000 0x02000000>;
+		};
+
+		net {
+			compatible = "smsc,lan91c111";
+			reg = <0x10010000 0x10000>;
+			interrupts = <25>;
+			interrupt-parent = <&intc>;
+		};
+
+		display {
+			compatible = "arm,pl110", "arm,primecell";
+			reg = <0x10000050 4
+				0x10120000 0x1000>;
+			interrupts = <16>;
+			interrupt-parent = <&intc>;
+		};
+
+		/*
+		 * Cut corner here: we do not have proper interrupt
+		 * controllers cascading so just hardwire SIC IRQ 3
+		 * to VIC IRQ31
+		 */
+		kmi {
+			compatible = "arm,pl050", "arm,primecell";
+			reg = <0x10006000 0x1000>;
+			interrupt-parent = <&intc>;
+			interrupts = <31>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x08000000>; /* 128MB */
+	};
+
+	aliases {
+		uart0 = &uart0;
+	};
+
+	chosen {
+		stdin = "uart0";
+		stdout = "uart0";
+	};
+};

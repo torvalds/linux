@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+! echo echo bad | $SH -ic 'fi' 2>/dev/null

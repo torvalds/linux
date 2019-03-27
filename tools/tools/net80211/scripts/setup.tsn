@@ -1,0 +1,55 @@
+#! /bin/sh
+#
+# Script for testing TSN support.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+BRIDGE=bridge0
+SSID=$SSID-tsn
+WLAN=wlan0
+CONF=$TMPDIR/tsn-$WLAN.conf
+
+makeconf()
+{
+	conf=$1
+	rm -f $conf
+	cat >$1 <<EOF
+interface=$WLAN
+logger_syslog=-1
+logger_syslog_level=0
+logger_stdout=-1
+logger_stdout_level=0
+debug=4
+wpa=1
+wpa_pairwise=TKIP
+wpa_key_mgmt=WPA-PSK
+wpa_passphrase=$WPA_PASSPHRASE
+tsn=1
+wep_key0=0123456789
+EOF
+}
+
+trap "ifconfig $BRIDGE destroy; ifconfig $WLAN destroy; \
+	rm -f $CONF" 0
+
+ifconfig $WLAN create wlandev $WIRELESS wlanmode hostap
+#wlandebug -i $WLAN assoc+crypto
+wlandebug -i $WLAN state+assoc+11n+crypto
+ifconfig $WLAN ssid $SSID
+ifconfig $WLAN channel $CHANNEL
+ifconfig $WLAN mtu 1500		# NB: if_bridge requires matching mtu's
+ifconfig $WLAN tsn
+
+ifconfig $BRIDGE create
+ifconfig $BRIDGE addm $WIRED addm $WLAN up
+ifconfig $WLAN up
+ifconfig $WIRED up
+
+ifconfig
+
+makeconf $CONF
+#mwldebug -i $WIRELESS keycache
+start_hostapd -K $CONF

@@ -1,0 +1,167 @@
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)cut.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd August 3, 2017
+.Dt CUT 1
+.Os
+.Sh NAME
+.Nm cut
+.Nd cut out selected portions of each line of a file
+.Sh SYNOPSIS
+.Nm
+.Fl b Ar list
+.Op Fl n
+.Op Ar
+.Nm
+.Fl c Ar list
+.Op Ar
+.Nm
+.Fl f Ar list
+.Op Fl w | Fl d Ar delim
+.Op Fl s
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility cuts out selected portions of each line (as specified by
+.Ar list )
+from each
+.Ar file
+and writes them to the standard output.
+If no
+.Ar file
+arguments are specified, or a file argument is a single dash
+.Pq Sq Fl ,
+.Nm
+reads from the standard input.
+The items specified by
+.Ar list
+can be in terms of column position or in terms of fields delimited
+by a special character.
+Column and field numbering start from 1.
+.Pp
+The
+.Ar list
+option argument
+is a comma or whitespace separated set of increasing numbers and/or
+number ranges.
+Number ranges consist of a number, a dash
+.Pq Sq \- ,
+and a second number
+and select the columns or fields from the first number to the second,
+inclusive.
+Numbers or number ranges may be preceded by a dash, which selects all
+columns or fields from 1 to the last number.
+Numbers or number ranges may be followed by a dash, which selects all
+columns or fields from the last number to the end of the line.
+Numbers and number ranges may be repeated, overlapping, and in any order.
+It is not an error to select columns or fields not present in the
+input line.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl b Ar list
+The
+.Ar list
+specifies byte positions.
+.It Fl c Ar list
+The
+.Ar list
+specifies character positions.
+.It Fl d Ar delim
+Use
+.Ar delim
+as the field delimiter character instead of the tab character.
+.It Fl f Ar list
+The
+.Ar list
+specifies fields, separated in the input by the field delimiter character
+(see the
+.Fl d
+option).
+Output fields are separated by a single occurrence of the field delimiter
+character.
+.It Fl n
+Do not split multi-byte characters.
+Characters will only be output if at least one byte is selected, and,
+after a prefix of zero or more unselected bytes, the rest of the bytes
+that form the character are selected.
+.It Fl s
+Suppress lines with no field delimiter characters.
+Unless specified, lines with no delimiters are passed through unmodified.
+.It Fl w
+Use whitespace (spaces and tabs) as the delimiter.
+Consecutive spaces and tabs count as one single field separator.
+.El
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Extract users' login names and shells from the system
+.Xr passwd 5
+file as
+.Dq name:shell
+pairs:
+.Pp
+.Dl "cut -d : -f 1,7 /etc/passwd"
+.Pp
+Show the names and login times of the currently logged in users:
+.Pp
+.Dl "who | cut -c 1-16,26-38"
+.Sh SEE ALSO
+.Xr colrm 1 ,
+.Xr paste 1
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.2-92 .
+.Pp
+The
+.Fl w
+flag is an extension to the specification.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.Tn AT&T
+System III
+.Ux .

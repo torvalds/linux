@@ -1,0 +1,189 @@
+.\" Copyright (c) 2009 Gabor Kovesdan <gabor@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Portions of this text are reprinted and reproduced in electronic form
+.\" from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --
+.\" Portable Operating System Interface (POSIX), The Open Group Base
+.\" Specifications Issue 6, Copyright (C) 2001-2004 by the Institute of
+.\" Electrical and Electronics Engineers, Inc and The Open Group.  In the
+.\" event of any discrepancy between this version and the original IEEE and
+.\" The Open Group Standard, the original IEEE and The Open Group Standard is
+.\" the referee document.  The original Standard can be obtained online at
+.\"	http://www.opengroup.org/unix/online.html.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 25, 2009
+.Dt ICONVCTL 3
+.Os
+.Sh NAME
+.Nm iconvctl
+.Nd controlling and diagnostical facility for
+.Xr iconv 3
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In iconv.h
+.Ft int
+.Fn iconvctl "iconv_t cd" "int request" "void *argument"
+.Sh DESCRIPTION
+The
+.Fn iconvctl
+function can retrieve or set specific conversion
+setting from the
+.Fa cd
+conversion descriptor.
+The
+.Fa request
+parameter specifies the operation to accomplish and
+.Fa argument
+is an operation-specific argument.
+.Pp
+The possible operations are the following:
+.Bl -tag -width indent
+.It ICONV_TRIVIALP
+In this case
+.Fa argument
+is an
+.Ft int *
+variable, which is set to 1 if the encoding is trivial one, i.e.
+the input and output encodings are the same.
+Otherwise, the variable will be 0.
+.It ICONV_GET_TRANSLITERATE
+Determines if transliteration is enabled.
+The answer is stored in
+.Fa argument ,
+which is of
+.Ft int * .
+It will be set to 1 if this feature is enabled or set to 0 otherwise.
+.It ICONV_SET_TRANSLITERATE
+Enables transliteration if
+.Fa argument ,
+which is of
+.Ft int *
+set to 1 or disables it if
+.Fa argument
+is set to 0.
+.It ICONV_GET_DISCARD_ILSEQ
+Determines if illegal sequences are discarded or not.
+The answer is stored in
+.Fa argument ,
+which is of
+.Ft int * .
+It will be set to 1 if this feature is enabled or set to 0 otherwise.
+.It ICONV_SET_DISCARD_ILSEQ
+Sets whether illegal sequences are discarded or not.
+.Fa argument ,
+which is of
+.Ft int *
+set to 1 or disables it if
+.Fa argument
+is set to 0.
+.It ICONV_SET_HOOKS
+Sets callback functions, which will be called back after successful
+conversions.
+The callback functions are stored in a
+.Ft struct iconv_hooks
+variable, which is passed to
+.Nm
+via
+.Fa argument
+by its address.
+.It ICONV_GET_ILSEQ_INVALID
+Determines if a character in the input buffer that is valid,
+but for which an identical character does not exist in the target
+codeset returns
+.Er EILSEQ
+or not.
+The answer is stored in
+.Fa argument ,
+which is of
+.Ft int * .
+It will be set to 1 if this feature is enabled or set to 0 otherwise.
+.It ICONV_SET_ILSEQ_INVALID
+Sets whether a character in the input buffer that is valid,
+but for which an identical character does not exist in the target
+codeset returns
+.Er EILSEQ
+or not.
+If
+.Fa argument ,
+which is of
+.Ft int *
+is set to 1 it will be enabled,
+and if
+.Fa argument
+is set to 0 it will be disabled.
+.El
+.\" XXX: fallbacks are unimplemented and trying to set them will always
+.\"      return EOPNOTSUPP but definitions are provided for source-level
+.\"      compatibility.
+.\".It ICONV_SET_FALLBACKS
+.\"Sets callback functions, which will be called back after failed
+.\"conversions.
+.\"The callback functions are stored in a
+.\".Ft struct iconv_fallbacks
+.\"variable, which is passed to
+.\".Nm
+.\"via
+.\".Fa argument
+.\"by its address.
+.Sh RETURN VALUES
+Upon successful completion
+.Fn iconvctl ,
+returns 0.
+Otherwise, \-1 is returned and errno is set to
+specify the kind of error.
+.Sh ERRORS
+The
+.Fn iconvctl
+function may cause an error in the following cases:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Unknown or unimplemented operation.
+.It Bq Er EBADF
+The conversion descriptor specified by
+.Fa cd
+is invalid.
+.El
+.Sh SEE ALSO
+.Xr iconv 1 ,
+.Xr iconv 3
+.Sh STANDARDS
+The
+.Nm
+facility is a non-standard extension, which appeared in
+the GNU implementation and was adopted in
+.Fx 9.0
+for compatibility's sake.
+.Sh AUTHORS
+This manual page was written by
+.An Gabor Kovesdan Aq Mt gabor@FreeBSD.org .
+.Sh BUGS
+Transliteration is enabled in this implementation by default, so it
+is impossible by design to turn it off.
+Accordingly, trying to turn it off will always fail and \-1 will be
+returned.
+Getting the transliteration state will always succeed and indicate
+that it is turned on, though.

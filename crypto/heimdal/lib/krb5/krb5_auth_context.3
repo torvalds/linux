@@ -1,0 +1,395 @@
+.\" Copyright (c) 2001 - 2005 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd May 17, 2005
+.Dt KRB5_AUTH_CONTEXT 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_auth_con_addflags ,
+.Nm krb5_auth_con_free ,
+.Nm krb5_auth_con_genaddrs ,
+.Nm krb5_auth_con_generatelocalsubkey ,
+.Nm krb5_auth_con_getaddrs ,
+.Nm krb5_auth_con_getauthenticator ,
+.Nm krb5_auth_con_getflags ,
+.Nm krb5_auth_con_getkey ,
+.Nm krb5_auth_con_getlocalsubkey ,
+.Nm krb5_auth_con_getrcache ,
+.Nm krb5_auth_con_getremotesubkey ,
+.Nm krb5_auth_con_getuserkey ,
+.Nm krb5_auth_con_init ,
+.Nm krb5_auth_con_initivector ,
+.Nm krb5_auth_con_removeflags ,
+.Nm krb5_auth_con_setaddrs ,
+.Nm krb5_auth_con_setaddrs_from_fd ,
+.Nm krb5_auth_con_setflags ,
+.Nm krb5_auth_con_setivector ,
+.Nm krb5_auth_con_setkey ,
+.Nm krb5_auth_con_setlocalsubkey ,
+.Nm krb5_auth_con_setrcache ,
+.Nm krb5_auth_con_setremotesubkey ,
+.Nm krb5_auth_con_setuserkey ,
+.Nm krb5_auth_context ,
+.Nm krb5_auth_getcksumtype ,
+.Nm krb5_auth_getkeytype ,
+.Nm krb5_auth_getlocalseqnumber ,
+.Nm krb5_auth_getremoteseqnumber ,
+.Nm krb5_auth_setcksumtype ,
+.Nm krb5_auth_setkeytype ,
+.Nm krb5_auth_setlocalseqnumber ,
+.Nm krb5_auth_setremoteseqnumber ,
+.Nm krb5_free_authenticator
+.Nd manage authentication on connection level
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Ft krb5_error_code
+.Fo krb5_auth_con_init
+.Fa "krb5_context context"
+.Fa "krb5_auth_context *auth_context"
+.Fc
+.Ft void
+.Fo krb5_auth_con_free
+.Fa "krb5_context context"
+.Fa "krb5_auth_context auth_context"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_auth_con_setflags
+.Fa "krb5_context context"
+.Fa "krb5_auth_context auth_context"
+.Fa "int32_t flags"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_auth_con_getflags
+.Fa "krb5_context context"
+.Fa "krb5_auth_context auth_context"
+.Fa "int32_t *flags"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_auth_con_addflags
+.Fa "krb5_context context"
+.Fa "krb5_auth_context auth_context"
+.Fa "int32_t addflags"
+.Fa "int32_t *flags"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_auth_con_removeflags
+.Fa "krb5_context context"
+.Fa "krb5_auth_context auth_context"
+.Fa "int32_t removelags"
+.Fa "int32_t *flags"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_auth_con_setaddrs
+.Fa "krb5_context context"
+.Fa "krb5_auth_context auth_context"
+.Fa "krb5_address *local_addr"
+.Fa "krb5_address *remote_addr"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_auth_con_getaddrs
+.Fa "krb5_context context"
+.Fa "krb5_auth_context auth_context"
+.Fa "krb5_address **local_addr"
+.Fa "krb5_address **remote_addr"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_auth_con_genaddrs
+.Fa "krb5_context context"
+.Fa "krb5_auth_context auth_context"
+.Fa "int fd"
+.Fa "int flags"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_auth_con_setaddrs_from_fd
+.Fa "krb5_context context"
+.Fa "krb5_auth_context auth_context"
+.Fa "void *p_fd"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_auth_con_getkey
+.Fa "krb5_context context"
+.Fa "krb5_auth_context auth_context"
+.Fa "krb5_keyblock **keyblock"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_auth_con_getlocalsubkey
+.Fa "krb5_context context"
+.Fa "krb5_auth_context auth_context"
+.Fa "krb5_keyblock **keyblock"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_auth_con_getremotesubkey
+.Fa "krb5_context context"
+.Fa "krb5_auth_context auth_context"
+.Fa "krb5_keyblock **keyblock"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_auth_con_generatelocalsubkey
+.Fa "krb5_context context"
+.Fa "krb5_auth_context auth_context"
+.Fa krb5_keyblock *key"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_auth_con_initivector
+.Fa "krb5_context context"
+.Fa "krb5_auth_context auth_context"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_auth_con_setivector
+.Fa "krb5_context context"
+.Fa "krb5_auth_context *auth_context"
+.Fa "krb5_pointer ivector"
+.Fc
+.Ft void
+.Fo krb5_free_authenticator
+.Fa "krb5_context context"
+.Fa "krb5_authenticator *authenticator"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm krb5_auth_context
+structure holds all context related to an authenticated connection, in
+a similar way to
+.Nm krb5_context
+that holds the context for the thread or process.
+.Nm krb5_auth_context
+is used by various functions that are directly related to
+authentication between the server/client. Example of data that this
+structure contains are various flags, addresses of client and server,
+port numbers, keyblocks (and subkeys), sequence numbers, replay cache,
+and checksum-type.
+.Pp
+.Fn krb5_auth_con_init
+allocates and initializes the
+.Nm krb5_auth_context
+structure. Default values can be changed with
+.Fn krb5_auth_con_setcksumtype
+and
+.Fn krb5_auth_con_setflags .
+The
+.Nm auth_context
+structure must be freed by
+.Fn krb5_auth_con_free .
+.Pp
+.Fn krb5_auth_con_getflags ,
+.Fn krb5_auth_con_setflags ,
+.Fn krb5_auth_con_addflags
+and
+.Fn krb5_auth_con_removeflags
+gets and modifies the flags for a
+.Nm krb5_auth_context
+structure. Possible flags to set are:
+.Bl -tag -width Ds
+.It Dv KRB5_AUTH_CONTEXT_DO_SEQUENCE
+Generate and check sequence-number on each packet.
+.It Dv KRB5_AUTH_CONTEXT_DO_TIME
+Check timestamp on incoming packets.
+.It Dv KRB5_AUTH_CONTEXT_RET_SEQUENCE , Dv KRB5_AUTH_CONTEXT_RET_TIME
+Return sequence numbers and time stamps in the outdata parameters.
+.It Dv KRB5_AUTH_CONTEXT_CLEAR_FORWARDED_CRED
+will force
+.Fn krb5_get_forwarded_creds
+and
+.Fn krb5_fwd_tgt_creds
+to create unencrypted )
+.Dv ENCTYPE_NULL )
+credentials.
+This is for use with old MIT server and JAVA based servers as
+they can't handle encrypted
+.Dv KRB-CRED .
+Note that sending such
+.Dv KRB-CRED
+is clear exposes crypto keys and tickets and is insecure,
+make sure the packet is encrypted in the protocol.
+.Xr krb5_rd_cred 3 ,
+.Xr krb5_rd_priv 3 ,
+.Xr krb5_rd_safe 3 ,
+.Xr krb5_mk_priv 3
+and
+.Xr krb5_mk_safe 3 .
+Setting this flag requires that parameter to be passed to these
+functions.
+.Pp
+The flags
+.Dv KRB5_AUTH_CONTEXT_DO_TIME
+also modifies the behavior the function
+.Fn krb5_get_forwarded_creds
+by removing the timestamp in the forward credential message, this have
+backward compatibility problems since not all versions of the heimdal
+supports timeless credentional messages.
+Is very useful since it always the sender of the message to cache
+forward message and thus avoiding a round trip to the KDC for each
+time a credential is forwarded.
+The same functionality can be obtained by using address-less tickets.
+.\".It Dv KRB5_AUTH_CONTEXT_PERMIT_ALL
+.El
+.Pp
+.Fn krb5_auth_con_setaddrs ,
+.Fn krb5_auth_con_setaddrs_from_fd
+and
+.Fn krb5_auth_con_getaddrs
+gets and sets the addresses that are checked when a packet is received.
+It is mandatory to set an address for the remote
+host. If the local address is not set, it iss deduced from the underlaying
+operating system.
+.Fn krb5_auth_con_getaddrs
+will call
+.Fn krb5_free_address
+on any address that is passed in
+.Fa local_addr
+or
+.Fa remote_addr .
+.Fn krb5_auth_con_setaddr
+allows passing in a
+.Dv NULL
+pointer as
+.Fa local_addr
+and
+.Fa remote_addr ,
+in that case it will just not set that address.
+.Pp
+.Fn krb5_auth_con_setaddrs_from_fd
+fetches the addresses from a file descriptor.
+.Pp
+.Fn krb5_auth_con_genaddrs
+fetches the address information from the given file descriptor
+.Fa fd
+depending on the bitmap argument
+.Fa flags .
+.Pp
+Possible values on
+.Fa flags
+are:
+.Bl -tag -width Ds
+.It Va KRB5_AUTH_CONTEXT_GENERATE_LOCAL_ADDR
+fetches the local address from
+.Fa fd .
+.It Va KRB5_AUTH_CONTEXT_GENERATE_REMOTE_ADDR
+fetches the remote address from
+.Fa fd .
+.El
+.Pp
+.Fn krb5_auth_con_setkey ,
+.Fn krb5_auth_con_setuserkey
+and
+.Fn krb5_auth_con_getkey
+gets and sets the key used for this auth context. The keyblock returned by
+.Fn krb5_auth_con_getkey
+should be freed with
+.Fn krb5_free_keyblock .
+The keyblock send into
+.Fn krb5_auth_con_setkey
+is copied into the
+.Nm krb5_auth_context ,
+and thus no special handling is needed.
+.Dv NULL
+is not a valid keyblock to
+.Fn krb5_auth_con_setkey .
+.Pp
+.Fn krb5_auth_con_setuserkey
+is only useful when doing user to user authentication.
+.Fn krb5_auth_con_setkey
+is equivalent to
+.Fn krb5_auth_con_setuserkey .
+.Pp
+.Fn krb5_auth_con_getlocalsubkey ,
+.Fn krb5_auth_con_setlocalsubkey ,
+.Fn krb5_auth_con_getremotesubkey
+and
+.Fn krb5_auth_con_setremotesubkey
+gets and sets the keyblock for the local and remote subkey.
+The keyblock returned by
+.Fn krb5_auth_con_getlocalsubkey
+and
+.Fn krb5_auth_con_getremotesubkey
+must be freed with
+.Fn krb5_free_keyblock .
+.Pp
+.Fn krb5_auth_setcksumtype
+and
+.Fn krb5_auth_getcksumtype
+sets and gets the checksum type that should be used for this
+connection.
+.Pp
+.Fn krb5_auth_con_generatelocalsubkey
+generates a local subkey that have the same encryption type as
+.Fa key .
+.Pp
+.Fn krb5_auth_getremoteseqnumber
+.Fn krb5_auth_setremoteseqnumber ,
+.Fn krb5_auth_getlocalseqnumber
+and
+.Fn krb5_auth_setlocalseqnumber
+gets and sets the sequence-number for the local and remote
+sequence-number counter.
+.Pp
+.Fn krb5_auth_setkeytype
+and
+.Fn krb5_auth_getkeytype
+gets and gets the keytype of the keyblock in
+.Nm krb5_auth_context .
+.Pp
+.Fn krb5_auth_con_getauthenticator
+Retrieves the authenticator that was used during mutual
+authentication. The
+.Dv authenticator
+returned should be freed by calling
+.Fn krb5_free_authenticator .
+.Pp
+.Fn krb5_auth_con_getrcache
+and
+.Fn krb5_auth_con_setrcache
+gets and sets the replay-cache.
+.Pp
+.Fn krb5_auth_con_initivector
+allocates memory for and zeros the initial vector in the
+.Fa auth_context
+keyblock.
+.Pp
+.Fn krb5_auth_con_setivector
+sets the i_vector portion of
+.Fa auth_context
+to
+.Fa ivector .
+.Pp
+.Fn krb5_free_authenticator
+free the content of
+.Fa authenticator
+and
+.Fa authenticator
+itself.
+.Sh SEE ALSO
+.Xr krb5_context 3 ,
+.Xr kerberos 8

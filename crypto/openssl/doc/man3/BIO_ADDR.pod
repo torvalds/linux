@@ -1,0 +1,125 @@
+=pod
+
+=head1 NAME
+
+BIO_ADDR, BIO_ADDR_new, BIO_ADDR_clear, BIO_ADDR_free, BIO_ADDR_rawmake,
+BIO_ADDR_family, BIO_ADDR_rawaddress, BIO_ADDR_rawport,
+BIO_ADDR_hostname_string, BIO_ADDR_service_string,
+BIO_ADDR_path_string - BIO_ADDR routines
+
+=head1 SYNOPSIS
+
+ #include <sys/types.h>
+ #include <openssl/bio.h>
+
+ typedef union bio_addr_st BIO_ADDR;
+
+ BIO_ADDR *BIO_ADDR_new(void);
+ void BIO_ADDR_free(BIO_ADDR *);
+ void BIO_ADDR_clear(BIO_ADDR *ap);
+ int BIO_ADDR_rawmake(BIO_ADDR *ap, int family,
+                      const void *where, size_t wherelen, unsigned short port);
+ int BIO_ADDR_family(const BIO_ADDR *ap);
+ int BIO_ADDR_rawaddress(const BIO_ADDR *ap, void *p, size_t *l);
+ unsigned short BIO_ADDR_rawport(const BIO_ADDR *ap);
+ char *BIO_ADDR_hostname_string(const BIO_ADDR *ap, int numeric);
+ char *BIO_ADDR_service_string(const BIO_ADDR *ap, int numeric);
+ char *BIO_ADDR_path_string(const BIO_ADDR *ap);
+
+=head1 DESCRIPTION
+
+The B<BIO_ADDR> type is a wrapper around all types of socket
+addresses that OpenSSL deals with, currently transparently
+supporting AF_INET, AF_INET6 and AF_UNIX according to what's
+available on the platform at hand.
+
+BIO_ADDR_new() creates a new unfilled B<BIO_ADDR>, to be used
+with routines that will fill it with information, such as
+BIO_accept_ex().
+
+BIO_ADDR_free() frees a B<BIO_ADDR> created with BIO_ADDR_new().
+
+BIO_ADDR_clear() clears any data held within the provided B<BIO_ADDR> and sets
+it back to an uninitialised state.
+
+BIO_ADDR_rawmake() takes a protocol B<family>, an byte array of
+size B<wherelen> with an address in network byte order pointed at
+by B<where> and a port number in network byte order in B<port> (except
+for the B<AF_UNIX> protocol family, where B<port> is meaningless and
+therefore ignored) and populates the given B<BIO_ADDR> with them.
+In case this creates a B<AF_UNIX> B<BIO_ADDR>, B<wherelen> is expected
+to be the length of the path string (not including the terminating
+NUL, such as the result of a call to strlen()).
+I<Read on about the addresses in L</RAW ADDRESSES> below>.
+
+BIO_ADDR_family() returns the protocol family of the given
+B<BIO_ADDR>.  The possible non-error results are one of the
+constants AF_INET, AF_INET6 and AF_UNIX. It will also return AF_UNSPEC if the
+BIO_ADDR has not been initialised.
+
+BIO_ADDR_rawaddress() will write the raw address of the given
+B<BIO_ADDR> in the area pointed at by B<p> if B<p> is non-NULL,
+and will set B<*l> to be the amount of bytes the raw address
+takes up if B<l> is non-NULL.
+A technique to only find out the size of the address is a call
+with B<p> set to B<NULL>.  The raw address will be in network byte
+order, most significant byte first.
+In case this is a B<AF_UNIX> B<BIO_ADDR>, B<l> gets the length of the
+path string (not including the terminating NUL, such as the result of
+a call to strlen()).
+I<Read on about the addresses in L</RAW ADDRESSES> below>.
+
+BIO_ADDR_rawport() returns the raw port of the given B<BIO_ADDR>.
+The raw port will be in network byte order.
+
+BIO_ADDR_hostname_string() returns a character string with the
+hostname of the given B<BIO_ADDR>.  If B<numeric> is 1, the string
+will contain the numerical form of the address.  This only works for
+B<BIO_ADDR> of the protocol families AF_INET and AF_INET6.  The
+returned string has been allocated on the heap and must be freed
+with OPENSSL_free().
+
+BIO_ADDR_service_string() returns a character string with the
+service name of the port of the given B<BIO_ADDR>.  If B<numeric>
+is 1, the string will contain the port number.  This only works
+for B<BIO_ADDR> of the protocol families AF_INET and AF_INET6.  The
+returned string has been allocated on the heap and must be freed
+with OPENSSL_free().
+
+BIO_ADDR_path_string() returns a character string with the path
+of the given B<BIO_ADDR>.  This only works for B<BIO_ADDR> of the
+protocol family AF_UNIX.  The returned string has been allocated
+on the heap and must be freed with OPENSSL_free().
+
+=head1 RAW ADDRESSES
+
+Both BIO_ADDR_rawmake() and BIO_ADDR_rawaddress() take a pointer to a
+network byte order address of a specific site.  Internally, those are
+treated as a pointer to B<struct in_addr> (for B<AF_INET>), B<struct
+in6_addr> (for B<AF_INET6>) or B<char *> (for B<AF_UNIX>), all
+depending on the protocol family the address is for.
+
+=head1 RETURN VALUES
+
+The string producing functions BIO_ADDR_hostname_string(),
+BIO_ADDR_service_string() and BIO_ADDR_path_string() will
+return B<NULL> on error and leave an error indication on the
+OpenSSL error stack.
+
+All other functions described here return 0 or B<NULL> when the
+information they should return isn't available.
+
+=head1 SEE ALSO
+
+L<BIO_connect(3)>, L<BIO_s_connect(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

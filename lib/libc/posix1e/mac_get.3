@@ -1,0 +1,152 @@
+.\" Copyright (c) 2001, 2004 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and NAI Labs, the Security
+.\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
+.\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+.\" research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 21, 2001
+.Dt MAC_GET 3
+.Os
+.Sh NAME
+.Nm mac_get_file ,
+.Nm mac_get_link ,
+.Nm mac_get_fd ,
+.Nm mac_get_peer ,
+.Nm mac_get_pid ,
+.Nm mac_get_proc
+.Nd get the label of a file, socket, socket peer or process
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mac.h
+.Ft int
+.Fn mac_get_file "const char *path" "mac_t label"
+.Ft int
+.Fn mac_get_link "const char *path" "mac_t label"
+.Ft int
+.Fn mac_get_fd "int fd" "mac_t label"
+.Ft int
+.Fn mac_get_peer "int fd" "mac_t label"
+.Ft int
+.Fn mac_get_pid "pid_t pid" "mac_t label"
+.Ft int
+.Fn mac_get_proc "mac_t label"
+.Sh DESCRIPTION
+The
+.Fn mac_get_file
+system call returns the label associated with a file specified by
+pathname.
+The
+.Fn mac_get_link
+function is the same as
+.Fn mac_get_file ,
+except that it does not follow symlinks.
+.Pp
+The
+.Fn mac_get_fd
+system call returns the label associated with an object referenced by
+the specified file descriptor.
+Note that in the case of a file system socket, the label returned will
+be the socket label, which may be different from the label of the
+on-disk node acting as a rendezvous for the socket.
+The
+.Fn mac_get_peer
+system call returns the label associated with the remote endpoint of
+a socket; the exact semantics of this call will depend on the protocol
+domain, communications type, and endpoint; typically this label will
+be cached when a connection-oriented protocol instance is first set up,
+and is undefined for datagram protocols.
+.Pp
+The
+.Fn mac_get_pid
+and
+.Fn mac_get_proc
+system calls return the process label associated with an arbitrary
+process ID, or the current process.
+.Pp
+Label storage for use with these calls must first be allocated and
+prepared using the
+.Xr mac_prepare 3
+functions.
+When an application is done using a label, the memory may be returned
+using
+.Xr mac_free 3 .
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EACCES
+A component of
+.Fa path
+is not searchable,
+or MAC read access to the file
+is denied.
+.It Bq Er EINVAL
+The requested label operation is not valid for the object referenced by
+.Fa fd .
+.It Bq Er ENAMETOOLONG
+The pathname pointed to by
+.Fa path
+exceeds
+.Dv PATH_MAX ,
+or a component of the pathname exceeds
+.Dv NAME_MAX .
+.It Bq Er ENOENT
+A component of
+.Fa path
+does not exist.
+.It Bq Er ENOMEM
+Insufficient memory is available
+to allocate a new MAC label structure.
+.It Bq Er ENOTDIR
+A component of
+.Fa path
+is not a directory.
+.El
+.Sh SEE ALSO
+.Xr mac 3 ,
+.Xr mac_free 3 ,
+.Xr mac_prepare 3 ,
+.Xr mac_set 3 ,
+.Xr mac_text 3 ,
+.Xr posix1e 3 ,
+.Xr mac 4 ,
+.Xr mac 9
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+Discussion of the draft
+continues on the cross-platform POSIX.1e implementation mailing list.
+To join this list, see the
+.Fx
+POSIX.1e implementation page
+for more information.
+.Sh HISTORY
+Support for Mandatory Access Control was introduced in
+.Fx 5.0
+as part of the
+.Tn TrustedBSD
+Project.

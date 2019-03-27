@@ -1,0 +1,148 @@
+@(#) $Id: CHANGES,v 1.23 2000/12/14 06:53:11 leres Exp $ (LBL)
+
+v1.4 Wed Dec 13 22:50:35 PST 2000
+
+- Add an option to use icmp echo instead of udp datagrams.
+
+- Add HPUX and Linux support.
+
+- Handle hex argument values as suggested by John Hawkinson
+  (jhawk@mit.edu)
+
+- Added flags to set the first ttl and to set the don't fragment bit.
+
+- Add a local autoconf macro to check for routines in libraries; the
+  autoconf version is broken (it only puts the library name in the
+  cache variable name). Thanks to John Hawkinson.
+
+- Add a local autoconf macro to check for types; the autoconf version
+  is broken (it uses grep instead of actually compiling a code fragment).
+
+- Attempt to detect "egcs" versions of gcc.
+
+- Fix problems caused by savestr().
+
+- Detect when there are more interfaces than we can deal with. Thanks
+  to Guy Harris guy@netapp.com.
+
+- Accommodate changes made to FreeBSD 3.2-RELEASE network headers files.
+
+- The ip header offset needs to be byte swapped under Solaris on the
+  intel as well. Reported by John McDermott (jjm@jkintl.com) Also byte
+  ip length and offset for linux.
+
+- In wait_for_reply(), use passed socket instead of global one. Thanks
+  to Richard Kettlewell (richard.kettlewell@kewill.com)
+
+- Check for IFF_LOOPBACK as a define or an enum (concession to linux).
+  Reported by Robert Bihlmeyer (robbe@orcus.priv.at)
+
+- Increase size of SIOCGIFCONF buffer to accommodate systems with lots
+  of virtual interfaces. Ignore sun virtual interfaces. Suggested by
+  Ian Donaldson (iand@aone.com.au)
+
+- Always calculate icmp checksums when using -I. Reported by Soumen
+  (sbiswas@novell.com)
+
+- Documentation fix for description of -p. Thanks to Jeffrey C Honig
+  (jch@bsdi.com)
+
+- Enable ip checksums for Solaris 2.6 and higher (since they seem to
+  work correctly now).
+
+- Avoid problems when broken routers return 0.0.0.0 as their source
+  address. Thanks to John Hawkinson (jhawk@bbnplanet.com)
+
+- Canonicalize hostname if gethostname() doesn't return a domain.
+
+- Add -z flag (pause msecs) to allow optional pause between probes.
+  Suggested by Dave Morrison (drmorris@uplanet.com)
+
+- Fix max packet length test.
+
+- Use "/dev/null" instead of "." for file descriptor fodder.
+  Suggested by Tim Robbins (fyre@box3n.gumbynet.org)
+
+- Watch for a NULL argv[0]. Suggested by Tim Robbins.
+
+- Be careful with hostname legnths.
+
+- Print RFC1191 Path MTU Discovery value on "needfrag" unreachables.
+
+- Limit port size to 16 bits. Suggested by Tim Robbins.
+
+- Limit wait time to 24 hours.
+
+- Modified linux specific struct ipovly definition to avoid problems
+  with 64 bit systems. Problem reported by Uros Prestor
+  (uros@turbolinux.com)
+
+- Use kernel routing tables to determine correct source address.
+  Three styles are supported: bsd/socket, solaris/mib and linux.
+
+- Fix configure to recognize older versions of Solaris.
+
+v1.3.2 Thu Sep 26 18:06:16 PDT 1996
+
+- Rewrite source routing code to eliminate a number of problems on
+  systems using raw ip options. Also pad options with a noop so gateway
+  addresses are aligned.
+
+- Don't call inet_ntoa() twice in the same printf(). Thanks to NetBSD
+  via Bill Fenner (fenner@parc.xerox.com)
+
+- Decode "administratively prohibited filter" icmp code and print
+  numeric value for unknown codes. Thanks to Bill Fenner.
+
+v1.3.1 Wed Sep 18 21:08:16 PDT 1996
+
+- Some systems (e.g. AIX) need sys/select.h. Thanks to Brett Hogden
+  (hogden@rge.com)
+
+- Byte swap ip header length under Solaris. (This has no effect on the
+  sparc but is required on the i386.)
+
+- Made optional packet length control total size of packet.
+
+v1.3 Mon Sep 16 14:55:44 PDT 1996
+
+- Overrun buffer security fixes. Thanks to Bill Fenner
+  (fenner@parc.xerox.com)
+
+- Wait for response packet relative to start of probe. Thanks to Bill
+  Fenner.
+
+- Fix bug that prevented changing the packet size. Thanks to Gregory
+  Decker (gdecker@nate.dcrt.nih.gov)
+
+- Add support for RAW_OPTIONS (e.g. 4.4 BSD systems such as BSD/OS and
+  FreeBSD) thanks to Jeffrey C Honig (jch@bsdi.com)
+
+- Remove ip header byte swap fix from v1.2; most kernels swap the ip
+  header length in the kernel (and it causes OSF3 to crash).
+
+- Fix to not exit when the number of probes is set to 1 (i.e. "-q 1")
+
+- Improve autoconf configuration.
+
+v1.2 Tue Oct 17 23:50:05 PDT 1995
+
+- Convert to autoconf and ansify.
+
+- Byte swap ip header length for little endian machines. Fix thanks to
+  Y Badri (yb@greybox.demon.co.uk).
+
+v1.1 Thu Jun 15 02:32:55 PDT 1995
+
+- Check for too many arguments.
+
+- Recode to make timing of packet's round trip more obvious and to
+  tighten up code.
+
+- Ifdef IP_OPTIONS code.
+
+- Display time in microseconds.
+
+v1.0 Tue Feb 28 23:50:05 PDT 1989
+
+- Initial public release.

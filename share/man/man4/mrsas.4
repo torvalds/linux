@@ -1,0 +1,409 @@
+.\" Copyright (c) 2014 LSI Corp
+.\" All rights reserved.
+.\" Author: Kashyap Desai
+.\" Support: freebsdraid@lsi.com
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the <ORGANIZATION> nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" The views and conclusions contained in the software and documentation
+.\" are those of the authors and should not be interpreted as representing
+.\" official policies, either expressed or implied, of the FreeBSD Project.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Mar 13, 2019
+.Dt MRSAS 4
+.Os
+.Sh NAME
+.Nm mrsas
+.Nd "LSI MegaRAID 6Gb/s and 12Gb/s SAS+SATA RAID controller driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device mrsas"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mrsas_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver will detect LSI's next generation (6Gb/s and 12Gb/s) PCI Express
+SAS/SATA RAID controllers.
+See the
+.Nm HARDWARE
+section for the supported devices list.
+A disk (virtual disk/physical disk) attached to the
+.Nm
+driver will be visible to the user through
+.Xr camcontrol 8
+as
+.Pa /dev/da?
+device nodes.
+A simple management interface is also provided on a per-controller basis via the
+.Pa /dev/mrsas?
+device node.
+.Pp
+The
+.Nm
+name is derived from the phrase "MegaRAID SAS HBA", which is
+substantially different than the old "MegaRAID" Driver
+.Xr mfi 4
+which does not connect targets
+to the
+.Xr cam 4
+layer and thus requires a new driver which attaches targets to the
+.Xr cam 4
+layer.
+Older MegaRAID controllers are supported by
+.Xr mfi 4
+and will not work with
+.Nm ,
+but both the
+.Xr mfi 4
+and
+.Nm
+drivers can detect and manage the LSI MegaRAID SAS 2208/2308/3008/3108 series of
+controllers.
+.Pp
+The
+.Xr device.hints 5
+option is provided to tune the
+.Nm
+driver's behavior for LSI MegaRAID SAS 2208/2308/3008/3108 controllers.
+By default, the
+.Xr mfi 4
+driver will detect these controllers.
+See the
+.Nm PRIORITY
+section to know more about driver priority for MR-Fusion devices.
+.Pp
+.Nm
+will provide a priority of (-30) (between
+.Dv BUS_PROBE_DEFAULT
+and
+.Dv BUS_PROBE_LOW_PRIORITY )
+at probe call for device id's 0x005B, 0x005D, and
+0x005F so that
+.Nm
+does not take control of these devices without user intervention.
+.Pp
+Solid-state drives (SSD) get ATA TRIM support with
+.Nm
+if underlying adapter allows it.
+This may require configuring SSD as Non-RAID drive
+rather then JBOD virtual mode.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following hardware:
+.Pp
+[ Thunderbolt 6Gb/s MR controller ]
+.Bl -bullet -compact
+.It
+LSI MegaRAID SAS 9265
+.It
+LSI MegaRAID SAS 9266
+.It
+LSI MegaRAID SAS 9267
+.It
+LSI MegaRAID SAS 9270
+.It
+LSI MegaRAID SAS 9271
+.It
+LSI MegaRAID SAS 9272
+.It
+LSI MegaRAID SAS 9285
+.It
+LSI MegaRAID SAS 9286
+.It
+DELL PERC H810
+.It
+DELL PERC H710/P
+.El
+.Pp
+[ Invader/Fury 12Gb/s MR controller ]
+.Bl -bullet -compact
+.It
+LSI MegaRAID SAS 9380
+.It
+LSI MegaRAID SAS 9361
+.It
+LSI MegaRAID SAS 9341
+.It
+DELL PERC H830
+.It
+DELL PERC H730/P
+.It
+DELL PERC H330
+.El
+.Sh CONFIGURATION
+To disable Online Controller Reset(OCR) for a specific
+.Nm
+driver instance, set the
+following tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mrsas.X.disable_ocr=1
+.Ed
+.Pp
+where X is the adapter number.
+.Pp
+To change the I/O timeout value for a specific
+.Nm
+driver instance, set the following tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mrsas.X.mrsas_io_timeout=NNNNNN
+.Ed
+.Pp
+where NNNNNN is the timeout value in milli-seconds.
+.Pp
+To change the firmware fault check timer value for a specific
+.Nm
+driver instance, set the following tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mrsas.X.mrsas_fw_fault_check_delay=NN
+.Ed
+.Pp
+where NN is the fault check delay value in seconds.
+.Pp
+The current number of active I/O commands is shown in the
+.Va dev.mrsas.X.fw_outstanding
+.Xr sysctl 8
+variable.
+.Sh DEBUGGING
+To enable debugging prints from the
+.Nm
+driver, set the
+.Va hw.mrsas.X.debug_level
+variable, where X is the adapter number, either in
+.Xr loader.conf 5
+or via
+.Xr sysctl 8 .
+The following bits have the described effects:
+.Bl -tag -width indent -offset indent
+.It 0x01
+Enable informational prints.
+.It 0x02
+Enable tracing prints.
+.It 0x04
+Enable prints for driver faults.
+.It 0x08
+Enable prints for OCR and I/O timeout.
+.It 0x10
+Enable prints for AEN events.
+.El
+.Sh PRIORITY
+The
+.Nm
+driver will always set a default (-30) priority in the PCI subsystem for
+selection of MR-Fusion cards.
+(It is between
+.Dv BUS_PROBE_DEFAULT
+and
+.Dv BUS_PROBE_LOW_PRIORITY ) .
+MR-Fusion Controllers include all cards with the
+Device IDs -
+0x005B,
+0x005D,
+0x005F.
+.Pp
+The
+.Xr mfi 4
+driver will set a priority of either
+.Dv BUS_PROBE_DEFAULT
+or
+.Dv BUS_PROBE_LOW_PRIORITY
+(depending on the device.hints setting) in the PCI
+subsystem for selection of MR-Fusion cards.
+With the above design in place, the
+.Xr mfi 4
+driver will attach to a MR-Fusion card given that it has a higher priority than
+.Nm .
+.Pp
+Using
+.Pa /boot/device.hints
+(as mentioned below), the user can provide a preference
+for the
+.Nm
+driver to detect a MR-Fusion card instead of the
+.Xr mfi 4
+driver.
+.Bd -ragged -offset indent
+.Cd hw.mfi.mrsas_enable="1"
+.Ed
+.Pp
+At boot time, the
+.Xr mfi 4
+driver will get priority to detect MR-Fusion controllers by default.
+Before
+changing this default driver selection policy, LSI advises users to understand
+how the driver selection policy works.
+LSI's policy is to provide priority to
+the
+.Xr mfi 4
+driver to detect MR-Fusion cards, but allow for the ability to choose the
+.Nm
+driver to detect MR-Fusion cards.
+.Pp
+LSI recommends setting hw.mfi.mrsas_enable="0" for customers who are using the
+older
+.Xr mfi 4
+driver and do not want to switch to
+.Nm .
+For those customers who are using a MR-Fusion controller for the first time, LSI
+recommends using the
+.Nm
+driver and setting hw.mfi.mrsas_enable="1".
+.Pp
+Changing the default behavior is well tested under most conditions, but
+unexpected behavior may pop up if more complex and unrealistic operations are
+executed by switching between the
+.Xr mfi 4
+and
+.Nm
+drivers for MR-Fusion.
+Switching drivers is designed to happen only one time.
+Although multiple
+switching is possible, it is not recommended.
+The user should decide from
+.Nm Start of Day
+which driver they want to use for the MR-Fusion card.
+.Pp
+The user may see different device names when switching from
+.Xr mfi 4
+to
+.Nm .
+This behavior is
+.Nm Functions As Designed
+and the user needs to change the
+.Xr fstab 5
+entry manually if they are doing any experiments with
+.Xr mfi 4
+and
+.Nm
+interoperability.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/mrsas?" -compact
+.It Pa /dev/da?
+array/logical disk interface
+.It Pa /dev/mrsas?
+management interface
+.El
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr mfi 4 ,
+.Xr pci 4 ,
+.Xr device.hints 5 ,
+.Xr camcontrol 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 10.1 .
+.Bd -ragged
+.Cd "mfi Driver:"
+.Xr mfi 4
+is the old
+.Fx
+driver which started with support for Gen-1 Controllers and
+was extended to support up to MR-Fusion (Device ID = 0x005B, 0x005D, 0x005F).
+.Ed
+.Bd -ragged
+.Cd "mrsas Driver:"
+.Nm
+is the new driver reworked by LSI which supports Thunderbolt and onward
+products.
+The SAS+SATA RAID controller with device id 0x005b is referred to as
+the Thunderbolt controller throughout this man page.
+.Ed
+.Bd -ragged
+.Nm cam aware HBA drivers:
+.Fx
+has a
+.Xr cam 4
+layer which attaches storage devices and provides a common access mechanism to
+storage controllers and attached devices.
+The
+.Nm
+driver is
+.Xr cam 4
+aware and devices associated with
+.Nm
+can be seen using
+.Xr camcontrol 8 .
+The
+.Xr mfi 4
+driver does not understand the
+.Xr cam 4
+layer and it directly associates storage disks to the block layer.
+.Pp
+.Nm Thunderbolt Controller:
+This is the 6Gb/s MegaRAID HBA card which has device id 0x005B.
+.Pp
+.Nm Invader Controller:
+This is 12Gb/s MegaRAID HBA card which has device id 0x005D.
+.Pp
+.Nm Fury Controller:
+This is the 12Gb/s MegaRAID HBA card which has device id 0x005F.
+.Ed
+.Sh AUTHORS
+The
+.Nm
+driver and this manual page were written by
+.An Kashyap Desai Aq Mt Kashyap.Desai@lsi.com .
+.Sh TODO
+The driver does not support big-endian architectures at this time.
+.Pp
+The driver does not support alias for device name (it is required when the user
+switches between two drivers and does not want to edit
+.Pa /etc/fstab
+manually).
+.Pp
+The
+.Nm
+driver exposes devices as
+.Pa /dev/da? ,
+whereas
+.Xr mfi 4
+exposes devices as
+.Pa /dev/mfid? .
+.Pp
+.Nm
+does not support the Linux Emulator interface.
+.Pp
+.Nm
+will not work with
+.Xr mfiutil 8 .

@@ -1,0 +1,411 @@
+--
+-- Copyright (c) 2001-2003
+--	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+--	All rights reserved.
+--
+-- Author: Harti Brandt <harti@freebsd.org>
+--
+-- Redistribution of this software and documentation and use in source and
+-- binary forms, with or without modification, are permitted provided that
+-- the following conditions are met:
+--
+-- 1. Redistributions of source code or documentation must retain the above
+--    copyright notice, this list of conditions and the following disclaimer.
+-- 2. Redistributions in binary form must reproduce the above copyright
+--    notice, this list of conditions and the following disclaimer in the
+--    documentation and/or other materials provided with the distribution.
+--
+-- THIS SOFTWARE AND DOCUMENTATION IS PROVIDED BY FRAUNHOFER FOKUS
+-- AND ITS CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+-- INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+-- FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+-- FRAUNHOFER FOKUS OR ITS CONTRIBUTORS  BE LIABLE FOR ANY DIRECT, INDIRECT,
+-- INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-- LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+-- OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+-- LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+-- NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+-- EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+--
+-- $FreeBSD$
+--
+-- Private MIB for netgraph part of Begemot SNMP daemon.
+--
+BEGEMOT-NETGRAPH-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, Counter32, Unsigned32
+	FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION, TruthValue
+	FROM SNMPv2-TC
+    MODULE-COMPLIANCE, OBJECT-GROUP
+	FROM SNMPv2-CONF
+    begemot
+	FROM BEGEMOT-MIB;
+
+begemotNg MODULE-IDENTITY
+    LAST-UPDATED "200311140000Z"
+    ORGANIZATION "Fraunhofer FOKUS, CATS"
+    CONTACT-INFO
+	    "		Hartmut Brandt
+
+	     Postal:	Fraunhofer Institute for Open Communication Systems
+			Kaiserin-Augusta-Allee 31
+			10589 Berlin
+			Germany
+
+	     Fax:	+49 30 3463 7352
+
+	     E-mail:	harti@freebsd.org"
+    DESCRIPTION
+	    "The MIB for the NetGraph access module for SNMP."
+    REVISION "200311140000Z"
+    DESCRIPTION
+	    "The maximum width of the following OCTET STRINGs was increased
+	    from 15 to 31:
+
+	    - NgTypeName
+	    - NgNodeName
+	    - NgNodeNameOrEmpty
+	    - NgHookName
+	    "
+    REVISION "200201310000Z"
+    DESCRIPTION
+	    "Initial revision."
+    ::= { begemot 2 }
+
+begemotNgObjects	OBJECT IDENTIFIER ::= { begemotNg 1 }
+
+-- --------------------------------------------------------------------------
+
+NgTypeName ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "31a"
+    STATUS	current
+    DESCRIPTION
+	"Name of a netgraph type."
+    SYNTAX	OCTET STRING (SIZE(1..31))
+
+NgNodeName ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "31a"
+    STATUS	current
+    DESCRIPTION
+	"Name of a netgraph node."
+    SYNTAX	OCTET STRING (SIZE(1..31))
+
+NgNodeNameOrEmpty ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "31a"
+    STATUS	current
+    DESCRIPTION
+	"Name of a netgraph node."
+    SYNTAX	OCTET STRING (SIZE(0..31))
+
+NgHookName ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "31a"
+    STATUS	current
+    DESCRIPTION
+	"Name of a netgraph hook."
+    SYNTAX	OCTET STRING (SIZE(1..31))
+
+NgNodeId ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "x"
+    STATUS	current
+    DESCRIPTION
+	"Node identifier."
+    SYNTAX	Unsigned32 (1..4294967295)
+
+NgNodeIdOrZero ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "x"
+    STATUS	current
+    DESCRIPTION
+	"Node identifier or 0 for 'no-node'."
+    SYNTAX	Unsigned32 (0..4294967295)
+
+-- --------------------------------------------------------------------------
+--
+-- Configuration parameters
+--
+begemotNgConfig	OBJECT IDENTIFIER ::= { begemotNgObjects 1 }
+
+begemotNgControlNodeName OBJECT-TYPE
+    SYNTAX	NgNodeName
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The name of the netgraph node of this daemon. The name is
+	    writeable during initialisation. If the name is set from
+	    the empty string to the non-empty string, the netgraph socket
+	    is created. Once set it cannot be changed."
+    ::= { begemotNgConfig 1 }
+
+begemotNgResBufSiz OBJECT-TYPE
+    SYNTAX	INTEGER (1024..65536)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The size of the receive buffers for netgraph messages."
+    DEFVAL	{ 20000 }
+    ::= { begemotNgConfig 2 }
+
+begemotNgTimeout OBJECT-TYPE
+    SYNTAX	INTEGER (10..10000)
+    UNITS	"milliseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The maximum time to wait for a response to a netgraph message."
+    DEFVAL	{ 1000 }
+    ::= { begemotNgConfig 3 }
+
+begemotNgDebugLevel OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The netgraph library debug level. This should be set only
+	    if the daemon is run with a terminal attached."
+    DEFVAL	{ 0 }
+    ::= { begemotNgConfig 4 }
+
+-- --------------------------------------------------------------------------
+--
+-- The STATISTICS Group
+--
+begemotNgStats	OBJECT IDENTIFIER ::= { begemotNgObjects 2 }
+
+begemotNgNoMems OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Number of times a memory allocation has failed for buffers
+	    or the message queue."
+    ::= { begemotNgStats 1 }
+
+begemotNgMsgReadErrs OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Number of times reading a netgraph message has failed."
+    ::= { begemotNgStats 2 }
+
+begemotNgTooLargeMsgs OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Number of times a netgraph message was too large for
+	    the buffer. Try increasing begemotNgResBufSiz if
+	    this happens."
+    ::= { begemotNgStats 3 }
+
+begemotNgDataReadErrs OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Number of times reading a netgraph data message has failed."
+    ::= { begemotNgStats 4 }
+
+begemotNgTooLargeDatas OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Number of times a netgraph data message was too large.
+	    You need to increase begemotNgResBufSiz."
+    ::= { begemotNgStats 5 }
+
+-- -----------------------------------------------------
+--
+-- The NODE table
+--
+begemotNgTypeTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotNgTypeEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "A table containing information about all netgraph node types."
+    ::= { begemotNgObjects 3 }
+
+begemotNgTypeEntry OBJECT-TYPE
+    SYNTAX	BegemotNgTypeEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "Table entry that describes one netgraph node."
+    INDEX	{ begemotNgTypeName }
+    ::= { begemotNgTypeTable 1 }
+
+BegemotNgTypeEntry ::= SEQUENCE {
+    begemotNgTypeName	NgTypeName,
+    begemotNgTypeStatus	INTEGER
+}
+
+begemotNgTypeName OBJECT-TYPE
+    SYNTAX	NgTypeName
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The name of the type. Used as index."
+    ::= { begemotNgTypeEntry 1 }
+
+begemotNgTypeStatus OBJECT-TYPE
+    SYNTAX	INTEGER { loaded(1), unloaded(2) }
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	    "If loaded then the node type is available. A type can be load
+	    by setting this field to loaded. It is unload if the field is
+	    set to unloaded. Note, that a type cannot be unloaded if it
+	    is compiled into the kernel or has nodes of this type. The name
+	    of the file containing the type implementation is constructed by
+	    prepending ng_ to the type name."
+    ::= { begemotNgTypeEntry 2 }
+
+--
+-- Node table
+--
+begemotNgNodeTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotNgNodeEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "A table containing information about all netgraph nodes."
+    ::= { begemotNgObjects 4 }
+
+begemotNgNodeEntry OBJECT-TYPE
+    SYNTAX	BegemotNgNodeEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "Table entry that describes one netgraph node."
+    INDEX	{ begemotNgNodeId }
+    ::= { begemotNgNodeTable 1 }
+
+BegemotNgNodeEntry ::= SEQUENCE {
+    begemotNgNodeId	NgNodeId,
+    begemotNgNodeStatus INTEGER,
+    begemotNgNodeName	NgNodeNameOrEmpty,
+    begemotNgNodeType	NgTypeName,
+    begemotNgNodeHooks	Unsigned32
+}
+
+begemotNgNodeId OBJECT-TYPE
+    SYNTAX	NgNodeId
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The 32bit node id of this node. 0 is an illegal value."
+    ::= { begemotNgNodeEntry 1 }
+
+begemotNgNodeStatus OBJECT-TYPE
+    SYNTAX	INTEGER { valid(1), invalid(2) }
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Indicates whether the node exists or not."
+    ::= { begemotNgNodeEntry 2 }
+
+begemotNgNodeName OBJECT-TYPE
+    SYNTAX	NgNodeNameOrEmpty
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Name of the node (if any)."
+    ::= { begemotNgNodeEntry 3 }
+
+begemotNgNodeType OBJECT-TYPE
+    SYNTAX	NgTypeName
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Type name of the node."
+    ::= { begemotNgNodeEntry 4 }
+
+begemotNgNodeHooks OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Number of hooks on this node."
+    ::= { begemotNgNodeEntry 5 }
+
+--
+-- Hook table
+--
+begemotNgHookTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotNgHookEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "A table containing information about all netgraph hooks."
+    ::= { begemotNgObjects 5 }
+
+begemotNgHookEntry OBJECT-TYPE
+    SYNTAX	BegemotNgHookEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "Table entry that describes one netgraph node."
+    INDEX	{ begemotNgHookNodeId, begemotNgHookHook }
+    ::= { begemotNgHookTable 1 }
+
+BegemotNgHookEntry ::= SEQUENCE {
+    begemotNgHookNodeId		NgNodeId,
+    begemotNgHookHook		NgHookName,
+    begemotNgHookStatus		INTEGER,
+    begemotNgHookPeerNodeId	NgNodeId,
+    begemotNgHookPeerHook	NgHookName,
+    begemotNgHookPeerType	NgTypeName
+}
+
+begemotNgHookNodeId OBJECT-TYPE
+    SYNTAX	NgNodeId
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The 32bit node id of this node."
+    ::= { begemotNgHookEntry 1 }
+
+begemotNgHookHook OBJECT-TYPE
+    SYNTAX	NgHookName
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Name of the hook."
+    ::= { begemotNgHookEntry 2 }
+
+begemotNgHookStatus OBJECT-TYPE
+    SYNTAX	INTEGER { valid(1), invalid(2) }
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Indicates whether the hook exists or not."
+    ::= { begemotNgHookEntry 3 }
+
+begemotNgHookPeerNodeId OBJECT-TYPE
+    SYNTAX	NgNodeId
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The 32bit node id of the peer node of this hook."
+    ::= { begemotNgHookEntry 4 }
+
+begemotNgHookPeerHook OBJECT-TYPE
+    SYNTAX	NgHookName
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Name of the peer hook."
+    ::= { begemotNgHookEntry 5 }
+
+begemotNgHookPeerType OBJECT-TYPE
+    SYNTAX	NgTypeName
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Name of the peer type."
+    ::= { begemotNgHookEntry 6 }
+
+END

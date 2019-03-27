@@ -1,0 +1,68 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_print.3x,v 1.10 2010/12/04 18:40:45 tom Exp $
+.TH curs_print 3X ""
+.SH NAME
+\fBmcprint\fR \- ship binary data to printer
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint mcprint(char *data, int len);\fR
+.SH DESCRIPTION
+This function uses the \fBmc5p\fR or \fBmc4\fR and \fBmc5\fR capabilities,
+if they are present, to ship given data to a printer attached to the terminal.
+.PP
+Note that the \fBmcprint\fR code has no way to do flow control with the printer
+or to know how much buffering it has.  Your application is responsible for
+keeping the rate of writes to the printer below its continuous throughput rate
+(typically about half of its nominal cps rating).  Dot-matrix printers and
+6-page-per-minute lasers can typically handle 80cps, so a good conservative
+rule of thumb is to sleep for a second after shipping each 80-character line.
+.
+.SH RETURN VALUE
+The \fBmcprint\fR function returns \fBERR\fR if the write operation aborted
+for some reason.  In this case, errno will contain either an error associated
+with \fBwrite(2)\fR or one of the following:
+.TP 5
+ENODEV
+Capabilities for printer redirection do not exist.
+.TP 5
+ENOMEM
+Couldn't allocate sufficient memory to buffer the printer write.
+.PP
+When \fBmcprint\fR succeeds, it returns the number of characters actually
+sent to the printer.
+.SH PORTABILITY
+The \fBmcprint\fR call was designed for \fBncurses\fR(3X), and is not found
+in SVr4 curses, 4.4BSD curses, or any other previous version of curses.
+.SH BUGS
+Padding in the \fBmc5p\fR, \fBmc4\fR and \fBmc5\fR capabilities will not be
+interpreted.
+.SH SEE ALSO
+\fBcurses\fR(3X)\fR

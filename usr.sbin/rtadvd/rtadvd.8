@@ -1,0 +1,242 @@
+.\"	$KAME: rtadvd.8,v 1.24 2002/05/31 16:16:08 jinmei Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 25, 2013
+.Dt RTADVD 8
+.Os
+.Sh NAME
+.Nm rtadvd
+.Nd router advertisement daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl dDfRs
+.Op Fl c Ar configfile
+.Op Fl C Ar ctlsock
+.Op Fl M Ar ifname
+.Op Fl p Ar pidfile
+.Op Ar interface ...
+.Sh DESCRIPTION
+.Nm
+sends router advertisement packets to the specified
+.Ar interfaces .
+If no interfaces are specified,
+.Nm
+will still run, but will not advertise any routes until interfaces are
+added using
+.Xr rtadvctl 8 .
+.Pp
+The program will daemonize itself on invocation.
+It will then send router advertisement packets periodically, as well
+as in response to router solicitation messages sent by end hosts.
+.Pp
+Router advertisements can be configured on a per-interface basis, as
+described in
+.Xr rtadvd.conf 5 .
+.Pp
+If there is no configuration file entry for an interface,
+or if the configuration file does not exist altogether,
+.Nm
+sets all the parameters to their default values.
+In particular,
+.Nm
+reads all the interface routes from the routing table and advertises
+them as on-link prefixes.
+.Pp
+.Nm
+also watches the routing table.
+If an interface direct route is
+added on an advertising interface and no static prefixes are
+specified by the configuration file,
+.Nm
+adds the corresponding prefix to its advertising list.
+.Pp
+Similarly, when an interface direct route is deleted,
+.Nm
+will start advertising the prefixes with zero valid and preferred
+lifetimes to help the receiving hosts switch to a new prefix when
+renumbering.
+Note, however, that the zero valid lifetime cannot invalidate the
+autoconfigured addresses at a receiving host immediately.
+According to the specification, the host will retain the address
+for a certain period, which will typically be two hours.
+The zero lifetimes rather intend to make the address deprecated,
+indicating that a new non-deprecated address should be used as the
+source address of a new connection.
+This behavior will last for two hours.
+Then
+.Nm
+will completely remove the prefix from the advertising list,
+and succeeding advertisements will not contain the prefix information.
+.Pp
+Moreover, if the status of an advertising interface changes,
+.Nm
+will start or stop sending router advertisements according
+to the latest status.
+.Pp
+The
+.Fl s
+option may be used to disable this behavior;
+.Nm
+will not watch the routing table and the whole functionality described
+above will be suppressed.
+.Pp
+Basically, hosts MUST NOT send Router Advertisement messages at any
+time (RFC 4861, Section 6.2.3).
+However, it would sometimes be useful to allow hosts to advertise some
+parameters such as prefix information and link MTU.
+Thus,
+.Nm
+can be invoked if router lifetime is explicitly set zero on every
+advertising interface.
+.Pp
+The command line options are:
+.Bl -tag -width indent
+.\"
+.It Fl c
+Specify an alternate location,
+.Ar configfile ,
+for the configuration file.
+By default,
+.Pa /etc/rtadvd.conf
+is used.
+.It Fl C
+Specify an alternate location for the control socket used by
+.Xr rtadvctl 8 .
+The default is
+.Pa /var/run/rtadvd.sock .
+.It Fl d
+Print debugging information.
+.It Fl D
+Even more debugging information is printed.
+.It Fl f
+Foreground mode (useful when debugging).
+Log messages will be dumped to stderr when this option is specified.
+.It Fl M
+Specify an interface to join the all-routers site-local multicast group.
+By default,
+.Nm
+tries to join the first advertising interface appearing on the command
+line.
+This option has meaning only with the
+.Fl R
+option, which enables routing renumbering protocol support.
+.It Fl p
+Specify an alternative file in which to store the process ID.
+The default is
+.Pa /var/run/rtadvd.pid .
+.It Fl R
+Accept router renumbering requests.
+If you enable it, certain IPsec setup is suggested for security reasons.
+This option is currently disabled, and is ignored by
+.Nm
+with a warning message.
+.It Fl s
+Do not add or delete prefixes dynamically.
+Only statically configured prefixes, if any, will be advertised.
+.El
+.Pp
+Use
+.Dv SIGHUP
+to reload the configuration file
+.Pa /etc/rtadvd.conf .
+If an invalid parameter is found in the configuration file upon the reload,
+the entry will be ignored and the old configuration will be used.
+When parameters in an existing entry are updated,
+.Nm
+will send Router Advertisement messages with the old configuration but
+zero router lifetime to the interface first, and then start to send a new
+message.
+.Pp
+Use
+.Dv SIGTERM
+to kill
+.Nm
+gracefully.
+In this case,
+.Nm
+will transmit router advertisement with router lifetime 0
+to all the interfaces
+.Pq in accordance with RFC 4861 6.2.5 .
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /etc/rtadvd.conf
+The default configuration file.
+.It Pa /var/run/rtadvd.pid
+The default process ID file.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr rtadvd.conf 5 ,
+.Xr rtadvctl 8 ,
+.Xr rtsol 8
+.Rs
+.%A Thomas Narten
+.%A Erik Nordmark
+.%A W. A. Simpson
+.%A Hesham Soliman
+.%T Neighbor Discovery for IP version 6 (IPv6)
+.%R RFC 4861
+.Re
+.Rs
+.%A Thomas Narten
+.%A Erik Nordmark
+.%A W. A. Simpson
+.%T Neighbor Discovery for IP version 6 (IPv6)
+.%R RFC 2461 (obsoleted by RFC 4861)
+.Re
+.Rs
+.%A Richard Draves
+.%T Default Router Preferences and More-Specific Routes
+.%R draft-ietf-ipngwg-router-selection-xx.txt
+.Re
+.Rs
+.%A J. Jeong
+.%A S. Park
+.%A L. Beloeil
+.%A S. Madanapalli
+.%T IPv6 Router Advertisement Options for DNS Configuration
+.%R RFC 6106
+.Re
+.Sh HISTORY
+The
+.Nm
+command first appeared in the WIDE Hydrangea IPv6 protocol stack kit.
+.Sh BUGS
+There used to be some text that recommended users not to let
+.Nm
+advertise Router Advertisement messages on an upstream link to avoid
+undesirable
+.Xr icmp6 4
+redirect messages.
+However, based on the later discussion in the IETF ipng working group,
+all routers should rather advertise the messages regardless of
+the network topology, in order to ensure reachability.

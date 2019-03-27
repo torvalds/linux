@@ -1,0 +1,23 @@
+/* $FreeBSD$ */
+
+int		f(struct x *a);
+
+/* See r303485 */
+void
+t(void)
+{
+	static const struct {
+		int		a;
+		int		b;
+	}		c[] = {
+		{D, E},
+		{F, G}
+	};
+}
+
+void
+u(struct x a)
+{
+	int		b;
+	struct y	c = (struct y *)&a;
+}

@@ -1,0 +1,243 @@
+.\"
+.\" Copyright (c) 2004 Mark W. Krentel <krentel@dreamscape.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 17, 2004
+.Dt VM_MAP_ENTRY_RESIZE_FREE 9
+.Os
+.Sh NAME
+.Nm vm_map_entry_resize_free
+.Nd "vm map free space algorithm"
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_map.h
+.Ft void
+.Fn vm_map_entry_resize_free "vm_map_t map" "vm_map_entry_t entry"
+.Sh DESCRIPTION
+This manual page describes the
+.Vt vm_map_entry
+fields used in the VM map free space algorithm, how to maintain
+consistency of these variables, and the
+.Fn vm_map_entry_resize_free
+function.
+.Pp
+VM map entries are organized as both a doubly-linked list
+.Va ( prev
+and
+.Va next
+pointers) and as a binary search tree
+.Va ( left
+and
+.Va right
+pointers).
+The search tree is organized as a Sleator and Tarjan splay tree,
+also known as a
+.Dq "self-adjusting tree" .
+.Bd -literal -offset indent
+struct vm_map_entry {
+        struct vm_map_entry *prev;
+        struct vm_map_entry *next;
+        struct vm_map_entry *left;
+        struct vm_map_entry *right;
+        vm_offset_t start;
+        vm_offset_t end;
+        vm_offset_t avail_ssize;
+        vm_size_t adj_free;
+        vm_size_t max_free;
+        ...
+};
+.Ed
+.Pp
+The free space algorithm adds two fields to
+.Vt "struct vm_map_entry" :
+.Va adj_free
+and
+.Va max_free .
+The
+.Va adj_free
+field
+is the amount of free address space adjacent to and immediately
+following (higher address) the map entry.
+This field is unused in the map header.
+Note that
+.Va adj_free
+depends on the linked list, not the splay tree and that
+.Va adj_free
+can be computed as:
+.Bd -literal -offset indent
+entry->adj_free = (entry->next == &map->header ?
+    map->max_offset : entry->next->start) - entry->end;
+.Ed
+.Pp
+The
+.Va max_free
+field
+is the maximum amount of contiguous free space in the entry's subtree.
+Note that
+.Va max_free
+depends on the splay tree, not the linked list and that
+.Va max_free
+is computed by taking the maximum of its own
+.Va adj_free
+and the
+.Va max_free
+of its left and right subtrees.
+Again,
+.Va max_free
+is unused in the map header.
+.Pp
+These fields allow for an
+.Fn O "log n"
+implementation of
+.Fn vm_map_findspace .
+Using
+.Va max_free ,
+we can immediately test for a sufficiently large free region
+in an entire subtree.
+This makes it possible to find a first-fit free region of a given size
+in one pass down the tree, so
+.Fn O "log n"
+amortized using splay trees.
+.Pp
+When a free region changes size, we must update
+.Va adj_free
+and
+.Va max_free
+in the preceding map entry and propagate
+.Va max_free
+up the tree.
+This is handled in
+.Fn vm_map_entry_link
+and
+.Fn vm_map_entry_unlink
+for the cases of inserting and deleting an entry.
+Note that
+.Fn vm_map_entry_link
+updates both the new entry and the previous entry, and that
+.Fn vm_map_entry_unlink
+updates the previous entry.
+Also note that
+.Va max_free
+is not actually propagated up the tree.
+Instead, that entry is first splayed to the root and
+then the change is made there.
+This is a common technique in splay trees and is also
+how map entries are linked and unlinked into the tree.
+.Pp
+The
+.Fn vm_map_entry_resize_free
+function updates the free space variables in the given
+.Fa entry
+and propagates those values up the tree.
+This function should be called whenever a map entry is resized
+in-place, that is, by modifying its
+.Va start
+or
+.Va end
+values.
+Note that if you change
+.Va end ,
+then you should resize that entry, but if you change
+.Va start ,
+then you should resize the previous entry.
+The map must be locked before calling this function,
+and again, propagating
+.Va max_free
+is performed by splaying that entry to the root.
+.Sh EXAMPLES
+Consider adding a map entry with
+.Fn vm_map_insert .
+.Bd -literal -offset indent
+ret = vm_map_insert(map, object, offset, start, end, prot,
+    max_prot, cow);
+.Ed
+.Pp
+In this case, no further action is required to maintain
+consistency of the free space variables.
+The
+.Fn vm_map_insert
+function calls
+.Fn vm_map_entry_link
+which updates both the new entry and the previous entry.
+The same would be true for
+.Fn vm_map_delete
+and for calling
+.Fn vm_map_entry_link
+or
+.Fn vm_map_entry_unlink
+directly.
+.Pp
+Now consider resizing an entry in-place without a call to
+.Fn vm_map_entry_link
+or
+.Fn vm_map_entry_unlink .
+.Bd -literal -offset indent
+entry->start = new_start;
+if (entry->prev != &map->header)
+        vm_map_entry_resize_free(map, entry->prev);
+.Ed
+.Pp
+In this case, resetting
+.Va start
+changes the amount of free space following the previous entry,
+so we use
+.Fn vm_map_entry_resize_free
+to update the previous entry.
+.Pp
+Finally, suppose we change an entry's
+.Va end
+address.
+.Bd -literal -offset indent
+entry->end = new_end;
+vm_map_entry_resize_free(map, entry);
+.Ed
+.Pp
+Here, we call
+.Fn vm_map_entry_resize_free
+on the entry itself.
+.Sh SEE ALSO
+.Xr vm_map 9 ,
+.Xr vm_map_findspace 9
+.Rs
+.%A Daniel D. Sleator
+.%A Robert E. Tarjan
+.%T Self-Adjusting Binary Search Trees
+.%J JACM
+.%V vol. 32(3)
+.%P pp. 652-686
+.%D July 1985
+.Re
+.Sh HISTORY
+Splay trees were added to the VM map in
+.Fx 5.0 ,
+and the
+.Fn O "log n"
+tree-based free space algorithm was added in
+.Fx 5.3 .
+.Sh AUTHORS
+The tree-based free space algorithm and this manual page were written by
+.An Mark W. Krentel Aq Mt krentel@dreamscape.com .

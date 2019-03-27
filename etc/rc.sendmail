@@ -1,0 +1,277 @@
+#!/bin/sh
+
+#
+# Copyright (c) 2002  Gregory Neil Shapiro.  All Rights Reserved.
+# Copyright (c) 2000, 2002  The FreeBSD Project
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# This script is used by /etc/rc at boot time to start sendmail.  It
+# is meant to be sendmail specific and not a generic script for all
+# MTAs.  It is only called by /etc/rc if the rc.conf mta_start_script is
+# set to /etc/rc.sendmail.  This provides the opportunity for other MTAs
+# to provide their own startup script.
+
+# The script is also used by /etc/mail/Makefile to enable the
+# start/stop/restart targets.
+
+# The source for the script can be found in src/etc/sendmail/rc.sendmail.
+
+if [ -r /etc/defaults/rc.conf ]; then
+	. /etc/defaults/rc.conf
+	source_rc_confs
+elif [ -r /etc/rc.conf ]; then
+	. /etc/rc.conf
+fi
+
+# The sendmail binary
+sendmail_program=${sendmail_program:-/usr/sbin/sendmail}
+
+# The pid is used to stop and restart the running daemon(s).
+sendmail_pidfile=${sendmail_pidfile:-/var/run/sendmail.pid}
+sendmail_mspq_pidfile=${sendmail_mspq_pidfile:-/var/spool/clientmqueue/sm-client.pid}
+
+start_mta()
+{
+	case ${sendmail_enable} in
+	[Nn][Oo][Nn][Ee])
+		;;
+	[Yy][Ee][Ss])
+		echo -n ' sendmail'
+		${sendmail_program} ${sendmail_flags}
+		;;
+	*)
+		case ${sendmail_submit_enable} in
+		[Yy][Ee][Ss])
+			echo -n ' sendmail-submit'
+			${sendmail_program} ${sendmail_submit_flags}
+			;;
+		*)
+			case ${sendmail_outbound_enable} in
+			[Yy][Ee][Ss])
+				echo -n ' sendmail-outbound'
+				${sendmail_program} ${sendmail_outbound_flags}
+				;;
+			esac
+			;;
+		esac
+		;;
+	esac
+}
+
+stop_mta()
+{
+	# Check to make sure we are configured to start an MTA
+	case ${sendmail_enable} in
+	[Nn][Oo][Nn][Ee])
+		return
+		;;
+	[Yy][Ee][Ss])
+		;;
+	*)
+		case ${sendmail_submit_enable} in
+		[Yy][Ee][Ss])
+			;;
+		*)
+			case ${sendmail_outbound_enable} in
+			[Yy][Ee][Ss])
+				;;
+			*)
+				return
+				;;
+			esac
+			;;
+		esac
+		;;
+	esac
+
+	if [ -r ${sendmail_pidfile} ]; then
+		echo -n ' sendmail'
+		kill -TERM `head -1 ${sendmail_pidfile}`
+	else
+		echo "$0: stop-mta: ${sendmail_pidfile} not found"
+	fi
+}
+
+restart_mta()
+{
+	# Check to make sure we are configured to start an MTA
+	case ${sendmail_enable} in
+	[Nn][Oo][Nn][Ee])
+		return
+		;;
+	[Yy][Ee][Ss])
+		;;
+	*)
+		case ${sendmail_submit_enable} in
+		[Yy][Ee][Ss])
+			;;
+		*)
+			case ${sendmail_outbound_enable} in
+			[Yy][Ee][Ss])
+				;;
+			*)
+				return
+				;;
+			esac
+			;;
+		esac
+		;;
+	esac
+	if [ -r ${sendmail_pidfile} ]; then
+		echo -n ' sendmail'
+		kill -HUP `head -1 ${sendmail_pidfile}`
+	else
+		echo "$0: restart-mta: ${sendmail_pidfile} not found"
+	fi
+}
+
+start_mspq()
+{
+	case ${sendmail_enable} in
+	[Nn][Oo][Nn][Ee])
+		;;
+	*)
+		if [ -r /etc/mail/submit.cf ]; then
+			case ${sendmail_msp_queue_enable} in
+			[Yy][Ee][Ss])
+				echo -n ' sendmail-clientmqueue'
+				${sendmail_program} ${sendmail_msp_queue_flags}
+				;;
+			esac
+		fi
+		;;
+	esac
+}
+
+stop_mspq()
+{
+	# Check to make sure we are configured to start an MSP queue runner
+	case ${sendmail_enable} in
+	[Nn][Oo][Nn][Ee])
+		return
+		;;
+	*)
+		if [ -r /etc/mail/submit.cf ]; then
+			case ${sendmail_msp_queue_enable} in
+			[Yy][Ee][Ss])
+				;;
+			*)
+				return
+				;;
+			esac
+		fi
+		;;
+	esac
+
+	if [ -r ${sendmail_mspq_pidfile} ]; then
+		echo -n ' sendmail-clientmqueue'
+		kill -TERM `head -1 ${sendmail_mspq_pidfile}`
+	else
+		echo "$0: stop-mspq: ${sendmail_mspq_pidfile} not found"
+	fi
+}
+
+restart_mspq()
+{
+	# Check to make sure we are configured to start an MSP queue runner
+	case ${sendmail_enable} in
+	[Nn][Oo][Nn][Ee])
+		return
+		;;
+	*)
+		if [ -r /etc/mail/submit.cf ]; then
+			case ${sendmail_msp_queue_enable} in
+			[Yy][Ee][Ss])
+				;;
+			*)
+				return
+				;;
+			esac
+		fi
+		;;
+	esac
+
+	if [ -r ${sendmail_mspq_pidfile} ]; then
+		echo -n ' sendmail-clientmqueue'
+		kill -HUP `head -1 ${sendmail_mspq_pidfile}`
+	else
+		echo "$0: restart-mspq: ${sendmail_mspq_pidfile} not found"
+	fi
+}
+
+# If no argument is given, assume we are being called at boot time.
+_action=${1:-start}
+
+case ${_action} in
+start)
+	start_mta
+	start_mspq
+	;;
+
+stop)
+	stop_mta
+	stop_mspq
+	;;
+
+restart)
+	restart_mta
+	restart_mspq
+	;;
+
+start-mta)
+	start_mta
+	;;
+
+stop-mta)
+	stop_mta
+	;;
+
+restart-mta)
+	restart_mta
+	;;
+
+start-mspq)
+	start_mspq
+	;;
+
+stop-mspq)
+	stop_mspq
+	;;
+
+restart-mspq)
+	restart_mspq
+	;;
+
+*)
+	echo "usage: `basename $0` {start|stop|restart}" >&2
+	echo "       `basename $0` {start-mta|stop-mta|restart-mta}" >&2
+	echo "       `basename $0` {start-mspq|stop-mspq|restart-mspq}" >&2
+	exit 64
+	;;
+
+esac
+exit 0

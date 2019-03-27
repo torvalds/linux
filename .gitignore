@@ -1,135 +1,19 @@
-#
-# NOTE! Don't add files that are generated in specific
-# subdirectories here. Add them in the ".gitignore" file
-# in that subdirectory instead.
-#
-# NOTE! Please use 'git ls-files -i --exclude-standard'
-# command after changing this file, to see if there are
-# any tracked files which get ignored after the change.
-#
-# Normal rules (sorted alphabetically)
-#
-.*
-*.a
-*.asn1.[ch]
-*.bin
-*.bz2
-*.c.[012]*.*
-*.dt.yaml
-*.dtb
-*.dtb.S
-*.dwo
-*.elf
-*.gcno
-*.gz
-*.i
-*.ko
-*.lex.c
-*.ll
-*.lst
-*.lz4
-*.lzma
-*.lzo
-*.mod.c
-*.o
-*.o.*
-*.order
-*.patch
-*.s
-*.so
-*.so.dbg
-*.su
-*.symtypes
-*.tab.[ch]
-*.tar
-*.xz
-Module.symvers
-modules.builtin
-
-#
-# Top-level generic files
-#
-/tags
-/TAGS
-/linux
-/vmlinux
-/vmlinux.32
-/vmlinux-gdb.py
-/vmlinuz
-/System.map
-/Module.markers
-
-#
-# RPM spec file (make rpm-pkg)
-#
-/*.spec
-
-#
-# Debian directory (make deb-pkg)
-#
-/debian/
-
-#
-# Snap directory (make snap-pkg)
-#
-/snap/
-
-#
-# tar directory (make tar*-pkg)
-#
-/tar-install/
-
-#
-# git files that we don't want to ignore even if they are dot-files
-#
-!.gitignore
-!.mailmap
-!.cocciconfig
-!.clang-format
-
-#
-# Generated include files
-#
-include/config
-include/generated
-include/ksym
-arch/*/include/generated
-
-# stgit generated dirs
-patches-*
-
-# quilt's files
-patches
-series
-
-# cscope files
-cscope.*
-ncscope.*
-
-# gnu global files
+_.tinderbox.*
+_.universe-toolchain
+_.amd64.*
+_.arm.*
+_.arm64.*
+_.i386.*
+_.ia64.*
+_.mips.*
+_.pc98.*
+_.powerpc.*
+_.riscv.*
+_.sparc64.*
+_.sun4v.*
 GPATH
 GRTAGS
-GSYMS
 GTAGS
-
-# id-utils files
 ID
-
-*.orig
-*~
-\#*#
-
-#
-# Leavings from module signing
-#
-extra_certificates
-signing_key.pem
-signing_key.priv
-signing_key.x509
-x509.genkey
-
-# Kconfig presets
-all.config
-
-# Kdevelop4
-*.kdev4
+cscope.out
+?cscope.out

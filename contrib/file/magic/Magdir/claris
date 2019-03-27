@@ -1,0 +1,48 @@
+
+#------------------------------------------------------------------------------
+# $File: claris,v 1.8 2016/07/18 19:23:38 christos Exp $
+# claris:  file(1) magic for claris
+# "H. Nanosecond" <aldomel@ix.netcom.com>
+# Claris Works a word processor, etc.
+# Version 3.0
+
+# .pct claris works clip art files
+#0000000 000 000 000 000 000 000 000 000 000 000 000 000 000 000 000 000
+#*
+#0001000 #010 250 377 377 377 377 000 213 000 230 000 021 002 377 014 000
+#null to byte 1000 octal
+514	string	\377\377\377\377\000
+>0	string	\0\0\0\0\0\0\0\0\0\0\0\0\0	Claris clip art
+514	string	\377\377\377\377\001
+>0	string	\0\0\0\0\0\0\0\0\0\0\0\0\0	Claris clip art
+
+# Claris works files
+# .cwk
+# Moved to Apple AppleWorks document
+#0	string	\002\000\210\003\102\117\102\117\000\001\206 Claris works document
+# .plt
+0	string	\020\341\000\000\010\010	Claris Works palette files .plt
+
+# .msp a dictionary file I am not sure about this I have only one .msp file
+0	string	\002\271\262\000\040\002\000\164	Claris works dictionary
+
+# .usp are user dictionary bits
+# I am not sure about a magic header:
+#0000000 001 123 160 146 070 125 104 040 136 123 015 012 160 157 144 151
+#        soh   S   p   f   8   U   D  sp   ^   S  cr  nl   p   o   d   i
+#0000020 141 164 162 151 163 164 040 136 123 015 012 144 151 166 040 043
+#          a   t   r   i   s   t  sp   ^   S  cr  nl   d   i   v  sp   #
+
+# .mth Thesaurus
+# starts with \0 but no magic header
+
+# .chy Hyphenation file
+# I am not sure: 000 210 034 000 000
+
+# other claris files
+#./windows/claris/useng.ndx: data
+#./windows/claris/xtndtran.l32: data
+#./windows/claris/xtndtran.lst: data
+#./windows/claris/clworks.lbl: data
+#./windows/claris/clworks.prf: data
+#./windows/claris/userd.spl: data

@@ -1,0 +1,58 @@
+
+#------------------------------------------------------------------------------
+# $File: digital,v 1.11 2013/01/11 16:45:23 christos Exp $
+#  Digital UNIX - Info
+#
+0	string	=!<arch>\n________64E	Alpha archive
+>22	string	X			-- out of date
+#
+
+0	leshort		0603
+>24	leshort		0410		COFF format alpha pure
+>24	leshort		0413		COFF format alpha demand paged
+>>22	leshort&030000	!020000		executable
+>>22	leshort&020000	!0		dynamically linked
+>>16	lelong		!0		not stripped
+>>16	lelong		0		stripped
+>>27	byte		x		- version %d
+>>26	byte		x		\b.%d
+>>28	byte		x		\b-%d
+>24	leshort		0407		COFF format alpha object
+>>22	leshort&030000	020000		shared library
+>>27	byte		x		- version %d
+>>26	byte		x		\b.%d
+>>28	byte		x		\b-%d
+
+# Basic recognition of Digital UNIX core dumps - Mike Bremford <mike@opac.bl.uk>
+#
+# The actual magic number is just "Core", followed by a 2-byte version
+# number; however, treating any file that begins with "Core" as a Digital
+# UNIX core dump file may produce too many false hits, so we include one
+# byte of the version number as well; DU 5.0 appears only to be up to
+# version 2.
+#
+0	string		Core\001	Alpha COFF format core dump (Digital UNIX)
+>24	string		>\0		\b, from '%s'
+0	string		Core\002	Alpha COFF format core dump (Digital UNIX)
+>24	string		>\0		\b, from '%s'
+#
+# The next is incomplete, we could tell more about this format,
+# but its not worth it.
+0	leshort		0x188	Alpha compressed COFF
+0	leshort		0x18f	Alpha u-code object
+#
+#
+# Some other interesting Digital formats,
+0	string	\377\377\177		ddis/ddif
+0	string	\377\377\174		ddis/dots archive
+0	string	\377\377\176		ddis/dtif table data
+0	string	\033c\033		LN03 output
+0	long	04553207		X image
+#
+0	string	=!<PDF>!\n		profiling data file
+#
+# Locale data tables (MIPS and Alpha).
+#
+0	short		0x0501		locale data table
+>6	short		0x24		for MIPS
+>6	short		0x40		for Alpha

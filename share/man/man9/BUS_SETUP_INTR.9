@@ -1,0 +1,214 @@
+.\" Copyright (c) 2000 Jeroen Ruigrok van der Werven
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 3, 2010
+.Dt BUS_SETUP_INTR 9
+.Os
+.Sh NAME
+.Nm BUS_SETUP_INTR ,
+.Nm bus_setup_intr ,
+.Nm BUS_TEARDOWN_INTR ,
+.Nm bus_teardown_intr
+.Nd create, attach and teardown an interrupt handler
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Ft int
+.Fo BUS_SETUP_INTR
+.Fa "device_t dev" "device_t child" "struct resource *irq" "int flags"
+.Fa "driver_filter_t *filter" "driver_intr_t *ithread" "void *arg"
+.Fa "void **cookiep"
+.Fc
+.Ft int
+.Fo bus_setup_intr
+.Fa "device_t dev" "struct resource *r" "int flags"
+.Fa "driver_filter_t filter" "driver_intr_t ithread" "void *arg"
+.Fa "void **cookiep"
+.Fc
+.Ft int
+.Fo BUS_TEARDOWN_INTR
+.Fa "device_t dev" "device_t child" "struct resource *irq" "void *cookiep"
+.Fc
+.Ft int
+.Fn bus_teardown_intr "device_t dev" "struct resource *r" "void *cookiep"
+.Sh DESCRIPTION
+The
+.Fn BUS_SETUP_INTR
+method
+will create and attach an interrupt handler to an interrupt
+previously allocated by the resource manager's
+.Xr BUS_ALLOC_RESOURCE 9
+method.
+The
+.Fa flags
+are found in
+.In sys/bus.h ,
+and give the broad category of interrupt.
+The
+.Fa flags
+also tell the interrupt handlers about certain
+device driver characteristics.
+.Dv INTR_EXCL
+marks the handler as being
+an exclusive handler for this interrupt.
+.Dv INTR_MPSAFE
+tells the scheduler that the interrupt handler
+is well behaved in a preemptive environment
+(``SMP safe''),
+and does not need
+to be protected by the ``Giant Lock'' mutex.
+.Dv INTR_ENTROPY
+marks the interrupt as being a good source of entropy -
+this may be used by the entropy device
+.Pa /dev/random .
+.Pp
+To define a time-critical handler that will not execute any potentially
+blocking operation, use the
+.Fa filter
+argument.
+See the
+.Sx "Filter Routines"
+section below for information on writing a filter.
+Otherwise, use the
+.Fa ithread
+argument.
+The defined handler
+will be called with the value
+.Fa arg
+as its only argument.
+See the
+.Sx "ithread Routines"
+section below for more information on writing an interrupt handler.
+.Pp
+The
+.Fa cookiep
+argument is a pointer to a
+.Vt "void *"
+that
+.Fn BUS_SETUP_INTR
+will write a cookie for the parent bus' use to if it is successful in
+establishing an interrupt.
+Driver writers may assume that this cookie will be non-zero.
+The nexus driver will write 0 on failure to
+.Fa cookiep .
+.Pp
+The interrupt handler will be detached by
+.Fn BUS_TEARDOWN_INTR .
+The cookie needs to be passed to
+.Fn BUS_TEARDOWN_INTR
+in order to tear down the correct interrupt handler.
+Once
+.Fn BUS_TEARDOWN_INTR
+returns, it is guaranteed that the interrupt function is not active and
+will no longer be called.
+.Pp
+Mutexes are not allowed to be held across calls to these functions.
+.Ss "Filter Routines"
+A filter runs in primary interrupt context.
+In this context, normal mutexes cannot be used.
+Only the spin lock version of these can be used (specified by passing
+.Dv MTX_SPIN
+to
+.Fn mtx_init
+when initializing the mutex).
+.Xr wakeup 9
+and similar routines can be called.
+Atomic operations from
+.Pa machine/atomic
+may be used.
+Reads and writes to hardware through
+.Xr bus_space 9
+may be used.
+PCI configuration registers may be read and written.
+All other kernel interfaces cannot be used.
+.Pp
+In this restricted environment, care must be taken to account for all
+races.
+A careful analysis of races should be done as well.
+It is generally cheaper to take an extra interrupt, for example, than
+to protect variables with spinlocks.
+Read, modify, write cycles of hardware registers need to be carefully
+analyzed if other threads are accessing the same registers.
+.Pp
+Generally, a filter routine will use one of two strategies.
+The first strategy is to simply mask the interrupt in hardware and
+allow the
+.Dv ithread
+routine to read the state from the hardware and then reenable
+interrupts.
+The
+.Dv ithread
+also acknowledges the interrupt before re-enabling the interrupt
+source in hardware.
+Most PCI hardware can mask its interrupt source.
+.Pp
+The second common approach is to use a filter with multiple
+.Xr taskqueue 9
+tasks.
+In this case, the filter acknowledges the interrupts and queues the
+work to the appropriate taskqueue.
+Where one has to multiplex different kinds of interrupt sources, like
+a network card's transmit and receive paths, this can reduce lock
+contention and increase performance.
+.Pp
+You should not
+.Xr malloc 9
+from inside a filter.
+You may not call anything that uses a normal mutex.
+Witness may complain about these.
+.Ss "ithread Routines"
+You can do whatever you want in an ithread routine, except sleep.
+Care must be taken not to sleep in an ithread.
+In addition, one should minimize lock contention in an ithread routine
+because contested locks ripple over to all other ithread routines on
+that interrupt.
+.Ss "Sleeping"
+Sleeping is voluntarily giving up control of your thread.
+All the sleep routine found in
+.Xr msleep 9
+sleep.
+Waiting for a condition variable described in
+.Xr condvar 9
+is sleeping.
+Calling any function that does any of these things is sleeping.
+.Sh RETURN VALUES
+Zero is returned on success,
+otherwise an appropriate error is returned.
+.Sh SEE ALSO
+.Xr random 4 ,
+.Xr device 9 ,
+.Xr driver 9 ,
+.Xr locking 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Jeroen Ruigrok van der Werven Aq Mt asmodai@FreeBSD.org
+based on the manual pages for
+.Fn BUS_CREATE_INTR
+and
+.Fn BUS_CONNECT_INTR
+written by
+.An Doug Rabson Aq Mt dfr@FreeBSD.org .

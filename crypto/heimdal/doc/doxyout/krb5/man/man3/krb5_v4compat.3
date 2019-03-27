@@ -1,0 +1,60 @@
+.TH "Heimdal Kerberos 4 compatiblity functions" 3 "11 Jan 2012" "Version 1.5.2" "HeimdalKerberos5library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+Heimdal Kerberos 4 compatiblity functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb524_convert_creds_kdc\fP (krb5_context context, krb5_creds *in_cred, struct credentials *v4creds) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb524_convert_creds_kdc_ccache\fP (krb5_context context, krb5_ccache ccache, krb5_creds *in_cred, struct credentials *v4creds) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb524_convert_creds_kdc (krb5_context context, krb5_creds * in_cred, struct credentials * v4creds)"
+.PP
+Convert the v5 credentials in in_cred to v4-dito in v4creds. This is done by sending them to the 524 function in the KDC. If `in_cred' doesn't contain a DES session key, then a new one is gotten from the KDC and stored in the cred cache `ccache'.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIin_cred\fP the credential to convert 
+.br
+\fIv4creds\fP the converted credential
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb524_convert_creds_kdc_ccache (krb5_context context, krb5_ccache ccache, krb5_creds * in_cred, struct credentials * v4creds)"
+.PP
+Convert the v5 credentials in in_cred to v4-dito in v4creds, check the credential cache ccache before checking with the KDC.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIccache\fP credential cache used to check for des-ticket. 
+.br
+\fIin_cred\fP the credential to convert 
+.br
+\fIv4creds\fP the converted credential
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+

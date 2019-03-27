@@ -1,0 +1,30 @@
+
+#------------------------------------------------------------------------------
+# $File: xo65,v 1.4 2009/09/19 16:28:13 christos Exp $
+# xo65 object files
+# From: "Ullrich von Bassewitz" <uz@cc65.org>
+#
+0	string		\x55\x7A\x6E\x61	xo65 object,
+>4	leshort		x			version %d,
+>6	leshort&0x0001 =0x0001			with debug info
+>6	leshort&0x0001 =0x0000			no debug info
+
+# xo65 library files
+0	string		\x6E\x61\x55\x7A	xo65 library,
+>4	leshort		x			version %d
+
+# o65 object files
+0	string		\x01\x00\x6F\x36\x35	o65
+>6	leshort&0x1000	=0x0000			executable,
+>6	leshort&0x1000	=0x1000			object,
+>5	byte		x			version %d,
+>6	leshort&0x8000	=0x8000			65816,
+>6	leshort&0x8000	=0x0000			6502,
+>6	leshort&0x2000	=0x2000			32 bit,
+>6	leshort&0x2000	=0x0000			16 bit,
+>6	leshort&0x4000	=0x4000			page reloc,
+>6	leshort&0x4000	=0x0000			byte reloc,
+>6	leshort&0x0003	=0x0000			alignment 1
+>6	leshort&0x0003	=0x0001			alignment 2
+>6	leshort&0x0003	=0x0002			alignment 4
+>6	leshort&0x0003	=0x0003			alignment 256

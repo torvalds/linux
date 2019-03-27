@@ -1,0 +1,189 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)setuid.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd December 15, 2015
+.Dt SETUID 2
+.Os
+.Sh NAME
+.Nm setuid ,
+.Nm seteuid ,
+.Nm setgid ,
+.Nm setegid
+.Nd set user and group ID
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn setuid "uid_t uid"
+.Ft int
+.Fn seteuid "uid_t euid"
+.Ft int
+.Fn setgid "gid_t gid"
+.Ft int
+.Fn setegid "gid_t egid"
+.Sh DESCRIPTION
+The
+.Fn setuid
+system call
+sets the real and effective
+user IDs and the saved set-user-ID of the current process
+to the specified value.
+.\" Comment out next block for !_POSIX_SAVED_IDS
+.\" The real user ID and the saved set-user-ID are changed only if the
+.\" effective user ID is that of the super user.
+.\" I.e.
+.\" .Fn setuid
+.\" system call is equal to
+.\" .Fn seteuid
+.\" system call if the effective user ID is not that of the super user.
+.\" End of block
+The
+.Fn setuid
+system call is permitted if the specified ID is equal to the real user ID
+.\" Comment out next line for !_POSIX_SAVED_IDS
+.\" or the saved set-user-ID
+.\" Next line is for Appendix B.4.2.2 case.
+or the effective user ID
+of the process, or if the effective user ID is that of the super user.
+.Pp
+The
+.Fn setgid
+system call
+sets the real and effective
+group IDs and the saved set-group-ID of the current process
+to the specified value.
+.\" Comment out next block for !_POSIX_SAVED_IDS
+.\" The real group ID and the saved set-group-ID are changed only if the
+.\" effective user ID is that of the super user.
+.\" I.e.
+.\" .Fn setgid
+.\" system call is equal to
+.\" .Fn setegid
+.\" system call if the effective user ID is not that of the super user.
+.\" End of block
+The
+.Fn setgid
+system call is permitted if the specified ID is equal to the real group ID
+.\" Comment out next line for !_POSIX_SAVED_IDS
+.\" or the saved set-group-ID
+.\" Next line is for Appendix B.4.2.2 case.
+or the effective group ID
+of the process, or if the effective user ID is that of the super user.
+.Pp
+The
+.Fn seteuid
+system call
+.Pq Fn setegid
+sets the effective user ID (group ID) of the
+current process.
+The effective user ID may be set to the value
+of the real user ID or the saved set-user-ID (see
+.Xr intro 2
+and
+.Xr execve 2 ) ;
+in this way, the effective user ID of a set-user-ID executable
+may be toggled by switching to the real user ID, then re-enabled
+by reverting to the set-user-ID value.
+Similarly, the effective group ID may be set to the value
+of the real group ID or the saved set-group-ID.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The system calls will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The user is not the super user and the ID
+specified is not the real, effective ID, or saved ID.
+.El
+.Sh SEE ALSO
+.Xr getgid 2 ,
+.Xr getuid 2 ,
+.Xr issetugid 2 ,
+.Xr setregid 2 ,
+.Xr setreuid 2
+.Sh STANDARDS
+The
+.Fn setuid
+and
+.Fn setgid
+system calls are compliant with the
+.St -p1003.1-90
+specification with
+.Li _POSIX_SAVED_IDS
+.\" Uncomment next line for !_POSIX_SAVED_IDS
+not
+defined with the permitted extensions from Appendix B.4.2.2.
+The
+.Fn seteuid
+and
+.Fn setegid
+system calls are extensions based on the
+.Tn POSIX
+concept of
+.Li _POSIX_SAVED_IDS ,
+and have been proposed for a future revision of the standard.
+.Sh HISTORY
+The
+.Fn setuid
+function appeared in
+.At v1 .
+The
+.Fn setgid
+function appeared in
+.At v4 .
+.Sh SECURITY CONSIDERATIONS
+Read and write permissions to files are determined upon a call to
+.Xr open 2 .
+Once a file descriptor is open, dropping privilege does not affect
+the process's read/write permissions, even if the user ID specified
+has no read or write permissions to the file.
+These files normally remain open in any new process executed,
+resulting in a user being able to read or modify
+potentially sensitive data.
+.Pp
+To prevent these files from remaining open after an
+.Xr exec 3
+call, be sure to set the close-on-exec flag:
+.Bd -literal
+void
+pseudocode(void)
+{
+	int fd;
+	/* ... */
+
+	fd = open("/path/to/sensitive/data", O_RDWR | O_CLOEXEC);
+	if (fd == -1)
+		err(1, "open");
+
+	/* ... */
+	execve(path, argv, environ);
+}
+.Ed

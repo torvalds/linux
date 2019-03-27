@@ -1,0 +1,14 @@
+snmpd:
+	- rethink transports a little bit: make them loadable and make
+	a private subtree for transports:
+		OK. Table not writeable yet.
+
+	There should be a transport table that is indexed by the transport name.
+	This table can be used to load/unload transports at run time.
+		OK. Table not writeable yet.
+
+	Then there can be a port table that is indexed by transport name and
+	port name. Plus a transport-specific table indexed by port name only.
+
+	The transport table could contain a column of type OID that points
+	to the transport-specific table.

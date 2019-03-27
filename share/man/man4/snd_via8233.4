@@ -1,0 +1,105 @@
+.\" Copyright (c) 2005 Joel Dahl
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 29, 2006
+.Dt SND_VIA8233 4
+.Os
+.Sh NAME
+.Nm snd_via8233
+.Nd "VIA Technologies VT8233 bridge device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device sound"
+.Cd "device snd_via8233"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_via8233_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+bridge driver allows the generic audio driver,
+.Xr sound 4 ,
+to attach to the VIA VT8233 audio devices.
+These audio chipsets are integrated in the southbridge on many VIA based
+motherboards.
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+variables are available in addition to those available to all
+.Xr sound 4
+devices:
+.Bl -tag -width ".Va dev.pcm.%d.polling" -offset indent
+.It Va dev.pcm.%d.polling
+Experimental polling mode, where the driver operates by querying the device
+state on each tick using
+.Xr callout 9 .
+Polling is disabled by default.
+Do not enable it unless you are facing weird interrupt problems or if the
+device cannot generate interrupts at all.
+.El
+.Sh HARDWARE
+The
+.Nm
+driver supports the following audio chipsets:
+.Pp
+.Bl -bullet -compact
+.It
+VIA VT8233
+.It
+VIA VT8233A
+.It
+VIA VT8233C
+.It
+VIA VT8235
+.It
+VIA VT8237
+.It
+VIA VT8251
+.El
+.Sh SEE ALSO
+.Xr sound 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.7 .
+.Sh AUTHORS
+This manual page was written by
+.An Joel Dahl Aq Mt joel@FreeBSD.org .
+.Sh BUGS
+The
+.Nm
+driver
+does not support S/PDIF.
+There is partial support in the code, so implementing it should be fairly
+easy if the right hardware is available.

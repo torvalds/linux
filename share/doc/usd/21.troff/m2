@@ -1,0 +1,400 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\"
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\"
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\"
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)m2	8.1 (Berkeley) 8/14/93
+.\"
+.\" $FreeBSD$
+.tr |
+.rm mx
+.br
+.mh
+Line Length and Indenting
+.pg
+The maximum line length for fill mode may be set with \fBll\fR.
+The indent may be set with \fBin\fR;
+an indent applicable to \fIonly\fR the \fInext\fR output line may be set with \fBti\fR.
+The line length includes indent space but \fInot\fR
+page offset space.
+The line-length minus the indent is the basis for centering with \fBce\fR.
+The effect of \fBll\fR, \fBin\fR, or \fBti\fR
+is delayed, if a partially collected line exists,
+until after that line is output.
+In fill mode the length of text on an output line is less than or equal to
+the line length minus the indent.
+The current line length and indent are available in registers \fB.l\fR and \fB.i\fR respectively.
+The length of \fIthree-part titles\fR produced by \fBtl\fR
+(see \(sc14) is \fIindependently\fR set by \fBlt\fR.
+.h1
+.bt
+\fB&ll\fI|\(+-N\fR	6.5\|in	previous	E,\fBm\fR	Line length is set to \(+-\fIN\fR.
+In \*(TR the maximum (line-length)+(page-offset) is about 7.54 inches.
+.bt
+\fB&in\fI|\(+-N\fR	\fIN\(eq\^\fR0	previous	B,E,\fBm\fR	Indent is set to \fI\(+-N\fR.
+The indent is prepended to each output line.
+.bt
+\fB&ti\fI|\(+-N\fR	-	ignored	B,E,\fBm\fR	Temporary indent.
+The \fInext\fR output text line will be indented a distance \fI\(+-N\fR
+with respect to the current indent.
+The resulting total indent may not be negative.
+The current indent is not changed.
+.mh
+Macros, Strings, Diversion, and Position Traps
+.sc
+Macros and strings.
+A \fImacro\fR is a named set of arbitrary \fIlines\fR that may be invoked by name or
+with a \fItrap\fR.
+A \fIstring\fR is a named string of \fIcharacters\fR,
+\fInot\fR including a newline character,
+that may be interpolated by name at any point.
+Request, macro, and string names share the \fIsame\fR name list.
+Macro and string names
+may be one or two characters long and may usurp previously defined
+request, macro, or string names.
+Any of these entities may be renamed with \fBrn\fR
+or removed with \fBrm\fR.
+Macros are created by \fBde\fR and \fBdi\fR, and appended to by \fBam\fR and \fBda\fR;
+\fBdi\fR and \fBda\fR cause normal output to be stored in a macro.
+Strings are created by \fBds\fR and appended to by \fBas\fR.
+A macro is invoked in the same way as a request;
+a control line beginning \fB.\fIxx\fR will interpolate the contents of macro \fIxx\fR.
+The remainder of the line may contain up to nine \fIarguments\fR.
+The strings \fIx\fR and \fIxx\fR are interpolated at any desired point with
+\fB\e\(**\fIx\fR and \fB\e\(**(\fIxx\fR respectively.
+String references and macro invocations may be nested.
+.sc
+Copy mode input interpretation.
+During the definition and extension
+of strings and macros (not by diversion)
+the input is read in \fIcopy mode\fR.
+The input is copied without interpretation
+\fIexcept\fR that:
+.x1
+.ds + \v'-.1m'\s-4\(bu\s+4\v'+.1m'
+\(bu The contents of number registers indicated by \fB\en\fR are interpolated.
+\(bu Strings indicated by \fB\e\(**\fR are interpolated.
+\(bu Arguments indicated by \fB\e$\fR are interpolated.
+\(bu Concealed newlines indicated by \fB\e\fR(newline) are eliminated.
+\(bu Comments indicated by \fB\e"\fR are eliminated.
+\(bu \fB\et\fR and \fB\ea\fR are interpreted as \s-1ASCII\s+1 horizontal tab and \s-1SOH\s+1 respectively (\(sc9).
+\(bu \fB\e\e\fR is interpreted as \fB\e\fR.
+\(bu \fB\e.\fR is interpreted as "\fB.\fR".
+.x2
+These interpretations can be suppressed by
+prepending
+a \fB\e\fR.
+For example, since \fB\e\e\fR maps into a \fB\e\fR, \fB\e\en\fR will copy as \fB\en\fR which
+will be interpreted as a number register indicator when the
+macro or string is reread.
+.sc
+Arguments.
+When a macro is invoked by name, the remainder of the line is
+taken to contain up to nine arguments.
+The argument separator is the space character, and arguments
+may be surrounded by double-quotes to permit imbedded space characters.
+Pairs of double-quotes may be imbedded in double-quoted arguments to
+represent a single double-quote.
+If the desired arguments won't fit on a line,
+a concealed newline may be used to continue on the next line.
+.pg
+When a macro is invoked the \fIinput level\fR is \fIpushed down\fR and
+any arguments available at the previous level become unavailable
+until the macro is completely read and the previous level is restored.
+A macro's own arguments can be interpolated at \fIany\fR point
+within the macro with \fB\e$\fIN\fR, which interpolates the \fIN\fR\^th
+argument
+(1\(<=\fIN\fR\^\(<=9).
+If an invoked argument doesn't exist,
+a null string results.
+For example, the macro \fIxx\fR may be defined by
+.x1
+.ft B
+.ta .75i
+&de xx	\e"begin definition
+Today is \e\e$1 the \e\e$2.
+&.	\e"end definition
+.ft R
+.x2
+and called by
+.x1
+.ft B
+&xx Monday 14th
+.ft R
+.x2
+to produce the text
+.x1
+.ft B
+Today is Monday the 14th.
+.ft R
+.x2
+Note that the \fB\e$\fR
+was concealed in the definition with a prepended \fB\e\fR.
+The number of currently available
+arguments is in the \fB.$\fR register.
+.pg
+No arguments are available at the top (non-macro) level
+in this implementation.
+Because string referencing is implemented
+as an input-level push down,
+no arguments are available from \fIwithin\fR a string.
+No arguments are available within a trap-invoked macro.
+.pg
+Arguments are copied in \fIcopy mode\fR onto a stack
+where they are available for reference.
+The mechanism does not allow an argument to contain
+a direct reference to a \fIlong\fR string
+(interpolated at copy time) and it is advisable to
+conceal string references (with an extra \fB\e\fR\|)
+to delay interpolation until argument reference time.
+.sc
+Diversions.
+Processed output may be diverted into a macro for purposes
+such as footnote processing (see Tutorial \(scT5)
+or determining the horizontal and vertical size of some text for
+conditional changing of pages or columns.
+A single diversion trap may be set at a specified vertical position.
+The number registers \fBdn\fR and \fBdl\fR respectively contain the
+vertical and horizontal size of the most
+recently ended diversion.
+Processed text that is diverted into a macro
+retains the vertical size of each of its lines when reread
+in \fInofill\fR mode
+regardless of the current \fIV\fR.
+Constant-spaced (\fBcs\fR) or emboldened (\fBbd\fR) text that is diverted
+can be reread correctly only if these modes are again or still in effect
+at reread time.
+One way to do this is to imbed in the diversion the appropriate
+\fBcs\fR or \fBbd\fR requests with the \fItransparent\fR
+mechanism described in \(sc10.6.
+.pg
+Diversions may be nested
+and certain parameters and registers
+are associated
+with the current diversion level
+(the top non-diversion level may be thought of as the
+0th diversion level).
+These are the diversion trap and associated macro,
+no-space mode,
+the internally-saved marked place (see \fBmk\fR and \fBrt\fR),
+the current vertical place (\fB.d\fR register),
+the current high-water text base-line (\fB.h\fR register),
+and the current diversion name (\fB.z\fR register).
+.sc
+Traps.
+Three types of trap mechanisms are available\(empage traps, a diversion trap, and
+an input-line-count trap.
+Macro-invocation traps may be planted using \fBwh\fR at any page position including the top.
+This trap position may be changed using \fBch\fR.
+Trap positions at or below the bottom of the page
+have no effect unless or until
+moved to within the page or rendered effective by an increase in page length.
+Two traps may be planted at the \fIsame\fR position only by first planting them at different
+positions and then moving one of the traps;
+the first planted trap will conceal the second unless and until the first one is moved
+(see Tutorial Examples \(scT5).
+If the first one is moved back, it again conceals the second trap.
+The macro associated with a page trap is automatically
+invoked when a line of text is output whose vertical size \fIreaches\fR
+or \fIsweeps past\fR the trap position.
+Reaching the bottom of a page springs the top-of-page trap, if any,
+provided there is a next page.
+The distance to the next trap position is available in the \fB.t\fR register;
+if there are no traps between the current position and the bottom of the page,
+the distance returned is the distance to the page bottom.
+.pg
+A macro-invocation trap effective in the current diversion may be planted using \fBdt\fR.
+The \fB.t\fR register works in a diversion; if there is no subsequent trap a \fIlarge\fR
+distance is returned.
+For a description of input-line-count traps, see the \fBit\fR request below.
+.h1
+.bt
+\fB&de\fI|xx|yy\fR	-	\fI.yy=\fB..\fR	-	Define or redefine the macro \fIxx\fR.
+The contents of the macro begin on the next input line.
+Input lines are copied in \fIcopy mode\fR until the definition is terminated by a
+line beginning with \fB.\fIyy\fR,
+whereupon the macro \fIyy\fR is called.
+In the absence of \fIyy\fR, the definition
+is terminated by a
+line beginning with "\fB..\fR".
+A macro may contain \fBde\fR requests
+provided the terminating macros differ
+or the contained definition terminator is concealed.
+\&"\fB..\fR" can be concealed as
+\fB\e\e..\fR which will copy as \fB\e..\fR and be reread as "\fB..\fR".
+.bt
+\fB&am\fI|xx|yy\fR	-	\fI.yy=\fB..\fR	-	Append to macro (append version of \fBde\fR).
+.bt
+\fB&ds\fI|xx|string\fR	-	ignored	-	Define a string
+\fIxx\fR containing \fIstring\fR.
+Any initial double-quote in \fIstring\fR is stripped off to permit
+initial blanks.
+.bt
+\fB&as\fI|xx|string\fR	-	ignored	-	Append
+\fIstring\fR to string \fIxx\fR
+(append version of \fBds\fR).
+.bt
+\fB&rm\fI|xx\fR	-	ignored	-	Remove
+request, macro, or string.
+The name \fIxx\fR is removed from the name list and
+any related storage space is freed.
+Subsequent references will have no effect.
+.bt
+\fB&rn\fI|xx|yy\fR	-	ignored	-	Rename request, macro, or string
+\fIxx\fR to \fIyy\fR.
+If \fIyy\fR exists, it is first removed.
+.bt
+\fB&di|\fIxx\fR	-	end	D	Divert output to macro \fIxx\fR.
+Normal text processing occurs during diversion
+except that page offsetting is not done.
+The diversion ends when the request \fBdi\fR or \fBda\fR is encountered without an argument;
+extraneous
+requests of this type should not appear when nested diversions are being used.
+.bt
+\fB&da|\fIxx\fR	-	end	D	Divert, appending to \fIxx\fR
+(append version of \fBdi\fR).
+.bt
+\fB&wh\fI|N|xx\fR	-	-	\fBv\fR	Install
+a trap to invoke \fIxx\fR at page position \fIN;\fR
+a \fInegative N\fR will be interpreted with respect to the
+page \fIbottom\fR.
+Any macro previously planted at \fIN\fR is replaced by \fIxx\fR.
+A zero \fIN\fR refers to the \fItop\fR of a page.
+In the absence of \fIxx\fR, the first found trap at \fIN\fR, if any, is removed.
+.bt
+\fB&ch\fI|xx|N\fR	-	-	\fBv\fR	Change
+the trap position for macro \fIxx\fR to be \fIN\fR.
+In the absence of \fIN\fR, the trap, if any, is removed.
+.bt
+\fB&dt\fI|N|xx\fR	-	off	D,\fBv\fR	Install a diversion trap
+at position \fIN\fR in the \fIcurrent\fR diversion to invoke
+macro \fIxx\fR.
+Another \fBdt\fR will redefine the diversion trap.
+If no arguments are given, the diversion trap is removed.
+.bt
+\fB&it\fI|N|xx\fR	-	off	E	Set an input-line-count trap
+to invoke the macro \fIxx\fR after \fIN\fR lines of \fItext\fR input
+have been read
+(control or request lines don't count).
+The text may be in-line text or
+text interpolated by inline or trap-invoked macros.
+.bt
+\fB&em\fI|xx\fR	none	none	-	The
+macro \fIxx\fR will be invoked
+when all input has ended.
+The effect is the same as if the contents of \fIxx\fR had been at the end
+of the last file processed.
+.mh
+Number Registers
+.pg
+A variety of parameters are available to the user as
+predefined, named \fInumber registers\fR (see Summary and Index, page 7).
+In addition, the user may define his own named registers.
+Register names are one or two characters long and \fIdo not\fR conflict
+with request, macro, or string names.
+Except for certain predefined read-only registers,
+a number register can be read, written, automatically
+incremented or decremented, and interpolated
+into the input in a variety of formats.
+One common use of user-defined registers is to
+automatically number sections, paragraphs, lines, etc.
+A number register may be used any time numerical input is expected or desired
+and may be used in numerical \fIexpressions\fR (\(sc1.4).
+.pg
+Number registers are created and modified using \fBnr\fR, which
+specifies the name, numerical value, and the auto-increment size.
+Registers are also modified, if accessed
+with an auto-incrementing sequence.
+If the registers \fIx\fR and \fIxx\fR both contain
+\fIN\fR and have the auto-increment size \fIM\fR,
+the following access sequences have the effect shown:
+.TS
+center box;
+c2|c2|c
+c2|c2|c
+l2|c2|c
+l2|c2|c
+l2|l2|c.
+	Effect on	Value
+Sequence	Register	Interpolated
+_
+\fB\en\fIx\fR	none	\fIN\fR
+\fB\en(\fIxx\fR	none	\fIN\fR
+\fB\en+\fIx\fR	\fIx\fR incremented by \fIM\fR	\fIN+M\fR
+\fB\en\-\fIx\fR	\fIx\fR decremented by \fIM\fR	\fIN\-M\fR
+\fB\en+(\fIxx\fR	\fIxx\fR incremented by \fIM\fR	\fIN+M\fR
+\fB\en\-(\fIxx\fR	\fIxx\fR decremented by \fIM\fR	\fIN\-M\fR
+.TE
+When interpolated, a number register is converted to
+decimal (default),
+decimal with leading zeros,
+lower-case Roman,
+upper-case Roman,
+lower-case sequential alphabetic,
+or
+upper-case sequential alphabetic
+according to the format specified by \fBaf\fR.
+.h1
+.bt
+\fB&nr\fI|R|\(+-N|M\fR	-	-	\fBu\fR	\
+The number register \fIR\fR is assigned the value \fI\(+-N\fR
+with respect to the previous value, if any.
+The increment for auto-incrementing is set to \fIM\fR.
+.bt
+\fB&af\fI|R|c\fR	arabic	-	-	Assign format \fIc\fR to register \fIR\fR.
+The available formats are:
+.TS
+center box;
+c2|c
+c2|c
+c2|l.
+	Numbering
+Format	Sequence
+_
+\fB1\fR	0,1,2,3,4,5,...
+\fB001\fR	000,001,002,003,004,005,...
+\fBi\fR	0,i,ii,iii,iv,v,...
+\fBI\fR	0,I,II,III,IV,V,...
+\fBa\fR	0,a,b,c,...,z,aa,ab,...,zz,aaa,...
+\fBA\fR	0,A,B,C,...,Z,AA,AB,...,ZZ,AAA,...
+.TE
+An arabic format having \fIN\fR digits
+specifies a field width of \fIN\fR digits (example 2 above).
+The read-only registers and the \fIwidth\fR function (\(sc11.2)
+are always arabic.
+.bt
+\fB&rr\fI|R\fR	-	ignored	-	Remove register \fIR\fR.
+If many registers are being created dynamically, it
+may become necessary to remove no longer used registers
+to recapture internal storage space for newer registers.

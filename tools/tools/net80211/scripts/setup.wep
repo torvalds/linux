@@ -1,0 +1,21 @@
+#! /bin/sh
+#
+# Script for testing ap mode w/ WEP.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+#mwldebug -i $WIRELESS +node
+WLAN=`ifconfig wlan create wlanmode hostap wlandev $WIRELESS`
+ifconfig $WLAN ssid $SSID channel $CHANNEL mtu 1500
+#ifconfig $WLAN authmode shared
+wlandebug -i $WLAN state+scan+assoc+crypto
+#mwldebug -i $WIRELESS +keycache
+#ifconfig $WLAN wepkey 1:0x0123456789 deftxkey 1 wepmode mixed
+ifconfig $WLAN wepkey 1:0x0123456789 deftxkey 1 wep
+BRIDGE=`ifconfig bridge create`
+ifconfig $BRIDGE addm $WLAN addm $WIRED up
+ifconfig $WIRED up
+ifconfig $WLAN up

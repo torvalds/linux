@@ -1,0 +1,258 @@
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $NetBSD: ccdconfig.8,v 1.4 1996/02/28 01:01:17 thorpej Exp $
+.\" $FreeBSD$
+.\"
+.Dd October 3, 2016
+.Dt CCDCONFIG 8
+.Os
+.Sh NAME
+.Nm ccdconfig
+.Nd configuration utility for the concatenated disk driver
+.Sh SYNOPSIS
+.Nm
+.Op Fl cv
+.Ar ccd
+.Ar ileave
+.Op Ar flags
+.Ar dev ...
+.Nm
+.Fl C
+.Op Fl v
+.Op Fl f Ar config_file
+.Nm
+.Fl u
+.Op Fl v
+.Ar ccd ...
+.Nm
+.Fl U
+.Op Fl v
+.Op Fl f Ar config_file
+.Nm
+.Fl g
+.Op Ar ccd ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to dynamically configure and unconfigure concatenated disk
+devices, or ccds.
+For more information about the ccd, see
+.Xr ccd 4 .
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl c
+Configure a ccd.
+This is the default behavior of
+.Nm .
+.It Fl C
+Configure all ccd devices listed in the ccd configuration file.
+.It Fl f Ar config_file
+When configuring or unconfiguring all devices, read the file
+.Pa config_file
+instead of the default
+.Pa /etc/ccd.conf .
+.It Fl g
+Dump the current ccd configuration in a format suitable for use as the
+ccd configuration file.
+If no arguments are specified, every configured
+ccd is dumped.
+Otherwise, the configuration of each listed ccd is dumped.
+.It Fl u
+Unconfigure a ccd.
+.It Fl U
+Unconfigure all ccd devices listed the ccd configuration file.
+.It Fl v
+Cause
+.Nm
+to be verbose.
+.El
+.Pp
+A ccd is described on the command line and in the ccd configuration
+file by the name of the ccd, the interleave factor, the ccd configuration
+flags, and a list of one or more devices.
+The flags may be represented
+as a decimal number, a hexadecimal number, a comma-separated list
+of strings, or the word
+.Dq none .
+The flags are as follows:
+.Bd -literal -offset indent
+CCDF_UNIFORM	0x02		Use uniform interleave
+CCDF_MIRROR	0x04		Support mirroring
+CCDF_NO_OFFSET	0x08		Do not use an offset
+CCDF_LINUX	0x0A		Linux md(4) compatibility
+.Ed
+.Pp
+The format in the
+configuration file appears exactly as if it were entered on the command line.
+Note that on the command line and in the configuration file, the
+.Pa flags
+argument is optional.
+.Bd -literal -offset indent
+#
+# /etc/ccd.conf
+# Configuration file for concatenated disk devices
+#
+
+# ccd           ileave  flags   component devices
+ccd0            16      none    /dev/da2s1 /dev/da3s1
+.Ed
+.Pp
+The component devices need to name partitions of type
+.Li FS_BSDFFS
+(or
+.Dq 4.2BSD
+as shown by
+.Xr disklabel 8 ) .
+.Pp
+If you want to use the
+.Tn Linux
+.Xr md 4
+compatibility mode, please be sure
+to read the notes in
+.Xr ccd 4 .
+.Sh FILES
+.Bl -tag -width /etc/ccd.conf -compact
+.It Pa /etc/ccd.conf
+default ccd configuration file
+.El
+.Sh EXAMPLES
+A number of
+.Nm
+examples are shown below.
+The arguments passed
+to
+.Nm
+are exactly the same as you might place in the
+.Pa /etc/ccd.conf
+configuration file.
+The first example creates a 4-disk stripe out of
+four scsi disk partitions.
+The stripe uses a 64 sector interleave.
+The second example is an example of a complex stripe/mirror combination.
+It reads as a two disk stripe of da4 and da5 which is mirrored
+to a two disk stripe of da6 and da7.
+The last example is a simple
+mirror.
+The second slice of /dev/da8 is mirrored with the third slice of /dev/da9
+and assigned to ccd0.
+.Bd -literal
+# ccdconfig ccd0 64 none /dev/da0s1 /dev/da1s1 /dev/da2s1 /dev/da3s1
+# ccdconfig ccd0 128 CCDF_MIRROR /dev/da4 /dev/da5 /dev/da6 /dev/da7
+# ccdconfig ccd0 128 CCDF_MIRROR /dev/da8s2 /dev/da9s3
+.Ed
+.Pp
+The following are matching commands in
+.Tn Linux
+and
+.Fx
+to create a RAID-0 in
+.Tn Linux
+and read it from
+.Fx .
+.Bd -literal
+# Create a RAID-0 on Linux:
+mdadm --create --chunk=32 --level=0 --raid-devices=2 /dev/md0 \\
+   /dev/hda1 /dev/hdb1
+# Make the RAID-0 just created available on FreeBSD:
+ccdconfig -c /dev/ccd0 32 linux /dev/ada0s1 /dev/ada0s2
+.Ed
+.Pp
+When you create a new ccd disk you generally want to
+.Xr fdisk 8
+and
+.Xr disklabel 8
+it before doing anything else.
+Once you create the initial label you can
+edit it, adding additional partitions.
+The label itself takes up the first
+16 sectors of the ccd disk.
+If all you are doing is creating file systems
+with newfs, you do not have to worry about this as newfs will skip the
+label area.
+However, if you intend to
+.Xr dd 1
+to or from a ccd partition it is usually a good idea to construct the
+partition such that it does not overlap the label area.
+For example, if
+you have A ccd disk with 10000 sectors you might create a 'd' partition
+with offset 16 and size 9984.
+.Bd -literal
+# disklabel ccd0 > /tmp/disklabel.ccd0
+# disklabel -Rr ccd0 /tmp/disklabel.ccd0
+# disklabel -e ccd0
+.Ed
+.Pp
+The disklabeling of a ccd disk is usually a one-time affair.
+If you reboot the machine and reconfigure the ccd disk,
+the disklabel you
+had created before will still be there and not require reinitialization.
+Beware that changing any ccd parameters: interleave, flags, or the
+device list making up the ccd disk, will usually destroy any prior
+data on that ccd disk.
+If this occurs it is usually a good idea to
+reinitialize the label before [re]constructing your ccd disk.
+.Sh RECOVERY
+An error on a ccd disk is usually unrecoverable unless you are using the
+mirroring option.
+But mirroring has its own perils: It assumes that
+both copies of the data at any given sector are the same.
+This holds true
+until a write error occurs or until you replace either side of the mirror.
+This is a poor-man's mirroring implementation.
+It works well enough that if
+you begin to get disk errors you should be able to backup the ccd disk,
+replace the broken hardware, and then regenerate the ccd disk.
+If you need
+more than this you should look into external hardware RAID SCSI boxes,
+RAID controllers (see GENERIC),
+or software RAID systems such as
+.Xr geom 8
+and
+.Xr gvinum 8 .
+.Sh SEE ALSO
+.Xr dd 1 ,
+.Xr ccd 4 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8 ,
+.Xr gvinum 8 ,
+.Xr rc 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Nx 1.1 .
+.Sh BUGS
+The initial disklabel returned by
+.Xr ccd 4
+specifies only 3 partitions.
+One needs to change the number of partitions to 8 using
+.Dq Nm disklabel Fl e
+to get the usual
+.Bx
+expectations.

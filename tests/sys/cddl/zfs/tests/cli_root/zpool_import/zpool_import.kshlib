@@ -1,0 +1,35 @@
+# vim: filetype=sh
+# Common routines used by zpool_import*.
+
+# $FreeBSD$
+
+function setup_missing_test_pool # <tvd_type>
+{
+	typeset tvd_type=$1
+
+	setup_filesystem "$DEVICE_FILES" $TESTPOOL1 $TESTFS $TESTDIR1 \
+		"" $tvd_type
+	log_must $CP $MYTESTFILE $TESTDIR1/$TESTFILE0
+	log_must $ZPOOL export $TESTPOOL1
+}
+
+function recreate_missing_files
+{
+	destroy_pool $TESTPOOL1
+	log_must $RM -rf $DEVICE_DIR/*
+	for (( devnum=0 ; $devnum < $MAX_NUM ; devnum += 1 )); do
+		log_must create_vdevs ${DEVICE_DIR}/${DEVICE_FILE}$devnum
+	done
+}
+
+function cleanup_missing
+{
+	log_note "State of pools at the end of the test:"
+	poolexists $TESTPOOL1 && log_must $ZPOOL status $TESTPOOL1
+	log_note "State of $DEVICE_DIR at the end of the test:"
+	log_cmd $ZPOOL import -d $DEVICE_DIR
+	destroy_pool $TESTPOOL1
+	log_must $RM -rf $DEVICE_DIR/*
+	[[ -d $ALTER_ROOT ]] && log_must $RM -rf $ALTER_ROOT
+	[[ -d $BACKUP_DEVICE_DIR ]] && log_must $RM -rf $BACKUP_DEVICE_DIR
+}

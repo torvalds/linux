@@ -1,0 +1,156 @@
+.\" Copyright (c) 2009, 2010 Rui Paulo.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 23, 2009
+.Dt PMC.XSCALE 3
+.Os
+.Sh NAME
+.Nm pmc.xscale
+.Nd measurement events for
+.Tn Intel
+.Tn XScale
+family CPUs
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+.Tn Intel XScale
+CPUs are ARM CPUs based on the ARMv5e core.
+.Pp
+Second generation cores have 2 counters, while third generation cores
+have 4 counters.
+Third generation cores also have an increased number of PMC events.
+.Pp
+.Tn Intel XScale
+PMCs are documented in
+.Rs
+.%B "3rd Generation Intel XScale Microarchitecture Developer's Manual"
+.%D May 2007
+.Re
+.Ss Event Specifiers (Programmable PMCs)
+.Tn Intel XScale
+programmable PMCs support the following events:
+.Bl -tag -width indent
+.It Li IC_FETCH
+External memory fetch due to L1 instruction cache miss.
+.It Li IC_MISS
+Instruction cache or TLB miss.
+.It Li DATA_DEPENDENCY_STALLED
+A data dependency stalled
+.It Li ITLB_MISS
+Instruction TLB miss.
+.It Li DTLB_MISS
+Data TLB miss.
+.It Li BRANCH_RETIRED
+Branch instruction retired (executed).
+.It Li BRANCH_MISPRED
+Branch mispredicted.
+.It Li INSTR_RETIRED
+Instructions retired (executed).
+.It Li DC_FULL_CYCLE
+L1 data cache buffer full stall.
+Event occurs on every cycle the
+condition is present.
+.It Li DC_FULL_CONTIG
+L1 data cache buffer full stall.
+Event occurs once for each contiguous sequence of this type of stall.
+.It Li DC_ACCESS
+L1 data cache access, not including cache operations.
+.It Li DC_MISS
+L1 data cache miss, not including cache operations.
+.It Li DC_WRITEBACK
+L1 data cache write-back.
+Occurs for each cache line that's written back from the cache.
+.It Li PC_CHANGE
+Software changed the program counter.
+.It Li BRANCH_RETIRED_ALL
+Branch instruction retired (executed).
+This event counts all branch instructions, indirect or direct.
+.It Li INSTR_CYCLE
+Count the number of microarchitecture cycles each instruction requires
+to issue.
+.It Li CP_STALL
+Coprocessor stalled the instruction pipeline.
+.It Li PC_CHANGE_ALL
+Software changed the program counter (includes exceptions).
+.It Li PIPELINE_FLUSH
+Pipeline flushes due to mispredictions or exceptions.
+.It Li BACKEND_STALL
+Backend stalled the instruction pipeline.
+.It Li MULTIPLIER_USE
+Multiplier used.
+.It Li MULTIPLIER_STALLED
+Multiplier stalled the instruction pipeline.
+.It Li DATA_CACHE_STALLED
+Data cache stalled the instruction pipeline.
+.It Li L2_CACHE_REQ
+L2 cache request, not including cache operations.
+.It Li L2_CACHE_MISS
+L2 cache miss, not including cache operations.
+.It Li ADDRESS_BUS_TRANS
+Address bus transaction.
+.It Li SELF_ADDRESS_BUS_TRANS
+Self initiated address bus transaction.
+.It Li DATA_BUS_TRANS
+Data bus transaction.
+.El
+.Ss Event Name Aliases
+The following table shows the mapping between the PMC-independent
+aliases supported by
+.Lb libpmc
+and the underlying hardware events used.
+.Bl -column "branch-mispredicts" "BRANCH_MISPRED"
+.It Em Alias Ta Em Event
+.It Li branches Ta Li BRANCH_RETIRED
+.It Li branch-mispredicts Ta Li BRANCH_MISPRED
+.It Li dc-misses Ta Li DC_MISS
+.It Li ic-misses Ta Li IC_MISS
+.It Li instructions Ta Li INSTR_RETIRED
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc_cpuinfo 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+Intel XScale support first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .
+.Pp
+Intel XScale support was added by
+.An Rui Paulo Aq Mt rpaulo@FreeBSD.org .
+.Sh CAVEATS
+The Intel XScale code does not yet support sampling.

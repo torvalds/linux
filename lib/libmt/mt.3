@@ -1,0 +1,454 @@
+.\" 
+.\" Copyright (c) 2013, 2015 Spectra Logic Corporation
+.\" All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    substantially similar to the "NO WARRANTY" disclaimer below
+.\"    ("Disclaimer") and any redistribution must be conditioned upon
+.\"    including a substantially similar Disclaimer requirement for further
+.\"    binary redistribution.
+.\" 
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\" 
+.\" Authors: Ken Merry           (Spectra Logic Corporation)
+.\" 
+.\" $FreeBSD$
+.\"
+.Dd February 13, 2015
+.Dt MT 3
+.Os
+.Sh NAME
+.Nm mt_start_element ,
+.Nm mt_end_element ,
+.Nm mt_char_handler ,
+.Nm mt_status_tree_sbuf ,
+.Nm mt_status_tree_print ,
+.Nm mt_status_entry_free ,
+.Nm mt_status_free ,
+.Nm mt_entry_sbuf ,
+.Nm mt_param_parent_print ,
+.Nm mt_param_entry_print ,
+.Nm mt_protect_print ,
+.Nm mt_param_list ,
+.Nm mt_density_name ,
+.Nm mt_density_bp ,
+.Nm mt_density_num ,
+.Nm mt_get_xml_str ,
+.Nm mt_get_status
+.Nd Magnetic Tape library
+.Sh LIBRARY
+.Lb libmt
+.Sh SYNOPSIS
+.In sys/sbuf.h
+.In bsdxml.h
+.In mtlib.h
+.Ft void
+.Fo mt_start_element
+.Fa "void *user_data"
+.Fa "const char *name"
+.Fa "const char **attr"
+.Fc
+.Ft void
+.Fo mt_end_element
+.Fa "void *user_data"
+.Fa "const char *name"
+.Fc
+.Ft void
+.Fo mt_char_handler
+.Fa "void *user_data"
+.Fa "const XML_Char *str"
+.Fa "int len"
+.Fc
+.Ft void
+.Fo mt_status_tree_sbuf
+.Fa "struct sbuf *sb"
+.Fa "struct mt_status_entry *entry"
+.Fa "int indent"
+.Fa "void (*sbuf_func)(struct sbuf *sb, struct mt_status_entry *entry, void *arg)"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fo mt_status_tree_print
+.Fa "struct mt_status_entry *entry"
+.Fa "int indent"
+.Fa "void (*print_func)(struct mt_status_entry *entry, void *arg)"
+.Fa "void *arg"
+.Fc
+.Ft "struct mt_status_entry *"
+.Fo mt_entry_find
+.Fa "struct mt_status_entry *entry"
+.Fa "char *name"
+.Fc
+.Ft "struct mt_status_entry *"
+.Fo mt_status_entry_find
+.Fa "struct mt_status_data *status_data"
+.Fa "char *name"
+.Fc
+.Ft void
+.Fo mt_status_entry_free
+.Fa "struct mt_status_entry *entry)"
+.Fc
+.Ft void
+.Fo mt_status_free
+.Fa "struct mt_status_data *status_data"
+.Fc
+.Ft void
+.Fo mt_entry_sbuf
+.Fa "struct sbuf *sb"
+.Fa "struct mt_status_entry *entry"
+.Fa "char *fmt"
+.Fc
+.Ft void
+.Fo mt_param_parent_sbuf
+.Fa "struct sbuf *sb"
+.Fa "struct mt_status_entry *entry"
+.Fa "struct mt_print_params *print_params"
+.Fc
+.Ft void
+.Fo mt_param_parent_print
+.Fa "struct mt_status_entry *entry"
+.Fa "struct mt_print_params *print_params"
+.Fc
+.Ft void
+.Fo mt_param_entry_sbuf
+.Fa "struct sbuf *sb"
+.Fa "struct mt_status_entry *entry"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fo mt_param_entry_print
+.Fa "struct mt_status_entry *entry"
+.Fa "void *arg"
+.Fc
+.Ft int
+.Fo mt_protect_print
+.Fa "struct mt_status_data *status_data"
+.Fa "int verbose"
+.Fc
+.Ft int
+.Fo mt_param_list
+.Fa "struct mt_status_data *status_data"
+.Fa "char *param_name"
+.Fa "int quiet"
+.Fc
+.Ft "const char *"
+.Fo mt_density_name
+.Fa "int density_num"
+.Fc
+.Ft int
+.Fo mt_density_bp
+.Fa "int density_num"
+.Fa "int bpi"
+.Fc
+.Ft int
+.Fo mt_density_num
+.Fa "const char *density_name"
+.Fc
+.Ft int
+.Fo mt_get_status
+.Fa "char *xml_str"
+.Fa "struct mt_status_data *status_data"
+.Fc
+.Sh DESCRIPTION
+The MT library consists of a number of functions designed to aid in
+interacting with the
+.Xr sa 4
+driver.
+The
+.Xr sa 4
+driver returns some status data as XML-formatted strings, and
+the primary purpose of this library is to make it easier for the
+software developer to parse those strings and extract the status values.
+.Pp
+The 
+.Fn mt_start_element ,
+.Fn mt_end_element ,
+and
+.Fn mt_char_handler
+functions are designed to work with the
+.Xr libbsdxml 3
+library, which is an XML parsing library.
+The user data for the XML parser should be set with
+.Fn XML_SetUserData
+to a zeroed struct
+mt_status_data with the entries list initialized.
+The element handlers for the XML parser should be set to
+.Fn mt_start_element
+and
+.Fn mt_end_element
+with
+.Fn XML_SetElementHandler .
+The character data handler should be set to
+.Fn mt_char_handler
+with the
+.Fn XML_SetCharacterDataHandler
+function.
+The error member of the status_data structure will be set to 0 if parsing
+is successful, and non-zero if parsing failed.
+In the event of a failure, the error_str member will contain an error
+message describing the failure.
+These functions will build a tree of tape driver status data that can be
+searched and printed using the other functions in this library.
+.Pp
+.Fn mt_status_tree_sbuf
+takes the root node of a tree of
+.Xr sa 4
+driver status information, and displays it in an
+.Xr sbuf 9 .
+The
+.Ar sb
+argument is the destination sbuf.
+The
+.Ar entry
+argument is the root of the tree.
+The
+.Ar indent
+argument is the number of characters to indent the output.
+Each recursive call to
+.Fn mt_status_tree_sbuf
+will have the indent level incremented by 2.
+The
+.Ar sbuf_func
+argument is for a user-supplied alternate printing function.
+If it is non-NULL, it will be called instead of the default output printing
+code.
+The
+.Ar arg
+argument is an argument for the
+.Ar sbuf_func
+function.
+.Pp
+The
+.Fn mt_status_tree_print
+function is the same as the
+.Fn mt_status_tree_sbuf
+function, except that the tree is printed to standard out instead of to a
+sbuf.
+.Pp
+The
+.Fn mt_entry_find
+function returns the first entry in the tree starting at
+.Ar entry
+that matches
+.Ar name .
+The supplied node name can be a single level name like "foo", or it can
+specify mulitple node names that must be matched, for instance "foo.bar.baz".
+In the case of a single level name, it will match any node beneath
+.Ar entry
+that matches
+.Ar name .
+In the case of a multi-level name like "foo.bar.baz", it will return the
+first entry named "baz" whose immediate parent is "bar" and where the
+parent of "bar" is named "foo".
+.Pp
+The
+.Fn mt_status_entry_find
+is the same as
+.Fn mt_entry_find ,
+except that it operates on the top level mt_status_data and all
+mt_status_entry nodes below it instead of just an mt_status_entry
+structure.
+.Pp
+The
+.Fn mt_status_entry_free
+function frees the tree of status data underneath
+.Ar entry .
+.Pp
+The
+.Fn mt_status_free
+function frees the tree of status data underneath
+.Ar status_data .
+.Pp
+The
+.Fn mt_entry_sbuf
+function prints
+.Ar entry
+to the supplied sbuf
+.Ar sb ,
+optionally using the
+.Xr printf 3
+format
+.Ar fmt .
+If
+.Ar fmt
+is NULL, then
+.Fn mt_entry_sbuf
+will render integer types in base 10 without special formatting and all
+other types as they were rendered in the XML.
+.Pp
+.Fn mt_param_parent_sbuf
+prints the parents of the given
+.Ar entry
+to the supplied sbuf
+.Ar sb
+subject to the print parameters
+.Ar print_params .
+The result will be formatted with a period between each level, like
+"foo.bar.baz".
+.Pp
+.Fn mt_param_parent_print
+is like
+.Fn mt_param_parent_sbuf
+except that it prints the results to standard output instead of an sbuf.
+.Pp
+.Fn mt_param_entry_sbuf
+prints the
+.Ar entry 
+to the given sbuf
+.Ar sb .
+The argument
+.Ar arg
+is a pointer to struct mt_print_params, which allows the caller to control
+the printing output.
+This function is intended to be supplied as an argument to
+.Fn mt_status_tree_sbuf .
+.Pp
+.Fn mt_param_entry_print
+is like
+.Fn mt_param_entry_sbuf
+except that it prints to standard output instead of an sbuf.
+It is intended to be used as an argument to
+.Fn mt_status_tree_print .
+.Pp
+.Fn mt_protect_print
+prints tape drive protection information from the supplied
+.Ar status_data
+beginning at the node name defined as the root node for protection data.
+If the
+.Ar verbose
+argument is non-zero, protection entry descriptions will be printed.
+If it is zero, protection entry descriptions will not be printed.
+.Pp
+.Fn mt_param_list
+prints tape driver parameters information from the supplied
+.Ar status_data .
+If the
+.Ar param_name
+is non-NULL, only the named parameter will be printed.
+If
+.Ar quiet
+is non-zero, parameter descriptions will be omitted in the output.
+.Pp
+.Fn mt_density_name
+Returns a text identifier for the supplied numeric
+.Ar density_num .
+The
+.Ar density_num
+should currently be a value between 0 and 255 inclusive, since that is the
+valid range for
+.Tn SCSI
+density code values.
+See below for notes on the return values.
+.Pp
+.Fn mt_density_bp
+Returns the bits per inch or bits per mm values for a given density entry
+specified by the
+.Ar density_num .
+If the 
+.Ar bpi
+argument is non-zero, the bits per inch value is returned.
+Otherwise, the bits per mm value is returned.
+.Pp
+.Fn mt_density_num
+returns a numeric value for a text density description.
+It does a case-insensitive comparison of density names in the density table
+to the supplied density name.
+.Pp
+.Fn mt_get_xml_str
+gets the current XML status / parameter string from the sa(4) driver
+instance referenced by the open file descriptor
+.Ar mtfd .
+The 
+.Xr mtio 4 
+.Xr ioctl 2
+to be used is supplied as the
+.Ar cmd
+argument.
+Currently the
+.Fn mt_get_xml_str
+function will work with the
+.Dv MTIOCEXTGET
+and
+.Dv MTIOCPARAMGET
+ioctls.
+The supplied
+.Ar xml_str
+will be filled in with a pointer to the complete XML status string.
+Multiple calls to the given
+.Xr ioctl 2
+are made and more space is malloced until all of the XML string is fetched.
+The string returned in the
+.Ar xml_str
+argument should be freed when it is no longer in use.
+.Sh RETURN VALUES
+.Fn mt_entry_find
+returns the first matching entry, or NULL if it fails to find a match.
+.Pp
+.Fn mt_status_entry_find
+returns the first matching entry, or NULL if it fails to find a match.
+.Pp
+.Fn mt_protect_print
+Returns 0 for success, and non-zero for failure.
+.Fn mt_protect_print
+can only fail if it cannot find protection information in the supplied
+status data.
+.Pp
+.Fn mt_param_list
+Returns 0 for success and non-zero for failure.
+.Fn mt_param_list
+can only fail if it cannot find parameter information in the supplied
+status data.
+.Pp
+.Fn mt_density_name
+returns a text description of a numeric density.
+The special density value 0 is decoded as "default".
+The special density value 0x7f is decoded as "same".
+If the density is not known,
+.Fn mt_density_name
+will return "UNKNOWN".
+.Pp
+.Fn mt_density_bp
+returns the bits per inch value for the given density (if the 
+.Ar bpi
+field is non-zero), the bits per mm value otherwise, or 0 if the supplied
+.Ar density_num
+is not in the density table or the table entry does not include bpi / bpmm
+values.
+.Pp
+.Fn mt_density_num
+returns a numeric density value between 0 and 255 for the supplied density
+name.
+It returns 0 if the density name is not recognized.
+.Pp
+.Fn mt_get_xml_str
+returns 0 for success, and -1 for failure.
+.Sh SEE ALSO
+.Xr mt 1 ,
+.Xr mtio 4 ,
+.Xr sa 4
+.Sh HISTORY
+The MT library first appeared in
+.Fx 10.1 .
+.Sh AUTHORS
+.An Ken Merry Aq ken@FreeBSD.org
+.Sh BUGS
+The library interface is not complete, and may change in the future.
+Application authors should not rely on the library interface to be
+consistent in the immediate future.

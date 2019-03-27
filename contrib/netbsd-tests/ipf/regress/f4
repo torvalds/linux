@@ -1,0 +1,8 @@
+block in from any to 1.1.1.1
+pass in from any to 1.1.1.1
+block in from any to 1.1.1.1/24
+pass in from any to 1.1.1.1/24
+block in from any to 1.1.1.1/16
+pass in from any to 1.1.1.1/16
+block in from any to 1.1.1.1/0
+pass in from any to 1.1.1.1/0

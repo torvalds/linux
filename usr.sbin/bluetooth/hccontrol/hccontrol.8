@@ -1,0 +1,184 @@
+.\" Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: hccontrol.8,v 1.6 2003/08/06 21:26:38 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd February 7, 2015
+.Dt HCCONTROL 8
+.Os
+.Sh NAME
+.Nm hccontrol
+.Nd Bluetooth HCI configuration utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl hN
+.Op Fl n Ar HCI_node_name
+.Ar command
+.Op Ar parameters ...
+.Sh DESCRIPTION
+The
+.Nm
+utility connects to the specified Netgraph node of type
+.Dv HCI
+or the first one found if none is specified and attempts to send the specified
+command to the HCI Netgraph node or to the associated Bluetooth device.
+The
+.Nm
+utility will print results to the standard output and error messages to
+the standard error.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl h
+Display usage message and exit.
+.It Fl N
+Show Bluetooth addresses as numbers.
+Normally
+.Nm
+attempts to resolve Bluetooth addresses, and display them symbolically.
+.It Fl n Ar HCI_node_name
+Connect to the specified HCI Netgraph node.
+.It Ar command
+One of the supported commands (see below).
+The special command
+.Cm help
+can be used to obtain the list of all supported commands.
+To get more information about a specific command use
+.Cm help Ar command .
+.It Ar parameters
+One or more optional space separated command parameters.
+Many commands require a remote device address as one of the parameters.
+The remote device address can be specified as BD_ADDR or a name.
+If a name was specified then the
+.Nm
+utility will attempt to resolve the name via
+.Xr bt_gethostbyname 3 .
+.El
+.Sh COMMANDS
+The currently supported HCI commands in
+.Nm
+are:
+.Pp
+.Bl -tag -width 40n -offset indent -compact
+.It Cm Inquiry
+.It Cm Create_Connection
+.It Cm Disconnect
+.It Cm Add_SCO_Connection
+.It Cm Change_Connection_Packet_Type
+.It Cm Remote_Name_Request
+.It Cm Read_Remote_Supported_Features
+.It Cm Read_Remote_Version_Information
+.It Cm Read_Clock_Offset
+.It Cm Role_Discovery
+.It Cm Switch_Role
+.It Cm Read_Link_Policy_Settings
+.It Cm Write_Link_Policy_Settings
+.It Cm Reset
+.It Cm Read_Pin_Type
+.It Cm Write_Pin_Type
+.It Cm Read_Stored_Link_Key
+.It Cm Write_Stored_Link_Key
+.It Cm Delete_Stored_Link_Key
+.It Cm Change_Local_Name
+.It Cm Read_Local_Name
+.It Cm Read_Connection_Accept_Timeout
+.It Cm Write_Connection_Accept_Timeout
+.It Cm Read_Page_Timeout
+.It Cm Write_Page_Timeout
+.It Cm Read_Scan_Enable
+.It Cm Write_Scan_Enable
+.It Cm Read_Page_Scan_Activity
+.It Cm Write_Page_Scan_Activity
+.It Cm Read_Inquiry_Scan_Activity
+.It Cm Write_Inquiry_Scan_Activity
+.It Cm Read_Authentication_Enable
+.It Cm Write_Authentication_Enable
+.It Cm Read_Encryption_Mode
+.It Cm Write_Encryption_Mode
+.It Cm Read_Class_Of_Device
+.It Cm Write_Class_Of_Device
+.It Cm Read_Voice_Settings
+.It Cm Write_Voice_Settings
+.It Cm Read_Number_Broadcast_Retransmissions
+.It Cm Write_Number_Broadcast_Retransmissions
+.It Cm Read_Hold_Mode_Activity
+.It Cm Write_Hold_Mode_Activity
+.It Cm Read_SCO_Flow_Control_Enable
+.It Cm Write_SCO_Flow_Control_Enable
+.It Cm Read_Link_Supervision_Timeout
+.It Cm Write_Link_Supervision_Timeout
+.It Cm Read_Page_Scan_Period_Mode
+.It Cm Write_Page_Scan_Period_Mode
+.It Cm Read_Page_Scan_Mode
+.It Cm Write_Page_Scan_Mode
+.It Cm Read_Local_Version_Information
+.It Cm Read_Local_Supported_Features
+.It Cm Read_Buffer_Size
+.It Cm Read_Country_Code
+.It Cm Read_BD_ADDR
+.It Cm Read_Failed_Contact_Counter
+.It Cm Reset_Failed_Contact_Counter
+.It Cm Get_Link_Quality
+.It Cm Read_RSSI
+.El
+.Pp
+The currently supported node commands in
+.Nm
+are:
+.Pp
+.Bl -tag -width 40n -offset indent -compact
+.It Cm Read_Node_State
+.It Cm Initialize
+.It Cm Read_Debug_Level
+.It Cm Write_Debug_Level
+.It Cm Read_Node_Buffer_Size
+.It Cm Read_Node_BD_ADDR
+.It Cm Read_Node_Features
+.It Cm Read_Node_Stat
+.It Cm Reset_Node_Stat
+.It Cm Flush_Neighbor_Cache
+.It Cm Read_Neighbor_Cache
+.It Cm Read_Connection_List
+.It Cm Read_Node_Link_Policy_Settings_Mask
+.It Cm Write_Node_Link_Policy_Settings_Mask
+.It Cm Read_Node_Packet_Mask
+.It Cm Write_Node_Packet_Mask
+.It Cm Read_Node_Role_Switch
+.It Cm Write_Node_Role_Switch
+.It Cm Read_Node_List
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr bluetooth 3 ,
+.Xr netgraph 3 ,
+.Xr netgraph 4 ,
+.Xr ng_hci 4 ,
+.Xr hcseriald 8
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh BUGS
+Most likely.
+Please report if found.

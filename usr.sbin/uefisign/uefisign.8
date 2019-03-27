@@ -1,0 +1,93 @@
+.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Edward Tomasz Napierala under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 11, 2015
+.Dt UEFISIGN 8
+.Os
+.Sh NAME
+.Nm uefisign
+.Nd UEFI Secure Boot signing utility
+.Sh SYNOPSIS
+.Nm
+.Fl k Ar key
+.Fl c Ar certificate
+.Fl o Ar output
+.Op Fl v
+.Ar file
+.Nm
+.Fl V
+.Op Fl v
+.Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility signs PE binary files using Authenticode scheme, as required by
+UEFI Secure Boot specification.
+Alternatively, it can be used to view and verify existing signatures.
+These options are available:
+.Bl -tag -width ".Fl l"
+.It Fl V
+Determine whether the file is signed.
+Note that this does not verify the correctness of the signature;
+only that the file contains a signature.
+.It Fl k
+Name of file containing the private key used to sign the binary.
+.It Fl c
+Name of file containing the certificate used to sign the binary.
+.It Fl o
+Name of file to write the signed binary to.
+.It Fl v
+Be verbose.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success, and >0 if an error occurs.
+.Sh EXAMPLES
+Generate self-signed certificate and use it to sign a binary:
+.Dl /usr/share/examples/uefisign/uefikeys testcert
+.Dl uefisign -c testcert.pem -k testcert.key -o signed-binary binary
+.Pp
+View signature:
+.Dl uefisign -Vv binary
+.Sh SEE ALSO
+.Xr openssl 1 ,
+.Xr loader 8 ,
+.Xr uefi 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 10.2 .
+.Sh AUTHORS
+The
+.Nm
+utility was developed by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.

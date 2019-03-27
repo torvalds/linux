@@ -1,0 +1,39 @@
+/* This file contains the definitions and documentation for the
+   additional tree codes used in the GNU C compiler (see tree.def
+   for the standard codes).
+   Copyright (C) 1987, 1988, 1990, 1993, 1997, 1998,
+   1999, 2000, 2001, 2004, 2005 Free Software Foundation, Inc.
+   Written by Benjamin Chelf <chelf@codesourcery.com>
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
+
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
+
+/* Tree nodes used in the C frontend.  These are also shared with the
+   C++ and Objective C frontends.  */
+
+/* A COMPOUND_LITERAL_EXPR represents a C99 compound literal.  The
+   COMPOUND_LITERAL_EXPR_DECL_STMT is the a DECL_STMT containing the decl
+   for the anonymous object represented by the COMPOUND_LITERAL;
+   the DECL_INITIAL of that decl is the CONSTRUCTOR that initializes
+   the compound literal.  */
+DEFTREECODE (COMPOUND_LITERAL_EXPR, "compound_literal_expr", tcc_expression, 1)
+
+/*
+Local variables:
+mode:c
+End:
+*/

@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+v=$(
+	${SH} -c 'trap "echo ok; exit" USR1; kill -USR1 $$' &
+	# Suppress possible message about exit on signal
+	wait $! >/dev/null 2>&1
+)
+r=$(kill -l $?)
+[ "$v" = "ok" ] && { [ "$r" = "USR1" ] || [ "$r" = "usr1" ]; }

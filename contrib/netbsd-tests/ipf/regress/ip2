@@ -1,0 +1,2 @@
+table role = ipf type = tree name = letters
+	{ "file://input/ip2.data"; };

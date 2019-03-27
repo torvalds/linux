@@ -1,0 +1,95 @@
+# X1000 -- Kernel config for Ingenic X1000 boards
+#
+# $FreeBSD$
+
+#NO_UNIVERSE
+
+ident		X1000
+machine		mips mipsel
+cpu		CPU_XBURST
+cpu		CPU_MIPS4KC
+
+makeoptions	KERNLOADADDR=0x80020000
+makeoptions	ARCH_FLAGS="-EL -march=mips32r2"
+
+# Don't build any modules yet.
+makeoptions	MODULES_OVERRIDE=""
+
+files		"../ingenic/files.x1000"
+hints		"X1000.hints"		#Default places to look for devices.
+
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+
+options 	INTRNG			# Borrow interrupt code from ARM
+options 	MIPS_NIRQ=264		# 8 cpuintc + 64 intc + 6 * 23 gpio
+
+options 	DDB
+options 	KDB
+options 	BREAK_TO_DEBUGGER
+
+options 	COMPAT_FREEBSD10
+options 	COMPAT_FREEBSD11
+
+options 	SCHED_4BSD		#4BSD scheduler
+options 	INET			#InterNETworking
+options 	NFSCL			#Network Filesystem Client
+options 	NFS_ROOT		#NFS usable as /, requires NFSCL
+options 	NFSLOCKD		#Network Lock Manager
+options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+
+options 	FFS			#Berkeley Fast Filesystem
+options 	SOFTUPDATES		#Enable FFS soft updates support
+options 	UFS_ACL			#Support for access control lists
+options 	UFS_DIRHASH		#Improve performance on big directories
+#options 	ROOTDEVNAME=\"ufs:ada0\"
+
+options 	GEOM_LABEL		# Provides labelization
+options 	GEOM_PART_GPT		# GUID Partition Tables.
+#options 	GEOM_RAID		# Soft RAID functionality.
+
+# Debugging for use in -current
+#options 	DEADLKRES		#Enable the deadlock resolver
+options 	INVARIANTS		#Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
+#options 	WITNESS			#Enable checks to detect deadlocks and cycles
+#options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
+
+device		loop
+device		ether
+#device		le
+device		miibus
+device		bpf
+device		md
+device		uart
+device		random
+
+device		fdt_pinctrl
+
+device		clk
+device		regulator
+options		EXT_RESOURCES
+
+device		gpio
+
+device 		scbus
+device 		da
+
+device		mmc
+device		mmcsd
+
+# USB support
+#options 	USB_DEBUG	# enable debug msgs
+#options 	USB_HOST_ALIGN=128 # L2 cache line size
+#device		ohci		# OHCI PCI->USB interface
+#device		ehci		# EHCI PCI->USB interface (USB 2.0)
+#device		dwcotg		# DesignWare HS OTG controller
+#device		usb		# USB Bus (required)
+#device		udbp		# USB Double Bulk Pipe devices
+#device		uhid		# "Human Interface Devices"
+#device		ulpt		# Printer
+#device		umass		# Disks/Mass storage - Requires scbus and da
+#device		ums		# Mouse
+
+# FDT support
+options 	FDT

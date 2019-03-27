@@ -1,0 +1,118 @@
+.\" Copyright (c) 2012 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Edward Tomasz Napierala under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 28, 2017
+.Dt ISCSID 8
+.Os
+.Sh NAME
+.Nm iscsid
+.Nd iSCSI initiator daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl P Ar pidfile
+.Op Fl d
+.Op Fl l Ar loglevel
+.Op Fl m Ar maxproc
+.Op Fl t Ar seconds
+.Sh DESCRIPTION
+The
+.Nm
+daemon is the userspace component of the iSCSI initiator,
+responsible for performing the Login Phase
+of iSCSI connections and the SendTargets discovery.
+.Pp
+Upon startup, the
+.Nm
+daemon opens the iSCSI initiator device file and waits for requests
+from the kernel component,
+.Xr iscsi 4 .
+.Nm
+does not use any configuration files.
+All needed information is supplied by the kernel.
+.Pp
+When the
+.Nm
+daemon is not running, already established iSCSI connections continue
+to work.
+However, establishing new connections, or recovering existing ones in case
+of connection error, is not possible.
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl P Ar pidfile"
+.It Fl P Ar pidfile
+Specify alternative location of a file where main process PID will be stored.
+The default location is
+.Pa /var/run/iscsid.pid .
+.It Fl d
+Debug mode.
+The daemon sends verbose debug output to standard error, and does not
+put itself in the background.
+The daemon will also not fork and will exit after processing one connection.
+This option is only intended for debugging the initiator.
+.It Fl l Ar loglevel
+Specifies debug level.
+The default is 0.
+.It Fl m Ar maxproc
+Specifies limit for concurrently running child processes handling
+connections.
+The default is 30.
+Setting it to 0 disables the limit.
+.It Fl t Ar seconds
+Specifies timeout for login session, after which the connection
+will be forcibly terminated.
+The default is 60.
+Setting it to 0 disables the timeout.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/iscsid.pid" -compact
+.It Pa /dev/iscsi
+The iSCSI initiator device file.
+.It Pa /var/run/iscsid.pid
+The default location of the
+.Nm
+PID file.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success, and >0 if an error occurs.
+.Sh SEE ALSO
+.Xr iscsi 4 ,
+.Xr iscsictl 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+utility was developed by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.

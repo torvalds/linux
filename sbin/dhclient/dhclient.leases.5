@@ -1,0 +1,95 @@
+.\"	$OpenBSD: dhclient.leases.5,v 1.4 2004/04/15 08:59:47 jmc Exp $
+.\"
+.\" Copyright (c) 1997 The Internet Software Consortium.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The Internet Software Consortium nor the names
+.\"    of its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This software has been written for the Internet Software Consortium
+.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+.\" Enterprises.  To learn more about the Internet Software Consortium,
+.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
+.\" Enterprises, see ``http://www.vix.com''.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 1, 1997
+.Dt DHCLIENT.LEASES 5
+.Os
+.Sh NAME
+.Nm dhclient.leases
+.Nd DHCP client lease database
+.Sh DESCRIPTION
+The Internet Software Consortium DHCP client keeps a persistent
+database of leases that it has acquired that are still valid.
+The database is a free-form ASCII file containing one valid declaration
+per lease.
+If more than one declaration appears for a given lease,
+the last one in the file is used.
+The file is written as a log, so this is not an unusual occurrence.
+.Pp
+The lease file is named
+.Pa dhclient.leases. Ns Ar IFNAME ,
+where
+.Ar IFNAME
+represents the network interface the DHCP client acquired the lease on.
+For example, if
+.Xr dhclient 8
+is configured for the
+.Li em0
+network device,
+the lease file will be named
+.Pa dhclient.leases.em0 .
+.Pp
+The format of the lease declarations is described in
+.Xr dhclient.conf 5 .
+.Sh FILES
+.Bl -tag -width ".Pa /var/db/dhclient.leases. Ns Ar IFNAME"
+.It Pa /var/db/dhclient.leases. Ns Ar IFNAME
+Current lease file.
+.El
+.Sh SEE ALSO
+.Xr dhclient.conf 5 ,
+.Xr dhcp-options 5 ,
+.Xr dhcpd.conf 5 ,
+.Xr dhclient 8 ,
+.Xr dhcpd 8
+.Rs
+.%R "RFC 2132, RFC 2131"
+.Re
+.Sh AUTHORS
+.An -nosplit
+The
+.Xr dhclient 8
+utility
+was written by
+.An Ted Lemon Aq Mt mellon@vix.com
+under a contract with Vixie Labs.
+.Pp
+The current implementation was reworked by
+.An Henning Brauer Aq Mt henning@openbsd.org .

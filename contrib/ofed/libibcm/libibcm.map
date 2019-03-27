@@ -1,0 +1,26 @@
+/* Do not change this file without reading Documentation/versioning.md */
+IBCM_1.0 {
+	global:
+		ib_cm_open_device;
+		ib_cm_close_device;
+		ib_cm_get_event;
+		ib_cm_ack_event;
+		ib_cm_create_id;
+		ib_cm_destroy_id;
+		ib_cm_attr_id;
+		ib_cm_listen;
+		ib_cm_send_req;
+		ib_cm_send_rep;
+		ib_cm_send_rtu;
+		ib_cm_send_dreq;
+		ib_cm_send_drep;
+		ib_cm_notify;
+		ib_cm_send_rej;
+		ib_cm_send_mra;
+		ib_cm_send_lap;
+		ib_cm_send_apr;
+		ib_cm_send_sidr_req;
+		ib_cm_send_sidr_rep;
+		ib_cm_init_qp_attr;
+	local: *;
+};

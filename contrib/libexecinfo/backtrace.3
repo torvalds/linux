@@ -1,0 +1,155 @@
+.\"	$NetBSD: backtrace.3,v 1.5 2013/08/22 17:08:43 christos Exp $
+.\"	$FreeBSD$
+.\"
+.\" Copyright (c) 2012 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Christos Zoulas
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd December 12, 2015
+.Dt BACKTRACE 3
+.Os
+.Sh NAME
+.Nm backtrace
+.Nd fill in the backtrace of the currently executing thread
+.Sh LIBRARY
+.Lb libexecinfo
+.Sh SYNOPSIS
+.In execinfo.h
+.Ft size_t
+.Fn backtrace "void **addrlist" "size_t len"
+.Ft "char **"
+.Fn backtrace_symbols "void * const *addrlist" "size_t len"
+.Ft int
+.Fn backtrace_symbols_fd "void * const *addrlist" "size_t len" "int fd"
+.Ft "char **"
+.Fn backtrace_symbols_fmt "void * const *addrlist" "size_t len" "const char *fmt"
+.Ft int
+.Fn backtrace_symbols_fd_fmt "void * const *addrlist" "size_t len" "int fd" "const char *fmt"
+.Sh DESCRIPTION
+The
+.Fn backtrace
+function places into the array pointed by
+.Fa addrlist
+the array of the values of the program counter for each frame called up to
+.Fa len
+frames.
+The number of frames found (which can be fewer than
+.Fa len )
+is returned.
+.Pp
+The
+.Fn backtrace_symbols_fmt
+function takes an array of previously filled addresses from
+.Fn backtrace
+in
+.Fa addrlist
+of
+.Fa len
+elements, and uses
+.Fa fmt
+to format them.
+The formatting characters available are:
+.Bl -tag -width a -offset indent
+.It Dv a
+The numeric address of each element as would be printed using %p.
+.It Dv n
+The name of the nearest function symbol (smaller than the address element)
+as determined by
+.Xr dladdr 3
+if the symbol was dynamic, or looked up in the executable if static and
+the /proc filesystem is available to determine the executable path.
+.It Dv d
+The difference of the symbol address and the address element printed
+using 0x%tx.
+.It Dv D
+The difference of the symbol address and the address element printed using
++0x%tx if non-zero, or nothing if zero.
+.It Dv f
+The filename of the symbol as determined by
+.Xr dladdr 3 .
+.El
+.Pp
+The array of formatted strings is returned as a contiguous memory address which
+can be freed by a single
+.Xr free 3 .
+.Pp
+The
+.Fn backtrace_symbols
+function is equivalent of calling
+.Fn backtrace_symbols_fmt
+with a format argument of
+.Dv "%a <%n%D> at %f"
+.Pp
+The
+.Fn backtrace_symbols_fd
+and
+.Fn backtrace_symbols_fd_fmt
+are similar to the non _fd named functions, only instead of returning
+an array or strings, they print a new-line separated array of strings in
+fd, and return
+.Dv 0
+on success and
+.Dv \-1
+on failure.
+.Sh RETURN VALUES
+The
+.Fn backtrace
+function returns the number of elements that were filled in the backtrace.
+The
+.Fn backtrace_symbols
+and
+.Fn backtrace_symbols_fmt
+return a string array on success, and
+.Dv NULL
+on failure, setting
+.Va errno .
+Diagnostic output may also be produced by the ELF symbol lookup functions.
+.Sh SEE ALSO
+.Xr dladdr 3 ,
+.Xr elf 3
+.Sh HISTORY
+The
+.Fn backtrace
+library of functions first appeared in
+.Nx 7.0
+and
+.Fx 10.0 .
+.Sh BUGS
+.Bl -enum
+.It
+Errors should not be printed but communicated to the caller differently.
+.It
+Because these functions use
+.Xr elf 3
+this is a separate library instead of being part of libc/libutil
+so that no library dependencies are introduced.
+.It
+The Linux versions of the functions (there are no _fmt variants) use
+.Ft int
+instead of
+.Ft size_t
+arguments.
+.El

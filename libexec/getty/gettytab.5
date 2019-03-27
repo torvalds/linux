@@ -1,0 +1,519 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)gettytab.5	8.4 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\" "
+.Dd February 26, 2018
+.Dt GETTYTAB 5
+.Os
+.Sh NAME
+.Nm gettytab
+.Nd terminal configuration data base
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+The
+.Nm
+file
+is a simplified version of the
+.Xr termcap 5
+data base
+used to describe terminal lines.
+The initial terminal login process
+.Xr getty 8
+accesses the
+.Nm
+file each time it starts, allowing simpler
+reconfiguration of terminal characteristics.
+Each entry in the data base
+is used to describe one class of terminals.
+.Pp
+There is a default terminal class,
+.Va default ,
+that is used to set global defaults for all other classes.
+(That is, the
+.Va default
+entry is read, then the entry for the class required
+is used to override particular settings.)
+.Sh CAPABILITIES
+Refer to
+.Xr termcap 5
+for a description of the file layout.
+The
+.Va default
+column below lists defaults obtained if there is
+no entry in the table obtained, nor one in the special
+.Va default
+table.
+.Bl -column Name Type /usr/bin/login
+.It Sy "Name	Type	Default	Description"
+.It "ac	str	unused	expect-send chat script for modem answer"
+.It "al	str	unused	user to auto-login instead of prompting"
+.It "ap	bool	false	terminal uses any parity"
+.It "bk	str	0377	alternate end of line character (input break)"
+.It "c0	num	unused	tty control flags to write messages"
+.It "c1	num	unused	tty control flags to read login name"
+.It "c2	num	unused	tty control flags to leave terminal as"
+.It "ce	bool	false	use crt erase algorithm"
+.It "ck	bool	false	use crt kill algorithm"
+.It "cl	str" Ta Dv NULL
+.Ta No "screen clear sequence"
+.It "co	bool	false	console - add"
+.Ql \en
+after login prompt
+.It "ct	num	10	chat timeout for"
+.Va \&ac
+and
+.Va \&ic
+scripts
+.It "dc	num	0	chat debug bitmask"
+.It "de	num	0	delay secs and flush input before writing first prompt"
+.It "df	str	%+	the" Xr strftime 3 "format used for \&%d in the banner message"
+.It "ds	str" Ta So Li ^Y
+.Sc Ta No "delayed suspend character"
+.It "dx	bool	false	set"
+.Dv DECCTLQ
+.It "ec	bool	false	leave echo"
+.Em OFF
+.It "ep	bool	false	terminal uses even parity"
+.It "er	str" Ta So Li ^?
+.Sc Ta No "erase character"
+.It "et	str" Ta So Li ^D
+.Sc Ta No "end of text"
+.Pq Dv EOF
+character
+.It "ev	str" Ta Dv NULL
+.Ta No "initial environment"
+.It "fl	str" Ta So Li ^O
+.Sc Ta No "output flush character"
+.It "hc	bool	false	do"
+.Em NOT
+hangup line on last close
+.It "he	str" Ta Dv NULL
+.Ta No "hostname editing regular expression"
+.It "hn	str	hostname	hostname"
+.It "ht	bool	false	terminal has real tabs"
+.It "hw	bool	false	do cts/rts hardware flow control"
+.It "i0	num	unused	tty input flags to write messages"
+.It "i1	num	unused	tty input flags to read login name"
+.It "i2	num	unused	tty input flags to leave terminal as"
+.It "ic	str	unused	expect-send chat script for modem initialization"
+.It "if	str	unused	display named file before prompt, like /etc/issue"
+.It "ig	bool	false	ignore garbage characters in login name"
+.It "im	str" Ta Dv NULL
+.Ta No "initial (banner) message"
+.It "iM	str" Ta Dv NULL
+.Ta No "execute named file to generate initial (banner) message"
+.It "in	str" Ta So Li ^C
+.Sc Ta No "interrupt character"
+.It "is	num	unused	input speed"
+.It "kl	str" Ta So Li ^U
+.Sc Ta No "kill character"
+.It "l0	num	unused	tty local flags to write messages"
+.It "l1	num	unused	tty local flags to read login name"
+.It "l2	num	unused	tty local flags to leave terminal as"
+.It "lm	str	login:	login prompt"
+.It "ln	str" Ta So Li ^V
+.Sc Ta No "``literal next'' character"
+.It "lo	str" Ta Pa /usr/bin/login
+.Ta No "program to exec when name obtained"
+.It "mb	bool	false	do flow control based on carrier"
+.It "nc	bool	false	terminal does not supply carrier (set clocal)"
+.It "nl	bool	false	terminal has (or might have) a newline character"
+.It "np	bool	false	terminal uses no parity (i.e., 8-bit characters)"
+.It "nx	str	default	next table (for auto speed selection)"
+.It "o0	num	unused	tty output flags to write messages"
+.It "o1	num	unused	tty output flags to read login name"
+.It "o2	num	unused	tty output flags to leave terminal as"
+.It "op	bool	false	terminal uses odd parity"
+.It "os	num	unused	output speed"
+.It "pc	str" Ta So Li \e0
+.Sc Ta No "pad character"
+.It "pe	bool	false	use printer (hard copy) erase algorithm"
+.It "pf	num	0	delay"
+between first prompt and following flush (seconds)
+.It "pl	bool	false	start PPP login program unconditionally if"
+.Va \&pp
+is specified
+.It "pp	str	unused	PPP login program"
+.It "ps	bool	false	line connected to a"
+.Tn MICOM
+port selector
+.It "qu	str" Ta So Li \&^\e
+.Sc Ta No "quit character"
+.It "rp	str" Ta So Li ^R
+.Sc Ta No "line retype character"
+.It "rt	num	unused	ring timeout when using"
+.Va \&ac
+.It "rw	bool	false	do"
+.Em NOT
+use raw for input, use cbreak
+.It "sp	num	unused	line speed (input and output)"
+.It "su	str" Ta So Li ^Z
+.Sc Ta No "suspend character"
+.It "tc	str	none	table continuation"
+.It "to	num	0	timeout (seconds)"
+.It "tt	str" Ta Dv NULL
+.Ta No "terminal type (for environment)"
+.It "ub	bool	false	do unbuffered output (of prompts etc)"
+.It "we	str" Ta So Li ^W
+.Sc Ta No "word erase character"
+.It "xc	bool	false	do"
+.Em NOT
+echo control chars as
+.Ql ^X
+.It "xf	str" Ta So Li ^S Sc Ta Dv XOFF
+(stop output) character
+.It "xn	str" Ta So Li ^Q Sc Ta Dv XON
+(start output) character
+.It "Lo	str	C	the locale name used for \&%d in the banner message"
+.El
+.Pp
+The following capabilities are no longer supported by
+.Xr getty 8 :
+.Bl -column Name Type /usr/bin/login
+.It "bd	num	0	backspace delay"
+.It "cb	bool	false	use crt backspace mode"
+.It "cd	num	0	carriage-return delay"
+.It "f0	num	unused	tty mode flags to write messages"
+.It "f1	num	unused	tty mode flags to read login name"
+.It "f2	num	unused	tty mode flags to leave terminal as"
+.It "fd	num	0	form-feed (vertical motion) delay"
+.It "lc	bool	false	terminal has lower case"
+.It "nd	num	0	newline (line-feed) delay"
+.It "uc	bool	false	terminal is known upper case only"
+.El
+.Pp
+If no line speed is specified, speed will not be altered
+from that which prevails when getty is entered.
+Specifying an input or output speed will override
+line speed for stated direction only.
+.Pp
+Terminal modes to be used for the output of the message,
+for input of the login name,
+and to leave the terminal set as upon completion,
+are derived from the boolean flags specified.
+If the derivation should prove inadequate,
+any (or all) of these three may be overridden
+with one of the
+.Va \&c0 ,
+.Va \&c1 ,
+.Va \&c2 ,
+.Va \&i0 ,
+.Va \&i1 ,
+.Va \&i2 ,
+.Va \&l0 ,
+.Va \&l1 ,
+.Va \&l2 ,
+.Va \&o0 ,
+.Va \&o1 ,
+or
+.Va \&o2
+numeric specifications, which can be used to specify
+(usually in octal, with a leading '0')
+the exact values of the flags.
+These flags correspond to the termios
+.Va c_cflag ,
+.Va c_iflag ,
+.Va c_lflag ,
+and
+.Va c_oflag
+fields, respectively.
+Each these sets must be completely specified to be effective.
+.Pp
+Should
+.Xr getty 8
+receive a null character
+(presumed to indicate a line break)
+it will restart using the table indicated by the
+.Va \&nx
+entry.
+If there is none, it will re-use its original table.
+.Pp
+Delays are specified in milliseconds, the nearest possible
+delay available in the tty driver will be used.
+Should greater certainty be desired, delays
+with values 0, 1, 2, and 3 are interpreted as
+choosing that particular delay algorithm from the driver.
+.Pp
+The
+.Va \&cl
+screen clear string may be preceded by a (decimal) number
+of milliseconds of delay required (a la termcap).
+This delay is simulated by repeated use of the pad character
+.Va \&pc .
+.Pp
+The initial message, login message, and initial file;
+.Va \&im ,
+.Va \&lm
+and
+.Va \&if
+may include any of the following character sequences, which expand to
+information about the environment in which
+.Xr getty 8
+is running.
+.Bl -tag -offset indent -width \&%xxxxxxxxxxxxxx
+.It \&%d
+The current date and time formatted according to the
+.Va \&Lo
+and
+.Va \&df
+strings.
+.It \&%h
+The hostname of the machine, which is normally obtained from the
+system using
+.Xr gethostname 3 ,
+but may also be overridden by the
+.Va \&hn
+table entry.
+In either case it may be edited with the
+.Va \&he
+POSIX
+.Dq extended
+regular expression, which is matched against the hostname.
+If there are no parenthesized subexpressions in the pattern,
+the entire matched string is used as the final hostname;
+otherwise, the first matched subexpression is used instead.
+If the pattern does not match, the original hostname is not modified.
+.It \&%t
+The tty name.
+.It "\&%m, \&%r, \&%s, \&%v"
+The type of machine, release of the operating system, name of the
+operating system, and version of the kernel, respectively, as
+returned by
+.Xr uname 3 .
+.It \&%%
+A
+.Dq %
+character.
+.El
+.Pp
+When getty execs the login process, given
+in the
+.Va \&lo
+string (usually
+.Dq Pa /usr/bin/login ) ,
+it will have set
+the environment to include the terminal type, as indicated
+by the
+.Va \&tt
+string (if it exists).
+The
+.Va \&ev
+string, can be used to enter additional data into
+the environment.
+It is a list of comma separated strings, each of which
+will presumably be of the form
+.Li name=value .
+.Pp
+If a non-zero timeout is specified, with
+.Va \&to ,
+then getty will exit within the indicated
+number of seconds, either having
+received a login name and passed control
+to
+.Xr login 1 ,
+or having received an alarm signal, and exited.
+This may be useful to hangup dial in lines.
+.Pp
+Output from
+.Xr getty 8
+is even parity unless
+.Va \&op
+or
+.Va \&np
+is specified.
+The
+.Va \&op
+string
+may be specified with
+.Va \&ap
+to allow any parity on input, but generate odd parity output.
+Note: this only applies while getty is being run,
+terminal driver limitations prevent a more complete
+implementation.
+The
+.Xr getty 8
+utility does not check parity of input characters in
+.Dv RAW
+mode.
+.Pp
+If a
+.Va \&pp
+string is specified and a PPP link bring-up sequence is recognized,
+getty will invoke the program referenced by the
+.Va \&pp
+option.
+This can be used to handle incoming PPP calls.
+If the
+.Va \&pl
+option is true as well,
+.Xr getty 8
+will skip the user name prompt and the PPP detection phase, and will
+invoke the program specified by
+.Va \&pp
+instantly.
+.Pp
+.Nm Getty
+provides some basic intelligent modem handling by providing a chat
+script feature available via two capabilities:
+.Pp
+.Bl -tag -offset indent -width \&xxxxxxxx -compact
+.It ic
+Chat script to initialize modem.
+.It ac
+Chat script to answer a call.
+.El
+.Pp
+A chat script is a set of expect/send string pairs.
+When a chat string starts,
+.Nm getty
+will wait for the first string, and if it finds it, will send the
+second, and so on.
+Strings specified are separated by one or more tabs or spaces.
+Strings may contain standard ASCII characters and special 'escapes',
+which consist of a backslash character followed by one or more
+characters which are interpreted as follows:
+.Pp
+.Bl -tag -offset indent -width \&xxxxxxxx -compact
+.It \ea
+bell character.
+.It \eb
+backspace.
+.It \en
+newline.
+.It \ee
+escape.
+.It \ef
+formfeed.
+.It \ep
+half-second pause.
+.It \er
+carriage return.
+.It \eS , \es
+space character.
+.It \et
+tab.
+.It \exNN
+hexadecimal byte value.
+.It \e0NNN
+octal byte value.
+.El
+.Pp
+Note that the
+.Ql \ep
+sequence is only valid for send strings and causes a half-second
+pause between sending the previous and next characters.
+Hexadecimal values are, at most, 2 hex digits long, and octal
+values are a maximum of 3 octal digits.
+.Pp
+The
+.Va \&ic
+chat sequence is used to initialize a modem or similar device.
+A typical example of an init chat script for a modem with a
+hayes compatible command set might look like this:
+.Pp
+.Dl :ic="" ATE0Q0V1\er OK\er ATS0=0\er OK\er:
+.Pp
+This script waits for nothing (which always succeeds), sends
+a sequence to ensure that the modem is in the correct mode
+(suppress command echo, send responses in verbose mode),
+and then disables auto-answer.
+It waits for an "OK" response before it terminates.
+The init sequence is used to check modem responses to ensure that
+the modem is functioning correctly.
+If the init script fails to complete,
+.Nm getty
+considers this to be fatal, and results in an error logged via
+.Xr syslogd 8 ,
+and exiting.
+.Pp
+Similarly, an answer chat script is used to manually answer the
+phone in response to (usually) a "RING".
+When run with an answer script,
+.Nm getty
+opens the port in non-blocking mode, clears any extraneous input
+and waits for data on the port.
+As soon as any data is available, the answer chat script is
+started and scanned for a string, and responds according to
+the answer chat script.
+With a hayes compatible modem, this would normally look something
+like:
+.Pp
+.Dl :ac=RING\er ATA\er CONNECT:
+.Pp
+This causes the modem to answer the call via the "ATA" command,
+then scans input for a "CONNECT" string.
+If this is received before a
+.Va \&ct
+timeout, then a normal login sequence commences.
+.Pp
+The
+.Va \&ct
+capability specifies a timeout for all send and expect strings.
+This timeout is set individually for each expect wait and send
+string and must be at least as long as the time it takes for
+a connection to be established between a remote and local
+modem (usually around 10 seconds).
+.Pp
+In most situations, you will want to flush any additional
+input after the connection has been detected, and the
+.Va \&de
+capability may be used to do that, as well as delay for a
+short time after the connection has been established during
+which all of the connection data has been sent by the modem.
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr gethostname 3 ,
+.Xr uname 3 ,
+.Xr termcap 5 ,
+.Xr getty 8 ,
+.Xr telnetd 8
+.Sh HISTORY
+The
+.Nm
+file format appeared in
+.Bx 4.2 .
+.Sh BUGS
+The special characters (erase, kill, etc.) are reset to system defaults
+by
+.Xr login 1 .
+In
+.Em all
+cases, '#' or '^H' typed in a login name will be treated as
+an erase character, and '@' will be treated as a kill character.
+.Pp
+The delay stuff is a real crock.
+Apart form its general lack of flexibility, some
+of the delay algorithms are not implemented.
+The terminal driver should support sane delay settings.
+.Pp
+The
+.Xr termcap 5
+format is horrid, something more rational should
+have been chosen.

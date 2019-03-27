@@ -1,0 +1,309 @@
+/*-
+ * Copyright (c) 2013-2015 John Wehle <john@feith.com>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/*
+ * The ordering of certain devices is significant (e.g. usb depends on
+ * usb-phy which depends on gpio, also the timer should appear early on
+ * to provide a reasonably accurate DELAY implementation).
+ *
+ * Both usb-phys devices must be configured to prevent the usb controller
+ * from hanging during initialization.
+ */
+
+/dts-v1/;
+
+/memreserve/ 0x84900000 0x00600000;			/* 6MB frame buffer */
+
+#include "meson6.dtsi"
+
+/ {
+	/*
+	 * My development unit visually appears to be a Visson ATV-102
+	 * and the specs for both my unit and the Visson ATV-102 say
+	 * the SoC is an aml8726-m3.  However the uboot prompt says
+	 * m6_mbx_v1, the RTC is located on SECBUS2 instead of AOBUS,
+	 * and there are two cores so it seems my unit is a newer
+	 * version using the later processor.
+	 */
+
+	model = "visson,atv-102";
+	compatible = "visson,atv-102", "amlogic,meson6";
+
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		soc = &soc;
+		screen = &screen;
+		uart0 = &uart_AO;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x40000000>;		/* 1GB RAM */
+	};
+
+	soc: soc {
+		device_type = "soc";
+		bus-frequency = <0>;
+
+		pic: pic@c1109a40 {
+			device_type = "interrupt-controller";
+			compatible = "amlogic,aml8726-pic";
+			reg = <0xc1109a40 128>;	/* cbus 0x2690 */
+
+			interrupt-controller;
+			#interrupt-cells = <3>;
+		};
+
+		scu: scu@c4300000 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0xc4300000 0x1000>;
+		};
+
+		cpuconfig: cpuconfig@d901ff80 {
+			compatible = "amlogic,aml8726-cpuconfig";
+			reg = <0xd901ff80 8>;
+		};
+
+		ccm@c1104140 {
+			compatible = "amlogic,aml8726-ccm";
+			reg = <0xc1104140 20>;	/* cbus 0x1050 */
+
+			functions = "ethernet", "i2c", "rng", "sdio",
+				    "uart-a", "uart-b", "uart-c",
+				    "usb-a", "usb-b";
+		};
+
+		pinctrl: pinctrl@c11080b0 {
+			compatible = "amlogic,aml8726-pinctrl";
+			reg = <0xc11080b0 40>,	/* mux */
+			      <0xc11080e8 24>,	/* pu/pd */
+			      <0xc11080e8 24>,	/* pull enable */
+			      <0xc8100014 4>,	/* ao mux */
+			      <0xc810002c 4>,	/* ao pu/pd */
+			      <0xc810002c 4>;	/* ao pull enable */
+
+			/*
+			 * Currently only pin muxing that deviates
+			 * from the power on default of gpio is
+			 * specified here.
+			 */
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pins_uartao &pins_ethernet &pins_hdmi>;
+
+			pins_ethernet: ethernet {
+				amlogic,pins = "ref_clk_in",
+					       "tx_clk", "tx_en",
+					       "tx_d0",  "tx_d1",
+					       "tx_d2",  "tx_d3",
+					       "rx_clk", "rx_dv",
+					       "rx_d0",  "rx_d1",
+					       "rx_d2",  "rx_d3",
+					       "mdc",    "mdio";
+				amlogic,function = "ethernet";
+			};
+
+			pins_hdmi: hdmi {
+				amlogic,pins = "cec", "hpd",
+					       "scl", "sda";
+				amlogic,function = "hdmi";
+			};
+
+			pins_sdio_b: sdio_b {
+				amlogic,pins = "clk", "cmd",
+					       "d0",  "d1",
+					       "d2",  "d3";
+				amlogic,function = "sdio-b";
+			};
+
+			pins_uartao: uartao {
+				amlogic,pins = "tx", "rx";
+				amlogic,function = "uart-ao";
+			};
+		};
+
+		rtc@da004340 {
+			compatible = "amlogic,aml8726-rtc";
+			reg = <0xda004340 20>;	/* secbus2 0xd0 */
+			interrupts = <0 72 1>;	/* AM_IRQ2(8) */
+		};
+
+		clkmsr: clkmsr@c1108758 {
+			compatible = "amlogic,aml8726-clkmsr";
+			reg = <0xc1108758 16>;	/* cbus 0x21d6 */
+
+			clocks = <&clk81>;
+		};
+
+		gpioao: gpio@c8100024 {
+			/* gpio unit 7 */
+			compatible = "amlogic,aml8726-gpio";
+			reg = <0xc8100024 4>,	/* oen aobus 0x9 */
+			      <0xc8100024 4>,	/* out */
+			      <0xc8100028 4>;	/* in */
+
+			gpio-controller;
+			#gpio-cells = <1>;
+			pin-count = <12>;
+		};
+
+		gpio5: gpio@c110806c {
+			compatible = "amlogic,aml8726-gpio";
+			reg = <0xc110806c 4>,	/* oen cbus 0x201b */
+			      <0xc1108070 4>,	/* out */
+			      <0xc1108074 4>;	/* in */
+
+			gpio-controller;
+			#gpio-cells = <1>;
+			pin-count = <32>;
+		};
+
+		gpio6: gpio@c1108020 {
+			compatible = "amlogic,aml8726-gpio";
+			reg = <0xc1108020 4>,	/* oen cbus 0x2008 */
+			      <0xc1108024 4>,	/* out */
+			      <0xc1108028 4>;	/* in */
+
+			gpio-controller;
+			#gpio-cells = <1>;
+			pin-count = <29>;
+		};
+
+		mmc@c1108c20 {
+			compatible = "amlogic,aml8726-mmc";
+			reg = <0xc1108c20 32>;	/* cbus 0x2308 */
+			interrupts = <0 28 1>;	/* AM_IRQ0(28) */
+
+			clocks = <&clk81>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pins_sdio_b>;
+
+			mmc-voltages = "3.3";
+
+			mmc-pwr-en = <&gpio5 31 0>;	/* card_8 */
+			ins-detect = <&gpio5 29 0>;	/* card_6 */
+		};
+
+		rng@c1108100 {
+			compatible = "amlogic,aml8726-rng";
+			reg = <0xc1108100 8>;	/* cbus 0x2040 */
+		};
+
+		usb-phy@c1108400 {
+			/* usb-a phy */
+			compatible = "amlogic,aml8726-m6-usb-phy";
+			reg = <0xc1108400 32>;	/* cbus 0x2100 */
+		};
+
+		usb-phy@c1108420 {
+			/* usb-b phy */
+			compatible = "amlogic,aml8726-m6-usb-phy";
+			reg = <0xc1108420 32>;	/* cbus 0x2108 */
+
+			usb-pwr-en = <&gpioao 3 1>,	/* gpioao_3 vbus */
+				     <&gpio6 11 0>;	/* gpioe_11 wifi */
+		};
+
+		usb@c9040000 {
+			/* usb-a */
+			compatible = "synopsys,designware-hs-otg2";
+			reg = <0xc9040000 0x40000>;	/* ahbbus 0x40000*/
+			interrupts = <0 30 4>;		/* AM_IRQ0(30) */
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		usb@c90c0000 {
+			/* usb-b */
+			compatible = "synopsys,designware-hs-otg2";
+			reg = <0xc90c0000 0x40000>;	/* ahbbus 0xc0000 */
+			interrupts = <0 31 4>;		/* AM_IRQ0(31) */
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dr_mode = "host";
+		};
+
+		eth@c9410000 {
+			/* ethernet */
+			compatible = "snps,dwmac";
+			reg = <0xc9410000 0x2000>;	/* ahbbus 0x410000 */
+			interrupts = <0 8 1>;		/* AM_IRQ0(8) */
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			eth-phy-rst = <&gpio5 15 0>;	/* gpioy_15 phy-rst */
+		};
+
+		screen: fb@c8006324 {
+			device_type = "display";
+			compatible = "amlogic,aml8726-fb";
+			reg = <0xc8006324 12>,		/* CANVAS */
+			      <0xc1106800 1024>,	/* VIU */
+			      <0xc1107400 1024>;	/* VPP */
+			interrupts = <0 2 1>,		/* AM_IRQ0(2) */
+				     <0 3 1>,		/* AM_IRQ0(3) */
+				     <0 12 1>,		/* AM_IRQ0(12) */
+				     <0 13 1>;		/* AM_IRQ0(13) */
+
+			address = <0x84900000>;	/* match memreserve */
+			width = <720>;
+			height = <480>;
+			depth = <24>;
+			linebytes = <2160>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		sys_led {
+			gpios = <&gpioao 2>;	/* gpioao_2 sys_led */
+			label = "sys_led";
+
+			default-state = "on";
+		};
+	};
+
+	chosen {
+		stdin = "uart0";
+		stdout = "uart0";
+	};
+};
+
+&clk81 {
+	clock-frequency = <0>;
+};
+
+&uart_AO {
+	status = "okay";
+	current-speed = <115200>;
+};

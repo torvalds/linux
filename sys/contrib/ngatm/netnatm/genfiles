@@ -1,0 +1,15 @@
+#!/bin/sh
+# Copyright (c) 2003
+#	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+#	All rights reserved.
+#
+# Author: Harti Brandt <harti@freebsd.org>
+#
+# $Begemot: libunimsg/netnatm/genfiles,v 1.4 2004/07/08 08:21:45 brandt Exp $
+#
+awk -f ${SRC}msg/parseie.awk -f ${SRC}msg/geniec.awk ${SRC}msg/ie.def >${DST}msg/uni_ietab.h
+awk -f ${SRC}msg/parseie.awk -f ${SRC}msg/genieh.awk ${SRC}msg/ie.def >${DST}msg/uni_ie.h
+awk -f ${SRC}msg/parsemsg.awk -f ${SRC}msg/genmsgc.awk ${SRC}msg/msg.def >${DST}msg/uni_msg.c
+awk -f ${SRC}msg/parsemsg.awk -f ${SRC}msg/genmsgh.awk ${SRC}msg/msg.def >${DST}msg/uni_msg.h
+awk -f ${SRC}msg/parsemsg.awk -f ${SRC}sig/genmsgcpyh.awk ${SRC}msg/msg.def >${DST}sig/unimsgcpy.h
+awk -f ${SRC}msg/parsemsg.awk -f ${SRC}sig/genmsgcpyc.awk ${SRC}msg/msg.def >${DST}sig/sig_unimsgcpy.c

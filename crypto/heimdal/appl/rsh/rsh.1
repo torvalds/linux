@@ -1,0 +1,294 @@
+.\" Copyright (c) 2002 - 2003 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id$
+.\"
+.Dd February 20, 2004
+.Dt RSH 1
+.Os HEIMDAL
+.Sh NAME
+.Nm rsh
+.Nd remote shell
+.Sh SYNOPSIS
+.Nm
+.Op Fl 45FGKdefnuxz
+.Op Fl U Pa string
+.Op Fl p Ar port
+.Op Fl l Ar username
+.Op Fl P Ar N|O
+.Ar host [command]
+.Sh DESCRIPTION
+.Nm
+authenticates to the
+.Xr rshd 8
+daemon on the remote
+.Ar host ,
+and then executes the specified
+.Ar command .
+.Pp
+.Nm
+copies its standard input to the remote command, and the standard
+output and error of the remote command to its own.
+.Pp
+Valid options are:
+.Bl -tag -width Ds
+.It Xo
+.Fl 4 ,
+.Fl Fl krb4
+.Xc
+The
+.Fl 4
+option requests Kerberos 4 authentication. Normally all supported
+authentication mechanisms will be tried, but in some cases more
+explicit control is desired.
+.It Xo
+.Fl 5 ,
+.Fl Fl krb5
+.Xc
+The
+.Fl 5
+option requests Kerberos 5 authentication. This is analogous to the
+.Fl 4
+option.
+.It Xo
+.Fl K ,
+.Fl Fl broken
+.Xc
+The
+.Fl K
+option turns off all Kerberos authentication. The security in this
+mode relies on reserved ports. The long name is an indication of how
+good this is.
+.It Xo
+.Fl n ,
+.Fl Fl no-input
+.Xc
+The
+.Fl n
+option directs the input from the
+.Pa /dev/null
+device (see the
+.Sx BUGS
+section of this manual page).
+.It Fl d
+Enable
+.Xr setsockopt 2
+socket debugging.
+.It Xo
+.Fl e ,
+.Fl Fl no-stderr
+.Xc
+Don't use a separate socket for the stderr stream. This can be
+necessary if rsh-ing through a NAT bridge.
+.It Xo
+.Fl x ,
+.Fl Fl encrypt
+.Xc
+The
+.Fl x
+option enables encryption for all data exchange. This is only valid
+for Kerberos authenticated connections (see the
+.Sx BUGS
+section for limitations).
+.It Xo
+.Fl z
+.Xc
+The opposite of
+.Fl x .
+This is the default, and is mainly useful if encryption has been
+enabled by default, for instance in the
+.Li appdefaults
+section of
+.Pa /etc/krb5.conf
+when using Kerberos 5.
+.It Xo
+.Fl f ,
+.Fl Fl forward
+.Xc
+Forward Kerberos 5 credentials to the remote host.
+Also settable via
+.Li appdefaults
+(see
+.Xr krb5.conf ) .
+.It Xo
+.Fl F ,
+.Fl Fl forwardable
+.Xc
+Make the forwarded credentials re-forwardable.
+Also settable via
+.Li appdefaults
+(see
+.Xr krb5.conf ) .
+.It Xo
+.Fl l Ar string ,
+.Fl Fl user= Ns Ar string
+.Xc
+By default the remote username is the same as the local. The
+.Fl l
+option or the
+.Pa username@host
+format allow the remote name to be specified.
+.It Xo
+.Fl n ,
+.Fl Fl no-input
+.Xc
+Direct input from
+.Pa /dev/null
+(see the
+.Sx BUGS
+section).
+.It Xo
+.Fl p Ar number-or-service ,
+.Fl Fl port= Ns Ar number-or-service
+.Xc
+Connect to this port instead of the default (which is 514 when using
+old port based authentication, 544 for Kerberos 5 and non-encrypted
+Kerberos 4, and 545 for encrytpted Kerberos 4; subject of course to
+the contents of
+.Pa /etc/services ) .
+.It Xo
+.Fl P Ar N|O|1|2 ,
+.Fl Fl protocol= Ns Ar N|O|1|2
+.Xc
+Specifies the protocol version to use with Kerberos 5.
+.Ar N
+and
+.Ar 2
+select protocol version 2, while
+.Ar O
+and
+.Ar 1
+select version 1. Version 2 is believed to be more secure, and is the
+default. Unless asked for a specific version,
+.Nm
+will try both.  This behaviour may change in the future.
+.It Xo
+.Fl u ,
+.Fl Fl unique
+.Xc
+Make sure the remote credentials cache is unique, that is, don't reuse
+any existing cache. Mutually exclusive to
+.Fl U .
+.It Xo
+.Fl U Pa string ,
+.Fl Fl tkfile= Ns Pa string
+.Xc
+Name of the remote credentials cache. Mutually exclusive to
+.Fl u .
+.It Xo
+.Fl x ,
+.Fl Fl encrypt
+.Xc
+The
+.Fl x
+option enables encryption for all data exchange. This is only valid
+for Kerberos authenticated connections (see the
+.Sx BUGS
+section for limitations).
+.It Fl z
+The opposite of
+.Fl x .
+This is the default, but encryption can be enabled when using
+Kerberos 5, by setting the
+.Li libdefaults/encrypt
+option in
+.Xr krb5.conf 5 .
+.El
+.\".Pp
+.\"Without a
+.\".Ar command
+.\".Nm
+.\"will just exec
+.\".Xr rlogin 1
+.\"with the same arguments.
+.Sh EXAMPLES
+Care should be taken when issuing commands containing shell meta
+characters. Without quoting, these will be expanded on the local
+machine.
+.Pp
+The following command:
+.Pp
+.Dl rsh otherhost cat remotefile \*[Gt] localfile
+.Pp
+will write the contents of the remote
+.Pa remotefile
+to the local
+.Pa localfile ,
+but:
+.Pp
+.Dl rsh otherhost 'cat remotefile \*[Gt] remotefile2'
+.Pp
+will write it to the remote
+.Pa remotefile2 .
+.\".Sh ENVIRONMENT
+.Sh FILES
+.Bl -tag -width /etc/hosts -compact
+.It Pa /etc/hosts
+.El
+.\".Sh DIAGNOSTICS
+.Sh SEE ALSO
+.Xr rlogin 1 ,
+.Xr krb_realmofhost 3 ,
+.Xr krb_sendauth 3 ,
+.Xr hosts.equiv 5 ,
+.Xr krb5.conf 5 ,
+.Xr rhosts 5 ,
+.Xr kerberos 8
+.Xr rshd 8
+.\".Sh STANDARDS
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .
+.Sh AUTHORS
+This implementation of
+.Nm
+was written as part of the Heimdal Kerberos 5 implementation.
+.Sh BUGS
+Some shells (notably
+.Xr csh 1 )
+will cause
+.Nm
+to block if run in the background, unless the standard input is directed away from the terminal. This is what the
+.Fl n
+option is for.
+.Pp
+The
+.Fl x
+options enables encryption for the session, but for both Kerberos 4
+and 5 the actual command is sent unencrypted, so you should not send
+any secret information in the command line (which is probably a bad
+idea anyway, since the command line can usually be read with tools
+like
+.Xr ps 1 ) .
+Forthermore in Kerberos 4 the command is not even integrity
+protected, so anyone with the right tools can modify the command.

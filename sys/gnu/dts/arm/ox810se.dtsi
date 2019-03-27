@@ -1,0 +1,338 @@
+/*
+ * ox810se.dtsi - Device tree file for Oxford Semiconductor OX810SE SoC
+ *
+ * Copyright (C) 2016 Neil Armstrong <narmstrong@baylibre.com>
+ *
+ * Licensed under GPLv2 or later
+ */
+
+/include/ "skeleton.dtsi"
+#include <dt-bindings/clock/oxsemi,ox810se.h>
+#include <dt-bindings/reset/oxsemi,ox810se.h>
+
+/ {
+	compatible = "oxsemi,ox810se";
+
+	cpus {
+		#address-cells = <0>;
+		#size-cells = <0>;
+
+		cpu {
+			device_type = "cpu";
+			compatible = "arm,arm926ej-s";
+			clocks = <&armclk>;
+		};
+	};
+
+	memory {
+		/* Max 256MB @ 0x48000000 */
+		reg = <0x48000000 0x10000000>;
+	};
+
+	clocks {
+		osc: oscillator {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
+		};
+
+		gmacclk: gmacclk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <125000000>;
+		};
+
+		rpsclk: rpsclk {
+			compatible = "fixed-factor-clock";
+			#clock-cells = <0>;
+			clock-div = <1>;
+			clock-mult = <1>;
+			clocks = <&osc>;
+		};
+
+		pll400: pll400 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <733333333>;
+		};
+
+		sysclk: sysclk {
+			compatible = "fixed-factor-clock";
+			#clock-cells = <0>;
+			clock-div = <4>;
+			clock-mult = <1>;
+			clocks = <&pll400>;
+		};
+
+		armclk: armclk {
+			compatible = "fixed-factor-clock";
+			#clock-cells = <0>;
+			clock-div = <2>;
+			clock-mult = <1>;
+			clocks = <&pll400>;
+		};
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+		interrupt-parent = <&intc>;
+
+		apb-bridge@44000000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			ranges = <0 0x44000000 0x1000000>;
+
+			pinctrl: pinctrl {
+				compatible = "oxsemi,ox810se-pinctrl";
+
+				/* Regmap for sys registers */
+				oxsemi,sys-ctrl = <&sys>;
+
+				pinctrl_uart0: uart0 {
+					uart0a {
+						pins = "gpio31";
+						function = "fct3";
+					};
+					uart0b {
+						pins = "gpio32";
+						function = "fct3";
+					};
+				};
+
+				pinctrl_uart0_modem: uart0_modem {
+					uart0c {
+						pins = "gpio27";
+						function = "fct3";
+					};
+					uart0d {
+						pins = "gpio28";
+						function = "fct3";
+					};
+					uart0e {
+						pins = "gpio29";
+						function = "fct3";
+					};
+					uart0f {
+						pins = "gpio30";
+						function = "fct3";
+					};
+					uart0g {
+						pins = "gpio33";
+						function = "fct3";
+					};
+					uart0h {
+						pins = "gpio34";
+						function = "fct3";
+					};
+				};
+
+				pinctrl_uart1: uart1 {
+					uart1a {
+						pins = "gpio20";
+						function = "fct3";
+					};
+					uart1b {
+						pins = "gpio22";
+						function = "fct3";
+					};
+				};
+
+				pinctrl_uart1_modem: uart1_modem {
+					uart1c {
+						pins = "gpio8";
+						function = "fct3";
+					};
+					uart1d {
+						pins = "gpio9";
+						function = "fct3";
+					};
+					uart1e {
+						pins = "gpio23";
+						function = "fct3";
+					};
+					uart1f {
+						pins = "gpio24";
+						function = "fct3";
+					};
+					uart1g {
+						pins = "gpio25";
+						function = "fct3";
+					};
+					uart1h {
+						pins = "gpio26";
+						function = "fct3";
+					};
+				};
+
+				pinctrl_uart2: uart2 {
+					uart2a {
+						pins = "gpio6";
+						function = "fct3";
+					};
+					uart2b {
+						pins = "gpio7";
+						function = "fct3";
+					};
+				};
+
+				pinctrl_uart2_modem: uart2_modem {
+					uart2c {
+						pins = "gpio0";
+						function = "fct3";
+					};
+					uart2d {
+						pins = "gpio1";
+						function = "fct3";
+					};
+					uart2e {
+						pins = "gpio2";
+						function = "fct3";
+					};
+					uart2f {
+						pins = "gpio3";
+						function = "fct3";
+					};
+					uart2g {
+						pins = "gpio4";
+						function = "fct3";
+					};
+					uart2h {
+						pins = "gpio5";
+						function = "fct3";
+					};
+				};
+			};
+
+			gpio0: gpio@0 {
+				compatible = "oxsemi,ox810se-gpio";
+				reg = <0x000000 0x100000>;
+				interrupts = <21>;
+				#gpio-cells = <2>;
+				gpio-controller;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				ngpios = <32>;
+				oxsemi,gpio-bank = <0>;
+				gpio-ranges = <&pinctrl 0 0 32>;
+			};
+
+			gpio1: gpio@100000 {
+				compatible = "oxsemi,ox810se-gpio";
+				reg = <0x100000 0x100000>;
+				interrupts = <22>;
+				#gpio-cells = <2>;
+				gpio-controller;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				ngpios = <3>;
+				oxsemi,gpio-bank = <1>;
+				gpio-ranges = <&pinctrl 0 32 3>;
+			};
+
+			uart0: serial@200000 {
+			       compatible = "ns16550a";
+			       reg = <0x200000 0x100000>;
+			       clocks = <&sysclk>;
+			       interrupts = <23>;
+			       reg-shift = <0>;
+			       fifo-size = <16>;
+			       reg-io-width = <1>;
+			       current-speed = <115200>;
+			       no-loopback-test;
+			       status = "disabled";
+			       resets = <&reset RESET_UART1>;
+			};
+
+			uart1: serial@300000 {
+			       compatible = "ns16550a";
+			       reg = <0x300000 0x100000>;
+			       clocks = <&sysclk>;
+			       interrupts = <24>;
+			       reg-shift = <0>;
+			       fifo-size = <16>;
+			       reg-io-width = <1>;
+			       current-speed = <115200>;
+			       no-loopback-test;
+			       status = "disabled";
+			       resets = <&reset RESET_UART2>;
+			};
+
+			uart2: serial@900000 {
+			       compatible = "ns16550a";
+			       reg = <0x900000 0x100000>;
+			       clocks = <&sysclk>;
+			       interrupts = <29>;
+			       reg-shift = <0>;
+			       fifo-size = <16>;
+			       reg-io-width = <1>;
+			       current-speed = <115200>;
+			       no-loopback-test;
+			       status = "disabled";
+			       resets = <&reset RESET_UART3>;
+			};
+
+			uart3: serial@a00000 {
+			       compatible = "ns16550a";
+			       reg = <0xa00000 0x100000>;
+			       clocks = <&sysclk>;
+			       interrupts = <30>;
+			       reg-shift = <0>;
+			       fifo-size = <16>;
+			       reg-io-width = <1>;
+			       current-speed = <115200>;
+			       no-loopback-test;
+			       status = "disabled";
+			       resets = <&reset RESET_UART4>;
+			};
+		};
+
+		apb-bridge@45000000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			ranges = <0 0x45000000 0x1000000>;
+
+			sys: sys-ctrl@0 {
+				compatible = "oxsemi,ox810se-sys-ctrl", "syscon", "simple-mfd";
+				reg = <0x000000 0x100000>;
+
+				reset: reset-controller {
+					compatible = "oxsemi,ox810se-reset";
+					#reset-cells = <1>;
+				};
+
+				stdclk: stdclk {
+					compatible = "oxsemi,ox810se-stdclk";
+					#clock-cells = <1>;
+				};
+			};
+
+			rps@300000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "simple-bus";
+				ranges = <0 0x300000 0x100000>;
+
+				intc: interrupt-controller@0 {
+					compatible = "oxsemi,ox810se-rps-irq";
+					interrupt-controller;
+					reg = <0 0x200>;
+					#interrupt-cells = <1>;
+					valid-mask = <0xFFFFFFFF>;
+					clear-mask = <0>;
+				};
+
+				timer0: timer@200 {
+					compatible = "oxsemi,ox810se-rps-timer";
+					reg = <0x200 0x40>;
+					clocks = <&rpsclk>;
+					interrupts = <4 5>;
+				};
+			};
+		};
+	};
+};

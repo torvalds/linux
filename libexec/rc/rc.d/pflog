@@ -1,0 +1,106 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: pflog
+# REQUIRE: FILESYSTEMS netif
+# KEYWORD: nojailvnet
+
+. /etc/rc.subr
+
+name="pflog"
+desc="Packet filter logging interface"
+rcvar="pflog_enable"
+command="/sbin/pflogd"
+pidfile="/var/run/pflogd.pid"
+start_precmd="pflog_prestart"
+stop_postcmd="pflog_poststop"
+extra_commands="reload resync"
+
+# for backward compatibility
+resync_cmd="pflog_resync"
+
+pflog_prestart()
+{
+	load_kld pflog || return 1
+
+	# create pflog_dev interface if needed
+	if ! ifconfig $pflog_dev > /dev/null 2>&1; then
+		if ! ifconfig $pflog_dev create; then
+			warn "could not create $pflog_dev."
+			return 1
+		fi
+	fi
+
+	# set pflog_dev interface to up state
+	if ! ifconfig $pflog_dev up; then
+		warn "could not bring up $pflog_dev."
+		return 1
+	fi
+
+	# -p flag requires stripping pidfile's leading /var/run and trailing .pid
+	pidfile=$(echo $pidfile | sed -e 's|/var/run/||' -e 's|.pid$||')
+
+	# prepare the command line for pflogd
+	rc_flags="-p $pidfile -f $pflog_logfile -i $pflog_dev $rc_flags"
+
+	# report we're ready to run pflogd
+	return 0
+}
+
+pflog_poststop()
+{
+	if ! ifconfig $pflog_dev down; then
+		warn "could not bring down $pflog_dev."
+		return 1
+	fi
+
+	if [ "$pflog_instances" ] && [ -n "$pflog_instances" ]; then
+		rm $pidfile
+	fi
+
+	return 0
+}
+
+# for backward compatibility
+pflog_resync()
+{
+	run_rc_command reload
+}
+
+load_rc_config $name
+
+# Check if spawning multiple pflogd and told what to spawn
+if [ -n "$2" ]; then
+	# Set required variables
+	eval pflog_dev=\$pflog_${2}_dev
+	eval pflog_logfile=\$pflog_${2}_logfile
+	eval pflog_flags=\$pflog_${2}_flags
+	# Check that required vars have non-zero length, warn if not.
+	if [ -z $pflog_dev ]; then
+		warn "pflog_dev not set"
+		continue
+	fi
+	if [ -z $pflog_logfile ]; then
+		warn "pflog_logfile not set"
+		continue
+	fi
+
+	# Provide a unique pidfile name for pflogd -p <pidfile> flag
+	pidfile="/var/run/pflogd.$2.pid"
+
+	# Override service name and execute command
+	name=$pflog_dev
+	run_rc_command "$1"
+# Check if spawning multiple pflogd and not told what to spawn
+elif [ "$pflog_instances" ] && [ -n "$pflog_instances" ]; then
+	# Interate through requested instances.
+	for i in $pflog_instances; do
+		/etc/rc.d/pflog $1 $i
+	done
+else
+	# Typical case, spawn single instance only.
+	pflog_dev=${pflog_dev:-"pflog0"}
+	run_rc_command "$1"
+fi

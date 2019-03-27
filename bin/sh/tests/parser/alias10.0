@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+# This test may start consuming memory indefinitely if it fails.
+ulimit -t 5 2>/dev/null
+ulimit -v 100000 2>/dev/null
+
+alias echo='echo'
+alias echo='echo'
+[ "`eval echo b`" = b ]

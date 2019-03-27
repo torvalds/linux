@@ -1,0 +1,132 @@
+.\" Copyright (c) 2014 Andriy Gapon <avg@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 27, 2018
+.Dt ZFSBOOT 8
+.Os
+.Sh NAME
+.Nm zfsboot
+.Nd bootcode for ZFS on BIOS-based computers
+.Sh DESCRIPTION
+.Nm
+is used on BIOS-based computers to boot from a filesystem in
+a ZFS pool.
+.Nm
+is installed in two parts on a disk or a partition used by a ZFS pool.
+The first part, a single-sector starter boot block, is installed
+at the beginning of the disk or partition.
+The second part, a main boot block, is installed at a special offset
+within the disk or partition.
+Both areas are reserved by the ZFS on-disk specification for boot use.
+If
+.Nm
+is installed in a partition, then that partition should be made
+bootable using appropriate configuration and boot blocks described in
+.Xr boot 8 .
+.Sh BOOTING
+The
+.Nm
+boot process is very similar to that of
+.Xr gptzfsboot 8 .
+One significant difference is that
+.Nm
+does not currently support the GPT partitioning scheme.
+Thus only whole disks and MBR partitions, traditionally referred to as
+slices, are probed for ZFS disk labels.
+See the BUGS section in
+.Xr gptzfsboot 8
+for some limitations of the MBR scheme support.
+.Sh USAGE
+.Nm
+supports all the same prompt and configuration file arguments as
+.Xr gptzfsboot 8 .
+.Sh FILES
+.Bl -tag -width /boot/zfsboot -compact
+.It Pa /boot/zfsboot
+boot code binary
+.It Pa /boot.config
+parameters for the boot block
+.Pq optional
+.It Pa /boot/config
+alternative parameters for the boot block
+.Pq optional
+.El
+.Sh EXAMPLES
+.Nm
+is typically installed using
+.Xr dd 1 .
+To install
+.Nm
+on the
+.Pa ada0
+drive:
+.Bd -literal -offset indent
+dd if=/boot/zfsboot of=/dev/ada0 count=1
+dd if=/boot/zfsboot of=/dev/ada0 iseek=1 oseek=1024
+.Ed
+.Pp
+If the drive is currently in use, the GEOM safety will prevent writes
+and must be disabled before running the above commands:
+.Bd -literal -offset indent
+sysctl kern.geom.debugflags=0x10
+.Ed
+.Pp
+.Nm
+can also be installed in an MBR slice:
+.Bd -literal -offset indent
+gpart create -s mbr ada0
+gpart add -t freebsd ada0
+gpart bootcode -b /boot/boot0 ada0
+gpart set -a active -i 1 ada0
+dd if=/dev/zero of=/dev/ada0s1 count=2
+dd if=/boot/zfsboot of=/dev/ada0s1 count=1
+dd if=/boot/zfsboot of=/dev/ada0s1 iseek=1 oseek=1024
+.Ed
+.Pp
+Note that commands to create and populate a pool are not shown
+in the example above.
+.Sh SEE ALSO
+.Xr dd 1 ,
+.Xr boot.config 5 ,
+.Xr boot 8 ,
+.Xr gptzfsboot 8 ,
+.Xr loader 8 ,
+.Xr zpool 8
+.Sh HISTORY
+.Nm
+appeared in FreeBSD 7.3.
+.Sh AUTHORS
+This manual page was written by
+.An Andriy Gapon Aq avg@FreeBSD.org .
+.Sh BUGS
+Installing
+.Nm
+with
+.Xr dd 1
+is a hack.
+ZFS needs a command to properly install
+.Nm
+onto a ZFS-controlled disk or partition.

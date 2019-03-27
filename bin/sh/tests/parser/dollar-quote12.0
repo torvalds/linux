@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+# \u without any digits at all remains invalid.
+# Our choice is a parse error.
+
+v=$( (eval ": \$'\u'") 2>&1 >/dev/null)
+[ $? -ne 0 ] && [ -n "$v" ]

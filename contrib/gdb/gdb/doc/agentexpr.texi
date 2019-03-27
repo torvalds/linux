@@ -1,0 +1,837 @@
+@c \input texinfo
+@c %**start of header
+@c @setfilename agentexpr.info
+@c @settitle GDB Agent Expressions
+@c @setchapternewpage off
+@c %**end of header
+
+@c Revision: $Id: agentexpr.texi,v 1.2 1998/12/09 21:23:46 jimb Exp $
+
+@node Agent Expressions
+@appendix The GDB Agent Expression Mechanism
+
+In some applications, it is not feasable for the debugger to interrupt
+the program's execution long enough for the developer to learn anything
+helpful about its behavior.  If the program's correctness depends on its
+real-time behavior, delays introduced by a debugger might cause the
+program to fail, even when the code itself is correct.  It is useful to
+be able to observe the program's behavior without interrupting it.
+
+Using GDB's @code{trace} and @code{collect} commands, the user can
+specify locations in the program, and arbitrary expressions to evaluate
+when those locations are reached.  Later, using the @code{tfind}
+command, she can examine the values those expressions had when the
+program hit the trace points.  The expressions may also denote objects
+in memory --- structures or arrays, for example --- whose values GDB
+should record; while visiting a particular tracepoint, the user may
+inspect those objects as if they were in memory at that moment.
+However, because GDB records these values without interacting with the
+user, it can do so quickly and unobtrusively, hopefully not disturbing
+the program's behavior.
+
+When GDB is debugging a remote target, the GDB @dfn{agent} code running
+on the target computes the values of the expressions itself.  To avoid
+having a full symbolic expression evaluator on the agent, GDB translates
+expressions in the source language into a simpler bytecode language, and
+then sends the bytecode to the agent; the agent then executes the
+bytecode, and records the values for GDB to retrieve later.
+
+The bytecode language is simple; there are forty-odd opcodes, the bulk
+of which are the usual vocabulary of C operands (addition, subtraction,
+shifts, and so on) and various sizes of literals and memory reference
+operations.  The bytecode interpreter operates strictly on machine-level
+values --- various sizes of integers and floating point numbers --- and
+requires no information about types or symbols; thus, the interpreter's
+internal data structures are simple, and each bytecode requires only a
+few native machine instructions to implement it.  The interpreter is
+small, and strict limits on the memory and time required to evaluate an
+expression are easy to determine, making it suitable for use by the
+debugging agent in real-time applications.
+
+@menu
+* General Bytecode Design::     Overview of the interpreter.
+* Bytecode Descriptions::       What each one does.
+* Using Agent Expressions::     How agent expressions fit into the big picture.
+* Varying Target Capabilities:: How to discover what the target can do.
+* Tracing on Symmetrix::        Special info for implementation on EMC's
+                                boxes.
+* Rationale::                   Why we did it this way.
+@end menu
+
+
+@c @node Rationale
+@c @section Rationale
+
+
+@node General Bytecode Design
+@section General Bytecode Design
+
+The agent represents bytecode expressions as an array of bytes.  Each
+instruction is one byte long (thus the term @dfn{bytecode}).  Some
+instructions are followed by operand bytes; for example, the @code{goto}
+instruction is followed by a destination for the jump.
+
+The bytecode interpreter is a stack-based machine; most instructions pop
+their operands off the stack, perform some operation, and push the
+result back on the stack for the next instruction to consume.  Each
+element of the stack may contain either a integer or a floating point
+value; these values are as many bits wide as the largest integer that
+can be directly manipulated in the source language.  Stack elements
+carry no record of their type; bytecode could push a value as an
+integer, then pop it as a floating point value.  However, GDB will not
+generate code which does this.  In C, one might define the type of a
+stack element as follows:
+@example
+union agent_val @{
+  LONGEST l;
+  DOUBLEST d;
+@};
+@end example
+@noindent
+where @code{LONGEST} and @code{DOUBLEST} are @code{typedef} names for
+the largest integer and floating point types on the machine.
+
+By the time the bytecode interpreter reaches the end of the expression,
+the value of the expression should be the only value left on the stack.
+For tracing applications, @code{trace} bytecodes in the expression will
+have recorded the necessary data, and the value on the stack may be
+discarded.  For other applications, like conditional breakpoints, the
+value may be useful.
+
+Separate from the stack, the interpreter has two registers:
+@table @code
+@item pc
+The address of the next bytecode to execute.
+
+@item start
+The address of the start of the bytecode expression, necessary for
+interpreting the @code{goto} and @code{if_goto} instructions.
+
+@end table
+@noindent
+Neither of these registers is directly visible to the bytecode language
+itself, but they are useful for defining the meanings of the bytecode
+operations.
+
+There are no instructions to perform side effects on the running
+program, or call the program's functions; we assume that these
+expressions are only used for unobtrusive debugging, not for patching
+the running code.  
+
+Most bytecode instructions do not distinguish between the various sizes
+of values, and operate on full-width values; the upper bits of the
+values are simply ignored, since they do not usually make a difference
+to the value computed.  The exceptions to this rule are:
+@table @asis
+
+@item memory reference instructions (@code{ref}@var{n})
+There are distinct instructions to fetch different word sizes from
+memory.  Once on the stack, however, the values are treated as full-size
+integers.  They may need to be sign-extended; the @code{ext} instruction
+exists for this purpose.
+
+@item the sign-extension instruction (@code{ext} @var{n})
+These clearly need to know which portion of their operand is to be
+extended to occupy the full length of the word.
+
+@end table
+
+If the interpreter is unable to evaluate an expression completely for
+some reason (a memory location is inaccessible, or a divisor is zero,
+for example), we say that interpretation ``terminates with an error''.
+This means that the problem is reported back to the interpreter's caller
+in some helpful way.  In general, code using agent expressions should
+assume that they may attempt to divide by zero, fetch arbitrary memory
+locations, and misbehave in other ways.
+
+Even complicated C expressions compile to a few bytecode instructions;
+for example, the expression @code{x + y * z} would typically produce
+code like the following, assuming that @code{x} and @code{y} live in
+registers, and @code{z} is a global variable holding a 32-bit
+@code{int}:
+@example
+reg 1
+reg 2
+const32 @i{address of z}
+ref32
+ext 32
+mul
+add
+end
+@end example
+
+In detail, these mean:
+@table @code
+
+@item reg 1
+Push the value of register 1 (presumably holding @code{x}) onto the
+stack.
+
+@item reg 2
+Push the value of register 2 (holding @code{y}).
+
+@item const32 @i{address of z}
+Push the address of @code{z} onto the stack.
+
+@item ref32
+Fetch a 32-bit word from the address at the top of the stack; replace
+the address on the stack with the value.  Thus, we replace the address
+of @code{z} with @code{z}'s value.
+
+@item ext 32
+Sign-extend the value on the top of the stack from 32 bits to full
+length.  This is necessary because @code{z} is a signed integer.
+
+@item mul
+Pop the top two numbers on the stack, multiply them, and push their
+product.  Now the top of the stack contains the value of the expression
+@code{y * z}.
+
+@item add
+Pop the top two numbers, add them, and push the sum.  Now the top of the
+stack contains the value of @code{x + y * z}.
+
+@item end
+Stop executing; the value left on the stack top is the value to be
+recorded.
+
+@end table
+
+
+@node Bytecode Descriptions
+@section Bytecode Descriptions
+
+Each bytecode description has the following form:
+
+@table @asis
+
+@item @code{add} (0x02): @var{a} @var{b} @result{} @var{a+b}
+
+Pop the top two stack items, @var{a} and @var{b}, as integers; push
+their sum, as an integer.
+
+@end table
+
+In this example, @code{add} is the name of the bytecode, and
+@code{(0x02)} is the one-byte value used to encode the bytecode, in
+hexidecimal.  The phrase ``@var{a} @var{b} @result{} @var{a+b}'' shows
+the stack before and after the bytecode executes.  Beforehand, the stack
+must contain at least two values, @var{a} and @var{b}; since the top of
+the stack is to the right, @var{b} is on the top of the stack, and
+@var{a} is underneath it.  After execution, the bytecode will have
+popped @var{a} and @var{b} from the stack, and replaced them with a
+single value, @var{a+b}.  There may be other values on the stack below
+those shown, but the bytecode affects only those shown.
+
+Here is another example:
+
+@table @asis
+
+@item @code{const8} (0x22) @var{n}: @result{} @var{n}
+Push the 8-bit integer constant @var{n} on the stack, without sign
+extension.
+
+@end table
+
+In this example, the bytecode @code{const8} takes an operand @var{n}
+directly from the bytecode stream; the operand follows the @code{const8}
+bytecode itself.  We write any such operands immediately after the name
+of the bytecode, before the colon, and describe the exact encoding of
+the operand in the bytecode stream in the body of the bytecode
+description.
+
+For the @code{const8} bytecode, there are no stack items given before
+the @result{}; this simply means that the bytecode consumes no values
+from the stack.  If a bytecode consumes no values, or produces no
+values, the list on either side of the @result{} may be empty.
+
+If a value is written as @var{a}, @var{b}, or @var{n}, then the bytecode
+treats it as an integer.  If a value is written is @var{addr}, then the
+bytecode treats it as an address.
+
+We do not fully describe the floating point operations here; although
+this design can be extended in a clean way to handle floating point
+values, they are not of immediate interest to the customer, so we avoid
+describing them, to save time.
+
+
+@table @asis
+
+@item @code{float} (0x01): @result{}
+
+Prefix for floating-point bytecodes.  Not implemented yet.
+
+@item @code{add} (0x02): @var{a} @var{b} @result{} @var{a+b}
+Pop two integers from the stack, and push their sum, as an integer.
+
+@item @code{sub} (0x03): @var{a} @var{b} @result{} @var{a-b}
+Pop two integers from the stack, subtract the top value from the
+next-to-top value, and push the difference.
+
+@item @code{mul} (0x04): @var{a} @var{b} @result{} @var{a*b}
+Pop two integers from the stack, multiply them, and push the product on
+the stack.  Note that, when one multiplies two @var{n}-bit numbers
+yielding another @var{n}-bit number, it is irrelevant whether the
+numbers are signed or not; the results are the same.
+
+@item @code{div_signed} (0x05): @var{a} @var{b} @result{} @var{a/b}
+Pop two signed integers from the stack; divide the next-to-top value by
+the top value, and push the quotient.  If the divisor is zero, terminate
+with an error.
+
+@item @code{div_unsigned} (0x06): @var{a} @var{b} @result{} @var{a/b}
+Pop two unsigned integers from the stack; divide the next-to-top value
+by the top value, and push the quotient.  If the divisor is zero,
+terminate with an error.
+
+@item @code{rem_signed} (0x07): @var{a} @var{b} @result{} @var{a modulo b}
+Pop two signed integers from the stack; divide the next-to-top value by
+the top value, and push the remainder.  If the divisor is zero,
+terminate with an error.
+
+@item @code{rem_unsigned} (0x08): @var{a} @var{b} @result{} @var{a modulo b}
+Pop two unsigned integers from the stack; divide the next-to-top value
+by the top value, and push the remainder.  If the divisor is zero,
+terminate with an error.
+
+@item @code{lsh} (0x09): @var{a} @var{b} @result{} @var{a<<b}
+Pop two integers from the stack; let @var{a} be the next-to-top value,
+and @var{b} be the top value.  Shift @var{a} left by @var{b} bits, and
+push the result.
+
+@item @code{rsh_signed} (0x0a): @var{a} @var{b} @result{} @code{(signed)}@var{a>>b}
+Pop two integers from the stack; let @var{a} be the next-to-top value,
+and @var{b} be the top value.  Shift @var{a} right by @var{b} bits,
+inserting copies of the top bit at the high end, and push the result.
+
+@item @code{rsh_unsigned} (0x0b): @var{a} @var{b} @result{} @var{a>>b}
+Pop two integers from the stack; let @var{a} be the next-to-top value,
+and @var{b} be the top value.  Shift @var{a} right by @var{b} bits,
+inserting zero bits at the high end, and push the result.
+
+@item @code{log_not} (0x0e): @var{a} @result{} @var{!a}
+Pop an integer from the stack; if it is zero, push the value one;
+otherwise, push the value zero.
+
+@item @code{bit_and} (0x0f): @var{a} @var{b} @result{} @var{a&b}
+Pop two integers from the stack, and push their bitwise @code{and}.
+
+@item @code{bit_or} (0x10): @var{a} @var{b} @result{} @var{a|b}
+Pop two integers from the stack, and push their bitwise @code{or}.
+
+@item @code{bit_xor} (0x11): @var{a} @var{b} @result{} @var{a^b}
+Pop two integers from the stack, and push their bitwise
+exclusive-@code{or}.
+
+@item @code{bit_not} (0x12): @var{a} @result{} @var{~a}
+Pop an integer from the stack, and push its bitwise complement.
+
+@item @code{equal} (0x13): @var{a} @var{b} @result{} @var{a=b}
+Pop two integers from the stack; if they are equal, push the value one;
+otherwise, push the value zero.
+
+@item @code{less_signed} (0x14): @var{a} @var{b} @result{} @var{a<b}
+Pop two signed integers from the stack; if the next-to-top value is less
+than the top value, push the value one; otherwise, push the value zero.
+
+@item @code{less_unsigned} (0x15): @var{a} @var{b} @result{} @var{a<b}
+Pop two unsigned integers from the stack; if the next-to-top value is less
+than the top value, push the value one; otherwise, push the value zero.
+
+@item @code{ext} (0x16) @var{n}: @var{a} @result{} @var{a}, sign-extended from @var{n} bits
+Pop an unsigned value from the stack; treating it as an @var{n}-bit
+twos-complement value, extend it to full length.  This means that all
+bits to the left of bit @var{n-1} (where the least significant bit is bit
+0) are set to the value of bit @var{n-1}.  Note that @var{n} may be
+larger than or equal to the width of the stack elements of the bytecode
+engine; in this case, the bytecode should have no effect.
+
+The number of source bits to preserve, @var{n}, is encoded as a single
+byte unsigned integer following the @code{ext} bytecode.
+
+@item @code{zero_ext} (0x2a) @var{n}: @var{a} @result{} @var{a}, zero-extended from @var{n} bits
+Pop an unsigned value from the stack; zero all but the bottom @var{n}
+bits.  This means that all bits to the left of bit @var{n-1} (where the
+least significant bit is bit 0) are set to the value of bit @var{n-1}.
+
+The number of source bits to preserve, @var{n}, is encoded as a single
+byte unsigned integer following the @code{zero_ext} bytecode.
+
+@item @code{ref8} (0x17): @var{addr} @result{} @var{a}
+@itemx @code{ref16} (0x18): @var{addr} @result{} @var{a}
+@itemx @code{ref32} (0x19): @var{addr} @result{} @var{a}
+@itemx @code{ref64} (0x1a): @var{addr} @result{} @var{a}
+Pop an address @var{addr} from the stack.  For bytecode
+@code{ref}@var{n}, fetch an @var{n}-bit value from @var{addr}, using the
+natural target endianness.  Push the fetched value as an unsigned
+integer.
+
+Note that @var{addr} may not be aligned in any particular way; the
+@code{ref@var{n}} bytecodes should operate correctly for any address.
+
+If attempting to access memory at @var{addr} would cause a processor
+exception of some sort, terminate with an error.
+
+@item @code{ref_float} (0x1b): @var{addr} @result{} @var{d}
+@itemx @code{ref_double} (0x1c): @var{addr} @result{} @var{d}
+@itemx @code{ref_long_double} (0x1d): @var{addr} @result{} @var{d}
+@itemx @code{l_to_d} (0x1e): @var{a} @result{} @var{d}
+@itemx @code{d_to_l} (0x1f): @var{d} @result{} @var{a}
+Not implemented yet.
+
+@item @code{dup} (0x28): @var{a} => @var{a} @var{a}
+Push another copy of the stack's top element.
+
+@item @code{swap} (0x2b): @var{a} @var{b} => @var{b} @var{a}
+Exchange the top two items on the stack.
+
+@item @code{pop} (0x29): @var{a} =>
+Discard the top value on the stack.
+
+@item @code{if_goto} (0x20) @var{offset}: @var{a} @result{}
+Pop an integer off the stack; if it is non-zero, branch to the given
+offset in the bytecode string.  Otherwise, continue to the next
+instruction in the bytecode stream.  In other words, if @var{a} is
+non-zero, set the @code{pc} register to @code{start} + @var{offset}.
+Thus, an offset of zero denotes the beginning of the expression.
+
+The @var{offset} is stored as a sixteen-bit unsigned value, stored
+immediately following the @code{if_goto} bytecode.  It is always stored
+most significant byte first, regardless of the target's normal
+endianness.  The offset is not guaranteed to fall at any particular
+alignment within the bytecode stream; thus, on machines where fetching a
+16-bit on an unaligned address raises an exception, you should fetch the
+offset one byte at a time.
+
+@item @code{goto} (0x21) @var{offset}: @result{}
+Branch unconditionally to @var{offset}; in other words, set the
+@code{pc} register to @code{start} + @var{offset}.
+
+The offset is stored in the same way as for the @code{if_goto} bytecode.
+
+@item @code{const8} (0x22) @var{n}: @result{} @var{n}
+@itemx @code{const16} (0x23) @var{n}: @result{} @var{n}
+@itemx @code{const32} (0x24) @var{n}: @result{} @var{n}
+@itemx @code{const64} (0x25) @var{n}: @result{} @var{n}
+Push the integer constant @var{n} on the stack, without sign extension.
+To produce a small negative value, push a small twos-complement value,
+and then sign-extend it using the @code{ext} bytecode.
+
+The constant @var{n} is stored in the appropriate number of bytes
+following the @code{const}@var{b} bytecode.  The constant @var{n} is
+always stored most significant byte first, regardless of the target's
+normal endianness.  The constant is not guaranteed to fall at any
+particular alignment within the bytecode stream; thus, on machines where
+fetching a 16-bit on an unaligned address raises an exception, you
+should fetch @var{n} one byte at a time.
+
+@item @code{reg} (0x26) @var{n}: @result{} @var{a}
+Push the value of register number @var{n}, without sign extension.  The
+registers are numbered following GDB's conventions.
+
+The register number @var{n} is encoded as a 16-bit unsigned integer
+immediately following the @code{reg} bytecode.  It is always stored most
+significant byte first, regardless of the target's normal endianness.
+The register number is not guaranteed to fall at any particular
+alignment within the bytecode stream; thus, on machines where fetching a
+16-bit on an unaligned address raises an exception, you should fetch the
+register number one byte at a time.
+
+@item @code{trace} (0x0c): @var{addr} @var{size} @result{}
+Record the contents of the @var{size} bytes at @var{addr} in a trace
+buffer, for later retrieval by GDB.
+
+@item @code{trace_quick} (0x0d) @var{size}: @var{addr} @result{} @var{addr}
+Record the contents of the @var{size} bytes at @var{addr} in a trace
+buffer, for later retrieval by GDB.  @var{size} is a single byte
+unsigned integer following the @code{trace} opcode.
+
+This bytecode is equivalent to the sequence @code{dup const8 @var{size}
+trace}, but we provide it anyway to save space in bytecode strings.
+
+@item @code{trace16} (0x30) @var{size}: @var{addr} @result{} @var{addr}
+Identical to trace_quick, except that @var{size} is a 16-bit big-endian
+unsigned integer, not a single byte.  This should probably have been
+named @code{trace_quick16}, for consistency.
+
+@item @code{end} (0x27): @result{}
+Stop executing bytecode; the result should be the top element of the
+stack.  If the purpose of the expression was to compute an lvalue or a
+range of memory, then the next-to-top of the stack is the lvalue's
+address, and the top of the stack is the lvalue's size, in bytes.
+
+@end table
+
+
+@node Using Agent Expressions
+@section Using Agent Expressions
+
+Here is a sketch of a full non-stop debugging cycle, showing how agent
+expressions fit into the process.
+
+@itemize @bullet
+
+@item
+The user selects trace points in the program's code at which GDB should
+collect data.
+
+@item
+The user specifies expressions to evaluate at each trace point.  These
+expressions may denote objects in memory, in which case those objects'
+contents are recorded as the program runs, or computed values, in which
+case the values themselves are recorded.
+
+@item
+GDB transmits the tracepoints and their associated expressions to the
+GDB agent, running on the debugging target.
+
+@item
+The agent arranges to be notified when a trace point is hit.  Note that,
+on some systems, the target operating system is completely responsible
+for collecting the data; see @ref{Tracing on Symmetrix}.
+
+@item
+When execution on the target reaches a trace point, the agent evaluates
+the expressions associated with that trace point, and records the
+resulting values and memory ranges.
+
+@item
+Later, when the user selects a given trace event and inspects the
+objects and expression values recorded, GDB talks to the agent to
+retrieve recorded data as necessary to meet the user's requests.  If the
+user asks to see an object whose contents have not been recorded, GDB
+reports an error.
+
+@end itemize
+
+
+@node Varying Target Capabilities
+@section Varying Target Capabilities
+
+Some targets don't support floating-point, and some would rather not
+have to deal with @code{long long} operations.  Also, different targets
+will have different stack sizes, and different bytecode buffer lengths.
+
+Thus, GDB needs a way to ask the target about itself.  We haven't worked
+out the details yet, but in general, GDB should be able to send the
+target a packet asking it to describe itself.  The reply should be a
+packet whose length is explicit, so we can add new information to the
+packet in future revisions of the agent, without confusing old versions
+of GDB, and it should contain a version number.  It should contain at
+least the following information:
+
+@itemize @bullet
+
+@item
+whether floating point is supported
+
+@item
+whether @code{long long} is supported
+
+@item
+maximum acceptable size of bytecode stack
+
+@item
+maximum acceptable length of bytecode expressions
+
+@item
+which registers are actually available for collection
+
+@item
+whether the target supports disabled tracepoints
+
+@end itemize
+
+
+
+@node Tracing on Symmetrix
+@section Tracing on Symmetrix
+
+This section documents the API used by the GDB agent to collect data on
+Symmetrix systems.
+
+Cygnus originally implemented these tracing features to help EMC
+Corporation debug their Symmetrix high-availability disk drives.  The
+Symmetrix application code already includes substantial tracing
+facilities; the GDB agent for the Symmetrix system uses those facilities
+for its own data collection, via the API described here.
+
+@deftypefn Function DTC_RESPONSE adbg_find_memory_in_frame (FRAME_DEF *@var{frame}, char *@var{address}, char **@var{buffer}, unsigned int *@var{size})
+Search the trace frame @var{frame} for memory saved from @var{address}.
+If the memory is available, provide the address of the buffer holding
+it; otherwise, provide the address of the next saved area.
+
+@itemize @bullet
+
+@item
+If the memory at @var{address} was saved in @var{frame}, set
+@code{*@var{buffer}} to point to the buffer in which that memory was
+saved, set @code{*@var{size}} to the number of bytes from @var{address}
+that are saved at @code{*@var{buffer}}, and return
+@code{OK_TARGET_RESPONSE}.  (Clearly, in this case, the function will
+always set @code{*@var{size}} to a value greater than zero.)
+
+@item
+If @var{frame} does not record any memory at @var{address}, set
+@code{*@var{size}} to the distance from @var{address} to the start of
+the saved region with the lowest address higher than @var{address}.  If
+there is no memory saved from any higher address, set @code{*@var{size}}
+to zero.  Return @code{NOT_FOUND_TARGET_RESPONSE}.
+@end itemize
+
+These two possibilities allow the caller to either retrieve the data, or
+walk the address space to the next saved area.
+@end deftypefn
+
+This function allows the GDB agent to map the regions of memory saved in
+a particular frame, and retrieve their contents efficiently.
+
+This function also provides a clean interface between the GDB agent and
+the Symmetrix tracing structures, making it easier to adapt the GDB
+agent to future versions of the Symmetrix system, and vice versa.  This
+function searches all data saved in @var{frame}, whether the data is
+there at the request of a bytecode expression, or because it falls in
+one of the format's memory ranges, or because it was saved from the top
+of the stack.  EMC can arbitrarily change and enhance the tracing
+mechanism, but as long as this function works properly, all collected
+memory is visible to GDB.
+
+The function itself is straightforward to implement.  A single pass over
+the trace frame's stack area, memory ranges, and expression blocks can
+yield the address of the buffer (if the requested address was saved),
+and also note the address of the next higher range of memory, to be
+returned when the search fails.
+
+As an example, suppose the trace frame @code{f} has saved sixteen bytes
+from address @code{0x8000} in a buffer at @code{0x1000}, and thirty-two
+bytes from address @code{0xc000} in a buffer at @code{0x1010}.  Here are
+some sample calls, and the effect each would have:
+
+@table @code
+
+@item adbg_find_memory_in_frame (f, (char*) 0x8000, &buffer, &size)
+This would set @code{buffer} to @code{0x1000}, set @code{size} to
+sixteen, and return @code{OK_TARGET_RESPONSE}, since @code{f} saves
+sixteen bytes from @code{0x8000} at @code{0x1000}.
+
+@item adbg_find_memory_in_frame (f, (char *) 0x8004, &buffer, &size)
+This would set @code{buffer} to @code{0x1004}, set @code{size} to
+twelve, and return @code{OK_TARGET_RESPONSE}, since @file{f} saves the
+twelve bytes from @code{0x8004} starting four bytes into the buffer at
+@code{0x1000}.  This shows that request addresses may fall in the middle
+of saved areas; the function should return the address and size of the
+remainder of the buffer.
+
+@item adbg_find_memory_in_frame (f, (char *) 0x8100, &buffer, &size)
+This would set @code{size} to @code{0x3f00} and return
+@code{NOT_FOUND_TARGET_RESPONSE}, since there is no memory saved in
+@code{f} from the address @code{0x8100}, and the next memory available
+is at @code{0x8100 + 0x3f00}, or @code{0xc000}.  This shows that request
+addresses may fall outside of all saved memory ranges; the function
+should indicate the next saved area, if any.
+
+@item adbg_find_memory_in_frame (f, (char *) 0x7000, &buffer, &size)
+This would set @code{size} to @code{0x1000} and return
+@code{NOT_FOUND_TARGET_RESPONSE}, since the next saved memory is at
+@code{0x7000 + 0x1000}, or @code{0x8000}.
+
+@item adbg_find_memory_in_frame (f, (char *) 0xf000, &buffer, &size)
+This would set @code{size} to zero, and return
+@code{NOT_FOUND_TARGET_RESPONSE}.  This shows how the function tells the
+caller that no further memory ranges have been saved.
+
+@end table
+
+As another example, here is a function which will print out the
+addresses of all memory saved in the trace frame @code{frame} on the
+Symmetrix INLINES console:
+@example
+void
+print_frame_addresses (FRAME_DEF *frame)
+@{
+  char *addr;
+  char *buffer;
+  unsigned long size;
+
+  addr = 0;
+  for (;;)
+    @{
+      /* Either find out how much memory we have here, or discover
+         where the next saved region is.  */
+      if (adbg_find_memory_in_frame (frame, addr, &buffer, &size)
+          == OK_TARGET_RESPONSE)
+        printp ("saved %x to %x\n", addr, addr + size);
+      if (size == 0)
+        break;
+      addr += size;
+    @}
+@}
+@end example
+
+Note that there is not necessarily any connection between the order in
+which the data is saved in the trace frame, and the order in which
+@code{adbg_find_memory_in_frame} will return those memory ranges.  The
+code above will always print the saved memory regions in order of
+increasing address, while the underlying frame structure might store the
+data in a random order.
+
+[[This section should cover the rest of the Symmetrix functions the stub
+relies upon, too.]]
+
+@node Rationale
+@section Rationale
+
+Some of the design decisions apparent above are arguable.
+
+@table @b
+
+@item What about stack overflow/underflow?
+GDB should be able to query the target to discover its stack size.
+Given that information, GDB can determine at translation time whether a
+given expression will overflow the stack.  But this spec isn't about
+what kinds of error-checking GDB ought to do.
+
+@item Why are you doing everything in LONGEST?
+
+Speed isn't important, but agent code size is; using LONGEST brings in a
+bunch of support code to do things like division, etc.  So this is a
+serious concern.
+
+First, note that you don't need different bytecodes for different
+operand sizes.  You can generate code without @emph{knowing} how big the
+stack elements actually are on the target.  If the target only supports
+32-bit ints, and you don't send any 64-bit bytecodes, everything just
+works.  The observation here is that the MIPS and the Alpha have only
+fixed-size registers, and you can still get C's semantics even though
+most instructions only operate on full-sized words.  You just need to
+make sure everything is properly sign-extended at the right times.  So
+there is no need for 32- and 64-bit variants of the bytecodes.  Just
+implement everything using the largest size you support.
+
+GDB should certainly check to see what sizes the target supports, so the
+user can get an error earlier, rather than later.  But this information
+is not necessary for correctness.
+
+
+@item Why don't you have @code{>} or @code{<=} operators?
+I want to keep the interpreter small, and we don't need them.  We can
+combine the @code{less_} opcodes with @code{log_not}, and swap the order
+of the operands, yielding all four asymmetrical comparison operators.
+For example, @code{(x <= y)} is @code{! (x > y)}, which is @code{! (y <
+x)}.
+
+@item Why do you have @code{log_not}?
+@itemx Why do you have @code{ext}?
+@itemx Why do you have @code{zero_ext}?
+These are all easily synthesized from other instructions, but I expect
+them to be used frequently, and they're simple, so I include them to
+keep bytecode strings short.
+
+@code{log_not} is equivalent to @code{const8 0 equal}; it's used in half
+the relational operators.
+
+@code{ext @var{n}} is equivalent to @code{const8 @var{s-n} lsh const8
+@var{s-n} rsh_signed}, where @var{s} is the size of the stack elements;
+it follows @code{ref@var{m}} and @var{reg} bytecodes when the value
+should be signed.  See the next bulleted item.
+
+@code{zero_ext @var{n}} is equivalent to @code{const@var{m} @var{mask}
+log_and}; it's used whenever we push the value of a register, because we
+can't assume the upper bits of the register aren't garbage.
+
+@item Why not have sign-extending variants of the @code{ref} operators?
+Because that would double the number of @code{ref} operators, and we
+need the @code{ext} bytecode anyway for accessing bitfields.
+
+@item Why not have constant-address variants of the @code{ref} operators?
+Because that would double the number of @code{ref} operators again, and
+@code{const32 @var{address} ref32} is only one byte longer.
+
+@item Why do the @code{ref@var{n}} operators have to support unaligned fetches?
+GDB will generate bytecode that fetches multi-byte values at unaligned
+addresses whenever the executable's debugging information tells it to.
+Furthermore, GDB does not know the value the pointer will have when GDB
+generates the bytecode, so it cannot determine whether a particular
+fetch will be aligned or not.
+
+In particular, structure bitfields may be several bytes long, but follow
+no alignment rules; members of packed structures are not necessarily
+aligned either.
+
+In general, there are many cases where unaligned references occur in
+correct C code, either at the programmer's explicit request, or at the
+compiler's discretion.  Thus, it is simpler to make the GDB agent
+bytecodes work correctly in all circumstances than to make GDB guess in
+each case whether the compiler did the usual thing.
+
+@item Why are there no side-effecting operators?
+Because our current client doesn't want them?  That's a cheap answer.  I
+think the real answer is that I'm afraid of implementing function
+calls.  We should re-visit this issue after the present contract is
+delivered.
+
+@item Why aren't the @code{goto} ops PC-relative?
+The interpreter has the base address around anyway for PC bounds
+checking, and it seemed simpler.
+
+@item Why is there only one offset size for the @code{goto} ops?
+Offsets are currently sixteen bits.  I'm not happy with this situation
+either:
+
+Suppose we have multiple branch ops with different offset sizes.  As I
+generate code left-to-right, all my jumps are forward jumps (there are
+no loops in expressions), so I never know the target when I emit the
+jump opcode.  Thus, I have to either always assume the largest offset
+size, or do jump relaxation on the code after I generate it, which seems
+like a big waste of time.
+
+I can imagine a reasonable expression being longer than 256 bytes.  I
+can't imagine one being longer than 64k.  Thus, we need 16-bit offsets.
+This kind of reasoning is so bogus, but relaxation is pathetic.
+
+The other approach would be to generate code right-to-left.  Then I'd
+always know my offset size.  That might be fun.
+
+@item Where is the function call bytecode?
+
+When we add side-effects, we should add this.
+
+@item Why does the @code{reg} bytecode take a 16-bit register number?
+
+Intel's IA-64 architecture has 128 general-purpose registers,
+and 128 floating-point registers, and I'm sure it has some random
+control registers.
+
+@item Why do we need @code{trace} and @code{trace_quick}?
+Because GDB needs to record all the memory contents and registers an
+expression touches.  If the user wants to evaluate an expression
+@code{x->y->z}, the agent must record the values of @code{x} and
+@code{x->y} as well as the value of @code{x->y->z}.
+
+@item Don't the @code{trace} bytecodes make the interpreter less general?
+They do mean that the interpreter contains special-purpose code, but
+that doesn't mean the interpreter can only be used for that purpose.  If
+an expression doesn't use the @code{trace} bytecodes, they don't get in
+its way.
+
+@item Why doesn't @code{trace_quick} consume its arguments the way everything else does?
+In general, you do want your operators to consume their arguments; it's
+consistent, and generally reduces the amount of stack rearrangement
+necessary.  However, @code{trace_quick} is a kludge to save space; it
+only exists so we needn't write @code{dup const8 @var{SIZE} trace}
+before every memory reference.  Therefore, it's okay for it not to
+consume its arguments; it's meant for a specific context in which we
+know exactly what it should do with the stack.  If we're going to have a
+kludge, it should be an effective kludge.
+
+@item Why does @code{trace16} exist?
+That opcode was added by the customer that contracted Cygnus for the
+data tracing work.  I personally think it is unnecessary; objects that
+large will be quite rare, so it is okay to use @code{dup const16
+@var{size} trace} in those cases.
+
+Whatever we decide to do with @code{trace16}, we should at least leave
+opcode 0x30 reserved, to remain compatible with the customer who added
+it.
+
+@end table

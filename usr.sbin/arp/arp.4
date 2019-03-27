@@ -1,0 +1,251 @@
+.\" Copyright (c) 1985, 1986, 1988, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)arp4.4	6.5 (Berkeley) 4/18/94
+.\" $FreeBSD$
+.\"
+.Dd October 7, 2016
+.Dt ARP 4
+.Os
+.Sh NAME
+.Nm arp
+.Nd Address Resolution Protocol
+.Sh SYNOPSIS
+.Cd "device ether"
+.Sh DESCRIPTION
+The Address Resolution Protocol (ARP) is used to dynamically
+map between Protocol Addresses (such as IP addresses) and
+Local Network Addresses (such as Ethernet addresses).
+This implementation maps IP addresses to Ethernet,
+ARCnet,
+or Token Ring addresses.
+It is used by all the Ethernet interface drivers.
+.Pp
+ARP caches Internet-Ethernet address mappings.
+When an interface requests a mapping for an address not in the cache,
+ARP queues the message which requires the mapping and broadcasts
+a message on the associated network requesting the address mapping.
+If a response is provided, the new mapping is cached and any pending
+message is transmitted.
+ARP will queue at most one packet while waiting for a response to a
+mapping request;
+only the most recently ``transmitted'' packet is kept.
+If the target host does not respond after several requests,
+the host is considered to be down allowing an error to be returned to
+transmission attempts.
+Further demand for this mapping causes ARP request retransmissions, that
+are ratelimited to one packet per second.
+The error is
+.Er EHOSTDOWN
+for a non-responding destination host, and
+.Er EHOSTUNREACH
+for a non-responding router.
+.Pp
+The ARP cache is stored in the system routing table as
+dynamically-created host routes.
+The route to a directly-attached Ethernet network is installed as a
+.Dq cloning
+route (one with the
+.Li RTF_CLONING
+flag set),
+causing routes to individual hosts on that network to be created on
+demand.
+These routes time out periodically (normally 20 minutes after validated;
+entries are not validated when not in use).
+.Pp
+ARP entries may be added, deleted or changed with the
+.Xr arp 8
+utility.
+Manually-added entries may be temporary or permanent,
+and may be
+.Dq published ,
+in which case the system will respond to ARP requests for that host
+as if it were the target of the request.
+.Pp
+In the past,
+ARP was used to negotiate the use of a trailer encapsulation.
+This is no longer supported.
+.Pp
+ARP watches passively for hosts impersonating the local host (i.e., a host
+which responds to an ARP mapping request for the local host's address).
+.Pp
+Proxy ARP is a feature whereby the local host will respond to requests
+for addresses other than itself, with its own address.
+Normally, proxy ARP in
+.Fx
+is set up on a host-by-host basis using the
+.Xr arp 8
+utility, by adding an entry for each host inside a given subnet for
+which proxying of ARP requests is desired.
+However, the
+.Dq "proxy all"
+feature causes the local host to act as a proxy for
+.Em all
+hosts reachable through some other network interface,
+different from the one the request came in from.
+It may be enabled by setting the
+.Xr sysctl 8
+MIB variable
+.Va net.link.ether.inet.proxyall
+to 1.
+.Sh MIB Variables
+The ARP protocol implements a number of configurable variables in
+.Va net.link.ether.inet
+branch
+of the
+.Xr sysctl 3
+MIB.
+.Bl -tag -width "log_arp_permanent_modify"
+.It Va allow_multicast
+Install ARP entries with the multicast bit set in the hardware address.
+Installing such entries is an RFC 1812 violation, but some proprietary load
+balancing techniques require routers to do so.
+Turned off by default.
+.It Va garp_rexmit_count
+Retransmit gratuitous ARP (GARP) packets when an IPv4 address is added to an
+interface.
+A GARP is always transmitted when an IPv4 address is added to an interface.
+A non-zero value causes the GARP packet to be retransmitted the stated number
+of times.
+The interval between retransmissions is doubled each time, so the
+retransmission intervals are: {1, 2, 4, 8, 16, ...} (seconds).
+The default value of zero means only the initial GARP is sent; no
+additional GARP packets are retransmitted.
+The maximum value is sixteen.
+.Pp
+The default behavior of a single GARP packet is usually sufficient.
+However, a single GARP might be dropped or lost in some circumstances.
+This is particularly harmful when a shared address is passed between cluster
+nodes.
+Neighbors on the network link might then work with a stale ARP cache and send
+packets destined for that address to the node that previously owned the
+address, which might not respond.
+.It Va log_arp_movements
+Log movements of IP addresses from one hardware address to another.
+See
+.Sx DIAGNOSTICS
+below.
+Turned on by default.
+.It Va log_arp_permanent_modify
+Log attempts by a remote host to modify a permanent ARP entry.
+See
+.Sx DIAGNOSTICS
+below.
+Turned on by default.
+.It Va log_arp_wrong_iface
+Log attempts to insert an ARP entry on an interface when the IP network to
+which the address belongs is connected to another interface.
+See
+.Sx DIAGNOSTICS
+below.
+Turned on by default.
+.It Va max_log_per_second
+Limit the number of remotely triggered logging events to a configured value per
+second.
+Default is 1 log message per second.
+.It Va max_age
+How long an ARP entry is held in the cache until it needs to be refreshed.
+Default is 1200 seconds.
+.It Va maxhold
+How many packets to hold in the per-entry output queue while the entry
+is being resolved.
+Default is one packet.
+.It Va maxtries
+Number of retransmits before a host is considered down and an error is
+returned.
+Default is 5 tries.
+.It Va proxyall
+Enables ARP proxying.
+Turned off by default.
+.It Va wait
+Lifetime of an incomplete ARP entry.
+Default is 20 seconds.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "arp: %x:%x:%x:%x:%x:%x is using my IP address %d.%d.%d.%d on %s!"
+ARP has discovered another host on the local network which responds to
+mapping requests for its own Internet address with a different Ethernet
+address, generally indicating that two hosts are attempting to use the
+same Internet address.
+.It "arp: link address is broadcast for IP address %d.%d.%d.%d!"
+ARP requested information for a host, and received an answer indicating
+that the host's ethernet address is the ethernet broadcast address.
+This indicates a misconfigured or broken device.
+.It "arp: %d.%d.%d.%d moved from %x:%x:%x:%x:%x:%x to %x:%x:%x:%x:%x:%x on %s"
+ARP had a cached value for the ethernet address of the referenced host,
+but received a reply indicating that the host is at a new address.
+This can happen normally when host hardware addresses change,
+or when a mobile node arrives or leaves the local subnet.
+It can also indicate a problem with proxy ARP.
+This message can only be issued if the sysctl
+.Va net.link.ether.inet.log_arp_movements
+is set to 1, which is the system's default behaviour.
+.It "arpresolve: can't allocate llinfo for %d.%d.%d.%d"
+The route for the referenced host points to a device upon which ARP is
+required, but ARP was unable to allocate a routing table entry in which
+to store the host's MAC address.
+This usually points to a misconfigured routing table.
+It can also occur if the kernel cannot allocate memory.
+.It "arp: %d.%d.%d.%d is on if0 but got reply from %x:%x:%x:%x:%x:%x on if1"
+Physical connections exist to the same logical IP network on both if0 and if1.
+It can also occur if an entry already exists in the ARP cache for the IP
+address above, and the cable has been disconnected from if0, then reconnected
+to if1.
+This message can only be issued if the sysctl
+.Va net.link.ether.inet.log_arp_wrong_iface
+is set to 1, which is the system's default behaviour.
+.It "arp: %x:%x:%x:%x:%x:%x attempts to modify permanent entry for %d.%d.%d.%d on %s"
+ARP has received an ARP reply that attempts to overwrite a permanent
+entry in the local ARP table.
+This error will only be logged if the sysctl
+.Va net.link.ether.inet.log_arp_permanent_modify
+is set to 1, which is the system's default behaviour.
+.It "arp: %x:%x:%x:%x:%x:%x is multicast"
+Kernel refused to install an entry with multicast hardware address.
+If you really want such addresses being installed, set the sysctl
+.Va net.link.ether.inet.allow_multicast
+to a positive value.
+.El
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr route 4 ,
+.Xr arp 8 ,
+.Xr ifconfig 8 ,
+.Xr route 8 ,
+.Xr sysctl 8
+.Rs
+.%A Plummer, D.
+.%B "An Ethernet Address Resolution Protocol"
+.%T RFC826
+.Re
+.Rs
+.%A Leffler, S.J.
+.%A Karels, M.J.
+.%B "Trailer Encapsulations"
+.%T RFC893
+.Re

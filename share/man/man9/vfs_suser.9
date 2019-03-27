@@ -1,0 +1,72 @@
+.\"
+.\" Copyright (c) 2004 Alfred Perlstein
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 2, 2004
+.Dt VFS_SUSER 9
+.Os
+.Sh NAME
+.Nm vfs_suser
+.Nd check if credentials have superuser privileges for a mount point
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/systm.h
+.In sys/mount.h
+.Ft int
+.Fn vfs_suser "struct mount *mp" "struct thread *td"
+.Sh DESCRIPTION
+The
+.Fn vfs_suser
+function checks if the credentials given include superuser powers
+for the given mount point.
+It will check to see if the thread
+passed in has the same credentials as the user that mounted the
+file system.
+If so, it returns 0, otherwise it returns what
+.Xr priv_check 9
+would have returned.
+.Sh RETURN VALUES
+The
+.Fn vfs_suser
+function returns 0 if the user has superuser powers and
+.Er EPERM
+otherwise.
+This is the
+.Em reverse logic
+of some other implementations of
+.Fn suser
+in which a TRUE response indicates superuser powers.
+.Sh SEE ALSO
+.Xr chroot 2 ,
+.Xr jail 2
+.Sh HISTORY
+The
+.Fn vfs_suser
+function was introduced in
+.Fx 5.2 .
+.Sh AUTHORS
+This manual page was written by
+.An Alfred Perlstein .

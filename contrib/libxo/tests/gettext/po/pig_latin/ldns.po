@@ -1,0 +1,30 @@
+# SOME DESCRIPTIVE TITLE.
+# This file is put in the public domain.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: libxo unit test\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2015-07-01 16:15-0400\n"
+"PO-Revision-Date: 2015-07-01 18:47-0500\n"
+"Last-Translator: P.S. <ps@example.com>\n"
+"Language-Team: Self-inflicted <test@example.com>\n"
+"Language: teo\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 1.8.1\n"
+"Plural-Forms: nplurals=3; plural=(n==0) ? 0 : (n==1) ? 1 : 2;\n"
+"X-Poedit-SourceCharset: iso-8859-1\n"
+
+#: gt_01.c:46
+#, c-format
+msgid "Received {:received} {N:byte,bytes} from {:from}#{:port} in {:time} ms\n"
+msgstr "Eceivedray {:received} {N:byte,bytes} omfray {:from}#{:port} inyay {:time} msyay\n"
+
+msgid "byte"
+msgid_plural "bytes"
+msgstr[0] "ldb0"
+msgstr[1] "ldb1"
+msgstr[2] "ldb2"

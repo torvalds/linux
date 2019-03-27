@@ -1,0 +1,113 @@
+.TH "hx509 certificate selecting functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hx509 certificate selecting functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "int \fBhx509_peer_info_alloc\fP (hx509_context context, hx509_peer_info *peer)"
+.br
+.ti -1c
+.RI "void \fBhx509_peer_info_free\fP (hx509_peer_info peer)"
+.br
+.ti -1c
+.RI "int \fBhx509_peer_info_set_cert\fP (hx509_peer_info peer, hx509_cert cert)"
+.br
+.ti -1c
+.RI "int \fBhx509_peer_info_add_cms_alg\fP (hx509_context context, hx509_peer_info peer, const AlgorithmIdentifier *val)"
+.br
+.ti -1c
+.RI "int \fBhx509_peer_info_set_cms_algs\fP (hx509_context context, hx509_peer_info peer, const AlgorithmIdentifier *val, size_t len)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "int hx509_peer_info_add_cms_alg (hx509_context context, hx509_peer_info peer, const AlgorithmIdentifier * val)"
+.PP
+Add an additional algorithm that the peer supports.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIpeer\fP the peer to set the new algorithms for 
+.br
+\fIval\fP an AlgorithmsIdentier to add
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_peer_info_alloc (hx509_context context, hx509_peer_info * peer)"
+.PP
+Allocate a new peer info structure an init it to default values.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIpeer\fP return an allocated peer, free with \fBhx509_peer_info_free()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "void hx509_peer_info_free (hx509_peer_info peer)"
+.PP
+Free a peer info structure.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIpeer\fP peer info to be freed. 
+.RE
+.PP
+
+.SS "int hx509_peer_info_set_cert (hx509_peer_info peer, hx509_cert cert)"
+.PP
+Set the certificate that remote peer is using.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIpeer\fP peer info to update 
+.br
+\fIcert\fP cerificate of the remote peer.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_peer_info_set_cms_algs (hx509_context context, hx509_peer_info peer, const AlgorithmIdentifier * val, size_t len)"
+.PP
+Set the algorithms that the peer supports.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIpeer\fP the peer to set the new algorithms for 
+.br
+\fIval\fP array of supported AlgorithmsIdentiers 
+.br
+\fIlen\fP length of array val.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+

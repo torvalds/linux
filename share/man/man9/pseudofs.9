@@ -1,0 +1,70 @@
+.\"-
+.\" Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 20, 2007
+.Dt PSEUDOFS 9
+.Os
+.Sh NAME
+.Nm pseudofs
+.Nd pseudo file system construction kit
+.Sh SYNOPSIS
+.In fs/pseudofs/pseudofs.h
+.\" Insert usage example here
+.Sh DESCRIPTION
+The
+.Nm
+module offers an abstract API for pseudo-file systems such as
+.Xr procfs 5
+and
+.Xr linprocfs 5 .
+It takes care of all the hairy bits like interfacing with the VFS
+system, enforcing access control, keeping track of file numbers, and
+cloning files and directories that are process-specific.
+The consumer module, i.e., the module that implements the actual guts
+of the file system, needs only provide the directory structure
+(represented by a collection of structures declared and initialized by
+macros provided by
+.Nm )
+and callbacks that report file attributes or write the actual file
+contents into sbufs.
+.\" Insert more info here
+.Sh SEE ALSO
+.Xr linprocfs 5 ,
+.Xr linsysfs 5 ,
+.Xr procfs 5 ,
+.Xr sbuf 9 ,
+.Xr vnode 9
+.Sh HISTORY
+The
+.Nm
+module appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Nm
+module and this manual page were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

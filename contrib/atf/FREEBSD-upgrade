@@ -1,0 +1,47 @@
+$FreeBSD$
+
+This document contains a collection of notes specific to the import
+of atf into head.  These notes are built on the instructions in
+the FreeBSD Subversion Primer that detail how to deal with vendor
+branches and you are supposed to follow those:
+
+	http://www.freebsd.org/doc/en/articles/committers-guide/subversion-primer.html
+
+The ATF source code is hosted on GitHub:
+
+	https://github.com/jmmv/atf
+
+and is imported into the atf vendor branch (see base/vendor/atf/).
+
+To merge the vendor branch into head do something like this:
+
+	cd .../base/head/contrib/atf
+	svn merge --accept=postpone \
+	    svn+ssh://svn.freebsd.org/base/vendor/atf/dist .
+	svn remove --force $(cat FREEBSD-Xlist)
+
+and resolve any conflicts that may arise at this point.
+
+Once this is done, you must regenerate bconfig.h.  The recommended way
+of doing so is by using the release files already imported into the
+vendor branch (which is a good justification for importing the verbatim
+sources in the first place so that this step is reproducible).  You can
+use a set of commands similar to the following:
+
+	mkdir /tmp/atf
+	cd /tmp/atf
+	.../vendor/atf/dist/configure \
+	    --prefix=/ \
+	    --exec-prefix=/usr \
+	    --datarootdir=/usr/share
+	cp bconfig.h .../base/head/contrib/atf/
+
+Please do NOT run './configure' straight from the 'dist' directory of
+the vendor branch as you easily risk committing build products into the
+tree.
+
+Lastly, with the list of old and new files in this import, make sure
+to update the reachover Makefiles accordingly.
+
+Test the build (keeping in mind the WITH_TESTS/WITHOUT_TESTS knobs) and,
+if all looks good, you are ready to commit all the changes in one go.

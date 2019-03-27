@@ -1,0 +1,17 @@
+//
+//  FrameworkTarget.xcconfig
+//
+//  These are Framework target settings for the gtest framework and examples. It
+//  is set in the "Based On:" dropdown in the "Target" info dialog.
+//  This file is based on the Xcode Configuration files in:
+//  https://github.com/google/google-toolbox-for-mac
+// 
+
+// Dynamic libs need to be position independent
+GCC_DYNAMIC_NO_PIC = NO
+
+// Dynamic libs should not have their external symbols stripped.
+STRIP_STYLE = non-global
+
+// Let the user install by specifying the $DSTROOT with xcodebuild
+SKIP_INSTALL = NO

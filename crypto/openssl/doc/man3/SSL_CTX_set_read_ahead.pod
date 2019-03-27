@@ -1,0 +1,74 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_set_read_ahead, SSL_CTX_get_read_ahead,
+SSL_set_read_ahead, SSL_get_read_ahead,
+SSL_CTX_get_default_read_ahead
+- manage whether to read as many input bytes as possible
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ void SSL_set_read_ahead(SSL *s, int yes);
+ int SSL_get_read_ahead(const SSL *s);
+
+ SSL_CTX_set_read_ahead(SSL_CTX *ctx, int yes);
+ long SSL_CTX_get_read_ahead(SSL_CTX *ctx);
+ long SSL_CTX_get_default_read_ahead(SSL_CTX *ctx);
+
+=head1 DESCRIPTION
+
+SSL_CTX_set_read_ahead() and SSL_set_read_ahead() set whether we should read as
+many input bytes as possible (for non-blocking reads) or not. For example if
+B<x> bytes are currently required by OpenSSL, but B<y> bytes are available from
+the underlying BIO (where B<y> > B<x>), then OpenSSL will read all B<y> bytes
+into its buffer (providing that the buffer is large enough) if reading ahead is
+on, or B<x> bytes otherwise.
+Setting the parameter B<yes> to 0 turns reading ahead is off, other values turn
+it on.
+SSL_CTX_set_default_read_ahead() is identical to SSL_CTX_set_read_ahead().
+
+SSL_CTX_get_read_ahead() and SSL_get_read_ahead() indicate whether reading
+ahead has been set or not.
+SSL_CTX_get_default_read_ahead() is identical to SSL_CTX_get_read_ahead().
+
+=head1 NOTES
+
+These functions have no impact when used with DTLS. The return values for
+SSL_CTX_get_read_head() and SSL_get_read_ahead() are undefined for DTLS. Setting
+B<read_ahead> can impact the behaviour of the SSL_pending() function
+(see L<SSL_pending(3)>).
+
+Since SSL_read() can return B<SSL_ERROR_WANT_READ> for non-application data
+records, and SSL_has_pending() can't tell the difference between processed and
+unprocessed data, it's recommended that if read ahead is turned on that
+B<SSL_MODE_AUTO_RETRY> is not turned off using SSL_CTX_clear_mode().
+That will prevent getting B<SSL_ERROR_WANT_READ> when there is still a complete
+record availale that hasn't been processed.
+
+If the application wants to continue to use the underlying transport (e.g. TCP
+connection) after the SSL connection is finished using SSL_shutdown() reading
+ahead should be turned off.
+Otherwise the SSL structure might read data that it shouldn't.
+
+=head1 RETURN VALUES
+
+SSL_get_read_ahead() and SSL_CTX_get_read_ahead() return 0 if reading ahead is off,
+and non zero otherwise.
+
+=head1 SEE ALSO
+
+L<ssl(7)>, L<SSL_pending(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

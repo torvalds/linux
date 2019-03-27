@@ -1,0 +1,179 @@
+#!/bin/sh -
+#
+# $NetBSD: gzexe,v 1.3 2004/05/01 08:22:41 wiz Exp $
+# $OpenBSD: gzexe,v 1.3 2003/08/05 18:22:17 deraadt Exp $
+#
+#-
+#  Copyright (c) 2003 Otto Moerbeek <otto@drijf.net>
+#
+#  Permission to use, copy, modify, and distribute this software for any
+#  purpose with or without fee is hereby granted, provided that the above
+#  copyright notice and this permission notice appear in all copies.
+#
+#  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+#  WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+#  ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+#  WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+#  ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+#  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+# $FreeBSD$
+
+# The number of lines plus one in the on-the-fly decompression script
+lines=19
+
+# A simple string to recognize already compressed files
+magic="# compressed by gzexe"
+
+# Write the decompression script to stdout
+header () {
+	# first section needs variable expansion, second not
+	cat <<- EOF
+		#!/bin/sh -
+		$magic
+		lines=$lines
+	EOF
+	cat <<- 'EOF'
+		prog=`/usr/bin/basename "$0"`
+		tmp=`/usr/bin/mktemp -d /tmp/gzexeXXXXXXXXXX` || {
+			/bin/echo "$prog: cannot create tmp dir"; exit 1
+		}
+		trap '/bin/rm -rf "$tmp"' 0
+		if /usr/bin/tail +$lines "$0" |
+		    /usr/bin/gzip -dc > "$tmp/$prog" 2> /dev/null; then
+			/bin/chmod u+x "$tmp/$prog"
+			"$tmp/$prog" ${1+"$@"}
+			ret=$?
+		else
+			/bin/echo "$prog: cannot decompress $0"
+			ret=1
+		fi
+		exit $ret
+	EOF
+}
+
+# Test if a file is compressed by checking the magic line
+compressed () {
+	test "X`sed -n 2p "$1" 2> /dev/null`" = "X$magic"
+}
+
+# Decompress a file
+decompress () {
+	tmp=`mktemp /tmp/gzexeXXXXXXXXXX` || {
+		echo "$prog: cannot create tmp file"
+		return 1
+	}
+	if ! cp "$1" "$tmp"; then
+		echo "$prog: cannot copy $1 to $tmp"
+		rm -f "$tmp"
+		return 1
+	fi
+	if ! tail +$lines "$tmp" | gzip -vdc > "$1"; then
+		echo "$prog: cannot decompress $1"
+		cp "$tmp" "$1"
+		rm -f "$tmp"
+		return 1
+	fi
+}
+
+# Perform some sanity checks on the file
+check () {
+	if test ! -e "$1"; then
+		echo "$prog: cannot compress non-existing file $1"
+		return 1
+	fi
+
+	if test ! -f "$1"; then
+		echo "$prog: cannot compress non-regular file $1"
+		return 1
+	fi
+
+	case `basename "$1"` in
+		sh | mktemp | rm | echo | tail | gzip | chmod)
+			echo "$prog: cannot compress $1, I depend on it"
+			return 1
+	esac
+
+	if test ! -x "$1"; then
+		echo "$prog: cannot compress $1, it is not executable"
+		return 1
+	fi
+
+	if test -u "$1" -o -g "$1"; then
+		echo "$prog: cannot compress $1, it has an s bit set"
+		return 1
+	fi
+}
+
+# Compress a file
+compress () {
+	tmp=`mktemp /tmp/gzexeXXXXXXXXXX` || {
+		echo "$prog: cannot create tmp file"
+		return 1
+	}
+	if ! cp "$1" "$tmp"; then
+		echo "$prog: cannot copy $1 to $tmp"
+		rm -f "$tmp"
+		return 1
+	fi
+	if ! cp "$1" "$1"~; then
+		echo "$prog: cannot create backup copy $1~"
+		rm -f "$1"~ "$tmp"
+		return 1
+	fi
+
+	# Use cp to overwrite the existing file preserving mode and owner
+	# if possible. If the file is not writable, this will produce an
+	# error.
+
+	if header "$1" > "$tmp" && gzip -vc "$1" >> "$tmp"; then
+		if ! cp "$tmp" "$1"; then
+			echo "$prog: cannot copy $tmp to $1"
+			rm -f "$tmp"
+			return 1
+		fi
+	else
+		echo "$prog: cannot compress $1"
+		rm -f "$1"~ "$tmp"
+		return 1
+	fi
+}
+
+# Is the -d flag specified?
+dflag=
+
+# Return value
+rc=0
+
+if test "X$1" = X-d; then
+	dflag=1
+	shift
+fi
+
+prog=`basename "$0"`
+USAGE="usage: $prog [-d] file ..."
+if test $# -eq 0; then
+	echo $USAGE
+	exit 1
+fi
+
+while test $# -ne 0; do
+	if test $dflag; then
+		if ! compressed "$1"; then
+			echo "$prog: $1 is not compressed"
+			rc=1;
+		elif ! decompress "$1"; then
+			rc=$?
+		fi
+	else
+		if compressed "$1"; then
+			echo "$prog: $1 is already compressed"
+			rc=1;
+		elif ! check "$1" || ! compress "$1"; then
+			rc=$?
+		fi
+	fi
+	shift
+done
+exit $rc

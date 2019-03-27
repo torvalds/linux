@@ -1,0 +1,100 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: form_field_new.3x,v 1.18 2010/12/04 18:40:45 tom Exp $
+.TH form_field_new 3X ""
+.SH NAME
+\fBform_field_new\fR \- create and destroy form fields
+.SH SYNOPSIS
+\fB#include <form.h>\fR
+.br
+FIELD *new_field(int height, int width,
+                 int toprow, int leftcol,
+                 int offscreen, int nbuffers);
+.br
+FIELD *dup_field(FIELD *field, int toprow, int leftcol);
+.br
+FIELD *link_field(FIELD *field, int toprow, int leftcol);
+.br
+int free_field(FIELD *field);
+.br
+.SH DESCRIPTION
+The function \fBnew_field\fR allocates a new field and initializes it from the
+parameters given: height, width, row of upper-left corner, column of upper-left
+corner, number off-screen rows, and number of additional working buffers.
+.PP
+The function \fBdup_field\fR duplicates a field at a new location.  Most
+attributes (including current contents, size, validation type, buffer count,
+growth threshold, justification, foreground, background, pad character,
+options, and user pointer) are copied.  Field status and the field page bit are
+not copied.
+.PP
+The function \fBlink_field\fR acts like \fBdup_field\fR, but the new field
+shares buffers with its parent.  Attribute data is separate.
+.PP
+The function \fBfree_field\fR de-allocates storage associated with a field.
+.SH RETURN VALUE
+The function, \fBnew_field\fR, \fBdup_field\fR, \fBlink_field\fR return
+\fBNULL\fR on error.
+They set errno according to their success:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred, e.g., malloc failure.
+.PP
+The function \fBfree_field\fR returns one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_CONNECTED
+field is connected.
+.SH SEE ALSO
+\fBcurses\fR(3X), \fBform\fR(3X).
+.SH NOTES
+The header file \fB<form.h>\fR automatically includes the header file
+\fB<curses.h>\fR.
+.SH PORTABILITY
+These routines emulate the System V forms library.  They were not supported on
+Version 7 or BSD versions.
+.PP
+It may be unwise to count on the set of attributes copied by
+\fBdup_field\fR being portable; the System V forms library documents are
+not very explicit about what gets copied and what does not.
+.SH AUTHORS
+Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
+S. Raymond.

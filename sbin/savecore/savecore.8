@@ -1,0 +1,190 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)savecore.8	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd March 17, 2018
+.Dt SAVECORE 8
+.Os
+.Sh NAME
+.Nm savecore
+.Nd "save a core dump of the operating system"
+.Sh SYNOPSIS
+.Nm
+.Fl c
+.Op Fl v
+.Op Ar device ...
+.Nm
+.Fl C
+.Op Fl v
+.Op Ar device ...
+.Nm
+.Op Fl -libxo
+.Op Fl fkvz
+.Op Fl m Ar maxdumps
+.Op Ar directory Op Ar device ...
+.Sh DESCRIPTION
+The
+.Nm
+utility
+copies a core dump into
+.Ar directory ,
+or the current working directory if no
+.Ar directory
+argument is given,
+and enters a reboot message and information about the core dump into
+the system log.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl m Ar maxdumps"
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
+.It Fl C
+Check to see if a dump exists,
+and display a brief message to indicate the status.
+An exit status of 0 indicates that a dump is there,
+1 indicates that none exists.
+This option is compatible only with the
+.Op Fl v
+option.
+.It Fl c
+Clear the dump, so that future invocations of
+.Nm
+will ignore it.
+.It Fl f
+Force a dump to be taken even if either the dump was cleared or if the
+dump header information is inconsistent.
+.It Fl k
+Do not clear the dump after saving it.
+.It Fl m Ar maxdumps
+Maximum number of dumps to store.
+Once the number of stored dumps is equal to
+.Ar maxdumps
+the counter will restart from
+.Dv 0 .
+.It Fl v
+Print out some additional debugging information.
+Specify twice for more information.
+.It Fl z
+Compress the dump (see
+.Xr gzip 1 ) .
+The dump may already be compressed if the kernel was configured to
+do so by
+.Xr dumpon 8 .
+In this case, the option has no effect.
+.El
+.Pp
+The
+.Nm
+utility
+looks for dumps on each device specified by the
+.Ar device
+argument(s), or on each device in
+.Pa /etc/fstab
+marked as
+.Dq dump
+or
+.Dq swap .
+The
+.Nm
+utility
+checks the core dump in various ways to make sure that it is complete.
+If it passes these checks, it saves the core image in
+.Ar directory Ns Pa /vmcore.#
+and information about the core in
+.Ar directory Ns Pa /info.# .
+If the core is encrypted, it saves the dump key in
+.Ar directory Ns Pa /key.# .
+The core can be later decrypted using
+.Xr decryptcore 8 .
+For kernel textdumps generated with the
+.Xr textdump 4
+facility, output will be stored in the
+.Xr tar 5
+format and named
+.Ar directory Ns Pa /textdump.tar.# .
+The
+.Dq #
+is the number from the first line of the file
+.Ar directory Ns Pa /bounds ,
+and it is incremented and stored back into the file each time
+.Nm
+successfully runs.
+.Pp
+The
+.Nm
+utility
+also checks the available disk space before attempting to make the copies.
+If there is insufficient disk space in the file system containing
+.Ar directory ,
+or if the file
+.Ar directory Ns Pa /minfree
+exists and the number of free kilobytes (for non-superusers) in the
+file system after the copies were made would be less than the number
+in the first line of this file, the copies are not attempted.
+.Pp
+If
+.Nm
+successfully copies the kernel and the core dump, the core dump is cleared
+so that future invocations of
+.Nm
+will ignore it.
+.Pp
+The
+.Nm
+utility
+is meant to be called near the end of the initialization file
+.Pa /etc/rc
+(see
+.Xr rc 8 ) .
+.Sh SEE ALSO
+.Xr gzip 1 ,
+.Xr getbootfile 3 ,
+.Xr libxo 3 ,
+.Xr xo_parse_args 3 ,
+.Xr textdump 4 ,
+.Xr tar 5 ,
+.Xr crashinfo 8 ,
+.Xr decryptcore 8 ,
+.Xr dumpon 8 ,
+.Xr syslogd 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.1 .
+.Pp
+Support for kernel textdumps appeared in
+.Fx 7.1 .
+.Sh BUGS
+The minfree code does not consider the effect of compression or sparse files.

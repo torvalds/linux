@@ -1,0 +1,15 @@
+# tranditional
+ $Foo: bar $ (OK traditional)
+ $$Foo: bar $
+ $$Fo$o: bar $
+ $Fo$o: bar $
+ $ Foo : bar $ (WRONG --  NON ALPHANUM BEFORE :)
+ $ Foo : bar $ (WRONG --  NON ALPHANUM BEFORE :)
+ $Foo:	bar $ (WRONG -- NO SPACE AFTER :)
+ $Foo:bar $ (WRONG -- NO SPACE AFTER :)
+ $Foo: bar$ (WRONG -- NO SPACE BEFORE $))
+# Subversion like
+ $Bar::    baz$ (WRONG -- NO SPACE BEFORE $)
+ $Bar::    baz $ (OK -- SPACE BEFORE $)
+ $Qux:: frobby zow#$ (OK -- HASH BEFORE $)' '
+

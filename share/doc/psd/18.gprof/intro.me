@@ -1,0 +1,77 @@
+.\" Copyright (c) 1982, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)intro.me	8.1 (Berkeley) 6/8/93
+.\"
+.sh 1 "Programs to be Profiled"
+.pp
+Software research environments
+normally include many large programs
+both for  production use and for experimental investigation.
+These programs are typically modular,
+in accordance with generally accepted principles
+of good program design.
+Often they consist of numerous small routines
+that implement various abstractions.
+Sometimes such large programs are written
+by one programmer 
+who has understood the requirements for
+these abstractions, and has programmed them
+appropriately.
+More frequently the program has
+had multiple authors and has
+evolved over time, changing the demands placed
+on the implementation of the abstractions without
+changing the implementation itself.
+Finally, the program may be assembled from a library
+of abstraction implementations 
+unexamined by the programmer.
+.pp
+Once a large program is executable,
+it is often desirable to increase its speed,
+especially if small portions of the program 
+are found to dominate its execution time.
+The purpose of the \fBgprof\fP profiling tool is to 
+help the user evaluate alternative implementations
+of abstractions.
+We developed this tool in response to our efforts 
+to improve a code generator we were writing [Graham82].
+.pp
+The \fBgprof\fP design takes advantage of the fact that the programs
+to be measured are large, structured and hierarchical.
+We provide a profile in which the execution time
+for a set of routines that implement an
+abstraction is collected and charged
+to that abstraction.
+The profile can be used to compare and assess the costs of
+various implementations.
+.pp
+The profiler can be linked into a program without
+special planning by the programmer.
+The overhead for using \fBgprof\fP is low;
+both in terms of added execution time and in the
+volume of profiling information recorded.

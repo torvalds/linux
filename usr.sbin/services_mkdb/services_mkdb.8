@@ -1,0 +1,111 @@
+.\"	$NetBSD: services_mkdb.8,v 1.9 2009/05/13 22:36:39 wiz Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Luke Mewburn.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 4, 2010
+.Dt SERVICES_MKDB 8
+.Os
+.Sh NAME
+.Nm services_mkdb
+.Nd generate the services database
+.Sh SYNOPSIS
+.Nm
+.Op Fl b | l
+.Op Fl q
+.Op Fl o Ar database
+.Op Ar file
+.Nm
+.Fl u
+.Op Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility
+creates a
+.Xr db 3
+database for the specified
+.Ar file .
+If no file is specified, then
+.Pa /etc/services
+is used.
+The database is installed into
+.Pa /var/db/services.db .
+The file must be in the correct format (see
+.Xr services 5 ) .
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl b
+Use big-endian byte order for database metadata.
+.It Fl l
+Use little-endian byte order for database metadata.
+.It Fl o Ar database
+Put the output databases in the named file.
+.It Fl q
+Do not warn about duplicate services.
+.It Fl u
+Print the services file to stdout, omitting duplicate entries and comments.
+.El
+.Pp
+The databases are used by the C library services routines (see
+.Xr getservent 3 ) .
+.Pp
+The
+.Fl b
+and
+.Fl l
+flags are mutually exclusive.
+The default byte ordering is the current host order.
+.Sh FILES
+.Bl -tag -width ".Pa /var/db/services.db.tmp" -compact
+.It Pa /var/db/services.db
+The current services database.
+.It Pa /var/db/services.db.tmp
+A temporary file.
+.It Pa /etc/services
+The current services file.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr db 3 ,
+.Xr getservent 3 ,
+.Xr services 5
+.Sh BUGS
+Because
+.Nm
+guarantees not to install a partial destination file it must
+build a temporary file in the same file system and if successful use
+.Xr rename 2
+to install over the destination file.
+.Pp
+If
+.Nm
+fails it will leave the previous version of the destination file intact.

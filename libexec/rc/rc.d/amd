@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: amd
+# REQUIRE: rpcbind ypset nfsclient FILESYSTEMS ldconfig
+# BEFORE: DAEMON
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="amd"
+desc="Automatically mount filesystems"
+rcvar="amd_enable"
+command="/usr/sbin/${name}"
+start_precmd="amd_precmd"
+command_args="&"
+extra_commands="reload"
+
+amd_precmd()
+{
+	force_depend nfsclient nfs_client || return 1
+	force_depend rpcbind || return 1
+
+	case ${amd_map_program} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		rc_flags="${rc_flags} `echo $(eval ${amd_map_program})`"
+		;;
+	esac
+
+	case "${amd_flags}" in
+	'')
+		if [ ! -r /etc/amd.conf ]; then
+			warn 'amd will not load without arguments'
+			return 1
+		fi
+		;;
+	*)
+		rc_flags="-p ${rc_flags}"
+		command_args="> /var/run/amd.pid 2> /dev/null"
+		;;
+	esac
+}
+
+load_rc_config $name
+run_rc_command "$1"

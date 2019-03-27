@@ -1,0 +1,110 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: toe.1m,v 1.26 2012/01/01 00:40:51 tom Exp $
+.TH @TOE@ 1M ""
+.ds n 5
+.ds d @TERMINFO@
+.SH NAME
+\fB@TOE@\fR \- table of (terminfo) entries
+.SH SYNOPSIS
+\fB@TOE@\fR [\fB\-v\fR[\fIn\fR]] [\fB\-ahsuUV\fR] \fIfile...\fR
+.br
+.SH DESCRIPTION
+.PP
+With no options,
+\fB@TOE@\fR lists all available terminal types by primary name
+with descriptions.
+File arguments specify the directories to be scanned; if no
+such arguments are given,
+your default terminfo directory is scanned.
+If you also specify the \fB\-h\fR option,
+a directory header will be issued as each
+directory is entered.
+.PP
+There are other options intended for use by terminfo file maintainers:
+.TP
+\fB\-a\fR
+report on all of the terminal databases which ncurses would search,
+rather than only the first one that it finds.
+.IP
+If the \fB\-s\fR is also given, \fB@TOE@\fR
+adds a column to the report,
+showing (like \fBconflict\fP(1)) which entries which 
+belong to a given terminal database.
+An "*" marks entries which differ, and "+" marks equivalent entries.
+.TP
+\fB\-s\fR
+sort the output by the entry names.
+.TP
+\fB\-u\fR \fIfile\fR
+says to write a report to the standard output,
+listing dependencies in the given terminfo/termcap source file.
+The report condenses the `use' relation:
+each line consists of the primary name of a terminal that
+has use capabilities,
+followed by a colon,
+followed by the
+whitespace-separated primary names of all terminals which occur in those use
+capabilities,
+followed by a newline
+.TP
+\fB\-U\fR \fIfile\fR
+says to write a report to the standard output,
+listing reverse dependencies in the given terminfo/termcap source file.
+The report reverses the `use' relation:
+each line consists of the primary name of a
+terminal that occurs in use capabilities,
+followed by a colon,
+followed by the
+whitespace-separated primary names of all terminals which depend on it,
+followed by a newline.
+.TP
+\fB\-v\fR\fIn\fR
+specifies that (verbose) output be written to standard error,
+showing \fB@TOE@\fR's progress.
+The optional parameter \fIn\fR is a number from 1 to 10,
+interpreted as for \fB@TIC@\fR(1M).
+.TP
+\fB\-V\fR
+reports the version of ncurses which was used in this program,
+and exits.
+.SH FILES
+.TP 5
+\fB\*d/?/*\fR
+Compiled terminal description database.
+.SH SEE ALSO
+\fB@TIC@\fR(1M),
+\fB@INFOCMP@\fR(1M),
+\fB@CAPTOINFO@\fR(1M),
+\fB@INFOTOCAP@\fR(1M),
+\fBcurses\fR(3X),
+\fBterminfo\fR(\*n).
+.PP
+This describes \fBncurses\fR
+version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).

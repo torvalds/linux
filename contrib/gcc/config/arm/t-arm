@@ -1,0 +1,22 @@
+# Rules common to all arm targets
+
+MD_INCLUDES= 	$(srcdir)/config/arm/arm-tune.md \
+		$(srcdir)/config/arm/predicates.md \
+		$(srcdir)/config/arm/arm-generic.md \
+		$(srcdir)/config/arm/arm1020e.md \
+		$(srcdir)/config/arm/arm1026ejs.md \
+		$(srcdir)/config/arm/arm1136jfs.md \
+		$(srcdir)/config/arm/arm926ejs.md \
+		$(srcdir)/config/arm/cirrus.md \
+		$(srcdir)/config/arm/fpa.md \
+		$(srcdir)/config/arm/iwmmxt.md \
+		$(srcdir)/config/arm/vfp.md
+
+s-config s-conditions s-flags s-codes s-constants s-emit s-recog s-preds \
+	s-opinit s-extract s-peep s-attr s-attrtab s-output: $(MD_INCLUDES)
+
+$(srcdir)/config/arm/arm-tune.md: $(srcdir)/config/arm/gentune.sh \
+	$(srcdir)/config/arm/arm-cores.def
+	$(SHELL) $(srcdir)/config/arm/gentune.sh \
+		$(srcdir)/config/arm/arm-cores.def > \
+		$(srcdir)/config/arm/arm-tune.md

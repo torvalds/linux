@@ -1,0 +1,499 @@
+.\" Copyright (c) 2005 Christian Brueffer
+.\" Copyright (c) 2005 Markus Brueffer
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 19, 2015
+.Dt ACPI_IBM 4
+.Os
+.Sh NAME
+.Nm acpi_ibm
+.Nd "ACPI extras driver for IBM laptops"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device acpi_ibm"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+acpi_ibm_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for hotkeys and other components of IBM laptops.
+The main purpose of this driver is to provide an interface,
+accessible via
+.Xr sysctl 8
+and
+.Xr devd 8 ,
+through which applications can determine the status of
+various laptop components.
+.Pp
+While the
+.Xr sysctl 8
+interface is enabled automatically after loading the driver, the
+.Xr devd 8
+interface has to be enabled explicitly, as it may alter the default action of
+certain keys.
+This is done by setting the
+.Va events
+sysctl as described below.
+Specifying which keys should generate events is done by setting a bitmask,
+whereas each bit represents one key or key combination.
+This bitmask, accessible via the
+.Va eventmask
+sysctl, is set to
+.Va availmask
+by default, a value representing all possible keypress events on the specific
+ThinkPad model.
+.Ss Xr devd 8 Events
+Hotkey events received by
+.Xr devd 8
+provide the following information:
+.Pp
+.Bl -tag -width "subsystem" -offset indent -compact
+.It system
+.Qq Li ACPI
+.It subsystem
+.Qq Li IBM
+.It type
+The source of the event in the ACPI namespace.
+The value depends on the model.
+.It notify
+Event code (see below).
+.El
+.Pp
+Depending on the ThinkPad model, event codes may vary.
+On a ThinkPad T41p these are as follows:
+.Pp
+.Bl -tag -width "subsystem" -offset indent -compact
+.It Li 0x01
+Fn + F1
+.It Li 0x02
+Fn + F2
+.It Li 0x03
+Fn + F3 (LCD backlight)
+.It Li 0x04
+Fn + F4 (Suspend to RAM)
+.It Li 0x05
+Fn + F5 (Bluetooth)
+.It Li 0x06
+Fn + F6
+.It Li 0x07
+Fn + F7 (Screen expand)
+.It Li 0x08
+Fn + F8
+.It Li 0x09
+Fn + F9
+.It Li 0x0a
+Fn + F10
+.It Li 0x0b
+Fn + F11
+.It Li 0x0c
+Fn + F12 (Suspend to disk)
+.It Li 0x0d
+Fn + Backspace
+.It Li 0x0e
+Fn + Insert
+.It Li 0x0f
+Fn + Delete
+.It Li 0x10
+Fn + Home (Brightness up)
+.It Li 0x11
+Fn + End (Brightness down)
+.It Li 0x12
+Fn + PageUp (ThinkLight)
+.It Li 0x13
+Fn + PageDown
+.It Li 0x14
+Fn + Space (Zoom)
+.It Li 0x15
+Volume Up
+.It Li 0x16
+Volume Down
+.It Li 0x17
+Mute
+.It Li 0x18
+Access IBM Button
+.El
+.Ss Xr led 4 Interface
+The
+.Nm
+driver provides a
+.Xr led 4
+interface for the ThinkLight.
+The ThinkLight can be made to blink by writing
+.Tn ASCII
+strings to the
+.Pa /dev/led/thinklight
+device.
+.Sh SYSCTL VARIABLES
+The following sysctls are currently implemented:
+.Bl -tag -width indent
+.It Va dev.acpi_ibm.0.initialmask
+(read-only)
+Bitmask of ACPI events before the
+.Nm
+driver was loaded.
+.It Va dev.acpi_ibm.0.availmask
+(read-only)
+Bitmask of all supported ACPI events.
+.It Va dev.acpi_ibm.0.events
+Enable ACPI events and set the
+.Va eventmask
+to
+.Va availmask .
+Without the
+.Nm
+driver being loaded, only the Fn+F4 button generates an ACPI event.
+.It Va dev.acpi_ibm.0.eventmask
+Sets the ACPI events which are reported to
+.Xr devd 8 .
+Fn+F3, Fn+F4 and Fn+F12 always generate ACPI events, regardless which value
+.Va eventmask
+has.
+Depending on the ThinkPad model, the meaning of different bits in the
+.Va eventmask
+may vary.
+On a ThinkPad T41p this is a bitwise OR of the following:
+.Pp
+.Bl -tag -width indent-two -compact
+.It Li 1
+Fn + F1
+.It Li 2
+Fn + F2
+.It Li 4
+Fn + F3 (LCD backlight)
+.It Li 8
+Fn + F4 (Suspend to RAM)
+.It Li 16
+Fn + F5 (Bluetooth)
+.It Li 32
+Fn + F6
+.It Li 64
+Fn + F7 (Screen expand)
+.It Li 128
+Fn + F8
+.It Li 256
+Fn + F9
+.It Li 512
+Fn + F10
+.It Li 1024
+Fn + F11
+.It Li 2048
+Fn + F12 (Suspend to disk)
+.It Li 4096
+Fn + Backspace
+.It Li 8192
+Fn + Insert
+.It Li 16384
+Fn + Delete
+.It Li 32768
+Fn + Home (Brightness up)
+.It Li 65536
+Fn + End (Brightness down)
+.It Li 131072
+Fn + PageUp (ThinkLight)
+.It Li 262144
+Fn + PageDown
+.It Li 524288
+Fn + Space (Zoom)
+.It Li 1048576
+Volume Up
+.It Li 2097152
+Volume Down
+.It Li 4194304
+Mute
+.It Li 8388608
+Access IBM Button
+.El
+.It Va dev.acpi_ibm.0.hotkey
+(read-only)
+Status of several buttons.
+Every time a button is pressed, the respecting bit is toggled.
+It is a bitwise OR of the following:
+.Pp
+.Bl -tag -width indent-two -compact
+.It Li 1
+Home Button
+.It Li 2
+Search Button
+.It Li 4
+Mail Button
+.It Li 8
+Access IBM Button
+.It Li 16
+Zoom
+.It Li 32
+Wireless LAN Button
+.It Li 64
+Video Button
+.It Li 128
+Hibernate Button
+.It Li 256
+ThinkLight Button
+.It Li 512
+Screen Expand
+.It Li 1024
+Brightness Up/Down Button
+.It Li 2048
+Volume Up/Down/Mute Button
+.El
+.It Va dev.acpi_ibm.0.lcd_brightness
+Current brightness level of the display.
+.It Va dev.acpi_ibm.0.volume
+Speaker volume.
+.It Va dev.acpi_ibm.0.mute
+Indicates, whether the speakers are muted or not.
+.It Va dev.acpi_ibm.0.mic_mute
+Indicates, whether the microphone led (present on some model) is on or not. 
+Note that this does not mean that the microphone input is muted.
+.It Va dev.acpi_ibm.0.thinklight
+Indicates, whether the ThinkLight keyboard light is activated or not.
+.It Va dev.acpi_ibm.0.bluetooth
+Toggle Bluetooth chip activity.
+.It Va dev.acpi_ibm.0.wlan
+(read-only)
+Indicates whether the WLAN chip is active or not.
+.It Va dev.acpi_ibm.0.fan
+Indicates whether the fan is in automatic (1) or manual (0) mode.
+Default is automatic mode.
+This sysctl should be used with extreme precaution, since disabling automatic
+fan control might overheat the ThinkPad and lead to permanent damage if the
+.Va fan_level
+is not set accordingly.
+.It Va dev.acpi_ibm.0.fan_level
+Indicates at what speed the fan should run when being in manual mode.
+Values are ranging from 0 (off) to 7 (max).
+The resulting speed differs from model to model.
+On a T41p this is as follows:
+.Pp
+.Bl -tag -width indent-two -compact
+.It Li 0
+off
+.It Li 1, 2
+~3000 RPM
+.It Li 3, 4, 5
+~3600 RPM
+.It Li 6, 7
+~4300 RPM
+.El
+.It Va dev.acpi_ibm.0.fan_speed
+(read-only)
+Fan speed in rounds per minute.
+A few older ThinkPads report the fan speed in levels ranging from 0 (off)
+to 7 (max).
+.It Va dev.acpi_ibm.0.thermal
+(read-only)
+Shows the readings of up to eight different temperature sensors.
+Most ThinkPads include six or more temperature sensors but
+only expose the CPU temperature through
+.Xr acpi_thermal 4 .
+Some ThinkPads have the below sensor layout which might vary depending on the
+specific model:
+.Pp
+.Bl -enum -compact
+.It
+CPU
+.It
+Mini PCI Module
+.It
+HDD
+.It
+GPU
+.It
+Built-in battery
+.It
+UltraBay battery
+.It
+Built-in battery
+.It
+UltraBay battery
+.El
+.It Va dev.acpi_ibm.0.handlerevents
+.Xr devd 8
+events handled by
+.Nm
+when
+.Va events
+is set to 1.
+Events are specified as a whitespace-separated list of event code in
+hexadecimal or decimal form.
+Note that the event maybe handled twice (e.g., Brightness up/down) if ACPI BIOS
+already handled the event.
+.El
+.Pp
+Defaults for these sysctls can be set in
+.Xr sysctl.conf 5 .
+.Sh FILES
+.Bl -tag -width ".Pa /dev/led/thinklight"
+.It Pa /dev/led/thinklight
+ThinkLight
+.Xr led 4
+device node
+.El
+.Sh EXAMPLES
+The following can be added to
+.Xr devd.conf 5
+in order to pass button events to a
+.Pa /usr/local/sbin/acpi_oem_exec.sh
+script:
+.Bd -literal -offset indent
+notify 10 {
+        match "system"          "ACPI";
+        match "subsystem"       "IBM";
+        action "/usr/local/sbin/acpi_oem_exec.sh $notify ibm";
+};
+.Ed
+.Pp
+A possible
+.Pa /usr/local/sbin/acpi_oem_exec.sh
+script might look like:
+.Bd -literal -offset indent
+#!/bin/sh
+#
+if [ "$1" = "" -o "$2" = "" ]
+then
+        echo "usage: $0 notify oem_name"
+        exit 1
+fi
+NOTIFY=`echo $1`
+LOGGER="logger"
+CALC="bc"
+BC_PRECOMMANDS="scale=2"
+ECHO="echo"
+CUT="cut"
+MAX_LCD_BRIGHTNESS=7
+MAX_VOLUME=14
+OEM=$2
+DISPLAY_PIPE=/tmp/acpi_${OEM}_display
+
+case ${NOTIFY} in
+        0x05)
+                LEVEL=`sysctl -n dev.acpi_${OEM}.0.bluetooth`
+                if [ "$LEVEL" = "1" ]
+                then
+                        sysctl dev.acpi_${OEM}.0.bluetooth=0
+                        MESSAGE="bluetooth disabled"
+                else
+                        sysctl dev.acpi_${OEM}.0.bluetooth=1
+                        MESSAGE="bluetooth enabled"
+                fi
+                ;;
+        0x10|0x11)
+                LEVEL=`sysctl -n dev.acpi_${OEM}.0.lcd_brightness`
+                PERCENT=`${ECHO} "${BC_PRECOMMANDS} ; \\
+                         ${LEVEL} / ${MAX_LCD_BRIGHTNESS} * 100" |\\
+                         ${CALC} | ${CUT} -d . -f 1`
+                MESSAGE="brightness level ${PERCENT}%"
+                ;;
+        0x12)
+                LEVEL=`sysctl -n dev.acpi_${OEM}.0.thinklight`
+                if [ "$LEVEL" = "1" ]
+                then
+                        MESSAGE="thinklight enabled"
+                else
+                        MESSAGE="thinklight disabled"
+                fi
+                ;;
+        0x15|0x16)
+                LEVEL=`sysctl -n dev.acpi_${OEM}.0.volume`
+                PERCENT=`${ECHO} "${BC_PRECOMMANDS} ; \\
+                        ${LEVEL} / ${MAX_VOLUME} * 100" | \\
+                         ${CALC} | ${CUT} -d . -f 1`
+                MESSAGE="volume level ${PERCENT}%"
+                ;;
+        0x17)
+                LEVEL=`sysctl -n dev.acpi_${OEM}.0.mute`
+                if [ "$LEVEL" = "1" ]
+                then
+                        MESSAGE="volume muted"
+                else
+                        MESSAGE="volume unmuted"
+                fi
+                ;;
+	0x1b)
+		LEVEL=`sysctl -n dev.acpi_ibm.0.mic_led`
+		if [ $LEVEL -eq 0 ]; then
+			sysctl dev.acpi_ibm.0.mic_led=1
+			mixer rec 0
+		fi 
+		if [ $LEVEL -eq 1 ]; then 
+			sysctl dev.acpi_ibm.0.mic_led=0
+			mixer rec 30
+		fi
+		;;
+        *)
+                ;;
+esac
+${LOGGER} ${MESSAGE}
+if [ -p ${DISPLAY_PIPE} ]
+then
+        ${ECHO} ${MESSAGE} >> ${DISPLAY_PIPE} &
+fi
+exit 0
+.Ed
+.Pp
+The following example specify that event code 0x04 (Suspend to RAM),
+0x10 (Brightness up) and 0x11 (Brightness down) are handled by
+.Nm .
+.Bd -literal -offset indent
+sysctl dev.acpi_ibm.0.handlerevents='0x04 0x10 0x11'
+.Ed
+.Pp
+in
+.Xr sysctl.conf 5 :
+.Bd -literal -offset indent
+dev.acpi_ibm.0.handlerevents=0x04\\ 0x10\\ 0x11
+.Ed
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr led 4 ,
+.Xr sysctl.conf 5 ,
+.Xr devd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Takanori Watanabe Aq Mt takawata@FreeBSD.org
+and later mostly rewritten by
+.An Markus Brueffer Aq Mt markus@FreeBSD.org .
+This manual page was written by
+.An Christian Brueffer Aq Mt brueffer@FreeBSD.org
+and
+.An Markus Brueffer Aq Mt markus@FreeBSD.org .

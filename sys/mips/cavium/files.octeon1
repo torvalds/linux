@@ -1,0 +1,99 @@
+# $FreeBSD$
+# Octeon Support Files
+#
+mips/cavium/asm_octeon.S			optional smp
+mips/cavium/ciu.c				standard
+mips/cavium/obio.c				optional uart
+mips/cavium/octeon_ds1337.c			standard
+mips/cavium/octeon_ebt3000_cf.c			optional cf
+mips/cavium/octeon_machdep.c			standard
+mips/cavium/octeon_mp.c				optional smp
+mips/cavium/octeon_pmc.c			optional hwpmc
+mips/cavium/octeon_rtc.c			standard
+mips/cavium/uart_bus_octeonusart.c		optional uart
+mips/cavium/uart_cpu_octeonusart.c		optional uart
+mips/cavium/uart_dev_oct16550.c			optional uart
+mips/mips/intr_machdep.c			standard
+mips/mips/tick.c				standard
+
+mips/cavium/octeon_rnd.c			optional random
+mips/cavium/octeon_wdog.c			optional octeon_wdog
+mips/cavium/octeon_nmi.S			optional octeon_wdog
+
+mips/cavium/cryptocteon/cavium_crypto.c		optional cryptocteon
+mips/cavium/cryptocteon/cryptocteon.c		optional cryptocteon
+mips/mips/octeon_cop2_swtch.S			standard
+mips/mips/octeon_cop2.c				standard
+
+mips/cavium/if_octm.c				optional octm
+contrib/octeon-sdk/cvmx-mgmt-port.c		optional octm
+
+mips/cavium/octe/ethernet.c			optional octe
+mips/cavium/octe/ethernet-mv88e61xx.c		optional octe octeon_vendor_lanner
+mips/cavium/octe/ethernet-common.c		optional octe
+mips/cavium/octe/ethernet-mdio.c		optional octe
+mips/cavium/octe/ethernet-mem.c			optional octe
+mips/cavium/octe/ethernet-rgmii.c		optional octe
+mips/cavium/octe/ethernet-rx.c			optional octe
+mips/cavium/octe/ethernet-sgmii.c		optional octe
+mips/cavium/octe/ethernet-spi.c			optional octe
+mips/cavium/octe/ethernet-tx.c			optional octe
+mips/cavium/octe/ethernet-xaui.c		optional octe
+mips/cavium/octe/mv88e61xxphy.c			optional octe mv88e61xxphy
+mips/cavium/octe/octe.c				optional octe
+mips/cavium/octe/octebus.c			optional octe
+
+mips/cavium/octopci.c				optional pci
+mips/cavium/octopci_bus_space.c			optional pci
+mips/cavium/octeon_pci_console.c		optional pci
+contrib/octeon-sdk/octeon-pci-console.c		optional pci
+
+mips/cavium/usb/octusb.c			optional usb octusb
+mips/cavium/usb/octusb_octeon.c			optional usb octusb
+
+contrib/octeon-sdk/cvmx-usb.c			optional octusb
+
+mips/cavium/octeon_gpio.c			optional gpio
+
+# XXX Some files could be excluded in some configurations.  Making them
+#     optional but on in the default config would seem reasonable.
+contrib/octeon-sdk/cvmx-cmd-queue.c		standard
+contrib/octeon-sdk/cvmx-bootmem.c		standard
+contrib/octeon-sdk/cvmx-clock.c			standard
+contrib/octeon-sdk/cvmx-ebt3000.c		standard
+contrib/octeon-sdk/cvmx-fpa.c			standard
+contrib/octeon-sdk/cvmx-helper.c		standard
+contrib/octeon-sdk/cvmx-helper-cfg.c		standard
+contrib/octeon-sdk/cvmx-helper-board.c		standard
+contrib/octeon-sdk/cvmx-helper-cfg.c		standard
+contrib/octeon-sdk/cvmx-helper-errata.c		standard
+contrib/octeon-sdk/cvmx-helper-fpa.c		standard
+contrib/octeon-sdk/cvmx-helper-ilk.c		standard
+contrib/octeon-sdk/cvmx-helper-jtag.c		standard
+contrib/octeon-sdk/cvmx-helper-loop.c		standard
+contrib/octeon-sdk/cvmx-helper-npi.c		standard
+contrib/octeon-sdk/cvmx-helper-rgmii.c		standard
+contrib/octeon-sdk/cvmx-helper-sgmii.c		standard
+contrib/octeon-sdk/cvmx-helper-spi.c		standard
+contrib/octeon-sdk/cvmx-helper-srio.c		standard
+contrib/octeon-sdk/cvmx-helper-util.c		standard
+contrib/octeon-sdk/cvmx-helper-xaui.c		standard
+contrib/octeon-sdk/cvmx-ilk.c			standard
+contrib/octeon-sdk/cvmx-ipd.c			standard
+contrib/octeon-sdk/cvmx-l2c.c			standard
+contrib/octeon-sdk/cvmx-pcie.c			standard
+contrib/octeon-sdk/cvmx-pko.c			standard
+contrib/octeon-sdk/cvmx-qlm.c			standard
+contrib/octeon-sdk/cvmx-qlm-tables.c		standard
+contrib/octeon-sdk/cvmx-spi.c			standard
+contrib/octeon-sdk/cvmx-spi4000.c		standard
+contrib/octeon-sdk/cvmx-srio.c			standard
+contrib/octeon-sdk/cvmx-sysinfo.c		standard
+contrib/octeon-sdk/cvmx-thunder.c		standard
+contrib/octeon-sdk/cvmx-twsi.c			standard
+contrib/octeon-sdk/cvmx-warn.c			standard
+contrib/octeon-sdk/octeon-feature.c		standard
+contrib/octeon-sdk/octeon-model.c		standard
+
+# HWPMC 
+dev/hwpmc/hwpmc_octeon.c			optional hwpmc

@@ -1,0 +1,333 @@
+.\" Copyright (c) 1989, 1990, 1993
+.\"     The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)calendar.1  8.1 (Berkeley) 6/29/93
+.\" $FreeBSD$
+.\"
+.Dd July 24, 2016
+.Dt CALENDAR 1
+.Os
+.Sh NAME
+.Nm calendar
+.Nd reminder service
+.Sh SYNOPSIS
+.Nm
+.Op Fl A Ar num
+.Op Fl a
+.Op Fl B Ar num
+.Op Fl D Ar moon|sun
+.Op Fl d
+.Op Fl F Ar friday
+.Op Fl f Ar calendarfile
+.Op Fl l Ar longitude
+.Oo
+.Bk -words
+.Fl t Ar dd Ns
+.Sm off
+.Op . Ar mm Op . Ar year
+.Sm on
+.Ek
+.Oc
+.Op Fl U Ar UTC-offset
+.Op Fl W Ar num
+.Sh DESCRIPTION
+The
+.Nm
+utility checks the current directory for a file named
+.Pa calendar
+and displays lines that fall into the specified date range.
+On the day before a weekend (normally Friday), events for the next
+three days are displayed.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl A Ar num
+Print lines from today and the next
+.Ar num
+days (forward, future).
+.It Fl a
+Process the ``calendar'' files of all users and mail the results
+to them.
+This requires super-user privileges.
+.It Fl B Ar num
+Print lines from today and the previous
+.Ar num
+days (backward, past).
+.It Fl D Ar moon|sun
+Print UTC offset, longitude and moon or sun information.
+.It Fl d
+Debug option: print current date information.
+.It Fl F Ar friday
+Specify which day of the week is ``Friday'' (the day before the
+weekend begins).
+Default is 5.
+.It Fl f Pa calendarfile
+Use
+.Pa calendarfile
+as the default calendar file.
+.It Fl l Ar longitude
+Perform lunar and solar calculations from this longitude.
+If neither longitude nor UTC offset is specified, the calculations will
+be based on the difference between UTC time and localtime.
+If both are specified, UTC offset overrides longitude.
+.It Xo Fl t
+.Sm off
+.Ar dd
+.Op . Ar mm Op . Ar year
+.Sm on
+.Xc
+For test purposes only: set date directly to argument values.
+.It Fl U Ar UTC-offset
+Perform lunar and solar calculations from this UTC offset.
+If neither UTC offset nor longitude is specified, the calculations
+will be based on the difference between UTC time and localtime.
+If both are specified, UTC offset overrides longitude.
+.It Fl W Ar num
+Print lines from today and the next
+.Ar num
+days (forward, future).
+Ignore weekends when calculating the number of days.
+.El
+.Sh FILE FORMAT
+To handle calendars in your national code table you can specify
+.Dq LANG=<locale_name>
+in the calendar file as early as possible.
+.Pp
+To handle the local name of sequences, you can specify them as:
+.Dq SEQUENCE=<first> <second> <third> <fourth> <fifth> <last>
+in the calendar file as early as possible.
+.Pp
+The names of the following special days are recognized:
+.Bl -tag -width 123456789012345 -compact
+.It Easter
+Catholic Easter.
+.It Paskha
+Orthodox Easter.
+.It NewMoon
+The lunar New Moon.
+.It FullMoon
+The lunar Full Moon.
+.It MarEquinox
+The solar equinox in March.
+.It JunSolstice
+The solar solstice in June.
+.It SepEquinox
+The solar equinox in September.
+.It DecSolstice
+The solar solstice in December.
+.It ChineseNewYear
+The first day of the Chinese year.
+.El
+These names may be reassigned to their local names via an assignment
+like
+.Dq Easter=Pasen
+in the calendar file.
+.Pp
+Other lines should begin with a month and day.
+They may be entered in almost any format, either numeric or as character
+strings.
+If the proper locale is set, national month and weekday
+names can be used.
+A single asterisk (``*'') matches every month.
+A day without a month matches that day of every week.
+A month without a day matches the first of that month.
+Two numbers default to the month followed by the day.
+Lines with leading tabs default to the last entered date, allowing
+multiple line specifications for a single date.
+.Pp
+The names of the recognized special days may be followed by a
+positive or negative integer, like:
+.Dq Easter+3
+or
+.Dq Paskha-4 .
+.Pp
+Weekdays may be followed by ``-4'' ...\& ``+5'' (aliases for
+last, first, second, third, fourth) for moving events like
+``the last Monday in April''.
+.Pp
+By convention, dates followed by an asterisk are not fixed, i.e., change
+from year to year.
+.Pp
+Day descriptions start after the first <tab> character in the line;
+if the line does not contain a <tab> character, it is not displayed.
+If the first character in the line is a <tab> character, it is treated as
+a continuation of the previous line.
+.Pp
+The
+.Nm
+file is preprocessed by a limited subset of
+.Xr cpp 1
+internally, allowing the inclusion of shared files such as
+lists of company holidays or meetings.
+This limited subset consists of \fB#include #ifndef #endif\fR and \fB#define\fR.
+If the shared file is not referenced by a full pathname,
+.Xr calendar 1
+searches in the current (or home) directory first, and then in the
+directory
+.Pa /usr/share/calendar .
+Empty lines and lines protected by the C commenting syntax
+.Pq Li /* ... */
+are ignored.
+.Pp
+Some possible calendar entries (<tab> characters highlighted by
+\fB\et\fR sequence)
+.Bd -unfilled -offset indent
+LANG=C
+Easter=Ostern
+
+#include <calendar.usholiday>
+#include <calendar.birthday>
+
+6/15\fB\et\fRJune 15 (if ambiguous, will default to month/day).
+Jun. 15\fB\et\fRJune 15.
+15 June\fB\et\fRJune 15.
+Thursday\fB\et\fREvery Thursday.
+June\fB\et\fREvery June 1st.
+15 *\fB\et\fR15th of every month.
+2010/4/15\fB\et\fR15 April 2010
+
+May Sun+2\fB\et\fRsecond Sunday in May (Muttertag)
+04/SunLast\fB\et\fRlast Sunday in April,
+\fB\et\fRsummer time in Europe
+Easter\fB\et\fREaster
+Ostern-2\fB\et\fRGood Friday (2 days before Easter)
+Paskha\fB\et\fROrthodox Easter
+
+.Ed
+.Sh FILES
+.Bl -tag -width calendar.christian -compact
+.It Pa calendar
+file in current directory.
+.It Pa ~/.calendar
+.Pa calendar
+HOME directory.
+A chdir is done into this directory if it exists.
+.It Pa ~/.calendar/calendar
+calendar file to use if no calendar file exists in the current directory.
+.It Pa ~/.calendar/nomail
+do not send mail if this file exists.
+.El
+.Pp
+The following default calendar files are provided in
+.Pa /usr/share/calendar:
+.Pp
+.Bl -tag -width calendar.southafrica -compact
+.It Pa calendar.all
+File which includes all the default files.
+.It Pa calendar.australia
+Calendar of events in Australia.
+.It Pa calendar.birthday
+Births and deaths of famous (and not-so-famous) people.
+.It Pa calendar.christian
+Christian holidays.
+This calendar should be updated yearly by the local system administrator
+so that roving holidays are set correctly for the current year.
+.It Pa calendar.computer
+Days of special significance to computer people.
+.It Pa calendar.croatian
+Calendar of events in Croatia.
+.It Pa calendar.dutch
+Calendar of events in the Netherlands.
+.It Pa calendar.freebsd
+Birthdays of
+.Fx
+committers.
+.It Pa calendar.french
+Calendar of events in France.
+.It Pa calendar.german
+Calendar of events in Germany.
+.It Pa calendar.history
+Everything else, mostly U.S.\& historical events.
+.It Pa calendar.holiday
+Other holidays, including the not-well-known, obscure, and
+.Em really
+obscure.
+.It Pa calendar.judaic
+Jewish holidays.
+The entries for this calendar have been obtained from the port
+deskutils/hebcal.
+.It Pa calendar.music
+Musical events, births, and deaths.
+Strongly oriented toward rock 'n' roll.
+.It Pa calendar.newzealand
+Calendar of events in New Zealand.
+.It Pa calendar.russian
+Russian calendar.
+.It Pa calendar.southafrica
+Calendar of events in South Africa.
+.It Pa calendar.usholiday
+U.S.\& holidays.
+This calendar should be updated yearly by the local system administrator
+so that roving holidays are set correctly for the current year.
+.It Pa calendar.world
+Includes all calendar files except for national files.
+.El
+.Sh COMPATIBILITY
+The
+.Nm
+program previously selected lines which had the correct date anywhere
+in the line.
+This is no longer true, the date is only recognized when it occurs
+at the beginning of a line.
+.Sh SEE ALSO
+.Xr at 1 ,
+.Xr mail 1 ,
+.Xr cron 8
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v7 .
+.Sh NOTES
+Chinese New Year is calculated at 120 degrees east of Greenwich,
+which roughly corresponds with the east coast of China.
+For people west of China, this might result that the start of Chinese
+New Year and the day of the related new moon might differ.
+.Pp
+The phases of the moon and the longitude of the sun are calculated
+against the local position which corresponds with 30 degrees times
+the time-difference towards Greenwich.
+.Pp
+The new and full moons are happening on the day indicated: They
+might happen in the time period in the early night or in the late
+evening.
+It does not indicate that they are starting in the night on that date.
+.Pp
+Because of minor differences between the output of the formulas
+used and other sources on the Internet, Druids and Werewolves should
+double-check the start and end time of solar and lunar events.
+.Sh BUGS
+The
+.Nm
+internal cpp does not correctly do #ifndef and will discard the rest
+of the file if a #ifndef is triggered.
+It also has a maximum of 50 include file and/or 100 #defines
+and only recognises #include, #define and
+#ifndef.
+.Pp
+There is no possibility to properly specify the local position
+needed for solar and lunar calculations.

@@ -1,0 +1,11 @@
+include window
+call OK wmove $win1 1 1
+call OK wprintw $win1 "%s" "xxxx"
+call OK wrefresh $win1
+call OK refresh
+compare wscrl1.chk
+call OK scrollok $win1 1
+call OK wscrl $win1 -2
+call OK wrefresh $win1
+call OK refresh
+compare wscrl2.chk

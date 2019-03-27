@@ -1,0 +1,103 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_add_funcname.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd September 24, 2011
+.Dt DWARF_ADD_FUNCNAME 3
+.Os
+.Sh NAME
+.Nm dwarf_add_funcname
+.Nd add information about a static function to a DWARF producer instance
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft "Dwarf_Unsigned"
+.Fo dwarf_add_funcname
+.Fa "Dwarf_P_Debug dbg"
+.Fa "Dwarf_P_Die die"
+.Fa "char *name"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_add_funcname
+adds information about a static function to a DWARF producer instance.
+.Pp
+Argument
+.Ar dbg
+should reference a DWARF producer instance allocated using
+.Xr dwarf_producer_init 3
+or
+.Xr dwarf_producer_init_b 3 .
+.Pp
+Argument
+.Ar die
+specifies the debugging information entry associated with the static
+function.
+.Pp
+Argument
+.Ar name
+should point to a NUL-terminated string containing the name
+of the static function.
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case of an
+error.
+.Sh RETURN VALUES
+On success, function
+.Fn dwarf_add_funcname
+returns a non-zero value.
+In case of an error, function
+.Fn dwarf_add_funcname
+returns 0 and sets
+the argument
+.Ar err .
+.Sh ERRORS
+Function
+.Fn dwarf_add_funcname
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar dbg ,
+.Ar die
+or
+.Ar name
+was NULL.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of the
+function.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_add_pubname 3 ,
+.Xr dwarf_add_typename 3 ,
+.Xr dwarf_add_varname 3 ,
+.Xr dwarf_add_weakname 3 ,
+.Xr dwarf_new_die 3 ,
+.Xr dwarf_producer_init 3 ,
+.Xr dwarf_producer_init_b 3

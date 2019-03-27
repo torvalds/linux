@@ -1,0 +1,329 @@
+.\" Copyright (c) 1983, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)gprof.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd November 27, 2017
+.Dt GPROF 1
+.Os
+.Sh NAME
+.Nm gprof
+.Nd display call graph profile data
+.Sh SYNOPSIS
+.Nm
+.Op Fl abKlLsuz
+.Op Fl C Ar count
+.Op Fl e Ar name
+.Op Fl E Ar name
+.Op Fl f Ar name
+.Op Fl F Ar name
+.Op Fl k Ar fromname toname
+.Op Ar a.out Op Ar a.out.gmon ...
+.Sh DESCRIPTION
+The
+.Nm
+utility produces an execution profile of C, Pascal, or Fortran77 programs.
+The effect of called routines is incorporated in the profile of each caller.
+The profile data is taken from the call graph profile file
+which is created by programs that are compiled with the
+.Fl pg
+option of
+.Xr cc 1 ,
+.Xr pc 1 ,
+and
+.Xr f77 1 .
+The
+.Fl pg
+option also links in versions of the library routines
+that are compiled for profiling.
+By convention these libraries have their name suffixed with
+.Pa _p ,
+i.e., the profiled version of
+.Pa libc.a
+is
+.Pa libc_p.a
+and if you specify libraries directly to the
+compiler or linker you can use
+.Fl l Ns Ar c_p
+instead of
+.Fl l Ns Ar c .
+Read the given object file (the default is
+.Pa a.out )
+and establishes the relation between its symbol table
+and the call graph profile.
+The default graph profile file name is the name
+of the executable with the suffix
+.Pa .gmon
+appended.
+If more than one profile file is specified,
+the
+.Nm
+output shows the sum of the profile information in the given profile files.
+.Pp
+The
+.Nm
+utility calculates the amount of time spent in each routine.
+Next, these times are propagated along the edges of the call graph.
+Cycles are discovered, and calls into a cycle are made to share the time
+of the cycle.
+The first listing shows the functions
+sorted according to the time they represent
+including the time of their call graph descendants.
+Below each function entry is shown its (direct) call graph children,
+and how their times are propagated to this function.
+A similar display above the function shows how this function's time and the
+time of its descendants is propagated to its (direct) call graph parents.
+.Pp
+Cycles are also shown, with an entry for the cycle as a whole and
+a listing of the members of the cycle and their contributions to the
+time and call counts of the cycle.
+.Pp
+Second, a flat profile is given,
+similar to that provided by
+.Xr prof 1 .
+This listing gives the total execution times, the call counts,
+the time that the call spent in the routine itself, and
+the time that the call spent in the routine itself including
+its descendants.
+The units for the per-call times are normally milliseconds,
+but they are nanoseconds if the profiling clock frequency
+is 10 million or larger,
+and if a function appears to be never called then its total self time
+is printed as a percentage in the self time per call column.
+The very high profiling clock frequencies needed to get sufficient
+accuracy in the per-call times for short-lived programs are only
+implemented for
+.Dq high resolution
+(non-statistical) kernel profiling.
+.Pp
+Finally, an index of the function names is provided.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
+Suppress the printing of statically declared functions.
+If this option is given, all relevant information about the static function
+(e.g., time samples, calls to other functions, calls from other functions)
+belongs to the function loaded just before the static function in the
+.Pa a.out
+file.
+.It Fl b
+Suppress the printing of a description of each field in the profile.
+.It Fl C Ar count
+Find a minimal set of arcs that can be broken to eliminate all cycles with
+.Ar count
+or more members.
+Caution: the algorithm used to break cycles is exponential,
+so using this option may cause
+.Nm
+to run for a very long time.
+.It Fl e Ar name
+Suppress the printing of the graph profile entry for routine
+.Ar name
+and all its descendants
+(unless they have other ancestors that are not suppressed).
+More than one
+.Fl e
+option may be given.
+Only one
+.Ar name
+may be given with each
+.Fl e
+option.
+.It Fl E Ar name
+Suppress the printing of the graph profile entry for routine
+.Ar name
+(and its descendants) as
+.Fl e ,
+above, and also excludes the time spent in
+.Ar name
+(and its descendants) from the total and percentage time computations.
+(For example,
+.Fl E
+.Ar mcount
+.Fl E
+.Ar mcleanup
+is the default.)
+.It Fl f Ar name
+Print the graph profile entry of only the specified routine
+.Ar name
+and its descendants.
+More than one
+.Fl f
+option may be given.
+Only one
+.Ar name
+may be given with each
+.Fl f
+option.
+.It Fl F Ar name
+Print the graph profile entry of only the routine
+.Ar name
+and its descendants (as
+.Fl f ,
+above) and also uses only the times of the printed routines
+in total time and percentage computations.
+More than one
+.Fl F
+option may be given.
+Only one
+.Ar name
+may be given with each
+.Fl F
+option.
+The
+.Fl F
+option
+overrides
+the
+.Fl E
+option.
+.It Fl k Ar fromname Ar toname
+Will delete any arcs from routine
+.Ar fromname
+to routine
+.Ar toname .
+This can be used to break undesired cycles.
+More than one
+.Fl k
+option may be given.
+Only one pair of routine names may be given with each
+.Fl k
+option.
+.It Fl K
+Gather information about symbols from the currently-running kernel using the
+.Xr sysctl 3
+and
+.Xr kldsym 2
+interfaces.
+This forces the
+.Pa a.out
+argument to be ignored, and allows for symbols in
+.Xr kld 4
+modules to be used.
+.It Fl l
+Suppress the printing of the call-graph profile.
+.It Fl L
+Suppress the printing of the flat profile.
+.It Fl s
+A profile file
+.Pa gmon.sum
+is produced that represents
+the sum of the profile information in all the specified profile files.
+This summary profile file may be given to later
+executions of gprof (probably also with a
+.Fl s )
+to accumulate profile data across several runs of an
+.Pa a.out
+file.
+.It Fl u
+Suppress the printing of functions whose names are not visible to
+C programs.
+For the ELF object format, this means names that
+contain the
+.Ql .\&
+character.
+For the a.out object format, it means names that do not
+begin with a
+.Ql _
+character.
+All relevant information about such functions belongs to the
+(non-suppressed) function with the next lowest address.
+This is useful for eliminating "functions" that are just labels
+inside other functions.
+.It Fl z
+Display routines that have zero usage (as shown by call counts
+and accumulated time).
+.El
+.Sh FILES
+.Bl -tag -width a.out.gmon -compact
+.It Pa a.out
+The namelist and text space.
+.It Pa a.out.gmon
+Dynamic call graph and profile.
+.It Pa gmon.sum
+Summarized dynamic call graph and profile.
+.El
+.Sh SEE ALSO
+.Xr cc 1 ,
+.Xr profil 2 ,
+.Xr clocks 7 ,
+.Xr pmcstat 8
+.\" .Xr monitor 3 ,
+.\" .Xr prof 1
+.Rs
+.%T "An Execution Profiler for Modular Programs"
+.%A S. Graham
+.%A P. Kessler
+.%A M. McKusick
+.%J "Software - Practice and Experience"
+.%V 13
+.%P pp. 671-685
+.%D 1983
+.Re
+.Rs
+.%T "gprof: A Call Graph Execution Profiler"
+.%A S. Graham
+.%A P. Kessler
+.%A M. McKusick
+.%J "Proceedings of the SIGPLAN '82 Symposium on Compiler Construction, SIGPLAN Notices"
+.%V 17
+.%N 6
+.%P pp. 120-126
+.%D June 1982
+.Re
+.Sh HISTORY
+The
+.Nm
+profiler
+appeared in
+.Bx 4.2 .
+.Sh BUGS
+The granularity of the sampling is shown, but remains
+statistical at best.
+We assume that the time for each execution of a function
+can be expressed by the total time for the function divided
+by the number of times the function is called.
+Thus the time propagated along the call graph arcs to the function's
+parents is directly proportional to the number of times that
+arc is traversed.
+.Pp
+Parents that are not themselves profiled will have the time of
+their profiled children propagated to them, but they will appear
+to be spontaneously invoked in the call graph listing, and will
+not have their time propagated further.
+Similarly, signal catchers, even though profiled, will appear
+to be spontaneous (although for more obscure reasons).
+Any profiled children of signal catchers should have their times
+propagated properly, unless the signal catcher was invoked during
+the execution of the profiling routine, in which case all is lost.
+.Pp
+The profiled program must call
+.Xr exit 3
+or return normally for the profiling information to be saved
+in the graph profile file.

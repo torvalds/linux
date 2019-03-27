@@ -1,0 +1,7 @@
+
+#------------------------------------------------------------------------------
+# $File: pkgadd,v 1.6 2009/09/19 16:28:11 christos Exp $
+# pkgadd:  file(1) magic for SysV R4 PKG Datastreams
+#
+0       string          #\ PaCkAgE\ DaTaStReAm  pkg Datastream (SVR4)
+!:mime	application/x-svr4-package

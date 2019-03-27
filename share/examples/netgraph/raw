@@ -1,0 +1,16 @@
+#!/bin/sh
+# script to connect a raw synchronous card to a system interface.
+# Assumes the file if_sr was compiled with options NETGRAPH.
+# $FreeBSD$
+
+CARD=sr0
+
+# create an interface "ng0" and attach it to the sync port.
+# The packets had jolly well better be IP because we are not discriminating.
+ngctl mkpeer ${CARD}: iface rawdata inet
+
+# if ng0 already exists, use a CONNECT command instead of a mkpeer. e.g.
+# ngctl connect ${CARD}: ng0: rawdata inet
+
+# Then use ifconfig on interface ng0 as usual
+

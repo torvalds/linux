@@ -1,0 +1,8 @@
+map foo0 from 0/0 port = 1 to 0/0 port != 0 -> 0/32 udp
+map foo0 from 0/0 port = 1 to 0/0 port != 0 -> 0/32 udp
+map foo0 from 0/0 port < 1 to 0/0 port > 0 -> 0/32 tcp
+map foo0 from 0/0 port < 1 to 0/0 port > 0 -> 0/32 tcp
+map foo0 from 0/0 port <= 1 to 0/0 port >= 0 -> 0/32 tcp/udp
+map foo0 from 0/0 port <= 1 to 0/0 port >= 0 -> 0/32 tcp/udp
+map foo0 from 0/0 port 1 >< 20 to 0/0 port 20 <> 40 -> 0/32 tcp/udp
+map foo0 from 0/0 port 10:20 to 0/0 port 30:40 -> 0/32 tcp/udp

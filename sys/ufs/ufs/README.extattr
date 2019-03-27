@@ -1,0 +1,91 @@
+$FreeBSD$
+
+  UFS Extended Attributes Copyright
+
+The UFS Extended Attributes implementation is copyright Robert Watson, and
+is made available under a Berkeley-style license.
+
+  About UFS Extended Attributes
+
+Extended attributes allow the association of additional arbitrary
+meta-data with files and directories.  Extended attributes are defined in
+the form name=value, where name is an nul-terminated string in the style
+of a filename, and value is a binary blob of zero or more bytes. The UFS
+extended attribute service layers support for extended attributes onto a
+backing file, in the style of the quota implementation, meaning that it
+requires no underlying format changes in the filesystem.  This design
+choice exchanges simplicity, usability and easy deployment for
+performance.  When defined, extended attribute names exist in a series of
+disjoint namespaces: currently, two namespaces are defined:
+EXTATTR_NAMESPACE_SYSTEM and EXTATTR_NAMESPACE_USER.  The primary
+distinction lies in the protection model: USER EAs are protected using the
+normal inode protections, whereas SYSTEM EAs require privilege to access
+or modify.
+
+  Using UFS Extended Attributes
+
+Support for UFS extended attributes is natively available in UFS2, and
+requires no special configuration.  For reliability, administrative,
+and performance reasons, if you plan to use extended attributes, it
+is recommended that you use UFS2 in preference to UFS1.
+
+Support for UFS extended attributes may be enabled for UFS1 by adding:
+
+	options UFS_EXTATTR
+
+to your kernel configuration file.  This allows UFS-based filesystems to
+support extended attributes, but requires manual administration of EAs
+using the extattrctl tool, including the starting of EA support for each
+filesystem, and the enabling of individual attributes for the file
+system.  The extattrctl utility may be used to initialize backing files
+before first use, to start and stop EA service on a filesystem, and to
+enable and disable named attributes.  The command lines for extattrctl
+take the following forms:
+
+  extattrctl start [path]
+  extattrctl stop [path]
+  extattrctl initattr [-f] [-p path] [attrsize] [attrfile]
+  extattrctl enable [path] [attrnamespace] [attrname] [attrfile]
+  extattrctl disable [path] [attrnamespace] [attrname]
+
+In each case, [path] is used to indicate the mounted filesystem on which
+to perform the operation.  [attrnamespace] refers to the namespace in
+which the attribute is being manipulated, and may be "system" or "user".  
+The [attrname] is the attribute name to use for the operation. The
+[attrfile] argument specifies the attribute backing file to use. When
+using the "initattr" function to initialize a backing file, the maximum
+size of attribute data must be defined in bytes using the [attrsize]
+field.  Optionally, the [-p path] argument may be used to indicate to
+extattrctl that it should pre-allocate space for EA data, rather than
+creating a sparse backing file.  This prevents attribute operations from
+failing in low disk-space conditions (which can be important when EAs are
+used for security purposes), but pre-allocation will consume space
+proportional to the product of the defined maximum attribute size and
+number of attributes on the specified filesystem.
+
+Manual configuration increases administrative overhead, but also
+introduces the possibility of race conditions during filesystem mount, if
+EAs are used to support other features, as starting the EAs manually is
+not atomic with the mount operation.  To address this problem, an
+additional kernel option may be defined to auto-start EAs on a UFS file
+system based on special directories at mount-time:
+
+	options UFS_EXTATTR_AUTOSTART
+
+If this option is defined, UFS will search for a ".attribute"
+sub-directory of the filesystem root during the mount operation.  If it
+is found, EA support will be started for the filesystem.  UFS will then
+search for "system" and "user" sub-directories of the ".attribute"
+directory for any potential backing files, and enable an EA for each valid
+backing file with the name of the backing file as the attribute name.  
+For example, by creating the following tree, the two EAs,
+posix1e.acl_access and posix1e.acl_default will be enabled in the system
+namespace of the root filesystem, reserving space for attribute data:
+
+  mkdir -p /.attribute/system
+  cd /.attribute/system
+  extattrctl initattr -p / 388 posix1e.acl_access
+  extattrctl initattr -p / 388 posix1e.acl_default
+
+On the next mount of the root filesystem, the attributes will be
+automatically started.

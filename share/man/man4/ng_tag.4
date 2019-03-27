@@ -1,0 +1,338 @@
+.\" Copyright (c) 2006 Vadim Goncharov <vadimnuclight@tpu.ru>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 10, 2006
+.Dt NG_TAG 4
+.Os
+.Sh NAME
+.Nm ng_tag
+.Nd "mbuf tags manipulating netgraph node type"
+.Sh SYNOPSIS
+.In netgraph/ng_tag.h
+.Sh DESCRIPTION
+The
+.Nm tag
+node type allows mbuf packet tags (see
+.Xr mbuf_tags 9 )
+to be examined, stripped or applied to data travelling through a
+Netgraph network.
+Mbuf tags are used in many parts of the
+.Fx
+kernel network subsystem,
+including the storage of VLAN tags as described in
+.Xr vlan 4 ,
+Mandatory Access Control (MAC) labels as described in
+.Xr mac 9 ,
+IPsec policy information as described in
+.Xr ipsec 4 ,
+and packet filter tags used by
+.Xr pf 4 .
+One should also consider useful setting or checking
+.Xr ipfw 8
+tags, which are implemented as mbuf tags, too.
+.Pp
+Each node allows an arbitrary number of connections to arbitrarily
+named hooks.
+With each hook is associated a tag which will be searched in the list
+of all tags attached to a packet incoming to this hook, a destination hook
+for matching packets, a destination hook for non-matching packets,
+a tag which will be appended to data leaving node through this hook,
+and various statistics counters.
+.Pp
+The list of incoming packet's tags is traversed to find a tag with
+specified
+.Va type
+and
+.Va cookie
+values.
+Upon match, if specified
+.Va tag_len
+is non-zero,
+.Va tag_data
+of tag is checked to be identical to that specified in the hook structure.
+Packets with matched tags are forwarded to
+.Dq match
+destination hook, or forwarded to
+.Dq non-match
+hook otherwise.
+Either or both destination hooks can be an empty string, or may
+not exist, in which case the packet is dropped.
+.Pp
+Tag list of packets leaving the node is extended with a new tag
+specified in outgoing hook structure (it is possible to avoid appending
+a new tag to pass packet completely unchanged by specifying zero
+.Va type
+and
+.Va cookie
+values in the structure of the corresponding outgoing hook).
+Additionally,
+a tag can be stripped from incoming packet after match if
+.Va strip
+flag is set.
+This can be used for simple tag removal or tag replacement, if combined
+with tag addition on outgoing matching hook.
+Note that new tag is appended unconditionally, without checking if
+such a tag is already present in the list (it is up to user to check
+if this is a concern).
+.Pp
+New hooks are initially configured to drop all incoming packets
+(as all hook names are empty strings; zero values can be specified
+to forward all packets to non-matching hook),
+and to forward all outgoing packets without any tag appending.
+.Pp
+Data payload of packets passing through the node is completely
+unchanged, all operations can affect tag list only.
+.Sh HOOKS
+This node type supports any number of hooks having arbitrary names.
+In order to allow internal optimizations, user should never try to
+configure a hook with a structure pointing to hooks which do not exist yet.
+The safe way is to create all hooks first, then begin to configure them.
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_TAG_SET_HOOKIN Pq Ic sethookin
+This command sets tag values which will be searched in the tag list of
+incoming packets on a hook.
+The following structure must be supplied as an argument:
+.Bd -literal -offset 4n
+struct ng_tag_hookin {
+  char		  thisHook[NG_HOOKSIZ];     /* name of hook */
+  char		  ifMatch[NG_HOOKSIZ];	    /* match dest hook */
+  char		  ifNotMatch[NG_HOOKSIZ];   /* !match dest hook */
+  uint8_t	  strip;		    /* strip tag if found */
+  uint32_t	  tag_cookie;		    /* ABI/Module ID */
+  uint16_t	  tag_id;		    /* tag ID */
+  uint16_t	  tag_len;		    /* length of data */
+  uint8_t	  tag_data[0];		    /* tag data */
+};
+.Ed
+.Pp
+The hook to be updated is specified in
+.Va thisHook .
+Data bytes of tag corresponding to specified
+.Va tag_id
+(type) and
+.Va tag_cookie
+are placed in the
+.Va tag_data
+array; there must be
+.Va tag_len
+of them.
+Matching and non-matching incoming packets are delivered out the hooks named
+.Va ifMatch
+and
+.Va ifNotMatch ,
+respectively.
+If
+.Va strip
+flag is non-zero, then found tag is deleted from list of packet tags.
+.It Dv NGM_TAG_GET_HOOKIN Pq Ic gethookin
+This command takes an
+.Tn ASCII
+string argument, the hook name, and returns the
+corresponding
+.Vt "struct ng_tag_hookin"
+as shown above.
+.It Dv NGM_TAG_SET_HOOKOUT Pq Ic sethookout
+This command sets tags values which will be applied to outgoing
+packets.
+The following structure must be supplied as an argument:
+.Bd -literal -offset 4n
+struct ng_tag_hookout {
+  char		  thisHook[NG_HOOKSIZ];     /* name of hook */
+  uint32_t	  tag_cookie;		    /* ABI/Module ID */
+  uint16_t	  tag_id;		    /* tag ID */
+  uint16_t	  tag_len;		    /* length of data */
+  uint8_t	  tag_data[0];		    /* tag data */
+};
+.Ed
+.Pp
+The hook to be updated is specified in
+.Va thisHook .
+Other variables mean basically the same as in
+.Vt "struct ng_tag_hookin"
+shown above, except used for setting values in a new tag.
+.It Dv NGM_TAG_GET_HOOKOUT Pq Ic gethookout
+This command takes an
+.Tn ASCII
+string argument, the hook name, and returns the
+corresponding
+.Vt "struct ng_tag_hookout"
+as shown above.
+.It Dv NGM_TAG_GET_STATS Pq Ic getstats
+This command takes an
+.Tn ASCII
+string argument, the hook name, and returns the
+statistics associated with the hook as a
+.Vt "struct ng_tag_hookstat" .
+.It Dv NGM_TAG_CLR_STATS Pq Ic clrstats
+This command takes an
+.Tn ASCII
+string argument, the hook name, and clears the
+statistics associated with the hook.
+.It Dv NGM_TAG_GETCLR_STATS Pq Ic getclrstats
+This command is identical to
+.Dv NGM_TAG_GET_STATS ,
+except that the statistics are also atomically cleared.
+.El
+.Pp
+.Em Note:
+statistics counters as well as three statistics messages above work
+only if code was compiled with the
+.Dv NG_TAG_DEBUG
+option.
+The reason for this is that statistics is rarely used in practice,
+but still consumes CPU cycles for every packet.
+Moreover, it is even not accurate on SMP systems due to lack of
+synchronization between threads, as this is very expensive.
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh EXAMPLES
+It is possible to do a simple L7 filtering by using
+.Xr ipfw 8
+tags in conjunction with
+.Xr ng_bpf 4
+traffic analyzer.
+Example below explains how to filter DirectConnect P2P network data traffic,
+which cannot be done by usual means as it uses random ports.
+It is known that such data connection always contains a TCP packet with
+6-byte payload string "$Send|".
+So ipfw's
+.Cm netgraph
+action will be used to divert all TCP packets to an
+.Xr ng_bpf 4
+node which will check for the specified string and return non-matching
+packets to
+.Xr ipfw 8 .
+Matching packets are passed to
+.Nm
+node, which will set a tag and pass them back to
+.Xr ng_bpf 4
+node on a hook programmed to accept all packets and pass them back to
+.Xr ipfw 8 .
+A script provided in
+.Xr ng_bpf 4
+manual page will be used for programming node.
+Note that packets diverted from
+.Xr ipfw 8
+to Netgraph have no link-level header, so offsets in
+.Xr tcpdump 1
+expressions must be altered accordingly.
+Thus, there will be expression
+.Dq Li "ether[40:2]=0x244c && ether[42:4]=0x6f636b20"
+on incoming hook and empty expression to match all packets from
+.Nm .
+.Pp
+So, this is
+.Xr ngctl 8
+script for nodes creating and naming for easier access:
+.Bd -literal -offset 4n
+/usr/sbin/ngctl -f- <<-SEQ
+	mkpeer ipfw: bpf 41 ipfw
+	name ipfw:41 dcbpf
+	mkpeer dcbpf: tag matched th1
+	name dcbpf:matched ngdc
+SEQ
+.Ed
+.Pp
+Now
+.Dq Li ngdc
+node (which is of type
+.Nm )
+must be programmed to echo all packets received on the
+.Dq Li th1
+hook back, with the
+.Xr ipfw 8
+tag 412 attached.
+.Dv MTAG_IPFW
+value for
+.Va tag_cookie
+was taken from file
+.In netinet/ip_fw.h
+and value for
+.Va tag_id
+is tag number (412), with zero tag length:
+.Bd -literal -offset 4n
+ngctl msg ngdc: sethookin { thisHook=\e"th1\e" ifNotMatch=\e"th1\e" }
+ngctl msg ngdc: sethookout { thisHook=\e"th1\e" \e
+  tag_cookie=1148380143 \e
+  tag_id=412 }
+.Ed
+.Pp
+Do not forget to program
+.Xr ng_bpf 4
+.Dq Li ipfw
+hook with the above expression (see
+.Xr ng_bpf 4
+for script doing this) and
+.Dq Li matched
+hook with an empty expression:
+.Bd -literal -offset 4n
+ngctl msg dcbpf: setprogram { thisHook=\e"matched\e" ifMatch=\e"ipfw\e" \e
+  bpf_prog_len=1 bpf_prog=[ { code=6 k=8192 } ] }
+.Ed
+.Pp
+After finishing with
+.Xr netgraph 4
+nodes,
+.Xr ipfw 8
+rules must be added to enable packet flow:
+.Bd -literal -offset 4n
+ipfw add 100 netgraph 41 tcp from any to any iplen 46
+ipfw add 110 reset tcp from any to any tagged 412
+.Ed
+.Pp
+Note: one should ensure that packets are returned to ipfw after processing
+inside
+.Xr netgraph 4 ,
+by setting appropriate
+.Xr sysctl 8
+variable:
+.Bd -literal -offset 4n
+sysctl net.inet.ip.fw.one_pass=0
+.Ed
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_bpf 4 ,
+.Xr ng_ipfw 4 ,
+.Xr ipfw 8 ,
+.Xr ngctl 8 ,
+.Xr mbuf_tags 9
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 6.2 .
+.Sh AUTHORS
+.An Vadim Goncharov Aq Mt vadimnuclight@tpu.ru
+.Sh BUGS
+For manipulating any tags with data payload (that is, all tags with non-zero
+.Va tag_len )
+one should care about non-portable machine-dependent representation of
+tags on the low level as byte stream.
+Perhaps this should be done by another program rather than manually.

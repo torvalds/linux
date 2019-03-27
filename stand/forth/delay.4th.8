@@ -1,0 +1,126 @@
+.\" Copyright (c) 2011 Devin Teske
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 18, 2011
+.Dt DELAY.4TH 8
+.Os
+.Sh NAME
+.Nm delay.4th
+.Nd FreeBSD debugging boot module
+.Sh DESCRIPTION
+The file that goes by the name of
+.Nm
+is a set of commands designed to add debugging capabilities to
+.Xr loader 8 .
+The commands of
+.Nm
+by themselves are not enough for most uses.
+Please refer to the
+examples below for the most common situations, and to
+.Xr loader 8
+for additional commands.
+.Pp
+Before using any of the commands provided in
+.Nm ,
+it must be included
+through the command:
+.Pp
+.Dl include delay.4th
+.Pp
+This line is present in
+.Pa /boot/beastie.4th
+file, so it is not needed (and should not be re-issued) in a normal setup.
+.Pp
+The commands provided by it are:
+.Pp
+.Bl -tag -width disable-module_module -compact -offset indent
+.It Ic delay_execute
+Executes the [string] procedure stored in the
+.Ic delay_command
+environment variable after
+.Ic loader_delay
+seconds.
+.Pp
+If the optional
+.Ic delay_showdots
+environment variable is set, a continuous series of dots is printed.
+.Pp
+During the duration, the user can either press Ctrl-C (or Esc) to abort or
+ENTER to proceed immediately.
+.El
+.Pp
+The environment variables that effect its behavior are:
+.Bl -tag -width bootfile -offset indent
+.It Va delay_command
+The command to be executed by
+.Ic delay_execute .
+.It Va loader_delay
+The duration (in seconds) to delay before executing
+.Ic delay_command .
+.It Va delay_showdots
+If set, will cause
+.Ic delay_execute
+to print a continuous series of dots during the delay duration.
+.El
+.Sh FILES
+.Bl -tag -width /boot/loader.4th -compact
+.It Pa /boot/loader
+The
+.Xr loader 8 .
+.It Pa /boot/delay.4th
+.Nm
+itself.
+.It Pa /boot/loader.rc
+.Xr loader 8
+bootstrapping script.
+.El
+.Sh EXAMPLES
+Introducing a 5-second delay before including another file from
+.Pa /boot/loader.rc :
+.Pp
+.Bd -literal -offset indent -compact
+include /boot/delay.4th
+set delay_command="include /boot/other.4th"
+set delay_showdots
+set loader_delay=5
+delay_execute
+.Ed
+.Sh SEE ALSO
+.Xr loader.conf 5 ,
+.Xr beastie.4th 8 ,
+.Xr loader 8 ,
+.Xr loader.4th 8
+.Sh HISTORY
+The
+.Nm
+set of commands first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+The
+.Nm
+set of commands was written by
+.An -nosplit
+.An Devin Teske Aq dteske@FreeBSD.org .

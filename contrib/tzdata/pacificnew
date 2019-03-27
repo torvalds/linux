@@ -1,0 +1,29 @@
+# tzdb data for proposed US election time (this file is obsolete)
+
+# This file is in the public domain, so clarified as of
+# 2009-05-17 by Arthur David Olson.
+
+# From Arthur David Olson (1989-04-05):
+# On 1989-04-05, the U. S. House of Representatives passed (238-154) a bill
+# establishing "Pacific Presidential Election Time"; it was not acted on
+# by the Senate or signed into law by the President.
+# You might want to change the "PE" (Presidential Election) below to
+# "Q" (Quadrennial) to maintain three-character zone abbreviations.
+# If you're really conservative, you might want to change it to "D".
+# Avoid "L" (Leap Year), which won't be true in 2100.
+
+# If Presidential Election Time is ever established, replace "XXXX" below
+# with the year the law takes effect and uncomment the "##" lines.
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+## Rule	Twilite	XXXX	max	-	Apr	Sun>=1	2:00	1:00	D
+## Rule	Twilite	XXXX	max	uspres	Oct	lastSun	2:00	1:00	PE
+## Rule	Twilite	XXXX	max	uspres	Nov	Sun>=7	2:00	0	S
+## Rule	Twilite	XXXX	max	nonpres	Oct	lastSun	2:00	0	S
+
+# Zone	NAME			GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+## Zone	America/Los_Angeles-PET	-8:00	US		P%sT	XXXX
+##				-8:00	Twilite		P%sT
+
+# For now...
+Link	America/Los_Angeles	US/Pacific-New	##

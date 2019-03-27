@@ -1,0 +1,13 @@
+#$FreeBSD$
+f()
+{
+	false
+	case $1 in
+	foo) true ;;
+	bar) false ;;
+	esac
+}
+
+f foo || exit 1
+f bar && exit 1
+f quux || exit 1

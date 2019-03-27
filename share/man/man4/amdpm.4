@@ -1,0 +1,73 @@
+.\" Copyright (c) 2001 Murray Stokely
+.\" Copyright (c) 1999 Takanori Watanabe
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 31, 2005
+.Dt AMDPM 4
+.Os
+.Sh NAME
+.Nm amdpm
+.Nd AMD 756/766/768/8111 Power Management controller driver
+.Sh SYNOPSIS
+.Cd device smbus
+.Cd device smb
+.Cd device amdpm
+.Sh DESCRIPTION
+This driver provides access to
+.Tn AMD 756/766/768/8111 Power management controllers .
+Currently, only the SMBus 1.0 controller function is implemented.
+The SMBus 2.0 functionality of the AMD 8111 controller is supported via the
+.Xr amdsmb 4
+driver.
+.Pp
+The embedded SMBus controller of the AMD 756 chipset may give you access
+to the monitoring facilities of your mainboard.
+See
+.Xr smb 4
+for writing user code to fetch voltages, temperature and so on from the
+monitoring chip of your mainboard.
+.Sh SEE ALSO
+.Xr amdsmb 4 ,
+.Xr intpm 4 ,
+.Xr smb 4 ,
+.Xr smbus 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.5 .
+.Sh AUTHORS
+.An -nosplit
+This driver was written by
+.An "Matthew C. Forman" .
+Based heavily on the
+.Nm alpm
+driver by
+.An Nicolas Souchu .
+This manual page was written by
+.An Murray Stokely Aq Mt murray@FreeBSD.org .
+.Sh BUGS
+Only polling mode is supported.

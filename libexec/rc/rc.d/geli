@@ -1,0 +1,126 @@
+#!/bin/sh
+#
+# Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# PROVIDE: disks
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="geli"
+desc="GELI disk encryption"
+start_precmd='[ -n "$(geli_make_list)" -o -n "${geli_groups}" ]'
+start_cmd="geli_start"
+stop_cmd="geli_stop"
+required_modules="geom_eli:g_eli"
+
+geli_start()
+{
+	devices=`geli_make_list`
+
+	if [ -z "${geli_tries}" ]; then
+		if [ -n "${geli_attach_attempts}" ]; then
+			# Compatibility with rc.d/gbde.
+			geli_tries=${geli_attach_attempts}
+		else
+			geli_tries=`${SYSCTL_N} kern.geom.eli.tries`
+		fi
+	fi
+
+	for provider in ${devices}; do
+		provider_=`ltr ${provider} '/-' '_'`
+
+		eval "flags=\${geli_${provider_}_flags}"
+		if [ -z "${flags}" ]; then
+			flags=${geli_default_flags}
+		fi
+		if [ -e "/dev/${provider}" -a ! -e "/dev/${provider}.eli" ]; then
+			echo "Configuring Disk Encryption for ${provider}."
+			count=1
+			while [ ${count} -le ${geli_tries} ]; do
+				geli attach ${flags} ${provider}
+				if [ -e "/dev/${provider}.eli" ]; then
+					break
+				fi
+				echo "Attach failed; attempt ${count} of ${geli_tries}."
+				count=$((count+1))
+			done
+		fi
+	done
+
+	for group in ${geli_groups}; do
+		group_=`ltr ${group} '/-' '_'`
+
+		eval "flags=\${geli_${group_}_flags}"
+		if [ -z "${flags}" ]; then
+			flags=${geli_default_flags}
+		fi
+
+		eval "providers=\${geli_${group_}_devices}"
+		if [ -z "${providers}" ]; then
+			echo "No devices listed in geli group ${group}."
+			continue
+		fi
+
+		if [ -e "/dev/${providers%% *}" -a ! -e "/dev/${providers%% *}.eli" ]; then
+			echo "Configuring Disk Encryption for geli group ${group}, containing ${providers}."
+			count=1
+			while [ ${count} -le ${geli_tries} ]; do
+				geli attach ${flags} ${providers}
+				if [ -e "/dev/${providers%% *}.eli" ]; then
+					break
+				fi
+				echo "Attach failed; attempt ${count} of ${geli_tries}."
+				count=$((count+1))
+			done
+		fi
+	done
+}
+
+geli_stop()
+{
+	devices=`geli_make_list`
+
+	for group in ${geli_groups}; do
+		group_=`ltr ${group} '/-' '_'`
+
+		eval "providers=\${geli_${group_}_devices}"
+
+		devices="${devices} ${providers}"
+	done
+
+	for provider in ${devices}; do
+		if [ -e "/dev/${provider}.eli" ]; then
+			umount "/dev/${provider}.eli" 2>/dev/null
+			geli detach "${provider}"
+		fi
+	done
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,126 @@
+.\"
+.\" Copyright (C) 2002 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 25, 2011
+.Dt SELRECORD 9
+.Os
+.Sh NAME
+.Nm seldrain ,
+.Nm selrecord ,
+.Nm selwakeup
+.Nd "record and wakeup select requests"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/selinfo.h
+.Ft void
+.Fn seldrain "struct selinfo *sip"
+.Ft void
+.Fn selrecord "struct thread *td" "struct selinfo *sip"
+.Ft void
+.Fn selwakeup "struct selinfo *sip"
+.Sh DESCRIPTION
+.Fn seldrain ,
+.Fn selrecord
+and
+.Fn selwakeup
+are the three central functions used by
+.Xr select 2 ,
+.Xr poll 2
+and the objects that are being selected on.
+They handle the task of recording which threads are waiting on which objects
+and the waking of the proper threads when an event of interest occurs on an
+object.
+.Pp
+.Fn selrecord
+records that the calling thread is interested in events related to a given
+object.
+If another thread is already waiting on the object a collision will be flagged
+in
+.Fa sip
+which will be later dealt with by
+.Fn selwakeup .
+.Pp
+.Fn selrecord
+acquires and releases
+.Va sellock .
+.Pp
+.Fn selwakeup
+is called by the underlying object handling code in order to notify any waiting
+threads that an event of interest has occurred.
+If a collision has occurred,
+.Fn selwakeup
+will increment
+.Va nselcoll ,
+and broadcast on the global cv in order to wake all waiting threads so that
+they can handle it.
+If the thread waiting on the object is not currently sleeping or the wait
+channel is not
+.Va selwait ,
+.Fn selwakeup
+will clear the
+.Dv TDF_SELECT
+flag which should be noted by
+.Xr select 2
+and
+.Xr poll 2
+when they wake up.
+.Pp
+.Fn seldrain
+will flush the waiters queue on a specified object before its
+destruction.
+The object handling code must ensure that
+.Fa *sip
+cannot be used once
+.Fn seldrain
+has been called.
+.Pp
+The contents of
+.Fa *sip
+must be zeroed, such as by softc initialization, before any call to
+.Fn selrecord
+or
+.Fn selwakeup ,
+otherwise a panic may occur.
+.Fn selwakeup
+acquires and releases
+.Va sellock
+and may acquire and release
+.Va sched_lock .
+.Fn seldrain
+could usually be just a wrapper for
+.Fn selwakeup ,
+but consumers should not generally rely on this feature.
+.Sh SEE ALSO
+.Xr poll 2 ,
+.Xr select 2
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Chad David Aq Mt davidc@FreeBSD.org
+and
+.An Alfred Perlstein Aq Mt alfred@FreeBSD.org .

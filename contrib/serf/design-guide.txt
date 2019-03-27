@@ -1,0 +1,152 @@
+APACHE COMMONS: serf                                    -*-indented-text-*-
+
+
+TOPICS
+
+  1. Introduction
+  2. Thread Safety
+  3. Pool Usage
+  4. Bucket Read Functions
+  5. Versioning
+  6. Bucket lifetimes
+
+
+-----------------------------------------------------------------------------
+
+1. INTRODUCTION
+
+This document details various design choices for the serf library. It
+is intended to be a guide for serf developers. Of course, these design
+principles, choices made, etc are a good source of information for
+users of the serf library, too.
+
+
+-----------------------------------------------------------------------------
+
+2. THREAD SAFETY
+
+The serf library should contain no mutable globals, making it is safe
+to use in a multi-threaded environment.
+
+Each "object" within the system does not need to be used from multiple
+threads at a time. Thus, they require no internal mutexes, and can
+disable mutexes within APR objects where applicable (e.g. pools that
+are created).
+
+The objects should not have any thread affinity (i.e. don't use
+thread-local storage). This enables an application to use external
+mutexes to guard entry to the serf objects, which then allows the
+objects to be used from multiple threads.
+
+
+-----------------------------------------------------------------------------
+
+3. POOL USAGE
+
+For general information on the proper use of pools, please see:
+
+  http://cvs.apache.org/viewcvs/*checkout*/apr/docs/pool-design.html
+
+Within serf itself, the buckets introduce a significant issue related
+to pools. Since it is very possible to end up creating *many* buckets
+within a transaction, and that creation could be proportional to an
+incoming or outgoing data stream, a lot of care must be take to avoid
+tying bucket allocations to pools. If a bucket allocated any internal
+memory against a pool, and if that bucket is created an unbounded
+number of times, then the pool memory could be exhausted.
+
+Thus, buckets are allocated using a custom allocator which allows the
+memory to be freed when that bucket is no longer needed. This
+contrasts with pools where the "free" operation occurs over a large
+set of objects, which is problematic if some are still in use.
+
+### need more explanation of strategy/solution ...
+
+
+-----------------------------------------------------------------------------
+
+4. BUCKET READ FUNCTIONS
+
+The bucket reading and peek functions must not block. Each read
+function should return (up to) the specified amount of data. If
+SERF_READ_ALL_AVAIL is passed, then the function should provide
+whatever is immediately available, without blocking.
+
+The peek function does not take a requested length because it is
+non-destructive. It is not possible to "read past" any barrier with a
+peek function. Thus, peek should operate like SERF_READ_ALL_AVAIL.
+
+The return values from the read functions should follow this general
+pattern:
+
+    APR_SUCCESS    Some data was returned, and the caller can
+                   immediately call the read function again to read
+                   more data.
+
+                   NOTE: when bucket behavior tracking is enabled,
+                   then you must read more data from this bucket
+                   before returning to the serf context loop. If a
+                   bucket is not completely drained first, then it is
+                   possible to deadlock (the server might not read
+                   anything until you read everything it has already
+                   given to you).
+
+    APR_EAGAIN     Some data was returned, but no more is available
+                   for now. The caller must "wait for a bit" or wait
+                   for some event before attempting to read again
+                   (basically, this simply means re-run the serf
+                   context loop). Though it shouldn't be done, reading
+                   again will, in all likelihood, return zero length
+                   data and APR_EAGAIN again.
+
+                   NOTE: when bucket behavior tracking is enabled,
+                   then it is illegal to immediately read a bucket
+                   again after it has returned APR_EAGAIN. You must
+                   run the serf context loop again to (potentially)
+                   fetch more data for the bucket.
+
+    APR_EOF        Some data was returned, and this bucket has no more
+                   data available and should not be read again. If you
+                   happen to read it again, then it will return zero
+                   length data and APR_EOF.
+
+                   NOTE: when bucket behavior tracking is enabled,
+                   then it is illegal to read this bucket ever again.
+
+    other          An error has occurred. No data was returned. The
+                   returned length is undefined.
+
+In the above paragraphs, when it says "some data was returned", note
+that this could be data of length zero.
+
+If a length of zero is returned, then the caller should not attempt to
+dereference the data pointer. It may be invalid. Note that there is no
+reason to dereference that pointer, since it doesn't point to any
+valid data.
+
+Any data returned by the bucket should live as long as the bucket, or
+until the next read or peek occurs.
+
+The read_bucket function falls into a very different pattern. See its
+doc string for more information.
+
+
+-----------------------------------------------------------------------------
+
+5. VERSIONING
+
+The serf project uses the APR versioning guidelines described here:
+
+  http://apr.apache.org/versioning.html
+
+
+-----------------------------------------------------------------------------
+
+6. BUCKET LIFETIMES
+
+### flesh out. basically: if you hold a bucket pointer, then you own
+### it. passing a bucket into another transfers ownership. use barrier
+### buckets to limit destruction of a tree of buckets.
+
+
+-----------------------------------------------------------------------------

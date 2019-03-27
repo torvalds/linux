@@ -1,0 +1,148 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_aranges.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd November 9, 2011
+.Dt DWARF_GET_ARANGES 3
+.Os
+.Sh NAME
+.Nm dwarf_get_aranges
+.Nd retrieve program address space mappings
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_get_aranges
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Arange **ar_list"
+.Fa "Dwarf_Signed *ar_cnt"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+The function
+.Fn dwarf_get_aranges
+retrieves address range information from the
+.Dq ".debug_aranges"
+DWARF section.
+Information about address ranges is returned using opaque descriptors
+of type
+.Vt Dwarf_Arange ,
+.Pp
+Argument
+.Ar dbg
+should reference a DWARF debug context allocated using
+.Xr dwarf_init 3 .
+.Pp
+Argument
+.Ar ar_list
+should point to a location which will be set to a pointer to an array
+of
+.Vt Dwarf_Arange
+descriptors.
+.Pp
+Argument
+.Ar ar_cnt
+should point to a location which will be set to the number of
+descriptors returned.
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case of an
+error.
+.Ss Memory Management
+The memory area used for the array returned in argument
+.Ar ar_list
+is owned by
+.Lb libdwarf .
+Application code should not attempt to directly free this area.
+Portable applications should instead use
+.Xr dwarf_dealloc 3
+to indicate that the memory area may be freed.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_get_aranges
+returns
+.Dv DW_DLV_OK
+when it succeeds.
+It returns
+.Dv DW_DLV_NO_ENTRY
+if there is no
+.Dq ".debug_aranges"
+section associated with the specified debugging context.
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh EXAMPLES
+To loop through all the address lookup table entries, use:
+.Bd -literal -offset indent
+Dwarf_Debug dbg;
+Dwarf_Addr start;
+Dwarf_Arange *aranges;
+Dwarf_Off die_off;
+Dwarf_Signed i, cnt;
+Dwarf_Unsigned length;
+Dwarf_Error de;
+
+if (dwarf_get_aranges(dbg, &aranges, &cnt, &de) != DW_DLV_OK)
+	errx(EXIT_FAILURE, "dwarf_get_aranges: %s",
+	    dwarf_errmsg(de));
+
+for (i = 0; i < cnt; i++) {
+	if (dwarf_get_arange_info(aranges[i], &start, &length,
+	    &die_off, &de) != DW_DLV_OK) {
+		warnx("dwarf_get_arange_info: %s",
+		    dwarf_errmsg(de));
+		continue;
+	}
+	/* Do something with the returned information. */
+}
+.Ed
+.Sh ERRORS
+Function
+.Fn dwarf_get_aranges
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar dbg ,
+.Ar ar_list
+or
+.Ar ar_cnt
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+The debugging context
+.Ar dbg
+did not contain a
+.Dq ".debug_aranges"
+string section.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_get_arange 3 ,
+.Xr dwarf_get_arange_cu_header_offset 3 ,
+.Xr dwarf_get_arange_info 3 ,
+.Xr dwarf_get_cu_die_offset 3

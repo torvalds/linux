@@ -1,0 +1,176 @@
+.\" Copyright (c) 1993 Andrew Moore, Talke Studio
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fpgetround.3	1.0 (Berkeley) 9/23/93
+.\" $FreeBSD$
+.\"
+.Dd December 3, 2010
+.Dt FPGETROUND 3
+.Os
+.Sh NAME
+.Nm fpgetround ,
+.Nm fpsetround ,
+.Nm fpsetprec ,
+.Nm fpgetprec ,
+.Nm fpgetmask ,
+.Nm fpsetmask ,
+.Nm fpgetsticky ,
+.Nm fpresetsticky
+.Nd IEEE floating point interface
+.Sh SYNOPSIS
+.In ieeefp.h
+.Bd -literal
+typedef enum {
+	FP_RN,		/* round to nearest */
+	FP_RM,		/* round down to minus infinity */
+	FP_RP,		/* round up to plus infinity */
+	FP_RZ		/* truncate */
+} fp_rnd_t;
+.Ed
+.Ft fp_rnd_t
+.Fn fpgetround void
+.Ft fp_rnd_t
+.Fn fpsetround "fp_rnd_t direction"
+.Bd -literal
+typedef enum {
+	FP_PS,		/* 24 bit (single-precision) */
+	FP_PRS,		/* reserved */
+	FP_PD,		/* 53 bit (double-precision) */
+	FP_PE		/* 64 bit (extended-precision) */
+} fp_prec_t;
+.Ed
+.Ft fp_prec_t
+.Fn fpgetprec void
+.Ft fp_prec_t
+.Fn fpsetprec "fp_prec_t precision"
+.Bd -literal
+#define fp_except_t	int
+#define FP_X_INV	0x01	/* invalid operation */
+#define FP_X_DNML	0x02	/* denormal */
+#define FP_X_DZ		0x04	/* zero divide */
+#define FP_X_OFL	0x08	/* overflow */
+#define FP_X_UFL	0x10	/* underflow */
+#define FP_X_IMP	0x20	/* (im)precision */
+#define FP_X_STK	0x40	/* stack fault */
+.Ed
+.Ft fp_except_t
+.Fn fpgetmask void
+.Ft fp_except_t
+.Fn fpsetmask "fp_except_t mask"
+.Ft fp_except_t
+.Fn fpgetsticky void
+.Ft fp_except_t
+.Fn fpresetsticky "fp_except_t sticky"
+.Sh DESCRIPTION
+The routines described herein are deprecated.
+New code should use the functionality provided by
+.Xr fenv 3 .
+.Pp
+When a floating point exception is detected, the exception sticky flag is
+set and the exception mask is tested.
+If the mask is set, then a trap
+occurs.
+These routines allow both setting the floating point exception
+masks, and resetting the exception sticky flags after an exception is
+detected.
+In addition, they allow setting the floating point rounding mode
+and precision.
+.Pp
+The
+.Fn fpgetround
+function
+returns the current floating point rounding mode.
+.Pp
+The
+.Fn fpsetround
+function
+sets the floating point rounding mode and returns
+the previous mode.
+.Pp
+The
+.Fn fpgetprec
+function
+returns the current floating point precision.
+.Pp
+The
+.Fn fpsetprec
+function
+sets the floating point precision and returns
+the previous precision.
+.Pp
+The
+.Fn fpgetmask
+function
+returns the current floating point exception masks.
+.Pp
+The
+.Fn fpsetmask
+function
+sets the floating point exception masks and returns the
+previous masks.
+.Pp
+The
+.Fn fpgetsticky
+function
+returns the current floating point sticky flags.
+.Pp
+The
+.Fn fpresetsticky
+function
+clears the floating point sticky flags and returns
+the previous flags.
+.Pp
+Sample code which prevents a trap on divide-by-zero:
+.Bd -literal -offset indent
+fpsetmask(~FP_X_DZ);
+a = 1.0;
+b = 0;
+c = a / b;
+fpresetsticky(FP_X_DZ);
+fpsetmask(FP_X_DZ);
+.Ed
+.Sh IMPLEMENTATION NOTES
+The
+.Fn fpgetprec
+and
+.Fn fpsetprec
+functions provide functionality unavailable on many platforms.
+At present, they are implemented only on the i386 and amd64 platforms.
+Changing precision is not a supported feature:
+it may be ineffective when code is compiled to take advantage of SSE,
+and many library functions and compiler optimizations depend upon the
+default precision for correct behavior.
+.Sh SEE ALSO
+.Xr fenv 3 ,
+.Xr isnan 3
+.Sh HISTORY
+These routines are based on SysV/386 routines of the same name.
+.Sh CAVEATS
+After a floating point exception and before a mask is set, the sticky
+flags must be reset.
+If another exception occurs before the sticky
+flags are reset, then a wrong exception type may be signaled.

@@ -1,0 +1,51 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_QUERY_RT_VALUES_EX 3 2016-2-20 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_query_rt_values_ex \- query an RDMA device for some real time values
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_query_rt_values_ex(struct ibv_context " "*context",
+.BI "                           struct ibv_values_ex " "*values" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_query_rt_values_ex()
+returns certain real time values of a device
+.I context\fR.
+The argument
+.I attr
+is a pointer to an ibv_device_attr_ex struct, as defined in <infiniband/verbs.h>.
+.PP
+.nf
+struct ibv_values_ex {
+.in +8
+uint32_t             comp_mask;    /* Compatibility mask that defines the query/queried fields [in/out] */
+struct timespec      raw_clock;    /* HW raw clock */
+.in -8
+};
+
+enum ibv_values_mask {
+        IBV_VALUES_MASK_RAW_CLOCK = 1 << 0, /* HW raw clock */
+};
+
+.fi
+.SH "RETURN VALUE"
+.B ibv_query_rt_values_ex()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+This extension verb only calls the provider, the provider has to query this value somehow and mark
+the queried values in the comp_mask field.
+.SH "SEE ALSO"
+.BR ibv_query_device (3),
+.BR ibv_open_device (3),
+.BR ibv_query_port (3),
+.BR ibv_query_pkey (3),
+.BR ibv_query_gid (3)
+.SH "AUTHORS"
+.TP
+Matan Barak <matanb@mellanox.com>
+.TP
+Yishai Hadas <yishaih@mellanox.com>

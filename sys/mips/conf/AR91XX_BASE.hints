@@ -1,0 +1,59 @@
+# This file (and the kernel config file accompanying it) are not designed 
+# to be used by themselves. Instead, users of this file should create a
+# kernel # config file which includes this file (which gets the basic hints),
+# then override the default options (adding devices as needed) and adding
+# hints as needed (for example, the GPIO and LAN PHY.)
+
+# $FreeBSD$
+
+hint.apb.0.at="nexus0"
+hint.apb.0.irq=4
+
+# uart0
+hint.uart.0.at="apb0"
+# see atheros/uart_cpu_ar71xx.c why +3
+hint.uart.0.maddr=0x18020003
+hint.uart.0.msize=0x18
+hint.uart.0.irq=3
+
+#ehci - note the 0x100 offset for the AR913x/AR724x
+hint.ehci.0.at="nexus0"
+hint.ehci.0.maddr=0x1b000100
+hint.ehci.0.msize=0x00ffff00
+hint.ehci.0.irq=1
+
+hint.arge.0.at="nexus0"
+hint.arge.0.maddr=0x19000000
+hint.arge.0.msize=0x1000
+hint.arge.0.irq=2
+
+hint.arge.1.at="nexus0"
+hint.arge.1.maddr=0x1a000000
+hint.arge.1.msize=0x1000
+hint.arge.1.irq=3
+
+# XXX The ath device hangs off of the AHB, rather than the Nexus.
+hint.ath.0.at="nexus0"
+hint.ath.0.maddr=0x180c0000
+hint.ath.0.msize=0x30000
+hint.ath.0.irq=0
+# Set this to define where the ath calibration data
+# should be fetched from in physical memory.
+# hint.ath.0.eepromaddr=0x1fff1000
+
+# SPI flash
+hint.spi.0.at="nexus0"
+hint.spi.0.maddr=0x1f000000
+hint.spi.0.msize=0x10
+
+hint.mx25l.0.at="spibus0"
+hint.mx25l.0.cs=0
+
+# Watchdog
+hint.ar71xx_wdog.0.at="nexus0"
+
+# The GPIO function and pin mask is configured per-board
+hint.gpio.0.at="apb0"
+hint.gpio.0.maddr=0x18040000
+hint.gpio.0.msize=0x1000
+hint.gpio.0.irq=2

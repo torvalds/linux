@@ -1,0 +1,96 @@
+#------------------------------------------------------------------------------
+# zfs:	file(1) magic for ZFS dumps
+#
+# From <rea-fbsd@codelabs.ru>
+# ZFS dump header has the following structure (as per zfs_ioctl.h
+# in FreeBSD with drr_type is set to DRR_BEGIN)
+#
+#   enum {
+#	DRR_BEGIN, DRR_OBJECT, DRR_FREEOBJECTS,
+#	DRR_WRITE, DRR_FREE, DRR_END,
+#   } drr_type;
+#   uint32_t drr_pad;
+#   uint64_t drr_magic;
+#   uint64_t drr_version;
+#   uint64_t drr_creation_time;
+#   dmu_objset_type_t drr_type;
+#   uint32_t drr_pad;
+#   uint64_t drr_toguid;
+#   uint64_t drr_fromguid;
+#   char drr_toname[MAXNAMELEN];
+#
+# Backup magic is 0x00000002f5bacbac (quad word)
+# The drr_type is defined as
+#   typedef enum dmu_objset_type {
+#	  DMU_OST_NONE,
+#	  DMU_OST_META,
+#	  DMU_OST_ZFS,
+#	  DMU_OST_ZVOL,
+#	  DMU_OST_OTHER,		  /* For testing only! */
+#	  DMU_OST_ANY,			  /* Be careful! */
+#	  DMU_OST_NUMTYPES
+#  } dmu_objset_type_t;
+#
+# Almost all uint64_t fields are printed as the 32-bit ones (with high
+# 32 bits zeroed), because there is no simple way to print them as the
+# full 64-bit values.
+
+# Big-endian values
+8	string	\000\000\000\002\365\272\313\254 ZFS shapshot (big-endian machine),
+>20	belong	x	version %u,
+>32	belong	0	type: NONE,
+>32	belong	1	type: META,
+>32	belong	2	type: ZFS,
+>32	belong	3	type: ZVOL,
+>32	belong	4	type: OTHER,
+>32	belong	5	type: ANY,
+>32	belong	>5	type: UNKNOWN (%u),
+>40	byte	x	destination GUID: %02X
+>41	byte	x	%02X
+>42	byte	x	%02X
+>43	byte	x	%02X
+>44	byte	x	%02X
+>45	byte	x	%02X
+>46	byte	x	%02X
+>47	byte	x	%02X,
+>48	ulong	>0
+>>52	ulong	>0
+>>>48	byte	x	source GUID: %02X
+>>>49	byte	x	%02X
+>>>50	byte	x	%02X
+>>>51	byte	x	%02X
+>>>52	byte	x	%02X
+>>>53	byte	x	%02X
+>>>54	byte	x	%02X
+>>>55	byte	x	%02X,
+>56	string	>\0	name: '%s'
+
+# Little-endian values
+8	string	\254\313\272\365\002\000\000\000	ZFS shapshot (little-endian machine),
+>16	lelong	x	version %u,
+>32	lelong	0	type: NONE,
+>32	lelong	1	type: META,
+>32	lelong	2	type: ZFS,
+>32	lelong	3	type: ZVOL,
+>32	lelong	4	type: OTHER,
+>32	lelong	5	type: ANY,
+>32	lelong	>5	type: UNKNOWN (%u),
+>47	byte	x	destination GUID: %02X
+>46	byte	x	%02X
+>45	byte	x	%02X
+>44	byte	x	%02X
+>43	byte	x	%02X
+>42	byte	x	%02X
+>41	byte	x	%02X
+>40	byte	x	%02X,
+>48	ulong	>0
+>>52	ulong	>0
+>>>55	byte	x	source GUID: %02X
+>>>54	byte	x	%02X
+>>>53	byte	x	%02X
+>>>52	byte	x	%02X
+>>>51	byte	x	%02X
+>>>50	byte	x	%02X
+>>>49	byte	x	%02X
+>>>48	byte	x	%02X,
+>56	string	>\0	name: '%s'

@@ -1,0 +1,363 @@
+.\" $FreeBSD$
+.Dd August 11, 2018
+.Dt "AT" 1
+.Os
+.Sh NAME
+.Nm at ,
+.Nm batch ,
+.Nm atq ,
+.Nm atrm
+.Nd queue, examine or delete jobs for later execution
+.Sh SYNOPSIS
+.Nm at
+.Op Fl q Ar queue
+.Op Fl f Ar file
+.Op Fl mldbv
+.Ar time
+.Nm at
+.Op Fl q Ar queue
+.Op Fl f Ar file
+.Op Fl mldbv
+.Fl t
+.Sm off
+.Op Oo Ar CC Oc Ar YY
+.Ar MM DD hh mm Op . Ar SS
+.Sm on
+.Nm at
+.Fl c Ar job Op Ar job ...
+.Nm at
+.Fl l Op Ar job ...
+.Nm at
+.Fl l
+.Fl q Ar queue
+.Nm at
+.Fl r Ar job Op Ar job ...
+.Pp
+.Nm atq
+.Op Fl q Ar queue
+.Op Fl v
+.Pp
+.Nm atrm
+.Ar job
+.Op Ar job ...
+.Pp
+.Nm batch
+.Op Fl q Ar queue
+.Op Fl f Ar file
+.Op Fl mv
+.Op Ar time
+.Sh DESCRIPTION
+The
+.Nm at
+and
+.Nm batch
+utilities
+read commands from standard input or a specified file which are to
+be executed at a later time, using
+.Xr sh 1 .
+.Bl -tag -width indent
+.It Nm at
+executes commands at a specified time;
+.It Nm atq
+lists the user's pending jobs, unless the user is the superuser; in that
+case, everybody's jobs are listed;
+.It Nm atrm
+deletes jobs;
+.It Nm batch
+executes commands when system load levels permit; in other words, when
+the load average drops below _LOADAVG_MX times number of active CPUs,
+or the value specified in the invocation of
+.Nm atrun .
+.El
+.Pp
+The
+.Nm at
+utility allows some moderately complex
+.Ar time
+specifications.
+It accepts times of the form
+.Ar HHMM
+or
+.Ar HH:MM
+to run a job at a specific time of day.
+(If that time is already past, the next day is assumed.)
+As an alternative, the following keywords may be specified:
+.Em midnight ,
+.Em noon ,
+or
+.Em teatime
+(4pm)
+and time-of-day may be suffixed with
+.Em AM
+or
+.Em PM
+for running in the morning or the evening.
+The day on which the job is to be run may also be specified
+by giving a date in the form
+.Ar \%month-name day
+with an optional
+.Ar year ,
+or giving a date of the forms
+.Ar DD.MM.YYYY ,
+.Ar DD.MM.YY ,
+.Ar MM/DD/YYYY ,
+.Ar MM/DD/YY ,
+.Ar MMDDYYYY , or
+.Ar MMDDYY .
+The specification of a date must follow the specification of
+the time of day.
+Time can also be specified as:
+.Op Em now
+.Em + Ar count \%time-units ,
+where the time-units can be
+.Em minutes ,
+.Em hours ,
+.Em days ,
+.Em weeks ,
+.Em months
+or
+.Em years
+and
+.Nm
+may be told to run the job today by suffixing the time with
+.Em today
+and to run the job tomorrow by suffixing the time with
+.Em tomorrow .
+.Pp
+For example, to run a job at 4pm three days from now, use
+.Nm at Ar 4pm + 3 days ,
+to run a job at 10:00am on July 31, use
+.Nm at Ar 10am Jul 31
+and to run a job at 1am tomorrow, use
+.Nm at Ar 1am tomorrow .
+.Pp
+The
+.Nm at
+utility also supports the
+.Tn POSIX
+time format (see
+.Fl t
+option).
+.Pp
+For both
+.Nm
+and
+.Nm batch ,
+commands are read from standard input or the file specified
+with the
+.Fl f
+option and executed.
+The working directory, the environment (except for the variables
+.Ev TERM ,
+.Ev TERMCAP ,
+.Ev DISPLAY
+and
+.Em _ )
+and the
+.Ar umask
+are retained from the time of invocation.
+An
+.Nm
+or
+.Nm batch
+command invoked from a
+.Xr su 1
+shell will retain the current userid.
+The user will be mailed standard error and standard output from his
+commands, if any.
+Mail will be sent using the command
+.Xr sendmail 8 .
+If
+.Nm
+is executed from a
+.Xr su 1
+shell, the owner of the login shell will receive the mail.
+.Pp
+The superuser may use these commands in any case.
+For other users, permission to use
+.Nm
+is determined by the files
+.Pa _PERM_PATH/at.allow
+and
+.Pa _PERM_PATH/at.deny .
+.Pp
+If the file
+.Pa _PERM_PATH/at.allow
+exists, only usernames mentioned in it are allowed to use
+.Nm .
+In these two files, a user is considered to be listed only if the user
+name has no blank or other characters before it on its line and a
+newline character immediately after the name, even at the end of
+the file.
+Other lines are ignored and may be used for comments.
+.Pp
+If
+.Pa _PERM_PATH/at.allow
+does not exist,
+.Pa _PERM_PATH/at.deny
+is checked, every username not mentioned in it is then allowed
+to use
+.Nm .
+.Pp
+If neither exists, only the superuser is allowed use of
+.Nm .
+This is the default configuration.
+.Sh IMPLEMENTATION NOTES
+Note that
+.Nm
+is implemented through the
+.Xr cron 8
+daemon by calling
+.Xr atrun 8
+every five minutes.
+This implies that the granularity of
+.Nm
+might not be optimal for every deployment.
+If a finer granularity is needed, the system crontab at
+.Pa /etc/crontab
+needs to be changed.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl q Ar queue
+Use the specified queue.
+A queue designation consists of a single letter; valid queue designations
+range from
+.Ar a
+to
+.Ar z
+and
+.Ar A
+to
+.Ar Z .
+The
+.Ar _DEFAULT_AT_QUEUE
+queue is the default for
+.Nm
+and the
+.Ar _DEFAULT_BATCH_QUEUE
+queue for
+.Nm batch .
+Queues with higher letters run with increased niceness.
+If a job is submitted to a queue designated with an uppercase letter, it
+is treated as if it had been submitted to batch at that time.
+If
+.Nm atq
+is given a specific queue, it will only show jobs pending in that queue.
+.It Fl m
+Send mail to the user when the job has completed even if there was no
+output.
+.It Fl f Ar file
+Read the job from
+.Ar file
+rather than standard input.
+.It Fl l
+With no arguments, list all jobs for the invoking user.
+If one or more
+job numbers are given, list only those jobs.
+.It Fl d
+Is an alias for
+.Nm atrm
+(this option is deprecated; use
+.Fl r
+instead).
+.It Fl b
+Is an alias for
+.Nm batch .
+.It Fl v
+For
+.Nm atq ,
+shows completed but not yet deleted jobs in the queue; otherwise
+shows the time the job will be executed.
+.It Fl c
+Cat the jobs listed on the command line to standard output.
+.It Fl r
+Remove the specified jobs.
+.It Fl t
+Specify the job time using the \*[Px] time format.
+The argument should be in the form
+.Sm off
+.Op Oo Ar CC Oc Ar YY
+.Ar MM DD hh mm Op . Ar SS
+.Sm on
+where each pair of letters represents the following:
+.Pp
+.Bl -tag -width indent -compact -offset indent
+.It Ar CC
+The first two digits of the year (the century).
+.It Ar YY
+The second two digits of the year.
+.It Ar MM
+The month of the year, from 1 to 12.
+.It Ar DD
+the day of the month, from 1 to 31.
+.It Ar hh
+The hour of the day, from 0 to 23.
+.It Ar mm
+The minute of the hour, from 0 to 59.
+.It Ar SS
+The second of the minute, from 0 to 60.
+.El
+.Pp
+If the
+.Ar CC
+and
+.Ar YY
+letter pairs are not specified, the values default to the current
+year.
+If the
+.Ar SS
+letter pair is not specified, the value defaults to 0.
+.El
+.Sh FILES
+.Bl -tag -width _ATJOB_DIR/_LOCKFILE -compact
+.It Pa _ATJOB_DIR
+directory containing job files
+.It Pa _ATSPOOL_DIR
+directory containing output spool files
+.It Pa /var/run/utx.active
+login records
+.It Pa _PERM_PATH/at.allow
+allow permission control
+.It Pa _PERM_PATH/at.deny
+deny permission control
+.It Pa _ATJOB_DIR/_LOCKFILE
+job-creation lock file
+.El
+.Sh SEE ALSO
+.Xr nice 1 ,
+.Xr sh 1 ,
+.Xr umask 2 ,
+.Xr atrun 8 ,
+.Xr cron 8 ,
+.Xr sendmail 8
+.Sh AUTHORS
+.An -nosplit
+At was mostly written by
+.An Thomas Koenig Aq Mt ig25@rz.uni-karlsruhe.de .
+The time parsing routines are by
+.An David Parsons Aq Mt orc@pell.chi.il.us ,
+with minor enhancements by
+.An Joe Halpin Aq Mt joe.halpin@attbi.com .
+.Sh BUGS
+If the file
+.Pa /var/run/utx.active
+is not available or corrupted, or if the user is not logged on at the
+time
+.Nm
+is invoked, the mail is sent to the userid found
+in the environment variable
+.Ev LOGNAME .
+If that is undefined or empty, the current userid is assumed.
+.Pp
+The
+.Nm at
+and
+.Nm batch
+utilities
+as presently implemented are not suitable when users are competing for
+resources.
+If this is the case, another batch system such as
+.Em nqs
+may be more suitable.
+.Pp
+Specifying a date past 2038 may not work on some systems.

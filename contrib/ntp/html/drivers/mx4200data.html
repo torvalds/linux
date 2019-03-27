@@ -1,0 +1,1077 @@
+<html>
+
+	<head>
+		<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+		<title>MX4200 Receiver Data Format</title>
+		<link href="../scripts/style.css" type="text/css" rel="stylesheet">
+	</head>
+
+	<body>
+		<h1>MX4200 Receiver Data Format</h1>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->21-Oct-2010  23:44<!-- #EndDate -->
+  UTC</p>
+		<hr>
+		<h2>Table of Contents</h2>
+		<ul>
+			<li><a href="#control">Control Port Sentences</a>
+			<li><a href="#input">Control Port Input Sentences</a>
+				<ul>
+					<li><a href="#input_000">$PMVXG,000</a> Initialization/Mode Control - Part A
+					<li><a href="#input_001">$PMVXG,001</a> Initialization/Mode Control - Part B
+					<li><a href="#input_007">$PMVXG,007</a> Control Port Configuration
+					<li><a href="#input_023">$PMVXG,023</a> Time Recovery Configuration
+					<li><a href="#input_gpq">$CDGPQ,YYY</a> Query From a Remote Device / Request to Output a Sentence
+				</ul>
+			<li><a href="#output">Control Port Output Sentences</a>
+				<ul>
+					<li><a href="#output_000">$PMVXG,000</a> Receiver Status
+					<li><a href="#output_021">$PMVXG,021</a> Position, Height, Velocity
+					<li><a href="#output_022">$PMVXG,022</a> DOPs
+					<li><a href="#output_030">$PMVXG,030</a> Software Configuration
+					<li><a href="#output_101">$PMVXG,101</a> Control Sentence Accept/Reject
+					<li><a href="#output_523">$PMVXG,523</a> Time Recovery Configuration
+					<li><a href="#output_830">$PMVXG,830</a> Time Recovery Results
+				</ul>
+		</ul>
+		<hr>
+		<h2><a name="control">Control Port Sentences</a></h2>
+		<p>The Control (CDU) Port is used to initialize, monitor, and control the receiver. The structure of the control port sentences is based on the <cite>NMEA-0183</cite> Standard for Interfacing Marine Electronics Navigation Devices (version 1.5). For more details, please refer to the <cite>NMEA-0183</cite> Specification available from the <a href="http://www.nmea.org/">National Marine Electronics Association</a>.</p>
+		<p>Reserved characters are used to indicate the beginning and the end of records in the data stream, and to delimit data fields within a sentence. Only printable ASCII characters (Hex 20 through 7F) may be used in a sentence. <a href="#table_2">Table 2</a> lists the reserved characters and defines their usage. <a href="#table_1">Table 1</a> illustrates the general Magnavox proprietary NMEA sentence format.</p>
+		<h4><a name="table_1">Table 1. Magnavox Proprietary NMEA Sentence Format</a></h4>
+		<code>$PMVXG,XXX,...................*CK </code>
+		<p></p>
+		<table border>
+			<tr>
+				<th>Character</th>
+				<th>Meaning</th>
+			</tr>
+			<tr>
+				<td><code>$</code></td>
+				<td>Sentence Start Character</td>
+			</tr>
+			<tr>
+				<td><code>P</code></td>
+				<td>Special ID (P = Proprietary)</td>
+			</tr>
+			<tr>
+				<td><code>MVX</code></td>
+				<td>Originator ID (MVX = Magnavox)</td>
+			</tr>
+			<tr>
+				<td><code>G</code></td>
+				<td>Interface ID (G = GPS)</td>
+			</tr>
+			<tr>
+				<td><code>XXX</code></td>
+				<td>Sentence Type</td>
+			</tr>
+			<tr>
+				<td><code>...</code></td>
+				<td>Data</td>
+			</tr>
+			<tr>
+				<td><code>*</code></td>
+				<td>Optional Checksum Field Delimiter</td>
+			</tr>
+			<tr>
+				<td><code>CK</code></td>
+				<td>Optional Checksum</td>
+			</tr>
+		</table>
+		<h4><a name="table_2">Table 2. NMEA Sentence Reserved Characters</a></h4>
+		<table border>
+			<tr>
+				<th>Character</th>
+				<th>Hex Value</th>
+				<th>Usage</th>
+			</tr>
+			<tr>
+				<td><code>$</code></td>
+				<td>24</td>
+				<td>Start of Sentence Identifier</td>
+			</tr>
+			<tr>
+				<td><code>{cr}{lf}</code></td>
+				<td>0D 0A</td>
+				<td>End of Sentence Identifier</td>
+			</tr>
+			<tr>
+				<td><code>,</code></td>
+				<td>2C</td>
+				<td>Sentence Delimiter</td>
+			</tr>
+			<tr>
+				<td><code>*</code></td>
+				<td>2A</td>
+				<td>Optional Checksum Field Delimiter</td>
+			</tr>
+		</table>
+		<p>Following the start character <code>$</code>, are five characters which constitute the block label of the sentence. For Magnavox proprietary sentences, this label is always <code>PMVXG</code>. The next field after the block label is the sentence type, consisting of three decimal digits.</p>
+		<p>The data, delimited by commas, follows the sentence type. Note that the receiver uses a free-format parsing algorithm, so you need not send the exact number of characters shown in the examples. You will need to use the commas to determine how many bytes of data need to be retrieved.</p>
+		<p>The notation <code>CK</code> shown in <a href="#table_1">Table 1</a> symbolically indicates the optional checksum in the examples. The checksum is computed by exclusive-ORing all of the bytes between the <code>$</code> and the <code>*</code> characters. The <code>$</code>, <code>*</code> and the checksum are not included in the checksum computation.</p>
+		<p>Checksums are optional for Control Port input sentences, but are highly recommended to limit the effects of communication errors. Magnavox receivers always generate checksums for Control Port output sentences.</p>
+		<p>ASCII data characters are transmitted in the following format:</p>
+		<table border>
+			<tr>
+				<td>Data Bits</td>
+				<td>8 (msb always 0)</td>
+			</tr>
+			<tr>
+				<td>Parity</td>
+				<td>None</td>
+			</tr>
+			<tr>
+				<td>Stop Bits</td>
+				<td>1</td>
+			</tr>
+		</table>
+		<p>NULL fields are fields which do not contain any data. They would appear as two commas together in the sentence format, except for the final field. Some Magnavox proprietary sentences require that the format contain NULL fields. mandatory NULL fields are identified by an '*' next to the respective field.</p>
+		<hr>
+		<h2><a name="input">Control Port Input Sentences</a></h2>
+		These are the subset of the MX4200 control port input sentences sent by the NTP driver to the GPS receiver.
+		<hr>
+		<h3><a name="input_000">$PMVXG,000</a></h3>
+		<h4>Initialization/Mode Control - Part A</h4>
+		Initializes the time, position and antenna height of the MX4200.
+		<p></p>
+		<table border>
+			<tr>
+				<th>Field</th>
+				<th>Description</th>
+				<th>Units</th>
+				<th>Format</th>
+				<th>Default</th>
+				<th>Range</th>
+			</tr>
+			<tr>
+				<td>1</td>
+				<td>Day</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>&nbsp;</td>
+				<td>1-31</td>
+			</tr>
+			<tr>
+				<td>2</td>
+				<td>Month</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>&nbsp;</td>
+				<td>1-12</td>
+			</tr>
+			<tr>
+				<td>3</td>
+				<td>Year</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>&nbsp;</td>
+				<td>1991-9999</td>
+			</tr>
+			<tr>
+				<td>4</td>
+				<td>GMT Time</td>
+				<td>HHMMSS</td>
+				<td>Int</td>
+				<td>&nbsp;</td>
+				<td>000000-235959</td>
+			</tr>
+			<tr>
+				<td>5</td>
+				<td>WGS-84 Latitude</td>
+				<td>DDMM.MMMM</td>
+				<td>Float</td>
+				<td>0.0</td>
+				<td>0 - 8959.9999</td>
+			</tr>
+			<tr>
+				<td>6</td>
+				<td>North/South Indicator</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>N</td>
+				<td>N,S</td>
+			</tr>
+			<tr>
+				<td>7</td>
+				<td>WGS-84 Longitude</td>
+				<td>DDDMM.MMMM</td>
+				<td>Float</td>
+				<td>0.0</td>
+				<td>0 - 17959.9999</td>
+			</tr>
+			<tr>
+				<td>8</td>
+				<td>East/West Indicator</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>E</td>
+				<td>E,W</td>
+			</tr>
+			<tr>
+				<td>9</td>
+				<td>Altitude (height above Mean Sea Level) in meters (WGS-84)</td>
+				<td>Meters</td>
+				<td>Float</td>
+				<td>0.0</td>
+				<td>+/-99999.0</td>
+			</tr>
+			<tr>
+				<td>10</td>
+				<td>Not Used</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+			</tr>
+		</table>
+		Example:<br>
+		<code>$PMVXG,000,,,,,,,,,,*48</code><br>
+		<code>$PMVXG,000,,,,,5128.4651,N,00020.0715,W,58.04,*4F</code>
+		<hr>
+		<h3><a name="input_001">$PMVXG,001</a></h3>
+		<h4>Initialization/Mode Control - Part B</h4>
+		Specifies various navigation parameters: Altitude aiding, acceleration DOP limits, and satellite elevation limits.
+		<p></p>
+		<table border>
+			<tr>
+				<th>Field</th>
+				<th>Description</th>
+				<th>Units</th>
+				<th>Format</th>
+				<th>Default</th>
+				<th>Range</th>
+			</tr>
+			<tr>
+				<td>*1</td>
+				<td>Constrain Altitude</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1</td>
+				<td>0=3D Only<br>
+					1=Auto<br>
+					2=2D Only</td>
+			</tr>
+			<tr>
+				<td>2</td>
+				<td>Not Used</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>*3</td>
+				<td>Horizontal Acceleration Factor</td>
+				<td>m/sec^2</td>
+				<td>Float</td>
+				<td>1.0</td>
+				<td>0.5-10.0</td>
+			</tr>
+			<tr>
+				<td>*4</td>
+				<td>Not Used</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>*5</td>
+				<td>VDOP Limit</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>10</td>
+				<td>1-9999</td>
+			</tr>
+			<tr>
+				<td>*6</td>
+				<td>HDOP Limit</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>10</td>
+				<td>1-9999</td>
+			</tr>
+			<tr>
+				<td>7</td>
+				<td>Elevation Limit</td>
+				<td>Deg</td>
+				<td>Int</td>
+				<td>5</td>
+				<td>0-90</td>
+			</tr>
+			<tr>
+				<td>8</td>
+				<td>Time Output Mode</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>U</td>
+				<td>U=UTC<br>
+					L=Local Time</td>
+			</tr>
+			<tr>
+				<td>9</td>
+				<td>Local Time Offset</td>
+				<td>HHMM</td>
+				<td>Int</td>
+				<td>0</td>
+				<td>+/- 0-2359</td>
+			</tr>
+		</table>
+		Example:<br>
+		<code>$PMVXG,001,3,,0.1,0.1,10,10,5,U,0*06</code>
+		<hr>
+		<h3><a name="input_007">$PMVXG,007</a></h3>
+		<h4>Control Port Output Configuration</h4>
+		This message enables or disables output of the specified sentence and defines the output rate. The user sends this message for each sentence that the receiver is to output.
+		<p></p>
+		<table border>
+			<tr>
+				<th>Field</th>
+				<th>Description</th>
+				<th>Units</th>
+				<th>Format</th>
+				<th>Default</th>
+				<th>Range</th>
+			</tr>
+			<tr>
+				<td>1</td>
+				<td>Control Port Output Block Label</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>2</td>
+				<td>Clear Current Output List</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>&nbsp;</td>
+				<td>0=No<br>
+					1=Yes</td>
+			</tr>
+			<tr>
+				<td>3</td>
+				<td>Add/Delete Sentence from List</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>&nbsp;</td>
+				<td>1=Append<br>
+					2=Delete</td>
+			</tr>
+			<tr>
+				<td>4</td>
+				<td>Not Used</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>5</td>
+				<td>Sentence Output Rate</td>
+				<td>Sec</td>
+				<td>Int</td>
+				<td>&nbsp;</td>
+				<td>1-9999</td>
+			</tr>
+			<tr>
+				<td>6</td>
+				<td># digits of Precision for CGA and GLL sentences</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>2</td>
+				<td>2-4</td>
+			</tr>
+			<tr>
+				<td>7</td>
+				<td>Not Used</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>8</td>
+				<td>Not Used</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+			</tr>
+		</table>
+		Example:<br>
+		<code>$PMVXG,007,022,0,1,,1,,,*4F</code>
+		<hr>
+		<h3><a name="input_023">$PMVXG,023</a></h3>
+		<h4>Time Recovery Configuration</h4>
+		This message is used to enable/disable the time recovery feature of the receiver. The time synchronization for the 1PPS output is specified in addition to a user time bias and an error tolerance for a valid pulse. This record is accepted in units configured for time recovery. If the back panel contains a 1PPS outlet, the receiver is a time recovery unit.
+		<p></p>
+		<table border>
+			<tr>
+				<th>Field</th>
+				<th>Description</th>
+				<th>Units</th>
+				<th>Format</th>
+				<th>Default</th>
+				<th>Range</th>
+			</tr>
+			<tr>
+				<td>*1</td>
+				<td>Time Recovery Mode</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>D</td>
+				<td>D=Dynamic<br>
+					S=Static<br>
+					K=Known Position<br>
+					N=No Time Recovery</td>
+			</tr>
+			<tr>
+				<td>2</td>
+				<td>Time Synchronization</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>G</td>
+				<td>U=UTC<br>
+					G=GPS</td>
+			</tr>
+			<tr>
+				<td>3</td>
+				<td>Time Mark Mode</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>A</td>
+				<td>A=Always<br>
+					V=Valid Pulses Only</td>
+			</tr>
+			<tr>
+				<td>4</td>
+				<td>Maximum Time Error</td>
+				<td>Nsec</td>
+				<td>Int</td>
+				<td>100</td>
+				<td>50-1000</td>
+			</tr>
+			<tr>
+				<td>5</td>
+				<td>User Time Bias</td>
+				<td>Nsec</td>
+				<td>Int</td>
+				<td>0</td>
+				<td>+/- 99999</td>
+			</tr>
+			<tr>
+				<td>6</td>
+				<td>ASCII Time Message Control</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>0</td>
+				<td>0=No Output<br>
+					1=830 to Control Port<br>
+					2=830 to Equipment Port</td>
+			</tr>
+			<tr>
+				<td>7</td>
+				<td>Known Pos PRN</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>0</td>
+				<td>1-32<br>
+					0=Track All Sats</td>
+			</tr>
+		</table>
+		Example:<br>
+		<code>$PMVXG,023,S,U,A,500,0,1,*16</code>
+		<hr>
+		<h3><a name="input_gpq">$CDGPQ,YYY</a></h3>
+		<h4>Query From a Remote Device / Request to Output a Sentence</h4>
+		Enables the controller to request a one-time transmission of a specific block label. To output messages at a periodic rate, refer to input sentence <a href="#input_007">$PMVXG,007</a>.
+		<p></p>
+		<table border>
+			<tr>
+				<th>Field</th>
+				<th>Description</th>
+				<th>Units</th>
+				<th>Format</th>
+				<th>Default</th>
+				<th>Range</th>
+			</tr>
+			<tr>
+				<td>1:CD</td>
+				<td>ID of Remote Device</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>&nbsp;</td>
+				<td>(See <cite>NMEA-0183</cite>)</td>
+			</tr>
+			<tr>
+				<td>2:GP</td>
+				<td>GPS</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>&nbsp;</td>
+				<td>(See <cite>NMEA-0183</cite>)</td>
+			</tr>
+			<tr>
+				<td>3:Q</td>
+				<td>Query</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>&nbsp;</td>
+				<td>(See <cite>NMEA-0183</cite>)</td>
+			</tr>
+			<tr>
+				<td>4:YYY</td>
+				<td>Label of Desired Sentence</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>&nbsp;</td>
+				<td>Any Valid NMEA or Magnavox Sentence Type</td>
+			</tr>
+		</table>
+		Example:<br>
+		<code>$CDGPQ,030*5E</code>
+		<hr>
+		<h2><a name="output">Control Port Output Sentences</a></h2>
+		These are the subset of the MX4200 control port output sentences recognized by the NTP driver.
+		<hr>
+		<h3><a name="output_000">$PMVXG,000</a></h3>
+		<h4>Receiver Status</h4>
+		Returns the current status of the receiver including the operating mode, number of satellites visible, and the number of satellites being tracked.
+		<p></p>
+		<table border>
+			<tr>
+				<th>Field</th>
+				<th>Description</th>
+				<th>Units</th>
+				<th>Format</th>
+				<th>Range</th>
+			</tr>
+			<tr>
+				<td>1</td>
+				<td>Current Receiver Status</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>ACQ=Reacquisition<br>
+					ALT=Constellation Selection<br>
+					IAC=Initial Acquisition<br>
+					IDL=Idle, No Satellites<br>
+					NAV=Navigating<br>
+					STS=Search The Sky<br>
+					TRK=Tracking</td>
+			</tr>
+			<tr>
+				<td>2</td>
+				<td>Number of Satellites that should be Visible</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>0-12</td>
+			</tr>
+			<tr>
+				<td>3</td>
+				<td>Number of Satellites being Tracked</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>0-12</td>
+			</tr>
+			<tr>
+				<td>4</td>
+				<td>Time since Last Navigation</td>
+				<td>HHMM</td>
+				<td>Int</td>
+				<td>0-2359</td>
+			</tr>
+			<tr>
+				<td>5</td>
+				<td>Initialization Status</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>0=Waiting for Initialization<br>
+					1=Initialization Complete</td>
+			</tr>
+		</table>
+		Example:<br>
+		<code>$PMVXG,000,TRK,3,3,0122,1*19</code>
+		<hr>
+		<h3><a name="output_021">$PMVXG,021</a></h3>
+		<h4>Position, Height, Velocity</h4>
+		This sentence gives the receiver position, height, navigation mode and velocity north/east. <em>This sentence is intended for post analysis applications.</em>
+		<p></p>
+		<table border>
+			<tr>
+				<th>Field</th>
+				<th>Description</th>
+				<th>Units</th>
+				<th>Format</th>
+				<th>Range</th>
+			</tr>
+			<tr>
+				<td>1</td>
+				<td>UTC Measurement Time</td>
+				<td>Seconds into the week</td>
+				<td>Float</td>
+				<td>0-604800.00</td>
+			</tr>
+			<tr>
+				<td>2</td>
+				<td>WGS-84 Latitude</td>
+				<td>DDMM.MMMM</td>
+				<td>Float</td>
+				<td>0-89.9999</td>
+			</tr>
+			<tr>
+				<td>3</td>
+				<td>North/South Indicator</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>N, S</td>
+			</tr>
+			<tr>
+				<td>4</td>
+				<td>WGS-84 Longitude</td>
+				<td>DDDMM.MMMM</td>
+				<td>Float</td>
+				<td>0-179.9999</td>
+			</tr>
+			<tr>
+				<td>5</td>
+				<td>East/West Indicator</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>E, W</td>
+			</tr>
+			<tr>
+				<td>6</td>
+				<td>Altitude (MSL)</td>
+				<td>Meters</td>
+				<td>Float</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>7</td>
+				<td>Geoidal Height</td>
+				<td>Meters</td>
+				<td>Float</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>8</td>
+				<td>Velocity East</td>
+				<td>M/Sec</td>
+				<td>Float</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>9</td>
+				<td>Velocity North</td>
+				<td>M/Sec</td>
+				<td>Float</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>10</td>
+				<td>Navigation Mode</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td><em>Navigating</em><br>
+					1=Position From a Remote Device<br>
+					2=2D<br>
+					3=3D<br>
+					4=2D differential<br>
+					5=3D differential<br>
+					<em>Not Navigating</em><br>
+					51=Too Few Satellites<br>
+					52=DOPs too large<br>
+					53=Position STD too large<br>
+					54=Velocity STD too large<br>
+					55=Too many iterations for velocity<br>
+					56=Too many iterations for position<br>
+					57=3 Sat Startup failed</td>
+			</tr>
+		</table>
+		Example:<br>
+		<code>$PMVXG,021,142244.00,5128.4744,N,00020.0593,W,00054.4,0047.4,0000.1,-000.2,03*66</code>
+		<hr>
+		<h3><a name="output_022">$PMVXG,022</a></h3>
+		<h4>DOPs</h4>
+		This sentence reports the DOP (Dilution Of Precision) values actually used in the measurement processing corresponding to the satellites listed. The satellites are listed in receiver channel order. Fields 11-16 are output only on 12-channel receivers.
+		<p></p>
+		<table border>
+			<tr>
+				<th>Field</th>
+				<th>Description</th>
+				<th>Units</th>
+				<th>Format</th>
+				<th>Range</th>
+			</tr>
+			<tr>
+				<td>1</td>
+				<td>UTC Measurement Time</td>
+				<td>Seconds into the week</td>
+				<td>Float</td>
+				<td>0-604800.00</td>
+			</tr>
+			<tr>
+				<td>2</td>
+				<td>East DOP (EDOP)</td>
+				<td>&nbsp;</td>
+				<td>Float</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>3</td>
+				<td>North DOP (NDOP)</td>
+				<td>&nbsp;</td>
+				<td>Float</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>4</td>
+				<td>Vertical DOP (VDOP)</td>
+				<td>&nbsp;</td>
+				<td>Float</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>5</td>
+				<td>PRN on Channel #1</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1-32</td>
+			</tr>
+			<tr>
+				<td>6</td>
+				<td>PRN on Channel #2</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1-32</td>
+			</tr>
+			<tr>
+				<td>7</td>
+				<td>PRN on Channel #3</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1-32</td>
+			</tr>
+			<tr>
+				<td>8</td>
+				<td>PRN on Channel #4</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1-32</td>
+			</tr>
+			<tr>
+				<td>9</td>
+				<td>PRN on Channel #5</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1-32</td>
+			</tr>
+			<tr>
+				<td>10</td>
+				<td>PRN on Channel #6</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1-32</td>
+			</tr>
+			<tr>
+				<td>11</td>
+				<td>PRN on Channel #7</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1-32</td>
+			</tr>
+			<tr>
+				<td>12</td>
+				<td>PRN on Channel #8</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1-32</td>
+			</tr>
+			<tr>
+				<td>13</td>
+				<td>PRN on Channel #9</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1-32</td>
+			</tr>
+			<tr>
+				<td>14</td>
+				<td>PRN on Channel #10</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1-32</td>
+			</tr>
+			<tr>
+				<td>15</td>
+				<td>PRN on Channel #11</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1-32</td>
+			</tr>
+			<tr>
+				<td>16</td>
+				<td>PRN on Channel #12</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1-32</td>
+			</tr>
+		</table>
+		Example:<br>
+		<code>$PMVXG,022,142243.00,00.7,00.8,01.9,27,26,10,09,13,23*77</code>
+		<hr>
+		<h3><a name="output_030">$PMVXG,030</a></h3>
+		<h4>Software Configuration</h4>
+		This sentence contains the navigation processor and baseband firmware version numbers.
+		<p></p>
+		<table border>
+			<tr>
+				<th>Field</th>
+				<th>Description</th>
+				<th>Units</th>
+				<th>Format</th>
+				<th>Range</th>
+			</tr>
+			<tr>
+				<td>1</td>
+				<td>Nav Processor Version Number</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>2</td>
+				<td>Baseband Firmware Version Number</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>&nbsp;</td>
+			</tr>
+		</table>
+		Example:<br>
+		<code>$PMVXG,030,DA35,015</code>
+		<hr>
+		<h3><a name="output_101">$PMVXG,101</a></h3>
+		<h4>Control Sentence Accept/Reject</h4>
+		This sentence is returned (on the Control Port) for every <strong>$PMVXG</strong> and <strong>$XXGPQ</strong> sentence that is received.
+		<p></p>
+		<table border>
+			<tr>
+				<th>Field</th>
+				<th>Description</th>
+				<th>Units</th>
+				<th>Format</th>
+				<th>Range</th>
+			</tr>
+			<tr>
+				<td>1</td>
+				<td>Sentence ID</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>2</td>
+				<td>Accept/Reject Status</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>0=Sentence Accepted<br>
+					1=Bad Checksum<br>
+					2=Illegal Value<br>
+					3=Unrecognized ID<br>
+					4=Wrong # of fields<br>
+					5=Required Data Field Missing<br>
+					6=Requested Sentence Unavailable</td>
+			</tr>
+			<tr>
+				<td>3</td>
+				<td>Bad Field Index</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>4</td>
+				<td>Requested Sentence ID (If field #1 = GPQ)</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>&nbsp;</td>
+			</tr>
+		</table>
+		Example:<br>
+		<code>$PMVXG,101,GPQ,0,,030*0D</code>
+		<hr>
+		<h3><a name="output_523">$PMVXG,523</a></h3>
+		<h4>Time Recovery Configuration</h4>
+		This sentence contains the configuration of the time recovery function of the receiver.
+		<p></p>
+		<table border>
+			<tr>
+				<th>Field</th>
+				<th>Description</th>
+				<th>Units</th>
+				<th>Format</th>
+				<th>Range</th>
+			</tr>
+			<tr>
+				<td>1</td>
+				<td>Time Recovery Mode</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>D=Dynamic<br>
+					S=Static<br>
+					K=Known Position<br>
+					N=No Time Recovery</td>
+			</tr>
+			<tr>
+				<td>2</td>
+				<td>Time Synchronization</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>U=UTC Time<br>
+					G=GPS Time</td>
+			</tr>
+			<tr>
+				<td>3</td>
+				<td>Time Mark Mode</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>A=Always Output Time Pulse<br>
+					V=Only when Valid</td>
+			</tr>
+			<tr>
+				<td>4</td>
+				<td>Maximum Time Error for which a time mark will be considered valid</td>
+				<td>Nsec</td>
+				<td>Int</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>5</td>
+				<td>User Time Bias</td>
+				<td>Nsec</td>
+				<td>Int</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>6</td>
+				<td>Time Message Control</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>0=No Message<br>
+					1=830 to Control Port<br>
+					2=830 to Equipment Port</td>
+			</tr>
+			<tr>
+				<td>7</td>
+				<td>Not Used</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+			</tr>
+		</table>
+		Example:<br>
+		<code>$PMVXG,523,S,U,A,0500,000000,1,0*23</code>
+		<hr>
+		<h3><a name="output_830">$PMVXG,830</a></h3>
+		<h4>Time Recovery Results</h4>
+		This sentence is output approximately 1 second preceding the 1PPS output. It indicates the exact time of the next pulse, whether or not the time mark will be valid (based on operator-specified error tolerance), the time to which the pulse is synchronized, the receiver operating mode, and the time error of the <strong>last</strong> 1PPS output. The leap second flag (Field #11) is not output by older receivers.
+		<p></p>
+		<table border>
+			<tr>
+				<th>Field</th>
+				<th>Description</th>
+				<th>Units</th>
+				<th>Format</th>
+				<th>Range</th>
+			</tr>
+			<tr>
+				<td>1</td>
+				<td>Time Mark Valid</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>T=Valid<br>
+					F=Not Valid</td>
+			</tr>
+			<tr>
+				<td>2</td>
+				<td>Year</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1993-</td>
+			</tr>
+			<tr>
+				<td>3</td>
+				<td>Month</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>1-12</td>
+			</tr>
+			<tr>
+				<td>4</td>
+				<td>Day</td>
+				<td>Nsec</td>
+				<td>Int</td>
+				<td>1-31</td>
+			</tr>
+			<tr>
+				<td>5</td>
+				<td>Time</td>
+				<td>HH:MM:SS</td>
+				<td>Int</td>
+				<td>00:00:00-23:59:59</td>
+			</tr>
+			<tr>
+				<td>6</td>
+				<td>Time Synchronization</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>U=UTC<br>
+					G=GPS</td>
+			</tr>
+			<tr>
+				<td>7</td>
+				<td>Operating Mode</td>
+				<td>&nbsp;</td>
+				<td>Char</td>
+				<td>D=Dynamic<br>
+					S=Static<br>
+					K=Known Position</td>
+			</tr>
+			<tr>
+				<td>8</td>
+				<td>Oscillator Offset - estimate of oscillator frequency error</td>
+				<td>PPB</td>
+				<td>Int</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>9</td>
+				<td>Time Mark Error of last pulse</td>
+				<td>Nsec</td>
+				<td>Int</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>10</td>
+				<td>User Time Bias</td>
+				<td>Nsec</td>
+				<td>Int</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>11</td>
+				<td>Leap Second Flag - indicates that a leap second will occur. This value is usually zero except during the week prior to a leap second occurrence, when this value will be set to +/-1. A value of +1 indicates that GPS time will be 1 second further ahead of UTC time.</td>
+				<td>&nbsp;</td>
+				<td>Int</td>
+				<td>-1,0,1</td>
+			</tr>
+		</table>
+		Example:<br>
+		<code>$PMVXG,830,T,1998,10,12,15:30:46,U,S,000298,00003,000000,01*02</code>
+		<hr>
+		<script type="text/javascript" language="javascript" src="../scripts/footer.txt"></script>
+	</body>
+
+</html>

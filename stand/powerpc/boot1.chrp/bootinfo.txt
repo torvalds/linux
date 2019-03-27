@@ -1,0 +1,14 @@
+<CHRP-BOOT>
+<DESCRIPTION>FreeBSD/powerpc bootloader</DESCRIPTION>
+<OS-NAME>FreeBSD</OS-NAME>
+<VERSION> $FreeBSD$ </VERSION>
+
+<COMPATIBLE>
+MacRISC MacRISC3 MacRISC4
+</COMPATIBLE>
+<BOOT-SCRIPT>
+" screen" output
+boot &device;:&partition;,\ppc\boot1.elf
+</BOOT-SCRIPT>
+</CHRP-BOOT>
+

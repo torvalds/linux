@@ -1,0 +1,147 @@
+/dts-v1/;
+
+#include "rt3883.dtsi"
+
+/ {
+	compatible = "HPM", "ralink,rt3883-soc";
+	model = "Omnima HPM";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <100>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 14 0>;
+			linux,code = <0x198>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		power {
+			label = "hpm:orange:power";
+			gpios = <&gpio0 7 1>;
+		};
+
+		status {
+			label = "hpm:green:status";
+			gpios = <&gpio0 21 1>;
+		};
+
+		eth {
+			label = "hpm:green:eth";
+			gpios = <&gpio0 20 1>;
+		};
+
+		eth2 {
+			label = "hpm:red:eth";
+			gpios = <&gpio0 18 1>;
+		};
+
+		wifi {
+			label = "hpm:green:wifi";
+			gpios = <&gpio0 17 1>;
+		};
+
+		wifi2 {
+			label = "hpm:red:wifi";
+			gpios = <&gpio0 19 1>;
+		};
+	};
+
+	gpio_export {
+		compatible = "gpio-export";
+		#size-cells = <0>;
+		/* gpio 12 and 13 handle the OC input */
+
+		usb0 {
+			gpio-export,name = "usb0";
+			gpio-export,output = <1>;
+			gpios = <&gpio0 2 0>;
+		};
+
+		usb1 {
+			gpio-export,name = "usb1";
+			gpio-export,output = <1>;
+			gpios = <&gpio0 1 0>;
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <25000000>;
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			reg = <0x0 0x0030000>;
+			label = "u-boot";
+			read-only;
+		};
+
+		partition@30000 {
+			reg = <0x00030000 0x00010000>;
+			label = "config";
+			read-only;
+		};
+
+		factory: partition@40000 {
+			reg = <0x00040000 0x00010000>;
+			label = "factory";
+			read-only;
+		};
+
+		partition@50000 {
+			reg = <0x00050000 0x00fb0000>;
+			label = "firmware";
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "jtag", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	phy-handle = <&phy0>;
+	phy-mode = "rgmii";
+	mtd-mac-address = <&factory 0x28>;
+
+	mdio-bus {
+		status = "okay";
+
+		phy0: ethernet-phy@4 {
+			reg = <4>;
+		};
+	};
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};

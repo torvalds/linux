@@ -1,0 +1,80 @@
+.\" Copyright (c) 2003 - 2007 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd February 18, 2006
+.Dt KRB5_ANAME_TO_LOCALNAME 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_aname_to_localname
+.Nd converts a principal to a system local name
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Ft krb5_boolean
+.Fo krb5_aname_to_localname
+.Fa "krb5_context context"
+.Fa "krb5_const_principal name"
+.Fa "size_t lnsize"
+.Fa "char *lname"
+.Fc
+.Sh DESCRIPTION
+This function takes a principal
+.Fa name ,
+verifies that it is in the local realm (using
+.Fn krb5_get_default_realms )
+and then returns the local name of the principal.
+.Pp
+If
+.Fa name
+isn't in one of the local realms an error is returned.
+.Pp
+If the size
+.Fa ( lnsize )
+of the local name
+.Fa ( lname )
+is too small, an error is returned.
+.Pp
+.Fn krb5_aname_to_localname
+should only be use by an application that implements protocols that
+don't transport the login name and thus needs to convert a principal
+to a local name.
+.Pp
+Protocols should be designed so that they authenticate using
+Kerberos, send over the login name and then verify the principal
+that is authenticated is allowed to login and the login name.
+A way to check if a user is allowed to login is using the function
+.Fn krb5_kuserok .
+.Sh SEE ALSO
+.Xr krb5_get_default_realms 3 ,
+.Xr krb5_kuserok 3

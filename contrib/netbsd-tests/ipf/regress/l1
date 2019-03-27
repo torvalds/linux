@@ -1,0 +1,6 @@
+log in all
+pass in on anon0 all head 100
+pass in log quick from 3.3.3.3 to any group 100
+pass in log body quick from 2.2.2.2 to any
+pass in log quick proto tcp from 1.1.1.1 to any flags S keep state
+pass in log first quick proto tcp from 1.1.1.1 to any flags S keep state

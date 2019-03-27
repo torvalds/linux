@@ -1,0 +1,120 @@
+.\"
+.\" Copyright (c) 2010 The FreeBSD Foundation 
+.\" All rights reserved. 
+.\" 
+.\" This software was developed by Rui Paulo under sponsorship from the
+.\" FreeBSD Foundation. 
+.\"  
+.\" Redistribution and use in source and binary forms, with or without 
+.\" modification, are permitted provided that the following conditions 
+.\" are met: 
+.\" 1. Redistributions of source code must retain the above copyright 
+.\"    notice, this list of conditions and the following disclaimer. 
+.\" 2. Redistributions in binary form must reproduce the above copyright 
+.\"    notice, this list of conditions and the following disclaimer in the 
+.\"    documentation and/or other materials provided with the distribution. 
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND 
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE 
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+.\" SUCH DAMAGE. 
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 7, 2010
+.Dt CTFMERGE 1
+.Os
+.Sh NAME
+.Nm ctfmerge
+.Nd merge several CTF data sections into one
+.Sh SYNOPSIS
+.Nm
+.Op Fl fgstv
+.Fl l Ar label
+.Fl L Ar labelenv
+.Fl o Ar outfile
+file ...
+.Nm
+.Op Fl fgstv
+.Fl l Ar label
+.Fl L Ar labelenv
+.Fl o Ar outfile
+.Fl d Ar uniqfile
+.Op Fl g
+.Op Fl D Ar uniqlabel
+file ...
+.Nm
+.Op Fl fgstv
+.Fl l Ar label
+.Fl L Ar labelenv
+.Fl o Ar outfile
+.Fl w Ar withfile
+file ...
+.Nm
+.Op Fl g
+.Fl c Ar srcfile
+.Ar destfile
+.Sh DESCRIPTION
+The
+.Nm
+utility merges several CTF data sections from several files into one
+output file, unifying common data.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl f
+Match global symbols to global CTF data.
+.It Fl g
+Don't delete the original debugging sections.
+.It Fl s
+Use the .dynsym ELF section instead of the .symtab ELF section.
+.It Fl t
+Make sure that all object files have a CTF section.
+.It Fl v
+Enable verbose mode.
+.It Fl l Ar label
+Sets the label as
+.Ar label .
+.It Fl L Ar labelenv
+Instructs
+.Nm
+to read the label from the environment variable
+.Ar labelenv .
+.It Fl o Ar outfile
+Use
+.Ar outfile
+to store the merged CTF data.
+.It Fl d Ar uniqfile
+Uniquify against
+.Ar uniqfile .
+.It Fl d Ar uniqlabel
+Uniquify against label
+.Ar uniqlabel
+.It Fl w Ar withfile
+Additive merge with
+.Ar withfile .
+.It Fl c Ar srcfile Ar destfile
+Copy CTF data from
+.Ar srcfile
+into
+.Ar destfile .
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr ctfconvert 1 ,
+.Xr ctfdump 1
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+The CTF utilities came from OpenSolaris.

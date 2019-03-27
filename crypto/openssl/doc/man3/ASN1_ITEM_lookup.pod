@@ -1,0 +1,39 @@
+=pod
+
+=head1 NAME
+
+ASN1_ITEM_lookup, ASN1_ITEM_get - lookup ASN.1 structures
+
+=head1 SYNOPSIS
+
+ #include <openssl/asn1.h>
+
+ const ASN1_ITEM *ASN1_ITEM_lookup(const char *name);
+ const ASN1_ITEM *ASN1_ITEM_get(size_t i);
+
+=head1 DESCRIPTION
+
+ASN1_ITEM_lookup() returns the B<ASN1_ITEM name>.
+
+ASN1_ITEM_get() returns the B<ASN1_ITEM> with index B<i>. This function
+returns B<NULL> if the index B<i> is out of range.
+
+=head1 RETURN VALUES
+
+ASN1_ITEM_lookup() and ASN1_ITEM_get() return a valid B<ASN1_ITEM> structure
+or B<NULL> if an error occurred.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

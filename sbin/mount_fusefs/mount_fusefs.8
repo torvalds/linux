@@ -1,0 +1,382 @@
+.\" Copyright (c) 1980, 1989, 1991, 1993
+.\"	The Regents of the University of California.
+.\" Copyright (c) 2005, 2006 Csaba Henk
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 17, 2018
+.Dt MOUNT_FUSEFS 8
+.Os
+.Sh NAME
+.Nm mount_fusefs
+.Nd mount a Fuse file system daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl A
+.Op Fl S
+.Op Fl v
+.Op Fl D Ar fuse_daemon
+.Op Fl O Ar daemon_opts
+.Op Fl s Ar special
+.Op Fl m Ar node
+.Op Fl h
+.Op Fl V
+.Op Fl o Ar option ...
+.Ar special node
+.Op Ar fuse_daemon ...
+.Sh DESCRIPTION
+Basic usage is to start a fuse daemon on the given
+.Ar special
+file.
+In practice, the daemon is assigned a
+.Ar special
+file automatically, which can then be indentified via
+.Xr fstat 1 .
+That special file can then be mounted by
+.Nm .
+.Pp
+However, the procedure of spawning a daemon will usually be automated
+so that it is performed by
+.Nm .
+If the command invoking a given
+.Ar fuse_daemon
+is appended to the list of arguments,
+.Nm
+will call the
+.Ar fuse_daemon
+via that command.
+In that way the
+.Ar fuse_daemon
+will be instructed to attach itself to
+.Ar special .
+From that on mounting goes as in the simple case. (See
+.Sx DAEMON MOUNTS . )
+.Pp
+The
+.Ar special
+argument will normally be treated as the path of the special file to mount.
+.Pp
+However, if
+.Pa auto
+is passed as
+.Ar special ,
+then
+.Nm
+will look for a suitable free fuse device by itself.
+.Pp
+Finally, if
+.Ar special
+is an integer it will be interpreted as the number
+of the file descriptor of an already open fuse device
+(used when the Fuse library invokes
+.Nm .
+(See
+.Sx DAEMON MOUNTS ) .
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl A , Ic --reject-allow_other
+Prohibit the
+.Cm allow_other
+mount flag.
+Intended for use in scripts and the
+.Xr sudoers 5
+file.
+.It Fl S , Ic --safe
+Run in safe mode (i.e. reject invoking a filesystem daemon)
+.It Fl v
+Be verbose
+.It Fl D, Ic --daemon Ar daemon
+Call the specified
+.Ar daemon
+.It Fl O, Ic --daemon_opts Ar opts
+Add
+.Ar opts
+to the daemon's command line
+.It Fl s, Ic --special Ar special
+Use
+.Ar special
+as special
+.It Fl m, Ic --mountpath Ar node
+Mount on
+.Ar node
+.It Fl h, Ic --help
+Show help
+.It Fl V, Ic --version
+Show version information
+.It Fl o
+Mount options are specified via
+.Fl o .
+The following options are available (and also their negated versions,
+by prefixing them with
+.Dq no ) :
+.Bl -tag -width indent
+.It Cm default_permissions
+Enable traditional (file mode based) permission checking in kernel
+.It Cm allow_other
+Do not apply
+.Sx STRICT ACCESS POLICY .
+Only root can use this option
+.It Cm max_read Ns = Ns Ar n
+Limit size of read requests to
+.Ar n
+.It Cm private
+Refuse shared mounting of the daemon.
+This is the default behaviour, to allow sharing, expicitly use
+.Fl o Cm noprivate
+.It Cm neglect_shares
+Do not refuse unmounting if there are secondary mounts
+.It Cm push_symlinks_in
+Prefix absolute symlinks with the mountpoint
+.El
+.El
+.Pp
+Besides the above mount options, there is a set of pseudo-mount options which
+are supported by the Fuse library.
+One can list these by passing
+.Fl h
+to a Fuse daemon.
+Most of these options only have affect on the behavior of the daemon (that is,
+their scope is limited to userspace).
+However, there are some which do require in-kernel support.
+Currently the options supported by the kernel are:
+.Bl -tag -width indent
+.It Cm direct_io
+Bypass the buffer cache system
+.It Cm kernel_cache
+By default cached buffers of a given file are flushed at each
+.Xr open 2 .
+This option disables this behaviour
+.El
+.Sh DAEMON MOUNTS
+Usually users do not need to use
+.Nm
+directly, as the Fuse library enables Fuse daemons to invoke
+.Nm .
+That is,
+.Pp
+.Dl fuse_daemon device mountpoint
+.Pp
+has the same effect as
+.Pp
+.Dl mount_fusefs auto mountpoint fuse_daemon
+.Pp
+This is the recommended usage when you want basic usage
+(eg, run the daemon at a low privilege level but mount it as root).
+.Sh STRICT ACCESS POLICY
+The strict access policy for Fuse filesystems lets one to use the filesystem
+only if the filesystem daemon has the same credentials (uid, real uid, gid,
+real gid) as the user.
+.Pp
+This is applied for Fuse mounts by default and only root can mount without
+the strict access policy (i.e. the
+.Cm allow_other
+mount option).
+.Pp
+This is to shield users from the daemon
+.Dq spying
+on their I/O activities.
+.Pp
+Users might opt to willingly relax strict access policy (as far they
+are concerned) by doing their own secondary mount (See
+.Sx SHARED MOUNTS ) .
+.Sh SHARED MOUNTS
+A Fuse daemon can be shared (i.e. mounted multiple times).
+When doing the first (primary) mount, the spawner and the mounter of the daemon
+must have the same uid, or the mounter should be the superuser.
+.Pp
+After the primary mount is in place, secondary mounts can be done by anyone
+unless this feature is disabled by
+.Cm private .
+The behaviour of a secondary mount is analogous to that of symbolic
+links: they redirect all filesystem operations to the primary mount.
+.Pp
+Doing a secondary mount is like signing an agreement: by this action, the mounter
+agrees that the Fuse daemon can trace her I/O activities.
+From then on she is not banned from using the filesystem
+(either via her own mount or via the primary mount), regardless whether
+.Cm allow_other
+is used or not.
+.Pp
+The device name of a secondary mount is the device name of the corresponding
+primary mount, followed by a '#' character and the index of the secondary
+mount; e.g.
+.Pa /dev/fuse0#3 .
+.Sh SECURITY
+System administrators might want to use a custom mount policy (ie., one going
+beyond the
+.Va vfs.usermount
+sysctl).
+The primary tool for such purposes is
+.Xr sudo 8 .
+However, given that
+.Nm
+is capable of invoking an arbitrary program, one must be careful when doing this.
+.Nm
+is designed in a way such that it makes that easy.
+For this purpose, there are options which disable certain risky features (i.e.
+.Fl S
+and
+.Fl A ) ,
+and command line parsing is done in a flexible way: mixing options and
+non-options is allowed, but processing them stops at the third non-option
+argument (after the first two has been utilized as device and mountpoint).
+The rest of the command line specifies the daemon and its arguments.
+(Alternatively, the daemon, the special and the mount path can be
+specified using the respective options.) Note that
+.Nm
+ignores the environment variable
+.Ev POSIXLY_CORRECT
+and always behaves as described.
+.Pp
+In general, to be as scripting /
+.Xr sudoers 5
+friendly as possible, no information has a fixed
+position in the command line, but once a given piece of information is
+provided, subsequent arguments/options cannot override it (with the
+exception of some non-critical ones).
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev MOUNT_FUSEFS_SAFE"
+.It Ev MOUNT_FUSEFS_SAFE
+This has the same effect as the
+.Fl S
+option.
+.It Ev MOUNT_FUSEFS_VERBOSE
+This has the same effect as the
+.Fl v
+option.
+.It Ev MOUNT_FUSEFS_IGNORE_UNKNOWN
+If set,
+.Nm
+will ignore uknown mount options.
+.It Ev MOUNT_FUSEFS_CALL_BY_LIB
+Adjust behavior to the needs of the FUSE library.
+Currently it effects help output.
+.El
+.Pp
+Although the following variables do not have any effect on
+.Nm
+itself, they affect the behaviour of fuse daemons:
+.Bl -tag -width ".Ev FUSE_DEV_NAME"
+.It Ev FUSE_DEV_NAME
+Device to attach.
+If not set, the multiplexer path
+.Ar /dev/fuse
+is used.
+.It Ev FUSE_DEV_FD
+File desciptor of an opened Fuse device to use.
+Overrides
+.Ev FUSE_DEV_NAME .
+.It Ev FUSE_NO_MOUNT
+If set, the library will not attempt to mount the filesystem, even
+if a mountpoint argument is supplied.
+.El
+.Sh FILES
+.Bl -tag -width /dev/fuse
+.It Pa /dev/fuse
+Fuse device with which the kernel and Fuse daemons can communicate.
+.It Pa /dev/fuse
+The multiplexer path.
+An
+.Xr open 2
+performed on it automatically is passed to a free Fuse device by the kernel
+(which might be created just for this puprose).
+.El
+.Sh EXAMPLES
+Mount the example filesystem in the Fuse distribution (from its directory):
+either
+.Pp
+.Dl ./fusexmp /mnt/fuse
+.Pp
+or
+.Pp
+.Dl mount_fusefs auto /mnt/fuse ./fusexmp
+.Pp
+Doing the same in two steps, using
+.Pa /dev/fuse0 :
+.Pp
+.Dl FUSE_DEV_NAME=/dev/fuse ./fusexmp &&
+.Dl mount_fusefs /dev/fuse /mnt/fuse
+.Pp
+A script wrapper for fusexmp which ensures that
+.Nm
+does not call any external utility and also provides a hacky
+(non race-free) automatic device selection:
+.Pp
+.Dl #!/bin/sh -e
+.Pp
+.Dl FUSE_DEV_NAME=/dev/fuse fusexmp
+.Dl mount_fusefs -S /dev/fuse /mnt/fuse \(lq$@\(rq
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr mount 8 ,
+.Xr sudo 8 ,
+.Xr umount 8
+.Sh HISTORY
+.Nm
+was written as the part of the
+.Fx
+implementation of the Fuse userspace filesystem framework (see
+.Xr https://github.com/libfuse/libfuse )
+and first appeared in the
+.Pa sysutils/fusefs-kmod
+port, supporting
+.Fx 6.0 .
+It was added to the base system in
+.Fx 10.0 .
+.Sh CAVEATS
+This user interface is
+.Fx
+specific.
+Secondary mounts should be unmounted via their device name.
+If an attempt is made to unmount them via their filesystem root path,
+the unmount request will be forwarded to the primary mount path.
+In general, unmounting by device name is less error-prone than by mount path
+(although the latter will also work under normal circumstances).
+.Pp
+If the daemon is specified via the
+.Fl D
+and
+.Fl O
+options, it will be invoked via
+.Xr system 3 ,
+and the daemon's command line will also have an
+.Dq &
+control operator appended, so that we do not have to wait for its termination.
+You should use a simple command line when invoking the daemon via these options.
+.Sh BUGS
+.Ar special
+is treated as a multiplexer if and only if it is literally the same as
+.Pa auto
+or
+.Pa /dev/fuse .
+Other paths which are equivalent with
+.Pa /dev/fuse
+(eg.,
+.Pa /../dev/fuse )
+are not.

@@ -1,0 +1,131 @@
+=pod
+
+=head1 NAME
+
+openssl-dsaparam,
+dsaparam - DSA parameter manipulation and generation
+
+=head1 SYNOPSIS
+
+B<openssl dsaparam>
+[B<-help>]
+[B<-inform DER|PEM>]
+[B<-outform DER|PEM>]
+[B<-in filename>]
+[B<-out filename>]
+[B<-noout>]
+[B<-text>]
+[B<-C>]
+[B<-rand file...>]
+[B<-writerand file>]
+[B<-genkey>]
+[B<-engine id>]
+[B<numbits>]
+
+=head1 DESCRIPTION
+
+This command is used to manipulate or generate DSA parameter files.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-inform DER|PEM>
+
+This specifies the input format. The B<DER> option uses an ASN1 DER encoded
+form compatible with RFC2459 (PKIX) DSS-Parms that is a SEQUENCE consisting
+of p, q and g respectively. The PEM form is the default format: it consists
+of the B<DER> format base64 encoded with additional header and footer lines.
+
+=item B<-outform DER|PEM>
+
+This specifies the output format, the options have the same meaning and default
+as the B<-inform> option.
+
+=item B<-in filename>
+
+This specifies the input filename to read parameters from or standard input if
+this option is not specified. If the B<numbits> parameter is included then
+this option will be ignored.
+
+=item B<-out filename>
+
+This specifies the output filename parameters to. Standard output is used
+if this option is not present. The output filename should B<not> be the same
+as the input filename.
+
+=item B<-noout>
+
+This option inhibits the output of the encoded version of the parameters.
+
+=item B<-text>
+
+This option prints out the DSA parameters in human readable form.
+
+=item B<-C>
+
+This option converts the parameters into C code. The parameters can then
+be loaded by calling the get_dsaXXX() function.
+
+=item B<-genkey>
+
+This option will generate a DSA either using the specified or generated
+parameters.
+
+=item B<-rand file...>
+
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
+The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
+all others.
+
+=item [B<-writerand file>]
+
+Writes random data to the specified I<file> upon exit.
+This can be used with a subsequent B<-rand> flag.
+
+=item B<numbits>
+
+This option specifies that a parameter set should be generated of size
+B<numbits>. It must be the last option. If this option is included then
+the input file (if any) is ignored.
+
+=item B<-engine id>
+
+Specifying an engine (by its unique B<id> string) will cause B<dsaparam>
+to attempt to obtain a functional reference to the specified engine,
+thus initialising it if needed. The engine will then be set as the default
+for all available algorithms.
+
+=back
+
+=head1 NOTES
+
+PEM format DSA parameters use the header and footer lines:
+
+ -----BEGIN DSA PARAMETERS-----
+ -----END DSA PARAMETERS-----
+
+DSA parameter generation is a slow process and as a result the same set of
+DSA parameters is often used to generate several distinct keys.
+
+=head1 SEE ALSO
+
+L<gendsa(1)>, L<dsa(1)>, L<genrsa(1)>,
+L<rsa(1)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

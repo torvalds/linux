@@ -1,0 +1,265 @@
+.\"	$NetBSD: unvis.3,v 1.29 2017/10/24 19:14:55 abhinav Exp $
+.\"	$FreeBSD$
+.\"
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)unvis.3	8.2 (Berkeley) 12/11/93
+.\"
+.Dd March 12, 2011
+.Dt UNVIS 3
+.Os
+.Sh NAME
+.Nm unvis ,
+.Nm strunvis ,
+.Nm strnunvis ,
+.Nm strunvisx ,
+.Nm strnunvisx
+.Nd decode a visual representation of characters
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In vis.h
+.Ft int
+.Fn unvis "char *cp" "int c" "int *astate" "int flag"
+.Ft int
+.Fn strunvis "char *dst" "const char *src"
+.Ft int
+.Fn strnunvis "char *dst" "size_t dlen" "const char *src"
+.Ft int
+.Fn strunvisx "char *dst" "const char *src" "int flag"
+.Ft int
+.Fn strnunvisx "char *dst" "size_t dlen" "const char *src" "int flag"
+.Sh DESCRIPTION
+The
+.Fn unvis ,
+.Fn strunvis
+and
+.Fn strunvisx
+functions
+are used to decode a visual representation of characters, as produced
+by the
+.Xr vis 3
+function, back into
+the original form.
+.Pp
+The
+.Fn unvis
+function is called with successive characters in
+.Ar c
+until a valid sequence is recognized, at which time the decoded
+character is available at the character pointed to by
+.Ar cp .
+.Pp
+The
+.Fn strunvis
+function decodes the characters pointed to by
+.Ar src
+into the buffer pointed to by
+.Ar dst .
+The
+.Fn strunvis
+function simply copies
+.Ar src
+to
+.Ar dst ,
+decoding any escape sequences along the way,
+and returns the number of characters placed into
+.Ar dst ,
+or \-1 if an
+invalid escape sequence was detected.
+The size of
+.Ar dst
+should be equal to the size of
+.Ar src
+(that is, no expansion takes place during decoding).
+.Pp
+The
+.Fn strunvisx
+function does the same as the
+.Fn strunvis
+function,
+but it allows you to add a flag that specifies the style the string
+.Ar src
+is encoded with.
+Currently, the supported flags are:
+.Dv VIS_HTTPSTYLE
+and
+.Dv VIS_MIMESTYLE .
+.Pp
+The
+.Fn unvis
+function implements a state machine that can be used to decode an
+arbitrary stream of bytes.
+All state associated with the bytes being decoded is stored outside the
+.Fn unvis
+function (that is, a pointer to the state is passed in), so
+calls decoding different streams can be freely intermixed.
+To start decoding a stream of bytes, first initialize an integer to zero.
+Call
+.Fn unvis
+with each successive byte, along with a pointer
+to this integer, and a pointer to a destination character.
+The
+.Fn unvis
+function has several return codes that must be handled properly.
+They are:
+.Bl -tag -width UNVIS_VALIDPUSH
+.It Li \&0 No (zero)
+Another character is necessary; nothing has been recognized yet.
+.It Dv UNVIS_VALID
+A valid character has been recognized and is available at the location
+pointed to by
+.Fa cp .
+.It Dv UNVIS_VALIDPUSH
+A valid character has been recognized and is available at the location
+pointed to by
+.Fa cp ;
+however, the character currently passed in should be passed in again.
+.It Dv UNVIS_NOCHAR
+A valid sequence was detected, but no character was produced.
+This return code is necessary to indicate a logical break between characters.
+.It Dv UNVIS_SYNBAD
+An invalid escape sequence was detected, or the decoder is in an unknown state.
+The decoder is placed into the starting state.
+.El
+.Pp
+When all bytes in the stream have been processed, call
+.Fn unvis
+one more time with flag set to
+.Dv UNVIS_END
+to extract any remaining character (the character passed in is ignored).
+.Pp
+The
+.Fa flag
+argument is also used to specify the encoding style of the source.
+If set to
+.Dv VIS_HTTPSTYLE
+or
+.Dv VIS_HTTP1808 ,
+.Fn unvis
+will decode URI strings as specified in RFC 1808.
+If set to
+.Dv VIS_HTTP1866 ,
+.Fn unvis
+will decode entity references and numeric character references
+as specified in RFC 1866.
+If set to
+.Dv VIS_MIMESTYLE ,
+.Fn unvis
+will decode MIME Quoted-Printable strings as specified in RFC 2045.
+If set to
+.Dv VIS_NOESCAPE ,
+.Fn unvis
+will not decode
+.Ql \e
+quoted characters.
+.Pp
+The following code fragment illustrates a proper use of
+.Fn unvis .
+.Bd -literal -offset indent
+int state = 0;
+char out;
+
+while ((ch = getchar()) != EOF) {
+again:
+	switch(unvis(&out, ch, &state, 0)) {
+	case 0:
+	case UNVIS_NOCHAR:
+		break;
+	case UNVIS_VALID:
+		(void)putchar(out);
+		break;
+	case UNVIS_VALIDPUSH:
+		(void)putchar(out);
+		goto again;
+	case UNVIS_SYNBAD:
+		errx(EXIT_FAILURE, "Bad character sequence!");
+	}
+}
+if (unvis(&out, '\e0', &state, UNVIS_END) == UNVIS_VALID)
+	(void)putchar(out);
+.Ed
+.Sh ERRORS
+The functions
+.Fn strunvis ,
+.Fn strnunvis ,
+.Fn strunvisx ,
+and
+.Fn strnunvisx
+will return \-1 on error and set
+.Va errno
+to:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+An invalid escape sequence was detected, or the decoder is in an unknown state.
+.El
+.Pp
+In addition the functions
+.Fn strnunvis
+and
+.Fn strnunvisx
+will can also set
+.Va errno
+on error to:
+.Bl -tag -width Er
+.It Bq Er ENOSPC
+Not enough space to perform the conversion.
+.El
+.Sh SEE ALSO
+.Xr unvis 1 ,
+.Xr vis 1 ,
+.Xr vis 3
+.Rs
+.%A R. Fielding
+.%T Relative Uniform Resource Locators
+.%O RFC1808
+.Re
+.Sh HISTORY
+The
+.Fn unvis
+function
+first appeared in
+.Bx 4.4 .
+The
+.Fn strnunvis
+and
+.Fn strnunvisx
+functions appeared in
+.Nx 6.0
+and
+.Fx 9.2 .
+.Sh BUGS
+The names
+.Dv VIS_HTTP1808
+and
+.Dv VIS_HTTP1866
+are wrong.
+Percent-encoding was defined in RFC 1738, the original RFC for URL.
+RFC 1866 defines HTML 2.0, an application of SGML, from which it
+inherits concepts of numeric character references and entity
+references.

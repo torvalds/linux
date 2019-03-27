@@ -1,0 +1,79 @@
+
+# $FreeBSD$
+
+# There's two interfaces, but only one socket is populated.
+#
+# There's an AR8021 PHY attached to arge1.
+#
+# XXX TODO: figure out where to extract the MAC from.
+hint.arge.1.phymask=0x01
+
+# XXX TODO: pass in hints for the GPIO -> LED mapping for the
+# minipci slot.  The specific customer reference design NIC
+# wires GPIO5 from each AR9220 to one of two GPIO pins on the
+# MiniPCI bus.  However, this may be very specific to the NIC
+# being used.
+
+# The default flash layout:
+# uboot: 192k
+# env: 64k
+# rootfs: 6144k
+# uimage (kernel): 1728k
+# caldata: 64k
+#
+# We steal 64k from the end of rootfs to store the local config.
+
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x000030000
+hint.map.0.name="uboot"
+hint.map.0.readonly=1
+
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00030000
+hint.map.1.end=0x00040000
+hint.map.1.name="uboot-env"
+hint.map.1.readonly=1
+
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00040000
+hint.map.2.end=0x00630000
+hint.map.2.name="rootfs"
+hint.map.2.readonly=1
+
+hint.map.3.at="flash/spi0"
+hint.map.3.start=0x00630000
+hint.map.3.end=0x00640000
+hint.map.3.name="cfg"
+hint.map.3.readonly=0
+
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x00640000
+hint.map.4.end=0x007f0000
+hint.map.4.name="kernel"
+hint.map.4.readonly=1
+
+hint.map.5.at="flash/spi0"
+hint.map.5.start=0x007f0000
+hint.map.5.end=0x00800000
+hint.map.5.name="art"
+hint.map.5.readonly=1
+
+# Don't flip on anything that isn't already enabled by the
+# bootloader.
+hint.gpio.0.function_set=0x00000000
+hint.gpio.0.function_clear=0x00000000
+
+# Which GPIO lines to enable - just GPIO2/3 for the LEDs.
+hint.gpio.0.pinmask=0x0000000c
+
+# GPIO2 and GPIO3 are LEDs, where 0=on and 1=off.
+# XXX TODO: teach gpioled about polarity?
+hint.gpioled.0.at="gpiobus0"
+hint.gpioled.0.pins="0x0004"
+hint.gpioled.0.name="led1"
+
+hint.gpioled.1.at="gpiobus0"
+hint.gpioled.1.pins="0x0008"
+hint.gpioled.1.name="led2"
+

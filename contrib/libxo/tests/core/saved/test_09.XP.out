@@ -1,0 +1,29 @@
+<top>
+  <data>
+    <contents>
+      <name>gum</name>
+      <name>rope</name>
+      <name>ladder</name>
+      <name>bolt</name>
+      <name>water</name>
+    </contents>
+    <contents>
+      <item>gum</item>
+      <item>rope</item>
+      <item>ladder</item>
+      <item>bolt</item>
+      <item>water</item>
+    </contents>
+    <contents>
+      <item>gum</item>
+      <item>rope</item>
+      <item>ladder</item>
+      <item>bolt</item>
+      <item>water</item>
+      <total>six</total>
+      <one>one</one>
+      <two>two</two>
+      <three>three</three>
+    </contents>
+  </data>
+</top>

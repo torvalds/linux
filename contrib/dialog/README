@@ -1,0 +1,61 @@
+-(1999-12-25)-------------------------------------------------------------------
+This version of dialog, formerly known as cdialog is based on the Debian
+package for dialog 0.9a (see CHANGES for recent modifications)
+- T.Dickey <dickey@invisible-island.net>
+
+-(1996-01-15)-------------------------------------------------------------------
+I have uploaded cdialog-0.9a.tar.gz to sunsite. It should be moved
+to pub/Linux/utils/shell, I think.
+
+Starting point for cdialog v.0.9a was dialog-0.6c. Many new features
+like as Resolution-independence, Auto-sizing, Maximizing, more widget
+on the same screen (multi-widget), etc. were added. New widget are 
+tailbox and tailbox-in-background. Here are the options:
+
+   Usage: dialog <Common options> <Box options>
+          { --and-widget <Common options> <Box options> }
+
+   Common options: <Global options>
+       [--backtitle <backtitle>] [--sleep <secs>] [--beep] [--beep-after]
+       [--clear] [--begin <y> <x>] [--aspect <ratio>] [--print-size]
+       [--print-maxsize] [--size-err] [--separate-output] [--cr-wrap]
+       [--tab-len <n>] [--tab-correct] [--print-version] [--no-kill]
+       [--title <title>]
+
+   Global options: [--shadow] [--no-shadow] [--separate-widget "<str>"]
+
+At the moment, mouse support with libgpm can't be added because it
+does't implement the wtimeout() function of ncurses. Wtimeout() is
+needed to have more widgets (es.tailbox) cooperating on the same
+screen... I don't know if with newer versions of libgpm it's possible.
+
+I have no more time to write docs for this new version...Is there
+anyone, that looking at the code, can do it??? Ouch! :-)
+Don't flame me!
+
+For the future, if any volunteer want, the way to evolve cdialog is to
+1) make a daemon for a better support of multi-tasking or implementing
+   multithreading.
+2) add an option that could permit to read commands (--options) from a
+   file, like as in a normal programming language, but maintaining 
+   compatiblity with older version of dialog.
+
+I no longer could maintain cdialog...
+Executable and library name of cdialog are the same of dialog, for
+compatiblity.
+
+I think that only one directive should be follow: don't use a resource
+like stdin, stdout when you'll write new options for cdialog; these 
+resources have to be shared from all widgets on the command line.
+Guage uses stdin :-/ so that can't be mixed for example with an inputbox,
+but it was made before of multi-widget. However this is not a big problem!
+
+THERE ARE NO *KNOWN* BUGS. If anyone has much time and can find the way
+to add wtimeout() support to libgpm, also mouse could be supported.
+
+Please use ncurses-1.9.4 or newer.
+
+|  __   |  demarco_p@abramo.it:~$ make Linux | more > UserFriendly;
+| /__)  |  /~~  _   _ _   _   /~\  _     /  .  _          |
+|/  ako | (___ (_) | ) ) (-' (__/ | )   /__ | | ) (_| ><  .  coordinator.
+

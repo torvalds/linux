@@ -1,0 +1,130 @@
+<HTML>
+<HEAD><TITLE>smfi_addheader</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_addheader.html,v 1.21 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_addheader</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_addheader(
+	SMFICTX *ctx,
+	char *headerf,
+	char *headerv
+);
+</PRE>
+Add a header to the current message.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>Called only from <A href="xxfi_eom.html">xxfi_eom</A>.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>Adds a header to the current message.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>ctx</TD>
+	<TD>Opaque context structure.
+	</TD></TR>
+    <TR valign="top"><TD>headerf</TD>
+	<TD>The header name, a non-NULL, null-terminated string.
+	</TD></TR>
+    <TR valign="top"><TD>headerv</TD>
+	<TD>The header value to be added, a non-NULL, null-terminated string.
+	This may be the empty string.  
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>smfi_addheader returns MI_FAILURE if:
+<UL><LI>headerf or headerv is NULL.
+    <LI>Adding headers in the current connection state is invalid.
+    <LI>Memory allocation fails.
+    <LI>A network error occurs.
+    <LI>SMFIF_ADDHDRS was not set when <A href="smfi_register.html">smfi_register</A> was called.
+</UL>
+Otherwise, it returns MI_SUCCESS.
+</TD>
+</TR>
+
+<!----------- Notes ---------->
+<TR align="left" valign=top>
+<TH>NOTES</TH> 
+<TD>
+<UL><LI>smfi_addheader does not change a message's existing headers.
+To change a header's current value, use
+<A HREF="smfi_chgheader.html">smfi_chgheader</A>.
+    <LI>A filter which calls smfi_addheader must have set the SMFIF_ADDHDRS
+	flag in the smfiDesc_str passed to
+	<A href="smfi_register.html">smfi_register</A>.
+    <LI>For smfi_addheader, filter order is important.
+	<B>Later filters will see the header changes made by earlier ones.</B>
+    <LI>Neither the name nor the value of the header is checked for
+    standards compliance.
+    However, each line of the header must be under 2048 characters
+    and should be under 998 characters.
+    If longer headers are needed, make them multi-line.
+    To make a multi-line header,
+    insert a line feed (ASCII 0x0a, or <TT>\n</TT> in C)
+    followed by at least one whitespace character
+    such as a space (ASCII 0x20) or tab (ASCII 0x09, or <TT>\t</TT> in C).
+    The line feed should NOT be preceded by a carriage return (ASCII 0x0d);
+    the MTA will add this automatically.
+    <B>It is the filter writer's responsibility to ensure that no standards
+    are violated.</B>
+    <LI>The MTA adds a leading space to an added header value unless
+    the flag
+<A HREF="xxfi_negotiate.html#SMFIP_HDR_LEADSPC"><CODE>SMFIP_HDR_LEADSPC</CODE></A>
+    is set, in which case the milter
+    must include any desired leading spaces itself.
+</UL>
+</TD>
+</TR>
+
+<!----------- Example code ---------->
+<TR>
+<TH valign="top" align=left>EXAMPLE</TH> 
+
+<TD>
+ <PRE>
+  int ret;
+  SMFICTX *ctx;
+
+  ...
+
+  ret = smfi_addheader(ctx, "Content-Type",
+                       "multipart/mixed;\n\tboundary=\"foobar\"");
+ </PRE>
+</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000-2003, 2006, 2009 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

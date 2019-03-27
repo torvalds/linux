@@ -1,0 +1,114 @@
+// -*- C++ -*-
+//===--------------------------- cstddef ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CSTDDEF
+#define _LIBCPP_CSTDDEF
+
+/*
+    cstddef synopsis
+
+Macros:
+
+    offsetof(type,member-designator)
+    NULL
+
+namespace std
+{
+
+Types:
+
+    ptrdiff_t
+    size_t
+    max_align_t
+    nullptr_t
+    byte // C++17
+
+}  // std
+
+*/
+
+#include <__config>
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+// Don't include our own <stddef.h>; we don't want to declare ::nullptr_t.
+#include_next <stddef.h>
+#include <__nullptr>
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::ptrdiff_t;
+using ::size_t;
+
+#if defined(__CLANG_MAX_ALIGN_T_DEFINED) || defined(_GCC_MAX_ALIGN_T) || \
+    defined(__DEFINED_max_align_t) || defined(__NetBSD__)
+// Re-use the compiler's <stddef.h> max_align_t where possible.
+using ::max_align_t;
+#else
+typedef long double max_align_t;
+#endif
+
+_LIBCPP_END_NAMESPACE_STD
+
+#if _LIBCPP_STD_VER > 14
+namespace std  // purposefully not versioned
+{
+enum class byte : unsigned char {};
+
+constexpr byte  operator| (byte  __lhs, byte __rhs) noexcept
+{
+    return static_cast<byte>(
+      static_cast<unsigned char>(
+         static_cast<unsigned int>(__lhs) | static_cast<unsigned int>(__rhs)
+    ));
+}
+
+constexpr byte& operator|=(byte& __lhs, byte __rhs) noexcept
+{ return __lhs = __lhs | __rhs; }
+
+constexpr byte  operator& (byte  __lhs, byte __rhs) noexcept
+{
+    return static_cast<byte>(
+      static_cast<unsigned char>(
+         static_cast<unsigned int>(__lhs) & static_cast<unsigned int>(__rhs)
+    ));
+}
+
+constexpr byte& operator&=(byte& __lhs, byte __rhs) noexcept
+{ return __lhs = __lhs & __rhs; }
+
+constexpr byte  operator^ (byte  __lhs, byte __rhs) noexcept
+{
+    return static_cast<byte>(
+      static_cast<unsigned char>(
+         static_cast<unsigned int>(__lhs) ^ static_cast<unsigned int>(__rhs)
+    ));
+}
+
+constexpr byte& operator^=(byte& __lhs, byte __rhs) noexcept
+{ return __lhs = __lhs ^ __rhs; }
+
+constexpr byte  operator~ (byte __b) noexcept
+{
+    return static_cast<byte>(
+      static_cast<unsigned char>(
+        ~static_cast<unsigned int>(__b)
+    ));
+}
+
+}
+
+#include <type_traits>  // rest of byte
+#endif
+
+#endif  // _LIBCPP_CSTDDEF

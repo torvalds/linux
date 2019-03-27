@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+r=x
+f() { return 42; }
+f
+for i in x; do
+	r=$?
+done
+[ "$r" = 42 ]

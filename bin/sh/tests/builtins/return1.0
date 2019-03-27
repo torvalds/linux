@@ -1,0 +1,7 @@
+# $FreeBSD$
+f() {
+	return 0
+	exit 1
+}
+
+f

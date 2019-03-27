@@ -1,0 +1,12 @@
+Minimum SCTP events seen
+
+ip:::send - yes
+ip:::receive - yes
+sctp:::send - yes
+sctp:::receive - yes
+sctp:::state-change to cookie-wait - yes
+sctp:::state-change to cookie-echoed - yes
+sctp:::state-change to established - yes
+sctp:::state-change to shutdown-sent - yes
+sctp:::state-change to shutdown-received - yes
+sctp:::state-change to shutdown-ack-sent - yes

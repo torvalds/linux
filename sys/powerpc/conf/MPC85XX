@@ -1,0 +1,120 @@
+#
+# Custom kernel for Freescale MPC85XX development boards like the CDS etc.
+#
+# $FreeBSD$
+#
+
+cpu		BOOKE
+cpu		BOOKE_E500
+ident		MPC85XX
+
+machine		powerpc	powerpc
+
+include 	"dpaa/config.dpaa"
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	WITH_CTF=1
+makeoptions	WERROR="-Werror -Wno-format -Wno-redundant-decls"
+
+options 	FPU_EMU
+
+options 	_KPOSIX_PRIORITY_SCHEDULING
+options 	ALT_BREAK_TO_DEBUGGER
+options 	BREAK_TO_DEBUGGER
+options 	BOOTP
+options 	BOOTP_NFSROOT
+#options 	BOOTP_NFSV3
+options 	CD9660
+options 	COMPAT_43
+options 	DDB
+#options 	DEADLKRES
+options 	DEVICE_POLLING
+#options 	DIAGNOSTIC
+options 	FDT
+#makeoptions	FDT_DTS_FILE=mpc8555cds.dts
+options 	FFS
+options 	GDB
+options 	GEOM_PART_GPT
+options 	INET
+options 	INET6
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+options 	INVARIANTS
+options 	INVARIANT_SUPPORT
+options 	KDB
+options 	KTRACE
+options 	MD_ROOT
+options 	MPC85XX
+options 	MSDOSFS
+options 	NFS_ROOT
+options 	NFSCL
+options 	NFSLOCKD
+options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
+options 	PROCFS
+options 	PSEUDOFS
+options 	SCHED_ULE
+options 	CAPABILITIES
+options 	CAPABILITY_MODE
+options 	SMP
+options 	SYSVMSG
+options 	SYSVSEM
+options 	SYSVSHM
+options 	WITNESS
+options 	WITNESS_SKIPSPIN
+options 	COMPAT_FREEBSD10
+options 	COMPAT_FREEBSD11
+options 	HWPMC_HOOKS
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	DDB_CTF			# Kernel ELF linker loads CTF data
+
+device		ata
+device		bpf
+device		cfi
+device  	cpufreq
+device		crypto
+device		cryptodev
+device		da
+device  	ds1307
+device		ds1553
+device		iflib
+device		em
+device		alc
+device		ether
+device		fxp
+device  	gpio
+device  	gpiopower
+device		iic
+device		iicbus
+#device		isa
+device		loop
+device		md
+device		miibus
+device  	mmc
+device  	mmcsd
+device		pass
+device		pci
+device		quicc
+device		random
+#device		rl
+device		scbus
+device		scc
+device  	sdhci
+device		sec
+device  	spibus
+device  	spigen
+device		tsec
+device  	dpaa
+device		tun
+device		uart
+options 	USB_DEBUG	# enable debug msgs
+#device		uhci
+device		ehci
+device  	ukbd
+device  	ums
+device		umass
+device		usb
+device		vlan
+
+# P1022 DIU
+device  	diu
+device  	videomode
+device  	vt
+device  	fbd

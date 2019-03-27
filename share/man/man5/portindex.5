@@ -1,0 +1,100 @@
+.\"
+.\" Copyright (c) 2004 Paul Armstrong
+.\" Copyright (c) 2009 Thomas Abthorpe
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\" notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 14, 2012
+.Dt PORTINDEX 5
+.Os
+.Sh NAME
+.Nm INDEX
+.Nd "File containing information about the state of the ports tree"
+.Sh DESCRIPTION
+The port index file in
+.Pa /usr/ports
+contains various bits of information about the ports tree.
+Each major branch of
+.Fx
+has a separate index file, named
+.Dq INDEX- Ns Ar N ,
+where
+.Ar N
+is the major version number of the
+.Fx
+branch, i.e.:
+.Pa INDEX-7 ,
+or
+.Pa INDEX-8 .
+.Bl -tag -width XXXXXXXXXX
+.It Cm \&name
+The name of the package.
+.It Cm \&path
+The path to the port directory.
+.It Cm \&install prefix
+The default install prefix.
+.It Cm \&short description
+A short description.
+.It Cm \&full description
+The path to the full description.
+.It Cm \&maintainer email
+The email address of the maintainer.
+.It Cm \&index
+The categories this port is part of.
+.It Cm \&build dependencies
+Ports required to be installed prior to building this port.
+.It Cm \&run dependencies
+Ports required to be installed for this port to run.
+.It Cm \&website
+The project website for the port.
+.It Cm \&e-deps
+Ports that may be required to extract this port.
+.It Cm \&p-deps
+Ports that may be required to patch this port.
+.It Cm \&f-deps
+Ports that may be required to fetch this port.
+.El
+.Sh FILES
+.Bl -tag -width /usr/ports/INDEX-8XX
+.It Pa /usr/ports/INDEX- Ns Ar N
+where
+.Ar N
+is the major version number of the
+.Fx
+branch.
+.El
+.Sh EXAMPLES
+.Bd -literal
+vim-6.3.15|/usr/ports/editors/vim|/usr/local|Vi "workalike", with many additional features|/usr/ports/editors/vim/pkg-descr|obrien@FreeBSD.org|editors|libiconv-1.9.2_1|libiconv-1.9.2_1|http://www.vim.org/|||
+.Ed
+.Sh SEE ALSO
+.Xr build 7 ,
+.Xr ports 7
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Paul Armstrong
+and
+.An Thomas Abthorpe Aq Mt tabthorpe@FreeBSD.org .

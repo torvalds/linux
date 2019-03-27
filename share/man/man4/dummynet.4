@@ -1,0 +1,79 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 28, 2002
+.Dt DUMMYNET 4
+.Os
+.Sh NAME
+.Nm dummynet
+.Nd traffic shaper, bandwidth manager and delay emulator
+.Sh DESCRIPTION
+The
+.Nm
+system facility permits the control of traffic
+going through the various network interfaces, by applying bandwidth
+and queue size limitations, implementing different scheduling and queue
+management policies, and emulating delays and losses.
+.Pp
+The user interface for
+.Nm
+is implemented by the
+.Xr ipfw 8
+utility, so please refer to the
+.Xr ipfw 8
+manpage for a complete description of the
+.Nm
+capabilities and how to use it.
+.Ss Kernel Options
+The following options in the kernel configuration file are related to
+.Nm
+operation:
+.Pp
+.Bl -tag -width ".Dv IPFIREWALL_VERBOSE_LIMIT" -offset indent -compact
+.It Dv IPFIREWALL
+enable ipfirewall (required for
+.Nm )
+.It Dv IPFIREWALL_VERBOSE
+enable firewall output
+.It Dv IPFIREWALL_VERBOSE_LIMIT
+limit firewall output
+.It Dv DUMMYNET
+enable
+.Nm
+operation
+.It Dv HZ
+set the timer granularity
+.El
+.Pp
+Generally, the following options are required:
+.Bd -literal -offset indent
+options IPFIREWALL
+options DUMMYNET
+options HZ=1000		# strongly recommended
+.Ed
+.Pp
+Additionally, one may want to increase the number
+of mbuf clusters (used to store network packets) according to the
+sum of the bandwidth-delay products and queue sizes of all configured
+pipes.
+.Sh SEE ALSO
+.Xr setsockopt 2 ,
+.Xr if_bridge 4 ,
+.Xr ip 4 ,
+.Xr ipfw 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+facility
+was initially implemented as a testing tool for
+.Tn TCP
+congestion control by
+.An Luigi Rizzo Aq Mt luigi@iet.unipi.it ,
+as described on ACM Computer Communication Review, Jan.97 issue.
+Later it has been modified to work at the
+.Tn IP
+and bridging levels, integrated with the
+.Xr ipfw 4
+packet filter, and extended to
+support multiple queueing and scheduling policies.

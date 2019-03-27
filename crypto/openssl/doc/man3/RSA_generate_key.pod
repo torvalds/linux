@@ -1,0 +1,107 @@
+=pod
+
+=head1 NAME
+
+RSA_generate_key_ex, RSA_generate_key,
+RSA_generate_multi_prime_key - generate RSA key pair
+
+=head1 SYNOPSIS
+
+ #include <openssl/rsa.h>
+
+ int RSA_generate_key_ex(RSA *rsa, int bits, BIGNUM *e, BN_GENCB *cb);
+ int RSA_generate_multi_prime_key(RSA *rsa, int bits, int primes, BIGNUM *e, BN_GENCB *cb);
+
+Deprecated:
+
+ #if OPENSSL_API_COMPAT < 0x00908000L
+ RSA *RSA_generate_key(int num, unsigned long e,
+                       void (*callback)(int, int, void *), void *cb_arg);
+ #endif
+
+=head1 DESCRIPTION
+
+RSA_generate_key_ex() generates a 2-prime RSA key pair and stores it in the
+B<RSA> structure provided in B<rsa>. The pseudo-random number generator must
+be seeded prior to calling RSA_generate_key_ex().
+
+RSA_generate_multi_prime_key() generates a multi-prime RSA key pair and stores
+it in the B<RSA> structure provided in B<rsa>. The number of primes is given by
+the B<primes> parameter. The pseudo-random number generator must be seeded prior
+to calling RSA_generate_multi_prime_key().
+
+The modulus size will be of length B<bits>, the number of primes to form the
+modulus will be B<primes>, and the public exponent will be B<e>. Key sizes
+with B<num> E<lt> 1024 should be considered insecure. The exponent is an odd
+number, typically 3, 17 or 65537.
+
+In order to maintain adequate security level, the maximum number of permitted
+B<primes> depends on modulus bit length:
+
+   <1024 | >=1024 | >=4096 | >=8192
+   ------+--------+--------+-------
+     2   |   3    |   4    |   5
+
+A callback function may be used to provide feedback about the
+progress of the key generation. If B<cb> is not B<NULL>, it
+will be called as follows using the BN_GENCB_call() function
+described on the L<BN_generate_prime(3)> page.
+
+RSA_generate_prime() is similar to RSA_generate_prime_ex() but
+expects an old-style callback function; see
+L<BN_generate_prime(3)> for information on the old-style callback.
+
+=over 2
+
+=item *
+
+While a random prime number is generated, it is called as
+described in L<BN_generate_prime(3)>.
+
+=item *
+
+When the n-th randomly generated prime is rejected as not
+suitable for the key, B<BN_GENCB_call(cb, 2, n)> is called.
+
+=item *
+
+When a random p has been found with p-1 relatively prime to B<e>,
+it is called as B<BN_GENCB_call(cb, 3, 0)>.
+
+=back
+
+The process is then repeated for prime q and other primes (if any)
+with B<BN_GENCB_call(cb, 3, i)> where B<i> indicates the i-th prime.
+
+=head1 RETURN VALUES
+
+RSA_generate_multi_prime_key() returns 1 on success or 0 on error.
+RSA_generate_key_ex() returns 1 on success or 0 on error.
+The error codes can be obtained by L<ERR_get_error(3)>.
+
+RSA_generate_key() returns a pointer to the RSA structure or
+B<NULL> if the key generation fails.
+
+=head1 BUGS
+
+B<BN_GENCB_call(cb, 2, x)> is used with two different meanings.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<RAND_bytes(3)>, L<BN_generate_prime(3)>
+
+=head1 HISTORY
+
+RSA_generate_key() was deprecated in OpenSSL 0.9.8; use
+RSA_generate_key_ex() instead.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,135 @@
+.\" Copyright (c) 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)realpath.3	8.2 (Berkeley) 2/16/94
+.\" $FreeBSD$
+.\"
+.Dd May 11, 2012
+.Dt REALPATH 3
+.Os
+.Sh NAME
+.Nm realpath
+.Nd returns the canonicalized absolute pathname
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft "char *"
+.Fn realpath "const char * restrict pathname" "char * restrict resolved_path"
+.Sh DESCRIPTION
+The
+.Fn realpath
+function resolves all symbolic links, extra
+.Dq /
+characters and references to
+.Pa /./
+and
+.Pa /../
+in
+.Fa pathname ,
+and copies the resulting absolute pathname into
+the memory pointed to by
+.Fa resolved_path .
+The
+.Fa resolved_path
+argument
+.Em must
+point to a buffer capable of storing at least
+.Dv PATH_MAX
+characters, or be
+.Dv NULL .
+.Pp
+The
+.Fn realpath
+function will resolve both absolute and relative paths
+and return the absolute pathname corresponding to
+.Fa pathname .
+All components of
+.Fa pathname
+must exist when
+.Fn realpath
+is called, and all but the last component must name either directories or
+symlinks pointing to the directories.
+.Sh "RETURN VALUES"
+The
+.Fn realpath
+function returns
+.Fa resolved_path
+on success.
+If the function was supplied
+.Dv NULL
+as
+.Fa resolved_path ,
+and operation did not cause errors, the returned value is
+a null-terminated string in a buffer allocated by a call to
+.Fn malloc 3 .
+If an error occurs,
+.Fn realpath
+returns
+.Dv NULL ,
+and if
+.Fa resolved_path
+is not
+.Dv NULL ,
+the array that it points to contains the pathname which caused the problem.
+.Sh ERRORS
+The function
+.Fn realpath
+may fail and set the external variable
+.Va errno
+for any of the errors specified for the library functions
+.Xr lstat 2 ,
+.Xr readlink 2
+and
+.Xr getcwd 3 .
+.Sh SEE ALSO
+.Xr getcwd 3
+.\" .Sh STANDARDS
+.\" The
+.\" .Fn realpath
+.\" function conforms to
+.\" .St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn realpath
+function first appeared in
+.Bx 4.4 .
+.Sh CAVEATS
+This implementation of
+.Fn realpath
+differs slightly from the Solaris implementation.
+The
+.Bx 4.4
+version always returns absolute pathnames,
+whereas the Solaris implementation will,
+under certain circumstances, return a relative
+.Fa resolved_path
+when given a relative
+.Fa pathname .

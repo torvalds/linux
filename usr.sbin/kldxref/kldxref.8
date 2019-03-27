@@ -1,0 +1,95 @@
+.\"-
+.\" Copyright (c) 2001 Boris Popov
+.\" Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 9, 2001
+.Dt KLDXREF 8
+.Os
+.Sh NAME
+.Nm kldxref
+.Nd generate hints for the kernel loader
+.Sh SYNOPSIS
+.Nm
+.Op Fl Rdv
+.Op Fl f Ar hintsfile
+.Ar path ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to generate hint files which list modules, their
+version numbers, and the files that contain them.
+These hints are used by the kernel loader to determine where to find a
+particular KLD module.
+.Pp
+A separate hint file is generated for each directory listed on the
+command line that contains modules.
+If no hint records are generated for a particular directory, no hint
+file is created, and the preexisting hint file (if there was one in
+that directory) is removed.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl R
+Recurse into subdirectories.
+.It Fl d
+Do not generate a hint file, but print module metadata on standard
+output.
+.It Fl f Ar hintsfile
+Specify a different name for the hints files than
+.Pa linker.hints .
+.It Fl v
+Operate in verbose mode.
+.El
+.Sh EXAMPLES
+To build hint files for both standard and add-on modules:
+.Pp
+.Dl "kldxref /boot/kernel /boot/modules"
+.Pp
+To build hint files for all installed kernels:
+.Pp
+.Dl "kldxref -R /boot"
+.Sh SEE ALSO
+.Xr kld 4 ,
+.Xr kldconfig 8 ,
+.Xr kldload 8 ,
+.Xr kldstat 8 ,
+.Xr kldunload 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was implemented by
+.An Boris Popov Aq Mt bp@FreeBSD.org .
+This manual page was written by
+.An Boris Popov Aq Mt bp@FreeBSD.org
+and
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

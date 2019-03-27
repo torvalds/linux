@@ -1,8 +1,0 @@
-What:		/sys/kernel/fscaps
-Date:		February 2011
-KernelVersion:	2.6.38
-Contact:	Ludwig Nussel <ludwig.nussel@suse.de>
-Description
-		Shows whether file system capabilities are honored
-		when executing a binary
-

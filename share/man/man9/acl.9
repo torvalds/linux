@@ -1,0 +1,225 @@
+.\"-
+.\" Copyright (c) 1999-2001 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 4, 2015
+.Dt ACL 9
+.Os
+.Sh NAME
+.Nm acl
+.Nd virtual file system access control lists
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.In sys/acl.h
+.Pp
+In the kernel configuration file:
+.Cd "options UFS_ACL"
+.Sh DESCRIPTION
+Access control lists, or ACLs,
+allow fine-grained specification of rights
+for vnodes representing files and directories.
+However, as there are a plethora of file systems with differing ACL semantics,
+the vnode interface is aware only of the syntax of ACLs,
+relying on the underlying file system to implement the details.
+Depending on the underlying file system, each file or directory
+may have zero or more ACLs associated with it, named using the
+.Fa type
+field of the appropriate vnode ACL calls:
+.Xr VOP_ACLCHECK 9 ,
+.Xr VOP_GETACL 9 ,
+and
+.Xr VOP_SETACL 9 .
+.Pp
+Currently, each ACL is represented in-kernel by a fixed-size
+.Vt acl
+structure, defined as follows:
+.Bd -literal -offset indent
+struct acl {
+        unsigned int            acl_maxcnt;
+        unsigned int            acl_cnt;
+        int                     acl_spare[4];
+        struct acl_entry        acl_entry[ACL_MAX_ENTRIES];
+};
+.Ed
+.Pp
+An ACL is constructed from a fixed size array of ACL entries,
+each of which consists of a set of permissions, principal namespace,
+and principal identifier.
+In this implementation, the
+.Vt acl_maxcnt
+field is always set to
+.Dv ACL_MAX_ENTRIES .
+.Pp
+Each individual ACL entry is of the type
+.Vt acl_entry_t ,
+which is a structure with the following members:
+.Bl -tag -width 2n
+.It Vt acl_tag_t Va ae_tag
+The following is a list of definitions of ACL types
+to be set in
+.Va ae_tag :
+.Pp
+.Bl -tag -width ".Dv ACL_UNDEFINED_FIELD" -offset indent -compact
+.It Dv ACL_UNDEFINED_FIELD
+Undefined ACL type.
+.It Dv ACL_USER_OBJ
+Discretionary access rights for processes whose effective user ID
+matches the user ID of the file's owner.
+.It Dv ACL_USER
+Discretionary access rights for processes whose effective user ID
+matches the ACL entry qualifier.
+.It Dv ACL_GROUP_OBJ
+Discretionary access rights for processes whose effective group ID
+or any supplemental groups
+match the group ID of the file's owner.
+.It Dv ACL_GROUP
+Discretionary access rights for processes whose effective group ID
+or any supplemental groups
+match the ACL entry qualifier.
+.It Dv ACL_MASK
+The maximum discretionary access rights that can be granted
+to a process in the file group class.
+This is only valid for POSIX.1e ACLs.
+.It Dv ACL_OTHER
+Discretionary access rights for processes not covered by any other ACL
+entry.
+This is only valid for POSIX.1e ACLs.
+.It Dv ACL_OTHER_OBJ
+Same as
+.Dv ACL_OTHER .
+.It Dv ACL_EVERYONE
+Discretionary access rights for all users.
+This is only valid for NFSv4 ACLs.
+.El
+.Pp
+Each POSIX.1e ACL must contain exactly one
+.Dv ACL_USER_OBJ ,
+one
+.Dv ACL_GROUP_OBJ ,
+and one
+.Dv ACL_OTHER .
+If any of
+.Dv ACL_USER ,
+.Dv ACL_GROUP ,
+or
+.Dv ACL_OTHER
+are present, then exactly one
+.Dv ACL_MASK
+entry should be present.
+.It Vt uid_t Va ae_id
+The ID of user for whom this ACL describes access permissions.
+For entries other than
+.Dv ACL_USER
+and
+.Dv ACL_GROUP ,
+this field should be set to
+.Dv ACL_UNDEFINED_ID .
+.It Vt acl_perm_t Va ae_perm
+This field defines what kind of access the process matching this ACL has
+for accessing the associated file.
+For POSIX.1e ACLs, the following are valid:
+.Bl -tag -width ".Dv ACL_WRITE_NAMED_ATTRS"
+.It Dv ACL_EXECUTE
+The process may execute the associated file.
+.It Dv ACL_WRITE
+The process may write to the associated file.
+.It Dv ACL_READ
+The process may read from the associated file.
+.It Dv ACL_PERM_NONE
+The process has no read, write or execute permissions
+to the associated file.
+.El
+.Pp
+For NFSv4 ACLs, the following are valid:
+.Bl -tag -width ".Dv ACL_WRITE_NAMED_ATTRS"
+.It Dv ACL_READ_DATA
+The process may read from the associated file.
+.It Dv ACL_LIST_DIRECTORY
+Same as
+.Dv ACL_READ_DATA .
+.It Dv ACL_WRITE_DATA
+The process may write to the associated file.
+.It Dv ACL_ADD_FILE
+Same as
+.Dv ACL_ACL_WRITE_DATA .
+.It Dv ACL_APPEND_DATA
+.It Dv ACL_ADD_SUBDIRECTORY
+Same as
+.Dv ACL_APPEND_DATA .
+.It Dv ACL_READ_NAMED_ATTRS
+Ignored.
+.It Dv ACL_WRITE_NAMED_ATTRS
+Ignored.
+.It Dv ACL_EXECUTE
+The process may execute the associated file.
+.It Dv ACL_DELETE_CHILD
+.It Dv ACL_READ_ATTRIBUTES
+.It Dv ACL_WRITE_ATTRIBUTES
+.It Dv ACL_DELETE
+.It Dv ACL_READ_ACL
+.It Dv ACL_WRITE_ACL
+.It Dv ACL_WRITE_OWNER
+.It Dv ACL_SYNCHRONIZE
+Ignored.
+.El
+.It Vt acl_entry_type_t Va ae_entry_type
+This field defines the type of NFSv4 ACL entry.
+It is not used with POSIX.1e ACLs.
+The following values are valid:
+.Bl -tag -width ".Dv ACL_WRITE_NAMED_ATTRS"
+.It Dv ACL_ENTRY_TYPE_ALLOW
+.It Dv ACL_ENTRY_TYPE_DENY
+.El
+.It Vt acl_flag_t Va ae_flags
+This field defines the inheritance flags of NFSv4 ACL entry.
+It is not used with POSIX.1e ACLs.
+The following values are valid:
+.Bl -tag -width ".Dv ACL_ENTRY_DIRECTORY_INHERIT"
+.It Dv ACL_ENTRY_FILE_INHERIT
+.It Dv ACL_ENTRY_DIRECTORY_INHERIT
+.It Dv ACL_ENTRY_NO_PROPAGATE_INHERIT
+.It Dv ACL_ENTRY_INHERIT_ONLY
+.It Dv ACL_ENTRY_INHERITED
+.El
+The
+.Dv ACL_ENTRY_INHERITED
+flag is set on an ACE that has been inherited from its parent.
+It may also be set programmatically, and is valid on both files
+and directories.
+.El
+.Sh SEE ALSO
+.Xr acl 3 ,
+.Xr vaccess 9 ,
+.Xr vaccess_acl_nfs4 9 ,
+.Xr vaccess_acl_posix1e 9 ,
+.Xr VFS 9 ,
+.Xr VOP_ACLCHECK 9 ,
+.Xr VOP_GETACL 9 ,
+.Xr VOP_SETACL 9
+.Sh AUTHORS
+This manual page was written by
+.An Robert Watson .

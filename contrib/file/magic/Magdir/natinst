@@ -1,0 +1,24 @@
+
+#-----------------------------------------------------------------------------
+# $File: natinst,v 1.6 2014/06/03 19:17:27 christos Exp $
+# natinst:  file(1) magic for National Instruments Code Files
+
+#
+# From <egamez@fcfm.buap.mx> Enrique Gamez-Flores
+# version 1
+# Many formats still missing, we use, for the moment LabVIEW
+# We guess VXI format file. VISA, LabWindowsCVI, BridgeVIEW, etc, are missing
+#
+0       string          RSRC            National Instruments,
+# Check if it's a LabVIEW File
+>8      string          LV              LabVIEW File,
+# Check which kind of file it is
+>>10    string          SB              Code Resource File, data
+>>10    string          IN              Virtual Instrument Program, data
+>>10    string          AR              VI Library, data
+# This is for Menu Libraries
+>8      string          LMNULBVW        Portable File Names, data
+# This is for General Resources
+>8      string          rsc             Resources File, data
+# This is for VXI Package
+0       string          VMAP            National Instruments, VXI File, data

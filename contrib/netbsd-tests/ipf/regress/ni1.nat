@@ -1,0 +1,3 @@
+map df0 from 2.2.2.2/32 port 20000 >< 25000 to any -> 6.6.6.8/32 portmap udp 2000:2500 sequential
+map df0 from 2.2.2.2/32 port 2000 >< 2500 to any -> 6.6.6.7/32 portmap udp 20000:25000 sequential
+map df0 from 2.2.2.2/32 to any -> 6.6.6.6/32

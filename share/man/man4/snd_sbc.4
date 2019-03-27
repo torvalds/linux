@@ -1,0 +1,132 @@
+.\"
+.\" Copyright (c) 1999 Seigo Tanimura
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 17, 2007
+.Dt SND_SBC 4
+.Os
+.Sh NAME
+.Nm snd_sbc ,
+.Nm snd_sb16 ,
+.Nm snd_sb8
+.Nd Creative Sound Blaster ISA and compatible bridge device driver
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device sound"
+.Cd "device snd_sbc"
+.Cd "device snd_sb16"
+.Cd "device snd_sb8"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_sbc_load="YES"
+snd_sb16_load="YES"
+snd_sb8_load="YES"
+.Ed
+.Pp
+Non-PnP cards require the following lines in
+.Xr device.hints 5 :
+.Bd -literal -offset indent
+hint.sbc.0.at="isa"
+hint.sbc.0.port="0x220"
+hint.sbc.0.irq="5"
+hint.sbc.0.drq="1"
+hint.sbc.0.flags="0x15"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+bridge driver allows the generic audio driver
+.Xr sound 4
+to attach to Creative Sound Blaster ISA (mostly SB16 or SB8, known as
+SoundBlaster Pro) compatible audio cards.
+.Pp
+The value of flags specifies the secondary DMA channel.
+If the secondary
+DMA channel is C, set the flags to (C | 0x10).
+For a sound card without the
+secondary DMA channel, the flags should be set to zero.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following sound cards:
+.Pp
+.Bl -bullet -compact
+.It
+Avance Asound 110
+.It
+Avance Logic ALS100+
+.It
+Avance Logic ALS120
+.It
+Creative SB16
+.It
+Creative SB32
+.It
+Creative AWE64
+.It
+Creative AWE64 Gold
+.It
+Creative ViBRA16C
+.It
+Creative ViBRA16X
+.It
+ESS ES1681
+.It
+ESS ES1688
+.It
+ESS ES1868
+.It
+ESS ES1869
+.It
+ESS ES1878
+.It
+ESS ES1879
+.It
+ESS ES1888
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It sb_dspwr(XX) timed out.
+A command to the DSP has timed out.
+Check the I/O port configuration.
+.It bad irq XX (5/7/9/10 valid)
+The IRQ given to the driver is not valid.
+.El
+.Sh SEE ALSO
+.Xr sound 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Seigo Tanimura Aq Mt tanimura@r.dl.itc.u-tokyo.ac.jp

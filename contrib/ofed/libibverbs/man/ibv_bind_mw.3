@@ -1,0 +1,93 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_BIND_MW 3 2016-02-02 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_bind_mw \- post a request to bind a type 1 memory window to a memory region
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_bind_mw(struct ibv_qp " "*qp" ", struct ibv_mw " "*mw" ",
+.BI "                struct ibv_mw_bind " "*mw_bind" ");
+.fi
+.SH "DESCRIPTION"
+.B ibv_bind_mw()
+posts to the queue pair
+.I qp
+a request to bind the memory window
+.I mw
+according to the details in
+.I mw_bind\fR.
+.PP
+The argument
+.I mw_bind
+is an ibv_mw_bind struct, as defined in <infiniband/verbs.h>.
+.PP
+.nf
+struct ibv_mw_bind {
+.in +8
+uint64_t                     wr_id;           /* User defined WR ID */
+int                          send_flags;      /* Use ibv_send_flags */
+struct ibv_mw_bind_info      bind_info;       /* MW bind information */
+.in -8
+}
+.fi
+.PP
+.nf
+struct ibv_mw_bind_info {
+.in +8
+struct ibv_mr                *mr;             /* The MR to bind the MW to */
+uint64_t                     addr;            /* The address the MW should start at */
+uint64_t                     length;          /* The length (in bytes) the MW should span */
+int                          mw_access_flags; /* Access flags to the MW. Use ibv_access_flags */
+.in -8
+};
+.fi
+.PP
+The QP Transport Service Type must be either UC, RC or XRC_SEND for bind operations.
+.PP
+The attribute send_flags describes the properties of the \s-1WR\s0. It is either 0 or the bitwise \s-1OR\s0 of one or more of the following flags:
+.PP
+.TP
+.B IBV_SEND_FENCE \fR Set the fence indicator.
+.TP
+.B IBV_SEND_SIGNALED \fR Set the completion notification indicator.  Relevant only if QP was created with sq_sig_all=0
+.PP
+The mw_access_flags define the allowed access to the MW after the bind
+completes successfully. It is either 0 or the bitwise \s-1OR\s0 of one
+or more of the following flags:
+.TP
+.B IBV_ACCESS_REMOTE_WRITE \fR Enable Remote Write Access. Requires local write access to the MR.
+.TP
+.B IBV_ACCESS_REMOTE_READ\fR   Enable Remote Read Access
+.TP
+.B IBV_ACCESS_REMOTE_ATOMIC\fR Enable Remote Atomic Operation Access (if supported). Requires local write access to the MR.
+.TP
+.B IBV_ACCESS_ZERO_BASED\fR If set, the address set on the 'remote_addr' field on the WR will be an offset from the MW's start address.
+.SH "RETURN VALUE"
+.B ibv_bind_mw()
+returns 0 on success, or the value of errno on failure (which
+indicates the failure reason).  In case of a success, the R_key of the
+memory window after the bind is returned in the mw_bind->mw->rkey field.
+.SH "NOTES"
+The bind does not complete when the function return - it is merely
+posted to the QP. The user should keep a copy of the old R_key, and
+fix the mw structure if the subsequent CQE for the bind operation
+indicates a failure. The user may safely send the R_key using a send
+request on the same QP, (based on QP ordering rules: a send after a bind
+request on the same QP are always ordered), but must not transfer it to the
+remote in any other manner before reading a successful CQE.
+.PP
+Note that for type 2 MW, one should directly post bind WR to the QP,
+using ibv_post_send.
+.SH "SEE ALSO"
+.BR ibv_alloc_mw (3),
+.BR ibv_post_send (3),
+.BR ibv_poll_cq (3)
+.BR ibv_reg_mr (3),
+.SH "AUTHORS"
+.TP
+Majd Dibbiny <majd@mellanox.com>
+.TP
+Yishai Hadas <yishaih@mellanox.com>

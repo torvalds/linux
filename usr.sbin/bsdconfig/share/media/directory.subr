@@ -1,0 +1,151 @@
+if [ ! "$_MEDIA_DIRECTORY_SUBR" ]; then _MEDIA_DIRECTORY_SUBR=1
+#
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." media/directory.subr
+f_include $BSDCFG_SHARE/device.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/media/common.subr
+f_include $BSDCFG_SHARE/struct.subr
+f_include $BSDCFG_SHARE/variable.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+############################################################ GLOBALS
+
+DIRECTORY_CHECKED=
+
+############################################################ FUNCTIONS
+
+# f_media_set_directory
+#
+# Return success if we both found and set the media type to be a local
+# directory.
+#
+# Variables from variable.subr that can be used to script user input:
+#
+# 	VAR_DIRECTORY_PATH
+# 		Path to an existing directory containing the FreeBSD
+# 		distribution files.
+#
+f_media_set_directory()
+{
+	local path
+
+	f_media_close
+
+	f_variable_get_value $VAR_DIRECTORY_PATH \
+		"$msg_enter_a_fully_qualified_pathname_for_the_directory"
+	f_getvar $VAR_DIRECTORY_PATH path
+	[ "$path" ] || return $FAILURE
+
+	f_struct_new DEVICE device_directory
+	device_directory set name     "$path"
+	device_directory set get      f_media_get_directory
+	device_directory set init     f_media_init_directory
+	device_directory set shutdown f_media_shutdown_directory
+	device_directory set private  "$path"
+
+	f_struct_copy device_directory device_media
+	f_struct_free device_directory
+
+	f_struct device_media || return $FAILURE
+}
+
+# f_media_init_directory $device
+#
+# Initializes the Directory media device. Returns success if the directory path
+# both exists and is a directory.
+#
+f_media_init_directory()
+{
+	local dev="$1" path
+
+	$dev get private path || return $FAILURE
+	f_dprintf "Init routine called for Directory device. path=[%s]" \
+	          "$path"
+
+	# Track whether we've been through here before (for remote filesystems
+	# mounted in the directory path, not repeating these queries saves us
+	# valuable time for slow/uncooperative links).
+	if [ "$DIRECTORY_CHECKED" ]; then
+		f_dprintf "Directory device already checked."
+		return $SUCCESS
+	fi
+
+	if [ ! -e "$path" ]; then
+		f_show_msg "$msg_no_such_file_or_directory" \
+		           "f_media_init_directory" "$path"
+		return $FAILURE
+	elif [ ! -d "$path" ]; then
+		f_show_msg "$msg_not_a_directory" \
+		           "f_media_init_directory" "$path"
+		return $FAILURE
+	fi
+	DIRECTORY_CHECKED=1
+	return $SUCCESS
+}
+
+# f_media_get_directory $device $file [$probe_type]
+#
+# Returns data from $file in the existing/current filesystem. Similar to
+# cat(1). If $probe_type is present and non-NULL, returns success if $file
+# exists. If $probe_type is equal to $PROBE_SIZE, prints the size of $file in
+# bytes to standard-out.
+#
+f_media_get_directory()
+{
+	local dev="$1" file="$2" probe_type="$3" path
+	local name
+
+	$dev get name name
+	f_dprintf "f_media_get_directory: dev=[%s] file=[%s] probe_type=%s" \
+	          "$name" "$file" "$probe_type"
+
+	$dev get private path
+	f_media_generic_get "$path" "$file" "$probe_type"
+}
+
+# f_media_shutdown_directory $device
+#
+# Shuts down the Directory device. Return status should be ignored.
+#
+f_media_shutdown_directory()
+{
+	DIRECTORY_CHECKED=
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." media/directory.subr
+
+fi # ! $_MEDIA_DIRECTORY_SUBR

@@ -1,0 +1,74 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for read(2), write(2), or similar entry $
+# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $FreeBSD$
+#
+############################################################ DESCRIPTION
+#
+# Display data sent/received when read(2)/write(2) occurs
+#
+############################################################ PROBE
+
+case "$PROFILE" in
+rw) : ${PROBE:=syscall::read:entry, syscall::write:entry} ;;
+ *) : ${PROBE:=syscall::$PROFILE:entry}
+esac
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+this size_t nbytes;
+this string bufstr;
+this string flow;
+this void * buf;
+this void * data;
+
+$PROBE /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");
+}
+	/*
+	 * R/W
+	 */
+	this->flow = probefunc == "read" ? "<-" : "->";
+	this->buf = (void *)arg1;
+	this->nbytes = (size_t)arg2;
+
+	/*
+	 * Allocate temporary memory for, copy, and NUL-terminate the data
+	 */
+	this->data = alloca(this->nbytes + 1);
+	copyinto((uintptr_t)this->buf, this->nbytes, this->data);
+	bcopy("\0", (void *)((uintptr_t)this->data + this->nbytes), 1);
+
+	/*
+	 * Extract string from temporary memory
+	 */
+	this->bufstr = stringof(this->data);
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 1 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print read/write details
+	 */
+	printf("%s \"%s\" %d byte%s",
+		this->flow,
+		this->bufstr,
+		this->nbytes,
+		this->nbytes == 1 ? "" : "s");
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

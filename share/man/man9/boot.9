@@ -1,0 +1,100 @@
+.\"	$NetBSD: boot.9,v 1.2 1996/09/24 07:01:26 ghudson Exp $
+.\"
+.\" Copyright (c) 1997
+.\" 	Mike Pritchard.  All rights reserved.
+.\"
+.\" Copyright (c) 1994 Christopher G. Demetriou
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christopher G. Demetriou
+.\"      for the NetBSD Project.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 14, 1997
+.Dt BOOT 9
+.Os
+.Sh NAME
+.Nm boot
+.Nd halt or reboot the system
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/systm.h
+.In sys/reboot.h
+.Ft void
+.Fn boot "int howto"
+.Sh DESCRIPTION
+The
+.Fn boot
+function handles final system shutdown, and either halts or reboots
+the system.
+The exact action to be taken is determined by the flags passed in
+.Fa howto
+and by whether or not the system has finished autoconfiguration.
+.Pp
+If the system has finished autoconfiguration,
+.Fn boot
+does the following:
+.Bl -enum -offset indent
+.It
+If this is the first invocation of
+.Fn boot
+and the
+.Dv RB_NOSYNC
+flag is not set in
+.Fa howto ,
+syncs and unmounts the system disks by calling
+.Xr vfs_unmountall 9 .
+.It
+Disables interrupts.
+.It
+If rebooting after a crash (i.e., if
+.Dv RB_DUMP
+is set in
+.Fa howto ,
+but
+.Dv RB_HALT
+is not), saves a system crash dump.
+.It
+Runs any shutdown hooks previously registered.
+.It
+Prints a message indicating that the system is about to be halted
+or rebooted.
+.It
+If
+.Dv RB_HALT
+is set in
+.Fa howto ,
+halts the system.
+Otherwise, reboots the system.
+.El
+.Pp
+If the system has not finished autoconfiguration,
+.Fn boot
+runs any shutdown hooks previously registered,
+prints a message, and halts the system.
+.Sh SEE ALSO
+.Xr vfs_unmountall 9

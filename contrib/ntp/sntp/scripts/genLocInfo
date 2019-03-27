@@ -1,0 +1,264 @@
+#! /bin/sh
+
+args=`getopt d:f:v $*`
+set -- $args
+
+LF=
+V=": "
+
+for i
+do
+    case "$i" in
+     -d) sdir="$2" ; shift 2 ;;
+     -f) locfile="$2" ; shift 2 ;;
+     -v) V= ; shift ;;
+     --) shift ; break ;;
+    esac
+done
+
+case "$sdir" in
+ '')
+    sdir=.
+esac
+
+case "$locfile" in
+ */*)
+    LF=$locfile
+    ;;
+ '')
+    ;;
+ *)
+    lf=loc/$locfile
+    if test -f $lf
+    then
+	LF=$lf
+    fi
+    ;;
+esac
+
+# If we have a file to use (ie, LF is not empty) then look for one.
+case "$LF" in
+ '')
+    PATH=$PATH:libevent/build-aux
+    export PATH
+    set `scripts/cvo.sh @osname@ @osver@` || exit 1
+
+    CVO_OSNAME=$1
+    CVO_OSVER=$2
+
+    x=$CVO_OSVER
+
+    while true
+    do
+	case "$x" in
+	 '') break ;;
+	esac
+lf=loc/$CVO_OSNAME$x
+${V}echo "Looking for <$lf>" >&2
+	if test -f $lf
+	then
+	    LF=$lf
+	    break
+	fi
+	case "$x" in
+	 *.*) x=`echo $x | sed -e 's/\.[^.]*$//'` ;;
+	 *) x= ;;
+	esac
+    done
+    case "$LF" in
+     '')
+	lf=loc/$CVO_OSNAME
+${V}echo "Looking for <$lf>" >&2
+	if test -f $lf
+	then
+	    LF=$lf
+	fi
+	;;
+    esac
+    # Handle some "aliases"
+    case "$LF" in
+     '')
+	case "$CVO_OSNAME" in
+	 raspbian*)
+	    lf=loc/debian
+${V}echo "Looking for <$lf>" >&2
+	    if test -f $lf
+	    then
+		LF=$lf
+	    fi
+	    ;;
+	 redhat* | fedora*)
+	    lf=loc/redhat
+${V}echo "Looking for <$lf>" >&2
+	    if test -f $lf
+	    then
+		LF=$lf
+	    fi
+	    ;;
+	esac
+	;;
+    esac
+
+    # This might be a good place to see if uname returns "Linux",
+    # and if so, use a generic file for that.
+    case "$LF" in
+     '')
+	case "`uname`" in
+	 Linux)
+	    lf=loc/linux
+${V}echo "Looking for <$lf>" >&2
+	    if test -f $lf
+	    then
+		LF=$lf
+	    fi
+	    ;;
+	esac
+	;;
+    esac
+
+    # Finally, 'legacy'
+    case "$LF" in
+     '')
+	lf=loc/legacy
+${V}echo "Looking for <$lf>" >&2
+	if test -f $lf
+	then
+	    LF=$lf
+	fi
+	;;
+    esac
+
+    case "$LF" in
+     '')
+	echo "No loc/XXX file found!" >&2
+	exit 1
+	;;
+    esac
+    ;;
+esac
+
+${V}echo "Using <$LF>" >&2
+echo "GENLOCINFOFILE=$LF"
+
+###
+
+rm -f $sdir/genLocInfo.rc?
+
+oIFS=$IFS
+IFS=","
+
+while true
+do
+    if read c d s x
+    then
+	# echo "Got <$c><$d><$s><$x>" >&2
+	case "$c" in
+	 \#*) continue ;;
+	esac
+	case "$x" in
+	 '') ;;
+	 *) echo "Unrecognized input: <$c,$d,$s,$x>" >&2
+	    touch $sdir/genLocInfo.rc1
+	    continue
+	    ;;
+	esac
+	case "$c,$d,$s" in
+	 [Mm][Aa][Nn],,)
+	    echo "MANTAGFMT=man"
+	    continue
+	    ;;
+	 [Mm][Dd][Oo][Cc],,)
+	    echo "MANTAGFMT=mdoc"
+	    continue
+	    ;;
+	esac
+
+	case "$c,$d,$s" in
+	 *,bin,*)  DB=bin ; DL= ; DS= ; NI= ;;
+	 *,libexec,*)  DB= ; DL=libexec ; DS= ; NI= ;;
+	 *,noinst,*)  DB= ; DL= ; DS= ; NI=noinst ;;
+	 *,sbin,*) DB= ; DL= ; DS=sbin ; NI= ;;
+	 *) echo "Unrecognized input: <$c,$d,$s>" >&2
+	    touch $sdir/genLocInfo.rc1
+	    continue
+	    ;;
+	esac
+	case "$c,$d,$s" in
+	 *,*,1) ;;
+	 *,*,1m) ;;
+	 *,*,1M) ;;
+	 *,*,8) ;;
+	 *) echo "Unrecognized input: <$c,$d,$s>" >&2
+	    touch $sdir/genLocInfo.rc1
+	    continue
+	    ;;
+	esac
+
+	# Should be OK, mostly...
+	C=`echo $c | sed -e 'y/abcdefghijklmnopqrstuvwxyz-/ABCDEFGHIJKLMNOPQRSTUVWXYZ_/'`
+	# echo "c: <$c>, C: <$C>, DB: <$DB>, DL: <$DL>, DS: <$DS>" >&2
+
+	case "$d" in
+	 bin)
+	    eval ${C}_DB=$c
+	    eval ${C}_DL=
+	    eval ${C}_DS=
+	    eval ${C}_NI=
+	    ;;
+	 libexec)
+	    eval ${C}_DB=
+	    eval ${C}_DL=$c
+	    eval ${C}_DS=
+	    eval ${C}_NI=
+	    ;;
+	 noinst)
+	    eval ${C}_DB=
+	    eval ${C}_DL=
+	    eval ${C}_DS=
+	    eval ${C}_NI=$c
+	    ;;
+	 sbin)
+	    eval ${C}_DB=
+	    eval ${C}_DL=
+	    eval ${C}_DS=$c
+	    eval ${C}_NI=
+	    ;;
+	 *) echo "$0: installdir <$d> must be bin, sbin, libexec, or noinst" >&2
+	    exit 1
+	    ;;
+	esac
+	eval ${C}_MS=$s
+
+	# echo "<$c> gets installed in <$d> with a <$s> manpage suffix" >&2
+	# echo "${C}_DB is <`eval echo '$'${C}_DB`>" >&2
+	# echo "${C}_DL is <`eval echo '$'${C}_DL`>" >&2
+	# echo "${C}_DS is <`eval echo '$'${C}_DS`>" >&2
+	# echo "${C}_NI is <`eval echo '$'${C}_NI`>" >&2
+	# echo "${C}_MS is <`eval echo '$'${C}_MS`>" >&2
+	echo "${C}_DB=`eval echo '$'${C}_DB`"
+	echo "${C}_DL=`eval echo '$'${C}_DL`"
+	echo "${C}_DS=`eval echo '$'${C}_DS`"
+	echo "${C}_NI=`eval echo '$'${C}_NI`"
+	echo "${C}_MS=`eval echo '$'${C}_MS`"
+
+	touch $sdir/genLocInfo.rc0
+    else
+	break
+    fi
+done < $LF
+IFS=$oIFS
+
+if test -f $sdir/genLocInfo.rc1
+then
+    rm $sdir/genLocInfo.rc?
+    exit 1
+fi
+
+if test -f $sdir/genLocInfo.rc0
+then
+    rm $sdir/genLocInfo.rc?
+    echo 'GENLOCINFO=OK'
+    exit 0
+fi
+
+exit 1

@@ -1,0 +1,64 @@
+/dts-v1/;
+
+#include "AWM002-8M.dtsi"
+
+/ {
+	compatible = "AWM003", "ralink,rt5350-soc";
+	model = "AsiaRF AWM003 EVB";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x4000000>;
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		tx {
+			label = "awm003-evb:green:tx";
+			gpios = <&gpio0 15 1>;
+		};
+
+		rx {
+			label = "awm003-evb:green:rx";
+			gpios = <&gpio0 16 1>;
+		};
+
+		wps {
+			label = "awm003-evb:green:wps";
+			gpios = <&gpio0 21 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset_wps {
+			label = "reset_wps";
+			gpios = <&gpio0 0 1>;
+			linux,code = <0x198>;
+		};
+
+		mode {
+			label = "mode";
+			gpios = <&gpio0 20 1>;
+			linux,code = <0x32>;
+		};
+	};
+};
+
+&m25p80 {
+	compatible = "jedec,spi-nor";
+	linux,modalias = "m25p80", "mx25l6405d";
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x28>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};

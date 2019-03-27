@@ -1,0 +1,470 @@
+
+#------------------------------------------------------------------------------
+# $File: macintosh,v 1.28 2017/12/05 02:17:48 christos Exp $
+# macintosh description
+#
+# BinHex is the Macintosh ASCII-encoded file format (see also "apple")
+# Daniel Quinlan, quinlan@yggdrasil.com
+11	string	must\ be\ converted\ with\ BinHex	BinHex binary text
+!:mime	application/mac-binhex40
+>41	string	x					\b, version %.3s
+
+# Stuffit archives are the de facto standard of compression for Macintosh
+# files obtained from most archives. (franklsm@tuns.ca)
+0	string		SIT!			StuffIt Archive (data)
+!:mime	application/x-stuffit
+!:apple	SIT!SIT!
+>2	string		x			: %s
+0	string		SITD			StuffIt Deluxe (data)
+>2	string		x			: %s
+0	string		Seg			StuffIt Deluxe Segment (data)
+>2	string		x			: %s
+
+# Newer StuffIt archives (grant@netbsd.org)
+0	string		StuffIt			StuffIt Archive
+!:mime	application/x-stuffit
+!:apple	SIT!SIT!
+#>162	string		>0			: %s
+
+# Macintosh Applications and Installation binaries (franklsm@tuns.ca)
+# GRR: Too weak
+#0	string		APPL			Macintosh Application (data)
+#>2	string		x			\b: %s
+
+# Macintosh System files (franklsm@tuns.ca)
+# GRR: Too weak
+#0	string		zsys			Macintosh System File (data)
+#0	string		FNDR			Macintosh Finder (data)
+#0	string		libr			Macintosh Library (data)
+#>2	string		x			: %s
+#0	string		shlb			Macintosh Shared Library (data)
+#>2	string		x			: %s
+#0	string		cdev			Macintosh Control Panel (data)
+#>2	string		x			: %s
+#0	string		INIT			Macintosh Extension (data)
+#>2	string		x			: %s
+#0	string		FFIL			Macintosh Truetype Font (data)
+#>2	string		x			: %s
+#0	string		LWFN			Macintosh Postscript Font (data)
+#>2	string		x			: %s
+
+# Additional Macintosh Files (franklsm@tuns.ca)
+# GRR: Too weak
+#0	string		PACT			Macintosh Compact Pro Archive (data)
+#>2	string		x			: %s
+#0	string		ttro			Macintosh TeachText File (data)
+#>2	string		x			: %s
+#0	string		TEXT			Macintosh TeachText File (data)
+#>2	string		x			: %s
+#0	string		PDF			Macintosh PDF File (data)
+#>2	string		x			: %s
+
+# MacBinary format (Eric Fischer, enf@pobox.com)
+# Update: Joerg Jenderek 
+# URL: https://en.wikipedia.org/wiki/MacBinary
+# Reference: http://files.stairways.com/other/macbinaryii-standard-info.txt
+#
+# Unfortunately MacBinary doesn't really have a magic number prior
+# to the MacBinary III format.
+#
+
+# old version number, must be kept at zero for compatibility
+0	byte	0
+# length of filename (must be in the range 1-63)
+>1	ubyte	>0
+# skip T.PIC.LZ INSTRUMENT.7T INVENTORY
+>>1	ubyte	<64
+# skip Docs.MWII ReadMe.MacWrite "Notes (MacWrite II)"
+# by looking for printable characters at beginning of file name
+>>>2	ubelong	>0x1F000000
+# zero fill, must be zero for compatibility
+>>>>74	byte	0
+# zero fill, must be zero for compatibility
+>>>>>82	byte	0
+# MacBinary I		test for valid version numbers
+>>>>>>122	ubeshort	0
+# additional check for creation date after 1 Jan 1970 ~ 7C25B080h
+#>>>>>>>91	ubelong		>0x7c25b07F
+# additional check for undefined header fields in MacBinary I
+#>>>>>>>101	ulong		0
+>>>>>>>0	use	mac-bin
+# MacBinary II		the newer versions begins at 129
+>>>>>>122	ubeshort	0x8181
+>>>>>>>0	use	mac-bin
+# MacBinary III with MacBinary II to read
+>>>>>122	ubeshort	0x8281
+>>>>>>0	use	mac-bin
+
+#	display information of MacBinary file
+0	name		mac-bin
+>122	ubyte	x	MacBinary
+# versions for MacBinary II/III
+>122	ubyte	129		II
+>122	ubyte	130		III
+# only in MacBinary III
+>>102	string	!mBIN		with surprising version
+!:mime	application/x-macbinary
+!:apple	PSPTBINA
+!:ext	bin/macbin
+# THIS SHOULD NEVER HAPPEN! Maybe another file type is misidetified as MacBinary
+#>1	ubyte	>63		\b, name length %u too BIG!
+#>122	ubeshort	x	\b, version 0x%x
+# Finder flags if not 0
+# >73	byte		!0		\b, flags 0x
+# >73	byte		=0		
+# >>101	byte		!0		\b, flags 0x
+# # original Finder flags (Bits 8-15)
+# >73	byte		!0		\b%x
+# # finder flags, bits 0-7
+# >101	byte		!0		\b%x
+>73	byte		&0x01		\b, inited
+>73	byte		&0x02		\b, changed
+>73	byte		&0x04		\b, busy
+>73	byte		&0x08		\b, bozo
+>73	byte		&0x10		\b, system
+>73	byte		&0x20		\b, bundle
+>73	byte		&0x40		\b, invisible
+>73	byte		&0x80		\b, locked
+
+# 75	beshort				# vertical posn in window
+#>75	beshort		!0		\b, v.pos %u
+# 77	beshort				# horiz posn in window
+#>77	beshort		!0		\b, h.pos %u
+# 79	beshort				# window or folder ID
+>79	ubeshort	!0		\b, ID 0x%x
+# protected flag
+>81	byte		!0		\b, protected 0x%x
+# length of comment after resource
+>99	ubeshort	!0		\b, comment length %u
+# char. code of file name
+>106	ubyte		!0		\b, char. code 0x%x
+# still more Finder flags
+>107	ubyte		!0		\b, more flags 0x%x
+# length of total files when unpacked only used when pack and unpack on the fly
+>116	ubelong		!0		\b, total length %u
+# 120	beshort				# length of add'l header
+>120	ubeshort	!0		\b, 2nd header length %u
+# 124	beshort				# checksum
+#>124	ubeshort	!0		\b, CRC 0x%x
+# creation date in seconds since MacOS epoch start. So 1 Jan 1970 ~ 7C25B080
+>91	beldate-0x7C25B080	x	\b, %s
+# THIS SHOULD NEVER HAPPEN! Maybe another file type is misidetified or time overflow
+>91	ubelong		<0x7c25b080	INVALID date
+#>91	belong-0x7C25B080	x	\b, DEBUG DATE %d
+# last modified date
+>95	beldate-0x7C25B080	x	\b, modified %s
+# Apple creator+typ if not null
+# file creator (normally expressed as four characters)
+>69	ulong			!0	\b, creator
+# instead 4 character code display full creator name
+>>69	use			apple-creator
+# file type (normally expressed as four characters)
+>65	ulong			!0	\b, type
+>>65	use			apple-type
+# length of data segment
+>83	ubelong			!0	\b, %u bytes
+# filename (in the range 1-63)
+>1	pstring			x	"%s"
+# print 1 space and then at offset 128 inspect data fork content if it has one
+>83	ubelong			!0	\b 
+>>128	indirect		x
+# Afterwards resource fork if length of resource segment not zero
+>87	ubelong			!0
+# calculate resource fork offset
+>>83	ubelong+128		x	\b, at 0x%x
+# length of resource segment
+>>87	ubelong			!0	%u bytes
+>>(83.S+128)	ubequad		x	resource 
+# further resource fork content inspection 
+>>>&-8	indirect		x
+
+# Apple Type/Creator Database
+# URL: https://en.wikipedia.org/wiki/Type_code
+# Reference:	http://www.lacikam.co.il/tcdb/
+#		http://www.macdisk.com/macsigen.php
+# Note:	classic Mac OS files have two 4 character codes for type and creator.
+#	Thereby the Finder attach documents types to applications.
+
+#>65	string		x		\b, type "%4.4s"
+
+#	display information about apple type
+0	name		apple-type
+>0	string		8BIM		PhotoShop
+>0	string		ALB3		PageMaker 3
+>0	string		ALB4		PageMaker 4
+>0	string		ALT3		PageMaker 3
+>0	string		APPL		application
+>0	string		AWWP		AppleWorks word processor
+>0	string		CIRC		simulated circuit
+>0	string		DRWG		MacDraw
+>0	string		EPSF		Encapsulated PostScript
+>0	string		FFIL		font suitcase
+>0	string		FKEY		function key
+>0	string		FNDR		Macintosh Finder
+>0	string		GIFf		GIF image
+>0	string		Gzip		GNU gzip
+>0	string		INIT		system extension
+>0	string		LIB\ 		library
+>0	string		LWFN		PostScript font
+>0	string		MSBC		Microsoft BASIC
+>0	string		PACT		Compact Pro archive
+>0	string		PDF\ 		Portable Document Format
+>0	string		PICT		picture
+>0	string		PNTG		MacPaint picture
+>0	string		PREF		preferences
+>0	string		PROJ		Think C project
+>0	string		QPRJ		Think Pascal project
+>0	string		SCFL		Defender scores
+>0	string		SCRN		startup screen
+>0	string		SITD		StuffIt Deluxe
+>0	string		SPn3		SuperPaint
+>0	string		STAK		HyperCard stack
+>0	string		Seg\ 		StuffIt segment
+>0	string		TARF		Unix tar archive
+>0	string		TEXT		ASCII
+>0	string		TIFF		TIFF image
+>0	string		TOVF		Eudora table of contents
+>0	string		WDBN		Microsoft Word word processor
+>0	string		WORD		MacWrite word processor
+>0	string		XLS\ 		Microsoft Excel
+>0	string		ZIVM		compress (.Z)
+>0	string		ZSYS		Pre-System 7 system file
+>0	string		acf3		Aldus FreeHand
+>0	string		cdev		control panel
+>0	string		dfil		Desk Accessory suitcase
+>0	string		libr		library
+>0	string		nX^d		WriteNow word processor
+>0	string		nX^w		WriteNow dictionary
+>0	string		rsrc		resource
+>0	string		scbk		Scrapbook
+>0	string		shlb		shared library
+>0	string		ttro		SimpleText read-only
+>0	string		zsys		system file
+
+#	additional types added in Dec 2017
+>0	string		BINA		binary file
+>0	string		BMPp		BMP image
+>0	string		JPEG		JPEG image
+#>0	string		W4BN		Microsoft Word x.y word processor?
+# if type name is not known display 4 character identifier
+>0	default		x		
+>>0	string		x		'%4.4s'
+
+#>69	string		x		\b, creator "%4.4s"
+
+# Now Apple has no repository of registered Creator IDs any more. These are
+# just the ones that I happened to have files from and was able to identify.
+
+#	display information about apple creator
+0	name		apple-creator
+>0	string		8BIM		Adobe Photoshop
+>0	string		ALD3		PageMaker 3
+>0	string		ALD4		PageMaker 4
+>0	string		ALFA		Alpha editor
+>0	string		APLS		Apple Scanner
+>0	string		APSC		Apple Scanner
+>0	string		BRKL		Brickles
+>0	string		BTFT		BitFont
+>0	string		CCL2		Common Lisp 2
+>0	string		CCL\ 		Common Lisp
+>0	string		CDmo		The Talking Moose
+>0	string		CPCT		Compact Pro
+>0	string		CSOm		Eudora
+>0	string		DMOV		Font/DA Mover
+>0	string		DSIM		DigSim
+>0	string		EDIT		Macintosh Edit
+>0	string		ERIK		Macintosh Finder
+>0	string		EXTR		self-extracting archive
+>0	string		Gzip		GNU gzip
+>0	string		KAHL		Think C
+>0	string		LWFU		LaserWriter Utility
+>0	string		LZIV		compress
+>0	string		MACA		MacWrite
+>0	string		MACS		Macintosh operating system
+>0	string		MAcK		MacKnowledge terminal emulator
+>0	string		MLND		Defender
+>0	string		MPNT		MacPaint
+>0	string		MSBB		Microsoft BASIC (binary)
+>0	string		MSWD		Microsoft Word
+>0	string		NCSA		NCSA Telnet
+>0	string		PJMM		Think Pascal
+>0	string		PSAL		Hunt the Wumpus
+#>0	string		PSI2		Apple File Exchange
+>0	string		R*ch		BBEdit
+>0	string		RMKR		Resource Maker
+>0	string		RSED		Resource Editor
+>0	string		Rich		BBEdit
+>0	string		SIT!		StuffIt
+>0	string		SPNT		SuperPaint
+>0	string		Unix		NeXT Mac filesystem
+>0	string		VIM!		Vim editor
+>0	string		WILD		HyperCard
+>0	string		XCEL		Microsoft Excel
+>0	string		aCa2		Fontographer
+>0	string		aca3		Aldus FreeHand
+>0	string		dosa		Macintosh MS-DOS file system
+>0	string		movr		Font/DA Mover
+>0	string		nX^n		WriteNow
+>0	string		pdos		Apple ProDOS file system
+>0	string		scbk		Scrapbook
+>0	string		ttxt		SimpleText
+>0	string		ufox		Foreign File Access
+#	additional creators added in Dec 2017
+# Claris/Apple Works
+>0	string		BOBO		Apple Works
+# CU-SeeMe_0.87b3_(68K).bin
+#>0	string		CUce		bar
+>0	string		PSPT		Apple File Exchange
+# Disk_Copy_4.2.sea.bin
+#>0	string		NCse		foo
+# probably StuffIt/Aladdin by Smith Micro Software, Inc.
+>0	string		STi0		stuffit
+# MacGzip-1.1.3.sea.bin
+#>0	string		aust		bar
+# D-Disk_Copy_6.3.3.smi.bin 
+>0	string		oneb		Disk Copy Self Mounting
+# if creator name is not known display 4 character identifier
+>0	default		x		
+>>0	string		x		'%4.4s'
+
+# sas magic from Bruce Foster (bef@nwu.edu)
+#
+#0	string		SAS		SAS
+#>8	string		x		%s
+0	string		SAS		SAS
+>24	string		DATA		data file
+>24	string		CATALOG		catalog
+>24	string		INDEX		data file index
+>24	string		VIEW		data view
+# sas 7+ magic from Reinhold Koch (reinhold.koch@roche.com)
+#
+0x54    string          SAS             SAS 7+
+>0x9C   string          DATA            data file
+>0x9C   string          CATALOG         catalog
+>0x9C   string          INDEX           data file index
+>0x9C   string          VIEW            data view
+
+# spss magic for SPSS system and portable files,
+#	 from Bruce Foster (bef@nwu.edu).
+
+0	long		0xc1e2c3c9	SPSS Portable File
+>40	string 		x		%s
+
+0	string		$FL2		SPSS System File
+>24	string		x		%s
+
+0	string		$FL3		SPSS System File
+>24	string		x		%s
+
+# Macintosh filesystem data
+# From "Tom N Harris" <telliamed@mac.com>
+# Fixed HFS+ and Partition map magic: Ethan Benson <erbenson@alaska.net>
+# The MacOS epoch begins on 1 Jan 1904 instead of 1 Jan 1970, so these
+# entries depend on the data arithmetic added after v.35
+# There's also some Pascal strings in here, ditto...
+
+# The boot block signature, according to IM:Files, is
+# "for HFS volumes, this field always contains the value 0x4C4B."
+# But if this is true for MFS or HFS+ volumes, I don't know.
+# Alternatively, the boot block is supposed to be zeroed if it's
+# unused, so a simply >0 should suffice.
+
+0x400	beshort			0xD2D7		Macintosh MFS data
+>0	beshort			0x4C4B		(bootable)
+>0x40a	beshort			&0x8000		(locked)
+>0x402	beldate-0x7C25B080	x		created: %s,
+>0x406	beldate-0x7C25B080	>0		last backup: %s,
+>0x414	belong			x		block size: %d,
+>0x412	beshort			x		number of blocks: %d,
+>0x424	pstring			x		volume name: %s
+
+# *.hfs updated by Joerg Jenderek
+# http://en.wikipedia.org/wiki/Hierarchical_File_System
+# "BD" gives many false positives
+0x400	beshort			0x4244
+# ftp://ftp.mars.org/pub/hfs/hfsutils-3.2.6.tar.gz/hfsutils-3.2.6/libhfs/apple.h
+# first block of volume bit map (always 3)
+>0x40e	ubeshort		0x0003
+# maximal length of volume name is 27
+>>0x424		ubyte			<28	Macintosh HFS data
+!:mime	application/x-apple-diskimage
+#!:apple	hfsdINIT
+#!:apple	MACSdisk
+# http://www.macdisk.com/macsigen.php
+#!:apple	ddskdevi
+!:apple	????devi
+# https://en.wikipedia.org/wiki/Apple_Disk_Image
+!:ext hfs/dmg
+>>>0		beshort			0x4C4B	(bootable)
+#>>>0		beshort			0x0000	(not bootable)
+>>>0x40a	beshort			&0x8000	(locked)
+>>>0x40a	beshort			^0x0100	(mounted)
+>>>0x40a	beshort			&0x0200	(spared blocks)
+>>>0x40a	beshort			&0x0800	(unclean)
+>>>0x47C	beshort			0x482B	(Embedded HFS+ Volume)
+# http://www.epochconverter.com/
+# 0x7C245F00 seconds	~ 2082758400	~ 01 Jan 2036 00:00:00	~ 66 years to 1970
+# 0x7C25B080 seconds	~ 2082844800	~ 02 Jan 2036 00:00:00
+# construct not working
+#>>>0x402	beldate-0x7C25B080	x	created: %s,
+#>>>0x406	beldate-0x7C25B080	x	last modified: %s,
+#>>>0x440	beldate-0x7C25B080	>0	last backup: %s,
+# found block sizes 200h,1200h,2800h
+>>>0x414	belong			x	block size: %d,
+>>>0x412	beshort			x	number of blocks: %d,
+>>>0x424	pstring			x	volume name: %s
+
+0x400	beshort			0x482B		Macintosh HFS Extended
+>&0	beshort			x		version %d data
+>0	beshort			0x4C4B		(bootable)
+>0x404	belong			^0x00000100	(mounted)
+>&2	belong			&0x00000200	(spared blocks)
+>&2	belong			&0x00000800	(unclean)
+>&2	belong			&0x00008000	(locked)
+>&6	string			x		last mounted by: '%.4s',
+# really, that should be treated as a belong and we print a string
+# based on the value. TN1150 only mentions '8.10' for "MacOS 8.1"
+>&14	beldate-0x7C25B080	x		created: %s,
+# only the creation date is local time, all other timestamps in HFS+ are UTC.
+>&18	bedate-0x7C25B080	x		last modified: %s,
+>&22	bedate-0x7C25B080	>0		last backup: %s,
+>&26	bedate-0x7C25B080	>0		last checked: %s,
+>&38	belong			x		block size: %d,
+>&42	belong			x		number of blocks: %d,
+>&46	belong			x		free blocks: %d
+
+## AFAIK, only the signature is different
+# same as Apple Partition Map
+# GRR: This magic is too weak, it is just "TS"
+#0x200		beshort		0x5453		Apple Old Partition data
+#>0x2		beshort		x		block size: %d,
+#>0x230		string		x		first type: %s,
+#>0x210		string		x		name: %s,
+#>0x254		belong		x		number of blocks: %d,
+#>0x400		beshort		0x504D
+#>>0x430		string		x		second type: %s,
+#>>0x410		string		x		name: %s,
+#>>0x454		belong		x		number of blocks: %d,
+#>>0x800		beshort		0x504D
+#>>>0x830	string		x		third type: %s,
+#>>>0x810	string		x		name: %s,
+#>>>0x854	belong		x		number of blocks: %d,
+#>>>0xa00	beshort		0x504D
+#>>>>0xa30	string		x		fourth type: %s,
+#>>>>0xa10	string		x		name: %s,
+#>>>>0xa54	belong		x		number of blocks: %d
+
+# From: Remi Mommsen <mommsen@slac.stanford.edu>
+0		string		BOMStore	Mac OS X bill of materials (BOM) file
+
+# From: Adam Buchbinder <adam.buchbinder@gmail.com>
+# URL: http://en.wikipedia.org/wiki/Datafork_TrueType
+# Derived from the 'fondu' and 'ufond' source code (fondu.sf.net). 'sfnt' is
+# TrueType; 'POST' is PostScript. 'FONT' and 'NFNT' sometimes appear, but I
+# don't know what they mean.
+0	belong	0x100
+>(0x4.L+24)	beshort	x
+>>&4	belong	0x73666e74	Mac OSX datafork font, TrueType
+>>&4	belong	0x464f4e54	Mac OSX datafork font, 'FONT'
+>>&4	belong	0x4e464e54	Mac OSX datafork font, 'NFNT'
+>>&4	belong	0x504f5354	Mac OSX datafork font, PostScript

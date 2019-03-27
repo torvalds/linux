@@ -1,0 +1,88 @@
+.\"	$NetBSD: vslock.9,v 1.1 1996/06/15 20:47:29 pk Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 29, 2012
+.Dt VSLOCK 9
+.Os
+.Sh NAME
+.Nm vslock ,
+.Nm vsunlock
+.Nd lock/unlock user space addresses in memory
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
+.In vm/vm.h
+.In vm/vm_extern.h
+.Ft int
+.Fn vslock "void *addr" "size_t len"
+.Ft void
+.Fn vsunlock "void *addr" "size_t len"
+.Sh DESCRIPTION
+The
+.Fn vslock
+and
+.Fn vsunlock
+functions respectively lock and unlock a range of
+addresses belonging to the currently running process into memory.
+The actual amount of memory locked is a multiple of the machine's page size.
+The starting page number is computed by truncating
+.Fa addr
+to the nearest preceding page boundary, and by rounding up
+.Fa addr +
+.Fa len
+to the next page boundary.
+The process context to use for this operation is taken from the
+global variable
+.Va curproc .
+.Sh RETURN VALUES
+The
+.Fn vslock
+function will return 0 on success, otherwise it will return
+one of the errors listed below.
+.Sh ERRORS
+The
+.Fn vslock
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa addr
+and
+.Fa len
+parameters specify a memory range that wraps around the end of the
+machine address space.
+.It Bq Er ENOMEM
+The size of the specified address range exceeds the system
+limit on locked memory.
+.It Bq Er EFAULT
+Some portion of the indicated address range is not allocated.
+There was an error faulting/mapping a page.
+.El

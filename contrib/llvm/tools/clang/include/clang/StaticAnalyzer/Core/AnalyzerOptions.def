@@ -1,0 +1,377 @@
+//===-- AnalyzerOptions.def - Metadata about Static Analyses ----*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+//  This file defines the analyzer options avaible with -analyzer-config.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_ADT_STRINGREF_H
+#error This .def file is expected to be included in translation units where \
+"llvm/ADT/StringRef.h" is already included!
+#endif
+
+#ifdef ANALYZER_OPTION
+#ifndef ANALYZER_OPTION_DEPENDS_ON_USER_MODE
+#error If you didnt include this file with the intent of generating methods, \
+define both 'ANALYZER_OPTION' and 'ANALYZER_OPTION_DEPENDS_ON_USER_MODE' macros!
+#endif
+#endif
+
+#ifndef ANALYZER_OPTION_DEPENDS_ON_USER_MODE
+#ifdef ANALYZER_OPTION
+#error If you didnt include this file with the intent of generating methods, \
+define both 'ANALYZER_OPTION' and 'ANALYZER_OPTION_DEPENDS_ON_USER_MODE' macros!
+#endif
+#endif
+
+#ifndef ANALYZER_OPTION
+/// Create a new analyzer option, but dont generate a method for it in
+/// AnalyzerOptions.
+///
+///   TYPE - The type of the option object that will be stored in
+///          AnalyzerOptions. This file is expected to be icluded in translation
+///          units where AnalyzerOptions.h is included, so types from that
+///          header should be used.
+///   NAME - The name of the option object.
+///   CMDFLAG - The command line flag for the option.
+///             (-analyzer-config CMDFLAG=VALUE)
+///   DESC - Description of the flag.
+///   DEFAULT_VAL - The default value for CMDFLAG.
+#define ANALYZER_OPTION(TYPE, NAME, CMDFLAG, DESC, DEFAULT_VAL)
+#endif
+
+#ifndef ANALYZER_OPTION_DEPENDS_ON_USER_MODE
+/// Create a new analyzer option, but dont generate a method for it in
+/// AnalyzerOptions. It's value depends on the option "user-mode".
+///
+///   TYPE - The type of the option object that will be stored in
+///          AnalyzerOptions. This file is expected to be icluded in translation
+///          units where AnalyzerOptions.h is included, so types from that
+///          header should be used.
+///   NAME - The name of the option object.
+///   CMDFLAG - The command line flag for the option.
+///             (-analyzer-config CMDFLAG=VALUE)
+///   DESC - Description of the flag.
+///   SHALLOW_VAL - The default value for CMDFLAG, when "user-mode" was set to
+///                 "shallow".
+///   DEEP_VAL - The default value for CMDFLAG, when "user-mode" was set to
+///              "deep".
+#define ANALYZER_OPTION_DEPENDS_ON_USER_MODE(TYPE, NAME, CMDFLAG, DESC,        \
+                                             SHALLOW_VAL, DEEP_VAL)
+#endif
+
+//===----------------------------------------------------------------------===//
+// The "mode" option. Since some options depend on this, we list it on top of
+// this file in order to make sure that the generated field for it is
+// initialized before the rest.
+//===----------------------------------------------------------------------===//
+
+ANALYZER_OPTION(
+    StringRef, UserMode, "mode",
+    "(string) Controls the high-level analyzer mode, which influences the "
+    "default settings for some of the lower-level config options (such as "
+    "IPAMode). Value: \"deep\", \"shallow\".",
+    "deep")
+
+//===----------------------------------------------------------------------===//
+// Boolean analyzer options.
+//===----------------------------------------------------------------------===//
+
+ANALYZER_OPTION(bool, ShouldIncludeImplicitDtorsInCFG, "cfg-implicit-dtors",
+                "Whether or not implicit destructors for C++ objects "
+                "should be included in the CFG.",
+                true)
+
+ANALYZER_OPTION(bool, ShouldIncludeTemporaryDtorsInCFG, "cfg-temporary-dtors",
+                "Whether or not the destructors for C++ temporary "
+                "objects should be included in the CFG.",
+                true)
+
+ANALYZER_OPTION(
+    bool, ShouldIncludeLifetimeInCFG, "cfg-lifetime",
+    "Whether or not end-of-lifetime information should be included in the CFG.",
+    false)
+
+ANALYZER_OPTION(bool, ShouldIncludeLoopExitInCFG, "cfg-loopexit",
+                "Whether or not the end of the loop information should "
+                "be included in the CFG.",
+                false)
+
+ANALYZER_OPTION(bool, ShouldIncludeRichConstructorsInCFG,
+                "cfg-rich-constructors",
+                "Whether or not construction site information should be "
+                "included in the CFG C++ constructor elements.",
+                true)
+
+ANALYZER_OPTION(
+    bool, ShouldIncludeScopesInCFG, "cfg-scopes",
+    "Whether or not scope information should be included in the CFG.", false)
+
+ANALYZER_OPTION(
+    bool, MayInlineTemplateFunctions, "c++-template-inlining",
+    "Whether or not templated functions may be considered for inlining.", true)
+
+ANALYZER_OPTION(bool, MayInlineCXXStandardLibrary, "c++-stdlib-inlining",
+                "Whether or not C++ standard library functions may be "
+                "considered for inlining.",
+                true)
+
+ANALYZER_OPTION(bool, MayInlineCXXAllocator, "c++-allocator-inlining",
+                "Whether or not allocator call may be considered for inlining.",
+                true)
+
+ANALYZER_OPTION(
+    bool, MayInlineCXXSharedPtrDtor, "c++-shared_ptr-inlining",
+    "Whether or not the destructor of C++ 'shared_ptr' may be considered for "
+    "inlining. This covers std::shared_ptr, std::tr1::shared_ptr, and "
+    "boost::shared_ptr, and indeed any destructor named '~shared_ptr'.",
+    false)
+
+ANALYZER_OPTION(bool, MayInlineCXXTemporaryDtors, "c++-temp-dtor-inlining",
+                "Whether C++ temporary destructors should be inlined "
+                "during analysis. If temporary destructors are disabled "
+                "in the CFG via the 'cfg-temporary-dtors' option, "
+                "temporary destructors would not be inlined anyway.",
+                true)
+
+ANALYZER_OPTION(
+    bool, ShouldSuppressNullReturnPaths, "suppress-null-return-paths",
+    "Whether or not paths that go through null returns should be suppressed. "
+    "This is a heuristic for avoiding bug reports with paths that go through "
+    "inlined functions that are more defensive than their callers.",
+    true)
+
+ANALYZER_OPTION(
+    bool, ShouldAvoidSuppressingNullArgumentPaths,
+    "avoid-suppressing-null-argument-paths",
+    "Whether a bug report should not be suppressed if its path includes a call "
+    "with a null argument, even if that call has a null return. This option "
+    "has no effect when ShouldSuppressNullReturnPaths is false. This is a "
+    "counter-heuristic to avoid false negatives.",
+    false)
+
+ANALYZER_OPTION(bool, ShouldSuppressInlinedDefensiveChecks,
+                "suppress-inlined-defensive-checks",
+                "Whether or not diagnostics containing inlined "
+                "defensive NULL checks should be suppressed.",
+                true)
+
+ANALYZER_OPTION(bool, MayInlineCXXContainerMethods, "c++-container-inlining",
+                "Whether or not methods of C++ container objects may be "
+                "considered for inlining.",
+                false)
+
+ANALYZER_OPTION(bool, ShouldSuppressFromCXXStandardLibrary,
+                "suppress-c++-stdlib",
+                "Whether or not diagnostics reported within the C++ "
+                "standard library should be suppressed.",
+                true)
+
+ANALYZER_OPTION(bool, ShouldCrosscheckWithZ3, "crosscheck-with-z3",
+                "Whether bug reports should be crosschecked with the Z3 "
+                "constraint manager backend.",
+                false)
+
+ANALYZER_OPTION(bool, ShouldReportIssuesInMainSourceFile,
+                "report-in-main-source-file",
+                "Whether or not the diagnostic report should be always "
+                "reported in the main source file and not the headers.",
+                false)
+
+ANALYZER_OPTION(bool, ShouldWriteStableReportFilename, "stable-report-filename",
+                "Whether or not the report filename should be random or not.",
+                false)
+
+ANALYZER_OPTION(
+    bool, ShouldSerializeStats, "serialize-stats",
+    "Whether the analyzer should serialize statistics to plist output. "
+    "Statistics would be serialized in JSON format inside the main dictionary "
+    "under the statistics key. Available only if compiled in assert mode or "
+    "with LLVM statistics explicitly enabled.",
+    false)
+
+ANALYZER_OPTION(bool, MayInlineObjCMethod, "objc-inlining",
+                "Whether ObjectiveC inlining is enabled, false otherwise.",
+                true)
+
+ANALYZER_OPTION(bool, ShouldPrunePaths, "prune-paths",
+                "Whether irrelevant parts of a bug report path should "
+                "be pruned out of the final output.",
+                true)
+
+ANALYZER_OPTION(
+    bool, ShouldConditionalizeStaticInitializers,
+    "cfg-conditional-static-initializers",
+    "Whether 'static' initializers should be in conditional logic in the CFG.",
+    true)
+
+ANALYZER_OPTION(bool, ShouldSynthesizeBodies, "faux-bodies",
+                "Whether the analyzer engine should synthesize fake "
+                "bodies for well-known functions.",
+                true)
+
+ANALYZER_OPTION(
+    bool, ShouldElideConstructors, "elide-constructors",
+    "Whether elidable C++ copy-constructors and move-constructors should be "
+    "actually elided during analysis. Both behaviors are allowed by the C++ "
+    "standard, and the analyzer, like CodeGen, defaults to eliding. Starting "
+    "with C++17 some elisions become mandatory, and in these cases the option "
+    "will be ignored.",
+    true)
+
+ANALYZER_OPTION(
+    bool, ShouldInlineLambdas, "inline-lambdas",
+    "Whether lambdas should be inlined. Otherwise a sink node will be "
+    "generated each time a LambdaExpr is visited.",
+    true)
+
+ANALYZER_OPTION(bool, ShouldWidenLoops, "widen-loops",
+                "Whether the analysis should try to widen loops.", false)
+
+ANALYZER_OPTION(
+    bool, ShouldUnrollLoops, "unroll-loops",
+    "Whether the analysis should try to unroll loops with known bounds.", false)
+
+ANALYZER_OPTION(
+    bool, ShouldDisplayNotesAsEvents, "notes-as-events",
+    "Whether the bug reporter should transparently treat extra note diagnostic "
+    "pieces as event diagnostic pieces. Useful when the diagnostic consumer "
+    "doesn't support the extra note pieces.",
+    false)
+
+ANALYZER_OPTION(
+    bool, ShouldAggressivelySimplifyBinaryOperation,
+    "aggressive-binary-operation-simplification",
+    "Whether SValBuilder should rearrange comparisons and additive operations "
+    "of symbolic expressions which consist of a sum of a symbol and a concrete "
+    "integer into the format where symbols are on the left-hand side and the "
+    "integer is on the right. This is only done if both symbols and both "
+    "concrete integers are signed, greater than or equal to the quarter of the "
+    "minimum value of the type and less than or equal to the quarter of the "
+    "maximum value of that type. A + n <OP> B + m becomes A - B <OP> m - n, "
+    "where A and B symbolic, n and m are integers. <OP> is any of '==', '!=', "
+    "'<', '<=', '>', '>=', '+' or '-'. The rearrangement also happens with '-' "
+    "instead of '+' on either or both side and also if any or both integers "
+    "are missing.",
+    false)
+
+ANALYZER_OPTION(
+    bool, ShouldEagerlyAssume, "eagerly-assume",
+    "Whether we should eagerly assume evaluations of conditionals, thus, "
+    "bifurcating the path. This indicates how the engine should handle "
+    "expressions such as: 'x = (y != 0)'. When this is true then the "
+    "subexpression 'y != 0' will be eagerly assumed to be true or false, thus "
+    "evaluating it to the integers 0 or 1 respectively. The upside is that "
+    "this can increase analysis precision until we have a better way to lazily "
+    "evaluate such logic. The downside is that it eagerly bifurcates paths.",
+    true)
+
+ANALYZER_OPTION(
+    bool, IsNaiveCTUEnabled, "experimental-enable-naive-ctu-analysis",
+    "Whether naive cross translation unit analysis is enabled. This is an "
+    "experimental feature to inline functions from other translation units.",
+    false)
+
+ANALYZER_OPTION(bool, ShouldDisplayMacroExpansions, "expand-macros",
+                "Whether macros related to the bugpath should be "
+                "expanded and included in the plist output.",
+                false)
+
+ANALYZER_OPTION(bool, DisplayCTUProgress, "display-ctu-progress",
+                "Whether to emit verbose output about "
+                "the analyzer's progress related to ctu.",
+                false)
+
+//===----------------------------------------------------------------------===//
+// Unsinged analyzer options.
+//===----------------------------------------------------------------------===//
+
+ANALYZER_OPTION(
+    unsigned, AlwaysInlineSize, "ipa-always-inline-size",
+    "The size of the functions (in basic blocks), which should be considered "
+    "to be small enough to always inline.",
+    3)
+
+ANALYZER_OPTION(
+    unsigned, GraphTrimInterval, "graph-trim-interval",
+    "How often nodes in the ExplodedGraph should be recycled to save memory. "
+    "To disable node reclamation, set the option to 0.",
+    1000)
+
+ANALYZER_OPTION(
+    unsigned, MinCFGSizeTreatFunctionsAsLarge,
+    "min-cfg-size-treat-functions-as-large",
+    "The number of basic blocks a function needs to have to be considered "
+    "large for the 'max-times-inline-large' config option.",
+    14)
+
+ANALYZER_OPTION(unsigned, MaxSymbolComplexity, "max-symbol-complexity",
+                "The maximum complexity of symbolic constraint.", 35)
+
+ANALYZER_OPTION(unsigned, MaxTimesInlineLarge, "max-times-inline-large",
+                "The maximum times a large function could be inlined.", 32)
+
+ANALYZER_OPTION_DEPENDS_ON_USER_MODE(
+    unsigned, MaxInlinableSize, "max-inlinable-size",
+    "The bound on the number of basic blocks in an inlined function.",
+    /* SHALLOW_VAL */ 4, /* DEEP_VAL */ 100)
+
+ANALYZER_OPTION_DEPENDS_ON_USER_MODE(
+    unsigned, MaxNodesPerTopLevelFunction, "max-nodes",
+    "The maximum number of nodes the analyzer can generate while exploring a "
+    "top level function (for each exploded graph). 0 means no limit.",
+    /* SHALLOW_VAL */ 75000, /* DEEP_VAL */ 225000)
+
+ANALYZER_OPTION(
+    unsigned, RegionStoreSmallStructLimit, "region-store-small-struct-limit",
+    "The largest number of fields a struct can have and still be considered "
+    "small This is currently used to decide whether or not it is worth forcing "
+    "a LazyCompoundVal on bind. To disable all small-struct-dependent "
+    "behavior, set the option to 0.",
+    2)
+
+//===----------------------------------------------------------------------===//
+// String analyzer options.
+//===----------------------------------------------------------------------===//
+
+ANALYZER_OPTION(StringRef, CTUDir, "ctu-dir",
+                "The directory containing the CTU related files.", "")
+
+ANALYZER_OPTION(StringRef, CTUIndexName, "ctu-index-name",
+                "the name of the file containing the CTU index of definitions.",
+                "externalDefMap.txt")
+
+ANALYZER_OPTION(
+    StringRef, ModelPath, "model-path",
+    "The analyzer can inline an alternative implementation written in C at the "
+    "call site if the called function's body is not available. This is a path "
+    "where to look for those alternative implementations (called models).",
+    "")
+
+ANALYZER_OPTION(
+    StringRef, CXXMemberInliningMode, "c++-inlining",
+    "Controls which C++ member functions will be considered for inlining. "
+    "Value: \"constructors\", \"destructors\", \"methods\".",
+    "destructors")
+
+ANALYZER_OPTION_DEPENDS_ON_USER_MODE(
+    StringRef, IPAMode, "ipa",
+    "Controls the mode of inter-procedural analysis. Value: \"none\", "
+    "\"basic-inlining\", \"inlining\", \"dynamic\", \"dynamic-bifurcate\".",
+    /* SHALLOW_VAL */ "inlining", /* DEEP_VAL */ "dynamic-bifurcate")
+
+ANALYZER_OPTION(
+    StringRef, ExplorationStrategy, "exploration_strategy",
+    "Value: \"dfs\", \"bfs\", \"unexplored_first\", "
+    "\"unexplored_first_queue\", \"unexplored_first_location_queue\", "
+    "\"bfs_block_dfs_contents\".",
+    "unexplored_first_queue")
+
+#undef ANALYZER_OPTION_DEPENDS_ON_USER_MODE
+#undef ANALYZER_OPTION

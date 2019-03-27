@@ -1,0 +1,9 @@
+# past problems, and suspected problems
+(A[1])|(A[2])|(A[3])|(A[4])|(A[5])|(A[6])|(A[7])|(A[8])|(A[9])|(A[A])	-	A1	A1
+abcdefghijklmnop	i	abcdefghijklmnop	abcdefghijklmnop
+abcdefghijklmnopqrstuv	i	abcdefghijklmnopqrstuv	abcdefghijklmnopqrstuv
+(ALAK)|(ALT[AB])|(CC[123]1)|(CM[123]1)|(GAMC)|(LC[23][EO ])|(SEM[1234])|(SL[ES][12])|(SLWW)|(SLF )|(SLDT)|(VWH[12])|(WH[34][EW])|(WP1[ESN])	-	CC11	CC11
+CC[13]1|a{21}[23][EO][123][Es][12]a{15}aa[34][EW]aaaaaaa[X]a	-	CC11	CC11
+Char \([a-z0-9_]*\)\[.*	b	Char xyz[k	Char xyz[k	xyz
+a?b	-	ab	ab
+-\{0,1\}[0-9]*$	b	-5	-5

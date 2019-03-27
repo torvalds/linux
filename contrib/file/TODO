@@ -1,0 +1,49 @@
+Most TODOs live in the TODO section of doc/file.man (i.e. file(1)).
+They are more visible there, so please add any further TODOs to that
+file, not here. More speculative material can live here.
+
+(This change was made when Reuben Thomas noticed that all the bugs
+listed in the BUGS section of the man page had been fixed!)
+
+---
+It would be nice to simplify file considerably. For example,
+reimplement the apprentice and non-pattern magic methods in Python,
+and compile the magic patterns to a giant regex (or something similar;
+maybe using Ragel (http://www.complang.org/ragel/)) so that only a
+small amount of C is needed (because fast execution is typically only
+required for soft magic, not the more detailed information given by
+hard-wired routines). In this regard, note that hplip, which is
+BSD-licensed, has a magic reimplementation in Python.
+---
+Read the kerberos magic entry for more ideas.
+---
+Write a string merger to make magic entry sizes dynamic.
+Strings will be converted to offsets from the string table.
+---
+Programming language support, we can introduce the concept of a group
+of rules where n rules need to match before the rule is positive. This
+could require structural changes to the matching code :-(
+
+0	group	2	# require 2 matches
+# rule 1
+>0	....
+...
+# rule 2
+>0	....
+...
+---
+- Merge the stat code dance in one place and keep it in one place
+  (perhaps struct buffer).
+- Enable seeking around if offset > nbytes if possible (the fd
+  is seekable).
+- We could use file_pipe2file more (for EOF offsets, CDF documents),
+  but that is expensive; perhaps we should provide a way to disable it
+- The implementation of struct buffer needs re-thinking and more work.
+  For example we don't always pass the fd in the child. This is not
+  important yet as we don't have yet cases where use/indirect magic
+  needs negative offsets.
+- Really the whole thing just needs here's an (offset, buffer, size)
+  you have (filebuffer, filebuffersize &&|| fd), fill the buffer with
+  data from offset. The buffer API should be changed to just do that.
+
+christos

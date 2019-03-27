@@ -1,0 +1,601 @@
+.\" Copyright (c) 2000-2001 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 22, 2017
+.Dt ATOMIC 9
+.Os
+.Sh NAME
+.Nm atomic_add ,
+.Nm atomic_clear ,
+.Nm atomic_cmpset ,
+.Nm atomic_fcmpset ,
+.Nm atomic_fetchadd ,
+.Nm atomic_load ,
+.Nm atomic_readandclear ,
+.Nm atomic_set ,
+.Nm atomic_subtract ,
+.Nm atomic_store ,
+.Nm atomic_thread_fence
+.Nd atomic operations
+.Sh SYNOPSIS
+.In sys/types.h
+.In machine/atomic.h
+.Ft void
+.Fn atomic_add_[acq_|rel_]<type> "volatile <type> *p" "<type> v"
+.Ft void
+.Fn atomic_clear_[acq_|rel_]<type> "volatile <type> *p" "<type> v"
+.Ft int
+.Fo atomic_cmpset_[acq_|rel_]<type>
+.Fa "volatile <type> *dst"
+.Fa "<type> old"
+.Fa "<type> new"
+.Fc
+.Ft int
+.Fo atomic_fcmpset_[acq_|rel_]<type>
+.Fa "volatile <type> *dst"
+.Fa "<type> *old"
+.Fa "<type> new"
+.Fc
+.Ft <type>
+.Fn atomic_fetchadd_<type> "volatile <type> *p" "<type> v"
+.Ft <type>
+.Fn atomic_load_[acq_]<type> "volatile <type> *p"
+.Ft <type>
+.Fn atomic_readandclear_<type> "volatile <type> *p"
+.Ft void
+.Fn atomic_set_[acq_|rel_]<type> "volatile <type> *p" "<type> v"
+.Ft void
+.Fn atomic_subtract_[acq_|rel_]<type> "volatile <type> *p" "<type> v"
+.Ft void
+.Fn atomic_store_[rel_]<type> "volatile <type> *p" "<type> v"
+.Ft <type>
+.Fn atomic_swap_<type> "volatile <type> *p" "<type> v"
+.Ft int
+.Fn atomic_testandclear_<type> "volatile <type> *p" "u_int v"
+.Ft int
+.Fn atomic_testandset_<type> "volatile <type> *p" "u_int v"
+.Ft void
+.Fn atomic_thread_fence_[acq|acq_rel|rel|seq_cst] "void"
+.Sh DESCRIPTION
+Atomic operations are commonly used to implement reference counts and as
+building blocks for synchronization primitives, such as mutexes.
+.Pp
+All of these operations are performed
+.Em atomically
+across multiple threads and in the presence of interrupts, meaning that they
+are performed in an indivisible manner from the perspective of concurrently
+running threads and interrupt handlers.
+.Pp
+On all architectures supported by
+.Fx ,
+ordinary loads and stores of integers in cache-coherent memory are
+inherently atomic if the integer is naturally aligned and its size does not
+exceed the processor's word size.
+However, such loads and stores may be elided from the program by
+the compiler, whereas atomic operations are always performed.
+.Pp
+When atomic operations are performed on cache-coherent memory, all
+operations on the same location are totally ordered.
+.Pp
+When an atomic load is performed on a location in cache-coherent memory,
+it reads the entire value that was defined by the last atomic store to
+each byte of the location.
+An atomic load will never return a value out of thin air.
+When an atomic store is performed on a location, no other thread or
+interrupt handler will observe a
+.Em torn write ,
+or partial modification of the location.
+.Pp
+Except as noted below, the semantics of these operations are almost
+identical to the semantics of similarly named C11 atomic operations.
+.Ss Types
+Most atomic operations act upon a specific
+.Fa type .
+That type is indicated in the function name.
+In contrast to C11 atomic operations,
+.Fx Ns 's
+atomic operations are performed on ordinary integer types.
+The available types are:
+.Pp
+.Bl -tag -offset indent -width short -compact
+.It Li int
+unsigned integer
+.It Li long
+unsigned long integer
+.It Li ptr
+unsigned integer the size of a pointer
+.It Li 32
+unsigned 32-bit integer
+.It Li 64
+unsigned 64-bit integer
+.El
+.Pp
+For example, the function to atomically add two integers is called
+.Fn atomic_add_int .
+.Pp
+Certain architectures also provide operations for types smaller than
+.Dq Li int .
+.Pp
+.Bl -tag -offset indent -width short -compact
+.It Li char
+unsigned character
+.It Li short
+unsigned short integer
+.It Li 8
+unsigned 8-bit integer
+.It Li 16
+unsigned 16-bit integer
+.El
+.Pp
+These types must not be used in machine-independent code.
+.Ss Acquire and Release Operations
+By default, a thread's accesses to different memory locations might not be
+performed in
+.Em program order ,
+that is, the order in which the accesses appear in the source code.
+To optimize the program's execution, both the compiler and processor might
+reorder the thread's accesses.
+However, both ensure that their reordering of the accesses is not visible to
+the thread.
+Otherwise, the traditional memory model that is expected by single-threaded
+programs would be violated.
+Nonetheless, other threads in a multithreaded program, such as the
+.Fx
+kernel, might observe the reordering.
+Moreover, in some cases, such as the implementation of synchronization between
+threads, arbitrary reordering might result in the incorrect execution of the
+program.
+To constrain the reordering that both the compiler and processor might perform
+on a thread's accesses, a programmer can use atomic operations with
+.Em acquire
+and
+.Em release
+semantics.
+.Pp
+Atomic operations on memory have up to three variants.
+The first, or
+.Em relaxed
+variant, performs the operation without imposing any ordering constraints on
+accesses to other memory locations.
+This variant is the default.
+The second variant has acquire semantics, and the third variant has release
+semantics.
+.Pp
+When an atomic operation has acquire semantics, the operation must have
+completed before any subsequent load or store (by program order) is
+performed.
+Conversely, acquire semantics do not require that prior loads or stores have
+completed before the atomic operation is performed.
+An atomic operation can only have acquire semantics if it performs a load
+from memory.
+To denote acquire semantics, the suffix
+.Dq Li _acq
+is inserted into the function name immediately prior to the
+.Dq Li _ Ns Aq Fa type
+suffix.
+For example, to subtract two integers ensuring that the subtraction is
+completed before any subsequent loads and stores are performed, use
+.Fn atomic_subtract_acq_int .
+.Pp
+When an atomic operation has release semantics, all prior loads or stores
+(by program order) must have completed before the operation is performed.
+Conversely, release semantics do not require that the atomic operation must
+have completed before any subsequent load or store is performed.
+An atomic operation can only have release semantics if it performs a store
+to memory.
+To denote release semantics, the suffix
+.Dq Li _rel
+is inserted into the function name immediately prior to the
+.Dq Li _ Ns Aq Fa type
+suffix.
+For example, to add two long integers ensuring that all prior loads and
+stores are completed before the addition is performed, use
+.Fn atomic_add_rel_long .
+.Pp
+When a release operation by one thread
+.Em synchronizes with
+an acquire operation by another thread, usually meaning that the acquire
+operation reads the value written by the release operation, then the effects
+of all prior stores by the releasing thread must become visible to
+subsequent loads by the acquiring thread.
+Moreover, the effects of all stores (by other threads) that were visible to
+the releasing thread must also become visible to the acquiring thread.
+These rules only apply to the synchronizing threads.
+Other threads might observe these stores in a different order.
+.Pp
+In effect, atomic operations with acquire and release semantics establish
+one-way barriers to reordering that enable the implementations of
+synchronization primitives to express their ordering requirements without
+also imposing unnecessary ordering.
+For example, for a critical section guarded by a mutex, an acquire operation
+when the mutex is locked and a release operation when the mutex is unlocked
+will prevent any loads or stores from moving outside of the critical
+section.
+However, they will not prevent the compiler or processor from moving loads
+or stores into the critical section, which does not violate the semantics of
+a mutex.
+.Ss Thread Fence Operations
+Alternatively, a programmer can use atomic thread fence operations to
+constrain the reordering of accesses.
+In contrast to other atomic operations, fences do not, themselves, access
+memory.
+.Pp
+When a fence has acquire semantics, all prior loads (by program order) must
+have completed before any subsequent load or store is performed.
+Thus, an acquire fence is a two-way barrier for load operations.
+To denote acquire semantics, the suffix
+.Dq Li _acq
+is appended to the function name, for example,
+.Fn atomic_thread_fence_acq .
+.Pp
+When a fence has release semantics, all prior loads or stores (by program
+order) must have completed before any subsequent store operation is
+performed.
+Thus, a release fence is a two-way barrier for store operations.
+To denote release semantics, the suffix
+.Dq Li _rel
+is appended to the function name, for example,
+.Fn atomic_thread_fence_rel .
+.Pp
+Although
+.Fn atomic_thread_fence_acq_rel
+implements both acquire and release semantics, it is not a full barrier.
+For example, a store prior to the fence (in program order) may be completed
+after a load subsequent to the fence.
+In contrast,
+.Fn atomic_thread_fence_seq_cst
+implements a full barrier.
+Neither loads nor stores may cross this barrier in either direction.
+.Pp
+In C11, a release fence by one thread synchronizes with an acquire fence by
+another thread when an atomic load that is prior to the acquire fence (by
+program order) reads the value written by an atomic store that is subsequent
+to the release fence.
+In constrast, in FreeBSD, because of the atomicity of ordinary, naturally
+aligned loads and stores, fences can also be synchronized by ordinary loads
+and stores.
+This simplifies the implementation and use of some synchronization
+primitives in
+.Fx .
+.Pp
+Since neither a compiler nor a processor can foresee which (atomic) load
+will read the value written by an (atomic) store, the ordering constraints
+imposed by fences must be more restrictive than acquire loads and release
+stores.
+Essentially, this is why fences are two-way barriers.
+.Pp
+Although fences impose more restrictive ordering than acquire loads and
+release stores, by separating access from ordering, they can sometimes
+facilitate more efficient implementations of synchronization primitives.
+For example, they can be used to avoid executing a memory barrier until a
+memory access shows that some condition is satisfied.
+.Ss Multiple Processors
+In multiprocessor systems, the atomicity of the atomic operations on memory
+depends on support for cache coherence in the underlying architecture.
+In general, cache coherence on the default memory type,
+.Dv VM_MEMATTR_DEFAULT ,
+is guaranteed by all architectures that are supported by
+.Fx .
+For example, cache coherence is guaranteed on write-back memory by the
+.Tn amd64
+and
+.Tn i386
+architectures.
+However, on some architectures, cache coherence might not be enabled on all
+memory types.
+To determine if cache coherence is enabled for a non-default memory type,
+consult the architecture's documentation.
+.Ss Semantics
+This section describes the semantics of each operation using a C like notation.
+.Bl -hang
+.It Fn atomic_add p v
+.Bd -literal -compact
+*p += v;
+.Ed
+.It Fn atomic_clear p v
+.Bd -literal -compact
+*p &= ~v;
+.Ed
+.It Fn atomic_cmpset dst old new
+.Bd -literal -compact
+if (*dst == old) {
+	*dst = new;
+	return (1);
+} else
+	return (0);
+.Ed
+.El
+.Pp
+Some architectures do not implement the
+.Fn atomic_cmpset
+functions for the types
+.Dq Li char ,
+.Dq Li short ,
+.Dq Li 8 ,
+and
+.Dq Li 16 .
+.Bl -hang
+.It Fn atomic_fcmpset dst *old new
+.El
+.Pp
+On architectures implementing
+.Em Compare And Swap
+operation in hardware, the functionality can be described as
+.Bd -literal -offset indent -compact
+if (*dst == *old) {
+	*dst = new;
+	return (1);
+} else {
+	*old = *dst;
+	return (0);
+}
+.Ed
+On architectures which provide
+.Em Load Linked/Store Conditional
+primitive, the write to
+.Dv *dst
+might also fail for several reasons, most important of which
+is a parallel write to
+.Dv *dst
+cache line by other CPU.
+In this case
+.Fn atomic_fcmpset
+function also returns
+.Dv false ,
+despite
+.Dl *old == *dst .
+.Pp
+Some architectures do not implement the
+.Fn atomic_fcmpset
+functions for the types
+.Dq Li char ,
+.Dq Li short ,
+.Dq Li 8 ,
+and
+.Dq Li 16 .
+.Bl -hang
+.It Fn atomic_fetchadd p v
+.Bd -literal -compact
+tmp = *p;
+*p += v;
+return (tmp);
+.Ed
+.El
+.Pp
+The
+.Fn atomic_fetchadd
+functions are only implemented for the types
+.Dq Li int ,
+.Dq Li long
+and
+.Dq Li 32
+and do not have any variants with memory barriers at this time.
+.Bl -hang
+.It Fn atomic_load p
+.Bd -literal -compact
+return (*p);
+.Ed
+.It Fn atomic_readandclear p
+.Bd -literal -compact
+tmp = *p;
+*p = 0;
+return (tmp);
+.Ed
+.El
+.Pp
+The
+.Fn atomic_readandclear
+functions are not implemented for the types
+.Dq Li char ,
+.Dq Li short ,
+.Dq Li ptr ,
+.Dq Li 8 ,
+and
+.Dq Li 16
+and do not have any variants with memory barriers at this time.
+.Bl -hang
+.It Fn atomic_set p v
+.Bd -literal -compact
+*p |= v;
+.Ed
+.It Fn atomic_subtract p v
+.Bd -literal -compact
+*p -= v;
+.Ed
+.It Fn atomic_store p v
+.Bd -literal -compact
+*p = v;
+.Ed
+.It Fn atomic_swap p v
+.Bd -literal -compact
+tmp = *p;
+*p = v;
+return (tmp);
+.Ed
+.El
+.Pp
+The
+.Fn atomic_swap
+functions are not implemented for the types
+.Dq Li char ,
+.Dq Li short ,
+.Dq Li ptr ,
+.Dq Li 8 ,
+and
+.Dq Li 16
+and do not have any variants with memory barriers at this time.
+.Bl -hang
+.It Fn atomic_testandclear p v
+.Bd -literal -compact
+bit = 1 << (v % (sizeof(*p) * NBBY));
+tmp = (*p & bit) != 0;
+*p &= ~bit;
+return (tmp);
+.Ed
+.El
+.Bl -hang
+.It Fn atomic_testandset p v
+.Bd -literal -compact
+bit = 1 << (v % (sizeof(*p) * NBBY));
+tmp = (*p & bit) != 0;
+*p |= bit;
+return (tmp);
+.Ed
+.El
+.Pp
+The
+.Fn atomic_testandset
+and
+.Fn atomic_testandclear
+functions are only implemented for the types
+.Dq Li int ,
+.Dq Li long
+and
+.Dq Li 32
+and do not have any variants with memory barriers at this time.
+.Pp
+The type
+.Dq Li 64
+is currently not implemented for any of the atomic operations on the
+.Tn arm ,
+.Tn i386 ,
+and
+.Tn powerpc
+architectures.
+.Sh RETURN VALUES
+The
+.Fn atomic_cmpset
+function returns the result of the compare operation.
+The
+.Fn atomic_fcmpset
+function returns
+.Dv true
+if the operation succeeded.
+Otherwise it returns
+.Dv false
+and sets
+.Va *old
+to the found value.
+The
+.Fn atomic_fetchadd ,
+.Fn atomic_load ,
+.Fn atomic_readandclear ,
+and
+.Fn atomic_swap
+functions return the value at the specified address.
+The
+.Fn atomic_testandset
+and
+.Fn atomic_testandclear
+function returns the result of the test operation.
+.Sh EXAMPLES
+This example uses the
+.Fn atomic_cmpset_acq_ptr
+and
+.Fn atomic_set_ptr
+functions to obtain a sleep mutex and handle recursion.
+Since the
+.Va mtx_lock
+member of a
+.Vt "struct mtx"
+is a pointer, the
+.Dq Li ptr
+type is used.
+.Bd -literal
+/* Try to obtain mtx_lock once. */
+#define _obtain_lock(mp, tid)						\\
+	atomic_cmpset_acq_ptr(&(mp)->mtx_lock, MTX_UNOWNED, (tid))
+
+/* Get a sleep lock, deal with recursion inline. */
+#define _get_sleep_lock(mp, tid, opts, file, line) do {			\\
+	uintptr_t _tid = (uintptr_t)(tid);				\\
+									\\
+	if (!_obtain_lock(mp, tid)) {					\\
+		if (((mp)->mtx_lock & MTX_FLAGMASK) != _tid)		\\
+			_mtx_lock_sleep((mp), _tid, (opts), (file), (line));\\
+		else {							\\
+			atomic_set_ptr(&(mp)->mtx_lock, MTX_RECURSE);	\\
+			(mp)->mtx_recurse++;				\\
+		}							\\
+	}								\\
+} while (0)
+.Ed
+.Sh HISTORY
+The
+.Fn atomic_add ,
+.Fn atomic_clear ,
+.Fn atomic_set ,
+and
+.Fn atomic_subtract
+operations were introduced in
+.Fx 3.0 .
+Initially, these operations were defined on the types
+.Dq Li char ,
+.Dq Li short ,
+.Dq Li int ,
+and
+.Dq Li long .
+.Pp
+The
+.Fn atomic_cmpset ,
+.Fn atomic_load_acq ,
+.Fn atomic_readandclear ,
+and
+.Fn atomic_store_rel
+operations were added in
+.Fx 5.0 .
+Simultaneously, the acquire and release variants were introduced, and
+support was added for operation on the types
+.Dq Li 8 ,
+.Dq Li 16 ,
+.Dq Li 32 ,
+.Dq Li 64 ,
+and
+.Dq Li ptr .
+.Pp
+The
+.Fn atomic_fetchadd
+operation was added in
+.Fx 6.0 .
+.Pp
+The
+.Fn atomic_swap
+and
+.Fn atomic_testandset
+operations were added in
+.Fx 10.0 .
+.Pp
+The
+.Fn atomic_testandclear
+and
+.Fn atomic_thread_fence
+operations were added in
+.Fx 11.0 .
+.Pp
+The relaxed variants of
+.Fn atomic_load
+and
+.Fn atomic_store
+were added in
+.Fx 12.0 .

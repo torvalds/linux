@@ -1,0 +1,32 @@
+# $FreeBSD$
+
+case aZ_ in
+[[:alpha:]_][[:upper:]_][[:alpha:]_]) ;;
+*) echo Failed at $LINENO ;;
+esac
+
+case ' ' in
+[[:alpha:][:digit:]]) echo Failed at $LINENO ;;
+[![:alpha:][:digit:]]) ;;
+*) echo Failed at $LINENO ;;
+esac
+
+case '.X.' in
+*[[:lower:]]*) echo Failed at $LINENO ;;
+*[[:upper:]]*) ;;
+*) echo Failed at $LINENO ;;
+esac
+
+case ' ' in
+[![:print:]]) echo Failed at $LINENO ;;
+[![:alnum:][:punct:]]) ;;
+*) echo Failed at $LINENO ;;
+esac
+
+case '
+' in
+[[:print:]]) echo Failed at $LINENO ;;
+['
+'[:digit:]]) ;;
+*) echo Failed at $LINENO ;;
+esac

@@ -1,0 +1,350 @@
+$FreeBSD$
+/*$NetBSD: miidevs,v 1.105 2011/11/25 23:28:14 jakllsch Exp $*/
+
+/*-
+ * Copyright (c) 1998, 1999 The NetBSD Foundation, Inc.
+ * All rights reserved.
+ *
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Jason R. Thorpe of the Numerical Aerospace Simulation Facility,
+ * NASA Ames Research Center.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * List of known MII OUIs.
+ * For a complete list see http://standards.ieee.org/regauth/oui/
+ *
+ * XXX Vendors do obviously not agree how OUIs (24 bit) are mapped
+ * to the 22 bits available in the id registers.
+ * IEEE 802.3u-1995, subclause 22.2.4.3.1, figure 22-12, depicts the right
+ * mapping; the bit positions are defined in IEEE 802-1990, figure 5.2.
+ * (There is a formal 802.3 interpretation, number 1-07/98 of July 09 1998,
+ * about this.)
+ * The MII_OUI() macro in "mii.h" reflects this.
+ * If a vendor uses a different mapping, an "xx" prefixed OUI is defined here
+ * which is mangled accordingly to compensate.
+ */
+
+oui AGERE			0x00053d	Agere Systems
+oui ALTIMA			0x0010a9	Altima Communications
+oui AMD				0x00001a	Advanced Micro Devices
+oui BROADCOM			0x001018	Broadcom Corporation
+oui BROADCOM2			0x000af7	Broadcom Corporation
+oui BROADCOM3			0x001be9	Broadcom Corporation
+oui BROADCOM4			0x18c086	Broadcom Corporation
+oui CICADA			0x0003f1	Cicada Semiconductor
+oui DAVICOM			0x00606e	Davicom Semiconductor
+oui ENABLESEMI			0x0010dd	Enable Semiconductor
+oui ICPLUS			0x0090c3	IC Plus Corp.
+oui ICS				0x00a0be	Integrated Circuit Systems
+oui INTEL			0x00aa00	Intel Corporation
+oui JMICRON			0x00d831	JMicron Technologies
+oui LEVEL1			0x00207b	Level 1
+oui MARVELL			0x005043	Marvell Semiconductor
+oui MICREL			0x0010a1	Micrel
+oui MYSON			0x00c0b4	Myson Technology
+oui NATSEMI			0x080017	National Semiconductor
+oui PMCSIERRA			0x00e004	PMC-Sierra
+oui QUALSEMI			0x006051	Quality Semiconductor
+oui RDC				0x00d02d	RDC Semiconductor
+oui REALTEK			0x00e04c	RealTek Semicondctor
+oui SEEQ			0x00a07d	Seeq Technology
+oui SIS				0x00e006	Silicon Integrated Systems
+oui SMC				0x00800f	SMC
+oui TI				0x080028	Texas Instruments
+oui TSC				0x00c039	TDK Semiconductor
+oui VITESSE			0x0001c1	Vitesse Semiconductor
+oui XAQTI			0x00e0ae	XaQti Corp.
+
+/* Some Intel 82553's use an alternative OUI. */
+oui xxINTEL			0x001f00	Intel Corporation
+
+/* Some VIA 6122's use an alternative OUI. */
+oui xxCICADA			0x00c08f	Cicada Semiconductor
+
+/* bad bitorder (bits "g" and "h" (= MSBs byte 1) lost) */
+oui yyAMD			0x000058	Advanced Micro Devices
+oui xxATHEROS			0x00c82e	Atheros Communications
+oui xxBROADCOM			0x000818	Broadcom Corporation
+oui xxBROADCOM_ALT1		0x0050ef	Broadcom Corporation
+oui xxDAVICOM			0x000676	Davicom Semiconductor
+oui yyINTEL			0x005500	Intel Corporation
+oui xxJATO			0x0007c1	Jato Technologies
+oui xxMARVELL			0x000ac2	Marvell Semiconductor
+oui xxMYSON			0x00032d	Myson Technology
+oui xxNATSEMI			0x1000e8	National Semiconductor
+oui xxQUALSEMI			0x00068a	Quality Semiconductor
+oui xxTSC			0x00039c	TDK Semiconductor
+oui xxVITESSE			0x008083	Vitesse Semiconductor
+
+/* bad byteorder (bits "q" and "r" (= LSBs byte 3) lost) */
+oui xxLEVEL1			0x782000	Level 1
+oui xxXAQTI			0xace000	XaQti Corp.
+
+/* Don't know what's going on here. */
+oui xxASIX			0x000674	Asix Semiconductor
+oui yyDAVICOM			0x000602	Davicom Semiconductor
+oui xxICPLUS			0x0009c3	IC Plus Corp.
+oui xxPMCSIERRA			0x0009c0	PMC-Sierra
+oui xxPMCSIERRA2		0x009057	PMC-Sierra
+oui xxREALTEK			0x000732	RealTek Semicondctor
+oui yyREALTEK			0x000004	RealTek Semicondctor
+
+/*
+ * List of known models.  Grouped by oui.
+ */
+
+/* Agere Systems PHYs */
+model AGERE ET1011		0x0001 ET1011 10/100/1000baseT PHY
+model AGERE ET1011C		0x0004 ET1011C 10/100/1000baseT PHY
+
+/* Altima Communications PHYs */
+model ALTIMA ACXXX		0x0001 ACXXX 10/100 media interface
+model ALTIMA AC101L		0x0012 AC101L 10/100 media interface
+model ALTIMA AC101		0x0021 AC101 10/100 media interface
+/* AMD Am79C87[45] have ALTIMA OUI */
+model ALTIMA Am79C875		0x0014 Am79C875 10/100 media interface
+model ALTIMA Am79C874		0x0021 Am79C874 10/100 media interface
+
+/* Advanced Micro Devices PHYs */
+/* see Davicom DM9101 for Am79C873 */
+model yyAMD 79C972_10T		0x0001 Am79C972 internal 10BASE-T interface
+model yyAMD 79c973phy		0x0036 Am79C973 internal 10/100 media interface
+model yyAMD 79c901		0x0037 Am79C901 10BASE-T interface
+model yyAMD 79c901home		0x0039 Am79C901 HomePNA 1.0 interface
+
+/* Atheros Communications/Attansic PHYs */
+model xxATHEROS F1		0x0001 Atheros F1 10/100/1000 PHY
+model xxATHEROS F2		0x0002 Atheros F2 10/100 PHY
+model xxATHEROS AR8021		0x0004 Atheros AR8021 10/100/1000 PHY
+model xxATHEROS F1_7		0x0007 Atheros F1 10/100/1000 PHY
+
+/* Asix semiconductor PHYs */
+model xxASIX AX88X9X		0x0031 Ax88x9x internal PHY
+
+/* Broadcom Corp. PHYs */
+model xxBROADCOM 3C905B		0x0012 Broadcom 3c905B internal PHY
+model xxBROADCOM 3C905C		0x0017 Broadcom 3c905C internal PHY
+model xxBROADCOM BCM5201	0x0021 BCM5201 10/100 media interface
+model xxBROADCOM BCM5214	0x0028 BCM5214 Quad 10/100 media interface
+model xxBROADCOM BCM5221	0x001e BCM5221 10/100 media interface
+model xxBROADCOM BCM5222	0x0032 BCM5222 Dual 10/100 media interface
+model xxBROADCOM BCM4401	0x0036 BCM4401 10/100 media interface
+model xxBROADCOM BCM5365	0x0037 BCM5365 10/100 5-port PHY switch
+model BROADCOM BCM5400		0x0004 BCM5400 1000BASE-T media interface
+model BROADCOM BCM5401		0x0005 BCM5401 1000BASE-T media interface
+model BROADCOM BCM5402		0x0006 BCM5402 1000BASE-T media interface
+model BROADCOM BCM5411		0x0007 BCM5411 1000BASE-T media interface
+model BROADCOM BCM5404		0x0008 BCM5404 1000BASE-T media interface
+model BROADCOM BCM5424		0x000a BCM5424/BCM5234 1000BASE-T media interface
+model BROADCOM BCM5464		0x000b BCM5464 1000BASE-T media interface
+model BROADCOM BCM5461		0x000c BCM5461 1000BASE-T media interface
+model BROADCOM BCM5462		0x000d BCM5462 1000BASE-T media interface
+model BROADCOM BCM5421		0x000e BCM5421 1000BASE-T media interface
+model BROADCOM BCM5752		0x0010 BCM5752 1000BASE-T media interface
+model BROADCOM BCM5701		0x0011 BCM5701 1000BASE-T media interface
+model BROADCOM BCM5706		0x0015 BCM5706 1000BASE-T/SX media interface
+model BROADCOM BCM5703		0x0016 BCM5703 1000BASE-T media interface
+model BROADCOM BCM5750		0x0018 BCM5750 1000BASE-T media interface
+model BROADCOM BCM5704		0x0019 BCM5704 1000BASE-T media interface
+model BROADCOM BCM5705		0x001a BCM5705 1000BASE-T media interface
+model BROADCOM BCM54K2		0x002e BCM54K2 1000BASE-T media interface
+model BROADCOM BCM5714		0x0034 BCM5714 1000BASE-T media interface
+model BROADCOM BCM5780		0x0035 BCM5780 1000BASE-T media interface
+model BROADCOM BCM5708C		0x0036 BCM5708C 1000BASE-T media interface
+model BROADCOM BCM5466		0x003b BCM5466 1000BASE-T media interface
+model BROADCOM2 BCM5325		0x0003 BCM5325 10/100 5-port PHY switch
+model BROADCOM2 BCM5906		0x0004 BCM5906 10/100baseTX media interface
+model BROADCOM2 BCM5478		0x0008 BCM5478 1000BASE-T media interface
+model BROADCOM2 BCM5488		0x0009 BCM5488 1000BASE-T media interface
+model BROADCOM2 BCM5481		0x000a BCM5481 1000BASE-T media interface
+model BROADCOM2 BCM5482		0x000b BCM5482 1000BASE-T media interface
+model BROADCOM2 BCM5755		0x000c BCM5755 1000BASE-T media interface
+model BROADCOM2 BCM5754		0x000e BCM5754/BCM5787 1000BASE-T media interface
+model BROADCOM2 BCM5708S	0x0015 BCM5708S 1000/2500baseSX PHY
+model BROADCOM2 BCM5785		0x0016 BCM5785 1000BASE-T media interface
+model BROADCOM2 BCM5709CAX	0x002c BCM5709CAX 10/100/1000baseT PHY
+model BROADCOM2 BCM5722		0x002d BCM5722 1000BASE-T media interface
+model BROADCOM2 BCM5784		0x003a BCM5784 10/100/1000baseT PHY
+model BROADCOM2 BCM5709C	0x003c BCM5709 10/100/1000baseT PHY
+model BROADCOM2 BCM5761		0x003d BCM5761 10/100/1000baseT PHY
+model BROADCOM2 BCM5709S	0x003f BCM5709S/5720S 1000/2500baseSX PHY
+model BROADCOM3 BCM57780	0x0019 BCM57780 1000BASE-T media interface
+model BROADCOM3 BCM5717C	0x0020 BCM5717C 1000BASE-T media interface
+model BROADCOM3 BCM5719C	0x0022 BCM5719C 1000BASE-T media interface
+model BROADCOM3 BCM57765	0x0024 BCM57765 1000BASE-T media interface
+model BROADCOM3 BCM5720C	0x0036 BCM5720C 1000BASE-T media interface
+model BROADCOM4 BCM5725C	0x0038 BCM5725C 1000BASE-T media interface
+model xxBROADCOM_ALT1 BCM5906	0x0004 BCM5906 10/100baseTX media interface
+
+/* Cicada Semiconductor PHYs (now owned by Vitesse?) */
+model xxCICADA CS8201		0x0001 Cicada CS8201 10/100/1000TX PHY
+model xxCICADA CS8204		0x0004 Cicada CS8204 10/100/1000TX PHY
+model xxCICADA VSC8211		0x000b Cicada VSC8211 10/100/1000TX PHY
+model xxCICADA VSC8221		0x0015 Cicada CS8201 10/100/1000TX PHY
+model xxCICADA CS8201A		0x0020 Cicada CS8201 10/100/1000TX PHY
+model xxCICADA CS8201B		0x0021 Cicada CS8201 10/100/1000TX PHY
+model xxCICADA CS8244		0x002c Cicada CS8244 10/100/1000TX PHY
+model xxVITESSE VSC8601		0x0002 Vitesse VSC8601 10/100/1000TX PHY
+
+/* Davicom Semiconductor PHYs */
+/* AMD Am79C873 seems to be a relabeled DM9101 */
+model xxDAVICOM DM9101		0x0000 DM9101 (AMD Am79C873) 10/100 media interface
+model xxDAVICOM DM9102		0x0004 DM9102 10/100 media interface
+model yyDAVICOM DM9101		0x0000 DM9101 10/100 media interface
+
+/* IC Plus Corp. PHYs */
+model xxICPLUS IP101		0x0005 IP101 10/100 PHY
+model xxICPLUS IP1000A		0x0008 IP100A 10/100/1000 media interface
+model xxICPLUS IP1001		0x0019 IP1001 10/100/1000 media interface
+
+/* Integrated Circuit Systems PHYs */
+model ICS 1889			0x0001 ICS1889 10/100 media interface
+model ICS 1890			0x0002 ICS1890 10/100 media interface
+model ICS 1892			0x0003 ICS1892 10/100 media interface
+model ICS 1893			0x0004 ICS1893 10/100 media interface
+model ICS 1893C			0x0005 ICS1893C 10/100 media interface
+
+/* Intel Corporation PHYs */
+model xxINTEL I82553		0x0000 i82553 10/100 media interface
+model yyINTEL I82555		0x0015 i82555 10/100 media interface
+model yyINTEL I82562EH		0x0017 i82562EH HomePNA interface
+model yyINTEL I82562G		0x0031 i82562G 10/100 media interface
+model yyINTEL I82562EM		0x0032 i82562EM 10/100 media interface
+model yyINTEL I82562ET		0x0033 i82562ET 10/100 media interface
+model yyINTEL I82553		0x0035 i82553 10/100 media interface
+model yyINTEL I82566		0x0039 i82566 10/100/1000 media interface
+model INTEL I82577		0x0005 i82577 10/100/1000 media interface
+model INTEL I82579		0x0009 i82579 10/100/1000 media interface
+model xxMARVELL I82563		0x000a i82563 10/100/1000 media interface
+
+model yyINTEL IGP01E1000	0x0038 Intel IGP01E1000 Gigabit PHY
+
+/* Jato Technologies PHYs */
+model xxJATO BASEX		0x0000 Jato 1000baseX media interface
+
+/* JMicron Technologies PHYs */
+model JMICRON JMP211		0x0021 JMP211 10/100/1000 media interface
+model JMICRON JMP202		0x0022 JMP202 10/100 media interface
+
+/* Level 1 PHYs */
+model xxLEVEL1 LXT970		0x0000 LXT970 10/100 media interface
+model LEVEL1 LXT971		0x000e LXT971/2 10/100 media interface
+model LEVEL1 LXT973		0x0021 LXT973 10/100 Dual PHY
+model LEVEL1 LXT974		0x0004 LXT974 10/100 Quad PHY
+model LEVEL1 LXT975		0x0005 LXT975 10/100 Quad PHY
+model LEVEL1 LXT1000_OLD	0x0003 LXT1000 1000BASE-T media interface
+model LEVEL1 LXT1000		0x000c LXT1000 1000BASE-T media interface
+
+/* Marvell Semiconductor PHYs */
+model xxMARVELL E1000		0x0000 Marvell 88E1000 Gigabit PHY
+model xxMARVELL E1011		0x0002 Marvell 88E1011 Gigabit PHY
+model xxMARVELL E1000_3		0x0003 Marvell 88E1000 Gigabit PHY
+model xxMARVELL E1000S		0x0004 Marvell 88E1000S Gigabit PHY
+model xxMARVELL E1000_5		0x0005 Marvell 88E1000 Gigabit PHY
+model xxMARVELL E1101		0x0006 Marvell 88E1101 Gigabit PHY
+model xxMARVELL E3082		0x0008 Marvell 88E3082 10/100 Fast Ethernet PHY
+model xxMARVELL E1112		0x0009 Marvell 88E1112 Gigabit PHY
+model xxMARVELL E1149		0x000b Marvell 88E1149 Gigabit PHY
+model xxMARVELL E1111		0x000c Marvell 88E1111 Gigabit PHY
+model xxMARVELL E1145		0x000d Marvell 88E1145 Quad Gigabit PHY
+model xxMARVELL E1116		0x0021 Marvell 88E1116 Gigabit PHY
+model xxMARVELL E1116R		0x0024 Marvell 88E1116R Gigabit PHY
+model xxMARVELL E1118		0x0022 Marvell 88E1118 Gigabit PHY
+model xxMARVELL E1149R		0x0025 Marvell 88E1149R Quad Gigabit PHY
+model xxMARVELL E3016		0x0026 Marvell 88E3016 10/100 Fast Ethernet PHY
+model xxMARVELL PHYG65G		0x0027 Marvell PHYG65G Gigabit PHY
+model xxMARVELL E1116R_29	0x0029 Marvell 88E1116R Gigabit PHY
+model MARVELL E1000		0x0005 Marvell 88E1000 Gigabit PHY
+model MARVELL E1011		0x0002 Marvell 88E1011 Gigabit PHY
+model MARVELL E1000_3		0x0003 Marvell 88E1000 Gigabit PHY
+model MARVELL E1000_5		0x0005 Marvell 88E1000 Gigabit PHY
+model MARVELL E1111		0x000c Marvell 88E1111 Gigabit PHY
+
+/* Micrel PHYs */
+model MICREL KSZ8081		0x0016 Micrel KSZ8081 10/100 PHY
+model MICREL KSZ9021		0x0021 Micrel KSZ9021 10/100/1000 PHY
+model MICREL KSZ9031		0x0022 Micrel KSZ9031 10/100/1000 PHY
+
+/* Myson Technology PHYs */
+model xxMYSON MTD972		0x0000 MTD972 10/100 media interface
+model MYSON MTD803		0x0000 MTD803 3-in-1 media interface
+
+/* National Semiconductor PHYs */
+model xxNATSEMI DP83840		0x0000 DP83840 10/100 media interface
+model xxNATSEMI DP83843		0x0001 DP83843 10/100 media interface
+model xxNATSEMI DP83815		0x0002 DP83815 10/100 media interface
+model xxNATSEMI DP83847		0x0003 DP83847 10/100 media interface
+model xxNATSEMI DP83891		0x0005 DP83891 1000BASE-T media interface
+model xxNATSEMI DP83861		0x0006 DP83861 1000BASE-T media interface
+model xxNATSEMI DP83865		0x0007 DP83865 1000BASE-T media interface
+model xxNATSEMI DP83849		0x000a DP83849 10/100 media interface
+
+/* PMC Sierra PHYs */
+model xxPMCSIERRA PM8351	0x0000 PM8351 OctalPHY Gigabit interface
+model xxPMCSIERRA2 PM8352	0x0002 PM8352 OctalPHY Gigabit interface
+model xxPMCSIERRA2 PM8353	0x0003 PM8353 QuadPHY Gigabit interface
+model PMCSIERRA PM8354		0x0004 PM8354 QuadPHY Gigabit interface
+
+/* Quality Semiconductor PHYs */
+model xxQUALSEMI QS6612		0x0000 QS6612 10/100 media interface
+
+/* RDC Semiconductor PHYs */
+model RDC R6040			0x0003 R6040 10/100 media interface
+
+/* RealTek Semicondctor PHYs */
+model yyREALTEK RTL8201L	0x0020 RTL8201L 10/100 media interface
+model xxREALTEK RTL8169S	0x0011 RTL8169S/8110S/8211 1000BASE-T media interface
+model REALTEK RTL8305SC		0x0005 RTL8305SC 10/100 802.1q switch
+model REALTEK RTL8201E		0x0008 RTL8201E 10/100 media interface
+model REALTEK RTL8251		0x0000 RTL8251/8153 1000BASE-T media interface
+model REALTEK RTL8169S		0x0011 RTL8169S/8110S/8211 1000BASE-T media interface
+
+/* Seeq Seeq PHYs */
+model SEEQ 80220		0x0003 Seeq 80220 10/100 media interface
+model SEEQ 84220		0x0004 Seeq 84220 10/100 media interface
+model SEEQ 80225		0x0008 Seeq 80225 10/100 media interface
+
+/* Silicon Integrated Systems PHYs */
+model SIS 900			0x0000 SiS 900 10/100 media interface
+
+/* Texas Instruments PHYs */
+model TI TLAN10T		0x0001 ThunderLAN 10BASE-T media interface
+model TI 100VGPMI		0x0002 ThunderLAN 100VG-AnyLan media interface
+model TI TNETE2101		0x0003 TNETE2101 media interface
+
+/* TDK Semiconductor PHYs */
+model xxTSC 78Q2120		0x0014 78Q2120 10/100 media interface
+model xxTSC 78Q2121		0x0015 78Q2121 100BASE-TX media interface
+
+/* Vitesse Semiconductor (now Microsemi) */
+model xxVITESSE VSC8501		0x0013 Vitesse VSC8501 10/100/1000TX PHY
+model xxVITESSE VSC8641		0x0003 Vitesse VSC8641 10/100/1000TX PHY
+
+/* XaQti Corp. PHYs */
+model xxXAQTI XMACII		0x0000 XaQti Corp. XMAC II gigabit interface
+
+/* SMC */
+model SMC LAN8710A		0x000F SMC LAN8710A 10/100 interface
+model SMC LAN8700		0x000C SMC LAN8700  10/100 interface

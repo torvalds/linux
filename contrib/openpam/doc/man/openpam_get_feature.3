@@ -1,0 +1,71 @@
+.\" Generated from openpam_get_feature.c by gendoc.pl
+.\" $OpenPAM: openpam_get_feature.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt OPENPAM_GET_FEATURE 3
+.Os
+.Sh NAME
+.Nm openpam_get_feature
+.Nd query the state of an optional feature
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.In security/openpam.h
+.Ft "int"
+.Fn openpam_get_feature "int feature" "int *onoff"
+.Sh DESCRIPTION
+.Bf Sy
+This function is experimental and may be modified or removed in a future release without prior warning.
+.Ef
+.Pp
+The
+.Fn openpam_get_feature
+function stores the current state of the
+specified feature in the variable pointed to by its
+.Fa onoff
+argument.
+.Pp
+The following features are recognized:
+.Bl -tag -width 18n
+.It Dv OPENPAM_RESTRICT_SERVICE_NAME
+Disallow path separators in service names.
+This feature is enabled by default.
+Disabling it allows the application to specify the path to
+the desired policy file directly.
+.It Dv OPENPAM_VERIFY_POLICY_FILE
+Verify the ownership and permissions of the policy file
+and the path leading up to it.
+This feature is enabled by default.
+.It Dv OPENPAM_RESTRICT_MODULE_NAME
+Disallow path separators in module names.
+This feature is disabled by default.
+Enabling it prevents the use of modules in non-standard
+locations.
+.It Dv OPENPAM_VERIFY_MODULE_FILE
+Verify the ownership and permissions of each loadable
+module and the path leading up to it.
+This feature is enabled by default.
+.El
+.Sh RETURN VALUES
+The
+.Fn openpam_get_feature
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BAD_FEATURE
+Unrecognized or restricted feature.
+.El
+.Sh SEE ALSO
+.Xr openpam_set_feature 3 ,
+.Xr pam 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+The
+.Fn openpam_get_feature
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn openpam_get_feature
+function and this manual page were
+developed by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

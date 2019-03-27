@@ -1,0 +1,91 @@
+.\" Copyright (c) 2000 Mark Knight <markk@knigma.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 16, 2000
+.Dt FINGER.CONF 5
+.Os
+.Sh NAME
+.Nm finger.conf
+.Nd
+.Xr finger 1
+alias configuration file
+.Sh DESCRIPTION
+The optional
+.Nm
+file is used to provide aliases that can be fingered by local
+and network users.
+This may be useful where a user's login name is not the same
+as their preferred mail address, or for providing virtual login names
+than can be fingered.
+.Pp
+Lines beginning with ``#'' are comments.
+Other lines must consist of an
+alias name and a target name separated by a colon.
+A target name should be either a user, a forward
+reference to another alias or the path of a world readable file.
+.Pp
+Where an alias points to a file, the contents of that file will be displayed
+when the alias is fingered.
+.Sh FILES
+.Bl -tag -width /etc/finger.conf -compact
+.It Pa /etc/finger.conf
+.Xr finger 1
+alias definition data base
+.El
+.Sh EXAMPLES
+.Bd -literal
+# /etc/finger.conf alias definition file
+#
+# Format alias:(user|alias)
+#
+# Individual aliases
+#
+markk:mkn
+john.smith:dev329
+john:dev329
+sue:/etc/finger/sue.txt
+#
+# Network status message
+#
+status:/usr/local/etc/status.txt
+#
+# Administrative redirects
+#
+root:admin
+postmaster:admin
+abuse:admin
+#
+# For the time being, 'sod' is sysadmin.
+#
+admin:sod
+.Ed
+.Sh SEE ALSO
+.Xr finger 1
+.Sh HISTORY
+Support for the
+.Nm
+file was submitted by Mark Knight <markk@knigma.org> and first appeared in
+.Fx 4.2 .

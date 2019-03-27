@@ -1,0 +1,225 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_termcap.3x,v 1.30 2013/01/19 15:58:48 tom Exp $
+.TH curs_termcap 3X ""
+.de bP
+.IP \(bu 4
+..
+.na
+.hy 0
+.ds n 5
+.SH NAME
+\fBPC\fR,
+\fBUP\fR,
+\fBBC\fR,
+\fBospeed\fR,
+\fBtgetent\fR,
+\fBtgetflag\fR,
+\fBtgetnum\fR,
+\fBtgetstr\fR,
+\fBtgoto\fR,
+\fBtputs\fR \- direct \fBcurses\fR interface to the terminfo capability database
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.br
+\fB#include <term.h>\fR
+.sp
+\fBextern char PC;\fR
+.br
+\fBextern char * UP;\fR
+.br
+\fBextern char * BC;\fR
+.br
+\fBextern @NCURSES_OSPEED@ ospeed;\fR
+.sp
+\fBint tgetent(char *bp, const char *name);\fR
+.br
+\fBint tgetflag(char *id);\fR
+.br
+\fBint tgetnum(char *id);\fR
+.br
+\fBchar *tgetstr(char *id, char **area);\fR
+.br
+\fBchar *tgoto(const char *cap, int col, int row);\fR
+.br
+\fBint tputs(const char *str, int affcnt, int (*putc)(int));\fR
+.br
+.SH DESCRIPTION
+These routines are included as a conversion aid for programs that use
+the \fItermcap\fR library.  Their parameters are the same and the
+routines are emulated using the \fIterminfo\fR database.  Thus, they
+can only be used to query the capabilities of entries for which a
+terminfo entry has been compiled.
+.SS INITIALIZATION
+.PP
+The \fBtgetent\fR routine loads the entry for \fIname\fR.
+It returns:
+.RS 3
+.TP 3
+1
+on success,
+.TP 3
+0
+if there is no such entry
+(or that it is a generic type, having too little information for curses
+applications to run), and
+.TP 3
+\-1
+if the terminfo database could not be found.
+.RE
+.PP
+This differs from the \fItermcap\fP library in two ways:
+.RS 3
+.bP
+The emulation ignores the buffer pointer \fIbp\fR.
+The \fItermcap\fP library would store a copy of the terminal
+description in the area referenced by this pointer.
+However, ncurses stores its terminal descriptions in compiled
+binary form, which is not the same thing.
+.bP
+There is a difference in return codes.
+The \fItermcap\fP library does not check if the terminal
+description is marked with the \fIgeneric\fP capability,
+or if the terminal description has cursor-addressing.
+.RE
+.SS CAPABILITY VALUES
+.PP
+The \fBtgetflag\fR routine gets the boolean entry for \fIid\fR,
+or zero if it is not available.
+.PP
+The \fBtgetnum\fR routine gets the numeric entry for \fIid\fR,
+or \-1 if it is not available.
+.PP
+The \fBtgetstr\fR routine returns the string entry for \fIid\fR,
+or zero if it is not available.
+Use \fBtputs\fR to output the returned string.
+The return value will also be copied to the buffer pointed to by \fIarea\fR,
+and the \fIarea\fR value will be updated to point past the null ending
+this value.
+.PP
+Only the first two characters of the \fBid\fR parameter of
+\fBtgetflag\fR,
+\fBtgetnum\fR and
+\fBtgetstr\fR are compared in lookups.
+.SS FORMATTING CAPABILITIES
+.PP
+The \fBtgoto\fR routine instantiates the parameters into the given capability.
+The output from this routine is to be passed to \fBtputs\fR.
+.PP
+The \fBtputs\fR routine is described on the \fBcurs_terminfo\fR(3X) manual
+page.  It can retrieve capabilities by either termcap or terminfo name.
+.SS GLOBAL VARIABLES
+.PP
+The variables
+\fBPC\fR,
+\fBUP\fR and
+\fBBC\fR
+are set by \fBtgetent\fR to the terminfo entry's data for
+\fBpad_char\fR,
+\fBcursor_up\fR and
+\fBbackspace_if_not_bs\fR,
+respectively.
+\fBUP\fR is not used by ncurses.
+\fBPC\fR is used in the \fBtdelay_output\fR function.
+\fBBC\fR is used in the \fBtgoto\fR emulation.
+The variable \fBospeed\fR is set by ncurses in a system-specific coding
+to reflect the terminal speed.
+.
+.SH RETURN VALUE
+Except where explicitly noted,
+routines that return an integer return \fBERR\fR upon failure and \fBOK\fR
+(SVr4 only specifies "an integer value other than \fBERR\fR") upon successful
+completion.
+.PP
+Routines that return pointers return \fBNULL\fR on error.
+.SH BUGS
+If you call \fBtgetstr\fR to fetch \fBca\fR or any other parameterized string,
+be aware that it will be returned in terminfo notation, not the older and
+not-quite-compatible termcap notation.  This will not cause problems if all
+you do with it is call \fBtgoto\fR or \fBtparm\fR, which both expand
+terminfo-style strings as terminfo.
+(The \fBtgoto\fR function, if configured to support termcap, will check
+if the string is indeed terminfo-style by looking for "%p" parameters or
+"$<..>" delays, and invoke a termcap-style parser if the string does not
+appear to be terminfo).
+.PP
+Because terminfo conventions for representing padding in string capabilities
+differ from termcap's, \fBtputs("50");\fR will put out a literal "50" rather
+than busy-waiting for 50 milliseconds.  Cope with it.
+.PP
+Note that termcap has nothing analogous to terminfo's \fBsgr\fR string.
+One consequence of this is that termcap applications assume \fRme\fR
+(terminfo \fBsgr0\fR) does not reset the alternate character set.
+This implementation checks for, and modifies the data shown to the
+termcap interface to accommodate termcap's limitation in this respect.
+.SH PORTABILITY
+The XSI Curses standard, Issue 4 describes these functions.  However, they
+are marked TO BE WITHDRAWN and may be removed in future versions.
+.PP
+Neither the XSI Curses standard nor the SVr4 man pages documented the return
+values of \fBtgetent\fR correctly, though all three were in fact returned ever
+since SVr1.
+In particular, an omission in the XSI Curses documentation has been
+misinterpreted to mean that \fBtgetent\fR returns \fBOK\fR or \fBERR\fR.
+Because the purpose of these functions is to provide compatibility with
+the \fItermcap\fR library, that is a defect in XCurses, Issue 4, Version 2
+rather than in ncurses.
+.PP
+External variables are provided for support of certain termcap applications.
+However, termcap applications' use of those variables is poorly documented,
+e.g., not distinguishing between input and output.
+In particular, some applications are reported to declare and/or
+modify \fBospeed\fR.
+.PP
+The comment that only the first two characters of the \fBid\fR parameter
+are used escapes many application developers.
+The original BSD 4.2 termcap library (and historical relics thereof)
+did not require a trailing null NUL on the parameter name passed
+to \fBtgetstr\fP, \fBtgetnum\fP and \fBtgetflag\fP.
+Some applications assume that the termcap interface does not require
+the trailing NUL for the parameter name.
+Taking into account these issues:
+.bP
+As a special case,
+\fBtgetflag\fP matched against a single-character identifier
+provided that was at the end of the terminal description.
+You should not rely upon this behavior in portable programs.
+This implementation disallows matches against single-character capability names.
+.bP
+This implementation disallows matches by the termcap interface against
+extended capability names which are longer than two characters.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBterminfo\fR(\*n),
+\fBterm_variables\fR(3X),
+\fBputc\fR(3).
+.sp
+http://invisible-island.net/ncurses/tctest.html

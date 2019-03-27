@@ -1,0 +1,111 @@
+.\" Copyright (c) 1988 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)alloc.fig	5.1 (Berkeley) 4/16/91
+.\"
+.PS
+scale=100
+define m0 |
+[ box invis ht 16 wid 32 with .sw at 0,0
+line  from 4,12 to 4,4 
+line  from 8,12 to 8,4 
+line  from 12,12 to 12,4 
+line  from 16,12 to 16,4 
+line  from 20,12 to 20,4 
+line  from 24,12 to 24,4 
+line  from 28,12 to 28,4 
+line  from 0,16 to 0,0 
+line  from 0,8 to 32,8 
+] |
+
+define m1 |
+[ box invis ht 16 wid 32 with .sw at 0,0
+line  from 8,12 to 8,4 
+line  from 16,12 to 16,4 
+line  from 24,12 to 24,4 
+line  from 0,8 to 32,8 
+line  from 0,16 to 0,0 
+] |
+
+define m2 |
+[ box invis ht 16 wid 32 with .sw at 0,0
+line  from 0,8 to 32,8 
+line  from 0,16 to 0,0 
+] |
+
+define m3 |
+[ box invis ht 16 wid 31 with .sw at 0,0
+line  from 15,12 to 15,4 
+line  from 0,8 to 31,8 
+line  from 0,16 to 0,0 
+] |
+
+box invis ht 212 wid 580 with .sw at 0,0
+"\f1\s10\&kernel memory pages\f1\s0" at 168,204
+"\f1\s10\&Legend:\f1\s0" at 36,144
+"\f1\s10\&cont \- continuation of previous page\f1\s0" at 28,112 ljust
+"\f1\s10\&free \- unused page\f1\s0" at 28,128 ljust
+"\f1\s10\&Usage:\f1\s0" at 34,87
+"\f1\s10\&memsize(addr)\f1\s0" at 36,71 ljust
+"\f1\s10\&char *addr;\f1\s0" at 66,56 ljust
+"\f1\s10\&{\f1\s0" at 36,43 ljust
+"\f1\s10\&return(kmemsizes[(addr \- kmembase) \- \s-1PAGESIZE\s+1]);\f1" at 66,29 ljust
+"\f1\s10\&}\f1\s0" at 36,8 ljust
+line  from 548,192 to 548,176 
+line  from 548,184 to 580,184 dotted
+"\f1\s10\&1024,\f1\s0" at 116,168
+"\f1\s10\&256,\f1\s0" at 148,168
+"\f1\s10\&512,\f1\s0" at 180,168
+"\f1\s10\&3072,\f1\s0" at 212,168
+"\f1\s10\&cont,\f1\s0" at 276,168
+"\f1\s10\&cont,\f1\s0" at 244,168
+"\f1\s10\&128,\f1\s0" at 308,168
+"\f1\s10\&128,\f1\s0" at 340,168
+"\f1\s10\&free,\f1\s0" at 372,168
+"\f1\s10\&cont,\f1\s0" at 404,168
+"\f1\s10\&128,\f1\s0" at 436,168
+"\f1\s10\&1024,\f1\s0" at 468,168
+"\f1\s10\&free,\f1\s0" at 500,168
+"\f1\s10\&cont,\f1\s0" at 532,168
+"\f1\s10\&cont,\f1\s0" at 564,168
+m2 with .nw at 100,192
+m1 with .nw at 132,192
+m3 with .nw at 164,192
+m2 with .nw at 196,192
+m2 with .nw at 228,192
+m2 with .nw at 260,192
+m0 with .nw at 292,192
+m0 with .nw at 324,192
+m2 with .nw at 356,192
+m2 with .nw at 388,192
+m0 with .nw at 420,192
+m2 with .nw at 452,192
+m2 with .nw at 484,192
+m2 with .nw at 516,192
+"\f1\s10\&kmemsizes[] = {\f1\s0" at 100,168 rjust
+"\f1\s10\&char *kmembase\f1\s0" at 97,184 rjust
+.PE

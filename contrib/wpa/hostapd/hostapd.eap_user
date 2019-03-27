@@ -1,0 +1,103 @@
+# hostapd user database for integrated EAP server
+
+# Each line must contain an identity, EAP method(s), and an optional password
+# separated with whitespace (space or tab). The identity and password must be
+# double quoted ("user"). Password can alternatively be stored as
+# NtPasswordHash (16-byte MD4 hash of the unicode presentation of the password
+# in unicode) if it is used for MSCHAP or MSCHAPv2 authentication. This means
+# that the plaintext password does not need to be included in the user file.
+# Password hash is stored as hash:<16-octets of hex data> without quotation
+# marks.
+
+# [2] flag in the end of the line can be used to mark users for tunneled phase
+# 2 authentication (e.g., within EAP-PEAP). In these cases, an anonymous
+# identity can be used in the unencrypted phase 1 and the real user identity
+# is transmitted only within the encrypted tunnel in phase 2. If non-anonymous
+# access is needed, two user entries is needed, one for phase 1 and another
+# with the same username for phase 2.
+#
+# EAP-TLS, EAP-PEAP, EAP-TTLS, EAP-FAST, EAP-SIM, and EAP-AKA do not use
+# password option.
+# EAP-MD5, EAP-MSCHAPV2, EAP-GTC, EAP-PAX, EAP-PSK, and EAP-SAKE require a
+# password.
+# EAP-PEAP, EAP-TTLS, and EAP-FAST require Phase 2 configuration.
+#
+# * can be used as a wildcard to match any user identity. The main purposes for
+# this are to set anonymous phase 1 identity for EAP-PEAP and EAP-TTLS and to
+# avoid having to configure every certificate for EAP-TLS authentication. The
+# first matching entry is selected, so * should be used as the last phase 1
+# user entry.
+#
+# "prefix"* can be used to match the given prefix and anything after this. The
+# main purpose for this is to be able to avoid EAP method negotiation when the
+# method is using known prefix in identities (e.g., EAP-SIM and EAP-AKA). This
+# is only allowed for phase 1 identities.
+#
+# Multiple methods can be configured to make the authenticator try them one by
+# one until the peer accepts one. The method names are separated with a
+# comma (,).
+#
+# [ver=0] and [ver=1] flags after EAP type PEAP can be used to force PEAP
+# version based on the Phase 1 identity. Without this flag, the EAP
+# authenticator advertises the highest supported version and select the version
+# based on the first PEAP packet from the supplicant.
+#
+# EAP-TTLS supports both EAP and non-EAP authentication inside the tunnel.
+# Tunneled EAP methods are configured with standard EAP method name and [2]
+# flag. Non-EAP methods can be enabled by following method names: TTLS-PAP,
+# TTLS-CHAP, TTLS-MSCHAP, TTLS-MSCHAPV2. TTLS-PAP and TTLS-CHAP require a
+# plaintext password while TTLS-MSCHAP and TTLS-MSCHAPV2 can use NT password
+# hash.
+#
+# Arbitrary RADIUS attributes can be added into Access-Accept packets similarly
+# to the way radius_auth_req_attr is used for Access-Request packet in
+# hostapd.conf. For EAP server, this is configured separately for each user
+# entry with radius_accept_attr=<value> line(s) following the main user entry
+# line.
+
+# Phase 1 users
+"user"		MD5	"password"
+"test user"	MD5	"secret"
+"example user"	TLS
+"DOMAIN\user"	MSCHAPV2	"password"
+"gtc user"	GTC	"password"
+"pax user"	PAX	"unknown"
+"pax.user@example.com"	PAX	0123456789abcdef0123456789abcdef
+"psk user"	PSK	"unknown"
+"psk.user@example.com"	PSK	0123456789abcdef0123456789abcdef
+"sake.user@example.com"	SAKE	0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+"ttls"		TTLS
+"not anonymous"	PEAP
+# Default to EAP-SIM and EAP-AKA based on fixed identity prefixes
+"0"*		AKA,TTLS,TLS,PEAP,SIM
+"1"*		SIM,TTLS,TLS,PEAP,AKA
+"2"*		AKA,TTLS,TLS,PEAP,SIM
+"3"*		SIM,TTLS,TLS,PEAP,AKA
+"4"*		AKA,TTLS,TLS,PEAP,SIM
+"5"*		SIM,TTLS,TLS,PEAP,AKA
+"6"*		AKA'
+"7"*		AKA'
+"8"*		AKA'
+
+# Wildcard for all other identities
+*		PEAP,TTLS,TLS,SIM,AKA
+
+# Phase 2 (tunnelled within EAP-PEAP or EAP-TTLS) users
+"t-md5"		MD5	"password"	[2]
+"DOMAIN\t-mschapv2"	MSCHAPV2	"password"	[2]
+"t-gtc"		GTC	"password"	[2]
+"not anonymous"	MSCHAPV2	"password"	[2]
+"user"		MD5,GTC,MSCHAPV2	"password"	[2]
+"test user"	MSCHAPV2	hash:000102030405060708090a0b0c0d0e0f	[2]
+"ttls-user"	TTLS-PAP,TTLS-CHAP,TTLS-MSCHAP,TTLS-MSCHAPV2	"password"	[2]
+
+# Default to EAP-SIM and EAP-AKA based on fixed identity prefixes in phase 2
+"0"*		AKA	[2]
+"1"*		SIM	[2]
+"2"*		AKA	[2]
+"3"*		SIM	[2]
+"4"*		AKA	[2]
+"5"*		SIM	[2]
+"6"*		AKA'	[2]
+"7"*		AKA'	[2]
+"8"*		AKA'	[2]

@@ -1,0 +1,329 @@
+2008-05-05  Love Hörnquist Åstrand  <lha@vit.local>
+
+	* drop libss and make_cmds
+
+2007-07-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: roken_rename.h is a dist_ source k
+
+	* Makefile.am: split source files in dist and nodist.
+
+2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: New library version.
+
+2007-06-18  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* sl.c: make compile.
+
+	* sl.c: Pass in pointer to strlen().
+
+	* sl.c (sl_make_argv): use memmove since we are dealing with
+	overlapping strings.
+
+2007-06-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: don't clean yacc/lex files in CLEANFILES,
+	maintainers clean will do that for us.
+	
+2007-06-01  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* slc-gram.y (main): also fclose yyin.
+	
+2007-04-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Add dependency on slc-gram.h for slc-lex.c, breaks
+	in disttree with make -j
+	
+2006-12-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_sl.c: Fix caseing for case-sensitive filesystems
+	
+2006-12-27  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* test_sl.c: catch test that should fail but didn't
+
+	* test_sl.c: Test more quoting variants.
+
+	* sl_locl.h: Include <ctype.h>.
+
+	* test_sl.c: test sl_make_argv
+
+	* sl.c (sl_make_argv): Add quoting support (both "" and \ style).
+	
+2006-12-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* sl.c: Use strcspn to remove \n from fgets result. Prompted by
+	change by Ray Lai of OpenBSD via Björn Sandell.
+	
+2006-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am (ES): add roken_rename.h
+	
+2006-08-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* sl.c (sl_slc_help): remove return
+	
+2006-08-28  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* sl.h: Add sl_slc_help.
+
+	* sl.c: Add sl_slc_help.
+	
+2005-07-27  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* slc-gram.y (gen_wrapper): use the generated version of name for
+	function, if no function is is used, also use the generated name
+	for the structure name.
+	
+2005-06-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* slc-gram.y: fix a merge error
+	
+	* slc-gram.y: rename optind to optidx, rename variables to avoid
+	shadowing
+
+	* make_cmds.c: rename optind to optidx, move variable define to
+	avoid shadowing
+
+	* ss.c: rename index to idx
+	
+	* sl.c: use rk_UNCONST to un-constify
+
+2005-05-10  Dave Love  <fx@gnu.org>
+
+	* slc-lex.l: Include <stdlib.h>.
+
+2005-05-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* sl.c (sl_command_loop): new return code -2 for EOF
+	(sl_loop): treat all return value from sl_command_loop >= 0 as ok, and
+	continue.
+
+2005-04-29  Dave Love  <fx@gnu.org>
+
+	* Makefile.am (LDADD): Add libsl.la.
+
+2005-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* slc-gram.y: include <config.h> since defines _GNU_SOURCE if
+	needed, avoid asprintf warning
+
+2005-01-21  Dave Love  <d.love@dl.ac.uk>
+
+	* slc-gram.y: include <roken.h>
+
+2005-01-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* slc-gram.y: cast argument to isalnum to unsigned char
+
+2004-09-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* slc-gram.y: add support for "strings" and "negative-flag" types,
+	plus some usability tweaks and bug fixes
+	
+2004-07-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* slc-gram.y: add min_args/max_args checking
+	
+2004-06-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* slc-gram.y: pull in <stdlib.h> and <vers.h> to avoid warnings
+	
+2004-03-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* sl.h: make it possible to use libsl from c++
+	From: Mattias Amnefelt <mattiasa@kth.se>
+	
+2002-05-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: just link mk_cmds against libsl; avoids libtool
+	problem
+
+2001-07-09  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add getprogname.c libss.la:add libcom_err.la noted
+	by Leif Johansson <leifj@it.su.se>
+
+2001-05-17  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump versions to 1:2:1 and 1:4:1
+
+2001-05-06  Assar Westerlund  <assar@sics.se>
+
+	* roken_rename.h (strdup): add
+
+2001-03-06  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: re do the roken-renaming properly
+
+2001-02-13  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add more functions to rename
+
+2001-01-26  Johan Danielsson  <joda@pdc.kth.se>
+
+	* sl.h: proto
+
+	* sl.c (sl_command_loop): try to handle user pressing C-c
+
+2000-12-11  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libss_la_LDFLAGS): bump version to 1:2:1
+
+2000-08-19  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add dependencies for libss/libsl shared libraries
+
+2000-07-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: bump ss version to 1:1:1
+
+2000-06-27  Assar Westerlund  <assar@sics.se>
+
+	* parse.y (yyerror): static-ize
+	* make_cmds.h (error_message, yylex): add prototypes
+	* lex.l: fix prototypes and kill warnings
+
+2000-05-24  Assar Westerlund  <assar@sics.se>
+
+	* ss.h (SS_ET_COMMAND_NOT_FOUND): add
+	* ss.c: check allocation and return some other error codes too
+
+2000-04-29  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in: add LIB_tgetent.  From Derrick J Brashear
+	<shadow@dementia.org>
+
+2000-04-03  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 1:0:1
+
+2000-03-07  Assar Westerlund  <assar@sics.se>
+
+	* sl.h (SL_BADCOMMAND): define
+	(sl_apropos): add prototype
+
+	* sl.c: mandoc-generation
+	(sl_apropos): stolen from arla
+
+2000-01-06  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump both versions to 0:1:0
+
+1999-12-16  Assar Westerlund  <assar@sics.se>
+
+	* parse.y (name2number): not used here.  remove.
+
+Thu Apr  1 17:03:59 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* make_cmds.c: use getarg
+
+Tue Mar 23 14:36:21 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: don't rename
+
+Sun Mar 21 14:13:29 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: don't roken-rename
+
+Sat Mar 20 03:43:30 1999  Assar Westerlund  <assar@sics.se>
+
+	* parse.y: replace return with YYACCEPT
+
+Fri Mar 19 14:53:20 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: add libss; add version-info
+
+Thu Mar 18 15:07:06 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: clean lex.c parse.c parse.h
+
+	* Makefile.am: install ss.h
+
+	* Makefile.am: include Makefile.am.common
+
+Thu Mar 11 15:01:01 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* parse.y: prototype for error_message
+
+Tue Feb  9 23:45:37 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.in: add snprintf.o to make_cmds
+
+Sun Nov 22 10:46:23 1998  Assar Westerlund  <assar@sics.se>
+
+	* sl.c (sl_command_loop): remove unused variable
+
+	* ss.c (ss_error): remove unused variable
+
+	* make_cmds.c: include err.h
+	(main): remove unused variable
+
+	* Makefile.in (WFLAGS): set
+
+Sun Sep 27 01:28:21 1998  Assar Westerlund  <assar@sics.se>
+
+	* make_cmds.c: clean-up and simplification
+
+Mon May 25 02:54:13 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (clean): try to remove shared library debris
+
+	* Makefile.in: make symlink magic work
+
+Sun Apr 19 10:00:26 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in: add symlink magic for linux
+
+Sun Apr  5 09:21:43 1998  Assar Westerlund  <assar@sics.se>
+
+	* parse.y: define alloca to malloc in case we're using bison but
+ 	don't have alloca
+
+Sat Mar 28 11:39:00 1998  Assar Westerlund  <assar@sics.se>
+
+	* sl.c (sl_loop): s/2/1
+
+Sat Mar 21 00:46:51 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* sl.c (sl_loop): check that there is at least one argument before
+ 	calling sl_command
+
+Sun Mar  1 05:14:37 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* sl.c (sl_loop): Fix general broken-ness.
+
+	* sl.c: Cleanup printing of help strings.
+
+Thu Feb 26 02:22:02 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: @LEXLIB@
+
+Sat Feb 21 15:18:21 1998  assar westerlund  <assar@sics.se>
+
+	* Makefile.in: set YACC and LEX
+
+Mon Feb 16 16:08:25 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* Makefile.am: Some fixes for ss/mk_cmds.
+
+Sun Feb 15 05:12:11 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* Makefile.in: Install libsl under the `libss' name too. Install
+ 	mk_cmds, and ss.h.
+
+	* make_cmds.c: A mk_cmds clone that creates SL structures.
+
+	* ss.c: SS compatibility functions.
+
+	* sl.c: Move command line split to function `sl_make_argv'.
+
+Tue Feb  3 16:45:44 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* sl.c: Add sl_command_loop, that is the loop body of sl_loop.
+
+Mon Oct 20 01:13:21 1997  Assar Westerlund  <assar@sics.se>
+
+	* sl.c (sl_help): actually use the `help' field of `SL_cmd'
+

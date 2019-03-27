@@ -1,0 +1,351 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)tt06	8.1 (Berkeley) 6/8/93
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.NH
+Local Motions: Drawing lines and characters
+.PP
+Remember `Area = \(*pr\u2\d' and the big `P'
+in the Paternoster.
+How are they done?
+.UL troff
+provides a host of commands for placing characters of any size
+at any place.
+You can use them to draw special characters 
+or to tune your output for a particular appearance.
+Most of these commands are straightforward, but messy to read
+and tough to type correctly.
+.PP
+If you won't use 
+.UL eqn ,
+subscripts and superscripts are most easily done with
+the half-line local motions
+.BD \eu
+and
+.BD \ed .
+To go back up the page half a point-size, insert a
+.BD \eu
+at the desired place;
+to go down, insert a
+.BD \ed .
+.BD \eu \& (
+and
+.BD \ed
+should always
+be used in pairs, as explained below.)
+Thus
+.P1
+Area = \e(*pr\eu2\ed
+.P2
+produces
+.P1
+Area = \(*pr\u2\d
+.P2
+To make the `2' smaller, bracket it with
+.BD \es\-2...\es0 .
+Since
+.BD \eu
+and
+.BD \ed
+refer to the current point size,
+be sure to put them either both inside or both outside
+the size changes,
+or you will get an unbalanced vertical motion.
+.PP
+Sometimes the space given by
+.BD \eu
+and
+.BD \ed
+isn't the right amount.
+The 
+.BD \ev
+command can be used to request an arbitrary amount of vertical motion.
+The in-line command
+.P1
+\ev'(amount)'
+.P2
+causes motion up or down the page by the amount specified in
+`(amount)'.
+For example, to move the `P' down, we used
+.P1 2
+.ta 1i
+^in +0.6i	(move paragraph in)
+^ll \-0.3i	(shorten lines)
+^ti \-0.3i	(move P back)
+\ev'2'\es36P\es0\ev'\-2'ater noster qui est
+in caelis ...
+.P2
+A minus sign causes upward motion, while
+no sign or a plus sign means down the page.
+Thus
+.BD \ev\(fm\-2\(fm
+causes an upward vertical motion 
+of two line spaces.
+.PP
+There are many other ways to specify the amount of motion _
+.P1
+\ev'0.1i'
+\ev'3p'
+\ev'\-0.5m'
+.P2
+and so on are all legal.
+Notice that the scale specifier
+.BD i
+or
+.BD p
+or
+.BD m
+goes inside the quotes.
+Any character can be used in place of the quotes;
+this is also true of all other
+.UL troff
+commands described in this section.
+.PP
+Since
+.UL troff
+does not take within-the-line vertical motions into account
+when figuring out where it is on the page,
+output lines can have unexpected positions
+if the left and right ends aren't at the same
+vertical position.
+Thus
+.BD \ev ,
+like
+.BD \eu
+and
+.BD \ed ,
+should always balance upward vertical motion in a line with
+the same amount in the downward direction.
+.PP
+Arbitrary horizontal motions are also available _
+.BD \eh
+is quite analogous to
+.BD \ev ,
+except that the default scale factor is ems instead of line spaces.
+As an example,
+.P1
+\eh'\-0.1i'
+.P2
+causes a backwards motion of a tenth of an inch.
+As a practical matter, consider printing the mathematical symbol
+`>>'.
+The default spacing is too wide, so
+.UL eqn
+replaces this by
+.P1
+>\eh'\-0.3m'>
+.P2
+to produce >\h'-.3m'>.
+.PP
+Frequently
+.BD \eh
+is used with the `width function'
+.BD \ew
+to generate motions equal to the width
+of some character string.
+The construction
+.P1
+\ew'thing'
+.P2
+is a number equal to the width of `thing' in machine units
+(1/432 inch).
+All
+.UL troff
+computations are ultimately done in these units.
+To move horizontally the width of an `x',
+we can say
+.P1
+\eh'\ew'x'u'
+.P2
+As we mentioned above,
+the default scale factor for
+all horizontal dimensions is
+.BD m ,
+ems, so here we must have the
+.BD u
+for machine units,
+or the motion produced will be far too large.
+.UL troff
+is quite happy with the nested quotes, by the way,
+so long as you don't leave any out.
+.PP
+As a live example of this kind of construction,
+all of the command names in the text, like
+.BD .sp ,
+were done by overstriking with a slight offset.
+The commands for
+.BD .sp
+are
+.P1
+^sp\eh'\-\ew'.sp'u'\eh'1u'.sp
+.P2
+That is, put out `.sp', move left by the width of `.sp',
+move right 1 unit, and print
+`.sp' again.
+(Of course there is a way to avoid typing that much input
+for each command name, which we will discuss in Section 11.)
+.WS
+.PP
+There are also several special-purpose
+.UL troff
+commands for local motion.
+We have already seen
+.BD \e0 ,
+which is an unpaddable white space
+of the same width as a digit.
+`Unpaddable' means that it will never be widened
+or split across a line by line justification and filling.
+There is also
+.BD \e (blank),
+.tr ^^
+which is an unpaddable character the width of a space,
+.BD \e| ,
+which is half that width,
+.BD \e^ ,
+which is one quarter of the width of a space,
+and
+.BD \e& ,
+which has zero width.
+.tr ^.
+(This last one is useful, for example, in entering
+a text line which would otherwise begin with a `.'.)
+.PP
+The command
+.BD \eo ,
+used like
+.P1
+\eo'set of characters'
+.P2
+causes (up to 9)
+characters to be overstruck,
+centered on the widest.
+This is nice for accents, as in
+.P1 2
+syst\eo"e\e(ga"me t\eo"e\e(aa"l\eo"e\e(aa"phonique
+.P2
+which makes
+.P1
+syst\o"e\(ga"me t\o"e\(aa"l\o"e\(aa"phonique
+.P2
+The accents are
+.BD \e(ga
+and
+.BD \e(aa ,
+or
+.BD \e\` 
+and
+.BD \e\' ;
+remember that each is just one character to
+.UL troff .
+.PP
+You can make your own overstrikes with another special convention,
+.BD \ez ,
+the zero-motion command.
+.BD \ezx
+suppresses the normal horizontal motion
+after printing the single character
+.BD x ,
+so another character can be laid on top of it.
+Although sizes can be changed within
+.BD \eo ,
+it centers the characters on the widest,
+and
+there can be no horizontal or vertical motions,
+so
+.BD \ez
+may be the only way to get what you want:
+.P1
+.sp 2
+\s8\z\(sq\s14\z\(sq\s22\z\(sq\s36\(sq
+.P2
+is produced by
+.P1
+^sp 2
+\es8\ez\e(sq\es14\ez\e(sq\es22\ez\e(sq\es36\e(sq
+.P2
+The
+.BD .sp
+is needed to leave room for the result.
+.PP
+As another example, an extra-heavy semicolon
+that looks like
+.P1
+\s+6\z,\v'-0.25m'.\v'0.25m'\s0  instead of  ;  or  \s+6;\s0
+.P2
+can be constructed with a big comma and a big period above it:
+.P1
+\es+6\ez,\ev'\(mi0.25m'.\ev'0.25m'\es0 
+.P2
+`0.25m' is an experimentally-derived constant.
+.PP
+A more ornate overstrike is given by the bracketing function
+.BD \eb ,
+which piles up characters vertically,
+centered on the current baseline.
+Thus we can get big brackets,
+constructing them with piled-up smaller pieces:
+.P1
+.sp
+.ne 3
+\b'\(lt\(lk\(lb' \b'\(lc\(lf' x \b'\(rc\(rf' \b'\(rt\(rk\(rb'
+.sp
+.P2
+by typing in only this:
+.P1 0
+\&^sp
+\eb\(fm\e(lt\e(lk\e(lb\(fm \eb\(fm\e(lc\e(lf\(fm x \eb\(fm\e(rc\e(rf\(fm \eb\(fm\e(rt\e(rk\e(rb\(fm
+.P2
+.PP
+.UL troff
+also provides a convenient facility for drawing horizontal and vertical
+lines of arbitrary length with arbitrary characters.
+.BD \el\(fm1i\(fm
+draws a line one inch long, like this:
+\l'1i'\|.
+The length can be followed by
+the character to use if the \(ru isn't appropriate;
+.BD \el\(fm0.5i.\(fm
+draws a half-inch line of dots: \l'.5i.'.
+The construction
+.BD \eL
+is entirely analogous,
+except that it draws a vertical line instead of horizontal.

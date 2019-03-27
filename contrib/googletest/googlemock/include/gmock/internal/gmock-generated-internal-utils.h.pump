@@ -1,0 +1,137 @@
+$$ -*- mode: c++; -*-
+$$ This is a Pump source file.  Please use Pump to convert it to
+$$ gmock-generated-function-mockers.h.
+$$
+$var n = 10  $$ The maximum arity we support.
+// Copyright 2007, Google Inc.
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+// Google Mock - a framework for writing C++ mock classes.
+//
+// This file contains template meta-programming utility classes needed
+// for implementing Google Mock.
+
+// GOOGLETEST_CM0002 DO NOT DELETE
+
+#ifndef GMOCK_INCLUDE_GMOCK_INTERNAL_GMOCK_GENERATED_INTERNAL_UTILS_H_
+#define GMOCK_INCLUDE_GMOCK_INTERNAL_GMOCK_GENERATED_INTERNAL_UTILS_H_
+
+#include "gmock/internal/gmock-port.h"
+
+namespace testing {
+
+template <typename T>
+class Matcher;
+
+namespace internal {
+
+// An IgnoredValue object can be implicitly constructed from ANY value.
+// This is used in implementing the IgnoreResult(a) action.
+class IgnoredValue {
+ public:
+  // This constructor template allows any value to be implicitly
+  // converted to IgnoredValue.  The object has no data member and
+  // doesn't try to remember anything about the argument.  We
+  // deliberately omit the 'explicit' keyword in order to allow the
+  // conversion to be implicit.
+  template <typename T>
+  IgnoredValue(const T& /* ignored */) {}  // NOLINT(runtime/explicit)
+};
+
+// MatcherTuple<T>::type is a tuple type where each field is a Matcher
+// for the corresponding field in tuple type T.
+template <typename Tuple>
+struct MatcherTuple;
+
+
+$range i 0..n
+$for i [[
+$range j 1..i
+$var typename_As = [[$for j, [[typename A$j]]]]
+$var As = [[$for j, [[A$j]]]]
+$var matcher_As = [[$for j, [[Matcher<A$j>]]]]
+template <$typename_As>
+struct MatcherTuple< ::testing::tuple<$As> > {
+  typedef ::testing::tuple<$matcher_As > type;
+};
+
+
+]]
+// Template struct Function<F>, where F must be a function type, contains
+// the following typedefs:
+//
+//   Result:               the function's return type.
+//   ArgumentN:            the type of the N-th argument, where N starts with 1.
+//   ArgumentTuple:        the tuple type consisting of all parameters of F.
+//   ArgumentMatcherTuple: the tuple type consisting of Matchers for all
+//                         parameters of F.
+//   MakeResultVoid:       the function type obtained by substituting void
+//                         for the return type of F.
+//   MakeResultIgnoredValue:
+//                         the function type obtained by substituting Something
+//                         for the return type of F.
+template <typename F>
+struct Function;
+
+template <typename R>
+struct Function<R()> {
+  typedef R Result;
+  typedef ::testing::tuple<> ArgumentTuple;
+  typedef typename MatcherTuple<ArgumentTuple>::type ArgumentMatcherTuple;
+  typedef void MakeResultVoid();
+  typedef IgnoredValue MakeResultIgnoredValue();
+};
+
+
+$range i 1..n
+$for i [[
+$range j 1..i
+$var typename_As = [[$for j [[, typename A$j]]]]
+$var As = [[$for j, [[A$j]]]]
+$var matcher_As = [[$for j, [[Matcher<A$j>]]]]
+$range k 1..i-1
+$var prev_As = [[$for k, [[A$k]]]]
+template <typename R$typename_As>
+struct Function<R($As)>
+    : Function<R($prev_As)> {
+  typedef A$i Argument$i;
+  typedef ::testing::tuple<$As> ArgumentTuple;
+  typedef typename MatcherTuple<ArgumentTuple>::type ArgumentMatcherTuple;
+  typedef void MakeResultVoid($As);
+  typedef IgnoredValue MakeResultIgnoredValue($As);
+};
+
+
+]]
+}  // namespace internal
+
+}  // namespace testing
+
+#endif  // GMOCK_INCLUDE_GMOCK_INTERNAL_GMOCK_GENERATED_INTERNAL_UTILS_H_

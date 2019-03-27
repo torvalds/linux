@@ -1,0 +1,34 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_QUERY_GID 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_query_gid \- query an InfiniBand port's GID table
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_query_gid(struct ibv_context " "*context" ", uint8_t " "port_num" ,
+.BI "                  int " "index" ", union ibv_gid " "*gid" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_query_gid()
+returns the GID value in entry
+.I index
+of port
+.I port_num
+for device context
+.I context
+through the pointer
+.I gid\fR.
+.SH "RETURN VALUE"
+.B ibv_query_gid()
+returns 0 on success, and \-1 on error.
+.SH "SEE ALSO"
+.BR ibv_open_device (3),
+.BR ibv_query_device (3),
+.BR ibv_query_port (3),
+.BR ibv_query_pkey (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

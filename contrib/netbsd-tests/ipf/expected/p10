@@ -1,0 +1,40 @@
+< bge0 ip #0 40(20) 6 5.5.5.5,10000 > 1.1.1.2,80
+< bge0 ip #0 40(20) 6 5.5.5.6,10000 > 1.1.1.9,80
+< bge0 ip #0 40(20) 6 5.5.5.7,10000 > 1.1.1.2,80
+< bge0 ip #0 40(20) 6 5.5.5.8,10000 > 1.1.1.9,80
+< bge0 ip #0 40(20) 6 5.5.5.9,10000 > 1.1.1.4,80
+< bge0 ip #0 40(20) 6 5.5.6.5,10000 > 1.1.1.4,80
+< bge0 ip #0 40(20) 6 5.5.6.6,10000 > 1.1.1.9,80
+< bge0 ip #0 40(20) 6 5.5.6.7,10000 > 1.1.1.5,80
+< bge0 ip #0 40(20) 6 5.5.6.8,10000 > 1.1.1.5,80
+< bge0 ip #0 40(20) 6 5.5.6.9,10000 > 1.1.1.9,80
+List of active MAP/Redirect filters:
+rewrite in on bge0 proto tcp from 0/0 to 0/0 port = 80 -> src 0/0 dst dstlist/servers;
+
+List of active sessions:
+RWR-RDR 5.5.6.9         10000 9.9.9.9         80   <- -> 5.5.6.9         10000 1.1.1.9         80   
+RWR-RDR 5.5.6.8         10000 9.9.9.9         80   <- -> 5.5.6.8         10000 1.1.1.5         80   
+RWR-RDR 5.5.6.7         10000 9.9.9.9         80   <- -> 5.5.6.7         10000 1.1.1.5         80   
+RWR-RDR 5.5.6.6         10000 9.9.9.9         80   <- -> 5.5.6.6         10000 1.1.1.9         80   
+RWR-RDR 5.5.6.5         10000 9.9.9.9         80   <- -> 5.5.6.5         10000 1.1.1.4         80   
+RWR-RDR 5.5.5.9         10000 9.9.9.9         80   <- -> 5.5.5.9         10000 1.1.1.4         80   
+RWR-RDR 5.5.5.8         10000 9.9.9.9         80   <- -> 5.5.5.8         10000 1.1.1.9         80   
+RWR-RDR 5.5.5.7         10000 9.9.9.9         80   <- -> 5.5.5.7         10000 1.1.1.2         80   
+RWR-RDR 5.5.5.6         10000 9.9.9.9         80   <- -> 5.5.5.6         10000 1.1.1.9         80   
+RWR-RDR 5.5.5.5         10000 9.9.9.9         80   <- -> 5.5.5.5         10000 1.1.1.2         80   
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

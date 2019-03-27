@@ -1,0 +1,14 @@
+# Build telnetd
+# Question - why is telnetds objects ending up in the srcdir? -adrian
+
+# This won't work yet - because telnetd relies on libtelnet.a which includes
+# kerberos support by default; building telnetd without kerberos support
+# requires the cross-build world to be built the same.
+#   -adrian
+
+# $FreeBSD$
+
+CRUNCH_PROGS_libexec+=	telnetd
+CRUNCH_PROGS_usr.bin+=	telnet
+CRUNCH_LIBS+=		-lkrb5 -lhx509 -lasn1 -lcom_err -lroken -ltelnetd
+# CRUNCH_BUILDOPTS_telnetd=	MK_KERBEROS_SUPPORT=no

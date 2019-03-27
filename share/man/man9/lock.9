@@ -1,0 +1,414 @@
+.\"
+.\" Copyright (C) 2002 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 17, 2017
+.Dt LOCK 9
+.Os
+.Sh NAME
+.Nm lockinit ,
+.Nm lockdestroy ,
+.Nm lockmgr ,
+.Nm lockmgr_args ,
+.Nm lockmgr_args_rw ,
+.Nm lockmgr_disown ,
+.Nm lockmgr_printinfo ,
+.Nm lockmgr_recursed ,
+.Nm lockmgr_rw ,
+.Nm lockstatus ,
+.Nm lockmgr_assert
+.Nd "lockmgr family of functions"
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/lock.h
+.In sys/lockmgr.h
+.Ft void
+.Fn lockinit "struct lock *lkp" "int prio" "const char *wmesg" "int timo" "int flags"
+.Ft void
+.Fn lockdestroy "struct lock *lkp"
+.Ft int
+.Fn lockmgr "struct lock *lkp" "u_int flags" "struct mtx *ilk"
+.Ft int
+.Fn lockmgr_args "struct lock *lkp" "u_int flags" "struct mtx *ilk" "const char *wmesg" "int prio" "int timo"
+.Ft int
+.Fn lockmgr_args_rw "struct lock *lkp" "u_int flags" "struct rwlock *ilk" "const char *wmesg" "int prio" "int timo"
+.Ft void
+.Fn lockmgr_disown "struct lock *lkp"
+.Ft void
+.Fn lockmgr_printinfo "const struct lock *lkp"
+.Ft int
+.Fn lockmgr_recursed "const struct lock *lkp"
+.Ft int
+.Fn lockmgr_rw "struct lock *lkp" "u_int flags" "struct rwlock *ilk"
+.Ft int
+.Fn lockstatus "const struct lock *lkp"
+.Pp
+.Cd "options INVARIANTS"
+.Cd "options INVARIANT_SUPPORT"
+.Ft void
+.Fn lockmgr_assert "const struct lock *lkp" "int what"
+.Sh DESCRIPTION
+The
+.Fn lockinit
+function is used to initialize a lock.
+It must be called before any operation can be performed on a lock.
+Its arguments are:
+.Bl -tag -width ".Fa wmesg"
+.It Fa lkp
+A pointer to the lock to initialize.
+.It Fa prio
+The priority passed to
+.Xr sleep 9 .
+.It Fa wmesg
+The lock message.
+This is used for both debugging output and
+.Xr sleep 9 .
+.It Fa timo
+The timeout value passed to
+.Xr sleep 9 .
+.It Fa flags
+The flags the lock is to be initialized with:
+.Bl -tag -width ".Dv LK_CANRECURSE"
+.It Dv LK_CANRECURSE
+Allow recursive exclusive locks.
+.It Dv LK_NOPROFILE
+Disable lock profiling for this lock.
+.It Dv LK_NOSHARE
+Allow exclusive locks only.
+.It Dv LK_NOWITNESS
+Instruct
+.Xr witness 4
+to ignore this lock.
+.It Dv LK_NODUP
+.Xr witness 4
+should log messages about duplicate locks being acquired.
+.It Dv LK_QUIET
+Disable
+.Xr ktr 4
+logging for this lock.
+.It Dv LK_TIMELOCK
+Use
+.Fa timo
+during a sleep; otherwise, 0 is used.
+.El
+.El
+.Pp
+The
+.Fn lockdestroy
+function is used to destroy a lock, and while it is called in a number of
+places in the kernel, it currently does nothing.
+.Pp
+The
+.Fn lockmgr
+and
+.Fn lockmgr_rw
+functions handle general locking functionality within the kernel, including
+support for shared and exclusive locks, and recursion.
+.Fn lockmgr
+and
+.Fn lockmgr_rw
+are also able to upgrade and downgrade locks.
+.Pp
+Their arguments are:
+.Bl -tag -width ".Fa flags"
+.It Fa lkp
+A pointer to the lock to manipulate.
+.It Fa flags
+Flags indicating what action is to be taken.
+.Bl -tag -width ".Dv LK_NODDLKTREAT"
+.It Dv LK_SHARED
+Acquire a shared lock.
+If an exclusive lock is currently held,
+.Dv EDEADLK
+will be returned.
+.It Dv LK_EXCLUSIVE
+Acquire an exclusive lock.
+If an exclusive lock is already held, and
+.Dv LK_CANRECURSE
+is not set, the system will
+.Xr panic 9 .
+.It Dv LK_DOWNGRADE
+Downgrade exclusive lock to a shared lock.
+Downgrading a shared lock is not permitted.
+If an exclusive lock has been recursed, the system will
+.Xr panic 9 .
+.It Dv LK_UPGRADE
+Upgrade a shared lock to an exclusive lock.
+If this call fails, the shared lock is lost, even if the
+.Dv LK_NOWAIT
+flag is specified.
+During the upgrade, the shared lock could
+be temporarily dropped.
+Attempts to upgrade an exclusive lock will cause a
+.Xr panic 9 .
+.It Dv LK_TRYUPGRADE
+Try to upgrade a shared lock to an exclusive lock.
+The failure to upgrade does not result in the dropping
+of the shared lock ownership.
+.It Dv LK_RELEASE
+Release the lock.
+Releasing a lock that is not held can cause a
+.Xr panic 9 .
+.It Dv LK_DRAIN
+Wait for all activity on the lock to end, then mark it decommissioned.
+This is used before freeing a lock that is part of a piece of memory that is
+about to be freed.
+(As documented in
+.In sys/lockmgr.h . )
+.It Dv LK_SLEEPFAIL
+Fail if operation has slept.
+.It Dv LK_NOWAIT
+Do not allow the call to sleep.
+This can be used to test the lock.
+.It Dv LK_NOWITNESS
+Skip the
+.Xr witness 4
+checks for this instance.
+.It Dv LK_CANRECURSE
+Allow recursion on an exclusive lock.
+For every lock there must be a release.
+.It Dv LK_INTERLOCK
+Unlock the interlock (which should be locked already).
+.It Dv LK_NODDLKTREAT
+Normally,
+.Fn lockmgr
+postpones serving further shared requests for shared-locked lock if there is
+exclusive waiter, to avoid exclusive lock starvation.
+But, if the thread requesting the shared lock already owns a shared lockmgr
+lock, the request is granted even in presence of the parallel exclusive lock
+request, which is done to avoid deadlocks with recursive shared acquisition.
+.Pp
+The
+.Dv LK_NODDLKTREAT
+flag can only be used by code which requests shared non-recursive lock.
+The flag allows exclusive requests to preempt the current shared request
+even if the current thread owns shared locks.
+This is safe since shared lock is guaranteed to not recurse, and is used
+when thread is known to held unrelated shared locks, to not cause
+unnecessary starvation.
+An example is
+.Dv vp
+locking in VFS
+.Xr lookup 9 ,
+when
+.Dv dvp
+is already locked.
+.El
+.It Fa ilk
+An interlock mutex for controlling group access to the lock.
+If
+.Dv LK_INTERLOCK
+is specified,
+.Fn lockmgr
+and
+.Fn lockmgr_rw
+assume
+.Fa ilk
+is currently owned and not recursed, and will return it unlocked.
+See
+.Xr mtx_assert 9 .
+.El
+.Pp
+The
+.Fn lockmgr_args
+and
+.Fn lockmgr_args_rw
+function work like
+.Fn lockmgr
+and
+.Fn lockmgr_rw
+but accepting a
+.Fa wmesg ,
+.Fa timo
+and
+.Fa prio
+on a per-instance basis.
+The specified values will override the default
+ones, but this can still be used passing, respectively,
+.Dv LK_WMESG_DEFAULT ,
+.Dv LK_PRIO_DEFAULT
+and
+.Dv LK_TIMO_DEFAULT .
+.Pp
+The
+.Fn lockmgr_disown
+function switches the owner from the current thread to be
+.Dv LK_KERNPROC ,
+if the lock is already held.
+.Pp
+The
+.Fn lockmgr_printinfo
+function prints debugging information about the lock.
+It is used primarily by
+.Xr VOP_PRINT 9
+functions.
+.Pp
+The
+.Fn lockmgr_recursed
+function returns true if the lock is recursed, 0
+otherwise.
+.Pp
+The
+.Fn lockstatus
+function returns the status of the lock in relation to the current thread.
+.Pp
+When compiled with
+.Cd "options INVARIANTS"
+and
+.Cd "options INVARIANT_SUPPORT" ,
+the
+.Fn lockmgr_assert
+function tests
+.Fa lkp
+for the assertions specified in
+.Fa what ,
+and panics if they are not met.
+One of the following assertions must be specified:
+.Bl -tag -width ".Dv KA_UNLOCKED"
+.It Dv KA_LOCKED
+Assert that the current thread has either a shared or an exclusive lock on the
+.Vt lkp
+lock pointed to by the first argument.
+.It Dv KA_SLOCKED
+Assert that the current thread has a shared lock on the
+.Vt lkp
+lock pointed to by the first argument.
+.It Dv KA_XLOCKED
+Assert that the current thread has an exclusive lock on the
+.Vt lkp
+lock pointed to by the first argument.
+.It Dv KA_UNLOCKED
+Assert that the current thread has no lock on the
+.Vt lkp
+lock pointed to by the first argument.
+.El
+.Pp
+In addition, one of the following optional assertions can be used with
+either an
+.Dv KA_LOCKED ,
+.Dv KA_SLOCKED ,
+or
+.Dv KA_XLOCKED
+assertion:
+.Bl -tag -width ".Dv KA_NOTRECURSED"
+.It Dv KA_RECURSED
+Assert that the current thread has a recursed lock on
+.Fa lkp .
+.It Dv KA_NOTRECURSED
+Assert that the current thread does not have a recursed lock on
+.Fa lkp .
+.El
+.Sh RETURN VALUES
+The
+.Fn lockmgr
+and
+.Fn lockmgr_rw
+functions return 0 on success and non-zero on failure.
+.Pp
+The
+.Fn lockstatus
+function returns:
+.Bl -tag -width ".Dv LK_EXCLUSIVE"
+.It Dv LK_EXCLUSIVE
+An exclusive lock is held by the current thread.
+.It Dv LK_EXCLOTHER
+An exclusive lock is held by someone other than the current thread.
+.It Dv LK_SHARED
+A shared lock is held.
+.It Li 0
+The lock is not held by anyone.
+.El
+.Sh ERRORS
+.Fn lockmgr
+and
+.Fn lockmgr_rw
+fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+.Dv LK_FORCEUPGRADE
+was requested and another thread had already requested a lock upgrade.
+.It Bq Er EBUSY
+.Dv LK_NOWAIT
+was set, and a sleep would have been required, or
+.Dv LK_TRYUPGRADE
+operation was not able to upgrade the lock.
+.It Bq Er ENOLCK
+.Dv LK_SLEEPFAIL
+was set and
+.Fn lockmgr
+or
+.Fn lockmgr_rw
+did sleep.
+.It Bq Er EINTR
+.Dv PCATCH
+was set in the lock priority, and a signal was delivered during a sleep.
+Note the
+.Er ERESTART
+error below.
+.It Bq Er ERESTART
+.Dv PCATCH
+was set in the lock priority, a signal was delivered during a sleep,
+and the system call is to be restarted.
+.It Bq Er EWOULDBLOCK
+a non-zero timeout was given, and the timeout expired.
+.El
+.Sh LOCKS
+If
+.Dv LK_INTERLOCK
+is passed in the
+.Fa flags
+argument to
+.Fn lockmgr
+or
+.Fn lockmgr_rw ,
+the
+.Fa ilk
+must be held prior to calling
+.Fn lockmgr
+or
+.Fn lockmgr_rw ,
+and will be returned unlocked.
+.Pp
+Upgrade attempts that fail result in the loss of the lock that
+is currently held.
+Also, it is invalid to upgrade an
+exclusive lock, and a
+.Xr panic 9
+will be the result of trying.
+.Sh SEE ALSO
+.Xr condvar 9 ,
+.Xr locking 9 ,
+.Xr mtx_assert 9 ,
+.Xr mutex 9 ,
+.Xr panic 9 ,
+.Xr rwlock 9 ,
+.Xr sleep 9 ,
+.Xr sx 9 ,
+.Xr VOP_PRINT 9
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@acns.ab.ca .

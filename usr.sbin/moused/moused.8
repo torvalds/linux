@@ -1,0 +1,847 @@
+.\" Copyright (c) 1996
+.\"	Mike Pritchard <mpp@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Mike Pritchard.
+.\" 4. Neither the name of the author nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 15, 2008
+.Dt MOUSED 8
+.Os
+.Sh NAME
+.Nm moused
+.Nd pass mouse data to the console driver
+.Sh SYNOPSIS
+.Nm
+.Op Fl DPRacdfs
+.Op Fl I Ar file
+.Op Fl F Ar rate
+.Op Fl r Ar resolution
+.Op Fl S Ar baudrate
+.Op Fl VH Op Fl U Ar distance Fl L Ar distance
+.Op Fl A Ar exp Ns Op , Ns Ar offset
+.Op Fl a Ar X Ns Op , Ns Ar Y
+.Op Fl C Ar threshold
+.Op Fl m Ar N=M
+.Op Fl w Ar N
+.Op Fl z Ar target
+.Op Fl t Ar mousetype
+.Op Fl l Ar level
+.Op Fl 3 Op Fl E Ar timeout
+.Op Fl T Ar distance Ns Op , Ns Ar time Ns Op , Ns Ar after
+.Fl p Ar port
+.Pp
+.Nm
+.Op Fl Pd
+.Fl p Ar port
+.Fl i Ar info
+.Sh DESCRIPTION
+The
+.Nm
+utility and the console driver work together to support
+mouse operation in the text console and user programs.
+They virtualize the mouse and provide user programs with mouse data
+in the standard format
+(see
+.Xr sysmouse 4 ) .
+.Pp
+The mouse daemon listens to the specified port for mouse data,
+interprets and then passes it via ioctls to the console driver.
+The mouse daemon
+reports translation movement, button press/release
+events and movement of the roller or the wheel if available.
+The roller/wheel movement is reported as
+.Dq Z
+axis movement.
+.Pp
+The console driver will display the mouse pointer on the screen
+and provide cut and paste functions if the mouse pointer is enabled
+in the virtual console via
+.Xr vidcontrol 1 .
+If
+.Xr sysmouse 4
+is opened by the user program, the console driver also passes the mouse
+data to the device so that the user program will see it.
+.Pp
+If the mouse daemon receives the signal
+.Dv SIGHUP ,
+it will reopen the mouse port and reinitialize itself.
+Useful if
+the mouse is attached/detached while the system is suspended.
+.Pp
+If the mouse daemon receives the signal
+.Dv SIGUSR1 ,
+it will stop passing mouse events.
+Sending the signal
+.Dv SIGUSR1
+again will resume passing mouse events.
+Useful if your typing on a laptop is
+interrupted by accidentally touching the mouse pad.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl 3
+Emulate the third (middle) button for 2-button mice.
+It is emulated
+by pressing the left and right physical buttons simultaneously.
+.It Fl C Ar threshold
+Set double click speed as the maximum interval in msec between button clicks.
+Without this option, the default value of 500 msec will be assumed.
+This option will have effect only on the cut and paste operations
+in the text mode console.
+The user program which is reading mouse data
+via
+.Xr sysmouse 4
+will not be affected.
+.It Fl D
+Lower DTR on the serial port.
+This option is valid only if
+.Ar mousesystems
+is selected as the protocol type.
+The DTR line may need to be dropped for a 3-button mouse
+to operate in the
+.Ar mousesystems
+mode.
+.It Fl E Ar timeout
+When the third button emulation is enabled
+(see above),
+the
+.Nm
+utility waits
+.Ar timeout
+msec at most before deciding whether two buttons are being pressed
+simultaneously.
+The default timeout is 100 msec.
+.It Fl F Ar rate
+Set the report rate (reports/sec) of the device if supported.
+.It Fl L Ar distance
+When
+.Dq Virtual Scrolling
+is enabled, the
+.Fl L
+option can be used to set the
+.Ar distance
+(in pixels) that the mouse must move before a scroll event
+is generated.  This effectively controls the scrolling speed.
+The default
+.Ar distance
+is 2 pixels.
+.It Fl H
+Enable
+.Dq Horizontal Virtual Scrolling .
+With this option set, holding the middle mouse
+button down will cause motion to be interpreted as
+horizontal scrolling.
+Use the
+.Fl U
+option to set the distance the mouse must move before the scrolling mode is
+activated and the
+.Fl L
+option to set the scrolling speed.
+This option may be used with or without the
+.Fl V
+option.
+.It Fl I Ar file
+Write the process id of the
+.Nm
+utility in the specified file.
+Without this option, the process id will be stored in
+.Pa /var/run/moused.pid .
+.It Fl P
+Do not start the Plug and Play COM device enumeration procedure
+when identifying the serial mouse.
+If this option is given together with the
+.Fl i
+option, the
+.Nm
+utility will not be able to print useful information for the serial mouse.
+.It Fl R
+Lower RTS on the serial port.
+This option is valid only if
+.Ar mousesystems
+is selected as the protocol type by the
+.Fl t
+option below.
+It is often used with the
+.Fl D
+option above.
+Both RTS and DTR lines may need to be dropped for
+a 3-button mouse to operate in the
+.Ar mousesystems
+mode.
+.It Fl S Ar baudrate
+Select the baudrate for the serial port (1200 to 9600).
+Not all serial mice support this option.
+.It Fl T Ar distance Ns Op , Ns Ar time Ns Op , Ns Ar after
+Terminate drift.
+Use this option if mouse pointer slowly wanders when mouse is not moved.
+Movements up to
+.Ar distance
+(for example 4) pixels (X+Y) in
+.Ar time
+msec (default 500) are ignored, except during
+.Ar after
+msec (default 4000) since last real mouse movement.
+.It Fl V
+Enable
+.Dq Virtual Scrolling .
+With this option set, holding the middle mouse
+button down will cause motion to be interpreted as scrolling.
+Use the
+.Fl U
+option to set the distance the mouse must move before the scrolling mode is
+activated and the
+.Fl L
+option to set the scrolling speed.
+.It Fl U Ar distance
+When
+.Dq Virtual Scrolling
+is enabled, the
+.Fl U
+option can be used to set the
+.Ar distance
+(in pixels) that the mouse must move before the scrolling
+mode is activated.
+The default
+.Ar distance
+is 3 pixels.
+.It Fl A Ar exp Ns Op , Ns Ar offset
+Apply exponential (dynamic) acceleration to mouse movements:
+the faster you move the mouse, the more it will be accelerated.
+That means that small mouse movements are not accelerated,
+so they are still very accurate, while a faster movement will
+drive the pointer quickly across the screen.
+.Pp
+The
+.Ar exp
+value specifies the exponent, which is basically
+the amount of acceleration.  Useful values are in the
+range 1.1 to 2.0, but it depends on your mouse hardware
+and your personal preference.  A value of 1.0 means no
+exponential acceleration.  A value of 2.0 means squared
+acceleration (i.e. if you move the mouse twice as fast,
+the pointer will move four times as fast on the screen).
+Values beyond 2.0 are possible but not recommended.
+A good value to start is probably 1.5.
+.Pp
+The optional
+.Ar offset
+value specifies the distance at which the acceleration
+begins.  The default is 1.0, which means that the
+acceleration is applied to movements larger than one unit.
+If you specify a larger value, it takes more speed for
+the acceleration to kick in, i.e. the speed range for
+small and accurate movements is wider.
+Usually the default should be sufficient, but if you're
+not satisfied with the behaviour, try a value of 2.0.
+.Pp
+Note that the
+.Fl A
+option interacts badly with the X server's own acceleration,
+which doesn't work very well anyway.  Therefore it is
+recommended to switch it off if necessary:
+.Dq xset m 1 .
+.It Fl a Ar X Ns Op , Ns Ar Y
+Accelerate or decelerate the mouse input.
+This is a linear acceleration only.
+Values less than 1.0 slow down movement, values greater than 1.0 speed it
+up.
+Specifying only one value sets the acceleration for both axes.
+.Pp
+You can use the
+.Fl a
+and
+.Fl A
+options at the same time to have the combined effect
+of linear and exponential acceleration.
+.It Fl c
+Some mice report middle button down events
+as if the left and right buttons are being pressed.
+This option handles this.
+.It Fl d
+Enable debugging messages.
+.It Fl f
+Do not become a daemon and instead run as a foreground process.
+Useful for testing and debugging.
+.It Fl i Ar info
+Print specified information and quit.
+Available pieces of
+information are:
+.Pp
+.Bl -tag -compact -width modelxxx
+.It Ar port
+Port (device file) name, i.e.\&
+.Pa /dev/cuau0 ,
+and
+.Pa /dev/psm0 .
+.It Ar if
+Interface type: serial, bus, inport or ps/2.
+.It Ar type
+Protocol type.
+It is one of the types listed under the
+.Fl t
+option below or
+.Ar sysmouse
+if the driver supports the
+.Ar sysmouse
+data format standard.
+.It Ar model
+Mouse model.
+The
+.Nm
+utility may not always be able to identify the model.
+.It Ar all
+All of the above items.
+Print port, interface, type and model in this order
+in one line.
+.El
+.Pp
+If the
+.Nm
+utility cannot determine the requested information, it prints
+.Dq Li unknown
+or
+.Dq Li generic .
+.It Fl l Ar level
+Specifies at which level
+.Nm
+should operate the mouse driver.
+Refer to
+.Sx Operation Levels
+in
+.Xr psm 4
+for more information on this.
+.It Fl m Ar N=M
+Assign the physical button
+.Ar M
+to the logical button
+.Ar N .
+You may specify as many instances of this option as you like.
+More than one physical button may be assigned to a logical button at the
+same time.
+In this case the logical button will be down,
+if either of the assigned physical buttons is held down.
+Do not put space around
+.Ql = .
+.It Fl p Ar port
+Use
+.Ar port
+to communicate with the mouse.
+.It Fl r Ar resolution
+Set the resolution of the device; in Dots Per Inch, or
+.Ar low ,
+.Ar medium-low ,
+.Ar medium-high
+or
+.Ar high .
+This option may not be supported by all the device.
+.It Fl s
+Select a baudrate of 9600 for the serial line.
+Not all serial mice support this option.
+.It Fl t Ar type
+Specify the protocol type of the mouse attached to the port.
+You may explicitly specify a type listed below, or use
+.Ar auto
+to let the
+.Nm
+utility automatically select an appropriate protocol for the given
+mouse.
+If you entirely omit this option in the command line,
+.Fl t Ar auto
+is assumed.
+Under normal circumstances,
+you need to use this option only if the
+.Nm
+utility is not able to detect the protocol automatically
+(see
+.Sx "Configuring Mouse Daemon" ) .
+.Pp
+Note that if a protocol type is specified with this option, the
+.Fl P
+option above is implied and Plug and Play COM device enumeration
+procedure will be disabled.
+.Pp
+Also note that if your mouse is attached to the PS/2 mouse port, you should
+always choose
+.Ar auto
+or
+.Ar ps/2 ,
+regardless of the brand and model of the mouse.
+Likewise, if your
+mouse is attached to the bus mouse port, choose
+.Ar auto
+or
+.Ar busmouse .
+Serial mouse protocols will not work with these mice.
+.Pp
+For the USB mouse, the protocol must be
+.Ar auto .
+No other protocol will work with the USB mouse.
+.Pp
+Valid types for this option are
+listed below.
+.Pp
+For the serial mouse:
+.Bl -tag -compact -width mousesystemsxxx
+.It Ar microsoft
+Microsoft serial mouse protocol.
+Most 2-button serial mice use this protocol.
+.It Ar intellimouse
+Microsoft IntelliMouse protocol.
+Genius NetMouse,
+.Tn ASCII
+Mie Mouse,
+Logitech MouseMan+ and FirstMouse+ use this protocol too.
+Other mice with a roller/wheel may be compatible with this protocol.
+.It Ar mousesystems
+MouseSystems 5-byte protocol.
+3-button mice may use this protocol.
+.It Ar mmseries
+MM Series mouse protocol.
+.It Ar logitech
+Logitech mouse protocol.
+Note that this is for old Logitech models.
+.Ar mouseman
+or
+.Ar intellimouse
+should be specified for newer models.
+.It Ar mouseman
+Logitech MouseMan and TrackMan protocol.
+Some 3-button mice may be compatible
+with this protocol.
+Note that MouseMan+ and FirstMouse+ use
+.Ar intellimouse
+protocol rather than this one.
+.It Ar glidepoint
+ALPS GlidePoint protocol.
+.It Ar thinkingmouse
+Kensington ThinkingMouse protocol.
+.It Ar mmhitab
+Hitachi tablet protocol.
+.It Ar x10mouseremote
+X10 MouseRemote.
+.It Ar kidspad
+Genius Kidspad and Easypad protocol.
+.It Ar versapad
+Interlink VersaPad protocol.
+.It Ar gtco_digipad
+GTCO Digipad protocol.
+.El
+.Pp
+For the bus and InPort mouse:
+.Bl -tag -compact -width mousesystemsxxx
+.It Ar busmouse
+This is the only protocol type available for
+the bus and InPort mouse and should be specified for any bus mice
+and InPort mice, regardless of the brand.
+.El
+.Pp
+For the PS/2 mouse:
+.Bl -tag -compact -width mousesystemsxxx
+.It Ar ps/2
+This is the only protocol type available for the PS/2 mouse
+and should be specified for any PS/2 mice, regardless of the brand.
+.El
+.Pp
+For the USB mouse,
+.Ar auto
+is the only protocol type available for the USB mouse
+and should be specified for any USB mice, regardless of the brand.
+.It Fl w Ar N
+Make the physical button
+.Ar N
+act as the wheel mode button.
+While this button is pressed, X and Y axis movement is reported to be zero
+and the Y axis movement is mapped to Z axis.
+You may further map the Z axis movement to virtual buttons by the
+.Fl z
+option below.
+.It Fl z Ar target
+Map Z axis (roller/wheel) movement to another axis or to virtual buttons.
+Valid
+.Ar target
+maybe:
+.Bl -tag -compact -width x__
+.It Ar x
+.It Ar y
+X or Y axis movement will be reported when the Z axis movement is detected.
+.It Ar N
+Report down events for the virtual buttons
+.Ar N
+and
+.Ar N+1
+respectively when negative and positive Z axis movement
+is detected.
+There do not need to be physical buttons
+.Ar N
+and
+.Ar N+1 .
+Note that mapping to logical buttons is carried out after mapping
+from the Z axis movement to the virtual buttons is done.
+.It Ar N1 N2
+Report down events for the virtual buttons
+.Ar N1
+and
+.Ar N2
+respectively when negative and positive Z axis movement
+is detected.
+.It Ar N1 N2 N3 N4
+This is useful for the mouse with two wheels of which
+the second wheel is used to generate horizontal scroll action,
+and for the mouse which has a knob or a stick which can detect
+the horizontal force applied by the user.
+.Pp
+The motion of the second wheel will be mapped to the buttons
+.Ar N3 ,
+for the negative direction, and
+.Ar N4 ,
+for the positive direction.
+If the buttons
+.Ar N3
+and
+.Ar N4
+actually exist in this mouse, their actions will not be detected.
+.Pp
+Note that horizontal movement or second roller/wheel movement may not
+always be detected,
+because there appears to be no accepted standard as to how it is encoded.
+.Pp
+Note also that some mice think left is the negative horizontal direction;
+others may think otherwise.
+Moreover, there are some mice whose two wheels are both mounted vertically,
+and the direction of the second vertical wheel does not match the
+first one.
+.El
+.El
+.Ss Configuring Mouse Daemon
+The first thing you need to know is the interface type
+of the mouse you are going to use.
+It can be determined by looking at the connector of the mouse.
+The serial mouse has a D-Sub female 9- or 25-pin connector.
+The bus and InPort mice have either a D-Sub male 9-pin connector
+or a round DIN 9-pin connector.
+The PS/2 mouse is equipped with a small, round DIN 6-pin connector.
+Some mice come with adapters with which the connector can
+be converted to another.
+If you are to use such an adapter,
+remember the connector at the very end of the mouse/adapter pair is
+what matters.
+The USB mouse has a flat rectangular connector.
+.Pp
+The next thing to decide is a port to use for the given interface.
+The PS/2 mouse is always at
+.Pa /dev/psm0 .
+There may be more than one serial port to which the serial
+mouse can be attached.
+Many people often assign the first, built-in
+serial port
+.Pa /dev/cuau0
+to the mouse.
+You can attach multiple USB mice to your system or to your USB hub.
+They are accessible as
+.Pa /dev/ums0 , /dev/ums1 ,
+and so on.
+.Pp
+You may want to create a symbolic link
+.Pa /dev/mouse
+pointing to the real port to which the mouse is connected, so that you
+can easily distinguish which is your
+.Dq mouse
+port later.
+.Pp
+The next step is to guess the appropriate protocol type for the mouse.
+The
+.Nm
+utility may be able to automatically determine the protocol type.
+Run the
+.Nm
+utility with the
+.Fl i
+option and see what it says.
+If the command can identify
+the protocol type, no further investigation is necessary on your part.
+You may start the daemon without explicitly specifying a protocol type
+(see
+.Sx EXAMPLES ) .
+.Pp
+The command may print
+.Ar sysmouse
+if the mouse driver supports this protocol type.
+.Pp
+Note that the
+.Dv type
+and
+.Dv model
+printed by the
+.Fl i
+option do not necessarily match the product name of the pointing device
+in question, but they may give the name of the device with which it is
+compatible.
+.Pp
+If the
+.Fl i
+option yields nothing, you need to specify a protocol type to the
+.Nm
+utility by the
+.Fl t
+option.
+You have to make a guess and try.
+There is rule of thumb:
+.Pp
+.Bl -enum -compact -width 1.X
+.It
+The bus and InPort mice always use
+.Ar busmouse
+protocol regardless of the brand of the mouse.
+.It
+The
+.Ar ps/2
+protocol should always be specified for the PS/2 mouse
+regardless of the brand of the mouse.
+.It
+You must specify the
+.Ar auto
+protocol for the USB mouse.
+.It
+Most 2-button serial mice support the
+.Ar microsoft
+protocol.
+.It
+3-button serial mice may work with the
+.Ar mousesystems
+protocol.
+If it does not, it may work with the
+.Ar microsoft
+protocol although
+the third (middle) button will not function.
+3-button serial mice may also work with the
+.Ar mouseman
+protocol under which the third button may function as expected.
+.It
+3-button serial mice may have a small switch to choose between
+.Dq MS
+and
+.Dq PC ,
+or
+.Dq 2
+and
+.Dq 3 .
+.Dq MS
+or
+.Dq 2
+usually mean the
+.Ar microsoft
+protocol.
+.Dq PC
+or
+.Dq 3
+will choose the
+.Ar mousesystems
+protocol.
+.It
+If the mouse has a roller or a wheel, it may be compatible with the
+.Ar intellimouse
+protocol.
+.El
+.Pp
+To test if the selected protocol type is correct for the given mouse,
+enable the mouse pointer in the current virtual console,
+.Pp
+.Dl "vidcontrol -m on"
+.Pp
+start the mouse daemon in the foreground mode,
+.Pp
+.Dl "moused -f -p <selected_port> -t <selected_protocol>"
+.Pp
+and see if the mouse pointer travels correctly
+according to the mouse movement.
+Then try cut & paste features by
+clicking the left, right and middle buttons.
+Type ^C to stop
+the command.
+.Ss Multiple Mice
+As many instances of the mouse daemon as the number of mice attached to
+the system may be run simultaneously; one
+instance for each mouse.
+This is useful if the user wants to use the built-in PS/2 pointing device
+of a laptop computer while on the road, but wants to use a serial
+mouse when s/he attaches the system to the docking station in the office.
+Run two mouse daemons and tell the application program
+(such as the
+.Tn "X\ Window System" )
+to use
+.Xr sysmouse 4 ,
+then the application program will always see mouse data from either mouse.
+When the serial mouse is not attached, the corresponding mouse daemon
+will not detect any movement or button state change and the application
+program will only see mouse data coming from the daemon for the
+PS/2 mouse.
+In contrast when both mice are attached and both of them
+are moved at the same time in this configuration,
+the mouse pointer will travel across the screen just as if movement of
+the mice is combined all together.
+.Sh FILES
+.Bl -tag -width /dev/consolectl -compact
+.It Pa /dev/consolectl
+device to control the console
+.It Pa /dev/psm%d
+PS/2 mouse driver
+.It Pa /dev/sysmouse
+virtualized mouse driver
+.It Pa /dev/ttyv%d
+virtual consoles
+.It Pa /dev/ums%d
+USB mouse driver
+.It Pa /var/run/moused.pid
+process id of the currently running
+.Nm
+utility
+.It Pa /var/run/MouseRemote
+UNIX-domain stream socket for X10 MouseRemote events
+.El
+.Sh EXAMPLES
+.Dl "moused -p /dev/cuau0 -i type"
+.Pp
+Let the
+.Nm
+utility determine the protocol type of the mouse at the serial port
+.Pa /dev/cuau0 .
+If successful, the command will print the type, otherwise it will say
+.Dq Li unknown .
+.Bd -literal -offset indent
+moused -p /dev/cuau0
+vidcontrol -m on
+.Ed
+.Pp
+If the
+.Nm
+utility is able to identify the protocol type of the mouse at the specified
+port automatically, you can start the daemon without the
+.Fl t
+option and enable the mouse pointer in the text console as above.
+.Bd -literal -offset indent
+moused -p /dev/mouse -t microsoft
+vidcontrol -m on
+.Ed
+.Pp
+Start the mouse daemon on the serial port
+.Pa /dev/mouse .
+The protocol type
+.Ar microsoft
+is explicitly specified by the
+.Fl t
+option.
+.Pp
+.Dl "moused -p /dev/mouse -m 1=3 -m 3=1"
+.Pp
+Assign the physical button 3 (right button) to the logical button 1
+(logical left) and the physical button 1 (left) to the logical
+button 3 (logical right).
+This will effectively swap the left and right buttons.
+.Pp
+.Dl "moused -p /dev/mouse -t intellimouse -z 4"
+.Pp
+Report negative Z axis movement (i.e., mouse wheel) as the button 4 pressed
+and positive Z axis movement (i.e., mouse wheel) as the button 5 pressed.
+.Pp
+If you add
+.Pp
+.Dl "ALL ALL = NOPASSWD: /usr/bin/killall -USR1 moused"
+.Pp
+to your
+.Pa /usr/local/etc/sudoers
+file, and bind
+.Pp
+.Dl "killall -USR1 moused"
+.Pp
+to a key in your window manager, you can suspend mouse events on your laptop if
+you keep brushing over the mouse pad while typing.
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr vidcontrol 1 ,
+.Xr xset 1 ,
+.Xr keyboard 4 ,
+.Xr psm 4 ,
+.Xr screen 4 ,
+.Xr sysmouse 4 ,
+.Xr ums 4
+.Sh STANDARDS
+The
+.Nm
+utility partially supports
+.Dq Plug and Play External COM Device Specification
+in order to support PnP serial mice.
+However, due to various degrees of conformance to the specification by
+existing serial mice, it does not strictly follow the version 1.0 of the
+standard.
+Even with this less strict approach,
+it may not always determine an appropriate protocol type
+for the given serial mouse.
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An Michael Smith Aq Mt msmith@FreeBSD.org .
+This manual page was written by
+.An Mike Pritchard Aq Mt mpp@FreeBSD.org .
+The command and manual page have since been updated by
+.An Kazutaka Yokota Aq Mt yokota@FreeBSD.org .
+.Sh CAVEATS
+Many pad devices behave as if the first (left) button were pressed if
+the user
+.Dq taps
+the surface of the pad.
+In contrast, some ALPS GlidePoint and Interlink VersaPad models
+treat the tapping action
+as fourth button events.
+Use the option
+.Dq Fl m Li 1=4
+for these models
+to obtain the same effect as the other pad devices.
+.Pp
+Cut and paste functions in the virtual console assume that there
+are three buttons on the mouse.
+The logical button 1 (logical left) selects a region of text in the
+console and copies it to the cut buffer.
+The logical button 3 (logical right) extends the selected region.
+The logical button 2 (logical middle) pastes the selected text
+at the text cursor position.
+If the mouse has only two buttons, the middle, `paste' button
+is not available.
+To obtain the paste function, use the
+.Fl 3
+option to emulate the middle button, or use the
+.Fl m
+option to assign the physical right button to the logical middle button:
+.Dq Fl m Li 2=3 .

@@ -1,0 +1,151 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Guido van Rossum.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fnmatch.3	8.3 (Berkeley) 4/28/95
+.\" $FreeBSD$
+.\"
+.Dd July 18, 2004
+.Dt FNMATCH 3
+.Os
+.Sh NAME
+.Nm fnmatch
+.Nd test whether a filename or pathname matches a shell-style pattern
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In fnmatch.h
+.Ft int
+.Fn fnmatch "const char *pattern" "const char *string" "int flags"
+.Sh DESCRIPTION
+The
+.Fn fnmatch
+function
+matches patterns according to the rules used by the shell.
+It checks the string specified by the
+.Fa string
+argument to see if it matches the pattern specified by the
+.Fa pattern
+argument.
+.Pp
+The
+.Fa flags
+argument modifies the interpretation of
+.Fa pattern
+and
+.Fa string .
+The value of
+.Fa flags
+is the bitwise inclusive
+.Tn OR
+of any of the following
+constants, which are defined in the include file
+.In fnmatch.h .
+.Bl -tag -width FNM_PATHNAME
+.It Dv FNM_NOESCAPE
+Normally, every occurrence of a backslash
+.Pq Ql \e
+followed by a character in
+.Fa pattern
+is replaced by that character.
+This is done to negate any special meaning for the character.
+If the
+.Dv FNM_NOESCAPE
+flag is set, a backslash character is treated as an ordinary character.
+.It Dv FNM_PATHNAME
+Slash characters in
+.Fa string
+must be explicitly matched by slashes in
+.Fa pattern .
+If this flag is not set, then slashes are treated as regular characters.
+.It Dv FNM_PERIOD
+Leading periods in
+.Fa string
+must be explicitly matched by periods in
+.Fa pattern .
+If this flag is not set, then leading periods are treated as regular
+characters.
+The definition of
+.Dq leading
+is related to the specification of
+.Dv FNM_PATHNAME .
+A period is always
+.Dq leading
+if it is the first character in
+.Fa string .
+Additionally, if
+.Dv FNM_PATHNAME
+is set,
+a period is
+leading
+if it immediately follows a slash.
+.It Dv FNM_LEADING_DIR
+Ignore
+.Dq Li /*
+rest after successful
+.Fa pattern
+matching.
+.It Dv FNM_CASEFOLD
+Ignore case distinctions in both the
+.Fa pattern
+and the
+.Fa string .
+.El
+.Sh RETURN VALUES
+The
+.Fn fnmatch
+function returns zero if
+.Fa string
+matches the pattern specified by
+.Fa pattern ,
+otherwise, it returns the value
+.Dv FNM_NOMATCH .
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr glob 3 ,
+.Xr regex 3
+.Sh STANDARDS
+The current implementation of the
+.Fn fnmatch
+function
+.Em does not
+conform to
+.St -p1003.2 .
+Collating symbol expressions, equivalence class expressions and
+character class expressions are not supported.
+.Sh HISTORY
+The
+.Fn fnmatch
+function first appeared in
+.Bx 4.4 .
+.Sh BUGS
+The pattern
+.Ql *
+matches the empty string, even if
+.Dv FNM_PATHNAME
+is specified.

@@ -1,0 +1,306 @@
+This document describes a simple public-key certificate authentication
+system for use by SSH.
+
+Background
+----------
+
+The SSH protocol currently supports a simple public key authentication
+mechanism. Unlike other public key implementations, SSH eschews the use
+of X.509 certificates and uses raw keys. This approach has some benefits
+relating to simplicity of configuration and minimisation of attack
+surface, but it does not support the important use-cases of centrally
+managed, passwordless authentication and centrally certified host keys.
+
+These protocol extensions build on the simple public key authentication
+system already in SSH to allow certificate-based authentication. The
+certificates used are not traditional X.509 certificates, with numerous
+options and complex encoding rules, but something rather more minimal: a
+key, some identity information and usage options that have been signed
+with some other trusted key.
+
+A sshd server may be configured to allow authentication via certified
+keys, by extending the existing ~/.ssh/authorized_keys mechanism to
+allow specification of certification authority keys in addition to
+raw user keys. The ssh client will support automatic verification of
+acceptance of certified host keys, by adding a similar ability to
+specify CA keys in ~/.ssh/known_hosts.
+
+All certificate types include certification information along with the
+public key that is used to sign challenges. In OpenSSH, ssh-keygen
+performs the CA signing operation.
+
+Certified keys are represented using new key types:
+
+    ssh-rsa-cert-v01@openssh.com
+    ssh-dss-cert-v01@openssh.com
+    ecdsa-sha2-nistp256-cert-v01@openssh.com
+    ecdsa-sha2-nistp384-cert-v01@openssh.com
+    ecdsa-sha2-nistp521-cert-v01@openssh.com
+
+Two additional types exist for RSA certificates to force use of
+SHA-2 signatures (SHA-256 and SHA-512 respectively):
+
+    rsa-sha2-256-cert-v01@openssh.com
+    rsa-sha2-512-cert-v01@openssh.com
+
+These RSA/SHA-2 types should not appear in keys at rest or transmitted
+on their wire, but do appear in a SSH_MSG_KEXINIT's host-key algorithms
+field or in the "public key algorithm name" field of a "publickey"
+SSH_USERAUTH_REQUEST to indicate that the signature will use the
+specified algorithm.
+
+Protocol extensions
+-------------------
+
+The SSH wire protocol includes several extensibility mechanisms.
+These modifications shall take advantage of namespaced public key
+algorithm names to add support for certificate authentication without
+breaking the protocol - implementations that do not support the
+extensions will simply ignore them.
+
+Authentication using the new key formats described below proceeds
+using the existing SSH "publickey" authentication method described
+in RFC4252 section 7.
+
+New public key formats
+----------------------
+
+The certificate key types take a similar high-level format (note: data
+types and encoding are as per RFC4251 section 5). The serialised wire
+encoding of these certificates is also used for storing them on disk.
+
+#define SSH_CERT_TYPE_USER    1
+#define SSH_CERT_TYPE_HOST    2
+
+RSA certificate
+
+    string    "ssh-rsa-cert-v01@openssh.com"
+    string    nonce
+    mpint     e
+    mpint     n
+    uint64    serial
+    uint32    type
+    string    key id
+    string    valid principals
+    uint64    valid after
+    uint64    valid before
+    string    critical options
+    string    extensions
+    string    reserved
+    string    signature key
+    string    signature
+
+DSA certificate
+
+    string    "ssh-dss-cert-v01@openssh.com"
+    string    nonce
+    mpint     p
+    mpint     q
+    mpint     g
+    mpint     y
+    uint64    serial
+    uint32    type
+    string    key id
+    string    valid principals
+    uint64    valid after
+    uint64    valid before
+    string    critical options
+    string    extensions
+    string    reserved
+    string    signature key
+    string    signature
+
+ECDSA certificate
+
+    string    "ecdsa-sha2-nistp256-cert-v01@openssh.com" |
+              "ecdsa-sha2-nistp384-cert-v01@openssh.com" |
+              "ecdsa-sha2-nistp521-cert-v01@openssh.com"
+    string    nonce
+    string    curve
+    string    public_key
+    uint64    serial
+    uint32    type
+    string    key id
+    string    valid principals
+    uint64    valid after
+    uint64    valid before
+    string    critical options
+    string    extensions
+    string    reserved
+    string    signature key
+    string    signature
+
+ED25519 certificate
+
+    string    "ssh-ed25519-cert-v01@openssh.com"
+    string    nonce
+    string    pk
+    uint64    serial
+    uint32    type
+    string    key id
+    string    valid principals
+    uint64    valid after
+    uint64    valid before
+    string    critical options
+    string    extensions
+    string    reserved
+    string    signature key
+    string    signature
+
+The nonce field is a CA-provided random bitstring of arbitrary length
+(but typically 16 or 32 bytes) included to make attacks that depend on
+inducing collisions in the signature hash infeasible.
+
+e and n are the RSA exponent and public modulus respectively.
+
+p, q, g, y are the DSA parameters as described in FIPS-186-2.
+
+curve and public key are respectively the ECDSA "[identifier]" and "Q"
+defined in section 3.1 of RFC5656.
+
+pk is the encoded Ed25519 public key as defined by
+draft-josefsson-eddsa-ed25519-03.
+
+serial is an optional certificate serial number set by the CA to
+provide an abbreviated way to refer to certificates from that CA.
+If a CA does not wish to number its certificates it must set this
+field to zero.
+
+type specifies whether this certificate is for identification of a user
+or a host using a SSH_CERT_TYPE_... value.
+
+key id is a free-form text field that is filled in by the CA at the time
+of signing; the intention is that the contents of this field are used to
+identify the identity principal in log messages.
+
+"valid principals" is a string containing zero or more principals as
+strings packed inside it. These principals list the names for which this
+certificate is valid; hostnames for SSH_CERT_TYPE_HOST certificates and
+usernames for SSH_CERT_TYPE_USER certificates. As a special case, a
+zero-length "valid principals" field means the certificate is valid for
+any principal of the specified type.
+
+"valid after" and "valid before" specify a validity period for the
+certificate. Each represents a time in seconds since 1970-01-01
+00:00:00. A certificate is considered valid if:
+
+    valid after <= current time < valid before
+
+critical options is a set of zero or more key options encoded as
+below. All such options are "critical" in the sense that an implementation
+must refuse to authorise a key that has an unrecognised option.
+
+extensions is a set of zero or more optional extensions. These extensions
+are not critical, and an implementation that encounters one that it does
+not recognise may safely ignore it.
+
+Generally, critical options are used to control features that restrict
+access where extensions are used to enable features that grant access.
+This ensures that certificates containing unknown restrictions do not
+inadvertently grant access while allowing new protocol features to be
+enabled via extensions without breaking certificates' backwards
+compatibility.
+
+The reserved field is currently unused and is ignored in this version of
+the protocol.
+
+The signature key field contains the CA key used to sign the
+certificate. The valid key types for CA keys are ssh-rsa,
+ssh-dss, ssh-ed25519 and the ECDSA types ecdsa-sha2-nistp256,
+ecdsa-sha2-nistp384, ecdsa-sha2-nistp521. "Chained" certificates, where
+the signature key type is a certificate type itself are NOT supported.
+Note that it is possible for a RSA certificate key to be signed by a
+Ed25519 or ECDSA CA key and vice-versa.
+
+signature is computed over all preceding fields from the initial string
+up to, and including the signature key. Signatures are computed and
+encoded according to the rules defined for the CA's public key algorithm
+(RFC4253 section 6.6 for ssh-rsa and ssh-dss, RFC5656 for the ECDSA
+types), and draft-josefsson-eddsa-ed25519-03 for Ed25519.
+
+Critical options
+----------------
+
+The critical options section of the certificate specifies zero or more
+options on the certificates validity. The format of this field
+is a sequence of zero or more tuples:
+
+    string       name
+    string       data
+
+Options must be lexically ordered by "name" if they appear in the
+sequence. Each named option may only appear once in a certificate.
+
+The name field identifies the option and the data field encodes
+option-specific information (see below). All options are
+"critical", if an implementation does not recognise a option
+then the validating party should refuse to accept the certificate.
+
+Custom options should append the originating author or organisation's
+domain name to the option name, e.g. "my-option@example.com".
+
+No critical options are defined for host certificates at present. The
+supported user certificate options and the contents and structure of
+their data fields are:
+
+Name                    Format        Description
+-----------------------------------------------------------------------------
+force-command           string        Specifies a command that is executed
+                                      (replacing any the user specified on the
+                                      ssh command-line) whenever this key is
+                                      used for authentication.
+
+source-address          string        Comma-separated list of source addresses
+                                      from which this certificate is accepted
+                                      for authentication. Addresses are
+                                      specified in CIDR format (nn.nn.nn.nn/nn
+                                      or hhhh::hhhh/nn).
+                                      If this option is not present then
+                                      certificates may be presented from any
+                                      source address.
+
+Extensions
+----------
+
+The extensions section of the certificate specifies zero or more
+non-critical certificate extensions. The encoding and ordering of
+extensions in this field is identical to that of the critical options,
+as is the requirement that each name appear only once.
+
+If an implementation does not recognise an extension, then it should
+ignore it.
+
+Custom options should append the originating author or organisation's
+domain name to the option name, e.g. "my-option@example.com".
+
+No extensions are defined for host certificates at present. The
+supported user certificate extensions and the contents and structure of
+their data fields are:
+
+Name                    Format        Description
+-----------------------------------------------------------------------------
+permit-X11-forwarding   empty         Flag indicating that X11 forwarding
+                                      should be permitted. X11 forwarding will
+                                      be refused if this option is absent.
+
+permit-agent-forwarding empty         Flag indicating that agent forwarding
+                                      should be allowed. Agent forwarding
+                                      must not be permitted unless this
+                                      option is present.
+
+permit-port-forwarding  empty         Flag indicating that port-forwarding
+                                      should be allowed. If this option is
+                                      not present then no port forwarding will
+                                      be allowed.
+
+permit-pty              empty         Flag indicating that PTY allocation
+                                      should be permitted. In the absence of
+                                      this option PTY allocation will be
+                                      disabled.
+
+permit-user-rc          empty         Flag indicating that execution of
+                                      ~/.ssh/rc should be permitted. Execution
+                                      of this script will not be permitted if
+                                      this option is not present.
+
+$OpenBSD: PROTOCOL.certkeys,v 1.15 2018/07/03 11:39:54 djm Exp $

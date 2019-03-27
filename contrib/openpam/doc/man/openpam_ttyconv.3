@@ -1,0 +1,67 @@
+.\" Generated from openpam_ttyconv.c by gendoc.pl
+.\" $OpenPAM: openpam_ttyconv.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt OPENPAM_TTYCONV 3
+.Os
+.Sh NAME
+.Nm openpam_ttyconv
+.Nd simple tty-based conversation function
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.In security/openpam.h
+.Ft "int"
+.Fn openpam_ttyconv "int n" "const struct pam_message **msg" "struct pam_response **resp" "void *data"
+.Sh DESCRIPTION
+The
+.Fn openpam_ttyconv
+function is a standard conversation function
+suitable for use on TTY devices.
+It should be adequate for the needs of most text-based interactive
+programs.
+.Pp
+The
+.Fn openpam_ttyconv
+function allows the application to specify a
+timeout for user input by setting the global integer variable
+.Va openpam_ttyconv_timeout
+to the length of the timeout in seconds.
+.Pp
+.Sh RETURN VALUES
+The
+.Fn openpam_ttyconv
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.El
+.Sh SEE ALSO
+.Xr openpam_nullconv 3 ,
+.Xr pam 3 ,
+.Xr pam_prompt 3 ,
+.Xr pam_strerror 3 ,
+.Xr pam_vprompt 3
+.Sh STANDARDS
+The
+.Fn openpam_ttyconv
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn openpam_ttyconv
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

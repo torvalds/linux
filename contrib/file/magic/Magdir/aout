@@ -1,0 +1,46 @@
+
+#------------------------------------------------------------------------------
+# $File: aout,v 1.1 2013/01/09 22:37:23 christos Exp $
+# aout:  file(1) magic for a.out executable/object/etc entries that
+# handle executables on multiple platforms.
+#
+
+#
+# Little-endian 32-bit-int a.out, merged from bsdi (for BSD/OS, from
+# BSDI), netbsd, and vax (for UNIX/32V and BSD)
+#
+# XXX - is there anything we can look at to distinguish BSD/OS 386 from
+# NetBSD 386 from various VAX binaries?  The BSD/OS shared library flag
+# works only for binaries using shared libraries.  Grabbing the entry
+# point from the a.out header, using it to find the first code executed
+# in the program, and looking at that might help.
+#
+0	lelong		0407		a.out little-endian 32-bit executable
+>16	lelong		>0		not stripped
+>32	byte		0x6a		(uses BSD/OS shared libs)
+
+0	lelong		0410		a.out little-endian 32-bit pure executable
+>16	lelong		>0		not stripped
+>32	byte		0x6a		(uses BSD/OS shared libs)
+
+0	lelong		0413		a.out little-endian 32-bit demand paged pure executable
+>16	lelong		>0		not stripped
+>32	byte		0x6a		(uses BSD/OS shared libs)
+
+#
+# Big-endian 32-bit-int a.out, merged from sun (for old 68010 SunOS a.out),
+# mips (for old 68020(!) SGI a.out), and netbsd (for old big-endian a.out).
+#
+# XXX - is there anything we can look at to distinguish old SunOS 68010
+# from old 68020 IRIX from old NetBSD?  Again, I guess we could look at
+# the first instruction or instructions in the program.
+#
+0	belong		0407		a.out big-endian 32-bit executable
+>16	belong		>0		not stripped
+
+0	belong		0410		a.out big-endian 32-bit pure executable
+>16	belong		>0		not stripped
+
+0	belong		0413		a.out big-endian 32-bit demand paged executable
+>16	belong		>0		not stripped
+

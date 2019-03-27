@@ -1,0 +1,433 @@
+.\"
+.\" Copyright (c) 2010 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Portions of this documentation were written by Shteryana Sotirova Shopova
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Copyright (c) 2005-2007 The FreeBSD Project.
+.\"	All rights reserved.
+.\"
+.\" Author: Shteryana Shopova <syrinx@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 10, 2012
+.Dt BSNMPGET 1
+.Os
+.Sh NAME
+.Nm bsnmpget ,
+.Nm bsnmpwalk ,
+.Nm bsnmpset
+.Nd "simple tools for querying SNMP agents"
+.Sh SYNOPSIS
+.Nm
+.Op Fl aDdehnK
+.Op Fl A Ar options
+.Op Fl b Ar buffersize
+.Op Fl C Ar options
+.Op Fl I Ar options
+.Op Fl i Ar filelist
+.Op Fl l Ar filename
+.Op Fl M Ar max-repetitions
+.Op Fl N Ar non-repeaters
+.Op Fl o Ar output
+.Op Fl P Ar options
+.Op Fl p Ar pdu
+.Op Fl r Ar retries
+.Op Fl s Ar [trans::][community@][server][:port]
+.Op Fl t Ar timeout
+.Op Fl U Ar options
+.Op Fl v Ar version
+.Op Ar OID ...
+.Pp
+.Nm bsnmpwalk
+.Op Fl dhnK
+.Op Fl A Ar options
+.Op Fl b Ar buffersize
+.Op Fl C Ar options
+.Op Fl I Ar options
+.Op Fl i Ar filelist
+.Op Fl l Ar filename
+.Op Fl o Ar output
+.Op Fl P Ar options
+.Op Fl r Ar retries
+.Op Fl s Ar [trans::][community@][server][:port]
+.Op Fl t Ar timeout
+.Op Fl U Ar options
+.Op Fl v Ar version
+.Op Ar OID ...
+.Pp
+.Nm bsnmpset
+.Op Fl adehnK
+.Op Fl A Ar options
+.Op Fl b Ar buffersize
+.Op Fl C Ar options
+.Op Fl I Ar options
+.Op Fl i Ar filelist
+.Op Fl l Ar filename
+.Op Fl o Ar output
+.Op Fl P Ar options
+.Op Fl r Ar retries
+.Op Fl s Ar [trans::][community@][server][:port]
+.Op Fl t Ar timeout
+.Op Fl U Ar options
+.Op Fl v Ar version
+.Ar OID Ns = Ar syntax Ns : Ns Ar value
+.Op Ar OID Ns = Ar syntax Ns : Ns Ar value ...
+.Sh DESCRIPTION
+.Nm ,
+.Nm bsnmpwalk
+and
+.Nm bsnmpset
+are simple tools for retrieving management information from and setting
+management information to a Simple Network Management Protocol (SNMP) agent.
+.Pp
+Depending on the options
+.Nm bsnmpget
+constructs either a SNMP GetRequest, GetNextRequest
+or a GetBulkRequest packet, fills in the object identifiers (OIDs) of the
+objects whose values will be retrieved, waits for a response and prints it if
+received successfully.
+.Pp
+.Nm Bsnmpwalk
+queries an agent with ether SNMP GetNextRequest or GetBulkRequest packets,
+asking for values of OID instances that are a part of the object subtree
+rooted at the provided OIDs.
+.Pp
+.Nm Bsnmpset
+constructs a SNMP SetRequest packet, fills in the OIDs (object identifiers),
+syntaxes and values of the objects whose values are to be set and waits for a
+response from server.
+.Sh OPTIONS
+The options are as follows (not all apply to all three programs):
+.Bl -tag -width ".It Fl D Ar options"
+.It Fl A Ar options
+Authentication options to use with SNMPv3 PDUs
+.Bl -tag -width \&
+.It Cm proto=[md5|sha]
+The protocol to use when calculating the PDU message digest.
+.It Cm key=authkey
+A binary localized authentication key to use when calculating the PDU message
+digest.
+.El
+.Pp
+By default SNMPv3 PDUs are sent unauthenticated.
+.It Fl a
+Skip any sanity checks when adding OIDs to a Protocol Data Unit (PDU):
+ingore syntax/access type, allow adding of non-leaf objects for GetPdu and
+read-only objects to a SetPDU.
+.It Fl b Ar buffersize
+Tune the size of buffers used to send and receive packets.
+The default size is 10000 bytes which should be enough unless an agent sends
+a really large octetstring.
+The maximum allowed length is 65535 according to the Structure of Management
+Information (SMIv2).
+.It Fl C Ar options
+The context to query with SNMPv3 PDUs.
+.Bl -tag -width \&
+.It Cm context=name
+The context name. Default is "" (empty).
+.It Cm context-engine=engine-id
+The SNMP Engine ID of the context to query with SNMPv3 PDUs, represented as
+binary octet string.
+By default, this is set to the Engine ID of the SNMP agent.
+.El
+.It Fl D
+Perform SNMP USM Engine Discovery, rather than sending a request for the value
+of a specific object.
+.It Fl d
+Turn on debugging.
+This option will cause the packets sent and received to be dumped to the
+terminal.
+.It Fl e
+Retry on error.
+If an error is returned in the response PDU, resend the request removing the
+variable that caused the error until a valid response is received.
+This is only useful for a GetRequest- and a GetNextRequest-PDU.
+.It Fl h
+Print a short help text with default values for various options.
+.It Fl I Ar options
+Load each MIB description file from the given list to translate symbolic
+object names to their numerical representation and vice versa.
+Use the other options to obtain a non-default behaviour:
+.Bl -tag -width \&
+.It Cm cut=OID
+Specifies the initial OID that was cut by
+.Xr gensnmpdef 1
+when producing the MIB description file.
+The default value is .iso(1).org(3).dod(6) which is what should have been
+used for all the files installed under
+.Pa /usr/share/snmp/defs .
+Use this only if you generated your own files, providing a
+.Fl c
+option to
+.Xr gensnmpdef 1 .
+.It Cm path=filedir
+The directory where files in the list will be searched.
+The default is
+.Pa /usr/share/snmp/defs Ns .
+.It Cm file=filelist
+A comma separated list of files to which the two options above will apply.
+.El
+.Pp
+The file suboption has to come after the other suboptions so that their
+non-default values will be applied to the list of files.
+The order of the other suboptions before each file suboption can be random.
+Suboptions may be separated either by commas or by spaces.
+If using spaces make sure the entire option string is one argument, for
+example using quotes.
+.It Fl i Ar filelist
+List of MIB description files produced by
+.Xr gensnmpdef 1
+which
+.Nm bsnmpget ,
+.Nm bsnmpwalk
+or
+.Nm bsnmpset
+will search to translate numerical OIDs to their symbolic object names.
+Multiple files can be provided either giving this option multiple times
+or a comma separated list of file names.
+If a filename begins with a letter the default directory,
+.Pa /usr/share/snmp/defs ,
+will be searched.
+.It Fl K
+Calculate and display the localized authentication and privacy keys
+corresponding to a plain text password.
+The password is obtained via the environment.
+Additionally, if one or more OIDs are specified, the calculated
+keys are used when processing the SNMPv3 requests.
+.It Fl l Ar filename
+The path of the posix local (unix domain) socket if local
+transport is used.
+.It Fl M Ar max-repetitions
+The value for the max-repetitions field in a GetBulk PDU.
+Default is 10.
+.It Fl N Ar non-repeaters
+The value for the non-repeaters field in a GetBulk PDU.
+Default is 0.
+.It Fl n
+Only use numerical representations for input and output OIDs and do not
+try to resolve symbolic object names.
+Note that
+.Nm bsnmpget ,
+.Nm bsnmpwalk
+and
+.Nm bsnmpset
+will print numerical OIDs anyway if the corresponding string representation
+is not found in the MIB description files.
+.It Fl o Ar [quiet|short|verbose]
+The format used to print the received response.
+Quiet only prints values, short (default) prints an abbreviated OID
+representation and the value.
+In addition to the short output verbose prints the type before the value.
+.It Fl P Ar options
+Privacy options to use with SNMPv3 PDUs
+.Bl -tag -width \&
+.It Cm proto=[aes|des]
+The protocol to use when encrypting/decrypting SNMPv3 PDU data.
+.It Cm key=privkey
+A binary localized privacy key to use when encrypting/decrypting SNMPv3 PDU data.
+.El
+.Pp
+By default plain text SNMPv3 PDUs are sent.
+.It Fl p Ar [get|getnext|getbulk]
+The PDU type to send by
+.Nm bsmpget
+and
+.Nm bsnmpwalk .
+Default is get
+for
+.Nm bsmpget
+and getnext for
+.Nm bsnmpwalk .
+Getbulk allows executing the so called SNMP "bulkwalks" allowing the values of
+multiple columns to be retrieved in a single PDU by
+.Nm bsnmpwalk .
+.It Fl r Ar retries
+Number of resends of request packets before giving up if the agent does
+not respond after the first try.
+Default is 3.
+.It Fl s Ar [trans::] Ns Ar [community@] Ns Ar [server] Ns Ar [:port]
+Each of the server specification components is optional but at least one
+has to be provided if the
+.Ar s
+option is used.
+The server specification is constructed in the following manner:
+.Bl -tag -width \&
+.It Cm trans::
+Transport type may be one of udp, stream or dgram.
+If this option is not provided an UDP inet/inet6 socket will be used, which
+is the most common.
+Stream stands for a posix local stream socket and a posix local datagram
+socket will be used if dgram is specified.
+.It Cm community@
+Specify an SNMP community string to be used when sending packets.
+If the option is skipped the default "public" will be used for
+.Nm
+and
+.Nm bsnmpwalk
+and the default "private" community string will be used for
+.Nm bsnmpset .
+.It Cm server
+This might be either the IP address or the hostname where the agent is
+listening.
+The default is
+.Qq localhost .
+.It Cm port
+The destination port to send the requests to.
+This is useful if the SNMP agent listens on a non-default port.
+Default is given by the
+.Qq snmp
+entry in
+.Pa /etc/services ,
+port 161.
+.El
+.It Fl t Ar timeout
+Number of seconds before resending a request packet if the agent does
+not respond.
+The default value is 3 seconds.
+.It Fl U Ar options
+User credentials when sending SNMPv3 PDUs.
+.Bl -tag -width \&
+.It Cm engine=id
+The Engine ID of the SNMP agent represented as a binary octet string.
+.It Cm engine-boots=value
+The value of the snmpEngineBoots of the SNMP agent.
+.It Cm engine-time=value
+The value of the snmpEngineTime of the SNMP agent.
+.Pp
+If any of the above is not specified, SNMP USM Engine Discovery is attempted.
+This is also the default behavior.
+.It Cm name=username
+The USM user name to include in the SNMPv3 PDUs.
+By default, the user name is
+obtained via the environment.
+.El
+.It Fl v Ar version
+The SNMP protocol version to use when sending requests.
+SNMP versions 1, 2 and
+3 are supported.
+If no version option is provided
+.Nm bsnmpget ,
+.Nm bsnmpwalk
+and
+.Nm bsnmpset
+will use version 2.
+Note that GetBulkRequest-PDUs were introduced in SNMPv2 thus setting the
+version to 1 is incompatible with sending a GetBulk PDU.
+.It OID
+The object identifier whose value to retrieve.
+At least one OID should be provided for
+.Nm bsnmpget
+to be able to send a request.
+.Pp
+For
+.Nm bsnmpwalk
+this is the root object identifier of the subtree whose values are to be
+retrieved.
+If no OID is provided
+.Nm bsnmpwalk
+will walk the mib2 subtree rooted
+at .iso(1).org(3).dod(6).internet(1).mgmt(2).mib2(1) .
+.Pp
+Any of the formats used to print a single variable
+is valid as input OID:
+.Bl -tag -width \&
+.It 1.3.6.1.2.1.25.1.1.0
+.It sysDescr
+.It ifPhysAddress.1
+.It ifRcvAddressStatus.2.6.255.255.255.255.255.255
+.It ifRcvAddressType[2,ff:ff:ff:ff:ff:ff]
+.It ifRcvAddressStatus[Integer:1,OctetString:ff:ff:ff:ff:ff:ff]
+(requires the
+.Fl o Ar verbose
+option)
+.El
+.Pp
+Square brackets are used to denote an entry's indexes.
+When used in an input OID, the square brackets may have to be
+escaped or the OID has to be quoted to protect it from the shell.
+Note there is no difference between ifName.1 and "ifName[1]".
+.It OID Ns = Ns Ar [syntax Ns :] Ns Ar value
+The object identifier with its syntax type and value that is to be set.
+At least one such string OID=[syntax:]value should be provided to
+.Nm bsnmpset
+to be able to send a request.
+.Bl -tag -width \&
+.It Cm OID
+OID may be input as a string, a string followed by a random number of integers
+(suboids) separated by dots, a sequence of integers separated by dots - that is
+if the
+.Ar n
+option is used - and in such case a syntax is required for every value,
+or a string followed by square brackets (used to denote an entry's indexes) and
+corresponding indexes.
+Any of the formats used to print a single variable by
+.Nm bsnmpset
+is valid as input OID as well:
+.Bl -tag -width \&
+.It 1.3.6.1.2.1.25.1.1.0=TimeTicks:537615486
+.It sysLocation=OctetString:"@ Home" (with Fl o Ar verbose No option)
+.It sysLocation.0="@ Home"
+.It 1.3.6.1.2.1.2.2.1.6.1=OctetString:ffffffffffff
+.It ifPhysAddress.1="00:02:b3:1d:1c:a3"
+.It ifRcvAddressStatus.1.6.255.255.255.255.255.255=1
+.It "ifRcvAddressStatus[Integer:1,OctetString:ff:ff:ff:ff:ff:ff]=Integer:1"
+(with the
+.Fl o Ar verbose
+option)
+.El
+.It Cm syntax
+where the syntax string is one of:
+Integer, OctetString, OID, IpAddress, Counter32, Gauge, TimeTicks, Counter64.
+.It Cm value
+The value to be set - IP address in form of u.u.u.u - for example
+1.3.1.6.1.2.0=IpAddress:192.168.0.1, strings require inverted-commas if they
+contain any special characters or spaces, all other numeric types do not.
+.El
+.El
+.Sh ENVIRONMENT
+.Nm ,
+.Nm bsnmpwalk
+and
+.Nm bsnmpset
+use the following environment variables:
+.Bl -tag -width SNMPAUTH
+.It Ev SNMPAUTH
+Specifies a default SNMP USM authentication protocol.
+.It Ev SNMPPRIV
+Specifies a default SNMP USM privacy protocol.
+.It Ev SNMPUSER
+Specifies a default SNMP USM user name.
+.It Ev SNMPPASSWD
+Specifies the SNMP USM plain text password to use when calculating localized
+authentication and privacy keys.
+If this variable exists in the environment,
+SNMPv3 is the default version to use for outgoing requests.
+.El
+.Sh SEE ALSO
+.Xr gensnmpdef 1
+.Sh AUTHORS
+.An Shteryana Shopova Aq Mt syrinx@FreeBSD.org

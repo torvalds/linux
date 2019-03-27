@@ -1,0 +1,62 @@
+
+This directory contains configuration files for the Pluggable
+Authentication Modules (PAM) library.
+
+Each file details the module chain for a single service, and must be
+named after that service.  If no configuration file is found for a
+particular service, the /etc/pam.d/other is used instead.  If that
+file does not exist, /etc/pam.conf is searched for entries matching
+the specified service or, failing that, the "other" service.
+
+See the pam(3) manual page for an explanation of the workings of the
+PAM library and descriptions of the various files and modules.  Below
+is a summary of the format for the pam.conf and /etc/pam.d/* files.
+
+Configuration lines take the following form:
+
+module-type	control-flag	module-path	arguments
+
+Comments are introduced with a hash mark ('#').  Blank lines and lines
+consisting entirely of comments are ignored.
+
+The meanings of the different fields are as follows:
+
+ module-type:
+   auth:      prompt for a password to authenticate that the user is
+              who they say they are, and set any credentials.
+   account:   non-authentication based authorization, based on time,
+              resources, etc.
+   session:   housekeeping before and/or after login.
+   password:  update authentication tokens.
+
+ control-flag: How libpam handles success or failure of the module.
+   required:   success is required; on failure all remaining
+               modules are run, but the request will be denied.
+   requisite:  success is required, and on failure no remaining
+               modules are run.
+   sufficient: success is sufficient, and if no previous required
+               module failed, no remaining modules are run.
+   binding:    success is sufficient; on failure all remaining
+               modules are run, but the request will be denied.
+   optional:   ignored unless the other modules return PAM_IGNORE.
+
+ arguments: Module-specific options, plus some generic ones:
+   debug:           syslog debug info.
+   no_warn:         return no warning messages to the application.
+                    Remove this to feed back to the user the
+                    reason(s) they are being rejected.
+   use_first_pass:  try authentication using password from the
+                    preceding auth module.
+   try_first_pass:  first try authentication using password from
+                    the preceding auth module, and if that fails
+                    prompt for a new password.
+   use_mapped_pass: convert cleartext password to a crypto key.
+   expose_account:  allow printing more info about the user when
+                    prompting.
+
+Note that having a "sufficient" module as the last entry for a
+particular service and module type may result in surprising behaviour.
+To get the intended semantics, add a "required" entry listing the
+pam_deny module at the end of the chain.
+
+$FreeBSD$

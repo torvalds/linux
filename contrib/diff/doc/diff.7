@@ -1,0 +1,6287 @@
+.Dd 2015-03-02
+.Dt DIFF 7
+.Os
+.Sh NAME
+.Nm diff
+.Nd Comparing and Merging Files
+.Sh  Comparing and Merging Files
+.Sh  Overview
+Computer users often find occasion to ask how two files differ. Perhaps one
+file is a newer version of the other file. Or maybe the two files started
+out as identical copies but were changed by different people.
+.Pp
+You can use the
+.Xr diff
+command to show differences between two files, or each corresponding file
+in two directories.
+.Xr diff
+outputs differences between files line by line in any of several formats,
+selectable by command line options. This set of differences is often called
+a
+.Em diff
+or
+.Em patch .
+For files that are identical,
+.Xr diff
+normally produces no output; for binary (non-text) files,
+.Xr diff
+normally reports only that they are different.
+.Pp
+You can use the
+.Xr cmp
+command to show the byte and line numbers where two files differ.
+.Xr cmp
+can also show all the bytes that differ between the two files, side by side.
+A way to compare two files character by character is the Emacs command
+.Li M-x compare-windows .
+See Section.Dq Other Window ,
+for more information on that command.
+.Pp
+You can use the
+.Xr diff3
+command to show differences among three files. When two people have made independent
+changes to a common original,
+.Xr diff3
+can report the differences between the original and the two changed versions,
+and can produce a merged file that contains both persons' changes together
+with warnings about conflicts.
+.Pp
+You can use the
+.Xr sdiff
+command to merge two files interactively.
+.Pp
+You can use the set of differences produced by
+.Xr diff
+to distribute updates to text files (such as program source code) to other
+people. This method is especially useful when the differences are small compared
+to the complete files. Given
+.Xr diff
+output, you can use the
+.Xr patch
+program to update, or
+.Em patch ,
+a copy of the file. If you think of
+.Xr diff
+as subtracting one file from another to produce their difference, you can
+think of
+.Xr patch
+as adding the difference to one file to reproduce the other.
+.Pp
+This manual first concentrates on making diffs, and later shows how to use
+diffs to update files.
+.Pp
+GNU
+.Xr diff
+was written by Paul Eggert, Mike Haertel, David Hayes, Richard Stallman, and
+Len Tower. Wayne Davison designed and implemented the unified output format.
+The basic algorithm is described by Eugene W. Myers in \(lqAn O(ND) Difference
+Algorithm and its Variations\(rq,
+.Em Algorithmica
+Vol. 1 No. 2, 1986, pp. 251--266; and in \(lqA File Comparison Program\(rq, Webb Miller
+and Eugene W. Myers,
+.Em Software---Practice and Experience
+Vol. 15 No. 11, 1985, pp. 1025--1040. The algorithm was independently discovered
+as described by E. Ukkonen in \(lqAlgorithms for Approximate String Matching\(rq,
+.Em Information and Control
+Vol. 64, 1985, pp. 100--118. Unless the
+.Op --minimal
+option is used,
+.Xr diff
+uses a heuristic by Paul Eggert that limits the cost to O(N^1.5 log N) at
+the price of producing suboptimal output for large inputs with many differences.
+Related algorithms are surveyed by Alfred V. Aho in section 6.3 of \(lqAlgorithms
+for Finding Patterns in Strings\(rq,
+.Em Handbook of Theoretical Computer Science
+(Jan Van Leeuwen, ed.), Vol. A,
+.Em Algorithms and Complexity ,
+Elsevier/MIT Press, 1990, pp. 255--300.
+.Pp
+GNU
+.Xr diff3
+was written by Randy Smith. GNU
+.Xr sdiff
+was written by Thomas Lord. GNU
+.Xr cmp
+was written by Torbj\(:orn Granlund and David MacKenzie.
+.Pp
+GNU
+.Xr patch
+was written mainly by Larry Wall and Paul Eggert; several GNU enhancements
+were contributed by Wayne Davison and David MacKenzie. Parts of this manual
+are adapted from a manual page written by Larry Wall, with his permission.
+.Pp
+.Sh  What Comparison Means
+There are several ways to think about the differences between two files. One
+way to think of the differences is as a series of lines that were deleted
+from, inserted in, or changed in one file to produce the other file.
+.Xr diff
+compares two files line by line, finds groups of lines that differ, and reports
+each group of differing lines. It can report the differing lines in several
+formats, which have different purposes.
+.Pp
+GNU
+.Xr diff
+can show whether files are different without detailing the differences. It
+also provides ways to suppress certain kinds of differences that are not important
+to you. Most commonly, such differences are changes in the amount of white
+space between words or lines.
+.Xr diff
+also provides ways to suppress differences in alphabetic case or in lines
+that match a regular expression that you provide. These options can accumulate;
+for example, you can ignore changes in both white space and alphabetic case.
+.Pp
+Another way to think of the differences between two files is as a sequence
+of pairs of bytes that can be either identical or different.
+.Xr cmp
+reports the differences between two files byte by byte, instead of line by
+line. As a result, it is often more useful than
+.Xr diff
+for comparing binary files. For text files,
+.Xr cmp
+is useful mainly when you want to know only whether two files are identical,
+or whether one file is a prefix of the other.
+.Pp
+To illustrate the effect that considering changes byte by byte can have compared
+with considering them line by line, think of what happens if a single newline
+character is added to the beginning of a file. If that file is then compared
+with an otherwise identical file that lacks the newline at the beginning,
+.Xr diff
+will report that a blank line has been added to the file, while
+.Xr cmp
+will report that almost every byte of the two files differs.
+.Pp
+.Xr diff3
+normally compares three input files line by line, finds groups of lines that
+differ, and reports each group of differing lines. Its output is designed
+to make it easy to inspect two different sets of changes to the same file.
+.Pp
+.Ss  Hunks
+When comparing two files,
+.Xr diff
+finds sequences of lines common to both files, interspersed with groups of
+differing lines called
+.Em hunks .
+Comparing two identical files yields one sequence of common lines and no hunks,
+because no lines differ. Comparing two entirely different files yields no
+common lines and one large hunk that contains all lines of both files. In
+general, there are many ways to match up lines between two given files.
+.Xr diff
+tries to minimize the total hunk size by finding large sequences of common
+lines interspersed with small hunks of differing lines.
+.Pp
+For example, suppose the file
+.Pa F
+contains the three lines
+.Li a ,
+.Li b ,
+.Li c ,
+and the file
+.Pa G
+contains the same three lines in reverse order
+.Li c ,
+.Li b ,
+.Li a .
+If
+.Xr diff
+finds the line
+.Li c
+as common, then the command
+.Li diff F G
+produces this output:
+.Pp
+.Bd -literal -offset indent
+1,2d0
+< a
+< b
+3a2,3
+> b
+> a
+.Ed
+.Pp
+But if
+.Xr diff
+notices the common line
+.Li b
+instead, it produces this output:
+.Pp
+.Bd -literal -offset indent
+1c1
+< a
+---
+> c
+3c3
+< c
+---
+> a
+.Ed
+.Pp
+It is also possible to find
+.Li a
+as the common line.
+.Xr diff
+does not always find an optimal matching between the files; it takes shortcuts
+to run faster. But its output is usually close to the shortest possible. You
+can adjust this tradeoff with the
+.Op -d
+or
+.Op --minimal
+option (see Section
+.Dq diff Performance ) .
+.Pp
+.Ss  Suppressing Differences in Blank and Tab Spacing
+The
+.Op -E
+or
+.Op --ignore-tab-expansion
+option ignores the distinction between tabs and spaces on input. A tab is
+considered to be equivalent to the number of spaces to the next tab stop (see Section
+.Dq Tabs ) .
+.Pp
+The
+.Op -b
+or
+.Op --ignore-space-change
+option is stronger. It ignores white space at line end, and considers all
+other sequences of one or more white space characters within a line to be
+equivalent. With this option,
+.Xr diff
+considers the following two lines to be equivalent, where
+.Li $
+denotes the line end:
+.Pp
+.Bd -literal -offset indent
+Here lyeth  muche rychnesse  in lytell space.   -- John Heywood$
+Here lyeth muche rychnesse in lytell space. -- John Heywood   $
+.Ed
+.Pp
+The
+.Op -w
+or
+.Op --ignore-all-space
+option is stronger still. It ignores differences even if one line has white
+space where the other line has none.
+.Em White space
+characters include tab, newline, vertical tab, form feed, carriage return,
+and space; some locales may define additional characters to be white space.
+With this option,
+.Xr diff
+considers the following two lines to be equivalent, where
+.Li $
+denotes the line end and
+.Li ^M
+denotes a carriage return:
+.Pp
+.Bd -literal -offset indent
+Here lyeth  muche  rychnesse in lytell space.--  John Heywood$
+  He relyeth much erychnes  seinly tells pace.  --John Heywood   ^M$
+.Ed
+.Pp
+.Ss  Suppressing Differences Whose Lines Are All Blank
+The
+.Op -B
+or
+.Op --ignore-blank-lines
+option ignores changes that consist entirely of blank lines. With this option,
+for example, a file containing
+.Bd -literal -offset indent
+1.  A point is that which has no part.
+
+2.  A line is breadthless length.
+-- Euclid, The Elements, I
+.Ed
+is considered identical to a file containing
+.Bd -literal -offset indent
+1.  A point is that which has no part.
+2.  A line is breadthless length.
+
+
+-- Euclid, The Elements, I
+.Ed
+.Pp
+Normally this option affects only lines that are completely empty, but if
+you also specify the
+.Op -b
+or
+.Op --ignore-space-change
+option, or the
+.Op -w
+or
+.Op --ignore-all-space
+option, lines are also affected if they look empty but contain white space.
+In other words,
+.Op -B
+is equivalent to
+.Li -I '^$'
+by default, but it is equivalent to
+.Op -I '^[[:space:]]*$'
+if
+.Op -b
+or
+.Op -w
+is also specified.
+.Pp
+.Ss  Suppressing Differences Whose Lines All Match a Regular Expression
+To ignore insertions and deletions of lines that match a
+.Xr grep
+-style regular expression, use the
+.Op -I Va regexp
+or
+.Op --ignore-matching-lines= Va regexp
+option. You should escape regular expressions that contain shell metacharacters
+to prevent the shell from expanding them. For example,
+.Li diff -I '^[[:digit:]]'
+ignores all changes to lines beginning with a digit.
+.Pp
+However,
+.Op -I
+only ignores the insertion or deletion of lines that contain the regular expression
+if every changed line in the hunk---every insertion and every deletion---matches
+the regular expression. In other words, for each nonignorable change,
+.Xr diff
+prints the complete set of changes in its vicinity, including the ignorable
+ones.
+.Pp
+You can specify more than one regular expression for lines to ignore by using
+more than one
+.Op -I
+option.
+.Xr diff
+tries to match each line against each regular expression.
+.Pp
+.Ss  Suppressing Case Differences
+GNU
+.Xr diff
+can treat lower case letters as equivalent to their upper case counterparts,
+so that, for example, it considers
+.Li Funky Stuff ,
+.Li funky STUFF ,
+and
+.Li fUNKy stuFf
+to all be the same. To request this, use the
+.Op -i
+or
+.Op --ignore-case
+option.
+.Pp
+.Ss  Summarizing Which Files Differ
+When you only want to find out whether files are different, and you don't
+care what the differences are, you can use the summary output format. In this
+format, instead of showing the differences between the files,
+.Xr diff
+simply reports whether files differ. The
+.Op -q
+or
+.Op --brief
+option selects this output format.
+.Pp
+This format is especially useful when comparing the contents of two directories.
+It is also much faster than doing the normal line by line comparisons, because
+.Xr diff
+can stop analyzing the files as soon as it knows that there are any differences.
+.Pp
+You can also get a brief indication of whether two files differ by using
+.Xr cmp .
+For files that are identical,
+.Xr cmp
+produces no output. When the files differ, by default,
+.Xr cmp
+outputs the byte and line number where the first difference occurs, or reports
+that one file is a prefix of the other. You can use the
+.Op -s ,
+.Op --quiet ,
+or
+.Op --silent
+option to suppress that information, so that
+.Xr cmp
+produces no output and reports whether the files differ using only its exit
+status (see Section
+.Dq Invoking cmp ) .
+.Pp
+Unlike
+.Xr diff ,
+.Xr cmp
+cannot compare directories; it can only compare two files.
+.Pp
+.Ss  Binary Files and Forcing Text Comparisons
+If
+.Xr diff
+thinks that either of the two files it is comparing is binary (a non-text
+file), it normally treats that pair of files much as if the summary output
+format had been selected (see Section
+.Dq Brief ) ,
+and reports only that the binary files are different. This is because line
+by line comparisons are usually not meaningful for binary files.
+.Pp
+.Xr diff
+determines whether a file is text or binary by checking the first few bytes
+in the file; the exact number of bytes is system dependent, but it is typically
+several thousand. If every byte in that part of the file is non-null,
+.Xr diff
+considers the file to be text; otherwise it considers the file to be binary.
+.Pp
+Sometimes you might want to force
+.Xr diff
+to consider files to be text. For example, you might be comparing text files
+that contain null characters;
+.Xr diff
+would erroneously decide that those are non-text files. Or you might be comparing
+documents that are in a format used by a word processing system that uses
+null characters to indicate special formatting. You can force
+.Xr diff
+to consider all files to be text files, and compare them line by line, by
+using the
+.Op -a
+or
+.Op --text
+option. If the files you compare using this option do not in fact contain
+text, they will probably contain few newline characters, and the
+.Xr diff
+output will consist of hunks showing differences between long lines of whatever
+characters the files contain.
+.Pp
+You can also force
+.Xr diff
+to report only whether files differ (but not how). Use the
+.Op -q
+or
+.Op --brief
+option for this.
+.Pp
+Normally, differing binary files count as trouble because the resulting
+.Xr diff
+output does not capture all the differences. This trouble causes
+.Xr diff
+to exit with status 2. However, this trouble cannot occur with the
+.Op -a
+or
+.Op --text
+option, or with the
+.Op -q
+or
+.Op --brief
+option, as these options both cause
+.Xr diff
+to generate a form of output that represents differences as requested.
+.Pp
+In operating systems that distinguish between text and binary files,
+.Xr diff
+normally reads and writes all data as text. Use the
+.Op --binary
+option to force
+.Xr diff
+to read and write binary data instead. This option has no effect on a POSIX-compliant
+system like GNU or traditional Unix. However, many personal computer operating
+systems represent the end of a line with a carriage return followed by a newline.
+On such systems,
+.Xr diff
+normally ignores these carriage returns on input and generates them at the
+end of each output line, but with the
+.Op --binary
+option
+.Xr diff
+treats each carriage return as just another input character, and does not
+generate a carriage return at the end of each output line. This can be useful
+when dealing with non-text files that are meant to be interchanged with POSIX-compliant
+systems.
+.Pp
+The
+.Op --strip-trailing-cr
+causes
+.Xr diff
+to treat input lines that end in carriage return followed by newline as if
+they end in plain newline. This can be useful when comparing text that is
+imperfectly imported from many personal computer operating systems. This option
+affects how lines are read, which in turn affects how they are compared and
+output.
+.Pp
+If you want to compare two files byte by byte, you can use the
+.Xr cmp
+program with the
+.Op -l
+or
+.Op --verbose
+option to show the values of each differing byte in the two files. With GNU
+.Xr cmp ,
+you can also use the
+.Op -b
+or
+.Op --print-bytes
+option to show the ASCII representation of those bytes.See Section
+.Dq Invoking cmp ,
+for more information.
+.Pp
+If
+.Xr diff3
+thinks that any of the files it is comparing is binary (a non-text file),
+it normally reports an error, because such comparisons are usually not useful.
+.Xr diff3
+uses the same test as
+.Xr diff
+to decide whether a file is binary. As with
+.Xr diff ,
+if the input files contain a few non-text bytes but otherwise are like text
+files, you can force
+.Xr diff3
+to consider all files to be text files and compare them line by line by using
+the
+.Op -a
+or
+.Op --text
+option.
+.Pp
+.Sh  Xr diff Output Formats
+.Xr diff
+has several mutually exclusive options for output format. The following sections
+describe each format, illustrating how
+.Xr diff
+reports the differences between two sample input files.
+.Pp
+.Ss  Two Sample Input Files
+Here are two sample files that we will use in numerous examples to illustrate
+the output of
+.Xr diff
+and how various options can change it.
+.Pp
+This is the file
+.Pa lao :
+.Pp
+.Bd -literal -offset indent
+The Way that can be told of is not the eternal Way;
+The name that can be named is not the eternal name.
+The Nameless is the origin of Heaven and Earth;
+The Named is the mother of all things.
+Therefore let there always be non-being,
+  so we may see their subtlety,
+And let there always be being,
+  so we may see their outcome.
+The two are the same,
+But after they are produced,
+  they have different names.
+.Ed
+.Pp
+This is the file
+.Pa tzu :
+.Pp
+.Bd -literal -offset indent
+The Nameless is the origin of Heaven and Earth;
+The named is the mother of all things.
+
+Therefore let there always be non-being,
+  so we may see their subtlety,
+And let there always be being,
+  so we may see their outcome.
+The two are the same,
+But after they are produced,
+  they have different names.
+They both may be called deep and profound.
+Deeper and more profound,
+The door of all subtleties!
+.Ed
+.Pp
+In this example, the first hunk contains just the first two lines of
+.Pa lao ,
+the second hunk contains the fourth line of
+.Pa lao
+opposing the second and third lines of
+.Pa tzu ,
+and the last hunk contains just the last three lines of
+.Pa tzu .
+.Pp
+.Ss  Showing Differences in Their Context
+Usually, when you are looking at the differences between files, you will also
+want to see the parts of the files near the lines that differ, to help you
+understand exactly what has changed. These nearby parts of the files are called
+the
+.Em context .
+.Pp
+GNU
+.Xr diff
+provides two output formats that show context around the differing lines:
+.Em context format
+and
+.Em unified format .
+It can optionally show in which function or section of the file the differing
+lines are found.
+.Pp
+If you are distributing new versions of files to other people in the form
+of
+.Xr diff
+output, you should use one of the output formats that show context so that
+they can apply the diffs even if they have made small changes of their own
+to the files.
+.Xr patch
+can apply the diffs in this case by searching in the files for the lines of
+context around the differing lines; if those lines are actually a few lines
+away from where the diff says they are,
+.Xr patch
+can adjust the line numbers accordingly and still apply the diff correctly.See Section
+.Dq Imperfect ,
+for more information on using
+.Xr patch
+to apply imperfect diffs.
+.Pp
+.Em  Context Format
+.Pp
+The context output format shows several lines of context around the lines
+that differ. It is the standard format for distributing updates to source
+code.
+.Pp
+To select this output format, use the
+.Op -C Va lines ,
+.Op --context[= Va lines] ,
+or
+.Op -c
+option. The argument
+.Va lines
+that some of these options take is the number of lines of context to show.
+If you do not specify
+.Va lines ,
+it defaults to three. For proper operation,
+.Xr patch
+typically needs at least two lines of context.
+.Pp
+.No  An Example of Context Format
+.Pp
+Here is the output of
+.Li diff -c lao tzu
+(see Section
+.Dq Sample diff Input ,
+for the complete contents of the two files). Notice that up to three lines
+that are not different are shown around each line that is different; they
+are the context lines. Also notice that the first two hunks have run together,
+because their contents overlap.
+.Pp
+.Bd -literal -offset indent
+*** lao	2002-02-21 23:30:39.942229878 -0800
+--- tzu	2002-02-21 23:30:50.442260588 -0800
+***************
+*** 1,7 ****
+- The Way that can be told of is not the eternal Way;
+- The name that can be named is not the eternal name.
+  The Nameless is the origin of Heaven and Earth;
+! The Named is the mother of all things.
+  Therefore let there always be non-being,
+    so we may see their subtlety,
+  And let there always be being,
+--- 1,6 ----
+  The Nameless is the origin of Heaven and Earth;
+! The named is the mother of all things.
+! 
+  Therefore let there always be non-being,
+    so we may see their subtlety,
+  And let there always be being,
+***************
+*** 9,11 ****
+--- 8,13 ----
+  The two are the same,
+  But after they are produced,
+    they have different names.
++ They both may be called deep and profound.
++ Deeper and more profound,
++ The door of all subtleties!
+.Ed
+.Pp
+.No  An Example of Context Format with Less Context
+.Pp
+Here is the output of
+.Li diff -C 1 lao tzu
+(see Section
+.Dq Sample diff Input ,
+for the complete contents of the two files). Notice that at most one context
+line is reported here.
+.Pp
+.Bd -literal -offset indent
+*** lao	2002-02-21 23:30:39.942229878 -0800
+--- tzu	2002-02-21 23:30:50.442260588 -0800
+***************
+*** 1,5 ****
+- The Way that can be told of is not the eternal Way;
+- The name that can be named is not the eternal name.
+  The Nameless is the origin of Heaven and Earth;
+! The Named is the mother of all things.
+  Therefore let there always be non-being,
+--- 1,4 ----
+  The Nameless is the origin of Heaven and Earth;
+! The named is the mother of all things.
+! 
+  Therefore let there always be non-being,
+***************
+*** 11 ****
+--- 10,13 ----
+    they have different names.
++ They both may be called deep and profound.
++ Deeper and more profound,
++ The door of all subtleties!
+.Ed
+.Pp
+.No  Detailed Description of Context Format
+.Pp
+The context output format starts with a two-line header, which looks like
+this:
+.Pp
+.Bd -literal -offset indent
+*** from-file from-file-modification-time
+--- to-file to-file-modification time
+.Ed
+.Pp
+The time stamp normally looks like
+.Li 2002-02-21 23:30:39.942229878 -0800
+to indicate the date, time with fractional seconds, and time zone in
+.Lk ftp://ftp.isi.edu/in-notes/rfc2822.txt .
+(The fractional seconds are omitted on hosts that do not support fractional
+time stamps.) However, a traditional time stamp like
+.Li Thu Feb 21 23:30:39 2002
+is used if the
+.Ev LC_TIME
+locale category is either
+.Li C
+or
+.Li POSIX .
+.Pp
+You can change the header's content with the
+.Op --label= Va label
+option; see Alternate Names.
+.Pp
+Next come one or more hunks of differences; each hunk shows one area where
+the files differ. Context format hunks look like this:
+.Pp
+.Bd -literal -offset indent
+***************
+*** from-file-line-numbers ****
+  from-file-line
+  from-file-line...
+--- to-file-line-numbers ----
+  to-file-line
+  to-file-line...
+.Ed
+.Pp
+If a hunk contains two or more lines, its line numbers look like
+.Li  Va start, Va end .
+Otherwise only its end line number appears. An empty hunk is considered to
+end at the line that precedes the hunk.
+.Pp
+The lines of context around the lines that differ start with two space characters.
+The lines that differ between the two files start with one of the following
+indicator characters, followed by a space character:
+.Pp
+.Bl -tag -width Ds
+.It  !
+A line that is part of a group of one or more lines that changed between the
+two files. There is a corresponding group of lines marked with
+.Li !
+in the part of this hunk for the other file.
+.Pp
+.It  +
+An \(lqinserted\(rq line in the second file that corresponds to nothing in the first
+file.
+.Pp
+.It  -
+A \(lqdeleted\(rq line in the first file that corresponds to nothing in the second
+file.
+.El
+.Pp
+If all of the changes in a hunk are insertions, the lines of
+.Va from-file
+are omitted. If all of the changes are deletions, the lines of
+.Va to-file
+are omitted.
+.Pp
+.Em  Unified Format
+.Pp
+The unified output format is a variation on the context format that is more
+compact because it omits redundant context lines. To select this output format,
+use the
+.Op -U Va lines ,
+.Op --unified[= Va lines] ,
+or
+.Op -u
+option. The argument
+.Va lines
+is the number of lines of context to show. When it is not given, it defaults
+to three.
+.Pp
+At present, only GNU
+.Xr diff
+can produce this format and only GNU
+.Xr patch
+can automatically apply diffs in this format. For proper operation,
+.Xr patch
+typically needs at least three lines of context.
+.Pp
+.No  An Example of Unified Format
+.Pp
+Here is the output of the command
+.Li diff -u lao tzu
+(see Section
+.Dq Sample diff Input ,
+for the complete contents of the two files):
+.Pp
+.Bd -literal -offset indent
+--- lao	2002-02-21 23:30:39.942229878 -0800
++++ tzu	2002-02-21 23:30:50.442260588 -0800
+@@ -1,7 +1,6 @@
+-The Way that can be told of is not the eternal Way;
+-The name that can be named is not the eternal name.
+ The Nameless is the origin of Heaven and Earth;
+-The Named is the mother of all things.
++The named is the mother of all things.
++
+ Therefore let there always be non-being,
+   so we may see their subtlety,
+ And let there always be being,
+@@ -9,3 +8,6 @@
+ The two are the same,
+ But after they are produced,
+   they have different names.
++They both may be called deep and profound.
++Deeper and more profound,
++The door of all subtleties!
+.Ed
+.Pp
+.No  Detailed Description of Unified Format
+.Pp
+The unified output format starts with a two-line header, which looks like
+this:
+.Pp
+.Bd -literal -offset indent
+--- from-file from-file-modification-time
++++ to-file to-file-modification-time
+.Ed
+.Pp
+The time stamp looks like
+.Li 2002-02-21 23:30:39.942229878 -0800
+to indicate the date, time with fractional seconds, and time zone. The fractional
+seconds are omitted on hosts that do not support fractional time stamps.
+.Pp
+You can change the header's content with the
+.Op --label= Va label
+option; seeSee Section
+.Dq Alternate Names .
+.Pp
+Next come one or more hunks of differences; each hunk shows one area where
+the files differ. Unified format hunks look like this:
+.Pp
+.Bd -literal -offset indent
+@@ from-file-line-numbers to-file-line-numbers @@
+ line-from-either-file
+ line-from-either-file...
+.Ed
+.Pp
+If a hunk contains just one line, only its start line number appears. Otherwise
+its line numbers look like
+.Li  Va start, Va count .
+An empty hunk is considered to start at the line that follows the hunk.
+.Pp
+If a hunk and its context contain two or more lines, its line numbers look
+like
+.Li  Va start, Va count .
+Otherwise only its end line number appears. An empty hunk is considered to
+end at the line that precedes the hunk.
+.Pp
+The lines common to both files begin with a space character. The lines that
+actually differ between the two files have one of the following indicator
+characters in the left print column:
+.Pp
+.Bl -tag -width Ds
+.It  +
+A line was added here to the first file.
+.Pp
+.It  -
+A line was removed here from the first file.
+.El
+.Pp
+.Em  Showing Which Sections Differences Are in
+.Pp
+Sometimes you might want to know which part of the files each change falls
+in. If the files are source code, this could mean which function was changed.
+If the files are documents, it could mean which chapter or appendix was changed.
+GNU
+.Xr diff
+can show this by displaying the nearest section heading line that precedes
+the differing lines. Which lines are \(lqsection headings\(rq is determined by a regular
+expression.
+.Pp
+.No  Showing Lines That Match Regular Expressions
+.Pp
+To show in which sections differences occur for files that are not source
+code for C or similar languages, use the
+.Op -F Va regexp
+or
+.Op --show-function-line= Va regexp
+option.
+.Xr diff
+considers lines that match the
+.Xr grep
+-style regular expression
+.Va regexp
+to be the beginning of a section of the file. Here are suggested regular expressions
+for some common languages:
+.Pp
+.Bl -tag -width Ds
+.It  ^[[:alpha:]$_]
+C, C++, Prolog
+.It  ^(
+Lisp
+.It  ^@node
+Texinfo
+.El
+.Pp
+This option does not automatically select an output format; in order to use
+it, you must select the context format (see Section
+.Dq Context Format )
+or unified format (see Section
+.Dq Unified Format ) .
+In other output formats it has no effect.
+.Pp
+The
+.Op -F
+or
+.Op --show-function-line
+option finds the nearest unchanged line that precedes each hunk of differences
+and matches the given regular expression. Then it adds that line to the end
+of the line of asterisks in the context format, or to the
+.Li @@
+line in unified format. If no matching line exists, this option leaves the
+output for that hunk unchanged. If that line is more than 40 characters long,
+it outputs only the first 40 characters. You can specify more than one regular
+expression for such lines;
+.Xr diff
+tries to match each line against each regular expression, starting with the
+last one given. This means that you can use
+.Op -p
+and
+.Op -F
+together, if you wish.
+.Pp
+.No  Showing C Function Headings
+.Pp
+To show in which functions differences occur for C and similar languages,
+you can use the
+.Op -p
+or
+.Op --show-c-function
+option. This option automatically defaults to the context output format (see Section
+.Dq Context Format ) ,
+with the default number of lines of context. You can override that number
+with
+.Op -C Va lines
+elsewhere in the command line. You can override both the format and the number
+with
+.Op -U Va lines
+elsewhere in the command line.
+.Pp
+The
+.Op -p
+or
+.Op --show-c-function
+option is equivalent to
+.Op -F '^[[:alpha:]$_]'
+if the unified format is specified, otherwise
+.Op -c -F '^[[:alpha:]$_]'
+(see Section
+.Dq Specified Headings ) .
+GNU
+.Xr diff
+provides this option for the sake of convenience.
+.Pp
+.Em  Showing Alternate File Names
+.Pp
+If you are comparing two files that have meaningless or uninformative names,
+you might want
+.Xr diff
+to show alternate names in the header of the context and unified output formats.
+To do this, use the
+.Op --label= Va label
+option. The first time you give this option, its argument replaces the name
+and date of the first file in the header; the second time, its argument replaces
+the name and date of the second file. If you give this option more than twice,
+.Xr diff
+reports an error. The
+.Op --label
+option does not affect the file names in the
+.Xr pr
+header when the
+.Op -l
+or
+.Op --paginate
+option is used (see Section
+.Dq Pagination ) .
+.Pp
+Here are the first two lines of the output from
+.Li diff -C 2 --label=original --label=modified lao tzu :
+.Pp
+.Bd -literal -offset indent
+*** original
+--- modified
+.Ed
+.Pp
+.Ss  Showing Differences Side by Side
+.Xr diff
+can produce a side by side difference listing of two files. The files are
+listed in two columns with a gutter between them. The gutter contains one
+of the following markers:
+.Pp
+.Bl -tag -width Ds
+.It  white space
+The corresponding lines are in common. That is, either the lines are identical,
+or the difference is ignored because of one of the
+.Op --ignore
+options (see Section
+.Dq White Space ) .
+.Pp
+.It  Li |
+The corresponding lines differ, and they are either both complete or both
+incomplete.
+.Pp
+.It  Li <
+The files differ and only the first file contains the line.
+.Pp
+.It  Li >
+The files differ and only the second file contains the line.
+.Pp
+.It  Li (
+Only the first file contains the line, but the difference is ignored.
+.Pp
+.It  Li )
+Only the second file contains the line, but the difference is ignored.
+.Pp
+.It  Li \e
+The corresponding lines differ, and only the first line is incomplete.
+.Pp
+.It  Li /
+The corresponding lines differ, and only the second line is incomplete.
+.El
+.Pp
+Normally, an output line is incomplete if and only if the lines that it contains
+are incomplete;See Section
+.Dq Incomplete Lines .
+However, when an output line represents two differing lines, one might be
+incomplete while the other is not. In this case, the output line is complete,
+but its the gutter is marked
+.Li \e
+if the first line is incomplete,
+.Li /
+if the second line is.
+.Pp
+Side by side format is sometimes easiest to read, but it has limitations.
+It generates much wider output than usual, and truncates lines that are too
+long to fit. Also, it relies on lining up output more heavily than usual,
+so its output looks particularly bad if you use varying width fonts, nonstandard
+tab stops, or nonprinting characters.
+.Pp
+You can use the
+.Xr sdiff
+command to interactively merge side by side differences.See Section
+.Dq Interactive Merging ,
+for more information on merging files.
+.Pp
+.Em  Controlling Side by Side Format
+.Pp
+The
+.Op -y
+or
+.Op --side-by-side
+option selects side by side format. Because side by side output lines contain
+two input lines, the output is wider than usual: normally 130 print columns,
+which can fit onto a traditional printer line. You can set the width of the
+output with the
+.Op -W Va columns
+or
+.Op --width= Va columns
+option. The output is split into two halves of equal width, separated by a
+small gutter to mark differences; the right half is aligned to a tab stop
+so that tabs line up. Input lines that are too long to fit in half of an output
+line are truncated for output.
+.Pp
+The
+.Op --left-column
+option prints only the left column of two common lines. The
+.Op --suppress-common-lines
+option suppresses common lines entirely.
+.Pp
+.Em  An Example of Side by Side Format
+.Pp
+Here is the output of the command
+.Li diff -y -W 72 lao tzu
+(see Section
+.Dq Sample diff Input ,
+for the complete contents of the two files).
+.Pp
+.Bd -literal -offset indent
+The Way that can be told of is n   <
+The name that can be named is no   <
+The Nameless is the origin of He        The Nameless is the origin of He
+The Named is the mother of all t   |    The named is the mother of all t
+                                   >
+Therefore let there always be no        Therefore let there always be no
+  so we may see their subtlety,           so we may see their subtlety,
+And let there always be being,          And let there always be being,
+  so we may see their outcome.            so we may see their outcome.
+The two are the same,                   The two are the same,
+But after they are produced,            But after they are produced,
+  they have different names.              they have different names.
+                                   >    They both may be called deep and
+                                   >    Deeper and more profound,
+                                   >    The door of all subtleties!
+.Ed
+.Pp
+.Ss  Showing Differences Without Context
+The \(lqnormal\(rq
+.Xr diff
+output format shows each hunk of differences without any surrounding context.
+Sometimes such output is the clearest way to see how lines have changed, without
+the clutter of nearby unchanged lines (although you can get similar results
+with the context or unified formats by using 0 lines of context). However,
+this format is no longer widely used for sending out patches; for that purpose,
+the context format (see Section
+.Dq Context Format )
+and the unified format (see Section
+.Dq Unified Format )
+are superior. Normal format is the default for compatibility with older versions
+of
+.Xr diff
+and the POSIX standard. Use the
+.Op --normal
+option to select this output format explicitly.
+.Pp
+.Em  An Example of Normal Format
+.Pp
+Here is the output of the command
+.Li diff lao tzu
+(see Section
+.Dq Sample diff Input ,
+for the complete contents of the two files). Notice that it shows only the
+lines that are different between the two files.
+.Pp
+.Bd -literal -offset indent
+1,2d0
+< The Way that can be told of is not the eternal Way;
+< The name that can be named is not the eternal name.
+4c2,3
+< The Named is the mother of all things.
+---
+> The named is the mother of all things.
+> 
+11a11,13
+> They both may be called deep and profound.
+> Deeper and more profound,
+> The door of all subtleties!
+.Ed
+.Pp
+.Em  Detailed Description of Normal Format
+.Pp
+The normal output format consists of one or more hunks of differences; each
+hunk shows one area where the files differ. Normal format hunks look like
+this:
+.Pp
+.Bd -literal -offset indent
+change-command
+< from-file-line
+< from-file-line...
+---
+> to-file-line
+> to-file-line...
+.Ed
+.Pp
+There are three types of change commands. Each consists of a line number or
+comma-separated range of lines in the first file, a single character indicating
+the kind of change to make, and a line number or comma-separated range of
+lines in the second file. All line numbers are the original line numbers in
+each file. The types of change commands are:
+.Pp
+.Bl -tag -width Ds
+.It  Va la Va r
+Add the lines in range
+.Va r
+of the second file after line
+.Va l
+of the first file. For example,
+.Li 8a12,15
+means append lines 12--15 of file 2 after line 8 of file 1; or, if changing
+file 2 into file 1, delete lines 12--15 of file 2.
+.Pp
+.It  Va fc Va t
+Replace the lines in range
+.Va f
+of the first file with lines in range
+.Va t
+of the second file. This is like a combined add and delete, but more compact.
+For example,
+.Li 5,7c8,10
+means change lines 5--7 of file 1 to read as lines 8--10 of file 2; or, if
+changing file 2 into file 1, change lines 8--10 of file 2 to read as lines
+5--7 of file 1.
+.Pp
+.It  Va rd Va l
+Delete the lines in range
+.Va r
+from the first file; line
+.Va l
+is where they would have appeared in the second file had they not been deleted.
+For example,
+.Li 5,7d3
+means delete lines 5--7 of file 1; or, if changing file 2 into file 1, append
+lines 5--7 of file 1 after line 3 of file 2.
+.El
+.Pp
+.Ss  Making Edit Scripts
+Several output modes produce command scripts for editing
+.Va from-file
+to produce
+.Va to-file .
+.Pp
+.Em  Xr ed Scripts
+.Pp
+.Xr diff
+can produce commands that direct the
+.Xr ed
+text editor to change the first file into the second file. Long ago, this
+was the only output mode that was suitable for editing one file into another
+automatically; today, with
+.Xr patch ,
+it is almost obsolete. Use the
+.Op -e
+or
+.Op --ed
+option to select this output format.
+.Pp
+Like the normal format (see Section
+.Dq Normal ) ,
+this output format does not show any context; unlike the normal format, it
+does not include the information necessary to apply the diff in reverse (to
+produce the first file if all you have is the second file and the diff).
+.Pp
+If the file
+.Pa d
+contains the output of
+.Li diff -e old new ,
+then the command
+.Li (cat d && echo w) | ed - old
+edits
+.Pa old
+to make it a copy of
+.Pa new .
+More generally, if
+.Pa d1 ,
+.Pa d2 ,
+\&...,
+.Pa dN
+contain the outputs of
+.Li diff -e old new1 ,
+.Li diff -e new1 new2 ,
+\&...,
+.Li diff -e newN-1 newN ,
+respectively, then the command
+.Li (cat d1 d2 ... dN && echo w) | ed - old
+edits
+.Pa old
+to make it a copy of
+.Pa newN .
+.Pp
+.No  Example Xr ed Script
+.Pp
+Here is the output of
+.Li diff -e lao tzu
+(see Section
+.Dq Sample diff Input ,
+for the complete contents of the two files):
+.Pp
+.Bd -literal -offset indent
+11a
+They both may be called deep and profound.
+Deeper and more profound,
+The door of all subtleties!
+\&.
+4c
+The named is the mother of all things.
+
+\&.
+1,2d
+.Ed
+.Pp
+.No  Detailed Description of Xr ed Format
+.Pp
+The
+.Xr ed
+output format consists of one or more hunks of differences. The changes closest
+to the ends of the files come first so that commands that change the number
+of lines do not affect how
+.Xr ed
+interprets line numbers in succeeding commands.
+.Xr ed
+format hunks look like this:
+.Pp
+.Bd -literal -offset indent
+change-command
+to-file-line
+to-file-line...
+\&.
+.Ed
+.Pp
+Because
+.Xr ed
+uses a single period on a line to indicate the end of input, GNU
+.Xr diff
+protects lines of changes that contain a single period on a line by writing
+two periods instead, then writing a subsequent
+.Xr ed
+command to change the two periods into one. The
+.Xr ed
+format cannot represent an incomplete line, so if the second file ends in
+a changed incomplete line,
+.Xr diff
+reports an error and then pretends that a newline was appended.
+.Pp
+There are three types of change commands. Each consists of a line number or
+comma-separated range of lines in the first file and a single character indicating
+the kind of change to make. All line numbers are the original line numbers
+in the file. The types of change commands are:
+.Pp
+.Bl -tag -width Ds
+.It  Va la
+Add text from the second file after line
+.Va l
+in the first file. For example,
+.Li 8a
+means to add the following lines after line 8 of file 1.
+.Pp
+.It  Va rc
+Replace the lines in range
+.Va r
+in the first file with the following lines. Like a combined add and delete,
+but more compact. For example,
+.Li 5,7c
+means change lines 5--7 of file 1 to read as the text file 2.
+.Pp
+.It  Va rd
+Delete the lines in range
+.Va r
+from the first file. For example,
+.Li 5,7d
+means delete lines 5--7 of file 1.
+.El
+.Pp
+.Em  Forward Xr ed Scripts
+.Pp
+.Xr diff
+can produce output that is like an
+.Xr ed
+script, but with hunks in forward (front to back) order. The format of the
+commands is also changed slightly: command characters precede the lines they
+modify, spaces separate line numbers in ranges, and no attempt is made to
+disambiguate hunk lines consisting of a single period. Like
+.Xr ed
+format, forward
+.Xr ed
+format cannot represent incomplete lines.
+.Pp
+Forward
+.Xr ed
+format is not very useful, because neither
+.Xr ed
+nor
+.Xr patch
+can apply diffs in this format. It exists mainly for compatibility with older
+versions of
+.Xr diff .
+Use the
+.Op -f
+or
+.Op --forward-ed
+option to select it.
+.Pp
+.Em  RCS Scripts
+.Pp
+The RCS output format is designed specifically for use by the Revision Control
+System, which is a set of free programs used for organizing different versions
+and systems of files. Use the
+.Op -n
+or
+.Op --rcs
+option to select this output format. It is like the forward
+.Xr ed
+format (see Section
+.Dq Forward ed ) ,
+but it can represent arbitrary changes to the contents of a file because it
+avoids the forward
+.Xr ed
+format's problems with lines consisting of a single period and with incomplete
+lines. Instead of ending text sections with a line consisting of a single
+period, each command specifies the number of lines it affects; a combination
+of the
+.Li a
+and
+.Li d
+commands are used instead of
+.Li c .
+Also, if the second file ends in a changed incomplete line, then the output
+also ends in an incomplete line.
+.Pp
+Here is the output of
+.Li diff -n lao tzu
+(see Section
+.Dq Sample diff Input ,
+for the complete contents of the two files):
+.Pp
+.Bd -literal -offset indent
+d1 2
+d4 1
+a4 2
+The named is the mother of all things.
+
+a11 3
+They both may be called deep and profound.
+Deeper and more profound,
+The door of all subtleties!
+.Ed
+.Pp
+.Ss  Merging Files with If-then-else
+You can use
+.Xr diff
+to merge two files of C source code. The output of
+.Xr diff
+in this format contains all the lines of both files. Lines common to both
+files are output just once; the differing parts are separated by the C preprocessor
+directives
+.Li #ifdef Va name
+or
+.Li #ifndef Va name ,
+.Li #else ,
+and
+.Li #endif .
+When compiling the output, you select which version to use by either defining
+or leaving undefined the macro
+.Va name .
+.Pp
+To merge two files, use
+.Xr diff
+with the
+.Op -D Va name
+or
+.Op --ifdef= Va name
+option. The argument
+.Va name
+is the C preprocessor identifier to use in the
+.Li #ifdef
+and
+.Li #ifndef
+directives.
+.Pp
+For example, if you change an instance of
+.Li wait (&s)
+to
+.Li waitpid (-1, &s, 0)
+and then merge the old and new files with the
+.Op --ifdef=HAVE_WAITPID
+option, then the affected part of your code might look like this:
+.Pp
+.Bd -literal -offset indent
+    do {
+#ifndef HAVE_WAITPID
+        if ((w = wait (&s)) < 0  &&  errno != EINTR)
+#else /* HAVE_WAITPID */
+        if ((w = waitpid (-1, &s, 0)) < 0  &&  errno != EINTR)
+#endif /* HAVE_WAITPID */
+            return w;
+    } while (w != child);
+.Ed
+.Pp
+You can specify formats for languages other than C by using line group formats
+and line formats, as described in the next sections.
+.Pp
+.Em  Line Group Formats
+.Pp
+Line group formats let you specify formats suitable for many applications
+that allow if-then-else input, including programming languages and text formatting
+languages. A line group format specifies the output format for a contiguous
+group of similar lines.
+.Pp
+For example, the following command compares the TeX files
+.Pa old
+and
+.Pa new ,
+and outputs a merged file in which old regions are surrounded by
+.Li \ebegin{em}
+-
+.Li \eend{em}
+lines, and new regions are surrounded by
+.Li \ebegin{bf}
+-
+.Li \eend{bf}
+lines.
+.Pp
+.Bd -literal -offset indent
+diff \e
+   --old-group-format='\ebegin{em}
+%<\eend{em}
+\&' \e
+   --new-group-format='\ebegin{bf}
+%>\eend{bf}
+\&' \e
+   old new
+.Ed
+.Pp
+The following command is equivalent to the above example, but it is a little
+more verbose, because it spells out the default line group formats.
+.Pp
+.Bd -literal -offset indent
+diff \e
+   --old-group-format='\ebegin{em}
+%<\eend{em}
+\&' \e
+   --new-group-format='\ebegin{bf}
+%>\eend{bf}
+\&' \e
+   --unchanged-group-format='%=' \e
+   --changed-group-format='\ebegin{em}
+%<\eend{em}
+\ebegin{bf}
+%>\eend{bf}
+\&' \e
+   old new
+.Ed
+.Pp
+Here is a more advanced example, which outputs a diff listing with headers
+containing line numbers in a \(lqplain English\(rq style.
+.Pp
+.Bd -literal -offset indent
+diff \e
+   --unchanged-group-format=\(rq \e
+   --old-group-format='-------- %dn line%(n=1?:s) deleted at %df:
+%<' \e
+   --new-group-format='-------- %dN line%(N=1?:s) added after %de:
+%>' \e
+   --changed-group-format='-------- %dn line%(n=1?:s) changed at %df:
+%<-------- to:
+%>' \e
+   old new
+.Ed
+.Pp
+To specify a line group format, use
+.Xr diff
+with one of the options listed below. You can specify up to four line group
+formats, one for each kind of line group. You should quote
+.Va format ,
+because it typically contains shell metacharacters.
+.Pp
+.Bl -tag -width Ds
+.It  --old-group-format= Va format
+These line groups are hunks containing only lines from the first file. The
+default old group format is the same as the changed group format if it is
+specified; otherwise it is a format that outputs the line group as-is.
+.Pp
+.It  --new-group-format= Va format
+These line groups are hunks containing only lines from the second file. The
+default new group format is same as the changed group format if it is specified;
+otherwise it is a format that outputs the line group as-is.
+.Pp
+.It  --changed-group-format= Va format
+These line groups are hunks containing lines from both files. The default
+changed group format is the concatenation of the old and new group formats.
+.Pp
+.It  --unchanged-group-format= Va format
+These line groups contain lines common to both files. The default unchanged
+group format is a format that outputs the line group as-is.
+.El
+.Pp
+In a line group format, ordinary characters represent themselves; conversion
+specifications start with
+.Li %
+and have one of the following forms.
+.Pp
+.Bl -tag -width Ds
+.It  %<
+stands for the lines from the first file, including the trailing newline.
+Each line is formatted according to the old line format (see Section
+.Dq Line Formats ) .
+.Pp
+.It  %>
+stands for the lines from the second file, including the trailing newline.
+Each line is formatted according to the new line format.
+.Pp
+.It  %=
+stands for the lines common to both files, including the trailing newline.
+Each line is formatted according to the unchanged line format.
+.Pp
+.It  %%
+stands for
+.Li % .
+.Pp
+.It  %c' Va C'
+where
+.Va C
+is a single character, stands for
+.Va C .
+.Va C
+may not be a backslash or an apostrophe. For example,
+.Li %c':'
+stands for a colon, even inside the then-part of an if-then-else format, which
+a colon would normally terminate.
+.Pp
+.It  %c'\e Va O'
+where
+.Va O
+is a string of 1, 2, or 3 octal digits, stands for the character with octal
+code
+.Va O .
+For example,
+.Li %c'\e0'
+stands for a null character.
+.Pp
+.It  Va F Va n
+where
+.Va F
+is a
+.Li printf
+conversion specification and
+.Va n
+is one of the following letters, stands for
+.Va n
+\&'s value formatted with
+.Va F .
+.Pp
+.Bl -tag -width Ds
+.It  e
+The line number of the line just before the group in the old file.
+.Pp
+.It  f
+The line number of the first line in the group in the old file; equals
+.Va e
++ 1.
+.Pp
+.It  l
+The line number of the last line in the group in the old file.
+.Pp
+.It  m
+The line number of the line just after the group in the old file; equals
+.Va l
++ 1.
+.Pp
+.It  n
+The number of lines in the group in the old file; equals
+.Va l
+-
+.Va f
++ 1.
+.Pp
+.It  E, F, L, M, N
+Likewise, for lines in the new file.
+.Pp
+.El
+The
+.Li printf
+conversion specification can be
+.Li %d ,
+.Li %o ,
+.Li %x ,
+or
+.Li %X ,
+specifying decimal, octal, lower case hexadecimal, or upper case hexadecimal
+output respectively. After the
+.Li %
+the following options can appear in sequence: a series of zero or more flags;
+an integer specifying the minimum field width; and a period followed by an
+optional integer specifying the minimum number of digits. The flags are
+.Li -
+for left-justification,
+.Li '
+for separating the digit into groups as specified by the
+.Ev LC_NUMERIC
+locale category, and
+.Li 0
+for padding with zeros instead of spaces. For example,
+.Li %5dN
+prints the number of new lines in the group in a field of width 5 characters,
+using the
+.Li printf
+format
+.Li "%5d" .
+.Pp
+.It  ( Va A= Va B? Va T: Va E)
+If
+.Va A
+equals
+.Va B
+then
+.Va T
+else
+.Va E .
+.Va A
+and
+.Va B
+are each either a decimal constant or a single letter interpreted as above.
+This format spec is equivalent to
+.Va T
+if
+.Va A
+\&'s value equals
+.Va B
+\&'s; otherwise it is equivalent to
+.Va E .
+.Pp
+For example,
+.Li %(N=0?no:%dN) line%(N=1?:s)
+is equivalent to
+.Li no lines
+if
+.Va N
+(the number of lines in the group in the new file) is 0, to
+.Li 1 line
+if
+.Va N
+is 1, and to
+.Li %dN lines
+otherwise.
+.El
+.Pp
+.Em  Line Formats
+.Pp
+Line formats control how each line taken from an input file is output as part
+of a line group in if-then-else format.
+.Pp
+For example, the following command outputs text with a one-character change
+indicator to the left of the text. The first character of output is
+.Li -
+for deleted lines,
+.Li |
+for added lines, and a space for unchanged lines. The formats contain newline
+characters where newlines are desired on output.
+.Pp
+.Bd -literal -offset indent
+diff \e
+   --old-line-format='-%l
+\&' \e
+   --new-line-format='|%l
+\&' \e
+   --unchanged-line-format=' %l
+\&' \e
+   old new
+.Ed
+.Pp
+To specify a line format, use one of the following options. You should quote
+.Va format ,
+since it often contains shell metacharacters.
+.Pp
+.Bl -tag -width Ds
+.It  --old-line-format= Va format
+formats lines just from the first file.
+.Pp
+.It  --new-line-format= Va format
+formats lines just from the second file.
+.Pp
+.It  --unchanged-line-format= Va format
+formats lines common to both files.
+.Pp
+.It  --line-format= Va format
+formats all lines; in effect, it sets all three above options simultaneously.
+.El
+.Pp
+In a line format, ordinary characters represent themselves; conversion specifications
+start with
+.Li %
+and have one of the following forms.
+.Pp
+.Bl -tag -width Ds
+.It  %l
+stands for the contents of the line, not counting its trailing newline (if
+any). This format ignores whether the line is incomplete;See Section
+.Dq Incomplete Lines .
+.Pp
+.It  %L
+stands for the contents of the line, including its trailing newline (if any).
+If a line is incomplete, this format preserves its incompleteness.
+.Pp
+.It  %%
+stands for
+.Li % .
+.Pp
+.It  %c' Va C'
+where
+.Va C
+is a single character, stands for
+.Va C .
+.Va C
+may not be a backslash or an apostrophe. For example,
+.Li %c':'
+stands for a colon.
+.Pp
+.It  %c'\e Va O'
+where
+.Va O
+is a string of 1, 2, or 3 octal digits, stands for the character with octal
+code
+.Va O .
+For example,
+.Li %c'\e0'
+stands for a null character.
+.Pp
+.It  Va Fn
+where
+.Va F
+is a
+.Li printf
+conversion specification, stands for the line number formatted with
+.Va F .
+For example,
+.Li %.5dn
+prints the line number using the
+.Li printf
+format
+.Li "%.5d" .
+See Section.Dq Line Group Formats ,
+for more about printf conversion specifications.
+.Pp
+.El
+The default line format is
+.Li %l
+followed by a newline character.
+.Pp
+If the input contains tab characters and it is important that they line up
+on output, you should ensure that
+.Li %l
+or
+.Li %L
+in a line format is just after a tab stop (e.g. by preceding
+.Li %l
+or
+.Li %L
+with a tab character), or you should use the
+.Op -t
+or
+.Op --expand-tabs
+option.
+.Pp
+Taken together, the line and line group formats let you specify many different
+formats. For example, the following command uses a format similar to normal
+.Xr diff
+format. You can tailor this command to get fine control over
+.Xr diff
+output.
+.Pp
+.Bd -literal -offset indent
+diff \e
+   --old-line-format='< %l
+\&' \e
+   --new-line-format='> %l
+\&' \e
+   --old-group-format='%df%(f=l?:,%dl)d%dE
+%<' \e
+   --new-group-format='%dea%dF%(F=L?:,%dL)
+%>' \e
+   --changed-group-format='%df%(f=l?:,%dl)c%dF%(F=L?:,%dL)
+%<---
+%>' \e
+   --unchanged-group-format=\(rq \e
+   old new
+.Ed
+.Pp
+.Em  An Example of If-then-else Format
+.Pp
+Here is the output of
+.Li diff -DTWO lao tzu
+(see Section
+.Dq Sample diff Input ,
+for the complete contents of the two files):
+.Pp
+.Bd -literal -offset indent
+#ifndef TWO
+The Way that can be told of is not the eternal Way;
+The name that can be named is not the eternal name.
+#endif /* ! TWO */
+The Nameless is the origin of Heaven and Earth;
+#ifndef TWO
+The Named is the mother of all things.
+#else /* TWO */
+The named is the mother of all things.
+
+#endif /* TWO */
+Therefore let there always be non-being,
+  so we may see their subtlety,
+And let there always be being,
+  so we may see their outcome.
+The two are the same,
+But after they are produced,
+  they have different names.
+#ifdef TWO
+They both may be called deep and profound.
+Deeper and more profound,
+The door of all subtleties!
+#endif /* TWO */
+.Ed
+.Pp
+.Em  Detailed Description of If-then-else Format
+.Pp
+For lines common to both files,
+.Xr diff
+uses the unchanged line group format. For each hunk of differences in the
+merged output format, if the hunk contains only lines from the first file,
+.Xr diff
+uses the old line group format; if the hunk contains only lines from the second
+file,
+.Xr diff
+uses the new group format; otherwise,
+.Xr diff
+uses the changed group format.
+.Pp
+The old, new, and unchanged line formats specify the output format of lines
+from the first file, lines from the second file, and lines common to both
+files, respectively.
+.Pp
+The option
+.Op --ifdef= Va name
+is equivalent to the following sequence of options using shell syntax:
+.Pp
+.Bd -literal -offset indent
+--old-group-format='#ifndef name
+%<#endif /* ! name */
+\&' \e
+--new-group-format='#ifdef name
+%>#endif /* name */
+\&' \e
+--unchanged-group-format='%=' \e
+--changed-group-format='#ifndef name
+%<#else /* name */
+%>#endif /* name */
+\&'
+.Ed
+.Pp
+You should carefully check the
+.Xr diff
+output for proper nesting. For example, when using the
+.Op -D Va name
+or
+.Op --ifdef= Va name
+option, you should check that if the differing lines contain any of the C
+preprocessor directives
+.Li #ifdef ,
+.Li #ifndef ,
+.Li #else ,
+.Li #elif ,
+or
+.Li #endif ,
+they are nested properly and match. If they don't, you must make corrections
+manually. It is a good idea to carefully check the resulting code anyway to
+make sure that it really does what you want it to; depending on how the input
+files were produced, the output might contain duplicate or otherwise incorrect
+code.
+.Pp
+The
+.Xr patch
+.Op -D Va name
+option behaves like the
+.Xr diff
+.Op -D Va name
+option, except it operates on a file and a diff to produce a merged file;See Section
+.Dq patch Options .
+.Pp
+.Sh  Incomplete Lines
+When an input file ends in a non-newline character, its last line is called
+an
+.Em incomplete line
+because its last character is not a newline. All other lines are called
+.Em full lines
+and end in a newline character. Incomplete lines do not match full lines unless
+differences in white space are ignored (see Section
+.Dq White Space ) .
+.Pp
+An incomplete line is normally distinguished on output from a full line by
+a following line that starts with
+.Li \e .
+However, the RCS format (see Section
+.Dq RCS )
+outputs the incomplete line as-is, without any trailing newline or following
+line. The side by side format normally represents incomplete lines as-is,
+but in some cases uses a
+.Li \e
+or
+.Li /
+gutter marker;See Section
+.Dq Side by Side .
+The if-then-else line format preserves a line's incompleteness with
+.Li %L ,
+and discards the newline with
+.Li %l
+;See Section
+.Dq Line Formats .
+Finally, with the
+.Xr ed
+and forward
+.Xr ed
+output formats (see Section
+.Dq Output Formats )
+.Xr diff
+cannot represent an incomplete line, so it pretends there was a newline and
+reports an error.
+.Pp
+For example, suppose
+.Pa F
+and
+.Pa G
+are one-byte files that contain just
+.Li f
+and
+.Li g ,
+respectively. Then
+.Li diff F G
+outputs
+.Pp
+.Bd -literal -offset indent
+1c1
+< f
+\e No newline at end of file
+---
+> g
+\e No newline at end of file
+.Ed
+.Pp
+(The exact message may differ in non-English locales.)
+.Li diff -n F G
+outputs the following without a trailing newline:
+.Pp
+.Bd -literal -offset indent
+d1 1
+a1 1
+g
+.Ed
+.Pp
+.Li diff -e F G
+reports two errors and outputs the following:
+.Pp
+.Bd -literal -offset indent
+1c
+g
+\&.
+.Ed
+.Pp
+.Sh  Comparing Directories
+You can use
+.Xr diff
+to compare some or all of the files in two directory trees. When both file
+name arguments to
+.Xr diff
+are directories, it compares each file that is contained in both directories,
+examining file names in alphabetical order as specified by the
+.Ev LC_COLLATE
+locale category. Normally
+.Xr diff
+is silent about pairs of files that contain no differences, but if you use
+the
+.Op -s
+or
+.Op --report-identical-files
+option, it reports pairs of identical files. Normally
+.Xr diff
+reports subdirectories common to both directories without comparing subdirectories'
+files, but if you use the
+.Op -r
+or
+.Op --recursive
+option, it compares every corresponding pair of files in the directory trees,
+as many levels deep as they go.
+.Pp
+For file names that are in only one of the directories,
+.Xr diff
+normally does not show the contents of the file that exists; it reports only
+that the file exists in that directory and not in the other. You can make
+.Xr diff
+act as though the file existed but was empty in the other directory, so that
+it outputs the entire contents of the file that actually exists. (It is output
+as either an insertion or a deletion, depending on whether it is in the first
+or the second directory given.) To do this, use the
+.Op -N
+or
+.Op --new-file
+option.
+.Pp
+If the older directory contains one or more large files that are not in the
+newer directory, you can make the patch smaller by using the
+.Op --unidirectional-new-file
+option instead of
+.Op -N .
+This option is like
+.Op -N
+except that it only inserts the contents of files that appear in the second
+directory but not the first (that is, files that were added). At the top of
+the patch, write instructions for the user applying the patch to remove the
+files that were deleted before applying the patch.See Section
+.Dq Making Patches ,
+for more discussion of making patches for distribution.
+.Pp
+To ignore some files while comparing directories, use the
+.Op -x Va pattern
+or
+.Op --exclude= Va pattern
+option. This option ignores any files or subdirectories whose base names match
+the shell pattern
+.Va pattern .
+Unlike in the shell, a period at the start of the base of a file name matches
+a wildcard at the start of a pattern. You should enclose
+.Va pattern
+in quotes so that the shell does not expand it. For example, the option
+.Op -x '*.[ao]'
+ignores any file whose name ends with
+.Li .a
+or
+.Li .o .
+.Pp
+This option accumulates if you specify it more than once. For example, using
+the options
+.Op -x 'RCS' -x '*,v'
+ignores any file or subdirectory whose base name is
+.Li RCS
+or ends with
+.Li ,v .
+.Pp
+If you need to give this option many times, you can instead put the patterns
+in a file, one pattern per line, and use the
+.Op -X Va file
+or
+.Op --exclude-from= Va file
+option. Trailing white space and empty lines are ignored in the pattern file.
+.Pp
+If you have been comparing two directories and stopped partway through, later
+you might want to continue where you left off. You can do this by using the
+.Op -S Va file
+or
+.Op --starting-file= Va file
+option. This compares only the file
+.Va file
+and all alphabetically later files in the topmost directory level.
+.Pp
+If two directories differ only in that file names are lower case in one directory
+and upper case in the upper,
+.Xr diff
+normally reports many differences because it compares file names in a case
+sensitive way. With the
+.Op --ignore-file-name-case
+option,
+.Xr diff
+ignores case differences in file names, so that for example the contents of
+the file
+.Pa Tao
+in one directory are compared to the contents of the file
+.Pa TAO
+in the other. The
+.Op --no-ignore-file-name-case
+option cancels the effect of the
+.Op --ignore-file-name-case
+option, reverting to the default behavior.
+.Pp
+If an
+.Op -x Va pattern
+or
+.Op --exclude= Va pattern
+option, or an
+.Op -X Va file
+or
+.Op --exclude-from= Va file
+option, is specified while the
+.Op --ignore-file-name-case
+option is in effect, case is ignored when excluding file names matching the
+specified patterns.
+.Pp
+.Sh  Making Xr diff Output Prettier
+.Xr diff
+provides several ways to adjust the appearance of its output. These adjustments
+can be applied to any output format.
+.Pp
+.Ss  Preserving Tab Stop Alignment
+The lines of text in some of the
+.Xr diff
+output formats are preceded by one or two characters that indicate whether
+the text is inserted, deleted, or changed. The addition of those characters
+can cause tabs to move to the next tab stop, throwing off the alignment of
+columns in the line. GNU
+.Xr diff
+provides two ways to make tab-aligned columns line up correctly.
+.Pp
+The first way is to have
+.Xr diff
+convert all tabs into the correct number of spaces before outputting them;
+select this method with the
+.Op -t
+or
+.Op --expand-tabs
+option. To use this form of output with
+.Xr patch ,
+you must give
+.Xr patch
+the
+.Op -l
+or
+.Op --ignore-white-space
+option (see Section
+.Dq Changed White Space ,
+for more information).
+.Xr diff
+normally assumes that tab stops are set every 8 print columns, but this can
+be altered by the
+.Op --tabsize= Va columns
+option.
+.Pp
+The other method for making tabs line up correctly is to add a tab character
+instead of a space after the indicator character at the beginning of the line.
+This ensures that all following tab characters are in the same position relative
+to tab stops that they were in the original files, so that the output is aligned
+correctly. Its disadvantage is that it can make long lines too long to fit
+on one line of the screen or the paper. It also does not work with the unified
+output format, which does not have a space character after the change type
+indicator character. Select this method with the
+.Op -T
+or
+.Op --initial-tab
+option.
+.Pp
+.Ss  Paginating Xr diff Output
+It can be convenient to have long output page-numbered and time-stamped. The
+.Op -l
+or
+.Op --paginate
+option does this by sending the
+.Xr diff
+output through the
+.Xr pr
+program. Here is what the page header might look like for
+.Li diff -lc lao tzu :
+.Pp
+.Bd -literal -offset indent
+2002-02-22 14:20                 diff -lc lao tzu                 Page 1
+.Ed
+.Pp
+.Sh  Xr diff Performance Tradeoffs
+GNU
+.Xr diff
+runs quite efficiently; however, in some circumstances you can cause it to
+run faster or produce a more compact set of changes.
+.Pp
+One way to improve
+.Xr diff
+performance is to use hard or symbolic links to files instead of copies. This
+improves performance because
+.Xr diff
+normally does not need to read two hard or symbolic links to the same file,
+since their contents must be identical. For example, suppose you copy a large
+directory hierarchy, make a few changes to the copy, and then often use
+.Li diff -r
+to compare the original to the copy. If the original files are read-only,
+you can greatly improve performance by creating the copy using hard or symbolic
+links (e.g., with GNU
+.Li cp -lR
+or
+.Li cp -sR ) .
+Before editing a file in the copy for the first time, you should break the
+link and replace it with a regular copy.
+.Pp
+You can also affect the performance of GNU
+.Xr diff
+by giving it options that change the way it compares files. Performance has
+more than one dimension. These options improve one aspect of performance at
+the cost of another, or they improve performance in some cases while hurting
+it in others.
+.Pp
+The way that GNU
+.Xr diff
+determines which lines have changed always comes up with a near-minimal set
+of differences. Usually it is good enough for practical purposes. If the
+.Xr diff
+output is large, you might want
+.Xr diff
+to use a modified algorithm that sometimes produces a smaller set of differences.
+The
+.Op -d
+or
+.Op --minimal
+option does this; however, it can also cause
+.Xr diff
+to run more slowly than usual, so it is not the default behavior.
+.Pp
+When the files you are comparing are large and have small groups of changes
+scattered throughout them, you can use the
+.Op --speed-large-files
+option to make a different modification to the algorithm that
+.Xr diff
+uses. If the input files have a constant small density of changes, this option
+speeds up the comparisons without changing the output. If not,
+.Xr diff
+might produce a larger set of differences; however, the output will still
+be correct.
+.Pp
+Normally
+.Xr diff
+discards the prefix and suffix that is common to both files before it attempts
+to find a minimal set of differences. This makes
+.Xr diff
+run faster, but occasionally it may produce non-minimal output. The
+.Op --horizon-lines= Va lines
+option prevents
+.Xr diff
+from discarding the last
+.Va lines
+lines of the prefix and the first
+.Va lines
+lines of the suffix. This gives
+.Xr diff
+further opportunities to find a minimal output.
+.Pp
+Suppose a run of changed lines includes a sequence of lines at one end and
+there is an identical sequence of lines just outside the other end. The
+.Xr diff
+command is free to choose which identical sequence is included in the hunk.
+In this case,
+.Xr diff
+normally shifts the hunk's boundaries when this merges adjacent hunks, or
+shifts a hunk's lines towards the end of the file. Merging hunks can make
+the output look nicer in some cases.
+.Pp
+.Sh  Comparing Three Files
+Use the program
+.Xr diff3
+to compare three files and show any differences among them. (
+.Xr diff3
+can also merge files; see diff3 Merging).
+.Pp
+The \(lqnormal\(rq
+.Xr diff3
+output format shows each hunk of differences without surrounding context.
+Hunks are labeled depending on whether they are two-way or three-way, and
+lines are annotated by their location in the input files.
+.Pp
+See Section.Dq Invoking diff3 ,
+for more information on how to run
+.Xr diff3 .
+.Pp
+.Ss  A Third Sample Input File
+Here is a third sample file that will be used in examples to illustrate the
+output of
+.Xr diff3
+and how various options can change it. The first two files are the same that
+we used for
+.Xr diff
+(see Section
+.Dq Sample diff Input ) .
+This is the third sample file, called
+.Pa tao :
+.Pp
+.Bd -literal -offset indent
+The Way that can be told of is not the eternal Way;
+The name that can be named is not the eternal name.
+The Nameless is the origin of Heaven and Earth;
+The named is the mother of all things.
+
+Therefore let there always be non-being,
+  so we may see their subtlety,
+And let there always be being,
+  so we may see their result.
+The two are the same,
+But after they are produced,
+  they have different names.
+
+  -- The Way of Lao-Tzu, tr. Wing-tsit Chan
+.Ed
+.Pp
+.Ss  An Example of Xr diff3 Normal Format
+Here is the output of the command
+.Li diff3 lao tzu tao
+(see Section
+.Dq Sample diff3 Input ,
+for the complete contents of the files). Notice that it shows only the lines
+that are different among the three files.
+.Pp
+.Bd -literal -offset indent
+====2
+1:1,2c
+3:1,2c
+  The Way that can be told of is not the eternal Way;
+  The name that can be named is not the eternal name.
+2:0a
+====1
+1:4c
+  The Named is the mother of all things.
+2:2,3c
+3:4,5c
+  The named is the mother of all things.
+  
+====3
+1:8c
+2:7c
+    so we may see their outcome.
+3:9c
+    so we may see their result.
+====
+1:11a
+2:11,13c
+  They both may be called deep and profound.
+  Deeper and more profound,
+  The door of all subtleties!
+3:13,14c
+  
+    -- The Way of Lao-Tzu, tr. Wing-tsit Chan
+.Ed
+.Pp
+.Ss  Detailed Description of Xr diff3 Normal Format
+Each hunk begins with a line marked
+.Li ==== .
+Three-way hunks have plain
+.Li ====
+lines, and two-way hunks have
+.Li 1 ,
+.Li 2 ,
+or
+.Li 3
+appended to specify which of the three input files differ in that hunk. The
+hunks contain copies of two or three sets of input lines each preceded by
+one or two commands identifying where the lines came from.
+.Pp
+Normally, two spaces precede each copy of an input line to distinguish it
+from the commands. But with the
+.Op -T
+or
+.Op --initial-tab
+option,
+.Xr diff3
+uses a tab instead of two spaces; this lines up tabs correctly.See Section
+.Dq Tabs ,
+for more information.
+.Pp
+Commands take the following forms:
+.Pp
+.Bl -tag -width Ds
+.It  Va file: Va la
+This hunk appears after line
+.Va l
+of file
+.Va file ,
+and contains no lines in that file. To edit this file to yield the other files,
+one must append hunk lines taken from the other files. For example,
+.Li 1:11a
+means that the hunk follows line 11 in the first file and contains no lines
+from that file.
+.Pp
+.It  Va file: Va rc
+This hunk contains the lines in the range
+.Va r
+of file
+.Va file .
+The range
+.Va r
+is a comma-separated pair of line numbers, or just one number if the range
+is a singleton. To edit this file to yield the other files, one must change
+the specified lines to be the lines taken from the other files. For example,
+.Li 2:11,13c
+means that the hunk contains lines 11 through 13 from the second file.
+.El
+.Pp
+If the last line in a set of input lines is incomplete (see Section
+.Dq Incomplete Lines ) ,
+it is distinguished on output from a full line by a following line that starts
+with
+.Li \e .
+.Pp
+.Ss  Xr diff3 Hunks
+Groups of lines that differ in two or three of the input files are called
+.Em diff3 hunks ,
+by analogy with
+.Xr diff
+hunks (see Section
+.Dq Hunks ) .
+If all three input files differ in a
+.Xr diff3
+hunk, the hunk is called a
+.Em three-way hunk
+; if just two input files differ, it is a
+.Em two-way hunk .
+.Pp
+As with
+.Xr diff ,
+several solutions are possible. When comparing the files
+.Li A ,
+.Li B ,
+and
+.Li C ,
+.Xr diff3
+normally finds
+.Xr diff3
+hunks by merging the two-way hunks output by the two commands
+.Li diff A B
+and
+.Li diff A C .
+This does not necessarily minimize the size of the output, but exceptions
+should be rare.
+.Pp
+For example, suppose
+.Pa F
+contains the three lines
+.Li a ,
+.Li b ,
+.Li f ,
+.Pa G
+contains the lines
+.Li g ,
+.Li b ,
+.Li g ,
+and
+.Pa H
+contains the lines
+.Li a ,
+.Li b ,
+.Li h .
+.Li diff3 F G H
+might output the following:
+.Pp
+.Bd -literal -offset indent
+====2
+1:1c
+3:1c
+  a
+2:1c
+  g
+====
+1:3c
+  f
+2:3c
+  g
+3:3c
+  h
+.Ed
+.Pp
+because it found a two-way hunk containing
+.Li a
+in the first and third files and
+.Li g
+in the second file, then the single line
+.Li b
+common to all three files, then a three-way hunk containing the last line
+of each file.
+.Pp
+.Sh  Merging From a Common Ancestor
+When two people have made changes to copies of the same file,
+.Xr diff3
+can produce a merged output that contains both sets of changes together with
+warnings about conflicts.
+.Pp
+One might imagine programs with names like
+.Xr diff4
+and
+.Xr diff5
+to compare more than three files simultaneously, but in practice the need
+rarely arises. You can use
+.Xr diff3
+to merge three or more sets of changes to a file by merging two change sets
+at a time.
+.Pp
+.Xr diff3
+can incorporate changes from two modified versions into a common preceding
+version. This lets you merge the sets of changes represented by the two newer
+files. Specify the common ancestor version as the second argument and the
+two newer versions as the first and third arguments, like this:
+.Pp
+.Bd -literal -offset indent
+diff3 mine older yours
+.Ed
+.Pp
+You can remember the order of the arguments by noting that they are in alphabetical
+order.
+.Pp
+You can think of this as subtracting
+.Va older
+from
+.Va yours
+and adding the result to
+.Va mine ,
+or as merging into
+.Va mine
+the changes that would turn
+.Va older
+into
+.Va yours .
+This merging is well-defined as long as
+.Va mine
+and
+.Va older
+match in the neighborhood of each such change. This fails to be true when
+all three input files differ or when only
+.Va older
+differs; we call this a
+.Em conflict .
+When all three input files differ, we call the conflict an
+.Em overlap .
+.Pp
+.Xr diff3
+gives you several ways to handle overlaps and conflicts. You can omit overlaps
+or conflicts, or select only overlaps, or mark conflicts with special
+.Li <<<<<<<
+and
+.Li >>>>>>>
+lines.
+.Pp
+.Xr diff3
+can output the merge results as an
+.Xr ed
+script that that can be applied to the first file to yield the merged output.
+However, it is usually better to have
+.Xr diff3
+generate the merged output directly; this bypasses some problems with
+.Xr ed .
+.Pp
+.Ss  Selecting Which Changes to Incorporate
+You can select all unmerged changes from
+.Va older
+to
+.Va yours
+for merging into
+.Va mine
+with the
+.Op -e
+or
+.Op --ed
+option. You can select only the nonoverlapping unmerged changes with
+.Op -3
+or
+.Op --easy-only ,
+and you can select only the overlapping changes with
+.Op -x
+or
+.Op --overlap-only .
+.Pp
+The
+.Op -e ,
+.Op -3
+and
+.Op -x
+options select only
+.Em unmerged changes ,
+i.e. changes where
+.Va mine
+and
+.Va yours
+differ; they ignore changes from
+.Va older
+to
+.Va yours
+where
+.Va mine
+and
+.Va yours
+are identical, because they assume that such changes have already been merged.
+If this assumption is not a safe one, you can use the
+.Op -A
+or
+.Op --show-all
+option (see Section
+.Dq Marking Conflicts ) .
+.Pp
+Here is the output of the command
+.Xr diff3
+with each of these three options (see Section
+.Dq Sample diff3 Input ,
+for the complete contents of the files). Notice that
+.Op -e
+outputs the union of the disjoint sets of changes output by
+.Op -3
+and
+.Op -x .
+.Pp
+Output of
+.Li diff3 -e lao tzu tao :
+.Bd -literal -offset indent
+11a
+
+  -- The Way of Lao-Tzu, tr. Wing-tsit Chan
+\&.
+8c
+  so we may see their result.
+\&.
+.Ed
+.Pp
+Output of
+.Li diff3 -3 lao tzu tao :
+.Bd -literal -offset indent
+8c
+  so we may see their result.
+\&.
+.Ed
+.Pp
+Output of
+.Li diff3 -x lao tzu tao :
+.Bd -literal -offset indent
+11a
+
+  -- The Way of Lao-Tzu, tr. Wing-tsit Chan
+\&.
+.Ed
+.Pp
+.Ss  Marking Conflicts
+.Xr diff3
+can mark conflicts in the merged output by bracketing them with special marker
+lines. A conflict that comes from two files
+.Va A
+and
+.Va B
+is marked as follows:
+.Pp
+.Bd -literal -offset indent
+<<<<<<< A
+lines from A
+=======
+lines from B
+>>>>>>> B
+.Ed
+.Pp
+A conflict that comes from three files
+.Va A ,
+.Va B
+and
+.Va C
+is marked as follows:
+.Pp
+.Bd -literal -offset indent
+<<<<<<< A
+lines from A
+||||||| B
+lines from B
+=======
+lines from C
+>>>>>>> C
+.Ed
+.Pp
+The
+.Op -A
+or
+.Op --show-all
+option acts like the
+.Op -e
+option, except that it brackets conflicts, and it outputs all changes from
+.Va older
+to
+.Va yours ,
+not just the unmerged changes. Thus, given the sample input files (see Section
+.Dq Sample diff3 Input ) ,
+.Li diff3 -A lao tzu tao
+puts brackets around the conflict where only
+.Pa tzu
+differs:
+.Pp
+.Bd -literal -offset indent
+<<<<<<< tzu
+=======
+The Way that can be told of is not the eternal Way;
+The name that can be named is not the eternal name.
+>>>>>>> tao
+.Ed
+.Pp
+And it outputs the three-way conflict as follows:
+.Pp
+.Bd -literal -offset indent
+<<<<<<< lao
+||||||| tzu
+They both may be called deep and profound.
+Deeper and more profound,
+The door of all subtleties!
+=======
+
+  -- The Way of Lao-Tzu, tr. Wing-tsit Chan
+>>>>>>> tao
+.Ed
+.Pp
+The
+.Op -E
+or
+.Op --show-overlap
+option outputs less information than the
+.Op -A
+or
+.Op --show-all
+option, because it outputs only unmerged changes, and it never outputs the
+contents of the second file. Thus the
+.Op -E
+option acts like the
+.Op -e
+option, except that it brackets the first and third files from three-way overlapping
+changes. Similarly,
+.Op -X
+acts like
+.Op -x ,
+except it brackets all its (necessarily overlapping) changes. For example,
+for the three-way overlapping change above, the
+.Op -E
+and
+.Op -X
+options output the following:
+.Pp
+.Bd -literal -offset indent
+<<<<<<< lao
+=======
+
+  -- The Way of Lao-Tzu, tr. Wing-tsit Chan
+>>>>>>> tao
+.Ed
+.Pp
+If you are comparing files that have meaningless or uninformative names, you
+can use the
+.Op --label= Va label
+option to show alternate names in the
+.Li <<<<<<< ,
+.Li |||||||
+and
+.Li >>>>>>>
+brackets. This option can be given up to three times, once for each input
+file. Thus
+.Li diff3 -A --label X --label Y --label Z A B C
+acts like
+.Li diff3 -A A B C ,
+except that the output looks like it came from files named
+.Li X ,
+.Li Y
+and
+.Li Z
+rather than from files named
+.Li A ,
+.Li B
+and
+.Li C .
+.Pp
+.Ss  Generating the Merged Output Directly
+With the
+.Op -m
+or
+.Op --merge
+option,
+.Xr diff3
+outputs the merged file directly. This is more efficient than using
+.Xr ed
+to generate it, and works even with non-text files that
+.Xr ed
+would reject. If you specify
+.Op -m
+without an
+.Xr ed
+script option,
+.Op -A
+is assumed.
+.Pp
+For example, the command
+.Li diff3 -m lao tzu tao
+(see Section
+.Dq Sample diff3 Input
+for a copy of the input files) would output the following:
+.Pp
+.Bd -literal -offset indent
+<<<<<<< tzu
+=======
+The Way that can be told of is not the eternal Way;
+The name that can be named is not the eternal name.
+>>>>>>> tao
+The Nameless is the origin of Heaven and Earth;
+The Named is the mother of all things.
+Therefore let there always be non-being,
+  so we may see their subtlety,
+And let there always be being,
+  so we may see their result.
+The two are the same,
+But after they are produced,
+  they have different names.
+<<<<<<< lao
+||||||| tzu
+They both may be called deep and profound.
+Deeper and more profound,
+The door of all subtleties!
+=======
+
+  -- The Way of Lao-Tzu, tr. Wing-tsit Chan
+>>>>>>> tao
+.Ed
+.Pp
+.Ss  How Xr diff3 Merges Incomplete Lines
+With
+.Op -m ,
+incomplete lines (see Section
+.Dq Incomplete Lines )
+are simply copied to the output as they are found; if the merged output ends
+in an conflict and one of the input files ends in an incomplete line, succeeding
+.Li ||||||| ,
+.Li =======
+or
+.Li >>>>>>>
+brackets appear somewhere other than the start of a line because they are
+appended to the incomplete line.
+.Pp
+Without
+.Op -m ,
+if an
+.Xr ed
+script option is specified and an incomplete line is found,
+.Xr diff3
+generates a warning and acts as if a newline had been present.
+.Pp
+.Ss  Saving the Changed File
+Traditional Unix
+.Xr diff3
+generates an
+.Xr ed
+script without the trailing
+.Li w
+and
+.Li q
+commands that save the changes. System V
+.Xr diff3
+generates these extra commands. GNU
+.Xr diff3
+normally behaves like traditional Unix
+.Xr diff3 ,
+but with the
+.Op -i
+option it behaves like System V
+.Xr diff3
+and appends the
+.Li w
+and
+.Li q
+commands.
+.Pp
+The
+.Op -i
+option requires one of the
+.Xr ed
+script options
+.Op -AeExX3 ,
+and is incompatible with the merged output option
+.Op -m .
+.Pp
+.Sh  Interactive Merging with Xr sdiff
+With
+.Xr sdiff ,
+you can merge two files interactively based on a side-by-side
+.Op -y
+format comparison (see Section
+.Dq Side by Side ) .
+Use
+.Op -o Va file
+or
+.Op --output= Va file
+to specify where to put the merged text.See Section
+.Dq Invoking sdiff ,
+for more details on the options to
+.Xr sdiff .
+.Pp
+Another way to merge files interactively is to use the Emacs Lisp package
+.Xr emerge .
+See Section.Dq emerge ,
+for more information.
+.Pp
+.Ss  Specifying Xr diff Options to Xr sdiff
+The following
+.Xr sdiff
+options have the same meaning as for
+.Xr diff .
+See Section.Dq diff Options ,
+for the use of these options.
+.Pp
+.Bd -literal -offset indent
+-a -b -d -i -t -v
+-B -E -I regexp
+
+--expand-tabs
+--ignore-blank-lines  --ignore-case
+--ignore-matching-lines=regexp  --ignore-space-change
+--ignore-tab-expansion
+--left-column  --minimal  --speed-large-files
+--strip-trailing-cr  --suppress-common-lines
+--tabsize=columns  --text  --version  --width=columns
+.Ed
+.Pp
+For historical reasons,
+.Xr sdiff
+has alternate names for some options. The
+.Op -l
+option is equivalent to the
+.Op --left-column
+option, and similarly
+.Op -s
+is equivalent to
+.Op --suppress-common-lines .
+The meaning of the
+.Xr sdiff
+.Op -w
+and
+.Op -W
+options is interchanged from that of
+.Xr diff :
+with
+.Xr sdiff ,
+.Op -w Va columns
+is equivalent to
+.Op --width= Va columns ,
+and
+.Op -W
+is equivalent to
+.Op --ignore-all-space .
+.Xr sdiff
+without the
+.Op -o
+option is equivalent to
+.Xr diff
+with the
+.Op -y
+or
+.Op --side-by-side
+option (see Section
+.Dq Side by Side ) .
+.Pp
+.Ss  Merge Commands
+Groups of common lines, with a blank gutter, are copied from the first file
+to the output. After each group of differing lines,
+.Xr sdiff
+prompts with
+.Li %
+and pauses, waiting for one of the following commands. Follow each command
+with RET.
+.Pp
+.Bl -tag -width Ds
+.It  e
+Discard both versions. Invoke a text editor on an empty temporary file, then
+copy the resulting file to the output.
+.Pp
+.It  eb
+Concatenate the two versions, edit the result in a temporary file, then copy
+the edited result to the output.
+.Pp
+.It  ed
+Like
+.Li eb ,
+except precede each version with a header that shows what file and lines the
+version came from.
+.Pp
+.It  el
+.It  e1
+Edit a copy of the left version, then copy the result to the output.
+.Pp
+.It  er
+.It  e2
+Edit a copy of the right version, then copy the result to the output.
+.Pp
+.It  l
+.It  1
+Copy the left version to the output.
+.Pp
+.It  q
+Quit.
+.Pp
+.It  r
+.It  2
+Copy the right version to the output.
+.Pp
+.It  s
+Silently copy common lines.
+.Pp
+.It  v
+Verbosely copy common lines. This is the default.
+.El
+.Pp
+The text editor invoked is specified by the
+.Ev EDITOR
+environment variable if it is set. The default is system-dependent.
+.Pp
+.Sh  Merging with Xr patch
+.Xr patch
+takes comparison output produced by
+.Xr diff
+and applies the differences to a copy of the original file, producing a patched
+version. With
+.Xr patch ,
+you can distribute just the changes to a set of files instead of distributing
+the entire file set; your correspondents can apply
+.Xr patch
+to update their copy of the files with your changes.
+.Xr patch
+automatically determines the diff format, skips any leading or trailing headers,
+and uses the headers to determine which file to patch. This lets your correspondents
+feed a mail message containing a difference listing directly to
+.Xr patch .
+.Pp
+.Xr patch
+detects and warns about common problems like forward patches. It saves any
+patches that it could not apply. It can also maintain a
+.Li patchlevel.h
+file to ensure that your correspondents apply diffs in the proper order.
+.Pp
+.Xr patch
+accepts a series of diffs in its standard input, usually separated by headers
+that specify which file to patch. It applies
+.Xr diff
+hunks (see Section
+.Dq Hunks )
+one by one. If a hunk does not exactly match the original file,
+.Xr patch
+uses heuristics to try to patch the file as well as it can. If no approximate
+match can be found,
+.Xr patch
+rejects the hunk and skips to the next hunk.
+.Xr patch
+normally replaces each file
+.Va f
+with its new version, putting reject hunks (if any) into
+.Li  Va f.rej .
+.Pp
+See Section.Dq Invoking patch ,
+for detailed information on the options to
+.Xr patch .
+.Pp
+.Ss  Selecting the Xr patch Input Format
+.Xr patch
+normally determines which
+.Xr diff
+format the patch file uses by examining its contents. For patch files that
+contain particularly confusing leading text, you might need to use one of
+the following options to force
+.Xr patch
+to interpret the patch file as a certain format of diff. The output formats
+listed here are the only ones that
+.Xr patch
+can understand.
+.Pp
+.Bl -tag -width Ds
+.It  -c
+.It  --context
+context diff.
+.Pp
+.It  -e
+.It  --ed
+.Xr ed
+script.
+.Pp
+.It  -n
+.It  --normal
+normal diff.
+.Pp
+.It  -u
+.It  --unified
+unified diff.
+.El
+.Pp
+.Ss  Revision Control
+If a nonexistent input file is under a revision control system supported by
+.Xr patch ,
+.Xr patch
+normally asks the user whether to get (or check out) the file from the revision
+control system. Patch currently supports RCS, ClearCase and SCCS. Under RCS
+and SCCS,
+.Xr patch
+also asks when the input file is read-only and matches the default version
+in the revision control system.
+.Pp
+The
+.Op -g Va num
+or
+.Op --get= Va num
+option affects access to files under supported revision control systems. If
+.Va num
+is positive,
+.Xr patch
+gets the file without asking the user; if zero,
+.Xr patch
+neither asks the user nor gets the file; and if negative,
+.Xr patch
+asks the user before getting the file. The default value of
+.Va num
+is given by the value of the
+.Ev PATCH_GET
+environment variable if it is set; if not, the default value is zero if
+.Xr patch
+is conforming to POSIX, negative otherwise.See Section
+.Dq patch and POSIX .
+.Pp
+The choice of revision control system is unaffected by the
+.Ev VERSION_CONTROL
+environment variable (see Section
+.Dq Backup Names ) .
+.Pp
+.Ss  Applying Imperfect Patches
+.Xr patch
+tries to skip any leading text in the patch file, apply the diff, and then
+skip any trailing text. Thus you can feed a mail message directly to
+.Xr patch ,
+and it should work. If the entire diff is indented by a constant amount of
+white space,
+.Xr patch
+automatically ignores the indentation. If a context diff contains trailing
+carriage return on each line,
+.Xr patch
+automatically ignores the carriage return. If a context diff has been encapsulated
+by prepending
+.Li -
+to lines beginning with
+.Li -
+as per
+.Lk ftp://ftp.isi.edu/in-notes/rfc934.txt ,
+.Xr patch
+automatically unencapsulates the input.
+.Pp
+However, certain other types of imperfect input require user intervention
+or testing.
+.Pp
+.Em  Applying Patches with Changed White Space
+.Pp
+Sometimes mailers, editors, or other programs change spaces into tabs, or
+vice versa. If this happens to a patch file or an input file, the files might
+look the same, but
+.Xr patch
+will not be able to match them properly. If this problem occurs, use the
+.Op -l
+or
+.Op --ignore-white-space
+option, which makes
+.Xr patch
+compare blank characters (i.e. spaces and tabs) loosely so that any nonempty
+sequence of blanks in the patch file matches any nonempty sequence of blanks
+in the input files. Non-blank characters must still match exactly. Each line
+of the context must still match a line in the input file.
+.Pp
+.Em  Applying Reversed Patches
+.Pp
+Sometimes people run
+.Xr diff
+with the new file first instead of second. This creates a diff that is \(lqreversed\(rq.
+To apply such patches, give
+.Xr patch
+the
+.Op -R
+or
+.Op --reverse
+option.
+.Xr patch
+then attempts to swap each hunk around before applying it. Rejects come out
+in the swapped format.
+.Pp
+Often
+.Xr patch
+can guess that the patch is reversed. If the first hunk of a patch fails,
+.Xr patch
+reverses the hunk to see if it can apply it that way. If it can,
+.Xr patch
+asks you if you want to have the
+.Op -R
+option set; if it can't,
+.Xr patch
+continues to apply the patch normally. This method cannot detect a reversed
+patch if it is a normal diff and the first command is an append (which should
+have been a delete) since appends always succeed, because a null context matches
+anywhere. But most patches add or change lines rather than delete them, so
+most reversed normal diffs begin with a delete, which fails, and
+.Xr patch
+notices.
+.Pp
+If you apply a patch that you have already applied,
+.Xr patch
+thinks it is a reversed patch and offers to un-apply the patch. This could
+be construed as a feature. If you did this inadvertently and you don't want
+to un-apply the patch, just answer
+.Li n
+to this offer and to the subsequent \(lqapply anyway\(rq question---or type
+.Li C-c
+to kill the
+.Xr patch
+process.
+.Pp
+.Em  Helping Xr patch Find Inexact Matches
+.Pp
+For context diffs, and to a lesser extent normal diffs,
+.Xr patch
+can detect when the line numbers mentioned in the patch are incorrect, and
+it attempts to find the correct place to apply each hunk of the patch. As
+a first guess, it takes the line number mentioned in the hunk, plus or minus
+any offset used in applying the previous hunk. If that is not the correct
+place,
+.Xr patch
+scans both forward and backward for a set of lines matching the context given
+in the hunk.
+.Pp
+First
+.Xr patch
+looks for a place where all lines of the context match. If it cannot find
+such a place, and it is reading a context or unified diff, and the maximum
+fuzz factor is set to 1 or more, then
+.Xr patch
+makes another scan, ignoring the first and last line of context. If that fails,
+and the maximum fuzz factor is set to 2 or more, it makes another scan, ignoring
+the first two and last two lines of context are ignored. It continues similarly
+if the maximum fuzz factor is larger.
+.Pp
+The
+.Op -F Va lines
+or
+.Op --fuzz= Va lines
+option sets the maximum fuzz factor to
+.Va lines .
+This option only applies to context and unified diffs; it ignores up to
+.Va lines
+lines while looking for the place to install a hunk. Note that a larger fuzz
+factor increases the odds of making a faulty patch. The default fuzz factor
+is 2; there is no point to setting it to more than the number of lines of
+context in the diff, ordinarily 3.
+.Pp
+If
+.Xr patch
+cannot find a place to install a hunk of the patch, it writes the hunk out
+to a reject file (see Section
+.Dq Reject Names ,
+for information on how reject files are named). It writes out rejected hunks
+in context format no matter what form the input patch is in. If the input
+is a normal or
+.Xr ed
+diff, many of the contexts are simply null. The line numbers on the hunks
+in the reject file may be different from those in the patch file: they show
+the approximate location where
+.Xr patch
+thinks the failed hunks belong in the new file rather than in the old one.
+.Pp
+If the
+.Op --verbose
+option is given, then as it completes each hunk
+.Xr patch
+tells you whether the hunk succeeded or failed, and if it failed, on which
+line (in the new file)
+.Xr patch
+thinks the hunk should go. If this is different from the line number specified
+in the diff, it tells you the offset. A single large offset
+.Em may
+indicate that
+.Xr patch
+installed a hunk in the wrong place.
+.Xr patch
+also tells you if it used a fuzz factor to make the match, in which case you
+should also be slightly suspicious.
+.Pp
+.Xr patch
+cannot tell if the line numbers are off in an
+.Xr ed
+script, and can only detect wrong line numbers in a normal diff when it finds
+a change or delete command. It may have the same problem with a context diff
+using a fuzz factor equal to or greater than the number of lines of context
+shown in the diff (typically 3). In these cases, you should probably look
+at a context diff between your original and patched input files to see if
+the changes make sense. Compiling without errors is a pretty good indication
+that the patch worked, but not a guarantee.
+.Pp
+A patch against an empty file applies to a nonexistent file, and vice versa.See Section
+.Dq Creating and Removing .
+.Pp
+.Xr patch
+usually produces the correct results, even when it must make many guesses.
+However, the results are guaranteed only when the patch is applied to an exact
+copy of the file that the patch was generated from.
+.Pp
+.Em  Predicting what Xr patch will do
+.Pp
+It may not be obvious in advance what
+.Xr patch
+will do with a complicated or poorly formatted patch. If you are concerned
+that the input might cause
+.Xr patch
+to modify the wrong files, you can use the
+.Op --dry-run
+option, which causes
+.Xr patch
+to print the results of applying patches without actually changing any files.
+You can then inspect the diagnostics generated by the dry run to see whether
+.Xr patch
+will modify the files that you expect. If the patch does not do what you want,
+you can modify the patch (or the other options to
+.Xr patch )
+and try another dry run. Once you are satisfied with the proposed patch you
+can apply it by invoking
+.Xr patch
+as before, but this time without the
+.Op --dry-run
+option.
+.Pp
+.Ss  Creating and Removing Files
+Sometimes when comparing two directories, a file may exist in one directory
+but not the other. If you give
+.Xr diff
+the
+.Op -N
+or
+.Op --new-file
+option, or if you supply an old or new file that is named
+.Pa /dev/null
+or is empty and is dated the Epoch (1970-01-01 00:00:00 UTC),
+.Xr diff
+outputs a patch that adds or deletes the contents of this file. When given
+such a patch,
+.Xr patch
+normally creates a new file or removes the old file. However, when conforming
+to POSIX (see Section
+.Dq patch and POSIX ) ,
+.Xr patch
+does not remove the old file, but leaves it empty. The
+.Op -E
+or
+.Op --remove-empty-files
+option causes
+.Xr patch
+to remove output files that are empty after applying a patch, even if the
+patch does not appear to be one that removed the file.
+.Pp
+If the patch appears to create a file that already exists,
+.Xr patch
+asks for confirmation before applying the patch.
+.Pp
+.Ss  Updating Time Stamps on Patched Files
+When
+.Xr patch
+updates a file, it normally sets the file's last-modified time stamp to the
+current time of day. If you are using
+.Xr patch
+to track a software distribution, this can cause
+.Xr make
+to incorrectly conclude that a patched file is out of date. For example, if
+.Pa syntax.c
+depends on
+.Pa syntax.y ,
+and
+.Xr patch
+updates
+.Pa syntax.c
+and then
+.Pa syntax.y ,
+then
+.Pa syntax.c
+will normally appear to be out of date with respect to
+.Pa syntax.y
+even though its contents are actually up to date.
+.Pp
+The
+.Op -Z
+or
+.Op --set-utc
+option causes
+.Xr patch
+to set a patched file's modification and access times to the time stamps given
+in context diff headers. If the context diff headers do not specify a time
+zone, they are assumed to use Coordinated Universal Time (UTC, often known
+as GMT).
+.Pp
+The
+.Op -T
+or
+.Op --set-time
+option acts like
+.Op -Z
+or
+.Op --set-utc ,
+except that it assumes that the context diff headers' time stamps use local
+time instead of UTC. This option is not recommended, because patches using
+local time cannot easily be used by people in other time zones, and because
+local time stamps are ambiguous when local clocks move backwards during daylight-saving
+time adjustments. If the context diff headers specify a time zone, this option
+is equivalent to
+.Op -Z
+or
+.Op --set-utc .
+.Pp
+.Xr patch
+normally refrains from setting a file's time stamps if the file's original
+last-modified time stamp does not match the time given in the diff header,
+of if the file's contents do not exactly match the patch. However, if the
+.Op -f
+or
+.Op --force
+option is given, the file's time stamps are set regardless.
+.Pp
+Due to the limitations of the current
+.Xr diff
+format,
+.Xr patch
+cannot update the times of files whose contents have not changed. Also, if
+you set file time stamps to values other than the current time of day, you
+should also remove (e.g., with
+.Li make clean )
+all files that depend on the patched files, so that later invocations of
+.Xr make
+do not get confused by the patched files' times.
+.Pp
+.Ss  Multiple Patches in a File
+If the patch file contains more than one patch, and if you do not specify
+an input file on the command line,
+.Xr patch
+tries to apply each patch as if they came from separate patch files. This
+means that it determines the name of the file to patch for each patch, and
+that it examines the leading text before each patch for file names and prerequisite
+revision level (see Section
+.Dq Making Patches ,
+for more on that topic).
+.Pp
+.Xr patch
+uses the following rules to intuit a file name from the leading text before
+a patch. First,
+.Xr patch
+takes an ordered list of candidate file names as follows:
+.Pp
+.Bl -bullet
+.It
+If the header is that of a context diff,
+.Xr patch
+takes the old and new file names in the header. A name is ignored if it does
+not have enough slashes to satisfy the
+.Op -p Va num
+or
+.Op --strip= Va num
+option. The name
+.Pa /dev/null
+is also ignored.
+.Pp
+.It
+If there is an
+.Li Index:
+line in the leading garbage and if either the old and new names are both absent
+or if
+.Xr patch
+is conforming to POSIX,
+.Xr patch
+takes the name in the
+.Li Index:
+line.
+.Pp
+.It
+For the purpose of the following rules, the candidate file names are considered
+to be in the order (old, new, index), regardless of the order that they appear
+in the header.
+.El
+.Pp
+Then
+.Xr patch
+selects a file name from the candidate list as follows:
+.Pp
+.Bl -bullet
+.It
+If some of the named files exist,
+.Xr patch
+selects the first name if conforming to POSIX, and the best name otherwise.
+.Pp
+.It
+If
+.Xr patch
+is not ignoring RCS, ClearCase, and SCCS (see Section
+.Dq Revision Control ) ,
+and no named files exist but an RCS, ClearCase, or SCCS master is found,
+.Xr patch
+selects the first named file with an RCS, ClearCase, or SCCS master.
+.Pp
+.It
+If no named files exist, no RCS, ClearCase, or SCCS master was found, some
+names are given,
+.Xr patch
+is not conforming to POSIX, and the patch appears to create a file,
+.Xr patch
+selects the best name requiring the creation of the fewest directories.
+.Pp
+.It
+If no file name results from the above heuristics, you are asked for the name
+of the file to patch, and
+.Xr patch
+selects that name.
+.El
+.Pp
+To determine the
+.Em best
+of a nonempty list of file names,
+.Xr patch
+first takes all the names with the fewest path name components; of those,
+it then takes all the names with the shortest basename; of those, it then
+takes all the shortest names; finally, it takes the first remaining name.
+.Pp
+See Section.Dq patch and POSIX ,
+to see whether
+.Xr patch
+is conforming to POSIX.
+.Pp
+.Ss  Applying Patches in Other Directories
+The
+.Op -d Va directory
+or
+.Op --directory= Va directory
+option to
+.Xr patch
+makes directory
+.Va directory
+the current directory for interpreting both file names in the patch file,
+and file names given as arguments to other options (such as
+.Op -B
+and
+.Op -o ) .
+For example, while in a mail reading program, you can patch a file in the
+.Pa /usr/src/emacs
+directory directly from a message containing the patch like this:
+.Pp
+.Bd -literal -offset indent
+| patch -d /usr/src/emacs
+.Ed
+.Pp
+Sometimes the file names given in a patch contain leading directories, but
+you keep your files in a directory different from the one given in the patch.
+In those cases, you can use the
+.Op -p Va number
+or
+.Op --strip= Va number
+option to set the file name strip count to
+.Va number .
+The strip count tells
+.Xr patch
+how many slashes, along with the directory names between them, to strip from
+the front of file names. A sequence of one or more adjacent slashes is counted
+as a single slash. By default,
+.Xr patch
+strips off all leading directories, leaving just the base file names.
+.Pp
+For example, suppose the file name in the patch file is
+.Pa /gnu/src/emacs/etc/NEWS .
+Using
+.Op -p0
+gives the entire file name unmodified,
+.Op -p1
+gives
+.Pa gnu/src/emacs/etc/NEWS
+(no leading slash),
+.Op -p4
+gives
+.Pa etc/NEWS ,
+and not specifying
+.Op -p
+at all gives
+.Pa NEWS .
+.Pp
+.Xr patch
+looks for each file (after any slashes have been stripped) in the current
+directory, or if you used the
+.Op -d Va directory
+option, in that directory.
+.Pp
+.Ss  Backup Files
+Normally,
+.Xr patch
+creates a backup file if the patch does not exactly match the original input
+file, because in that case the original data might not be recovered if you
+undo the patch with
+.Li patch -R
+(see Section
+.Dq Reversed Patches ) .
+However, when conforming to POSIX,
+.Xr patch
+does not create backup files by default.See Section
+.Dq patch and POSIX .
+.Pp
+The
+.Op -b
+or
+.Op --backup
+option causes
+.Xr patch
+to make a backup file regardless of whether the patch matches the original
+input. The
+.Op --backup-if-mismatch
+option causes
+.Xr patch
+to create backup files for mismatches files; this is the default when not
+conforming to POSIX. The
+.Op --no-backup-if-mismatch
+option causes
+.Xr patch
+to not create backup files, even for mismatched patches; this is the default
+when conforming to POSIX.
+.Pp
+When backing up a file that does not exist, an empty, unreadable backup file
+is created as a placeholder to represent the nonexistent file.
+.Pp
+.Ss  Backup File Names
+Normally,
+.Xr patch
+renames an original input file into a backup file by appending to its name
+the extension
+.Li .orig ,
+or
+.Li ~
+if using
+.Li .orig
+would make the backup file name too long. The
+.Op -z Va backup-suffix
+or
+.Op --suffix= Va backup-suffix
+option causes
+.Xr patch
+to use
+.Va backup-suffix
+as the backup extension instead.
+.Pp
+Alternately, you can specify the extension for backup files with the
+.Ev SIMPLE_BACKUP_SUFFIX
+environment variable, which the options override.
+.Pp
+.Xr patch
+can also create numbered backup files the way GNU Emacs does. With this method,
+instead of having a single backup of each file,
+.Xr patch
+makes a new backup file name each time it patches a file. For example, the
+backups of a file named
+.Pa sink
+would be called, successively,
+.Pa sink.~1~ ,
+.Pa sink.~2~ ,
+.Pa sink.~3~ ,
+etc.
+.Pp
+The
+.Op -V Va backup-style
+or
+.Op --version-control= Va backup-style
+option takes as an argument a method for creating backup file names. You can
+alternately control the type of backups that
+.Xr patch
+makes with the
+.Ev PATCH_VERSION_CONTROL
+environment variable, which the
+.Op -V
+option overrides. If
+.Ev PATCH_VERSION_CONTROL
+is not set, the
+.Ev VERSION_CONTROL
+environment variable is used instead. Please note that these options and variables
+control backup file names; they do not affect the choice of revision control
+system (see Section
+.Dq Revision Control ) .
+.Pp
+The values of these environment variables and the argument to the
+.Op -V
+option are like the GNU Emacs
+.Li version-control
+variable (see Section
+.Dq Backup Names ,
+for more information on backup versions in Emacs). They also recognize synonyms
+that are more descriptive. The valid values are listed below; unique abbreviations
+are acceptable.
+.Pp
+.Bl -tag -width Ds
+.It  t
+.It  numbered
+Always make numbered backups.
+.Pp
+.It  nil
+.It  existing
+Make numbered backups of files that already have them, simple backups of the
+others. This is the default.
+.Pp
+.It  never
+.It  simple
+Always make simple backups.
+.El
+.Pp
+You can also tell
+.Xr patch
+to prepend a prefix, such as a directory name, to produce backup file names.
+The
+.Op -B Va prefix
+or
+.Op --prefix= Va prefix
+option makes backup files by prepending
+.Va prefix
+to them. The
+.Op -Y Va prefix
+or
+.Op --basename-prefix= Va prefix
+prepends
+.Va prefix
+to the last file name component of backup file names instead; for example,
+.Op -Y ~
+causes the backup name for
+.Pa dir/file.c
+to be
+.Pa dir/~file.c .
+If you use either of these prefix options, the suffix-based options are ignored.
+.Pp
+If you specify the output file with the
+.Op -o
+option, that file is the one that is backed up, not the input file.
+.Pp
+Options that affect the names of backup files do not affect whether backups
+are made. For example, if you specify the
+.Op --no-backup-if-mismatch
+option, none of the options described in this section have any affect, because
+no backups are made.
+.Pp
+.Ss  Reject File Names
+The names for reject files (files containing patches that
+.Xr patch
+could not find a place to apply) are normally the name of the output file
+with
+.Li .rej
+appended (or
+.Li #
+if using
+.Li .rej
+would make the backup file name too long).
+.Pp
+Alternatively, you can tell
+.Xr patch
+to place all of the rejected patches in a single file. The
+.Op -r Va reject-file
+or
+.Op --reject-file= Va reject-file
+option uses
+.Va reject-file
+as the reject file name.
+.Pp
+.Ss  Messages and Questions from Xr patch
+.Xr patch
+can produce a variety of messages, especially if it has trouble decoding its
+input. In a few situations where it's not sure how to proceed,
+.Xr patch
+normally prompts you for more information from the keyboard. There are options
+to produce more or fewer messages, to have it not ask for keyboard input,
+and to affect the way that file names are quoted in messages.
+.Pp
+.Xr patch
+exits with status 0 if all hunks are applied successfully, 1 if some hunks
+cannot be applied, and 2 if there is more serious trouble. When applying a
+set of patches in a loop, you should check the exit status, so you don't apply
+a later patch to a partially patched file.
+.Pp
+.Em  Controlling the Verbosity of Xr patch
+.Pp
+You can cause
+.Xr patch
+to produce more messages by using the
+.Op --verbose
+option. For example, when you give this option, the message
+.Li Hmm...
+indicates that
+.Xr patch
+is reading text in the patch file, attempting to determine whether there is
+a patch in that text, and if so, what kind of patch it is.
+.Pp
+You can inhibit all terminal output from
+.Xr patch ,
+unless an error occurs, by using the
+.Op -s ,
+.Op --quiet ,
+or
+.Op --silent
+option.
+.Pp
+.Em  Inhibiting Keyboard Input
+.Pp
+There are two ways you can prevent
+.Xr patch
+from asking you any questions. The
+.Op -f
+or
+.Op --force
+option assumes that you know what you are doing. It causes
+.Xr patch
+to do the following:
+.Pp
+.Bl -bullet
+.It
+Skip patches that do not contain file names in their headers.
+.Pp
+.It
+Patch files even though they have the wrong version for the
+.Li Prereq:
+line in the patch;
+.Pp
+.It
+Assume that patches are not reversed even if they look like they are.
+.El
+.Pp
+The
+.Op -t
+or
+.Op --batch
+option is similar to
+.Op -f ,
+in that it suppresses questions, but it makes somewhat different assumptions:
+.Pp
+.Bl -bullet
+.It
+Skip patches that do not contain file names in their headers (the same as
+.Op -f ) .
+.Pp
+.It
+Skip patches for which the file has the wrong version for the
+.Li Prereq:
+line in the patch;
+.Pp
+.It
+Assume that patches are reversed if they look like they are.
+.El
+.Pp
+.Em  Xr patch Quoting Style
+.Pp
+When
+.Xr patch
+outputs a file name in a diagnostic message, it can format the name in any
+of several ways. This can be useful to output file names unambiguously, even
+if they contain punctuation or special characters like newlines. The
+.Op --quoting-style= Va word
+option controls how names are output. The
+.Va word
+should be one of the following:
+.Pp
+.Bl -tag -width Ds
+.It  literal
+Output names as-is.
+.It  shell
+Quote names for the shell if they contain shell metacharacters or would cause
+ambiguous output.
+.It  shell-always
+Quote names for the shell, even if they would normally not require quoting.
+.It  c
+Quote names as for a C language string.
+.It  escape
+Quote as with
+.Li c
+except omit the surrounding double-quote characters.
+.El
+.Pp
+You can specify the default value of the
+.Op --quoting-style
+option with the environment variable
+.Ev QUOTING_STYLE .
+If that environment variable is not set, the default value is
+.Li shell ,
+but this default may change in a future version of
+.Xr patch .
+.Pp
+.Ss  Xr patch and the POSIX Standard
+If you specify the
+.Op --posix
+option, or set the
+.Ev POSIXLY_CORRECT
+environment variable,
+.Xr patch
+conforms more strictly to the POSIX standard, as follows:
+.Pp
+.Bl -bullet
+.It
+Take the first existing file from the list (old, new, index) when intuiting
+file names from diff headers.See Section
+.Dq Multiple Patches .
+.Pp
+.It
+Do not remove files that are removed by a diff.See Section
+.Dq Creating and Removing .
+.Pp
+.It
+Do not ask whether to get files from RCS, ClearCase, or SCCS.See Section
+.Dq Revision Control .
+.Pp
+.It
+Require that all options precede the files in the command line.
+.Pp
+.It
+Do not backup files, even when there is a mismatch.See Section
+.Dq Backups .
+.Pp
+.El
+.Ss  GNU Xr patch and Traditional Xr patch
+The current version of GNU
+.Xr patch
+normally follows the POSIX standard.See Section
+.Dq patch and POSIX ,
+for the few exceptions to this general rule.
+.Pp
+Unfortunately, POSIX redefined the behavior of
+.Xr patch
+in several important ways. You should be aware of the following differences
+if you must interoperate with traditional
+.Xr patch ,
+or with GNU
+.Xr patch
+version 2.1 and earlier.
+.Pp
+.Bl -bullet
+.It
+In traditional
+.Xr patch ,
+the
+.Op -p
+option's operand was optional, and a bare
+.Op -p
+was equivalent to
+.Op -p0 .
+The
+.Op -p
+option now requires an operand, and
+.Op -p 0
+is now equivalent to
+.Op -p0 .
+For maximum compatibility, use options like
+.Op -p0
+and
+.Op -p1 .
+.Pp
+Also, traditional
+.Xr patch
+simply counted slashes when stripping path prefixes;
+.Xr patch
+now counts pathname components. That is, a sequence of one or more adjacent
+slashes now counts as a single slash. For maximum portability, avoid sending
+patches containing
+.Pa //
+in file names.
+.Pp
+.It
+In traditional
+.Xr patch ,
+backups were enabled by default. This behavior is now enabled with the
+.Op -b
+or
+.Op --backup
+option.
+.Pp
+Conversely, in POSIX
+.Xr patch ,
+backups are never made, even when there is a mismatch. In GNU
+.Xr patch ,
+this behavior is enabled with the
+.Op --no-backup-if-mismatch
+option, or by conforming to POSIX.
+.Pp
+The
+.Op -b  Va suffix
+option of traditional
+.Xr patch
+is equivalent to the
+.Li -b -z  Va suffix
+options of GNU
+.Xr patch .
+.Pp
+.It
+Traditional
+.Xr patch
+used a complicated (and incompletely documented) method to intuit the name
+of the file to be patched from the patch header. This method did not conform
+to POSIX, and had a few gotchas. Now
+.Xr patch
+uses a different, equally complicated (but better documented) method that
+is optionally POSIX-conforming; we hope it has fewer gotchas. The two methods
+are compatible if the file names in the context diff header and the
+.Li Index:
+line are all identical after prefix-stripping. Your patch is normally compatible
+if each header's file names all contain the same number of slashes.
+.Pp
+.It
+When traditional
+.Xr patch
+asked the user a question, it sent the question to standard error and looked
+for an answer from the first file in the following list that was a terminal:
+standard error, standard output,
+.Pa /dev/tty ,
+and standard input. Now
+.Xr patch
+sends questions to standard output and gets answers from
+.Pa /dev/tty .
+Defaults for some answers have been changed so that
+.Xr patch
+never goes into an infinite loop when using default answers.
+.Pp
+.It
+Traditional
+.Xr patch
+exited with a status value that counted the number of bad hunks, or with status
+1 if there was real trouble. Now
+.Xr patch
+exits with status 1 if some hunks failed, or with 2 if there was real trouble.
+.Pp
+.It
+Limit yourself to the following options when sending instructions meant to
+be executed by anyone running GNU
+.Xr patch ,
+traditional
+.Xr patch ,
+or a
+.Xr patch
+that conforms to POSIX. Spaces are significant in the following list, and
+operands are required.
+.Pp
+.Bd -literal -offset indent
+-c
+-d dir
+-D define
+-e
+-l
+-n
+-N
+-o outfile
+-pnum
+-R
+-r rejectfile
+.Ed
+.Pp
+.El
+.Sh  Tips for Making and Using Patches
+Use some common sense when making and using patches. For example, when sending
+bug fixes to a program's maintainer, send several small patches, one per independent
+subject, instead of one large, harder-to-digest patch that covers all the
+subjects.
+.Pp
+Here are some other things you should keep in mind if you are going to distribute
+patches for updating a software package.
+.Pp
+.Ss  Tips for Patch Producers
+To create a patch that changes an older version of a package into a newer
+version, first make a copy of the older and newer versions in adjacent subdirectories.
+It is common to do that by unpacking
+.Xr tar
+archives of the two versions.
+.Pp
+To generate the patch, use the command
+.Li diff -Naur Va old Va new
+where
+.Va old
+and
+.Va new
+identify the old and new directories. The names
+.Va old
+and
+.Va new
+should not contain any slashes. The
+.Op -N
+option lets the patch create and remove files;
+.Op -a
+lets the patch update non-text files;
+.Op -u
+generates useful time stamps and enough context; and
+.Op -r
+lets the patch update subdirectories. Here is an example command, using Bourne
+shell syntax:
+.Pp
+.Bd -literal -offset indent
+diff -Naur gcc-3.0.3 gcc-3.0.4
+.Ed
+.Pp
+Tell your recipients how to apply the patches. This should include which working
+directory to use, and which
+.Xr patch
+options to use; the option
+.Li -p1
+is recommended. Test your procedure by pretending to be a recipient and applying
+your patches to a copy of the original files.
+.Pp
+See Section.Dq Avoiding Common Mistakes ,
+for how to avoid common mistakes when generating a patch.
+.Pp
+.Ss  Tips for Patch Consumers
+A patch producer should tell recipients how to apply the patches, so the first
+rule of thumb for a patch consumer is to follow the instructions supplied
+with the patch.
+.Pp
+GNU
+.Xr diff
+can analyze files with arbitrarily long lines and files that end in incomplete
+lines. However, older versions of
+.Xr patch
+cannot patch such files. If you are having trouble applying such patches,
+try upgrading to a recent version of GNU
+.Xr patch .
+.Pp
+.Ss  Avoiding Common Mistakes
+When producing a patch for multiple files, apply
+.Xr diff
+to directories whose names do not have slashes. This reduces confusion when
+the patch consumer specifies the
+.Op -p Va number
+option, since this option can have surprising results when the old and new
+file names have different numbers of slashes. For example, do not send a patch
+with a header that looks like this:
+.Pp
+.Bd -literal -offset indent
+diff -Naur v2.0.29/prog/README prog/README
+--- v2.0.29/prog/README	2002-03-10 23:30:39.942229878 -0800
++++ prog/README	2002-03-17 20:49:32.442260588 -0800
+.Ed
+.Pp
+because the two file names have different numbers of slashes, and different
+versions of
+.Xr patch
+interpret the file names differently. To avoid confusion, send output that
+looks like this instead:
+.Pp
+.Bd -literal -offset indent
+diff -Naur v2.0.29/prog/README v2.0.30/prog/README
+--- v2.0.29/prog/README	2002-03-10 23:30:39.942229878 -0800
++++ v2.0.30/prog/README	2002-03-17 20:49:32.442260588 -0800
+.Ed
+.Pp
+Make sure you have specified the file names correctly, either in a context
+diff header or with an
+.Li Index:
+line. Take care to not send out reversed patches, since these make people
+wonder whether they have already applied the patch.
+.Pp
+Avoid sending patches that compare backup file names like
+.Pa README.orig
+or
+.Pa README~ ,
+since this might confuse
+.Xr patch
+into patching a backup file instead of the real file. Instead, send patches
+that compare the same base file names in different directories, e.g.
+.Pa old/README
+and
+.Pa new/README .
+.Pp
+To save people from partially applying a patch before other patches that should
+have gone before it, you can make the first patch in the patch file update
+a file with a name like
+.Pa patchlevel.h
+or
+.Pa version.c ,
+which contains a patch level or version number. If the input file contains
+the wrong version number,
+.Xr patch
+will complain immediately.
+.Pp
+An even clearer way to prevent this problem is to put a
+.Li Prereq:
+line before the patch. If the leading text in the patch file contains a line
+that starts with
+.Li Prereq: ,
+.Xr patch
+takes the next word from that line (normally a version number) and checks
+whether the next input file contains that word, preceded and followed by either
+white space or a newline. If not,
+.Xr patch
+prompts you for confirmation before proceeding. This makes it difficult to
+accidentally apply patches in the wrong order.
+.Pp
+.Ss  Generating Smaller Patches
+The simplest way to generate a patch is to use
+.Li diff -Naur
+(see Section
+.Dq Tips for Patch Producers ) ,
+but you might be able to reduce the size of the patch by renaming or removing
+some files before making the patch. If the older version of the package contains
+any files that the newer version does not, or if any files have been renamed
+between the two versions, make a list of
+.Xr rm
+and
+.Xr mv
+commands for the user to execute in the old version directory before applying
+the patch. Then run those commands yourself in the scratch directory.
+.Pp
+If there are any files that you don't need to include in the patch because
+they can easily be rebuilt from other files (for example,
+.Pa TAGS
+and output from
+.Xr yacc
+and
+.Xr makeinfo ) ,
+exclude them from the patch by giving
+.Xr diff
+the
+.Op -x Va pattern
+option (see Section
+.Dq Comparing Directories ) .
+If you want your patch to modify a derived file because your recipients lack
+tools to build it, make sure that the patch for the derived file follows any
+patches for files that it depends on, so that the recipients' time stamps
+will not confuse
+.Xr make .
+.Pp
+Now you can create the patch using
+.Li diff -Naur .
+Make sure to specify the scratch directory first and the newer directory second.
+.Pp
+Add to the top of the patch a note telling the user any
+.Xr rm
+and
+.Xr mv
+commands to run before applying the patch. Then you can remove the scratch
+directory.
+.Pp
+You can also shrink the patch size by using fewer lines of context, but bear
+in mind that
+.Xr patch
+typically needs at least two lines for proper operation when patches do not
+exactly match the input files.
+.Pp
+.Sh  Invoking Xr cmp
+The
+.Xr cmp
+command compares two files, and if they differ, tells the first byte and line
+number where they differ or reports that one file is a prefix of the other.
+Bytes and lines are numbered starting with 1. The arguments of
+.Xr cmp
+are as follows:
+.Pp
+.Bd -literal -offset indent
+cmp options... from-file [to-file [from-skip [to-skip]]]
+.Ed
+.Pp
+The file name
+.Pa -
+is always the standard input.
+.Xr cmp
+also uses the standard input if one file name is omitted. The
+.Va from-skip
+and
+.Va to-skip
+operands specify how many bytes to ignore at the start of each file; they
+are equivalent to the
+.Op --ignore-initial= Va from-skip: Va to-skip
+option.
+.Pp
+By default,
+.Xr cmp
+outputs nothing if the two files have the same contents. If one file is a
+prefix of the other,
+.Xr cmp
+prints to standard error a message of the following form:
+.Pp
+.Bd -literal -offset indent
+cmp: EOF on shorter-file
+.Ed
+.Pp
+Otherwise,
+.Xr cmp
+prints to standard output a message of the following form:
+.Pp
+.Bd -literal -offset indent
+from-file to-file differ: char byte-number, line line-number
+.Ed
+.Pp
+The message formats can differ outside the POSIX locale. Also, POSIX allows
+the EOF message to be followed by a blank and some additional information.
+.Pp
+An exit status of 0 means no differences were found, 1 means some differences
+were found, and 2 means trouble.
+.Pp
+.Ss  Options to Xr cmp
+Below is a summary of all of the options that GNU
+.Xr cmp
+accepts. Most options have two equivalent names, one of which is a single
+letter preceded by
+.Li - ,
+and the other of which is a long name preceded by
+.Li -- .
+Multiple single letter options (unless they take an argument) can be combined
+into a single command line word:
+.Op -bl
+is equivalent to
+.Op -b -l .
+.Pp
+.Bl -tag -width Ds
+.It  -b
+.It  --print-bytes
+Print the differing bytes. Display control bytes as a
+.Li ^
+followed by a letter of the alphabet and precede bytes that have the high
+bit set with
+.Li M-
+(which stands for \(lqmeta\(rq).
+.Pp
+.It  --help
+Output a summary of usage and then exit.
+.Pp
+.It  -i Va skip
+.It  --ignore-initial= Va skip
+Ignore any differences in the first
+.Va skip
+bytes of the input files. Treat files with fewer than
+.Va skip
+bytes as if they are empty. If
+.Va skip
+is of the form
+.Op  Va from-skip: Va to-skip ,
+skip the first
+.Va from-skip
+bytes of the first input file and the first
+.Va to-skip
+bytes of the second.
+.Pp
+.It  -l
+.It  --verbose
+Output the (decimal) byte numbers and (octal) values of all differing bytes,
+instead of the default standard output.
+.Pp
+.It  -n Va count
+.It  --bytes= Va count
+Compare at most
+.Va count
+input bytes.
+.Pp
+.It  -s
+.It  --quiet
+.It  --silent
+Do not print anything; only return an exit status indicating whether the files
+differ.
+.Pp
+.It  -v
+.It  --version
+Output version information and then exit.
+.El
+.Pp
+In the above table, operands that are byte counts are normally decimal, but
+may be preceded by
+.Li 0
+for octal and
+.Li 0x
+for hexadecimal.
+.Pp
+A byte count can be followed by a suffix to specify a multiple of that count;
+in this case an omitted integer is understood to be 1. A bare size letter,
+or one followed by
+.Li iB ,
+specifies a multiple using powers of 1024. A size letter followed by
+.Li B
+specifies powers of 1000 instead. For example,
+.Op -n 4M
+and
+.Op -n 4MiB
+are equivalent to
+.Op -n 4194304 ,
+whereas
+.Op -n 4MB
+is equivalent to
+.Op -n 4000000 .
+This notation is upward compatible with the
+.Lk http://www.bipm.fr/enus/3_SI/si-prefixes.html
+for decimal multiples and with the
+.Lk http://physics.nist.gov/cuu/Units/binary.html .
+.Pp
+The following suffixes are defined. Large sizes like
+.Li 1Y
+may be rejected by your computer due to limitations of its arithmetic.
+.Pp
+.Bl -tag -width Ds
+.It  kB
+kilobyte: 10^3 = 1000.
+.It  k
+.It  K
+.It  KiB
+kibibyte: 2^10 = 1024.
+.Li K
+is special: the SI prefix is
+.Li k
+and the IEC 60027-2 prefix is
+.Li Ki ,
+but tradition and POSIX use
+.Li k
+to mean
+.Li KiB .
+.It  MB
+megabyte: 10^6 = 1,000,000.
+.It  M
+.It  MiB
+mebibyte: 2^20 = 1,048,576.
+.It  GB
+gigabyte: 10^9 = 1,000,000,000.
+.It  G
+.It  GiB
+gibibyte: 2^30 = 1,073,741,824.
+.It  TB
+terabyte: 10^12 = 1,000,000,000,000.
+.It  T
+.It  TiB
+tebibyte: 2^40 = 1,099,511,627,776.
+.It  PB
+petabyte: 10^15 = 1,000,000,000,000,000.
+.It  P
+.It  PiB
+pebibyte: 2^50 = 1,125,899,906,842,624.
+.It  EB
+exabyte: 10^18 = 1,000,000,000,000,000,000.
+.It  E
+.It  EiB
+exbibyte: 2^60 = 1,152,921,504,606,846,976.
+.It  ZB
+zettabyte: 10^21 = 1,000,000,000,000,000,000,000
+.It  Z
+.It  ZiB
+2^70 = 1,180,591,620,717,411,303,424. (
+.Li Zi
+is a GNU extension to IEC 60027-2.)
+.It  YB
+yottabyte: 10^24 = 1,000,000,000,000,000,000,000,000.
+.It  Y
+.It  YiB
+2^80 = 1,208,925,819,614,629,174,706,176. (
+.Li Yi
+is a GNU extension to IEC 60027-2.)
+.El
+.Pp
+.Sh  Invoking Xr diff
+The format for running the
+.Xr diff
+command is:
+.Pp
+.Bd -literal -offset indent
+diff options... files...
+.Ed
+.Pp
+In the simplest case, two file names
+.Va from-file
+and
+.Va to-file
+are given, and
+.Xr diff
+compares the contents of
+.Va from-file
+and
+.Va to-file .
+A file name of
+.Pa -
+stands for text read from the standard input. As a special case,
+.Li diff - -
+compares a copy of standard input to itself.
+.Pp
+If one file is a directory and the other is not,
+.Xr diff
+compares the file in the directory whose name is that of the non-directory.
+The non-directory file must not be
+.Pa - .
+.Pp
+If two file names are given and both are directories,
+.Xr diff
+compares corresponding files in both directories, in alphabetical order; this
+comparison is not recursive unless the
+.Op -r
+or
+.Op --recursive
+option is given.
+.Xr diff
+never compares the actual contents of a directory as if it were a file. The
+file that is fully specified may not be standard input, because standard input
+is nameless and the notion of \(lqfile with the same name\(rq does not apply.
+.Pp
+If the
+.Op --from-file= Va file
+option is given, the number of file names is arbitrary, and
+.Va file
+is compared to each named file. Similarly, if the
+.Op --to-file= Va file
+option is given, each named file is compared to
+.Va file .
+.Pp
+.Xr diff
+options begin with
+.Li - ,
+so normally file names may not begin with
+.Li - .
+However,
+.Op --
+as an argument by itself treats the remaining arguments as file names even
+if they begin with
+.Li - .
+.Pp
+An exit status of 0 means no differences were found, 1 means some differences
+were found, and 2 means trouble. Normally, differing binary files count as
+trouble, but this can be altered by using the
+.Op -a
+or
+.Op --text
+option, or the
+.Op -q
+or
+.Op --brief
+option.
+.Pp
+.Ss  Options to Xr diff
+Below is a summary of all of the options that GNU
+.Xr diff
+accepts. Most options have two equivalent names, one of which is a single
+letter preceded by
+.Li - ,
+and the other of which is a long name preceded by
+.Li -- .
+Multiple single letter options (unless they take an argument) can be combined
+into a single command line word:
+.Op -ac
+is equivalent to
+.Op -a -c .
+Long named options can be abbreviated to any unique prefix of their name.
+Brackets ([ and ]) indicate that an option takes an optional argument.
+.Pp
+.Bl -tag -width Ds
+.It  -a
+.It  --text
+Treat all files as text and compare them line-by-line, even if they do not
+seem to be text.See Section
+.Dq Binary .
+.Pp
+.It  -b
+.It  --ignore-space-change
+Ignore changes in amount of white space.See Section
+.Dq White Space .
+.Pp
+.It  -B
+.It  --ignore-blank-lines
+Ignore changes that just insert or delete blank lines.See Section
+.Dq Blank Lines .
+.Pp
+.It  --binary
+Read and write data in binary mode.See Section
+.Dq Binary .
+.Pp
+.It  -c
+Use the context output format, showing three lines of context.See Section
+.Dq Context Format .
+.Pp
+.It  -C Va lines
+.It  --context[= Va lines]
+Use the context output format, showing
+.Va lines
+(an integer) lines of context, or three if
+.Va lines
+is not given.See Section
+.Dq Context Format .
+For proper operation,
+.Xr patch
+typically needs at least two lines of context.
+.Pp
+On older systems,
+.Xr diff
+supports an obsolete option
+.Op - Va lines
+that has effect when combined with
+.Op -c
+or
+.Op -p .
+POSIX 1003.1-2001 (see Section
+.Dq Standards conformance )
+does not allow this; use
+.Op -C Va lines
+instead.
+.Pp
+.It  --changed-group-format= Va format
+Use
+.Va format
+to output a line group containing differing lines from both files in if-then-else
+format.See Section
+.Dq Line Group Formats .
+.Pp
+.It  -d
+.It  --minimal
+Change the algorithm perhaps find a smaller set of changes. This makes
+.Xr diff
+slower (sometimes much slower).See Section
+.Dq diff Performance .
+.Pp
+.It  -D Va name
+.It  --ifdef= Va name
+Make merged
+.Li #ifdef
+format output, conditional on the preprocessor macro
+.Va name .
+See Section.Dq If-then-else .
+.Pp
+.It  -e
+.It  --ed
+Make output that is a valid
+.Xr ed
+script.See Section
+.Dq ed Scripts .
+.Pp
+.It  -E
+.It  --ignore-tab-expansion
+Ignore changes due to tab expansion.See Section
+.Dq White Space .
+.Pp
+.It  -f
+.It  --forward-ed
+Make output that looks vaguely like an
+.Xr ed
+script but has changes in the order they appear in the file.See Section
+.Dq Forward ed .
+.Pp
+.It  -F Va regexp
+.It  --show-function-line= Va regexp
+In context and unified format, for each hunk of differences, show some of
+the last preceding line that matches
+.Va regexp .
+See Section.Dq Specified Headings .
+.Pp
+.It  --from-file= Va file
+Compare
+.Va file
+to each operand;
+.Va file
+may be a directory.
+.Pp
+.It  --help
+Output a summary of usage and then exit.
+.Pp
+.It  --horizon-lines= Va lines
+Do not discard the last
+.Va lines
+lines of the common prefix and the first
+.Va lines
+lines of the common suffix.See Section
+.Dq diff Performance .
+.Pp
+.It  -i
+.It  --ignore-case
+Ignore changes in case; consider upper- and lower-case letters equivalent.See Section
+.Dq Case Folding .
+.Pp
+.It  -I Va regexp
+.It  --ignore-matching-lines= Va regexp
+Ignore changes that just insert or delete lines that match
+.Va regexp .
+See Section.Dq Specified Lines .
+.Pp
+.It  --ignore-file-name-case
+Ignore case when comparing file names during recursive comparison.See Section
+.Dq Comparing Directories .
+.Pp
+.It  -l
+.It  --paginate
+Pass the output through
+.Xr pr
+to paginate it.See Section
+.Dq Pagination .
+.Pp
+.It  --label= Va label
+Use
+.Va label
+instead of the file name in the context format (see Section
+.Dq Context Format )
+and unified format (see Section
+.Dq Unified Format )
+headers.See Section
+.Dq RCS .
+.Pp
+.It  --left-column
+Print only the left column of two common lines in side by side format.See Section
+.Dq Side by Side Format .
+.Pp
+.It  --line-format= Va format
+Use
+.Va format
+to output all input lines in if-then-else format.See Section
+.Dq Line Formats .
+.Pp
+.It  -n
+.It  --rcs
+Output RCS-format diffs; like
+.Op -f
+except that each command specifies the number of lines affected.See Section
+.Dq RCS .
+.Pp
+.It  -N
+.It  --new-file
+In directory comparison, if a file is found in only one directory, treat it
+as present but empty in the other directory.See Section
+.Dq Comparing Directories .
+.Pp
+.It  --new-group-format= Va format
+Use
+.Va format
+to output a group of lines taken from just the second file in if-then-else
+format.See Section
+.Dq Line Group Formats .
+.Pp
+.It  --new-line-format= Va format
+Use
+.Va format
+to output a line taken from just the second file in if-then-else format.See Section
+.Dq Line Formats .
+.Pp
+.It  --old-group-format= Va format
+Use
+.Va format
+to output a group of lines taken from just the first file in if-then-else
+format.See Section
+.Dq Line Group Formats .
+.Pp
+.It  --old-line-format= Va format
+Use
+.Va format
+to output a line taken from just the first file in if-then-else format.See Section
+.Dq Line Formats .
+.Pp
+.It  -p
+.It  --show-c-function
+Show which C function each change is in.See Section
+.Dq C Function Headings .
+.Pp
+.It  -q
+.It  --brief
+Report only whether the files differ, not the details of the differences.See Section
+.Dq Brief .
+.Pp
+.It  -r
+.It  --recursive
+When comparing directories, recursively compare any subdirectories found.See Section
+.Dq Comparing Directories .
+.Pp
+.It  -s
+.It  --report-identical-files
+Report when two files are the same.See Section
+.Dq Comparing Directories .
+.Pp
+.It  -S Va file
+.It  --starting-file= Va file
+When comparing directories, start with the file
+.Va file .
+This is used for resuming an aborted comparison.See Section
+.Dq Comparing Directories .
+.Pp
+.It  --speed-large-files
+Use heuristics to speed handling of large files that have numerous scattered
+small changes.See Section
+.Dq diff Performance .
+.Pp
+.It  --strip-trailing-cr
+Strip any trailing carriage return at the end of an input line.See Section
+.Dq Binary .
+.Pp
+.It  --suppress-common-lines
+Do not print common lines in side by side format.See Section
+.Dq Side by Side Format .
+.Pp
+.It  -t
+.It  --expand-tabs
+Expand tabs to spaces in the output, to preserve the alignment of tabs in
+the input files.See Section
+.Dq Tabs .
+.Pp
+.It  -T
+.It  --initial-tab
+Output a tab rather than a space before the text of a line in normal or context
+format. This causes the alignment of tabs in the line to look normal.See Section
+.Dq Tabs .
+.Pp
+.It  --tabsize= Va columns
+Assume that tab stops are set every
+.Va columns
+(default 8) print columns.See Section
+.Dq Tabs .
+.Pp
+.It  --to-file= Va file
+Compare each operand to
+.Va file
+;
+.Va file
+may be a directory.
+.Pp
+.It  -u
+Use the unified output format, showing three lines of context.See Section
+.Dq Unified Format .
+.Pp
+.It  --unchanged-group-format= Va format
+Use
+.Va format
+to output a group of common lines taken from both files in if-then-else format.See Section
+.Dq Line Group Formats .
+.Pp
+.It  --unchanged-line-format= Va format
+Use
+.Va format
+to output a line common to both files in if-then-else format.See Section
+.Dq Line Formats .
+.Pp
+.It  --unidirectional-new-file
+When comparing directories, if a file appears only in the second directory
+of the two, treat it as present but empty in the other.See Section
+.Dq Comparing Directories .
+.Pp
+.It  -U Va lines
+.It  --unified[= Va lines]
+Use the unified output format, showing
+.Va lines
+(an integer) lines of context, or three if
+.Va lines
+is not given.See Section
+.Dq Unified Format .
+For proper operation,
+.Xr patch
+typically needs at least two lines of context.
+.Pp
+On older systems,
+.Xr diff
+supports an obsolete option
+.Op - Va lines
+that has effect when combined with
+.Op -u .
+POSIX 1003.1-2001 (see Section
+.Dq Standards conformance )
+does not allow this; use
+.Op -U Va lines
+instead.
+.Pp
+.It  -v
+.It  --version
+Output version information and then exit.
+.Pp
+.It  -w
+.It  --ignore-all-space
+Ignore white space when comparing lines.See Section
+.Dq White Space .
+.Pp
+.It  -W Va columns
+.It  --width= Va columns
+Output at most
+.Va columns
+(default 130) print columns per line in side by side format.See Section
+.Dq Side by Side Format .
+.Pp
+.It  -x Va pattern
+.It  --exclude= Va pattern
+When comparing directories, ignore files and subdirectories whose basenames
+match
+.Va pattern .
+See Section.Dq Comparing Directories .
+.Pp
+.It  -X Va file
+.It  --exclude-from= Va file
+When comparing directories, ignore files and subdirectories whose basenames
+match any pattern contained in
+.Va file .
+See Section.Dq Comparing Directories .
+.Pp
+.It  -y
+.It  --side-by-side
+Use the side by side output format.See Section
+.Dq Side by Side Format .
+.El
+.Pp
+.Sh  Invoking Xr diff3
+The
+.Xr diff3
+command compares three files and outputs descriptions of their differences.
+Its arguments are as follows:
+.Pp
+.Bd -literal -offset indent
+diff3 options... mine older yours
+.Ed
+.Pp
+The files to compare are
+.Va mine ,
+.Va older ,
+and
+.Va yours .
+At most one of these three file names may be
+.Pa - ,
+which tells
+.Xr diff3
+to read the standard input for that file.
+.Pp
+An exit status of 0 means
+.Xr diff3
+was successful, 1 means some conflicts were found, and 2 means trouble.
+.Pp
+.Ss  Options to Xr diff3
+Below is a summary of all of the options that GNU
+.Xr diff3
+accepts. Multiple single letter options (unless they take an argument) can
+be combined into a single command line argument.
+.Pp
+.Bl -tag -width Ds
+.It  -a
+.It  --text
+Treat all files as text and compare them line-by-line, even if they do not
+appear to be text.See Section
+.Dq Binary .
+.Pp
+.It  -A
+.It  --show-all
+Incorporate all unmerged changes from
+.Va older
+to
+.Va yours
+into
+.Va mine ,
+surrounding conflicts with bracket lines.See Section
+.Dq Marking Conflicts .
+.Pp
+.It  --diff-program= Va program
+Use the compatible comparison program
+.Va program
+to compare files instead of
+.Xr diff .
+.Pp
+.It  -e
+.It  --ed
+Generate an
+.Xr ed
+script that incorporates all the changes from
+.Va older
+to
+.Va yours
+into
+.Va mine .
+See Section.Dq Which Changes .
+.Pp
+.It  -E
+.It  --show-overlap
+Like
+.Op -e ,
+except bracket lines from overlapping changes' first and third files.See Section
+.Dq Marking Conflicts .
+With
+.Op -E ,
+an overlapping change looks like this:
+.Pp
+.Bd -literal -offset indent
+<<<<<<< mine
+lines from mine
+=======
+lines from yours
+>>>>>>> yours
+.Ed
+.Pp
+.It  --help
+Output a summary of usage and then exit.
+.Pp
+.It  -i
+Generate
+.Li w
+and
+.Li q
+commands at the end of the
+.Xr ed
+script for System V compatibility. This option must be combined with one of
+the
+.Op -AeExX3
+options, and may not be combined with
+.Op -m .
+See Section.Dq Saving the Changed File .
+.Pp
+.It  --label= Va label
+Use the label
+.Va label
+for the brackets output by the
+.Op -A ,
+.Op -E
+and
+.Op -X
+options. This option may be given up to three times, one for each input file.
+The default labels are the names of the input files. Thus
+.Li diff3 --label X --label Y --label Z -m A B C
+acts like
+.Li diff3 -m A B C ,
+except that the output looks like it came from files named
+.Li X ,
+.Li Y
+and
+.Li Z
+rather than from files named
+.Li A ,
+.Li B
+and
+.Li C .
+See Section.Dq Marking Conflicts .
+.Pp
+.It  -m
+.It  --merge
+Apply the edit script to the first file and send the result to standard output.
+Unlike piping the output from
+.Xr diff3
+to
+.Xr ed ,
+this works even for binary files and incomplete lines.
+.Op -A
+is assumed if no edit script option is specified.See Section
+.Dq Bypassing ed .
+.Pp
+.It  --strip-trailing-cr
+Strip any trailing carriage return at the end of an input line.See Section
+.Dq Binary .
+.Pp
+.It  -T
+.It  --initial-tab
+Output a tab rather than two spaces before the text of a line in normal format.
+This causes the alignment of tabs in the line to look normal.See Section
+.Dq Tabs .
+.Pp
+.It  -v
+.It  --version
+Output version information and then exit.
+.Pp
+.It  -x
+.It  --overlap-only
+Like
+.Op -e ,
+except output only the overlapping changes.See Section
+.Dq Which Changes .
+.Pp
+.It  -X
+Like
+.Op -E ,
+except output only the overlapping changes. In other words, like
+.Op -x ,
+except bracket changes as in
+.Op -E .
+See Section.Dq Marking Conflicts .
+.Pp
+.It  -3
+.It  --easy-only
+Like
+.Op -e ,
+except output only the nonoverlapping changes.See Section
+.Dq Which Changes .
+.El
+.Pp
+.Sh  Invoking Xr patch
+Normally
+.Xr patch
+is invoked like this:
+.Pp
+.Bd -literal -offset indent
+patch <patchfile
+.Ed
+.Pp
+The full format for invoking
+.Xr patch
+is:
+.Pp
+.Bd -literal -offset indent
+patch options... [origfile [patchfile]]
+.Ed
+.Pp
+You can also specify where to read the patch from with the
+.Op -i Va patchfile
+or
+.Op --input= Va patchfile
+option. If you do not specify
+.Va patchfile ,
+or if
+.Va patchfile
+is
+.Pa - ,
+.Xr patch
+reads the patch (that is, the
+.Xr diff
+output) from the standard input.
+.Pp
+If you do not specify an input file on the command line,
+.Xr patch
+tries to intuit from the
+.Em leading text
+(any text in the patch that comes before the
+.Xr diff
+output) which file to edit.See Section
+.Dq Multiple Patches .
+.Pp
+By default,
+.Xr patch
+replaces the original input file with the patched version, possibly after
+renaming the original file into a backup file (see Section
+.Dq Backup Names ,
+for a description of how
+.Xr patch
+names backup files). You can also specify where to put the output with the
+.Op -o Va file
+or
+.Op --output= Va file
+option; however, do not use this option if
+.Va file
+is one of the input files.
+.Pp
+.Ss  Options to Xr patch
+Here is a summary of all of the options that GNU
+.Xr patch
+accepts.See Section
+.Dq patch and Tradition ,
+for which of these options are safe to use in older versions of
+.Xr patch .
+.Pp
+Multiple single-letter options that do not take an argument can be combined
+into a single command line argument with only one dash.
+.Pp
+.Bl -tag -width Ds
+.It  -b
+.It  --backup
+Back up the original contents of each file, even if backups would normally
+not be made.See Section
+.Dq Backups .
+.Pp
+.It  -B Va prefix
+.It  --prefix= Va prefix
+Prepend
+.Va prefix
+to backup file names.See Section
+.Dq Backup Names .
+.Pp
+.It  --backup-if-mismatch
+Back up the original contents of each file if the patch does not exactly match
+the file. This is the default behavior when not conforming to POSIX.See Section
+.Dq Backups .
+.Pp
+.It  --binary
+Read and write all files in binary mode, except for standard output and
+.Pa /dev/tty .
+This option has no effect on POSIX-conforming systems like GNU/Linux. On systems
+where this option makes a difference, the patch should be generated by
+.Li diff -a --binary .
+See Section.Dq Binary .
+.Pp
+.It  -c
+.It  --context
+Interpret the patch file as a context diff.See Section
+.Dq patch Input .
+.Pp
+.It  -d Va directory
+.It  --directory= Va directory
+Make directory
+.Va directory
+the current directory for interpreting both file names in the patch file,
+and file names given as arguments to other options.See Section
+.Dq patch Directories .
+.Pp
+.It  -D Va name
+.It  --ifdef= Va name
+Make merged if-then-else output using
+.Va name .
+See Section.Dq If-then-else .
+.Pp
+.It  --dry-run
+Print the results of applying the patches without actually changing any files.See Section
+.Dq Dry Runs .
+.Pp
+.It  -e
+.It  --ed
+Interpret the patch file as an
+.Xr ed
+script.See Section
+.Dq patch Input .
+.Pp
+.It  -E
+.It  --remove-empty-files
+Remove output files that are empty after the patches have been applied.See Section
+.Dq Creating and Removing .
+.Pp
+.It  -f
+.It  --force
+Assume that the user knows exactly what he or she is doing, and do not ask
+any questions.See Section
+.Dq patch Messages .
+.Pp
+.It  -F Va lines
+.It  --fuzz= Va lines
+Set the maximum fuzz factor to
+.Va lines .
+See Section.Dq Inexact .
+.Pp
+.It  -g Va num
+.It  --get= Va num
+If
+.Va num
+is positive, get input files from a revision control system as necessary;
+if zero, do not get the files; if negative, ask the user whether to get the
+files.See Section
+.Dq Revision Control .
+.Pp
+.It  --help
+Output a summary of usage and then exit.
+.Pp
+.It  -i Va patchfile
+.It  --input= Va patchfile
+Read the patch from
+.Va patchfile
+rather than from standard input.See Section
+.Dq patch Options .
+.Pp
+.It  -l
+.It  --ignore-white-space
+Let any sequence of blanks (spaces or tabs) in the patch file match any sequence
+of blanks in the input file.See Section
+.Dq Changed White Space .
+.Pp
+.It  -n
+.It  --normal
+Interpret the patch file as a normal diff.See Section
+.Dq patch Input .
+.Pp
+.It  -N
+.It  --forward
+Ignore patches that
+.Xr patch
+thinks are reversed or already applied. See also
+.Op -R .
+See Section.Dq Reversed Patches .
+.Pp
+.It  --no-backup-if-mismatch
+Do not back up the original contents of files. This is the default behavior
+when conforming to POSIX.See Section
+.Dq Backups .
+.Pp
+.It  -o Va file
+.It  --output= Va file
+Use
+.Va file
+as the output file name.See Section
+.Dq patch Options .
+.Pp
+.It  -p Va number
+.It  --strip= Va number
+Set the file name strip count to
+.Va number .
+See Section.Dq patch Directories .
+.Pp
+.It  --posix
+Conform to POSIX, as if the
+.Ev POSIXLY_CORRECT
+environment variable had been set.See Section
+.Dq patch and POSIX .
+.Pp
+.It  --quoting-style= Va word
+Use style
+.Va word
+to quote names in diagnostics, as if the
+.Ev QUOTING_STYLE
+environment variable had been set to
+.Va word .
+See Section.Dq patch Quoting Style .
+.Pp
+.It  -r Va reject-file
+.It  --reject-file= Va reject-file
+Use
+.Va reject-file
+as the reject file name.See Section
+.Dq Reject Names .
+.Pp
+.It  -R
+.It  --reverse
+Assume that this patch was created with the old and new files swapped.See Section
+.Dq Reversed Patches .
+.Pp
+.It  -s
+.It  --quiet
+.It  --silent
+Work silently unless an error occurs.See Section
+.Dq patch Messages .
+.Pp
+.It  -t
+.It  --batch
+Do not ask any questions.See Section
+.Dq patch Messages .
+.Pp
+.It  -T
+.It  --set-time
+Set the modification and access times of patched files from time stamps given
+in context diff headers, assuming that the context diff headers use local
+time.See Section
+.Dq Patching Time Stamps .
+.Pp
+.It  -u
+.It  --unified
+Interpret the patch file as a unified diff.See Section
+.Dq patch Input .
+.Pp
+.It  -v
+.It  --version
+Output version information and then exit.
+.Pp
+.It  -V Va backup-style
+.It  --version=control= Va backup-style
+Select the naming convention for backup file names.See Section
+.Dq Backup Names .
+.Pp
+.It  --verbose
+Print more diagnostics than usual.See Section
+.Dq patch Messages .
+.Pp
+.It  -x Va number
+.It  --debug= Va number
+Set internal debugging flags. Of interest only to
+.Xr patch
+patchers.
+.Pp
+.It  -Y Va prefix
+.It  --basename-prefix= Va prefix
+Prepend
+.Va prefix
+to base names of backup files.See Section
+.Dq Backup Names .
+.Pp
+.It  -z Va suffix
+.It  --suffix= Va suffix
+Use
+.Va suffix
+as the backup extension instead of
+.Li .orig
+or
+.Li ~ .
+See Section.Dq Backup Names .
+.Pp
+.It  -Z
+.It  --set-utc
+Set the modification and access times of patched files from time stamps given
+in context diff headers, assuming that the context diff headers use UTC.See Section
+.Dq Patching Time Stamps .
+.Pp
+.El
+.Sh  Invoking Xr sdiff
+The
+.Xr sdiff
+command merges two files and interactively outputs the results. Its arguments
+are as follows:
+.Pp
+.Bd -literal -offset indent
+sdiff -o outfile options... from-file to-file
+.Ed
+.Pp
+This merges
+.Va from-file
+with
+.Va to-file ,
+with output to
+.Va outfile .
+If
+.Va from-file
+is a directory and
+.Va to-file
+is not,
+.Xr sdiff
+compares the file in
+.Va from-file
+whose file name is that of
+.Va to-file ,
+and vice versa.
+.Va from-file
+and
+.Va to-file
+may not both be directories.
+.Pp
+.Xr sdiff
+options begin with
+.Li - ,
+so normally
+.Va from-file
+and
+.Va to-file
+may not begin with
+.Li - .
+However,
+.Op --
+as an argument by itself treats the remaining arguments as file names even
+if they begin with
+.Li - .
+You may not use
+.Pa -
+as an input file.
+.Pp
+.Xr sdiff
+without
+.Op -o
+(or
+.Op --output )
+produces a side-by-side difference. This usage is obsolete; use the
+.Op -y
+or
+.Op --side-by-side
+option of
+.Xr diff
+instead.
+.Pp
+An exit status of 0 means no differences were found, 1 means some differences
+were found, and 2 means trouble.
+.Pp
+.Ss  Options to Xr sdiff
+Below is a summary of all of the options that GNU
+.Xr sdiff
+accepts. Each option has two equivalent names, one of which is a single letter
+preceded by
+.Li - ,
+and the other of which is a long name preceded by
+.Li -- .
+Multiple single letter options (unless they take an argument) can be combined
+into a single command line argument. Long named options can be abbreviated
+to any unique prefix of their name.
+.Pp
+.Bl -tag -width Ds
+.It  -a
+.It  --text
+Treat all files as text and compare them line-by-line, even if they do not
+appear to be text.See Section
+.Dq Binary .
+.Pp
+.It  -b
+.It  --ignore-space-change
+Ignore changes in amount of white space.See Section
+.Dq White Space .
+.Pp
+.It  -B
+.It  --ignore-blank-lines
+Ignore changes that just insert or delete blank lines.See Section
+.Dq Blank Lines .
+.Pp
+.It  -d
+.It  --minimal
+Change the algorithm to perhaps find a smaller set of changes. This makes
+.Xr sdiff
+slower (sometimes much slower).See Section
+.Dq diff Performance .
+.Pp
+.It  --diff-program= Va program
+Use the compatible comparison program
+.Va program
+to compare files instead of
+.Xr diff .
+.Pp
+.It  -E
+.It  --ignore-tab-expansion
+Ignore changes due to tab expansion.See Section
+.Dq White Space .
+.Pp
+.It  --help
+Output a summary of usage and then exit.
+.Pp
+.It  -i
+.It  --ignore-case
+Ignore changes in case; consider upper- and lower-case to be the same.See Section
+.Dq Case Folding .
+.Pp
+.It  -I Va regexp
+.It  --ignore-matching-lines= Va regexp
+Ignore changes that just insert or delete lines that match
+.Va regexp .
+See Section.Dq Specified Lines .
+.Pp
+.It  -l
+.It  --left-column
+Print only the left column of two common lines.See Section
+.Dq Side by Side Format .
+.Pp
+.It  -o Va file
+.It  --output= Va file
+Put merged output into
+.Va file .
+This option is required for merging.
+.Pp
+.It  -s
+.It  --suppress-common-lines
+Do not print common lines.See Section
+.Dq Side by Side Format .
+.Pp
+.It  --speed-large-files
+Use heuristics to speed handling of large files that have numerous scattered
+small changes.See Section
+.Dq diff Performance .
+.Pp
+.It  --strip-trailing-cr
+Strip any trailing carriage return at the end of an input line.See Section
+.Dq Binary .
+.Pp
+.It  -t
+.It  --expand-tabs
+Expand tabs to spaces in the output, to preserve the alignment of tabs in
+the input files.See Section
+.Dq Tabs .
+.Pp
+.It  --tabsize= Va columns
+Assume that tab stops are set every
+.Va columns
+(default 8) print columns.See Section
+.Dq Tabs .
+.Pp
+.It  -v
+.It  --version
+Output version information and then exit.
+.Pp
+.It  -w Va columns
+.It  --width= Va columns
+Output at most
+.Va columns
+(default 130) print columns per line.See Section
+.Dq Side by Side Format .
+Note that for historical reasons, this option is
+.Op -W
+in
+.Xr diff ,
+.Op -w
+in
+.Xr sdiff .
+.Pp
+.It  -W
+.It  --ignore-all-space
+Ignore white space when comparing lines.See Section
+.Dq White Space .
+Note that for historical reasons, this option is
+.Op -w
+in
+.Xr diff ,
+.Op -W
+in
+.Xr sdiff .
+.El
+.Pp
+.Sh  Standards conformance
+In a few cases, the GNU utilities' default behavior is incompatible with the
+POSIX standard. To suppress these incompatibilities, define the
+.Ev POSIXLY_CORRECT
+environment variable. Unless you are checking for POSIX conformance, you probably
+do not need to define
+.Ev POSIXLY_CORRECT .
+.Pp
+Normally options and operands can appear in any order, and programs act as
+if all the options appear before any operands. For example,
+.Li diff lao tzu -C 2
+acts like
+.Li diff -C 2 lao tzu ,
+since
+.Li 2
+is an option-argument of
+.Op -C .
+However, if the
+.Ev POSIXLY_CORRECT
+environment variable is set, options must appear before operands, unless otherwise
+specified for a particular command.
+.Pp
+Newer versions of POSIX are occasionally incompatible with older versions.
+For example, older versions of POSIX allowed the command
+.Li diff -c -10
+to have the same meaning as
+.Li diff -C 10 ,
+but POSIX 1003.1-2001
+.Li diff
+no longer allows digit-string options like
+.Op -10 .
+.Pp
+The GNU utilities normally conform to the version of POSIX that is standard
+for your system. To cause them to conform to a different version of POSIX,
+define the
+.Ev _POSIX2_VERSION
+environment variable to a value of the form
+.Va yyyymm
+specifying the year and month the standard was adopted. Two values are currently
+supported for
+.Ev _POSIX2_VERSION :
+.Li 199209
+stands for POSIX 1003.2-1992, and
+.Li 200112
+stands for POSIX 1003.1-2001. For example, if you are running older software
+that assumes an older version of POSIX and uses
+.Li diff -c -10 ,
+you can work around the compatibility problems by setting
+.Li _POSIX2_VERSION=199209
+in your environment.
+.Pp
+.Sh  Future Projects
+Here are some ideas for improving GNU
+.Xr diff
+and
+.Xr patch .
+The GNU project has identified some improvements as potential programming
+projects for volunteers. You can also help by reporting any bugs that you
+find.
+.Pp
+If you are a programmer and would like to contribute something to the GNU
+project, please consider volunteering for one of these projects. If you are
+seriously contemplating work, please write to
+.Mt gvc@gnu.org
+to coordinate with other volunteers.
+.Pp
+.Ss  Suggested Projects for Improving GNU Xr diff and Xr patch
+One should be able to use GNU
+.Xr diff
+to generate a patch from any pair of directory trees, and given the patch
+and a copy of one such tree, use
+.Xr patch
+to generate a faithful copy of the other. Unfortunately, some changes to directory
+trees cannot be expressed using current patch formats; also,
+.Xr patch
+does not handle some of the existing formats. These shortcomings motivate
+the following suggested projects.
+.Pp
+.Em  Handling Multibyte and Varying-Width Characters
+.Pp
+.Xr diff ,
+.Xr diff3
+and
+.Xr sdiff
+treat each line of input as a string of unibyte characters. This can mishandle
+multibyte characters in some cases. For example, when asked to ignore spaces,
+.Xr diff
+does not properly ignore a multibyte space character.
+.Pp
+Also,
+.Xr diff
+currently assumes that each byte is one column wide, and this assumption is
+incorrect in some locales, e.g., locales that use UTF-8 encoding. This causes
+problems with the
+.Op -y
+or
+.Op --side-by-side
+option of
+.Xr diff .
+.Pp
+These problems need to be fixed without unduly affecting the performance of
+the utilities in unibyte environments.
+.Pp
+The IBM GNU/Linux Technology Center Internationalization Team has proposed
+.Lk http://oss.software.ibm.com/developer/opensource/linux/patches/i18n/diffutils-2.7.2-i18n-0.1.patch.gz .
+Unfortunately, these patches are incomplete and are to an older version of
+.Xr diff ,
+so more work needs to be done in this area.
+.Pp
+.Em  Handling Changes to the Directory Structure
+.Pp
+.Xr diff
+and
+.Xr patch
+do not handle some changes to directory structure. For example, suppose one
+directory tree contains a directory named
+.Li D
+with some subsidiary files, and another contains a file with the same name
+.Li D .
+.Li diff -r
+does not output enough information for
+.Xr patch
+to transform the directory subtree into the file.
+.Pp
+There should be a way to specify that a file has been removed without having
+to include its entire contents in the patch file. There should also be a way
+to tell
+.Xr patch
+that a file was renamed, even if there is no way for
+.Xr diff
+to generate such information. There should be a way to tell
+.Xr patch
+that a file's time stamp has changed, even if its contents have not changed.
+.Pp
+These problems can be fixed by extending the
+.Xr diff
+output format to represent changes in directory structure, and extending
+.Xr patch
+to understand these extensions.
+.Pp
+.Em  Files that are Neither Directories Nor Regular Files
+.Pp
+Some files are neither directories nor regular files: they are unusual files
+like symbolic links, device special files, named pipes, and sockets. Currently,
+.Xr diff
+treats symbolic links as if they were the pointed-to files, except that a
+recursive
+.Xr diff
+reports an error if it detects infinite loops of symbolic links (e.g., symbolic
+links to
+.Pa .. ) .
+.Xr diff
+treats other special files like regular files if they are specified at the
+top level, but simply reports their presence when comparing directories. This
+means that
+.Xr patch
+cannot represent changes to such files. For example, if you change which file
+a symbolic link points to,
+.Xr diff
+outputs the difference between the two files, instead of the change to the
+symbolic link.
+.Pp
+.Xr diff
+should optionally report changes to special files specially, and
+.Xr patch
+should be extended to understand these extensions.
+.Pp
+.Em  File Names that Contain Unusual Characters
+.Pp
+When a file name contains an unusual character like a newline or white space,
+.Li diff -r
+generates a patch that
+.Xr patch
+cannot parse. The problem is with format of
+.Xr diff
+output, not just with
+.Xr patch ,
+because with odd enough file names one can cause
+.Xr diff
+to generate a patch that is syntactically correct but patches the wrong files.
+The format of
+.Xr diff
+output should be extended to handle all possible file names.
+.Pp
+.Em  Outputting Diffs in Time Stamp Order
+.Pp
+Applying
+.Xr patch
+to a multiple-file diff can result in files whose time stamps are out of order.
+GNU
+.Xr patch
+has options to restore the time stamps of the updated files (see Section
+.Dq Patching Time Stamps ) ,
+but sometimes it is useful to generate a patch that works even if the recipient
+does not have GNU patch, or does not use these options. One way to do this
+would be to implement a
+.Xr diff
+option to output diffs in time stamp order.
+.Pp
+.Em  Ignoring Certain Changes
+.Pp
+It would be nice to have a feature for specifying two strings, one in
+.Va from-file
+and one in
+.Va to-file ,
+which should be considered to match. Thus, if the two strings are
+.Li foo
+and
+.Li bar ,
+then if two lines differ only in that
+.Li foo
+in file 1 corresponds to
+.Li bar
+in file 2, the lines are treated as identical.
+.Pp
+It is not clear how general this feature can or should be, or what syntax
+should be used for it.
+.Pp
+A partial substitute is to filter one or both files before comparing, e.g.:
+.Pp
+.Bd -literal -offset indent
+sed 's/foo/bar/g' file1 | diff - file2
+.Ed
+.Pp
+However, this outputs the filtered text, not the original.
+.Pp
+.Em  Improving Performance
+.Pp
+When comparing two large directory structures, one of which was originally
+copied from the other with time stamps preserved (e.g., with
+.Li cp -pR ) ,
+it would greatly improve performance if an option told
+.Xr diff
+to assume that two files with the same size and time stamps have the same
+content.See Section
+.Dq diff Performance .
+.Pp
+.Ss  Reporting Bugs
+If you think you have found a bug in GNU
+.Xr cmp ,
+.Xr diff ,
+.Xr diff3 ,
+or
+.Xr sdiff ,
+please report it by electronic mail to the
+.Lk http://mail.gnu.org/mailman/listinfo/bug-gnu-utils
+.Mt bug-gnu-utils@gnu.org .
+Please send bug reports for GNU
+.Xr patch
+to
+.Mt bug-patch@gnu.org .
+Send as precise a description of the problem as you can, including the output
+of the
+.Op --version
+option and sample input files that produce the bug, if applicable. If you
+have a nontrivial fix for the bug, please send it as well. If you have a patch,
+please send it too. It may simplify the maintainer's job if the patch is relative
+to a recent test release, which you can find in the directory
+.Lk ftp://alpha.gnu.org/gnu/diffutils/ .
+.Pp
+.Sh  Copying This Manual
+.Ss  GNU Free Documentation License
+.Bd -filled -offset indent
+Copyright \(co 2000,2001,2002 Free Software Foundation, Inc. 59 Temple Place,
+Suite 330, Boston, MA 02111-1307, USA
+.Pp
+Everyone is permitted to copy and distribute verbatim copies of this license
+document, but changing it is not allowed.
+.Ed
+.Pp
+.Bl -enum
+.It
+PREAMBLE
+.Pp
+The purpose of this License is to make a manual, textbook, or other functional
+and useful document
+.Em free
+in the sense of freedom: to assure everyone the effective freedom to copy
+and redistribute it, with or without modifying it, either commercially or
+noncommercially. Secondarily, this License preserves for the author and publisher
+a way to get credit for their work, while not being considered responsible
+for modifications made by others.
+.Pp
+This License is a kind of \(lqcopyleft\(rq, which means that derivative works of the
+document must themselves be free in the same sense. It complements the GNU
+General Public License, which is a copyleft license designed for free software.
+.Pp
+We have designed this License in order to use it for manuals for free software,
+because free software needs free documentation: a free program should come
+with manuals providing the same freedoms that the software does. But this
+License is not limited to software manuals; it can be used for any textual
+work, regardless of subject matter or whether it is published as a printed
+book. We recommend this License principally for works whose purpose is instruction
+or reference.
+.Pp
+.It
+APPLICABILITY AND DEFINITIONS
+.Pp
+This License applies to any manual or other work, in any medium, that contains
+a notice placed by the copyright holder saying it can be distributed under
+the terms of this License. Such a notice grants a world-wide, royalty-free
+license, unlimited in duration, to use that work under the conditions stated
+herein. The \(lqDocument\(rq, below, refers to any such manual or work. Any member
+of the public is a licensee, and is addressed as \(lqyou\(rq. You accept the license
+if you copy, modify or distribute the work in a way requiring permission under
+copyright law.
+.Pp
+A \(lqModified Version\(rq of the Document means any work containing the Document
+or a portion of it, either copied verbatim, or with modifications and/or translated
+into another language.
+.Pp
+A \(lqSecondary Section\(rq is a named appendix or a front-matter section of the Document
+that deals exclusively with the relationship of the publishers or authors
+of the Document to the Document's overall subject (or to related matters)
+and contains nothing that could fall directly within that overall subject.
+(Thus, if the Document is in part a textbook of mathematics, a Secondary Section
+may not explain any mathematics.) The relationship could be a matter of historical
+connection with the subject or with related matters, or of legal, commercial,
+philosophical, ethical or political position regarding them.
+.Pp
+The \(lqInvariant Sections\(rq are certain Secondary Sections whose titles are designated,
+as being those of Invariant Sections, in the notice that says that the Document
+is released under this License. If a section does not fit the above definition
+of Secondary then it is not allowed to be designated as Invariant. The Document
+may contain zero Invariant Sections. If the Document does not identify any
+Invariant Sections then there are none.
+.Pp
+The \(lqCover Texts\(rq are certain short passages of text that are listed, as Front-Cover
+Texts or Back-Cover Texts, in the notice that says that the Document is released
+under this License. A Front-Cover Text may be at most 5 words, and a Back-Cover
+Text may be at most 25 words.
+.Pp
+A \(lqTransparent\(rq copy of the Document means a machine-readable copy, represented
+in a format whose specification is available to the general public, that is
+suitable for revising the document straightforwardly with generic text editors
+or (for images composed of pixels) generic paint programs or (for drawings)
+some widely available drawing editor, and that is suitable for input to text
+formatters or for automatic translation to a variety of formats suitable for
+input to text formatters. A copy made in an otherwise Transparent file format
+whose markup, or absence of markup, has been arranged to thwart or discourage
+subsequent modification by readers is not Transparent. An image format is
+not Transparent if used for any substantial amount of text. A copy that is
+not \(lqTransparent\(rq is called \(lqOpaque\(rq.
+.Pp
+Examples of suitable formats for Transparent copies include plain ascii without
+markup, Texinfo input format, LaTeX input format, SGML or XML using a publicly
+available DTD, and standard-conforming simple HTML, PostScript or PDF designed
+for human modification. Examples of transparent image formats include PNG,
+XCF and JPG. Opaque formats include proprietary formats that can be read and
+edited only by proprietary word processors, SGML or XML for which the DTD
+and/or processing tools are not generally available, and the machine-generated
+HTML, PostScript or PDF produced by some word processors for output purposes
+only.
+.Pp
+The \(lqTitle Page\(rq means, for a printed book, the title page itself, plus such
+following pages as are needed to hold, legibly, the material this License
+requires to appear in the title page. For works in formats which do not have
+any title page as such, \(lqTitle Page\(rq means the text near the most prominent
+appearance of the work's title, preceding the beginning of the body of the
+text.
+.Pp
+A section \(lqEntitled XYZ\(rq means a named subunit of the Document whose title either
+is precisely XYZ or contains XYZ in parentheses following text that translates
+XYZ in another language. (Here XYZ stands for a specific section name mentioned
+below, such as \(lqAcknowledgements\(rq, \(lqDedications\(rq, \(lqEndorsements\(rq, or \(lqHistory\(rq.) To
+\(lqPreserve the Title\(rq of such a section when you modify the Document means that
+it remains a section \(lqEntitled XYZ\(rq according to this definition.
+.Pp
+The Document may include Warranty Disclaimers next to the notice which states
+that this License applies to the Document. These Warranty Disclaimers are
+considered to be included by reference in this License, but only as regards
+disclaiming warranties: any other implication that these Warranty Disclaimers
+may have is void and has no effect on the meaning of this License.
+.Pp
+.It
+VERBATIM COPYING
+.Pp
+You may copy and distribute the Document in any medium, either commercially
+or noncommercially, provided that this License, the copyright notices, and
+the license notice saying this License applies to the Document are reproduced
+in all copies, and that you add no other conditions whatsoever to those of
+this License. You may not use technical measures to obstruct or control the
+reading or further copying of the copies you make or distribute. However,
+you may accept compensation in exchange for copies. If you distribute a large
+enough number of copies you must also follow the conditions in section 3.
+.Pp
+You may also lend copies, under the same conditions stated above, and you
+may publicly display copies.
+.Pp
+.It
+COPYING IN QUANTITY
+.Pp
+If you publish printed copies (or copies in media that commonly have printed
+covers) of the Document, numbering more than 100, and the Document's license
+notice requires Cover Texts, you must enclose the copies in covers that carry,
+clearly and legibly, all these Cover Texts: Front-Cover Texts on the front
+cover, and Back-Cover Texts on the back cover. Both covers must also clearly
+and legibly identify you as the publisher of these copies. The front cover
+must present the full title with all words of the title equally prominent
+and visible. You may add other material on the covers in addition. Copying
+with changes limited to the covers, as long as they preserve the title of
+the Document and satisfy these conditions, can be treated as verbatim copying
+in other respects.
+.Pp
+If the required texts for either cover are too voluminous to fit legibly,
+you should put the first ones listed (as many as fit reasonably) on the actual
+cover, and continue the rest onto adjacent pages.
+.Pp
+If you publish or distribute Opaque copies of the Document numbering more
+than 100, you must either include a machine-readable Transparent copy along
+with each Opaque copy, or state in or with each Opaque copy a computer-network
+location from which the general network-using public has access to download
+using public-standard network protocols a complete Transparent copy of the
+Document, free of added material. If you use the latter option, you must take
+reasonably prudent steps, when you begin distribution of Opaque copies in
+quantity, to ensure that this Transparent copy will remain thus accessible
+at the stated location until at least one year after the last time you distribute
+an Opaque copy (directly or through your agents or retailers) of that edition
+to the public.
+.Pp
+It is requested, but not required, that you contact the authors of the Document
+well before redistributing any large number of copies, to give them a chance
+to provide you with an updated version of the Document.
+.Pp
+.It
+MODIFICATIONS
+.Pp
+You may copy and distribute a Modified Version of the Document under the conditions
+of sections 2 and 3 above, provided that you release the Modified Version
+under precisely this License, with the Modified Version filling the role of
+the Document, thus licensing distribution and modification of the Modified
+Version to whoever possesses a copy of it. In addition, you must do these
+things in the Modified Version:
+.Pp
+.Bl -enum
+.It
+Use in the Title Page (and on the covers, if any) a title distinct from that
+of the Document, and from those of previous versions (which should, if there
+were any, be listed in the History section of the Document). You may use the
+same title as a previous version if the original publisher of that version
+gives permission.
+.Pp
+.It
+List on the Title Page, as authors, one or more persons or entities responsible
+for authorship of the modifications in the Modified Version, together with
+at least five of the principal authors of the Document (all of its principal
+authors, if it has fewer than five), unless they release you from this requirement.
+.Pp
+.It
+State on the Title page the name of the publisher of the Modified Version,
+as the publisher.
+.Pp
+.It
+Preserve all the copyright notices of the Document.
+.Pp
+.It
+Add an appropriate copyright notice for your modifications adjacent to the
+other copyright notices.
+.Pp
+.It
+Include, immediately after the copyright notices, a license notice giving
+the public permission to use the Modified Version under the terms of this
+License, in the form shown in the Addendum below.
+.Pp
+.It
+Preserve in that license notice the full lists of Invariant Sections and required
+Cover Texts given in the Document's license notice.
+.Pp
+.It
+Include an unaltered copy of this License.
+.Pp
+.It
+Preserve the section Entitled \(lqHistory\(rq, Preserve its Title, and add to it an
+item stating at least the title, year, new authors, and publisher of the Modified
+Version as given on the Title Page. If there is no section Entitled \(lqHistory\(rq
+in the Document, create one stating the title, year, authors, and publisher
+of the Document as given on its Title Page, then add an item describing the
+Modified Version as stated in the previous sentence.
+.Pp
+.It
+Preserve the network location, if any, given in the Document for public access
+to a Transparent copy of the Document, and likewise the network locations
+given in the Document for previous versions it was based on. These may be
+placed in the \(lqHistory\(rq section. You may omit a network location for a work
+that was published at least four years before the Document itself, or if the
+original publisher of the version it refers to gives permission.
+.Pp
+.It
+For any section Entitled \(lqAcknowledgements\(rq or \(lqDedications\(rq, Preserve the Title
+of the section, and preserve in the section all the substance and tone of
+each of the contributor acknowledgements and/or dedications given therein.
+.Pp
+.It
+Preserve all the Invariant Sections of the Document, unaltered in their text
+and in their titles. Section numbers or the equivalent are not considered
+part of the section titles.
+.Pp
+.It
+Delete any section Entitled \(lqEndorsements\(rq. Such a section may not be included
+in the Modified Version.
+.Pp
+.It
+Do not retitle any existing section to be Entitled \(lqEndorsements\(rq or to conflict
+in title with any Invariant Section.
+.Pp
+.It
+Preserve any Warranty Disclaimers.
+.El
+.Pp
+If the Modified Version includes new front-matter sections or appendices that
+qualify as Secondary Sections and contain no material copied from the Document,
+you may at your option designate some or all of these sections as invariant.
+To do this, add their titles to the list of Invariant Sections in the Modified
+Version's license notice. These titles must be distinct from any other section
+titles.
+.Pp
+You may add a section Entitled \(lqEndorsements\(rq, provided it contains nothing
+but endorsements of your Modified Version by various parties---for example,
+statements of peer review or that the text has been approved by an organization
+as the authoritative definition of a standard.
+.Pp
+You may add a passage of up to five words as a Front-Cover Text, and a passage
+of up to 25 words as a Back-Cover Text, to the end of the list of Cover Texts
+in the Modified Version. Only one passage of Front-Cover Text and one of Back-Cover
+Text may be added by (or through arrangements made by) any one entity. If
+the Document already includes a cover text for the same cover, previously
+added by you or by arrangement made by the same entity you are acting on behalf
+of, you may not add another; but you may replace the old one, on explicit
+permission from the previous publisher that added the old one.
+.Pp
+The author(s) and publisher(s) of the Document do not by this License give
+permission to use their names for publicity for or to assert or imply endorsement
+of any Modified Version.
+.Pp
+.It
+COMBINING DOCUMENTS
+.Pp
+You may combine the Document with other documents released under this License,
+under the terms defined in section 4 above for modified versions, provided
+that you include in the combination all of the Invariant Sections of all of
+the original documents, unmodified, and list them all as Invariant Sections
+of your combined work in its license notice, and that you preserve all their
+Warranty Disclaimers.
+.Pp
+The combined work need only contain one copy of this License, and multiple
+identical Invariant Sections may be replaced with a single copy. If there
+are multiple Invariant Sections with the same name but different contents,
+make the title of each such section unique by adding at the end of it, in
+parentheses, the name of the original author or publisher of that section
+if known, or else a unique number. Make the same adjustment to the section
+titles in the list of Invariant Sections in the license notice of the combined
+work.
+.Pp
+In the combination, you must combine any sections Entitled \(lqHistory\(rq in the
+various original documents, forming one section Entitled \(lqHistory\(rq; likewise
+combine any sections Entitled \(lqAcknowledgements\(rq, and any sections Entitled
+\(lqDedications\(rq. You must delete all sections Entitled \(lqEndorsements.\(rq
+.Pp
+.It
+COLLECTIONS OF DOCUMENTS
+.Pp
+You may make a collection consisting of the Document and other documents released
+under this License, and replace the individual copies of this License in the
+various documents with a single copy that is included in the collection, provided
+that you follow the rules of this License for verbatim copying of each of
+the documents in all other respects.
+.Pp
+You may extract a single document from such a collection, and distribute it
+individually under this License, provided you insert a copy of this License
+into the extracted document, and follow this License in all other respects
+regarding verbatim copying of that document.
+.Pp
+.It
+AGGREGATION WITH INDEPENDENT WORKS
+.Pp
+A compilation of the Document or its derivatives with other separate and independent
+documents or works, in or on a volume of a storage or distribution medium,
+is called an \(lqaggregate\(rq if the copyright resulting from the compilation is
+not used to limit the legal rights of the compilation's users beyond what
+the individual works permit. When the Document is included in an aggregate,
+this License does not apply to the other works in the aggregate which are
+not themselves derivative works of the Document.
+.Pp
+If the Cover Text requirement of section 3 is applicable to these copies of
+the Document, then if the Document is less than one half of the entire aggregate,
+the Document's Cover Texts may be placed on covers that bracket the Document
+within the aggregate, or the electronic equivalent of covers if the Document
+is in electronic form. Otherwise they must appear on printed covers that bracket
+the whole aggregate.
+.Pp
+.It
+TRANSLATION
+.Pp
+Translation is considered a kind of modification, so you may distribute translations
+of the Document under the terms of section 4. Replacing Invariant Sections
+with translations requires special permission from their copyright holders,
+but you may include translations of some or all Invariant Sections in addition
+to the original versions of these Invariant Sections. You may include a translation
+of this License, and all the license notices in the Document, and any Warranty
+Disclaimers, provided that you also include the original English version of
+this License and the original versions of those notices and disclaimers. In
+case of a disagreement between the translation and the original version of
+this License or a notice or disclaimer, the original version will prevail.
+.Pp
+If a section in the Document is Entitled \(lqAcknowledgements\(rq, \(lqDedications\(rq, or
+\(lqHistory\(rq, the requirement (section 4) to Preserve its Title (section 1) will
+typically require changing the actual title.
+.Pp
+.It
+TERMINATION
+.Pp
+You may not copy, modify, sublicense, or distribute the Document except as
+expressly provided for under this License. Any other attempt to copy, modify,
+sublicense or distribute the Document is void, and will automatically terminate
+your rights under this License. However, parties who have received copies,
+or rights, from you under this License will not have their licenses terminated
+so long as such parties remain in full compliance.
+.Pp
+.It
+FUTURE REVISIONS OF THIS LICENSE
+.Pp
+The Free Software Foundation may publish new, revised versions of the GNU
+Free Documentation License from time to time. Such new versions will be similar
+in spirit to the present version, but may differ in detail to address new
+problems or concerns. See
+.Lk http://www.gnu.org/copyleft/ .
+.Pp
+Each version of the License is given a distinguishing version number. If the
+Document specifies that a particular numbered version of this License \(lqor any
+later version\(rq applies to it, you have the option of following the terms and
+conditions either of that specified version or of any later version that has
+been published (not as a draft) by the Free Software Foundation. If the Document
+does not specify a version number of this License, you may choose any version
+ever published (not as a draft) by the Free Software Foundation.
+.El
+.Pp
+.Em  ADDENDUM: How to use this License for your documents
+.Pp
+To use this License in a document you have written, include a copy of the
+License in the document and put the following copyright and license notices
+just after the title page:
+.Pp
+.Bd -literal -offset indent
+
+  Copyright (C)  year  your name.
+  Permission is granted to copy, distribute and/or modify this document
+  under the terms of the GNU Free Documentation License, Version 1.2
+  or any later version published by the Free Software Foundation;
+  with no Invariant Sections, no Front-Cover Texts, and no Back-Cover
+  Texts.  A copy of the license is included in the section entitled \(lqGNU
+  Free Documentation License\(rq.
+
+.Ed
+.Pp
+If you have Invariant Sections, Front-Cover Texts and Back-Cover Texts, replace
+the \(lqwith...Texts.\(rq line with this:
+.Pp
+.Bd -literal -offset indent
+
+    with the Invariant Sections being list their titles, with
+    the Front-Cover Texts being list, and with the Back-Cover Texts
+    being list.
+
+.Ed
+.Pp
+If you have Invariant Sections without Cover Texts, or some other combination
+of the three, merge those two alternatives to suit the situation.
+.Pp
+If your document contains nontrivial examples of program code, we recommend
+releasing these examples in parallel under your choice of free software license,
+such as the GNU General Public License, to permit their use in free software.
+.Pp
+.Sh  Translations of This Manual
+Nishio Futoshi of the GNUjdoc project has prepared a Japanese translation
+of this manual. Its most recent version can be found at
+.Lk http://openlab.ring.gr.jp/gnujdoc/cvsweb/cvsweb.cgi/gnujdoc/ .
+.Pp
+.Sh  Index

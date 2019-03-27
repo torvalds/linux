@@ -1,0 +1,140 @@
+.\"	$OpenBSD: tftp-proxy.8,v 1.1 2005/12/28 19:07:07 jcs Exp $
+.\"
+.\" Copyright (c) 2005 joshua stein <jcs@openbsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd November 28, 2005
+.Dt TFTP-PROXY 8
+.Os
+.Sh NAME
+.Nm tftp-proxy
+.Nd Internet Trivial File Transfer Protocol proxy
+.Sh SYNOPSIS
+.Nm tftp-proxy
+.Op Fl v
+.Op Fl w Ar transwait
+.Sh DESCRIPTION
+.Nm
+is a proxy for the Internet Trivial File Transfer Protocol invoked by
+the
+.Xr inetd 8
+internet server.
+TFTP connections should be redirected to the proxy using the
+.Xr pf 4
+.Ar rdr
+command, after which the proxy connects to the server on behalf of
+the client.
+.Pp
+The proxy establishes a
+.Xr pf 4
+.Ar rdr
+rule using the
+.Ar anchor
+facility to rewrite packets between the client and the server.
+Once the rule is established,
+.Nm
+forwards the initial request from the client to the server to begin the
+transfer.
+After
+.Ar transwait
+seconds, the
+.Xr pf 4
+NAT state is assumed to have been established and the
+.Ar rdr
+rule is deleted and the program exits.
+Once the transfer between the client and the server is completed, the
+NAT state will naturally expire.
+.Pp
+Assuming the TFTP command request is from $client to $server, the
+proxy connected to the server using the $proxy source address, and
+$port is negotiated,
+.Nm
+adds the following rule to the anchor:
+.Bd -literal -offset indent
+rdr proto udp from $server to $proxy port $port -\*(Gt $client
+.Ed
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl v
+Log the connection and request information to
+.Xr syslogd 8 .
+.It Fl w Ar transwait
+Number of seconds to wait for the data transmission to begin before
+removing the
+.Xr pf 4
+.Ar rdr
+rule.
+The default is 2 seconds.
+.El
+.Sh CONFIGURATION
+To make use of the proxy,
+.Xr pf.conf 5
+needs the following rules.
+The anchors are mandatory.
+Adjust the rules as needed for your configuration.
+.Pp
+In the NAT section:
+.Bd -literal -offset indent
+nat on $ext_if from $int_if -\*(Gt ($ext_if:0)
+
+no nat on $ext_if to port tftp
+
+rdr-anchor "tftp-proxy/*"
+rdr on $int_if proto udp from $lan to any port tftp -\*(Gt \e
+    127.0.0.1 port 6969
+.Ed
+.Pp
+In the filter section, an anchor must be added to hold the pass rules:
+.Bd -literal -offset indent
+anchor "tftp-proxy/*"
+.Ed
+.Pp
+.Xr inetd 8
+must be configured to spawn the proxy on the port that packets are
+being forwarded to by
+.Xr pf 4 .
+An example
+.Xr inetd.conf 5
+entry follows:
+.Bd -literal -offset indent
+127.0.0.1:6969	dgram	udp	wait	root \e
+	/usr/libexec/tftp-proxy	tftp-proxy
+.Ed
+.Sh SEE ALSO
+.Xr tftp 1 ,
+.Xr pf 4 ,
+.Xr pf.conf 5 ,
+.Xr ftp-proxy 8 ,
+.Xr inetd 8 ,
+.Xr syslogd 8 ,
+.Xr tftpd 8
+.Sh CAVEATS
+.Nm
+chroots to
+.Pa /var/empty
+and changes to user
+.Dq proxy
+to drop privileges.

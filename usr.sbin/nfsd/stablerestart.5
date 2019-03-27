@@ -1,0 +1,97 @@
+.\" Copyright (c) 2009 Rick Macklem, University of Guelph
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 10, 2011
+.Dt STABLERESTART 5
+.Os
+.Sh NAME
+.Nm nfs-stablerestart
+.Nd restart information for the
+.Tn NFSv4
+server
+.Sh SYNOPSIS
+.Nm nfs-stablerestart
+.Sh DESCRIPTION
+The
+.Nm
+file holds information that allows the
+.Tn NFSv4
+server to restart without always returning the NFSERR_NOGRACE error, as described in the
+.Tn NFSv4
+server specification; see
+.%T "Network File System (NFS) Version 4 Protocol RFC 3530, Section 8.6.3" .
+.Pp
+The first record in the file, as defined by struct nfsf_rec in
+/usr/include/fs/nfs/nfsrvstate.h, holds the lease duration of the
+last incarnation of the server and the number of boot times that follows.
+Following this are the number of previous boot times listed in the
+first record.
+The lease duration is used to set the grace period.
+The boot times
+are used to avoid the unlikely occurrence of a boot time being reused,
+due to a TOD clock going backwards. This record and the previous boot times with this boot time added is re-written at the
+end of the grace period.
+.Pp
+The rest of the file are appended records, as defined by
+struct nfst_rec in /usr/include/fs/nfs/nfsrvstate.h and are used
+represent one of two things. There are records which indicate that a
+client successfully acquired state and records that indicate a client's state was revoked.
+State revoke records indicate that state information
+for a client was discarded, due to lease expiry and an otherwise
+conflicting open or lock request being made by a different client.
+These records can be used
+to determine if clients might have done either of the
+edge conditions.
+.Pp
+If a client might have done either edge condition or this file is
+empty or corrupted, the server returns NFSERR_NOGRACE for any reclaim
+request from the client.
+.Pp
+For correct operation of the server, it must be ensured that the file
+is written to stable storage by the time a write op with IO_SYNC specified
+has returned. This might require hardware level caching to be disabled for
+a local disk drive that holds the file, or similar.
+.Sh FILES
+.Bl -tag -width /var/db/nfs-stablerestart.bak -compact
+.It Pa /var/db/nfs-stablerestart
+NFSv4 stable restart file
+.It Pa /var/db/nfs-stablerestart.bak
+backup copy of the file
+.El
+.Sh SEE ALSO
+.Xr nfsv4 4 ,
+.Xr nfsd 8
+.Sh BUGS
+If the file is empty, the NFSv4 server has no choice but to return
+NFSERR_NOGRACE for all reclaim requests. Although correct, this is
+a highly undesirable occurrence, so the file should not be lost if
+at all possible. The backup copy of the file is maintained
+and used by the
+.Xr nfsd 8
+to minimize the risk of this occurring.
+To move the file, you must edit
+the nfsd sources and recompile it. This was done to discourage
+accidental relocation of the file.

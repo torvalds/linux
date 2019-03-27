@@ -1,0 +1,562 @@
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd March 11, 2016
+.Dt PING 8
+.Os
+.Sh NAME
+.Nm ping
+.Nd send
+.Tn ICMP ECHO_REQUEST
+packets to network hosts
+.Sh SYNOPSIS
+.Nm
+.Op Fl AaDdfnoQqRrv
+.Op Fl c Ar count
+.Op Fl G Ar sweepmaxsize
+.Op Fl g Ar sweepminsize
+.Op Fl h Ar sweepincrsize
+.Op Fl i Ar wait
+.Op Fl l Ar preload
+.Op Fl M Cm mask | time
+.Op Fl m Ar ttl
+.Op Fl P Ar policy
+.Op Fl p Ar pattern
+.Op Fl S Ar src_addr
+.Op Fl s Ar packetsize
+.Op Fl t Ar timeout
+.Op Fl W Ar waittime
+.Op Fl z Ar tos
+.Ar host
+.Nm
+.Op Fl AaDdfLnoQqRrv
+.Op Fl c Ar count
+.Op Fl I Ar iface
+.Op Fl i Ar wait
+.Op Fl l Ar preload
+.Op Fl M Cm mask | time
+.Op Fl m Ar ttl
+.Op Fl P Ar policy
+.Op Fl p Ar pattern
+.Op Fl S Ar src_addr
+.Op Fl s Ar packetsize
+.Op Fl T Ar ttl
+.Op Fl t Ar timeout
+.Op Fl W Ar waittime
+.Op Fl z Ar tos
+.Ar mcast-group
+.Sh DESCRIPTION
+The
+.Nm
+utility uses the
+.Tn ICMP
+.No protocol Ap s mandatory
+.Tn ECHO_REQUEST
+datagram to elicit an
+.Tn ICMP ECHO_RESPONSE
+from a host or gateway.
+.Tn ECHO_REQUEST
+datagrams
+.Pq Dq pings
+have an IP and
+.Tn ICMP
+header, followed by a
+.Dq struct timeval
+and then an arbitrary number of
+.Dq pad
+bytes used to fill out the packet.
+The options are as follows:
+.Bl -tag -width indent
+.It Fl A
+Audible.
+Output a bell
+.Tn ( ASCII
+0x07)
+character when no packet is received before the next packet
+is transmitted.
+To cater for round-trip times that are longer than the interval
+between transmissions, further missing packets cause a bell only
+if the maximum number of unreceived packets has increased.
+.It Fl a
+Audible.
+Include a bell
+.Tn ( ASCII
+0x07)
+character in the output when any packet is received.
+This option is ignored
+if other format options are present.
+.It Fl c Ar count
+Stop after sending
+(and receiving)
+.Ar count
+.Tn ECHO_RESPONSE
+packets.
+If this option is not specified,
+.Nm
+will operate until interrupted.
+If this option is specified in conjunction with ping sweeps,
+each sweep will consist of
+.Ar count
+packets.
+.It Fl D
+Set the Don't Fragment bit.
+.It Fl d
+Set the
+.Dv SO_DEBUG
+option on the socket being used.
+.It Fl f
+Flood ping.
+Outputs packets as fast as they come back or one hundred times per second,
+whichever is more.
+For every
+.Tn ECHO_REQUEST
+sent a period
+.Dq .\&
+is printed, while for every
+.Tn ECHO_REPLY
+received a backspace is printed.
+This provides a rapid display of how many packets are being dropped.
+Only the super-user may use this option.
+.Bf -emphasis
+This can be very hard on a network and should be used with caution.
+.Ef
+.It Fl G Ar sweepmaxsize
+Specify the maximum size of
+.Tn ICMP
+payload when sending sweeping pings.
+This option is required for ping sweeps.
+.It Fl g Ar sweepminsize
+Specify the size of
+.Tn ICMP
+payload to start with when sending sweeping pings.
+The default value is 0.
+.It Fl h Ar sweepincrsize
+Specify the number of bytes to increment the size of
+.Tn ICMP
+payload after
+each sweep when sending sweeping pings.
+The default value is 1.
+.It Fl I Ar iface
+Source multicast packets with the given interface address.
+This flag only applies if the ping destination is a multicast address.
+.It Fl i Ar wait
+Wait
+.Ar wait
+seconds
+.Em between sending each packet .
+The default is to wait for one second between each packet.
+The wait time may be fractional, but only the super-user may specify
+values less than 1 second.
+This option is incompatible with the
+.Fl f
+option.
+.It Fl L
+Suppress loopback of multicast packets.
+This flag only applies if the ping destination is a multicast address.
+.It Fl l Ar preload
+If
+.Ar preload
+is specified,
+.Nm
+sends that many packets as fast as possible before falling into its normal
+mode of behavior.
+Only the super-user may use this option.
+.It Fl M Cm mask | time
+Use
+.Dv ICMP_MASKREQ
+or
+.Dv ICMP_TSTAMP
+instead of
+.Dv ICMP_ECHO .
+For
+.Cm mask ,
+print the netmask of the remote machine.
+Set the
+.Va net.inet.icmp.maskrepl
+MIB variable to enable
+.Dv ICMP_MASKREPLY
+and
+.Va net.inet.icmp.maskfake
+if you want to override the netmask in the response.
+For
+.Cm time ,
+print the origination, reception and transmission timestamps.
+Set the
+.Va net.inet.icmp.tstamprepl
+MIB variable to enable or disable
+.Dv ICMP_TSTAMPREPLY .
+.It Fl m Ar ttl
+Set the IP Time To Live for outgoing packets.
+If not specified, the kernel uses the value of the
+.Va net.inet.ip.ttl
+MIB variable.
+.It Fl n
+Numeric output only.
+No attempt will be made to lookup symbolic names for host addresses.
+.It Fl o
+Exit successfully after receiving one reply packet.
+.It Fl P Ar policy
+.Ar policy
+specifies IPsec policy for the ping session.
+For details please refer to
+.Xr ipsec 4
+and
+.Xr ipsec_set_policy 3 .
+.It Fl p Ar pattern
+You may specify up to 16
+.Dq pad
+bytes to fill out the packet you send.
+This is useful for diagnosing data-dependent problems in a network.
+For example,
+.Dq Li \-p ff
+will cause the sent packet to be filled with all
+ones.
+.It Fl Q
+Somewhat quiet output.
+.No Don Ap t
+display ICMP error messages that are in response to our query messages.
+Originally, the
+.Fl v
+flag was required to display such errors, but
+.Fl v
+displays all ICMP error messages.
+On a busy machine, this output can be overbearing.
+Without the
+.Fl Q
+flag,
+.Nm
+prints out any ICMP error messages caused by its own ECHO_REQUEST
+messages.
+.It Fl q
+Quiet output.
+Nothing is displayed except the summary lines at startup time and
+when finished.
+.It Fl R
+Record route.
+Includes the
+.Tn RECORD_ROUTE
+option in the
+.Tn ECHO_REQUEST
+packet and displays
+the route buffer on returned packets.
+Note that the IP header is only large enough for nine such routes;
+the
+.Xr traceroute 8
+command is usually better at determining the route packets take to a
+particular destination.
+If more routes come back than should, such as due to an illegal spoofed
+packet, ping will print the route list and then truncate it at the correct
+spot.
+Many hosts ignore or discard the
+.Tn RECORD_ROUTE
+option.
+.It Fl r
+Bypass the normal routing tables and send directly to a host on an attached
+network.
+If the host is not on a directly-attached network, an error is returned.
+This option can be used to ping a local host through an interface
+that has no route through it
+(e.g., after the interface was dropped by
+.Xr routed 8 ) .
+.It Fl S Ar src_addr
+Use the following IP address as the source address in outgoing packets.
+On hosts with more than one IP address, this option can be used to
+force the source address to be something other than the IP address
+of the interface the probe packet is sent on.
+If the IP address
+is not one of this machine's interface addresses, an error is
+returned and nothing is sent.
+.It Fl s Ar packetsize
+Specify the number of data bytes to be sent.
+The default is 56, which translates into 64
+.Tn ICMP
+data bytes when combined
+with the 8 bytes of
+.Tn ICMP
+header data.
+Only the super-user may specify values more than default.
+This option cannot be used with ping sweeps.
+.It Fl T Ar ttl
+Set the IP Time To Live for multicasted packets.
+This flag only applies if the ping destination is a multicast address.
+.It Fl t Ar timeout
+Specify a timeout, in seconds, before ping exits regardless of how
+many packets have been received.
+.It Fl v
+Verbose output.
+.Tn ICMP
+packets other than
+.Tn ECHO_RESPONSE
+that are received are listed.
+.It Fl W Ar waittime
+Time in milliseconds to wait for a reply for each packet sent.
+If a reply arrives later, the packet is not printed as replied, but
+considered as replied when calculating statistics.
+.It Fl z Ar tos
+Use the specified type of service.
+.El
+.Pp
+When using
+.Nm
+for fault isolation, it should first be run on the local host, to verify
+that the local network interface is up and running.
+Then, hosts and gateways further and further away should be
+.Dq pinged .
+Round-trip times and packet loss statistics are computed.
+If duplicate packets are received, they are not included in the packet
+loss calculation, although the round trip time of these packets is used
+in calculating the round-trip time statistics.
+When the specified number of packets have been sent
+(and received)
+or if the program is terminated with a
+.Dv SIGINT ,
+a brief summary is displayed, showing the number of packets sent and
+received, and the minimum, mean, maximum, and standard deviation of
+the round-trip times.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+(see the
+.Cm status
+argument for
+.Xr stty 1 )
+signal, the current number of packets sent and received, and the
+minimum, mean, and maximum of the round-trip times will be written to
+the standard error output.
+.Pp
+This program is intended for use in network testing, measurement and
+management.
+Because of the load it can impose on the network, it is unwise to use
+.Nm
+during normal operations or from automated scripts.
+.Sh ICMP PACKET DETAILS
+An IP header without options is 20 bytes.
+An
+.Tn ICMP
+.Tn ECHO_REQUEST
+packet contains an additional 8 bytes worth of
+.Tn ICMP
+header followed by an arbitrary amount of data.
+When a
+.Ar packetsize
+is given, this indicated the size of this extra piece of data
+(the default is 56).
+Thus the amount of data received inside of an IP packet of type
+.Tn ICMP
+.Tn ECHO_REPLY
+will always be 8 bytes more than the requested data space
+(the
+.Tn ICMP
+header).
+.Pp
+If the data space is at least eight bytes large,
+.Nm
+uses the first eight bytes of this space to include a timestamp which
+it uses in the computation of round trip times.
+If less than eight bytes of pad are specified, no round trip times are
+given.
+.Sh DUPLICATE AND DAMAGED PACKETS
+The
+.Nm
+utility will report duplicate and damaged packets.
+Duplicate packets should never occur when pinging a unicast address,
+and seem to be caused by
+inappropriate link-level retransmissions.
+Duplicates may occur in many situations and are rarely
+(if ever)
+a good sign, although the presence of low levels of duplicates may not
+always be cause for alarm.
+Duplicates are expected when pinging a broadcast or multicast address,
+since they are not really duplicates but replies from different hosts
+to the same request.
+.Pp
+Damaged packets are obviously serious cause for alarm and often
+indicate broken hardware somewhere in the
+.Nm
+packet's path (in the network or in the hosts).
+.Sh TRYING DIFFERENT DATA PATTERNS
+The
+(inter)network
+layer should never treat packets differently depending on the data
+contained in the data portion.
+Unfortunately, data-dependent problems have been known to sneak into
+networks and remain undetected for long periods of time.
+In many cases the particular pattern that will have problems is something
+that does not have sufficient
+.Dq transitions ,
+such as all ones or all zeros, or a pattern right at the edge, such as
+almost all zeros.
+It is not
+necessarily enough to specify a data pattern of all zeros (for example)
+on the command line because the pattern that is of interest is
+at the data link level, and the relationship between what you type and
+what the controllers transmit can be complicated.
+.Pp
+This means that if you have a data-dependent problem you will probably
+have to do a lot of testing to find it.
+If you are lucky, you may manage to find a file that either
+cannot
+be sent across your network or that takes much longer to transfer than
+other similar length files.
+You can then examine this file for repeated patterns that you can test
+using the
+.Fl p
+option of
+.Nm .
+.Sh TTL DETAILS
+The
+.Tn TTL
+value of an IP packet represents the maximum number of IP routers
+that the packet can go through before being thrown away.
+In current practice you can expect each router in the Internet to decrement
+the
+.Tn TTL
+field by exactly one.
+.Pp
+The
+.Tn TCP/IP
+specification recommends setting the
+.Tn TTL
+field for
+.Tn IP
+packets to 64, but many systems use smaller values
+.No ( Bx 4.3
+uses 30,
+.Bx 4.2
+used 15).
+.Pp
+The maximum possible value of this field is 255, and most
+.Ux
+systems set
+the
+.Tn TTL
+field of
+.Tn ICMP ECHO_REQUEST
+packets to 255.
+This is why you will find you can
+.Dq ping
+some hosts, but not reach them with
+.Xr telnet 1
+or
+.Xr ftp 1 .
+.Pp
+In normal operation
+.Nm
+prints the ttl value from the packet it receives.
+When a remote system receives a ping packet, it can do one of three things
+with the
+.Tn TTL
+field in its response:
+.Bl -bullet
+.It
+Not change it; this is what
+.Bx
+systems did before the
+.Bx 4.3 tahoe
+release.
+In this case the
+.Tn TTL
+value in the received packet will be 255 minus the
+number of routers in the round-trip path.
+.It
+Set it to 255; this is what current
+.Bx
+systems do.
+In this case the
+.Tn TTL
+value in the received packet will be 255 minus the
+number of routers in the path
+.Em from
+the remote system
+.Em to
+the
+.Nm Ns Em ing
+host.
+.It
+Set it to some other value.
+Some machines use the same value for
+.Tn ICMP
+packets that they use for
+.Tn TCP
+packets, for example either 30 or 60.
+Others may use completely wild values.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Bl -tag -width indent
+.It 0
+At least one response was heard from the specified
+.Ar host .
+.It 2
+The transmission was successful but no responses were received.
+.It any other value
+An error occurred.
+These values are defined in
+.In sysexits.h .
+.El
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr icmp 4 ,
+.Xr ifconfig 8 ,
+.Xr routed 8 ,
+.Xr traceroute 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.3 .
+.Sh AUTHORS
+The original
+.Nm
+utility was written by
+.An Mike Muuss
+while at the US Army Ballistics
+Research Laboratory.
+.Sh BUGS
+Many Hosts and Gateways ignore the
+.Tn RECORD_ROUTE
+option.
+.Pp
+The maximum IP header length is too small for options like
+.Tn RECORD_ROUTE
+to be completely useful.
+.No There Ap s
+not much that can be done about this, however.
+.Pp
+Flood pinging is not recommended in general, and flood pinging the
+broadcast address should only be done under very controlled conditions.
+.Pp
+The
+.Fl v
+option is not worth much on busy hosts.

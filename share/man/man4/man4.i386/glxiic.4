@@ -1,0 +1,106 @@
+.\" Copyright (c) 2011 Henrik Brix Andersen <brix@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 15, 2011
+.Dt GLXIIC 4 i386
+.Os
+.Sh NAME
+.Nm glxiic
+.Nd Geode LX CS5536 I2C controller driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device isa"
+.Cd "device glxiic"
+.Cd "device iicbus"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+glxiic_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the System Management Bus controller of the Geode LX
+series CS5536 Companion Device.  The Geode LX is a member of the AMD
+Geode family of integrated x86 system chips.
+.Pp
+Although AMD refers to this device as a System Management Bus (SMBus)
+controller, it is really an I2C controller (it lacks SMBus ALERT# and
+Alert Response support).
+.Pp
+The
+.Nm
+driver supports both I2C master and slave mode.
+.Sh SYSCTL VARIABLE
+The
+.Nm
+driver supports the following variable as both
+.Xr sysctl 8
+and
+.Xr loader 8
+tunable:
+.Bl -tag -width indent
+.It Va dev.glxiic.0.timeout
+This variable controls the I2C bus timeout in milliseconds.  The
+default timeout is 35 milliseconds.  A value of zero disables the
+timeout.
+.El
+.Sh CAVEAT
+The
+.Nm
+driver uses the interrupt line number configured by the board firmware
+by default.  If no interrupt line number has been configured by the
+board firmware (or to override the interrupt line number configured by
+board firmware), place the following line in
+.Xr device.hints 5 :
+.Bd -ragged -offset indent
+hint.glxiic.0.irq="10"
+.Ed
+.Pp
+The interrupt line number must be between 1 and 15.
+.Sh SEE ALSO
+.Xr iicbus 4 ,
+.Xr device.hints 5 ,
+.Xr loader.conf 5 ,
+.Xr loader 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+device driver and manual page first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver and manual page were written by
+.An Henrik Brix Andersen Aq Mt brix@FreeBSD.org .

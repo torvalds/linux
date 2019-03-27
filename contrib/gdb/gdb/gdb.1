@@ -1,0 +1,381 @@
+.\" Copyright 1991, 1999 Free Software Foundation, Inc.
+.\" See section COPYING for conditions for redistribution
+.\" $Id: gdb.1,v 1.4 1999/01/05 00:50:50 jsm Exp $
+.TH gdb 1 "22may2002" "GNU Tools" "GNU Tools"
+.SH NAME
+gdb \- The GNU Debugger
+.SH SYNOPSIS
+.na
+.TP
+.B gdb
+.RB "[\|" \-help "\|]"
+.RB "[\|" \-nx "\|]"
+.RB "[\|" \-q "\|]"
+.RB "[\|" \-batch "\|]"
+.RB "[\|" \-cd=\c
+.I dir\c
+\|]
+.RB "[\|" \-f "\|]"
+.RB "[\|" "\-b\ "\c
+.IR bps "\|]"
+.RB "[\|" "\-tty="\c
+.IR dev "\|]"
+.RB "[\|" "\-s "\c
+.I symfile\c
+\&\|]
+.RB "[\|" "\-e "\c
+.I prog\c
+\&\|]  
+.RB "[\|" "\-se "\c
+.I prog\c
+\&\|]
+.RB "[\|" "\-c "\c
+.I core\c
+\&\|]
+.RB "[\|" "\-x "\c
+.I cmds\c
+\&\|]
+.RB "[\|" "\-d "\c
+.I dir\c
+\&\|]
+.RB "[\|" \c
+.I prog\c
+.RB "[\|" \c
+.IR core \||\| procID\c
+\&\|]\&\|]
+.ad b
+.SH DESCRIPTION
+The purpose of a debugger such as GDB is to allow you to see what is
+going on ``inside'' another program while it executes\(em\&or what another
+program was doing at the moment it crashed.
+
+GDB can do four main kinds of things (plus other things in support of
+these) to help you catch bugs in the act:
+
+.TP
+\ \ \ \(bu
+Start your program, specifying anything that might affect its behavior.
+
+.TP
+\ \ \ \(bu
+Make your program stop on specified conditions.
+
+.TP
+\ \ \ \(bu
+Examine what has happened, when your program has stopped.
+
+.TP
+\ \ \ \(bu
+Change things in your program, so you can experiment with correcting the
+effects of one bug and go on to learn about another.
+.PP
+
+You can use GDB to debug programs written in C, C++, and Modula-2.
+Fortran support will be added when a GNU Fortran compiler is ready.
+
+GDB is invoked with the shell command \c
+.B gdb\c
+\&.  Once started, it reads
+commands from the terminal until you tell it to exit with the GDB
+command \c
+.B quit\c
+\&.  You can get online help from \c
+.B gdb\c
+\& itself
+by using the command \c
+.B help\c
+\&.
+
+You can run \c
+.B gdb\c
+\& with no arguments or options; but the most
+usual way to start GDB is with one argument or two, specifying an
+executable program as the argument:
+.sp
+.br
+gdb\ program
+.br
+.sp
+
+You can also start with both an executable program and a core file specified:
+.sp
+.br
+gdb\ program\ core
+.br
+.sp
+
+You can, instead, specify a process ID as a second argument, if you want
+to debug a running process:
+.sp
+.br
+gdb\ program\ 1234
+.br
+.sp
+
+would attach GDB to process \c
+.B 1234\c
+\& (unless you also have a file
+named `\|\c
+.B 1234\c
+\&\|'; GDB does check for a core file first).
+
+Here are some of the most frequently needed GDB commands:
+.TP
+.B break \fR[\|\fIfile\fB:\fR\|]\fIfunction
+\&
+Set a breakpoint at \c
+.I function\c
+\& (in \c
+.I file\c
+\&).
+.TP
+.B run \fR[\|\fIarglist\fR\|]
+Start your program (with \c
+.I arglist\c
+\&, if specified).
+.TP
+.B bt
+Backtrace: display the program stack.
+.TP
+.BI print " expr"\c
+\&
+Display the value of an expression.
+.TP
+.B c
+Continue running your program (after stopping, e.g. at a breakpoint).
+.TP
+.B next
+Execute next program line (after stopping); step \c
+.I over\c
+\& any
+function calls in the line.
+.TP
+.B edit \fR[\|\fIfile\fB:\fR\|]\fIfunction
+look at the program line where it is presently stopped.
+.TP
+.B list \fR[\|\fIfile\fB:\fR\|]\fIfunction
+type the text of the program in the vicinity of where it is presently stopped.
+.TP
+.B step
+Execute next program line (after stopping); step \c
+.I into\c
+\& any
+function calls in the line.
+.TP
+.B help \fR[\|\fIname\fR\|]
+Show information about GDB command \c
+.I name\c
+\&, or general information
+about using GDB.
+.TP
+.B quit
+Exit from GDB.
+.PP
+For full details on GDB, see \c
+.I 
+Using GDB: A Guide to the GNU Source-Level Debugger\c
+\&, by Richard M. Stallman and Roland H. Pesch.  The same text is available online
+as the \c
+.B gdb\c
+\& entry in the \c
+.B info\c
+\& program.
+.SH OPTIONS
+Any arguments other than options specify an executable
+file and core file (or process ID); that is, the first argument
+encountered with no 
+associated option flag is equivalent to a `\|\c
+.B \-se\c
+\&\|' option, and the
+second, if any, is equivalent to a `\|\c
+.B \-c\c
+\&\|' option if it's the name of a file.  Many options have
+both long and short forms; both are shown here.  The long forms are also
+recognized if you truncate them, so long as enough of the option is
+present to be unambiguous.  (If you prefer, you can flag option
+arguments with `\|\c
+.B +\c
+\&\|' rather than `\|\c
+.B \-\c
+\&\|', though we illustrate the
+more usual convention.)
+
+All the options and command line arguments you give are processed
+in sequential order.  The order makes a difference when the
+`\|\c
+.B \-x\c
+\&\|' option is used.
+
+.TP
+.B \-help
+.TP
+.B \-h
+List all options, with brief explanations.
+
+.TP
+.BI "\-symbols=" "file"\c
+.TP
+.BI "\-s " "file"\c
+\&
+Read symbol table from file \c
+.I file\c
+\&.
+
+.TP
+.B \-write
+Enable writing into executable and core files.
+
+.TP
+.BI "\-exec=" "file"\c
+.TP
+.BI "\-e " "file"\c
+\&
+Use file \c
+.I file\c
+\& as the executable file to execute when
+appropriate, and for examining pure data in conjunction with a core
+dump.
+
+.TP
+.BI "\-se=" "file"\c
+\&
+Read symbol table from file \c
+.I file\c
+\& and use it as the executable
+file.
+
+.TP
+.BI "\-core=" "file"\c
+.TP
+.BI "\-c " "file"\c
+\&
+Use file \c
+.I file\c
+\& as a core dump to examine.
+
+.TP
+.BI "\-command=" "file"\c
+.TP
+.BI "\-x " "file"\c
+\&
+Execute GDB commands from file \c
+.I file\c
+\&.  
+
+.TP
+.BI "\-directory=" "directory"\c
+.TP
+.BI "\-d " "directory"\c
+\&
+Add \c
+.I directory\c
+\& to the path to search for source files.
+.PP
+
+.TP
+.B \-nx
+.TP
+.B \-n
+Do not execute commands from any `\|\c
+.B .gdbinit\c
+\&\|' initialization files.
+Normally, the commands in these files are executed after all the
+command options and arguments have been processed.
+
+
+.TP
+.B \-quiet
+.TP
+.B \-q
+``Quiet''.  Do not print the introductory and copyright messages.  These
+messages are also suppressed in batch mode.
+
+.TP
+.B \-batch
+Run in batch mode.  Exit with status \c
+.B 0\c
+\& after processing all the command
+files specified with `\|\c
+.B \-x\c
+\&\|' (and `\|\c
+.B .gdbinit\c
+\&\|', if not inhibited).
+Exit with nonzero status if an error occurs in executing the GDB
+commands in the command files.
+
+Batch mode may be useful for running GDB as a filter, for example to
+download and run a program on another computer; in order to make this
+more useful, the message
+.sp
+.br
+Program\ exited\ normally.
+.br
+.sp
+
+(which is ordinarily issued whenever a program running under GDB control
+terminates) is not issued when running in batch mode.
+
+.TP
+.BI "\-cd=" "directory"\c
+\&
+Run GDB using \c
+.I directory\c
+\& as its working directory,
+instead of the current directory.
+
+.TP
+.B \-fullname
+.TP
+.B \-f
+Emacs sets this option when it runs GDB as a subprocess.  It tells GDB
+to output the full file name and line number in a standard,
+recognizable fashion each time a stack frame is displayed (which
+includes each time the program stops).  This recognizable format looks
+like two `\|\c
+.B \032\c
+\&\|' characters, followed by the file name, line number
+and character position separated by colons, and a newline.  The
+Emacs-to-GDB interface program uses the two `\|\c
+.B \032\c
+\&\|' characters as
+a signal to display the source code for the frame.
+
+.TP
+.BI "\-b " "bps"\c
+\&
+Set the line speed (baud rate or bits per second) of any serial
+interface used by GDB for remote debugging.
+
+.TP
+.BI "\-tty=" "device"\c
+\&
+Run using \c
+.I device\c
+\& for your program's standard input and output.
+.PP
+
+.SH "SEE ALSO"
+.RB "`\|" gdb "\|'"
+entry in
+.B info\c
+\&;
+.I 
+Using GDB: A Guide to the GNU Source-Level Debugger\c
+, Richard M. Stallman and Roland H. Pesch, July 1991.
+.SH COPYING
+Copyright (c) 1991 Free Software Foundation, Inc.
+.PP
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+.PP
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+.PP
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.

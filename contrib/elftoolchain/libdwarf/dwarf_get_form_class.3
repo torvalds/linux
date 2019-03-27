@@ -1,0 +1,87 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_form_class.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd June 26, 2011
+.Dt DWARF_GET_FORM_CLASS 3
+.Os
+.Sh NAME
+.Nm dwarf_get_form_class
+.Nd retrieve the form class of an attribute
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft enum Dwarf_Form_Class
+.Fo dwarf_get_form_class
+.Fa "Dwarf_Half dwversion"
+.Fa "Dwarf_Half attr"
+.Fa "Dwarf_Half offset_size"
+.Fa "Dwarf_Half form"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_get_form_class
+returns the class of the form of a DWARF attribute.
+.Pp
+Argument
+.Ar dwversion
+should specify the version number of DWARF specification
+to use: 2 for DWARF2, 3 for DWARF3 and 4 for DWARF4.
+.Pp
+Argument
+.Ar attr
+should hold the attribute code of the attribute, i.e., one of the
+.Li DW_AT_*
+values defined in
+.In libdwarf.h .
+.Pp
+Argument
+.Ar offset_size
+should hold the size of a DWARF offset for the relevant compilation
+unit.
+.Pp
+Argument
+.Ar form
+should hold the form code of the attribute.
+.Sh RETURN VALUES
+On success, function
+.Fn dwarf_get_form_class
+returns the form class code, which is one of the
+.Dv DW_FORM_CLASS_*
+contants defined in header file
+.In libdwarf.h .
+If the function was not able to determine the form class of the
+attribute, it returns the special form class code
+.Dv DW_FORM_CLASS_UNKNOWN .
+.Sh ERRORS
+Function
+.Fn dwarf_get_form_class
+does not return an error.
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_attr 3 ,
+.Xr dwarf_whatattr 3 ,
+.Xr dwarf_whatform 3

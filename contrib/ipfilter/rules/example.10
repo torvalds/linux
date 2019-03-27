@@ -1,0 +1,12 @@
+#
+# pass ack packets (ie established connection)
+#
+pass in proto tcp from 10.1.0.0/16 port = 23 to 10.2.0.0/16 flags A/A
+pass out proto tcp from 10.1.0.0/16 port = 23 to 10.2.0.0/16 flags A/A
+#
+# block incoming connection requests to my internal network from the big bad
+# internet.
+#
+block in on le0 proto tcp from any to 10.1.0.0/16 flags S/SA
+#  to block the replies:
+block out on le0 proto tcp from 10.1.0.0 to any flags SA/SA

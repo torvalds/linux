@@ -1,0 +1,36 @@
+@(#) BLURB 1.28 97/03/21 19:27:18
+
+With this package you can monitor and filter incoming requests for the
+SYSTAT, FINGER, FTP, TELNET, RLOGIN, RSH, EXEC, TFTP, TALK, and other
+network services.
+
+The package provides tiny daemon wrapper programs that can be installed
+without any changes to existing software or to existing configuration
+files.  The wrappers report the name of the client host and of the
+requested service; the wrappers do not exchange information with the
+client or server applications, and impose no overhead on the actual
+conversation between the client and server applications.
+
+This patch upgrades the tcp wrappers version 7.5 source code to
+version 7.6.  The source-routing protection in version 7.5 was not
+as strong as it could be. And all this effort was not needed with
+modern UNIX systems that can already stop source-routed traffic in
+the kernel. Examples are 4.4BSD derivatives, Solaris 2.x, and Linux.
+
+This release does not introduce new features. Do not bother applying
+this patch when you built your version 7.x tcp wrapper without
+enabling the KILL_IP_OPTIONS compiler switch; when you can disable
+IP source routing options in the kernel; when you run a UNIX version
+that pre-dates 4.4BSD, such as SunOS 4. Such systems are unable to
+receive source-routed connections and are therefore not vulnerable
+to IP spoofing attacks with source-routed TCP connections.
+
+A complete change log is given in the CHANGES document.  As always,
+problem reports and suggestions for improvement are welcome.
+
+	Wietse Venema (wietse@wzv.win.tue.nl),
+	Department of Mathematics and Computing Science,
+	Eindhoven University of Technology,
+	The Netherlands.
+
+	Currently visiting IBM T.J. Watson Research, Hawthorne NY, USA.

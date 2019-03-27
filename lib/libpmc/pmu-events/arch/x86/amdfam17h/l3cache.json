@@ -1,0 +1,5411 @@
+[
+ {
+  "EventName": "l3_request_g1.t0.s0.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses ",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s0.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s0.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s0.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t4.s0.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t5.s0.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s0.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+
+ {
+  "EventName": "l3_request_g1.t7.s0.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t0.s1.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s1.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s1.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s1.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t4.s1.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t5.s1.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s1.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t7.s1.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t0.s2.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s2.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s2.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s2.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t4.s2.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t5.s2.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s2.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+
+ {
+  "EventName": "l3_request_g1.t7.s2.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t0.s3.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s3.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s3.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s3.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t4.s3.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t5.s3.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s3.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t7.s3.wrsizednc",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3_request_g1.t0.s0.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s0.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s0.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s0.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+   {
+  "EventName": "l3_request_g1.t4.s0.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t5.s0.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s0.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t7.s0.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t0.s1.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s1.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s1.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s1.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+   {
+  "EventName": "l3_request_g1.t4.s1.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t5.s1.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s1.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t7.s1.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t0.s2.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s2.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s2.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s2.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+   {
+  "EventName": "l3_request_g1.t4.s2.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t5.s2.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s2.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t7.s2.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t0.s3.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s3.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s3.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s3.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+   {
+  "EventName": "l3_request_g1.t4.s3.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t5.s3.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s3.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t7.s3.wrsized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3_request_g1.t0.s0.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s0.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s0.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s0.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t4.s0.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t5.s0.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s0.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t7.s0.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t0.s1.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s1.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s1.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s1.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t4.s1.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t5.s1.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s1.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t7.s1.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+
+{
+  "EventName": "l3_request_g1.t0.s2.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s2.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s2.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s2.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t4.s2.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t5.s2.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s2.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t7.s2.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+
+{
+  "EventName": "l3_request_g1.t0.s3.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s3.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s3.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s3.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t4.s3.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t5.s3.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s3.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t7.s3.RdSizedNC",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3_request_g1.t0.s0.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s0.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s0.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s0.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t4.s0.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {  
+  "EventName": "l3_request_g1.t5.s0.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s0.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t7.s0.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t0.s1.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s1.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s1.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s1.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t4.s1.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {  
+  "EventName": "l3_request_g1.t5.s1.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s1.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t7.s1.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+
+{
+  "EventName": "l3_request_g1.t0.s2.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s2.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s2.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s2.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t4.s2.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {  
+  "EventName": "l3_request_g1.t5.s2.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s2.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t7.s2.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+
+{
+  "EventName": "l3_request_g1.t0.s3.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s3.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t2.s3.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t3.s3.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t4.s3.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {  
+  "EventName": "l3_request_g1.t5.s3.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t6.s3.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t7.s3.RdSized",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3_request_g1.t0.s0.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s0.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t2.s0.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t3.s0.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t4.s0.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t5.s0.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t6.s0.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t7.s0.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3_request_g1.t0.s1.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s1.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t2.s1.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t3.s1.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t4.s1.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t5.s1.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t6.s1.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t7.s1.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+
+{
+  "EventName": "l3_request_g1.t0.s2.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s2.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t2.s2.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t3.s2.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t4.s2.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t5.s2.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t6.s2.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t7.s2.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+
+{
+  "EventName": "l3_request_g1.t0.s3.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3_request_g1.t1.s3.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t2.s3.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t3.s3.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t4.s3.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t5.s3.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t6.s3.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+{
+  "EventName": "l3_request_g1.t7.s3.caching",
+  "EventCode": "0x01",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Cache Accesses",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s0.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s0.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s0.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ { 
+  "EventName": "l3fillvicreq.t3.s0.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s0.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s0.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s0.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s0.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ 
+ {
+  "EventName": "l3fillvicreq.t0.s1.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s1.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s1.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ { 
+  "EventName": "l3fillvicreq.t3.s1.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s1.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s1.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s1.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s1.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+
+
+ {
+  "EventName": "l3fillvicreq.t0.s2.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s2.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s2.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ { 
+  "EventName": "l3fillvicreq.t3.s2.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s2.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s2.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s2.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s2.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s3.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s3.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s3.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ { 
+  "EventName": "l3fillvicreq.t3.s3.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s3.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s3.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s3.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s3.vicblk",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s0.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s0.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s0.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s0.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s0.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s0.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s0.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s0.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ 
+ {
+  "EventName": "l3fillvicreq.t0.s1.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s1.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s1.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s1.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s1.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s1.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s1.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s1.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s2.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s2.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s2.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s2.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s2.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s2.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s2.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s2.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s3.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s3.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s3.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s3.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s3.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s3.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s3.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s3.chgtox",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s0.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s0.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s0.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s0.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s0.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s0.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s0.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s0.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ 
+ {
+  "EventName": "l3fillvicreq.t0.s1.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s1.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s1.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s1.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s1.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s1.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s1.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s1.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s2.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s2.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s2.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s2.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s2.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s2.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s2.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s2.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s3.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s3.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s3.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s3.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s3.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s3.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s3.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s3.rdblkc_s_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s0.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s0.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s0.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s0.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s0.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s0.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s0.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s0.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ 
+ {
+  "EventName": "l3fillvicreq.t0.s1.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s1.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s1.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s1.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s1.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s1.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s1.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s1.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s2.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s2.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s2.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s2.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s2.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s2.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s2.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s2.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s3.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s3.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s3.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s3.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s3.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s3.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s3.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s3.rdblkc_s",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s0.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s0.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s0.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s0.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s0.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s0.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s0.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s0.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ 
+ {
+  "EventName": "l3fillvicreq.t0.s1.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s1.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s1.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s1.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s1.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s1.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s1.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s1.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s2.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s2.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s2.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s2.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s2.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s2.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s2.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s2.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s3.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s3.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s3.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s3.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s3.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s3.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s3.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s3.rdblkx_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s0.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s0.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s0.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s0.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s0.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s0.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s0.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s0.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ 
+ {
+  "EventName": "l3fillvicreq.t0.s1.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s1.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s1.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s1.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s1.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s1.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s1.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s1.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s2.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s2.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s2.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s2.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s2.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s2.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s2.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s2.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s3.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s3.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s3.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s3.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s3.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s3.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s3.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s3.rdblkx",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s0.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s0.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s0.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s0.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s0.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s0.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s0.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s0.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ 
+ {
+  "EventName": "l3fillvicreq.t0.s1.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s1.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s1.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s1.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s1.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s1.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s1.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s1.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s2.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s2.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s2.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s2.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s2.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s2.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s2.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s2.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s3.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s3.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s3.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s3.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s3.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s3.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s3.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s3.rdblkl_vic",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s0.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s0.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s0.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s0.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s0.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s0.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s0.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s0.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ 
+ {
+  "EventName": "l3fillvicreq.t0.s1.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s1.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s1.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s1.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s1.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s1.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s1.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s1.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s2.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s2.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s2.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s2.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s2.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s2.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s2.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s2.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t0.s3.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t1.s3.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t2.s3.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t3.s3.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t4.s3.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t5.s3.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t6.s3.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3fillvicreq.t7.s3.rdblkl",
+  "EventCode": "0x03",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 cache access types",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3combclstrstate",
+  "EventCode": "0x06",
+  "BriefDescription": "L3 Cache Performance Monitor Counters RequestMiss: L3 miss",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t0.s0.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t1.s0.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t2.s0.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t3.s0.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t4.s0.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t5.s0.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t6.s0.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t7.s0.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x01"
+ },
+ 
+ {
+  "EventName": "l3victimstate.t0.s1.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t1.s1.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t2.s1.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t3.s1.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t4.s1.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t5.s1.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t6.s1.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t7.s1.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t0.s2.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t1.s2.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t2.s2.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t3.s2.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t4.s2.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t5.s2.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t6.s2.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t7.s2.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t0.s3.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t1.s3.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t2.s3.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t3.s3.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t4.s3.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t5.s3.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t6.s3.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t7.s3.nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x01"
+ },
+ {
+  "EventName": "l3victimstate.t0.s0.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t1.s0.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t2.s0.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t3.s0.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t4.s0.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t5.s0.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t6.s0.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t7.s0.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x02"
+ },
+ 
+ {
+  "EventName": "l3victimstate.t0.s1.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t1.s1.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t2.s1.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t3.s1.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t4.s1.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t5.s1.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t6.s1.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t7.s1.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t0.s2.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t1.s2.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t2.s2.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t3.s2.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t4.s2.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t5.s2.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t6.s2.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t7.s2.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t0.s3.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t1.s3.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t2.s3.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t3.s3.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t4.s3.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t5.s3.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t6.s3.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t7.s3.none_nol3victimline",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x02"
+ },
+ {
+  "EventName": "l3victimstate.t0.s0.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t1.s0.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t2.s0.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t3.s0.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t4.s0.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t5.s0.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t6.s0.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t7.s0.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x04"
+ },
+ 
+ {
+  "EventName": "l3victimstate.t0.s1.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t1.s1.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t2.s1.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t3.s1.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t4.s1.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t5.s1.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t6.s1.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t7.s1.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t0.s2.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t1.s2.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t2.s2.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t3.s2.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t4.s2.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t5.s2.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t6.s2.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t7.s2.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t0.s3.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t1.s3.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t2.s3.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t3.s3.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t4.s3.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t5.s3.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t6.s3.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t7.s3.F_S",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x04"
+ },
+ {
+  "EventName": "l3victimstate.t0.s0.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t1.s0.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t2.s0.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t3.s0.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t4.s0.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t5.s0.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t6.s0.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t7.s0.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x08"
+ },
+ 
+ {
+  "EventName": "l3victimstate.t0.s1.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t1.s1.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t2.s1.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t3.s1.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t4.s1.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t5.s1.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t6.s1.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t7.s1.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t0.s2.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t1.s2.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t2.s2.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t3.s2.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t4.s2.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t5.s2.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t6.s2.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t7.s2.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t0.s3.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t1.s3.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t2.s3.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t3.s3.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t4.s3.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t5.s3.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t6.s3.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t7.s3.o",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t0.s0.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t1.s0.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t2.s0.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t3.s0.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t4.s0.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t5.s0.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t6.s0.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t7.s0.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x10"
+ },
+ 
+ {
+  "EventName": "l3victimstate.t0.s1.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t1.s1.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t2.s1.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t3.s1.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t4.s1.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t5.s1.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t6.s1.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t7.s1.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t0.s2.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t1.s2.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t2.s2.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t3.s2.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t4.s2.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t5.s2.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t6.s2.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t7.s2.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t0.s3.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t1.s3.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t2.s3.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t3.s3.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t4.s3.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t5.s3.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t6.s3.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x10"
+ },
+ {
+  "EventName": "l3victimstate.t7.s3.e_fe",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08"
+ },
+ {
+  "EventName": "l3victimstate.t0.s0.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t1.s0.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t2.s0.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t3.s0.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t4.s0.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t5.s0.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t6.s0.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t7.s0.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x20"
+ },
+ 
+ {
+  "EventName": "l3victimstate.t0.s1.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t1.s1.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t2.s1.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t3.s1.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t4.s1.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t5.s1.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t6.s1.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t7.s1.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t0.s2.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t1.s2.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t2.s2.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t3.s2.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t4.s2.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t5.s2.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t6.s2.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t7.s2.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t0.s3.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t1.s3.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t2.s3.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t3.s3.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t4.s3.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t5.s3.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t6.s3.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t7.s3.m",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x20"
+ },
+ {
+  "EventName": "l3victimstate.t0.s0.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t1.s0.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t2.s0.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t3.s0.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t4.s0.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t5.s0.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t6.s0.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t7.s0.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x40"
+ },
+ 
+ {
+  "EventName": "l3victimstate.t0.s1.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t1.s1.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t2.s1.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t3.s1.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t4.s1.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t5.s1.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t6.s1.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t7.s1.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t0.s2.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t1.s2.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t2.s2.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t3.s2.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t4.s2.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t5.s2.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t6.s2.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t7.s2.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t0.s3.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t1.s3.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t2.s3.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t3.s3.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t4.s3.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t5.s3.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t6.s3.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t7.s3.d",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x40"
+ },
+ {
+  "EventName": "l3victimstate.t0.s0.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t1.s0.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t2.s0.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t3.s0.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t4.s0.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t5.s0.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t6.s0.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t7.s0.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x01",
+  "UMask": "0x80"
+ },
+ 
+ {
+  "EventName": "l3victimstate.t0.s1.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t1.s1.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t2.s1.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t3.s1.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t4.s1.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t5.s1.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t6.s1.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t7.s1.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x02",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t0.s2.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t1.s2.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t2.s2.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t3.s2.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t4.s2.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t5.s2.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t6.s2.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t7.s2.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x04",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t0.s3.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x01",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t1.s3.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x02",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t2.s3.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x04",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t3.s3.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x08",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t4.s3.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x10",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t5.s3.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x20",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t6.s3.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x40",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ },
+ {
+  "EventName": "l3victimstate.t7.s3.od",
+  "EventCode": "0x09",
+  "BriefDescription": "L3 Cache Performance Monitor Counters L3 Victim State",
+  "L3ThreadMask": "0x80",
+  "L3SliceMask": "0x08",
+  "UMask": "0x80"
+ }
+ 
+]
+

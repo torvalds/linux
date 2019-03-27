@@ -1,0 +1,53 @@
+\input texinfo    @c -*-texinfo-*-
+@c %**start of header
+@setfilename ntpsnmpd.info
+@settitle ntpsnmpd: Network Time Protocol SNMP Daemon User's Manual
+@include ../sntp/include/version.texi
+@paragraphindent 2
+@c %**end of header
+
+@ifinfo
+This file documents the use of the NTP Project's ntpsnmpd, a program for
+querying the state of an NTP server via SNMP.
+@end ifinfo
+
+@direntry
+* ntpsnmpd: (ntpsnmpd).                   NTP SNMP Daemon program
+@end direntry
+
+@titlepage
+@title ntpsnmpd: Network Time Protocol SNMP Daemon User's Manual
+@subtitle ntpsnmpd, version @value{VERSION}, @value{UPDATED}
+@c @author Max @email{foo@ntp.org}
+@end titlepage
+
+@c @page
+@c @vskip 0pt plus 1filll
+
+@shortcontents
+
+@node Top, ntpsnmpd Description, (dir), (dir)
+@top ntpsnmpd: Network Time Protocol Query User Manual
+
+The @code{ntpsnmpd} utility program is used to monitor NTP daemon @code{ntpd}
+operations and determine performance.  It uses the standard NTP mode 6 control
+
+This document applies to version @value{VERSION} of @code{ntpsnmpd}.
+
+@menu
+* ntpsnmpd Description::            Description
+* ntpsnmpd Invocation::		Invoking ntpsnmpd
+* Usage::                       Usage
+@end menu
+
+@node ntpsnmpd Description, Usage, Top, Top
+@comment  node-name,  next,  previous,  up
+@section Description
+
+The @code{ntpsnmpd} utility program provides an SNMP MIB agent for @code{ntpd}.
+
+@node Usage, , ntpsnmpd Description, Top
+@comment  node-name,  next,  previous,  up
+@section Usage
+
+(what should we say here?)

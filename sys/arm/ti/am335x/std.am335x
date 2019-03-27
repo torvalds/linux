@@ -1,0 +1,8 @@
+# AM335x generic configuration
+#$FreeBSD$
+files		"../ti/am335x/files.am335x"
+include		"../ti/std.ti"
+
+cpu 		CPU_CORTEXA
+
+options		SOC_TI_AM335X

@@ -1,0 +1,14 @@
+
+#------------------------------------------------------------------------------
+# $File: psl,v 1.2 2016/07/14 17:34:27 christos Exp $
+# psl:  file(1) magic for Public Suffix List representations
+# From: Daniel Kahn Gillmor <dkg@fifthhorseman.net>
+# URL: https://publicsuffix.org
+# see also: http://thread.gmane.org/gmane.network.dns.libpsl.bugs/162/focus=166
+
+0	search/512	\n\n//\ ===BEGIN\ ICANN\ DOMAINS===\n\n Public Suffix List data
+
+0	string	.DAFSA@PSL_
+>15	string	\n	Public Suffix List data (optimized)
+>>11	byte	>0x2f
+>>>11	byte	<0x3a   (Version %c)

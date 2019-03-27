@@ -1,0 +1,25 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	xdr_datum;
+	xdr_ypresp_all_seq;
+	ypresp_data;
+	ypresp_allfn;
+	ypbinderr_string;
+	_yp_dobind;
+	yp_bind;
+	yp_unbind;
+	yp_match;
+	yp_get_default_domain;
+	yp_first;
+	yp_next;
+	yp_all;
+	yp_order;
+	yp_master;
+	yp_maplist;
+	yperr_string;
+	ypprot_err;
+	_yp_check;
+};

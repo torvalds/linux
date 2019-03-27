@@ -1,0 +1,102 @@
+#
+# Common kernel config for Freescale QorIQ DPAA development boards like the
+# P2041RDB, P3041DS and P5020DS.
+#
+# This is not standalone kernel config. Use it only for including
+# purposes.
+#
+# $FreeBSD$
+
+cpu		BOOKE
+cpu		BOOKE_E500
+
+machine		powerpc powerpc
+#makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	WERROR="-Werror -Wno-format -Wno-redundant-decls"
+makeoptions	NO_MODULES=yes
+
+# Platform support
+options		MPC85XX			#Freescale SoC family
+
+options		SMP			#Symmetric Multi Processing
+
+#options		SCHED_4BSD		#4BSD scheduler
+options		INET			#InterNETworking
+options		INET6			#IPv6 communications protocols
+options		FFS			#Berkeley Fast Filesystem
+options		NFSCL			#New Network Filesystem Client
+options		SOFTUPDATES		#Enable FFS soft updates support
+options		PROCFS			#Process filesystem (requires PSEUDOFS)
+options		PSEUDOFS		#Pseudo-filesystem framework
+options		GEOM_PART_GPT		#GUID Partition Tables.
+options		GEOM_LABEL
+options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
+options		SYSVSHM			#SYSV-style shared memory
+options		SYSVMSG			#SYSV-style message queues
+options		SYSVSEM			#SYSV-style semaphores
+options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+options		NO_SWAPPING
+
+options		KDB			#Enable the kernel debugger
+options		DDB			#Support DDB
+options		GDB
+
+options		ALT_BREAK_TO_DEBUGGER
+options		BREAK_TO_DEBUGGER
+options		DIAGNOSTIC
+options		INVARIANTS		#Enable calls of extra sanity checking
+options		INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
+
+options 	KTR
+options 	KTR_COMPILE=0xffffffff
+options 	KTR_MASK=KTR_PMAP
+options		KTR_ENTRIES=8192
+
+options		WITNESS			#Enable checks to detect deadlocks and cycles
+#options		WITNESS_KDB
+
+# RamFS Root
+#options		GEOM_UZIP
+#options		MD_ROOT
+#options		MD_ROOT_SIZE=10240
+
+# Netbooting
+options		BOOTP
+options		BOOTP_NFSROOT
+options		BOOTP_NFSV3
+options		BOOTP_WIRED_TO=dtsec3
+options		NFS_ROOT
+
+# Block devices
+device		mmc
+device		mmcsd
+device		sdhci
+
+# Network devices
+device		miibus		# MII bus support
+device		iflib
+device		em
+
+
+# I2C support
+device		iicbus
+device		iic
+
+device		uart
+device		ehci
+device		usb
+device		scbus
+device		da
+device		umass
+device		pty
+device		cfi
+
+device		pci
+
+# Pseudo devices
+device		ether		# Ethernet support
+device		loop		# Network loopback
+device		random		# Entropy device
+device		bpf		# Berkeley packet filter
+device		md		# Memory "disks"
+

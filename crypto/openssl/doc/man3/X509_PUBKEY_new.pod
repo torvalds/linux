@@ -1,0 +1,120 @@
+=pod
+
+=head1 NAME
+
+X509_PUBKEY_new, X509_PUBKEY_free, X509_PUBKEY_set, X509_PUBKEY_get0,
+X509_PUBKEY_get, d2i_PUBKEY, i2d_PUBKEY, d2i_PUBKEY_bio, d2i_PUBKEY_fp,
+i2d_PUBKEY_fp, i2d_PUBKEY_bio, X509_PUBKEY_set0_param,
+X509_PUBKEY_get0_param - SubjectPublicKeyInfo public key functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509.h>
+
+ X509_PUBKEY *X509_PUBKEY_new(void);
+ void X509_PUBKEY_free(X509_PUBKEY *a);
+
+ int X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey);
+ EVP_PKEY *X509_PUBKEY_get0(X509_PUBKEY *key);
+ EVP_PKEY *X509_PUBKEY_get(X509_PUBKEY *key);
+
+ EVP_PKEY *d2i_PUBKEY(EVP_PKEY **a, const unsigned char **pp, long length);
+ int i2d_PUBKEY(EVP_PKEY *a, unsigned char **pp);
+
+ EVP_PKEY *d2i_PUBKEY_bio(BIO *bp, EVP_PKEY **a);
+ EVP_PKEY *d2i_PUBKEY_fp(FILE *fp, EVP_PKEY **a);
+
+ int i2d_PUBKEY_fp(FILE *fp, EVP_PKEY *pkey);
+ int i2d_PUBKEY_bio(BIO *bp, EVP_PKEY *pkey);
+
+ int X509_PUBKEY_set0_param(X509_PUBKEY *pub, ASN1_OBJECT *aobj,
+                            int ptype, void *pval,
+                            unsigned char *penc, int penclen);
+ int X509_PUBKEY_get0_param(ASN1_OBJECT **ppkalg,
+                            const unsigned char **pk, int *ppklen,
+                            X509_ALGOR **pa, X509_PUBKEY *pub);
+
+=head1 DESCRIPTION
+
+The B<X509_PUBKEY> structure represents the ASN.1 B<SubjectPublicKeyInfo>
+structure defined in RFC5280 and used in certificates and certificate requests.
+
+X509_PUBKEY_new() allocates and initializes an B<X509_PUBKEY> structure.
+
+X509_PUBKEY_free() frees up B<X509_PUBKEY> structure B<a>. If B<a> is NULL
+nothing is done.
+
+X509_PUBKEY_set() sets the public key in B<*x> to the public key contained
+in the B<EVP_PKEY> structure B<pkey>. If B<*x> is not NULL any existing
+public key structure will be freed.
+
+X509_PUBKEY_get0() returns the public key contained in B<key>. The returned
+value is an internal pointer which B<MUST NOT> be freed after use.
+
+X509_PUBKEY_get() is similar to X509_PUBKEY_get0() except the reference
+count on the returned key is incremented so it B<MUST> be freed using
+EVP_PKEY_free() after use.
+
+d2i_PUBKEY() and i2d_PUBKEY() decode and encode an B<EVP_PKEY> structure
+using B<SubjectPublicKeyInfo> format. They otherwise follow the conventions of
+other ASN.1 functions such as d2i_X509().
+
+d2i_PUBKEY_bio(), d2i_PUBKEY_fp(), i2d_PUBKEY_bio() and i2d_PUBKEY_fp() are
+similar to d2i_PUBKEY() and i2d_PUBKEY() except they decode or encode using a
+B<BIO> or B<FILE> pointer.
+
+X509_PUBKEY_set0_param() sets the public key parameters of B<pub>. The
+OID associated with the algorithm is set to B<aobj>. The type of the
+algorithm parameters is set to B<type> using the structure B<pval>.
+The encoding of the public key itself is set to the B<penclen>
+bytes contained in buffer B<penc>. On success ownership of all the supplied
+parameters is passed to B<pub> so they must not be freed after the
+call.
+
+X509_PUBKEY_get0_param() retrieves the public key parameters from B<pub>,
+B<*ppkalg> is set to the associated OID and the encoding consists of
+B<*ppklen> bytes at B<*pk>, B<*pa> is set to the associated
+AlgorithmIdentifier for the public key. If the value of any of these
+parameters is not required it can be set to B<NULL>. All of the
+retrieved pointers are internal and must not be freed after the
+call.
+
+=head1 NOTES
+
+The B<X509_PUBKEY> functions can be used to encode and decode public keys
+in a standard format.
+
+In many cases applications will not call the B<X509_PUBKEY> functions
+directly: they will instead call wrapper functions such as X509_get0_pubkey().
+
+=head1 RETURN VALUES
+
+If the allocation fails, X509_PUBKEY_new() returns B<NULL> and sets an error
+code that can be obtained by L<ERR_get_error(3)>.
+
+Otherwise it returns a pointer to the newly allocated structure.
+
+X509_PUBKEY_free() does not return a value.
+
+X509_PUBKEY_get0() and X509_PUBKEY_get() return a pointer to an B<EVP_PKEY>
+structure or B<NULL> if an error occurs.
+
+X509_PUBKEY_set(), X509_PUBKEY_set0_param() and X509_PUBKEY_get0_param()
+return 1 for success and 0 if an error occurred.
+
+=head1 SEE ALSO
+
+L<d2i_X509(3)>,
+L<ERR_get_error(3)>,
+L<X509_get_pubkey(3)>,
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

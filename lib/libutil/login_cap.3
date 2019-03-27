@@ -1,0 +1,579 @@
+.\" Copyright (c) 1995 David Nugent <davidn@blaze.net.au>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, is permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice immediately at the beginning of the file, without modification,
+.\"    this list of conditions, and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. This work was done expressly for inclusion into FreeBSD.  Other use
+.\"    is permitted provided this notation is included.
+.\" 4. Absolutely no warranty of function or purpose is made by the author
+.\"    David Nugent.
+.\" 5. Modifications may be freely made to this file providing the above
+.\"    conditions are met.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 14, 2007
+.Dt LOGIN_CAP 3
+.Os
+.Sh NAME
+.Nm login_close ,
+.Nm login_getcapbool ,
+.Nm login_getcaplist ,
+.Nm login_getcapnum ,
+.Nm login_getcapstr ,
+.Nm login_getcapsize ,
+.Nm login_getcaptime ,
+.Nm login_getclass ,
+.Nm login_getclassbyname ,
+.Nm login_getpwclass ,
+.Nm login_getstyle ,
+.Nm login_getuserclass ,
+.Nm login_setcryptfmt
+.Nd "functions for accessing the login class capabilities database"
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/types.h
+.In login_cap.h
+.Ft void
+.Fn login_close "login_cap_t *lc"
+.Ft login_cap_t *
+.Fn login_getclassbyname "const char *nam" "const struct passwd *pwd"
+.Ft login_cap_t *
+.Fn login_getclass "const char *nam"
+.Ft login_cap_t *
+.Fn login_getpwclass "const struct passwd *pwd"
+.Ft login_cap_t *
+.Fn login_getuserclass "const struct passwd *pwd"
+.Ft "const char *"
+.Fn login_getcapstr "login_cap_t *lc" "const char *cap" "const char *def" "const char *error"
+.Ft "const char **"
+.Fn login_getcaplist "login_cap_t *lc" "const char *cap" "const char *chars"
+.Ft "const char *"
+.Fn login_getpath "login_cap_t *lc" "const char *cap" "const char *error"
+.Ft rlim_t
+.Fn login_getcaptime "login_cap_t *lc" "const char *cap" "rlim_t def" "rlim_t error"
+.Ft rlim_t
+.Fn login_getcapnum "login_cap_t *lc" "const char *cap" "rlim_t def" "rlim_t error"
+.Ft rlim_t
+.Fn login_getcapsize "login_cap_t *lc" "const char *cap" "rlim_t def" "rlim_t error"
+.Ft int
+.Fn login_getcapbool "login_cap_t *lc" "const char *cap" "int def"
+.Ft "const char *"
+.Fn login_getstyle "login_cap_t *lc" "const char *style" "const char *auth"
+.Ft const char *
+.Fn login_setcryptfmt "login_cap_t *lc" "const char *def" "const char *error"
+.Sh DESCRIPTION
+These functions represent a programming interface to the login
+classes database provided in
+.Xr login.conf 5 .
+This database contains capabilities, attributes and default environment
+and accounting settings for users and programs running as specific users,
+as determined by the login class field within entries in
+.Pa /etc/master.passwd .
+.Pp
+Entries in
+.Xr login.conf 5
+consist of colon
+.Ql \&:
+separated fields, the first field in each record being one or more
+identifiers for the record (which must be unique for the entire database),
+each separated by a
+.Ql | ,
+and may optionally include a description as
+the last
+.Sq name .
+Remaining fields in the record consist of keyword/data pairs.
+Long lines may be continued with a backslash within empty entries,
+with the second and subsequent lines optionally indented for readability.
+This is similar to the format used in
+.Xr termcap 5 ,
+except that keywords are not limited to two significant characters,
+and are usually longer for improved readability.
+As with termcap entries, multiple records can be linked together
+(one record including another) using a field containing
+.Ql tc= Ns Va <recordid> .
+The result is that the entire record referenced by
+.Va <recordid>
+replaces the
+.Va tc=
+field at the point at which it occurs.
+See
+.Xr getcap 3
+for further details on the format and use of a capabilities database.
+.Pp
+The
+.Nm login_cap
+interface provides a convenient means of retrieving login class
+records with all
+.Va tc=
+references expanded.
+A program will typically call one of
+.Fn login_getclass ,
+.Fn login_getpwclass ,
+.Fn login_getuserclass
+or
+.Fn login_getclassbyname
+according to its requirements.
+Each of these functions returns a login capabilities structure,
+.Vt login_cap_t ,
+which may subsequently be used to interrogate the database for
+specific values using the rest of the API.
+Once the
+.Vt login_cap_t
+is of no further use, the
+.Fn login_close
+function should be called to free all resources used.
+.Pp
+The structure of
+.Vt login_cap_t
+is defined in
+.In login_cap.h ,
+as:
+.Bd -literal -offset indent
+typedef struct {
+	char *lc_class;
+	char *lc_cap;
+	char *lc_style;
+} login_cap_t;
+.Ed
+.Pp
+The
+.Fa lc_class
+member contains a pointer to the name of the login class
+retrieved.
+This may not necessarily be the same as the one requested,
+either directly via
+.Fn login_getclassbyname ,
+or indirectly via a user's login record using
+.Fn login_getpwclass ,
+by class name using
+.Fn login_getclass .
+If the referenced user has no login class specified in
+.Pa /etc/master.passwd ,
+the class name is
+.Dv NULL
+or an empty string.
+If the class
+specified does not exist in the database, each of these
+functions will search for a record with an id of
+.Ql default ,
+with that name returned in the
+.Fa lc_class
+field.
+In addition, if the referenced user has a UID of 0 (normally,
+.Ql root ,
+although the user name is not considered) then
+.Fn login_getpwclass
+will search for a record with an id of
+.Ql root
+before it searches
+for the record with the id of
+.Ql default .
+.Pp
+The
+.Fa lc_cap
+field is used internally by the library to contain the
+expanded login capabilities record.
+Programs with unusual requirements may wish to use this
+with the lower-level
+.Fn getcap
+style functions to access the record directly.
+.Pp
+The
+.Fa lc_style
+field is set by the
+.Fn login_getstyle
+function to the authorisation style, according to the requirements
+of the program handling a login itself.
+.Pp
+The
+.Fn login_getclassbyname
+function is the basic means to get a
+.Vt login_cap_t
+object.
+It accepts two arguments: the first one,
+.Fa name ,
+is the record identifier of the
+record to be retrieved; the second,
+.Fa pwd ,
+is an optional pointer to a
+.Vt passwd
+structure.
+First of all, its arguments are used by the function
+to choose between system and user modes of operation.
+When in system mode, only the system login class database is used.
+When in user mode, the supplemental login class database in the
+user's home directory is allowed to override settings from the system
+database in a limited way as noted below.
+To minimize security implications, user mode is entered by
+.Fn login_getclassbyname
+if and only if
+.Fa name
+is
+.Dv LOGIN_MECLASS
+.Pq Ql me
+and
+.Fa pwd
+is not
+.Dv NULL .
+Otherwise system mode is chosen.
+.Pp
+In system mode, any record in the system database
+.Pa /etc/login.conf
+can be accessed,
+and a fallback to the default record is provided as follows.
+If
+.Fa name
+is
+.Dv NULL ,
+an empty string, or a class that does not exist
+in the login class database, then the
+.Dv LOGIN_DEFCLASS
+record
+.Pq Ql default
+is returned instead.
+.Pp
+In user mode, only the
+.Dv LOGIN_MECLASS
+record
+.Pq Ql me
+is accessed and no fallback to the
+.Ql default
+record is provided.
+The directory specified by
+.Fa pwd->pw_dir
+is searched for
+a login database file called
+.Pa .login_conf ,
+and only the
+.Ql me
+capability record
+contained within it may override the system record with the same name
+while other records are ignored.
+Using this scheme, an application can explicitly
+allow users to override a selected subset of login settings.
+To do so, the application should obtain two
+.Vt login_cap_t
+objects, one in user mode and the other in system mode,
+and then query the user object before the
+system object for login parameters that are allowed to
+be overridden by the user.
+For example, the user's
+.Pa .login_conf
+can provide a convenient way for a user to set up their preferred
+login environment before the shell is invoked on login if supported by
+.Xr login 1 .
+.Pp
+Note that access to the
+.Pa /etc/login.conf
+and
+.Pa .login_conf
+files will only be performed subject to the security checks documented in
+.Xr _secure_path 3
+for the uids 0 and
+.Fa pwd->pw_uid
+respectively.
+.Pp
+If the specified record is
+.Dv NULL ,
+empty or does not exist, and the
+system has no
+.Ql default
+record available to fall back to, there is a
+memory allocation error or for some reason
+.Xr cgetent 3
+is unable to access the login capabilities database, this function
+returns
+.Dv NULL .
+.Pp
+The functions
+.Fn login_getclass ,
+.Fn login_getpwclass
+and
+.Fn login_getuserclass
+retrieve the applicable login class record for the user's passwd
+entry or class name by calling
+.Fn login_getclassbyname .
+On failure,
+.Dv NULL
+is returned.
+The difference between these functions is that
+.Fn login_getuserclass
+includes the user's overriding
+.Pa .login_conf
+that exists in the user's home directory, and
+.Fn login_getpwclass
+and
+.Fn login_getclass
+restrict lookup only to the system login class database in
+.Pa /etc/login.conf .
+As explained earlier,
+.Fn login_getpwclass
+differs from
+.Fn login_getclass
+in that it allows the default class for a super-user as
+.Ql root
+if none has been specified in the password database.
+Otherwise, if the passwd pointer is
+.Dv NULL ,
+or the user record
+has no login class, then the system
+.Ql default
+entry is retrieved.
+Essentially,
+.Fn login_getclass name
+is equivalent to
+.Fn login_getclassbyname name NULL
+and
+.Fn login_getuserclass pwd
+to
+.Fn login_getclassbyname LOGIN_MECLASS pwd .
+.Pp
+Once a program no longer wishes to use a
+.Vt login_cap_t
+object,
+.Fn login_close
+may be called to free all resources used by the login class.
+The
+.Fn login_close
+function may be passed a
+.Dv NULL
+pointer with no harmful side-effects.
+.Pp
+The remaining functions may be used to retrieve individual
+capability records.
+Each function takes a
+.Vt login_cap_t
+object as its first parameter,
+a capability tag as the second, and remaining parameters being
+default and error values that are returned if the capability is
+not found.
+The type of the additional parameters passed and returned depend
+on the
+.Em type
+of capability each deals with, be it a simple string, a list,
+a time value, a file or memory size value, a path (consisting of
+a colon-separated list of directories) or a boolean flag.
+The manpage for
+.Xr login.conf 5
+deals in specific tags and their type.
+.Pp
+Note that with all functions in this group, you should not call
+.Xr free 3
+on any pointers returned.
+Memory allocated during retrieval or processing of capability
+tags is automatically reused by subsequent calls to functions
+in this group, or deallocated on calling
+.Fn login_close .
+.Bl -tag -width "login_getcaplist()"
+.It Fn login_getcapstr
+This function returns a simple string capability.
+If the string is not found, then the value in
+.Fa def
+is returned as the default value, or if an error
+occurs, the value in the
+.Fa error
+parameter is returned.
+.It Fn login_getcaplist
+This function returns the value corresponding to the named
+capability tag as a list of values in a
+.Dv NULL
+terminated array.
+Within the login class database, some tags are of type
+.Vt list ,
+which consist of one or more comma- or space separated
+values.
+Usually, this function is not called directly from an
+application, but is used indirectly via
+.Fn login_getstyle .
+.It Fn login_getpath
+This function returns a list of directories separated by colons
+.Ql \&: .
+Capability tags for which this function is called consist of a list of
+directories separated by spaces.
+.It Fn login_getcaptime
+This function returns a
+.Vt time value
+associated with a particular capability tag with the value expressed
+in seconds (the default), minutes, hours, days, weeks or (365 day)
+years or any combination of these.
+A suffix determines the units used:
+.Ql S
+for seconds,
+.Ql M
+for minutes,
+.Ql H
+for hours,
+.Ql D
+for days,
+.Ql W
+for weeks and
+.Ql Y
+for 365 day years.
+Case of the units suffix is ignored.
+.Pp
+Time values are normally used for setting resource, accounting and
+session limits.
+If supported by the operating system and compiler (which is true of
+.Fx ) ,
+the value returned is a
+.Vt quad
+.Pq Vt long long ,
+of type
+.Vt rlim_t .
+A value
+.Ql inf
+or
+.Ql infinity
+may be used to express an infinite
+value, in which case
+.Dv RLIM_INFINITY
+is returned.
+.It Fn login_getcapnum
+This function returns a numeric value for a tag, expressed either as
+.Ql tag=<value>
+or the standard
+.Fn cgetnum
+format
+.Ql tag#<value> .
+The first format should be used in preference to the second, the
+second format is provided for compatibility and consistency with the
+.Xr getcap 3
+database format where numeric types use the
+.Ql \&#
+as the delimiter for numeric values.
+If in the first format, then the value given may be
+.Ql inf
+or
+.Ql infinity
+which results in a return value of
+.Dv RLIM_INFINITY .
+If the given capability tag cannot be found, the
+.Fa def
+parameter is returned, and if an error occurs, the
+.Fa error
+parameter is returned.
+.It Fn login_getcapsize
+.Fn login_getcapsize
+returns a value representing a size (typically, file or memory)
+which may be expressed as bytes (the default), 512 byte blocks,
+kilobytes, megabytes, gigabytes, and on systems that support the
+.Vt long long
+type, terabytes.
+The suffix used determines the units, and multiple values and
+units may be used in combination (e.g.\& 1m500k = 1.5 megabytes).
+A value with no suffix is interpreted as bytes,
+.Ql B
+as 512-byte blocks,
+.Ql K
+as kilobytes,
+.Ql M
+as megabytes,
+.Ql G
+as gigabytes and
+.Ql T
+as terabytes.
+Case is ignored.
+The error value is returned if there is a login capabilities database
+error, if an invalid suffix is used, or if a numeric value cannot be
+interpreted.
+.It Fn login_getcapbool
+This function returns a boolean value tied to a particular flag.
+It returns 0 if the given capability tag is not present or is
+negated by the presence of a
+.Ql tag@
+(see
+.Xr getcap 3
+for more information on boolean flags), and returns 1 if the tag
+is found.
+.It Fn login_getstyle
+This function is used by the login authorisation system to determine
+the style of login available in a particular case.
+The function accepts three parameters, the
+.Fa lc
+entry itself and
+two optional parameters, and authorisation type
+.Fa auth
+and
+.Fa style ,
+and
+applies these to determine the authorisation style that best suites
+these rules.
+.Bl -bullet
+.It
+If
+.Fa auth
+is neither
+.Dv NULL
+nor an empty string, look for a tag of type
+.Ql auth- Ns Fa <auth>
+in the capability record.
+If not present, then look for the default tag
+.Va auth= .
+.It
+If no valid authorisation list was found from the previous step, then
+default to
+.Ql passwd
+as the authorisation list.
+.It
+If
+.Fa style
+is not
+.Dv NULL
+or empty, look for it in the list of authorisation
+methods found from the previous step.
+If
+.Fa style
+is
+.Dv NULL
+or an empty string, then default to
+.Ql passwd
+authorisation.
+.It
+If
+.Fa style
+is found in the chosen list of authorisation methods, then
+return that, otherwise return
+.Dv NULL .
+.El
+.Pp
+This scheme allows the administrator to determine the types of
+authorisation methods accepted by the system, depending on the
+means by which the access occurs.
+For example, the administrator may require skey or kerberos as
+the authentication method used for access to the system via the
+network, and standard methods via direct dialup or console
+logins, significantly reducing the risk of password discovery
+by "snooping" network packets.
+.It Fn login_setcryptfmt
+The
+.Fn login_setcryptfmt
+function is used to set the
+.Xr crypt 3
+format using the
+.Va passwd_format
+configuration entry.
+If no entry is found,
+.Fa def
+is taken to be used as the fallback.
+If calling
+.Xr crypt_set_format 3
+on the specifier fails,
+.Fa error
+is returned to indicate this.
+.El
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr crypt 3 ,
+.Xr getcap 3 ,
+.Xr login_class 3 ,
+.Xr login.conf 5 ,
+.Xr termcap 5

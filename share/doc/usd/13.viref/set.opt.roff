@@ -1,0 +1,1303 @@
+.\" Copyright (c) 1994
+.\"     The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 1994, 1995, 1996
+.\"	Keith Bostic.  All rights reserved.
+.\"
+.\" See the LICENSE file for redistribution information.
+.\"
+.\"     @(#)set.opt.roff	8.66 (Berkeley) 10/10/96
+.\"
+.SH 1 "Set Options"
+.pp
+There are a large number of options that may be set (or unset) to
+change the editor's behavior.
+This section describes the options, their abbreviations and their
+default values.
+.pp
+In each entry below, the first part of the tag line is the full name
+of the option, followed by any equivalent abbreviations.
+(Regardless of the abbreviations, it is only necessary to use the
+minimum number of characters necessary to distinguish an abbreviation
+from all other commands for it to be accepted, in
+.EV nex nvi .
+Historically, only the full name and the official abbreviations
+were accepted by
+.EV ex vi .
+Using full names in your startup files and environmental variables will
+probably make them more portable.)
+The part in square brackets is the default value of the option.
+Most of the options are boolean, i.e. they are either on or off,
+and do not have an associated value.
+.pp
+Options apply to both
+.CO ex
+and
+.CO vi
+modes, unless otherwise specified.
+.pp
+With a few exceptions,
+all options are settable per screen, i.e. the
+.OP tags
+option can be set differently in each screen.
+The exceptions are the
+.OP columns ,
+.OP lines ,
+.OP secure
+and
+.OP term
+options.
+Changing these options modifies the respective information for all screens.
+.pp
+For information on modifying the options or to display the options and
+their current values, see the
+.QQ set
+command in the section entitled
+.QB "Ex Commands" .
+.KY altwerase
+.IP "altwerase [off]"
+.CO Vi
+only.
+Change how
+.CO vi
+does word erase during text input.
+When this option is set, text is broken up into three classes:
+alphabetic, numeric and underscore characters, other nonblank
+characters, and blank characters.
+Changing from one class to another marks the end of a word.
+In addition, the class of the first character erased is ignored
+(which is exactly what you want when erasing pathname components).
+.KY autoindent
+.IP "autoindent, ai [off]"
+If this option is set, whenever you create a new line (using the
+.CO vi
+.CO A ,
+.CO a ,
+.CO C ,
+.CO c ,
+.CO I ,
+.CO i ,
+.CO O ,
+.CO o ,
+.CO R ,
+.CO r ,
+.CO S ,
+and
+.CO s
+commands, or the
+.CO ex
+.CO append ,
+.CO change ,
+and
+.CO insert
+commands) the new line is automatically indented to align the cursor with
+the first nonblank character of the line from which you created it.
+Lines are indented using tab characters to the extent possible (based on
+the value of the
+.OP tabstop
+option) and then using space characters as necessary.
+For commands inserting text into the middle of a line, any blank characters
+to the right of the cursor are discarded, and the first nonblank character
+to the right of the cursor is aligned as described above.
+.sp
+The indent characters are themselves somewhat special.
+If you do not enter more characters on the new line before moving to
+another line, or entering
+.LI <escape> ,
+the indent character will be deleted and the line will be empty.
+For example, if you enter
+.LI <carriage-return>
+twice in succession,
+the line created by the first
+.LI <carriage-return>
+will not have any characters in it,
+regardless of the indentation of the previous or subsequent line.
+.sp
+Indent characters also require that you enter additional erase characters
+to delete them.
+For example,
+if you have an indented line, containing only blanks, the first
+.LI <word-erase>
+character you enter will erase up to end of the indent characters,
+and the second will erase back to the beginning of the line.
+(Historically, only the
+.LI <control-D>
+key would erase the indent characters.
+Both the
+.LI <control-D>
+key and the usual erase keys work in
+.CO nvi .)
+In addition, if the cursor is positioned at the end of the indent
+characters, the keys
+.QT 0<control-D>
+will erase all of the indent characters for the current line,
+resetting the indentation level to 0.
+Similarly, the keys
+.QT ^<control-D>
+will erase all of the indent characters for the current line,
+leaving the indentation level for future created lines unaffected.
+.sp
+Finally, if the
+.OP autoindent
+option is set, the
+.CO S
+and
+.CO cc
+commands change from the first nonblank of the line to the end of the
+line, instead of from the beginning of the line to the end of the line.
+.KY autoprint
+.IP "autoprint, ap [off]"
+.CO Ex
+only.
+Cause the current line to be automatically displayed after the
+.CO ex
+commands
+.CO < ,
+.CO > ,
+.CO copy ,
+.CO delete ,
+.CO join ,
+.CO move ,
+.CO put ,
+.CO t ,
+.CO Undo ,
+and
+.CO undo .
+This automatic display is suppressed during
+.CO global
+and
+.CO v
+commands, and for any command where optional flags are used to explicitly
+display the line.
+.KY autowrite
+.IP "autowrite, aw [off]"
+If this option is set, the
+.CO vi
+.CO ! ,
+.CO ^^ ,
+.CO ^]
+and
+.CO <control-Z>
+commands, and the
+.CO ex
+.CO edit ,
+.CO next ,
+.CO rewind ,
+.CO stop ,
+.CO suspend ,
+.CO tag ,
+.CO tagpop ,
+and
+.CO tagtop
+commands automatically write the current file back to the current file name
+if it has been modified since it was last written.
+If the write fails, the command fails and goes no further.
+.sp
+Appending the optional force flag character
+.QT !
+to the
+.CO ex
+commands
+.CO next ,
+.CO rewind ,
+.CO stop ,
+.CO suspend ,
+.CO tag ,
+.CO tagpop ,
+and
+.CO tagtop
+stops the automatic write from being attempted.
+.sp
+(Historically, the
+.CO next
+command ignored the optional force flag.)
+Note, the
+.CO ex
+commands
+.CO edit ,
+.CO quit ,
+.CO shell ,
+and
+.CO xit
+are
+.i not
+affected by the
+.OP autowrite
+option.
+.sp
+The
+.OP autowrite
+option is ignored if the file is considered read-only for any reason.
+.\" I cannot get a double quote to print between the square brackets
+.\" to save my life.  The ONLY way I've been able to get this to work
+.\" is with the .tr command.
+.tr Q"
+.ds ms backup [QQ]
+.KY backup
+.IP "\*(ms"
+.tr QQ
+If this option is set, it specifies a pathname used as a backup file,
+and, whenever a file is written, the file's current contents are copied
+to it.
+The pathname is
+.QT \&# ,
+.QT \&%
+and
+.QT \&!
+expanded.
+.sp
+If the first character of the pathname is
+.QT \&N ,
+a version number is appended to the pathname (and the
+.QT \&N
+character is then discarded).
+Version numbers are always incremented, and each backup file will have
+a version number one greater than the highest version number currently
+found in the directory.
+.sp
+Backup files must be regular files, owned by the real user ID of the
+user running the editor, and not accessible by any other user.
+.KY beautify
+.IP "beautify, bf [off]"
+If this option is set, all control characters that are not currently being
+specially interpreted, other than
+.LI <tab> ,
+.LI <newline> ,
+and
+.LI <form-feed> ,
+are
+discarded from commands read in by
+.CO ex
+from command files, and from input text entered to
+.CO vi
+(either into the file or to the colon command line).
+Text files read by
+.EV ex vi
+are
+.i not
+affected by the
+.OP beautify
+option.
+.KY cdpath
+.IP "cdpath [environment variable CDPATH, or current directory]"
+This option is used to specify a colon separated list of directories
+which are used as path prefixes for any relative path names used as
+arguments for the
+.CO cd
+command.
+The value of this option defaults to the value of the environmental
+variable
+.LI CDPATH
+if it is set, otherwise to the current directory.
+For compatibility with the POSIX 1003.2 shell, the
+.CO cd
+command does
+.i not
+check the current directory as a path prefix for relative path names
+unless it is explicitly specified.
+It may be so specified by entering an empty string or a
+.QT \&.
+character into the
+.LI CDPATH
+variable or the option value.
+.KY cedit
+.IP "cedit [no default]"
+This option adds the ability to edit the colon command-line history.
+This option is set to a string.
+Whenever the first character of that string is entered on the colon
+command line,
+you will enter a normal editing window on the collected commands that
+you've entered on the
+.CO vi
+colon command-line.
+You may then modify and/or execute the commands.
+All normal text editing is available,
+except that you cannot use
+.CO <control-W>
+to switch to an alternate screen.
+Entering a
+.CO <carriage-return>
+will execute the current line of the screen window as an ex command in
+the context of the screen from which you created the colon command-line
+screen,
+and you will then return to that screen.
+.sp
+Because of
+.CO vi \&'s
+parsing rules, it can be difficult to set the colon command-line edit
+character to the
+.LI <escape>
+character.
+To set it to
+.LI <escape> ,
+use
+.QT "set cedit=<literal-next><escape>" .
+.sp
+If the
+.OP cedit
+edit option is set to the same character as the
+.OP filec
+edit option,
+.CO vi
+will perform colon command-line editing if the character is entered as
+the first character of the line,
+otherwise,
+.CO vi
+will perform file name expansion.
+.KY columns
+.IP "columns, co [80]"
+The number of columns in the screen.
+Setting this option causes
+.EV ex vi
+to set (or reset) the environmental variable
+.LI COLUMNS .
+See the section entitled
+.QB "Sizing the Screen"
+more information.
+.KY comment
+.IP "comment [off]"
+.CO Vi
+only.
+If the first non-empty line of the file begins with the string
+.QT # ,
+.QT /\&*
+or
+.QT // ,
+this option causes
+.CO vi
+to skip to the end of that shell, C or C++ comment (probably a
+terribly boring legal notice) before displaying the file.
+.KY directory
+.IP "directory, dir [environment variable TMPDIR, or /tmp]"
+The directory where temporary files are created.
+The environmental variable
+.LI TMPDIR
+is used as the default value if it exists, otherwise
+.LI /tmp
+is used.
+.KY edcompatible
+.IP "edcompatible, ed [off]"
+Remember the values of the
+.QQ c
+and
+.QQ g
+suffixes to the
+.CO substitute
+commands, instead of initializing them as unset for each new
+command.
+Specifying pattern and replacement strings to the
+.CO substitute
+command unsets the
+.QQ c
+and
+.QQ g
+suffixes as well.
+.KY escapetime
+.IP "escapetime [1]"
+The 10th's of a second
+.EV ex vi
+waits for a subsequent key to complete an
+.LI <escape>
+key mapping.
+.KY errorbells
+.IP "errorbells, eb [off]"
+.CO Ex
+only.
+.CO Ex
+error messages are normally presented in inverse video.
+If that is not possible for the terminal, setting this option causes
+error messages to be announced by ringing the terminal bell.
+.KY exrc
+.IP "exrc, ex [off]"
+If this option is turned on in the EXINIT environment variables,
+or the system or $HOME startup files,
+the local startup files are read,
+unless they are the same as the system or $HOME startup files or
+fail to pass the standard permission checks.
+See the section entitled
+.QB "Startup Information"
+for more information.
+.KY extended
+.IP "extended [off]"
+This option causes all regular expressions to be treated as POSIX
+1003.2 Extended Regular Expressions (which are similar to historic
+.XR egrep 1
+style expressions).
+.KY filec
+.IP "filec [no default]"
+This option adds the ability to do shell expansion when entering input
+on the colon command line.
+This option is set to a string.
+Whenever the first character of that string is entered on the colon
+command line,
+the <blank> delimited string immediately before the cursor is expanded
+as if it were followed by a
+.LI \&*
+character, and file name expansion for the
+.CO ex
+edit command was done.
+If no match is found, the screen is flashed and text input resumed.
+If a single match results, that match replaces the expanded text.
+In addition, if the single match is for a directory, a
+.LI \&/
+character is appended and file completion is repeated.
+If more than a single match results,
+any unique prefix shared by the matches replaces the expanded text,
+the matches are displayed,
+and text input resumed.
+.sp
+Because of
+.CO vi \&'s
+parsing rules, it can be difficult to set the path completion character
+to two command values,
+.LI <escape>
+and
+.LI <tab> .
+To set it to
+.LI <escape> ,
+use
+.QT "set filec=<literal-next><escape>" .
+To set it to
+.LI <tab> ,
+use
+.QT "set filec=\e<tab>" .
+.sp
+If the
+.OP cedit
+edit option is set to the same character as the
+.OP filec
+edit option,
+.CO vi
+will perform colon command-line editing if the character is entered as
+the first character of the line,
+otherwise,
+.CO vi
+will perform file name expansion.
+.KY flash
+.IP "flash [on]"
+This option causes the screen to flash instead of beeping the keyboard,
+on error, if the terminal has the capability.
+.KY hardtabs
+.IP "hardtabs, ht [8]"
+This option defines the spacing between hardware tab settings, i.e.
+the tab expansion done by the operating system and/or the terminal
+itself.
+As
+.EV nex nvi
+never writes
+.LI <tab>
+characters to the terminal, unlike historic versions of
+.EV ex vi ,
+this option does not currently have any affect.
+.KY iclower
+.IP "iclower [off]"
+The
+.OP iclower
+edit option makes all Regular Expressions case-insensitive,
+as long as an upper-case letter does not appear in the search string.
+.KY ignorecase
+.IP "ignorecase, ic [off]"
+This option causes regular expressions, both in
+.CO ex
+commands and in searches,
+to be evaluated in a case-insensitive manner.
+.KY keytime
+.IP "keytime [6]"
+The 10th's of a second
+.EV ex vi
+waits for a subsequent key to complete a key mapping.
+.KY leftright
+.IP "leftright [off]"
+.CO Vi
+only.
+This option causes the screen to be scrolled left-right to view
+lines longer than the screen, instead of the traditional
+.CO vi
+screen interface which folds long lines at the right-hand margin
+of the terminal.
+.KY lines
+.IP "lines, li [24]"
+.CO Vi
+only.
+The number of lines in the screen.
+Setting this option causes
+.EV ex vi
+to set (or reset) the environmental variable
+.LI LINES .
+See the section entitled
+.QB "Sizing the Screen"
+for more information.
+.KY lisp
+.IP "lisp [off]"
+.CO Vi
+only.
+This option changes the behavior of the
+.CO vi
+.CO ( ,
+.CO ) ,
+.CO { ,
+.CO } ,
+.CO [[
+and
+.CO ]]
+commands to match the Lisp language.
+Also, the
+.OP autoindent
+option's behavior is changed to be appropriate for Lisp.
+.sp
+.i "This option is not yet implemented."
+.KY list
+.IP "list [off]"
+This option causes lines to be displayed in an unambiguous fashion.
+Specifically, tabs are displayed as control characters, i.e.
+.QT ^I ,
+and the ends of lines are marked with a
+.QT $
+character.
+.KY lock
+.IP "lock [on]"
+This option causes the editor to attempt to get an exclusive lock on
+any file being edited, read or written.
+Reading or writing a file that cannot be locked produces a warning
+message, but no other effect.
+Editing a file that cannot be locked results in a read only edit session,
+as if the
+.OP readonly
+edit option were set.
+.KY magic
+.IP "magic [on]"
+This option is on by default.
+Turning the
+.OP magic
+option off causes all regular expression characters except for
+.QT ^
+and
+.QT $ ,
+to be treated as ordinary characters.
+To re-enable characters individually, when the
+.OP magic
+option is off,
+precede them with a backslash
+.QT \e
+character.
+See the section entitled
+.QB "Regular Expressions and Replacement Strings"
+for more information.
+.KY matchtime
+.IP "matchtime [7]"
+.CO Vi
+only.
+The 10th's of a second
+.CO vi
+pauses on the matching character when the
+.OP showmatch
+option is set.
+.KY mesg
+.IP "mesg [on]"
+This option allows other users to contact you using the
+.XR talk 1
+and
+.XR write 1
+utilities, while you are editing.
+.EV Ex vi
+does not turn message on, i.e. if messages were turned off when the
+editor was invoked, they will stay turned off.
+This option only permits you to disallow messages for the edit session.
+See the
+.XR mesg 1
+utility for more information.
+.KY msgcat
+.IP "msgcat [./]"
+This option selects a message catalog to be used to display error and
+informational messages in a specified language.
+If the value of this option ends with a '/', it is treated as the name
+of a directory that contains a message catalog
+.QT "vi_XXXX" ,
+where
+.QT XXXX
+is the value of the
+.LI LANG
+environmental variable, if it's set, or the value of the
+.LI LC_MESSAGES
+environmental variable if it's not.
+If neither of those environmental variables are set,
+or if the option doesn't end in a '/',
+the option is treated as the full path name of the message catalog to use.
+.sp
+If any messages are missing from the catalog,
+the backup text (English) is used instead.
+.sp
+See the distribution file
+.LI catalog/README
+for additional information on building and installing message catalogs.
+.KY modelines
+.IP "modelines, modeline [off]"
+If the
+.OP modelines
+option is set,
+.EV ex vi
+has historically scanned the first and last five lines of each file as
+it is read for editing, looking for any
+.CO ex
+commands that have been placed in those lines.
+After the startup information has been processed, and before the user
+starts editing the file, any commands embedded in the file are executed.
+.sp
+Commands were recognized by the letters
+.QQ e
+or
+.QQ v
+followed by
+.QQ x
+or
+.QQ i ,
+at the beginning of a line or following a tab or space character,
+and followed by a
+.QQ : ,
+an
+.CO ex
+command, and another
+.QQ : .
+.sp
+This option is a security problem of immense proportions,
+and should not be used under any circumstances.
+.sp
+.i "This option will never be implemented."
+.\" I cannot get a double quote to print between the square brackets
+.\" to save my life.  The ONLY way I've been able to get this to work
+.\" is with the .tr command.
+.tr Q"
+.ds ms noprint [QQ]
+.KY noprint
+.IP "\*(ms"
+.tr QQ
+Characters that are never handled as printable characters.
+By default, the C library function
+.XR isprint 3
+is used to determine if a character is printable or not.
+This edit option overrides that decision.
+.KY number
+.IP "number, nu [off]"
+Precede each line displayed with its current line number.
+.KY octal
+.IP "octal [off]"
+Display unknown characters as octal numbers
+.PQ "\e###" ,
+instead of the default
+hexadecimal
+.PQ "\ex##" .
+.KY open
+.IP "open [on]"
+.CO Ex
+only.
+If this option is not set, the
+.CO open
+and
+.CO visual
+commands are disallowed.
+.KY optimize
+.IP "optimize, opt [on]"
+.CO Vi
+only.
+Throughput of text is expedited by setting the terminal not to do automatic
+carriage returns when printing more than one (logical) line of output,
+greatly speeding output on terminals without addressable cursors when text
+with leading white space is printed.
+.sp
+.i "This option is not yet implemented."
+.KY paragraphs
+.IP "paragraphs, para [IPLPPPQPP LIpplpipbp]"
+.CO Vi
+only.
+Define additional paragraph boundaries for the
+.CO {
+and
+.CO }
+commands.
+The value of this option must be a character string consisting
+of zero or more character pairs.
+.sp
+In the text to be edited, the character string
+.LI "<newline>.<char-pair>" ,
+(where
+.LI <char-pair>
+is one of the character pairs in the option's value)
+defines a paragraph boundary.
+For example, if the option were set to
+.LI "LaA<space>##" ,
+then all of the following additional paragraph boundaries would be
+recognized:
+.sp
+.(l
+<newline>.La
+<newline>.A<space>
+<newline>.##
+.)l
+.KY path
+.IP "path []"
+The path option can be used to specify a <colon>-separated list of
+paths, similar to the
+.LI PATH
+environment variable in the shells.
+If this option is set,
+the name of the file to be edited is not an absolute pathname,
+the first component of the filename is not
+.QT \&.
+or
+.QT \&.. ,
+and the file to be edited doesn't exist in the current directory,
+the elements of the
+.OP path
+option are sequentially searched for a file of the specified name.
+If such a file is found, it is edited.
+.\" I cannot get a double quote to print between the square brackets
+.\" to save my life.  The ONLY way I've been able to get this to work
+.\" is with the .tr command.
+.tr Q"
+.ds ms print [QQ]
+.KY print
+.IP "\*(ms"
+.tr QQ
+Characters that are always handled as printable characters.
+By default, the C library function
+.XR isprint 3
+is used to determine if a character is printable or not.
+This edit option overrides that decision.
+.KY prompt
+.IP "prompt [on]"
+.CO Ex
+only.
+This option causes
+.CO ex
+to prompt for command input with a
+.QT :
+character; when it is not set, no prompt is displayed.
+.KY readonly
+.IP "readonly, ro [off]"
+This option causes a force flag to be required to attempt to write the file.
+Setting this option is equivalent to using the
+.b \-R
+command line option,
+or executing the
+.CO vi
+program using the name
+.CO view .
+.sp
+The
+.OP readonly
+edit option is not usually persistent, like other edit options.
+If the
+.b \-R
+command line option is set,
+.CO vi
+is executed as
+.CO view ,
+or the
+.OP readonly
+edit option is explicitly set,
+all files edited in the screen will be marked readonly,
+and the force flag will be required to write them.
+However, if none of these conditions are true,
+or the
+.OP readonly
+edit option is explicitly unset,
+then the
+.OP readonly
+edit option will toggle based on the write permissions of the file currently
+being edited as of when it is loaded into the edit buffer.
+In other words, the
+.OP readonly
+edit option will be set if the current file lacks write permissions,
+and will not be set if the user has write permissions for the file.
+.KY recdir
+.IP "recdir [/var/tmp/vi.recover]"
+The directory where recovery files are stored.
+.sp
+If you change the value of
+.OP recdir ,
+be careful to choose a directory whose contents are not regularly
+deleted.
+Bad choices include directories in memory based filesystems,
+or
+.LI /tmp ,
+on most systems,
+as their contents are removed when the machine is rebooted.
+.sp
+Public directories like
+.LI /usr/tmp
+and
+.LI /var/tmp
+are usually safe, although some sites periodically prune old files
+from them.
+There is no requirement that you use a public directory,
+e.g. a sub-directory of your home directory will work fine.
+.sp
+Finally, if you change the value of
+.OP recdir ,
+you must modify the recovery script to operate in your chosen recovery
+area.
+.sp
+See the section entitled
+.QB "Recovery"
+for further information.
+.KY redraw
+.IP "redraw, re [off]"
+.CO Vi
+only.
+The editor simulates (using great amounts of output), an intelligent
+terminal on a dumb terminal (e.g. during insertions in
+.CO vi
+the characters to the right of the cursor are refreshed as each input
+character is typed).
+.sp
+.i "This option is not yet implemented."
+.KY remap
+.IP "remap [on]"
+If this option is set,
+it is possible to define macros in terms of other macros.
+Otherwise, each key is only remapped up to one time.
+For example, if
+.QT A
+is mapped to
+.QT B ,
+and
+.QT B
+is mapped to
+.QT C ,
+The keystroke
+.QT A
+will be mapped to
+.QT C
+if the
+.OP remap
+option is set, and to
+.QT B
+if it is not set.
+.KY report
+.IP "report [5]"
+Set the threshold of the number of lines that need to be changed or
+yanked before a message will be displayed to the user.
+For everything but the yank command, the value is the largest value
+about which the editor is silent, i.e. by default, 6 lines must be
+deleted before the user is notified.
+However, if the number of lines yanked is greater than
+.i "or equal to"
+the set value, it is reported to the user.
+.KY ruler
+.IP "ruler [off]"
+.CO Vi
+only.
+Display a row/column ruler on the colon command line.
+.KY scroll
+.IP "scroll, scr [(environment variable LINES - 1) / 2]"
+Set the number of lines scrolled by the
+.CO ex
+.CO <control-D>
+and
+.CO <end-of-file>
+commands.
+.sp
+Historically, the
+.CO ex
+.CO z
+command, when specified without a count, used two times the size of the
+scroll value; the POSIX 1003.2 standard specified the window size, which
+is a better choice.
+.KY searchincr
+.IP "searchincr [off]"
+The
+.OP searchincr
+edit option makes the search commands
+.CO \&/
+and
+.CO \&?
+incremental, i.e. the screen is updated and the cursor moves to the matching
+text as the search pattern is entered.
+If the search pattern is not found,
+the screen is beeped and the cursor remains on the colon-command line.
+Erasing characters from the search pattern backs the cursor up to the
+previous matching text.
+.KY sections
+.IP "sections, sect [NHSHH HUnhsh]"
+.CO Vi
+only.
+Define additional section boundaries for the
+.CO [[
+and
+.CO ]]
+commands.
+The
+.OP sections
+option should be set to a character string consisting of zero or
+more character pairs.
+In the text to be edited, the character string
+.LI "<newline>.<char-pair>" ,
+(where
+.LI <char-pair>
+is one of the character pairs in the option's value),
+defines a section boundary in the same manner that
+.OP paragraphs
+option boundaries are defined.
+.KY secure
+.IP "secure [off]"
+The
+.OP secure
+edit option turns off all access to external programs.
+This means that the versions of the
+.CO read
+and
+.CO write
+commands that filter text through other programs,
+the
+.CO vi
+.CO \&!
+and
+.CO <control-Z>
+commands,
+the
+.CO ex
+.CO \&! ,
+.CO script ,
+.CO shell ,
+.CO stop
+and
+.CO suspend
+commands and file name expansion will not be permitted.
+Once set,
+the
+.OP secure
+edit option may not be unset.
+.KY shell
+.IP "shell, sh [environment variable SHELL, or /bin/sh]"
+Select the shell used by the editor.
+The specified path is the pathname of the shell invoked by the
+.CO vi
+.CO !
+shell escape command and by the
+.CO ex
+.CO shell
+command.
+This program is also used to resolve any shell meta-characters in
+.CO ex
+commands.
+.\" I cannot get a double quote to print between the square brackets
+.\" to save my life.  The ONLY way I've been able to get this to work
+.\" is with the .tr command.
+.tr Q"
+.ds ms shellmeta [~{[*?$`'Q\e]
+.KY shellmeta
+.IP "\*(ms"
+.tr QQ
+The set of characters that
+.CO ex
+checks for when doing file name expansion.
+If any of the specified characters are found in the file name arguments
+to the
+.CO ex
+commands,
+the arguments are expanded using the program defined by the
+.OP shell
+option.
+The default set of characters is a union of meta characters
+from the Version 7 and the Berkeley C shell.
+.KY shiftwidth
+.IP "shiftwidth, sw [8]"
+Set the autoindent and shift command indentation width.
+This width is used by the
+.OP autoindent
+option and by the
+.CO < ,
+.CO > ,
+and
+.CO shift
+commands.
+.KY showmatch
+.IP "showmatch, sm [off]"
+.CO Vi
+only.
+This option causes
+.CO vi ,
+when a
+.QT }
+or
+.QT )
+is entered, to briefly move the cursor the matching
+.QT {
+or
+.QT ( .
+See the
+.OP matchtime
+option for more information.
+.KY showmode
+.IP "showmode, smd [off]"
+.CO Vi
+only.
+This option causes
+.CO vi
+to display a string identifying the current editor mode on the colon
+command line.
+The string is preceded by an asterisk (``*'') if the file has been
+modified since it was last completely written,
+.KY sidescroll
+.IP "sidescroll [16]"
+.CO Vi
+only.
+Sets the number of columns that are shifted to the left or right,
+when
+.CO vi
+is doing left-right scrolling and the left or right margin is
+crossed.
+See the
+.OP leftright
+option for more information.
+.KY slowopen
+.IP "slowopen, slow [off]"
+This option affects the display algorithm used by
+.CO vi ,
+holding off display updating during input of new text to improve
+throughput when the terminal in use is slow and unintelligent.
+.sp
+.i "This option is not yet implemented."
+.KY sourceany
+.IP "sourceany [off]"
+If this option is turned on,
+.CO vi
+historically read startup files that were owned by someone other than
+the editor user.
+See the section entitled
+.QB "Startup Information"
+for more information.
+This option is a security problem of immense proportions,
+and should not be used under any circumstances.
+.sp
+.i "This option will never be implemented."
+.KY tabstop
+.IP "tabstop, ts [8]"
+This option sets tab widths for the editor display.
+.KY taglength
+.IP "taglength, tl [0]"
+This option sets the maximum number of characters that are considered
+significant in a tag name.
+Setting the value to 0 makes all of the characters in the tag name
+significant.
+.KY tags
+.IP "tags, tag [tags /var/db/libc.tags /sys/kern/tags]"
+Sets the list of tags files, in search order,
+which are used when the editor searches for a tag.
+.KY term
+.IP "term, ttytype, tty [environment variable TERM]"
+Set the terminal type.
+Setting this option causes
+.EV ex vi
+to set (or reset) the environmental variable
+.LI TERM .
+.KY terse
+.IP "terse [off]"
+This option has historically made editor messages less verbose.
+It has no effect in this implementation.
+See the
+.OP verbose
+option for more information.
+.KY tildeop
+.IP "tildeop [off]"
+Modify the
+.CO ~
+command to take an associated motion.
+.KY timeout
+.IP "timeout, to [on]"
+If this option is set,
+.EV ex vi
+waits for a specific period for a subsequent key to complete a key
+mapping (see the
+.OP keytime
+option).
+If the option is not set, the editor waits until enough keys are
+entered to resolve the ambiguity, regardless of how long it takes.
+.KY ttywerase
+.IP "ttywerase [off]"
+.CO Vi
+only.
+This option changes how
+.CO vi
+does word erase during text input.
+If this option is set, text is broken up into two classes,
+blank characters and nonblank characters.
+Changing from one class to another marks the end of a word.
+.KY verbose
+.IP "verbose [off]"
+.CO Vi
+only.
+.CO Vi
+historically bells the terminal for many obvious mistakes, e.g. trying
+to move past the left-hand margin, or past the end of the file.
+If this option is set, an error message is displayed for all errors.
+.KY w300
+.IP "w300 [no default]"
+.CO Vi
+only.
+Set the window size if the baud rate is less than 1200 baud.
+See the
+.OP window
+option for more information.
+.KY w1200
+.IP "w1200 [no default]"
+.CO Vi
+only.
+Set the window size if the baud rate is equal to 1200 baud.
+See the
+.OP window
+option for more information.
+.KY w9600
+.IP "w9600 [no default]"
+.CO Vi
+only.
+Set the window size if the baud rate is greater than 1200 baud.
+See the
+.OP window
+option for more information.
+.KY warn
+.IP "warn [on]"
+.CO Ex
+only.
+This option causes a warning message to the terminal if the file has
+been modified, since it was last written, before a
+.CO !
+command.
+.KY window
+.IP "window, w, wi [environment variable LINES - 1]"
+This option determines the default number of lines in a screenful,
+as displayed by the
+.CO z
+command.
+It also determines the number of lines scrolled by the
+.CO vi
+commands
+.CO <control-B>
+and
+.CO <control-F> ,
+and the default number of lines scrolled by the
+.CO vi
+commands
+.CO <control-D>
+and
+.CO <control-U> .
+The value of window can be unrelated to the real screen size,
+although it starts out as the number of lines on the screen.
+See the section entitled
+.QB "Sizing the Screen"
+for more information.
+Setting the value of the
+.OP window
+option is the same as using the
+.b \-w
+command line option.
+.sp
+If the value of the
+.OP window
+option (as set by the
+.OP window ,
+.OP w300 ,
+.OP w1200
+or
+.OP w9600
+options) is smaller than the actual size of the screen,
+large screen movements will result in displaying only that smaller
+number of lines on the screen.
+(Further movements in that same area will result in the screen being
+filled.)
+This can provide a performance improvement when viewing different
+places in one or more files over a slow link.
+.sp
+Resetting the window size does not reset the default number of lines
+scrolled by the
+.CO <control-D>
+and
+.CO <control-U>
+commands.
+.KY windowname
+.IP "windowname [off]"
+.CO Vi
+changes the name of the editor's icon/window to the current file name
+when it's possible and not destructive, i.e.,
+when the editor can restore it to its original value on exit or when
+the icon/window will be discarded as the editor exits.
+If the
+.OP windowname
+edit option is set,
+.CO vi
+will change the icon/window name even when it's destructive and the
+icon/window name will remain after the editor exits.
+(This is the case for
+.XR xterm 1 ).
+.KY wraplen
+.IP "wraplen, wl [0]"
+This option is identical to the
+.OP wrapmargin
+option, with the exception that it specifies the number of columns
+from the
+.i left
+margin before the line splits, not the right margin.
+.sp
+If both
+.OP wraplen
+and
+.OP wrapmargin
+are set, the
+.OP wrapmargin
+value is used.
+.KY wrapmargin
+.IP "wrapmargin, wm [0]"
+.CO Vi
+only.
+If the value of the
+.OP wrapmargin
+option is non-zero,
+.CO vi
+will split lines so that they end at least that number of columns
+before the right-hand margin of the screen.
+(Note, the value of
+.OP wrapmargin
+is
+.i not
+a text length.
+In a screen that is 80 columns wide, the command
+.QT ":set wrapmargin=8"
+attempts to keep the lines less than or equal to 72 columns wide.)
+.sp
+Lines are split at the previous whitespace character closest to the
+number.
+Any trailing whitespace characters before that character are deleted.
+If the line is split because of an inserted
+.LI <space>
+or
+.LI <tab>
+character, and you then enter another
+.LI <space>
+character, it is discarded.
+.sp
+If wrapmargin is set to 0,
+or if there is no blank character upon which to split the line,
+the line is not broken.
+.sp
+If both
+.OP wraplen
+and
+.OP wrapmargin
+are set, the
+.OP wrapmargin
+value is used.
+.KY wrapscan
+.IP "wrapscan, ws [on]"
+This option causes searches to wrap around the end or the beginning
+of the file, and back to the starting point.
+Otherwise, the end or beginning of the file terminates the search.
+.KY writeany
+.IP "writeany, wa [off]"
+If this option is set, file-overwriting checks that would usually be
+made before the
+.CO write
+and
+.CO xit
+commands, or before an automatic write (see the
+.OP autowrite
+option), are not made.
+This allows a write to any file, provided the file permissions allow it.

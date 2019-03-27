@@ -1,0 +1,300 @@
+.\" Copyright (c) 2000 Scott Long
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd July 10, 2009
+.Dt AAC 4
+.Os
+.Sh NAME
+.Nm aac
+.Nd Adaptec AdvancedRAID Controller driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd device pci
+.Cd device aac
+.Cd device aacp
+.Pp
+To compile in debugging code:
+.Cd options AAC_DEBUG=N
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+aac_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Adaptec AAC family of SCSI Ultra2, Ultra160,
+and Ultra320, SATA and SAS RAID controllers.
+.Pp
+Access to RAID containers is available via the
+.Pa /dev/aacd?
+device nodes.
+The
+.Nm aacp
+device enables the SCSI pass-thru interface and allows devices connected
+to the card such as CD-ROMs to be available via the CAM
+.Xr scsi 4
+subsystem.
+Note that not all cards allow this interface to be enabled.
+.Pp
+The
+.Pa /dev/aac?
+device nodes provide access to the management interface of the controller.
+One node exists per installed card.
+The aliases
+.Pa /dev/afa?
+and
+.Pa /dev/hpn?
+exist for compatibility with the Dell and HP versions of management tools,
+respectively.
+If the kernel is compiled with the
+.Dv COMPAT_LINUX
+option, or the
+.Pa aac_linux.ko
+and
+.Pa linux.ko
+modules are loaded, the
+Linux-compatible
+.Xr ioctl 2
+interface for the management device will be enabled and will allow
+Linux-based management applications to control the card.
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Adaptec AAC-364
+.It
+Adaptec RAID 2045
+.It
+Adaptec RAID 2405
+.It
+Adaptec RAID 2445
+.It
+Adaptec RAID 2805
+.It
+Adaptec RAID 3085
+.It
+Adaptec RAID 31205
+.It
+Adaptec RAID 31605
+.It
+Adaptec RAID 5085
+.It
+Adaptec RAID 51205
+.It
+Adaptec RAID 51245
+.It
+Adaptec RAID 51605
+.It
+Adaptec RAID 51645
+.It
+Adaptec RAID 52445
+.It
+Adaptec RAID 5405
+.It
+Adaptec RAID 5445
+.It
+Adaptec RAID 5805
+.It
+Adaptec SAS RAID 3405
+.It
+Adaptec SAS RAID 3805
+.It
+Adaptec SAS RAID 4000SAS
+.It
+Adaptec SAS RAID 4005SAS
+.It
+Adaptec SAS RAID 4800SAS
+.It
+Adaptec SAS RAID 4805SAS
+.It
+Adaptec SATA RAID 2020SA ZCR
+.It
+Adaptec SATA RAID 2025SA ZCR
+.It
+Adaptec SATA RAID 2026ZCR
+.It
+Adaptec SATA RAID 2410SA
+.It
+Adaptec SATA RAID 2420SA
+.It
+Adaptec SATA RAID 2610SA
+.It
+Adaptec SATA RAID 2620SA
+.It
+Adaptec SATA RAID 2810SA
+.It
+Adaptec SATA RAID 2820SA
+.It
+Adaptec SATA RAID 21610SA
+.It
+Adaptec SCSI RAID 2020ZCR
+.It
+Adaptec SCSI RAID 2025ZCR
+.It
+Adaptec SCSI RAID 2120S
+.It
+Adaptec SCSI RAID 2130S
+.It
+Adaptec SCSI RAID 2130SLP
+.It
+Adaptec SCSI RAID 2230SLP
+.It
+Adaptec SCSI RAID 2200S
+.It
+Adaptec SCSI RAID 2240S
+.It
+Adaptec SCSI RAID 3230S
+.It
+Adaptec SCSI RAID 3240S
+.It
+Adaptec SCSI RAID 5400S
+.It
+Dell CERC SATA RAID 2
+.It
+Dell PERC 2/Si
+.It
+Dell PERC 2/QC
+.It
+Dell PERC 3/Si
+.It
+Dell PERC 3/Di
+.It
+Dell PERC 320/DC
+.It
+HP ML110 G2 (Adaptec SATA RAID 2610SA)
+.It
+HP NetRAID 4M
+.It
+IBM ServeRAID 8i
+.It
+IBM ServeRAID 8k
+.It
+IBM ServeRAID 8s
+.It
+ICP RAID ICP5045BL
+.It
+ICP RAID ICP5085BL
+.It
+ICP RAID ICP5085SL
+.It
+ICP RAID ICP5125BR
+.It
+ICP RAID ICP5125SL
+.It
+ICP RAID ICP5165BR
+.It
+ICP RAID ICP5165SL
+.It
+ICP RAID ICP5445SL
+.It
+ICP RAID ICP5805BL
+.It
+ICP RAID ICP5805SL
+.It
+ICP ICP5085BR SAS RAID
+.It
+ICP ICP9085LI SAS RAID
+.It
+ICP ICP9047MA SATA RAID
+.It
+ICP ICP9067MA SATA RAID
+.It
+ICP ICP9087MA SATA RAID
+.It
+ICP ICP9014RO SCSI RAID
+.It
+ICP ICP9024RO SCSI RAID
+.It
+Legend S220
+.It
+Legend S230
+.It
+Sun STK RAID REM
+.It
+Sun STK RAID EM
+.It
+SG-XPCIESAS-R-IN
+.It
+SG-XPCIESAS-R-EX
+.It
+AOC-USAS-S4i
+.It
+AOC-USAS-S8i
+.It
+AOC-USAS-S4iR
+.It
+AOC-USAS-S8iR
+.It
+AOC-USAS-S8i-LP
+.It
+AOC-USAS-S8iR-LP
+.El
+.Sh FILES
+.Bl -tag -width /boot/kernel/aac.ko -compact
+.It Pa /dev/aac?
+aac management interface
+.It Pa /dev/aacd?
+disk/container interface
+.El
+.Sh DIAGNOSTICS
+Compiling with
+.Dv AAC_DEBUG
+set to a number between 0 and 3
+will enable increasingly verbose debug messages.
+.Pp
+The adapter can send status and alert messages asynchronously
+to the driver.
+These messages are printed on the system console,
+and are also queued for retrieval by a management application.
+.Sh SEE ALSO
+.Xr kld 4 ,
+.Xr linux 4 ,
+.Xr scsi 4 ,
+.Xr kldload 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.3 .
+.Sh AUTHORS
+.An Mike Smith Aq Mt msmith@FreeBSD.org
+.An Scott Long Aq Mt scottl@FreeBSD.org
+.Sh BUGS
+This driver is not compatible with Dell controllers that have version 1.x
+firmware.
+The firmware version is the same as the kernel version printed in the BIOS
+POST and driver attach messages.
+.Pp
+The controller is not actually paused on suspend/resume.

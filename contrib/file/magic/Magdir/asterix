@@ -1,0 +1,18 @@
+
+#------------------------------------------------------------------------------
+# $File: asterix,v 1.5 2009/09/19 16:28:08 christos Exp $
+# asterix:  file(1) magic for Aster*x; SunOS 5.5.1 gave the 4-character
+# strings as "long" - we assume they're just strings:
+# From: guy@netapp.com (Guy Harris)
+#
+0	string		*STA		Aster*x
+>7	string		WORD			Words Document
+>7	string		GRAP			Graphic
+>7	string		SPRE			Spreadsheet
+>7	string		MACR			Macro
+0	string		2278		Aster*x Version 2
+>29	byte		0x36			Words Document
+>29	byte		0x35			Graphic
+>29	byte		0x32			Spreadsheet
+>29	byte		0x38			Macro
+

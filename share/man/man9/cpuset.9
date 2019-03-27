@@ -1,0 +1,352 @@
+.\" Copyright (c) 2015 Conrad Meyer <cem@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 29, 2016
+.Dt CPUSET 9
+.Os
+.Sh NAME
+.Nm cpuset(9)
+\(em
+.Nm CPUSET_T_INITIALIZER ,
+.Nm CPUSET_FSET ,
+.Nm CPU_CLR ,
+.Nm CPU_COPY ,
+.Nm CPU_ISSET ,
+.Nm CPU_SET ,
+.Nm CPU_ZERO ,
+.Nm CPU_FILL ,
+.Nm CPU_SETOF ,
+.Nm CPU_EMPTY ,
+.Nm CPU_ISFULLSET ,
+.Nm CPU_FFS ,
+.Nm CPU_COUNT ,
+.Nm CPU_SUBSET ,
+.Nm CPU_OVERLAP ,
+.Nm CPU_CMP ,
+.Nm CPU_OR ,
+.Nm CPU_AND ,
+.Nm CPU_NAND ,
+.Nm CPU_CLR_ATOMIC ,
+.Nm CPU_SET_ATOMIC ,
+.Nm CPU_SET_ATOMIC_ACQ ,
+.Nm CPU_AND_ATOMIC ,
+.Nm CPU_OR_ATOMIC ,
+.Nm CPU_COPY_STORE_REL
+.Nd cpuset manipulation macros
+.Sh SYNOPSIS
+.In sys/_cpuset.h
+.In sys/cpuset.h
+.\"
+.Fn CPUSET_T_INITIALIZER "ARRAY_CONTENTS"
+.Vt CPUSET_FSET
+.\"
+.Fn CPU_CLR "size_t cpu_idx" "cpuset_t *cpuset"
+.Fn CPU_COPY "cpuset_t *from" "cpuset_t *to"
+.Ft bool
+.Fn CPU_ISSET "size_t cpu_idx" "cpuset_t *cpuset"
+.Fn CPU_SET "size_t cpu_idx" "cpuset_t *cpuset"
+.Fn CPU_ZERO "cpuset_t *cpuset"
+.Fn CPU_FILL "cpuset_t *cpuset"
+.Fn CPU_SETOF "size_t cpu_idx" "cpuset_t *cpuset"
+.Ft bool
+.Fn CPU_EMPTY "cpuset_t *cpuset"
+.Ft bool
+.Fn CPU_ISFULLSET "cpuset_t *cpuset"
+.Ft int
+.Fn CPU_FFS "cpuset_t *cpuset"
+.Ft int
+.Fn CPU_COUNT "cpuset_t *cpuset"
+.\"
+.Ft bool
+.Fn CPU_SUBSET "cpuset_t *haystack" "cpuset_t *needle"
+.Ft bool
+.Fn CPU_OVERLAP "cpuset_t *cpuset1" "cpuset_t *cpuset2"
+.Ft bool
+.Fn CPU_CMP "cpuset_t *cpuset1" "cpuset_t *cpuset2"
+.Fn CPU_OR "cpuset_t *dst" "cpuset_t *src"
+.Fn CPU_AND "cpuset_t *dst" "cpuset_t *src"
+.Fn CPU_NAND "cpuset_t *dst" "cpuset_t *src"
+.\"
+.Fn CPU_CLR_ATOMIC "size_t cpu_idx" "cpuset_t *cpuset"
+.Fn CPU_SET_ATOMIC "size_t cpu_idx" "cpuset_t *cpuset"
+.Fn CPU_SET_ATOMIC_ACQ "size_t cpu_idx" "cpuset_t *cpuset"
+.\"
+.Fn CPU_AND_ATOMIC "cpuset_t *dst" "cpuset_t *src"
+.Fn CPU_OR_ATOMIC "cpuset_t *dst" "cpuset_t *src"
+.Fn CPU_COPY_STORE_REL "cpuset_t *from" "cpuset_t *to"
+.Sh DESCRIPTION
+The
+.Nm
+family of macros provide a flexible and efficient CPU set implementation,
+backed by the
+.Xr bitset 9
+macros.
+Each CPU is represented by a single bit.
+The maximum number of CPUs representable by
+.Vt cpuset_t
+is
+.Va MAXCPU .
+Individual CPUs in cpusets are referenced with indices zero through
+.Fa MAXCPU - 1 .
+.Pp
+The
+.Fn CPUSET_T_INITIALIZER
+macro allows one to initialize a
+.Vt cpuset_t
+with a compile time literal value.
+.Pp
+The
+.Fn CPUSET_FSET
+macro defines a compile time literal, usable by
+.Fn CPUSET_T_INITIALIZER ,
+representing a full cpuset (all CPUs present).
+For examples of
+.Fn CPUSET_T_INITIALIZER
+and
+.Fn CPUSET_FSET
+usage, see the
+.Sx CPUSET_T_INITIALIZER EXAMPLE
+section.
+.Pp
+The
+.Fn CPU_CLR
+macro removes CPU
+.Fa cpu_idx
+from the cpuset pointed to by
+.Fa cpuset .
+The
+.Fn CPU_CLR_ATOMIC
+macro is identical, but the bit representing the CPU is cleared with atomic
+machine instructions.
+.Pp
+The
+.Fn CPU_COPY
+macro copies the contents of the cpuset
+.Fa from
+to the cpuset
+.Fa to .
+.Fn CPU_COPY_STORE_REL
+is similar, but copies component machine words from
+.Fa from
+and writes them to
+.Fa to
+with atomic store with release semantics.
+(That is, if
+.Fa to
+is composed of multiple machine words,
+.Fn CPU_COPY_STORE_REL
+performs multiple individually atomic operations.)
+.Pp
+The
+.Fn CPU_SET
+macro adds CPU
+.Fa cpu_idx
+to the cpuset pointed to by
+.Fa cpuset ,
+if it is not already present.
+The
+.Fn CPU_SET_ATOMIC
+macro is identical, but the bit representing the CPU is set with atomic
+machine instructions.
+The
+.Fn CPU_SET_ATOMIC_ACQ
+macro sets the bit representing the CPU with atomic acquire semantics.
+.Pp
+The
+.Fn CPU_ZERO
+macro removes all CPUs from
+.Fa cpuset .
+.Pp
+The
+.Fn CPU_FILL
+macro adds all CPUs to
+.Fa cpuset .
+.Pp
+The
+.Fn CPU_SETOF
+macro removes all CPUs in
+.Fa cpuset
+before adding only CPU
+.Fa cpu_idx .
+.Pp
+The
+.Fn CPU_EMPTY
+macro returns
+.Dv true
+if
+.Fa cpuset
+is empty.
+.Pp
+The
+.Fn CPU_ISFULLSET
+macro returns
+.Dv true
+if
+.Fa cpuset
+is full (the set of all CPUs).
+.Pp
+The
+.Fn CPU_FFS
+macro returns the 1-index of the first (lowest) CPU in
+.Fa cpuset ,
+or zero if
+.Fa cpuset
+is empty.
+Like with
+.Xr ffs 3 ,
+to use the non-zero result of
+.Fn CPU_FFS
+as a
+.Fa cpu_idx
+index parameter to any other
+.Nm
+macro, you must subtract one from the result.
+.Pp
+The
+.Fn CPU_COUNT
+macro returns the total number of CPUs in
+.Fa cpuset .
+.Pp
+The
+.Fn CPU_SUBSET
+macro returns
+.Dv true
+if
+.Fa needle
+is a subset of
+.Fa haystack .
+.Pp
+The
+.Fn CPU_OVERLAP
+macro returns
+.Dv true
+if
+.Fa cpuset1
+and
+.Fa cpuset2
+have any common CPUs.
+(That is, if
+.Fa cpuset1
+AND
+.Fa cpuset2
+is not the empty set.)
+.Pp
+The
+.Fn CPU_CMP
+macro returns
+.Dv true
+if
+.Fa cpuset1
+is NOT equal to
+.Fa cpuset2 .
+.Pp
+The
+.Fn CPU_OR
+macro adds CPUs present in
+.Fa src
+to
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+|=
+.Fa src . )
+.Fn CPU_OR_ATOMIC
+is similar, but sets the bits representing CPUs in the component machine words
+in
+.Fa dst
+with atomic machine instructions.
+(That is, if
+.Fa dst
+is composed of multiple machine words,
+.Fn CPU_OR_ATOMIC
+performs multiple individually atomic operations.)
+.Pp
+The
+.Fn CPU_AND
+macro removes CPUs absent from
+.Fa src
+from
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+&=
+.Fa src . )
+.Fn CPU_AND_ATOMIC
+is similar, with the same atomic semantics as
+.Fn CPU_OR_ATOMIC .
+.Pp
+The
+.Fn CPU_NAND
+macro removes CPUs in
+.Fa src
+from
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+&=
+.Fa ~ src . )
+.Sh CPUSET_T_INITIALIZER EXAMPLE
+.Bd -literal
+cpuset_t myset;
+
+/* Initialize myset to filled (all CPUs) */
+myset = CPUSET_T_INITIALIZER(CPUSET_FSET);
+
+/* Initialize myset to only the lowest CPU */
+myset = CPUSET_T_INITIALIZER(0x1);
+.Ed
+.Sh SEE ALSO
+.Xr cpuset 1 ,
+.Xr cpuset 2 ,
+.Xr bitset 9
+.Sh HISTORY
+.In sys/cpuset.h
+first appeared in
+.Fx 7.1 ,
+released in January 2009, and in
+.Fx 8.0 ,
+released in November 2009.
+.Pp
+This manual page first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+macros were written by
+.An Jeff Roberson Aq Mt jeff@FreeBSD.org .
+This manual page was written by
+.An Conrad Meyer Aq Mt cem@FreeBSD.org .
+.Sh CAVEATS
+Unlike every other reference to individual set members, which are zero-indexed,
+.Fn CPU_FFS
+returns a one-indexed result (or zero if the cpuset is empty).

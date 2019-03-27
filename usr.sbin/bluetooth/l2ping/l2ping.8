@@ -1,0 +1,114 @@
+.\" Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: l2ping.8,v 1.3 2003/05/21 01:00:19 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd March 29, 2011
+.Dt L2PING 8
+.Os
+.Sh NAME
+.Nm l2ping
+.Nd send L2CAP ECHO_REQUEST to remote devices
+.Sh SYNOPSIS
+.Nm
+.Op Fl fhn
+.Fl a Ar remote
+.Op Fl c Ar count
+.Op Fl i Ar wait
+.Op Fl S Ar source
+.Op Fl s Ar size
+.Sh DESCRIPTION
+The
+.Nm
+utility uses L2CAP
+.Dv ECHO_REQUEST
+datagram to elicit an L2CAP
+.Dv ECHO_RESPONSE
+datagram from a remote device.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a Ar remote
+Specify the remote device to ping.
+The remote device can be specified by either its BD_ADDR or name.
+If name was specified then the
+.Nm
+utility will attempt to resolve the name via
+.Xr bt_gethostbyname 3 .
+.It Fl c Ar count
+Number of packets to send.
+If this option is not specified,
+.Nm
+will operate until interrupted.
+.It Fl f
+Do not wait between sending each packet.
+.It Fl h
+Display usage message and exit.
+.It Fl i Ar wait
+Wait
+.Ar wait
+seconds between sending each packet.
+The default is to wait for one second between each packet.
+This option is ignored if
+.Fl f
+has been specified.
+.It Fl n
+Numeric output only.
+No attempt will be made to look up symbolic names for host addresses.
+.It Fl S Ar source
+Specify the local device which should be used to send L2CAP
+.Dv ECHO_REQUEST
+datagrams.
+The local device can be specified by either its BD_ADDR or name.
+If name was specified then the
+.Nm
+utility will attempt to resolve the name via
+.Xr bt_gethostbyname 3 .
+.It Fl s Ar size
+Specify the number of payload bytes to be sent.
+The default size is 44 bytes.
+It is calculated as minimum L2CAP MTU (48 bytes) minus the size of the L2CAP
+signalling command header (4 bytes).
+The maximum size is 65531 bytes.
+Is is calculated as maximum L2CAP MTU
+(65535 bytes) minus four bytes of payload reserved for
+.Nm
+internal use.
+Use this option with caution.
+Some implementations may not like large sizes and may hang or even crash.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr bluetooth 3 ,
+.Xr netgraph 3 ,
+.Xr netgraph 4 ,
+.Xr ng_l2cap 4 ,
+.Xr l2control 8
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt emax@FreeBSD.org
+.Sh BUGS
+Could collect more statistic.
+Could check for duplicated, corrupted and lost packets.

@@ -1,0 +1,80 @@
+.\" Generated from pam_close_session.c by gendoc.pl
+.\" $OpenPAM: pam_close_session.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_CLOSE_SESSION 3
+.Os
+.Sh NAME
+.Nm pam_close_session
+.Nd close an existing user session
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.Ft "int"
+.Fn pam_close_session "pam_handle_t *pamh" "int flags"
+.Sh DESCRIPTION
+The
+.Fn pam_close_session
+function tears down the user session previously
+set up by
+.Xr pam_open_session 3 .
+.Pp
+The
+.Fa flags
+argument is the binary or of zero or more of the following
+values:
+.Bl -tag -width 18n
+.It Dv PAM_SILENT
+Do not emit any messages.
+.El
+.Pp
+If any other bits are set,
+.Fn pam_close_session
+will return
+.Dv PAM_BAD_CONSTANT .
+.Sh RETURN VALUES
+The
+.Fn pam_close_session
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_ABORT
+General failure.
+.It Bq Er PAM_BAD_CONSTANT
+Bad constant.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_PERM_DENIED
+Permission denied.
+.It Bq Er PAM_SERVICE_ERR
+Error in service module.
+.It Bq Er PAM_SESSION_ERR
+Session failure.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.El
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_open_session 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The
+.Fn pam_close_session
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

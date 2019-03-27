@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+set -- -x -y
+getopts :x var || echo "First getopts bad: $?"
+getopts :x var
+r=$?
+[ r != 0 ] && [ "$OPTIND" = 3 ]

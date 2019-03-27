@@ -1,0 +1,53 @@
+#!/usr/sbin/dtrace -s
+/*
+ * Copyright (c) 2015 George V. Neville-Neil
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *
+ * The udptrack D script shows various information about UDP
+ * data that are sent and received on the host.
+ *
+ * Usage: udptrack
+ */
+
+#pragma D option quiet
+udp:kernel::receive
+{
+	printf("Received %d bytes of data from %s:%d\n",
+	       args[4]->udp_length,
+	       args[2]->ip_saddr,
+	       args[4]->udp_sport);
+	tracemem(args[4]->udp_hdr, 64);
+}
+
+udp:kernel::send
+{
+	printf("Sent %d bytes of data to %s:%d\n", 
+	       args[4]->udp_length,
+	       args[2]->ip_daddr,
+	       args[4]->udp_dport);
+	tracemem(args[4]->udp_hdr, 64);
+}
+

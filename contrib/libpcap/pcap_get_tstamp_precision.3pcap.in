@@ -1,0 +1,52 @@
+.\"Copyright (c) 2013, Michal Sekletar
+.\"All rights reserved.
+.\"
+.\"Redistribution and use in source and binary forms, with or without
+.\"modification, are permitted provided that the following conditions
+.\"are met:
+.\"
+.\"  1. Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\"  2. Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in
+.\"     the documentation and/or other materials provided with the
+.\"     distribution.
+.\"  3. The names of the authors may not be used to endorse or promote
+.\"     products derived from this software without specific prior
+.\"     written permission.
+.\"
+.\"THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\"IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\"WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+.TH PCAP_GET_TSTAMP_PRECISION 3PCAP "18 December 2013"
+.SH NAME
+pcap_get_tstamp_precision \- get the time stamp precision returned in
+captures
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.ft B
+int pcap_get_tstamp_precision(pcap_t *p);
+.ft
+.fi
+.SH DESCRIPTION
+.B pcap_get_tstamp_precision()
+returns the precision of the time stamp returned in packet captures on the pcap
+descriptor.
+.SH RETURN VALUE
+.B pcap_get_tstamp_precision()
+returns
+.B PCAP_TSTAMP_PRECISION_MICRO
+or
+.BR PCAP_TSTAMP_PRECISION_NANO ,
+which indicates
+that pcap captures contains time stamps in microseconds or nanoseconds
+respectively.
+.SH SEE ALSO
+pcap(3PCAP),
+pcap_set_tstamp_precision(3PCAP),
+pcap-tstamp(@MAN_MISC_INFO@)

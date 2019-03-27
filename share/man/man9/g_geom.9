@@ -1,0 +1,206 @@
+.\"
+.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 24, 2016
+.Dt G_GEOM 9
+.Os
+.Sh NAME
+.Nm g_new_geomf ,
+.Nm g_destroy_geom
+.Nd "geom management"
+.Sh SYNOPSIS
+.In geom/geom.h
+.Ft "struct g_geom *"
+.Fn g_new_geomf "struct g_class *mp" "const char *fmt" ...
+.Ft void
+.Fn g_destroy_geom "struct g_geom *gp"
+.Sh DESCRIPTION
+The geom (do not confuse
+.Dq geom
+with
+.Dq GEOM )
+is an instance of a GEOM class.
+For example: in a typical i386
+.Fx
+system, there will be one geom
+of class MBR for each disk.
+The geom's name is not really important, it is only used in the XML
+dump and for debugging purposes.
+There can be many geoms with the same name.
+.Pp
+The
+.Fn g_new_geomf
+function creates a new geom, which will be an instance of the class
+.Fa mp .
+The geom's name is created in a
+.Xr printf 3 Ns
+-like way from the rest of the arguments.
+.Pp
+The
+.Fn g_destroy_geom
+function destroys the given geom immediately and cancels all related pending
+events.
+.Pp
+The
+.Vt g_geom
+structure
+contains fields that should be set by the caller after geom creation, but before
+creating any providers or consumers related to this geom (not all are required):
+.Bl -tag -offset indent -width indent
+.It Vt "g_start_t *" Va start
+Pointer to a function used for I/O processing.
+.It Vt "g_spoiled_t *" Va spoiled
+Pointer to a function used for consumers spoiling.
+.It Vt "g_dumpconf_t *" Va dumpconf
+Pointer to a function used for configuration in XML format dumping.
+.It Vt "g_access_t *" Va access
+Pointer to a function used for access control.
+.It Vt "g_orphan_t *" Va orphan
+Pointer to a function used to inform about orphaned consumer.
+.It Vt "g_ioctl_t *" Va ioctl
+Pointer to a function used for handling ioctl requests.
+.It Vt "void *" Va softc
+Field for private use.
+.El
+.Sh RESTRICTIONS/CONDITIONS
+If you intend to use providers in this geom you must set field
+.Va start
+of your geom.
+.Pp
+If you are planning to use consumers in your geom you must set fields
+.Va orphan
+and
+.Va access
+for it.
+.Pp
+.Fn g_new_geomf :
+.Bl -item -offset indent
+.It
+Class
+.Fa mp
+must be valid (registered in GEOM).
+.It
+The topology lock has to be held.
+.El
+.Pp
+.Fn g_destroy_geom :
+.Bl -item -offset indent
+.It
+The geom cannot possess any providers.
+.It
+The geom cannot possess any consumers.
+.It
+The topology lock has to be held.
+.El
+.Sh RETURN VALUES
+The
+.Fn g_new_geomf
+function
+returns a pointer to the newly created geom.
+.Sh EXAMPLES
+Create an example geom.
+.Bd -literal -offset indent
+static void
+g_example_start(struct bio *bp)
+{
+
+	[...]
+}
+
+static void
+g_example_orphan(struct g_consumer *cp)
+{
+
+	g_topology_assert();
+
+	[...]
+}
+
+static void
+g_example_spoiled(struct g_consumer *cp)
+{
+
+	g_topology_assert();
+
+	[...]
+}
+
+static int
+g_example_access(struct g_provider *pp, int dr, int dw, int de)
+{
+
+	[...]
+}
+
+static struct g_geom *
+create_example_geom(struct g_class *myclass)
+{
+	struct g_geom *gp;
+
+	g_topology_lock();
+	gp = g_new_geomf(myclass, "example_geom");
+	g_topology_unlock();
+	gp->start = g_example_start;
+	gp->orphan = g_example_orphan;
+	gp->spoiled = g_example_spoiled;
+	gp->access = g_example_access;
+	gp->softc = NULL;
+
+	return (gp);
+}
+
+static int
+destroy_example_geom(struct g_geom *gp)
+{
+
+	g_topology_lock();
+	if (!LIST_EMPTY(&gp->provider) ||
+	    !LIST_EMPTY(&gp->consumer)) {
+		g_topology_unlock();
+		return (EBUSY);
+	}
+	g_destroy_geom(gp);
+	g_topology_unlock();
+
+	return (0);
+}
+.Ed
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr DECLARE_GEOM_CLASS 9 ,
+.Xr g_access 9 ,
+.Xr g_attach 9 ,
+.Xr g_bio 9 ,
+.Xr g_consumer 9 ,
+.Xr g_data 9 ,
+.Xr g_event 9 ,
+.Xr g_provider 9 ,
+.Xr g_provider_by_name 9 ,
+.Xr g_wither_geom 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

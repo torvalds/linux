@@ -1,0 +1,76 @@
+# $FreeBSD$
+
+###############################################################################
+############################# JAIL CONFIGURATIONS #############################
+###############################################################################
+
+jail_enable="YES"
+jail_list="XXX"
+
+#
+# Global presets for all jails
+#
+jail_devfs_enable="YES"		# mount devfs
+# Optional (default off)
+#jail_sysvipc_allow="YES"	# Allow SysV Interprocess Comm.
+#jail_set_hostname_allow="YES"	# Allow hostname to change
+
+#
+# To allow dhclient(8) to work inside a jail, make sure the following appears
+# in /etc/devfs.rules (which should be created if it doesn't exist):
+#
+# [devfsrules_jail=11]
+# add include $devfsrules_hide_all
+# add include $devfsrules_unhide_basic
+# add include $devfsrules_unhide_login
+# add path 'bpf*' unhide
+#
+
+############################################################ JAILS
+
+# NETGRAPH TEMPLATE (copy/pate; then replace {name} with short name for jail)
+#
+# {name}
+#
+#jail_{name}_hostname="{name}.shxd.cx"		# hostname
+#jail_{name}_rootdir="/vm/{name}"		# root directory
+#jail_{name}_vnet_interfaces="ng0_{name}"	# vnet interface(s)
+#jail_{name}_exec_prestart0="jng bridge {name} em0"	# bridge interface(s)
+#jail_{name}_exec_poststop0="jng shutdown {name}"	# destroy interface(s)
+# Optional (default off)
+#jail_{name}_devfs_ruleset="11"			# rule to unhide bpf for DHCP
+#jail_{name}_mount_enable="YES"			# mount /etc/fstab.{name}
+
+# IF_BRIDGE TEMPLATE (copy/pate; then replace {name} with short name for jail)
+#
+# {name}
+#
+#jail_{name}_hostname="{name}.shxd.cx"		# hostname
+#jail_{name}_rootdir="/vm/{name}"		# root directory
+#jail_{name}_vnet_interfaces="e0b_{name}"	# vnet interface(s)
+#jail_{name}_exec_prestart0="jib addm {name} em0"	# bridge interface(s)
+#jail_{name}_exec_poststop0="jib destroy {name}"	# destroy interface(s)
+# Optional (default off)
+#jail_{name}_devfs_ruleset="11"			# rule to unhide bpf for DHCP
+#jail_{name}_mount_enable="YES"			# mount /etc/fstab.{name}
+
+#
+# XXX
+#
+jail_XXX_hostname="XXX.YYY"			# hostname
+jail_XXX_rootdir="/vm/XXX"			# root directory
+# netgraph
+jail_XXX_vnet_interface="ng0_XXX"		# vnet interface(s)
+jail_XXX_exec_prestart0="jng bridge XXX em0"	# bridge interface(s)
+jail_XXX_exec_poststop0="jng shutdown XXX"	# destroy interface(s)
+# if_bridge
+#jail_XXX_vnet_interface="e0b_XXX"		# vnet interface(s)
+#jail_XXX_exec_prestart0="jib addm XXX em0"	# bridge interface(s)
+#jail_XXX_exec_poststop0="jib destroy XXX"	# destroy interface(s)
+# Optional (default off)
+#jail_XXX_devfs_ruleset="11"			# rule to unhide bpf for DHCP
+#jail_XXX_mount_enable="YES"			# mount /etc/fstab.XXX
+
+################################################################################
+# END
+################################################################################

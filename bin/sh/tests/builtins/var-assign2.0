@@ -1,0 +1,55 @@
+# $FreeBSD$
+IFS=,
+
+SPECIAL="break,\
+	:,\
+	continue,\
+	. /dev/null,\
+	eval,\
+	exec,\
+	export -p,\
+	readonly -p,\
+	set,\
+	shift 0,\
+	times,\
+	trap,\
+	unset foo"
+
+UTILS="alias,\
+	bg,\
+	bind,\
+	cd,\
+	command echo,\
+	echo,\
+	false,\
+	fc -l,\
+	fg,\
+	getopts a var,\
+	hash,\
+	jobs,\
+	printf a,\
+	pwd,\
+	read var < /dev/null,\
+	test,\
+	true,\
+	type ls,\
+	ulimit,\
+	umask,\
+	unalias -a,\
+	wait"
+
+set -e
+
+# With 'command', variable assignments do not affect the shell environment.
+
+set -- ${SPECIAL}
+for cmd in "$@"
+do
+	${SH} -c "VAR=0; VAR=1 command ${cmd}; exit \${VAR}" >/dev/null 2>&1
+done
+
+set -- ${UTILS}
+for cmd in "$@"
+do
+	${SH} -c "VAR=0; VAR=1 command ${cmd}; exit \${VAR}" >/dev/null 2>&1
+done

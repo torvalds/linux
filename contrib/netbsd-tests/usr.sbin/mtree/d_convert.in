@@ -1,0 +1,40 @@
+# Similar to d_create.out, but a few entries have been deleted; nlink,
+# size and sha256 attributes have been removed; and the order has been
+# changed to test sorting.
+
+# .
+.               type=dir
+    a.symlink.1 type=link link=a.file.1
+    top.dangling type=link link=nonexistent
+    top.symlink.b \
+                type=link link=b
+
+# ./b
+b               type=dir
+    b.file.2    type=file
+    b.file.1    type=file
+# end ./b, up to "."
+..
+
+    top.file.1  type=file
+
+# ./a
+a               type=dir
+    a.file.2    type=file
+
+# ./a/1
+1               type=dir
+    a1.file.1   type=file
+# end ./a/1, up to "./a"
+..
+
+    a.file.1    type=file
+
+# ./a/2
+2               type=dir
+# end ./a/2, up to "./a"
+..
+
+# end ./a, up to "."
+..
+

@@ -1,0 +1,18 @@
+pass in all
+block out \
+all
+log in all
+log body in all
+count in from any to any
+pass in from !any to any pps 10
+block in from any to !any
+pass in on ed0 from localhost to localhost
+pass in on ed0,vx0 from localhost to localhost
+block in log first on lo0 from any to any
+pass in log body or-block quick from any to any
+block return-rst in quick on le0 proto tcp from any to any
+block return-icmp in on qe0 from any to any
+block return-icmp(1) in on qe0 from any to any
+block return-icmp-as-dest in on le0 from any to any
+block return-icmp-as-dest(port-unr) in on qe0 from any to any
+pass out on longNICname0 from test.host.dots to test\.host.dots

@@ -1,0 +1,18 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_FREE_DEVICES" 3 "2007-05-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_free_devices \- Frees the list of devices returned by rdma_get_devices.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "void" rdma_free_devices
+.BI "(struct ibv_context **" list ");"
+.SH ARGUMENTS
+.IP "list" 12
+List of devices returned from rdma_get_devices.
+.SH "DESCRIPTION"
+Frees the device array returned by rdma_get_devices.
+.SH "RETURN VALUE"
+None
+.SH "SEE ALSO"
+rdma_get_devices(3)

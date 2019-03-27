@@ -1,0 +1,95 @@
+.\" Copyright (c) 2000 - 2004 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd December  8, 2004
+.Dt VERIFY_KRB5_CONF 8
+.Os HEIMDAL
+.Sh NAME
+.Nm verify_krb5_conf
+.Nd checks krb5.conf for obvious errors
+.Sh SYNOPSIS
+.Nm
+.Ar [config-file]
+.Sh DESCRIPTION
+.Nm
+reads the configuration file
+.Pa krb5.conf ,
+or the file given on the command line,
+parses it, checking verifying that the syntax is not correctly wrong.
+.Pp
+If the file is syntactically correct,
+.Nm
+tries to verify that the contents of the file is of relevant nature.
+.Sh ENVIRONMENT
+.Ev KRB5_CONFIG
+points to the configuration file to read.
+.Sh FILES
+.Bl -tag -width /etc/krb5.conf -compact
+.It Pa /etc/krb5.conf
+Kerberos 5 configuration file
+.El
+.Sh DIAGNOSTICS
+Possible output from
+.Nm
+include:
+.Bl -tag -width "FpathF"
+.It "<path>: failed to parse <something> as size/time/number/boolean"
+Usually means that <something> is misspelled, or that it contains
+weird characters. The parsing done by
+.Nm
+is more strict than the one performed by libkrb5, so strings that
+work in real life might be reported as bad.
+.It "<path>: host not found (<hostname>)"
+Means that <path> is supposed to point to a host, but it can't be
+recognised as one.
+.It <path>: unknown or wrong type
+Means that <path> is either a string when it should be a list, vice
+versa, or just that
+.Nm
+is confused.
+.It <path>: unknown entry
+Means that <string> is not known by
+.Nm .
+.El
+.Sh SEE ALSO
+.Xr krb5.conf 5
+.Sh BUGS
+Since each application can put almost anything in the config file,
+it's hard to come up with a watertight verification process. Most of
+the default settings are sanity checked, but this does not mean that
+every problem is discovered, or that everything that is reported as a
+possible problem actually is one. This tool should thus be used with
+some care.
+.Pp
+It should warn about obsolete data, or bad practice, but currently
+doesn't.

@@ -1,0 +1,12 @@
+This menu allows you to configure your system after the installation
+process is complete.  At the minimum, you should probably set the root
+password and the system time zone.
+
+For extra goodies like bash, emacs, firefox, etc., you should look at
+the Packages item in this menu.
+
+For setting the timezone after the system is installed, use the 'Time
+Zone' item in this menu.
+
+For more information on the overall general system configuration, see
+the /etc/rc.conf and /etc/defaults/rc.conf files.

@@ -1,0 +1,110 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+
+newline="
+" # A single newline
+
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+: ${daily_scrub_zfs_default_threshold=35}
+
+case "$daily_scrub_zfs_enable" in
+    [Yy][Ee][Ss])
+	echo
+	echo 'Scrubbing of zfs pools:'
+
+	if [ -z "${daily_scrub_zfs_pools}" ]; then
+		daily_scrub_zfs_pools="$(zpool list -H -o name)"
+	fi
+
+	rc=0
+	for pool in ${daily_scrub_zfs_pools}; do
+		# sanity check
+		_status=$(zpool list "${pool}" 2> /dev/null)
+		if [ $? -ne 0 ]; then
+			rc=2
+			echo "   WARNING: pool '${pool}' specified in"
+			echo "            '/etc/periodic.conf:daily_scrub_zfs_pools'"
+			echo "            does not exist"
+			continue
+		fi
+		_status=${_status##*$newline}
+		case ${_status} in
+		*FAULTED*)
+			rc=3
+			echo "Skipping faulted pool: ${pool}"
+			continue ;;
+		*UNAVAIL*)
+			rc=4
+			echo "Skipping unavailable pool: ${pool}"
+			continue ;;
+		esac
+
+		# determine how many days shall be between scrubs
+		eval _pool_threshold=\${daily_scrub_zfs_$(echo "${pool}"|tr  ".:-" "_")_threshold}
+		if [ -z "${_pool_threshold}" ];then
+			_pool_threshold=${daily_scrub_zfs_default_threshold}
+		fi
+
+		_last_scrub=$(zpool history ${pool} | \
+		    egrep "^[0-9\.\:\-]{19} zpool scrub ${pool}\$" | tail -1 |\
+		    cut -d ' ' -f 1)
+		if [ -z "${_last_scrub}" ]; then
+			# creation time of the pool if no scrub was done
+			_last_scrub=$(zpool history ${pool} | \
+			    sed -ne '2s/ .*$//p')
+		fi
+		if [ -z "${_last_scrub}" ]; then
+			echo "   skipping scrubbing of pool '${pool}':"
+			echo "      can't get last scrubbing date"
+			continue
+		fi
+
+		# Now minus last scrub (both in seconds) converted to days.
+		_scrub_diff=$(expr -e \( $(date +%s) - \
+		    $(date -j -v -70M -f %F.%T ${_last_scrub} +%s) \) / 60 / 60 / 24)
+		if [ ${_scrub_diff} -lt ${_pool_threshold} ]; then
+			echo "   skipping scrubbing of pool '${pool}':"
+			echo "      last scrubbing is ${_scrub_diff} days ago, threshold is set to ${_pool_threshold} days"
+			continue
+		fi
+
+		_status="$(zpool status ${pool} | grep scan:)"
+		case "${_status}" in
+			*"scrub in progress"*)
+				echo "   scrubbing of pool '${pool}' already in progress, skipping:"
+				;;
+			*"resilver in progress"*)
+				echo "   resilvering of pool '${pool}' is in progress, skipping:"
+				;;
+			*"none requested"*)
+				echo "   starting first scrub (since reboot) of pool '${pool}':"
+				zpool scrub ${pool}
+				[ $rc -eq 0 ] && rc=1
+				;;
+			*)
+				echo "   starting scrub of pool '${pool}':"
+				zpool scrub ${pool}
+				[ $rc -eq 0 ] && rc=1
+				;;
+		esac
+
+		echo "      consult 'zpool status ${pool}' for the result"
+	done
+	;;
+
+    *)
+	rc=0
+	;;
+esac
+
+exit $rc

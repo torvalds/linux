@@ -1,0 +1,118 @@
+.\"-
+.\" Copyright (c) 2006 Maxim Sobolev <sobomax@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 1, 2006
+.Dt NVRAM 8 powerpc
+.Os
+.Sh NAME
+.Nm nvram
+.Nd "display or modify contents of the EEPROM or NVRAM"
+.Sh SYNOPSIS
+.Nm
+.Fl p
+.Nm
+.Oo Fl d Ar name Oc Ar ...
+.Op Ar name Ns = Ns Ar value ...
+.Sh DESCRIPTION
+The
+.Nm
+utility provides an interface for displaying and changing the system's
+configuration variables contained in EEPROM or NVRAM.
+In the first synopsis form, all available configuration variables and their
+current values are printed.
+In the second form, the variable selected by
+.Ar name
+is either removed or its value is changed to the
+.Ar value
+following by
+.Ql =
+sign.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d Ar name
+Delete the variable selected by
+.Ar name
+from the EEPROM or NVRAM.
+The
+.Fl d
+flag can be specified multiple times, in which case multiple variables
+will be removed.
+.It Fl p
+Print all available configuration variables and their current values.
+.El
+.Sh EXAMPLES
+Print all available configuration variables and their current values:
+.Pp
+.Dl "nvram -p"
+.Pp
+Remove the variable named
+.Va local-mac-address? :
+.Pp
+.Dl "nvram -d local-mac-address\e?"
+.Pp
+Set the value of the
+.Va local-mac-address?
+variable to
+.Dq Li true :
+.Pp
+.Dl "nvram local-mac-address\e?=true"
+.Pp
+Note that the
+.Ql \e
+in the above examples is used to keep the shell from interpreting the
+.Ql \&? .
+.Pp
+Remove variables named
+.Va foo
+and
+.Va bar
+and set variable named
+.Va baz
+to
+.Dq Li 100 :
+.Pp
+.Dl "nvram -d foo -d bar baz=100"
+.Sh SEE ALSO
+.Xr powermac_nvram 4 ,
+.Xr eeprom 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 7.0 .
+It is inspired by the
+Darwin/Mac OS X
+.Nm
+utility.
+.Sh AUTHORS
+.An Maxim Sobolev Aq Mt sobomax@FreeBSD.org
+.Sh BUGS
+Currently,
+.Nm
+only supports systems equipped with AMD flash and is only tested on Apple
+G4-based Mac Mini machines.

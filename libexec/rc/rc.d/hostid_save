@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: hostid_save
+# REQUIRE: hostid root
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="hostid_save"
+desc="Save unique host ID to disk"
+start_cmd="hostid_save"
+stop_cmd=":"
+rcvar="hostid_enable"
+
+hostid_save()
+{
+	current_hostid=`$SYSCTL_N kern.hostuuid`
+
+	if [ -r ${hostid_file} ]; then
+		read saved_hostid < ${hostid_file}
+		if [ ${saved_hostid} = ${current_hostid} ]; then
+			exit 0
+		fi
+	fi
+
+	echo ${current_hostid} > ${hostid_file}
+	if [ $? -ne 0 ]; then
+		warn "could not store hostuuid in ${hostid_file}."
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

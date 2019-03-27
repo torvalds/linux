@@ -1,0 +1,133 @@
+.\" Copyright (c) 1995 Peter Wemm <peter@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, is permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice immediately at the beginning of the file, without modification,
+.\"    this list of conditions, and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. This work was done expressly for inclusion into FreeBSD.  Other use
+.\"    is permitted provided this notation is included.
+.\" 4. Absolutely no warranty of function or purpose is made by the author
+.\"    Peter Wemm.
+.\" 5. Modifications may be freely made to this file providing the above
+.\"    conditions are met.
+.\"
+.\" $FreeBSD$
+.\"
+.\" The following requests are required for all man pages.
+.Dd July 4, 2018
+.Dt SETPROCTITLE 3
+.Os
+.Sh NAME
+.Nm setproctitle
+.Nd set process title
+.Sh SYNOPSIS
+.In sys/types.h
+.In unistd.h
+.Ft void
+.Fn setproctitle "const char *fmt" "..."
+.Ft void
+.Fn setproctitle_fast "const char *fmt" "..."
+.Sh DESCRIPTION
+The
+.Fn setproctitle
+library routine sets the process title that appears on the
+.Xr ps 1
+command.
+The
+.Fn setproctitle_fast
+variant is optimized for high frequency updates, but may make the
+.Xr ps 1
+command slightly slower by not updating the kernel cache of the program
+arguments.
+.Pp
+The title is set from the executable's name, followed by the
+result of a
+.Xr printf 3
+style expansion of the arguments as specified by the
+.Va fmt
+argument.
+If the
+.Va fmt
+argument begins with a
+.Dq -
+character, the executable's name is skipped.
+.Pp
+If
+.Va fmt
+is NULL, the process title is restored.
+.Sh EXAMPLES
+To set the title on a daemon to indicate its activity:
+.Bd -literal -offset indent
+setproctitle("talking to %s", inet_ntoa(addr));
+.Ed
+.Sh SEE ALSO
+.Xr ps 1 ,
+.Xr w 1 ,
+.Xr kvm 3 ,
+.Xr kvm_getargv 3 ,
+.Xr printf 3
+.Sh STANDARDS
+The
+.Fn setproctitle
+function
+is implicitly non-standard.
+Other methods of causing the
+.Xr ps 1
+command line to change, including copying over the argv[0] string are
+also implicitly non-portable.
+It is preferable to use an operating system
+supplied
+.Fn setproctitle
+if present.
+.Pp
+Unfortunately, it is possible that there are other calling conventions
+to other versions of
+.Fn setproctitle ,
+although none have been found by the author as yet.
+This is believed to be
+the predominant convention.
+.Pp
+It is thought that the implementation is compatible with other systems,
+including
+.Nx
+and
+.Bsx .
+.Sh HISTORY
+The
+.Fn setproctitle
+function
+first appeared in
+.Fx 2.2 .
+The
+.Fn setproctitle_fast
+function first appeared in
+.Fx 12 .
+Other operating systems have
+similar functions.
+.Sh AUTHORS
+.An -nosplit
+.An Peter Wemm Aq Mt peter@FreeBSD.org
+stole the idea from the
+.Sy "Sendmail 8.7.3"
+source code by
+.An Eric Allman Aq Mt eric@sendmail.org .
+.Sh BUGS
+Never pass a string with user-supplied data as a format without using
+.Ql %s .
+An attacker can put format specifiers in the string to mangle your stack,
+leading to a possible security hole.
+This holds true even if the string was built using a function like
+.Fn snprintf ,
+as the resulting string may still contain user-supplied conversion specifiers
+for later interpolation by
+.Fn setproctitle .
+.Pp
+Always use the proper secure idiom:
+.Pp
+.Dl setproctitle("%s", string);

@@ -1,0 +1,384 @@
+$NetBSD: softfloat-source.txt,v 1.2 2006/11/24 19:46:58 christos Exp $
+$FreeBSD$
+
+SoftFloat Release 2a Source Documentation
+
+John R. Hauser
+1998 December 14
+
+
+-------------------------------------------------------------------------------
+Introduction
+
+SoftFloat is a software implementation of floating-point that conforms to
+the IEC/IEEE Standard for Binary Floating-Point Arithmetic.  SoftFloat can
+support four floating-point formats:  single precision, double precision,
+extended double precision, and quadruple precision.  All operations required
+by the IEEE Standard are implemented, except for conversions to and from
+decimal.  SoftFloat is distributed in the form of C source code, so a
+C compiler is needed to compile the code.  Support for the extended double-
+precision and quadruple-precision formats is dependent on the C compiler
+implementing a 64-bit integer type.
+
+This document gives information needed for compiling and/or porting
+SoftFloat.
+
+The source code for SoftFloat is intended to be relatively machine-
+independent and should be compilable using any ISO/ANSI C compiler.  At the
+time of this writing, SoftFloat has been successfully compiled with the GNU
+C Compiler (`gcc') for several platforms.
+
+
+-------------------------------------------------------------------------------
+Limitations
+
+SoftFloat as written requires an ISO/ANSI-style C compiler.  No attempt has
+been made to accommodate compilers that are not ISO-conformant.  Older ``K&R-
+style'' compilers are not adequate for compiling SoftFloat.  All testing I
+have done so far has been with the GNU C Compiler.  Compilation with other
+compilers should be possible but has not been tested.
+
+The SoftFloat sources assume that source code file names can be longer than
+8 characters.  In order to compile under an MS-DOS-type system, many of the
+source files will need to be renamed, and the source and makefiles edited
+appropriately.  Once compiled, the SoftFloat binary does not depend on the
+existence of long file names.
+
+The underlying machine is assumed to be binary with a word size that is a
+power of 2.  Bytes are 8 bits.  Support for the extended double-precision
+and quadruple-precision formats depends on the C compiler implementing
+a 64-bit integer type.  If the largest integer type supported by the
+C compiler is 32 bits, SoftFloat is limited to the single- and double-
+precision formats.
+
+
+-------------------------------------------------------------------------------
+Contents
+
+    Introduction
+    Limitations
+    Contents
+    Legal Notice
+    SoftFloat Source Directory Structure
+    SoftFloat Source Files
+        processors/*.h
+        softfloat/bits*/*/softfloat.h
+        softfloat/bits*/*/milieu.h
+        softfloat/bits*/*/softfloat-specialize
+        softfloat/bits*/softfloat-macros
+        softfloat/bits*/softfloat.c
+    Steps to Creating a `softfloat.o'
+    Making `softfloat.o' a Library
+    Testing SoftFloat
+    Timing SoftFloat
+    Compiler Options and Efficiency
+    Processor-Specific Optimization of `softfloat.c' Using `softfloat-macros'
+    Contact Information
+
+
+
+-------------------------------------------------------------------------------
+Legal Notice
+
+SoftFloat was written by John R. Hauser.  This work was made possible in
+part by the International Computer Science Institute, located at Suite 600,
+1947 Center Street, Berkeley, California 94704.  Funding was partially
+provided by the National Science Foundation under grant MIP-9311980.  The
+original version of this code was written as part of a project to build
+a fixed-point vector processor in collaboration with the University of
+California at Berkeley, overseen by Profs. Nelson Morgan and John Wawrzynek.
+
+THIS SOFTWARE IS DISTRIBUTED AS IS, FOR FREE.  Although reasonable effort
+has been made to avoid it, THIS SOFTWARE MAY CONTAIN FAULTS THAT WILL AT
+TIMES RESULT IN INCORRECT BEHAVIOR.  USE OF THIS SOFTWARE IS RESTRICTED TO
+PERSONS AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ANY
+AND ALL LOSSES, COSTS, OR OTHER PROBLEMS ARISING FROM ITS USE.
+
+
+-------------------------------------------------------------------------------
+SoftFloat Source Directory Structure
+
+Because SoftFloat is targeted to multiple platforms, its source code
+is slightly scattered between target-specific and target-independent
+directories and files.  The directory structure is as follows:
+
+    processors
+    softfloat
+        bits64
+            templates
+            386-Win32-gcc
+            SPARC-Solaris-gcc
+        bits32
+            templates
+            386-Win32-gcc
+            SPARC-Solaris-gcc
+
+The two topmost directories and their contents are:
+
+    softfloat    - Most of the source code needed for SoftFloat.
+    processors   - Target-specific header files that are not specific to
+                       SoftFloat.
+
+The `softfloat' directory is further split into two parts:
+
+    bits64       - SoftFloat implementation using 64-bit integers.
+    bits32       - SoftFloat implementation using only 32-bit integers.
+
+Within these directories are subdirectories for each of the targeted
+platforms.  The SoftFloat source code is distributed with targets
+`386-Win32-gcc' and `SPARC-Solaris-gcc' (and perhaps others) already
+prepared for both the 32-bit and 64-bit implementations.  Source files that
+are not within these target-specific subdirectories are intended to be
+target-independent.
+
+The naming convention used for the target-specific directories is
+`<processor>-<executable-type>-<compiler>'.  The names of the supplied
+target directories should be interpreted as follows:
+
+  <processor>:
+    386          - Intel 386-compatible processor.
+    SPARC        - SPARC processor (as used by Sun machines).
+  <executable-type>:
+    Win32        - Microsoft Win32 executable.
+    Solaris      - Sun Solaris executable.
+  <compiler>:
+    gcc          - GNU C Compiler.
+
+You do not need to maintain this convention if you do not want to.
+
+Alongside the supplied target-specific directories is a `templates'
+directory containing a set of ``generic'' target-specific source files.  A
+new target directory can be created by copying the `templates' directory and
+editing the files inside.  (Complete instructions for porting SoftFloat to a
+new target are in the section _Steps_to_Creating_a_`softfloat.o'_.)  Note
+that the `templates' directory will not work as a target directory without
+some editing.  To avoid confusion, it would be wise to refrain from editing
+the files inside `templates' directly.
+
+
+-------------------------------------------------------------------------------
+SoftFloat Source Files
+
+The purpose of each source file is described below.  In the following,
+the `*' symbol is used in place of the name of a specific target, such as
+`386-Win32-gcc' or `SPARC-Solaris-gcc', or in place of some other text, as
+in `bits*' for either `bits32' or `bits64'.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+processors/*.h
+
+The target-specific `processors' header file defines integer types
+of various sizes, and also defines certain C preprocessor macros that
+characterize the target.  The two examples supplied are `386-gcc.h' and
+`SPARC-gcc.h'.  The naming convention used for processor header files is
+`<processor>-<compiler>.h'.
+
+If 64-bit integers are supported by the compiler, the macro name `BITS64'
+should be defined here along with the corresponding 64-bit integer
+types.  In addition, the function-like macro `LIT64' must be defined for
+constructing 64-bit integer literals (constants).  The `LIT64' macro is used
+consistently in the SoftFloat code to annotate 64-bit literals.
+
+If `BITS64' is not defined, only the 32-bit version of SoftFloat can be
+compiled.  If `BITS64' _is_ defined, either can be compiled.
+
+If an inlining attribute (such as an `inline' keyword) is provided by the
+compiler, the macro `INLINE' should be defined to the appropriate keyword.
+If not, `INLINE' can be set to the keyword `static'.  The `INLINE' macro
+appears in the SoftFloat source code before every function that should
+be inlined by the compiler.  SoftFloat depends on inlining to obtain
+good speed.  Even if inlining cannot be forced with a language keyword,
+the compiler may still be able to perform inlining on its own as an
+optimization.  If a command-line option is needed to convince the compiler
+to perform this optimization, this should be assured in the makefile.  (See
+the section _Compiler_Options_and_Efficiency_ below.)
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+softfloat/bits*/*/softfloat.h
+
+The target-specific `softfloat.h' header file defines the SoftFloat
+interface as seen by clients.
+
+Unlike the actual function definitions in `softfloat.c', the declarations
+in `softfloat.h' do not use any of the types defined by the `processors'
+header file.  This is done so that clients will not have to include the
+`processors' header file in order to use SoftFloat.  Nevertheless, the
+target-specific declarations in `softfloat.h' must match what `softfloat.c'
+expects.  For example, if `int32' is defined as `int' in the `processors'
+header file, then in `softfloat.h' the output of `float32_to_int32' should
+be stated as `int', although in `softfloat.c' it is given in target-
+independent form as `int32'.
+
+For the `bits64' implementation of SoftFloat, the macro names `FLOATX80' and
+`FLOAT128' must be defined in order for the extended double-precision and
+quadruple-precision formats to be enabled in the code.  Conversely, either
+or both of the extended formats can be disabled by simply removing the
+`#define' of the respective macro.  When an extended format is not enabled,
+none of the functions that either input or output the format are defined,
+and no space is taken up in `softfloat.o' by such functions.  There is no
+provision for disabling the usual single- and double-precision formats.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+softfloat/bits*/*/milieu.h
+
+The target-specific `milieu.h' header file provides declarations that are
+needed to compile SoftFloat.  In addition, deviations from ISO/ANSI C by
+the compiler (such as names not properly declared in system header files)
+are corrected in this header if possible.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+softfloat/bits*/*/softfloat-specialize
+
+This target-specific C source fragment defines:
+
+-- whether tininess for underflow is detected before or after rounding by
+       default;
+-- what (if anything) special happens when exceptions are raised;
+-- how signaling NaNs are distinguished from quiet NaNs;
+-- the default generated quiet NaNs; and
+-- how NaNs are propagated from function inputs to output.
+
+These details are not decided by the IEC/IEEE Standard.  This fragment is
+included verbatim within `softfloat.c' when SoftFloat is compiled.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+softfloat/bits*/softfloat-macros
+
+This target-independent C source fragment defines a number of arithmetic
+functions used as primitives within the `softfloat.c' source.  Most of the
+functions defined here are intended to be inlined for efficiency.  This
+fragment is included verbatim within `softfloat.c' when SoftFloat is
+compiled.
+
+Target-specific variations on this file are possible.  See the section
+_Processor-Specific_Optimization_of_`softfloat.c'_Using_`softfloat-macros'_
+below.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+softfloat/bits*/softfloat.c
+
+The target-independent `softfloat.c' source file contains the body of the
+SoftFloat implementation.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+The inclusion of the files above within each other (using `#include') can be
+shown graphically as follows:
+
+    softfloat/bits*/softfloat.c
+        softfloat/bits*/*/milieu.h
+            processors/*.h
+        softfloat/bits*/*/softfloat.h
+        softfloat/bits*/*/softfloat-specialize
+        softfloat/bits*/softfloat-macros
+
+Note in particular that `softfloat.c' does not include the `processors'
+header file directly.  Rather, `softfloat.c' includes the target-specific
+`milieu.h' header file, which in turn includes the processor header file.
+
+
+-------------------------------------------------------------------------------
+Steps to Creating a `softfloat.o'
+
+Porting and/or compiling SoftFloat involves the following steps:
+
+1. If one does not already exist, create an appropriate `.h' file in the
+   `processors' directory.
+
+2. If `BITS64' is defined in the `processors' header file, choose whether
+   to compile the 32-bit or 64-bit implementation of SoftFloat.  If
+   `BITS64' is not defined, your only choice is the 32-bit implementation.
+   The remaining steps occur within either the `bits32' or `bits64'
+   subdirectories.
+
+3. If one does not already exist, create an appropriate target-specific
+   subdirectory by copying the given `templates' directory.
+
+4. In the target-specific subdirectory, edit the files `softfloat-specialize'
+   and `softfloat.h' to define the desired exception handling functions
+   and mode control values.  In the `softfloat.h' header file, ensure also
+   that all declarations give the proper target-specific type (such as
+   `int' or `long') corresponding to the target-independent type used in
+   `softfloat.c' (such as `int32').  None of the type names declared in the
+   `processors' header file should appear in `softfloat.h'.
+
+5. In the target-specific subdirectory, edit the files `milieu.h' and
+   `Makefile' to reflect the current environment.
+
+6. In the target-specific subdirectory, execute `make'.
+
+For the targets that are supplied, if the expected compiler is available
+(usually `gcc'), it should only be necessary to execute `make' in the
+target-specific subdirectory.
+
+
+-------------------------------------------------------------------------------
+Making `softfloat.o' a Library
+
+SoftFloat is not made into a software library by the supplied makefile.
+If desired, `softfloat.o' can easily be put into its own library (in Unix,
+`softfloat.a') using the usual system tool (in Unix, `ar').
+
+
+-------------------------------------------------------------------------------
+Testing SoftFloat
+
+SoftFloat can be tested using the `testsoftfloat' program by the same
+author.  The `testsoftfloat' program is part of the TestFloat package
+available at the Web page `http://HTTP.CS.Berkeley.EDU/~jhauser/arithmetic/
+TestFloat.html'.
+
+
+-------------------------------------------------------------------------------
+Timing SoftFloat
+
+A program called `timesoftfloat' for timing the SoftFloat functions is
+included with the SoftFloat source code.  Compiling `timesoftfloat' should
+pose no difficulties once `softfloat.o' exists.  The supplied makefile
+will create a `timesoftfloat' executable by default after generating
+`softfloat.o'.  See `timesoftfloat.txt' for documentation about using
+`timesoftfloat'.
+
+
+-------------------------------------------------------------------------------
+Compiler Options and Efficiency
+
+In order to get good speed with SoftFloat, it is important that the compiler
+inline the routines that have been marked `INLINE' in the code.  Even if
+inlining cannot be forced by an appropriate definition of the `INLINE'
+macro, the compiler may still be able to perform inlining on its own as
+an optimization.  In that case, the makefile should be edited to give the
+compiler whatever option is required to cause it to inline small functions.
+
+The ability of the processor to do fast shifts has been assumed.  Efficiency
+will not be as good on processors for which this is not the case (such as
+the original Motorola 68000 or Intel 8086 processors).
+
+
+-------------------------------------------------------------------------------
+Processor-Specific Optimization of `softfloat.c' Using `softfloat-macros'
+
+The `softfloat-macros' source fragment defines arithmetic functions used
+as primitives by `softfloat.c'.  This file has been written in a target-
+independent form.  For a given target, it may be possible to improve on
+these functions using target-specific and/or non-ISO-C features (such
+as `asm' statements).  For example, one of the ``macro'' functions takes
+two word-size integers and returns their full product in two words.
+This operation can be done directly in hardware on many processors; but
+because it is not available through standard C, the function defined in
+`softfloat-macros' uses four multiplies to achieve the same result.
+
+To address these shortcomings, a customized version of `softfloat-macros'
+can be created in any of the target-specific subdirectories.  A simple
+modification to the target's makefile should be sufficient to ensure that
+the custom version is used instead of the generic one.
+
+
+-------------------------------------------------------------------------------
+Contact Information
+
+At the time of this writing, the most up-to-date information about
+SoftFloat and the latest release can be found at the Web page `http://
+HTTP.CS.Berkeley.EDU/~jhauser/arithmetic/SoftFloat.html'.
+
+

@@ -1,0 +1,6 @@
+pass in quick on lo0 from fe80::1%lo0 to fe80::1%lo0
+pass in quick from fe80::1%lo0 to fe80::1%lo0
+pass in quick from fe80::1%lo0 to any
+pass in quick from any to fe80::1%lo0
+pass in quick on lo0 from fe80::1%lo0 to any
+pass in quick on lo0 from any to fe80::1%lo0

@@ -1,0 +1,125 @@
+.\" Copyright (c) 2003 Hidetoshi Shimokawa
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 26, 2008
+.Dt DCONS 4
+.Os
+.Sh NAME
+.Nm dcons
+.Nd dumb console device driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options GDB"
+.Cd "device firewire"
+.Cd "device dcons"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time,
+place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options GDB"
+.Ed
+.Pp
+and in
+.Xr loader.conf 5 :
+.Bd -ragged -offset indent
+dcons_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+device is a simple console device which just reads from and writes to
+an allocated buffer for input and output respectively.
+It is of no use by itself and it is supposed that the buffer is accessed
+via a bus like
+.Xr firewire 4
+or
+.Xr kvm 3
+for interaction.
+.Pp
+The buffer consists of 4 channels.
+There are 2 ports, one for the console TTY and another is GDB port,
+then each port has an input channel and an output channel.
+.Sh FILES
+.Bl -tag -width indent -compact
+.It Pa /dev/dcons
+.It Pa /etc/ttys
+.El
+.Sh EXAMPLES
+If you want to run
+.Xr getty 8
+on
+.Nm ,
+insert the following line into
+.Xr ttys 5
+and send a
+.Dv HUP
+signal to
+.Xr init 8
+using
+.Xr kill 1 .
+.Bd -literal -offset indent
+dcons	"/usr/libexec/getty std.9600"	vt100	on  secure
+.Ed
+.Pp
+Once the
+.Xr fwohci 4
+device is initialized to allow physical access,
+the buffer can be accessed from another host via a
+.Xr firewire 4
+bus using the
+.Xr dconschat 8
+application.
+See
+.Xr dconschat 8
+for more details.
+.Pp
+If you want to use
+.Nm
+as a
+.Xr gdb 1
+port, add the following line into
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dcons_gdb="1"
+.Ed
+.Sh SEE ALSO
+.Xr dcons_crom 4 ,
+.Xr ddb 4 ,
+.Xr firewire 4 ,
+.Xr fwohci 4 ,
+.Xr gdb 4 ,
+.Xr ttys 5 ,
+.Xr conscontrol 8 ,
+.Xr dconschat 8 ,
+.Xr fwcontrol 8
+.Sh AUTHORS
+.An Hidetoshi Shimokawa Aq Mt simokawa@FreeBSD.org
+.Sh BUGS
+This driver is
+.Ud

@@ -1,0 +1,86 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_CREATE_QP 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_create_qp, ibv_destroy_qp \- create or destroy a queue pair (QP)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "struct ibv_qp *ibv_create_qp(struct ibv_pd " "*pd" ,
+.BI "                             struct ibv_qp_init_attr " "*qp_init_attr" );
+.sp
+.BI "int ibv_destroy_qp(struct ibv_qp " "*qp" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_create_qp()
+creates a queue pair (QP) associated with the protection domain
+.I pd\fR.
+The argument
+.I qp_init_attr
+is an ibv_qp_init_attr struct, as defined in <infiniband/verbs.h>.
+.PP
+.nf
+struct ibv_qp_init_attr {
+.in +8
+void                   *qp_context;     /* Associated context of the QP */
+struct ibv_cq          *send_cq;        /* CQ to be associated with the Send Queue (SQ) */ 
+struct ibv_cq          *recv_cq;        /* CQ to be associated with the Receive Queue (RQ) */
+struct ibv_srq         *srq;            /* SRQ handle if QP is to be associated with an SRQ, otherwise NULL */
+struct ibv_qp_cap       cap;            /* QP capabilities */
+enum ibv_qp_type        qp_type;        /* QP Transport Service Type: IBV_QPT_RC, IBV_QPT_UC, IBV_QPT_UD or IBV_QPT_RAW_PACKET */
+int                     sq_sig_all;     /* If set, each Work Request (WR) submitted to the SQ generates a completion entry */
+.in -8
+};
+.sp
+.nf
+struct ibv_qp_cap {
+.in +8
+uint32_t                max_send_wr;    /* Requested max number of outstanding WRs in the SQ */
+uint32_t                max_recv_wr;    /* Requested max number of outstanding WRs in the RQ */
+uint32_t                max_send_sge;   /* Requested max number of scatter/gather (s/g) elements in a WR in the SQ */
+uint32_t                max_recv_sge;   /* Requested max number of s/g elements in a WR in the SQ */
+uint32_t                max_inline_data;/* Requested max number of data (bytes) that can be posted inline to the SQ, otherwise 0 */
+.in -8
+};
+.fi
+.PP
+The function
+.B ibv_create_qp()
+will update the
+.I qp_init_attr\fB\fR->cap
+struct with the actual \s-1QP\s0 values of the QP that was created;
+the values will be greater than or equal to the values requested.
+.PP
+.B ibv_destroy_qp()
+destroys the QP
+.I qp\fR.
+.SH "RETURN VALUE"
+.B ibv_create_qp()
+returns a pointer to the created QP, or NULL if the request fails.
+Check the QP number (\fBqp_num\fR) in the returned QP.
+.PP
+.B ibv_destroy_qp()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+.B ibv_create_qp()
+will fail if a it is asked to create QP of a type other than
+.B IBV_QPT_RC
+or
+.B IBV_QPT_UD
+associated with an SRQ.
+.PP
+The attributes max_recv_wr and max_recv_sge are ignored by
+.B ibv_create_qp()
+if the QP is to be associated with an SRQ.
+.PP
+.B ibv_destroy_qp()
+fails if the QP is attached to a multicast group.
+.SH "SEE ALSO"
+.BR ibv_alloc_pd (3),
+.BR ibv_modify_qp (3),
+.BR ibv_query_qp (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

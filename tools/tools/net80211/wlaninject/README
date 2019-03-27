@@ -1,0 +1,82 @@
+$FreeBSD$
+
+This tool generates raw 802.11 frames.  The resulting frame will
+depend on the capabilities of the hardware.  Some hardware mangles
+the 802.11 header [e.g. wi] other hardware does not [e.g. ath].
+This tool does not deal with layers above 802.11.  A payload from
+a file must be supplied if, for example, IP data needs to be sent.
+
+Refer to the usage for a complete list of options.  Here, the most
+relevant will be described.  There are three types of switches:
+
+physical layer	Physical parameters for transmission
+		[such as iface and chan].
+802.11 header	Fields in the 802.11 header.
+802.11 body	The payload of the 802.11 frame.  This includes
+		management information elements.
+
+Interesting physical layer options.
+-----------------------------------
+-i The network interface to use to TX; defaults to ath0.
+-c The channel to TX on; defaults to 1.
+-N Mark transmitted frames such that no ACK is expected. In practice,
+   this will disable any retransmission done by the card.  This
+   way, you are sure that a single copy of your packet will be TXed.
+-V Verify that the packet you TXed did indeed fly in the air as
+   expected.  This is done by sniffing on a second network interface
+   and comparing the received frame to what was sent.  This option
+   is especially useful because some cards mangle 802.11 header
+   fields such as duration and fragment numbers.
+-W The WME AC to use for transmission.  Symbolic names are used:
+	ac_be, be	best effort
+	ac_bk, bk	background
+	ac_vi, vi	video
+	ac_vo, vo	voice
+-X The rate to use for transmission; defaults to 1Mbps.
+-P The txpower to use; defaults to the maximum permitted by the driver.
+
+Interesting 802.11 header options.
+----------------------------------
+-t The 802.11 frame type.  Symbolic names are:
+	mgt	Management frame
+	ctl	Control frame
+	data	Data frame
+   Otherwise the numerical type must be supplied.
+-s The 802.11 frame subtype.  At this point, the length of the 802.11 header
+   will be calculated.  Symbolic names are:
+	preq, probereq	Probe Request
+	auth		Authenticate
+	areq, assocreq	Association Request
+	data		Data
+   Otherwise the numerical subtype must be supplied.
+-4 The 4th MAC addr used for WDS.  Make sure you specify this before
+   -s so the header length is calculated correctly.
+-l Override the length of the packet.  This is useful for sending
+   truncated packets.
+-b Specify a file which will be used as a payload inside the 802.11
+   frame.  The length should be calculated automatically correctly.
+
+Interesting 802.11 payload options.
+-----------------------------------
+This is mainly used for management frames.  For data frames, -b
+would typically be used.
+
+-e Add an information element.  You can supply multiple -e options,
+   but make sure you add them in the expected order.  The format
+   of the information element is a list of 2 digit hex numbers.
+   That is, 010203...  The first hexdigit is the type of the IE.
+   Therefore, 00616161 should correspond to the SSID IE of 'aaa'.
+   The length is calculated automatically---you do not need to
+   supply it.
+-S Add an SSID IE with the data specified in ascii; e.g. -S 'aaa'
+   is the equivalent of -e 0061616161.
+-R Add an IE of 11b supported rates.   
+
+Examples:
+---------
+
+wlaninject -t data -s data -i ral0 -V ath0 -m -n 1 -f 1
+
+Transmit a data frame on ral0 and verify the transmission on ath0.
+The frame is sent with sequence number 1, fragment number 1, and
+the MoreFrag bit marked in the 802.11 header.

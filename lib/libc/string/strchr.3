@@ -1,0 +1,125 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strchr.3	8.2 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\"
+.Dd February 13, 2013
+.Dt STRCHR 3
+.Os
+.Sh NAME
+.Nm strchr , strrchr , strchrnul
+.Nd locate character in string
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In string.h
+.Ft "char *"
+.Fn strchr "const char *s" "int c"
+.Ft "char *"
+.Fn strrchr "const char *s" "int c"
+.Ft "char *"
+.Fn strchrnul "const char *s" "int c"
+.Sh DESCRIPTION
+The
+.Fn strchr
+function locates the first occurrence of
+.Fa c
+(converted to a
+.Vt char )
+in the string pointed to by
+.Fa s .
+The terminating null character is considered part of the string;
+therefore if
+.Fa c
+is
+.Ql \e0 ,
+the functions locate the terminating
+.Ql \e0 .
+.Pp
+The
+.Fn strrchr
+function is identical to
+.Fn strchr
+except it locates the last occurrence of
+.Fa c .
+.Pp
+The
+.Fn strchrnul
+function is identical to
+.Fn strchr
+except that if
+.Fa c
+is not found in
+.Fa s
+a pointer to the terminating
+.Ql \e0
+is returned.
+.Sh RETURN VALUES
+The functions
+.Fn strchr
+and
+.Fn strrchr
+return a pointer to the located character, or
+.Dv NULL
+if the character does not appear in the string.
+.Pp
+.Fn strchrnul
+returns a pointer to the terminating
+.Ql \e0
+if the character does not appear in the string.
+.Sh SEE ALSO
+.Xr memchr 3 ,
+.Xr memmem 3 ,
+.Xr strcspn 3 ,
+.Xr strpbrk 3 ,
+.Xr strsep 3 ,
+.Xr strspn 3 ,
+.Xr strstr 3 ,
+.Xr strtok 3 ,
+.Xr wcschr 3
+.Sh STANDARDS
+The functions
+.Fn strchr
+and
+.Fn strrchr
+conform to
+.St -isoC .
+The function
+.Fn strchrnul
+is a
+.Tn GNU
+extension.
+.Sh HISTORY
+The
+.Fn strchrnul
+function first appeared in glibc 2.1.1 and was added in
+.Fx 10.0 .

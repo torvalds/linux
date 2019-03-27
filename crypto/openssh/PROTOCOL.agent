@@ -1,0 +1,5 @@
+This file used to contain a description of the SSH agent protocol
+implemented by OpenSSH. It has since been superseded by an Internet-
+draft that is available from:
+
+https://tools.ietf.org/html/draft-miller-ssh-agent-02

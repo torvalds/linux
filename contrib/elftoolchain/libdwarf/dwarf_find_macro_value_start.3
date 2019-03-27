@@ -1,0 +1,68 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_find_macro_value_start.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd March 26, 2011
+.Dt DWARF_FIND_MACRO_VALUE_START 3
+.Os
+.Sh NAME
+.Nm dwarf_find_macro_value_start
+.Nd return the address of the first byte of a macro value
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft char *
+.Fo dwarf_find_macro_value_start
+.Fa "char *macro_string"
+.Fc
+.Sh DESCRIPTION
+Given a DWARF macro string, function
+.Fn dwarf_find_macro_value_start
+returns a pointer to the first byte of the macro value part of the
+macro string.
+.Pp
+Argument
+.Ar macro_string
+should be a NUL-terminated string conforming to the macro format
+defined in the DWARF standard; see
+.Xr dwarf 4 .
+.Sh RETURN VALUES
+On success, function
+.Fn dwarf_find_macro_value_start
+returns a pointer to the first byte of the macro value.
+If the macro value part was not found, function
+.Fn dwarf_find_macro_value_start
+returns a pointer to the NUL-byte terminating argument
+.Ar macro_string .
+.Pp
+Function
+.Fn dwarf_find_macro_value_start
+returns NULL if argument
+.Ar macro_string
+was NULL.
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_get_macro_details 3

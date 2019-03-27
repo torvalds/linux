@@ -1,0 +1,72 @@
+/* $FreeBSD$ */
+OUTPUT_FORMAT("elf64-x86-64-freebsd", "elf64-x86-64-freebsd", "elf64-x86-64-freebsd")
+OUTPUT_ARCH(i386:x86-64)
+ENTRY(_start)
+SECTIONS
+{
+  /* Read-only sections, merged into text segment: */
+  . = 0;
+  ImageBase = .;
+  .hash : { *(.hash) }  /* this MUST come first! */
+  . = ALIGN(4096);
+  .eh_frame :
+  {
+    *(.eh_frame)
+  }
+  . = ALIGN(4096);
+  .text		: {
+    *(.text .stub .text.* .gnu.linkonce.t.*)
+    /* .gnu.warning sections are handled specially by elf32.em. */
+    *(.gnu.warning)
+    *(.plt)
+  } =0xCCCCCCCC
+  . = ALIGN(4096);
+  .data		: {
+    *(.rodata .rodata.* .gnu.linkonce.r.*)
+    *(.rodata1)
+    *(.sdata2 .sdata2.* .gnu.linkonce.s2.*)
+    *(.sbss2 .sbss2.* .gnu.linkonce.sb2.*)
+    *(.opd)
+    *(.data .data.* .gnu.linkonce.d.*)
+    *(.data1)
+    *(.plabel)
+    *(.dynbss)
+    *(.bss .bss.* .gnu.linkonce.b.*)
+    *(COMMON)
+  }
+  . = ALIGN(4096);
+  set_Xcommand_set	: {
+    __start_set_Xcommand_set = .;
+    *(set_Xcommand_set)
+    __stop_set_Xcommand_set = .;
+  }
+  set_Xficl_compile_set	: {
+    __start_set_Xficl_compile_set = .;
+    *(set_Xficl_compile_set)
+    __stop_set_Xficl_compile_set = .;
+  }
+  . = ALIGN(4096);
+  __gp = .;
+  .sdata	: {
+    *(.got.plt .got)
+    *(.sdata .sdata.* .gnu.linkonce.s.*)
+    *(dynsbss)
+    *(.sbss .sbss.* .gnu.linkonce.sb.*)
+    *(.scommon)
+  }
+  . = ALIGN(4096);
+  .dynamic	: { *(.dynamic) }
+  . = ALIGN(4096);
+  .rela.dyn	: {
+    *(.rela.data*)
+    *(.rela.got)
+    *(.rela.stab)
+    *(.relaset_*)
+  }
+  . = ALIGN(4096);
+  .reloc	: { *(.reloc) }
+  . = ALIGN(4096);
+  .dynsym	: { *(.dynsym) }
+  . = ALIGN(4096);
+  .dynstr	: { *(.dynstr) }
+}

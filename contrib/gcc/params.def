@@ -1,0 +1,600 @@
+/* params.def - Run-time parameters.
+   Copyright (C) 2001, 2002, 2004, 2005 Free Software Foundation, Inc.
+   Written by Mark Mitchell <mark@codesourcery.com>.
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
+
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.
+
+*/
+
+/* This file contains definitions for language-independent
+   parameters.  The DEFPARAM macro takes 6 arguments:
+
+     - The enumeral corresponding to this parameter.
+
+     - The name that can be used to set this parameter using the 
+       command-line option `--param <name>=<value>'.
+
+     - A help string explaining how the parameter is used.
+
+     - A default value for the parameter.
+
+     - The minimum acceptable value for the parameter.
+
+     - The maximum acceptable value for the parameter (if greater than
+     the minimum).
+
+   Be sure to add an entry to invoke.texi summarizing the parameter.  */
+
+/* The maximum number of fields in a variable with only implicit uses
+   for which structure aliasing will consider trying to track each
+   field.  The default is 5.  */
+DEFPARAM (PARAM_SALIAS_MAX_IMPLICIT_FIELDS,
+	  "salias-max-implicit-fields",
+	  "The maximum number of fields in a structure variable without direct structure accesses that GCC will attempt to track separately",
+	  5, 0, 0)
+
+/* The maximum number of array elements structure aliasing will decompose
+   an array for.  The default is 4.  */
+DEFPARAM (PARAM_SALIAS_MAX_ARRAY_ELEMENTS,
+	  "salias-max-array-elements",
+	  "The maximum number of elements in an array for wich we track its elements separately",
+	  4, 0, 0)
+
+/* The maximum structure size at which the scalar replacement of
+   aggregates (SRA) pass will perform block copies.  The default
+   value, 0, implies that GCC will select the most appropriate size
+   itself.  */
+DEFPARAM (PARAM_SRA_MAX_STRUCTURE_SIZE,
+	  "sra-max-structure-size",
+	  "The maximum structure size (in bytes) for which GCC will "
+	  "use by-element copies",
+	  0, 0, 0)
+
+/* The maximum number of structure fields which the SRA pass will
+   instantiate to avoid block copies.  The default value, 0, implies
+   that GCC will select the appropriate value itself.  */
+DEFPARAM (PARAM_SRA_MAX_STRUCTURE_COUNT,
+	  "sra-max-structure-count",
+	  "The maximum number of structure fields for which GCC will "
+	  "use by-element copies",
+	  0, 0, 0)
+
+/* The ratio between instantiated fields and the complete structure
+   size.  We say that if the ratio of the number of bytes in
+   instantiated fields to the number of bytes in the complete
+   structure exceeds this parameter, or if the number of instantiated
+   fields to the total number of fields exceeds this parameter, then
+   block copies are not used.  The default is 75%.  */
+DEFPARAM (PARAM_SRA_FIELD_STRUCTURE_RATIO,
+	  "sra-field-structure-ratio",
+	  "The threshold ratio between instantiated fields and the total structure size",
+	  75, 0, 100)
+
+/* The single function inlining limit. This is the maximum size
+   of a function counted in internal gcc instructions (not in
+   real machine instructions) that is eligible for inlining
+   by the tree inliner.
+   The default value is 450.
+   Only functions marked inline (or methods defined in the class
+   definition for C++) are affected by this.
+   There are more restrictions to inlining: If inlined functions
+   call other functions, the already inlined instructions are
+   counted and once the recursive inline limit (see 
+   "max-inline-insns" parameter) is exceeded, the acceptable size
+   gets decreased.  */
+DEFPARAM (PARAM_MAX_INLINE_INSNS_SINGLE,
+	  "max-inline-insns-single",
+	  "The maximum number of instructions in a single function eligible for inlining",
+	  450, 0, 0)
+
+/* The single function inlining limit for functions that are
+   inlined by virtue of -finline-functions (-O3).
+   This limit should be chosen to be below or equal to the limit
+   that is applied to functions marked inlined (or defined in the
+   class declaration in C++) given by the "max-inline-insns-single"
+   parameter.
+   The default value is 90.  */
+DEFPARAM (PARAM_MAX_INLINE_INSNS_AUTO,
+	  "max-inline-insns-auto",
+	  "The maximum number of instructions when automatically inlining",
+	  90, 0, 0)
+
+DEFPARAM (PARAM_MAX_INLINE_INSNS_RECURSIVE,
+	  "max-inline-insns-recursive",
+	  "The maximum number of instructions inline function can grow to via recursive inlining",
+	  450, 0, 0)
+
+DEFPARAM (PARAM_MAX_INLINE_INSNS_RECURSIVE_AUTO,
+	  "max-inline-insns-recursive-auto",
+	  "The maximum number of instructions non-inline function can grow to via recursive inlining",
+	  450, 0, 0)
+
+DEFPARAM (PARAM_MAX_INLINE_RECURSIVE_DEPTH,
+	  "max-inline-recursive-depth",
+	  "The maximum depth of recursive inlining for inline functions",
+	  8, 0, 0)
+
+DEFPARAM (PARAM_MAX_INLINE_RECURSIVE_DEPTH_AUTO,
+	  "max-inline-recursive-depth-auto",
+	  "The maximum depth of recursive inlining for non-inline functions",
+	  8, 0, 0)
+
+DEFPARAM (PARAM_MIN_INLINE_RECURSIVE_PROBABILITY,
+	  "min-inline-recursive-probability",
+	  "Inline recursively only when the probability of call being executed exceeds the parameter",
+	  10, 0, 0)
+
+/* Limit the number of expansions created by the variable expansion
+   optimization to avoid register pressure.  */
+DEFPARAM (PARAM_MAX_VARIABLE_EXPANSIONS,
+	  "max-variable-expansions-in-unroller",
+	  "If -fvariable-expansion-in-unroller is used, the maximum number of times that an individual variable will be expanded during loop unrolling",
+          1, 0, 0)
+     
+/* The maximum number of instructions to consider when looking for an
+   instruction to fill a delay slot.  If more than this arbitrary
+   number of instructions is searched, the time savings from filling
+   the delay slot will be minimal so stop searching.  Increasing
+   values mean more aggressive optimization, making the compile time
+   increase with probably small improvement in executable run time.  */
+DEFPARAM (PARAM_MAX_DELAY_SLOT_INSN_SEARCH,
+	  "max-delay-slot-insn-search",
+	  "The maximum number of instructions to consider to fill a delay slot",
+	  100, 0, 0)
+
+/* When trying to fill delay slots, the maximum number of instructions
+   to consider when searching for a block with valid live register
+   information.  Increasing this arbitrarily chosen value means more
+   aggressive optimization, increasing the compile time.  This
+   parameter should be removed when the delay slot code is rewritten
+   to maintain the control-flow graph.  */
+DEFPARAM(PARAM_MAX_DELAY_SLOT_LIVE_SEARCH,
+	 "max-delay-slot-live-search",
+	 "The maximum number of instructions to consider to find accurate live register information",
+	 333, 0, 0)
+
+/* This parameter limits the number of branch elements that the 
+   scheduler will track anti-dependencies through without resetting
+   the tracking mechanism.  Large functions with few calls or barriers 
+   can generate lists containing many 1000's of dependencies.  Generally 
+   the compiler either uses all available memory, or runs for far too long.  */
+DEFPARAM(PARAM_MAX_PENDING_LIST_LENGTH,
+	 "max-pending-list-length",
+	 "The maximum length of scheduling's pending operations list",
+	 32, 0, 0)
+
+DEFPARAM(PARAM_LARGE_FUNCTION_INSNS,
+	 "large-function-insns",
+	 "The size of function body to be considered large",
+	 2700, 0, 0)
+DEFPARAM(PARAM_LARGE_FUNCTION_GROWTH,
+	 "large-function-growth",
+	 "Maximal growth due to inlining of large function (in percent)",
+	 100, 0, 0)
+DEFPARAM(PARAM_LARGE_UNIT_INSNS,
+	 "large-unit-insns",
+	 "The size of translation unit to be considered large",
+	 10000, 0, 0)
+DEFPARAM(PARAM_INLINE_UNIT_GROWTH,
+	 "inline-unit-growth",
+	 "how much can given compilation unit grow because of the inlining (in percent)",
+	 50, 0, 0)
+DEFPARAM(PARAM_INLINE_CALL_COST,
+	 "inline-call-cost",
+	 "expense of call operation relative to ordinary arithmetic operations",
+	 16, 0, 0)
+
+/* The GCSE optimization will be disabled if it would require
+   significantly more memory than this value.  */
+DEFPARAM(PARAM_MAX_GCSE_MEMORY,
+	 "max-gcse-memory",
+	 "The maximum amount of memory to be allocated by GCSE",
+	 50 * 1024 * 1024, 0, 0)
+/* The number of repetitions of copy/const prop and PRE to run.  */
+DEFPARAM(PARAM_MAX_GCSE_PASSES,
+	"max-gcse-passes",
+	"The maximum number of passes to make when doing GCSE",
+	1, 1, 0)
+/* This is the threshold ratio when to perform partial redundancy
+   elimination after reload. We perform partial redundancy elimination
+   when the following holds:
+   (Redundant load execution count)
+   ------------------------------- >= GCSE_AFTER_RELOAD_PARTIAL_FRACTION
+   (Added loads execution count)					  */
+DEFPARAM(PARAM_GCSE_AFTER_RELOAD_PARTIAL_FRACTION,
+	"gcse-after-reload-partial-fraction",
+	"The threshold ratio for performing partial redundancy elimination after reload",
+        3, 0, 0)
+/* This is the threshold ratio of the critical edges execution count compared to
+   the redundant loads execution count that permits performing the load
+   redundancy elimination in gcse after reload.  */
+DEFPARAM(PARAM_GCSE_AFTER_RELOAD_CRITICAL_FRACTION,
+	"gcse-after-reload-critical-fraction",
+	"The threshold ratio of critical edges execution count that permit performing redundancy elimination after reload",
+        10, 0, 0)
+/* This parameter limits the number of insns in a loop that will be unrolled,
+   and by how much the loop is unrolled.
+   
+   This limit should be at most half of the peeling limits:  loop unroller
+   decides to not unroll loops that iterate fewer than 2*number of allowed
+   unrollings and thus we would have loops that are neither peeled or unrolled
+   otherwise.  */
+DEFPARAM(PARAM_MAX_UNROLLED_INSNS,
+	 "max-unrolled-insns",
+	 "The maximum number of instructions to consider to unroll in a loop",
+	 200, 0, 0)
+/* This parameter limits how many times the loop is unrolled depending
+   on number of insns really executed in each iteration.  */
+DEFPARAM(PARAM_MAX_AVERAGE_UNROLLED_INSNS,
+	 "max-average-unrolled-insns",
+	 "The maximum number of instructions to consider to unroll in a loop on average",
+	 80, 0, 0)
+/* The maximum number of unrollings of a single loop.  */
+DEFPARAM(PARAM_MAX_UNROLL_TIMES,
+	"max-unroll-times",
+	"The maximum number of unrollings of a single loop",
+	8, 0, 0)
+/* The maximum number of insns of a peeled loop.  */
+DEFPARAM(PARAM_MAX_PEELED_INSNS,
+	"max-peeled-insns",
+	"The maximum number of insns of a peeled loop",
+	400, 0, 0)
+/* The maximum number of peelings of a single loop.  */
+DEFPARAM(PARAM_MAX_PEEL_TIMES,
+	"max-peel-times",
+	"The maximum number of peelings of a single loop",
+	16, 0, 0)
+/* The maximum number of insns of a peeled loop.  */
+DEFPARAM(PARAM_MAX_COMPLETELY_PEELED_INSNS,
+	"max-completely-peeled-insns",
+	"The maximum number of insns of a completely peeled loop",
+	400, 0, 0)
+/* The maximum number of peelings of a single loop that is peeled completely.  */
+DEFPARAM(PARAM_MAX_COMPLETELY_PEEL_TIMES,
+	"max-completely-peel-times",
+	"The maximum number of peelings of a single loop that is peeled completely",
+	16, 0, 0)
+/* The maximum number of insns of a peeled loop that rolls only once.  */
+DEFPARAM(PARAM_MAX_ONCE_PEELED_INSNS,
+	"max-once-peeled-insns",
+	"The maximum number of insns of a peeled loop that rolls only once",
+	400, 0, 0)
+
+/* The maximum number of insns of an unswitched loop.  */
+DEFPARAM(PARAM_MAX_UNSWITCH_INSNS,
+	"max-unswitch-insns",
+	"The maximum number of insns of an unswitched loop",
+	50, 0, 0)
+/* The maximum level of recursion in unswitch_single_loop.  */
+DEFPARAM(PARAM_MAX_UNSWITCH_LEVEL,
+	"max-unswitch-level",
+	"The maximum number of unswitchings in a single loop",
+	3, 0, 0)
+
+/* The maximum number of iterations of a loop the brute force algorithm
+   for analysis of # of iterations of the loop tries to evaluate.  */
+DEFPARAM(PARAM_MAX_ITERATIONS_TO_TRACK,
+	"max-iterations-to-track",
+	"Bound on the number of iterations the brute force # of iterations analysis algorithm evaluates",
+	1000, 0, 0)
+/* A cutoff to avoid costly computations of the number of iterations in
+   the doloop transformation.  */
+DEFPARAM(PARAM_MAX_ITERATIONS_COMPUTATION_COST,
+	"max-iterations-computation-cost",
+	"Bound on the cost of an expression to compute the number of iterations",
+	10, 0, 0)
+
+DEFPARAM(PARAM_MAX_SMS_LOOP_NUMBER,
+	 "max-sms-loop-number",
+	 "Maximum number of loops to perform swing modulo scheduling on (mainly for debugging)",
+	 -1, -1, -1)
+  
+/* This parameter is used to tune SMS MAX II calculations.  */
+DEFPARAM(PARAM_SMS_MAX_II_FACTOR,
+	 "sms-max-ii-factor",
+	 "A factor for tuning the upper bound that swing modulo scheduler uses for scheduling a loop",
+	 100, 0, 0)
+DEFPARAM(PARAM_SMS_DFA_HISTORY,
+	 "sms-dfa-history",
+	 "The number of cycles the swing modulo scheduler considers when checking conflicts using DFA",
+	 0, 0, 0)
+DEFPARAM(PARAM_SMS_LOOP_AVERAGE_COUNT_THRESHOLD,
+	 "sms-loop-average-count-threshold",
+	 "A threshold on the average loop count considered by the swing modulo scheduler",
+	 0, 0, 0)
+
+DEFPARAM(HOT_BB_COUNT_FRACTION,
+	 "hot-bb-count-fraction",
+	 "Select fraction of the maximal count of repetitions of basic block in program given basic block needs to have to be considered hot",
+	 10000, 0, 0)
+DEFPARAM(HOT_BB_FREQUENCY_FRACTION,
+	 "hot-bb-frequency-fraction",
+	 "Select fraction of the maximal frequency of executions of basic block in function given basic block needs to have to be considered hot",
+	 1000, 0, 0)
+
+/* For guessed profiles, the loops having unknown number of iterations
+   are predicted to iterate relatively few (10) times at average.
+   For functions containing one loop with large known number of iterations
+   and other loops having unbounded loops we would end up predicting all
+   the other loops cold that is not usually the case.  So we need to artificially
+   flatten the profile.  
+
+   We need to cut the maximal predicted iterations to large enough iterations
+   so the loop appears important, but safely within HOT_BB_COUNT_FRACTION
+   range.  */
+
+DEFPARAM(PARAM_MAX_PREDICTED_ITERATIONS,
+	 "max-predicted-iterations",
+	 "The maximum number of loop iterations we predict statically",
+	 100, 0, 0)
+DEFPARAM(TRACER_DYNAMIC_COVERAGE_FEEDBACK,
+	 "tracer-dynamic-coverage-feedback",
+	 "The percentage of function, weighted by execution frequency, that must be covered by trace formation. Used when profile feedback is available",
+	 95, 0, 100)
+DEFPARAM(TRACER_DYNAMIC_COVERAGE,
+	 "tracer-dynamic-coverage",
+	 "The percentage of function, weighted by execution frequency, that must be covered by trace formation. Used when profile feedback is not available",
+	 75, 0, 100)
+DEFPARAM(TRACER_MAX_CODE_GROWTH,
+	 "tracer-max-code-growth",
+	 "Maximal code growth caused by tail duplication (in percent)",
+	 100, 0, 0)
+DEFPARAM(TRACER_MIN_BRANCH_RATIO,
+	 "tracer-min-branch-ratio",
+	 "Stop reverse growth if the reverse probability of best edge is less than this threshold (in percent)",
+	 10, 0, 100)
+DEFPARAM(TRACER_MIN_BRANCH_PROBABILITY_FEEDBACK,
+	 "tracer-min-branch-probability-feedback",
+	 "Stop forward growth if the probability of best edge is less than this threshold (in percent). Used when profile feedback is available",
+	 80, 0, 100)
+DEFPARAM(TRACER_MIN_BRANCH_PROBABILITY,
+	 "tracer-min-branch-probability",
+	 "Stop forward growth if the probability of best edge is less than this threshold (in percent). Used when profile feedback is not available",
+	 50, 0, 100)
+
+/* The maximum number of incoming edges to consider for crossjumping.  */
+DEFPARAM(PARAM_MAX_CROSSJUMP_EDGES,
+	 "max-crossjump-edges",
+	 "The maximum number of incoming edges to consider for crossjumping",
+	 100, 0, 0)
+
+/* The minimum number of matching instructions to consider for crossjumping.  */
+DEFPARAM(PARAM_MIN_CROSSJUMP_INSNS,
+     "min-crossjump-insns",
+     "The minimum number of matching instructions to consider for crossjumping",
+     5, 0, 0)
+
+/* The maximum number expansion factor when copying basic blocks.  */
+DEFPARAM(PARAM_MAX_GROW_COPY_BB_INSNS,
+     "max-grow-copy-bb-insns",
+     "The maximum expansion factor when copying basic blocks",
+     8, 0, 0)
+
+/* The maximum number of insns to duplicate when unfactoring computed gotos.  */
+DEFPARAM(PARAM_MAX_GOTO_DUPLICATION_INSNS,
+     "max-goto-duplication-insns",
+     "The maximum number of insns to duplicate when unfactoring computed gotos",
+     8, 0, 0)
+
+/* The maximum length of path considered in cse.  */
+DEFPARAM(PARAM_MAX_CSE_PATH_LENGTH,
+	 "max-cse-path-length",
+	 "The maximum length of path considered in cse",
+	 10, 0, 0)
+DEFPARAM(PARAM_MAX_CSE_INSNS,
+	 "max-cse-insns",
+	 "The maximum instructions CSE process before flushing",
+	 1000, 0, 0)
+
+/* The cost of expression in loop invariant motion that is considered
+   expensive.  */
+DEFPARAM(PARAM_LIM_EXPENSIVE,
+	 "lim-expensive",
+	 "The minimum cost of an expensive expression in the loop invariant motion",
+	 20, 0, 0)
+
+/* Bound on number of candidates for induction variables below that
+   all candidates are considered for each use in induction variable
+   optimizations.  */
+
+DEFPARAM(PARAM_IV_CONSIDER_ALL_CANDIDATES_BOUND,
+	 "iv-consider-all-candidates-bound",
+	 "Bound on number of candidates below that all candidates are considered in iv optimizations",
+	 30, 0, 0)
+
+/* The induction variable optimizations give up on loops that contain more
+   induction variable uses.  */
+
+DEFPARAM(PARAM_IV_MAX_CONSIDERED_USES,
+	 "iv-max-considered-uses",
+	 "Bound on number of iv uses in loop optimized in iv optimizations",
+	 250, 0, 0)
+
+/* If there are at most this number of ivs in the set, try removing unnecessary
+   ivs from the set always.  */
+
+DEFPARAM(PARAM_IV_ALWAYS_PRUNE_CAND_SET_BOUND,
+	 "iv-always-prune-cand-set-bound",
+	 "If number of candidates in the set is smaller, we always try to remove unused ivs during its optimization",
+	 10, 0, 0)
+
+DEFPARAM(PARAM_SCEV_MAX_EXPR_SIZE,
+ 	 "scev-max-expr-size",
+	 "Bound on size of expressions used in the scalar evolutions analyzer",
+	 20, 0, 0)
+
+DEFPARAM(PARAM_VECT_MAX_VERSION_CHECKS,
+         "vect-max-version-checks",
+         "Bound on number of runtime checks inserted by the vectorizer's loop versioning",
+         6, 0, 0)
+
+/* The product of the next two is used to decide whether or not to
+   use .GLOBAL_VAR.  See tree-dfa.c.  */
+DEFPARAM(PARAM_GLOBAL_VAR_THRESHOLD,
+	"global-var-threshold",
+	"Given N calls and V call-clobbered vars in a function.  Use .GLOBAL_VAR if NxV is larger than this limit",
+	500000, 0, 0)
+
+DEFPARAM(PARAM_MAX_CSELIB_MEMORY_LOCATIONS,
+	 "max-cselib-memory-locations",
+	 "The maximum memory locations recorded by cselib",
+	 500, 0, 0)
+DEFPARAM(PARAM_MAX_FLOW_MEMORY_LOCATIONS,
+	 "max-flow-memory-locations",
+	 "The maximum memory locations recorded by flow",
+	 100, 0, 0)
+
+#ifdef ENABLE_GC_ALWAYS_COLLECT
+# define GGC_MIN_EXPAND_DEFAULT 0
+# define GGC_MIN_HEAPSIZE_DEFAULT 0
+#else
+# define GGC_MIN_EXPAND_DEFAULT 30
+# define GGC_MIN_HEAPSIZE_DEFAULT 4096
+#endif
+
+DEFPARAM(GGC_MIN_EXPAND,
+	 "ggc-min-expand",
+	 "Minimum heap expansion to trigger garbage collection, as a percentage of the total size of the heap",
+	 GGC_MIN_EXPAND_DEFAULT, 0, 0)
+
+DEFPARAM(GGC_MIN_HEAPSIZE,
+	 "ggc-min-heapsize",
+	 "Minimum heap size before we start collecting garbage, in kilobytes",
+	 GGC_MIN_HEAPSIZE_DEFAULT, 0, 0)
+
+#undef GGC_MIN_EXPAND_DEFAULT
+#undef GGC_MIN_HEAPSIZE_DEFAULT
+
+DEFPARAM(PARAM_MAX_RELOAD_SEARCH_INSNS,
+	 "max-reload-search-insns",
+	 "The maximum number of instructions to search backward when looking for equivalent reload",
+	 100, 0, 0)
+
+DEFPARAM(PARAM_MAX_ALIASED_VOPS,
+         "max-aliased-vops",
+	 "The maximum number of virtual operands allowed to represent aliases before triggering alias grouping",
+	 500, 0, 0)
+
+DEFPARAM(PARAM_MAX_SCHED_REGION_BLOCKS,
+	 "max-sched-region-blocks",
+	 "The maximum number of blocks in a region to be considered for interblock scheduling",
+	 10, 0, 0)
+
+DEFPARAM(PARAM_MAX_SCHED_REGION_INSNS,
+	 "max-sched-region-insns",
+	 "The maximum number of insns in a region to be considered for interblock scheduling",
+	 100, 0, 0)
+
+DEFPARAM(PARAM_MIN_SPEC_PROB,
+         "min-spec-prob",
+         "The minimum probability of reaching a source block for interblock speculative scheduling",
+         40, 0, 0)
+
+DEFPARAM(PARAM_MAX_SCHED_EXTEND_REGIONS_ITERS,
+         "max-sched-extend-regions-iters",
+         "The maximum number of iterations through CFG to extend regions",
+         0, 0, 0)
+
+DEFPARAM(PARAM_MAX_SCHED_INSN_CONFLICT_DELAY,
+         "max-sched-insn-conflict-delay",
+         "The maximum conflict delay for an insn to be considered for speculative motion",
+         3, 1, 10)
+
+DEFPARAM(PARAM_SCHED_SPEC_PROB_CUTOFF,
+         "sched-spec-prob-cutoff",
+         "The minimal probability of speculation success (in percents), so that speculative insn will be scheduled.",
+         40, 0, 100)
+
+DEFPARAM(PARAM_MAX_LAST_VALUE_RTL,
+	 "max-last-value-rtl",
+	 "The maximum number of RTL nodes that can be recorded as combiner's last value",
+	 10000, 0, 0)
+
+/* INTEGER_CST nodes are shared for values [{-1,0} .. N) for
+   {signed,unsigned} integral types.  This determines N.
+   Experimentation shows 256 to be a good value.  */
+DEFPARAM (PARAM_INTEGER_SHARE_LIMIT,
+	  "integer-share-limit",
+	  "The upper bound for sharing integer constants",
+	  256, 2, 2)
+
+/* Incremental SSA updates for virtual operands may be very slow if
+   there is a large number of mappings to process.  In those cases, it
+   is faster to rewrite the virtual symbols from scratch as if they
+   had been recently introduced.  This heuristic cannot be applied to
+   SSA mappings for real SSA names, only symbols kept in FUD chains.
+
+   PARAM_MIN_VIRTUAL_MAPPINGS specifies the minimum number of virtual
+   mappings that should be registered to trigger the heuristic.
+   
+   PARAM_VIRTUAL_MAPPINGS_TO_SYMS_RATIO specifies the ratio between
+   mappings and symbols.  If the number of virtual mappings is
+   PARAM_VIRTUAL_MAPPINGS_TO_SYMS_RATIO bigger than the number of
+   virtual symbols to be updated, then the updater switches to a full
+   update for those symbols.  */
+DEFPARAM (PARAM_MIN_VIRTUAL_MAPPINGS,
+	  "min-virtual-mappings",
+	  "Minimum number of virtual mappings to consider switching to full virtual renames",
+	  100, 0, 0)
+
+DEFPARAM (PARAM_VIRTUAL_MAPPINGS_TO_SYMS_RATIO,
+	  "virtual-mappings-ratio",
+	  "Ratio between virtual mappings and virtual symbols to do full virtual renames",
+	  3, 0, 0)
+
+DEFPARAM (PARAM_SSP_BUFFER_SIZE,
+	  "ssp-buffer-size",
+	  "The lower bound for a buffer to be considered for stack smashing protection",
+	  8, 1, 0)
+
+/* When we thread through a block we have to make copies of the
+   statements within the block.  Clearly for large blocks the code
+   duplication is bad.
+
+   PARAM_MAX_JUMP_THREAD_DUPLICATION_STMTS specifies the maximum number
+   of statements and PHI nodes allowed in a block which is going to
+   be duplicated for thread jumping purposes.
+
+   Some simple analysis showed that more than 99% of the jump
+   threading opportunities are for blocks with less than 15
+   statements.  So we can get the benefits of jump threading
+   without excessive code bloat for pathological cases with the
+   throttle set at 15 statements.  */
+DEFPARAM (PARAM_MAX_JUMP_THREAD_DUPLICATION_STMTS,
+	  "max-jump-thread-duplication-stmts",
+          "Maximum number of statements allowed in a block that needs to be duplicated when threading jumps",
+	  15, 0, 0)
+
+/* This is the maximum number of fields a variable may have before the pointer analysis machinery
+   will stop trying to treat it in a field-sensitive manner.  
+   There are programs out there with thousands of fields per structure, and handling them
+   field-sensitively is not worth the cost.  */
+DEFPARAM (PARAM_MAX_FIELDS_FOR_FIELD_SENSITIVE,
+          "max-fields-for-field-sensitive",
+	  "Maximum number of fields in a structure before pointer analysis treats the structure as a single variable",
+	  100, 0, 0)
+
+DEFPARAM(PARAM_MAX_SCHED_READY_INSNS,
+	 "max-sched-ready-insns",
+	 "The maximum number of instructions ready to be issued to be considered by the scheduler during the first scheduling pass",
+	 100, 0, 0)
+
+/*
+Local variables:
+mode:c
+End: */

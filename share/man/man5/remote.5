@@ -1,0 +1,210 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)remote.5	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd October 20, 2003
+.Dt REMOTE 5
+.Os
+.Sh NAME
+.Nm remote
+.Nd remote host description file
+.Sh DESCRIPTION
+The systems known by
+.Xr tip 1
+and their attributes are stored in an
+.Tn ASCII
+file which
+is structured somewhat like the
+.Xr termcap 5
+file.
+Each line in the file provides a description for a single
+.Em system .
+Fields are separated by a colon (``:'').
+Lines ending in a \e character with an immediately following newline are
+continued on the next line.
+.Pp
+The first entry is the name(s) of the host system.
+If there is more
+than one name for a system, the names are separated by vertical bars.
+After the name of the system comes the fields of the description.
+A field name followed by an `=' sign indicates a string value.
+A field name followed by a `#' sign indicates a numeric value.
+.Pp
+Entries named ``tip*'' and ``cu*'' are used as default entries by
+.Xr tip 1 ,
+and the
+.Xr cu 1
+interface to
+.Nm tip ,
+as follows.
+When
+.Nm tip
+is invoked with only a phone number, it looks for an entry
+of the form ``tip300'', where 300 is the data rate with
+which the connection is to be made.
+When the
+.Nm cu
+interface is used, entries of the form ``cu300'' are used.
+.Sh CAPABILITIES
+Capabilities are either strings (str), numbers (num), or boolean
+flags (bool).
+A string capability is specified by
+.Em capability Ns Ar = Ns Em value ;
+for example, ``dv=/dev/harris''.
+A numeric capability is specified by
+.Em capability Ns Ar # Ns Em value ;
+for example, ``xa#99''.
+A boolean capability is specified by simply listing the capability.
+.Bl -tag -width indent
+.It Cm \&at
+(str)
+Auto call unit type.
+.It Cm \&br
+(num)
+The data rate (bits per second) used for communications on the
+serial port.
+When a modem is used, the data rate used to communicate
+with the remote modem may be different than this rate.
+This is a decimal number.
+The default rate is 9600 bits per second.
+.It Cm \&cm
+(str)
+An initial connection message to be sent to the remote host.
+For example, if a host is reached through a port selector, this
+might be set to the appropriate sequence required to switch to the host.
+.It Cm \&cu
+(str)
+Call unit if making a phone call.
+Default is the same as the `dv' field.
+.It Cm \&di
+(str)
+Disconnect message sent to the host when a disconnect is requested by
+the user.
+.It Cm \&du
+(bool)
+This host is on a dial-up line.
+.It Cm \&dv
+(str)
+.Ux
+device(s) to open to establish a connection.
+If this file refers to a terminal line,
+.Xr tip 1
+attempts to perform an exclusive open on the device to ensure only
+one user at a time has access to the port.
+.It Cm \&el
+(str)
+Characters marking an end-of-line.
+The default is
+.Dv NULL .
+`~' escapes are only
+recognized by
+.Nm tip
+after one of the characters in `el', or after a carriage-return.
+.It Cm \&fs
+(str)
+Frame size for transfers.
+The default frame size is equal to
+.Dv BUFSIZ .
+.It Cm \&hd
+(bool)
+The host uses half-duplex communication, local echo should be performed.
+.It Cm \&ie
+(str)
+Input end-of-file marks.
+The default is
+.Dv NULL .
+.It Cm \&oe
+(str)
+Output end-of-file string.
+The default is
+.Dv NULL .
+When
+.Nm tip
+is transferring a file, this
+string is sent at end-of-file.
+.It Cm \&pa
+(str)
+The type of parity to use when sending data
+to the host.
+This may be one of ``even'',
+``odd'', ``none'', ``zero'' (always set bit 8 to zero),
+``one'' (always set bit 8 to 1).
+The default is even parity.
+.It Cm \&pn
+(str)
+Telephone number(s) for this host.
+If the telephone number field contains an @ sign,
+.Nm tip
+searches the file
+.Pa /etc/phones
+file for a list of telephone numbers (see
+.Xr phones 5 ) .
+.It Cm \&tc
+(str)
+Indicates that the list of capabilities is continued in the named
+description.
+This is used primarily to share common capability information.
+.El
+.Sh FILES
+.Bl -tag -width /etc/remote -compact
+.It Pa /etc/remote
+The
+.Nm
+host description file resides in
+.Pa /etc .
+.El
+.Sh EXAMPLES
+Here is a short example showing the use of the capability continuation
+feature.
+It defines a 56k modem connection on the first serial port at 115200
+bits per second, no parity using the Hayes command set with standard
+line editing and end of file characters.
+The arpavax entry includes everything in the UNIX-57600 entry plus
+the phone number for arpavax (in this case an @ character so that it
+is retrieved from the environment).
+.Bd -literal
+UNIX-57600:\e
+:dv=/dev/cuau0:el=^D^U^C^S^Q^O@:oe=^D:du:at=hayes:br#115200:pa=none:
+arpavax|ax:\e
+:pn=\e@:tc=UNIX-57600
+.Ed
+.Sh SEE ALSO
+.Xr cu 1 ,
+.Xr tip 1 ,
+.Xr phones 5
+.Sh HISTORY
+The
+.Nm
+file format appeared in
+.Bx 4.2 .
+.Sh BUGS
+The
+.Xr tip 1
+utility uses its own notion of the serial ports data rate rather than the
+system default for a serial port.

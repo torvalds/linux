@@ -1,0 +1,80 @@
+.\" @(#)keyserv.1m 1.21 93/07/14 SMI; from SVr4
+.\"macro stdmacro
+.\" Copyright 1989 AT&T
+.\" @(#)keyserv.8c 1.8 89/03/29 SMI;
+.\" $FreeBSD$
+.\".TH KEYSERV 8C "9 September 1987"
+.Dd September 14, 1992
+.Dt KEYSERV 8
+.Os
+.Sh NAME
+.Nm keyserv
+.Nd server for storing private encryption keys
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl D
+.Op Fl n
+.Op Fl p Ar path
+.Op Fl v
+.Sh DESCRIPTION
+The
+.Nm
+utility is a daemon that is used for storing the
+private encryption keys of each
+user logged into the system.
+These encryption keys are used for accessing
+secure network services such as secure
+.Tn NFS .
+.Pp
+Normally, root's key is read from the file
+.Pa /etc/.rootkey
+when the daemon is started.
+This is useful during power-fail reboots
+when no one is around to type a password.
+.Pp
+If a client with no secret key calls
+.Nm ,
+then the key of user
+.Em nobody
+is used instead as the default key.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d
+Disable the use of default keys for
+.Em nobody .
+.It Fl D
+Run in debugging mode and log all requests to
+.Nm .
+.It Fl n
+Root's secret key is not read from
+.Pa /etc/.rootkey .
+Instead,
+.Nm
+prompts the user for the password to decrypt
+root's key stored in the
+.Pa /etc/publickey
+database and then stores the decrypted key in
+.Pa /etc/.rootkey
+for future use.
+This option is useful if the
+.Pa /etc/.rootkey
+file ever gets out of date or corrupted.
+.It Fl p Ar path
+Specify where to search for
+.Pa libdes.so.3 .
+Default is
+.Pa /usr/lib .
+.It Fl v
+Display status of DES support (enabled/disabled).
+.El
+.Sh FILES
+.Bl -tag -width /usr/lib/libdes.so.3 -compact
+.It Pa /etc/.rootkey
+.It Pa /usr/lib/libdes.so.3
+.El
+.Sh "SEE ALSO"
+.Xr keylogin 1 ,
+.Xr keylogout 1 ,
+.Xr publickey 5

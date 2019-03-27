@@ -1,0 +1,74 @@
+#! /usr/local/bin/wish8.0 -f
+#
+# Copyright (c) 1999 Brian Somers <brian@Awfulhak.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+#
+# Display a window to request a users password, expecting a login name
+# as an argument and outputting the password to stdout.
+#
+
+set pwidth 11;		# Prompt field width
+set vwidth 20;		# Value field width
+set fxpad 7;		# Value field width
+set fypad 3;		# Value field width
+
+wm title . "PPP Login";
+
+# Dump our password to stdout and exit
+proc done {} {
+  puts [.p.value get];
+  exit 0;
+}
+
+frame .l;
+text  .l.prompt -width $pwidth -height 1 -relief flat;
+      .l.prompt insert 1.0 "Login:";
+pack  .l.prompt -side left;
+      .l.prompt configure -state disabled;
+text  .l.value -width $vwidth -height 1;
+      .l.value insert 1.0 $argv;
+pack  .l.value -side right;
+      .l.value configure -state disabled;
+pack  .l -side top -padx $fxpad -pady $fypad;
+
+frame .p;
+text  .p.prompt -width $pwidth -height 1 -relief flat;
+      .p.prompt insert 1.0 "Password:";
+pack  .p.prompt -side left;
+      .p.prompt configure -state disabled;
+entry .p.value -show "*" -width $vwidth;
+pack  .p.value -side right;
+bind  .p.value <Return> {done};
+focus .p.value;
+pack  .p -side top -padx $fxpad -pady $fypad;
+
+frame  .b;
+button .b.ok -default active -text "Ok" -takefocus 0 -command {done};
+pack   .b.ok -side left;
+button .b.cancel -default normal -text "Cancel" -takefocus 0 -command {exit 1};
+pack   .b.cancel -side right;
+pack   .b -side top -padx $fxpad -pady $fypad;

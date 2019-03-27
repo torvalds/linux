@@ -1,0 +1,517 @@
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2002 - 2015 Tony Finch <dot@dotat.at>.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Dave Yost. It was rewritten to support ANSI C by Tony Finch.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 3, 2015
+.Dt UNIFDEF 1 PRM
+.Os " "
+.Sh NAME
+.Nm unifdef , unifdefall
+.Nd remove preprocessor conditionals from code
+.Sh SYNOPSIS
+.Nm
+.Op Fl bBcdehKkmnsStV
+.Op Fl I Ns Ar path
+.Op Fl [i]D Ns Ar sym Ns Op = Ns Ar val
+.Op Fl [i]U Ns Ar sym
+.Ar ...
+.Op Fl f Ar defile
+.Op Fl x Bro Ar 012 Brc
+.Op Fl M Ar backext
+.Op Fl o Ar outfile
+.Op Ar infile ...
+.Nm unifdefall
+.Op Fl I Ns Ar path
+.Ar ...
+.Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility selectively processes conditional
+.Xr cpp 1
+directives.
+It removes from a file
+both the directives
+and any additional text that they specify should be removed,
+while otherwise leaving the file alone.
+.Pp
+The
+.Nm
+utility acts on
+.Ic #if , #ifdef , #ifndef ,
+.Ic #elif , #else ,
+and
+.Ic #endif
+lines,
+using macros specified in
+.Fl D
+and
+.Fl U
+command line options or in
+.Fl f
+definitions files.
+A directive is processed
+if the macro specifications are sufficient to provide
+a definite value for its control expression.
+If the result is false,
+the directive and the following lines under its control are removed.
+If the result is true,
+only the directive is removed.
+An
+.Ic #ifdef
+or
+.Ic #ifndef
+directive is passed through unchanged
+if its controlling macro is not specified.
+Any
+.Ic #if
+or
+.Ic #elif
+control expression that has an unknown value or that
+.Nm
+cannot parse is passed through unchanged.
+By default,
+.Nm
+ignores
+.Ic #if
+and
+.Ic #elif
+lines with constant expressions;
+it can be told to process them by specifying the
+.Fl k
+flag on the command line.
+.Pp
+It understands a commonly-used subset
+of the expression syntax for
+.Ic #if
+and
+.Ic #elif
+lines:
+integer constants,
+integer values of macros defined on the command line,
+the
+.Fn defined
+operator,
+the operators
+.Ic \&! , ~ , -
+(unary),
+.Ic * , / , % , + , - ,
+.Ic < , <= , > , >= , == , != , & , ^ , \&| ,
+.Ic && , || ,
+and parenthesized expressions.
+Division by zero is treated as an unknown value.
+A kind of
+.Dq "short circuit"
+evaluation is used for the
+.Ic &&
+operator:
+if either operand is definitely false then the result is false,
+even if the value of the other operand is unknown.
+Similarly,
+if either operand of
+.Ic ||
+is definitely true then the result is true.
+.Pp
+When evaluating an expression,
+.Nm
+does not expand macros first.
+The value of a macro must be a simple number,
+not an expression.
+A limited form of indirection is allowed,
+where one macro's value is the name of another.
+.Pp
+In most cases,
+.Nm
+does not distinguish between object-like macros
+(without arguments) and function-like macros (with arguments).
+A function-like macro invocation can appear in
+.Ic #if
+and
+.Ic #elif
+control expressions.
+If the macro is not explicitly defined,
+or is defined with the
+.Fl D
+flag on the command-line,
+or with
+.Ic #define
+in a
+.Fl f
+definitions file,
+its arguments are ignored.
+If a macro is explicitly undefined on the command line with the
+.Fl U
+flag,
+or with
+.Ic #undef
+in a
+.Fl f
+definitions file,
+it may not have any arguments since this leads to a syntax error.
+.Pp
+The
+.Nm
+utility understands just enough about C
+to know when one of the directives is inactive
+because it is inside
+a comment,
+or affected by a backslash-continued line.
+It spots unusually-formatted preprocessor directives
+and knows when the layout is too odd for it to handle.
+.Pp
+A script called
+.Nm unifdefall
+can be used to remove all conditional
+.Xr cpp 1
+directives from a file.
+It uses
+.Nm Fl s
+and
+.Nm cpp Fl dM
+to get lists of all the controlling macros
+and their definitions (or lack thereof),
+then invokes
+.Nm
+with appropriate arguments to process the file.
+.Sh OPTIONS
+.Bl -tag -width indent -compact
+.It Fl D Ns Ar sym Ns = Ns Ar val
+Specify that a macro is defined to a given value.
+.Pp
+.It Fl D Ns Ar sym
+Specify that a macro is defined to the value 1.
+.Pp
+.It Fl U Ns Ar sym
+Specify that a macro is undefined.
+.Pp
+If the same macro appears in more than one argument,
+the last occurrence dominates.
+.Pp
+.It Fl iD Ns Ar sym Ns Op = Ns Ar val
+.It Fl iU Ns Ar sym
+C strings, comments,
+and line continuations
+are ignored within
+.Ic #ifdef
+and
+.Ic #ifndef
+blocks
+controlled by macros
+specified with these options.
+.Pp
+.It Fl f Ar defile
+The file
+.Ar defile
+contains
+.Ic #define
+and
+.Ic #undef
+preprocessor directives,
+which have the same effect as the corresponding
+.Fl D
+and
+.Fl U
+command-line arguments.
+You can have multiple
+.Fl f
+arguments and mix them with
+.Fl D
+and
+.Fl U
+arguments;
+later options override earlier ones.
+.Pp
+Each directive must be on a single line.
+Object-like macro definitions (without arguments)
+are set to the given value.
+Function-like macro definitions (with arguments)
+are treated as if they are set to 1.
+.Pp
+.Em Warning:
+string literals and character constants are not parsed correctly in
+.Fl f
+files.
+.Pp
+.It Fl b
+Replace removed lines with blank lines
+instead of deleting them.
+Mutually exclusive with the
+.Fl B
+option.
+.Pp
+.It Fl B
+Compress blank lines around a deleted section.
+Mutually exclusive with the
+.Fl b
+option.
+.Pp
+.It Fl c
+Complement,
+i.e., lines that would have been removed or blanked
+are retained and vice versa.
+.Pp
+.It Fl d
+Turn on printing of debugging messages.
+.Pp
+.It Fl e
+By default,
+.Nm
+will report an error if it needs to remove
+a preprocessor directive that spans more than one line,
+for example, if it has a multi-line
+comment hanging off its right hand end.
+The
+.Fl e
+flag makes it ignore the line instead.
+.Pp
+.It Fl h
+Print help.
+.Pp
+.It Fl I Ns Ar path
+Specifies to
+.Nm unifdefall
+an additional place to look for
+.Ic #include
+files.
+This option is ignored by
+.Nm
+for compatibility with
+.Xr cpp 1
+and to simplify the implementation of
+.Nm unifdefall .
+.Pp
+.It Fl K
+Always treat the result of
+.Ic &&
+and
+.Ic ||
+operators as unknown if either operand is unknown,
+instead of short-circuiting when unknown operands can't affect the result.
+This option is for compatibility with older versions of
+.Nm .
+.Pp
+.It Fl k
+Process
+.Ic #if
+and
+.Ic #elif
+lines with constant expressions.
+By default, sections controlled by such lines are passed through unchanged
+because they typically start
+.Dq Li "#if 0"
+and are used as a kind of comment to sketch out future or past development.
+It would be rude to strip them out, just as it would be for normal comments.
+.Pp
+.It Fl m
+Modify one or more input files in place.
+If an input file is not modified,
+the original is preserved instead of being overwritten with an identical copy.
+.Pp
+.It Fl M Ar backext
+Modify input files in place, and keep backups of the original files by
+appending the
+.Ar backext
+to the input filenames.
+A zero length
+.Ar backext
+behaves the same as the
+.Fl m
+option.
+.Pp
+.It Fl n
+Add
+.Li #line
+directives to the output following any deleted lines,
+so that errors produced when compiling the output file correspond to
+line numbers in the input file.
+.Pp
+.It Fl o Ar outfile
+Write output to the file
+.Ar outfile
+instead of the standard output when processing a single file.
+.Pp
+.It Fl s
+Instead of processing an input file as usual,
+this option causes
+.Nm
+to produce a list of macros that are used in
+preprocessor directive controlling expressions.
+.Pp
+.It Fl S
+Like the
+.Fl s
+option, but the nesting depth of each macro is also printed.
+This is useful for working out the number of possible combinations
+of interdependent defined/undefined macros.
+.Pp
+.It Fl t
+Disables parsing for C strings, comments,
+and line continuations,
+which is useful
+for plain text.
+This is a blanket version of the
+.Fl iD
+and
+.Fl iU
+flags.
+.Pp
+.It Fl V
+Print version details.
+.Pp
+.It Fl x Bro Ar 012 Brc
+Set exit status mode to zero, one, or two.
+See the
+.Sx EXIT STATUS
+section below for details.
+.El
+.Pp
+The
+.Nm
+utility takes its input from
+.Em stdin
+if there are no
+.Ar file
+arguments.
+You must use the
+.Fl m
+or
+.Fl M
+options if there are multiple input files.
+You can specify inut from stdin or output to stdout with
+.Ql - .
+.Pp
+The
+.Nm
+utility works nicely with the
+.Fl D Ns Ar sym
+option of
+.Xr diff 1 .
+.Sh EXIT STATUS
+In normal usage the
+.Nm
+utility's exit status depends on the mode set using the
+.Fl x
+option.
+.Pp
+If the exit mode is zero (the default) then
+.Nm
+exits with status 0 if the output is an exact copy of the input,
+or with status 1 if the output differs.
+.Pp
+If the exit mode is one,
+.Nm
+exits with status 1 if the output is unmodified
+or 0 if it differs.
+.Pp
+If the exit mode is two,
+.Nm
+exits with status zero in both cases.
+.Pp
+In all exit modes,
+.Nm
+exits with status 2 if there is an error.
+.Pp
+The exit status is 0 if the
+.Fl h
+or
+.Fl V
+command line options are given.
+.Sh DIAGNOSTICS
+.Bl -item
+.It
+.Tn EOF
+in comment
+.It
+Inappropriate
+.Ic #elif ,
+.Ic #else
+or
+.Ic #endif
+.It
+Missing macro name in #define or #undef
+.It
+Obfuscated preprocessor control line
+.It
+Premature
+.Tn EOF
+(with the line number of the most recent unterminated
+.Ic #if )
+.It
+Too many levels of nesting
+.It
+Unrecognized preprocessor directive
+.It
+Unterminated char or string literal
+.El
+.Sh SEE ALSO
+.Xr cpp 1 ,
+.Xr diff 1
+.Pp
+The unifdef home page is
+.Pa https://dotat.at/prog/unifdef
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 2.9 .
+.Tn ANSI\~C
+support was added in
+.Fx 4.7 .
+.Sh AUTHORS
+.An -nosplit
+The original implementation was written by
+.An Dave Yost Aq Mt Dave@Yost.com .
+.An Tony Finch Aq Mt dot@dotat.at
+rewrote it to support
+.Tn ANSI\~C .
+.Sh BUGS
+Expression evaluation is very limited.
+.Pp
+Character constants are not evaluated.
+String literals and character constants in
+.Fl f
+definition files are ignored rather than parsed as
+part of a macro's replacement tokens.
+.Pp
+Handling one line at a time means
+preprocessor directives split across more than one physical line
+(because of comments or backslash-newline)
+cannot be handled in every situation.
+.Pp
+Trigraphs are not recognized.
+.Pp
+There is no support for macros with different definitions at
+different points in the source file.
+.Pp
+The text-mode and ignore functionality does not correspond to modern
+.Xr cpp 1
+behaviour.

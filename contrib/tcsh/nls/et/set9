@@ -1,0 +1,12 @@
+$ $tcsh: set9,v 1.4 2015/05/26 17:38:25 christos Exp $
+$ ed.xmap.c
+$set 9
+1 AddXkey: Null pikkusega laiend-klahv ei ole lubatud.\n
+2 AddXkey: käsuni viiv järjend pole lubatud\n
+3 DeleteXkey: Null pikkusega laiend-klahv ei ole lubatud.\n
+4 Sidumata laiendatud klahv "%S"\n
+5 Mõned laiendatud klahvid on sisemise trükipuhvri jaoks liiga pikad
+6 Enumerate: BUG!! Null viit anti\n!
+7 sisendit pole
+8 Midagi peab järgnema: '%c'\n
+9 kaheksand-konstant ei mahu sümbolisse.\n

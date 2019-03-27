@@ -1,0 +1,200 @@
+2005-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* push.c: catch when snprint needs a larger buffer
+
+2004-06-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* push.c: alloc memory to handle very long lines
+	
+2003-04-03  Assar Westerlund  <assar@kth.se>
+
+	* push.c: fixed one incorrect fprintf to stderr
+
+2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* push.c: add names of pop states, add some more debugging and use
+	fprintf(stderr) for all dbg stmts.
+	
+2001-09-04  Assar Westerlund  <assar@sics.se>
+
+	* push.c (doit): check return values from snprintf being negative
+
+2000-12-31  Assar Westerlund  <assar@sics.se>
+
+	* push.c (main): handle krb5_init_context failure consistently
+
+2000-12-26  Assar Westerlund  <assar@sics.se>
+
+	* push.c: support several headers, from <mattiasa@e.kth.se> use
+	estrdup, emalloc, erealloc
+
+2000-11-29  Johan Danielsson  <joda@pdc.kth.se>
+
+	* pfrom.1: work around bug in grog that makes it think it needs
+	mdoc.old
+
+	* push.8: work around bug in grog that makes it think it needs
+	mdoc.old
+
+2000-11-27  Johan Danielsson  <joda@pdc.kth.se>
+
+	* push.c: add space to usage
+
+2000-10-08  Assar Westerlund  <assar@sics.se>
+
+	* push.c (doit): check that fds are not too large to select on
+
+2000-03-04  Assar Westerlund  <assar@sics.se>
+
+	* add man-page for pfrom
+
+1999-12-28  Assar Westerlund  <assar@sics.se>
+
+	* push.c (main): call k_getportbyname with port number in
+ 	network-byte-order
+
+1999-12-14  Assar Westerlund  <assar@sics.se>
+
+	* push.c (do_connect): remove bogus local block variable
+
+1999-12-05  Assar Westerlund  <assar@sics.se>
+
+	* push.c (do_connect): use `getaddrinfo'
+	* push.c: add --count (print number of messages and bytes at
+	beginning)
+
+1999-11-13  Assar Westerlund  <assar@sics.se>
+
+	* push.c: make `-v' a arg_counter
+	
+1999-11-02  Assar Westerlund  <assar@sics.se>
+
+	* push.c (main): redo the v4/v5 selection for consistency.  -4 ->
+ 	try only v4 -5 -> try only v5 none, -45 -> try v5, v4
+
+1999-08-19  Assar Westerlund  <assar@sics.se>
+
+	* push.c (doit): remember to step over the error message when we
+ 	discover that XDELE is not supported
+
+1999-08-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* push.c: use XDELE
+
+1999-08-05  Assar Westerlund  <assar@sics.se>
+
+	* push.c (do_connect): v6-ify
+
+1999-06-15  Assar Westerlund  <assar@sics.se>
+
+	* push.c: get_default_username and the resulting const propagation
+
+1999-05-21  Assar Westerlund  <assar@sics.se>
+
+	* push.c (parse_pobox): try $USERNAME
+
+1999-05-11  Assar Westerlund  <assar@sics.se>
+
+	* push.c (do_v5): remove unused and non-working code
+
+1999-05-10  Assar Westerlund  <assar@sics.se>
+
+	* push.c (do_v5): call krb5_sendauth with ccache == NULL
+	
+Wed Apr  7 23:40:00 1999  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in: fix names of hesiod variables
+
+Wed Mar 24 04:37:04 1999  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (pfrom): fix typo
+
+	* push.c (get_pobox): try to handle old and new hesiod APIs
+
+Mon Mar 22 22:19:40 1999  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: hesoid -> hesiod
+
+Sun Mar 21 18:02:10 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: bindir -> libexecdir
+
+Sat Mar 20 00:12:26 1999  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: LDADD: add missing backslash
+
+Thu Mar 18 15:28:35 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: clean pfrom
+
+	* Makefile.am: include Makefile.am.common
+
+Mon Mar 15 18:26:16 1999  Johan Danielsson  <joda@blubb.pdc.kth.se>
+
+	* push.c: strncasecmp headers
+
+Mon Feb 15 22:22:09 1999  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (pfrom): use libexecdir
+
+	* Makefile.am: build and install pfrom
+
+	* push.c (do_connect): init `s'
+	(pop_state): spell-check enums
+
+Tue Nov 24 23:20:54 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in: build and install pfrom
+
+	* pfrom.in: bindir -> libexecdir
+
+Sun Nov 22 15:33:52 1998  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* push.c: eliminate some warnings
+
+Sun Nov 22 10:34:54 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (WFLAGS): set
+
+Thu Nov 19 01:17:33 1998  Assar Westerlund  <assar@sics.se>
+
+	* push_locl.h: add <hesiod.h>
+
+	* Makefile.am, Makefile.in: link and include hesiod
+
+	* push.c (get_pobox): new function. add hesiod support.
+
+1998-11-07  Assar Westerlund  <assar@sics.se>
+
+	* push.8: updated
+
+	* push.c: --from implementation from <lha@stacken.kth.se>
+
+Fri Jul 10 01:14:45 1998  Assar Westerlund  <assar@sics.se>
+
+	* push.c (net_{read,write}): remove
+
+Wed Jun 24 14:41:41 1998  Johan Danielsson  <joda@blubb.pdc.kth.se>
+
+	* push.c: allow `po:user@host' mailbox syntax
+
+Tue Jun  2 17:35:06 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* push.c: quote '^From ' properly
+
+Mon May 25 05:22:47 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (clean): PROGS -> PROGRAMS
+
+Sun Apr 26 11:42:13 1998  Assar Westerlund  <assar@sics.se>
+
+	* push.c (main): better default for v4 and v5
+
+	* push.c (main): init context correctly
+
+	* push.c: should work with krb4
+
+	* push_locl.h: krb4 compat
+
+	* Makefile.in: new file
+

@@ -1,0 +1,13 @@
+
+#------------------------------------------------------------------------------
+# $File: xdelta,v 1.5 2011/08/08 09:01:05 christos Exp $
+# file(1) magic(5) data for xdelta  Josh MacDonald <jmacd@CS.Berkeley.EDU>
+#
+0	string	%XDELTA%	XDelta binary patch file 0.14
+0	string	%XDZ000%	XDelta binary patch file 0.18
+0	string	%XDZ001%	XDelta binary patch file 0.20
+0	string	%XDZ002%	XDelta binary patch file 1.0
+0	string	%XDZ003%	XDelta binary patch file 1.0.4
+0	string	%XDZ004%	XDelta binary patch file 1.1
+
+0	string \xD6\xC3\xC4\x00	VCDIFF binary diff

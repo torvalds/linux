@@ -1,0 +1,70 @@
+2006-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Add man_MANS to EXTRA_DIST
+
+	* Makefile.am: split build files into dist_ and noinst_ SOURCES
+	
+2005-07-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ktutil.c: rename optind to optidx
+
+	* list.c: make a copy of realm and admin_server to avoid
+	un-consting avoid shadowing
+
+	* get.c: make a copy of realm and admin_server to avoid
+	un-consting avoid shadowing
+	
+	* change.c (change_entry): just use global context to avoid
+	shadowing; make a copy of realm and admin_server to avoid
+	un-consting.
+
+2005-05-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* change.c (kt_change): plug memory leak from
+	krb5_kt_remove_entry, print principal on error.
+
+2005-05-02  Dave Love  <d.love@dl.ac.uk>
+
+	* ktutil.c (help): Don't use non-constant initializer for `fake'.
+
+2005-04-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ktutil_locl.h: include <hex.h>
+
+2005-04-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* add.c: add option -H --hex to the add command
+	
+	* ktutil-commands.in: add option -H --hex to the add command
+	
+	* ktutil.8: document option -H --hex to the add command
+
+2004-09-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* list.c: un c99'ify, from Anders.Magnusson@ltu.se
+
+2004-09-23 Johan Danielsson <joda@pdc.kth.se>
+
+	* purge.c: convert to slc; don't purge keys older that a certain
+	time, instead purge keys that have newer versions that are at
+	least a certain age
+
+	* rename.c: convert to slc
+	
+	* remove.c: convert to slc
+	
+	* get.c: convert to slc; warn if resetting disallow-all-tix
+	
+	* copy.c: convert to slc
+	
+	* change.c: convert to slc
+	
+	* add.c: convert to slc
+	
+	* list.c: convert to slc
+	
+	* ktutil_locl.h: convert to slc
+	
+	* ktutil.c: convert to slc
+	
+	* ktutil-commands.in: slc source file

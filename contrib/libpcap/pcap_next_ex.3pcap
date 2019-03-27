@@ -1,0 +1,140 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_NEXT_EX 3PCAP "20 January 2017"
+.SH NAME
+pcap_next_ex, pcap_next \- read the next packet from a pcap_t
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.ft B
+int pcap_next_ex(pcap_t *p, struct pcap_pkthdr **pkt_header,
+.ti +8
+const u_char **pkt_data);
+const u_char *pcap_next(pcap_t *p, struct pcap_pkthdr *h);
+.ft
+.fi
+.SH DESCRIPTION
+.B pcap_next_ex()
+reads the next packet and returns a success/failure indication.
+If the packet was read without problems, the pointer pointed to by the
+.I pkt_header
+argument is set to point to the
+.I pcap_pkthdr
+struct for the packet, and the
+pointer pointed to by the
+.I pkt_data
+argument is set to point to the data in the packet.  The
+.I struct pcap_pkthdr
+and the packet data are not to be freed by the caller, and are not
+guaranteed to be valid after the next call to
+.BR pcap_next_ex() ,
+.BR pcap_next() ,
+.BR pcap_loop() ,
+or
+.BR pcap_dispatch() ;
+if the code needs them to remain valid, it must make a copy of them.
+.PP
+.B pcap_next()
+reads the next packet (by calling
+.B pcap_dispatch()
+with a
+.I cnt
+of 1) and returns a
+.I u_char
+pointer to the data in that packet.  The
+packet data is not to be freed by the caller, and is not
+guaranteed to be valid after the next call to
+.BR pcap_next_ex() ,
+.BR pcap_next() ,
+.BR pcap_loop() ,
+or
+.BR pcap_dispatch() ;
+if the code needs it to remain valid, it must make a copy of it.
+The
+.I pcap_pkthdr
+structure pointed to by
+.I h
+is filled in with the appropriate values for the packet.
+.PP
+The bytes of data from the packet begin with a link-layer header.  The
+format of the link-layer header is indicated by the return value of the
+.B pcap_datalink()
+routine when handed the
+.B pcap_t
+value also passed to
+.B pcap_loop()
+or
+.BR pcap_dispatch() .
+.I http://www.tcpdump.org/linktypes.html
+lists the values
+.B pcap_datalink()
+can return and describes the packet formats that
+correspond to those values.  The value it returns will be valid for all
+packets received unless and until
+.B pcap_set_datalink()
+is called; after a successful call to
+.BR pcap_set_datalink() ,
+all subsequent packets will have a link-layer header of the type
+specified by the link-layer header type value passed to
+.BR pcap_set_datalink() .
+.PP
+Do
+.B NOT
+assume that the packets for a given capture or ``savefile`` will have
+any given link-layer header type, such as
+.B DLT_EN10MB
+for Ethernet.  For example, the "any" device on Linux will have a
+link-layer header type of
+.B DLT_LINUX_SLL
+even if all devices on the system at the time the "any" device is opened
+have some other data link type, such as
+.B DLT_EN10MB
+for Ethernet.
+.SH RETURN VALUE
+.B pcap_next_ex()
+returns 1 if the packet was read without problems, 0 if packets are
+being read from a live capture and the packet buffer timeout expired,
+\-1 if an error occurred while reading the packet, and \-2 if packets
+are being read from a ``savefile'' and there are no more packets to read
+from the savefile.  If \-1 is returned,
+.B pcap_geterr()
+or
+.B pcap_perror()
+may be called with
+.I p
+as an argument to fetch or display the error text.
+.PP
+.B pcap_next()
+returns a pointer to the packet data on success, and returns
+.B NULL
+if an error occurred, or if no packets were read from a live capture
+(if, for example, they were discarded because they didn't pass the
+packet filter, or if, on platforms that support a packet buffer timeout
+that starts before any packets arrive, the timeout expires before any
+packets arrive, or if the file descriptor for the capture device is in
+non-blocking mode and no packets were available to be read), or if no
+more packets are available in a ``savefile.'' Unfortunately, there is no
+way to determine whether an error occurred or not.
+.SH SEE ALSO
+pcap(3PCAP), pcap_geterr(3PCAP), pcap_dispatch(3PCAP),
+pcap_datalink(3PCAP)

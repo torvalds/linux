@@ -1,0 +1,154 @@
+.\" $Id: vkbd.4,v 1.4 2004/11/16 16:49:39 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd August 12, 2004
+.Dt VKBD 4
+.Os
+.Sh NAME
+.Nm vkbd
+.Nd the virtual AT keyboard interface
+.Sh SYNOPSIS
+.Cd "device vkbd"
+.Sh DESCRIPTION
+The
+.Nm
+interface is a software loopback mechanism that can be loosely
+described as the virtual AT keyboard analog of the
+.Xr pty 4 ,
+that is,
+.Nm
+does for virtual AT keyboards what the
+.Xr pty 4
+driver does for terminals.
+.Pp
+The
+.Nm
+driver, like the
+.Xr pty 4
+driver, provides two interfaces: a keyboard interface like the usual
+facility it is simulating (a virtual AT keyboard in the case of
+.Nm ,
+or a terminal for
+.Xr pty 4 ) ,
+and a character-special device
+.Dq control
+interface.
+.Pp
+The virtual AT keyboards are named
+.Pa vkbd0 , vkbd1 ,
+etc., one for each control device that has been opened.
+.Pp
+The
+.Nm
+interface permits opens on the special control device
+.Pa /dev/vkbdctl .
+When this device is opened,
+.Nm
+will return a handle for the lowest unused
+.Pa vkbdctl
+device (use
+.Xr devname 3
+to determine which).
+.Pp
+Each virtual AT keyboard supports the usual keyboard interface
+.Xr ioctl 2 Ns s ,
+and thus can be used with
+.Xr kbdcontrol 1
+like any other keyboard.
+The control device supports exactly the same
+.Xr ioctl 2 Ns s
+as the virtual AT keyboard device.
+Writing AT scan codes to the control device generates an input on
+the virtual AT keyboard, as if the
+(non-existent)
+hardware had just received it.
+.Pp
+The virtual AT keyboard control device, normally
+.Pa /dev/vkbdctl Ns Aq Ar N ,
+is exclusive-open
+(it cannot be opened if it is already open)
+and is restricted to the super-user.
+A
+.Xr read 2
+call will return the virtual AT keyboard status structure
+(defined in
+.In dev/vkbd/vkbd_var.h )
+if one is available;
+if not, it will either block until one is or return
+.Er EWOULDBLOCK ,
+depending on whether non-blocking I/O has been enabled.
+.Pp
+A
+.Xr write 2
+call passes AT scan codes to be
+.Dq received
+from the virtual AT keyboard.
+Each AT scan code must be passed as
+.Vt "unsigned int" .
+Although AT scan codes must be passes as
+.Vt "unsigned int" Ns s ,
+the size of the buffer passed to
+.Xr write 2
+still should be in bytes, i.e.,
+.Bd -literal -offset indent
+static unsigned int     codes[] =
+{
+/*      Make    Break */
+        0x1e,   0x9e
+};
+
+int
+main(void)
+{
+        int     fd, len;
+
+        fd = open("/dev/vkbdctl0", O_RDWR);
+        if (fd < 0)
+                err(1, "open");
+
+        /* Note sizeof(codes) - not 2! */
+        len = write(fd, codes, sizeof(codes));
+        if (len < 0)
+                err(1, "write");
+
+        close(fd);
+
+        return (0);
+}
+.Ed
+.Pp
+Write will block if there is not enough space in the input queue.
+.Pp
+The control device also supports
+.Xr select 2
+for read and write.
+.Pp
+On the last close of the control device, the virtual AT keyboard is removed.
+All queued scan codes are thrown away.
+.Sh SEE ALSO
+.Xr kbdcontrol 1 ,
+.Xr atkbdc 4 ,
+.Xr psm 4 ,
+.Xr syscons 4 ,
+.Xr vt 4
+.Sh HISTORY
+The
+.Nm
+module was implemented in
+.Fx 6.0 .
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh CAVEATS
+The
+.Nm
+interface is a software loopback mechanism, and, thus
+.Xr ddb 4
+will not work with it.
+Current implementation of the
+.Xr syscons 4
+driver can accept input from only one keyboard, even if it is virtual.
+Thus it is not possible to have both wired and virtual keyboard to be active
+at the same time.
+It is, however, in principal possible to obtain AT scan
+codes from the different sources and write them into the same virtual keyboard.
+The virtual keyboard state synchronization is the user's responsibility.

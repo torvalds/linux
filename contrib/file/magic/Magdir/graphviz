@@ -1,0 +1,12 @@
+
+#------------------------------------------------------------------------------
+# $File: graphviz,v 1.8 2014/06/03 19:01:34 christos Exp $
+# graphviz:  file(1) magic for http://www.graphviz.org/
+
+# FIXME: These patterns match too generally. For example, the first
+# line matches a LaTeX file containing the word "graph" (with a {
+# following later) and the second line matches this file.
+#0	regex/100l	[\r\n\t\ ]*graph[\r\n\t\ ]+.*\\{	graphviz graph text
+#!:mime	text/vnd.graphviz
+#0	regex/100l	[\r\n\t\ ]*digraph[\r\n\t\ ]+.*\\{	graphviz digraph text
+#!:mime	text/vnd.graphviz

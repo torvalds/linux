@@ -1,0 +1,143 @@
+.\" Copyright (c) 2002 Gordon Tetlow
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 9, 2016
+.Dt NEXTBOOT 8
+.Os
+.Sh NAME
+.Nm nextboot
+.Nd "specify an alternate kernel and boot flags for the next reboot"
+.Sh SYNOPSIS
+.Nm
+.Op Fl af
+.Op Fl e Ar variable=value
+.Op Fl k Ar kernel
+.Op Fl o Ar options
+.Nm
+.Fl D
+.Sh DESCRIPTION
+The
+.Nm
+utility allows specifying some combination of an alternate kernel, boot flags
+and kernel environment for the
+next time the machine is booted.
+Once the
+.Xr loader 8
+loads in the new kernel
+information, it is deleted so in case the new kernel hangs the machine,
+once it is rebooted, the machine will automatically revert to its previous
+configuration.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl o Ar options"
+.It Fl a
+This option causes
+.Nm
+to append to an existing configuration in
+.Pa /boot/nextboot.conf .
+By default any existing configuration is overwritten.
+.It Fl D
+Invoking
+.Nm
+with this
+option removes an existing
+.Nm
+configuration.
+.It Fl e Ar variable=value
+This option adds the provided variable and value to the kernel environment.
+The value is quoted when written to the
+.Nm
+configuration.
+.It Fl f
+This
+option disables the sanity checking which checks if the kernel really exists
+before writing the
+.Nm
+configuration.
+.It Fl k Ar kernel
+This option specifies a kernel directory relative to
+.Pa /boot
+to load the kernel and any modules from.
+.It Fl o Ar options
+This option
+allows the passing of kernel flags for the next boot.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /boot/nextboot.conf" -compact
+.It Pa /boot/nextboot.conf
+The configuration file that the
+.Nm
+configuration is written into.
+.El
+.Sh EXAMPLES
+To boot the
+.Pa GENERIC
+kernel with the
+.Nm
+command:
+.Pp
+.Dl "nextboot -k GENERIC"
+.Pp
+To enable into single user mode with the normal kernel:
+.Pp
+.Dl "nextboot -o ""-s"" -k kernel"
+.Pp
+To remove an existing nextboot configuration:
+.Pp
+.Dl "nextboot -D"
+.Sh SEE ALSO
+.Xr boot 8 ,
+.Xr loader 8
+.Sh HISTORY
+The original
+.Nm
+manual page first appeared in
+.Fx 2.2 .
+It used a very different interface to achieve similar results.
+.Pp
+The current incarnation of
+.Nm
+appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+This manual page was written by
+.An Gordon Tetlow Aq Mt gordon@FreeBSD.org .
+.Sh BUGS
+The
+.Nm
+code is implemented in the
+.Xr loader 8 .
+It is not the most thoroughly tested code.
+It is also my first attempt to write in Forth.
+.Pp
+Finally, it does some evil things like writing to the file system before it
+has been checked.
+If it scrambles your file system, do not blame me.
+.Pp
+.Xr loader 8
+is only able to read ZFS, not write to it.
+.Pa nextboot.conf
+will NOT be reset in case of a kernel boot failure.

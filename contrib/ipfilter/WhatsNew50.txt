@@ -1,0 +1,83 @@
+What's new in 5.1
+=================
+
+General
+-------
+* all of the tuneables can now be set at any time, not just whilst disabled
+  or prior to loading rules;
+
+* group identifiers may now be a number or name (universal);
+
+* man pages rewritten
+
+* tunables can now be set via ipf.conf;
+
+Logging
+-------
+* ipmon.conf can now be used to generate SNMPv1 and SNMPv2 traps using
+  information from log entries from the kernel;
+
+NAT changes
+-----------
+* DNS proxy for the kernel that can block queries based on domain names;        
+
+* FTP proxy can be configured to limit data connections to one or many
+  connections per client;
+
+* NAT on IPv6 is now supported;
+
+* rewrite command allows changing both the source and destination address
+  in a single NAT rule;
+
+* simple encapsulation can now be configured with ipnat.conf,
+
+* TFTP proxy now included;
+
+Packet Filtering
+----------------
+* acceptance of ICMP packets for "keep state" rules can be refined through
+  the use of filtering rules;
+
+* alternative form for writing rules using simple filtering expressions;
+
+* CIPSO headers now recognised and analysed for filtering on DOI;
+
+* comments can now be a part of a rule and loaded into the kernel and
+  thus displayed with ipfstat;
+
+* decapsulation rules allow filtering on inner headers, providing they
+  are not encrypted;
+
+* interface names, aside from that the packet is on, can be present in
+  filter rules;
+
+* internally now a single list of filter rules, there is no longer an
+  IPv4 and IPv6 list;
+
+* rules can now be added with an expiration time, allowing for their
+  automatic removal after some period of time;
+
+* single file, ipf.conf, can now be used for both IPv4 and IPv6 rules;
+
+* stateful filtering now allows for limits to be placed on the number
+  of distinct hosts allowed per rule;
+
+Pools
+-----
+* addresses added to a pool via the command line (only!) can be given
+  an expiration timeout;
+
+* destination lists are a new type of address pool, primarily for use with
+  NAT rdr rules, supporting newer algorithms for target selection;
+
+* raw whois information saved to a file can be used to populate a pool;
+
+Solaris
+-------
+* support for use in zones with exclusive IP instances fully supported.
+
+Tools
+-----
+* use of matching expressions allows for refining what is displayed or
+  flushed;
+

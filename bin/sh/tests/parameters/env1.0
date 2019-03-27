@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+export key='must contain this'
+unset x
+r=$(ENV="\${x?\$key}" ${SH} -i +m 2>&1 >/dev/null <<\EOF
+exit 0
+EOF
+) && case $r in
+*"$key"*) true ;;
+*) false ;;
+esac

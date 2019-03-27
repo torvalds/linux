@@ -1,0 +1,180 @@
+.\"
+.\" Copyright (c) 2001 Eric Melville <eric@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 3, 2001
+.Dt SPROG 7
+.Os
+.Sh NAME
+.Nm sprog
+.Nd secure programming practices
+.Sh DESCRIPTION
+Security issues have crept into many systems over the years.
+This document is a guide for programming practices that prevent these problems.
+.Ss Overview
+Writing secure applications takes a very scrutinous and pessimistic outlook.
+Applications should be run with the principle of
+.Dq Li least privilege
+so that no process is ever running with more than the bare minimum access it
+needs to accomplish its function.
+Previously tested code should be reused whenever possible.
+Generally, anything beyond the control of a program should never be trusted.
+This includes all forms of user input, system resources, interprocess
+communication, and the timing of events.
+.Ss Buffer Overflows
+One of the most common types of security problems is the buffer overflow.
+In short, if a program is not careful with the data it receives, it may be
+possible for this data to be written across memory, overwriting the return
+address for a function call, and the program will be forced to run code that
+does unfriendly things.
+.Pp
+A good number of functions in the standard C library make it difficult or
+even impossible to prevent buffer overflows when used.
+These include
+.Xr fscanf 3 ,
+.Xr gets 3 ,
+.Xr getwd 3 ,
+.Xr realpath 3 ,
+.Xr scanf 3 ,
+.Xr sprintf 3 ,
+.Xr strcat 3 ,
+.Xr strcpy 3 ,
+.Xr vscanf 3 ,
+and
+.Xr vsprintf 3 .
+.Pp
+Many other functions that deal with strings can also open up a potential
+buffer overflow when not used carefully.
+For example,
+.Xr strncat 3
+does not go out of its way to provide
+.Tn NUL
+character termination.
+Of course, the proper length must always be specified.
+Usage of
+.Xr strlcat 3
+and
+.Xr strlcpy 3
+ensure that strings are null terminated and of the specified length.
+.Pp
+Functions that receive a string format must also be used carefully.
+It is possible for a string to contain additional format specifiers, which
+open up another possibility for a buffer overflow.
+Never pass a string with untrusted data without using
+.Ql %s .
+Always use the proper secure idiom:
+.Pp
+.Dl function("%s", string);
+.Pp
+There are mechanisms that provide a backstop for these problems at the
+library and compiler levels, however, there is no substitute for simply
+writing good code.
+.Ss Set-user-ID Issues
+In many cases, it may be necessary for a program to operate with an increased
+set of permissions.
+Reasons for this include binding to protected sockets, reading and writing
+certain files and directories, and access to various resources.
+Using a setuid program is frequently the solution.
+However, it is important that programs give up these privileges as soon as
+possible.
+For example, if a program is binding to a protected socket, it should give
+up its privileges as soon as it has finished binding to that socket.
+This is accomplished with the
+.Xr setuid 2
+family of system calls.
+.Ss Limited Environments
+The traditional method of restricting a process is with the
+.Xr chroot 2
+system call.
+This system call changes the root directory from which all other paths are
+referenced for a process and any child processes.
+Of course, the process must have access to this path to begin with.
+The new environment does not actually take effect until
+.Xr chdir 2
+is called to place the process into the new environment.
+Unfortunately, a process can break out of this environment if root access is
+obtained.
+.Pp
+Often,
+.Xr jail 2
+can be used to create a more complete and enclosed environment than
+.Xr chroot 2
+can provide.
+A jail limits all processes inside that environment, including processes with
+superuser privileges.
+.Pp
+Fine grained privileges, as described by
+.Tn POSIX Ns .1e
+extensions, are currently a work in progress, and the focus of the
+.Tn TrustedBSD
+Project.
+More information can be found at
+.Pa http://www.TrustedBSD.org/ .
+.Ss Trust
+Programs should not make assumptions about the environment in which they are
+running.
+This includes user input, signals, environment variables, system resources,
+interprocess communications, and shared memory, amongst other things that are
+beyond the control of the program.
+They should not assume that all forms of invalid data can be detected either.
+Instead, they should use positive filtering, and only allow a specific subset
+of inputs that are known to be safe.
+This is the same logic that an administrator should apply to a firewall, that
+is, deny by default and specify what is to be accepted.
+.Ss Race Conditions
+A race condition is anomalous behavior caused by the relative timing of
+events.
+Programs should not assume that a particular event will occur before another.
+The most common causes of race conditions are signals, access checks, and
+file reads.
+Signals are asynchronous by nature, so special care must be taken
+while dealing with them.
+Attempting to check access with sequential non-atomic operations is a very
+bad idea, as files can be moved and changed at any given time.
+Instead of using a sequence of
+.Xr access 2
+and
+.Xr open 2 ,
+use
+.Xr seteuid 2
+and then call
+.Xr open 2
+directly.
+Set
+.Xr umask 2
+properly beforehand.
+.Sh SEE ALSO
+.Xr jail 2 ,
+.Xr setuid 2 ,
+.Xr strlcat 3 ,
+.Xr strlcpy 3
+.Sh AUTHORS
+.An -nosplit
+.An Eric Melville Aq Mt eric@FreeBSD.org
+originally wrote this document based on a chapter of the
+.%B "FreeBSD Developer's Handbook"
+written by
+.An Murray Stokely Aq Mt murray@FreeBSD.org .

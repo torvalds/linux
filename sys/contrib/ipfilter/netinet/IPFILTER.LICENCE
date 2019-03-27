@@ -1,0 +1,30 @@
+$FreeBSD$
+
+Copyright (C) 1993-2002 by Darren Reed.
+
+The author accepts no responsibility for the use of this software and
+provides it on an ``as is'' basis without express or implied warranty.
+
+Redistribution and use, with or without modification, in source and binary
+forms, are permitted provided that this notice is preserved in its entirety
+and due credit is given to the original author and the contributors.
+
+The licence and distribution terms for any publically available version or
+derivative of this code cannot be changed. i.e. this code cannot simply be
+copied, in part or in whole, and put under another distribution licence
+[including the GNU Public Licence.]
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+
+I hate legalese, don't you ?
+

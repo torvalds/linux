@@ -1,0 +1,101 @@
+.\"
+.\" Copyright (c) 2004 David E. O'Brien
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 17, 2005
+.Dt HPTMV 4
+.Os
+.Sh NAME
+.Nm hptmv
+.Nd "HighPoint RocketRAID 182x device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device hptmv"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hptmv_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for HighPoint's RocketRAID 182x based RAID controller.
+.Pp
+These devices support ATA disk drives
+and provide RAID0 (striping), RAID1 (mirroring), and RAID5 functionality.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following ATA RAID
+controllers:
+.Pp
+.Bl -bullet -compact
+.It
+HighPoint's RocketRAID 182x series
+.El
+.Sh NOTES
+The
+.Nm
+driver only works on the i386 and amd64 platforms as it requires a binary
+blob object from the manufacturer which they only supply for these platforms.
+The
+.Nm
+driver does
+.Em not
+work on i386 with
+.Xr pae 4
+enabled.
+.Sh SEE ALSO
+.Xr kld 4 ,
+.Xr kldload 8 ,
+.Xr loader 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An HighPoint Technologies, Inc. ,
+and ported to
+.Fx
+by
+.An Scott Long .
+This manual page was written by
+.An David E. O'Brien .
+.Sh BUGS
+The
+.Nm
+driver does not support manipulating the RAID from the OS, RAIDs need
+to be set up from the on-board BIOS.

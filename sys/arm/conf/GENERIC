@@ -1,0 +1,270 @@
+#
+# GENERICV6 -- Generic(ish) kernel config.
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+ident		GENERIC
+
+cpu		CPU_CORTEXA
+cpu		CPU_MV_PJ4B
+options 	SMP_ON_UP
+machine 	arm armv7
+makeoptions	CONF_CFLAGS="-march=armv7a"
+
+include 	"std.armv7"
+files		"../allwinner/files.allwinner"
+files		"../allwinner/files.allwinner_up"
+files		"../allwinner/a10/files.a10"
+files		"../allwinner/a13/files.a13"
+files		"../allwinner/a20/files.a20"
+files		"../allwinner/a31/files.a31"
+files		"../allwinner/a33/files.a33"
+files		"../allwinner/a83t/files.a83t"
+files		"../allwinner/h3/files.h3"
+files		"../broadcom/bcm2835/files.bcm2836"
+files		"../broadcom/bcm2835/files.bcm283x"
+files		"../freescale/imx/files.imx6"
+files		"../mv/files.arm7"
+files		"../nvidia/tegra124/files.tegra124"
+files		"../qemu/files.qemu"
+files		"../ti/files.ti"
+files		"../ti/am335x/files.am335x"
+files		"../ti/omap4/files.omap4"
+files		"../xilinx/files.zynq7"
+
+options 	SOC_ALLWINNER_A10
+options 	SOC_ALLWINNER_A13
+options 	SOC_ALLWINNER_A20
+options 	SOC_ALLWINNER_A31
+options 	SOC_ALLWINNER_A31S
+options 	SOC_ALLWINNER_A33
+options 	SOC_ALLWINNER_A83T
+options 	SOC_ALLWINNER_H2PLUS
+options 	SOC_ALLWINNER_H3
+options 	SOC_BCM2836
+options 	SOC_MV_ARMADA38X
+options 	SOC_MV_ARMADAXP
+options		SOC_TI_AM335X
+options		SOC_OMAP4
+
+options 	SCHED_ULE		# ULE scheduler
+options 	SMP			# Enable multiple cores
+options 	PLATFORM
+options 	LINUX_BOOT_ABI
+
+# EXT_RESOURCES pseudo devices
+options 	EXT_RESOURCES
+device		clk
+device		phy
+device		hwreset
+device		nvmem
+device		regulator
+device		syscon
+
+# CPU frequency control
+device		cpufreq
+
+# Interrupt controller
+device		gic
+
+# PMU support (for CCNT).
+device		pmu
+
+# ARM Generic Timer
+device		generic_timer
+device		mpcore_timer
+
+# MMC/SD/SDIO Card slot support
+device		sdhci			# SD controller
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+
+# ATA controllers
+device		ahci			# AHCI-compatible SATA controllers
+#device		ata			# Legacy ATA/SATA controllers
+
+# PCI
+options 	NEW_PCIB
+device		pci
+device		pci_host_generic
+
+# PCI NICs
+device		re			# RealTek 8139C+/8169/8169S/8110S
+
+# VirtIO
+device		virtio
+device		virtio_mmio
+device		virtio_pci
+device		virtio_blk
+device		vtnet
+
+# Console and misc
+device		uart
+device		uart_ns8250
+device		uart_snps
+device		pl011
+device		pty
+device		snp
+device		md			# Memory "disks"
+device		random			# Entropy device
+device		firmware		# firmware assist module
+device		pl310			# PL310 L2 cache controller
+device		psci
+
+# I2C support
+device		iicbus
+device		iic
+device		twsi
+device		rsb			# Allwinner Reduced Serial Bus
+device		p2wi			# Allwinner Push-Pull Two Wire
+device		axp209			# AXP209 Power Management Unit
+device		axp81x			# AXP813/818 Power Management Unit
+device		bcm2835_bsc
+device		fsliic			# Freescale i2c/iic
+device		icee			# AT24Cxxx and compatible EEPROMs
+device		sy8106a			# SY8106A Buck Regulator
+device		ti_i2c
+device		am335x_pmic		# AM335x Power Management IC (TPC65217)
+device		am335x_rtc		# RTC support (power management only)
+device		twl			# TI TWLX0X0/TPS659x0 Power Management
+device		twl_vreg		# twl voltage regulation
+device		twl_clks		# twl external clocks
+
+# i2c RTCs
+device		ds1307			# Dallas DS1307 RTC and compatible
+device		ds13rtc			# All Dallas/Maxim DS13xx RTCs
+device		ds1672			# Dallas DS1672 RTC
+device		ds3231			# Dallas DS3231 RTC + temperature
+device		nxprtc			# NXP RTCs: PCA/PFC212x PCA/PCF85xx
+device		s35390a			# Seiko s3539x RTCs
+
+# GPIO
+device		gpio
+device		gpiobacklight
+device		gpioled
+device		gpioregulator
+
+# EVDEV support
+device		evdev			# input event device support
+options		EVDEV_SUPPORT		# evdev support in legacy drivers
+device		uinput			# install /dev/uinput cdev
+device		aw_cir
+
+# SPI
+device		spibus
+device		spigen
+device		bcm2835_spi
+device		mv_spi
+device		ti_spi
+
+# ADC support
+device		ti_adc
+
+# Watchdog support
+# If we don't enable the watchdog driver, the BealeBone could potentially
+# reboot automatically because the boot loader might have enabled the
+# watchdog.
+device		ti_wdt
+device		imxwdt			# Watchdog. WARNING: can't be disabled!!!
+
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+device		cd			# CD
+device		pass			# Passthrough device (direct ATA/SCSI access)
+
+# USB support
+options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
+device		usb
+device		uhci
+device		ohci
+device		ehci
+device		xhci
+device		dwcotg			# DWC OTG controller
+device		musb
+
+device		axe			# USB-Ethernet
+device		umass			# Disks/Mass storage - Requires scbus and da
+device		uhid			# "Human Interface Devices"
+device		ukbd			# Allow keyboard like HIDs to control console
+
+device		firmware
+
+# Device mode support
+device		usb_template    	# Control of the gadget
+
+# Ethernet
+device		loop
+device		ether
+device		vlan			# 802.1Q VLAN support
+device		bpf
+device		mii
+device		mdio
+device		etherswitch
+device		e6000sw
+
+# Ethernet NICs that use the common MII bus controller code.
+# NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
+device		miibus
+
+device		awg			# 10/100/1000 integrated EMAC controller
+device		cpsw			# TI Common Platform Ethernet Switch (CPSW)
+device		cgem			# Zynq-7000 gig ethernet device
+device		dwc			# 10/100/1000 integrated GMAC controller
+device		emac			# 10/100 integrated EMAC controller
+device		ffec			# Freescale Fast Ethernet Controller
+device		neta			# Marvell 10/100/1000 Network controller
+device		smsc			# SMSC LAN91C111
+
+# Sound support
+device		sound
+
+# Framebuffer support
+device		vt
+device		kbdmux
+device		ums
+device		videomode
+device		hdmi
+device		vchiq
+
+# Pinmux
+device		fdt_pinctrl
+
+# TI Programmable Realtime Unit support
+device		ti_pruss
+
+# Mailbox support
+device		ti_mbox
+
+# DMA controller
+device		fslsdma
+device		ti_sdma
+
+# Extensible Firmware Interface
+options 	EFI
+
+# Marvell Cryptographic Engine and Security Accelerator
+device		cesa
+device		crypto
+device		cryptodev
+
+# imx6 on-chip RTC
+device		imx6_snvs		# On-chip RTC
+
+# Flattened Device Tree
+options 	FDT			# Configure using FDT/DTB data
+makeoptions	MODULES_EXTRA="dtb/allwinner dtb/am335x dtb/imx6 dtb/nvidia dtb/rpi dtb/zynq dtb/omap4"

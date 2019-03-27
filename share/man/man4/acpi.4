@@ -1,0 +1,641 @@
+.\"
+.\" Copyright (c) 2001 Michael Smith
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 9, 2015
+.Dt ACPI 4
+.Os
+.Sh NAME
+.Nm acpi
+.Nd Advanced Configuration and Power Management support
+.Sh SYNOPSIS
+.Cd "device acpi"
+.Pp
+.Cd "options ACPI_DEBUG"
+.Cd "options DDB"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Intel/Microsoft/Compaq/Toshiba ACPI
+standard.
+This support includes platform hardware discovery (superseding the
+PnP and PCI BIOS), as well as power management (superseding APM) and
+other features.
+ACPI core support is provided by the ACPI CA reference implementation
+from Intel.
+.Pp
+Note that the
+.Nm
+driver is automatically loaded by the
+.Xr loader 8 ,
+and should only be
+compiled into the kernel on platforms where ACPI is mandatory.
+.Sh SYSCTL VARIABLES
+The
+.Nm
+driver is intended to provide power management without user intervention.
+If the default settings are not optimal, the following sysctls can be
+used to modify or monitor
+.Nm
+behavior.
+Note that some variables will be available only if the given hardware supports
+them (such as
+.Va hw.acpi.acline ) .
+.Bl -tag -width indent
+.It Va debug.acpi.enable_debug_objects
+Enable dumping Debug objects without
+.Cd "options ACPI_DEBUG" .
+Default is 0, ignore Debug objects.
+.It Va dev.cpu.N.cx_usage
+Debugging information listing the percent of total usage for each sleep state.
+The values are reset when
+.Va dev.cpu.N.cx_lowest
+is modified.
+.It Va dev.cpu.N.cx_lowest
+Lowest Cx state to use for idling the CPU.
+A scheduling algorithm will select states between
+.Li C1
+and this setting
+as system load dictates.
+To enable ACPI CPU idling control,
+.Va machdep.idle
+should be set to
+.Li acpi
+if it is listed in
+.Va machdep.idle_available .
+.It Va hw.acpi.cpu.cx_supported
+List of supported CPU idle states and their transition latency
+in microseconds.
+Each state has a type (e.g.,
+.Li C2 ) .
+.Li C1
+is equivalent to the ia32
+.Li HLT
+instruction,
+.Li C2
+provides a deeper
+sleep with the same semantics, and
+.Li C3
+provides the deepest sleep
+but additionally requires bus mastering to be disabled.
+States greater than
+.Li C3
+provide even more power savings with the same
+semantics as the
+.Li C3
+state.
+Deeper sleeps provide more power savings but increased transition
+latency when an interrupt occurs.
+.It Va dev.cpu.N.cx_method
+List of supported CPU idle states and their transition methods, as
+directed by the firmware.
+.It Va hw.acpi.acline
+AC line state (1 means online, 0 means on battery power).
+.It Va hw.acpi.disable_on_reboot
+Disable ACPI during the reboot process.
+Most systems reboot fine with ACPI still enabled, but some require
+exiting to legacy mode first.
+Default is 0, leave ACPI enabled.
+.It Va hw.acpi.handle_reboot
+Use the ACPI Reset Register capability to reboot the system.
+Some newer systems require use of this register, while some only work
+with legacy rebooting support.
+.It Va hw.acpi.lid_switch_state
+Suspend state
+.Pq Li S1 Ns \[en] Ns Li S5
+to enter when the lid switch (i.e., a notebook screen) is closed.
+Default is
+.Dq Li NONE
+(do nothing).
+.It Va hw.acpi.power_button_state
+Suspend state
+.Pq Li S1 Ns \[en] Ns Li S5
+to enter when the power button is pressed.
+Default is
+.Li S5
+(power-off nicely).
+.It Va hw.acpi.reset_video
+Reset the video adapter from real mode during the resume path.
+Some systems need this help, others have display problems if it is enabled.
+Default is 0 (disabled).
+.It Va hw.acpi.s4bios
+Indicate whether the system supports
+.Li S4BIOS .
+This means that the BIOS can handle all the functions of suspending the
+system to disk.
+Otherwise, the OS is responsible for suspending to disk
+.Pq Li S4OS .
+Most current systems do not support
+.Li S4BIOS .
+.It Va hw.acpi.sleep_button_state
+Suspend state
+.Pq Li S1 Ns \[en] Ns Li S5
+to enter when the sleep button is pressed.
+This is usually a special function button on the keyboard.
+Default is
+.Li S3
+(suspend-to-RAM).
+.It Va hw.acpi.sleep_delay
+Wait this number of seconds between preparing the system to suspend and
+actually entering the suspend state.
+Default is 1 second.
+.It Va hw.acpi.supported_sleep_state
+Suspend states
+.Pq Li S1 Ns \[en] Ns Li S5
+supported by the BIOS.
+.Bl -tag -width indent
+.It Li S1
+Quick suspend to RAM.
+The CPU enters a lower power state, but most peripherals are left running.
+.It Li S2
+Lower power state than
+.Li S1 ,
+but with the same basic characteristics.
+Not supported by many systems.
+.It Li S3
+Suspend to RAM.
+Most devices are powered off, and the system stops running except for
+memory refresh.
+.It Li S4
+Suspend to disk.
+All devices are powered off, and the system stops running.
+When resuming, the system starts as if from a cold power on.
+Not yet supported by
+.Fx
+unless
+.Li S4BIOS
+is available.
+.It Li S5
+System shuts down cleanly and powers off.
+.El
+.It Va hw.acpi.verbose
+Enable verbose printing from the various ACPI subsystems.
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Pa /boot/loader.conf .
+Many of these tunables also have a matching
+.Xr sysctl 8
+entry for access after boot.
+.Bl -tag -width indent
+.It Va acpi_dsdt_load
+Enables loading of a custom ACPI DSDT.
+.It Va acpi_dsdt_name
+Name of the DSDT table to load, if loading is enabled.
+.It Va debug.acpi.cpu_unordered
+Do not use the MADT to match ACPI Processor objects to CPUs.
+This is needed on a few systems with a buggy BIOS that does not use
+consistent processor IDs.
+Default is 0 (disabled).
+.It Va debug.acpi.disabled
+Selectively disables portions of ACPI for debugging purposes.
+.It Va debug.acpi.interpreter_slack
+Enable less strict ACPI implementations.
+Default is 1, ignore common BIOS mistakes.
+.It Va debug.acpi.max_threads
+Specify the number of task threads that are started on boot.
+Limiting this to 1 may help work around various BIOSes that cannot
+handle parallel requests.
+The default value is 3.
+.It Va debug.acpi.quirks
+Override any automatic quirks completely.
+.It Va debug.acpi.resume_beep
+Beep the PC speaker on resume.
+This can help diagnose suspend/resume problems.
+Default is 0 (disabled).
+.It Va hint.acpi.0.disabled
+Set this to 1 to disable all of ACPI.
+If ACPI has been disabled on your system due to a blacklist entry for your
+BIOS, you can set this to 0 to re-enable ACPI for testing.
+.It Va hw.acpi.ec.poll_timeout
+Delay in milliseconds to wait for the EC to respond.
+Try increasing this number if you get the error
+.Qq Li AE_NO_HARDWARE_RESPONSE .
+.It Va hw.acpi.host_mem_start
+Override the assumed memory starting address for PCI host bridges.
+.It Va hw.acpi.install_interface , hw.acpi.remove_interface
+Install or remove OS interface(s) to control return value of
+.Ql _OSI
+query method.
+When an OS interface is specified in
+.Va hw.acpi.install_interface ,
+.Li _OSI
+query for the interface returns it is
+.Em supported .
+Conversely, when an OS interface is specified in
+.Va hw.acpi.remove_interface ,
+.Li _OSI
+query returns it is
+.Em not supported .
+Multiple interfaces can be specified in a comma-separated list and
+any leading white spaces will be ignored.
+For example,
+.Qq Li FreeBSD, Linux
+is a valid list of two interfaces
+.Qq Li FreeBSD
+and
+.Qq Li Linux .
+.It Va hw.acpi.reset_video
+Enables calling the VESA reset BIOS vector on the resume path.
+This can fix some graphics cards that have problems such as LCD white-out
+after resume.
+Default is 0 (disabled).
+.It Va hw.acpi.serialize_methods
+Allow override of whether methods execute in parallel or not.
+Enable this for serial behavior, which fixes
+.Qq Li AE_ALREADY_EXISTS
+errors for
+AML that really cannot handle parallel method execution.
+It is off by default since this breaks recursive methods and some IBMs use
+such code.
+.It Va hw.acpi.verbose
+Turn on verbose debugging information about what ACPI is doing.
+.It Va hw.pci.link.%s.%d.irq
+Override the interrupt to use for this link and index.
+This capability should be used carefully, and only if a device is not
+working with
+.Nm
+enabled.
+.Qq %s
+is the name of the link (e.g., LNKA).
+.Qq %d
+is the resource index when the link supports multiple IRQs.
+Most PCI links only have one IRQ resource, so the below form should be used.
+.It Va hw.pci.link.%s.irq
+Override the interrupt to use.
+This capability should be used carefully, and only if a device is not
+working with
+.Nm
+enabled.
+.Qq %s
+is the name of the link (e.g., LNKA).
+.El
+.Sh DISABLING ACPI
+Since ACPI support on different platforms varies greatly, there are many
+debugging and tuning options available.
+.Pp
+For machines known not to work with
+.Nm
+enabled, there is a BIOS blacklist.
+Currently, the blacklist only controls whether
+.Nm
+should be disabled or not.
+In the future, it will have more granularity to control features (the
+infrastructure for that is already there).
+.Pp
+To enable
+.Nm
+(for debugging purposes, etc.) on machines that are on the blacklist, set the
+kernel environment variable
+.Va hint.acpi.0.disabled
+to 0.
+Before trying this, consider updating your BIOS to a more recent version that
+may be compatible with ACPI.
+.Pp
+To disable the
+.Nm
+driver completely, set the kernel environment variable
+.Va hint.acpi.0.disabled
+to 1.
+.Pp
+Some i386 machines totally fail to operate with some or all of ACPI disabled.
+Other i386 machines fail with ACPI enabled.
+Disabling all or part of ACPI on non-i386 platforms (i.e., platforms where
+ACPI support is mandatory) may result in a non-functional system.
+.Pp
+The
+.Nm
+driver comprises a set of drivers, which may be selectively disabled
+in case of problems.
+To disable a sub-driver, list it in the kernel
+environment variable
+.Va debug.acpi.disabled .
+Multiple entries can be listed, separated by a space.
+.Pp
+ACPI sub-devices and features that can be disabled:
+.Bl -tag -width ".Li sysresource"
+.It Li all
+Disable all ACPI features and devices.
+.It Li acad
+.Pq Vt device
+Supports AC adapter.
+.It Li bus
+.Pq Vt feature
+Probes and attaches subdevices.
+Disabling will avoid scanning the ACPI namespace entirely.
+.It Li children
+.Pq Vt feature
+Attaches standard ACPI sub-drivers and devices enumerated in the
+ACPI namespace.
+Disabling this has a similar effect to disabling
+.Dq Li bus ,
+except that the
+ACPI namespace will still be scanned.
+.It Li button
+.Pq Vt device
+Supports ACPI button devices (typically power and sleep buttons).
+.It Li cmbat
+.Pq Vt device
+Control-method batteries device.
+.It Li cpu
+.Pq Vt device
+Supports CPU power-saving and speed-setting functions.
+.It Li ec
+.Pq Vt device
+Supports the ACPI Embedded Controller interface, used to communicate
+with embedded platform controllers.
+.It Li isa
+.Pq Vt device
+Supports an ISA bus bridge defined in the ACPI namespace,
+typically as a child of a PCI bus.
+.It Li lid
+.Pq Vt device
+Supports an ACPI laptop lid switch, which typically puts a
+system to sleep.
+.It Li mwait
+.Pq Vt feature
+Do not ask firmware for available x86-vendor specific methods to enter
+.Li Cx
+sleep states.
+Only query and use the generic I/O-based entrance method.
+The knob is provided to work around inconsistencies in the tables
+filled by firmware.
+.It Li quirks
+.Pq Vt feature
+Do not honor quirks.
+Quirks automatically disable ACPI functionality based on the XSDT table's
+OEM vendor name and revision date.
+.It Li pci
+.Pq Vt device
+Supports Host to PCI bridges.
+.It Li pci_link
+.Pq Vt feature
+Performs PCI interrupt routing.
+.It Li sysresource
+.Pq Vt device
+Pseudo-devices containing resources which ACPI claims.
+.It Li thermal
+.Pq Vt device
+Supports system cooling and heat management.
+.It Li timer
+.Pq Vt device
+Implements a timecounter using the ACPI fixed-frequency timer.
+.It Li video
+.Pq Vt device
+Supports
+.Xr acpi_video 4
+which may conflict with
+.Xr agp 4
+device.
+.El
+.Pp
+It is also possible to avoid portions of the ACPI namespace which
+may be causing problems, by listing the full path of the root of
+the region to be avoided in the kernel environment variable
+.Va debug.acpi.avoid .
+The object and all of its children will be ignored during the
+bus/children scan of the namespace.
+The ACPI CA code will still know about the avoided region.
+.Sh DEBUGGING OUTPUT
+To enable debugging output,
+.Nm
+must be compiled with
+.Cd "options ACPI_DEBUG" .
+Debugging output is separated between layers and levels, where a layer is
+a component of the ACPI subsystem, and a level is a particular kind
+of debugging output.
+.Pp
+Both layers and levels are specified as a whitespace-separated list of
+tokens, with layers listed in
+.Va debug.acpi.layer
+and levels in
+.Va debug.acpi.level .
+.Pp
+The first set of layers is for ACPI-CA components, and the second is for
+.Fx
+drivers.
+The ACPI-CA layer descriptions include the prefix for the files they
+refer to.
+The supported layers are:
+.Pp
+.Bl -tag -compact -width ".Li ACPI_CA_DISASSEMBLER"
+.It Li ACPI_UTILITIES
+Utility ("ut") functions
+.It Li ACPI_HARDWARE
+Hardware access ("hw")
+.It Li ACPI_EVENTS
+Event and GPE ("ev")
+.It Li ACPI_TABLES
+Table access ("tb")
+.It Li ACPI_NAMESPACE
+Namespace evaluation ("ns")
+.It Li ACPI_PARSER
+AML parser ("ps")
+.It Li ACPI_DISPATCHER
+Internal representation of interpreter state ("ds")
+.It Li ACPI_EXECUTER
+Execute AML methods ("ex")
+.It Li ACPI_RESOURCES
+Resource parsing ("rs")
+.It Li ACPI_CA_DEBUGGER
+Debugger implementation ("db", "dm")
+.It Li ACPI_OS_SERVICES
+Usermode support routines ("os")
+.It Li ACPI_CA_DISASSEMBLER
+Disassembler implementation (unused)
+.It Li ACPI_ALL_COMPONENTS
+All the above ACPI-CA components
+.It Li ACPI_AC_ADAPTER
+AC adapter driver
+.It Li ACPI_BATTERY
+Control-method battery driver
+.It Li ACPI_BUS
+ACPI, ISA, and PCI bus drivers
+.It Li ACPI_BUTTON
+Power and sleep button driver
+.It Li ACPI_EC
+Embedded controller driver
+.It Li ACPI_FAN
+Fan driver
+.It Li ACPI_OEM
+Platform-specific driver for hotkeys, LED, etc.
+.It Li ACPI_POWER
+Power resource driver
+.It Li ACPI_PROCESSOR
+CPU driver
+.It Li ACPI_THERMAL
+Thermal zone driver
+.It Li ACPI_TIMER
+Timer driver
+.It Li ACPI_ALL_DRIVERS
+All the above
+.Fx
+ACPI drivers
+.El
+.Pp
+The supported levels are:
+.Pp
+.Bl -tag -compact -width ".Li ACPI_LV_AML_DISASSEMBLE"
+.It Li ACPI_LV_INIT
+Initialization progress
+.It Li ACPI_LV_DEBUG_OBJECT
+Stores to objects
+.It Li ACPI_LV_INFO
+General information and progress
+.It Li ACPI_LV_REPAIR
+Repair a common problem with predefined methods
+.It Li ACPI_LV_ALL_EXCEPTIONS
+All the previous levels
+.It Li ACPI_LV_PARSE
+.It Li ACPI_LV_DISPATCH
+.It Li ACPI_LV_EXEC
+.It Li ACPI_LV_NAMES
+.It Li ACPI_LV_OPREGION
+.It Li ACPI_LV_BFIELD
+.It Li ACPI_LV_TABLES
+.It Li ACPI_LV_VALUES
+.It Li ACPI_LV_OBJECTS
+.It Li ACPI_LV_RESOURCES
+.It Li ACPI_LV_USER_REQUESTS
+.It Li ACPI_LV_PACKAGE
+.It Li ACPI_LV_VERBOSITY1
+All the previous levels
+.It Li ACPI_LV_ALLOCATIONS
+.It Li ACPI_LV_FUNCTIONS
+.It Li ACPI_LV_OPTIMIZATIONS
+.It Li ACPI_LV_VERBOSITY2
+All the previous levels
+.It Li ACPI_LV_ALL
+Synonym for
+.Qq Li ACPI_LV_VERBOSITY2
+.It Li ACPI_LV_MUTEX
+.It Li ACPI_LV_THREADS
+.It Li ACPI_LV_IO
+.It Li ACPI_LV_INTERRUPTS
+.It Li ACPI_LV_VERBOSITY3
+All the previous levels
+.It Li ACPI_LV_AML_DISASSEMBLE
+.It Li ACPI_LV_VERBOSE_INFO
+.It Li ACPI_LV_FULL_TABLES
+.It Li ACPI_LV_EVENTS
+.It Li ACPI_LV_VERBOSE
+All levels after
+.Qq Li ACPI_LV_VERBOSITY3
+.It Li ACPI_LV_INIT_NAMES
+.It Li ACPI_LV_LOAD
+.El
+.Pp
+Selection of the appropriate layer and level values is important
+to avoid massive amounts of debugging output.
+For example, the following configuration is a good way to gather initial
+information.
+It enables debug output for both ACPI-CA and the
+.Nm
+driver, printing basic information about errors, warnings, and progress.
+.Bd -literal -offset indent
+debug.acpi.layer="ACPI_ALL_COMPONENTS ACPI_ALL_DRIVERS"
+debug.acpi.level="ACPI_LV_ALL_EXCEPTIONS"
+.Ed
+.Pp
+Debugging output by the ACPI CA subsystem is prefixed with the
+module name in lowercase, followed by a source line number.
+Output from the
+.Fx Ns -local
+code follows the same format, but
+the module name is uppercased.
+.Sh OVERRIDING YOUR BIOS BYTECODE
+ACPI interprets bytecode named AML
+(ACPI Machine Language)
+provided by the BIOS vendor as a memory image at boot time.
+Sometimes, the AML code contains a bug that does not appear when parsed
+by the Microsoft implementation.
+.Fx
+provides a way to override it with your own AML code to work around
+or debug such problems.
+Note that all AML in your DSDT and any SSDT tables is overridden.
+.Pp
+In order to load your AML code, you must edit
+.Pa /boot/loader.conf
+and include the following lines.
+.Bd -literal -offset indent
+acpi_dsdt_load="YES"
+acpi_dsdt_name="/boot/acpi_dsdt.aml" # You may change this name.
+.Ed
+.Pp
+In order to prepare your AML code, you will need the
+.Xr acpidump 8
+and
+.Xr iasl 8
+utilities and some ACPI knowledge.
+.Sh COMPATIBILITY
+ACPI is only found and supported on i386/ia32 and amd64.
+.Sh SEE ALSO
+.Xr kenv 1 ,
+.Xr acpi_thermal 4 ,
+.Xr device.hints 5 ,
+.Xr loader.conf 5 ,
+.Xr acpiconf 8 ,
+.Xr acpidump 8 ,
+.Xr config 8 ,
+.Xr iasl 8
+.Rs
+.%A "Compaq Computer Corporation"
+.%A "Intel Corporation"
+.%A "Microsoft Corporation"
+.%A "Phoenix Technologies Ltd."
+.%A "Toshiba Corporation"
+.%D August 25, 2003
+.%T "Advanced Configuration and Power Interface Specification"
+.%U http://acpi.info/spec.htm
+.Re
+.Sh AUTHORS
+.An -nosplit
+The ACPI CA subsystem is developed and maintained by
+Intel Architecture Labs.
+.Pp
+The following people made notable contributions to the ACPI subsystem
+in
+.Fx :
+.An Michael Smith ,
+.An Takanori Watanabe Aq Mt takawata@jp.FreeBSD.org ,
+.An Mitsuru IWASAKI Aq Mt iwasaki@jp.FreeBSD.org ,
+.An Munehiro Matsuda ,
+.An Nate Lawson ,
+the ACPI-jp mailing list at
+.Aq Mt acpi-jp@jp.FreeBSD.org ,
+and many other contributors.
+.Pp
+This manual page was written by
+.An Michael Smith Aq Mt msmith@FreeBSD.org .
+.Sh BUGS
+Many BIOS versions have serious bugs that may cause system instability,
+break suspend/resume, or prevent devices from operating properly due to
+IRQ routing problems.
+Upgrade your BIOS to the latest version available from the vendor before
+deciding it is a problem with
+.Nm .

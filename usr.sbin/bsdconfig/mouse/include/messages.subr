@@ -1,0 +1,91 @@
+# Copyright (c) 2012 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+hline_press_enter_or_space="Press enter or space"
+msg_auto="Auto"
+msg_auto_desc="Bus mouse, PS/2 style mouse or PnP serial mouse"
+msg_cancel="Cancel"
+msg_com1="COM1"
+msg_com1_desc="Serial mouse on COM1 (/dev/cuau0)"
+msg_com2="COM2"
+msg_com2_desc="Serial mouse on COM2 (/dev/cuau1)"
+msg_com3="COM3"
+msg_com3_desc="Serial mouse on COM3 (/dev/cuau2)"
+msg_com4="COM4"
+msg_com4_desc="Serial mouse on COM4 (/dev/cuau3)"
+msg_disable="Disable"
+msg_disable_the_mouse_daemon="Disable the mouse daemon"
+msg_enable="Enable"
+msg_exit="Exit"
+msg_exit_this_menu="Exit this menu"
+msg_flags="Flags"
+msg_glidepoint="GlidePoint"
+msg_glidepoint_desc="ALPS GlidePoint pad (serial)"
+msg_hitachi="Hitachi"
+msg_hitachi_desc="Hitachi tablet (serial)"
+msg_intellimouse="IntelliMouse"
+msg_intellimouse_desc="Microsoft IntelliMouse (serial)"
+msg_logitech="Logitech"
+msg_logitech_desc="Logitech protocol (old models) (serial)"
+msg_menu_text="You can cut and paste text in the text console by running the mouse\ndaemon.  Specify a port and a protocol type of your mouse and enable\nthe mouse daemon.  If you don't want this feature, select 6 to disable\nthe daemon.\nOnce you've enabled the mouse daemon, you can specify \"/dev/sysmouse\"\nas your mouse device and \"SysMouse\" or \"MouseSystems\" as mouse\nprotocol when running the X configuration utility (see Configuration\nmenu)."
+msg_message="Message"
+msg_microsoft="Microsoft"
+msg_microsoft_desc="Microsoft protocol (serial)"
+msg_mm_series="MM Series"
+msg_mm_series_desc="MM Series protocol (serial)"
+msg_mouse_daemon_is_disabled="The mouse daemon is disabled."
+msg_mouse_disable="Mouse Disable"
+msg_mouse_enable="Mouse Enable"
+msg_mouse_flags="Mouse Flags"
+msg_mouseman="MouseMan"
+msg_mouseman_desc="Logitech MouseMan/TrackMan models (serial)"
+msg_mousesystems="MouseSystems"
+msg_mousesystems_desc="MouseSystems protocol (serial)"
+msg_now_move_the_mouse="Now move the mouse and see if it works.\n(Note that buttons don't have any effect for now.)\n\n         Is the mouse cursor moving?\n"
+msg_ok="OK"
+msg_please_configure_your_mouse="Please configure your mouse"
+msg_please_select_protocol_and_port_first="Please select a mouse protocol and a port first."
+msg_please_specify_the_mouse_daemon_flags="Please specify the mouse daemon flags.  If you would like to\nemulate 3 buttons, use -3 here.\n "
+msg_port="Port"
+msg_port_menu_text="The built-in pointing device of laptop/notebook computers is usually\na PS/2 style device."
+msg_protocol_menu_text="If your mouse is attached to the PS/2 mouse port or the bus mouse port,\nyou should always choose \"Auto\", regardless of the model and the brand\nof the mouse.  All other protocol types are for serial mice and should\nnot be used with the PS/2 port mouse or the bus mouse.  If you have\na serial mouse and are not sure about its protocol, you should also try\n\"Auto\".  It may not work for the serial mouse if the mouse does not\nsupport the PnP standard.  But, it won't hurt.  Many 2-button serial mice\nare compatible with \"Microsoft\" or \"MouseMan\". 3-button serial mice\nmay be compatible with \"MouseSystems\" or \"MouseMan\".  If the serial\nmouse has a wheel, it may be compatible with \"IntelliMouse\"."
+msg_ps2="PS/2"
+msg_ps2_desc="PS/2 style mouse (/dev/psm0)"
+msg_select_a_protocol_type_for_your_mouse="Select a protocol type for your mouse"
+msg_select_mouse_port="Select mouse port"
+msg_select_mouse_protocol_type="Select mouse protocol type"
+msg_select_your_mouse_port_from_the_following_menu="Select your mouse port from the following menu"
+msg_set_additional_flags="Set additional flags"
+msg_test_and_run_the_mouse_daemon="Test and run the mouse daemon"
+msg_thinkingmouse="ThinkingMouse"
+msg_thinkingmouse_desc="Kensington ThinkingMouse (serial)"
+msg_trying_to_start_the_mouse_daemon="Trying to start the mouse daemon..."
+msg_type="Type"
+msg_unknown_mouse_menu_selection="Unknown mouse menu selection"
+msg_unknown_mouse_port_selection="Unknown mouse port selection"
+msg_unknown_mouse_protocol_selection="Unknown mouse protocol selection"
+msg_user_confirmation_requested="User Confirmation Requested"
+msg_value_required="Value Required"

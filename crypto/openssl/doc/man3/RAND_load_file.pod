@@ -1,0 +1,87 @@
+=pod
+
+=head1 NAME
+
+RAND_load_file, RAND_write_file, RAND_file_name - PRNG seed file
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand.h>
+
+ int RAND_load_file(const char *filename, long max_bytes);
+
+ int RAND_write_file(const char *filename);
+
+ const char *RAND_file_name(char *buf, size_t num);
+
+=head1 DESCRIPTION
+
+RAND_load_file() reads a number of bytes from file B<filename> and
+adds them to the PRNG. If B<max_bytes> is non-negative,
+up to B<max_bytes> are read;
+if B<max_bytes> is -1, the complete file is read.
+Do not load the same file multiple times unless its contents have
+been updated by RAND_write_file() between reads.
+Also, note that B<filename> should be adequately protected so that an
+attacker cannot replace or examine the contents.
+If B<filename> is not a regular file, then user is considered to be
+responsible for any side effects, e.g. non-anticipated blocking or
+capture of controlling terminal.
+
+RAND_write_file() writes a number of random bytes (currently 128) to
+file B<filename> which can be used to initialize the PRNG by calling
+RAND_load_file() in a later session.
+
+RAND_file_name() generates a default path for the random seed
+file. B<buf> points to a buffer of size B<num> in which to store the
+filename.
+
+On all systems, if the environment variable B<RANDFILE> is set, its
+value will be used as the seed file name.
+Otherwise, the file is called C<.rnd>, found in platform dependent locations:
+
+=over 4
+
+=item On Windows (in order of preference)
+
+ %HOME%, %USERPROFILE%, %SYSTEMROOT%, C:\
+
+=item On VMS
+
+ SYS$LOGIN:
+
+=item On all other systems
+
+ $HOME
+
+=back
+
+If C<$HOME> (on non-Windows and non-VMS system) is not set either, or
+B<num> is too small for the path name, an error occurs.
+
+=head1 RETURN VALUES
+
+RAND_load_file() returns the number of bytes read or -1 on error.
+
+RAND_write_file() returns the number of bytes written, or -1 if the
+bytes written were generated without appropriate seeding.
+
+RAND_file_name() returns a pointer to B<buf> on success, and NULL on
+error.
+
+=head1 SEE ALSO
+
+L<RAND_add(3)>,
+L<RAND_bytes(3)>,
+L<RAND(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

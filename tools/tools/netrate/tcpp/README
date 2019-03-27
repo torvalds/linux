@@ -1,0 +1,108 @@
+tcpp -- Parallel TCP Exercise Tool
+
+This is a new tool, and is rife with bugs.  However, it appears to create
+even more problems for device drivers and the kernel, so that's OK.
+
+This tool generates large numbers of TCP connections and stuffs lots of data
+into them.  One binary encapsulates both a client and a server.  Each of the
+client and the server generates a certain number of worker processes, each of
+which in turn uses its own TCP port.  The number of server processes must be
+>= the number of client processes, or some of the ports required by the
+client won't have a listener.  The client then proceeds to make connections 
+and send data to the server.  Each worker multiplexes many connections at
+once, up to a maximum parallelism limit.  The client can use one or many IP
+addresses, in order to make more 4-tuples available for testing, and will
+automatically spread the load of new connections across available source
+addresses.
+
+You will need to retune your TCP stack for high volume, see Configuration
+Notes below.
+
+The server has very little to configure, use the following command line
+flags:
+
+  -s                           Select server mode
+  -p <numprocs>                Number of workers, should be >= client -p arg
+  -r <baseport>                Non-default base TCP port, should match client
+  -T                           Print CPU usage every ten seconds
+  -m <maxconnectionsperproc>   Maximum simultaneous connections/proc, should
+                               be >= client setting.
+
+Typical use:
+
+  ./tcpp -s -p 4 -m 1000000
+
+This selects server mode, four workers, and at most 1 million TCP connections
+per worker at a time.
+
+The client has more to configure, with the following flags:
+
+  -c <remoteIP>                Select client mode, and specific dest IP
+  -C                           Print connections/second instead of GBps
+  -P                           Pin each worker to a CPU
+  -M <localIPcount>            Number of sequential local IPs to use; req. -l
+  -T                           Include CPU use summary in stats at end of run
+  -b <bytespertcp>             Data bytes per connection
+  -l <localIPbase>             Starting local IP address to bind
+  -m <maxtcpsatonce>           Max simultaneous conn/worker (see server -m)
+  -p <numprocs>                Number of workers, should be <= server -p
+  -r <baseport>                Non-default base TCP port, should match server
+  -t <tcpsperproc>             How many connections to use per worker
+  
+Typical use:
+
+  ./tcpp -c 192.168.100.201 -p 4 -t 100000 -m 10000 -b 100000 \
+    -l 192.168.100.101 -M 4
+
+This creates four workers, each of which will (over its lifetime) set up and
+use 100,000 TCP connections carrying 100K of data, up to 10,000 simultaneous
+connection at any given moment.  tcpp will use four source IP addresses,
+starting with 192.168.100.101, and all connections will be to the single
+destination IP of 192.168.100.201.
+
+Having (p) <= the number of cores is advisable.  When multiple IPs are used
+on the client, they will be sequential starting with the localIPbase set with
+-l.
+
+Known Issues
+------------
+
+The bandwidth estimate doesn't handle failures well.  It also has serious
+rounding errors and probably conceptual problems.
+
+It's not clear that kevent() is "fair" to multiple connections.
+
+Rather than passing the length for each connection, we might want to pass
+it once with a control connection up front.  On the other hand, the server
+is quite dumb right now, so we could take advantage of this to do size
+mixes.
+
+Configuration Notes
+-------------------
+
+In my testing, I use loader.conf entries of:
+
+kern.ipc.maxsockets=1000000
+net.inet.tcp.maxtcptw=3000000
+kern.ipc.somaxconn=49152
+kern.ipc.nmbjumbo16=262144
+kern.ipc.nmbjumbo9=262144
+kern.ipc.nmbjumbop=262144
+kern.ipc.nmbclusters=262144
+net.inet.tcp.syncache.cachelimit=65536
+net.inet.tcp.syncache.bucketlimit=512
+
+# May be useful if you can't use multiple IP addresses
+net.inet.ip.portrange.first=100
+
+# For running !multiq, do this before loading the driver:
+kenv hw.cxgb.singleq="1"
+
+kldload if_cxgb
+
+# Consider turning off TSO and/or adjusting the MTU for some scenarios:
+ifconfig cxgb0 -tso
+ifconfig cxgb0 mtu 1500
+
+
+$FreeBSD$

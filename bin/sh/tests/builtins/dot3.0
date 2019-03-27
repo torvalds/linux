@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+# . should return 0 if no command was executed.
+
+if false; then
+	exit 3
+else
+	. /dev/null
+	exit $?
+fi

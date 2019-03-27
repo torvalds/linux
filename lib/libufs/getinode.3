@@ -1,0 +1,131 @@
+.\" Author:	Marshall Kirk McKusick <mckusick@freebsd.org>
+.\" Date:	January 19, 2018
+.\" Description:
+.\" 	Manual page for libufs functions:
+.\"		getinode(3)
+.\"		putinode(3)
+.\"
+.\" This file is in the public domain.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 10, 2018
+.Dt GETINODE 3
+.Os
+.Sh NAME
+.Nm getinode , putinode
+.Nd fetch and store inodes on a UFS file system
+.Sh LIBRARY
+.Lb libufs
+.Sh SYNOPSIS
+.In ufs/ufs/dinode.h
+.In ufs/ffs/fs.h
+.In libufs.h
+.Ft int
+.Fn getinode "struct uufsd *disk" "union dinodep *dp" "ino_t inumber"
+.Ft int
+.Fn putinode "struct uufsd *disk"
+.Sh DESCRIPTION
+The
+.Fn getinode
+and
+.Fn putinode
+functions provide an inode fetch and store API for
+.Xr libufs 3
+consumers.
+They operate on a userland UFS disk structure.
+The
+.Fn getinode
+function fetches the specified inode from the filesystem.
+The
+.Fn putinode
+function stores the most recently fetched inode to the filesystem.
+.Pp
+The
+.Va dinodep
+union is defined as:
+.Bd -literal -offset indent
+union dinodep {
+	struct ufs1_dinode *dp1;
+	struct ufs2_dinode *dp2;
+};
+.Ed
+.Pp
+Sample code to clear write permissions for inode number
+.Fa inumber
+stored on the filesystem described by
+.Fa diskp .
+.Bd -literal -offset indent
+#include <sys/stat.h>
+#include <err.h>
+
+#include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
+#include <libufs.h>
+
+void
+clearwrite(struct uufsd *diskp, ino_t inumber)
+{
+	union dinodep dp;
+
+	if (getinode(diskp, &dp, inumber) == -1)
+		err(1, "getinode: %s", diskp->d_error);
+	switch (diskp->d_ufs) {
+	case 1: /* UFS 1 filesystem */
+		dp.dp1->di_mode &= ~(S_IWUSR | S_IWGRP | S_IWOTH);
+		break;
+	case 2: /* UFS 2 filesystem */
+		dp.dp2->di_mode &= ~(S_IWUSR | S_IWGRP | S_IWOTH);
+		break;
+	default:
+		errx(1, "unknown filesystem type");
+	}
+	if (putinode(diskp) == -1)
+		err(1, "putinode: %s", diskp->d_error);
+}
+.Ed
+.Sh RETURN VALUES
+The
+.Fn getinode
+and
+.Fn putinode
+functions return 0 on success, or \-1 in case of any error.
+A string describing the error is stored in
+.Fa diskp->d_error .
+The global
+.Fa errno
+often provides additional information.
+.Sh ERRORS
+The function
+.Fn getinode
+may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr pread 2 .
+It can also fail if the inode number is out of the range of inodes
+in the filesystem.
+.Pp
+The function
+.Fn putinode
+may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr ufs_disk_write 3
+or
+.Xr pwrite 2 .
+.Pp
+Additionally both functions may follow the
+.Xr libufs 3
+error methodologies in case of a device error.
+.Sh SEE ALSO
+.Xr pread 2 ,
+.Xr pwrite 2 ,
+.Xr libufs 3 ,
+.Xr ufs_disk_write 3
+.Sh HISTORY
+These functions first appeared as part of
+.Xr libufs 3
+in
+.Fx 13.0 .
+.Sh AUTHORS
+.An Marshall Kirk McKusick Aq Mt mckusick@freebsd.org

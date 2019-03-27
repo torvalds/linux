@@ -1,0 +1,74 @@
+/*-
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * Copyright (c) 2012 Andrew Turner
+ * All rights reserved.
+ *
+ * Developed by Damjan Marion <damjan.marion@gmail.com>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * 
+ * $FreeBSD$
+ */
+
+/ {
+	compatible = "compal,paz00", "nvidia,tegra20";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&GIC>;
+
+	SOC: tegra20@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+		bus-frequency = <0>;
+
+		GIC: interrupt-controller@50041000 {
+			compatible = "arm,gic";
+			reg =	< 0x50041000 0x1000 >,	/* Distributor Registers */
+				< 0x50040100 0x0100 >;	/* CPU Interface Registers */
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+
+		mp_tmr@50040200 {
+			compatible = "arm,mpcore-timers";
+			clock-frequency = < 50040200 >;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg =   < 0x50040200 0x100 >, /* Global Timer Registers */
+				< 0x50040600 0x100 >; /* Private Timer Registers */
+			interrupts = < 27 29 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		serial@70006000 {
+			compatible = "ns16550";
+			reg = <0x70006000 0x40>;
+			reg-shift = <2>;
+			interrupts = < 68 >;
+			interrupt-parent = <&GIC>;
+			clock-frequency = < 215654400 >;
+		};
+	};
+};
+

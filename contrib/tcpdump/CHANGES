@@ -1,0 +1,1446 @@
+Sunday September 3, 2017 denis@ovsienko.info
+  Summary for 4.9.2 tcpdump release
+    Do not use getprotobynumber() for protocol name resolution.  Do not do
+      any protocol name resolution if -n is specified.
+    Improve errors detection in the test scripts.
+    Fix a segfault with OpenSSL 1.1 and improve OpenSSL usage.
+    Clean up IS-IS printing.
+    Fix buffer overflow vulnerabilities:
+      CVE-2017-11543 (SLIP)
+      CVE-2017-13011 (bittok2str_internal)
+    Fix infinite loop vulnerabilities:
+      CVE-2017-12989 (RESP)
+      CVE-2017-12990 (ISAKMP)
+      CVE-2017-12995 (DNS)
+      CVE-2017-12997 (LLDP)
+    Fix buffer over-read vulnerabilities:
+      CVE-2017-11541 (safeputs)
+      CVE-2017-11542 (PIMv1)
+      CVE-2017-12893 (SMB/CIFS)
+      CVE-2017-12894 (lookup_bytestring)
+      CVE-2017-12895 (ICMP)
+      CVE-2017-12896 (ISAKMP)
+      CVE-2017-12897 (ISO CLNS)
+      CVE-2017-12898 (NFS)
+      CVE-2017-12899 (DECnet)
+      CVE-2017-12900 (tok2strbuf)
+      CVE-2017-12901 (EIGRP)
+      CVE-2017-12902 (Zephyr)
+      CVE-2017-12985 (IPv6)
+      CVE-2017-12986 (IPv6 routing headers)
+      CVE-2017-12987 (IEEE 802.11)
+      CVE-2017-12988 (telnet)
+      CVE-2017-12991 (BGP)
+      CVE-2017-12992 (RIPng)
+      CVE-2017-12993 (Juniper)
+      CVE-2017-11542 (PIMv1)
+      CVE-2017-11541 (safeputs)
+      CVE-2017-12994 (BGP)
+      CVE-2017-12996 (PIMv2)
+      CVE-2017-12998 (ISO IS-IS)
+      CVE-2017-12999 (ISO IS-IS)
+      CVE-2017-13000 (IEEE 802.15.4)
+      CVE-2017-13001 (NFS)
+      CVE-2017-13002 (AODV)
+      CVE-2017-13003 (LMP)
+      CVE-2017-13004 (Juniper)
+      CVE-2017-13005 (NFS)
+      CVE-2017-13006 (L2TP)
+      CVE-2017-13007 (Apple PKTAP)
+      CVE-2017-13008 (IEEE 802.11)
+      CVE-2017-13009 (IPv6 mobility)
+      CVE-2017-13010 (BEEP)
+      CVE-2017-13012 (ICMP)
+      CVE-2017-13013 (ARP)
+      CVE-2017-13014 (White Board)
+      CVE-2017-13015 (EAP)
+      CVE-2017-11543 (SLIP)
+      CVE-2017-13016 (ISO ES-IS)
+      CVE-2017-13017 (DHCPv6)
+      CVE-2017-13018 (PGM)
+      CVE-2017-13019 (PGM)
+      CVE-2017-13020 (VTP)
+      CVE-2017-13021 (ICMPv6)
+      CVE-2017-13022 (IP)
+      CVE-2017-13023 (IPv6 mobility)
+      CVE-2017-13024 (IPv6 mobility)
+      CVE-2017-13025 (IPv6 mobility)
+      CVE-2017-13026 (ISO IS-IS)
+      CVE-2017-13027 (LLDP)
+      CVE-2017-13028 (BOOTP)
+      CVE-2017-13029 (PPP)
+      CVE-2017-13030 (PIM)
+      CVE-2017-13031 (IPv6 fragmentation header)
+      CVE-2017-13032 (RADIUS)
+      CVE-2017-13033 (VTP)
+      CVE-2017-13034 (PGM)
+      CVE-2017-13035 (ISO IS-IS)
+      CVE-2017-13036 (OSPFv3)
+      CVE-2017-13037 (IP)
+      CVE-2017-13038 (PPP)
+      CVE-2017-13039 (ISAKMP)
+      CVE-2017-13040 (MPTCP)
+      CVE-2017-13041 (ICMPv6)
+      CVE-2017-13042 (HNCP)
+      CVE-2017-13043 (BGP)
+      CVE-2017-13044 (HNCP)
+      CVE-2017-13045 (VQP)
+      CVE-2017-13046 (BGP)
+      CVE-2017-13047 (ISO ES-IS)
+      CVE-2017-13048 (RSVP)
+      CVE-2017-13049 (Rx)
+      CVE-2017-13050 (RPKI-Router)
+      CVE-2017-13051 (RSVP)
+      CVE-2017-13052 (CFM)
+      CVE-2017-13053 (BGP)
+      CVE-2017-13054 (LLDP)
+      CVE-2017-13055 (ISO IS-IS)
+      CVE-2017-13687 (Cisco HDLC)
+      CVE-2017-13688 (OLSR)
+      CVE-2017-13689 (IKEv1)
+      CVE-2017-13690 (IKEv2)
+      CVE-2017-13725 (IPv6 routing headers)
+
+Sunday July 23, 2017 denis@ovsienko.info
+  Summary for 4.9.1 tcpdump release
+    CVE-2017-11108/Fix bounds checking for STP.
+    Make assorted documentation updates and fix a few typos in tcpdump output.
+    Fixup -C for file size >2GB (GH #488).
+    Show AddressSanitizer presence in version output.
+    Fix a bug in test scripts (exposed in GH #613).
+    On FreeBSD adjust Capsicum capabilities for netmap.
+    On Linux fix a use-after-free when the requested interface does not exist.
+
+Wednesday January 18, 2017 devel.fx.lebail@orange.fr
+  Summary for 4.9.0 tcpdump release
+    General updates:
+    Fix some heap overflows found with American Fuzzy Lop by Hanno Boeck and others
+        (More information in the log with CVE-2016-* and CVE-2017-*)
+    Change the way protocols print link-layer addresses (Fix heap overflows
+        in CALM-FAST and GeoNetworking printers)
+    Pass correct caplen value to ether_print() and some other functions
+    Fix lookup_nsap() to match what isonsap_string() expects
+    Clean up relative time stamp printing (Fix an array overflow)
+    Fix some alignment issues with GCC on Solaris 10 SPARC
+    Add some ND_TTEST_/ND_TCHECK_ macros to simplify writing bounds checks
+    Add a fn_printztn() which returns the number of bytes processed
+    Add nd_init() and nd_cleanup() functions. Improve libsmi support
+    Add CONTRIBUTING file
+    Add a summary comment in all printers
+    Compile with more warning options in devel mode if supported (-Wcast-qual, ...)
+    Fix some leaks found by Valgrind/Memcheck
+    Fix a bunch of de-constifications
+    Squelch some Coverity warnings and some compiler warnings
+    Update Coverity and Travis-CI setup
+    Update Visual Studio files
+
+    Frontend:
+    Fix capsicum support to work with zerocopy buffers in bpf
+    Try opening interfaces by name first, then by name-as-index
+    Work around pcap_create() failures fetching time stamp type lists
+    Fix a segmentation fault with 'tcpdump -J'
+    Improve addrtostr6() bounds checking
+    Add exit_tcpdump() function
+    Don't drop CAP_SYS_CHROOT before chrooting
+    Fixes issue where statistics not reported when -G and -W options used
+
+    Updated printers:
+    802.11: Beginnings of 11ac radiotap support
+    802.11: Check the Protected bit for management frames
+    802.11: Do bounds checking on last_presentp before dereferencing it (Fix a heap overflow)
+    802.11: Fix the radiotap printer to handle the special bits correctly
+    802.11: If we have the MCS field, it's 11n
+    802.11: Only print unknown frame type or subtype messages once
+    802.11: Radiotap dBm values get printed as dB; Update a test output accordingly
+    802.11: Source and destination addresses were backwards
+    AH: Add a bounds check
+    AH: Report to our caller that dissection failed if a bounds check fails
+    AP1394: Print src > dst, not dst > src
+    ARP: Don't assume the target hardware address is <= 6 octets long (Fix a heap overflow)
+    ATALK: Add bounds and length checks (Fix heap overflows)
+    ATM: Add some bounds checks (Fix a heap overflow)
+    ATM: Fix an incorrect bounds check
+    BFD: Update specification from draft to RFC 5880
+    BFD: Update to print optional authentication field
+    BGP: Add support for the AIGP attribute (RFC7311)
+    BGP: Print LARGE_COMMUNITY Path Attribute
+    BGP: Update BGP numbers from IANA; Print minor values for FSM notification
+    BOOTP: Add a bounds check
+    Babel: Add decoder for source-specific extension
+    CDP: Filter out non-printable characters
+    CFM: Fixes to match the IEEE standard, additional bounds and length checks
+    CSLIP: Add more bounds checks (Fix a heap overflow)
+    ClassicalIPoATM: Add a bounds check on LLC+SNAP header (Fix a heap overflow)
+    DHCP: Fix MUDURL and TZ options
+    DHCPv6: Process MUDURL and TZ options
+    DHCPv6: Update Status Codes with RFCs/IANA names
+    DNS: Represent the "DNSSEC OK" bit as "DO" instead of "OK". Add a test case
+    DTP: Improve packet integrity checks
+    EGP: Fix bounds checks
+    ESP: Don't use OpenSSL_add_all_algorithms() in OpenSSL 1.1.0 or later
+    Ethernet: Add some bounds checking before calling isoclns_print (Fix a heap overflow)
+    Ethernet: Print the Length/Type field as length when needed
+    FDDI: Fix -e output for FDDI
+    FR: Add some packet-length checks and improve Q.933 printing (Fix heap overflows)
+    GRE: Add some bounds checks (Fix heap overflows)
+    Geneve: Fix error message with invalid option length; Update list option classes
+    HNCP: Fix incorrect time interval format. Fix handling of IPv4 prefixes
+    ICMP6: Fetch a 32-bit big-endian quantity with EXTRACT_32BITS()
+    IGMP: Add a length check
+    IP: Add a bounds check (Fix a heap overflow)
+    IP: Check before fetching the protocol version (Fix a heap overflow)
+    IP: Don't try to dissect if IP version != 4 (Fix a heap overflow)
+    IP: Stop processing IPPROTO_ values once we hit IPPROTO_IPCOMP
+    IPComp: Check whether we have the CPI before we fetch it (Fix a heap overflow)
+    IPoFC: Fix -e output (IP-over-Fibre Channel)
+    IPv6: Don't overwrite the destination IPv6 address for routing headers
+    IPv6: Fix header printing
+    IPv6: Stop processing IPPROTO_ values once we hit IPPROTO_IPCOMP
+    ISAKMP: Clean up parsing of IKEv2 Security Associations
+    ISOCLNS/IS-IS: Add support for Purge Originator Identifier (RFC6232) and test cases
+    ISOCLNS/IS-IS: Don't overwrite packet data when checking the signature
+    ISOCLNS/IS-IS: Filter out non-printable characters
+    ISOCLNS/IS-IS: Fix segmentation faults
+    ISOCLNS/IS-IS: Have signature_verify() do the copying and clearing
+    ISOCLNS: Add some bounds checks
+    Juniper: Make sure a Juniper header TLV isn't bigger than what's left in the packet (Fix a heap overflow)
+    LLC/SNAP: With -e, print the LLC header before the SNAP header; without it, cut the SNAP header
+    LLC: Add a bounds check (Fix a heap overflow)
+    LLC: Clean up printing of LLC packets
+    LLC: Fix the printing of RFC 948-style IP packets
+    LLC: Skip the LLC and SNAP headers with -x for 802.11 and some other protocols
+    LLDP: Implement IANA OUI and LLDP MUD option
+    MPLS LSP ping: Update printing for RFC 4379, bug fixes, more bounds checks
+    MPLS: "length" is now the *remaining* packet length
+    MPLS: Add bounds and length checks (Fix a heap overflow)
+    NFS: Don't assume the ONC RPC header is nicely aligned
+    NFS: Don't overflow the Opaque_Handle buffer (Fix a segmentation fault)
+    NFS: Don't run past the end of an NFSv3 file handle
+    OLSR: Add a test to cover a HNA sgw case
+    OLSR: Fix 'Advertised networks' count
+    OLSR: Fix printing of smart-gateway HNAs in IPv4
+    OSPF: Add a bounds check for the Hello packet options
+    OSPF: Do more bounds checking
+    OSPF: Fix a segmentation fault
+    OSPF: Fix printing 'ospf_topology_values' default
+    OTV: Add missing bounds checks
+    PGM: Print the formatted IP address, not the raw binary address, as a string
+    PIM: Add some bounds checking (Fix a heap overflow)
+    PIMv2: Fix checksumming of Register messages
+    PPP: Add some bounds checks (Fix a heap overflow)
+    PPP: Report invalid PAP AACK/ANAK packets
+    Q.933: Add a missing bounds check
+    RADIUS: Add Value 13 "VLAN" to Tunnel-Type attribute
+    RADIUS: Filter out non-printable characters
+    RADIUS: Translate UDP/1700 as RADIUS
+    RESP: Do better checking of RESP packets
+    RPKI-RTR: Add a return value check for "fn_printn" call
+    RPKI-RTR: Remove printing when truncated condition already detected
+    RPL: Fix 'Consistency Check' control code
+    RPL: Fix suboption print
+    RSVP: An INTEGRITY object in a submessage covers only the submessage
+    RSVP: Fix an infinite loop; Add bounds and length checks
+    RSVP: Fix some if statements missing brackets
+    RSVP: Have signature_verify() do the copying and clearing
+    RTCP: Add some bounds checks
+    RTP: Add some bounds checks, fix two segmentation faults
+    SCTP: Do more bounds checking
+    SFLOW: Fix bounds checking
+    SLOW: Fix bugs, add checks
+    SMB: Before fetching the flags2 field, make sure we have it
+    SMB: Do bounds checks on NBNS resource types and resource data lengths
+    SNMP: Clean up the "have libsmi but no modules loaded" case
+    SNMP: Clean up the object abbreviation list and fix the code to match them
+    SNMP: Do bounds checks when printing character and octet strings
+    SNMP: Improve ASN.1 bounds checks
+    SNMP: More bounds and length checks
+    STP: Add a bunch of bounds checks, and fix some printing (Fix heap overflows)
+    STP: Filter out non-printable characters
+    TCP: Add bounds and length checks for packets with TCP option 20
+    TCP: Correct TCP option Kind value for TCP Auth and add SCPS-TP
+    TCP: Fix two bounds checks (Fix heap overflows)
+    TCP: Make sure we have the data offset field before fetching it (Fix a heap overflow)
+    TCP: Put TCP-AO option decoding right
+    TFTP: Don't use strchr() to scan packet data (Fix a heap overflow)
+    Telnet: Add some bounds checks
+    TokenRing: Fix -e output
+    UDLD: Fix an infinite loop
+    UDP: Add a bounds check (Fix a heap overflow)
+    UDP: Check against the packet length first
+    VAT: Add some bounds checks
+    VTP: Add a test on Mgmt Domain Name length
+    VTP: Add bounds checks and filter out non-printable characters
+    VXLAN: Add a bound check and a test case
+    ZeroMQ: Fix an infinite loop
+
+Tuesday October 25, 2016 mcr@sandelman.ca
+  Summary for 4.8.1 tcpdump release
+	Fix "-x" for Apple PKTAP and PPI packets
+        Improve separation frontend/backend (tcpdump/libnetdissect)
+        Fix display of timestamps with -tt, -ttt and -ttttt options
+        Add support for the Marvell Extended Distributed Switch Architecture header
+        Use PRIx64 to print a 64-bit number in hex.
+        Printer for HNCP (RFCs 7787 and 7788).
+        dagid is always an IPv6 address, not an opaque 128-bit string, and other fixes to RPL printer.
+        RSVP: Add bounds and length checks
+        OSPF: Do more bounds checking
+        Handle OpenSSL 1.1.x.
+        Initial support for the REdis Serialization Protocol known as RESP.
+        Add printing function for Generic Protocol Extension for VXLAN
+            draft-ietf-nvo3-vxlan-gpe-01
+        Network Service Header: draft-ietf-sfc-nsh-01
+        Don't recompile the filter if the new file has the same DLT.
+        Pass an adjusted struct pcap_pkthdr to the sub-printer.
+        Add three test cases for already fixed CVEs
+           CVE-2014-8767: OLSR
+           CVE-2014-8768: Geonet
+           CVE-2014-8769: AODV
+        Don't do the DDP-over-UDP heuristic first: GitHub issue #499.
+        Use the new debugging routines in libpcap.
+        Harmonize TCP source or destination ports tests with UDP ones
+        Introduce data types to use for integral values in packet structures.
+        RSVP: Fix an infinite loop
+        Support of Type 3 and Type 4 LISP packets.
+        Don't require IPv6 library support in order to support IPv6 addresses.
+        Many many changes to support libnetdissect usage.
+        Add a test that makes unaligned accesses: GitHub issue #478.
+        add a DNSSEC test case: GH #445 and GH #467.
+        BGP: add decoding of ADD-PATH capability
+        fixes to LLC header printing, and RFC948-style IP packets
+
+Friday April 10, 2015 guy@alum.mit.edu
+  Summary for 4.7.4 tcpdump release
+	RPKI to Router Protocol: Fix Segmentation Faults and other problems
+	RPKI to Router Protocol: print strings with fn_printn()
+	wb: fix some bounds checks
+
+Wednesday March 11, 2015 mcr@sandelman.ca
+  Summary for 4.7.3 tcpdump release
+	Capsicum fixes for FreeBSD 10
+
+Tuesday March 10, 2015 mcr@sandelman.ca
+  Summary for 4.7.2 tcpdump release
+	DCCP: update Packet Types with RFC4340/IANA names
+        fixes for CVE-2015-0261: IPv6 mobility header check issue
+        fixes for CVE-2015-2153, 2154, 2155: kday packets
+
+Friday Nov. 12, 2014 guy@alum.mit.edu
+  Summary for 4.7.0 tcpdump release
+        changes to hex printing of CDP packets
+	Fix PPI printing
+	Radius: update Packet Type Codes and Attribute Types with RFC/IANA names
+	Add a routine to print "text protocols", and add FTP/HTTP/SMTP/RTSP support.
+	improvements to telnet printer, even if not -v
+	omit length for bcp, print-tcp uses it
+	formatting fixes for a bunch of protocols
+	new bounds checks for a number of protocols
+	split netflow 1,6, and 6 dissector up.
+	added geneve dissector
+        CVE-2014-9140 PPP dissector fixed.
+
+Tuesday  Sep.  2, 2014 mcr@sandelman.ca
+  Summary for 4.6.2 tcpdump release
+	fix out-of-source-tree builds: find libpcap that is out of source
+	better configure check for libsmi
+
+Saturday Jul. 19, 2014 mcr@sandelman.ca
+  Summary for 4.6.1 tcpdump release
+	added FreeBSD capsicum
+	add a short option '#', same as long option '--number'
+
+Wednesday Jul. 2, 2014 mcr@sandelman.ca
+  Summary for 4.6.0 tcpdump release
+        all of tcpdump is now using the new "NDO" code base (Thanks Denis!)
+        nflog, mobile, forces, pptp, AODV, AHCP, IPv6, OSPFv4, RPL, DHCPv6 enhancements/fixes
+        M3UA decode added.
+        many new test cases: 82 in 4.5.1 to 133 in 4.6.0
+        many improvements to travis continuous integration system: OSX, and Coverity options
+        cleaned up some unnecessary header files
+        Added bittok2str().
+        a number of unaligned access faults fixed
+        -A flag does not consider CR to be printable anymore
+        fx.lebail took over coverity baby sitting
+        default snapshot size increased to 256K for accomodate USB captures
+        WARNING: this release contains a lot of very worthwhile code churn.
+
+Wednesday Jan. 15, 2014 guy@alum.mit.edu
+  Summary for 4.5.2 tcpdump release
+	Man page fix
+	Fix crashes on SPARC
+
+Monday Nov. 11, 2013 mcr@sandelman.ca
+  Summary for 4.5.1 tcpdump release
+	CREDITS file fixes
+
+Thursday Nov. 7, 2013  mcr@sandelman.ca and guy@alum.mit.edu.
+  Summary for 4.5.0 tcpdump release
+        some NFSv4 fixes for printing
+        fix printing of unknown TCP options, and tcp fast-open
+        fixes for syslog parser
+        some gcc-version-specific flag tuning
+        adopt MacOS deprecation workarounds for openssl
+        improvements to babel printing
+        add OpenFlow 1.0 (no SSL) and test cases
+        GeoNet printer.
+        added STBC Rx support
+        improvements to DHCPv6 decoder
+        clarify which autoconf is needed
+	Point users to the the-tcpdump-group repository on GitHub rather
+	    than the mcr repository
+	Add MSDP printer.
+	Fixed IPv6 check on Solaris and other OSes requiring extra
+	    networking libraries.
+	Add support for VXLAN (draft-mahalingam-dutt-dcops-vxlan-03),
+	    and add "vxlan" as an option for -T.
+	Add support for OTV (draft-hasmit-otv-04).
+        fixes for DLT_IEEE802_11_RADIO datalink types
+        added MPTCP decoder
+
+Saturday April 6, 2013 guy@alum.mit.edu.
+  Summary for 4.4.0 tcpdump release
+	RPKI-RTR (RFC6810) is now official (TCP Port 323)
+	Fix detection of OpenSSL libcrypto.
+	Add DNSSL (RFC6106) support.
+	Add "radius" as an option for -T.
+	Update Action codes for handle_action function according to
+	    802.11s amendment.
+	Decode DHCPv6 AFTR-Name option (RFC6334).
+	Updates for Babel.
+	Fix printing of infinite lifetime in ICMPv6.
+	Added support for SPB, SPBM Service Identifier, and Unicast
+	    Address sub-TLV in ISIS.
+	Decode RIPv2 authentication up to RFC4822.
+	Fix RIP Request/full table decoding issues.
+	On Linux systems with cap-ng.h, drop root privileges
+	    using Linux Capabilities.
+	Add support for reading multiple files.
+	Add MS NLB heartbeat printer.
+	Separate multiple nexthops in BGP.
+
+Wednesday  November 28, 2012 guy@alum.mit.edu.
+  Summary for 4.3.1 tcpdump release
+	Print "LLDP, length N" for LLDP packets even when not in verbose
+	    mode, so something is printed even if only the timestamp is
+	    present
+	Document "-T carp"
+	Print NTP poll interval correctly (it's an exponent, so print
+	    both its raw value and 2^value)
+	Document that "-e" is used to get MAC addresses
+	More clearly document that you need to escape or quote
+	    backslashes in filter expressions on the command line
+	Fix some "the the" in the man page
+	Use the right maximum path length
+	Don't treat 192_1_2, when passed to -i, as an interface number
+
+Friday  April 3, 2012.  mcr@sandelman.ca.
+  Summary for 4.3.0 tcpdump release
+        fixes for forces: SPARSE data (per RFC 5810)
+        some more test cases added
+        updates to documentation on -l, -U and -w flags.
+        Fix printing of BGP optional headers.
+        Tried to include DLT_PFSYNC support, failed due to headers required.
+        added TIPC support.
+        Fix LLDP Network Policy bit definitions.
+        fixes for IGMPv3's Max Response Time: it is in units of 0.1 second.
+        SIGUSR1 can be used rather than SIGINFO for stats
+        permit -n flag to affect print-ip for protocol numbers
+        ND_OPT_ADVINTERVAL is in milliseconds, not seconds
+        Teach PPPoE parser about RFC 4638
+
+
+Friday  December 9, 2011.  guy@alum.mit.edu.
+  Summary for 4.2.1 tcpdump release
+	Only build the Babel printer if IPv6 is enabled.
+	Support Babel on port 6696 as well as 6697.
+	Include ppi.h in release tarball.
+	Include all the test files in the release tarball, and don't
+	 "include" test files that no longer exist.
+	Don't assume we have <rpc/rpc.h> - check for it.
+	Support "-T carp" as a way of dissecting IP protocol 112 as CARP
+	 rather than VRRP.
+	Support Hilscher NetAnalyzer link-layer header format.
+	Constify some pointers and fix compiler warnings.
+	Get rid of never-true test.
+	Fix an unintended fall-through in a case statement in the ARP
+	 printer.
+	Fix several cases where sizeof(sizeof(XXX)) was used when just
+	 sizeof(XXX) was intended.
+	Make stricter sanity checks in the ES-IS printer.
+	Get rid of some GCCisms that caused builds to fai with compilers
+	 that don't support them.
+	Fix typo in man page.
+	Added length checks to Babel printer.
+
+Sunday  July 24, 2011.  mcr@sandelman.ca.
+  Summary for 4.2.+
+	merged 802.15.4 decoder from Dmitry Eremin-Solenikov <dbaryshkov
+	  at gmail dot com>
+        updates to forces for new port numbers
+        Use "-H", not "-h", for the 802.11s option. (-h always help)
+        Better ICMPv6 checksum handling.
+        add support for the RPKI/Router Protocol, per -ietf-sidr-rpki-rtr-12
+        get rid of uuencoded pcap test files, git can do binary.
+        sFlow changes for 64-bit counters.
+        fixes for PPI packet header handling and printing.
+        Add DCB Exchange protocol (DCBX) version 1.01.
+        Babel dissector, from Juliusz Chroboczek and Grégoire Henry.
+        improvements to radiotap for rate values > 127.
+        Many improvements to ForCES decode, including fix SCTP TML port
+        updated RPL type code to RPL-17 draft
+        Improve printout of DHCPv6 options.
+        added support and test case for QinQ (802.1q VLAN) packets
+        Handle DLT_IEEE802_15_4_NOFCS like DLT_IEEE802_15_4.
+        Build fixes for Sparc and other machines with alignment restrictions.
+        Merged changes from Debian package.
+        PGM: Add ACK decoding and add PGMCC DATA and FEEDBACK options.
+        Build fixes for OSX (Snow Leopard and others)
+        Add support for IEEE 802.15.4 packets
+
+Tue.    July 20, 2010.  guy@alum.mit.edu.
+  Summary for 4.1.2 tcpdump release
+	If -U is specified, flush the file after creating it, so it's
+	  not zero-length
+	Fix TCP flags output description, and some typoes, in the man
+	  page
+	Add a -h flag, and only attempt to recognize 802.11s mesh
+	  headers if it's set
+	When printing the link-layer type list, send *all* output to
+	  stderr
+	Include the CFLAGS setting when configure was run in the
+	  compiler flags
+
+Thu.	April 1, 2010.  guy@alum.mit.edu.
+  Summary for 4.1.1 tcpdump release
+	Fix build on systems with PF, such as FreeBSD and OpenBSD.
+	Don't blow up if a zero-length link-layer address is passed to
+	  linkaddr_string().
+
+Thu.	March 11, 2010.  ken@netfunctional.ca/guy@alum.mit.edu.
+  Summary for 4.1.0 tcpdump release
+	Fix printing of MAC addresses for VLAN frames with a length
+	  field
+	Add some additional bounds checks and use the EXTRACT_ macros
+	  more
+	Add a -b flag to print the AS number in BGP packets in ASDOT
+	  notation rather than ASPLAIN notation
+	Add ICMPv6 RFC 5006 support
+	Decode the access flags in NFS access requests
+	Handle the new DLT_ for memory-mapped USB captures on Linux
+	Make the default snapshot (-s) the maximum
+	Print name of device (when -L is used)
+	Support for OpenSolaris (and SXCE build 125 and later)
+	Print new TCP flags
+	Add support for RPL DIO
+	Add support for TCP User Timeout (UTO)
+	Add support for non-standard Ethertypes used by 3com PPPoE gear
+	Add support for 802.11n and 802.11s
+	Add support for Transparent Ethernet Bridge ethertype in GRE
+	Add 4 byte AS support for BGP printer
+	Add support for the MDT SAFI 66 BG printer
+	Add basic IPv6 support to print-olsr
+	Add USB printer
+	Add printer for ForCES
+	Handle frames with an FCS
+	Handle 802.11n Control Wrapper, Block Acq Req and Block Ack frames
+	Fix TCP sequence number printing
+	Report 802.2 packets as 802.2 instead of 802.3
+	Don't include -L/usr/lib in LDFLAGS
+	On x86_64 Linux, look in lib64 directory too
+	Lots of code clean ups
+	Autoconf clean ups
+	Update testcases to make output changes
+	Fix compiling with/out smi (--with{,out}-smi)
+	Fix compiling without IPv6 support (--disable-ipv6)
+
+Mon.    October 27, 2008.  ken@netfunctional.ca.  Summary for 4.0.0 tcpdump release
+        Add support for Bluetooth Sniffing
+        Add support for Realtek Remote Control Protocol (openrrcp.org.ru)
+        Add support for 802.11 AVS
+        Add support for SMB over TCP
+        Add support for 4 byte BGP AS printing
+        Add support for compiling on case-insensitive file systems
+        Add support for ikev2 printing
+        Update support for decoding AFS
+        Update DHCPv6 printer
+        Use newer libpcap API's (allows -B option on all platforms)
+        Add -I to turn on monitor mode
+        Bugfixes in lldp, lspping, dccp, ESP, NFS printers
+        Cleanup unused files and various cruft
+
+Mon.    September 10, 2007.  ken@xelerance.com.  Summary for 3.9.8 tcpdump release
+        Rework ARP printer
+        Rework OSPFv3 printer
+        Add support for Frame-Relay ARP
+        Decode DHCP Option 121 (RFC 3442 Classless Static Route)
+        Decode DHCP Option 249 (MS Classless Static Route) the same as Option 121
+        TLV: Add support for Juniper .pcap extensions
+        Print EGP header in new-world-order style
+        Converted print-isakmp.c to NETDISSECT
+        Moved AF specific stuff into af.h
+        Test subsystem now table driven, and saves outputs and diffs to one place
+        Require <net/pfvar.h> for pf definitions - allows reading of pflog formatted
+         libpcap files on an OS other than where the file was generated
+
+
+Wed.	July 23, 2007.  mcr@xelerance.com.  Summary for 3.9.7 libpcap release
+
+    	NFS: Print unsigned values as such.
+	RX: parse safely.
+	BGP: fixes for IPv6-less builds.
+	801.1ag: use standard codepoint.
+	use /dev/bpf on systems with such a device.
+	802.11: print QoS data, avoid dissect of no-data frame, ignore padding.
+	smb: make sure that we haven't gone past the end of the captured data.
+	smb: squelch an uninitialized complaint from coverity.
+	NFS: from NetBSD; don't interpret the reply as a possible NFS reply
+		if it got MSG_DENIED.
+	BGP: don't print TLV values that didn't fit, from www.digit-labs.org.
+	revised INSTALL.txt about libpcap dependancy.
+
+Wed.	April 25, 2007. ken@xelerance.com.  Summary for 3.9.6 tcpdump release
+	Update man page to reflect changes to libpcap
+	Changes to both TCP and IP Printer Output
+	Fix a potential buffer overflow in the 802.11 printer
+	Print basic info about a few more Cisco LAN protocols.
+	mDNS cleanup
+	ICMP MPLS rework of the extension code
+	bugfix: use the correct codepoint for the OSPF simple text auth token
+	 entry, and use safeputs to print the password.
+	Add support in pflog for additional values
+	Add support for OIF RSVP Extensions UNI 1.0 Rev. 2 and additional RSVP objects
+	Add support for the Message-id NACK c-type.
+	Add support for 802.3ah loopback ctrl msg
+	Add support for Multiple-STP as per 802.1s
+	Add support for rapid-SPT as per 802.1w
+	Add support for CFM Link-trace msg, Link-trace-Reply msg,
+	 Sender-ID tlv, private tlv, port, interface status
+	Add support for unidirectional link detection as per
+	 http://www.ietf.org/internet-drafts/draft-foschiano-udld-02.txt
+	Add support for the olsr protocol as per RFC 3626 plus the LQ
+	 extensions from olsr.org
+	Add support for variable-length checksum in DCCP, as per section 9 of
+	 RFC 4340.
+	Add support for per-VLAN spanning tree and per-VLAN rapid spanning tree
+	Add support for Multiple-STP as per 802.1s
+	Add support for the cisco propriatry 'dynamic trunking protocol'
+	Add support for the cisco proprietary VTP protocol
+	Update dhcp6 options table as per IETF standardization activities
+
+
+Tue.	September 19, 2006. ken@xelerance.com. Summary for 3.9.5 tcpdump release
+
+	Fix compiling on AIX (, at end of ENUM)
+	Updated list of DNS RR typecodes
+	Use local Ethernet defs on WIN32
+	Add support for Frame-Relay ARP
+	Fixes for compiling under MSVC++
+	Add support for parsing Juniper .pcap files
+	Add support for FRF.16 Multilink Frame-Relay (DLT_MFR)
+	Rework the OSPFv3 printer
+	Fix printing for 4.4BSD/NetBSD NFS Filehandles
+	Add support for Cisco style NLPID encapsulation
+	Add cisco prop. eigrp related, extended communities
+	Add support for BGP signaled VPLS
+	Cleanup the bootp printer
+	Add support for PPP over Frame-Relay
+	Add some bounds checking to the IP options code, and clean up
+	 the options output a bit.
+	Add additional modp groups to ISAKMP printer
+	Add support for Address-Withdraw and Label-Withdraw Msgs
+	Add support for the BFD Discriminator TLV
+	Fixes for 64bit compiling
+	Add support for PIMv2 checksum verification
+	Add support for further dissection of the IPCP Compression Option
+	Add support for Cisco's proposed VQP protocol
+	Add basic support for keyed authentication TCP option
+	Lots of minor cosmetic changes to output printers
+
+
+Mon. 	September 19, 2005.  ken@xelerance.com. Summary for 3.9.4 tcpdump release
+	Decoder support for more Juniper link-layer types
+	Fix a potential buffer overflow (although it can't occur in
+		practice).
+	Fix the handling of unknown management frame types in the 802.11
+		printer.
+	Add FRF.16 support, fix various Frame Relay bugs.
+	Add support for RSVP integrity objects, update fast-reroute
+		object printer to latest spec.
+	Clean up documentation of vlan filter expression, document mpls
+		filter expression.
+	Document new pppoed and pppoes filter expressions.
+	Update diffserver-TE codepoints as per RFC 4124.
+	Spelling fixes in ICMPv6.
+	Don't require any fields other than flags to be present in IS-IS
+		restart signaling TLVs, and only print the system ID in
+		those TLVs as system IDs, not as node IDs.
+	Support for DCCP.
+
+Tue. 	July 5, 2005.  ken@xelerance.com. Summary for 3.9.3 tcpdump release
+
+	Option to chroot() when dropping privs
+	Fixes for compiling on nearly every platform,
+		including improved 64bit support
+	Many new testcases
+	Support for sending packets
+	Many compliation fixes on most platforms
+	Fixes for recent version of GCC to eliminate warnings
+	Improved Unicode support
+
+	Decoders & DLT Changes, Updates and New:
+		AES ESP support
+		Juniper ATM, FRF.15, FRF.16, PPPoE,
+			ML-FR, ML-PIC, ML-PPP, PL-PPP, LS-PIC
+			GGSN,ES,MONITOR,SERVICES
+		L2VPN
+		Axent Raptor/Symantec Firewall
+		TCP-MD5 (RFC 2385)
+		ESP-in-UDP (RFC 3948)
+		ATM OAM
+		LMP, LMP Service Discovery
+		IP over FC
+		IP over IEEE 1394
+		BACnet MS/TP
+		SS7
+		LDP over TCP
+		LACP, MARKER as per 802.3ad
+		PGM (RFC 3208)
+		LSP-PING
+		G.7041/Y.1303 Generic Framing Procedure
+		EIGRP-IP, EIGRP-IPX
+		ICMP6
+		Radio - via radiotap
+		DHCPv6
+		HDLC over PPP
+
+Tue.   March 30, 2004. mcr@sandelman.ottawa.on.ca. Summary for 3.8.3 release
+
+	No changes from 3.8.2. Version bumped only to maintain consistency
+	with libpcap 0.8.3.
+
+Mon.   March 29, 2004. mcr@sandelman.ottawa.on.ca. Summary for 3.8.2 release
+
+	Fixes for print-isakmp.c      CVE:    CAN-2004-0183, CAN-2004-0184
+	  		     http://www.rapid7.com/advisories/R7-0017.html
+	IP-over-IEEE1394 printing.
+	some MINGW32 changes.
+	updates for autoconf 2.5
+	fixes for print-aodv.c - check for too short packets
+	formatting changes to print-ascii for hex output.
+	check for too short packets: print-bgp.c, print-bootp.c, print-cdp.c,
+		print-chdlc.c, print-domain.c, print-icmp.c, print-icmp6.c,
+		print-ip.c, print-lwres.c, print-ospf.c, print-pim.c,
+		print-ppp.c,print-pppoe.c, print-rsvp.c, print-wb.c
+	print-ether.c - better handling of unknown types.
+	print-isoclns.c - additional decoding of types.
+	print-llc.c - strings for LLC names added.
+	print-pfloc.c - various enhancements
+	print-radius.c - better decoding to strings.
+
+Wed.   November 12, 2003. mcr@sandelman.ottawa.on.ca. Summary for 3.8 release
+
+	changed syntax of -E argument so that multiple SAs can be decrypted
+	fixes for Digital Unix headers and Documentation
+	__attribute__ fixes
+	CDP changes from Terry Kennedy <terry@tmk.com>.
+	IPv6 mobility updates from Kazushi Sugyo <sugyo@pb.jp.nec.com>
+	Fixes for ASN.1 decoder for 2.100.3 forms.
+	Added a count of packets received and processed to clarify numbers.
+	Incorporated WinDUMP patches for Win32 builds.
+	PPPoE payload length headers.
+	Fixes for HP C compiler builds.
+	Use new pcap_breakloop() and pcap_findalldevs() if we can.
+	BGP output split into multiple lines.
+	Fixes to 802.11 decoding.
+	Fixes to PIM decoder.
+	SuperH is a CPU that can't handle unaligned access. Many fixes for
+		unaligned access work.
+	Fixes to Frame-Relay decoder for Q.933/922 frames.
+	Clarified when Solaris can do captures as non-root.
+	Added tests/ subdir for examples/regression tests.
+	New -U flag.	-flush stdout after every packet
+	New -A flag	-print ascii only
+	support for decoding IS-IS inside Cisco HDLC Frames
+	more verbosity for tftp decoder
+	mDNS decoder
+	new BFD decoder
+	cross compilation patches
+	RFC 3561 AODV support.
+	UDP/TCP pseudo-checksum properly for source-route options.
+	sanitized all files to modified BSD license
+	Add support for RFC 2625 IP-over-Fibre Channel.
+	fixes for DECnet support.
+	Support RFC 2684 bridging of Ethernet, 802.5 Token Ring, and FDDI.
+	RFC 2684 encapsulation of BPDUs.
+
+Tuesday, February 25, 2003. fenner@research.att.com.  3.7.2 release
+
+	Fixed infinite loop when parsing invalid isakmp packets.
+	 (reported by iDefense; already fixed in CVS)
+	Fixed infinite loop when parsing invalid BGP packets.
+	Fixed buffer overflow with certain invalid NFS packets.
+	Pretty-print unprintable network names in 802.11 printer.
+	Handle truncated nbp (appletalk) packets.
+	Updated DHCPv6 printer to match draft-ietf-dhc-dhcpv6-22.txt
+	Print IP protocol name even if we don't have a printer for it.
+	Print IP protocol name or number for fragments.
+	Print the whole MPLS label stack, not just the top label.
+	Print request header and file handle for NFS v3 FSINFO and PATHCONF
+	 requests.
+	Fix NFS packet truncation checks.
+	Handle "old" DR-Priority and Bidir-Capable PIM HELLO options.
+	Handle unknown RADIUS attributes properly.
+	Fix an ASN.1 parsing error that would cause e.g. the OID
+	 2.100.3 to be misrepresented as 4.20.3 .
+
+Monday, January 21, 2002. mcr@sandelman.ottawa.on.ca. Summary for 3.7 release
+see http://www.tcpdump.org/cvs-log/2002-01-21.10:16:48.html for commit log.
+	keyword "ipx" added.
+	Better OSI/802.2 support on Linux.
+	IEEE 802.11 support, from clenahan@fortresstech.com, achirica@ttd.net.
+	LLC SAP support for FDDI/token ring/RFC-1483 style ATM
+	BXXP protocol was replaced by the BEEP protocol;
+	improvements to SNAP demux.
+	Changes to "any" interface documentation.
+	Documentation on pcap_stats() counters.
+	Fix a memory leak found by Miklos Szeredi - pcap_ether_aton().
+	Added MPLS encapsulation decoding per RFC3032.
+	DNS dissector handles TKEY, TSIG and IXFR.
+	adaptive SLIP interface patch from Igor Khristophorov <igor@atdot.org>
+	SMB printing has much improved bounds checks
+	OUI 0x0000f8 decoded as encapsulated ethernet for Cisco-custom bridging
+	Zephyr support, from Nickolai Zeldovich <kolya@MIT.EDU>.
+	Solaris - devices with digits in them. Stefan Hudson <hudson@mbay.net>
+	IPX socket 0x85be is for Cisco EIGRP over IPX.
+	Improvements to fragmented ESP handling.
+	SCTP support from Armando L. Caro Jr. <acaro@mail.eecis.udel.edu>
+	Linux ARPHDR_ATM support fixed.
+	Added a "netbeui" keyword, which selects NetBEUI packets.
+	IPv6 ND improvements, MobileIP dissector, 2292bis-02 for RA option.
+	Handle ARPHDR_HDLC from Marcus Felipe Pereira <marcus@task.com.br>.
+	Handle IPX socket 0x553 -> NetBIOS-over-IPX socket, "nwlink-dgm"
+	Better Linux libc5 compat.
+	BIND9 lwres dissector added.
+	MIPS and SPARC get strict alignment macros (affects print-bgp.c)
+	Apple LocalTalk LINKTYPE_ reserved.
+	New time stamp formats documented.
+	DHCP6 updated to draft-22.txt spec.
+	ICMP types/codes now accept symbolic names.
+	Add SIGINFO handler from LBL
+	encrypted CIPE tunnels in IRIX, from Franz Schaefer <schaefer@mond.at>.
+	now we are -Wstrict-prototype clean.
+	NetBSD DLT_PPP_ETHER; adapted from Martin Husemann <martin@netbsd.org>.
+	PPPoE dissector cleaned up.
+	Support for LocalTalk hardware, from Uns Lider <unslider@miranda.org>.
+	In dissector, now the caller prints the IP addresses rather than proto.
+	cjclark@alum.mit.edu: print the IP proto for non-initial fragments.
+	LLC frames with a DSAP and LSAP of 0xe0 are IPX frames.
+	Linux cooked frames with a type value of LINUX_SLL_P_802_3 are IPX.
+	captures on the "any" device won't be done in promiscuous mode
+	Token Ring support on DLPI - Onno van der Linden <onno@simplex.nl>
+	ARCNet support, from NetBSD.
+	HSRP dissector, from Julian Cowley <julian@lava.net>.
+	Handle (GRE-encapsulated) PPTP
+	added -C option to rotate save file every optarg * 1,000,000 bytes.
+	support for "vrrp" name - NetBSD, by Klaus Klein <kleink@netbsd.org>.
+	PPTP support, from Motonori Shindo <mshindo@mshindo.net>.
+	IS-IS over PPP support, from Hannes Gredler <hannes@juniper.net>.
+	CNFP support for IPv6,format. Harry Raaymakers <harryr@connect.com.au>.
+	ESP printing updated to RFC2406.
+	HP-UX can now handle large number of PPAs.
+	MSDP printer added.
+	L2TP dissector improvements from Motonori Shindo.
+
+Tuesday January 9, 2001. mcr@sandelman.ottawa.on.ca. Summary for 3.6 release
+	Cleaned up documentation.
+	Promisc mode fixes for Linux
+	IPsec changes/cleanups.
+	Alignment fixes for picky architectures
+
+	Removed dependency on native headers for packet dissectors.
+	Removed Linux specific headers that were shipped
+
+	libpcap changes provide for exchanging capture files between
+	  systems. Save files now have well known PACKET_ values instead of
+	  depending upon system dependant mappings of DLT_* types.
+
+	Support for computing/checking IP and UDP/TCP checksums.
+
+	Updated autoconf stock files.
+
+	IPv6 improvements: dhcp (draft-15), mobile-ip6, ppp, ospf6,
+
+	Added dissector support for: ISOCLNS, Token Ring, IGMPv3, bxxp,
+		timed, vrrp, radius, chdlc, cnfp, cdp, IEEE802.1d, raw-AppleTalk
+
+	Added filtering support for: VLANs, ESIS, ISIS
+
+	Improvements to: print-telnet, IPTalk, bootp/dhcp, ECN, PPP,
+		L2TP, PPPoE
+
+	HP-UX 11.0 -- find the right dlpi device.
+	Solaris 8 - IPv6 works
+	Linux - Added support for an "any" device to capture on all interfaces
+
+	Security fixes: buffer overrun audit done. Strcpy replaced with
+		strlcpy, sprintf replaced with snprintf.
+	Look for lex problems, and warn about them.
+
+
+v3.5 Fri Jan 28 18:00:00 PST 2000
+
+Bill Fenner <fenner@research.att.com>
+- switch to config.h for autoconf
+- unify RCSID strings
+- Updated PIMv1, PIMv2, DVMRP, IGMP parsers, add Cisco Auto-RP parser
+- Really fix the RIP printer
+- Fix MAC address -> name translation.
+- some -Wall -Wformat fixes
+- update makemib to parse much of SMIv2
+- Print TCP sequence # with -vv even if you normally wouldn't
+- Print as much of IP/TCP/UDP headers as possible even if truncated.
+
+itojun@iijlab.net
+- -X will make a ascii dump.  from netbsd.
+- telnet command sequence decoder (ff xx xx).  from netbsd.
+- print-bgp.c: improve options printing.  ugly code exists for
+  unaligned option parsing (need some fix).
+- const poisoning in SMB decoder.
+- -Wall -Werror clean checks.
+- bring in KAME IPv6/IPsec decoding code.
+
+Assar Westerlund  <assar@sics.se>
+- SNMPv2 and SNMPv3 printer
+- If compiled with libsmi, tcpdump can load MIBs on the fly to decode
+  SNMP packets.
+- Incorporate NFS parsing code from NetBSD.  Adds support for nfsv3.
+- portability fixes
+- permit building in different directories.
+
+Ken Hornstein <kenh@cmf.nrl.navy.mil>
+- bring in code at
+  /afs/transarc.com/public/afs-contrib/tools/tcpdump for parsing
+  AFS3 packets
+
+Andrew Tridgell <tridge@linuxcare.com>
+- SMB printing code
+
+Love <lha@stacken.kth.se>
+- print-rx.c: add code for printing MakeDir and StoreStatus.  Also
+  change date format to the right one.
+
+Michael C. Richardson  <mcr@sandelman.ottawa.on.ca>
+- Created tcpdump.org repository
+
+v3.4 Sat Jul 25 12:40:55 PDT 1998
+
+- Hardwire Linux slip support since it's too hard to detect.
+
+- Redo configuration of "network" libraries (-lsocket and -lnsl) to
+  deal with IRIX. Thanks to John Hawkinson (jhawk@mit.edu)
+
+- Added -a which tries to translate network and broadcast addresses to
+  names. Suggested by Rob van Nieuwkerk (robn@verdi.et.tudelft.nl)
+
+- Added a configure option to disable gcc.
+
+- Added a "raw" packet printer.
+
+- Not having an interface address is no longer fatal. Requested by John
+  Hawkinson.
+
+- Rework signal setup to accommodate Linux.
+
+- OSPF truncation check fix. Also display the type of OSPF packets
+  using MD5 authentication. Thanks to Brian Wellington
+  (bwelling@tis.com)
+
+- Fix truncation check bugs in the Kerberos printer. Reported by Ezra
+  Peisach (epeisach@mit.edu)
+
+- Don't catch SIGHUP when invoked with nohup(1). Thanks to Dave Plonka
+  (plonka@mfa.com)
+
+- Specify full install target as a way of detecting if install
+  directory does not exist. Thanks to Dave Plonka.
+
+- Bit-swap FDDI addresses for BSD/OS too. Thanks to Paul Vixie
+  (paul@vix.com)
+
+- Fix off-by-one bug when testing size of ethernet packets. Thanks to
+  Marty Leisner (leisner@sdsp.mc.xerox.com)
+
+- Add a local autoconf macro to check for routines in libraries; the
+  autoconf version is broken (it only puts the library name in the
+  cache variable name). Thanks to John Hawkinson.
+
+- Add a local autoconf macro to check for types; the autoconf version
+  is broken (it uses grep instead of actually compiling a code fragment).
+
+- Modified to support the new BSD/OS 2.1 PPP and SLIP link layer header
+  formats.
+
+- Extend OSF ip header workaround to versions 1 and 2.
+
+- Fix some signed problems in the nfs printer. As reported by David
+  Sacerdote (davids@silence.secnet.com)
+
+- Detect group wheel and use it as the default since BSD/OS' install
+  can't hack numeric groups. Reported by David Sacerdote.
+
+- AIX needs special loader options. Thanks to Jonathan I. Kamens
+  (jik@cam.ov.com)
+
+- Fixed the nfs printer to print port numbers in decimal. Thanks to
+  Kent Vander Velden (graphix@iastate.edu)
+
+- Find installed libpcap in /usr/local/lib when not using gcc.
+
+- Disallow network masks with non-network bits set.
+
+- Attempt to detect "egcs" versions of gcc.
+
+- Add missing closing double quotes when displaying bootp strings.
+  Reported by Viet-Trung Luu (vluu@picard.math.uwaterloo.ca)
+
+v3.3 Sat Nov 30 20:56:27 PST 1996
+
+- Added Linux support.
+
+- GRE encapsulated packet printer thanks to John Hawkinson
+  (jhawk@mit.edu)
+
+- Rewrite gmt2local() to avoid problematic os dependencies.
+
+- Suppress nfs truncation message on errors.
+
+- Add missing m4 quoting in AC_LBL_UNALIGNED_ACCESS autoconf macro.
+  Reported by Joachim Ott (ott@ardala.han.de)
+
+- Enable "ip_hl vs. ip_vhl" workaround for OSF4 too.
+
+- Print arp hardware type in host order. Thanks to Onno van der Linden
+  (onno@simplex.nl)
+
+- Avoid solaris compiler warnings. Thanks to Bruce Barnett
+  (barnett@grymoire.crd.ge.com)
+
+- Fix rip printer to not print one more route than is actually in the
+  packet. Thanks to Jean-Luc Richier (Jean-Luc.Richier@imag.fr) and
+  Bill Fenner (fenner@parc.xerox.com)
+
+- Use autoconf endian detection since BYTE_ORDER isn't defined on all systems.
+
+- Fix dvmrp printer truncation checks and add a dvmrp probe printer.
+  Thanks to Danny J. Mitzel (mitzel@ipsilon.com)
+
+- Rewrite ospf printer to improve truncation checks.
+
+- Don't parse tcp options past the EOL. As noted by David Sacerdote
+  (davids@secnet.com). Also, check tcp options to make sure they ar
+  actually in the tcp header (in addition to the normal truncation
+  checks). Fix the SACK code to print the N blocks (instead of the
+  first block N times).
+
+- Don't say really small UDP packets are truncated just because they
+  aren't big enough to be a RPC. As noted by David Sacerdote.
+
+v3.2.1 Sun Jul 14 03:02:26 PDT 1996
+
+- Added rfc1716 icmp codes as suggested by Martin Fredriksson
+  (martin@msp.se)
+
+- Print mtu for icmp unreach need frag packets. Thanks to John
+  Hawkinson (jhawk@mit.edu)
+
+- Decode icmp router discovery messages. Thanks to Jeffrey Honig
+  (jch@bsdi.com)
+
+- Added a printer entry for DLT_IEEE802 as suggested by Tak Kushida
+  (kushida@trl.ibm.co.jp)
+
+- Check igmp checksum if possible. Thanks to John Hawkinson.
+
+- Made changes for SINIX. Thanks to Andrej Borsenkow
+  (borsenkow.msk@sni.de)
+
+- Use autoconf's idea of the top level directory in install targets.
+  Thanks to John Hawkinson.
+
+- Avoid infinite loop in tcp options printing code. Thanks to Jeffrey
+  Mogul (mogul@pa.dec.com)
+
+- Avoid using -lsocket in IRIX 5.2 and earlier since it breaks snoop.
+  Thanks to John Hawkinson.
+
+- Added some more packet truncation checks.
+
+- On systems that have it, use sigset() instead of signal() since
+  signal() has different semantics on these systems.
+
+- Fixed some more alignment problems on the alpha.
+
+- Add code to massage unprintable characters in the domain and ipx
+  printers. Thanks to John Hawkinson.
+
+- Added explicit netmask support. Thanks to Steve Nuchia
+  (steve@research.oknet.com)
+
+- Add "sca" keyword (for DEC cluster services) as suggested by Terry
+  Kennedy (terry@spcvxa.spc.edu)
+
+- Add "atalk" keyword as suggested by John Hawkinson.
+
+- Added an igrp printer. Thanks to Francis Dupont
+  (francis.dupont@inria.fr)
+
+- Print IPX net numbers in hex a la Novell Netware. Thanks to Terry
+  Kennedy (terry@spcvxa.spc.edu)
+
+- Fixed snmp extended tag field parsing bug. Thanks to Pascal Hennequin
+  (pascal.hennequin@hugo.int-evry.fr)
+
+- Added some ETHERTYPEs missing on some systems.
+
+- Added truncated packet macros and various checks.
+
+- Fixed endian problems with the DECnet printer.
+
+- Use $CC when checking gcc version. Thanks to Carl Lindberg
+  (carl_lindberg@blacksmith.com)
+
+- Fixes for AIX (although this system is not yet supported). Thanks to
+  John Hawkinson.
+
+- Fix bugs in the autoconf misaligned accesses code fragment.
+
+- Include sys/param.h to get BYTE_ORDER in a few places. Thanks to
+  Pavlin Ivanov Radoslavov (pavlin@cs.titech.ac.jp)
+
+v3.2 Sun Jun 23 02:28:10 PDT 1996
+
+- Print new icmp unreachable codes as suggested by Martin Fredriksson
+  (martin@msp.se). Also print code value when unknown for icmp redirect
+  and time exceeded.
+
+- Fix an alignment endian bug in getname(). Thanks to John Hawkinson.
+
+- Define "new" domain record types if not found in arpa/nameserv.h.
+  Resulted from a suggestion from John Hawkinson (jhawk@mit.edu). Also
+  fixed an endian bug when printing mx record and added some new record
+  types.
+
+- Added RIP V2 support. Thanks to Jeffrey Honig (jch@bsdi.com)
+
+- Added T/TCP options printing. As suggested by Richard Stevens
+  (rstevens@noao.edu)
+
+- Use autoconf to detect architectures that can't handle misaligned
+  accesses.
+
+v3.1 Thu Jun 13 20:59:32 PDT 1996
+
+- Changed u_int32/int32 to u_int32_t/int32_t to be consistent with bsd
+  and bind (as suggested by Charles Hannum).
+
+- Port to GNU autoconf.
+
+- Add support for printing DVMRP and PIM traffic thanks to
+  Havard Eidnes (Havard.Eidnes@runit.sintef.no).
+
+- Fix AppleTalk, IPX and DECnet byte order problems due to wrong endian
+  define being referenced. Reported by Terry Kennedy.
+
+- Minor fixes to the man page thanks to Mark Andrews.
+
+- Endian fixes to RTP and vat packet dumpers, thanks to Bruce Mah
+  (bmah@cs.berkeley.edu).
+
+- Added support for new dns types, thanks to Rainer Orth.
+
+- Fixed tftp_print() to print the block number for ACKs.
+
+- Document -dd and -ddd. Resulted from a bug report from Charlie Slater
+  (cslater@imatek.com).
+
+- Check return status from malloc/calloc/etc.
+
+- Check return status from pcap_loop() so we can print an error and
+  exit with a bad status if there were problems.
+
+- Bail if ip option length is <= 0. Resulted from a bug report from
+  Darren Reed (darrenr@vitruvius.arbld.unimelb.edu.au).
+
+- Print out a little more information for sun rpc packets.
+
+- Add suport for Kerberos 4 thanks to John Hawkinson (jhawk@mit.edu).
+
+- Fixed the Fix EXTRACT_SHORT() and EXTRACT_LONG() macros (which were
+  wrong on little endian machines).
+
+- Fixed alignment bug in ipx_decode(). Thanks to Matt Crawford
+  (crawdad@fnal.gov).
+
+- Fix ntp_print() to not print garbage when the stratum is
+  "unspecified." Thanks to Deus Ex Machina (root@belle.bork.com).
+
+- Rewrote tcp options printer code to check for truncation. Added
+  selective acknowledgment case.
+
+- Fixed an endian bug in the ospf printer. Thanks to Jeffrey C Honig
+  (jch@bsdi.com)
+
+- Fix rip printer to handle 4.4 BSD sockaddr struct which only uses one
+  octet for the sa_family member. Thanks to Yoshitaka Tokugawa
+  (toku@dit.co.jp)
+
+- Don't checksum ip header if we don't have all of it. Thanks to John
+  Hawkinson (jhawk@mit.edu).
+
+- Print out hostnames if possible in egp printer. Thanks to Jeffrey
+  Honig (jhc@bsdi.com)
+
+
+v3.1a1 Wed May  3 19:21:11 PDT 1995
+
+- Include time.h when SVR4 is defined to avoid problems under Solaris
+  2.3.
+
+- Fix etheraddr_string() in the ETHER_SERVICE to return the saved
+  strings, not the local buffer. Thanks to Stefan Petri
+  (petri@ibr.cs.tu-bs.de).
+
+- Detect when pcap raises the snaplen (e.g. with snit). Print a warning
+  that the selected value was not used. Thanks to Pascal Hennequin
+  (Pascal.Hennequin@hugo.int-evry.fr).
+
+- Add a truncated packet test to print-nfs.c. Thanks to Pascal Hennequin.
+
+- BYTEORDER -> BYTE_ORDER Thanks to Terry Kennedy (terry@spcvxa.spc.edu).
+
+v3.0.3 Sun Oct  1 18:35:00 GMT 1995
+
+- Although there never was a 3.0.3 release, the linux boys cleverly
+  "released" one in late 1995.
+
+v3.0.2 Thu Apr 20 21:28:16 PDT 1995
+
+- Change configuration to not use gcc v2 flags with gcc v1.
+
+- Redo gmt2local() so that it works under BSDI (which seems to return
+  an empty timezone struct from gettimeofday()). Based on report from
+  Terry Kennedy (terry@spcvxa.spc.edu).
+
+- Change configure to recognize IP[0-9]* as "mips" SGI hardware. Based
+  on report from Mark Andrews (mandrews@alias.com).
+
+- Don't pass cc flags to gcc. Resulted from a bug report from Rainer
+  Orth (ro@techfak.uni-bielefeld.de).
+
+- Fixed printout of connection id for uncompressed tcp slip packets.
+  Resulted from a bug report from Richard Stevens (rstevens@noao.edu).
+
+- Hack around deficiency in Ultrix's make.
+
+- Add ETHERTYPE_TRAIL define which is missing from irix5.
+
+v3.0.1 Wed Aug 31 22:42:26 PDT 1994
+
+- Fix problems with gcc2 vs. malloc() and read() prototypes under SunOS 4.
+
+v3.0 Mon Jun 20 19:23:27 PDT 1994
+
+- Added support for printing tcp option timestamps thanks to
+  Mark Andrews (mandrews@alias.com).
+
+- Reorganize protocol dumpers to take const pointers to packets so they
+  never change the contents (i.e., they used to do endian conversions
+  in place).  Previously, whenever more than one pass was taken over
+  the packet, the packet contents would be dumped incorrectly (i.e.,
+  the output form -x would be wrong on little endian machines because
+  the protocol dumpers would modify the data).  Thanks to Charles Hannum
+  (mycroft@gnu.ai.mit.edu) for reporting this problem.
+
+- Added support for decnet protocol dumping thanks to Jeff Mogul
+  (mogul@pa.dec.com).
+
+- Fix bug that caused length of packet to be incorrectly printed
+  (off by ether header size) for unknown ethernet types thanks
+  to Greg Miller (gmiller@kayak.mitre.org).
+
+- Added support for IPX protocol dumping thanks to Brad Parker
+  (brad@fcr.com).
+
+- Added check to verify IP header checksum under -v thanks to
+  Brad Parker (brad@fcr.com).
+
+- Move packet capture code to new libpcap library (which is
+  packaged separately).
+
+- Prototype everything and assume an ansi compiler.
+
+- print-arp.c: Print hardware ethernet addresses if they're not
+  what we expect.
+
+- print-bootp.c: Decode the cmu vendor field. Add RFC1497 tags.
+  Many helpful suggestions from Gordon Ross (gwr@jericho.mc.com).
+
+- print-fddi.c: Improvements. Thanks to Jeffrey Mogul
+  (mogul@pa.dec.com).
+
+- print-icmp.c: Byte swap netmask before printing. Thanks to
+  Richard Stevens (rstevens@noao.edu). Print icmp type when unknown.
+
+- print-ip.c: Print the inner ip datagram of ip-in-ip encapsulated packets.
+  By default, only the inner packet is dumped, appended with the token
+  "(encap)".  Under -v, both the inner and output packets are dumped
+  (on the same line).  Note that the filter applies to the original packet,
+  not the encapsulated packet.  So if you run tcpdump on a net with an
+  IP Multicast tunnel, you cannot filter out the datagrams using the
+  conventional syntax.  (You can filter away all the ip-in-ip traffic
+  with "not ip proto 4".)
+
+- print-nfs.c: Keep pending rpc's in circular table. Add generic
+  nfs header and remove os dependences. Thanks to Jeffrey Mogul.
+
+- print-ospf.c: Improvements. Thanks to Jeffrey Mogul.
+
+- tcpdump.c: Add -T flag allows interpretation of "vat", "wb", "rpc"
+  (sunrpc) and rtp packets. Added "inbound" and "outbound" keywords
+  Add && and || operators
+
+v2.2.1 Tue Jun 6 17:57:22 PDT 1992
+
+- Fix bug with -c flag.
+
+v2.2 Fri May 22 17:19:41 PDT 1992
+
+- savefile.c: Remove hack that shouldn't have been exported. Add
+  truncate checks.
+
+- Added the 'icmp' keyword.  For example, 'icmp[0] != 8 and icmp[0] != 0'
+  matches non-echo/reply ICMP packets.
+
+- Many improvements to filter code optimizer.
+
+- Added 'multicast' keyword and extended the 'broadcast' keyword can now be
+  so that protocol qualifications are allowed. For example, "ip broadcast"
+  and "ether multicast" are valid filters.
+
+- Added support for monitoring the loopback interface (i.e. 'tcpdump -i lo').
+  Jeffrey Honig (jch@MITCHELL.CIT.CORNELL.EDU) contributed the kernel
+  patches to netinet/if_loop.c.
+
+- Added support for the Ungermann-Bass Ethernet on IBM/PC-RTs running AOS.
+  Contact Jeffrey Honig (jch@MITCHELL.CIT.CORNELL.EDU) for the diffs.
+
+- Added EGP and OSPF printers, thanks to Jeffrey Honig.
+
+v2.1 Tue Jan 28 11:00:14 PST 1992
+
+- Internal release (never publically exported).
+
+v2.0.1 Sun Jan 26 21:10:10 PDT
+
+- Various byte ordering fixes.
+
+- Add truncation checks.
+
+- inet.c: Support BSD style SIOCGIFCONF.
+
+- nametoaddr.c: Handle multi addresses for single host.
+
+- optimize.c: Rewritten.
+
+- pcap-bpf.c: don't choke when we get ptraced. only set promiscuous
+  for broadcast nets.
+
+- print-atal.c: Fix an alignment bug (thanks to
+  stanonik@nprdc.navy.mil) Add missing printf() argument.
+
+- print-bootp.c: First attempt at decoding the vendor buffer.
+
+- print-domain.c: Fix truncation checks.
+
+- print-icmp.c: Calculate length of packets from the ip header.
+
+- print-ip.c: Print frag id in decimal (so it's easier to match up
+  with non-frags). Add support for ospf, egp and igmp.
+
+- print-nfs.c: Lots of changes.
+
+- print-ntp.c: Make some verbose output depend on -v.
+
+- print-snmp.c: New version from John LoVerso.
+
+- print-tcp.c: Print rfc1072 tcp options.
+
+- tcpdump.c: Print "0x" prefix for %x formats. Always print 6 digits
+  (microseconds) worth of precision. Fix uid bugs.
+
+- A packet dumper has been added (thanks to Jeff Mogul of DECWRL).
+  With this option, you can create an architecture independent binary
+  trace file in real time, without the overhead of the packet printer.
+  At a later time, the packets can be filtered (again) and printed.
+
+- BSD is supported.  You must have BPF in your kernel.
+  Since the filtering is now done in the kernel, fewer packets are
+  dropped.  In fact, with BPF and the packet dumper option, a measly
+  Sun 3/50 can keep up with a busy network.
+
+- Compressed SLIP packets can now be dumped, provided you use our
+  SLIP software and BPF.  These packets are dumped as any other IP
+  packet; the compressed headers are dumped with the '-e' option.
+
+- Machines with little-endian byte ordering are supported (thanks to
+  Jeff Mogul).
+
+- Ultrix 4.0 is supported (also thanks to Jeff Mogul).
+
+- IBM RT and Stanford Enetfilter support has been added by
+  Rayan Zachariassen <rayan@canet.ca>.  Tcpdump has been tested under
+  both the vanilla Enetfilter interface, and the extended interface
+  (#ifdef'd by IBMRTPC) present in the MERIT version of the Enetfilter.
+
+- TFTP packets are now printed (requests only).
+
+- BOOTP packets are now printed.
+
+- SNMP packets are now printed. (thanks to John LoVerso of Xylogics).
+
+- Sparc architectures, including the Sparcstation-1, are now
+  supported thanks to Steve McCanne and Craig Leres.
+
+- SunOS 4 is now supported thanks to Micky Liu of Columbia
+  University (micky@cunixc.cc.columbia.edu).
+
+- IP options are now printed.
+
+- RIP packets are now printed.
+
+- There's a -v flag that prints out more information than the
+  default (e.g., it will enable printing of IP ttl, tos and id)
+  and -q flag that prints out less (e.g., it will disable
+  interpretation of AppleTalk-in-UDP).
+
+- The grammar has undergone substantial changes (if you have an
+  earlier version of tcpdump, you should re-read the manual
+  entry).
+
+  The most useful change is the addition of an expression
+  syntax that lets you filter on arbitrary fields or values in the
+  packet.  E.g., "ip[0] > 0x45" would print only packets with IP
+  options, "tcp[13] & 3 != 0" would print only TCP SYN and FIN
+  packets.
+
+  The most painful change is that concatenation no longer means
+  "and" -- e.g., you have to say "host foo and port bar" instead
+  of "host foo port bar".  The up side to this down is that
+  repeated qualifiers can be omitted, making most filter
+  expressions shorter.  E.g., you can now say "ip host foo and
+  (bar or baz)" to look at ip traffic between hosts foo and bar or
+  between hosts foo and baz.  [The old way of saying this was "ip
+  host foo and (ip host bar or ip host baz)".]
+
+v2.0 Sun Jan 13 12:20:40 PST 1991
+
+- Initial public release.

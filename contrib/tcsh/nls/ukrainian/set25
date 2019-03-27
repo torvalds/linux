@@ -1,0 +1,6 @@
+$ $tcsh: set25,v 1.4 2011/02/04 18:19:44 christos Exp $
+$ tc.sig.c
+$set 25 
+1 our wait %d\n
+2 помилка: bsd_signal(%d) сигнал за межами інтервалу\n
+3 помилка: bsd_signal(%d) - невдача sigaction, код помилки %d\n

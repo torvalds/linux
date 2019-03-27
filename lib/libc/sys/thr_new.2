@@ -1,0 +1,245 @@
+.\" Copyright (c) 2016 The FreeBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 2, 2016
+.Dt THR_NEW 2
+.Os
+.Sh NAME
+.Nm thr_new
+.Nd create new thread of execution
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/thr.h
+.Ft int
+.Fn thr_new "struct thr_param *param" "int param_size"
+.Sh DESCRIPTION
+.Bf -symbolic
+This function is intended for implementing threading.
+Normal applications should call
+.Xr pthread_create 3
+instead.
+.Ef
+.Pp
+The
+.Fn thr_new
+system call creates a new kernel-scheduled thread of execution in the context
+of the current process.
+The newly created thread shares all attributes of the process with the
+existing kernel-scheduled threads in the process, but has private processor
+execution state.
+The machine context for the new thread is copied from the creating thread's
+context, including coprocessor state.
+FPU state and specific machine registers are excluded from the copy.
+These are set according to ABI requirements and syscall parameters.
+The FPU state for the new thread is reinitialized to clean.
+.Pp
+The
+.Fa param
+structure supplies parameters affecting the thread creation.
+The structure is defined in the
+.In sys/thr.h
+header as follows
+.Bd -literal
+struct thr_param {
+    void          (*start_func)(void *);
+    void          *arg;
+    char          *stack_base;
+    size_t        stack_size;
+    char          *tls_base;
+    size_t        tls_size;
+    long          *child_tid;
+    long          *parent_tid;
+    int           flags;
+    struct rtprio *rtp;
+};
+.Ed
+and contains the following fields:
+.Bl -tag -width ".Va parent_tid"
+.It Va start_func
+Pointer to the thread entry function.
+The kernel arranges for the new thread to start executing the function
+upon the first return to userspace.
+.It Va arg
+Opaque argument supplied to the entry function.
+.It Va stack_base
+Stack base address.
+The stack must be allocated by the caller.
+On some architectures, the ABI might require that the system put information
+on the stack to ensure the execution environment for
+.Va start_func .
+.It Va stack_size
+Stack size.
+.It Va tls_base
+TLS base address.
+The value of TLS base is loaded into the ABI-defined machine register
+in the new thread context.
+.It Va tls_size
+TLS size.
+.It Va child_tid
+Address to store the new thread identifier, for the child's use.
+.It Va parent_tid
+Address to store the new thread identifier, for the parent's use.
+.Pp
+Both
+.Va child_tid
+and
+.Va parent_tid
+are provided, with the intent that
+.Va child_tid
+is used by the new thread to get its thread identifier without
+issuing the
+.Xr thr_self 2
+syscall, while
+.Va parent_tid
+is used by the thread creator.
+The latter is separate from
+.Va child_tid
+because the new thread might exit and free its thread data before the parent
+has a chance to execute far enough to access it.
+.It Va flags
+Thread creation flags.
+The
+.Va flags
+member may specify the following flags:
+.Bl -tag -width ".Dv THR_SYSTEM_SCOPE"
+.It Dv THR_SUSPENDED
+Create the new thread in the suspended state.
+The flag is not currently implemented.
+.It Dv THR_SYSTEM_SCOPE
+Create the system scope thread.
+The flag is not currently implemented.
+.El
+.It Va rtp
+Real-time scheduling priority for the new thread.
+May be
+.Dv NULL
+to inherit the priority from the
+creating thread.
+.El
+.Pp
+The
+.Fa param_size
+argument should be set to the size of the
+.Fa param
+structure.
+.Pp
+After the first successful creation of an additional thread,
+the process is marked by the kernel as multi-threaded.
+In particular, the
+.Dv P_HADTHREADS
+flag is set in the process'
+.Dv p_flag
+(visible in the
+.Xr ps 1
+output), and several operations are executed in multi-threaded mode.
+For instance, the
+.Xr execve 2
+system call terminates all threads but the calling one on successful
+execution.
+.Sh RETURN VALUES
+If successful,
+.Fn thr_new
+will return zero, otherwise \-1 is returned, and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn thr_new
+operation returns the following errors:
+.Bl -tag -width Er
+.\" When changing this list, consider updating share/man/man3/pthread_create.3,
+.\" since that function can return any of these errors.
+.It Bq Er EFAULT
+The memory pointed to by the
+.Fa param
+argument is not valid.
+.It Bq Er EFAULT
+The memory pointed to by the
+.Fa param
+structure
+.Fa child_tid , parent_tid
+or
+.Fa rtp
+arguments is not valid.
+.It Bq Er EFAULT
+The specified stack base is invalid, or the kernel was unable to put required
+initial data on the stack.
+.It Bq Er EINVAL
+The
+.Fa param_size
+argument specifies a negative value, or the value is greater than the
+largest
+.Fa struct param
+size the kernel can interpret.
+.It Bq Er EINVAL
+The
+.Fa rtp
+member is not
+.Dv NULL
+and specifies invalid scheduling parameters.
+.It Bq Er EINVAL
+The specified TLS base is invalid.
+.It Bq Er EPERM
+The caller does not have permission to set the scheduling parameters or
+scheduling policy.
+.It Bq Er EPROCLIM
+Creation of the new thread would exceed the
+.Dv RACCT_NTHR
+limit, see
+.Xr racct 2 .
+.It Bq Er EPROCLIM
+Creation of the new thread would exceed the
+.Dv kern.threads.max_threads_per_proc
+.Xr sysctl 2
+limit.
+.It Bq Er ENOMEM
+There was not enough kernel memory to allocate the new thread structures.
+.El
+.Sh SEE ALSO
+.Xr ps 1 ,
+.Xr execve 2 ,
+.Xr racct 2 ,
+.Xr thr_exit 2 ,
+.Xr thr_kill 2 ,
+.Xr thr_kill2 2 ,
+.Xr thr_self 2 ,
+.Xr thr_set_name 2 ,
+.Xr _umtx_op 2 ,
+.Xr pthread_create 3
+.Sh STANDARDS
+The
+.Fn thr_new
+system call is non-standard and is used by the
+.Lb libthr
+to implement
+.St -p1003.1-2001
+.Xr pthread 3
+functionality.

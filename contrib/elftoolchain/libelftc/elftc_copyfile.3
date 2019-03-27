@@ -1,0 +1,73 @@
+.\" Copyright (c) 2011 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elftc_copyfile.3 3645 2018-10-15 20:17:14Z jkoshy $
+.\"
+.Dd December 11, 2011
+.Dt ELFTC_COPYFILE 3
+.Os
+.Sh NAME
+.Nm elftc_copyfile
+.Nd convenience function to copy data
+.Sh LIBRARY
+.Lb libelftc
+.Sh SYNOPSIS
+.In libelftc.h
+.Ft in
+.Fn elftc_copyfile "int ifd" "int ofd"
+.Sh DESCRIPTION
+The function
+.Fn elftc_copyfile
+copies the contents of the file referenced by argument
+.Ar ifd
+to the file referenced by argument
+.Ar ofd .
+.Pp
+The argument
+.Ar ifd
+should contain a file descriptor opened for reading, with its file
+offset at the beginning of the file.
+.Pp
+The argument
+.Ar ofd
+should contain a file descriptor opened for writing.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The function
+.Fn elftc_copyfile
+may fail with any of the errors returned by
+.Xr fstat 2 ,
+.Xr mmap 2 ,
+.Xr munmap 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+or
+.Xr malloc 3 .
+.Sh SEE ALSO
+.Xr fstat 2 ,
+.Xr mmap 2 ,
+.Xr munmap 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr malloc 3

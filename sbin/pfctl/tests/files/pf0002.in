@@ -1,0 +1,34 @@
+# test
+
+block	       out log on tun1000000		 all
+block	       in  log on tun1000000		 all
+
+block return-rst  out log on tun1000000 proto tcp all
+block return-rst  in  log on tun1000000 proto tcp all
+block return-icmp out log on tun1000000 proto udp all
+block return-icmp in  log on tun1000000 proto udp all
+
+block out log quick on tun1000000 from ! 157.161.48.183 to any
+
+block in quick on tun1000000 from any to 255.255.255.255
+
+block in log quick on tun1000000 from 10.0.0.0/8		to any
+block in log quick on tun1000000 from 172.16.0.0/12	to any
+block in quick log on tun1000000 from 192.168.0.0/16	to any
+block in quick log on tun1000000 from 255.255.255.255/32 to any
+
+block in log quick from no-route to any
+
+pass out on tun1000000 inet proto icmp all icmp-type 8 code 0 keep state
+pass in  on tun1000000 inet proto icmp all icmp-type 8 code 0 keep state
+
+pass out on tun1000000 proto udp all keep state
+
+pass in on tun1000000 proto udp from any to any port = domain keep state
+
+pass out on tun1000000 proto tcp all keep state
+
+pass in on tun1000000 proto tcp from any to any port = ssh    keep state
+pass in on tun1000000 proto tcp from any to any port = smtp   keep state
+pass in on tun1000000 proto tcp from any to any port = domain keep state
+pass in on tun1000000 proto tcp from any to any port = auth   keep state

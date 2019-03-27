@@ -1,0 +1,580 @@
+#!/bin/sh
+#
+# $Id: configure,v 1.66 2018/07/31 15:34:00 schwarze Exp $
+#
+# Copyright (c) 2014,2015,2016,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+set -e
+
+[ -w config.log ] && mv config.log config.log.old
+[ -w config.h   ] && mv config.h config.h.old
+
+# Output file descriptor usage:
+# 1 (stdout): config.h, Makefile.local
+# 2 (stderr): original stderr, usually to the console
+# 3: config.log
+
+exec 3> config.log
+echo "file config.log: writing..."
+
+# --- default settings -------------------------------------------------
+# Initialize all variables here,
+# such that nothing can leak in from the environment.
+
+SOURCEDIR=`dirname "$0"`
+
+MANPATH_BASE="/usr/share/man:/usr/X11R6/man"
+MANPATH_DEFAULT="/usr/share/man:/usr/X11R6/man:/usr/local/man"
+OSNAME=
+UTF8_LOCALE=
+
+CC=`printf "all:\\n\\t@echo \\\$(CC)\\n" | env -i make -sf -`
+CFLAGS=
+LDADD=
+LDFLAGS=
+LD_NANOSLEEP=
+LD_OHASH=
+LD_RECVMSG=
+STATIC=
+
+BUILD_CGI=0
+BUILD_CATMAN=0
+INSTALL_LIBMANDOC=0
+
+HAVE_CMSG=
+HAVE_CMSG_XPG42=0
+HAVE_DIRENT_NAMLEN=
+HAVE_EFTYPE=
+HAVE_ENDIAN=
+HAVE_ERR=
+HAVE_FTS=
+HAVE_FTS_COMPARE_CONST=
+HAVE_GETLINE=
+HAVE_GETSUBOPT=
+HAVE_ISBLANK=
+HAVE_MKDTEMP=
+HAVE_NANOSLEEP=
+HAVE_NTOHL=
+HAVE_O_DIRECTORY=
+HAVE_OHASH=
+HAVE_PATH_MAX=
+HAVE_PLEDGE=
+HAVE_PROGNAME=
+HAVE_REALLOCARRAY=
+HAVE_RECALLOCARRAY=
+HAVE_RECVMSG=
+HAVE_REWB_BSD=
+HAVE_REWB_SYSV=
+HAVE_SANDBOX_INIT=
+HAVE_STRCASESTR=
+HAVE_STRINGLIST=
+HAVE_STRLCAT=
+HAVE_STRLCPY=
+HAVE_STRNDUP=
+HAVE_STRPTIME=
+HAVE_STRSEP=
+HAVE_STRTONUM=
+HAVE_SYS_ENDIAN=
+HAVE_VASPRINTF=
+HAVE_WCHAR=
+
+PREFIX="/usr/local"
+BINDIR=
+SBINDIR=
+BIN_FROM_SBIN=
+INCLUDEDIR=
+LIBDIR=
+MANDIR=
+HOMEBREWDIR=
+
+WWWPREFIX="/var/www"
+HTDOCDIR=
+CGIBINDIR=
+
+BINM_APROPOS="apropos"
+BINM_CATMAN="catman"
+BINM_MAKEWHATIS="makewhatis"
+BINM_MAN="man"
+BINM_SOELIM="soelim"
+BINM_WHATIS="whatis"
+MANM_MAN="man"
+MANM_MANCONF="man.conf"
+MANM_MDOC="mdoc"
+MANM_ROFF="roff"
+MANM_EQN="eqn"
+MANM_TBL="tbl"
+
+INSTALL="install"
+INSTALL_PROGRAM=
+INSTALL_LIB=
+INSTALL_MAN=
+INSTALL_DATA=
+LN="ln -f"
+
+# --- manual settings from configure.local -----------------------------
+
+if [ -r ./configure.local ]; then
+	echo "file configure.local: reading..." 1>&2
+	echo "file configure.local: reading..." 1>&3
+	cat ./configure.local 1>&3
+	. ./configure.local
+else
+	echo "file configure.local: no (fully automatic configuration)" 1>&2
+	echo "file configure.local: no (fully automatic configuration)" 1>&3
+fi
+echo 1>&3
+
+# --- tests functions --------------------------------------------------
+
+# Check whether this HAVE_ setting is manually overridden.
+# If yes, use the override, if no, do not decide anything yet.
+# Arguments: test file name, test var name, manual value
+ismanual() {
+	[ -z "${3}" ] && return 1
+	echo "tested ${1}: HAVE_${2}=${3} (manual)" 1>&2
+	echo "tested ${1}: HAVE_${2}=${3} (manual)" 1>&3
+	echo 1>&3
+	return 0
+}
+
+# Run a single autoconfiguration test.
+# In case of success, enable the feature.
+# In case of failure, do not decide anything yet.
+# Arguments: test file name, test var name, additional CFLAGS
+singletest() {
+	cat 1>&3 << __HEREDOC__
+testing ${1}${3} ...
+${COMP} -o test-${1} test-${1}.c ${3}
+__HEREDOC__
+
+	if ${COMP} -o "test-${1}" "${SOURCEDIR}/test-${1}.c" ${3} 1>&3 2>&3
+	then
+		echo "partial result of ${1}${3}: ${CC} succeeded" 1>&3
+	else
+		echo "result of ${1}${3}: ${CC} failed with exit status $?" 1>&3
+		echo "result of compiling ${1}${3}: no" 1>&3
+		echo 1>&3
+		return 1
+	fi
+
+	if ./test-${1} 1>&3 2>&3; then
+		echo "tested ${1}${3}: yes" 1>&2
+		echo "result of running ${1}${3}: yes" 1>&3
+		echo 1>&3
+		eval HAVE_${2}=1
+		rm "test-${1}"
+		return 0
+	else
+		echo "result of ${1}${3}: execution failed with exit status $?" 1>&3
+		echo "result of running ${1}${3}: no" 1>&3
+		echo 1>&3
+		rm "test-${1}"
+		return 1
+	fi
+}
+
+# Run a complete autoconfiguration test, including the check for
+# a manual override and disabling the feature on failure.
+# Arguments: test file name, test var name, additional CFLAGS
+runtest() {
+	eval _manual=\${HAVE_${2}}
+	ismanual "${1}" "${2}" "${_manual}" && return 0
+	singletest "${1}" "${2}" "${3}" && return 0
+	echo "tested ${1}${3}: no" 1>&2
+	eval HAVE_${2}=0
+	return 1
+}
+
+# Select a UTF-8 locale.
+get_locale() {
+	[ -n "${HAVE_WCHAR}" ] && [ "${HAVE_WCHAR}" -eq 0 ] && return 0
+	ismanual UTF8_LOCALE UTF8_LOCALE "$UTF8_LOCALE" && return 0
+	echo "testing UTF8_LOCALE ..." 1>&3
+	UTF8_LOCALE=`locale -a | grep -i '^en_US\.UTF-*8$' | head -n 1`
+	if [ -z "${UTF8_LOCALE}" ]; then
+		UTF8_LOCALE=`locale -a | grep -i '\.UTF-*8' | head -n 1`
+		[ -n "${UTF8_LOCALE}" ] || return 1
+	fi
+	echo "selected UTF8_LOCALE=${UTF8_LOCALE}" 1>&2
+	echo "selected UTF8_LOCALE=${UTF8_LOCALE}" 1>&3
+	echo 1>&3
+	return 0;
+}
+
+# --- compiler options -------------------------------------------------
+
+if [ -n "${CFLAGS}" ]; then
+	COMP="${CC} ${CFLAGS}"
+	echo "selected CFLAGS=\"${CFLAGS}\" (manual)" 1>&2
+	echo "selected CFLAGS=\"${CFLAGS}\" (manual)" 1>&3
+	echo 1>&3
+else
+	CFLAGS="-g -W -Wall -Wmissing-prototypes -Wstrict-prototypes"
+	CFLAGS="${CFLAGS} -Wwrite-strings -Wno-unused-parameter"
+	COMP="${CC} ${CFLAGS} -Wno-unused -Werror"
+	echo -n "tested ${CC} -W: " 1>&2
+	echo -n "testing ${CC} -W: " 1>&3
+	runtest noop WFLAG || true
+	if [ "${HAVE_WFLAG}" -eq 0 ]; then
+		CFLAGS="-g"
+		COMP="${CC} ${CFLAGS}"
+	fi
+	echo "selected CFLAGS=\"${CFLAGS}\"" 1>&2
+	echo "selected CFLAGS=\"${CFLAGS}\"" 1>&3
+	echo 1>&3
+fi
+
+if [ -n "${STATIC}" ]; then
+	echo "selected STATIC=\"${STATIC}\" (manual)" 1>&2
+	echo "selected STATIC=\"${STATIC}\" (manual)" 1>&3
+	echo 1>&3
+else
+	runtest noop STATIC -static || true
+	[ ${HAVE_STATIC} -eq 0 ] || STATIC="-static"
+	echo "selected STATIC=\"${STATIC}\"" 1>&2
+	echo "selected STATIC=\"${STATIC}\"" 1>&3
+	echo 1>&3
+fi
+
+# --- tests for config.h  ----------------------------------------------
+
+# --- library functions ---
+runtest dirent-namlen	DIRENT_NAMLEN	|| true
+runtest be32toh		ENDIAN		|| true
+runtest be32toh		SYS_ENDIAN	-DSYS_ENDIAN || true
+runtest EFTYPE		EFTYPE		|| true
+runtest err		ERR		|| true
+runtest getline		GETLINE		|| true
+runtest getsubopt	GETSUBOPT	|| true
+runtest isblank		ISBLANK		|| true
+runtest mkdtemp		MKDTEMP		|| true
+runtest ntohl		NTOHL		|| true
+runtest O_DIRECTORY	O_DIRECTORY	|| true
+runtest PATH_MAX	PATH_MAX	|| true
+runtest pledge		PLEDGE		|| true
+runtest sandbox_init	SANDBOX_INIT	|| true
+runtest progname	PROGNAME	|| true
+runtest reallocarray	REALLOCARRAY	|| true
+runtest recallocarray	RECALLOCARRAY	|| true
+runtest rewb-bsd	REWB_BSD	|| true
+runtest rewb-sysv	REWB_SYSV	|| true
+runtest strcasestr	STRCASESTR	|| true
+runtest stringlist	STRINGLIST	|| true
+runtest strlcat		STRLCAT		|| true
+runtest strlcpy		STRLCPY		|| true
+runtest strndup		STRNDUP		|| true
+runtest strptime	STRPTIME	|| true
+runtest strsep		STRSEP		|| true
+runtest strtonum	STRTONUM	|| true
+runtest vasprintf	VASPRINTF	|| true
+
+if [ ${HAVE_ENDIAN} -eq 0 -a \
+     ${HAVE_SYS_ENDIAN} -eq 0 -a \
+     ${HAVE_NTOHL} -eq 0 ]; then
+	echo "FATAL: no endian conversion functions found" 1>&2
+	echo "FATAL: no endian conversion functions found" 1>&3
+	exit 1
+fi
+
+if ismanual fts FTS ${HAVE_FTS}; then
+	HAVE_FTS_COMPARE_CONST=0
+elif runtest fts FTS_COMPARE_CONST -DFTS_COMPARE_CONST; then
+	HAVE_FTS=1
+else
+	runtest fts FTS || true
+fi
+
+# --- wide character and locale support ---
+if get_locale; then
+	runtest wchar WCHAR -DUTF8_LOCALE=\"${UTF8_LOCALE}\" || true
+else
+	HAVE_WCHAR=0
+	echo "tested wchar: no (no UTF8_LOCALE)" 1>&2
+	echo "tested wchar: no (no UTF8_LOCALE)" 1>&3
+	echo 1>&3
+fi
+
+# --- nanosleep ---
+if [ -n "${LD_NANOSLEEP}" ]; then
+	runtest nanosleep NANOSLEEP "${LD_NANOSLEEP}" || true
+elif singletest nanosleep NANOSLEEP; then
+	:
+elif runtest nanosleep NANOSLEEP "-lrt"; then
+	LD_NANOSLEEP="-lrt"
+fi
+if [ "${HAVE_NANOSLEEP}" -eq 0 ]; then
+	echo "FATAL: nanosleep: no" 1>&2
+	echo "FATAL: nanosleep: no" 1>&3
+	exit 1
+fi
+
+if [ ${BUILD_CATMAN} -gt 0 ]; then
+	# --- recvmsg ---
+	if [ -n "${LD_RECVMSG}" ]; then
+		runtest recvmsg RECVMSG "${LD_RECVMSG}" || true
+	elif singletest recvmsg RECVMSG; then
+		:
+	elif runtest recvmsg RECVMSG "-lsocket"; then
+		LD_RECVMSG="-lsocket"
+	fi
+	if [ "${HAVE_RECVMSG}" -eq 0 ]; then
+		echo "FATAL: recvmsg: no" 1>&2
+		echo "FATAL: recvmsg: no" 1>&3
+		echo "Without recvmsg(2), you cannot BUILD_CATMAN." 1>&2
+		exit 1
+	fi
+
+	# --- cmsg ---
+	if singletest cmsg CMSG; then
+		:
+	elif runtest cmsg CMSG "-D_XPG4_2"; then
+		HAVE_CMSG_XPG42=1
+	fi
+	if [ "${HAVE_CMSG}" -eq 0 ]; then
+		echo "FATAL: cmsg: no" 1>&2
+		echo "FATAL: cmsg: no" 1>&3
+		echo "Without CMSG_FIRSTHDR(3), you cannot BUILD_CATMAN." 1>&2
+		exit 1
+	fi
+fi
+
+# --- ohash ---
+if ismanual ohash OHASH "${HAVE_OHASH}"; then
+	:
+elif [ -n "${LD_OHASH}" ]; then
+	runtest ohash OHASH "${LD_OHASH}" || true
+elif singletest ohash OHASH; then
+	:
+elif runtest ohash OHASH "-lutil"; then
+	LD_OHASH="-lutil"
+fi
+if [ "${HAVE_OHASH}" -eq 0 ]; then
+	LD_OHASH=
+fi
+
+# --- LDADD ---
+LDADD="${LDADD} ${LD_NANOSLEEP} ${LD_RECVMSG} ${LD_OHASH} -lz"
+echo "selected LDADD=\"${LDADD}\"" 1>&2
+echo "selected LDADD=\"${LDADD}\"" 1>&3
+echo 1>&3
+
+# --- write config.h ---
+
+exec > config.h
+
+cat << __HEREDOC__
+#ifdef __cplusplus
+#error "Do not use C++.  See the INSTALL file."
+#endif
+
+#if !defined(__GNUC__) || (__GNUC__ < 4)
+#define __attribute__(x)
+#endif
+
+#if defined(__linux__) || defined(__MINT__)
+#define _GNU_SOURCE	/* See test-*.c what needs this. */
+#endif
+
+__HEREDOC__
+
+[ ${HAVE_GETLINE} -eq 0 -o \
+  ${HAVE_REALLOCARRAY} -eq 0 -o ${HAVE_RECALLOCARRAY} -eq 0 -o \
+  ${HAVE_STRLCAT} -eq 0 -o ${HAVE_STRLCPY} -eq 0 -o \
+  ${HAVE_STRNDUP} -eq 0 ] \
+	&& echo "#include <sys/types.h>"
+[ ${HAVE_VASPRINTF} -eq 0 ] && echo "#include <stdarg.h>"
+[ ${HAVE_GETLINE} -eq 0 ] && echo "#include <stdio.h>"
+
+echo
+echo "#define MAN_CONF_FILE \"/etc/${MANM_MANCONF}\""
+echo "#define MANPATH_BASE \"${MANPATH_BASE}\""
+echo "#define MANPATH_DEFAULT \"${MANPATH_DEFAULT}\""
+[ -n "${OSNAME}" ] && echo "#define OSNAME \"${OSNAME}\""
+[ -n "${UTF8_LOCALE}" ] && echo "#define UTF8_LOCALE \"${UTF8_LOCALE}\""
+[ -n "${HOMEBREWDIR}" ] && echo "#define HOMEBREWDIR \"${HOMEBREWDIR}\""
+[ ${HAVE_EFTYPE} -eq 0 ] && echo "#define EFTYPE EINVAL"
+[ ${HAVE_O_DIRECTORY} -eq 0 ] && echo "#define O_DIRECTORY 0"
+[ ${HAVE_PATH_MAX} -eq 0 ] && echo "#define PATH_MAX 4096"
+if [ ${HAVE_ENDIAN} -eq 0 -a ${HAVE_SYS_ENDIAN} -eq 0 ]; then
+	echo "#define be32toh ntohl"
+	echo "#define htobe32 htonl"
+fi
+
+cat << __HEREDOC__
+#define HAVE_CMSG_XPG42 ${HAVE_CMSG_XPG42}
+#define HAVE_DIRENT_NAMLEN ${HAVE_DIRENT_NAMLEN}
+#define HAVE_ENDIAN ${HAVE_ENDIAN}
+#define HAVE_ERR ${HAVE_ERR}
+#define HAVE_FTS ${HAVE_FTS}
+#define HAVE_FTS_COMPARE_CONST ${HAVE_FTS_COMPARE_CONST}
+#define HAVE_GETLINE ${HAVE_GETLINE}
+#define HAVE_GETSUBOPT ${HAVE_GETSUBOPT}
+#define HAVE_ISBLANK ${HAVE_ISBLANK}
+#define HAVE_MKDTEMP ${HAVE_MKDTEMP}
+#define HAVE_NTOHL ${HAVE_NTOHL}
+#define HAVE_PLEDGE ${HAVE_PLEDGE}
+#define HAVE_PROGNAME ${HAVE_PROGNAME}
+#define HAVE_REALLOCARRAY ${HAVE_REALLOCARRAY}
+#define HAVE_RECALLOCARRAY ${HAVE_RECALLOCARRAY}
+#define HAVE_REWB_BSD ${HAVE_REWB_BSD}
+#define HAVE_REWB_SYSV ${HAVE_REWB_SYSV}
+#define HAVE_SANDBOX_INIT ${HAVE_SANDBOX_INIT}
+#define HAVE_STRCASESTR ${HAVE_STRCASESTR}
+#define HAVE_STRINGLIST ${HAVE_STRINGLIST}
+#define HAVE_STRLCAT ${HAVE_STRLCAT}
+#define HAVE_STRLCPY ${HAVE_STRLCPY}
+#define HAVE_STRNDUP ${HAVE_STRNDUP}
+#define HAVE_STRPTIME ${HAVE_STRPTIME}
+#define HAVE_STRSEP ${HAVE_STRSEP}
+#define HAVE_STRTONUM ${HAVE_STRTONUM}
+#define HAVE_SYS_ENDIAN ${HAVE_SYS_ENDIAN}
+#define HAVE_VASPRINTF ${HAVE_VASPRINTF}
+#define HAVE_WCHAR ${HAVE_WCHAR}
+#define HAVE_OHASH ${HAVE_OHASH}
+
+#define BINM_APROPOS "${BINM_APROPOS}"
+#define BINM_CATMAN "${BINM_CATMAN}"
+#define BINM_MAKEWHATIS "${BINM_MAKEWHATIS}"
+#define BINM_MAN "${BINM_MAN}"
+#define BINM_SOELIM "${BINM_SOELIM}"
+#define BINM_WHATIS "${BINM_WHATIS}"
+
+__HEREDOC__
+
+if [ ${HAVE_ERR} -eq 0 ]; then
+	echo "extern	void	  err(int, const char *, ...);"
+	echo "extern	void	  errx(int, const char *, ...);"
+	echo "extern	void	  warn(const char *, ...);"
+	echo "extern	void	  warnx(const char *, ...);"
+fi
+
+[ ${HAVE_GETLINE} -eq 0 ] && \
+	echo "extern	ssize_t	  getline(char **, size_t *, FILE *);"
+
+[ ${HAVE_GETSUBOPT} -eq 0 ] && \
+	echo "extern	int	  getsubopt(char **, char * const *, char **);"
+
+[ ${HAVE_ISBLANK} -eq 0 ] && \
+	echo "extern	int	  isblank(int);"
+
+[ ${HAVE_MKDTEMP} -eq 0 ] && \
+	echo "extern	char	 *mkdtemp(char *);"
+
+if [ ${HAVE_PROGNAME} -eq 0 ]; then
+	echo "extern 	const char *getprogname(void);"
+	echo "extern	void	  setprogname(const char *);"
+fi
+
+[ ${HAVE_REALLOCARRAY} -eq 0 ] && \
+	echo "extern	void	 *reallocarray(void *, size_t, size_t);"
+
+[ ${HAVE_RECALLOCARRAY} -eq 0 ] && \
+	echo "extern	void	 *recallocarray(void *, size_t, size_t, size_t);"
+
+[ ${HAVE_STRCASESTR} -eq 0 ] && \
+	echo "extern	char	 *strcasestr(const char *, const char *);"
+
+[ ${HAVE_STRLCAT} -eq 0 ] && \
+	echo "extern	size_t	  strlcat(char *, const char *, size_t);"
+
+[ ${HAVE_STRLCPY} -eq 0 ] && \
+	echo "extern	size_t	  strlcpy(char *, const char *, size_t);"
+
+[ ${HAVE_STRNDUP} -eq 0 ] && \
+	echo "extern	char	 *strndup(const char *, size_t);"
+
+[ ${HAVE_STRSEP} -eq 0 ] && \
+	echo "extern	char	 *strsep(char **, const char *);"
+
+[ ${HAVE_STRTONUM} -eq 0 ] && \
+	echo "extern	long long strtonum(const char *, long long, long long, const char **);"
+
+[ ${HAVE_VASPRINTF} -eq 0 ] && \
+	echo "extern	int	  vasprintf(char **, const char *, va_list);"
+
+echo "file config.h: written" 1>&2
+echo "file config.h: written" 1>&3
+
+# --- tests for Makefile.local -----------------------------------------
+
+exec > Makefile.local
+
+[ -z "${BINDIR}"          ] && BINDIR="${PREFIX}/bin"
+[ -z "${SBINDIR}"         ] && SBINDIR="${PREFIX}/sbin"
+[ -z "${BIN_FROM_SBIN}"   ] && BIN_FROM_SBIN="../bin"
+[ -z "${INCLUDEDIR}"      ] && INCLUDEDIR="${PREFIX}/include/mandoc"
+[ -z "${LIBDIR}"          ] && LIBDIR="${PREFIX}/lib/mandoc"
+[ -z "${MANDIR}"          ] && MANDIR="${PREFIX}/man"
+
+[ -z "${HTDOCDIR}"        ] && HTDOCDIR="${WWWPREFIX}/htdocs"
+[ -z "${CGIBINDIR}"       ] && CGIBINDIR="${WWWPREFIX}/cgi-bin"
+
+[ -z "${INSTALL_PROGRAM}" ] && INSTALL_PROGRAM="${INSTALL} -m 0555"
+[ -z "${INSTALL_LIB}"     ] && INSTALL_LIB="${INSTALL} -m 0444"
+[ -z "${INSTALL_MAN}"     ] && INSTALL_MAN="${INSTALL} -m 0444"
+[ -z "${INSTALL_DATA}"    ] && INSTALL_DATA="${INSTALL} -m 0444"
+
+BUILD_TARGETS=
+[ ${BUILD_CGI} -gt 0 ] && BUILD_TARGETS="man.cgi"
+[ ${BUILD_CATMAN} -gt 0 ] && \
+	BUILD_TARGETS="${BUILD_TARGETS} mandocd catman"
+INSTALL_TARGETS=
+[ ${INSTALL_LIBMANDOC} -gt 0 ] && INSTALL_TARGETS="lib-install"
+[ ${BUILD_CGI} -gt 0 ] && INSTALL_TARGETS="${INSTALL_TARGETS} cgi-install"
+[ ${BUILD_CATMAN} -gt 0 ] && \
+	INSTALL_TARGETS="${INSTALL_TARGETS} catman-install"
+
+cat << __HEREDOC__
+BUILD_TARGETS	= ${BUILD_TARGETS}
+INSTALL_TARGETS	= ${INSTALL_TARGETS}
+CC		= ${CC}
+CFLAGS		= ${CFLAGS}
+LDADD		= ${LDADD}
+LDFLAGS		= ${LDFLAGS}
+STATIC		= ${STATIC}
+PREFIX		= ${PREFIX}
+BINDIR		= ${BINDIR}
+SBINDIR		= ${SBINDIR}
+BIN_FROM_SBIN	= ${BIN_FROM_SBIN}
+INCLUDEDIR	= ${INCLUDEDIR}
+LIBDIR		= ${LIBDIR}
+MANDIR		= ${MANDIR}
+WWWPREFIX	= ${WWWPREFIX}
+HTDOCDIR	= ${HTDOCDIR}
+CGIBINDIR	= ${CGIBINDIR}
+BINM_APROPOS	= ${BINM_APROPOS}
+BINM_CATMAN	= ${BINM_CATMAN}
+BINM_MAKEWHATIS	= ${BINM_MAKEWHATIS}
+BINM_MAN	= ${BINM_MAN}
+BINM_SOELIM	= ${BINM_SOELIM}
+BINM_WHATIS	= ${BINM_WHATIS}
+MANM_MAN	= ${MANM_MAN}
+MANM_MANCONF	= ${MANM_MANCONF}
+MANM_MDOC	= ${MANM_MDOC}
+MANM_ROFF	= ${MANM_ROFF}
+MANM_EQN	= ${MANM_EQN}
+MANM_TBL	= ${MANM_TBL}
+INSTALL		= ${INSTALL}
+INSTALL_PROGRAM	= ${INSTALL_PROGRAM}
+INSTALL_LIB	= ${INSTALL_LIB}
+INSTALL_MAN	= ${INSTALL_MAN}
+INSTALL_DATA	= ${INSTALL_DATA}
+LN		= ${LN}
+__HEREDOC__
+
+echo "file Makefile.local: written" 1>&2
+echo "file Makefile.local: written" 1>&3
+
+exit 0

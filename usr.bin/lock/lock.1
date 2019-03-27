@@ -1,0 +1,84 @@
+.\" Copyright (c) 1987, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)lock.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd July 10, 2002
+.Dt LOCK 1
+.Os
+.Sh NAME
+.Nm lock
+.Nd reserve a terminal
+.Sh SYNOPSIS
+.Nm
+.Op Fl npv
+.Op Fl t Ar timeout
+.Sh DESCRIPTION
+The
+.Nm
+utility requests a password from the user, reads it again for verification
+and then will normally not relinquish the terminal until the password is
+repeated.
+There are two other conditions under which it will terminate: it
+will timeout after some interval of time and it may be killed by someone
+with the appropriate permission.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl n
+Do not use a timeout value.
+Terminal will be locked forever.
+.It Fl p
+A password is not requested, instead the user's current login password
+is used.
+.It Fl t Ar timeout
+The time limit (default 15 minutes) is changed to
+.Ar timeout
+minutes.
+.It Fl v
+Disable switching virtual terminals while this terminal is locked.
+This option is implemented in a way similar to the
+.Fl S
+option of
+.Xr vidcontrol 1 ,
+and thus has the same restrictions.
+It is only available if the terminal in question is a
+.Xr syscons 4
+or
+.Xr vt 4
+virtual terminal.
+.El
+.Sh SEE ALSO
+.Xr vidcontrol 1 ,
+.Xr syscons 4 ,
+.Xr vt 4
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 3.0 .

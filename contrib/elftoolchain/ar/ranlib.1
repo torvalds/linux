@@ -1,0 +1,86 @@
+.\" Copyright (c) 2007,2009-2012 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: ranlib.1 3642 2018-10-14 14:24:28Z jkoshy $
+.\"
+.Dd December 9, 2012
+.Dt RANLIB 1
+.Os
+.Sh NAME
+.Nm ranlib
+.Nd update archive symbol tables
+.Sh SYNOPSIS
+.Nm
+.Op Fl D
+.Op Fl t
+.Ar archive Ns ...
+.Nm
+.Fl V
+.Sh DESCRIPTION
+The
+.Nm ranlib
+utility is used to update an existing archive symbol table in an
+.Xr ar 1
+archive, or to add an archive symbol table to an archive lacking one.
+.Sh OPTIONS
+The
+.Nm
+utility supports the following options:
+.Bl -tag -width indent
+.It Fl D
+Use zeros for the mtime, uid and gid fields, and use mode 0644 for the
+file mode field for all archive member headers.
+This ensures that checksums on the resulting archives are reproducible
+when member contents are identical.
+.It Fl t
+This option is accepted, but is ignored.
+.It Fl V
+Print a version identifier and exit.
+.El
+.Sh EXAMPLES
+To update the archive symbol table for an archive
+.Pa lib.a ,
+use:
+.Dl "ranlib lib.a"
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr ld 1 ,
+.Xr archive 3 ,
+.Xr elf 3 ,
+.Xr ar 5
+.Sh HISTORY
+The
+.Nm
+command first appeared in AT&T UNIX Version 7.
+.Pp
+In
+.Fx 8.0 ,
+.An Kai Wang Aq Mt kaiw@FreeBSD.org
+reimplemented
+.Nm
+using the
+.Lb libarchive
+and the
+.Lb libelf .

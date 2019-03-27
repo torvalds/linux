@@ -1,0 +1,28 @@
+
+Disk /dev/hda: 14 heads, 62 sectors, 1018 cylinders
+Units = cylinders of 868 * 512 bytes
+
+   Device Boot  Begin   Start     End  Blocks   Id  System
+/dev/hda1           1       1       3    1271    a  OS/2 Boot Manager
+/dev/hda2           4       4     287  123256    6  DOS 16-bit >=32M
+/dev/hda3   *     288     288     649  157108   83  Linux native
+/dev/hda4         650     650    1018  160146   83  Linux native
+
+Disk /dev/sda: 64 heads, 32 sectors, 511 cylinders
+Units = cylinders of 2048 * 512 bytes
+
+   Device Boot  Begin   Start     End  Blocks   Id  System
+/dev/sda1           1       1      21   21488   82  Linux swap
+/dev/sda2          22      22     511  501760   83  Linux native
+
+Disk /dev/sdb: 64 heads, 32 sectors, 4106 cylinders
+Units = cylinders of 2048 * 512 bytes
+
+   Device Boot  Begin   Start     End  Blocks   Id  System
+/dev/sdb1           1       1     201  205808   83  Linux native
+/dev/sdb2         202     202     402  205824   83  Linux native
+/dev/sdb3         403     403     603  205824   83  Linux native
+/dev/sdb4         604     604    4106 3587072    5  Extended
+/dev/sdb5         604     604    1803 1228784   83  Linux native
+/dev/sdb6        1024    1804    3003 1228784   83  Linux native
+/dev/sdb7        2048    3004    4106 1129456   83  Linux native

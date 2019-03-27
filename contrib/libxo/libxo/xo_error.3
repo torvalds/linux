@@ -1,0 +1,51 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_error
+.Nd generate simple error messages in multiple output styles
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Fn xo_error "const char *fmt" "..."
+.Sh DESCRIPTION
+Use the
+.Fn xo_error
+function to generate error messages to standard error.
+The 
+.Fa fmt
+argument is a string containing printf-style formatting
+instructions that describe the remaining arguments.
+.Pp
+When converting an application to
+.Nm libxo ,
+one can replace
+.Em "fprintf(stderr,...)"
+calls with
+.Fn xo_error
+calls.
+.Sh SEE ALSO
+.Xr printf 3 ,
+.Xr xo_emit 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

@@ -1,0 +1,278 @@
+.\" Copyright (c) 2010,2014 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_child.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd December 21, 2014
+.Dt DWARF_CHILD 3
+.Os
+.Sh NAME
+.Nm dwarf_child ,
+.Nm dwarf_offdie ,
+.Nm dwarf_offdie_b ,
+.Nm dwarf_siblingof ,
+.Nm dwarf_siblingof_b
+.Nd retrieve DWARF Debugging Information Entry descriptors
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fn dwarf_child "Dwarf_Die die" "Dwarf_Die *ret_die" "Dwarf_Error *err"
+.Ft int
+.Fo dwarf_offdie
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Off offset"
+.Fa "Dwarf_Die *ret_die"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_offdie_b
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Off offset"
+.Fa "Dwarf_Bool is_info"
+.Fa "Dwarf_Die *ret_die"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_siblingof
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Die *ret_die"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_siblingof_b
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Die *ret_die"
+.Fa "Dwarf_Bool is_info"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+These functions are used to retrieve and traverse DWARF
+Debugging Information Entry (DIE) descriptors associated with
+a compilation unit.
+These descriptors are arranged in the form of a tree, traversable
+using
+.Dq child
+and
+.Dq sibling
+links; see
+.Xr dwarf 3
+for more information.
+DWARF Debugging Information Entry descriptors are represented
+by the
+.Vt Dwarf_Die
+opaque type.
+.Pp
+Function
+.Fn dwarf_child
+retrieves the child of descriptor denoted by argument
+.Ar die ,
+and stores it in the location pointed to by argument
+.Ar ret_die .
+.Pp
+Function
+.Fn dwarf_siblingof
+retrieves the sibling of the descriptor denoted by argument
+.Ar die ,
+and stores it in the location pointed to by argument
+.Ar ret_die .
+If argument
+.Ar die
+is NULL, the first debugging information entry descriptor for the
+current compilation unit will be returned.
+This function and function
+.Fn dwarf_child
+may be used together to traverse the tree of debugging information
+entry descriptors for a compilation unit.
+.Pp
+Function
+.Fn dwarf_siblingof_b
+is identical to the function
+.Fn dwarf_siblingof
+except that it can retrieve the sibling descriptor from either the
+current compilation unit or type unit.
+If argument
+.Ar is_info
+is non-zero, the function behaves identically to function
+.Fn dwarf_siblingof .
+If argument
+.Ar is_info
+is zero, the descriptor referred by argument
+.Ar die
+should be associated with a debugging information entry in the
+type unit.
+The function will store the sibling of the descriptor in the location
+pointed to by argument
+.Ar ret_die .
+If argument
+.Ar is_info
+is zero and argument
+.Ar die
+is
+.Dv NULL ,
+the first debugging information entry descriptor for the
+current type unit will be returned.
+.Pp
+Function
+.Fn dwarf_offdie
+retrieves the debugging information entry descriptor at global offset
+.Ar offset
+in the
+.Dq .debug_info
+section of the object associated with argument
+.Ar dbg .
+The returned descriptor is written to the location pointed to by argument
+.Ar ret_die .
+.Pp
+Function
+.Fn dwarf_offdie_b
+is identical to the function
+.Fn dwarf_offdie
+except that it can retrieve the debugging information entry descriptor at
+global offset
+.Ar offset
+from either of the
+.Dq .debug_info
+and
+.Dq .debug_types
+sections of the object associated with argument
+.Ar dbg .
+If argument
+.Ar is_info
+is non-zero, the function will retrieve the debugging information
+entry from the
+.Dq .debug_info
+section, otherwise the function will retrieve the debugging
+information entry from the
+.Dq .debug_types
+section.
+The returned descriptor is written to the location pointed to by argument
+.Ar ret_die .
+.Ss Memory Management
+The memory area used for the
+.Vt Dwarf_Die
+descriptor returned in argument
+.Ar ret_die
+is allocated by the
+.Lb libdwarf .
+Application code should use function
+.Fn dwarf_dealloc
+with the allocation type
+.Dv DW_DLA_DIE
+to free the memory area when the
+.Vt Dwarf_Die
+descriptor is no longer needed.
+.Sh RETURN VALUES
+These functions return the following values:
+.Bl -tag -width ".Bq Er DW_DLV_NO_ENTRY"
+.It Bq Er DW_DLV_OK
+The call succeeded.
+.It Bq Er DW_DLV_ERROR
+The requested operation failed.
+Additional information about the error encountered will be recorded in
+argument
+.Ar err ,
+if it is not NULL.
+.It Bq Er DW_DLV_NO_ENTRY
+For functions
+.Fn dwarf_child ,
+.Fn dwarf_siblingof
+and
+.Fn dwarf_siblingof_b ,
+the descriptor denoted by argument
+.Ar die
+did not have a child or sibling.
+.Pp
+For functions
+.Fn dwarf_offdie
+and
+.Fn dwarf_offdie_b ,
+there was no debugging information entry at the offset specified by
+argument
+.Ar offset .
+.El
+.Sh EXAMPLES
+To retrieve the first DWARF Debugging Information Entry descriptor for
+the first compilation unit associated with a
+.Vt Dwarf_Debug
+instance, and to traverse all its children, use:
+.Bd -literal -offset indent
+Dwarf_Debug dbg;
+Dwarf_Die die, die0;
+Dwarf_Error de;
+
+\&... allocate dbg using dwarf_init() etc ...
+
+if (dwarf_next_cu_header(dbg, NULL, NULL, NULL, NULL, NULL, &de) !=
+    DW_DLV_OK)
+	errx(EXIT_FAILURE, "dwarf_next_cu_header: %s",
+	    dwarf_errmsg(de));
+
+/* Get the first DIE for the current compilation unit. */
+die = NULL;
+if (dwarf_siblingof(dbg, die, &die0, &de) != DW_DLV_OK)
+	errx(EXIT_FAILURE, "dwarf_siblingof: %s", dwarf_errmsg(de));
+
+/* Get the first child of this DIE. */
+die = die0;
+if (dwarf_child(die, &die0, &de) != DW_DLV_OK)
+	errx(EXIT_FAILURE, "dwarf_child: %s", dwarf_errmsg(de));
+
+/* Get the rest of children. */
+do {
+	die = die0;
+	if (dwarf_siblingof(dbg, die, &die0, &de) == DW_DLV_ERROR)
+		errx(EXIT_FAILURE, "dwarf_siblingof: %s",
+		    dwarf_errmsg(de));
+} while (die0 != NULL);
+.Ed
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_DIE_NO_CU_CONTEXT"
+.It Bq Er DW_DLE_ARGUMENT
+Arguments
+.Ar dbg ,
+.Ar die
+or
+.Ar ret_die
+were NULL.
+.It Bq Er DW_DLE_DIE_NO_CU_CONTEXT
+Argument
+.Ar dbg
+was not associated with a compilation unit.
+.It Bq Er DW_DLE_NO_ENTRY
+The descriptor denoted by argument
+.Ar die
+had no child or sibling, or there was no DWARF debugging information
+entry at the offset specified by argument
+.Va offset .
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_errmsg 3 ,
+.Xr dwarf_get_die_infotypes_flag 3 ,
+.Xr dwarf_next_cu_header 3

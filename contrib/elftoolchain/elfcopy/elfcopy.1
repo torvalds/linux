@@ -1,0 +1,369 @@
+.\" Copyright (c) 2008-2009,2011 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elfcopy.1 3642 2018-10-14 14:24:28Z jkoshy $
+.\"
+.Dd August 30, 2017
+.Dt ELFCOPY 1
+.Os
+.Sh NAME
+.Nm elfcopy ,
+.Nm objcopy
+.Nd copy and translate object files
+.Sh SYNOPSIS
+.Nm
+.Op Fl I Ar objformat | Fl s Ar objformat | Fl -input-target= Ns Ar objformat
+.Op Fl K Ar symbolname | Fl -keep-symbol= Ns Ar symbolname
+.Op Fl L Ar symbolname | Fl -localize-symbol= Ns Ar symbolname
+.Op Fl N Ar symbolname | Fl -strip-symbol= Ns Ar symbolname
+.Op Fl O Ar objformat | Fl -output-target= Ns Ar objformat
+.Op Fl R Ar sectionname | Fl -remove-section= Ns Ar sectionname
+.Op Fl S | Fl -strip-all
+.Op Fl V | Fl -version
+.Op Fl W Ar symbolname | Fl -weaken-symbol= Ns Ar symbolname
+.Op Fl X | Fl -discard-locals
+.Op Fl d | Fl g | Fl -strip-debug
+.Op Fl h | Fl -help
+.Op Fl j Ar sectionname | Fl -only-section= Ns Ar sectionname
+.Op Fl p | Fl -preserve-dates
+.Op Fl w | Fl -wildcard
+.Op Fl x | Fl -discard-all
+.Op Fl -add-gnu-debuglink Ns = Ns Ar filename
+.Op Fl -add-section Ar sectionname Ns = Ns Ar filename
+.Oo
+.Fl -adjust-section-vma Ar section Ns {+|-|=} Ns Ar val |
+.Fl -change-section-address Ar section Ns {+|-|=} Ns Ar val
+.Oc
+.Oo
+.Fl -adjust-start Ns = Ns Ar increment |
+.Fl -change-start Ns = Ns Ar increment
+.Oc
+.Oo
+.Fl -adjust-vma Ns = Ns Ar increment |
+.Fl -change-addresses Ns = Ns Ar increment
+.Oc
+.Op Fl -adjust-warnings | Fl -change-warnings
+.Op Fl -change-section-lma Ar section Ns {+|-|=} Ns Ar val
+.Op Fl -change-section-vma Ar section Ns {+|-|=} Ns Ar val
+.Op Fl -extract-dwo
+.Op Fl -gap-fill Ns = Ns Ar val
+.Op Fl -globalize-symbol Ns = Ns ar symbolname
+.Op Fl -globalize-symbols Ns = Ns Ar filename
+.Op Fl -localize-hidden
+.Op Fl -localize-symbols Ns = Ns Ar filename
+.Op Fl -no-adjust-warnings | Fl -no-change-warnings
+.Op Fl -only-keep-debug
+.Op Fl -pad-to Ns = Ns Ar address
+.Op Fl -prefix-alloc-sections Ns = Ns Ar string
+.Op Fl -prefix-sections Ns = Ns Ar string
+.Op Fl -prefix-symbols Ns = Ns Ar string
+.Op Fl -rename-section Ar oldname Ns = Ns Ar newname Ns Op Ar ,flags
+.Op Fl -set-section-flags Ar sectionname Ns = Ns Ar flags
+.Op Fl -set-start Ns = Ns Ar address
+.Op Fl -srec-forceS3
+.Op Fl -srec-len Ns = Ns Ar val
+.Op Fl -strip-dwo
+.Op Fl -strip-symbols= Ns Ar filename
+.Op Fl -strip-unneeded
+.Ar infile
+.Op Ar outfile
+.Sh DESCRIPTION
+The
+.Nm
+utility copies the content of the binary object named by argument
+.Ar infile
+to that named by argument
+.Ar outfile ,
+transforming it according to the command line options specified.
+If argument
+.Ar outfile
+is not specified,
+.Nm
+will create a temporary file and will subsequently rename it as
+.Ar infile .
+.Pp
+The
+.Nm
+utility supports the following options:
+.Bl -tag -width indent
+.It Fl I Ar objformat | Fl s Ar objformat | Fl -input-target= Ns Ar objformat
+Specify that the input file named by the argument
+.Ar infile
+is in the object format specified by the argument
+.Ar objformat .
+.It Fl K Ar symbolname | Fl -keep-symbol= Ns Ar symbolname
+Copy the symbol named by argument
+.Ar symbolname
+to the output.
+.It Fl L Ar symbolname | Fl -localize-symbol= Ns Ar symbolname
+Make the symbol named by argument
+.Ar symbolname
+local to the output file.
+.It Fl N Ar symbol | Fl -strip-symbol= Ns Ar symbolname
+Do not copy the symbol named by argument
+.Ar symbolname
+to the output.
+.It Fl O Ar objformat | Fl -output-target= Ns Ar objformat
+Write the output file using the object format specified in argument
+.Ar objformat .
+The argument
+.Ar objformat
+should be one of the target names recognized by
+.Xr elftc_bfd_find_target 3 .
+.It Fl R Ar sectionname | Fl -remove-section= Ns Ar sectionname
+Remove any section with name
+.Ar sectionname
+from the output file.
+.It Fl S | Fl -strip-all
+Do not copy symbol and relocation information to the target file.
+.It Fl V | Fl -version
+Print a version identifier and exit.
+.It Fl W Ar symbolname | Fl -weaken-symbol= Ns Ar symbolname
+Mark the symbol named by argument
+.Ar symbolname
+as weak in the output.
+.It Fl X | Fl -discard-locals
+Do not copy compiler generated local symbols to the output.
+.It Fl d | Fl g | Fl -strip-debug
+Do not copy debugging information to the target file.
+.It Fl h | Fl -help
+Display a help message and exit.
+.It Fl j Ar sectionname | Fl -only-section= Ns Ar sectionname
+Copy only the section named by argument
+.Ar sectionname
+to the output.
+.It Fl p | Fl -preserve-dates
+Set the access and modification times of the output file to the
+same as those of the input.
+.It Fl w | Fl -wildcard
+Use shell-style patterns to name symbols.
+The following meta-characters are recognized in patterns:
+.Bl -tag -width "...." -compact
+.It Li !
+If this is the first character of the pattern, invert the sense of the
+pattern match.
+.It Li *
+Matches any string of characters in a symbol name.
+.It Li ?
+Matches zero or one character in a symbol name.
+.It Li [
+Mark the start of a character class.
+.It Li \e
+Remove the special meaning of the next character in the pattern.
+.It Li ]
+Mark the end of a character class.
+.El
+.It Fl x | Fl -discard-all
+Do not copy non-global symbols to the output.
+.It Fl -add-gnu-debuglink Ns = Ns Ar filename
+Create a .gnu_debuglink section in the output file that references the
+debug data in
+.Ar filename .
+.It Fl -add-section Ar sectionname Ns = Ns Ar filename
+Add a new section to the output file with name
+.Ar sectionname .
+The contents of the section are taken from the file named by
+argument
+.Ar filename .
+The size of the section will be the number of bytes in file
+.Ar filename .
+.It Xo
+.Fl -adjust-section-vma Ar section Ns {+|-|=} Ns Ar val |
+.Fl -change-section-address Ar section Ns {+|-|=} Ns Ar val
+.Xc
+Depending on the operator specified, increase, decrease or set both
+the virtual memory address and the load memory address of the section
+named by the argument
+.Ar section .
+The argument
+.Ar val
+specifies the desired increment, decrement or new value for the
+address.
+.It Xo
+.Fl -adjust-start Ns = Ns Ar increment |
+.Fl -change-start Ns = Ns Ar increment
+.Xc
+Increase the entry point address of the output ELF object by the value
+specified in the argument
+.Ar increment .
+.It Xo
+.Fl -adjust-vma Ns = Ns Ar increment |
+.Fl -change-addresses Ns = Ns Ar increment
+.Xc
+Increase the virtual memory address and the load memory address of all
+sections by the value specified by the argument
+.Ar increment .
+.It Fl -adjust-warnings | Fl -change-warnings
+Issue a warning if the section specified by the options
+.Fl -change-section-address ,
+.Fl -change-section-lma
+or
+.Fl -change-section-vma
+does not exist in the input object.
+This is the default.
+.It Fl -change-section-lma Ar section Ns {+|-|=} Ns Ar val
+Change or set the load memory address of the section named by the
+argument
+.Ar section .
+Depending on the operator specified, the value in argument
+.Ar val
+will be used as an increment, a decrement or as the new value
+of the load memory address.
+.It Fl -change-section-vma Ar section Ns {+|-|=} Ns Ar val
+Change or set the virtual memory address of the section named by the
+argument
+.Ar section .
+Depending on the operator specified, the value in argument
+.Ar val
+will be used as an increment, a decrement or as the new value
+of the virtual memory address.
+.It Fl -extract-dwo
+Copy only .dwo debug sections to the output file.
+.It Fl -gap-fill Ns = Ns Ar val
+Fill the gaps between sections with the byte value specified by
+the argument
+.Ar val .
+.It Fl -globalize-symbol Ns = Ns Ar symbolname
+Make the symbol named by argument
+.Ar symbolname
+global, so that it is visible outside of the file in which it is defined.
+.It Fl -globalize-symbols Ns = Ns Ar filename
+Make each symbol listed in the file specified by
+.Ar filename
+global.
+.It Fl -localize-hidden
+Make all hidden symbols local to the output file.
+This includes symbols with internal visiblity.
+.It Fl -localize-symbols Ns = Ns Ar filename
+Make each symbol listed in the file specified by
+.Ar filename
+local to the output file.
+.It Fl -no-adjust-warnings | Fl -no-change-warnings
+Do not issue a warning if the section specified by the options
+.Fl -change-section-address ,
+.Fl -change-section-lma
+or
+.Fl -change-section-vma
+is missing in the input object.
+.It Fl -only-keep-debug
+Copy only debugging information to the output file.
+.It Fl -pad-to Ns = Ns Ar address
+Pad the load memory address of the output object to the value
+specified by the argument
+.Ar address
+by increasing the size of the section with the highest load memory
+address.
+.It Fl -prefix-alloc-sections Ns = Ns Ar string
+Prefix the section names of all the allocated sections with
+.Ar string .
+.It Fl -prefix-sections Ns = Ns Ar string
+Prefix the section names of all the sections with
+.Ar string .
+.It Fl -prefix-symbols Ns = Ns Ar string
+Prefix the symbol names of all the symbols with
+.Ar string .
+.It Fl -rename-section Ar oldname Ns = Ns Ar newname Ns Op Ar ,flags
+Rename the section named by argument
+.Ar oldname
+to
+.Ar newname ,
+optionally changing the sections flags to that specified by argument
+.Ar flags .
+Allowed values for the argument
+.Ar flags
+are as for option
+.Fl -set-section-flags
+below.
+.It Fl -set-section-flags Ar sectionname Ns = Ns Ar flags
+Set the flags for the section named by argument
+.Ar sectionname
+to those specified by argument
+.Ar flags .
+Argument
+.Ar flags
+is a comma separated list of the following flag names:
+.Bl -tag -width "readonly" -compact
+.It alloc
+The section occupies space in the output file.
+.It code
+The section contains machine instructions.
+.It contents
+This flag is accepted but is ignored.
+.It data
+The section contains writeable data.
+.It debug
+The section holds debugging information.
+.It load
+The section is loadable.
+.It noload
+The section should not be loaded into memory.
+.It readonly
+The section is not writable.
+.It rom
+The section contains ROM'able contents.
+.It share
+This flag is accepted but is ignored.
+.El
+.It Fl -set-start Ns = Ns Ar address
+Set the start address of the output ELF object to the value specified
+by the argument
+.Ar address .
+.It Fl -srec-forceS3
+Only generate S-records of type
+.Dq S3 .
+This option is only meaningful when the output target is set to
+.Dq srec .
+.It Fl -srec-len Ns = Ns Ar val
+Set the maximum length of an S-record line to
+.Ar val .
+This option is only meaningful when the output target is set to
+.Dq srec .
+.It Fl -strip-dwo
+Do not copy .dwo debug sections to the output file.
+.It Fl -strip-symbols= Ns Ar filename
+Do not copy any of the symbols specified by
+.Ar filename
+to the output.
+.It Fl -strip-unneeded
+Do not copy symbols that are not needed for relocation processing.
+.El
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr ld 1 ,
+.Xr mcs 1 ,
+.Xr strip 1 ,
+.Xr elf 3 ,
+.Xr elftc_bfd_find_target 3 ,
+.Xr ar 5 ,
+.Xr elf 5
+.Sh COMPATIBILITY
+The
+.Nm
+utility is expected to be option compatible with GNU
+.Nm objcopy .
+.Sh HISTORY
+.Nm
+has been implemented by
+.An Kai Wang Aq Mt kaiwang27@users.sourceforge.net .
